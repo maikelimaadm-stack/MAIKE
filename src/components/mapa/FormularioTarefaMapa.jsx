@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { base44 } from "@/api/base44Client";
+import { listarTodosGrupos, listarTodosTipos, listarUsuarios, listarPermissoes } from "@/services/tarefasMapaService";
+import { getCurrentUser } from "@/services/sessionService";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -65,7 +66,7 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
   const { data: gruposAtividade = [] } = useQuery({
     queryKey: ["grupos-atividade-mapa-form"],
     queryFn: async () => {
-      const all = await base44.entities.GrupoAtividade.list();
+      const all = await listarTodosGrupos();
       return all.filter((grupo) => grupo.ativo !== false);
     },
     initialData: []
@@ -74,7 +75,7 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
   const { data: tiposTarefa = [] } = useQuery({
     queryKey: ["tipos-tarefa-mapa-form"],
     queryFn: async () => {
-      const all = await base44.entities.TipoTarefa.list();
+      const all = await listarTodosTipos();
       return all.filter((tipo) => tipo.ativo !== false);
     },
     initialData: []
@@ -82,19 +83,19 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
 
   const { data: usuariosSistema = [] } = useQuery({
     queryKey: ["usuarios-tarefa-mapa-form"],
-    queryFn: () => base44.entities.User.list("nome", 200),
+    queryFn: () => listarUsuarios({ order: "nome", limit: 200 }),
     initialData: []
   });
 
   const { data: usuarioAtual = null } = useQuery({
     queryKey: ["usuario-atual-tarefa-mapa-form"],
-    queryFn: () => base44.auth.me(),
+    queryFn: () => getCurrentUser(),
     initialData: null
   });
 
   const { data: permissoesUsuarios = [] } = useQuery({
     queryKey: ["permissoes-usuarios-tarefa-mapa-form"],
-    queryFn: () => base44.entities.Permissao.list(),
+    queryFn: () => listarPermissoes(),
     initialData: []
   });
 

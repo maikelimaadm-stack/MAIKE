@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -31,7 +30,8 @@ import MapaDesenho from "../components/mapa/MapaDesenho";
 import ImportarGeoJSON from "../components/mapa/ImportarGeoJSON";
 import SelecaoAreasMapa from "../components/mapa/SelecaoAreasMapa";
 import ModalCadastroLotePontos from "../components/mapa/ModalCadastroLotePontos";
-import { ensureDeleteAllowed } from "@/lib/entityDeleteGuards";
+import * as mapaService from "@/services/mapaService";
+import { getApiErrorMessage, hasApiErrorCode, API_ERROR_CODES } from "@/apis/_core/ApiError";
 
 export default function MapaCadastro() {
   const [modo, setModo] = useState("listagem");
@@ -57,8 +57,7 @@ export default function MapaCadastro() {
   const { data: areas = [], refetch: refetchAreas } = useQuery({
     queryKey: ["areas", empresaSelecionadaId],
     queryFn: async () => {
-      const all = await base44.entities.AreaPastagem.list();
-      return all.filter((a) => a.empresa_id === empresaSelecionadaId && a.ativo !== false);
+      return mapaService.listarAreasAtivas(empresaSelecionadaId);
     },
     enabled: !!empresaSelecionadaId
   });
@@ -66,8 +65,7 @@ export default function MapaCadastro() {
   const { data: pontos = [], refetch: refetchPontos } = useQuery({
     queryKey: ["pontos", empresaSelecionadaId],
     queryFn: async () => {
-      const all = await base44.entities.PontoReferencia.list();
-      return all.filter((p) => p.empresa_id === empresaSelecionadaId && p.ativo !== false);
+      return mapaService.listarPontosAtivos(empresaSelecionadaId);
     },
     enabled: !!empresaSelecionadaId
   });
@@ -75,73 +73,31 @@ export default function MapaCadastro() {
   const { data: linhas = [], refetch: refetchLinhas } = useQuery({
     queryKey: ["linhas", empresaSelecionadaId],
     queryFn: async () => {
-      const all = await base44.entities.LinhaGeografica.list();
-      return all.filter((l) => l.empresa_id === empresaSelecionadaId && l.ativo !== false);
+      return mapaService.listarLinhasAtivas(empresaSelecionadaId);
     },
     enabled: !!empresaSelecionadaId
   });
 
   const deleteAreaMutation = useMutation({
-    mutationFn: async (id) => {
-      await ensureDeleteAllowed(base44, "AreaPastagem", id);
-      return base44.entities.AreaPastagem.update(id, { ativo: false });
-    },
+    mutationFn: (id) => mapaService.excluirArea(id, empresaSelecionadaId),
     onSuccess: () => {
       queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === "areas" });
       toast.success("Área excluída!");
       setItemExcluir(null);
     },
     onError: (error) => {
-      if (String(error?.message || "").toLowerCase().includes("não é possível excluir")) return;
-      toast.error("Erro ao excluir área");
+      // Decisão por código estável, nunca por substring da mensagem.
+      if (hasApiErrorCode(error, API_ERROR_CODES.MAPA_DELETE_BLOCKED)) {
+        toast.error(getApiErrorMessage(error));
+        return;
+      }
+      toast.error(getApiErrorMessage(error, "Erro ao excluir área"));
     }
   });
 
   const deletePontoMutation = useMutation({
-    mutationFn: async (id) => {
-      const ponto = pontos.find((item) => item.id === id);
-      const normalizar = (value = "") => String(value).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
-
-      // Excluir definitivamente do banco de dados
-      await base44.entities.PontoReferencia.delete(id);
-
-      const pontosSuplementacao = await base44.entities.PontoSuplementacao.list();
-      const vinculados = pontosSuplementacao.filter((item) =>
-      item.empresa_id === empresaSelecionadaId &&
-      item.status === "Ativo" &&
-      normalizar(item.nome_ponto) === normalizar(ponto?.nome)
-      );
-
-      // Primeiro tratar depósitos antes de excluir
-      const depositos = vinculados.filter((item) => normalizar(item.categoria_ponto) === "DEPOSITO");
-      for (const deposito of depositos) {
-        // Excluir o LocalEstoque vinculado ao depósito
-        if (deposito.local_estoque_id) {
-          try {
-            await base44.entities.LocalEstoque.delete(deposito.local_estoque_id);
-          } catch (e) {
-            console.warn('LocalEstoque não encontrado ou já excluído:', e);
-          }
-        }
-
-        // Desvincular cochos que apontavam para este depósito
-        const cochosRelacionados = pontosSuplementacao.filter((item) =>
-        item.empresa_id === empresaSelecionadaId &&
-        item.deposito_origem_id === deposito.id
-        );
-        for (const cocho of cochosRelacionados) {
-          await base44.entities.PontoSuplementacao.update(cocho.id, {
-            deposito_origem_id: null,
-            deposito_origem_nome: null
-          });
-        }
-      }
-
-      // Agora excluir todos os PontoSuplementacao vinculados
-      for (const item of vinculados) {
-        await base44.entities.PontoSuplementacao.delete(item.id);
-      }
-    },
+    mutationFn: (id) =>
+      mapaService.excluirPontoComCascata(id, empresaSelecionadaId, pontos.find((item) => item.id === id) || null),
     onSuccess: () => {
       queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && ["pontos", "pontos-suplementacao", "pontos-supl", "mapa-pontos", "mapa-pontos-supl"].includes(q.queryKey[0]) });
       toast.success("Ponto excluído!");
@@ -149,12 +105,12 @@ export default function MapaCadastro() {
       window.dispatchEvent(new CustomEvent("atualizar-mapa"));
     },
     onError: (error) => {
-      toast.error(error?.message || "Erro ao excluir ponto");
+      toast.error(getApiErrorMessage(error, "Erro ao excluir ponto"));
     }
   });
 
   const deleteLinhaMutation = useMutation({
-    mutationFn: (id) => base44.entities.LinhaGeografica.update(id, { ativo: false }),
+    mutationFn: (id) => mapaService.excluirLinha(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === "linhas" });
       toast.success("Linha excluída!");

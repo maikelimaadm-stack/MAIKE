@@ -3,9 +3,30 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
-import { base44 } from "@/api/base44Client";
+import {
+  listarLotesDaEmpresa,
+  listarTodosLotes,
+  listarProdutosDaEmpresa,
+  criarLote,
+  atualizarLote,
+  criarMovimentacao,
+  criarEventoSuplementacao,
+  registrarSuplementacaoEmLote,
+} from "@/services/loteManejoService";
+import {
+  encontrarLoteDestinoCompativel,
+  encontrarLoteFilhote,
+  categoriaDoFilhote,
+  modoDaMovimentacao,
+  saldoEStatusDaOrigem,
+  quantidadeAplicavel,
+  pesoAplicavel,
+  ganhoDePeso,
+} from "@/domain/lotes/movimentacaoLote";
+import { listarIconesPorTipoEntidade } from "@/services/mapaService";
+import { getCurrentUser } from "@/services/sessionService";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getMapaCachedData, refreshMapaCacheEntry } from "@/components/offline/mapaOfflineCache";
+import { getMapaCachedData, refreshMapaCacheEntry } from "@/services/mapaCacheService";
 import { normalizeText, toNoonUtcISOString } from "../utils/pecuariaUtils";
 import { toast } from "sonner";
 import {
@@ -62,7 +83,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
   const [dataJuncao, setDataJuncao] = useState(() => new Date().toISOString().split('T')[0]);
   const [areaDestinoPreSelecionada, setAreaDestinoPreSelecionada] = useState(null);
   const queryClient = useQueryClient();
-  const { data: user } = useQuery({ queryKey: ['detalhes-lote-user'], queryFn: () => base44.auth.me(), staleTime: 10 * 60 * 1000 });
+  const { data: user } = useQuery({ queryKey: ['detalhes-lote-user'], queryFn: () => getCurrentUser(), staleTime: 10 * 60 * 1000 });
 
   // Listener para abrir movimentação via drag-and-drop
   React.useEffect(() => {
@@ -80,7 +101,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
   const { data: iconesConfig = [] } = useQuery({
     queryKey: ['configuracao-icones-global'],
     queryFn: async () => {
-      const all = await base44.entities.ConfiguracaoIcone.list();
+      const all = await listarIconesPorTipoEntidade(null);
       return all.filter((i) => i.ativo !== false);
     },
     staleTime: 10 * 60 * 1000
@@ -165,7 +186,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
       const areaSaida = areas.find((a) => a.id === formData.area_saida_id);
       const areaEntrada = areas.find((a) => a.id === formData.area_entrada_id);
       const movimentacoesCriadas = [];
-      const todosLotesSistema = await base44.entities.Lote.filter({ empresa_id: empresaSelecionadaId });
+      const todosLotesSistema = await listarLotesDaEmpresa(empresaSelecionadaId);
       const lotesDestinoAtivos = todosLotesSistema.filter((l) =>
       l.area_atual_id === formData.area_entrada_id &&
       l.status === 'Ativo'
@@ -177,14 +198,12 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
           lotesOrigemLocais[index] = { ...lotesOrigemLocais[index], ...changes };
         }
       };
-      const encontrarLoteDestinoCompativel = (loteOrigem, categoriaMovimento) => {
-        return lotesDestinoAtivos.find((l) =>
-        l.area_atual_id === formData.area_entrada_id &&
-        (l.nome || '').toUpperCase() === (loteOrigem.nome || '').toUpperCase() &&
-        (l.categoria || '').toUpperCase() === categoriaMovimento &&
-        l.status === 'Ativo'
-        );
-      };
+      const localizarDestinoCompativel = (loteOrigem, categoriaMovimento) =>
+        encontrarLoteDestinoCompativel(lotesDestinoAtivos, {
+          loteOrigem,
+          categoriaMovimento,
+          areaDestinoId: formData.area_entrada_id,
+        });
 
       // Movimentação - os eventos já foram fechados no FormularioMovimentacaoLote
       if (formData.mover_todos === 'sim') {
@@ -196,7 +215,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
 
         for (const lote of lotes) {
           const categoriaMovimento = (lote.categoria || '').toUpperCase();
-          const loteExistente = encontrarLoteDestinoCompativel(lote, categoriaMovimento);
+          const loteExistente = localizarDestinoCompativel(lote, categoriaMovimento);
           const identificadorPayload = {
             identificador_nome: lote.identificador_nome || null,
             identificador_sigla: lote.identificador_sigla || null,
@@ -204,20 +223,20 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
           };
 
           if (loteExistente) {
-            const loteDestinoAtualizado = await base44.entities.Lote.update(loteExistente.id, {
+            const loteDestinoAtualizado = await atualizarLote(loteExistente.id, {
               quantidade_cabecas: (loteExistente.quantidade_cabecas || 0) + (lote.quantidade_cabecas || 0),
               ...identificadorPayload
             });
             atualizarLoteDestinoLocal(lotesDestinoAtivos, loteDestinoAtualizado);
-            await base44.entities.Lote.update(lote.id, { status: 'Inativo', quantidade_cabecas: 0 });
+            await atualizarLote(lote.id, { status: 'Inativo', quantidade_cabecas: 0 });
           } else {
-            await base44.entities.Lote.update(lote.id, {
+            await atualizarLote(lote.id, {
               area_atual_id: formData.area_entrada_id,
               area_atual_nome: areaEntrada?.nome || ''
             });
           }
 
-          const movimentacaoCriada = await base44.entities.MovimentacaoMapa.create({
+          const movimentacaoCriada = await criarMovimentacao({
             empresa_id: empresaSelecionadaId,
             data_movimentacao: toNoonUtcISOString(formData.data_movimentacao),
             tipo: 'Transferência de Área',
@@ -250,28 +269,28 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
               dataReferencia: formData.data_movimentacao
             });
 
-            const quantidadeMover = Math.min(quantidadeRestante, lote.quantidade_cabecas || 0);
+            const quantidadeMover = quantidadeAplicavel(quantidadeRestante, lote);
             if (quantidadeMover <= 0) continue;
             // Unificação automática: buscar lote com mesmo nome+categoria no destino
-            const loteExistente = encontrarLoteDestinoCompativel(lote, mov.categoria);
+            const loteExistente = localizarDestinoCompativel(lote, mov.categoria);
             const identificadorPayload = {
               identificador_nome: lote.identificador_nome || null,
               identificador_sigla: lote.identificador_sigla || null,
               identificador_cor: lote.identificador_cor || null,
             };
 
-            if (quantidadeMover === (lote.quantidade_cabecas || 0)) {
+            if (modoDaMovimentacao(quantidadeMover, lote.quantidade_cabecas) === 'total') {
               if (loteExistente) {
                 // Unificar automaticamente com lote existente de mesmo nome+categoria
-                const loteDestinoAtualizado = await base44.entities.Lote.update(loteExistente.id, {
+                const loteDestinoAtualizado = await atualizarLote(loteExistente.id, {
                   quantidade_cabecas: (loteExistente.quantidade_cabecas || 0) + quantidadeMover,
                   ...identificadorPayload
                 });
                 atualizarLoteDestinoLocal(lotesDestinoAtivos, loteDestinoAtualizado);
-                await base44.entities.Lote.update(lote.id, { status: 'Inativo', quantidade_cabecas: 0 });
+                await atualizarLote(lote.id, { status: 'Inativo', quantidade_cabecas: 0 });
                 atualizarLoteOrigemLocal(lote.id, { status: 'Inativo', quantidade_cabecas: 0 });
               } else {
-                await base44.entities.Lote.update(lote.id, {
+                await atualizarLote(lote.id, {
                   area_atual_id: formData.area_entrada_id,
                   area_atual_nome: areaEntrada?.nome || ''
                 });
@@ -282,13 +301,13 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
               }
             } else {
               if (loteExistente) {
-                const loteDestinoAtualizado = await base44.entities.Lote.update(loteExistente.id, {
+                const loteDestinoAtualizado = await atualizarLote(loteExistente.id, {
                   quantidade_cabecas: (loteExistente.quantidade_cabecas || 0) + quantidadeMover,
                   ...identificadorPayload
                 });
                 atualizarLoteDestinoLocal(lotesDestinoAtivos, loteDestinoAtualizado);
               } else {
-                const novoLote = await base44.entities.Lote.create({
+                const novoLote = await criarLote({
                   empresa_id: empresaSelecionadaId,
                   nome: lote.nome,
                   quantidade_cabecas: quantidadeMover,
@@ -321,19 +340,12 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
                 lotesDestinoAtivos.push(novoLote);
               }
 
-              const saldoRemanescente = Math.max(0, (lote.quantidade_cabecas || 0) - quantidadeMover);
-              const novoStatusOrigem = saldoRemanescente > 0 ? lote.status : 'Inativo';
-              await base44.entities.Lote.update(lote.id, {
-                quantidade_cabecas: saldoRemanescente,
-                status: novoStatusOrigem
-              });
-              atualizarLoteOrigemLocal(lote.id, {
-                quantidade_cabecas: saldoRemanescente,
-                status: novoStatusOrigem
-              });
+              const saldoOrigem = saldoEStatusDaOrigem(lote, quantidadeMover);
+              await atualizarLote(lote.id, saldoOrigem);
+              atualizarLoteOrigemLocal(lote.id, saldoOrigem);
             }
 
-            const movimentacaoCriada = await base44.entities.MovimentacaoMapa.create({
+            const movimentacaoCriada = await criarMovimentacao({
               empresa_id: empresaSelecionadaId,
               data_movimentacao: toNoonUtcISOString(formData.data_movimentacao),
               tipo: 'Transferência de Área',
@@ -364,8 +376,8 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
           ? lotes.reduce((sum, lote) => sum + Number(lote.quantidade_cabecas || 0), 0)
           : (formData.movimentacoes || []).reduce((sum, mov) => sum + Number(mov.quantidade || 0), 0);
 
-        const lotesAtualizadosDestino = await base44.entities.Lote.filter({ empresa_id: empresaSelecionadaId });
-        const produtosEmpresa = await base44.entities.Produto.filter({ empresa_id: empresaSelecionadaId });
+        const lotesAtualizadosDestino = await listarLotesDaEmpresa(empresaSelecionadaId);
+        const produtosEmpresa = await listarProdutosDaEmpresa(empresaSelecionadaId);
         const lotesParaHistoricoSuplementacao = lotesAtualizadosDestino.filter((lote) =>
           lote.area_atual_id === formData.area_entrada_id &&
           lote.status === 'Ativo' &&
@@ -382,7 +394,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
           const consumoEsperadoGrupo = percentualPV > 0 && pesoMedioHistorico > 0
             ? (pesoMedioHistorico * (percentualPV / 100)) * totalCabecasHistorico
             : null;
-          const novoEventoSuplementacao = await base44.entities.SuplementacaoEvento.create({
+          const novoEventoSuplementacao = await criarEventoSuplementacao({
             empresa_id: empresaSelecionadaId,
             ponto_suplementacao_id: sobra.ponto_id,
             ponto_nome: sobra.ponto_nome,
@@ -406,7 +418,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
           });
 
           if (lotesParaHistoricoSuplementacao.length > 0) {
-            await base44.entities.SuplementacaoLote.bulkCreate(lotesParaHistoricoSuplementacao.map((lote) => ({
+            await registrarSuplementacaoEmLote(lotesParaHistoricoSuplementacao.map((lote) => ({
               empresa_id: empresaSelecionadaId,
               suplementacao_evento_id: novoEventoSuplementacao.id,
               lote_id: lote.id,
@@ -447,7 +459,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
       setMovimentacoesCriadasIds((movimentacoesCriadas || []).map((item) => item.id).filter(Boolean));
 
       if (registrarPesagemAposMovimentacao) {
-        const lotesNovos = await base44.entities.Lote.filter({ empresa_id: empresaSelecionadaId });
+        const lotesNovos = await listarLotesDaEmpresa(empresaSelecionadaId);
         const categoriasMovidas = variables.mover_todos === 'sim' ?
         [...new Set(lotes.map((l) => (l.categoria || '').toUpperCase()))] :
         [...new Set((variables.movimentacoes || []).filter((m) => Number(m.quantidade) > 0).map((m) => (m.categoria || '').toUpperCase()))];
@@ -492,10 +504,10 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
         dataReferencia: formData.data_ocorrencia
       });
 
-      const qtdRemover = Math.min(quantidadeRestante, lote.quantidade_cabecas || 0);
+      const qtdRemover = quantidadeAplicavel(quantidadeRestante, lote);
       if (qtdRemover <= 0) continue;
 
-      await base44.entities.MovimentacaoMapa.create({
+      await criarMovimentacao({
         empresa_id: empresaSelecionadaId,
         data_movimentacao: toNoonUtcISOString(formData.data_ocorrencia),
         tipo: 'Morte',
@@ -507,11 +519,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
         observacoes: `Categoria: ${formData.categoria}. Sexo: ${lote.sexo}. Causa: ${formData.causa_morte}. ${formData.observacoes}`
       });
 
-      const novaQtd = Math.max(0, (lote.quantidade_cabecas || 0) - qtdRemover);
-      await base44.entities.Lote.update(lote.id, {
-        quantidade_cabecas: novaQtd,
-        status: novaQtd > 0 ? lote.status : 'Inativo'
-      });
+      await atualizarLote(lote.id, saldoEStatusDaOrigem(lote, qtdRemover));
 
       quantidadeRestante -= qtdRemover;
       if (quantidadeRestante <= 0) break;
@@ -525,30 +533,27 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
 
   const handleNascimento = async (formData) => {
     // Determinar categoria baseada no sexo
-    const categoriaFilhote = formData.sexo === "Macho" ?
-    "Bezerro 0 a 12 meses" :
-    "Bezerra 0 a 12 meses";
+    const categoriaFilhote = categoriaDoFilhote(formData.sexo);
 
     // Buscar lote da categoria correta na mesma área
     const areaAtualId = lotes[0]?.area_atual_id;
-    const todosLotes = await base44.entities.Lote.list();
-    let loteFilhote = todosLotes.find((l) =>
-    l.empresa_id === empresaSelecionadaId &&
-    l.categoria === categoriaFilhote &&
-    l.area_atual_id === areaAtualId &&
-    l.status === 'Ativo'
-    );
+    const todosLotes = await listarTodosLotes();
+    let loteFilhote = encontrarLoteFilhote(todosLotes, {
+      empresaId: empresaSelecionadaId,
+      categoria: categoriaFilhote,
+      areaId: areaAtualId
+    });
 
     if (loteFilhote) {
       // Adicionar ao lote existente
-      await base44.entities.Lote.update(loteFilhote.id, {
+      await atualizarLote(loteFilhote.id, {
         quantidade_cabecas: loteFilhote.quantidade_cabecas + formData.quantidade,
         peso_medio_kg: formData.peso_medio ? parseFloat(formData.peso_medio) : loteFilhote.peso_medio_kg
       });
     } else {
       // Criar novo lote
       const areaAtual = areas.find((a) => a.id === areaAtualId);
-      loteFilhote = await base44.entities.Lote.create({
+      loteFilhote = await criarLote({
         empresa_id: empresaSelecionadaId,
         nome: `${categoriaFilhote.split(' ')[0].toUpperCase()} - ${areaAtual?.nome || 'AREA'}`,
         quantidade_cabecas: formData.quantidade,
@@ -573,7 +578,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
     const areaNascimento = areas.find((a) => a.id === areaAtualId);
 
     // Registrar movimentação
-    await base44.entities.MovimentacaoMapa.create({
+    await criarMovimentacao({
       empresa_id: empresaSelecionadaId,
       data_movimentacao: toNoonUtcISOString(formData.data_nascimento),
       tipo: 'Nascimento',
@@ -605,10 +610,10 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
         dataReferencia: formData.data_abate
       });
 
-      const qtdRemover = Math.min(quantidadeRestante, lote.quantidade_cabecas || 0);
+      const qtdRemover = quantidadeAplicavel(quantidadeRestante, lote);
       if (qtdRemover <= 0) continue;
 
-      await base44.entities.MovimentacaoMapa.create({
+      await criarMovimentacao({
         empresa_id: empresaSelecionadaId,
         data_movimentacao: toNoonUtcISOString(formData.data_abate),
         tipo: 'Abate',
@@ -620,11 +625,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
         observacoes: `Categoria: ${formData.categoria}. Sexo: ${lote.sexo}. Peso vivo: ${formData.peso_vivo_total}kg. Peso carcaça: ${formData.peso_carcaca_total}kg. Destino: ${formData.destino}. ${formData.observacoes}`
       });
 
-      const novaQtd = Math.max(0, (lote.quantidade_cabecas || 0) - qtdRemover);
-      await base44.entities.Lote.update(lote.id, {
-        quantidade_cabecas: novaQtd,
-        status: novaQtd > 0 ? lote.status : 'Inativo'
-      });
+      await atualizarLote(lote.id, saldoEStatusDaOrigem(lote, qtdRemover));
 
       quantidadeRestante -= qtdRemover;
       if (quantidadeRestante <= 0) break;
@@ -654,23 +655,22 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
             dataReferencia: formData.data_mudanca
           });
 
-          const qtdMudar = Math.min(quantidadeRestante, Number(lote.quantidade_cabecas || 0));
+          const qtdMudar = quantidadeAplicavel(quantidadeRestante, lote);
           const sexoNovo = mudanca.sexo_novo || lote.sexo;
           const catManejoIdNovo = mudanca.categoria_manejo_id_novo || lote.categoria_manejo_id;
           const catManejoNomeNovo = mudanca.categoria_manejo_nome_novo || lote.categoria_manejo_nome;
           let loteDestinoId = lote.id;
-          let modoMudanca = 'total';
+          const modoMudanca = modoDaMovimentacao(qtdMudar, lote.quantidade_cabecas);
 
-          if (qtdMudar === Number(lote.quantidade_cabecas || 0)) {
-            await base44.entities.Lote.update(lote.id, {
+          if (modoMudanca === 'total') {
+            await atualizarLote(lote.id, {
               categoria: mudanca.categoria_nova,
               sexo: sexoNovo,
               categoria_manejo_id: catManejoIdNovo,
               categoria_manejo_nome: catManejoNomeNovo
             });
           } else {
-            modoMudanca = 'parcial';
-            const loteNovoCategoria = await base44.entities.Lote.create({
+            const loteNovoCategoria = await criarLote({
               empresa_id: empresaSelecionadaId,
               nome: lote.nome,
               identificador_nome: lote.identificador_nome,
@@ -700,8 +700,8 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
             });
             loteDestinoId = loteNovoCategoria.id;
 
-            await base44.entities.Lote.update(lote.id, {
-              quantidade_cabecas: Number(lote.quantidade_cabecas || 0) - qtdMudar
+            await atualizarLote(lote.id, {
+              quantidade_cabecas: saldoEStatusDaOrigem(lote, qtdMudar).quantidade_cabecas
             });
           }
 
@@ -713,7 +713,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
             categoria_nova: mudanca.categoria_nova
           };
 
-          await base44.entities.MovimentacaoMapa.create({
+          await criarMovimentacao({
             empresa_id: empresaSelecionadaId,
             data_movimentacao: toNoonUtcISOString(formData.data_mudanca),
             tipo: 'Mudança de Categoria',
@@ -763,13 +763,13 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
         });
 
         // Verificar se tem peso individual para este lote específico
-        const pesoNovo = pesosIndividuais[lote.id] ? parseFloat(pesosIndividuais[lote.id]) : pesoPadrao;
-        if (!pesoNovo || pesoNovo <= 0) continue;
+        const pesoNovo = pesoAplicavel({ pesosPorLote: pesosIndividuais, loteId: lote.id, pesoPadrao });
+        if (pesoNovo === null) continue;
 
         const pesoAnterior = lote.peso_medio_kg || 0;
-        const ganho = pesoNovo - pesoAnterior;
+        const ganho = ganhoDePeso(pesoNovo, pesoAnterior);
 
-        await base44.entities.MovimentacaoMapa.create({
+        await criarMovimentacao({
           empresa_id: empresaSelecionadaId,
           data_movimentacao: toNoonUtcISOString(formData.data_pesagem),
           tipo: 'Pesagem',
@@ -782,7 +782,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
           observacoes: `Categoria: ${categoria}. Sexo: ${lote.sexo}. Peso anterior: ${pesoAnterior}kg. Ganho: ${ganho.toFixed(1)}kg. ${formData.observacoes}`
         });
 
-        await base44.entities.Lote.update(lote.id, {
+        await atualizarLote(lote.id, {
           peso_medio_kg: pesoNovo
         });
       }
@@ -1057,15 +1057,15 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
                         }));
                         const nomesLotes = lotesParaJuntar.map((l) => l.nome).join(', ');
                         for (const l of outrosLotes) {
-                          await base44.entities.Lote.update(l.id, { status: 'Inativo', quantidade_cabecas: 0 });
+                          await atualizarLote(l.id, { status: 'Inativo', quantidade_cabecas: 0 });
                         }
-                        await base44.entities.Lote.update(principal.id, {
+                        await atualizarLote(principal.id, {
                           quantidade_cabecas: totalCab,
                           peso_medio_kg: pesoMedio > 0 ? Math.round(pesoMedio * 10) / 10 : principal.peso_medio_kg
                         });
                         const areaAtualId = principal.area_atual_id;
                         const areaJuncao = areas.find((a) => a.id === areaAtualId);
-                        await base44.entities.MovimentacaoMapa.create({
+                        await criarMovimentacao({
                           empresa_id: empresaSelecionadaId,
                           data_movimentacao: toNoonUtcISOString(dataJuncao),
                           tipo: 'Entrada', motivo: 'Junção de Lotes',

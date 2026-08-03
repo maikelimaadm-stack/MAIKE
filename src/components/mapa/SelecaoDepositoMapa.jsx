@@ -1,6 +1,6 @@
 /* global google */
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { base44 } from "@/api/base44Client";
+import { listarPontosSuplementacaoDaEmpresa, listarPontosDaEmpresa } from "@/services/mapaService";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { X, MapPin, Check } from "lucide-react";
@@ -39,7 +39,7 @@ export default function SelecaoDepositoMapa({ cochoCoords, depositoSelecionadoId
   const { data: pontosSuplementacao = [] } = useQuery({
     queryKey: ["pontos-suplementacao-mapa-selecao", empresaSelecionadaId],
     queryFn: async () => {
-      const all = await base44.entities.PontoSuplementacao.list();
+      const all = await listarPontosSuplementacaoDaEmpresa(empresaSelecionadaId);
       return all.filter((ponto) => ponto.empresa_id === empresaSelecionadaId && ponto.status === "Ativo");
     },
     enabled: !!empresaSelecionadaId
@@ -48,7 +48,7 @@ export default function SelecaoDepositoMapa({ cochoCoords, depositoSelecionadoId
   const { data: pontosReferencia = [] } = useQuery({
     queryKey: ["pontos-referencia-mapa-selecao", empresaSelecionadaId],
     queryFn: async () => {
-      const all = await base44.entities.PontoReferencia.list();
+      const all = await listarPontosDaEmpresa(empresaSelecionadaId);
       return all.filter((ponto) => ponto.empresa_id === empresaSelecionadaId && ponto.ativo !== false);
     },
     enabled: !!empresaSelecionadaId

@@ -1,5 +1,7 @@
 import React, { useMemo, useState } from "react";
-import { base44 } from "@/api/base44Client";
+import { listarTodosLotesNota, listarTodosProdutos, listarTodasMovimentacoes } from "@/services/estoqueMapaService";
+import { listarPontosSuplementacaoAtivos, listarAreasAtivas, listarIconesPorTipoEntidade } from "@/services/mapaService";
+import { listarTodosLotes } from "@/services/loteManejoService";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,7 +25,7 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
   const { data: lotesNota = [], isLoading: loadingSaldo } = useQuery({
     queryKey: ["saldo-deposito", deposito.id],
     queryFn: async () => {
-      const all = await base44.entities.EstoqueLoteNota.list();
+      const all = await listarTodosLotesNota();
       return all.filter((lote) => lote.empresa_id === empresaSelecionadaId && lote.local_estoque_id === deposito.local_estoque_id && lote.status === "Disponivel");
     },
     enabled: !!empresaSelecionadaId && !!deposito.local_estoque_id,
@@ -33,7 +35,7 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
   const { data: produtos = [] } = useQuery({
     queryKey: ["produtos-deposito-detalhe", empresaSelecionadaId],
     queryFn: async () => {
-      const all = await base44.entities.Produto.list();
+      const all = await listarTodosProdutos();
       return all.filter((produto) => produto.empresa_id === empresaSelecionadaId);
     },
     enabled: !!empresaSelecionadaId,
@@ -43,8 +45,7 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
   const { data: iconesConfig = [] } = useQuery({
     queryKey: ["configuracao-icones-deposito-detalhe", empresaSelecionadaId],
     queryFn: async () => {
-      const all = await base44.entities.ConfiguracaoIcone.list();
-      return all.filter((item) => item.ativo !== false && item.tipo_entidade === "Ponto");
+      return listarIconesPorTipoEntidade("Ponto");
     },
     enabled: !!empresaSelecionadaId,
     staleTime: 10 * 60 * 1000
@@ -53,8 +54,7 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
   const { data: pontosSuplementacao = [], isLoading: loadingCochos } = useQuery({
     queryKey: ["cochos-vinculados-deposito", deposito.id],
     queryFn: async () => {
-      const all = await base44.entities.PontoSuplementacao.list();
-      return all.filter((ponto) => ponto.empresa_id === empresaSelecionadaId && ponto.status === "Ativo");
+      return listarPontosSuplementacaoAtivos(empresaSelecionadaId);
     },
     enabled: !!empresaSelecionadaId,
     staleTime: 60 * 1000
@@ -63,7 +63,7 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
   const { data: lotes = [], isLoading: loadingLotes } = useQuery({
     queryKey: ["lotes-deposito-detalhe", empresaSelecionadaId],
     queryFn: async () => {
-      const all = await base44.entities.Lote.list();
+      const all = await listarTodosLotes();
       return all.filter((lote) => lote.empresa_id === empresaSelecionadaId && lote.status === "Ativo");
     },
     enabled: !!empresaSelecionadaId,
@@ -73,8 +73,7 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
   const { data: areas = [], isLoading: loadingAreas } = useQuery({
     queryKey: ["areas-deposito-detalhe", empresaSelecionadaId],
     queryFn: async () => {
-      const all = await base44.entities.AreaPastagem.list();
-      return all.filter((area) => area.empresa_id === empresaSelecionadaId && area.ativo !== false);
+      return listarAreasAtivas(empresaSelecionadaId);
     },
     enabled: !!empresaSelecionadaId,
     staleTime: 5 * 60 * 1000
@@ -83,7 +82,7 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
   const { data: movimentacoes = [] } = useQuery({
     queryKey: ["movimentacoes-deposito-detalhe", deposito.id],
     queryFn: async () => {
-      const all = await base44.entities.MovimentacaoEstoque.list("-data_movimentacao");
+      const all = await listarTodasMovimentacoes();
       return all.filter((item) => item.empresa_id === empresaSelecionadaId && (item.local_estoque_origem === deposito.local_estoque_id || item.local_estoque_destino === deposito.local_estoque_id));
     },
     enabled: !!empresaSelecionadaId && !!deposito.local_estoque_id

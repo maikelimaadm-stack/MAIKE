@@ -1,7 +1,7 @@
 /* global google */
 import React, { useState, useRef, useEffect } from "react";
 import { createRoot } from "react-dom/client";
-import { base44 } from "@/api/base44Client";
+import { listarAreasAtivas, listarPontosAtivos, listarLinhasAtivas, listarIconesDaEmpresa } from "@/services/mapaService";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -128,8 +128,7 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
   const { data: areas = [] } = useQuery({
     queryKey: ['areas', empresaSelecionadaId],
     queryFn: async () => {
-      const all = await base44.entities.AreaPastagem.list();
-      return all.filter((a) => a.empresa_id === empresaSelecionadaId && a.ativo !== false);
+      return listarAreasAtivas(empresaSelecionadaId);
     },
     enabled: !!empresaSelecionadaId
   });
@@ -137,8 +136,7 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
   const { data: pontos = [] } = useQuery({
     queryKey: ['pontos', empresaSelecionadaId],
     queryFn: async () => {
-      const all = await base44.entities.PontoReferencia.list();
-      return all.filter((p) => p.empresa_id === empresaSelecionadaId && p.ativo !== false);
+      return listarPontosAtivos(empresaSelecionadaId);
     },
     enabled: !!empresaSelecionadaId
   });
@@ -146,8 +144,7 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
   const { data: linhas = [] } = useQuery({
     queryKey: ['linhas', empresaSelecionadaId],
     queryFn: async () => {
-      const all = await base44.entities.LinhaGeografica.list();
-      return all.filter((l) => l.empresa_id === empresaSelecionadaId && l.ativo !== false);
+      return listarLinhasAtivas(empresaSelecionadaId);
     },
     enabled: !!empresaSelecionadaId
   });
@@ -155,8 +152,7 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
   const { data: iconesConfig = [] } = useQuery({
     queryKey: ['configuracao-icones', empresaSelecionadaId],
     queryFn: async () => {
-      const all = await base44.entities.ConfiguracaoIcone.list();
-      return all.filter((i) => i.empresa_id === empresaSelecionadaId && i.ativo !== false);
+      return listarIconesDaEmpresa(empresaSelecionadaId);
     },
     enabled: !!empresaSelecionadaId
   });

@@ -9,7 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import ConfiguracaoColunasMapaDialog from "@/components/mapa/ConfiguracaoColunasMapaDialog";
 import { MoreVertical, Filter, X, ArrowDownAZ, ArrowUpZA, GripVertical } from "lucide-react";
-import { base44 } from "@/api/base44Client";
+import { listarSetoresAtivos, atualizarArea } from "@/services/mapaService";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ordenarPorNomeNumerico } from "@/hooks/useSetorAreas";
 import { toast } from "sonner";
@@ -61,7 +61,7 @@ export default function TabelaAreasGeo({ areas = [], onEdit, onEditDetalhes, onD
   const { data: setores = [] } = useQuery({
     queryKey: ["setores-areas-geo", empresaSelecionadaId],
     queryFn: async () => {
-      const all = await base44.entities.Setor.list();
+      const all = await listarSetoresAtivos(empresaSelecionadaId);
       return ordenarPorNomeNumerico(all.filter((item) => item.empresa_id === empresaSelecionadaId && item.ativo !== false));
     },
     enabled: !!empresaSelecionadaId,
@@ -228,18 +228,18 @@ export default function TabelaAreasGeo({ areas = [], onEdit, onEditDetalhes, onD
       if (batchType === "setor") {
         const setorSelecionado = setores.find((setor) => setor.id === batchValue);
         if (!setorSelecionado) { toast.error("Selecione um setor válido"); return; }
-        await Promise.all(selectedItems.map((id) => base44.entities.AreaPastagem.update(id, { setor_id: setorSelecionado.id, setor_nome: setorSelecionado.nome })));
+        await Promise.all(selectedItems.map((id) => atualizarArea(id, { setor_id: setorSelecionado.id, setor_nome: setorSelecionado.nome })));
       } else if (batchType === "cor") {
         await Promise.all(selectedItems.map((id) => {
           const area = areas.find((a) => a.id === id);
           const coords = area?.coordenadas?.coords || [];
-          return base44.entities.AreaPastagem.update(id, { cor: batchValue, coordenadas: { coords, cor: batchValue } });
+          return atualizarArea(id, { cor: batchValue, coordenadas: { coords, cor: batchValue } });
         }));
       } else if (batchType === "renumerar") {
         const start = parseInt(startNumber || "1", 10);
         if (Number.isNaN(start)) { toast.error("Informe um número inicial válido"); return; }
         const selecionadas = areas.filter((a) => selectedItems.includes(a.id)).sort((a, b) => (a.nome || "").localeCompare(b.nome || ""));
-        await Promise.all(selecionadas.map((a, idx) => base44.entities.AreaPastagem.update(a.id, { numero_area: String(start + idx) })));
+        await Promise.all(selecionadas.map((a, idx) => atualizarArea(a.id, { numero_area: String(start + idx) })));
       }
       toast.success("Atualizado com sucesso");
       setBatchType(null);

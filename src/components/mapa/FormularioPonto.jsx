@@ -1,6 +1,25 @@
 /* global google */
 import React, { useEffect, useMemo, useState } from "react";
-import { base44 } from "@/api/base44Client";
+import {
+  listarIconesPorTipoEntidade,
+  listarTodosPontos,
+  listarTodosPontosSuplementacao,
+  listarTodosBebedouros,
+  criarPonto,
+  atualizarPonto,
+  criarPontoSuplementacao,
+  atualizarPontoSuplementacao,
+} from "@/services/mapaService";
+import {
+  listarTodosProdutos,
+  listarTodosLocais,
+  criarLocal,
+  atualizarLocal,
+  buscarLotesNotaPorCriterio,
+  atualizarLoteNota,
+  listarMovimentacoesRecentes,
+  atualizarMovimentacao,
+} from "@/services/estoqueMapaService";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,7 +55,7 @@ function ProdutoSuplementacaoSelect({ value, onChange }) {
   const { data: produtos = [] } = useQuery({
     queryKey: ["produtos-suplementacao", empresaSelecionadaId],
     queryFn: async () => {
-      const all = await base44.entities.Produto.list();
+      const all = await listarTodosProdutos();
       return all.filter((produto) => produto.empresa_id === empresaSelecionadaId && produto.tipo_uso === "Nutrição Animal");
     },
     enabled: !!empresaSelecionadaId
@@ -102,7 +121,7 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
   const { data: iconesConfig = [] } = useQuery({
     queryKey: ["configuracao-icones", empresaSelecionadaId],
     queryFn: async () => {
-      const all = await base44.entities.ConfiguracaoIcone.list();
+      const all = await listarIconesPorTipoEntidade(null);
       return all.filter((itemIcone) => itemIcone.tipo_entidade === "Ponto" && itemIcone.ativo !== false);
     },
     enabled: true
@@ -113,7 +132,7 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
   const { data: pontosSuplementacao = [], isSuccess: pontosSuplementacaoLoaded } = useQuery({
     queryKey: ["pontos-suplementacao-form", empresaSelecionadaId],
     queryFn: async () => {
-      const all = await base44.entities.PontoSuplementacao.list();
+      const all = await listarTodosPontosSuplementacao();
       return all.filter((ponto) => ponto.empresa_id === empresaSelecionadaId && ponto.status === "Ativo");
     },
     enabled: !!empresaSelecionadaId
@@ -122,7 +141,7 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
   const { data: bebedourosForm = [] } = useQuery({
     queryKey: ["bebedouros-form", empresaSelecionadaId],
     queryFn: async () => {
-      const all = await base44.entities.Bebedouro.list();
+      const all = await listarTodosBebedouros();
       return all.filter((bebedouro) => bebedouro.empresa_id === empresaSelecionadaId && bebedouro.ativo !== false);
     },
     enabled: !!empresaSelecionadaId
@@ -295,7 +314,7 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
 
   const createPontoMutation = useMutation({
     mutationFn: async (data) => {
-      const pontosReferencia = await base44.entities.PontoReferencia.list();
+      const pontosReferencia = await listarTodosPontos();
       const maxNumeroPonto = pontosReferencia.reduce((maximo, ponto) => Math.max(maximo, parseInt(ponto.numero_ponto) || 0), 0);
       const configIcone = iconesConfig.find((icone) => icone.id === data.configuracao_icone_id) ||
       iconesConfig.find((icone) => normalizeText(icone.categoria) === normalizeText(data.tipo));
@@ -318,13 +337,13 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
       };
 
       const pontoReferencia = item ?
-      await base44.entities.PontoReferencia.update(item.id, payloadPonto) :
-      await base44.entities.PontoReferencia.create(payloadPonto);
+      await atualizarPonto(item.id, payloadPonto) :
+      await criarPonto(payloadPonto);
 
       if (normalizeText(data.tipo).includes("BEBEDOURO")) {
         const areasSelecionadas = areas.filter((area) => (data.area_vinculada_ids || []).includes(area.id));
         const areaSelecionada = areasSelecionadas[0] || null;
-        const bebedouros = await base44.entities.Bebedouro.list();
+        const bebedouros = await listarTodosBebedouros();
         const bebedouroExistente = bebedouros.find((bebedouro) => bebedouro.ponto_referencia_id === pontoReferencia.id);
         const payloadBebedouro = {
           empresa_id: empresaSelecionadaId,
@@ -355,7 +374,7 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
 
       if (!data.tipo_categoria && pontoSuplementacaoExistente) {
         setProgresso({ show: true, atual: 2, total: 3, mensagem: "Inativando vínculo de suplementação..." });
-        await base44.entities.PontoSuplementacao.update(pontoSuplementacaoExistente.id, { status: "Inativo" });
+        await atualizarPontoSuplementacao(pontoSuplementacaoExistente.id, { status: "Inativo" });
         return pontoReferencia;
       }
 
@@ -363,7 +382,7 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
 
       setProgresso({ show: true, atual: 2, total: 3, mensagem: data.tipo_categoria === "DEPOSITO" ? "Configurando depósito..." : "Configurando cocho..." });
 
-      const pontosSuplementacaoEmpresa = await base44.entities.PontoSuplementacao.list();
+      const pontosSuplementacaoEmpresa = await listarTodosPontosSuplementacao();
       const pontosAtivosEmpresa = pontosSuplementacaoEmpresa.filter((ponto) => ponto.empresa_id === empresaSelecionadaId && ponto.status === "Ativo");
       const maiorNumero = pontosAtivosEmpresa.reduce((maximo, ponto) => Math.max(maximo, parseInt(String(ponto.numero_ponto || "").replace(/\D/g, "")) || 0), 0);
       const prefixo = data.tipo_categoria === "DEPOSITO" ? "DEP" : "COCHO";
@@ -378,7 +397,7 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
         const descricaoLocal = `DEPÓSITO DE SUPLEMENTAÇÃO - ${data.nome}`;
 
         if (!localEstoqueId && pontoSuplementacaoExistente) {
-          const locais = await base44.entities.LocalEstoque.list();
+          const locais = await listarTodosLocais();
           const nomesAntigos = [
             pontoSuplementacaoExistente.local_estoque_nome,
             pontoSuplementacaoExistente.nome_ponto,
@@ -394,25 +413,25 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
         }
 
         if (localEstoqueId) {
-          await base44.entities.LocalEstoque.update(localEstoqueId, { nome: data.nome, descricao: descricaoLocal });
+          await atualizarLocal(localEstoqueId, { nome: data.nome, descricao: descricaoLocal });
           localEstoqueNome = data.nome;
 
           const [lotesEstoque, movimentacoesEstoque] = await Promise.all([
-            base44.entities.EstoqueLoteNota.filter({ local_estoque_id: localEstoqueId }),
-            base44.entities.MovimentacaoEstoque.list("-data_movimentacao", 500)
+            buscarLotesNotaPorCriterio({ local_estoque_id: localEstoqueId }),
+            listarMovimentacoesRecentes()
           ]);
 
           await Promise.all([
-            ...lotesEstoque.map((lote) => base44.entities.EstoqueLoteNota.update(lote.id, { local_estoque_nome: data.nome })),
+            ...lotesEstoque.map((lote) => atualizarLoteNota(lote.id, { local_estoque_nome: data.nome })),
             ...movimentacoesEstoque
               .filter((mov) => mov.local_estoque_origem === localEstoqueId || mov.local_estoque_destino === localEstoqueId)
-              .map((mov) => base44.entities.MovimentacaoEstoque.update(mov.id, {
+              .map((mov) => atualizarMovimentacao(mov.id, {
                 ...(mov.local_estoque_origem === localEstoqueId ? { local_origem: data.nome } : {}),
                 ...(mov.local_estoque_destino === localEstoqueId ? { local_destino: data.nome } : {})
               }))
           ]);
         } else {
-          const localCriado = await base44.entities.LocalEstoque.create({ nome: data.nome, descricao: descricaoLocal });
+          const localCriado = await criarLocal({ nome: data.nome, descricao: descricaoLocal });
           localEstoqueId = localCriado.id;
           localEstoqueNome = localCriado.nome;
         }
@@ -453,14 +472,14 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
       };
 
       const registroSuplementacao = pontoSuplementacaoExistente ?
-      await base44.entities.PontoSuplementacao.update(pontoSuplementacaoExistente.id, payloadSuplementacao) :
-      await base44.entities.PontoSuplementacao.create(payloadSuplementacao);
+      await atualizarPontoSuplementacao(pontoSuplementacaoExistente.id, payloadSuplementacao) :
+      await criarPontoSuplementacao(payloadSuplementacao);
 
       if (data.tipo_categoria === "DEPOSITO") {
         setProgresso({ show: true, atual: 3, total: 3, mensagem: "Atualizando cochos vinculados..." });
         const cochosRelacionados = pontosAtivosEmpresa.filter((ponto) => ponto.deposito_origem_id === registroSuplementacao.id);
         for (const cocho of cochosRelacionados) {
-          await base44.entities.PontoSuplementacao.update(cocho.id, { deposito_origem_nome: data.nome });
+          await atualizarPontoSuplementacao(cocho.id, { deposito_origem_nome: data.nome });
         }
       }
 

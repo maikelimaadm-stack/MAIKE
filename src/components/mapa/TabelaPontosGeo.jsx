@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { base44 } from "@/api/base44Client";
+import { listarPontosSuplementacaoDaEmpresa, listarBebedourosAtivos } from "@/services/mapaService";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -73,7 +73,7 @@ export default function TabelaPontosGeo({ pontos = [], onEdit, onEditDetalhes, o
   const { data: pontosSuplementacao = [] } = useQuery({
     queryKey: ["tabela-pontos-suplementacao", empresaSelecionadaId],
     queryFn: async () => {
-      const all = await base44.entities.PontoSuplementacao.list();
+      const all = await listarPontosSuplementacaoDaEmpresa(empresaSelecionadaId);
       return all.filter((item) => item.empresa_id === empresaSelecionadaId && item.status === "Ativo");
     },
     enabled: !!empresaSelecionadaId,
@@ -83,7 +83,7 @@ export default function TabelaPontosGeo({ pontos = [], onEdit, onEditDetalhes, o
   const { data: bebedouros = [] } = useQuery({
     queryKey: ["tabela-bebedouros", empresaSelecionadaId],
     queryFn: async () => {
-      const all = await base44.entities.Bebedouro.list();
+      const all = await listarBebedourosAtivos(empresaSelecionadaId);
       return all.filter((item) => item.empresa_id === empresaSelecionadaId && item.ativo !== false);
     },
     enabled: !!empresaSelecionadaId,

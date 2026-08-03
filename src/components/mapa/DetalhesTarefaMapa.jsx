@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
-import { base44 } from "@/api/base44Client";
+import { registrarHistorico as registrarHistoricoApi, atualizarTarefa, enviarAnexo } from "@/services/tarefasMapaService";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { getMapaCachedData, refreshMapaCacheEntry } from "@/components/offline/mapaOfflineCache";
+import { getMapaCachedData, refreshMapaCacheEntry } from "@/services/mapaCacheService";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -120,7 +120,7 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
   const podeCancelar = currentTarefa.status !== "Cancelada" && currentTarefa.status !== "Concluída";
 
   const registrarHistorico = async (registro, evento, descricao, dataEvento) => {
-    await base44.entities.HistoricoLancamentoTarefa.create({
+    await registrarHistoricoApi({
       empresa_id: registro.empresa_id,
       tarefa_id: registro.id,
       titulo_tarefa: registro.titulo,
@@ -137,13 +137,13 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
       // Upload de novas imagens antes de salvar
       const uploadedUrls = [];
       for (const file of pendingImageFiles) {
-        const { file_url } = await base44.integrations.Core.UploadFile({ file });
+        const { file_url } = await enviarAnexo({ file });
         uploadedUrls.push(file_url);
       }
       const finalData = uploadedUrls.length > 0
         ? { ...data, fotos: [...(data.fotos || []), ...uploadedUrls] }
         : data;
-      const updated = await base44.entities.LancamentoTarefa.update(id, finalData);
+      const updated = await atualizarTarefa(id, finalData);
       const mudouLocal = data.coordenadas?.lat !== currentTarefa?.coordenadas?.lat || data.coordenadas?.lng !== currentTarefa?.coordenadas?.lng;
       const mudouStatus = data.status && data.status !== currentTarefa?.status;
       const evento = mudouLocal ?
@@ -207,7 +207,7 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
           data_conclusao: novoStatus === "Concluída" ? dataEventoIso.split("T")[0] : currentTarefa.data_conclusao,
           observacoes_conclusao: eventoDescricao || currentTarefa.observacoes_conclusao || ""
         };
-        registroAtualizado = await base44.entities.LancamentoTarefa.update(currentTarefa.id, payload);
+        registroAtualizado = await atualizarTarefa(currentTarefa.id, payload);
         const evento = novoStatus === "Concluída" ? "Conclusão" : novoStatus === "Cancelada" ? "Cancelamento" : "Mudança de Status";
         await registrarHistorico(registroAtualizado, evento, eventoDescricao || `Status alterado para ${novoStatus}.`, dataEventoIso);
       }

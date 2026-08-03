@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { base44 } from "@/api/base44Client";
+import { buscarAreasPorCriterio, criarArea, criarLinha, criarPonto } from "@/services/mapaService";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -104,7 +104,7 @@ export default function ImportarGeoJSON({ open, onOpenChange }) {
         // Obter proximo numero sequencial de area
         let nextNumero = 1;
         try {
-          const existentes = await base44.entities.AreaPastagem.filter({ empresa_id: empresaSelecionadaId });
+          const existentes = await buscarAreasPorCriterio({ empresa_id: empresaSelecionadaId });
           const maxNumero = (existentes || []).reduce((max, a) => {
             const n = parseInt(a.numero_area);
             return isNaN(n) ? max : Math.max(max, n);
@@ -131,7 +131,7 @@ export default function ImportarGeoJSON({ open, onOpenChange }) {
               const coordsLL = parseKmlCoordinates((coordsNode?.textContent || '').split('\u0000').join(''));
               if (coordsLL.length >= 3) {
                 const areaHa = Number(polygonAreaHa(coordsLL).toFixed(2));
-                await base44.entities.AreaPastagem.create({
+                await criarArea({
                   empresa_id: empresaSelecionadaId,
                   numero_area: String(nextNumero++),
                   nome: nome,
@@ -152,7 +152,7 @@ export default function ImportarGeoJSON({ open, onOpenChange }) {
               const coordsNode = line.getElementsByTagName('coordinates')[0];
               const coordsLL = parseKmlCoordinates((coordsNode?.textContent || '').split('\u0000').join(''));
               if (coordsLL.length >= 2) {
-                await base44.entities.LinhaGeografica.create({
+                await criarLinha({
                   empresa_id: empresaSelecionadaId,
                   nome: nome,
                   tipo: "Estrada",
@@ -171,7 +171,7 @@ export default function ImportarGeoJSON({ open, onOpenChange }) {
               const coordsNode = point.getElementsByTagName('coordinates')[0];
               const coordsLL = parseKmlCoordinates((coordsNode?.textContent || '').split('\u0000').join(''));
               if (coordsLL[0]) {
-                await base44.entities.PontoReferencia.create({
+                await criarPonto({
                   empresa_id: empresaSelecionadaId,
                   nome: nome,
                   tipo: "Outro",
@@ -227,7 +227,7 @@ export default function ImportarGeoJSON({ open, onOpenChange }) {
               const nomePasto = properties.title || properties.name || properties.Name || properties.NAME || 
                                properties.titulo || properties.nome || properties.NOME || properties.label || 
                                properties.Label || properties.LABEL || properties.description || `Área ${i + 1}`;
-              await base44.entities.AreaPastagem.create({
+              await criarArea({
                 empresa_id: empresaSelecionadaId,
                 nome: nomePasto,
                 tamanho_hectares: areaHa,
@@ -242,7 +242,7 @@ export default function ImportarGeoJSON({ open, onOpenChange }) {
               importados++;
               detalhes.push({ nome: nomePasto, tipo: "Área", status: "ok" });
             } else if (geometryType === "Point" && coordinates) {
-              await base44.entities.PontoReferencia.create({
+              await criarPonto({
                 empresa_id: empresaSelecionadaId,
                 nome: properties.title || properties.name || `Ponto ${i + 1}`,
                 tipo: properties.type || "Outro",
@@ -255,7 +255,7 @@ export default function ImportarGeoJSON({ open, onOpenChange }) {
               detalhes.push({ nome: properties.title || `Ponto ${i + 1}`, tipo: "Ponto", status: "ok" });
             } else if (geometryType === "LineString" && coordinates) {
               const coords = coordinates.map(coord => [coord[1], coord[0]]);
-              await base44.entities.LinhaGeografica.create({
+              await criarLinha({
                 empresa_id: empresaSelecionadaId,
                 nome: properties.title || properties.name || `Linha ${i + 1}`,
                 tipo: properties.type || "Estrada",

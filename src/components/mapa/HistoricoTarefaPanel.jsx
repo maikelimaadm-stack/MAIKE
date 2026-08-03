@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useQueryClient } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { excluirHistorico } from "@/services/tarefasMapaService";
 import { toast } from "sonner";
 
 const formatDateBR = (value) => {
@@ -30,7 +30,7 @@ export default function HistoricoTarefaPanel({ tarefaId, tarefaTitulo, historico
 
     setDeletingId(item.id);
     try {
-      await base44.entities.HistoricoLancamentoTarefa.delete(item.id);
+      await excluirHistorico(item.id);
       queryClient.invalidateQueries({ queryKey: ["historico-tarefa-detalhe", tarefaId] });
       toast.success("Histórico excluído.");
     } catch (error) {

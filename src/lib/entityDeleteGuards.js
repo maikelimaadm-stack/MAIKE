@@ -1,99 +1,7 @@
 import { emitDeleteDialog } from "@/lib/deleteDialogBus";
+import { DELETE_RULES, ENTITY_LABELS, hasMatchingReference } from "@/domain/deleteRules";
 
-const ENTITY_LABELS = {
-  Empresa: "empresa",
-  Setor: "setor",
-  AreaPastagem: "área",
-  CategoriaManejo: "categoria de manejo",
-  Produto: "produto",
-  Lote: "lote",
-  UnidadeMedida: "unidade de medida",
-  Categoria: "categoria",
-  LocalEstoque: "local de estoque",
-  PontoSuplementacao: "ponto de suplementação",
-  GrupoAtividade: "grupo de atividades",
-  TipoTarefa: "tipo de tarefa",
-};
-
-const EMPRESA_DEPENDENCIES = [
-  { entity: "Setor", fields: ["empresa_id"], label: "setores" },
-  { entity: "AreaPastagem", fields: ["empresa_id"], label: "áreas" },
-  { entity: "Lote", fields: ["empresa_id"], label: "lotes" },
-  { entity: "MovimentacaoPecuaria", fields: ["empresa_id"], label: "movimentações pecuárias" },
-  { entity: "MovimentacaoMapa", fields: ["empresa_id"], label: "movimentações do mapa" },
-  { entity: "Produto", fields: ["empresa_id"], label: "produtos" },
-  { entity: "MovimentacaoEstoque", fields: ["empresa_id"], label: "movimentações de estoque" },
-  { entity: "SuplementacaoEvento", fields: ["empresa_id"], label: "lançamentos de suplementação" },
-  { entity: "SuplementacaoLote", fields: ["empresa_id"], label: "lotes de suplementação" },
-  { entity: "PontoSuplementacao", fields: ["empresa_id"], label: "pontos de suplementação" },
-  { entity: "LancamentoTarefa", fields: ["empresa_id"], label: "lançamentos de tarefas" },
-  { entity: "HistoricoLancamentoTarefa", fields: ["empresa_id"], label: "históricos de tarefas" },
-  { entity: "ManejoTecnicoRebanho", fields: ["empresa_id"], label: "manejos técnicos" },
-];
-
-const DELETE_RULES = {
-  Empresa: EMPRESA_DEPENDENCIES,
-  Setor: [
-    { entity: "AreaPastagem", fields: ["setor_id"], valueMatches: [{ sourceField: "nome", targetFields: ["setor_nome"] }], label: "áreas" },
-    { entity: "LancamentoTarefa", valueMatches: [{ sourceField: "nome", targetFields: ["setor_nome"] }], label: "lançamentos de tarefas" },
-    { entity: "MovimentacaoMapa", fields: ["setor_id", "setor_origem_id", "setor_destino_id"], valueMatches: [{ sourceField: "nome", targetFields: ["setor_nome", "setor_origem_nome", "setor_destino_nome", "transferencia_origem", "transferencia_destino"] }], label: "movimentações do mapa" },
-    { entity: "MovimentacaoPecuaria", fields: ["setor_id", "setor_origem_id", "setor_destino_id"], valueMatches: [{ sourceField: "nome", targetFields: ["setor_nome", "setor_origem_nome", "setor_destino_nome", "transferencia_origem", "transferencia_destino"] }], label: "movimentações pecuárias" },
-  ],
-  AreaPastagem: [
-    { entity: "Lote", fields: ["area_entrada_id", "area_atual_id"], label: "lotes" },
-    { entity: "MovimentacaoMapa", fields: ["area_id", "area_origem_id", "area_destino_id"], label: "movimentações do mapa" },
-    { entity: "MovimentacaoPecuaria", fields: ["area_origem_id", "area_destino_id"], label: "movimentações pecuárias" },
-    { entity: "SuplementacaoEvento", fields: ["area_id"], arrayFields: ["area_ids"], label: "lançamentos de suplementação" },
-    { entity: "PontoSuplementacao", fields: ["area_vinculada_id"], arrayFields: ["area_vinculada_ids"], label: "pontos de suplementação" },
-    { entity: "LancamentoTarefa", fields: ["area_id"], label: "lançamentos de tarefas" },
-    { entity: "ManejoTecnicoRebanho", fields: ["area_id"], label: "manejos técnicos" },
-  ],
-  CategoriaManejo: [
-    { entity: "Lote", fields: ["categoria_manejo_id", "categoria_manejo_entrada_id"], label: "lotes" },
-    { entity: "Lote", valueMatches: [{ sourceField: "nome", targetFields: ["categoria_manejo_nome", "categoria_manejo_entrada_nome"] }, { sourceField: "categoria_oficial", targetFields: ["categoria", "categoria_entrada"] }], label: "lotes" },
-    { entity: "MovimentacaoPecuaria", valueMatches: [{ sourceField: "nome", targetFields: ["categoria_animal", "categoria_nova", "transferencia_origem", "transferencia_destino"] }, { sourceField: "categoria_oficial", targetFields: ["categoria_animal", "categoria_nova", "transferencia_origem", "transferencia_destino"] }], label: "movimentações pecuárias" },
-    { entity: "ManejoTecnicoRebanho", valueMatches: [{ sourceField: "nome", targetFields: ["categoria"] }, { sourceField: "categoria_oficial", targetFields: ["categoria"] }], label: "manejos técnicos" },
-    { entity: "SuplementacaoLote", valueMatches: [{ sourceField: "nome", targetFields: ["categoria"] }, { sourceField: "categoria_oficial", targetFields: ["categoria"] }], label: "lotes de suplementação" },
-  ],
-  Produto: [
-    { entity: "MovimentacaoEstoque", fields: ["produto_id"], label: "movimentações de estoque" },
-    { entity: "SuplementacaoEvento", fields: ["produto_id"], label: "lançamentos de suplementação" },
-    { entity: "ManejoTecnicoRebanho", valueMatches: [{ sourceField: "nome_produto", targetFields: ["produto", "produto_utilizado"] }], label: "manejos técnicos" },
-    { entity: "PontoSuplementacao", valueMatches: [{ sourceField: "nome_produto", targetFields: ["produto_padrao"] }], label: "pontos de suplementação" },
-  ],
-  Lote: [
-    { entity: "MovimentacaoMapa", fields: ["lote_id"], label: "movimentações do mapa" },
-    { entity: "SuplementacaoLote", fields: ["lote_id"], label: "lotes de suplementação" },
-    { entity: "LancamentoTarefa", fields: ["lote_id"], label: "lançamentos de tarefas" },
-    { entity: "MovimentacaoPecuaria", fields: ["lote_id"], label: "movimentações pecuárias" },
-    { entity: "ManejoTecnicoRebanho", fields: ["lote_id"], label: "manejos técnicos" },
-  ],
-  UnidadeMedida: [
-    { entity: "Produto", valueMatches: [{ sourceField: "sigla", targetFields: ["unidade_medida"] }], label: "produtos" },
-    { entity: "MovimentacaoEstoque", valueMatches: [{ sourceField: "sigla", targetFields: ["unidade_medida"] }], label: "movimentações de estoque" },
-    { entity: "ManejoTecnicoRebanho", valueMatches: [{ sourceField: "sigla", targetFields: ["unidade"] }], label: "manejos técnicos" },
-  ],
-  Categoria: [
-    { entity: "Produto", valueMatches: [{ sourceField: "nome", targetFields: ["categoria"] }], label: "produtos" },
-  ],
-  LocalEstoque: [
-    { entity: "Produto", valueMatches: [{ sourceField: "nome", targetFields: ["local_estoque"] }], label: "produtos" },
-    { entity: "MovimentacaoEstoque", valueMatches: [{ sourceField: "nome", targetFields: ["local_origem", "local_destino", "local_estoque_origem", "local_estoque_destino"] }], label: "movimentações de estoque" },
-    { entity: "PontoSuplementacao", valueMatches: [{ sourceField: "nome", targetFields: ["local_estoque_nome"] }], label: "pontos de suplementação" },
-  ],
-  PontoSuplementacao: [
-    { entity: "SuplementacaoEvento", fields: ["ponto_suplementacao_id"], label: "lançamentos de suplementação" },
-    { entity: "LancamentoTarefa", fields: ["ponto_suplementacao_id"], label: "lançamentos de tarefas" },
-    { entity: "MovimentacaoEstoque", fields: ["ponto_suplementacao_id", "deposito_id"], label: "movimentações de estoque" },
-  ],
-  GrupoAtividade: [
-    { entity: "TipoTarefa", fields: ["grupo_atividade_id"], label: "tipos de tarefa" },
-    { entity: "LancamentoTarefa", fields: ["grupo_atividade_id"], label: "lançamentos de tarefas" },
-  ],
-  TipoTarefa: [
-    { entity: "LancamentoTarefa", fields: ["tipo_tarefa_id"], label: "lançamentos de tarefas" },
-  ],
-};
+export { DELETE_RULES, ENTITY_LABELS } from "@/domain/deleteRules";
 
 async function listEntityRecords(base44, entityName) {
   const entityApi = base44.entities?.[entityName];
@@ -104,29 +12,6 @@ async function listEntityRecords(base44, entityName) {
   } catch {
     return [];
   }
-}
-
-function normalizeValue(value) {
-  if (value === null || value === undefined) return "";
-  return String(value).trim().toLowerCase();
-}
-
-function fieldMatchesValue(recordValue, expectedValue) {
-  if (Array.isArray(recordValue)) {
-    return recordValue.some((item) => normalizeValue(item) === expectedValue);
-  }
-  return normalizeValue(recordValue) === expectedValue;
-}
-
-function hasMatchingReference(record, id, rule, currentRecord) {
-  const matchesField = (rule.fields || []).some((field) => record?.[field] === id);
-  const matchesArray = (rule.arrayFields || []).some((field) => Array.isArray(record?.[field]) && record[field].includes(id));
-  const matchesValue = (rule.valueMatches || []).some(({ sourceField, targetFields }) => {
-    const sourceValue = normalizeValue(currentRecord?.[sourceField]);
-    if (!sourceValue) return false;
-    return (targetFields || []).some((field) => fieldMatchesValue(record?.[field], sourceValue));
-  });
-  return matchesField || matchesArray || matchesValue;
 }
 
 export async function ensureDeleteAllowed(base44, entityName, id) {

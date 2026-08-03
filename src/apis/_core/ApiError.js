@@ -20,6 +20,10 @@ export const API_ERROR_CODES = Object.freeze({
   INVALID_ARGUMENT: 'API_INVALID_ARGUMENT',
   PROVIDER_UNAVAILABLE: 'API_PROVIDER_UNAVAILABLE',
   EMPRESA_NAME_CONFLICT: 'EMPRESA_NAME_CONFLICT',
+
+  // P1.2 — Mapa
+  MAPA_DELETE_BLOCKED: 'MAPA_DELETE_BLOCKED',
+  MAPA_PARTIAL_OPERATION: 'MAPA_PARTIAL_OPERATION',
 });
 
 /** Mensagem pública por código. Nunca inclui dado do provider. */
@@ -28,6 +32,8 @@ const MENSAGENS = Object.freeze({
   [API_ERROR_CODES.INVALID_ARGUMENT]: 'Dados inválidos para a operação.',
   [API_ERROR_CODES.PROVIDER_UNAVAILABLE]: 'Serviço de dados indisponível no momento.',
   [API_ERROR_CODES.EMPRESA_NAME_CONFLICT]: 'Já existe uma empresa cadastrada com este nome.',
+  [API_ERROR_CODES.MAPA_DELETE_BLOCKED]: 'Não é possível excluir: existem registros vinculados.',
+  [API_ERROR_CODES.MAPA_PARTIAL_OPERATION]: 'A operação foi concluída apenas em parte. Confira os dados antes de repetir.',
 });
 
 /** Falha transitória vale retentativa; erro de argumento e conflito, não. */

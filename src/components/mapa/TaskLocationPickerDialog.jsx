@@ -1,6 +1,6 @@
 /* global google */
 import React, { useEffect, useRef, useCallback } from "react";
-import { base44 } from "@/api/base44Client";
+import { listarTarefasDaEmpresa, listarIconesDaEmpresa } from "@/services/tarefasMapaService";
 import { useQuery } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { MapPin } from "lucide-react";
@@ -46,8 +46,8 @@ export default function TaskLocationPickerDialog({ open, onOpenChange, areas = [
   const { data: tarefasPendentes = [] } = useQuery({
     queryKey: ["tarefas-picker-pendentes", empresaSelecionadaId],
     queryFn: async () => {
-      const all = await base44.entities.LancamentoTarefa.list("-updated_date");
-      return all.filter(t => t.empresa_id === empresaSelecionadaId && (t.status === "Pendente" || t.status === "Em Andamento"));
+      const all = await listarTarefasDaEmpresa(empresaSelecionadaId, { order: "-updated_date" });
+      return all.filter(t => t.status === "Pendente" || t.status === "Em Andamento");
     },
     enabled: !!empresaSelecionadaId,
     initialData: []
@@ -56,8 +56,7 @@ export default function TaskLocationPickerDialog({ open, onOpenChange, areas = [
   const { data: iconesConfig = [] } = useQuery({
     queryKey: ["icones-config-picker", empresaSelecionadaId],
     queryFn: async () => {
-      const all = await base44.entities.ConfiguracaoIcone.list();
-      return all.filter(i => i.empresa_id === empresaSelecionadaId && i.ativo !== false);
+      return listarIconesDaEmpresa(empresaSelecionadaId);
     },
     enabled: !!empresaSelecionadaId,
     initialData: []
