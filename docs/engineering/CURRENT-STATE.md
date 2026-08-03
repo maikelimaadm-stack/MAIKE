@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-08-03 (P0.1, P1.1 e P1.2 mergeadas · P1 em andamento · P1.2-R1 corrigindo regressão do Maps)
+**Atualizado em:** 2026-08-03 (P0.1, P1.1 e P1.2 mergeadas · P1 em andamento · P1.2-R2 fechando App Shell e topologia de deploy)
 
 ---
 
@@ -14,9 +14,9 @@ Base44 mantida apenas como provider temporário da cadeia preservada (D-PROD-04)
 | Produto | Pecuária — Mapa Geral + Manejo (D-PROD-01) |
 | Superfície primária | `MapaGeral` (D-PROD-05) |
 | Missão atual | **P1 — Native Foundation Bootstrap**, slice **P1.2** |
-| Estado da missão | **P1.2 mergeada (PR #3); P1.2-R1 em correção** — `npm run verify:all` sai com 0, 13/13 etapas |
+| Estado da missão | **P1.2 mergeada (PR #3); P1.2-R1 e R2 em correção na PR #4** — `npm run verify:all` sai com 0, 13/13 etapas |
 | Próxima slice | P1.3 — telas legadas restantes |
-| Branch | `claude/p1-2-native-api-boundary-mapa` (PR #4, draft — correção P1.2-R1) |
+| Branch | `claude/p1-2-native-api-boundary-mapa` (PR #4, draft — correções P1.2-R1 e P1.2-R2) |
 | Escopo executável | `config/mapa-manejo-scope.json` |
 | Roadmap | `docs/engineering/ROADMAP.md` |
 | Molde arquitetural | PROJETOMG, parcial (D-PROD-03) |
@@ -175,4 +175,6 @@ motivo de o `verify:all` local não ter pego antes.
 | DBT-20 | `DetalhesLote.jsx` segue com ~1.300 linhas. A fronteira de dados fechou na P1.2 e as decisões puras saíram para `src/domain/lotes/`, mas o componente continua grande demais para revisão confortável | P5 |
 | DBT-21 | A chave `VITE_GOOGLE_MAPS_API_KEY` vai para o bundle do cliente por definição do Vite. Não é defeito e não tem correção no código: a proteção é restrição por referrer e por API no Google Cloud, mais rotação e monitoramento (P1.2-R1) | ação do proprietário |
 | DBT-22 | O sintoma `MAPS_CONFIG_MISSING` em produção não teve causa raiz confirmada. A leitura de env funcionava antes e depois da P1.2-R1 (medido em build real); a explicação compatível com a evidência é ausência da variável no serviço que executa `npm run build`, o que exige inspeção da plataforma de deploy | ação do proprietário |
+| DBT-23 | O produto não tem backend nativo neste repositório: é frontend Vite consumindo `@base44/sdk`. Um serviço externo no Railway não é automaticamente o backend do frontend — integrar exige contrato de endpoints, autenticação e CORS. `VITE_BASE44_BACKEND_URL` pertence ao SDK da Base44 e não deve ser apontada para outro destino | P3 |
+| DBT-24 | Validação de layout real depende de inspeção visual em produção. Os testes de shell provam estrutura e comportamento em JSDOM, que não calcula layout. Playwright não foi adotado | P8 |
 | DBT-13 | `test:gates` leva ~42 s porque a catraca de tipos roda `tsc` de verdade em ~45 projetos temporários. É o preço de testar o gate real em vez do parser | P8 |

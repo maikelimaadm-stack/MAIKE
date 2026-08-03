@@ -476,6 +476,16 @@ política do cache offline (dedup, intervalo mínimo, cooldown por **código** d
 erro, stale-while-revalidate), as regras de exclusão do `MapaCadastro`, a
 decisão de permissão do `MapaGeral` e as regras puras de manejo de lote.
 
+Desde a P1.2-R2, também: o contrato do App Shell — a raiz de `MapaGeral` não
+pode ser overlay global (`fixed inset-0 z-50` a tirava do fluxo do `Layout` e
+cobria cabeçalho e navegação), o gatilho do menu móvel abre o Sheet com nome
+acessível e `aria-expanded`, navegar fecha o Sheet e troca a rota, e o
+`.env.example` documenta toda `VITE_*` lida por `runtimeConfig.js`, sem valor e
+sem segredo, distinguindo Vercel Preview/Production de Railway frontend/backend.
+
+JSDOM não calcula layout, então classe sozinha não prova pixel: os testes de
+shell combinam contrato estrutural com comportamento real de clique e rota.
+
 Asserção que olha código-fonte usa um helper que **remove comentários antes de
 comparar**: um comentário explicando que o módulo não usa `localStorage` não
 pode reprovar a busca por `localStorage`.

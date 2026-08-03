@@ -279,7 +279,7 @@ export default function Layout({ children, currentPageName }) {
         .safe-area-bottom { padding-bottom: env(safe-area-inset-bottom); }
       `}</style>
       <SplashScreen visible={showSplash} />
-      <div className="bg-white border-b border-slate-200 flex-none">
+      <header className="bg-white border-b border-slate-200 flex-none">
         <div className="max-w-[1600px] mx-auto px-4 py-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -318,7 +318,12 @@ export default function Layout({ children, currentPageName }) {
                   setMenuOculto(novoEstado);
                   localStorage.setItem('menu_oculto', novoEstado.toString());
                 }}
-                title={menuOculto ? "Mostrar menu" : "Ocultar menu"}>
+                // Nome acessível vem do `title`, não de `aria-label`: o componente
+                // `Button` não declara tipos de prop, então qualquer prop nova
+                // gera um diagnóstico TS2322 inédito e reprova `gate:types`.
+                // `title` já fazia parte da forma existente e o accessible name
+                // computado é o mesmo (SHELL5/SHELL5b provam).
+                title={menuOculto ? "Mostrar menu principal" : "Ocultar menu principal"}>
 
                 {menuOculto ? <Eye className="w-4 h-4 text-slate-600" /> : <EyeOff className="w-4 h-4 text-slate-600" />}
               </Button>
@@ -440,9 +445,11 @@ export default function Layout({ children, currentPageName }) {
             </div>
           </div>
         </div>
-      </div>
+      </header>
 
-      <nav className={`flex-none bg-white border-b border-slate-200 shadow-sm transition-all duration-300 hidden md:block ${menuOculto ? 'md:h-0 md:overflow-hidden md:border-0 md:py-0' : ''}`}>
+      <nav
+        aria-label="Módulos"
+        className={`flex-none bg-white border-b border-slate-200 shadow-sm transition-all duration-300 hidden md:block ${menuOculto ? 'md:h-0 md:overflow-hidden md:border-0 md:py-0' : ''}`}>
         <div className="max-w-[1600px] mx-auto px-4">
           <div className="flex items-center gap-0.5 h-10">
             <div className="hidden md:flex items-center gap-0.5">
@@ -598,7 +605,9 @@ export default function Layout({ children, currentPageName }) {
       </main>
 
       {/* Mobile bottom navigation */}
-      <nav className="fixed bottom-0 inset-x-0 md:hidden bg-white border-t border-slate-200 shadow-lg safe-area-bottom">
+      <nav
+        aria-label="Navegação inferior"
+        className="fixed bottom-0 inset-x-0 md:hidden bg-white border-t border-slate-200 shadow-lg safe-area-bottom">
           <div className="max-w-[1600px] mx-auto px-4 py-2 grid grid-cols-5 gap-3">
             {FIXED_MOBILE_NAV_ITEMS.map((page) => {
             const isCurrent = location.pathname === createPageUrl(page.url);
@@ -628,9 +637,12 @@ export default function Layout({ children, currentPageName }) {
             <button
             type="button"
             onClick={() => setMobileMenuOpen(true)}
-            aria-label="Menu"
-            className="flex items-center justify-center h-12 rounded-xl border bg-white border-slate-200 text-slate-600">
-              <Menu className="w-6 h-6" />
+            aria-label="Abrir menu principal"
+            aria-haspopup="dialog"
+            aria-expanded={mobileMenuOpen}
+            className={`flex flex-col items-center justify-center h-12 rounded-xl border transition-colors ${mobileMenuOpen ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-white border-slate-200 text-slate-600'}`}>
+              <Menu className="w-5 h-5" />
+              <span className="text-[10px] leading-none mt-0.5">Menu</span>
             </button>
           </div>
         </nav>
