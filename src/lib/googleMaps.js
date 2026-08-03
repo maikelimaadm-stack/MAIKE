@@ -2,15 +2,26 @@
  * Carregador canônico e idempotente do SDK do Google Maps.
  *
  * Contrato (P0.1-R1, endurecido em P0.1-R2):
- *  - um único conjunto de libraries para todo o produto: `drawing,geometry`.
- *    O Mapa Geral e o Cadastro do Mapa precisam de desenho e geometria, então
- *    não existem loaders concorrentes por combinação diferente;
+ *  - um único conjunto de libraries para todo o produto: `geometry`. O Mapa
+ *    Geral e o Cadastro do Mapa medem área, comprimento e distância, e testam
+ *    contenção de ponto em polígono — tudo em `google.maps.geometry`. Não
+ *    existem loaders concorrentes por combinação diferente;
  *  - uma única promise no escopo do módulo;
  *  - script identificado por ID fixo, reaproveitado quando já existe **e** a URL
  *    é a esperada — ID certo com URL inesperada é script inválido;
- *  - **só resolve com capacidade comprovada**: `google.maps.Map`,
- *    `google.maps.geometry` e `google.maps.drawing` presentes. O evento `load`
- *    e `dataset.loaded` são pistas, nunca prova;
+ *  - **só resolve com capacidade comprovada**: `google.maps.Map` e
+ *    `google.maps.geometry` presentes. O evento `load` e `dataset.loaded` são
+ *    pistas, nunca prova;
+ *
+ *  - **`drawing` não faz mais parte do contrato (P1.2-R1, D-PROD-19).** O Google
+ *    retirou o `DrawingManager` do Maps JavaScript API na versão 3.65, em junho
+ *    de 2026. Exigi-lo tornou o contrato impossível de satisfazer no canal
+ *    atual: mesmo com chave válida, `google.maps.drawing` nunca aparecia, o
+ *    readiness ficava eternamente falso e a carga terminava em
+ *    `MAPS_SDK_INCOMPLETE`. O produto nunca usou `DrawingManager` — o desenho de
+ *    ponto, linha e polígono é feito à mão em `MapaDesenho` com `Marker`,
+ *    `Polyline`, `Polygon` e listeners de clique —, então a exigência era
+ *    dependência morta desde o início e nada precisou ser migrado;
  *  - depois do `load`, aguarda as capacidades de forma limitada até o timeout
  *    total; se seguir incompleto, rejeita com `MAPS_SDK_INCOMPLETE`;
  *  - falha nunca fica em cache: a promise é limpa e o script removido, então a
@@ -25,8 +36,8 @@
 
 import { getGoogleMapsApiKey, isGoogleMapsConfigured } from '@/config/runtimeConfig';
 
-export const GOOGLE_MAPS_LIBRARIES = 'drawing,geometry';
-export const GOOGLE_MAPS_REQUIRED_LIBRARIES = Object.freeze(['drawing', 'geometry']);
+export const GOOGLE_MAPS_LIBRARIES = 'geometry';
+export const GOOGLE_MAPS_REQUIRED_LIBRARIES = Object.freeze(['geometry']);
 export const GOOGLE_MAPS_SCRIPT_ID = 'maike-google-maps-sdk';
 export const GOOGLE_MAPS_SCRIPT_ORIGIN = 'https://maps.googleapis.com/maps/api/js';
 export const GOOGLE_MAPS_LOAD_TIMEOUT_MS = 20000;
@@ -41,12 +52,15 @@ export const MAPS_ERROR_CODES = Object.freeze({
 });
 
 const MESSAGES = {
+  // Vale para desenvolvimento e para produção: `VITE_*` é variável de **build**,
+  // então configurá-la não basta — é preciso gerar uma versão nova. Citar só
+  // `.env.local` mandava o operador de produção para o lugar errado (P1.2-R1).
   [MAPS_ERROR_CODES.CONFIG_MISSING]:
-    'Google Maps não configurado: defina VITE_GOOGLE_MAPS_API_KEY no arquivo .env.local (ver .env.example).',
+    'Google Maps não configurado neste ambiente. Defina VITE_GOOGLE_MAPS_API_KEY onde a aplicação é construída — .env.local em desenvolvimento, variável de build no serviço de deploy — e gere uma nova versão da aplicação.',
   [MAPS_ERROR_CODES.SCRIPT_FAILED]: 'Falha ao carregar o Google Maps.',
   [MAPS_ERROR_CODES.SCRIPT_TIMEOUT]: 'Tempo esgotado ao carregar o Google Maps.',
   [MAPS_ERROR_CODES.SDK_INCOMPLETE]:
-    'Google Maps carregou sem as capacidades necessárias (mapa, geometria e desenho).',
+    'Google Maps carregou sem as capacidades necessárias (mapa e geometria).',
   [MAPS_ERROR_CODES.ENV_UNAVAILABLE]: 'Google Maps indisponível: ambiente sem DOM.',
 };
 
@@ -80,7 +94,6 @@ const hasDom = () => typeof window !== 'undefined' && typeof document !== 'undef
  * @typedef {object} GoogleMapsNamespace
  * @property {unknown} [Map]
  * @property {unknown} [geometry]
- * @property {unknown} [drawing]
  */
 
 /**
@@ -110,7 +123,7 @@ const mapsWindow = () => (hasDom() ? /** @type {GoogleMapsWindow} */ (window) : 
 /** O SDK está pronto com as capacidades que o produto exige? */
 export const isGoogleMapsReady = () => {
   const maps = mapsWindow()?.google?.maps;
-  return Boolean(maps?.Map && maps?.geometry && maps?.drawing);
+  return Boolean(maps?.Map && maps?.geometry);
 };
 
 /** Quais capacidades exigidas ainda faltam. Usado só para diagnóstico. */
@@ -119,7 +132,6 @@ const missingCapabilities = () => {
   return [
     !maps?.Map && 'Map',
     !maps?.geometry && 'geometry',
-    !maps?.drawing && 'drawing',
   ].filter(Boolean);
 };
 

@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-08-03 (P0.1 e P1.1 mergeadas · P1 em andamento · P1.2 em implementação)
+**Atualizado em:** 2026-08-03 (P0.1, P1.1 e P1.2 mergeadas · P1 em andamento · P1.2-R1 corrigindo regressão do Maps)
 
 ---
 
@@ -14,9 +14,9 @@ Base44 mantida apenas como provider temporário da cadeia preservada (D-PROD-04)
 | Produto | Pecuária — Mapa Geral + Manejo (D-PROD-01) |
 | Superfície primária | `MapaGeral` (D-PROD-05) |
 | Missão atual | **P1 — Native Foundation Bootstrap**, slice **P1.2** |
-| Estado da missão | **P1.2 em implementação** — `npm run verify:all` sai com 0, 13/13 etapas |
+| Estado da missão | **P1.2 mergeada (PR #3); P1.2-R1 em correção** — `npm run verify:all` sai com 0, 13/13 etapas |
 | Próxima slice | P1.3 — telas legadas restantes |
-| Branch | `claude/p1-2-native-api-boundary-mapa` (PR draft) |
+| Branch | `claude/p1-2-native-api-boundary-mapa` (PR #4, draft — correção P1.2-R1) |
 | Escopo executável | `config/mapa-manejo-scope.json` |
 | Roadmap | `docs/engineering/ROADMAP.md` |
 | Molde arquitetural | PROJETOMG, parcial (D-PROD-03) |
@@ -34,7 +34,7 @@ armazenamento apenas em `.env.local` seguem pendentes com o proprietário — ve
 | Missão | Nome | Estado |
 |---|---|---|
 | P0 | Product Scope Reset | **mergeada** (PR #1, merge `508cf62`) |
-| P1 | Native Foundation Bootstrap | **em andamento** — P1.1 mergeada (PR #2, merge `fee0d1e`); P1.2 em implementação; P1.3 e P1.4 não iniciadas |
+| P1 | Native Foundation Bootstrap | **em andamento** — P1.1 mergeada (PR #2, `fee0d1e`) e P1.2 mergeada (PR #3, `f2e06a1`); P1.2-R1 corrige regressão do Google Maps na PR #4; P1.3 e P1.4 não iniciadas |
 | P2 | ModeloBase1 Pecuário Foundation | não iniciada |
 | P3 | Backend + Prisma + PostgreSQL Foundation | não iniciada |
 | P4 | Mapa Core Native Persistence | não iniciada |
@@ -173,4 +173,6 @@ motivo de o `verify:all` local não ter pego antes.
 | DBT-17 | `gate:no-secrets` varre `git ls-files`, então arquivo novo ainda não adicionado ao índice não é varrido: `verify:all` local dá verde e a CI reprova. Aconteceu de verdade na P1.1-R1. Mitigação atual é `git add` antes de `verify:all`; varrer também não-rastreados não-ignorados é mudança de contrato do gate, fica para slice própria | P1.4 |
 | DBT-19 | Operação composta de manejo não é atômica: a Base44 não oferece transação multi-entidade. A P1.2 tornou a falha parcial **visível** (`MAPA_PARTIAL_OPERATION` com etapa concluída e etapa de falha), não a eliminou. Some com o backend próprio | P3 |
 | DBT-20 | `DetalhesLote.jsx` segue com ~1.300 linhas. A fronteira de dados fechou na P1.2 e as decisões puras saíram para `src/domain/lotes/`, mas o componente continua grande demais para revisão confortável | P5 |
+| DBT-21 | A chave `VITE_GOOGLE_MAPS_API_KEY` vai para o bundle do cliente por definição do Vite. Não é defeito e não tem correção no código: a proteção é restrição por referrer e por API no Google Cloud, mais rotação e monitoramento (P1.2-R1) | ação do proprietário |
+| DBT-22 | O sintoma `MAPS_CONFIG_MISSING` em produção não teve causa raiz confirmada. A leitura de env funcionava antes e depois da P1.2-R1 (medido em build real); a explicação compatível com a evidência é ausência da variável no serviço que executa `npm run build`, o que exige inspeção da plataforma de deploy | ação do proprietário |
 | DBT-13 | `test:gates` leva ~42 s porque a catraca de tipos roda `tsc` de verdade em ~45 projetos temporários. É o preço de testar o gate real em vez do parser | P8 |

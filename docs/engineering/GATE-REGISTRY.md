@@ -485,8 +485,15 @@ pode reprovar a busca por `localStorage`.
 `loadGoogleMaps` só resolve com **capacidade comprovada**:
 
 ```
-google.maps.Map  ∧  google.maps.geometry  ∧  google.maps.drawing
+google.maps.Map  ∧  google.maps.geometry
 ```
+
+`google.maps.drawing` saiu do contrato na P1.2-R1 (D-PROD-19): o Google removeu
+o `DrawingManager` na versão 3.65 e a library não existe mais no canal atual —
+exigi-la tornava o readiness insatisfazível. O produto nunca a usou: o desenho é
+manual, com `Marker`, `Polyline` e `Polygon`. `geometry` continua exigida porque
+é usada de verdade (`computeArea`, `computeLength`, `computeDistanceBetween`,
+`poly.containsLocation`).
 
 O evento `load` e `dataset.loaded` são pistas de que o script terminou, nunca
 prova de que o SDK está utilizável. Depois do `load`, o loader observa as

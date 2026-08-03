@@ -96,7 +96,6 @@ describe('MapaCadastro — editor geográfico', () => {
       Point: vi.fn(),
       SymbolPath: { CIRCLE: 0 },
       geometry: { spherical: { computeDistanceBetween: vi.fn(() => 0) } },
-      drawing: {},
       event: { addListenerOnce: vi.fn(), removeListener: vi.fn(), clearInstanceListeners: vi.fn() },
     };
     vi.stubGlobal('google', { maps: mapsStub });

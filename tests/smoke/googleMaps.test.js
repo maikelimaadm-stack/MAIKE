@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { readFileSync, globSync } from 'node:fs';
 
 import {
   loadGoogleMaps,
@@ -9,6 +10,7 @@ import {
   MAPS_ERROR_CODES,
   GOOGLE_MAPS_SCRIPT_ID,
   GOOGLE_MAPS_LIBRARIES,
+  GOOGLE_MAPS_REQUIRED_LIBRARIES,
   GOOGLE_MAPS_SCRIPT_ORIGIN,
   __resetGoogleMapsLoaderForTests,
 } from '@/lib/googleMaps';
@@ -17,7 +19,7 @@ const CHAVE = 'chave-de-teste-nao-real';
 
 /** SDK completo: as três capacidades que o produto exige. */
 const instalarSdk = () => {
-  window.google = { maps: { Map: function Map() {}, geometry: {}, drawing: {} } };
+  window.google = { maps: { Map: function Map() {}, geometry: {} } };
 };
 
 /** SDK parcial, para provar que "carregou" não é "está pronto". */
@@ -107,8 +109,11 @@ describe('loadGoogleMaps — configuração e ambiente', () => {
 
 describe('loadGoogleMaps — capacidade comprovada', () => {
   /**
-   * O contrato do produto é `Map` + `geometry` + `drawing`. Evento `load` e
-   * `dataset.loaded` são pistas; nenhum dos dois é prova.
+   * O contrato do produto é `Map` + `geometry` (P1.2-R1, D-PROD-19). Evento
+   * `load` e `dataset.loaded` são pistas; nenhum dos dois é prova.
+   *
+   * `drawing` saiu do contrato porque o Google removeu o `DrawingManager` na
+   * versão 3.65 — exigir a library tornava o readiness insatisfazível.
    */
 
   it('1. load sem SDK nenhum rejeita com MAPS_SDK_INCOMPLETE', async () => {
@@ -159,18 +164,36 @@ describe('loadGoogleMaps — capacidade comprovada', () => {
     await assercao;
   });
 
-  it('5. Map + geometry sem drawing não basta', async () => {
+  it('MAP5. só google.maps.geometry não basta', async () => {
     vi.stubEnv('VITE_GOOGLE_MAPS_API_KEY', CHAVE);
     vi.useFakeTimers();
 
     const promise = loadGoogleMaps({ timeoutMs: 1000, pollIntervalMs: 20 });
-    instalarSdkParcial({ Map: function Map() {}, geometry: {} });
+    instalarSdkParcial({ geometry: {} });
     scriptAtual().dispatchEvent(new Event('load'));
     const assercao = expect(promise).rejects.toMatchObject({
       code: MAPS_ERROR_CODES.SDK_INCOMPLETE,
     });
     await vi.advanceTimersByTimeAsync(1500);
     await assercao;
+  });
+
+  /**
+   * MAP6 — o teste que teria pego a regressão em produção.
+   *
+   * Antes da P1.2-R1 este caso era o inverso: `Map + geometry` sem `drawing`
+   * **reprovava**. Como o Google não entrega mais `drawing`, aquele contrato
+   * significava que nenhuma carga real podia terminar bem.
+   */
+  it('MAP6. Map + geometry basta, mesmo sem drawing', async () => {
+    vi.stubEnv('VITE_GOOGLE_MAPS_API_KEY', CHAVE);
+
+    const promise = loadGoogleMaps({ timeoutMs: 2000, pollIntervalMs: 10 });
+    instalarSdkParcial({ Map: function Map() {}, geometry: {} });
+    scriptAtual().dispatchEvent(new Event('load'));
+
+    await expect(promise).resolves.toBeUndefined();
+    expect(window.google.maps.drawing).toBeUndefined();
   });
 
   it('6. SDK que completa pouco depois do load é aceito', async () => {
@@ -192,7 +215,7 @@ describe('loadGoogleMaps — capacidade comprovada', () => {
     vi.useFakeTimers();
 
     const promise = loadGoogleMaps({ timeoutMs: 800, pollIntervalMs: 20 });
-    instalarSdkParcial({ Map: function Map() {}, drawing: {} });
+    instalarSdkParcial({ Map: function Map() {} });
     scriptAtual().dispatchEvent(new Event('load'));
     const assercao = expect(promise).rejects.toMatchObject({
       code: MAPS_ERROR_CODES.SDK_INCOMPLETE,
@@ -252,12 +275,33 @@ describe('loadGoogleMaps — capacidade comprovada', () => {
 
   it('11b. script sem as libraries exigidas é inválido', async () => {
     vi.stubEnv('VITE_GOOGLE_MAPS_API_KEY', CHAVE);
-    expect(isExpectedScriptSrc(`${GOOGLE_MAPS_SCRIPT_ORIGIN}?key=x&libraries=geometry`)).toBe(false);
-    injetarScript({ src: `${GOOGLE_MAPS_SCRIPT_ORIGIN}?key=x&libraries=geometry` });
+    const semGeometry = `${GOOGLE_MAPS_SCRIPT_ORIGIN}?key=x&libraries=places`;
+    expect(isExpectedScriptSrc(semGeometry)).toBe(false);
+    expect(isExpectedScriptSrc(`${GOOGLE_MAPS_SCRIPT_ORIGIN}?key=x`)).toBe(false);
+    injetarScript({ src: semGeometry });
 
     await expect(loadGoogleMaps({ timeoutMs: 200 })).rejects.toMatchObject({
       code: MAPS_ERROR_CODES.SCRIPT_FAILED,
     });
+  });
+
+  /**
+   * MAP1/MAP2 — o formato da URL é contrato, não detalhe: é o que o Google
+   * recebe. `drawing` na URL faria o SDK carregar uma library que não existe
+   * mais.
+   */
+  it('MAP1/MAP2. a URL pede geometry e não pede drawing', async () => {
+    vi.stubEnv('VITE_GOOGLE_MAPS_API_KEY', CHAVE);
+    loadGoogleMaps({ timeoutMs: 200 }).catch(() => {});
+    const src = scriptAtual().src;
+
+    expect(src).toContain('libraries=geometry');
+    expect(src).not.toContain('drawing');
+    expect(GOOGLE_MAPS_LIBRARIES).toBe('geometry');
+    expect(isExpectedScriptSrc(`${GOOGLE_MAPS_SCRIPT_ORIGIN}?key=x&libraries=geometry`)).toBe(true);
+    // Uma URL que ainda peça drawing continua aceita: o que importa é conter as
+    // exigidas. O produto simplesmente não gera mais essa URL.
+    expect(isExpectedScriptSrc(`${GOOGLE_MAPS_SCRIPT_ORIGIN}?key=x&libraries=drawing,geometry`)).toBe(true);
   });
 
   it('12. chamadas simultâneas compartilham a mesma promise e um só script', async () => {
@@ -330,5 +374,66 @@ describe('loadGoogleMaps — falhas de rede', () => {
     const erro = new GoogleMapsError(MAPS_ERROR_CODES.CONFIG_MISSING);
     expect(erro.message).toContain('VITE_GOOGLE_MAPS_API_KEY');
     expect(erro.message).not.toMatch(/AIza/);
+  });
+});
+
+/**
+ * MAP13/MAP16 — a Drawing Library saiu do produto inteiro, não só do loader.
+ *
+ * O Google removeu o `DrawingManager` do Maps JavaScript API na versão 3.65
+ * (junho de 2026). Tirar `drawing` do contrato do loader não basta: se algum
+ * componente ainda chamasse `new google.maps.drawing.DrawingManager(...)`, o
+ * produto quebraria em runtime com a library ausente, em vez de falhar na
+ * carga. Estes testes varrem `src/` inteiro.
+ */
+describe('MAP13/MAP16 — nenhuma dependência da Drawing Library', () => {
+  const fontes = () =>
+    globSync('src/**/*.{js,jsx}').map((rel) => [rel, readFileSync(rel, 'utf8')]);
+
+  /** Sem comentários: `googleMaps.js` explica por que `drawing` saiu. */
+  const semComentarios = (fonte) =>
+    fonte.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+
+  it('MAP13 — zero uso executável de google.maps.drawing ou DrawingManager', () => {
+    const arquivos = fontes();
+    expect(arquivos.length).toBeGreaterThan(100);
+
+    const infratores = arquivos
+      .filter(([, fonte]) => /google\.maps\.drawing|DrawingManager|maps\.drawing\.OverlayType/.test(semComentarios(fonte)))
+      .map(([rel]) => rel);
+
+    expect(infratores).toEqual([]);
+  });
+
+  it('MAP13b — nenhuma URL do produto pede a library drawing', () => {
+    const infratores = fontes()
+      .filter(([, fonte]) => /libraries=[^'"`\s]*drawing|drawing,geometry|geometry,drawing/.test(semComentarios(fonte)))
+      .map(([rel]) => rel);
+
+    expect(infratores).toEqual([]);
+    expect(GOOGLE_MAPS_LIBRARIES).not.toContain('drawing');
+  });
+
+  /**
+   * MAP16 — o desenho manual é o que substitui o `DrawingManager`, e sempre foi:
+   * o produto nunca dependeu dele. Se estas primitivas sumissem de
+   * `MapaDesenho`, a remoção teria custado funcionalidade.
+   */
+  it('MAP16 — ponto, linha e polígono continuam desenhados à mão', () => {
+    const desenho = semComentarios(readFileSync('src/components/mapa/MapaDesenho.jsx', 'utf8'));
+
+    expect(desenho).toContain('new google.maps.Marker');    // ponto
+    expect(desenho).toContain('new google.maps.Polyline');  // linha
+    expect(desenho).toContain('new google.maps.Polygon');   // polígono
+    // O ciclo manual: ouvir o mapa, acumular vértices, fechar no duplo clique.
+    expect(desenho).toContain("google.maps.event.addListener(mapInstanceRef.current, 'dblclick'");
+    expect(desenho).toContain("google.maps.event.addListener(mapInstanceRef.current, 'mousemove'");
+  });
+
+  it('MAP15 — geometry continua sendo usada de verdade, por isso permanece exigida', () => {
+    const usos = fontes().filter(([, fonte]) => /google\.maps\.geometry\./.test(semComentarios(fonte)));
+    // Área, comprimento, distância e contenção de ponto em polígono.
+    expect(usos.length).toBeGreaterThanOrEqual(5);
+    expect(GOOGLE_MAPS_REQUIRED_LIBRARIES).toContain('geometry');
   });
 });
