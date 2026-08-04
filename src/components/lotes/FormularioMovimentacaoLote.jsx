@@ -7,7 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { X, Plus } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { listarIconesDaEmpresa, listarTodosPontosSuplementacao } from "@/services/mapaService";
+import { listarTodosLotes, listarEventosSuplementacao } from "@/services/loteManejoService";
 import useSetorAreas from "@/hooks/useSetorAreas";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -115,8 +116,8 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
 
       try {
         const [todosPontos, todosEventos] = await Promise.all([
-          base44.entities.PontoSuplementacao.list(),
-          base44.entities.SuplementacaoEvento.list(),
+          listarTodosPontosSuplementacao(),
+          listarEventosSuplementacao(),
         ]);
 
         const pontosById = todosPontos.reduce((acc, ponto) => {
@@ -159,8 +160,8 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
   const { data: iconesConfig = [] } = useQuery({
     queryKey: ['configuracao-icones', empresaSelecionadaId],
     queryFn: async () => {
-      const all = await base44.entities.ConfiguracaoIcone.list();
-      return all.filter((i) => i.empresa_id === empresaSelecionadaId && i.ativo !== false);
+      const icones = await listarIconesDaEmpresa(empresaSelecionadaId);
+      return icones.filter((i) => i.ativo !== false);
     },
     enabled: !!empresaSelecionadaId
   });
@@ -168,7 +169,7 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
   const { data: todosLotes = [] } = useQuery({
     queryKey: ['lotes', empresaSelecionadaId],
     queryFn: async () => {
-      const all = await base44.entities.Lote.list();
+      const all = await listarTodosLotes();
       return all.filter((l) => l.empresa_id === empresaSelecionadaId && l.status === 'Ativo');
     },
     enabled: !!empresaSelecionadaId
@@ -232,8 +233,8 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
     if (!formData.area_entrada_id) return [];
 
     const [todosPontos, todosEventos] = await Promise.all([
-      base44.entities.PontoSuplementacao.list(),
-      base44.entities.SuplementacaoEvento.list(),
+      listarTodosPontosSuplementacao(),
+      listarEventosSuplementacao(),
     ]);
 
     const cochosDestino = todosPontos.filter((ponto) => {

@@ -6,7 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { X, ChevronDown, ChevronRight, Plus } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { listarIconesDaEmpresa } from "@/services/mapaService";
+import { listarCategoriasManejoDaEmpresa } from "@/services/categoriaManejoService";
 import { getTodayLocalDate } from "../utils/pecuariaUtils";
 
 const FL = ({ label, required, children }) => (
@@ -37,8 +38,8 @@ export default function FormularioMudancaCategoria({ lote, onSubmit, onCancel })
   const { data: categoriasManejo = [] } = useQuery({
     queryKey: ['categorias-manejo-mudanca', empresaSelecionadaId],
     queryFn: async () => {
-      const all = await base44.entities.CategoriaManejo.list();
-      return all.filter(c => c.empresa_id === empresaSelecionadaId && c.ativo !== false);
+      const categorias = await listarCategoriasManejoDaEmpresa(empresaSelecionadaId);
+      return categorias.filter((c) => c.ativo !== false);
     },
     enabled: !!empresaSelecionadaId,
   });
@@ -49,8 +50,8 @@ export default function FormularioMudancaCategoria({ lote, onSubmit, onCancel })
   const { data: iconesConfig = [] } = useQuery({
     queryKey: ['configuracao-icones', empresaSelecionadaId],
     queryFn: async () => {
-      const all = await base44.entities.ConfiguracaoIcone.list();
-      return all.filter(i => i.empresa_id === empresaSelecionadaId && i.ativo !== false);
+      const icones = await listarIconesDaEmpresa(empresaSelecionadaId);
+      return icones.filter((i) => i.ativo !== false);
     },
     enabled: !!empresaSelecionadaId,
   });

@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useQueryClient } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { excluirHistorico } from "@/services/bebedouroDataService";
 
 const statusClass = {
   Pendente: "text-amber-700 border-amber-200 bg-amber-50",
@@ -22,7 +22,7 @@ export default function BebedouroTimeline({ historico = [] }) {
     if (index !== 0) return;
     if (!confirm("Excluir este lançamento do bebedouro?")) return;
     setDeletingId(item.id);
-    await base44.entities.BebedouroHistorico.delete(item.id);
+    await excluirHistorico(item.id);
     queryClient.invalidateQueries({ queryKey: ["bebedouro-historico"] });
     setDeletingId(null);
   };

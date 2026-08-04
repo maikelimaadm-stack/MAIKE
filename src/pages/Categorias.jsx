@@ -1,5 +1,11 @@
 import React, { useState } from "react";
-import { base44 } from "@/api/base44Client";
+import {
+  listarTodasCategorias,
+  criarCategoria,
+  atualizarCategoria,
+  excluirCategorias,
+} from "@/services/categoriaProdutoService";
+import { getApiErrorMessage } from "@/apis/_core/ApiError";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -19,31 +25,27 @@ export default function Categorias() {
 
   const { data: categorias = [] } = useQuery({
     queryKey: ["categorias_produto"],
-    queryFn: () => base44.entities.Categoria.list(),
+    queryFn: () => listarTodasCategorias(),
   });
 
   const createMutation = useMutation({
-    mutationFn: (data) => base44.entities.Categoria.create(data),
+    mutationFn: (data) => criarCategoria(data),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["categorias_produto"] }); setShowForm(false); setEditingItem(null); toast.success("Categoria criada!"); },
-    onError: (err) => toast.error("Erro: " + (err.message || "Erro desconhecido")),
+    onError: (err) => toast.error(getApiErrorMessage(err, "Não foi possível concluir a operação.")),
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }) => base44.entities.Categoria.update(id, data),
+    mutationFn: ({ id, data }) => atualizarCategoria(id, data),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["categorias_produto"] }); setShowForm(false); setEditingItem(null); toast.success("Categoria atualizada!"); },
-    onError: (err) => toast.error("Erro: " + (err.message || "Erro desconhecido")),
+    onError: (err) => toast.error(getApiErrorMessage(err, "Não foi possível concluir a operação.")),
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (ids) => {
-      for (const id of ids) {
-        const hasChildren = categorias.some(c => c.categoria_pai_id === id);
-        if (hasChildren) throw new Error("Esta categoria possui subcategorias vinculadas. Exclua-as primeiro.");
-        await base44.entities.Categoria.delete(id);
-      }
-    },
+    // O service valida todos os ids antes de excluir qualquer um: checar item a
+    // item deixaria metade do lote excluído quando o sexto tivesse filhos.
+    mutationFn: (/** @type {string[]} */ ids) => excluirCategorias(ids),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["categorias_produto"] }); toast.success("Categoria(s) excluída(s)!"); },
-    onError: (err) => toast.error(err.message || "Erro ao excluir"),
+    onError: (err) => toast.error(getApiErrorMessage(err, "Erro ao excluir")),
   });
 
   const handleSubmit = (data) => {

@@ -7,7 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Filter, Plus, ChevronDown, ChevronRight } from "lucide-react";
 import SankhyaFilterConfigDialog from "./SankhyaFilterConfigDialog";
 import SankhyaCodeNameLookup from "./SankhyaCodeNameLookup";
-import loteRepository from "@/core/repositories/loteRepository";
+import { listarCamposPersonalizados } from "@/services/loteCadastroService";
 import campoEngine from "@/services/campoEngine";
 import { buildFiltersFromPreset } from "@/components/filters/filterPresetUtils";
 
@@ -87,7 +87,7 @@ export default function SankhyaFilterPanel({ open, filters, onChange, onApply, o
 
   const { data: camposPersonalizados = [] } = useQuery({
     queryKey: ["lote-campos-personalizados"],
-    queryFn: () => loteRepository.listCamposPersonalizados(),
+    queryFn: () => listarCamposPersonalizados(),
     initialData: []
   });
 

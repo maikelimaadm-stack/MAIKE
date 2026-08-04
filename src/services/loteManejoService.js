@@ -20,11 +20,13 @@ import {
   updateLote,
   createMovimentacao,
   deleteMovimentacao,
+  updateMovimentacao,
   listMovimentacoes,
   listTodasMovimentacoes,
   filterMovimentacoes,
   filterSuplementacaoLotes,
   createSuplementacaoEvento,
+  listSuplementacaoEventos,
   bulkCreateSuplementacaoLote,
 } from '@/apis/lotes';
 import { filterProdutos } from '@/apis/estoque';
@@ -109,6 +111,8 @@ export const listarProdutosDaEmpresa = (empresaId) => filterProdutos({ empresa_i
 export const listarMovimentacoes = (opcoes) => listMovimentacoes(opcoes);
 /** Sem teto — usada onde o legado listava tudo para localizar um registro. */
 export const listarTodasMovimentacoes = () => listTodasMovimentacoes();
+/** Eventos de suplementação, usados pela conferência de sobras na movimentação. */
+export const listarEventosSuplementacao = () => listSuplementacaoEventos();
 
 // ── Escrita ───────────────────────────────────────────────────────────────
 
@@ -116,6 +120,7 @@ export const criarLote = (dados) => createLote(dados);
 export const atualizarLote = (id, dados) => updateLote(id, dados);
 export const criarMovimentacao = (dados) => createMovimentacao(dados);
 export const excluirMovimentacao = (id) => deleteMovimentacao(id);
+export const atualizarMovimentacao = (id, dados) => updateMovimentacao(id, dados);
 export const criarEventoSuplementacao = (dados) => createSuplementacaoEvento(dados);
 export const registrarSuplementacaoEmLote = (registros) => bulkCreateSuplementacaoLote(registros);
 

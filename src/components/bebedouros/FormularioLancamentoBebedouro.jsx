@@ -1,11 +1,12 @@
 import React, { useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import bebedouroRepository from "@/repositories/bebedouroRepository";
+import { criarHistorico } from "@/services/bebedouroDataService";
+import { getCurrentUser } from "@/services/sessionService";
 import { BEBEDOURO_HISTORICO_STATUS, BEBEDOURO_HISTORICO_TIPOS } from "@/services/bebedouroService";
 import { toast } from "sonner";
 
@@ -48,7 +49,7 @@ export default function FormularioLancamentoBebedouro({ bebedouro, onSaved, onCa
 
   const mutation = useMutation({
     mutationFn: async () => {
-      const user = await base44.auth.me();
+      const user = await getCurrentUser();
       const payload = {
         empresa_id: empresaId,
         bebedouro_id: bebedouro.id,
@@ -75,7 +76,7 @@ export default function FormularioLancamentoBebedouro({ bebedouro, onSaved, onCa
         payload.qualidade_agua = form.qualidade_agua;
       }
 
-      return bebedouroRepository.createHistorico(payload);
+      return criarHistorico(payload);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["bebedouro-historico", empresaId, bebedouro.id] });

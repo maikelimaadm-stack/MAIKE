@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { X, Save, Plus } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuery } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { listarIconesDaEmpresa } from "@/services/mapaService";
 import { getTodayLocalDate } from "../utils/pecuariaUtils";
 
 const FL = ({ label, required, children }) => (
@@ -29,8 +29,8 @@ export default function FormularioPesagem({ lote, onSubmit, onCancel }) {
   const { data: iconesConfig = [] } = useQuery({
     queryKey: ['configuracao-icones', empresaSelecionadaId],
     queryFn: async () => {
-      const all = await base44.entities.ConfiguracaoIcone.list();
-      return all.filter(i => i.empresa_id === empresaSelecionadaId && i.ativo !== false);
+      const icones = await listarIconesDaEmpresa(empresaSelecionadaId);
+      return icones.filter((i) => i.ativo !== false);
     },
     enabled: !!empresaSelecionadaId,
   });

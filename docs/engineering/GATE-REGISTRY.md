@@ -451,12 +451,20 @@ registra a `main` de origem e é preservado nas atualizações.
 
 Baseline: `scripts/gates/api-boundary-baseline.json` (schema 1).
 
-**Estado atual (P1.2):** 42 arquivos legados importam o client, 38 usam
-`entities`, 9 usam `auth`, 3 usam `integrations`. Empresa saiu na P1.1; todo o
-Mapa e o manejo iniciado por ele saíram na P1.2 — `MapaGeral`, `MapaCadastro`,
-`useSetorAreas`, os 20 componentes de `src/components/mapa/`,
-`manejoValidations` e o antigo `mapaOfflineCache` (removido). Todos os eixos são
-subconjuntos estritos do estado anterior.
+**Estado atual (P1.3):** 23 arquivos legados importam o client, 20 usam
+`entities`, 8 usam `auth`, 2 usam `integrations`, 3 usam `functions`, 2 acessam
+`entities` por nome dinâmico.
+
+Empresa saiu na P1.1; o Mapa e o manejo iniciado por ele, na P1.2; os cadastros
+do manejo — lotes, setores, categorias, categorias de manejo, bebedouros e
+anexos —, na P1.3, junto com a remoção dos repositórios `loteRepository` e
+`bebedouroRepository`, sem shim. Todos os eixos são subconjuntos estritos do
+estado anterior.
+
+O acesso computado a entidade que restava no cadastro de lote
+(`base44.entities[source.entity]`, com nome vindo de dado editável) virou
+**catálogo fechado** de seis fontes na API de lotes; fonte fora do catálogo
+lança código estável em vez de devolver lista vazia.
 
 ## Smoke automatizado
 
@@ -485,6 +493,13 @@ sem segredo, distinguindo Vercel Preview/Production de Railway frontend/backend.
 
 JSDOM não calcula layout, então classe sozinha não prova pixel: os testes de
 shell combinam contrato estrutural com comportamento real de clique e rota.
+
+A P1.3 acrescentou as provas negativas N1–N8 ao teste do próprio gate, como
+**fixtures analisadas pelo gate real** em projetos temporários: UI chamando API
+direto, service importando implementação privada, repositório legado
+reaparecendo, `entities[nome]`, função de nome aberto, provider reexportado,
+arquivo migrado voltando ao baseline, e um controle positivo da cadeia
+completa. Rodam em toda CI, em vez de uma vez em mutação manual.
 
 Asserção que olha código-fonte usa um helper que **remove comentários antes de
 comparar**: um comentário explicando que o módulo não usa `localStorage` não

@@ -5,21 +5,8 @@
   "axes": {
     "importsLegacyClient": [
       "src/Layout.jsx",
-      "src/components/bebedouros/BebedouroTimeline.jsx",
-      "src/components/bebedouros/DetalhesBebedouro.jsx",
-      "src/components/bebedouros/FormularioLancamentoBebedouro.jsx",
-      "src/components/common/RegistroAnexosDialog.jsx",
       "src/components/configuracoes/GerenciadorIcones.jsx",
       "src/components/empresa/FormularioEmpresa.jsx",
-      "src/components/lotes/FormularioAbate.jsx",
-      "src/components/lotes/FormularioMorte.jsx",
-      "src/components/lotes/FormularioMovimentacaoLote.jsx",
-      "src/components/lotes/FormularioMudancaCategoria.jsx",
-      "src/components/lotes/FormularioNascimento.jsx",
-      "src/components/lotes/FormularioPesagem.jsx",
-      "src/components/lotes/HistoricoMovimentacoes.jsx",
-      "src/components/lotes/RenomearLoteForm.jsx",
-      "src/components/lotes/movimentacaoReconciliation.jsx",
       "src/components/produtos/FichaProduto.jsx",
       "src/components/produtos/FormularioProduto.jsx",
       "src/components/suplementacao/FormularioLancamentoSuplementacao.jsx",
@@ -30,13 +17,8 @@
       "src/components/suplementacao/estoqueSuplementacaoUtils.jsx",
       "src/components/suplementacao/historicoSuplementacaoUtils.jsx",
       "src/components/utils/consumoUtils.jsx",
-      "src/core/repositories/loteRepository.js",
       "src/lib/AuthContext.jsx",
       "src/lib/PageNotFound.jsx",
-      "src/pages/CadastroLotes.jsx",
-      "src/pages/CadastroSetores.jsx",
-      "src/pages/Categorias.jsx",
-      "src/pages/CategoriasManejo.jsx",
       "src/pages/ConfiguracoesGerais.jsx",
       "src/pages/GruposAtividades.jsx",
       "src/pages/LocaisEstoque.jsx",
@@ -44,24 +26,11 @@
       "src/pages/Produtos.jsx",
       "src/pages/TiposTarefa.jsx",
       "src/pages/UnidadesMedida.jsx",
-      "src/pages/Usuarios.jsx",
-      "src/repositories/bebedouroRepository.js"
+      "src/pages/Usuarios.jsx"
     ],
     "entitiesRefs": [
       "src/Layout.jsx",
-      "src/components/bebedouros/BebedouroTimeline.jsx",
-      "src/components/bebedouros/DetalhesBebedouro.jsx",
-      "src/components/common/RegistroAnexosDialog.jsx",
       "src/components/configuracoes/GerenciadorIcones.jsx",
-      "src/components/lotes/FormularioAbate.jsx",
-      "src/components/lotes/FormularioMorte.jsx",
-      "src/components/lotes/FormularioMovimentacaoLote.jsx",
-      "src/components/lotes/FormularioMudancaCategoria.jsx",
-      "src/components/lotes/FormularioNascimento.jsx",
-      "src/components/lotes/FormularioPesagem.jsx",
-      "src/components/lotes/HistoricoMovimentacoes.jsx",
-      "src/components/lotes/RenomearLoteForm.jsx",
-      "src/components/lotes/movimentacaoReconciliation.jsx",
       "src/components/produtos/FichaProduto.jsx",
       "src/components/produtos/FormularioProduto.jsx",
       "src/components/suplementacao/FormularioLancamentoSuplementacao.jsx",
@@ -69,14 +38,9 @@
       "src/components/suplementacao/estoqueSuplementacaoUtils.jsx",
       "src/components/suplementacao/historicoSuplementacaoUtils.jsx",
       "src/components/utils/consumoUtils.jsx",
-      "src/core/repositories/loteRepository.js",
       "src/lib/entityDeleteGuards.js",
       "src/lib/offlineEntitySync.js",
       "src/lib/textNormalization.js",
-      "src/pages/CadastroLotes.jsx",
-      "src/pages/CadastroSetores.jsx",
-      "src/pages/Categorias.jsx",
-      "src/pages/CategoriasManejo.jsx",
       "src/pages/ConfiguracoesGerais.jsx",
       "src/pages/GruposAtividades.jsx",
       "src/pages/LocaisEstoque.jsx",
@@ -84,12 +48,10 @@
       "src/pages/Produtos.jsx",
       "src/pages/TiposTarefa.jsx",
       "src/pages/UnidadesMedida.jsx",
-      "src/pages/Usuarios.jsx",
-      "src/repositories/bebedouroRepository.js"
+      "src/pages/Usuarios.jsx"
     ],
     "authRefs": [
       "src/Layout.jsx",
-      "src/components/bebedouros/FormularioLancamentoBebedouro.jsx",
       "src/components/suplementacao/FormularioLancamentoSuplementacao.jsx",
       "src/components/suplementacao/HistoricoSuplementacaoPonto.jsx",
       "src/lib/AuthContext.jsx",
@@ -99,19 +61,15 @@
       "src/pages/Usuarios.jsx"
     ],
     "integrationsRefs": [
-      "src/components/common/RegistroAnexosDialog.jsx",
       "src/components/configuracoes/GerenciadorIcones.jsx",
       "src/components/empresa/FormularioEmpresa.jsx"
     ],
     "functionsRefs": [
-      "src/core/repositories/loteRepository.js",
-      "src/pages/CadastroSetores.jsx",
       "src/pages/GruposAtividades.jsx",
       "src/pages/Produtos.jsx",
       "src/pages/TiposTarefa.jsx"
     ],
     "dynamicEntityFiles": [
-      "src/core/repositories/loteRepository.js",
       "src/lib/entityDeleteGuards.js",
       "src/lib/offlineEntitySync.js"
     ]

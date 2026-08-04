@@ -1,10 +1,12 @@
+import { Link } from "react-router-dom";
+import { createPageUrl } from "@/utils";
 import React, { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useBebedouros } from "@/hooks/useBebedouros";
 import { useQuery } from "@tanstack/react-query";
-import bebedouroRepository from "@/repositories/bebedouroRepository";
+import { listarHistorico, listarSanidade } from "@/services/bebedouroDataService";
 import BebedouroResumoCards from "@/components/bebedouros/BebedouroResumoCards";
 import DetalhesBebedouro from "@/components/bebedouros/DetalhesBebedouro";
 import BebedouroStatusBadge from "@/components/bebedouros/BebedouroStatusBadge";
@@ -15,8 +17,8 @@ export default function Bebedouros() {
   const [busca, setBusca] = useState("");
   const [selected, setSelected] = useState(null);
   const { data: bebedouros = [] } = useBebedouros(empresaId);
-  const { data: historico = [] } = useQuery({ queryKey: ["bebedouro-historico-all", empresaId], queryFn: () => bebedouroRepository.listHistorico(empresaId), enabled: !!empresaId, initialData: [] });
-  const { data: sanidade = [] } = useQuery({ queryKey: ["bebedouro-sanidade-all", empresaId], queryFn: () => bebedouroRepository.listSanidade(empresaId), enabled: !!empresaId, initialData: [] });
+  const { data: historico = [] } = useQuery({ queryKey: ["bebedouro-historico-all", empresaId], queryFn: () => listarHistorico(empresaId), enabled: !!empresaId, initialData: [] });
+  const { data: sanidade = [] } = useQuery({ queryKey: ["bebedouro-sanidade-all", empresaId], queryFn: () => listarSanidade(empresaId), enabled: !!empresaId, initialData: [] });
 
   const getPastosAtendidos = (item) => Array.isArray(item.area_vinculada_nomes) && item.area_vinculada_nomes.length ? item.area_vinculada_nomes.join(", ") : item.pasto_nome || "-";
   const rows = useMemo(() => bebedouros.filter((item) => `${item.nome} ${item.codigo_interno} ${getPastosAtendidos(item)} ${item.origem_agua}`.toLowerCase().includes(busca.toLowerCase())), [bebedouros, busca]);
@@ -26,7 +28,14 @@ export default function Bebedouros() {
     <div className="p-2 space-y-2 h-full overflow-auto bg-slate-50">
       <div className="flex items-center justify-between gap-2 bg-white border rounded-lg p-2">
         <div><h1 className="text-lg font-bold text-slate-900">Gestão de Bebedouros</h1><p className="text-xs text-slate-500">Controle operacional, sanitário e histórico da água</p></div>
-        <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => window.location.href = "/MapaCadastro"}>Cadastrar no mapa</Button>
+        {/* Link do Router: `window.location.href` recarregaria a aplicação inteira.
+              Estilizado direto porque `Button` não declara tipos de prop e
+              `asChild` criaria diagnóstico novo em `gate:types`. */}
+        <Link
+          to={createPageUrl("MapaCadastro")}
+          className="inline-flex items-center justify-center h-8 px-3 text-xs rounded-md border border-slate-300 bg-white hover:bg-slate-50 transition-colors">
+          Cadastrar no mapa
+        </Link>
       </div>
       <BebedouroResumoCards bebedouros={bebedouros} historico={historico} alertas={alertas} />
       <div className="bg-white border rounded-lg p-2 space-y-2">

@@ -6,7 +6,14 @@
  */
 
 import { runProviderCall, assertArgument } from '../_core/normalizeApiError.js';
-import { lotesProvider } from '../_providers/base44Provider.js';
+import { ApiError, API_ERROR_CODES } from '../_core/ApiError.js';
+import {
+  lotesProvider,
+  loteLayoutProvider,
+  fornecedoresProvider,
+  categoriasManejoProvider,
+  referenciasProvider,
+} from '../_providers/base44Provider.js';
 
 const RESOURCE = 'Lote';
 
@@ -124,4 +131,131 @@ export const bulkCreateSuplementacaoLote = async (registros) => {
   const contexto = ctx('bulkCreateSuplementacaoLote');
   assertArgument(Array.isArray(registros) && registros.length > 0, 'registros', contexto);
   return runProviderCall(() => lotesProvider.bulkCreateSuplementacaoLote(registros), contexto);
+};
+
+// ── P1.3 — cadastro de lote: exclusão, layout e fontes de opção ────────────
+
+export const deleteLote = async (id) => {
+  const contexto = ctx('deleteLote');
+  assertArgument(isId(id), 'id', contexto);
+  return runProviderCall(() => lotesProvider.deleteLote(id), contexto);
+};
+
+/**
+ * Catálogo **fechado** de fontes de opção de campo personalizado (P1.3).
+ *
+ * O repositório legado fazia `base44.entities[source.entity]`: qualquer string
+ * vinda de um registro de `LayoutCampo` virava acesso a entidade. Isso é
+ * exatamente o que `gate:api-boundary` reprova como `DYNAMIC-ENTITY`, e o risco
+ * não era teórico — o nome vem de dado editável pelo usuário.
+ *
+ * As seis entradas abaixo não são um palpite: são exatamente as que a interface
+ * permite escolher, em `ENTIDADES_RELACIONAIS`
+ * (`src/components/lotes/camposConfigOptions.jsx`). Ampliar "por garantia"
+ * reabriria o buraco que esta slice fecha.
+ */
+export const OPTION_SOURCES = Object.freeze({
+  Fornecedor: 'nome',
+  Produto: 'nome_produto',
+  CategoriaManejo: 'nome',
+  Setor: 'nome',
+  AreaPastagem: 'nome',
+  LocalEstoque: 'nome',
+});
+
+export const isOptionSourceSuportada = (nome) =>
+  Object.prototype.hasOwnProperty.call(OPTION_SOURCES, nome);
+
+/**
+ * Registros de uma fonte de opção suportada.
+ *
+ * Fonte desconhecida **lança** com código estável em vez de devolver lista
+ * vazia: vazio silencioso faria um campo obrigatório parecer "sem cadastros"
+ * quando na verdade a configuração está inválida.
+ *
+ * @param {string} nome uma chave de {@link OPTION_SOURCES}
+ */
+export const listOptionSource = async (nome) => {
+  const contexto = { operation: 'listOptionSource', resource: 'LayoutCampo' };
+  if (!isOptionSourceSuportada(nome)) {
+    throw new ApiError(API_ERROR_CODES.LOTE_OPTION_SOURCE_UNSUPPORTED, {
+      ...contexto,
+      details: { fonte: typeof nome === 'string' ? nome : null },
+    });
+  }
+  return comoLista(await runProviderCall(() => loteLayoutProvider.listOptionSource(nome), contexto));
+};
+
+const layoutCtx = (operation) => ({ operation, resource: 'LayoutCampo' });
+
+export const listLayoutConfiguracoes = async () =>
+  comoLista(await runProviderCall(() => loteLayoutProvider.listConfiguracoes(), layoutCtx('listLayoutConfiguracoes')));
+
+export const createLayoutConfiguracao = async (dados) => {
+  const contexto = layoutCtx('createLayoutConfiguracao');
+  assertArgument(isObjeto(dados), 'dados', contexto);
+  return runProviderCall(() => loteLayoutProvider.createConfiguracao(dados), contexto);
+};
+
+export const listLayoutSecoes = async () =>
+  comoLista(await runProviderCall(() => loteLayoutProvider.listSecoes(), layoutCtx('listLayoutSecoes')));
+
+export const createLayoutSecao = async (dados) => {
+  const contexto = layoutCtx('createLayoutSecao');
+  assertArgument(isObjeto(dados), 'dados', contexto);
+  return runProviderCall(() => loteLayoutProvider.createSecao(dados), contexto);
+};
+
+export const listLayoutCampos = async () =>
+  comoLista(await runProviderCall(() => loteLayoutProvider.listCampos(), layoutCtx('listLayoutCampos')));
+
+export const createLayoutCampo = async (dados) => {
+  const contexto = layoutCtx('createLayoutCampo');
+  assertArgument(isObjeto(dados), 'dados', contexto);
+  return runProviderCall(() => loteLayoutProvider.createCampo(dados), contexto);
+};
+
+export const updateLayoutCampo = async (id, dados) => {
+  const contexto = layoutCtx('updateLayoutCampo');
+  assertArgument(isId(id), 'id', contexto);
+  assertArgument(isObjeto(dados), 'dados', contexto);
+  return runProviderCall(() => loteLayoutProvider.updateCampo(id, dados), contexto);
+};
+
+export const deleteLayoutCampo = async (id) => {
+  const contexto = layoutCtx('deleteLayoutCampo');
+  assertArgument(isId(id), 'id', contexto);
+  return runProviderCall(() => loteLayoutProvider.deleteCampo(id), contexto);
+};
+
+export const listFornecedores = async () =>
+  comoLista(await runProviderCall(() => fornecedoresProvider.list(), { operation: 'listFornecedores', resource: 'Fornecedor' }));
+
+export const listCategoriasManejo = async () =>
+  comoLista(await runProviderCall(() => categoriasManejoProvider.list(), { operation: 'listCategoriasManejo', resource: 'CategoriaManejo' }));
+
+/**
+ * Sincroniza referências denormalizadas depois de renomear um lote.
+ *
+ * Capacidade **explícita**: o nome da function fica no provider. A API não
+ * aceita `invoke(nomeQualquer, payload)` do chamador (QLT-P13-09).
+ */
+export const sincronizarReferenciasLote = async ({ registro, registroAnterior }) => {
+  const contexto = ctx('sincronizarReferenciasLote');
+  assertArgument(isObjeto(registro), 'registro', contexto);
+  return runProviderCall(
+    () => referenciasProvider.sincronizar({
+      event: { type: 'update', entity_name: 'Lote' },
+      data: registro,
+      old_data: registroAnterior,
+    }),
+    contexto
+  );
+};
+
+export const updateMovimentacao = async (id, dados) => {
+  const contexto = ctx('updateMovimentacao');
+  assertArgument(isId(id), 'id', contexto);
+  assertArgument(isObjeto(dados), 'dados', contexto);
+  return runProviderCall(() => lotesProvider.updateMovimentacao(id, dados), contexto);
 };

@@ -1,10 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
-import bebedouroRepository from "@/repositories/bebedouroRepository";
+import { listarBebedouros } from "@/services/bebedouroDataService";
 
 export function useBebedouros(empresaId) {
   return useQuery({
     queryKey: ["bebedouros", empresaId],
-    queryFn: () => bebedouroRepository.listBebedouros(empresaId),
+    queryFn: () => listarBebedouros(empresaId),
     enabled: !!empresaId,
     initialData: [],
     staleTime: 60 * 1000

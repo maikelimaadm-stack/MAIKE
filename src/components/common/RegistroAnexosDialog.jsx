@@ -1,5 +1,6 @@
 import React, { useRef, useState } from "react";
-import { base44 } from "@/api/base44Client";
+import { listarAnexos, anexarArquivo, excluirAnexo } from "@/services/anexoService";
+import { getApiErrorMessage } from "@/apis/_core/ApiError";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -23,7 +24,7 @@ export default function RegistroAnexosDialog({ open, onOpenChange, entityName, r
 
   const { data: savedAnexos = [] } = useQuery({
     queryKey,
-    queryFn: () => base44.entities.RegistroAnexo.filter({ entity_name: entityName, record_id: recordId }, "-created_date"),
+    queryFn: () => listarAnexos({ entityName, recordId }),
     enabled: open && !!entityName && !!recordId,
     initialData: []
   });
@@ -31,7 +32,7 @@ export default function RegistroAnexosDialog({ open, onOpenChange, entityName, r
   const anexos = recordId ? savedAnexos : pendingAnexos;
 
   const deleteMutation = useMutation({
-    mutationFn: (id) => base44.entities.RegistroAnexo.delete(id),
+    mutationFn: (id) => excluirAnexo(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey });
       toast.success("Anexo removido.");
@@ -48,22 +49,31 @@ export default function RegistroAnexosDialog({ open, onOpenChange, entityName, r
     }
     setUploading(true);
     const novosAnexos = [];
-    for (const file of files) {
-      const { file_url } = await base44.integrations.Core.UploadFile({ file });
-      const anexoData = {
-        entity_name: entityName,
-        record_id: recordId,
-        attachment_name: attachmentName.trim(),
-        file_name: file.name,
-        file_url,
-        file_type: file.type,
-        file_size: file.size
-      };
-      if (recordId) {
-        await base44.entities.RegistroAnexo.create(anexoData);
-      } else {
-        novosAnexos.push({ ...anexoData, id: `pending-${Date.now()}-${file.name}` });
+    try {
+      for (const file of files) {
+        if (recordId) {
+          await anexarArquivo({ entityName, recordId, arquivo: file, nome: attachmentName.trim() });
+        } else {
+          // Sem `recordId` o registro ainda não existe: o anexo fica pendente no
+          // cliente e é persistido depois que o lote é criado.
+          novosAnexos.push({
+            entity_name: entityName,
+            record_id: recordId,
+            attachment_name: attachmentName.trim(),
+            file_name: file.name,
+            file_type: file.type,
+            file_size: file.size,
+            arquivo: file,
+            id: `pending-${novosAnexos.length}-${file.name}`
+          });
+        }
       }
+    } catch (error) {
+      // Mensagem pública do catálogo — nunca o texto cru do provider.
+      toast.error(getApiErrorMessage(error, "Não foi possível anexar o arquivo."));
+      setUploading(false);
+      event.target.value = "";
+      return;
     }
     if (!recordId && novosAnexos.length) {
       onPendingChange?.([...pendingAnexos, ...novosAnexos]);

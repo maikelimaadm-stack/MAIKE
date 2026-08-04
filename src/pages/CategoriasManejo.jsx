@@ -1,5 +1,12 @@
 import React, { useMemo, useState } from "react";
-import { base44 } from "@/api/base44Client";
+import {
+  listarCategoriasManejoDaEmpresa,
+  listarIconesDeLoteDaEmpresa,
+  criarCategoriaManejo,
+  atualizarCategoriaManejo,
+  excluirCategoriaManejo,
+} from "@/services/categoriaManejoService";
+import { getApiErrorMessage, hasApiErrorCode, API_ERROR_CODES } from "@/apis/_core/ApiError";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Settings } from "lucide-react";
@@ -8,7 +15,6 @@ import { AnimatePresence } from "framer-motion";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 import TabelaCategoriasManejo from "@/components/categorias-manejo/TabelaCategoriasManejo";
 import FormularioCategoriaManejo from "@/components/categorias-manejo/FormularioCategoriaManejo";
-import { ensureDeleteAllowed } from "@/lib/entityDeleteGuards";
 
 const getInitialFormData = () => ({
   nome: "",
@@ -45,8 +51,7 @@ export default function CategoriasManejo() {
   const { data: categorias = [], refetch } = useQuery({
     queryKey: ["categorias-manejo", empresaSelecionadaId],
     queryFn: async () => {
-      const all = await base44.entities.CategoriaManejo.list();
-      return all.filter((c) => c.empresa_id === empresaSelecionadaId);
+      return listarCategoriasManejoDaEmpresa(empresaSelecionadaId);
     },
     enabled: !!empresaSelecionadaId
   });
@@ -54,14 +59,13 @@ export default function CategoriasManejo() {
   const { data: iconesConfig = [] } = useQuery({
     queryKey: ["configuracao-icones", empresaSelecionadaId],
     queryFn: async () => {
-      const all = await base44.entities.ConfiguracaoIcone.list();
-      return all.filter((i) => i.empresa_id === empresaSelecionadaId && i.tipo_entidade === "Lote" && i.ativo !== false);
+      return listarIconesDeLoteDaEmpresa(empresaSelecionadaId);
     },
     enabled: !!empresaSelecionadaId
   });
 
   const createMutation = useMutation({
-    mutationFn: (data) => base44.entities.CategoriaManejo.create(data),
+    mutationFn: (data) => criarCategoriaManejo(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["categorias-manejo", empresaSelecionadaId] });
       setShowForm(false);
@@ -71,9 +75,7 @@ export default function CategoriasManejo() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: async ({ id, data }) => {
-      return await base44.entities.CategoriaManejo.update(id, data);
-    },
+    mutationFn: ({ id, data }) => atualizarCategoriaManejo(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["categorias-manejo", empresaSelecionadaId] });
       setShowForm(false);
@@ -83,17 +85,15 @@ export default function CategoriasManejo() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id) => {
-      await ensureDeleteAllowed(base44, "CategoriaManejo", id);
-      return base44.entities.CategoriaManejo.delete(id);
-    },
+    mutationFn: (id) => excluirCategoriaManejo(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["categorias-manejo", empresaSelecionadaId] });
       toast.success("Categoria excluída!");
     },
     onError: (error) => {
-      if (String(error?.message || "").toLowerCase().includes("não é possível excluir")) return;
-      toast.error(error.message || "Erro ao excluir.");
+      // Decidido por código, não por texto: o diálogo global já comunica o vínculo.
+      if (hasApiErrorCode(error, API_ERROR_CODES.CATEGORIA_MANEJO_DELETE_BLOCKED)) return;
+      toast.error(getApiErrorMessage(error, "Erro ao excluir."));
     }
   });
 

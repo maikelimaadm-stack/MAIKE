@@ -1,8 +1,14 @@
+import { getApiErrorMessage } from "@/apis/_core/ApiError";
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import {
+  listarTodasMovimentacoes,
+  listarLotesDaEmpresa,
+  atualizarLote,
+  excluirMovimentacao,
+} from "@/services/loteManejoService";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import {
@@ -503,7 +509,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
     setHiddenMovementIds((prev) => (prev.includes(entry.id) ? prev : [...prev, entry.id]));
 
     try {
-      const movsAll = await base44.entities.MovimentacaoMapa.list('-data_movimentacao');
+      const movsAll = await listarTodasMovimentacoes();
       const movimentoAtual = movsAll.find((item) => item.id === mov.id);
 
       if (!movimentoAtual) {
@@ -537,7 +543,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
         });
       }
 
-      const lotesEmpresa = await base44.entities.Lote.filter({ empresa_id: empresaSelecionadaId });
+      const lotesEmpresa = await listarLotesDaEmpresa(empresaSelecionadaId);
 
       const findLoteById = (id) => id ? lotesEmpresa.find(l => l.id === id) : null;
       const findLoteByNome = (nome, apenasAtivo = true) => lotesEmpresa.find(l =>
@@ -571,7 +577,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
           throw new Error('Não foi possível desfazer a junção: dados originais não encontrados.');
         }
         for (const lo of snapshotLotes) {
-          await base44.entities.Lote.update(lo.id, {
+          await atualizarLote(lo.id, {
             nome: lo.nome, quantidade_cabecas: lo.quantidade_cabecas, peso_medio_kg: lo.peso_medio_kg,
             status: lo.status, categoria: lo.categoria,
             categoria_manejo_id: lo.categoria_manejo_id || null, categoria_manejo_nome: lo.categoria_manejo_nome || null,
@@ -584,14 +590,14 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
         const obsText = mov.observacoes || '';
         const m = obsText.match(/Renomear Lote: "(.+?)" →/);
         if (m && m[1] && mov.lote_id) {
-          await base44.entities.Lote.update(mov.lote_id, { nome: m[1] });
+          await atualizarLote(mov.lote_id, { nome: m[1] });
         }
       }
 
       if (mov.tipo === 'Morte' || mov.tipo === 'Abate') {
         const loteRecord = resolverLote();
         if (loteRecord) {
-          await base44.entities.Lote.update(loteRecord.id, {
+          await atualizarLote(loteRecord.id, {
             quantidade_cabecas: (loteRecord.quantidade_cabecas || 0) + qtd, status: 'Ativo'
           });
         }
@@ -601,7 +607,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
         const loteRecord = resolverLote();
         if (loteRecord) {
           const novaQtd = Math.max(0, (loteRecord.quantidade_cabecas || 0) - qtd);
-          await base44.entities.Lote.update(loteRecord.id, {
+          await atualizarLote(loteRecord.id, {
             quantidade_cabecas: novaQtd, status: novaQtd > 0 ? loteRecord.status : 'Inativo'
           });
         }
@@ -612,7 +618,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
         if (loteRecord) {
           const pesoAnterior = getPesoAnteriorFromObs(mov.observacoes);
           if (pesoAnterior !== null) {
-            await base44.entities.Lote.update(loteRecord.id, { peso_medio_kg: pesoAnterior });
+            await atualizarLote(loteRecord.id, { peso_medio_kg: pesoAnterior });
           }
         }
       }
@@ -639,13 +645,13 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
               );
 
           if (loteCategoriaNova && loteCategoriaAnterior && loteCategoriaNova.id !== loteCategoriaAnterior.id) {
-            await base44.entities.Lote.update(loteCategoriaAnterior.id, {
+            await atualizarLote(loteCategoriaAnterior.id, {
               quantidade_cabecas: (loteCategoriaAnterior.quantidade_cabecas || 0) + qtdMovimento,
               status: 'Ativo'
             });
 
             const novaQtdCategoriaNova = Math.max(0, (loteCategoriaNova.quantidade_cabecas || 0) - qtdMovimento);
-            await base44.entities.Lote.update(loteCategoriaNova.id, {
+            await atualizarLote(loteCategoriaNova.id, {
               quantidade_cabecas: novaQtdCategoriaNova,
               status: novaQtdCategoriaNova > 0 ? 'Ativo' : 'Inativo'
             });
@@ -653,7 +659,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
             const sexoAnterior = getSexoAnteriorFromObs(mov.observacoes);
             const updateData = { categoria: categoriaAnterior };
             if (sexoAnterior) updateData.sexo = sexoAnterior;
-            await base44.entities.Lote.update(lotePrincipal.id, updateData);
+            await atualizarLote(lotePrincipal.id, updateData);
           }
         }
       }
@@ -665,7 +671,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
         });
       }
 
-      await base44.entities.MovimentacaoMapa.delete(mov.id);
+      await excluirMovimentacao(mov.id);
 
       await Promise.all([
         refreshMapaCacheEntry('movimentacoes', empresaSelecionadaId, { force: true }),
@@ -693,7 +699,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
         toast.success('Lançamento já estava excluído');
       } else {
         setHiddenMovementIds((prev) => prev.filter((id) => id !== entry.id));
-        toast.error(error.message || 'Não foi possível excluir o lançamento');
+        toast.error(getApiErrorMessage(error, 'Não foi possível excluir o lançamento'));
       }
     } finally {
       deleteLockRef.current = false;

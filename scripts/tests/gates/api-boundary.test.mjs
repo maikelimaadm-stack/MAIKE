@@ -1004,3 +1004,98 @@ describe('gate:api-boundary — R4 LW18 consistência do parser', () => {
     assert.equal(analyzeFile(src, 'src/apis/empresa/index.ts').publicProviderLeaks.length, 1);
   });
 });
+
+describe('gate:api-boundary — P1.3 provas negativas dos caminhos fechados no manejo', () => {
+  /**
+   * N1–N7 são as regressões que a P1.3 fecha. Cada uma é uma fixture analisada
+   * pelo **gate real**, não uma mutação manual no repositório: o custo de rodar
+   * é o mesmo dos outros testes, e a prova roda em toda CI em vez de uma vez.
+   */
+
+  test('N1 UI chamando API de dados direto reprova', () => {
+    const d = comModulo({
+      'src/pages/CadastroLotes.jsx': "import { listLotes } from '@/apis/lotes';\nexport default function P() { return listLotes(); }\n",
+      'src/apis/lotes/lotesApi.js': "import { empresaProvider } from '../_providers/base44Provider.js';\nexport const listLotes = () => empresaProvider.list('x');\n",
+      'src/apis/lotes/index.js': "export { listLotes } from './lotesApi.js';\n",
+    });
+    criarBaseline(d);
+    falhaCom(d, 'P11-API-BOUNDARY-SERVICE-BYPASS');
+    cleanup(d);
+  });
+
+  test('N2 service importando implementação privada de módulo reprova', () => {
+    const d = comModulo({
+      'src/apis/lotes/lotesApi.js': "import { empresaProvider } from '../_providers/base44Provider.js';\nexport const listLotes = () => empresaProvider.list('x');\n",
+      'src/apis/lotes/index.js': "export { listLotes } from './lotesApi.js';\n",
+      'src/services/loteCadastroService.js': "import { listLotes } from '@/apis/lotes/lotesApi.js';\nexport const listar = () => listLotes();\n",
+    });
+    criarBaseline(d);
+    falhaCom(d, 'P11-API-BOUNDARY-MODULE-INTERNAL-BYPASS');
+    cleanup(d);
+  });
+
+  test('N3 repositório legado reaparecendo com o SDK reprova', () => {
+    const d = comModulo();
+    criarBaseline(d);
+    writeFile(d, 'src/core/repositories/loteRepository.js',
+      "import { base44 } from '@/api/base44Client';\nexport const list = () => base44.entities.Lote.list();\n");
+    falhaCom(d, 'P11-API-BOUNDARY-REGRESSION');
+    cleanup(d);
+  });
+
+  test('N4 acesso computado a entities reprova', () => {
+    const d = comModulo({
+      'src/apis/lotes/lotesApi.js':
+        "import { base44 } from '@/api/base44Client';\nexport const listSource = (nome) => base44.entities[nome].list();\n",
+      'src/apis/lotes/index.js': "export { listSource } from './lotesApi.js';\n",
+    });
+    criarBaseline(d);
+    falhaCom(d, 'P11-API-BOUNDARY-DYNAMIC-ENTITY');
+    cleanup(d);
+  });
+
+  test('N5 função Base44 de nome aberto reprova: só o adapter fala com o client', () => {
+    const d = comModulo({
+      'src/apis/lotes/lotesApi.js':
+        "import { base44 } from '@/api/base44Client';\nexport const invocar = (nome, payload) => base44.functions.invoke(nome, payload);\n",
+      'src/apis/lotes/index.js': "export { invocar } from './lotesApi.js';\n",
+    });
+    criarBaseline(d);
+    // O caminho fecha antes de discutir o nome da função: um módulo de API não
+    // pode importar o client legado — só o adapter autorizado pode.
+    falhaCom(d, 'P11-API-BOUNDARY-PROVIDER-LEAK');
+    cleanup(d);
+  });
+
+  test('N6 provider reexportado pela superfície pública reprova', () => {
+    const d = comModulo({
+      'src/apis/lotes/lotesApi.js': "import { empresaProvider } from '../_providers/base44Provider.js';\nexport const listLotes = () => empresaProvider.list('x');\n",
+      'src/apis/lotes/index.js': "export { listLotes } from './lotesApi.js';\nexport { empresaProvider } from '../_providers/base44Provider.js';\n",
+    });
+    criarBaseline(d);
+    falhaCom(d, 'P11-API-BOUNDARY-PUBLIC-PROVIDER-LEAK');
+    cleanup(d);
+  });
+
+  test('N7 arquivo já migrado voltando ao baseline reprova', () => {
+    const d = comModulo();
+    criarBaseline(d);
+    writeFile(d, 'src/pages/CadastroSetores.jsx',
+      "import { base44 } from '@/api/base44Client';\nexport default function P() { return base44.entities.Setor.list(); }\n");
+    falhaCom(d, 'P11-API-BOUNDARY-REGRESSION');
+    cleanup(d);
+  });
+
+  test('N8 CONTROLE POSITIVO: UI → service → API pública → provider interno passa', () => {
+    const d = comModulo({
+      'src/apis/lotes/lotesApi.js': "import { empresaProvider } from '../_providers/base44Provider.js';\nexport const listLotes = () => empresaProvider.list('x');\n",
+      'src/apis/lotes/index.js': "export { listLotes } from './lotesApi.js';\n",
+      'src/services/loteCadastroService.js': "import { listLotes } from '@/apis/lotes';\nexport const listar = () => listLotes();\n",
+      'src/pages/CadastroLotes.jsx': "import { listar } from '@/services/loteCadastroService';\nexport default function P() { return listar(); }\n",
+    });
+    criarBaseline(d);
+    const r = rodar(d);
+    assert.equal(r.status, 0, r.output);
+    cleanup(d);
+  });
+});

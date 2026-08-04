@@ -3,7 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useQuery } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { listarIconesPorTipoEntidade, listarPontosDaEmpresa } from "@/services/mapaService";
+import { listarTodosLotes } from "@/services/loteManejoService";
 import { useBebedouroHistorico } from "@/hooks/useBebedouroHistorico";
 import BebedouroTimeline from "./BebedouroTimeline";
 import FormularioLancamentoBebedouro from "./FormularioLancamentoBebedouro";
@@ -33,8 +34,8 @@ export default function DetalhesBebedouro({ bebedouro }) {
   const { data: iconesConfig = [] } = useQuery({
     queryKey: ["configuracao-icones-bebedouro-detalhe", empresaId],
     queryFn: async () => {
-      const all = await base44.entities.ConfiguracaoIcone.list();
-      return all.filter((item) => item.ativo !== false && item.tipo_entidade === "Ponto");
+      const icones = await listarIconesPorTipoEntidade("Ponto");
+      return icones.filter((item) => item.ativo !== false);
     },
     enabled: !!empresaId,
     staleTime: 10 * 60 * 1000
@@ -42,7 +43,7 @@ export default function DetalhesBebedouro({ bebedouro }) {
   const { data: lotes = [] } = useQuery({
     queryKey: ["lotes-bebedouro-detalhe", empresaId],
     queryFn: async () => {
-      const all = await base44.entities.Lote.list();
+      const all = await listarTodosLotes();
       return all.filter((lote) => lote.empresa_id === empresaId && lote.status === "Ativo");
     },
     enabled: !!empresaId,
@@ -51,8 +52,8 @@ export default function DetalhesBebedouro({ bebedouro }) {
   const { data: pontosReferencia = [] } = useQuery({
     queryKey: ["pontos-referencia-bebedouro-detalhe", empresaId],
     queryFn: async () => {
-      const all = await base44.entities.PontoReferencia.list();
-      return all.filter((ponto) => ponto.empresa_id === empresaId && ponto.ativo !== false);
+      const pontos = await listarPontosDaEmpresa(empresaId);
+      return pontos.filter((ponto) => ponto.ativo !== false);
     },
     enabled: !!empresaId,
     staleTime: 60 * 1000

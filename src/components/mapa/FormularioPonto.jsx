@@ -35,7 +35,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Progress } from "@/components/ui/progress";
 import { normalizeText } from "../suplementacao/estoqueSuplementacaoUtils";
 import useSetorAreas from "@/hooks/useSetorAreas";
-import bebedouroRepository from "@/repositories/bebedouroRepository";
+import { atualizarBebedouro, criarBebedouro } from "@/services/bebedouroDataService";
 import { BEBEDOURO_ORIGENS_AGUA, BEBEDOURO_TIPOS } from "@/services/bebedouroService";
 
 const FL = ({ label, required, error, children }) =>
@@ -368,8 +368,8 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
           ativo: true,
           observacoes: data.observacoes || null
         };
-        if (bebedouroExistente) await bebedouroRepository.updateBebedouro(bebedouroExistente.id, payloadBebedouro);
-        else await bebedouroRepository.createBebedouro(payloadBebedouro);
+        if (bebedouroExistente) await atualizarBebedouro(bebedouroExistente.id, payloadBebedouro);
+        else await criarBebedouro(payloadBebedouro);
       }
 
       if (!data.tipo_categoria && pontoSuplementacaoExistente) {
