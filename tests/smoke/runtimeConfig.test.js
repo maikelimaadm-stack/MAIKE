@@ -1,4 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { readFileSync, readdirSync } from 'node:fs';
+import { sep } from 'node:path';
 
 /**
  * A configuração do provider é resolvida uma única vez, no carregamento do
@@ -108,6 +110,128 @@ describe('runtimeConfig — Google Maps', () => {
     const { getGoogleMapsApiKey, isGoogleMapsConfigured } = await carregarConfig();
     expect(getGoogleMapsApiKey()).toBeNull();
     expect(isGoogleMapsConfigured()).toBe(false);
+  });
+});
+
+/**
+ * ENV1–ENV8, ENV11, ENV12 — o contrato de variável de build do Vite.
+ *
+ * A regressão da P1.2 não foi um valor errado: foi a **forma de ler**. O Vite
+ * substitui textualmente cada `import.meta.env.VITE_ALGO` que enxerga no código;
+ * leitura por chave computada não é substituída, e o bundle de produção fica sem
+ * as variáveis mesmo com tudo configurado na plataforma.
+ *
+ * Teste unitário não pega isso — em Vitest o objeto existe e a leitura dinâmica
+ * funciona. Por isso a garantia aqui é sobre o **texto do código de produção**,
+ * e a prova de ponta a ponta é a ENV9 (build real com marcador sintético).
+ */
+describe('ENV — variáveis de build com referência estática', () => {
+  const fonteConfig = () => readFileSync('src/config/runtimeConfig.js', 'utf8');
+  /** Sem comentários: o texto explicativo cita as formas proibidas de propósito. */
+  const codigoConfig = () =>
+    fonteConfig()
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/^\s*\/\/.*$/gm, '');
+
+  it('ENV1 — o código de produção não acessa import.meta.env dinamicamente', () => {
+    const codigo = codigoConfig();
+    expect(codigo).not.toMatch(/import\.meta\.env\s*\?\?\s*\[/);
+    expect(codigo).not.toMatch(/import\.meta\.env\s*\?\.\s*\[/);
+    expect(codigo).not.toMatch(/import\.meta\.env\s*\[/);
+    expect(codigo).not.toMatch(/Reflect\.get\s*\(\s*import\.meta\.env/);
+    expect(codigo).not.toMatch(/Object\.(entries|keys|values)\s*\(\s*import\.meta\.env/);
+    expect(codigo).not.toMatch(/new Proxy\s*\(\s*import\.meta\.env/);
+    expect(codigo).not.toMatch(/['"`]VITE_['"`]\s*\+/);
+  });
+
+  it.each([
+    ['ENV2', 'VITE_GOOGLE_MAPS_API_KEY'],
+    ['ENV3', 'VITE_BASE44_APP_ID'],
+    ['ENV4', 'VITE_BASE44_BACKEND_URL'],
+  ])('%s — %s aparece como referência estática literal', (_id, variavel) => {
+    expect(codigoConfig()).toContain(`import.meta.env.${variavel}`);
+  });
+
+  it('nenhuma outra fonte de src/ lê import.meta.env por conta própria', () => {
+    // `readdirSync` recursivo em vez de `globSync`: este último só existe no
+    // Node 22, e o `.nvmrc` fixa 20.19.0 — a diferença reprovou a CI uma vez.
+    const arquivos = readdirSync('src', { recursive: true })
+      .map((rel) => `src/${String(rel).split(sep).join('/')}`)
+      .filter((rel) => /\.(js|jsx)$/.test(rel));
+    // Sem isto o teste passaria vazio se o glob mudasse de comportamento.
+    expect(arquivos.length).toBeGreaterThan(100);
+    const infratores = arquivos.filter(
+      (rel) => rel !== 'src/config/runtimeConfig.js' && /import\.meta\.env/.test(readFileSync(rel, 'utf8'))
+    );
+    expect(infratores).toEqual([]);
+  });
+
+  it('ENV5 — chave ausente devolve null', async () => {
+    vi.stubEnv('VITE_GOOGLE_MAPS_API_KEY', '');
+    const { getGoogleMapsApiKey, isGoogleMapsConfigured } = await carregarConfig();
+    expect(getGoogleMapsApiKey()).toBeNull();
+    expect(isGoogleMapsConfigured()).toBe(false);
+  });
+
+  it('ENV6 — espaços em volta são normalizados', async () => {
+    vi.stubEnv('VITE_GOOGLE_MAPS_API_KEY', '   chave-sintetica-de-teste   ');
+    const { getGoogleMapsApiKey } = await carregarConfig();
+    const valor = getGoogleMapsApiKey();
+    expect(valor).toBe('chave-sintetica-de-teste');
+    expect(valor).toBe(valor.trim());
+  });
+
+  it('ENV6b — valor só com espaço conta como ausente', async () => {
+    vi.stubEnv('VITE_GOOGLE_MAPS_API_KEY', '     ');
+    const { isGoogleMapsConfigured } = await carregarConfig();
+    expect(isGoogleMapsConfigured()).toBe(false);
+  });
+
+  it('ENV11 — os parâmetros da Base44 continuam resolvendo pelo ambiente', async () => {
+    vi.stubEnv('VITE_BASE44_APP_ID', 'app-do-ambiente');
+    vi.stubEnv('VITE_BASE44_BACKEND_URL', 'https://exemplo.invalido/api');
+    const { getDataProviderConfig } = await carregarConfig();
+    const config = getDataProviderConfig();
+    expect(config.appId).toBe('app-do-ambiente');
+    expect(config.serverUrl).toBe('https://exemplo.invalido/api');
+  });
+
+  it('ENV12 — nenhum valor de env aparece em describeRuntimeConfig', async () => {
+    const chave = 'chave-sintetica-de-teste';
+    vi.stubEnv('VITE_GOOGLE_MAPS_API_KEY', chave);
+    vi.stubEnv('VITE_BASE44_APP_ID', 'app-secreto');
+    vi.stubEnv('VITE_BASE44_BACKEND_URL', 'https://exemplo.invalido/api');
+
+    const { describeRuntimeConfig } = await carregarConfig();
+    const serializado = JSON.stringify(describeRuntimeConfig());
+
+    expect(serializado).not.toContain(chave);
+    expect(serializado).not.toContain('app-secreto');
+    expect(serializado).not.toContain('exemplo.invalido');
+    expect(Object.values(describeRuntimeConfig()).every((v) => typeof v === 'boolean')).toBe(true);
+  });
+});
+
+describe('ENV7/ENV8 — mensagem pública de configuração ausente', () => {
+  it('ENV7 — orienta desenvolvimento e produção, não só .env.local', async () => {
+    const { GOOGLE_MAPS_MISSING_KEY_MESSAGE } = await import('@/lib/googleMaps');
+    expect(GOOGLE_MAPS_MISSING_KEY_MESSAGE).toContain('VITE_GOOGLE_MAPS_API_KEY');
+    // A versão anterior citava só `.env.local`, o que manda o operador de
+    // produção para um arquivo que não existe no deploy.
+    expect(GOOGLE_MAPS_MISSING_KEY_MESSAGE).toMatch(/nova versão|build|constru/i);
+    expect(GOOGLE_MAPS_MISSING_KEY_MESSAGE).not.toMatch(/^Google Maps não configurado: defina .* no arquivo \.env\.local \(ver \.env\.example\)\.$/);
+  });
+
+  it('ENV8 — a mensagem não contém valor de chave nem dado interno', async () => {
+    const { GOOGLE_MAPS_MISSING_KEY_MESSAGE, MAPS_ERROR_CODES, GoogleMapsError } =
+      await import('@/lib/googleMaps');
+    const erro = new GoogleMapsError(MAPS_ERROR_CODES.CONFIG_MISSING);
+    for (const texto of [GOOGLE_MAPS_MISSING_KEY_MESSAGE, erro.message]) {
+      expect(texto).not.toMatch(/AIza/);
+      expect(texto).not.toMatch(/Bearer|token|senha|password/i);
+      expect(texto).not.toMatch(/https?:\/\//);
+      expect(texto).not.toMatch(/railway|vercel/i);
+    }
   });
 });
 

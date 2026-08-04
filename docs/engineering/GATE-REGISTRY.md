@@ -451,8 +451,12 @@ registra a `main` de origem e é preservado nas atualizações.
 
 Baseline: `scripts/gates/api-boundary-baseline.json` (schema 1).
 
-**Estado atual (P1.1):** 67 arquivos legados importam o client, 63 usam
-`entities`. Empresa saiu de todos os eixos.
+**Estado atual (P1.2):** 42 arquivos legados importam o client, 38 usam
+`entities`, 9 usam `auth`, 3 usam `integrations`. Empresa saiu na P1.1; todo o
+Mapa e o manejo iniciado por ele saíram na P1.2 — `MapaGeral`, `MapaCadastro`,
+`useSetorAreas`, os 20 componentes de `src/components/mapa/`,
+`manejoValidations` e o antigo `mapaOfflineCache` (removido). Todos os eixos são
+subconjuntos estritos do estado anterior.
 
 ## Smoke automatizado
 
@@ -466,13 +470,40 @@ apontando para `/MapaGeral`, fallback do `MapaGeral` sem chave, `MapaCadastro`
 com SDK mockado, montagem do `App`, e o contrato completo do carregador do
 Google Maps.
 
+Desde a P1.2, também: a fronteira de dados do mapa (nenhuma tela do mapa fala
+Base44, a UI só chama service, o service só chama superfície pública), a
+política do cache offline (dedup, intervalo mínimo, cooldown por **código** de
+erro, stale-while-revalidate), as regras de exclusão do `MapaCadastro`, a
+decisão de permissão do `MapaGeral` e as regras puras de manejo de lote.
+
+Desde a P1.2-R2, também: o contrato do App Shell — a raiz de `MapaGeral` não
+pode ser overlay global (`fixed inset-0 z-50` a tirava do fluxo do `Layout` e
+cobria cabeçalho e navegação), o gatilho do menu móvel abre o Sheet com nome
+acessível e `aria-expanded`, navegar fecha o Sheet e troca a rota, e o
+`.env.example` documenta toda `VITE_*` lida por `runtimeConfig.js`, sem valor e
+sem segredo, distinguindo Vercel Preview/Production de Railway frontend/backend.
+
+JSDOM não calcula layout, então classe sozinha não prova pixel: os testes de
+shell combinam contrato estrutural com comportamento real de clique e rota.
+
+Asserção que olha código-fonte usa um helper que **remove comentários antes de
+comparar**: um comentário explicando que o módulo não usa `localStorage` não
+pode reprovar a busca por `localStorage`.
+
 ### Contrato do carregador do Google Maps (D-PROD-16)
 
 `loadGoogleMaps` só resolve com **capacidade comprovada**:
 
 ```
-google.maps.Map  ∧  google.maps.geometry  ∧  google.maps.drawing
+google.maps.Map  ∧  google.maps.geometry
 ```
+
+`google.maps.drawing` saiu do contrato na P1.2-R1 (D-PROD-19): o Google removeu
+o `DrawingManager` na versão 3.65 e a library não existe mais no canal atual —
+exigi-la tornava o readiness insatisfazível. O produto nunca a usou: o desenho é
+manual, com `Marker`, `Polyline` e `Polygon`. `geometry` continua exigida porque
+é usada de verdade (`computeArea`, `computeLength`, `computeDistanceBetween`,
+`poly.containsLocation`).
 
 O evento `load` e `dataset.loaded` são pistas de que o script terminou, nunca
 prova de que o SDK está utilizável. Depois do `load`, o loader observa as
@@ -499,6 +530,51 @@ A chave nunca aparece em log nem em mensagem de erro — há teste específico.
 `.github/workflows/quality.yml` roda `npm ci` e `npm run verify:all` em
 `pull_request` e em `push` para `main`. Node vem de `.nvmrc`. O workflow apenas
 chama os scripts oficiais — nenhuma lógica de gate é duplicada em YAML.
+
+## Disciplina de execução do `verify:all` (P1.2-R1)
+
+`verify:all` é o gate; o shell em volta dele não pode enfraquecê-lo. Três formas
+são proibidas em qualquer script ou sessão:
+
+| Forma | Por que é defeito |
+|---|---|
+| `verify:all \| tail -N` | `tail` só imprime quando o processo termina. Durante os ~100 s a saída fica vazia e parece travamento — e as últimas N linhas podem esconder a etapa vermelha. |
+| `verify:all \| algo` sem `set -o pipefail` | o status do pipeline vira o status do último comando. Um `verify:all` vermelho devolve 0. |
+| `verify:all ; git push` | `;` torna o push **incondicional** — ele roda mesmo com a verificação vermelha. |
+
+Somadas, as três significam que um `verify:all` vermelho pode ser seguido de
+push. Forma correta quando é preciso guardar log:
+
+```bash
+set -o pipefail
+npm run verify:all 2>&1 | tee /tmp/verify.log
+status=${PIPESTATUS[0]}
+test "$status" -eq 0
+```
+
+Push só depois de exit 0 confirmado, uma tentativa, erro visível — nada de laço
+com espera exponencial escondendo a causa.
+
+### Verificar na versão de runtime da CI
+
+O `.nvmrc` fixa **Node 20.19.0** e a CI usa exatamente essa versão
+(`node-version-file: .nvmrc`). Rodar `verify:all` local em outra versão **não é
+verificação**: API que existe no Node novo e não no fixado passa na máquina e
+reprova na CI.
+
+Aconteceu de verdade na P1.2-R1: quatro testes usavam `fs.globSync`, que só
+existe a partir do Node 22. Local em 22.22.2 deu 13/13; a CI, em 20.19.0,
+reprovou `test:smoke`. Ver run [30849901416](https://github.com/maikelimaadm-stack/MAIKE/actions/runs/30849901416).
+
+Antes de empurrar, use a versão do `.nvmrc` — `nvm use` ou o caminho explícito
+do binário. Preferir API disponível na versão fixada resolve na origem:
+`readdirSync(dir, { recursive: true })` cobre Node 18.17+, `globSync` não.
+
+**Nenhum script versionado do repositório faz isso hoje**: `verify:all` é um
+script Node que propaga o exit code, e `quality.yml` chama `npm run verify:all`
+direto, sem pipe. Por isso a proteção vive aqui e no relatório da P1.2-R1, e não
+como gate — não existe script responsável para um gate vigiar, e analisar shell
+arbitrário não é objetivo deste registro.
 
 ## Alterações de escopo
 

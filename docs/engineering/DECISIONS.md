@@ -339,6 +339,13 @@ desenvolvimento, passa a ser usado também pelos gates.
 
 **Data:** 2026-07-28 · **Missão:** P0.1-R2
 
+> **Nota histórica (P1.2-R1, 2026-08-03):** a exigência de `google.maps.drawing`
+> registrada abaixo foi **superada pela D-PROD-19**. O Google removeu o
+> `DrawingManager` na versão 3.65 e a library deixou de existir no canal atual.
+> O texto original fica preservado — é o registro do que foi decidido em
+> 2026-07-28, e não se reescreve história. Todo o resto desta decisão continua
+> em vigor.
+
 **Decisão:** `loadGoogleMaps` só resolve quando `google.maps.Map`,
 `google.maps.geometry` e `google.maps.drawing` estão disponíveis. Depois do
 evento `load`, o loader observa as capacidades de forma limitada até o timeout
@@ -450,4 +457,48 @@ A configuração de runtime foi centralizada em `src/config/runtimeConfig.js` e
 
 Esta slice migra **apenas** o módulo Empresa. P1 continua em andamento.
 
-<!-- Próxima decisão: D-PROD-19 -->
+---
+
+## D-PROD-19 — Google Maps não depende mais da Drawing Library
+
+**Data:** 2026-08-03 · **Missão:** P1.2-R1
+
+**Decisão:** o loader passa a carregar `libraries=geometry` e a exigir apenas
+`google.maps.Map` e `google.maps.geometry`. `google.maps.drawing` sai da URL,
+das capacidades exigidas, das mensagens e dos testes.
+
+**Justificativa:** o Google removeu o `DrawingManager` do Maps JavaScript API na
+versão 3.65, em junho de 2026. A partir daí o contrato da D-PROD-16 virou
+insatisfazível no canal atual: mesmo com chave válida e faturamento em dia,
+`google.maps.drawing` nunca aparece, `isGoogleMapsReady()` fica permanentemente
+falso, e toda carga termina em `MAPS_SDK_INCOMPLETE` depois do timeout. A
+exigência não protegia mais nada — garantia apenas que o mapa nunca carregasse.
+
+A auditoria mecânica sobre `src/`, `tests/`, `scripts/`, `docs/` e `config/`
+mostrou **zero uso executável** de `google.maps.drawing`, `DrawingManager` ou
+`OverlayType`. O produto sempre desenhou por conta própria: `MapaDesenho` monta
+ponto, linha e polígono com `google.maps.Marker`, `Polyline` e `Polygon`, mais
+listeners de `dblclick`, `mousemove` e `mouseout`, e edição manual de vértices.
+A library era dependência declarada e nunca exercida — por isso nada precisou
+ser migrado e nenhuma dependência nova entrou.
+
+**Consequência:** `GOOGLE_MAPS_LIBRARIES` passa a ser `'geometry'` e
+`GOOGLE_MAPS_REQUIRED_LIBRARIES` a ser `['geometry']`. `isExpectedScriptSrc`
+continua exigindo que a URL contenha as libraries exigidas — uma URL herdada com
+`drawing,geometry` continua válida, porque contém `geometry`; o produto apenas
+não gera mais essa URL. `geometry` **permanece obrigatória** porque é usada de
+verdade: `computeArea`, `computeLength`, `computeDistanceBetween` e
+`poly.containsLocation` aparecem em sete componentes do mapa.
+
+**Relação com a D-PROD-16:** esta decisão **supera** a D-PROD-16 apenas na parte
+que exigia `drawing`. Todo o resto da D-PROD-16 continua valendo integralmente —
+capacidade comprovada em vez de `onLoad`, `dataset.loaded` como pista e nunca
+prova, `MAPS_SDK_INCOMPLETE`, falha nunca em cache, retentativa possível,
+`gm_authFailure` derrubando a carga. A D-PROD-16 não é apagada nem reescrita.
+
+**O que esta decisão não afirma:** nada sobre a segurança da chave. A `VITE_*`
+vai para o bundle do cliente por definição do Vite, e a proteção correta é
+restrição por referrer e por API no Google Cloud. OWNER-SECURITY-01 continua
+aberto.
+
+<!-- Próxima decisão: D-PROD-20 -->

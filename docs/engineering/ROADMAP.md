@@ -43,7 +43,7 @@ baseline de `gate:api-boundary`; nenhuma adiciona (SCL-P11-01).
 | Slice | Escopo | Estado |
 |---|---|---|
 | **P1.1** | fundação (`src/apis/`, `ApiError`, `runtimeConfig`, provider interno) + piloto **Empresa** | entregue |
-| **P1.2** | Mapa — `MapaGeral`, `MapaCadastro`, `DetalhesLote` | não iniciada |
+| **P1.2** | Mapa — `MapaGeral`, `MapaCadastro`, `DetalhesLote`, componentes de `src/components/mapa/`, cache offline e `useSetorAreas` | mergeada (PR #3); corrigida por P1.2-R1 e P1.2-R2 |
 | **P1.3** | Manejo — `CadastroLotes`, `CadastroSetores`, `Categorias`, `CategoriasManejo`, `Bebedouros` | não iniciada |
 | **P1.4** | Suporte e Administração + fechamento da P1 (cobertura de lint remanescente, DBT-01) | não iniciada |
 

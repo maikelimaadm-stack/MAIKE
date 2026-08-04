@@ -49,11 +49,68 @@ const writeStorage = (chave, valor) => {
   }
 };
 
-/** Lê `import.meta.env` sem quebrar fora do bundler. */
-const readEnv = (nome) => {
+/**
+ * Variáveis de build do Vite — **referência estática obrigatória** (P1.2-R1).
+ *
+ * A versão anterior lia por chave: `import.meta.env?.[nome]`. A troca por
+ * referência estática foi feita por um motivo **medido**, e vale registrar qual,
+ * porque o motivo intuitivo está errado:
+ *
+ * O que se supunha: leitura dinâmica não seria substituída pelo Vite e o bundle
+ * de produção ficaria sem as variáveis. **Isso não acontece.** Medido em build
+ * real: quando o Vite encontra um `import.meta.env` que não consegue
+ * especializar, ele materializa o objeto **inteiro** como literal e reescreve o
+ * acesso para indexá-lo. A leitura dinâmica funciona.
+ *
+ * O que realmente muda, e é o motivo desta forma: materializar o objeto inteiro
+ * despeja no bundle do cliente **todas** as variáveis `VITE_*` presentes na hora
+ * do build, inclusive as que este código nunca referencia. Medido:
+ *
+ *   forma dinâmica → `{BASE_URL:…, VITE_USADA:…, VITE_NUNCA_REFERENCIADA:…}`
+ *   forma estática → só o valor referenciado, inline
+ *
+ * Ou seja: a forma dinâmica transforma qualquer `VITE_*` futura em conteúdo
+ * público do bundle, mesmo sem uso. A forma estática entrega apenas o que o
+ * código pede. É contenção de superfície, não correção de leitura.
+ *
+ * Cada variável conhecida ganha uma função com a propriedade escrita
+ * literalmente. É verboso de propósito: a repetição é o que o bundler precisa
+ * ver. Variável nova exige uma função nova — não existe forma genérica correta.
+ *
+ * Proibido, e coberto por teste (ENV1): `import.meta.env[nome]`,
+ * `import.meta.env?.[nome]`, `Reflect.get(import.meta.env, ...)`,
+ * `Object.entries(import.meta.env)`, `'VITE_' + sufixo`.
+ *
+ * **A chave `VITE_*` é pública por definição** — ela vai para o bundle do
+ * cliente. A proteção correta para o Maps JavaScript API é restrição por
+ * referrer e por API no Google Cloud, nunca sigilo do valor.
+ */
+const normalizarEnv = (valor) =>
+  typeof valor === 'string' && valor.trim() ? valor.trim() : null;
+
+/**
+ * Fora do bundler (SSR, script Node solto) `import.meta.env` pode não existir.
+ * Isso não pode derrubar a aplicação — daí o `try`.
+ */
+const lerGoogleMapsApiKey = () => {
   try {
-    const valor = import.meta.env?.[nome];
-    return typeof valor === 'string' && valor.trim() ? valor.trim() : null;
+    return normalizarEnv(import.meta.env.VITE_GOOGLE_MAPS_API_KEY);
+  } catch {
+    return null;
+  }
+};
+
+const lerBase44AppId = () => {
+  try {
+    return normalizarEnv(import.meta.env.VITE_BASE44_APP_ID);
+  } catch {
+    return null;
+  }
+};
+
+const lerBase44BackendUrl = () => {
+  try {
+    return normalizarEnv(import.meta.env.VITE_BASE44_BACKEND_URL);
   } catch {
     return null;
   }
@@ -113,8 +170,8 @@ const resolveParam = (nome, { defaultValue = null, removeFromUrl = false } = {})
  * e resolver de novo depois devolveria `null` para quem chegou pela query string.
  */
 const providerParams = Object.freeze({
-  appId: resolveParam('app_id', { defaultValue: readEnv('VITE_BASE44_APP_ID') }),
-  serverUrl: resolveParam('server_url', { defaultValue: readEnv('VITE_BASE44_BACKEND_URL') }),
+  appId: resolveParam('app_id', { defaultValue: lerBase44AppId() }),
+  serverUrl: resolveParam('server_url', { defaultValue: lerBase44BackendUrl() }),
   token: resolveParam('access_token', { removeFromUrl: true }),
   fromUrl: resolveParam('from_url', { defaultValue: hasWindow() ? window.location.href : null }),
   functionsVersion: resolveParam('functions_version'),
@@ -127,10 +184,15 @@ const providerParams = Object.freeze({
 export const getDataProviderConfig = () => providerParams;
 
 /**
- * Chave do Google Maps. Lida a cada chamada porque os testes trocam o ambiente.
+ * Chave do Google Maps.
+ *
+ * Lida **a cada chamada**, não congelada na carga do módulo: os testes trocam o
+ * ambiente depois de importar. Isso não conflita com a substituição do Vite —
+ * o literal já está no corpo da função quando o bundle é gerado.
+ *
  * @returns {string|null}
  */
-export const getGoogleMapsApiKey = () => readEnv('VITE_GOOGLE_MAPS_API_KEY');
+export const getGoogleMapsApiKey = () => lerGoogleMapsApiKey();
 
 /** O Google Maps está configurado? */
 export const isGoogleMapsConfigured = () => getGoogleMapsApiKey() !== null;
