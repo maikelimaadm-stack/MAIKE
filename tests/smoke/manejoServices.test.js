@@ -12,13 +12,12 @@ const lotes = {
   listLotes: vi.fn(), filterLotes: vi.fn(), createLote: vi.fn(), updateLote: vi.fn(), deleteLote: vi.fn(),
   listMovimentacoes: vi.fn(), listTodasMovimentacoes: vi.fn(), listMovimentacoesPecuarias: vi.fn(),
   listSuplementacaoLotes: vi.fn(), listFornecedores: vi.fn(), listCategoriasManejo: vi.fn(),
-  listOptionSource: vi.fn(), listLayoutConfiguracoes: vi.fn(), createLayoutConfiguracao: vi.fn(),
+  listLayoutConfiguracoes: vi.fn(), createLayoutConfiguracao: vi.fn(),
   listLayoutSecoes: vi.fn(), createLayoutSecao: vi.fn(), listLayoutCampos: vi.fn(),
   createLayoutCampo: vi.fn(), updateLayoutCampo: vi.fn(), deleteLayoutCampo: vi.fn(),
   sincronizarReferenciasLote: vi.fn(),
-  OPTION_SOURCES: { Fornecedor: 'nome', Produto: 'nome_produto', CategoriaManejo: 'nome', Setor: 'nome', AreaPastagem: 'nome', LocalEstoque: 'nome' },
-  isOptionSourceSuportada: (n) => ['Fornecedor', 'Produto', 'CategoriaManejo', 'Setor', 'AreaPastagem', 'LocalEstoque'].includes(n),
 };
+const estoque = { listProdutos: vi.fn(), listLocais: vi.fn() };
 const setores = { listSetores: vi.fn(), createSetor: vi.fn(), updateSetor: vi.fn(), deleteSetor: vi.fn(), sincronizarReferenciasSetor: vi.fn() };
 const categorias = { listCategorias: vi.fn(), createCategoria: vi.fn(), updateCategoria: vi.fn(), deleteCategoria: vi.fn() };
 const categoriasManejo = { listCategoriasManejo: vi.fn(), createCategoriaManejo: vi.fn(), updateCategoriaManejo: vi.fn(), deleteCategoriaManejo: vi.fn() };
@@ -36,6 +35,7 @@ const session = { getCurrentUser: vi.fn(), listPermissoes: vi.fn() };
 
 vi.mock('@/apis/lotes', () => lotes);
 vi.mock('@/apis/setores', () => setores);
+vi.mock('@/apis/estoque', () => estoque);
 vi.mock('@/apis/categorias', () => categorias);
 vi.mock('@/apis/categorias-manejo', () => categoriasManejo);
 vi.mock('@/apis/bebedouros', () => bebedouros);
@@ -58,7 +58,7 @@ const EMPRESA = 'emp-1';
 
 beforeEach(() => {
   vi.clearAllMocks();
-  for (const grupo of [lotes, setores, categorias, categoriasManejo, bebedouros, anexos, mapa, tarefas, rebanho]) {
+  for (const grupo of [lotes, setores, estoque, categorias, categoriasManejo, bebedouros, anexos, mapa, tarefas, rebanho]) {
     for (const fn of Object.values(grupo)) {
       if (typeof fn?.mockResolvedValue === 'function') fn.mockResolvedValue([]);
     }
@@ -177,11 +177,28 @@ describe('L — cadastro de lotes', () => {
     expect(hasApiErrorCode(erro, API_ERROR_CODES.LOTE_FIELD_HAS_DATA)).toBe(true);
   });
 
-  it('L15 — fonte de opção suportada é carregada e rotulada', async () => {
-    lotes.listOptionSource.mockResolvedValue([{ id: 'f1', nome: 'ACME' }]);
-    const resultado = await loteCadastro.listarFontesDeOpcoes(['Fornecedor']);
-    expect(lotes.listOptionSource).toHaveBeenCalledWith('Fornecedor');
-    expect(resultado.Fornecedor[0]).toMatchObject({ value: 'f1', label: 'ACME' });
+  it('P3/L15 — cada fonte é carregada por uma API pública explícita', async () => {
+    lotes.listFornecedores.mockResolvedValue([{ id: 'f1', nome: 'ACME' }]);
+    estoque.listProdutos.mockResolvedValue([{ id: 'p1', nome_produto: 'RAÇÃO' }]);
+    categoriasManejo.listCategoriasManejo.mockResolvedValue([{ id: 'c1', nome: 'BOI' }]);
+    setores.listSetores.mockResolvedValue([{ id: 's1', nome: 'PASTO' }]);
+    mapa.listAreas.mockResolvedValue([{ id: 'a1', nome: 'PIQUETE' }]);
+    estoque.listLocais.mockResolvedValue([{ id: 'l1', nome: 'GALPÃO' }]);
+
+    const r = await loteCadastro.listarFontesDeOpcoes([
+      'Fornecedor', 'Produto', 'CategoriaManejo', 'Setor', 'AreaPastagem', 'LocalEstoque',
+    ]);
+
+    expect(lotes.listFornecedores).toHaveBeenCalled();
+    expect(estoque.listProdutos).toHaveBeenCalled();
+    expect(categoriasManejo.listCategoriasManejo).toHaveBeenCalled();
+    expect(setores.listSetores).toHaveBeenCalled();
+    expect(mapa.listAreas).toHaveBeenCalled();
+    expect(estoque.listLocais).toHaveBeenCalled();
+
+    expect(r.Fornecedor[0]).toMatchObject({ value: 'f1', label: 'ACME' });
+    // `Produto` usa `nome_produto` como rótulo — o catálogo declara o campo.
+    expect(r.Produto[0]).toMatchObject({ value: 'p1', label: 'RAÇÃO' });
   });
 
   it('L16 — o catálogo é fechado e reflete o que a interface oferece', () => {
@@ -189,6 +206,18 @@ describe('L — cadastro de lotes', () => {
       ['AreaPastagem', 'CategoriaManejo', 'Fornecedor', 'LocalEstoque', 'Produto', 'Setor']
     );
     expect(loteCadastro.isOptionSourceSuportada('Usuario')).toBe(false);
+  });
+
+  it('P4 — fonte desconhecida falha antes de qualquer I/O', async () => {
+    lotes.listFornecedores.mockResolvedValue([{ id: 'f1', nome: 'ACME' }]);
+    const erro = await loteCadastro
+      .listarFontesDeOpcoes(['Fornecedor', 'Usuario'])
+      .catch((e) => e);
+
+    expect(hasApiErrorCode(erro, API_ERROR_CODES.LOTE_OPTION_SOURCE_UNSUPPORTED)).toBe(true);
+    // Nem a fonte válida foi carregada: a validação é completa antes de começar.
+    expect(lotes.listFornecedores).not.toHaveBeenCalled();
+    expect(erro.details).toEqual({ fonte: 'Usuario' });
   });
 });
 
@@ -326,11 +355,64 @@ describe('CM — categorias de manejo', () => {
     expect((await categoriaManejoSvc.listarIconesDeLoteDaEmpresa(EMPRESA)).map((i) => i.id)).toEqual(['i1']);
   });
 
-  it('CM4/CM5 — create e update passam o payload da tela sem coerção nova', async () => {
-    await categoriaManejoSvc.criarCategoriaManejo({ nome: 'N', gmd_mensal: '' });
-    expect(categoriasManejo.createCategoriaManejo).toHaveBeenCalledWith({ nome: 'N', gmd_mensal: '' });
-    await categoriaManejoSvc.atualizarCategoriaManejo('c1', { nome: 'M' });
-    expect(categoriasManejo.updateCategoriaManejo).toHaveBeenCalledWith('c1', { nome: 'M' });
+  /**
+   * CM3 — a normalização saiu da página para o service na P1.3-R1, **idêntica**.
+   * O caso abaixo é o payload completo que `handleSubmit` montava.
+   */
+  const FORM = Object.freeze({
+    nome: 'boi gordo', sigla: 'bg', especie: 'Bovino', sexo: '', raca: 'nelore',
+    idade_minima_meses: '12', idade_maxima_meses: '', categoria_oficial: '',
+    ganho_peso_anual_kg: '180.5',
+    gmd_janeiro: '0.8', gmd_fevereiro: '', gmd_marco: '0.9', gmd_abril: '',
+    gmd_maio: '', gmd_junho: '', gmd_julho: '', gmd_agosto: '',
+    gmd_setembro: '', gmd_outubro: '', gmd_novembro: '', gmd_dezembro: '1.1',
+  });
+
+  it('CM3 — uppercase, inteiros, decimais, nulls, empresa e ativo', () => {
+    const p = categoriaManejoSvc.normalizarCategoriaManejo(FORM, { empresaId: EMPRESA });
+    expect(p).toMatchObject({
+      empresa_id: EMPRESA,
+      nome: 'BOI GORDO',
+      sigla: 'BG',
+      especie: 'Bovino',
+      sexo: null,
+      raca: 'NELORE',
+      idade_minima_meses: 12,
+      idade_maxima_meses: null,
+      categoria_oficial: null,
+      ganho_peso_anual_kg: 180.5,
+      ativo: true,
+    });
+  });
+
+  it('CM3b — os doze GMDs são normalizados, vazios viram null', () => {
+    const p = categoriaManejoSvc.normalizarCategoriaManejo(FORM, { empresaId: EMPRESA });
+    const meses = [
+      'gmd_janeiro', 'gmd_fevereiro', 'gmd_marco', 'gmd_abril', 'gmd_maio', 'gmd_junho',
+      'gmd_julho', 'gmd_agosto', 'gmd_setembro', 'gmd_outubro', 'gmd_novembro', 'gmd_dezembro',
+    ];
+    for (const mes of meses) expect(p).toHaveProperty(mes);
+    expect(p.gmd_janeiro).toBe(0.8);
+    expect(p.gmd_marco).toBe(0.9);
+    expect(p.gmd_dezembro).toBe(1.1);
+    expect(p.gmd_fevereiro).toBeNull();
+    expect(meses.filter((m) => p[m] === null)).toHaveLength(9);
+  });
+
+  it('CM4 — create e update usam o mesmo normalizador', async () => {
+    await categoriaManejoSvc.criarCategoriaManejo(FORM, { empresaId: EMPRESA });
+    await categoriaManejoSvc.atualizarCategoriaManejo('c1', FORM, { empresaId: EMPRESA });
+
+    const esperado = categoriaManejoSvc.normalizarCategoriaManejo(FORM, { empresaId: EMPRESA });
+    expect(categoriasManejo.createCategoriaManejo).toHaveBeenCalledWith(esperado);
+    expect(categoriasManejo.updateCategoriaManejo).toHaveBeenCalledWith('c1', esperado);
+  });
+
+  it('CM3c — vírgula decimal continua truncando, como antes (DBT-25)', () => {
+    const p = categoriaManejoSvc.normalizarCategoriaManejo(
+      { ...FORM, ganho_peso_anual_kg: '180,5' }, { empresaId: EMPRESA }
+    );
+    expect(p.ganho_peso_anual_kg).toBe(180);
   });
 
   it('CM6/CM7 — exclui sem vínculo; bloqueia por código com lote vinculado', async () => {

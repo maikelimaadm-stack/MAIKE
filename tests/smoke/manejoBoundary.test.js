@@ -7,13 +7,12 @@
  * que o gate usa — não mutações manuais no repositório.
  */
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 
-// O registry é lido do módulo real; o SDK por trás não pode tentar rede.
-vi.mock('@/api/base44Client', async () => {
-  const { createBase44Stub } = await import('./base44Stub.js');
-  return { base44: createBase44Stub() };
-});
+// O cliente Base44 é substituído globalmente em `tests/smoke/setup.js`, antes da
+// avaliação dos módulos. Não há mock local aqui de propósito: se a defesa
+// global falhar, este arquivo — que importa o provider real — é o primeiro a
+// acusar.
 import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -143,6 +142,32 @@ describe('A8–A15 — a cadeia de camadas', () => {
   });
 });
 
+describe('P1/P2 — o provider não tem porta dinâmica (P1.3-R1)', () => {
+  const ADAPTER = 'src/apis/_providers/base44Provider.js';
+
+  it('P1 — nenhuma função do provider recebe nome de entidade', () => {
+    const fonte = codigoDe(ADAPTER);
+    expect(fonte).not.toContain('listOptionSource');
+    // Nenhum parâmetro de adapter chamado como se fosse nome de model.
+    expect(fonte).not.toMatch(/endpointOf\(\s*(nome|entityName|entidade|model)\w*\s*\)/);
+  });
+
+  it('P2 — toda chamada a endpointOf usa string literal', () => {
+    const fonte = codigoDe(ADAPTER);
+    const chamadas = [...fonte.matchAll(/endpointOf\(([^)]*)\)/g)].map((m) => m[1].trim());
+    expect(chamadas.length).toBeGreaterThan(20);
+
+    const naoLiterais = chamadas.filter((arg) => !/^(['"`])[A-Za-z]+\1$/.test(arg));
+    expect(naoLiterais).toEqual([]);
+  });
+
+  it('P2b — a API pública de lotes não expõe fonte de opção genérica', () => {
+    const publico = codigoDe('src/apis/lotes/index.js');
+    expect(publico).not.toContain('listOptionSource');
+    expect(publico).not.toContain('OPTION_SOURCES');
+  });
+});
+
 describe('A11 — registry do provider é literal e exato', () => {
   const ESPERADO = [
     'AplicacaoMedicamento', 'AreaPastagem', 'Bebedouro', 'BebedouroAlerta', 'BebedouroHistorico',
@@ -166,5 +191,27 @@ describe('A11 — registry do provider é literal e exato', () => {
     for (const nome of ESPERADO) {
       expect(registry).toContain(`${nome}: base44.entities.${nome}`);
     }
+  });
+});
+
+describe('CM1/CM2 — a página de categorias de manejo não monta payload', () => {
+  const PAGINA = 'src/pages/CategoriasManejo.jsx';
+
+  it('CM1 — nenhuma coerção numérica de payload na página', () => {
+    const fonte = codigoDe(PAGINA);
+    // `parseInt`/`parseFloat` do payload saíram para o service; o que resta é
+    // estado de formulário.
+    expect(fonte).not.toMatch(/parseInt\(|parseFloat\(/);
+    expect(fonte).not.toMatch(/\.toUpperCase\(\)\s*,/);
+  });
+
+  it('CM2 — a página não escreve os doze GMDs num payload', () => {
+    const fonte = codigoDe(PAGINA);
+    const atribuicoesGmd = [...fonte.matchAll(/gmd_\w+:\s*formData\./g)];
+    expect(atribuicoesGmd).toEqual([]);
+  });
+
+  it('CM2b — o normalizador vive no service', () => {
+    expect(codigoDe('src/services/categoriaManejoService.js')).toContain('normalizarCategoriaManejo');
   });
 });

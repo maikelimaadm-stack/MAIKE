@@ -17,6 +17,18 @@ const formatSize = (bytes = 0) => {
 
 export default function RegistroAnexosDialog({ open, onOpenChange, entityName, recordId, title, pendingAnexos = [], onPendingChange }) {
   const inputRef = useRef(null);
+  /**
+   * Contador monotônico por diálogo (P1.3-R1).
+   *
+   * O id anterior era `pending-${novosAnexos.length}-${file.name}`, e
+   * `novosAnexos` reinicia a cada seleção: escolher `nota.pdf` duas vezes em
+   * seleções separadas gerava `pending-0-nota.pdf` nas duas. React via a mesma
+   * key, e remover um item removia o outro.
+   *
+   * O contador vive num ref, então sobrevive a re-render e só cresce enquanto o
+   * diálogo estiver montado.
+   */
+  const proximoIdPendente = useRef(0);
   const queryClient = useQueryClient();
   const [uploading, setUploading] = useState(false);
   const [attachmentName, setAttachmentName] = useState("");
@@ -64,7 +76,7 @@ export default function RegistroAnexosDialog({ open, onOpenChange, entityName, r
             file_type: file.type,
             file_size: file.size,
             arquivo: file,
-            id: `pending-${novosAnexos.length}-${file.name}`
+            id: `pendente-${(proximoIdPendente.current += 1)}`
           });
         }
       }
@@ -133,11 +145,21 @@ export default function RegistroAnexosDialog({ open, onOpenChange, entityName, r
               <div className="h-7 px-2 flex items-center border-r border-slate-200 overflow-hidden">
                 <span className="truncate font-medium text-slate-700">{anexo.attachment_name || anexo.file_name}</span>
               </div>
+              {/* Anexo pendente ainda não foi enviado: não tem `file_url`, e
+                  `<a href={undefined}>` viraria link para a própria página.
+                  Sem upload antecipado só para preview e sem object URL, que
+                  exigiria cleanup. */}
+              {anexo.file_url ?
               <a href={anexo.file_url} target="_blank" rel="noreferrer" className="h-7 min-w-0 flex items-center gap-1.5 text-slate-600 hover:text-emerald-700 px-2 border-r border-slate-200 overflow-hidden">
                 <span className="truncate">{anexo.file_name}</span>
                 <span className="shrink-0 text-slate-400">{formatSize(anexo.file_size)}</span>
                 <ExternalLink className="w-3 h-3 shrink-0" />
-              </a>
+              </a> :
+              <div className="h-7 min-w-0 flex items-center gap-1.5 text-slate-500 px-2 border-r border-slate-200 overflow-hidden">
+                <span className="truncate">{anexo.file_name}</span>
+                <span className="shrink-0 text-slate-400">{formatSize(anexo.file_size)}</span>
+                <span className="shrink-0 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-600">Pendente</span>
+              </div>}
               <div className="h-7 flex items-center justify-center">
                 <Button type="button" variant="ghost" size="icon" className="h-7 w-7 rounded-none text-red-600 hover:bg-red-50" onClick={() => recordId ? deleteMutation.mutate(anexo.id) : onPendingChange?.(pendingAnexos.filter((item) => item.id !== anexo.id))}>
                   <X className="w-3.5 h-3.5" />

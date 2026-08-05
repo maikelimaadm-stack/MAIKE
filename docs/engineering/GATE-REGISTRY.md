@@ -494,6 +494,21 @@ sem segredo, distinguindo Vercel Preview/Production de Railway frontend/backend.
 JSDOM não calcula layout, então classe sozinha não prova pixel: os testes de
 shell combinam contrato estrutural com comportamento real de clique e rota.
 
+Desde a P1.3-R1, `endpointOf(...)` dentro do adapter autorizado só aceita
+**string literal**. É a mesma porta que `entities[nome]`, com um passo de
+indireção: o provider da P1.3 tinha `listOptionSource(nomeValidado)`, e a
+validação ficava na API — validação em cima de porta aberta é convenção, não
+contrato. Reprovam identificador, membro, ternário, chamada e const
+intermediária, com o código `P11-API-BOUNDARY-DYNAMIC-ENTITY`. Fixtures
+DP1–DP4.
+
+O smoke também ficou hermético desde a **avaliação dos módulos**: o mock do
+cliente Base44 vive em `tests/smoke/setup.js`, no escopo do módulo. O bloqueio
+de rede em `beforeEach` deixava uma janela temporal aberta — módulos de teste
+são avaliados antes do primeiro hook, e um `import` de topo do provider
+inicializava o SDK real. `tests/smoke/hermeticidade.test.js` prova isso sem mock
+local.
+
 A P1.3 acrescentou as provas negativas N1–N8 ao teste do próprio gate, como
 **fixtures analisadas pelo gate real** em projetos temporários: UI chamando API
 direto, service importando implementação privada, repositório legado

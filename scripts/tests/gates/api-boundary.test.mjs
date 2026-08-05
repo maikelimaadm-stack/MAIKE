@@ -1099,3 +1099,85 @@ describe('gate:api-boundary — P1.3 provas negativas dos caminhos fechados no m
     cleanup(d);
   });
 });
+
+describe('gate:api-boundary — P1.3-R1 endpointOf só aceita nome literal', () => {
+  /**
+   * `endpointOf` resolve endpoint por nome dentro do adapter: é a mesma porta
+   * que `entities[nome]`, com um passo de indireção. Sem esta regra, o provider
+   * volta a aceitar entidade escolhida em runtime desde que alguém valide o
+   * nome antes — e validação em cima de porta aberta é convenção, não contrato.
+   */
+  const comAdapter = (corpoExtra) =>
+    makeProject({
+      legados: {
+        [ALLOWED_PROVIDER_ADAPTER]:
+          "import { base44 } from '@/api/base44Client';\n" +
+          "const R = Object.freeze({ Lote: base44.entities.Lote, Setor: base44.entities.Setor });\n" +
+          "const endpointOf = (nome) => R[nome];\n" +
+          corpoExtra,
+      },
+    });
+
+  const DINAMICOS = [
+    ['DP1 identificador', "export const p = Object.freeze({ list: (nome) => endpointOf(nome).list() });\n"],
+    ['DP2 membro de objeto', "export const p = Object.freeze({ list: (config) => endpointOf(config.entity).list() });\n"],
+    ['DP2b ternário', "export const p = Object.freeze({ list: (flag) => endpointOf(flag ? 'Lote' : 'Setor').list() });\n"],
+    ['DP2c chamada', "const nomeDe = () => 'Lote';\nexport const p = Object.freeze({ list: () => endpointOf(nomeDe()).list() });\n"],
+    ['DP2d const intermediária', "const nome = 'Lote';\nexport const p = Object.freeze({ list: () => endpointOf(nome).list() });\n"],
+  ];
+
+  for (const [nome, corpo] of DINAMICOS) {
+    test(`${nome} reprova`, () => {
+      const d = comAdapter(corpo);
+      criarBaseline(d);
+      // O baseline foi criado com o adapter já dinâmico, então a prova é o
+      // eixo: o arquivo entra em `dynamicEntityFiles` e o gate acusa.
+      const atual = scanBoundary(d);
+      assert.ok(
+        atual.listas.dynamicEntityFiles.includes(ALLOWED_PROVIDER_ADAPTER),
+        `esperava ${ALLOWED_PROVIDER_ADAPTER} em dynamicEntityFiles`
+      );
+      cleanup(d);
+    });
+  }
+
+  const LITERAIS = [
+    ["DP3 aspas simples", "export const p = Object.freeze({ list: () => endpointOf('Lote').list() });\n"],
+    ['DP3b aspas duplas', 'export const p = Object.freeze({ list: () => endpointOf("Setor").list() });\n'],
+    ['DP3c template sem substituição', "export const p = Object.freeze({ list: () => endpointOf(`Lote`).list() });\n"],
+  ];
+
+  for (const [nome, corpo] of LITERAIS) {
+    test(`${nome} passa`, () => {
+      const d = comAdapter(corpo);
+      const atual = scanBoundary(d);
+      assert.equal(
+        atual.listas.dynamicEntityFiles.includes(ALLOWED_PROVIDER_ADAPTER),
+        false,
+        `nome literal não pode entrar em dynamicEntityFiles:\n${JSON.stringify(atual.listas.dynamicEntityFiles)}`
+      );
+      cleanup(d);
+    });
+  }
+
+  test('DP4 catálogo em service chamando APIs públicas passa', () => {
+    const d = comModulo({
+      'src/apis/lotes/lotesApi.js': "import { empresaProvider } from '../_providers/base44Provider.js';\nexport const listFornecedores = () => empresaProvider.list('x');\n",
+      'src/apis/lotes/index.js': "export { listFornecedores } from './lotesApi.js';\n",
+      'src/services/loteCadastroService.js':
+        "import { listFornecedores } from '@/apis/lotes';\n" +
+        "const LOADERS = Object.freeze({ Fornecedor: { carregar: () => listFornecedores() } });\n" +
+        "export const listar = (nome) => LOADERS[nome].carregar();\n",
+    });
+    criarBaseline(d);
+    const r = rodar(d);
+    assert.equal(r.status, 0, r.output);
+    cleanup(d);
+  });
+
+  test('o adapter real do repositório não tem endpointOf dinâmico', () => {
+    const fonte = readFileSync(join(REPO_ROOT, ALLOWED_PROVIDER_ADAPTER), 'utf8');
+    const fato = analyzeFile(fonte, ALLOWED_PROVIDER_ADAPTER);
+    assert.deepEqual(fato.dynamicEntityAccess, [], 'adapter tem acesso dinâmico');
+  });
+});

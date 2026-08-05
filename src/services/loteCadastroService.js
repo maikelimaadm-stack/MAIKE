@@ -21,9 +21,6 @@ import {
   listTodasMovimentacoes,
   listFornecedores,
   listCategoriasManejo,
-  listOptionSource,
-  isOptionSourceSuportada,
-  OPTION_SOURCES,
   listLayoutConfiguracoes,
   createLayoutConfiguracao,
   listLayoutSecoes,
@@ -36,6 +33,9 @@ import {
   listSuplementacaoLotes,
 } from '@/apis/lotes';
 import { listAreas } from '@/apis/mapa';
+import { listProdutos, listLocais } from '@/apis/estoque';
+import { listCategoriasManejo as listCategoriasManejoApi } from '@/apis/categorias-manejo';
+import { listSetores } from '@/apis/setores';
 import { listLancamentos } from '@/apis/tarefas';
 import { listManejosTecnicos } from '@/apis/rebanho';
 import { ApiError, API_ERROR_CODES } from '@/apis/_core/ApiError';
@@ -426,16 +426,48 @@ export const excluirCampoPersonalizado = async (campo) => {
 
 // ── Fontes de opção ───────────────────────────────────────────────────────
 
-export { OPTION_SOURCES, isOptionSourceSuportada };
+/**
+ * Catálogo **fechado** de fontes de opção de campo personalizado (P1.3-R1).
+ *
+ * O repositório legado fazia `base44.entities[source.entity]`: qualquer string
+ * vinda de um registro de `LayoutCampo` — dado editável pelo usuário — virava
+ * acesso a entidade.
+ *
+ * A primeira correção (P1.3) validava o nome contra um catálogo e então chamava
+ * `provider.listOptionSource(nome)`. Isso ainda deixava o **provider** com uma
+ * porta dinâmica: bastava um chamador novo esquecer a validação para o buraco
+ * reabrir. Validação em cima de porta aberta é convenção, não contrato.
+ *
+ * Agora cada fonte tem um carregador que chama uma **API pública explícita**.
+ * Não existe caminho para "entidade escolhida em runtime" — nem no provider,
+ * nem na API, nem aqui. Fonte nova exige entrada nova neste objeto.
+ *
+ * As seis entradas são exatamente as que a interface permite escolher, em
+ * `ENTIDADES_RELACIONAIS` (`src/components/lotes/camposConfigOptions.jsx`).
+ */
+const OPTION_SOURCE_LOADERS = Object.freeze({
+  Fornecedor: { labelField: 'nome', carregar: () => listFornecedores() },
+  Produto: { labelField: 'nome_produto', carregar: () => listProdutos() },
+  CategoriaManejo: { labelField: 'nome', carregar: () => listCategoriasManejoApi() },
+  Setor: { labelField: 'nome', carregar: () => listSetores() },
+  AreaPastagem: { labelField: 'nome', carregar: () => listAreas() },
+  LocalEstoque: { labelField: 'nome', carregar: () => listLocais() },
+});
+
+/** Nomes suportados, para diagnóstico e teste. */
+export const OPTION_SOURCES = Object.freeze(
+  Object.fromEntries(Object.entries(OPTION_SOURCE_LOADERS).map(([nome, cfg]) => [nome, cfg.labelField]))
+);
+
+export const isOptionSourceSuportada = (nome) =>
+  Object.prototype.hasOwnProperty.call(OPTION_SOURCE_LOADERS, nome);
 
 /**
  * Carrega as fontes de opção pedidas por campos personalizados.
  *
- * O legado fazia `base44.entities[source.entity]` com nome vindo de dado
- * editável. Aqui cada nome é validado contra o catálogo fechado; fonte
- * desconhecida lança `LOTE_OPTION_SOURCE_UNSUPPORTED` em vez de devolver lista
- * vazia — vazio silencioso faria a configuração inválida parecer "sem
- * cadastros".
+ * Fonte desconhecida lança `LOTE_OPTION_SOURCE_UNSUPPORTED` **antes de qualquer
+ * I/O** — nenhuma outra fonte é carregada, e a falha é imediata. Devolver lista
+ * vazia faria uma configuração inválida parecer "sem cadastros".
  *
  * @param {Array<string|{entity: string, labelField?: string, valueField?: string}>} fontes
  * @returns {Promise<Record<string, any[]>>}
@@ -446,10 +478,22 @@ export const listarFontesDeOpcoes = async (fontes = []) => {
     .filter((fonte) => fonte?.entity);
   const unicas = Array.from(new Map(configs.map((fonte) => [fonte.entity, fonte])).values());
 
+  // Validação completa antes de qualquer chamada: uma fonte inválida no meio da
+  // lista não pode deixar as anteriores já carregadas.
+  const desconhecida = unicas.find((fonte) => !isOptionSourceSuportada(fonte.entity));
+  if (desconhecida) {
+    throw new ApiError(API_ERROR_CODES.LOTE_OPTION_SOURCE_UNSUPPORTED, {
+      operation: 'listarFontesDeOpcoes',
+      resource: 'LayoutCampo',
+      details: { fonte: String(desconhecida.entity) },
+    });
+  }
+
   const entradas = await Promise.all(
     unicas.map(async (fonte) => {
-      const registros = await listOptionSource(fonte.entity);
-      const labelField = fonte.labelField || OPTION_SOURCES[fonte.entity] || 'nome';
+      const { carregar, labelField: padrao } = OPTION_SOURCE_LOADERS[fonte.entity];
+      const registros = await carregar();
+      const labelField = fonte.labelField || padrao;
       const valueField = fonte.valueField || 'id';
       return [
         fonte.entity,

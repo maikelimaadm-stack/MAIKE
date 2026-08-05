@@ -34,17 +34,63 @@ export const listarIconesDeLoteDaEmpresa = async (empresaId) => {
   return icones.filter((icone) => icone.empresa_id === empresaId && icone.ativo !== false);
 };
 
-/**
- * Criação e atualização passam o payload **como a página monta**.
- *
- * Não há normalização de números aqui de propósito: a tela não fazia nenhuma, e
- * introduzir coerção (`'' → null`) nesta slice mudaria o dado gravado sem que a
- * migração de fronteira pedisse. Se essa normalização for desejável, ela é
- * mudança de comportamento e merece decisão própria.
- */
-export const criarCategoriaManejo = async (dados) => createCategoriaManejo(dados);
+const MESES_GMD = Object.freeze([
+  'gmd_janeiro', 'gmd_fevereiro', 'gmd_marco', 'gmd_abril', 'gmd_maio', 'gmd_junho',
+  'gmd_julho', 'gmd_agosto', 'gmd_setembro', 'gmd_outubro', 'gmd_novembro', 'gmd_dezembro',
+]);
 
-export const atualizarCategoriaManejo = async (id, dados) => updateCategoriaManejo(id, dados);
+/** Vazio vira `null`; caso contrário converte. Preservado da página. */
+const inteiroOuNulo = (valor) => (valor ? parseInt(valor, 10) : null);
+const decimalOuNulo = (valor) => (valor ? parseFloat(valor) : null);
+const maiusculoOuNulo = (valor) => (valor ? String(valor).toUpperCase() : null);
+
+/**
+ * Payload normalizado da categoria de manejo (P1.3-R1).
+ *
+ * Esta transformação **estava na página**, dentro de `handleSubmit`: uppercase,
+ * `parseInt`, `parseFloat`, vazio→null, `empresa_id` e `ativo`, mais os doze
+ * GMDs escritos campo a campo. A P1.3 migrou a fronteira de dados mas deixou a
+ * regra de payload no componente — e o relatório daquela slice afirmou, por
+ * engano, que a tela não normalizava. Ela normalizava; a leitura parou no
+ * `mutationFn`, que só repassava o objeto já pronto.
+ *
+ * A transformação aqui é **idêntica** à anterior, campo a campo. Nada foi
+ * corrigido de passagem: `parseFloat` continua sem entender vírgula decimal
+ * (DBT-25), porque consertar isso mudaria o dado gravado e é decisão própria.
+ *
+ * @param {object} formData
+ * @param {{empresaId?: string}} [opcoes]
+ * @returns {object}
+ */
+export const normalizarCategoriaManejo = (formData, { empresaId } = {}) => ({
+  empresa_id: empresaId ?? formData.empresa_id,
+  nome: formData.nome.toUpperCase(),
+  sigla: formData.sigla.toUpperCase(),
+  especie: formData.especie,
+  sexo: formData.sexo || null,
+  raca: maiusculoOuNulo(formData.raca),
+  idade_minima_meses: inteiroOuNulo(formData.idade_minima_meses),
+  idade_maxima_meses: inteiroOuNulo(formData.idade_maxima_meses),
+  categoria_oficial: formData.categoria_oficial || null,
+  ganho_peso_anual_kg: decimalOuNulo(formData.ganho_peso_anual_kg),
+  ...Object.fromEntries(MESES_GMD.map((mes) => [mes, decimalOuNulo(formData[mes])])),
+  ativo: true,
+});
+
+/**
+ * @param {object} formData
+ * @param {{empresaId?: string}} [opcoes]
+ */
+export const criarCategoriaManejo = async (formData, { empresaId } = {}) =>
+  createCategoriaManejo(normalizarCategoriaManejo(formData, { empresaId }));
+
+/**
+ * @param {string} id
+ * @param {object} formData
+ * @param {{empresaId?: string}} [opcoes]
+ */
+export const atualizarCategoriaManejo = async (id, formData, { empresaId } = {}) =>
+  updateCategoriaManejo(id, normalizarCategoriaManejo(formData, { empresaId }));
 
 /** Um carregador por entidade dependente declarada em `deleteRules`. */
 const CARREGADORES = Object.freeze({

@@ -65,7 +65,7 @@ export default function CategoriasManejo() {
   });
 
   const createMutation = useMutation({
-    mutationFn: (data) => criarCategoriaManejo(data),
+    mutationFn: (formData) => criarCategoriaManejo(formData, { empresaId: empresaSelecionadaId }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["categorias-manejo", empresaSelecionadaId] });
       setShowForm(false);
@@ -75,7 +75,7 @@ export default function CategoriasManejo() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }) => atualizarCategoriaManejo(id, data),
+    mutationFn: (/** @type {{id: string, data: object, oldData?: object}} */ { id, data }) => atualizarCategoriaManejo(id, data, { empresaId: empresaSelecionadaId }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["categorias-manejo", empresaSelecionadaId] });
       setShowForm(false);
@@ -123,38 +123,15 @@ export default function CategoriasManejo() {
   };
 
   const handleSubmit = (formData) => {
-    const data = {
-      empresa_id: empresaSelecionadaId,
-      nome: formData.nome.toUpperCase(),
-      sigla: formData.sigla.toUpperCase(),
-      especie: formData.especie,
-      sexo: formData.sexo || null,
-      raca: formData.raca ? formData.raca.toUpperCase() : null,
-      idade_minima_meses: formData.idade_minima_meses ? parseInt(formData.idade_minima_meses) : null,
-      idade_maxima_meses: formData.idade_maxima_meses ? parseInt(formData.idade_maxima_meses) : null,
-      categoria_oficial: formData.categoria_oficial || null,
-      ganho_peso_anual_kg: formData.ganho_peso_anual_kg ? parseFloat(formData.ganho_peso_anual_kg) : null,
-      gmd_janeiro: formData.gmd_janeiro ? parseFloat(formData.gmd_janeiro) : null,
-      gmd_fevereiro: formData.gmd_fevereiro ? parseFloat(formData.gmd_fevereiro) : null,
-      gmd_marco: formData.gmd_marco ? parseFloat(formData.gmd_marco) : null,
-      gmd_abril: formData.gmd_abril ? parseFloat(formData.gmd_abril) : null,
-      gmd_maio: formData.gmd_maio ? parseFloat(formData.gmd_maio) : null,
-      gmd_junho: formData.gmd_junho ? parseFloat(formData.gmd_junho) : null,
-      gmd_julho: formData.gmd_julho ? parseFloat(formData.gmd_julho) : null,
-      gmd_agosto: formData.gmd_agosto ? parseFloat(formData.gmd_agosto) : null,
-      gmd_setembro: formData.gmd_setembro ? parseFloat(formData.gmd_setembro) : null,
-      gmd_outubro: formData.gmd_outubro ? parseFloat(formData.gmd_outubro) : null,
-      gmd_novembro: formData.gmd_novembro ? parseFloat(formData.gmd_novembro) : null,
-      gmd_dezembro: formData.gmd_dezembro ? parseFloat(formData.gmd_dezembro) : null,
-      ativo: true
-    };
-
+    // A montagem do payload — uppercase, parseInt/parseFloat, vazio→null e os
+    // doze GMDs — vive no service desde a P1.3-R1. A página cuida de estado
+    // visual, invalidação e toast.
     if (editando) {
-      updateMutation.mutate({ id: editando.id, data, oldData: editando });
+      updateMutation.mutate({ id: editando.id, data: formData, oldData: editando });
       return;
     }
 
-    createMutation.mutate(data);
+    createMutation.mutate(formData);
   };
 
   return (

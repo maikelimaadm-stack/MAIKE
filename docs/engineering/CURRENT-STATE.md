@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-08-03 (P0.1, P1.1 e P1.2 mergeadas · P1 em andamento · P1.3 em implementação)
+**Atualizado em:** 2026-08-04 (P0.1, P1.1 e P1.2 mergeadas · P1 em andamento · P1.3 implementada e corrigida na PR #5)
 
 ---
 
@@ -14,9 +14,9 @@ Base44 mantida apenas como provider temporário da cadeia preservada (D-PROD-04)
 | Produto | Pecuária — Mapa Geral + Manejo (D-PROD-01) |
 | Superfície primária | `MapaGeral` (D-PROD-05) |
 | Missão atual | **P1 — Native Foundation Bootstrap**, slice **P1.3** |
-| Estado da missão | **P1.3 em implementação** — `npm run verify:all` sai com 0, 13/13 etapas |
+| Estado da missão | **P1.3 implementada e corrigida na PR #5; aguardando merge do proprietário** — `npm run verify:all` sai com 0, 13/13 etapas |
 | Próxima slice | P1.4 — telas legadas restantes |
-| Branch | `claude/p1-3-native-api-boundary-manejo` (PR draft) |
+| Branch | `claude/p1-3-native-api-boundary-manejo` (PR #5, draft) |
 | Escopo executável | `config/mapa-manejo-scope.json` |
 | Roadmap | `docs/engineering/ROADMAP.md` |
 | Molde arquitetural | PROJETOMG, parcial (D-PROD-03) |
@@ -34,7 +34,7 @@ armazenamento apenas em `.env.local` seguem pendentes com o proprietário — ve
 | Missão | Nome | Estado |
 |---|---|---|
 | P0 | Product Scope Reset | **mergeada** (PR #1, merge `508cf62`) |
-| P1 | Native Foundation Bootstrap | **em andamento** — P1.1, P1.2 e as correções P1.2-R1/R2 mergeadas; P1.3 em implementação; P1.4 não iniciada |
+| P1 | Native Foundation Bootstrap | **em andamento** — P1.1, P1.2 e as correções P1.2-R1/R2 mergeadas; P1.3 e P1.3-R1 na PR #5, aguardando merge; P1.4 não iniciada |
 | P2 | ModeloBase1 Pecuário Foundation | não iniciada |
 | P3 | Backend + Prisma + PostgreSQL Foundation | não iniciada |
 | P4 | Mapa Core Native Persistence | não iniciada |
@@ -47,27 +47,27 @@ armazenamento apenas em `.env.local` seguem pendentes com o proprietário — ve
 
 Números medidos após `npm ci` e `npm run build` finais.
 
-| Métrica | Antes da P0.1 | `main` pós-P0.1 | `main` pós-P1.1 | Depois da P1.2 |
-|---|---|---|---|---|
-| Páginas em `src/pages` | 102 | 16 | 16 | **16** |
-| Arquivos em `src/` | 472 | 203 | 209 | **230** |
-| Arquivos em `src/components` | 312 | 157 | 157 | **156** |
-| Schemas em `base44/entities` | 87 | 38 | 38 | **38** |
-| Functions em `base44/functions` | 11 | 1 | 1 | **1** |
-| Dependências diretas (`dependencies`) | 63 | 31 | 31 | **31** |
-| Dependências diretas (`devDependencies`) | 15 | 18 | 18 | **18** |
-| Arquivos em `src/` com SDK/base44Client | 197 | 71 | 71 | **46** |
-| Ocorrências de `base44.entities` | 1014 | 371 | 368 | **230** |
-| Ocorrências de `base44.auth` | 29 | 16 | 16 | **14** |
-| Ocorrências de `base44.integrations` | 24 | 6 | 6 | **5** |
-| Ocorrências de `base44.functions` | 9 | 5 | 5 | **5** |
-| Acoplamento Base44 fora de `src/` | 22 | 1 | 1 | **1** |
-| Chaves Google Maps literais | 8 | 0 | 0 | **0** |
-| Erros de lint | 64 | 0 | 0 | **0** |
-| Diagnósticos `tsc` (cobertura total) | — | 2.802 | 2.797 | **2.759** (teto 2.759) |
-| Testes automatizados | 0 | 183 | 377 | **478** (289 de gate + 189 de smoke) |
-| Bundle de produção — JS | 4.347,45 kB | 2.461,36 kB | 2.464,58 kB | **2.474,37 kB** |
-| Bundle de produção — CSS | 120,36 kB | 77,00 kB | 77,00 kB | **77,00 kB** |
+| Métrica | Antes da P0.1 | pós-P0.1 | pós-P1.1 | pós-P1.2 | Depois da P1.3 |
+|---|---|---|---|---|---|
+| Páginas em `src/pages` | 102 | 16 | 16 | 16 | **16** |
+| Arquivos em `src/` | 472 | 203 | 209 | 230 | **245** |
+| Arquivos em `src/components` | 312 | 157 | 157 | 156 | **156** |
+| Schemas em `base44/entities` | 87 | 38 | 38 | 38 | **38** |
+| Functions em `base44/functions` | 11 | 1 | 1 | 1 | **1** |
+| Dependências diretas (`dependencies`) | 63 | 31 | 31 | 31 | **31** |
+| Dependências diretas (`devDependencies`) | 15 | 18 | 18 | 18 | **18** |
+| Arquivos em `src/` com SDK/base44Client | 197 | 71 | 71 | 46 | **27** |
+| Ocorrências de `base44.entities` | 1014 | 371 | 368 | 230 | **152** |
+| Ocorrências de `base44.auth` | 29 | 16 | 16 | 14 | **14** |
+| Ocorrências de `base44.integrations` | 24 | 6 | 6 | 5 | **4** |
+| Ocorrências de `base44.functions` | 9 | 5 | 5 | 5 | **4** |
+| Acoplamento Base44 fora de `src/` | 22 | 1 | 1 | 1 | **1** |
+| Chaves Google Maps literais | 8 | 0 | 0 | 0 | **0** |
+| Erros de lint | 64 | 0 | 0 | 0 | **0** |
+| Diagnósticos `tsc` (cobertura total) | — | 2.802 | 2.797 | 2.759 | **2.728** (teto 2.728) |
+| Testes automatizados | 0 | 183 | 377 | 478 | **624** (307 de gate + 317 de smoke) |
+| Bundle de produção — JS | 4.347,45 kB | 2.461,36 kB | 2.464,58 kB | 2.474,37 kB | **2.482,90 kB** |
+| Bundle de produção — CSS | 120,36 kB | 77,00 kB | 77,00 kB | 77,00 kB | **77,00 kB** |
 
 Os artefatos do bundle vêm da CI do **último commit com mudanças executáveis**
 desta PR — não de um build local nem de uma execução anterior.

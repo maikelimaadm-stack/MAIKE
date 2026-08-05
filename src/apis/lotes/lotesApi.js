@@ -6,7 +6,6 @@
  */
 
 import { runProviderCall, assertArgument } from '../_core/normalizeApiError.js';
-import { ApiError, API_ERROR_CODES } from '../_core/ApiError.js';
 import {
   lotesProvider,
   loteLayoutProvider,
@@ -139,51 +138,6 @@ export const deleteLote = async (id) => {
   const contexto = ctx('deleteLote');
   assertArgument(isId(id), 'id', contexto);
   return runProviderCall(() => lotesProvider.deleteLote(id), contexto);
-};
-
-/**
- * Catálogo **fechado** de fontes de opção de campo personalizado (P1.3).
- *
- * O repositório legado fazia `base44.entities[source.entity]`: qualquer string
- * vinda de um registro de `LayoutCampo` virava acesso a entidade. Isso é
- * exatamente o que `gate:api-boundary` reprova como `DYNAMIC-ENTITY`, e o risco
- * não era teórico — o nome vem de dado editável pelo usuário.
- *
- * As seis entradas abaixo não são um palpite: são exatamente as que a interface
- * permite escolher, em `ENTIDADES_RELACIONAIS`
- * (`src/components/lotes/camposConfigOptions.jsx`). Ampliar "por garantia"
- * reabriria o buraco que esta slice fecha.
- */
-export const OPTION_SOURCES = Object.freeze({
-  Fornecedor: 'nome',
-  Produto: 'nome_produto',
-  CategoriaManejo: 'nome',
-  Setor: 'nome',
-  AreaPastagem: 'nome',
-  LocalEstoque: 'nome',
-});
-
-export const isOptionSourceSuportada = (nome) =>
-  Object.prototype.hasOwnProperty.call(OPTION_SOURCES, nome);
-
-/**
- * Registros de uma fonte de opção suportada.
- *
- * Fonte desconhecida **lança** com código estável em vez de devolver lista
- * vazia: vazio silencioso faria um campo obrigatório parecer "sem cadastros"
- * quando na verdade a configuração está inválida.
- *
- * @param {string} nome uma chave de {@link OPTION_SOURCES}
- */
-export const listOptionSource = async (nome) => {
-  const contexto = { operation: 'listOptionSource', resource: 'LayoutCampo' };
-  if (!isOptionSourceSuportada(nome)) {
-    throw new ApiError(API_ERROR_CODES.LOTE_OPTION_SOURCE_UNSUPPORTED, {
-      ...contexto,
-      details: { fonte: typeof nome === 'string' ? nome : null },
-    });
-  }
-  return comoLista(await runProviderCall(() => loteLayoutProvider.listOptionSource(nome), contexto));
 };
 
 const layoutCtx = (operation) => ({ operation, resource: 'LayoutCampo' });

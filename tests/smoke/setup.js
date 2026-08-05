@@ -8,6 +8,25 @@ import { afterEach, beforeEach, expect, vi } from 'vitest';
  *  - nenhuma unhandled rejection.
  */
 
+/**
+ * Cliente Base44 substituído **globalmente**, antes de qualquer módulo de teste
+ * ser avaliado (P1.3-R1).
+ *
+ * O bloqueio de rede abaixo vive em `beforeEach`, e isso deixava uma janela
+ * temporal aberta: os módulos de teste são avaliados **antes** do primeiro
+ * `beforeEach`, então um `import` de topo que puxasse o provider inicializava o
+ * SDK real e tentava rede. A CI ficava verde — o teste passava —, mas o stderr
+ * acumulava `[Base44 SDK Error]`, `Network Error` e `AggregateError`.
+ *
+ * `vi.mock` no setup é içado para o topo do grafo de módulos, então a
+ * substituição vale desde a avaliação. Mock local em arquivo de teste passa a
+ * ser necessário só para **customizar** comportamento, não para evitar rede.
+ */
+vi.mock('@/api/base44Client', async () => {
+  const { createBase44Stub } = await import('./base44Stub.js');
+  return { base44: createBase44Stub() };
+});
+
 const erros = [];
 const rejeicoes = [];
 

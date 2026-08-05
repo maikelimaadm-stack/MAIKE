@@ -285,7 +285,6 @@ export const categoriasManejoProvider = Object.freeze({
  * Layout configurável do cadastro de lote, mais as entidades que servem de
  * fonte de opções.
  *
- * `listOptionSource` recebe um **nome já validado** contra o catálogo fechado
  * da API (`OPTION_SOURCES`). Não é ponto de entrada para nome arbitrário: quem
  * chama já provou que o nome pertence ao catálogo, e `endpointOf` reprova
  * qualquer coisa fora do registry (QLT-P13-12).
@@ -299,7 +298,6 @@ export const loteLayoutProvider = Object.freeze({
   createCampo: (dados) => endpointOf('LayoutCampo').create(dados),
   updateCampo: (id, dados) => endpointOf('LayoutCampo').update(id, dados),
   deleteCampo: (id) => endpointOf('LayoutCampo').delete(id),
-  listOptionSource: (nomeValidado) => endpointOf(nomeValidado).list(),
 });
 
 /** Fornecedor — cadastro lido pelo formulário de lote e como fonte de opções. */
