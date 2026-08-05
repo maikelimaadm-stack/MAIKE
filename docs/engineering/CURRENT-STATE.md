@@ -25,7 +25,8 @@ Base44 mantida apenas como provider temporário da cadeia preservada (D-PROD-04)
 2026-08-03 **sem** que a confirmação de rotação da chave do Google Maps tenha
 sido registrada. O merge não muda a exposição: a chave antiga permanece no
 histórico Git, agora também na `main`. Revogação, criação de chave nova,
-restrição por HTTP referrer e por API (Maps JavaScript, Drawing, Geometry) e
+restrição por HTTP referrer e por API (Maps JavaScript API e Geometry — a
+Drawing Library saiu do loader na P1.2-R1 e não é mais necessária) e
 armazenamento apenas em `.env.local` seguem pendentes com o proprietário — ver
 `docs/engineering/P0.1-R1-CORRECTIVE-HARDENING-REPORT.md`.
 
@@ -57,7 +58,7 @@ Números medidos após `npm ci` e `npm run build` finais.
 | Dependências diretas (`dependencies`) | 63 | 31 | 31 | 31 | **31** |
 | Dependências diretas (`devDependencies`) | 15 | 18 | 18 | 18 | **18** |
 | Arquivos em `src/` com SDK/base44Client | 197 | 71 | 71 | 46 | **27** |
-| Ocorrências de `base44.entities` | 1014 | 371 | 368 | 230 | **152** |
+| Ocorrências de `base44.entities` | 1014 | 371 | 368 | 230 | **151** |
 | Ocorrências de `base44.auth` | 29 | 16 | 16 | 14 | **14** |
 | Ocorrências de `base44.integrations` | 24 | 6 | 6 | 5 | **4** |
 | Ocorrências de `base44.functions` | 9 | 5 | 5 | 5 | **4** |
@@ -72,12 +73,12 @@ Números medidos após `npm ci` e `npm run build` finais.
 Os artefatos do bundle vêm da CI do **último commit com mudanças executáveis**
 desta PR — não de um build local nem de uma execução anterior.
 
-Artefatos medidos no run [30847666490](https://github.com/maikelimaadm-stack/MAIKE/actions/runs/30847666490)
-(commit `48d6d66`, funcional da P1.2), etapa `build`:
+Artefatos medidos no run [31007455901](https://github.com/maikelimaadm-stack/MAIKE/actions/runs/31007455901)
+(job `92310811611`, commit `344accb`, funcional da P1.3-R1), etapa `build`:
 
 | Artefato | Tamanho | gzip |
 |---|---|---|
-| `dist/assets/index-B4todyOY.js` | 2.474,37 kB | 662,42 kB |
+| `dist/assets/index-Ckweg-Y0.js` | 2.482,90 kB | 665,74 kB |
 | `dist/assets/index-DM5ihJ4E.css` | 77,00 kB | 13,31 kB |
 | `dist/index.html` | 0,48 kB | 0,31 kB |
 
@@ -141,12 +142,14 @@ CI em `.github/workflows/quality.yml`.
 | `5946809` | **commit funcional** da P1.1-R3 | [30836332701](https://github.com/maikelimaadm-stack/MAIKE/actions/runs/30836332701) | **verde**, 13/13 |
 | `6d88794` | certificação de estado da P1.1-R3 | [30836737386](https://github.com/maikelimaadm-stack/MAIKE/actions/runs/30836737386) | **verde**, 13/13 |
 | `9767545` | **commit funcional** da P1.1-R4 | [30841392611](https://github.com/maikelimaadm-stack/MAIKE/actions/runs/30841392611) | **verde**, 13/13 — origem dos artefatos |
-| `48d6d66` | **commit funcional** da P1.2 | [30847666490](https://github.com/maikelimaadm-stack/MAIKE/actions/runs/30847666490) | **verde**, 13/13 — origem dos artefatos |
-| HEAD atual | só esta certificação de estado | ver corpo da PR #3 | — |
+| `48d6d66` | **commit funcional** da P1.2 | [30847666490](https://github.com/maikelimaadm-stack/MAIKE/actions/runs/30847666490) | **verde**, 13/13 |
+| `98b966d` | **commit funcional** da P1.3 | [30868215796](https://github.com/maikelimaadm-stack/MAIKE/actions/runs/30868215796) | **verde**, 13/13 |
+| `344accb` | **commit funcional** da P1.3-R1 | [31007455901](https://github.com/maikelimaadm-stack/MAIKE/actions/runs/31007455901) | **verde**, 13/13 — origem dos artefatos |
+| HEAD atual | fechamento da P1.3-R2 | CI registrada no corpo da PR #5 | — |
 
 Um commit não pode conter o resultado da própria execução de CI. A execução do
 commit documental que sucede o último commit executável fica no corpo da PR
-aberta — PR #2 para a P1.1, PR #3 para a P1.2.
+aberta — PR #2 para a P1.1, PR #3 para a P1.2, PR #5 para a P1.3.
 
 O run vermelho de `8866768` fica registrado em vez de omitido. A reprovação foi
 legítima: o relatório da própria P1.1-R1 citava um par nome-de-chave mais
@@ -158,7 +161,7 @@ motivo de o `verify:all` local não ter pego antes.
 
 | # | Item | Tratamento |
 |---|---|---|
-| DBT-01 | Componentes acessam `base44` direto. A camada `src/apis/` existe desde a P1.1; Empresa (P1.1), Mapa (P1.2) e os cadastros do manejo (P1.3) já migraram. Restam 152 chamadas `base44.entities` fora dela | P1 |
+| DBT-01 | Componentes acessam `base44` direto. A camada `src/apis/` existe desde a P1.1; Empresa (P1.1), Mapa (P1.2) e os cadastros do manejo (P1.3) já migraram. Restam 151 chamadas `base44.entities` fora dela | P1 |
 | DBT-02 | `requiresAuth: false` em `src/api/base44Client.js` | P3 |
 | DBT-03 | 2.759 diagnósticos de dívida de tipos versionados na catraca, com teto certificado de 2.759. `gate:types` impede crescer em qualquer modo (D-PROD-17) e impede afrouxar a configuração (D-PROD-13). P1 deve reduzir | P1 |
 | DBT-04 | Sem tela de **entrada** de estoque (D-PROD-08) | P6 |

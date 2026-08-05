@@ -1175,6 +1175,35 @@ describe('gate:api-boundary — P1.3-R1 endpointOf só aceita nome literal', () 
     cleanup(d);
   });
 
+  /**
+   * DP5 — a regra vale pelo que `endpointOf` faz **dentro do adapter**, não pelo
+   * nome. `endpointOf` não é palavra reservada: um helper local homônimo, sem
+   * relação nenhuma com a Base44, não pode ser acusado de acesso dinâmico a
+   * entidade. A primeira versão da regra olhava qualquer arquivo varrido.
+   */
+  test('DP5 helper local homônimo fora do adapter não é falso positivo', () => {
+    const d = comModulo({
+      'src/components/lotes/tabelaUtils.js':
+        "const endpointOf = (mapa, nome) => mapa[nome];\n" +
+        "export const resolver = (mapaLocal, chave) => endpointOf(mapaLocal, chave);\n",
+      'src/services/rotasLocais.js':
+        "const endpointOf = (registro, chave) => registro[chave];\n" +
+        "export const url = (registro, chave) => endpointOf(registro, chave);\n",
+    });
+    criarBaseline(d);
+
+    const atual = scanBoundary(d);
+    assert.deepEqual(
+      atual.listas.dynamicEntityFiles,
+      [],
+      `helper homônimo fora do adapter virou acesso dinâmico:\n${JSON.stringify(atual.listas.dynamicEntityFiles)}`
+    );
+
+    const r = rodar(d);
+    assert.equal(r.status, 0, r.output);
+    cleanup(d);
+  });
+
   test('o adapter real do repositório não tem endpointOf dinâmico', () => {
     const fonte = readFileSync(join(REPO_ROOT, ALLOWED_PROVIDER_ADAPTER), 'utf8');
     const fato = analyzeFile(fonte, ALLOWED_PROVIDER_ADAPTER);

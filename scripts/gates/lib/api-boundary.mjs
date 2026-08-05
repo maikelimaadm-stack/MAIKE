@@ -572,8 +572,17 @@ export const analyzeFile = (source, rel) => {
      * Aceitos: `endpointOf('Lote')`, `endpointOf("Lote")`, `` endpointOf(`Lote`) ``.
      * Reprovados: identificador, membro, ternário, chamada — qualquer expressão
      * cujo valor só se conhece em runtime.
+     *
+     * **Escopo: só o adapter autorizado** (P1.3-R2). A primeira versão desta
+     * regra olhava qualquer chamada com esse nome, em qualquer arquivo varrido.
+     * `endpointOf` não é palavra reservada: um helper local homônimo — digamos
+     * `const endpointOf = (mapa, chave) => mapa[chave]` — seria acusado de
+     * acesso dinâmico a entidade sem ter relação nenhuma com a Base44. A regra
+     * existe por causa do que `endpointOf` faz **aqui dentro**: resolver
+     * endpoint no registry. Fora daqui, o nome não significa nada.
      */
     if (
+      rel === ALLOWED_PROVIDER_ADAPTER &&
       ts.isCallExpression(node) &&
       ts.isIdentifier(node.expression) &&
       node.expression.text === 'endpointOf'

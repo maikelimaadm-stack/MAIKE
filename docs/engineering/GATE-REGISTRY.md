@@ -494,13 +494,19 @@ sem segredo, distinguindo Vercel Preview/Production de Railway frontend/backend.
 JSDOM não calcula layout, então classe sozinha não prova pixel: os testes de
 shell combinam contrato estrutural com comportamento real de clique e rota.
 
-Desde a P1.3-R1, `endpointOf(...)` dentro do adapter autorizado só aceita
-**string literal**. É a mesma porta que `entities[nome]`, com um passo de
+Desde a P1.3-R1, `endpointOf(...)` **dentro do adapter Base44 autorizado** só
+aceita string literal. É a mesma porta que `entities[nome]`, com um passo de
 indireção: o provider da P1.3 tinha `listOptionSource(nomeValidado)`, e a
 validação ficava na API — validação em cima de porta aberta é convenção, não
 contrato. Reprovam identificador, membro, ternário, chamada e const
-intermediária, com o código `P11-API-BOUNDARY-DYNAMIC-ENTITY`. Fixtures
-DP1–DP4.
+intermediária, com o código `P11-API-BOUNDARY-DYNAMIC-ENTITY`.
+
+A regra é **escopada ao arquivo** `src/apis/_providers/base44Provider.js`
+(P1.3-R2). `endpointOf` não é palavra reservada: um helper homônimo em qualquer
+outro arquivo — `const endpointOf = (mapa, chave) => mapa[chave]` — **não** é
+classificado como acesso de entidade. A regra existe pelo que a função faz
+dentro do adapter, resolver endpoint no registry; fora dali o nome não significa
+nada. Fixtures DP1–DP4 para o adapter, DP5 como controle de falso positivo.
 
 O smoke também ficou hermético desde a **avaliação dos módulos**: o mock do
 cliente Base44 vive em `tests/smoke/setup.js`, no escopo do módulo. O bloqueio
