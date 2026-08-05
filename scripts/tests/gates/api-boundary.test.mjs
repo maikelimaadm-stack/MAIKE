@@ -1004,3 +1004,209 @@ describe('gate:api-boundary — R4 LW18 consistência do parser', () => {
     assert.equal(analyzeFile(src, 'src/apis/empresa/index.ts').publicProviderLeaks.length, 1);
   });
 });
+
+describe('gate:api-boundary — P1.3 provas negativas dos caminhos fechados no manejo', () => {
+  /**
+   * N1–N7 são as regressões que a P1.3 fecha. Cada uma é uma fixture analisada
+   * pelo **gate real**, não uma mutação manual no repositório: o custo de rodar
+   * é o mesmo dos outros testes, e a prova roda em toda CI em vez de uma vez.
+   */
+
+  test('N1 UI chamando API de dados direto reprova', () => {
+    const d = comModulo({
+      'src/pages/CadastroLotes.jsx': "import { listLotes } from '@/apis/lotes';\nexport default function P() { return listLotes(); }\n",
+      'src/apis/lotes/lotesApi.js': "import { empresaProvider } from '../_providers/base44Provider.js';\nexport const listLotes = () => empresaProvider.list('x');\n",
+      'src/apis/lotes/index.js': "export { listLotes } from './lotesApi.js';\n",
+    });
+    criarBaseline(d);
+    falhaCom(d, 'P11-API-BOUNDARY-SERVICE-BYPASS');
+    cleanup(d);
+  });
+
+  test('N2 service importando implementação privada de módulo reprova', () => {
+    const d = comModulo({
+      'src/apis/lotes/lotesApi.js': "import { empresaProvider } from '../_providers/base44Provider.js';\nexport const listLotes = () => empresaProvider.list('x');\n",
+      'src/apis/lotes/index.js': "export { listLotes } from './lotesApi.js';\n",
+      'src/services/loteCadastroService.js': "import { listLotes } from '@/apis/lotes/lotesApi.js';\nexport const listar = () => listLotes();\n",
+    });
+    criarBaseline(d);
+    falhaCom(d, 'P11-API-BOUNDARY-MODULE-INTERNAL-BYPASS');
+    cleanup(d);
+  });
+
+  test('N3 repositório legado reaparecendo com o SDK reprova', () => {
+    const d = comModulo();
+    criarBaseline(d);
+    writeFile(d, 'src/core/repositories/loteRepository.js',
+      "import { base44 } from '@/api/base44Client';\nexport const list = () => base44.entities.Lote.list();\n");
+    falhaCom(d, 'P11-API-BOUNDARY-REGRESSION');
+    cleanup(d);
+  });
+
+  test('N4 acesso computado a entities reprova', () => {
+    const d = comModulo({
+      'src/apis/lotes/lotesApi.js':
+        "import { base44 } from '@/api/base44Client';\nexport const listSource = (nome) => base44.entities[nome].list();\n",
+      'src/apis/lotes/index.js': "export { listSource } from './lotesApi.js';\n",
+    });
+    criarBaseline(d);
+    falhaCom(d, 'P11-API-BOUNDARY-DYNAMIC-ENTITY');
+    cleanup(d);
+  });
+
+  test('N5 função Base44 de nome aberto reprova: só o adapter fala com o client', () => {
+    const d = comModulo({
+      'src/apis/lotes/lotesApi.js':
+        "import { base44 } from '@/api/base44Client';\nexport const invocar = (nome, payload) => base44.functions.invoke(nome, payload);\n",
+      'src/apis/lotes/index.js': "export { invocar } from './lotesApi.js';\n",
+    });
+    criarBaseline(d);
+    // O caminho fecha antes de discutir o nome da função: um módulo de API não
+    // pode importar o client legado — só o adapter autorizado pode.
+    falhaCom(d, 'P11-API-BOUNDARY-PROVIDER-LEAK');
+    cleanup(d);
+  });
+
+  test('N6 provider reexportado pela superfície pública reprova', () => {
+    const d = comModulo({
+      'src/apis/lotes/lotesApi.js': "import { empresaProvider } from '../_providers/base44Provider.js';\nexport const listLotes = () => empresaProvider.list('x');\n",
+      'src/apis/lotes/index.js': "export { listLotes } from './lotesApi.js';\nexport { empresaProvider } from '../_providers/base44Provider.js';\n",
+    });
+    criarBaseline(d);
+    falhaCom(d, 'P11-API-BOUNDARY-PUBLIC-PROVIDER-LEAK');
+    cleanup(d);
+  });
+
+  test('N7 arquivo já migrado voltando ao baseline reprova', () => {
+    const d = comModulo();
+    criarBaseline(d);
+    writeFile(d, 'src/pages/CadastroSetores.jsx',
+      "import { base44 } from '@/api/base44Client';\nexport default function P() { return base44.entities.Setor.list(); }\n");
+    falhaCom(d, 'P11-API-BOUNDARY-REGRESSION');
+    cleanup(d);
+  });
+
+  test('N8 CONTROLE POSITIVO: UI → service → API pública → provider interno passa', () => {
+    const d = comModulo({
+      'src/apis/lotes/lotesApi.js': "import { empresaProvider } from '../_providers/base44Provider.js';\nexport const listLotes = () => empresaProvider.list('x');\n",
+      'src/apis/lotes/index.js': "export { listLotes } from './lotesApi.js';\n",
+      'src/services/loteCadastroService.js': "import { listLotes } from '@/apis/lotes';\nexport const listar = () => listLotes();\n",
+      'src/pages/CadastroLotes.jsx': "import { listar } from '@/services/loteCadastroService';\nexport default function P() { return listar(); }\n",
+    });
+    criarBaseline(d);
+    const r = rodar(d);
+    assert.equal(r.status, 0, r.output);
+    cleanup(d);
+  });
+});
+
+describe('gate:api-boundary — P1.3-R1 endpointOf só aceita nome literal', () => {
+  /**
+   * `endpointOf` resolve endpoint por nome dentro do adapter: é a mesma porta
+   * que `entities[nome]`, com um passo de indireção. Sem esta regra, o provider
+   * volta a aceitar entidade escolhida em runtime desde que alguém valide o
+   * nome antes — e validação em cima de porta aberta é convenção, não contrato.
+   */
+  const comAdapter = (corpoExtra) =>
+    makeProject({
+      legados: {
+        [ALLOWED_PROVIDER_ADAPTER]:
+          "import { base44 } from '@/api/base44Client';\n" +
+          "const R = Object.freeze({ Lote: base44.entities.Lote, Setor: base44.entities.Setor });\n" +
+          "const endpointOf = (nome) => R[nome];\n" +
+          corpoExtra,
+      },
+    });
+
+  const DINAMICOS = [
+    ['DP1 identificador', "export const p = Object.freeze({ list: (nome) => endpointOf(nome).list() });\n"],
+    ['DP2 membro de objeto', "export const p = Object.freeze({ list: (config) => endpointOf(config.entity).list() });\n"],
+    ['DP2b ternário', "export const p = Object.freeze({ list: (flag) => endpointOf(flag ? 'Lote' : 'Setor').list() });\n"],
+    ['DP2c chamada', "const nomeDe = () => 'Lote';\nexport const p = Object.freeze({ list: () => endpointOf(nomeDe()).list() });\n"],
+    ['DP2d const intermediária', "const nome = 'Lote';\nexport const p = Object.freeze({ list: () => endpointOf(nome).list() });\n"],
+  ];
+
+  for (const [nome, corpo] of DINAMICOS) {
+    test(`${nome} reprova`, () => {
+      const d = comAdapter(corpo);
+      criarBaseline(d);
+      // O baseline foi criado com o adapter já dinâmico, então a prova é o
+      // eixo: o arquivo entra em `dynamicEntityFiles` e o gate acusa.
+      const atual = scanBoundary(d);
+      assert.ok(
+        atual.listas.dynamicEntityFiles.includes(ALLOWED_PROVIDER_ADAPTER),
+        `esperava ${ALLOWED_PROVIDER_ADAPTER} em dynamicEntityFiles`
+      );
+      cleanup(d);
+    });
+  }
+
+  const LITERAIS = [
+    ["DP3 aspas simples", "export const p = Object.freeze({ list: () => endpointOf('Lote').list() });\n"],
+    ['DP3b aspas duplas', 'export const p = Object.freeze({ list: () => endpointOf("Setor").list() });\n'],
+    ['DP3c template sem substituição', "export const p = Object.freeze({ list: () => endpointOf(`Lote`).list() });\n"],
+  ];
+
+  for (const [nome, corpo] of LITERAIS) {
+    test(`${nome} passa`, () => {
+      const d = comAdapter(corpo);
+      const atual = scanBoundary(d);
+      assert.equal(
+        atual.listas.dynamicEntityFiles.includes(ALLOWED_PROVIDER_ADAPTER),
+        false,
+        `nome literal não pode entrar em dynamicEntityFiles:\n${JSON.stringify(atual.listas.dynamicEntityFiles)}`
+      );
+      cleanup(d);
+    });
+  }
+
+  test('DP4 catálogo em service chamando APIs públicas passa', () => {
+    const d = comModulo({
+      'src/apis/lotes/lotesApi.js': "import { empresaProvider } from '../_providers/base44Provider.js';\nexport const listFornecedores = () => empresaProvider.list('x');\n",
+      'src/apis/lotes/index.js': "export { listFornecedores } from './lotesApi.js';\n",
+      'src/services/loteCadastroService.js':
+        "import { listFornecedores } from '@/apis/lotes';\n" +
+        "const LOADERS = Object.freeze({ Fornecedor: { carregar: () => listFornecedores() } });\n" +
+        "export const listar = (nome) => LOADERS[nome].carregar();\n",
+    });
+    criarBaseline(d);
+    const r = rodar(d);
+    assert.equal(r.status, 0, r.output);
+    cleanup(d);
+  });
+
+  /**
+   * DP5 — a regra vale pelo que `endpointOf` faz **dentro do adapter**, não pelo
+   * nome. `endpointOf` não é palavra reservada: um helper local homônimo, sem
+   * relação nenhuma com a Base44, não pode ser acusado de acesso dinâmico a
+   * entidade. A primeira versão da regra olhava qualquer arquivo varrido.
+   */
+  test('DP5 helper local homônimo fora do adapter não é falso positivo', () => {
+    const d = comModulo({
+      'src/components/lotes/tabelaUtils.js':
+        "const endpointOf = (mapa, nome) => mapa[nome];\n" +
+        "export const resolver = (mapaLocal, chave) => endpointOf(mapaLocal, chave);\n",
+      'src/services/rotasLocais.js':
+        "const endpointOf = (registro, chave) => registro[chave];\n" +
+        "export const url = (registro, chave) => endpointOf(registro, chave);\n",
+    });
+    criarBaseline(d);
+
+    const atual = scanBoundary(d);
+    assert.deepEqual(
+      atual.listas.dynamicEntityFiles,
+      [],
+      `helper homônimo fora do adapter virou acesso dinâmico:\n${JSON.stringify(atual.listas.dynamicEntityFiles)}`
+    );
+
+    const r = rodar(d);
+    assert.equal(r.status, 0, r.output);
+    cleanup(d);
+  });
+
+  test('o adapter real do repositório não tem endpointOf dinâmico', () => {
+    const fonte = readFileSync(join(REPO_ROOT, ALLOWED_PROVIDER_ADAPTER), 'utf8');
+    const fato = analyzeFile(fonte, ALLOWED_PROVIDER_ADAPTER);
+    assert.deepEqual(fato.dynamicEntityAccess, [], 'adapter tem acesso dinâmico');
+  });
+});

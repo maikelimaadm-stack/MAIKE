@@ -1,5 +1,10 @@
 import React, { useState } from "react";
-import { base44 } from "@/api/base44Client";
+import {
+  listarTodasMovimentacoes,
+  atualizarLote,
+  criarMovimentacao,
+  excluirMovimentacao,
+} from "@/services/loteManejoService";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,7 +32,7 @@ export default function RenomearLoteForm({ lote, novoNome, onNovoNomeChange, emp
   const { data: renomeacoes = [] } = useQuery({
     queryKey: ['renomeacoes-lote', lote.id],
     queryFn: async () => {
-      const all = await base44.entities.MovimentacaoMapa.list();
+      const all = await listarTodasMovimentacoes();
       return all.filter(m =>
         m.empresa_id === empresaSelecionadaId &&
         m.lote_id === lote.id &&
@@ -49,11 +54,11 @@ export default function RenomearLoteForm({ lote, novoNome, onNovoNomeChange, emp
     if (!novoNome.trim() || !dataRenomeacao) return;
     setLoading(true);
     const nomeAnterior = lote.nome;
-    await base44.entities.Lote.update(lote.id, { nome: novoNome.trim() });
+    await atualizarLote(lote.id, { nome: novoNome.trim() });
     
     const areaAtualId = lote.area_atual_id;
     const areaRen = areas.find(a => a.id === areaAtualId);
-    await base44.entities.MovimentacaoMapa.create({
+    await criarMovimentacao({
       empresa_id: empresaSelecionadaId,
       data_movimentacao: `${dataRenomeacao}T12:00:00.000Z`,
       tipo: 'Entrada',
@@ -77,11 +82,11 @@ export default function RenomearLoteForm({ lote, novoNome, onNovoNomeChange, emp
     
     setLoading(true);
     // Voltar ao nome original
-    await base44.entities.Lote.update(lote.id, { nome: nomeOriginal });
+    await atualizarLote(lote.id, { nome: nomeOriginal });
     
     // Excluir todas as movimentações de renomear deste lote
     for (const ren of renomeacoes) {
-      await base44.entities.MovimentacaoMapa.delete(ren.id);
+      await excluirMovimentacao(ren.id);
     }
     
     toast.success(`Nome revertido para "${nomeOriginal}"`);

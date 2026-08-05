@@ -24,6 +24,17 @@ export const API_ERROR_CODES = Object.freeze({
   // P1.2 — Mapa
   MAPA_DELETE_BLOCKED: 'MAPA_DELETE_BLOCKED',
   MAPA_PARTIAL_OPERATION: 'MAPA_PARTIAL_OPERATION',
+
+  // P1.3 — Manejo. Só entram códigos com uso real e teste.
+  LOTE_DELETE_BLOCKED: 'LOTE_DELETE_BLOCKED',
+  LOTE_NATIVE_FIELD_PROTECTED: 'LOTE_NATIVE_FIELD_PROTECTED',
+  LOTE_FIELD_HAS_DATA: 'LOTE_FIELD_HAS_DATA',
+  LOTE_OPTION_SOURCE_UNSUPPORTED: 'LOTE_OPTION_SOURCE_UNSUPPORTED',
+  SETOR_DELETE_BLOCKED: 'SETOR_DELETE_BLOCKED',
+  CATEGORIA_HAS_CHILDREN: 'CATEGORIA_HAS_CHILDREN',
+  CATEGORIA_PARTIAL_DELETE: 'CATEGORIA_PARTIAL_DELETE',
+  CATEGORIA_MANEJO_DELETE_BLOCKED: 'CATEGORIA_MANEJO_DELETE_BLOCKED',
+  ANEXO_ENTITY_UNSUPPORTED: 'ANEXO_ENTITY_UNSUPPORTED',
 });
 
 /** Mensagem pública por código. Nunca inclui dado do provider. */
@@ -34,6 +45,15 @@ const MENSAGENS = Object.freeze({
   [API_ERROR_CODES.EMPRESA_NAME_CONFLICT]: 'Já existe uma empresa cadastrada com este nome.',
   [API_ERROR_CODES.MAPA_DELETE_BLOCKED]: 'Não é possível excluir: existem registros vinculados.',
   [API_ERROR_CODES.MAPA_PARTIAL_OPERATION]: 'A operação foi concluída apenas em parte. Confira os dados antes de repetir.',
+  [API_ERROR_CODES.LOTE_DELETE_BLOCKED]: 'Não é possível excluir o lote: existem registros vinculados.',
+  [API_ERROR_CODES.LOTE_NATIVE_FIELD_PROTECTED]: 'Esta lista é nativa do sistema e não pode ser excluída.',
+  [API_ERROR_CODES.LOTE_FIELD_HAS_DATA]: 'Este campo já possui dados em lotes cadastrados e não pode ser excluído com segurança.',
+  [API_ERROR_CODES.LOTE_OPTION_SOURCE_UNSUPPORTED]: 'Este cadastro não está disponível como fonte de opções.',
+  [API_ERROR_CODES.SETOR_DELETE_BLOCKED]: 'Não é possível excluir o setor: existem registros vinculados.',
+  [API_ERROR_CODES.CATEGORIA_HAS_CHILDREN]: 'Não é possível excluir: existem subcategorias vinculadas.',
+  [API_ERROR_CODES.CATEGORIA_PARTIAL_DELETE]: 'Parte das categorias não pôde ser excluída. Confira a lista antes de repetir.',
+  [API_ERROR_CODES.CATEGORIA_MANEJO_DELETE_BLOCKED]: 'Não é possível excluir a categoria de manejo: existem registros vinculados.',
+  [API_ERROR_CODES.ANEXO_ENTITY_UNSUPPORTED]: 'Anexos não estão disponíveis para este cadastro.',
 });
 
 /** Falha transitória vale retentativa; erro de argumento e conflito, não. */

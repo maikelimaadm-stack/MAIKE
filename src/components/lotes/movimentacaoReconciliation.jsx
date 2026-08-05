@@ -1,4 +1,9 @@
-import { base44 } from "@/api/base44Client";
+import {
+  listarTodosLotes,
+  criarLote,
+  atualizarLote,
+  atualizarMovimentacao,
+} from "@/services/loteManejoService";
 import { getCategoriaAnteriorFromObs, getMudancaCategoriaSnapshot, normalizeText } from "../utils/pecuariaUtils";
 import { validarSemRegistrosPosteriores } from "./manejoValidations.jsx";
 
@@ -44,14 +49,14 @@ function ensureAvailable(lote, quantidade, mensagem) {
 
 async function updateLoteQuantidade(lote, quantidade) {
   const quantidadeFinal = Math.max(0, toNumber(quantidade));
-  await base44.entities.Lote.update(lote.id, {
+  await atualizarLote(lote.id, {
     quantidade_cabecas: quantidadeFinal,
     status: buildActiveStatus(quantidadeFinal),
   });
 }
 
 async function createRecomposicaoLote({ template, areaId, areaNome, quantidade, dataMovimentacao, categoria }) {
-  await base44.entities.Lote.create({
+  await criarLote({
     empresa_id: template.empresa_id,
     nome: template.nome,
     identificador_nome: template.identificador_nome,
@@ -255,7 +260,7 @@ export async function reverseMovementOnDelete({ empresaSelecionadaId, movement }
     });
   }
 
-  const lotesAll = await base44.entities.Lote.list();
+  const lotesAll = await listarTodosLotes();
   const lotesEmpresa = lotesAll.filter((lote) => lote.empresa_id === empresaSelecionadaId);
   const { findLoteById, findLoteByNomeArea, findLoteByNomeAreaCategoria } = createFinders(lotesEmpresa);
   const lotePrincipal = findLoteById(movement.lote_id);
@@ -342,7 +347,7 @@ export async function reconcileMovementEdit({ empresaSelecionadaId, originalMove
     });
   }
 
-  const lotesAll = await base44.entities.Lote.list();
+  const lotesAll = await listarTodosLotes();
   const lotesEmpresa = lotesAll.filter((lote) => lote.empresa_id === empresaSelecionadaId);
   const { findLoteById, findLoteByNomeArea, findLoteByNomeAreaCategoria } = createFinders(lotesEmpresa);
   const lotePrincipal = findLoteById(originalMovement.lote_id);
@@ -382,8 +387,8 @@ export async function reconcileMovementEdit({ empresaSelecionadaId, originalMove
 
   if (originalMovement.tipo === "Pesagem") {
     if (!lotePrincipal) throw new Error("Não foi possível localizar o lote para reconciliar a pesagem.");
-    await base44.entities.Lote.update(lotePrincipal.id, { peso_medio_kg: payload.peso_medio });
+    await atualizarLote(lotePrincipal.id, { peso_medio_kg: payload.peso_medio });
   }
 
-  await base44.entities.MovimentacaoMapa.update(originalMovement.id, payload);
+  await atualizarMovimentacao(originalMovement.id, payload);
 }

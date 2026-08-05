@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import ConfiguracaoColunasLotesDialog from "@/components/lotes/ConfiguracaoColunasLotesDialog";
 import { useQuery } from "@tanstack/react-query";
-import loteRepository from "@/core/repositories/loteRepository";
+import { listarCamposPersonalizados, listarFontesDeOpcoes } from "@/services/loteCadastroService";
 import campoEngine from "@/services/campoEngine";
 import { Filter, X, ArrowDownAZ, ArrowUpZA, GripVertical, Check } from "lucide-react";
 
@@ -138,7 +138,7 @@ export default function TabelaLotes({
 
   const { data: camposPersonalizados = [] } = useQuery({
     queryKey: ["lote-campos-personalizados"],
-    queryFn: () => loteRepository.listCamposPersonalizados(),
+    queryFn: () => listarCamposPersonalizados(),
     initialData: []
   });
 
@@ -187,7 +187,7 @@ export default function TabelaLotes({
 
   const { data: relatedOptions = {} } = useQuery({
     queryKey: ["lote-related-options", relatedSources.map((source) => `${source.entity}:${source.labelField}:${source.valueField}`).join("|")],
-    queryFn: () => loteRepository.listOptionsSources(relatedSources),
+    queryFn: () => listarFontesDeOpcoes(relatedSources),
     enabled: relatedSources.length > 0,
     initialData: {}
   });

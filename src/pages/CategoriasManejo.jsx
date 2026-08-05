@@ -1,5 +1,12 @@
 import React, { useMemo, useState } from "react";
-import { base44 } from "@/api/base44Client";
+import {
+  listarCategoriasManejoDaEmpresa,
+  listarIconesDeLoteDaEmpresa,
+  criarCategoriaManejo,
+  atualizarCategoriaManejo,
+  excluirCategoriaManejo,
+} from "@/services/categoriaManejoService";
+import { getApiErrorMessage, hasApiErrorCode, API_ERROR_CODES } from "@/apis/_core/ApiError";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Settings } from "lucide-react";
@@ -8,7 +15,6 @@ import { AnimatePresence } from "framer-motion";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 import TabelaCategoriasManejo from "@/components/categorias-manejo/TabelaCategoriasManejo";
 import FormularioCategoriaManejo from "@/components/categorias-manejo/FormularioCategoriaManejo";
-import { ensureDeleteAllowed } from "@/lib/entityDeleteGuards";
 
 const getInitialFormData = () => ({
   nome: "",
@@ -45,8 +51,7 @@ export default function CategoriasManejo() {
   const { data: categorias = [], refetch } = useQuery({
     queryKey: ["categorias-manejo", empresaSelecionadaId],
     queryFn: async () => {
-      const all = await base44.entities.CategoriaManejo.list();
-      return all.filter((c) => c.empresa_id === empresaSelecionadaId);
+      return listarCategoriasManejoDaEmpresa(empresaSelecionadaId);
     },
     enabled: !!empresaSelecionadaId
   });
@@ -54,14 +59,13 @@ export default function CategoriasManejo() {
   const { data: iconesConfig = [] } = useQuery({
     queryKey: ["configuracao-icones", empresaSelecionadaId],
     queryFn: async () => {
-      const all = await base44.entities.ConfiguracaoIcone.list();
-      return all.filter((i) => i.empresa_id === empresaSelecionadaId && i.tipo_entidade === "Lote" && i.ativo !== false);
+      return listarIconesDeLoteDaEmpresa(empresaSelecionadaId);
     },
     enabled: !!empresaSelecionadaId
   });
 
   const createMutation = useMutation({
-    mutationFn: (data) => base44.entities.CategoriaManejo.create(data),
+    mutationFn: (formData) => criarCategoriaManejo(formData, { empresaId: empresaSelecionadaId }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["categorias-manejo", empresaSelecionadaId] });
       setShowForm(false);
@@ -71,9 +75,7 @@ export default function CategoriasManejo() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: async ({ id, data }) => {
-      return await base44.entities.CategoriaManejo.update(id, data);
-    },
+    mutationFn: (/** @type {{id: string, data: object, oldData?: object}} */ { id, data }) => atualizarCategoriaManejo(id, data, { empresaId: empresaSelecionadaId }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["categorias-manejo", empresaSelecionadaId] });
       setShowForm(false);
@@ -83,17 +85,15 @@ export default function CategoriasManejo() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id) => {
-      await ensureDeleteAllowed(base44, "CategoriaManejo", id);
-      return base44.entities.CategoriaManejo.delete(id);
-    },
+    mutationFn: (id) => excluirCategoriaManejo(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["categorias-manejo", empresaSelecionadaId] });
       toast.success("Categoria excluída!");
     },
     onError: (error) => {
-      if (String(error?.message || "").toLowerCase().includes("não é possível excluir")) return;
-      toast.error(error.message || "Erro ao excluir.");
+      // Decidido por código, não por texto: o diálogo global já comunica o vínculo.
+      if (hasApiErrorCode(error, API_ERROR_CODES.CATEGORIA_MANEJO_DELETE_BLOCKED)) return;
+      toast.error(getApiErrorMessage(error, "Erro ao excluir."));
     }
   });
 
@@ -123,38 +123,15 @@ export default function CategoriasManejo() {
   };
 
   const handleSubmit = (formData) => {
-    const data = {
-      empresa_id: empresaSelecionadaId,
-      nome: formData.nome.toUpperCase(),
-      sigla: formData.sigla.toUpperCase(),
-      especie: formData.especie,
-      sexo: formData.sexo || null,
-      raca: formData.raca ? formData.raca.toUpperCase() : null,
-      idade_minima_meses: formData.idade_minima_meses ? parseInt(formData.idade_minima_meses) : null,
-      idade_maxima_meses: formData.idade_maxima_meses ? parseInt(formData.idade_maxima_meses) : null,
-      categoria_oficial: formData.categoria_oficial || null,
-      ganho_peso_anual_kg: formData.ganho_peso_anual_kg ? parseFloat(formData.ganho_peso_anual_kg) : null,
-      gmd_janeiro: formData.gmd_janeiro ? parseFloat(formData.gmd_janeiro) : null,
-      gmd_fevereiro: formData.gmd_fevereiro ? parseFloat(formData.gmd_fevereiro) : null,
-      gmd_marco: formData.gmd_marco ? parseFloat(formData.gmd_marco) : null,
-      gmd_abril: formData.gmd_abril ? parseFloat(formData.gmd_abril) : null,
-      gmd_maio: formData.gmd_maio ? parseFloat(formData.gmd_maio) : null,
-      gmd_junho: formData.gmd_junho ? parseFloat(formData.gmd_junho) : null,
-      gmd_julho: formData.gmd_julho ? parseFloat(formData.gmd_julho) : null,
-      gmd_agosto: formData.gmd_agosto ? parseFloat(formData.gmd_agosto) : null,
-      gmd_setembro: formData.gmd_setembro ? parseFloat(formData.gmd_setembro) : null,
-      gmd_outubro: formData.gmd_outubro ? parseFloat(formData.gmd_outubro) : null,
-      gmd_novembro: formData.gmd_novembro ? parseFloat(formData.gmd_novembro) : null,
-      gmd_dezembro: formData.gmd_dezembro ? parseFloat(formData.gmd_dezembro) : null,
-      ativo: true
-    };
-
+    // A montagem do payload — uppercase, parseInt/parseFloat, vazio→null e os
+    // doze GMDs — vive no service desde a P1.3-R1. A página cuida de estado
+    // visual, invalidação e toast.
     if (editando) {
-      updateMutation.mutate({ id: editando.id, data, oldData: editando });
+      updateMutation.mutate({ id: editando.id, data: formData, oldData: editando });
       return;
     }
 
-    createMutation.mutate(data);
+    createMutation.mutate(formData);
   };
 
   return (

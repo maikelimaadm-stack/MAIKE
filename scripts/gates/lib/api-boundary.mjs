@@ -558,6 +558,41 @@ export const analyzeFile = (source, rel) => {
         fato.dynamicEntityAccess.push(`${rel}:${line + 1}:${character + 1}`);
       }
     }
+
+    /**
+     * `endpointOf(...)` só aceita string literal (P1.3-R1).
+     *
+     * O adapter resolve o endpoint por nome, então `endpointOf` é a mesma porta
+     * que `entities[nome]` — só que com um passo de indireção. A versão anterior
+     * do provider tinha `listOptionSource: (nomeValidado) => endpointOf(nomeValidado)`:
+     * a API validava o nome antes de chamar, e por isso o acesso computado não
+     * aparecia. Validação em cima de porta aberta é convenção, não contrato — um
+     * chamador novo que esquecesse a validação reabria o buraco em silêncio.
+     *
+     * Aceitos: `endpointOf('Lote')`, `endpointOf("Lote")`, `` endpointOf(`Lote`) ``.
+     * Reprovados: identificador, membro, ternário, chamada — qualquer expressão
+     * cujo valor só se conhece em runtime.
+     *
+     * **Escopo: só o adapter autorizado** (P1.3-R2). A primeira versão desta
+     * regra olhava qualquer chamada com esse nome, em qualquer arquivo varrido.
+     * `endpointOf` não é palavra reservada: um helper local homônimo — digamos
+     * `const endpointOf = (mapa, chave) => mapa[chave]` — seria acusado de
+     * acesso dinâmico a entidade sem ter relação nenhuma com a Base44. A regra
+     * existe por causa do que `endpointOf` faz **aqui dentro**: resolver
+     * endpoint no registry. Fora daqui, o nome não significa nada.
+     */
+    if (
+      rel === ALLOWED_PROVIDER_ADAPTER &&
+      ts.isCallExpression(node) &&
+      ts.isIdentifier(node.expression) &&
+      node.expression.text === 'endpointOf'
+    ) {
+      const argumento = node.arguments[0];
+      if (literalString(argumento) === null) {
+        const { line, character } = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
+        fato.dynamicEntityAccess.push(`${rel}:${line + 1}:${character + 1}`);
+      }
+    }
   });
 
   // ── Segunda passada: proveniência local ─────────────────────────────────

@@ -6,7 +6,12 @@ import { Textarea } from "@/components/ui/textarea";
 
 import { useQuery } from "@tanstack/react-query";
 import useSetorAreas from "@/hooks/useSetorAreas";
-import loteRepository from "@/core/repositories/loteRepository";
+import {
+  listarCategoriasManejoAtivas,
+  listarFornecedores,
+  listarCamposPersonalizados,
+  listarFontesDeOpcoes,
+} from "@/services/loteCadastroService";
 import campoEngine from "@/services/campoEngine";
 import AutocompleteGenerico from "@/components/financeiro/AutocompleteGenerico";
 import TopNoticeDialog from "@/components/common/TopNoticeDialog";
@@ -155,19 +160,19 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
 
   const { data: categoriasManejo = [] } = useQuery({
     queryKey: ["categorias-manejo", empresaSelecionadaId],
-    queryFn: () => loteRepository.listCategoriasManejo(empresaSelecionadaId),
+    queryFn: () => listarCategoriasManejoAtivas(empresaSelecionadaId),
     enabled: !!empresaSelecionadaId
   });
 
   const { data: fornecedores = [] } = useQuery({
     queryKey: ["fornecedores", empresaSelecionadaId],
-    queryFn: () => loteRepository.listFornecedores(empresaSelecionadaId),
+    queryFn: () => listarFornecedores(empresaSelecionadaId),
     enabled: !!empresaSelecionadaId
   });
 
   const { data: camposPersonalizados = [] } = useQuery({
     queryKey: ["lote-campos-personalizados"],
-    queryFn: () => loteRepository.listCamposPersonalizados(),
+    queryFn: () => listarCamposPersonalizados(),
     initialData: []
   });
 
@@ -188,7 +193,7 @@ export default function FormularioLote({ onSubmit, onCancel, onSettingsClick, on
 
   const { data: relatedOptions = {} } = useQuery({
     queryKey: ["lote-form-related-options", relatedSources.map((source) => `${source.entity}:${source.labelField}:${source.valueField}`).join("|")],
-    queryFn: () => loteRepository.listOptionsSources(relatedSources),
+    queryFn: () => listarFontesDeOpcoes(relatedSources),
     enabled: relatedSources.length > 0,
     initialData: {}
   });

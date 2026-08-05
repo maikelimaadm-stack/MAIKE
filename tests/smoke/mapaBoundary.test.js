@@ -93,15 +93,21 @@ describe('P1.2 — a UI do mapa não fala Base44', () => {
     }
   });
 
-  it('B11 — o registry é exatamente o conjunto esperado da P1.2', () => {
-    expect([...getRegisteredEntityNames()].sort()).toEqual([
+  /**
+   * O registry cresce a cada slice; a igualdade **exata** do conjunto vive em
+   * `manejoBoundary.test.js` (A11), num lugar só. Aqui o que importa é que
+   * nenhuma entidade da P1.2 tenha sido perdida — duas asserções de igualdade
+   * exata em arquivos diferentes só criariam trabalho de sincronização.
+   */
+  it('B11 — as entidades da P1.2 continuam registradas', () => {
+    expect([...getRegisteredEntityNames()].sort()).toEqual(expect.arrayContaining([
       'AplicacaoMedicamento', 'AreaPastagem', 'Bebedouro', 'ConfiguracaoIcone', 'Empresa',
       'EstoqueLoteNota', 'EventoSanitario', 'GrupoAtividade', 'HistoricoLancamentoTarefa',
       'LancamentoTarefa', 'LinhaGeografica', 'LocalEstoque', 'Lote', 'ManejoTecnicoRebanho',
       'MovimentacaoEstoque', 'MovimentacaoMapa', 'MovimentacaoPecuaria', 'Permissao',
       'PontoReferencia', 'PontoSuplementacao', 'Produto', 'Setor', 'SuplementacaoEvento',
       'SuplementacaoLote', 'TipoTarefa', 'User',
-    ]);
+    ]));
   });
 
   it('B12 — nenhuma entidade dinâmica dentro de src/apis/', () => {

@@ -1,5 +1,12 @@
 import React, { useState } from "react";
-import { base44 } from "@/api/base44Client";
+import {
+  listarSetoresDaEmpresa,
+  criarSetor,
+  atualizarSetor,
+  excluirSetor,
+} from "@/services/setorService";
+import { getApiErrorMessage, hasApiErrorCode } from "@/apis/_core/ApiError";
+import { API_ERROR_CODES } from "@/apis/_core/ApiError";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Settings } from "lucide-react";
@@ -7,7 +14,6 @@ import { toast } from "sonner";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 import TabelaSetores from "@/components/setores/TabelaSetores";
 import FormularioSetor from "@/components/setores/FormularioSetor";
-import { ensureDeleteAllowed } from "@/lib/entityDeleteGuards";
 import { AnimatePresence } from "framer-motion";
 
 const getInitialFormData = () => ({
@@ -37,31 +43,13 @@ export default function CadastroSetores() {
   const { data: setores = [], isLoading, refetch } = useQuery({
     queryKey: ["setores", empresaSelecionadaId],
     queryFn: async () => {
-      const all = await base44.entities.Setor.list();
-      return all.filter((s) => s.empresa_id === empresaSelecionadaId);
+      return listarSetoresDaEmpresa(empresaSelecionadaId);
     },
     enabled: !!empresaSelecionadaId
   });
 
   const createMutation = useMutation({
-    mutationFn: async (data) => {
-      const allSetores = await base44.entities.Setor.list();
-      const maxNum = allSetores.reduce((max, s) => Math.max(max, parseInt(s.numero_setor) || 0), 0);
-
-      return base44.entities.Setor.create({
-        ...data,
-        empresa_id: empresaSelecionadaId,
-        numero_setor: String(maxNum + 1),
-        nome: data.nome?.toUpperCase(),
-        sigla: data.sigla?.toUpperCase() || null,
-        responsavel: data.responsavel?.toUpperCase() || null,
-        endereco: data.endereco?.toUpperCase() || null,
-        cidade: data.cidade?.toUpperCase() || null,
-        observacoes: data.observacoes?.toUpperCase() || null,
-        area_total: data.area_total ? parseFloat(data.area_total) : null,
-        capacidade_animais: data.capacidade_animais ? parseInt(data.capacidade_animais) : null
-      });
-    },
+    mutationFn: (data) => criarSetor(data, { empresaId: empresaSelecionadaId }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["setores", empresaSelecionadaId] });
       toast.success("Setor cadastrado com sucesso!");
@@ -72,30 +60,7 @@ export default function CadastroSetores() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: async ({ id, data, oldData }) => {
-      const updated = await base44.entities.Setor.update(id, {
-        ...data,
-        nome: data.nome?.toUpperCase(),
-        sigla: data.sigla?.toUpperCase() || null,
-        responsavel: data.responsavel?.toUpperCase() || null,
-        endereco: data.endereco?.toUpperCase() || null,
-        cidade: data.cidade?.toUpperCase() || null,
-        observacoes: data.observacoes?.toUpperCase() || null,
-        area_total: data.area_total ? parseFloat(data.area_total) : null,
-        capacidade_animais: data.capacidade_animais ? parseInt(data.capacidade_animais) : null
-      });
-
-      if ((oldData?.nome || "") !== (updated?.nome || "")) {
-        await base44.functions.invoke("syncEntityReferences", {
-          event: { type: "update", entity_name: "Setor" },
-          data: updated,
-          old_data: oldData,
-          changed_fields: ["nome"]
-        });
-      }
-
-      return updated;
-    },
+    mutationFn: ({ id, data, oldData }) => atualizarSetor(id, data, { registroAnterior: oldData }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["setores", empresaSelecionadaId] });
       toast.success("Setor atualizado!");
@@ -106,10 +71,7 @@ export default function CadastroSetores() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id) => {
-      await ensureDeleteAllowed(base44, "Setor", id);
-      return base44.entities.Setor.delete(id);
-    },
+    mutationFn: (id) => excluirSetor(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["setores", empresaSelecionadaId] });
       toast.success("Setor excluído!");
@@ -117,8 +79,10 @@ export default function CadastroSetores() {
       setDeletarId(null);
     },
     onError: (error) => {
-      if (String(error?.message || "").toLowerCase().includes("não é possível excluir")) return;
-      toast.error(error?.message || "Erro ao excluir setor");
+      // Bloqueio por vínculo já é comunicado pelo diálogo global de exclusão:
+      // decidido por **código**, não por texto do erro.
+      if (hasApiErrorCode(error, API_ERROR_CODES.SETOR_DELETE_BLOCKED)) return;
+      toast.error(getApiErrorMessage(error, "Erro ao excluir setor"));
     }
   });
 

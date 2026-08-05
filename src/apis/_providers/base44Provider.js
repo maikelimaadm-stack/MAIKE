@@ -68,6 +68,24 @@ const ENTITY_REGISTRY = Object.freeze({
   AplicacaoMedicamento: base44.entities.AplicacaoMedicamento,
   EventoSanitario: base44.entities.EventoSanitario,
   ManejoTecnicoRebanho: base44.entities.ManejoTecnicoRebanho,
+
+  // Cadastros do manejo (P1.3)
+  Categoria: base44.entities.Categoria,
+  CategoriaManejo: base44.entities.CategoriaManejo,
+  Fornecedor: base44.entities.Fornecedor,
+
+  // Layout configurável do lote (P1.3)
+  LayoutConfiguracao: base44.entities.LayoutConfiguracao,
+  LayoutSecao: base44.entities.LayoutSecao,
+  LayoutCampo: base44.entities.LayoutCampo,
+
+  // Anexos de registro — hoje só o Lote consome (P1.3)
+  RegistroAnexo: base44.entities.RegistroAnexo,
+
+  // Bebedouros (P1.3)
+  BebedouroHistorico: base44.entities.BebedouroHistorico,
+  BebedouroSanidade: base44.entities.BebedouroSanidade,
+  BebedouroAlerta: base44.entities.BebedouroAlerta,
 });
 
 /** Nomes registrados. Usado por teste e diagnóstico; não expõe o provider. */
@@ -156,6 +174,8 @@ export const lotesProvider = Object.freeze({
   filterLotes: (criterio) => endpointOf('Lote').filter(criterio),
   createLote: (dados) => endpointOf('Lote').create(dados),
   updateLote: (id, dados) => endpointOf('Lote').update(id, dados),
+  deleteLote: (id) => endpointOf('Lote').delete(id),
+  updateMovimentacao: (id, dados) => endpointOf('MovimentacaoMapa').update(id, dados),
 
   listMovimentacoes: (ordenacao, limite) => endpointOf('MovimentacaoMapa').list(ordenacao, limite),
   listTodasMovimentacoes: (ordenacao) => endpointOf('MovimentacaoMapa').list(ordenacao),
@@ -232,4 +252,86 @@ export const rebanhoProvider = Object.freeze({
 
 export const arquivosProvider = Object.freeze({
   upload: (payload) => base44.integrations.Core.UploadFile(payload),
+});
+
+
+// ── Cadastros e manejo (P1.3) ─────────────────────────────────────────────
+
+/** Setor: CRUD do cadastro. A leitura do mapa continua em `mapaProvider`. */
+export const setoresProvider = Object.freeze({
+  list: (ordenacao) => endpointOf('Setor').list(ordenacao),
+  create: (dados) => endpointOf('Setor').create(dados),
+  update: (id, dados) => endpointOf('Setor').update(id, dados),
+  delete: (id) => endpointOf('Setor').delete(id),
+});
+
+/** Categoria de produto, hierárquica por `categoria_pai_id`. */
+export const categoriasProvider = Object.freeze({
+  list: (ordenacao) => endpointOf('Categoria').list(ordenacao),
+  create: (dados) => endpointOf('Categoria').create(dados),
+  update: (id, dados) => endpointOf('Categoria').update(id, dados),
+  delete: (id) => endpointOf('Categoria').delete(id),
+});
+
+/** Categoria de manejo do rebanho. */
+export const categoriasManejoProvider = Object.freeze({
+  list: (ordenacao) => endpointOf('CategoriaManejo').list(ordenacao),
+  create: (dados) => endpointOf('CategoriaManejo').create(dados),
+  update: (id, dados) => endpointOf('CategoriaManejo').update(id, dados),
+  delete: (id) => endpointOf('CategoriaManejo').delete(id),
+});
+
+/**
+ * Layout configurável do cadastro de lote, mais as entidades que servem de
+ * fonte de opções.
+ *
+ * da API (`OPTION_SOURCES`). Não é ponto de entrada para nome arbitrário: quem
+ * chama já provou que o nome pertence ao catálogo, e `endpointOf` reprova
+ * qualquer coisa fora do registry (QLT-P13-12).
+ */
+export const loteLayoutProvider = Object.freeze({
+  listConfiguracoes: () => endpointOf('LayoutConfiguracao').list(),
+  createConfiguracao: (dados) => endpointOf('LayoutConfiguracao').create(dados),
+  listSecoes: () => endpointOf('LayoutSecao').list(),
+  createSecao: (dados) => endpointOf('LayoutSecao').create(dados),
+  listCampos: () => endpointOf('LayoutCampo').list(),
+  createCampo: (dados) => endpointOf('LayoutCampo').create(dados),
+  updateCampo: (id, dados) => endpointOf('LayoutCampo').update(id, dados),
+  deleteCampo: (id) => endpointOf('LayoutCampo').delete(id),
+});
+
+/** Fornecedor — cadastro lido pelo formulário de lote e como fonte de opções. */
+export const fornecedoresProvider = Object.freeze({
+  list: (ordenacao) => endpointOf('Fornecedor').list(ordenacao),
+});
+
+/**
+ * Sincronização de referências denormalizadas após renomear um cadastro.
+ *
+ * A function da Base44 é genérica, mas o adapter **não** é: o nome
+ * `syncEntityReferences` é literal aqui e a API pública não aceita nome de
+ * função do chamador (QLT-P13-09).
+ */
+export const referenciasProvider = Object.freeze({
+  sincronizar: (payload) => base44.functions.invoke('syncEntityReferences', payload),
+});
+
+/** Anexos de registro. Hoje só o Lote consome; a API pública fecha isso. */
+export const anexosProvider = Object.freeze({
+  filter: (criterio, ordenacao) => endpointOf('RegistroAnexo').filter(criterio, ordenacao),
+  create: (dados) => endpointOf('RegistroAnexo').create(dados),
+  delete: (id) => endpointOf('RegistroAnexo').delete(id),
+});
+
+/** Bebedouros: cadastro, histórico, sanidade e alertas. */
+export const bebedourosProvider = Object.freeze({
+  listBebedouros: (ordenacao) => endpointOf('Bebedouro').list(ordenacao),
+  createBebedouro: (dados) => endpointOf('Bebedouro').create(dados),
+  updateBebedouro: (id, dados) => endpointOf('Bebedouro').update(id, dados),
+  listHistorico: (ordenacao) => endpointOf('BebedouroHistorico').list(ordenacao),
+  createHistorico: (dados) => endpointOf('BebedouroHistorico').create(dados),
+  deleteHistorico: (id) => endpointOf('BebedouroHistorico').delete(id),
+  listSanidade: (ordenacao) => endpointOf('BebedouroSanidade').list(ordenacao),
+  createSanidade: (dados) => endpointOf('BebedouroSanidade').create(dados),
+  listAlertas: (ordenacao) => endpointOf('BebedouroAlerta').list(ordenacao),
 });

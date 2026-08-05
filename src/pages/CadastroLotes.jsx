@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import SankhyaListToolbar from "@/components/common/SankhyaListToolbar";
 import SankhyaFilterPanel from "@/components/common/SankhyaFilterPanel";
@@ -11,7 +10,17 @@ import ConfiguracaoExportacaoPdfLotesDialog from "@/components/lotes/Configuraca
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 import RegistroAnexosDialog from "@/components/common/RegistroAnexosDialog";
 import { refreshMapaCacheEntry } from "@/services/mapaCacheService";
-import loteRepository from "@/core/repositories/loteRepository";
+import {
+  listarLotes,
+  listarAreasAtivas,
+  listarIdsDeLotesComMovimentacao,
+  listarCamposPersonalizados,
+  criarLote,
+  atualizarLote,
+  excluirLote,
+  validarExclusaoDeLote,
+} from "@/services/loteCadastroService";
+import { persistirAnexosPendentes } from "@/services/anexoService";
 import campoEngine from "@/services/campoEngine";
 import { exportVisibleLotesTableToExcel, printVisibleLotesTable } from "@/components/lotes/loteTableExportUtils";
 import { getLotesExcelExportConfig, getLotesPdfExportConfig } from "@/components/lotes/pdfExportConfig";
@@ -42,28 +51,28 @@ export default function CadastroLotes() {
 
   const { data: lotes = [] } = useQuery({
     queryKey: ['lotes-cadastro', empresaSelecionadaId],
-    queryFn: () => loteRepository.list({ empresaId: empresaSelecionadaId, incluirSistema: false }),
+    queryFn: () => listarLotes({ empresaId: empresaSelecionadaId, incluirSistema: false }),
     enabled: !!empresaSelecionadaId,
     initialData: []
   });
 
   const { data: areas = [] } = useQuery({
     queryKey: ['areas', empresaSelecionadaId],
-    queryFn: () => loteRepository.listAreasAtivas(empresaSelecionadaId),
+    queryFn: () => listarAreasAtivas(empresaSelecionadaId),
     enabled: !!empresaSelecionadaId,
     initialData: []
   });
 
   const { data: lotesComMovimentacoes = [] } = useQuery({
     queryKey: ['lotes-com-movimentacoes', empresaSelecionadaId],
-    queryFn: () => loteRepository.listLotesComMovimentacoes(empresaSelecionadaId),
+    queryFn: () => listarIdsDeLotesComMovimentacao(empresaSelecionadaId),
     enabled: !!empresaSelecionadaId,
     initialData: []
   });
 
   const { data: camposPersonalizadosFiltro = [] } = useQuery({
     queryKey: ["lote-campos-personalizados"],
-    queryFn: () => loteRepository.listCamposPersonalizados(),
+    queryFn: () => listarCamposPersonalizados(),
     initialData: []
   });
 
@@ -179,14 +188,14 @@ export default function CadastroLotes() {
   }, [lotes, appliedFilters, camposFiltroPersonalizados]);
 
   const createLoteMutation = useMutation({
-    mutationFn: (data) => loteRepository.create(data, { empresaId: empresaSelecionadaId }),
+    mutationFn: (data) => criarLote(data, { empresaId: empresaSelecionadaId }),
     onSuccess: async (created) => {
       if (pendingAttachments.length) {
-        await Promise.all(pendingAttachments.map(({ id, ...anexo }) => base44.entities.RegistroAnexo.create({
-          ...anexo,
-          entity_name: "Lote",
-          record_id: created.id
-        })));
+        await persistirAnexosPendentes({
+          entityName: "Lote",
+          recordId: created.id,
+          pendentes: pendingAttachments
+        });
         setPendingAttachments([]);
       }
       queryClient.setQueryData(['lotes-cadastro', empresaSelecionadaId], (current = []) => [created, ...current]);
@@ -201,7 +210,7 @@ export default function CadastroLotes() {
   });
 
   const updateLoteMutation = useMutation({
-    mutationFn: ({ id, data, oldData }) => loteRepository.update(id, data, { oldData }),
+    mutationFn: ({ id, data, oldData }) => atualizarLote(id, data, { registroAnterior: oldData }),
     onSuccess: async (updated) => {
       queryClient.setQueryData(['lotes-cadastro', empresaSelecionadaId], (current = []) =>
       current.map((item) => item.id === updated.id ? updated : item)
@@ -217,7 +226,7 @@ export default function CadastroLotes() {
   });
 
   const deleteLoteMutation = useMutation({
-    mutationFn: (id) => loteRepository.delete(id)
+    mutationFn: (id) => excluirLote(id)
   });
 
   const handleSubmit = (data) => {
@@ -353,7 +362,7 @@ export default function CadastroLotes() {
 
     for (const id of ids) {
       try {
-        await loteRepository.ensureDeleteAllowed(id);
+        await validarExclusaoDeLote(id);
         await deleteLoteMutation.mutateAsync(id);
         deletedCount += 1;
       } catch { /* falha ignorada intencionalmente: operação best-effort */ }
@@ -470,6 +479,12 @@ export default function CadastroLotes() {
           areas={areas} />
         <div className="min-w-0 flex-1 h-full overflow-hidden flex flex-col">
           <SankhyaListToolbar
+            /* `onBack` e `operationLabel` são exigidos pela barra e não eram
+               passados: a barra já trata ambos como opcionais no corpo, mas o
+               tipo inferido os torna obrigatórios. Passar explicitamente é o
+               ajuste mínimo — mexer na barra afeta todas as telas que a usam. */
+            onBack={null}
+            operationLabel={null}
             viewMode={viewMode}
             total={lotesFiltradosPainel.length}
             currentIndex={selectedIndex}
@@ -537,9 +552,6 @@ export default function CadastroLotes() {
             lotes={lotesFiltradosPainel}
             areas={areas}
             onEdit={handleEdit}
-            onDuplicate={handleDuplicate}
-            onDelete={handleRequestDelete}
-            lotesComMovimentacoes={lotesComMovimentacoes}
             showConfigColunas={showConfigColunas}
             setShowConfigColunas={setShowConfigColunas}
             searchTerm={searchTerm}

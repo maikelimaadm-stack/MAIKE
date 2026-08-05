@@ -1,3 +1,4 @@
+import { getApiErrorMessage } from "@/apis/_core/ApiError";
 import React, { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -9,7 +10,12 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import loteRepository from "@/core/repositories/loteRepository";
+import {
+  listarCamposPersonalizados,
+  criarCampoPersonalizado,
+  atualizarCampoPersonalizado,
+  excluirCampoPersonalizado,
+} from "@/services/loteCadastroService";
 import GuidedRelationConfig from "./GuidedRelationConfig";
 import ManualSelectOptionsConfig from "./ManualSelectOptionsConfig";
 import VisualCalculationBuilder from "./VisualCalculationBuilder";
@@ -83,7 +89,7 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange, inlin
 
   const { data: campos = [], isLoading } = useQuery({
     queryKey: ["lote-campos-personalizados"],
-    queryFn: () => loteRepository.listCamposPersonalizados(),
+    queryFn: () => listarCamposPersonalizados(),
     enabled: open,
     initialData: []
   });
@@ -102,12 +108,12 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange, inlin
   const saveMutation = useMutation({
     mutationFn: () => {
       const payload = buildPayload();
-      return editingId ? loteRepository.updateCampoPersonalizado(editingId, payload) : loteRepository.createCampoPersonalizado(payload);
+      return editingId ? atualizarCampoPersonalizado(editingId, payload) : criarCampoPersonalizado(payload);
     },
     onSuccess: async (saved) => {
       const wasEditing = !!editingId;
       const result = await queryClient.invalidateQueries({ queryKey: ["lote-campos-personalizados"] });
-      const updated = await loteRepository.listCamposPersonalizados();
+      const updated = await listarCamposPersonalizados();
       const savedId = saved?.id || editingId;
       const target = updated.find((c) => c.id === savedId) || saved;
       if (target) loadCampoForm(target);
@@ -116,12 +122,12 @@ export default function ConfiguracaoCamposLoteDialog({ open, onOpenChange, inlin
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (campo) => loteRepository.deleteCampoPersonalizado(campo),
+    mutationFn: (campo) => excluirCampoPersonalizado(campo),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["lote-campos-personalizados"] });
       toast.success("Campo excluído.");
     },
-    onError: (error) => showNotice({ title: "Não foi possível excluir", description: error.message || "Não foi possível excluir o campo.", type: "danger" })
+    onError: (error) => showNotice({ title: "Não foi possível excluir", description: getApiErrorMessage(error, "Não foi possível excluir o campo."), type: "danger" })
   });
 
   const showNotice = ({ title, description, type = "warning", onConfirm = null, confirmText = "Entendi", cancelText = "" }) => {

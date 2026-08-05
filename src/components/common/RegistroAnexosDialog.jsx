@@ -1,5 +1,6 @@
 import React, { useRef, useState } from "react";
-import { base44 } from "@/api/base44Client";
+import { listarAnexos, anexarArquivo, excluirAnexo } from "@/services/anexoService";
+import { getApiErrorMessage } from "@/apis/_core/ApiError";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,18 @@ const formatSize = (bytes = 0) => {
 
 export default function RegistroAnexosDialog({ open, onOpenChange, entityName, recordId, title, pendingAnexos = [], onPendingChange }) {
   const inputRef = useRef(null);
+  /**
+   * Contador monotônico por diálogo (P1.3-R1).
+   *
+   * O id anterior era `pending-${novosAnexos.length}-${file.name}`, e
+   * `novosAnexos` reinicia a cada seleção: escolher `nota.pdf` duas vezes em
+   * seleções separadas gerava `pending-0-nota.pdf` nas duas. React via a mesma
+   * key, e remover um item removia o outro.
+   *
+   * O contador vive num ref, então sobrevive a re-render e só cresce enquanto o
+   * diálogo estiver montado.
+   */
+  const proximoIdPendente = useRef(0);
   const queryClient = useQueryClient();
   const [uploading, setUploading] = useState(false);
   const [attachmentName, setAttachmentName] = useState("");
@@ -23,7 +36,7 @@ export default function RegistroAnexosDialog({ open, onOpenChange, entityName, r
 
   const { data: savedAnexos = [] } = useQuery({
     queryKey,
-    queryFn: () => base44.entities.RegistroAnexo.filter({ entity_name: entityName, record_id: recordId }, "-created_date"),
+    queryFn: () => listarAnexos({ entityName, recordId }),
     enabled: open && !!entityName && !!recordId,
     initialData: []
   });
@@ -31,7 +44,7 @@ export default function RegistroAnexosDialog({ open, onOpenChange, entityName, r
   const anexos = recordId ? savedAnexos : pendingAnexos;
 
   const deleteMutation = useMutation({
-    mutationFn: (id) => base44.entities.RegistroAnexo.delete(id),
+    mutationFn: (id) => excluirAnexo(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey });
       toast.success("Anexo removido.");
@@ -48,22 +61,31 @@ export default function RegistroAnexosDialog({ open, onOpenChange, entityName, r
     }
     setUploading(true);
     const novosAnexos = [];
-    for (const file of files) {
-      const { file_url } = await base44.integrations.Core.UploadFile({ file });
-      const anexoData = {
-        entity_name: entityName,
-        record_id: recordId,
-        attachment_name: attachmentName.trim(),
-        file_name: file.name,
-        file_url,
-        file_type: file.type,
-        file_size: file.size
-      };
-      if (recordId) {
-        await base44.entities.RegistroAnexo.create(anexoData);
-      } else {
-        novosAnexos.push({ ...anexoData, id: `pending-${Date.now()}-${file.name}` });
+    try {
+      for (const file of files) {
+        if (recordId) {
+          await anexarArquivo({ entityName, recordId, arquivo: file, nome: attachmentName.trim() });
+        } else {
+          // Sem `recordId` o registro ainda não existe: o anexo fica pendente no
+          // cliente e é persistido depois que o lote é criado.
+          novosAnexos.push({
+            entity_name: entityName,
+            record_id: recordId,
+            attachment_name: attachmentName.trim(),
+            file_name: file.name,
+            file_type: file.type,
+            file_size: file.size,
+            arquivo: file,
+            id: `pendente-${(proximoIdPendente.current += 1)}`
+          });
+        }
       }
+    } catch (error) {
+      // Mensagem pública do catálogo — nunca o texto cru do provider.
+      toast.error(getApiErrorMessage(error, "Não foi possível anexar o arquivo."));
+      setUploading(false);
+      event.target.value = "";
+      return;
     }
     if (!recordId && novosAnexos.length) {
       onPendingChange?.([...pendingAnexos, ...novosAnexos]);
@@ -123,11 +145,21 @@ export default function RegistroAnexosDialog({ open, onOpenChange, entityName, r
               <div className="h-7 px-2 flex items-center border-r border-slate-200 overflow-hidden">
                 <span className="truncate font-medium text-slate-700">{anexo.attachment_name || anexo.file_name}</span>
               </div>
+              {/* Anexo pendente ainda não foi enviado: não tem `file_url`, e
+                  `<a href={undefined}>` viraria link para a própria página.
+                  Sem upload antecipado só para preview e sem object URL, que
+                  exigiria cleanup. */}
+              {anexo.file_url ?
               <a href={anexo.file_url} target="_blank" rel="noreferrer" className="h-7 min-w-0 flex items-center gap-1.5 text-slate-600 hover:text-emerald-700 px-2 border-r border-slate-200 overflow-hidden">
                 <span className="truncate">{anexo.file_name}</span>
                 <span className="shrink-0 text-slate-400">{formatSize(anexo.file_size)}</span>
                 <ExternalLink className="w-3 h-3 shrink-0" />
-              </a>
+              </a> :
+              <div className="h-7 min-w-0 flex items-center gap-1.5 text-slate-500 px-2 border-r border-slate-200 overflow-hidden">
+                <span className="truncate">{anexo.file_name}</span>
+                <span className="shrink-0 text-slate-400">{formatSize(anexo.file_size)}</span>
+                <span className="shrink-0 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-600">Pendente</span>
+              </div>}
               <div className="h-7 flex items-center justify-center">
                 <Button type="button" variant="ghost" size="icon" className="h-7 w-7 rounded-none text-red-600 hover:bg-red-50" onClick={() => recordId ? deleteMutation.mutate(anexo.id) : onPendingChange?.(pendingAnexos.filter((item) => item.id !== anexo.id))}>
                   <X className="w-3.5 h-3.5" />
