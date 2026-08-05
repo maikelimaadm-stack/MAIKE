@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-08-04 (P0.1, P1.1 e P1.2 mergeadas · P1 em andamento · P1.3 implementada e corrigida na PR #5)
+**Atualizado em:** 2026-08-05 (P0.1, P1.1 e P1.2 mergeadas · P1 em andamento · P1.3 implementada e corrigida na PR #5)
 
 ---
 
@@ -35,7 +35,7 @@ armazenamento apenas em `.env.local` seguem pendentes com o proprietário — ve
 | Missão | Nome | Estado |
 |---|---|---|
 | P0 | Product Scope Reset | **mergeada** (PR #1, merge `508cf62`) |
-| P1 | Native Foundation Bootstrap | **em andamento** — P1.1, P1.2 e as correções P1.2-R1/R2 mergeadas; P1.3 e P1.3-R1 na PR #5, aguardando merge; P1.4 não iniciada |
+| P1 | Native Foundation Bootstrap | **em andamento** — P1.1, P1.2 e as correções P1.2-R1/R2 mergeadas; P1.3, P1.3-R1 e P1.3-R2 implementadas na PR #5, aguardando merge do proprietário; P1.4 não iniciada |
 | P2 | ModeloBase1 Pecuário Foundation | não iniciada |
 | P3 | Backend + Prisma + PostgreSQL Foundation | não iniciada |
 | P4 | Mapa Core Native Persistence | não iniciada |
@@ -66,7 +66,7 @@ Números medidos após `npm ci` e `npm run build` finais.
 | Chaves Google Maps literais | 8 | 0 | 0 | 0 | **0** |
 | Erros de lint | 64 | 0 | 0 | 0 | **0** |
 | Diagnósticos `tsc` (cobertura total) | — | 2.802 | 2.797 | 2.759 | **2.728** (teto 2.728) |
-| Testes automatizados | 0 | 183 | 377 | 478 | **624** (307 de gate + 317 de smoke) |
+| Testes automatizados | 0 | 183 | 377 | 478 | **625** (308 de gate + 317 de smoke) |
 | Bundle de produção — JS | 4.347,45 kB | 2.461,36 kB | 2.464,58 kB | 2.474,37 kB | **2.482,90 kB** |
 | Bundle de produção — CSS | 120,36 kB | 77,00 kB | 77,00 kB | 77,00 kB | **77,00 kB** |
 
@@ -163,7 +163,7 @@ motivo de o `verify:all` local não ter pego antes.
 |---|---|---|
 | DBT-01 | Componentes acessam `base44` direto. A camada `src/apis/` existe desde a P1.1; Empresa (P1.1), Mapa (P1.2) e os cadastros do manejo (P1.3) já migraram. Restam 151 chamadas `base44.entities` fora dela | P1 |
 | DBT-02 | `requiresAuth: false` em `src/api/base44Client.js` | P3 |
-| DBT-03 | 2.759 diagnósticos de dívida de tipos versionados na catraca, com teto certificado de 2.759. `gate:types` impede crescer em qualquer modo (D-PROD-17) e impede afrouxar a configuração (D-PROD-13). P1 deve reduzir | P1 |
+| DBT-03 | 2.728 diagnósticos de dívida de tipos versionados na catraca, com teto certificado de 2.728. A catraca impede crescimento em qualquer modo (D-PROD-17) e impede afrouxar a configuração (D-PROD-13). A dívida foi reduzida de 2.759 para 2.728 durante a P1.3-R1; P1.4 continuará a redução | P1 |
 | DBT-04 | Sem tela de **entrada** de estoque (D-PROD-08) | P6 |
 | DBT-05 | Chave Google Maps antiga permanece no histórico Git — revogar e rotacionar (OWNER-SECURITY-01) | ação do proprietário |
 | DBT-06 | Bundle único de ~2,46 MB, sem code splitting | P8 |
