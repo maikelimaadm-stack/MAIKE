@@ -21,7 +21,9 @@ import {
   logout as logoutApi,
   redirectToLogin as redirectToLoginApi,
   getAppPublicSettings,
+  verificarSessao,
   getCapacidadesDeSessao,
+  RAZOES_DE_SESSAO,
 } from '@/apis/session';
 import { ApiError, API_ERROR_CODES } from '@/apis/_core/ApiError';
 
@@ -71,12 +73,6 @@ export const getCurrentUser = async () => {
 /** Último usuário conhecido, sem tocar no provider. */
 export const getCachedUser = () => lerUsuarioLocal();
 
-/** Status HTTP que o provider expõe em campos variados, dentro de `cause`. */
-const statusDaFalha = (erro) => {
-  const bruto = erro?.status ?? erro?.cause?.status ?? erro?.cause?.statusCode ?? erro?.cause?.response?.status;
-  return Number.isInteger(bruto) ? bruto : null;
-};
-
 /**
  * Verifica a autenticação **sem** fallback offline.
  *
@@ -85,20 +81,16 @@ const statusDaFalha = (erro) => {
  * `AuthContext` precisa do oposto: se a chamada falhou, a sessão não está
  * autenticada, e um token expirado precisa levar à tela de login.
  *
- * O resultado é um veredito, não uma exceção: assim o `AuthContext` não
- * inspeciona `status` de erro de provider nenhum.
+ * A classificação vive na API (P1.4-R1). Este service **não** olha `status`,
+ * `cause` nem formato de erro do provider: recebe o veredito pronto e só
+ * acrescenta a política local — persistir o usuário para uso offline.
  *
  * @returns {Promise<{autenticado: boolean, usuario: object|null, precisaAutenticar: boolean}>}
  */
 export const verificarAutenticacao = async () => {
-  try {
-    const usuario = await getCurrentUserApi();
-    if (usuario) gravarUsuarioLocal(usuario);
-    return { autenticado: true, usuario: usuario ?? null, precisaAutenticar: false };
-  } catch (erro) {
-    const status = statusDaFalha(erro);
-    return { autenticado: false, usuario: null, precisaAutenticar: status === 401 || status === 403 };
-  }
+  const veredito = await verificarSessao();
+  if (veredito.autenticado && veredito.usuario) gravarUsuarioLocal(veredito.usuario);
+  return veredito;
 };
 
 export const listarUsuarios = () => listUsuarios();
@@ -110,10 +102,15 @@ export const capacidadesDeSessao = () => getCapacidadesDeSessao();
 /**
  * Configurações públicas do app.
  *
- * Repassa o erro do provider como veio: `AuthContext` classifica a tela de
- * login por `status` e por `data.extra_data.reason`.
+ * Resultado discriminado: `{ok: true, value}` ou `{ok: false, reason}`, com
+ * `reason` no vocabulário do produto. Nenhum erro de provider atravessa.
+ *
+ * @returns {ReturnType<typeof getAppPublicSettings>}
  */
 export const carregarConfiguracoesPublicas = () => getAppPublicSettings();
+
+/** Razões de recusa que a tela de login sabe tratar. */
+export const RAZOES_DE_SESSAO_DO_PRODUTO = RAZOES_DE_SESSAO;
 
 /**
  * Encerra a sessão e limpa o usuário offline.

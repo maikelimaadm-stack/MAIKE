@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-08-05 (P0.1 a P1.3 mergeadas · **P1.4 implementada na PR #6** · P1 tecnicamente fechada na branch, com baseline de fronteira zerado)
+**Atualizado em:** 2026-08-05 (P0.1 a P1.3 mergeadas · **P1.4 e P1.4-R1 implementadas na PR #6** · P1 tecnicamente fechada na branch, com baseline de fronteira zerado)
 
 ---
 
@@ -13,8 +13,8 @@ Base44 mantida apenas como provider temporário da cadeia preservada (D-PROD-04)
 |---|---|
 | Produto | Pecuária — Mapa Geral + Manejo (D-PROD-01) |
 | Superfície primária | `MapaGeral` (D-PROD-05) |
-| Missão atual | **P1 — Native Foundation Bootstrap**, slice **P1.4** (última) |
-| Estado da missão | **P1.4 implementada na PR #6; aguardando merge do proprietário** — `npm run verify:all` sai com 0, 13/13 etapas |
+| Missão atual | **P1 — Native Foundation Bootstrap**, slice **P1.4** (última) + correção **P1.4-R1** |
+| Estado da missão | **P1.4 e P1.4-R1 implementadas na PR #6; aguardando merge do proprietário** — `npm run verify:all` sai com 0, 13/13 etapas |
 | Próxima slice | P2 — ModeloBase1 Pecuário Foundation (não iniciada) |
 | Branch | `claude/p1-4-native-api-boundary-support-admin` (PR #6, draft) |
 | Escopo executável | `config/mapa-manejo-scope.json` |
@@ -35,7 +35,7 @@ armazenamento apenas em `.env.local` seguem pendentes com o proprietário — ve
 | Missão | Nome | Estado |
 |---|---|---|
 | P0 | Product Scope Reset | **mergeada** (PR #1, merge `508cf62`) |
-| P1 | Native Foundation Bootstrap | **tecnicamente fechada na branch** — P1.1 a P1.3 mergeadas; P1.4 implementada na PR #6, aguardando merge do proprietário. Os seis eixos de `gate:api-boundary` estão em zero |
+| P1 | Native Foundation Bootstrap | **tecnicamente fechada na branch** — P1.1 a P1.3 mergeadas; P1.4 e P1.4-R1 implementadas na PR #6, aguardando merge do proprietário. Os seis eixos de `gate:api-boundary` estão em zero |
 | P2 | ModeloBase1 Pecuário Foundation | não iniciada |
 | P3 | Backend + Prisma + PostgreSQL Foundation | não iniciada |
 | P4 | Mapa Core Native Persistence | não iniciada |
@@ -65,8 +65,8 @@ Números medidos após `npm ci` e `npm run build` finais.
 | Acoplamento Base44 fora de `src/` | 22 | 1 | 1 | 1 | 1 | **1** |
 | Chaves Google Maps literais | 8 | 0 | 0 | 0 | 0 | **0** |
 | Erros de lint | 64 | 0 | 0 | 0 | 0 | **0** |
-| Diagnósticos `tsc` (cobertura total) | — | 2.802 | 2.797 | 2.759 | 2.728 | **2.323** (teto 2.323) |
-| Testes automatizados | 0 | 183 | 377 | 478 | 625 | **794** (323 de gate + 471 de smoke) |
+| Diagnósticos `tsc` (cobertura total) | — | 2.802 | 2.797 | 2.759 | 2.728 | **2.319** (teto 2.319) |
+| Testes automatizados | 0 | 183 | 377 | 478 | 625 | **817** (323 de gate + 494 de smoke) |
 | Bundle de produção — JS | 4.347,45 kB | 2.461,36 kB | 2.464,58 kB | 2.474,37 kB | 2.482,90 kB | **2.496,61 kB** |
 | Bundle de produção — CSS | 120,36 kB | 77,00 kB | 77,00 kB | 77,00 kB | 77,00 kB | **77,00 kB** |
 
@@ -142,6 +142,15 @@ Não restam arquivos legados. A P1 está tecnicamente fechada na branch: a únic
 porta para a Base44 é `src/api/base44Client.js`, consumido só por
 `src/apis/_providers/base44Provider.js`.
 
+A **P1.4-R1** não migrou caminho nenhum — corrigiu quatro defeitos que a
+contagem zerada escondia: o formato de erro do provider ainda atravessava três
+camadas (agora `sessionApi` classifica uma vez e devolve `{ok, value}` /
+`{ok, reason}`), o teto de tipos caiu porque a verificação do `Button` fora
+desligada com `any` (agora o contrato é declarado de verdade), o rastro de falha
+parcial do rename afirmava menos do que havia acontecido, e
+`PRODUTO_PARTIAL_IMPORT` estava catalogado sem nenhum chamador. Ver
+`docs/engineering/P1.4-NATIVE-API-BOUNDARY-SUPPORT-ADMIN-REPORT.md` §15.
+
 ## Gates ativos
 
 13 etapas em `npm run verify:all` — ver `docs/engineering/GATE-REGISTRY.md`.
@@ -167,10 +176,11 @@ CI em `.github/workflows/quality.yml`.
 | `c72f892` | **commit funcional** da P1.3-R2 | [31009031928](https://github.com/maikelimaadm-stack/MAIKE/actions/runs/31009031928) | **verde**, 13/13 |
 | `dc7e022` | fechamento documental da P1.3 | [31012186549](https://github.com/maikelimaadm-stack/MAIKE/actions/runs/31012186549) | **verde**, 13/13 |
 | P1.4 | **commit funcional** da P1.4 | CI registrada no corpo da PR #6 | — |
+| P1.4-R1 | **commit funcional** da P1.4-R1 | CI registrada no corpo da PR #6 | — |
 
 Um commit não pode conter o resultado da própria execução de CI. A execução do
 commit funcional fica no corpo da PR aberta — PR #2 para a P1.1, PR #3 para a
-P1.2, PR #5 para a P1.3 e PR #6 para a P1.4.
+P1.2, PR #5 para a P1.3 e PR #6 para a P1.4 e a P1.4-R1.
 
 O run vermelho de `8866768` fica registrado em vez de omitido. A reprovação foi
 legítima: o relatório da própria P1.1-R1 citava um par nome-de-chave mais
@@ -184,7 +194,7 @@ motivo de o `verify:all` local não ter pego antes.
 |---|---|---|
 | DBT-01 | **Fechado na P1.4.** Nenhum componente, página, hook, lib ou service acessa `base44`. As 38 ocorrências de `base44.entities` que restam estão todas dentro do adapter autorizado, uma por entidade do registry | fechado |
 | DBT-02 | `requiresAuth: false` em `src/api/base44Client.js` | P3 |
-| DBT-03 | 2.323 diagnósticos de dívida de tipos versionados na catraca, com teto certificado de 2.323. A catraca impede crescimento em qualquer modo (D-PROD-17) e impede afrouxar a configuração (D-PROD-13). Trajetória: 2.802 → 2.759 (P1.2) → 2.728 (P1.3-R1) → **2.323** (P1.4, −405, com a anotação de tipo do `Button`). Redução segue em P2 | P2 |
+| DBT-03 | 2.319 diagnósticos de dívida de tipos versionados na catraca, com teto certificado de 2.319. A catraca impede crescimento em qualquer modo (D-PROD-17) e impede afrouxar a configuração (D-PROD-13). Trajetória: 2.802 → 2.759 (P1.2) → 2.728 (P1.3-R1) → 2.323 (P1.4, −405) → **2.319** (P1.4-R1, com o contrato de props do `Button` declarado de verdade, sem `any`). Redução segue em P2 | P2 |
 | DBT-04 | Sem tela de **entrada** de estoque (D-PROD-08) | P6 |
 | DBT-05 | Chave Google Maps antiga permanece no histórico Git — revogar e rotacionar (OWNER-SECURITY-01) | ação do proprietário |
 | DBT-06 | Bundle único de ~2,50 MB, sem code splitting | P8 |
@@ -199,7 +209,7 @@ motivo de o `verify:all` local não ter pego antes.
 | DBT-16 | **Fechado na P1.4.** Os dois arquivos foram removidos. Nenhum acesso computado a `entities` sobrou: o eixo `dynamicEntityFiles` está vazio no baseline | fechado |
 | DBT-18 | **Fechado na P1.4 para o repasse por argumento.** O gate reprova entregar o provider — ou um método cru dele — como argumento de qualquer chamada, que era o caminho pelo qual a capacidade cruzava para outro arquivo. Passar o **resultado** de uma chamada continua permitido, e há controle positivo (P14-N7). Continua fora do alcance a análise semântica de wrapper que só se resolve com dataflow entre módulos — mas sem argumento nem export, a capacidade não tem por onde sair | parcial · P3 |
 | DBT-17 | **Fechado na P1.4.** `gate:no-secrets` varre rastreados **e** não rastreados não ignorados, deduplicados. Arquivo novo com segredo reprova antes do `git add`; `.env.local` ignorado continua fora da varredura, que é onde o segredo deve ficar | fechado |
-| DBT-19 | Operação composta de manejo não é atômica: a Base44 não oferece transação multi-entidade. A P1.2 tornou a falha parcial **visível** (`MAPA_PARTIAL_OPERATION` com etapa concluída e etapa de falha), não a eliminou. Some com o backend próprio | P3 |
+| DBT-19 | Operação composta de manejo não é atômica: a Base44 não oferece transação multi-entidade. A P1.2 tornou a falha parcial **visível** (`MAPA_PARTIAL_OPERATION` com etapa concluída e etapa de falha), não a eliminou; a P1.4-R1 tornou o rastro do rename de local **fiel** — cada etapa é registrada quando conclui, com contagem por cocho. Some com o backend próprio | P3 |
 | DBT-20 | `DetalhesLote.jsx` segue com ~1.300 linhas. A fronteira de dados fechou na P1.2 e as decisões puras saíram para `src/domain/lotes/`, mas o componente continua grande demais para revisão confortável | P5 |
 | DBT-21 | A chave `VITE_GOOGLE_MAPS_API_KEY` vai para o bundle do cliente por definição do Vite. Não é defeito e não tem correção no código: a proteção é restrição por referrer e por API no Google Cloud, mais rotação e monitoramento (P1.2-R1) | ação do proprietário |
 | DBT-22 | O sintoma `MAPS_CONFIG_MISSING` em produção não teve causa raiz confirmada. A leitura de env funcionava antes e depois da P1.2-R1 (medido em build real); a explicação compatível com a evidência é ausência da variável no serviço que executa `npm run build`, o que exige inspeção da plataforma de deploy | ação do proprietário |

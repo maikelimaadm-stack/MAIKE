@@ -38,6 +38,12 @@ const session = {
   updateUsuario: vi.fn(), createPermissao: vi.fn(), updatePermissao: vi.fn(), deletePermissao: vi.fn(),
   logout: vi.fn(), redirectToLogin: vi.fn(), getAppPublicSettings: vi.fn(),
   getCapacidadesDeSessao: vi.fn(() => ({ logout: true, redirectToLogin: true, updateMe: false })),
+  verificarSessao: vi.fn(),
+  RAZOES_DE_SESSAO: Object.freeze({
+    AUTH_REQUIRED: 'auth_required',
+    USER_NOT_REGISTERED: 'user_not_registered',
+    UNKNOWN: 'unknown',
+  }),
 };
 const categorias = { listCategorias: vi.fn() };
 const arquivos = { uploadArquivo: vi.fn() };
@@ -341,7 +347,7 @@ describe('LE — locais de estoque', () => {
     expect(mapa.updatePontoSuplementacao).toHaveBeenCalledWith('d1', { nome_ponto: 'NOVO', local_estoque_nome: 'NOVO' });
     expect(mapa.updatePonto).toHaveBeenCalledWith('r1', { nome: 'NOVO' });
     expect(mapa.updatePontoSuplementacao).toHaveBeenCalledWith('c1', { deposito_origem_nome: 'NOVO' });
-    expect(r.etapas).toEqual(['deposito', 'ponto_referencia', 'cochos:2']);
+    expect(r.etapas).toEqual(['local', 'deposito', 'ponto_referencia', 'cochos:2']);
   });
 
   it('LE3 — sem mudança de nome, nada é propagado', async () => {
@@ -350,19 +356,105 @@ describe('LE — locais de estoque', () => {
     expect(mapa.listPontosSuplementacao).not.toHaveBeenCalled();
   });
 
-  it('LE4 — rename que falha no meio vira erro parcial com as etapas', async () => {
-    mapa.listPontosSuplementacao.mockResolvedValue([
-      { id: 'd1', local_estoque_id: 'l1', categoria_ponto: 'DEPOSITO' },
-    ]);
-    mapa.updatePontoSuplementacao.mockRejectedValue(new Error('rede'));
-    estoque.updateLocal.mockResolvedValue({ id: 'l1' });
+  /**
+   * LE-P1 a LE-P6 (P1.4-R1).
+   *
+   * A P1.4 afirmava devolver as etapas concluídas, mas gravava `['local']` em
+   * qualquer falha — mesmo com depósito e ponto de referência já atualizados. O
+   * teste antigo provava só que `local` aparecia, que é o mínimo que sempre
+   * apareceria. Agora o rastro é verificado etapa a etapa.
+   */
+  const renomear = () =>
+    localSvc.atualizarLocal({ id: 'l1', dados: { nome: 'NOVO' }, locais: [{ id: 'l1', nome: 'VELHO' }] });
 
-    await expect(
-      localSvc.atualizarLocal({ id: 'l1', dados: { nome: 'NOVO' }, locais: [{ id: 'l1', nome: 'VELHO' }] })
-    ).rejects.toSatisfy(
+  const etapasDoErro = async () => {
+    try {
+      await renomear();
+      throw new Error('esperava erro parcial');
+    } catch (erro) {
+      expect(hasApiErrorCode(erro, API_ERROR_CODES.LOCAL_ESTOQUE_PARTIAL_OPERATION)).toBe(true);
+      return erro.details.etapas;
+    }
+  };
+
+  const DEPOSITO = { id: 'd1', local_estoque_id: 'l1', categoria_ponto: 'DEPOSITO', coordenadas: { lat: 1, lng: 2 } };
+
+  it('LE-P1 — falha antes do depósito registra apenas local', async () => {
+    estoque.updateLocal.mockResolvedValue({ id: 'l1' });
+    mapa.listPontosSuplementacao.mockRejectedValue(new Error('rede'));
+
+    expect(await etapasDoErro()).toEqual(['local']);
+  });
+
+  it('LE-P2 — falha depois do depósito registra local e deposito', async () => {
+    estoque.updateLocal.mockResolvedValue({ id: 'l1' });
+    mapa.listPontosSuplementacao.mockResolvedValue([DEPOSITO]);
+    mapa.updatePontoSuplementacao.mockResolvedValue({});
+    mapa.listPontos.mockRejectedValue(new Error('rede'));
+
+    expect(await etapasDoErro()).toEqual(['local', 'deposito']);
+  });
+
+  it('LE-P3 — falha depois do ponto de referência registra as três etapas', async () => {
+    estoque.updateLocal.mockResolvedValue({ id: 'l1' });
+    mapa.listPontosSuplementacao.mockResolvedValue([DEPOSITO, { id: 'c1', deposito_origem_id: 'd1' }]);
+    mapa.listPontos.mockResolvedValue([{ id: 'r1', coordenadas: { lat: 1, lng: 2 } }]);
+    mapa.updatePonto.mockResolvedValue({});
+    // O depósito passa; o primeiro cocho falha.
+    mapa.updatePontoSuplementacao
+      .mockResolvedValueOnce({})
+      .mockRejectedValueOnce(new Error('rede'));
+
+    expect(await etapasDoErro()).toEqual(['local', 'deposito', 'ponto_referencia']);
+  });
+
+  it('LE-P4 — falha no segundo cocho registra somente o primeiro como concluído', async () => {
+    estoque.updateLocal.mockResolvedValue({ id: 'l1' });
+    mapa.listPontosSuplementacao.mockResolvedValue([
+      DEPOSITO,
+      { id: 'c1', deposito_origem_id: 'd1' },
+      { id: 'c2', deposito_origem_id: 'd1' },
+      { id: 'c3', deposito_origem_id: 'd1' },
+    ]);
+    mapa.listPontos.mockResolvedValue([{ id: 'r1', coordenadas: { lat: 1, lng: 2 } }]);
+    mapa.updatePonto.mockResolvedValue({});
+    mapa.updatePontoSuplementacao
+      .mockResolvedValueOnce({}) // depósito
+      .mockResolvedValueOnce({}) // cocho 1
+      .mockRejectedValueOnce(new Error('rede')); // cocho 2
+
+    const etapas = await etapasDoErro();
+    expect(etapas).toEqual(['local', 'deposito', 'ponto_referencia', 'cochos:1']);
+    // O rastro não pode afirmar que os três cochos terminaram.
+    expect(etapas).not.toContain('cochos:3');
+  });
+
+  it('LE-P5 — sucesso completo preserva todas as etapas, incluindo local', async () => {
+    mapa.listPontosSuplementacao.mockResolvedValue([
+      DEPOSITO,
+      { id: 'c1', deposito_origem_id: 'd1' },
+      { id: 'c2', deposito_origem_id: 'd1' },
+    ]);
+    mapa.listPontos.mockResolvedValue([{ id: 'r1', coordenadas: { lat: 1, lng: 2 } }]);
+    estoque.updateLocal.mockResolvedValue({ id: 'l1', nome: 'NOVO' });
+
+    const r = await renomear();
+    expect(r.etapas).toEqual(['local', 'deposito', 'ponto_referencia', 'cochos:2']);
+  });
+
+  it('LE-P6 — erro parcial não é sucesso: a operação rejeita, então a tela não festeja', async () => {
+    estoque.updateLocal.mockResolvedValue({ id: 'l1' });
+    mapa.listPontosSuplementacao.mockResolvedValue([DEPOSITO]);
+    mapa.updatePontoSuplementacao.mockRejectedValue(new Error('rede'));
+
+    await expect(renomear()).rejects.toSatisfy(
       (erro) => hasApiErrorCode(erro, API_ERROR_CODES.LOCAL_ESTOQUE_PARTIAL_OPERATION)
-        && erro.details.etapas.includes('local')
     );
+    // A causa crua fica em `cause`, que não é enumerável e nunca é exibida.
+    await renomear().catch((erro) => {
+      expect(Object.keys(erro)).not.toContain('cause');
+      expect(erro.message).toBe('A operação foi concluída apenas em parte. Confira os dados antes de repetir.');
+    });
   });
 
   it('LE5 — as quatro travas de exclusão bloqueiam', async () => {
@@ -437,18 +529,35 @@ describe('SE — sessão e permissões', () => {
     expect(await sessionSvc.getCurrentUser()).toEqual({ email: 'cache@local' });
   });
 
-  it('SE3 — verificarAutenticacao NÃO cai no cache e classifica 401/403', async () => {
+  /**
+   * A classificação saiu daqui na P1.4-R1: o service recebe o veredito pronto da
+   * API e não inspeciona `status` nem `cause` de erro nenhum. O que resta de
+   * política local é persistir o usuário para uso offline — e **não** cair no
+   * cache quando a sessão falha.
+   */
+  it('SE3 — verificarAutenticacao repassa o veredito e não cai no cache', async () => {
     localStorage.setItem('offline_current_user', JSON.stringify({ email: 'cache@local' }));
-    const erro = Object.assign(new Error('x'), { cause: { status: 401 } });
-    session.getCurrentUser.mockRejectedValue(erro);
+    session.verificarSessao.mockResolvedValue({ autenticado: false, usuario: null, precisaAutenticar: true });
 
-    const veredito = await sessionSvc.verificarAutenticacao();
-    expect(veredito).toEqual({ autenticado: false, usuario: null, precisaAutenticar: true });
+    expect(await sessionSvc.verificarAutenticacao()).toEqual({
+      autenticado: false, usuario: null, precisaAutenticar: true,
+    });
+    // O cache continua lá, mas não foi usado para fingir sessão.
+    expect(JSON.parse(localStorage.getItem('offline_current_user'))).toEqual({ email: 'cache@local' });
   });
 
-  it('SE4 — falha sem status não pede autenticação', async () => {
-    session.getCurrentUser.mockRejectedValue(new Error('rede'));
+  it('SE4 — veredito sem pedido de login é repassado como veio', async () => {
+    session.verificarSessao.mockResolvedValue({ autenticado: false, usuario: null, precisaAutenticar: false });
     expect((await sessionSvc.verificarAutenticacao()).precisaAutenticar).toBe(false);
+    expect(session.getCurrentUser).not.toHaveBeenCalled();
+  });
+
+  it('SE4b — sessão válida persiste o usuário para uso offline', async () => {
+    session.verificarSessao.mockResolvedValue({
+      autenticado: true, usuario: { email: 'a@b.c' }, precisaAutenticar: false,
+    });
+    await sessionSvc.verificarAutenticacao();
+    expect(JSON.parse(localStorage.getItem('offline_current_user'))).toEqual({ email: 'a@b.c' });
   });
 
   it('SE5 — logout limpa o usuário offline', async () => {

@@ -196,7 +196,21 @@ describe('sessão', () => {
   it('DL15/MG1 — online lê do provider e persiste para uso offline', async () => {
     vi.resetModules();
     const getCurrentUserApi = vi.fn().mockResolvedValue({ id: 'u1', email: 'a@b.c' });
-    vi.doMock('@/apis/session', () => ({ getCurrentUser: getCurrentUserApi, listUsuarios: vi.fn(), listPermissoes: vi.fn() }));
+    vi.doMock('@/apis/session', () => ({
+      getCurrentUser: getCurrentUserApi,
+      listUsuarios: vi.fn(),
+      listPermissoes: vi.fn(),
+      updateUsuario: vi.fn(),
+      createPermissao: vi.fn(),
+      updatePermissao: vi.fn(),
+      deletePermissao: vi.fn(),
+      logout: vi.fn(),
+      redirectToLogin: vi.fn(),
+      getAppPublicSettings: vi.fn(),
+      verificarSessao: vi.fn(),
+      getCapacidadesDeSessao: vi.fn(() => ({})),
+      RAZOES_DE_SESSAO: Object.freeze({ AUTH_REQUIRED: 'auth_required', USER_NOT_REGISTERED: 'user_not_registered', UNKNOWN: 'unknown' }),
+    }));
     const { getCurrentUser } = await import('@/services/sessionService');
 
     const u = await getCurrentUser();
@@ -207,7 +221,21 @@ describe('sessão', () => {
   it('MG2 — offline devolve o último usuário conhecido sem chamar o provider', async () => {
     vi.resetModules();
     const getCurrentUserApi = vi.fn();
-    vi.doMock('@/apis/session', () => ({ getCurrentUser: getCurrentUserApi, listUsuarios: vi.fn(), listPermissoes: vi.fn() }));
+    vi.doMock('@/apis/session', () => ({
+      getCurrentUser: getCurrentUserApi,
+      listUsuarios: vi.fn(),
+      listPermissoes: vi.fn(),
+      updateUsuario: vi.fn(),
+      createPermissao: vi.fn(),
+      updatePermissao: vi.fn(),
+      deletePermissao: vi.fn(),
+      logout: vi.fn(),
+      redirectToLogin: vi.fn(),
+      getAppPublicSettings: vi.fn(),
+      verificarSessao: vi.fn(),
+      getCapacidadesDeSessao: vi.fn(() => ({})),
+      RAZOES_DE_SESSAO: Object.freeze({ AUTH_REQUIRED: 'auth_required', USER_NOT_REGISTERED: 'user_not_registered', UNKNOWN: 'unknown' }),
+    }));
     localStorage.setItem('offline_current_user', JSON.stringify({ id: 'cache' }));
     const navSpy = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
     const { getCurrentUser } = await import('@/services/sessionService');
@@ -221,7 +249,18 @@ describe('sessão', () => {
     vi.resetModules();
     vi.doMock('@/apis/session', () => ({
       getCurrentUser: vi.fn().mockRejectedValue(new Error('sem rede')),
-      listUsuarios: vi.fn(), listPermissoes: vi.fn(),
+      listUsuarios: vi.fn(),
+      listPermissoes: vi.fn(),
+      updateUsuario: vi.fn(),
+      createPermissao: vi.fn(),
+      updatePermissao: vi.fn(),
+      deletePermissao: vi.fn(),
+      logout: vi.fn(),
+      redirectToLogin: vi.fn(),
+      getAppPublicSettings: vi.fn(),
+      verificarSessao: vi.fn(),
+      getCapacidadesDeSessao: vi.fn(() => ({})),
+      RAZOES_DE_SESSAO: Object.freeze({ AUTH_REQUIRED: 'auth_required', USER_NOT_REGISTERED: 'user_not_registered', UNKNOWN: 'unknown' }),
     }));
     localStorage.setItem('offline_current_user', JSON.stringify({ id: 'antigo' }));
     const { getCurrentUser } = await import('@/services/sessionService');

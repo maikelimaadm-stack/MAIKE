@@ -76,12 +76,85 @@ export const redirectToLogin = async (urlDeRetorno) =>
   runProviderCall(async () => sessionProvider.redirectToLogin(urlDeRetorno), ctx('redirectToLogin'));
 
 /**
- * Configurações públicas do app.
+ * Razões de recusa que a tela de login sabe tratar.
  *
- * O erro **não** é normalizado aqui: `AuthContext` distingue `auth_required` de
- * `user_not_registered` pelo `status` e por `data.extra_data.reason` do
- * provider, e essa distinção é o contrato de estado da tela de login. Envolver
- * em `ApiError` apagaria os dois campos e transformaria "precisa autenticar" em
- * "falha genérica" — regressão de comportamento, não ganho de fronteira.
+ * Vocabulário do **produto**, não do provider: `auth_required` e
+ * `user_not_registered` continuam com o mesmo nome porque é assim que a tela os
+ * chama desde antes da P1, mas quem os produz é esta API — não o formato de
+ * erro da Base44.
  */
-export const getAppPublicSettings = async () => sessionProvider.fetchPublicSettings();
+export const RAZOES_DE_SESSAO = Object.freeze({
+  AUTH_REQUIRED: 'auth_required',
+  USER_NOT_REGISTERED: 'user_not_registered',
+  UNKNOWN: 'unknown',
+});
+
+const RAZOES_RECONHECIDAS = new Set([RAZOES_DE_SESSAO.AUTH_REQUIRED, RAZOES_DE_SESSAO.USER_NOT_REGISTERED]);
+
+/**
+ * Classificação do erro cru do provider — **o único lugar** onde o formato dele
+ * é lido (P1.4-R1).
+ *
+ * A P1.4 deixava esse conhecimento vazar: `sessionApi` devolvia o erro cru de
+ * propósito, e `AuthContext` inspecionava `status`, `data.extra_data.reason` e
+ * `message`, enquanto `sessionService` procurava o status em quatro lugares
+ * diferentes de `cause`. Trocar o provider exigiria mexer nos três — que é
+ * exatamente o que a fronteira existe para impedir.
+ */
+const statusDoProvider = (erro) => {
+  const bruto = erro?.status ?? erro?.statusCode ?? erro?.response?.status;
+  return Number.isInteger(bruto) ? bruto : null;
+};
+
+const razaoDoProvider = (erro) => erro?.data?.extra_data?.reason ?? null;
+
+/**
+ * Resultado discriminado das configurações públicas.
+ *
+ * Os campos ausentes são declarados como `undefined` no outro ramo de propósito:
+ * é o que permite ao consumidor estreitar por `ok` **e** ler `reason` sem que o
+ * verificador reclame de propriedade inexistente.
+ *
+ * @typedef {{ok: true, value: object, reason?: undefined}} ConfiguracoesPublicasOk
+ * @typedef {{ok: false, reason: string, value?: undefined}} ConfiguracoesPublicasRecusa
+ * @typedef {ConfiguracoesPublicasOk | ConfiguracoesPublicasRecusa} ResultadoDeConfiguracoesPublicas
+ */
+
+/**
+ * Configurações públicas do app, com resultado **discriminado**.
+ *
+ * Nunca lança e nunca devolve erro de provider: ou entrega o valor, ou uma
+ * razão do catálogo acima.
+ *
+ * @returns {Promise<ResultadoDeConfiguracoesPublicas>}
+ */
+export const getAppPublicSettings = async () => {
+  try {
+    return { ok: true, value: await sessionProvider.fetchPublicSettings(), reason: undefined };
+  } catch (erro) {
+    const razao = razaoDoProvider(erro);
+    if (statusDoProvider(erro) === 403 && RAZOES_RECONHECIDAS.has(razao)) {
+      return { ok: false, reason: razao, value: undefined };
+    }
+    return { ok: false, reason: RAZOES_DE_SESSAO.UNKNOWN, value: undefined };
+  }
+};
+
+/**
+ * Veredito de autenticação, **sem** fallback e sem erro cru.
+ *
+ * Falha com 401 ou 403 significa "precisa autenticar"; qualquer outra falha
+ * significa "não autenticado", sem pedir login — a diferença é a que a tela
+ * usa para decidir entre redirecionar e mostrar estado de erro.
+ *
+ * @returns {Promise<{autenticado: boolean, usuario: object|null, precisaAutenticar: boolean}>}
+ */
+export const verificarSessao = async () => {
+  try {
+    const usuario = await sessionProvider.me();
+    return { autenticado: true, usuario: usuario ?? null, precisaAutenticar: false };
+  } catch (erro) {
+    const status = statusDoProvider(erro);
+    return { autenticado: false, usuario: null, precisaAutenticar: status === 401 || status === 403 };
+  }
+};

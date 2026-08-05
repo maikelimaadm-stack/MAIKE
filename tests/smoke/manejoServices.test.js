@@ -31,7 +31,13 @@ const arquivos = { uploadArquivo: vi.fn() };
 const mapa = { listAreas: vi.fn(), listIcones: vi.fn(), listPontos: vi.fn() };
 const tarefas = { listLancamentos: vi.fn() };
 const rebanho = { listManejosTecnicos: vi.fn() };
-const session = { getCurrentUser: vi.fn(), listPermissoes: vi.fn() };
+const session = {
+  getCurrentUser: vi.fn(), listPermissoes: vi.fn(), listUsuarios: vi.fn(),
+  updateUsuario: vi.fn(), createPermissao: vi.fn(), updatePermissao: vi.fn(), deletePermissao: vi.fn(),
+  logout: vi.fn(), redirectToLogin: vi.fn(), getAppPublicSettings: vi.fn(), verificarSessao: vi.fn(),
+  getCapacidadesDeSessao: vi.fn(() => ({})),
+  RAZOES_DE_SESSAO: Object.freeze({ AUTH_REQUIRED: 'auth_required', USER_NOT_REGISTERED: 'user_not_registered', UNKNOWN: 'unknown' }),
+};
 
 vi.mock('@/apis/lotes', () => lotes);
 vi.mock('@/apis/setores', () => setores);

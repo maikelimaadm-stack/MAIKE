@@ -11,5 +11,7 @@ export {
   logout,
   redirectToLogin,
   getAppPublicSettings,
+  verificarSessao,
   getCapacidadesDeSessao,
+  RAZOES_DE_SESSAO,
 } from './sessionApi.js';

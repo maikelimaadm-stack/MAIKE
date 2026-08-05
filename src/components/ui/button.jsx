@@ -35,29 +35,41 @@ const buttonVariants = cva(
 )
 
 /**
- * Botão do design system.
+ * Props do botão do design system (P1.4-R1).
  *
- * A anotação abaixo é **só de tipo** (P1.4, DBT-03): `React.forwardRef` com
- * parâmetro implicitamente `any` faz o TypeScript inferir
- * `ForwardRefExoticComponent<RefAttributes<any>>` — um componente que, segundo o
- * verificador, não aceita **nenhuma** prop. Resultado: cada `<Button
- * variant=… size=…>Texto</Button>` do produto virava um `TS2322`, e havia
- * centenas deles. Nada disso indicava defeito real; era ruído que escondia a
- * dívida de tipos que importa.
+ * A P1.4 tinha resolvido o ruído de tipo deste componente anotando o export
+ * como `any`. Aquilo apagava o problema e a verificação junto: `variant`,
+ * `size`, props HTML, `children` e `ref` deixavam de ser checados em **todas**
+ * as chamadas do produto. Supressão global não é tipagem.
  *
- * Zero efeito em runtime: o componente é o mesmo, byte por byte.
+ * Aqui o contrato é declarado de verdade — props nativas de `<button>`, as
+ * variantes que `buttonVariants` conhece e `asChild` —, e o `forwardRef` infere
+ * o tipo do componente a partir dele. Não há cast: `variant` inválido volta a
+ * ser erro, e o `ref` é de `HTMLButtonElement`.
  *
- * @type {any}
+ * @typedef {React.ComponentPropsWithoutRef<'button'>
+ *   & import('class-variance-authority').VariantProps<typeof buttonVariants>
+ *   & { asChild?: boolean }} ButtonProps
  */
-const Button = React.forwardRef(({ className, variant, size, asChild = false, ...props }, ref) => {
-  const Comp = asChild ? Slot : "button"
-  return (
-    (<Comp
-      className={cn(buttonVariants({ variant, size, className }))}
-      ref={ref}
-      {...props} />)
-  );
-})
+
+const Button = React.forwardRef(
+  /**
+   * Zero mudança de runtime: HTML, classes, variantes, tamanhos e `Slot` são os
+   * mesmos.
+   *
+   * @param {ButtonProps} propriedades
+   * @param {React.Ref<HTMLButtonElement>} ref
+   */
+  ({ className, variant, size, asChild = false, ...props }, ref) => {
+    const Comp = asChild ? Slot : "button"
+    return (
+      (<Comp
+        className={cn(buttonVariants({ variant, size, className }))}
+        ref={ref}
+        {...props} />)
+    );
+  }
+)
 Button.displayName = "Button"
 
 export { Button, buttonVariants }

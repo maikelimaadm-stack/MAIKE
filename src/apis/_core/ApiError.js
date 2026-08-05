@@ -37,10 +37,11 @@ export const API_ERROR_CODES = Object.freeze({
   ANEXO_ENTITY_UNSUPPORTED: 'ANEXO_ENTITY_UNSUPPORTED',
 
   // P1.4 — Suporte e administração. Mesmo critério: só código com consumidor e
-  // teste reais entra aqui.
+  // teste reais entra aqui — e, desde a P1.4-R1, isso é **provado** por teste:
+  // `PRODUTO_PARTIAL_IMPORT` estava catalogado sem nenhum chamador em `src/`
+  // (a importação já devolvia `{importados, falhas, total}`) e foi removido.
   PRODUTO_NAME_CONFLICT: 'PRODUTO_NAME_CONFLICT',
   PRODUTO_DELETE_BLOCKED: 'PRODUTO_DELETE_BLOCKED',
-  PRODUTO_PARTIAL_IMPORT: 'PRODUTO_PARTIAL_IMPORT',
   MARCA_NAME_CONFLICT: 'MARCA_NAME_CONFLICT',
   UNIDADE_MEDIDA_DELETE_BLOCKED: 'UNIDADE_MEDIDA_DELETE_BLOCKED',
   LOCAL_ESTOQUE_DELETE_BLOCKED: 'LOCAL_ESTOQUE_DELETE_BLOCKED',
@@ -71,7 +72,6 @@ const MENSAGENS = Object.freeze({
   [API_ERROR_CODES.ANEXO_ENTITY_UNSUPPORTED]: 'Anexos não estão disponíveis para este cadastro.',
   [API_ERROR_CODES.PRODUTO_NAME_CONFLICT]: 'Já existe um produto cadastrado com este nome nesta empresa.',
   [API_ERROR_CODES.PRODUTO_DELETE_BLOCKED]: 'Não é possível excluir o produto: existem registros vinculados.',
-  [API_ERROR_CODES.PRODUTO_PARTIAL_IMPORT]: 'A importação foi concluída apenas em parte. Confira a lista de erros.',
   [API_ERROR_CODES.MARCA_NAME_CONFLICT]: 'Já existe uma marca cadastrada com este nome nesta empresa.',
   [API_ERROR_CODES.UNIDADE_MEDIDA_DELETE_BLOCKED]: 'Não é possível excluir a unidade de medida: existem registros vinculados.',
   [API_ERROR_CODES.LOCAL_ESTOQUE_DELETE_BLOCKED]: 'Não é possível excluir o local de estoque: existem registros vinculados.',

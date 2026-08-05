@@ -603,6 +603,29 @@ Asserção que olha código-fonte usa um helper que **remove comentários antes 
 comparar**: um comentário explicando que o módulo não usa `localStorage` não
 pode reprovar a busca por `localStorage`.
 
+### Provas de contrato da P1.4-R1
+
+A P1.4 fechou os seis eixos da fronteira em zero, e a auditoria mostrou que
+contagem zerada não é o mesmo que contrato fechado. Quatro provas novas em
+`tests/smoke/sessaoContrato.test.js`, todas de **ausência na fonte** ou de
+**consumo real**, porque nenhum gate de contagem pegaria o que elas pegam:
+
+| Prova | O que fixa |
+|---|---|
+| SE1–SE8b | O contrato que sai da API de sessão: `{ok, value}` / `{ok, reason}` e `{autenticado, usuario, precisaAutenticar}`. O provider é mockado **só na fronteira** — é o único lugar autorizado a conhecer o formato de erro dele |
+| SE9/AUTH8 | `src/lib/AuthContext.jsx` não contém `.status`, `.statusCode`, `.response`, `extra_data`, `.data?.`, `appError` nem `error.message` |
+| SE10a | `src/services/sessionService.js` não contém `.status`, `.statusCode`, `.response`, `cause`, `extra_data` nem `statusDaFalha` |
+| SE10b | Nenhum arquivo de `src/services`, `src/pages` ou `src/lib` casa `extra_data`, `.statusCode`, `erro?.status` ou `error.status` |
+| SE10c | `src/apis/session/sessionApi.js` **contém** `extra_data` e `statusCode` — a classificação existe, e existe só ali |
+| SE11 | Todo código de erro da P1.4 tem pelo menos um `API_ERROR_CODES.<CÓDIGO>` em `src/`, fora da própria declaração. Declaração, catálogo de mensagens, teste e documentação **não** contam como consumidor |
+| SE12 | `src/components/ui/button.jsx` não contém `@type {any}`, `@type {unknown}`, `@ts-ignore`, `@ts-nocheck` nem `@ts-expect-error`, e declara `ComponentPropsWithoutRef`, `VariantProps`, `HTMLButtonElement` e `asChild` |
+| LE-P1..LE-P6 | O rename de local de estoque registra em `details.etapas` **o que de fato concluiu** em cada ponto de falha, com contagem individual por cocho (`cochos:1`, `cochos:2`, …) |
+
+SE11 e SE12 existem por defeitos reais, não hipotéticos: `PRODUTO_PARTIAL_IMPORT`
+estava catalogado sem chamador nenhum, e a queda de 405 diagnósticos de tipo da
+P1.4 tinha vindo de desligar a verificação do `Button`, não de tipá-lo. Um gate
+que só conta não distingue "resolvido" de "silenciado" — essas provas distinguem.
+
 ### Contrato do carregador do Google Maps (D-PROD-16)
 
 `loadGoogleMaps` só resolve com **capacidade comprovada**:

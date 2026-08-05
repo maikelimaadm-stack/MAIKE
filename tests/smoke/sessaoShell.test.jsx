@@ -14,11 +14,18 @@ import { render, screen, waitFor, act } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
+const RAZOES = Object.freeze({
+  AUTH_REQUIRED: 'auth_required',
+  USER_NOT_REGISTERED: 'user_not_registered',
+  UNKNOWN: 'unknown',
+});
+
 const sessionService = {
   verificarAutenticacao: vi.fn(),
   carregarConfiguracoesPublicas: vi.fn(),
   encerrarSessao: vi.fn(),
   irParaLogin: vi.fn(),
+  RAZOES_DE_SESSAO_DO_PRODUTO: RAZOES,
 };
 
 vi.mock('@/services/sessionService', () => sessionService);
@@ -34,7 +41,7 @@ const comQuery = (ui) => {
 beforeEach(() => {
   vi.clearAllMocks();
   sessionService.verificarAutenticacao.mockResolvedValue({ autenticado: false, usuario: null, precisaAutenticar: false });
-  sessionService.carregarConfiguracoesPublicas.mockResolvedValue({ id: 'app', public_settings: {} });
+  sessionService.carregarConfiguracoesPublicas.mockResolvedValue({ ok: true, value: { id: 'app', public_settings: {} } });
 });
 
 /** Sonda que expõe o estado do contexto como texto. */
@@ -55,14 +62,6 @@ const Sonda = () => {
   );
 };
 
-/**
- * O `AuthContext` registra a falha de carregamento com `console.error` — é
- * diagnóstico legítimo de um estado tratado. O guard global do smoke reprova
- * `console.error` inesperado, então o teste declara que **este** é esperado em
- * vez de silenciar o guard para todo mundo.
- */
-const consoleErroEsperado = () => vi.spyOn(console, 'error').mockImplementation(() => {});
-
 const montarAuth = async () => {
   const resultado = comQuery(
     <AuthProvider>
@@ -80,31 +79,44 @@ describe('AUTH — estados do AuthContext', () => {
     expect(screen.getByTestId('settings')).toHaveTextContent('ok');
   });
 
-  it('AUTH2 — auth_required é classificado pelo status e pelo reason do provider', async () => {
-    consoleErroEsperado();
-    sessionService.carregarConfiguracoesPublicas.mockRejectedValue(
-      Object.assign(new Error('x'), { status: 403, data: { extra_data: { reason: 'auth_required' } } })
-    );
+  it('AUTH2 — auth_required chega como razão estável, não como erro de provider', async () => {
+    sessionService.carregarConfiguracoesPublicas.mockResolvedValue({ ok: false, reason: RAZOES.AUTH_REQUIRED });
     await montarAuth();
     expect(screen.getByTestId('erro')).toHaveTextContent('auth_required');
     expect(screen.getByTestId('autenticado')).toHaveTextContent('false');
+    expect(screen.getByTestId('loading-settings')).toHaveTextContent('false');
   });
 
   it('AUTH3 — user_not_registered é preservado como estado próprio', async () => {
-    consoleErroEsperado();
-    sessionService.carregarConfiguracoesPublicas.mockRejectedValue(
-      Object.assign(new Error('x'), { status: 403, data: { extra_data: { reason: 'user_not_registered' } } })
-    );
+    sessionService.carregarConfiguracoesPublicas.mockResolvedValue({ ok: false, reason: RAZOES.USER_NOT_REGISTERED });
     await montarAuth();
     expect(screen.getByTestId('erro')).toHaveTextContent('user_not_registered');
   });
 
-  it('AUTH4 — falha sem reason conhecido vira unknown', async () => {
-    consoleErroEsperado();
-    sessionService.carregarConfiguracoesPublicas.mockRejectedValue(new Error('falha genérica'));
+  it('AUTH4 — razão desconhecida vira unknown e encerra os loadings', async () => {
+    sessionService.carregarConfiguracoesPublicas.mockResolvedValue({ ok: false, reason: RAZOES.UNKNOWN });
     await montarAuth();
     expect(screen.getByTestId('erro')).toHaveTextContent('unknown');
     expect(screen.getByTestId('loading-auth')).toHaveTextContent('false');
+  });
+
+  /**
+   * SE9 — a prova mecânica de que o formato cru do provider não atravessa.
+   *
+   * Não basta o teste de comportamento passar: `AuthContext` passava antes
+   * inspecionando `status`, `data.extra_data.reason` e `message`. O que se fixa
+   * aqui é a **ausência** dessas leituras no arquivo.
+   */
+  it('AUTH8/SE9 — AuthContext não lê status, data, extra_data nem mensagem do provider', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { join } = await import('node:path');
+    const fonte = readFileSync(join(process.cwd(), 'src/lib/AuthContext.jsx'), 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/^\s*\/\/.*$/gm, '');
+
+    for (const proibido of ['.status', '.statusCode', '.response', 'extra_data', '.data?.', 'appError', 'error.message']) {
+      expect(fonte, proibido).not.toContain(proibido);
+    }
   });
 
   it('AUTH5 — logout com e sem redirecionamento chega ao service', async () => {

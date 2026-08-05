@@ -46,12 +46,20 @@ baseline de `gate:api-boundary`; nenhuma adiciona (SCL-P11-01).
 | **P1.2** | Mapa — `MapaGeral`, `MapaCadastro`, `DetalhesLote`, componentes de `src/components/mapa/`, cache offline e `useSetorAreas` | mergeada (PR #3); corrigida por P1.2-R1 e P1.2-R2 |
 | **P1.3** | Manejo — `CadastroLotes`, `CadastroSetores`, `Categorias`, `CategoriasManejo`, `Bebedouros`, componentes de lotes e bebedouros, anexos; remoção dos repositórios legados | **mergeada** (PR #5) |
 | **P1.4** | Suporte e Administração + fechamento da P1 — casca, autenticação, configurações, produtos, marcas, unidades, locais de estoque, tarefas, usuários e suplementação; remoção dos três monkey patches globais; DBT-10, DBT-17, DBT-18 e DBT-25 | implementada na PR #6, aguardando merge do proprietário |
+| **P1.4-R1** | correção de contrato sobre a P1.4, sem migrar caminho: classificação de erro de sessão só na fronteira (`{ok, value}` / `{ok, reason}`), `Button` tipado de verdade em vez de `any`, rastro fiel do rename parcial, remoção do código de erro órfão | implementada na mesma PR #6, aguardando merge do proprietário |
 
 A P1 só é declarada concluída na P1.4, quando o baseline de fronteira chegar a
 zero caminho legado nas telas do escopo. Isso aconteceu: desde a P1.4 os seis
 eixos de `gate:api-boundary` estão em zero e o baseline versionado tem as seis
 listas vazias. A P1 está **tecnicamente fechada na branch**; a conclusão formal
 depende do merge da PR #6 pelo proprietário.
+
+Zerar os eixos não fechou sozinho a fronteira: a P1.4-R1 mostrou que o formato de
+erro do provider ainda atravessava três camadas com a contagem já em zero. Daí a
+regra que fica para as próximas slices — **eixo zerado é condição necessária, não
+suficiente**; o que prova a fronteira é o contrato que sai dela.
+
+**P2 e P3 continuam não iniciadas.**
 
 ---
 

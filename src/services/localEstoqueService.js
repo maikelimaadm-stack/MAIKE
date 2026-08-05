@@ -71,16 +71,26 @@ const mesmasCoordenadas = (a, b) =>
  * Propaga o novo nome para o depósito vinculado, o ponto de referência que
  * ocupa as mesmas coordenadas e os cochos que apontam para esse depósito.
  *
- * @returns {Promise<string[]>} etapas concluídas, em ordem
+ * As etapas são acumuladas num array **do chamador** (P1.4-R1). A versão
+ * anterior montava a lista aqui dentro e a devolvia só no caminho feliz; em
+ * qualquer falha, o erro parcial gravava `etapas: ['local']` — mesmo quando o
+ * depósito e o ponto de referência já tinham sido atualizados. O rastro
+ * afirmava menos do que havia acontecido, o que numa operação de rename é pior
+ * do que não ter rastro: quem fosse repetir não sabia onde ela parou.
+ *
+ * Cada cocho conta individualmente, então uma falha no segundo cocho registra
+ * `cochos:1` — nunca "todos".
+ *
+ * @param {string} localId
+ * @param {string} novoNome
+ * @param {string[]} etapas acumulador; mutado à medida que cada etapa conclui
  */
-const propagarRename = async (localId, novoNome) => {
-  const etapas = [];
-
+const propagarRename = async (localId, novoNome, etapas) => {
   const pontosSuplementacao = await listPontosSuplementacao();
   const deposito = pontosSuplementacao.find(
     (ponto) => ponto.local_estoque_id === localId && ponto.categoria_ponto === CATEGORIA_DEPOSITO
   );
-  if (!deposito) return etapas;
+  if (!deposito) return;
 
   await updatePontoSuplementacao(deposito.id, { nome_ponto: novoNome, local_estoque_nome: novoNome });
   etapas.push('deposito');
@@ -93,12 +103,16 @@ const propagarRename = async (localId, novoNome) => {
   }
 
   const cochos = pontosSuplementacao.filter((ponto) => ponto.deposito_origem_id === deposito.id);
+  let concluidos = 0;
   for (const cocho of cochos) {
     await updatePontoSuplementacao(cocho.id, { deposito_origem_nome: novoNome });
+    concluidos += 1;
+    // A marca é reescrita a cada cocho, então o rastro reflete sempre o número
+    // real de cochos concluídos — inclusive quando o próximo falhar.
+    const jaRegistrado = etapas.findIndex((etapa) => etapa.startsWith('cochos:'));
+    if (jaRegistrado >= 0) etapas[jaRegistrado] = `cochos:${concluidos}`;
+    else etapas.push(`cochos:${concluidos}`);
   }
-  if (cochos.length) etapas.push(`cochos:${cochos.length}`);
-
-  return etapas;
 };
 
 /**
@@ -113,14 +127,18 @@ export const atualizarLocal = async ({ id, dados, locais = [] }) => {
   const nomeMudou = Boolean(dados?.nome) && anterior && anterior.nome !== dados.nome;
   if (!nomeMudou) return { atualizado, etapas: [] };
 
+  // O acumulador começa com o que já foi feito e é lido tanto no sucesso quanto
+  // na falha — é essa a diferença entre rastro verdadeiro e rastro decorativo.
+  const etapas = ['local'];
+
   try {
-    const etapas = await propagarRename(id, dados.nome);
+    await propagarRename(id, dados.nome, etapas);
     return { atualizado, etapas };
   } catch (erro) {
     throw new ApiError(API_ERROR_CODES.LOCAL_ESTOQUE_PARTIAL_OPERATION, {
       operation: 'atualizarLocal',
       resource: 'LocalEstoque',
-      details: { id, etapas: ['local'] },
+      details: { id, etapas: [...etapas] },
       cause: erro,
     });
   }
