@@ -1,11 +1,11 @@
 import React, { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { excluirTransferenciaDeposito } from "./historicoSuplementacaoUtils";
+import { getApiErrorMessage } from "@/apis/_core/ApiError";
+import { excluirTransferenciaDeposito } from "@/services/suplementacaoHistoricoService";
 import { formatKg } from "./formatters";
 import { getMapaCachedData, refreshMapaCacheEntry } from "@/services/mapaCacheService";
 
@@ -91,7 +91,7 @@ export default function HistoricoDepositoSuplementacao({ deposito }) {
       window.dispatchEvent(new CustomEvent("atualizar-mapa"));
       toast.success("Transferência excluída.");
     } catch (error) {
-      toast.error(error.message || "Não foi possível excluir.");
+      toast.error(getApiErrorMessage(error, "Não foi possível excluir."));
     } finally {
       setDeletingId(null);
     }

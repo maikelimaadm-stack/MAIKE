@@ -2,8 +2,8 @@
  * Regras de bloqueio de exclusão (extraídas em P1.2).
  *
  * **Fonte única de verdade.** Antes, a tabela vivia dentro de
- * `src/lib/entityDeleteGuards.js`, acoplada a `base44.entities[nome]`. O
- * caminho novo do mapa não pode receber provider, e copiar a tabela criaria
+ * `src/lib/entityDeleteGuards.js`, acoplada ao acesso dinâmico `entities[nome]`
+ * do SDK. O caminho novo do mapa não pode receber provider, e copiar a tabela criaria
  * duas versões que divergiriam em silêncio — exatamente o que a missão proíbe.
  *
  * Este módulo é **puro**: sem React, sem provider, sem `window`, sem storage.

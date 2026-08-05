@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { base44 } from "@/api/base44Client";
+import { listEmpresas } from "@/services/empresaService";
+import { getCurrentUser, getCachedUser, listarPermissoes, encerrarSessao, permissaoDoUsuario } from "@/services/sessionService";
 import {
   Users, LogOut, Package, Shield, FolderOpen, Map, ChevronDown, Menu, Search, X, EyeOff, Eye } from
 "lucide-react";
@@ -94,7 +95,7 @@ export default function Layout({ children, currentPageName }) {
 
   const { data: empresas = [], isLoading: empresasLoading } = useQuery({
     queryKey: ['empresas'],
-    queryFn: () => base44.entities.Empresa.list(),
+    queryFn: () => listEmpresas(),
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false
   });
@@ -130,22 +131,16 @@ export default function Layout({ children, currentPageName }) {
   useEffect(() => {
     const loadUser = async () => {
       try {
-        let currentUser = null;
-        if (navigator.onLine) {
-          currentUser = await base44.auth.me();
-          localStorage.setItem('offline_current_user', JSON.stringify(currentUser));
-        } else {
-          const cachedUser = localStorage.getItem('offline_current_user');
-          currentUser = cachedUser ? JSON.parse(cachedUser) : null;
-        }
+        // O fallback offline (`offline_current_user`) vive no service desde a
+        // P1.2; aqui o Layout só pede o usuário atual.
+        const currentUser = navigator.onLine ? await getCurrentUser() : getCachedUser();
 
         setUser(currentUser);
 
         // Carregar permissões do usuário
         try {
-          const allPermissoes = await base44.entities.Permissao.list();
-          const permissao = allPermissoes.find((p) => p.user_email === currentUser?.email);
-          setUserPermissions(permissao);
+          const allPermissoes = await listarPermissoes();
+          setUserPermissions(permissaoDoUsuario(allPermissoes, currentUser?.email));
         } catch (error) {
           console.error("Erro ao carregar permissões:", error);
           setUserPermissions(null);
@@ -161,7 +156,7 @@ export default function Layout({ children, currentPageName }) {
   }, []);
 
   const handleLogout = () => {
-    base44.auth.logout();
+    encerrarSessao();
   };
 
   const normalizedPermissions = React.useMemo(() => normalizePermissionRecord(userPermissions), [userPermissions]);

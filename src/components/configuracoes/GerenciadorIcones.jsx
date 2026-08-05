@@ -1,5 +1,13 @@
 import React, { useState } from "react";
-import { base44 } from "@/api/base44Client";
+import {
+  ICONES_QUERY_KEY,
+  listarIconesAtivos,
+  criarIcone,
+  atualizarIcone,
+  desativarIcone,
+} from "@/services/configuracaoIconeService";
+import { enviarArquivo } from "@/services/arquivoService";
+import { getApiErrorMessage } from "@/apis/_core/ApiError";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -57,41 +65,33 @@ export default function GerenciadorIcones() {
   const queryClient = useQueryClient();
 
   const { data: icones = [] } = useQuery({
-    queryKey: ['configuracao-icones-global'],
-    queryFn: async () => {
-      const all = await base44.entities.ConfiguracaoIcone.list();
-      return all.filter(i => i.ativo !== false);
-    },
+    queryKey: ICONES_QUERY_KEY,
+    queryFn: () => listarIconesAtivos(),
     initialData: [],
   });
 
   const createIconeMutation = useMutation({
-    mutationFn: (data) => {
-      return base44.entities.ConfiguracaoIcone.create({
-        ...data,
-        ativo: true
-      });
-    },
+    mutationFn: (data) => criarIcone(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['configuracao-icones-global'] });
+      queryClient.invalidateQueries({ queryKey: ICONES_QUERY_KEY });
       resetForm();
       toast.success('✅ Ícone cadastrado!');
     }
   });
 
   const updateIconeMutation = useMutation({
-    mutationFn: ({ id, data }) => base44.entities.ConfiguracaoIcone.update(id, data),
+    mutationFn: ({ id, data }) => atualizarIcone(id, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['configuracao-icones-global'] });
+      queryClient.invalidateQueries({ queryKey: ICONES_QUERY_KEY });
       resetForm();
       toast.success('✅ Ícone atualizado!');
     }
   });
 
   const deleteIconeMutation = useMutation({
-    mutationFn: (id) => base44.entities.ConfiguracaoIcone.update(id, { ativo: false }),
+    mutationFn: (id) => desativarIcone(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['configuracao-icones-global'] });
+      queryClient.invalidateQueries({ queryKey: ICONES_QUERY_KEY });
       toast.success('✅ Ícone removido!');
     }
   });
@@ -116,12 +116,11 @@ export default function GerenciadorIcones() {
 
     setUploadingFile(true);
     try {
-      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      const file_url = await enviarArquivo(file);
       setFormData({ ...formData, icone_url: file_url });
       toast.success('✅ Imagem carregada!');
     } catch (error) {
-      toast.error('❌ Erro ao carregar imagem');
-      console.error(error);
+      toast.error(getApiErrorMessage(error, 'Não foi possível carregar a imagem.'));
     } finally {
       setUploadingFile(false);
     }
@@ -362,12 +361,11 @@ export default function GerenciadorIcones() {
                       if (!file) return;
                       setUploadingFile(true);
                       try {
-                        const { file_url } = await base44.integrations.Core.UploadFile({ file });
+                        const file_url = await enviarArquivo(file);
                         setFormData({ ...formData, sub_icone_url: file_url });
                         toast.success('✅ Sub ícone carregado!');
                       } catch (error) {
-                        toast.error('❌ Erro ao carregar sub ícone');
-                        console.error(error);
+                        toast.error(getApiErrorMessage(error, 'Não foi possível carregar o sub ícone.'));
                       } finally {
                         setUploadingFile(false);
                       }

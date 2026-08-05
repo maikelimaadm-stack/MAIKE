@@ -125,6 +125,16 @@ for (const ocorrencia of atual.publicProviderLeaks) {
   );
 }
 
+// Proveniência entre arquivos (DBT-18): entregar o provider — ou um método cru
+// dele — como argumento é o mesmo vazamento que exportá-lo, só que por outra
+// sintaxe. Passar o **resultado** de uma chamada continua permitido.
+for (const ocorrencia of atual.providerArgLeaks) {
+  registrar(
+    'P11-API-BOUNDARY-PUBLIC-PROVIDER-LEAK',
+    `capacidade de ${PROVIDERS_DIR} passada como argumento: ${ocorrencia}. Passe o resultado da chamada, não a referência.`
+  );
+}
+
 // UI → service → API de módulo → provider. A regra de negócio mora no service;
 // página que importa a API de dados a contorna.
 for (const ocorrencia of atual.serviceBypasses) {

@@ -432,6 +432,8 @@ export const analyzeFile = (source, rel) => {
     providerBindings: new Set(),
     /** Símbolos de `_providers/` que este arquivo exporta. Cada um é um vazamento. */
     publicProviderLeaks: [],
+    /** Chamadas que passam o provider (ou um método cru dele) como argumento. */
+    providerArgLeaks: [],
     /** Imports que endereçam API de módulo: `{alvo, modulo, publico}`. */
     moduleApiImports: [],
   };
@@ -641,7 +643,59 @@ export const analyzeFile = (source, rel) => {
     cresceu = origens.size > antes;
   }
 
-  // ── Terceira passada: o provider escapa por algum export? ───────────────
+  // ── Terceira passada: o provider escapa por argumento? ──────────────────
+  //
+  // Proveniência **entre arquivos** (DBT-18, fechado na P1.4). Exportar o
+  // provider já reprovava; passá-lo como argumento, não — e o efeito é o mesmo:
+  //
+  // ```js
+  // helper(empresaProvider)          // o helper recebe a capacidade inteira
+  // helper(empresaProvider.create)   // recebe a operação crua
+  // helper(await empresaProvider.list())   // recebe DADO — permitido
+  // ```
+  //
+  // O helper pode viver em qualquer arquivo, inclusive num que o gate classifica
+  // como UI. A partir do momento em que ele segura a referência, chama a
+  // operação por fora de `runProviderCall`, da normalização de erro e da
+  // validação de argumento — exatamente o que a fronteira existe para impedir.
+  //
+  // O controle positivo é o terceiro caso: chamada materializada devolve
+  // resultado, e resultado é dado. `ehCapacidade` já faz essa distinção, então a
+  // regra reusa a mesma classificação usada nos exports.
+  //
+  // Roda depois do ponto fixo: só então `origens` contém os aliases locais.
+  {
+    walk(sourceFile, (node) => {
+      const ehChamada = ts.isCallExpression(node) || ts.isNewExpression(node);
+      if (!ehChamada || !node.arguments?.length) return;
+
+      // `import('…')` e `require('…')` recebem string, não provider.
+      if (node.expression?.kind === ts.SyntaxKind.ImportKeyword) return;
+      if (ts.isIdentifier(node.expression) && node.expression.text === 'require') return;
+
+      // `p.list.call(p, …)` e `p.list.apply(p, […])` **executam** a operação: o
+      // primeiro argumento é o receptor, não um repasse de capacidade para
+      // outro arquivo. Em `p.list.bind(p)` o receptor também não é o vazamento —
+      // quem vaza é a função resultante, e ela é classificada onde for usada.
+      const callee = semEnvoltorio(node.expression);
+      const receptorDeChamada =
+        ts.isPropertyAccessExpression(callee) &&
+        ['call', 'apply', 'bind'].includes(callee.name.text) &&
+        ehCapacidade(callee.expression, origens, rel);
+
+      const argumentos = receptorDeChamada ? node.arguments.slice(1) : node.arguments;
+
+      for (const argumento of argumentos) {
+        if (!ehCapacidade(argumento, origens, rel)) continue;
+        const { line, character } = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
+        const alvo = node.expression?.getText?.(sourceFile) ?? '(anônima)';
+        fato.providerArgLeaks.push(`${rel}:${line + 1}:${character + 1} — ${alvo}(… <provider> …)`);
+        break; // uma ocorrência por chamada basta
+      }
+    });
+  }
+
+  // ── Quarta passada: o provider escapa por algum export? ─────────────────
   // Separada porque `import` pode aparecer depois de um `export` no texto, e
   // porque só depois do ponto fixo o conjunto de origens está completo.
   //
@@ -703,6 +757,7 @@ export const scanBoundary = (root = process.cwd()) => {
   const dynamicEntityNaFronteira = [];
   const layerBypasses = [];
   const publicProviderLeaks = [];
+  const providerArgLeaks = [];
   const serviceBypasses = [];
   const moduleInternalBypasses = [];
   const entidadesRegistradas = new Set();
@@ -734,6 +789,10 @@ export const scanBoundary = (root = process.cwd()) => {
     for (const leak of fato.publicProviderLeaks) {
       publicProviderLeaks.push(`${rel} — ${leak}`);
     }
+    // Repasse por argumento é o mesmo vazamento com outra sintaxe. Lista
+    // própria para a mensagem ficar correta; o código emitido é o mesmo
+    // (`P11-API-BOUNDARY-PUBLIC-PROVIDER-LEAK`).
+    providerArgLeaks.push(...fato.providerArgLeaks);
 
     // UI → service → API de módulo → provider. Página, componente ou hook que
     // importe a API pula o service, e com ele a regra de negócio (R2-B2).
@@ -769,6 +828,7 @@ export const scanBoundary = (root = process.cwd()) => {
     dynamicEntityNaFronteira: dynamicEntityNaFronteira.sort(),
     layerBypasses: layerBypasses.sort(),
     publicProviderLeaks: publicProviderLeaks.sort(),
+    providerArgLeaks: providerArgLeaks.sort(),
     serviceBypasses: serviceBypasses.sort(),
     moduleInternalBypasses: moduleInternalBypasses.sort(),
     entidadesRegistradas: [...entidadesRegistradas].sort(),

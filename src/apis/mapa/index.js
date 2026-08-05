@@ -23,5 +23,7 @@ export {
   updateLinha,
   listSetores,
   listIcones,
+  createIcone,
+  updateIcone,
   listBebedouros,
 } from './mapaApi.js';

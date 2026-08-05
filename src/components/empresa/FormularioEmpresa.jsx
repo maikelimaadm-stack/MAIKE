@@ -7,7 +7,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Building2, Upload, X, Save } from "lucide-react";
 import { motion } from "framer-motion";
-import { base44 } from "@/api/base44Client";
+import { enviarArquivo } from "@/services/arquivoService";
+import { getApiErrorMessage } from "@/apis/_core/ApiError";
 import { toast } from "sonner";
 
 const ESTADOS = ["AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"];
@@ -43,11 +44,11 @@ export default function FormularioEmpresa({ onSubmit, onCancel, initialData, isE
 
     setUploadingLogo(true);
     try {
-      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      const file_url = await enviarArquivo(file);
       handleChange('logotipo_url', file_url);
       toast.success('Logotipo enviado com sucesso!');
     } catch (error) {
-      toast.error('Erro ao enviar logotipo.');
+      toast.error(getApiErrorMessage(error, 'Não foi possível enviar o logotipo.'));
     } finally {
       setUploadingLogo(false);
     }

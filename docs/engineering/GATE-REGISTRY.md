@@ -18,7 +18,7 @@ Todos têm teste unitário com casos de falha reais em `scripts/tests/gates/`.
 | **api-boundary** | `npm run gate:api-boundary` | A UI não fala com o provider de dados: fronteira `src/apis/` protegida por identidade de arquivo | D-PROD-18 | `scripts/gates/gate-api-boundary.mjs` |
 | **source-closure** | `npm run gate:source-closure` | Todo arquivo executável em `src/` é alcançável a partir das entradas reais | D-PROD-12 | `scripts/gates/gate-source-closure.mjs` |
 | **import-integrity** | `npm run gate:import-integrity` | Nenhum import estático em `src/` aponta para arquivo inexistente | D-PROD-02 | `scripts/gates/gate-import-integrity.mjs` |
-| **no-secrets** | `npm run gate:no-secrets` | Nenhum segredo literal em **qualquer arquivo versionado**; nenhum `.env` versionado | D-PROD-07 · D-PROD-14 | `scripts/gates/gate-no-hardcoded-secrets.mjs` |
+| **no-secrets** | `npm run gate:no-secrets` | Nenhum segredo literal em **arquivo versionado ou não ignorado**; nenhum `.env` versionado | D-PROD-07 · D-PROD-14 | `scripts/gates/gate-no-hardcoded-secrets.mjs` |
 | **base44** | `npm run gate:base44` | Acoplamento com a Base44 só diminui (catraca, 10 eixos) | D-PROD-04 | `scripts/gates/gate-base44-ratchet.mjs` |
 | **types** | `npm run gate:types` | A dívida de tipos nunca cresce, em nenhum modo (catraca por fingerprint) | D-PROD-11 · D-PROD-13 · D-PROD-17 | `scripts/gates/gate-typecheck-ratchet.mjs` |
 | **verify:all** | `npm run verify:all` | Toda a cadeia, na ordem abaixo | — | `scripts/gates/verify-all.mjs` |
@@ -234,8 +234,32 @@ esse mapa local — cujo domínio está visível no código — em vez do SDK.
 
 ## Scanner de segredos — o valor, não a linha
 
-O gate varre todo arquivo de texto listado por `git ls-files`, com 11 detectores.
-O relato é sempre `arquivo:linha + tipo do segredo`; **o valor nunca é impresso**.
+O gate varre todo arquivo de texto do repositório, com 11 detectores. O relato é
+sempre `arquivo:linha + tipo do segredo`; **o valor nunca é impresso**.
+
+### Cobertura da varredura (DBT-17, fechado na P1.4)
+
+A lista de arquivos é a união, deduplicada, de duas listas do Git:
+
+| Origem | Comando |
+|---|---|
+| rastreados | `git ls-files -z` |
+| não rastreados e não ignorados | `git ls-files -z --others --exclude-standard` |
+
+Até a P1.3 só a primeira existia, e isso tinha uma consequência incômoda:
+arquivo novo com segredo dentro passava batido até o `git add`. O gate ficava
+verde exatamente no momento em que o segredo estava mais fresco e mais perto de
+virar commit — e a CI, que vê o commit inteiro, reprovava depois. Aconteceu de
+verdade na P1.1-R1.
+
+`--exclude-standard` faz o Git aplicar `.gitignore`, `.git/info/exclude` e o
+global. Ou seja: `.env.local` ignorado **continua fora** da varredura, que é
+justamente onde o segredo deve ficar. O que entra é o arquivo que ninguém mandou
+ignorar.
+
+Um `.env` não rastreado e não ignorado é relatado com texto próprio — "a um
+`git add` de ser versionado" —, para o relato não afirmar algo falso sobre o
+estado do Git.
 
 Cada detector declara qual grupo do match é o valor. A decisão de "mascarado"
 olha só para esse valor (D-PROD-14). Ignorar a linha inteira era um bypass real:
@@ -247,6 +271,27 @@ olha só para esse valor (D-PROD-14). Ignorar a linha inteira era um bypass real
 | `const API_KEY = "…real…"; // EXAMPLE` | passava | **reprova** |
 | `const k = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;` | passava | passa |
 | `VITE_GOOGLE_MAPS_API_KEY=SUA_CHAVE` | passava | passa |
+
+## Cobertura do lint (DBT-10, fechado na P1.4)
+
+`npm run lint` roda `eslint .` sobre três árvores inteiras:
+
+| Árvore | Globais |
+|---|---|
+| `src/**/*.{js,mjs,cjs,jsx}` | browser · regras do React e `react-hooks/rules-of-hooks` |
+| `scripts/**/*.{js,mjs,cjs}` | Node · `no-unused-vars` como **erro** |
+| `tests/**` e `scripts/tests/**` | Node + browser + Vitest |
+
+Até a P1.3 a cobertura era nominal: `src/components`, `src/pages`,
+`src/Layout.jsx`, `src/apis`, `src/config` e **um** service citado pelo nome.
+`src/lib`, `src/api`, `src/domain`, o restante de `src/services`, `scripts/` e
+`tests/` ficavam fora — ou seja, a fundação nativa construída na P1 era o código
+menos verificado do repositório.
+
+Não há `ignores` de diretório, regra desligada em massa nem `eslint-disable`
+espalhado. `no-unused-vars` fica desligado em `src/` e em `tests/` de propósito:
+essa dívida é medida pela catraca de tipos, que já impede que ela cresça; ligá-la
+aqui produziria centenas de erros sem informação nova.
 
 ## `gate:api-boundary` — fronteira de dados (D-PROD-18)
 
@@ -282,10 +327,42 @@ Independem do baseline e não têm exceção histórica:
 | arquivo em `src/apis/` importando o client legado sem ser o adapter | `P11-API-BOUNDARY-PROVIDER-LEAK` |
 | objeto do provider reexportado (`export { base44 }`, `export default base44`, alias, reexport direto) | `P11-API-BOUNDARY-PROVIDER-LEAK` |
 | símbolo de `src/apis/_providers/` exportado por `src/apis/<modulo>/` | `P11-API-BOUNDARY-PUBLIC-PROVIDER-LEAK` |
+| provider (ou método cru dele) passado como **argumento** de uma chamada | `P11-API-BOUNDARY-PUBLIC-PROVIDER-LEAK` |
 | página, componente, hook ou `Layout.jsx` importando API de módulo | `P11-API-BOUNDARY-SERVICE-BYPASS` |
 | import de implementação interna de módulo vindo de fora do módulo | `P11-API-BOUNDARY-MODULE-INTERNAL-BYPASS` |
 | acesso computado a `entities` **dentro de `src/apis/`** | `P11-API-BOUNDARY-DYNAMIC-ENTITY` |
 | registry com entidade fora de `allowedBase44Entities` | `P11-API-BOUNDARY-SCOPE` |
+
+#### Proveniência entre arquivos (DBT-18, fechado na P1.4 para argumento)
+
+Exportar o provider já reprovava desde a P1.1-R4. Passá-lo como argumento, não —
+e o efeito é exatamente o mesmo:
+
+```js
+helper(empresaProvider)                // entrega a capacidade inteira    → reprova
+helper(empresaProvider.create)         // entrega a operação crua         → reprova
+helper(empresaProvider.create.bind(p)) // função que ainda executa        → reprova
+helper(await empresaProvider.list())   // entrega DADO                    → passa
+```
+
+O helper pode viver em qualquer arquivo. A partir do momento em que ele segura a
+referência, chama a operação por fora de `runProviderCall`, da normalização de
+erro e da validação de argumento — que é tudo o que a fronteira existe para
+garantir.
+
+A distinção é a mesma que já separava export legítimo de vazamento: **chamada
+materializada devolve resultado, e resultado é dado**. Por isso a regra reusa
+`ehCapacidade`, a mesma classificação usada nos exports, e por isso existe
+controle positivo (`P14-N7`): passar o retorno de uma chamada continua permitido.
+
+Três posições são explicitamente excluídas, porque são receptor e não repasse:
+`p.list.call(p, …)`, `p.list.apply(p, […])` e `p.list.bind(p)`. As duas
+primeiras **executam** a operação ali mesmo; na terceira, o vazamento é a função
+resultante, e ela é classificada onde for usada.
+
+O que continua fora do alcance é a análise semântica de wrapper que só se
+resolve com dataflow entre módulos. Mas sem argumento e sem export, a capacidade
+não tem por onde sair do arquivo.
 
 #### Enforcement de camada (P1.1-R1)
 

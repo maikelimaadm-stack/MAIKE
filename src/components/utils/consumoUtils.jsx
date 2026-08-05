@@ -1,18 +1,22 @@
 /**
- * UTILITÁRIOS CENTRALIZADOS DE CÁLCULO DE CONSUMO
- * 
- * Centraliza toda a lógica de fechamento de período de suplementação.
- * Garante consistência entre todos os pontos que calculam consumo:
- * - FormularioLancamentoSuplementacao (novo lançamento)
- * - FormularioMovimentacaoLote (fechamento antes de mover)
- * - HistoricoSuplementacaoUtils (reversão de exclusão)
+ * CÁLCULO DE CONSUMO DE SUPLEMENTAÇÃO — PURO
+ *
+ * Centraliza a aritmética de fechamento de período e garante consistência entre
+ * os pontos que calculam consumo: novo lançamento, fechamento antes de mover o
+ * lote e reversão de exclusão.
+ *
+ * Desde a P1.4 este arquivo **não faz I/O**. Ele importava `base44` e escrevia
+ * em `SuplementacaoEvento` e `SuplementacaoLote` — persistência dentro de um
+ * módulo de utilitários de cálculo. O que persiste agora é
+ * `src/services/suplementacaoService.js`; o que decide continua aqui.
+ *
+ * Sem React, sem provider, sem `window`.
  */
 
-import { base44 } from "@/api/base44Client";
 import { safeDivide } from "./pecuariaUtils";
 import { buildTimeWeightedLoteAllocations } from "../suplementacao/timeWeightedAllocation";
 
-const parseDateLocal = (value) => {
+export const parseDateLocal = (value) => {
   if (!value) return null;
   if (value instanceof Date) return value;
   if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
@@ -49,12 +53,13 @@ export function calcularDiasPeriodo(dataInicio, dataFim) {
  * 
  * Fórmula: consumo_total = fornecido - sobra_final + sobra_inicial
  * 
- * @param {number} fornecido - Quantidade total fornecida no período (kg)
- * @param {number} sobraFinal - Sobra encontrada ao final do período (kg)
- * @param {number} sobraInicial - Sobra existente no início do período (kg)
- * @param {number} diasPeriodo - Número de dias do período
- * @param {number} pesoTotalConsumo - Soma dos pesos de consumo (cabeças × fatores)
- * @returns {{ consumoTotal, consumoDiarioGrupo, consumoUnitarioDia }}
+ * @param {object} p
+ * @param {number} p.fornecido quantidade total fornecida no período (kg)
+ * @param {number} p.sobraFinal sobra encontrada ao final do período (kg)
+ * @param {number} [p.sobraInicial] sobra existente no início do período (kg)
+ * @param {number} p.diasPeriodo número de dias do período
+ * @param {number} [p.totalCabecas] soma das cabeças afetadas
+ * @returns {{consumoTotal: number, consumoDiarioGrupo: number, consumoPorCabecaDia: number}}
  */
 export function calcularConsumo({ fornecido, sobraFinal, sobraInicial, diasPeriodo, totalCabecas }) {
   const fornecidoNum = Number(fornecido || 0);
@@ -93,23 +98,39 @@ export function calcularConsumoLote({ consumoDiarioGrupo, totalCabecas, cabecas,
   return { percentualLote, consumoDiarioLote, consumoPorCabecaDia, consumoTotalLotePeriodo };
 }
 
-export async function calcularConsumoLotesPonderadoPorTempo({
+/**
+ * Alocação ponderada por tempo a partir de dados **já carregados**.
+ *
+ * A versão anterior fazia três `list()` aqui dentro. O service passou a carregar
+ * e a chamar esta função; a ponderação em si não mudou.
+ *
+ * @param {object} p
+ * @param {object} p.evento
+ * @param {number} p.diasPeriodo
+ * @param {number} p.consumoTotal
+ * @param {Array<object>} p.todosLotesSupl
+ * @param {Array<object>} p.lotesAtivos
+ * @param {Array<object>} p.movimentacoes
+ */
+export function calcularConsumoLotesPonderadoPorTempo({
   evento,
   diasPeriodo,
   consumoTotal,
+  todosLotesSupl,
+  lotesAtivos,
+  movimentacoes,
 }) {
-  const [todosLotesSupl, lotesAtivos, movimentacoes] = await Promise.all([
-    base44.entities.SuplementacaoLote.list(),
-    base44.entities.Lote.list(),
-    base44.entities.MovimentacaoPecuaria.list(),
-  ]);
-
   const lotesDoEvento = todosLotesSupl.filter((l) => l.suplementacao_evento_id === evento.id);
   const lotesRelacionados = lotesAtivos.filter((lote) => lotesDoEvento.some((item) => item.lote_id === lote.id));
   const movimentosRelacionados = movimentacoes.filter((mov) => mov.empresa_id === evento.empresa_id && lotesDoEvento.some((item) => item.lote_id === mov.lote_id));
 
   const dataInicio = evento.data_lancamento;
-  const dataFim = new Date(parseDateLocal(evento.data_lancamento).getTime() + Math.max(1, Number(diasPeriodo || 1)) * 86400000);
+  const inicio = parseDateLocal(evento.data_lancamento);
+  // Sem data de início não há como ponderar por tempo. O legado estourava
+  // `null.getTime()` no meio do fechamento; devolver lista vazia faz o
+  // chamador cair no rateio simples por cabeças, que é o fallback já previsto.
+  if (!inicio) return [];
+  const dataFim = new Date(inicio.getTime() + Math.max(1, Number(diasPeriodo || 1)) * 86400000);
 
   return buildTimeWeightedLoteAllocations({
     lotes: lotesRelacionados,
@@ -122,15 +143,19 @@ export async function calcularConsumoLotesPonderadoPorTempo({
 }
 
 /**
- * Fecha um período de suplementação (evento + lotes vinculados).
- * Atualiza o SuplementacaoEvento e todos os SuplementacaoLote do período.
- * 
- * @param {object} evento - O SuplementacaoEvento a fechar
- * @param {number} diasPeriodo - Dias do período
- * @param {number} sobraFinal - Sobra registrada (kg)
- * @param {function} onProgress - Callback de progresso (opcional)
+ * Métricas de fechamento de um período — puro.
+ *
+ * Recebe o evento, os lotes de suplementação do período e as alocações já
+ * calculadas, e devolve **o que gravar**: o patch do evento e um patch por
+ * lote. Quem grava é o service.
+ *
+ * O `??` de cada campo preserva o fallback do legado: quando não há alocação
+ * ponderada para o lote, vale o rateio simples por cabeças.
+ *
+ * @returns {{consumoTotal: number, consumoDiarioGrupo: number, consumoPorCabecaDia: number,
+ *            patchEvento: object, patchesDeLote: Array<{id: string, patch: object}>}}
  */
-export async function fecharPeriodoSupplementacao({ evento, diasPeriodo, sobraFinal, sobraInicial, onProgress }) {
+export function calcularFechamentoDePeriodo({ evento, diasPeriodo, sobraFinal, sobraInicial, lotesDoEvento, alocacoes }) {
   const { consumoTotal, consumoDiarioGrupo, consumoPorCabecaDia } = calcularConsumo({
     fornecido: evento.quantidade_total_kg,
     sobraFinal,
@@ -139,61 +164,52 @@ export async function fecharPeriodoSupplementacao({ evento, diasPeriodo, sobraFi
     totalCabecas: evento.total_cabecas_afetadas,
   });
 
-  await base44.entities.SuplementacaoEvento.update(evento.id, {
-    sobra_kg: Number(sobraFinal || 0),
-    dias_periodo: diasPeriodo,
-    consumo_diario_grupo_kg: consumoDiarioGrupo,
-  });
+  const alocacaoMap = new Map((alocacoes || []).map((item) => [item.loteId, item]));
 
-  if (onProgress) onProgress("Atualizando lotes do período...");
-
-  const todosLotesSupl = await base44.entities.SuplementacaoLote.list();
-  const lotesDoEvento = todosLotesSupl.filter((l) => l.suplementacao_evento_id === evento.id);
-  const alocacoes = await calcularConsumoLotesPonderadoPorTempo({
-    evento,
-    diasPeriodo,
-    consumoTotal,
-  });
-  const alocacaoMap = new Map(alocacoes.map((item) => [item.loteId, item]));
-
-  await Promise.all(lotesDoEvento.map((loteSupl) => {
+  const patchesDeLote = (lotesDoEvento || []).map((loteSupl) => {
     const alocacao = alocacaoMap.get(loteSupl.lote_id);
     const percentualLote = alocacao?.percentualParticipacao ?? safeDivide(loteSupl.cabecas_na_area, evento.total_cabecas_afetadas);
     const consumoDiarioLote = consumoDiarioGrupo * percentualLote;
     const consumoCabecaLote = alocacao?.consumoPorCabecaDiaKg ?? safeDivide(consumoDiarioLote, loteSupl.cabecas_na_area);
     const consumoTotalLotePeriodo = alocacao?.consumoTotalLotePeriodoKg ?? consumoDiarioLote * diasPeriodo;
 
-    return base44.entities.SuplementacaoLote.update(loteSupl.id, {
-      dias_periodo: diasPeriodo,
-      consumo_unitario_dia: consumoPorCabecaDia,
-      consumo_por_cabeca_dia_kg: consumoCabecaLote,
-      consumo_total_lote_periodo_kg: consumoTotalLotePeriodo,
-      percentual_consumo_lote: percentualLote,
-      animal_dias_periodo: alocacao?.animalDias ?? null,
-      dias_ativos_periodo: alocacao?.diasAtivos ?? null,
-    });
-  }));
-
-  return { consumoTotal, consumoDiarioGrupo, consumoPorCabecaDia };
-}
-
-/**
- * Reabre um período de suplementação (remove métricas de consumo).
- * Usado ao excluir um evento e precisar reabrir o anterior.
- */
-export async function reabrirPeriodoSuplementacao({ eventoId, lotesSupl }) {
-  await base44.entities.SuplementacaoEvento.update(eventoId, {
-    dias_periodo: null,
-    consumo_diario_grupo_kg: null,
+    return {
+      id: loteSupl.id,
+      patch: {
+        dias_periodo: diasPeriodo,
+        consumo_unitario_dia: consumoPorCabecaDia,
+        consumo_por_cabeca_dia_kg: consumoCabecaLote,
+        consumo_total_lote_periodo_kg: consumoTotalLotePeriodo,
+        percentual_consumo_lote: percentualLote,
+        animal_dias_periodo: alocacao?.animalDias ?? null,
+        dias_ativos_periodo: alocacao?.diasAtivos ?? null,
+      },
+    };
   });
 
-  const lotesDoEvento = lotesSupl.filter((item) => item.suplementacao_evento_id === eventoId);
-  for (const lote of lotesDoEvento) {
-    await base44.entities.SuplementacaoLote.update(lote.id, {
-      dias_periodo: null,
-      consumo_unitario_dia: null,
-      consumo_por_cabeca_dia_kg: null,
-      consumo_total_lote_periodo_kg: null,
-    });
-  }
+  return {
+    consumoTotal,
+    consumoDiarioGrupo,
+    consumoPorCabecaDia,
+    patchEvento: {
+      sobra_kg: Number(sobraFinal || 0),
+      dias_periodo: diasPeriodo,
+      consumo_diario_grupo_kg: consumoDiarioGrupo,
+    },
+    patchesDeLote,
+  };
 }
+
+/** Patch que reabre um período: métricas de consumo zeradas no evento. */
+export const PATCH_REABERTURA_EVENTO = Object.freeze({
+  dias_periodo: null,
+  consumo_diario_grupo_kg: null,
+});
+
+/** Patch que reabre um período em cada lote do evento. */
+export const PATCH_REABERTURA_LOTE = Object.freeze({
+  dias_periodo: null,
+  consumo_unitario_dia: null,
+  consumo_por_cabeca_dia_kg: null,
+  consumo_total_lote_periodo_kg: null,
+});

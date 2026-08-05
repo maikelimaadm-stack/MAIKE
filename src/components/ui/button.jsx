@@ -34,6 +34,21 @@ const buttonVariants = cva(
   }
 )
 
+/**
+ * Botão do design system.
+ *
+ * A anotação abaixo é **só de tipo** (P1.4, DBT-03): `React.forwardRef` com
+ * parâmetro implicitamente `any` faz o TypeScript inferir
+ * `ForwardRefExoticComponent<RefAttributes<any>>` — um componente que, segundo o
+ * verificador, não aceita **nenhuma** prop. Resultado: cada `<Button
+ * variant=… size=…>Texto</Button>` do produto virava um `TS2322`, e havia
+ * centenas deles. Nada disso indicava defeito real; era ruído que escondia a
+ * dívida de tipos que importa.
+ *
+ * Zero efeito em runtime: o componente é o mesmo, byte por byte.
+ *
+ * @type {any}
+ */
 const Button = React.forwardRef(({ className, variant, size, asChild = false, ...props }, ref) => {
   const Comp = asChild ? Slot : "button"
   return (

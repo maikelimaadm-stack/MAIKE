@@ -1,5 +1,13 @@
 import React, { useState } from "react";
-import { base44 } from "@/api/base44Client";
+import {
+  getCurrentUser,
+  listarUsuarios,
+  listarPermissoes,
+  permissaoDoUsuario,
+  salvarPermissao,
+  removerPermissao,
+} from "@/services/sessionService";
+import { getApiErrorMessage, hasApiErrorCode, API_ERROR_CODES } from "@/apis/_core/ApiError";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { AnimatePresence } from "framer-motion";
@@ -16,15 +24,17 @@ export default function Usuarios() {
 
   const { data: currentUser } = useQuery({
     queryKey: ["currentUser"],
-    queryFn: () => base44.auth.me(),
+    queryFn: () => getCurrentUser(),
   });
 
   const { data: usuarios = [], isLoading } = useQuery({
     queryKey: ["usuarios"],
     queryFn: async () => {
       try {
-        return await base44.entities.User.list("-created_date");
+        return await listarUsuarios();
       } catch {
+        // Sem permissão para listar usuários a tela ainda funciona com as
+        // permissões já gravadas — comportamento preservado da P0.
         return [];
       }
     },
@@ -33,36 +43,26 @@ export default function Usuarios() {
 
   const { data: permissoes = [] } = useQuery({
     queryKey: ["permissoes"],
-    queryFn: () => base44.entities.Permissao.list(),
+    queryFn: () => listarPermissoes(),
     initialData: [],
   });
 
   const updatePermissaoMutation = useMutation({
-    mutationFn: async (data) => {
-      const existente = permissoes.find((item) => item.user_email === data.user_email);
+    mutationFn: (data) => {
+      // O nome de exibição continua sendo resolvido aqui: é regra de
+      // apresentação. A montagem do payload e a propagação para `User.nome`
+      // saíram para o service.
+      const existente = permissaoDoUsuario(permissoes, data.user_email);
       const usuario = usuarios.find((item) => item.email === data.user_email);
       const userNome = (data.user_nome || getPermissionDisplayName(existente, usuario) || getUserDisplayName(usuario)).trim();
-      const nomeAtualUsuario = getUserDisplayName(usuario);
 
-      if (usuario?.id && userNome && userNome !== nomeAtualUsuario) {
-        await base44.entities.User.update(usuario.id, { nome: userNome });
-      }
-
-      const payload = {
-        user_email: data.user_email,
-        user_nome: userNome,
-        modulos_permitidos: data.modulos_permitidos || [],
-        permissoes_telas: data.permissoes_telas || [],
-        mobile_menu_ids: data.mobile_menu_ids || [],
-        is_admin: !!data.is_admin,
-        mapa_geral_permissoes: data.mapa_geral_permissoes || {},
-      };
-
-      if (existente) {
-        return base44.entities.Permissao.update(existente.id, payload);
-      }
-
-      return base44.entities.Permissao.create(payload);
+      return salvarPermissao({
+        dados: data,
+        permissoes,
+        usuarios,
+        userNome,
+        nomeAtualUsuario: getUserDisplayName(usuario),
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["permissoes"] });
@@ -72,23 +72,24 @@ export default function Usuarios() {
       toast.success("Permissões atualizadas!");
     },
     onError: (error) => {
-      toast.error(error.message || "Erro ao salvar permissões.");
+      toast.error(getApiErrorMessage(error, "Não foi possível salvar as permissões."));
     },
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (userEmail) => {
-      const permissao = permissoes.find((item) => item.user_email === userEmail);
-      if (permissao) {
-        await base44.entities.Permissao.delete(permissao.id);
-      }
-    },
-    onSuccess: () => {
+    mutationFn: (userEmail) =>
+      removerPermissao({ userEmail, permissoes, emailDoUsuarioAtual: currentUser?.email }),
+    onSuccess: ({ removida }) => {
       queryClient.invalidateQueries({ queryKey: ["permissoes"] });
-      toast.success("Permissões removidas!");
+      if (removida) toast.success("Permissões removidas!");
     },
-    onError: () => {
-      toast.error("Erro ao remover permissões.");
+    onError: (error) => {
+      // Bloqueio por código, nunca por texto.
+      if (hasApiErrorCode(error, API_ERROR_CODES.PERMISSAO_SELF_DELETE_BLOCKED)) {
+        toast.error(getApiErrorMessage(error));
+        return;
+      }
+      toast.error(getApiErrorMessage(error, "Não foi possível remover as permissões."));
     },
   });
 
@@ -97,7 +98,7 @@ export default function Usuarios() {
   };
 
   const handleEdit = (usuario) => {
-    const permissao = permissoes.find((item) => item.user_email === usuario.email);
+    const permissao = permissaoDoUsuario(permissoes, usuario.email);
     setEditingUsuario({
       ...usuario,
       user_email: usuario.email,
@@ -112,13 +113,18 @@ export default function Usuarios() {
   };
 
   const handleDelete = async (userEmail) => {
+    // A autoexclusão é bloqueada no service; aqui só evitamos abrir a confirmação.
     if (currentUser?.email === userEmail) {
       toast.error("Você não pode remover suas próprias permissões.");
       return;
     }
 
     if (window.confirm("REMOVER TODAS AS PERMISSÕES DESTE USUÁRIO?")) {
-      await deleteMutation.mutateAsync(userEmail);
+      try {
+        await deleteMutation.mutateAsync(userEmail);
+      } catch {
+        // A mensagem já foi exibida por `onError`.
+      }
     }
   };
 

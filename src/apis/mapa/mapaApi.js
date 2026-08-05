@@ -130,5 +130,25 @@ export const listSetores = async () =>
 export const listIcones = async () =>
   comoLista(await runProviderCall(() => mapaProvider.listIcones(), ctx('listIcones')));
 
+/**
+ * Cadastro de ícone (P1.4).
+ *
+ * O gerenciador vive em Configurações, mas a entidade é do mapa: é ele quem
+ * desenha área, ponto, cocho, depósito e lote com esses ícones. Ampliar a API
+ * do mapa evita um segundo dono para a mesma entidade.
+ */
+export const createIcone = async (dados) => {
+  const contexto = ctx('createIcone');
+  assertArgument(isObjeto(dados), 'dados', contexto);
+  return runProviderCall(() => mapaProvider.createIcone(dados), contexto);
+};
+
+export const updateIcone = async (id, dados) => {
+  const contexto = ctx('updateIcone');
+  assertArgument(isId(id), 'id', contexto);
+  assertArgument(isObjeto(dados), 'dados', contexto);
+  return runProviderCall(() => mapaProvider.updateIcone(id, dados), { ...contexto, details: { id } });
+};
+
 export const listBebedouros = async () =>
   comoLista(await runProviderCall(() => mapaProvider.listBebedouros(), ctx('listBebedouros')));

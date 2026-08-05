@@ -2,9 +2,16 @@
 /**
  * Gate: segredos.
  *
- * Contrato endurecido (P0.1-R1): a varredura usa a lista real de arquivos
- * versionados no Git — não apenas `src/` e a raiz. Binários, `node_modules`,
- * `dist` e fixtures isoladas ficam de fora.
+ * Contrato endurecido (P0.1-R1): a varredura usa a lista real de arquivos do
+ * Git — não apenas `src/` e a raiz. Binários, `node_modules`, `dist` e fixtures
+ * isoladas ficam de fora.
+ *
+ * **P1.4 (DBT-17):** a varredura passou a incluir também os arquivos
+ * **não rastreados e não ignorados**. Antes, um arquivo novo com segredo dentro
+ * passava batido até o `git add` — quer dizer, o gate ficava verde exatamente no
+ * momento em que o segredo estava mais fresco e mais fácil de vazar num commit
+ * distraído. O que continua fora é o que o `.gitignore` manda ignorar: `.env.local`
+ * ignorado não é varrido, porque é justamente onde o segredo **deve** ficar.
  *
  * O valor encontrado NUNCA é impresso. O relato é `arquivo:linha + tipo`.
  *
@@ -93,14 +100,34 @@ export const scanLine = (linha) => {
   return achados;
 };
 
-/** Lista os arquivos versionados no Git. */
-export const listTrackedFiles = (root = ROOT) => {
-  const out = execFileSync('git', ['-C', root, 'ls-files', '-z'], {
+const gitLines = (root, args) => {
+  const out = execFileSync('git', ['-C', root, ...args], {
     encoding: 'utf8',
     maxBuffer: 1024 * 1024 * 64,
   });
   return out.split('\0').filter(Boolean);
 };
+
+/** Arquivos versionados no Git. */
+export const listTrackedFiles = (root = ROOT) => gitLines(root, ['ls-files', '-z']);
+
+/**
+ * Arquivos presentes na árvore mas **não rastreados** e **não ignorados**.
+ *
+ * `--exclude-standard` faz o Git aplicar `.gitignore`, `.git/info/exclude` e o
+ * global — então `.env.local` ignorado não aparece aqui.
+ */
+export const listUntrackedFiles = (root = ROOT) =>
+  gitLines(root, ['ls-files', '-z', '--others', '--exclude-standard']);
+
+/**
+ * União ordenada e deduplicada das duas listas.
+ *
+ * Um arquivo pode aparecer nas duas em cenários de índice parcial; varrer duas
+ * vezes duplicaria o achado e a contagem final.
+ */
+export const listScannableFiles = (root = ROOT) =>
+  [...new Set([...listTrackedFiles(root), ...listUntrackedFiles(root)])].sort();
 
 const isIgnored = (rel) =>
   IGNORED_PREFIXES.some((p) => rel.startsWith(p)) || FIXTURE_PREFIXES.some((p) => rel.startsWith(p));
@@ -125,12 +152,19 @@ export const isTrackedEnvFile = (rel) => {
  */
 export const scan = (root = ROOT) => {
   const achados = [];
+  const rastreados = new Set(listTrackedFiles(root));
 
-  for (const rel of listTrackedFiles(root)) {
+  for (const rel of listScannableFiles(root)) {
     if (isIgnored(rel)) continue;
 
     if (isTrackedEnvFile(rel)) {
-      achados.push({ file: rel, line: null, rule: 'arquivo .env versionado', code: 'P01-SECRET-ENV-TRACKED' });
+      // O `.env` não rastreado que chega aqui **não** está no `.gitignore` —
+      // está a um `git add .` de virar segredo versionado. O relato distingue
+      // os dois casos para não afirmar algo falso sobre o estado do Git.
+      const rule = rastreados.has(rel)
+        ? 'arquivo .env versionado'
+        : 'arquivo .env não ignorado (a um `git add` de ser versionado)';
+      achados.push({ file: rel, line: null, rule, code: 'P01-SECRET-ENV-TRACKED' });
       continue;
     }
 
@@ -178,6 +212,6 @@ if (executadoDireto) {
     process.exit(1);
   }
 
-  const total = listTrackedFiles().filter((f) => !isIgnored(f)).length;
-  console.log(`gate:no-secrets — PASSOU (${total} arquivos versionados verificados, 0 segredos)`);
+  const total = listScannableFiles().filter((f) => !isIgnored(f)).length;
+  console.log(`gate:no-secrets — PASSOU (${total} arquivos verificados, 0 segredos)`);
 }

@@ -11,6 +11,7 @@ import { listTodasMovimentacoes, listMovimentacoesPecuarias } from '@/apis/lotes
 import { listLancamentos } from '@/apis/tarefas';
 import { listAreas } from '@/apis/mapa';
 import { API_ERROR_CODES } from '@/apis/_core/ApiError';
+import { parseDecimalPtBR, parseInteiroPtBR } from '@/domain/numeroPtBR';
 import { assertExclusaoPermitida } from './deleteGuardService';
 
 /** @param {any[]} items @param {string} empresaId @returns {any[]} */
@@ -53,8 +54,10 @@ export const normalizarSetor = (dados, { empresaId, numeroSetor } = {}) => {
     endereco: maiusculoOuNulo(dados.endereco),
     cidade: maiusculoOuNulo(dados.cidade),
     observacoes: maiusculoOuNulo(dados.observacoes),
-    area_total: dados.area_total ? parseFloat(dados.area_total) : null,
-    capacidade_animais: dados.capacidade_animais ? parseInt(dados.capacidade_animais, 10) : null,
+    // DBT-25 fechado na P1.4: `parseFloat('12,5')` devolvia 12 e a metade
+    // decimal sumia sem aviso. `parseDecimalPtBR` entende vírgula e ponto.
+    area_total: parseDecimalPtBR(dados.area_total),
+    capacidade_animais: parseInteiroPtBR(dados.capacidade_animais),
   };
   if (empresaId) payload.empresa_id = empresaId;
   if (numeroSetor !== undefined) payload.numero_setor = numeroSetor;

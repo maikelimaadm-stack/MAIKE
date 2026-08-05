@@ -1,3 +1,26 @@
+/**
+ * Normalização de texto do produto (P0 · reescrita provider-agnostic em P1.4).
+ *
+ * Este módulo era, até a P1.3, um **monkey patch global**:
+ * `installTextNormalization(base44Client)` varria `Object.values(base44Client.entities)`
+ * e substituía `create`, `update`, `bulkCreate`, `list`, `filter`, `get`,
+ * `subscribe` e os métodos de `auth` de cada entidade do SDK, in place. Três
+ * problemas, e nenhum deles é estético:
+ *
+ *  1. o módulo conhecia o provider — `entities` é vocabulário da Base44, e a
+ *     P7 troca o provider inteiro;
+ *  2. a substituição era invisível: nada no código de chamada indicava que
+ *     `Produto.list()` devolvia dado formatado;
+ *  3. mutar objeto do SDK depende de o SDK expor os métodos como propriedades
+ *     graváveis — contrato que ninguém prometeu.
+ *
+ * Agora o comportamento observável é o mesmo, mas por **composição explícita**:
+ * o provider chama {@link createNormalizedEntityAdapter} com o endpoint já
+ * resolvido e recebe um objeto novo. Nada é mutado, e este arquivo não sabe o
+ * que é Base44 — recebe um objeto com operações e devolve outro com as mesmas
+ * operações embrulhadas.
+ */
+
 function normalizeWhitespace(value = "") {
   return String(value).replace(/\s+/g, " ").trim();
 }
@@ -77,91 +100,86 @@ export function formatDataForDisplay(value, key = "") {
   return normalized;
 }
 
-function wrapAsyncResult(fn, transformInput, transformOutput) {
-  return async (...args) => {
-    const nextArgs = transformInput ? transformInput(args) : args;
-    const result = await fn(...nextArgs);
-    return transformOutput ? transformOutput(result) : result;
-  };
-}
+/**
+ * Operações de entidade que a normalização conhece.
+ *
+ * Lista fechada e literal: uma operação que não esteja aqui atravessa sem
+ * embrulho, e é isso que se quer — o adapter não inventa comportamento para
+ * método que não sabe tratar.
+ */
+export const NORMALIZED_ENTITY_OPERATIONS = Object.freeze([
+  'create',
+  'update',
+  'bulkCreate',
+  'list',
+  'filter',
+  'get',
+  'subscribe',
+]);
 
-export function installTextNormalization(base44Client) {
-  Object.values(base44Client.entities || {}).forEach((entityApi) => {
-    if (!entityApi || entityApi.__textNormalizationApplied) return;
-
-    if (typeof entityApi.create === "function") {
-      const original = entityApi.create.bind(entityApi);
-      entityApi.create = wrapAsyncResult(
-        original,
-        (args) => [normalizeDataForStorage(args[0])],
-        (result) => formatDataForDisplay(result)
-      );
-    }
-
-    if (typeof entityApi.update === "function") {
-      const original = entityApi.update.bind(entityApi);
-      entityApi.update = wrapAsyncResult(
-        original,
-        (args) => [args[0], normalizeDataForStorage(args[1])],
-        (result) => formatDataForDisplay(result)
-      );
-    }
-
-    if (typeof entityApi.bulkCreate === "function") {
-      const original = entityApi.bulkCreate.bind(entityApi);
-      entityApi.bulkCreate = wrapAsyncResult(
-        original,
-        (args) => [normalizeDataForStorage(args[0])],
-        (result) => formatDataForDisplay(result)
-      );
-    }
-
-    if (typeof entityApi.list === "function") {
-      const original = entityApi.list.bind(entityApi);
-      entityApi.list = wrapAsyncResult(original, null, (result) => formatDataForDisplay(result));
-    }
-
-    if (typeof entityApi.filter === "function") {
-      const original = entityApi.filter.bind(entityApi);
-      entityApi.filter = wrapAsyncResult(original, null, (result) => formatDataForDisplay(result));
-    }
-
-    if (typeof entityApi.get === "function") {
-      const original = entityApi.get.bind(entityApi);
-      entityApi.get = wrapAsyncResult(original, null, (result) => formatDataForDisplay(result));
-    }
-
-    if (typeof entityApi.subscribe === "function") {
-      const original = entityApi.subscribe.bind(entityApi);
-      entityApi.subscribe = (callback, ...args) => {
-        return original((event) => {
-          callback({
-            ...event,
-            data: formatDataForDisplay(event?.data),
-            old_data: formatDataForDisplay(event?.old_data),
-          });
-        }, ...args);
-      };
-    }
-
-    entityApi.__textNormalizationApplied = true;
-  });
-
-  if (base44Client.auth && !base44Client.auth.__textNormalizationApplied) {
-    if (typeof base44Client.auth.me === "function") {
-      const original = base44Client.auth.me.bind(base44Client.auth);
-      base44Client.auth.me = wrapAsyncResult(original, null, (result) => formatDataForDisplay(result));
-    }
-
-    if (typeof base44Client.auth.updateMe === "function") {
-      const original = base44Client.auth.updateMe.bind(base44Client.auth);
-      base44Client.auth.updateMe = wrapAsyncResult(
-        original,
-        (args) => [normalizeDataForStorage(args[0])],
-        (result) => formatDataForDisplay(result)
-      );
-    }
-
-    base44Client.auth.__textNormalizationApplied = true;
+/**
+ * Embrulha um endpoint de entidade **já resolvido** com a normalização.
+ *
+ * Sem nome aberto: quem chama já resolveu o endpoint, e `entityName` entra só
+ * como rótulo — nenhuma busca é feita com ele.
+ *
+ * @param {{entityName: string, endpoint: object}} p
+ * @returns {object} objeto novo; o endpoint recebido não é mutado
+ */
+export const createNormalizedEntityAdapter = ({ entityName, endpoint }) => {
+  if (!endpoint || typeof endpoint !== 'object') {
+    throw new Error(`normalização: endpoint inválido para "${entityName}"`);
   }
-}
+
+  const adapter = { ...endpoint };
+
+  if (typeof endpoint.create === 'function') {
+    adapter.create = async (dados) => formatDataForDisplay(await endpoint.create(normalizeDataForStorage(dados)));
+  }
+  if (typeof endpoint.update === 'function') {
+    adapter.update = async (id, dados) =>
+      formatDataForDisplay(await endpoint.update(id, normalizeDataForStorage(dados)));
+  }
+  if (typeof endpoint.bulkCreate === 'function') {
+    adapter.bulkCreate = async (registros) =>
+      formatDataForDisplay(await endpoint.bulkCreate(normalizeDataForStorage(registros)));
+  }
+  if (typeof endpoint.list === 'function') {
+    adapter.list = async (...args) => formatDataForDisplay(await endpoint.list(...args));
+  }
+  if (typeof endpoint.filter === 'function') {
+    adapter.filter = async (...args) => formatDataForDisplay(await endpoint.filter(...args));
+  }
+  if (typeof endpoint.get === 'function') {
+    adapter.get = async (...args) => formatDataForDisplay(await endpoint.get(...args));
+  }
+  if (typeof endpoint.subscribe === 'function') {
+    adapter.subscribe = (callback, ...args) =>
+      endpoint.subscribe((evento) => {
+        callback({
+          ...evento,
+          data: formatDataForDisplay(evento?.data),
+          old_data: formatDataForDisplay(evento?.old_data),
+        });
+      }, ...args);
+  }
+
+  return adapter;
+};
+
+/**
+ * Mesma ideia para as operações de sessão que devolvem ou recebem dado de
+ * usuário. `logout` e `redirectToLogin` passam intactos: não carregam payload.
+ *
+ * @param {{me?: Function, updateMe?: Function}} operacoes
+ */
+export const createNormalizedSessionAdapter = (operacoes) => {
+  const adapter = { ...operacoes };
+  if (typeof operacoes.me === 'function') {
+    adapter.me = async (...args) => formatDataForDisplay(await operacoes.me(...args));
+  }
+  if (typeof operacoes.updateMe === 'function') {
+    adapter.updateMe = async (dados) => formatDataForDisplay(await operacoes.updateMe(normalizeDataForStorage(dados)));
+  }
+  return adapter;
+};

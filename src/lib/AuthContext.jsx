@@ -1,9 +1,20 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
 import { getDataProviderConfig } from '@/config/runtimeConfig';
+import {
+  verificarAutenticacao,
+  carregarConfiguracoesPublicas,
+  encerrarSessao,
+  irParaLogin,
+} from '@/services/sessionService';
 
 const AuthContext = createContext();
 
+/**
+ * `token` continua sendo lido aqui por um motivo só: decidir **se** vale a pena
+ * consultar o usuário. Nenhuma requisição é montada neste arquivo desde a P1.4
+ * — a URL das configurações públicas e o cabeçalho `Authorization` vivem no
+ * provider, que é quem sabe o que é Base44.
+ */
 const appParams = getDataProviderConfig();
 
 export const AuthProvider = ({ children }) => {
@@ -23,30 +34,10 @@ export const AuthProvider = ({ children }) => {
       setIsLoadingPublicSettings(true);
       setAuthError(null);
       
-      // First, check app public settings (with token if available)
-      // This will tell us if auth is required, user not registered, etc.
-      const headers = {
-        'X-App-Id': appParams.appId
-      };
-
-      if (appParams.token) {
-        headers.Authorization = `Bearer ${appParams.token}`;
-      }
-      
+      // Primeiro, as configurações públicas do app: elas dizem se a
+      // autenticação é obrigatória, se o usuário não está registrado, etc.
       try {
-        const response = await fetch(`${appParams.serverUrl}/api/apps/public/prod/public-settings/by-id/${appParams.appId}`, {
-          headers
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => null);
-          const error = new Error('Failed to load app public settings');
-          error.status = response.status;
-          error.data = errorData;
-          throw error;
-        }
-
-        const publicSettings = await response.json();
+        const publicSettings = await carregarConfiguracoesPublicas();
         setAppPublicSettings(publicSettings);
         
         // If we got the app public settings successfully, check if user is authenticated
@@ -100,25 +91,22 @@ export const AuthProvider = ({ children }) => {
   };
 
   const checkUserAuth = async () => {
-    try {
-      // Now check if the user is authenticated
-      setIsLoadingAuth(true);
-      const currentUser = await base44.auth.me();
-      setUser(currentUser);
-      setIsAuthenticated(true);
-      setIsLoadingAuth(false);
-    } catch (error) {
-      console.error('User auth check failed:', error);
-      setIsLoadingAuth(false);
-      setIsAuthenticated(false);
-      
-      // If user auth fails, it might be an expired token
-      if (error.status === 401 || error.status === 403) {
-        setAuthError({
-          type: 'auth_required',
-          message: 'Authentication required'
-        });
-      }
+    // Sem fallback offline aqui de propósito: `verificarAutenticacao` devolve um
+    // veredito. Se a chamada falhou, a sessão não está autenticada — e um token
+    // expirado (401/403) precisa levar à tela de login, não ao último usuário
+    // conhecido em cache.
+    setIsLoadingAuth(true);
+    const veredito = await verificarAutenticacao();
+
+    setUser(veredito.usuario);
+    setIsAuthenticated(veredito.autenticado);
+    setIsLoadingAuth(false);
+
+    if (!veredito.autenticado && veredito.precisaAutenticar) {
+      setAuthError({
+        type: 'auth_required',
+        message: 'Authentication required'
+      });
     }
   };
 
@@ -126,18 +114,12 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
     setIsAuthenticated(false);
     
-    if (shouldRedirect) {
-      // Use the SDK's logout method which handles token cleanup and redirect
-      base44.auth.logout(window.location.href);
-    } else {
-      // Just remove the token without redirect
-      base44.auth.logout();
-    }
+    // Com URL, o provider limpa o token e redireciona; sem URL, só limpa.
+    encerrarSessao(shouldRedirect ? window.location.href : undefined);
   };
 
   const navigateToLogin = () => {
-    // Use the SDK's redirectToLogin method
-    base44.auth.redirectToLogin(window.location.href);
+    irParaLogin(window.location.href);
   };
 
   return (

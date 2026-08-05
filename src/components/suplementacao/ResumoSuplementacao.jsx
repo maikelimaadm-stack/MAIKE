@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { listarLotesDaEmpresa, listarEventosDaEmpresa } from "@/services/suplementacaoService";
 import { formatDateBR, formatKg } from "../utils/pecuariaUtils";
 import { formatConsumoGramasCabDia, formatConsumoKgCabDia, formatQuantidadeTecnica } from "./formatters";
 import DesvioConsumoTag from "./DesvioConsumoTag";
@@ -11,7 +11,7 @@ export default function ResumoSuplementacao({ lotesIds = [], modo = "completo", 
   const { data: lotesAtuais = [] } = useQuery({
     queryKey: ["suplementacao-lotes-atuais", empresaSelecionadaId, lotesIds.join("|")],
     queryFn: async () => {
-      const all = await base44.entities.Lote.list();
+      const all = await listarLotesDaEmpresa(empresaSelecionadaId);
       return all.filter((lote) => lote.empresa_id === empresaSelecionadaId && lotesIds.includes(lote.id) && lote.status === "Ativo");
     },
     enabled: !!empresaSelecionadaId && lotesIds.length > 0,
@@ -20,7 +20,7 @@ export default function ResumoSuplementacao({ lotesIds = [], modo = "completo", 
   const { data: eventosArea = [] } = useQuery({
     queryKey: ["suplementacao-eventos-area-resumo", empresaSelecionadaId, areaId],
     queryFn: async () => {
-      const all = await base44.entities.SuplementacaoEvento.list("-data_lancamento");
+      const all = await listarEventosDaEmpresa(empresaSelecionadaId);
       return all.filter((evento) => {
         if (evento.empresa_id !== empresaSelecionadaId) return false;
         if (!areaId) return true;

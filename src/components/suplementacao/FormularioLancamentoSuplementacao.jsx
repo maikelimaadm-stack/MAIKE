@@ -6,13 +6,28 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { getCurrentUser } from "@/services/sessionService";
+import {
+  carregarPontoAtualizado,
+  listarPontosDaEmpresa,
+  listarAreasDaEmpresa,
+  listarLotesDaEmpresa,
+  listarProdutosDaEmpresa,
+  listarLotesNotaDaEmpresa,
+  listarMovimentacoesPecuariasDaEmpresa,
+  listarEventosDoPonto,
+  ultimoEventoDoPonto,
+  registrarLancamento,
+  fecharPeriodoSuplementacao,
+} from "@/services/suplementacaoService";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import { getApiErrorMessage } from "@/apis/_core/ApiError";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { updateMapaCachedData, refreshMapaCacheEntry } from "@/services/mapaCacheService";
 import { Progress } from "@/components/ui/progress";
-import { normalizeText, obterSaldoProdutoLocal, parseNumber, registrarSaidaSuplementacao } from "./estoqueSuplementacaoUtils";
+import { normalizeText, obterSaldoProdutoLocal, parseNumber, validarBaixaFIFO } from "./estoqueSuplementacaoUtils";
+import { registrarSaidaSuplementacao } from "@/services/suplementacaoEstoqueService";
 import { formatDecimal } from "./formatters";
 import { calcularDiasPeriodo } from "../utils/consumoUtils";
 import { buildTimeWeightedLoteAllocations } from "./timeWeightedAllocation";
@@ -59,15 +74,14 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
     observacoes: "",
   });
 
-  const { data: user } = useQuery({ queryKey: ["user-suplementacao-form"], queryFn: () => base44.auth.me() });
+  const { data: user } = useQuery({ queryKey: ["user-suplementacao-form"], queryFn: () => getCurrentUser() });
 
   // Busca o ponto SEMPRE do banco para garantir deposito_origem_id e area_vinculada_ids corretos (ignora cache)
   const { data: pontoFresh = null, isLoading: loadingPontoFresh } = useQuery({
     queryKey: ["ponto-fresh-lancamento", ponto?.id],
     queryFn: async () => {
       if (!ponto?.id) return null;
-      const all = await base44.entities.PontoSuplementacao.list();
-      return all.find((item) => item.id === ponto.id) || ponto;
+      return (await carregarPontoAtualizado(ponto.id)) || ponto;
     },
     enabled: !!ponto?.id,
     staleTime: 0,
@@ -89,8 +103,8 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
   const { data: areas = [] } = useQuery({
     queryKey: ["areas-vinculadas-suplementacao", empresaSelecionadaId],
     queryFn: async () => {
-      const all = await base44.entities.AreaPastagem.list();
-      return all.filter((area) => area.empresa_id === empresaSelecionadaId && area.ativo !== false);
+      const all = await listarAreasDaEmpresa(empresaSelecionadaId);
+      return all.filter((area) => area.ativo !== false);
     },
     enabled: !!empresaSelecionadaId,
   });
@@ -106,8 +120,8 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
   const { data: lotes = [], isLoading: loadingLotes } = useQuery({
     queryKey: ["lotes-area", areaIdsVinculados.join("|")],
     queryFn: async () => {
-      const all = await base44.entities.Lote.list();
-      return all.filter((lote) => lote.empresa_id === empresaSelecionadaId && areaIdsVinculados.includes(lote.area_atual_id) && lote.status === "Ativo");
+      const all = await listarLotesDaEmpresa(empresaSelecionadaId);
+      return all.filter((lote) => areaIdsVinculados.includes(lote.area_atual_id) && lote.status === "Ativo");
     },
     enabled: !!empresaSelecionadaId && areaIdsVinculados.length > 0,
   });
@@ -115,25 +129,19 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
 
   const { data: ultimoEvento } = useQuery({
     queryKey: ["ultimo-evento-ponto", empresaSelecionadaId, ponto?.id],
-    queryFn: async () => {
-      const eventos = await base44.entities.SuplementacaoEvento.filter({
-        empresa_id: empresaSelecionadaId,
-        ponto_suplementacao_id: ponto?.id,
-      }, "-data_lancamento", 1);
-      return eventos[0] || null;
-    },
+    queryFn: () => ultimoEventoDoPonto({ empresaId: empresaSelecionadaId, pontoId: ponto?.id }),
     enabled: !!empresaSelecionadaId && !!ponto?.id,
   });
 
   const { data: produtosSuplementacao = [] } = useQuery({
     queryKey: ["produtos-suplementacao-lancamento", empresaSelecionadaId, ponto?.produto_padrao],
     queryFn: async () => {
-      const all = await base44.entities.Produto.list();
+      const all = await listarProdutosDaEmpresa(empresaSelecionadaId);
       return all.filter((produto) => {
         const tipoUso = normalizeText(produto.tipo_uso || "");
         const ehNutricaoAnimal = tipoUso === normalizeText("Nutrição Animal");
         const produtoMarcadoNoPonto = ponto?.produto_padrao && normalizeText(produto.nome_produto) === normalizeText(ponto.produto_padrao);
-        return produto.empresa_id === empresaSelecionadaId && (ehNutricaoAnimal || produtoMarcadoNoPonto);
+        return ehNutricaoAnimal || produtoMarcadoNoPonto;
       });
     },
     enabled: !!empresaSelecionadaId,
@@ -146,7 +154,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
   const { data: depositoVinculado = null } = useQuery({
     queryKey: ["deposito-vinculado-cocho", ponto?.id, depositoOrigemId, depositoOrigemNome],
     queryFn: async () => {
-      const all = await base44.entities.PontoSuplementacao.list();
+      const all = await listarPontosDaEmpresa(empresaSelecionadaId);
       return all.find((item) => item.id === depositoOrigemId)
         || all.find((item) => normalizeText(item.nome_ponto) === normalizeText(depositoOrigemNome) && normalizeText(item.categoria_ponto) === "DEPOSITO")
         || null;
@@ -158,29 +166,21 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
   const { data: lotesNota = [] } = useQuery({
     queryKey: ["lotes-nota-suplementacao", empresaSelecionadaId],
     queryFn: async () => {
-      const all = await base44.entities.EstoqueLoteNota.list();
-      return all.filter((lote) => lote.empresa_id === empresaSelecionadaId && lote.status === "Disponivel");
+      const all = await listarLotesNotaDaEmpresa(empresaSelecionadaId);
+      return all.filter((lote) => lote.status === "Disponivel");
     },
     enabled: !!empresaSelecionadaId,
   });
 
   const { data: eventosRecentes = [] } = useQuery({
     queryKey: ["eventos-recentes-ponto", empresaSelecionadaId, ponto?.id],
-    queryFn: async () => {
-      return await base44.entities.SuplementacaoEvento.filter({
-        empresa_id: empresaSelecionadaId,
-        ponto_suplementacao_id: ponto?.id,
-      }, "-data_lancamento", 12);
-    },
+    queryFn: () => listarEventosDoPonto({ empresaId: empresaSelecionadaId, pontoId: ponto?.id, limit: 12 }),
     enabled: !!empresaSelecionadaId && !!ponto?.id,
   });
 
   const { data: movimentacoesPecuaria = [] } = useQuery({
     queryKey: ["movimentacoes-pecuaria-suplementacao", empresaSelecionadaId],
-    queryFn: async () => {
-      const all = await base44.entities.MovimentacaoPecuaria.list();
-      return all.filter((mov) => mov.empresa_id === empresaSelecionadaId);
-    },
+    queryFn: () => listarMovimentacoesPecuariasDaEmpresa(empresaSelecionadaId),
     enabled: !!empresaSelecionadaId,
     staleTime: 2 * 60 * 1000,
   });
@@ -401,6 +401,22 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
 
       let movimentoEstoque = null;
       if (deveBaixarDeposito) {
+        // A validação é pura e roda **antes** de qualquer escrita: é ela que
+        // produz a frase específica ("Saldo insuficiente neste local.
+        // Disponível: …"). O service revalida e recusa com código estável — a
+        // mensagem do catálogo é o fallback, não a primeira linha de defesa.
+        const validacao = validarBaixaFIFO({
+          lotesNota,
+          produto: produtoSelecionado,
+          localEstoqueId: depositoVinculado.local_estoque_id,
+          quantidade: quantidadeKg,
+        });
+        if (!validacao.ok) {
+          setProgresso({ show: false, atual: 0, total: 0, mensagem: "" });
+          toast.error(validacao.mensagem);
+          return;
+        }
+
         setProgresso({ show: true, atual: ++passoAtual, total: totalPassos, mensagem: "Baixando saldo do depósito..." });
         const saidaRegistrada = await registrarSaidaSuplementacao({
           empresaId: empresaSelecionadaId,
@@ -423,7 +439,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
       setProgresso({ show: true, atual: ++passoAtual, total: totalPassos, mensagem: "Criando evento de suplementação..." });
       const sacosLancamento = formData.unidade_lancamento === "SACO" ? parseNumber(formData.quantidade_sacos || 0) : null;
       
-      const novoEvento = await base44.entities.SuplementacaoEvento.create({
+      const eventoPayload = {
         empresa_id: empresaSelecionadaId,
         ponto_suplementacao_id: ponto.id,
         ponto_nome: ponto.nome_ponto,
@@ -449,7 +465,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
         percentual_consumo_pv_usado: pctPV > 0 ? pctPV : null,
         movimentacao_estoque_id: movimentoEstoque?.id || null,
         observacoes: formData.observacoes || null,
-      });
+      };
 
       const lotesPayload = lotes.map((lote) => {
         const pesoMedioLote = Number(lote.peso_medio_kg || 0);
@@ -460,7 +476,6 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
 
         return {
           empresa_id: empresaSelecionadaId,
-          suplementacao_evento_id: novoEvento.id,
           lote_id: lote.id,
           lote_nome: lote.nome,
           categoria: lote.categoria,
@@ -481,9 +496,8 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
         };
       });
 
-      if (lotesPayload.length > 0) {
-        await base44.entities.SuplementacaoLote.bulkCreate(lotesPayload);
-      }
+      // O service cria o evento e, com o id dele, grava os lotes em bloco.
+      const novoEvento = await registrarLancamento({ evento: eventoPayload, lotes: lotesPayload });
 
       try {
         if (ultimoEvento && ultimoEvento.dias_periodo == null) {
@@ -493,8 +507,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
           );
 
           if (diasPeriodoCalculado > 0) {
-            const { fecharPeriodoSupplementacao } = await import("../utils/consumoUtils");
-            await fecharPeriodoSupplementacao({
+            await fecharPeriodoSuplementacao({
               evento: ultimoEvento,
               diasPeriodo: diasPeriodoCalculado,
               sobraInicial: ultimoEvento.sobra_kg || 0,
@@ -527,7 +540,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
       }, 400);
     } catch (error) {
       setProgresso({ show: false, atual: 0, total: 0, mensagem: "" });
-      toast.error(error.message || "Erro ao registrar suplementação.");
+      toast.error(getApiErrorMessage(error, "Não foi possível registrar a suplementação."));
     }
   };
 
