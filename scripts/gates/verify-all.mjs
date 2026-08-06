@@ -21,6 +21,7 @@ const ETAPAS = [
   ['import-integrity', npm('gate:import-integrity')],
   ['no-secrets', npm('gate:no-secrets')],
   ['base44', npm('gate:base44')],
+  ['modelobase1-pecuario', npm('gate:modelobase1-pecuario')],
   ['types', npm('gate:types')],
   ['lint', npm('lint')],
   ['test:smoke', npm('test:smoke')],
