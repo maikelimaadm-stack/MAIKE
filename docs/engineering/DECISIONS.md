@@ -571,4 +571,48 @@ antecessor fazia `continue` e o item ficava preso para sempre, invisível.
 continua sem transação (DBT-19). O que muda é que a falha parcial passa a ser
 declarada, não escondida.
 
-<!-- Próxima decisão: D-PROD-21 -->
+---
+
+## D-PROD-21 — ModeloBase1 Pecuário é contrato de dados, não template visual
+
+**Data:** 2026-08-06 · **Missão:** P2 · **Estado:** vigente
+
+O nome "ModeloBase1" vem do PROJETOMG, onde ele significa uma coisa muito
+específica: `src/ModeloBase1/` é o **motor visual certificado de cadastro** —
+página fina de ~10 linhas, painéis de tabela/formulário/busca, hooks de
+preferência, config factory e Template Registry — descrito no documento
+04-MODELOBASE1-RULES da constituição **do PROJETOMG**, que não existe neste
+repositório.
+
+Importar esse significado para o MAIKE seria importar exatamente o que a
+D-PROD-03 proíbe: runtime universal de telas e plataforma low-code. E seria
+absurdo por um motivo mais simples — o MAIKE já tem as telas dele, construídas e
+migradas para a fronteira nativa ao longo de toda a P1.
+
+**Decisão.** No MAIKE, **ModeloBase1 Pecuário** significa:
+
+1. é o **contrato base de persistência e domínio** para os futuros models Prisma;
+2. **não** é um template visual;
+3. **não** cria runtime genérico de telas;
+4. **não** cria low-code;
+5. **não** substitui as telas atuais — nada em `src/` muda por causa dele;
+6. é **contrato obrigatório para P3, P4, P5 e P6**.
+
+O contrato vive em `config/modelobase1-pecuario.json`, é lido por humanos em
+`docs/architecture/MODELOBASE1-PECUARIO-CONTRACT.md` e é verificado
+mecanicamente por `gate:modelobase1-pecuario`.
+
+**Consequência.** O gate é **absoluto**: sem `--update`, sem baseline, sem modo
+de correção e sem escrita no arquivo — nem quando o contrato está inválido. Ele
+reprova, entre outras coisas, `meaning` diferente de
+`persistence-domain-contract`, segunda exceção de tenancy além de `Cliente`,
+catálogo global não vazio, `cliente_id` vindo de request, numeração por
+`max + 1` ou `count + 1`, URL de provider como identidade de anexo, `AuditLog`
+sem tenant e handoff de P3 incompleto. Onze códigos de falha, `P2-MB1-*`,
+registrados em `docs/engineering/GATE-REGISTRY.md`.
+
+**O que esta decisão não afirma:** nada sobre existir backend. A P2 não cria
+`backend/`, não instala Prisma, não gera `schema.prisma` e não escreve migration.
+O contrato descreve o que a P3 vai construir; construir é missão dela.
+
+<!-- Próxima decisão: D-PROD-22 -->

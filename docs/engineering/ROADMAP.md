@@ -35,7 +35,10 @@ direto.
 **Critério de aceite:** nenhuma tela do escopo importa `base44` diretamente;
 toda leitura/escrita passa por `src/apis/`.
 
-**Estado:** em andamento.
+**Estado:** **concluída** — a PR #6 foi mergeada na `main` pelo proprietário
+(merge `7398d85`), fechando P1.4 e P1.4-R1. Os seis eixos de
+`gate:api-boundary` estão em zero e o baseline versionado tem as seis listas
+vazias.
 
 A P1 é executada em slices, uma PR por slice. Cada uma **remove** caminhos do
 baseline de `gate:api-boundary`; nenhuma adiciona (SCL-P11-01).
@@ -45,31 +48,42 @@ baseline de `gate:api-boundary`; nenhuma adiciona (SCL-P11-01).
 | **P1.1** | fundação (`src/apis/`, `ApiError`, `runtimeConfig`, provider interno) + piloto **Empresa** | entregue |
 | **P1.2** | Mapa — `MapaGeral`, `MapaCadastro`, `DetalhesLote`, componentes de `src/components/mapa/`, cache offline e `useSetorAreas` | mergeada (PR #3); corrigida por P1.2-R1 e P1.2-R2 |
 | **P1.3** | Manejo — `CadastroLotes`, `CadastroSetores`, `Categorias`, `CategoriasManejo`, `Bebedouros`, componentes de lotes e bebedouros, anexos; remoção dos repositórios legados | **mergeada** (PR #5) |
-| **P1.4** | Suporte e Administração + fechamento da P1 — casca, autenticação, configurações, produtos, marcas, unidades, locais de estoque, tarefas, usuários e suplementação; remoção dos três monkey patches globais; DBT-10, DBT-17, DBT-18 e DBT-25 | implementada na PR #6, aguardando merge do proprietário |
-| **P1.4-R1** | correção de contrato sobre a P1.4, sem migrar caminho: classificação de erro de sessão só na fronteira (`{ok, value}` / `{ok, reason}`), `Button` tipado de verdade em vez de `any`, rastro fiel do rename parcial, remoção do código de erro órfão | implementada na mesma PR #6, aguardando merge do proprietário |
+| **P1.4** | Suporte e Administração + fechamento da P1 — casca, autenticação, configurações, produtos, marcas, unidades, locais de estoque, tarefas, usuários e suplementação; remoção dos três monkey patches globais; DBT-10, DBT-17, DBT-18 e DBT-25 | **mergeada** (PR #6, merge `7398d85`) |
+| **P1.4-R1** | correção de contrato sobre a P1.4, sem migrar caminho: classificação de erro de sessão só na fronteira (`{ok, value}` / `{ok, reason}`), `Button` tipado de verdade em vez de `any`, rastro fiel do rename parcial, remoção do código de erro órfão | **mergeada** na mesma PR #6 |
 
-A P1 só é declarada concluída na P1.4, quando o baseline de fronteira chegar a
-zero caminho legado nas telas do escopo. Isso aconteceu: desde a P1.4 os seis
-eixos de `gate:api-boundary` estão em zero e o baseline versionado tem as seis
-listas vazias. A P1 está **tecnicamente fechada na branch**; a conclusão formal
-depende do merge da PR #6 pelo proprietário.
+A P1 só seria declarada concluída na P1.4, quando o baseline de fronteira
+chegasse a zero caminho legado nas telas do escopo. Isso aconteceu, e o merge da
+PR #6 formalizou: **a P1 está concluída**.
 
 Zerar os eixos não fechou sozinho a fronteira: a P1.4-R1 mostrou que o formato de
 erro do provider ainda atravessava três camadas com a contagem já em zero. Daí a
 regra que fica para as próximas slices — **eixo zerado é condição necessária, não
 suficiente**; o que prova a fronteira é o contrato que sai dela.
 
-**P2 e P3 continuam não iniciadas.**
-
 ---
 
 ## P2 — ModeloBase1 Pecuário Foundation
 
-Definir o modelo base do domínio pecuário (identidade, tenancy, auditoria,
-numeração, anexos) no padrão validado no PROJETOMG, restrito ao escopo do produto.
+**Contrato base de persistência e domínio — não é motor visual** (D-PROD-21).
 
-**Critério de aceite:** modelo base documentado e aprovado antes de qualquer
-migration de domínio.
+Definir identidade, tenancy, timestamps, auditoria, numeração, anexos, exclusão,
+concorrência, vocabulário de erro e padrões proibidos para os futuros models
+Prisma, no padrão validado no PROJETOMG e restrito ao escopo do produto.
+
+O nome vem do PROJETOMG, o significado não: lá `ModeloBase1` é o motor visual de
+cadastro; aqui é contrato de dados. Nada em `src/` muda por causa dele, e ele não
+cria runtime genérico, low-code nem template de tela.
+
+**Entregas:** `config/modelobase1-pecuario.json` (SSOT executável),
+`docs/architecture/MODELOBASE1-PECUARIO-CONTRACT.md` (leitura humana),
+`gate:modelobase1-pecuario` (verificação absoluta, sem baseline) e os testes
+MB1-01 a MB1-20.
+
+**Critério de aceite:** modelo base documentado e aprovado — isto é, **mergeado**
+— antes de qualquer migration de domínio.
+
+**Estado:** implementada na branch `claude/p2-modelobase1-pecuario-foundation`,
+em PR draft, aguardando merge do proprietário.
 
 ---
 
@@ -79,7 +93,12 @@ Criar `backend/` com Fastify, Prisma e PostgreSQL. Schema apenas com a camada de
 tenant. `cliente_id` em todo model desde o primeiro dia. Migrations versionadas.
 
 **Critério de aceite:** `prisma validate` passa; health check responde;
-autenticação própria emite sessão válida; zero import de `@base44/sdk` no backend.
+autenticação própria emite sessão válida; zero import de `@base44/sdk` no backend;
+`gate:tenancy` e `gate:indices` criados e verdes; tudo conforme
+`config/modelobase1-pecuario.json`.
+
+**Estado:** não iniciada. Nenhuma migration de domínio pode começar antes do
+merge da P2.
 
 ---
 

@@ -1,0 +1,221 @@
+{
+  "version": 1,
+  "status": "official",
+  "contractId": "modelobase1-pecuario",
+  "meaning": "persistence-domain-contract",
+  "productScope": "pecuaria-mapa-geral-manejo",
+  "notMeaning": [
+    "visual-template",
+    "generic-screen-runtime",
+    "low-code-platform",
+    "template-registry",
+    "ui-motor"
+  ],
+  "appliesToPhases": ["P3", "P4", "P5", "P6"],
+  "documentation": "docs/architecture/MODELOBASE1-PECUARIO-CONTRACT.md",
+  "decision": "D-PROD-21",
+
+  "identity": {
+    "primaryKeyField": "id",
+    "logicalType": "String",
+    "prismaGenerator": "cuid()",
+    "clientSupplied": false,
+    "immutable": true,
+    "parallelUuidField": false,
+    "numericGlobalIdAsPrimaryKey": false,
+    "businessIdentifiers": {
+      "isPrimaryKey": false,
+      "kind": "business-code",
+      "notes": "Códigos humanos e números sequenciais (numero_lote, numero_setor, codigo) identificam negócio, nunca linha. Vivem sob unique tenant-scoped e sob a política de numeração."
+    }
+  },
+
+  "tenancy": {
+    "rootModel": "Cliente",
+    "tenantField": "cliente_id",
+    "tenantFieldRequiredOnTenantModels": true,
+    "modelsWithoutTenantField": ["Cliente"],
+    "globalCatalogModels": [],
+    "modelKinds": {
+      "root": "Cliente — o próprio tenant; não carrega cliente_id porque é a raiz",
+      "tenant": "todo model de domínio; cliente_id obrigatório e não nulo",
+      "systemCatalog": "catálogo realmente global, sem dono; vazio nesta fundação"
+    },
+    "tenantSource": "auth_context",
+    "forbiddenTenantSources": ["body", "query", "params", "headers", "cookie"],
+    "businessUniqueIncludesTenant": true,
+    "tenantIndexFirstColumn": "cliente_id",
+    "crossTenantRelationsAllowed": false,
+    "clienteDeletePolicy": "explicit-reviewed",
+    "clienteDeleteCascadeWithoutReview": false
+  },
+
+  "timestamps": {
+    "createdAt": { "field": "createdAt", "prisma": "DateTime @default(now())" },
+    "updatedAt": { "field": "updatedAt", "prisma": "DateTime @updatedAt" },
+    "requiredOnPersistentModels": true,
+    "authority": "database",
+    "frontendTimestampIsAuthority": false,
+    "exceptionRequiresDecision": true
+  },
+
+  "audit": {
+    "layers": ["model-timestamps", "central-audit-log"],
+    "auditLogModel": {
+      "name": "AuditLog",
+      "tenantScoped": true,
+      "createdInPhase": "P3",
+      "fields": [
+        { "name": "id", "required": true, "type": "String" },
+        { "name": "cliente_id", "required": true, "type": "String" },
+        { "name": "usuario_id", "required": false, "type": "String", "notes": "opcional apenas quando o evento é de sistema" },
+        { "name": "acao", "required": true, "type": "String" },
+        { "name": "entidade", "required": true, "type": "String" },
+        { "name": "entidade_id", "required": false, "type": "String" },
+        { "name": "dados_anteriores", "required": false, "type": "Json" },
+        { "name": "dados_novos", "required": false, "type": "Json" },
+        { "name": "request_id", "required": true, "type": "String", "notes": "correlation id da requisição" },
+        { "name": "createdAt", "required": true, "type": "DateTime" }
+      ]
+    },
+    "actorSource": "auth_context",
+    "forbiddenActorSources": ["body", "query", "params", "headers"],
+    "forbiddenPayloadContent": ["senha", "credencial", "segredo", "conteudo_binario"],
+    "silentFunctionalChange": false,
+    "criticalFailureObservable": true
+  },
+
+  "numbering": {
+    "strategy": "atomic-database-sequence",
+    "forbiddenStrategies": ["max_plus_one", "count_plus_one"],
+    "transactional": true,
+    "atomicIncrement": true,
+    "reuseAfterDelete": false,
+    "scopeTypes": ["tenant", "empresa"],
+    "scopeDeclaredByCapability": true,
+    "scopeAssignmentPhase": "P4-P6",
+    "sequenceModel": {
+      "name": "EntidadeCodigoSequencia",
+      "tenantScoped": true,
+      "createdInPhase": "P3",
+      "fields": [
+        { "name": "id", "required": true, "type": "String" },
+        { "name": "cliente_id", "required": true, "type": "String" },
+        { "name": "entidade", "required": true, "type": "String" },
+        { "name": "escopo_tipo", "required": true, "type": "String" },
+        { "name": "escopo_id", "required": false, "type": "String" },
+        { "name": "proximo_valor", "required": true, "type": "Int" },
+        { "name": "createdAt", "required": true, "type": "DateTime" },
+        { "name": "updatedAt", "required": true, "type": "DateTime" }
+      ],
+      "uniqueKey": ["cliente_id", "entidade", "escopo_tipo", "escopo_id"],
+      "nullScopeHazard": {
+        "problem": "No PostgreSQL, NULL nunca é igual a NULL em índice unique: duas linhas com escopo_id NULL coexistem e a sequência duplica.",
+        "resolvedIn": "P3",
+        "acceptedRepresentations": ["sentinel-non-null-value", "partial-unique-index-per-scope-kind"],
+        "forbiddenRepresentation": "nullable-escopo-id-in-plain-unique"
+      }
+    }
+  },
+
+  "attachments": {
+    "model": {
+      "name": "RegistroAnexo",
+      "tenantScoped": true,
+      "createdInPhase": "P3",
+      "fields": [
+        { "name": "id", "required": true, "type": "String" },
+        { "name": "cliente_id", "required": true, "type": "String" },
+        { "name": "entidade", "required": true, "type": "String" },
+        { "name": "entidade_id", "required": true, "type": "String" },
+        { "name": "nome_original", "required": true, "type": "String" },
+        { "name": "storage_key", "required": true, "type": "String" },
+        { "name": "mime_type", "required": true, "type": "String" },
+        { "name": "tamanho_bytes", "required": true, "type": "Int" },
+        { "name": "checksum", "required": false, "type": "String" },
+        { "name": "criado_por", "required": true, "type": "String" },
+        { "name": "createdAt", "required": true, "type": "DateTime" }
+      ]
+    },
+    "identityField": "storage_key",
+    "urlAsIdentity": false,
+    "publicUrlIsEphemeral": true,
+    "ownerFields": ["entidade", "entidade_id"],
+    "validation": {
+      "mimeValidatedInBackend": true,
+      "sizeValidatedInBackend": true,
+      "originalNameSanitized": true
+    },
+    "binaryInDatabase": false,
+    "physicalDeletionPolicy": "explicit",
+    "storageProvider": "undecided",
+    "base44Provider": false
+  },
+
+  "deletion": {
+    "hardDeleteAllowedWhen": "link-rules-authorize",
+    "globalSoftDelete": false,
+    "universalDeletedAtField": false,
+    "ativoFieldReplacesDeletionPolicy": false,
+    "lifecycleDecidedPerCapability": true,
+    "auditRegistersRelevantDeletions": true
+  },
+
+  "concurrency": {
+    "criticalCompositeOperationsUseTransaction": true,
+    "numberingTransactional": true,
+    "uniqueConstraintsAsLastBarrier": true,
+    "uniqueConflictErrorCode": "CONCURRENCY_CONFLICT",
+    "frontendMaxPlusOneAcceptedUntilCapabilityMigrates": true,
+    "sagaFramework": false
+  },
+
+  "errorCodes": [
+    { "code": "TENANT_CONTEXT_REQUIRED", "http": 401, "meaning": "requisição sem contexto de tenant autenticado" },
+    { "code": "TENANT_SCOPE_VIOLATION", "http": 403, "meaning": "recurso pertence a outro cliente_id" },
+    { "code": "SEQUENCE_SCOPE_INVALID", "http": 400, "meaning": "escopo de sequência não declarado pela capacidade" },
+    { "code": "SEQUENCE_CONFLICT", "http": 409, "meaning": "reserva de número não pôde ser concluída" },
+    { "code": "ATTACHMENT_INVALID", "http": 400, "meaning": "mime, tamanho ou nome de anexo reprovado" },
+    { "code": "ATTACHMENT_OWNER_INVALID", "http": 404, "meaning": "entidade + entidade_id não identificam registro do tenant" },
+    { "code": "AUDIT_WRITE_FAILED", "http": 500, "meaning": "falha crítica de auditoria; observável, nunca silenciosa" },
+    { "code": "CONCURRENCY_CONFLICT", "http": 409, "meaning": "unique constraint barrou escrita concorrente" }
+  ],
+  "errorNamespace": {
+    "backend": "backend/src/shared/errors/",
+    "frontendCatalog": "src/apis/_core/ApiError.js",
+    "addedToFrontendCatalogInPhase": "P3",
+    "routesImplementedInPhase": "P3"
+  },
+
+  "prohibitedPatterns": [
+    { "id": "tenant_from_request_payload", "description": "ler cliente_id de body, query, params, header ou cookie" },
+    { "id": "business_unique_without_tenant", "description": "unique de negócio sem cliente_id na chave" },
+    { "id": "tenant_index_without_tenant_prefix", "description": "índice tenant-scoped que não começa por cliente_id" },
+    { "id": "max_plus_one_numbering", "description": "atribuir número com MAX(campo) + 1" },
+    { "id": "count_plus_one_numbering", "description": "atribuir número com COUNT(*) + 1" },
+    { "id": "provider_url_as_attachment_identity", "description": "usar URL de provider como identidade persistente do anexo" },
+    { "id": "global_soft_delete_by_default", "description": "aplicar deletedAt universal sem necessidade demonstrada" },
+    { "id": "frontend_timestamp_as_authority", "description": "gravar timestamp vindo do cliente como fonte autoritativa" },
+    { "id": "client_supplied_primary_id", "description": "aceitar id de registro vindo do cliente HTTP" },
+    { "id": "base44_contract_in_backend", "description": "vocabulário, formato de erro ou entidade da Base44 dentro do backend próprio" }
+  ],
+
+  "p3Handoff": {
+    "authorizedInP2": false,
+    "creates": [
+      "backend/",
+      "Fastify",
+      "Prisma",
+      "PostgreSQL",
+      "Cliente",
+      "Usuario",
+      "AuditLog",
+      "EntidadeCodigoSequencia",
+      "RegistroAnexo"
+    ],
+    "gates": ["gate:tenancy", "gate:indices"],
+    "operational": ["health-check", "migrations-versionadas"],
+    "domainMigrationStartsIn": "P4",
+    "migrationBlockedUntilContractMerged": true
+  }
+}

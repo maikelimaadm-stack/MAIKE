@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-08-05 (P0.1 a P1.3 mergeadas · **P1.4 e P1.4-R1 implementadas na PR #6** · P1 tecnicamente fechada na branch, com baseline de fronteira zerado)
+**Atualizado em:** 2026-08-06 (**P0 e P1 mergeadas** — a PR #6 fechou a P1 no merge `7398d85` · **P2 em andamento** na branch `claude/p2-modelobase1-pecuario-foundation` · P3 não iniciada)
 
 ---
 
@@ -13,10 +13,10 @@ Base44 mantida apenas como provider temporário da cadeia preservada (D-PROD-04)
 |---|---|
 | Produto | Pecuária — Mapa Geral + Manejo (D-PROD-01) |
 | Superfície primária | `MapaGeral` (D-PROD-05) |
-| Missão atual | **P1 — Native Foundation Bootstrap**, slice **P1.4** (última) + correção **P1.4-R1** |
-| Estado da missão | **P1.4 e P1.4-R1 implementadas na PR #6; aguardando merge do proprietário** — `npm run verify:all` sai com 0, 13/13 etapas |
-| Próxima slice | P2 — ModeloBase1 Pecuário Foundation (não iniciada) |
-| Branch | `claude/p1-4-native-api-boundary-support-admin` (PR #6, draft) |
+| Missão atual | **P2 — ModeloBase1 Pecuário Foundation** (contrato base de persistência e domínio, D-PROD-21) |
+| Estado da missão | **implementada, em PR draft, aguardando merge do proprietário** — `npm run verify:all` sai com 0, 14/14 etapas |
+| Próxima missão | P3 — Backend + Prisma + PostgreSQL Foundation (não iniciada) |
+| Branch | `claude/p2-modelobase1-pecuario-foundation` (PR draft) |
 | Escopo executável | `config/mapa-manejo-scope.json` |
 | Roadmap | `docs/engineering/ROADMAP.md` |
 | Molde arquitetural | PROJETOMG, parcial (D-PROD-03) |
@@ -35,8 +35,8 @@ armazenamento apenas em `.env.local` seguem pendentes com o proprietário — ve
 | Missão | Nome | Estado |
 |---|---|---|
 | P0 | Product Scope Reset | **mergeada** (PR #1, merge `508cf62`) |
-| P1 | Native Foundation Bootstrap | **tecnicamente fechada na branch** — P1.1 a P1.3 mergeadas; P1.4 e P1.4-R1 implementadas na PR #6, aguardando merge do proprietário. Os seis eixos de `gate:api-boundary` estão em zero |
-| P2 | ModeloBase1 Pecuário Foundation | não iniciada |
+| P1 | Native Foundation Bootstrap | **concluída e mergeada** — P1.1 a P1.3 em PRs anteriores; P1.4 e P1.4-R1 na PR #6, merge `7398d85`. Os seis eixos de `gate:api-boundary` estão em zero |
+| P2 | ModeloBase1 Pecuário Foundation | **em andamento** — contrato, documento, gate e testes implementados; PR draft aguardando merge |
 | P3 | Backend + Prisma + PostgreSQL Foundation | não iniciada |
 | P4 | Mapa Core Native Persistence | não iniciada |
 | P5 | Manejo Core Native Persistence | não iniciada |
@@ -69,6 +69,23 @@ Números medidos após `npm ci` e `npm run build` finais.
 | Testes automatizados | 0 | 183 | 377 | 478 | 625 | **817** (323 de gate + 494 de smoke) |
 | Bundle de produção — JS | 4.347,45 kB | 2.461,36 kB | 2.464,58 kB | 2.474,37 kB | 2.482,90 kB | **2.496,61 kB** |
 | Bundle de produção — CSS | 120,36 kB | 77,00 kB | 77,00 kB | 77,00 kB | 77,00 kB | **77,00 kB** |
+
+**Depois da P2**, todos os números acima permanecem idênticos: a missão não
+tocou em `src/`, `base44/`, `vite.config.js` nem no manifesto de escopo. Só duas
+métricas mudaram, e as duas por acréscimo de verificação:
+
+| Métrica | Depois da P1.4 | Depois da P2 |
+|---|---|---|
+| Testes automatizados | 817 (323 de gate + 494 de smoke) | **862** (368 de gate + 494 de smoke) |
+| Etapas do `verify:all` | 13 | **14** |
+
+Os 45 testes novos são MB1-01 a MB1-20 com sub-casos, todos executando o gate
+real em diretórios temporários. Oito deles vieram da **P2-R1**, que fechou três
+invariantes que o contrato declarava e o gate não protegia: `headers` e `cookie`
+nas fontes proibidas de tenant, `headers` nas fontes proibidas do ator de
+auditoria, e o escopo `empresa` da numeração. O contrato JSON e o documento
+arquitetural não mudaram — o defeito estava só no verificador. Ver §14 do
+relatório da P2.
 
 As quatro ocorrências restantes de SDK/`base44Client` em `src/` são, todas,
 **dentro da fronteira**: o client (`src/api/base44Client.js`), o adapter
@@ -151,9 +168,37 @@ parcial do rename afirmava menos do que havia acontecido, e
 `PRODUTO_PARTIAL_IMPORT` estava catalogado sem nenhum chamador. Ver
 `docs/engineering/P1.4-NATIVE-API-BOUNDARY-SUPPORT-ADMIN-REPORT.md` §15.
 
+## Contrato base pecuário (P2, D-PROD-21)
+
+A P2 não migrou caminho nenhum, não criou backend e não tocou em `src/`. Ela
+transformou identidade, tenancy, timestamps, auditoria, numeração, anexos,
+exclusão, concorrência e vocabulário de erro em **contrato versionado e
+verificável**, para que a P3 implemente Prisma contra um acordo escrito em vez de
+decidir cada regra sob pressão de migration.
+
+| Artefato | Caminho |
+|---|---|
+| SSOT executável | `config/modelobase1-pecuario.json` |
+| Documento legível | `docs/architecture/MODELOBASE1-PECUARIO-CONTRACT.md` |
+| Gate | `scripts/gates/gate-modelobase1-pecuario.mjs` |
+| Testes | `scripts/tests/gates/modelobase1-pecuario.test.mjs` |
+| Relatório | `docs/engineering/P2-MODELOBASE1-PECUARIO-FOUNDATION-REPORT.md` |
+
+O nome vem do PROJETOMG; o significado, não. Lá `ModeloBase1` é o motor visual
+de cadastro. Aqui é contrato de dados — não é template visual, não cria runtime
+genérico, não cria low-code e não substitui as telas atuais (D-PROD-21).
+
+O gate é **absoluto**: sem `--update`, sem baseline, sem correção automática e
+sem escrita no arquivo, nem quando o contrato está inválido. Onze códigos
+`P2-MB1-*`, 11 seções obrigatórias, 8 códigos de erro mínimos e 10 padrões
+proibidos.
+
+O contrato só é **oficial** depois do merge humano da PR. Até lá ele existe e é
+verificado, mas não está aprovado.
+
 ## Gates ativos
 
-13 etapas em `npm run verify:all` — ver `docs/engineering/GATE-REGISTRY.md`.
+14 etapas em `npm run verify:all` — ver `docs/engineering/GATE-REGISTRY.md`.
 Todos os gates têm teste com casos de falha reais em `scripts/tests/gates/`; a
 catraca de tipos é exercitada ponta a ponta, com `tsc` de verdade em projetos
 temporários.
@@ -177,10 +222,13 @@ CI em `.github/workflows/quality.yml`.
 | `dc7e022` | fechamento documental da P1.3 | [31012186549](https://github.com/maikelimaadm-stack/MAIKE/actions/runs/31012186549) | **verde**, 13/13 |
 | P1.4 | **commit funcional** da P1.4 | CI registrada no corpo da PR #6 | — |
 | P1.4-R1 | **commit funcional** da P1.4-R1 | CI registrada no corpo da PR #6 | — |
+| P2 | **commit funcional** da P2 | run/job registrados no corpo da PR da P2 | — |
 
 Um commit não pode conter o resultado da própria execução de CI. A execução do
 commit funcional fica no corpo da PR aberta — PR #2 para a P1.1, PR #3 para a
-P1.2, PR #5 para a P1.3 e PR #6 para a P1.4 e a P1.4-R1.
+P1.2, PR #5 para a P1.3, PR #6 para a P1.4 e a P1.4-R1, e a PR da P2 para esta
+missão. É por isso que **a P2 não se declara concluída dentro do próprio
+commit**: o número da execução só existe depois que ele é empurrado.
 
 O run vermelho de `8866768` fica registrado em vez de omitido. A reprovação foi
 legítima: o relatório da própria P1.1-R1 citava um par nome-de-chave mais
@@ -194,11 +242,11 @@ motivo de o `verify:all` local não ter pego antes.
 |---|---|---|
 | DBT-01 | **Fechado na P1.4.** Nenhum componente, página, hook, lib ou service acessa `base44`. As 38 ocorrências de `base44.entities` que restam estão todas dentro do adapter autorizado, uma por entidade do registry | fechado |
 | DBT-02 | `requiresAuth: false` em `src/api/base44Client.js` | P3 |
-| DBT-03 | 2.319 diagnósticos de dívida de tipos versionados na catraca, com teto certificado de 2.319. A catraca impede crescimento em qualquer modo (D-PROD-17) e impede afrouxar a configuração (D-PROD-13). Trajetória: 2.802 → 2.759 (P1.2) → 2.728 (P1.3-R1) → 2.323 (P1.4, −405) → **2.319** (P1.4-R1, com o contrato de props do `Button` declarado de verdade, sem `any`). Redução segue em P2 | P2 |
+| DBT-03 | 2.319 diagnósticos de dívida de tipos versionados na catraca, com teto certificado de 2.319. A catraca impede crescimento em qualquer modo (D-PROD-17) e impede afrouxar a configuração (D-PROD-13). Trajetória: 2.802 → 2.759 (P1.2) → 2.728 (P1.3-R1) → 2.323 (P1.4, −405) → **2.319** (P1.4-R1, com o contrato de props do `Button` declarado de verdade, sem `any`). A P2 não mexeu em `src/` e por isso não reduziu nada — a redução volta com o código nativo da P3 | P3 |
 | DBT-04 | Sem tela de **entrada** de estoque (D-PROD-08) | P6 |
 | DBT-05 | Chave Google Maps antiga permanece no histórico Git — revogar e rotacionar (OWNER-SECURITY-01) | ação do proprietário |
 | DBT-06 | Bundle único de ~2,50 MB, sem code splitting | P8 |
-| DBT-07 | `LayoutCampo`/`LayoutSecao`/`LayoutConfiguracao` + `src/services/campoEngine.js` sustentam o formulário dinâmico de lote — um mini-motor de layout dentro do produto | P2 |
+| DBT-07 | `LayoutCampo`/`LayoutSecao`/`LayoutConfiguracao` + `src/services/campoEngine.js` sustentam o formulário dinâmico de lote — um mini-motor de layout dentro do produto. A P2 é contrato de dados e não toca em UI (D-PROD-21); o desmonte acontece quando o lote migrar | P5 |
 | DBT-08 | **Fechado na P1.4.** `src/lib/offlineEntitySync.js` foi removido. O runtime offline é provider-agnostic (`src/lib/offline/offlineEntityRuntime.js`) e o catálogo de entidades offline é montado literalmente pelo provider, uma chamada por entidade | fechado |
 | DBT-09 | A numeração por `max + 1` lista a coleção inteira e não tem segurança de concorrência. Saiu das telas para os services na P1.4 (produtos, marcas, unidades, locais), o que torna a regra testável — mas duas criações simultâneas ainda podem receber o mesmo número. Fecha com o backend próprio | P3 |
 | DBT-10 | **Fechado na P1.4.** `eslint.config.js` cobre `src/**`, `scripts/**` e `tests/**` inteiros, com globais por ambiente (browser, Node, Vitest/JSDOM). Sem `ignores` de diretório, sem regra desligada em massa e sem `eslint-disable` espalhado | fechado |
