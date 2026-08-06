@@ -1,9 +1,33 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
 import { getDataProviderConfig } from '@/config/runtimeConfig';
+import {
+  verificarAutenticacao,
+  carregarConfiguracoesPublicas,
+  encerrarSessao,
+  irParaLogin,
+  RAZOES_DE_SESSAO_DO_PRODUTO,
+} from '@/services/sessionService';
 
 const AuthContext = createContext();
 
+/**
+ * Frase por razão. Texto do produto, não do provider — nada aqui vem de
+ * `error.message`.
+ */
+const MENSAGEM_POR_RAZAO = Object.freeze({
+  [RAZOES_DE_SESSAO_DO_PRODUTO.AUTH_REQUIRED]: 'Authentication required',
+  [RAZOES_DE_SESSAO_DO_PRODUTO.USER_NOT_REGISTERED]: 'User not registered for this app',
+  [RAZOES_DE_SESSAO_DO_PRODUTO.UNKNOWN]: 'Failed to load app',
+});
+
+const MENSAGEM_PADRAO = 'Failed to load app';
+
+/**
+ * `token` continua sendo lido aqui por um motivo só: decidir **se** vale a pena
+ * consultar o usuário. Nenhuma requisição é montada neste arquivo desde a P1.4
+ * — a URL das configurações públicas e o cabeçalho `Authorization` vivem no
+ * provider, que é quem sabe o que é Base44.
+ */
 const appParams = getDataProviderConfig();
 
 export const AuthProvider = ({ children }) => {
@@ -19,106 +43,52 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const checkAppState = async () => {
-    try {
-      setIsLoadingPublicSettings(true);
-      setAuthError(null);
-      
-      // First, check app public settings (with token if available)
-      // This will tell us if auth is required, user not registered, etc.
-      const headers = {
-        'X-App-Id': appParams.appId
-      };
+    setIsLoadingPublicSettings(true);
+    setAuthError(null);
 
-      if (appParams.token) {
-        headers.Authorization = `Bearer ${appParams.token}`;
-      }
-      
-      try {
-        const response = await fetch(`${appParams.serverUrl}/api/apps/public/prod/public-settings/by-id/${appParams.appId}`, {
-          headers
-        });
+    // Resultado discriminado (P1.4-R1): ou vem o valor, ou vem uma razão do
+    // vocabulário do produto. Este arquivo não conhece `status`, `data`,
+    // `extra_data` nem mensagem crua de provider nenhum — a classificação
+    // acontece uma única vez, dentro da API de sessão.
+    const resultado = await carregarConfiguracoesPublicas();
 
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => null);
-          const error = new Error('Failed to load app public settings');
-          error.status = response.status;
-          error.data = errorData;
-          throw error;
-        }
-
-        const publicSettings = await response.json();
-        setAppPublicSettings(publicSettings);
-        
-        // If we got the app public settings successfully, check if user is authenticated
-        if (appParams.token) {
-          await checkUserAuth();
-        } else {
-          setIsLoadingAuth(false);
-          setIsAuthenticated(false);
-        }
-        setIsLoadingPublicSettings(false);
-      } catch (appError) {
-        console.error('App state check failed:', appError);
-        
-        // Handle app-level errors
-        if (appError.status === 403 && appError.data?.extra_data?.reason) {
-          const reason = appError.data.extra_data.reason;
-          if (reason === 'auth_required') {
-            setAuthError({
-              type: 'auth_required',
-              message: 'Authentication required'
-            });
-          } else if (reason === 'user_not_registered') {
-            setAuthError({
-              type: 'user_not_registered',
-              message: 'User not registered for this app'
-            });
-          } else {
-            setAuthError({
-              type: reason,
-              message: appError.message
-            });
-          }
-        } else {
-          setAuthError({
-            type: 'unknown',
-            message: appError.message || 'Failed to load app'
-          });
-        }
-        setIsLoadingPublicSettings(false);
-        setIsLoadingAuth(false);
-      }
-    } catch (error) {
-      console.error('Unexpected error:', error);
-      setAuthError({
-        type: 'unknown',
-        message: error.message || 'An unexpected error occurred'
-      });
+    if (!resultado.ok) {
+      setAuthError({ type: resultado.reason, message: MENSAGEM_POR_RAZAO[resultado.reason] ?? MENSAGEM_PADRAO });
       setIsLoadingPublicSettings(false);
       setIsLoadingAuth(false);
+      return;
     }
+
+    setAppPublicSettings(resultado.value);
+
+    // Com as configurações públicas em mãos, checa a sessão — mas só faz
+    // sentido perguntar quando existe token.
+    if (appParams.token) {
+      await checkUserAuth();
+    } else {
+      setIsLoadingAuth(false);
+      setIsAuthenticated(false);
+    }
+    setIsLoadingPublicSettings(false);
   };
 
   const checkUserAuth = async () => {
-    try {
-      // Now check if the user is authenticated
-      setIsLoadingAuth(true);
-      const currentUser = await base44.auth.me();
-      setUser(currentUser);
-      setIsAuthenticated(true);
-      setIsLoadingAuth(false);
-    } catch (error) {
-      console.error('User auth check failed:', error);
-      setIsLoadingAuth(false);
-      setIsAuthenticated(false);
-      
-      // If user auth fails, it might be an expired token
-      if (error.status === 401 || error.status === 403) {
-        setAuthError({
-          type: 'auth_required',
-          message: 'Authentication required'
-        });
-      }
+    // Sem fallback offline aqui de propósito: `verificarAutenticacao` devolve um
+    // veredito. Se a chamada falhou, a sessão não está autenticada — e um token
+    // expirado (401/403) precisa levar à tela de login, não ao último usuário
+    // conhecido em cache.
+    setIsLoadingAuth(true);
+    const veredito = await verificarAutenticacao();
+
+    setUser(veredito.usuario);
+    setIsAuthenticated(veredito.autenticado);
+    setIsLoadingAuth(false);
+
+    if (!veredito.autenticado && veredito.precisaAutenticar) {
+      setAuthError({
+        type: RAZOES_DE_SESSAO_DO_PRODUTO.AUTH_REQUIRED,
+        message: MENSAGEM_POR_RAZAO[RAZOES_DE_SESSAO_DO_PRODUTO.AUTH_REQUIRED]
+      });
     }
   };
 
@@ -126,18 +96,12 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
     setIsAuthenticated(false);
     
-    if (shouldRedirect) {
-      // Use the SDK's logout method which handles token cleanup and redirect
-      base44.auth.logout(window.location.href);
-    } else {
-      // Just remove the token without redirect
-      base44.auth.logout();
-    }
+    // Com URL, o provider limpa o token e redireciona; sem URL, só limpa.
+    encerrarSessao(shouldRedirect ? window.location.href : undefined);
   };
 
   const navigateToLogin = () => {
-    // Use the SDK's redirectToLogin method
-    base44.auth.redirectToLogin(window.location.href);
+    irParaLogin(window.location.href);
   };
 
   return (

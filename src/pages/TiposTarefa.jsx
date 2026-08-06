@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import { base44 } from "@/api/base44Client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Settings } from "lucide-react";
@@ -8,7 +7,8 @@ import { AnimatePresence } from "framer-motion";
 import TabelaTiposTarefa from "@/components/tipos-tarefa/TabelaTiposTarefa";
 import FormularioTipoTarefa from "@/components/tipos-tarefa/FormularioTipoTarefa";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
-import { ensureDeleteAllowed } from "@/lib/entityDeleteGuards";
+import { listarGruposSimples, listarTipos, criarTipo, atualizarTipo, excluirTipos } from "@/services/tarefaCadastroService";
+import { getApiErrorMessage } from "@/apis/_core/ApiError";
 
 export default function TiposTarefa() {
   const [showForm, setShowForm] = useState(false);
@@ -19,18 +19,18 @@ export default function TiposTarefa() {
 
   const { data: grupos = [] } = useQuery({
     queryKey: ["grupos-atividades"],
-    queryFn: () => base44.entities.GrupoAtividade.list(),
+    queryFn: () => listarGruposSimples(),
     initialData: [],
   });
 
   const { data: tipos = [] } = useQuery({
     queryKey: ["tipos-tarefa"],
-    queryFn: () => base44.entities.TipoTarefa.list("-updated_date"),
+    queryFn: () => listarTipos(),
     initialData: [],
   });
 
   const createTipoMutation = useMutation({
-    mutationFn: (data) => base44.entities.TipoTarefa.create(data),
+    mutationFn: (data) => criarTipo(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tipos-tarefa"] });
       setShowForm(false);
@@ -40,25 +40,13 @@ export default function TiposTarefa() {
   });
 
   const updateTipoMutation = useMutation({
-    mutationFn: async ({ id, data, oldData }) => {
-      const updated = await base44.entities.TipoTarefa.update(id, data);
-      await base44.functions.invoke("syncEntityReferences", {
-        event: { type: "update", entity_name: "TipoTarefa" },
-        data: updated,
-        old_data: oldData,
-      });
-      return updated;
-    },
+    mutationFn: ({ id, data, oldData }) => atualizarTipo({ id, dados: data, oldData }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tipos-tarefa"] });
       setShowForm(false);
       setEditingTipo(null);
       toast.success("Tipo atualizado!");
     },
-  });
-
-  const deleteTipoMutation = useMutation({
-    mutationFn: (id) => base44.entities.TipoTarefa.delete(id),
   });
 
   const handleSubmit = (data) => {
@@ -71,20 +59,27 @@ export default function TiposTarefa() {
     setShowForm(true);
   };
 
+  /** Resultado parcial explícito, como em Grupos de Atividades. */
   const handleConfirmDelete = async () => {
     const ids = deleteState.ids;
     setDeleteState({ open: false, ids: [] });
-    let deletedCount = 0;
-    for (const id of ids) {
-      try {
-        await ensureDeleteAllowed(base44, "TipoTarefa", id);
-        await deleteTipoMutation.mutateAsync(id);
-        deletedCount += 1;
-      } catch { /* falha ignorada intencionalmente: operação best-effort */ }
-    }
-    if (deletedCount > 0) {
-      queryClient.invalidateQueries({ queryKey: ["tipos-tarefa"] });
-      toast.success(deletedCount === 1 ? "Tipo excluído!" : `${deletedCount} tipos excluídos!`);
+
+    try {
+      const { excluidos, bloqueados } = await excluirTipos(ids, { tipos });
+
+      if (excluidos.length > 0) {
+        queryClient.invalidateQueries({ queryKey: ["tipos-tarefa"] });
+        toast.success(excluidos.length === 1 ? "Tipo excluído!" : `${excluidos.length} tipos excluídos!`);
+      }
+      if (bloqueados.length > 0) {
+        toast.error(
+          bloqueados.length === 1
+            ? "1 tipo não pôde ser excluído: existem registros vinculados."
+            : `${bloqueados.length} tipos não puderam ser excluídos: existem registros vinculados.`
+        );
+      }
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, "Não foi possível excluir."));
     }
   };
 

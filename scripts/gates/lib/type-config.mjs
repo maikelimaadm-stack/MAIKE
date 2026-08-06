@@ -15,7 +15,7 @@
 
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
-import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
+import { dirname, isAbsolute, relative, resolve } from 'node:path';
 
 /** Extensões que a cobertura obrigatoriamente inclui. */
 export const REQUIRED_EXTENSIONS = ['js', 'jsx', 'ts', 'tsx'];

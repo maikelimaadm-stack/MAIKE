@@ -34,15 +34,42 @@ const buttonVariants = cva(
   }
 )
 
-const Button = React.forwardRef(({ className, variant, size, asChild = false, ...props }, ref) => {
-  const Comp = asChild ? Slot : "button"
-  return (
-    (<Comp
-      className={cn(buttonVariants({ variant, size, className }))}
-      ref={ref}
-      {...props} />)
-  );
-})
+/**
+ * Props do botão do design system (P1.4-R1).
+ *
+ * A P1.4 tinha resolvido o ruído de tipo deste componente anotando o export
+ * como `any`. Aquilo apagava o problema e a verificação junto: `variant`,
+ * `size`, props HTML, `children` e `ref` deixavam de ser checados em **todas**
+ * as chamadas do produto. Supressão global não é tipagem.
+ *
+ * Aqui o contrato é declarado de verdade — props nativas de `<button>`, as
+ * variantes que `buttonVariants` conhece e `asChild` —, e o `forwardRef` infere
+ * o tipo do componente a partir dele. Não há cast: `variant` inválido volta a
+ * ser erro, e o `ref` é de `HTMLButtonElement`.
+ *
+ * @typedef {React.ComponentPropsWithoutRef<'button'>
+ *   & import('class-variance-authority').VariantProps<typeof buttonVariants>
+ *   & { asChild?: boolean }} ButtonProps
+ */
+
+const Button = React.forwardRef(
+  /**
+   * Zero mudança de runtime: HTML, classes, variantes, tamanhos e `Slot` são os
+   * mesmos.
+   *
+   * @param {ButtonProps} propriedades
+   * @param {React.Ref<HTMLButtonElement>} ref
+   */
+  ({ className, variant, size, asChild = false, ...props }, ref) => {
+    const Comp = asChild ? Slot : "button"
+    return (
+      (<Comp
+        className={cn(buttonVariants({ variant, size, className }))}
+        ref={ref}
+        {...props} />)
+    );
+  }
+)
 Button.displayName = "Button"
 
 export { Button, buttonVariants }

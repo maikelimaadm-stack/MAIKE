@@ -501,4 +501,74 @@ vai para o bundle do cliente por definição do Vite, e a proteção correta é
 restrição por referrer e por API no Google Cloud. OWNER-SECURITY-01 continua
 aberto.
 
-<!-- Próxima decisão: D-PROD-20 -->
+---
+
+## D-PROD-20 — Normalização, offline e guarda de exclusão por composição explícita
+
+**Data:** 2026-08-05 · **Missão:** P1.4 · **Estado:** vigente
+
+Até a P1.3, `src/api/base44Client.js` instalava **três monkey patches globais**
+sobre o SDK, um atrás do outro:
+
+```
+installTextNormalization(base44Client);
+applyDeleteGuards(base44Client);
+installOfflineEntitySync(base44Client);
+```
+
+Cada um varria `client.entities` e substituía `create`, `update`, `list`,
+`filter`, `delete` e afins **in place**, por entidade. O efeito era invisível no
+código de chamada: `Produto.list()` devolvia dado formatado, `Produto.delete()`
+consultava uma tabela de dependências e podia lançar, e `Lote.create()` podia
+gravar numa fila IndexedDB em vez de na rede — nada disso aparecia no ponto de
+uso.
+
+Três problemas, e nenhum deles é estético:
+
+1. **os módulos conheciam o provider.** `entities` é vocabulário da Base44, e a
+   P7 troca o provider inteiro. Um utilitário de texto não tem por que saber
+   disso;
+2. **o acesso era por nome dinâmico.** `client.entities[entityName]` é a mesma
+   porta que `gate:api-boundary` existe para fechar — só que escondida atrás de
+   uma lista de strings;
+3. **mutar objeto do SDK depende de o SDK expor os métodos como propriedades
+   graváveis** — contrato que ninguém prometeu e que uma versão futura pode
+   quebrar sem aviso.
+
+**Decisão.** O client volta a ter responsabilidade única: ler a configuração,
+criar o cliente, exportá-lo. As três capacidades passam a ser compostas
+explicitamente:
+
+- **normalização** — `createNormalizedEntityAdapter({entityName, endpoint})`
+  recebe o endpoint **já resolvido** e devolve um objeto novo. `entityName` entra
+  como rótulo; nada é buscado com ele. Nada é mutado;
+- **runtime offline** — `createOfflineEntityAdapter({entityName, operations,
+  enabled, storage})` recebe operações já resolvidas e uma porta de
+  armazenamento. Conhece IndexedDB, fila, cache, ids offline, replay e
+  `navigator.onLine`; não conhece Base44, client nem provider. O catálogo de
+  entidades offline é montado pelo provider, literalmente, uma chamada por
+  entidade;
+- **guarda de exclusão** — `assertExclusaoPermitida` em
+  `src/services/deleteGuardService.js`, com carregadores declarados por
+  entidade. Dependência declarada sem carregador **falha**, em vez de virar
+  liberação silenciosa.
+
+O provider compõe as duas primeiras em `comFronteira(nome, endpoint)`, com a
+normalização por dentro — mais perto da rede, para que o cache offline guarde o
+mesmo formato que a tela veria.
+
+**Consequência de desenho:** o runtime offline só se ativa quando há
+armazenamento (`typeof indexedDB !== 'undefined'`). Sem ele — jsdom, SSR,
+navegador restrito — o adapter devolve as operações **intactas**, em vez de
+fingir uma fila durável que não existe. O antecessor não fazia essa checagem:
+chamava `indexedDB.open` e estourava.
+
+**Consequência operacional:** uma entrada de fila cuja entidade não está no
+catálogo agora falha com `OFFLINE_ENTITY_UNSUPPORTED` e **permanece na fila**. O
+antecessor fazia `continue` e o item ficava preso para sempre, invisível.
+
+**O que esta decisão não afirma:** nada sobre atomicidade. Operação composta
+continua sem transação (DBT-19). O que muda é que a falha parcial passa a ser
+declarada, não escondida.
+
+<!-- Próxima decisão: D-PROD-21 -->

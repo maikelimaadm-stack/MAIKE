@@ -429,7 +429,7 @@ export const excluirCampoPersonalizado = async (campo) => {
 /**
  * Catálogo **fechado** de fontes de opção de campo personalizado (P1.3-R1).
  *
- * O repositório legado fazia `base44.entities[source.entity]`: qualquer string
+ * O repositório legado indexava `entities[source.entity]` no SDK: qualquer string
  * vinda de um registro de `LayoutCampo` — dado editável pelo usuário — virava
  * acesso a entidade.
  *

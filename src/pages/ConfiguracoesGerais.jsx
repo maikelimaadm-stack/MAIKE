@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { base44 } from "@/api/base44Client";
+import { getCurrentUser, listarPermissoes, permissaoDoUsuario, ehAdministrador } from "@/services/sessionService";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import GerenciadorIcones from "../components/configuracoes/GerenciadorIcones";
@@ -16,22 +16,23 @@ import GerenciadorIcones from "../components/configuracoes/GerenciadorIcones";
 export default function ConfiguracoesGerais() {
   const { data: currentUser = null } = useQuery({
     queryKey: ['configuracoes-gerais-user'],
-    queryFn: () => base44.auth.me(),
+    queryFn: () => getCurrentUser(),
     staleTime: 5 * 60 * 1000
   });
 
   const { data: permissoes = [] } = useQuery({
     queryKey: ['configuracoes-gerais-permissoes'],
-    queryFn: () => base44.entities.Permissao.list(),
+    queryFn: () => listarPermissoes(),
     staleTime: 5 * 60 * 1000
   });
 
+  // A regra de admin vive no service: era a mesma linha aqui e no Layout.
   const permissaoAtual = useMemo(
-    () => permissoes.find((item) => item.user_email === currentUser?.email) || null,
+    () => permissaoDoUsuario(permissoes, currentUser?.email),
     [permissoes, currentUser?.email]
   );
 
-  const isAdmin = currentUser?.role === 'admin' || permissaoAtual?.is_admin === true;
+  const isAdmin = ehAdministrador(currentUser, permissaoAtual);
 
   if (!isAdmin) {
     return (

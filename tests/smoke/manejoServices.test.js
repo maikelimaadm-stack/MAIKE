@@ -31,7 +31,13 @@ const arquivos = { uploadArquivo: vi.fn() };
 const mapa = { listAreas: vi.fn(), listIcones: vi.fn(), listPontos: vi.fn() };
 const tarefas = { listLancamentos: vi.fn() };
 const rebanho = { listManejosTecnicos: vi.fn() };
-const session = { getCurrentUser: vi.fn(), listPermissoes: vi.fn() };
+const session = {
+  getCurrentUser: vi.fn(), listPermissoes: vi.fn(), listUsuarios: vi.fn(),
+  updateUsuario: vi.fn(), createPermissao: vi.fn(), updatePermissao: vi.fn(), deletePermissao: vi.fn(),
+  logout: vi.fn(), redirectToLogin: vi.fn(), getAppPublicSettings: vi.fn(), verificarSessao: vi.fn(),
+  getCapacidadesDeSessao: vi.fn(() => ({})),
+  RAZOES_DE_SESSAO: Object.freeze({ AUTH_REQUIRED: 'auth_required', USER_NOT_REGISTERED: 'user_not_registered', UNKNOWN: 'unknown' }),
+};
 
 vi.mock('@/apis/lotes', () => lotes);
 vi.mock('@/apis/setores', () => setores);
@@ -244,14 +250,24 @@ describe('S — setores', () => {
   });
 
   /**
-   * Comportamento herdado, preservado de propósito.
+   * DBT-25 fechado na P1.4.
    *
-   * A tela usava `parseFloat(data.area_total)`, que não entende vírgula
-   * decimal: `'12,5'` vira `12` em silêncio. Corrigir isso mudaria o dado
-   * gravado e não é migração de fronteira — fica registrado como dívida.
+   * Até a P1.3 este teste fixava o **truncamento**: `parseFloat('12,5')`
+   * devolvia 12 e a metade decimal sumia sem aviso. O comportamento estava
+   * documentado como dívida justamente porque corrigi-lo muda o dado gravado —
+   * e agora foi corrigido, com `parseDecimalPtBR`.
    */
-  it('S3b — vírgula decimal ainda trunca, como antes da migração', () => {
-    expect(setorSvc.normalizarSetor({ area_total: '12,5' }).area_total).toBe(12);
+  it('S3b — vírgula decimal é lida corretamente (DBT-25)', () => {
+    expect(setorSvc.normalizarSetor({ area_total: '12,5' }).area_total).toBe(12.5);
+    expect(setorSvc.normalizarSetor({ area_total: '12.5' }).area_total).toBe(12.5);
+    expect(setorSvc.normalizarSetor({ area_total: '1.234,56' }).area_total).toBe(1234.56);
+    expect(setorSvc.normalizarSetor({ area_total: '' }).area_total).toBe(null);
+    // Ponto sozinho continua sendo separador **decimal**: `'1.200'` é 1,2 —
+    // não 1200. Sem vírgula na string não há como distinguir milhar de decimal,
+    // e adivinhar mudaria silenciosamente o dado de quem digita no formato
+    // internacional. Com vírgula presente, o ponto vira milhar.
+    expect(setorSvc.normalizarSetor({ capacidade_animais: '1.200,0' }).capacidade_animais).toBe(1200);
+    expect(setorSvc.normalizarSetor({ capacidade_animais: '30' }).capacidade_animais).toBe(30);
   });
 
   it('S4 — criar numera sobre todos os setores, não só os da empresa', async () => {

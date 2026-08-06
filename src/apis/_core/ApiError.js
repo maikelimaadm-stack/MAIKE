@@ -35,6 +35,22 @@ export const API_ERROR_CODES = Object.freeze({
   CATEGORIA_PARTIAL_DELETE: 'CATEGORIA_PARTIAL_DELETE',
   CATEGORIA_MANEJO_DELETE_BLOCKED: 'CATEGORIA_MANEJO_DELETE_BLOCKED',
   ANEXO_ENTITY_UNSUPPORTED: 'ANEXO_ENTITY_UNSUPPORTED',
+
+  // P1.4 — Suporte e administração. Mesmo critério: só código com consumidor e
+  // teste reais entra aqui — e, desde a P1.4-R1, isso é **provado** por teste:
+  // `PRODUTO_PARTIAL_IMPORT` estava catalogado sem nenhum chamador em `src/`
+  // (a importação já devolvia `{importados, falhas, total}`) e foi removido.
+  PRODUTO_NAME_CONFLICT: 'PRODUTO_NAME_CONFLICT',
+  PRODUTO_DELETE_BLOCKED: 'PRODUTO_DELETE_BLOCKED',
+  MARCA_NAME_CONFLICT: 'MARCA_NAME_CONFLICT',
+  UNIDADE_MEDIDA_DELETE_BLOCKED: 'UNIDADE_MEDIDA_DELETE_BLOCKED',
+  LOCAL_ESTOQUE_DELETE_BLOCKED: 'LOCAL_ESTOQUE_DELETE_BLOCKED',
+  LOCAL_ESTOQUE_PARTIAL_OPERATION: 'LOCAL_ESTOQUE_PARTIAL_OPERATION',
+  GRUPO_ATIVIDADE_DELETE_BLOCKED: 'GRUPO_ATIVIDADE_DELETE_BLOCKED',
+  TIPO_TAREFA_DELETE_BLOCKED: 'TIPO_TAREFA_DELETE_BLOCKED',
+  PERMISSAO_SELF_DELETE_BLOCKED: 'PERMISSAO_SELF_DELETE_BLOCKED',
+  SUPLEMENTACAO_PARTIAL_OPERATION: 'SUPLEMENTACAO_PARTIAL_OPERATION',
+  OFFLINE_ENTITY_UNSUPPORTED: 'OFFLINE_ENTITY_UNSUPPORTED',
 });
 
 /** Mensagem pública por código. Nunca inclui dado do provider. */
@@ -54,6 +70,17 @@ const MENSAGENS = Object.freeze({
   [API_ERROR_CODES.CATEGORIA_PARTIAL_DELETE]: 'Parte das categorias não pôde ser excluída. Confira a lista antes de repetir.',
   [API_ERROR_CODES.CATEGORIA_MANEJO_DELETE_BLOCKED]: 'Não é possível excluir a categoria de manejo: existem registros vinculados.',
   [API_ERROR_CODES.ANEXO_ENTITY_UNSUPPORTED]: 'Anexos não estão disponíveis para este cadastro.',
+  [API_ERROR_CODES.PRODUTO_NAME_CONFLICT]: 'Já existe um produto cadastrado com este nome nesta empresa.',
+  [API_ERROR_CODES.PRODUTO_DELETE_BLOCKED]: 'Não é possível excluir o produto: existem registros vinculados.',
+  [API_ERROR_CODES.MARCA_NAME_CONFLICT]: 'Já existe uma marca cadastrada com este nome nesta empresa.',
+  [API_ERROR_CODES.UNIDADE_MEDIDA_DELETE_BLOCKED]: 'Não é possível excluir a unidade de medida: existem registros vinculados.',
+  [API_ERROR_CODES.LOCAL_ESTOQUE_DELETE_BLOCKED]: 'Não é possível excluir o local de estoque: existem registros vinculados.',
+  [API_ERROR_CODES.LOCAL_ESTOQUE_PARTIAL_OPERATION]: 'A operação foi concluída apenas em parte. Confira os dados antes de repetir.',
+  [API_ERROR_CODES.GRUPO_ATIVIDADE_DELETE_BLOCKED]: 'Não é possível excluir o grupo de atividades: existem registros vinculados.',
+  [API_ERROR_CODES.TIPO_TAREFA_DELETE_BLOCKED]: 'Não é possível excluir o tipo de tarefa: existem registros vinculados.',
+  [API_ERROR_CODES.PERMISSAO_SELF_DELETE_BLOCKED]: 'Você não pode remover as suas próprias permissões.',
+  [API_ERROR_CODES.SUPLEMENTACAO_PARTIAL_OPERATION]: 'A operação foi concluída apenas em parte. Confira os dados antes de repetir.',
+  [API_ERROR_CODES.OFFLINE_ENTITY_UNSUPPORTED]: 'Há registros offline de um cadastro que o aplicativo não sabe sincronizar.',
 });
 
 /** Falha transitória vale retentativa; erro de argumento e conflito, não. */

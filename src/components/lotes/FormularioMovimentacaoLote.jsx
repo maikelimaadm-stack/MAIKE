@@ -14,7 +14,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
-import { calcularDiasPeriodo, fecharPeriodoSupplementacao } from "../utils/consumoUtils";
+import { calcularDiasPeriodo } from "../utils/consumoUtils";
+import { fecharPeriodoSuplementacao } from "@/services/suplementacaoService";
 import { getTodayLocalDate } from "../utils/pecuariaUtils";
 
 const FL = ({ label, required, children }) => (
@@ -298,7 +299,7 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
 
         setProgresso({ show: true, atual: i * 2 + 2, total: eventosAbertos.length * 2, mensagem: `Atualizando lotes ${i + 1}/${eventosAbertos.length}...` });
 
-        await fecharPeriodoSupplementacao({
+        await fecharPeriodoSuplementacao({
           evento,
           diasPeriodo,
           sobraInicial: evento.sobra_kg || 0,

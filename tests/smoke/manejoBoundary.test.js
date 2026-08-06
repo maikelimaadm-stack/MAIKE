@@ -176,7 +176,8 @@ describe('A11 — registry do provider é literal e exato', () => {
     'LancamentoTarefa', 'LayoutCampo', 'LayoutConfiguracao', 'LayoutSecao', 'LinhaGeografica',
     'LocalEstoque', 'Lote', 'ManejoTecnicoRebanho', 'MovimentacaoEstoque', 'MovimentacaoMapa',
     'MovimentacaoPecuaria', 'Permissao', 'PontoReferencia', 'PontoSuplementacao', 'Produto',
-    'RegistroAnexo', 'Setor', 'SuplementacaoEvento', 'SuplementacaoLote', 'TipoTarefa', 'User',
+    'Marca', 'RegistroAnexo', 'Setor', 'SuplementacaoEvento', 'SuplementacaoLote', 'TipoTarefa',
+    'UnidadeMedida', 'User',
   ].sort();
 
   it('o conjunto é exatamente o esperado — igualdade, não inclusão', async () => {
@@ -188,8 +189,11 @@ describe('A11 — registry do provider é literal e exato', () => {
     const fonte = codigoDe('src/apis/_providers/base44Provider.js');
     const registry = fonte.slice(fonte.indexOf('ENTITY_REGISTRY'), fonte.indexOf('getRegisteredEntityNames'));
     expect(registry).not.toMatch(/entities\s*\[/);
+    // Desde a P1.4 cada entrada passa por `comFronteira`, que compõe
+    // normalização e runtime offline. O nome continua **literal** nos dois
+    // lugares: no rótulo e no acesso ao endpoint.
     for (const nome of ESPERADO) {
-      expect(registry).toContain(`${nome}: base44.entities.${nome}`);
+      expect(registry).toContain(`${nome}: comFronteira('${nome}', base44.entities.${nome})`);
     }
   });
 });

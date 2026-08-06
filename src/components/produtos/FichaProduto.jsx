@@ -1,7 +1,7 @@
 
 import React from "react";
 import { useQuery } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { listEmpresas } from "@/services/empresaService";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Printer, X } from "lucide-react";
@@ -20,7 +20,7 @@ export default function FichaProduto({ produto, open, onClose, empresa: empresaP
   const { data: empresaCarregada } = useQuery({
     queryKey: ["empresa-ficha-produto", empresaSelecionadaId],
     queryFn: async () => {
-      const empresas = await base44.entities.Empresa.list();
+      const empresas = await listEmpresas();
       return empresas.find((e) => e.id === empresaSelecionadaId) || null;
     },
     enabled: !!empresaSelecionadaId && !empresaProp && open,

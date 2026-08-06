@@ -47,7 +47,7 @@ export const listarHistorico = async (empresaId, bebedouroId) =>
 /**
  * Cria um lançamento de histórico.
  *
- * O responsável vem da **sessão**, não de `base44.auth.me()` chamado dentro do
+ * O responsável vem da **sessão**, não do `auth.me()` do SDK chamado dentro do
  * componente: quem sabe resolver usuário — inclusive o fallback offline — é o
  * `sessionService`.
  */

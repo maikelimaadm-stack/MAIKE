@@ -1210,3 +1210,166 @@ describe('gate:api-boundary — P1.3-R1 endpointOf só aceita nome literal', () 
     assert.deepEqual(fato.dynamicEntityAccess, [], 'adapter tem acesso dinâmico');
   });
 });
+
+// ── P1.4 — provas negativas do fechamento da P1 ───────────────────────────
+//
+// A P1 só está fechada se **reintroduzir** qualquer um dos caminhos antigos
+// reprovar. Cada teste abaixo é uma fixture real, analisada pelo mesmo módulo
+// que o gate usa — nenhuma mutação manual no repositório.
+
+describe('gate:api-boundary — P1.4 fechamento da P1', () => {
+  test('P14-N1 UI → base44Client reprova', () => {
+    const d = comModulo({ 'src/pages/Marcas.jsx': PAGINA_LEGADA('Marca') });
+    criarBaseline(d);
+    // O baseline foi construído COM a página; removê-la do baseline e mantê-la
+    // no código é o que simula a reintrodução.
+    const base = lerBaseline(d);
+    base.axes.importsLegacyClient = [];
+    base.axes.entitiesRefs = [];
+    gravarBaseline(d, base);
+    falhaCom(d, 'P11-API-BOUNDARY-REGRESSION');
+    cleanup(d);
+  });
+
+  test('P14-N2 componente → API pública direto reprova', () => {
+    const d = comModulo({
+      'src/components/produtos/FormularioProduto.jsx':
+        "import { listEmpresas } from '@/apis/empresa';\nexport const carregar = () => listEmpresas();\n",
+    });
+    criarBaseline(d);
+    falhaCom(d, 'P11-API-BOUNDARY-SERVICE-BYPASS');
+    cleanup(d);
+  });
+
+  test('P14-N3 service → provider reprova', () => {
+    const d = comModulo({
+      'src/services/produtoService.js':
+        "import { empresaProvider } from '@/apis/_providers/base44Provider.js';\n" +
+        'export const listar = () => empresaProvider.list();\n',
+    });
+    criarBaseline(d);
+    falhaCom(d, 'P11-API-BOUNDARY-LAYER-BYPASS');
+    cleanup(d);
+  });
+
+  test('P14-N4 service → implementação privada de módulo reprova', () => {
+    const d = comModulo({
+      'src/services/produtoService.js':
+        "import { listEmpresas } from '@/apis/empresa/empresaApi.js';\nexport const listar = () => listEmpresas();\n",
+    });
+    criarBaseline(d);
+    falhaCom(d, 'P11-API-BOUNDARY-MODULE-INTERNAL-BYPASS');
+    cleanup(d);
+  });
+
+  test('P14-N5 provider passado como argumento reprova', () => {
+    const d = comModulo({
+      'src/apis/empresa/empresaApi.js':
+        "import { empresaProvider } from '../_providers/base44Provider.js';\n" +
+        'const carregarTudo = (fonte) => fonte.list();\n' +
+        'export const listEmpresas = () => carregarTudo(empresaProvider);\n',
+    });
+    criarBaseline(d);
+    falhaCom(d, 'P11-API-BOUNDARY-PUBLIC-PROVIDER-LEAK');
+    cleanup(d);
+  });
+
+  test('P14-N6 método cru do provider passado como argumento reprova', () => {
+    const d = comModulo({
+      'src/apis/empresa/empresaApi.js':
+        "import { empresaProvider } from '../_providers/base44Provider.js';\n" +
+        'const executar = (operacao) => operacao();\n' +
+        'export const listEmpresas = () => executar(empresaProvider.list);\n',
+    });
+    criarBaseline(d);
+    falhaCom(d, 'P11-API-BOUNDARY-PUBLIC-PROVIDER-LEAK');
+    cleanup(d);
+  });
+
+  test('P14-N7 resultado materializado passa — controle positivo', () => {
+    const d = comModulo({
+      'src/apis/empresa/empresaApi.js':
+        "import { empresaProvider } from '../_providers/base44Provider.js';\n" +
+        'const normalizar = (registros) => registros.filter(Boolean);\n' +
+        'export const listEmpresas = async () => normalizar(await empresaProvider.list());\n' +
+        'export const criar = (dados) => normalizar([empresaProvider.create(dados)]);\n',
+    });
+    criarBaseline(d);
+    const r = rodar(d);
+    assert.equal(r.status, 0, `passar o RESULTADO da chamada precisa continuar permitido:\n${r.output}`);
+    cleanup(d);
+  });
+
+  test('P14-N8 base44.entities[nome] reprova dentro da fronteira', () => {
+    const d = comModulo({
+      'src/apis/empresa/empresaApi.js':
+        "import { base44 } from '@/api/base44Client';\n" +
+        'export const listar = (nome) => base44.entities[nome].list();\n',
+    });
+    criarBaseline(d);
+    falhaCom(d, 'P11-API-BOUNDARY-DYNAMIC-ENTITY');
+    cleanup(d);
+  });
+
+  test('P14-N9 runtime offline recebendo o client inteiro reprova', () => {
+    const d = comModulo({
+      'src/lib/offline/offlineEntitySync.js':
+        "import { base44 } from '@/api/base44Client';\n" +
+        'export const instalar = (nome) => base44.entities[nome];\n',
+    });
+    criarBaseline(d);
+    const base = lerBaseline(d);
+    base.axes.importsLegacyClient = [];
+    base.axes.entitiesRefs = [];
+    base.axes.dynamicEntityFiles = [];
+    gravarBaseline(d, base);
+    falhaCom(d, 'P11-API-BOUNDARY-REGRESSION');
+    cleanup(d);
+  });
+
+  test('P14-N10 registry com entidade fora do manifesto reprova', () => {
+    const d = makeProject({
+      adapter: ADAPTER(['Empresa', 'Intrusa']),
+      entidadesEscopo: ['Empresa', 'Lote'],
+    });
+    criarBaseline(d);
+    falhaCom(d, 'P11-API-BOUNDARY-SCOPE');
+    cleanup(d);
+  });
+
+  test('P14-N11/N12 o registry real tem Marca e UnidadeMedida, e é igual ao manifesto', () => {
+    const atual = scanBoundary(REPO_ROOT);
+    const manifesto = JSON.parse(readFileSync(join(REPO_ROOT, SCOPE_REL), 'utf8'));
+    const permitidas = [...manifesto.allowedBase44Entities].sort();
+
+    assert.ok(atual.entidadesRegistradas.includes('Marca'), 'Marca ausente do registry');
+    assert.ok(atual.entidadesRegistradas.includes('UnidadeMedida'), 'UnidadeMedida ausente do registry');
+    // Igualdade, não inclusão: entidade permitida sem consumidor migrado também
+    // é divergência, e é assim que a P1 se declara fechada.
+    assert.deepEqual(atual.entidadesRegistradas, permitidas);
+    assert.equal(atual.entidadesRegistradas.length, 38);
+  });
+
+  test('P14-N13 baseline final com lista não vazia reprova a certificação da P1', () => {
+    const baselineReal = JSON.parse(readFileSync(join(REPO_ROOT, 'scripts/gates', BASELINE_REL), 'utf8'));
+    const naoVazios = Object.entries(baselineReal.axes)
+      .filter(([, lista]) => lista.length > 0)
+      .map(([eixo, lista]) => `${eixo}=${lista.length}`);
+    assert.deepEqual(
+      naoVazios,
+      [],
+      `a P1 só fecha com os seis eixos vazios; ainda há: ${naoVazios.join(', ')}`
+    );
+  });
+
+  test('P14 — a medição real do repositório tem os seis eixos zerados', () => {
+    const atual = scanBoundary(REPO_ROOT);
+    for (const [eixo, lista] of Object.entries(atual.listas)) {
+      assert.deepEqual(lista, [], `eixo ${eixo} ainda tem caminho legado: ${lista.join(', ')}`);
+    }
+    assert.deepEqual(atual.publicProviderLeaks, []);
+    assert.deepEqual(atual.providerArgLeaks, []);
+    assert.deepEqual(atual.serviceBypasses, []);
+    assert.deepEqual(atual.layerBypasses, []);
+  });
+});

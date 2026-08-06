@@ -1,4 +1,18 @@
-import { base44 } from "@/api/base44Client";
+/**
+ * Regras puras de estoque da suplementação.
+ *
+ * Até a P1.3 este arquivo fazia I/O: importava `base44` e escrevia em
+ * `MovimentacaoEstoque`, `EstoqueLoteNota` e `Produto`. Um arquivo chamado
+ * `…Utils` que grava no banco é uma armadilha — quem importa um utilitário não
+ * espera efeito colateral persistente.
+ *
+ * A partir da P1.4 aqui só há função pura: saldo, divergência, rateio FIFO e a
+ * validação da baixa. A persistência vive em
+ * `src/services/suplementacaoEstoqueService.js`.
+ *
+ * Sem React, sem provider, sem `window`.
+ */
+
 import { normalizeText, parseNumber } from "../utils/pecuariaUtils";
 
 // Re-exportar para manter compatibilidade com imports existentes
@@ -19,15 +33,20 @@ export const obterSaldoTransferivelProduto = ({ produto, lotesNota, localEstoque
   return 0;
 };
 
-export async function getNextSystemNumber() {
-  // Busca o maior número registrado (não depende de ordenação por data)
-  const movimentacoes = await base44.entities.MovimentacaoEstoque.list("-created_date", 200);
-  const maiorNumero = movimentacoes.reduce((max, m) => {
-    const n = parseInt(m.numero_movimentacao, 10);
+/**
+ * Próximo número de movimentação a partir de uma lista **já carregada**.
+ *
+ * A versão anterior chamava `MovimentacaoEstoque.list("-created_date", 200)`
+ * aqui dentro. A leitura passou para o service; a regra — maior número + 1 —
+ * continua sendo esta.
+ */
+export const proximoNumeroDeMovimentacao = (movimentacoes) => {
+  const maior = (Array.isArray(movimentacoes) ? movimentacoes : []).reduce((max, movimentacao) => {
+    const n = parseInt(movimentacao.numero_movimentacao, 10);
     return !isNaN(n) && n > max ? n : max;
   }, 0);
-  return maiorNumero + 1;
-}
+  return maior + 1;
+};
 
 function getValidFifoDate(lote) {
   const rawDate = lote.data_documento || lote.created_date;
@@ -35,7 +54,7 @@ function getValidFifoDate(lote) {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
-function buildRateioObservacao(rateio) {
+export function buildRateioObservacao(rateio) {
   return rateio
     .map((item) => `${item.numero_documento || "S/N"}: ${item.quantidade_consumida.toFixed(3)} kg`)
     .join(" | ");
@@ -124,293 +143,60 @@ export function calcularRateioFIFO({ lotesNota, produtoId, localEstoqueId, quant
   };
 }
 
-async function baixarLotesFIFO(rateio) {
-  for (const item of rateio) {
-    const loteAtual = await base44.entities.EstoqueLoteNota.filter({ id: item.lote_id });
-    if (!loteAtual?.length) continue;
-
-    const saldoAtual = loteAtual[0].quantidade_disponivel || 0;
-    if (item.quantidade_consumida > saldoAtual) {
-      throw new Error(`Tentativa de baixar ${item.quantidade_consumida.toFixed(3)} kg acima do saldo do lote ${item.numero_documento || item.lote_id}.`);
-    }
-    const novoSaldo = Math.max(0, saldoAtual - item.quantidade_consumida);
-
-    await base44.entities.EstoqueLoteNota.update(item.lote_id, {
-      quantidade_disponivel: novoSaldo,
-      status: novoSaldo > 0 ? "Disponivel" : "Esgotado",
-    });
-  }
-}
-
-async function garantirLoteOrigemFallback({ empresaId, produto, localOrigemId, localOrigemNome, lotesNota }) {
-  const saldoLocal = obterSaldoProdutoLocal(lotesNota, produto.id, localOrigemId);
-  if (saldoLocal > 0) return lotesNota;
-  if (normalizeText(produto?.local_estoque) !== normalizeText(localOrigemNome)) return lotesNota;
-  const estoqueAtual = Number(produto?.estoque_atual || 0);
-  if (estoqueAtual <= 0) return lotesNota;
-
-  const novoLote = await base44.entities.EstoqueLoteNota.create({
-    empresa_id: empresaId,
-    produto_id: produto.id,
-    produto_nome: produto.nome_produto,
-    local_estoque_id: localOrigemId,
-    local_estoque_nome: localOrigemNome,
-    numero_documento: "SALDO-INICIAL",
-    serie_documento: "INI",
-    data_documento: new Date().toISOString().split("T")[0],
-    fornecedor_id: null,
-    fornecedor_nome: null,
-    custo_unitario: produto.preco_custo || 0,
-    quantidade_entrada: estoqueAtual,
-    quantidade_disponivel: estoqueAtual,
-    movimentacao_entrada_id: null,
-    status: "Disponivel",
-  });
-
-  return [...lotesNota, novoLote];
-}
-
-async function criarLotesDestinoTransferencia({ empresaId, produto, localDestinoId, localDestinoNome, rateio, movimentacaoEntradaId }) {
-  for (const item of rateio) {
-    await base44.entities.EstoqueLoteNota.create({
-      empresa_id: empresaId,
-      produto_id: produto.id,
-      produto_nome: produto.nome_produto,
-      local_estoque_id: localDestinoId,
-      local_estoque_nome: localDestinoNome,
-      numero_documento: item.numero_documento,
-      serie_documento: item.serie_documento,
-      data_documento: item.data_documento,
-      fornecedor_id: item.fornecedor_id,
-      fornecedor_nome: item.fornecedor_nome,
-      custo_unitario: item.custo_unitario,
-      quantidade_entrada: item.quantidade_consumida,
-      quantidade_disponivel: item.quantidade_consumida,
-      movimentacao_entrada_id: movimentacaoEntradaId,
-      status: "Disponivel",
-    });
-  }
-}
-
-export async function registrarSaidaSuplementacao({
-  empresaId,
-  userEmail,
-  produto,
-  quantidade,
-  localOrigemId,
-  localOrigemNome,
-  areaId,
-  areaNome,
-  observacoes,
-  lotesNota,
-  depositoId,
-  pontoSuplementacaoId,
-  dataMovimentacao,
-}) {
+/**
+ * Valida a baixa antes de qualquer escrita.
+ *
+ * Reúne as três recusas que estavam espalhadas dentro de
+ * `registrarSaidaSuplementacao`: rateio inviável, divergência entre lotes e
+ * cadastro, e saldo que ficaria negativo. Retorna motivo **e** mensagem: o
+ * motivo é para o código decidir, a mensagem é texto de domínio — calculado
+ * aqui, nunca vindo do provider.
+ *
+ * @returns {{ok: boolean, motivo?: string, mensagem?: string, rateio?: Array<object>,
+ *            custoMedioPonderado?: number, valorTotal?: number, saldoAntes?: number}}
+ */
+export function validarBaixaFIFO({ lotesNota, produto, localEstoqueId, quantidade }) {
   const resultado = calcularRateioFIFO({
     lotesNota,
     produtoId: produto.id,
-    localEstoqueId: localOrigemId,
+    localEstoqueId,
     quantidade,
   });
 
   if (!resultado.sucesso) {
-    throw new Error(resultado.erro);
+    return { ok: false, motivo: "rateio_inviavel", mensagem: resultado.erro };
   }
 
   const quantidadeFinal = parseNumber(quantidade);
-  const estoqueAtual = produto.estoque_atual || 0;
-  const saldoAntesLocal = obterSaldoProdutoLocal(lotesNota, produto.id, localOrigemId);
-  
+  const saldoAntes = obterSaldoProdutoLocal(lotesNota, produto.id, localEstoqueId);
   const conferencia = conferirDivergenciaEstoque({
     lotesNota,
     produtoId: produto.id,
-    localEstoqueId: localOrigemId,
-    saldoProduto: estoqueAtual,
+    localEstoqueId,
+    saldoProduto: produto.estoque_atual || 0,
   });
+
   if (conferencia.inconsistente && conferencia.saldoLotes <= 0) {
-    throw new Error(`Divergência de estoque detectada. Lotes: ${conferencia.saldoLotes.toFixed(3)} / Produto: ${conferencia.saldoCadastro.toFixed(3)}.`);
+    return {
+      ok: false,
+      motivo: "divergencia_de_estoque",
+      mensagem: `Divergência de estoque detectada. Lotes: ${conferencia.saldoLotes.toFixed(3)} / Produto: ${conferencia.saldoCadastro.toFixed(3)}.`,
+    };
   }
+
   if (conferencia.saldoLotes - quantidadeFinal < 0) {
-    throw new Error("Não é permitido saldo negativo no local de origem.");
-  }
-  const numeroMovimentacao = await getNextSystemNumber();
-
-  const movimentacao = await base44.entities.MovimentacaoEstoque.create({
-    empresa_id: empresaId,
-    numero_movimentacao: String(numeroMovimentacao),
-    tipo_movimentacao: "Saída",
-    tipo_detalhado: "suplementacao",
-    data_movimentacao: dataMovimentacao ? `${dataMovimentacao}T12:00:00.000Z` : new Date().toISOString(),
-    produto_id: produto.id,
-    produto_nome: produto.nome_produto,
-    produto_codigo: produto.codigo_interno || produto.codigo_barras || "",
-    produto_categoria: produto.categoria,
-    quantidade: quantidadeFinal,
-    unidade_medida: produto.unidade_medida || "KG",
-    valor_unitario: resultado.custoMedioPonderado,
-    valor_total: resultado.valorTotal,
-    local_estoque_origem: localOrigemId,
-    local_origem: localOrigemNome,
-    area_vinculada_id: areaId || undefined,
-    area_vinculada_nome: areaNome || undefined,
-    tipo_vinculo: areaId ? "area" : undefined,
-    centro_custo_nome: areaNome || undefined,
-    motivo_movimentacao: "Baixa automática de suplementação",
-    observacoes: `${observacoes || ""}${observacoes ? "\n" : ""}[RATEIO_FIFO] ${buildRateioObservacao(resultado.rateio)}`,
-    origem_sistema: "suplementacao",
-    deposito_id: depositoId || undefined,
-    ponto_suplementacao_id: pontoSuplementacaoId || undefined,
-    bloqueado_exclusao_estoque: true,
-    exclusao_somente_em: "cocho",
-    is_registro_principal: true,
-    numero_movimentacao_seq: 1,
-    total_movimentacoes_grupo: 1,
-    saldo_antes: saldoAntesLocal,
-    saldo_depois: Math.max(0, saldoAntesLocal - quantidadeFinal),
-    custo_medio_antes: produto.preco_custo || 0,
-    custo_medio_depois: resultado.custoMedioPonderado || 0,
-    usuario_responsavel: userEmail || "Sistema",
-    status: "Ativa",
-  });
-
-  await baixarLotesFIFO(resultado.rateio);
-  await base44.entities.Produto.update(produto.id, {
-    estoque_atual: Math.max(0, estoqueAtual - quantidadeFinal),
-  });
-
-  return { movimentacao, rateio: resultado.rateio };
-}
-
-export async function registrarTransferenciaEntreLocais({
-  empresaId,
-  userEmail,
-  produto,
-  quantidade,
-  localOrigemId,
-  localOrigemNome,
-  localDestinoId,
-  localDestinoNome,
-  observacoes,
-  lotesNota,
-  dataMovimentacao,
-}) {
-  const quantidadeFinal = parseNumber(quantidade);
-  const lotesAtualizados = await garantirLoteOrigemFallback({ empresaId, produto, localOrigemId, localOrigemNome, lotesNota });
-  const lotesDisponiveis = (lotesAtualizados || lotesNota).filter((lote) => lote.empresa_id === empresaId && lote.status === "Disponivel");
-  const resultado = calcularRateioFIFO({
-    lotesNota: lotesDisponiveis,
-    produtoId: produto.id,
-    localEstoqueId: localOrigemId,
-    quantidade,
-  });
-
-  if (!resultado.sucesso) {
-    throw new Error(resultado.erro);
+    return {
+      ok: false,
+      motivo: "saldo_negativo",
+      mensagem: "Não é permitido saldo negativo no local de origem.",
+    };
   }
 
-  const estoqueAtual = produto.estoque_atual || 0;
-  const saldoAntesOrigem = obterSaldoProdutoLocal(lotesDisponiveis, produto.id, localOrigemId);
-  const saldoAntesDestino = obterSaldoProdutoLocal(lotesDisponiveis, produto.id, localDestinoId);
-  
-  const conferencia = conferirDivergenciaEstoque({
-    lotesNota: lotesDisponiveis,
-    produtoId: produto.id,
-    localEstoqueId: localOrigemId,
-    saldoProduto: estoqueAtual,
-  });
-  if (conferencia.inconsistente && conferencia.saldoLotes <= 0) {
-    throw new Error(`Divergência de estoque detectada. Lotes: ${conferencia.saldoLotes.toFixed(3)} / Produto: ${conferencia.saldoCadastro.toFixed(3)}.`);
-  }
-  if (conferencia.saldoLotes - quantidadeFinal < 0) {
-    throw new Error("Não é permitido saldo negativo no local de origem.");
-  }
-  const numeroBase = await getNextSystemNumber();
-  const dataMovimentacaoIso = dataMovimentacao ? `${dataMovimentacao}T12:00:00.000Z` : new Date().toISOString();
-
-  const movimentacaoSaida = await base44.entities.MovimentacaoEstoque.create({
-    empresa_id: empresaId,
-    numero_movimentacao: String(numeroBase),
-    tipo_movimentacao: "Saída",
-    tipo_detalhado: "transferencia_enviada",
-    data_movimentacao: dataMovimentacaoIso,
-    produto_id: produto.id,
-    produto_nome: produto.nome_produto,
-    produto_codigo: produto.codigo_interno || produto.codigo_barras || "",
-    produto_categoria: produto.categoria,
-    quantidade: quantidadeFinal,
-    unidade_medida: produto.unidade_medida || "KG",
-    valor_unitario: resultado.custoMedioPonderado,
-    valor_total: resultado.valorTotal,
-    local_estoque_origem: localOrigemId,
-    local_origem: localOrigemNome,
-    local_estoque_destino: localDestinoId,
-    local_destino: localDestinoNome,
-    motivo_movimentacao: "Transferência entre locais de estoque",
-    observacoes: `${observacoes || ""}${observacoes ? "\n" : ""}[RATEIO_FIFO] ${buildRateioObservacao(resultado.rateio)}`,
-    origem_sistema: "deposito",
-    bloqueado_exclusao_estoque: true,
-    exclusao_somente_em: "deposito",
-    is_registro_principal: true,
-    numero_movimentacao_seq: 1,
-    total_movimentacoes_grupo: 1,
-    saldo_antes: saldoAntesOrigem,
-    saldo_depois: Math.max(0, saldoAntesOrigem - quantidadeFinal),
-    custo_medio_antes: produto.preco_custo || 0,
-    custo_medio_depois: resultado.custoMedioPonderado || 0,
-    usuario_responsavel: userEmail || "Sistema",
-    status: "Ativa",
-  });
-
-  await baixarLotesFIFO(resultado.rateio);
-
-  const movimentacaoEntrada = await base44.entities.MovimentacaoEstoque.create({
-    empresa_id: empresaId,
-    numero_movimentacao: String(numeroBase + 1),
-    tipo_movimentacao: "Entrada",
-    tipo_detalhado: "transferencia_recebida",
-    data_movimentacao: dataMovimentacaoIso,
-    produto_id: produto.id,
-    produto_nome: produto.nome_produto,
-    produto_codigo: produto.codigo_interno || produto.codigo_barras || "",
-    produto_categoria: produto.categoria,
-    quantidade: quantidadeFinal,
-    unidade_medida: produto.unidade_medida || "KG",
-    valor_unitario: resultado.custoMedioPonderado,
-    valor_total: resultado.valorTotal,
-    local_estoque_origem: localOrigemId,
-    local_origem: localOrigemNome,
-    local_estoque_destino: localDestinoId,
-    local_destino: localDestinoNome,
-    motivo_movimentacao: "Transferência entre locais de estoque",
-    observacoes: `${observacoes || ""}${observacoes ? "\n" : ""}[RATEIO_FIFO] ${buildRateioObservacao(resultado.rateio)}`,
-    origem_sistema: "deposito",
-    bloqueado_exclusao_estoque: true,
-    exclusao_somente_em: "deposito",
-    movimento_pai_id: movimentacaoSaida.id,
-    is_registro_principal: false,
-    numero_movimentacao_seq: 2,
-    total_movimentacoes_grupo: 2,
-    saldo_antes: saldoAntesDestino,
-    saldo_depois: saldoAntesDestino + quantidadeFinal,
-    custo_medio_antes: produto.preco_custo || 0,
-    custo_medio_depois: resultado.custoMedioPonderado || 0,
-    usuario_responsavel: userEmail || "Sistema",
-    status: "Ativa",
-  });
-
-  await base44.entities.MovimentacaoEstoque.update(movimentacaoSaida.id, {
-    movimento_filho_id: movimentacaoEntrada.id,
-  });
-
-  await criarLotesDestinoTransferencia({
-    empresaId,
-    produto,
-    localDestinoId,
-    localDestinoNome,
+  return {
+    ok: true,
     rateio: resultado.rateio,
-    movimentacaoEntradaId: movimentacaoEntrada.id,
-  });
-
-  return { movimentacaoSaida, movimentacaoEntrada, rateio: resultado.rateio };
+    custoMedioPonderado: resultado.custoMedioPonderado,
+    valorTotal: resultado.valorTotal,
+    saldoAntes,
+  };
 }

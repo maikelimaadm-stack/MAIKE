@@ -1,5 +1,12 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { base44 } from "@/api/base44Client";
+import {
+  listarLocais,
+  criarLocal,
+  atualizarLocal,
+  numerarLocaisSemNumero,
+  excluirLocais,
+} from "@/services/localEstoqueService";
+import { getApiErrorMessage } from "@/apis/_core/ApiError";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,8 +22,6 @@ import { AnimatePresence, motion } from "framer-motion";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 import ConfiguracaoColunasMapaDialog from "@/components/mapa/ConfiguracaoColunasMapaDialog";
-
-const getNextLocalNumber = async () => { try { const all = await base44.entities.LocalEstoque.list(); const nums = all.map(l => parseInt(l.numero_local) || 0).filter(n => n > 0); return nums.length > 0 ? Math.max(...nums) + 1 : 1; } catch { return 1; } };
 
 const COLUNAS_DISPONIVEIS = [
   { id: 'selecao', label: 'Seleção', default: true, fixo: true, width: 25 },
@@ -66,68 +71,40 @@ export default function LocaisEstoque() {
   useEffect(() => { const onMove = (e) => { if (!dragRef.current) return; if (e.cancelable) e.preventDefault(); const cX = e.touches?.[0]?.clientX ?? e.clientX; const { columnId, startX, startWidth } = dragRef.current; setColumnWidths(prev => ({ ...prev, [columnId]: Math.max(MIN_COL_W, startWidth + (cX - startX)) })); }; const onUp = () => { if (!dragRef.current) return; dragRef.current = null; document.body.style.cursor = ""; document.body.style.userSelect = ""; }; window.addEventListener("mousemove", onMove); window.addEventListener("mouseup", onUp); window.addEventListener("touchmove", onMove, { passive: false }); window.addEventListener("touchend", onUp); return () => { window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp); window.removeEventListener("touchmove", onMove); window.removeEventListener("touchend", onUp); }; }, []);
   const startDragResize = (e, colunaId) => { e.preventDefault(); e.stopPropagation(); const cX = e.touches?.[0]?.clientX ?? e.clientX; dragRef.current = { columnId: colunaId, startX: cX, startWidth: columnWidths[colunaId] || 160 }; document.body.style.cursor = "col-resize"; document.body.style.userSelect = "none"; };
   const queryClient = useQueryClient();
-  const { data: locais = [], isLoading } = useQuery({ queryKey: ['locais_estoque'], queryFn: () => base44.entities.LocalEstoque.list(), initialData: [] });
+  const { data: locais = [], isLoading } = useQuery({ queryKey: ['locais_estoque'], queryFn: () => listarLocais(), initialData: [] });
 
-  useEffect(() => { const fn = async () => { const sem = locais.filter(l => !l.numero_local); if (sem.length > 0) { for (const l of sem) { try { const n = await getNextLocalNumber(); await base44.entities.LocalEstoque.update(l.id, { numero_local: String(n) }); } catch { /* falha ignorada intencionalmente: operação best-effort */ } } queryClient.invalidateQueries({ queryKey: ['locais_estoque'] }); } }; if (locais.length > 0) fn(); }, [locais, queryClient]);
+  useEffect(() => {
+    const numerar = async () => {
+      const { numerados } = await numerarLocaisSemNumero(locais);
+      if (numerados.length) queryClient.invalidateQueries({ queryKey: ['locais_estoque'] });
+    };
+    if (locais.length > 0) numerar();
+  }, [locais, queryClient]);
 
-  const createMutation = useMutation({ mutationFn: async (data) => { const n = await getNextLocalNumber(); return base44.entities.LocalEstoque.create({ ...data, numero_local: String(n) }); }, onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['locais_estoque'] }); setShowForm(false); setEditing(null); toast.success('Local cadastrado!'); }, onError: (err) => toast.error(err.message || 'Erro.') });
+  const createMutation = useMutation({ mutationFn: (data) => criarLocal(data), onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['locais_estoque'] }); setShowForm(false); setEditing(null); toast.success('Local cadastrado!'); }, onError: (err) => toast.error(getApiErrorMessage(err, 'Não foi possível salvar o local.')) });
 
-  // Sincroniza alteração de Local de Estoque com o Depósito vinculado no mapa
-  const syncDepositoVinculado = async (localId, novoNome) => {
-    const pontosSupl = await base44.entities.PontoSuplementacao.list();
-    const pontoVinculado = pontosSupl.find((p) => p.local_estoque_id === localId && p.categoria_ponto === "DEPOSITO");
-    if (!pontoVinculado) return;
-
-    await base44.entities.PontoSuplementacao.update(pontoVinculado.id, { nome_ponto: novoNome, local_estoque_nome: novoNome });
-
-    const pontosRef = await base44.entities.PontoReferencia.list();
-    const refVinculada = pontosRef.find((r) => {
-      if (!r.coordenadas || !pontoVinculado.coordenadas) return false;
-      return r.coordenadas.lat === pontoVinculado.coordenadas.lat && r.coordenadas.lng === pontoVinculado.coordenadas.lng;
-    });
-    if (refVinculada) await base44.entities.PontoReferencia.update(refVinculada.id, { nome: novoNome });
-
-    const cochosVinculados = pontosSupl.filter((p) => p.deposito_origem_id === pontoVinculado.id);
-    await Promise.all(cochosVinculados.map((c) => base44.entities.PontoSuplementacao.update(c.id, { deposito_origem_nome: novoNome })));
-  };
-
+  // A propagação do rename para o depósito, o ponto de referência e os cochos
+  // vive no service: é uma operação composta, não estado de tela.
   const updateMutation = useMutation({
-    mutationFn: async ({ id, data }) => {
-      const localAntigo = locais.find((l) => l.id === id);
-      const updated = await base44.entities.LocalEstoque.update(id, data);
-      if (localAntigo && data.nome && localAntigo.nome !== data.nome) {
-        await syncDepositoVinculado(id, data.nome);
-      }
-      return updated;
-    },
+    mutationFn: ({ id, data }) => atualizarLocal({ id, dados: data, locais }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['locais_estoque'] });
       queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && ["pontos", "pontos-suplementacao-form", "mapa-pontos", "mapa-pontos-supl", "pontos-suplementacao"].includes(q.queryKey[0]) });
       window.dispatchEvent(new CustomEvent("atualizar-mapa"));
       setShowForm(false); setEditing(null); toast.success('Local atualizado!');
     },
-    onError: (err) => toast.error(err.message || 'Erro.')
+    onError: (err) => toast.error(getApiErrorMessage(err, 'Não foi possível salvar o local.'))
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (ids) => {
-      const prods = await base44.entities.Produto.list();
-      const movs = await base44.entities.MovimentacaoEstoque.list();
-      const lotes = await base44.entities.EstoqueLoteNota.list();
-      const pontosSupl = await base44.entities.PontoSuplementacao.list();
-      for (const id of ids) {
-        const l = locais.find(x => x.id === id);
-        const depositoVinculado = pontosSupl.find((p) => p.local_estoque_id === id && p.categoria_ponto === "DEPOSITO");
-        if (depositoVinculado) throw new Error(`❌ "${l?.nome}" pertence a um depósito do mapa. Exclua pelo mapa.`);
-        // Produto guarda o NOME do local; movimentações e lotes guardam o ID do local.
-        if (prods.some(p => p.local_estoque === l?.nome)) throw new Error(`❌ "${l?.nome}" possui produtos vinculados!`);
-        if (movs.some(m => m.local_estoque_origem === id || m.local_estoque_destino === id)) throw new Error(`❌ "${l?.nome}" possui movimentações vinculadas!`);
-        if (lotes.some(le => le.local_estoque_id === id && (le.quantidade_disponivel || 0) > 0)) throw new Error(`❌ "${l?.nome}" possui saldo de estoque (lotes) vinculado!`);
-        await base44.entities.LocalEstoque.delete(id);
-      }
+    mutationFn: (ids) => excluirLocais(ids, { locais }),
+    onSuccess: ({ excluidos, bloqueados }) => {
+      queryClient.invalidateQueries({ queryKey: ['locais_estoque'] });
+      setSelectedItems([]);
+      if (excluidos.length) toast.success(excluidos.length === 1 ? 'Local excluído!' : `${excluidos.length} locais excluídos!`);
+      if (bloqueados.length) toast.error(bloqueados.length === 1 ? '1 local não pôde ser excluído: existem registros vinculados.' : `${bloqueados.length} locais não puderam ser excluídos: existem registros vinculados.`);
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['locais_estoque'] }); toast.success('Local(is) excluído(s)!'); setSelectedItems([]); },
-    onError: (err) => toast.error(err.message || 'Erro.')
+    onError: (err) => toast.error(getApiErrorMessage(err, 'Não foi possível excluir.'))
   });
 
   const handleSubmit = (e) => { e.preventDefault(); const ne = {}; if (!formData.nome?.trim()) ne.nome = true; setErrors(ne); if (Object.keys(ne).length > 0) { toast.error("PREENCHA OS CAMPOS OBRIGATÓRIOS."); return; } const data = { nome: formData.nome.toUpperCase(), descricao: formData.descricao?.toUpperCase() || undefined, capacidade: formData.capacidade?.toUpperCase() || undefined, ativo: formData.ativo }; if (editing) updateMutation.mutate({ id: editing.id, data }); else createMutation.mutate(data); };

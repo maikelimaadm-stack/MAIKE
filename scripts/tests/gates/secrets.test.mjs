@@ -209,10 +209,38 @@ describe('gate:no-secrets', () => {
     cleanup(d);
   });
 
-  test('arquivo não versionado não é varrido', () => {
+  /**
+   * Contrato invertido na P1.4 (DBT-17).
+   *
+   * Até a P1.3 este teste fixava o oposto: arquivo não rastreado **não** era
+   * varrido, e um `.js` novo com chave dentro passava batido até o `git add`.
+   * O gate ficava verde exatamente no momento em que o segredo estava mais
+   * fresco e mais perto de virar commit.
+   */
+  test('DBT-17a — arquivo não rastreado e não ignorado com segredo reprova', () => {
     const d = makeRepo({ 'src/ok.js': 'export const a = 1;\n' });
-    // Escrito depois do `git add`: não está no índice.
+    // Escrito depois do `git add`: não está no índice, e nada o ignora.
     writeFile(d, 'src/naoVersionado.js', `const k = "${CHAVE_GOOGLE}";\n`);
+    const r = run(d);
+    assert.equal(r.status, 1, r.output);
+    assert.match(r.output, /P01-SECRET-HARDCODED/);
+    assert.match(r.output, /naoVersionado\.js/);
+    assert.ok(!r.output.includes(CHAVE_GOOGLE), 'o valor do segredo não pode aparecer na saída');
+    cleanup(d);
+  });
+
+  test('DBT-17b — arquivo não rastreado e seguro passa', () => {
+    const d = makeRepo({ 'src/ok.js': 'export const a = 1;\n' });
+    writeFile(d, 'src/novoSeguro.js', 'export const chave = import.meta.env.VITE_ALGO;\n');
+    const r = run(d);
+    assert.equal(r.status, 0, r.output);
+    cleanup(d);
+  });
+
+  test('DBT-17c — arquivo ignorado não é varrido, mesmo com segredo', () => {
+    const d = makeRepo({ 'src/ok.js': 'export const a = 1;\n', '.gitignore': '.env.local\nsegredos/\n' });
+    writeFile(d, '.env.local', `GOOGLE_KEY=${CHAVE_GOOGLE}\n`);
+    writeFile(d, 'segredos/chave.txt', `${CHAVE_GOOGLE}\n`);
     const r = run(d);
     assert.equal(r.status, 0, r.output);
     cleanup(d);

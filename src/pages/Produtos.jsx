@@ -1,5 +1,22 @@
 import React, { useState } from "react";
-import { base44 } from "@/api/base44Client";
+import {
+  listarProdutosDaEmpresa,
+  proximoNumeroDeProduto,
+  criarProduto,
+  atualizarProduto,
+  numerarProdutosSemNumero,
+  excluirProduto,
+  importarProdutos,
+} from "@/services/produtoService";
+import {
+  BOM_UTF8,
+  montarTemplateCsv,
+  montarCsvDeProdutos,
+  montarCsvDeErros,
+  parseCsvDeProdutos,
+} from "@/domain/produtos/csvProduto";
+import { getApiErrorMessage, hasApiErrorCode, API_ERROR_CODES } from "@/apis/_core/ApiError";
+import { emitDeleteDialog } from "@/lib/deleteDialogBus";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Settings, Download, Upload, FileSpreadsheet, Loader2, AlertCircle, X, Plus } from "lucide-react";
@@ -31,22 +48,6 @@ import FichaProduto from "../components/produtos/FichaProduto";
 // Próximo número de produto. Escopo P0.1: a sequência era global (Pesagem +
 // Fornecedor + Produto); os domínios de pesagem e safra saíram do produto, então
 // a numeração passa a considerar apenas Produto.
-const getNextSystemNumber = async () => {
-  try {
-    const produtos = await base44.entities.Produto.list();
-
-    const numeros = produtos.
-    map((p) => parseInt(p.numero_produto) || 0).
-    filter((n) => n > 0 && n < 1000000000); // Filtrar timestamps acidentais
-
-    return numeros.length > 0 ? Math.max(...numeros) + 1 : 1;
-  } catch (error) {
-    console.error('Erro ao calcular próximo número de produto:', error);
-    // Em caso de erro, retornar 1 ao invés de timestamp
-    return 1;
-  }
-};
-
 export default function Produtos() {
   const [showForm, setShowForm] = useState(false);
   const [editingProduto, setEditingProduto] = useState(null);
@@ -66,11 +67,7 @@ export default function Produtos() {
 
   const { data: produtos, isLoading, refetch } = useQuery({
     queryKey: ['produtos', empresaSelecionadaId],
-    queryFn: async () => {
-      const allProdutos = await base44.entities.Produto.list('-created_date');
-      // Filtrar apenas produtos da empresa selecionada
-      return allProdutos.filter(p => p.empresa_id === empresaSelecionadaId);
-    },
+    queryFn: () => listarProdutosDaEmpresa(empresaSelecionadaId),
     initialData: [],
     enabled: !!empresaSelecionadaId,
   });
@@ -78,24 +75,8 @@ export default function Produtos() {
   // Numerar produtos existentes automaticamente
   React.useEffect(() => {
     const numerarProdutosExistentes = async () => {
-      if (!empresaSelecionadaId) return; // Ensure we have a selected company
-
-      const produtosSemNumero = produtos.filter(p => !p.numero_produto || p.numero_produto === '');
-      
-      if (produtosSemNumero.length > 0) {
-        for (const produto of produtosSemNumero) {
-          try {
-            const proximoNumero = await getNextSystemNumber();
-            await base44.entities.Produto.update(produto.id, {
-              numero_produto: String(proximoNumero)
-            });
-          } catch (error) {
-            console.error(`Erro:`, error);
-          }
-        }
-        
-        queryClient.invalidateQueries({ queryKey: ['produtos', empresaSelecionadaId] });
-      }
+      const { numerados } = await numerarProdutosSemNumero(produtos);
+      if (numerados.length) queryClient.invalidateQueries({ queryKey: ['produtos', empresaSelecionadaId] });
     };
 
     if (!isLoading && produtos && produtos.length > 0 && empresaSelecionadaId) {
@@ -103,21 +84,9 @@ export default function Produtos() {
     }
   }, [produtos, queryClient, isLoading, empresaSelecionadaId]);
 
+  // A unicidade de nome por empresa e o `syncEntityReferences` vivem no service.
   const createMutation = useMutation({
-    mutationFn: async (data) => {
-      // Validar se já existe produto com mesmo nome E mesma empresa
-      const existente = produtos.find(p => 
-        p.nome_produto.toUpperCase().trim() === data.nome_produto.toUpperCase().trim() && 
-        p.empresa_id === empresaSelecionadaId &&
-        (!editingProduto || p.id !== editingProduto.id)
-      );
-      
-      if (existente) {
-        throw new Error('Já existe produto com este nome!');
-      }
-      
-      return base44.entities.Produto.create(data);
-    },
+    mutationFn: (data) => criarProduto({ dados: data, empresaId: empresaSelecionadaId, produtos }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['produtos', empresaSelecionadaId] });
       setShowForm(false);
@@ -125,31 +94,13 @@ export default function Produtos() {
       toast.success('Produto cadastrado!');
     },
     onError: (error) => {
-      toast.error(error.message || 'Erro ao salvar.');
+      toast.error(getApiErrorMessage(error, 'Não foi possível salvar o produto.'));
     }
   });
 
   const updateMutation = useMutation({
-    mutationFn: async ({ id, data, oldData }) => {
-      // Validar se já existe produto com mesmo nome E mesma empresa
-      const existente = produtos.find(p => 
-        p.nome_produto.toUpperCase().trim() === data.nome_produto.toUpperCase().trim() && 
-        p.empresa_id === empresaSelecionadaId &&
-        p.id !== id
-      );
-      
-      if (existente) {
-        throw new Error('Já existe produto com este nome!');
-      }
-      
-      const updated = await base44.entities.Produto.update(id, data);
-      await base44.functions.invoke('syncEntityReferences', {
-        event: { type: 'update', entity_name: 'Produto' },
-        data: updated,
-        old_data: oldData,
-      });
-      return updated;
-    },
+    mutationFn: ({ id, data, oldData }) =>
+      atualizarProduto({ id, dados: data, oldData, empresaId: empresaSelecionadaId, produtos }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['produtos', empresaSelecionadaId] });
       setShowForm(false);
@@ -157,60 +108,45 @@ export default function Produtos() {
       toast.success('Produto atualizado!');
     },
     onError: (error) => {
-      toast.error(error.message || 'Erro.');
+      toast.error(getApiErrorMessage(error, 'Não foi possível salvar o produto.'));
     }
   });
 
+  /**
+   * O bloqueio por movimentação virou `PRODUTO_DELETE_BLOCKED`.
+   *
+   * O legado abria o diálogo de dentro da mutation e sinalizava com
+   * `new Error('DELETE_BLOCKED')`, reconhecido por comparação de texto. Agora a
+   * decisão é por código e o diálogo é montado aqui, com a contagem que o
+   * service devolve em `details`.
+   */
   const deleteMutation = useMutation({
-    mutationFn: async (id) => {
-      const produto = produtos.find((item) => item.id === id);
-
-      const abrirBloqueio = (description) => {
-        window.dispatchEvent(new CustomEvent('base44:delete-dialog', {
-          detail: {
-            title: 'Não é possível excluir',
-            description,
-          },
-        }));
-      };
-
-      const todasMovimentacoes = await base44.entities.MovimentacaoEstoque.list();
-      const movimentacoesRelacionadas = todasMovimentacoes.filter((m) => m.produto_id === id);
-      if (movimentacoesRelacionadas.length > 0) {
-        abrirBloqueio(`O produto ${produto?.nome_produto || ''} já possui ${movimentacoesRelacionadas.length} registro(s) lançados em movimentações de estoque e não pode ser excluído.`);
-        throw new Error('DELETE_BLOCKED');
-      }
-
-      return base44.entities.Produto.delete(id);
-    },
+    mutationFn: (id) => excluirProduto(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['produtos', empresaSelecionadaId] });
       toast.success('Produto excluído!');
     },
     onError: (error) => {
-      if (error.message === 'DELETE_BLOCKED') return;
-      toast.error(error.message || 'Erro.');
+      if (hasApiErrorCode(error, API_ERROR_CODES.PRODUTO_DELETE_BLOCKED)) {
+        const quantidade = /** @type {any} */ (error).details?.quantidade ?? 0;
+        emitDeleteDialog(
+          `Este produto já possui ${quantidade} registro(s) lançados em movimentações de estoque e não pode ser excluído.`
+        );
+        return;
+      }
+      toast.error(getApiErrorMessage(error, 'Não foi possível excluir o produto.'));
     }
   });
 
   const handleSubmit = async (data) => {
     try {
-      // Adicionar empresa_id aos dados
-      data.empresa_id = empresaSelecionadaId;
-      
-      if (!editingProduto) {
-        const proximoNumero = await getNextSystemNumber();
-        data.numero_produto = String(proximoNumero);
-      }
-      
       if (editingProduto) {
         await updateMutation.mutateAsync({ id: editingProduto.id, data, oldData: editingProduto });
       } else {
         await createMutation.mutateAsync(data);
       }
-    } catch (error) {
-      console.error('Erro:', error);
-      toast.error(error.message || 'Erro ao salvar produto.');
+    } catch {
+      // A mensagem já foi exibida por `onError` da mutation.
     }
   };
 
@@ -236,57 +172,22 @@ export default function Produtos() {
     setEditingProduto(null);
   };
 
-  const handleExport = () => {
-    const csvRows = [];
-    const headers = ['Nome', 'Código', 'Cód Barras', 'Categoria', 'Descrição', 'Unidade', 'Custo', 'Venda', 'Estoque', 'Mínimo', 'Obs'];
-    csvRows.push(headers.join(';'));
-
-    produtos.forEach(p => {
-      const row = [
-        p.nome_produto,
-        p.codigo_interno || '',
-        p.codigo_barras || '',
-        p.categoria || '',
-        p.descricao || '',
-        p.unidade_medida,
-        p.preco_custo || 0,
-        p.preco_venda || 0,
-        p.estoque_atual || 0,
-        p.estoque_minimo || 0,
-        p.observacoes || ''
-      ];
-      csvRows.push(row.map(item => typeof item === 'string' && item.includes(';') ? `"${item}"` : item).join(';'));
-    });
-
-    const csvString = csvRows.join('\n');
-    const blob = new Blob(['\ufeff' + csvString], { type: 'text/csv;charset=utf-8;' });
+  /** O download é da tela; a montagem do CSV é pura. */
+  const baixarCsv = (conteudo, nomeArquivo) => {
+    const blob = new Blob([BOM_UTF8 + conteudo], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = `produtos_${format(new Date(), 'yyyy-MM-dd')}.csv`;
+    link.download = nomeArquivo;
     link.click();
+  };
+
+  const handleExport = () => {
+    baixarCsv(montarCsvDeProdutos(produtos), `produtos_${format(new Date(), 'yyyy-MM-dd')}.csv`);
     toast.success('Exportado!');
   };
 
   const downloadErrosImportacao = () => {
-    const csvRows = [];
-    const headers = ['Linha', 'Erro', 'Nome', 'Código', 'Cód Barras', 'Categoria', 'Descrição', 'UN', 'Custo', 'Venda', 'Estoque', 'Mínimo', 'Obs'];
-    csvRows.push(headers.join(';'));
-
-    importErrors.forEach(erro => {
-      const row = [
-        erro.linha,
-        erro.erro,
-        ...erro.dados.split(';')
-      ];
-      csvRows.push(row.map(item => typeof item === 'string' && item.includes(';') ? `"${item}"` : item).join(';'));
-    });
-
-    const csvString = csvRows.join('\n');
-    const blob = new Blob(['\ufeff' + csvString], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `erros_produtos_${format(new Date(), 'yyyy-MM-dd')}.csv`;
-    link.click();
+    baixarCsv(montarCsvDeErros(importErrors), `erros_produtos_${format(new Date(), 'yyyy-MM-dd')}.csv`);
     toast.success('Planilha de erros baixada!');
   };
 
@@ -294,28 +195,17 @@ export default function Produtos() {
     setShowImportProgress(true);
     setImportProgress({ current: 0, total: validRecords.length, errors: 0 });
 
-    let imported = 0;
-    let actualErrors = 0;
-
-    for (const record of validRecords) {
-      try {
-        await base44.entities.Produto.create(record);
-        imported++;
-        setImportProgress(prev => ({ ...prev, current: prev.current + 1 }));
-        await new Promise(resolve => setTimeout(resolve, 50));
-      } catch (error) {
-        actualErrors++;
-        setImportProgress(prev => ({ ...prev, errors: prev.errors + 1 }));
-      }
-    }
+    const { importados, falhas } = await importarProdutos(validRecords, ({ atual }) => {
+      setImportProgress(prev => ({ ...prev, current: atual }));
+    });
 
     await queryClient.invalidateQueries({ queryKey: ['produtos', empresaSelecionadaId] });
-    
-    setImportProgress({ current: validRecords.length, total: validRecords.length, errors: actualErrors });
+
+    setImportProgress({ current: validRecords.length, total: validRecords.length, errors: falhas });
 
     setTimeout(() => {
       setShowImportProgress(false);
-      toast.success(actualErrors > 0 ? `${imported} importados! ${actualErrors} erro(s).` : `${imported} importados!`);
+      toast.success(falhas > 0 ? `${importados} importados! ${falhas} erro(s).` : `${importados} importados!`);
     }, 1000);
   };
 
@@ -326,78 +216,27 @@ export default function Produtos() {
     const reader = new FileReader();
     reader.onload = async (e) => {
       try {
-        const text = e.target.result;
-        const lines = text.split('\n').filter(line => line.trim());
-        
-        if (lines.length <= 1) {
-          toast.error('Arquivo vazio!');
-          return;
-        }
+        // A leitura do arquivo é da tela. Parse, validação e numeração são
+        // puros — `parseCsvDeProdutos` em `src/domain/produtos/csvProduto.js`.
+        const numeroInicial = await proximoNumeroDeProduto();
+        const { validos, erros } = parseCsvDeProdutos(String(e.target.result ?? ''), {
+          empresaId: empresaSelecionadaId,
+          numeroInicial,
+        });
 
-        let proximoNumero = await getNextSystemNumber();
-
-        const validRecords = [];
-        const errors = [];
-
-        for (let i = 1; i < lines.length; i++) {
-          const values = lines[i].split(';');
-          
-          if (values.length < 1) {
-            errors.push({
-              linha: i + 1,
-              erro: 'Colunas insuficientes',
-              dados: lines[i]
-            });
-            continue;
-          }
-
-          try {
-            const produto = {
-              empresa_id: empresaSelecionadaId, // Add empresa_id here for import
-              numero_produto: String(proximoNumero),
-              nome_produto: values[0]?.trim()?.toUpperCase(),
-              codigo_interno: values[1]?.trim()?.toUpperCase() || undefined,
-              codigo_barras: values[2]?.trim() || undefined,
-              categoria: values[3]?.trim()?.toUpperCase() || undefined,
-              descricao: values[4]?.trim()?.toUpperCase() || undefined,
-              unidade_medida: values[5]?.trim()?.toUpperCase() || 'UN',
-              preco_custo: parseFloat(values[6]?.replace(',', '.')) || 0,
-              preco_venda: parseFloat(values[7]?.replace(',', '.')) || 0,
-              estoque_atual: parseFloat(values[8]?.replace(',', '.')) || 0,
-              estoque_minimo: parseFloat(values[9]?.replace(',', '.')) || 0,
-              observacoes: values[10]?.trim()?.toUpperCase() || undefined
-            };
-
-            if (!produto.nome_produto) {
-              throw new Error("Nome obrigatório");
-            }
-
-            validRecords.push(produto);
-            proximoNumero++;
-          } catch (err) {
-            errors.push({
-              linha: i + 1,
-              erro: err.message || 'Erro',
-              dados: lines[i]
-            });
-          }
-        }
-
-        // Se houver erros, mostrar diálogo
-        if (errors.length > 0) {
-          setImportErrors(errors);
-          setValidRecordsToImport(validRecords);
+        if (erros.length > 0) {
+          setImportErrors(erros);
+          setValidRecordsToImport(validos);
           setShowErrorDialog(true);
           return;
         }
 
-        // Se não houver erros, importar diretamente
-        if (validRecords.length === 0) {
+        if (validos.length === 0) {
           toast.error('Nenhum registro válido!');
           return;
         }
 
-        await executarImportacao(validRecords);
+        await executarImportacao(validos);
 
       } catch (error) {
         console.error('Erro ao importar:', error);
@@ -421,19 +260,7 @@ export default function Produtos() {
   };
 
   const downloadTemplate = () => {
-    const csvRows = [];
-    const headers = ['Nome', 'Código', 'Cód Barras', 'Categoria', 'Descrição', 'UN', 'Custo', 'Venda', 'Estoque', 'Mínimo', 'Obs'];
-    csvRows.push(headers.join(';'));
-    
-    const example = ['PRODUTO EXEMPLO', '001', '7891234567890', 'CATEGORIA', 'DESCRIÇÃO', 'UN', '10,50', '15,00', '100', '10', 'OBS'];
-    csvRows.push(example.map(item => typeof item === 'string' && item.includes(';') ? `"${item}"` : item).join(';'));
-
-    const csvString = csvRows.join('\n');
-    const blob = new Blob(['\ufeff' + csvString], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = 'modelo_produtos.csv';
-    link.click();
+    baixarCsv(montarTemplateCsv(), 'modelo_produtos.csv');
   };
 
   const formatarNumero = (numero) => {

@@ -1,5 +1,12 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { base44 } from "@/api/base44Client";
+import {
+  listarUnidades,
+  criarUnidade,
+  atualizarUnidade,
+  numerarUnidadesSemNumero,
+  excluirUnidades,
+} from "@/services/unidadeMedidaService";
+import { getApiErrorMessage } from "@/apis/_core/ApiError";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,8 +21,6 @@ import { AnimatePresence, motion } from "framer-motion";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 import ConfiguracaoColunasMapaDialog from "@/components/mapa/ConfiguracaoColunasMapaDialog";
-
-const getNextNumber = async () => { try { const all = await base44.entities.UnidadeMedida.list(); const n = all.map(u => parseInt(u.numero_unidade) || 0).filter(n => n > 0); return n.length > 0 ? Math.max(...n) + 1 : 1; } catch { return 1; } };
 
 const COLUNAS_DISPONIVEIS = [
   { id: 'selecao', label: 'Seleção', default: true, fixo: true, width: 25 },
@@ -57,13 +62,30 @@ export default function UnidadesMedida() {
   useEffect(() => { const onMove = (e) => { if (!dragRef.current) return; if (e.cancelable) e.preventDefault(); const cX = e.touches?.[0]?.clientX ?? e.clientX; const { columnId, startX, startWidth } = dragRef.current; setColumnWidths(prev => ({ ...prev, [columnId]: Math.max(MIN_COL_W, startWidth + (cX - startX)) })); }; const onUp = () => { if (!dragRef.current) return; dragRef.current = null; document.body.style.cursor = ""; document.body.style.userSelect = ""; }; window.addEventListener("mousemove", onMove); window.addEventListener("mouseup", onUp); window.addEventListener("touchmove", onMove, { passive: false }); window.addEventListener("touchend", onUp); return () => { window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp); window.removeEventListener("touchmove", onMove); window.removeEventListener("touchend", onUp); }; }, []);
   const startDragResize = (e, colunaId) => { e.preventDefault(); e.stopPropagation(); const cX = e.touches?.[0]?.clientX ?? e.clientX; dragRef.current = { columnId: colunaId, startX: cX, startWidth: columnWidths[colunaId] || 160 }; document.body.style.cursor = "col-resize"; document.body.style.userSelect = "none"; };
   const queryClient = useQueryClient();
-  const { data: unidades = [], isLoading } = useQuery({ queryKey: ['unidades_medida'], queryFn: () => base44.entities.UnidadeMedida.list(), initialData: [] });
+  const { data: unidades = [], isLoading } = useQuery({ queryKey: ['unidades_medida'], queryFn: () => listarUnidades(), initialData: [] });
 
-  useEffect(() => { const fn = async () => { const sem = unidades.filter(u => !u.numero_unidade); if (sem.length > 0) { for (const u of sem) { try { const n = await getNextNumber(); await base44.entities.UnidadeMedida.update(u.id, { numero_unidade: String(n) }); } catch { /* falha ignorada intencionalmente: operação best-effort */ } } queryClient.invalidateQueries({ queryKey: ['unidades_medida'] }); } }; if (!isLoading && unidades.length > 0) fn(); }, [unidades, isLoading, queryClient]);
+  // Autonumeração dos registros antigos. O service faz o laço e devolve o que
+  // conseguiu numerar; a tela só reage quando houve mudança.
+  useEffect(() => {
+    const numerar = async () => {
+      const { numeradas } = await numerarUnidadesSemNumero(unidades);
+      if (numeradas.length) queryClient.invalidateQueries({ queryKey: ['unidades_medida'] });
+    };
+    if (!isLoading && unidades.length > 0) numerar();
+  }, [unidades, isLoading, queryClient]);
 
-  const createMutation = useMutation({ mutationFn: async (data) => { const n = await getNextNumber(); return base44.entities.UnidadeMedida.create({ ...data, numero_unidade: String(n) }); }, onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['unidades_medida'] }); setShowForm(false); setEditing(null); toast.success('Unidade cadastrada!'); }, onError: (err) => toast.error(err.message || 'Erro.') });
-  const updateMutation = useMutation({ mutationFn: ({ id, data }) => base44.entities.UnidadeMedida.update(id, data), onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['unidades_medida'] }); setShowForm(false); setEditing(null); toast.success('Unidade atualizada!'); }, onError: (err) => toast.error(err.message || 'Erro.') });
-  const deleteMutation = useMutation({ mutationFn: async (ids) => { const prods = await base44.entities.Produto.list(); for (const id of ids) { const u = unidades.find(x => x.id === id); if (prods.some(p => p.unidade_medida === u?.sigla)) throw new Error(`❌ "${u?.sigla}" possui produtos vinculados!`); await base44.entities.UnidadeMedida.delete(id); } }, onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['unidades_medida'] }); toast.success('Unidade(s) excluída(s)!'); setSelectedItems([]); }, onError: (err) => toast.error(err.message || 'Erro.') });
+  const createMutation = useMutation({ mutationFn: (data) => criarUnidade(data), onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['unidades_medida'] }); setShowForm(false); setEditing(null); toast.success('Unidade cadastrada!'); }, onError: (err) => toast.error(getApiErrorMessage(err, 'Não foi possível salvar a unidade.')) });
+  const updateMutation = useMutation({ mutationFn: ({ id, data }) => atualizarUnidade(id, data), onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['unidades_medida'] }); setShowForm(false); setEditing(null); toast.success('Unidade atualizada!'); }, onError: (err) => toast.error(getApiErrorMessage(err, 'Não foi possível salvar a unidade.')) });
+  const deleteMutation = useMutation({
+    mutationFn: (ids) => excluirUnidades(ids, { unidades }),
+    onSuccess: ({ excluidas, bloqueadas }) => {
+      queryClient.invalidateQueries({ queryKey: ['unidades_medida'] });
+      setSelectedItems([]);
+      if (excluidas.length) toast.success(excluidas.length === 1 ? 'Unidade excluída!' : `${excluidas.length} unidades excluídas!`);
+      if (bloqueadas.length) toast.error(bloqueadas.length === 1 ? '1 unidade não pôde ser excluída: existem registros vinculados.' : `${bloqueadas.length} unidades não puderam ser excluídas: existem registros vinculados.`);
+    },
+    onError: (err) => toast.error(getApiErrorMessage(err, 'Não foi possível excluir.')),
+  });
 
   const handleSubmit = (e) => { e.preventDefault(); const ne = {}; if (!formData.sigla?.trim()) ne.sigla = true; if (!formData.descricao?.trim()) ne.descricao = true; setErrors(ne); if (Object.keys(ne).length > 0) { toast.error("PREENCHA OS CAMPOS OBRIGATÓRIOS."); return; } const data = { sigla: formData.sigla.toUpperCase(), descricao: formData.descricao.toUpperCase(), ativo: formData.ativo }; if (editing) updateMutation.mutate({ id: editing.id, data }); else createMutation.mutate(data); };
   const handleEdit = (item) => { setEditing(item); setFormData({ sigla: item.sigla || "", descricao: item.descricao || "", ativo: item.ativo !== false }); setShowForm(true); };

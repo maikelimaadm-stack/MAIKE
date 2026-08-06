@@ -1,5 +1,5 @@
 import React, { useRef, useState, useMemo } from "react";
-import { base44 } from "@/api/base44Client";
+import { carregarFontesDoFormulario, normalizarProduto } from "@/services/produtoService";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -56,33 +56,15 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
   const codigoInternoRef = useRef(null);
   const pesoSacoRef = useRef(null);
 
-  const { data: unidades = [] } = useQuery({
-    queryKey: ['unidades'],
-    queryFn: () => base44.entities.UnidadeMedida.list(),
-    initialData: [],
+  // Uma única leitura para as quatro fontes de opção — o service carrega,
+  // filtra por empresa e devolve. A tela não escolhe entidade por nome.
+  const { data: fontes = { categorias: [], unidades: [], locais: [], marcas: [] } } = useQuery({
+    queryKey: ['produto-form-fontes', empresaId],
+    queryFn: () => carregarFontesDoFormulario(empresaId),
+    initialData: { categorias: [], unidades: [], locais: [], marcas: [] },
   });
 
-  const { data: categorias = [] } = useQuery({
-    queryKey: ['categorias'],
-    queryFn: () => base44.entities.Categoria.list(),
-    initialData: [],
-  });
-
-  const { data: locais = [] } = useQuery({
-    queryKey: ['locais'],
-    queryFn: () => base44.entities.LocalEstoque.list(),
-    initialData: [],
-  });
-
-  const { data: marcas = [] } = useQuery({
-    queryKey: ['marcas_form', empresaId],
-    queryFn: async () => {
-      const all = await base44.entities.Marca.list();
-      return all.filter(m => m.empresa_id === empresaId && m.ativo !== false);
-    },
-    enabled: !!empresaId,
-    initialData: [],
-  });
+  const { categorias, unidades, locais, marcas } = fontes;
 
   // Categorias com hierarquia: mostra apenas subcategorias (que têm pai), exibindo "PAI > FILHO"
   const categoriasItems = useMemo(() => {
@@ -167,30 +149,9 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
       return;
     }
 
-    const data = {
-      nome_produto: formData.nome_produto?.toUpperCase(),
-      tipo_uso: formData.tipo_uso || undefined,
-      codigo_interno: formData.codigo_interno?.toUpperCase(),
-      codigo_barras: formData.codigo_barras || undefined,
-      categoria: formData.categoria?.toUpperCase() || undefined,
-      marca: formData.marca?.toUpperCase() || undefined,
-      descricao: formData.descricao?.toUpperCase() || undefined,
-      unidade_medida: formData.unidade_medida?.toUpperCase(),
-      preco_custo: precoCustoNum,
-      preco_venda: precoVendaNum,
-      estoque_minimo: estoqueMinNum,
-      local_estoque: formData.local_estoque?.toUpperCase() || undefined,
-      tipo_consumo: formData.tipo_consumo || undefined,
-      percentual_consumo_pv: percentualPVNum || undefined,
-      consumo_minimo_pv: consumoMinPVNum || undefined,
-      consumo_maximo_pv: consumoMaxPVNum || undefined,
-      unidade_principal_estoque: formData.unidade_principal_estoque || "KG",
-      peso_por_saco_kg: formData.unidade_principal_estoque === "SACO" ? pesoSacoNum || undefined : undefined,
-      observacoes: formData.observacoes?.toUpperCase() || undefined,
-      ativo: formData.ativo,
-    };
-    if (!isEditing) data.estoque_atual = 0;
-    onSubmit(data);
+    // A montagem e a coerção do payload vivem no service. O que fica aqui é a
+    // validação visual: quais campos ficam vermelhos e para qual deles rolar.
+    onSubmit(normalizarProduto(formData, { isEditing }));
   };
 
   return (

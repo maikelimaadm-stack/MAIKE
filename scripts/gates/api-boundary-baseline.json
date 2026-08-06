@@ -3,75 +3,11 @@
   "certifiedFromMain": "508cf62949530e8a55bd1b4c55a68dd1da2e6b64",
   "allowedProviderAdapter": "src/apis/_providers/base44Provider.js",
   "axes": {
-    "importsLegacyClient": [
-      "src/Layout.jsx",
-      "src/components/configuracoes/GerenciadorIcones.jsx",
-      "src/components/empresa/FormularioEmpresa.jsx",
-      "src/components/produtos/FichaProduto.jsx",
-      "src/components/produtos/FormularioProduto.jsx",
-      "src/components/suplementacao/FormularioLancamentoSuplementacao.jsx",
-      "src/components/suplementacao/HistoricoDepositoSuplementacao.jsx",
-      "src/components/suplementacao/HistoricoSuplementacaoLote.jsx",
-      "src/components/suplementacao/HistoricoSuplementacaoPonto.jsx",
-      "src/components/suplementacao/ResumoSuplementacao.jsx",
-      "src/components/suplementacao/estoqueSuplementacaoUtils.jsx",
-      "src/components/suplementacao/historicoSuplementacaoUtils.jsx",
-      "src/components/utils/consumoUtils.jsx",
-      "src/lib/AuthContext.jsx",
-      "src/lib/PageNotFound.jsx",
-      "src/pages/ConfiguracoesGerais.jsx",
-      "src/pages/GruposAtividades.jsx",
-      "src/pages/LocaisEstoque.jsx",
-      "src/pages/Marcas.jsx",
-      "src/pages/Produtos.jsx",
-      "src/pages/TiposTarefa.jsx",
-      "src/pages/UnidadesMedida.jsx",
-      "src/pages/Usuarios.jsx"
-    ],
-    "entitiesRefs": [
-      "src/Layout.jsx",
-      "src/components/configuracoes/GerenciadorIcones.jsx",
-      "src/components/produtos/FichaProduto.jsx",
-      "src/components/produtos/FormularioProduto.jsx",
-      "src/components/suplementacao/FormularioLancamentoSuplementacao.jsx",
-      "src/components/suplementacao/ResumoSuplementacao.jsx",
-      "src/components/suplementacao/estoqueSuplementacaoUtils.jsx",
-      "src/components/suplementacao/historicoSuplementacaoUtils.jsx",
-      "src/components/utils/consumoUtils.jsx",
-      "src/lib/entityDeleteGuards.js",
-      "src/lib/offlineEntitySync.js",
-      "src/lib/textNormalization.js",
-      "src/pages/ConfiguracoesGerais.jsx",
-      "src/pages/GruposAtividades.jsx",
-      "src/pages/LocaisEstoque.jsx",
-      "src/pages/Marcas.jsx",
-      "src/pages/Produtos.jsx",
-      "src/pages/TiposTarefa.jsx",
-      "src/pages/UnidadesMedida.jsx",
-      "src/pages/Usuarios.jsx"
-    ],
-    "authRefs": [
-      "src/Layout.jsx",
-      "src/components/suplementacao/FormularioLancamentoSuplementacao.jsx",
-      "src/components/suplementacao/HistoricoSuplementacaoPonto.jsx",
-      "src/lib/AuthContext.jsx",
-      "src/lib/PageNotFound.jsx",
-      "src/lib/textNormalization.js",
-      "src/pages/ConfiguracoesGerais.jsx",
-      "src/pages/Usuarios.jsx"
-    ],
-    "integrationsRefs": [
-      "src/components/configuracoes/GerenciadorIcones.jsx",
-      "src/components/empresa/FormularioEmpresa.jsx"
-    ],
-    "functionsRefs": [
-      "src/pages/GruposAtividades.jsx",
-      "src/pages/Produtos.jsx",
-      "src/pages/TiposTarefa.jsx"
-    ],
-    "dynamicEntityFiles": [
-      "src/lib/entityDeleteGuards.js",
-      "src/lib/offlineEntitySync.js"
-    ]
+    "importsLegacyClient": [],
+    "entitiesRefs": [],
+    "authRefs": [],
+    "integrationsRefs": [],
+    "functionsRefs": [],
+    "dynamicEntityFiles": []
   }
 }

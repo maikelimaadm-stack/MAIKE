@@ -157,10 +157,20 @@ describe('MapaCadastro — exclusão de linha', () => {
 });
 
 describe('regra de exclusão — fonte única', () => {
-  it('a tabela usada pelo mapa é a mesma do guard legado', async () => {
+  /**
+   * O guard legado (`src/lib/entityDeleteGuards.js`) foi **excluído** na P1.4,
+   * junto com o monkey patch que o instalava no client. O que este teste
+   * protege agora é a ausência: nenhum arquivo pode ressuscitá-lo, nem sob
+   * outro nome, porque a tabela só pode ter um dono.
+   */
+  it('o guard legado não existe mais e a tabela tem dono único', async () => {
+    const { existsSync } = await import('node:fs');
+    const { join } = await import('node:path');
+    expect(existsSync(join(process.cwd(), 'src/lib/entityDeleteGuards.js'))).toBe(false);
+
     const dominio = await import('@/domain/deleteRules');
-    const legado = await import('@/lib/entityDeleteGuards');
-    expect(legado.DELETE_RULES).toBe(dominio.DELETE_RULES);
+    expect(typeof dominio.DELETE_RULES).toBe('object');
+    expect(Object.keys(dominio.DELETE_RULES).length).toBeGreaterThan(0);
   });
 
   it('toda dependência de AreaPastagem tem carregador explícito no service', async () => {
@@ -186,7 +196,21 @@ describe('sessão', () => {
   it('DL15/MG1 — online lê do provider e persiste para uso offline', async () => {
     vi.resetModules();
     const getCurrentUserApi = vi.fn().mockResolvedValue({ id: 'u1', email: 'a@b.c' });
-    vi.doMock('@/apis/session', () => ({ getCurrentUser: getCurrentUserApi, listUsuarios: vi.fn(), listPermissoes: vi.fn() }));
+    vi.doMock('@/apis/session', () => ({
+      getCurrentUser: getCurrentUserApi,
+      listUsuarios: vi.fn(),
+      listPermissoes: vi.fn(),
+      updateUsuario: vi.fn(),
+      createPermissao: vi.fn(),
+      updatePermissao: vi.fn(),
+      deletePermissao: vi.fn(),
+      logout: vi.fn(),
+      redirectToLogin: vi.fn(),
+      getAppPublicSettings: vi.fn(),
+      verificarSessao: vi.fn(),
+      getCapacidadesDeSessao: vi.fn(() => ({})),
+      RAZOES_DE_SESSAO: Object.freeze({ AUTH_REQUIRED: 'auth_required', USER_NOT_REGISTERED: 'user_not_registered', UNKNOWN: 'unknown' }),
+    }));
     const { getCurrentUser } = await import('@/services/sessionService');
 
     const u = await getCurrentUser();
@@ -197,7 +221,21 @@ describe('sessão', () => {
   it('MG2 — offline devolve o último usuário conhecido sem chamar o provider', async () => {
     vi.resetModules();
     const getCurrentUserApi = vi.fn();
-    vi.doMock('@/apis/session', () => ({ getCurrentUser: getCurrentUserApi, listUsuarios: vi.fn(), listPermissoes: vi.fn() }));
+    vi.doMock('@/apis/session', () => ({
+      getCurrentUser: getCurrentUserApi,
+      listUsuarios: vi.fn(),
+      listPermissoes: vi.fn(),
+      updateUsuario: vi.fn(),
+      createPermissao: vi.fn(),
+      updatePermissao: vi.fn(),
+      deletePermissao: vi.fn(),
+      logout: vi.fn(),
+      redirectToLogin: vi.fn(),
+      getAppPublicSettings: vi.fn(),
+      verificarSessao: vi.fn(),
+      getCapacidadesDeSessao: vi.fn(() => ({})),
+      RAZOES_DE_SESSAO: Object.freeze({ AUTH_REQUIRED: 'auth_required', USER_NOT_REGISTERED: 'user_not_registered', UNKNOWN: 'unknown' }),
+    }));
     localStorage.setItem('offline_current_user', JSON.stringify({ id: 'cache' }));
     const navSpy = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
     const { getCurrentUser } = await import('@/services/sessionService');
@@ -211,7 +249,18 @@ describe('sessão', () => {
     vi.resetModules();
     vi.doMock('@/apis/session', () => ({
       getCurrentUser: vi.fn().mockRejectedValue(new Error('sem rede')),
-      listUsuarios: vi.fn(), listPermissoes: vi.fn(),
+      listUsuarios: vi.fn(),
+      listPermissoes: vi.fn(),
+      updateUsuario: vi.fn(),
+      createPermissao: vi.fn(),
+      updatePermissao: vi.fn(),
+      deletePermissao: vi.fn(),
+      logout: vi.fn(),
+      redirectToLogin: vi.fn(),
+      getAppPublicSettings: vi.fn(),
+      verificarSessao: vi.fn(),
+      getCapacidadesDeSessao: vi.fn(() => ({})),
+      RAZOES_DE_SESSAO: Object.freeze({ AUTH_REQUIRED: 'auth_required', USER_NOT_REGISTERED: 'user_not_registered', UNKNOWN: 'unknown' }),
     }));
     localStorage.setItem('offline_current_user', JSON.stringify({ id: 'antigo' }));
     const { getCurrentUser } = await import('@/services/sessionService');

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { base44 } from "@/api/base44Client";
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Settings } from "lucide-react";
@@ -8,7 +8,8 @@ import { AnimatePresence } from "framer-motion";
 import FormularioGrupoAtividade from "@/components/grupos-atividades/FormularioGrupoAtividade";
 import TabelaGruposAtividades from "@/components/grupos-atividades/TabelaGruposAtividades";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
-import { ensureDeleteAllowed } from "@/lib/entityDeleteGuards";
+import { listarGrupos, criarGrupo, atualizarGrupo, excluirGrupos } from "@/services/tarefaCadastroService";
+import { getApiErrorMessage } from "@/apis/_core/ApiError";
 
 export default function GruposAtividades() {
   const [showForm, setShowForm] = useState(false);
@@ -19,12 +20,12 @@ export default function GruposAtividades() {
 
   const { data: grupos = [] } = useQuery({
     queryKey: ["grupos-atividades"],
-    queryFn: () => base44.entities.GrupoAtividade.list("-updated_date"),
+    queryFn: () => listarGrupos(),
     initialData: [],
   });
 
   const createGrupoMutation = useMutation({
-    mutationFn: (data) => base44.entities.GrupoAtividade.create(data),
+    mutationFn: (data) => criarGrupo(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["grupos-atividades"] });
       setShowForm(false);
@@ -34,25 +35,13 @@ export default function GruposAtividades() {
   });
 
   const updateGrupoMutation = useMutation({
-    mutationFn: async ({ id, data, oldData }) => {
-      const updated = await base44.entities.GrupoAtividade.update(id, data);
-      await base44.functions.invoke("syncEntityReferences", {
-        event: { type: "update", entity_name: "GrupoAtividade" },
-        data: updated,
-        old_data: oldData,
-      });
-      return updated;
-    },
+    mutationFn: ({ id, data, oldData }) => atualizarGrupo({ id, dados: data, oldData }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["grupos-atividades"] });
       setShowForm(false);
       setEditingGrupo(null);
       toast.success("Grupo atualizado!");
     },
-  });
-
-  const deleteGrupoMutation = useMutation({
-    mutationFn: (id) => base44.entities.GrupoAtividade.delete(id),
   });
 
   const handleSubmit = (data) => {
@@ -72,23 +61,31 @@ export default function GruposAtividades() {
     setDeleteState({ open: true, ids: Array.isArray(ids) ? ids : [ids] });
   };
 
+  /**
+   * O service devolve resultado parcial explícito. O laço anterior engolia toda
+   * falha num `catch {}` vazio: excluir cinco e ver "1 grupo excluído!" não
+   * dizia se os outros quatro foram bloqueados ou se a rede caiu.
+   */
   const handleConfirmDelete = async () => {
     const ids = deleteState.ids;
     setDeleteState({ open: false, ids: [] });
 
-    let deletedCount = 0;
+    try {
+      const { excluidos, bloqueados } = await excluirGrupos(ids, { grupos });
 
-    for (const id of ids) {
-      try {
-        await ensureDeleteAllowed(base44, "GrupoAtividade", id);
-        await deleteGrupoMutation.mutateAsync(id);
-        deletedCount += 1;
-      } catch { /* falha ignorada intencionalmente: operação best-effort */ }
-    }
-
-    if (deletedCount > 0) {
-      queryClient.invalidateQueries({ queryKey: ["grupos-atividades"] });
-      toast.success(deletedCount === 1 ? "Grupo excluído!" : `${deletedCount} grupos excluídos!`);
+      if (excluidos.length > 0) {
+        queryClient.invalidateQueries({ queryKey: ["grupos-atividades"] });
+        toast.success(excluidos.length === 1 ? "Grupo excluído!" : `${excluidos.length} grupos excluídos!`);
+      }
+      if (bloqueados.length > 0) {
+        toast.error(
+          bloqueados.length === 1
+            ? "1 grupo não pôde ser excluído: existem registros vinculados."
+            : `${bloqueados.length} grupos não puderam ser excluídos: existem registros vinculados.`
+        );
+      }
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, "Não foi possível excluir."));
     }
   };
 

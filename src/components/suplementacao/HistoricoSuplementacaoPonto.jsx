@@ -3,9 +3,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { getCurrentUser } from "@/services/sessionService";
 import { toast } from "sonner";
-import { excluirEventoSuplementacaoComReversao } from "./historicoSuplementacaoUtils";
+import { getApiErrorMessage } from "@/apis/_core/ApiError";
+import { excluirEventoSuplementacaoComReversao } from "@/services/suplementacaoHistoricoService";
 import { getMapaCachedData, refreshMapaCacheEntry, updateMapaCachedData } from "@/services/mapaCacheService";
 import { safeDivide } from "../utils/pecuariaUtils";
 import CardMetricaEvento from "./CardMetricaEvento";
@@ -16,7 +17,7 @@ export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto 
   const queryClient = useQueryClient();
   const [deletingId, setDeletingId] = useState(null);
 
-  const { data: user } = useQuery({ queryKey: ["user-historico-suplementacao"], queryFn: () => base44.auth.me() });
+  const { data: user } = useQuery({ queryKey: ["user-historico-suplementacao"], queryFn: () => getCurrentUser() });
 
   const { data: eventos = [], isLoading } = useQuery({
     queryKey: ["suplementacao-ponto", pontoId],
@@ -101,7 +102,7 @@ export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto 
       window.dispatchEvent(new CustomEvent("atualizar-mapa"));
       toast.success("Lançamento excluído.");
     } catch (error) {
-      toast.error(error.message || "Não foi possível excluir o lançamento.");
+      toast.error(getApiErrorMessage(error, "Não foi possível excluir o lançamento."));
     } finally {
       setDeletingId(null);
     }

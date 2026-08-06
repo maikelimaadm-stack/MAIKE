@@ -10,6 +10,13 @@ export {
   deleteHistorico,
   listTipos,
   listGrupos,
+  createGrupo,
+  updateGrupo,
+  deleteGrupo,
+  createTipo,
+  updateTipo,
+  deleteTipo,
+  sincronizarReferenciasTarefa,
   HISTORICO_DEFAULT_ORDER,
   HISTORICO_DEFAULT_LIMIT,
 } from './tarefasApi.js';

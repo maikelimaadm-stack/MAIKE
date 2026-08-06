@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { base44 } from "@/api/base44Client";
+import { listarMarcasDaEmpresa, criarMarca, atualizarMarca, excluirMarcas } from "@/services/marcaService";
+import { getApiErrorMessage } from "@/apis/_core/ApiError";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -8,14 +9,6 @@ import { AnimatePresence } from "framer-motion";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 import FormularioMarca from "@/components/marcas/FormularioMarca";
 import TabelaMarcas from "@/components/marcas/TabelaMarcas";
-
-const getNextSystemNumber = async () => {
-  try {
-    const all = await base44.entities.Marca.list();
-    const numeros = all.map(m => parseInt(m.numero_marca) || 0).filter(n => n > 0 && n < 1000000000);
-    return numeros.length > 0 ? Math.max(...numeros) + 1 : 1;
-  } catch { return 1; }
-};
 
 export default function Marcas() {
   const [showForm, setShowForm] = useState(false);
@@ -27,34 +20,31 @@ export default function Marcas() {
 
   const { data: marcas = [], isLoading } = useQuery({
     queryKey: ['marcas', empresaId],
-    queryFn: async () => {
-      const all = await base44.entities.Marca.list('-created_date');
-      return all.filter(m => m.empresa_id === empresaId);
-    },
+    queryFn: () => listarMarcasDaEmpresa(empresaId),
     enabled: !!empresaId,
   });
 
   const createMutation = useMutation({
-    mutationFn: async (data) => {
-      const existente = marcas.find(m => m.nome?.toUpperCase().trim() === data.nome?.toUpperCase().trim());
-      if (existente) throw new Error('Já existe marca com este nome!');
-      const numero = await getNextSystemNumber();
-      return base44.entities.Marca.create({ ...data, empresa_id: empresaId, numero_marca: String(numero) });
-    },
+    mutationFn: (data) => criarMarca({ dados: data, empresaId, marcasDaEmpresa: marcas }),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['marcas'] }); setShowForm(false); setEditingItem(null); toast.success("Marca criada!"); },
-    onError: (err) => toast.error(err.message || "Erro"),
+    onError: (err) => toast.error(getApiErrorMessage(err, "Não foi possível salvar a marca.")),
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }) => base44.entities.Marca.update(id, data),
+    mutationFn: ({ id, data }) => atualizarMarca(id, data),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['marcas'] }); setShowForm(false); setEditingItem(null); toast.success("Marca atualizada!"); },
-    onError: (err) => toast.error(err.message || "Erro"),
+    onError: (err) => toast.error(getApiErrorMessage(err, "Não foi possível salvar a marca.")),
   });
 
+  // Exclusão múltipla devolve resultado parcial: o que saiu e o que ficou.
   const deleteMutation = useMutation({
-    mutationFn: async (ids) => { for (const id of ids) await base44.entities.Marca.delete(id); },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['marcas'] }); toast.success("Marca(s) excluída(s)!"); },
-    onError: (err) => toast.error(err.message || "Erro ao excluir"),
+    mutationFn: (ids) => excluirMarcas(ids),
+    onSuccess: ({ excluidas, falhas }) => {
+      queryClient.invalidateQueries({ queryKey: ['marcas'] });
+      if (excluidas.length) toast.success(excluidas.length === 1 ? "Marca excluída!" : `${excluidas.length} marcas excluídas!`);
+      if (falhas.length) toast.error(falhas.length === 1 ? "1 marca não pôde ser excluída." : `${falhas.length} marcas não puderam ser excluídas.`);
+    },
+    onError: (err) => toast.error(getApiErrorMessage(err, "Não foi possível excluir.")),
   });
 
   const handleSubmit = (data) => {

@@ -15,8 +15,8 @@ import {
   normalizeText,
   obterSaldoTransferivelProduto,
   parseNumber,
-  registrarTransferenciaEntreLocais,
 } from "../suplementacao/estoqueSuplementacaoUtils";
+import { registrarTransferenciaEntreLocais } from "@/services/suplementacaoEstoqueService";
 import { formatQuantidadeTecnica } from "../suplementacao/formatters";
 import { produtoSuportaSacos, sacosParaKg, kgParaSacos } from "../suplementacao/unidadeConversaoUtils";
 
