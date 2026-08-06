@@ -117,6 +117,95 @@ describe('gate:modelobase1-pecuario — contrato base pecuário', () => {
     assert.match(r.output, /forbiddenTenantSources não declara: body/);
   });
 
+  // P2-R1 — as três invariantes que a P2 declarava no contrato mas não protegia
+  // no gate. Cada uma remove um valor do SSOT e exige que o gate reprove.
+  test('MB1-06c remover headers de forbiddenTenantSources reprova', () => {
+    const dir = makeTempDir('maike-mb1-');
+    try {
+      const invalido =
+        JSON.stringify(
+          mutar((c) => {
+            c.tenancy.forbiddenTenantSources = c.tenancy.forbiddenTenantSources.filter(
+              (f) => f !== 'headers'
+            );
+          }),
+          null,
+          2
+        ) + '\n';
+      writeFile(dir, CONTRATO, invalido);
+
+      const r = runGate(GATE, { cwd: dir });
+      assert.equal(r.status, 1);
+      assert.match(r.output, /P2-MB1-TENANCY/);
+      assert.match(r.output, /tenancy\.forbiddenTenantSources não declara: headers/);
+      assert.equal(readFileSync(join(dir, CONTRATO), 'utf8'), invalido);
+    } finally {
+      cleanup(dir);
+    }
+  });
+
+  test('MB1-06d remover cookie de forbiddenTenantSources reprova', () => {
+    const dir = makeTempDir('maike-mb1-');
+    try {
+      const invalido =
+        JSON.stringify(
+          mutar((c) => {
+            c.tenancy.forbiddenTenantSources = c.tenancy.forbiddenTenantSources.filter(
+              (f) => f !== 'cookie'
+            );
+          }),
+          null,
+          2
+        ) + '\n';
+      writeFile(dir, CONTRATO, invalido);
+
+      const r = runGate(GATE, { cwd: dir });
+      assert.equal(r.status, 1);
+      assert.match(r.output, /P2-MB1-TENANCY/);
+      assert.match(r.output, /tenancy\.forbiddenTenantSources não declara: cookie/);
+      assert.equal(readFileSync(join(dir, CONTRATO), 'utf8'), invalido);
+    } finally {
+      cleanup(dir);
+    }
+  });
+
+  test('MB1-06e remover headers de forbiddenActorSources reprova', () => {
+    const dir = makeTempDir('maike-mb1-');
+    try {
+      const invalido =
+        JSON.stringify(
+          mutar((c) => {
+            c.audit.forbiddenActorSources = c.audit.forbiddenActorSources.filter(
+              (f) => f !== 'headers'
+            );
+          }),
+          null,
+          2
+        ) + '\n';
+      writeFile(dir, CONTRATO, invalido);
+
+      const r = runGate(GATE, { cwd: dir });
+      assert.equal(r.status, 1);
+      assert.match(r.output, /P2-MB1-AUDIT/);
+      assert.match(r.output, /audit\.forbiddenActorSources não declara: headers/);
+      assert.equal(readFileSync(join(dir, CONTRATO), 'utf8'), invalido);
+    } finally {
+      cleanup(dir);
+    }
+  });
+
+  test('MB1-06f o ator não herda cookie — o contrato do tenant é mais fechado', () => {
+    // As duas listas são separadas de propósito. `cookie` não está em
+    // audit.forbiddenActorSources no SSOT, e o gate não pode exigir mais do que
+    // o contrato declara — senão o contrato real reprovaria a si mesmo.
+    const c = contratoReal();
+    assert.ok(c.tenancy.forbiddenTenantSources.includes('cookie'));
+    assert.ok(!c.audit.forbiddenActorSources.includes('cookie'));
+
+    const r = rodarCom(c);
+    assert.equal(r.status, 0, r.output);
+  });
+
   test('MB1-07 segunda exceção sem cliente_id reprova', () => {
     const r = rodarCom(mutar((c) => { c.tenancy.modelsWithoutTenantField.push('ConfiguracaoIcone'); }));
     assert.equal(r.status, 1);
@@ -211,6 +300,56 @@ describe('gate:modelobase1-pecuario — contrato base pecuário', () => {
     assert.equal(r.status, 1);
     assert.match(r.output, /P2-MB1-NUMBERING/);
     assert.match(r.output, /nullScopeHazard deve documentar o risco de NULL/);
+  });
+
+  test('MB1-12d remover empresa de numbering.scopeTypes reprova', () => {
+    const dir = makeTempDir('maike-mb1-');
+    try {
+      const invalido =
+        JSON.stringify(
+          mutar((c) => {
+            c.numbering.scopeTypes = c.numbering.scopeTypes.filter((s) => s !== 'empresa');
+          }),
+          null,
+          2
+        ) + '\n';
+      writeFile(dir, CONTRATO, invalido);
+
+      const r = runGate(GATE, { cwd: dir });
+      assert.equal(r.status, 1);
+      assert.match(r.output, /P2-MB1-NUMBERING/);
+      assert.match(r.output, /numbering\.scopeTypes não declara: empresa/);
+      assert.equal(readFileSync(join(dir, CONTRATO), 'utf8'), invalido);
+    } finally {
+      cleanup(dir);
+    }
+  });
+
+  test('MB1-12e remover tenant de numbering.scopeTypes reprova', () => {
+    const r = rodarCom(
+      mutar((c) => {
+        c.numbering.scopeTypes = c.numbering.scopeTypes.filter((s) => s !== 'tenant');
+      })
+    );
+    assert.equal(r.status, 1);
+    assert.match(r.output, /numbering\.scopeTypes não declara: tenant/);
+  });
+
+  test('MB1-12f a ordem de scopeTypes não é normativa', () => {
+    const r = rodarCom(mutar((c) => { c.numbering.scopeTypes = ['empresa', 'tenant']; }));
+    assert.equal(r.status, 0, r.output);
+  });
+
+  test('MB1-12g escopo decidido fora da capacidade ou fora de P4-P6 reprova', () => {
+    const r = rodarCom(
+      mutar((c) => {
+        c.numbering.scopeDeclaredByCapability = false;
+        c.numbering.scopeAssignmentPhase = 'P2';
+      })
+    );
+    assert.equal(r.status, 1);
+    assert.match(r.output, /numbering\.scopeDeclaredByCapability deve ser true/);
+    assert.match(r.output, /numbering\.scopeAssignmentPhase deve ser "P4-P6"/);
   });
 
   test('MB1-13 anexo usando URL como identidade reprova', () => {

@@ -284,3 +284,97 @@ arquivos. `test:gates`: 360 testes.
 Varredura do log completo por `Base44 SDK Error`, `Network Error`,
 `AggregateError`, `ECONNREFUSED` e `ENOTFOUND`: **zero ocorrências**.
 `git diff --check`: limpo.
+
+CI do commit funcional: workflow `quality` run_number 39, run
+[31108882141](https://github.com/maikelimaadm-stack/MAIKE/actions/runs/31108882141),
+job [92641131960](https://github.com/maikelimaadm-stack/MAIKE/actions/runs/31108882141/job/92641131960)
+`verify:all` — **success**, na versão do `.nvmrc`.
+
+---
+
+## 14. P2-R1 — fechamento das invariantes do gate
+
+**Correção sobre esta mesma PR, na mesma branch. Um commit.** A seção acima fica
+como está: o registro não se reescreve para fingir que a lacuna nunca existiu.
+
+Uma auditoria externa da PR #7 encontrou três lacunas entre o contrato JSON e o
+gate que deveria protegê-lo. As três eram a **mesma classe de defeito**: o gate
+exigia um subconjunto do que o contrato declara, então o SSOT podia ser
+enfraquecido com a CI verde.
+
+### B1 — fontes proibidas de tenant incompletas
+
+`config/modelobase1-pecuario.json` declara cinco fontes proibidas
+(`body`, `query`, `params`, `headers`, `cookie`), e o gate conferia três:
+
+```js
+const FONTES_DE_REQUEST = ['body', 'query', 'params'];   // usada nas DUAS verificações
+```
+
+Remover `headers` ou `cookie` do contrato passava. Pior: a mesma constante servia
+o tenant **e** o ator da auditoria, achatando dois contratos diferentes no menor
+dos dois.
+
+**Correção.** Duas constantes explícitas, com o motivo escrito no código:
+
+```js
+const FONTES_PROIBIDAS_DE_TENANT = ['body', 'query', 'params', 'headers', 'cookie'];  // 5
+const FONTES_PROIBIDAS_DE_ATOR   = ['body', 'query', 'params', 'headers'];            // 4
+```
+
+O tenant é a fronteira de isolamento entre clientes e fecha todas as portas de
+entrada. O ator fecha as quatro que o SSOT declara — `cookie` **não** foi
+inventado para ele, porque o contrato não o declara e o gate não pode exigir mais
+do que o contrato diz. `MB1-06f` é o controle positivo dessa assimetria.
+
+### B2 — escopo `empresa` de numeração não protegido
+
+O contrato declara `"scopeTypes": ["tenant", "empresa"]`; o gate exigia
+`['tenant']`. Remover `empresa` passava.
+
+**Correção.** Os dois são exigidos, **por presença e não por ordem** — o contrato
+não declara a ordem como normativa (`MB1-12f` prova isso). Junto vieram duas
+invariantes que estavam declaradas e soltas: `scopeDeclaredByCapability` continua
+`true` e `scopeAssignmentPhase` continua `P4-P6`. A P2-R1 **não** decide qual
+entidade usa qual escopo — isso segue em P4–P6.
+
+### B3 — os testes reproduziam as lacunas
+
+Os 37 testes da P2 nunca removiam `headers`, `cookie` ou `empresa`. CI verde,
+portanto, não demonstrava essas invariantes — demonstrava apenas que o gate
+concordava consigo mesmo.
+
+**Correção.** Oito provas negativas novas, todas executando o gate real em
+diretório temporário sobre o contrato versionado mutado, todas exigindo status 1,
+o código de erro certo, a mensagem nomeando exatamente a invariante ausente e o
+arquivo inválido byte a byte intacto:
+
+| Teste | Mutação | Código |
+|---|---|---|
+| MB1-06c | `headers` fora de `forbiddenTenantSources` | `P2-MB1-TENANCY` |
+| MB1-06d | `cookie` fora de `forbiddenTenantSources` | `P2-MB1-TENANCY` |
+| MB1-06e | `headers` fora de `forbiddenActorSources` | `P2-MB1-AUDIT` |
+| MB1-06f | controle positivo: o ator não herda `cookie` | passa |
+| MB1-12d | `empresa` fora de `scopeTypes` | `P2-MB1-NUMBERING` |
+| MB1-12e | `tenant` fora de `scopeTypes` | `P2-MB1-NUMBERING` |
+| MB1-12f | ordem invertida em `scopeTypes` | passa |
+| MB1-12g | escopo fora da capacidade / fora de P4–P6 | `P2-MB1-NUMBERING` |
+
+O arquivo de teste foi de **37 para 45**; `test:gates`, de 360 para 368; o total
+do repositório, de 854 para 862.
+
+### O que a P2-R1 não mudou
+
+`config/modelobase1-pecuario.json` e
+`docs/architecture/MODELOBASE1-PECUARIO-CONTRACT.md` estão **byte a byte
+inalterados**: os dois já expressavam as invariantes corretamente. O defeito
+estava só no verificador. O significado da P2 não mudou, o `ROADMAP.md` não
+mudou, e a P3 continua não iniciada.
+
+### Lição
+
+Um gate que compartilha uma lista entre duas verificações de contratos diferentes
+protege o **menor** dos dois em silêncio. A prova de que uma invariante está
+protegida não é o gate passar no contrato correto — é o gate **reprovar** o
+contrato mutilado. Foi exatamente o que faltou: as invariantes existiam no SSOT e
+na prosa, mas não tinham prova negativa.

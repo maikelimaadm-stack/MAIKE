@@ -51,10 +51,25 @@ const SECOES_OBRIGATORIAS = [
 const ROOT_MODEL = 'Cliente';
 const TENANT_FIELD = 'cliente_id';
 const AUTH_CONTEXT = 'auth_context';
-const FONTES_DE_REQUEST = ['body', 'query', 'params'];
+
+/**
+ * Duas listas separadas de propósito.
+ *
+ * O tenant é a fronteira de isolamento entre clientes, e por isso o contrato
+ * fecha **todas** as portas de entrada da requisição, cookie incluído. O ator da
+ * auditoria fecha as quatro que o SSOT declara — `cookie` não entra aqui porque
+ * `config/modelobase1-pecuario.json` não o declara, e o gate não pode exigir
+ * mais do que o contrato diz.
+ *
+ * Compartilhar uma lista reduzida entre as duas verificações foi exatamente o
+ * defeito da P2: `headers` e `cookie` podiam sair do contrato com o gate verde.
+ */
+const FONTES_PROIBIDAS_DE_TENANT = ['body', 'query', 'params', 'headers', 'cookie'];
+const FONTES_PROIBIDAS_DE_ATOR = ['body', 'query', 'params', 'headers'];
 
 const ESTRATEGIA_NUMERACAO = 'atomic-database-sequence';
 const ESTRATEGIAS_PROIBIDAS = ['max_plus_one', 'count_plus_one'];
+const ESCOPOS_DE_NUMERACAO = ['tenant', 'empresa'];
 
 const ANEXO_IDENTIDADE = 'storage_key';
 
@@ -321,7 +336,7 @@ exigirContem(
   'P2-MB1-TENANCY',
   'tenancy.forbiddenTenantSources',
   tenancy.forbiddenTenantSources,
-  FONTES_DE_REQUEST
+  FONTES_PROIBIDAS_DE_TENANT
 );
 exigirIgual(
   'P2-MB1-TENANCY',
@@ -424,7 +439,12 @@ if (!auditLog) {
 }
 
 exigirIgual('P2-MB1-AUDIT', 'audit.actorSource', audit.actorSource, AUTH_CONTEXT);
-exigirContem('P2-MB1-AUDIT', 'audit.forbiddenActorSources', audit.forbiddenActorSources, FONTES_DE_REQUEST);
+exigirContem(
+  'P2-MB1-AUDIT',
+  'audit.forbiddenActorSources',
+  audit.forbiddenActorSources,
+  FONTES_PROIBIDAS_DE_ATOR
+);
 exigirContem('P2-MB1-AUDIT', 'audit.forbiddenPayloadContent', audit.forbiddenPayloadContent, [
   'senha',
   'credencial',
@@ -454,7 +474,16 @@ if (Array.isArray(numbering.forbiddenStrategies) && ESTRATEGIAS_PROIBIDAS.includ
 exigirIgual('P2-MB1-NUMBERING', 'numbering.transactional', numbering.transactional, true);
 exigirIgual('P2-MB1-NUMBERING', 'numbering.atomicIncrement', numbering.atomicIncrement, true);
 exigirIgual('P2-MB1-NUMBERING', 'numbering.reuseAfterDelete', numbering.reuseAfterDelete, false);
-exigirContem('P2-MB1-NUMBERING', 'numbering.scopeTypes', numbering.scopeTypes, ['tenant']);
+// Os dois escopos são exigidos por presença, não por ordem: o contrato não
+// declara a ordem como normativa, e qual entidade usa qual fica para P4–P6.
+exigirContem('P2-MB1-NUMBERING', 'numbering.scopeTypes', numbering.scopeTypes, ESCOPOS_DE_NUMERACAO);
+exigirIgual(
+  'P2-MB1-NUMBERING',
+  'numbering.scopeDeclaredByCapability',
+  numbering.scopeDeclaredByCapability,
+  true
+);
+exigirIgual('P2-MB1-NUMBERING', 'numbering.scopeAssignmentPhase', numbering.scopeAssignmentPhase, 'P4-P6');
 
 const sequencia = ehObjeto(numbering.sequenceModel) ? numbering.sequenceModel : null;
 if (!sequencia) {

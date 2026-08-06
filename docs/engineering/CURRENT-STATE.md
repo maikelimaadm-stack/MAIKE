@@ -76,11 +76,16 @@ métricas mudaram, e as duas por acréscimo de verificação:
 
 | Métrica | Depois da P1.4 | Depois da P2 |
 |---|---|---|
-| Testes automatizados | 817 (323 de gate + 494 de smoke) | **854** (360 de gate + 494 de smoke) |
+| Testes automatizados | 817 (323 de gate + 494 de smoke) | **862** (368 de gate + 494 de smoke) |
 | Etapas do `verify:all` | 13 | **14** |
 
-Os 37 testes novos são MB1-01 a MB1-20 com sub-casos, todos executando o gate
-real em diretórios temporários.
+Os 45 testes novos são MB1-01 a MB1-20 com sub-casos, todos executando o gate
+real em diretórios temporários. Oito deles vieram da **P2-R1**, que fechou três
+invariantes que o contrato declarava e o gate não protegia: `headers` e `cookie`
+nas fontes proibidas de tenant, `headers` nas fontes proibidas do ator de
+auditoria, e o escopo `empresa` da numeração. O contrato JSON e o documento
+arquitetural não mudaram — o defeito estava só no verificador. Ver §14 do
+relatório da P2.
 
 As quatro ocorrências restantes de SDK/`base44Client` em `src/` são, todas,
 **dentro da fronteira**: o client (`src/api/base44Client.js`), o adapter

@@ -47,16 +47,17 @@ relatórios genéricos, dashboards paralelos, fichas personalizadas e editor vis
 | Registry literal do provider | 38 entidades |
 | Dependências diretas | 49 (31 `dependencies` + 18 `devDependencies`) |
 | Dívida de tipos versionada | 2.319 diagnósticos (teto certificado 2.319) |
-| Testes automatizados | **854** (360 de gate + 494 de smoke) — eram 817 antes da P2 |
+| Testes automatizados | **862** (368 de gate + 494 de smoke) — eram 817 antes da P2 |
 | Etapas do `verify:all` | 14 |
 
 **Fronteira de dados (`gate:api-boundary`): 0/0/0/0/0/0.** Os seis eixos estão
 zerados desde a P1.4 e o baseline versionado tem as seis listas vazias —
 qualquer reintrodução reprova.
 
-A P2 acrescentou 37 testes de gate (MB1-01 a MB1-20, com sub-casos) e a etapa
+A P2 acrescentou 45 testes de gate (MB1-01 a MB1-20, com sub-casos) e a etapa
 `modelobase1-pecuario` ao `verify:all`. Ela **não** alterou `src/`, `base44/`,
-rotas, menu nem escopo.
+rotas, menu nem escopo. Oito desses testes vieram da correção **P2-R1**, que
+fechou invariantes declaradas no contrato e não protegidas pelo gate.
 
 Antes/depois completo: `docs/engineering/CURRENT-STATE.md`.
 

@@ -252,17 +252,39 @@ implementação.
 | 8 | as 11 seções obrigatórias existem, com o tipo certo | `P2-MB1-CONTRACT-SHAPE` |
 | 9 | `Cliente` é a **única** exceção sem `cliente_id` | `P2-MB1-TENANCY` |
 | 10 | catálogo global adicional vazio | `P2-MB1-TENANCY` |
-| 11–12 | tenant vem de `auth_context`; `body`/`query`/`params` proibidos | `P2-MB1-TENANCY` |
+| 11–12 | tenant vem de `auth_context`; as **cinco** fontes de request proibidas | `P2-MB1-TENANCY` |
 | 13–14 | unique de negócio tenant-scoped; índice começa por `cliente_id` | `P2-MB1-TENANCY` |
 | — | PK `id`/`String`/`cuid()`, não fornecida pelo cliente, imutável | `P2-MB1-IDENTITY` |
 | 15 | `max + 1` e `count + 1` proibidos e declarados como proibidos | `P2-MB1-NUMBERING` |
 | 16 | sequência atômica e transacional, com `nullScopeHazard` resolvido | `P2-MB1-NUMBERING` |
+| — | os **dois** escopos de numeração declarados, decididos por capacidade em P4–P6 | `P2-MB1-NUMBERING` |
 | 17–18 | `storage_key` é a identidade; URL nunca é | `P2-MB1-ATTACHMENT` |
 | 19 | `AuditLog` tenant-scoped, com `cliente_id` obrigatório e ator da sessão | `P2-MB1-AUDIT` |
 | 20 | os oito códigos de erro mínimos, com HTTP 4xx/5xx e significado | `P2-MB1-CONTRACT-SHAPE` |
 | 21 | os dez padrões proibidos, com descrição | `P2-MB1-PROHIBITED` |
 | 22 | handoff da P3 completo e `authorizedInP2: false` | `P2-MB1-HANDOFF` |
 | 23 | o gate **nunca** escreve nem corrige o arquivo | — |
+
+### Duas listas de fontes proibidas, não uma (P2-R1)
+
+O tenant e o ator da auditoria têm contratos **diferentes**, e o gate usa uma
+constante para cada:
+
+| Verificação | Fontes exigidas | Quantidade |
+|---|---|---|
+| `tenancy.forbiddenTenantSources` | `body`, `query`, `params`, `headers`, `cookie` | **5** |
+| `audit.forbiddenActorSources` | `body`, `query`, `params`, `headers` | **4** |
+
+O tenant é a fronteira de isolamento entre clientes, então o contrato fecha todas
+as portas de entrada da requisição, cookie incluído. O ator fecha as quatro que o
+SSOT declara — `cookie` **não** entra ali, e o gate não pode exigir mais do que o
+contrato diz, sob pena de o contrato real reprovar a si mesmo.
+
+A P2 compartilhava uma única lista de três valores entre as duas verificações. O
+efeito era concreto: `headers` e `cookie` podiam sair de
+`config/modelobase1-pecuario.json` com o gate verde. Mesma classe de defeito no
+escopo de numeração, onde o gate exigia só `tenant` e o contrato declara `tenant`
+e `empresa`. Corrigido na P2-R1, com prova negativa para cada valor.
 
 ### O que os testes cobrem
 
@@ -276,6 +298,13 @@ transacional · MB1-13 URL como identidade · MB1-14 `AuditLog` sem tenant ·
 MB1-15 ator vindo do body · MB1-16 código de erro ausente · MB1-17 padrão
 proibido ausente · MB1-18 handoff incompleto · MB1-19 o gate não reescreve
 arquivo inválido · MB1-20 o contrato real do repositório passa.
+
+Acrescentados na P2-R1: MB1-06c `headers` fora das fontes de tenant · MB1-06d
+`cookie` fora das fontes de tenant · MB1-06e `headers` fora das fontes de ator ·
+MB1-06f o ator **não** herda `cookie` (controle positivo das duas listas) ·
+MB1-12d `empresa` fora dos escopos · MB1-12e `tenant` fora dos escopos · MB1-12f
+a ordem de `scopeTypes` não é normativa · MB1-12g escopo decidido fora da
+capacidade ou fora de P4–P6.
 
 ### O que o gate **não** verifica
 
