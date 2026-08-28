@@ -20,6 +20,7 @@
     "gate:import-integrity": "node scripts/gates/gate-import-integrity.mjs",
     "gate:no-secrets": "node scripts/gates/gate-no-hardcoded-secrets.mjs",
     "gate:base44": "node scripts/gates/gate-base44-ratchet.mjs",
+    "gate:modelobase1-pecuario": "node scripts/gates/gate-modelobase1-pecuario.mjs",
     "gate:types": "node scripts/gates/gate-typecheck-ratchet.mjs",
     "verify:all": "node scripts/gates/verify-all.mjs"
   },

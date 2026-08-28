@@ -22,9 +22,10 @@ e decisão vivem neste repositório.
 |---|---|
 | **Produto** | Pecuária — **Mapa Geral + Manejo** (D-PROD-01) |
 | **Superfície primária** | `MapaGeral` — a raiz `/` redireciona para lá (D-PROD-05) |
-| **Missão atual** | **P0.1 — Product Scope Reset** (entregue e certificada após P0.1-R3) |
-| **Próxima missão** | **P1 — Native Foundation Bootstrap** |
-| **Branch de trabalho** | `claude/maike-scope-reset-ona5vs` |
+| **Missões concluídas** | **P0** (PR #1, merge `508cf62`) e **P1** (PR #6, merge `7398d85`) |
+| **Missão atual** | **P2 — ModeloBase1 Pecuário Foundation** — contrato base de **persistência e domínio**, não motor visual (D-PROD-21) |
+| **Próxima missão** | **P3 — Backend + Prisma + PostgreSQL Foundation** (não iniciada) |
+| **Branch de trabalho** | `claude/p2-modelobase1-pecuario-foundation` (PR draft) |
 | **Escopo executável** | `config/mapa-manejo-scope.json` |
 | **Molde arquitetural** | PROJETOMG — **parcial** (D-PROD-03) |
 | **Roadmap** | `docs/engineering/ROADMAP.md` |
@@ -39,13 +40,24 @@ relatórios genéricos, dashboards paralelos, fichas personalizadas e editor vis
 | Métrica | Valor |
 |---|---|
 | Páginas | 16 |
-| Arquivos em `src/` | 203 |
+| Arquivos em `src/` | 263 |
 | Schemas Base44 | 38 |
 | Functions Base44 | 1 (`syncEntityReferences`) |
-| Arquivos em `src/` com SDK | 71 |
-| Dependências diretas | 49 |
-| Dívida de tipos versionada | 2.802 diagnósticos (teto certificado 2.802) |
-| Testes automatizados | 183 (153 de gate + 30 de smoke) |
+| Arquivos em `src/` com SDK | 4 — todos **dentro** da fronteira |
+| Registry literal do provider | 38 entidades |
+| Dependências diretas | 49 (31 `dependencies` + 18 `devDependencies`) |
+| Dívida de tipos versionada | 2.319 diagnósticos (teto certificado 2.319) |
+| Testes automatizados | **862** (368 de gate + 494 de smoke) — eram 817 antes da P2 |
+| Etapas do `verify:all` | 14 |
+
+**Fronteira de dados (`gate:api-boundary`): 0/0/0/0/0/0.** Os seis eixos estão
+zerados desde a P1.4 e o baseline versionado tem as seis listas vazias —
+qualquer reintrodução reprova.
+
+A P2 acrescentou 45 testes de gate (MB1-01 a MB1-20, com sub-casos) e a etapa
+`modelobase1-pecuario` ao `verify:all`. Ela **não** alterou `src/`, `base44/`,
+rotas, menu nem escopo. Oito desses testes vieram da correção **P2-R1**, que
+fechou invariantes declaradas no contrato e não protegidas pelo gate.
 
 Antes/depois completo: `docs/engineering/CURRENT-STATE.md`.
 
@@ -128,18 +140,25 @@ Registre o bug em `docs/engineering/DECISIONS.md` e siga.
 
 ## O que "verde" significa aqui
 
-`npm run verify:all` sai com **0**. Duas das doze etapas são **catracas**, e o
-significado delas é literal:
+`npm run verify:all` sai com **0**. Três das quatorze etapas são **catracas**
+(`gate:base44`, `gate:api-boundary` e `gate:types`), e o significado delas é
+literal:
 
 | Etapa | Verde significa | Verde **não** significa |
 |---|---|---|
 | `gate:base44` | o acoplamento com a Base44 não cresceu | que a Base44 saiu |
 | `gate:types` | a dívida de tipos não cresceu | que o `tsc` está sem erros |
 
-O projeto **tem** 2.802 diagnósticos de tipo, versionados em
-`scripts/gates/typecheck-baseline.json` e sempre visíveis em
-`npm run typecheck:raw`. A cobertura é `jsconfig.typecheck.json`, que inclui
-todo o `src/`. P1 deve reduzir a dívida monotonicamente (DBT-03).
+O projeto **tem** 2.319 diagnósticos de tipo, versionados em
+`scripts/gates/typecheck-baseline.json` com teto certificado de 2.319, e sempre
+visíveis em `npm run typecheck:raw`. A cobertura é `jsconfig.typecheck.json`,
+que inclui todo o `src/`. A dívida só desce (DBT-03).
+
+Uma etapa nova desde a P2 **não** é catraca: `gate:modelobase1-pecuario` é
+**absoluto**. Ele valida `config/modelobase1-pecuario.json` contra o contrato
+base de persistência e domínio (D-PROD-21) e não tem `--update`, baseline nem
+correção automática — não existe estado herdado aceitável num contrato que ainda
+não tem implementação.
 
 **Não adianta afrouxar o `jsconfig.typecheck.json`.** Desde o P0.1-R2
 (D-PROD-13) o baseline grava o hash canônico da configuração, o comando, a
@@ -169,9 +188,16 @@ Toda missão termina com relatório em `docs/engineering/` contendo:
 4. Pendências e riscos identificados
 5. Decisões que precisam de aprovação humana
 
-Relatórios da P0.1:
+Todos os relatórios vivem em `docs/engineering/`. Os marcos:
 
-1. `docs/engineering/P0.1-MAPA-MANEJO-SCOPE-RESET-REPORT.md` — a limpeza
-2. `docs/engineering/P0.1-R1-CORRECTIVE-HARDENING-REPORT.md` — o endurecimento
-3. `docs/engineering/P0.1-R2-FINAL-CONTRACT-CLOSURE-REPORT.md` — o fechamento de contratos
-4. `docs/engineering/P0.1-R3-TYPE-RATCHET-NON-REGRESSION-REPORT.md` — a monotonicidade da catraca e a certificação
+| Missão | Relatório |
+|---|---|
+| P0.1 | `docs/engineering/P0.1-MAPA-MANEJO-SCOPE-RESET-REPORT.md` (+ R1 a R4) |
+| P1.1 | `docs/engineering/P1.1-NATIVE-API-BOUNDARY-EMPRESA-REPORT.md` (+ R1 a R4) |
+| P1.2 | `docs/engineering/P1.2-NATIVE-API-BOUNDARY-MAPA-REPORT.md` (+ R1, R2) |
+| P1.3 | `docs/engineering/P1.3-NATIVE-API-BOUNDARY-MANEJO-REPORT.md` |
+| P1.4 | `docs/engineering/P1.4-NATIVE-API-BOUNDARY-SUPPORT-ADMIN-REPORT.md` |
+| P2 | `docs/engineering/P2-MODELOBASE1-PECUARIO-FOUNDATION-REPORT.md` |
+
+Arquitetura de contrato, fora da linha de missões:
+`docs/architecture/MODELOBASE1-PECUARIO-CONTRACT.md`.

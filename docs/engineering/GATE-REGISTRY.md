@@ -20,6 +20,7 @@ Todos têm teste unitário com casos de falha reais em `scripts/tests/gates/`.
 | **import-integrity** | `npm run gate:import-integrity` | Nenhum import estático em `src/` aponta para arquivo inexistente | D-PROD-02 | `scripts/gates/gate-import-integrity.mjs` |
 | **no-secrets** | `npm run gate:no-secrets` | Nenhum segredo literal em **arquivo versionado ou não ignorado**; nenhum `.env` versionado | D-PROD-07 · D-PROD-14 | `scripts/gates/gate-no-hardcoded-secrets.mjs` |
 | **base44** | `npm run gate:base44` | Acoplamento com a Base44 só diminui (catraca, 10 eixos) | D-PROD-04 | `scripts/gates/gate-base44-ratchet.mjs` |
+| **modelobase1-pecuario** | `npm run gate:modelobase1-pecuario` | O contrato base de persistência e domínio: identidade, tenancy, timestamps, auditoria, numeração, anexos, exclusão, concorrência, códigos de erro, padrões proibidos e handoff da P3 | D-PROD-21 | `scripts/gates/gate-modelobase1-pecuario.mjs` |
 | **types** | `npm run gate:types` | A dívida de tipos nunca cresce, em nenhum modo (catraca por fingerprint) | D-PROD-11 · D-PROD-13 · D-PROD-17 | `scripts/gates/gate-typecheck-ratchet.mjs` |
 | **verify:all** | `npm run verify:all` | Toda a cadeia, na ordem abaixo | — | `scripts/gates/verify-all.mjs` |
 
@@ -29,9 +30,13 @@ Contratos baratos primeiro, build por último:
 
 ```
 test:gates → governance-paths → package-sync → product-scope → api-boundary
-→ source-closure → import-integrity → no-secrets → base44 → types → lint
-→ test:smoke → build
+→ source-closure → import-integrity → no-secrets → base44
+→ modelobase1-pecuario → types → lint → test:smoke → build
 ```
+
+14 etapas desde a P2. `modelobase1-pecuario` entra depois dos gates
+arquiteturais baratos e antes de `types`: ele lê um único JSON, custa
+milissegundos e reprova antes de o `tsc` gastar ~40 s.
 
 O resumo imprime nome, PASS/FAIL, código de saída, duração e comando executado.
 Nenhuma etapa é ignorada nem tem o exit code convertido em sucesso.
@@ -72,6 +77,17 @@ Nenhuma etapa é ignorada nem tem o exit code convertido em sucesso.
 | `P01-TYPE-CONTRACT` | types |
 | `P01-TYPE-CONFIG-DRIFT` | types |
 | `P01-TYPE-VERSION-DRIFT` | types |
+| `P2-MB1-CONTRACT-MISSING` | modelobase1-pecuario |
+| `P2-MB1-CONTRACT-INVALID` | modelobase1-pecuario |
+| `P2-MB1-CONTRACT-VERSION` | modelobase1-pecuario |
+| `P2-MB1-CONTRACT-SHAPE` | modelobase1-pecuario |
+| `P2-MB1-TENANCY` | modelobase1-pecuario |
+| `P2-MB1-IDENTITY` | modelobase1-pecuario |
+| `P2-MB1-AUDIT` | modelobase1-pecuario |
+| `P2-MB1-NUMBERING` | modelobase1-pecuario |
+| `P2-MB1-ATTACHMENT` | modelobase1-pecuario |
+| `P2-MB1-PROHIBITED` | modelobase1-pecuario |
+| `P2-MB1-HANDOFF` | modelobase1-pecuario |
 | `P01-PACKAGE-DRIFT` | package-sync |
 | `P01-LOCKFILE-INVALID` | package-sync |
 | `P01-SMOKE-FAILURE` | test:smoke |
@@ -208,6 +224,94 @@ real** em projetos temporários com `tsc` de verdade — 27 casos de baseline, t
 e contrato, mais 11 casos dedicados a `--rebase-contract`, além dos casos
 unitários de parser, glob e canonicalização e de quatro asserções sobre o
 baseline versionado do próprio repositório.
+
+## `gate:modelobase1-pecuario` — contrato base pecuário (D-PROD-21)
+
+Não é catraca. **É absoluto**: sem `--update`, sem baseline, sem modo de
+correção e sem escrita no arquivo — nem quando o contrato está inválido. Não
+existe "estado herdado aceitável" num contrato que ainda não tem nenhuma
+implementação.
+
+| Item | Valor |
+|---|---|
+| Comando | `npm run gate:modelobase1-pecuario` |
+| Script | `scripts/gates/gate-modelobase1-pecuario.mjs` |
+| Arquivo protegido | `config/modelobase1-pecuario.json` |
+| Documento legível | `docs/architecture/MODELOBASE1-PECUARIO-CONTRACT.md` |
+| Testes | `scripts/tests/gates/modelobase1-pecuario.test.mjs` — MB1-01 a MB1-20 |
+| Posição no `verify:all` | depois de `base44`, antes de `types` |
+
+### O que o gate exige
+
+| # | Exigência | Código |
+|---|---|---|
+| 1 | o contrato existe | `P2-MB1-CONTRACT-MISSING` |
+| 2 | é JSON válido, objeto na raiz | `P2-MB1-CONTRACT-INVALID` |
+| 3–4 | `version: 1` e `status: "official"` | `P2-MB1-CONTRACT-VERSION` |
+| 5–7 | `contractId`, `meaning` e `productScope` exatos | `P2-MB1-CONTRACT-SHAPE` |
+| 8 | as 11 seções obrigatórias existem, com o tipo certo | `P2-MB1-CONTRACT-SHAPE` |
+| 9 | `Cliente` é a **única** exceção sem `cliente_id` | `P2-MB1-TENANCY` |
+| 10 | catálogo global adicional vazio | `P2-MB1-TENANCY` |
+| 11–12 | tenant vem de `auth_context`; as **cinco** fontes de request proibidas | `P2-MB1-TENANCY` |
+| 13–14 | unique de negócio tenant-scoped; índice começa por `cliente_id` | `P2-MB1-TENANCY` |
+| — | PK `id`/`String`/`cuid()`, não fornecida pelo cliente, imutável | `P2-MB1-IDENTITY` |
+| 15 | `max + 1` e `count + 1` proibidos e declarados como proibidos | `P2-MB1-NUMBERING` |
+| 16 | sequência atômica e transacional, com `nullScopeHazard` resolvido | `P2-MB1-NUMBERING` |
+| — | os **dois** escopos de numeração declarados, decididos por capacidade em P4–P6 | `P2-MB1-NUMBERING` |
+| 17–18 | `storage_key` é a identidade; URL nunca é | `P2-MB1-ATTACHMENT` |
+| 19 | `AuditLog` tenant-scoped, com `cliente_id` obrigatório e ator da sessão | `P2-MB1-AUDIT` |
+| 20 | os oito códigos de erro mínimos, com HTTP 4xx/5xx e significado | `P2-MB1-CONTRACT-SHAPE` |
+| 21 | os dez padrões proibidos, com descrição | `P2-MB1-PROHIBITED` |
+| 22 | handoff da P3 completo e `authorizedInP2: false` | `P2-MB1-HANDOFF` |
+| 23 | o gate **nunca** escreve nem corrige o arquivo | — |
+
+### Duas listas de fontes proibidas, não uma (P2-R1)
+
+O tenant e o ator da auditoria têm contratos **diferentes**, e o gate usa uma
+constante para cada:
+
+| Verificação | Fontes exigidas | Quantidade |
+|---|---|---|
+| `tenancy.forbiddenTenantSources` | `body`, `query`, `params`, `headers`, `cookie` | **5** |
+| `audit.forbiddenActorSources` | `body`, `query`, `params`, `headers` | **4** |
+
+O tenant é a fronteira de isolamento entre clientes, então o contrato fecha todas
+as portas de entrada da requisição, cookie incluído. O ator fecha as quatro que o
+SSOT declara — `cookie` **não** entra ali, e o gate não pode exigir mais do que o
+contrato diz, sob pena de o contrato real reprovar a si mesmo.
+
+A P2 compartilhava uma única lista de três valores entre as duas verificações. O
+efeito era concreto: `headers` e `cookie` podiam sair de
+`config/modelobase1-pecuario.json` com o gate verde. Mesma classe de defeito no
+escopo de numeração, onde o gate exigia só `tenant` e o contrato declara `tenant`
+e `empresa`. Corrigido na P2-R1, com prova negativa para cada valor.
+
+### O que os testes cobrem
+
+Cada caso monta um contrato **estruturado** num diretório temporário e roda o
+gate real. Nenhum teste procura palavra em prosa — o que reprova é a forma do
+JSON. MB1-01 contrato válido · MB1-02 ausente · MB1-03 JSON inválido · MB1-04
+versão · MB1-05 `meaning` de template visual · MB1-06 tenant do request · MB1-07
+segunda exceção · MB1-08 unique sem tenant · MB1-09 índice sem `cliente_id`
+primeiro · MB1-10 `max + 1` · MB1-11 `count + 1` · MB1-12 sequência não
+transacional · MB1-13 URL como identidade · MB1-14 `AuditLog` sem tenant ·
+MB1-15 ator vindo do body · MB1-16 código de erro ausente · MB1-17 padrão
+proibido ausente · MB1-18 handoff incompleto · MB1-19 o gate não reescreve
+arquivo inválido · MB1-20 o contrato real do repositório passa.
+
+Acrescentados na P2-R1: MB1-06c `headers` fora das fontes de tenant · MB1-06d
+`cookie` fora das fontes de tenant · MB1-06e `headers` fora das fontes de ator ·
+MB1-06f o ator **não** herda `cookie` (controle positivo das duas listas) ·
+MB1-12d `empresa` fora dos escopos · MB1-12e `tenant` fora dos escopos · MB1-12f
+a ordem de `scopeTypes` não é normativa · MB1-12g escopo decidido fora da
+capacidade ou fora de P4–P6.
+
+### O que o gate **não** verifica
+
+Ele valida o **contrato**, não a implementação — que ainda não existe. Quem vai
+provar que o `schema.prisma` cumpre estas regras são `gate:tenancy` e
+`gate:indices`, criados na P3. As duas camadas ficam: uma protege o acordo, a
+outra protege o código.
 
 ## Fechamento de escopo dentro das functions
 

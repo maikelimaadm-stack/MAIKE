@@ -39,8 +39,9 @@ Todos os scripts vivem em `scripts/gates/`.
 | Integridade de imports | `npm run gate:import-integrity` | Nenhum import quebrado em `src/` |
 | Segredos | `npm run gate:no-secrets` | Nenhum segredo em arquivo versionado; nenhum `.env` |
 | Base44 | `npm run gate:base44` | Acoplamento só diminui (10 eixos) |
+| Contrato base pecuário | `npm run gate:modelobase1-pecuario` | O contrato de persistência e domínio da P2 (D-PROD-21) — **absoluto**, sem baseline |
 | Tipos | `npm run gate:types` | A dívida de tipos não cresce |
-| **Todos** | `npm run verify:all` | 12 etapas, build por último |
+| **Todos** | `npm run verify:all` | 14 etapas, build por último |
 
 ### Baselines
 
@@ -84,7 +85,7 @@ Para adicionar uma página ou entidade:
   preservado. Excluir schema fora do escopo é permitido por D-PROD-02.
 - **Nenhum schema ou function Base44 novo.** A Base44 só sai (D-PROD-04).
 - **`gate:types` verde significa "a dívida não cresceu", não "sem erros".**
-  São 2.802 diagnósticos versionados, com teto certificado de 2.802 (DBT-03).
+  São 2.319 diagnósticos versionados, com teto certificado de 2.319 (DBT-03).
   Veja os reais com `npm run typecheck:raw`. Afrouxar `jsconfig.typecheck.json`
   não passa: a configuração está no baseline (D-PROD-13). Rebasear também não
   passa: **nenhum modo** aceita diagnóstico novo (D-PROD-17).
