@@ -747,4 +747,128 @@ questão fica registrada: a mesma classe de colisão pode reaparecer em P4–P6
 sempre que o contrato disser algo que a Constituição ou o DO-NOT-DO não
 previram.
 
-<!-- Próxima decisão: D-PROD-23 -->
+---
+
+## D-PROD-23 — Decisões concretas da fundação backend
+
+**Data:** 2026-09-08 · **Missão:** P3 · **Estado:** vigente após merge
+
+A P2 deixou seis pontos deliberadamente em aberto, para que a P3 os resolvesse
+com o schema na frente. Aqui estão as escolhas, com o motivo de cada uma.
+
+### 1. `Cliente` — forma mínima
+
+```
+id · codigo · nome · ativo · createdAt · updatedAt
+```
+
+`codigo` é o identificador operacional usado no login, com `@unique` global —
+`Cliente` não é tenant-scoped, então o unique dele é global por definição
+(D-PROD-22). Não é chave primária: a PK continua sendo `id`/`cuid()`.
+
+**Não importados do PROJETOMG:** `plano`, `limite_usuarios`, `limite_empresas`,
+`data_vencimento`, `total_empresas`, `next_id_global`, `cpf_cnpj`, `telefone`,
+`email`. Nenhum tem consumidor na P3, e campo sem consumidor é dívida que
+parece funcionalidade.
+
+### 2. `Usuario` — forma mínima
+
+```
+id · cliente_id · nome · login · senha_hash · ativo · createdAt · updatedAt
+@@unique([cliente_id, login])   @@index([cliente_id, ativo])
+```
+
+Senha existe apenas como hash bcrypt. **Não importados:** `Empresa`,
+`PermissaoEmpresa`, `acesso_global`, `perfil`, `codigo`, `ultimo_acesso`.
+Autorização real é P8.
+
+### 3. Sessão e `auth_context`
+
+JWT assinado com `AUTH_SECRET`, TTL configurável (padrão 8h), via
+`@fastify/jwt`. O payload carrega `cliente_id`, `usuario_id` e `login` — nunca
+senha nem hash.
+
+O login recebe `cliente` (o `codigo`), **não** `cliente_id`. Essa inversão é o
+que impede tenant vindo do payload: o `cliente_id` é **resultado** da
+autenticação, não entrada dela.
+
+`construirAuthContext` recebe o payload verificado do token e mais nada —
+nenhuma função de `authContext.js` aceita `request` como parâmetro, por
+desenho.
+
+Mensagem única para toda falha de credencial, e comparação de bcrypt executada
+mesmo sem usuário, contra hash descartável: sem isso o tempo de resposta separa
+"usuário existe" de "não existe".
+
+### 4. `onDelete` — `Restrict` em todas as relações com a raiz
+
+O contrato exige política explícita e revisada, nunca cascade acidental
+(`clienteDeletePolicy = "explicit-reviewed"`). `Cascade` apagaria em silêncio a
+auditoria inteira de um tenant junto com o `Cliente` — exatamente o rastro que
+alguém procuraria depois.
+
+`AuditLog.usuario_id` também é `Restrict`, e não `SetNull`: anular o ator faria
+um evento humano passar por evento de sistema, e o contrato reserva
+`usuario_id` nulo **só** para eventos de sistema. O rastro mentiria.
+
+Consequência aceita: apagar `Cliente` ou `Usuario` com histórico falha. A
+exclusão vira operação deliberada, que é o que "explícita e revisada" significa.
+
+### 5. `escopo_id` — sentinela não nula
+
+**Escolhida:** `escopo_id String` não nulo. No escopo `tenant`, recebe o próprio
+`cliente_id`; no escopo `empresa`, receberá o id da Empresa quando essa
+capacidade existir.
+
+**Rejeitada:** `escopo_id` nullable com unique comum. No PostgreSQL `NULL` nunca
+é igual a `NULL` num índice unique — duas linhas de sequência para a mesma
+entidade coexistiriam e distribuiriam números **em paralelo**. O unique não
+barraria nada, e o sintoma só apareceria sob concorrência.
+
+**Rejeitada:** índice unique parcial por `escopo_tipo`. Funciona, mas exigiria
+SQL manual fora do `schema.prisma`, criando uma segunda fonte de verdade sobre
+a chave — e `prisma validate` deixaria de descrever a restrição real.
+
+Travado por `gate:indices` (`P3-IDX-SEQUENCE-NULL-SCOPE`) e provado por
+concorrência real em `backend/tests/foundation.test.mjs` (BE-17).
+
+A P3 **não** decide qual entidade usa qual escopo. Isso é P4–P6.
+
+### 6. Banco em desenvolvimento e na CI
+
+**Local:** Docker Compose, `postgres:16.13-alpine`, versão fixada, healthcheck,
+volume nomeado. `latest` faria o banco do desenvolvedor divergir do da CI sem
+ninguém perceber.
+
+**CI:** serviço `postgres` efêmero do GitHub Actions, mesma versão, criado e
+destruído com o job, `DATABASE_URL` exclusiva. Nenhuma CI toca staging,
+Supabase, PostgreSQL externo ou banco do proprietário.
+
+O banco da CI nasce vazio a cada execução, e `test:backend` roda
+`prisma migrate deploy` antes dos testes — o smoke de migration sai de graça: se
+a migration não aplica em banco vazio, o job falha ali.
+
+### 7. Catálogo de erros do frontend — adiado, declarado
+
+O contrato declara `errorNamespace.addedToFrontendCatalogInPhase = "P3"`, mas a
+P3 tem `src/` congelado. Os oito códigos existem em
+`backend/src/shared/errors/errorCodes.js`; **não** foram adicionados a
+`src/apis/_core/ApiError.js`.
+
+O campo do contrato, portanto, **não foi cumprido**, e
+`config/modelobase1-pecuario.json` **não foi alterado** para esconder isso. A
+sincronização fica para a primeira missão que autorizar tocar em `src/` — na
+prática P4, quando a primeira capacidade consumir o backend e os códigos
+ganharem consumidor real (a regra SE11 exige consumidor).
+
+### 8. Dependências do backend na raiz, sem workspaces
+
+O backend não tem `package.json` próprio. Motivo: `gate:package-sync` compara
+`package.json` com `packages[""]` do lock. Um segundo manifesto criaria
+dependências fora do alcance do gate; workspaces manteriam um lockfile só, mas
+moveriam as dependências do backend para fora da entrada raiz — e o gate
+deixaria de vê-las do mesmo jeito.
+
+Um manifesto, um lockfile, um gate enxergando tudo.
+
+<!-- Próxima decisão: D-PROD-24 -->

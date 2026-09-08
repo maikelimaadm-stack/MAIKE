@@ -11,7 +11,22 @@ Preencha `VITE_GOOGLE_MAPS_API_KEY` em `.env.local`. Sem essa variável o Mapa
 Geral abre e mostra "Mapa indisponível" com a mensagem de configuração — não
 fica em branco.
 
-Não existe `backend/` ainda. Ele entra em **P3** — ver `docs/engineering/ROADMAP.md`.
+### Backend (P3)
+
+```bash
+npm run db:up            # sobe o PostgreSQL local (Docker Compose)
+npm run prisma:deploy    # aplica as migrations
+npm run backend:dev      # sobe o Fastify com --watch
+npm run test:backend     # testes contra PostgreSQL real
+```
+
+Preencha `DATABASE_URL` e `AUTH_SECRET` em `.env` — ver `.env.example`. O
+backend **não sobe** sem os dois: ausência de segredo é falha dura, não
+fallback. Nenhuma variável do backend leva prefixo `VITE_`; prefixar publicaria
+segredo de servidor no bundle do cliente.
+
+O backend ainda **não é consumido pelo frontend**. A primeira capacidade migra
+na P4 — ver `docs/engineering/ROADMAP.md`.
 
 ## Desenvolvimento
 
@@ -19,10 +34,12 @@ Não existe `backend/` ainda. Ele entra em **P3** — ver `docs/engineering/ROAD
 |---|---|
 | Frontend | `npm run dev` |
 | Lint | `npm run lint` |
-| Dívida de tipos (catraca) | `npm run typecheck` |
-| Dívida de tipos (bruta) | `npm run typecheck:raw` |
+| Dívida de tipos em `src/` (catraca) | `npm run typecheck` |
+| Dívida de tipos em `src/` (bruta) | `npm run typecheck:raw` |
+| Tipos do `backend/` (tolerância zero) | `npm run typecheck:backend` |
 | Smoke automatizado | `npm run test:smoke` |
 | Testes dos gates | `npm run test:gates` |
+| Testes de backend | `npm run test:backend` |
 | Build | `npm run build` |
 
 ## Gates
@@ -40,8 +57,11 @@ Todos os scripts vivem em `scripts/gates/`.
 | Segredos | `npm run gate:no-secrets` | Nenhum segredo em arquivo versionado; nenhum `.env` |
 | Base44 | `npm run gate:base44` | Acoplamento só diminui (10 eixos) |
 | Contrato base pecuário | `npm run gate:modelobase1-pecuario` | O contrato de persistência e domínio da P2 (D-PROD-21) — **absoluto**, sem baseline |
-| Tipos | `npm run gate:types` | A dívida de tipos não cresce |
-| **Todos** | `npm run verify:all` | 14 etapas, build por último |
+| Tenancy | `npm run gate:tenancy` | Schema Prisma e backend cumprem a tenancy — **absoluto** |
+| Índices | `npm run gate:indices` | Índice e unique tenant-aware — **absoluto** |
+| Tipos (`src/`) | `npm run gate:types` | A dívida de tipos não cresce |
+| Tipos (`backend/`) | `npm run typecheck:backend` | O backend tem **zero** diagnóstico — **absoluto**, sem baseline |
+| **Todos** | `npm run verify:all` | 18 etapas, build por último |
 
 ### Baselines
 
@@ -91,6 +111,27 @@ Para adicionar uma página ou entidade:
   passa: **nenhum modo** aceita diagnóstico novo (D-PROD-17).
 - **Código novo entra com zero diagnóstico.** Absorver erro novo no baseline é
   proibido — corrija no código.
+- **`backend/` tem contrato de tipos PRÓPRIO, e ele é zero.** A catraca lê
+  `jsconfig.typecheck.json`, que inclui apenas `src/`; o backend passa por
+  `npm run typecheck:backend`, sobre `jsconfig.backend.typecheck.json`. São
+  dois contratos independentes de propósito: a catraca legada tolera 2.319
+  diagnósticos herdados, e o backend **não tolera nenhum**. Não existe baseline,
+  teto nem `--update` ali. Diagnóstico novo no backend se corrige no código ou
+  se declara em `.d.ts` — `any`, `@ts-ignore` e `@ts-nocheck` são fuga, não
+  correção.
+- **Decoração de Fastify se declara, não se silencia.** `request.contexto` e
+  `app.autenticar` existem em runtime e não no compilador. O lugar deles é
+  `backend/src/types/fastify.d.ts`, por module augmentation.
+- **Não defina `NODE_ENV` no `env:` do job do workflow.** `env:` de job alcança
+  TODOS os passos, inclusive o `npm run build`, e qualquer valor diferente de
+  `production` faz o Vite empacotar React e outras bibliotecas em modo de
+  desenvolvimento — ~1 MB a mais, sem uma linha de `src/` ter mudado, e sem
+  aparecer no diff. Aconteceu na primeira versão da P3. `verify:all` fixa
+  `production` no passo de build, e `build-environment.test.mjs` trava as duas
+  pontas.
+- **Backend sem banco não testa.** `npm run test:backend` **falha** sem
+  `DATABASE_URL`, em vez de pular. Suíte que se auto-desliga reporta verde sem
+  ter verificado nada.
 - **Function Base44 não pode indexar `entities` com variável.** Use acesso
   literal ou um registro literal local — senão `gate:product-scope` reprova com
   `P01-SCOPE-FUNCTION-DYNAMIC-UNVERIFIABLE` (D-PROD-15).

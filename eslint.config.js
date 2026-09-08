@@ -77,6 +77,22 @@ export default [
     },
   },
   {
+    // Backend nativo (P3): Fastify e Prisma sobre Node. Mesma exigência do
+    // `scripts/` — o código é novo e pequeno, então variável não usada é erro.
+    // Sem este bloco, `backend/**` ficaria fora de qualquer configuração e o
+    // lint passaria por cima dele sem regra nenhuma.
+    files: ["backend/**/*.{js,mjs,cjs}"],
+    languageOptions: {
+      globals: globals.node,
+      sourceType: "module",
+      ecmaVersion: "latest",
+    },
+    ...pluginJs.configs.recommended,
+    rules: {
+      "no-unused-vars": "error",
+    },
+  },
+  {
     // Testes: Vitest e `node:test` sobre JSDOM, com globais dos dois mundos.
     files: ["tests/**/*.{js,mjs,cjs,jsx}", "scripts/tests/**/*.{js,mjs,cjs}"],
     languageOptions: {

@@ -1,0 +1,40 @@
+# PostgreSQL de DESENVOLVIMENTO LOCAL do MAIKE.
+#
+# Não é produção, não é staging e não deve apontar para nenhum banco remoto.
+# As credenciais aqui são de desenvolvimento e ficam versionadas de propósito:
+# não há segredo real neste arquivo, e um `.env` com senha de verdade continua
+# ignorado pelo Git.
+#
+#   docker compose up -d db      sobe o banco
+#   docker compose down          para
+#   docker compose down -v       para e APAGA o volume (recomeça do zero)
+#
+# A versão do PostgreSQL é fixada de propósito. "postgres:latest" faz o banco
+# do desenvolvedor divergir do banco da CI sem ninguém perceber, e a diferença
+# só aparece quando uma migration se comporta diferente nos dois.
+
+services:
+  db:
+    image: postgres:16.13-alpine
+    container_name: maike-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-maike}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-maike_dev}
+      POSTGRES_DB: ${POSTGRES_DB:-maike_dev}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - maike_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      # Sem healthcheck, `docker compose up -d` devolve o controle antes de o
+      # banco aceitar conexão, e a primeira migration falha por corrida.
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-maike} -d ${POSTGRES_DB:-maike_dev}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+volumes:
+  maike_pgdata:
+    name: maike_pgdata

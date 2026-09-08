@@ -1,0 +1,205 @@
+// ModeloBase1 Pecuário — camada de tenant/fundação (P3).
+//
+// Este schema implementa EXATAMENTE o contrato de
+// `config/modelobase1-pecuario.json`, sem antecipar nada de P4–P6.
+// Nenhum model de mapa e nenhum model de manejo entra aqui.
+//
+// Invariantes travadas por `gate:tenancy` e `gate:indices`:
+//
+//   identidade   id String @id @default(cuid()); nunca vem do cliente HTTP
+//   tenancy      cliente_id obrigatório em todo model tenant-scoped;
+//                `Cliente` é a raiz e a única exceção (D-PROD-22)
+//   unique       toda chave de negócio inclui cliente_id
+//   índice       todo índice tenant-scoped começa por cliente_id
+//   timestamps   createdAt e updatedAt em todo model persistente
+
+// Sem `output` explícito: o Prisma resolve para o `node_modules` onde
+// `@prisma/client` está instalado — a raiz do repositório. As dependências do
+// backend vivem no `package.json` raiz, num lockfile só, para que
+// `gate:package-sync` continue enxergando todas elas.
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Cliente — raiz estrutural do tenant.
+//
+// Único model sem `cliente_id`, porque ele É o tenant: `Cliente.id` é a
+// identidade da raiz de tenancy (D-PROD-22). Criar `cliente_id` autorreferente
+// aqui é explicitamente proibido.
+//
+// `codigo` é o identificador operacional usado no login — identidade de
+// negócio, nunca chave primária. Como `Cliente` não é tenant-scoped, o unique
+// dele é global por definição.
+// ---------------------------------------------------------------------------
+model Cliente {
+  id        String   @id @default(cuid())
+  codigo    String   @unique @db.VarChar(64)
+  nome      String   @db.VarChar(255)
+  ativo     Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  usuarios   Usuario[]
+  auditLogs  AuditLog[]
+  sequencias EntidadeCodigoSequencia[]
+  anexos     RegistroAnexo[]
+
+  @@index([nome])
+  @@index([ativo])
+}
+
+// ---------------------------------------------------------------------------
+// Usuario — tenant-scoped.
+//
+// Mínimo necessário para autenticação própria. Sem Empresa, sem permissões,
+// sem perfil empresarial, sem acesso_global: nada disso tem consumidor na P3.
+//
+// `senha_hash` é o único vestígio da senha. A senha pura nunca é persistida e
+// nunca entra no AuditLog.
+//
+// `onDelete: Restrict` — apagar um Cliente que ainda tem usuários falha. A
+// exclusão de Cliente é política explícita e revisada, nunca cascade acidental
+// (contrato: `tenancy.clienteDeletePolicy = "explicit-reviewed"`).
+// ---------------------------------------------------------------------------
+model Usuario {
+  id         String   @id @default(cuid())
+  cliente_id String   @db.VarChar(64)
+  nome       String   @db.VarChar(255)
+  login      String   @db.VarChar(120)
+  senha_hash String   @db.VarChar(255)
+  ativo      Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  cliente   Cliente    @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  auditLogs AuditLog[]
+
+  @@unique([cliente_id, login])
+  // Chave referenciável tenant-aware. Existe para que quem aponta para um
+  // Usuario aponte para "este usuário DENTRO deste cliente", e não para um id
+  // solto que poderia pertencer a outro tenant. Ver AuditLog.
+  @@unique([cliente_id, id])
+  @@index([cliente_id, ativo])
+}
+
+// ---------------------------------------------------------------------------
+// AuditLog — camada B da auditoria (a camada A são os timestamps por model).
+//
+// Diverge do PROJETOMG de propósito: lá `cliente_id` é nullable com
+// `onDelete: SetNull`. Aqui ele é OBRIGATÓRIO — log de auditoria sem tenant não
+// é auditável num sistema multi-tenant.
+//
+// `usuario_id` é opcional e ausente SOMENTE em evento de sistema. Por isso a
+// relação com Usuario é `Restrict` e não `SetNull`: anular o ator faria um
+// evento humano passar por evento de sistema, e o rastro mentiria.
+//
+// `dados_anteriores` e `dados_novos` nunca recebem senha, credencial, segredo
+// ou conteúdo binário — a filtragem vive em `auditService`.
+// ---------------------------------------------------------------------------
+model AuditLog {
+  id               String   @id @default(cuid())
+  cliente_id       String   @db.VarChar(64)
+  usuario_id       String?  @db.VarChar(64)
+  acao             String   @db.VarChar(64)
+  entidade         String   @db.VarChar(128)
+  entidade_id      String?  @db.VarChar(128)
+  dados_anteriores Json?
+  dados_novos      Json?
+  request_id       String   @db.VarChar(64)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  cliente Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+
+  // FK COMPOSTA, tenant-aware. Aponta para [cliente_id, id] de Usuario, não
+  // para o id solto.
+  //
+  // Com duas FKs independentes — cliente_id -> Cliente.id e usuario_id ->
+  // Usuario.id — o banco aceitaria um AuditLog do Cliente A com ator do Cliente
+  // B. O service nunca monta esse objeto, porque tenant e ator saem do mesmo
+  // auth_context; mas o contrato declara `crossTenantRelationsAllowed = false`
+  // e manda a constraint ser a última barreira. Regra que depende de o service
+  // estar certo não é barreira, é convenção.
+  //
+  // `usuario_id` continua opcional para evento de sistema. O PostgreSQL usa
+  // MATCH SIMPLE por padrão: com qualquer coluna da FK composta nula, a
+  // verificação é dispensada — então `usuario_id = NULL` passa, que é
+  // exatamente o comportamento desejado.
+  usuario Usuario? @relation(fields: [cliente_id, usuario_id], references: [cliente_id, id], onDelete: Restrict)
+
+  @@index([cliente_id, createdAt])
+  @@index([cliente_id, entidade, entidade_id])
+  @@index([cliente_id, usuario_id])
+  @@index([cliente_id, request_id])
+}
+
+// ---------------------------------------------------------------------------
+// EntidadeCodigoSequencia — numeração atômica.
+//
+// `escopo_id` é String NÃO NULA, por decisão da P3. No PostgreSQL, NULL nunca é
+// igual a NULL num índice unique: com `escopo_id` nullable, duas linhas de
+// sequência para a mesma entidade coexistiriam e distribuiriam números em
+// paralelo — o unique não barraria nada, e o sintoma só apareceria sob
+// concorrência.
+//
+// Sentinela: no escopo `tenant`, `escopo_id` recebe o próprio `cliente_id`.
+// No escopo `empresa`, receberá o ID real da Empresa quando essa capacidade
+// existir (P4–P6). A P3 suporta os dois tipos e NÃO decide qual entidade usa
+// qual.
+//
+// A reserva é `UPDATE … RETURNING` dentro de transação. Nunca MAX+1, nunca
+// COUNT(*)+1.
+// ---------------------------------------------------------------------------
+model EntidadeCodigoSequencia {
+  id            String   @id @default(cuid())
+  cliente_id    String   @db.VarChar(64)
+  entidade      String   @db.VarChar(128)
+  escopo_tipo   String   @db.VarChar(32)
+  escopo_id     String   @db.VarChar(64)
+  proximo_valor Int      @default(1)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  cliente Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+
+  @@unique([cliente_id, entidade, escopo_tipo, escopo_id])
+  @@index([cliente_id, entidade])
+}
+
+// ---------------------------------------------------------------------------
+// RegistroAnexo — registro genérico de anexo, independente de provider.
+//
+// `storage_key` é a IDENTIDADE persistente do objeto. URL pública é efêmera e
+// nunca identidade — é por isso que não existe campo `file_url` aqui.
+//
+// Nenhum binário no PostgreSQL. `mime_type` e `tamanho_bytes` são validados no
+// backend; `nome_original` é sanitizado antes de persistir.
+//
+// A P3 NÃO escolhe provedor de storage. `storage_key` é opaca de propósito.
+// ---------------------------------------------------------------------------
+model RegistroAnexo {
+  id            String   @id @default(cuid())
+  cliente_id    String   @db.VarChar(64)
+  entidade      String   @db.VarChar(128)
+  entidade_id   String   @db.VarChar(128)
+  nome_original String   @db.VarChar(255)
+  storage_key   String   @db.VarChar(1024)
+  mime_type     String   @db.VarChar(255)
+  tamanho_bytes Int
+  checksum      String?  @db.VarChar(128)
+  criado_por    String   @db.VarChar(64)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  cliente Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+
+  @@unique([cliente_id, storage_key])
+  @@index([cliente_id, entidade, entidade_id])
+  @@index([cliente_id, createdAt])
+}

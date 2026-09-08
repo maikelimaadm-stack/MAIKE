@@ -1,0 +1,37 @@
+{
+  "//": [
+    "Cobertura de tipos do backend nativo (P3-R1).",
+    "",
+    "Separado de jsconfig.typecheck.json de propósito. Aquele arquivo carrega a",
+    "dívida legada do frontend, medida pela catraca com teto certificado de",
+    "2.319 (D-PROD-13, D-PROD-17). Juntar o backend ali misturaria código novo",
+    "com dívida antiga e exigiria --rebase-contract — e a barreira de não",
+    "regressão obrigaria o backend inteiro a nascer limpo dentro do mesmo",
+    "baseline, sem que ninguém conseguisse ler os dois números separadamente.",
+    "",
+    "Aqui a exigência é diferente e mais dura: ZERO diagnósticos. Não há",
+    "baseline, não há teto, não há dívida tolerada. Código novo nasce limpo.",
+    "",
+    "backend/tests fica de fora: fixtures de teste produzem ruído de tipo que",
+    "não descreve defeito do produto (payloads propositalmente malformados,",
+    "objetos parciais para exercitar validação). A cobertura declarada é",
+    "backend/src/**, que é o código executável."
+  ],
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "allowJs": true,
+    "checkJs": true,
+    "noEmit": true,
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "strict": false,
+    "noImplicitAny": false,
+    "types": ["node"]
+  },
+  "include": ["backend/src/**/*.js", "backend/src/**/*.d.ts"],
+  "exclude": ["node_modules", "dist", "dist-ssr", "coverage"]
+}

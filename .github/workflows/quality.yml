@@ -21,6 +21,51 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
+    # PostgreSQL EFÊMERO, criado e destruído com o job.
+    #
+    # A CI nunca toca banco de produção, de staging, do proprietário nem
+    # qualquer PostgreSQL externo: este serviço vive dentro do runner e some
+    # com ele. O banco nasce vazio a cada execução, e é justamente isso que
+    # transforma o `migrate deploy` do `test:backend` num smoke de migration
+    # de graça — se a migration não roda em banco vazio, o job falha aqui.
+    #
+    # A versão casa com a do docker-compose.yml. Divergir faria a migration ser
+    # exercitada num PostgreSQL diferente do que o desenvolvedor usa.
+    services:
+      postgres:
+        image: postgres:16.13-alpine
+        env:
+          POSTGRES_USER: maike_ci
+          POSTGRES_PASSWORD: maike_ci
+          POSTGRES_DB: maike_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U maike_ci -d maike_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    env:
+      # Exclusiva do job. Some junto com o runner.
+      DATABASE_URL: postgresql://maike_ci:maike_ci@localhost:5432/maike_ci
+      # Segredo descartável, válido só dentro deste job. Não é segredo real e
+      # não vale em nenhum outro ambiente.
+      AUTH_SECRET: ci-only-ephemeral-signing-key
+      #
+      # NÃO defina NODE_ENV aqui.
+      #
+      # A primeira versão da P3 definia `NODE_ENV: test` neste bloco. Como o
+      # `env:` do job alcança TODOS os passos, ele chegava ao `npm run build`, e
+      # o Vite produzia o bundle com React e demais bibliotecas em modo de
+      # desenvolvimento: 3.555,01 kB medidos na CI contra 2.496,62 kB de build
+      # de produção, sem uma linha de `src/` ter mudado. A inflação reproduz
+      # igual no commit base `44b204c`, onde não existe backend nenhum — ou
+      # seja, não era do backend, era do ambiente.
+      #
+      # Quem precisa de NODE_ENV declara por conta própria: o Vitest já define
+      # `test`, e `verify:all` fixa `production` no passo de build.
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -33,6 +78,18 @@ jobs:
 
       - name: Instalar dependências
         run: npm ci
+
+      - name: Aguardar PostgreSQL
+        run: |
+          for i in $(seq 1 30); do
+            if pg_isready -h localhost -p 5432 -U maike_ci -d maike_ci; then
+              echo "PostgreSQL pronto"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "PostgreSQL não ficou pronto a tempo"
+          exit 1
 
       - name: Verificação completa
         run: npm run verify:all

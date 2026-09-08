@@ -98,14 +98,33 @@ autenticação própria emite sessão válida; zero import de `@base44/sdk` no b
 `gate:tenancy` e `gate:indices` criados e verdes; tudo conforme
 `config/modelobase1-pecuario.json`.
 
-**Estado:** não iniciada — e **destravada**. O bloqueio era o merge da P2, que
-aconteceu em 2026-08-28. A P3 implementa **somente** a camada de tenant/fundação:
-nenhum model de mapa e nenhum model de manejo, que ficam para P4–P6, uma
-capacidade de cada vez.
+**Estado:** **implementada, em PR draft**, aguardando auditoria e merge do
+proprietário. Entregou `backend/` com Fastify, Prisma e PostgreSQL; os cinco
+models da fundação; migration versionada; Docker Compose local e PostgreSQL
+efêmero na CI; `auth_context` com sessão própria; e os gates `gate:tenancy` e
+`gate:indices`, absolutos e com prova negativa por invariante.
+
+Inclui a correção **P3-R1**, que fechou cinco bloqueios de auditoria dentro da
+mesma PR: identidade em runtime contornando o `@default(cuid())`, relação
+`AuditLog → Usuario` sem coerência de tenant, regressão de bundle causada por
+`NODE_ENV` no workflow, `backend/` sem cobertura de tipos e `prisma validate`
+que não rodava na cadeia. Ver §16 do relatório da P3.
+
+A precondição de governança `P3-G0.2` foi resolvida antes da implementação: a
+colisão entre a Constituição e o contrato sobre `Cliente` sem `cliente_id` virou
+a emenda **D-PROD-22**, mergeada na PR #9.
+
+Implementa **somente** a camada de tenant/fundação: nenhum model de mapa e
+nenhum model de manejo, que ficam para P4–P6, uma capacidade de cada vez.
 
 ---
 
 ## P4 — Mapa Core Native Persistence
+
+**Estado:** não iniciada. É a primeira missão a migrar capacidade contra o
+backend próprio, e a primeira que volta a tocar `src/` — inclusive para
+sincronizar os oito códigos de erro do contrato com
+`src/apis/_core/ApiError.js`, adiado na P3 (D-PROD-23, item 7).
 
 Migrar para persistência nativa as entidades geográficas do mapa: `AreaPastagem`,
 `PontoReferencia`, `PontoSuplementacao`, `LinhaGeografica`, `Setor`,

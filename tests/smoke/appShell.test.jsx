@@ -294,10 +294,35 @@ describe('ENV — contrato de variáveis e topologia de deploy', () => {
   it('ENV3 — nenhum segredo de backend é prefixado com VITE_', () => {
     const texto = envExample();
     expect(texto).not.toMatch(/^VITE_\w*(DATABASE|SECRET|PASSWORD|PRIVATE)\w*=/mi);
-    expect(texto).not.toMatch(/^DATABASE_URL=/m);
     // E o aviso de que o prefixo publica precisa estar escrito.
     expect(texto).toMatch(/DATABASE_URL/);
     expect(texto).toMatch(/p[úu]blic/i);
+  });
+
+  // Até a P2 este arquivo exigia que `DATABASE_URL=` não aparecesse de forma
+  // alguma. A regra fazia sentido enquanto não havia backend: qualquer conexão
+  // de banco num `.env` de frontend só podia ser engano.
+  //
+  // A P3 criou o backend, e o `.env.example` passou a documentar `DATABASE_URL`
+  // e `AUTH_SECRET` legitimamente. A asserção antiga virou premissa vencida —
+  // então ela não foi afrouxada, foi **substituída por uma mais estrita**: o
+  // que importa não é a variável existir, é ela nunca ser publicada no bundle e
+  // nunca carregar valor real.
+  it('ENV3b — variáveis de backend existem, sem prefixo VITE_ e sem valor real', () => {
+    const texto = envExample();
+
+    for (const nome of ['DATABASE_URL', 'AUTH_SECRET']) {
+      expect(texto).toMatch(new RegExp(`^${nome}=`, 'm'));
+      expect(texto).not.toMatch(new RegExp(`^VITE_${nome}=`, 'm'));
+    }
+
+    // Segredo de assinatura sai vazio no template, sempre.
+    expect(texto).toMatch(/^AUTH_SECRET=$/m);
+
+    // A conexão documentada é a de desenvolvimento local. Host remoto num
+    // arquivo versionado é vazamento de topologia, mesmo sem senha real.
+    const [, conexao = ''] = texto.match(/^DATABASE_URL=(.*)$/m) || [];
+    expect(conexao).toMatch(/@localhost[:/]/);
   });
 
   it('ENV4 — Vercel Preview e Production são tratados como ambientes separados', () => {
