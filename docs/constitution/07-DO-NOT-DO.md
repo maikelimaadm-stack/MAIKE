@@ -9,7 +9,7 @@ Violação exige **rollback**, não flexibilização da regra.
 
 | # | NÃO faça | Faça em vez disso |
 |---|---|---|
-| D1 | Criar model sem `cliente_id` | Todo model tem `cliente_id`, sem exceção |
+| D1 | Criar model tenant-scoped sem `cliente_id`, ou criar nova exceção estrutural não autorizada | Todo model tenant-scoped tem `cliente_id` obrigatório e não nulo. `Cliente` é a única exceção atual, por ser a raiz do tenant (D-PROD-22) |
 | D2 | Criar `@unique` isolado em chave de negócio | `@@unique([cliente_id, ...])` |
 | D3 | Criar `@@index` sem `cliente_id` como primeira coluna | Índice composto começando por `cliente_id` |
 | D4 | Ler `cliente_id` de parâmetro de request | Ler do contexto de autenticação |

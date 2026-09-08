@@ -23,8 +23,11 @@ O molde **não** inclui Studio, MDP/MMM, marketplace, runtime universal ou
 low-code — ver D-PROD-03.
 
 ### P3 — Tenancy desde o primeiro dia
-`cliente_id` entra em todo model desde o início, mesmo com um cliente único.
-Retrofitar tenancy depois é o erro mais caro possível do projeto.
+`cliente_id` entra em todo model **tenant-scoped** desde o início, mesmo com um
+cliente único. `Cliente` é a raiz estrutural e a única exceção atual sem
+`cliente_id`, porque ele é o próprio tenant. Nenhuma segunda exceção é admitida
+sem decisão formal e atualização das normas e gates aplicáveis. Retrofitar
+tenancy depois é o erro mais caro possível do projeto. Ver D-PROD-22.
 
 ### P4 — Independência é monotônica
 O acoplamento com a Base44 só pode diminuir. Nunca aumentar. Nem temporariamente.
