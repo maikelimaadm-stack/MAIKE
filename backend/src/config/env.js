@@ -26,6 +26,28 @@ const inteiro = (nome, padrao) => {
   return Number.isFinite(valor) ? valor : padrao;
 };
 
+/**
+ * Lista de origins separada por vírgula (P4.0).
+ *
+ * Normaliza espaços e descarta entradas vazias, para que
+ * `"http://a, ,http://b,"` não vire três origins, uma delas string vazia — e
+ * origin vazia comparada por igualdade casaria com um `Origin:` ausente.
+ *
+ * A barra final é removida porque o header `Origin` do navegador nunca a tem:
+ * `http://localhost:5173/` no `.env` jamais casaria com o que chega.
+ *
+ * @param {string} nome
+ * @returns {string[]}
+ */
+const listaDeOrigins = (nome) => {
+  const bruto = texto(nome);
+  if (bruto === null) return [];
+  return bruto
+    .split(',')
+    .map((item) => item.trim().replace(/\/+$/, ''))
+    .filter((item) => item.length > 0);
+};
+
 export const env = {
   nodeEnv: texto('NODE_ENV') || 'development',
   port: inteiro('PORT', 3333),
@@ -34,6 +56,14 @@ export const env = {
   authSecret: texto('AUTH_SECRET'),
   authTokenTtl: texto('AUTH_TOKEN_TTL') || '8h',
   anexoTamanhoMaximoBytes: inteiro('ANEXO_TAMANHO_MAXIMO_BYTES', 25 * 1024 * 1024),
+  /**
+   * Origins do navegador autorizadas a chamar esta API (P4.0, D-PROD-24).
+   *
+   * Vazio significa **nenhuma origin de navegador autorizada**, não "todas".
+   * Essa é a diferença entre configuração ausente virar porta fechada ou porta
+   * aberta, e é o tipo de padrão que só se percebe errado depois do incidente.
+   */
+  frontendOrigins: listaDeOrigins('FRONTEND_ORIGINS'),
 };
 
 export const ehProducao = () => env.nodeEnv === 'production';

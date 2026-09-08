@@ -2,12 +2,21 @@
  * API do módulo Sessão (P1.2 · ampliada em P1.4).
  *
  * Leitura do usuário atual, da lista de usuários e das permissões, mais o CRUD
- * de permissão, a atualização de nome do usuário e as operações de sessão do
- * provider (logout, ida ao login, configurações públicas do app).
+ * de permissão, a atualização de nome do usuário e as configurações públicas do
+ * app.
  *
- * Esta slice **não** redesenha autenticação: não há login novo, token novo nem
- * mudança de `requiresAuth`. A política de fallback offline vive no service — a
- * API não conhece `localStorage`.
+ * Desde a **P4.0** esta API não tem mais `logout` nem `redirectToLogin`: a
+ * sessão do aplicativo é nativa (`nativeSessionApi`), e o que sobra aqui é
+ * leitura de dados que ainda vivem no provider.
+ *
+ * O logout do provider não foi só movido — ele **não deve** ser chamado. O token
+ * do SDK chega uma única vez pela query string; descartá-lo no logout deixaria
+ * o próximo login com sessão MAIKE válida e provider de dados morto, sem
+ * caminho de volta. Ele é credencial da aplicação com a Base44, não do usuário
+ * com o MAIKE.
+ *
+ * A política de fallback offline vive no service — a API não conhece
+ * `localStorage`.
  */
 
 import { runProviderCall, assertArgument } from '../_core/normalizeApiError.js';
@@ -62,18 +71,6 @@ export const deletePermissao = async (id) => {
   assertArgument(isId(id), 'id', contexto);
   return runProviderCall(() => sessionProvider.deletePermissao(id), { ...contexto, details: { id } });
 };
-
-/**
- * Encerra a sessão.
- *
- * `urlDeRetorno` é opcional e reproduz a distinção que o `AuthContext` já
- * fazia: com URL, o provider redireciona; sem URL, só descarta o token.
- */
-export const logout = async (urlDeRetorno) =>
-  runProviderCall(async () => sessionProvider.logout(urlDeRetorno), ctx('logout'));
-
-export const redirectToLogin = async (urlDeRetorno) =>
-  runProviderCall(async () => sessionProvider.redirectToLogin(urlDeRetorno), ctx('redirectToLogin'));
 
 /**
  * Razões de recusa que a tela de login sabe tratar.

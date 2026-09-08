@@ -51,6 +51,36 @@ export const API_ERROR_CODES = Object.freeze({
   PERMISSAO_SELF_DELETE_BLOCKED: 'PERMISSAO_SELF_DELETE_BLOCKED',
   SUPLEMENTACAO_PARTIAL_OPERATION: 'SUPLEMENTACAO_PARTIAL_OPERATION',
   OFFLINE_ENTITY_UNSUPPORTED: 'OFFLINE_ENTITY_UNSUPPORTED',
+
+  // P4.0 — os oito códigos do contrato ModeloBase1 Pecuário.
+  //
+  // Eles são o vocabulário de erro do backend nativo, declarado em
+  // `config/modelobase1-pecuario.json` → `errorCodes`. O contrato marcava
+  // `addedToFrontendCatalogInPhase = "P3"`, mas a P3 não podia tocar `src/` e
+  // registrou a divergência em vez de alterar o contrato para escondê-la. A
+  // P4.0 fecha essa dívida, agora que existe consumidor real: o cliente HTTP
+  // nativo traduz o `code` da resposta para um destes.
+  //
+  // O SSOT continua sendo o JSON do contrato. Isto é catálogo de **mensagem
+  // pública**, não segunda fonte de verdade sobre os códigos.
+  TENANT_CONTEXT_REQUIRED: 'TENANT_CONTEXT_REQUIRED',
+  TENANT_SCOPE_VIOLATION: 'TENANT_SCOPE_VIOLATION',
+  SEQUENCE_SCOPE_INVALID: 'SEQUENCE_SCOPE_INVALID',
+  SEQUENCE_CONFLICT: 'SEQUENCE_CONFLICT',
+  ATTACHMENT_INVALID: 'ATTACHMENT_INVALID',
+  ATTACHMENT_OWNER_INVALID: 'ATTACHMENT_OWNER_INVALID',
+  AUDIT_WRITE_FAILED: 'AUDIT_WRITE_FAILED',
+  CONCURRENCY_CONFLICT: 'CONCURRENCY_CONFLICT',
+
+  // Login nativo. Entra agora, e só agora, porque a P4.0 cria o consumidor
+  // real — a mesma regra que removeu `PRODUTO_PARTIAL_IMPORT` na P1.4-R1.
+  //
+  // Os demais códigos backend-only (`REQUEST_VALIDATION_FAILED`,
+  // `REQUEST_REJECTED`, `INTERNAL_ERROR`) **não** viram código público: eles
+  // descrevem o que o servidor achou da requisição, e para a UI isso já é
+  // `API_INVALID_ARGUMENT` ou `API_OPERATION_FAILED`. Catalogá-los seria
+  // vocabulário sem significado próprio na tela.
+  AUTH_INVALID_CREDENTIALS: 'AUTH_INVALID_CREDENTIALS',
 });
 
 /** Mensagem pública por código. Nunca inclui dado do provider. */
@@ -81,6 +111,23 @@ const MENSAGENS = Object.freeze({
   [API_ERROR_CODES.PERMISSAO_SELF_DELETE_BLOCKED]: 'Você não pode remover as suas próprias permissões.',
   [API_ERROR_CODES.SUPLEMENTACAO_PARTIAL_OPERATION]: 'A operação foi concluída apenas em parte. Confira os dados antes de repetir.',
   [API_ERROR_CODES.OFFLINE_ENTITY_UNSUPPORTED]: 'Há registros offline de um cadastro que o aplicativo não sabe sincronizar.',
+
+  // P4.0 — mensagens públicas dos códigos do contrato.
+  //
+  // Escritas **aqui**, em português de produto. O backend manda um `message`
+  // junto do `code`, e o cliente HTTP nativo o descarta de propósito: mensagem
+  // de servidor costuma carregar caminho, id interno ou fragmento de query, e
+  // exibi-la seria vazar detalhe de implementação com aparência de texto
+  // confiável. O `code` é o contrato; o texto é nosso.
+  [API_ERROR_CODES.TENANT_CONTEXT_REQUIRED]: 'Sua sessão expirou. Entre novamente para continuar.',
+  [API_ERROR_CODES.TENANT_SCOPE_VIOLATION]: 'Você não tem acesso a este registro.',
+  [API_ERROR_CODES.SEQUENCE_SCOPE_INVALID]: 'Não foi possível gerar o número deste cadastro.',
+  [API_ERROR_CODES.SEQUENCE_CONFLICT]: 'Não foi possível reservar o número. Tente novamente.',
+  [API_ERROR_CODES.ATTACHMENT_INVALID]: 'Arquivo inválido: verifique o tipo, o tamanho e o nome.',
+  [API_ERROR_CODES.ATTACHMENT_OWNER_INVALID]: 'O registro deste anexo não foi encontrado.',
+  [API_ERROR_CODES.AUDIT_WRITE_FAILED]: 'Não foi possível registrar a operação com segurança. Nada foi salvo.',
+  [API_ERROR_CODES.CONCURRENCY_CONFLICT]: 'Este registro foi alterado por outra pessoa. Recarregue e tente novamente.',
+  [API_ERROR_CODES.AUTH_INVALID_CREDENTIALS]: 'Cliente, usuário ou senha inválidos.',
 });
 
 /** Falha transitória vale retentativa; erro de argumento e conflito, não. */

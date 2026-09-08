@@ -52,6 +52,10 @@ jobs:
       # Segredo descartável, válido só dentro deste job. Não é segredo real e
       # não vale em nenhum outro ambiente.
       AUTH_SECRET: ci-only-ephemeral-signing-key
+      # Allowlist de CORS do job (P4.0). Origin local, exata, descartável com o
+      # runner. Vazio significaria nenhuma origin autorizada — o que é o padrão
+      # seguro, mas deixaria os casos de CORS sem nada para exercitar.
+      FRONTEND_ORIGINS: http://localhost:5173
       #
       # NÃO defina NODE_ENV aqui.
       #

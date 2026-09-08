@@ -871,4 +871,204 @@ deixaria de vê-las do mesmo jeito.
 
 Um manifesto, um lockfile, um gate enxergando tudo.
 
-<!-- Próxima decisão: D-PROD-24 -->
+## D-PROD-24 — Ativação do transporte e da sessão nativos na entrada da P4
+
+**Missão:** P4.0 — Native Transport + Session Activation
+**Estado:** vigente
+
+A P3 entregou um backend que sabe autenticar, e o frontend continuou
+autenticando na Base44. Enquanto isso durar, nenhuma capacidade pode ser
+considerada migrada: o navegador não tem como provar quem é para o backend
+próprio. A P4.0 existe para fechar essa distância — e por isso vem **antes** de
+qualquer model de domínio.
+
+### A. O backend usa JWT próprio, assinado por `AUTH_SECRET`
+
+`POST /auth/login` devolve um token assinado pelo `@fastify/jwt` com o segredo
+do processo. `GET /auth/contexto` o verifica e deriva o `auth_context`.
+
+### B. O token da Base44 não é credencial do MAIKE
+
+É proibido, sem exceção: repassar o token da Base44 ao backend MAIKE; validá-lo
+no backend; criar troca de token Base44 → MAIKE; importar o SDK no backend;
+consultar a Base44 para autenticar requisição nossa.
+
+São dois sistemas de identidade sem relação. Aceitar credencial de um no outro
+transformaria a Base44 num provedor de identidade do MAIKE — dependência nova,
+na direção contrária à D-PROD-04, e criada justamente na missão que existe para
+cortá-la.
+
+`gate:native-api` protege isso com `P4-NATIVE-BASE44-TOKEN`.
+
+### C. `VITE_MAIKE_API_URL` — pública por definição
+
+A URL do backend nativo é variável de build e vai para o bundle. Isso está
+certo: endereço de API não é segredo, e quem protege a API é o CORS mais o JWT.
+
+Ela é **independente** de `VITE_BASE44_BACKEND_URL`, que continua apontando para
+a Base44. Apontar uma para a outra quebraria as duas.
+
+Diferente dos parâmetros da Base44, esta variável **não aceita override** por
+query string nem por `localStorage`. Aqueles herdaram a porta do legado; esta
+nasce sem ela, porque trocar a base URL redirecionaria o `Authorization` com o
+JWT para um servidor escolhido por quem montou o link.
+
+### D. Segredo continua só no servidor
+
+`DATABASE_URL`, `AUTH_SECRET`, senhas e hashes nunca levam prefixo `VITE_`.
+Prefixar não protege — publica.
+
+### E. CORS com allowlist explícita
+
+`FRONTEND_ORIGINS` é uma lista de origins exatas, comparadas por igualdade.
+Proibido: `*`, `startsWith`, `includes`, sufixo parcial, regex aberta, ou ecoar
+a origin recebida (que é wildcard escrito de outro jeito).
+
+Lista vazia significa **nenhuma origin de navegador autorizada** — configuração
+ausente vira porta fechada, nunca porta aberta.
+
+Requisição sem `Origin` continua passando: CORS é proteção que o navegador
+aplica a páginas web, e recusá-la não bloquearia atacante nenhum enquanto
+quebraria health check e integração. A defesa dessas chamadas é o JWT.
+
+`credentials` fica em `false`: esta fase usa Bearer, e ligar cookie abriria CSRF
+sem nenhum ganho.
+
+### F. O JWT nativo mora em memória + `sessionStorage`
+
+Uma única chave, `maike_native_access_token`, num único módulo
+(`src/lib/auth/nativeTokenStorage.js`).
+
+**Proibido** guardar o token nativo em: `localStorage`, query string, hash de
+URL, cookie de JavaScript, variável `VITE_`, console, log, `ApiError.details`,
+documentação ou estado serializado do React Query.
+
+`localStorage` sobrevive a fechar o navegador; num computador compartilhado —
+o caso comum na fazenda — isso deixa sessão aberta para o próximo. O
+`sessionStorage` morre com a aba, que é o tempo de vida que uma sessão de
+trabalho deveria ter.
+
+**O trade-off, dito sem maquiagem:** `sessionStorage` é acessível a JavaScript.
+Um XSS nesta origem lê o token, e trocar `localStorage` por `sessionStorage`
+**não resolve XSS** — reduz a janela, não a classe do problema. A defesa real é
+cookie `HttpOnly` com `SameSite`, refresh token com rotação, revogação no
+servidor e CSP. Nada disso está nesta fatia. Pertence à fase de segurança (P8),
+e registrar isso importa: sem o registro, ficaria a impressão de que a sessão
+está endurecida.
+
+**Refresh token não foi implementado nesta PR**, por decisão de escopo.
+
+### G. A autenticação do aplicativo é nativa, sem dual-auth
+
+A Base44 continua **apenas** como provider dos dados ainda não migrados.
+
+Não existe fallback: se o backend MAIKE não responde, o usuário vê falha de
+login — não uma sessão Base44 de consolação. Dual-auth silenciosa transformaria
+"o backend caiu" em "sua senha está errada", que é a pior mensagem possível:
+manda o usuário tentar de novo para sempre e esconde o incidente de quem
+poderia resolvê-lo.
+
+Consequências práticas registradas:
+
+- `redirectToLogin` saiu da cadeia. Ele mandava o usuário ao login da Base44, o
+  que autenticaria no provider errado e voltaria sem sessão MAIKE — laço sem
+  saída;
+- o `logout` da Base44 saiu, e **não deve** ser chamado. O token do SDK chega
+  uma única vez pela query string; descartá-lo deixaria o próximo login com
+  sessão MAIKE válida e provider de dados morto, sem caminho de volta. Ele é a
+  credencial da aplicação com a Base44, não a do usuário com o MAIKE;
+- o logout nativo é **local**. O JWT da P3 é stateless: não há sessão a
+  invalidar no servidor. Revogação de verdade exige lista de invalidação ou
+  refresh com rotação — P8.
+
+**G.1 — Falha de autenticação ≠ falha de disponibilidade** (refinamento
+P4.0-R1, mesma decisão)
+
+A primeira implementação desta decisão tratava as duas como a mesma coisa: a
+restauração da sessão apagava o JWT para **qualquer** erro. Um backend fora do
+ar por trinta segundos destruía a sessão de quem estava trabalhando e exigia
+senha de novo — punindo o usuário por uma falha de infraestrutura, e apagando a
+única credencial que ele tinha.
+
+A distinção agora é explícita, e vale só para a **restauração**:
+
+| Resposta do servidor | Token | Estado | Tela |
+|---|---|---|---|
+| 200, contexto válido | preservado | autenticada | aplicativo |
+| `TENANT_CONTEXT_REQUIRED` | **removido** | não autenticada | login nativo |
+| rede, timeout, CORS, 5xx | **preservado** | validação indisponível | "Não foi possível validar sua sessão", com *Tentar novamente* |
+
+A regra que separa os casos é o **código**, não a faixa de status: `403` de
+escopo (`TENANT_SCOPE_VIOLATION`) não diz que a credencial é inválida e também
+não limpa o token.
+
+Isto **não** é confiar no token guardado. Enquanto o backend não confirmar,
+`isAuthenticated` continua `false`, o aplicativo continua fechado e nenhum
+conteúdo protegido é renderizado. É **fail-closed sem destruir a credencial**.
+O login também não aparece: pedir senha ali diria ao usuário que ela não serve,
+quando o servidor apenas não respondeu.
+
+O retry reusa o **mesmo** JWT e chama `/auth/contexto` de novo. Nunca
+`/auth/login`, nunca pede senha, nunca decodifica ou valida o JWT no frontend,
+nunca renova token e nunca cai para a Base44 — a ausência de fallback do item G
+vale igualmente aqui: o comportamento correto é "backend indisponível", jamais
+"backend indisponível → Base44".
+
+**O login novo não muda.** Se `/auth/contexto` falhar logo depois de um
+`POST /auth/login`, a sessão é descartada e a falha aparece como falha de
+login. Ali não existe credencial anterior a preservar, e sessão pela metade é
+pior que sessão ausente. O bloqueador corrigido era especificamente
+*JWT já existente + reload + indisponibilidade transitória*.
+
+### H. O frontend nunca fornece o tenant
+
+O login envia exatamente `{cliente, login, senha}`. `cliente` é o código
+operacional digitado por quem entra; `cliente_id` é o que o backend **devolve**
+depois de autenticar.
+
+Essa inversão é a regra de tenancy inteira em uma linha. O backend já recusa
+`cliente_id` no corpo com 400 (`additionalProperties: false` mais
+`removeAdditional: false`, correção da P3), mas não é por isso que não
+mandamos: não mandamos porque o tenant não é nosso para informar.
+
+`P4-NATIVE-TENANT-SOURCE` protege o lado do cliente.
+
+### I. Por que a P4.0 vem antes de Setor
+
+`AreaPastagem` depende de `Setor`, e `Setor` depende de existir um caminho
+autenticado até o backend. Criar model de domínio antes disso produziria
+persistência que ninguém consegue consumir — e a primeira tentativa de consumo
+descobriria, tarde, que faltava autenticação, transporte, CORS e catálogo de
+erro.
+
+A ordem é P4.0 → P4.1 (Setor) → P4.2 (AreaPastagem).
+
+### J. O catálogo de erros do frontend, fechado
+
+`config/modelobase1-pecuario.json` declara
+`errorNamespace.addedToFrontendCatalogInPhase = "P3"`, e a P3 não pôde cumprir
+porque `src/` estava congelado (D-PROD-23, item 7). A P4.0 fecha a dívida: os
+oito códigos entraram em `src/apis/_core/ApiError.js` com mensagem pública
+própria, agora que existe consumidor real.
+
+`AUTH_INVALID_CREDENTIALS` entrou junto, pelo mesmo critério de consumidor real
+que removeu `PRODUTO_PARTIAL_IMPORT` na P1.4-R1. Os demais códigos backend-only
+(`REQUEST_VALIDATION_FAILED`, `REQUEST_REJECTED`, `INTERNAL_ERROR`) **não**
+viraram vocabulário público: descrevem o que o servidor achou da requisição, e
+para a tela isso já é `API_INVALID_ARGUMENT` ou `API_OPERATION_FAILED`.
+
+O SSOT dos códigos continua sendo o JSON do contrato. O catálogo do frontend é
+de **mensagem**, não segunda fonte de verdade.
+
+### K. A mensagem do servidor nunca é exibida
+
+O backend responde `{code, message, request_id}`. O frontend usa `code` e
+descarta `message`.
+
+Não é desconfiança do próprio backend: mensagem de servidor carrega caminho, id
+interno, fragmento de query e, num dia ruim, eco da entrada do atacante.
+Exibi-la daria aparência confiável a texto não controlado — o mesmo defeito que
+a P1.1-R2 corrigiu no `ApiError` (R2-B3). O texto exibível vem do catálogo
+local.
+
+<!-- Próxima decisão: D-PROD-25 -->

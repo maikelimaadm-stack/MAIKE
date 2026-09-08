@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-09-08 (**P0, P1, P2 e P3 mergeadas** — o backend nativo existe pela primeira vez neste repositório e está na `main` · **P4 não iniciada**)
+**Atualizado em:** 2026-09-08 (**P0, P1, P2 e P3 mergeadas** · **P4 em execução** — a fatia **P4.0** ligou o navegador ao backend próprio e está em PR draft · **P4.1 não iniciada**)
 
 ---
 
@@ -13,10 +13,10 @@ Base44 mantida apenas como provider temporário da cadeia preservada (D-PROD-04)
 |---|---|
 | Produto | Pecuária — Mapa Geral + Manejo (D-PROD-01) |
 | Superfície primária | `MapaGeral` (D-PROD-05) |
-| Missão em execução | **nenhuma** |
+| Missão em execução | **P4 — Mapa Core Native Persistence** · fatia **P4.0 — Native Transport + Session Activation**, em PR draft |
 | Última mergeada | **P3 — Backend + Prisma + PostgreSQL Foundation (PR #10, merge `4ce4608`)** — inclui a correção **P3-R1**; implementação certificada em `5bcee77`, com `npm run verify:all` em 18/18 e exit 0 |
 | Mergeadas anteriores | P2 — ModeloBase1 Pecuário Foundation (PR #7, merge `1851503`); SSOT sincronizada na PR #8 (merge `378bfd3`); emenda D-PROD-22 na PR #9 (merge `44b204c`) |
-| Próxima missão autorizável | P4 — Mapa Core Native Persistence — **não iniciada** |
+| Próxima fatia | P4.1 — Setor Native Persistence — **não iniciada** |
 | Contrato de dados | `config/modelobase1-pecuario.json` — **oficial**; obrigatório para P3–P6 |
 | Escopo executável | `config/mapa-manejo-scope.json` |
 | Roadmap | `docs/engineering/ROADMAP.md` |
@@ -39,7 +39,7 @@ armazenamento apenas em `.env.local` seguem pendentes com o proprietário — ve
 | P1 | Native Foundation Bootstrap | **concluída e mergeada** — P1.1 a P1.3 em PRs anteriores; P1.4 e P1.4-R1 na PR #6, merge `7398d85`. Os seis eixos de `gate:api-boundary` estão em zero |
 | P2 | ModeloBase1 Pecuário Foundation | **mergeada** (PR #7, merge `1851503`) — inclui a correção P2-R1 |
 | P3 | Backend + Prisma + PostgreSQL Foundation | **concluída e mergeada** (PR #10, merge `4ce4608`) — `backend/` com Fastify, Prisma e PostgreSQL; cinco models; `gate:tenancy` e `gate:indices`. Inclui a correção **P3-R1** |
-| P4 | Mapa Core Native Persistence | **não iniciada** — primeira a migrar capacidade contra o backend próprio |
+| P4 | Mapa Core Native Persistence | **em execução** — **P4.0** (transporte e sessão nativos) implementada, em PR draft; **P4.1** (Setor) não iniciada |
 | P5 | Manejo Core Native Persistence | não iniciada |
 | P6 | Supporting Capabilities | não iniciada |
 | P7 | Base44 Final Removal | não iniciada |
@@ -75,12 +75,13 @@ Números medidos após `npm ci` e `npm run build` finais.
 tocou em `src/`, `base44/`, `vite.config.js` nem no manifesto de escopo. Só duas
 métricas mudaram, e as duas por acréscimo de verificação:
 
-| Métrica | Depois da P1.4 | Depois da P2 | Depois da P3 | Depois da P3-R1 |
+| Métrica | Depois da P1.4 | Depois da P2 | Depois da P3-R1 | Depois da P4.0 |
 |---|---|---|---|---|
-| Testes automatizados | 817 (323 gate + 494 smoke) | 862 (368 gate + 494 smoke) | 943 (415 gate + 495 smoke + 33 backend) | **964** (428 gate + 495 smoke + 41 backend) |
-| Etapas do `verify:all` | 13 | 14 | 17 | **18** |
-| Dependências diretas | 49 | 49 | **55** (37 `dependencies` + 18 `devDependencies`) | **55** |
-| Bundle de produção — JS | 2.496,61 kB | 2.496,61 kB | 2.496,62 kB | **2.496,62 kB** |
+| Testes automatizados | 817 (323 gate + 494 smoke) | 862 (368 gate + 494 smoke) | 964 (428 gate + 495 smoke + 41 backend) | **1.046** (452 gate + 534 smoke + 60 backend) |
+| Etapas do `verify:all` | 13 | 14 | 18 | **19** |
+| Dependências diretas | 49 | 49 | 55 | **56** (38 `dependencies` + 18 `devDependencies`) |
+| Bundle de produção — JS | 2.496,61 kB | 2.496,61 kB | 2.496,62 kB | **2.504,83 kB** |
+| Dívida de tipos em `src/` | 2.319 | 2.319 | 2.319 (teto 2.319) | **2.318** (teto 2.318) |
 
 A diferença de 0,01 kB na linha do bundle é arredondamento entre ambientes de
 medição — as colunas P1.4 e P2 vêm da CI, as colunas P3 vêm de build local
@@ -279,9 +280,66 @@ requisição, que é uso legítimo. A regra foi reescrita para casar só na **po
 de identidade**, e TEN-27 existe como controle positivo para impedir que alguém a
 alargue de volta para um scanner textual ingênuo.
 
+## Transporte e sessão nativos (P4.0, D-PROD-24)
+
+Pela primeira vez o navegador fala com o backend próprio. A P4.0 não migrou
+capacidade nenhuma — ela construiu a estrada que a P4.1 vai usar.
+
+| Item | Valor |
+|---|---|
+| URL do backend | `VITE_MAIKE_API_URL` — pública, sem override por query string ou storage |
+| Fronteira HTTP | `src/apis/_core/nativeHttpClient.js`, única |
+| Sessão | JWT do MAIKE em memória + `sessionStorage`, guarda única |
+| Login | `{cliente, login, senha}` — **nunca** `cliente_id` |
+| CORS | `FRONTEND_ORIGINS`, allowlist de origins exatas, sem wildcard |
+| Gate novo | `gate:native-api` — absoluto, 7 códigos, 24 provas |
+| Bootstrap | `npm run auth:bootstrap:local` — script, não endpoint |
+| Estados da sessão | `carregando` · `autenticada` · `nao_autenticada` · `validacao_indisponivel` |
+
+**Nenhum model de domínio.** O schema Prisma está inalterado e não há migration
+nova; `Setor` e `AreaPastagem` continuam só na Base44.
+
+A dívida de erros que a P3 declarou **fechou**: os oito códigos do contrato
+ModeloBase1 entraram em `src/apis/_core/ApiError.js`, com mensagem pública
+própria, agora que existe consumidor real.
+
+**A autenticação do aplicativo deixou de ser da Base44**, e não há fallback: se
+o backend MAIKE não responde, o usuário vê falha de login. Dual-auth silenciosa
+transformaria "o backend caiu" em "sua senha está errada". Com isso, `authRefs`
+caiu de 10 para 5 — `redirectToLogin` autenticaria no provider errado, e o
+`logout` da Base44 **não deve** ser chamado, porque descartaria o token do SDK
+que chega uma única vez pela query string.
+
+Duas coisas ficam ditas sem maquiagem. `sessionStorage` é acessível a
+JavaScript: um XSS nesta origem lê o token, e a troca por `localStorage`
+**reduz a janela, não a classe do problema** — cookie `HttpOnly`, refresh com
+rotação, revogação e CSP são P8. E o logout é local, porque o JWT da P3 é
+stateless e não há sessão a invalidar no servidor.
+
+**A P4.0-R1 corrigiu um bloqueador que a auditoria externa encontrou** depois da
+CI verde do primeiro HEAD: a restauração da sessão apagava o JWT para *qualquer*
+erro, então um backend fora do ar por trinta segundos destruía a sessão de quem
+estava trabalhando e pedia senha de novo — punindo o usuário por uma falha de
+infraestrutura. Pior: o comentário que eu havia escrito justificava o
+comportamento, o que o fazia parecer deliberado.
+
+Agora as duas classes são separadas por **código**: `TENANT_CONTEXT_REQUIRED`
+limpa o token; rede, timeout, CORS e 5xx **preservam** o token e levam ao estado
+`validacao_indisponivel`, onde o aplicativo continua fechado, o login **não**
+aparece, e o usuário recebe *Tentar novamente* — que reusa o mesmo JWT, sem
+pedir senha. Fail-closed sem destruir a credencial. Ver §19 do relatório da P4.0
+e D-PROD-24 §G.1.
+
+Um detalhe de processo que se repetiu pela terceira vez: **duas regras do gate
+novo reprovaram o próprio repositório** na primeira versão — `getNativeApiUrl`
+casava na definição, e `Authorization` casava no provider da Base44, que monta
+esse cabeçalho legitimamente. É a mesma classe de falso positivo da P3-R1. A
+correção foi tornar a regra precisa (verificar *posição*, não palavra), com
+controles positivos que quebram se alguém alargar de volta.
+
 ## Gates ativos
 
-18 etapas em `npm run verify:all` — ver `docs/engineering/GATE-REGISTRY.md`.
+19 etapas em `npm run verify:all` — ver `docs/engineering/GATE-REGISTRY.md`.
 Todos os gates têm teste com casos de falha reais em `scripts/tests/gates/`; a
 catraca de tipos é exercitada ponta a ponta, com `tsc` de verdade em projetos
 temporários.
@@ -344,7 +402,7 @@ motivo de o `verify:all` local não ter pego antes.
 |---|---|---|
 | DBT-01 | **Fechado na P1.4.** Nenhum componente, página, hook, lib ou service acessa `base44`. As 38 ocorrências de `base44.entities` que restam estão todas dentro do adapter autorizado, uma por entidade do registry | fechado |
 | DBT-02 | `requiresAuth: false` em `src/api/base44Client.js` | P3 |
-| DBT-03 | 2.319 diagnósticos de dívida de tipos versionados na catraca, com teto certificado de 2.319. A catraca impede crescimento em qualquer modo (D-PROD-17) e impede afrouxar a configuração (D-PROD-13). Trajetória: 2.802 → 2.759 (P1.2) → 2.728 (P1.3-R1) → 2.323 (P1.4, −405) → **2.319** (P1.4-R1, com o contrato de props do `Button` declarado de verdade, sem `any`). A P2 não mexeu em `src/` e por isso não reduziu nada — a redução volta com o código nativo da P3 | P3 |
+| DBT-03 | 2.319 diagnósticos de dívida de tipos versionados na catraca, com teto certificado de 2.319. A catraca impede crescimento em qualquer modo (D-PROD-17) e impede afrouxar a configuração (D-PROD-13). Trajetória: 2.802 → 2.759 (P1.2) → 2.728 (P1.3-R1) → 2.323 (P1.4, −405) → 2.319 (P1.4-R1, com o contrato de props do `Button` declarado de verdade, sem `any`) → **2.318** (P4.0, com o contrato do `AuthContext` declarado). A P2 e a P3 não mexeram em `src/` e por isso não reduziram nada — a redução voltou com o código nativo da P4.0 | P4–P8 |
 | DBT-04 | Sem tela de **entrada** de estoque (D-PROD-08) | P6 |
 | DBT-05 | Chave Google Maps antiga permanece no histórico Git — revogar e rotacionar (OWNER-SECURITY-01) | ação do proprietário |
 | DBT-06 | Bundle único de ~2,50 MB, sem code splitting | P8 |

@@ -14,19 +14,42 @@ fica em branco.
 ### Backend (P3)
 
 ```bash
-npm run db:up            # sobe o PostgreSQL local (Docker Compose)
-npm run prisma:deploy    # aplica as migrations
-npm run backend:dev      # sobe o Fastify com --watch
-npm run test:backend     # testes contra PostgreSQL real
+npm run db:up               # sobe o PostgreSQL local (Docker Compose)
+npm run prisma:deploy       # aplica as migrations
+npm run auth:bootstrap:local # cria o primeiro Cliente + Usuario (P4.0)
+npm run backend:dev         # sobe o Fastify com --watch
+npm run test:backend        # testes contra PostgreSQL real
 ```
 
-Preencha `DATABASE_URL` e `AUTH_SECRET` em `.env` — ver `.env.example`. O
-backend **não sobe** sem os dois: ausência de segredo é falha dura, não
-fallback. Nenhuma variável do backend leva prefixo `VITE_`; prefixar publicaria
-segredo de servidor no bundle do cliente.
+Preencha `DATABASE_URL`, `AUTH_SECRET` e `FRONTEND_ORIGINS` em `.env` — ver
+`.env.example`. O backend **não sobe** sem os dois primeiros: ausência de
+segredo é falha dura, não fallback. Nenhuma variável do backend leva prefixo
+`VITE_`; prefixar publicaria segredo de servidor no bundle do cliente.
 
-O backend ainda **não é consumido pelo frontend**. A primeira capacidade migra
-na P4 — ver `docs/engineering/ROADMAP.md`.
+`FRONTEND_ORIGINS` é a allowlist de CORS: lista separada por vírgula, com
+origins **exatas** e sem barra final. Vazio significa nenhuma origin de
+navegador autorizada — nunca "todas".
+
+### Login nativo (P4.0)
+
+Desde a P4.0 o aplicativo autentica contra o backend próprio. No frontend,
+preencha `VITE_MAIKE_API_URL` em `.env.local` (é URL pública, não segredo) e
+gere um build novo — variável `VITE_` é lida no `npm run build`, não em runtime.
+
+Para ter com quem entrar, rode o bootstrap **local**:
+
+```bash
+export BOOTSTRAP_CLIENTE_CODIGO=... BOOTSTRAP_CLIENTE_NOME=...
+export BOOTSTRAP_USUARIO_LOGIN=... BOOTSTRAP_USUARIO_NOME=... BOOTSTRAP_USUARIO_SENHA=...
+npm run auth:bootstrap:local
+```
+
+Ele recusa `NODE_ENV=production`, exige todas as variáveis (não há usuário nem
+senha padrão), falha se a conta já existir em vez de sobrescrever, e não imprime
+senha, hash nem `DATABASE_URL`. **Não é CRUD** — gestão de usuários é da P6.
+
+O backend ainda **não persiste dado de domínio**. A primeira capacidade migra na
+P4.1 (Setor) — ver `docs/engineering/ROADMAP.md`.
 
 ## Desenvolvimento
 
@@ -61,7 +84,8 @@ Todos os scripts vivem em `scripts/gates/`.
 | Índices | `npm run gate:indices` | Índice e unique tenant-aware — **absoluto** |
 | Tipos (`src/`) | `npm run gate:types` | A dívida de tipos não cresce |
 | Tipos (`backend/`) | `npm run typecheck:backend` | O backend tem **zero** diagnóstico — **absoluto**, sem baseline |
-| **Todos** | `npm run verify:all` | 18 etapas, build por último |
+| Transporte nativo | `npm run gate:native-api` | URL, token, tenant, catálogo de erros, fronteira HTTP e CORS da P4.0 — **absoluto** |
+| **Todos** | `npm run verify:all` | 19 etapas, build por último |
 
 ### Baselines
 
@@ -105,7 +129,7 @@ Para adicionar uma página ou entidade:
   preservado. Excluir schema fora do escopo é permitido por D-PROD-02.
 - **Nenhum schema ou function Base44 novo.** A Base44 só sai (D-PROD-04).
 - **`gate:types` verde significa "a dívida não cresceu", não "sem erros".**
-  São 2.319 diagnósticos versionados, com teto certificado de 2.319 (DBT-03).
+  São 2.318 diagnósticos versionados, com teto certificado de 2.318 (DBT-03).
   Veja os reais com `npm run typecheck:raw`. Afrouxar `jsconfig.typecheck.json`
   não passa: a configuração está no baseline (D-PROD-13). Rebasear também não
   passa: **nenhum modo** aceita diagnóstico novo (D-PROD-17).
@@ -114,7 +138,7 @@ Para adicionar uma página ou entidade:
 - **`backend/` tem contrato de tipos PRÓPRIO, e ele é zero.** A catraca lê
   `jsconfig.typecheck.json`, que inclui apenas `src/`; o backend passa por
   `npm run typecheck:backend`, sobre `jsconfig.backend.typecheck.json`. São
-  dois contratos independentes de propósito: a catraca legada tolera 2.319
+  dois contratos independentes de propósito: a catraca legada tolera 2.318
   diagnósticos herdados, e o backend **não tolera nenhum**. Não existe baseline,
   teto nem `--update` ali. Diagnóstico novo no backend se corrige no código ou
   se declara em `.d.ts` — `any`, `@ts-ignore` e `@ts-nocheck` são fuga, não
@@ -129,6 +153,23 @@ Para adicionar uma página ou entidade:
   aparecer no diff. Aconteceu na primeira versão da P3. `verify:all` fixa
   `production` no passo de build, e `build-environment.test.mjs` trava as duas
   pontas.
+- **O JWT nativo NUNCA vai para `localStorage`.** Ele mora em memória mais
+  `sessionStorage`, numa guarda única: `src/lib/auth/nativeTokenStorage.js`.
+  Nada de query string, hash de URL, cookie de JavaScript, log ou
+  `ApiError.details`. `gate:native-api` reprova com `P4-NATIVE-TOKEN-STORAGE`.
+  E fique com o trade-off à vista: `sessionStorage` é acessível a JavaScript e
+  **não** resolve XSS — isso é P8 (D-PROD-24, item F).
+- **O login envia `cliente`, nunca `cliente_id`.** O tenant é *resultado* da
+  autenticação, não entrada dela. Mandar `cliente_id` faria o tenant vir do
+  payload — o backend recusa com 400, e o gate reprova antes disso.
+- **O token da Base44 e o JWT do MAIKE não se encontram.** Nunca repasse um ao
+  outro, nem crie troca entre eles: são dois sistemas de identidade sem relação.
+- **Sem fallback de autenticação.** Se o backend MAIKE não responde, é falha de
+  login — nunca uma sessão Base44 de consolação. Dual-auth transformaria "o
+  backend caiu" em "sua senha está errada".
+- **CORS compara por igualdade.** `startsWith` deixaria
+  `https://maike.app.evil.com` passar por `https://maike.app`. Nada de `*`,
+  prefixo, substring ou eco da origin recebida.
 - **Backend sem banco não testa.** `npm run test:backend` **falha** sem
   `DATABASE_URL`, em vez de pular. Suíte que se auto-desliga reporta verde sem
   ter verificado nada.

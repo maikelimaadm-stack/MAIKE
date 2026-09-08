@@ -12,8 +12,10 @@
 
 import Fastify from 'fastify';
 import fastifyJwt from '@fastify/jwt';
+import fastifyCors from '@fastify/cors';
 
 import { env } from './config/env.js';
+import { opcoesDeCors } from './shared/http/corsPolicy.js';
 import { errorHandler } from './shared/errors/errorHandler.js';
 import { registrarRequestContext } from './shared/request/requestContext.js';
 import { construirAuthContext } from './shared/auth/authContext.js';
@@ -47,6 +49,15 @@ export const construirApp = async (opcoes = {}) => {
   });
 
   app.setErrorHandler(errorHandler);
+
+  // CORS antes de qualquer rota: o preflight precisa ser respondido mesmo em
+  // caminho que exige autenticação — `OPTIONS` não carrega `Authorization`, e
+  // um preflight barrado pelo `onRequest` faria toda chamada autenticada de
+  // outra origin falhar como "erro de rede", sem nenhuma pista do motivo.
+  //
+  // A allowlist vem de `FRONTEND_ORIGINS`. Vazia = nenhuma origin de navegador
+  // autorizada, nunca "todas". Ver `shared/http/corsPolicy.js`.
+  await app.register(fastifyCors, opcoesDeCors(env.frontendOrigins));
 
   if (!env.authSecret) {
     throw new Error('AUTH_SECRET ausente: o backend não emite sessão sem segredo configurado.');

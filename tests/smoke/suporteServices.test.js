@@ -36,9 +36,13 @@ const tarefas = {
 const session = {
   getCurrentUser: vi.fn(), listUsuarios: vi.fn(), listPermissoes: vi.fn(),
   updateUsuario: vi.fn(), createPermissao: vi.fn(), updatePermissao: vi.fn(), deletePermissao: vi.fn(),
-  logout: vi.fn(), redirectToLogin: vi.fn(), getAppPublicSettings: vi.fn(),
-  getCapacidadesDeSessao: vi.fn(() => ({ logout: true, redirectToLogin: true, updateMe: false })),
+  getAppPublicSettings: vi.fn(),
+  getCapacidadesDeSessao: vi.fn(() => ({ updateMe: false })),
   verificarSessao: vi.fn(),
+  // Sessão nativa (P4.0). `logout` e `redirectToLogin` da Base44 saíram da
+  // superfície do módulo: a autenticação do aplicativo é própria.
+  loginNativo: vi.fn(), restaurarSessaoNativa: vi.fn(), logoutNativo: vi.fn(),
+  obterContextoNativo: vi.fn(), temSessaoNativaLocal: vi.fn(),
   RAZOES_DE_SESSAO: Object.freeze({
     AUTH_REQUIRED: 'auth_required',
     USER_NOT_REGISTERED: 'user_not_registered',
@@ -81,7 +85,7 @@ beforeEach(() => {
       if (typeof fn?.mockResolvedValue === 'function') fn.mockResolvedValue([]);
     }
   }
-  session.getCapacidadesDeSessao.mockReturnValue({ logout: true, redirectToLogin: true, updateMe: false });
+  session.getCapacidadesDeSessao.mockReturnValue({ updateMe: false });
   localStorage.clear();
 });
 
@@ -560,11 +564,19 @@ describe('SE — sessão e permissões', () => {
     expect(JSON.parse(localStorage.getItem('offline_current_user'))).toEqual({ email: 'a@b.c' });
   });
 
-  it('SE5 — logout limpa o usuário offline', async () => {
+  it('SE5 — logout encerra a sessão NATIVA e limpa o usuário offline', () => {
+    // Reescrito na P4.0. Antes, este caso exigia `encerrarSessao(url)` chamando
+    // o logout da Base44 com URL de retorno. Esse caminho não existe mais: quem
+    // encerra a sessão do usuário é a camada nativa, e o token do SDK **não
+    // deve** ser descartado — ele chega uma única vez pela query string, e
+    // limpá-lo deixaria o próximo login com sessão MAIKE válida e provider de
+    // dados morto.
     localStorage.setItem('offline_current_user', JSON.stringify({ email: 'a@b.c' }));
-    await sessionSvc.encerrarSessao('https://app/x');
+
+    sessionSvc.sairDaSessaoNativa();
+
+    expect(session.logoutNativo).toHaveBeenCalledTimes(1);
     expect(localStorage.getItem('offline_current_user')).toBe(null);
-    expect(session.logout).toHaveBeenCalledWith('https://app/x');
   });
 
   it('SE6 — admin por papel ou por permissão', () => {

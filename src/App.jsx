@@ -8,6 +8,8 @@ import { BrowserRouter as Router, Navigate, Route, Routes } from 'react-router-d
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
+import NativeLoginForm from '@/components/auth/NativeLoginForm';
+import NativeSessionUnavailable from '@/components/auth/NativeSessionUnavailable';
 
 const { Pages, Layout, mainPage } = pagesConfig;
 
@@ -16,9 +18,27 @@ const LayoutWrapper = ({ children, currentPageName }) => Layout ?
   : <>{children}</>;
 
 const AuthenticatedApp = () => {
-  const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
+  const {
+    isLoadingAuth,
+    isLoadingPublicSettings,
+    authError,
+    isAuthenticated,
+    entrar,
+    sessionValidationError,
+    revalidarSessao,
+  } = useAuth();
 
-  // Show loading spinner while checking app public settings or auth
+  // A ordem destes quatro ramos é o contrato da P4.0-R1, e cada posição
+  // importa:
+  //
+  //   1. carregando                → ainda não sabemos nada
+  //   2. validação indisponível    → não sabemos, e não é culpa do usuário
+  //   3. não autenticado           → sabemos: precisa entrar
+  //   4. autenticado               → aplicativo
+  //
+  // O segundo ramo é o que faltava. Sem ele, "não sabemos" caía no terceiro e
+  // virava pedido de senha.
+
   if (isLoadingPublicSettings || isLoadingAuth) {
     return (
       <div className="fixed inset-0 flex items-center justify-center">
@@ -27,15 +47,28 @@ const AuthenticatedApp = () => {
     );
   }
 
-  // Handle authentication errors
-  if (authError) {
-    if (authError.type === 'user_not_registered') {
-      return <UserNotRegisteredError />;
-    } else if (authError.type === 'auth_required') {
-      // Redirect to login automatically
-      navigateToLogin();
-      return null;
-    }
+  // Indisponibilidade: o token continua guardado e o aplicativo continua
+  // fechado. Nem login, nem conteúdo protegido — só a chance de tentar de novo
+  // com a credencial que já existe.
+  if (sessionValidationError) {
+    return (
+      <NativeSessionUnavailable mensagem={sessionValidationError} aoTentarNovamente={revalidarSessao} />
+    );
+  }
+
+  // Sem sessão nativa válida, a superfície é o login próprio (P4.0). Não há
+  // mais redirecionamento para o login da Base44: a autenticação do aplicativo
+  // é do MAIKE, e mandar o usuário para fora seria autenticá-lo no provider
+  // errado.
+  if (!isAuthenticated) {
+    return <NativeLoginForm entrar={entrar} onAutenticado={() => {}} />;
+  }
+
+  // A recusa do provider de dados legado continua tendo tela própria — ela
+  // descreve o acesso do usuário às capacidades ainda não migradas, e não a
+  // sessão do aplicativo.
+  if (authError?.type === 'user_not_registered') {
+    return <UserNotRegisteredError />;
   }
 
   // Render the main app. A raiz encaminha para a superfície primária (D-PROD-05).

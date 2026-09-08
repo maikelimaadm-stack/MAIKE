@@ -41,8 +41,8 @@
       "jsconfig.typecheck.json"
     ]
   },
-  "certifiedCeiling": 2319,
-  "total": 2319,
+  "certifiedCeiling": 2318,
+  "total": 2318,
   "byFile": {
     "src/components/bebedouros/BebedouroTimeline.jsx": 4,
     "src/components/bebedouros/DetalhesBebedouro.jsx": 2,
@@ -164,7 +164,6 @@
     "src/components/usuarios/TabelaUsuarios.jsx": 33,
     "src/components/utils/consumoUtils.jsx": 10,
     "src/Layout.jsx": 19,
-    "src/lib/AuthContext.jsx": 1,
     "src/lib/installDeleteDialogInterceptor.js": 4,
     "src/lib/menuConfig.js": 1,
     "src/pages/Bebedouros.jsx": 4,
@@ -1201,7 +1200,6 @@
     "src/Layout.jsx|TS2559|Type '{ children: Element[]; }' has no properties in common with type 'IntrinsicAttributes & RefAttributes<any>'.": 2,
     "src/Layout.jsx|TS2741|Property 'className' is missing in type '{ children: Element; }' but required in type '{ [x: string]: any; className: any; }'.": 2,
     "src/Layout.jsx|TS2741|Property 'logoUrl' is missing in type '{ visible: boolean; }' but required in type '{ visible: any; logoUrl: any; }'.": 1,
-    "src/lib/AuthContext.jsx|TS2554|Expected 1 arguments, but got 0.": 1,
     "src/lib/installDeleteDialogInterceptor.js|TS2339|Property '__deleteDialogInterceptorInstalled' does not exist on type 'Window & typeof globalThis'.": 2,
     "src/lib/installDeleteDialogInterceptor.js|TS2339|Property 'description' does not exist on type 'number | boolean | ReactElement<any, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | (() => ReactNode)'. Property 'description' does not exist on type 'number'.": 1,
     "src/lib/installDeleteDialogInterceptor.js|TS2339|Property 'message' does not exist on type 'number | boolean | ReactElement<any, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | (() => ReactNode)'. Property 'message' does not exist on type 'number'.": 1,
