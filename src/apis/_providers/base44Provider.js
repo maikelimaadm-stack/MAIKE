@@ -314,14 +314,22 @@ const authNormalizada = createNormalizedSessionAdapter({
 /**
  * Capacidades de autenticação que o provider atual realmente oferece (P1.4).
  *
- * `logout` e `redirectToLogin` são do SDK, não do produto: um provider futuro
- * pode não ter nenhum dos dois. Em vez de chamar e torcer, o service pergunta —
- * e quando a capacidade não existe o produto degrada de forma previsível em vez
- * de estourar `undefined is not a function` no meio do logout.
+ * `logout` e `redirectToLogin` saíram na **P4.0**, e por motivos diferentes.
+ *
+ * `redirectToLogin` mandava o usuário para a tela de login da Base44. Com a
+ * autenticação do aplicativo nativa, isso autenticaria no lugar errado: o
+ * usuário voltaria com token da Base44 e continuaria sem sessão MAIKE, num laço
+ * sem saída. Não há equivalente a criar — o login nativo é uma superfície
+ * dentro do próprio aplicativo, não um destino externo.
+ *
+ * `logout` saiu porque **não deve** ser chamado, não só porque ficou sem
+ * consumidor. O token do SDK chega uma única vez pela query string; descartá-lo
+ * no logout deixaria o próximo login com sessão MAIKE válida e provider de
+ * dados morto, sem caminho de volta. Ele é a credencial da aplicação com a
+ * Base44, não a do usuário com o MAIKE — e quem encerra a sessão do usuário é
+ * `sairDaSessaoNativa`.
  */
 const capacidadesDeSessao = Object.freeze({
-  logout: typeof base44.auth?.logout === 'function',
-  redirectToLogin: typeof base44.auth?.redirectToLogin === 'function',
   updateMe: typeof base44.auth?.updateMe === 'function',
 });
 
@@ -339,14 +347,6 @@ export const sessionProvider = Object.freeze({
   updatePermissao: (id, dados) => endpointOf('Permissao').update(id, dados),
   deletePermissao: (id) => endpointOf('Permissao').delete(id),
 
-  logout: (urlDeRetorno) => {
-    if (!capacidadesDeSessao.logout) return undefined;
-    return urlDeRetorno ? base44.auth.logout(urlDeRetorno) : base44.auth.logout();
-  },
-  redirectToLogin: (urlDeRetorno) => {
-    if (!capacidadesDeSessao.redirectToLogin) return undefined;
-    return base44.auth.redirectToLogin(urlDeRetorno);
-  },
 
   /**
    * Configurações públicas do app.

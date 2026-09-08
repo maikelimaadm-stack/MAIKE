@@ -34,11 +34,11 @@ Contratos baratos primeiro, build por último:
 ```
 test:gates → governance-paths → package-sync → product-scope → api-boundary
 → source-closure → import-integrity → no-secrets → base44
-→ modelobase1-pecuario → tenancy → indices → types → typecheck:backend
+→ native-api → modelobase1-pecuario → tenancy → indices → types → typecheck:backend
 → lint → test:backend → test:smoke → build
 ```
 
-**18 etapas desde a P3-R1.** O princípio não mudou: contrato barato antes, banco e
+**19 etapas desde a P4.0.** O princípio não mudou: contrato barato antes, banco e
 teste depois, build por último.
 
 `modelobase1-pecuario`, `tenancy` e `indices` formam um trio na mesma faixa —
@@ -123,6 +123,13 @@ Nenhuma etapa é ignorada nem tem o exit code convertido em sucesso.
 | `P3-TEN-TIMESTAMPS` | tenancy |
 | `P3-TEN-SOURCE` | tenancy |
 | `P3-TEN-BASE44` | tenancy |
+| `P4-NATIVE-CONFIG` | native-api |
+| `P4-NATIVE-BASE44-TOKEN` | native-api |
+| `P4-NATIVE-TOKEN-STORAGE` | native-api |
+| `P4-NATIVE-TENANT-SOURCE` | native-api |
+| `P4-NATIVE-ERROR-CATALOG` | native-api |
+| `P4-NATIVE-HTTP-BOUNDARY` | native-api |
+| `P4-NATIVE-CORS` | native-api |
 | `P3-IDX-SCHEMA-MISSING` | indices |
 | `P3-IDX-TENANT-PREFIX` | indices |
 | `P3-IDX-BUSINESS-UNIQUE` | indices |
@@ -446,10 +453,66 @@ Casos que valem citar:
 - `@@index([ativo, cliente_id])` reprova mesmo contendo `cliente_id` — a prova
   de que a verificação é posicional (IDX-05).
 
+## `gate:native-api` — transporte e sessão nativos (P4.0, D-PROD-24)
+
+Absoluto, como os gates da P2 e da P3: sem `--update`, sem baseline, sem
+correção automática, e nunca escreve arquivo.
+
+Ele existe porque a P4.0 criou invariantes do tipo que ninguém percebe
+quebrando: um `localStorage` no lugar de `sessionStorage` não quebra teste
+nenhum, e um `cliente_id` no corpo do login parece até correto para quem chega
+novo no código.
+
+| Invariante | Código |
+|---|---|
+| `VITE_MAIKE_API_URL` por referência estática, sem override de query/storage, documentada no `.env.example` | `P4-NATIVE-CONFIG` |
+| o transporte nativo não importa `getDataProviderConfig`, `base44Client`, `base44Provider` nem o SDK | `P4-NATIVE-BASE44-TOKEN` |
+| o JWT nativo mora em `sessionStorage`, numa guarda única; nenhum outro arquivo toca a chave | `P4-NATIVE-TOKEN-STORAGE` |
+| o login envia `cliente`, nunca `cliente_id`; o transporte não carimba tenant por header | `P4-NATIVE-TENANT-SOURCE` |
+| os oito códigos do contrato existem no catálogo do frontend, com mensagem pública | `P4-NATIVE-ERROR-CATALOG` |
+| só a fronteira HTTP consome a base URL e lê o token nativo | `P4-NATIVE-HTTP-BOUNDARY` |
+| CORS com allowlist exata: sem `*`, sem prefixo/substring, sem eco da origin, sem `credentials` | `P4-NATIVE-CORS` |
+
+A lista de códigos de erro vem do **contrato**, não do gate: o SSOT continua
+sendo `config/modelobase1-pecuario.json`, e duplicá-lo aqui criaria a segunda
+fonte de verdade que a P2 existe para evitar.
+
+### Dois falsos positivos, e o que eles ensinam
+
+A primeira versão de duas regras **reprovou o próprio repositório**:
+
+- `getNativeApiUrl()` casava na **definição**, em `runtimeConfig.js`, e não só
+  no uso;
+- `Authorization` casava no `base44Provider.js`, que monta esse cabeçalho
+  legitimamente com o token da Base44 — a fronteira dele.
+
+É a terceira vez que este projeto pisa nessa pedra: a P3-R1 corrigiu a mesma
+classe na regra de identidade em runtime, onde um `grep` por `randomUUID`
+reprovava o id de correlação legítimo de `requestContext.js`.
+
+A correção nunca é afrouxar a regra — é torná-la **precisa**. A verificação
+passou a olhar a *posição*: quem **consome** a URL (a definição está isenta), e
+quem lê o **token nativo** (a palavra `Authorization` sozinha não diz nada,
+porque o provider legado tem o token dele). NAT-14 e NAT-15 são os controles
+positivos que quebram se alguém alargar de volta.
+
+Consequência de desenho, e não só de gate: `nativeSessionApi` passou a usar
+`hasNativeToken()` em vez de `getNativeToken()`. Ele precisa saber **se** há
+sessão, nunca o valor — e com isso "só o cliente HTTP lê o token" virou
+literalmente verdade, em vez de aproximação.
+
 ## `test:backend` — o que só o banco prova
 
 `npm run test:backend` roda, nesta ordem, `prisma validate` → `prisma generate`
-→ `prisma migrate deploy`, e só então os testes. Sem `DATABASE_URL` ou
+→ `prisma migrate deploy`, e só então os testes — com
+**`--test-concurrency=1`**.
+
+A serialização entrou na P4.0 e não é preferência de velocidade: os testes
+compartilham **um** PostgreSQL e limpam as tabelas entre casos. Com mais de um
+arquivo, o runner do Node paraleliza por arquivo, e o `deleteMany` de um apaga
+as linhas que o outro acabou de criar. O sintoma é erro de Prisma em testes sem
+defeito nenhum, que passam quando executados sozinhos — o pior tipo de vermelho,
+porque parece bug de código e é corrida de infraestrutura. Sem `DATABASE_URL` ou
 `AUTH_SECRET` ele **falha**, em vez de pular: suíte que se auto-desliga quando
 falta configuração reporta verde sem ter verificado nada.
 
@@ -462,7 +525,7 @@ O `migrate deploy` sobre banco vazio é o **smoke de migration**, de graça em
 toda execução: se a migration não aplica do zero, o job morre antes do primeiro
 teste, e a mensagem diz que foi a migration.
 
-41 casos. Os que não teriam sentido com mock:
+60 casos. Os que não teriam sentido com mock:
 
 | Prova | O que fixa |
 |---|---|
@@ -476,6 +539,10 @@ teste, e a mensagem diz que foi a migration.
 | R1-T06 | o **banco** recusa `AuditLog` do cliente A apontando para `Usuario` do cliente B — a FK composta é verificada pelo PostgreSQL, não pelo Prisma |
 | R1-T07 | evento de sistema com `usuario_id = null` continua válido: FK composta usa `MATCH SIMPLE`, e com coluna nula a constraint não é verificada |
 | R1-T09 | isolamento provado pelo caminho **service → repository**, com o filtro vindo de `auth_context`. Um `WHERE` escrito dentro do teste provaria o `WHERE`, não a aplicação |
+| P4B-03 | origin parecida não passa no CORS: `https://maike.app.evil.com` e `https://maike.appevil.com` seriam aceitas por `startsWith` |
+| P4B-07 | token arbitrário — inclusive um da Base44 — não vira sessão MAIKE |
+| P4B-09 | o bootstrap **não** sobrescreve conta existente: o hash não muda |
+| P4B-10 | o ciclo fecha: bootstrap → login → `/auth/contexto` com o token emitido |
 
 ## Fechamento de escopo dentro das functions
 

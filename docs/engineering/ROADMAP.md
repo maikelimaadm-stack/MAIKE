@@ -121,10 +121,26 @@ nenhum model de manejo, que ficam para P4–P6, uma capacidade de cada vez.
 
 ## P4 — Mapa Core Native Persistence
 
-**Estado:** não iniciada. É a primeira missão a migrar capacidade contra o
-backend próprio, e a primeira que volta a tocar `src/` — inclusive para
-sincronizar os oito códigos de erro do contrato com
-`src/apis/_core/ApiError.js`, adiado na P3 (D-PROD-23, item 7).
+**Estado:** **em execução**, fatiada.
+
+| Fatia | Nome | Estado |
+|---|---|---|
+| **P4.0** | Native Transport + Session Activation | **implementada, em PR draft** |
+| P4.1 | Setor Native Persistence | **não iniciada** |
+| P4.2 | AreaPastagem Native Persistence | não iniciada |
+
+A ordem é estrutural, não preferência. A P3 entregou um backend que sabe
+autenticar e o frontend continuou autenticando na Base44 — sem URL configurada,
+sem cliente HTTP, sem sessão própria. Criar model de domínio antes disso
+produziria persistência que ninguém consegue consumir. E `AreaPastagem` depende
+de `Setor`, o que fixa o resto da ordem.
+
+A **P4.0** entregou: `VITE_MAIKE_API_URL`, cliente HTTP nativo único, sessão JWT
+em `sessionStorage`, login nativo sem dual-auth, CORS com allowlist exata,
+bootstrap local do primeiro usuário e o gate absoluto `gate:native-api`.
+Fechou também a dívida da P3 (D-PROD-23, item 7): os oito códigos de erro do
+contrato entraram em `src/apis/_core/ApiError.js`. **Nenhum model de domínio** —
+o schema Prisma está inalterado. Ver D-PROD-24.
 
 Migrar para persistência nativa as entidades geográficas do mapa: `AreaPastagem`,
 `PontoReferencia`, `PontoSuplementacao`, `LinhaGeografica`, `Setor`,

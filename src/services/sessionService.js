@@ -6,8 +6,15 @@
  * `offline_current_user` no `localStorage`. O comportamento observável é o
  * mesmo; o que muda é quem conhece o quê.
  *
- * Esta slice **não** redesenha autenticação: nada de login novo, token novo ou
- * mudança em `requiresAuth`.
+ * Desde a **P4.0** este service tem duas metades. A autenticação do aplicativo
+ * é nativa — `entrarComSessaoNativa`, `restaurarSessaoNativaAtual` e
+ * `sairDaSessaoNativa`, mais abaixo. O que sobrou do provider Base44 aqui é
+ * leitura de usuário, permissões e configurações públicas: dados de cadastros
+ * que ainda não migraram, não sessão.
+ *
+ * O logout da Base44 saiu junto com `redirectToLogin`: quem encerra a sessão do
+ * aplicativo é `sairDaSessaoNativa`, e manter os dois lados daria a impressão
+ * de que existe escolha entre eles.
  */
 
 import {
@@ -18,12 +25,13 @@ import {
   createPermissao,
   updatePermissao,
   deletePermissao,
-  logout as logoutApi,
-  redirectToLogin as redirectToLoginApi,
   getAppPublicSettings,
   verificarSessao,
   getCapacidadesDeSessao,
   RAZOES_DE_SESSAO,
+  loginNativo,
+  restaurarSessaoNativa,
+  logoutNativo,
 } from '@/apis/session';
 import { ApiError, API_ERROR_CODES } from '@/apis/_core/ApiError';
 
@@ -112,21 +120,57 @@ export const carregarConfiguracoesPublicas = () => getAppPublicSettings();
 /** Razões de recusa que a tela de login sabe tratar. */
 export const RAZOES_DE_SESSAO_DO_PRODUTO = RAZOES_DE_SESSAO;
 
-/**
- * Encerra a sessão e limpa o usuário offline.
+/* ─── Sessão nativa MAIKE (P4.0, D-PROD-24) ─────────────────────────────────
  *
- * Sem `urlDeRetorno` o provider só descarta o token; com ela, redireciona.
+ * Estas três funções são a autenticação **do aplicativo**. As de cima
+ * continuam servindo o provider Base44 enquanto ele for a fonte de dados dos
+ * cadastros ainda não migrados.
+ *
+ * Não existe ponte entre as duas. Um `catch` que tentasse a Base44 quando o
+ * backend MAIKE falha seria dual-auth: mascararia o backend fora do ar como se
+ * fosse sessão expirada, e ninguém descobriria que o serviço caiu. Ver
+ * D-PROD-24, item G.
  */
-export const encerrarSessao = async (urlDeRetorno) => {
+
+/**
+ * Autentica contra o backend nativo.
+ *
+ * Erro sobe como `ApiError` para a tela decidir a mensagem — em especial
+ * `AUTH_INVALID_CREDENTIALS`, cujo texto público é o mesmo para cliente,
+ * usuário ou senha errados, espelhando a resposta única do backend. Distinguir
+ * os casos na tela desfaria a proteção contra enumeração que o `authService`
+ * construiu com hash descartável e tempo constante.
+ *
+ * @param {{cliente: string, login: string, senha: string}} credenciais
+ * @returns {Promise<{usuario: object, clienteId: string}>}
+ */
+export const entrarComSessaoNativa = (credenciais) => loginNativo(credenciais);
+
+/**
+ * Restaura a sessão nativa depois de um reload, validando no servidor.
+ *
+ * Nunca lança: devolve veredito. Token recusado é descartado pela camada de
+ * sessão — ver `nativeSessionApi.restaurarSessao`.
+ *
+ * @returns {Promise<{autenticado: boolean, contexto: object|null}>}
+ */
+export const restaurarSessaoNativaAtual = () => restaurarSessaoNativa();
+
+/**
+ * Encerra a sessão nativa.
+ *
+ * Só local: o JWT da P3 é stateless e não há sessão a invalidar no servidor.
+ * Também limpa o usuário offline, que é cache de tela e não pode sobreviver a
+ * uma troca de usuário na mesma máquina.
+ */
+export const sairDaSessaoNativa = () => {
+  logoutNativo();
   try {
     localStorage.removeItem(OFFLINE_USER_KEY);
   } catch {
-    // Falha ao limpar o cache local não pode impedir o logout.
+    // Cache local indisponível não impede o logout: o token já saiu.
   }
-  return logoutApi(urlDeRetorno);
 };
-
-export const irParaLogin = (urlDeRetorno) => redirectToLoginApi(urlDeRetorno);
 
 /** Permissão do usuário informado, ou `null`. */
 export const permissaoDoUsuario = (permissoes, email) =>

@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { listEmpresas } from "@/services/empresaService";
-import { getCurrentUser, getCachedUser, listarPermissoes, encerrarSessao, permissaoDoUsuario } from "@/services/sessionService";
+import { getCurrentUser, getCachedUser, listarPermissoes, permissaoDoUsuario } from "@/services/sessionService";
+import { useAuth } from "@/lib/AuthContext";
 import {
   Users, LogOut, Package, Shield, FolderOpen, Map, ChevronDown, Menu, Search, X, EyeOff, Eye } from
 "lucide-react";
@@ -155,9 +156,11 @@ export default function Layout({ children, currentPageName }) {
     loadUser();
   }, []);
 
-  const handleLogout = () => {
-    encerrarSessao();
-  };
+  // Sair encerra a sessão **nativa** (P4.0). Antes isto chamava o logout da
+  // Base44, que descartava o token do SDK; desde que a autenticação do
+  // aplicativo é própria, era esse o token que continuaria válido — o botão
+  // pareceria funcionar e a sessão sobreviveria.
+  const { logout: handleLogout } = useAuth();
 
   const normalizedPermissions = React.useMemo(() => normalizePermissionRecord(userPermissions), [userPermissions]);
   const isAdminUser = React.useMemo(() => Boolean(user?.role === 'admin' || normalizedPermissions?.is_admin), [user?.role, normalizedPermissions]);

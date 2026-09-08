@@ -23,8 +23,8 @@ e decisão vivem neste repositório.
 | **Produto** | Pecuária — **Mapa Geral + Manejo** (D-PROD-01) |
 | **Superfície primária** | `MapaGeral` — a raiz `/` redireciona para lá (D-PROD-05) |
 | **Missões concluídas** | **P0** (PR #1), **P1** (PR #6), **P2** (PR #7), **P3** (PR #10, merge `4ce4608` — inclui a correção **P3-R1**) — mais a sincronização de SSOT (PR #8) e a emenda D-PROD-22 (PR #9) |
-| **Missão em execução** | nenhuma |
-| **Próxima missão autorizável** | **P4 — Mapa Core Native Persistence** — **não iniciada** |
+| **Missão em execução** | **P4 — Mapa Core Native Persistence** · fatia atual **P4.0 — Native Transport + Session Activation** (em PR draft) |
+| **Próxima fatia** | **P4.1 — Setor Native Persistence** — **não iniciada** |
 | **Contrato de dados** | `config/modelobase1-pecuario.json` — **oficial** desde o merge da P2 (D-PROD-21) |
 | **Escopo executável** | `config/mapa-manejo-scope.json` |
 | **Molde arquitetural** | PROJETOMG — **parcial** (D-PROD-03) |
@@ -46,11 +46,11 @@ relatórios genéricos, dashboards paralelos, fichas personalizadas e editor vis
 | Arquivos em `src/` com SDK | 4 — todos **dentro** da fronteira |
 | Registry literal do provider | 38 entidades |
 | Dependências diretas | 55 (37 `dependencies` + 18 `devDependencies`) |
-| Dívida de tipos versionada | 2.319 diagnósticos em `src/` (teto certificado 2.319) |
+| Dívida de tipos versionada | 2.318 diagnósticos em `src/` (teto certificado 2.318) |
 | Dívida de tipos no `backend/` | **0** — contrato próprio, tolerância zero |
-| Testes automatizados | **964** (428 de gate + 495 de smoke + 41 de backend) |
-| Etapas do `verify:all` | 18 |
-| Bundle de produção — JS | 2.496,62 kB (669,03 kB gzip) |
+| Testes automatizados | **1.033** (452 de gate + 521 de smoke + 60 de backend) |
+| Etapas do `verify:all` | 19 |
+| Bundle de produção — JS | 2.503,50 kB (671,09 kB gzip) |
 
 **Fronteira de dados (`gate:api-boundary`): 0/0/0/0/0/0.** Os seis eixos estão
 zerados desde a P1.4 e o baseline versionado tem as seis listas vazias —
@@ -69,6 +69,13 @@ no workflow (e **não** pelo backend), `backend/` sem cobertura de tipos e
 `prisma validate` que existia como script mas não rodava na cadeia. Três dos
 cinco eram invariante **declarada e não verificada** — a mesma classe da P2-R1.
 Ver §16 do relatório da P3.
+
+A **P4.0** abriu a P4 ligando o navegador ao backend próprio: URL nativa
+(`VITE_MAIKE_API_URL`), cliente HTTP único, sessão JWT em `sessionStorage`,
+login nativo, CORS com allowlist exata e o gate absoluto `gate:native-api`.
+Fechou também a dívida de erros que a P3 declarou: os oito códigos do contrato
+entraram no catálogo do frontend. **Nenhum model de domínio** — Setor e
+AreaPastagem são P4.1 e P4.2. Ver D-PROD-24.
 
 Nem a P2 nem a P3 alteraram `src/`, `base44/`, rotas, menu ou escopo. O backend
 existe mas **ainda não é consumido pelo frontend**: a fronteira da P1 continua
@@ -155,7 +162,7 @@ Registre o bug em `docs/engineering/DECISIONS.md` e siga.
 
 ## O que "verde" significa aqui
 
-`npm run verify:all` sai com **0**. Três das dezoito etapas são **catracas**
+`npm run verify:all` sai com **0**. Três das dezenove etapas são **catracas**
 (`gate:base44`, `gate:api-boundary` e `gate:types`), e o significado delas é
 literal:
 
@@ -164,8 +171,8 @@ literal:
 | `gate:base44` | o acoplamento com a Base44 não cresceu | que a Base44 saiu |
 | `gate:types` | a dívida de tipos não cresceu | que o `tsc` está sem erros |
 
-O projeto **tem** 2.319 diagnósticos de tipo, versionados em
-`scripts/gates/typecheck-baseline.json` com teto certificado de 2.319, e sempre
+O projeto **tem** 2.318 diagnósticos de tipo, versionados em
+`scripts/gates/typecheck-baseline.json` com teto certificado de 2.318, e sempre
 visíveis em `npm run typecheck:raw`. A cobertura é `jsconfig.typecheck.json`,
 que inclui todo o `src/`. A dívida só desce (DBT-03).
 
@@ -175,8 +182,8 @@ base de persistência e domínio (D-PROD-21) e não tem `--update`, baseline nem
 correção automática — não existe estado herdado aceitável num contrato que ainda
 não tem implementação.
 
-As etapas da P3 seguem a mesma linha: `gate:tenancy`, `gate:indices` e
-`typecheck:backend` também são **absolutos**. `typecheck:backend` usa
+As etapas da P3 e da P4.0 seguem a mesma linha: `gate:tenancy`, `gate:indices`,
+`typecheck:backend` e `gate:native-api` também são **absolutos**. `typecheck:backend` usa
 `jsconfig.backend.typecheck.json`, separado da catraca legada de propósito — a
 catraca de `src/` tolera 2.319 diagnósticos herdados, e o backend novo não
 tolera nenhum. Verde ali significa literalmente **zero**.
@@ -220,6 +227,7 @@ Todos os relatórios vivem em `docs/engineering/`. Os marcos:
 | P1.4 | `docs/engineering/P1.4-NATIVE-API-BOUNDARY-SUPPORT-ADMIN-REPORT.md` |
 | P2 | `docs/engineering/P2-MODELOBASE1-PECUARIO-FOUNDATION-REPORT.md` |
 | P3 | `docs/engineering/P3-BACKEND-PRISMA-POSTGRESQL-FOUNDATION-REPORT.md` |
+| P4.0 | `docs/engineering/P4.0-NATIVE-TRANSPORT-SESSION-ACTIVATION-REPORT.md` |
 
 Arquitetura de contrato, fora da linha de missões:
 `docs/architecture/MODELOBASE1-PECUARIO-CONTRACT.md`.

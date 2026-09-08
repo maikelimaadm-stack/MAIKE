@@ -67,6 +67,11 @@ const clicar = async (elemento) => {
 
 const renderShell = async (rotaInicial = '/mapageral') => {
   const { default: Layout } = await import('@/Layout');
+  // Desde a P4.0 o `Layout` encerra a **sessão nativa**, e para isso consome o
+  // `AuthContext` — que no aplicativo real sempre o envolve. Montá-lo solto
+  // aqui testaria uma configuração que não existe em produção. Sem token
+  // guardado, o provider resolve para "não autenticado" sem tocar a rede.
+  const { AuthProvider } = await import('@/lib/AuthContext');
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
 
   let utils;
@@ -74,6 +79,7 @@ const renderShell = async (rotaInicial = '/mapageral') => {
     utils = render(
     <MemoryRouter initialEntries={[rotaInicial]}>
       <QueryClientProvider client={client}>
+       <AuthProvider>
         <SondaDeRota />
         <Routes>
           <Route
@@ -90,6 +96,7 @@ const renderShell = async (rotaInicial = '/mapageral') => {
             }
           />
         </Routes>
+       </AuthProvider>
       </QueryClientProvider>
     </MemoryRouter>
     );

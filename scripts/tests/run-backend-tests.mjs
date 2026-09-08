@@ -76,5 +76,20 @@ console.log(
   `test:backend — ${arquivos.length} arquivo(s): ${arquivos.map((f) => f.split('/').pop()).join(', ')}`
 );
 
-const r = spawnSync(process.execPath, ['--test', ...arquivos], { stdio: 'inherit' });
+/**
+ * `--test-concurrency=1` é obrigatório, não preferência de velocidade.
+ *
+ * Os testes de backend rodam contra **um** PostgreSQL e limpam as tabelas entre
+ * casos (`limparBanco`). Com mais de um arquivo, o runner do Node paraleliza por
+ * arquivo por padrão — e aí o `deleteMany` de um apaga as linhas que o outro
+ * acabou de criar. O sintoma é um erro de Prisma em testes que não têm defeito
+ * nenhum, e que passam quando executados sozinhos: o pior tipo de vermelho,
+ * porque parece bug de código e é corrida de infraestrutura.
+ *
+ * A alternativa seria um schema por arquivo. Custa mais e não paga: a suíte
+ * inteira roda em segundos.
+ */
+const r = spawnSync(process.execPath, ['--test', '--test-concurrency=1', ...arquivos], {
+  stdio: 'inherit',
+});
 process.exit(r.status === null ? 1 : r.status);

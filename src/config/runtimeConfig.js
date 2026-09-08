@@ -117,6 +117,36 @@ const lerBase44BackendUrl = () => {
 };
 
 /**
+ * URL do backend **nativo** MAIKE (P4.0, D-PROD-24).
+ *
+ * Não confundir com `VITE_BASE44_BACKEND_URL`: aquela pertence ao SDK da Base44
+ * e continua apontando para a Base44 enquanto ela for provider de dados. Esta
+ * aponta exclusivamente para o Fastify criado na P3. São dois destinos
+ * independentes, e misturá-los quebraria os dois.
+ *
+ * Como toda `VITE_*`, é **pública por definição** — vai para o bundle do
+ * cliente. Isso não é vazamento: uma URL de API não é segredo, e a proteção
+ * dela é CORS no servidor, não sigilo. O que nunca pode levar prefixo `VITE_`
+ * é `AUTH_SECRET`, `DATABASE_URL` ou qualquer senha.
+ */
+const lerMaikeApiUrl = () => {
+  try {
+    return normalizarEnv(import.meta.env.VITE_MAIKE_API_URL);
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * Remove barras finais sem tocar no resto da URL.
+ *
+ * `new URL()` não serve aqui: ele normalizaria caminho, adicionaria barra e
+ * aceitaria formas que não queremos (`javascript:`, por exemplo). O corte é
+ * literal e conservador — só a barra final sai.
+ */
+const semBarraFinal = (url) => (typeof url === 'string' ? url.replace(/\/+$/, '') : url);
+
+/**
  * Resolve um parâmetro de runtime.
  *
  * Precedência preservada de `app-params.js`:
@@ -198,6 +228,26 @@ export const getGoogleMapsApiKey = () => lerGoogleMapsApiKey();
 export const isGoogleMapsConfigured = () => getGoogleMapsApiKey() !== null;
 
 /**
+ * Base URL do backend nativo MAIKE, sem barra final, ou `null`.
+ *
+ * Lida a cada chamada, como a chave do Maps, para que o teste consiga trocar o
+ * ambiente depois de importar o módulo.
+ *
+ * Deliberadamente **sem** qualquer override: nada de query string, nada de
+ * `localStorage`, nada de `STORAGE_PREFIX`. Os parâmetros da Base44 aceitam
+ * override por URL porque o legado fazia assim e a P1 preservou o
+ * comportamento; o backend nativo nasce sem essa porta. Um atacante que
+ * conseguisse trocar a base URL por query string redirecionaria o `Authorization`
+ * com o JWT nativo para um servidor escolhido por ele.
+ *
+ * @returns {string|null}
+ */
+export const getNativeApiUrl = () => semBarraFinal(lerMaikeApiUrl());
+
+/** O backend nativo está configurado? */
+export const isNativeApiConfigured = () => getNativeApiUrl() !== null;
+
+/**
  * Descrição **sem segredo**, para diagnóstico e para os gates.
  *
  * Devolve apenas presença/ausência. Nenhum valor de token, chave, app id ou URL
@@ -212,4 +262,5 @@ export const describeRuntimeConfig = () => ({
   hasToken: Boolean(providerParams.token),
   hasFunctionsVersion: Boolean(providerParams.functionsVersion),
   hasGoogleMapsApiKey: isGoogleMapsConfigured(),
+  hasNativeApiUrl: isNativeApiConfigured(),
 });

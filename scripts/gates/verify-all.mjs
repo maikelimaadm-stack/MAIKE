@@ -22,6 +22,11 @@ const ETAPAS = [
   ['package-sync', npm('gate:package-sync')],
   ['product-scope', npm('gate:product-scope')],
   ['api-boundary', npm('gate:api-boundary')],
+  // Logo depois da fronteira da Base44, porque verifica a fronteira gêmea: o
+  // transporte nativo criado na P4.0. As duas respondem à mesma pergunta —
+  // quem tem permissão de falar com o mundo lá fora — e ler uma ao lado da
+  // outra é como se percebe que uma abriu uma porta que a outra fechou.
+  ['native-api', npm('gate:native-api')],
   ['source-closure', npm('gate:source-closure')],
   ['import-integrity', npm('gate:import-integrity')],
   ['no-secrets', npm('gate:no-secrets')],

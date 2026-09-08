@@ -1,11 +1,25 @@
 /**
- * Sessão e casca do aplicativo (P1.4).
+ * Sessão e casca do aplicativo (P1.4 · reescrito na P4.0).
  *
  * `AuthContext` e `PageNotFound` eram os dois pontos em que a autenticação
  * escapava da fronteira: um montava a requisição de configurações públicas à
  * mão, com `appId` e `Authorization` dentro de um componente React; o outro
  * chamava o `auth.me()` do SDK direto para decidir se mostrava uma nota de
- * administrador. Aqui se prova que os estados observáveis continuam os mesmos.
+ * administrador.
+ *
+ * ─── O que a P4.0 mudou aqui ───────────────────────────────────────────────
+ *
+ * A autenticação do aplicativo deixou de ser da Base44. Os casos AUTH5 e AUTH6
+ * afirmavam o contrato antigo — logout com `urlDeRetorno` e redirecionamento
+ * para o login da Base44 — e ele **não existe mais**: `redirectToLogin` saiu
+ * porque autenticaria no provider errado, e o logout agora encerra a sessão
+ * nativa. Eles foram substituídos, não afrouxados: AUTH5 passou a exigir que o
+ * logout limpe a sessão nativa, e AUTH9–AUTH12 cobrem entrada, restauração e a
+ * ausência de fallback.
+ *
+ * O que **não** mudou: as configurações públicas continuam vindo do provider
+ * (dados que ainda não migraram), e `PageNotFound` continua lendo o usuário
+ * pelo service.
  */
 
 import React from 'react';
@@ -23,8 +37,9 @@ const RAZOES = Object.freeze({
 const sessionService = {
   verificarAutenticacao: vi.fn(),
   carregarConfiguracoesPublicas: vi.fn(),
-  encerrarSessao: vi.fn(),
-  irParaLogin: vi.fn(),
+  entrarComSessaoNativa: vi.fn(),
+  restaurarSessaoNativaAtual: vi.fn(),
+  sairDaSessaoNativa: vi.fn(),
   RAZOES_DE_SESSAO_DO_PRODUTO: RAZOES,
 };
 
@@ -42,6 +57,11 @@ beforeEach(() => {
   vi.clearAllMocks();
   sessionService.verificarAutenticacao.mockResolvedValue({ autenticado: false, usuario: null, precisaAutenticar: false });
   sessionService.carregarConfiguracoesPublicas.mockResolvedValue({ ok: true, value: { id: 'app', public_settings: {} } });
+  sessionService.restaurarSessaoNativaAtual.mockResolvedValue({ autenticado: false, contexto: null });
+  sessionService.entrarComSessaoNativa.mockResolvedValue({
+    usuario: { id: 'usr_1', login: 'joao', nome: 'João' },
+    clienteId: 'cli_1',
+  });
 });
 
 /** Sonda que expõe o estado do contexto como texto. */
@@ -54,10 +74,15 @@ const Sonda = () => {
       <span data-testid="settings">{auth.appPublicSettings ? 'ok' : 'vazio'}</span>
       <span data-testid="loading-auth">{String(auth.isLoadingAuth)}</span>
       <span data-testid="loading-settings">{String(auth.isLoadingPublicSettings)}</span>
-      <span data-testid="usuario">{auth.user?.email ?? 'ninguem'}</span>
+      <span data-testid="usuario">{auth.user?.login ?? 'ninguem'}</span>
+      <span data-testid="cliente">{auth.clienteId ?? 'sem-cliente'}</span>
       <button type="button" onClick={() => auth.logout()}>sair</button>
-      <button type="button" onClick={() => auth.logout(false)}>sair sem redirecionar</button>
-      <button type="button" onClick={() => auth.navigateToLogin()}>entrar</button>
+      <button
+        type="button"
+        onClick={() => auth.entrar({ cliente: 'FAZENDA', login: 'joao', senha: 's3nh4' }).catch(() => {})}
+      >
+        entrar
+      </button>
     </div>
   );
 };
@@ -119,23 +144,87 @@ describe('AUTH — estados do AuthContext', () => {
     }
   });
 
-  it('AUTH5 — logout com e sem redirecionamento chega ao service', async () => {
+  it('AUTH5 — logout encerra a sessão NATIVA e zera o estado', async () => {
+    sessionService.restaurarSessaoNativaAtual.mockResolvedValue({
+      autenticado: true,
+      contexto: { cliente_id: 'cli_1', usuario_id: 'usr_1', login: 'joao' },
+    });
     await montarAuth();
+    expect(screen.getByTestId('autenticado')).toHaveTextContent('true');
 
     await act(async () => { screen.getByText('sair').click(); });
-    expect(sessionService.encerrarSessao).toHaveBeenLastCalledWith(window.location.href);
 
-    await act(async () => { screen.getByText('sair sem redirecionar').click(); });
-    expect(sessionService.encerrarSessao).toHaveBeenLastCalledWith(undefined);
-
+    expect(sessionService.sairDaSessaoNativa).toHaveBeenCalledTimes(1);
     expect(screen.getByTestId('autenticado')).toHaveTextContent('false');
     expect(screen.getByTestId('usuario')).toHaveTextContent('ninguem');
+    expect(screen.getByTestId('cliente')).toHaveTextContent('sem-cliente');
   });
 
-  it('AUTH6 — ir para o login passa pelo service', async () => {
+  it('AUTH9/P4T-16 — login válido autentica e publica o tenant resolvido pelo servidor', async () => {
     await montarAuth();
+    expect(screen.getByTestId('autenticado')).toHaveTextContent('false');
+
     await act(async () => { screen.getByText('entrar').click(); });
-    expect(sessionService.irParaLogin).toHaveBeenCalledWith(window.location.href);
+
+    expect(sessionService.entrarComSessaoNativa).toHaveBeenCalledWith({
+      cliente: 'FAZENDA', login: 'joao', senha: 's3nh4',
+    });
+    expect(screen.getByTestId('autenticado')).toHaveTextContent('true');
+    expect(screen.getByTestId('usuario')).toHaveTextContent('joao');
+    // `cliente_id` chega como RESULTADO da autenticação, nunca como entrada.
+    expect(screen.getByTestId('cliente')).toHaveTextContent('cli_1');
+  });
+
+  it('AUTH10/P4T-07 — o reload restaura a sessão nativa validada', async () => {
+    sessionService.restaurarSessaoNativaAtual.mockResolvedValue({
+      autenticado: true,
+      contexto: { cliente_id: 'cli_9', usuario_id: 'usr_9', login: 'maria' },
+    });
+    await montarAuth();
+
+    expect(sessionService.restaurarSessaoNativaAtual).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('autenticado')).toHaveTextContent('true');
+    expect(screen.getByTestId('usuario')).toHaveTextContent('maria');
+  });
+
+  it('AUTH11 — login recusado NÃO autentica e não cai na Base44', async () => {
+    // A ausência de fallback é o ponto: backend fora do ar precisa aparecer
+    // como falha, não virar sessão do provider legado (D-PROD-24, item G).
+    const erro = Object.assign(new Error('recusado'), { code: 'AUTH_INVALID_CREDENTIALS' });
+    sessionService.entrarComSessaoNativa.mockRejectedValue(erro);
+    await montarAuth();
+
+    await act(async () => { screen.getByText('entrar').click(); });
+
+    expect(screen.getByTestId('autenticado')).toHaveTextContent('false');
+    expect(sessionService.verificarAutenticacao).not.toHaveBeenCalled();
+  });
+
+  it('AUTH12 — falha das configurações públicas não bloqueia a sessão nativa', async () => {
+    // Os dois eixos são independentes desde a P4.0: travar a entrada porque o
+    // provider de dados legado não respondeu religaria o acoplamento que a
+    // missão acabou de separar.
+    sessionService.carregarConfiguracoesPublicas.mockResolvedValue({ ok: false, reason: RAZOES.UNKNOWN });
+    sessionService.restaurarSessaoNativaAtual.mockResolvedValue({
+      autenticado: true,
+      contexto: { cliente_id: 'cli_1', usuario_id: 'usr_1', login: 'joao' },
+    });
+    await montarAuth();
+
+    expect(screen.getByTestId('erro')).toHaveTextContent('unknown');
+    expect(screen.getByTestId('autenticado')).toHaveTextContent('true');
+  });
+
+  it('AUTH13 — AuthContext não conhece a Base44 nem redireciona para fora', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { join } = await import('node:path');
+    const fonte = readFileSync(join(process.cwd(), 'src/lib/AuthContext.jsx'), 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/^\s*\/\/.*$/gm, '');
+
+    for (const proibido of ['redirectToLogin', 'irParaLogin', 'base44', 'getDataProviderConfig']) {
+      expect(fonte, proibido).not.toContain(proibido);
+    }
   });
 
   it('AUTH7 — o contexto exige o provider', () => {

@@ -16,6 +16,7 @@
     "test:backend": "node scripts/tests/run-backend-tests.mjs",
     "backend:dev": "node --watch backend/src/server.js",
     "backend:start": "node backend/src/server.js",
+    "auth:bootstrap:local": "node scripts/auth/bootstrap-local.mjs",
     "db:up": "docker compose up -d db",
     "db:down": "docker compose down",
     "prisma:generate": "prisma generate --schema backend/prisma/schema.prisma",
@@ -27,6 +28,7 @@
     "gate:package-sync": "node scripts/gates/gate-package-sync.mjs",
     "gate:product-scope": "node scripts/gates/gate-product-scope.mjs",
     "gate:api-boundary": "node scripts/gates/gate-api-boundary.mjs",
+    "gate:native-api": "node scripts/gates/gate-native-api.mjs",
     "gate:source-closure": "node scripts/gates/gate-source-closure.mjs",
     "gate:import-integrity": "node scripts/gates/gate-import-integrity.mjs",
     "gate:no-secrets": "node scripts/gates/gate-no-hardcoded-secrets.mjs",
@@ -40,6 +42,7 @@
   "dependencies": {
     "@base44/sdk": "^0.8.40",
     "@base44/vite-plugin": "^1.0.30",
+    "@fastify/cors": "^11.3.0",
     "@fastify/jwt": "^10.2.2",
     "@hello-pangea/dnd": "^17.0.0",
     "@prisma/client": "^6.19.3",
