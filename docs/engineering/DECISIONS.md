@@ -615,4 +615,136 @@ registrados em `docs/engineering/GATE-REGISTRY.md`.
 `backend/`, não instala Prisma, não gera `schema.prisma` e não escreve migration.
 O contrato descreve o que a P3 vai construir; construir é missão dela.
 
-<!-- Próxima decisão: D-PROD-22 -->
+---
+
+## D-PROD-22 — `Cliente` é a raiz estrutural do tenant e a única exceção atual sem `cliente_id`
+
+**Data:** 2026-09-08 · **Missão:** precondição de governança da P3 (`P3-G0.2`)
+**Estado:** vigente somente após aprovação e merge
+**Emenda constitucional aprovada por:** proprietário do projeto — a aprovação se
+materializa no **merge desta PR**, conforme `00-CONSTITUICAO.md` §4. Enquanto a
+PR não for mergeada, esta decisão não está vigente e a P3 permanece bloqueada.
+
+### Contexto e colisão
+
+A regra constitucional de tenancy foi escrita antes da formalização do contrato
+ModeloBase1 Pecuário. Hoje existem duas normas incompatíveis:
+
+- `docs/constitution/00-CONSTITUICAO.md`, princípio P3, determina que
+  `cliente_id` entra em todo model desde o início;
+- `docs/constitution/07-DO-NOT-DO.md`, regra D1, determina que todo model possui
+  `cliente_id`, sem exceção;
+
+enquanto o contrato oficial da P2, `config/modelobase1-pecuario.json`,
+estabelece:
+
+- `Cliente` como `rootModel`;
+- `Cliente` como o próprio tenant;
+- `modelsWithoutTenantField = ["Cliente"]`;
+- todos os models tenant-scoped com `cliente_id` obrigatório e não nulo;
+- nenhum catálogo global adicional autorizado nesta fundação.
+
+Pela hierarquia normativa vigente, a Constituição e o DO-NOT-DO prevalecem sobre
+D-PROD-21. Assim, sem esta emenda, o contrato aprovado da P2 não pode ser
+implementado literalmente na P3.
+
+### Decisão
+
+A regra original de tenancy é reafirmada e tornada estruturalmente precisa:
+
+1. Todo model **tenant-scoped** possui `cliente_id` obrigatório e não nulo desde
+   sua criação.
+2. `Cliente` não é um model tenant-scoped: `Cliente` **é o próprio tenant**, e
+   `Cliente.id` é a identidade da raiz de tenancy.
+3. `Cliente` é a **única exceção estrutural atualmente autorizada** sem
+   `cliente_id`.
+4. Não existe, nesta fundação, qualquer outro model global ou catálogo global
+   autorizado sem `cliente_id`.
+5. Uma segunda exceção sem `cliente_id` não pode ser introduzida por
+   conveniência, implementação ou alteração isolada de schema/contrato. Exige
+   nova decisão formal e atualização coerente das normas e gates aplicáveis.
+6. É proibido criar `cliente_id` autorreferente em `Cliente` apenas para
+   satisfazer formalmente a redação anterior.
+
+### Emenda em `docs/constitution/00-CONSTITUICAO.md`
+
+O princípio **P3 — Tenancy desde o primeiro dia** passa a ser:
+
+> `cliente_id` entra em todo model tenant-scoped desde o início, mesmo com um
+> cliente único. `Cliente` é a raiz estrutural e a única exceção atual sem
+> `cliente_id`, porque ele é o próprio tenant. Nenhuma segunda exceção é
+> admitida sem decisão formal e atualização das normas e gates aplicáveis.
+> Retrofitar tenancy depois é o erro mais caro possível do projeto.
+
+### Emenda em `docs/constitution/07-DO-NOT-DO.md`
+
+A regra **D1** passa a ser:
+
+| # | NÃO faça | Faça em vez disso |
+|---|---|---|
+| D1 | Criar model tenant-scoped sem `cliente_id`, ou criar nova exceção estrutural não autorizada | Todo model tenant-scoped tem `cliente_id` obrigatório e não nulo. `Cliente` é a única exceção atual, por ser a raiz do tenant |
+
+D2, D3, D4 e D5 permanecem vigentes.
+
+### Contrato ModeloBase1 Pecuário
+
+`config/modelobase1-pecuario.json` **não muda** por esta correção. Permanecem:
+
+```text
+tenancy.rootModel                        = "Cliente"
+tenancy.modelsWithoutTenantField         = ["Cliente"]
+tenancy.globalCatalogModels              = []
+tenancy.tenantFieldRequiredOnTenantModels = true
+```
+
+A emenda alinha as normas superiores ao contrato já aprovado; não altera o
+desenho aprovado na P2.
+
+### Proteção mecânica
+
+Na P3, `gate:tenancy` deve materializar esta decisão no schema real. No mínimo:
+
+```text
+Cliente sem cliente_id                      → PASS
+Usuario sem cliente_id                      → FAIL
+AuditLog sem cliente_id                     → FAIL
+EntidadeCodigoSequencia sem cliente_id      → FAIL
+RegistroAnexo sem cliente_id                → FAIL
+qualquer segundo model sem cliente_id       → FAIL
+cliente_id nullable em model tenant-scoped  → FAIL
+```
+
+A introdução de um segundo root/exceção deve reprovar com código estável:
+
+```text
+P3-TEN-ROOT-CONTRACT
+```
+
+Como estabelecido pela lição da P2-R1, a proteção só é considerada demonstrada
+quando o contrato mutilado **reprovar**.
+
+### O que esta decisão NÃO autoriza
+
+Esta decisão não autoriza: adiar tenancy; criar model de domínio sem
+`cliente_id`; criar catálogo global por conveniência; tornar `cliente_id`
+nullable; criar autorrelação de `Cliente`; permitir relação cross-tenant;
+remover `cliente_id` de model existente; enfraquecer
+`gate:modelobase1-pecuario`; alterar `modelsWithoutTenantField` além de
+`["Cliente"]`; alterar `globalCatalogModels` sem nova decisão formal.
+
+O princípio de tenancy desde o primeiro model e a regra D5 permanecem
+integralmente vigentes.
+
+### Questão levantada e deliberadamente não resolvida aqui
+
+`config/modelobase1-pecuario.json` **não consta** da hierarquia normativa do
+`00-CONSTITUICAO.md` §3. Ele é SSOT criado pela P2 e o §3 nunca foi atualizado
+para incluí-lo, de modo que o contrato oficial só tem força indireta, via
+D-PROD-21, no nível 4. Incluí-lo na hierarquia foi proposto durante a análise
+desta colisão e **deixado de fora desta emenda por decisão do arquiteto**, para
+manter a mudança normativa restrita ao mínimo necessário para destravar a P3. A
+questão fica registrada: a mesma classe de colisão pode reaparecer em P4–P6
+sempre que o contrato disser algo que a Constituição ou o DO-NOT-DO não
+previram.
+
+<!-- Próxima decisão: D-PROD-23 -->
