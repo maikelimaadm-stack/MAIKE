@@ -12,8 +12,9 @@
  *
  * Códigos:
  *   P3-TEN-SCHEMA-MISSING · P3-TEN-ROOT-CONTRACT · P3-TEN-FIELD
- *   P3-TEN-RELATION · P3-TEN-BUSINESS-UNIQUE · P3-TEN-SOURCE
- *   P3-TEN-BASE44 · P3-TEN-IDENTITY · P3-TEN-TIMESTAMPS
+ *   P3-TEN-RELATION · P3-TEN-CROSS-RELATION · P3-TEN-BUSINESS-UNIQUE
+ *   P3-TEN-SOURCE · P3-TEN-BASE44 · P3-TEN-IDENTITY · P3-TEN-TIMESTAMPS
+ *   P3-TEN-RUNTIME-IDENTITY
  */
 
 import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';
@@ -171,6 +172,53 @@ for (const model of tenantModels) {
       'P3-TEN-RELATION',
       `${model.nome}.${relacao.nome} é opcional — a relação com a raiz do tenant não pode ser nullable`
     );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 4b. Relação entre models tenant-scoped não pode cruzar clientes
+//
+// O contrato declara `crossTenantRelationsAllowed = false`, e manda a
+// constraint ser a última barreira. Uma FK de model tenant-scoped para outro
+// model tenant-scoped precisa carregar `cliente_id` na chave — senão o banco
+// aceita um registro do Cliente A apontando para uma linha do Cliente B, e a
+// única coisa que impede é o service estar certo. Regra que depende disso não é
+// barreira, é convenção.
+// ---------------------------------------------------------------------------
+
+const RELACAO_FIELDS = /fields:\s*\[([^\]]*)\]/;
+const RELACAO_REFERENCES = /references:\s*\[([^\]]*)\]/;
+
+const colunasDe = (texto, regex) => {
+  const match = regex.exec(texto);
+  if (!match) return null;
+  return match[1]
+    .split(',')
+    .map((parte) => parte.trim())
+    .filter(Boolean);
+};
+
+for (const model of tenantModels) {
+  for (const c of model.campos) {
+    // Só relações declaradas (com `fields:`) para OUTRO model tenant-scoped.
+    if (c.lista || !nomesDeModel.has(c.tipo)) continue;
+    if (c.tipo === ROOT_MODEL) continue;
+    if (EXCECOES_AUTORIZADAS.includes(c.tipo)) continue;
+    if (!/@relation\s*\(/.test(c.atributos)) continue;
+
+    const fields = colunasDe(c.atributos, RELACAO_FIELDS);
+    const references = colunasDe(c.atributos, RELACAO_REFERENCES);
+    if (!fields || !references) continue;
+
+    if (!fields.includes(TENANT_FIELD) || !references.includes(TENANT_FIELD)) {
+      registrar(
+        'P3-TEN-CROSS-RELATION',
+        `${model.nome}.${c.nome} -> ${c.tipo}: @relation(fields: [${fields.join(', ')}], ` +
+          `references: [${references.join(', ')}]) não é tenant-aware. Relação entre models ` +
+          `tenant-scoped precisa incluir ${TENANT_FIELD} nos dois lados, senão o banco aceita ` +
+          'registro de um cliente apontando para linha de outro'
+      );
+    }
   }
 }
 
@@ -335,6 +383,67 @@ for (const arquivo of arquivosDoBackend) {
     if (base44) {
       registrar('P3-TEN-BASE44', `${rel}: backend não pode referenciar Base44 em nenhuma forma`);
     }
+  }
+
+  // -------------------------------------------------------------------------
+  // Identidade em RUNTIME.
+  //
+  // O schema declarar `@default(cuid())` não garante que a linha gravada use
+  // cuid: um INSERT em SQL cru pode preencher a PK com outra coisa, e o gate
+  // que só lê o schema aprova. Foi o que aconteceu na primeira versão da P3 —
+  // `garantirLinhaDaSequencia` gravava `replace(gen_random_uuid()::text,'-','')`
+  // no `id`.
+  //
+  // A varredura é sintática, não textual: comentário e string de documentação
+  // são removidos antes, para a menção ao defeito neste próprio arquivo — e nos
+  // comentários que explicam a correção — não virar falso positivo.
+  // -------------------------------------------------------------------------
+  const semComentarios = conteudo
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .split('\n')
+    .map((linha) => {
+      const pos = linha.indexOf('//');
+      return pos === -1 ? linha : linha.slice(0, pos);
+    })
+    .join('\n');
+
+  // A regra é "o runtime não fornece a chave primária" — NÃO "o backend não
+  // gera UUID". A distinção importa: `requestContext.js` usa `randomUUID()`
+  // para o correlation id, que o contrato exige como campo `request_id`. Um
+  // gate que proibisse qualquer UUID reprovaria código correto, e a primeira
+  // reação de quem trombasse nele seria afrouxar o gate.
+  //
+  // Por isso a detecção olha a POSIÇÃO DE IDENTIDADE, não a mera presença do
+  // gerador.
+
+  // (a) INSERT cru preenchendo a coluna "id".
+  const insertComId = /INSERT\s+INTO[\s\S]{0,400}?\(\s*"?id"?\s*[,)]/i;
+  if (insertComId.test(semComentarios)) {
+    registrar(
+      'P3-TEN-RUNTIME-IDENTITY',
+      `${rel}: INSERT cru preenchendo a coluna "id" — a PK vem do @default(cuid()) do Prisma. ` +
+        'Use o client (create/createMany) e omita o id'
+    );
+  }
+
+  // (b) `id:` recebendo valor de gerador, em qualquer objeto de escrita.
+  const idDeGerador =
+    /(^|[{,\s])["']?id["']?\s*:\s*(?:await\s+)?[\w.]*\b(?:gen_random_uuid|randomUUID|uuidv4|uuid|nanoid|createId)\s*\(/;
+  if (idDeGerador.test(semComentarios)) {
+    registrar(
+      'P3-TEN-RUNTIME-IDENTITY',
+      `${rel}: atribui "id" a partir de um gerador do runtime — a PK é produzida pelo Prisma`
+    );
+  }
+
+  // (c) `gen_random_uuid` existe só para gerar identidade no PostgreSQL. Não há
+  // uso legítimo dele nesta fundação, e deixá-lo passar reabriria exatamente o
+  // caminho que a primeira versão da P3 usou.
+  if (/\bgen_random_uuid\s*\(/.test(semComentarios)) {
+    registrar(
+      'P3-TEN-RUNTIME-IDENTITY',
+      `${rel}: usa gen_random_uuid() — identidade é responsabilidade do @default(cuid()) do Prisma`
+    );
   }
 }
 

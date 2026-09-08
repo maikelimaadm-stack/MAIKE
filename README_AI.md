@@ -23,7 +23,7 @@ e decisão vivem neste repositório.
 | **Produto** | Pecuária — **Mapa Geral + Manejo** (D-PROD-01) |
 | **Superfície primária** | `MapaGeral` — a raiz `/` redireciona para lá (D-PROD-05) |
 | **Missões concluídas** | **P0** (PR #1), **P1** (PR #6), **P2** (PR #7) — mais a sincronização de SSOT (PR #8) e a emenda D-PROD-22 (PR #9) |
-| **Missão atual** | **P3 — Backend + Prisma + PostgreSQL Foundation** (implementada, em PR draft) |
+| **Missão atual** | **P3 — Backend + Prisma + PostgreSQL Foundation** (implementada, em PR draft, aguardando auditoria — inclui a correção **P3-R1**) |
 | **Próxima missão** | **P4 — Mapa Core Native Persistence** (não iniciada) |
 | **Contrato de dados** | `config/modelobase1-pecuario.json` — **oficial** desde o merge da P2 (D-PROD-21) |
 | **Escopo executável** | `config/mapa-manejo-scope.json` |
@@ -46,9 +46,11 @@ relatórios genéricos, dashboards paralelos, fichas personalizadas e editor vis
 | Arquivos em `src/` com SDK | 4 — todos **dentro** da fronteira |
 | Registry literal do provider | 38 entidades |
 | Dependências diretas | 55 (37 `dependencies` + 18 `devDependencies`) |
-| Dívida de tipos versionada | 2.319 diagnósticos (teto certificado 2.319) |
-| Testes automatizados | **943** (415 de gate + 495 de smoke + 33 de backend) |
-| Etapas do `verify:all` | 17 |
+| Dívida de tipos versionada | 2.319 diagnósticos em `src/` (teto certificado 2.319) |
+| Dívida de tipos no `backend/` | **0** — contrato próprio, tolerância zero |
+| Testes automatizados | **964** (428 de gate + 495 de smoke + 41 de backend) |
+| Etapas do `verify:all` | 18 |
+| Bundle de produção — JS | 2.496,62 kB (669,03 kB gzip) |
 
 **Fronteira de dados (`gate:api-boundary`): 0/0/0/0/0/0.** Os seis eixos estão
 zerados desde a P1.4 e o baseline versionado tem as seis listas vazias —
@@ -56,8 +58,16 @@ qualquer reintrodução reprova.
 
 A **P3** criou `backend/` — Fastify, Prisma e PostgreSQL, com cinco models de
 fundação e migration versionada. Acrescentou os gates `gate:tenancy` e
-`gate:indices` (47 provas, quase todas negativas) e a etapa `test:backend`,
+`gate:indices` (55 provas, quase todas negativas) e a etapa `test:backend`,
 que roda contra PostgreSQL real.
+
+A correção **P3-R1** fechou cinco bloqueios de auditoria dentro da mesma PR:
+identidade em runtime contornando o `@default(cuid())`, relação `AuditLog →
+Usuario` sem coerência de tenant, regressão de bundle causada por `NODE_ENV`
+no workflow (e **não** pelo backend), `backend/` sem cobertura de tipos e
+`prisma validate` que existia como script mas não rodava na cadeia. Três dos
+cinco eram invariante **declarada e não verificada** — a mesma classe da P2-R1.
+Ver §16 do relatório da P3.
 
 Nem a P2 nem a P3 alteraram `src/`, `base44/`, rotas, menu ou escopo. O backend
 existe mas **ainda não é consumido pelo frontend**: a fronteira da P1 continua
@@ -144,7 +154,7 @@ Registre o bug em `docs/engineering/DECISIONS.md` e siga.
 
 ## O que "verde" significa aqui
 
-`npm run verify:all` sai com **0**. Três das dezessete etapas são **catracas**
+`npm run verify:all` sai com **0**. Três das dezoito etapas são **catracas**
 (`gate:base44`, `gate:api-boundary` e `gate:types`), e o significado delas é
 literal:
 
@@ -163,6 +173,12 @@ Uma etapa nova desde a P2 **não** é catraca: `gate:modelobase1-pecuario` é
 base de persistência e domínio (D-PROD-21) e não tem `--update`, baseline nem
 correção automática — não existe estado herdado aceitável num contrato que ainda
 não tem implementação.
+
+As etapas da P3 seguem a mesma linha: `gate:tenancy`, `gate:indices` e
+`typecheck:backend` também são **absolutos**. `typecheck:backend` usa
+`jsconfig.backend.typecheck.json`, separado da catraca legada de propósito — a
+catraca de `src/` tolera 2.319 diagnósticos herdados, e o backend novo não
+tolera nenhum. Verde ali significa literalmente **zero**.
 
 **Não adianta afrouxar o `jsconfig.typecheck.json`.** Desde o P0.1-R2
 (D-PROD-13) o baseline grava o hash canônico da configuração, o comando, a

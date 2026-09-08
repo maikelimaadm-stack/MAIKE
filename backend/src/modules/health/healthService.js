@@ -24,6 +24,7 @@ import { variaveisObrigatoriasAusentes } from '../../config/env.js';
 export const verificarSaude = async () => {
   const configuracaoIncompleta = variaveisObrigatoriasAusentes();
 
+  /** @type {'up' | 'down'} */
   let banco = 'down';
   try {
     const prisma = getPrismaClient();

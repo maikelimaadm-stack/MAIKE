@@ -9,6 +9,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "typecheck:raw": "tsc -p ./jsconfig.typecheck.json --pretty false",
+    "typecheck:backend": "tsc -p ./jsconfig.backend.typecheck.json --pretty false",
     "typecheck": "npm run gate:types",
     "test:gates": "node scripts/tests/run-gate-tests.mjs",
     "test:smoke": "vitest run --config vitest.config.js",

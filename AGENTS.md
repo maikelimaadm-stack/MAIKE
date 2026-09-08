@@ -34,8 +34,9 @@ na P4 — ver `docs/engineering/ROADMAP.md`.
 |---|---|
 | Frontend | `npm run dev` |
 | Lint | `npm run lint` |
-| Dívida de tipos (catraca) | `npm run typecheck` |
-| Dívida de tipos (bruta) | `npm run typecheck:raw` |
+| Dívida de tipos em `src/` (catraca) | `npm run typecheck` |
+| Dívida de tipos em `src/` (bruta) | `npm run typecheck:raw` |
+| Tipos do `backend/` (tolerância zero) | `npm run typecheck:backend` |
 | Smoke automatizado | `npm run test:smoke` |
 | Testes dos gates | `npm run test:gates` |
 | Testes de backend | `npm run test:backend` |
@@ -58,8 +59,9 @@ Todos os scripts vivem em `scripts/gates/`.
 | Contrato base pecuário | `npm run gate:modelobase1-pecuario` | O contrato de persistência e domínio da P2 (D-PROD-21) — **absoluto**, sem baseline |
 | Tenancy | `npm run gate:tenancy` | Schema Prisma e backend cumprem a tenancy — **absoluto** |
 | Índices | `npm run gate:indices` | Índice e unique tenant-aware — **absoluto** |
-| Tipos | `npm run gate:types` | A dívida de tipos não cresce |
-| **Todos** | `npm run verify:all` | 17 etapas, build por último |
+| Tipos (`src/`) | `npm run gate:types` | A dívida de tipos não cresce |
+| Tipos (`backend/`) | `npm run typecheck:backend` | O backend tem **zero** diagnóstico — **absoluto**, sem baseline |
+| **Todos** | `npm run verify:all` | 18 etapas, build por último |
 
 ### Baselines
 
@@ -109,13 +111,24 @@ Para adicionar uma página ou entidade:
   passa: **nenhum modo** aceita diagnóstico novo (D-PROD-17).
 - **Código novo entra com zero diagnóstico.** Absorver erro novo no baseline é
   proibido — corrija no código.
-- **`backend/` NÃO é coberto por `gate:types`.** A catraca lê
-  `jsconfig.typecheck.json`, que inclui apenas `src/`. Ampliar a cobertura muda
-  o hash do contrato e exige `--rebase-contract`, com a barreira de não
-  regressão valendo — ou seja, o backend inteiro teria que estar limpo sob
-  `checkJs` de uma vez. A P3 não fez isso e **declarou a lacuna** em vez de
-  fingir cobertura. O que protege o backend hoje é `eslint` (`no-unused-vars`
-  como erro), `gate:tenancy`, `gate:indices` e `test:backend`.
+- **`backend/` tem contrato de tipos PRÓPRIO, e ele é zero.** A catraca lê
+  `jsconfig.typecheck.json`, que inclui apenas `src/`; o backend passa por
+  `npm run typecheck:backend`, sobre `jsconfig.backend.typecheck.json`. São
+  dois contratos independentes de propósito: a catraca legada tolera 2.319
+  diagnósticos herdados, e o backend **não tolera nenhum**. Não existe baseline,
+  teto nem `--update` ali. Diagnóstico novo no backend se corrige no código ou
+  se declara em `.d.ts` — `any`, `@ts-ignore` e `@ts-nocheck` são fuga, não
+  correção.
+- **Decoração de Fastify se declara, não se silencia.** `request.contexto` e
+  `app.autenticar` existem em runtime e não no compilador. O lugar deles é
+  `backend/src/types/fastify.d.ts`, por module augmentation.
+- **Não defina `NODE_ENV` no `env:` do job do workflow.** `env:` de job alcança
+  TODOS os passos, inclusive o `npm run build`, e qualquer valor diferente de
+  `production` faz o Vite empacotar React e outras bibliotecas em modo de
+  desenvolvimento — ~1 MB a mais, sem uma linha de `src/` ter mudado, e sem
+  aparecer no diff. Aconteceu na primeira versão da P3. `verify:all` fixa
+  `production` no passo de build, e `build-environment.test.mjs` trava as duas
+  pontas.
 - **Backend sem banco não testa.** `npm run test:backend` **falha** sem
   `DATABASE_URL`, em vez de pular. Suíte que se auto-desliga reporta verde sem
   ter verificado nada.

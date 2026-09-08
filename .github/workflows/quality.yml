@@ -52,7 +52,19 @@ jobs:
       # Segredo descartável, válido só dentro deste job. Não é segredo real e
       # não vale em nenhum outro ambiente.
       AUTH_SECRET: ci-only-ephemeral-signing-key
-      NODE_ENV: test
+      #
+      # NÃO defina NODE_ENV aqui.
+      #
+      # A primeira versão da P3 definia `NODE_ENV: test` neste bloco. Como o
+      # `env:` do job alcança TODOS os passos, ele chegava ao `npm run build`, e
+      # o Vite produzia o bundle com React e demais bibliotecas em modo de
+      # desenvolvimento: 3.555,01 kB medidos na CI contra 2.496,62 kB de build
+      # de produção, sem uma linha de `src/` ter mudado. A inflação reproduz
+      # igual no commit base `44b204c`, onde não existe backend nenhum — ou
+      # seja, não era do backend, era do ambiente.
+      #
+      # Quem precisa de NODE_ENV declara por conta própria: o Vitest já define
+      # `test`, e `verify:all` fixa `production` no passo de build.
 
     steps:
       - name: Checkout

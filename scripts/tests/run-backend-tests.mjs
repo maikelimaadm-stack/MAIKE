@@ -2,10 +2,16 @@
 /**
  * Runner dos testes de backend.
  *
- * Antes de rodar teste, garante duas coisas — nesta ordem:
+ * Antes de rodar teste, garante três coisas — nesta ordem:
  *
- *  1. o schema Prisma é válido e o client está gerado;
- *  2. as migrations foram aplicadas no banco alvo (`migrate deploy`).
+ *  1. o schema Prisma é VÁLIDO (`prisma validate`);
+ *  2. o client está gerado (`prisma generate`);
+ *  3. as migrations foram aplicadas no banco alvo (`migrate deploy`).
+ *
+ * O passo 1 existia como script no `package.json` desde a P3, mas ninguém o
+ * executava na cadeia de certificação — `generate` e `migrate deploy` rodavam
+ * direto. Um schema inválido falharia mais adiante, com mensagem pior. Agora
+ * ele é obrigatório e a falha para a cadeia (P3-R1/B5).
  *
  * O passo 2 é o **smoke de migration**: o banco da CI nasce vazio a cada job,
  * então cada execução prova, de graça, que `banco vazio → migrate deploy →
@@ -49,6 +55,9 @@ const executar = (rotulo, comando, args) => {
   const status = r.status === null ? 1 : r.status;
   if (status !== 0) falhar(`${rotulo} falhou com exit ${status}`);
 };
+
+console.log('test:backend — validando schema Prisma');
+executar('prisma validate', 'npx', ['prisma', 'validate', '--schema', SCHEMA]);
 
 console.log('test:backend — gerando Prisma Client');
 executar('prisma generate', 'npx', ['prisma', 'generate', '--schema', SCHEMA]);

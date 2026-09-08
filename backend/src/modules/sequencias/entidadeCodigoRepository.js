@@ -16,17 +16,36 @@ import { getPrismaClient } from '../../database/prismaClient.js';
 /**
  * Garante que a linha da sequência existe.
  *
+ * `createMany` com `skipDuplicates` compila para
+ * `INSERT … ON CONFLICT DO NOTHING`: mantém a criação livre de corrida — duas
+ * requisições simultâneas para uma sequência inexistente fazem uma inserir e a
+ * outra não fazer nada, e as duas seguem para o UPDATE — **e** deixa a chave
+ * primária com o gerador do Prisma.
+ *
+ * A versão anterior montava o `INSERT` em SQL cru com
+ * `replace(gen_random_uuid()::text, '-', '')` no lugar do `id`. O schema
+ * declarava `@default(cuid())` e o runtime produzia outra coisa: o contrato de
+ * identidade valia no papel e não na linha gravada. `gate:tenancy` lia o schema,
+ * via `cuid()` e aprovava — a mesma classe de defeito da P2-R1, agora entre
+ * schema e runtime em vez de entre contrato e gate.
+ *
  * @param {import('@prisma/client').Prisma.TransactionClient} tx
  * @param {{clienteId: string, entidade: string, escopoTipo: string, escopoId: string}} chave
  */
 export const garantirLinhaDaSequencia = async (tx, { clienteId, entidade, escopoTipo, escopoId }) => {
-  await tx.$executeRaw`
-    INSERT INTO "EntidadeCodigoSequencia"
-      ("id", "cliente_id", "entidade", "escopo_tipo", "escopo_id", "proximo_valor", "createdAt", "updatedAt")
-    VALUES
-      (replace(gen_random_uuid()::text, '-', ''), ${clienteId}, ${entidade}, ${escopoTipo}, ${escopoId}, 1, NOW(), NOW())
-    ON CONFLICT ("cliente_id", "entidade", "escopo_tipo", "escopo_id") DO NOTHING
-  `;
+  await tx.entidadeCodigoSequencia.createMany({
+    data: [
+      {
+        // `id` é deliberadamente omitido: quem o produz é o @default(cuid()).
+        cliente_id: clienteId,
+        entidade,
+        escopo_tipo: escopoTipo,
+        escopo_id: escopoId,
+        proximo_valor: 1,
+      },
+    ],
+    skipDuplicates: true,
+  });
 };
 
 /**

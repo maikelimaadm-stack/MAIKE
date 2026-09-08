@@ -14,7 +14,12 @@ import { test, describe, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { getPrismaClient } from '../src/database/prismaClient.js';
-import { registrarEvento, sanitizarPayload } from '../src/modules/auditoria/auditService.js';
+import {
+  registrarEvento,
+  registrarEventoDeSistema,
+  listarEventos,
+  sanitizarPayload,
+} from '../src/modules/auditoria/auditService.js';
 import {
   reservarNumero,
   reservarNumeroIsolado,
@@ -491,6 +496,167 @@ describe('anexos', () => {
 });
 
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// P3-R1 — o que a primeira versão da P3 deixava passar
+// ---------------------------------------------------------------------------
+
+describe('P3-R1 — identidade em runtime', () => {
+  test('R1-T01 a PK da sequência é cuid do Prisma, não UUID do runtime', async () => {
+    const { cliente, usuario } = await criarTenant();
+    await reservarNumeroIsolado(contextoDe(cliente, usuario), { entidade: 'Lote' });
+
+    const [linha] = await getPrismaClient().entidadeCodigoSequencia.findMany();
+
+    // cuid v1 do Prisma: começa com "c", minúsculo, sem hífen.
+    assert.match(linha.id, /^c[a-z0-9]{20,}$/, `id fora do formato cuid: ${linha.id}`);
+
+    // UUID canônico tem hífens e 36 caracteres; o formato "sem hífen" que a
+    // versão anterior gravava tinha 32 hexadecimais. Nenhum dos dois serve.
+    assert.doesNotMatch(linha.id, /-/, 'id com hífen indica UUID');
+    assert.notEqual(linha.id.length, 32, 'id de 32 hexadecimais indica gen_random_uuid sem hífen');
+    assert.doesNotMatch(linha.id, /^[0-9a-f]{32}$/, 'id hexadecimal puro indica UUID do runtime');
+  });
+
+  test('R1-T03 criação da sequência funciona sem id fornecido, e ids são distintos', async () => {
+    const { cliente, usuario } = await criarTenant();
+    const contexto = contextoDe(cliente, usuario);
+
+    await reservarNumeroIsolado(contexto, { entidade: 'Lote' });
+    await reservarNumeroIsolado(contexto, { entidade: 'Setor' });
+
+    const linhas = await getPrismaClient().entidadeCodigoSequencia.findMany();
+    assert.equal(linhas.length, 2);
+    assert.equal(new Set(linhas.map((l) => l.id)).size, 2, 'ids precisam ser distintos');
+    for (const linha of linhas) {
+      assert.match(linha.id, /^c[a-z0-9]{20,}$/);
+    }
+  });
+
+  test('R1-T04 40 reservas concorrentes continuam produzindo exatamente 1..40', async () => {
+    const { cliente, usuario } = await criarTenant();
+    const contexto = contextoDe(cliente, usuario);
+
+    const numeros = await Promise.all(
+      Array.from({ length: 40 }, () => reservarNumeroIsolado(contexto, { entidade: 'Concorrente' }))
+    );
+
+    assert.deepEqual(
+      [...numeros].sort((a, b) => a - b),
+      Array.from({ length: 40 }, (_, i) => i + 1)
+    );
+    // E a criação sem corrida continua produzindo UMA linha só.
+    const linhas = await getPrismaClient().entidadeCodigoSequencia.findMany({
+      where: { entidade: 'Concorrente' },
+    });
+    assert.equal(linhas.length, 1, 'ON CONFLICT DO NOTHING precisa manter uma única linha');
+  });
+});
+
+describe('P3-R1 — relação tenant-aware entre AuditLog e Usuario', () => {
+  test('R1-T05 AuditLog do cliente A com usuário de A é aceito', async () => {
+    const a = await criarTenant({ codigo: 'fk-a' });
+    const prisma = getPrismaClient();
+
+    const criado = await prisma.auditLog.create({
+      data: {
+        cliente_id: a.cliente.id,
+        usuario_id: a.usuario.id,
+        acao: 'CRIAR',
+        entidade: 'Recurso',
+        request_id: 'req-ok',
+      },
+    });
+
+    assert.equal(criado.cliente_id, a.cliente.id);
+    assert.equal(criado.usuario_id, a.usuario.id);
+  });
+
+  test('R1-T06 o PostgreSQL REJEITA AuditLog do cliente A com usuário de B', async () => {
+    const a = await criarTenant({ codigo: 'fk-cross-a' });
+    const b = await criarTenant({ codigo: 'fk-cross-b' });
+    const prisma = getPrismaClient();
+
+    // Escrita direta no banco, sem passar pelo service: a prova precisa ser a
+    // barreira física, não o service se comportar bem.
+    await assert.rejects(
+      prisma.auditLog.create({
+        data: {
+          cliente_id: a.cliente.id,
+          usuario_id: b.usuario.id,
+          acao: 'CRIAR',
+          entidade: 'Recurso',
+          request_id: 'req-cross',
+        },
+      }),
+      (erro) => erro.code === 'P2003' || /foreign key/i.test(String(erro.message)),
+      'a FK composta precisa recusar ator de outro tenant'
+    );
+
+    assert.equal(await prisma.auditLog.count(), 0, 'nada pode ter sido gravado');
+  });
+
+  test('R1-T07 evento de sistema com usuario_id nulo continua válido', async () => {
+    const a = await criarTenant({ codigo: 'fk-sistema' });
+
+    const registro = await registrarEventoDeSistema({ requestId: 'req-sistema' }, a.cliente.id, {
+      acao: 'MIGRAR',
+      entidade: 'Sistema',
+    });
+
+    assert.ok(registro.id);
+    const [linha] = await getPrismaClient().auditLog.findMany();
+    assert.equal(linha.usuario_id, null);
+    assert.equal(linha.cliente_id, a.cliente.id);
+  });
+});
+
+describe('P3-R1 — isolamento pelo caminho real', () => {
+  test('R1-T09 service do tenant A não devolve registro do tenant B', async () => {
+    const a = await criarTenant({ codigo: 'iso-a', login: 'ana' });
+    const b = await criarTenant({ codigo: 'iso-b', login: 'bruno' });
+
+    await registrarEvento(contextoDe(a.cliente, a.usuario), {
+      acao: 'CRIAR',
+      entidade: 'Recurso',
+      entidadeId: 'r-de-a',
+    });
+    await registrarEvento(contextoDe(b.cliente, b.usuario), {
+      acao: 'CRIAR',
+      entidade: 'Recurso',
+      entidadeId: 'r-de-b',
+    });
+
+    // Caminho real: contexto autenticado -> service -> repository -> Prisma.
+    // Nenhum `where` escrito no teste.
+    const vistoPorA = await listarEventos(contextoDe(a.cliente, a.usuario));
+    const vistoPorB = await listarEventos(contextoDe(b.cliente, b.usuario));
+
+    assert.equal(vistoPorA.length, 1);
+    assert.equal(vistoPorA[0].entidade_id, 'r-de-a');
+    assert.equal(vistoPorB.length, 1);
+    assert.equal(vistoPorB[0].entidade_id, 'r-de-b');
+
+    assert.ok(
+      vistoPorA.every((r) => r.cliente_id === a.cliente.id),
+      'nenhum registro de outro tenant pode aparecer'
+    );
+    assert.equal(await getPrismaClient().auditLog.count(), 2, 'os dois existem; o service é que separa');
+  });
+
+  test('R1-T09b sequência do tenant A pelo service não enxerga a de B', async () => {
+    const a = await criarTenant({ codigo: 'iso-seq-a' });
+    const b = await criarTenant({ codigo: 'iso-seq-b' });
+
+    await reservarNumeroIsolado(contextoDe(a.cliente, a.usuario), { entidade: 'Lote' });
+    await reservarNumeroIsolado(contextoDe(a.cliente, a.usuario), { entidade: 'Lote' });
+    const primeiroDeB = await reservarNumeroIsolado(contextoDe(b.cliente, b.usuario), {
+      entidade: 'Lote',
+    });
+
+    assert.equal(primeiroDeB, 1, 'B começa do 1 mesmo com A já em 2');
+  });
+});
 
 describe('contrato de erros', () => {
   test('BE-32 os oito códigos do contrato existem com o HTTP declarado', () => {

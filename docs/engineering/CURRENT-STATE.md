@@ -14,7 +14,7 @@ Base44 mantida apenas como provider temporário da cadeia preservada (D-PROD-04)
 | Produto | Pecuária — Mapa Geral + Manejo (D-PROD-01) |
 | Superfície primária | `MapaGeral` (D-PROD-05) |
 | Missão atual | **P3 — Backend + Prisma + PostgreSQL Foundation** |
-| Estado da missão | **implementada, em PR draft, aguardando merge do proprietário** — `npm run verify:all` sai com 0, 17/17 etapas |
+| Estado da missão | **implementada, em PR draft, aguardando auditoria e merge do proprietário** — inclui a correção **P3-R1**; `npm run verify:all` sai com 0, 18/18 etapas |
 | Última mergeada | P2 — ModeloBase1 Pecuário Foundation (PR #7, merge `1851503`); SSOT sincronizada na PR #8 (merge `378bfd3`); emenda D-PROD-22 na PR #9 (merge `44b204c`) |
 | Próxima missão | P4 — Mapa Core Native Persistence (não iniciada) |
 | Contrato de dados | `config/modelobase1-pecuario.json` — **oficial**; obrigatório para P3–P6 |
@@ -38,7 +38,7 @@ armazenamento apenas em `.env.local` seguem pendentes com o proprietário — ve
 | P0 | Product Scope Reset | **mergeada** (PR #1, merge `508cf62`) |
 | P1 | Native Foundation Bootstrap | **concluída e mergeada** — P1.1 a P1.3 em PRs anteriores; P1.4 e P1.4-R1 na PR #6, merge `7398d85`. Os seis eixos de `gate:api-boundary` estão em zero |
 | P2 | ModeloBase1 Pecuário Foundation | **mergeada** (PR #7, merge `1851503`) — inclui a correção P2-R1 |
-| P3 | Backend + Prisma + PostgreSQL Foundation | **implementada**, em PR draft — `backend/` com Fastify, Prisma e PostgreSQL; cinco models; `gate:tenancy` e `gate:indices` |
+| P3 | Backend + Prisma + PostgreSQL Foundation | **implementada**, em PR draft — `backend/` com Fastify, Prisma e PostgreSQL; cinco models; `gate:tenancy` e `gate:indices`. Inclui a correção **P3-R1** |
 | P4 | Mapa Core Native Persistence | não iniciada — primeira a migrar capacidade contra o backend próprio |
 | P5 | Manejo Core Native Persistence | não iniciada |
 | P6 | Supporting Capabilities | não iniciada |
@@ -75,11 +75,26 @@ Números medidos após `npm ci` e `npm run build` finais.
 tocou em `src/`, `base44/`, `vite.config.js` nem no manifesto de escopo. Só duas
 métricas mudaram, e as duas por acréscimo de verificação:
 
-| Métrica | Depois da P1.4 | Depois da P2 | Depois da P3 |
-|---|---|---|---|
-| Testes automatizados | 817 (323 gate + 494 smoke) | 862 (368 gate + 494 smoke) | **943** (415 gate + 495 smoke + 33 backend) |
-| Etapas do `verify:all` | 13 | 14 | **17** |
-| Dependências diretas | 49 | 49 | **55** (37 `dependencies` + 18 `devDependencies`) |
+| Métrica | Depois da P1.4 | Depois da P2 | Depois da P3 | Depois da P3-R1 |
+|---|---|---|---|---|
+| Testes automatizados | 817 (323 gate + 494 smoke) | 862 (368 gate + 494 smoke) | 943 (415 gate + 495 smoke + 33 backend) | **964** (428 gate + 495 smoke + 41 backend) |
+| Etapas do `verify:all` | 13 | 14 | 17 | **18** |
+| Dependências diretas | 49 | 49 | **55** (37 `dependencies` + 18 `devDependencies`) | **55** |
+| Bundle de produção — JS | 2.496,61 kB | 2.496,61 kB | 2.496,62 kB | **2.496,62 kB** |
+
+A diferença de 0,01 kB na linha do bundle é arredondamento entre ambientes de
+medição — as colunas P1.4 e P2 vêm da CI, as colunas P3 vêm de build local
+reproduzível. O artefato é o mesmo: base `44b204c` e HEAD da P3-R1 produzem o
+**mesmo hash de chunk** (`index-nzvr8O-2.js`) quando construídos com
+`NODE_ENV=production`.
+
+**A primeira versão da P3 tinha, sim, uma regressão de bundle na CI** — 3.555,01
+kB —, e ela não era do backend: eu havia definido `NODE_ENV: test` no `env:` do
+job do workflow, o que alcançava o `npm run build` e fazia o Vite empacotar as
+bibliotecas em modo de desenvolvimento. A inflação reproduz igual no commit base,
+onde backend não existe. Corrigido na P3-R1 em duas pontas — `NODE_ENV` saiu do
+workflow e `verify:all` fixa `production` no passo de build —, com cinco casos
+travando as duas. Ver §16.3 do relatório da P3.
 
 Os 45 testes novos são MB1-01 a MB1-20 com sub-casos, todos executando o gate
 real em diretórios temporários. Oito deles vieram da **P2-R1**, que fechou três
@@ -215,12 +230,13 @@ Fastify, Prisma e PostgreSQL, na camada `route → service → repository → Pr
 | Item | Valor |
 |---|---|
 | Models | 5 — `Cliente`, `Usuario`, `AuditLog`, `EntidadeCodigoSequencia`, `RegistroAnexo` |
-| Migration | `backend/prisma/migrations/20260908144607_p3_foundation/` |
+| Migration | `backend/prisma/migrations/20260908174141_p3_foundation/` |
 | Banco local | Docker Compose, `postgres:16.13-alpine`, versão fixada |
 | Banco na CI | serviço efêmero do GitHub Actions, mesma versão, `DATABASE_URL` do job |
 | Sessão | JWT via `@fastify/jwt`; senha em hash bcrypt |
 | Gates novos | `gate:tenancy`, `gate:indices` — absolutos, sem baseline |
-| Testes | 47 de gate (30 tenancy + 17 indices) e 33 de backend contra PostgreSQL real |
+| Typecheck próprio | `npm run typecheck:backend` — `jsconfig.backend.typecheck.json`, tolerância zero, sem baseline |
+| Testes | 55 de gate (38 tenancy + 17 indices) e 41 de backend contra PostgreSQL real |
 
 **Nenhum model de domínio foi criado.** Mapa e manejo ficam para P4–P6, uma
 capacidade por vez. O backend ainda não é consumido pelo frontend: `src/` não
@@ -238,9 +254,34 @@ normalizava qualquer exceção do framework em `INTERNAL_ERROR`, de modo que
 requisição malformada devolvia **500** em vez de 400 — o servidor se culpando
 por erro do cliente.
 
+### P3-R1 — fechamento corretivo
+
+A auditoria da P3 apontou cinco bloqueios, todos corrigidos na mesma branch e na
+mesma PR. Três deles eram **invariante declarada e não verificada** — a mesma
+classe da P2-R1:
+
+| # | Defeito | Correção |
+|---|---|---|
+| B1 | O repositório da sequência criava a linha por `INSERT` cru com `gen_random_uuid()`, contornando o `@default(cuid())` que o schema declarava | `createMany({ skipDuplicates: true })`, que compila para `ON CONFLICT DO NOTHING` e preserva a idempotência. Prova negativa: `P3-TEN-RUNTIME-IDENTITY` |
+| B2 | `AuditLog → Usuario` referenciava só o `id`: auditoria do cliente A podia apontar para usuário do cliente B | FK **composta** `[cliente_id, usuario_id] → [cliente_id, id]`, com `@@unique([cliente_id, id])` em `Usuario`. Migration regerada. O PostgreSQL recusa A×B (R1-T06) e o evento de sistema com `usuario_id` nulo continua válido por `MATCH SIMPLE` (R1-T07) |
+| B3 | Bundle inflado na CI, ~1 MB acima do patamar | Não era do backend: era `NODE_ENV: test` no `env:` do job, que alcançava o `npm run build`. Ver acima |
+| B4 | `backend/` sem cobertura de tipos — lacuna declarada na P3 | `jsconfig.backend.typecheck.json` e `typecheck:backend`, tolerância zero. Os 10 diagnósticos reais foram corrigidos no código, com module augmentation do Fastify — sem `any`, sem `@ts-ignore` |
+| B5 | `prisma validate` existia como script e não rodava na cadeia | Passou a ser obrigatório, antes de `generate` e `migrate deploy` |
+
+O isolamento por tenant passou a ser provado pelo caminho **service → repository**
+(R1-T09), e não por um `WHERE` escrito dentro do teste — que provaria o `WHERE`,
+não a aplicação.
+
+Um detalhe vale registro porque a lição não é óbvia: a primeira versão da regra
+de identidade em runtime era um `grep` por `randomUUID` e **reprovou o próprio
+repositório** — `requestContext.js` usa `randomUUID()` para o id de correlação da
+requisição, que é uso legítimo. A regra foi reescrita para casar só na **posição
+de identidade**, e TEN-27 existe como controle positivo para impedir que alguém a
+alargue de volta para um scanner textual ingênuo.
+
 ## Gates ativos
 
-17 etapas em `npm run verify:all` — ver `docs/engineering/GATE-REGISTRY.md`.
+18 etapas em `npm run verify:all` — ver `docs/engineering/GATE-REGISTRY.md`.
 Todos os gates têm teste com casos de falha reais em `scripts/tests/gates/`; a
 catraca de tipos é exercitada ponta a ponta, com `tsc` de verdade em projetos
 temporários.

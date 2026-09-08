@@ -34,11 +34,11 @@ Contratos baratos primeiro, build por último:
 ```
 test:gates → governance-paths → package-sync → product-scope → api-boundary
 → source-closure → import-integrity → no-secrets → base44
-→ modelobase1-pecuario → tenancy → indices → types → lint
-→ test:backend → test:smoke → build
+→ modelobase1-pecuario → tenancy → indices → types → typecheck:backend
+→ lint → test:backend → test:smoke → build
 ```
 
-**17 etapas desde a P3.** O princípio não mudou: contrato barato antes, banco e
+**18 etapas desde a P3-R1.** O princípio não mudou: contrato barato antes, banco e
 teste depois, build por último.
 
 `modelobase1-pecuario`, `tenancy` e `indices` formam um trio na mesma faixa —
@@ -50,6 +50,17 @@ schema.
 `test:backend` entra **depois** do `lint` e **antes** do `test:smoke` porque é a
 primeira etapa que exige PostgreSQL. Falhar por lint antes de subir banco é mais
 barato do que o contrário.
+
+`typecheck:backend` fica ao lado de `types` porque mede a mesma coisa em outra
+árvore — mas com exigência oposta: `types` é catraca sobre dívida legada de
+`src/`, com teto 2.319; `typecheck:backend` exige **zero** diagnósticos em
+`backend/src/`. Código novo nasce limpo, e é isso que a separação registra.
+
+O passo `build` roda com **`NODE_ENV=production` fixado pelo `verify:all`**, não
+com o que estiver no ambiente. Build de produção medido sob outro `NODE_ENV` não
+é o artefato que vai a produção: React e outras bibliotecas trocam para o bundle
+de desenvolvimento e a medição infla ~1 MB sem que uma linha tenha mudado. Ver
+`scripts/tests/gates/build-environment.test.mjs`.
 
 O resumo imprime nome, PASS/FAIL, código de saída, duração e comando executado.
 Nenhuma etapa é ignorada nem tem o exit code convertido em sucesso.
@@ -105,6 +116,8 @@ Nenhuma etapa é ignorada nem tem o exit code convertido em sucesso.
 | `P3-TEN-ROOT-CONTRACT` | tenancy |
 | `P3-TEN-FIELD` | tenancy |
 | `P3-TEN-RELATION` | tenancy |
+| `P3-TEN-CROSS-RELATION` | tenancy |
+| `P3-TEN-RUNTIME-IDENTITY` | tenancy |
 | `P3-TEN-BUSINESS-UNIQUE` | tenancy |
 | `P3-TEN-IDENTITY` | tenancy |
 | `P3-TEN-TIMESTAMPS` | tenancy |

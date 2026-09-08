@@ -89,6 +89,9 @@ CREATE INDEX "Usuario_cliente_id_ativo_idx" ON "Usuario"("cliente_id", "ativo");
 CREATE UNIQUE INDEX "Usuario_cliente_id_login_key" ON "Usuario"("cliente_id", "login");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "Usuario_cliente_id_id_key" ON "Usuario"("cliente_id", "id");
+
+-- CreateIndex
 CREATE INDEX "AuditLog_cliente_id_createdAt_idx" ON "AuditLog"("cliente_id", "createdAt");
 
 -- CreateIndex
@@ -122,7 +125,7 @@ ALTER TABLE "Usuario" ADD CONSTRAINT "Usuario_cliente_id_fkey" FOREIGN KEY ("cli
 ALTER TABLE "AuditLog" ADD CONSTRAINT "AuditLog_cliente_id_fkey" FOREIGN KEY ("cliente_id") REFERENCES "Cliente"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "AuditLog" ADD CONSTRAINT "AuditLog_usuario_id_fkey" FOREIGN KEY ("usuario_id") REFERENCES "Usuario"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "AuditLog" ADD CONSTRAINT "AuditLog_cliente_id_usuario_id_fkey" FOREIGN KEY ("cliente_id", "usuario_id") REFERENCES "Usuario"("cliente_id", "id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "EntidadeCodigoSequencia" ADD CONSTRAINT "EntidadeCodigoSequencia_cliente_id_fkey" FOREIGN KEY ("cliente_id") REFERENCES "Cliente"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

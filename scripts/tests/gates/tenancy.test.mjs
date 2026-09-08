@@ -367,6 +367,132 @@ export const criar = async (request) => {
   });
 
   // -------------------------------------------------------------------------
+  // P3-R1 — identidade em RUNTIME (P3-TEN-RUNTIME-IDENTITY)
+  //
+  // A primeira versão da P3 declarava @default(cuid()) no schema e gravava
+  // `replace(gen_random_uuid()::text,'-','')` no id via INSERT cru. O gate lia
+  // o schema, via cuid() e aprovava. Mesma classe da P2-R1, agora entre schema
+  // e runtime.
+  // -------------------------------------------------------------------------
+
+  test('TEN-23 INSERT cru preenchendo a coluna id reprova', () => {
+    const r = rodar({
+      backend: {
+        'backend/src/modules/exemplo/exemploRepository.js': `
+export const criar = async (tx, dados) => {
+  await tx.$executeRaw\`
+    INSERT INTO "EntidadeCodigoSequencia" ("id", "cliente_id", "entidade")
+    VALUES (replace(gen_random_uuid()::text, '-', ''), \${dados.clienteId}, \${dados.entidade})
+  \`;
+};
+`,
+      },
+    });
+    assert.equal(r.status, 1, r.output);
+    assert.match(r.output, /P3-TEN-RUNTIME-IDENTITY/);
+  });
+
+  test('TEN-24 gen_random_uuid em qualquer forma reprova', () => {
+    const r = rodar({
+      backend: {
+        'backend/src/modules/exemplo/exemploRepository.js':
+          'export const gerar = (tx) => tx.$queryRaw`SELECT gen_random_uuid() AS x`;\n',
+      },
+    });
+    assert.equal(r.status, 1, r.output);
+    assert.match(r.output, /P3-TEN-RUNTIME-IDENTITY/);
+    assert.match(r.output, /gen_random_uuid/);
+  });
+
+  test('TEN-25 id atribuído de gerador do runtime reprova', () => {
+    for (const gerador of ['randomUUID()', 'uuidv4()', 'crypto.randomUUID()', 'nanoid()']) {
+      const r = rodar({
+        backend: {
+          'backend/src/modules/exemplo/exemploRepository.js': `
+export const criar = async (tx, dados) => {
+  return tx.exemplo.create({ data: { id: ${gerador}, cliente_id: dados.clienteId } });
+};
+`,
+        },
+      });
+      assert.equal(r.status, 1, `não reprovou com ${gerador}:\n${r.output}`);
+      assert.match(r.output, /P3-TEN-RUNTIME-IDENTITY/);
+    }
+  });
+
+  test('TEN-26 controle positivo: create sem id passa', () => {
+    const r = rodar({
+      backend: {
+        'backend/src/modules/exemplo/exemploRepository.js': `
+export const criar = async (tx, dados) => {
+  // id omitido de propósito: quem o produz é o @default(cuid()) do Prisma.
+  return tx.exemplo.createMany({
+    data: [{ cliente_id: dados.clienteId, entidade: dados.entidade }],
+    skipDuplicates: true,
+  });
+};
+`,
+      },
+    });
+    assert.equal(r.status, 0, r.output);
+  });
+
+  test('TEN-27 controle positivo: randomUUID para correlation id NÃO reprova', () => {
+    // A regra é "o runtime não fornece a PK", não "o backend não gera UUID".
+    // O contrato exige `request_id`, e ele é gerado assim. Um gate que
+    // reprovasse isto estaria errado — e a primeira reação de quem trombasse
+    // nele seria afrouxar o gate.
+    const r = rodar({
+      backend: {
+        'backend/src/shared/request/exemploContext.js': `
+import { randomUUID } from 'node:crypto';
+
+export const novoRequestId = () => randomUUID();
+export const criarContexto = () => ({ requestId: novoRequestId() });
+`,
+      },
+    });
+    assert.equal(r.status, 0, r.output);
+  });
+
+  // -------------------------------------------------------------------------
+  // P3-R1 — relação cross-tenant (P3-TEN-CROSS-RELATION)
+  // -------------------------------------------------------------------------
+
+  test('TEN-28 relação entre models tenant-scoped por id solto reprova', () => {
+    const r = rodar({
+      schema: mutarSchema(
+        'usuario Usuario? @relation(fields: [cliente_id, usuario_id], references: [cliente_id, id], onDelete: Restrict)',
+        'usuario Usuario? @relation(fields: [usuario_id], references: [id], onDelete: Restrict)'
+      ),
+    });
+    assert.equal(r.status, 1, r.output);
+    assert.match(r.output, /P3-TEN-CROSS-RELATION/);
+    assert.match(r.output, /AuditLog\.usuario -> Usuario/);
+    assert.match(r.output, /não é tenant-aware/);
+  });
+
+  test('TEN-29 relação com tenant só de um lado reprova', () => {
+    const r = rodar({
+      schema: mutarSchema(
+        'references: [cliente_id, id], onDelete: Restrict)',
+        'references: [id, id], onDelete: Restrict)'
+      ),
+    });
+    assert.equal(r.status, 1, r.output);
+    assert.match(r.output, /P3-TEN-CROSS-RELATION/);
+  });
+
+  test('TEN-30 controle positivo: FK composta tenant-aware passa', () => {
+    const r = rodar();
+    assert.equal(r.status, 0, r.output);
+    assert.ok(
+      schemaReal().includes('fields: [cliente_id, usuario_id], references: [cliente_id, id]'),
+      'a fixture depende da FK composta existir no schema real'
+    );
+  });
+
+  // -------------------------------------------------------------------------
   // O gate não escreve
   // -------------------------------------------------------------------------
 

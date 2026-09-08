@@ -65,7 +65,11 @@ export const normalizarErro = (erro) => {
 
   const statusDeCliente = statusDeClienteDoFastify(erro);
   if (statusDeCliente !== null) {
-    const appError = new AppError('REQUEST_REJECTED', erro.message || 'requisição recusada', {
+    const mensagem =
+      typeof (/** @type {{message?: unknown}} */ (erro)?.message) === 'string'
+        ? /** @type {{message: string}} */ (erro).message
+        : 'requisição recusada';
+    const appError = new AppError('REQUEST_REJECTED', mensagem, {
       cause: erro,
     });
     appError.status = statusDeCliente;
