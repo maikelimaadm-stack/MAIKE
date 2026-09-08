@@ -392,8 +392,10 @@ bloco são absorvidos pelo parser (caso IDX-06).
 | `Cliente` é a única exceção sem `cliente_id`; sem `cliente_id` autorreferente na raiz | `P3-TEN-ROOT-CONTRACT` |
 | `cliente_id` presente, `String`, não nulo em todo tenant model | `P3-TEN-FIELD` |
 | relação com a raiz declarada sobre `cliente_id`, não opcional | `P3-TEN-RELATION` |
+| relação entre models tenant-scoped é **composta**, carregando o tenant junto: `[cliente_id, x_id] → [cliente_id, id]` | `P3-TEN-CROSS-RELATION` |
 | `@@unique` de negócio inclui o tenant; `@unique` isolado é proibido | `P3-TEN-BUSINESS-UNIQUE` |
 | PK `id` `String` `@default(cuid())`; sem UUID paralelo; sem `autoincrement()` | `P3-TEN-IDENTITY` |
+| o **runtime** não produz `id`: nem `gen_random_uuid()` em `INSERT`, nem gerador atribuído a `id` em objeto de `create` | `P3-TEN-RUNTIME-IDENTITY` |
 | `createdAt @default(now())` e `updatedAt @updatedAt` em todo model | `P3-TEN-TIMESTAMPS` |
 | `cliente_id` nunca lido de `body`, `query`, `params`, `headers` ou `cookie` | `P3-TEN-SOURCE` |
 | zero Base44 no backend, em qualquer forma de carregamento | `P3-TEN-BASE44` |
@@ -426,6 +428,19 @@ Casos que valem citar:
   concluir pelas outras duas;
 - há **controle positivo**: `request.body.nome` não reprova (TEN-18). Um gate
   que reprovasse qualquer leitura de `body` seria inútil na prática;
+- o mesmo vale para `randomUUID()` **fora da posição de identidade** (TEN-27).
+  Esse caso tem história: a primeira versão de `P3-TEN-RUNTIME-IDENTITY` era um
+  `grep` por `randomUUID` e **reprovou o próprio repositório** —
+  `requestContext.js` usa `randomUUID()` para o id de correlação da requisição,
+  que é uso legítimo. A regra foi reescrita para casar só onde o valor vira
+  `id` (coluna `id` de um `INSERT`, ou chave `id` em objeto de `create`), e
+  TEN-27 existe para impedir que alguém a alargue de volta para um scanner
+  textual ingênuo;
+- mutar `AuditLog → Usuario` de FK composta para `fields: [usuario_id],
+  references: [id]` reprova com `P3-TEN-CROSS-RELATION` (TEN-29), e a relação
+  composta correta passa (TEN-30). Sem essa invariante, auditoria do cliente A
+  poderia apontar para usuário do cliente B: rastro tecnicamente válido e
+  semanticamente mentiroso;
 - as quatro dimensões do unique da sequência têm uma prova cada
   (IDX-09/`cliente_id`, `entidade`, `escopo_tipo`, `escopo_id`);
 - `@@index([ativo, cliente_id])` reprova mesmo contendo `cliente_id` — a prova
@@ -433,15 +448,21 @@ Casos que valem citar:
 
 ## `test:backend` — o que só o banco prova
 
-`npm run test:backend` roda `prisma generate`, depois `prisma migrate deploy`, e
-só então os testes. Sem `DATABASE_URL` ele **falha**, em vez de pular: suíte que
-se auto-desliga quando falta configuração reporta verde sem ter verificado nada.
+`npm run test:backend` roda, nesta ordem, `prisma validate` → `prisma generate`
+→ `prisma migrate deploy`, e só então os testes. Sem `DATABASE_URL` ou
+`AUTH_SECRET` ele **falha**, em vez de pular: suíte que se auto-desliga quando
+falta configuração reporta verde sem ter verificado nada.
+
+O `prisma validate` entrou na cadeia na **P3-R1**. Ele existia como script no
+`package.json` desde a P3 e ninguém o executava — script que existe e não roda é
+documentação, não verificação. Schema inválido agora para a cadeia no primeiro
+passo, com a mensagem certa, em vez de falhar adiante disfarçado de outra coisa.
 
 O `migrate deploy` sobre banco vazio é o **smoke de migration**, de graça em
 toda execução: se a migration não aplica do zero, o job morre antes do primeiro
 teste, e a mensagem diz que foi a migration.
 
-33 casos. Os que não teriam sentido com mock:
+41 casos. Os que não teriam sentido com mock:
 
 | Prova | O que fixa |
 |---|---|
@@ -452,6 +473,9 @@ teste, e a mensagem diz que foi a migration.
 | BE-33 | violação de unique vira `CONCURRENCY_CONFLICT` 409, não 500 opaco |
 | BE-04 | o token não carrega senha nem hash — asserção sobre o payload decodificado |
 | BE-05 | senha errada, usuário inexistente e cliente inexistente dão resposta idêntica |
+| R1-T06 | o **banco** recusa `AuditLog` do cliente A apontando para `Usuario` do cliente B — a FK composta é verificada pelo PostgreSQL, não pelo Prisma |
+| R1-T07 | evento de sistema com `usuario_id = null` continua válido: FK composta usa `MATCH SIMPLE`, e com coluna nula a constraint não é verificada |
+| R1-T09 | isolamento provado pelo caminho **service → repository**, com o filtro vindo de `auth_context`. Um `WHERE` escrito dentro do teste provaria o `WHERE`, não a aplicação |
 
 ## Fechamento de escopo dentro das functions
 
