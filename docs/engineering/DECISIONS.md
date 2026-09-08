@@ -981,6 +981,45 @@ Consequências práticas registradas:
   invalidar no servidor. Revogação de verdade exige lista de invalidação ou
   refresh com rotação — P8.
 
+**G.1 — Falha de autenticação ≠ falha de disponibilidade** (refinamento
+P4.0-R1, mesma decisão)
+
+A primeira implementação desta decisão tratava as duas como a mesma coisa: a
+restauração da sessão apagava o JWT para **qualquer** erro. Um backend fora do
+ar por trinta segundos destruía a sessão de quem estava trabalhando e exigia
+senha de novo — punindo o usuário por uma falha de infraestrutura, e apagando a
+única credencial que ele tinha.
+
+A distinção agora é explícita, e vale só para a **restauração**:
+
+| Resposta do servidor | Token | Estado | Tela |
+|---|---|---|---|
+| 200, contexto válido | preservado | autenticada | aplicativo |
+| `TENANT_CONTEXT_REQUIRED` | **removido** | não autenticada | login nativo |
+| rede, timeout, CORS, 5xx | **preservado** | validação indisponível | "Não foi possível validar sua sessão", com *Tentar novamente* |
+
+A regra que separa os casos é o **código**, não a faixa de status: `403` de
+escopo (`TENANT_SCOPE_VIOLATION`) não diz que a credencial é inválida e também
+não limpa o token.
+
+Isto **não** é confiar no token guardado. Enquanto o backend não confirmar,
+`isAuthenticated` continua `false`, o aplicativo continua fechado e nenhum
+conteúdo protegido é renderizado. É **fail-closed sem destruir a credencial**.
+O login também não aparece: pedir senha ali diria ao usuário que ela não serve,
+quando o servidor apenas não respondeu.
+
+O retry reusa o **mesmo** JWT e chama `/auth/contexto` de novo. Nunca
+`/auth/login`, nunca pede senha, nunca decodifica ou valida o JWT no frontend,
+nunca renova token e nunca cai para a Base44 — a ausência de fallback do item G
+vale igualmente aqui: o comportamento correto é "backend indisponível", jamais
+"backend indisponível → Base44".
+
+**O login novo não muda.** Se `/auth/contexto` falhar logo depois de um
+`POST /auth/login`, a sessão é descartada e a falha aparece como falha de
+login. Ali não existe credencial anterior a preservar, e sessão pela metade é
+pior que sessão ausente. O bloqueador corrigido era especificamente
+*JWT já existente + reload + indisponibilidade transitória*.
+
 ### H. O frontend nunca fornece o tenant
 
 O login envia exatamente `{cliente, login, senha}`. `cliente` é o código

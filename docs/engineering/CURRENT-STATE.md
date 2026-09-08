@@ -77,10 +77,10 @@ métricas mudaram, e as duas por acréscimo de verificação:
 
 | Métrica | Depois da P1.4 | Depois da P2 | Depois da P3-R1 | Depois da P4.0 |
 |---|---|---|---|---|
-| Testes automatizados | 817 (323 gate + 494 smoke) | 862 (368 gate + 494 smoke) | 964 (428 gate + 495 smoke + 41 backend) | **1.033** (452 gate + 521 smoke + 60 backend) |
+| Testes automatizados | 817 (323 gate + 494 smoke) | 862 (368 gate + 494 smoke) | 964 (428 gate + 495 smoke + 41 backend) | **1.046** (452 gate + 534 smoke + 60 backend) |
 | Etapas do `verify:all` | 13 | 14 | 18 | **19** |
 | Dependências diretas | 49 | 49 | 55 | **56** (38 `dependencies` + 18 `devDependencies`) |
-| Bundle de produção — JS | 2.496,61 kB | 2.496,61 kB | 2.496,62 kB | **2.503,50 kB** |
+| Bundle de produção — JS | 2.496,61 kB | 2.496,61 kB | 2.496,62 kB | **2.504,83 kB** |
 | Dívida de tipos em `src/` | 2.319 | 2.319 | 2.319 (teto 2.319) | **2.318** (teto 2.318) |
 
 A diferença de 0,01 kB na linha do bundle é arredondamento entre ambientes de
@@ -294,6 +294,7 @@ capacidade nenhuma — ela construiu a estrada que a P4.1 vai usar.
 | CORS | `FRONTEND_ORIGINS`, allowlist de origins exatas, sem wildcard |
 | Gate novo | `gate:native-api` — absoluto, 7 códigos, 24 provas |
 | Bootstrap | `npm run auth:bootstrap:local` — script, não endpoint |
+| Estados da sessão | `carregando` · `autenticada` · `nao_autenticada` · `validacao_indisponivel` |
 
 **Nenhum model de domínio.** O schema Prisma está inalterado e não há migration
 nova; `Setor` e `AreaPastagem` continuam só na Base44.
@@ -314,6 +315,20 @@ JavaScript: um XSS nesta origem lê o token, e a troca por `localStorage`
 **reduz a janela, não a classe do problema** — cookie `HttpOnly`, refresh com
 rotação, revogação e CSP são P8. E o logout é local, porque o JWT da P3 é
 stateless e não há sessão a invalidar no servidor.
+
+**A P4.0-R1 corrigiu um bloqueador que a auditoria externa encontrou** depois da
+CI verde do primeiro HEAD: a restauração da sessão apagava o JWT para *qualquer*
+erro, então um backend fora do ar por trinta segundos destruía a sessão de quem
+estava trabalhando e pedia senha de novo — punindo o usuário por uma falha de
+infraestrutura. Pior: o comentário que eu havia escrito justificava o
+comportamento, o que o fazia parecer deliberado.
+
+Agora as duas classes são separadas por **código**: `TENANT_CONTEXT_REQUIRED`
+limpa o token; rede, timeout, CORS e 5xx **preservam** o token e levam ao estado
+`validacao_indisponivel`, onde o aplicativo continua fechado, o login **não**
+aparece, e o usuário recebe *Tentar novamente* — que reusa o mesmo JWT, sem
+pedir senha. Fail-closed sem destruir a credencial. Ver §19 do relatório da P4.0
+e D-PROD-24 §G.1.
 
 Um detalhe de processo que se repetiu pela terceira vez: **duas regras do gate
 novo reprovaram o próprio repositório** na primeira versão — `getNativeApiUrl`

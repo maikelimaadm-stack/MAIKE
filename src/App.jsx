@@ -9,6 +9,7 @@ import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import NativeLoginForm from '@/components/auth/NativeLoginForm';
+import NativeSessionUnavailable from '@/components/auth/NativeSessionUnavailable';
 
 const { Pages, Layout, mainPage } = pagesConfig;
 
@@ -17,14 +18,41 @@ const LayoutWrapper = ({ children, currentPageName }) => Layout ?
   : <>{children}</>;
 
 const AuthenticatedApp = () => {
-  const { isLoadingAuth, isLoadingPublicSettings, authError, isAuthenticated, entrar } = useAuth();
+  const {
+    isLoadingAuth,
+    isLoadingPublicSettings,
+    authError,
+    isAuthenticated,
+    entrar,
+    sessionValidationError,
+    revalidarSessao,
+  } = useAuth();
 
-  // Show loading spinner while checking app public settings or auth
+  // A ordem destes quatro ramos é o contrato da P4.0-R1, e cada posição
+  // importa:
+  //
+  //   1. carregando                → ainda não sabemos nada
+  //   2. validação indisponível    → não sabemos, e não é culpa do usuário
+  //   3. não autenticado           → sabemos: precisa entrar
+  //   4. autenticado               → aplicativo
+  //
+  // O segundo ramo é o que faltava. Sem ele, "não sabemos" caía no terceiro e
+  // virava pedido de senha.
+
   if (isLoadingPublicSettings || isLoadingAuth) {
     return (
       <div className="fixed inset-0 flex items-center justify-center">
         <div className="w-8 h-8 border-4 border-slate-200 border-t-slate-800 rounded-full animate-spin"></div>
       </div>
+    );
+  }
+
+  // Indisponibilidade: o token continua guardado e o aplicativo continua
+  // fechado. Nem login, nem conteúdo protegido — só a chance de tentar de novo
+  // com a credencial que já existe.
+  if (sessionValidationError) {
+    return (
+      <NativeSessionUnavailable mensagem={sessionValidationError} aoTentarNovamente={revalidarSessao} />
     );
   }
 

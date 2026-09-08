@@ -22,6 +22,7 @@
  */
 
 import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
+import { getApiErrorMessage } from '@/apis/_core/ApiError';
 import {
   carregarConfiguracoesPublicas,
   entrarComSessaoNativa,
@@ -29,6 +30,25 @@ import {
   sairDaSessaoNativa,
   RAZOES_DE_SESSAO_DO_PRODUTO,
 } from '@/services/sessionService';
+
+/**
+ * Estados possíveis da sessão nativa (P4.0-R1).
+ *
+ * Discriminado em vez de dois booleanos, porque o estado que faltava —
+ * "não consegui validar" — não é representável por eles. Com
+ * `isAuthenticated: false` mais `isLoading: false`, a única leitura possível é
+ * "deslogado", e a tela mostra o formulário de login. Foi assim que
+ * indisponibilidade transitória virou pedido de senha.
+ *
+ * `VALIDACAO_INDISPONIVEL` é fail-closed: o aplicativo continua fechado, o
+ * token continua guardado, e o usuário recebe a ação de tentar de novo.
+ */
+export const ESTADOS_DE_SESSAO = Object.freeze({
+  CARREGANDO: 'carregando',
+  AUTENTICADA: 'autenticada',
+  NAO_AUTENTICADA: 'nao_autenticada',
+  VALIDACAO_INDISPONIVEL: 'validacao_indisponivel',
+});
 
 /**
  * Contrato do contexto de autenticação.
@@ -44,13 +64,16 @@ import {
  * @typedef {{
  *   user: UsuarioDaSessao|null,
  *   clienteId: string|null,
+ *   sessionState: string,
  *   isAuthenticated: boolean,
  *   isLoadingAuth: boolean,
  *   isLoadingPublicSettings: boolean,
+ *   sessionValidationError: string|null,
  *   authError: ErroDeAutenticacao|null,
  *   appPublicSettings: object|null,
  *   entrar: (credenciais: {cliente: string, login: string, senha: string}) => Promise<object>,
  *   logout: () => void,
+ *   revalidarSessao: () => Promise<void>,
  *   recarregarConfiguracoes: () => Promise<void>,
  * }} ValorDoAuthContext
  */
@@ -73,8 +96,14 @@ const MENSAGEM_PADRAO = 'Failed to load app';
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [clienteId, setClienteId] = useState(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isLoadingAuth, setIsLoadingAuth] = useState(true);
+  // A anotação é necessária: sem ela o `useState` infere o literal
+  // `'carregando'` do valor inicial, e toda transição vira erro de tipo.
+  const [sessionState, setSessionState] = useState(
+    /** @type {'carregando'|'autenticada'|'nao_autenticada'|'validacao_indisponivel'} */ (
+      ESTADOS_DE_SESSAO.CARREGANDO
+    )
+  );
+  const [sessionValidationError, setSessionValidationError] = useState(null);
   const [isLoadingPublicSettings, setIsLoadingPublicSettings] = useState(true);
   const [authError, setAuthError] = useState(null);
   const [appPublicSettings, setAppPublicSettings] = useState(null); // Contains only { id, public_settings }
@@ -113,23 +142,38 @@ export const AuthProvider = ({ children }) => {
    * primeira requisição real.
    */
   const restaurarSessao = useCallback(async () => {
-    setIsLoadingAuth(true);
-    const veredito = await restaurarSessaoNativaAtual();
+    setSessionState(ESTADOS_DE_SESSAO.CARREGANDO);
+    setSessionValidationError(null);
 
-    if (veredito.autenticado && veredito.contexto) {
-      setUser({
-        id: veredito.contexto.usuario_id,
-        login: veredito.contexto.login,
-      });
-      setClienteId(veredito.contexto.cliente_id);
-      setIsAuthenticated(true);
-    } else {
+    try {
+      const veredito = await restaurarSessaoNativaAtual();
+
+      if (veredito.autenticado && veredito.contexto) {
+        setUser({ id: veredito.contexto.usuario_id, login: veredito.contexto.login });
+        setClienteId(veredito.contexto.cliente_id);
+        setSessionState(ESTADOS_DE_SESSAO.AUTENTICADA);
+        return;
+      }
+
+      // O servidor se pronunciou: a credencial não vale. A camada de sessão já
+      // descartou o token.
       setUser(null);
       setClienteId(null);
-      setIsAuthenticated(false);
+      setSessionState(ESTADOS_DE_SESSAO.NAO_AUTENTICADA);
+    } catch (erro) {
+      // Não conseguimos validar. O token continua guardado — pode estar
+      // perfeitamente válido, ninguém perguntou ao servidor ainda.
+      //
+      // O aplicativo NÃO abre: sem confirmação não há sessão. E o login também
+      // não aparece: pedir senha aqui seria culpar o usuário por uma falha de
+      // infraestrutura, e ele ainda perderia a credencial que tem.
+      setUser(null);
+      setClienteId(null);
+      // `getApiErrorMessage` só devolve texto de `ApiError`, sempre do catálogo
+      // público. Nada do servidor chega à tela.
+      setSessionValidationError(getApiErrorMessage(erro));
+      setSessionState(ESTADOS_DE_SESSAO.VALIDACAO_INDISPONIVEL);
     }
-
-    setIsLoadingAuth(false);
   }, []);
 
   useEffect(() => {
@@ -149,7 +193,8 @@ export const AuthProvider = ({ children }) => {
     const sessao = await entrarComSessaoNativa(credenciais);
     setUser(sessao.usuario);
     setClienteId(sessao.clienteId);
-    setIsAuthenticated(true);
+    setSessionState(ESTADOS_DE_SESSAO.AUTENTICADA);
+    setSessionValidationError(null);
     setAuthError(null);
     return sessao;
   }, []);
@@ -165,7 +210,8 @@ export const AuthProvider = ({ children }) => {
     sairDaSessaoNativa();
     setUser(null);
     setClienteId(null);
-    setIsAuthenticated(false);
+    setSessionValidationError(null);
+    setSessionState(ESTADOS_DE_SESSAO.NAO_AUTENTICADA);
   }, []);
 
   return (
@@ -173,13 +219,21 @@ export const AuthProvider = ({ children }) => {
       value={{
         user,
         clienteId,
-        isAuthenticated,
-        isLoadingAuth,
+        sessionState,
+        // Derivados do estado, nunca guardados em paralelo: dois booleanos
+        // independentes foi como o quarto estado deixou de ser representável.
+        isAuthenticated: sessionState === ESTADOS_DE_SESSAO.AUTENTICADA,
+        isLoadingAuth: sessionState === ESTADOS_DE_SESSAO.CARREGANDO,
         isLoadingPublicSettings,
+        sessionValidationError,
         authError,
         appPublicSettings,
         entrar,
         logout,
+        // Repete a validação com o MESMO token guardado. Nunca chama
+        // `/auth/login` e nunca pede senha: a credencial já existe, o que
+        // faltava era o servidor responder.
+        revalidarSessao: restaurarSessao,
         recarregarConfiguracoes: carregarConfiguracoes,
       }}
     >

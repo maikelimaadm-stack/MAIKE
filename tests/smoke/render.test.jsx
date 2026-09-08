@@ -113,8 +113,18 @@ describe('MapaCadastro — editor geográfico', () => {
 });
 
 describe('App — montagem completa', () => {
-  it('monta com autenticação e providers mockados', async () => {
+  /**
+   * Monta o `App` real com o `useAuth` substituído pelo estado que se quer
+   * observar.
+   *
+   * O mock antigo trazia a forma pré-P4.0 (`navigateToLogin`, sem
+   * `isAuthenticated`). O teste continuava passando — a asserção era só
+   * "montou mais de cinco elementos" — mas tinha deixado de provar o que o
+   * nome dizia: sem `isAuthenticated`, o `App` caía no formulário de login.
+   */
+  const montarAppCom = async (auth) => {
     vi.stubEnv('VITE_GOOGLE_MAPS_API_KEY', '');
+    vi.resetModules();
 
     vi.doMock('@/lib/AuthContext', () => ({
       AuthProvider: ({ children }) => <>{children}</>,
@@ -122,18 +132,63 @@ describe('App — montagem completa', () => {
         isLoadingAuth: false,
         isLoadingPublicSettings: false,
         authError: null,
-        navigateToLogin: vi.fn(),
+        isAuthenticated: false,
+        sessionValidationError: null,
+        entrar: vi.fn(),
+        revalidarSessao: vi.fn(),
+        logout: vi.fn(),
+        ...auth,
       }),
     }));
 
     const { default: App } = await import('@/App');
-    const { container } = render(<App />);
+    return render(<App />);
+  };
+
+  it('monta com autenticação e providers mockados', async () => {
+    const { container } = await montarAppCom({ isAuthenticated: true });
 
     await waitFor(() => {
       expect(container.querySelectorAll('*').length).toBeGreaterThan(5);
     });
 
     expect(container.innerHTML).not.toMatch(/AIza[0-9A-Za-z_-]{10,}/);
+    vi.doUnmock('@/lib/AuthContext');
+  });
+
+  it('P4R1-T06 — durante indisponibilidade não mostra login NEM conteúdo protegido', async () => {
+    // As duas ausências são o ponto. Mostrar o login diria "sua senha não
+    // serve" quando o servidor apenas não respondeu; mostrar o aplicativo
+    // seria confiar num token que ninguém validou.
+    await montarAppCom({
+      isAuthenticated: false,
+      sessionValidationError: 'Serviço de dados indisponível no momento.',
+    });
+
+    expect(await screen.findByText('Não foi possível validar sua sessão.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Tentar novamente' })).toBeInTheDocument();
+
+    // Login ausente: nenhum campo de credencial na tela.
+    expect(screen.queryByLabelText('Cliente')).toBeNull();
+    expect(screen.queryByLabelText('Senha')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Entrar' })).toBeNull();
+
+    // Conteúdo protegido ausente: nenhuma navegação do aplicativo.
+    expect(screen.queryByRole('navigation')).toBeNull();
+    expect(document.body.textContent).not.toMatch(/Mapa Geral/i);
+
+    vi.doUnmock('@/lib/AuthContext');
+  });
+
+  it('P4R1-T06b — sem sessão e sem falha de validação, o login aparece', async () => {
+    // Controle positivo: o ramo de indisponibilidade não pode ter engolido o
+    // caminho normal de "precisa entrar".
+    await montarAppCom({ isAuthenticated: false, sessionValidationError: null });
+
+    expect(await screen.findByLabelText('Cliente')).toBeInTheDocument();
+    expect(screen.getByLabelText('Senha')).toBeInTheDocument();
+    expect(screen.queryByText('Não foi possível validar sua sessão.')).toBeNull();
+
     vi.doUnmock('@/lib/AuthContext');
   });
 });

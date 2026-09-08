@@ -28,7 +28,7 @@
  */
 
 import { nativeRequest } from '../_core/nativeHttpClient.js';
-import { ApiError, API_ERROR_CODES, isApiError } from '../_core/ApiError.js';
+import { ApiError, API_ERROR_CODES, isApiError, hasApiErrorCode } from '../_core/ApiError.js';
 import { hasNativeToken, setNativeToken, clearNativeToken } from '@/lib/auth/nativeTokenStorage';
 
 const RESOURCE = 'SessaoNativa';
@@ -165,10 +165,37 @@ export const obterContexto = async () => {
  * pode estar expirado, ter sido assinado por um segredo antigo ou pertencer a
  * outro ambiente. Quem decide é o backend.
  *
- * Nunca lança. Devolve veredito, e limpa o token quando ele não serve — deixar
- * um token morto guardado só produz um 401 por requisição até alguém perceber.
+ * ─── Falha de autenticação ≠ falha de disponibilidade (P4.0-R1) ────────────
+ *
+ * A primeira versão desta função limpava o token para **qualquer** erro, e eu
+ * havia escrito um comentário justificando isso — o que tornou a decisão errada
+ * ainda mais difícil de enxergar, porque parecia deliberada.
+ *
+ * O defeito: rede caída, timeout, CORS recusado e 500 do servidor viravam
+ * `{autenticado: false}`, indistinguível de "sua credencial foi recusada". Na
+ * prática, um backend fora do ar por trinta segundos destruía a sessão de quem
+ * estava trabalhando e exigia senha de novo — punindo o usuário por uma falha
+ * de infraestrutura, e apagando a única credencial que ele tinha.
+ *
+ * As duas classes agora têm saídas diferentes:
+ *
+ *   TENANT_CONTEXT_REQUIRED → o servidor **decidiu**: a credencial não vale.
+ *                             Limpa o token e devolve veredito.
+ *
+ *   qualquer outra falha    → o servidor **não respondeu** nada sobre a
+ *                             credencial. Preserva o token e **lança**, para
+ *                             que a camada de cima distinga "não consegui
+ *                             validar" de "validei e foi recusada".
+ *
+ * Devolver `{autenticado: false}` na segunda classe seria continuar mentindo,
+ * só que sem apagar o token — o chamador ainda leria como logout.
+ *
+ * Isto **não** é confiar no token guardado: a sessão só é considerada válida
+ * com confirmação do servidor. O aplicativo continua fechado enquanto não
+ * houver resposta. É fail-closed sem destruir a credencial.
  *
  * @returns {Promise<{autenticado: boolean, contexto: ContextoDeSessao|null}>}
+ * @throws {ApiError} quando a validade não pôde ser determinada
  */
 export const restaurarSessao = async () => {
   if (!hasNativeToken()) return { autenticado: false, contexto: null };
@@ -176,12 +203,17 @@ export const restaurarSessao = async () => {
   try {
     return { autenticado: true, contexto: await obterContexto() };
   } catch (erro) {
-    // Token recusado sai de cena. Falha de rede também limpa: sem confirmação
-    // não há sessão, e o caminho de volta é o login — não um estado "talvez
-    // autenticado" que a tela não sabe representar.
-    clearNativeToken();
-    void erro;
-    return { autenticado: false, contexto: null };
+    // O único caso em que o servidor se pronunciou sobre a credencial. Deixar
+    // um token recusado guardado só produz um 401 por requisição até alguém
+    // perceber.
+    if (hasApiErrorCode(erro, API_ERROR_CODES.TENANT_CONTEXT_REQUIRED)) {
+      clearNativeToken();
+      return { autenticado: false, contexto: null };
+    }
+
+    // Indisponibilidade: o token continua onde está. Ele pode estar
+    // perfeitamente válido — ninguém perguntou ao servidor ainda.
+    throw isApiError(erro) ? erro : new ApiError(API_ERROR_CODES.PROVIDER_UNAVAILABLE, ctx('restaurarSessao'));
   }
 };
 

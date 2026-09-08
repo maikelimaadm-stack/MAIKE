@@ -48,9 +48,9 @@ relatórios genéricos, dashboards paralelos, fichas personalizadas e editor vis
 | Dependências diretas | 55 (37 `dependencies` + 18 `devDependencies`) |
 | Dívida de tipos versionada | 2.318 diagnósticos em `src/` (teto certificado 2.318) |
 | Dívida de tipos no `backend/` | **0** — contrato próprio, tolerância zero |
-| Testes automatizados | **1.033** (452 de gate + 521 de smoke + 60 de backend) |
+| Testes automatizados | **1.046** (452 de gate + 534 de smoke + 60 de backend) |
 | Etapas do `verify:all` | 19 |
-| Bundle de produção — JS | 2.503,50 kB (671,09 kB gzip) |
+| Bundle de produção — JS | 2.504,83 kB (671,43 kB gzip) |
 
 **Fronteira de dados (`gate:api-boundary`): 0/0/0/0/0/0.** Os seis eixos estão
 zerados desde a P1.4 e o baseline versionado tem as seis listas vazias —
@@ -76,6 +76,12 @@ login nativo, CORS com allowlist exata e o gate absoluto `gate:native-api`.
 Fechou também a dívida de erros que a P3 declarou: os oito códigos do contrato
 entraram no catálogo do frontend. **Nenhum model de domínio** — Setor e
 AreaPastagem são P4.1 e P4.2. Ver D-PROD-24.
+
+A correção **P4.0-R1** fechou um bloqueador achado em auditoria externa: a
+restauração da sessão apagava o JWT para qualquer erro, confundindo backend fora
+do ar com credencial recusada. Agora só `TENANT_CONTEXT_REQUIRED` limpa o token;
+indisponibilidade preserva a credencial, mantém o aplicativo fechado e oferece
+retry sem pedir senha. Ver D-PROD-24 §G.1.
 
 Nem a P2 nem a P3 alteraram `src/`, `base44/`, rotas, menu ou escopo. O backend
 existe mas **ainda não é consumido pelo frontend**: a fronteira da P1 continua

@@ -198,7 +198,7 @@ describe('P4T — restauração e logout', () => {
     expect(fetchMock.mock.calls[0][0]).toBe(`${API}/auth/contexto`);
   });
 
-  it('P4T-08 token recusado é removido do storage', async () => {
+  it('P4T-08 / P4R1-T04 token RECUSADO é removido do storage', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(respostaJson(401, { code: 'TENANT_CONTEXT_REQUIRED' })));
 
     const { setNativeToken, restaurarSessao, NATIVE_TOKEN_STORAGE_KEY } = await carregar();
@@ -207,10 +207,11 @@ describe('P4T — restauração e logout', () => {
     const veredito = await restaurarSessao();
 
     expect(veredito.autenticado).toBe(false);
+    expect(veredito.contexto).toBeNull();
     expect(window.sessionStorage.getItem(NATIVE_TOKEN_STORAGE_KEY)).toBeNull();
   });
 
-  it('P4T-08b sem token, a restauração nem chama o servidor', async () => {
+  it('P4T-08b / P4R1-T05 sem token, a restauração nem chama o servidor', async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
 
@@ -228,6 +229,86 @@ describe('P4T — restauração e logout', () => {
 
     expect(temSessaoLocal()).toBe(false);
     expect(window.sessionStorage.getItem(NATIVE_TOKEN_STORAGE_KEY)).toBeNull();
+  });
+});
+
+/**
+ * P4.0-R1 — falha de autenticação ≠ falha de disponibilidade.
+ *
+ * A primeira versão apagava o JWT para **qualquer** erro no restore. Um backend
+ * fora do ar por trinta segundos destruía a sessão de quem estava trabalhando e
+ * exigia senha de novo — punindo o usuário por uma falha de infraestrutura, e
+ * apagando a única credencial que ele tinha.
+ *
+ * Cada caso aqui separa as duas classes. O que se prova não é só o veredito: é
+ * que **o token continua no storage** quando ninguém disse que ele é inválido.
+ */
+describe('P4R1 — restore preserva a sessão em falha transitória', () => {
+  const comTokenGuardado = async (respostaOuErro) => {
+    const fetchMock =
+      respostaOuErro instanceof Error
+        ? vi.fn().mockRejectedValue(respostaOuErro)
+        : vi.fn().mockResolvedValue(respostaOuErro);
+    vi.stubGlobal('fetch', fetchMock);
+
+    const modulo = await carregar();
+    modulo.setNativeToken('jwt.valido.guardado');
+    return { ...modulo, fetchMock };
+  };
+
+  it('P4R1-T01 falha de rede: propaga indisponibilidade e PRESERVA o token', async () => {
+    const { restaurarSessao, getNativeToken, NATIVE_TOKEN_STORAGE_KEY } = await comTokenGuardado(
+      new TypeError('Failed to fetch')
+    );
+
+    // Não devolve "não autenticado": isso seria indistinguível de logout.
+    const erro = await restaurarSessao().then(
+      (v) => new Error(`deveria ter lançado, devolveu ${JSON.stringify(v)}`),
+      (e) => e
+    );
+
+    expect(erro.code).toBe('API_PROVIDER_UNAVAILABLE');
+    expect(getNativeToken()).toBe('jwt.valido.guardado');
+    expect(window.sessionStorage.getItem(NATIVE_TOKEN_STORAGE_KEY)).toBe('jwt.valido.guardado');
+  });
+
+  it('P4R1-T02 abort/timeout: token preservado, nenhuma limpeza', async () => {
+    const abort = new DOMException('The operation was aborted.', 'AbortError');
+    const { restaurarSessao, getNativeToken } = await comTokenGuardado(abort);
+
+    await expect(restaurarSessao()).rejects.toMatchObject({ code: 'API_PROVIDER_UNAVAILABLE' });
+    expect(getNativeToken()).toBe('jwt.valido.guardado');
+  });
+
+  it('P4R1-T03 HTTP 500 / INTERNAL_ERROR: token preservado', async () => {
+    const { restaurarSessao, getNativeToken } = await comTokenGuardado(
+      respostaJson(500, { code: 'INTERNAL_ERROR', message: 'boom' })
+    );
+
+    const erro = await restaurarSessao().catch((e) => e);
+
+    // Erro seguro, do catálogo local — nunca a mensagem do servidor.
+    expect(erro.code).toBe('API_OPERATION_FAILED');
+    expect(erro.message).not.toContain('boom');
+    expect(getNativeToken()).toBe('jwt.valido.guardado');
+  });
+
+  it('P4R1-T03b 503 do servidor também preserva o token', async () => {
+    const { restaurarSessao, getNativeToken } = await comTokenGuardado(respostaJson(503, null));
+
+    await expect(restaurarSessao()).rejects.toMatchObject({ code: 'API_PROVIDER_UNAVAILABLE' });
+    expect(getNativeToken()).toBe('jwt.valido.guardado');
+  });
+
+  it('P4R1-T03c só TENANT_CONTEXT_REQUIRED limpa — 403 de escopo não limpa', async () => {
+    // A distinção é por **código**, não por faixa de status. Um 403 de escopo
+    // não diz que a credencial é inválida.
+    const { restaurarSessao, getNativeToken } = await comTokenGuardado(
+      respostaJson(403, { code: 'TENANT_SCOPE_VIOLATION' })
+    );
+
+    await expect(restaurarSessao()).rejects.toMatchObject({ code: 'TENANT_SCOPE_VIOLATION' });
+    expect(getNativeToken()).toBe('jwt.valido.guardado');
   });
 });
 

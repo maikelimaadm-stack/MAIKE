@@ -149,10 +149,14 @@ export const entrarComSessaoNativa = (credenciais) => loginNativo(credenciais);
 /**
  * Restaura a sessão nativa depois de um reload, validando no servidor.
  *
- * Nunca lança: devolve veredito. Token recusado é descartado pela camada de
- * sessão — ver `nativeSessionApi.restaurarSessao`.
+ * **Lança** quando a validade não pôde ser determinada (P4.0-R1). Isso é
+ * deliberado: rede caída não é logout, e um veredito `{autenticado: false}`
+ * nesse caso seria indistinguível de credencial recusada — que foi exatamente
+ * o defeito corrigido. Token recusado é descartado pela camada de sessão;
+ * indisponibilidade preserva o token. Ver `nativeSessionApi.restaurarSessao`.
  *
  * @returns {Promise<{autenticado: boolean, contexto: object|null}>}
+ * @throws {ApiError} indisponibilidade — a sessão não foi validada nem negada
  */
 export const restaurarSessaoNativaAtual = () => restaurarSessaoNativa();
 

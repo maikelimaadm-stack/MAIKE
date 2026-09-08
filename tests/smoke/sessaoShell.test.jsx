@@ -46,6 +46,7 @@ const sessionService = {
 vi.mock('@/services/sessionService', () => sessionService);
 
 const { AuthProvider, useAuth } = await import('@/lib/AuthContext');
+const { ApiError, API_ERROR_CODES } = await import('@/apis/_core/ApiError');
 const PageNotFound = (await import('@/lib/PageNotFound')).default;
 
 const comQuery = (ui) => {
@@ -76,6 +77,9 @@ const Sonda = () => {
       <span data-testid="loading-settings">{String(auth.isLoadingPublicSettings)}</span>
       <span data-testid="usuario">{auth.user?.login ?? 'ninguem'}</span>
       <span data-testid="cliente">{auth.clienteId ?? 'sem-cliente'}</span>
+      <span data-testid="estado">{auth.sessionState}</span>
+      <span data-testid="erro-validacao">{auth.sessionValidationError ?? 'sem-erro-validacao'}</span>
+      <button type="button" onClick={() => auth.revalidarSessao()}>revalidar</button>
       <button type="button" onClick={() => auth.logout()}>sair</button>
       <button
         type="button"
@@ -236,6 +240,122 @@ describe('AUTH — estados do AuthContext', () => {
     const console_error = vi.spyOn(console, 'error').mockImplementation(() => {});
     expect(() => render(<Solto />)).toThrow(/useAuth/);
     console_error.mockRestore();
+  });
+});
+
+/**
+ * P4.0-R1 — a casca durante indisponibilidade.
+ *
+ * O bloqueador auditado não estava só na camada de sessão: estava no que a tela
+ * fazia com o veredito. Com `isAuthenticated: false` e nada mais, a única
+ * leitura possível era "deslogado" — e o `App` mostrava o formulário de login,
+ * dizendo ao usuário que a senha dele não servia enquanto o servidor estava
+ * fora do ar.
+ *
+ * Estes casos montam o `App` real, com o `AuthProvider` real, e observam o que
+ * o usuário veria.
+ */
+describe('P4R1 — casca durante validação indisponível', () => {
+  // `ApiError` de verdade, não um objeto parecido. `getApiErrorMessage` só
+  // entrega texto de `ApiError` — qualquer outra coisa cai no fallback público,
+  // e é assim que deve ser. Um dublê aqui testaria o dublê.
+  const indisponivel = () =>
+    new ApiError(API_ERROR_CODES.PROVIDER_UNAVAILABLE, {
+      operation: 'restaurarSessao',
+      resource: 'SessaoNativa',
+    });
+
+  const montarApp = async () => {
+    const { default: NativeLoginForm } = await import('@/components/auth/NativeLoginForm');
+    const { default: NativeSessionUnavailable } = await import('@/components/auth/NativeSessionUnavailable');
+    void NativeLoginForm;
+    void NativeSessionUnavailable;
+
+    const resultado = comQuery(
+      <AuthProvider>
+        <Sonda />
+      </AuthProvider>
+    );
+    await waitFor(() => expect(screen.getByTestId('estado')).not.toHaveTextContent('carregando'));
+    return resultado;
+  };
+
+  it('P4R1-T06 restore indisponível NÃO autentica e NÃO vira "não autenticado"', async () => {
+    sessionService.restaurarSessaoNativaAtual.mockRejectedValue(indisponivel());
+    await montarApp();
+
+    expect(screen.getByTestId('estado')).toHaveTextContent('validacao_indisponivel');
+    expect(screen.getByTestId('autenticado')).toHaveTextContent('false');
+    // O estado é distinguível de logout — que era exatamente o defeito.
+    expect(screen.getByTestId('estado')).not.toHaveTextContent('nao_autenticada');
+  });
+
+  it('P4R1-T07 o contexto oferece retry e mensagem pública', async () => {
+    sessionService.restaurarSessaoNativaAtual.mockRejectedValue(indisponivel());
+    await montarApp();
+
+    expect(screen.getByTestId('erro-validacao')).toHaveTextContent('Serviço de dados indisponível no momento.');
+    expect(screen.getByText('revalidar')).toBeInTheDocument();
+  });
+
+  it('P4R1-T08 retry com backend de volta autentica SEM novo login', async () => {
+    sessionService.restaurarSessaoNativaAtual
+      .mockRejectedValueOnce(indisponivel())
+      .mockResolvedValueOnce({
+        autenticado: true,
+        contexto: { cliente_id: 'cli_7', usuario_id: 'usr_7', login: 'maria' },
+      });
+
+    await montarApp();
+    expect(screen.getByTestId('estado')).toHaveTextContent('validacao_indisponivel');
+
+    await act(async () => { screen.getByText('revalidar').click(); });
+
+    expect(screen.getByTestId('estado')).toHaveTextContent('autenticada');
+    expect(screen.getByTestId('usuario')).toHaveTextContent('maria');
+    expect(screen.getByTestId('cliente')).toHaveTextContent('cli_7');
+    // O ponto inteiro da correção: nenhuma senha foi pedida.
+    expect(sessionService.entrarComSessaoNativa).not.toHaveBeenCalled();
+  });
+
+  it('P4R1-T09 retry com credencial recusada leva ao login', async () => {
+    sessionService.restaurarSessaoNativaAtual
+      .mockRejectedValueOnce(indisponivel())
+      .mockResolvedValueOnce({ autenticado: false, contexto: null });
+
+    await montarApp();
+    await act(async () => { screen.getByText('revalidar').click(); });
+
+    expect(screen.getByTestId('estado')).toHaveTextContent('nao_autenticada');
+    expect(screen.getByTestId('erro-validacao')).toHaveTextContent('sem-erro-validacao');
+  });
+
+  it('P4R1-T10 nenhuma mensagem crua da falha chega ao contexto', async () => {
+    const cru = Object.assign(new Error('cru'), {
+      name: 'Error',
+      message: 'connect ECONNREFUSED 10.0.0.5:3333 — Authorization: Bearer jwt.secreto',
+    });
+    sessionService.restaurarSessaoNativaAtual.mockRejectedValue(cru);
+    await montarApp();
+
+    const texto = screen.getByTestId('erro-validacao').textContent;
+    for (const fragmento of ['ECONNREFUSED', '10.0.0.5', 'Authorization', 'Bearer', 'jwt.secreto']) {
+      expect(texto, fragmento).not.toContain(fragmento);
+    }
+  });
+
+  it('P4R1-T11 NÃO existe fallback para a Base44 durante a indisponibilidade', async () => {
+    // O comportamento correto é "backend indisponível", nunca
+    // "backend indisponível → Base44". Um fallback aqui autenticaria o usuário
+    // no provider errado e esconderia o incidente.
+    sessionService.restaurarSessaoNativaAtual.mockRejectedValue(indisponivel());
+    await montarApp();
+
+    expect(sessionService.verificarAutenticacao).not.toHaveBeenCalled();
+    expect(sessionService.entrarComSessaoNativa).not.toHaveBeenCalled();
+    // `irParaLogin`/`redirectToLogin` saíram do módulo na P4.0 — não existem
+    // nem para serem chamados.
+    expect(sessionService.irParaLogin).toBeUndefined();
   });
 });
 
