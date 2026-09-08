@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-08-28 (**P0, P1 e P2 mergeadas** — a PR #7 fechou a P2 no merge `1851503` · P3 não iniciada, e agora **destravada**: o contrato base é oficial)
+**Atualizado em:** 2026-09-08 (**P0, P1 e P2 mergeadas** · **P3 implementada, em PR draft** — backend nativo existe pela primeira vez neste repositório · P4 não iniciada)
 
 ---
 
@@ -13,9 +13,10 @@ Base44 mantida apenas como provider temporário da cadeia preservada (D-PROD-04)
 |---|---|
 | Produto | Pecuária — Mapa Geral + Manejo (D-PROD-01) |
 | Superfície primária | `MapaGeral` (D-PROD-05) |
-| Última missão concluída | **P2 — ModeloBase1 Pecuário Foundation** (contrato base de persistência e domínio, D-PROD-21) |
-| Estado da missão | **mergeada** na PR #7 (merge `1851503`, 2026-08-28) — `npm run verify:all` sai com 0, 14/14 etapas |
-| Próxima missão | P3 — Backend + Prisma + PostgreSQL Foundation (não iniciada) |
+| Missão atual | **P3 — Backend + Prisma + PostgreSQL Foundation** |
+| Estado da missão | **implementada, em PR draft, aguardando merge do proprietário** — `npm run verify:all` sai com 0, 17/17 etapas |
+| Última mergeada | P2 — ModeloBase1 Pecuário Foundation (PR #7, merge `1851503`); SSOT sincronizada na PR #8 (merge `378bfd3`); emenda D-PROD-22 na PR #9 (merge `44b204c`) |
+| Próxima missão | P4 — Mapa Core Native Persistence (não iniciada) |
 | Contrato de dados | `config/modelobase1-pecuario.json` — **oficial**; obrigatório para P3–P6 |
 | Escopo executável | `config/mapa-manejo-scope.json` |
 | Roadmap | `docs/engineering/ROADMAP.md` |
@@ -37,8 +38,8 @@ armazenamento apenas em `.env.local` seguem pendentes com o proprietário — ve
 | P0 | Product Scope Reset | **mergeada** (PR #1, merge `508cf62`) |
 | P1 | Native Foundation Bootstrap | **concluída e mergeada** — P1.1 a P1.3 em PRs anteriores; P1.4 e P1.4-R1 na PR #6, merge `7398d85`. Os seis eixos de `gate:api-boundary` estão em zero |
 | P2 | ModeloBase1 Pecuário Foundation | **mergeada** (PR #7, merge `1851503`) — inclui a correção P2-R1 |
-| P3 | Backend + Prisma + PostgreSQL Foundation | não iniciada — **destravada** pelo merge da P2 |
-| P4 | Mapa Core Native Persistence | não iniciada |
+| P3 | Backend + Prisma + PostgreSQL Foundation | **implementada**, em PR draft — `backend/` com Fastify, Prisma e PostgreSQL; cinco models; `gate:tenancy` e `gate:indices` |
+| P4 | Mapa Core Native Persistence | não iniciada — primeira a migrar capacidade contra o backend próprio |
 | P5 | Manejo Core Native Persistence | não iniciada |
 | P6 | Supporting Capabilities | não iniciada |
 | P7 | Base44 Final Removal | não iniciada |
@@ -74,10 +75,11 @@ Números medidos após `npm ci` e `npm run build` finais.
 tocou em `src/`, `base44/`, `vite.config.js` nem no manifesto de escopo. Só duas
 métricas mudaram, e as duas por acréscimo de verificação:
 
-| Métrica | Depois da P1.4 | Depois da P2 |
-|---|---|---|
-| Testes automatizados | 817 (323 de gate + 494 de smoke) | **862** (368 de gate + 494 de smoke) |
-| Etapas do `verify:all` | 13 | **14** |
+| Métrica | Depois da P1.4 | Depois da P2 | Depois da P3 |
+|---|---|---|---|
+| Testes automatizados | 817 (323 gate + 494 smoke) | 862 (368 gate + 494 smoke) | **943** (415 gate + 495 smoke + 33 backend) |
+| Etapas do `verify:all` | 13 | 14 | **17** |
+| Dependências diretas | 49 | 49 | **55** (37 `dependencies` + 18 `devDependencies`) |
 
 Os 45 testes novos são MB1-01 a MB1-20 com sub-casos, todos executando o gate
 real em diretórios temporários. Oito deles vieram da **P2-R1**, que fechou três
@@ -205,9 +207,40 @@ ator de auditoria ficou com as quatro que o SSOT declara, e o escopo `empresa`
 da numeração passou a ser exigido junto com `tenant`. Cada uma ganhou prova
 negativa executando o gate real — ver §14 do relatório da P2.
 
+## Backend nativo (P3, D-PROD-23)
+
+Pela primeira vez o repositório tem backend próprio. `backend/` existe, com
+Fastify, Prisma e PostgreSQL, na camada `route → service → repository → Prisma`.
+
+| Item | Valor |
+|---|---|
+| Models | 5 — `Cliente`, `Usuario`, `AuditLog`, `EntidadeCodigoSequencia`, `RegistroAnexo` |
+| Migration | `backend/prisma/migrations/20260908144607_p3_foundation/` |
+| Banco local | Docker Compose, `postgres:16.13-alpine`, versão fixada |
+| Banco na CI | serviço efêmero do GitHub Actions, mesma versão, `DATABASE_URL` do job |
+| Sessão | JWT via `@fastify/jwt`; senha em hash bcrypt |
+| Gates novos | `gate:tenancy`, `gate:indices` — absolutos, sem baseline |
+| Testes | 47 de gate (30 tenancy + 17 indices) e 33 de backend contra PostgreSQL real |
+
+**Nenhum model de domínio foi criado.** Mapa e manejo ficam para P4–P6, uma
+capacidade por vez. O backend ainda não é consumido pelo frontend: `src/` não
+foi tocado, e a fronteira da P1 continua apontando para o provider Base44.
+
+Duas invariantes do contrato que só o banco prova, e que aqui estão provadas:
+40 reservas concorrentes de sequência sem número duplicado (BE-17), e auditoria
+dentro de transação revertida que não sobrevive ao rollback (BE-25).
+
+**Duas correções que os testes obrigaram**, ambas de defeito real e não de
+fixture. O Fastify vem com `removeAdditional` ligado: um `cliente_id` enviado no
+corpo do login era **descartado em silêncio**, não recusado — numa superfície de
+tenancy, silêncio é pior que erro, e agora vira 400. E o handler de erro
+normalizava qualquer exceção do framework em `INTERNAL_ERROR`, de modo que
+requisição malformada devolvia **500** em vez de 400 — o servidor se culpando
+por erro do cliente.
+
 ## Gates ativos
 
-14 etapas em `npm run verify:all` — ver `docs/engineering/GATE-REGISTRY.md`.
+17 etapas em `npm run verify:all` — ver `docs/engineering/GATE-REGISTRY.md`.
 Todos os gates têm teste com casos de falha reais em `scripts/tests/gates/`; a
 catraca de tipos é exercitada ponta a ponta, com `tsc` de verdade em projetos
 temporários.

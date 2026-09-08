@@ -50,9 +50,16 @@ low-code ou intelligence engines (D-PROD-03).
 | R7 | 1 missão = 1 PR. Sem misturar missões | revisão humana |
 | R8 | Toda missão termina com relatório em `docs/engineering/` | revisão humana |
 
-Regras futuras de backend (`cliente_id` em todo model, índice composto por
-`cliente_id`, componente sem acesso direto a dado) entram com os gates
-correspondentes em P1/P3 — ver [`docs/engineering/GATE-REGISTRY.md`](./docs/engineering/GATE-REGISTRY.md).
+Desde a **P3** as regras de backend deixaram de ser futuras e têm gate próprio:
+
+| # | Regra | Gate |
+|---|---|---|
+| R9 | Todo model tenant-scoped tem `cliente_id` obrigatório; `Cliente` é a única exceção, por ser a raiz (D-PROD-22) | `gate:tenancy` |
+| R10 | Índice e unique tenant-scoped começam por `cliente_id` | `gate:indices` |
+| R11 | O tenant vem de `auth_context`, nunca de `body`, `query`, `params`, `headers` ou `cookie` | `gate:tenancy` |
+| R12 | Zero Base44 no backend, em qualquer forma de carregamento | `gate:tenancy` |
+
+Ver [`docs/engineering/GATE-REGISTRY.md`](./docs/engineering/GATE-REGISTRY.md).
 
 ## Antes de qualquer PR
 

@@ -21,6 +21,9 @@ Todos têm teste unitário com casos de falha reais em `scripts/tests/gates/`.
 | **no-secrets** | `npm run gate:no-secrets` | Nenhum segredo literal em **arquivo versionado ou não ignorado**; nenhum `.env` versionado | D-PROD-07 · D-PROD-14 | `scripts/gates/gate-no-hardcoded-secrets.mjs` |
 | **base44** | `npm run gate:base44` | Acoplamento com a Base44 só diminui (catraca, 10 eixos) | D-PROD-04 | `scripts/gates/gate-base44-ratchet.mjs` |
 | **modelobase1-pecuario** | `npm run gate:modelobase1-pecuario` | O contrato base de persistência e domínio: identidade, tenancy, timestamps, auditoria, numeração, anexos, exclusão, concorrência, códigos de erro, padrões proibidos e handoff da P3 | D-PROD-21 | `scripts/gates/gate-modelobase1-pecuario.mjs` |
+| **tenancy** | `npm run gate:tenancy` | O schema Prisma e o backend cumprem a tenancy: `Cliente` como única raiz, `cliente_id` obrigatório, relação com a raiz, unique de negócio tenant-scoped, identidade `cuid()`, timestamps, tenant nunca vindo da requisição, zero Base44 | D-PROD-21 · D-PROD-22 · D-PROD-23 | `scripts/gates/gate-tenancy.mjs` |
+| **indices** | `npm run gate:indices` | Índice tenant-scoped começa por `cliente_id`; unique de negócio inclui o tenant; unique da sequência é exatamente o do contrato; `escopo_id` nunca nullable sob unique comum | D-PROD-21 · D-PROD-23 | `scripts/gates/gate-indices.mjs` |
+| **test:backend** | `npm run test:backend` | Backend contra PostgreSQL real: migration em banco vazio, sessão, isolamento entre tenants, concorrência de sequência, auditoria e anexos | D-PROD-23 | `scripts/tests/run-backend-tests.mjs` |
 | **types** | `npm run gate:types` | A dívida de tipos nunca cresce, em nenhum modo (catraca por fingerprint) | D-PROD-11 · D-PROD-13 · D-PROD-17 | `scripts/gates/gate-typecheck-ratchet.mjs` |
 | **verify:all** | `npm run verify:all` | Toda a cadeia, na ordem abaixo | — | `scripts/gates/verify-all.mjs` |
 
@@ -31,12 +34,22 @@ Contratos baratos primeiro, build por último:
 ```
 test:gates → governance-paths → package-sync → product-scope → api-boundary
 → source-closure → import-integrity → no-secrets → base44
-→ modelobase1-pecuario → types → lint → test:smoke → build
+→ modelobase1-pecuario → tenancy → indices → types → lint
+→ test:backend → test:smoke → build
 ```
 
-14 etapas desde a P2. `modelobase1-pecuario` entra depois dos gates
-arquiteturais baratos e antes de `types`: ele lê um único JSON, custa
-milissegundos e reprova antes de o `tsc` gastar ~40 s.
+**17 etapas desde a P3.** O princípio não mudou: contrato barato antes, banco e
+teste depois, build por último.
+
+`modelobase1-pecuario`, `tenancy` e `indices` formam um trio na mesma faixa —
+os três leem arquivo e custam milissegundos, e reprovam antes de o `tsc` gastar
+~15 s ou o banco subir. A ordem entre eles é a da dependência lógica: o
+contrato primeiro, depois o schema que o implementa, depois os índices desse
+schema.
+
+`test:backend` entra **depois** do `lint` e **antes** do `test:smoke` porque é a
+primeira etapa que exige PostgreSQL. Falhar por lint antes de subir banco é mais
+barato do que o contrário.
 
 O resumo imprime nome, PASS/FAIL, código de saída, duração e comando executado.
 Nenhuma etapa é ignorada nem tem o exit code convertido em sucesso.
@@ -88,6 +101,20 @@ Nenhuma etapa é ignorada nem tem o exit code convertido em sucesso.
 | `P2-MB1-ATTACHMENT` | modelobase1-pecuario |
 | `P2-MB1-PROHIBITED` | modelobase1-pecuario |
 | `P2-MB1-HANDOFF` | modelobase1-pecuario |
+| `P3-TEN-SCHEMA-MISSING` | tenancy |
+| `P3-TEN-ROOT-CONTRACT` | tenancy |
+| `P3-TEN-FIELD` | tenancy |
+| `P3-TEN-RELATION` | tenancy |
+| `P3-TEN-BUSINESS-UNIQUE` | tenancy |
+| `P3-TEN-IDENTITY` | tenancy |
+| `P3-TEN-TIMESTAMPS` | tenancy |
+| `P3-TEN-SOURCE` | tenancy |
+| `P3-TEN-BASE44` | tenancy |
+| `P3-IDX-SCHEMA-MISSING` | indices |
+| `P3-IDX-TENANT-PREFIX` | indices |
+| `P3-IDX-BUSINESS-UNIQUE` | indices |
+| `P3-IDX-SEQUENCE-UNIQUE` | indices |
+| `P3-IDX-SEQUENCE-NULL-SCOPE` | indices |
 | `P01-PACKAGE-DRIFT` | package-sync |
 | `P01-LOCKFILE-INVALID` | package-sync |
 | `P01-SMOKE-FAILURE` | test:smoke |
@@ -312,6 +339,106 @@ Ele valida o **contrato**, não a implementação — que ainda não existe. Que
 provar que o `schema.prisma` cumpre estas regras são `gate:tenancy` e
 `gate:indices`, criados na P3. As duas camadas ficam: uma protege o acordo, a
 outra protege o código.
+
+## `gate:tenancy` e `gate:indices` — a fundação backend (P3)
+
+Os dois são **absolutos**, como o gate do contrato: sem `--update`, sem
+baseline, sem correção automática, e nenhum deles escreve em arquivo algum —
+nem no `schema.prisma` inválido.
+
+| Item | tenancy | indices |
+|---|---|---|
+| Script | `scripts/gates/gate-tenancy.mjs` | `scripts/gates/gate-indices.mjs` |
+| Testes | `scripts/tests/gates/tenancy.test.mjs` (30) | `scripts/tests/gates/indices.test.mjs` (17) |
+| Lê | `schema.prisma` **e** `backend/src/**` | `schema.prisma` |
+| Constantes | vêm de `config/modelobase1-pecuario.json` | idem |
+
+As constantes saem do contrato de propósito: se o gate as repetisse, ele viraria
+uma segunda fonte de verdade sobre tenancy, e as duas divergiriam em silêncio.
+
+### Parser estrutural, não substring
+
+`scripts/gates/lib/prisma-schema.mjs` extrai blocos, campos e listas de
+atributo. A diferença não é estética:
+
+```prisma
+@@index([cliente_id, ativo])   // tenant-first, serve
+@@index([ativo, cliente_id])   // mesmos caracteres, não serve
+```
+
+Um gate que procura a string `cliente_id` dentro do bloco aprova os dois. O
+parser devolve a lista **ordenada**, e o gate olha a posição 0. Formatação
+também não decide nada: quebra de linha dentro do array e comentário no meio do
+bloco são absorvidos pelo parser (caso IDX-06).
+
+### O que `gate:tenancy` exige
+
+| Invariante | Código |
+|---|---|
+| schema existe, é legível e declara model | `P3-TEN-SCHEMA-MISSING` |
+| `Cliente` é a única exceção sem `cliente_id`; sem `cliente_id` autorreferente na raiz | `P3-TEN-ROOT-CONTRACT` |
+| `cliente_id` presente, `String`, não nulo em todo tenant model | `P3-TEN-FIELD` |
+| relação com a raiz declarada sobre `cliente_id`, não opcional | `P3-TEN-RELATION` |
+| `@@unique` de negócio inclui o tenant; `@unique` isolado é proibido | `P3-TEN-BUSINESS-UNIQUE` |
+| PK `id` `String` `@default(cuid())`; sem UUID paralelo; sem `autoincrement()` | `P3-TEN-IDENTITY` |
+| `createdAt @default(now())` e `updatedAt @updatedAt` em todo model | `P3-TEN-TIMESTAMPS` |
+| `cliente_id` nunca lido de `body`, `query`, `params`, `headers` ou `cookie` | `P3-TEN-SOURCE` |
+| zero Base44 no backend, em qualquer forma de carregamento | `P3-TEN-BASE44` |
+
+### O que `gate:indices` exige
+
+| Invariante | Código |
+|---|---|
+| schema existe | `P3-IDX-SCHEMA-MISSING` |
+| todo `@@index` de model tenant-scoped começa por `cliente_id` | `P3-IDX-TENANT-PREFIX` |
+| todo `@@unique` de negócio começa por `cliente_id` | `P3-IDX-BUSINESS-UNIQUE` |
+| `@@unique` da sequência é exatamente `[cliente_id, entidade, escopo_tipo, escopo_id]` | `P3-IDX-SEQUENCE-UNIQUE` |
+| nenhuma dimensão do unique da sequência é nullable | `P3-IDX-SEQUENCE-NULL-SCOPE` |
+
+A raiz **não** é forçada a prefixo de tenant. `Cliente` tem `@@index([nome])` e
+`@@index([ativo])`, e o gate aprova — um gate que reprovasse isso estaria
+exigindo tenancy da própria raiz, o erro que a D-PROD-22 corrigiu na
+Constituição. O caso IDX-03 é o controle positivo dessa ausência de regra.
+
+### Prova negativa por invariante
+
+A lição da P2-R1 governa os dois gates: **uma invariante não está protegida
+porque o schema correto passa — ela está protegida quando o schema mutilado
+reprova com o código certo.**
+
+Casos que valem citar:
+
+- as **cinco** fontes proibidas de tenant têm cinco fixtures independentes, mais
+  cinco de acesso por colchete e uma de desestruturação. Nada de testar três e
+  concluir pelas outras duas;
+- há **controle positivo**: `request.body.nome` não reprova (TEN-18). Um gate
+  que reprovasse qualquer leitura de `body` seria inútil na prática;
+- as quatro dimensões do unique da sequência têm uma prova cada
+  (IDX-09/`cliente_id`, `entidade`, `escopo_tipo`, `escopo_id`);
+- `@@index([ativo, cliente_id])` reprova mesmo contendo `cliente_id` — a prova
+  de que a verificação é posicional (IDX-05).
+
+## `test:backend` — o que só o banco prova
+
+`npm run test:backend` roda `prisma generate`, depois `prisma migrate deploy`, e
+só então os testes. Sem `DATABASE_URL` ele **falha**, em vez de pular: suíte que
+se auto-desliga quando falta configuração reporta verde sem ter verificado nada.
+
+O `migrate deploy` sobre banco vazio é o **smoke de migration**, de graça em
+toda execução: se a migration não aplica do zero, o job morre antes do primeiro
+teste, e a mensagem diz que foi a migration.
+
+33 casos. Os que não teriam sentido com mock:
+
+| Prova | O que fixa |
+|---|---|
+| BE-10/BE-11 | dois tenants reais no banco; contexto de A não alcança dado de B, e recurso de outro tenant dispara `TENANT_SCOPE_VIOLATION` |
+| BE-12 | mesmo `login` coexiste em tenants diferentes e conflita dentro do mesmo |
+| BE-17 | 40 reservas concorrentes, zero número duplicado, sequência exata de 1 a 40 |
+| BE-25 | auditoria dentro de transação revertida não sobrevive ao rollback |
+| BE-33 | violação de unique vira `CONCURRENCY_CONFLICT` 409, não 500 opaco |
+| BE-04 | o token não carrega senha nem hash — asserção sobre o payload decodificado |
+| BE-05 | senha errada, usuário inexistente e cliente inexistente dão resposta idêntica |
 
 ## Fechamento de escopo dentro das functions
 
@@ -827,10 +954,11 @@ o escopo sozinho — propõe e aguarda aprovação (A11).
 | Gate | Missão | Verifica |
 |---|---|---|
 | `gate:apis` | P1 | Componente não acessa provider de dados direto |
-| `gate:tenancy` | P3 | Todo model Prisma tem `cliente_id` |
-| `gate:indices` | P3 | `@@index`/`@@unique` começam por `cliente_id` |
 | `gate:no-base44` | P7 | Zero referências. Substitui a catraca |
 | `gate:rls` | P8 | Toda tabela tem policy de RLS |
+
+`gate:tenancy` e `gate:indices` saíram desta lista na **P3**: os dois existem,
+estão no `verify:all` e têm prova negativa por invariante. Ver as seções acima.
 
 Quando o baseline de tipos chegar a zero, `gate:types` deixa de ser catraca e
 passa a exigir ausência total de diagnósticos.

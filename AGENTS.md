@@ -11,7 +11,22 @@ Preencha `VITE_GOOGLE_MAPS_API_KEY` em `.env.local`. Sem essa variável o Mapa
 Geral abre e mostra "Mapa indisponível" com a mensagem de configuração — não
 fica em branco.
 
-Não existe `backend/` ainda. Ele entra em **P3** — ver `docs/engineering/ROADMAP.md`.
+### Backend (P3)
+
+```bash
+npm run db:up            # sobe o PostgreSQL local (Docker Compose)
+npm run prisma:deploy    # aplica as migrations
+npm run backend:dev      # sobe o Fastify com --watch
+npm run test:backend     # testes contra PostgreSQL real
+```
+
+Preencha `DATABASE_URL` e `AUTH_SECRET` em `.env` — ver `.env.example`. O
+backend **não sobe** sem os dois: ausência de segredo é falha dura, não
+fallback. Nenhuma variável do backend leva prefixo `VITE_`; prefixar publicaria
+segredo de servidor no bundle do cliente.
+
+O backend ainda **não é consumido pelo frontend**. A primeira capacidade migra
+na P4 — ver `docs/engineering/ROADMAP.md`.
 
 ## Desenvolvimento
 
@@ -23,6 +38,7 @@ Não existe `backend/` ainda. Ele entra em **P3** — ver `docs/engineering/ROAD
 | Dívida de tipos (bruta) | `npm run typecheck:raw` |
 | Smoke automatizado | `npm run test:smoke` |
 | Testes dos gates | `npm run test:gates` |
+| Testes de backend | `npm run test:backend` |
 | Build | `npm run build` |
 
 ## Gates
@@ -40,8 +56,10 @@ Todos os scripts vivem em `scripts/gates/`.
 | Segredos | `npm run gate:no-secrets` | Nenhum segredo em arquivo versionado; nenhum `.env` |
 | Base44 | `npm run gate:base44` | Acoplamento só diminui (10 eixos) |
 | Contrato base pecuário | `npm run gate:modelobase1-pecuario` | O contrato de persistência e domínio da P2 (D-PROD-21) — **absoluto**, sem baseline |
+| Tenancy | `npm run gate:tenancy` | Schema Prisma e backend cumprem a tenancy — **absoluto** |
+| Índices | `npm run gate:indices` | Índice e unique tenant-aware — **absoluto** |
 | Tipos | `npm run gate:types` | A dívida de tipos não cresce |
-| **Todos** | `npm run verify:all` | 14 etapas, build por último |
+| **Todos** | `npm run verify:all` | 17 etapas, build por último |
 
 ### Baselines
 
@@ -91,6 +109,16 @@ Para adicionar uma página ou entidade:
   passa: **nenhum modo** aceita diagnóstico novo (D-PROD-17).
 - **Código novo entra com zero diagnóstico.** Absorver erro novo no baseline é
   proibido — corrija no código.
+- **`backend/` NÃO é coberto por `gate:types`.** A catraca lê
+  `jsconfig.typecheck.json`, que inclui apenas `src/`. Ampliar a cobertura muda
+  o hash do contrato e exige `--rebase-contract`, com a barreira de não
+  regressão valendo — ou seja, o backend inteiro teria que estar limpo sob
+  `checkJs` de uma vez. A P3 não fez isso e **declarou a lacuna** em vez de
+  fingir cobertura. O que protege o backend hoje é `eslint` (`no-unused-vars`
+  como erro), `gate:tenancy`, `gate:indices` e `test:backend`.
+- **Backend sem banco não testa.** `npm run test:backend` **falha** sem
+  `DATABASE_URL`, em vez de pular. Suíte que se auto-desliga reporta verde sem
+  ter verificado nada.
 - **Function Base44 não pode indexar `entities` com variável.** Use acesso
   literal ou um registro literal local — senão `gate:product-scope` reprova com
   `P01-SCOPE-FUNCTION-DYNAMIC-UNVERIFIABLE` (D-PROD-15).
