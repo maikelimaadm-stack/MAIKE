@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-09-08 (**P0, P1 e P2 mergeadas** · **P3 implementada, em PR draft** — backend nativo existe pela primeira vez neste repositório · P4 não iniciada)
+**Atualizado em:** 2026-09-08 (**P0, P1, P2 e P3 mergeadas** — o backend nativo existe pela primeira vez neste repositório e está na `main` · **P4 não iniciada**)
 
 ---
 
@@ -13,10 +13,10 @@ Base44 mantida apenas como provider temporário da cadeia preservada (D-PROD-04)
 |---|---|
 | Produto | Pecuária — Mapa Geral + Manejo (D-PROD-01) |
 | Superfície primária | `MapaGeral` (D-PROD-05) |
-| Missão atual | **P3 — Backend + Prisma + PostgreSQL Foundation** |
-| Estado da missão | **implementada, em PR draft, aguardando auditoria e merge do proprietário** — inclui a correção **P3-R1**; `npm run verify:all` sai com 0, 18/18 etapas |
-| Última mergeada | P2 — ModeloBase1 Pecuário Foundation (PR #7, merge `1851503`); SSOT sincronizada na PR #8 (merge `378bfd3`); emenda D-PROD-22 na PR #9 (merge `44b204c`) |
-| Próxima missão | P4 — Mapa Core Native Persistence (não iniciada) |
+| Missão em execução | **nenhuma** |
+| Última mergeada | **P3 — Backend + Prisma + PostgreSQL Foundation (PR #10, merge `4ce4608`)** — inclui a correção **P3-R1**; implementação certificada em `5bcee77`, com `npm run verify:all` em 18/18 e exit 0 |
+| Mergeadas anteriores | P2 — ModeloBase1 Pecuário Foundation (PR #7, merge `1851503`); SSOT sincronizada na PR #8 (merge `378bfd3`); emenda D-PROD-22 na PR #9 (merge `44b204c`) |
+| Próxima missão autorizável | P4 — Mapa Core Native Persistence — **não iniciada** |
 | Contrato de dados | `config/modelobase1-pecuario.json` — **oficial**; obrigatório para P3–P6 |
 | Escopo executável | `config/mapa-manejo-scope.json` |
 | Roadmap | `docs/engineering/ROADMAP.md` |
@@ -38,8 +38,8 @@ armazenamento apenas em `.env.local` seguem pendentes com o proprietário — ve
 | P0 | Product Scope Reset | **mergeada** (PR #1, merge `508cf62`) |
 | P1 | Native Foundation Bootstrap | **concluída e mergeada** — P1.1 a P1.3 em PRs anteriores; P1.4 e P1.4-R1 na PR #6, merge `7398d85`. Os seis eixos de `gate:api-boundary` estão em zero |
 | P2 | ModeloBase1 Pecuário Foundation | **mergeada** (PR #7, merge `1851503`) — inclui a correção P2-R1 |
-| P3 | Backend + Prisma + PostgreSQL Foundation | **implementada**, em PR draft — `backend/` com Fastify, Prisma e PostgreSQL; cinco models; `gate:tenancy` e `gate:indices`. Inclui a correção **P3-R1** |
-| P4 | Mapa Core Native Persistence | não iniciada — primeira a migrar capacidade contra o backend próprio |
+| P3 | Backend + Prisma + PostgreSQL Foundation | **concluída e mergeada** (PR #10, merge `4ce4608`) — `backend/` com Fastify, Prisma e PostgreSQL; cinco models; `gate:tenancy` e `gate:indices`. Inclui a correção **P3-R1** |
+| P4 | Mapa Core Native Persistence | **não iniciada** — primeira a migrar capacidade contra o backend próprio |
 | P5 | Manejo Core Native Persistence | não iniciada |
 | P6 | Supporting Capabilities | não iniciada |
 | P7 | Base44 Final Removal | não iniciada |
@@ -308,10 +308,18 @@ CI em `.github/workflows/quality.yml`.
 | `3c1a90d` | **commit funcional** da P2 | [31108882141](https://github.com/maikelimaadm-stack/MAIKE/actions/runs/31108882141) | **verde**, 14/14 |
 | `acc2f11` | **commit funcional** da P2-R1 | [31125606483](https://github.com/maikelimaadm-stack/MAIKE/actions/runs/31125606483) | **não executou** — ver abaixo |
 | `8a5e3ee` | commit vazio da P2-R1, para disparar CI | — | nenhum run criado |
+| `80ecf69` | **commit funcional** da P3 | [34243753654](https://github.com/maikelimaadm-stack/MAIKE/actions/runs/34243753654) | **verde**, 17/17 |
+| `5bcee77` | **HEAD certificado** da P3-R1, mergeado na PR #10 | [34260918759](https://github.com/maikelimaadm-stack/MAIKE/actions/runs/34260918759) | **verde**, 18/18 |
 
 Um commit não pode conter o resultado da própria execução de CI. A execução do
 commit funcional fica no corpo da PR aberta — PR #2 para a P1.1, PR #3 para a
-P1.2, PR #5 para a P1.3, PR #6 para a P1.4 e a P1.4-R1, PR #7 para a P2.
+P1.2, PR #5 para a P1.3, PR #6 para a P1.4 e a P1.4-R1, PR #7 para a P2, PR #10
+para a P3 e a P3-R1.
+
+Ao contrário da P2-R1, a P3 entrou na `main` com **execução de CI própria e
+verde sobre o HEAD exato que foi mergeado**: o job `102178796058` do run
+`34260918759` rodou as 18 etapas em `5bcee77`, e é esse commit que o merge
+`4ce4608` trouxe. A lacuna declarada em `acc2f11` não se repetiu.
 
 **O commit `acc2f11` entrou na `main` sem execução de CI própria.** Não houve
 reprovação: o job `92695474512` nasceu na fila às 18:16:53 de 2026-08-06, nunca

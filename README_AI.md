@@ -22,9 +22,9 @@ e decisão vivem neste repositório.
 |---|---|
 | **Produto** | Pecuária — **Mapa Geral + Manejo** (D-PROD-01) |
 | **Superfície primária** | `MapaGeral` — a raiz `/` redireciona para lá (D-PROD-05) |
-| **Missões concluídas** | **P0** (PR #1), **P1** (PR #6), **P2** (PR #7) — mais a sincronização de SSOT (PR #8) e a emenda D-PROD-22 (PR #9) |
-| **Missão atual** | **P3 — Backend + Prisma + PostgreSQL Foundation** (implementada, em PR draft, aguardando auditoria — inclui a correção **P3-R1**) |
-| **Próxima missão** | **P4 — Mapa Core Native Persistence** (não iniciada) |
+| **Missões concluídas** | **P0** (PR #1), **P1** (PR #6), **P2** (PR #7), **P3** (PR #10, merge `4ce4608` — inclui a correção **P3-R1**) — mais a sincronização de SSOT (PR #8) e a emenda D-PROD-22 (PR #9) |
+| **Missão em execução** | nenhuma |
+| **Próxima missão autorizável** | **P4 — Mapa Core Native Persistence** — **não iniciada** |
 | **Contrato de dados** | `config/modelobase1-pecuario.json` — **oficial** desde o merge da P2 (D-PROD-21) |
 | **Escopo executável** | `config/mapa-manejo-scope.json` |
 | **Molde arquitetural** | PROJETOMG — **parcial** (D-PROD-03) |
@@ -59,9 +59,10 @@ qualquer reintrodução reprova.
 A **P3** criou `backend/` — Fastify, Prisma e PostgreSQL, com cinco models de
 fundação e migration versionada. Acrescentou os gates `gate:tenancy` e
 `gate:indices` (55 provas, quase todas negativas) e a etapa `test:backend`,
-que roda contra PostgreSQL real.
+que roda contra PostgreSQL real. Está **mergeada**: PR #10, merge `4ce4608`,
+sobre a implementação certificada em `5bcee77`.
 
-A correção **P3-R1** fechou cinco bloqueios de auditoria dentro da mesma PR:
+A correção **P3-R1** fechou cinco bloqueios de auditoria dentro da mesma PR #10:
 identidade em runtime contornando o `@default(cuid())`, relação `AuditLog →
 Usuario` sem coerência de tenant, regressão de bundle causada por `NODE_ENV`
 no workflow (e **não** pelo backend), `backend/` sem cobertura de tipos e
