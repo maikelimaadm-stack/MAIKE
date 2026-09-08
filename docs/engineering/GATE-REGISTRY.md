@@ -16,6 +16,7 @@ Todos têm teste unitário com casos de falha reais em `scripts/tests/gates/`.
 | **package-sync** | `npm run gate:package-sync` | `package.json` e `package-lock.json` batem em name, version e dependências diretas | D-PROD-02 | `scripts/gates/gate-package-sync.mjs` |
 | **product-scope** | `npm run gate:product-scope` | Rotas, menu, schemas e functions dentro de `config/mapa-manejo-scope.json`; superfície primária é `MapaGeral`; **entidades citadas dentro das functions** | D-PROD-01 · D-PROD-05 · D-PROD-06 | `scripts/gates/gate-product-scope.mjs` |
 | **api-boundary** | `npm run gate:api-boundary` | A UI não fala com o provider de dados: fronteira `src/apis/` protegida por identidade de arquivo | D-PROD-18 | `scripts/gates/gate-api-boundary.mjs` |
+| **native-api** | `npm run gate:native-api` | Transporte e sessão nativos: URL por referência estática sem override, JWT só em `sessionStorage` numa guarda única, login sem `cliente_id`, os oito códigos do contrato no catálogo do frontend, fronteira HTTP única e CORS com allowlist exata | D-PROD-24 | `scripts/gates/gate-native-api.mjs` |
 | **source-closure** | `npm run gate:source-closure` | Todo arquivo executável em `src/` é alcançável a partir das entradas reais | D-PROD-12 | `scripts/gates/gate-source-closure.mjs` |
 | **import-integrity** | `npm run gate:import-integrity` | Nenhum import estático em `src/` aponta para arquivo inexistente | D-PROD-02 | `scripts/gates/gate-import-integrity.mjs` |
 | **no-secrets** | `npm run gate:no-secrets` | Nenhum segredo literal em **arquivo versionado ou não ignorado**; nenhum `.env` versionado | D-PROD-07 · D-PROD-14 | `scripts/gates/gate-no-hardcoded-secrets.mjs` |
@@ -25,6 +26,7 @@ Todos têm teste unitário com casos de falha reais em `scripts/tests/gates/`.
 | **indices** | `npm run gate:indices` | Índice tenant-scoped começa por `cliente_id`; unique de negócio inclui o tenant; unique da sequência é exatamente o do contrato; `escopo_id` nunca nullable sob unique comum | D-PROD-21 · D-PROD-23 | `scripts/gates/gate-indices.mjs` |
 | **test:backend** | `npm run test:backend` | Backend contra PostgreSQL real: migration em banco vazio, sessão, isolamento entre tenants, concorrência de sequência, auditoria e anexos | D-PROD-23 | `scripts/tests/run-backend-tests.mjs` |
 | **types** | `npm run gate:types` | A dívida de tipos nunca cresce, em nenhum modo (catraca por fingerprint) | D-PROD-11 · D-PROD-13 · D-PROD-17 | `scripts/gates/gate-typecheck-ratchet.mjs` |
+| **typecheck:backend** | `npm run typecheck:backend` | O backend tem **zero** diagnóstico de tipo — contrato próprio, sem baseline e sem teto | D-PROD-23 | `jsconfig.backend.typecheck.json` |
 | **verify:all** | `npm run verify:all` | Toda a cadeia, na ordem abaixo | — | `scripts/gates/verify-all.mjs` |
 
 ## Ordem do `verify:all`
@@ -33,8 +35,8 @@ Contratos baratos primeiro, build por último:
 
 ```
 test:gates → governance-paths → package-sync → product-scope → api-boundary
-→ source-closure → import-integrity → no-secrets → base44
-→ native-api → modelobase1-pecuario → tenancy → indices → types → typecheck:backend
+→ native-api → source-closure → import-integrity → no-secrets → base44
+→ modelobase1-pecuario → tenancy → indices → types → typecheck:backend
 → lint → test:backend → test:smoke → build
 ```
 
