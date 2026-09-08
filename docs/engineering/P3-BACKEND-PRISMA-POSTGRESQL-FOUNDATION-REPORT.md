@@ -589,6 +589,30 @@ falta configuração reporta verde sem ter verificado nada.
 **15. Etapas do `verify:all`: 17 → 18.** A etapa nova é `typecheck:backend`,
 entre `types` e `lint`.
 
+**Arquivos da R1.**
+
+| Arquivo | O que mudou |
+|---|---|
+| `backend/src/modules/sequencias/entidadeCodigoRepository.js` | B1 — `INSERT` cru sai, entra `createMany({ skipDuplicates: true })` |
+| `backend/prisma/schema.prisma` | B2 — `@@unique([cliente_id, id])` em `Usuario`; FK composta em `AuditLog` |
+| `backend/prisma/migrations/20260908174141_p3_foundation/` | B2 — migration regerada; substitui `20260908144607_p3_foundation` |
+| `backend/src/types/fastify.d.ts` | **novo** — B4, module augmentation de `FastifyRequest`, `FastifyInstance` e `FastifyJWT` |
+| `jsconfig.backend.typecheck.json` | **novo** — B4, contrato de tipos do backend, tolerância zero |
+| `backend/src/shared/errors/errorHandler.js` | B4 — estreitamento de `erro.message` sobre `unknown` |
+| `backend/src/modules/health/healthService.js` | B4 — `/** @type {'up'\|'down'} */` |
+| `backend/tests/foundation.test.mjs` | R1-T01..T09b — 33 → 41 casos |
+| `scripts/tests/run-backend-tests.mjs` | B5 — `prisma validate` como primeiro passo obrigatório |
+| `scripts/gates/gate-tenancy.mjs` | `P3-TEN-CROSS-RELATION` e `P3-TEN-RUNTIME-IDENTITY` |
+| `scripts/tests/gates/tenancy.test.mjs` | TEN-25..TEN-30 — 30 → 38 casos |
+| `scripts/tests/gates/build-environment.test.mjs` | **novo** — B3, ENV-B1..ENV-B5 |
+| `.github/workflows/quality.yml` | B3 — `NODE_ENV` removido, com o comentário que impede a volta |
+| `scripts/gates/verify-all.mjs` | B3 — env por etapa; `NODE_ENV=production` fixado no build. B4 — etapa `typecheck:backend` |
+| `package.json` | script `typecheck:backend` |
+| `docs/engineering/{GATE-REGISTRY,CURRENT-STATE,ROADMAP}.md`, `README_AI.md`, `AGENTS.md` | códigos, contagens, 18 etapas e a armadilha do `NODE_ENV` |
+
+`src/`, `base44/`, `config/mapa-manejo-scope.json` e
+`config/modelobase1-pecuario.json` **não foram tocados**.
+
 ## 16.7 Fechamento
 
 **16. `verify:all` final** e **17. CI final** — a saída completa das 18 etapas e
