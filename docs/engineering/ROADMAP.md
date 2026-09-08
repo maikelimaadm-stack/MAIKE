@@ -82,8 +82,9 @@ MB1-01 a MB1-20.
 **Critério de aceite:** modelo base documentado e aprovado — isto é, **mergeado**
 — antes de qualquer migration de domínio.
 
-**Estado:** implementada na branch `claude/p2-modelobase1-pecuario-foundation`,
-em PR draft, aguardando merge do proprietário.
+**Estado:** **concluída e mergeada** — PR #7, merge `1851503`, 2026-08-28.
+Inclui a correção **P2-R1**, que fechou três invariantes que o contrato
+declarava e o gate ainda não protegia. O contrato é oficial e vigente.
 
 ---
 
@@ -97,8 +98,10 @@ autenticação própria emite sessão válida; zero import de `@base44/sdk` no b
 `gate:tenancy` e `gate:indices` criados e verdes; tudo conforme
 `config/modelobase1-pecuario.json`.
 
-**Estado:** não iniciada. Nenhuma migration de domínio pode começar antes do
-merge da P2.
+**Estado:** não iniciada — e **destravada**. O bloqueio era o merge da P2, que
+aconteceu em 2026-08-28. A P3 implementa **somente** a camada de tenant/fundação:
+nenhum model de mapa e nenhum model de manejo, que ficam para P4–P6, uma
+capacidade de cada vez.
 
 ---
 

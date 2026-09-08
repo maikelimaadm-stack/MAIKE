@@ -234,6 +234,15 @@ Nenhum deles é escopo desta missão.
 
 ## 12. Estado da PR
 
+> **Nota de encerramento (2026-08-28).** O texto abaixo descreve o estado no
+> momento em que este relatório foi escrito, e fica preservado. O desfecho: o
+> proprietário marcou a PR #7 como ready e **mergeou** em 2026-08-28, merge
+> `1851503`. Com isso o critério de certificação da §16 do documento
+> arquitetural foi cumprido e **o contrato passou a ser oficial**. O commit
+> `acc2f11a` entrou sem execução de CI própria — não por reprovação, mas porque
+> o GitHub Actions parou de alocar runner naquele dia; o quadro completo está em
+> `docs/engineering/CURRENT-STATE.md`, seção "Gates ativos".
+
 Draft. Não marcada como ready, não mergeada, não fechada. A P3 **não** foi
 iniciada.
 

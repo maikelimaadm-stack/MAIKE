@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-08-06 (**P0 e P1 mergeadas** — a PR #6 fechou a P1 no merge `7398d85` · **P2 em andamento** na branch `claude/p2-modelobase1-pecuario-foundation` · P3 não iniciada)
+**Atualizado em:** 2026-08-28 (**P0, P1 e P2 mergeadas** — a PR #7 fechou a P2 no merge `1851503` · P3 não iniciada, e agora **destravada**: o contrato base é oficial)
 
 ---
 
@@ -13,10 +13,10 @@ Base44 mantida apenas como provider temporário da cadeia preservada (D-PROD-04)
 |---|---|
 | Produto | Pecuária — Mapa Geral + Manejo (D-PROD-01) |
 | Superfície primária | `MapaGeral` (D-PROD-05) |
-| Missão atual | **P2 — ModeloBase1 Pecuário Foundation** (contrato base de persistência e domínio, D-PROD-21) |
-| Estado da missão | **implementada, em PR draft, aguardando merge do proprietário** — `npm run verify:all` sai com 0, 14/14 etapas |
+| Última missão concluída | **P2 — ModeloBase1 Pecuário Foundation** (contrato base de persistência e domínio, D-PROD-21) |
+| Estado da missão | **mergeada** na PR #7 (merge `1851503`, 2026-08-28) — `npm run verify:all` sai com 0, 14/14 etapas |
 | Próxima missão | P3 — Backend + Prisma + PostgreSQL Foundation (não iniciada) |
-| Branch | `claude/p2-modelobase1-pecuario-foundation` (PR draft) |
+| Contrato de dados | `config/modelobase1-pecuario.json` — **oficial**; obrigatório para P3–P6 |
 | Escopo executável | `config/mapa-manejo-scope.json` |
 | Roadmap | `docs/engineering/ROADMAP.md` |
 | Molde arquitetural | PROJETOMG, parcial (D-PROD-03) |
@@ -36,8 +36,8 @@ armazenamento apenas em `.env.local` seguem pendentes com o proprietário — ve
 |---|---|---|
 | P0 | Product Scope Reset | **mergeada** (PR #1, merge `508cf62`) |
 | P1 | Native Foundation Bootstrap | **concluída e mergeada** — P1.1 a P1.3 em PRs anteriores; P1.4 e P1.4-R1 na PR #6, merge `7398d85`. Os seis eixos de `gate:api-boundary` estão em zero |
-| P2 | ModeloBase1 Pecuário Foundation | **em andamento** — contrato, documento, gate e testes implementados; PR draft aguardando merge |
-| P3 | Backend + Prisma + PostgreSQL Foundation | não iniciada |
+| P2 | ModeloBase1 Pecuário Foundation | **mergeada** (PR #7, merge `1851503`) — inclui a correção P2-R1 |
+| P3 | Backend + Prisma + PostgreSQL Foundation | não iniciada — **destravada** pelo merge da P2 |
 | P4 | Mapa Core Native Persistence | não iniciada |
 | P5 | Manejo Core Native Persistence | não iniciada |
 | P6 | Supporting Capabilities | não iniciada |
@@ -193,8 +193,17 @@ sem escrita no arquivo, nem quando o contrato está inválido. Onze códigos
 `P2-MB1-*`, 11 seções obrigatórias, 8 códigos de erro mínimos e 10 padrões
 proibidos.
 
-O contrato só é **oficial** depois do merge humano da PR. Até lá ele existe e é
-verificado, mas não está aprovado.
+O contrato só seria **oficial** depois do merge humano da PR, e o merge
+aconteceu: PR #7, merge `1851503`, 2026-08-28. **O contrato está oficial e
+vigente** — é obrigatório para P3, P4, P5 e P6, e nenhuma migration de domínio
+pode divergir dele.
+
+A P2 incluiu a correção **P2-R1**, que fechou três invariantes declaradas no
+contrato e não protegidas pelo gate: as fontes proibidas de tenant passaram de
+três para as cinco do SSOT (`body`, `query`, `params`, `headers`, `cookie`), o
+ator de auditoria ficou com as quatro que o SSOT declara, e o escopo `empresa`
+da numeração passou a ser exigido junto com `tenant`. Cada uma ganhou prova
+negativa executando o gate real — ver §14 do relatório da P2.
 
 ## Gates ativos
 
@@ -222,13 +231,24 @@ CI em `.github/workflows/quality.yml`.
 | `dc7e022` | fechamento documental da P1.3 | [31012186549](https://github.com/maikelimaadm-stack/MAIKE/actions/runs/31012186549) | **verde**, 13/13 |
 | P1.4 | **commit funcional** da P1.4 | CI registrada no corpo da PR #6 | — |
 | P1.4-R1 | **commit funcional** da P1.4-R1 | CI registrada no corpo da PR #6 | — |
-| P2 | **commit funcional** da P2 | run/job registrados no corpo da PR da P2 | — |
+| `3c1a90d` | **commit funcional** da P2 | [31108882141](https://github.com/maikelimaadm-stack/MAIKE/actions/runs/31108882141) | **verde**, 14/14 |
+| `acc2f11` | **commit funcional** da P2-R1 | [31125606483](https://github.com/maikelimaadm-stack/MAIKE/actions/runs/31125606483) | **não executou** — ver abaixo |
+| `8a5e3ee` | commit vazio da P2-R1, para disparar CI | — | nenhum run criado |
 
 Um commit não pode conter o resultado da própria execução de CI. A execução do
 commit funcional fica no corpo da PR aberta — PR #2 para a P1.1, PR #3 para a
-P1.2, PR #5 para a P1.3, PR #6 para a P1.4 e a P1.4-R1, e a PR da P2 para esta
-missão. É por isso que **a P2 não se declara concluída dentro do próprio
-commit**: o número da execução só existe depois que ele é empurrado.
+P1.2, PR #5 para a P1.3, PR #6 para a P1.4 e a P1.4-R1, PR #7 para a P2.
+
+**O commit `acc2f11` entrou na `main` sem execução de CI própria.** Não houve
+reprovação: o job `92695474512` nasceu na fila às 18:16:53 de 2026-08-06, nunca
+recebeu runner (`runner_id: 0`, 0 ms faturados) e foi cancelado 15 minutos
+depois. Re-run pela API foi aceito mas nunca enfileirou; um commit vazio no
+mesmo HEAD não gerou run nenhum, enquanto o Vercel fez deploy normalmente no
+mesmo push — ou seja, o gatilho chegava e o Actions não executava. A evidência
+que existe para esse commit é o `verify:all` local, 14/14 com exit 0, mais a CI
+verde do commit imediatamente anterior. O proprietário mergeou com esse quadro
+registrado no corpo da PR #7. **A primeira execução verde na `main` cobre essa
+lacuna** — até lá, ela fica declarada aqui em vez de escondida.
 
 O run vermelho de `8866768` fica registrado em vez de omitido. A reprovação foi
 legítima: o relatório da própria P1.1-R1 citava um par nome-de-chave mais
