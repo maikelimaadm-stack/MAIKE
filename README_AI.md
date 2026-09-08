@@ -22,10 +22,10 @@ e decisão vivem neste repositório.
 |---|---|
 | **Produto** | Pecuária — **Mapa Geral + Manejo** (D-PROD-01) |
 | **Superfície primária** | `MapaGeral` — a raiz `/` redireciona para lá (D-PROD-05) |
-| **Missões concluídas** | **P0** (PR #1, merge `508cf62`) e **P1** (PR #6, merge `7398d85`) |
-| **Missão atual** | **P2 — ModeloBase1 Pecuário Foundation** — contrato base de **persistência e domínio**, não motor visual (D-PROD-21) |
+| **Missões concluídas** | **P0** (PR #1, merge `508cf62`), **P1** (PR #6, merge `7398d85`) e **P2** (PR #7, merge `1851503`) |
+| **Missão atual** | nenhuma em execução — a P2 fechou em 2026-08-28 |
 | **Próxima missão** | **P3 — Backend + Prisma + PostgreSQL Foundation** (não iniciada) |
-| **Branch de trabalho** | `claude/p2-modelobase1-pecuario-foundation` (PR draft) |
+| **Contrato de dados** | `config/modelobase1-pecuario.json` — **oficial** desde o merge da P2 (D-PROD-21) |
 | **Escopo executável** | `config/mapa-manejo-scope.json` |
 | **Molde arquitetural** | PROJETOMG — **parcial** (D-PROD-03) |
 | **Roadmap** | `docs/engineering/ROADMAP.md` |
