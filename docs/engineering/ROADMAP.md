@@ -98,11 +98,11 @@ autenticação própria emite sessão válida; zero import de `@base44/sdk` no b
 `gate:tenancy` e `gate:indices` criados e verdes; tudo conforme
 `config/modelobase1-pecuario.json`.
 
-**Estado:** **implementada, em PR draft**, aguardando auditoria e merge do
-proprietário. Entregou `backend/` com Fastify, Prisma e PostgreSQL; os cinco
-models da fundação; migration versionada; Docker Compose local e PostgreSQL
-efêmero na CI; `auth_context` com sessão própria; e os gates `gate:tenancy` e
-`gate:indices`, absolutos e com prova negativa por invariante.
+**Estado:** **concluída e mergeada — PR #10, merge `4ce4608`**, sobre a
+implementação certificada em `5bcee77`. Entregou `backend/` com Fastify, Prisma e
+PostgreSQL; os cinco models da fundação; migration versionada; Docker Compose
+local e PostgreSQL efêmero na CI; `auth_context` com sessão própria; e os gates
+`gate:tenancy` e `gate:indices`, absolutos e com prova negativa por invariante.
 
 Inclui a correção **P3-R1**, que fechou cinco bloqueios de auditoria dentro da
 mesma PR: identidade em runtime contornando o `@default(cuid())`, relação

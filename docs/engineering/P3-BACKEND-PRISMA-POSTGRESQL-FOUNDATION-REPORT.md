@@ -301,6 +301,9 @@ por 33 testes de integração.
 **P3 implementada tecnicamente e em PR draft. Aguardando auditoria e merge
 manual do proprietário. P4 não iniciada.**
 
+> Estado histórico, verdadeiro quando foi escrito. **O estado vigente está em
+> §17** — a PR #10 foi mergeada.
+
 ---
 
 # 16. P3-R1 — Corrective Contract Closure
@@ -635,3 +638,41 @@ onde ela não existe. D-PROD-23 continua correta como está. O marcador em
 
 **Estado: P3 continua implementada, em PR draft, aguardando auditoria e merge
 manual do proprietário. P4 não iniciada.**
+
+> Estado histórico, verdadeiro quando foi escrito. **O estado vigente está em
+> §17** — a PR #10 foi mergeada.
+
+---
+
+# 17. Post-merge closure
+
+As seções 1 a 16 acima foram escritas **antes** do merge e ficam como estavam —
+inclusive o "Estado" logo acima, que descrevia a PR como draft aberta. Era
+verdade no momento em que foi escrito. Esta seção registra o que mudou depois,
+sem reescrever a evidência da execução.
+
+| Item | Valor |
+|---|---|
+| PR | **#10**, mergeada **manualmente pelo proprietário** |
+| Merge commit | `4ce460800085e12e29faaa3ce5d0fe4e5b33598b` |
+| Implementação certificada | `5bcee77e77c2c6b01b0657758aa6e4e1aca7c06b` |
+| CI do HEAD mergeado | run [34260918759](https://github.com/maikelimaadm-stack/MAIKE/actions/runs/34260918759), job `102178796058` — **verde, 18/18** |
+| Estado da P3 | **oficialmente concluída** |
+| Estado da P4 | **não iniciada** |
+
+O agente não marcou ready, não mergeou e não fechou a PR. A decisão foi do
+proprietário, sobre um HEAD com CI verde.
+
+Vale registrar o contraste com a P2-R1, porque a lacuna daquela missão está
+documentada em `CURRENT-STATE.md` e **não se repetiu aqui**: o `acc2f11` entrou
+na `main` sem execução de CI própria, por uma falha de infraestrutura do Actions.
+A P3 entrou com execução própria e verde **sobre o commit exato que foi
+mergeado** — o `5bcee77` que o merge `4ce4608` trouxe. Não há lacuna de
+evidência a declarar nesta missão.
+
+O que a P3 **não** entregou continua não entregue, e o merge não muda isso: o
+catálogo de erros do frontend (`addedToFrontendCatalogInPhase = "P3"` no
+contrato) segue sem sincronizar com `src/apis/_core/ApiError.js`, porque `src/`
+estava congelado. Os oito códigos existem no backend. A sincronização é da P4,
+quando ganham consumidor real — e o contrato não foi alterado para esconder a
+divergência.
