@@ -98,6 +98,11 @@ describe('P1.2 — a UI do mapa não fala Base44', () => {
    * `manejoBoundary.test.js` (A11), num lugar só. Aqui o que importa é que
    * nenhuma entidade da P1.2 tenha sido perdida — duas asserções de igualdade
    * exata em arquivos diferentes só criariam trabalho de sincronização.
+   *
+   * `Setor` saiu desta lista na P4.1, e por progresso, não por perda: a
+   * persistência dele é nativa (D-PROD-25). A asserção abaixo cobre isso de
+   * forma explícita, para que "sumiu do registry" nunca passe despercebido como
+   * se fosse a mesma coisa que "migrou".
    */
   it('B11 — as entidades da P1.2 continuam registradas', () => {
     expect([...getRegisteredEntityNames()].sort()).toEqual(expect.arrayContaining([
@@ -105,9 +110,21 @@ describe('P1.2 — a UI do mapa não fala Base44', () => {
       'EstoqueLoteNota', 'EventoSanitario', 'GrupoAtividade', 'HistoricoLancamentoTarefa',
       'LancamentoTarefa', 'LinhaGeografica', 'LocalEstoque', 'Lote', 'ManejoTecnicoRebanho',
       'MovimentacaoEstoque', 'MovimentacaoMapa', 'MovimentacaoPecuaria', 'Permissao',
-      'PontoReferencia', 'PontoSuplementacao', 'Produto', 'Setor', 'SuplementacaoEvento',
+      'PontoReferencia', 'PontoSuplementacao', 'Produto', 'SuplementacaoEvento',
       'SuplementacaoLote', 'TipoTarefa', 'User',
     ]));
+  });
+
+  it('B11b — Setor saiu do registry porque virou nativo, e o mapa continua lendo setores', async () => {
+    expect(getRegisteredEntityNames()).not.toContain('Setor');
+
+    // A leitura que o mapa faz continua existindo — só que pela porta nativa.
+    const mapaApi = await import('@/apis/mapa');
+    expect(typeof mapaApi.listSetores).toBe('function');
+
+    const fonte = codigoDe('src/apis/mapa/mapaApi.js');
+    expect(fonte).toContain("export { listSetores } from '@/apis/setores'");
+    expect(fonte).not.toContain('mapaProvider.listSetores');
   });
 
   it('B12 — nenhuma entidade dinâmica dentro de src/apis/', () => {

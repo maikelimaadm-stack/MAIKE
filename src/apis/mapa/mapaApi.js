@@ -124,8 +124,20 @@ export const updateLinha = async (id, dados) => {
 
 // ── Apoio: setores, ícones, bebedouros ────────────────────────────────────
 
-export const listSetores = async () =>
-  comoLista(await runProviderCall(() => mapaProvider.listSetores(), ctx('listSetores')));
+/**
+ * Setores, para desenhar e agrupar a geografia.
+ *
+ * Reexportado do módulo Setores desde a P4.1 (D-PROD-25). Antes existiam duas
+ * leituras do mesmo agregado — `mapaProvider.listSetores` e
+ * `setoresProvider.list` —, aceitáveis enquanto as duas batiam na mesma entidade
+ * da Base44. Com a persistência nativa elas deixariam de ser equivalentes: duas
+ * portas, dois caches offline com a mesma chave, e nenhuma garantia de que o
+ * mapa e o cadastro enxergassem a mesma lista.
+ *
+ * A superfície pública do mapa não muda: quem importa `@/apis/mapa` continua
+ * chamando `listSetores()` sem saber de onde ele vem.
+ */
+export { listSetores } from '@/apis/setores';
 
 export const listIcones = async () =>
   comoLista(await runProviderCall(() => mapaProvider.listIcones(), ctx('listIcones')));

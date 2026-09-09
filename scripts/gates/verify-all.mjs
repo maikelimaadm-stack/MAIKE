@@ -27,6 +27,11 @@ const ETAPAS = [
   // quem tem permissão de falar com o mundo lá fora — e ler uma ao lado da
   // outra é como se percebe que uma abriu uma porta que a outra fechou.
   ['native-api', npm('gate:native-api')],
+  // Logo depois do transporte nativo, porque é a primeira capacidade que passa
+  // por ele. `gate:native-api` prova que existe um caminho até o backend
+  // próprio; este prova que Setor usa esse caminho e nenhum outro — e que a
+  // Base44 não voltou a ser origem, destino ou fallback do dado dele.
+  ['setor-native', npm('gate:setor-native')],
   ['source-closure', npm('gate:source-closure')],
   ['import-integrity', npm('gate:import-integrity')],
   ['no-secrets', npm('gate:no-secrets')],

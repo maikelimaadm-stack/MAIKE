@@ -57,3 +57,13 @@ export const auditWriteFailed = (message, options) =>
 
 export const concurrencyConflict = (message, options) =>
   new AppError('CONCURRENCY_CONFLICT', message || 'conflito de concorrência', options);
+
+/**
+ * Setor inexistente **ou** de outro tenant — indistinguíveis de propósito.
+ *
+ * A mensagem é a mesma nos dois casos. Diferenciá-las transformaria a rota num
+ * oráculo de existência: quem quisesse saber se um id pertence a outro cliente
+ * bastaria comparar as respostas.
+ */
+export const setorNotFound = (message, options) =>
+  new AppError('SETOR_NOT_FOUND', message || 'setor não encontrado', options);

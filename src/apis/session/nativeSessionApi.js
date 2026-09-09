@@ -30,6 +30,7 @@
 import { nativeRequest } from '../_core/nativeHttpClient.js';
 import { ApiError, API_ERROR_CODES, isApiError, hasApiErrorCode } from '../_core/ApiError.js';
 import { hasNativeToken, setNativeToken, clearNativeToken } from '@/lib/auth/nativeTokenStorage';
+import { setOfflineTenant, clearOfflineTenant } from '@/lib/offline/offlineTenant';
 
 const RESOURCE = 'SessaoNativa';
 const ctx = (operation) => ({ operation, resource: RESOURCE });
@@ -86,6 +87,19 @@ const contextoValido = (corpo) =>
   ehObjeto(corpo) && texto(corpo.cliente_id) !== '' && texto(corpo.usuario_id) !== '';
 
 /**
+ * Descarte da sessão local: token **e** dono da fila offline, sempre juntos.
+ *
+ * Existe para que os dois não possam divergir. Se o token saísse sozinho, o
+ * marcador de dono ficaria apontando para um cliente sem sessão; se o marcador
+ * saísse sozinho, a fila daquele cliente viraria órfã — que é exatamente o
+ * estado que abriu o defeito de replay cruzado da P4.1-R1.
+ */
+const descartarSessaoLocal = () => {
+  clearNativeToken();
+  clearOfflineTenant();
+};
+
+/**
  * Autentica e ativa a sessão.
  *
  * Sequência deliberada: autentica, guarda o token, e só considera a sessão
@@ -119,7 +133,7 @@ export const login = async (credenciais) => {
   );
 
   if (!respostaDeLoginValida(corpo)) {
-    clearNativeToken();
+    descartarSessaoLocal();
     throw new ApiError(API_ERROR_CODES.OPERATION_FAILED, ctx('login'));
   }
 
@@ -128,7 +142,7 @@ export const login = async (credenciais) => {
   try {
     await obterContexto();
   } catch (erro) {
-    clearNativeToken();
+    descartarSessaoLocal();
     throw isApiError(erro) ? erro : new ApiError(API_ERROR_CODES.OPERATION_FAILED, ctx('login'));
   }
 
@@ -155,6 +169,14 @@ export const obterContexto = async () => {
   if (!contextoValido(corpo)) {
     throw new ApiError(API_ERROR_CODES.OPERATION_FAILED, ctx('obterContexto'));
   }
+
+  // O dono do armazenamento offline é marcado aqui, e só aqui, porque este é o
+  // único ponto em que o `cliente_id` vem **do servidor**, derivado do token
+  // (P4.1-R1, D-PROD-25). Marcá-lo a partir da resposta do login seria usar um
+  // campo que o corpo carrega por conveniência; marcá-lo a partir de algo que o
+  // navegador escolheu seria a R11 pelo avesso.
+  setOfflineTenant(corpo.cliente_id);
+
   return corpo;
 };
 
@@ -207,7 +229,7 @@ export const restaurarSessao = async () => {
     // um token recusado guardado só produz um 401 por requisição até alguém
     // perceber.
     if (hasApiErrorCode(erro, API_ERROR_CODES.TENANT_CONTEXT_REQUIRED)) {
-      clearNativeToken();
+      descartarSessaoLocal();
       return { autenticado: false, contexto: null };
     }
 
@@ -224,7 +246,7 @@ export const restaurarSessao = async () => {
  * propósito: não há nada para esperar, e uma promessa aqui sugeriria que existe.
  */
 export const logout = () => {
-  clearNativeToken();
+  descartarSessaoLocal();
 };
 
 /**

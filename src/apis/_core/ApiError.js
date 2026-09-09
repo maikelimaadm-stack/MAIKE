@@ -30,7 +30,13 @@ export const API_ERROR_CODES = Object.freeze({
   LOTE_NATIVE_FIELD_PROTECTED: 'LOTE_NATIVE_FIELD_PROTECTED',
   LOTE_FIELD_HAS_DATA: 'LOTE_FIELD_HAS_DATA',
   LOTE_OPTION_SOURCE_UNSUPPORTED: 'LOTE_OPTION_SOURCE_UNSUPPORTED',
-  SETOR_DELETE_BLOCKED: 'SETOR_DELETE_BLOCKED',
+  // `SETOR_DELETE_BLOCKED` foi REMOVIDO na P4.1 (D-PROD-25). Ele significava
+  // "existem registros vinculados", e o único caminho que o lançava —
+  // `excluirSetor` — deixou de consultar vínculo: a exclusão de setor está
+  // fechada enquanto os dependentes não forem nativos, e a recusa tem código
+  // próprio (`SETOR_DELETE_UNAVAILABLE`). Mantê-lo catalogado seria repetir o
+  // caso `PRODUTO_PARTIAL_IMPORT` da P1.4-R1: código sem consumidor é promessa
+  // sem contrato. Ele volta quando a P4.2 reabrir a exclusão de verdade.
   CATEGORIA_HAS_CHILDREN: 'CATEGORIA_HAS_CHILDREN',
   CATEGORIA_PARTIAL_DELETE: 'CATEGORIA_PARTIAL_DELETE',
   CATEGORIA_MANEJO_DELETE_BLOCKED: 'CATEGORIA_MANEJO_DELETE_BLOCKED',
@@ -81,6 +87,17 @@ export const API_ERROR_CODES = Object.freeze({
   // `API_INVALID_ARGUMENT` ou `API_OPERATION_FAILED`. Catalogá-los seria
   // vocabulário sem significado próprio na tela.
   AUTH_INVALID_CREDENTIALS: 'AUTH_INVALID_CREDENTIALS',
+
+  // P4.1 — Setor nativo (D-PROD-25). Dois códigos, com origens opostas.
+  //
+  // `SETOR_NOT_FOUND` vem do backend: o id não identifica setor deste tenant.
+  // Atravessa preservado porque a tela pode agir sobre ele — a lista está
+  // velha, recarregar resolve — e isso é diferente de "a operação falhou".
+  //
+  // `SETOR_DELETE_UNAVAILABLE` nasce e morre no frontend: nenhuma requisição é
+  // feita. Ele não existe no backend porque a rota de exclusão não existe.
+  SETOR_NOT_FOUND: 'SETOR_NOT_FOUND',
+  SETOR_DELETE_UNAVAILABLE: 'SETOR_DELETE_UNAVAILABLE',
 });
 
 /** Mensagem pública por código. Nunca inclui dado do provider. */
@@ -95,7 +112,6 @@ const MENSAGENS = Object.freeze({
   [API_ERROR_CODES.LOTE_NATIVE_FIELD_PROTECTED]: 'Esta lista é nativa do sistema e não pode ser excluída.',
   [API_ERROR_CODES.LOTE_FIELD_HAS_DATA]: 'Este campo já possui dados em lotes cadastrados e não pode ser excluído com segurança.',
   [API_ERROR_CODES.LOTE_OPTION_SOURCE_UNSUPPORTED]: 'Este cadastro não está disponível como fonte de opções.',
-  [API_ERROR_CODES.SETOR_DELETE_BLOCKED]: 'Não é possível excluir o setor: existem registros vinculados.',
   [API_ERROR_CODES.CATEGORIA_HAS_CHILDREN]: 'Não é possível excluir: existem subcategorias vinculadas.',
   [API_ERROR_CODES.CATEGORIA_PARTIAL_DELETE]: 'Parte das categorias não pôde ser excluída. Confira a lista antes de repetir.',
   [API_ERROR_CODES.CATEGORIA_MANEJO_DELETE_BLOCKED]: 'Não é possível excluir a categoria de manejo: existem registros vinculados.',
@@ -128,6 +144,11 @@ const MENSAGENS = Object.freeze({
   [API_ERROR_CODES.AUDIT_WRITE_FAILED]: 'Não foi possível registrar a operação com segurança. Nada foi salvo.',
   [API_ERROR_CODES.CONCURRENCY_CONFLICT]: 'Este registro foi alterado por outra pessoa. Recarregue e tente novamente.',
   [API_ERROR_CODES.AUTH_INVALID_CREDENTIALS]: 'Cliente, usuário ou senha inválidos.',
+
+  // P4.1 — Setor nativo.
+  [API_ERROR_CODES.SETOR_NOT_FOUND]: 'Este setor não foi encontrado. Atualize a lista e tente novamente.',
+  [API_ERROR_CODES.SETOR_DELETE_UNAVAILABLE]:
+    'A exclusão de setores está indisponível enquanto o cadastro é migrado. Nenhum dado foi alterado.',
 });
 
 /** Falha transitória vale retentativa; erro de argumento e conflito, não. */

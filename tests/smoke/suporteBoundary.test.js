@@ -185,15 +185,48 @@ describe('B13–B16 — arquivos `Utils` e domínio puro não fazem I/O', () => 
   });
 
   it('B16 — o runtime offline não conhece provider, client nem endpointOf', () => {
+    // `/client/i` era a regra até a P4.1-R1, e ela reprovava `cliente_id` — o
+    // tenant, em português. Quarta vez que este projeto tropeça na mesma pedra
+    // (P3-R1 `randomUUID`, P4.0 `getNativeApiUrl` e `Authorization`), e a
+    // correção é sempre a mesma: tornar a regra **precisa**, nunca afrouxá-la.
+    //
+    // `\bclient\b` continua reprovando o alvo real — `client`, `client.entities`,
+    // `getClient(` — e para de reprovar `cliente`, `clientes`, `cliente_id`,
+    // porque a letra seguinte é de palavra e a borda não fecha.
+    const CLIENT_DO_PROVIDER = /\bclient\b/i;
+
+    // Controle da própria regra, antes de aplicá-la à fonte: sem isto, um
+    // padrão que não casa com nada passaria como se estivesse protegendo.
+    expect(CLIENT_DO_PROVIDER.test('await client.entities.Setor.list()')).toBe(true);
+    expect(CLIENT_DO_PROVIDER.test('const tenant = item.cliente_id ?? null;')).toBe(false);
+
     const fonte = codigoDe('src/lib/offline/offlineEntityRuntime.js');
     expect(fonte).not.toContain('base44');
     expect(fonte).not.toContain('_providers');
     expect(fonte).not.toContain('endpointOf');
-    expect(fonte).not.toMatch(/client/i);
+    expect(fonte).not.toMatch(CLIENT_DO_PROVIDER);
   });
 });
 
-describe('B17 — registry do provider é literal, exato e igual ao manifesto', () => {
+describe('B17 — registry do provider é literal, exato e igual ao manifesto menos as migradas', () => {
+  /**
+   * Entidades cuja persistência já é **nativa**, e que por isso saíram do
+   * registry da Base44 sem sair do manifesto.
+   *
+   * Esta lista é o SSOT da divergência: a P1.4 fechou registry e manifesto
+   * iguais (38 e 38), e desde a P4.1 a única diferença aceita é o número de
+   * capacidades já migradas. `Setor` continua em `allowedBase44Entities` porque
+   * `base44/entities/Setor.jsonc` existe e `syncEntityReferences` o cita —
+   * `gate:product-scope` exige que manifesto e schemas sejam iguais nos dois
+   * sentidos, então tirá-lo de lá reprovaria por uma independência que ainda
+   * não existe (D-PROD-25).
+   *
+   * Cresce **uma entrada por missão de migração**, e cada entrada é conferida
+   * contra o manifesto e contra o registry abaixo — não é allowlist que perdoa
+   * divergência qualquer.
+   */
+  const MIGRADAS_PARA_NATIVO = ['Setor'];
+
   const ESPERADO = [
     'AplicacaoMedicamento', 'AreaPastagem', 'Bebedouro', 'BebedouroAlerta', 'BebedouroHistorico',
     'BebedouroSanidade', 'Categoria', 'CategoriaManejo', 'ConfiguracaoIcone', 'Empresa',
@@ -201,18 +234,30 @@ describe('B17 — registry do provider é literal, exato e igual ao manifesto', 
     'LancamentoTarefa', 'LayoutCampo', 'LayoutConfiguracao', 'LayoutSecao', 'LinhaGeografica',
     'LocalEstoque', 'Lote', 'ManejoTecnicoRebanho', 'Marca', 'MovimentacaoEstoque', 'MovimentacaoMapa',
     'MovimentacaoPecuaria', 'Permissao', 'PontoReferencia', 'PontoSuplementacao', 'Produto',
-    'RegistroAnexo', 'Setor', 'SuplementacaoEvento', 'SuplementacaoLote', 'TipoTarefa',
+    'RegistroAnexo', 'SuplementacaoEvento', 'SuplementacaoLote', 'TipoTarefa',
     'UnidadeMedida', 'User',
   ].sort();
 
-  it('são 38 entidades, e são exatamente as do manifesto', async () => {
+  it('são 37 entidades: o manifesto menos as capacidades já nativas', async () => {
     const { getRegisteredEntityNames } = await import('@/apis/_providers/base44Provider');
     const registrados = getRegisteredEntityNames().slice().sort();
     const manifesto = JSON.parse(ler('config/mapa-manejo-scope.json')).allowedBase44Entities.slice().sort();
 
     expect(registrados).toEqual(ESPERADO);
-    expect(registrados).toEqual(manifesto);
-    expect(registrados.length).toBe(38);
+    expect(registrados).toEqual(manifesto.filter((e) => !MIGRADAS_PARA_NATIVO.includes(e)));
+    expect(registrados.length).toBe(37);
+    expect(manifesto.length).toBe(38);
+  });
+
+  it('cada entidade declarada como migrada está no manifesto e FORA do registry', async () => {
+    const { getRegisteredEntityNames } = await import('@/apis/_providers/base44Provider');
+    const registrados = getRegisteredEntityNames();
+    const manifesto = JSON.parse(ler('config/mapa-manejo-scope.json')).allowedBase44Entities;
+
+    for (const nome of MIGRADAS_PARA_NATIVO) {
+      expect(manifesto, `${nome} deveria continuar no manifesto`).toContain(nome);
+      expect(registrados, `${nome} ainda está registrado na Base44`).not.toContain(nome);
+    }
   });
 
   it('só Marca e UnidadeMedida entraram na P1.4', () => {

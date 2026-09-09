@@ -1337,17 +1337,48 @@ describe('gate:api-boundary — P1.4 fechamento da P1', () => {
     cleanup(d);
   });
 
-  test('P14-N11/N12 o registry real tem Marca e UnidadeMedida, e é igual ao manifesto', () => {
+  /**
+   * Entidades que saíram do registry por terem persistência **nativa**.
+   *
+   * A P1.4 fechou o registry igual ao manifesto: 38 e 38. A P4.1 abriu a
+   * primeira diferença legítima — `Setor` migrou para o backend próprio
+   * (D-PROD-25) e saiu do registry, mas continua no manifesto porque
+   * `syncEntityReferences` ainda o cita e `base44/entities/Setor.jsonc` ainda
+   * existe; tirá-lo de lá reprovaria `gate:product-scope` por uma independência
+   * que ainda não existe.
+   *
+   * A verificação continua sendo por **igualdade**, não por inclusão: o
+   * conjunto esperado é `manifesto − MIGRADAS_PARA_NATIVO`. Trocar por
+   * `assert.ok(subconjunto)` deixaria qualquer entidade sumir do registry sem
+   * ninguém decidir nada — e sumir do registry é justamente o sintoma de uma
+   * migração pela metade.
+   */
+  const MIGRADAS_PARA_NATIVO = ['Setor'];
+
+  test('P14-N11/N12 o registry real é o manifesto menos as capacidades já nativas', () => {
     const atual = scanBoundary(REPO_ROOT);
     const manifesto = JSON.parse(readFileSync(join(REPO_ROOT, SCOPE_REL), 'utf8'));
     const permitidas = [...manifesto.allowedBase44Entities].sort();
+    const esperadas = permitidas.filter((e) => !MIGRADAS_PARA_NATIVO.includes(e));
 
     assert.ok(atual.entidadesRegistradas.includes('Marca'), 'Marca ausente do registry');
     assert.ok(atual.entidadesRegistradas.includes('UnidadeMedida'), 'UnidadeMedida ausente do registry');
-    // Igualdade, não inclusão: entidade permitida sem consumidor migrado também
-    // é divergência, e é assim que a P1 se declara fechada.
-    assert.deepEqual(atual.entidadesRegistradas, permitidas);
-    assert.equal(atual.entidadesRegistradas.length, 38);
+
+    // Cada nome da lista de migradas precisa MESMO estar no manifesto e MESMO
+    // fora do registry — senão a lista viraria uma allowlist que perdoa
+    // divergência qualquer.
+    for (const nome of MIGRADAS_PARA_NATIVO) {
+      assert.ok(permitidas.includes(nome), `${nome} declarada como migrada mas ausente do manifesto`);
+      assert.equal(
+        atual.entidadesRegistradas.includes(nome),
+        false,
+        `${nome} declarada como migrada mas ainda registrada no provider da Base44`
+      );
+    }
+
+    assert.deepEqual(atual.entidadesRegistradas, esperadas);
+    assert.equal(atual.entidadesRegistradas.length, permitidas.length - MIGRADAS_PARA_NATIVO.length);
+    assert.equal(atual.entidadesRegistradas.length, 37);
   });
 
   test('P14-N13 baseline final com lista não vazia reprova a certificação da P1', () => {

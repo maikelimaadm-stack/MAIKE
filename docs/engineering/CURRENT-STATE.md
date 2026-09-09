@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-09-09 (**P0, P1, P2, P3 e a fatia P4.0 mergeadas** — o navegador já autentica contra o backend próprio · **P4 em execução**; a **P4.0-R2** corrigiu a base URL nativa, defeito encontrado em produção)
+**Atualizado em:** 2026-09-09 (**P0, P1, P2, P3 e a fatia P4.0 mergeadas** — o navegador já autentica contra o backend próprio · **P4 em execução**: a **P4.0-R2** corrigiu a base URL nativa, defeito encontrado em produção, e a **P4.1 (Setor)** está implementada, em revisão)
 
 ---
 
@@ -13,10 +13,10 @@ Base44 mantida apenas como provider temporário da cadeia preservada (D-PROD-04)
 |---|---|
 | Produto | Pecuária — Mapa Geral + Manejo (D-PROD-01) |
 | Superfície primária | `MapaGeral` (D-PROD-05) |
-| Missão em execução | **P4 — Mapa Core Native Persistence** — fatia **P4.0** concluída, com as correções **P4.0-R1** e **P4.0-R2** |
+| Missão em execução | **P4 — Mapa Core Native Persistence** — fatia **P4.0** concluída, com as correções **P4.0-R1** e **P4.0-R2**; fatia **P4.1** (Setor) implementada, em revisão |
 | Última mergeada | **P4.0 — Native Transport + Session Activation (PR #12, merge `45599f5`)** — inclui a correção **P4.0-R1**; implementação certificada em `f01201b`, com `npm run verify:all` em 19/19 e exit 0 |
 | Mergeadas anteriores | P3 — Backend + Prisma + PostgreSQL Foundation (PR #10, merge `4ce4608`), com a P3-R1; P2 — ModeloBase1 Pecuário Foundation (PR #7, merge `1851503`); SSOT sincronizada nas PRs #8 (`378bfd3`) e #11 (`672ea99`); emenda D-PROD-22 na PR #9 (merge `44b204c`) |
-| Próxima fatia autorizável | P4.1 — Setor Native Persistence — **não iniciada** |
+| Próxima fatia autorizável | P4.2 — AreaPastagem Native Persistence — **não iniciada** |
 | Contrato de dados | `config/modelobase1-pecuario.json` — **oficial**; obrigatório para P3–P6 |
 | Escopo executável | `config/mapa-manejo-scope.json` |
 | Roadmap | `docs/engineering/ROADMAP.md` |
@@ -39,7 +39,7 @@ armazenamento apenas em `.env.local` seguem pendentes com o proprietário — ve
 | P1 | Native Foundation Bootstrap | **concluída e mergeada** — P1.1 a P1.3 em PRs anteriores; P1.4 e P1.4-R1 na PR #6, merge `7398d85`. Os seis eixos de `gate:api-boundary` estão em zero |
 | P2 | ModeloBase1 Pecuário Foundation | **mergeada** (PR #7, merge `1851503`) — inclui a correção P2-R1 |
 | P3 | Backend + Prisma + PostgreSQL Foundation | **concluída e mergeada** (PR #10, merge `4ce4608`) — `backend/` com Fastify, Prisma e PostgreSQL; cinco models; `gate:tenancy` e `gate:indices`. Inclui a correção **P3-R1** |
-| P4 | Mapa Core Native Persistence | **em execução** — **P4.0** (transporte e sessão nativos) **concluída e mergeada** (PR #12, merge `45599f5`), inclui a **P4.0-R1** e a **P4.0-R2** (base URL absoluta, PR #15, merge `b2535ec`); **P4.1** (Setor) e **P4.2** (AreaPastagem) não iniciadas |
+| P4 | Mapa Core Native Persistence | **em execução** — **P4.0** (transporte e sessão nativos) **concluída e mergeada** (PR #12, merge `45599f5`), inclui a **P4.0-R1** e a **P4.0-R2** (base URL absoluta, PR #15, merge `b2535ec`); **P4.1** (Setor) **implementada, em revisão**; **P4.2** (AreaPastagem) não iniciada |
 | P5 | Manejo Core Native Persistence | não iniciada |
 | P6 | Supporting Capabilities | não iniciada |
 | P7 | Base44 Final Removal | não iniciada |
@@ -75,13 +75,29 @@ Números medidos após `npm ci` e `npm run build` finais.
 tocou em `src/`, `base44/`, `vite.config.js` nem no manifesto de escopo. Só duas
 métricas mudaram, e as duas por acréscimo de verificação:
 
-| Métrica | Depois da P1.4 | Depois da P2 | Depois da P3-R1 | Depois da P4.0 |
-|---|---|---|---|---|
-| Testes automatizados | 817 (323 gate + 494 smoke) | 862 (368 gate + 494 smoke) | 964 (428 gate + 495 smoke + 41 backend) | **1.046** (452 gate + 534 smoke + 60 backend) |
-| Etapas do `verify:all` | 13 | 14 | 18 | **19** |
-| Dependências diretas | 49 | 49 | 55 | **56** (38 `dependencies` + 18 `devDependencies`) |
-| Bundle de produção — JS | 2.496,61 kB | 2.496,61 kB | 2.496,62 kB | **2.504,83 kB** |
-| Dívida de tipos em `src/` | 2.319 | 2.319 | 2.319 (teto 2.319) | **2.318** (teto 2.318) |
+| Métrica | Depois da P1.4 | Depois da P2 | Depois da P3-R1 | Depois da P4.0 | Depois da P4.1 |
+|---|---|---|---|---|---|
+| Testes automatizados | 817 (323 gate + 494 smoke) | 862 (368 gate + 494 smoke) | 964 (428 gate + 495 smoke + 41 backend) | 1.046 (452 gate + 534 smoke + 60 backend) | **1.140** (494 gate + 556 smoke + 90 backend) |
+| Etapas do `verify:all` | 13 | 14 | 18 | 19 | **20** |
+| Dependências diretas | 49 | 49 | 55 | 56 | **56** (38 `dependencies` + 18 `devDependencies`) |
+| Bundle de produção — JS | 2.496,61 kB | 2.496,61 kB | 2.496,62 kB | 2.504,83 kB | **2.505,17 kB** (671,56 kB gzip) |
+| Dívida de tipos em `src/` | 2.319 | 2.319 | 2.319 (teto 2.319) | 2.318 (teto 2.318) | **2.318** (teto 2.318) |
+| Arquivos em `src/` | 263 | 263 | 263 | 263 | **271** |
+| Models Prisma | — | — | 5 | 5 | **6** |
+| Migrations versionadas | — | — | 1 | 1 | **2** |
+| Registry literal do provider | 38 | 38 | 38 | 38 | **37** (o manifesto menos `Setor`) |
+| Ocorrências de `base44.entities` | 38 | 38 | 38 | 38 | **37** |
+
+A **P4.1** é a primeira missão desde a P1.4 a mexer no registry do provider, e a
+primeira a fazê-lo **para baixo**: `Setor` saiu porque a persistência dele é
+nativa (D-PROD-25). `base44/entities/Setor.jsonc` continua existindo e `Setor`
+continua em `allowedBase44Entities` — `syncEntityReferences` ainda o cita, e
+`gate:product-scope` exige manifesto e schemas iguais nos dois sentidos. Por
+isso `schemas` continua 38 enquanto `entitiesRefs` caiu para 37.
+
+O bundle cresceu 0,34 kB (+0,01%): a porta nativa e os dois códigos de erro
+novos custam mais que o `setoresProvider` removido. Continua sem code splitting
+(DBT-06).
 
 A diferença de 0,01 kB na linha do bundle é arredondamento entre ambientes de
 medição — as colunas P1.4 e P2 vêm da CI, as colunas P3 vêm de build local
@@ -339,6 +355,72 @@ esse cabeçalho legitimamente. É a mesma classe de falso positivo da P3-R1. A
 correção foi tornar a regra precisa (verificar *posição*, não palavra), com
 controles positivos que quebram se alguém alargar de volta.
 
+## Setor nativo (P4.1, D-PROD-25)
+
+A **primeira capacidade de domínio** a sair da Base44.
+
+| Camada | Antes da P4.1 | Depois da P4.1 |
+|---|---|---|
+| Persistência | entidade `Setor` da Base44 | `model Setor` no PostgreSQL, tenant-scoped, migration `20260909112833_p4_1_setor_native` |
+| Leitura do cadastro | `setoresProvider.list` | `GET /setores`, autenticado |
+| Leitura do mapa | `mapaProvider.listSetores` — **segunda** leitura do mesmo agregado | a **mesma** função, reexportada de `@/apis/setores` |
+| Criação | `POST` na Base44 com `numero_setor` calculado no navegador | `POST /setores`; o número vem de `EntidadeCodigoSequencia` |
+| Numeração | `MAX + 1` sobre a lista carregada | sequência atômica, escopo `tenant`, na transação da criação |
+| Atualização | `PATCH` na Base44 | `PATCH /setores/:id`, autenticado |
+| Exclusão | `DELETE` na Base44, com guarda de vínculo | **não existe rota**; recusa local com `SETOR_DELETE_UNAVAILABLE` |
+| Auditoria | nenhuma | `AuditLog` na mesma transação da escrita |
+| Offline | cache + fila sobre as operações da Base44 | cache + fila sobre as operações **nativas** |
+
+O `MAX + 1` não era questão de estilo. A lista carregada é uma **fotografia**:
+dois navegadores criando setor ao mesmo tempo liam o mesmo máximo e pediam o
+mesmo número. `BE-P41-08` cria 12 setores em paralelo contra PostgreSQL real e
+exige exatamente 1..12 — o caso que uma criação em série nunca distinguiria.
+
+Três decisões que custam explicação e estão registradas em D-PROD-25:
+
+- **escopo `tenant`, não `empresa`** (§B): `Empresa` só é nativa na P6, e o
+  backend não consegue validar o `empresa_id` que recebe. Ancorar uma sequência
+  num identificador não verificável criaria uma sequência por string arbitrária;
+- **sem `DELETE`** (§D): a guarda de vínculo consulta quatro entidades que ainda
+  vivem na Base44. Todas as formas de conciliar as duas bases numa operação
+  destrutiva são inseguras, e a recusa tem código próprio — nunca
+  `SETOR_DELETE_BLOCKED`, que afirmaria um vínculo não verificado;
+- **corpo montado por lista literal** (§G): o objeto da tela de edição carrega
+  `id`, `numero_setor` e `created_date`, e o registro criado offline carrega
+  `_isOffline` e um id `offline_…`. A filtragem mora na porta, e não no service,
+  porque o replay da fila chama as operações direto. **A regra de identidade do
+  backend não foi enfraquecida para acomodar o offline** — o offline é que
+  passou a respeitá-la.
+
+`gate:setor-native` trava as onze invariantes, com 48 provas quase todas
+negativas. Ver `docs/engineering/GATE-REGISTRY.md`.
+
+### P4.1-R1 — fechamento corretivo
+
+Três defeitos achados em revisão da própria PR e corrigidos dentro dela, como a
+P4.0-R1 foi na PR #12. Os dois primeiros existem porque a P4.1 mudou **quem
+autentica o replay** da fila offline:
+
+- **escrita entre tenants.** Cache e fila eram particionados por
+  `entidade::empresa_id`, sem tenant, e `logout()` descarta só o JWT. O replay
+  passou a mandar `Authorization: Bearer` do MAIKE e o backend grava pelo tenant
+  do token, então a operação enfileirada pelo cliente A era aplicada dentro do
+  cliente B que entrasse depois no mesmo navegador. Agora cache, fila e replay
+  têm dono, e a entrada de outro dono fica na fila até ele voltar — pular não é
+  perder;
+- **fila legada travando tudo.** `operacoesNativas` não tem `delete`. Uma
+  exclusão enfileirada antes do corte estourava `TypeError`, e o replay retorna
+  no primeiro erro: a fila **inteira**, de todas as entidades, parava ali para
+  sempre. Entradas anteriores ao corte não têm dono, e são descartadas — a única
+  perda de dado deste desenho, dita em vez de escondida;
+- **obrigatório só com espaço.** `minLength: 1` aceitava `" "`, que virava
+  `null` na normalização e `INTERNAL_ERROR` 500 no Prisma. `pattern: '\\S'` move a
+  recusa para a fronteira, com 400.
+
+Nada do backend foi afrouxado: o tenant continua vindo só do token. A correção é
+toda do lado do navegador, que era quem estava errado. Gate
+`P41-SETOR-OFFLINE-TENANT`, provas SN-13 a SN-18 e OFF21 a OFF29. Ver D-PROD-25 §L.
+
 ## Base URL nativa (P4.0-R2, D-PROD-26)
 
 Correção de um defeito que **chegou ao usuário**, e a primeira desta missão que
@@ -365,9 +447,10 @@ O que isso ensinou, e está registrado em D-PROD-26:
 `P4-NATIVE-SCHEME`, com provas negativas NAT-25/26/27 e controle positivo
 NAT-28.
 
+
 ## Gates ativos
 
-19 etapas em `npm run verify:all` — ver `docs/engineering/GATE-REGISTRY.md`.
+20 etapas em `npm run verify:all` — ver `docs/engineering/GATE-REGISTRY.md`.
 Todos os gates têm teste com casos de falha reais em `scripts/tests/gates/`; a
 catraca de tipos é exercitada ponta a ponta, com `tsc` de verdade em projetos
 temporários.
@@ -398,11 +481,12 @@ CI em `.github/workflows/quality.yml`.
 | `5bcee77` | **HEAD certificado** da P3-R1, mergeado na PR #10 | [34260918759](https://github.com/maikelimaadm-stack/MAIKE/actions/runs/34260918759) | **verde**, 18/18 |
 | `0185d10` | **commit funcional** da P4.0 | [34269584058](https://github.com/maikelimaadm-stack/MAIKE/actions/runs/34269584058) | **verde**, 19/19 |
 | `f01201b` | **HEAD certificado** da P4.0-R1, mergeado na PR #12 | [34272006608](https://github.com/maikelimaadm-stack/MAIKE/actions/runs/34272006608) | **verde**, 19/19 |
+| `8c477f9` | **commit funcional** da P4.1 | [34349251485](https://github.com/maikelimaadm-stack/MAIKE/actions/runs/34349251485) | **verde**, 20/20 |
 
 Um commit não pode conter o resultado da própria execução de CI. A execução do
 commit funcional fica no corpo da PR aberta — PR #2 para a P1.1, PR #3 para a
 P1.2, PR #5 para a P1.3, PR #6 para a P1.4 e a P1.4-R1, PR #7 para a P2, PR #10
-para a P3 e a P3-R1, PR #12 para a P4.0 e a P4.0-R1.
+para a P3 e a P3-R1, PR #12 para a P4.0 e a P4.0-R1, PR #14 para a P4.1.
 
 Ao contrário da P2-R1, a P3 entrou na `main` com **execução de CI própria e
 verde sobre o HEAD exato que foi mergeado**: o job `102178796058` do run
@@ -430,9 +514,9 @@ motivo de o `verify:all` local não ter pego antes.
 
 | # | Item | Tratamento |
 |---|---|---|
-| DBT-01 | **Fechado na P1.4.** Nenhum componente, página, hook, lib ou service acessa `base44`. As 38 ocorrências de `base44.entities` que restam estão todas dentro do adapter autorizado, uma por entidade do registry | fechado |
+| DBT-01 | **Fechado na P1.4.** Nenhum componente, página, hook, lib ou service acessa `base44`. As 37 ocorrências de `base44.entities` que restam estão todas dentro do adapter autorizado, uma por entidade do registry — eram 38 até a P4.1 migrar `Setor` | fechado |
 | DBT-02 | `requiresAuth: false` em `src/api/base44Client.js` | P3 |
-| DBT-03 | 2.319 diagnósticos de dívida de tipos versionados na catraca, com teto certificado de 2.319. A catraca impede crescimento em qualquer modo (D-PROD-17) e impede afrouxar a configuração (D-PROD-13). Trajetória: 2.802 → 2.759 (P1.2) → 2.728 (P1.3-R1) → 2.323 (P1.4, −405) → 2.319 (P1.4-R1, com o contrato de props do `Button` declarado de verdade, sem `any`) → **2.318** (P4.0, com o contrato do `AuthContext` declarado). A P2 e a P3 não mexeram em `src/` e por isso não reduziram nada — a redução voltou com o código nativo da P4.0 | P4–P8 |
+| DBT-03 | 2.318 diagnósticos de dívida de tipos versionados na catraca, com teto certificado de 2.318. A catraca impede crescimento em qualquer modo (D-PROD-17) e impede afrouxar a configuração (D-PROD-13). Trajetória: 2.802 → 2.759 (P1.2) → 2.728 (P1.3-R1) → 2.323 (P1.4, −405) → 2.319 (P1.4-R1, com o contrato de props do `Button` declarado de verdade, sem `any`) → **2.318** (P4.0, com o contrato do `AuthContext` declarado) → 2.318 (P4.1, estável: o diagnóstico que o código novo introduziu foi corrigido no código, não absorvido). A P2 e a P3 não mexeram em `src/` e por isso não reduziram nada. *O número de abertura desta linha dizia 2.319 desde a P4.0, contradizendo a própria trajetória e a tabela de inventário do mesmo documento; corrigido na P4.1.* | P4–P8 |
 | DBT-04 | Sem tela de **entrada** de estoque (D-PROD-08) | P6 |
 | DBT-05 | Chave Google Maps antiga permanece no histórico Git — revogar e rotacionar (OWNER-SECURITY-01) | ação do proprietário |
 | DBT-06 | Bundle único de ~2,50 MB, sem code splitting | P8 |
@@ -454,5 +538,8 @@ motivo de o `verify:all` local não ter pego antes.
 | DBT-23 | O produto não tem backend nativo neste repositório: é frontend Vite consumindo `@base44/sdk`. Um serviço externo no Railway não é automaticamente o backend do frontend — integrar exige contrato de endpoints, autenticação e CORS. `VITE_BASE44_BACKEND_URL` pertence ao SDK da Base44 e não deve ser apontada para outro destino | P3 |
 | DBT-24 | Validação de layout real depende de inspeção visual em produção. Os testes de shell provam estrutura e comportamento em JSDOM, que não calcula layout. Playwright não foi adotado | P8 |
 | DBT-25 | **Fechado na P1.4.** `src/domain/numeroPtBR.js` lê vírgula e ponto: `'12,5'` → 12,5, `'1.234,56'` → 1234,56, campo em branco → `null` em vez de `NaN`. Aplicado no cadastro de setor e nos payloads de produto e CSV; o teste S3b foi invertido para fixar a leitura correta | fechado |
-| DBT-26 | `numero_lote` e `numero_setor` usam `max + 1` calculado no cliente, sem segurança de concorrência. Só sequência no servidor resolve | P4 |
+| DBT-26 | **Parcialmente fechado na P4.1.** `numero_setor` passou a vir de `EntidadeCodigoSequencia`, no escopo `tenant`, dentro da transação da criação — provado com 12 criações concorrentes contra PostgreSQL real (BE-P41-08). `numero_lote` continua com `max + 1` no cliente: `Lote` é P5 | parcial · P5 |
+| DBT-27 | A exclusão de setor está **fechada**: não existe `DELETE /setores/:id`, e o frontend recusa com `SETOR_DELETE_UNAVAILABLE` sem ir à rede. Não é omissão — a guarda de vínculo consulta quatro entidades que ainda vivem na Base44, e nenhuma forma de conciliar as duas bases numa operação destrutiva é segura (D-PROD-25 §D). Reabre quando os dependentes migrarem | P4.2 |
+| DBT-28 | Setor criado **offline** não tem `numero_setor` até o replay: o número vem da sequência do servidor. A tabela mostra o campo vazio nesse intervalo. A alternativa — deixar o navegador escolher — seria reintroduzir o `MAX + 1` que a P4.1 removeu, e ainda por cima sem ver a lista inteira | P4.2 |
+| DBT-29 | `syncEntityReferences` continua na Base44 e continua sendo chamada quando o nome de um setor muda: os quatro destinos denormalizados (`AreaPastagem`, `LancamentoTarefa`, `MovimentacaoMapa`, `MovimentacaoPecuaria`) ainda são entidades de lá. É a única razão pela qual `Setor` permanece em `allowedBase44Entities` | P4.2 |
 | DBT-13 | `test:gates` leva ~42 s porque a catraca de tipos roda `tsc` de verdade em ~45 projetos temporários. É o preço de testar o gate real em vez do parser | P8 |
