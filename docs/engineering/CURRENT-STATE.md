@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-09-08 (**P0, P1, P2, P3 e a fatia P4.0 mergeadas** — o navegador já autentica contra o backend próprio · **P4 em execução**, com a **P4.1 (Setor) não iniciada**)
+**Atualizado em:** 2026-09-09 (**P0, P1, P2, P3 e a fatia P4.0 mergeadas** — o navegador já autentica contra o backend próprio · **P4 em execução**: a **P4.0-R2** corrigiu a base URL nativa, defeito encontrado em produção, e a **P4.1 (Setor)** está implementada, em revisão)
 
 ---
 
@@ -13,10 +13,10 @@ Base44 mantida apenas como provider temporário da cadeia preservada (D-PROD-04)
 |---|---|
 | Produto | Pecuária — Mapa Geral + Manejo (D-PROD-01) |
 | Superfície primária | `MapaGeral` (D-PROD-05) |
-| Missão em execução | **P4 — Mapa Core Native Persistence** — fatia **P4.0** concluída; nenhuma fatia em implementação |
+| Missão em execução | **P4 — Mapa Core Native Persistence** — fatia **P4.0** concluída, com as correções **P4.0-R1** e **P4.0-R2**; fatia **P4.1** (Setor) implementada, em revisão |
 | Última mergeada | **P4.0 — Native Transport + Session Activation (PR #12, merge `45599f5`)** — inclui a correção **P4.0-R1**; implementação certificada em `f01201b`, com `npm run verify:all` em 19/19 e exit 0 |
 | Mergeadas anteriores | P3 — Backend + Prisma + PostgreSQL Foundation (PR #10, merge `4ce4608`), com a P3-R1; P2 — ModeloBase1 Pecuário Foundation (PR #7, merge `1851503`); SSOT sincronizada nas PRs #8 (`378bfd3`) e #11 (`672ea99`); emenda D-PROD-22 na PR #9 (merge `44b204c`) |
-| Próxima fatia autorizável | P4.1 — Setor Native Persistence — **não iniciada** |
+| Próxima fatia autorizável | P4.2 — AreaPastagem Native Persistence — **não iniciada** |
 | Contrato de dados | `config/modelobase1-pecuario.json` — **oficial**; obrigatório para P3–P6 |
 | Escopo executável | `config/mapa-manejo-scope.json` |
 | Roadmap | `docs/engineering/ROADMAP.md` |
@@ -39,7 +39,7 @@ armazenamento apenas em `.env.local` seguem pendentes com o proprietário — ve
 | P1 | Native Foundation Bootstrap | **concluída e mergeada** — P1.1 a P1.3 em PRs anteriores; P1.4 e P1.4-R1 na PR #6, merge `7398d85`. Os seis eixos de `gate:api-boundary` estão em zero |
 | P2 | ModeloBase1 Pecuário Foundation | **mergeada** (PR #7, merge `1851503`) — inclui a correção P2-R1 |
 | P3 | Backend + Prisma + PostgreSQL Foundation | **concluída e mergeada** (PR #10, merge `4ce4608`) — `backend/` com Fastify, Prisma e PostgreSQL; cinco models; `gate:tenancy` e `gate:indices`. Inclui a correção **P3-R1** |
-| P4 | Mapa Core Native Persistence | **em execução** — **P4.0** (transporte e sessão nativos) **mergeada** (PR #12, merge `45599f5`), inclui a **P4.0-R1**; **P4.1** (Setor) **implementada, em revisão**; **P4.2** (AreaPastagem) não iniciada |
+| P4 | Mapa Core Native Persistence | **em execução** — **P4.0** (transporte e sessão nativos) **concluída e mergeada** (PR #12, merge `45599f5`), inclui a **P4.0-R1** e a **P4.0-R2** (base URL absoluta, PR #15, merge `b2535ec`); **P4.1** (Setor) **implementada, em revisão**; **P4.2** (AreaPastagem) não iniciada |
 | P5 | Manejo Core Native Persistence | não iniciada |
 | P6 | Supporting Capabilities | não iniciada |
 | P7 | Base44 Final Removal | não iniciada |
@@ -394,6 +394,33 @@ Três decisões que custam explicação e estão registradas em D-PROD-25:
 
 `gate:setor-native` trava as dez invariantes, com 42 provas quase todas
 negativas. Ver `docs/engineering/GATE-REGISTRY.md`.
+
+## Base URL nativa (P4.0-R2, D-PROD-26)
+
+Correção de um defeito que **chegou ao usuário**, e a primeira desta missão que
+não veio de análise e sim de produção.
+
+`VITE_MAIKE_API_URL` estava na Vercel como `maike-production.up.railway.app`,
+sem `https://`. Como `nativeRequest` concatena base e caminho, o `fetch` recebeu
+uma URL **relativa** e o navegador a resolveu contra a origem do frontend: o
+`POST /auth/login`, com a senha no corpo, foi para a Vercel, que respondeu `404`
+em `text/plain`. Na tela, erro genérico de login.
+
+O que isso ensinou, e está registrado em D-PROD-26:
+
+- **o sintoma mentia.** `curl` contra o backend autenticava com `200`; só o
+  navegador falhava. Backend, banco, JWT e CORS estavam corretos o tempo todo;
+- **configuração ausente falhava bem; configuração malformada, não.** A P4.0 já
+  tratava `null` corretamente (`PROVIDER_UNAVAILABLE`, sem tocar na rede). O
+  buraco era o valor presente e inválido;
+- **o custo foi credencial no host errado**, não indisponibilidade.
+
+`getNativeApiUrl()` agora normaliza host puro para `https://`, preserva
+`http://`/`https://` explícitos e devolve `null` para toda forma ambígua —
+`//outro.host`, `javascript:`, `ftp://`, caminho relativo. Gate próprio,
+`P4-NATIVE-SCHEME`, com provas negativas NAT-25/26/27 e controle positivo
+NAT-28.
+
 
 ## Gates ativos
 

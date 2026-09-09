@@ -16,7 +16,7 @@ Todos têm teste unitário com casos de falha reais em `scripts/tests/gates/`.
 | **package-sync** | `npm run gate:package-sync` | `package.json` e `package-lock.json` batem em name, version e dependências diretas | D-PROD-02 | `scripts/gates/gate-package-sync.mjs` |
 | **product-scope** | `npm run gate:product-scope` | Rotas, menu, schemas e functions dentro de `config/mapa-manejo-scope.json`; superfície primária é `MapaGeral`; **entidades citadas dentro das functions** | D-PROD-01 · D-PROD-05 · D-PROD-06 | `scripts/gates/gate-product-scope.mjs` |
 | **api-boundary** | `npm run gate:api-boundary` | A UI não fala com o provider de dados: fronteira `src/apis/` protegida por identidade de arquivo | D-PROD-18 | `scripts/gates/gate-api-boundary.mjs` |
-| **native-api** | `npm run gate:native-api` | Transporte e sessão nativos: URL por referência estática sem override, JWT só em `sessionStorage` numa guarda única, login sem `cliente_id`, os oito códigos do contrato no catálogo do frontend, fronteira HTTP única e CORS com allowlist exata | D-PROD-24 | `scripts/gates/gate-native-api.mjs` |
+| **native-api** | `npm run gate:native-api` | Transporte e sessão nativos: URL por referência estática sem override **e com esquema absoluto**, JWT só em `sessionStorage` numa guarda única, login sem `cliente_id`, os oito códigos do contrato no catálogo do frontend, fronteira HTTP única e CORS com allowlist exata | D-PROD-24 · D-PROD-26 | `scripts/gates/gate-native-api.mjs` |
 | **setor-native** | `npm run gate:setor-native` | Setor nativo: model tenant-scoped com migration, numeração por sequência dentro de transação, ausência de rota de exclusão, zero Base44 no caminho de Setor, porta única no frontend, tenant só do token, id offline fora da rede, sem fallback silencioso, auditoria transacional e rotas autenticadas | D-PROD-25 | `scripts/gates/gate-setor-native.mjs` |
 | **source-closure** | `npm run gate:source-closure` | Todo arquivo executável em `src/` é alcançável a partir das entradas reais | D-PROD-12 | `scripts/gates/gate-source-closure.mjs` |
 | **import-integrity** | `npm run gate:import-integrity` | Nenhum import estático em `src/` aponta para arquivo inexistente | D-PROD-02 | `scripts/gates/gate-import-integrity.mjs` |
@@ -139,6 +139,7 @@ Nenhuma etapa é ignorada nem tem o exit code convertido em sucesso.
 | `P4-NATIVE-ERROR-CATALOG` | native-api |
 | `P4-NATIVE-HTTP-BOUNDARY` | native-api |
 | `P4-NATIVE-CORS` | native-api |
+| `P4-NATIVE-SCHEME` | native-api |
 | `P41-SETOR-MODEL` | setor-native |
 | `P41-SETOR-NUMBERING` | setor-native |
 | `P41-SETOR-DELETE` | setor-native |
@@ -491,6 +492,7 @@ novo no código.
 | os oito códigos do contrato existem no catálogo do frontend, com mensagem pública | `P4-NATIVE-ERROR-CATALOG` |
 | só a fronteira HTTP consome a base URL e lê o token nativo | `P4-NATIVE-HTTP-BOUNDARY` |
 | CORS com allowlist exata: sem `*`, sem prefixo/substring, sem eco da origin, sem `credentials` | `P4-NATIVE-CORS` |
+| a base nativa é absoluta: `getNativeApiUrl()` passa por uma validação de esquema que existe de fato | `P4-NATIVE-SCHEME` |
 
 A lista de códigos de erro vem do **contrato**, não do gate: o SSOT continua
 sendo `config/modelobase1-pecuario.json`, e duplicá-lo aqui criaria a segunda
@@ -519,6 +521,26 @@ Consequência de desenho, e não só de gate: `nativeSessionApi` passou a usar
 `hasNativeToken()` em vez de `getNativeToken()`. Ele precisa saber **se** há
 sessão, nunca o valor — e com isso "só o cliente HTTP lê o token" virou
 literalmente verdade, em vez de aproximação.
+
+### `P4-NATIVE-SCHEME` — a regra que veio de produção (P4.0-R2, D-PROD-26)
+
+As outras regras deste gate nasceram de análise. Esta nasceu de um defeito que
+chegou ao usuário: `VITE_MAIKE_API_URL` foi configurada na Vercel como
+`maike-production.up.railway.app`, sem esquema.
+
+Nada falhou. `nativeRequest` monta a URL por concatenação literal, e
+`fetch('maike-...app/auth/login')` é uma URL **relativa** — o navegador a
+resolveu contra a origem do frontend. O `POST /auth/login`, com cliente, login e
+**senha em texto**, foi para a Vercel em vez do backend, recebeu `404` em
+`text/plain`, e o corpo não-JSON virou um erro genérico de login na tela. O
+backend estava intacto o tempo todo: `curl` autenticava, o navegador não.
+
+O gate é estático, então a regra é textual — mas exige as **duas pontas**: que
+`comEsquemaExplicito()` exista e teste o esquema, e que `getNativeApiUrl()`
+passe por ela. NAT-25, NAT-26 e NAT-27 reprovam cada mutilação (remover a
+chamada, renomear a definição, esvaziar o corpo mantendo o nome). NAT-28 é o
+controle positivo — sem ele, a regra poderia estar reprovando por scanner
+ingênuo, já que a prosa deste repositório cita `https://` em vários comentários.
 
 ## `test:backend` — o que só o banco prova
 

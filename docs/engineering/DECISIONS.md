@@ -1238,4 +1238,93 @@ Ele existe porque nenhuma dessas invariantes quebra em vermelho: um
 devolvendo a lista da Base44 pareceria resiliência; um `MAX + 1` de volta no
 service passaria em toda tela de navegador único.
 
-<!-- Próxima decisão: D-PROD-26 -->
+---
+
+## D-PROD-26 — A base URL do backend nativo é absoluta ou não existe
+
+**P4.0-R2.** Corrige um defeito que chegou ao usuário em produção.
+
+Fatia corretiva da P4.0, não uma fatia nova: o defeito está no transporte
+que a P4.0 entregou. `P4.2` continua reservada para `AreaPastagem Native
+Persistence` no ROADMAP.
+
+`D-PROD-25` pertence à P4.1 (persistência nativa de Setor), em revisão na
+PR #14 no momento em que esta decisão foi escrita.
+
+### O defeito
+
+`VITE_MAIKE_API_URL` foi configurada na Vercel como
+`maike-production.up.railway.app` — sem `https://`.
+
+Isso não produziu erro em lugar nenhum. `nativeRequest` monta a URL por
+concatenação literal (`` `${base}${caminho}` ``), e
+`fetch('maike-production.up.railway.app/auth/login')` é uma URL **relativa**: o
+navegador a resolve contra a origem do documento. O resultado observado:
+
+```
+POST https://maike-five.vercel.app/maike-production.up.railway.app/auth/login
+→ 404, content-type: text/plain, "The page could not be found"
+```
+
+Três consequências, em ordem de gravidade:
+
+1. o `POST /auth/login` levava **cliente, login e senha em texto** para a origem
+   do frontend, não para o backend. A credencial saiu para o host errado;
+2. o corpo não era JSON, então `lerCorpo` devolveu `null`, a validação do
+   retorno falhou e a tela mostrou um erro genérico — sem nenhuma pista de que o
+   destino estava errado;
+3. o diagnóstico apontava para o lugar errado. `curl` contra o backend
+   autenticava com `200`; só o navegador falhava. Backend, banco, CORS e JWT
+   estavam corretos o tempo todo.
+
+### A decisão
+
+`getNativeApiUrl()` passa por `comEsquemaExplicito()`:
+
+| Entrada | Resultado | Motivo |
+|---|---|---|
+| `https://api.exemplo.com` | intacta | já é absoluta |
+| `http://localhost:3333` | intacta | backend local, e o `.env.example` documenta assim |
+| `api.exemplo.com` | `https://api.exemplo.com` | host puro; o frontend é servido por HTTPS e `http://` seria bloqueado como conteúdo misto de qualquer forma |
+| `api.exemplo.com:8443` | `https://api.exemplo.com:8443` | idem, com porta |
+| `//outro.host` | `null` | protocol-relative: aponta para outro host herdando o esquema |
+| `javascript:...` | `null` | esquema executável |
+| `ftp://...` | `null` | esquema que o `fetch` não usa |
+| `/api`, `host/caminho` | `null` | caminho relativo — o defeito original, em outra forma |
+
+Com `null`, `nativeRequest` já falhava do jeito certo desde a P4.0: lança
+`PROVIDER_UNAVAILABLE` **sem tocar na rede**. A senha não sai da máquina.
+
+### Por que normalizar o host puro em vez de recusar tudo
+
+Recusar seria mais simples e igualmente seguro, mas transformaria uma
+configuração comum — host sem esquema — em aplicação fora do ar até alguém
+reconfigurar a plataforma e reconstruir o bundle. `VITE_*` é variável de
+**build**: o ciclo de correção é um deploy inteiro, não um restart.
+
+Aceitar o host puro tem exatamente uma interpretação segura (`https://`), e é a
+mesma que o navegador exigiria de qualquer forma. O que **não** é aceito é toda
+forma ambígua — e essas são justamente as que produziriam requisição same-origin
+ou destino inesperado. A regra é: normalizar o inequívoco, recusar o resto.
+
+### `new URL()` continua fora
+
+Pelo mesmo motivo de `semBarraFinal` (D-PROD-24): `new URL('javascript:alert(1)')`
+é uma URL válida para o construtor. A validação é literal e conservadora.
+
+### Gate
+
+`P4-NATIVE-SCHEME`, em `gate:native-api` — absoluto, sem baseline. Exige as duas
+pontas: que a validação exista e teste o esquema, e que `getNativeApiUrl()` passe
+por ela. Provas negativas NAT-25/26/27, controle positivo NAT-28.
+
+### O que esta decisão **não** faz
+
+- não muda `nativeRequest`: a concatenação literal continua, e continua certa —
+  o contrato agora é que a base já chega absoluta;
+- não introduz override de URL por query string ou storage. A porta que a P4.0
+  fechou (D-PROD-24) segue fechada: quem trocasse a base redirecionaria o
+  `Authorization` com o JWT para um servidor escolhido por ele;
+- não valida se o host **existe**. Isso é resposta de rede, não de configuração.
+
+<!-- Próxima decisão: D-PROD-27 -->

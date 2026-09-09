@@ -77,6 +77,72 @@ describe('P4T — configuração do transporte nativo', () => {
     expect(getNativeApiUrl()).not.toBe(getDataProviderConfig().serverUrl);
   });
 
+  // ── P4.0-R2: base sem esquema (D-PROD-26) ───────────────────────────────
+  //
+  // Regressão de produção. `VITE_MAIKE_API_URL=maike-production.up.railway.app`
+  // não falhou: `fetch('maike-...app/auth/login')` é URL **relativa**, o
+  // navegador resolveu contra a origem do frontend e o POST de login — com a
+  // senha no corpo — foi para a Vercel, que respondeu 404 em text/plain. Na
+  // tela virou um erro genérico, sem nenhuma pista do destino errado.
+
+  it('P4T-01c host puro recebe https:// em vez de virar caminho relativo', async () => {
+    vi.stubEnv('VITE_MAIKE_API_URL', 'backend.exemplo.invalido');
+    const { getNativeApiUrl } = await import('@/config/runtimeConfig');
+    expect(getNativeApiUrl()).toBe('https://backend.exemplo.invalido');
+  });
+
+  it('P4T-01d host puro com porta também vira absoluto', async () => {
+    vi.stubEnv('VITE_MAIKE_API_URL', 'backend.exemplo.invalido:8443');
+    const { getNativeApiUrl } = await import('@/config/runtimeConfig');
+    expect(getNativeApiUrl()).toBe('https://backend.exemplo.invalido:8443');
+  });
+
+  it('P4T-01e http:// explícito é preservado, para o backend local', async () => {
+    vi.stubEnv('VITE_MAIKE_API_URL', 'http://localhost:3333');
+    const { getNativeApiUrl } = await import('@/config/runtimeConfig');
+    expect(getNativeApiUrl()).toBe('http://localhost:3333');
+  });
+
+  it.each([
+    ['//outro.host', 'protocol-relative aponta para outro host mantendo o esquema'],
+    ['javascript:alert(1)', 'esquema executável'],
+    ['ftp://backend.exemplo.invalido', 'esquema que o fetch não usa'],
+    ['/api', 'caminho relativo — o defeito original, em outra forma'],
+    ['backend.exemplo.invalido/api', 'host com caminho: concatenar geraria /api/auth/login'],
+  ])('P4T-01f base inaceitável devolve null: %s', async (valor) => {
+    vi.stubEnv('VITE_MAIKE_API_URL', valor);
+    const { getNativeApiUrl, isNativeApiConfigured } = await import('@/config/runtimeConfig');
+    expect(getNativeApiUrl()).toBeNull();
+    expect(isNativeApiConfigured()).toBe(false);
+  });
+
+  it('P4T-01g com base recusada o login falha sem tocar na rede', async () => {
+    // O ponto não é só recusar: é **não** mandar a senha para lugar nenhum.
+    vi.stubEnv('VITE_MAIKE_API_URL', '//outro.host');
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { login, API_ERROR_CODES } = await carregar();
+    await expect(login({ cliente: 'FAZENDA', login: 'joao', senha: 's3nh4' })).rejects.toMatchObject({
+      code: API_ERROR_CODES.PROVIDER_UNAVAILABLE,
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('P4T-01h host puro produz URL absoluta no fetch, não same-origin', async () => {
+    vi.stubEnv('VITE_MAIKE_API_URL', 'backend.exemplo.invalido');
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(respostaJson(200, LOGIN_OK))
+      .mockResolvedValueOnce(respostaJson(200, CONTEXTO_OK));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { login } = await carregar();
+    await login({ cliente: 'FAZENDA', login: 'joao', senha: 's3nh4' });
+
+    expect(fetchMock.mock.calls[0][0]).toBe('https://backend.exemplo.invalido/auth/login');
+  });
+
   it('P4T-02b describeRuntimeConfig informa presença, nunca a URL', async () => {
     const { describeRuntimeConfig } = await import('@/config/runtimeConfig');
     const descricao = describeRuntimeConfig();
