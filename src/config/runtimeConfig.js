@@ -147,7 +147,7 @@ const lerMaikeApiUrl = () => {
 const semBarraFinal = (url) => (typeof url === 'string' ? url.replace(/\/+$/, '') : url);
 
 /**
- * Base absoluta com esquema explícito, ou `null` (P4.2, D-PROD-26).
+ * Base absoluta com esquema explícito, ou `null` (P4.0-R2, D-PROD-26).
  *
  * `nativeRequest` monta a URL por concatenação literal
  * (`` `${base}${caminho}` ``). Uma base **sem esquema** — `api.exemplo.com` —

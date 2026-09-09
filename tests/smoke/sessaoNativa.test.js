@@ -77,7 +77,7 @@ describe('P4T — configuração do transporte nativo', () => {
     expect(getNativeApiUrl()).not.toBe(getDataProviderConfig().serverUrl);
   });
 
-  // ── P4.2: base sem esquema (D-PROD-26) ──────────────────────────────────
+  // ── P4.0-R2: base sem esquema (D-PROD-26) ───────────────────────────────
   //
   // Regressão de produção. `VITE_MAIKE_API_URL=maike-production.up.railway.app`
   // não falhou: `fetch('maike-...app/auth/login')` é URL **relativa**, o

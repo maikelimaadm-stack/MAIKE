@@ -1073,7 +1073,11 @@ local.
 
 ## D-PROD-26 — A base URL do backend nativo é absoluta ou não existe
 
-**P4.2.** Corrige um defeito que chegou ao usuário em produção.
+**P4.0-R2.** Corrige um defeito que chegou ao usuário em produção.
+
+Fatia corretiva da P4.0, não uma fatia nova: o defeito está no transporte
+que a P4.0 entregou. `P4.2` continua reservada para `AreaPastagem Native
+Persistence` no ROADMAP.
 
 `D-PROD-25` pertence à P4.1 (persistência nativa de Setor), em revisão na
 PR #14 no momento em que esta decisão foi escrita.

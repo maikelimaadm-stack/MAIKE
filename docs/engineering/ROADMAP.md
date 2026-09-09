@@ -125,7 +125,7 @@ nenhum model de manejo, que ficam para P4–P6, uma capacidade de cada vez.
 
 | Fatia | Nome | Estado |
 |---|---|---|
-| **P4.0** | Native Transport + Session Activation | **concluída e mergeada** — PR #12, merge `45599f5` (inclui a **P4.0-R1**) |
+| **P4.0** | Native Transport + Session Activation | **concluída e mergeada** — PR #12, merge `45599f5` (inclui a **P4.0-R1**); corrigida pela **P4.0-R2** — PR #15, merge `b2535ec` |
 | P4.1 | Setor Native Persistence | **não iniciada** |
 | P4.2 | AreaPastagem Native Persistence | não iniciada |
 
@@ -145,6 +145,12 @@ o schema Prisma está inalterado. Ver D-PROD-24.
 A **P4.0-R1** corrigiu, dentro da mesma PR, um bloqueador achado em auditoria
 externa: a restauração da sessão apagava o JWT para qualquer erro, confundindo
 backend fora do ar com credencial recusada. Ver D-PROD-24 §G.1.
+
+A **P4.0-R2** corrigiu, em PR própria depois do merge, um defeito que chegou ao
+usuário: `VITE_MAIKE_API_URL` sem esquema não falhava — virava URL relativa, e o
+`POST /auth/login` saía com a senha para a origem do frontend. É fatia corretiva
+da P4.0 porque o defeito está no transporte que ela entregou; `P4.2` segue
+reservada para `AreaPastagem`. Ver D-PROD-26.
 
 **P4.1 não foi iniciada.** Ela é a primeira fatia a criar model de domínio, e
 com ela vem a correção do `MAX+1` de `numero_setor` (DBT-26) — que só agora tem
