@@ -42,6 +42,7 @@ const criarArmazenamentoEmMemoria = () => {
       if (atual) fila.set(id, { ...atual, ...campos, id });
     },
     removerDaFila: async (id) => { fila.delete(id); },
+    removerCache: async (chave) => { cache.delete(chave); },
   };
 };
 
@@ -329,5 +330,219 @@ describe('OFF20 — normalização preservada na composição', () => {
     // Entrada normalizada para armazenamento.
     await adapter.create({ nome: '  MILHO   GRÃO ' });
     expect(rede.create).toHaveBeenCalledWith({ nome: 'milho grão' });
+  });
+});
+
+/**
+ * OFF21–OFF29 — dono da fila e do cache (P4.1-R1, D-PROD-25 §L).
+ *
+ * Duas falhas reais, achadas em revisão da P4.1, e que só existem porque o
+ * replay passou a mandar `Authorization: Bearer` do MAIKE:
+ *
+ *  1. cache e fila eram particionados por `entidade::empresa`, sem tenant, e
+ *     `logout()` não limpa o IndexedDB. Um usuário do cliente A criava setor
+ *     offline, saía, o cliente B entrava no mesmo navegador e o replay gravava
+ *     o setor de A **dentro de B** — o backend tira o `cliente_id` do token;
+ *  2. uma entrada enfileirada **antes** do corte apontava para id da Base44 e
+ *     podia ser um `delete`, que a porta nativa não tem. `operations.delete`
+ *     estourava `TypeError`, o replay retornava no primeiro erro e a fila
+ *     inteira, de todas as entidades, travava para sempre.
+ *
+ * Entidade que ainda vive na Base44 não é tenant-scoped e não muda em nada —
+ * OFF28 e OFF29 são os controles positivos disso.
+ */
+describe('OFF21–OFF29 — dono da fila e do cache', () => {
+  const CHAVE_TENANT = 'maike_offline_tenant';
+  const entrarComo = (clienteId) => localStorage.setItem(CHAVE_TENANT, clienteId);
+  const sair = () => localStorage.removeItem(CHAVE_TENANT);
+
+  beforeEach(() => sair());
+  afterEach(() => sair());
+
+  const criarSetorPort = (storage) =>
+    createOfflineEntityAdapter({
+      entityName: 'Setor',
+      operations: criarOperacoes(),
+      tenantScoped: true,
+      storage,
+    });
+
+  it('OFF21 — a chave do cache carrega o tenant', async () => {
+    const storage = criarArmazenamentoEmMemoria();
+    entrarComo('cli_A');
+    await criarSetorPort(storage).list();
+    expect([...storage.cache.keys()]).toEqual(['Setor::cli:cli_A::emp-1']);
+  });
+
+  it('OFF22 — o cache de um cliente não vaza para o outro', async () => {
+    const storage = criarArmazenamentoEmMemoria();
+
+    entrarComo('cli_A');
+    const operacoesA = criarOperacoes();
+    operacoesA.list = vi.fn(async () => [{ id: 's1', nome: 'DO CLIENTE A' }]);
+    await createOfflineEntityAdapter({
+      entityName: 'Setor', operations: operacoesA, tenantScoped: true, storage,
+    }).list();
+
+    resetOfflineEntityRuntime();
+    entrarComo('cli_B');
+    ficarOffline();
+    const daB = await createOfflineEntityAdapter({
+      entityName: 'Setor', operations: criarOperacoes(), tenantScoped: true, storage,
+    }).list();
+    ficarOnline();
+
+    expect(daB).toEqual([]);
+  });
+
+  it('OFF23 — a entrada da fila é carimbada com o dono', async () => {
+    const storage = criarArmazenamentoEmMemoria();
+    entrarComo('cli_A');
+    ficarOffline();
+    await criarSetorPort(storage).create({ nome: 'NOVO', empresa_id: 'emp-1' });
+    ficarOnline();
+
+    const [item] = [...storage.fila.values()];
+    expect(item.cliente_id).toBe('cli_A');
+  });
+
+  it('OFF24 — o replay NÃO aplica a operação de outro cliente', async () => {
+    const storage = criarArmazenamentoEmMemoria();
+
+    entrarComo('cli_A');
+    ficarOffline();
+    await criarSetorPort(storage).create({ nome: 'DE A', empresa_id: 'emp-1' });
+    ficarOnline();
+    resetOfflineEntityRuntime();
+
+    // Agora quem está na máquina é outro cliente.
+    entrarComo('cli_B');
+    const operacoesB = criarOperacoes();
+    createOfflineEntityAdapter({
+      entityName: 'Setor', operations: operacoesB, tenantScoped: true, storage,
+    });
+
+    const r = await syncOfflineEntityQueue();
+
+    // O ponto não é o resultado: é que a escrita de A **não saiu** com o token
+    // de B. Ela continua na fila, esperando A voltar.
+    expect(operacoesB.create).not.toHaveBeenCalled();
+    expect(r.success).toBe(true);
+    expect(r.pulados).toBe(1);
+    expect([...storage.fila.values()]).toHaveLength(1);
+  });
+
+  it('OFF25 — quando o dono volta, a operação dele é aplicada', async () => {
+    const storage = criarArmazenamentoEmMemoria();
+
+    entrarComo('cli_A');
+    ficarOffline();
+    await criarSetorPort(storage).create({ nome: 'DE A', empresa_id: 'emp-1' });
+    ficarOnline();
+    resetOfflineEntityRuntime();
+
+    const operacoes = criarOperacoes();
+    entrarComo('cli_A');
+    createOfflineEntityAdapter({
+      entityName: 'Setor', operations: operacoes, tenantScoped: true, storage,
+    });
+
+    const r = await syncOfflineEntityQueue();
+    expect(operacoes.create).toHaveBeenCalledTimes(1);
+    expect(r.success).toBe(true);
+    expect([...storage.fila.values()]).toHaveLength(0);
+  });
+
+  it('OFF26 — entrada legada da Base44 é descartada, não despachada', async () => {
+    // Este é o item que travava tudo: `delete` numa porta nativa que não tem
+    // `delete`. Sem carimbo de dono, ele é anterior ao corte.
+    const storage = criarArmazenamentoEmMemoria();
+    await storage.adicionarNaFila({
+      entity_name: 'Setor',
+      empresa_id: 'emp-1',
+      operation: 'delete',
+      record_id: 'id_da_base44',
+      data: { id: 'id_da_base44' },
+      created_at: new Date(Date.now() - 60000).toISOString(),
+    });
+
+    entrarComo('cli_A');
+    const operacoesNativas = { list: vi.fn(async () => []), create: vi.fn(), update: vi.fn() };
+    createOfflineEntityAdapter({
+      entityName: 'Setor', operations: operacoesNativas, tenantScoped: true, storage,
+    });
+
+    const r = await syncOfflineEntityQueue();
+
+    expect(r.success).toBe(true);
+    expect(r.descartados).toBe(1);
+    expect([...storage.fila.values()]).toHaveLength(0);
+  });
+
+  it('OFF27 — a entrada legada não bloqueia as operações seguintes', async () => {
+    // O defeito não era perder um item: era a fila **inteira** parar nele.
+    const storage = criarArmazenamentoEmMemoria();
+    await storage.adicionarNaFila({
+      entity_name: 'Setor',
+      empresa_id: 'emp-1',
+      operation: 'delete',
+      record_id: 'id_da_base44',
+      data: { id: 'id_da_base44' },
+      created_at: new Date(Date.now() - 60000).toISOString(),
+    });
+
+    entrarComo('cli_A');
+    const operacoes = { list: vi.fn(async () => []), create: vi.fn(async (d) => ({ id: 'srv_1', ...d })), update: vi.fn() };
+    const porta = createOfflineEntityAdapter({
+      entityName: 'Setor', operations: operacoes, tenantScoped: true, storage,
+    });
+
+    ficarOffline();
+    await porta.create({ nome: 'DEPOIS DO LEGADO', empresa_id: 'emp-1' });
+    ficarOnline();
+
+    const r = await syncOfflineEntityQueue();
+
+    expect(r.success).toBe(true);
+    expect(operacoes.create).toHaveBeenCalledTimes(1);
+    expect([...storage.fila.values()]).toHaveLength(0);
+  });
+
+  it('OFF28 CONTROLE POSITIVO — entidade da Base44 não ganha dono nem muda de chave', async () => {
+    const storage = criarArmazenamentoEmMemoria();
+    entrarComo('cli_A');
+
+    const porta = createOfflineEntityAdapter({
+      entityName: 'Lote', operations: criarOperacoes(), storage,
+    });
+    await porta.list();
+    expect([...storage.cache.keys()]).toEqual(['Lote::emp-1']);
+
+    ficarOffline();
+    await porta.create({ nome: 'LOTE', empresa_id: 'emp-1' });
+    ficarOnline();
+    const [item] = [...storage.fila.values()];
+    expect('cliente_id' in item).toBe(false);
+  });
+
+  it('OFF29 CONTROLE POSITIVO — a fila da Base44 replaya mesmo com outro tenant na sessão', async () => {
+    // Sem este caso, a regra de dono poderia ter travado tudo que ainda é da
+    // Base44 — que é a maior parte do sistema.
+    const storage = criarArmazenamentoEmMemoria();
+    entrarComo('cli_A');
+    const operacoes = criarOperacoes();
+    const porta = createOfflineEntityAdapter({
+      entityName: 'Lote', operations: operacoes, storage,
+    });
+
+    ficarOffline();
+    await porta.create({ nome: 'LOTE', empresa_id: 'emp-1' });
+    ficarOnline();
+
+    entrarComo('cli_OUTRO');
+    const r = await syncOfflineEntityQueue();
+
+    expect(r.success).toBe(true);
+    expect(operacoes.create).toHaveBeenCalledTimes(1);
   });
 });

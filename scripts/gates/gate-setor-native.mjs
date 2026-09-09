@@ -24,7 +24,7 @@
  *   P41-SETOR-MODEL · P41-SETOR-NUMBERING · P41-SETOR-DELETE
  *   P41-SETOR-BASE44 · P41-SETOR-PORT · P41-SETOR-TENANT-SOURCE
  *   P41-SETOR-OFFLINE-ID · P41-SETOR-FALLBACK · P41-SETOR-AUDIT
- *   P41-SETOR-ROUTE-AUTH
+ *   P41-SETOR-ROUTE-AUTH · P41-SETOR-OFFLINE-TENANT
  */
 
 import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';
@@ -44,6 +44,8 @@ const API_MODULO = 'src/apis/setores/setoresApi.js';
 const SERVICE_FRONT = 'src/services/setorService.js';
 const PROVIDER = 'src/apis/_providers/base44Provider.js';
 const HTTP_CLIENT = 'src/apis/_core/nativeHttpClient.js';
+const RUNTIME_OFFLINE = 'src/lib/offline/offlineEntityRuntime.js';
+const SESSAO = 'src/apis/session/nativeSessionApi.js';
 
 const MODEL = 'Setor';
 const TENANT = 'cliente_id';
@@ -425,6 +427,67 @@ const verificarIdentidadeOffline = () => {
 };
 
 // ---------------------------------------------------------------------------
+// SN-11 · P41-SETOR-OFFLINE-TENANT — cache, fila e replay têm dono
+// ---------------------------------------------------------------------------
+
+const verificarDonoDoOffline = () => {
+  if (existe(PORTA)) {
+    const porta = semComentarios(ler(PORTA));
+
+    // A porta de Setor precisa declarar o escopo. Sem isto, cache e fila voltam
+    // a ser `entidade::empresa`: o replay manda `Authorization: Bearer` e o
+    // backend grava pelo tenant do token, então a operação enfileirada por um
+    // cliente seria aplicada dentro de outro que entrasse no mesmo navegador.
+    if (!/tenantScoped\s*:\s*true/.test(porta)) {
+      registrar(
+        'P41-SETOR-OFFLINE-TENANT',
+        `${PORTA} não declara tenantScoped: true: cache e fila offline ficariam sem dono`
+      );
+    }
+  }
+
+  if (existe(RUNTIME_OFFLINE)) {
+    const runtime = semComentarios(ler(RUNTIME_OFFLINE));
+
+    // As duas pontas da regra, como no gate:native-api: o runtime precisa
+    // **saber** de tenant e precisa **usar** isso no replay. Declarar o escopo
+    // na porta não protege nada se o runtime ignorar o campo.
+    if (!/getOfflineTenant\s*\(/.test(runtime)) {
+      registrar(
+        'P41-SETOR-OFFLINE-TENANT',
+        `${RUNTIME_OFFLINE} não lê o dono da sessão: a partição por tenant não existiria`
+      );
+    }
+
+    if (!/destinoDaEntrada\s*\(/.test(runtime)) {
+      registrar(
+        'P41-SETOR-OFFLINE-TENANT',
+        `${RUNTIME_OFFLINE} não decide o destino da entrada no replay: item de outro dono seria despachado`
+      );
+    }
+  }
+
+  if (existe(SESSAO)) {
+    const sessao = semComentarios(ler(SESSAO));
+
+    // O dono é marcado a partir do contexto vindo do servidor, e descartado
+    // junto do token. Se um dos dois faltar, a fila fica órfã — o estado exato
+    // que abriu o replay cruzado.
+    for (const [chamada, motivo] of [
+      ['setOfflineTenant', 'o dono nunca seria marcado'],
+      ['clearOfflineTenant', 'o dono sobreviveria ao logout'],
+    ]) {
+      if (!new RegExp(`${chamada}\\s*\\(`).test(sessao)) {
+        registrar(
+          'P41-SETOR-OFFLINE-TENANT',
+          `${SESSAO} não chama ${chamada}(): ${motivo}`
+        );
+      }
+    }
+  }
+};
+
+// ---------------------------------------------------------------------------
 // SN-08 · P41-SETOR-FALLBACK — falha do backend não cai para a Base44
 // ---------------------------------------------------------------------------
 
@@ -541,6 +604,7 @@ verificarSemBase44();
 verificarPortaUnica();
 verificarFonteDeTenant();
 verificarIdentidadeOffline();
+verificarDonoDoOffline();
 verificarSemFallback();
 verificarAuditoria();
 verificarAutenticacao();
@@ -557,5 +621,6 @@ console.log(
   'gate:setor-native — PASSOU ' +
     '(model tenant-scoped com migration; numeração por sequência em transação; ' +
     'sem exclusão nativa; sem Base44 no caminho de Setor; porta única; tenant só do token; ' +
-    'id offline fora da rede; sem fallback silencioso; auditoria transacional; rotas autenticadas)'
+    'id offline fora da rede; sem fallback silencioso; auditoria transacional; rotas autenticadas; ' +
+    'cache e fila offline com dono)'
 );

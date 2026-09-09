@@ -306,6 +306,65 @@ describe('P4.1 — validação de forma', () => {
     assert.equal(r.statusCode, 400);
     assert.equal(r.json().code, 'REQUEST_VALIDATION_FAILED');
   });
+
+  // ── P4.1-R1: obrigatório só com espaço ────────────────────────────────────
+  //
+  // `minLength: 1` aceita `" "`. O serviço apara texto e devolve `null` para o
+  // que sobra vazio, então o valor chegava ao Prisma como `null` numa coluna
+  // NOT NULL e virava `INTERNAL_ERROR` 500 — recusa certa, status errado, e
+  // sem causa para quem chamou. É a mesma classe do BE-P41-19.
+
+  test('BE-P41-31 nome só com espaço é 400, não 500 do banco', async () => {
+    const { token } = await tenantAutenticado();
+    const r = await criarSetor(token, { nome: '   ' });
+    assert.equal(r.statusCode, 400);
+    assert.equal(r.json().code, 'REQUEST_VALIDATION_FAILED');
+    assert.equal(await getPrismaClient().setor.count(), 0);
+  });
+
+  test('BE-P41-32 empresa_id só com espaço é 400, não 500 do banco', async () => {
+    const { token } = await tenantAutenticado();
+    const r = await criarSetor(token, { empresa_id: '\t \n' });
+    assert.equal(r.statusCode, 400);
+    assert.equal(r.json().code, 'REQUEST_VALIDATION_FAILED');
+    assert.equal(await getPrismaClient().setor.count(), 0);
+  });
+
+  test('BE-P41-33 PATCH com nome só de espaço é 400 e não apaga o nome', async () => {
+    const { token } = await tenantAutenticado();
+    const criado = (await criarSetor(token, { nome: 'ORIGINAL' })).json();
+
+    const r = await app.inject({
+      method: 'PATCH',
+      url: `/setores/${criado.id}`,
+      headers: auth(token),
+      payload: { nome: '  ' },
+    });
+
+    assert.equal(r.statusCode, 400);
+    assert.equal(r.json().code, 'REQUEST_VALIDATION_FAILED');
+
+    const depois = await getPrismaClient().setor.findUniqueOrThrow({ where: { id: criado.id } });
+    assert.equal(depois.nome, 'ORIGINAL');
+  });
+
+  test('BE-P41-34 CONTROLE POSITIVO: espaço nas bordas de valor real continua aceito', async () => {
+    // A regra recusa "só espaço", não "tem espaço". Sem este caso, apertar o
+    // padrão até recusar nome com espaço passaria sem ninguém notar.
+    const { token } = await tenantAutenticado();
+    const r = await criarSetor(token, { nome: ' SETOR DA SEDE ' });
+    assert.equal(r.statusCode, 201, r.body);
+    assert.equal(r.json().nome, 'SETOR DA SEDE');
+  });
+
+  test('BE-P41-35 CONTROLE POSITIVO: opcional só com espaço continua virando null', async () => {
+    // `sigla` é anulável: aparar para `null` ali é normalização desejada, e a
+    // correção não podia transformá-la em 400.
+    const { token } = await tenantAutenticado();
+    const r = await criarSetor(token, { sigla: '   ' });
+    assert.equal(r.statusCode, 201, r.body);
+    assert.equal(r.json().sigla, null);
+  });
 });
 
 describe('P4.1 — exclusão não existe', () => {

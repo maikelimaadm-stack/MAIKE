@@ -148,4 +148,10 @@ export const setorPort = createOfflineEntityAdapter({
   entityName: ENTIDADE_OFFLINE,
   operations: operacoesNativas,
   enabled: offlineStorageDisponivel(),
+  // `Setor` é a primeira entidade do backend próprio, e por isso a primeira em
+  // que cache, fila e replay têm dono (P4.1-R1). O replay manda
+  // `Authorization: Bearer` e o backend grava pelo tenant do token: sem dono na
+  // fila, a operação enfileirada por um cliente seria aplicada dentro de outro
+  // que entrasse depois no mesmo navegador. Ver D-PROD-25 §L.
+  tenantScoped: true,
 });

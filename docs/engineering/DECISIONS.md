@@ -1230,13 +1230,89 @@ próprio, e não altera dado nenhum.
 ### K. `gate:setor-native`
 
 Gate **absoluto** — sem `--update`, sem baseline, sem correção automática, nunca
-escreve arquivo. Dez regras (SN-01 a SN-10), 42 provas, quase todas negativas,
-com controles positivos para cada regra que poderia virar scanner ingênuo.
+escreve arquivo. Onze regras (dez da P4.1, mais `P41-SETOR-OFFLINE-TENANT` da
+P4.1-R1), 48 provas, quase todas negativas, com controles positivos para cada
+regra que poderia virar scanner ingênuo.
 
 Ele existe porque nenhuma dessas invariantes quebra em vermelho: um
 `setoresProvider` reintroduzido continuaria listando setores; um `catch`
 devolvendo a lista da Base44 pareceria resiliência; um `MAX + 1` de volta no
 service passaria em toda tela de navegador único.
+
+### L. P4.1-R1 — o armazenamento offline ganhou dono
+
+Três defeitos achados em revisão da própria PR, corrigidos **dentro dela**, como
+a P4.0-R1 foi na PR #12. Os dois primeiros só existem porque a P4.1 mudou quem
+autentica o replay.
+
+#### L.1 A fila era de todo mundo
+
+Cache e fila eram particionados por `entidade::empresa_id`. Não havia tenant em
+lugar nenhum — e não precisava haver: enquanto `Setor` vivia na Base44, o replay
+usava a credencial de lá, que não é tenant do MAIKE.
+
+Com a P4.1 o replay passou a mandar `Authorization: Bearer` do MAIKE, e o
+backend tira o `cliente_id` **do token**. A sequência:
+
+1. usuário do cliente A cria um setor offline; a operação fica na fila;
+2. sai da sessão. `logout()` descarta o JWT e nada mais — o IndexedDB fica;
+3. usuário do cliente B entra no mesmo navegador;
+4. volta a conexão, o replay dispara e grava o setor de A **dentro de B**.
+
+Nenhuma regra do backend foi violada: o tenant sempre veio do token, como manda
+a R11. O erro é do cliente, que replayou operação de outro dono — e é por isso
+que a correção é toda do lado do navegador.
+
+Agora cache, fila e replay têm dono. `getOfflineTenant()` responde quem é, a
+chave do cache carrega o `cliente_id`, e cada entrada da fila é carimbada no
+enfileiramento. O replay classifica cada entrada em `aplicar`, `pular` ou
+`descartar` — e uma entrada de outro dono **fica na fila**, intocada, até aquele
+dono voltar. Pular não é perder.
+
+#### L.2 A fila legada travava tudo
+
+`operacoesNativas` não tem `delete`, por decisão (§D). Uma exclusão enfileirada
+**antes** do corte chamava `operations.delete(...)` e estourava `TypeError`; o
+replay retorna no primeiro erro, então a fila **inteira**, de todas as
+entidades, parava ali para sempre. Um `update` enfileirado contra id da Base44
+dava 404 nativo e travava igual.
+
+Entradas anteriores ao corte são identificáveis: não têm carimbo de dono. Elas
+são **descartadas**, e isso é deliberado. As alternativas são piores:
+
+- tentar aplicar é o defeito que estamos corrigindo;
+- atribuí-las ao tenant logado gravaria dado de procedência desconhecida dentro
+  de um cliente real — inventar dono é pior do que perder rascunho;
+- deixá-las na fila para sempre reproduz o bloqueio, só que silencioso.
+
+O descarte é a única perda de dado deste desenho, está dita aqui em vez de
+escondida, e alcança apenas operação offline que nunca chegou a servidor nenhum.
+O cache no formato antigo — `Setor::empresa`, inalcançável pelas chaves novas —
+também é removido na primeira gravação de cada entidade+empresa, para que dado
+da era Base44 não fique em repouso depois do corte.
+
+#### L.3 Obrigatório só com espaço virava 500
+
+`minLength: 1` aceita `" "`. `textoOuNulo` apara e devolve `null`, então o valor
+chegava ao Prisma como `null` numa coluna NOT NULL e virava `INTERNAL_ERROR`
+500 — recusa correta, status errado, sem causa para quem chamou. `pattern: '\\S'`
+nos obrigatórios move a recusa para a fronteira, com 400. É a mesma classe que o
+`maxLength` já tratava ali.
+
+#### O que a P4.1-R1 **não** fez
+
+- **não** mudou a regra do backend. O tenant continua vindo só do token; nada
+  do lado do servidor foi afrouxado para acomodar o cliente;
+- **não** tornou as entidades da Base44 tenant-scoped. Elas não têm tenant do
+  MAIKE, e carimbar um dono que não governa nada só inventaria procedência.
+  `tenantScoped` é opt-in por entidade, e OFF28/OFF29 são o controle positivo
+  de que a fila delas segue funcionando igual;
+- **não** limpa o IndexedDB no logout. Seria mais simples e destruiria trabalho
+  offline legítimo de quem apenas troca de usuário e volta.
+
+Gate: `P41-SETOR-OFFLINE-TENANT`, com as três pontas exigidas — a porta declara,
+o runtime decide, a sessão marca e descarta. SN-13 a SN-17 reprovam cada
+mutilação; SN-18 é o controle positivo.
 
 ---
 

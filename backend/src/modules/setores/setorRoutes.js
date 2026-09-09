@@ -49,9 +49,21 @@ const TIPOS = ['Próprio', 'Arrendado', 'Parceria', 'Terceiros'];
  * inteira para ser recusada pelo PostgreSQL como erro de coluna — 500 opaco em
  * vez de 400 com causa.
  */
+/**
+ * `pattern: '\\S'` nos obrigatórios, além do `minLength` (P4.1-R1).
+ *
+ * `minLength: 1` aceita `" "`. O serviço normaliza texto com `textoOuNulo`, que
+ * apara e devolve `null` para o que sobrar vazio — então `" "` chegava ao
+ * Prisma como `null` numa coluna NOT NULL e virava `INTERNAL_ERROR` 500. É a
+ * mesma classe de defeito que o `maxLength` daqui já evita: recusa que o banco
+ * faria vira 400 com causa, na fronteira, antes da transação.
+ *
+ * O padrão é uma **busca**, não uma âncora: exige ao menos um caractere que não
+ * seja espaço em qualquer posição. `tipo` não precisa — é enum fechado.
+ */
 const CAMPOS = Object.freeze({
-  empresa_id: { type: 'string', minLength: 1, maxLength: 64 },
-  nome: { type: 'string', minLength: 1, maxLength: 255 },
+  empresa_id: { type: 'string', minLength: 1, maxLength: 64, pattern: '\\S' },
+  nome: { type: 'string', minLength: 1, maxLength: 255, pattern: '\\S' },
   sigla: { type: ['string', 'null'], maxLength: 32 },
   tipo: { type: 'string', enum: TIPOS },
   responsavel: { type: ['string', 'null'], maxLength: 255 },

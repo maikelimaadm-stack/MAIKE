@@ -166,7 +166,51 @@ export const setorPort = createOfflineEntityAdapter({
   entityName: 'Setor',
   operations: operacoesNativas,
   enabled: offlineStorageDisponivel(),
+  tenantScoped: true,
 });
+`;
+
+const RUNTIME_OFFLINE_OK = `
+import { getOfflineTenant } from '@/lib/offline/offlineTenant';
+
+const tenantDe = (tenantScoped) => (tenantScoped ? getOfflineTenant() : undefined);
+
+const destinoDaEntrada = (entrada, item, tenantAtual) => {
+  if (!entrada.tenantScoped) return 'aplicar';
+  if (!('cliente_id' in item)) return 'descartar';
+  if ((item.cliente_id ?? null) !== tenantAtual) return 'pular';
+  return 'aplicar';
+};
+
+export const createOfflineEntityAdapter = ({ entityName, operations, tenantScoped = false }) => {
+  void tenantDe(tenantScoped);
+  return operations;
+};
+
+export const syncOfflineEntityQueue = async () => {
+  const tenantAtual = getOfflineTenant();
+  void destinoDaEntrada({ tenantScoped: true }, {}, tenantAtual);
+  return { success: true };
+};
+`;
+
+const SESSAO_OK = `
+import { clearNativeToken, setNativeToken } from '@/lib/auth/nativeTokenStorage';
+import { setOfflineTenant, clearOfflineTenant } from '@/lib/offline/offlineTenant';
+
+const descartarSessaoLocal = () => {
+  clearNativeToken();
+  clearOfflineTenant();
+};
+
+export const obterContexto = async () => {
+  const corpo = { cliente_id: 'x' };
+  setOfflineTenant(corpo.cliente_id);
+  return corpo;
+};
+
+export const login = async () => { setNativeToken('t'); await obterContexto(); };
+export const logout = () => { descartarSessaoLocal(); };
 `;
 
 const API_MODULO_OK = `
@@ -226,6 +270,8 @@ const projeto = (sobrescritas = {}) => {
     'src/services/setorService.js': SERVICE_FRONT_OK,
     'src/apis/_providers/base44Provider.js': PROVIDER_OK,
     'src/apis/_core/nativeHttpClient.js': HTTP_CLIENT_OK,
+    'src/lib/offline/offlineEntityRuntime.js': RUNTIME_OFFLINE_OK,
+    'src/apis/session/nativeSessionApi.js': SESSAO_OK,
     ...sobrescritas,
   };
 
@@ -663,5 +709,75 @@ describe('gate:setor-native — contrato do gate', () => {
   test('SN-12 o repositório real passa no gate', () => {
     const r = runGate(GATE);
     assert.equal(r.status, 0, r.output);
+  });
+});
+
+/**
+ * SN-13–SN-18 · P41-SETOR-OFFLINE-TENANT (P4.1-R1).
+ *
+ * Regra que veio de revisão, não de análise: a P4.1 fez o replay mandar
+ * `Authorization: Bearer` do MAIKE, e cache e fila continuavam particionados só
+ * por `entidade::empresa`. Como `logout()` não limpa o IndexedDB, a operação
+ * enfileirada por um cliente era aplicada dentro do próximo que entrasse — o
+ * backend grava pelo tenant do token (R11), e quem errou foi o cliente.
+ *
+ * A regra exige as **três** pontas: a porta declara o escopo, o runtime decide
+ * o destino de cada entrada, e a sessão marca e descarta o dono. Cobrir só uma
+ * seria decorativo — daí uma mutilação por ponta.
+ */
+describe('P41-SETOR-OFFLINE-TENANT', () => {
+  test('SN-13 porta sem tenantScoped reprova', () => {
+    const d = projeto({
+      'src/apis/setores/setorNativePort.js': PORTA_OK.replace('  tenantScoped: true,\n', ''),
+    });
+    falhaCom(d, 'P41-SETOR-OFFLINE-TENANT');
+    cleanup(d);
+  });
+
+  test('SN-14 tenantScoped: false reprova — declarar não basta, tem de ser true', () => {
+    const d = projeto({
+      'src/apis/setores/setorNativePort.js': PORTA_OK.replace('tenantScoped: true', 'tenantScoped: false'),
+    });
+    falhaCom(d, 'P41-SETOR-OFFLINE-TENANT');
+    cleanup(d);
+  });
+
+  test('SN-15 runtime que não lê o dono da sessão reprova', () => {
+    const d = projeto({
+      'src/lib/offline/offlineEntityRuntime.js':
+        RUNTIME_OFFLINE_OK.replaceAll('getOfflineTenant(', 'semDono('),
+    });
+    falhaCom(d, 'P41-SETOR-OFFLINE-TENANT');
+    cleanup(d);
+  });
+
+  test('SN-16 runtime que não decide o destino da entrada reprova', () => {
+    // A mutilação que mais parece inofensiva: o runtime continua sabendo o
+    // tenant, mas volta a despachar tudo que está na fila.
+    const d = projeto({
+      'src/lib/offline/offlineEntityRuntime.js':
+        RUNTIME_OFFLINE_OK.replaceAll('destinoDaEntrada(', 'aplicarSempre('),
+    });
+    falhaCom(d, 'P41-SETOR-OFFLINE-TENANT');
+    cleanup(d);
+  });
+
+  test('SN-17 sessão que não descarta o dono no logout reprova', () => {
+    const d = projeto({
+      'src/apis/session/nativeSessionApi.js':
+        SESSAO_OK.replaceAll('clearOfflineTenant(', 'naoLimpa('),
+    });
+    falhaCom(d, 'P41-SETOR-OFFLINE-TENANT');
+    cleanup(d);
+  });
+
+  test('SN-18 CONTROLE POSITIVO: a fixture correta não emite o código', () => {
+    // Sem este caso a regra poderia estar reprovando por scanner ingênuo — o
+    // erro que este projeto já cometeu quatro vezes.
+    const d = projeto();
+    const r = rodar(d);
+    assert.equal(r.status, 0, r.output);
+    assert.doesNotMatch(r.output, /P41-SETOR-OFFLINE-TENANT/);
+    cleanup(d);
   });
 });

@@ -17,7 +17,7 @@ Todos têm teste unitário com casos de falha reais em `scripts/tests/gates/`.
 | **product-scope** | `npm run gate:product-scope` | Rotas, menu, schemas e functions dentro de `config/mapa-manejo-scope.json`; superfície primária é `MapaGeral`; **entidades citadas dentro das functions** | D-PROD-01 · D-PROD-05 · D-PROD-06 | `scripts/gates/gate-product-scope.mjs` |
 | **api-boundary** | `npm run gate:api-boundary` | A UI não fala com o provider de dados: fronteira `src/apis/` protegida por identidade de arquivo | D-PROD-18 | `scripts/gates/gate-api-boundary.mjs` |
 | **native-api** | `npm run gate:native-api` | Transporte e sessão nativos: URL por referência estática sem override **e com esquema absoluto**, JWT só em `sessionStorage` numa guarda única, login sem `cliente_id`, os oito códigos do contrato no catálogo do frontend, fronteira HTTP única e CORS com allowlist exata | D-PROD-24 · D-PROD-26 | `scripts/gates/gate-native-api.mjs` |
-| **setor-native** | `npm run gate:setor-native` | Setor nativo: model tenant-scoped com migration, numeração por sequência dentro de transação, ausência de rota de exclusão, zero Base44 no caminho de Setor, porta única no frontend, tenant só do token, id offline fora da rede, sem fallback silencioso, auditoria transacional e rotas autenticadas | D-PROD-25 | `scripts/gates/gate-setor-native.mjs` |
+| **setor-native** | `npm run gate:setor-native` | Setor nativo: model tenant-scoped com migration, numeração por sequência dentro de transação, ausência de rota de exclusão, zero Base44 no caminho de Setor, porta única no frontend, tenant só do token, id offline fora da rede, sem fallback silencioso, auditoria transacional, rotas autenticadas e **cache/fila offline com dono** | D-PROD-25 | `scripts/gates/gate-setor-native.mjs` |
 | **source-closure** | `npm run gate:source-closure` | Todo arquivo executável em `src/` é alcançável a partir das entradas reais | D-PROD-12 | `scripts/gates/gate-source-closure.mjs` |
 | **import-integrity** | `npm run gate:import-integrity` | Nenhum import estático em `src/` aponta para arquivo inexistente | D-PROD-02 | `scripts/gates/gate-import-integrity.mjs` |
 | **no-secrets** | `npm run gate:no-secrets` | Nenhum segredo literal em **arquivo versionado ou não ignorado**; nenhum `.env` versionado | D-PROD-07 · D-PROD-14 | `scripts/gates/gate-no-hardcoded-secrets.mjs` |
@@ -150,6 +150,7 @@ Nenhuma etapa é ignorada nem tem o exit code convertido em sucesso.
 | `P41-SETOR-FALLBACK` | setor-native |
 | `P41-SETOR-AUDIT` | setor-native |
 | `P41-SETOR-ROUTE-AUTH` | setor-native |
+| `P41-SETOR-OFFLINE-TENANT` | setor-native |
 | `P3-IDX-SCHEMA-MISSING` | indices |
 | `P3-IDX-TENANT-PREFIX` | indices |
 | `P3-IDX-BUSINESS-UNIQUE` | indices |
@@ -613,19 +614,46 @@ em produção, com dois usuários, ou meses depois, com duas bases divergentes.
 | nenhum `catch` silencioso e nenhuma queda para a Base44 no caminho de Setor; o transporte continua sinalizando indisponibilidade | `P41-SETOR-FALLBACK` |
 | toda escrita registra evento de auditoria, e sempre com o cliente de transação | `P41-SETOR-AUDIT` |
 | toda rota de Setor exige `app.autenticar` | `P41-SETOR-ROUTE-AUTH` |
+| a porta declara `tenantScoped: true`, o runtime lê o dono e decide o destino de cada entrada da fila, e a sessão marca e descarta esse dono | `P41-SETOR-OFFLINE-TENANT` |
 
-42 provas em `scripts/tests/gates/setor-native.test.mjs`, quase todas negativas.
+48 provas em `scripts/tests/gates/setor-native.test.mjs`, quase todas negativas.
 Cada regra que poderia virar scanner ingênuo tem **controle positivo**:
 
 - SN-01f: índice extra tenant-first continua passando;
 - SN-02f: a prosa pode **citar** `MAX + 1` e `Math.max` ao explicar o que saiu —
   o gate remove comentários antes de varrer;
 - SN-04e: o provider continua servindo as outras 37 entidades;
-- SN-08d: `catch` que **relança** continua passando; só o silencioso reprova.
+- SN-08d: `catch` que **relança** continua passando; só o silencioso reprova;
+- SN-18: a fixture correta não emite `P41-SETOR-OFFLINE-TENANT`.
 
 Sem esses controles, o gate reprovaria a documentação escrita para impedir o
 defeito — exatamente o que a P3-R1 corrigiu na regra de identidade em runtime e
 o que a P4.0 corrigiu duas vezes em `gate:native-api`.
+
+### `P41-SETOR-OFFLINE-TENANT` — a regra que veio da revisão (P4.1-R1)
+
+As outras dez regras deste gate nasceram do desenho da fatia. Esta nasceu de
+uma revisão da própria PR, e fecha um caminho de escrita **entre tenants**.
+
+Cache e fila offline eram particionados por `entidade::empresa_id`, sem tenant.
+Enquanto `Setor` vivia na Base44 isso não atravessava fronteira nenhuma — o
+replay usava a credencial de lá. Com a P4.1 o replay passou a mandar
+`Authorization: Bearer` do MAIKE, e o backend tira o `cliente_id` do token: uma
+operação enfileirada pelo cliente A e replayada depois que o cliente B entrou no
+mesmo navegador era gravada dentro de B. `logout()` descarta o JWT e nada mais,
+então a fila sobrevivia à troca de usuário.
+
+A regra exige as **três pontas**, porque proteger uma só seria decorativo:
+
+| Ponta | Sem ela |
+|---|---|
+| a porta declara `tenantScoped: true` | cache e fila voltam a `entidade::empresa` |
+| o runtime lê o dono e classifica cada entrada | o item de outro dono volta a ser despachado |
+| a sessão marca no contexto e descarta no logout | a fila fica órfã, que é o estado do defeito |
+
+SN-13 a SN-17 reprovam cada mutilação — inclusive `tenantScoped: false`, que
+declara sem proteger, e um runtime que continua **sabendo** o tenant mas volta a
+aplicar tudo. Ver D-PROD-25 §L.
 
 ## Fechamento de escopo dentro das functions
 

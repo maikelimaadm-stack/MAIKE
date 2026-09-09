@@ -392,8 +392,34 @@ Três decisões que custam explicação e estão registradas em D-PROD-25:
   backend não foi enfraquecida para acomodar o offline** — o offline é que
   passou a respeitá-la.
 
-`gate:setor-native` trava as dez invariantes, com 42 provas quase todas
+`gate:setor-native` trava as onze invariantes, com 48 provas quase todas
 negativas. Ver `docs/engineering/GATE-REGISTRY.md`.
+
+### P4.1-R1 — fechamento corretivo
+
+Três defeitos achados em revisão da própria PR e corrigidos dentro dela, como a
+P4.0-R1 foi na PR #12. Os dois primeiros existem porque a P4.1 mudou **quem
+autentica o replay** da fila offline:
+
+- **escrita entre tenants.** Cache e fila eram particionados por
+  `entidade::empresa_id`, sem tenant, e `logout()` descarta só o JWT. O replay
+  passou a mandar `Authorization: Bearer` do MAIKE e o backend grava pelo tenant
+  do token, então a operação enfileirada pelo cliente A era aplicada dentro do
+  cliente B que entrasse depois no mesmo navegador. Agora cache, fila e replay
+  têm dono, e a entrada de outro dono fica na fila até ele voltar — pular não é
+  perder;
+- **fila legada travando tudo.** `operacoesNativas` não tem `delete`. Uma
+  exclusão enfileirada antes do corte estourava `TypeError`, e o replay retorna
+  no primeiro erro: a fila **inteira**, de todas as entidades, parava ali para
+  sempre. Entradas anteriores ao corte não têm dono, e são descartadas — a única
+  perda de dado deste desenho, dita em vez de escondida;
+- **obrigatório só com espaço.** `minLength: 1` aceitava `" "`, que virava
+  `null` na normalização e `INTERNAL_ERROR` 500 no Prisma. `pattern: '\\S'` move a
+  recusa para a fronteira, com 400.
+
+Nada do backend foi afrouxado: o tenant continua vindo só do token. A correção é
+toda do lado do navegador, que era quem estava errado. Gate
+`P41-SETOR-OFFLINE-TENANT`, provas SN-13 a SN-18 e OFF21 a OFF29. Ver D-PROD-25 §L.
 
 ## Base URL nativa (P4.0-R2, D-PROD-26)
 
