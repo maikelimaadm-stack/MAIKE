@@ -1230,9 +1230,12 @@ próprio, e não altera dado nenhum.
 ### K. `gate:setor-native`
 
 Gate **absoluto** — sem `--update`, sem baseline, sem correção automática, nunca
-escreve arquivo. Onze regras (dez da P4.1, mais `P41-SETOR-OFFLINE-TENANT` da
-P4.1-R1), 48 provas, quase todas negativas, com controles positivos para cada
-regra que poderia virar scanner ingênuo.
+escreve arquivo. **Doze** regras e **54 provas**, quase todas negativas, com
+controles positivos para cada regra que poderia virar scanner ingênuo.
+
+Composição: dez regras e 42 provas nesta fatia; `P41-SETOR-OFFLINE-TENANT` e mais
+seis provas na P4.1-R1 (§L); `P41-SETOR-TIPO-DEFAULT` e mais seis na P4.1-R2
+(§M).
 
 Ele existe porque nenhuma dessas invariantes quebra em vermelho: um
 `setoresProvider` reintroduzido continuaria listando setores; um `catch`

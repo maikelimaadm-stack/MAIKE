@@ -392,7 +392,7 @@ Três decisões que custam explicação e estão registradas em D-PROD-25:
   backend não foi enfraquecida para acomodar o offline** — o offline é que
   passou a respeitá-la.
 
-`gate:setor-native` trava as onze invariantes, com 48 provas quase todas
+`gate:setor-native` trava **doze** invariantes, com **54 provas** quase todas
 negativas. Ver `docs/engineering/GATE-REGISTRY.md`.
 
 ### P4.1-R1 — fechamento corretivo

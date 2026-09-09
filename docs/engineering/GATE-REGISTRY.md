@@ -618,7 +618,11 @@ em produção, com dois usuários, ou meses depois, com duas bases divergentes.
 | a porta declara `tenantScoped: true`, o runtime lê o dono e decide o destino de cada entrada da fila, e a sessão marca e descarta esse dono | `P41-SETOR-OFFLINE-TENANT` |
 | `Setor.tipo` tem `@default("Próprio")` no schema, e a **cadeia** de migrations termina com esse default no banco | `P41-SETOR-TIPO-DEFAULT` |
 
-48 provas em `scripts/tests/gates/setor-native.test.mjs`, quase todas negativas.
+**Doze** códigos de regra e **54 provas** em
+`scripts/tests/gates/setor-native.test.mjs`, quase todas negativas — medição de
+`node --test` sobre o arquivo, não aritmética sobre as fatias.
+Composição: dez regras e 42 provas da P4.1; `P41-SETOR-OFFLINE-TENANT` e mais
+seis provas na P4.1-R1; `P41-SETOR-TIPO-DEFAULT` e mais seis na P4.1-R2.
 Cada regra que poderia virar scanner ingênuo tem **controle positivo**:
 
 - SN-01f: índice extra tenant-first continua passando;

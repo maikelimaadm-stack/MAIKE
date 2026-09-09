@@ -96,7 +96,8 @@ mapa, e a Base44 deixou de ser origem, destino e **fallback** do dado de Setor.
 A exclusão está **fechada por decisão**: não existe `DELETE /setores/:id`
 enquanto os dependentes (`AreaPastagem`, `LancamentoTarefa`,
 `MovimentacaoMapa`, `MovimentacaoPecuaria`) não forem nativos. Acrescentou o
-gate absoluto `gate:setor-native` (42 provas). Ver D-PROD-25 e
+gate absoluto `gate:setor-native` (hoje 12 regras e 54 provas, contando as
+correções P4.1-R1 e P4.1-R2). Ver D-PROD-25 e
 `docs/engineering/P4.1-SETOR-NATIVE-PERSISTENCE-REPORT.md`.
 
 Nem a P2 nem a P3 alteraram `src/`, `base44/`, rotas, menu ou escopo — e, à
