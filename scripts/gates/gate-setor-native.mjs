@@ -24,7 +24,7 @@
  *   P41-SETOR-MODEL · P41-SETOR-NUMBERING · P41-SETOR-DELETE
  *   P41-SETOR-BASE44 · P41-SETOR-PORT · P41-SETOR-TENANT-SOURCE
  *   P41-SETOR-OFFLINE-ID · P41-SETOR-FALLBACK · P41-SETOR-AUDIT
- *   P41-SETOR-ROUTE-AUTH · P41-SETOR-OFFLINE-TENANT
+ *   P41-SETOR-ROUTE-AUTH · P41-SETOR-OFFLINE-TENANT · P41-SETOR-TIPO-DEFAULT
  */
 
 import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';
@@ -49,6 +49,10 @@ const SESSAO = 'src/apis/session/nativeSessionApi.js';
 
 const MODEL = 'Setor';
 const TENANT = 'cliente_id';
+const MIGRATIONS = 'backend/prisma/migrations';
+
+/** Valor declarado em `base44/entities/Setor.jsonc` para `tipo`. */
+const DEFAULT_TIPO = 'Próprio';
 
 const falhas = [];
 const registrar = (codigo, mensagem) => falhas.push({ codigo, mensagem });
@@ -427,6 +431,118 @@ const verificarIdentidadeOffline = () => {
 };
 
 // ---------------------------------------------------------------------------
+// SN-12 · P41-SETOR-TIPO-DEFAULT — o default do contrato chega ao banco
+// ---------------------------------------------------------------------------
+
+/** Tira comentário de SQL antes de varrer: prosa não satisfaz regra. */
+const semComentariosSql = (fonte) =>
+  fonte.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/--.*$/gm, ' ');
+
+/**
+ * Estado do default de `Setor.tipo` no **fim** da cadeia de migrations.
+ *
+ * A migration da P4.1 criou a coluna sem default e já está mergeada e aplicada:
+ * editá-la mudaria o checksum de uma migration registrada em
+ * `_prisma_migrations` e quebraria todo `migrate deploy` seguinte. Por isso o
+ * gate não olha migration isolada — ele **reproduz a cadeia** e cobra o estado
+ * final. Um histórico com `CREATE TABLE` sem default seguido de
+ * `SET DEFAULT 'Próprio'` é legítimo; o que não pode é a cadeia terminar sem o
+ * default, ou com outro valor.
+ *
+ * @returns {{viuSetor: boolean, valor: string|null}}
+ */
+const defaultFinalDeTipo = () => {
+  const dir = caminho(MIGRATIONS);
+  if (!existsSync(dir)) return { viuSetor: false, valor: null };
+
+  // Ordem lexicográfica = ordem cronológica: o nome começa pelo timestamp.
+  const nomes = readdirSync(dir)
+    .filter((nome) => existsSync(join(dir, nome, 'migration.sql')))
+    .sort();
+
+  // Uma varredura só, em ordem de ocorrência dentro de cada arquivo: um SET
+  // seguido de um DROP no mesmo arquivo tem que resultar em "sem default".
+  const passos =
+    /CREATE\s+TABLE\s+"Setor"\s*\(([\s\S]*?)\)\s*;|ALTER\s+TABLE\s+"Setor"\s+ALTER\s+COLUMN\s+"tipo"\s+SET\s+DEFAULT\s+'([^']*)'|ALTER\s+TABLE\s+"Setor"\s+ALTER\s+COLUMN\s+"tipo"\s+DROP\s+DEFAULT/gi;
+
+  let viuSetor = false;
+  let valor = null;
+
+  for (const nome of nomes) {
+    const sql = semComentariosSql(readFileSync(join(dir, nome, 'migration.sql'), 'utf8'));
+
+    for (const passo of sql.matchAll(passos)) {
+      if (passo[1] !== undefined) {
+        viuSetor = true;
+        const coluna = /"tipo"[^,)]*/.exec(passo[1]);
+        const comDefault = coluna && /DEFAULT\s+'([^']*)'/i.exec(coluna[0]);
+        valor = comDefault ? comDefault[1] : null;
+        continue;
+      }
+      if (passo[2] !== undefined) {
+        viuSetor = true;
+        valor = passo[2];
+        continue;
+      }
+      viuSetor = true;
+      valor = null;
+    }
+  }
+
+  return { viuSetor, valor };
+};
+
+const verificarDefaultDeTipo = () => {
+  if (existe(SCHEMA)) {
+    let setor = null;
+    try {
+      setor = lerModels(ler(SCHEMA)).find((m) => m.nome === MODEL) ?? null;
+    } catch {
+      setor = null;
+    }
+
+    const tipo = setor && campo(setor, 'tipo');
+    if (!tipo) {
+      registrar('P41-SETOR-TIPO-DEFAULT', `${MODEL}.tipo não encontrado no schema`);
+    } else {
+      // Comentário de linha fora antes de varrer: um `// @default("Próprio")`
+      // escrito ao lado do campo é prosa, não declaração.
+      const atributos = String(tipo.atributos || '').replace(/\/\/.*$/, '');
+      if (!new RegExp(`@default\\(\\s*"${DEFAULT_TIPO}"\\s*\\)`).test(atributos)) {
+        registrar(
+          'P41-SETOR-TIPO-DEFAULT',
+          `${MODEL}.tipo precisa de @default("${DEFAULT_TIPO}"): o contrato legado declara esse default`
+        );
+      }
+    }
+  }
+
+  const { viuSetor, valor } = defaultFinalDeTipo();
+
+  if (!viuSetor) {
+    registrar('P41-SETOR-TIPO-DEFAULT', `nenhuma migration toca "${MODEL}"."tipo"`);
+    return;
+  }
+
+  if (valor === null) {
+    registrar(
+      'P41-SETOR-TIPO-DEFAULT',
+      `a cadeia de migrations termina sem DEFAULT em "${MODEL}"."tipo" — ` +
+        `acrescente uma migration com ALTER COLUMN "tipo" SET DEFAULT '${DEFAULT_TIPO}'`
+    );
+    return;
+  }
+
+  if (valor !== DEFAULT_TIPO) {
+    registrar(
+      'P41-SETOR-TIPO-DEFAULT',
+      `a cadeia de migrations termina com DEFAULT '${valor}' em "${MODEL}"."tipo"; ` +
+        `o contrato declara '${DEFAULT_TIPO}'`
+    );
+  }
+};
+
+// ---------------------------------------------------------------------------
 // SN-11 · P41-SETOR-OFFLINE-TENANT — cache, fila e replay têm dono
 // ---------------------------------------------------------------------------
 
@@ -605,6 +721,7 @@ verificarPortaUnica();
 verificarFonteDeTenant();
 verificarIdentidadeOffline();
 verificarDonoDoOffline();
+verificarDefaultDeTipo();
 verificarSemFallback();
 verificarAuditoria();
 verificarAutenticacao();
@@ -622,5 +739,5 @@ console.log(
     '(model tenant-scoped com migration; numeração por sequência em transação; ' +
     'sem exclusão nativa; sem Base44 no caminho de Setor; porta única; tenant só do token; ' +
     'id offline fora da rede; sem fallback silencioso; auditoria transacional; rotas autenticadas; ' +
-    'cache e fila offline com dono)'
+    'cache e fila offline com dono; default de tipo chegando ao banco)'
 );

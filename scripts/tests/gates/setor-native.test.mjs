@@ -52,6 +52,7 @@ model Setor {
   empresa_id   String   @db.VarChar(64)
   numero_setor String   @db.VarChar(32)
   nome         String   @db.VarChar(255)
+  tipo         String   @default("Próprio") @db.VarChar(32)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -63,7 +64,14 @@ model Setor {
 }
 `;
 
-const MIGRATION_OK = 'CREATE TABLE "Setor" (\n  "id" TEXT NOT NULL\n);\n';
+// A migration histórica cria a coluna SEM default — é o estado real da P4.1,
+// já mergeada e aplicada. O gate tem de aceitar isso e cobrar o estado FINAL
+// da cadeia, não o de cada arquivo isolado.
+const MIGRATION_OK =
+  'CREATE TABLE "Setor" (\n  "id" TEXT NOT NULL,\n  "tipo" VARCHAR(32) NOT NULL\n);\n';
+
+const MIGRATION_DEFAULT_OK =
+  'ALTER TABLE "Setor" ALTER COLUMN "tipo" SET DEFAULT \'Próprio\';\n';
 
 const ROTAS_OK = `
 import { listar, criar, atualizar } from './setorService.js';
@@ -262,6 +270,8 @@ const projeto = (sobrescritas = {}) => {
   const arquivos = {
     'backend/prisma/schema.prisma': SCHEMA_OK,
     'backend/prisma/migrations/20260101000000_p4_1_setor_native/migration.sql': MIGRATION_OK,
+    'backend/prisma/migrations/20260102000000_p4_1_r2_setor_tipo_default/migration.sql':
+      MIGRATION_DEFAULT_OK,
     'backend/src/modules/setores/setorRoutes.js': ROTAS_OK,
     'backend/src/modules/setores/setorService.js': SERVICE_BACKEND_OK,
     'backend/src/modules/setores/setorRepository.js': REPOSITORIO_OK,
@@ -778,6 +788,85 @@ describe('P41-SETOR-OFFLINE-TENANT', () => {
     const r = rodar(d);
     assert.equal(r.status, 0, r.output);
     assert.doesNotMatch(r.output, /P41-SETOR-OFFLINE-TENANT/);
+    cleanup(d);
+  });
+});
+
+/**
+ * SN-19–SN-22 · P41-SETOR-TIPO-DEFAULT (P4.1-R2, P41R2-G-01 a G-04).
+ *
+ * `base44/entities/Setor.jsonc` declara `"default": "Próprio"` para `tipo`. A
+ * P4.1 trouxe o enum e o NOT NULL e deixou o default para trás — divergência
+ * objetiva do contrato, achada só depois do merge.
+ *
+ * A regra é sobre o **estado final da cadeia**, não sobre um arquivo. A
+ * migration da P4.1 já está mergeada e aplicada: exigir que ela tivesse o
+ * default significaria reescrevê-la, mudar seu checksum e quebrar todo
+ * `migrate deploy` seguinte. Um histórico "cria sem default, depois
+ * `SET DEFAULT`" é legítimo — e é justamente o que SN-20 prova ao mutilar só a
+ * corretiva.
+ */
+describe('P41-SETOR-TIPO-DEFAULT', () => {
+  test('SN-19 · P41R2-G-01 schema sem @default("Próprio") reprova', () => {
+    const d = projeto({
+      'backend/prisma/schema.prisma': SCHEMA_OK.replace('@default("Próprio") ', ''),
+    });
+    falhaCom(d, 'P41-SETOR-TIPO-DEFAULT');
+    cleanup(d);
+  });
+
+  test('SN-20 · P41R2-G-02 cadeia sem SET DEFAULT reprova', () => {
+    // A migration histórica continua intacta; some só a corretiva. É o estado
+    // exato em que a main ficou depois do merge da PR #14.
+    const d = projeto({
+      'backend/prisma/migrations/20260102000000_p4_1_r2_setor_tipo_default/migration.sql':
+        '-- sem alteração de default\n',
+    });
+    falhaCom(d, 'P41-SETOR-TIPO-DEFAULT');
+    cleanup(d);
+  });
+
+  test('SN-21 · P41R2-G-03 default com outro valor reprova', () => {
+    const d = projeto({
+      'backend/prisma/migrations/20260102000000_p4_1_r2_setor_tipo_default/migration.sql':
+        MIGRATION_DEFAULT_OK.replace("'Próprio'", "'Arrendado'"),
+    });
+    falhaCom(d, 'P41-SETOR-TIPO-DEFAULT');
+    cleanup(d);
+  });
+
+  test('SN-21b DROP DEFAULT posterior reprova, mesmo depois de um SET', () => {
+    // A cadeia é reproduzida em ordem: um SET seguido de DROP tem de resultar
+    // em "sem default". Sem isto, a regra olharia ocorrências soltas.
+    const d = projeto({
+      'backend/prisma/migrations/20260103000000_desfaz/migration.sql':
+        'ALTER TABLE "Setor" ALTER COLUMN "tipo" DROP DEFAULT;\n',
+    });
+    falhaCom(d, 'P41-SETOR-TIPO-DEFAULT');
+    cleanup(d);
+  });
+
+  test('SN-22 · P41R2-G-04 CONTROLE POSITIVO: prosa citando o default não satisfaz a regra', () => {
+    // O caso que transformaria a regra em teatro: comentário no schema e na
+    // migration citando exatamente o que o gate procura, sem declarar nada.
+    const d = projeto({
+      'backend/prisma/schema.prisma': SCHEMA_OK.replace(
+        '  tipo         String   @default("Próprio") @db.VarChar(32)',
+        '  // o contrato legado pede @default("Próprio") aqui\n' +
+          '  tipo         String   @db.VarChar(32)'
+      ),
+      'backend/prisma/migrations/20260102000000_p4_1_r2_setor_tipo_default/migration.sql':
+        '-- deveria ter ALTER COLUMN "tipo" SET DEFAULT \'Próprio\' e não tem\n',
+    });
+    falhaCom(d, 'P41-SETOR-TIPO-DEFAULT');
+    cleanup(d);
+  });
+
+  test('SN-22b CONTROLE POSITIVO: a fixture correta não emite o código', () => {
+    const d = projeto();
+    const r = rodar(d);
+    assert.equal(r.status, 0, r.output);
+    assert.doesNotMatch(r.output, /P41-SETOR-TIPO-DEFAULT/);
     cleanup(d);
   });
 });

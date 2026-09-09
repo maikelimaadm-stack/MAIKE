@@ -242,7 +242,11 @@ model Setor {
   numero_setor       String   @db.VarChar(32)
   nome               String   @db.VarChar(255)
   sigla              String?  @db.VarChar(32)
-  tipo               String   @db.VarChar(32)
+  // `default: "Próprio"` vem do contrato legado (`base44/entities/Setor.jsonc`).
+  // A P4.1 trouxe o enum e a obrigatoriedade e deixou o default para trás; a
+  // P4.1-R2 fecha isso com migration aditiva. Não torna o campo opcional na
+  // API — ver D-PROD-25 §M.
+  tipo               String   @default("Próprio") @db.VarChar(32)
   responsavel        String?  @db.VarChar(255)
   telefone           String?  @db.VarChar(64)
   endereco           String?  @db.VarChar(255)

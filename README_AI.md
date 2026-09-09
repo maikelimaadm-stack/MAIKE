@@ -23,7 +23,7 @@ e decisão vivem neste repositório.
 | **Produto** | Pecuária — **Mapa Geral + Manejo** (D-PROD-01) |
 | **Superfície primária** | `MapaGeral` — a raiz `/` redireciona para lá (D-PROD-05) |
 | **Missões concluídas** | **P0** (PR #1), **P1** (PR #6), **P2** (PR #7), **P3** (PR #10, merge `4ce4608` — inclui a **P3-R1**) — mais as sincronizações de SSOT (PRs #8, #11 e #13) e a emenda D-PROD-22 (PR #9) |
-| **Missão em execução** | **P4 — Mapa Core Native Persistence** — fatia **P4.0** mergeada (PR #12, merge `45599f5`, inclui a **P4.0-R1**); fatia **P4.1** implementada, em revisão |
+| **Missão em execução** | **P4 — Mapa Core Native Persistence** — fatias **P4.0** (PR #12, merge `45599f5`, inclui **P4.0-R1**; corrigida pela **P4.0-R2**, PR #15, merge `b2535ec`) e **P4.1** (PR #14, merge `b559c48`, inclui **P4.1-R1**) mergeadas; **P4.1-R2** implementada, em revisão |
 | **Próxima fatia autorizável** | **P4.2 — AreaPastagem Native Persistence** — **não iniciada** |
 | **Contrato de dados** | `config/modelobase1-pecuario.json` — **oficial** desde o merge da P2 (D-PROD-21) |
 | **Escopo executável** | `config/mapa-manejo-scope.json` |
@@ -111,8 +111,9 @@ dados. A próxima capacidade é **P4.2 (AreaPastagem)**, que **não foi iniciada
 
 `base44/entities/Setor.jsonc` **continua existindo** e `Setor` continua em
 `allowedBase44Entities`: a function `syncEntityReferences`, que propaga o nome
-do setor para os campos denormalizados das quatro entidades acima, ainda roda na
-Base44 e ainda o cita. Independência declarada antes dos destinos migrarem seria
+do setor para os campos denormalizados de **seis** destinos — `AreaPastagem`, `PontoSuplementacao`, `Lote`, `LancamentoTarefa`, `MovimentacaoMapa` e `MovimentacaoPecuaria` — ainda roda na Base44 e ainda o cita. São **seis**, não as quatro da guarda
+de exclusão: os dois contratos não coincidem, e a diferença está registrada em
+D-PROD-25 §N. Independência declarada antes dos destinos migrarem seria
 falsa — e `gate:product-scope` reprovaria.
 
 Antes/depois completo: `docs/engineering/CURRENT-STATE.md`.

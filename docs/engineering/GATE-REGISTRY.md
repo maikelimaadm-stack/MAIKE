@@ -151,6 +151,7 @@ Nenhuma etapa é ignorada nem tem o exit code convertido em sucesso.
 | `P41-SETOR-AUDIT` | setor-native |
 | `P41-SETOR-ROUTE-AUTH` | setor-native |
 | `P41-SETOR-OFFLINE-TENANT` | setor-native |
+| `P41-SETOR-TIPO-DEFAULT` | setor-native |
 | `P3-IDX-SCHEMA-MISSING` | indices |
 | `P3-IDX-TENANT-PREFIX` | indices |
 | `P3-IDX-BUSINESS-UNIQUE` | indices |
@@ -615,6 +616,7 @@ em produção, com dois usuários, ou meses depois, com duas bases divergentes.
 | toda escrita registra evento de auditoria, e sempre com o cliente de transação | `P41-SETOR-AUDIT` |
 | toda rota de Setor exige `app.autenticar` | `P41-SETOR-ROUTE-AUTH` |
 | a porta declara `tenantScoped: true`, o runtime lê o dono e decide o destino de cada entrada da fila, e a sessão marca e descarta esse dono | `P41-SETOR-OFFLINE-TENANT` |
+| `Setor.tipo` tem `@default("Próprio")` no schema, e a **cadeia** de migrations termina com esse default no banco | `P41-SETOR-TIPO-DEFAULT` |
 
 48 provas em `scripts/tests/gates/setor-native.test.mjs`, quase todas negativas.
 Cada regra que poderia virar scanner ingênuo tem **controle positivo**:
@@ -654,6 +656,34 @@ A regra exige as **três pontas**, porque proteger uma só seria decorativo:
 SN-13 a SN-17 reprovam cada mutilação — inclusive `tenantScoped: false`, que
 declara sem proteger, e um runtime que continua **sabendo** o tenant mas volta a
 aplicar tudo. Ver D-PROD-25 §L.
+
+### `P41-SETOR-TIPO-DEFAULT` — estado final da cadeia, não do arquivo (P4.1-R2)
+
+O contrato legado declara `"default": "Próprio"` para `Setor.tipo`. A P4.1 trouxe
+o enum e o `NOT NULL` e deixou o default para trás. Achado só depois do merge.
+
+A regra tem uma forma incomum, e o motivo é concreto: **a migration da P4.1 já
+está mergeada e aplicada**, com checksum registrado em `_prisma_migrations`.
+Exigir que ela contivesse o default significaria reescrevê-la e quebrar todo
+`migrate deploy` seguinte. Então o gate não julga arquivo isolado — ele
+**reproduz a cadeia** em ordem cronológica e cobra o estado final:
+
+| Cadeia | Veredito |
+|---|---|
+| `CREATE TABLE` sem default, depois `SET DEFAULT 'Próprio'` | passa — é o histórico real |
+| `CREATE TABLE` sem default, e nada depois | reprova |
+| `SET DEFAULT 'Arrendado'` | reprova — valor divergente do contrato |
+| `SET DEFAULT 'Próprio'`, depois `DROP DEFAULT` | reprova — a ordem é respeitada |
+
+Comentário de SQL é removido antes da varredura, e comentário de linha é
+removido dos atributos do campo antes de checar o `@default`. SN-22 é a prova
+disso: um schema e uma migration cheios de prosa citando exatamente
+`@default("Próprio")` e `SET DEFAULT 'Próprio'` **reprovam**, porque não declaram
+nada. Sem esse controle a regra seria teatro.
+
+Nenhum gate estático prova default **físico** — quem responde isso é
+`P41R2-BE-01`, lendo `information_schema`, e `P41R2-BE-02`, gravando por
+`INSERT` cru sem a coluna. Ver D-PROD-25 §M.
 
 ## Fechamento de escopo dentro das functions
 
