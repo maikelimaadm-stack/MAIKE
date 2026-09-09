@@ -22,9 +22,9 @@ e decisão vivem neste repositório.
 |---|---|
 | **Produto** | Pecuária — **Mapa Geral + Manejo** (D-PROD-01) |
 | **Superfície primária** | `MapaGeral` — a raiz `/` redireciona para lá (D-PROD-05) |
-| **Missões concluídas** | **P0** (PR #1), **P1** (PR #6), **P2** (PR #7), **P3** (PR #10, merge `4ce4608` — inclui a **P3-R1**) — mais as sincronizações de SSOT (PRs #8 e #11) e a emenda D-PROD-22 (PR #9) |
-| **Missão em execução** | **P4 — Mapa Core Native Persistence** — fatia **P4.0** concluída e mergeada (PR #12, merge `45599f5`, inclui a **P4.0-R1**) |
-| **Próxima fatia autorizável** | **P4.1 — Setor Native Persistence** — **não iniciada** |
+| **Missões concluídas** | **P0** (PR #1), **P1** (PR #6), **P2** (PR #7), **P3** (PR #10, merge `4ce4608` — inclui a **P3-R1**) — mais as sincronizações de SSOT (PRs #8, #11 e #13) e a emenda D-PROD-22 (PR #9) |
+| **Missão em execução** | **P4 — Mapa Core Native Persistence** — fatia **P4.0** mergeada (PR #12, merge `45599f5`, inclui a **P4.0-R1**); fatia **P4.1** implementada, em revisão |
+| **Próxima fatia autorizável** | **P4.2 — AreaPastagem Native Persistence** — **não iniciada** |
 | **Contrato de dados** | `config/modelobase1-pecuario.json` — **oficial** desde o merge da P2 (D-PROD-21) |
 | **Escopo executável** | `config/mapa-manejo-scope.json` |
 | **Molde arquitetural** | PROJETOMG — **parcial** (D-PROD-03) |
@@ -40,17 +40,18 @@ relatórios genéricos, dashboards paralelos, fichas personalizadas e editor vis
 | Métrica | Valor |
 |---|---|
 | Páginas | 16 |
-| Arquivos em `src/` | 263 |
+| Arquivos em `src/` | 271 |
 | Schemas Base44 | 38 |
 | Functions Base44 | 1 (`syncEntityReferences`) |
 | Arquivos em `src/` com SDK | 4 — todos **dentro** da fronteira |
-| Registry literal do provider | 38 entidades |
+| Registry literal do provider | 37 entidades — o manifesto menos `Setor`, já nativo (D-PROD-25) |
+| Models Prisma | 6 (5 de fundação + `Setor`) · 2 migrations versionadas |
 | Dependências diretas | 56 (38 `dependencies` + 18 `devDependencies`) |
 | Dívida de tipos versionada | 2.318 diagnósticos em `src/` (teto certificado 2.318) |
 | Dívida de tipos no `backend/` | **0** — contrato próprio, tolerância zero |
-| Testes automatizados | **1.046** (452 de gate + 534 de smoke + 60 de backend) |
-| Etapas do `verify:all` | 19 |
-| Bundle de produção — JS | 2.504,83 kB (671,43 kB gzip) |
+| Testes automatizados | **1.140** (494 de gate + 556 de smoke + 90 de backend) |
+| Etapas do `verify:all` | 20 |
+| Bundle de produção — JS | 2.505,17 kB (671,56 kB gzip) |
 
 **Fronteira de dados (`gate:api-boundary`): 0/0/0/0/0/0.** Os seis eixos estão
 zerados desde a P1.4 e o baseline versionado tem as seis listas vazias —
@@ -86,16 +87,33 @@ retry sem pedir senha. Ver D-PROD-24 §G.1.
 A P4.0, com a R1, está **mergeada**: PR #12, merge `45599f5`, sobre a
 implementação certificada em `f01201b`.
 
+A **P4.1** migrou a **primeira capacidade de domínio**: `Setor` passou a ser
+model Prisma tenant-scoped, com migration versionada, rotas `GET`/`POST`/`PATCH`
+autenticadas e numeração por `EntidadeCodigoSequencia` — o `MAX + 1` que o
+navegador calculava deixou de existir. O frontend tem uma **porta única**
+(`src/apis/setores/setorNativePort.js`), usada tanto pelo cadastro quanto pelo
+mapa, e a Base44 deixou de ser origem, destino e **fallback** do dado de Setor.
+A exclusão está **fechada por decisão**: não existe `DELETE /setores/:id`
+enquanto os dependentes (`AreaPastagem`, `LancamentoTarefa`,
+`MovimentacaoMapa`, `MovimentacaoPecuaria`) não forem nativos. Acrescentou o
+gate absoluto `gate:setor-native` (42 provas). Ver D-PROD-25 e
+`docs/engineering/P4.1-SETOR-NATIVE-PERSISTENCE-REPORT.md`.
+
 Nem a P2 nem a P3 alteraram `src/`, `base44/`, rotas, menu ou escopo — e, à
 época delas, o backend existia sem ser consumido pelo frontend.
 
-**Isso mudou com a P4.0.** Hoje a **autenticação e a sessão** do aplicativo
-falam com o backend nativo: login próprio, JWT do MAIKE, `/auth/contexto`. O
-**domínio geográfico ainda não migrou**: `Setor`, `AreaPastagem`,
-`PontoReferencia`, `PontoSuplementacao`, `LinhaGeografica`, `ConfiguracaoIcone`
-e `MovimentacaoMapa` continuam no provider Base44, e a fronteira da P1 continua
-apontando para lá para esses dados. A primeira capacidade de domínio migra na
-**P4.1 (Setor)**, que **não foi iniciada**.
+**Isso mudou com a P4.0 e a P4.1.** Hoje a **autenticação, a sessão e o cadastro
+de Setor** falam com o backend nativo. O **resto do domínio geográfico ainda não
+migrou**: `AreaPastagem`, `PontoReferencia`, `PontoSuplementacao`,
+`LinhaGeografica`, `ConfiguracaoIcone` e `MovimentacaoMapa` continuam no
+provider Base44, e a fronteira da P1 continua apontando para lá para esses
+dados. A próxima capacidade é **P4.2 (AreaPastagem)**, que **não foi iniciada**.
+
+`base44/entities/Setor.jsonc` **continua existindo** e `Setor` continua em
+`allowedBase44Entities`: a function `syncEntityReferences`, que propaga o nome
+do setor para os campos denormalizados das quatro entidades acima, ainda roda na
+Base44 e ainda o cita. Independência declarada antes dos destinos migrarem seria
+falsa — e `gate:product-scope` reprovaria.
 
 Antes/depois completo: `docs/engineering/CURRENT-STATE.md`.
 
@@ -178,7 +196,7 @@ Registre o bug em `docs/engineering/DECISIONS.md` e siga.
 
 ## O que "verde" significa aqui
 
-`npm run verify:all` sai com **0**. Três das dezenove etapas são **catracas**
+`npm run verify:all` sai com **0**. Três das vinte etapas são **catracas**
 (`gate:base44`, `gate:api-boundary` e `gate:types`), e o significado delas é
 literal:
 
@@ -198,10 +216,11 @@ base de persistência e domínio (D-PROD-21) e não tem `--update`, baseline nem
 correção automática — não existe estado herdado aceitável num contrato que ainda
 não tem implementação.
 
-As etapas da P3 e da P4.0 seguem a mesma linha: `gate:tenancy`, `gate:indices`,
-`typecheck:backend` e `gate:native-api` também são **absolutos**. `typecheck:backend` usa
+As etapas da P3, da P4.0 e da P4.1 seguem a mesma linha: `gate:tenancy`,
+`gate:indices`, `typecheck:backend`, `gate:native-api` e `gate:setor-native`
+também são **absolutos**. `typecheck:backend` usa
 `jsconfig.backend.typecheck.json`, separado da catraca legada de propósito — a
-catraca de `src/` tolera 2.319 diagnósticos herdados, e o backend novo não
+catraca de `src/` tolera 2.318 diagnósticos herdados, e o backend novo não
 tolera nenhum. Verde ali significa literalmente **zero**.
 
 **Não adianta afrouxar o `jsconfig.typecheck.json`.** Desde o P0.1-R2
@@ -244,6 +263,7 @@ Todos os relatórios vivem em `docs/engineering/`. Os marcos:
 | P2 | `docs/engineering/P2-MODELOBASE1-PECUARIO-FOUNDATION-REPORT.md` |
 | P3 | `docs/engineering/P3-BACKEND-PRISMA-POSTGRESQL-FOUNDATION-REPORT.md` |
 | P4.0 | `docs/engineering/P4.0-NATIVE-TRANSPORT-SESSION-ACTIVATION-REPORT.md` (+ P4.0-R1) |
+| P4.1 | `docs/engineering/P4.1-SETOR-NATIVE-PERSISTENCE-REPORT.md` |
 
 Arquitetura de contrato, fora da linha de missões:
 `docs/architecture/MODELOBASE1-PECUARIO-CONTRACT.md`.

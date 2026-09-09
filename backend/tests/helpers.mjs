@@ -17,6 +17,7 @@ import { gerarSenhaHash } from '../src/modules/auth/authService.js';
 const ORDEM_DE_LIMPEZA = [
   'auditLog',
   'registroAnexo',
+  'setor',
   'entidadeCodigoSequencia',
   'usuario',
   'cliente',

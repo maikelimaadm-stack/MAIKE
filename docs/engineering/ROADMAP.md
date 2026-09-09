@@ -126,7 +126,7 @@ nenhum model de manejo, que ficam para P4–P6, uma capacidade de cada vez.
 | Fatia | Nome | Estado |
 |---|---|---|
 | **P4.0** | Native Transport + Session Activation | **concluída e mergeada** — PR #12, merge `45599f5` (inclui a **P4.0-R1**) |
-| P4.1 | Setor Native Persistence | **não iniciada** |
+| **P4.1** | Setor Native Persistence | **implementada, em revisão** — branch `claude/p4-1-setor-native-persistence` |
 | P4.2 | AreaPastagem Native Persistence | não iniciada |
 
 A ordem é estrutural, não preferência. A P3 entregou um backend que sabe
@@ -146,14 +146,26 @@ A **P4.0-R1** corrigiu, dentro da mesma PR, um bloqueador achado em auditoria
 externa: a restauração da sessão apagava o JWT para qualquer erro, confundindo
 backend fora do ar com credencial recusada. Ver D-PROD-24 §G.1.
 
-**P4.1 não foi iniciada.** Ela é a primeira fatia a criar model de domínio, e
-com ela vem a correção do `MAX+1` de `numero_setor` (DBT-26) — que só agora tem
-onde ser resolvida de verdade, com a sequência atômica da P3 e o caminho
-autenticado da P4.0.
+A **P4.1** entregou a primeira capacidade de domínio nativa: model Prisma
+`Setor` tenant-scoped, migration versionada, rotas `GET`/`POST`/`PATCH`
+autenticadas, numeração por `EntidadeCodigoSequencia` no escopo `tenant`, porta
+única no frontend usada pelo cadastro **e** pelo mapa, e o gate absoluto
+`gate:setor-native`. Com ela morre o `MAX+1` de `numero_setor` (DBT-26), que só
+agora tinha onde ser resolvido de verdade — com a sequência atômica da P3 e o
+caminho autenticado da P4.0.
 
-Migrar para persistência nativa as entidades geográficas do mapa: `AreaPastagem`,
-`PontoReferencia`, `PontoSuplementacao`, `LinhaGeografica`, `Setor`,
-`ConfiguracaoIcone`, `MovimentacaoMapa`.
+A exclusão de setor ficou **fechada** nesta fatia, por decisão: não existe
+`DELETE /setores/:id` enquanto `AreaPastagem`, `LancamentoTarefa`,
+`MovimentacaoMapa` e `MovimentacaoPecuaria` — os dependentes que a guarda de
+vínculo consulta — não forem nativos. Reabre na P4.2. Ver D-PROD-25 §D.
+
+**P4.2 não foi iniciada.** Ela migra `AreaPastagem`, que é o próximo nó da
+árvore de dependências do mapa e o primeiro a ganhar FK composta tenant-aware
+para `Setor`.
+
+Ainda por migrar nesta fase: `AreaPastagem`, `PontoReferencia`,
+`PontoSuplementacao`, `LinhaGeografica`, `ConfiguracaoIcone`,
+`MovimentacaoMapa`.
 
 **Critério de aceite:** `MapaGeral` e `MapaCadastro` operam contra o backend
 próprio; `gate:base44` registra queda no acoplamento.

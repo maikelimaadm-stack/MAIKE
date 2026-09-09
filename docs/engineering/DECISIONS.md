@@ -1071,4 +1071,171 @@ Exibi-la daria aparência confiável a texto não controlado — o mesmo defeito
 a P1.1-R2 corrigiu no `ApiError` (R2-B3). O texto exibível vem do catálogo
 local.
 
-<!-- Próxima decisão: D-PROD-25 -->
+---
+
+## D-PROD-25 — Setor é a primeira capacidade de domínio com persistência nativa
+
+**Data:** P4.1 · **Missão:** P4.1 — Setor Native Persistence
+
+**Decisão:** `Setor` deixa de ser entidade da Base44 e passa a ser model Prisma
+tenant-scoped no backend próprio, com migration versionada, rotas autenticadas e
+numeração por `EntidadeCodigoSequencia`. A leitura do cadastro, a leitura do
+mapa, a criação e a atualização passam a ser nativas. A Base44 não é mais
+origem, destino nem **fallback** do dado de Setor.
+
+Nenhuma outra capacidade migra nesta missão. `AreaPastagem`,
+`PontoReferencia`, `PontoSuplementacao`, `LinhaGeografica`,
+`ConfiguracaoIcone`, `MovimentacaoMapa`, `Empresa` e `Lote` continuam onde
+estavam.
+
+### A. Por que Setor primeiro
+
+`AreaPastagem` referencia `Setor` — por `setor_id` e pelo nome denormalizado.
+Migrar a área antes obrigaria a criar uma FK para um model inexistente ou a
+deixar o vínculo solto, e a segunda opção nunca é corrigida depois. Setor é a
+folha da árvore de dependências do mapa, e por isso é a primeira.
+
+### B. Numeração: escopo `tenant`, não `empresa`
+
+O contrato oferece os dois escopos e manda a **capacidade** escolher
+(`numbering.scopeDeclaredByCapability`). A P4.1 escolhe `tenant`.
+
+Numerar por empresa exigiria que `escopo_id` fosse um id de `Empresa` — e
+`Empresa` só é nativa na P6. O backend não tem como provar que o `empresa_id`
+recebido existe, pertence a este tenant ou não foi inventado. Ancorar uma
+sequência num identificador que ele não consegue validar produziria uma
+sequência por string arbitrária, criada sob demanda por quem chamasse a API.
+
+Escopo `tenant` numera mais largo — dois setores de empresas diferentes não
+compartilham número — e é verificável hoje. Estreitar depois é decisão da P6,
+com `Empresa` nativa; alargar depois seria migração de dado.
+
+**Consequência declarada:** a numeração muda de significado. Antes,
+`numero_setor` vinha de `MAX + 1` sobre *todos* os setores carregados —
+efetivamente global e sujeito a corrida. Agora é uma sequência por tenant,
+atômica e sem reuso após exclusão.
+
+### C. `empresa_id` continua String, sem relação Prisma
+
+`Empresa` é P6. Uma relação para um model inexistente não compila, e criar um
+model `Empresa` mínimo só para satisfazer a FK anteciparia uma capacidade
+inteira dentro de uma missão que não a autoriza.
+
+`empresa_id` carrega o valor que a Base44 já gravava, e o filtro por empresa que
+a tela faz continua funcionando. Vira FK composta tenant-aware quando `Empresa`
+for nativa.
+
+### D. NÃO existe `DELETE /setores/:id`
+
+A guarda de exclusão de Setor consulta `AreaPastagem`, `LancamentoTarefa`,
+`MovimentacaoMapa` e `MovimentacaoPecuaria` — por id **e** por nome
+denormalizado. As quatro continuam na Base44; o Setor não. As saídas possíveis
+eram:
+
+| Saída | Por que foi recusada |
+|---|---|
+| Apagar no nativo, conferir vínculo na Base44 | operação destrutiva decidida por dois sistemas, sem transação em volta. Uma metade falha e sobra área apontando para setor inexistente |
+| Apagar sem conferir | destrói a integridade que hoje existe |
+| Aceitar do frontend uma "prova" de que pode apagar | o cliente decidindo a própria autorização |
+| Consultar a Base44 a partir do backend | proibido por `P3-TEN-BASE44` — o backend nativo dependeria da plataforma que substitui |
+
+A quinta é recusar, e é a escolhida. A rota **não existe** — não é um handler
+que reprova. O frontend recusa localmente, sem requisição, com código próprio
+`SETOR_DELETE_UNAVAILABLE`.
+
+O código é próprio de propósito. `SETOR_DELETE_BLOCKED` significa "existem
+registros vinculados", e usá-lo aqui afirmaria um vínculo que ninguém
+verificou — mentira útil que esconderia o motivo real quando a P4.2 reabrir a
+exclusão. Pelo mesmo critério, `SETOR_DELETE_BLOCKED` **saiu** do catálogo do
+frontend: ficou sem consumidor, e código catalogado sem consumidor é promessa
+sem contrato (regra herdada da P1.4-R1, que removeu `PRODUTO_PARTIAL_IMPORT`).
+
+**Segurança e integridade prevalecem sobre paridade de funcionalidade.**
+Paridade falsa é pior que função ausente, porque some com o dado.
+
+### E. `SETOR_NOT_FOUND`, e não `TENANT_SCOPE_VIOLATION`
+
+Um `PATCH` com id de outro tenant devolve 404 `SETOR_NOT_FOUND`, indistinguível
+de um id que nunca existiu — mesma resposta, mesmo status, mesma mensagem.
+
+`TENANT_SCOPE_VIOLATION` (403) descreveria o caso, mas **confirmaria** que o
+registro existe em outro cliente: quem quisesse descobrir se um id pertence a
+outro tenant bastaria comparar as respostas. E `ATTACHMENT_OWNER_INVALID`, o 404
+do contrato, fala de anexo — reaproveitá-lo só para evitar um código novo
+tornaria o vocabulário mentiroso.
+
+### F. Uma porta só para o cadastro e para o mapa
+
+Antes existiam duas leituras do mesmo agregado: `mapaProvider.listSetores` e
+`setoresProvider.list`. Eram equivalentes enquanto batiam na mesma entidade da
+Base44. Com persistência nativa deixariam de ser: duas portas, dois caches
+offline com a mesma chave, e nenhuma garantia de que o mapa e o cadastro
+enxergassem a mesma lista.
+
+`src/apis/setores/setorNativePort.js` é a porta única. `src/apis/mapa` reexporta
+`listSetores` dela — a superfície pública do mapa não muda.
+
+### G. O corpo enviado é montado por lista literal de campos
+
+`CadastroSetores` monta o formulário de edição com
+`{...getInitialFormData(), ...setor}`, então o objeto que chega à porta carrega
+`id`, `numero_setor`, `created_date`, `updated_date` e, quando o registro nasceu
+offline, `_isOffline` e um id `offline_…`. O backend recusa todos com 400
+(`additionalProperties: false` + `removeAdditional: false`), e está certo: os
+três primeiros são atribuídos pelo servidor.
+
+A filtragem mora na camada mais interna — a porta — e não no service, porque o
+**replay da fila offline** chama as operações diretamente, sem passar por
+service nenhum. Sem ela, todo setor criado sem rede falharia no replay.
+
+**A regra de identidade do backend não foi enfraquecida para acomodar o
+offline.** O offline é que passou a respeitá-la.
+
+### H. Registry e manifesto deixam de ser iguais — e essa é a única diferença aceita
+
+A P1.4 fechou o registry do provider **igual** ao manifesto: 38 e 38. A P4.1
+abre a primeira diferença: 37 no registry, 38 no manifesto.
+
+`base44/entities/Setor.jsonc` continua existindo e `Setor` continua em
+`allowedBase44Entities` porque `syncEntityReferences` — a function que propaga o
+nome do setor para os campos denormalizados das quatro entidades da seção D —
+ainda roda na Base44 e ainda o cita. `gate:product-scope` exige manifesto e
+schemas iguais nos dois sentidos, então tirá-lo de lá reprovaria por uma
+independência que ainda não existe.
+
+A verificação continua sendo por **igualdade**, não por inclusão: o conjunto
+esperado é `manifesto − MIGRADAS_PARA_NATIVO`, e cada nome dessa lista é
+conferido contra o manifesto **e** contra o registry. Trocar por "é
+subconjunto" deixaria qualquer entidade sumir do registry sem ninguém decidir
+nada — e sumir do registry é justamente o sintoma de uma migração pela metade.
+
+### I. A normalização de texto continua no frontend
+
+Nome e campos em maiúsculas, decimal com vírgula, opcional vazio como `null`.
+É convenção de apresentação do cadastro, não invariante de dados. Duplicá-la no
+backend criaria duas versões da mesma regra, que divergiriam na primeira vez que
+uma das duas mudasse.
+
+O backend valida o **contrato**: forma, tamanho, tipo permitido, campo
+desconhecido — no schema da rota, onde a falha vira 400 antes de qualquer regra
+rodar.
+
+### J. `ativo` não virou soft delete
+
+O campo existe desde o cadastro legado e continua sendo campo de negócio. O
+contrato proíbe `ativoFieldReplacesDeletionPolicy`, e a P4.1 não transformou a
+recusa de exclusão em "marque como inativo": a recusa é explícita, com código
+próprio, e não altera dado nenhum.
+
+### K. `gate:setor-native`
+
+Gate **absoluto** — sem `--update`, sem baseline, sem correção automática, nunca
+escreve arquivo. Dez regras (SN-01 a SN-10), 42 provas, quase todas negativas,
+com controles positivos para cada regra que poderia virar scanner ingênuo.
+
+Ele existe porque nenhuma dessas invariantes quebra em vermelho: um
+`setoresProvider` reintroduzido continuaria listando setores; um `catch`
+devolvendo a lista da Base44 pareceria resiliência; um `MAX + 1` de volta no
+service passaria em toda tela de navegador único.
+
+<!-- Próxima decisão: D-PROD-26 -->

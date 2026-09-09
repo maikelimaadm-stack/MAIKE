@@ -176,7 +176,9 @@ describe('A11 — registry do provider é literal e exato', () => {
     'LancamentoTarefa', 'LayoutCampo', 'LayoutConfiguracao', 'LayoutSecao', 'LinhaGeografica',
     'LocalEstoque', 'Lote', 'ManejoTecnicoRebanho', 'MovimentacaoEstoque', 'MovimentacaoMapa',
     'MovimentacaoPecuaria', 'Permissao', 'PontoReferencia', 'PontoSuplementacao', 'Produto',
-    'Marca', 'RegistroAnexo', 'Setor', 'SuplementacaoEvento', 'SuplementacaoLote', 'TipoTarefa',
+    // `Setor` saiu na P4.1: persistência nativa (D-PROD-25). Ver
+    // `MIGRADAS_PARA_NATIVO` em `tests/smoke/suporteBoundary.test.js`.
+    'Marca', 'RegistroAnexo', 'SuplementacaoEvento', 'SuplementacaoLote', 'TipoTarefa',
     'UnidadeMedida', 'User',
   ].sort();
 

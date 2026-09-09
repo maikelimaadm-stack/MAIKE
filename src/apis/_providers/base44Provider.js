@@ -41,7 +41,7 @@ const OFFLINE_ENTITIES = new Set([
   'LancamentoTarefa', 'HistoricoLancamentoTarefa', 'AreaPastagem', 'PontoReferencia',
   'PontoSuplementacao', 'LinhaGeografica', 'Lote', 'ConfiguracaoIcone',
   'SuplementacaoEvento', 'SuplementacaoLote', 'EstoqueLoteNota', 'MovimentacaoMapa',
-  'MovimentacaoEstoque', 'TipoTarefa', 'Fornecedor', 'Produto', 'Permissao', 'Setor',
+  'MovimentacaoEstoque', 'TipoTarefa', 'Fornecedor', 'Produto', 'Permissao',
   'Empresa', 'AplicacaoMedicamento', 'EventoSanitario', 'ManejoTecnicoRebanho',
   'LocalEstoque', 'CategoriaManejo',
 ]);
@@ -72,8 +72,16 @@ const comFronteira = (nome, endpoint) =>
  * Registro literal das entidades com consumidor migrado.
  *
  * Toda chave aqui precisa existir em `config/mapa-manejo-scope.json` →
- * `allowedBase44Entities` (`P11-API-BOUNDARY-SCOPE`). Desde a P1.4 o registry é
- * **igual** ao manifesto: 38 entidades, nem uma a mais.
+ * `allowedBase44Entities` (`P11-API-BOUNDARY-SCOPE`). A P1.4 fechou o registry
+ * **igual** ao manifesto, com 38 entidades.
+ *
+ * Desde a P4.1 a relação é de **inclusão, não igualdade**: 37 entidades aqui
+ * para 38 no manifesto. `Setor` migrou para persistência nativa (D-PROD-25) e
+ * saiu daqui, mas continua no manifesto porque a function
+ * `syncEntityReferences` ainda o cita. A diferença é o número de capacidades
+ * já migradas, e é o único motivo aceito para ela existir — está declarada em
+ * `MIGRADAS_PARA_NATIVO` (`tests/smoke/suporteBoundary.test.js`), lista que
+ * cresce uma entrada por missão de migração e é conferida contra o manifesto.
  */
 const ENTITY_REGISTRY = Object.freeze({
   Empresa: comFronteira('Empresa', base44.entities.Empresa),
@@ -83,7 +91,13 @@ const ENTITY_REGISTRY = Object.freeze({
   PontoReferencia: comFronteira('PontoReferencia', base44.entities.PontoReferencia),
   PontoSuplementacao: comFronteira('PontoSuplementacao', base44.entities.PontoSuplementacao),
   LinhaGeografica: comFronteira('LinhaGeografica', base44.entities.LinhaGeografica),
-  Setor: comFronteira('Setor', base44.entities.Setor),
+  // `Setor` saiu na P4.1 (D-PROD-25): a persistência é nativa, e a porta é
+  // `src/apis/setores/setorNativePort.js`. O schema continua em
+  // `base44/entities/Setor.jsonc` e o nome continua em `allowedBase44Entities`
+  // porque `syncEntityReferences` — a function que propaga o nome do setor para
+  // os campos denormalizados da geografia — ainda roda lá e ainda o cita. Sair
+  // do manifesto antes dos destinos migrarem reprovaria `gate:product-scope`
+  // por uma independência que ainda não existe.
   ConfiguracaoIcone: comFronteira('ConfiguracaoIcone', base44.entities.ConfiguracaoIcone),
   Bebedouro: comFronteira('Bebedouro', base44.entities.Bebedouro),
 
@@ -216,7 +230,6 @@ export const mapaProvider = Object.freeze({
   createLinha: (dados) => endpointOf('LinhaGeografica').create(dados),
   updateLinha: (id, dados) => endpointOf('LinhaGeografica').update(id, dados),
 
-  listSetores: (ordenacao) => endpointOf('Setor').list(ordenacao),
   listBebedouros: (ordenacao) => endpointOf('Bebedouro').list(ordenacao),
 
   // Configuração de ícones: leitura pelo mapa, CRUD pelo gerenciador (P1.4).
@@ -398,13 +411,9 @@ export const arquivosProvider = Object.freeze({
 
 // ── Cadastros e manejo (P1.3) ─────────────────────────────────────────────
 
-/** Setor: CRUD do cadastro. A leitura do mapa continua em `mapaProvider`. */
-export const setoresProvider = Object.freeze({
-  list: (ordenacao) => endpointOf('Setor').list(ordenacao),
-  create: (dados) => endpointOf('Setor').create(dados),
-  update: (id, dados) => endpointOf('Setor').update(id, dados),
-  delete: (id) => endpointOf('Setor').delete(id),
-});
+// `setoresProvider` foi REMOVIDO na P4.1 (D-PROD-25). Setor é nativo: a porta
+// é `src/apis/setores/setorNativePort.js`, e não existe adapter da Base44 para
+// esta entidade — nem para leitura, nem para escrita, nem como fallback.
 
 /** Categoria de produto, hierárquica por `categoria_pai_id`. */
 export const categoriasProvider = Object.freeze({

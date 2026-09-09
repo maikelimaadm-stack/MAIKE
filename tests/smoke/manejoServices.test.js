@@ -18,7 +18,10 @@ const lotes = {
   sincronizarReferenciasLote: vi.fn(),
 };
 const estoque = { listProdutos: vi.fn(), listLocais: vi.fn() };
-const setores = { listSetores: vi.fn(), createSetor: vi.fn(), updateSetor: vi.fn(), deleteSetor: vi.fn(), sincronizarReferenciasSetor: vi.fn() };
+// Sem `deleteSetor`: a superfície do módulo deixou de exportá-lo na P4.1
+// (D-PROD-25). Um mock com o método faria o teste descrever uma API que não
+// existe mais.
+const setores = { listSetores: vi.fn(), createSetor: vi.fn(), updateSetor: vi.fn(), sincronizarReferenciasSetor: vi.fn() };
 const categorias = { listCategorias: vi.fn(), createCategoria: vi.fn(), updateCategoria: vi.fn(), deleteCategoria: vi.fn() };
 const categoriasManejo = { listCategoriasManejo: vi.fn(), createCategoriaManejo: vi.fn(), updateCategoriaManejo: vi.fn(), deleteCategoriaManejo: vi.fn() };
 const bebedouros = {
@@ -233,20 +236,34 @@ describe('S — setores', () => {
     expect((await setorSvc.listarSetoresDaEmpresa(EMPRESA)).map((s) => s.id)).toEqual(['s1']);
   });
 
-  it('S2 — número seguinte é string, max + 1', () => {
-    expect(setorSvc.proximoNumeroSetor([{ numero_setor: '2' }, { numero_setor: '9' }])).toBe('10');
+  /**
+   * P4.1 — o `MAX + 1` saiu daqui.
+   *
+   * Até a P4.0 este teste fixava `proximoNumeroSetor`, que calculava o próximo
+   * número sobre a lista carregada. Era uma fotografia: dois navegadores
+   * criando setor ao mesmo tempo liam o mesmo máximo e pediam o mesmo número.
+   * Quem numera agora é `EntidadeCodigoSequencia`, no backend, na mesma
+   * transação da gravação (D-PROD-25) — provado em
+   * `backend/tests/setorNativo.test.mjs` (BE-P41-05..10), contra PostgreSQL
+   * real e com criações concorrentes de verdade.
+   *
+   * O que sobra aqui é a prova de que a função não voltou.
+   */
+  it('S2 — o service NÃO numera mais: proximoNumeroSetor não existe', () => {
+    expect(setorSvc.proximoNumeroSetor).toBeUndefined();
   });
 
-  it('S3 — normalização preserva o payload real da tela', () => {
+  it('S3 — normalização preserva o payload real da tela, sem numerar', () => {
     const payload = setorSvc.normalizarSetor(
       { nome: 'pasto a', sigla: 'pa', cidade: '', area_total: '12.5', capacidade_animais: '30' },
-      { empresaId: EMPRESA, numeroSetor: '3' }
+      { empresaId: EMPRESA }
     );
     expect(payload).toMatchObject({
       nome: 'PASTO A', sigla: 'PA', cidade: null,
       area_total: 12.5, capacidade_animais: 30,
-      empresa_id: EMPRESA, numero_setor: '3',
+      empresa_id: EMPRESA,
     });
+    expect(payload).not.toHaveProperty('numero_setor');
   });
 
   /**
@@ -270,10 +287,16 @@ describe('S — setores', () => {
     expect(setorSvc.normalizarSetor({ capacidade_animais: '30' }).capacidade_animais).toBe(30);
   });
 
-  it('S4 — criar numera sobre todos os setores, não só os da empresa', async () => {
-    setores.listSetores.mockResolvedValue([{ numero_setor: '4', empresa_id: 'outra' }]);
+  it('S4 — criar envia o payload normalizado SEM número e sem carregar a lista', async () => {
     await setorSvc.criarSetor({ nome: 'novo' }, { empresaId: EMPRESA });
-    expect(setores.createSetor).toHaveBeenCalledWith(expect.objectContaining({ numero_setor: '5' }));
+
+    expect(setores.createSetor).toHaveBeenCalledWith(
+      expect.objectContaining({ nome: 'NOVO', empresa_id: EMPRESA })
+    );
+    expect(setores.createSetor.mock.calls[0][0]).not.toHaveProperty('numero_setor');
+    // A leitura da lista inteira existia só para calcular o `MAX + 1`. Sem ela,
+    // criar um setor deixou de custar uma varredura de todos os setores.
+    expect(setores.listSetores).not.toHaveBeenCalled();
   });
 
   it('S5/S6 — sincroniza só quando o nome muda', async () => {
@@ -287,18 +310,34 @@ describe('S — setores', () => {
     expect(setores.sincronizarReferenciasSetor).not.toHaveBeenCalled();
   });
 
-  it('S7 — sem vínculo, exclui', async () => {
-    setores.listSetores.mockResolvedValue([{ id: 's1', empresa_id: EMPRESA, nome: 'A' }]);
-    await setorSvc.excluirSetor('s1');
-    expect(setores.deleteSetor).toHaveBeenCalledWith('s1');
+  /**
+   * P4.1 — a exclusão fecha, e fecha por decisão.
+   *
+   * A guarda de vínculo de Setor consulta `AreaPastagem`, `LancamentoTarefa`,
+   * `MovimentacaoMapa` e `MovimentacaoPecuaria` — as quatro ainda na Base44,
+   * enquanto o Setor não está mais. Apagar no nativo conferindo vínculo no
+   * legado seria uma operação destrutiva decidida por dois sistemas, sem
+   * transação em volta (D-PROD-25).
+   */
+  it('S7 — excluir recusa SEM ir à rede, com código próprio da recusa', async () => {
+    const erro = await setorSvc.excluirSetor('s1').catch((e) => e);
+
+    expect(hasApiErrorCode(erro, API_ERROR_CODES.SETOR_DELETE_UNAVAILABLE)).toBe(true);
+    // Nem lista, nem guarda, nem chamada de escrita: a recusa é local.
+    expect(setores.listSetores).not.toHaveBeenCalled();
+    expect(mapa.listAreas).not.toHaveBeenCalled();
+    expect(setores.updateSetor).not.toHaveBeenCalled();
   });
 
-  it('S8 — com área vinculada, bloqueia por código e não exclui', async () => {
-    setores.listSetores.mockResolvedValue([{ id: 's1', empresa_id: EMPRESA, nome: 'A' }]);
-    mapa.listAreas.mockResolvedValue([{ id: 'a1', setor_id: 's1', empresa_id: EMPRESA }]);
+  it('S8 — a recusa NÃO se disfarça de bloqueio por vínculo', async () => {
     const erro = await setorSvc.excluirSetor('s1').catch((e) => e);
-    expect(hasApiErrorCode(erro, API_ERROR_CODES.SETOR_DELETE_BLOCKED)).toBe(true);
-    expect(setores.deleteSetor).not.toHaveBeenCalled();
+
+    // `SETOR_DELETE_BLOCKED` significaria "existem registros vinculados", e
+    // ninguém verificou vínculo nenhum. O código saiu do catálogo por não ter
+    // mais consumidor — a mesma regra que removeu `PRODUTO_PARTIAL_IMPORT`.
+    expect(API_ERROR_CODES.SETOR_DELETE_BLOCKED).toBeUndefined();
+    expect(erro.code).toBe('SETOR_DELETE_UNAVAILABLE');
+    expect(erro.message).toMatch(/indispon/i);
   });
 });
 

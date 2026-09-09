@@ -71,6 +71,12 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   AUTH_INVALID_CREDENTIALS: { http: 401, meaning: 'credenciais inválidas' },
   REQUEST_VALIDATION_FAILED: { http: 400, meaning: 'corpo ou parâmetro fora do schema' },
   REQUEST_REJECTED: { http: 400, meaning: 'requisição recusada pelo framework' },
+  // P4.1: o contrato tem um 404 — `ATTACHMENT_OWNER_INVALID` —, mas ele fala de
+  // anexo; reaproveitá-lo para setor só para evitar um código novo tornaria o
+  // vocabulário mentiroso. E `TENANT_SCOPE_VIOLATION` seria pior que impreciso:
+  // o 403 confirma que o registro existe em outro cliente, entregando
+  // informação sobre dado que quem perguntou não pode ver.
+  SETOR_NOT_FOUND: { http: 404, meaning: 'id não identifica setor deste tenant' },
   INTERNAL_ERROR: { http: 500, meaning: 'erro não previsto' },
 });
 

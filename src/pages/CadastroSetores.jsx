@@ -5,8 +5,7 @@ import {
   atualizarSetor,
   excluirSetor,
 } from "@/services/setorService";
-import { getApiErrorMessage, hasApiErrorCode } from "@/apis/_core/ApiError";
-import { API_ERROR_CODES } from "@/apis/_core/ApiError";
+import { getApiErrorMessage } from "@/apis/_core/ApiError";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Settings } from "lucide-react";
@@ -70,18 +69,23 @@ export default function CadastroSetores() {
     onError: () => toast.error("Erro ao atualizar setor")
   });
 
+  /**
+   * Exclusão fechada nesta fase (P4.1, D-PROD-25).
+   *
+   * O botão continua na tabela, e a recusa continua vindo do service — não do
+   * componente. Esconder o botão faria a tela parecer coerente enquanto a
+   * decisão de recusar vivia em outro arquivo; um dia alguém o traria de volta
+   * sem saber por que ele havia sumido.
+   *
+   * O `onSuccess` foi removido: `excluirSetor` nunca resolve. Deixá-lo ali
+   * descreveria um caminho que não existe.
+   */
   const deleteMutation = useMutation({
+    /** @param {string} id */
     mutationFn: (id) => excluirSetor(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["setores", empresaSelecionadaId] });
-      toast.success("Setor excluído!");
+    onError: (error) => {
       setShowDelete(false);
       setDeletarId(null);
-    },
-    onError: (error) => {
-      // Bloqueio por vínculo já é comunicado pelo diálogo global de exclusão:
-      // decidido por **código**, não por texto do erro.
-      if (hasApiErrorCode(error, API_ERROR_CODES.SETOR_DELETE_BLOCKED)) return;
       toast.error(getApiErrorMessage(error, "Erro ao excluir setor"));
     }
   });
@@ -151,8 +155,8 @@ export default function CadastroSetores() {
       <ConfirmDialog
         open={showDelete}
         onOpenChange={setShowDelete}
-        title="Confirmar exclusão"
-        description="Se este setor possuir registros lançados, a exclusão será bloqueada automaticamente."
+        title="Exclusão indisponível"
+        description="A exclusão de setores está indisponível enquanto o cadastro é migrado para o sistema próprio. As áreas, tarefas e movimentações que apontam para o setor ainda vivem na plataforma antiga, e apagá-lo agora deixaria esses vínculos apontando para o vazio."
         onConfirm={() => deleteMutation.mutate(deletarId)}
         confirmText="Excluir"
         cancelText="Cancelar"

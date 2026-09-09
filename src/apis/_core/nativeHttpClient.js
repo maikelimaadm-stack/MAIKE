@@ -50,6 +50,9 @@ const CODIGOS_PRESERVADOS = Object.freeze({
   AUDIT_WRITE_FAILED: API_ERROR_CODES.AUDIT_WRITE_FAILED,
   CONCURRENCY_CONFLICT: API_ERROR_CODES.CONCURRENCY_CONFLICT,
   AUTH_INVALID_CREDENTIALS: API_ERROR_CODES.AUTH_INVALID_CREDENTIALS,
+  // P4.1: 404 de Setor. Preservado porque a tela age sobre ele — recarregar a
+  // lista resolve — e isso não é a mesma coisa que "a operação falhou".
+  SETOR_NOT_FOUND: API_ERROR_CODES.SETOR_NOT_FOUND,
 });
 
 /**

@@ -1,8 +1,14 @@
-// ModeloBase1 Pecuário — camada de tenant/fundação (P3).
+// ModeloBase1 Pecuário — fundação de tenant (P3) + capacidades migradas (P4+).
 //
 // Este schema implementa EXATAMENTE o contrato de
-// `config/modelobase1-pecuario.json`, sem antecipar nada de P4–P6.
-// Nenhum model de mapa e nenhum model de manejo entra aqui.
+// `config/modelobase1-pecuario.json`.
+//
+// A P3 criou só a fundação — `Cliente`, `Usuario`, `AuditLog`,
+// `EntidadeCodigoSequencia`, `RegistroAnexo` — e nenhum model de domínio, por
+// não haver consumidor migrado. A partir da P4 cada capacidade entra **uma por
+// missão**, quando existe consumidor real: a P4.1 traz `Setor` (D-PROD-25).
+// `AreaPastagem` e o resto da geografia continuam na Base44 até a P4.2 — o
+// schema não antecipa model sem consumidor.
 //
 // Invariantes travadas por `gate:tenancy` e `gate:indices`:
 //
@@ -49,6 +55,7 @@ model Cliente {
   auditLogs  AuditLog[]
   sequencias EntidadeCodigoSequencia[]
   anexos     RegistroAnexo[]
+  setores    Setor[]
 
   @@index([nome])
   @@index([ativo])
@@ -202,4 +209,57 @@ model RegistroAnexo {
   @@unique([cliente_id, storage_key])
   @@index([cliente_id, entidade, entidade_id])
   @@index([cliente_id, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Setor — primeira capacidade de domínio migrada da Base44 (P4.1, D-PROD-25).
+//
+// `numero_setor` é identificador de NEGÓCIO, nunca linha: a chave primária
+// continua sendo `id`/`cuid()`. Ele é atribuído por `EntidadeCodigoSequencia`
+// no escopo `tenant`, dentro da mesma transação da criação — o `MAX + 1` que o
+// frontend fazia some com esta missão. Escopo `tenant` e não `empresa` porque
+// `Empresa` ainda não é model nativo (P6): numerar por empresa exigiria uma
+// chave de escopo que o backend não consegue validar hoje, e uma sequência
+// ancorada em id não verificável é pior que uma sequência mais larga.
+//
+// `empresa_id` é String simples, SEM relação Prisma, exatamente por isso. Ele
+// carrega o valor que a Base44 já gravava, para que o filtro por empresa que a
+// tela faz continue funcionando. Vira FK real quando `Empresa` for nativa.
+//
+// `ativo` é campo de negócio herdado do cadastro — NÃO é soft delete
+// disfarçado. O contrato proíbe `ativoFieldReplacesDeletionPolicy`, e a P4.1
+// não expõe exclusão: não existe `DELETE /setores/:id` (ver setorRoutes.js).
+//
+// `@@unique([cliente_id, id])` é a chave referenciável tenant-aware. Nada
+// aponta para Setor ainda; ela existe para que a FK composta de `AreaPastagem`
+// (P4.2) possa nascer tenant-aware sem migration de retrofit — o mesmo motivo
+// pelo qual `Usuario` a declara desde a P3.
+// ---------------------------------------------------------------------------
+model Setor {
+  id                 String   @id @default(cuid())
+  cliente_id         String   @db.VarChar(64)
+  empresa_id         String   @db.VarChar(64)
+  numero_setor       String   @db.VarChar(32)
+  nome               String   @db.VarChar(255)
+  sigla              String?  @db.VarChar(32)
+  tipo               String   @db.VarChar(32)
+  responsavel        String?  @db.VarChar(255)
+  telefone           String?  @db.VarChar(64)
+  endereco           String?  @db.VarChar(255)
+  cidade             String?  @db.VarChar(255)
+  estado             String?  @db.VarChar(8)
+  area_total         Decimal? @db.Decimal(14, 4)
+  capacidade_animais Int?
+  observacoes        String?  @db.VarChar(2000)
+  ativo              Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  cliente Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+
+  @@unique([cliente_id, numero_setor])
+  @@unique([cliente_id, id])
+  @@index([cliente_id, empresa_id])
+  @@index([cliente_id, ativo])
+  @@index([cliente_id, nome])
 }
