@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-09-09 (**P0, P1, P2, P3 e a fatia P4.0 mergeadas** — o navegador já autentica contra o backend próprio · **P4 em execução**; **P4.2** corrige a base URL nativa, defeito encontrado em produção)
+**Atualizado em:** 2026-09-09 (**P0, P1, P2, P3 e a fatia P4.0 mergeadas** — o navegador já autentica contra o backend próprio · **P4 em execução**; a **P4.0-R2** corrigiu a base URL nativa, defeito encontrado em produção)
 
 ---
 
@@ -13,7 +13,7 @@ Base44 mantida apenas como provider temporário da cadeia preservada (D-PROD-04)
 |---|---|
 | Produto | Pecuária — Mapa Geral + Manejo (D-PROD-01) |
 | Superfície primária | `MapaGeral` (D-PROD-05) |
-| Missão em execução | **P4 — Mapa Core Native Persistence** — fatia **P4.0** concluída; **P4.2** (correção da base URL nativa) implementada |
+| Missão em execução | **P4 — Mapa Core Native Persistence** — fatia **P4.0** concluída, com as correções **P4.0-R1** e **P4.0-R2** |
 | Última mergeada | **P4.0 — Native Transport + Session Activation (PR #12, merge `45599f5`)** — inclui a correção **P4.0-R1**; implementação certificada em `f01201b`, com `npm run verify:all` em 19/19 e exit 0 |
 | Mergeadas anteriores | P3 — Backend + Prisma + PostgreSQL Foundation (PR #10, merge `4ce4608`), com a P3-R1; P2 — ModeloBase1 Pecuário Foundation (PR #7, merge `1851503`); SSOT sincronizada nas PRs #8 (`378bfd3`) e #11 (`672ea99`); emenda D-PROD-22 na PR #9 (merge `44b204c`) |
 | Próxima fatia autorizável | P4.1 — Setor Native Persistence — **não iniciada** |
@@ -39,7 +39,7 @@ armazenamento apenas em `.env.local` seguem pendentes com o proprietário — ve
 | P1 | Native Foundation Bootstrap | **concluída e mergeada** — P1.1 a P1.3 em PRs anteriores; P1.4 e P1.4-R1 na PR #6, merge `7398d85`. Os seis eixos de `gate:api-boundary` estão em zero |
 | P2 | ModeloBase1 Pecuário Foundation | **mergeada** (PR #7, merge `1851503`) — inclui a correção P2-R1 |
 | P3 | Backend + Prisma + PostgreSQL Foundation | **concluída e mergeada** (PR #10, merge `4ce4608`) — `backend/` com Fastify, Prisma e PostgreSQL; cinco models; `gate:tenancy` e `gate:indices`. Inclui a correção **P3-R1** |
-| P4 | Mapa Core Native Persistence | **em execução** — **P4.0** (transporte e sessão nativos) **concluída e mergeada** (PR #12, merge `45599f5`), inclui a **P4.0-R1**; **P4.1** (Setor) e **P4.2** (AreaPastagem) não iniciadas |
+| P4 | Mapa Core Native Persistence | **em execução** — **P4.0** (transporte e sessão nativos) **concluída e mergeada** (PR #12, merge `45599f5`), inclui a **P4.0-R1** e a **P4.0-R2** (base URL absoluta, PR #15, merge `b2535ec`); **P4.1** (Setor) e **P4.2** (AreaPastagem) não iniciadas |
 | P5 | Manejo Core Native Persistence | não iniciada |
 | P6 | Supporting Capabilities | não iniciada |
 | P7 | Base44 Final Removal | não iniciada |
@@ -339,7 +339,7 @@ esse cabeçalho legitimamente. É a mesma classe de falso positivo da P3-R1. A
 correção foi tornar a regra precisa (verificar *posição*, não palavra), com
 controles positivos que quebram se alguém alargar de volta.
 
-## Base URL nativa (P4.2, D-PROD-26)
+## Base URL nativa (P4.0-R2, D-PROD-26)
 
 Correção de um defeito que **chegou ao usuário**, e a primeira desta missão que
 não veio de análise e sim de produção.

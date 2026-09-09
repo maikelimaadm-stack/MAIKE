@@ -505,7 +505,7 @@ Consequência de desenho, e não só de gate: `nativeSessionApi` passou a usar
 sessão, nunca o valor — e com isso "só o cliente HTTP lê o token" virou
 literalmente verdade, em vez de aproximação.
 
-### `P4-NATIVE-SCHEME` — a regra que veio de produção (P4.2, D-PROD-26)
+### `P4-NATIVE-SCHEME` — a regra que veio de produção (P4.0-R2, D-PROD-26)
 
 As outras regras deste gate nasceram de análise. Esta nasceu de um defeito que
 chegou ao usuário: `VITE_MAIKE_API_URL` foi configurada na Vercel como
