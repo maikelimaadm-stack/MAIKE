@@ -428,11 +428,12 @@ CI em `.github/workflows/quality.yml`.
 | `5bcee77` | **HEAD certificado** da P3-R1, mergeado na PR #10 | [34260918759](https://github.com/maikelimaadm-stack/MAIKE/actions/runs/34260918759) | **verde**, 18/18 |
 | `0185d10` | **commit funcional** da P4.0 | [34269584058](https://github.com/maikelimaadm-stack/MAIKE/actions/runs/34269584058) | **verde**, 19/19 |
 | `f01201b` | **HEAD certificado** da P4.0-R1, mergeado na PR #12 | [34272006608](https://github.com/maikelimaadm-stack/MAIKE/actions/runs/34272006608) | **verde**, 19/19 |
+| `8c477f9` | **commit funcional** da P4.1 | [34349251485](https://github.com/maikelimaadm-stack/MAIKE/actions/runs/34349251485) | **verde**, 20/20 |
 
 Um commit não pode conter o resultado da própria execução de CI. A execução do
 commit funcional fica no corpo da PR aberta — PR #2 para a P1.1, PR #3 para a
 P1.2, PR #5 para a P1.3, PR #6 para a P1.4 e a P1.4-R1, PR #7 para a P2, PR #10
-para a P3 e a P3-R1, PR #12 para a P4.0 e a P4.0-R1.
+para a P3 e a P3-R1, PR #12 para a P4.0 e a P4.0-R1, PR #14 para a P4.1.
 
 Ao contrário da P2-R1, a P3 entrou na `main` com **execução de CI própria e
 verde sobre o HEAD exato que foi mergeado**: o job `102178796058` do run
