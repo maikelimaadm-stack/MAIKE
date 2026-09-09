@@ -19,7 +19,7 @@
  * Códigos:
  *   P4-NATIVE-CONFIG · P4-NATIVE-BASE44-TOKEN · P4-NATIVE-TOKEN-STORAGE
  *   P4-NATIVE-TENANT-SOURCE · P4-NATIVE-ERROR-CATALOG · P4-NATIVE-HTTP-BOUNDARY
- *   P4-NATIVE-CORS
+ *   P4-NATIVE-CORS · P4-NATIVE-SCHEME
  */
 
 import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';
@@ -120,6 +120,35 @@ const verificarConfig = () => {
   // A variável precisa estar documentada, ou ninguém sabe configurar o deploy.
   if (existe('.env.example') && !ler('.env.example').includes(VAR_URL)) {
     registrar('P4-NATIVE-CONFIG', `${VAR_URL} não está documentada em .env.example`);
+  }
+
+  // P4-NATIVE-SCHEME — a base nativa é absoluta ou não existe.
+  //
+  // `nativeRequest` concatena base e caminho. Base sem esquema não falha: vira
+  // URL relativa, e o `POST /auth/login` — com a senha no corpo — sai para a
+  // origem do frontend em vez do backend. Aconteceu em produção com
+  // `VITE_MAIKE_API_URL=maike-production.up.railway.app`.
+  //
+  // A regra é textual porque o gate é estático, mas não é cosmética: ela exige
+  // que a validação exista **e** que `getNativeApiUrl` passe por ela. Remover
+  // qualquer uma das duas pontas reprova.
+  if (!/const\s+comEsquemaExplicito\s*=/.test(codigo)) {
+    registrar(
+      'P4-NATIVE-SCHEME',
+      `${RUNTIME_CONFIG} precisa definir comEsquemaExplicito(): base sem esquema vira requisição same-origin`
+    );
+  } else if (!/https\?:/.test(codigo)) {
+    registrar(
+      'P4-NATIVE-SCHEME',
+      `comEsquemaExplicito() precisa testar o esquema http/https antes de aceitar a base`
+    );
+  }
+
+  if (!/export const getNativeApiUrl[^;]*comEsquemaExplicito\s*\(/.test(codigo)) {
+    registrar(
+      'P4-NATIVE-SCHEME',
+      `getNativeApiUrl() precisa passar por comEsquemaExplicito(): sem isso a base sem esquema chega ao fetch`
+    );
   }
 };
 

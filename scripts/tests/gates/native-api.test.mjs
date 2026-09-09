@@ -114,8 +114,8 @@ describe('P4-NATIVE-CONFIG', () => {
   test('NAT-04 override por query string na URL nativa reprova', () => {
     const mutado = trocar(
       real(RUNTIME_CONFIG),
-      'export const getNativeApiUrl = () => semBarraFinal(lerMaikeApiUrl());',
-      'export const getNativeApiUrl = () => new URLSearchParams(location.search).get("api") || semBarraFinal(lerMaikeApiUrl());'
+      'export const getNativeApiUrl = () => comEsquemaExplicito(semBarraFinal(lerMaikeApiUrl()));',
+      'export const getNativeApiUrl = () => new URLSearchParams(location.search).get("api") || comEsquemaExplicito(semBarraFinal(lerMaikeApiUrl()));'
     );
     const r = rodar({ [RUNTIME_CONFIG]: mutado });
     assert.equal(r.status, 1);
@@ -324,5 +324,49 @@ describe('gate:native-api — o gate é absoluto', () => {
     const r = rodar({ [TOKEN_STORAGE]: null });
     assert.equal(r.status, 1);
     assert.match(r.output, /P4-NATIVE-TOKEN-STORAGE/);
+  });
+});
+
+describe('P4-NATIVE-SCHEME', () => {
+  // O defeito real: `VITE_MAIKE_API_URL=maike-production.up.railway.app`, sem
+  // esquema. `fetch` tratou a URL como relativa e o POST /auth/login — com a
+  // senha no corpo — foi para a origem do frontend, não para o backend.
+  test('NAT-25 getNativeApiUrl sem comEsquemaExplicito reprova', () => {
+    const mutado = trocar(
+      real(RUNTIME_CONFIG),
+      'export const getNativeApiUrl = () => comEsquemaExplicito(semBarraFinal(lerMaikeApiUrl()));',
+      'export const getNativeApiUrl = () => semBarraFinal(lerMaikeApiUrl());'
+    );
+    const r = rodar({ [RUNTIME_CONFIG]: mutado });
+    assert.equal(r.status, 1);
+    assert.match(r.output, /P4-NATIVE-SCHEME/);
+  });
+
+  test('NAT-26 remover a definição de comEsquemaExplicito reprova', () => {
+    const mutado = trocar(real(RUNTIME_CONFIG), 'const comEsquemaExplicito =', 'const naoValidaNada =');
+    const r = rodar({ [RUNTIME_CONFIG]: mutado });
+    assert.equal(r.status, 1);
+    assert.match(r.output, /P4-NATIVE-SCHEME/);
+  });
+
+  test('NAT-27 comEsquemaExplicito que não testa o esquema reprova', () => {
+    // Mantém o nome e a chamada, mas devolve a base intacta: é exatamente o
+    // jeito de "passar no gate" sem proteger nada.
+    const mutado = trocar(
+      real(RUNTIME_CONFIG),
+      "  if (/^https?:\\/\\//.test(url)) return url;\n  return HOST_PURO.test(url) ? `https://${url}` : null;",
+      '  return url;'
+    );
+    const r = rodar({ [RUNTIME_CONFIG]: mutado });
+    assert.equal(r.status, 1);
+    assert.match(r.output, /P4-NATIVE-SCHEME/);
+  });
+
+  test('NAT-28 CONTROLE POSITIVO: o runtimeConfig real passa na regra de esquema', () => {
+    // Sem este controle a regra poderia estar reprovando por scanner ingênuo —
+    // a prosa deste repositório cita `https://` em vários comentários.
+    const r = rodar();
+    assert.equal(r.status, 0, r.output);
+    assert.doesNotMatch(r.output, /P4-NATIVE-SCHEME/);
   });
 });

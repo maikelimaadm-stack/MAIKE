@@ -147,6 +147,40 @@ const lerMaikeApiUrl = () => {
 const semBarraFinal = (url) => (typeof url === 'string' ? url.replace(/\/+$/, '') : url);
 
 /**
+ * Base absoluta com esquema explícito, ou `null` (P4.2, D-PROD-26).
+ *
+ * `nativeRequest` monta a URL por concatenação literal
+ * (`` `${base}${caminho}` ``). Uma base **sem esquema** — `api.exemplo.com` —
+ * não vira erro: `fetch('api.exemplo.com/auth/login')` é URL **relativa**, e o
+ * navegador a resolve contra a origem do frontend. O efeito observado em
+ * produção foi o `POST /auth/login` — com cliente, login e **senha em texto** —
+ * chegando à origem do frontend em vez do backend, e a resposta HTML virando
+ * um erro genérico de login. Deixar isso implícito é mandar credencial para o
+ * host errado em silêncio.
+ *
+ * Regra, nesta ordem:
+ *
+ *  1. já tem `http://` ou `https://` → passa intacta;
+ *  2. é host puro (`api.exemplo.com`, `localhost:3333`) → recebe `https://`,
+ *     porque o frontend é servido por HTTPS e `http://` seria bloqueado como
+ *     conteúdo misto de qualquer forma;
+ *  3. qualquer outra forma → `null`, e o cliente HTTP falha com
+ *     `PROVIDER_UNAVAILABLE` sem tocar na rede.
+ *
+ * O caso 3 é o que importa: `//outro.host`, `javascript:...`, `ftp://...` e
+ * caminho relativo são exatamente as formas que produziriam requisição
+ * same-origin ou destino inesperado. `new URL()` continua fora, pelo mesmo
+ * motivo de `semBarraFinal`: ele aceita `javascript:` como URL válida.
+ */
+const HOST_PURO = /^[a-zA-Z0-9][a-zA-Z0-9.-]*(:\d{1,5})?$/;
+
+const comEsquemaExplicito = (url) => {
+  if (typeof url !== 'string' || url === '') return null;
+  if (/^https?:\/\//.test(url)) return url;
+  return HOST_PURO.test(url) ? `https://${url}` : null;
+};
+
+/**
  * Resolve um parâmetro de runtime.
  *
  * Precedência preservada de `app-params.js`:
@@ -242,7 +276,7 @@ export const isGoogleMapsConfigured = () => getGoogleMapsApiKey() !== null;
  *
  * @returns {string|null}
  */
-export const getNativeApiUrl = () => semBarraFinal(lerMaikeApiUrl());
+export const getNativeApiUrl = () => comEsquemaExplicito(semBarraFinal(lerMaikeApiUrl()));
 
 /** O backend nativo está configurado? */
 export const isNativeApiConfigured = () => getNativeApiUrl() !== null;
