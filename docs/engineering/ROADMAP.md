@@ -125,7 +125,7 @@ nenhum model de manejo, que ficam para P4–P6, uma capacidade de cada vez.
 
 | Fatia | Nome | Estado |
 |---|---|---|
-| **P4.0** | Native Transport + Session Activation | **implementada, em PR draft** |
+| **P4.0** | Native Transport + Session Activation | **concluída e mergeada** — PR #12, merge `45599f5` (inclui a **P4.0-R1**) |
 | P4.1 | Setor Native Persistence | **não iniciada** |
 | P4.2 | AreaPastagem Native Persistence | não iniciada |
 
@@ -141,6 +141,15 @@ bootstrap local do primeiro usuário e o gate absoluto `gate:native-api`.
 Fechou também a dívida da P3 (D-PROD-23, item 7): os oito códigos de erro do
 contrato entraram em `src/apis/_core/ApiError.js`. **Nenhum model de domínio** —
 o schema Prisma está inalterado. Ver D-PROD-24.
+
+A **P4.0-R1** corrigiu, dentro da mesma PR, um bloqueador achado em auditoria
+externa: a restauração da sessão apagava o JWT para qualquer erro, confundindo
+backend fora do ar com credencial recusada. Ver D-PROD-24 §G.1.
+
+**P4.1 não foi iniciada.** Ela é a primeira fatia a criar model de domínio, e
+com ela vem a correção do `MAX+1` de `numero_setor` (DBT-26) — que só agora tem
+onde ser resolvida de verdade, com a sequência atômica da P3 e o caminho
+autenticado da P4.0.
 
 Migrar para persistência nativa as entidades geográficas do mapa: `AreaPastagem`,
 `PontoReferencia`, `PontoSuplementacao`, `LinhaGeografica`, `Setor`,

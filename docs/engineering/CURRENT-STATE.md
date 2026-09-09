@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-09-08 (**P0, P1, P2 e P3 mergeadas** · **P4 em execução** — a fatia **P4.0** ligou o navegador ao backend próprio e está em PR draft · **P4.1 não iniciada**)
+**Atualizado em:** 2026-09-08 (**P0, P1, P2, P3 e a fatia P4.0 mergeadas** — o navegador já autentica contra o backend próprio · **P4 em execução**, com a **P4.1 (Setor) não iniciada**)
 
 ---
 
@@ -13,10 +13,10 @@ Base44 mantida apenas como provider temporário da cadeia preservada (D-PROD-04)
 |---|---|
 | Produto | Pecuária — Mapa Geral + Manejo (D-PROD-01) |
 | Superfície primária | `MapaGeral` (D-PROD-05) |
-| Missão em execução | **P4 — Mapa Core Native Persistence** · fatia **P4.0 — Native Transport + Session Activation**, em PR draft |
-| Última mergeada | **P3 — Backend + Prisma + PostgreSQL Foundation (PR #10, merge `4ce4608`)** — inclui a correção **P3-R1**; implementação certificada em `5bcee77`, com `npm run verify:all` em 18/18 e exit 0 |
-| Mergeadas anteriores | P2 — ModeloBase1 Pecuário Foundation (PR #7, merge `1851503`); SSOT sincronizada na PR #8 (merge `378bfd3`); emenda D-PROD-22 na PR #9 (merge `44b204c`) |
-| Próxima fatia | P4.1 — Setor Native Persistence — **não iniciada** |
+| Missão em execução | **P4 — Mapa Core Native Persistence** — fatia **P4.0** concluída; nenhuma fatia em implementação |
+| Última mergeada | **P4.0 — Native Transport + Session Activation (PR #12, merge `45599f5`)** — inclui a correção **P4.0-R1**; implementação certificada em `f01201b`, com `npm run verify:all` em 19/19 e exit 0 |
+| Mergeadas anteriores | P3 — Backend + Prisma + PostgreSQL Foundation (PR #10, merge `4ce4608`), com a P3-R1; P2 — ModeloBase1 Pecuário Foundation (PR #7, merge `1851503`); SSOT sincronizada nas PRs #8 (`378bfd3`) e #11 (`672ea99`); emenda D-PROD-22 na PR #9 (merge `44b204c`) |
+| Próxima fatia autorizável | P4.1 — Setor Native Persistence — **não iniciada** |
 | Contrato de dados | `config/modelobase1-pecuario.json` — **oficial**; obrigatório para P3–P6 |
 | Escopo executável | `config/mapa-manejo-scope.json` |
 | Roadmap | `docs/engineering/ROADMAP.md` |
@@ -39,7 +39,7 @@ armazenamento apenas em `.env.local` seguem pendentes com o proprietário — ve
 | P1 | Native Foundation Bootstrap | **concluída e mergeada** — P1.1 a P1.3 em PRs anteriores; P1.4 e P1.4-R1 na PR #6, merge `7398d85`. Os seis eixos de `gate:api-boundary` estão em zero |
 | P2 | ModeloBase1 Pecuário Foundation | **mergeada** (PR #7, merge `1851503`) — inclui a correção P2-R1 |
 | P3 | Backend + Prisma + PostgreSQL Foundation | **concluída e mergeada** (PR #10, merge `4ce4608`) — `backend/` com Fastify, Prisma e PostgreSQL; cinco models; `gate:tenancy` e `gate:indices`. Inclui a correção **P3-R1** |
-| P4 | Mapa Core Native Persistence | **em execução** — **P4.0** (transporte e sessão nativos) implementada, em PR draft; **P4.1** (Setor) não iniciada |
+| P4 | Mapa Core Native Persistence | **em execução** — **P4.0** (transporte e sessão nativos) **concluída e mergeada** (PR #12, merge `45599f5`), inclui a **P4.0-R1**; **P4.1** (Setor) e **P4.2** (AreaPastagem) não iniciadas |
 | P5 | Manejo Core Native Persistence | não iniciada |
 | P6 | Supporting Capabilities | não iniciada |
 | P7 | Base44 Final Removal | não iniciada |
@@ -240,8 +240,10 @@ Fastify, Prisma e PostgreSQL, na camada `route → service → repository → Pr
 | Testes | 55 de gate (38 tenancy + 17 indices) e 41 de backend contra PostgreSQL real |
 
 **Nenhum model de domínio foi criado.** Mapa e manejo ficam para P4–P6, uma
-capacidade por vez. O backend ainda não é consumido pelo frontend: `src/` não
-foi tocado, e a fronteira da P1 continua apontando para o provider Base44.
+capacidade por vez. **À época da P3** o backend ainda não era consumido pelo
+frontend: `src/` não foi tocado, e a fronteira da P1 continuava apontando
+inteiramente para o provider Base44. A **P4.0** mudou isso para a autenticação —
+ver a seção abaixo; o domínio geográfico segue na Base44 até a P4.1.
 
 Duas invariantes do contrato que só o banco prova, e que aqui estão provadas:
 40 reservas concorrentes de sequência sem número duplicado (BE-17), e auditoria
@@ -368,11 +370,13 @@ CI em `.github/workflows/quality.yml`.
 | `8a5e3ee` | commit vazio da P2-R1, para disparar CI | — | nenhum run criado |
 | `80ecf69` | **commit funcional** da P3 | [34243753654](https://github.com/maikelimaadm-stack/MAIKE/actions/runs/34243753654) | **verde**, 17/17 |
 | `5bcee77` | **HEAD certificado** da P3-R1, mergeado na PR #10 | [34260918759](https://github.com/maikelimaadm-stack/MAIKE/actions/runs/34260918759) | **verde**, 18/18 |
+| `0185d10` | **commit funcional** da P4.0 | [34269584058](https://github.com/maikelimaadm-stack/MAIKE/actions/runs/34269584058) | **verde**, 19/19 |
+| `f01201b` | **HEAD certificado** da P4.0-R1, mergeado na PR #12 | [34272006608](https://github.com/maikelimaadm-stack/MAIKE/actions/runs/34272006608) | **verde**, 19/19 |
 
 Um commit não pode conter o resultado da própria execução de CI. A execução do
 commit funcional fica no corpo da PR aberta — PR #2 para a P1.1, PR #3 para a
 P1.2, PR #5 para a P1.3, PR #6 para a P1.4 e a P1.4-R1, PR #7 para a P2, PR #10
-para a P3 e a P3-R1.
+para a P3 e a P3-R1, PR #12 para a P4.0 e a P4.0-R1.
 
 Ao contrário da P2-R1, a P3 entrou na `main` com **execução de CI própria e
 verde sobre o HEAD exato que foi mergeado**: o job `102178796058` do run

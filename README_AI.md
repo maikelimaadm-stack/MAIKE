@@ -22,9 +22,9 @@ e decisão vivem neste repositório.
 |---|---|
 | **Produto** | Pecuária — **Mapa Geral + Manejo** (D-PROD-01) |
 | **Superfície primária** | `MapaGeral` — a raiz `/` redireciona para lá (D-PROD-05) |
-| **Missões concluídas** | **P0** (PR #1), **P1** (PR #6), **P2** (PR #7), **P3** (PR #10, merge `4ce4608` — inclui a correção **P3-R1**) — mais a sincronização de SSOT (PR #8) e a emenda D-PROD-22 (PR #9) |
-| **Missão em execução** | **P4 — Mapa Core Native Persistence** · fatia atual **P4.0 — Native Transport + Session Activation** (em PR draft) |
-| **Próxima fatia** | **P4.1 — Setor Native Persistence** — **não iniciada** |
+| **Missões concluídas** | **P0** (PR #1), **P1** (PR #6), **P2** (PR #7), **P3** (PR #10, merge `4ce4608` — inclui a **P3-R1**) — mais as sincronizações de SSOT (PRs #8 e #11) e a emenda D-PROD-22 (PR #9) |
+| **Missão em execução** | **P4 — Mapa Core Native Persistence** — fatia **P4.0** concluída e mergeada (PR #12, merge `45599f5`, inclui a **P4.0-R1**) |
+| **Próxima fatia autorizável** | **P4.1 — Setor Native Persistence** — **não iniciada** |
 | **Contrato de dados** | `config/modelobase1-pecuario.json` — **oficial** desde o merge da P2 (D-PROD-21) |
 | **Escopo executável** | `config/mapa-manejo-scope.json` |
 | **Molde arquitetural** | PROJETOMG — **parcial** (D-PROD-03) |
@@ -45,7 +45,7 @@ relatórios genéricos, dashboards paralelos, fichas personalizadas e editor vis
 | Functions Base44 | 1 (`syncEntityReferences`) |
 | Arquivos em `src/` com SDK | 4 — todos **dentro** da fronteira |
 | Registry literal do provider | 38 entidades |
-| Dependências diretas | 55 (37 `dependencies` + 18 `devDependencies`) |
+| Dependências diretas | 56 (38 `dependencies` + 18 `devDependencies`) |
 | Dívida de tipos versionada | 2.318 diagnósticos em `src/` (teto certificado 2.318) |
 | Dívida de tipos no `backend/` | **0** — contrato próprio, tolerância zero |
 | Testes automatizados | **1.046** (452 de gate + 534 de smoke + 60 de backend) |
@@ -83,9 +83,19 @@ do ar com credencial recusada. Agora só `TENANT_CONTEXT_REQUIRED` limpa o token
 indisponibilidade preserva a credencial, mantém o aplicativo fechado e oferece
 retry sem pedir senha. Ver D-PROD-24 §G.1.
 
-Nem a P2 nem a P3 alteraram `src/`, `base44/`, rotas, menu ou escopo. O backend
-existe mas **ainda não é consumido pelo frontend**: a fronteira da P1 continua
-apontando para o provider Base44, e a primeira capacidade migra na P4.
+A P4.0, com a R1, está **mergeada**: PR #12, merge `45599f5`, sobre a
+implementação certificada em `f01201b`.
+
+Nem a P2 nem a P3 alteraram `src/`, `base44/`, rotas, menu ou escopo — e, à
+época delas, o backend existia sem ser consumido pelo frontend.
+
+**Isso mudou com a P4.0.** Hoje a **autenticação e a sessão** do aplicativo
+falam com o backend nativo: login próprio, JWT do MAIKE, `/auth/contexto`. O
+**domínio geográfico ainda não migrou**: `Setor`, `AreaPastagem`,
+`PontoReferencia`, `PontoSuplementacao`, `LinhaGeografica`, `ConfiguracaoIcone`
+e `MovimentacaoMapa` continuam no provider Base44, e a fronteira da P1 continua
+apontando para lá para esses dados. A primeira capacidade de domínio migra na
+**P4.1 (Setor)**, que **não foi iniciada**.
 
 Antes/depois completo: `docs/engineering/CURRENT-STATE.md`.
 
@@ -233,7 +243,7 @@ Todos os relatórios vivem em `docs/engineering/`. Os marcos:
 | P1.4 | `docs/engineering/P1.4-NATIVE-API-BOUNDARY-SUPPORT-ADMIN-REPORT.md` |
 | P2 | `docs/engineering/P2-MODELOBASE1-PECUARIO-FOUNDATION-REPORT.md` |
 | P3 | `docs/engineering/P3-BACKEND-PRISMA-POSTGRESQL-FOUNDATION-REPORT.md` |
-| P4.0 | `docs/engineering/P4.0-NATIVE-TRANSPORT-SESSION-ACTIVATION-REPORT.md` |
+| P4.0 | `docs/engineering/P4.0-NATIVE-TRANSPORT-SESSION-ACTIVATION-REPORT.md` (+ P4.0-R1) |
 
 Arquitetura de contrato, fora da linha de missões:
 `docs/architecture/MODELOBASE1-PECUARIO-CONTRACT.md`.
