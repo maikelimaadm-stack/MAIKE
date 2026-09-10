@@ -1198,8 +1198,8 @@ abre a primeira diferença: 37 no registry, 38 no manifesto.
 
 `base44/entities/Setor.jsonc` continua existindo e `Setor` continua em
 `allowedBase44Entities` porque `syncEntityReferences` — a function que propaga o
-nome do setor para os campos denormalizados das quatro entidades da seção D —
-ainda roda na Base44 e ainda o cita. `gate:product-scope` exige manifesto e
+nome do setor para os campos denormalizados de **seis** destinos (§N) — ainda
+roda na Base44 e ainda o cita. `gate:product-scope` exige manifesto e
 schemas iguais nos dois sentidos, então tirá-lo de lá reprovaria por uma
 independência que ainda não existe.
 
@@ -1230,9 +1230,12 @@ próprio, e não altera dado nenhum.
 ### K. `gate:setor-native`
 
 Gate **absoluto** — sem `--update`, sem baseline, sem correção automática, nunca
-escreve arquivo. Onze regras (dez da P4.1, mais `P41-SETOR-OFFLINE-TENANT` da
-P4.1-R1), 48 provas, quase todas negativas, com controles positivos para cada
-regra que poderia virar scanner ingênuo.
+escreve arquivo. **Doze** regras e **54 provas**, quase todas negativas, com
+controles positivos para cada regra que poderia virar scanner ingênuo.
+
+Composição: dez regras e 42 provas nesta fatia; `P41-SETOR-OFFLINE-TENANT` e mais
+seis provas na P4.1-R1 (§L); `P41-SETOR-TIPO-DEFAULT` e mais seis na P4.1-R2
+(§M).
 
 Ele existe porque nenhuma dessas invariantes quebra em vermelho: um
 `setoresProvider` reintroduzido continuaria listando setores; um `catch`
@@ -1313,6 +1316,108 @@ nos obrigatórios move a recusa para a fronteira, com 400. É a mesma classe que
 Gate: `P41-SETOR-OFFLINE-TENANT`, com as três pontas exigidas — a porta declara,
 o runtime decide, a sessão marca e descarta. SN-13 a SN-17 reprovam cada
 mutilação; SN-18 é o controle positivo.
+
+### M. P4.1-R2 — o default de `tipo` que ficou para trás
+
+Divergência objetiva de persistência, achada em auditoria **depois** do merge da
+PR #14. Não é decisão nova: é defeito de implementação desta mesma D-PROD-25, e
+por isso mora aqui em vez de consumir um identificador próprio.
+
+`base44/entities/Setor.jsonc` declara, para `tipo`:
+
+```json
+"tipo": { "type": "string", "enum": ["Próprio", "Arrendado", "Parceria", "Terceiros"], "default": "Próprio" }
+```
+
+A P4.1 trouxe o enum (no schema HTTP) e a obrigatoriedade (`NOT NULL`), e deixou
+o **default** para trás. O Prisma tinha `tipo String @db.VarChar(32)` e a
+migration criou `"tipo" VARCHAR(32) NOT NULL`, sem `DEFAULT`.
+
+#### A correção é aditiva, e isso não é preferência
+
+A migration `20260909112833_p4_1_setor_native` já está mergeada e **aplicada no
+ambiente real**, com o checksum registrado em `_prisma_migrations`. Editá-la para
+"sempre ter tido" o default mudaria esse checksum e quebraria todo
+`migrate deploy` seguinte com "migration was modified after it was applied".
+
+Então a cadeia passa a ter dois passos, e é o **estado final** que importa:
+
+| Passo | Efeito |
+|---|---|
+| `20260909112833_p4_1_setor_native` | cria `"tipo" VARCHAR(32) NOT NULL`, sem default |
+| `20260909201703_p4_1_r2_setor_tipo_default` | `ALTER COLUMN "tipo" SET DEFAULT 'Próprio'` |
+
+Reescrever histórico para que ele pareça correto desde sempre é a forma mais
+limpa de perder a capacidade de confiar no histórico.
+
+#### O default **não** torna `tipo` opcional na API
+
+`POST /setores` continua exigindo `empresa_id`, `nome` e `tipo`. Sem `tipo` a
+resposta é 400 `REQUEST_VALIDATION_FAILED`, e nada é gravado.
+
+O default é **última barreira de persistência** — a garantia de que nenhum
+caminho de escrita, hoje ou depois, consiga gravar a coluna vazia. Não é
+permissão para o cliente omitir a intenção do usuário. Afrouxar o schema HTTP
+porque o banco tem default trocaria uma escolha explícita por um palpite
+silencioso, e o palpite ficaria gravado como se fosse decisão de quem cadastrou.
+
+#### Prova
+
+Nenhum gate estático prova default físico: ler `SET DEFAULT` no arquivo prova que
+o texto está lá, não que o PostgreSQL aplicou.
+
+- `P41R2-BE-01` lê `information_schema.columns` e exige `column_default` com
+  `'Próprio'`;
+- `P41R2-BE-02` grava por `INSERT` **cru**, omitindo a coluna, e lê o valor
+  persistido. É cru de propósito: `prisma.setor.create` poderia preencher do lado
+  do cliente e o teste passaria com a coluna sem default nenhum;
+- `P41R2-BE-03` prova que a API continua explícita — 400, zero `Setor`, zero
+  `AuditLog` e **zero sequência consumida**;
+- `P41R2-BE-04` é o controle positivo: `tipo` informado continua sendo
+  respeitado, e o default não sobrescreve.
+
+Gate `P41-SETOR-TIPO-DEFAULT`, sobre o estado final da cadeia. SN-19 a SN-21b
+reprovam cada mutilação, inclusive um `DROP DEFAULT` posterior a um `SET`.
+SN-22 é o controle que importa: comentário citando `@default("Próprio")` e
+`SET DEFAULT 'Próprio'` **não** satisfaz a regra.
+
+### N. Dois contratos diferentes sobre as dependências de Setor
+
+Auditoria da P4.1-R2 encontrou o SSOT afirmando que a propagação de Setor alcança
+"quatro entidades". O código diz outra coisa.
+
+`base44/functions/syncEntityReferences/entry.ts` tem **15 regras** no bloco
+`Setor`, sobre **seis destinos distintos**:
+
+| # | Destino | Também na guarda de exclusão? |
+|---|---|---|
+| 1 | `AreaPastagem` | sim |
+| 2 | `PontoSuplementacao` | **não** |
+| 3 | `Lote` | **não** |
+| 4 | `LancamentoTarefa` | sim |
+| 5 | `MovimentacaoMapa` | sim |
+| 6 | `MovimentacaoPecuaria` | sim |
+
+Já `deleteRules.Setor` lista **quatro** dependências: `AreaPastagem`,
+`LancamentoTarefa`, `MovimentacaoMapa`, `MovimentacaoPecuaria`.
+
+**São contratos diferentes, e não deviam ter sido tratados como o mesmo.**
+Um responde "quem exibe o nome do setor e precisa ser atualizado quando ele
+muda"; o outro responde "quem impede o setor de ser apagado". Um destino pode
+estar em um e não no outro sem que isso seja bug — `Lote` guarda o nome do setor
+para exibição sem que isso, por si, bloqueie a exclusão.
+
+Esta R2 **não** acrescenta dependências ao `deleteGuardService`. O `DELETE` de
+Setor continua fechado (§D), então mexer na guarda agora mudaria comportamento
+sem consumidor e sem prova de necessidade.
+
+O que fica registrado é o critério de reabertura:
+
+> `DELETE /setores/:id` **não** pode ser reaberto com a frase "as quatro
+> dependências migraram". Antes de reabrir, a fatia responsável precisa
+> reconciliar, explicitamente: `deleteRules`; as FKs nativas realmente criadas;
+> os **seis** destinos de `syncEntityReferences`; a semântica de `Lote`; e a
+> semântica de `PontoSuplementacao`.
 
 ---
 
@@ -1403,4 +1508,62 @@ por ela. Provas negativas NAT-25/26/27, controle positivo NAT-28.
   `Authorization` com o JWT para um servidor escolhido por ele;
 - não valida se o host **existe**. Isso é resposta de rede, não de configuração.
 
-<!-- Próxima decisão: D-PROD-27 -->
+## D-PROD-27 — Sem backfill: o backend nativo começa vazio
+
+**P4.1-R2.** Registra uma decisão do **proprietário**, não do arquiteto.
+
+### A decisão
+
+Os registros históricos que vivem na Base44 **não** serão migrados para o
+PostgreSQL. As capacidades nativas nascem vazias, e o proprietário recadastra o
+que precisar.
+
+Isso vale para todas as fatias seguintes, não só para `Setor`.
+
+### O que a decisão elimina
+
+Backfill é, de longe, a parte mais cara e mais arriscada de sair de uma
+plataforma. Sai tudo isto do caminho:
+
+| Some | Por quê |
+|---|---|
+| **Backfill** | não há histórico a ler, transformar e carregar |
+| **Dual-write** | não há janela em que as duas bases precisem concordar |
+| **Reconciliação** | não há contagem nem checksum a comparar entre Base44 e PostgreSQL |
+| **Rollback de dado** | não há dado migrado para desfazer |
+| **Downtime de corte** | não há volume a transferir |
+
+O que sobra é migração de **capacidade**: modelar schema, escrever rotas e
+serviços, trocar o provider no frontend. O trabalho continua existindo; o risco
+de corrupção silenciosa de dado histórico, não.
+
+### O que a decisão **não** autoriza
+
+Esta é a parte que precisa estar escrita, porque "não vamos migrar dado" é fácil
+de ler como "podemos apagar dado".
+
+**Não autoriza apagar nada do backend nativo.** `Cliente`, `Usuario`,
+`AuditLog`, `EntidadeCodigoSequencia`, `RegistroAnexo` e `Setor` que já existam
+continuam onde estão. Toda linha ali foi criada por uso real ou por decisão
+explícita.
+
+**Não autoriza apagar nada da Base44.** A base legada permanece intacta. Não
+carregar o histórico no destino é diferente de destruir a origem — enquanto a
+Base44 for a fonte das 37 entidades restantes, apagá-la seria apagar o sistema
+em produção.
+
+**Não autoriza limpeza automática de nada, em lugar nenhum**, sem ação explícita
+e nomeada do proprietário.
+
+### Consequência visível
+
+Cada capacidade migrada aparece **zerada** na tela até ser recadastrada. Isso é
+esperado, não é defeito, e não deve ser "corrigido" com carga improvisada.
+
+### O que esta decisão **não** faz
+
+Não comprime o ROADMAP. A premissa está oficializada aqui; o replanejamento das
+fases seguintes é trabalho da próxima fatia de implementação, com auditoria
+própria. A P4.2 continua **não iniciada**, e nenhum model novo entrou nesta R2.
+
+<!-- Próxima decisão: D-PROD-28 -->

@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-09-09 (**P0, P1, P2, P3 e a fatia P4.0 mergeadas** — o navegador já autentica contra o backend próprio · **P4 em execução**: a **P4.0-R2** corrigiu a base URL nativa, defeito encontrado em produção, e a **P4.1 (Setor)** está implementada, em revisão)
+**Atualizado em:** 2026-09-09 (**P0, P1, P2, P3, P4.0 e P4.1 mergeadas** — o navegador autentica contra o backend próprio e `Setor` já é capacidade nativa · **P4 em execução**; a **P4.1-R2** está implementada, em revisão)
 
 ---
 
@@ -13,8 +13,8 @@ Base44 mantida apenas como provider temporário da cadeia preservada (D-PROD-04)
 |---|---|
 | Produto | Pecuária — Mapa Geral + Manejo (D-PROD-01) |
 | Superfície primária | `MapaGeral` (D-PROD-05) |
-| Missão em execução | **P4 — Mapa Core Native Persistence** — fatia **P4.0** concluída, com as correções **P4.0-R1** e **P4.0-R2**; fatia **P4.1** (Setor) implementada, em revisão |
-| Última mergeada | **P4.0 — Native Transport + Session Activation (PR #12, merge `45599f5`)** — inclui a correção **P4.0-R1**; implementação certificada em `f01201b`, com `npm run verify:all` em 19/19 e exit 0 |
+| Missão em execução | **P4 — Mapa Core Native Persistence** — fatias **P4.0** (com P4.0-R1 e P4.0-R2) e **P4.1** (com P4.1-R1) concluídas e mergeadas; **P4.1-R2** implementada, em revisão |
+| Última mergeada | **P4.1 — Setor Native Persistence (PR #14, merge `b559c48`)** — inclui o fechamento corretivo **P4.1-R1**; `npm run verify:all` em 20/20 e exit 0 |
 | Mergeadas anteriores | P3 — Backend + Prisma + PostgreSQL Foundation (PR #10, merge `4ce4608`), com a P3-R1; P2 — ModeloBase1 Pecuário Foundation (PR #7, merge `1851503`); SSOT sincronizada nas PRs #8 (`378bfd3`) e #11 (`672ea99`); emenda D-PROD-22 na PR #9 (merge `44b204c`) |
 | Próxima fatia autorizável | P4.2 — AreaPastagem Native Persistence — **não iniciada** |
 | Contrato de dados | `config/modelobase1-pecuario.json` — **oficial**; obrigatório para P3–P6 |
@@ -39,7 +39,7 @@ armazenamento apenas em `.env.local` seguem pendentes com o proprietário — ve
 | P1 | Native Foundation Bootstrap | **concluída e mergeada** — P1.1 a P1.3 em PRs anteriores; P1.4 e P1.4-R1 na PR #6, merge `7398d85`. Os seis eixos de `gate:api-boundary` estão em zero |
 | P2 | ModeloBase1 Pecuário Foundation | **mergeada** (PR #7, merge `1851503`) — inclui a correção P2-R1 |
 | P3 | Backend + Prisma + PostgreSQL Foundation | **concluída e mergeada** (PR #10, merge `4ce4608`) — `backend/` com Fastify, Prisma e PostgreSQL; cinco models; `gate:tenancy` e `gate:indices`. Inclui a correção **P3-R1** |
-| P4 | Mapa Core Native Persistence | **em execução** — **P4.0** (transporte e sessão nativos) **concluída e mergeada** (PR #12, merge `45599f5`), inclui a **P4.0-R1** e a **P4.0-R2** (base URL absoluta, PR #15, merge `b2535ec`); **P4.1** (Setor) **implementada, em revisão**; **P4.2** (AreaPastagem) não iniciada |
+| P4 | Mapa Core Native Persistence | **em execução** — **P4.0** (transporte e sessão nativos) **mergeada** (PR #12, merge `45599f5`), inclui **P4.0-R1** e **P4.0-R2** (base URL absoluta, PR #15, merge `b2535ec`); **P4.1** (Setor) **mergeada** (PR #14, merge `b559c48`), inclui **P4.1-R1**; **P4.1-R2** (fechamento de contrato) implementada, em revisão; **P4.2** (AreaPastagem) não iniciada |
 | P5 | Manejo Core Native Persistence | não iniciada |
 | P6 | Supporting Capabilities | não iniciada |
 | P7 | Base44 Final Removal | não iniciada |
@@ -392,7 +392,7 @@ Três decisões que custam explicação e estão registradas em D-PROD-25:
   backend não foi enfraquecida para acomodar o offline** — o offline é que
   passou a respeitá-la.
 
-`gate:setor-native` trava as onze invariantes, com 48 provas quase todas
+`gate:setor-native` trava **doze** invariantes, com **54 provas** quase todas
 negativas. Ver `docs/engineering/GATE-REGISTRY.md`.
 
 ### P4.1-R1 — fechamento corretivo
@@ -447,6 +447,30 @@ O que isso ensinou, e está registrado em D-PROD-26:
 `P4-NATIVE-SCHEME`, com provas negativas NAT-25/26/27 e controle positivo
 NAT-28.
 
+
+## Sem backfill da Base44 (P4.1-R2, D-PROD-27)
+
+Decisão do **proprietário**, não do arquiteto: os registros históricos da Base44
+**não** serão migrados. As capacidades nativas nascem vazias e o que for
+necessário é recadastrado.
+
+Some do caminho: backfill, dual-write, reconciliação de contagem/checksum,
+rollback de dado e downtime de corte. Sobra migração de **capacidade** — schema,
+rotas, serviços, troca de provider.
+
+O que a decisão **não** autoriza, e está escrito porque é fácil ler errado:
+
+- **não** apagar `Cliente`, `Usuario`, `AuditLog`, `EntidadeCodigoSequencia`,
+  `RegistroAnexo` ou `Setor` já existentes no backend nativo;
+- **não** apagar nada da Base44 — ela continua sendo a fonte de 37 entidades em
+  produção;
+- **não** fazer limpeza automática em lugar nenhum sem ação explícita e nomeada
+  do proprietário.
+
+Cada capacidade migrada aparece zerada na tela até ser recadastrada. É esperado.
+
+A premissa está oficializada; o replanejamento das fases é trabalho da próxima
+fatia, com auditoria própria. A **P4.2 continua não iniciada**.
 
 ## Gates ativos
 
@@ -539,7 +563,9 @@ motivo de o `verify:all` local não ter pego antes.
 | DBT-24 | Validação de layout real depende de inspeção visual em produção. Os testes de shell provam estrutura e comportamento em JSDOM, que não calcula layout. Playwright não foi adotado | P8 |
 | DBT-25 | **Fechado na P1.4.** `src/domain/numeroPtBR.js` lê vírgula e ponto: `'12,5'` → 12,5, `'1.234,56'` → 1234,56, campo em branco → `null` em vez de `NaN`. Aplicado no cadastro de setor e nos payloads de produto e CSV; o teste S3b foi invertido para fixar a leitura correta | fechado |
 | DBT-26 | **Parcialmente fechado na P4.1.** `numero_setor` passou a vir de `EntidadeCodigoSequencia`, no escopo `tenant`, dentro da transação da criação — provado com 12 criações concorrentes contra PostgreSQL real (BE-P41-08). `numero_lote` continua com `max + 1` no cliente: `Lote` é P5 | parcial · P5 |
-| DBT-27 | A exclusão de setor está **fechada**: não existe `DELETE /setores/:id`, e o frontend recusa com `SETOR_DELETE_UNAVAILABLE` sem ir à rede. Não é omissão — a guarda de vínculo consulta quatro entidades que ainda vivem na Base44, e nenhuma forma de conciliar as duas bases numa operação destrutiva é segura (D-PROD-25 §D). Reabre quando os dependentes migrarem | P4.2 |
+| DBT-27 | A exclusão de setor está **fechada**: não existe `DELETE /setores/:id`, e o frontend recusa com `SETOR_DELETE_UNAVAILABLE` sem ir à rede. Não é omissão — a guarda de vínculo consulta quatro entidades que ainda vivem na Base44, e nenhuma forma de conciliar as duas bases numa operação destrutiva é segura (D-PROD-25 §D). **Reabrir exige reconciliar `deleteRules` com os seis destinos de `syncEntityReferences`, as FKs nativas e a semântica de `Lote` e `PontoSuplementacao`** — não basta "as quatro dependências migraram" (D-PROD-25 §N) | P4.2 |
 | DBT-28 | Setor criado **offline** não tem `numero_setor` até o replay: o número vem da sequência do servidor. A tabela mostra o campo vazio nesse intervalo. A alternativa — deixar o navegador escolher — seria reintroduzir o `MAX + 1` que a P4.1 removeu, e ainda por cima sem ver a lista inteira | P4.2 |
-| DBT-29 | `syncEntityReferences` continua na Base44 e continua sendo chamada quando o nome de um setor muda: os quatro destinos denormalizados (`AreaPastagem`, `LancamentoTarefa`, `MovimentacaoMapa`, `MovimentacaoPecuaria`) ainda são entidades de lá. É a única razão pela qual `Setor` permanece em `allowedBase44Entities` | P4.2 |
+| DBT-29 | `syncEntityReferences` continua na Base44 e continua sendo chamada quando o nome de um setor muda: os **seis** destinos denormalizados (`AreaPastagem`, `PontoSuplementacao`, `Lote`, `LancamentoTarefa`, `MovimentacaoMapa`, `MovimentacaoPecuaria`) ainda são entidades de lá. É a única razão pela qual `Setor` permanece em `allowedBase44Entities`. **Não são os mesmos quatro da guarda de exclusão** — ver D-PROD-25 §N | P4.2 |
+| **DEPLOY-MIGRATION-01** | **O deploy real não aplica migrations.** O `preDeployCommand` do Railway está vazio desde que `prisma migrate deploy` travou contra o pooler de transação (`:6543`). A migration de `Setor` foi aplicada **manualmente** no Supabase. Consequência: CI verde, Vercel verde e deploy do Railway **não** significam que a migration chegou ao banco real — são fatos diferentes, e a aplicação depende de ação operacional separada. É bloqueador para a próxima onda de domínio: migrar várias capacidades sem um caminho repetível e seguro de `migrate deploy` no deployment multiplica a chance de o código chegar antes do schema | antes da ONDA 1 |
+| DBT-30 | `deleteRules.Setor` (4 dependências) e os destinos de `syncEntityReferences` (6) não coincidem, e o SSOT tratava os dois como o mesmo contrato até a P4.1-R2. Reabrir o `DELETE` exige reconciliar os dois, mais as FKs nativas e a semântica de `Lote` e `PontoSuplementacao` — D-PROD-25 §N | P4.2 |
 | DBT-13 | `test:gates` leva ~42 s porque a catraca de tipos roda `tsc` de verdade em ~45 projetos temporários. É o preço de testar o gate real em vez do parser | P8 |

@@ -578,3 +578,85 @@ describe('P4.1 — auditoria na mesma transação', () => {
     assert.equal(await prisma.setor.count({ where: { cliente_id: cliente.id } }), 0);
   });
 });
+
+/**
+ * P4.1-R2 — o default de `Setor.tipo` (D-PROD-25 §M).
+ *
+ * `base44/entities/Setor.jsonc` declara `"default": "Próprio"`. A P4.1 trouxe o
+ * enum e o NOT NULL e deixou o default para trás: a coluna nasceu
+ * `VARCHAR(32) NOT NULL`, sem DEFAULT. A migration da P4.1 já estava mergeada e
+ * aplicada, então a correção é **aditiva** — a cadeia tem dois passos e o
+ * estado final é o certo.
+ *
+ * Estes casos existem porque nenhum gate estático prova default físico. Ler
+ * `SET DEFAULT` no arquivo da migration prova que o texto está lá, não que o
+ * PostgreSQL aplicou. Quem responde isso é o catálogo do banco e uma linha
+ * gravada de verdade.
+ */
+describe('P4.1-R2 — default de tipo', () => {
+  test('P41R2-BE-01 o default existe no catálogo do PostgreSQL', async () => {
+    const prisma = getPrismaClient();
+
+    const [coluna] = await prisma.$queryRaw`
+      SELECT column_default, is_nullable
+      FROM information_schema.columns
+      WHERE table_schema = 'public' AND table_name = 'Setor' AND column_name = 'tipo'
+    `;
+
+    assert.ok(coluna, 'coluna Setor.tipo não encontrada no catálogo');
+    assert.equal(coluna.is_nullable, 'NO');
+    assert.ok(
+      typeof coluna.column_default === 'string' && coluna.column_default.includes("'Próprio'"),
+      `column_default inesperado: ${JSON.stringify(coluna.column_default)}`
+    );
+  });
+
+  test('P41R2-BE-02 o banco aplica o default quando a coluna é omitida', async () => {
+    // INSERT cru, de propósito. `prisma.setor.create` poderia preencher o valor
+    // do lado do cliente e o teste passaria sem que a coluna tivesse default
+    // nenhum — provaria o Prisma, não a migration.
+    const prisma = getPrismaClient();
+    const { cliente } = await criarTenant();
+
+    await prisma.$executeRaw`
+      INSERT INTO "Setor" ("id", "cliente_id", "empresa_id", "numero_setor", "nome", "updatedAt")
+      VALUES ('setor-sem-tipo', ${cliente.id}, ${EMPRESA}, '1', 'SEM TIPO INFORMADO', NOW())
+    `;
+
+    const gravado = await prisma.setor.findUniqueOrThrow({ where: { id: 'setor-sem-tipo' } });
+    assert.equal(gravado.tipo, 'Próprio');
+  });
+
+  test('P41R2-BE-03 a API continua exigindo tipo, e a recusa não grava nada', async () => {
+    // O default é última barreira de persistência, não permissão para o cliente
+    // omitir a intenção do usuário. Afrouxar o schema HTTP porque o banco tem
+    // default seria trocar uma escolha explícita por um palpite silencioso.
+    const prisma = getPrismaClient();
+    const { token } = await tenantAutenticado();
+
+    const r = await app.inject({
+      method: 'POST',
+      url: '/setores',
+      headers: auth(token),
+      payload: { empresa_id: EMPRESA, nome: 'SEM TIPO' },
+    });
+
+    assert.equal(r.statusCode, 400);
+    assert.equal(r.json().code, 'REQUEST_VALIDATION_FAILED');
+
+    assert.equal(await prisma.setor.count(), 0);
+    assert.equal(await prisma.auditLog.count(), 0);
+    // A requisição recusada não pode ter consumido numeração: a sequência é
+    // criada dentro da transação da criação, e a validação reprova antes dela.
+    assert.equal(await prisma.entidadeCodigoSequencia.count(), 0);
+  });
+
+  test('P41R2-BE-04 CONTROLE POSITIVO: tipo informado continua sendo respeitado', async () => {
+    // Sem este caso, um default aplicado no lugar errado — sobrescrevendo o
+    // valor enviado — passaria despercebido.
+    const { token } = await tenantAutenticado();
+    const r = await criarSetor(token, { tipo: 'Arrendado' });
+    assert.equal(r.statusCode, 201, r.body);
+    assert.equal(r.json().tipo, 'Arrendado');
+  });
+});
