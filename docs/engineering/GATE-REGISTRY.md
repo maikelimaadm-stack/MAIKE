@@ -16,6 +16,7 @@ Todos têm teste unitário com casos de falha reais em `scripts/tests/gates/`.
 | **package-sync** | `npm run gate:package-sync` | `package.json` e `package-lock.json` batem em name, version e dependências diretas | D-PROD-02 | `scripts/gates/gate-package-sync.mjs` |
 | **product-scope** | `npm run gate:product-scope` | Rotas, menu, schemas e functions dentro de `config/mapa-manejo-scope.json`; superfície primária é `MapaGeral`; **entidades citadas dentro das functions** | D-PROD-01 · D-PROD-05 · D-PROD-06 | `scripts/gates/gate-product-scope.mjs` |
 | **api-boundary** | `npm run gate:api-boundary` | A UI não fala com o provider de dados: fronteira `src/apis/` protegida por identidade de arquivo | D-PROD-18 | `scripts/gates/gate-api-boundary.mjs` |
+| **deploy-migrations** | `npm run gate:deploy-migrations` | A migration chega ao banco antes do código novo rodar: runner com conexão própria sem fallback, recusa do pooler de transação, migration fora do startup, e a CI exercitando o mesmo caminho de produção | D-PROD-28 | `scripts/gates/gate-deploy-migrations.mjs` |
 | **native-api** | `npm run gate:native-api` | Transporte e sessão nativos: URL por referência estática sem override **e com esquema absoluto**, JWT só em `sessionStorage` numa guarda única, login sem `cliente_id`, os oito códigos do contrato no catálogo do frontend, fronteira HTTP única e CORS com allowlist exata | D-PROD-24 · D-PROD-26 | `scripts/gates/gate-native-api.mjs` |
 | **setor-native** | `npm run gate:setor-native` | Setor nativo: model tenant-scoped com migration, numeração por sequência dentro de transação, ausência de rota de exclusão, zero Base44 no caminho de Setor, porta única no frontend, tenant só do token, id offline fora da rede, sem fallback silencioso, auditoria transacional, rotas autenticadas e **cache/fila offline com dono** | D-PROD-25 | `scripts/gates/gate-setor-native.mjs` |
 | **source-closure** | `npm run gate:source-closure` | Todo arquivo executável em `src/` é alcançável a partir das entradas reais | D-PROD-12 | `scripts/gates/gate-source-closure.mjs` |
@@ -37,11 +38,11 @@ Contratos baratos primeiro, build por último:
 ```
 test:gates → governance-paths → package-sync → product-scope → api-boundary
 → native-api → setor-native → source-closure → import-integrity → no-secrets
-→ base44 → modelobase1-pecuario → tenancy → indices → types
-→ typecheck:backend → lint → test:backend → test:smoke → build
+→ base44 → modelobase1-pecuario → tenancy → indices → deploy-migrations
+→ types → typecheck:backend → lint → test:backend → test:smoke → build
 ```
 
-**20 etapas desde a P4.1.** O princípio não mudou: contrato barato antes, banco e
+**21 etapas desde a DEPLOY-MIGRATION-01.** O princípio não mudou: contrato barato antes, banco e
 teste depois, build por último.
 
 `setor-native` entra logo depois de `native-api` porque é a primeira capacidade
@@ -152,6 +153,12 @@ Nenhuma etapa é ignorada nem tem o exit code convertido em sucesso.
 | `P41-SETOR-ROUTE-AUTH` | setor-native |
 | `P41-SETOR-OFFLINE-TENANT` | setor-native |
 | `P41-SETOR-TIPO-DEFAULT` | setor-native |
+| `P28-DEPLOY-RUNNER` | deploy-migrations |
+| `P28-DEPLOY-SCRIPTS` | deploy-migrations |
+| `P28-DEPLOY-STARTUP` | deploy-migrations |
+| `P28-DEPLOY-CI` | deploy-migrations |
+| `P28-DEPLOY-ENV` | deploy-migrations |
+| `P28-DEPLOY-ACTIVATION` | deploy-migrations |
 | `P3-IDX-SCHEMA-MISSING` | indices |
 | `P3-IDX-TENANT-PREFIX` | indices |
 | `P3-IDX-BUSINESS-UNIQUE` | indices |
@@ -1211,3 +1218,61 @@ estão no `verify:all` e têm prova negativa por invariante. Ver as seções aci
 
 Quando o baseline de tipos chegar a zero, `gate:types` deixa de ser catraca e
 passa a exigir ausência total de diagnósticos.
+
+## `gate:deploy-migrations` — a migration chega antes do código (D-PROD-28)
+
+Absoluto, como os gates da P2, P3 e P4: sem `--update`, sem baseline, sem
+correção automática, e nunca escreve arquivo. **Posição 15** do `verify:all` —
+depois dos gates de schema, antes de qualquer etapa que suba banco. Se a
+barreira está quebrada, é melhor saber antes de subir PostgreSQL.
+
+Ele existe porque esta barreira apodrece em silêncio. Nada fica vermelho quando
+alguém troca `deploy:migrate` pelo primitive "para simplificar", acrescenta um
+`|| DATABASE_URL` "para não falhar em dev", ou move a migration para o
+`backend:start` "porque é onde já roda". Todas essas mudanças reabrem
+exatamente o defeito que a decisão fecha.
+
+| Invariante | Código |
+|---|---|
+| o runner lê `MIGRATION_DATABASE_URL`, executa o primitive `prisma:deploy`, recusa a porta 6543 do Supabase e **não** faz fallback para `DATABASE_URL` | `P28-DEPLOY-RUNNER` |
+| `deploy:migrate` aponta para o runner; `prisma:deploy` é `prisma migrate deploy` e nunca `migrate dev`, `db push` ou `migrate reset` | `P28-DEPLOY-SCRIPTS` |
+| nem `backend:start` nem nenhum arquivo de `backend/src/**` dispara migration | `P28-DEPLOY-STARTUP` |
+| `run-backend-tests.mjs` migra **pelo runner**, não chamando o primitive por fora | `P28-DEPLOY-CI` |
+| `MIGRATION_DATABASE_URL` está documentada sem valor no `.env.example`, não existe variante `VITE_` e o frontend não a cita | `P28-DEPLOY-ENV` |
+| a instrução de ativação existe e continua nomeando `npm run deploy:migrate` e a variável | `P28-DEPLOY-ACTIVATION` |
+
+**22 provas** em `scripts/tests/gates/deploy-migrations.test.mjs`, mais **13**
+do runner em `scripts/tests/deploy/migrations.test.mjs` — medição de
+`node --test`, não aritmética.
+
+### O que este gate NÃO consegue provar, e por que isso está dito
+
+Ele prova que **o comando existe, é seguro e é o mesmo que a CI exercita**. Não
+prova que a plataforma foi configurada para chamá-lo: isso é estado externo ao
+repositório, e nenhum gate estático alcança.
+
+A primeira versão prevista era versionar `railway.backend.json` e o gate
+verificar o `preDeployCommand` dentro dele. Recusada contra a documentação
+oficial: Config as Code está **depreciado**, com corte duro em **2026-12-01**, e
+**serviços novos não podem mais aderir** — e o serviço de backend deste projeto
+não usa Config as Code hoje. Um gate certificando um arquivo que a plataforma
+vai parar de ler ficaria verde enquanto a barreira não existiria: teatro, que é
+o que `DGM-11` e os controles positivos dos outros gates existem para impedir.
+
+`P28-DEPLOY-ACTIVATION` é o que sobra de verificável: a instrução de ativação
+não pode driftar do nome do script. Renomear `deploy:migrate` sem atualizar o
+documento deixaria o proprietário configurando um comando inexistente.
+
+### Controles positivos
+
+- `DGM-11`: um runner e um documento cheios de comentários citando exatamente
+  `|| DATABASE_URL`, `migrate dev` e `db push` **passam** — comentário não
+  executa nada;
+- `DGM-11b`: o backend pode **mencionar** migration em comentário sem reprovar;
+- `DM-T06b`: porta 6543 fora do Supabase **não** é recusada. A regra é sobre o
+  pooler do Supabase, não sobre o número — recusar a porta em qualquer host
+  seria um palpite sobre a infraestrutura alheia.
+
+Sem esses controles o gate reprovaria a documentação escrita para impedir o
+defeito. É a quinta vez que este projeto encara essa armadilha; ver a seção de
+falsos positivos do `gate:native-api`.

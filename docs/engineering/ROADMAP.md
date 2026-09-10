@@ -126,8 +126,8 @@ nenhum model de manejo, que ficam para P4–P6, uma capacidade de cada vez.
 | Fatia | Nome | Estado |
 |---|---|---|
 | **P4.0** | Native Transport + Session Activation | **concluída e mergeada** — PR #12, merge `45599f5` (inclui a **P4.0-R1**); corrigida pela **P4.0-R2** — PR #15, merge `b2535ec` |
-| **P4.1** | Setor Native Persistence | **concluída e mergeada** — PR #14, merge `b559c48` (inclui a **P4.1-R1**); fechada pela **P4.1-R2**, implementada e em revisão |
-| P4.2 | AreaPastagem Native Persistence | não iniciada |
+| **P4.1** | Setor Native Persistence | **concluída e mergeada** — PR #14, merge `b559c48` (inclui a **P4.1-R1**); fechada pela **P4.1-R2** — PR #17, merge `588792b` |
+| P4.2 | AreaPastagem Native Persistence | não iniciada — **bloqueada por DEPLOY-MIGRATION-01** |
 
 A ordem é estrutural, não preferência. A P3 entregou um backend que sabe
 autenticar e o frontend continuou autenticando na Base44 — sem URL configurada,

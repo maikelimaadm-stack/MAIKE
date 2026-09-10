@@ -39,6 +39,12 @@ const ETAPAS = [
   ['modelobase1-pecuario', npm('gate:modelobase1-pecuario')],
   ['tenancy', npm('gate:tenancy')],
   ['indices', npm('gate:indices')],
+  // Depois dos gates de schema e antes de qualquer coisa que toque banco: ele
+  // verifica o **caminho** pelo qual a migration chega ao banco, não o schema
+  // em si. Vem antes de `test:backend` de propósito — é esse mesmo caminho que
+  // o runner de teste passa a exercitar logo em seguida, e se a barreira
+  // estiver quebrada é melhor saber antes de subir PostgreSQL (D-PROD-28).
+  ['deploy-migrations', npm('gate:deploy-migrations')],
   ['types', npm('gate:types')],
   ['typecheck:backend', npm('typecheck:backend')],
   ['lint', npm('lint')],
