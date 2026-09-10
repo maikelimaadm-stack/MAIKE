@@ -115,22 +115,57 @@ gatilho da própria prova que ele precisa registrar.
 
 ## 4. Evidência de fechamento
 
-O deployment originado do merge desta missão é o primeiro a rodar com o
-pre-deploy configurado. O que ele precisa mostrar:
+O deployment originado do merge da PR #20 (`257eaaa`) é o primeiro a rodar com o
+pre-deploy configurado. Os cinco pontos exigidos, e o que aconteceu:
 
-1. um estágio de pre-deploy no log, antes do `backend:start`;
-2. a linha `deploy:migrate — aplicando migrations versionadas...`;
-3. a saída do Prisma aplicando `20260909201703_p4_1_r2_setor_tipo_default`;
-4. a linha `deploy:migrate — migrations aplicadas.`;
-5. `/health` em 200 com `banco: up` depois disso.
+**Estado do banco antes**, medido direto no PostgreSQL de produção, não inferido:
 
-Enquanto os cinco não estiverem registrados, **`DEPLOY-MIGRATION-01B` continua
-aberto** — e, com ele, `DEPLOY-MIGRATION-01`. Nenhum relatório desta missão
-declara o contrário antes da hora.
+| | `main` | produção às 18:13 UTC |
+|---|---|---|
+| Linhas em `_prisma_migrations` | 3 | **2** |
+| `Setor.tipo` — `column_default` | `'Próprio'` | **`null`** |
 
-O registro dessas linhas entra como adendo a este arquivo, na `main`, assim que
-o deployment terminar. Nomes de migration, sucesso/falha e timestamps apenas:
-nenhuma connection string, nem mascarada.
+**Log do deployment `f0dab2d0`, 2026-09-10 (UTC):**
+
+```
+18:14:46  > prisma migrate deploy --schema backend/prisma/schema.prisma
+18:14:46  Prisma schema loaded from backend/prisma/schema.prisma
+18:14:48  3 migrations found in prisma/migrations
+18:14:51  Applying migration `20260909201703_p4_1_r2_setor_tipo_default`
+18:14:52  The following migration(s) have been applied:
+18:14:52    └─ 20260909201703_p4_1_r2_setor_tipo_default/
+18:14:52  All migrations have been successfully applied.
+18:14:52  deploy:migrate — migrations aplicadas.
+18:14:55  Stopping Container
+18:15:02  Starting Container
+18:15:03  > node backend/src/server.js
+18:15:03  Server listening at http://127.0.0.1:8080
+18:15:05  GET /health → 200
+```
+
+O par `Stopping Container` / `Starting Container` entre a migration e o
+`backend:start` é o que prova a separação de estágios da D-PROD-28: são
+containers diferentes. Migrar e servir tráfego não são a mesma coisa, e agora
+isso é observável, não só afirmado.
+
+**Estado do banco depois:**
+
+| | valor |
+|---|---|
+| Linhas em `_prisma_migrations` | **3** — a terceira com `finished_at` 18:14 |
+| `Setor.tipo` — `column_default` | **`'Próprio'::character varying`** |
+
+O drift entre `main` e produção está **fechado**, e fechado pelo caminho certo:
+ninguém aplicou SQL à mão. A `20260909201703` foi a última migration deste
+repositório aplicada manualmente — e ela nem chegou a ser, porque quem a aplicou
+foi a barreira.
+
+Os cinco pontos estão registrados. **`DEPLOY-MIGRATION-01B` está fechado**, e
+com ele **`DEPLOY-MIGRATION-01`**. O bloqueio da ONDA 1 cai.
+
+Nenhuma connection string aparece acima. A única linha do log do Prisma que cita
+infraestrutura — o host e a porta do datasource — foi deliberadamente omitida
+desta transcrição.
 
 ---
 
