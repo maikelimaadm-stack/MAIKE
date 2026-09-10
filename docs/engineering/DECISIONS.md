@@ -1715,4 +1715,55 @@ de 20 para 21 etapas) — depois dos gates de schema, antes de qualquer coisa qu
 suba banco. **Seis códigos, 22 provas de gate** e 13 provas do runner, quase
 todas negativas. Ver `docs/engineering/GATE-REGISTRY.md`.
 
-<!-- Próxima decisão: D-PROD-29 -->
+---
+
+## D-PROD-29 — A conexão de migration é referência, e mudança de deploy só vale no deployment seguinte
+
+**Missão:** `DEPLOY-MIGRATION-01B`.
+**Relatório:** `docs/engineering/DEPLOY-MIGRATION-01B-BARRIER-ACTIVATION-REPORT.md`.
+
+A D-PROD-28 decidiu **o que** a barreira faz. Esta decide **como** ela vive em
+produção, e registra um comportamento de plataforma que já custou uma conclusão
+errada.
+
+### `MIGRATION_DATABASE_URL` é uma referência, não uma cópia
+
+No serviço de backend, o valor gravado é a referência do Railway
+`${{ DATABASE_URL }}` — não uma connection string digitada.
+
+Motivo: senha duplicada em três variáveis é senha rotacionada em três lugares,
+com uma janela em que discordam. Com a referência, `DATABASE_URL` é a única
+fonte e a rotação é um campo só. E ninguém precisou ler o segredo para
+configurar.
+
+Isso **não** é o fallback proibido pela D-PROD-28. O runner continua sem
+fallback: variável ausente é `DEPLOY-MIGRATION-URL-REQUIRED`, falha dura. O que
+existe é uma decisão explícita de operador — hoje as duas conexões são a mesma,
+porque a aplicação também fala pelo *session pooler* na 5432.
+
+A decisão tem condição de término, e ela é verificável: se a aplicação migrar
+para o pooler de transação (6543), a referência **deve** ser desfeita. Se
+alguém esquecer, o runner recusa a 6543 (`DEPLOY-MIGRATION-UNSAFE-POOLER`) e o
+deploy falha — o esquecimento vira erro visível, não corrupção silenciosa.
+
+### Mudança de configuração de deploy só existe no deployment seguinte da fonte
+
+`redeploy` re-executa um deployment que já existe, com a especificação **dele**.
+Pre-deploy configurado depois daquele deployment não entra ali.
+
+Isso foi estabelecido por prova, não por leitura: com o pre-deploy já gravado,
+`MIGRATION_DATABASE_URL` foi apontada para uma fixture inválida (porta 6543,
+credenciais falsas) e um `redeploy` foi disparado. A barreira, se ativa, teria
+de reprovar. O deployment terminou `SUCCESS` — logo, o pre-deploy não rodou.
+
+Regra que fica:
+
+> Configuração de deploy alterada só passa a valer no próximo deployment
+> **originado da fonte**. Um `redeploy` não confirma ativação — e um deployment
+> verde depois de mudar configuração não é evidência de que a mudança rodou.
+
+Corolário para o método: ausência de log nunca fecha uma verificação. Quando o
+sinal esperado não aparece, monta-se o controle negativo que **tem de** falhar.
+Foi assim que o repositório evitou registrar uma barreira ativa que não estava.
+
+<!-- Próxima decisão: D-PROD-30 -->
