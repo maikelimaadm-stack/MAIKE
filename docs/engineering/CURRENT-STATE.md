@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-09-09 (**P0, P1, P2, P3, P4.0 e P4.1 mergeadas** — o navegador autentica contra o backend próprio e `Setor` já é capacidade nativa · **P4 em execução**; a **P4.1-R2** está implementada, em revisão)
+**Atualizado em:** 2026-09-10 (**P0, P1, P2, P3, P4.0 e P4.1 mergeadas**, incluindo as correções **P4.1-R1** e **P4.1-R2** — o navegador autentica contra o backend próprio e `Setor` já é capacidade nativa · **P4 em execução**; o blocker antes da próxima onda é **DEPLOY-MIGRATION-01**)
 
 ---
 
@@ -13,7 +13,7 @@ Base44 mantida apenas como provider temporário da cadeia preservada (D-PROD-04)
 |---|---|
 | Produto | Pecuária — Mapa Geral + Manejo (D-PROD-01) |
 | Superfície primária | `MapaGeral` (D-PROD-05) |
-| Missão em execução | **P4 — Mapa Core Native Persistence** — fatias **P4.0** (com P4.0-R1 e P4.0-R2) e **P4.1** (com P4.1-R1) concluídas e mergeadas; **P4.1-R2** implementada, em revisão |
+| Missão em execução | **P4 — Mapa Core Native Persistence** — fatias **P4.0** (com P4.0-R1 e P4.0-R2) e **P4.1** (com P4.1-R1 e P4.1-R2) concluídas e mergeadas. **DEPLOY-MIGRATION-01** (barreira de migrations) implementada, em revisão |
 | Última mergeada | **P4.1 — Setor Native Persistence (PR #14, merge `b559c48`)** — inclui o fechamento corretivo **P4.1-R1**; `npm run verify:all` em 20/20 e exit 0 |
 | Mergeadas anteriores | P3 — Backend + Prisma + PostgreSQL Foundation (PR #10, merge `4ce4608`), com a P3-R1; P2 — ModeloBase1 Pecuário Foundation (PR #7, merge `1851503`); SSOT sincronizada nas PRs #8 (`378bfd3`) e #11 (`672ea99`); emenda D-PROD-22 na PR #9 (merge `44b204c`) |
 | Próxima fatia autorizável | P4.2 — AreaPastagem Native Persistence — **não iniciada** |
@@ -39,7 +39,7 @@ armazenamento apenas em `.env.local` seguem pendentes com o proprietário — ve
 | P1 | Native Foundation Bootstrap | **concluída e mergeada** — P1.1 a P1.3 em PRs anteriores; P1.4 e P1.4-R1 na PR #6, merge `7398d85`. Os seis eixos de `gate:api-boundary` estão em zero |
 | P2 | ModeloBase1 Pecuário Foundation | **mergeada** (PR #7, merge `1851503`) — inclui a correção P2-R1 |
 | P3 | Backend + Prisma + PostgreSQL Foundation | **concluída e mergeada** (PR #10, merge `4ce4608`) — `backend/` com Fastify, Prisma e PostgreSQL; cinco models; `gate:tenancy` e `gate:indices`. Inclui a correção **P3-R1** |
-| P4 | Mapa Core Native Persistence | **em execução** — **P4.0** (transporte e sessão nativos) **mergeada** (PR #12, merge `45599f5`), inclui **P4.0-R1** e **P4.0-R2** (base URL absoluta, PR #15, merge `b2535ec`); **P4.1** (Setor) **mergeada** (PR #14, merge `b559c48`), inclui **P4.1-R1**; **P4.1-R2** (fechamento de contrato) implementada, em revisão; **P4.2** (AreaPastagem) não iniciada |
+| P4 | Mapa Core Native Persistence | **em execução** — **P4.0** (transporte e sessão nativos) **mergeada** (PR #12, merge `45599f5`), inclui **P4.0-R1** e **P4.0-R2** (base URL absoluta, PR #15, merge `b2535ec`); **P4.1** (Setor) **mergeada** (PR #14, merge `b559c48`), inclui **P4.1-R1**; **P4.1-R2** (fechamento de contrato) **mergeada** (PR #17, merge `588792b`); **P4.2** (AreaPastagem) não iniciada, bloqueada por **DEPLOY-MIGRATION-01** |
 | P5 | Manejo Core Native Persistence | não iniciada |
 | P6 | Supporting Capabilities | não iniciada |
 | P7 | Base44 Final Removal | não iniciada |

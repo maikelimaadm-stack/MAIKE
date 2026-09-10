@@ -18,6 +18,17 @@
  * schema disponível` funciona. Se a migration quebrar, os testes nem começam, e
  * a mensagem diz que foi a migration — não um teste aleatório.
  *
+ * Desde a DEPLOY-MIGRATION-01 esse passo NÃO chama `prisma migrate deploy`
+ * direto: chama `npm run deploy:migrate`, o mesmo runner que o pre-deploy do
+ * Railway vai executar. A diferença importa. Antes, a CI provava que "o Prisma
+ * consegue migrar"; agora prova que **o nosso caminho de produção** consegue
+ * migrar. Um runner que exigisse a variável errada, ou que engolisse o erro,
+ * passaria despercebido enquanto a CI chamasse o primitive por fora.
+ *
+ * `MIGRATION_DATABASE_URL` recebe aqui a `DATABASE_URL` do PostgreSQL efêmero.
+ * É apropriado: o banco descartável não tem pooler, é local ao job, e some com
+ * ele. Nenhuma produção é tocada.
+ *
  * Sem `DATABASE_URL` o runner **falha**, em vez de pular em silêncio. Suíte que
  * se auto-desliga quando falta configuração é pior que suíte ausente: ela
  * reporta verde sem ter verificado nada.
@@ -56,14 +67,30 @@ const executar = (rotulo, comando, args) => {
   if (status !== 0) falhar(`${rotulo} falhou com exit ${status}`);
 };
 
+/** Igual ao anterior, com variáveis extras só para o subprocesso. */
+const executarComAmbiente = (rotulo, comando, args, extras) => {
+  const r = spawnSync(comando, args, {
+    stdio: 'inherit',
+    shell: false,
+    env: { ...process.env, ...extras },
+  });
+  const status = r.status === null ? 1 : r.status;
+  if (status !== 0) falhar(`${rotulo} falhou com exit ${status}`);
+};
+
 console.log('test:backend — validando schema Prisma');
 executar('prisma validate', 'npx', ['prisma', 'validate', '--schema', SCHEMA]);
 
 console.log('test:backend — gerando Prisma Client');
 executar('prisma generate', 'npx', ['prisma', 'generate', '--schema', SCHEMA]);
 
-console.log('test:backend — aplicando migrations (smoke de banco vazio)');
-executar('prisma migrate deploy', 'npx', ['prisma', 'migrate', 'deploy', '--schema', SCHEMA]);
+console.log('test:backend — aplicando migrations pelo runner de deploy (smoke de banco vazio)');
+executarComAmbiente(
+  'deploy:migrate',
+  process.platform === 'win32' ? 'npm.cmd' : 'npm',
+  ['run', 'deploy:migrate'],
+  { MIGRATION_DATABASE_URL: process.env.DATABASE_URL }
+);
 
 const arquivos = readdirSync(DIR)
   .filter((nome) => nome.endsWith('.test.mjs'))

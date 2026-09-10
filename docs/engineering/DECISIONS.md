@@ -1566,4 +1566,153 @@ Não comprime o ROADMAP. A premissa está oficializada aqui; o replanejamento da
 fases seguintes é trabalho da próxima fatia de implementação, com auditoria
 própria. A P4.2 continua **não iniciada**, e nenhum model novo entrou nesta R2.
 
-<!-- Próxima decisão: D-PROD-28 -->
+## D-PROD-28 — Migrations de produção são etapa de deploy, não de startup
+
+**DEPLOY-MIGRATION-01.** Infraestrutura de entrega, não capacidade de domínio.
+
+### O problema
+
+Até aqui, migration em produção era **ato manual**. A tabela `Setor` (P4.1) e o
+default de `Setor.tipo` (P4.1-R2) foram aplicados à mão — e a segunda ficou
+horas no repositório sem estar no banco, depois do merge, porque o deploy do
+Railway constrói e sobe o código sem aplicar migration nenhuma.
+
+Com uma capacidade por vez isso é incômodo. Com uma onda de domínio inteira, é
+a garantia de que em algum deploy o código chega antes da tabela — e o sintoma
+aparece como erro de aplicação em produção, não como falha de deploy.
+
+### A decisão
+
+**A.** Migrations de produção rodam **antes** do processo principal do backend
+entrar em execução.
+
+**B.** Migration **não** roda em `backend:start`, `server.js`, `app.js`, rota de
+health, primeira requisição, nem no startup de cada réplica.
+
+**C.** O motivo não é estético. Migrar no startup faz o lifecycle do schema
+virar o lifecycle do processo:
+
+- todo restart, todo crash-loop e todo scale-up tentam migrar;
+- com N réplicas, N processos disputam a mesma tarefa. O advisory lock do
+  Prisma evita corrupção, mas transforma o start numa fila — e o healthcheck
+  não espera fila;
+- falha de migration vira falha de boot, que o orquestrador trata como
+  "reinicie", produzindo um loop em vez de um erro legível;
+- o deploy anterior, saudável, é substituído antes de alguém saber que o schema
+  não subiu.
+
+**D.** No Railway a responsabilidade é do **pre-deploy**, que roda entre o build
+e o deploy, com acesso às variáveis do serviço e à rede privada.
+
+**E.** Falha de migration **impede o deployment de prosseguir**. É a semântica
+documentada do pre-deploy: exit ≠ 0 não é repetido e o deploy não avança.
+
+**F.** A migration usa conexão própria: `MIGRATION_DATABASE_URL`.
+
+**G.** A aplicação continua usando `DATABASE_URL`.
+
+**H.** `MIGRATION_DATABASE_URL` é server-only: nunca com prefixo `VITE_`, nunca
+no bundle, nunca versionada, nunca impressa, **nunca com fallback silencioso
+para `DATABASE_URL`**.
+
+**I.** No Supabase, a migration usa a conexão de **sessão** (Supavisor session
+mode) ou a **direta**, ambas na 5432 — e **não** o pooler de modo transação na
+6543.
+
+**J.** Nenhum seed automático é acoplado ao deploy.
+
+**K.** Só migrations versionadas são executadas: `prisma migrate deploy`. Nunca
+`migrate dev`, `db push` ou `migrate reset` em produção.
+
+**L.** O comando é idempotente: com tudo aplicado, ele sai 0 e o deploy segue.
+
+**M.** Aplicar schema e servir tráfego são estágios diferentes.
+
+**N.** O caminho é provado na CI contra PostgreSQL descartável.
+
+### Por que uma variável separada, e por que sem fallback
+
+As duas conexões têm requisitos diferentes. A aplicação pode falar por um pooler
+de transação, otimizado para muitas conexões curtas. A migration não: roda DDL
+em transação longa, com advisory lock, e precisa de sessão de verdade.
+
+Fallback silencioso seria o pior dos mundos. Em produção, com a variável
+ausente, o runner usaria a conexão da aplicação e **funcionaria** — até o dia em
+que travasse no meio de um `ALTER TABLE`, com o deploy pela metade e ninguém
+sabendo por quê. Já aconteceu neste projeto uma vez, com `migrate deploy`
+apontado para a 6543: ficou pendurado até o deploy ser cancelado à mão.
+
+Ausência é falha dura, e é dura de propósito.
+
+### Por que o schema Prisma NÃO ganhou `directUrl`
+
+O Prisma 6 suporta `directUrl` no datasource, e seria a solução "de manual".
+Recusada aqui: ela faria `prisma validate`, `prisma generate`, o
+desenvolvimento local, a CI e o runtime passarem todos a depender de uma segunda
+variável para resolver um problema que é **só do deploy**.
+
+Em vez disso, a fronteira é explícita e mora num lugar só: o runner passa
+`DATABASE_URL=<MIGRATION_DATABASE_URL>` ao subprocesso do Prisma, e só a ele.
+
+```
+runtime    → DATABASE_URL
+migration  → MIGRATION_DATABASE_URL (substituída na fronteira)
+schema     → env("DATABASE_URL"), simples e inalterado
+```
+
+O ambiente do próprio runner não é mutado; a substituição existe apenas no
+`env` do subprocesso.
+
+### Config as Code do Railway NÃO foi adotado
+
+A implementação original prevista era versionar `railway.backend.json` e
+apontá-lo como Custom Config File. A documentação oficial atual desautoriza
+isso, e o fato é verificável:
+
+> **Config as Code is deprecated.** Prefer Infrastructure as Code
+> (`.railway/railway.ts`). Existing `railway.json` / `railway.toml` files
+> continue to work for services that already use them until **2026-12-01**
+> (hard cutoff). **New services cannot opt into Config as Code.**
+
+O serviço de backend deste projeto **não** usa Config as Code hoje — não há
+`railway.json` nem `railway.toml` no repositório, e a configuração vem do
+painel. Adotá-lo agora seria uma adesão nova, que a plataforma diz não aceitar,
+num mecanismo que deixa de ser lido em menos de três meses.
+
+Versionar um arquivo que a plataforma vai parar de ler — ou que o serviço sequer
+consegue adotar — e criar um gate que o certifica seria **teatro**: o gate
+ficaria verde enquanto a barreira não existiria. Este repositório tem cinco
+registros de armadilhas de scanner ingênuo justamente para não fazer isso.
+
+A ativação usa o campo **Pre-deploy Command** do painel, que não está
+depreciado e vale hoje. O caminho declarativo futuro é Infrastructure as Code
+(`.railway/railway.ts`, campo `preDeploy`), que **não** foi autorado nesta
+fatia por dois motivos: é project-level com semântica *omit = delete*, e
+autorá-lo sem `railway config pull` contra o projeto vivo arriscaria apagar
+variáveis, domínio e configuração do proprietário — que ainda tem um patch em
+*staged* no serviço.
+
+### O que o repositório pode e não pode garantir
+
+O repositório garante que **o comando existe, é seguro e é o mesmo que a CI
+exercita**. Ele não pode garantir que a plataforma foi configurada para
+chamá-lo: isso é estado externo.
+
+Por isso o blocker é dividido:
+
+| | Escopo | Fecha quando |
+|---|---|---|
+| **DEPLOY-MIGRATION-01A** | barreira no repositório | runner, gate, provas e CI verdes |
+| **DEPLOY-MIGRATION-01B** | ativação no Railway | o proprietário configurar a variável e o pre-deploy, e um deploy demonstrar a execução |
+
+Nenhum relatório pode declarar `DEPLOY-MIGRATION-01` fechado enquanto **01B**
+estiver pendente.
+
+### Gate
+
+`gate:deploy-migrations`, absoluto, na **posição 15** do `verify:all` (que passa
+de 20 para 21 etapas) — depois dos gates de schema, antes de qualquer coisa que
+suba banco. **Seis códigos, 22 provas de gate** e 13 provas do runner, quase
+todas negativas. Ver `docs/engineering/GATE-REGISTRY.md`.
+
+<!-- Próxima decisão: D-PROD-29 -->
