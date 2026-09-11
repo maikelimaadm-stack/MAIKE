@@ -170,14 +170,15 @@ describe('P1/P2 — o provider não tem porta dinâmica (P1.3-R1)', () => {
 
 describe('A11 — registry do provider é literal e exato', () => {
   const ESPERADO = [
-    'AplicacaoMedicamento', 'AreaPastagem', 'Bebedouro', 'BebedouroAlerta', 'BebedouroHistorico',
+    'AplicacaoMedicamento', 'Bebedouro', 'BebedouroAlerta', 'BebedouroHistorico',
     'BebedouroSanidade', 'Categoria', 'CategoriaManejo', 'ConfiguracaoIcone', 'Empresa',
     'EstoqueLoteNota', 'EventoSanitario', 'Fornecedor', 'GrupoAtividade', 'HistoricoLancamentoTarefa',
     'LancamentoTarefa', 'LayoutCampo', 'LayoutConfiguracao', 'LayoutSecao', 'LinhaGeografica',
     'LocalEstoque', 'Lote', 'ManejoTecnicoRebanho', 'MovimentacaoEstoque', 'MovimentacaoMapa',
     'MovimentacaoPecuaria', 'Permissao', 'PontoReferencia', 'PontoSuplementacao', 'Produto',
-    // `Setor` saiu na P4.1: persistência nativa (D-PROD-25). Ver
-    // `MIGRADAS_PARA_NATIVO` em `tests/smoke/suporteBoundary.test.js`.
+    // `Setor` saiu na P4.1 e `AreaPastagem` na P4.2: persistência nativa
+    // (D-PROD-25, D-PROD-30). Ver `MIGRADAS_PARA_NATIVO` em
+    // `tests/smoke/suporteBoundary.test.js`.
     'Marca', 'RegistroAnexo', 'SuplementacaoEvento', 'SuplementacaoLote', 'TipoTarefa',
     'UnidadeMedida', 'User',
   ].sort();

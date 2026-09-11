@@ -34,27 +34,21 @@ const ctx = (operation) => ({ operation, resource: RESOURCE });
 
 // ── Áreas de pastagem ─────────────────────────────────────────────────────
 
-export const listAreas = async () =>
-  comoLista(await runProviderCall(() => mapaProvider.listAreas(), ctx('listAreas')));
-
-export const filterAreas = async (criterio) => {
-  const contexto = ctx('filterAreas');
-  assertArgument(isObjeto(criterio), 'criterio', contexto);
-  return comoLista(await runProviderCall(() => mapaProvider.filterAreas(criterio), contexto));
-};
-
-export const createArea = async (dados) => {
-  const contexto = ctx('createArea');
-  assertArgument(isObjeto(dados), 'dados', contexto);
-  return runProviderCall(() => mapaProvider.createArea(dados), contexto);
-};
-
-export const updateArea = async (id, dados) => {
-  const contexto = ctx('updateArea');
-  assertArgument(isId(id), 'id', contexto);
-  assertArgument(isObjeto(dados), 'dados', contexto);
-  return runProviderCall(() => mapaProvider.updateArea(id, dados), { ...contexto, details: { id } });
-};
+/**
+ * Nativas desde a P4.2, e com dono em `@/apis/areas` (D-PROD-30).
+ *
+ * Mesma mudança de dono que `listSetores` teve na P4.1, pelo mesmo motivo:
+ * antes havia duas leituras do mesmo agregado — `mapaProvider.listAreas` e
+ * `suplementacaoProvider.listAreas` —, aceitáveis enquanto as duas batiam na
+ * mesma entidade da Base44. Com a persistência nativa elas deixariam de ser
+ * equivalentes: duas portas, dois caches offline com a mesma chave.
+ *
+ * A superfície pública do mapa não muda: quem importa `@/apis/mapa` continua
+ * chamando `listAreas`, `filterAreas`, `createArea` e `updateArea` sem saber de
+ * onde o dado vem. O que mudou é que ele não vem mais da Base44 — e não volta a
+ * vir quando o backend próprio falha. Não existe fallback.
+ */
+export { listAreas, filterAreas, createArea, updateArea } from '@/apis/areas';
 
 // ── Pontos de referência ──────────────────────────────────────────────────
 

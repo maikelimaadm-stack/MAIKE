@@ -38,6 +38,7 @@ import {
   inserirSetor,
   atualizarSetorPorId,
 } from './setorRepository.js';
+import { propagarNomeDoSetor } from '../areas/areaPastagemRepository.js';
 
 /** Nome da sequência. Literal, para não depender de nome de model do Prisma. */
 export const ENTIDADE_SEQUENCIA = 'Setor';
@@ -236,6 +237,17 @@ export const atualizar = async (contexto, id, entrada) => {
     const registro = Object.keys(campos).length
       ? await atualizarSetorPorId(tx, auth.clienteId, id, campos)
       : anterior;
+
+    // Renomeação: propaga para o `setor_nome` das áreas, na MESMA transação
+    // (P4.2, D-PROD-30). Enquanto `AreaPastagem` era da Base44, quem fazia isso
+    // era `syncEntityReferences` — depois, fora de transação, e podendo falhar
+    // em silêncio. Agora o nome antigo não sobrevive ao commit.
+    //
+    // A comparação é contra o valor anterior, não contra a presença do campo:
+    // um PATCH que reenvia o mesmo nome não deve varrer as áreas à toa.
+    if (registro.nome !== anterior.nome) {
+      await propagarNomeDoSetor(tx, auth.clienteId, id, registro.nome);
+    }
 
     const publico = comoSetorPublico(registro);
 

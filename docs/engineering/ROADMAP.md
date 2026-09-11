@@ -127,7 +127,8 @@ nenhum model de manejo, que ficam para P4–P6, uma capacidade de cada vez.
 |---|---|---|
 | **P4.0** | Native Transport + Session Activation | **concluída e mergeada** — PR #12, merge `45599f5` (inclui a **P4.0-R1**); corrigida pela **P4.0-R2** — PR #15, merge `b2535ec` |
 | **P4.1** | Setor Native Persistence | **concluída e mergeada** — PR #14, merge `b559c48` (inclui a **P4.1-R1**); fechada pela **P4.1-R2** — PR #17, merge `588792b` |
-| P4.2 | AreaPastagem Native Persistence | não iniciada — **bloqueada por DEPLOY-MIGRATION-01** |
+| P4.2 | AreaPastagem Native Persistence | **concluída** — model, migration, rotas, porta única e `gate:area-pastagem-native` (D-PROD-30) |
+| P4.3 | PontoReferencia + LinhaGeografica + ConfiguracaoIcone | não iniciada |
 
 A ordem é estrutural, não preferência. A P3 entregou um backend que sabe
 autenticar e o frontend continuou autenticando na Base44 — sem URL configurada,
@@ -163,15 +164,23 @@ caminho autenticado da P4.0.
 A exclusão de setor ficou **fechada** nesta fatia, por decisão: não existe
 `DELETE /setores/:id` enquanto `AreaPastagem`, `LancamentoTarefa`,
 `MovimentacaoMapa` e `MovimentacaoPecuaria` — os dependentes que a guarda de
-vínculo consulta — não forem nativos. Reabre na P4.2. Ver D-PROD-25 §D.
+vínculo consulta — não forem nativos. **A P4.2 migrou o primeiro dos quatro e
+não reabriu a exclusão**: os outros três seguem na Base44, e reabrir com um
+quarto do vínculo verificável seria pior que manter fechado. Ver D-PROD-25 §D e
+§N.
 
-**P4.2 não foi iniciada.** Ela migra `AreaPastagem`, que é o próximo nó da
-árvore de dependências do mapa e o primeiro a ganhar FK composta tenant-aware
-para `Setor`.
+A **P4.2** migrou `AreaPastagem`, o próximo nó da árvore de dependências do mapa
+e o primeiro com FK composta tenant-aware para `Setor` — a relação que o
+`@@unique([cliente_id, id])` da P4.1 existia para tornar possível sem retrofit.
+Trouxe também três coisas que não eram óbvias: `setor_nome` deixou de ser
+enviado pelo cliente e passou a ser derivado do setor lido na mesma transação;
+renomear um setor passou a reescrever o `setor_nome` das áreas nativamente,
+fechando um dos seis destinos de `syncEntityReferences`; e os **dois** leitores
+de área no frontend (mapa e suplementação) passaram a ter dono único em
+`@/apis/areas`. Ver D-PROD-30.
 
-Ainda por migrar nesta fase: `AreaPastagem`, `PontoReferencia`,
-`PontoSuplementacao`, `LinhaGeografica`, `ConfiguracaoIcone`,
-`MovimentacaoMapa`.
+Ainda por migrar nesta fase: `PontoReferencia`, `PontoSuplementacao`,
+`LinhaGeografica`, `ConfiguracaoIcone`, `MovimentacaoMapa`.
 
 **Critério de aceite:** `MapaGeral` e `MapaCadastro` operam contra o backend
 próprio; `gate:base44` registra queda no acoplamento.
