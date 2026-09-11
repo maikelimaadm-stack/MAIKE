@@ -23,7 +23,7 @@ e decisão vivem neste repositório.
 | **Produto** | Pecuária — **Mapa Geral + Manejo** (D-PROD-01) |
 | **Superfície primária** | `MapaGeral` — a raiz `/` redireciona para lá (D-PROD-05) |
 | **Missões concluídas** | **P0** (PR #1), **P1** (PR #6), **P2** (PR #7), **P3** (PR #10, merge `4ce4608` — inclui a **P3-R1**) — mais as sincronizações de SSOT (PRs #8, #11 e #13) e a emenda D-PROD-22 (PR #9) |
-| **Missão em execução** | **P4 — Mapa Core Native Persistence** — fatias **P4.0** (PR #12, merge `45599f5`, inclui **P4.0-R1**; corrigida pela **P4.0-R2**, PR #15, merge `b2535ec`) e **P4.1** (PR #14, merge `b559c48`, inclui **P4.1-R1**) mergeadas, com a **P4.1-R2** mergeada na PR #17 (merge `588792b`). **Blocker atual antes de qualquer nova onda: DEPLOY-MIGRATION-01** |
+| **Missão em execução** | **P4 — Mapa Core Native Persistence** — fatias **P4.0** (PR #12, merge `45599f5`, inclui **P4.0-R1**; corrigida pela **P4.0-R2**, PR #15, merge `b2535ec`) e **P4.1** (PR #14, merge `b559c48`, inclui **P4.1-R1**) mergeadas, com a **P4.1-R2** mergeada na PR #17 (merge `588792b`). **DEPLOY-MIGRATION-01 fechado** (01A na PR #19, merge `ae897d0`; 01B nas PRs #20 e #21) — a barreira de migrations aplicou sozinha a migration pendente em produção, e a **P4.2** está liberada |
 | **Próxima fatia autorizável** | **P4.2 — AreaPastagem Native Persistence** — **não iniciada** |
 | **Contrato de dados** | `config/modelobase1-pecuario.json` — **oficial** desde o merge da P2 (D-PROD-21) |
 | **Escopo executável** | `config/mapa-manejo-scope.json` |

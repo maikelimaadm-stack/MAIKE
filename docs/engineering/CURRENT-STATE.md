@@ -39,7 +39,7 @@ armazenamento apenas em `.env.local` seguem pendentes com o proprietário — ve
 | P1 | Native Foundation Bootstrap | **concluída e mergeada** — P1.1 a P1.3 em PRs anteriores; P1.4 e P1.4-R1 na PR #6, merge `7398d85`. Os seis eixos de `gate:api-boundary` estão em zero |
 | P2 | ModeloBase1 Pecuário Foundation | **mergeada** (PR #7, merge `1851503`) — inclui a correção P2-R1 |
 | P3 | Backend + Prisma + PostgreSQL Foundation | **concluída e mergeada** (PR #10, merge `4ce4608`) — `backend/` com Fastify, Prisma e PostgreSQL; cinco models; `gate:tenancy` e `gate:indices`. Inclui a correção **P3-R1** |
-| P4 | Mapa Core Native Persistence | **em execução** — **P4.0** (transporte e sessão nativos) **mergeada** (PR #12, merge `45599f5`), inclui **P4.0-R1** e **P4.0-R2** (base URL absoluta, PR #15, merge `b2535ec`); **P4.1** (Setor) **mergeada** (PR #14, merge `b559c48`), inclui **P4.1-R1**; **P4.1-R2** (fechamento de contrato) **mergeada** (PR #17, merge `588792b`); **P4.2** (AreaPastagem) não iniciada, bloqueada por **DEPLOY-MIGRATION-01** |
+| P4 | Mapa Core Native Persistence | **em execução** — **P4.0** (transporte e sessão nativos) **mergeada** (PR #12, merge `45599f5`), inclui **P4.0-R1** e **P4.0-R2** (base URL absoluta, PR #15, merge `b2535ec`); **P4.1** (Setor) **mergeada** (PR #14, merge `b559c48`), inclui **P4.1-R1**; **P4.1-R2** (fechamento de contrato) **mergeada** (PR #17, merge `588792b`); **P4.2** (AreaPastagem) **não iniciada e liberada** — o bloqueio caiu com o fechamento de **DEPLOY-MIGRATION-01** (PRs #19, #20 e #21) |
 | P5 | Manejo Core Native Persistence | não iniciada |
 | P6 | Supporting Capabilities | não iniciada |
 | P7 | Base44 Final Removal | não iniciada |

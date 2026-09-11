@@ -128,6 +128,10 @@ pre-deploy configurado. Os cinco pontos exigidos, e o que aconteceu:
 **Log do deployment `f0dab2d0`, 2026-09-10 (UTC):**
 
 ```
+18:14:46  > maike-mapa-manejo@0.0.0 deploy:migrate
+18:14:46  > node scripts/deploy/run-migrations.mjs
+18:14:46  deploy:migrate — aplicando migrations versionadas...
+18:14:46  > maike-mapa-manejo@0.0.0 prisma:deploy
 18:14:46  > prisma migrate deploy --schema backend/prisma/schema.prisma
 18:14:46  Prisma schema loaded from backend/prisma/schema.prisma
 18:14:48  3 migrations found in prisma/migrations
@@ -141,6 +145,20 @@ pre-deploy configurado. Os cinco pontos exigidos, e o que aconteceu:
 18:15:03  > node backend/src/server.js
 18:15:03  Server listening at http://127.0.0.1:8080
 18:15:05  GET /health → 200
+```
+
+As quatro primeiras linhas foram acrescentadas na `DEPLOY-MIGRATION-01B-R1`. A
+transcrição original começava em `> prisma migrate deploy`, e com isso deixava
+de fora justamente a linha que prova que **o runner** rodou — e não um
+`prisma migrate deploy` avulso que alguém tivesse posto no pre-deploy. As duas
+coisas produzem a mesma saída do Prisma; só `deploy:migrate — aplicando
+migrations versionadas...` distingue uma da outra. Ver §6.
+
+E o corpo da resposta de `/health`, que o ponto 5 exige por inteiro:
+
+```
+HTTP/2 200
+{"status":"ok","processo":"up","banco":"up","configuracaoIncompleta":[]}
 ```
 
 O par `Stopping Container` / `Starting Container` entre a migration e o
@@ -184,3 +202,46 @@ desta missão; aplicá-las de passagem seria misturar missões.
 
 Nenhum valor de segredo foi lido, impresso ou versionado. A fixture usada no
 controle negativo é deliberadamente falsa e existe para provar uma recusa.
+
+---
+
+## 6. DEPLOY-MIGRATION-01B-R1 — o que a revisão externa pegou
+
+Duas observações do Codex na PR #21, as duas procedentes.
+
+**A) A transcrição não continha todas as cinco evidências que o §4 exigia.**
+
+O §4 desta missão listou cinco pontos e disse que o fechamento dependia dos
+cinco. A transcrição publicada tinha três: a aplicação da migration, a linha
+final do runner e o `/health` em 200. Faltavam a linha
+`deploy:migrate — aplicando migrations versionadas...` e o **corpo** da resposta
+com `banco: up`.
+
+Não é diferença cosmética, e vale dizer por quê. Sem a primeira linha, a
+transcrição não distingue duas coisas bem diferentes: o **runner** ter rodado, e
+alguém ter posto um `prisma migrate deploy` cru no pre-deploy. As duas produzem
+saída idêntica do Prisma. Só a linha do runner separa uma da outra — e o runner é
+a coisa inteira que a `DEPLOY-MIGRATION-01A` entregou: é ele que recusa a porta
+6543, que exige `MIGRATION_DATABASE_URL` e que não faz fallback.
+
+Um relatório que declara "os cinco pontos estão registrados" exibindo três
+comete exatamente o erro que esta missão documentou no §3: aceitar evidência
+parcial como se fosse a evidência pedida. O §3 fala de ausência de log tratada
+como sucesso; isto é a mesma falha com outra roupa.
+
+As duas linhas **existiam** nos logs desde sempre — a janela de consulta é que
+começava tarde demais. Foram buscadas de novo e acrescentadas ao §4. O veredito
+não muda: a barreira rodou, e agora a transcrição prova isso sozinha.
+
+**B) Os planos ficaram contraditórios sobre a P4.2.**
+
+O fechamento do blocker atualizou o cabeçalho e a tabela de dívidas do
+`CURRENT-STATE.md`, mas deixou duas linhas para trás — a da P4 na tabela de
+progresso e a da P4.2 no `ROADMAP.md` — ainda dizendo "bloqueada por
+DEPLOY-MIGRATION-01". O mesmo documento afirmava, em lugares diferentes, que a
+próxima fatia estava liberada e que não estava.
+
+Corrigido nas duas. O ponto geral, que vale para as próximas missões: fechar um
+bloqueador não é editar o parágrafo onde ele foi declarado, é varrer todo lugar
+que o cita. Um SSOT que discorda de si mesmo é pior que um SSOT desatualizado —
+o desatualizado ao menos não dá duas respostas.
