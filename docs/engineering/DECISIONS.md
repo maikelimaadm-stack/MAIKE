@@ -1766,4 +1766,84 @@ Corolário para o método: ausência de log nunca fecha uma verificação. Quand
 sinal esperado não aparece, monta-se o controle negativo que **tem de** falhar.
 Foi assim que o repositório evitou registrar uma barreira ativa que não estava.
 
-<!-- Próxima decisão: D-PROD-30 -->
+---
+
+## D-PROD-30 — AreaPastagem é nativa, o vínculo é FK composta e `setor_nome` é derivado
+
+**Missão:** `P4.2 — AreaPastagem Native Persistence`.
+**Relatório:** `docs/engineering/P4.2-AREA-PASTAGEM-NATIVE-REPORT.md`.
+**Gate:** `gate:area-pastagem-native`, absoluto, 12 regras, 35 provas.
+
+Segunda capacidade de domínio a sair da Base44, e a primeira que **aponta para
+outra**. Três decisões, e todas existem porque a alternativa funciona — em
+verde, até o dia em que não funciona.
+
+### A) O vínculo com `Setor` é FK **composta**, tenant-aware
+
+`@relation(fields: [cliente_id, setor_id], references: [cliente_id, id])`.
+
+A forma óbvia — `fields: [setor_id], references: [id]` — lista, cria, edita e
+passa em todo teste de navegador único. E aceita, no banco, uma área do Cliente
+A vinculada a um setor do Cliente B. O service nunca monta esse objeto, porque o
+tenant vem do `auth_context`; mas o contrato declara
+`crossTenantRelationsAllowed = false` e manda a constraint ser a última
+barreira. Regra que depende de o service estar certo não é barreira, é
+convenção.
+
+É o mesmo raciocínio da FK composta de `AuditLog` (D-PROD-22), e é por isso que
+`Setor.@@unique([cliente_id, id])` nasceu na P4.1 **sem consumidor**: para que
+esta relação pudesse ser tenant-aware desde a primeira migration, sem retrofit.
+
+`onDelete: Restrict` fecha o outro lado. Isso **não** reabre
+`DELETE /setores/:id`: a exclusão de setor segue fechada porque três dos quatro
+dependentes que a guarda consulta continuam na Base44 (D-PROD-25 §N).
+
+A prova é de banco, não de leitura de schema: `BE-P42-11` tenta a escrita
+cruzada direto pelo Prisma, sem passar pelo service, e exige que o PostgreSQL
+recuse.
+
+### B) `setor_nome` é derivado pelo servidor, não recebido do cliente
+
+O campo é denormalizado — o mapa desenha o rótulo do setor sem carregar o setor
+— e continua sendo. O que muda é a origem: o valor vem do setor lido na **mesma
+transação**, e o cliente não tem como enviá-lo (a rota recusa com 400, e a porta
+do frontend não o inclui no corpo).
+
+No legado havia duas fontes para o mesmo fato: o valor que o frontend mandava e
+a `syncEntityReferences` que corrigia depois. Reconciliação fora de transação, que
+pode falhar sem ninguém ver — o arranjo clássico em que a cópia diverge do
+original.
+
+A renomeação também passou a ser nativa: `setorService.atualizar` propaga o nome
+novo para as áreas do setor na mesma transação em que o renomeia
+(`propagarNomeDoSetor`). Fecha um dos seis destinos de `syncEntityReferences`
+(DBT-29), e fecha melhor do que ela fechava: transacional, escopado por
+`cliente_id`, sem varredura.
+
+### C) Um agregado, uma porta
+
+`AreaPastagem` tinha **dois** leitores no frontend — `mapaProvider.listAreas` e
+`suplementacaoProvider.listAreas` —, aceitáveis enquanto os dois batiam na mesma
+entidade da Base44. Com persistência nativa deixariam de ser equivalentes: duas
+portas, dois caches offline com a mesma chave, e nenhuma garantia de que o mapa
+e a suplementação vissem a mesma lista.
+
+Os dois passaram a reexportar de `@/apis/areas`. Mesma mudança de dono que
+`listSetores` teve na P4.1, pelo mesmo motivo.
+
+`filterAreas` virou filtro em memória sobre a lista, e isso é deliberado: uma
+segunda forma de rede para o mesmo agregado criaria um segundo cache offline da
+mesma coisa. O resto da aplicação já filtrava por empresa no cliente.
+
+### O que continua em dívida, nomeado
+
+- **DBT-31** — `quantidade_atual` e `status_ocupacao` seguem editáveis pelo
+  cliente. Descrevem ocupação, que é consequência de `Lote` (P5). Derivá-los hoje
+  exigiria consultar a Base44 do backend, o que é proibido; inventá-los produziria
+  número errado com cara de calculado.
+- **DBT-32** — `syncEntityReferences` continua na Base44 e continua citando
+  `AreaPastagem` entre seus destinos. Essa ramificação agora escreve em dado que
+  ninguém lê. É inofensiva e sai quando os outros cinco destinos migrarem; mexer
+  na function aqui misturaria missões.
+
+<!-- Próxima decisão: D-PROD-31 -->

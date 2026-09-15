@@ -99,14 +99,15 @@ describe('P1.2 — a UI do mapa não fala Base44', () => {
    * nenhuma entidade da P1.2 tenha sido perdida — duas asserções de igualdade
    * exata em arquivos diferentes só criariam trabalho de sincronização.
    *
-   * `Setor` saiu desta lista na P4.1, e por progresso, não por perda: a
-   * persistência dele é nativa (D-PROD-25). A asserção abaixo cobre isso de
-   * forma explícita, para que "sumiu do registry" nunca passe despercebido como
-   * se fosse a mesma coisa que "migrou".
+   * `Setor` saiu desta lista na P4.1 e `AreaPastagem` na P4.2, e por progresso,
+   * não por perda: a persistência das duas é nativa (D-PROD-25, D-PROD-30). As
+   * asserções abaixo cobrem isso de forma explícita, para que "sumiu do
+   * registry" nunca passe despercebido como se fosse a mesma coisa que
+   * "migrou".
    */
   it('B11 — as entidades da P1.2 continuam registradas', () => {
     expect([...getRegisteredEntityNames()].sort()).toEqual(expect.arrayContaining([
-      'AplicacaoMedicamento', 'AreaPastagem', 'Bebedouro', 'ConfiguracaoIcone', 'Empresa',
+      'AplicacaoMedicamento', 'Bebedouro', 'ConfiguracaoIcone', 'Empresa',
       'EstoqueLoteNota', 'EventoSanitario', 'GrupoAtividade', 'HistoricoLancamentoTarefa',
       'LancamentoTarefa', 'LinhaGeografica', 'LocalEstoque', 'Lote', 'ManejoTecnicoRebanho',
       'MovimentacaoEstoque', 'MovimentacaoMapa', 'MovimentacaoPecuaria', 'Permissao',
@@ -125,6 +126,28 @@ describe('P1.2 — a UI do mapa não fala Base44', () => {
     const fonte = codigoDe('src/apis/mapa/mapaApi.js');
     expect(fonte).toContain("export { listSetores } from '@/apis/setores'");
     expect(fonte).not.toContain('mapaProvider.listSetores');
+  });
+
+  it('B11c — AreaPastagem saiu do registry porque virou nativa, e o mapa continua lendo áreas', async () => {
+    expect(getRegisteredEntityNames()).not.toContain('AreaPastagem');
+
+    // As quatro operações continuam existindo — pela porta nativa, com dono
+    // único em `@/apis/areas` (D-PROD-30).
+    const mapaApi = await import('@/apis/mapa');
+    for (const op of ['listAreas', 'filterAreas', 'createArea', 'updateArea']) {
+      expect(typeof mapaApi[op]).toBe('function');
+    }
+
+    const fonte = codigoDe('src/apis/mapa/mapaApi.js');
+    expect(fonte).toContain("export { listAreas, filterAreas, createArea, updateArea } from '@/apis/areas'");
+    expect(fonte).not.toContain('mapaProvider.listAreas');
+    expect(fonte).not.toContain('mapaProvider.createArea');
+    expect(fonte).not.toContain('mapaProvider.updateArea');
+
+    // E a suplementação, que era o segundo leitor, também.
+    const suplementacao = codigoDe('src/apis/suplementacao/suplementacaoApi.js');
+    expect(suplementacao).toContain("export { listAreas } from '@/apis/areas'");
+    expect(suplementacao).not.toContain('suplementacaoProvider.listAreas');
   });
 
   it('B12 — nenhuma entidade dinâmica dentro de src/apis/', () => {

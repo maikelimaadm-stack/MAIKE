@@ -38,7 +38,7 @@ import {
  * fala com a rede e ponto.
  */
 const OFFLINE_ENTITIES = new Set([
-  'LancamentoTarefa', 'HistoricoLancamentoTarefa', 'AreaPastagem', 'PontoReferencia',
+  'LancamentoTarefa', 'HistoricoLancamentoTarefa', 'PontoReferencia',
   'PontoSuplementacao', 'LinhaGeografica', 'Lote', 'ConfiguracaoIcone',
   'SuplementacaoEvento', 'SuplementacaoLote', 'EstoqueLoteNota', 'MovimentacaoMapa',
   'MovimentacaoEstoque', 'TipoTarefa', 'Fornecedor', 'Produto', 'Permissao',
@@ -87,7 +87,13 @@ const ENTITY_REGISTRY = Object.freeze({
   Empresa: comFronteira('Empresa', base44.entities.Empresa),
 
   // Geografia do mapa (P1.2)
-  AreaPastagem: comFronteira('AreaPastagem', base44.entities.AreaPastagem),
+  // `AreaPastagem` saiu na P4.2 (D-PROD-30): a persistência é nativa, e a porta
+  // é `src/apis/areas/areaPastagemNativePort.js`. O schema continua em
+  // `base44/entities/AreaPastagem.jsonc` e o nome continua em
+  // `allowedBase44Entities` porque `syncEntityReferences` ainda o cita — a
+  // function roda lá e ainda serve os outros cinco destinos denormalizados.
+  // Sair do manifesto antes disso reprovaria `gate:product-scope` por uma
+  // independência que ainda não existe. Ver DBT-32.
   PontoReferencia: comFronteira('PontoReferencia', base44.entities.PontoReferencia),
   PontoSuplementacao: comFronteira('PontoSuplementacao', base44.entities.PontoSuplementacao),
   LinhaGeografica: comFronteira('LinhaGeografica', base44.entities.LinhaGeografica),
@@ -211,11 +217,6 @@ export const empresaProvider = Object.freeze({
 // `entityName`, nenhuma operação especulativa (QLT-P12-03).
 
 export const mapaProvider = Object.freeze({
-  listAreas: (ordenacao) => endpointOf('AreaPastagem').list(ordenacao),
-  filterAreas: (criterio) => endpointOf('AreaPastagem').filter(criterio),
-  createArea: (dados) => endpointOf('AreaPastagem').create(dados),
-  updateArea: (id, dados) => endpointOf('AreaPastagem').update(id, dados),
-
   listPontos: (ordenacao) => endpointOf('PontoReferencia').list(ordenacao),
   createPonto: (dados) => endpointOf('PontoReferencia').create(dados),
   updatePonto: (id, dados) => endpointOf('PontoReferencia').update(id, dados),
@@ -549,6 +550,5 @@ export const suplementacaoProvider = Object.freeze({
 
   listLotesRebanho: (ordenacao) => endpointOf('Lote').list(ordenacao),
   listMovimentacoesPecuarias: (ordenacao) => endpointOf('MovimentacaoPecuaria').list(ordenacao),
-  listAreas: (ordenacao) => endpointOf('AreaPastagem').list(ordenacao),
   listPontosSuplementacao: (ordenacao) => endpointOf('PontoSuplementacao').list(ordenacao),
 });

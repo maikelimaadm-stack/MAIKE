@@ -1353,7 +1353,7 @@ describe('gate:api-boundary — P1.4 fechamento da P1', () => {
    * ninguém decidir nada — e sumir do registry é justamente o sintoma de uma
    * migração pela metade.
    */
-  const MIGRADAS_PARA_NATIVO = ['Setor'];
+  const MIGRADAS_PARA_NATIVO = ['Setor', 'AreaPastagem'];
 
   test('P14-N11/N12 o registry real é o manifesto menos as capacidades já nativas', () => {
     const atual = scanBoundary(REPO_ROOT);
@@ -1378,7 +1378,7 @@ describe('gate:api-boundary — P1.4 fechamento da P1', () => {
 
     assert.deepEqual(atual.entidadesRegistradas, esperadas);
     assert.equal(atual.entidadesRegistradas.length, permitidas.length - MIGRADAS_PARA_NATIVO.length);
-    assert.equal(atual.entidadesRegistradas.length, 37);
+    assert.equal(atual.entidadesRegistradas.length, 36);
   });
 
   test('P14-N13 baseline final com lista não vazia reprova a certificação da P1', () => {

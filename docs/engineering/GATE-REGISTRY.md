@@ -19,6 +19,7 @@ Todos têm teste unitário com casos de falha reais em `scripts/tests/gates/`.
 | **deploy-migrations** | `npm run gate:deploy-migrations` | A migration chega ao banco antes do código novo rodar: runner com conexão própria sem fallback, recusa do pooler de transação, migration fora do startup, e a CI exercitando o mesmo caminho de produção | D-PROD-28 | `scripts/gates/gate-deploy-migrations.mjs` |
 | **native-api** | `npm run gate:native-api` | Transporte e sessão nativos: URL por referência estática sem override **e com esquema absoluto**, JWT só em `sessionStorage` numa guarda única, login sem `cliente_id`, os oito códigos do contrato no catálogo do frontend, fronteira HTTP única e CORS com allowlist exata | D-PROD-24 · D-PROD-26 | `scripts/gates/gate-native-api.mjs` |
 | **setor-native** | `npm run gate:setor-native` | Setor nativo: model tenant-scoped com migration, numeração por sequência dentro de transação, ausência de rota de exclusão, zero Base44 no caminho de Setor, porta única no frontend, tenant só do token, id offline fora da rede, sem fallback silencioso, auditoria transacional, rotas autenticadas e **cache/fila offline com dono** | D-PROD-25 | `scripts/gates/gate-setor-native.mjs` |
+| **area-pastagem-native** | `npm run gate:area-pastagem-native` | AreaPastagem nativa: model tenant-scoped com migration, **FK composta tenant-aware para `Setor`** (ordem das colunas verificada estruturalmente) com `onDelete: Restrict` e índice próprio, numeração por sequência dentro de transação, **`setor_nome` derivado do setor lido e recusado no corpo**, propagação nativa da renomeação, zero Base44 no caminho de área, **porta única compartilhada por mapa e suplementação**, tenant só do token, sem fallback silencioso, auditoria transacional, ausência de rota de exclusão e fila offline com dono | D-PROD-30 | `scripts/gates/gate-area-pastagem-native.mjs` |
 | **source-closure** | `npm run gate:source-closure` | Todo arquivo executável em `src/` é alcançável a partir das entradas reais | D-PROD-12 | `scripts/gates/gate-source-closure.mjs` |
 | **import-integrity** | `npm run gate:import-integrity` | Nenhum import estático em `src/` aponta para arquivo inexistente | D-PROD-02 | `scripts/gates/gate-import-integrity.mjs` |
 | **no-secrets** | `npm run gate:no-secrets` | Nenhum segredo literal em **arquivo versionado ou não ignorado**; nenhum `.env` versionado | D-PROD-07 · D-PROD-14 | `scripts/gates/gate-no-hardcoded-secrets.mjs` |
@@ -1276,3 +1277,57 @@ documento deixaria o proprietário configurando um comando inexistente.
 Sem esses controles o gate reprovaria a documentação escrita para impedir o
 defeito. É a quinta vez que este projeto encara essa armadilha; ver a seção de
 falsos positivos do `gate:native-api`.
+
+## `gate:area-pastagem-native` — a segunda capacidade migrada (P4.2, D-PROD-30)
+
+Absoluto: sem `--update`, sem baseline, sem correção automática, e nunca escreve
+arquivo. Posição **8** do `verify:all`, imediatamente depois de
+`gate:setor-native` — porque depende do que ele garante. A FK composta de
+`AreaPastagem` só é tenant-aware se `Setor` mantiver o `@@unique([cliente_id,
+id])` que aquele gate cobra; quebrar um sem quebrar o outro produziria um schema
+que compila e uma constraint que não protege.
+
+A P4.2 acrescenta duas invariantes que a P4.1 não tinha, e nenhuma delas quebra
+em vermelho:
+
+**FK só por `setor_id`.** Lista, cria, edita e passa em todo teste de navegador
+único. E aceita, no banco, uma área do Cliente A vinculada ao setor do Cliente
+B. É a classe de defeito que só existe quando há dois clientes e alguém olha.
+
+**`setor_nome` vindo do corpo.** Funciona perfeitamente — até alguém renomear um
+setor. Aí a cópia diverge do original, em silêncio, e a descoberta vem meses
+depois por um relatório que não bate.
+
+| Invariante | Código |
+|---|---|
+| `AreaPastagem` é model tenant-scoped, com `@@unique([cliente_id, numero_area])`, `@@unique([cliente_id, id])`, `empresa_id` como String simples e migration versionada que cria a tabela | `P42-AREA-MODEL` |
+| a relação com `Setor` é `@relation(fields: [cliente_id, setor_id], references: [cliente_id, id])`, com `onDelete: Restrict` e `@@index([cliente_id, setor_id])` — verificado pela **estrutura e ordem** dos dois arrays, não por substring | `P42-AREA-FK` |
+| o número vem de `reservarNumero` dentro de `$transaction`; nenhum `Math.max`/`length + 1`/`reduce` calcula `numero_area` no cliente | `P42-AREA-NUMBERING` |
+| o service lê o setor e grava `setor_nome: setor.nome`; o campo não está entre os editáveis, a rota não o declara, a porta não o envia, e renomear setor chama `propagarNomeDoSetor` | `P42-AREA-SETOR-NOME` |
+| `endpointOf('AreaPastagem')` e o registro no `ENTITY_REGISTRY` não voltam; nenhum arquivo de `src/` chama `mapaProvider` ou `suplementacaoProvider` para área | `P42-AREA-BASE44` |
+| a porta usa `nativeRequest`, declara `/areas-pastagem` e **não** declara operação `delete` | `P42-AREA-PORT` |
+| `cliente_id` nunca vem de `body`/`query`/`params`/`headers`/`cookie`; o service exige `auth_context` e grava de `auth.clienteId`; o repositório não consulta por id solto | `P42-AREA-TENANT-SOURCE` |
+| nenhum `catch` cai para a Base44 | `P42-AREA-FALLBACK` |
+| criação e atualização registram auditoria, identificada como `AreaPastagem` | `P42-AREA-AUDIT` |
+| toda rota tem `app.autenticar`; não existe `app.delete`; os três schemas são fechados | `P42-AREA-ROUTE-AUTH` |
+| a fila offline é `tenantScoped: true` | `P42-AREA-OFFLINE-TENANT` |
+| mapa e suplementação **reexportam** `listAreas` de `@/apis/areas` — nenhum dos dois mantém leitura própria do mesmo agregado | `P42-AREA-SINGLE-OWNER` |
+
+**35 provas** em `scripts/tests/gates/area-pastagem-native.test.mjs`, quase todas
+negativas. Duas merecem destaque porque protegem o gate de si mesmo:
+
+| Prova | O que ela impede |
+|---|---|
+| `AN-T06` | aprovar `fields: [setor_id, cliente_id]`, que tem **exatamente os mesmos caracteres** da forma correta e só difere na ordem. Um gate por substring passaria |
+| `AN-T16b` | reprovar prosa que cita `setor_nome` como forma proibida. Sem remover comentários, o gate reprovaria a documentação escrita para impedir o defeito que ele protege — a armadilha em que este repositório já caiu cinco vezes |
+| `AN-T25b` | reprovar `try/catch` legítimo. O defeito é cair para a Base44, não capturar erro |
+
+O que o gate **não** consegue provar, e por isso tem par em
+`backend/tests/areaPastagemNativa.test.mjs`, contra PostgreSQL real:
+
+| Prova de banco | Por que estática não serve |
+|---|---|
+| `BE-P42-11` | o gate lê a declaração da FK no schema; só o PostgreSQL prova que a constraint existe e **recusa** a escrita cruzada feita direto pelo Prisma |
+| `BE-P42-12` | `onDelete: Restrict` de verdade barrando a exclusão de um setor com área |
+| `BE-P42-14/15` | a renomeação propaga para as áreas do setor — e **não** atravessa tenant |
+| `BE-P42-18` | doze criações **concorrentes** produzem doze números distintos. Em série, qualquer contador acerta |

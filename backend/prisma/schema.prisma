@@ -51,11 +51,12 @@ model Cliente {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  usuarios   Usuario[]
-  auditLogs  AuditLog[]
-  sequencias EntidadeCodigoSequencia[]
-  anexos     RegistroAnexo[]
-  setores    Setor[]
+  usuarios      Usuario[]
+  auditLogs     AuditLog[]
+  sequencias    EntidadeCodigoSequencia[]
+  anexos        RegistroAnexo[]
+  setores       Setor[]
+  areasPastagem AreaPastagem[]
 
   @@index([nome])
   @@index([ativo])
@@ -259,11 +260,96 @@ model Setor {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
-  cliente Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  cliente Cliente        @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  areas   AreaPastagem[]
 
   @@unique([cliente_id, numero_setor])
   @@unique([cliente_id, id])
   @@index([cliente_id, empresa_id])
+  @@index([cliente_id, ativo])
+  @@index([cliente_id, nome])
+}
+
+// ---------------------------------------------------------------------------
+// AreaPastagem — segunda capacidade de domínio migrada (P4.2, D-PROD-30).
+//
+// É o primeiro model deste repositório com FK **para outro model de domínio**.
+// Tudo que a P4.1 preparou existe por causa dele: `Setor.@@unique([cliente_id,
+// id])` nasceu sem consumidor justamente para que esta relação pudesse ser
+// tenant-aware desde a primeira migration, sem retrofit.
+//
+// ─── Por que a FK é composta ───────────────────────────────────────────────
+//
+// `setor_id` sozinho apontaria para "algum setor do banco". Com duas FKs
+// independentes — `cliente_id -> Cliente.id` e `setor_id -> Setor.id` — o
+// PostgreSQL aceitaria uma área do Cliente A vinculada a um setor do Cliente B.
+// O service nunca monta esse objeto, porque o tenant vem do `auth_context`; mas
+// o contrato declara `crossTenantRelationsAllowed = false` e manda a constraint
+// ser a última barreira. Regra que depende de o service estar certo não é
+// barreira, é convenção. Mesmo raciocínio da FK composta de `AuditLog`.
+//
+// `onDelete: Restrict` fecha o outro lado: apagar um setor que ainda tem área
+// falha no banco. Isso não reabre `DELETE /setores/:id` — a exclusão de setor
+// continua fechada porque três dos quatro dependentes que a guarda consulta
+// (`LancamentoTarefa`, `MovimentacaoMapa`, `MovimentacaoPecuaria`) seguem na
+// Base44. Ver D-PROD-25 §N e D-PROD-30 §D.
+//
+// ─── setor_nome ────────────────────────────────────────────────────────────
+//
+// Denormalização herdada do legado, e mantida porque o mapa desenha o rótulo do
+// setor sem carregar o setor. O que muda: o valor deixa de ser **enviado** pelo
+// cliente e passa a ser **derivado** pelo servidor, na mesma transação, a partir
+// da FK. É o que torna a divergência impossível em vez de improvável — hoje
+// quem mantém isso alinhado é a `syncEntityReferences` da Base44, uma varredura
+// que roda depois, pode falhar, e não tem transação.
+//
+// ─── quantidade_atual e status_ocupacao ────────────────────────────────────
+//
+// Continuam editáveis, e isso é dívida consciente (DBT-31). Os dois descrevem
+// ocupação, que é consequência de `Lote` — entidade da P5. Enquanto o lote não
+// for nativo, o backend não tem como derivá-los sem consultar a Base44, o que é
+// proibido. Derivar de dado que ele não consegue ver seria pior que aceitar o
+// valor: produziria um número errado com cara de calculado.
+// ---------------------------------------------------------------------------
+model AreaPastagem {
+  id                           String   @id @default(cuid())
+  cliente_id                   String   @db.VarChar(64)
+  empresa_id                   String   @db.VarChar(64)
+  setor_id                     String   @db.VarChar(64)
+  // Derivado do setor vinculado, nunca do corpo da requisição.
+  setor_nome                   String   @db.VarChar(255)
+  numero_area                  String   @db.VarChar(32)
+  nome                         String   @db.VarChar(255)
+  sigla                        String?  @db.VarChar(32)
+  tamanho_hectares             Decimal  @db.Decimal(14, 4)
+  area_pastejada               Decimal? @db.Decimal(14, 4)
+  capacidade_maxima            Decimal? @db.Decimal(14, 4)
+  tipo_pastagem                String?  @db.VarChar(128)
+  aproveitamento_classificacao String   @default("Média") @db.VarChar(32)
+  tipo_cultura                 String   @default("Pastagem") @db.VarChar(32)
+  cor                          String?  @db.VarChar(32)
+  quantidade_atual             Int      @default(0)
+  status_ocupacao              String   @default("Disponível") @db.VarChar(32)
+  forragem_kg_ha               Decimal? @db.Decimal(14, 4)
+  taxa_crescimento_kg_ha_dia   Decimal? @db.Decimal(14, 4)
+  taxa_aproveitamento          Decimal? @db.Decimal(7, 4)
+  periodo_estacao              String?  @db.VarChar(32)
+  // Polígono do mapa: `{coords: [[lat, lng], ...], cor}`. Json porque a forma
+  // pertence ao desenho, não ao domínio — e normalizar vértice em tabela
+  // própria só faria sentido se alguém consultasse vértice, o que ninguém faz.
+  coordenadas                  Json?
+  observacoes                  String?  @db.VarChar(2000)
+  ativo                        Boolean  @default(true)
+  createdAt                    DateTime @default(now())
+  updatedAt                    DateTime @updatedAt
+
+  cliente Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  setor   Setor   @relation(fields: [cliente_id, setor_id], references: [cliente_id, id], onDelete: Restrict)
+
+  @@unique([cliente_id, numero_area])
+  @@unique([cliente_id, id])
+  @@index([cliente_id, empresa_id])
+  @@index([cliente_id, setor_id])
   @@index([cliente_id, ativo])
   @@index([cliente_id, nome])
 }

@@ -165,8 +165,15 @@ export const listMovimentacoesPecuarias = async () =>
     await runProviderCall(() => suplementacaoProvider.listMovimentacoesPecuarias(), ctx('listMovimentacoesPecuarias'))
   );
 
-export const listAreas = async () =>
-  comoLista(await runProviderCall(() => suplementacaoProvider.listAreas(), ctx('listAreas')));
+/**
+ * Nativa desde a P4.2, e com dono em `@/apis/areas` (D-PROD-30).
+ *
+ * A suplementação era o segundo leitor de `AreaPastagem` — o outro é o mapa.
+ * Manter os dois com porta própria depois da migração criaria dois caches
+ * offline do mesmo agregado, com a mesma chave e sem garantia de concordarem.
+ * Um agregado, um dono.
+ */
+export { listAreas } from '@/apis/areas';
 
 export const listPontosSuplementacao = async () =>
   comoLista(
