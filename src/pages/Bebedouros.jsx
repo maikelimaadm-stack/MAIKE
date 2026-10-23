@@ -1,7 +1,6 @@
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import React, { useCallback, useMemo, useState } from "react";
-import { Checkbox } from "@/components/ui/checkbox";
 import { useBebedouros } from "@/hooks/useBebedouros";
 import { useQuery } from "@tanstack/react-query";
 import { listarHistorico, listarSanidade } from "@/services/bebedouroDataService";
@@ -122,6 +121,7 @@ export default function Bebedouros() {
             recordModeAvailable
             extraToolbar={mapaLink}
             filterRailHint="Cadastro geométrico no mapa; aqui é a operação e o acompanhamento."
+            onConfigureColumns={() => {}}
           >
             <div className="overflow-auto border border-slate-200 rounded-md">
               <table className="w-full text-xs">
@@ -148,9 +148,12 @@ export default function Bebedouros() {
                         onClick={() => setDetalhe(item)}
                       >
                         <td className="p-2" onClick={(e) => e.stopPropagation()}>
-                          <Checkbox
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4"
                             checked={chrome.selectedIds.includes(item.id)}
-                            onCheckedChange={() => toggleSelect(item.id)}
+                            onChange={() => toggleSelect(item.id)}
+                            aria-label={`Selecionar ${item.nome}`}
                           />
                         </td>
                         <td className="p-2 font-medium">{item.nome}</td>
