@@ -19,11 +19,11 @@ describe('H — o smoke é hermético desde a avaliação dos módulos', () => {
   it('H1/H2 — o provider real carrega com o stub, sem inicializar o SDK', () => {
     // Se o SDK real tivesse sido instanciado, o import de topo já teria
     // disparado rede antes deste corpo rodar.
-    // 33: manifesto com 35 entidades; `Setor` (P4.1) e `AreaPastagem` (P4.2,
-    // D-PROD-31) nativas; `Layout*` removidos (D-PROD-30). O número aqui é só
+    // 30: manifesto com 35 entidades; cinco nativas (Setor, AreaPastagem,
+    // ConfiguracaoIcone, PontoReferencia, LinhaGeografica — D-PROD-32). O número aqui é só
     // evidência de que o provider carregou — o conjunto exato está em
     // `suporteBoundary.test.js`.
-    expect(getRegisteredEntityNames().length).toBe(33);
+    expect(getRegisteredEntityNames().length).toBe(30);
   });
 
   it('H3/H4 — operação do provider não toca fetch nem XMLHttpRequest', async () => {

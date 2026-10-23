@@ -55,8 +55,11 @@ model Cliente {
   auditLogs     AuditLog[]
   sequencias    EntidadeCodigoSequencia[]
   anexos        RegistroAnexo[]
-  setores       Setor[]
-  areasPastagem AreaPastagem[]
+  setores            Setor[]
+  areasPastagem      AreaPastagem[]
+  configuracoesIcone ConfiguracaoIcone[]
+  pontosReferencia   PontoReferencia[]
+  linhasGeograficas  LinhaGeografica[]
 
   @@index([nome])
   @@index([ativo])
@@ -350,6 +353,99 @@ model AreaPastagem {
   @@unique([cliente_id, id])
   @@index([cliente_id, empresa_id])
   @@index([cliente_id, setor_id])
+  @@index([cliente_id, ativo])
+  @@index([cliente_id, nome])
+}
+
+// ---------------------------------------------------------------------------
+// ConfiguracaoIcone — geografia do mapa (P4.3, D-PROD-32).
+//
+// Sem numeração de negócio. `empresa_id` é String simples, sem FK — `Empresa`
+// só é nativa na P6.
+// ---------------------------------------------------------------------------
+model ConfiguracaoIcone {
+  id               String   @id @default(cuid())
+  cliente_id       String   @db.VarChar(64)
+  empresa_id       String?  @db.VarChar(64)
+  tipo_entidade    String   @db.VarChar(64)
+  categoria        String   @db.VarChar(255)
+  icone_url        String?  @db.VarChar(1024)
+  sub_icone_url    String?  @db.VarChar(1024)
+  cor_padrao       String?  @db.VarChar(32)
+  descricao        String?  @db.VarChar(2000)
+  categorias_misto Json?
+  ativo            Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  cliente Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+
+  @@unique([cliente_id, id])
+  @@index([cliente_id, tipo_entidade])
+  @@index([cliente_id, ativo])
+  @@index([cliente_id, categoria])
+}
+
+// ---------------------------------------------------------------------------
+// PontoReferencia — geografia do mapa (P4.3, D-PROD-32).
+//
+// Exclusão física na API (`DELETE`), como no legado (`excluirPontoComCascata`).
+// `configuracao_icone_id` é referência opaca — ícone nativo no mesmo tenant,
+// sem FK composta nesta fatia.
+// ---------------------------------------------------------------------------
+model PontoReferencia {
+  id                    String   @id @default(cuid())
+  cliente_id            String   @db.VarChar(64)
+  empresa_id            String   @db.VarChar(64)
+  numero_ponto          String   @db.VarChar(32)
+  nome                  String   @db.VarChar(255)
+  sigla                 String?  @db.VarChar(32)
+  tipo                  String   @db.VarChar(128)
+  configuracao_icone_id String?  @db.VarChar(64)
+  icone_url             String?  @db.VarChar(1024)
+  sub_icone_url         String?  @db.VarChar(1024)
+  coordenadas           Json?
+  cor                   String?  @db.VarChar(32)
+  observacoes           String?  @db.VarChar(2000)
+  ativo                 Boolean  @default(true)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  cliente Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+
+  @@unique([cliente_id, numero_ponto])
+  @@unique([cliente_id, id])
+  @@index([cliente_id, empresa_id])
+  @@index([cliente_id, ativo])
+  @@index([cliente_id, nome])
+}
+
+// ---------------------------------------------------------------------------
+// LinhaGeografica — geografia do mapa (P4.3, D-PROD-32).
+//
+// Baixa lógica via PATCH (`ativo: false`); não há rota DELETE.
+// ---------------------------------------------------------------------------
+model LinhaGeografica {
+  id                 String   @id @default(cuid())
+  cliente_id         String   @db.VarChar(64)
+  empresa_id         String   @db.VarChar(64)
+  numero_linha       String   @db.VarChar(32)
+  nome               String   @db.VarChar(255)
+  sigla              String?  @db.VarChar(32)
+  tipo               String   @db.VarChar(64)
+  coordenadas        Json?
+  comprimento_metros Decimal? @db.Decimal(14, 4)
+  cor                String?  @db.VarChar(32)
+  observacoes        String?  @db.VarChar(2000)
+  ativo              Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  cliente Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+
+  @@unique([cliente_id, numero_linha])
+  @@unique([cliente_id, id])
+  @@index([cliente_id, empresa_id])
   @@index([cliente_id, ativo])
   @@index([cliente_id, nome])
 }

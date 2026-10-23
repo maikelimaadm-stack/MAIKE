@@ -74,3 +74,16 @@ export const setorNotFound = (message, options) =>
  */
 export const areaNotFound = (message, options) =>
   new AppError('AREA_NOT_FOUND', message || 'área de pastagem não encontrada', options);
+
+export const configuracaoIconeNotFound = (message, options) =>
+  new AppError(
+    'CONFIGURACAO_ICONE_NOT_FOUND',
+    message || 'configuração de ícone não encontrada',
+    options
+  );
+
+export const pontoReferenciaNotFound = (message, options) =>
+  new AppError('PONTO_REFERENCIA_NOT_FOUND', message || 'ponto de referência não encontrado', options);
+
+export const linhaGeograficaNotFound = (message, options) =>
+  new AppError('LINHA_GEOGRAFICA_NOT_FOUND', message || 'linha geográfica não encontrada', options);

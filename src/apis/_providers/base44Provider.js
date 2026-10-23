@@ -38,8 +38,8 @@ import {
  * fala com a rede e ponto.
  */
 const OFFLINE_ENTITIES = new Set([
-  'LancamentoTarefa', 'HistoricoLancamentoTarefa', 'PontoReferencia',
-  'PontoSuplementacao', 'LinhaGeografica', 'Lote', 'ConfiguracaoIcone',
+  'LancamentoTarefa', 'HistoricoLancamentoTarefa',
+  'PontoSuplementacao', 'Lote',
   'SuplementacaoEvento', 'SuplementacaoLote', 'EstoqueLoteNota', 'MovimentacaoMapa',
   'MovimentacaoEstoque', 'TipoTarefa', 'Fornecedor', 'Produto', 'Permissao',
   'Empresa', 'AplicacaoMedicamento', 'EventoSanitario', 'ManejoTecnicoRebanho',
@@ -75,9 +75,11 @@ const comFronteira = (nome, endpoint) =>
  * `allowedBase44Entities` (`P11-API-BOUNDARY-SCOPE`). A P1.4 fechou o registry
  * **igual** ao manifesto, com 35 entidades.
  *
- * Desde a P4.1 a relação é de **inclusão, não igualdade**: 33 entidades aqui
- * para 35 no manifesto. `Setor` (D-PROD-25) e `AreaPastagem` (D-PROD-31)
- * migraram para persistência nativa e saíram daqui, mas continuam no manifesto
+ * Desde a P4.1 a relação é de **inclusão, não igualdade**: 30 entidades aqui
+ * para 35 no manifesto. `Setor` (D-PROD-25), `AreaPastagem` (D-PROD-31) e a
+ * tríade P4.3 (`ConfiguracaoIcone`, `PontoReferencia`, `LinhaGeografica`,
+ * D-PROD-32) migraram para persistência nativa e saíram daqui, mas continuam no
+ * manifesto
  * porque a function `syncEntityReferences` ainda os cita. A diferença é o
  * número de capacidades já migradas — declaradas em `MIGRADAS_PARA_NATIVO`
  * (`tests/smoke/suporteBoundary.test.js`).
@@ -93,9 +95,9 @@ const ENTITY_REGISTRY = Object.freeze({
   // function roda lá e ainda serve os outros cinco destinos denormalizados.
   // Sair do manifesto antes disso reprovaria `gate:product-scope` por uma
   // independência que ainda não existe. Ver DBT-32.
-  PontoReferencia: comFronteira('PontoReferencia', base44.entities.PontoReferencia),
+  // `PontoReferencia`, `LinhaGeografica` e `ConfiguracaoIcone` saíram na P4.3
+  // (D-PROD-32): persistência nativa em `src/apis/mapaGeografia/`.
   PontoSuplementacao: comFronteira('PontoSuplementacao', base44.entities.PontoSuplementacao),
-  LinhaGeografica: comFronteira('LinhaGeografica', base44.entities.LinhaGeografica),
   // `Setor` saiu na P4.1 (D-PROD-25): a persistência é nativa, e a porta é
   // `src/apis/setores/setorNativePort.js`. O schema continua em
   // `base44/entities/Setor.jsonc` e o nome continua em `allowedBase44Entities`
@@ -103,7 +105,6 @@ const ENTITY_REGISTRY = Object.freeze({
   // os campos denormalizados da geografia — ainda roda lá e ainda o cita. Sair
   // do manifesto antes dos destinos migrarem reprovaria `gate:product-scope`
   // por uma independência que ainda não existe.
-  ConfiguracaoIcone: comFronteira('ConfiguracaoIcone', base44.entities.ConfiguracaoIcone),
   Bebedouro: comFronteira('Bebedouro', base44.entities.Bebedouro),
 
   // Lotes e manejo iniciado pelo mapa (P1.2)
@@ -211,27 +212,12 @@ export const empresaProvider = Object.freeze({
 // `entityName`, nenhuma operação especulativa (QLT-P12-03).
 
 export const mapaProvider = Object.freeze({
-  listPontos: (ordenacao) => endpointOf('PontoReferencia').list(ordenacao),
-  createPonto: (dados) => endpointOf('PontoReferencia').create(dados),
-  updatePonto: (id, dados) => endpointOf('PontoReferencia').update(id, dados),
-  deletePonto: (id) => endpointOf('PontoReferencia').delete(id),
-
   listPontosSuplementacao: (ordenacao) => endpointOf('PontoSuplementacao').list(ordenacao),
   createPontoSuplementacao: (dados) => endpointOf('PontoSuplementacao').create(dados),
   updatePontoSuplementacao: (id, dados) => endpointOf('PontoSuplementacao').update(id, dados),
   deletePontoSuplementacao: (id) => endpointOf('PontoSuplementacao').delete(id),
 
-  listLinhas: (ordenacao) => endpointOf('LinhaGeografica').list(ordenacao),
-  createLinha: (dados) => endpointOf('LinhaGeografica').create(dados),
-  updateLinha: (id, dados) => endpointOf('LinhaGeografica').update(id, dados),
-
   listBebedouros: (ordenacao) => endpointOf('Bebedouro').list(ordenacao),
-
-  // Configuração de ícones: leitura pelo mapa, CRUD pelo gerenciador (P1.4).
-  // A exclusão é lógica — `ativo: false` —, então não há `delete` aqui.
-  listIcones: (ordenacao) => endpointOf('ConfiguracaoIcone').list(ordenacao),
-  createIcone: (dados) => endpointOf('ConfiguracaoIcone').create(dados),
-  updateIcone: (id, dados) => endpointOf('ConfiguracaoIcone').update(id, dados),
 });
 
 // ── Lotes e manejo (P1.2, reutilizável pela P1.3 — QLT-P12-01) ────────────

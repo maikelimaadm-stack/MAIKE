@@ -107,11 +107,11 @@ describe('P1.2 — a UI do mapa não fala Base44', () => {
    */
   it('B11 — as entidades da P1.2 continuam registradas', () => {
     expect([...getRegisteredEntityNames()].sort()).toEqual(expect.arrayContaining([
-      'AplicacaoMedicamento', 'Bebedouro', 'ConfiguracaoIcone', 'Empresa',
+      'AplicacaoMedicamento', 'Bebedouro', 'Empresa',
       'EstoqueLoteNota', 'EventoSanitario', 'GrupoAtividade', 'HistoricoLancamentoTarefa',
-      'LancamentoTarefa', 'LinhaGeografica', 'LocalEstoque', 'Lote', 'ManejoTecnicoRebanho',
+      'LancamentoTarefa', 'LocalEstoque', 'Lote', 'ManejoTecnicoRebanho',
       'MovimentacaoEstoque', 'MovimentacaoMapa', 'MovimentacaoPecuaria', 'Permissao',
-      'PontoReferencia', 'PontoSuplementacao', 'Produto', 'SuplementacaoEvento',
+      'PontoSuplementacao', 'Produto', 'SuplementacaoEvento',
       'SuplementacaoLote', 'TipoTarefa', 'User',
     ]));
   });
@@ -126,6 +126,33 @@ describe('P1.2 — a UI do mapa não fala Base44', () => {
     const fonte = codigoDe('src/apis/mapa/mapaApi.js');
     expect(fonte).toContain("export { listSetores } from '@/apis/setores'");
     expect(fonte).not.toContain('mapaProvider.listSetores');
+  });
+
+  it('B11d — geografia P4.3 saiu do registry e o mapa reexporta de mapaGeografia', async () => {
+    for (const ent of ['ConfiguracaoIcone', 'PontoReferencia', 'LinhaGeografica']) {
+      expect(getRegisteredEntityNames()).not.toContain(ent);
+    }
+
+    const mapaApi = await import('@/apis/mapa');
+    for (const op of [
+      'listPontos',
+      'createPonto',
+      'updatePonto',
+      'deletePonto',
+      'listLinhas',
+      'createLinha',
+      'updateLinha',
+      'listIcones',
+      'createIcone',
+      'updateIcone',
+    ]) {
+      expect(typeof mapaApi[op]).toBe('function');
+    }
+
+    const fonte = codigoDe('src/apis/mapa/mapaApi.js');
+    expect(fonte).toContain("from '@/apis/mapaGeografia'");
+    expect(fonte).not.toMatch(/mapaProvider\.listPontos\s*\(/);
+    expect(fonte).not.toMatch(/mapaProvider\.listIcones\s*\(/);
   });
 
   it('B11c — AreaPastagem saiu do registry porque virou nativa, e o mapa continua lendo áreas', async () => {

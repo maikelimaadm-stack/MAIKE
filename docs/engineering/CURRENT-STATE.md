@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-10-23 (**P4.2** AreaPastagem mergeada — PR #26; piloto **UX-01** Marcas mergeado — PR #27; limpeza de escopo Layout* — PR #25 · **P4 em execução** — próxima fatia **P4.3**)
+**Atualizado em:** 2026-10-23 (**P4.3** geografia do mapa nativa — branch `cursor/p4-3-map-geography-native-516d`; **P4.2** AreaPastagem mergeada — PR #26 · **P4 em execução**)
 
 ---
 
@@ -13,10 +13,10 @@ Base44 mantida apenas como provider temporário da cadeia preservada (D-PROD-04)
 |---|---|
 | Produto | Pecuária — Mapa Geral + Manejo (D-PROD-01) |
 | Superfície primária | `MapaGeral` (D-PROD-05) |
-| Missão em execução | **P4 — Mapa Core Native Persistence** — **P4.2** (AreaPastagem) **mergeada** (PR #26). Próxima fatia autorizável: **P4.3** (`PontoReferencia`, `LinhaGeografica`, `ConfiguracaoIcone` — ver ROADMAP) |
+| Missão em execução | **P4 — Mapa Core Native Persistence** — **P4.3** (geografia: ícone, ponto, linha) implementada nesta branch; aguardando merge. Anterior: **P4.2** (PR #26) |
 | Última mergeada | **P4.2 — AreaPastagem Native Persistence (PR #26, merge `87a2d2d4`)** — D-PROD-31; `gate:area-pastagem-native`. Anterior imediata: limpeza de escopo Layout* (PR #25) |
 | Mergeadas anteriores | P3 — Backend + Prisma + PostgreSQL Foundation (PR #10, merge `4ce4608`), com a P3-R1; P2 — ModeloBase1 Pecuário Foundation (PR #7, merge `1851503`); SSOT sincronizada nas PRs #8 (`378bfd3`) e #11 (`672ea99`); emenda D-PROD-22 na PR #9 (merge `44b204c`) |
-| Próxima fatia autorizável | P4.3 — PontoReferencia + LinhaGeografica + ConfiguracaoIcone — **não iniciada** |
+| Próxima fatia autorizável | P4.4 — conforme ROADMAP (após merge da P4.3) |
 | Contrato de dados | `config/modelobase1-pecuario.json` — **oficial**; obrigatório para P3–P6 |
 | Escopo executável | `config/mapa-manejo-scope.json` |
 | Roadmap | `docs/engineering/ROADMAP.md` |

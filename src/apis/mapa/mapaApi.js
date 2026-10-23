@@ -50,29 +50,22 @@ const ctx = (operation) => ({ operation, resource: RESOURCE });
  */
 export { listAreas, filterAreas, createArea, updateArea } from '@/apis/areas';
 
-// ── Pontos de referência ──────────────────────────────────────────────────
-
-export const listPontos = async () =>
-  comoLista(await runProviderCall(() => mapaProvider.listPontos(), ctx('listPontos')));
-
-export const createPonto = async (dados) => {
-  const contexto = ctx('createPonto');
-  assertArgument(isObjeto(dados), 'dados', contexto);
-  return runProviderCall(() => mapaProvider.createPonto(dados), contexto);
-};
-
-export const updatePonto = async (id, dados) => {
-  const contexto = ctx('updatePonto');
-  assertArgument(isId(id), 'id', contexto);
-  assertArgument(isObjeto(dados), 'dados', contexto);
-  return runProviderCall(() => mapaProvider.updatePonto(id, dados), { ...contexto, details: { id } });
-};
-
-export const deletePonto = async (id) => {
-  const contexto = ctx('deletePonto');
-  assertArgument(isId(id), 'id', contexto);
-  return runProviderCall(() => mapaProvider.deletePonto(id), { ...contexto, details: { id } });
-};
+/**
+ * Geografia nativa desde a P4.3 (D-PROD-32): pontos, linhas e ícones saíram da
+ * Base44. Dono único em `@/apis/mapaGeografia`.
+ */
+export {
+  listPontos,
+  createPonto,
+  updatePonto,
+  deletePonto,
+  listLinhas,
+  createLinha,
+  updateLinha,
+  listIcones,
+  createIcone,
+  updateIcone,
+} from '@/apis/mapaGeografia';
 
 // ── Pontos de suplementação ───────────────────────────────────────────────
 
@@ -98,25 +91,7 @@ export const deletePontoSuplementacao = async (id) => {
   return runProviderCall(() => mapaProvider.deletePontoSuplementacao(id), { ...contexto, details: { id } });
 };
 
-// ── Linhas geográficas ────────────────────────────────────────────────────
-
-export const listLinhas = async () =>
-  comoLista(await runProviderCall(() => mapaProvider.listLinhas(), ctx('listLinhas')));
-
-export const createLinha = async (dados) => {
-  const contexto = ctx('createLinha');
-  assertArgument(isObjeto(dados), 'dados', contexto);
-  return runProviderCall(() => mapaProvider.createLinha(dados), contexto);
-};
-
-export const updateLinha = async (id, dados) => {
-  const contexto = ctx('updateLinha');
-  assertArgument(isId(id), 'id', contexto);
-  assertArgument(isObjeto(dados), 'dados', contexto);
-  return runProviderCall(() => mapaProvider.updateLinha(id, dados), { ...contexto, details: { id } });
-};
-
-// ── Apoio: setores, ícones, bebedouros ────────────────────────────────────
+// ── Apoio: setores, bebedouros ──────────────────────────────────────────────
 
 /**
  * Setores, para desenhar e agrupar a geografia.
@@ -132,29 +107,6 @@ export const updateLinha = async (id, dados) => {
  * chamando `listSetores()` sem saber de onde ele vem.
  */
 export { listSetores } from '@/apis/setores';
-
-export const listIcones = async () =>
-  comoLista(await runProviderCall(() => mapaProvider.listIcones(), ctx('listIcones')));
-
-/**
- * Cadastro de ícone (P1.4).
- *
- * O gerenciador vive em Configurações, mas a entidade é do mapa: é ele quem
- * desenha área, ponto, cocho, depósito e lote com esses ícones. Ampliar a API
- * do mapa evita um segundo dono para a mesma entidade.
- */
-export const createIcone = async (dados) => {
-  const contexto = ctx('createIcone');
-  assertArgument(isObjeto(dados), 'dados', contexto);
-  return runProviderCall(() => mapaProvider.createIcone(dados), contexto);
-};
-
-export const updateIcone = async (id, dados) => {
-  const contexto = ctx('updateIcone');
-  assertArgument(isId(id), 'id', contexto);
-  assertArgument(isObjeto(dados), 'dados', contexto);
-  return runProviderCall(() => mapaProvider.updateIcone(id, dados), { ...contexto, details: { id } });
-};
 
 export const listBebedouros = async () =>
   comoLista(await runProviderCall(() => mapaProvider.listBebedouros(), ctx('listBebedouros')));
