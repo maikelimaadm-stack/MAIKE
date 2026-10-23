@@ -1,0 +1,11 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "npm run prisma:generate && npm run build",
+  "installCommand": "npm ci",
+  "framework": "vite",
+  "rewrites": [
+    { "source": "/auth/:path*", "destination": "/api/fastify" },
+    { "source": "/health", "destination": "/api/fastify" },
+    { "source": "/setores/:path*", "destination": "/api/fastify" }
+  ]
+}
