@@ -123,56 +123,61 @@ export default function Bebedouros() {
             filterRailHint="Cadastro geométrico no mapa; aqui é a operação e o acompanhamento."
             onConfigureColumns={() => {}}
           >
-            <div className="overflow-auto border border-slate-200 rounded-md">
-              <table className="w-full text-xs">
-                <thead className="bg-slate-50">
-                  <tr>
-                    <th className="p-2 w-8" />
-                    <th className="p-2 text-left">Nome</th>
-                    <th className="p-2 text-left">Pastos atendidos</th>
-                    <th className="p-2 text-left">Tipo</th>
-                    <th className="p-2 text-left">Origem da água</th>
-                    <th className="p-2 text-right">Capacidade</th>
-                    <th className="p-2 text-center">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtrados.map((item) => {
-                    const h = historico.filter((x) => x.bebedouro_id === item.id);
-                    const s = sanidade.filter((x) => x.bebedouro_id === item.id);
-                    const visual = getBebedouroStatusVisual({ bebedouro: item, historico: h, sanidade: s });
-                    return (
-                      <tr
-                        key={item.id}
-                        className="border-t hover:bg-slate-50 cursor-pointer"
-                        onClick={() => setDetalhe(item)}
-                      >
-                        <td className="p-2" onClick={(e) => e.stopPropagation()}>
-                          <input
-                            type="checkbox"
-                            className="h-4 w-4"
-                            checked={chrome.selectedIds.includes(item.id)}
-                            onChange={() => toggleSelect(item.id)}
-                            aria-label={`Selecionar ${item.nome}`}
-                          />
-                        </td>
-                        <td className="p-2 font-medium">{item.nome}</td>
-                        <td className="p-2">{getPastosAtendidos(item)}</td>
-                        <td className="p-2">{item.tipo}</td>
-                        <td className="p-2">{item.origem_agua || "-"}</td>
-                        <td className="p-2 text-right">
-                          {item.capacidade_litros
-                            ? `${Number(item.capacidade_litros).toLocaleString("pt-BR")} L`
-                            : "-"}
-                        </td>
-                        <td className="p-2 text-center">
-                          <BebedouroStatusBadge visual={visual} />
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+            <div className="overflow-hidden">
+              <div
+                className="relative w-full overflow-auto max-h-[calc(100dvh-280px)] md:max-h-[calc(100dvh-220px)]"
+                style={{ overscrollBehavior: "none" }}
+              >
+                <table className="w-full min-w-[900px] border-separate border-spacing-0 text-xs table-fixed">
+                  <thead>
+                    <tr className="sticky top-0 z-40 bg-white">
+                      <th className="h-7 w-[25px] border-r border-b border-gray-200 p-0" />
+                      <th className="h-7 px-2 text-left font-medium border-r border-b border-gray-200">Nome</th>
+                      <th className="h-7 px-2 text-left font-medium border-r border-b border-gray-200">Pastos atendidos</th>
+                      <th className="h-7 px-2 text-left font-medium border-r border-b border-gray-200">Tipo</th>
+                      <th className="h-7 px-2 text-left font-medium border-r border-b border-gray-200">Origem da água</th>
+                      <th className="h-7 px-2 text-right font-medium border-r border-b border-gray-200">Capacidade</th>
+                      <th className="h-7 px-2 text-center font-medium border-r border-b border-gray-200">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filtrados.map((item) => {
+                      const h = historico.filter((x) => x.bebedouro_id === item.id);
+                      const s = sanidade.filter((x) => x.bebedouro_id === item.id);
+                      const visual = getBebedouroStatusVisual({ bebedouro: item, historico: h, sanidade: s });
+                      return (
+                        <tr
+                          key={item.id}
+                          className="border-b hover:bg-gray-100 cursor-pointer"
+                          onDoubleClick={() => setDetalhe(item)}
+                        >
+                          <td className="h-7 p-0 text-center border-r border-b border-gray-300" onClick={(e) => e.stopPropagation()}>
+                            <input
+                              type="checkbox"
+                              className="h-4 w-4"
+                              checked={chrome.selectedIds.includes(item.id)}
+                              onChange={() => toggleSelect(item.id)}
+                              aria-label={`Selecionar ${item.nome}`}
+                            />
+                          </td>
+                          <td className="h-7 px-2 uppercase border-r border-b border-gray-300">{item.nome}</td>
+                          <td className="h-7 px-2 border-r border-b border-gray-300">{getPastosAtendidos(item)}</td>
+                          <td className="h-7 px-2 uppercase border-r border-b border-gray-300">{item.tipo}</td>
+                          <td className="h-7 px-2 border-r border-b border-gray-300">{item.origem_agua || "-"}</td>
+                          <td className="h-7 px-2 text-right font-mono border-r border-b border-gray-300">
+                            {item.capacidade_litros
+                              ? `${Number(item.capacidade_litros).toLocaleString("pt-BR")} L`
+                              : "-"}
+                          </td>
+                          <td className="h-7 px-2 text-center border-r border-b border-gray-300">
+                            <BebedouroStatusBadge visual={visual} />
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </CadastroListaChrome>
         </div>

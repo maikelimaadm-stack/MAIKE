@@ -108,4 +108,18 @@ Branch `cursor/ux-base1-cadastro-lotes-516d`:
 
 Exportações PDF/Excel e painel Sankhya ficam fora desta fatia; filtros por coluna na grade permanecem.
 
+## UX-10 (2026-10-23) — Paridade visual com controle de estoque
+
+Branch `cursor/ux-base1-paridade-estoque-516d`:
+
+| Artefato | Mudança |
+|----------|---------|
+| `cadastroBase1Form.js` | Tokens de campo (input/select) alinhados a Produtos |
+| `DynamicFormRenderer.jsx` | Layout label-acima + borda `rounded-md` / foco emerald (cadastro Lotes) |
+| `TabelaLotes.jsx` | Grade estilo Produtos: colunas Seleção/Ações, hover cinza, cabeçalho sticky único |
+| `FormularioLote.jsx` | Modo embedded em `Card` Base1 |
+| `Bebedouros.jsx` | Grade HTML com bordas/cabeçalho sticky no padrão Produtos |
+
+**Pendente para fatias seguintes:** `TabelaEmpresas` (modo paginado legado), formulários de manejo no mapa (`FormularioMovimentacaoLote` etc.) — já usam FL estilo estoque, mas vivem fora do chrome lista.
+
 **Fora do padrão lista (por desenho):** `MapaGeral`, `MapaCadastro`.
