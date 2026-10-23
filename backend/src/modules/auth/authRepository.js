@@ -2,12 +2,11 @@
  * Repositório de autenticação.
  *
  * Camada de acesso a dado, sem regra de negócio. Duas buscas, e as duas são
- * deliberadamente estreitas: o login resolve o `Cliente` pelo `codigo`
- * operacional e o `Usuario` **dentro daquele cliente**.
+ * deliberadamente estreitas. Desde a simplificação do login (D-PROD-32), quem
+ * entra informa só `login` e `senha`; o tenant vem do `Usuario` encontrado.
  *
- * Repare que `buscarUsuarioPorLogin` recebe `clienteId` como parâmetro
- * explícito e o usa no filtro. É o padrão de toda a camada: repositório recebe
- * tenant já resolvido pelo contexto, nunca um DTO de HTTP.
+ * `buscarUsuarioPorLogin` permanece para bootstrap e testes que já conhecem o
+ * tenant. `buscarUsuarioAtivoPorLogin` resolve o par login+senha na entrada.
  */
 
 import { getPrismaClient } from '../../database/prismaClient.js';
@@ -40,6 +39,40 @@ export const buscarUsuarioPorLogin = async (clienteId, login) => {
       ativo: true,
     },
   });
+};
+
+const SELECAO_LOGIN = Object.freeze({
+  id: true,
+  cliente_id: true,
+  nome: true,
+  login: true,
+  senha_hash: true,
+  ativo: true,
+});
+
+/**
+ * Usuário ativo cujo login coincide, com cliente ativo.
+ *
+ * Devolve `null` quando não há match **ou** quando há ambiguidade (dois tenants
+ * com o mesmo login). Ambos casos viram "credenciais inválidas" no service —
+ * sem oráculo de enumeração.
+ *
+ * @param {string} login
+ */
+export const buscarUsuarioAtivoPorLogin = async (login) => {
+  const prisma = getPrismaClient();
+  const candidatos = await prisma.usuario.findMany({
+    where: {
+      login,
+      ativo: true,
+      cliente: { ativo: true },
+    },
+    select: SELECAO_LOGIN,
+    take: 2,
+  });
+
+  if (candidatos.length !== 1) return null;
+  return candidatos[0];
 };
 
 /**

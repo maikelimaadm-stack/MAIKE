@@ -173,8 +173,19 @@ describe('P4-NATIVE-TENANT-SOURCE', () => {
   test('NAT-10 incluir cliente_id no corpo do login reprova', () => {
     const mutado = trocar(
       real(SESSION_API),
-      'body: { cliente, login: usuarioLogin, senha }',
-      'body: { cliente, cliente_id: credenciais.clienteId, login: usuarioLogin, senha }'
+      'body: { login: usuarioLogin, senha }',
+      'body: { login: usuarioLogin, senha, cliente_id: credenciais.clienteId }'
+    );
+    const r = rodar({ [SESSION_API]: mutado });
+    assert.equal(r.status, 1);
+    assert.match(r.output, /P4-NATIVE-TENANT-SOURCE/);
+  });
+
+  test('NAT-10b incluir cliente no corpo do login reprova', () => {
+    const mutado = trocar(
+      real(SESSION_API),
+      'body: { login: usuarioLogin, senha }',
+      'body: { cliente: "x", login: usuarioLogin, senha }'
     );
     const r = rodar({ [SESSION_API]: mutado });
     assert.equal(r.status, 1);

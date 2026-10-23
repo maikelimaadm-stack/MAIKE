@@ -1,5 +1,5 @@
 /**
- * Entrada da sessão nativa (P4.0, D-PROD-24).
+ * Entrada da sessão nativa (P4.0, D-PROD-24; login simplificado D-PROD-33).
  *
  * Superfície mínima de propósito: não é página, não entra em `pages.config` e
  * não amplia `config/mapa-manejo-scope.json`. É o estado "sem sessão" da casca
@@ -8,13 +8,12 @@
  *
  * O que esta tela **não** mostra, e por quê:
  *
- *  - `cliente_id` e `usuario_id`: são identificadores internos. O usuário
- *    digita o **código** do cliente, que é o nome operacional dele; o id é
- *    resultado da autenticação (ver `nativeSessionApi`);
- *  - o token: não passa por aqui em nenhum momento. A camada de sessão o
- *    intercepta e guarda;
+ *  - código de cliente: removido do login; o tenant é resolvido pelo usuário
+ *    autenticado no backend;
+ *  - `cliente_id` e `usuario_id`: identificadores internos, resultado da sessão;
+ *  - o token: não passa por aqui em nenhum momento;
  *  - a mensagem do servidor: o texto de erro vem do catálogo local, via
- *    `getApiErrorMessage`. Ver `nativeHttpClient`.
+ *    `getApiErrorMessage`.
  */
 
 import React, { useState } from 'react';
@@ -25,10 +24,9 @@ const CAMPO_CLASSE =
 
 /**
  * @param {{onAutenticado: (sessao: {usuario: object, clienteId: string}) => void,
- *          entrar: (credenciais: {cliente: string, login: string, senha: string}) => Promise<object>}} props
+ *          entrar: (credenciais: {login: string, senha: string}) => Promise<object>}} props
  */
 const NativeLoginForm = ({ onAutenticado, entrar }) => {
-  const [cliente, setCliente] = useState('');
   const [login, setLogin] = useState('');
   const [senha, setSenha] = useState('');
   const [erro, setErro] = useState(null);
@@ -42,16 +40,10 @@ const NativeLoginForm = ({ onAutenticado, entrar }) => {
     setEnviando(true);
 
     try {
-      const sessao = await entrar({ cliente, login, senha });
-      // A senha sai do estado assim que deixa de ser necessária. Não é
-      // proteção contra XSS — quem executa script na página lê o formulário de
-      // qualquer jeito —, é higiene: nada de senha pendurada em estado de
-      // componente enquanto o aplicativo inteiro roda.
+      const sessao = await entrar({ login, senha });
       setSenha('');
       onAutenticado(sessao);
     } catch (falha) {
-      // `getApiErrorMessage` só devolve texto de `ApiError`; qualquer outra
-      // coisa cai no fallback público. Nenhuma mensagem de servidor chega aqui.
       setErro(getApiErrorMessage(falha));
       setSenha('');
     } finally {
@@ -67,22 +59,7 @@ const NativeLoginForm = ({ onAutenticado, entrar }) => {
       >
         <div className="space-y-1">
           <h1 className="text-lg font-semibold text-slate-900">Entrar no MAIKE</h1>
-          <p className="text-sm text-slate-500">Informe o cliente, o usuário e a senha.</p>
-        </div>
-
-        <div className="space-y-1">
-          <label className="text-sm font-medium text-slate-700" htmlFor="campo-cliente">
-            Cliente
-          </label>
-          <input
-            id="campo-cliente"
-            name="cliente"
-            className={CAMPO_CLASSE}
-            value={cliente}
-            onChange={(evento) => setCliente(evento.target.value)}
-            autoComplete="organization"
-            required
-          />
+          <p className="text-sm text-slate-500">Informe usuário e senha.</p>
         </div>
 
         <div className="space-y-1">

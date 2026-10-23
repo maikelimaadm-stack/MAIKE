@@ -1865,4 +1865,27 @@ mesma coisa. O resto da aplicação já filtrava por empresa no cliente.
   ninguém lê. É inofensiva e sai quando os outros cinco destinos migrarem; mexer
   na function aqui misturaria missões.
 
-<!-- Próxima decisão: D-PROD-32 -->
+## D-PROD-32 — Login só com usuário e senha
+
+**Data:** 2026-10-23  
+**Relatório:** `docs/engineering/AUTH-LOGIN-SEM-CLIENTE-REPORT.md`
+
+**Decisão:** remover o campo **código de cliente** da tela e do contrato
+`POST /auth/login`. O corpo aceita apenas `login` e `senha`. O `cliente_id`
+continua sendo **resultado** da autenticação (JWT e resposta), nunca entrada.
+
+**Resolução do tenant:** o backend localiza o `Usuario` pelo login entre
+clientes ativos. Se zero ou mais de um registro coincidir, a resposta é a mesma
+de senha errada (`AUTH_INVALID_CREDENTIALS`) — sem oráculo de enumeração.
+
+**Consequência:** logins duplicados em tenants diferentes deixam de autenticar
+até a administração de usuários (P6) impor login globalmente único ou outra
+política explícita. Bootstrap local continua criando `Cliente` + `Usuario`; só
+a entrada do operador simplifica.
+
+**Fora desta missão:** CRUD de usuários/senhas na UI (`Usuarios.jsx` permanece
+como está até P6).
+
+---
+
+<!-- Próxima decisão: D-PROD-33 -->

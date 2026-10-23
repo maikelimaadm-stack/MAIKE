@@ -83,7 +83,7 @@ const Sonda = () => {
       <button type="button" onClick={() => auth.logout()}>sair</button>
       <button
         type="button"
-        onClick={() => auth.entrar({ cliente: 'FAZENDA', login: 'joao', senha: 's3nh4' }).catch(() => {})}
+        onClick={() => auth.entrar({ login: 'joao', senha: 's3nh4' }).catch(() => {})}
       >
         entrar
       </button>
@@ -171,7 +171,7 @@ describe('AUTH — estados do AuthContext', () => {
     await act(async () => { screen.getByText('entrar').click(); });
 
     expect(sessionService.entrarComSessaoNativa).toHaveBeenCalledWith({
-      cliente: 'FAZENDA', login: 'joao', senha: 's3nh4',
+      login: 'joao', senha: 's3nh4',
     });
     expect(screen.getByTestId('autenticado')).toHaveTextContent('true');
     expect(screen.getByTestId('usuario')).toHaveTextContent('joao');
