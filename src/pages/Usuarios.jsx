@@ -24,6 +24,7 @@ import {
   atualizarContaAcesso,
   validarPatchContaAcesso,
 } from "@/services/usuarioAdminService";
+import CadastroWorkspace from "@/components/cadastro/CadastroWorkspace";
 
 export default function Usuarios() {
   const [showForm, setShowForm] = useState(false);
@@ -174,34 +175,66 @@ export default function Usuarios() {
     }
   };
 
+  const inForm = showForm || showContaForm;
+
   return (
-    <div className="p-4 md:p-6 space-y-2">
+    <CadastroWorkspace
+      mode={inForm ? "detail" : "list"}
+      title={
+        showContaForm
+          ? editingConta?.id
+            ? "Editar conta MAIKE"
+            : "Nova conta MAIKE"
+          : showForm
+            ? "Permissões de usuário"
+            : "Usuários e permissões"
+      }
+      subtitle={
+        inForm
+          ? "Salve para voltar à lista."
+          : "Contas de entrada nativas e permissões de menu por usuário."
+      }
+      onBack={
+        inForm
+          ? () => {
+              setShowForm(false);
+              setShowContaForm(false);
+              setEditingUsuario(null);
+              setEditingConta(null);
+            }
+          : undefined
+      }
+      toolbar={
+        !inForm ? (
+          <div className="flex flex-wrap gap-2">
+            <Button
+              onClick={() => {
+                setEditingConta(null);
+                setShowContaForm(true);
+              }}
+              size="sm"
+              variant="outline"
+              className="h-8 text-xs"
+            >
+              Nova conta MAIKE
+            </Button>
+            <Button
+              onClick={() => {
+                setEditingUsuario(null);
+                setShowForm(true);
+              }}
+              size="sm"
+              className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700"
+            >
+              Configurar permissões
+            </Button>
+          </div>
+        ) : null
+      }
+    >
       {!showForm && !showContaForm && (
         <>
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
-            <div>
-              <h1 className="text-lg font-bold text-slate-900">Usuários e Permissões</h1>
-              <p className="text-xs text-slate-600">Contas de entrada nativas e permissões de menu por usuário</p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                onClick={() => {
-                  setEditingConta(null);
-                  setShowContaForm(true);
-                }}
-                size="sm"
-                variant="outline"
-                className="h-8 text-xs"
-              >
-                Nova conta MAIKE
-              </Button>
-              <Button onClick={() => { setEditingUsuario(null); setShowForm(true); }} size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
-                Configurar Permissões
-              </Button>
-            </div>
-          </div>
-
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-3">
             <div className="flex gap-3">
               <div className="text-blue-600 mt-0.5">
                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
@@ -274,6 +307,6 @@ export default function Usuarios() {
           isLoading={isLoading}
         />
       )}
-    </div>
+    </CadastroWorkspace>
   );
 }

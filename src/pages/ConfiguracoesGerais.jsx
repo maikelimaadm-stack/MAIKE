@@ -3,6 +3,7 @@ import { getCurrentUser, listarPermissoes, permissaoDoUsuario, ehAdministrador }
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import GerenciadorIcones from "../components/configuracoes/GerenciadorIcones";
+import CadastroWorkspace from "@/components/cadastro/CadastroWorkspace";
 
 /**
  * Configurações Gerais — escopo P0.1.
@@ -36,7 +37,11 @@ export default function ConfiguracoesGerais() {
 
   if (!isAdmin) {
     return (
-      <div className="p-4 md:p-6 space-y-4">
+      <CadastroWorkspace
+        mode="list"
+        title="Configurações Gerais"
+        subtitle="Acesso restrito a administradores."
+      >
         <Card className="shadow-sm border-amber-200 bg-amber-50">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm text-amber-900">Acesso restrito</CardTitle>
@@ -45,17 +50,17 @@ export default function ConfiguracoesGerais() {
             </CardDescription>
           </CardHeader>
         </Card>
-      </div>);
-
+      </CadastroWorkspace>
+    );
   }
 
   return (
-    <div className="p-4 md:p-6 space-y-4 h-full overflow-y-auto">
-      <div>
-        <h1 className="text-xl font-bold text-slate-900">Configurações Gerais</h1>
-        <p className="text-xs text-slate-600">Ícones e parâmetros do Mapa Geral</p>
-      </div>
-
+    <CadastroWorkspace
+      mode="list"
+      title="Configurações Gerais"
+      subtitle="Ícones e parâmetros do Mapa Geral."
+    >
+      <div className="space-y-4 h-full overflow-y-auto">
       <GerenciadorIcones />
 
       <Card className="shadow-sm">
@@ -82,6 +87,7 @@ export default function ConfiguracoesGerais() {
           </div>
         </CardContent>
       </Card>
-    </div>);
-
+      </div>
+    </CadastroWorkspace>
+  );
 }

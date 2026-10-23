@@ -13,7 +13,14 @@ import { toast } from "sonner";
 
 const ESTADOS = ["AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"];
 
-export default function FormularioEmpresa({ onSubmit, onCancel, initialData, isEditing }) {
+export default function FormularioEmpresa({
+  onSubmit,
+  onCancel,
+  initialData,
+  isEditing,
+  variant = "standalone",
+}) {
+  const embedded = variant === "embedded";
   const [formData, setFormData] = useState(initialData || {
     apelido: "",
     nome: "",
@@ -98,13 +105,23 @@ export default function FormularioEmpresa({ onSubmit, onCancel, initialData, isE
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
     >
-      <Card className="shadow-sm border-slate-300 bg-white">
-        <CardHeader className="bg-slate-50 border-b border-slate-200 py-3">
-          <CardTitle className="text-sm font-semibold text-slate-900">
-            {isEditing ? 'Editar Empresa' : 'Nova Empresa'}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-4" style={{ maxHeight: 'calc(100vh - 150px)', overflowY: 'auto', scrollbarWidth: "thin", scrollbarColor: "#cbd5e1 transparent" }}>
+      <Card className={`shadow-sm border-slate-300 bg-white ${embedded ? "border-0 shadow-none" : ""}`}>
+        {!embedded ? (
+          <CardHeader className="bg-slate-50 border-b border-slate-200 py-3">
+            <CardTitle className="text-sm font-semibold text-slate-900">
+              {isEditing ? "Editar Empresa" : "Nova Empresa"}
+            </CardTitle>
+          </CardHeader>
+        ) : null}
+        <CardContent
+          className="p-4"
+          style={{
+            maxHeight: embedded ? "none" : "calc(100vh - 150px)",
+            overflowY: "auto",
+            scrollbarWidth: "thin",
+            scrollbarColor: "#cbd5e1 transparent",
+          }}
+        >
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1">
               <Label className="text-xs">Logotipo</Label>

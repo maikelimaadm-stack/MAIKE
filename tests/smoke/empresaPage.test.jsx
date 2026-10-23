@@ -51,6 +51,15 @@ vi.mock('../../src/components/empresa/FormularioEmpresa', () => ({
   ),
 }));
 
+vi.mock('@/components/common/ConfirmDialog', () => ({
+  default: ({ open, onConfirm, confirmText = 'Excluir' }) =>
+    open ? (
+      <button type="button" onClick={onConfirm}>
+        {confirmText}
+      </button>
+    ) : null,
+}));
+
 vi.mock('../../src/components/empresa/TabelaEmpresas', () => ({
   default: ({ empresas, onEdit, onDelete, isLoading }) => (
     <div data-testid="tabela">
@@ -105,7 +114,7 @@ describe('página Empresa — fiação com o service', () => {
     const { invalidateSpy } = await renderPagina();
 
     await screen.findByText('Fazenda Boa Vista');
-    fireEvent.click(screen.getByRole('button', { name: /nova empresa/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^novo$/i }));
     expect(screen.getByTestId('modo')).toHaveTextContent('criacao');
 
     fireEvent.click(screen.getByRole('button', { name: 'salvar-formulario' }));
@@ -139,6 +148,8 @@ describe('página Empresa — fiação com o service', () => {
 
     await screen.findByText('Sítio Alegre');
     fireEvent.click(screen.getByRole('button', { name: 'excluir-2' }));
+    const confirmar = screen.getAllByRole('button', { name: /^excluir$/i });
+    fireEvent.click(confirmar[confirmar.length - 1]);
 
     await waitFor(() => expect(serviceMock.deleteEmpresa).toHaveBeenCalledWith('2'));
     await waitFor(() => expect(toastMock.success).toHaveBeenCalledWith('Empresa excluída!'));
@@ -150,7 +161,7 @@ describe('página Empresa — fiação com o service', () => {
     await renderPagina();
 
     await screen.findByText('Fazenda Boa Vista');
-    fireEvent.click(screen.getByRole('button', { name: /nova empresa/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^novo$/i }));
     fireEvent.click(screen.getByRole('button', { name: 'salvar-formulario' }));
 
     await waitFor(() => expect(toastMock.error).toHaveBeenCalled());
@@ -162,7 +173,7 @@ describe('página Empresa — fiação com o service', () => {
     await renderPagina();
 
     await screen.findByText('Fazenda Boa Vista');
-    fireEvent.click(screen.getByRole('button', { name: /nova empresa/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^novo$/i }));
     fireEvent.click(screen.getByRole('button', { name: 'salvar-formulario' }));
 
     await waitFor(() => expect(toastMock.error).toHaveBeenCalledWith('Erro.'));

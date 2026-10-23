@@ -7,6 +7,15 @@ import { ArrowLeft } from "lucide-react";
  *
  * Centraliza cabeçalho, subtítulo e faixa de ações para telas lista/detalhe,
  * sem acoplar a uma entidade específica.
+ *
+ * @param {{
+ *   title: string,
+ *   subtitle?: string,
+ *   mode?: 'list'|'detail',
+ *   onBack?: () => void,
+ *   toolbar?: import('react').ReactNode,
+ *   children: import('react').ReactNode,
+ * }} props
  */
 export default function CadastroWorkspace({
   title,
