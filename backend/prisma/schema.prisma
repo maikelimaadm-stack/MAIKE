@@ -39,9 +39,8 @@ datasource db {
 // identidade da raiz de tenancy (D-PROD-22). Criar `cliente_id` autorreferente
 // aqui é explicitamente proibido.
 //
-// `codigo` é o identificador operacional usado no login — identidade de
-// negócio, nunca chave primária. Como `Cliente` não é tenant-scoped, o unique
-// dele é global por definição.
+// `codigo` identifica o tenant internamente (bootstrap, suporte). Desde
+// D-PROD-33 não entra na tela de login — o operador usa só usuário e senha.
 // ---------------------------------------------------------------------------
 model Cliente {
   id        String   @id @default(cuid())
@@ -97,9 +96,9 @@ model Usuario {
   // solto que poderia pertencer a outro tenant. Ver AuditLog.
   @@unique([cliente_id, id])
   @@index([cliente_id, ativo])
-  // Busca por login na autenticação (D-PROD-32) usa scan filtrado; índice só
-  // em `login` violaria `gate:indices` (prefixo tenant). Login globalmente
-  // único fica para P6/administração de usuários.
+  // Login global entre contas ativas: migration `p6_1_login_global_hygiene` +
+  // índice parcial SQL `Usuario_login_ativo_global_key` (D-PROD-35). No Prisma
+  // permanece @@unique([cliente_id, login]); índice só em `login` violaria gate:indices.
 }
 
 // ---------------------------------------------------------------------------

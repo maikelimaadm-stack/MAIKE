@@ -583,7 +583,7 @@ teste, e a mensagem diz que foi a migration.
 | Prova | O que fixa |
 |---|---|
 | BE-10/BE-11 | dois tenants reais no banco; contexto de A não alcança dado de B, e recurso de outro tenant dispara `TENANT_SCOPE_VIOLATION` |
-| BE-12 | mesmo `login` coexiste em tenants diferentes e conflita dentro do mesmo |
+| BE-12 | no máximo um `login` ativo global (case-insensitive); conflita entre tenants e dentro do mesmo |
 | BE-17 | 40 reservas concorrentes, zero número duplicado, sequência exata de 1 a 40 |
 | BE-25 | auditoria dentro de transação revertida não sobrevive ao rollback |
 | BE-33 | violação de unique vira `CONCURRENCY_CONFLICT` 409, não 500 opaco |

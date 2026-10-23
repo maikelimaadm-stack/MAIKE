@@ -1927,4 +1927,25 @@ Tela `Usuarios.jsx` ganha seção **Contas MAIKE** (`FormularioContaAcesso`,
 
 ---
 
-<!-- Próxima decisão: D-PROD-35 -->
+## D-PROD-35 — Login global único entre contas ativas
+
+**Data:** 2026-10-23  
+**Relatório:** `docs/engineering/AUTH-DB-LOGIN-GLOBAL-REPORT.md`  
+**Migration:** `20261023210000_p6_1_login_global_hygiene`
+
+**Decisão:** com entrada **só usuário + senha** (D-PROD-33), no máximo **um**
+`Usuario` **ativo** por valor de `login` (comparação case-insensitive) em todo
+o banco. `Cliente` permanece raiz de tenancy interna (R9); não volta à UI.
+
+**Mecanismos:**
+
+- Migration idempotente: normaliza login, desativa duplicatas ativas (mantém a
+  mais antiga), índice parcial `Usuario_login_ativo_global_key`;
+- Autenticação e criação de conta consultam login normalizado (minúsculas);
+- Bootstrap e P6.0 recusam conflito global antes de inserir.
+
+**Fora de escopo:** remover model `Cliente` ou `cliente_id` dos demais models.
+
+---
+
+<!-- Próxima decisão: D-PROD-36 -->

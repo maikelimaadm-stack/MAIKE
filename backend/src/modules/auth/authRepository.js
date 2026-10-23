@@ -61,9 +61,12 @@ const SELECAO_LOGIN = Object.freeze({
  */
 export const buscarUsuarioAtivoPorLogin = async (login) => {
   const prisma = getPrismaClient();
+  const loginNormalizado = login.trim().toLowerCase();
+  if (!loginNormalizado) return null;
+
   const candidatos = await prisma.usuario.findMany({
     where: {
-      login,
+      login: { equals: loginNormalizado, mode: 'insensitive' },
       ativo: true,
       cliente: { ativo: true },
     },
