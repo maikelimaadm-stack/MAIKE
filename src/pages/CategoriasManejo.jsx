@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import {
   listarCategoriasManejoDaEmpresa,
   listarIconesDeLoteDaEmpresa,
@@ -8,11 +8,12 @@ import {
 } from "@/services/categoriaManejoService";
 import { getApiErrorMessage, hasApiErrorCode, API_ERROR_CODES } from "@/apis/_core/ApiError";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Button } from "@/components/ui/button";
-import { Settings } from "lucide-react";
 import { toast } from "sonner";
 import { AnimatePresence } from "framer-motion";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
+import CadastroWorkspace from "@/components/cadastro/CadastroWorkspace";
+import CadastroListaChrome from "@/components/cadastro/base1/CadastroListaChrome";
+import { useCadastroListaChromeState } from "@/hooks/useCadastroListaChromeState";
 import TabelaCategoriasManejo from "@/components/categorias-manejo/TabelaCategoriasManejo";
 import FormularioCategoriaManejo from "@/components/categorias-manejo/FormularioCategoriaManejo";
 
@@ -37,7 +38,7 @@ const getInitialFormData = () => ({
   gmd_setembro: "",
   gmd_outubro: "",
   gmd_novembro: "",
-  gmd_dezembro: ""
+  gmd_dezembro: "",
 });
 
 export default function CategoriasManejo() {
@@ -46,22 +47,19 @@ export default function CategoriasManejo() {
   const [showForm, setShowForm] = useState(false);
   const [showConfigColunas, setShowConfigColunas] = useState(false);
   const [editando, setEditando] = useState(null);
-  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+  const [deleteState, setDeleteState] = useState({ open: false, ids: [] });
+  const chrome = useCadastroListaChromeState();
 
-  const { data: categorias = [], refetch } = useQuery({
+  const { data: categorias = [] } = useQuery({
     queryKey: ["categorias-manejo", empresaSelecionadaId],
-    queryFn: async () => {
-      return listarCategoriasManejoDaEmpresa(empresaSelecionadaId);
-    },
-    enabled: !!empresaSelecionadaId
+    queryFn: async () => listarCategoriasManejoDaEmpresa(empresaSelecionadaId),
+    enabled: !!empresaSelecionadaId,
   });
 
   const { data: iconesConfig = [] } = useQuery({
     queryKey: ["configuracao-icones", empresaSelecionadaId],
-    queryFn: async () => {
-      return listarIconesDeLoteDaEmpresa(empresaSelecionadaId);
-    },
-    enabled: !!empresaSelecionadaId
+    queryFn: async () => listarIconesDeLoteDaEmpresa(empresaSelecionadaId),
+    enabled: !!empresaSelecionadaId,
   });
 
   const createMutation = useMutation({
@@ -71,144 +69,208 @@ export default function CategoriasManejo() {
       setShowForm(false);
       setEditando(null);
       toast.success("Categoria cadastrada!");
-    }
+    },
   });
 
   const updateMutation = useMutation({
-    mutationFn: (/** @type {{id: string, data: object, oldData?: object}} */ { id, data }) => atualizarCategoriaManejo(id, data, { empresaId: empresaSelecionadaId }),
+    mutationFn: ({ id, data }) => atualizarCategoriaManejo(id, data, { empresaId: empresaSelecionadaId }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["categorias-manejo", empresaSelecionadaId] });
       setShowForm(false);
       setEditando(null);
       toast.success("Categoria atualizada!");
-    }
+    },
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id) => excluirCategoriaManejo(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["categorias-manejo", empresaSelecionadaId] });
+      chrome.setSelectedIds([]);
       toast.success("Categoria excluída!");
     },
     onError: (error) => {
-      // Decidido por código, não por texto: o diálogo global já comunica o vínculo.
       if (hasApiErrorCode(error, API_ERROR_CODES.CATEGORIA_MANEJO_DELETE_BLOCKED)) return;
       toast.error(getApiErrorMessage(error, "Erro ao excluir."));
-    }
+    },
   });
 
   const categoriasOficiaisDisponiveis = useMemo(() => {
     const categoriasPadrao = [
-    "Bezerro 0 a 12 meses",
-    "Bezerra 0 a 12 meses",
-    "Garrote 13 a 24 meses",
-    "Novilha 13 a 24 meses",
-    "Boi 25 a 36 meses",
-    "Vaca 25 a 36 meses",
-    "Touro + 36 meses",
-    "Vaca + 36 meses"];
+      "Bezerro 0 a 12 meses",
+      "Bezerra 0 a 12 meses",
+      "Garrote 13 a 24 meses",
+      "Novilha 13 a 24 meses",
+      "Boi 25 a 36 meses",
+      "Vaca 25 a 36 meses",
+      "Touro + 36 meses",
+      "Vaca + 36 meses",
+    ];
 
-
-    const categoriasIcones = iconesConfig.
-    filter((ic) => ic.tipo_entidade === "Lote").
-    map((ic) => ic.categoria).
-    filter((cat) => cat && cat.toUpperCase() !== "MISTO");
+    const categoriasIcones = iconesConfig
+      .filter((ic) => ic.tipo_entidade === "Lote")
+      .map((ic) => ic.categoria)
+      .filter((cat) => cat && cat.toUpperCase() !== "MISTO");
 
     return [...new Set([...categoriasPadrao, ...categoriasIcones])].sort();
   }, [iconesConfig]);
+
+  const closeForm = () => {
+    setShowForm(false);
+    setEditando(null);
+    chrome.setViewMode("table");
+  };
+
+  const openNew = () => {
+    setEditando(null);
+    setShowForm(true);
+  };
 
   const handleEdit = (categoria) => {
     setEditando(categoria);
     setShowForm(true);
   };
 
+  const handleEditSelected = () => {
+    const item = categorias.find((c) => c.id === chrome.selectedIds[0]);
+    if (item) handleEdit(item);
+  };
+
+  const handleRequestDelete = (id) => {
+    const ids = Array.isArray(id) ? id : [id];
+    setDeleteState({ open: true, ids });
+  };
+
+  const handleDeleteSelected = () => {
+    if (!chrome.selectedIds.length) return;
+    handleRequestDelete(chrome.selectedIds);
+  };
+
+  const handleConfirmDelete = () => {
+    const [firstId] = deleteState.ids;
+    if (firstId) deleteMutation.mutate(firstId);
+    setDeleteState({ open: false, ids: [] });
+  };
+
   const handleSubmit = (formData) => {
-    // A montagem do payload — uppercase, parseInt/parseFloat, vazio→null e os
-    // doze GMDs — vive no service desde a P1.3-R1. A página cuida de estado
-    // visual, invalidação e toast.
     if (editando) {
       updateMutation.mutate({ id: editando.id, data: formData, oldData: editando });
       return;
     }
-
     createMutation.mutate(formData);
   };
 
+  const onViewModeChange = useCallback(
+    (mode) => {
+      chrome.handleViewModeChange(mode, { onOpenRecord: () => handleEditSelected() });
+    },
+    [chrome, handleEditSelected]
+  );
+
+  const filtradosCount = useMemo(() => {
+    const q = chrome.appliedSearch.trim().toLowerCase();
+    if (!q) return categorias.length;
+    return categorias.filter((c) => {
+      const hay = [c.nome, c.sigla, c.raca, c.categoria_oficial].filter(Boolean).join(" ").toLowerCase();
+      return hay.includes(q);
+    }).length;
+  }, [categorias, chrome.appliedSearch]);
+
+  const formInitialData = editando
+    ? {
+        ...getInitialFormData(),
+        ...editando,
+        idade_minima_meses: editando.idade_minima_meses || "",
+        idade_maxima_meses: editando.idade_maxima_meses || "",
+        ganho_peso_anual_kg: editando.ganho_peso_anual_kg || "",
+        gmd_janeiro: editando.gmd_janeiro || "",
+        gmd_fevereiro: editando.gmd_fevereiro || "",
+        gmd_marco: editando.gmd_marco || "",
+        gmd_abril: editando.gmd_abril || "",
+        gmd_maio: editando.gmd_maio || "",
+        gmd_junho: editando.gmd_junho || "",
+        gmd_julho: editando.gmd_julho || "",
+        gmd_agosto: editando.gmd_agosto || "",
+        gmd_setembro: editando.gmd_setembro || "",
+        gmd_outubro: editando.gmd_outubro || "",
+        gmd_novembro: editando.gmd_novembro || "",
+        gmd_dezembro: editando.gmd_dezembro || "",
+      }
+    : getInitialFormData();
+
+  const detailTitle = editando?.id ? "Editar categoria de manejo" : "Nova categoria de manejo";
+
   return (
-    <div className="p-1 md:p-1 space-y-1">
-      {!showForm && <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 bg-white rounded px-1 py-1 shadow-sm border-b border-slate-200">
-        <div>
-          <h1 className="font-bold text-slate-800">Cadastro de Categorias de Manejo</h1>
-          
-        </div>
-        <div className="flex gap-1 flex-wrap">
-          {!showForm &&
-          <Button variant="outline" size="icon" onClick={() => setShowConfigColunas(true)} className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-7 w-7">
-              <Settings className="w-4 h-4" />
-            </Button>
-          }
-          
-
-          
-          {!showForm &&
-          <Button onClick={() => {setEditando(null);setShowForm(true);}} size="sm" className="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow rounded-md px-3 bg-emerald-600 hover:bg-emerald-700 text-white h-7 text-xs">
-              Adicionar
-            </Button>
-          }
-        </div>
-      </div>}
-
-      <AnimatePresence mode="wait">
-        {showForm ?
-        <FormularioCategoriaManejo
-          initialData={editando ? {
-            ...getInitialFormData(),
-            ...editando,
-            idade_minima_meses: editando.idade_minima_meses || "",
-            idade_maxima_meses: editando.idade_maxima_meses || "",
-            ganho_peso_anual_kg: editando.ganho_peso_anual_kg || "",
-            gmd_janeiro: editando.gmd_janeiro || "",
-            gmd_fevereiro: editando.gmd_fevereiro || "",
-            gmd_marco: editando.gmd_marco || "",
-            gmd_abril: editando.gmd_abril || "",
-            gmd_maio: editando.gmd_maio || "",
-            gmd_junho: editando.gmd_junho || "",
-            gmd_julho: editando.gmd_julho || "",
-            gmd_agosto: editando.gmd_agosto || "",
-            gmd_setembro: editando.gmd_setembro || "",
-            gmd_outubro: editando.gmd_outubro || "",
-            gmd_novembro: editando.gmd_novembro || "",
-            gmd_dezembro: editando.gmd_dezembro || ""
-          } : getInitialFormData()}
-          isEditing={!!editando}
-          onSubmit={handleSubmit}
-          onCancel={() => {setShowForm(false);setEditando(null);}}
-          categoriasOficiaisDisponiveis={categoriasOficiaisDisponiveis} /> :
-
-
-        <TabelaCategoriasManejo
-          categorias={categorias}
-          onEdit={handleEdit}
-          onDelete={(id) => setDeleteConfirmId(id)}
-          showConfigColunas={showConfigColunas}
-          setShowConfigColunas={setShowConfigColunas} />
-
+    <>
+      <CadastroWorkspace
+        mode={showForm ? "detail" : "list"}
+        title={showForm ? detailTitle : "Categorias de manejo"}
+        subtitle={
+          showForm
+            ? "Preencha os dados e salve para voltar à lista."
+            : "Categorias de lotes e parâmetros de ganho de peso."
         }
-      </AnimatePresence>
+        onBack={showForm ? closeForm : undefined}
+        toolbar={null}
+      >
+        <AnimatePresence mode="wait">
+          {showForm ? (
+            <FormularioCategoriaManejo
+              key="form"
+              variant="embedded"
+              initialData={formInitialData}
+              isEditing={!!editando}
+              onSubmit={handleSubmit}
+              onCancel={closeForm}
+              categoriasOficiaisDisponiveis={categoriasOficiaisDisponiveis}
+            />
+          ) : (
+            <CadastroListaChrome
+              key="chrome"
+              selectedCount={chrome.selectedIds.length}
+              listados={categorias.length}
+              filtrados={filtradosCount}
+              totais={categorias.length}
+              onNew={openNew}
+              onEdit={handleEditSelected}
+              onDelete={handleDeleteSelected}
+              searchValue={chrome.searchInput}
+              onSearchChange={chrome.setSearchInput}
+              onSearchApply={chrome.applySearch}
+              searchActive={chrome.searchActive}
+              searchPlaceholder="Buscar categorias…"
+              onConfigureColumns={() => setShowConfigColunas(true)}
+              onClearFilters={chrome.clearFilters}
+              filtersActive={chrome.filtersActive}
+              viewMode={chrome.viewMode}
+              onViewModeChange={onViewModeChange}
+            >
+              <TabelaCategoriasManejo
+                categorias={categorias}
+                onEdit={handleEdit}
+                onDelete={handleRequestDelete}
+                showConfigColunas={showConfigColunas}
+                setShowConfigColunas={setShowConfigColunas}
+                searchQuery={chrome.appliedSearch}
+                resetFiltersKey={chrome.resetFiltersKey}
+                onSelectionChange={chrome.onSelectionChange}
+                onFiltersActiveChange={chrome.setFiltersActive}
+              />
+            </CadastroListaChrome>
+          )}
+        </AnimatePresence>
+      </CadastroWorkspace>
 
       <ConfirmDialog
-        open={!!deleteConfirmId}
-        onOpenChange={(open) => !open && setDeleteConfirmId(null)}
+        open={deleteState.open}
+        onOpenChange={(open) => setDeleteState((prev) => ({ ...prev, open }))}
         title="Excluir categoria de manejo"
         description="Se esta categoria possuir registros lançados, a exclusão será bloqueada automaticamente."
-        onConfirm={() => {
-          deleteMutation.mutate(deleteConfirmId);
-          setDeleteConfirmId(null);
-        }}
         confirmText="Excluir"
         cancelText="Cancelar"
-        variant="destructive" />
-      
-    </div>);
-
+        variant="destructive"
+        onConfirm={handleConfirmDelete}
+      />
+    </>
+  );
 }

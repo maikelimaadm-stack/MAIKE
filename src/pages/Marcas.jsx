@@ -7,6 +7,7 @@ import { AnimatePresence } from "framer-motion";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 import CadastroWorkspace from "@/components/cadastro/CadastroWorkspace";
 import CadastroListaChrome from "@/components/cadastro/base1/CadastroListaChrome";
+import { useCadastroListaChromeState } from "@/hooks/useCadastroListaChromeState";
 import FormularioMarca from "@/components/marcas/FormularioMarca";
 import TabelaMarcas from "@/components/marcas/TabelaMarcas";
 
@@ -15,12 +16,7 @@ export default function Marcas() {
   const [editingItem, setEditingItem] = useState(null);
   const [showConfigColunas, setShowConfigColunas] = useState(false);
   const [deleteState, setDeleteState] = useState({ open: false, ids: [] });
-  const [selectedIds, setSelectedIds] = useState([]);
-  const [searchInput, setSearchInput] = useState("");
-  const [appliedSearch, setAppliedSearch] = useState("");
-  const [filtersActive, setFiltersActive] = useState(false);
-  const [resetFiltersKey, setResetFiltersKey] = useState(0);
-  const [viewMode, setViewMode] = useState("table");
+  const chrome = useCadastroListaChromeState();
   const queryClient = useQueryClient();
   const empresaId = localStorage.getItem("empresa_selecionada_id");
 
@@ -56,7 +52,7 @@ export default function Marcas() {
     mutationFn: (ids) => excluirMarcas(ids),
     onSuccess: ({ excluidas, falhas }) => {
       queryClient.invalidateQueries({ queryKey: ["marcas"] });
-      setSelectedIds([]);
+      chrome.setSelectedIds([]);
       if (excluidas.length) {
         toast.success(
           excluidas.length === 1 ? "Marca excluída!" : `${excluidas.length} marcas excluídas!`,
@@ -74,7 +70,7 @@ export default function Marcas() {
   const closeForm = () => {
     setShowForm(false);
     setEditingItem(null);
-    setViewMode("table");
+    chrome.setViewMode("table");
   };
 
   const openNew = () => {
@@ -93,8 +89,7 @@ export default function Marcas() {
   };
 
   const handleEditSelected = () => {
-    const id = selectedIds[0];
-    const item = marcas.find((m) => m.id === id);
+    const item = marcas.find((m) => m.id === chrome.selectedIds[0]);
     if (item) handleEdit(item);
   };
 
@@ -104,8 +99,8 @@ export default function Marcas() {
   };
 
   const handleDeleteSelected = () => {
-    if (!selectedIds.length) return;
-    handleRequestDelete(selectedIds);
+    if (!chrome.selectedIds.length) return;
+    handleRequestDelete(chrome.selectedIds);
   };
 
   const handleConfirmDelete = () => {
@@ -113,30 +108,21 @@ export default function Marcas() {
     setDeleteState({ open: false, ids: [] });
   };
 
-  const handleSelectionChange = useCallback((ids) => {
-    setSelectedIds(ids);
-  }, []);
-
-  const handleViewModeChange = (mode) => {
-    if (mode === "record") {
-      if (selectedIds.length !== 1) {
-        toast.info("Selecione um registro para abrir no modo Registro.");
-        return;
-      }
-      handleEditSelected();
-      return;
-    }
-    setViewMode(mode);
-  };
+  const onViewModeChange = useCallback(
+    (mode) => {
+      chrome.handleViewModeChange(mode, { onOpenRecord: () => handleEditSelected() });
+    },
+    [chrome, handleEditSelected]
+  );
 
   const filtradosCount = useMemo(() => {
-    const q = appliedSearch.trim().toLowerCase();
+    const q = chrome.appliedSearch.trim().toLowerCase();
     if (!q) return marcas.length;
     return marcas.filter((m) => {
       const hay = [m.nome, m.descricao, m.numero_marca].filter(Boolean).join(" ").toLowerCase();
       return hay.includes(q);
     }).length;
-  }, [marcas, appliedSearch]);
+  }, [marcas, chrome.appliedSearch]);
 
   const detailTitle = editingItem?.id ? "Editar marca" : "Nova marca";
 
@@ -165,7 +151,7 @@ export default function Marcas() {
           ) : (
             <CadastroListaChrome
               key="chrome"
-              selectedCount={selectedIds.length}
+              selectedCount={chrome.selectedIds.length}
               listados={marcas.length}
               filtrados={filtradosCount}
               totais={marcas.length}
@@ -173,16 +159,16 @@ export default function Marcas() {
               onNew={openNew}
               onEdit={handleEditSelected}
               onDelete={handleDeleteSelected}
-              searchValue={searchInput}
-              onSearchChange={setSearchInput}
-              onSearchApply={(next) => setAppliedSearch(typeof next === "string" ? next : searchInput)}
-              searchActive={Boolean(appliedSearch.trim())}
+              searchValue={chrome.searchInput}
+              onSearchChange={chrome.setSearchInput}
+              onSearchApply={chrome.applySearch}
+              searchActive={chrome.searchActive}
               searchPlaceholder="Buscar marcas…"
               onConfigureColumns={() => setShowConfigColunas(true)}
-              onClearFilters={() => setResetFiltersKey((k) => k + 1)}
-              filtersActive={filtersActive}
-              viewMode={viewMode}
-              onViewModeChange={handleViewModeChange}
+              onClearFilters={chrome.clearFilters}
+              filtersActive={chrome.filtersActive}
+              viewMode={chrome.viewMode}
+              onViewModeChange={onViewModeChange}
             >
               <TabelaMarcas
                 marcas={marcas}
@@ -191,10 +177,10 @@ export default function Marcas() {
                 isLoading={isLoading}
                 showConfigColunas={showConfigColunas}
                 setShowConfigColunas={setShowConfigColunas}
-                searchQuery={appliedSearch}
-                resetFiltersKey={resetFiltersKey}
-                onSelectionChange={handleSelectionChange}
-                onFiltersActiveChange={setFiltersActive}
+                searchQuery={chrome.appliedSearch}
+                resetFiltersKey={chrome.resetFiltersKey}
+                onSelectionChange={chrome.onSelectionChange}
+                onFiltersActiveChange={chrome.setFiltersActive}
               />
             </CadastroListaChrome>
           )}

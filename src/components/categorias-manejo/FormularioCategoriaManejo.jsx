@@ -53,8 +53,10 @@ export default function FormularioCategoriaManejo({
   isEditing,
   onSubmit,
   onCancel,
-  categoriasOficiaisDisponiveis
+  categoriasOficiaisDisponiveis,
+  variant = "card",
 }) {
+  const embedded = variant === "embedded";
   const [invalidFields, setInvalidFields] = useState([]);
   const [formData, setFormData] = useState(initialData);
 
@@ -100,12 +102,14 @@ export default function FormularioCategoriaManejo({
   return (
     <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
     <Card className="shadow-sm border-slate-300">
-      <CardHeader className="flex flex-col space-y-1.5 p-6 bg-slate-50 border-b py-1 px-1">
-        <CardTitle className="text-sm font-semibold text-slate-900">
-          {isEditing ? "Editar Categoria de Manejo" : "Nova Categoria de Manejo"}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="p-1">
+      {!embedded ? (
+        <CardHeader className="flex flex-col space-y-1.5 p-6 bg-slate-50 border-b py-1 px-1">
+          <CardTitle className="text-sm font-semibold text-slate-900">
+            {isEditing ? "Editar Categoria de Manejo" : "Nova Categoria de Manejo"}
+          </CardTitle>
+        </CardHeader>
+      ) : null}
+      <CardContent className={embedded ? "p-3 pt-2" : "p-1"}>
         <form onSubmit={handleSubmit} className="space-y-0.5">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
             <FL label="Nome da Categoria" required error={invalidFields.includes('nome')}>

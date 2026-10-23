@@ -52,7 +52,11 @@ export default function TabelaCategoriasManejo({
   onEdit,
   onDelete,
   showConfigColunas,
-  setShowConfigColunas
+  setShowConfigColunas,
+  searchQuery = "",
+  resetFiltersKey = 0,
+  onSelectionChange,
+  onFiltersActiveChange,
 }) {
   const [selectedItems, setSelectedItems] = useState([]);
   const [sortConfig, setSortConfig] = useState({ key: "nome", direction: "asc" });
@@ -122,6 +126,19 @@ export default function TabelaCategoriasManejo({
 
   useEffect(() => {setSelectedItems((prev) => prev.filter((id) => categorias.some((c) => c.id === id)));}, [categorias]);
 
+  useEffect(() => {
+    if (resetFiltersKey > 0) setFiltrosColunas({});
+  }, [resetFiltersKey]);
+
+  useEffect(() => {
+    onSelectionChange?.(selectedItems);
+  }, [selectedItems, onSelectionChange]);
+
+  useEffect(() => {
+    const active = Object.values(filtrosColunas).some((v) => Array.isArray(v) && v.length > 0);
+    onFiltersActiveChange?.(active);
+  }, [filtrosColunas, onFiltersActiveChange]);
+
   const toggleColuna = (colunaId) => {
     const novas = colunasVisiveis.includes(colunaId) ? colunasVisiveis.filter((id) => id !== colunaId) : [...colunasVisiveis, colunaId];
     setColunasVisiveis(novas);
@@ -174,7 +191,12 @@ export default function TabelaCategoriasManejo({
   const clearColumnFilter = (colunaId) => setValoresFiltro(colunaId, []);
 
   const categoriasFiltradas = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
     return categorias.filter((item) => {
+      if (q) {
+        const hay = [item.nome, item.sigla, item.raca, item.categoria_oficial].filter(Boolean).join(" ").toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
       return COLUNAS_DISPONIVEIS.filter((c) => !c.fixo).every((col) => {
         const filtro = filtrosColunas[col.id] || [];
         if (filtro.length === 0) return true;
@@ -182,7 +204,7 @@ export default function TabelaCategoriasManejo({
         return filtro.includes(val);
       });
     });
-  }, [categorias, filtrosColunas]);
+  }, [categorias, filtrosColunas, searchQuery]);
 
   const categoriasOrdenadas = useMemo(() => {
     const sorted = [...categoriasFiltradas];

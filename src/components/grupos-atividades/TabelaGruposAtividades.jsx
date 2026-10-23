@@ -37,7 +37,17 @@ const formatarDataHora = (data) => {
   return new Date(data).toLocaleString("pt-BR");
 };
 
-export default function TabelaGruposAtividades({ grupos = [], onEdit, onDelete, showConfigColunas, setShowConfigColunas }) {
+export default function TabelaGruposAtividades({
+  grupos = [],
+  onEdit,
+  onDelete,
+  showConfigColunas,
+  setShowConfigColunas,
+  searchQuery = "",
+  resetFiltersKey = 0,
+  onSelectionChange,
+  onFiltersActiveChange,
+}) {
   const [selectedItems, setSelectedItems] = useState([]);
   const [sortConfig, setSortConfig] = useState({ key: "nome_grupo", direction: "asc" });
   const [menuFiltroAberto, setMenuFiltroAberto] = useState(null);
@@ -88,6 +98,19 @@ export default function TabelaGruposAtividades({ grupos = [], onEdit, onDelete, 
   useEffect(() => {
     setSelectedItems((prev) => prev.filter((id) => grupos.some((item) => item.id === id)));
   }, [grupos]);
+
+  useEffect(() => {
+    if (resetFiltersKey > 0) setFiltrosColunas({});
+  }, [resetFiltersKey]);
+
+  useEffect(() => {
+    onSelectionChange?.(selectedItems);
+  }, [selectedItems, onSelectionChange]);
+
+  useEffect(() => {
+    const active = Object.values(filtrosColunas).some((v) => Array.isArray(v) && v.length > 0);
+    onFiltersActiveChange?.(active);
+  }, [filtrosColunas, onFiltersActiveChange]);
 
   const toggleResizeMode = (colunaId) => {
     if (colunaId === "selecao" || colunaId === "acoes") return;
@@ -183,7 +206,12 @@ export default function TabelaGruposAtividades({ grupos = [], onEdit, onDelete, 
   const clearColumnFilter = (colunaId) => setValoresFiltro(colunaId, []);
 
   const gruposFiltrados = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
     return grupos.filter((item) => {
+      if (q) {
+        const hay = [item.nome_grupo, item.descricao, item.observacoes].filter(Boolean).join(" ").toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
       return COLUNAS_DISPONIVEIS.filter((c) => !c.fixo).every((col) => {
         const filtro = filtrosColunas[col.id] || [];
         if (filtro.length === 0) return true;
@@ -191,7 +219,7 @@ export default function TabelaGruposAtividades({ grupos = [], onEdit, onDelete, 
         return filtro.includes(val);
       });
     });
-  }, [grupos, filtrosColunas]);
+  }, [grupos, filtrosColunas, searchQuery]);
 
   const gruposOrdenados = useMemo(() => {
     const sorted = [...gruposFiltrados];

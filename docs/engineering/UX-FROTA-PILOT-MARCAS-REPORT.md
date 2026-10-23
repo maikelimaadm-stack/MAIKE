@@ -70,3 +70,18 @@ Branch `cursor/ux-frota-base1-chrome-cadastros-516d`:
 | Unidades de medida, Locais de estoque | Chrome integrado na grade inline (mesma UX) |
 
 Próximo: cards/registro completo estilo Base1; grid MG; opcional refatorar Marcas para o hook compartilhado.
+
+## UX-07 (2026-10-23) — Base1 em todo cadastro tipo Frota
+
+Branch `cursor/ux-base1-all-cadastros-516d`:
+
+| Página | Mudança |
+|--------|---------|
+| `GruposAtividades.jsx` | `CadastroWorkspace` + `CadastroListaChrome` + hook; export na toolbar |
+| `TiposTarefa.jsx` | Idem |
+| `CategoriasManejo.jsx` | Idem |
+| `Marcas.jsx` | Refatorada para `useCadastroListaChromeState` (paridade com Setores/Categorias) |
+
+Formulários: `variant="embedded"`. Tabelas: busca global, seleção e reset de filtros integrados ao chrome.
+
+**Fora desta fatia (layout próprio):** `CadastroLotes`, `Bebedouros`, `Empresa`, `Usuarios`, `ConfiguracoesGerais`, mapas.

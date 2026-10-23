@@ -23,7 +23,8 @@ const REQUIRED_FIELDS = ["nome_grupo"];
 const UPPERCASE_FIELDS = ["nome_grupo", "descricao", "observacoes"];
 const SELECT_EMPTY = "__VAZIO__";
 
-export default function FormularioGrupoAtividade({ initialData, isEditing, onSubmit, onCancel }) {
+export default function FormularioGrupoAtividade({ initialData, isEditing, onSubmit, onCancel, variant = "card" }) {
+  const embedded = variant === "embedded";
   const [errors, setErrors] = useState({});
   const [formData, setFormData] = useState({
     nome_grupo: "",
@@ -88,12 +89,14 @@ export default function FormularioGrupoAtividade({ initialData, isEditing, onSub
   return (
     <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
       <Card className="shadow-sm border-slate-300">
-        <CardHeader className="flex flex-col space-y-1.5 p-6 bg-slate-50 border-b py-1 px-1">
-          <CardTitle className="text-sm font-semibold text-slate-900">
-            {isEditing ? "Editar Grupo de Atividades" : "Novo Grupo de Atividades"}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-1">
+        {!embedded ? (
+          <CardHeader className="flex flex-col space-y-1.5 p-6 bg-slate-50 border-b py-1 px-1">
+            <CardTitle className="text-sm font-semibold text-slate-900">
+              {isEditing ? "Editar Grupo de Atividades" : "Novo Grupo de Atividades"}
+            </CardTitle>
+          </CardHeader>
+        ) : null}
+        <CardContent className={embedded ? "p-3 pt-2" : "p-1"}>
           <form onSubmit={handleSubmit} className="space-y-0.5">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
               <FL label="Nome do Grupo" required error={errors.nome_grupo} dataField="nome_grupo">
