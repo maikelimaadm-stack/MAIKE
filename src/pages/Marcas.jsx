@@ -38,6 +38,7 @@ export default function Marcas() {
   });
 
   const updateMutation = useMutation({
+    /** @param {{ id: string; data: object }} vars */
     mutationFn: ({ id, data }) => atualizarMarca(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["marcas"] });
@@ -91,6 +92,33 @@ export default function Marcas() {
   const handleEditSelected = () => {
     const item = marcas.find((m) => m.id === chrome.selectedIds[0]);
     if (item) handleEdit(item);
+  };
+
+  const handleDuplicateSelected = () => {
+    const item = marcas.find((m) => m.id === chrome.selectedIds[0]);
+    if (!item) return;
+    setEditingItem({
+      ...item,
+      id: undefined,
+      nome: item.nome ? `${item.nome} (cópia)` : "",
+    });
+    setShowForm(true);
+  };
+
+  const exportCsv = () => {
+    const esc = (s) => `"${String(s ?? "").replace(/"/g, '""')}"`;
+    const lines = [
+      ["Nº", "Nome", "Descrição", "Ativo"].map(esc).join(";"),
+      ...marcas.map((m) =>
+        [m.numero_marca, m.nome, m.descricao, m.ativo !== false ? "Sim" : "Não"].map(esc).join(";"),
+      ),
+    ];
+    const blob = new Blob(["\ufeff" + lines.join("\n")], { type: "text/csv;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "marcas.csv";
+    a.click();
+    URL.revokeObjectURL(a.href);
   };
 
   const handleRequestDelete = (id) => {
@@ -158,7 +186,10 @@ export default function Marcas() {
               createLabel="Novo"
               onNew={openNew}
               onEdit={handleEditSelected}
+              onDuplicate={handleDuplicateSelected}
               onDelete={handleDeleteSelected}
+              attachDisabledReason="Anexos disponíveis quando o cadastro tiver auditoria nativa."
+              onExportCsv={exportCsv}
               searchValue={chrome.searchInput}
               onSearchChange={chrome.setSearchInput}
               onSearchApply={chrome.applySearch}

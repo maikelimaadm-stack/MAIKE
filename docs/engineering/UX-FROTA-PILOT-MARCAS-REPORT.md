@@ -147,3 +147,18 @@ Branch `cursor/ux-base1-paridade-pagina-completa-516d`:
 | `DetalhesBebedouro` | Botões Lançar/Histórico e seções mg-card |
 
 **Fora do padrão lista (por desenho):** `MapaGeral`, `MapaCadastro`.
+
+## UX-13 (2026-10-23) — Motor Base1 (frota/equipamentos CONTROLE-DE-ESTOQUE)
+
+Referência: `ResourceList` + `Base1List` + `Base1Grid` em `/frota` (aba Equipamentos = inventário).
+
+| Artefato | Função |
+|----------|--------|
+| `Base1Ui.jsx` | `IconBtn`, `PillBtn`, `ViewSwitch`, `B1Popover`, `MenuList`, `MgCheck` |
+| `Base1Grid.jsx` | Grade `mg-grid` (30px/26px, seleção verde, menu de coluna, resize/congelar) |
+| `selectClick.js` | Seleção Ctrl/Shift como no MG |
+| `cadastro-base1.css` | Tokens + `.mg-grid`, `.mg-check`, `.mg-field`, faixa de filtros recolhível |
+| `CadastroListaChrome.jsx` | Toolbar completa: Duplicar, Anexos, Mais opções, rodapé com page size / carregar mais |
+| `TabelaMarcas.jsx` | **Piloto** migrado para `Base1Grid` (sem colunas legadas Seleção/Ações) |
+
+Próximo passo: repetir `Base1Grid` em Produtos/Setores e demais cadastros; cards/registro embutido quando houver API de preferências ou stub local.
