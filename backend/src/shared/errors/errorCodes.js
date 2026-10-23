@@ -77,6 +77,12 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   // o 403 confirma que o registro existe em outro cliente, entregando
   // informação sobre dado que quem perguntou não pode ver.
   SETOR_NOT_FOUND: { http: 404, meaning: 'id não identifica setor deste tenant' },
+  // P4.2: mesmo raciocínio do anterior, para área de pastagem. São dois códigos
+  // e não um `RECURSO_NAO_ENCONTRADO` genérico porque a tela reage diferente:
+  // setor sumido invalida o vínculo do formulário de área, área sumida invalida
+  // só a linha. Um código único obrigaria o frontend a inspecionar `details`
+  // para descobrir do que o servidor está falando.
+  AREA_NOT_FOUND: { http: 404, meaning: 'id não identifica área de pastagem deste tenant' },
   INTERNAL_ERROR: { http: 500, meaning: 'erro não previsto' },
 });
 
