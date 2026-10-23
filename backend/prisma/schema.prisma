@@ -97,6 +97,9 @@ model Usuario {
   // solto que poderia pertencer a outro tenant. Ver AuditLog.
   @@unique([cliente_id, id])
   @@index([cliente_id, ativo])
+  // Busca por login na autenticação (D-PROD-32) usa scan filtrado; índice só
+  // em `login` violaria `gate:indices` (prefixo tenant). Login globalmente
+  // único fica para P6/administração de usuários.
 }
 
 // ---------------------------------------------------------------------------

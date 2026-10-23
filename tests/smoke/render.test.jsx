@@ -170,6 +170,7 @@ describe('App — montagem completa', () => {
 
     // Login ausente: nenhum campo de credencial na tela.
     expect(screen.queryByLabelText('Cliente')).toBeNull();
+    expect(screen.queryByLabelText('Usuário')).toBeNull();
     expect(screen.queryByLabelText('Senha')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Entrar' })).toBeNull();
 
@@ -185,7 +186,8 @@ describe('App — montagem completa', () => {
     // caminho normal de "precisa entrar".
     await montarAppCom({ isAuthenticated: false, sessionValidationError: null });
 
-    expect(await screen.findByLabelText('Cliente')).toBeInTheDocument();
+    expect(await screen.findByLabelText('Usuário')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Cliente')).toBeNull();
     expect(screen.getByLabelText('Senha')).toBeInTheDocument();
     expect(screen.queryByText('Não foi possível validar sua sessão.')).toBeNull();
 

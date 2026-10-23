@@ -323,7 +323,6 @@ describe('P4B — bootstrap local', () => {
     await app.ready();
     try {
       const { resposta, corpo } = await autenticarNoApp(app, {
-        cliente: 'FAZENDA-1',
         login: 'maike',
         senha: 'senha-local-de-teste',
       });
@@ -343,7 +342,6 @@ describe('P4B — bootstrap local', () => {
 
       // Senha errada continua sendo recusada com a mensagem única.
       const errada = await autenticarNoApp(app, {
-        cliente: 'FAZENDA-1',
         login: 'maike',
         senha: 'senha-errada',
       });

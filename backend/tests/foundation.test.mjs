@@ -100,13 +100,12 @@ describe('autenticação', () => {
     assert.deepEqual(Object.keys(payload).sort(), ['cliente_id', 'exp', 'iat', 'login', 'usuario_id']);
   });
 
-  test('BE-05 senha errada, usuário inexistente e cliente inexistente dão a MESMA resposta', async () => {
+  test('BE-05 senha errada e usuário inexistente dão a MESMA resposta', async () => {
     const { credenciais } = await criarTenant();
 
     const respostas = await Promise.all([
       autenticarNoApp(app, { ...credenciais, senha: 'errada' }),
       autenticarNoApp(app, { ...credenciais, login: 'nao-existe' }),
-      autenticarNoApp(app, { ...credenciais, cliente: 'cliente-inexistente' }),
     ]);
 
     for (const { resposta, corpo } of respostas) {
@@ -114,6 +113,21 @@ describe('autenticação', () => {
       assert.equal(corpo.code, 'AUTH_INVALID_CREDENTIALS');
       assert.equal(corpo.message, 'credenciais inválidas');
     }
+  });
+
+  test('BE-05b login ambíguo (mesmo login em dois tenants) recusa como credencial inválida', async () => {
+    const a = await criarTenant({ codigo: 'tenant-a', login: 'duplicado' });
+    const b = await criarTenant({ codigo: 'tenant-b', login: 'duplicado' });
+
+    assert.ok(a.cliente.id !== b.cliente.id);
+
+    const { resposta, corpo } = await autenticarNoApp(app, {
+      login: 'duplicado',
+      senha: a.credenciais.senha,
+    });
+
+    assert.equal(resposta.statusCode, 401);
+    assert.equal(corpo.code, 'AUTH_INVALID_CREDENTIALS');
   });
 
   test('BE-06 usuário inativo não autentica', async () => {
@@ -144,6 +158,16 @@ describe('autenticação', () => {
     assert.equal(resposta.statusCode, 200);
     assert.equal(resposta.json().cliente_id, cliente.id);
     assert.equal(resposta.json().usuario_id, usuario.id);
+  });
+
+  test('BE-09a cliente enviado no corpo do login é REJEITADO na porta', async () => {
+    const { credenciais } = await criarTenant();
+    const resposta = await app.inject({
+      method: 'POST',
+      url: '/auth/login',
+      payload: { ...credenciais, cliente: 'FAZENDA' },
+    });
+    assert.equal(resposta.statusCode, 400);
   });
 
   test('BE-09 cliente_id enviado no corpo do login é REJEITADO na porta', async () => {

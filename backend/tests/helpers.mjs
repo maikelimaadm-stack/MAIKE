@@ -61,7 +61,7 @@ export const criarTenant = async (opcoes = {}) => {
     },
   });
 
-  return { cliente, usuario, credenciais: { cliente: codigo, login, senha } };
+  return { cliente, usuario, credenciais: { login, senha } };
 };
 
 /** Monta o app sem abrir porta. */
@@ -70,7 +70,7 @@ export const criarApp = async () => construirApp({ logger: false });
 /**
  * Autentica e devolve o token.
  * @param {import('fastify').FastifyInstance} app
- * @param {{cliente: string, login: string, senha: string}} credenciais
+ * @param {{login: string, senha: string}} credenciais
  */
 export const autenticarNoApp = async (app, credenciais) => {
   const resposta = await app.inject({

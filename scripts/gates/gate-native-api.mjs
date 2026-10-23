@@ -235,9 +235,8 @@ const verificarFonteDeTenant = () => {
 
   const codigo = semComentarios(ler(SESSION_API));
 
-  // O corpo do login tem exatamente três campos. `cliente_id` é **resultado**
-  // da autenticação, e enviá-lo faria o tenant vir do payload — o que a P3
-  // gastou um gate inteiro para impedir do lado do servidor.
+  // O corpo do login tem exatamente `login` e `senha` (D-PROD-33). Tenant vem
+  // da resposta/JWT, nunca do payload de entrada.
   const corpoDoLogin = codigo.match(/body:\s*\{[^}]*\}/)?.[0] ?? '';
   if (/\bcliente_id\s*:/.test(corpoDoLogin)) {
     registrar(
@@ -245,8 +244,14 @@ const verificarFonteDeTenant = () => {
       `${SESSION_API} envia cliente_id no corpo do login: o tenant vem do auth_context, nunca do cliente`
     );
   }
-  if (!/\bcliente\s*[,:]/.test(corpoDoLogin)) {
-    registrar('P4-NATIVE-TENANT-SOURCE', `${SESSION_API} precisa enviar 'cliente' (código operacional) no login`);
+  if (/\bcliente\s*[,:]/.test(corpoDoLogin)) {
+    registrar(
+      'P4-NATIVE-TENANT-SOURCE',
+      `${SESSION_API} ainda envia 'cliente' no login: o contrato é só login e senha (D-PROD-33)`
+    );
+  }
+  if (!/\blogin\s*:/.test(corpoDoLogin) || !/\bsenha\s*[,}]/.test(corpoDoLogin)) {
+    registrar('P4-NATIVE-TENANT-SOURCE', `${SESSION_API} precisa enviar login e senha no corpo do login`);
   }
 
   // O transporte também não pode carimbar tenant por header nem no corpo.

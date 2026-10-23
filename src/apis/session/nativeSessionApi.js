@@ -7,9 +7,8 @@
  *
  * ─── O contrato de login, e o campo que ele NÃO tem ────────────────────────
  *
- * O corpo é exatamente `{cliente, login, senha}`. `cliente` é o **código
- * operacional** do tenant, digitado por quem entra; `cliente_id` é o que o
- * backend **devolve** depois de autenticar.
+ * O corpo é exatamente `{login, senha}` (D-PROD-33). `cliente_id` é o que o
+ * backend **devolve** depois de autenticar — nunca entra no formulário.
  *
  * Essa inversão é a regra de tenancy inteira em uma linha: se o cliente HTTP
  * pudesse enviar `cliente_id`, o tenant viria do payload, e a P3 gastou um gate
@@ -110,25 +109,24 @@ const descartarSessaoLocal = () => {
  * Falha em qualquer ponto limpa o token: sessão pela metade é pior que sessão
  * ausente, porque a tela acha que está dentro.
  *
- * @param {{cliente: string, login: string, senha: string}} credenciais
+ * @param {{login: string, senha: string}} credenciais
  * @returns {Promise<{usuario: object, clienteId: string}>}
  */
 export const login = async (credenciais) => {
-  const cliente = texto(credenciais?.cliente);
   const usuarioLogin = texto(credenciais?.login);
   const senha = typeof credenciais?.senha === 'string' ? credenciais.senha : '';
 
-  if (!cliente || !usuarioLogin || !senha) {
+  if (!usuarioLogin || !senha) {
     throw new ApiError(API_ERROR_CODES.INVALID_ARGUMENT, {
       ...ctx('login'),
-      details: { campos: ['cliente', 'login', 'senha'] },
+      details: { campos: ['login', 'senha'] },
     });
   }
 
-  // Exatamente três campos. Nunca `cliente_id`, nunca `usuario_id`.
+  // Exatamente dois campos. Nunca `cliente`, `cliente_id` nem `usuario_id`.
   const corpo = await nativeRequest(
     '/auth/login',
-    { method: 'POST', body: { cliente, login: usuarioLogin, senha } },
+    { method: 'POST', body: { login: usuarioLogin, senha } },
     ctx('login')
   );
 
