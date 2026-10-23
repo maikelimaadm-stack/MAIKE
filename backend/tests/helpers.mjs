@@ -49,8 +49,8 @@ export const encerrar = async () => {
 export const criarTenant = async (opcoes = {}) => {
   const prisma = getPrismaClient();
   const codigo = opcoes.codigo || `t-${randomUUID().slice(0, 8)}`;
-  // Login único por tenant: login global ambíguo (D-PROD-33) reprova autenticação
-  // quando dois tenants compartilham o mesmo `operador` padrão nos testes.
+  // Login único global entre ativos (D-PROD-35): default por tenant evita colisão
+  // acidental quando o teste não passa `login` explícito.
   const login = opcoes.login ?? `operador-${codigo}`;
   const senha = opcoes.senha || 'senha-de-teste-1';
 

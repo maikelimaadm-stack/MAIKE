@@ -128,19 +128,13 @@ describe('autenticação', () => {
     assert.equal(corpo.usuario.login, 'operador-case');
   });
 
-  test('BE-05b login ambíguo (mesmo login em dois tenants) recusa como credencial inválida', async () => {
-    const a = await criarTenant({ codigo: 'tenant-a', login: 'duplicado' });
-    const b = await criarTenant({ codigo: 'tenant-b', login: 'duplicado' });
+  test('BE-05b variação case-insensitive do login não cria segundo usuário ativo (D-PROD-35)', async () => {
+    await criarTenant({ codigo: 'tenant-a', login: 'operador-uni' });
 
-    assert.ok(a.cliente.id !== b.cliente.id);
-
-    const { resposta, corpo } = await autenticarNoApp(app, {
-      login: 'duplicado',
-      senha: a.credenciais.senha,
-    });
-
-    assert.equal(resposta.statusCode, 401);
-    assert.equal(corpo.code, 'AUTH_INVALID_CREDENTIALS');
+    await assert.rejects(
+      () => criarTenant({ codigo: 'tenant-b', login: 'OPERADOR-UNI' }),
+      (erro) => erro.code === 'P2002'
+    );
   });
 
   test('BE-06 usuário inativo não autentica', async () => {
@@ -240,9 +234,13 @@ describe('isolamento entre tenants', () => {
     assert.doesNotThrow(() => exigirMesmoTenant(contextoA, { cliente_id: a.cliente.id }));
   });
 
-  test('BE-12 login igual em tenants diferentes coexiste; repetido no mesmo tenant conflita', async () => {
+  test('BE-12 login global único entre tenants ativos e dentro do mesmo tenant', async () => {
     const a = await criarTenant({ codigo: 'dup-a', login: 'mesmo-login' });
-    await criarTenant({ codigo: 'dup-b', login: 'mesmo-login' });
+
+    await assert.rejects(
+      () => criarTenant({ codigo: 'dup-b', login: 'mesmo-login' }),
+      (erro) => erro.code === 'P2002'
+    );
 
     const prisma = getPrismaClient();
     await assert.rejects(
