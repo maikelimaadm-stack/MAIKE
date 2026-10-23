@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -42,7 +41,11 @@ export default function TabelaSetores({
   onEdit,
   onDelete,
   showConfigColunas,
-  setShowConfigColunas
+  setShowConfigColunas,
+  searchQuery = "",
+  resetFiltersKey = 0,
+  onSelectionChange,
+  onFiltersActiveChange,
 }) {
   const [selectedItems, setSelectedItems] = useState([]);
   const [sortConfig, setSortConfig] = useState({ key: "nome", direction: "asc" });
@@ -109,6 +112,22 @@ export default function TabelaSetores({
 
   useEffect(() => {setSelectedItems((prev) => prev.filter((id) => setores.some((s) => s.id === id)));}, [setores]);
 
+  useEffect(() => {
+    if (resetFiltersKey > 0) {
+      setFiltrosColunas({});
+      setSortConfig({ key: "nome", direction: "asc" });
+    }
+  }, [resetFiltersKey]);
+
+  useEffect(() => {
+    onSelectionChange?.(selectedItems);
+  }, [selectedItems, onSelectionChange]);
+
+  useEffect(() => {
+    const active = Object.values(filtrosColunas).some((v) => (v || []).length > 0);
+    onFiltersActiveChange?.(active);
+  }, [filtrosColunas, onFiltersActiveChange]);
+
   const toggleColuna = (colunaId) => {
     const novas = colunasVisiveis.includes(colunaId) ? colunasVisiveis.filter((id) => id !== colunaId) : [...colunasVisiveis, colunaId];
     setColunasVisiveis(novas);
@@ -155,14 +174,22 @@ export default function TabelaSetores({
   const clearColumnFilter = (colunaId) => setValoresFiltro(colunaId, []);
 
   const setoresFiltrados = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
     return setores.filter((item) => {
+      if (q) {
+        const hay = [item.nome, item.sigla, item.cidade, item.responsavel]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
       return COLUNAS_DISPONIVEIS.filter((c) => !c.fixo).every((col) => {
         const filtro = filtrosColunas[col.id] || [];
         if (filtro.length === 0) return true;
         return filtro.includes(getFieldValue(item, col.id));
       });
     });
-  }, [setores, filtrosColunas]);
+  }, [setores, filtrosColunas, searchQuery]);
 
   const setoresOrdenados = useMemo(() => {
     const sorted = [...setoresFiltrados];
@@ -312,35 +339,8 @@ export default function TabelaSetores({
   };
 
   return (
-    <div className="space-y-1 overflow-hidden">
-      <div className="flex justify-between items-center px-1 gap-2 flex-wrap">
-        <div className="text-xs text-slate-500">
-          {setoresFiltrados.length} de {setores.length} registros
-        </div>
-        <div className="flex gap-2 flex-wrap">
-          {selectedItems.length > 0 &&
-          <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="h-7 text-xs">Ações ({selectedItems.length})</Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                <DropdownMenuLabel className="text-xs">Ações em Lote</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={exportarTabela} className="text-xs">Exportar Selecionados</DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleExcluirSelecionados} className="text-xs text-red-600">Excluir Selecionados</DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => setSelectedItems([])} className="text-xs">Limpar Seleção</DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          }
-        </div>
-      </div>
-
-      <Card className="overflow-hidden">
-        <CardContent className="p-0 overflow-hidden">
-          <div className="relative overflow-hidden">
-            <div ref={scrollContainerRef} className="relative w-full overflow-auto max-h-[calc(100dvh-240px)] md:max-h-[calc(100dvh-150px)]" style={{ overscrollBehavior: 'none', WebkitOverflowScrolling: 'touch' }}>
+    <div className="overflow-hidden">
+            <div ref={scrollContainerRef} className="relative w-full overflow-auto max-h-[calc(100dvh-280px)] md:max-h-[calc(100dvh-220px)]" style={{ overscrollBehavior: 'none', WebkitOverflowScrolling: 'touch' }}>
               <Table ref={tableRef} className={`w-full ${isMobile ? "min-w-[720px]" : "min-w-[900px]"} border-separate border-spacing-0 table-fixed`}>
                 <TableHeader className="bg-white">
                   <TableRow className="sticky top-0 z-40 bg-white">
@@ -392,7 +392,7 @@ export default function TabelaSetores({
                           }
 
                           {isResizing &&
-                          <div className="absolute top-0 -right-0 h-full w-5 z-50 flex items-center justify-center cursor-col-resize bg-lime-800 "
+                          <div className="mg-grid-resize-handle absolute top-0 -right-0 h-full w-5 z-50 flex items-center justify-center cursor-col-resize "
 
                           onMouseDown={(e) => startDragResize(e, coluna.id)}
                           onTouchStart={(e) => startDragResize(e, coluna.id)}
@@ -492,9 +492,6 @@ export default function TabelaSetores({
                 </TableBody>
               </Table>
             </div>
-          </div>
-        </CardContent>
-      </Card>
 
       <ConfiguracaoColunasMapaDialog
         open={showConfigColunas}

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import {
   listarProdutosDaEmpresa,
   proximoNumeroDeProduto,
@@ -19,7 +19,7 @@ import { getApiErrorMessage, hasApiErrorCode, API_ERROR_CODES } from "@/apis/_co
 import { emitDeleteDialog } from "@/lib/deleteDialogBus";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Settings, Download, Upload, FileSpreadsheet, Loader2, AlertCircle, X, Plus } from "lucide-react";
+import { Download, Upload, FileSpreadsheet, Loader2, AlertCircle, X, RefreshCw } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -42,6 +42,8 @@ import {
 
 
 import CadastroWorkspace from "@/components/cadastro/CadastroWorkspace";
+import CadastroListaChrome from "@/components/cadastro/base1/CadastroListaChrome";
+import { useCadastroListaChromeState } from "@/hooks/useCadastroListaChromeState";
 import FormularioProduto from "../components/produtos/FormularioProduto";
 import TabelaProdutos from "../components/produtos/TabelaProdutos";
 import FichaProduto from "../components/produtos/FichaProduto";
@@ -55,6 +57,8 @@ export default function Produtos() {
   const [fichaProduto, setFichaProduto] = useState(null);
   const [showImportProgress, setShowImportProgress] = useState(false);
   const [showConfigColunas, setShowConfigColunas] = useState(false);
+  const [bulkDeleteSignal, setBulkDeleteSignal] = useState(0);
+  const chrome = useCadastroListaChromeState();
   const [importProgress, setImportProgress] = useState({ current: 0, total: 0, errors: 0 });
 
   const [showErrorDialog, setShowErrorDialog] = useState(false);
@@ -276,49 +280,63 @@ export default function Produtos() {
   const closeForm = () => {
     setShowForm(false);
     setEditingProduto(null);
+    chrome.setViewMode("table");
   };
+
+  const openNew = () => {
+    setEditingProduto(null);
+    setShowForm(true);
+  };
+
+  const handleEditSelected = useCallback(() => {
+    const item = produtos.find((p) => p.id === chrome.selectedIds[0]);
+    if (item) handleEdit(item);
+  }, [produtos, chrome.selectedIds]);
+
+  const handleDeleteSelected = () => {
+    if (!chrome.selectedIds.length) return;
+    setBulkDeleteSignal((n) => n + 1);
+  };
+
+  const onViewModeChange = useCallback((mode) => {
+    chrome.handleViewModeChange(mode, { onOpenRecord: () => handleEditSelected() });
+  }, [chrome, handleEditSelected]);
+
+  const filtradosCount = useMemo(() => {
+    const q = chrome.appliedSearch.trim().toLowerCase();
+    if (!q) return produtos.length;
+    return produtos.filter((p) => {
+      const hay = [p.nome_produto, p.codigo_interno, p.categoria, p.marca, p.numero_produto]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return hay.includes(q);
+    }).length;
+  }, [produtos, chrome.appliedSearch]);
 
   const detailTitle = editingProduto?.id ? "Editar produto" : "Novo produto";
 
-  const listToolbar = (
+  const extraToolbar = (
     <>
-      <Button variant="outline" size="sm" onClick={() => refetch()} className="h-8 text-xs">
+      <button type="button" className="tb-btn tb-btn-gray" onClick={() => refetch()}>
+        <RefreshCw aria-hidden />
         Atualizar
-      </Button>
-      <Button onClick={handleExport} variant="outline" size="sm" className="h-8 text-xs gap-1">
-        <Download className="w-3.5 h-3.5" /> Exportar
-      </Button>
-      <Button onClick={downloadTemplate} variant="outline" size="sm" className="h-8 text-xs gap-1">
-        <FileSpreadsheet className="w-3.5 h-3.5" /> Modelo
-      </Button>
-      <label>
-        <Button variant="outline" size="sm" className="h-8 text-xs gap-1 cursor-pointer" asChild>
-          <span>
-            <Upload className="w-3.5 h-3.5" /> Importar
-          </span>
-        </Button>
+      </button>
+      <button type="button" className="tb-btn tb-btn-gray" onClick={handleExport}>
+        <Download aria-hidden />
+        Exportar
+      </button>
+      <button type="button" className="tb-btn tb-btn-gray" onClick={downloadTemplate}>
+        <FileSpreadsheet aria-hidden />
+        Modelo
+      </button>
+      <label className="inline-flex">
+        <span className="tb-btn tb-btn-gray cursor-pointer">
+          <Upload aria-hidden />
+          Importar
+        </span>
         <input type="file" accept=".csv" onChange={handleImport} className="hidden" disabled={showImportProgress} />
       </label>
-      <Button
-        variant="outline"
-        size="icon"
-        onClick={() => setShowConfigColunas(true)}
-        className="h-8 w-8"
-        aria-label="Configurar colunas"
-      >
-        <Settings className="w-4 h-4" />
-      </Button>
-      <Button
-        onClick={() => {
-          setEditingProduto(null);
-          setShowForm(true);
-        }}
-        size="sm"
-        className="h-8 gap-1 bg-emerald-600 text-white hover:bg-emerald-700"
-      >
-        <Plus className="w-3.5 h-3.5" />
-        Adicionar
-      </Button>
     </>
   );
 
@@ -333,7 +351,7 @@ export default function Produtos() {
             : "Catálogo de produtos — importação CSV, exportação e colunas configuráveis."
         }
         onBack={showForm ? closeForm : undefined}
-        toolbar={showForm ? null : listToolbar}
+        toolbar={null}
       >
         <AnimatePresence mode="wait">
           {showForm ? (
@@ -346,16 +364,42 @@ export default function Produtos() {
               isEditing={!!editingProduto}
             />
           ) : (
-            <TabelaProdutos
-              key="table"
-              produtos={produtos}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
-              onPrint={handlePrint}
-              isLoading={isLoading}
-              showConfigColunas={showConfigColunas}
-              setShowConfigColunas={setShowConfigColunas}
-            />
+            <CadastroListaChrome
+              key="chrome"
+              selectedCount={chrome.selectedIds.length}
+              listados={produtos.length}
+              filtrados={filtradosCount}
+              totais={produtos.length}
+              onNew={openNew}
+              onEdit={handleEditSelected}
+              onDelete={handleDeleteSelected}
+              searchValue={chrome.searchInput}
+              onSearchChange={chrome.setSearchInput}
+              onSearchApply={chrome.applySearch}
+              searchActive={chrome.searchActive}
+              searchPlaceholder="Buscar produtos…"
+              onConfigureColumns={() => setShowConfigColunas(true)}
+              onClearFilters={chrome.clearFilters}
+              filtersActive={chrome.filtersActive}
+              viewMode={chrome.viewMode}
+              onViewModeChange={onViewModeChange}
+              extraToolbar={extraToolbar}
+            >
+              <TabelaProdutos
+                produtos={produtos}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+                onPrint={handlePrint}
+                isLoading={isLoading}
+                showConfigColunas={showConfigColunas}
+                setShowConfigColunas={setShowConfigColunas}
+                searchQuery={chrome.appliedSearch}
+                resetFiltersKey={chrome.resetFiltersKey}
+                onSelectionChange={chrome.onSelectionChange}
+                onFiltersActiveChange={chrome.setFiltersActive}
+                bulkDeleteSignal={bulkDeleteSignal}
+              />
+            </CadastroListaChrome>
           )}
         </AnimatePresence>
       </CadastroWorkspace>

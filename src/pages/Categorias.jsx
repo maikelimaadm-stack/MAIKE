@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import {
   listarTodasCategorias,
   criarCategoria,
@@ -8,11 +8,11 @@ import {
 import { getApiErrorMessage } from "@/apis/_core/ApiError";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import { Plus, Settings } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 import CadastroWorkspace from "@/components/cadastro/CadastroWorkspace";
+import CadastroListaChrome from "@/components/cadastro/base1/CadastroListaChrome";
+import { useCadastroListaChromeState } from "@/hooks/useCadastroListaChromeState";
 import FormularioCategoriaProduto from "../components/categorias-produto/FormularioCategoriaProduto";
 import TabelaCategoriasProduto from "../components/categorias-produto/TabelaCategoriasProduto";
 
@@ -21,6 +21,7 @@ export default function Categorias() {
   const [editingItem, setEditingItem] = useState(null);
   const [showConfigColunas, setShowConfigColunas] = useState(false);
   const [deleteState, setDeleteState] = useState({ open: false, ids: [] });
+  const chrome = useCadastroListaChromeState();
   const queryClient = useQueryClient();
 
   const { data: categorias = [] } = useQuery({
@@ -54,6 +55,7 @@ export default function Categorias() {
     mutationFn: (/** @type {string[]} */ ids) => excluirCategorias(ids),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["categorias_produto"] });
+      chrome.setSelectedIds([]);
       toast.success("Categoria(s) excluída(s)!");
     },
     onError: (err) => toast.error(getApiErrorMessage(err, "Erro ao excluir")),
@@ -62,6 +64,12 @@ export default function Categorias() {
   const closeForm = () => {
     setShowForm(false);
     setEditingItem(null);
+    chrome.setViewMode("table");
+  };
+
+  const openNew = () => {
+    setEditingItem(null);
+    setShowForm(true);
   };
 
   const handleSubmit = (data) => {
@@ -74,9 +82,19 @@ export default function Categorias() {
     setShowForm(true);
   };
 
+  const handleEditSelected = () => {
+    const item = categorias.find((c) => c.id === chrome.selectedIds[0]);
+    if (item) handleEdit(item);
+  };
+
   const handleRequestDelete = (id) => {
     const ids = Array.isArray(id) ? id : [id];
     setDeleteState({ open: true, ids });
+  };
+
+  const handleDeleteSelected = () => {
+    if (!chrome.selectedIds.length) return;
+    handleRequestDelete(chrome.selectedIds);
   };
 
   const handleConfirmDelete = () => {
@@ -84,32 +102,22 @@ export default function Categorias() {
     setDeleteState({ open: false, ids: [] });
   };
 
-  const detailTitle = editingItem?.id ? "Editar categoria" : "Nova categoria";
+  const onViewModeChange = useCallback((mode) => {
+    chrome.handleViewModeChange(mode, {
+      onOpenRecord: () => handleEditSelected(),
+    });
+  }, [chrome, handleEditSelected]);
 
-  const listToolbar = (
-    <>
-      <Button
-        variant="outline"
-        size="icon"
-        onClick={() => setShowConfigColunas(true)}
-        className="h-8 w-8"
-        aria-label="Configurar colunas"
-      >
-        <Settings className="h-4 w-4" />
-      </Button>
-      <Button
-        onClick={() => {
-          setShowForm(true);
-          setEditingItem(null);
-        }}
-        size="sm"
-        className="h-8 gap-1 bg-emerald-600 text-white hover:bg-emerald-700"
-      >
-        <Plus className="h-3.5 w-3.5" />
-        Adicionar
-      </Button>
-    </>
-  );
+  const filtradosCount = useMemo(() => {
+    const q = chrome.appliedSearch.trim().toLowerCase();
+    if (!q) return categorias.length;
+    return categorias.filter((c) => {
+      const hay = [c.nome, c.descricao].filter(Boolean).join(" ").toLowerCase();
+      return hay.includes(q);
+    }).length;
+  }, [categorias, chrome.appliedSearch]);
+
+  const detailTitle = editingItem?.id ? "Editar categoria" : "Nova categoria";
 
   return (
     <>
@@ -122,7 +130,7 @@ export default function Categorias() {
             : "Cadastro global de categorias usadas em produtos."
         }
         onBack={showForm ? closeForm : undefined}
-        toolbar={showForm ? null : listToolbar}
+        toolbar={null}
       >
         <AnimatePresence mode="wait">
           {showForm ? (
@@ -135,14 +143,38 @@ export default function Categorias() {
               categoriasExistentes={categorias}
             />
           ) : (
-            <TabelaCategoriasProduto
-              key="table"
-              categorias={categorias}
-              onEdit={handleEdit}
-              onDelete={handleRequestDelete}
-              showConfigColunas={showConfigColunas}
-              setShowConfigColunas={setShowConfigColunas}
-            />
+            <CadastroListaChrome
+              key="chrome"
+              selectedCount={chrome.selectedIds.length}
+              listados={categorias.length}
+              filtrados={filtradosCount}
+              totais={categorias.length}
+              onNew={openNew}
+              onEdit={handleEditSelected}
+              onDelete={handleDeleteSelected}
+              searchValue={chrome.searchInput}
+              onSearchChange={chrome.setSearchInput}
+              onSearchApply={chrome.applySearch}
+              searchActive={chrome.searchActive}
+              searchPlaceholder="Buscar categorias…"
+              onConfigureColumns={() => setShowConfigColunas(true)}
+              onClearFilters={chrome.clearFilters}
+              filtersActive={chrome.filtersActive}
+              viewMode={chrome.viewMode}
+              onViewModeChange={onViewModeChange}
+            >
+              <TabelaCategoriasProduto
+                categorias={categorias}
+                onEdit={handleEdit}
+                onDelete={handleRequestDelete}
+                showConfigColunas={showConfigColunas}
+                setShowConfigColunas={setShowConfigColunas}
+                searchQuery={chrome.appliedSearch}
+                resetFiltersKey={chrome.resetFiltersKey}
+                onSelectionChange={chrome.onSelectionChange}
+                onFiltersActiveChange={chrome.setFiltersActive}
+              />
+            </CadastroListaChrome>
           )}
         </AnimatePresence>
       </CadastroWorkspace>

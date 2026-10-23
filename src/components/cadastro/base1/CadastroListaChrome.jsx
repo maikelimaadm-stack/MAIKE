@@ -36,6 +36,7 @@ export default function CadastroListaChrome({
   onViewModeChange,
   recordModeAvailable = true,
   filterRailHint = null,
+  extraToolbar = null,
 }) {
   const oneSelected = selectedCount === 1;
   const anySelected = selectedCount > 0;
@@ -49,6 +50,7 @@ export default function CadastroListaChrome({
             {createLabel}
           </button>
         ) : null}
+        {extraToolbar}
         {onEdit ? (
           <button
             type="button"
