@@ -62,10 +62,27 @@ describe('P4T — configuração do transporte nativo', () => {
     expect(isNativeApiConfigured()).toBe(true);
   });
 
-  it('P4T-01b variável ausente devolve null, sem inventar destino', async () => {
+  it('P4T-01b variável ausente usa a origem do navegador (monólito Vercel)', async () => {
     vi.stubEnv('VITE_MAIKE_API_URL', '');
     const { getNativeApiUrl } = await import('@/config/runtimeConfig');
-    expect(getNativeApiUrl()).toBeNull();
+    const origem =
+      typeof window !== 'undefined' && window.location?.origin
+        ? window.location.origin.replace(/\/+$/, '')
+        : null;
+    expect(getNativeApiUrl()).toBe(origem);
+  });
+
+  it('P4T-01i env de alias Vercel e origem de deployment divergem → mesma origem', async () => {
+    vi.stubEnv('VITE_MAIKE_API_URL', 'https://maike-five.vercel.app');
+    const locationAnterior = window.location;
+    vi.stubGlobal('location', {
+      ...locationAnterior,
+      origin: 'https://maike-preview-abc.vercel.app',
+    });
+    vi.resetModules();
+    const { getNativeApiUrl } = await import('@/config/runtimeConfig');
+    expect(getNativeApiUrl()).toBe('https://maike-preview-abc.vercel.app');
+    vi.stubGlobal('location', locationAnterior);
   });
 
   it('P4T-02 a URL do MAIKE e a da Base44 são independentes', async () => {
@@ -451,16 +468,14 @@ describe('P4T — tradução de erro', () => {
     expect(erro.retryable).toBe(true);
   });
 
-  it('P4T-13b URL nativa ausente também vira indisponibilidade, sem chamar a rede', async () => {
+  it('P4T-13b env vazia usa a origem do navegador; falha de rede vira indisponibilidade', async () => {
     vi.stubEnv('VITE_MAIKE_API_URL', '');
-    const fetchMock = vi.fn();
-    vi.stubGlobal('fetch', fetchMock);
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')));
 
     const { login } = await carregar();
     const erro = await login({ login: 'j', senha: 's' }).catch((e) => e);
 
     expect(erro.code).toBe('API_PROVIDER_UNAVAILABLE');
-    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('P4T-14 código desconhecido do backend cai em fallback seguro', async () => {

@@ -295,8 +295,8 @@ describe('FE-P41 — erro do backend, sem fallback', () => {
     expect(getRegisteredEntityNames()).not.toContain('Setor');
   });
 
-  it('FE-P41-14 sem URL nativa configurada, a leitura falha em vez de chamar o host do frontend', async () => {
-    vi.stubEnv('VITE_MAIKE_API_URL', '');
+  it('FE-P41-14 env malformada falha fechado sem tocar na rede', async () => {
+    vi.stubEnv('VITE_MAIKE_API_URL', '//host-invalido');
     vi.stubGlobal('fetch', vi.fn(async () => respostaJson(200, [])));
     const { setores, erros } = await carregar();
 

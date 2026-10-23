@@ -109,7 +109,8 @@ const verificarConfig = () => {
   // A URL nativa não aceita override. Os parâmetros da Base44 aceitam por
   // herança do legado; o backend próprio nasce sem essa porta, porque trocar a
   // base URL redirecionaria o `Authorization` com o JWT para outro servidor.
-  const bloco = codigo.match(/export const getNativeApiUrl[\s\S]{0,400}/)?.[0] ?? '';
+  const bloco = codigo.match(/export const getNativeApiUrl[\s\S]{0,1200}/)?.[0] ?? '';
+  // `location.origin` é permitido (D-PROD-36, monólito Vercel); query string não.
   if (/localStorage|sessionStorage|URLSearchParams|location\.search/.test(bloco)) {
     registrar(
       'P4-NATIVE-CONFIG',
@@ -132,19 +133,21 @@ const verificarConfig = () => {
   // A regra é textual porque o gate é estático, mas não é cosmética: ela exige
   // que a validação exista **e** que `getNativeApiUrl` passe por ela. Remover
   // qualquer uma das duas pontas reprova.
+  const corpoComEsquemaExplicito =
+    codigo.match(/const comEsquemaExplicito = \(url\) => \{[\s\S]*?\n\};/)?.[0] ?? '';
   if (!/const\s+comEsquemaExplicito\s*=/.test(codigo)) {
     registrar(
       'P4-NATIVE-SCHEME',
       `${RUNTIME_CONFIG} precisa definir comEsquemaExplicito(): base sem esquema vira requisição same-origin`
     );
-  } else if (!/https\?:/.test(codigo)) {
+  } else if (!/\/\^https\?\:/.test(corpoComEsquemaExplicito)) {
     registrar(
       'P4-NATIVE-SCHEME',
       `comEsquemaExplicito() precisa testar o esquema http/https antes de aceitar a base`
     );
   }
 
-  if (!/export const getNativeApiUrl[^;]*comEsquemaExplicito\s*\(/.test(codigo)) {
+  if (!/export const getNativeApiUrl[\s\S]{0,1200}comEsquemaExplicito\s*\(/.test(codigo)) {
     registrar(
       'P4-NATIVE-SCHEME',
       `getNativeApiUrl() precisa passar por comEsquemaExplicito(): sem isso a base sem esquema chega ao fetch`
