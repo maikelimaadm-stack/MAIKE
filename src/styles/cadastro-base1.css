@@ -264,3 +264,14 @@
 .cadastro-b1 .mg-grid-resize-handle {
   background: var(--mg-accent);
 }
+
+/* Grade de dados — paridade TabelaProdutos / controle de estoque */
+.cadastro-b1 .cadastro-grade-viewport {
+  max-height: calc(100dvh - 280px);
+}
+
+@media (min-width: 768px) {
+  .cadastro-b1 .cadastro-grade-viewport {
+    max-height: calc(100dvh - 220px);
+  }
+}

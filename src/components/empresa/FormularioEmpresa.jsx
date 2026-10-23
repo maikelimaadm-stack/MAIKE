@@ -2,8 +2,21 @@ import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import CadastroFormField, {
+  CADASTRO_INPUT_CLS,
+  CADASTRO_SELECT_CLS,
+  CADASTRO_TEXTAREA_CLS,
+} from "@/components/cadastro/base1/CadastroFormField";
+
+const FL = ({ label, required = false, error = false, children, className = "" }) => (
+  <CadastroFormField label={label} required={required} error={error} className={className}>
+    {children}
+  </CadastroFormField>
+);
+const INPUT_CLS = CADASTRO_INPUT_CLS;
+const SELECT_CLS = CADASTRO_SELECT_CLS;
+const TEXTAREA_CLS = CADASTRO_TEXTAREA_CLS;
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Building2, Upload, X, Save } from "lucide-react";
 import { motion } from "framer-motion";
@@ -122,9 +135,9 @@ export default function FormularioEmpresa({
             scrollbarColor: "#cbd5e1 transparent",
           }}
         >
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-1">
-              <Label className="text-xs">Logotipo</Label>
+          <form onSubmit={handleSubmit} className="space-y-2">
+            <div className="space-y-1 pl-1">
+              <span className="text-[12px] text-slate-500">Logotipo</span>
               <div className="flex items-center gap-4">
                 {formData.logotipo_url && (
                   <img 
@@ -156,33 +169,30 @@ export default function FormularioEmpresa({
               </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-              <div className="space-y-1">
-                <Label className="text-xs">Apelido *</Label>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
+              <FL label="Apelido" required>
                 <Input
                   value={formData.apelido}
                   onChange={(e) => handleChange('apelido', e.target.value)}
                   placeholder="FAZENDA PALMITAL"
                   required
-                  className="h-8 text-xs uppercase"
+                  className={`${INPUT_CLS} uppercase`}
                   style={{ textTransform: 'uppercase' }}
                 />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Nome/Razão Social *</Label>
+              </FL>
+              <FL label="Nome/Razão Social" required>
                 <Input
                   value={formData.nome}
                   onChange={(e) => handleChange('nome', e.target.value)}
                   placeholder="NOME COMPLETO"
                   required
-                  className="h-8 text-xs uppercase"
+                  className={`${INPUT_CLS} uppercase`}
                   style={{ textTransform: 'uppercase' }}
                 />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Tipo *</Label>
+              </FL>
+              <FL label="Tipo" required>
                 <Select value={formData.tipo_pessoa} onValueChange={(value) => handleChange('tipo_pessoa', value)}>
-                  <SelectTrigger className="h-8 text-xs">
+                  <SelectTrigger className={SELECT_CLS}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -190,107 +200,96 @@ export default function FormularioEmpresa({
                     <SelectItem value="Jurídica" className="text-xs">Pessoa Jurídica</SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
+              </FL>
             </div>
 
             {formData.tipo_pessoa === 'Física' && (
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-                <div className="space-y-1">
-                  <Label className="text-xs">CPF *</Label>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
+                <FL label="CPF" required>
                   <Input
                     value={formData.cpf}
                     onChange={(e) => handleChange('cpf', e.target.value)}
                     placeholder="000.000.000-00"
                     required
-                    className="h-8 text-xs"
+                    className={INPUT_CLS}
                   />
-                </div>
-                <div className="col-span-2 space-y-1">
-                  <Label className="text-xs">RG</Label>
+                </FL>
+                <FL label="RG" className="lg:col-span-2">
                   <Input
                     value={formData.rg}
                     onChange={(e) => handleChange('rg', e.target.value)}
                     placeholder="00.000.000-0"
-                    className="h-8 text-xs"
+                    className={INPUT_CLS}
                   />
-                </div>
+                </FL>
               </div>
             )}
 
             {formData.tipo_pessoa === 'Jurídica' && (
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-                <div className="space-y-1">
-                  <Label className="text-xs">CNPJ *</Label>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
+                <FL label="CNPJ" required>
                   <Input
                     value={formData.cnpj}
                     onChange={(e) => handleChange('cnpj', e.target.value)}
                     placeholder="00.000.000/0000-00"
                     required
-                    className="h-8 text-xs"
+                    className={INPUT_CLS}
                   />
-                </div>
-                <div className="col-span-2 space-y-1">
-                  <Label className="text-xs">Inscrição Estadual</Label>
+                </FL>
+                <FL label="Inscrição Estadual" className="lg:col-span-2">
                   <Input
                     value={formData.inscricao_estadual}
                     onChange={(e) => handleChange('inscricao_estadual', e.target.value)}
                     placeholder="000.000.000.000"
-                    className="h-8 text-xs"
+                    className={INPUT_CLS}
                   />
-                </div>
+                </FL>
               </div>
             )}
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-              <div className="space-y-1">
-                <Label className="text-xs">Telefone</Label>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
+              <FL label="Telefone">
                 <Input
                   value={formData.telefone}
                   onChange={(e) => handleChange('telefone', e.target.value)}
                   placeholder="(00) 00000-0000"
-                  className="h-8 text-xs"
+                  className={INPUT_CLS}
                 />
-              </div>
-              <div className="col-span-2 space-y-1">
-                <Label className="text-xs">E-mail</Label>
+              </FL>
+              <FL label="E-mail" className="lg:col-span-2">
                 <Input
                   type="email"
                   value={formData.email}
                   onChange={(e) => handleChange('email', e.target.value)}
                   placeholder="exemplo@email.com"
-                  className="h-8 text-xs"
+                  className={INPUT_CLS}
                 />
-              </div>
+              </FL>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-              <div className="col-span-3 space-y-1">
-                <Label className="text-xs">Endereço Completo</Label>
-                <Input
-                  value={formData.endereco}
-                  onChange={(e) => handleChange('endereco', e.target.value)}
-                  placeholder="RUA, NÚMERO, BAIRRO"
-                  className="h-8 text-xs uppercase"
-                  style={{ textTransform: 'uppercase' }}
-                />
-              </div>
-            </div>
+            <FL label="Endereço completo">
+              <Input
+                value={formData.endereco}
+                onChange={(e) => handleChange('endereco', e.target.value)}
+                placeholder="RUA, NÚMERO, BAIRRO"
+                className={`${INPUT_CLS} uppercase`}
+                style={{ textTransform: 'uppercase' }}
+              />
+            </FL>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-              <div className="space-y-1">
-                <Label className="text-xs">Cidade</Label>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
+              <FL label="Cidade">
                 <Input
                   value={formData.cidade}
                   onChange={(e) => handleChange('cidade', e.target.value)}
                   placeholder="CIDADE"
-                  className="h-8 text-xs uppercase"
+                  className={`${INPUT_CLS} uppercase`}
                   style={{ textTransform: 'uppercase' }}
                 />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Estado</Label>
+              </FL>
+              <FL label="Estado">
                 <Select value={formData.estado} onValueChange={(value) => handleChange('estado', value)}>
-                  <SelectTrigger className="h-8 text-xs">
+                  <SelectTrigger className={SELECT_CLS}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -299,29 +298,27 @@ export default function FormularioEmpresa({
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">CEP</Label>
+              </FL>
+              <FL label="CEP">
                 <Input
                   value={formData.cep}
                   onChange={(e) => handleChange('cep', e.target.value)}
                   placeholder="00000-000"
-                  className="h-8 text-xs"
+                  className={INPUT_CLS}
                 />
-              </div>
+              </FL>
             </div>
 
-            <div className="space-y-1">
-              <Label className="text-xs">Observações</Label>
+            <FL label="Observações">
               <Textarea
                 value={formData.observacoes}
                 onChange={(e) => handleChange('observacoes', e.target.value)}
                 placeholder="OBSERVAÇÕES GERAIS..."
-                className="text-xs uppercase"
+                className={`${TEXTAREA_CLS} uppercase`}
                 style={{ textTransform: 'uppercase' }}
                 rows={2}
               />
-            </div>
+            </FL>
 
             <div className="flex justify-end gap-2 pt-2 border-t">
               {onCancel && (

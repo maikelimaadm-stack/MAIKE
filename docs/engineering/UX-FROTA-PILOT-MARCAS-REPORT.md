@@ -120,6 +120,18 @@ Branch `cursor/ux-base1-paridade-estoque-516d`:
 | `FormularioLote.jsx` | Modo embedded em `Card` Base1 |
 | `Bebedouros.jsx` | Grade HTML com bordas/cabeçalho sticky no padrão Produtos |
 
-**Pendente para fatias seguintes:** `TabelaEmpresas` (modo paginado legado), formulários de manejo no mapa (`FormularioMovimentacaoLote` etc.) — já usam FL estilo estoque, mas vivem fora do chrome lista.
+## UX-11 (2026-10-23) — Paridade global cadastros (exceto mapa/manejo)
+
+Branch `cursor/ux-base1-paridade-estoque-516d` (UX-10 + UX-11):
+
+| Artefato | Mudança |
+|----------|---------|
+| `CadastroFormField.jsx` + `.cadastro-grade-viewport` | SSOT de campo e viewport de grade |
+| `cadastro-base1.css` | Classe `.cadastro-grade-viewport` |
+| Formulários de **todas** as páginas de cadastro do escopo | `CadastroFormField` (incl. Empresa, Usuário, Conta MAIKE, Marcas, Produtos, Setores, etc.) |
+| `TabelaProdutos`, `Marcas`, `Setores`, `Categorias*`, `Grupos`, `Tipos`, `Lotes`, `Empresa` (chrome) | Viewport + cabeçalho sticky estilo estoque |
+| `TabelaUsuarios`, `TabelaContasAcesso`, `Bebedouros`, `LocaisEstoque` | Grade alinhada |
+
+**Fora de escopo (explícito):** `MapaGeral`, `MapaCadastro`, tabelas geo do mapa, formulários de **lançamento de manejo no mapa** (`FormularioMovimentacaoLote`, pesagem, morte, etc.).
 
 **Fora do padrão lista (por desenho):** `MapaGeral`, `MapaCadastro`.

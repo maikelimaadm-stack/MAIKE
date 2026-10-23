@@ -287,22 +287,22 @@ export default function TabelaEmpresas({
 
   const tableBody = (
         <>
-          <div className="overflow-auto">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-slate-50 border-b">
-                  <TableHead className="w-8 text-xs border-r border-slate-200">
+          <div className="cadastro-grade-viewport relative w-full overflow-auto">
+            <Table className="border-separate border-spacing-0 table-fixed w-full min-w-[720px]">
+              <TableHeader className="bg-white">
+                <TableRow className="sticky top-0 z-40 bg-white">
+                  <TableHead className="w-[25px] h-7 p-0 text-xs border-r border-b border-gray-200 text-center">
                     <Checkbox
                       checked={selectedItems.length === paginatedEmpresas.length && paginatedEmpresas.length > 0}
                       onCheckedChange={toggleSelectAll}
                     />
                   </TableHead>
-                  <TableHead className="text-xs text-center w-8 border-r border-slate-200"></TableHead>
+                  <TableHead className="h-7 p-0 w-[25px] border-r border-b border-gray-200"></TableHead>
                   {colunasOrdenadas.map((coluna) => {
                     return (
                       <TableHead 
                         key={coluna.id}
-                        className={`text-xs border-r border-slate-200 ${coluna.sortable ? 'cursor-pointer hover:bg-slate-100' : ''}`}
+                        className={`h-7 px-2 text-xs font-medium border-r border-b border-gray-200 bg-white ${coluna.sortable ? 'cursor-pointer hover:bg-gray-50' : ''}`}
                         onClick={() => coluna.sortable && handleSort(coluna.id)}
                       >
                         <div className="flex items-center">

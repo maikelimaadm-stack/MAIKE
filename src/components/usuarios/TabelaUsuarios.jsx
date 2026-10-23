@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,30 +46,31 @@ export default function TabelaUsuarios({ usuarios = [], permissoes = [], current
   };
 
   return (
-    <Card className="shadow-sm border-slate-300">
-      <CardHeader className="bg-white border-b border-slate-200 py-2 px-4">
-        <div className="flex items-center justify-between gap-4">
-          <CardTitle className="text-sm font-semibold text-slate-900">Usuários ({usuarios.length})</CardTitle>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-            <Input placeholder="Buscar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 h-8 w-48 text-xs" />
-          </div>
+    <div className="rounded-md border border-slate-300 bg-white shadow-sm overflow-hidden">
+      <div className="border-b border-gray-200 px-3 py-2 flex items-center justify-between gap-4 bg-white">
+        <h2 className="text-sm font-semibold text-slate-900">Usuários ({usuarios.length})</h2>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+          <Input
+            placeholder="Buscar…"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-9 h-7 w-48 text-xs rounded-full bg-slate-50 border-slate-300"
+          />
         </div>
-      </CardHeader>
-
-      <CardContent className="p-0">
-        <div className="overflow-auto">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-slate-50 border-b">
-                <TableHead className="text-xs border-r border-slate-200">Usuário</TableHead>
-                <TableHead className="text-xs border-r border-slate-200">Email</TableHead>
-                <TableHead className="text-xs border-r border-slate-200">Perfil Base44</TableHead>
-                <TableHead className="text-xs border-r border-slate-200">Nível de Acesso</TableHead>
-                <TableHead className="text-xs border-r border-slate-200 text-center">Módulos</TableHead>
-                <TableHead className="text-xs border-r border-slate-200 text-center">Telas</TableHead>
-                <TableHead className="text-xs border-r border-slate-200 text-center">Mobile</TableHead>
-                <TableHead className="text-xs text-center w-8 border-r border-slate-200"></TableHead>
+      </div>
+      <div className="cadastro-grade-viewport relative w-full overflow-auto">
+          <Table className="border-separate border-spacing-0 table-fixed min-w-[900px]">
+            <TableHeader className="bg-white">
+              <TableRow className="sticky top-0 z-40 bg-white">
+                <TableHead className="h-7 px-2 text-xs font-medium border-r border-b border-gray-200">Usuário</TableHead>
+                <TableHead className="h-7 px-2 text-xs font-medium border-r border-b border-gray-200">Email</TableHead>
+                <TableHead className="h-7 px-2 text-xs font-medium border-r border-b border-gray-200">Perfil Base44</TableHead>
+                <TableHead className="h-7 px-2 text-xs font-medium border-r border-b border-gray-200">Nível de Acesso</TableHead>
+                <TableHead className="h-7 px-2 text-xs font-medium border-r border-b border-gray-200 text-center">Módulos</TableHead>
+                <TableHead className="h-7 px-2 text-xs font-medium border-r border-b border-gray-200 text-center">Telas</TableHead>
+                <TableHead className="h-7 px-2 text-xs font-medium border-r border-b border-gray-200 text-center">Mobile</TableHead>
+                <TableHead className="h-7 p-0 w-[25px] border-r border-b border-gray-200"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -168,8 +168,7 @@ export default function TabelaUsuarios({ usuarios = [], permissoes = [], current
               </AnimatePresence>
             </TableBody>
           </Table>
-        </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

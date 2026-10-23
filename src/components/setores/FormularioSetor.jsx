@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
+import CadastroFormField from "@/components/cadastro/base1/CadastroFormField";
 
 const TIPOS_SETOR = ["Próprio", "Arrendado", "Parceria", "Terceiros"];
 const ESTADOS_BR = ["AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"];
@@ -26,16 +27,11 @@ export default function FormularioSetor({
   const [formData, setFormData] = useState(initialData);
   const [invalidFields, setInvalidFields] = useState([]);
 
-const FL = ({ label, required, error, children, dataField }) => (
-  <div data-field={dataField}>
-    <label className="text-[12px] text-slate-500 pl-1 leading-none">
-      {label}{required && <span className="text-red-500 ml-0.5">*</span>}
-    </label>
-    <div className={`rounded-md border ${error ? 'border-red-500 bg-red-50' : 'border-slate-300'} focus-within:border-emerald-500 transition-colors`}>
+  const FL = ({ label, required, error, children, dataField }) => (
+    <CadastroFormField label={label} required={required} error={error} dataField={dataField}>
       {children}
-    </div>
-  </div>
-);
+    </CadastroFormField>
+  );
 
 
 
