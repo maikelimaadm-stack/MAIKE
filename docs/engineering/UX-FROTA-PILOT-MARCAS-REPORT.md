@@ -84,4 +84,17 @@ Branch `cursor/ux-base1-all-cadastros-516d`:
 
 Formulários: `variant="embedded"`. Tabelas: busca global, seleção e reset de filtros integrados ao chrome.
 
-**Fora desta fatia (layout próprio):** `CadastroLotes`, `Bebedouros`, `Empresa`, `Usuarios`, `ConfiguracoesGerais`, mapas.
+## UX-08 (2026-10-23) — Base1 nas telas restantes do escopo
+
+Branch `cursor/ux-base1-remaining-cadastros-516d`:
+
+| Página | Mudança |
+|--------|---------|
+| `Empresa.jsx` | Paridade com Marcas: workspace + chrome + `TabelaEmpresas` modo `chromeLayout` |
+| `Bebedouros.jsx` | Workspace + chrome; detalhe em modo registro; link “Cadastrar no mapa” na toolbar |
+| `ConfiguracoesGerais.jsx` | Shell `CadastroWorkspace` (conteúdo de ícones inalterado) |
+| `Usuarios.jsx` | Workspace unificado; ações no header; formulários em modo detalhe |
+
+**Próxima fatia (UX-09):** `CadastroLotes` — substituir barra Sankhya pelo chrome Base1 mantendo painel de filtros e exportações PDF/Excel.
+
+**Fora do padrão lista (por desenho):** `MapaGeral`, `MapaCadastro`.
