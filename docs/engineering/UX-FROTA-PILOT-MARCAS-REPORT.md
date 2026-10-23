@@ -134,4 +134,16 @@ Branch `cursor/ux-base1-paridade-estoque-516d` (UX-10 + UX-11):
 
 **Fora de escopo (explícito):** `MapaGeral`, `MapaCadastro`, tabelas geo do mapa, formulários de **lançamento de manejo no mapa** (`FormularioMovimentacaoLote`, pesagem, morte, etc.).
 
+## UX-12 (2026-10-23) — Página inteira = Produtos (chrome + lançamentos cadastro)
+
+Branch `cursor/ux-base1-paridade-pagina-completa-516d`:
+
+| Artefato | Mudança |
+|----------|---------|
+| `CadastroFormShell`, `CadastroFormActions`, `CadastroWorkspaceHeader` | Shell de página, rodapé pill e cabeçalho mg-card |
+| `CadastroWorkspace` | Cabeçalho/voltar no padrão Base1 |
+| Formulários cadastro + **lançamento bebedouro** | mg-card + botões `tb-btn` |
+| `Usuarios` | Duplo `CadastroListaChrome` (contas + permissões), grades com seleção |
+| `DetalhesBebedouro` | Botões Lançar/Histórico e seções mg-card |
+
 **Fora do padrão lista (por desenho):** `MapaGeral`, `MapaCadastro`.

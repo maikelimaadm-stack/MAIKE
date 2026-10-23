@@ -125,8 +125,8 @@ export default function Bebedouros() {
           >
             <div className="overflow-hidden">
               <div
-                className="relative w-full overflow-auto max-h-[calc(100dvh-280px)] md:max-h-[calc(100dvh-220px)]"
-                style={{ overscrollBehavior: "none" }}
+                className="cadastro-grade-viewport relative w-full overflow-auto"
+                style={{ overscrollBehavior: "none", WebkitOverflowScrolling: "touch" }}
               >
                 <table className="w-full min-w-[900px] border-separate border-spacing-0 text-xs table-fixed">
                   <thead>
