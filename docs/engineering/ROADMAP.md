@@ -127,7 +127,7 @@ nenhum model de manejo, que ficam para P4–P6, uma capacidade de cada vez.
 |---|---|---|
 | **P4.0** | Native Transport + Session Activation | **concluída e mergeada** — PR #12, merge `45599f5` (inclui a **P4.0-R1**); corrigida pela **P4.0-R2** — PR #15, merge `b2535ec` |
 | **P4.1** | Setor Native Persistence | **concluída e mergeada** — PR #14, merge `b559c48` (inclui a **P4.1-R1**); fechada pela **P4.1-R2** — PR #17, merge `588792b` |
-| P4.2 | AreaPastagem Native Persistence | **concluída** — model, migration, rotas, porta única e `gate:area-pastagem-native` (D-PROD-30) |
+| P4.2 | AreaPastagem Native Persistence | **concluída e mergeada** — PR #26, merge `87a2d2d4`; `gate:area-pastagem-native` (D-PROD-31) |
 | P4.3 | PontoReferencia + LinhaGeografica + ConfiguracaoIcone | não iniciada |
 
 A ordem é estrutural, não preferência. A P3 entregou um backend que sabe
