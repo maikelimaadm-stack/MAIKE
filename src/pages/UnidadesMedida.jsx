@@ -10,12 +10,13 @@ import { getApiErrorMessage } from "@/apis/_core/ApiError";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
-import { Settings, MoreVertical, Filter, X, ArrowDownAZ, ArrowUpZA, GripVertical } from "lucide-react";
+import { Settings, MoreVertical, Filter, X, ArrowDownAZ, ArrowUpZA, GripVertical, Plus } from "lucide-react";
+import CadastroWorkspace from "@/components/cadastro/CadastroWorkspace";
 import { toast } from "sonner";
 import { AnimatePresence, motion } from "framer-motion";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -92,6 +93,44 @@ export default function UnidadesMedida() {
   const handleRequestDelete = (id) => { const ids = Array.isArray(id) ? id : [id]; setDeleteState({ open: true, ids }); };
   const handleConfirmDelete = () => { deleteMutation.mutate(deleteState.ids); setDeleteState({ open: false, ids: [] }); };
 
+  const closeForm = () => {
+    setShowForm(false);
+    setEditing(null);
+    setFormData({ sigla: "", descricao: "", ativo: true });
+    setErrors({});
+  };
+
+  const openNewForm = () => {
+    setEditing(null);
+    setFormData({ sigla: "", descricao: "", ativo: true });
+    setErrors({});
+    setShowForm(true);
+  };
+
+  const detailTitle = editing?.id ? "Editar unidade de medida" : "Nova unidade de medida";
+
+  const listToolbar = (
+    <>
+      <Button
+        variant="outline"
+        size="icon"
+        onClick={() => setShowConfigColunas(true)}
+        className="h-8 w-8"
+        aria-label="Configurar colunas"
+      >
+        <Settings className="h-4 w-4" />
+      </Button>
+      <Button
+        onClick={openNewForm}
+        size="sm"
+        className="h-8 gap-1 bg-emerald-600 text-white hover:bg-emerald-700"
+      >
+        <Plus className="h-3.5 w-3.5" />
+        Adicionar
+      </Button>
+    </>
+  );
+
   const sortedData = useMemo(() => { let f = unidades.filter(c => COLUNAS_DISPONIVEIS.filter(col => !col.fixo).every(col => { const fv = filtrosColunas[col.id] || []; if (fv.length === 0) return true; return fv.includes(getFieldValue(c, col.id)); })); if (sortConfig.key) { f.sort((a, b) => { const va = getFieldValue(a, sortConfig.key); const vb = getFieldValue(b, sortConfig.key); const cmp = va.localeCompare(vb, "pt-BR", { numeric: true, sensitivity: "base" }); return sortConfig.direction === "asc" ? cmp : -cmp; }); } return f; }, [unidades, filtrosColunas, sortConfig]);
 
   useEffect(() => { setSelectedItems(prev => prev.filter(id => unidades.some(c => c.id === id))); }, [unidades]);
@@ -142,21 +181,23 @@ export default function UnidadesMedida() {
   const renderCell = (item, colId) => { if (colId === "numero") return item.numero_unidade || "-"; if (colId === "sigla") return <span className={`uppercase font-mono font-semibold ${item.ativo === false ? 'text-slate-400 line-through' : ''}`}>{item.sigla || "-"}</span>; if (colId === "descricao") return item.descricao || "-"; if (colId === "ativo") return item.ativo !== false ? <Badge className="text-[10px] bg-emerald-100 text-emerald-700">Ativo</Badge> : <Badge className="text-[10px] bg-slate-100 text-slate-500">Inativo</Badge>; return "-"; };
 
   return (
-    <div className="p-1 md:p-1 space-y-1">
-      {!showForm && (
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 bg-white rounded px-1 py-1 shadow-sm border-b border-slate-200">
-          <div><h1 className="font-bold text-slate-800">Unidades de Medida</h1></div>
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="icon" onClick={() => setShowConfigColunas(true)} className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-7 w-7"><Settings className="w-4 h-4" /></Button>
-            <Button onClick={() => { setShowForm(true); setEditing(null); setFormData({ sigla: "", descricao: "", ativo: true }); setErrors({}); }} size="sm" className="bg-lime-900 text-primary-foreground px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow h-7 hover:bg-emerald-600">Adicionar</Button>
-          </div>
-        </div>
-      )}
+    <>
+      <CadastroWorkspace
+        mode={showForm ? "detail" : "list"}
+        title={showForm ? detailTitle : "Unidades de medida"}
+        subtitle={
+          showForm
+            ? "Preencha os dados e salve para voltar à lista."
+            : "Siglas e descrições usadas nos cadastros de produto."
+        }
+        onBack={showForm ? closeForm : undefined}
+        toolbar={showForm ? null : listToolbar}
+      >
       <AnimatePresence mode="wait">
         {showForm ? (
           <motion.div key="form" initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
-            <Card className="shadow-sm border-slate-300"><CardHeader className="flex flex-col space-y-1.5 p-6 bg-slate-50 border-b py-1 px-1"><CardTitle className="text-sm font-semibold text-slate-700">{editing ? 'Editar Unidade' : 'Nova Unidade'}</CardTitle></CardHeader>
-              <CardContent className="p-1">
+            <Card className="shadow-sm border-slate-300">
+              <CardContent className="p-3 pt-2">
                 <form onSubmit={handleSubmit} className="space-y-0.5">
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
                     <FL label="Sigla" required error={errors.sigla} dataField="sigla"><Input value={formData.sigla} onChange={(e) => { setErrors(p => ({ ...p, sigla: false })); setFormData(p => ({ ...p, sigla: e.target.value })); }} placeholder="UN, KG, L" className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" style={{ textTransform: "uppercase" }} /></FL>
@@ -168,7 +209,7 @@ export default function UnidadesMedida() {
                       <label htmlFor="um_ativo" className="text-xs text-slate-700 cursor-pointer">Ativo</label>
                     </div>
                   </div>
-                  <div className="flex flex-col-reverse lg:flex-row justify-end gap-1 pt-1 border-t"><Button type="button" variant="outline" onClick={() => { setShowForm(false); setEditing(null); }} size="sm" className="h-7 text-xs px-3">Cancelar</Button><Button type="submit" size="sm" className="h-7 text-xs px-3 bg-emerald-600 hover:bg-emerald-700 text-white">{editing ? 'Atualizar' : 'Salvar'}</Button></div>
+                  <div className="flex flex-col-reverse lg:flex-row justify-end gap-1 pt-1 border-t"><Button type="button" variant="outline" onClick={closeForm} size="sm" className="h-7 text-xs px-3">Cancelar</Button><Button type="submit" size="sm" className="h-7 text-xs px-3 bg-emerald-600 hover:bg-emerald-700 text-white">{editing ? 'Atualizar' : 'Salvar'}</Button></div>
                 </form>
               </CardContent>
             </Card>
@@ -204,8 +245,9 @@ export default function UnidadesMedida() {
           </div>
         )}
       </AnimatePresence>
+      </CadastroWorkspace>
       <ConfiguracaoColunasMapaDialog open={showConfigColunas} onOpenChange={setShowConfigColunas} colunasDisponiveis={COLUNAS_DISPONIVEIS} colunasVisiveis={colunasVisiveis} colunasOrdem={colunasOrdem} toggleColuna={toggleColuna} handleDragEnd={handleDragEnd} droppableId="colunas-unidades-medida" />
       <ConfirmDialog open={deleteState.open} onOpenChange={(open) => setDeleteState(prev => ({ ...prev, open }))} title="Confirmar exclusão" description={deleteState.ids.length > 1 ? `Deseja excluir ${deleteState.ids.length} unidades selecionadas?` : "Deseja excluir esta unidade?"} confirmText="Excluir" cancelText="Cancelar" variant="destructive" onConfirm={handleConfirmDelete} />
-    </div>
+    </>
   );
 }

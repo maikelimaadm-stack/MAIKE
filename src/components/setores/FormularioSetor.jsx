@@ -15,7 +15,14 @@ const SELECT_EMPTY = "__VAZIO__";
 const UPPERCASE_FIELDS = ["nome", "sigla", "responsavel", "endereco", "cidade", "observacoes"];
 const REQUIRED_FIELDS = ["nome", "sigla", "endereco", "cidade", "estado"];
 
-export default function FormularioSetor({ initialData, isEditing, onSubmit, onCancel }) {
+export default function FormularioSetor({
+  initialData,
+  isEditing,
+  onSubmit,
+  onCancel,
+  variant = "card",
+}) {
+  const embedded = variant === "embedded";
   const [formData, setFormData] = useState(initialData);
   const [invalidFields, setInvalidFields] = useState([]);
 
@@ -68,12 +75,14 @@ const FL = ({ label, required, error, children, dataField }) => (
   return (
     <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
     <Card className="shadow-sm border-slate-300">
-      <CardHeader className="flex flex-col space-y-1.5 p-6 bg-slate-50 border-b py-1 px-1">
-        <CardTitle className="text-sm font-semibold text-slate-900">
-          {isEditing ? "Editar Setor / Fazenda" : "Novo Setor / Fazenda"}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="p-1 pt-1">
+      {!embedded ? (
+        <CardHeader className="flex flex-col space-y-1.5 p-6 bg-slate-50 border-b py-1 px-1">
+          <CardTitle className="text-sm font-semibold text-slate-900">
+            {isEditing ? "Editar Setor / Fazenda" : "Novo Setor / Fazenda"}
+          </CardTitle>
+        </CardHeader>
+      ) : null}
+      <CardContent className={embedded ? "p-3 pt-2" : "p-1 pt-1"}>
 <form onSubmit={handleSubmit} className="space-y-0.5">
   <div className="grid grid-cols-1 lg:grid-cols-4 gap-1">
     <FL label="Nome do Setor/Fazenda" required error={invalidFields.includes('nome')} dataField="nome">
