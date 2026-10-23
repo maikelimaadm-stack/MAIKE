@@ -48,11 +48,21 @@ const listaDeOrigins = (nome) => {
     .filter((item) => item.length > 0);
 };
 
+/**
+ * URL Postgres para o Prisma em runtime.
+ *
+ * A integração Supabase ↔ Vercel injeta `POSTGRES_PRISMA_URL` (pooler compatível
+ * com Prisma). `DATABASE_URL` continua valendo para desenvolvimento local e
+ * deploys que setam o nome canônico do projeto explicitamente.
+ */
+const resolverDatabaseUrl = () =>
+  texto('POSTGRES_PRISMA_URL') ?? texto('DATABASE_URL') ?? texto('POSTGRES_URL');
+
 export const env = {
   nodeEnv: texto('NODE_ENV') || 'development',
   port: inteiro('PORT', 3333),
   host: texto('HOST') || '0.0.0.0',
-  databaseUrl: texto('DATABASE_URL'),
+  databaseUrl: resolverDatabaseUrl(),
   authSecret: texto('AUTH_SECRET'),
   authTokenTtl: texto('AUTH_TOKEN_TTL') || '8h',
   anexoTamanhoMaximoBytes: inteiro('ANEXO_TAMANHO_MAXIMO_BYTES', 25 * 1024 * 1024),
@@ -74,7 +84,9 @@ export const ehProducao = () => env.nodeEnv === 'production';
  */
 export const variaveisObrigatoriasAusentes = () => {
   const ausentes = [];
-  if (!env.databaseUrl) ausentes.push('DATABASE_URL');
+  if (!env.databaseUrl) {
+    ausentes.push('DATABASE_URL (ou POSTGRES_PRISMA_URL da integração Supabase)');
+  }
   if (!env.authSecret) ausentes.push('AUTH_SECRET');
   return ausentes;
 };
