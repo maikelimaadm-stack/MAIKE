@@ -16,10 +16,20 @@ import { getPermissionDisplayName, getUserDisplayName } from "@/lib/userDisplayN
 
 import FormularioUsuario from "../components/usuarios/FormularioUsuario";
 import TabelaUsuarios from "../components/usuarios/TabelaUsuarios";
+import FormularioContaAcesso from "../components/usuarios/FormularioContaAcesso";
+import TabelaContasAcesso from "../components/usuarios/TabelaContasAcesso";
+import {
+  listarContasAcesso,
+  criarContaAcesso,
+  atualizarContaAcesso,
+  validarPatchContaAcesso,
+} from "@/services/usuarioAdminService";
 
 export default function Usuarios() {
   const [showForm, setShowForm] = useState(false);
   const [editingUsuario, setEditingUsuario] = useState(null);
+  const [showContaForm, setShowContaForm] = useState(false);
+  const [editingConta, setEditingConta] = useState(null);
   const queryClient = useQueryClient();
 
   const { data: currentUser } = useQuery({
@@ -44,6 +54,16 @@ export default function Usuarios() {
   const { data: permissoes = [] } = useQuery({
     queryKey: ["permissoes"],
     queryFn: () => listarPermissoes(),
+    initialData: [],
+  });
+
+  const {
+    data: contasAcesso = [],
+    isLoading: contasLoading,
+    isError: contasErro,
+  } = useQuery({
+    queryKey: ["contasAcesso"],
+    queryFn: () => listarContasAcesso(),
     initialData: [],
   });
 
@@ -112,6 +132,32 @@ export default function Usuarios() {
     setShowForm(true);
   };
 
+  const contaMutation = useMutation({
+    /** @param {{ id?: string, dados: Record<string, unknown> }} variables */
+    mutationFn: async (variables) => {
+      const { id, dados } = variables;
+      if (id) {
+        validarPatchContaAcesso(currentUser, editingConta, dados);
+        return atualizarContaAcesso(id, dados);
+      }
+      return criarContaAcesso(dados);
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["contasAcesso"] });
+      queryClient.invalidateQueries({ queryKey: ["usuarios"] });
+      setShowContaForm(false);
+      setEditingConta(null);
+      toast.success(variables.id ? "Conta atualizada!" : "Conta criada!");
+    },
+    onError: (error) => {
+      toast.error(getApiErrorMessage(error, "Não foi possível salvar a conta."));
+    },
+  });
+
+  const handleContaSubmit = async (dados) => {
+    await contaMutation.mutateAsync({ id: editingConta?.id, dados });
+  };
+
   const handleDelete = async (userEmail) => {
     // A autoexclusão é bloqueada no service; aqui só evitamos abrir a confirmação.
     if (currentUser?.email === userEmail) {
@@ -130,14 +176,25 @@ export default function Usuarios() {
 
   return (
     <div className="p-4 md:p-6 space-y-2">
-      {!showForm && (
+      {!showForm && !showContaForm && (
         <>
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
             <div>
               <h1 className="text-lg font-bold text-slate-900">Usuários e Permissões</h1>
-              <p className="text-xs text-slate-600">Configurar módulos, telas, ações e menu mobile por usuário</p>
+              <p className="text-xs text-slate-600">Contas de entrada nativas e permissões de menu por usuário</p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
+              <Button
+                onClick={() => {
+                  setEditingConta(null);
+                  setShowContaForm(true);
+                }}
+                size="sm"
+                variant="outline"
+                className="h-8 text-xs"
+              >
+                Nova conta MAIKE
+              </Button>
               <Button onClick={() => { setEditingUsuario(null); setShowForm(true); }} size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
                 Configurar Permissões
               </Button>
@@ -175,9 +232,39 @@ export default function Usuarios() {
             usuarios={usuarios}
           />
         )}
+        {showContaForm && (
+          <FormularioContaAcesso
+            onSubmit={handleContaSubmit}
+            onCancel={() => {
+              setShowContaForm(false);
+              setEditingConta(null);
+            }}
+            initialData={editingConta}
+          />
+        )}
       </AnimatePresence>
 
-      {!showForm && (
+      {!showForm && !showContaForm && (
+        <>
+          {contasErro ? (
+            <div className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3">
+              Não foi possível carregar as contas nativas. Verifique se você está autenticado no backend MAIKE.
+            </div>
+          ) : (
+            <TabelaContasAcesso
+              contas={contasAcesso}
+              currentUser={currentUser}
+              onEdit={(conta) => {
+                setEditingConta(conta);
+                setShowContaForm(true);
+              }}
+              isLoading={contasLoading}
+            />
+          )}
+        </>
+      )}
+
+      {!showForm && !showContaForm && (
         <TabelaUsuarios
           usuarios={usuarios}
           permissoes={permissoes}

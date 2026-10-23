@@ -4,10 +4,9 @@
  * A rota é fina de propósito: contrato HTTP, validação de forma, chamada do
  * service, conversão do resultado. Nenhuma query Prisma, nenhuma regra.
  *
- * O schema de entrada aceita `cliente`, `login` e `senha` — e
- * `additionalProperties: false`. Isso não é estética: é o que faz um
- * `cliente_id` enviado no corpo ser **rejeitado na porta**, em vez de ficar
- * circulando como campo ignorado que alguém um dia lê por engano.
+ * O schema aceita só `login` e `senha` — e `additionalProperties: false`.
+ * Rejeita na porta `cliente`, `cliente_id` e qualquer outro campo: o tenant vem
+ * do usuário autenticado, não do formulário (D-PROD-33).
  */
 
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
@@ -16,11 +15,10 @@ import { autenticar, montarPayloadDeSessao, ttlDaSessao } from './authService.js
 const LOGIN_SCHEMA = {
   body: {
     type: 'object',
-    required: ['cliente', 'login', 'senha'],
+    required: ['login', 'senha'],
     additionalProperties: false,
     properties: {
-      cliente: { type: 'string', minLength: 1, maxLength: 64 },
-      login: { type: 'string', minLength: 1, maxLength: 120 },
+      login: { type: 'string', minLength: 1, maxLength: 120, pattern: '\\S' },
       senha: { type: 'string', minLength: 1, maxLength: 512 },
     },
   },

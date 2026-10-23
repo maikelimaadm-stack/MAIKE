@@ -17,6 +17,10 @@ import { gerarSenhaHash } from '../src/modules/auth/authService.js';
 const ORDEM_DE_LIMPEZA = [
   'auditLog',
   'registroAnexo',
+  // P4.3 — geografia referencia Cliente com Restrict; limpar antes da raiz.
+  'pontoReferencia',
+  'linhaGeografica',
+  'configuracaoIcone',
   // `areaPastagem` antes de `setor`: a FK composta é Restrict, e apagar setor
   // com área ainda pendurada falha — que é exatamente o que ela existe para
   // fazer (P4.2).
@@ -45,7 +49,9 @@ export const encerrar = async () => {
 export const criarTenant = async (opcoes = {}) => {
   const prisma = getPrismaClient();
   const codigo = opcoes.codigo || `t-${randomUUID().slice(0, 8)}`;
-  const login = opcoes.login || 'operador';
+  // Login único por tenant: login global ambíguo (D-PROD-33) reprova autenticação
+  // quando dois tenants compartilham o mesmo `operador` padrão nos testes.
+  const login = opcoes.login ?? `operador-${codigo}`;
   const senha = opcoes.senha || 'senha-de-teste-1';
 
   const cliente = await prisma.cliente.create({
@@ -61,7 +67,7 @@ export const criarTenant = async (opcoes = {}) => {
     },
   });
 
-  return { cliente, usuario, credenciais: { cliente: codigo, login, senha } };
+  return { cliente, usuario, credenciais: { login, senha } };
 };
 
 /** Monta o app sem abrir porta. */
@@ -70,7 +76,7 @@ export const criarApp = async () => construirApp({ logger: false });
 /**
  * Autentica e devolve o token.
  * @param {import('fastify').FastifyInstance} app
- * @param {{cliente: string, login: string, senha: string}} credenciais
+ * @param {{login: string, senha: string}} credenciais
  */
 export const autenticarNoApp = async (app, credenciais) => {
   const resposta = await app.inject({

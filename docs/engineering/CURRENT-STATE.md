@@ -41,7 +41,7 @@ armazenamento apenas em `.env.local` seguem pendentes com o proprietário — ve
 | P3 | Backend + Prisma + PostgreSQL Foundation | **concluída e mergeada** (PR #10, merge `4ce4608`) — `backend/` com Fastify, Prisma e PostgreSQL; cinco models; `gate:tenancy` e `gate:indices`. Inclui a correção **P3-R1** |
 | P4 | Mapa Core Native Persistence | **em execução** — **P4.0**–**P4.2** mergeadas (PRs #12, #14, #17, #26); **P4.3** não iniciada |
 | P5 | Manejo Core Native Persistence | não iniciada |
-| P6 | Supporting Capabilities | não iniciada |
+| P6 | Supporting Capabilities | **P6.0 em execução** — administração mínima de contas nativas (D-PROD-34, branch `cursor/p6-usuario-admin-minimo-516d`); demais itens do roadmap P6 não iniciados |
 | P7 | Base44 Final Removal | não iniciada |
 | P8 | Hardening and Release | não iniciada |
 

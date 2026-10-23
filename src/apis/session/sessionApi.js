@@ -21,6 +21,7 @@
 
 import { runProviderCall, assertArgument } from '../_core/normalizeApiError.js';
 import { sessionProvider } from '../_providers/base44Provider.js';
+import { updateUsuario as updateUsuarioNativo } from '@/apis/usuarios';
 
 const RESOURCE = 'Sessao';
 const isId = (valor) => typeof valor === 'string' && valor.trim().length > 0;
@@ -40,8 +41,8 @@ export const getCapacidadesDeSessao = () => Object.freeze(sessionProvider.capaci
 export const getCurrentUser = async () =>
   runProviderCall(() => sessionProvider.me(), ctx('getCurrentUser'));
 
-export const listUsuarios = async (opcoes = {}) =>
-  comoLista(await runProviderCall(() => sessionProvider.listUsuarios(opcoes.order, opcoes.limit), ctx('listUsuarios')));
+/** Contas nativas do tenant (P6.0); formato legado inclui `email` = login. */
+export { listUsuarios } from '@/apis/usuarios';
 
 export const listPermissoes = async () =>
   comoLista(await runProviderCall(() => sessionProvider.listPermissoes(), ctx('listPermissoes')));
@@ -50,7 +51,7 @@ export const updateUsuario = async (id, dados) => {
   const contexto = ctx('updateUsuario');
   assertArgument(isId(id), 'id', contexto);
   assertArgument(isObjeto(dados), 'dados', contexto);
-  return runProviderCall(() => sessionProvider.updateUsuario(id, dados), { ...contexto, details: { id } });
+  return runProviderCall(() => updateUsuarioNativo(id, dados), { ...contexto, details: { id } });
 };
 
 export const createPermissao = async (dados) => {

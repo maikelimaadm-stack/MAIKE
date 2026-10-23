@@ -123,7 +123,7 @@ describe('P4T — configuração do transporte nativo', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const { login, API_ERROR_CODES } = await carregar();
-    await expect(login({ cliente: 'FAZENDA', login: 'joao', senha: 's3nh4' })).rejects.toMatchObject({
+    await expect(login({ login: 'joao', senha: 's3nh4' })).rejects.toMatchObject({
       code: API_ERROR_CODES.PROVIDER_UNAVAILABLE,
     });
     expect(fetchMock).not.toHaveBeenCalled();
@@ -138,7 +138,7 @@ describe('P4T — configuração do transporte nativo', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const { login } = await carregar();
-    await login({ cliente: 'FAZENDA', login: 'joao', senha: 's3nh4' });
+    await login({ login: 'joao', senha: 's3nh4' });
 
     expect(fetchMock.mock.calls[0][0]).toBe('https://backend.exemplo.invalido/auth/login');
   });
@@ -152,7 +152,7 @@ describe('P4T — configuração do transporte nativo', () => {
 });
 
 describe('P4T — login', () => {
-  it('P4T-03 envia exatamente cliente, login e senha — nunca cliente_id', async () => {
+  it('P4T-03 envia exatamente login e senha — nunca cliente nem cliente_id', async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(respostaJson(200, LOGIN_OK))
@@ -160,12 +160,13 @@ describe('P4T — login', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const { login } = await carregar();
-    await login({ cliente: 'FAZENDA', login: 'joao', senha: 's3nh4' });
+    await login({ login: 'joao', senha: 's3nh4' });
 
     const [url, opcoes] = fetchMock.mock.calls[0];
     expect(url).toBe(`${API}/auth/login`);
     const corpo = JSON.parse(opcoes.body);
-    expect(Object.keys(corpo).sort()).toEqual(['cliente', 'login', 'senha']);
+    expect(Object.keys(corpo).sort()).toEqual(['login', 'senha']);
+    expect(corpo).not.toHaveProperty('cliente');
     expect(corpo).not.toHaveProperty('cliente_id');
     expect(corpo).not.toHaveProperty('usuario_id');
   });
@@ -178,7 +179,7 @@ describe('P4T — login', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const { login } = await carregar();
-    await login({ cliente: 'FAZENDA', login: 'joao', senha: 's3nh4' });
+    await login({ login: 'joao', senha: 's3nh4' });
 
     const [url, opcoes] = fetchMock.mock.calls[1];
     expect(url).toBe(`${API}/auth/contexto`);
@@ -193,7 +194,7 @@ describe('P4T — login', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const { login } = await carregar();
-    await login({ cliente: 'FAZENDA', login: 'joao', senha: 's3nh4' });
+    await login({ login: 'joao', senha: 's3nh4' });
 
     expect(fetchMock.mock.calls[0][1].headers).not.toHaveProperty('Authorization');
   });
@@ -210,7 +211,7 @@ describe('P4T — login', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const { login } = await carregar();
-    await login({ cliente: 'FAZENDA', login: 'joao', senha: 's3nh4' });
+    await login({ login: 'joao', senha: 's3nh4' });
 
     const tudo = JSON.stringify(fetchMock.mock.calls);
     expect(tudo).not.toContain('TOKEN-DA-BASE44');
@@ -224,7 +225,7 @@ describe('P4T — login', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const { login, NATIVE_TOKEN_STORAGE_KEY } = await carregar();
-    await login({ cliente: 'FAZENDA', login: 'joao', senha: 's3nh4' });
+    await login({ login: 'joao', senha: 's3nh4' });
 
     expect(window.sessionStorage.getItem(NATIVE_TOKEN_STORAGE_KEY)).toBe(LOGIN_OK.token);
     expect(window.localStorage.getItem(NATIVE_TOKEN_STORAGE_KEY)).toBeNull();
@@ -240,7 +241,7 @@ describe('P4T — login', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const { login, NATIVE_TOKEN_STORAGE_KEY } = await carregar();
-    await expect(login({ cliente: 'F', login: 'j', senha: 's' })).rejects.toMatchObject({
+    await expect(login({ login: 'j', senha: 's' })).rejects.toMatchObject({
       code: 'TENANT_CONTEXT_REQUIRED',
     });
     expect(window.sessionStorage.getItem(NATIVE_TOKEN_STORAGE_KEY)).toBeNull();
@@ -431,12 +432,12 @@ describe('P4T — tradução de erro', () => {
     );
 
     const { login } = await carregar();
-    const erro = await login({ cliente: 'F', login: 'j', senha: 's' }).catch((e) => e);
+    const erro = await login({ login: 'j', senha: 's' }).catch((e) => e);
 
     expect(erro.code).toBe('AUTH_INVALID_CREDENTIALS');
     // O texto não distingue cliente, usuário ou senha: distinguir desfaria a
     // proteção contra enumeração que o backend construiu com tempo constante.
-    expect(erro.message).toBe('Cliente, usuário ou senha inválidos.');
+    expect(erro.message).toBe('Usuário ou senha inválidos.');
     expect(erro.message).not.toContain('usuario nao existe');
   });
 
@@ -444,7 +445,7 @@ describe('P4T — tradução de erro', () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')));
 
     const { login } = await carregar();
-    const erro = await login({ cliente: 'F', login: 'j', senha: 's' }).catch((e) => e);
+    const erro = await login({ login: 'j', senha: 's' }).catch((e) => e);
 
     expect(erro.code).toBe('API_PROVIDER_UNAVAILABLE');
     expect(erro.retryable).toBe(true);
@@ -456,7 +457,7 @@ describe('P4T — tradução de erro', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const { login } = await carregar();
-    const erro = await login({ cliente: 'F', login: 'j', senha: 's' }).catch((e) => e);
+    const erro = await login({ login: 'j', senha: 's' }).catch((e) => e);
 
     expect(erro.code).toBe('API_PROVIDER_UNAVAILABLE');
     expect(fetchMock).not.toHaveBeenCalled();
@@ -469,7 +470,7 @@ describe('P4T — tradução de erro', () => {
     );
 
     const { login } = await carregar();
-    const erro = await login({ cliente: 'F', login: 'j', senha: 's' }).catch((e) => e);
+    const erro = await login({ login: 'j', senha: 's' }).catch((e) => e);
 
     expect(erro.code).toBe('API_OPERATION_FAILED');
   });
@@ -484,7 +485,7 @@ describe('P4T — tradução de erro', () => {
     const { login } = await carregar();
     for (const [doBackend, noFrontend] of Object.entries(esperado)) {
       vi.stubGlobal('fetch', vi.fn().mockResolvedValue(respostaJson(400, { code: doBackend })));
-      const erro = await login({ cliente: 'F', login: 'j', senha: 's' }).catch((e) => e);
+      const erro = await login({ login: 'j', senha: 's' }).catch((e) => e);
       expect(erro.code, doBackend).toBe(noFrontend);
     }
   });

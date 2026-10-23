@@ -159,9 +159,9 @@ Para adicionar uma página ou entidade:
   `ApiError.details`. `gate:native-api` reprova com `P4-NATIVE-TOKEN-STORAGE`.
   E fique com o trade-off à vista: `sessionStorage` é acessível a JavaScript e
   **não** resolve XSS — isso é P8 (D-PROD-24, item F).
-- **O login envia `cliente`, nunca `cliente_id`.** O tenant é *resultado* da
-  autenticação, não entrada dela. Mandar `cliente_id` faria o tenant vir do
-  payload — o backend recusa com 400, e o gate reprova antes disso.
+- **O login envia só `login` e `senha`, nunca `cliente` nem `cliente_id`.** O
+ tenant é *resultado* da autenticação (usuário encontrado + JWT), não entrada
+ dela. Campos extras no corpo são recusados com 400 (`gate:native-api`, D-PROD-32).
 - **O token da Base44 e o JWT do MAIKE não se encontram.** Nunca repasse um ao
   outro, nem crie troca entre eles: são dois sistemas de identidade sem relação.
 - **Sem fallback de autenticação.** Se o backend MAIKE não responde, é falha de

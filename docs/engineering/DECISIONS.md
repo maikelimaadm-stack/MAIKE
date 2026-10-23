@@ -1881,4 +1881,50 @@ consumidor (`@/apis/mapa`) e a mesma disciplina de porta nativa:
 Dono único no frontend: `@/apis/mapaGeografia`, reexportado por `@/apis/mapa`.
 Offline continua com `tenantScoped: true` nas três portas.
 
-<!-- Próxima decisão: D-PROD-33 -->
+---
+
+## D-PROD-33 — Login só com usuário e senha
+
+**Data:** 2026-10-23  
+**Relatório:** `docs/engineering/AUTH-LOGIN-SEM-CLIENTE-REPORT.md`
+
+**Decisão:** remover o campo **código de cliente** da tela e do contrato
+`POST /auth/login`. O corpo aceita apenas `login` e `senha`. O `cliente_id`
+continua sendo **resultado** da autenticação (JWT e resposta), nunca entrada.
+
+**Resolução do tenant:** o backend localiza o `Usuario` pelo login entre
+clientes ativos. Se zero ou mais de um registro coincidir, a resposta é a mesma
+de senha errada (`AUTH_INVALID_CREDENTIALS`) — sem oráculo de enumenação.
+
+**Consequência:** logins duplicados em tenants diferentes deixam de autenticar
+até a administração de usuários impor login único no tenant (P6.0) ou política
+explícita de login global.
+
+---
+
+## D-PROD-34 — Administração mínima de usuários nativos (P6.0)
+
+**Data:** 2026-10-23  
+**Relatório:** `docs/engineering/P6-USUARIO-ADMIN-MINIMO-REPORT.md`  
+**Gate:** `gate:usuario-admin`, absoluto, 9 regras.
+
+**Decisão:** a primeira fatia de P6 para usuários é **CRUD mínimo de contas de
+acesso** no backend próprio, sem migrar `Permissao` (continua Base44).
+
+**Backend:** `GET/POST/PATCH /usuarios` autenticados; corpo de criação
+`{ nome, login, senha }`; atualização `{ nome?, ativo?, nova_senha? }`; sem
+rota DELETE — desativar com `ativo: false`. `senha_hash` nunca entra nem sai da
+API pública. Login único por tenant (`@@unique([cliente_id, login])`). A conta
+autenticada não pode se desativar (`USUARIO_SELF_DEACTIVATE`).
+
+**Frontend:** `@/apis/usuarios` como dono da porta; `sessionApi.listUsuarios`
+reexporta o nativo (compatibilidade `email` = `login` para permissões Base44).
+Tela `Usuarios.jsx` ganha seção **Contas MAIKE** (`FormularioContaAcesso`,
+`TabelaContasAcesso`) acima das permissões.
+
+**Fora desta fatia:** RBAC nativo, perfis, reset por e-mail, login global
+único entre tenants — permanecem roadmap.
+
+---
+
+<!-- Próxima decisão: D-PROD-35 -->

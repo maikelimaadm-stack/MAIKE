@@ -45,7 +45,8 @@ export const listarIconesPorTipo = async (tipoEntidade) =>
   (await listIconesApi()).filter((i) => i.ativo !== false && i.tipo_entidade === tipoEntidade);
 export const listarTodosGrupos = () => listGrupos();
 export const listarPermissoes = () => listPermissoes();
-export const listarUsuarios = (opcoes) => listUsuarios(opcoes);
+/** @param {unknown} [_opcoes] legado — a lista nativa ignora filtros do provider. */
+export const listarUsuarios = (_opcoes) => listUsuarios();
 
 export const criarTarefa = (dados) => createLancamento(dados);
 export const atualizarTarefa = (id, dados) => updateLancamento(id, dados);
