@@ -12,9 +12,6 @@ const lotes = {
   listLotes: vi.fn(), filterLotes: vi.fn(), createLote: vi.fn(), updateLote: vi.fn(), deleteLote: vi.fn(),
   listMovimentacoes: vi.fn(), listTodasMovimentacoes: vi.fn(), listMovimentacoesPecuarias: vi.fn(),
   listSuplementacaoLotes: vi.fn(), listFornecedores: vi.fn(), listCategoriasManejo: vi.fn(),
-  listLayoutConfiguracoes: vi.fn(), createLayoutConfiguracao: vi.fn(),
-  listLayoutSecoes: vi.fn(), createLayoutSecao: vi.fn(), listLayoutCampos: vi.fn(),
-  createLayoutCampo: vi.fn(), updateLayoutCampo: vi.fn(), deleteLayoutCampo: vi.fn(),
   sincronizarReferenciasLote: vi.fn(),
 };
 const estoque = { listProdutos: vi.fn(), listLocais: vi.fn() };
@@ -156,78 +153,6 @@ describe('L — cadastro de lotes', () => {
     expect((await loteCadastro.listarFornecedores(EMPRESA)).map((f) => f.id)).toEqual(['f1']);
   });
 
-  it('L11 — layout base é idempotente: já existindo, não recria', async () => {
-    lotes.listLayoutConfiguracoes.mockResolvedValue([{ id: 'lay', tela: 'CadastroLotes', ativo: true }]);
-    lotes.listLayoutSecoes.mockResolvedValue([{ id: 's', layout_id: 'lay', section_id: 'campos_personalizados' }]);
-    lotes.listLayoutCampos.mockResolvedValue([
-      { id: 'c', layout_id: 'lay', field_name: 'motivo_entrada', metadata: { native_select: true } },
-    ]);
-    await loteCadastro.garantirLayoutBase();
-    expect(lotes.createLayoutConfiguracao).not.toHaveBeenCalled();
-    expect(lotes.createLayoutSecao).not.toHaveBeenCalled();
-    expect(lotes.updateLayoutCampo).toHaveBeenCalledTimes(1);
-  });
-
-  it('L12 — campo nativo protegido não é excluído', async () => {
-    const erro = await loteCadastro
-      .excluirCampoPersonalizado({ id: 'c', field_name: 'motivo_entrada', metadata: { native_select: true } })
-      .catch((e) => e);
-    expect(hasApiErrorCode(erro, API_ERROR_CODES.LOTE_NATIVE_FIELD_PROTECTED)).toBe(true);
-    expect(lotes.deleteLayoutCampo).not.toHaveBeenCalled();
-  });
-
-  it('L13/L14 — campo sem dados sai; campo com dados é bloqueado por código', async () => {
-    lotes.listLotes.mockResolvedValue([{ id: 'l1', campos_personalizados: { outro: 'x' } }]);
-    await loteCadastro.excluirCampoPersonalizado({ id: 'c1', field_name: 'meu_campo' });
-    expect(lotes.deleteLayoutCampo).toHaveBeenCalledWith('c1');
-
-    lotes.listLotes.mockResolvedValue([{ id: 'l1', campos_personalizados: { meu_campo: 'valor' } }]);
-    const erro = await loteCadastro.excluirCampoPersonalizado({ id: 'c1', field_name: 'meu_campo' }).catch((e) => e);
-    expect(hasApiErrorCode(erro, API_ERROR_CODES.LOTE_FIELD_HAS_DATA)).toBe(true);
-  });
-
-  it('P3/L15 — cada fonte é carregada por uma API pública explícita', async () => {
-    lotes.listFornecedores.mockResolvedValue([{ id: 'f1', nome: 'ACME' }]);
-    estoque.listProdutos.mockResolvedValue([{ id: 'p1', nome_produto: 'RAÇÃO' }]);
-    categoriasManejo.listCategoriasManejo.mockResolvedValue([{ id: 'c1', nome: 'BOI' }]);
-    setores.listSetores.mockResolvedValue([{ id: 's1', nome: 'PASTO' }]);
-    mapa.listAreas.mockResolvedValue([{ id: 'a1', nome: 'PIQUETE' }]);
-    estoque.listLocais.mockResolvedValue([{ id: 'l1', nome: 'GALPÃO' }]);
-
-    const r = await loteCadastro.listarFontesDeOpcoes([
-      'Fornecedor', 'Produto', 'CategoriaManejo', 'Setor', 'AreaPastagem', 'LocalEstoque',
-    ]);
-
-    expect(lotes.listFornecedores).toHaveBeenCalled();
-    expect(estoque.listProdutos).toHaveBeenCalled();
-    expect(categoriasManejo.listCategoriasManejo).toHaveBeenCalled();
-    expect(setores.listSetores).toHaveBeenCalled();
-    expect(mapa.listAreas).toHaveBeenCalled();
-    expect(estoque.listLocais).toHaveBeenCalled();
-
-    expect(r.Fornecedor[0]).toMatchObject({ value: 'f1', label: 'ACME' });
-    // `Produto` usa `nome_produto` como rótulo — o catálogo declara o campo.
-    expect(r.Produto[0]).toMatchObject({ value: 'p1', label: 'RAÇÃO' });
-  });
-
-  it('L16 — o catálogo é fechado e reflete o que a interface oferece', () => {
-    expect(Object.keys(loteCadastro.OPTION_SOURCES).sort()).toEqual(
-      ['AreaPastagem', 'CategoriaManejo', 'Fornecedor', 'LocalEstoque', 'Produto', 'Setor']
-    );
-    expect(loteCadastro.isOptionSourceSuportada('Usuario')).toBe(false);
-  });
-
-  it('P4 — fonte desconhecida falha antes de qualquer I/O', async () => {
-    lotes.listFornecedores.mockResolvedValue([{ id: 'f1', nome: 'ACME' }]);
-    const erro = await loteCadastro
-      .listarFontesDeOpcoes(['Fornecedor', 'Usuario'])
-      .catch((e) => e);
-
-    expect(hasApiErrorCode(erro, API_ERROR_CODES.LOTE_OPTION_SOURCE_UNSUPPORTED)).toBe(true);
-    // Nem a fonte válida foi carregada: a validação é completa antes de começar.
-    expect(lotes.listFornecedores).not.toHaveBeenCalled();
-    expect(erro.details).toEqual({ fonte: 'Usuario' });
-  });
 });
 
 describe('S — setores', () => {

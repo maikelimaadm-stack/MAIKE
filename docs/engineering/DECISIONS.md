@@ -1766,4 +1766,24 @@ Corolário para o método: ausência de log nunca fecha uma verificação. Quand
 sinal esperado não aparece, monta-se o controle negativo que **tem de** falhar.
 Foi assim que o repositório evitou registrar uma barreira ativa que não estava.
 
-<!-- Próxima decisão: D-PROD-30 -->
+## D-PROD-30 — Cadastro de lote sem layout Base44 nem campos personalizados
+
+**Data:** 2026-10-23
+
+**Decisão:** remover do escopo executável as entidades `LayoutCampo`,
+`LayoutConfiguracao` e `LayoutSecao`, junto com toda a UI e API que criavam
+campos personalizados no cadastro de lotes. O formulário e a grade usam apenas
+campos fixos do schema `Lote` (`motivo_entrada` incluso). Dados legados em
+`campos_personalizados` permanecem no registro ao editar, mas não há mais tela
+para alterá-los.
+
+**Justificativa:** alinhamento com D-PROD-01 — produto Mapa Geral + Manejo, sem
+mini-ERP de layout configurável herdado da Base44.
+
+**Consequência:** `gate:product-scope` passa a autorizar 35 entidades Base44 no
+provider; `campoEngine` permanece só para colunas fixas da grade. Migração nativa
+do lote (P5) não reintroduz `Layout*`.
+
+---
+
+<!-- Próxima decisão: D-PROD-31 -->

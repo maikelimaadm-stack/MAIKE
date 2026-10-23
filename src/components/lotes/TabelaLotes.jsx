@@ -6,8 +6,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import ConfiguracaoColunasLotesDialog from "@/components/lotes/ConfiguracaoColunasLotesDialog";
-import { useQuery } from "@tanstack/react-query";
-import { listarCamposPersonalizados, listarFontesDeOpcoes } from "@/services/loteCadastroService";
 import campoEngine from "@/services/campoEngine";
 import { Filter, X, ArrowDownAZ, ArrowUpZA, GripVertical, Check } from "lucide-react";
 
@@ -136,30 +134,7 @@ export default function TabelaLotes({
     };
   }, []);
 
-  const { data: camposPersonalizados = [] } = useQuery({
-    queryKey: ["lote-campos-personalizados"],
-    queryFn: () => listarCamposPersonalizados(),
-    initialData: []
-  });
-
   const colunasDisponiveis = useMemo(() => {
-    const dinamicas = camposPersonalizados.
-    map(campoEngine.normalize).
-    filter((campo) => campo.ativo !== false && campo.visivel_tabela === true).
-    map((campo) => ({
-      ...campo,
-      id: `custom:${campo.field_name}`,
-      label: campo.label,
-      default: true,
-      sortable: campo.ordenavel !== false,
-      filtravel: campo.filtravel !== false,
-      align: campo.alinhamento || "left",
-      width: campo.largura_coluna || 160,
-      ordem_tabela: campo.ordem_tabela ?? campo.ordem ?? 999,
-      agregacao_tipo: campo.agregacao_tipo || campo.agregacao || "",
-      agregacao_campo_base: campo.agregacao_campo_base || "",
-      customField: campo.field_name
-    }));
     const formFieldToColumnId = {
       quantidade_cabecas: "cabecas",
       peso_medio_kg: "peso",
@@ -170,40 +145,13 @@ export default function TabelaLotes({
       if (layoutAggregationConfig[fieldId]?.enabled) aggregationByColumn[columnId] = layoutAggregationConfig[fieldId];
     });
 
-    return [...COLUNAS_DISPONIVEIS, ...dinamicas.sort((a, b) => (a.ordem_tabela || 999) - (b.ordem_tabela || 999))].map((coluna) => {
+    return COLUNAS_DISPONIVEIS.map((coluna) => {
       const config = aggregationByColumn[coluna.id];
-      if (coluna.tipo === "number" && coluna.usar_mascara) return { ...coluna, agregacao_tipo: "", agregacao: "", align: "left" };
-      return config?.enabled ? { ...coluna, agregacao_tipo: config.type, agregacao: config.type, usar_decimal: true } : { ...coluna, agregacao_tipo: "", agregacao: "" };
+      const base = { ...coluna, fixo: false };
+      if (coluna.tipo === "number" && coluna.usar_mascara) return { ...base, agregacao_tipo: "", agregacao: "", align: "left" };
+      return config?.enabled ? { ...base, agregacao_tipo: config.type, agregacao: config.type, usar_decimal: true } : { ...base, agregacao_tipo: "", agregacao: "" };
     });
-  }, [camposPersonalizados, layoutAggregationConfig]);
-
-  const relatedSources = useMemo(() => camposPersonalizados.
-  map((campo) => {
-    const normalized = campoEngine.normalize(campo);
-    const entity = campoEngine.getOptionsSourceKey(normalized);
-    return entity ? { entity, labelField: normalized.options_label_field || normalized.relation_display_field || "nome", valueField: normalized.options_value_field || "id" } : null;
-  }).
-  filter(Boolean), [camposPersonalizados]);
-
-  const { data: relatedOptions = {} } = useQuery({
-    queryKey: ["lote-related-options", relatedSources.map((source) => `${source.entity}:${source.labelField}:${source.valueField}`).join("|")],
-    queryFn: () => listarFontesDeOpcoes(relatedSources),
-    enabled: relatedSources.length > 0,
-    initialData: {}
-  });
-
-  useEffect(() => {
-    const customVisible = colunasDisponiveis.filter((col) => col.id.startsWith("custom:") && col.default).map((col) => col.id);
-    setColunasVisiveis((prev) => Array.from(new Set([...prev, ...customVisible])));
-    setColunasOrdem((prev) => {
-      const merged = Array.from(new Set([...prev, ...customVisible]));
-      return merged.sort((a, b) => {
-        const colA = colunasDisponiveis.find((col) => col.id === a);
-        const colB = colunasDisponiveis.find((col) => col.id === b);
-        return (colA?.ordem_tabela || colA?.ordem || 0) - (colB?.ordem_tabela || colB?.ordem || 0);
-      });
-    });
-  }, [colunasDisponiveis]);
+  }, [layoutAggregationConfig]);
 
   useEffect(() => {localStorage.setItem(COLUMN_WIDTHS_KEY, JSON.stringify(columnWidths));}, [columnWidths]);
   useEffect(() => {localStorage.setItem(FROZEN_COLUMNS_KEY, String(frozenColumnCount));}, [frozenColumnCount]);
@@ -280,7 +228,7 @@ export default function TabelaLotes({
   const handleResetColumnLayout = () => {
     const defaultOrder = colunasDisponiveis.filter((coluna) => !coluna.fixo).map((coluna) => coluna.id);
     const defaultVisible = colunasDisponiveis.filter((coluna) => !coluna.fixo && coluna.default).map((coluna) => coluna.id);
-    handleColumnLayoutChange({ visiveis: defaultVisible, ordem: defaultOrder });
+    handleColumnLayoutChange({ visiveis: defaultVisible, ordem: defaultOrder, frozenColumnCount: 0 });
   };
 
   const colunasOrdenadas = useMemo(() => {
@@ -324,7 +272,7 @@ export default function TabelaLotes({
   // Field value extraction for filters
   const getFieldValue = (lote, colunaId) => {
     const coluna = colunasDisponiveis.find((item) => item.id === colunaId);
-    return campoEngine.getValorCampo(lote, coluna || { id: colunaId }, relatedOptions);
+    return campoEngine.getValorCampo(lote, coluna || { id: colunaId }, {});
   };
 
   const columnOptions = useMemo(() => {
@@ -333,7 +281,7 @@ export default function TabelaLotes({
       opts[col.id] = [...new Set(lotes.map((item) => getFieldValue(item, col.id)).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b), "pt-BR", { numeric: true, sensitivity: "base" }));
     });
     return opts;
-  }, [lotes, colunasDisponiveis, relatedOptions]);
+  }, [lotes, colunasDisponiveis]);
 
   const hasActiveFilter = (colunaId) => (filtrosColunas[colunaId] || []).length > 0;
   const getValoresFiltro = (colunaId) => filtrosColunas[colunaId] || [];
@@ -397,7 +345,7 @@ export default function TabelaLotes({
         return filtro.includes(val);
       });
     });
-  }, [lotes, filtrosColunas, colunasDisponiveis, relatedOptions, searchTerm]);
+  }, [lotes, filtrosColunas, colunasDisponiveis, searchTerm]);
 
   const lotesOrdenados = useMemo(() => {
     const sorted = [...lotesFiltrados];
@@ -426,7 +374,7 @@ export default function TabelaLotes({
       return 0;
     });
     return sorted;
-  }, [lotesFiltrados, sortConfig, colunasDisponiveis, relatedOptions]);
+  }, [lotesFiltrados, sortConfig, colunasDisponiveis]);
 
   const handleSort = (key) => setSortConfig((prev) => ({ key, direction: prev.key === key && prev.direction === "asc" ? "desc" : "asc" }));
 
@@ -493,16 +441,16 @@ export default function TabelaLotes({
     }
 
     const coluna = colunasDisponiveis.find((item) => item.id === colunaId);
-    return campoEngine.getValorCampo(lote, coluna || { id: colunaId }, relatedOptions);
+    return campoEngine.getValorCampo(lote, coluna || { id: colunaId }, {});
   };
 
   const agregacoes = useMemo(() => {
-    return campoEngine.calcularAgregacoes(lotesOrdenados, colunasOrdenadas, relatedOptions);
-  }, [lotesOrdenados, colunasOrdenadas, relatedOptions]);
+    return campoEngine.calcularAgregacoes(lotesOrdenados, colunasOrdenadas, {});
+  }, [lotesOrdenados, colunasOrdenadas]);
 
   const agregacoesTodas = useMemo(() => {
-    return campoEngine.calcularAgregacoes(lotesOrdenados, colunasTodasOrdenadas, relatedOptions);
-  }, [lotesOrdenados, colunasTodasOrdenadas, relatedOptions]);
+    return campoEngine.calcularAgregacoes(lotesOrdenados, colunasTodasOrdenadas, {});
+  }, [lotesOrdenados, colunasTodasOrdenadas]);
 
   const formatTotalValue = (valor, coluna) => {
     const tipo = String(coluna.tipo || coluna.field_type || "").toLowerCase();
@@ -563,7 +511,7 @@ export default function TabelaLotes({
       allSelectedRows: buildRows(selectedLotes, colunasTodasOrdenadas),
       allTotalRows: allTotalRow ? [allTotalRow] : []
     });
-  }, [colunasOrdenadas, colunasTodasOrdenadas, lotesOrdenados, relatedOptions, selectedItems, onVisibleDataChange, agregacoes, agregacoesTodas, columnWidths]);
+  }, [colunasOrdenadas, colunasTodasOrdenadas, lotesOrdenados, selectedItems, onVisibleDataChange, agregacoes, agregacoesTodas, columnWidths]);
 
   const renderFilterControl = (colunaId) => {
     const buttonClass = `h-4 w-4 min-w-4 p-0 ${hasActiveFilter(colunaId) ? "text-emerald-700" : "text-slate-500 hover:text-slate-700"}`;

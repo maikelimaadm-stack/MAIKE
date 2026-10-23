@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -7,8 +6,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Filter, Plus, ChevronDown, ChevronRight } from "lucide-react";
 import SankhyaFilterConfigDialog from "./SankhyaFilterConfigDialog";
 import SankhyaCodeNameLookup from "./SankhyaCodeNameLookup";
-import { listarCamposPersonalizados } from "@/services/loteCadastroService";
-import campoEngine from "@/services/campoEngine";
 import { buildFiltersFromPreset } from "@/components/filters/filterPresetUtils";
 
 const FIELD_DEFS = [
@@ -85,26 +82,7 @@ export default function SankhyaFilterPanel({ open, filters, onChange, onApply, o
   const [fieldConfigs, setFieldConfigs] = useState(activeConfig.fieldConfigs || {});
   const [openGroups, setOpenGroups] = useState(Object.fromEntries((activeConfig.filterFolders || DEFAULT_FOLDERS).map((folder) => [folder.id, true])));
 
-  const { data: camposPersonalizados = [] } = useQuery({
-    queryKey: ["lote-campos-personalizados"],
-    queryFn: () => listarCamposPersonalizados(),
-    initialData: []
-  });
-
-  const customFields = useMemo(() => {
-    return camposPersonalizados.map(campoEngine.normalize).filter((campo) => campo.ativo !== false && campo.visivel_tabela !== false).map((campo) => ({
-      id: `custom:${campo.field_name}`,
-      label: campo.label,
-      group: "Campos personalizados",
-      type: ["number", "calculado"].includes(campo.tipo) ? "number" : campo.tipo === "date" ? "date" : campo.tipo === "boolean" || campo.tipo === "checkbox" ? "boolean" : campo.tipo === "select" && (campo.options || []).length > 0 ? "select" : "text",
-      options: (campo.options || []).map((option) => option.label || option.value || option).sort((a, b) => String(a).localeCompare(String(b), "pt-BR", { sensitivity: "base" })),
-      customField: campo.field_name,
-      campo,
-      metadata: { searchable: true, sortable: true, favorite: false, hidden: false, quickFilter: false, width: 160, pinned: false, exportable: true, customField: true }
-    }));
-  }, [camposPersonalizados]);
-
-  const allFields = useMemo(() => [...FIELD_DEFS, ...customFields], [customFields]);
+  const allFields = FIELD_DEFS;
 
   const options = useMemo(() => {
     const uniqBy = (items, key) => Array.from(new Map(items.filter((item) => item?.[key]).map((item) => [item[key], item])).values()).

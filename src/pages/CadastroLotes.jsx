@@ -5,7 +5,6 @@ import SankhyaFilterPanel from "@/components/common/SankhyaFilterPanel";
 import { toast } from "sonner";
 import FormularioLote from "@/components/lotes/FormularioLote";
 import TabelaLotes from "@/components/lotes/TabelaLotes";
-import ConfiguracaoCamposLoteDialog from "@/components/lotes/ConfiguracaoCamposLoteDialog";
 import ConfiguracaoExportacaoPdfLotesDialog from "@/components/lotes/ConfiguracaoExportacaoPdfLotesDialog";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 import RegistroAnexosDialog from "@/components/common/RegistroAnexosDialog";
@@ -14,14 +13,12 @@ import {
   listarLotes,
   listarAreasAtivas,
   listarIdsDeLotesComMovimentacao,
-  listarCamposPersonalizados,
   criarLote,
   atualizarLote,
   excluirLote,
   validarExclusaoDeLote,
 } from "@/services/loteCadastroService";
 import { persistirAnexosPendentes } from "@/services/anexoService";
-import campoEngine from "@/services/campoEngine";
 import { exportVisibleLotesTableToExcel, printVisibleLotesTable } from "@/components/lotes/loteTableExportUtils";
 import { getLotesExcelExportConfig, getLotesPdfExportConfig } from "@/components/lotes/pdfExportConfig";
 
@@ -30,7 +27,6 @@ export default function CadastroLotes() {
   const [editingLote, setEditingLote] = useState(null);
   const [deleteState, setDeleteState] = useState({ open: false, ids: [] });
   const [showConfigColunas, setShowConfigColunas] = useState(false);
-  const [showConfigCampos, setShowConfigCampos] = useState(false);
   const [showConfigPdf, setShowConfigPdf] = useState(false);
   const [showConfigExcel, setShowConfigExcel] = useState(false);
   const [viewMode, setViewMode] = useState("table");
@@ -69,16 +65,6 @@ export default function CadastroLotes() {
     enabled: !!empresaSelecionadaId,
     initialData: []
   });
-
-  const { data: camposPersonalizadosFiltro = [] } = useQuery({
-    queryKey: ["lote-campos-personalizados"],
-    queryFn: () => listarCamposPersonalizados(),
-    initialData: []
-  });
-
-  const camposFiltroPersonalizados = useMemo(() => {
-    return camposPersonalizadosFiltro.map(campoEngine.normalize).filter((campo) => campo.ativo !== false && campo.visivel_tabela !== false);
-  }, [camposPersonalizadosFiltro]);
 
   const hasActiveFilters = useMemo(() => {
     return Object.entries(appliedFilters).some(([key, value]) => {
@@ -164,28 +150,9 @@ export default function CadastroLotes() {
       if ((dataOperator === "between" || dataOperator === "gte" || dataOperator === "gt") && appliedFilters.data_min && (dataOperator === "gt" ? dataEntrada <= appliedFilters.data_min : dataEntrada < appliedFilters.data_min)) return false;
       if ((dataOperator === "between" || dataOperator === "lte" || dataOperator === "lt") && appliedFilters.data_max && (dataOperator === "lt" ? dataEntrada >= appliedFilters.data_max : dataEntrada > appliedFilters.data_max)) return false;
 
-      for (const campo of camposFiltroPersonalizados) {
-        const fieldId = `custom:${campo.field_name}`;
-        const rawValue = lote.campos_personalizados?.[campo.field_name];
-        const displayValue = campoEngine.getValorCampo(lote, { ...campo, id: fieldId, customField: campo.field_name });
-        if (["number", "calculado"].includes(campo.tipo) && !checkNumeric(fieldId, Number(rawValue || 0))) return false;
-        if (campo.tipo === "date") {
-          const dateValue = String(rawValue || "").split("T")[0];
-          const dateOperator = operators[fieldId] || "between";
-          if (dateOperator === "empty" && dateValue) return false;
-          if (dateOperator === "notEmpty" && !dateValue) return false;
-          if ((dateOperator === "custom" || dateOperator === "in") && appliedFilters[`${fieldId}_exact`] && !customList(appliedFilters[`${fieldId}_exact`]).includes(dateValue.toLowerCase())) return false;
-          if (dateOperator === "notIn" && appliedFilters[`${fieldId}_exact`] && customList(appliedFilters[`${fieldId}_exact`]).includes(dateValue.toLowerCase())) return false;
-          if (dateOperator === "exact" && appliedFilters[`${fieldId}_exact`] && dateValue !== appliedFilters[`${fieldId}_exact`]) return false;
-          if (dateOperator === "different" && appliedFilters[`${fieldId}_exact`] && dateValue === appliedFilters[`${fieldId}_exact`]) return false;
-          if ((dateOperator === "between" || dateOperator === "gte" || dateOperator === "gt") && appliedFilters[`${fieldId}_min`] && (dateOperator === "gt" ? dateValue <= appliedFilters[`${fieldId}_min`] : dateValue < appliedFilters[`${fieldId}_min`])) return false;
-          if ((dateOperator === "between" || dateOperator === "lte" || dateOperator === "lt") && appliedFilters[`${fieldId}_max`] && (dateOperator === "lt" ? dateValue >= appliedFilters[`${fieldId}_max`] : dateValue > appliedFilters[`${fieldId}_max`])) return false;
-        }
-        if (!["number", "calculado", "date"].includes(campo.tipo) && !checkText(fieldId, displayValue)) return false;
-      }
       return true;
     });
-  }, [lotes, appliedFilters, camposFiltroPersonalizados]);
+  }, [lotes, appliedFilters]);
 
   const createLoteMutation = useMutation({
     mutationFn: (data) => criarLote(data, { empresaId: empresaSelecionadaId }),
@@ -286,11 +253,6 @@ export default function CadastroLotes() {
     setDeleteState({ open: true, ids: Array.isArray(ids) ? ids : [ids] });
   };
 
-  const handleOpenConfigCampos = () => {
-    setFilterPanelOpen(false);
-    setShowConfigCampos(true);
-  };
-
   const currentLote = lotesFiltradosPainel[selectedIndex] || lotesFiltradosPainel[0] || null;
   const selectedTableLote = selectedTableItems.length === 1 ? lotesFiltradosPainel.find((item) => item.id === selectedTableItems[0]) : null;
   const recordForAttachments = showForm ? editingLote : selectedTableLote;
@@ -385,17 +347,7 @@ export default function CadastroLotes() {
           border-radius: 1.5px !important;
         }
       `}</style>
-      {showConfigCampos && (
-        <section className="w-full h-full bg-white overflow-hidden">
-          <ConfiguracaoCamposLoteDialog
-            open={showConfigCampos}
-            onOpenChange={setShowConfigCampos}
-            inline
-          />
-        </section>
-      )}
-
-      {!showConfigCampos && showForm &&
+      {showForm &&
       <div className="flex min-h-0 h-full w-full overflow-hidden">
         <SankhyaFilterPanel
           open={filterPanelOpen}
@@ -442,7 +394,6 @@ export default function CadastroLotes() {
               setPendingAttachments([]);
               setNewRecordAttachmentsOpen(false);
             }}
-            onSettingsClick={handleOpenConfigCampos}
             onToggleView={handleToggleView}
             total={lotesFiltradosPainel.length}
             currentIndex={selectedIndex}
@@ -464,7 +415,7 @@ export default function CadastroLotes() {
       </div>
       }
 
-      <div className={showForm || showConfigCampos ? "hidden" : "flex min-h-0 h-full w-full overflow-hidden"}>
+      <div className={showForm ? "hidden" : "flex min-h-0 h-full w-full overflow-hidden"}>
         <SankhyaFilterPanel
           open={filterPanelOpen}
           filters={filters}

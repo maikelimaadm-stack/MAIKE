@@ -1378,7 +1378,6 @@ describe('gate:api-boundary — P1.4 fechamento da P1', () => {
 
     assert.deepEqual(atual.entidadesRegistradas, esperadas);
     assert.equal(atual.entidadesRegistradas.length, permitidas.length - MIGRADAS_PARA_NATIVO.length);
-    assert.equal(atual.entidadesRegistradas.length, 37);
   });
 
   test('P14-N13 baseline final com lista não vazia reprova a certificação da P1', () => {
