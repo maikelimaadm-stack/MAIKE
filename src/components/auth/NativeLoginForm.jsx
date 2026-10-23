@@ -59,7 +59,10 @@ const NativeLoginForm = ({ onAutenticado, entrar }) => {
       >
         <div className="space-y-1">
           <h1 className="text-lg font-semibold text-slate-900">Entrar no MAIKE</h1>
-          <p className="text-sm text-slate-500">Informe usuário e senha.</p>
+          <p className="text-sm text-slate-500">
+            Informe usuário e senha. Não há código de cliente — o sistema associa sua conta
+            automaticamente.
+          </p>
         </div>
 
         <div className="space-y-1">

@@ -20,9 +20,14 @@
 import React from 'react';
 
 /**
- * @param {{mensagem?: string|null, aoTentarNovamente: () => void, tentando?: boolean}} props
+ * @param {{
+ *   mensagem?: string|null,
+ *   aoTentarNovamente: () => void,
+ *   aoIrParaLogin?: () => void,
+ *   tentando?: boolean,
+ * }} props
  */
-const NativeSessionUnavailable = ({ mensagem, aoTentarNovamente, tentando = false }) => (
+const NativeSessionUnavailable = ({ mensagem, aoTentarNovamente, aoIrParaLogin, tentando = false }) => (
   <div className="fixed inset-0 flex items-center justify-center bg-slate-50 p-4">
     <div
       role="status"
@@ -42,6 +47,16 @@ const NativeSessionUnavailable = ({ mensagem, aoTentarNovamente, tentando = fals
       >
         {tentando ? 'Validando…' : 'Tentar novamente'}
       </button>
+      {aoIrParaLogin ? (
+        <button
+          type="button"
+          onClick={aoIrParaLogin}
+          disabled={tentando}
+          className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-800 disabled:opacity-60"
+        >
+          Entrar com usuário e senha
+        </button>
+      ) : null}
     </div>
   </div>
 );
