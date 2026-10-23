@@ -2,8 +2,16 @@ import React, { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import CadastroFormField, { CADASTRO_INPUT_CLS, CADASTRO_SELECT_CLS } from "@/components/cadastro/base1/CadastroFormField";
+
+const NOME_INPUT_CLS = `${CADASTRO_INPUT_CLS} w-full px-2 uppercase`;
+
+const FL = ({ label, required = false, error = false, children }) => (
+  <CadastroFormField label={label} required={required} error={error}>
+    {children}
+  </CadastroFormField>
+);
+const SELECT_CLS = CADASTRO_SELECT_CLS;
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
@@ -76,9 +84,8 @@ export default function FormularioUsuario({ onSubmit, onCancel, initialData, usu
           </CardTitle>
         </CardHeader>
         <CardContent className="p-4">
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-1">
-              <Label className="text-xs uppercase">USUÁRIO *</Label>
+          <form onSubmit={handleSubmit} className="space-y-3">
+            <FL label="Usuário" required>
               <Select
                 value={formData.user_email}
                 onValueChange={(value) => {
@@ -91,7 +98,7 @@ export default function FormularioUsuario({ onSubmit, onCancel, initialData, usu
                 }}
                 disabled={!!initialData?.user_email}
               >
-                <SelectTrigger className="h-8 text-xs uppercase">
+                <SelectTrigger className={`${SELECT_CLS} uppercase`}>
                   <SelectValue placeholder="SELECIONE UM USUÁRIO" />
                 </SelectTrigger>
                 <SelectContent>
@@ -102,23 +109,24 @@ export default function FormularioUsuario({ onSubmit, onCancel, initialData, usu
                   ))}
                 </SelectContent>
               </Select>
-            </div>
+            </FL>
 
-            <div className="space-y-1">
-              <Label className="text-xs uppercase">NOME DO USUÁRIO *</Label>
-              <Input
+            <FL label="Nome do usuário" required>
+              <input
+                type="text"
                 value={formData.user_nome}
                 onChange={(e) => handleChange("user_nome", e.target.value.toUpperCase())}
-                className="h-8 text-xs uppercase"
+                className={NOME_INPUT_CLS}
                 placeholder="NOME EXIBIDO NO SISTEMA"
+                style={{ textTransform: "uppercase" }}
               />
-            </div>
+            </FL>
 
             <div className="border rounded-lg p-3 bg-slate-50">
-              <Label className="text-xs font-semibold flex items-center gap-2 uppercase mb-3">
+              <p className="text-xs font-semibold flex items-center gap-2 uppercase mb-3 text-slate-700">
                 <Lock className="w-3.5 h-3.5" />
                 NÍVEL DE ACESSO
-              </Label>
+              </p>
 
               <label className="flex items-center gap-2 p-2 rounded bg-white border cursor-pointer hover:bg-violet-50 transition-colors">
                 <Checkbox checked={formData.is_admin} onCheckedChange={(checked) => handleChange("is_admin", checked)} />

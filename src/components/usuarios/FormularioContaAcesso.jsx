@@ -1,9 +1,9 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
+import CadastroFormField, { CADASTRO_INPUT_CLS } from "@/components/cadastro/base1/CadastroFormField";
 
-const inputCls =
-  "w-full h-8 text-xs rounded-md border border-slate-300 px-2 focus:outline-none focus:border-emerald-500 bg-white";
+const INPUT_CLS = `${CADASTRO_INPUT_CLS} w-full px-2`;
 
 export default function FormularioContaAcesso({ onSubmit, onCancel, initialData }) {
   const isEditing = Boolean(initialData?.id);
@@ -51,7 +51,7 @@ export default function FormularioContaAcesso({ onSubmit, onCancel, initialData 
     });
   };
 
-  const fieldError = (name) => (invalidFields.includes(name) ? "border-red-500 bg-red-50" : "");
+  const fieldError = (name) => invalidFields.includes(name);
 
   return (
     <motion.div
@@ -68,54 +68,50 @@ export default function FormularioContaAcesso({ onSubmit, onCancel, initialData 
           Login e senha usados na entrada nativa. Permissões de menu ficam na tabela abaixo.
         </p>
       </div>
-      <form onSubmit={handleSubmit} className="p-4 space-y-3 max-w-xl">
-        <div>
-          <label className="text-[12px] text-slate-500 pl-1">Nome *</label>
+      <form onSubmit={handleSubmit} className="p-4 space-y-2 max-w-xl">
+        <CadastroFormField label="Nome" required error={fieldError("nome")}>
           <input
             type="text"
             value={form.nome}
             onChange={(e) => handleChange("nome", e.target.value)}
             placeholder="Nome de exibição"
-            className={`${inputCls} ${fieldError("nome")}`}
+            className={INPUT_CLS}
           />
-        </div>
+        </CadastroFormField>
         {!isEditing ? (
           <>
-            <div>
-              <label className="text-[12px] text-slate-500 pl-1">Login (usuário) *</label>
+            <CadastroFormField label="Login (usuário)" required error={fieldError("login")}>
               <input
                 type="text"
                 value={form.login}
                 onChange={(e) => handleChange("login", e.target.value)}
                 placeholder="Identificador de entrada"
-                className={`${inputCls} ${fieldError("login")}`}
+                className={INPUT_CLS}
                 autoComplete="off"
               />
-            </div>
-            <div>
-              <label className="text-[12px] text-slate-500 pl-1">Senha inicial *</label>
+            </CadastroFormField>
+            <CadastroFormField label="Senha inicial" required error={fieldError("senha")}>
               <input
                 type="password"
                 value={form.senha}
                 onChange={(e) => handleChange("senha", e.target.value)}
                 placeholder="Mínimo 8 caracteres"
-                className={`${inputCls} ${fieldError("senha")}`}
+                className={INPUT_CLS}
                 autoComplete="new-password"
               />
-            </div>
+            </CadastroFormField>
           </>
         ) : (
-          <div>
-            <label className="text-[12px] text-slate-500 pl-1">Nova senha (opcional)</label>
+          <CadastroFormField label="Nova senha (opcional)" error={fieldError("nova_senha")}>
             <input
               type="password"
               value={form.nova_senha}
               onChange={(e) => handleChange("nova_senha", e.target.value)}
               placeholder="Deixe em branco para manter"
-              className={`${inputCls} ${fieldError("nova_senha")}`}
+              className={INPUT_CLS}
               autoComplete="new-password"
             />
-          </div>
+          </CadastroFormField>
         )}
         {isEditing ? (
           <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer">

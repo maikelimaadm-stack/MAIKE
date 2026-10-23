@@ -181,7 +181,7 @@ export default function TabelaMarcas({
   return (
     <>
       <div className="overflow-hidden">
-            <div className="relative w-full overflow-auto max-h-[calc(100dvh-280px)] md:max-h-[calc(100dvh-220px)]" style={{ overscrollBehavior: 'none' }}>
+            <div className="cadastro-grade-viewport relative w-full overflow-auto" style={{ overscrollBehavior: 'none' }}>
               <Table className={`w-full ${isMobile ? "min-w-[500px]" : "min-w-[800px]"} border-separate border-spacing-0 table-fixed`}>
                 <TableHeader className="bg-white">
                   <TableRow className="sticky top-0 z-40 bg-white">

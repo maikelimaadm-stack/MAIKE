@@ -6,19 +6,14 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-
-const INPUT_CLS = "h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent";
+import CadastroFormField, { CADASTRO_INPUT_CLS } from "@/components/cadastro/base1/CadastroFormField";
 
 const FL = ({ label, required, error, children }) => (
-  <div>
-    <label className="text-[12px] text-slate-500 pl-1 leading-none">
-      {label}{required && <span className="text-red-500 ml-0.5">*</span>}
-    </label>
-    <div className={`rounded-md border ${error ? 'border-red-500 bg-red-50' : 'border-slate-300'} focus-within:border-emerald-500 transition-colors`}>
-      {children}
-    </div>
-  </div>
+  <CadastroFormField label={label} required={required} error={error}>
+    {children}
+  </CadastroFormField>
 );
+const INPUT_CLS = CADASTRO_INPUT_CLS;
 
 export default function FormularioMarca({ onSubmit, onCancel, initialData, variant = "card" }) {
   const isEditing = !!initialData?.id;

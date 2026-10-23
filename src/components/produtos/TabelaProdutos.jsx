@@ -351,7 +351,7 @@ export default function TabelaProdutos({
   return (
     <>
       <div className="overflow-hidden">
-              <div ref={scrollContainerRef} className="relative w-full overflow-auto max-h-[calc(100dvh-280px)] md:max-h-[calc(100dvh-220px)]" style={{ overscrollBehavior: 'none', WebkitOverflowScrolling: 'touch' }}>
+              <div ref={scrollContainerRef} className="cadastro-grade-viewport relative w-full overflow-auto" style={{ overscrollBehavior: 'none', WebkitOverflowScrolling: 'touch' }}>
                 <Table ref={tableRef} className={`w-full ${isMobile ? "min-w-[720px]" : "min-w-[1200px]"} border-separate border-spacing-0 table-fixed`}>
                   <TableHeader className="bg-white">
                     <TableRow className="sticky top-0 z-40 bg-white">

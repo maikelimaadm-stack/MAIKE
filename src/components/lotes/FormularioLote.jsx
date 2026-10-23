@@ -476,8 +476,8 @@ export default function FormularioLote({
 
   }
 
-  return (
-    <div className="h-full min-h-0 overflow-hidden bg-white">
+  const formInner = (
+    <>
       <TopNoticeDialog
         open={noticeDialog.open}
         onOpenChange={(open) => setNoticeDialog((prev) => ({ ...prev, open }))}
@@ -538,7 +538,7 @@ export default function FormularioLote({
                 errors={errors}
                 onChange={handleChange}
                 readOnly={isReadOnly}
-                fieldClassName="rounded-[1.5px]" />
+                />
             </div>
           </fieldset>
 
@@ -559,7 +559,7 @@ export default function FormularioLote({
                 errors={errors}
                 onChange={handleChange}
                 readOnly={isReadOnly}
-                fieldClassName="rounded-[1.5px]" />
+                />
               
             </div>
           </div>
@@ -595,6 +595,12 @@ export default function FormularioLote({
 
         </div>
       </form>
-    </div>);
+    </>
+  );
 
+  return (
+    <div className={`h-full min-h-0 overflow-hidden ${embedded ? "rounded-md border border-slate-300 shadow-sm bg-white" : "bg-white"}`}>
+      {formInner}
+    </div>
+  );
 }

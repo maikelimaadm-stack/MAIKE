@@ -10,15 +10,12 @@ import { getCurrentUser } from "@/services/sessionService";
 import { BEBEDOURO_HISTORICO_STATUS, BEBEDOURO_HISTORICO_TIPOS } from "@/services/bebedouroService";
 import { toast } from "sonner";
 
+import CadastroFormField from "@/components/cadastro/base1/CadastroFormField";
+
 const FL = ({ label, required, children }) => (
-  <div>
-    <label className="text-[12px] text-slate-500 pl-1 leading-none">
-      {label}{required && <span className="text-red-500 ml-0.5">*</span>}
-    </label>
-    <div className="rounded-md border border-slate-300 focus-within:border-emerald-500 transition-colors">
-      {children}
-    </div>
-  </div>
+  <CadastroFormField label={label} required={required}>
+    {children}
+  </CadastroFormField>
 );
 
 const AVALIACAO_AGUA_TYPES = new Set(["Análise da água", "Contaminação", "Inspeção", "Tratamento da água"]);

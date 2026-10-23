@@ -720,7 +720,7 @@ export default function TabelaLotes({
                   lotesOrdenados.map((lote, index) =>
                   <TableRow
                     key={lote.id}
-                    className={`${selectedItems.includes(lote.id) ? "bg-green-500 hover:bg-green-600 text-white" : index % 2 === 0 ? "bg-gray-100 hover:bg-gray-200" : "bg-white hover:bg-gray-100"} transition-colors border-b cursor-pointer select-none`}
+                    className="border-b hover:bg-gray-100 transition-colors cursor-pointer select-none"
                     onClick={(event) => handleRowSelect(lote, event)}
                     onDoubleClick={() => selectedItems.length <= 1 && onEdit(lote)}
                     onTouchEnd={(event) => handleRowTouch(lote, event)}>
@@ -733,7 +733,7 @@ export default function TabelaLotes({
                         <TableCell
                           key={`${lote.id}-${coluna.id}`}
                           style={{ width, minWidth: width, maxWidth: width, left: isFrozen ? frozenOffsets[coluna.id] : undefined }}
-                          className={`py-1 text-xs align-middle border-r border-b whitespace-nowrap overflow-hidden select-none px-2 ${isFrozen ? "sticky z-20" : ""} ${getColumnAlignClass(coluna)} ${selectedItems.includes(lote.id) ? "bg-green-500 text-white border-green-600" : index % 2 === 0 ? "bg-gray-100 text-gray-700 border-gray-300" : "bg-white text-gray-700 border-gray-300"}`}
+                          className={`py-1 text-xs align-middle border-r border-b border-gray-300 whitespace-nowrap overflow-hidden select-none px-2 text-gray-700 uppercase ${isFrozen ? "sticky z-20" : ""} ${getColumnAlignClass(coluna)} ${coluna.align === "right" ? "font-mono text-right" : ""}`}
                           title={String(renderCell(lote, coluna.id) ?? "")}>
                           
                               {renderCell(lote, coluna.id)}
