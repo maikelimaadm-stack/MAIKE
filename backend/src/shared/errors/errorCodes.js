@@ -83,6 +83,18 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   // só a linha. Um código único obrigaria o frontend a inspecionar `details`
   // para descobrir do que o servidor está falando.
   AREA_NOT_FOUND: { http: 404, meaning: 'id não identifica área de pastagem deste tenant' },
+  CONFIGURACAO_ICONE_NOT_FOUND: {
+    http: 404,
+    meaning: 'id não identifica configuração de ícone deste tenant',
+  },
+  PONTO_REFERENCIA_NOT_FOUND: {
+    http: 404,
+    meaning: 'id não identifica ponto de referência deste tenant',
+  },
+  LINHA_GEOGRAFICA_NOT_FOUND: {
+    http: 404,
+    meaning: 'id não identifica linha geográfica deste tenant',
+  },
   INTERNAL_ERROR: { http: 500, meaning: 'erro não previsto' },
 });
 

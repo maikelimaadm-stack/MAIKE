@@ -225,27 +225,33 @@ describe('B17 — registry do provider é literal, exato e igual ao manifesto me
    * contra o manifesto e contra o registry abaixo — não é allowlist que perdoa
    * divergência qualquer.
    */
-  const MIGRADAS_PARA_NATIVO = ['Setor', 'AreaPastagem'];
+  const MIGRADAS_PARA_NATIVO = [
+    'Setor',
+    'AreaPastagem',
+    'ConfiguracaoIcone',
+    'PontoReferencia',
+    'LinhaGeografica',
+  ];
 
   const ESPERADO = [
     'AplicacaoMedicamento', 'Bebedouro', 'BebedouroAlerta', 'BebedouroHistorico',
-    'BebedouroSanidade', 'Categoria', 'CategoriaManejo', 'ConfiguracaoIcone', 'Empresa',
+    'BebedouroSanidade', 'Categoria', 'CategoriaManejo', 'Empresa',
     'EstoqueLoteNota', 'EventoSanitario', 'Fornecedor', 'GrupoAtividade', 'HistoricoLancamentoTarefa',
-    'LancamentoTarefa', 'LinhaGeografica',
+    'LancamentoTarefa',
     'LocalEstoque', 'Lote', 'ManejoTecnicoRebanho', 'Marca', 'MovimentacaoEstoque', 'MovimentacaoMapa',
-    'MovimentacaoPecuaria', 'Permissao', 'PontoReferencia', 'PontoSuplementacao', 'Produto',
+    'MovimentacaoPecuaria', 'Permissao', 'PontoSuplementacao', 'Produto',
     'RegistroAnexo', 'SuplementacaoEvento', 'SuplementacaoLote', 'TipoTarefa',
     'UnidadeMedida', 'User',
   ].sort();
 
-  it('são 33 entidades: manifesto (35) menos Setor e AreaPastagem nativos', async () => {
+  it('são 30 entidades: manifesto (35) menos cinco nativas', async () => {
     const { getRegisteredEntityNames } = await import('@/apis/_providers/base44Provider');
     const registrados = getRegisteredEntityNames().slice().sort();
     const manifesto = JSON.parse(ler('config/mapa-manejo-scope.json')).allowedBase44Entities.slice().sort();
 
     expect(registrados).toEqual(ESPERADO);
     expect(registrados).toEqual(manifesto.filter((e) => !MIGRADAS_PARA_NATIVO.includes(e)));
-    expect(registrados.length).toBe(33);
+    expect(registrados.length).toBe(30);
     expect(manifesto.length).toBe(35);
   });
 

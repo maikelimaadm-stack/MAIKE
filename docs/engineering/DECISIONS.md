@@ -1865,4 +1865,20 @@ mesma coisa. O resto da aplicação já filtrava por empresa no cliente.
   ninguém lê. É inofensiva e sai quando os outros cinco destinos migrarem; mexer
   na function aqui misturaria missões.
 
-<!-- Próxima decisão: D-PROD-32 -->
+## D-PROD-32 — Geografia do mapa nativa (ícone, ponto, linha)
+
+**Missão:** `P4.3 — Map Geography Native Persistence`.
+**Relatório:** `docs/engineering/P4.3-MAP-GEOGRAPHY-NATIVE-REPORT.md`.
+**Gate:** `gate:map-geography-native`, absoluto, 12 regras.
+
+Três entidades saem da Base44 numa fatia só porque compartilham o mesmo
+consumidor (`@/apis/mapa`) e a mesma disciplina de porta nativa:
+
+- **`ConfiguracaoIcone`** — CRUD sem numeração; exclusão lógica (`ativo: false`), sem rota DELETE;
+- **`PontoReferencia`** — numeração tenant-scoped; **DELETE** físico, como `excluirPontoComCascata`;
+- **`LinhaGeografica`** — numeração tenant-scoped; baixa lógica via PATCH, **sem** DELETE.
+
+Dono único no frontend: `@/apis/mapaGeografia`, reexportado por `@/apis/mapa`.
+Offline continua com `tenantScoped: true` nas três portas.
+
+<!-- Próxima decisão: D-PROD-33 -->

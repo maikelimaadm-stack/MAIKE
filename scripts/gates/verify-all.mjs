@@ -36,6 +36,7 @@ const ETAPAS = [
   // `AreaPastagem` só é tenant-aware se `Setor` mantiver o
   // `@@unique([cliente_id, id])` que `gate:setor-native` cobra.
   ['area-pastagem-native', npm('gate:area-pastagem-native')],
+  ['map-geography-native', npm('gate:map-geography-native')],
   ['source-closure', npm('gate:source-closure')],
   ['import-integrity', npm('gate:import-integrity')],
   ['no-secrets', npm('gate:no-secrets')],
