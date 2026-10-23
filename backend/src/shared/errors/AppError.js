@@ -67,3 +67,10 @@ export const concurrencyConflict = (message, options) =>
  */
 export const setorNotFound = (message, options) =>
   new AppError('SETOR_NOT_FOUND', message || 'setor não encontrado', options);
+
+/**
+ * Área de pastagem inexistente **ou** de outro tenant — indistinguíveis, pelo
+ * mesmo motivo de `setorNotFound`.
+ */
+export const areaNotFound = (message, options) =>
+  new AppError('AREA_NOT_FOUND', message || 'área de pastagem não encontrada', options);

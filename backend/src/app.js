@@ -23,6 +23,7 @@ import { tenantContextRequired } from './shared/errors/AppError.js';
 import { registrarHealthRoutes } from './modules/health/healthRoutes.js';
 import { registrarAuthRoutes } from './modules/auth/authRoutes.js';
 import { registrarSetorRoutes } from './modules/setores/setorRoutes.js';
+import { registrarAreaPastagemRoutes } from './modules/areas/areaPastagemRoutes.js';
 
 /**
  * @param {{logger?: boolean|object}} [opcoes]
@@ -84,6 +85,7 @@ export const construirApp = async (opcoes = {}) => {
   await app.register(registrarHealthRoutes);
   await app.register(registrarAuthRoutes);
   await app.register(registrarSetorRoutes);
+  await app.register(registrarAreaPastagemRoutes);
 
   return app;
 };

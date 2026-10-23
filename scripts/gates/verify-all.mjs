@@ -32,6 +32,10 @@ const ETAPAS = [
   // próprio; este prova que Setor usa esse caminho e nenhum outro — e que a
   // Base44 não voltou a ser origem, destino ou fallback do dado dele.
   ['setor-native', npm('gate:setor-native')],
+  // Logo depois, porque depende do que ele garante: a FK composta de
+  // `AreaPastagem` só é tenant-aware se `Setor` mantiver o
+  // `@@unique([cliente_id, id])` que `gate:setor-native` cobra.
+  ['area-pastagem-native', npm('gate:area-pastagem-native')],
   ['source-closure', npm('gate:source-closure')],
   ['import-integrity', npm('gate:import-integrity')],
   ['no-secrets', npm('gate:no-secrets')],

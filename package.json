@@ -31,6 +31,7 @@
     "gate:api-boundary": "node scripts/gates/gate-api-boundary.mjs",
     "gate:native-api": "node scripts/gates/gate-native-api.mjs",
     "gate:setor-native": "node scripts/gates/gate-setor-native.mjs",
+    "gate:area-pastagem-native": "node scripts/gates/gate-area-pastagem-native.mjs",
     "gate:source-closure": "node scripts/gates/gate-source-closure.mjs",
     "gate:import-integrity": "node scripts/gates/gate-import-integrity.mjs",
     "gate:no-secrets": "node scripts/gates/gate-no-hardcoded-secrets.mjs",
