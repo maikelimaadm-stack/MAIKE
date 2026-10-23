@@ -1,13 +1,12 @@
-import React, { useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { listarMarcasDaEmpresa, criarMarca, atualizarMarca, excluirMarcas } from "@/services/marcaService";
 import { getApiErrorMessage } from "@/apis/_core/ApiError";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import { Plus, Settings } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 import CadastroWorkspace from "@/components/cadastro/CadastroWorkspace";
+import CadastroListaChrome from "@/components/cadastro/base1/CadastroListaChrome";
 import FormularioMarca from "@/components/marcas/FormularioMarca";
 import TabelaMarcas from "@/components/marcas/TabelaMarcas";
 
@@ -16,6 +15,12 @@ export default function Marcas() {
   const [editingItem, setEditingItem] = useState(null);
   const [showConfigColunas, setShowConfigColunas] = useState(false);
   const [deleteState, setDeleteState] = useState({ open: false, ids: [] });
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [searchInput, setSearchInput] = useState("");
+  const [appliedSearch, setAppliedSearch] = useState("");
+  const [filtersActive, setFiltersActive] = useState(false);
+  const [resetFiltersKey, setResetFiltersKey] = useState(0);
+  const [viewMode, setViewMode] = useState("table");
   const queryClient = useQueryClient();
   const empresaId = localStorage.getItem("empresa_selecionada_id");
 
@@ -51,6 +56,7 @@ export default function Marcas() {
     mutationFn: (ids) => excluirMarcas(ids),
     onSuccess: ({ excluidas, falhas }) => {
       queryClient.invalidateQueries({ queryKey: ["marcas"] });
+      setSelectedIds([]);
       if (excluidas.length) {
         toast.success(
           excluidas.length === 1 ? "Marca excluída!" : `${excluidas.length} marcas excluídas!`,
@@ -68,6 +74,12 @@ export default function Marcas() {
   const closeForm = () => {
     setShowForm(false);
     setEditingItem(null);
+    setViewMode("table");
+  };
+
+  const openNew = () => {
+    setEditingItem(null);
+    setShowForm(true);
   };
 
   const handleSubmit = (data) => {
@@ -80,9 +92,20 @@ export default function Marcas() {
     setShowForm(true);
   };
 
+  const handleEditSelected = () => {
+    const id = selectedIds[0];
+    const item = marcas.find((m) => m.id === id);
+    if (item) handleEdit(item);
+  };
+
   const handleRequestDelete = (id) => {
     const ids = Array.isArray(id) ? id : [id];
     setDeleteState({ open: true, ids });
+  };
+
+  const handleDeleteSelected = () => {
+    if (!selectedIds.length) return;
+    handleRequestDelete(selectedIds);
   };
 
   const handleConfirmDelete = () => {
@@ -90,32 +113,32 @@ export default function Marcas() {
     setDeleteState({ open: false, ids: [] });
   };
 
-  const detailTitle = editingItem?.id ? "Editar marca" : "Nova marca";
+  const handleSelectionChange = useCallback((ids) => {
+    setSelectedIds(ids);
+  }, []);
 
-  const listToolbar = (
-    <>
-      <Button
-        variant="outline"
-        size="icon"
-        onClick={() => setShowConfigColunas(true)}
-        className="h-8 w-8"
-        aria-label="Configurar colunas"
-      >
-        <Settings className="h-4 w-4" />
-      </Button>
-      <Button
-        onClick={() => {
-          setShowForm(true);
-          setEditingItem(null);
-        }}
-        size="sm"
-        className="h-8 gap-1 bg-emerald-600 text-white hover:bg-emerald-700"
-      >
-        <Plus className="h-3.5 w-3.5" />
-        Adicionar
-      </Button>
-    </>
-  );
+  const handleViewModeChange = (mode) => {
+    if (mode === "record") {
+      if (selectedIds.length !== 1) {
+        toast.info("Selecione um registro para abrir no modo Registro.");
+        return;
+      }
+      handleEditSelected();
+      return;
+    }
+    setViewMode(mode);
+  };
+
+  const filtradosCount = useMemo(() => {
+    const q = appliedSearch.trim().toLowerCase();
+    if (!q) return marcas.length;
+    return marcas.filter((m) => {
+      const hay = [m.nome, m.descricao, m.numero_marca].filter(Boolean).join(" ").toLowerCase();
+      return hay.includes(q);
+    }).length;
+  }, [marcas, appliedSearch]);
+
+  const detailTitle = editingItem?.id ? "Editar marca" : "Nova marca";
 
   return (
     <>
@@ -128,7 +151,7 @@ export default function Marcas() {
             : "Marcas de produto vinculadas à empresa selecionada."
         }
         onBack={showForm ? closeForm : undefined}
-        toolbar={showForm ? null : listToolbar}
+        toolbar={null}
       >
         <AnimatePresence mode="wait">
           {showForm ? (
@@ -140,15 +163,40 @@ export default function Marcas() {
               onCancel={closeForm}
             />
           ) : (
-            <TabelaMarcas
-              key="table"
-              marcas={marcas}
-              onEdit={handleEdit}
-              onDelete={handleRequestDelete}
-              isLoading={isLoading}
-              showConfigColunas={showConfigColunas}
-              setShowConfigColunas={setShowConfigColunas}
-            />
+            <CadastroListaChrome
+              key="chrome"
+              selectedCount={selectedIds.length}
+              listados={marcas.length}
+              filtrados={filtradosCount}
+              totais={marcas.length}
+              createLabel="Novo"
+              onNew={openNew}
+              onEdit={handleEditSelected}
+              onDelete={handleDeleteSelected}
+              searchValue={searchInput}
+              onSearchChange={setSearchInput}
+              onSearchApply={(next) => setAppliedSearch(typeof next === "string" ? next : searchInput)}
+              searchActive={Boolean(appliedSearch.trim())}
+              searchPlaceholder="Buscar marcas…"
+              onConfigureColumns={() => setShowConfigColunas(true)}
+              onClearFilters={() => setResetFiltersKey((k) => k + 1)}
+              filtersActive={filtersActive}
+              viewMode={viewMode}
+              onViewModeChange={handleViewModeChange}
+            >
+              <TabelaMarcas
+                marcas={marcas}
+                onEdit={handleEdit}
+                onDelete={handleRequestDelete}
+                isLoading={isLoading}
+                showConfigColunas={showConfigColunas}
+                setShowConfigColunas={setShowConfigColunas}
+                searchQuery={appliedSearch}
+                resetFiltersKey={resetFiltersKey}
+                onSelectionChange={handleSelectionChange}
+                onFiltersActiveChange={setFiltersActive}
+              />
+            </CadastroListaChrome>
           )}
         </AnimatePresence>
       </CadastroWorkspace>

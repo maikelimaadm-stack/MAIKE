@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -31,7 +30,18 @@ function getFieldValue(item, id) {
   return "";
 }
 
-export default function TabelaMarcas({ marcas = [], onEdit, onDelete, isLoading, showConfigColunas, setShowConfigColunas }) {
+export default function TabelaMarcas({
+  marcas = [],
+  onEdit,
+  onDelete,
+  isLoading,
+  showConfigColunas,
+  setShowConfigColunas,
+  searchQuery = "",
+  resetFiltersKey = 0,
+  onSelectionChange,
+  onFiltersActiveChange,
+}) {
   const [selectedItems, setSelectedItems] = useState([]);
   const [sortConfig, setSortConfig] = useState({ key: "nome", direction: "asc" });
   const [menuFiltroAberto, setMenuFiltroAberto] = useState(null);
@@ -76,7 +86,36 @@ export default function TabelaMarcas({ marcas = [], onEdit, onDelete, isLoading,
 
   useEffect(() => { setSelectedItems(p => p.filter(id => marcas.some(m => m.id === id))); }, [marcas]);
 
-  const filtrados = useMemo(() => marcas.filter(m => COLUNAS.filter(c => !c.fixo).every(col => { const f = filtrosColunas[col.id] || []; if (!f.length) return true; return f.includes(getFieldValue(m, col.id)); })), [marcas, filtrosColunas]);
+  useEffect(() => {
+    if (resetFiltersKey > 0) {
+      setFiltrosColunas({});
+      setSortConfig({ key: "nome", direction: "asc" });
+    }
+  }, [resetFiltersKey]);
+
+  useEffect(() => {
+    onSelectionChange?.(selectedItems);
+  }, [selectedItems, onSelectionChange]);
+
+  useEffect(() => {
+    const active = Object.values(filtrosColunas).some((v) => (v || []).length > 0);
+    onFiltersActiveChange?.(active);
+  }, [filtrosColunas, onFiltersActiveChange]);
+
+  const filtrados = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    return marcas.filter((m) => {
+      if (q) {
+        const hay = [m.nome, m.descricao, m.numero_marca].filter(Boolean).join(" ").toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return COLUNAS.filter((c) => !c.fixo).every((col) => {
+        const f = filtrosColunas[col.id] || [];
+        if (!f.length) return true;
+        return f.includes(getFieldValue(m, col.id));
+      });
+    });
+  }, [marcas, filtrosColunas, searchQuery]);
   const ordenados = useMemo(() => {
     const s = [...filtrados];
     s.sort((a, b) => { let av = getFieldValue(a, sortConfig.key).toLowerCase(), bv = getFieldValue(b, sortConfig.key).toLowerCase(); if (av < bv) return sortConfig.direction === "asc" ? -1 : 1; if (av > bv) return sortConfig.direction === "asc" ? 1 : -1; return 0; });
@@ -141,25 +180,8 @@ export default function TabelaMarcas({ marcas = [], onEdit, onDelete, isLoading,
 
   return (
     <>
-      <div className="space-y-1 overflow-hidden">
-        <div className="flex justify-between items-center px-1 gap-2 flex-wrap">
-          <div className="text-xs text-slate-500">{filtrados.length} de {marcas.length} registros</div>
-          {selectedItems.length > 0 && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild><Button variant="outline" size="sm" className="h-7 text-xs">Ações ({selectedItems.length})</Button></DropdownMenuTrigger>
-              <DropdownMenuContent>
-                <DropdownMenuLabel className="text-xs">Ações em Lote</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => setBulkDeleteConfirm(true)} className="text-xs text-red-600">Excluir Selecionados</DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => setSelectedItems([])} className="text-xs">Limpar Seleção</DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
-        </div>
-        <Card className="overflow-hidden">
-          <CardContent className="p-0 overflow-hidden">
-            <div className="relative w-full overflow-auto max-h-[calc(100dvh-240px)] md:max-h-[calc(100dvh-150px)]" style={{ overscrollBehavior: 'none' }}>
+      <div className="overflow-hidden">
+            <div className="relative w-full overflow-auto max-h-[calc(100dvh-280px)] md:max-h-[calc(100dvh-220px)]" style={{ overscrollBehavior: 'none' }}>
               <Table className={`w-full ${isMobile ? "min-w-[500px]" : "min-w-[800px]"} border-separate border-spacing-0 table-fixed`}>
                 <TableHeader className="bg-white">
                   <TableRow className="sticky top-0 z-40 bg-white">
@@ -175,7 +197,7 @@ export default function TabelaMarcas({ marcas = [], onEdit, onDelete, isLoading,
                             {renderFilterControl(col.id)}
                             <button type="button" className={`h-4 w-4 flex items-center justify-center rounded ${isRes ? 'text-emerald-600 bg-emerald-100' : 'text-slate-300 hover:text-slate-500'}`} onClick={e => { e.stopPropagation(); setResizeColumnId(p => p === col.id ? null : col.id); }}><GripVertical className="w-2.5 h-2.5" /></button>
                           </div>
-                          {isRes && <div className="absolute top-0 -right-0 h-full w-5 z-50 flex items-center justify-center cursor-col-resize bg-lime-800" onMouseDown={e => startDragResize(e, col.id)} onTouchStart={e => startDragResize(e, col.id)} onClick={e => { e.stopPropagation(); setResizeColumnId(null); }}><GripVertical className="w-3.5 h-3.5 text-white" /></div>}
+                          {isRes && <div className="mg-grid-resize-handle absolute top-0 -right-0 h-full w-5 z-50 flex items-center justify-center cursor-col-resize" onMouseDown={e => startDragResize(e, col.id)} onTouchStart={e => startDragResize(e, col.id)} onClick={e => { e.stopPropagation(); setResizeColumnId(null); }}><GripVertical className="w-3.5 h-3.5 text-white" /></div>}
                         </TableHead>
                       );
                     })}
@@ -197,8 +219,6 @@ export default function TabelaMarcas({ marcas = [], onEdit, onDelete, isLoading,
                 </TableBody>
               </Table>
             </div>
-          </CardContent>
-        </Card>
       </div>
       <ConfiguracaoColunasMapaDialog open={showConfigColunas} onOpenChange={setShowConfigColunas} colunasDisponiveis={COLUNAS} colunasVisiveis={colunasVisiveis} colunasOrdem={colunasOrdem} toggleColuna={toggleColuna} handleDragEnd={handleDragEnd} droppableId="colunas-marcas" />
       <ConfirmDialog open={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)} title="Confirmar exclusão" description="Deseja excluir esta marca?" onConfirm={() => { onDelete(deleteConfirm.id); setDeleteConfirm(null); }} confirmText="Excluir" cancelText="Cancelar" variant="destructive" />
