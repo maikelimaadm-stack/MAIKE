@@ -25,3 +25,9 @@ Introduzir um shell reutilizável de cadastro (cabeçalho, subtítulo, ações, 
 ## Verificação
 
 - `npm run test:smoke`, `npm run lint`, `npm run build` após a mudança.
+
+---
+
+## UX-02 (2026-10-23) — Categorias de produtos
+
+Mesmo padrão aplicado em `src/pages/Categorias.jsx` e `FormularioCategoriaProduto` (`variant="embedded"`), na branch `cursor/ux-frota-categorias-ssot-516d`.
