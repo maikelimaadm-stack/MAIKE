@@ -8,7 +8,6 @@
 import { runProviderCall, assertArgument } from '../_core/normalizeApiError.js';
 import {
   lotesProvider,
-  loteLayoutProvider,
   fornecedoresProvider,
   categoriasManejoProvider,
   referenciasProvider,
@@ -132,54 +131,12 @@ export const bulkCreateSuplementacaoLote = async (registros) => {
   return runProviderCall(() => lotesProvider.bulkCreateSuplementacaoLote(registros), contexto);
 };
 
-// ── P1.3 — cadastro de lote: exclusão, layout e fontes de opção ────────────
+// ── P1.3 — cadastro de lote: exclusão e cadastros auxiliares ───────────────
 
 export const deleteLote = async (id) => {
   const contexto = ctx('deleteLote');
   assertArgument(isId(id), 'id', contexto);
   return runProviderCall(() => lotesProvider.deleteLote(id), contexto);
-};
-
-const layoutCtx = (operation) => ({ operation, resource: 'LayoutCampo' });
-
-export const listLayoutConfiguracoes = async () =>
-  comoLista(await runProviderCall(() => loteLayoutProvider.listConfiguracoes(), layoutCtx('listLayoutConfiguracoes')));
-
-export const createLayoutConfiguracao = async (dados) => {
-  const contexto = layoutCtx('createLayoutConfiguracao');
-  assertArgument(isObjeto(dados), 'dados', contexto);
-  return runProviderCall(() => loteLayoutProvider.createConfiguracao(dados), contexto);
-};
-
-export const listLayoutSecoes = async () =>
-  comoLista(await runProviderCall(() => loteLayoutProvider.listSecoes(), layoutCtx('listLayoutSecoes')));
-
-export const createLayoutSecao = async (dados) => {
-  const contexto = layoutCtx('createLayoutSecao');
-  assertArgument(isObjeto(dados), 'dados', contexto);
-  return runProviderCall(() => loteLayoutProvider.createSecao(dados), contexto);
-};
-
-export const listLayoutCampos = async () =>
-  comoLista(await runProviderCall(() => loteLayoutProvider.listCampos(), layoutCtx('listLayoutCampos')));
-
-export const createLayoutCampo = async (dados) => {
-  const contexto = layoutCtx('createLayoutCampo');
-  assertArgument(isObjeto(dados), 'dados', contexto);
-  return runProviderCall(() => loteLayoutProvider.createCampo(dados), contexto);
-};
-
-export const updateLayoutCampo = async (id, dados) => {
-  const contexto = layoutCtx('updateLayoutCampo');
-  assertArgument(isId(id), 'id', contexto);
-  assertArgument(isObjeto(dados), 'dados', contexto);
-  return runProviderCall(() => loteLayoutProvider.updateCampo(id, dados), contexto);
-};
-
-export const deleteLayoutCampo = async (id) => {
-  const contexto = layoutCtx('deleteLayoutCampo');
-  assertArgument(isId(id), 'id', contexto);
-  return runProviderCall(() => loteLayoutProvider.deleteCampo(id), contexto);
 };
 
 export const listFornecedores = async () =>

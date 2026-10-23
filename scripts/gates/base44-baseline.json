@@ -3,13 +3,13 @@
   "axes": {
     "arquivosComSdk": 4,
     "importsSdk": 1,
-    "entitiesRefs": 37,
+    "entitiesRefs": 34,
     "authRefs": 5,
     "integrationsRefs": 1,
     "functionsRefs": 1,
     "vitePlugin": 1,
     "runtimeConfigRefs": 1,
-    "schemas": 38,
+    "schemas": 35,
     "functionsBase44": 1
   }
 }

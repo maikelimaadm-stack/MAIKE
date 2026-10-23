@@ -19,11 +19,10 @@ describe('H — o smoke é hermético desde a avaliação dos módulos', () => {
   it('H1/H2 — o provider real carrega com o stub, sem inicializar o SDK', () => {
     // Se o SDK real tivesse sido instanciado, o import de topo já teria
     // disparado rede antes deste corpo rodar.
-    // 37 desde a P4.1: `Setor` migrou para persistência nativa e saiu do
-    // registry da Base44 (D-PROD-25). O número aqui é só a evidência de que o
-    // provider real carregou; o conjunto exato é verificado em
-    // `suporteBoundary.test.js`.
-    expect(getRegisteredEntityNames().length).toBe(37);
+    // 34 desde D-PROD-30: `Layout*` saiu do produto; `Setor` já era nativo (P4.1).
+    // O número aqui é só a evidência de que o provider real carregou; o conjunto
+    // exato é verificado em `suporteBoundary.test.js`.
+    expect(getRegisteredEntityNames().length).toBe(34);
   });
 
   it('H3/H4 — operação do provider não toca fetch nem XMLHttpRequest', async () => {

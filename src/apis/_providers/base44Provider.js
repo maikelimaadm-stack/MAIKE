@@ -73,7 +73,7 @@ const comFronteira = (nome, endpoint) =>
  *
  * Toda chave aqui precisa existir em `config/mapa-manejo-scope.json` →
  * `allowedBase44Entities` (`P11-API-BOUNDARY-SCOPE`). A P1.4 fechou o registry
- * **igual** ao manifesto, com 38 entidades.
+ * **igual** ao manifesto, com 35 entidades.
  *
  * Desde a P4.1 a relação é de **inclusão, não igualdade**: 37 entidades aqui
  * para 38 no manifesto. `Setor` migrou para persistência nativa (D-PROD-25) e
@@ -133,11 +133,6 @@ const ENTITY_REGISTRY = Object.freeze({
   Categoria: comFronteira('Categoria', base44.entities.Categoria),
   CategoriaManejo: comFronteira('CategoriaManejo', base44.entities.CategoriaManejo),
   Fornecedor: comFronteira('Fornecedor', base44.entities.Fornecedor),
-
-  // Layout configurável do lote (P1.3)
-  LayoutConfiguracao: comFronteira('LayoutConfiguracao', base44.entities.LayoutConfiguracao),
-  LayoutSecao: comFronteira('LayoutSecao', base44.entities.LayoutSecao),
-  LayoutCampo: comFronteira('LayoutCampo', base44.entities.LayoutCampo),
 
   // Anexos de registro — hoje só o Lote consome (P1.3)
   RegistroAnexo: comFronteira('RegistroAnexo', base44.entities.RegistroAnexo),
@@ -429,25 +424,6 @@ export const categoriasManejoProvider = Object.freeze({
   create: (dados) => endpointOf('CategoriaManejo').create(dados),
   update: (id, dados) => endpointOf('CategoriaManejo').update(id, dados),
   delete: (id) => endpointOf('CategoriaManejo').delete(id),
-});
-
-/**
- * Layout configurável do cadastro de lote, mais as entidades que servem de
- * fonte de opções.
- *
- * da API (`OPTION_SOURCES`). Não é ponto de entrada para nome arbitrário: quem
- * chama já provou que o nome pertence ao catálogo, e `endpointOf` reprova
- * qualquer coisa fora do registry (QLT-P13-12).
- */
-export const loteLayoutProvider = Object.freeze({
-  listConfiguracoes: () => endpointOf('LayoutConfiguracao').list(),
-  createConfiguracao: (dados) => endpointOf('LayoutConfiguracao').create(dados),
-  listSecoes: () => endpointOf('LayoutSecao').list(),
-  createSecao: (dados) => endpointOf('LayoutSecao').create(dados),
-  listCampos: () => endpointOf('LayoutCampo').list(),
-  createCampo: (dados) => endpointOf('LayoutCampo').create(dados),
-  updateCampo: (id, dados) => endpointOf('LayoutCampo').update(id, dados),
-  deleteCampo: (id) => endpointOf('LayoutCampo').delete(id),
 });
 
 /** Fornecedor — cadastro lido pelo formulário de lote e como fonte de opções. */

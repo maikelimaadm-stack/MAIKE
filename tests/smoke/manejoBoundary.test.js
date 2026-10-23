@@ -173,7 +173,7 @@ describe('A11 — registry do provider é literal e exato', () => {
     'AplicacaoMedicamento', 'AreaPastagem', 'Bebedouro', 'BebedouroAlerta', 'BebedouroHistorico',
     'BebedouroSanidade', 'Categoria', 'CategoriaManejo', 'ConfiguracaoIcone', 'Empresa',
     'EstoqueLoteNota', 'EventoSanitario', 'Fornecedor', 'GrupoAtividade', 'HistoricoLancamentoTarefa',
-    'LancamentoTarefa', 'LayoutCampo', 'LayoutConfiguracao', 'LayoutSecao', 'LinhaGeografica',
+    'LancamentoTarefa', 'LinhaGeografica',
     'LocalEstoque', 'Lote', 'ManejoTecnicoRebanho', 'MovimentacaoEstoque', 'MovimentacaoMapa',
     'MovimentacaoPecuaria', 'Permissao', 'PontoReferencia', 'PontoSuplementacao', 'Produto',
     // `Setor` saiu na P4.1: persistência nativa (D-PROD-25). Ver
