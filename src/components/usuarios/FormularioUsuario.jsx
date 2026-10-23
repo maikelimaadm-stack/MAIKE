@@ -1,8 +1,8 @@
 import React, { useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import CadastroFormField, { CADASTRO_INPUT_CLS, CADASTRO_SELECT_CLS } from "@/components/cadastro/base1/CadastroFormField";
+import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
+import CadastroFormActions from "@/components/cadastro/base1/CadastroFormActions";
 
 const NOME_INPUT_CLS = `${CADASTRO_INPUT_CLS} w-full px-2 uppercase`;
 
@@ -76,14 +76,10 @@ export default function FormularioUsuario({ onSubmit, onCancel, initialData, usu
 
   return (
     <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
-      <Card className="shadow-sm border-slate-300 bg-white">
-        <CardHeader className="bg-slate-50 border-b border-slate-200 py-3">
-          <CardTitle className="text-sm font-semibold text-slate-900 flex items-center gap-2">
-            <Shield className="w-4 h-4" />
-            {initialData?.user_email ? "EDITAR PERMISSÕES" : "CONFIGURAR PERMISSÕES DE USUÁRIO"}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-4">
+      <CadastroFormShell
+        embedded
+        title={initialData?.user_email ? "Editar permissões" : "Configurar permissões de usuário"}
+      >
           <form onSubmit={handleSubmit} className="space-y-3">
             <FL label="Usuário" required>
               <Select
@@ -154,17 +150,9 @@ export default function FormularioUsuario({ onSubmit, onCancel, initialData, usu
               </p>
             </div>
 
-            <div className="flex justify-end gap-2 pt-2 border-t">
-              <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 text-xs">
-                Cancelar
-              </Button>
-              <Button type="submit" size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
-                Salvar Permissões
-              </Button>
-            </div>
+            <CadastroFormActions onCancel={onCancel} submitLabel="Salvar permissões" />
           </form>
-        </CardContent>
-      </Card>
+      </CadastroFormShell>
     </motion.div>
   );
 }

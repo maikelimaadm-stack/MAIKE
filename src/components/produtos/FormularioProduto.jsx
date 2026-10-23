@@ -2,7 +2,6 @@ import React, { useRef, useState, useMemo } from "react";
 import { carregarFontesDoFormulario, normalizarProduto } from "@/services/produtoService";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -17,6 +16,8 @@ import CadastroFormField, {
   CADASTRO_INPUT_CLS,
   CADASTRO_SELECT_CLS,
 } from "@/components/cadastro/base1/CadastroFormField";
+import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
+import CadastroFormActions from "@/components/cadastro/base1/CadastroFormActions";
 
 const FL = ({ label, required, error, children }) => (
   <CadastroFormField label={label} required={required} error={error}>
@@ -156,19 +157,15 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
 
   return (
     <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
-      <Card className="shadow-sm border-slate-300">
-        {!embedded ? (
-          <CardHeader className="flex flex-col space-y-1.5 p-6 bg-slate-50 border-b py-1 px-1">
-            <CardTitle className="text-sm font-semibold text-slate-700">
-              {isEditing ? 'Editar Produto' : 'Novo Produto'}
-            </CardTitle>
-          </CardHeader>
-        ) : null}
-        <CardContent
-          className={embedded ? "p-3 pt-2" : "p-1"}
-          style={embedded ? undefined : { maxHeight: 'calc(100vh - 150px)', overflowY: 'auto', scrollbarWidth: "thin", scrollbarColor: "#cbd5e1 transparent" }}
-        >
-          <form onSubmit={handleSubmit} className="space-y-0.5">
+      <CadastroFormShell
+        embedded={embedded}
+        title={isEditing ? "Editar Produto" : "Novo Produto"}
+      >
+          <form
+            onSubmit={handleSubmit}
+            className="space-y-0.5"
+            style={embedded ? undefined : { maxHeight: "calc(100vh - 150px)", overflowY: "auto", scrollbarWidth: "thin", scrollbarColor: "#cbd5e1 transparent" }}
+          >
             {/* LINHA 1: Nome | Tipo de Uso | Código | Cód Barras */}
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-1">
               <FL label="Nome do Produto" required error={invalidFields.includes('nome_produto')}>
@@ -348,16 +345,12 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
               </div>
             </div>
 
-            {/* Botões */}
-            <div className="flex flex-col-reverse lg:flex-row justify-end gap-1 pt-1 border-t">
-              <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-7 text-xs px-3">Cancelar</Button>
-              <Button type="submit" size="sm" className="h-7 text-xs px-3 bg-emerald-600 hover:bg-emerald-700 text-white">
-                {isEditing ? 'Atualizar' : 'Salvar'}
-              </Button>
-            </div>
+            <CadastroFormActions
+              onCancel={onCancel}
+              submitLabel={isEditing ? "Atualizar" : "Salvar"}
+            />
           </form>
-        </CardContent>
-      </Card>
+      </CadastroFormShell>
     </motion.div>
   );
 }

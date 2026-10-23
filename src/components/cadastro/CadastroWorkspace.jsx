@@ -1,6 +1,5 @@
 import React from "react";
-import { Button } from "@/components/ui/button";
-import { ArrowLeft } from "lucide-react";
+import CadastroWorkspaceHeader from "@/components/cadastro/base1/CadastroWorkspaceHeader";
 
 /**
  * Shell de cadastro inspirado no workspace Frota (UX-01 piloto).
@@ -28,30 +27,14 @@ export default function CadastroWorkspace({
   const isDetail = mode === "detail";
 
   return (
-    <div className="flex flex-col gap-3 p-3 md:p-4 min-h-0">
-      <header className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between rounded-lg border border-slate-200 bg-white px-3 py-2.5 shadow-sm">
-        <div className="flex min-w-0 flex-1 flex-col gap-1">
-          {isDetail && onBack ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={onBack}
-              className="h-7 w-fit gap-1 px-2 text-xs text-slate-600 hover:text-slate-900 -ml-2"
-            >
-              <ArrowLeft className="h-3.5 w-3.5" />
-              Voltar à lista
-            </Button>
-          ) : null}
-          <h1 className="text-lg font-semibold text-slate-900 truncate">{title}</h1>
-          {subtitle ? (
-            <p className="text-xs text-slate-500 leading-snug">{subtitle}</p>
-          ) : null}
-        </div>
-        {toolbar ? (
-          <div className="flex flex-wrap items-center gap-2 shrink-0">{toolbar}</div>
-        ) : null}
-      </header>
+    <div className="cadastro-b1 flex flex-col gap-2 p-3 md:p-4 min-h-0">
+      <CadastroWorkspaceHeader
+        title={title}
+        subtitle={subtitle}
+        isDetail={isDetail}
+        onBack={onBack}
+        toolbar={toolbar}
+      />
       <div className="min-h-0 flex-1">{children}</div>
     </div>
   );

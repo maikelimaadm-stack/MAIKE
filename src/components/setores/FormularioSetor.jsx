@@ -1,7 +1,5 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -9,6 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import CadastroFormField from "@/components/cadastro/base1/CadastroFormField";
+import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
+import CadastroFormActions from "@/components/cadastro/base1/CadastroFormActions";
 
 const TIPOS_SETOR = ["Próprio", "Arrendado", "Parceria", "Terceiros"];
 const ESTADOS_BR = ["AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"];
@@ -70,15 +70,10 @@ export default function FormularioSetor({
 
   return (
     <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
-    <Card className="shadow-sm border-slate-300">
-      {!embedded ? (
-        <CardHeader className="flex flex-col space-y-1.5 p-6 bg-slate-50 border-b py-1 px-1">
-          <CardTitle className="text-sm font-semibold text-slate-900">
-            {isEditing ? "Editar Setor / Fazenda" : "Novo Setor / Fazenda"}
-          </CardTitle>
-        </CardHeader>
-      ) : null}
-      <CardContent className={embedded ? "p-3 pt-2" : "p-1 pt-1"}>
+    <CadastroFormShell
+      embedded={embedded}
+      title={isEditing ? "Editar Setor / Fazenda" : "Novo Setor / Fazenda"}
+    >
 <form onSubmit={handleSubmit} className="space-y-0.5">
   <div className="grid grid-cols-1 lg:grid-cols-4 gap-1">
     <FL label="Nome do Setor/Fazenda" required error={invalidFields.includes('nome')} dataField="nome">
@@ -130,13 +125,9 @@ export default function FormularioSetor({
     <Textarea value={formData.observacoes} onChange={(e) => handleChange("observacoes", e.target.value)} placeholder="OBSERVAÇÕES GERAIS..." className="text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" style={{ textTransform: "uppercase" }} rows={2} />
   </FL>
 
-  <div className="flex flex-col-reverse lg:flex-row justify-end gap-1 pt-1 border-t">
-    <Button type="button" variant="outline" onClick={onCancel} className="h-7 px-2 text-xs">Cancelar</Button>
-    <Button type="submit" className="h-7 bg-emerald-600 hover:bg-emerald-700 text-white px-3 text-xs">{ isEditing ? "Atualizar" : "Salvar"}</Button>
-  </div>
+  <CadastroFormActions onCancel={onCancel} submitLabel={isEditing ? "Atualizar" : "Salvar"} />
 </form>
-      </CardContent>
-    </Card>
+      </CadastroFormShell>
     </motion.div>);
 
 }

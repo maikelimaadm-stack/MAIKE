@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
@@ -10,13 +9,22 @@ import { getCurrentUser } from "@/services/sessionService";
 import { BEBEDOURO_HISTORICO_STATUS, BEBEDOURO_HISTORICO_TIPOS } from "@/services/bebedouroService";
 import { toast } from "sonner";
 
-import CadastroFormField from "@/components/cadastro/base1/CadastroFormField";
+import CadastroFormField, {
+  CADASTRO_INPUT_CLS,
+  CADASTRO_SELECT_CLS,
+  CADASTRO_TEXTAREA_CLS,
+} from "@/components/cadastro/base1/CadastroFormField";
+import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
+import CadastroFormActions from "@/components/cadastro/base1/CadastroFormActions";
 
-const FL = ({ label, required, children }) => (
-  <CadastroFormField label={label} required={required}>
+const FL = ({ label, required = false, error = false, children }) => (
+  <CadastroFormField label={label} required={required} error={error}>
     {children}
   </CadastroFormField>
 );
+const INPUT_CLS = CADASTRO_INPUT_CLS;
+const SELECT_CLS = CADASTRO_SELECT_CLS;
+const TEXTAREA_CLS = CADASTRO_TEXTAREA_CLS;
 
 const AVALIACAO_AGUA_TYPES = new Set(["Análise da água", "Contaminação", "Inspeção", "Tratamento da água"]);
 const PRODUTO_TYPES = new Set(["Tratamento da água", "Aplicação de produto", "Limpeza", "Abastecimento"]);
@@ -84,42 +92,73 @@ export default function FormularioLancamentoBebedouro({ bebedouro, onSaved, onCa
   });
 
   return (
-    <div className="bg-card text-card-foreground rounded-xl border shadow-sm border-slate-300">
-      <div className="flex flex-col space-y-1.5 p-6 bg-slate-50 border-b py-1 px-1">
-        <div className="text-sm font-semibold text-slate-900">Lançamento do Bebedouro</div>
-        <div className="text-[11px] text-slate-500">{bebedouro.nome}</div>
-      </div>
-      <div className="p-1">
-        <form onSubmit={(e) => { e.preventDefault(); mutation.mutate(); }} className="space-y-0.5">
+    <CadastroFormShell title="Lançamento do bebedouro" subtitle={bebedouro.nome} embedded>
+      <form onSubmit={(e) => { e.preventDefault(); mutation.mutate(); }} className="space-y-0.5">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
+          <FL label="Data" required>
+            <Input type="date" value={form.data_lancamento} onChange={(e) => setForm({ ...form, data_lancamento: e.target.value })} className={INPUT_CLS} required />
+          </FL>
+          <FL label="Hora">
+            <Input type="time" value={form.hora_lancamento} onChange={(e) => setForm({ ...form, hora_lancamento: e.target.value })} className={INPUT_CLS} />
+          </FL>
+          <FL label="Tipo" required>
+            <Select value={form.tipo_lancamento} onValueChange={(value) => setForm({ ...form, tipo_lancamento: value })}>
+              <SelectTrigger className={SELECT_CLS}><SelectValue /></SelectTrigger>
+              <SelectContent>{BEBEDOURO_HISTORICO_TIPOS.map((tipo) => <SelectItem key={tipo} value={tipo} className="text-xs">{tipo}</SelectItem>)}</SelectContent>
+            </Select>
+          </FL>
+          <FL label="Status" required>
+            <Select value={form.status} onValueChange={(value) => setForm({ ...form, status: value })}>
+              <SelectTrigger className={SELECT_CLS}><SelectValue /></SelectTrigger>
+              <SelectContent>{BEBEDOURO_HISTORICO_STATUS.map((status) => <SelectItem key={status} value={status} className="text-xs">{status}</SelectItem>)}</SelectContent>
+            </Select>
+          </FL>
+        </div>
+
+        {showProduto ? (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
-            <FL label="Data" required><Input type="date" value={form.data_lancamento} onChange={(e) => setForm({ ...form, data_lancamento: e.target.value })} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" required /></FL>
-            <FL label="Hora"><Input type="time" value={form.hora_lancamento} onChange={(e) => setForm({ ...form, hora_lancamento: e.target.value })} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" /></FL>
-            <FL label="Tipo" required><Select value={form.tipo_lancamento} onValueChange={(value) => setForm({ ...form, tipo_lancamento: value })}><SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue /></SelectTrigger><SelectContent>{BEBEDOURO_HISTORICO_TIPOS.map((tipo) => <SelectItem key={tipo} value={tipo} className="text-xs">{tipo}</SelectItem>)}</SelectContent></Select></FL>
-            <FL label="Status" required><Select value={form.status} onValueChange={(value) => setForm({ ...form, status: value })}><SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue /></SelectTrigger><SelectContent>{BEBEDOURO_HISTORICO_STATUS.map((status) => <SelectItem key={status} value={status} className="text-xs">{status}</SelectItem>)}</SelectContent></Select></FL>
+            <FL label="Produto utilizado">
+              <Input value={form.produto_utilizado} onChange={(e) => setForm({ ...form, produto_utilizado: e.target.value })} className={`${INPUT_CLS} uppercase`} />
+            </FL>
+            <FL label="Quantidade">
+              <Input type="number" step="0.01" value={form.quantidade_utilizada} onChange={(e) => setForm({ ...form, quantidade_utilizada: e.target.value })} className={INPUT_CLS} />
+            </FL>
           </div>
+        ) : null}
 
-          {showProduto && <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
-            <FL label="Produto utilizado"><Input value={form.produto_utilizado} onChange={(e) => setForm({ ...form, produto_utilizado: e.target.value })} className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" /></FL>
-            <FL label="Quantidade"><Input type="number" step="0.01" value={form.quantidade_utilizada} onChange={(e) => setForm({ ...form, quantidade_utilizada: e.target.value })} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" /></FL>
-          </div>}
-
-          {showAvaliacaoAgua && <div className="rounded-lg border border-blue-100 bg-blue-50/40 p-1 space-y-1">
-            <div className="text-[11px] font-bold text-blue-900 px-1">Qualidade da água</div>
+        {showAvaliacaoAgua ? (
+          <div className="rounded-md border border-[var(--mg-divider)] bg-slate-50/80 p-2 space-y-1">
+            <div className="text-[11px] font-semibold text-slate-800 px-1">Qualidade da água</div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
-              <FL label="Escore"><Input type="number" step="0.1" value={form.escore_agua} onChange={(e) => setForm({ ...form, escore_agua: e.target.value })} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" /></FL>
-              <FL label="Qualidade"><Select value={form.qualidade_agua} onValueChange={(value) => setForm({ ...form, qualidade_agua: value })}><SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue /></SelectTrigger><SelectContent>{["Boa", "Média", "Ruim"].map((item) => <SelectItem key={item} value={item} className="text-xs">{item}</SelectItem>)}</SelectContent></Select></FL>
+              <FL label="Escore">
+                <Input type="number" step="0.1" value={form.escore_agua} onChange={(e) => setForm({ ...form, escore_agua: e.target.value })} className={INPUT_CLS} />
+              </FL>
+              <FL label="Qualidade">
+                <Select value={form.qualidade_agua} onValueChange={(value) => setForm({ ...form, qualidade_agua: value })}>
+                  <SelectTrigger className={SELECT_CLS}><SelectValue /></SelectTrigger>
+                  <SelectContent>{["Boa", "Média", "Ruim"].map((item) => <SelectItem key={item} value={item} className="text-xs">{item}</SelectItem>)}</SelectContent>
+                </Select>
+              </FL>
             </div>
-          </div>}
-
-          {showCusto && <FL label="Custo"><Input type="number" step="0.01" value={form.custo} onChange={(e) => setForm({ ...form, custo: e.target.value })} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" /></FL>}
-
-          <FL label="Observação"><Textarea value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} rows={3} className="text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" /></FL>
-          <div className="flex justify-end gap-1 pt-1 border-t">
-            <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={onCancel}>Cancelar</Button>
-            <Button type="submit" size="sm" className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white" disabled={mutation.isPending}>Salvar</Button>
           </div>
-        </form>
-      </div>
-    </div>
+        ) : null}
+
+        {showCusto ? (
+          <FL label="Custo">
+            <Input type="number" step="0.01" value={form.custo} onChange={(e) => setForm({ ...form, custo: e.target.value })} className={INPUT_CLS} />
+          </FL>
+        ) : null}
+
+        <FL label="Observação">
+          <Textarea value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} rows={3} className={`${TEXTAREA_CLS} uppercase`} />
+        </FL>
+
+        <CadastroFormActions
+          onCancel={onCancel}
+          submitLabel="Salvar lançamento"
+          isSubmitting={mutation.isPending}
+        />
+      </form>
+    </CadastroFormShell>
   );
 }

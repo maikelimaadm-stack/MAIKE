@@ -1,5 +1,4 @@
 import React, { useMemo, useState } from "react";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useQuery } from "@tanstack/react-query";
@@ -96,16 +95,16 @@ export default function DetalhesBebedouro({ bebedouro }) {
 
 
   return (
-    <div className="space-y-1" translate="no">
-      <div className="pb-1 border-b space-y-1">
+    <div className="cadastro-b1 space-y-2" translate="no">
+      <div className="pb-1 border-b border-[var(--mg-divider)] space-y-1">
         <div className="flex items-center gap-1 flex-wrap">
           <Badge variant="outline" className="bg-yellow-400 text-slate-950 px-2.5 py-0.5 text-xs font-semibold rounded-md inline-flex items-center border border-yellow-300">Local: {bebedouro.nome}</Badge>
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-1">
-        <Button variant="outline" size="sm" className="h-8 text-xs font-semibold" onClick={() => setShowLancamento(true)}>Lançar</Button>
-        <Button variant="outline" size="sm" className="h-8 text-xs font-semibold" onClick={() => setShowHistorico(true)}>Histórico</Button>
+        <button type="button" className="tb-btn tb-btn-green w-full" onClick={() => setShowLancamento(true)}>Lançar</button>
+        <button type="button" className="tb-btn tb-btn-gray w-full" onClick={() => setShowHistorico(true)}>Histórico</button>
       </div>
 
       <CardSection title="Resumo Operacional">
@@ -173,7 +172,12 @@ function MiniInfo({ label, value }) {
 }
 
 function CardSection({ title, children }) {
-  return <div className="border border-slate-200 rounded-lg bg-white shadow-sm p-1 space-y-1"><div className="text-[11px] font-bold text-slate-900">{title}</div>{children}</div>;
+  return (
+    <div className="mg-card p-2 space-y-1">
+      <div className="text-[11px] font-bold text-slate-900">{title}</div>
+      {children}
+    </div>
+  );
 }
 
 function InfoLine({ label, value }) {
