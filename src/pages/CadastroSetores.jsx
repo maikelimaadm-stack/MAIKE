@@ -8,11 +8,12 @@ import {
 import { getApiErrorMessage } from "@/apis/_core/ApiError";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Settings } from "lucide-react";
+import { Plus, Settings } from "lucide-react";
 import { toast } from "sonner";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 import TabelaSetores from "@/components/setores/TabelaSetores";
 import FormularioSetor from "@/components/setores/FormularioSetor";
+import CadastroWorkspace from "@/components/cadastro/CadastroWorkspace";
 import { AnimatePresence } from "framer-motion";
 
 const getInitialFormData = () => ({
@@ -39,7 +40,7 @@ export default function CadastroSetores() {
   const [showDelete, setShowDelete] = useState(false);
   const [deletarId, setDeletarId] = useState(null);
 
-  const { data: setores = [], isLoading, refetch } = useQuery({
+  const { data: setores = [], isLoading } = useQuery({
     queryKey: ["setores", empresaSelecionadaId],
     queryFn: async () => {
       return listarSetoresDaEmpresa(empresaSelecionadaId);
@@ -69,17 +70,6 @@ export default function CadastroSetores() {
     onError: () => toast.error("Erro ao atualizar setor")
   });
 
-  /**
-   * Exclusão fechada nesta fase (P4.1, D-PROD-25).
-   *
-   * O botão continua na tabela, e a recusa continua vindo do service — não do
-   * componente. Esconder o botão faria a tela parecer coerente enquanto a
-   * decisão de recusar vivia em outro arquivo; um dia alguém o traria de volta
-   * sem saber por que ele havia sumido.
-   *
-   * O `onSuccess` foi removido: `excluirSetor` nunca resolve. Deixá-lo ali
-   * descreveria um caminho que não existe.
-   */
   const deleteMutation = useMutation({
     /** @param {string} id */
     mutationFn: (id) => excluirSetor(id),
@@ -89,6 +79,11 @@ export default function CadastroSetores() {
       toast.error(getApiErrorMessage(error, "Erro ao excluir setor"));
     }
   });
+
+  const closeForm = () => {
+    setShowForm(false);
+    setEditando(null);
+  };
 
   const handleEdit = (setor) => {
     setEditando({
@@ -108,49 +103,72 @@ export default function CadastroSetores() {
     createMutation.mutate(data);
   };
 
+  const detailTitle = editando?.id ? "Editar setor / fazenda" : "Novo setor / fazenda";
+
+  const listToolbar = (
+    <>
+      <Button
+        variant="outline"
+        size="icon"
+        onClick={() => setShowConfigColunas(true)}
+        className="h-8 w-8"
+        aria-label="Configurar colunas"
+      >
+        <Settings className="h-4 w-4" />
+      </Button>
+      <Button
+        onClick={() => {
+          setEditando(null);
+          setShowForm(true);
+        }}
+        size="sm"
+        className="h-8 gap-1 bg-emerald-600 text-white hover:bg-emerald-700"
+      >
+        <Plus className="h-3.5 w-3.5" />
+        Adicionar
+      </Button>
+    </>
+  );
+
   return (
-    <div className="p-1 md:p-1 space-y-1">
-      {!showForm && <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 bg-white rounded px-1 py-1 shadow-sm border-b border-slate-200">
-        <div>
-          <h1 className="font-bold text-slate-800">Cadastro de Setores</h1>
-          
-        </div>
-        <div className="flex gap-1 flex-wrap">
-          {!showForm &&
-          <Button variant="outline" size="icon" onClick={() => setShowConfigColunas(true)} className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-7 w-7">
-              <Settings className="w-4 h-4" />
-            </Button>
-          }
-          
-
-          
-          {!showForm &&
-          <Button onClick={() => {setEditando(null);setShowForm(true);}} size="sm" className="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow rounded-md px-3 bg-emerald-600 hover:bg-emerald-700 text-white h-7 text-xs">
-              Adicionar
-            </Button>
-          }
-        </div>
-      </div>}
-
-      <AnimatePresence mode="wait">
-        {showForm ?
-        <FormularioSetor
-          initialData={editando || getInitialFormData()}
-          isEditing={!!editando}
-          onSubmit={handleSubmit}
-          onCancel={() => {setShowForm(false);setEditando(null);}} /> :
-
-
-        <TabelaSetores
-          setores={setores}
-          isLoading={isLoading}
-          onEdit={handleEdit}
-          onDelete={(id) => {setDeletarId(id);setShowDelete(true);}}
-          showConfigColunas={showConfigColunas}
-          setShowConfigColunas={setShowConfigColunas} />
-
+    <>
+      <CadastroWorkspace
+        mode={showForm ? "detail" : "list"}
+        title={showForm ? detailTitle : "Setores / fazendas"}
+        subtitle={
+          showForm
+            ? "Preencha os dados e salve para voltar à lista."
+            : "Setores vinculados à empresa selecionada."
         }
-      </AnimatePresence>
+        onBack={showForm ? closeForm : undefined}
+        toolbar={showForm ? null : listToolbar}
+      >
+        <AnimatePresence mode="wait">
+          {showForm ? (
+            <FormularioSetor
+              key="form"
+              variant="embedded"
+              initialData={editando || getInitialFormData()}
+              isEditing={!!editando}
+              onSubmit={handleSubmit}
+              onCancel={closeForm}
+            />
+          ) : (
+            <TabelaSetores
+              key="table"
+              setores={setores}
+              isLoading={isLoading}
+              onEdit={handleEdit}
+              onDelete={(id) => {
+                setDeletarId(id);
+                setShowDelete(true);
+              }}
+              showConfigColunas={showConfigColunas}
+              setShowConfigColunas={setShowConfigColunas}
+            />
+          )}
+        </AnimatePresence>
+      </CadastroWorkspace>
 
       <ConfirmDialog
         open={showDelete}
@@ -160,8 +178,8 @@ export default function CadastroSetores() {
         onConfirm={() => deleteMutation.mutate(deletarId)}
         confirmText="Excluir"
         cancelText="Cancelar"
-        variant="destructive" />
-      
-    </div>);
-
+        variant="destructive"
+      />
+    </>
+  );
 }

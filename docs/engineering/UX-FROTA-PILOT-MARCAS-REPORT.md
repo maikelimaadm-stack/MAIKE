@@ -35,3 +35,15 @@ Mesmo padrão aplicado em `src/pages/Categorias.jsx` e `FormularioCategoriaProdu
 ## UX-03 (2026-10-23) — Produtos (cadastro estoque)
 
 `src/pages/Produtos.jsx` migrada para `CadastroWorkspace` (toolbar com import/export/modelo/colunas/Adicionar). `FormularioProduto` ganhou `variant="embedded"`. Próximas candidatas: Unidades de medida, Locais de estoque, Setores.
+
+## UX-04 (2026-10-23) — Unidades, locais e setores
+
+Branch `cursor/ux-frota-unidades-locais-setores-516d`:
+
+| Página | Mudança |
+|--------|---------|
+| `UnidadesMedida.jsx` | `CadastroWorkspace`; formulário sem `CardHeader` duplicado; toolbar emerald + `Plus` |
+| `LocaisEstoque.jsx` | Idem |
+| `CadastroSetores.jsx` | Idem; `FormularioSetor` com `variant="embedded"` |
+
+Próximas candidatas: telas de manejo (grupos, tipos tarefa, categorias manejo), bebedouros, empresa.
