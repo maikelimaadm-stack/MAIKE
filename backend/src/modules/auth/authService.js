@@ -37,10 +37,13 @@ export const gerarSenhaHash = async (senha) => bcrypt.hash(senha, BCRYPT_ROUNDS)
 /**
  * @param {{login?: unknown, senha?: unknown}} entrada
  */
-const normalizarEntrada = (entrada) => ({
-  login: typeof entrada?.login === 'string' ? entrada.login.trim() : '',
-  senha: typeof entrada?.senha === 'string' ? entrada.senha : '',
-});
+const normalizarEntrada = (entrada) => {
+  const bruto = typeof entrada?.login === 'string' ? entrada.login.trim() : '';
+  return {
+    login: bruto ? bruto.toLowerCase() : '',
+    senha: typeof entrada?.senha === 'string' ? entrada.senha : '',
+  };
+};
 
 /**
  * Autentica e devolve o material do `auth_context`.

@@ -146,6 +146,21 @@ describe('P6.0 — isolamento entre tenants', () => {
     assert.ok(logins.includes('b-user'));
   });
 
+  test('BE-P60-08b POST recusa login já ativo em outro tenant (D-PROD-35)', async () => {
+    await tenantAutenticado({ login: 'global-login' });
+    const b = await tenantAutenticado({ login: 'outro-user' });
+
+    const r = await app.inject({
+      method: 'POST',
+      url: '/usuarios',
+      headers: auth(b.token),
+      payload: { nome: 'Conflito', login: 'global-login', senha: 'senha-segura-9' },
+    });
+
+    assert.equal(r.statusCode, 409);
+    assert.equal(r.json().code, 'USUARIO_LOGIN_DUPLICADO');
+  });
+
   test('BE-P60-08 PATCH com id de outro tenant reprova como NOT_FOUND', async () => {
     const a = await tenantAutenticado({ login: 'tenant-a' });
     const b = await tenantAutenticado({ login: 'tenant-b' });

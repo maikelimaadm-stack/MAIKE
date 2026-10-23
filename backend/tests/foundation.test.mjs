@@ -115,6 +115,19 @@ describe('autenticação', () => {
     }
   });
 
+  test('BE-05a login autentica case-insensitive após normalização', async () => {
+    const { credenciais } = await criarTenant({ login: 'operador-case' });
+
+    const { resposta, corpo } = await autenticarNoApp(app, {
+      login: 'OPERADOR-CASE',
+      senha: credenciais.senha,
+    });
+
+    assert.equal(resposta.statusCode, 200);
+    assert.ok(corpo.token);
+    assert.equal(corpo.usuario.login, 'operador-case');
+  });
+
   test('BE-05b login ambíguo (mesmo login em dois tenants) recusa como credencial inválida', async () => {
     const a = await criarTenant({ codigo: 'tenant-a', login: 'duplicado' });
     const b = await criarTenant({ codigo: 'tenant-b', login: 'duplicado' });

@@ -8,6 +8,7 @@
 import { getPrismaClient } from '../../database/prismaClient.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { gerarSenhaHash } from '../auth/authService.js';
+import { buscarUsuarioAtivoPorLogin } from '../auth/authRepository.js';
 import { registrarEvento } from '../auditoria/auditService.js';
 import {
   usuarioLoginDuplicado,
@@ -57,8 +58,16 @@ export const criar = async (contexto, entrada) => {
   const prisma = getPrismaClient();
 
   const nome = textoOuNulo(entrada.nome);
-  const login = textoOuNulo(entrada.login);
+  const loginBruto = textoOuNulo(entrada.login);
+  const login = loginBruto ? loginBruto.toLowerCase() : loginBruto;
   const senha = typeof entrada.senha === 'string' ? entrada.senha : '';
+
+  if (login) {
+    const conflito = await buscarUsuarioAtivoPorLogin(login);
+    if (conflito && conflito.cliente_id !== auth.clienteId) {
+      throw usuarioLoginDuplicado();
+    }
+  }
 
   try {
     const criado = await prisma.$transaction(async (tx) => {

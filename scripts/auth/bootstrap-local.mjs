@@ -124,7 +124,7 @@ const principal = async () => {
     const resultado = await criarClienteEUsuario(prisma, {
       clienteCodigo: String(texto('BOOTSTRAP_CLIENTE_CODIGO')),
       clienteNome: String(texto('BOOTSTRAP_CLIENTE_NOME')),
-      login: String(texto('BOOTSTRAP_USUARIO_LOGIN')),
+      login: String(texto('BOOTSTRAP_USUARIO_LOGIN')).toLowerCase(),
       nome: String(texto('BOOTSTRAP_USUARIO_NOME')),
       senha: String(texto('BOOTSTRAP_USUARIO_SENHA')),
     });
