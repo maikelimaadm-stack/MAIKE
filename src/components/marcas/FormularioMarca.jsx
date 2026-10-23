@@ -20,8 +20,9 @@ const FL = ({ label, required, error, children }) => (
   </div>
 );
 
-export default function FormularioMarca({ onSubmit, onCancel, initialData }) {
+export default function FormularioMarca({ onSubmit, onCancel, initialData, variant = "card" }) {
   const isEditing = !!initialData?.id;
+  const embedded = variant === "embedded";
   const [form, setForm] = useState(() => ({
     nome: initialData?.nome || "",
     descricao: initialData?.descricao || "",
@@ -43,10 +44,12 @@ export default function FormularioMarca({ onSubmit, onCancel, initialData }) {
   return (
     <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
       <Card className="shadow-sm border-slate-300">
-        <CardHeader className="flex flex-col space-y-1.5 p-6 bg-slate-50 border-b py-1 px-1">
-          <CardTitle className="text-sm font-semibold text-slate-700">{isEditing ? 'Editar Marca' : 'Nova Marca'}</CardTitle>
-        </CardHeader>
-        <CardContent className="p-1">
+        {!embedded ? (
+          <CardHeader className="flex flex-col space-y-1.5 p-6 bg-slate-50 border-b py-1 px-1">
+            <CardTitle className="text-sm font-semibold text-slate-700">{isEditing ? 'Editar Marca' : 'Nova Marca'}</CardTitle>
+          </CardHeader>
+        ) : null}
+        <CardContent className={embedded ? "p-3 pt-2" : "p-1"}>
           <form onSubmit={handleSubmit} className="space-y-0.5">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
               <FL label="Nome" required error={invalidFields.includes('nome')}>
