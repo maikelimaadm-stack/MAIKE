@@ -17,6 +17,10 @@ import { gerarSenhaHash } from '../src/modules/auth/authService.js';
 const ORDEM_DE_LIMPEZA = [
   'auditLog',
   'registroAnexo',
+  // P4.3 — geografia referencia Cliente com Restrict; limpar antes da raiz.
+  'pontoReferencia',
+  'linhaGeografica',
+  'configuracaoIcone',
   // `areaPastagem` antes de `setor`: a FK composta é Restrict, e apagar setor
   // com área ainda pendurada falha — que é exatamente o que ela existe para
   // fazer (P4.2).
