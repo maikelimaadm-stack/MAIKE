@@ -47,3 +47,15 @@ Branch `cursor/ux-frota-unidades-locais-setores-516d`:
 | `CadastroSetores.jsx` | Idem; `FormularioSetor` com `variant="embedded"` |
 
 Próximas candidatas: telas de manejo (grupos, tipos tarefa, categorias manejo), bebedouros, empresa.
+
+## UX-05 (2026-10-23) — Chrome Base1 (piloto Marcas)
+
+Branch `cursor/ux-frota-base1-chrome-516d`:
+
+| Artefato | Função |
+|----------|--------|
+| `src/styles/cadastro-base1.css` | Tokens MG / tb-btn / mg-toolbar / mg-shell (escopo `.cadastro-b1`) |
+| `CadastroListaChrome` | Toolbar Novo/Editar/Excluir, busca em pílula, faixa de filtros, rodapé Selecionados/Listados/Filtrados/Totais |
+| `Marcas.jsx` + `TabelaMarcas` | Piloto integrado; grade legada dentro do shell Base1 |
+
+Próximo: replicar chrome em Categorias, Produtos, Unidades, Locais, Setores; depois cards/registro completo e grid MG.

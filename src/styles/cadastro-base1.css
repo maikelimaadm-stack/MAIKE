@@ -1,0 +1,266 @@
+/**
+ * Tokens e superfícies do Modelo Base1 (referência CONTROLE-DE-ESTOQUE).
+ * Escopo: `.cadastro-b1` — não altera Mapa Geral nem telas legadas.
+ */
+.cadastro-b1 {
+  --mg-accent: #40de63;
+  --mg-accent-hover: #36c956;
+  --mg-accent-light: rgba(64, 222, 99, 0.12);
+  --mg-icon: #5b6b80;
+  --mg-text-1: #111827;
+  --mg-text-2: #6b7280;
+  --mg-text-3: #9ca3af;
+  --mg-bg-card: #ffffff;
+  --mg-gray-fill: #f1f3f4;
+  --mg-gray-fill2: #e5e7eb;
+  --mg-divider: #e7eaee;
+  --mg-table-line: #e7eaee;
+  --mg-radius-card: 12px;
+  --mg-card-shadow: 0 1px 2px rgba(15, 23, 42, 0.03), 0 2px 6px rgba(15, 23, 42, 0.02);
+  --mg-focus-border: rgba(64, 222, 99, 0.35);
+  --mg-focus-ring: inset 0 0 0 1px rgba(64, 222, 99, 0.12);
+  --mg-btn-h: 28px;
+  --mg-toolbar-h: 36px;
+  --mg-red: #dc2626;
+
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  font-size: 13px;
+}
+
+.cadastro-b1 .tb-btn {
+  height: var(--mg-btn-h);
+  min-height: var(--mg-btn-h);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 13px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 12.5px;
+  font-weight: 600;
+  border: 1px solid transparent;
+  white-space: nowrap;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.cadastro-b1 .tb-btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.cadastro-b1 .tb-btn:disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.cadastro-b1 .tb-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.cadastro-b1 .tb-btn-green {
+  background: var(--mg-accent);
+  color: #fff;
+}
+
+.cadastro-b1 .tb-btn-green:hover:not(:disabled) {
+  background: var(--mg-accent-hover);
+}
+
+.cadastro-b1 .tb-btn-gray {
+  background: var(--mg-gray-fill);
+  color: var(--mg-text-1);
+}
+
+.cadastro-b1 .tb-btn-gray:hover:not(:disabled) {
+  background: var(--mg-gray-fill2);
+}
+
+.cadastro-b1 .tb-btn-red {
+  background: var(--mg-gray-fill);
+  color: var(--mg-red);
+}
+
+.cadastro-b1 .tb-btn-red:hover:not(:disabled) {
+  background: rgba(220, 38, 38, 0.08);
+}
+
+.cadastro-b1 .tb-btn-icon {
+  width: var(--mg-btn-h);
+  min-width: var(--mg-btn-h);
+  padding: 0;
+  background: var(--mg-gray-fill);
+  color: var(--mg-icon);
+}
+
+.cadastro-b1 .tb-btn-icon:hover:not(:disabled) {
+  background: var(--mg-gray-fill2);
+}
+
+.cadastro-b1 .tb-btn-icon.is-active {
+  background: var(--mg-accent-light);
+  color: var(--mg-accent);
+}
+
+.cadastro-b1 .mg-card {
+  background: var(--mg-bg-card);
+  border: 1px solid var(--mg-divider);
+  border-radius: var(--mg-radius-card);
+  box-shadow: var(--mg-card-shadow);
+}
+
+.cadastro-b1 .mg-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--mg-toolbar-h);
+  padding: 4px 12px;
+  flex-wrap: wrap;
+}
+
+.cadastro-b1 .mg-toolbar__right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.cadastro-b1 .mg-pills-rail {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  min-height: var(--mg-toolbar-h);
+}
+
+.cadastro-b1 .mg-pills-rail__hint {
+  padding: 0 8px;
+  font-size: 11.5px;
+  color: var(--mg-text-3);
+}
+
+.cadastro-b1 .mg-shell {
+  background: var(--mg-bg-card);
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  border-radius: 14px;
+  box-shadow: var(--mg-card-shadow);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.cadastro-b1 .mg-shell__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+
+.cadastro-b1 .mg-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
+  border-top: 1px solid var(--mg-table-line);
+  background: #fff;
+}
+
+.cadastro-b1 .mg-summary__counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.cadastro-b1 .mg-summary__item {
+  white-space: nowrap;
+}
+
+.cadastro-b1 .view-seg {
+  display: inline-flex;
+  align-items: center;
+  height: var(--mg-btn-h);
+  padding: 3px;
+  gap: 0;
+  background: var(--mg-gray-fill);
+  border-radius: 999px;
+  border: 1px solid transparent;
+}
+
+.cadastro-b1 .view-seg button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 22px;
+  width: 28px;
+  border-radius: 11px;
+  color: var(--mg-icon);
+  transition: background 0.15s, color 0.15s;
+}
+
+.cadastro-b1 .view-seg button[aria-pressed="true"] {
+  background: #fff;
+  color: var(--mg-accent);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+
+.cadastro-b1 .view-seg svg {
+  width: 14px;
+  height: 14px;
+}
+
+.cadastro-b1 .mg-search-pill {
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  width: 220px;
+  max-width: 100%;
+  height: var(--mg-btn-h);
+  padding: 0 10px;
+  border-radius: 999px;
+  background: var(--mg-gray-fill);
+  border: 1px solid transparent;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.cadastro-b1 .mg-search-pill:focus-within {
+  background: #fff;
+  border-color: var(--mg-focus-border);
+  box-shadow: var(--mg-focus-ring);
+}
+
+.cadastro-b1 .mg-search-pill input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  font-size: 12px;
+  color: var(--mg-text-1);
+}
+
+.cadastro-b1 .mg-search-pill input::placeholder {
+  color: var(--mg-text-3);
+}
+
+.cadastro-b1 .mg-search-pill-icon {
+  flex-shrink: 0;
+  width: 13px;
+  height: 13px;
+  margin-right: 6px;
+  color: var(--mg-text-3);
+}
+
+.cadastro-b1 .mg-grid-resize-handle {
+  background: var(--mg-accent);
+}
