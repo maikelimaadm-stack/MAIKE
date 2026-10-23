@@ -1948,4 +1948,21 @@ o banco. `Cliente` permanece raiz de tenancy interna (R9); não volta à UI.
 
 ---
 
-<!-- Próxima decisão: D-PROD-36 -->
+## D-PROD-36 — API nativa same-origin no monólito Vercel
+
+**Data:** 2026-10-23  
+**Relatório:** `docs/engineering/P4.0-R3-VERCEL-SAME-ORIGIN-API-REPORT.md`
+
+**Decisão:** quando o front e o Fastify serverless sobem no **mesmo** deploy
+Vercel (`vercel.json` reescreve `/auth/*` e demais rotas nativas), o navegador
+deve chamar a **origem atual** se `VITE_MAIKE_API_URL` apontar para outro host
+`*.vercel.app` ou estiver vazia. A env continua obrigatória no dev local
+(`http://localhost:3333` vs `:5173`).
+
+**Consequência:** links de deployment/preview deixam de depender de CORS contra
+um alias fixo. Backend separado (Railway, etc.) continua usando env absoluta
+cross-origin com `FRONTEND_ORIGINS`.
+
+---
+
+<!-- Próxima decisão: D-PROD-37 -->

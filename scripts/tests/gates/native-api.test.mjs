@@ -114,8 +114,8 @@ describe('P4-NATIVE-CONFIG', () => {
   test('NAT-04 override por query string na URL nativa reprova', () => {
     const mutado = trocar(
       real(RUNTIME_CONFIG),
-      'export const getNativeApiUrl = () => comEsquemaExplicito(semBarraFinal(lerMaikeApiUrl()));',
-      'export const getNativeApiUrl = () => new URLSearchParams(location.search).get("api") || comEsquemaExplicito(semBarraFinal(lerMaikeApiUrl()));'
+      'export const getNativeApiUrl = () => {',
+      'export const getNativeApiUrl = () => { void new URLSearchParams(location.search).get("api");'
     );
     const r = rodar({ [RUNTIME_CONFIG]: mutado });
     assert.equal(r.status, 1);
@@ -345,8 +345,8 @@ describe('P4-NATIVE-SCHEME', () => {
   test('NAT-25 getNativeApiUrl sem comEsquemaExplicito reprova', () => {
     const mutado = trocar(
       real(RUNTIME_CONFIG),
-      'export const getNativeApiUrl = () => comEsquemaExplicito(semBarraFinal(lerMaikeApiUrl()));',
-      'export const getNativeApiUrl = () => semBarraFinal(lerMaikeApiUrl());'
+      'const daEnv = comEsquemaExplicito(bruta);',
+      'const daEnv = bruta;'
     );
     const r = rodar({ [RUNTIME_CONFIG]: mutado });
     assert.equal(r.status, 1);

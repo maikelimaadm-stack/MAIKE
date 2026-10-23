@@ -180,6 +180,28 @@ const comEsquemaExplicito = (url) => {
   return HOST_PURO.test(url) ? `https://${url}` : null;
 };
 
+/** Hostnames `*.vercel.app` — front e função serverless no mesmo deploy (P4.0+Vercel). */
+const ehHostVercelApp = (baseAbsoluta) => {
+  if (typeof baseAbsoluta !== 'string' || !/^https?:\/\//.test(baseAbsoluta)) return false;
+  const host = baseAbsoluta.replace(/^https?:\/\//, '').split('/')[0]?.split(':')[0] ?? '';
+  return host.endsWith('.vercel.app');
+};
+
+/**
+ * Origem do documento atual, validada da mesma forma que a env.
+ *
+ * Usada só quando a env está vazia ou quando front e env apontam para hosts
+ * Vercel diferentes do mesmo monólito (alias vs URL de deployment).
+ */
+const lerOrigemDoNavegador = () => {
+  if (!hasWindow()) return null;
+  try {
+    return comEsquemaExplicito(semBarraFinal(window.location.origin));
+  } catch {
+    return null;
+  }
+};
+
 /**
  * Resolve um parâmetro de runtime.
  *
@@ -276,7 +298,28 @@ export const isGoogleMapsConfigured = () => getGoogleMapsApiKey() !== null;
  *
  * @returns {string|null}
  */
-export const getNativeApiUrl = () => comEsquemaExplicito(semBarraFinal(lerMaikeApiUrl()));
+export const getNativeApiUrl = () => {
+  const bruta = semBarraFinal(lerMaikeApiUrl());
+  const daEnv = comEsquemaExplicito(bruta);
+  const origem = lerOrigemDoNavegador();
+
+  // Env preenchida porém inaceitável (D-PROD-26): não cair na origem — seria
+  // mandar credencial para o host errado em silêncio.
+  if (bruta && !daEnv) return null;
+
+  // Monólito na Vercel: `vercel.json` reescreve `/auth/*` para `/api/fastify`
+  // na mesma origem. O build pode fixar `VITE_MAIKE_API_URL` no alias de
+  // produção enquanto o usuário abre a URL única do deployment
+  // (`*.vercel.app` não listada em FRONTEND_ORIGINS) — aí o fetch cross-origin
+  // morre no preflight CORS e a tela mostra indisponibilidade.
+  if (origem && daEnv && origem !== daEnv && ehHostVercelApp(origem) && ehHostVercelApp(daEnv)) {
+    return origem;
+  }
+
+  if (!daEnv && origem) return origem;
+
+  return daEnv;
+};
 
 /** O backend nativo está configurado? */
 export const isNativeApiConfigured = () => getNativeApiUrl() !== null;
