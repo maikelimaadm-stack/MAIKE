@@ -95,6 +95,9 @@ export const BACKEND_ONLY_CODES = Object.freeze({
     http: 404,
     meaning: 'id não identifica linha geográfica deste tenant',
   },
+  USUARIO_NOT_FOUND: { http: 404, meaning: 'id não identifica usuário deste tenant' },
+  USUARIO_LOGIN_DUPLICADO: { http: 409, meaning: 'login já cadastrado neste cliente' },
+  USUARIO_SELF_DEACTIVATE: { http: 400, meaning: 'conta autenticada não pode se desativar' },
   INTERNAL_ERROR: { http: 500, meaning: 'erro não previsto' },
 });
 

@@ -98,6 +98,11 @@ export const API_ERROR_CODES = Object.freeze({
   // feita. Ele não existe no backend porque a rota de exclusão não existe.
   SETOR_NOT_FOUND: 'SETOR_NOT_FOUND',
   SETOR_DELETE_UNAVAILABLE: 'SETOR_DELETE_UNAVAILABLE',
+
+  // P6.0 — administração de contas nativas (D-PROD-34).
+  USUARIO_NOT_FOUND: 'USUARIO_NOT_FOUND',
+  USUARIO_LOGIN_DUPLICADO: 'USUARIO_LOGIN_DUPLICADO',
+  USUARIO_SELF_DEACTIVATE: 'USUARIO_SELF_DEACTIVATE',
 });
 
 /** Mensagem pública por código. Nunca inclui dado do provider. */
@@ -143,12 +148,16 @@ const MENSAGENS = Object.freeze({
   [API_ERROR_CODES.ATTACHMENT_OWNER_INVALID]: 'O registro deste anexo não foi encontrado.',
   [API_ERROR_CODES.AUDIT_WRITE_FAILED]: 'Não foi possível registrar a operação com segurança. Nada foi salvo.',
   [API_ERROR_CODES.CONCURRENCY_CONFLICT]: 'Este registro foi alterado por outra pessoa. Recarregue e tente novamente.',
-  [API_ERROR_CODES.AUTH_INVALID_CREDENTIALS]: 'Cliente, usuário ou senha inválidos.',
+  [API_ERROR_CODES.AUTH_INVALID_CREDENTIALS]: 'Usuário ou senha inválidos.',
 
   // P4.1 — Setor nativo.
   [API_ERROR_CODES.SETOR_NOT_FOUND]: 'Este setor não foi encontrado. Atualize a lista e tente novamente.',
   [API_ERROR_CODES.SETOR_DELETE_UNAVAILABLE]:
     'A exclusão de setores está indisponível enquanto o cadastro é migrado. Nenhum dado foi alterado.',
+
+  [API_ERROR_CODES.USUARIO_NOT_FOUND]: 'Este usuário não foi encontrado. Atualize a lista e tente novamente.',
+  [API_ERROR_CODES.USUARIO_LOGIN_DUPLICADO]: 'Já existe um usuário com este login neste cliente.',
+  [API_ERROR_CODES.USUARIO_SELF_DEACTIVATE]: 'Você não pode desativar a sua própria conta.',
 });
 
 /** Falha transitória vale retentativa; erro de argumento e conflito, não. */

@@ -37,6 +37,7 @@ const ETAPAS = [
   // `@@unique([cliente_id, id])` que `gate:setor-native` cobra.
   ['area-pastagem-native', npm('gate:area-pastagem-native')],
   ['map-geography-native', npm('gate:map-geography-native')],
+  ['usuario-admin', npm('gate:usuario-admin')],
   ['source-closure', npm('gate:source-closure')],
   ['import-integrity', npm('gate:import-integrity')],
   ['no-secrets', npm('gate:no-secrets')],

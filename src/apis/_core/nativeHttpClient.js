@@ -53,6 +53,9 @@ const CODIGOS_PRESERVADOS = Object.freeze({
   // P4.1: 404 de Setor. Preservado porque a tela age sobre ele — recarregar a
   // lista resolve — e isso não é a mesma coisa que "a operação falhou".
   SETOR_NOT_FOUND: API_ERROR_CODES.SETOR_NOT_FOUND,
+  USUARIO_NOT_FOUND: API_ERROR_CODES.USUARIO_NOT_FOUND,
+  USUARIO_LOGIN_DUPLICADO: API_ERROR_CODES.USUARIO_LOGIN_DUPLICADO,
+  USUARIO_SELF_DEACTIVATE: API_ERROR_CODES.USUARIO_SELF_DEACTIVATE,
 });
 
 /**

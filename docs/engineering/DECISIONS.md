@@ -1902,4 +1902,29 @@ explícita de login global.
 
 ---
 
-<!-- Próxima decisão: D-PROD-34 (P6.0 usuários nativos) -->
+## D-PROD-34 — Administração mínima de usuários nativos (P6.0)
+
+**Data:** 2026-10-23  
+**Relatório:** `docs/engineering/P6-USUARIO-ADMIN-MINIMO-REPORT.md`  
+**Gate:** `gate:usuario-admin`, absoluto, 9 regras.
+
+**Decisão:** a primeira fatia de P6 para usuários é **CRUD mínimo de contas de
+acesso** no backend próprio, sem migrar `Permissao` (continua Base44).
+
+**Backend:** `GET/POST/PATCH /usuarios` autenticados; corpo de criação
+`{ nome, login, senha }`; atualização `{ nome?, ativo?, nova_senha? }`; sem
+rota DELETE — desativar com `ativo: false`. `senha_hash` nunca entra nem sai da
+API pública. Login único por tenant (`@@unique([cliente_id, login])`). A conta
+autenticada não pode se desativar (`USUARIO_SELF_DEACTIVATE`).
+
+**Frontend:** `@/apis/usuarios` como dono da porta; `sessionApi.listUsuarios`
+reexporta o nativo (compatibilidade `email` = `login` para permissões Base44).
+Tela `Usuarios.jsx` ganha seção **Contas MAIKE** (`FormularioContaAcesso`,
+`TabelaContasAcesso`) acima das permissões.
+
+**Fora desta fatia:** RBAC nativo, perfis, reset por e-mail, login global
+único entre tenants — permanecem roadmap.
+
+---
+
+<!-- Próxima decisão: D-PROD-35 -->

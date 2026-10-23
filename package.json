@@ -33,6 +33,7 @@
     "gate:setor-native": "node scripts/gates/gate-setor-native.mjs",
     "gate:area-pastagem-native": "node scripts/gates/gate-area-pastagem-native.mjs",
     "gate:map-geography-native": "node scripts/gates/gate-map-geography-native.mjs",
+    "gate:usuario-admin": "node scripts/gates/gate-usuario-admin.mjs",
     "gate:source-closure": "node scripts/gates/gate-source-closure.mjs",
     "gate:import-integrity": "node scripts/gates/gate-import-integrity.mjs",
     "gate:no-secrets": "node scripts/gates/gate-no-hardcoded-secrets.mjs",

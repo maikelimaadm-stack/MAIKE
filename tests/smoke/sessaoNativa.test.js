@@ -437,7 +437,7 @@ describe('P4T — tradução de erro', () => {
     expect(erro.code).toBe('AUTH_INVALID_CREDENTIALS');
     // O texto não distingue cliente, usuário ou senha: distinguir desfaria a
     // proteção contra enumeração que o backend construiu com tempo constante.
-    expect(erro.message).toBe('Cliente, usuário ou senha inválidos.');
+    expect(erro.message).toBe('Usuário ou senha inválidos.');
     expect(erro.message).not.toContain('usuario nao existe');
   });
 

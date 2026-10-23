@@ -75,6 +75,15 @@ export const setorNotFound = (message, options) =>
 export const areaNotFound = (message, options) =>
   new AppError('AREA_NOT_FOUND', message || 'área de pastagem não encontrada', options);
 
+export const usuarioNotFound = (message, options) =>
+  new AppError('USUARIO_NOT_FOUND', message || 'usuário não encontrado', options);
+
+export const usuarioLoginDuplicado = (message, options) =>
+  new AppError('USUARIO_LOGIN_DUPLICADO', message || 'login já existe neste cliente', options);
+
+export const usuarioSelfDeactivate = (message, options) =>
+  new AppError('USUARIO_SELF_DEACTIVATE', message || 'não é possível desativar a própria conta', options);
+
 export const configuracaoIconeNotFound = (message, options) =>
   new AppError(
     'CONFIGURACAO_ICONE_NOT_FOUND',
