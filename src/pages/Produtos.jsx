@@ -41,6 +41,7 @@ import {
 } from "@/components/ui/table";
 
 
+import CadastroWorkspace from "@/components/cadastro/CadastroWorkspace";
 import FormularioProduto from "../components/produtos/FormularioProduto";
 import TabelaProdutos from "../components/produtos/TabelaProdutos";
 import FichaProduto from "../components/produtos/FichaProduto";
@@ -272,51 +273,92 @@ export default function Produtos() {
     ? Math.round((importProgress.current / importProgress.total) * 100) 
     : 0;
 
+  const closeForm = () => {
+    setShowForm(false);
+    setEditingProduto(null);
+  };
+
+  const detailTitle = editingProduto?.id ? "Editar produto" : "Novo produto";
+
+  const listToolbar = (
+    <>
+      <Button variant="outline" size="sm" onClick={() => refetch()} className="h-8 text-xs">
+        Atualizar
+      </Button>
+      <Button onClick={handleExport} variant="outline" size="sm" className="h-8 text-xs gap-1">
+        <Download className="w-3.5 h-3.5" /> Exportar
+      </Button>
+      <Button onClick={downloadTemplate} variant="outline" size="sm" className="h-8 text-xs gap-1">
+        <FileSpreadsheet className="w-3.5 h-3.5" /> Modelo
+      </Button>
+      <label>
+        <Button variant="outline" size="sm" className="h-8 text-xs gap-1 cursor-pointer" asChild>
+          <span>
+            <Upload className="w-3.5 h-3.5" /> Importar
+          </span>
+        </Button>
+        <input type="file" accept=".csv" onChange={handleImport} className="hidden" disabled={showImportProgress} />
+      </label>
+      <Button
+        variant="outline"
+        size="icon"
+        onClick={() => setShowConfigColunas(true)}
+        className="h-8 w-8"
+        aria-label="Configurar colunas"
+      >
+        <Settings className="w-4 h-4" />
+      </Button>
+      <Button
+        onClick={() => {
+          setEditingProduto(null);
+          setShowForm(true);
+        }}
+        size="sm"
+        className="h-8 gap-1 bg-emerald-600 text-white hover:bg-emerald-700"
+      >
+        <Plus className="w-3.5 h-3.5" />
+        Adicionar
+      </Button>
+    </>
+  );
+
   return (
-    <div className="p-1 md:p-1 space-y-1">
-      {!showForm && (
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 bg-white rounded px-1 py-1 shadow-sm border-b border-slate-200">
-          <div>
-            <h1 className="font-bold text-slate-800">Produtos</h1>
-          </div>
-          <div className="flex gap-2 flex-wrap">
-            <Button variant="outline" size="sm" onClick={() => refetch()} className="h-7 text-xs">Atualizar</Button>
-            <Button onClick={handleExport} variant="outline" size="sm" className="h-7 text-xs"><Download className="w-3.5 h-3.5" /> Exportar</Button>
-            <Button onClick={downloadTemplate} variant="outline" size="sm" className="h-7 text-xs"><FileSpreadsheet className="w-3.5 h-3.5" /> Modelo</Button>
-            <label>
-              <Button variant="outline" size="sm" className="h-7 text-xs cursor-pointer" asChild><span><Upload className="w-3.5 h-3.5" /> Importar</span></Button>
-              <input type="file" accept=".csv" onChange={handleImport} className="hidden" disabled={showImportProgress} />
-            </label>
-            <Button variant="outline" size="icon" onClick={() => setShowConfigColunas(true)} className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-7 w-7"><Settings className="w-4 h-4" /></Button>
-            <Button onClick={() => { setEditingProduto(null); setShowForm(true); }} size="sm" className="bg-lime-900 text-primary-foreground px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow h-7 hover:bg-emerald-600">Adicionar</Button>
-          </div>
-        </div>
-      )}
-
-      {/* Formulário */}
-      <AnimatePresence>
-        {showForm && (
-          <FormularioProduto
-            onSubmit={handleSubmit}
-            onCancel={() => { setShowForm(false); setEditingProduto(null); }}
-            initialData={editingProduto}
-            isEditing={!!editingProduto}
-          />
-        )}
-      </AnimatePresence>
-
-      {/* Tabela */}
-      {!showForm && (
-        <TabelaProdutos
-          produtos={produtos}
-          onEdit={handleEdit}
-          onDelete={handleDelete}
-          onPrint={handlePrint}
-          isLoading={isLoading}
-          showConfigColunas={showConfigColunas}
-          setShowConfigColunas={setShowConfigColunas}
-        />
-      )}
+    <>
+      <CadastroWorkspace
+        mode={showForm ? "detail" : "list"}
+        title={showForm ? detailTitle : "Produtos"}
+        subtitle={
+          showForm
+            ? "Cadastro vinculado à empresa selecionada; salve para voltar à lista."
+            : "Catálogo de produtos — importação CSV, exportação e colunas configuráveis."
+        }
+        onBack={showForm ? closeForm : undefined}
+        toolbar={showForm ? null : listToolbar}
+      >
+        <AnimatePresence mode="wait">
+          {showForm ? (
+            <FormularioProduto
+              key="form"
+              variant="embedded"
+              onSubmit={handleSubmit}
+              onCancel={closeForm}
+              initialData={editingProduto}
+              isEditing={!!editingProduto}
+            />
+          ) : (
+            <TabelaProdutos
+              key="table"
+              produtos={produtos}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+              onPrint={handlePrint}
+              isLoading={isLoading}
+              showConfigColunas={showConfigColunas}
+              setShowConfigColunas={setShowConfigColunas}
+            />
+          )}
+        </AnimatePresence>
+      </CadastroWorkspace>
 
       {/* Modal de Ficha */}
       <FichaProduto
@@ -452,6 +494,6 @@ export default function Produtos() {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }
