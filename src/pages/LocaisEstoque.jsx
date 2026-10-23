@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useCallback, useState, useEffect, useMemo, useRef } from "react";
 import {
   listarLocais,
   criarLocal,
@@ -16,8 +16,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
-import { Settings, MoreVertical, Filter, X, ArrowDownAZ, ArrowUpZA, GripVertical, Plus } from "lucide-react";
+import { MoreVertical, Filter, X, ArrowDownAZ, ArrowUpZA, GripVertical } from "lucide-react";
 import CadastroWorkspace from "@/components/cadastro/CadastroWorkspace";
+import CadastroListaChrome from "@/components/cadastro/base1/CadastroListaChrome";
+import { useCadastroListaChromeState, countSearchFiltered } from "@/hooks/useCadastroListaChromeState";
 import { toast } from "sonner";
 import { AnimatePresence, motion } from "framer-motion";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -55,7 +57,7 @@ export default function LocaisEstoque() {
   const [formData, setFormData] = useState({ nome: "", descricao: "", capacidade: "", ativo: true });
   const [showConfigColunas, setShowConfigColunas] = useState(false);
   const [deleteState, setDeleteState] = useState({ open: false, ids: [] });
-  const [selectedItems, setSelectedItems] = useState([]);
+  const chrome = useCadastroListaChromeState();
   const [sortConfig, setSortConfig] = useState({ key: "nome", direction: "asc" });
   const [menuFiltroAberto, setMenuFiltroAberto] = useState(null);
   const [buscaFiltroMenu, setBuscaFiltroMenu] = useState("");
@@ -101,7 +103,7 @@ export default function LocaisEstoque() {
     mutationFn: (ids) => excluirLocais(ids, { locais }),
     onSuccess: ({ excluidos, bloqueados }) => {
       queryClient.invalidateQueries({ queryKey: ['locais_estoque'] });
-      setSelectedItems([]);
+      chrome.setSelectedIds([]);
       if (excluidos.length) toast.success(excluidos.length === 1 ? 'Local excluído!' : `${excluidos.length} locais excluídos!`);
       if (bloqueados.length) toast.error(bloqueados.length === 1 ? '1 local não pôde ser excluído: existem registros vinculados.' : `${bloqueados.length} locais não puderam ser excluídos: existem registros vinculados.`);
     },
@@ -118,6 +120,7 @@ export default function LocaisEstoque() {
     setEditing(null);
     setFormData({ nome: "", descricao: "", capacidade: "", ativo: true });
     setErrors({});
+    chrome.setViewMode("table");
   };
 
   const openNewForm = () => {
@@ -127,38 +130,74 @@ export default function LocaisEstoque() {
     setShowForm(true);
   };
 
-  const detailTitle = editing?.id ? "Editar local de estoque" : "Novo local de estoque";
+  const handleEditSelected = useCallback(() => {
+    const item = locais.find((l) => l.id === chrome.selectedIds[0]);
+    if (item) handleEdit(item);
+  }, [locais, chrome.selectedIds]);
 
-  const listToolbar = (
-    <>
-      <Button
-        variant="outline"
-        size="icon"
-        onClick={() => setShowConfigColunas(true)}
-        className="h-8 w-8"
-        aria-label="Configurar colunas"
-      >
-        <Settings className="h-4 w-4" />
-      </Button>
-      <Button
-        onClick={openNewForm}
-        size="sm"
-        className="h-8 gap-1 bg-emerald-600 text-white hover:bg-emerald-700"
-      >
-        <Plus className="h-3.5 w-3.5" />
-        Adicionar
-      </Button>
-    </>
+  const handleDeleteSelected = () => {
+    if (!chrome.selectedIds.length) return;
+    handleRequestDelete(chrome.selectedIds);
+  };
+
+  const onViewModeChange = useCallback((mode) => {
+    chrome.handleViewModeChange(mode, { onOpenRecord: () => handleEditSelected() });
+  }, [chrome, handleEditSelected]);
+
+  const filtradosCount = useMemo(
+    () => countSearchFiltered(locais, chrome.appliedSearch, (l) => [l.nome, l.descricao, l.capacidade, l.numero_local]),
+    [locais, chrome.appliedSearch],
   );
 
-  const sortedData = useMemo(() => { let f = locais.filter(c => COLUNAS_DISPONIVEIS.filter(col => !col.fixo).every(col => { const fv = filtrosColunas[col.id] || []; if (fv.length === 0) return true; return fv.includes(getFieldValue(c, col.id)); })); if (sortConfig.key) { f.sort((a, b) => { const va = getFieldValue(a, sortConfig.key); const vb = getFieldValue(b, sortConfig.key); const cmp = va.localeCompare(vb, "pt-BR", { numeric: true, sensitivity: "base" }); return sortConfig.direction === "asc" ? cmp : -cmp; }); } return f; }, [locais, filtrosColunas, sortConfig]);
+  const detailTitle = editing?.id ? "Editar local de estoque" : "Novo local de estoque";
 
-  useEffect(() => { setSelectedItems(prev => prev.filter(id => locais.some(c => c.id === id))); }, [locais]);
+  const sortedData = useMemo(() => {
+    const q = chrome.appliedSearch.trim().toLowerCase();
+    let f = locais.filter((c) => {
+      if (q) {
+        const hay = [c.nome, c.descricao, c.capacidade, c.numero_local].filter(Boolean).join(" ").toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return COLUNAS_DISPONIVEIS.filter((col) => !col.fixo).every((col) => {
+        const fv = filtrosColunas[col.id] || [];
+        if (fv.length === 0) return true;
+        return fv.includes(getFieldValue(c, col.id));
+      });
+    });
+    if (sortConfig.key) {
+      f.sort((a, b) => {
+        const va = getFieldValue(a, sortConfig.key);
+        const vb = getFieldValue(b, sortConfig.key);
+        const cmp = va.localeCompare(vb, "pt-BR", { numeric: true, sensitivity: "base" });
+        return sortConfig.direction === "asc" ? cmp : -cmp;
+      });
+    }
+    return f;
+  }, [locais, filtrosColunas, sortConfig, chrome.appliedSearch]);
+
+  useEffect(() => {
+    chrome.setSelectedIds((prev) => prev.filter((id) => locais.some((c) => c.id === id)));
+  }, [locais, chrome.setSelectedIds]);
+
+  useEffect(() => {
+    if (chrome.resetFiltersKey > 0) setFiltrosColunas({});
+  }, [chrome.resetFiltersKey]);
+
+  useEffect(() => {
+    const active = Object.values(filtrosColunas).some((v) => (v || []).length > 0);
+    chrome.setFiltersActive(active);
+  }, [filtrosColunas, chrome.setFiltersActive]);
   const toggleColuna = (colunaId) => { const n = colunasVisiveis.includes(colunaId) ? colunasVisiveis.filter(id => id !== colunaId) : [...colunasVisiveis, colunaId]; setColunasVisiveis(n); localStorage.setItem(`${STORAGE_PREFIX}_visiveis`, JSON.stringify(n)); };
   const handleDragEnd = (result) => { if (!result.destination) return; const items = Array.from(colunasOrdem); const [r] = items.splice(result.source.index, 1); items.splice(result.destination.index, 0, r); setColunasOrdem(items); localStorage.setItem(`${STORAGE_PREFIX}_ordem`, JSON.stringify(items)); };
   const colunasOrdenadas = useMemo(() => colunasOrdem.map(id => COLUNAS_DISPONIVEIS.find(c => c.id === id)).filter(c => c && colunasVisiveis.includes(c.id)), [colunasOrdem, colunasVisiveis]);
   const handleSort = (key) => setSortConfig(prev => ({ key, direction: prev.key === key && prev.direction === "asc" ? "desc" : "asc" }));
-  const toggleSelectAll = () => { if (selectedItems.length === sortedData.length && sortedData.length > 0) { setSelectedItems([]); return; } setSelectedItems(sortedData.map(r => r.id)); };
+  const toggleSelectAll = () => {
+    if (chrome.selectedIds.length === sortedData.length && sortedData.length > 0) {
+      chrome.setSelectedIds([]);
+      return;
+    }
+    chrome.setSelectedIds(sortedData.map((r) => r.id));
+  };
   const handleRowTouch = (item, event) => { const now = Date.now(); if (lastTapRef.current.id === item.id && now - lastTapRef.current.time < 300) { event.preventDefault(); handleEdit(item); } lastTapRef.current = { id: item.id, time: now }; };
   const hasActiveFilter = (cId) => (filtrosColunas[cId] || []).length > 0;
   const getValoresFiltro = (cId) => filtrosColunas[cId] || [];
@@ -211,7 +250,7 @@ export default function LocaisEstoque() {
             : "Depósitos e pontos de armazenamento vinculados ao estoque."
         }
         onBack={showForm ? closeForm : undefined}
-        toolbar={showForm ? null : listToolbar}
+        toolbar={null}
       >
       <AnimatePresence mode="wait">
         {showForm ? (
@@ -236,24 +275,42 @@ export default function LocaisEstoque() {
             </Card>
           </motion.div>
         ) : (
-          <div key="table" className="space-y-1 overflow-hidden">
-            <div className="flex justify-between items-center px-1 gap-2 flex-wrap"><div className="text-xs text-slate-500">{sortedData.length} de {locais.length} registros</div><div className="flex gap-2 flex-wrap">{selectedItems.length > 0 && (<DropdownMenu><DropdownMenuTrigger asChild><Button variant="outline" size="sm" className="h-7 text-xs">Ações ({selectedItems.length})</Button></DropdownMenuTrigger><DropdownMenuContent><DropdownMenuLabel className="text-xs">Ações em Lote</DropdownMenuLabel><DropdownMenuSeparator /><DropdownMenuItem onClick={() => handleRequestDelete(selectedItems)} className="text-xs text-red-600">Excluir Selecionados</DropdownMenuItem><DropdownMenuSeparator /><DropdownMenuItem onClick={() => setSelectedItems([])} className="text-xs">Limpar Seleção</DropdownMenuItem></DropdownMenuContent></DropdownMenu>)}</div></div>
-            <Card className="overflow-hidden"><CardContent className="p-0 overflow-hidden"><div className="relative overflow-hidden"><div ref={scrollContainerRef} className="relative w-full overflow-auto max-h-[calc(100dvh-240px)] md:max-h-[calc(100dvh-150px)]" style={{ overscrollBehavior: 'none', WebkitOverflowScrolling: 'touch' }}>
+          <CadastroListaChrome
+            key="chrome"
+            selectedCount={chrome.selectedIds.length}
+            listados={locais.length}
+            filtrados={filtradosCount}
+            totais={locais.length}
+            onNew={openNewForm}
+            onEdit={handleEditSelected}
+            onDelete={handleDeleteSelected}
+            searchValue={chrome.searchInput}
+            onSearchChange={chrome.setSearchInput}
+            onSearchApply={chrome.applySearch}
+            searchActive={chrome.searchActive}
+            searchPlaceholder="Buscar locais…"
+            onConfigureColumns={() => setShowConfigColunas(true)}
+            onClearFilters={chrome.clearFilters}
+            filtersActive={chrome.filtersActive}
+            viewMode={chrome.viewMode}
+            onViewModeChange={onViewModeChange}
+          >
+            <div className="overflow-hidden"><div ref={scrollContainerRef} className="relative w-full overflow-auto max-h-[calc(100dvh-280px)] md:max-h-[calc(100dvh-220px)]" style={{ overscrollBehavior: 'none', WebkitOverflowScrolling: 'touch' }}>
               <Table ref={tableRef} className={`w-full ${isMobile ? "min-w-[500px]" : "min-w-[700px]"} border-separate border-spacing-0 table-fixed`}>
                 <TableHeader className="bg-white"><TableRow className="sticky top-0 z-40 bg-white">
                   {colunasOrdenadas.map(coluna => {
                     const w = columnWidths[coluna.id] || coluna.width || 160; const isR = resizeColumnId === coluna.id;
-                    if (coluna.id === "selecao") return (<TableHead key="selecao" style={{ width: 25, minWidth: 25, maxWidth: 25 }} className="sticky top-0 z-40 h-7 p-0 bg-white text-muted-foreground font-medium text-center align-middle px-0 border-r border-b border-gray-200"><div className="flex items-center justify-center w-full h-full"><Checkbox checked={selectedItems.length === sortedData.length && sortedData.length > 0} onCheckedChange={toggleSelectAll} className="peer shrink-0 shadow disabled:opacity-50 h-4 w-4 rounded-full border-2 border-gray-400 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground" /></div></TableHead>);
+                    if (coluna.id === "selecao") return (<TableHead key="selecao" style={{ width: 25, minWidth: 25, maxWidth: 25 }} className="sticky top-0 z-40 h-7 p-0 bg-white text-muted-foreground font-medium text-center align-middle px-0 border-r border-b border-gray-200"><div className="flex items-center justify-center w-full h-full"><Checkbox checked={chrome.selectedIds.length === sortedData.length && sortedData.length > 0} onCheckedChange={toggleSelectAll} className="peer shrink-0 shadow disabled:opacity-50 h-4 w-4 rounded-full border-2 border-gray-400 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground" /></div></TableHead>);
                     if (coluna.id === "acoes") return <TableHead key="acoes" style={{ width: 25, minWidth: 25, maxWidth: 25 }} className="sticky top-0 z-40 h-7 p-0 bg-white text-muted-foreground font-medium text-center align-middle px-0 border-r border-b border-gray-200" />;
                     const fc = renderFilterControl(coluna.id);
-                    return (<TableHead key={coluna.id} style={{ width: w, minWidth: w, maxWidth: w }} className="sticky top-0 z-40 relative align-middle text-gray-900 px-2 pr-7 text-xs font-medium text-center border-r border-b border-gray-200 bg-white whitespace-nowrap h-7"><div className="inline-flex items-center justify-center gap-1 h-full w-full whitespace-nowrap overflow-hidden text-ellipsis">{coluna.label}</div>{fc && (<div className="absolute right-1 top-1/2 -translate-y-1/2 z-50 flex items-center gap-1" onClick={e => e.stopPropagation()}>{fc}<button type="button" className={`h-4 w-4 flex items-center justify-center rounded ${isR ? 'text-emerald-600 bg-emerald-100' : 'text-slate-300 hover:text-slate-500'}`} onClick={e => { e.stopPropagation(); toggleResizeMode(coluna.id); }} onTouchEnd={e => { e.stopPropagation(); e.preventDefault(); toggleResizeMode(coluna.id); }}><GripVertical className="w-2.5 h-2.5" /></button></div>)}{isR && (<div className="absolute top-0 -right-0 h-full w-5 z-50 flex items-center justify-center cursor-col-resize bg-lime-800" onMouseDown={e => startDragResize(e, coluna.id)} onTouchStart={e => startDragResize(e, coluna.id)} onClick={e => { e.stopPropagation(); setResizeColumnId(null); }}><GripVertical className="w-3.5 h-3.5 text-white" /></div>)}</TableHead>);
+                    return (<TableHead key={coluna.id} style={{ width: w, minWidth: w, maxWidth: w }} className="sticky top-0 z-40 relative align-middle text-gray-900 px-2 pr-7 text-xs font-medium text-center border-r border-b border-gray-200 bg-white whitespace-nowrap h-7"><div className="inline-flex items-center justify-center gap-1 h-full w-full whitespace-nowrap overflow-hidden text-ellipsis">{coluna.label}</div>{fc && (<div className="absolute right-1 top-1/2 -translate-y-1/2 z-50 flex items-center gap-1" onClick={e => e.stopPropagation()}>{fc}<button type="button" className={`h-4 w-4 flex items-center justify-center rounded ${isR ? 'text-emerald-600 bg-emerald-100' : 'text-slate-300 hover:text-slate-500'}`} onClick={e => { e.stopPropagation(); toggleResizeMode(coluna.id); }} onTouchEnd={e => { e.stopPropagation(); e.preventDefault(); toggleResizeMode(coluna.id); }}><GripVertical className="w-2.5 h-2.5" /></button></div>)}{isR && (<div className="mg-grid-resize-handle absolute top-0 -right-0 h-full w-5 z-50 flex items-center justify-center cursor-col-resize" onMouseDown={e => startDragResize(e, coluna.id)} onTouchStart={e => startDragResize(e, coluna.id)} onClick={e => { e.stopPropagation(); setResizeColumnId(null); }}><GripVertical className="w-3.5 h-3.5 text-white" /></div>)}</TableHead>);
                   })}
                 </TableRow></TableHeader>
                 <TableBody>
                   {sortedData.length === 0 ? (<TableRow><TableCell colSpan={colunasOrdenadas.length} className="text-center py-8 text-xs text-slate-400 border border-gray-300">Nenhum local encontrado</TableCell></TableRow>) : sortedData.map(item => (
                     <TableRow key={item.id} className="data-[state=selected]:bg-muted transition-colors border-b hover:bg-gray-100" onDoubleClick={() => handleEdit(item)} onTouchEnd={(ev) => handleRowTouch(item, ev)}>
                       {colunasOrdenadas.map(coluna => { const w = columnWidths[coluna.id] || coluna.width || 160;
-                        if (coluna.id === "selecao") return (<TableCell key={`${item.id}-sel`} style={{ width: 25, minWidth: 25, maxWidth: 25 }} className="p-0 text-center align-middle h-7 border-r border-b border-gray-300" onClick={e => e.stopPropagation()} onTouchEnd={e => e.stopPropagation()}><div className="flex items-center justify-center w-full h-full"><Checkbox checked={selectedItems.includes(item.id)} onCheckedChange={(ch) => setSelectedItems(prev => ch ? [...prev, item.id] : prev.filter(id => id !== item.id))} className="rounded-full h-4 w-4 border-2 border-gray-400 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground" /></div></TableCell>);
+                        if (coluna.id === "selecao") return (<TableCell key={`${item.id}-sel`} style={{ width: 25, minWidth: 25, maxWidth: 25 }} className="p-0 text-center align-middle h-7 border-r border-b border-gray-300" onClick={e => e.stopPropagation()} onTouchEnd={e => e.stopPropagation()}><div className="flex items-center justify-center w-full h-full"><Checkbox checked={chrome.selectedIds.includes(item.id)} onCheckedChange={(ch) => chrome.setSelectedIds((prev) => (ch ? [...prev, item.id] : prev.filter((id) => id !== item.id)))} className="rounded-full h-4 w-4 border-2 border-gray-400 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground" /></div></TableCell>);
                         if (coluna.id === "acoes") return (<TableCell key={`${item.id}-act`} style={{ width: 25, minWidth: 25, maxWidth: 25 }} className="p-0 text-center align-middle h-7 border-r border-b border-gray-300" onClick={e => e.stopPropagation()} onTouchEnd={e => e.stopPropagation()}><div className="flex items-center justify-center w-full h-full"><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-6 w-6"><MoreVertical className="w-3.5 h-3.5 text-slate-600" /></Button></DropdownMenuTrigger><DropdownMenuContent align="start"><DropdownMenuItem onClick={() => handleEdit(item)} className="text-xs">Editar</DropdownMenuItem><DropdownMenuSeparator /><DropdownMenuItem onClick={() => handleRequestDelete(item.id)} className="text-xs text-red-600">Excluir</DropdownMenuItem></DropdownMenuContent></DropdownMenu></div></TableCell>);
                         const al = coluna.align === "right" ? "text-right" : coluna.align === "center" ? "text-center" : "text-left";
                         return (<TableCell key={`${item.id}-${coluna.id}`} style={{ width: w, minWidth: w, maxWidth: w }} className={`px-2 py-1 text-gray-700 text-xs align-middle border-r border-b border-gray-300 whitespace-normal break-words ${al}`}>{renderCell(item, coluna.id)}</TableCell>);
@@ -262,8 +319,8 @@ export default function LocaisEstoque() {
                   ))}
                 </TableBody>
               </Table>
-            </div></div></CardContent></Card>
-          </div>
+            </div></div>
+          </CadastroListaChrome>
         )}
       </AnimatePresence>
       </CadastroWorkspace>

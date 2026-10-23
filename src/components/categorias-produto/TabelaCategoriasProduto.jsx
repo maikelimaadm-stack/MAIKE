@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -69,7 +68,17 @@ function getFieldValue(item, colunaId) {
   return "";
 }
 
-export default function TabelaCategoriasProduto({ categorias = [], onEdit, onDelete, showConfigColunas, setShowConfigColunas }) {
+export default function TabelaCategoriasProduto({
+  categorias = [],
+  onEdit,
+  onDelete,
+  showConfigColunas,
+  setShowConfigColunas,
+  searchQuery = "",
+  resetFiltersKey = 0,
+  onSelectionChange,
+  onFiltersActiveChange,
+}) {
   const [selectedItems, setSelectedItems] = useState([]);
   const [sortConfig, setSortConfig] = useState({ key: "numero", direction: "asc" });
   const [menuFiltroAberto, setMenuFiltroAberto] = useState(null);
@@ -119,13 +128,33 @@ export default function TabelaCategoriasProduto({ categorias = [], onEdit, onDel
   const { roots } = useMemo(() => buildHierarchy(categorias), [categorias]);
   const allFlat = useMemo(() => { const flatten = (nodes) => { let r = []; nodes.forEach(n => { r.push(n); r.push(...flatten(n.children)); }); return r; }; return flatten(roots); }, [roots]);
 
+  useEffect(() => {
+    if (resetFiltersKey > 0) setFiltrosColunas({});
+  }, [resetFiltersKey]);
+
+  useEffect(() => {
+    onSelectionChange?.(selectedItems);
+  }, [selectedItems, onSelectionChange]);
+
+  useEffect(() => {
+    const active = Object.values(filtrosColunas).some((v) => (v || []).length > 0);
+    onFiltersActiveChange?.(active);
+  }, [filtrosColunas, onFiltersActiveChange]);
+
   const categoriasFiltradas = useMemo(() => {
-    return allFlat.filter(g => COLUNAS_DISPONIVEIS.filter(c => !c.fixo).every(col => {
-      const filtro = filtrosColunas[col.id] || [];
-      if (filtro.length === 0) return true;
-      return filtro.includes(getFieldValue(g, col.id));
-    }));
-  }, [allFlat, filtrosColunas]);
+    const q = searchQuery.trim().toLowerCase();
+    return allFlat.filter((g) => {
+      if (q) {
+        const hay = [g.nome, g.descricao, g._numero].filter(Boolean).join(" ").toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return COLUNAS_DISPONIVEIS.filter((c) => !c.fixo).every((col) => {
+        const filtro = filtrosColunas[col.id] || [];
+        if (filtro.length === 0) return true;
+        return filtro.includes(getFieldValue(g, col.id));
+      });
+    });
+  }, [allFlat, filtrosColunas, searchQuery]);
 
   const filteredTree = useMemo(() => {
     const ids = new Set(categoriasFiltradas.map(g => g.id));
@@ -206,28 +235,8 @@ export default function TabelaCategoriasProduto({ categorias = [], onEdit, onDel
   };
 
   return (
-    <div className="space-y-1 overflow-hidden">
-      <div className="flex justify-between items-center px-1 gap-2 flex-wrap">
-        <div className="text-xs text-slate-500">{categoriasFiltradas.length} de {categorias.length} registros</div>
-        <div className="flex gap-2 flex-wrap">
-          {selectedItems.length > 0 && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild><Button variant="outline" size="sm" className="h-7 text-xs">Ações ({selectedItems.length})</Button></DropdownMenuTrigger>
-              <DropdownMenuContent>
-                <DropdownMenuLabel className="text-xs">Ações em Lote</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => { selectedItems.forEach(id => onDelete(id)); setSelectedItems([]); }} className="text-xs text-red-600">Excluir Selecionados</DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => setSelectedItems([])} className="text-xs">Limpar Seleção</DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
-        </div>
-      </div>
-      <Card className="overflow-hidden">
-        <CardContent className="p-0 overflow-hidden">
-          <div className="relative overflow-hidden">
-            <div ref={scrollContainerRef} className="relative w-full overflow-auto max-h-[calc(100dvh-240px)] md:max-h-[calc(100dvh-150px)]" style={{ overscrollBehavior: 'none', WebkitOverflowScrolling: 'touch' }}>
+    <div className="overflow-hidden">
+            <div ref={scrollContainerRef} className="relative w-full overflow-auto max-h-[calc(100dvh-280px)] md:max-h-[calc(100dvh-220px)]" style={{ overscrollBehavior: 'none', WebkitOverflowScrolling: 'touch' }}>
               <Table ref={tableRef} className={`w-full ${isMobile ? "min-w-[500px]" : "min-w-[700px]"} border-separate border-spacing-0 table-fixed`}>
                 <TableHeader className="bg-white"><TableRow className="sticky top-0 z-40 bg-white">
                   {colunasOrdenadas.map(coluna => {
@@ -235,7 +244,7 @@ export default function TabelaCategoriasProduto({ categorias = [], onEdit, onDel
                     if (coluna.id === "selecao") return (<TableHead key="selecao" style={{ width: 25, minWidth: 25, maxWidth: 25 }} className="sticky top-0 z-40 h-7 p-0 bg-white text-muted-foreground font-medium text-center align-middle px-0 border-r border-b border-gray-200"><div className="flex items-center justify-center w-full h-full"><Checkbox checked={selectedItems.length === flatRows.length && flatRows.length > 0} onCheckedChange={toggleSelectAll} className="peer shrink-0 shadow disabled:opacity-50 h-4 w-4 rounded-full border-2 border-gray-400 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground" /></div></TableHead>);
                     if (coluna.id === "acoes") return <TableHead key="acoes" style={{ width: 25, minWidth: 25, maxWidth: 25 }} className="sticky top-0 z-40 h-7 p-0 bg-white text-muted-foreground font-medium text-center align-middle px-0 border-r border-b border-gray-200" />;
                     const fc = renderFilterControl(coluna.id);
-                    return (<TableHead key={coluna.id} style={{ width: w, minWidth: w, maxWidth: w }} className="sticky top-0 z-40 relative align-middle text-gray-900 px-2 pr-7 text-xs font-medium text-center border-r border-b border-gray-200 bg-white whitespace-nowrap h-7"><div className="inline-flex items-center justify-center gap-1 h-full w-full whitespace-nowrap overflow-hidden text-ellipsis">{coluna.label}</div>{fc && (<div className="absolute right-1 top-1/2 -translate-y-1/2 z-50 flex items-center gap-1" onClick={e => e.stopPropagation()}>{fc}<button type="button" className={`h-4 w-4 flex items-center justify-center rounded ${isR ? 'text-emerald-600 bg-emerald-100' : 'text-slate-300 hover:text-slate-500'}`} onClick={e => { e.stopPropagation(); toggleResizeMode(coluna.id); }} onTouchEnd={e => { e.stopPropagation(); e.preventDefault(); toggleResizeMode(coluna.id); }}><GripVertical className="w-2.5 h-2.5" /></button></div>)}{isR && (<div className="absolute top-0 -right-0 h-full w-5 z-50 flex items-center justify-center cursor-col-resize bg-lime-800" onMouseDown={e => startDragResize(e, coluna.id)} onTouchStart={e => startDragResize(e, coluna.id)} onClick={e => { e.stopPropagation(); setResizeColumnId(null); }}><GripVertical className="w-3.5 h-3.5 text-white" /></div>)}</TableHead>);
+                    return (<TableHead key={coluna.id} style={{ width: w, minWidth: w, maxWidth: w }} className="sticky top-0 z-40 relative align-middle text-gray-900 px-2 pr-7 text-xs font-medium text-center border-r border-b border-gray-200 bg-white whitespace-nowrap h-7"><div className="inline-flex items-center justify-center gap-1 h-full w-full whitespace-nowrap overflow-hidden text-ellipsis">{coluna.label}</div>{fc && (<div className="absolute right-1 top-1/2 -translate-y-1/2 z-50 flex items-center gap-1" onClick={e => e.stopPropagation()}>{fc}<button type="button" className={`h-4 w-4 flex items-center justify-center rounded ${isR ? 'text-emerald-600 bg-emerald-100' : 'text-slate-300 hover:text-slate-500'}`} onClick={e => { e.stopPropagation(); toggleResizeMode(coluna.id); }} onTouchEnd={e => { e.stopPropagation(); e.preventDefault(); toggleResizeMode(coluna.id); }}><GripVertical className="w-2.5 h-2.5" /></button></div>)}{isR && (<div className="mg-grid-resize-handle absolute top-0 -right-0 h-full w-5 z-50 flex items-center justify-center cursor-col-resize" onMouseDown={e => startDragResize(e, coluna.id)} onTouchStart={e => startDragResize(e, coluna.id)} onClick={e => { e.stopPropagation(); setResizeColumnId(null); }}><GripVertical className="w-3.5 h-3.5 text-white" /></div>)}</TableHead>);
                   })}
                 </TableRow></TableHeader>
                 <TableBody>
@@ -254,9 +263,6 @@ export default function TabelaCategoriasProduto({ categorias = [], onEdit, onDel
                 </TableBody>
               </Table>
             </div>
-          </div>
-        </CardContent>
-      </Card>
       <ConfiguracaoColunasMapaDialog open={showConfigColunas} onOpenChange={setShowConfigColunas} colunasDisponiveis={COLUNAS_DISPONIVEIS} colunasVisiveis={colunasVisiveis} colunasOrdem={colunasOrdem} toggleColuna={toggleColuna} handleDragEnd={handleDragEnd} droppableId="colunas-categorias-produto" />
     </div>
   );

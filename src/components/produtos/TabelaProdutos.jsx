@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -66,7 +65,18 @@ function getFieldValue(item, colunaId) {
 }
 
 export default function TabelaProdutos({
-  produtos = [], onEdit, onDelete, onPrint, isLoading, showConfigColunas, setShowConfigColunas
+  produtos = [],
+  onEdit,
+  onDelete,
+  onPrint,
+  isLoading,
+  showConfigColunas,
+  setShowConfigColunas,
+  searchQuery = "",
+  resetFiltersKey = 0,
+  onSelectionChange,
+  onFiltersActiveChange,
+  bulkDeleteSignal = 0,
 }) {
   const [selectedItems, setSelectedItems] = useState([]);
   const [sortConfig, setSortConfig] = useState({ key: "nome", direction: "asc" });
@@ -137,15 +147,48 @@ export default function TabelaProdutos({
 
   useEffect(() => { setSelectedItems(prev => prev.filter(id => produtos.some(p => p.id === id))); }, [produtos]);
 
+  useEffect(() => {
+    if (resetFiltersKey > 0) {
+      setFiltrosColunas({});
+      setSortConfig({ key: "nome", direction: "asc" });
+    }
+  }, [resetFiltersKey]);
+
+  useEffect(() => {
+    onSelectionChange?.(selectedItems);
+  }, [selectedItems, onSelectionChange]);
+
+  useEffect(() => {
+    const active = Object.values(filtrosColunas).some((v) => (v || []).length > 0);
+    onFiltersActiveChange?.(active);
+  }, [filtrosColunas, onFiltersActiveChange]);
+
+  useEffect(() => {
+    if (bulkDeleteSignal > 0 && selectedItems.length > 0) {
+      setBulkDeleteConfirm(true);
+    }
+  }, [bulkDeleteSignal, selectedItems.length]);
+
   const produtosFiltrados = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
     return produtos.filter(p => {
+      if (q) {
+        const hay = [
+          p.nome_produto,
+          p.codigo_interno,
+          p.categoria,
+          p.marca,
+          p.numero_produto,
+        ].filter(Boolean).join(" ").toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
       return COLUNAS_DISPONIVEIS.filter(c => !c.fixo).every(col => {
         const filtro = filtrosColunas[col.id] || [];
         if (filtro.length === 0) return true;
         return filtro.includes(getFieldValue(p, col.id));
       });
     });
-  }, [produtos, filtrosColunas]);
+  }, [produtos, filtrosColunas, searchQuery]);
 
   const produtosOrdenados = useMemo(() => {
     const sorted = [...produtosFiltrados];
@@ -307,33 +350,8 @@ export default function TabelaProdutos({
 
   return (
     <>
-      <div className="space-y-1 overflow-hidden">
-        <div className="flex justify-between items-center px-1 gap-2 flex-wrap">
-          <div className="text-xs text-slate-500">{produtosFiltrados.length} de {produtos.length} registros</div>
-          <div className="flex gap-2 flex-wrap">
-            {selectedItems.length > 0 && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-7 text-xs">Ações ({selectedItems.length})</Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  <DropdownMenuLabel className="text-xs">Ações em Lote</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => { selectedItems.forEach(id => { const p = produtos.find(x => x.id === id); if (p) onPrint(p); }); }} className="text-xs">Imprimir Todos</DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => setBulkDeleteConfirm(true)} className="text-xs text-red-600">Excluir Selecionados</DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => setSelectedItems([])} className="text-xs">Limpar Seleção</DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
-          </div>
-        </div>
-
-        <Card className="overflow-hidden">
-          <CardContent className="p-0 overflow-hidden">
-            <div className="relative overflow-hidden">
-              <div ref={scrollContainerRef} className="relative w-full overflow-auto max-h-[calc(100dvh-240px)] md:max-h-[calc(100dvh-150px)]" style={{ overscrollBehavior: 'none', WebkitOverflowScrolling: 'touch' }}>
+      <div className="overflow-hidden">
+              <div ref={scrollContainerRef} className="relative w-full overflow-auto max-h-[calc(100dvh-280px)] md:max-h-[calc(100dvh-220px)]" style={{ overscrollBehavior: 'none', WebkitOverflowScrolling: 'touch' }}>
                 <Table ref={tableRef} className={`w-full ${isMobile ? "min-w-[720px]" : "min-w-[1200px]"} border-separate border-spacing-0 table-fixed`}>
                   <TableHeader className="bg-white">
                     <TableRow className="sticky top-0 z-40 bg-white">
@@ -371,7 +389,7 @@ export default function TabelaProdutos({
                               </div>
                             )}
                             {isResizing && (
-                              <div className="absolute top-0 -right-0 h-full w-5 z-50 flex items-center justify-center cursor-col-resize bg-lime-800" onMouseDown={e => startDragResize(e, coluna.id)} onTouchStart={e => startDragResize(e, coluna.id)} onClick={e => { e.stopPropagation(); setResizeColumnId(null); }} onDoubleClick={e => e.stopPropagation()} onTouchEnd={e => e.stopPropagation()}>
+                              <div className="mg-grid-resize-handle absolute top-0 -right-0 h-full w-5 z-50 flex items-center justify-center cursor-col-resize" onMouseDown={e => startDragResize(e, coluna.id)} onTouchStart={e => startDragResize(e, coluna.id)} onClick={e => { e.stopPropagation(); setResizeColumnId(null); }} onDoubleClick={e => e.stopPropagation()} onTouchEnd={e => e.stopPropagation()}>
                                 <GripVertical className="w-3.5 h-3.5 text-white" />
                               </div>
                             )}
@@ -435,9 +453,6 @@ export default function TabelaProdutos({
                   </TableBody>
                 </Table>
               </div>
-            </div>
-          </CardContent>
-        </Card>
       </div>
 
       <ConfiguracaoColunasMapaDialog

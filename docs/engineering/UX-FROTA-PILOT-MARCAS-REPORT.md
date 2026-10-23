@@ -58,4 +58,15 @@ Branch `cursor/ux-frota-base1-chrome-516d`:
 | `CadastroListaChrome` | Toolbar Novo/Editar/Excluir, busca em pílula, faixa de filtros, rodapé Selecionados/Listados/Filtrados/Totais |
 | `Marcas.jsx` + `TabelaMarcas` | Piloto integrado; grade legada dentro do shell Base1 |
 
-Próximo: replicar chrome em Categorias, Produtos, Unidades, Locais, Setores; depois cards/registro completo e grid MG.
+## UX-06 (2026-10-23) — Chrome Base1 nos cadastros Frota
+
+Branch `cursor/ux-frota-base1-chrome-cadastros-516d`:
+
+| Artefato / página | Mudança |
+|-------------------|---------|
+| `useCadastroListaChromeState.js` | Estado compartilhado (seleção, busca, filtros, modo de vista) |
+| `CadastroListaChrome` | `extraToolbar` (Produtos: import/export/modelo/atualizar) |
+| Categorias, Produtos, Setores | Chrome + tabelas com busca, reset de filtros e seleção |
+| Unidades de medida, Locais de estoque | Chrome integrado na grade inline (mesma UX) |
+
+Próximo: cards/registro completo estilo Base1; grid MG; opcional refatorar Marcas para o hook compartilhado.
