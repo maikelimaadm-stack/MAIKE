@@ -95,6 +95,17 @@ Branch `cursor/ux-base1-remaining-cadastros-516d`:
 | `ConfiguracoesGerais.jsx` | Shell `CadastroWorkspace` (conteúdo de ícones inalterado) |
 | `Usuarios.jsx` | Workspace unificado; ações no header; formulários em modo detalhe |
 
-**Próxima fatia (UX-09):** `CadastroLotes` — substituir barra Sankhya pelo chrome Base1 mantendo painel de filtros e exportações PDF/Excel.
+## UX-09 (2026-10-23) — Cadastro de Lotes (Base1)
+
+Branch `cursor/ux-base1-cadastro-lotes-516d`:
+
+| Artefato / página | Mudança |
+|-------------------|---------|
+| `CadastroLotes.jsx` | `CadastroWorkspace` + `CadastroListaChrome` + hook; removidos Sankhya, painel de filtros avançado e export PDF/Excel da toolbar |
+| `FormularioLote.jsx` | `variant="embedded"` (sem `LegacyRecordToolbar`; rodapé Salvar/Cancelar/Anexos) |
+| `TabelaLotes.jsx` | `resetFiltersKey`, `onFiltersActiveChange`, busca global via chrome |
+| `Layout.jsx` | Transição de rota sem `mode="wait"` (evita travar navegação entre páginas) |
+
+Exportações PDF/Excel e painel Sankhya ficam fora desta fatia; filtros por coluna na grade permanecem.
 
 **Fora do padrão lista (por desenho):** `MapaGeral`, `MapaCadastro`.

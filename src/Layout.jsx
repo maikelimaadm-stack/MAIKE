@@ -588,13 +588,13 @@ export default function Layout({ children, currentPageName }) {
 
 
       <main className="max-w-[1600px] mx-auto flex-1 min-h-0 w-full overflow-hidden pb-16 md:pb-0">
-        <AnimatePresence mode="wait">
+        <AnimatePresence initial={false}>
           <motion.div
             key={location.pathname}
-            initial={{ x: 30, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            exit={{ x: -20, opacity: 0 }}
-            transition={{ duration: 0.2, ease: "easeOut" }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.12, ease: "easeOut" }}
             className="relative h-full min-h-0 overflow-hidden">
 
             {children}

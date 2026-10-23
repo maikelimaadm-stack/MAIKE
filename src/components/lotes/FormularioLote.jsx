@@ -80,7 +80,31 @@ const parseSistemasProdutivos = (valor) => {
 };
 
 
-export default function FormularioLote({ onSubmit, onCancel, onAttachClick, attachDisabled = false, onToggleView, total = 0, currentIndex = 0, onNew, onFirst, onPrevious, onNext, onLast, onDelete, onDuplicate, onRefresh, filterOpen = false, filterActive = false, onToggleFilter, onClearFilter, initialData, isEditing }) {
+export default function FormularioLote({
+  variant = "card",
+  onSubmit,
+  onCancel,
+  onAttachClick = undefined,
+  attachDisabled = false,
+  onToggleView = undefined,
+  total = 0,
+  currentIndex = 0,
+  onNew = undefined,
+  onFirst = undefined,
+  onPrevious = undefined,
+  onNext = undefined,
+  onLast = undefined,
+  onDelete = undefined,
+  onDuplicate = undefined,
+  onRefresh = undefined,
+  filterOpen = false,
+  filterActive = false,
+  onToggleFilter = undefined,
+  onClearFilter = undefined,
+  initialData,
+  isEditing,
+}) {
+  const embedded = variant === "embedded";
   const isDuplicating = !!initialData?._isDuplicate;
   const shouldPersistEntrySnapshot = !isEditing || isDuplicating;
   const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
@@ -94,7 +118,7 @@ export default function FormularioLote({ onSubmit, onCancel, onAttachClick, atta
     try {return JSON.parse(saved);} catch {return null;}
   });
   const [isDirty, setIsDirty] = useState(!isEditing || isDuplicating);
-  const [editMode, setEditMode] = useState(!isEditing || isDuplicating);
+  const [editMode, setEditMode] = useState(!isEditing || isDuplicating || embedded);
   // Função rápida para garantir que a data de edição vá para o formato AAAA-MM-DD
   const carregarDataEntrada = (data) => {
     if (!data) return new Date().toLocaleDateString("sv-SE");
@@ -464,37 +488,39 @@ export default function FormularioLote({ onSubmit, onCancel, onAttachClick, atta
         confirmText="Entendi"
       />
       <form ref={formRef} onSubmit={handleSubmit} className="bg-white h-full min-h-0 overflow-hidden flex flex-col">
-        <LegacyRecordToolbar
-          title={`${formData.numero_lote ? `${formData.numero_lote} - ` : ""}${formData.nome || (isDuplicating ? "Duplicar lote" : isEditing ? "Editar lote" : "Novo lote")}`}
-          badgeLabel="LOTE"
-          operationLabel={operationLabel}
-          showSaveActions={editMode}
-          showEditAction={isReadOnly}
-          showDeleteDuplicateActions={isEditing && !editMode && !isDuplicating}
-          onCancel={onCancel}
-          onSave={() => formRef.current?.requestSubmit()}
-          onBack={null}
-          onSettingsClick={null}
-          onEditRecord={() => setEditMode(true)}
-          onLayoutConfigClick={() => { if (filterOpen) onToggleFilter?.(); setLayoutConfigOpen(true); }}
-          onToggleView={onToggleView}
-          total={total}
-          currentIndex={currentIndex}
-          onNew={onNew}
-          onFirst={onFirst}
-          onPrevious={onPrevious}
-          onNext={onNext}
-          onLast={onLast}
-          onDelete={onDelete}
-          onDuplicate={onDuplicate}
-          onRefresh={onRefresh}
-          filterOpen={filterOpen}
-          filterActive={filterActive}
-          onToggleFilter={onToggleFilter}
-          onClearFilter={onClearFilter}
-          onAttachClick={onAttachClick}
-          attachDisabled={attachDisabled} />
-        
+        {!embedded ? (
+          <LegacyRecordToolbar
+            title={`${formData.numero_lote ? `${formData.numero_lote} - ` : ""}${formData.nome || (isDuplicating ? "Duplicar lote" : isEditing ? "Editar lote" : "Novo lote")}`}
+            badgeLabel="LOTE"
+            operationLabel={operationLabel}
+            showSaveActions={editMode}
+            showEditAction={isReadOnly}
+            showDeleteDuplicateActions={isEditing && !editMode && !isDuplicating}
+            onCancel={onCancel}
+            onSave={() => formRef.current?.requestSubmit()}
+            onBack={null}
+            onSettingsClick={null}
+            onEditRecord={() => setEditMode(true)}
+            onLayoutConfigClick={() => { if (filterOpen) onToggleFilter?.(); setLayoutConfigOpen(true); }}
+            onToggleView={onToggleView}
+            total={total}
+            currentIndex={currentIndex}
+            onNew={onNew}
+            onFirst={onFirst}
+            onPrevious={onPrevious}
+            onNext={onNext}
+            onLast={onLast}
+            onDelete={onDelete}
+            onDuplicate={onDuplicate}
+            onRefresh={onRefresh}
+            filterOpen={filterOpen}
+            filterActive={filterActive}
+            onToggleFilter={onToggleFilter}
+            onClearFilter={onClearFilter}
+            onAttachClick={onAttachClick}
+            attachDisabled={attachDisabled} />
+        ) : null}
+
 
         <div className="flex-1 min-h-0 overflow-y-auto pb-6 pr-2" style={{ scrollbarWidth: "thin", scrollbarColor: "#cbd5e1 transparent" }}>
           <fieldset className={isReadOnly ? "pointer-events-none [&_input]:cursor-default [&_textarea]:cursor-default [&_button]:cursor-default" : ""}>
@@ -539,14 +565,34 @@ export default function FormularioLote({ onSubmit, onCancel, onAttachClick, atta
           </div>
         </fieldset>
 
+        {embedded ? (
+          <div className="flex flex-wrap items-center justify-end gap-2 border-t border-slate-200 px-4 py-2 bg-slate-50">
+            {onAttachClick ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs"
+                onClick={onAttachClick}
+                disabled={attachDisabled}
+              >
+                Anexos
+              </Button>
+            ) : null}
+            <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={onCancel}>
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+              onClick={() => formRef.current?.requestSubmit()}
+            >
+              Salvar
+            </Button>
+          </div>
+        ) : null}
 
-
-        
-
-
-
-
-        
         </div>
       </form>
     </div>);
