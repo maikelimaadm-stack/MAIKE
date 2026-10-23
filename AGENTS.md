@@ -48,6 +48,12 @@ Ele recusa `NODE_ENV=production`, exige todas as variáveis (não há usuário n
 senha padrão), falha se a conta já existir em vez de sobrescrever, e não imprime
 senha, hash nem `DATABASE_URL`. **Não é CRUD** — gestão de usuários é da P6.
 
+Redefinição operacional de senha (login global, sem cliente na entrada):
+
+```bash
+RESET_PASSWORD_LOGIN=... RESET_PASSWORD_NOVA_SENHA=... RESET_PASSWORD_CONFIRM=sim npm run auth:reset-password
+```
+
 O backend ainda **não persiste dado de domínio**. A primeira capacidade migra na
 P4.1 (Setor) — ver `docs/engineering/ROADMAP.md`.
 

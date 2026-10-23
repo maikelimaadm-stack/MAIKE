@@ -18,6 +18,7 @@ import { construirApp } from '../src/app.js';
 import { getPrismaClient } from '../src/database/prismaClient.js';
 import { originPermitida, opcoesDeCors } from '../src/shared/http/corsPolicy.js';
 import { criarClienteEUsuario } from '../../scripts/auth/bootstrap-local.mjs';
+import { redefinirSenhaPorLogin } from '../../scripts/auth/reset-password.mjs';
 import { criarTenant, limparBanco, encerrar, autenticarNoApp } from './helpers.mjs';
 
 const ORIGIN_OK = 'http://localhost:5173';

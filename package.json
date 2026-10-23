@@ -17,6 +17,7 @@
     "backend:dev": "node --watch backend/src/server.js",
     "backend:start": "node backend/src/server.js",
     "auth:bootstrap:local": "node scripts/auth/bootstrap-local.mjs",
+    "auth:reset-password": "node scripts/auth/reset-password.mjs",
     "db:up": "docker compose up -d db",
     "db:down": "docker compose down",
     "prisma:generate": "prisma generate --schema backend/prisma/schema.prisma",
