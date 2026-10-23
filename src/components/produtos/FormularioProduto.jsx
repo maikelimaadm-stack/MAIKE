@@ -34,7 +34,8 @@ const parseNumero = (val) => {
   return parseMoedaInput(val);
 };
 
-export default function FormularioProduto({ onSubmit, onCancel, initialData, isEditing }) {
+export default function FormularioProduto({ onSubmit, onCancel, initialData, isEditing, variant = "card" }) {
+  const embedded = variant === "embedded";
   const empresaId = localStorage.getItem('empresa_selecionada_id');
 
   const [formData, setFormData] = useState(() => {
@@ -157,12 +158,17 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
   return (
     <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
       <Card className="shadow-sm border-slate-300">
-        <CardHeader className="flex flex-col space-y-1.5 p-6 bg-slate-50 border-b py-1 px-1">
-          <CardTitle className="text-sm font-semibold text-slate-700">
-            {isEditing ? 'Editar Produto' : 'Novo Produto'}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-1" style={{ maxHeight: 'calc(100vh - 150px)', overflowY: 'auto', scrollbarWidth: "thin", scrollbarColor: "#cbd5e1 transparent" }}>
+        {!embedded ? (
+          <CardHeader className="flex flex-col space-y-1.5 p-6 bg-slate-50 border-b py-1 px-1">
+            <CardTitle className="text-sm font-semibold text-slate-700">
+              {isEditing ? 'Editar Produto' : 'Novo Produto'}
+            </CardTitle>
+          </CardHeader>
+        ) : null}
+        <CardContent
+          className={embedded ? "p-3 pt-2" : "p-1"}
+          style={embedded ? undefined : { maxHeight: 'calc(100vh - 150px)', overflowY: 'auto', scrollbarWidth: "thin", scrollbarColor: "#cbd5e1 transparent" }}
+        >
           <form onSubmit={handleSubmit} className="space-y-0.5">
             {/* LINHA 1: Nome | Tipo de Uso | Código | Cód Barras */}
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-1">

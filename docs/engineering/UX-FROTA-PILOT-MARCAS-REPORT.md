@@ -31,3 +31,7 @@ Introduzir um shell reutilizável de cadastro (cabeçalho, subtítulo, ações, 
 ## UX-02 (2026-10-23) — Categorias de produtos
 
 Mesmo padrão aplicado em `src/pages/Categorias.jsx` e `FormularioCategoriaProduto` (`variant="embedded"`), na branch `cursor/ux-frota-categorias-ssot-516d`.
+
+## UX-03 (2026-10-23) — Produtos (cadastro estoque)
+
+`src/pages/Produtos.jsx` migrada para `CadastroWorkspace` (toolbar com import/export/modelo/colunas/Adicionar). `FormularioProduto` ganhou `variant="embedded"`. Próximas candidatas: Unidades de medida, Locais de estoque, Setores.
