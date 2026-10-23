@@ -70,10 +70,15 @@ export default function TabelaLotes({
   showConfigColunas,
   setShowConfigColunas,
   searchTerm = "",
-  selectedRecordId,
-  onSelectionChange,
-  onVisibleDataChange
+  searchQuery = "",
+  selectedRecordId = undefined,
+  onSelectionChange = undefined,
+  onVisibleDataChange = undefined,
+  resetFiltersKey = 0,
+  onFiltersActiveChange,
+  isLoading = false,
 }) {
+  const globalSearch = searchQuery || searchTerm;
   const [selectedItems, setSelectedItems] = useState([]);
   const [sortConfig, setSortConfig] = useState({ key: "nome", direction: "asc" });
   const [menuFiltroAberto, setMenuFiltroAberto] = useState(null);
@@ -310,7 +315,7 @@ export default function TabelaLotes({
   };
 
   const lotesFiltrados = useMemo(() => {
-    const termo = String(searchTerm || "").toLowerCase().trim();
+    const termo = String(globalSearch || "").toLowerCase().trim();
     return lotes.filter((lote) => {
       if (termo) {
         const matchesSearch = colunasDisponiveis.filter((c) => !c.fixo).some((col) => String(getFieldValue(lote, col.id) || "").toLowerCase().includes(termo));
@@ -345,7 +350,19 @@ export default function TabelaLotes({
         return filtro.includes(val);
       });
     });
-  }, [lotes, filtrosColunas, colunasDisponiveis, searchTerm]);
+  }, [lotes, filtrosColunas, colunasDisponiveis, globalSearch]);
+
+  useEffect(() => {
+    if (resetFiltersKey > 0) {
+      setFiltrosColunas({});
+      setSortConfig({ key: "nome", direction: "asc" });
+    }
+  }, [resetFiltersKey]);
+
+  useEffect(() => {
+    const active = Object.values(filtrosColunas).some((vals) => (vals || []).length > 0);
+    onFiltersActiveChange?.(active);
+  }, [filtrosColunas, onFiltersActiveChange]);
 
   const lotesOrdenados = useMemo(() => {
     const sorted = [...lotesFiltrados];
