@@ -43,7 +43,7 @@ import {
 
 import CadastroWorkspace from "@/components/cadastro/CadastroWorkspace";
 import CadastroListaChrome from "@/components/cadastro/base1/CadastroListaChrome";
-import { useCadastroListaChromeState, countSearchFiltered } from "@/hooks/useCadastroListaChromeState";
+import { useCadastroListaChromeState } from "@/hooks/useCadastroListaChromeState";
 import FormularioProduto from "../components/produtos/FormularioProduto";
 import TabelaProdutos from "../components/produtos/TabelaProdutos";
 import FichaProduto from "../components/produtos/FichaProduto";
@@ -302,17 +302,17 @@ export default function Produtos() {
     chrome.handleViewModeChange(mode, { onOpenRecord: () => handleEditSelected() });
   }, [chrome, handleEditSelected]);
 
-  const filtradosCount = useMemo(
-    () =>
-      countSearchFiltered(produtos, chrome.appliedSearch, (p) => [
-        p.nome_produto,
-        p.codigo_interno,
-        p.categoria,
-        p.marca,
-        p.numero_produto,
-      ]),
-    [produtos, chrome.appliedSearch],
-  );
+  const filtradosCount = useMemo(() => {
+    const q = chrome.appliedSearch.trim().toLowerCase();
+    if (!q) return produtos.length;
+    return produtos.filter((p) => {
+      const hay = [p.nome_produto, p.codigo_interno, p.categoria, p.marca, p.numero_produto]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return hay.includes(q);
+    }).length;
+  }, [produtos, chrome.appliedSearch]);
 
   const detailTitle = editingProduto?.id ? "Editar produto" : "Novo produto";
 

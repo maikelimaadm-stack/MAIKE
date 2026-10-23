@@ -19,7 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { MoreVertical, Filter, X, ArrowDownAZ, ArrowUpZA, GripVertical } from "lucide-react";
 import CadastroWorkspace from "@/components/cadastro/CadastroWorkspace";
 import CadastroListaChrome from "@/components/cadastro/base1/CadastroListaChrome";
-import { useCadastroListaChromeState, countSearchFiltered } from "@/hooks/useCadastroListaChromeState";
+import { useCadastroListaChromeState } from "@/hooks/useCadastroListaChromeState";
 import { toast } from "sonner";
 import { AnimatePresence, motion } from "framer-motion";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -144,10 +144,14 @@ export default function LocaisEstoque() {
     chrome.handleViewModeChange(mode, { onOpenRecord: () => handleEditSelected() });
   }, [chrome, handleEditSelected]);
 
-  const filtradosCount = useMemo(
-    () => countSearchFiltered(locais, chrome.appliedSearch, (l) => [l.nome, l.descricao, l.capacidade, l.numero_local]),
-    [locais, chrome.appliedSearch],
-  );
+  const filtradosCount = useMemo(() => {
+    const q = chrome.appliedSearch.trim().toLowerCase();
+    if (!q) return locais.length;
+    return locais.filter((l) => {
+      const hay = [l.nome, l.descricao, l.capacidade, l.numero_local].filter(Boolean).join(" ").toLowerCase();
+      return hay.includes(q);
+    }).length;
+  }, [locais, chrome.appliedSearch]);
 
   const detailTitle = editing?.id ? "Editar local de estoque" : "Novo local de estoque";
 

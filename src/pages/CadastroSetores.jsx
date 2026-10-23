@@ -13,7 +13,7 @@ import TabelaSetores from "@/components/setores/TabelaSetores";
 import FormularioSetor from "@/components/setores/FormularioSetor";
 import CadastroWorkspace from "@/components/cadastro/CadastroWorkspace";
 import CadastroListaChrome from "@/components/cadastro/base1/CadastroListaChrome";
-import { useCadastroListaChromeState, countSearchFiltered } from "@/hooks/useCadastroListaChromeState";
+import { useCadastroListaChromeState } from "@/hooks/useCadastroListaChromeState";
 import { AnimatePresence } from "framer-motion";
 
 const getInitialFormData = () => ({
@@ -132,16 +132,14 @@ export default function CadastroSetores() {
     chrome.handleViewModeChange(mode, { onOpenRecord: () => handleEditSelected() });
   }, [chrome, handleEditSelected]);
 
-  const filtradosCount = useMemo(
-    () =>
-      countSearchFiltered(setores, chrome.appliedSearch, (s) => [
-        s.nome,
-        s.sigla,
-        s.cidade,
-        s.responsavel,
-      ]),
-    [setores, chrome.appliedSearch],
-  );
+  const filtradosCount = useMemo(() => {
+    const q = chrome.appliedSearch.trim().toLowerCase();
+    if (!q) return setores.length;
+    return setores.filter((s) => {
+      const hay = [s.nome, s.sigla, s.cidade, s.responsavel].filter(Boolean).join(" ").toLowerCase();
+      return hay.includes(q);
+    }).length;
+  }, [setores, chrome.appliedSearch]);
 
   const detailTitle = editando?.id ? "Editar setor / fazenda" : "Novo setor / fazenda";
 

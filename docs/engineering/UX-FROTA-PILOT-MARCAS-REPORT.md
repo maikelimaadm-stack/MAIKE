@@ -64,7 +64,7 @@ Branch `cursor/ux-frota-base1-chrome-cadastros-516d`:
 
 | Artefato / página | Mudança |
 |-------------------|---------|
-| `useCadastroListaChromeState.js` | Estado compartilhado (seleção, busca, filtros, modo de vista) |
+| `useCadastroListaChromeState.js` | Estado compartilhado (seleção, busca aplicada, reset de filtros, modo de vista) |
 | `CadastroListaChrome` | `extraToolbar` (Produtos: import/export/modelo/atualizar) |
 | Categorias, Produtos, Setores | Chrome + tabelas com busca, reset de filtros e seleção |
 | Unidades de medida, Locais de estoque | Chrome integrado na grade inline (mesma UX) |

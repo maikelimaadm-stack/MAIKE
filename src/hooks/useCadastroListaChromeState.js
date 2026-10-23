@@ -54,13 +54,3 @@ export function useCadastroListaChromeState() {
     handleViewModeChange,
   };
 }
-
-/** @param {unknown[]} items @param {string} query @param {(item: unknown) => string[]} pickFields */
-export function countSearchFiltered(items, query, pickFields) {
-  const q = query.trim().toLowerCase();
-  if (!q) return items.length;
-  return items.filter((item) => {
-    const hay = pickFields(item).filter(Boolean).join(" ").toLowerCase();
-    return hay.includes(q);
-  }).length;
-}

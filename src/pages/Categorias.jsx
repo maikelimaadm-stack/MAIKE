@@ -12,7 +12,7 @@ import { AnimatePresence } from "framer-motion";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 import CadastroWorkspace from "@/components/cadastro/CadastroWorkspace";
 import CadastroListaChrome from "@/components/cadastro/base1/CadastroListaChrome";
-import { useCadastroListaChromeState, countSearchFiltered } from "@/hooks/useCadastroListaChromeState";
+import { useCadastroListaChromeState } from "@/hooks/useCadastroListaChromeState";
 import FormularioCategoriaProduto from "../components/categorias-produto/FormularioCategoriaProduto";
 import TabelaCategoriasProduto from "../components/categorias-produto/TabelaCategoriasProduto";
 
@@ -108,10 +108,14 @@ export default function Categorias() {
     });
   }, [chrome, handleEditSelected]);
 
-  const filtradosCount = useMemo(
-    () => countSearchFiltered(categorias, chrome.appliedSearch, (c) => [c.nome, c.descricao]),
-    [categorias, chrome.appliedSearch],
-  );
+  const filtradosCount = useMemo(() => {
+    const q = chrome.appliedSearch.trim().toLowerCase();
+    if (!q) return categorias.length;
+    return categorias.filter((c) => {
+      const hay = [c.nome, c.descricao].filter(Boolean).join(" ").toLowerCase();
+      return hay.includes(q);
+    }).length;
+  }, [categorias, chrome.appliedSearch]);
 
   const detailTitle = editingItem?.id ? "Editar categoria" : "Nova categoria";
 
