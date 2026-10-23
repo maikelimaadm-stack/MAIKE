@@ -9,7 +9,8 @@ import { getApiErrorMessage } from "@/apis/_core/ApiError";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
-import TabelaSetores from "@/components/setores/TabelaSetores";
+import TabelaSetores, { SETORES_COLUNAS, getSetorFieldValue } from "@/components/setores/TabelaSetores";
+import { exportCadastroCsv } from "@/components/cadastro/base1/cadastroExportCsv";
 import FormularioSetor from "@/components/setores/FormularioSetor";
 import CadastroWorkspace from "@/components/cadastro/CadastroWorkspace";
 import CadastroListaChrome from "@/components/cadastro/base1/CadastroListaChrome";
@@ -182,6 +183,7 @@ export default function CadastroSetores() {
               searchActive={chrome.searchActive}
               searchPlaceholder="Buscar setores…"
               onConfigureColumns={() => setShowConfigColunas(true)}
+              onExportCsv={() => exportCadastroCsv("setores.csv", SETORES_COLUNAS, setores, getSetorFieldValue)}
               onClearFilters={chrome.clearFilters}
               filtersActive={chrome.filtersActive}
               viewMode={chrome.viewMode}

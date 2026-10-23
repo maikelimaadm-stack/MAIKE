@@ -199,6 +199,7 @@ export default function TiposTarefa() {
               searchActive={chrome.searchActive}
               searchPlaceholder="Buscar tipos…"
               onConfigureColumns={() => setShowConfigColunas(true)}
+              onExportCsv={handleExport}
               onClearFilters={chrome.clearFilters}
               filtersActive={chrome.filtersActive}
               viewMode={chrome.viewMode}

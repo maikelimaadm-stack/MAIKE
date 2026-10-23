@@ -162,3 +162,25 @@ Referência: `ResourceList` + `Base1List` + `Base1Grid` em `/frota` (aba Equipam
 | `TabelaMarcas.jsx` | **Piloto** migrado para `Base1Grid` (sem colunas legadas Seleção/Ações) |
 
 Próximo passo: repetir `Base1Grid` em Produtos/Setores e demais cadastros; cards/registro embutido quando houver API de preferências ou stub local.
+
+## UX-14 (2026-10-23) — Migração total cadastros → motor Base1
+
+Branch `cursor/ux-base1-paridade-pagina-completa-516d`:
+
+| Artefato | Função |
+|----------|--------|
+| `CadastroBase1Grade.jsx` | SSOT da listagem: filtros por coluna, sort, prefs `localStorage`, `Base1Grid`, diálogo de colunas |
+| `cadastroExportCsv.js` | Export CSV (;) compartilhado |
+| Tabelas / páginas abaixo | Grade Base1 via `CadastroBase1Grade` (sem colunas legadas Seleção/Ações duplicadas) |
+
+**Migrados:** Marcas, Setores, Grupos de atividades, Tipos de tarefa, Categorias de manejo, Categorias de produto (árvore), Produtos, Lotes, Empresa, Usuários (contas + permissões), Unidades de medida, Locais de estoque, Bebedouros.
+
+**Limpeza:** removidos diálogos/colunas Sankhya e export PDF/Excel de lotes já desconectados (`gate:source-closure`).
+
+**Chrome:** `CadastroListaChrome` com tooltip padrão de Anexos; export CSV via “Mais opções” onde a página liga `onExportCsv` (piloto completo em Marcas; demais cadastros exportam colunas via helpers exportados das tabelas).
+
+**Fora de escopo:** `MapaGeral`, `MapaCadastro`, tabelas geo, manejo no mapa.
+
+## Verificação (UX-14)
+
+- `npm run test:smoke`, `npm run gate:types`, `npm run gate:source-closure`, `npm run build`

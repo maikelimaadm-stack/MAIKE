@@ -91,7 +91,7 @@ export default function CadastroListaChrome({
   hasMore = false,
   loadingMore = false,
   onLoadMore,
-  attachDisabledReason = null,
+  attachDisabledReason = "Anexos disponíveis quando o cadastro tiver auditoria nativa.",
   onAttach,
 }) {
   const oneSelected = selectedCount === 1;

@@ -14,7 +14,11 @@ import CadastroWorkspace from "@/components/cadastro/CadastroWorkspace";
 import CadastroListaChrome from "@/components/cadastro/base1/CadastroListaChrome";
 import { useCadastroListaChromeState } from "@/hooks/useCadastroListaChromeState";
 import FormularioCategoriaProduto from "../components/categorias-produto/FormularioCategoriaProduto";
-import TabelaCategoriasProduto from "../components/categorias-produto/TabelaCategoriasProduto";
+import TabelaCategoriasProduto, {
+  CATEGORIAS_PRODUTO_COLUNAS,
+  getCategoriaProdutoFieldValue,
+} from "../components/categorias-produto/TabelaCategoriasProduto";
+import { exportCadastroCsv } from "@/components/cadastro/base1/cadastroExportCsv";
 
 export default function Categorias() {
   const [showForm, setShowForm] = useState(false);
@@ -158,6 +162,14 @@ export default function Categorias() {
               searchActive={chrome.searchActive}
               searchPlaceholder="Buscar categorias…"
               onConfigureColumns={() => setShowConfigColunas(true)}
+              onExportCsv={() =>
+                exportCadastroCsv(
+                  "categorias-produto.csv",
+                  CATEGORIAS_PRODUTO_COLUNAS,
+                  categorias,
+                  getCategoriaProdutoFieldValue,
+                )
+              }
               onClearFilters={chrome.clearFilters}
               filtersActive={chrome.filtersActive}
               viewMode={chrome.viewMode}

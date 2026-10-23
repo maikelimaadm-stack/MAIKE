@@ -3,18 +3,9 @@ import { Check, FileText, Table2, LayoutGrid } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 
-/**
- * @param {import('react').ComponentPropsWithoutRef<'button'> & {
- *   active?: boolean;
- *   size?: 'sm' | 'md';
- *   danger?: boolean;
- *   title?: string;
- * }} props
- */
-export const IconBtn = React.forwardRef(function IconBtn(
-  { className, active, size = "md", danger, children, title, ...p },
-  ref,
-) {
+/** @typedef {import('react').ComponentPropsWithoutRef<'button'> & { active?: boolean; size?: 'sm'|'md'; danger?: boolean; title?: string; }} IconBtnProps */
+/** @type {import('react').ForwardRefRenderFunction<HTMLButtonElement, IconBtnProps>} */
+const IconBtnRender = ({ className, active, size = "md", danger, children, title, ...p }, ref) => {
   return (
     <button
       ref={ref}
@@ -32,19 +23,13 @@ export const IconBtn = React.forwardRef(function IconBtn(
       {children}
     </button>
   );
-});
+};
+export const IconBtn = React.forwardRef(IconBtnRender);
 IconBtn.displayName = "IconBtn";
 
-/**
- * @param {import('react').ComponentPropsWithoutRef<'button'> & {
- *   tone?: 'green' | 'gray' | 'red' | 'outline';
- *   title?: string;
- * }} props
- */
-export const PillBtn = React.forwardRef(function PillBtn(
-  { className, tone = "green", children, title, ...p },
-  ref,
-) {
+/** @typedef {import('react').ComponentPropsWithoutRef<'button'> & { tone?: 'green'|'gray'|'red'|'outline'; title?: string; }} PillBtnProps */
+/** @type {import('react').ForwardRefRenderFunction<HTMLButtonElement, PillBtnProps>} */
+const PillBtnRender = ({ className, tone = "green", children, title, ...p }, ref) => {
   const toneClass =
     { green: "tb-btn-green", gray: "tb-btn-gray", red: "tb-btn-red", outline: "tb-btn-outline" }[tone] ??
     "tb-btn-green";
@@ -53,7 +38,8 @@ export const PillBtn = React.forwardRef(function PillBtn(
       {children}
     </button>
   );
-});
+};
+export const PillBtn = React.forwardRef(PillBtnRender);
 PillBtn.displayName = "PillBtn";
 
 /**

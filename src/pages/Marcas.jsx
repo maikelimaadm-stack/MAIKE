@@ -10,6 +10,8 @@ import CadastroListaChrome from "@/components/cadastro/base1/CadastroListaChrome
 import { useCadastroListaChromeState } from "@/hooks/useCadastroListaChromeState";
 import FormularioMarca from "@/components/marcas/FormularioMarca";
 import TabelaMarcas from "@/components/marcas/TabelaMarcas";
+import { MARCAS_COLUNAS, getMarcaFieldValue } from "@/components/marcas/TabelaMarcas";
+import { exportCadastroCsv } from "@/components/cadastro/base1/cadastroExportCsv";
 
 export default function Marcas() {
   const [showForm, setShowForm] = useState(false);
@@ -105,21 +107,8 @@ export default function Marcas() {
     setShowForm(true);
   };
 
-  const exportCsv = () => {
-    const esc = (s) => `"${String(s ?? "").replace(/"/g, '""')}"`;
-    const lines = [
-      ["Nº", "Nome", "Descrição", "Ativo"].map(esc).join(";"),
-      ...marcas.map((m) =>
-        [m.numero_marca, m.nome, m.descricao, m.ativo !== false ? "Sim" : "Não"].map(esc).join(";"),
-      ),
-    ];
-    const blob = new Blob(["\ufeff" + lines.join("\n")], { type: "text/csv;charset=utf-8" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "marcas.csv";
-    a.click();
-    URL.revokeObjectURL(a.href);
-  };
+  const exportCsv = () =>
+    exportCadastroCsv("marcas.csv", MARCAS_COLUNAS, marcas, getMarcaFieldValue);
 
   const handleRequestDelete = (id) => {
     const ids = Array.isArray(id) ? id : [id];
@@ -188,7 +177,6 @@ export default function Marcas() {
               onEdit={handleEditSelected}
               onDuplicate={handleDuplicateSelected}
               onDelete={handleDeleteSelected}
-              attachDisabledReason="Anexos disponíveis quando o cadastro tiver auditoria nativa."
               onExportCsv={exportCsv}
               searchValue={chrome.searchInput}
               onSearchChange={chrome.setSearchInput}
