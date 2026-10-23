@@ -1965,4 +1965,26 @@ cross-origin com `FRONTEND_ORIGINS`.
 
 ---
 
-<!-- Próxima decisão: D-PROD-37 -->
+## D-PROD-37 — Bypass emergencial do login nativo (`VITE_SKIP_NATIVE_LOGIN`)
+
+**Data:** 2026-10-23  
+**Relatório:** `docs/engineering/P4.0-R4-SKIP-NATIVE-LOGIN-REPORT.md`
+
+**Decisão:** expor um flag de **build** (`VITE_SKIP_NATIVE_LOGIN=true|1`) que faz o
+frontend tratar a sessão como autenticada sem chamar `/auth/me` nem mostrar o
+formulário. A tela de indisponibilidade ganha ação **Entrar com usuário e senha**,
+que descarta o token guardado e abre o login. A resolução de
+`getNativeApiUrl()` passa a preferir a origem HTTPS do navegador sempre que
+divergir da env (exceto o par local Vite+Fastify), não só em `*.vercel.app`.
+
+**Justificativa:** após D-PROD-36, deployments ainda falhavam quando a env fixa
+apontava para outro host HTTPS; usuários com token stale ficavam presos na
+indisponibilidade sem caminho para reautenticar.
+
+**Consequência:** operação pode destravar a UI temporariamente; APIs nativas
+autenticadas seguem exigindo JWT real. Remover o flag e redeployar ao
+restabelecer login.
+
+---
+
+<!-- Próxima decisão: D-PROD-38 -->

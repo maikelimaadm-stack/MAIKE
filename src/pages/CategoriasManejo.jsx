@@ -72,15 +72,22 @@ export default function CategoriasManejo() {
     },
   });
 
-  const updateMutation = useMutation({
-    mutationFn: ({ id, data }) => atualizarCategoriaManejo(id, data, { empresaId: empresaSelecionadaId }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["categorias-manejo", empresaSelecionadaId] });
-      setShowForm(false);
-      setEditando(null);
-      toast.success("Categoria atualizada!");
-    },
-  });
+  const updateMutation = useMutation(
+    /** @type {import('@tanstack/react-query').UseMutationOptions<
+     *   unknown,
+     *   Error,
+     *   { id: string, data: Record<string, unknown>, oldData?: object }
+     * >} */ ({
+      mutationFn: ({ id, data, oldData: _oldData }) =>
+        atualizarCategoriaManejo(id, data, { empresaId: empresaSelecionadaId }),
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ["categorias-manejo", empresaSelecionadaId] });
+        setShowForm(false);
+        setEditando(null);
+        toast.success("Categoria atualizada!");
+      },
+    })
+  );
 
   const deleteMutation = useMutation({
     mutationFn: (id) => excluirCategoriaManejo(id),

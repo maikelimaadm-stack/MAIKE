@@ -26,6 +26,7 @@ const AuthenticatedApp = () => {
     entrar,
     sessionValidationError,
     revalidarSessao,
+    encerrarValidacaoEIrParaLogin,
   } = useAuth();
 
   // A ordem destes quatro ramos é o contrato da P4.0-R1, e cada posição
@@ -52,7 +53,11 @@ const AuthenticatedApp = () => {
   // com a credencial que já existe.
   if (sessionValidationError) {
     return (
-      <NativeSessionUnavailable mensagem={sessionValidationError} aoTentarNovamente={revalidarSessao} />
+      <NativeSessionUnavailable
+        mensagem={sessionValidationError}
+        aoTentarNovamente={revalidarSessao}
+        aoIrParaLogin={encerrarValidacaoEIrParaLogin}
+      />
     );
   }
 

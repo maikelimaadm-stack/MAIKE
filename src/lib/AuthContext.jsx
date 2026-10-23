@@ -30,6 +30,8 @@ import {
   sairDaSessaoNativa,
   RAZOES_DE_SESSAO_DO_PRODUTO,
 } from '@/services/sessionService';
+import { isNativeLoginSkipped } from '@/config/runtimeConfig';
+import { clearNativeToken } from '@/lib/auth/nativeTokenStorage';
 
 /**
  * Estados possíveis da sessão nativa (P4.0-R1).
@@ -75,6 +77,7 @@ export const ESTADOS_DE_SESSAO = Object.freeze({
  *   logout: () => void,
  *   revalidarSessao: () => Promise<void>,
  *   recarregarConfiguracoes: () => Promise<void>,
+ *   encerrarValidacaoEIrParaLogin: () => void,
  * }} ValorDoAuthContext
  */
 
@@ -176,8 +179,27 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
+  /**
+   * Sai da tela de indisponibilidade e abre o login (token descartado).
+   * Útil quando a API voltou ou quando o usuário prefere entrar de novo.
+   */
+  const encerrarValidacaoEIrParaLogin = useCallback(() => {
+    clearNativeToken();
+    setUser(null);
+    setClienteId(null);
+    setSessionValidationError(null);
+    setSessionState(ESTADOS_DE_SESSAO.NAO_AUTENTICADA);
+  }, []);
+
   useEffect(() => {
     carregarConfiguracoes();
+    if (isNativeLoginSkipped()) {
+      setUser({ id: 'acesso-sem-login', login: 'admin' });
+      setClienteId('acesso-sem-login');
+      setSessionValidationError(null);
+      setSessionState(ESTADOS_DE_SESSAO.AUTENTICADA);
+      return;
+    }
     restaurarSessao();
   }, [carregarConfiguracoes, restaurarSessao]);
 
@@ -234,6 +256,7 @@ export const AuthProvider = ({ children }) => {
         // `/auth/login` e nunca pede senha: a credencial já existe, o que
         // faltava era o servidor responder.
         revalidarSessao: restaurarSessao,
+        encerrarValidacaoEIrParaLogin,
         recarregarConfiguracoes: carregarConfiguracoes,
       }}
     >

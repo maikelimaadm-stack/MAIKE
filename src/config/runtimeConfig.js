@@ -180,11 +180,21 @@ const comEsquemaExplicito = (url) => {
   return HOST_PURO.test(url) ? `https://${url}` : null;
 };
 
-/** Hostnames `*.vercel.app` — front e função serverless no mesmo deploy (P4.0+Vercel). */
-const ehHostVercelApp = (baseAbsoluta) => {
-  if (typeof baseAbsoluta !== 'string' || !/^https?:\/\//.test(baseAbsoluta)) return false;
-  const host = baseAbsoluta.replace(/^https?:\/\//, '').split('/')[0]?.split(':')[0] ?? '';
-  return host.endsWith('.vercel.app');
+/** Dev local: front (:5173) e API (:3333) em origens diferentes — respeitar a env. */
+const ehSplitDevLocal = (origem, daEnv) =>
+  typeof origem === 'string' &&
+  typeof daEnv === 'string' &&
+  /localhost/i.test(origem) &&
+  /localhost/i.test(daEnv) &&
+  origem !== daEnv;
+
+const lerSkipNativeLogin = () => {
+  try {
+    const valor = import.meta.env.VITE_SKIP_NATIVE_LOGIN;
+    return valor === 'true' || valor === '1';
+  } catch {
+    return false;
+  }
 };
 
 /**
@@ -307,19 +317,21 @@ export const getNativeApiUrl = () => {
   // mandar credencial para o host errado em silêncio.
   if (bruta && !daEnv) return null;
 
-  // Monólito na Vercel: `vercel.json` reescreve `/auth/*` para `/api/fastify`
-  // na mesma origem. O build pode fixar `VITE_MAIKE_API_URL` no alias de
-  // produção enquanto o usuário abre a URL única do deployment
-  // (`*.vercel.app` não listada em FRONTEND_ORIGINS) — aí o fetch cross-origin
-  // morre no preflight CORS e a tela mostra indisponibilidade.
-  if (origem && daEnv && origem !== daEnv && ehHostVercelApp(origem) && ehHostVercelApp(daEnv)) {
-    return origem;
+  // Monólito (Vercel): `vercel.json` reescreve `/auth/*` na mesma origem.
+  // Build com alias fixo + URL de deployment ou domínio diferente → CORS quebra.
+  // Preferir a origem do navegador, exceto o par clássico Vite+Fastify local.
+  if (origem && daEnv && origem !== daEnv) {
+    if (ehSplitDevLocal(origem, daEnv)) return daEnv;
+    if (origem.startsWith('https://')) return origem;
   }
 
   if (!daEnv && origem) return origem;
 
   return daEnv;
 };
+
+/** Bypass emergencial do gate de login nativo (D-PROD-37). Só via env de build. */
+export const isNativeLoginSkipped = () => lerSkipNativeLogin();
 
 /** O backend nativo está configurado? */
 export const isNativeApiConfigured = () => getNativeApiUrl() !== null;
@@ -340,4 +352,5 @@ export const describeRuntimeConfig = () => ({
   hasFunctionsVersion: Boolean(providerParams.functionsVersion),
   hasGoogleMapsApiKey: isGoogleMapsConfigured(),
   hasNativeApiUrl: isNativeApiConfigured(),
+  skipNativeLogin: isNativeLoginSkipped(),
 });

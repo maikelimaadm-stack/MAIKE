@@ -85,6 +85,27 @@ describe('P4T — configuração do transporte nativo', () => {
     vi.stubGlobal('location', locationAnterior);
   });
 
+  it('P4T-01j env fixa e origem HTTPS customizada divergem → mesma origem', async () => {
+    vi.stubEnv('VITE_MAIKE_API_URL', 'https://maike-five.vercel.app');
+    const locationAnterior = window.location;
+    vi.stubGlobal('location', {
+      ...locationAnterior,
+      origin: 'https://app.exemplo.invalido',
+    });
+    vi.resetModules();
+    const { getNativeApiUrl } = await import('@/config/runtimeConfig');
+    expect(getNativeApiUrl()).toBe('https://app.exemplo.invalido');
+    vi.stubGlobal('location', locationAnterior);
+  });
+
+  it('P4T-01k isNativeLoginSkipped respeita VITE_SKIP_NATIVE_LOGIN', async () => {
+    vi.stubEnv('VITE_SKIP_NATIVE_LOGIN', 'true');
+    vi.resetModules();
+    const { isNativeLoginSkipped, describeRuntimeConfig } = await import('@/config/runtimeConfig');
+    expect(isNativeLoginSkipped()).toBe(true);
+    expect(describeRuntimeConfig().skipNativeLogin).toBe(true);
+  });
+
   it('P4T-02 a URL do MAIKE e a da Base44 são independentes', async () => {
     vi.stubEnv('VITE_MAIKE_API_URL', API);
     vi.stubEnv('VITE_BASE44_BACKEND_URL', 'https://base44.exemplo.invalido');
