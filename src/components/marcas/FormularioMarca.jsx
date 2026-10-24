@@ -71,7 +71,7 @@ export default function FormularioMarca({
           autoComplete="off"
         />
       </B1Field>
-      <B1Field label="Ativo" span={4} hasValue variant="switch">
+      <B1Field label="Ativo" span={12} hasValue variant="switch">
         <B1Switch
           checked={form.ativo}
           onChange={(v) => handleChange("ativo", v)}

@@ -137,6 +137,10 @@ CmdDisplay.displayName = "CmdDisplay";
  * @param {string} [props.id]
  * @param {(o: boolean) => void} [props.onOpenChange]
  * @param {string} [props.className]
+ * @param {string} [props.wrapClassName]
+ * @param {string} [props.contentClassName]
+ * @param {import("@radix-ui/react-popover").PopoverContentProps["side"]} [props.popoverSide]
+ * @param {string} [props.ariaLabel]
  */
 export function MgSelect({
   value,
@@ -148,6 +152,10 @@ export function MgSelect({
   id,
   onOpenChange,
   className,
+  wrapClassName,
+  contentClassName,
+  popoverSide = "bottom",
+  ariaLabel,
 }) {
   const [open, setOpenState] = useState(false);
   const [search, setSearch] = useState("");
@@ -168,11 +176,13 @@ export function MgSelect({
         <CmdDisplay
           id={id}
           aria-expanded={open}
+          aria-label={ariaLabel}
           disabled={disabled}
           empty={!cur}
           placeholder={placeholder}
           onClear={allowEmpty ? () => onChange("") : undefined}
           className={className}
+          wrapClassName={wrapClassName}
         >
           {cur?.label}
         </CmdDisplay>
@@ -180,8 +190,12 @@ export function MgSelect({
       <Popover.Portal>
         <Popover.Content
           align="start"
+          side={popoverSide}
           sideOffset={4}
-          className="cmd-panel mg-b1-glass-pop z-[10000] w-[var(--radix-popover-trigger-width)] min-w-[220px] outline-none"
+          className={cn(
+            "cmd-panel mg-b1-glass-pop z-[10000] w-[var(--radix-popover-trigger-width)] min-w-[220px] outline-none",
+            contentClassName,
+          )}
           onOpenAutoFocus={(e) => {
             if (options.length <= 8) e.preventDefault();
           }}

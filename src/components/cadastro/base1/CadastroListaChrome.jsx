@@ -15,7 +15,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import CadastroSearchPill from "./CadastroSearchPill";
-import { B1Popover, IconBtn, MenuList, PillBtn, ViewSwitch } from "./Base1Ui";
+import { B1Popover, IconBtn, MenuList, MgSelect, PillBtn, ViewSwitch } from "./Base1Ui";
 import { CADASTRO_B1_PAGE_SIZES } from "./cadastroBase1List";
 
 /**
@@ -109,6 +109,11 @@ export default function CadastroListaChrome({
   const anySelected = selectedCount > 0;
   const [showChips, setShowChips] = useState(true);
   const stripRef = useRef(null);
+
+  const pageSizeOptions = useMemo(
+    () => CADASTRO_B1_PAGE_SIZES.map((n) => ({ value: String(n), label: String(n) })),
+    [],
+  );
 
   const menuItems = useMemo(
     () => [
@@ -312,18 +317,16 @@ export default function CadastroListaChrome({
             {onPageSizeChange || onLoadMore ? (
               <span className="mg-summary__footer-actions">
                 {onPageSizeChange ? (
-                  <select
-                    aria-label="Quantidade de registros por carregamento"
+                  <MgSelect
+                    ariaLabel="Quantidade de registros por carregamento"
                     className="mg-pill-select"
-                    value={pageSize}
-                    onChange={(e) => onPageSizeChange(Number(e.target.value))}
-                  >
-                    {CADASTRO_B1_PAGE_SIZES.map((n) => (
-                      <option key={n} value={n}>
-                        {n}
-                      </option>
-                    ))}
-                  </select>
+                    wrapClassName="mg-pill-select-wrap"
+                    contentClassName="min-w-[var(--radix-popover-trigger-width)]"
+                    popoverSide="top"
+                    value={String(pageSize)}
+                    options={pageSizeOptions}
+                    onChange={(v) => onPageSizeChange(Number(v))}
+                  />
                 ) : null}
                 {onLoadMore ? (
                   <IconBtn

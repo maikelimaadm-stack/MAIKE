@@ -373,3 +373,18 @@ Branch `cursor/ux-base1-ssot-vidro-calendario-switch-516d` (PR #50):
 ### Verificação (UX-23)
 
 - `npm run test:smoke`, `npm run gate:types`, `npm run build`
+
+## UX-24 (2026-10-24) — Switch **Ativo** em linha + paginação `MgSelect` vidro
+
+Branch `cursor/ux-base1-ssot-vidro-calendario-switch-516d` (PR #50):
+
+| Item | Correção |
+|------|----------|
+| `FormularioMarca` **Ativo** | `B1Field` `variant="switch"` (`mg-field--switch`): rótulo à esquerda, `B1Switch` + texto Sim/Não à direita — paridade `ChaveSimNao` / `.chave`, sem caixa de input flutuante |
+| Rodapé `CadastroListaChrome` | `<select class="mg-pill-select">` → `MgSelect` com gatilho pill, painel `mg-b1-glass-pop` e opções 100–1000 (central de vendas / `cmd-display`) |
+
+**Arquivos:** `FormularioMarca.jsx`, `CadastroListaChrome.jsx`, `MgSelect.jsx`, `cadastro-base1.css`.
+
+### Verificação (UX-24)
+
+- `npm run verify:all`

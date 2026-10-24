@@ -680,19 +680,27 @@
   margin: 0 auto;
 }
 
-.cadastro-b1 .mg-pill-select {
+.cadastro-b1 .mg-pill-select-wrap {
+  width: auto;
+  flex: 0 0 auto;
+}
+
+.cadastro-b1 .mg-pill-select.cmd-display {
+  box-sizing: border-box;
   height: var(--mg-btn-h);
+  width: auto;
+  min-width: 3.25rem;
   border-radius: 999px;
   background: var(--mg-gray-fill);
   border: 1px solid transparent;
-  padding: 0 28px 0 12px;
+  padding: 0 28px 0 12px !important;
   font-size: 12px;
   font-weight: 600;
   color: var(--mg-text-1);
-  appearance: none;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%235b6b80' stroke-width='2'><path d='m6 9 6 6 6-6'/></svg>");
-  background-repeat: no-repeat;
-  background-position: right 10px center;
+}
+
+.cadastro-b1 .mg-pill-select-wrap .cmd-chevron {
+  right: 10px;
 }
 
 .cadastro-b1 .mg-summary__footer-actions {
