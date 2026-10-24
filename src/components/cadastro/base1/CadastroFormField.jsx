@@ -26,8 +26,8 @@ export default function CadastroFormField({
   className = "",
 }) {
   return (
-    <div data-field={dataField} className={className}>
-      <label className="text-[12px] text-slate-500 pl-1 leading-none">
+    <div data-field={dataField} className={`cadastro-b1-form-field ${className}`.trim()}>
+      <label className="cadastro-b1-form-field__label">
         {label}
         {required && <span className="text-red-500 ml-0.5">*</span>}
       </label>

@@ -172,16 +172,27 @@
   min-height: var(--mg-toolbar-h);
 }
 
-.cadastro-b1 .mg-pills-rail.is-collapsed .mg-pills-rail__content {
-  display: none;
-}
-
 .cadastro-b1 .mg-pills-rail__content {
   display: flex;
   align-items: center;
   gap: 6px;
-  flex: 1 1 auto;
   min-width: 0;
+  flex: 1 1 auto;
+  max-width: 100%;
+  opacity: 1;
+  transform-origin: left center;
+  transition:
+    max-width 0.26s cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity 0.22s,
+    transform 0.26s cubic-bezier(0.2, 0.8, 0.2, 1);
+  overflow: hidden;
+}
+
+.cadastro-b1 .mg-pills-rail.is-collapsed .mg-pills-rail__content {
+  max-width: 0;
+  opacity: 0;
+  transform: scaleX(0.96);
+  pointer-events: none;
 }
 
 .cadastro-b1 .mg-pills-rail__hint {
@@ -240,8 +251,10 @@
   flex-shrink: 0;
 }
 
+.cadastro-b1 .mg-card.b1-card.is-selected,
 .cadastro-b1 .b1-card.is-selected {
-  box-shadow: inset 0 0 0 2px var(--mg-accent);
+  background: var(--mg-selection-bg);
+  box-shadow: inset 0 0 0 1px var(--mg-focus-border);
 }
 
 .cadastro-b1 .b1-card__badge {
@@ -297,18 +310,25 @@
   height: 14px;
 }
 
+.cadastro-b1 .mg-search-pill-wrap {
+  position: relative;
+  width: 220px;
+  max-width: 100%;
+}
+
 .cadastro-b1 .mg-search-pill {
   display: flex;
   align-items: center;
   box-sizing: border-box;
-  width: 220px;
-  max-width: 100%;
+  width: 100%;
   height: var(--mg-btn-h);
   padding: 0 10px;
   border-radius: 999px;
   background: var(--mg-gray-fill);
   border: 1px solid transparent;
-  transition: background 0.15s, border-color 0.15s;
+  position: relative;
+  z-index: 1;
+  transition: background 0.22s, border-color 0.22s;
 }
 
 .cadastro-b1 .mg-search-pill:focus-within {
@@ -317,11 +337,19 @@
   box-shadow: var(--mg-focus-ring);
 }
 
+.cadastro-b1 .mg-search-pill:focus-within .mg-search-pill-icon {
+  color: var(--mg-icon);
+}
+
 .cadastro-b1 .mg-search-pill input {
   flex: 1;
   min-width: 0;
+  width: 100%;
+  height: auto;
+  padding: 0;
   border: 0;
   outline: none;
+  box-shadow: none;
   background: transparent;
   font-size: 12px;
   color: var(--mg-text-1);
@@ -331,16 +359,50 @@
   color: var(--mg-text-3);
 }
 
+.cadastro-b1 .mg-search-pill:focus-within input::placeholder {
+  color: var(--mg-text-2);
+}
+
 .cadastro-b1 .mg-search-pill-icon {
   flex-shrink: 0;
   width: 13px;
   height: 13px;
-  margin-right: 6px;
+  margin-right: 5px;
   color: var(--mg-text-3);
 }
 
-.cadastro-b1 .mg-grid-resize-handle {
-  background: var(--mg-accent);
+.cadastro-b1 .mg-search-pill-clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-right: 5px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  line-height: 0;
+}
+
+.cadastro-b1 .mg-search-pill-clear .mg-search-pill-icon {
+  color: var(--mg-red);
+  margin-right: 0;
+}
+
+.cadastro-b1 .mg-search-pill-clear:hover .mg-search-pill-icon {
+  color: #b91c1c;
+}
+
+.cadastro-b1 .mg-card-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--mg-text-1);
+}
+
+.cadastro-b1 .mg-form-scroll {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow: auto;
 }
 
 /* Grade de dados — paridade TabelaProdutos / controle de estoque */
@@ -371,6 +433,7 @@
 
 .cadastro-b1 .mg-grid {
   width: 100%;
+  min-width: 100%;
   border-collapse: separate;
   border-spacing: 0;
   table-layout: auto;
@@ -433,21 +496,68 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 16px;
-  height: 16px;
+  width: 20px;
+  height: 20px;
   color: var(--mg-icon);
-  border-radius: 4px;
+  border-radius: 999px;
 }
 
-.cadastro-b1 .mg-grid .th-menu:hover,
-.cadastro-b1 .mg-grid .th-menu.is-on {
+.cadastro-b1 .mg-grid .th-menu:hover {
   background: var(--mg-gray-fill);
   color: var(--mg-accent);
+}
+
+.cadastro-b1 .mg-grid .th-menu.is-on {
+  background: rgba(64, 222, 99, 0.18);
+  color: #15803d;
 }
 
 .cadastro-b1 .mg-grid .th-menu svg {
   width: 12px;
   height: 12px;
+}
+
+.cadastro-b1 .mg-grid th.is-frozen,
+.cadastro-b1 .mg-grid td.is-frozen {
+  position: sticky;
+}
+
+.cadastro-b1 .mg-grid th.is-frozen-anchor,
+.cadastro-b1 .mg-grid td.is-frozen-anchor {
+  box-shadow:
+    inset -2px 0 0 0 var(--mg-accent),
+    4px 0 8px -4px rgba(0, 0, 0, 0.18);
+}
+
+.cadastro-b1 .mg-grid .th-select,
+.cadastro-b1 .mg-grid .td-select {
+  width: 36px !important;
+  min-width: 36px !important;
+  max-width: 36px !important;
+  padding: 0 !important;
+  text-align: center !important;
+  vertical-align: middle !important;
+}
+
+.cadastro-b1 .mg-grid-resize-handle {
+  position: absolute;
+  right: 0;
+  top: 0;
+  height: 100%;
+  width: 6px;
+  cursor: col-resize;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.cadastro-b1 .mg-grid thead th:hover .mg-grid-resize-handle,
+.cadastro-b1 .mg-grid-resize-handle:hover {
+  opacity: 0.6;
+  background: var(--mg-accent);
+}
+
+.cadastro-b1 .mg-grid thead th.group:hover .mg-grid-resize-handle {
+  opacity: 0.4;
 }
 
 .cadastro-b1 .mg-check {
@@ -595,4 +705,32 @@
 .cadastro-b1 .mg-field:focus-within .mg-field__control input {
   padding-top: 17px;
   padding-bottom: 5px;
+}
+
+/* Formulários embutidos (label acima — paridade controle de estoque) */
+.cadastro-b1 .cadastro-b1-form-field__label {
+  display: block;
+  padding-left: 4px;
+  font-size: 12px;
+  line-height: 1;
+  color: var(--mg-text-3);
+}
+
+.cadastro-b1 .cadastro-b1-form-field > div:last-child {
+  margin-top: 2px;
+  border-radius: var(--mg-radius-control);
+  border: 1px solid #dfe2e7;
+  background: #fff;
+  box-shadow: var(--mg-field-edge-shadow);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.cadastro-b1 .cadastro-b1-form-field > div:last-child:focus-within {
+  border-color: var(--mg-focus-border);
+  box-shadow: var(--mg-focus-ring);
+}
+
+.cadastro-b1 .cadastro-b1-form-field > div:last-child.border-red-500 {
+  border-color: var(--mg-red);
+  background: #fef2f2;
 }

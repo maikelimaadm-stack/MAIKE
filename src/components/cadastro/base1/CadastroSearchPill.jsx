@@ -19,29 +19,35 @@ export default function CadastroSearchPill({
   };
 
   return (
-    <div className={`mg-search-pill ${active ? "is-active" : ""}`}>
-      <Search className="mg-search-pill-icon" aria-hidden />
-      <input
-        type="search"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        onKeyDown={handleKeyDown}
-        placeholder={placeholder}
-        aria-label={placeholder}
-      />
-      {value ? (
-        <button
-          type="button"
-          className="tb-btn-icon ml-1 !w-6 !min-w-6 !h-6"
-          aria-label="Limpar busca"
-          onClick={() => {
-            onChange("");
-            onApply?.("");
-          }}
-        >
-          <X className="h-3 w-3" />
-        </button>
-      ) : null}
+    <div className="mg-search-pill-wrap">
+      <div
+        className={`mg-search-pill ${active ? "is-active" : ""}`}
+        role="search"
+      >
+        {value ? (
+          <button
+            type="button"
+            className="mg-search-pill-clear"
+            aria-label="Limpar busca"
+            onClick={() => {
+              onChange("");
+              onApply?.("");
+            }}
+          >
+            <X className="mg-search-pill-icon" aria-hidden />
+          </button>
+        ) : (
+          <Search className="mg-search-pill-icon" aria-hidden />
+        )}
+        <input
+          type="search"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder={placeholder}
+          aria-label={placeholder}
+        />
+      </div>
     </div>
   );
 }

@@ -186,7 +186,7 @@ export default function CadastroListaChrome({
 
   return (
     <div className="cadastro-b1" data-testid="cadastro-lista-chrome">
-      <div className="mg-toolbar mg-card no-print">
+      <div className="mg-toolbar mg-card flex-wrap no-print">
         {recordMode ? (
           recordToolbar ?? null
         ) : (
@@ -226,7 +226,7 @@ export default function CadastroListaChrome({
         <>
           {recordHeader}
           <div className="mg-shell mg-shell--fill min-h-0 flex-1">
-            <div className="mg-shell__scroll p-2">{recordBody}</div>
+            <div className="mg-form-scroll mg-shell__scroll p-2">{recordBody}</div>
           </div>
         </>
       ) : null}
