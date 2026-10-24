@@ -238,3 +238,26 @@ Branch `cursor/ux-base1-paridade-continua-516d` (após merge do PR #45 em `main`
 ### Verificação (UX-17)
 
 - `npm run test:smoke`, `npm run gate:types`, `npm run gate:source-closure`, `npm run build`
+
+## UX-18 (2026-10-24) — Paridade visual Base1 (toolbar, grade, cards, registro)
+
+Branch `cursor/ux-base1-paridade-visual-516d` (continua a partir de UX-17 / PR #46, ainda **aberto** em `main`):
+
+| Lacuna vs CONTROLE-DE-ESTOQUE `globals.css` / `features/base1/` | Correção |
+|------------------------------------------------------------------|----------|
+| Faixa `mg-pills-rail` recolhia com `display: none` (sem animação MG) | Transição `max-width` / `opacity` / `scaleX` como no estoque |
+| Cards selecionados com borda 2px verde forte | `.mg-card.b1-card.is-selected`: fundo `mg-selection-bg` + inset 1px `mg-focus-border` |
+| Busca: largura fixa na pílula, clear como `tb-btn-icon` | `mg-search-pill-wrap` + botão `mg-search-pill-clear` (ícone vermelho MG) |
+| Grade: colunas congeladas sem sombra âncora; checkbox 36px; menu ⋮ 16px quadrado | `is-frozen` / `is-frozen-anchor`, `.th-select`/`.td-select` 36px, `.th-menu` 20px circular, `.is-on` verde |
+| Handle de resize só Tailwind ad hoc | Classe `.mg-grid-resize-handle` no CSS Base1 |
+| Toolbar superior / cabeçalho de registro | `flex-wrap` na toolbar; `mg-form-scroll` no corpo do registro |
+| Cards: padding duplicado no grid | Padding `p-2.5` no viewport da grade (modo cards), alinhado ao `mg-shell__scroll` do estoque |
+| Form embutido: labels/bordas shadcn genéricas | Tokens `.cadastro-b1-form-field*` (label 12px MG, borda/foco emerald) |
+
+**Spot check:** Marcas, Produtos, Bebedouros (lista + registro + cards quando habilitado).
+
+**Fora de escopo:** `MapaGeral`, `MapaCadastro`, pesquisa dropdown avançada (`mg-search-dropdown`), favoritos nos cards.
+
+### Verificação (UX-18)
+
+- `npm run verify:all`
