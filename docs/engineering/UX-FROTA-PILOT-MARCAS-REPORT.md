@@ -438,3 +438,18 @@ Branch `cursor/ux-base1-ssot-vidro-calendario-switch-516d` (PR #50):
 ### Verificação (UX-27)
 
 - `npm run verify:all` (exceto `test:backend` sem `DATABASE_URL` no agente)
+
+## UX-28 (2026-10-24) — Page size: borda lateral do painel
+
+Branch `cursor/ux-base1-ssot-vidro-calendario-switch-516d` (PR #50):
+
+| Item | Correção |
+|------|----------|
+| `mg-pill-select-panel` | Fora do vidro (`:not(.mg-pill-select-panel)`); borda `1px solid #dfe2e7` (moldura/globals) em todos os lados; sombra leve |
+| Opções | `padding: 4px` no painel; itens `width: 100%` sem margem lateral; hover cinza (`--mg-gray-fill`); selecionado verde claro |
+
+**Arquivos:** `cadastro-b1-controls.css`, `cadastro-base1.css`.
+
+### Verificação (UX-28)
+
+- `npm run verify:all`

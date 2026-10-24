@@ -703,27 +703,7 @@
   right: 10px;
 }
 
-.cadastro-b1 .mg-pill-select-panel.cmd-panel {
-  background: #fff;
-  border: 1px solid var(--mg-gray-fill);
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  -webkit-backdrop-filter: none;
-  backdrop-filter: none;
-}
-
-.cadastro-b1 .mg-pill-select-panel .cmd-panel-options {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-}
-
-.cadastro-b1 .mg-pill-select-panel .cmd-option {
-  display: flex;
-  box-sizing: border-box;
-  width: 100%;
-  max-width: 100%;
-}
+/* mg-pill-select-panel: ver cadastro-b1-controls.css (borda moldura #dfe2e7) */
 
 .cadastro-b1 .mg-summary__footer-actions {
   display: flex;
