@@ -228,7 +228,7 @@ export default function Base1Grid({
                     role="separator"
                     aria-label={`Redimensionar ${c.label}`}
                     onMouseDown={(e) => startResize(e, c)}
-                    className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize opacity-0 hover:bg-[var(--mg-accent)] hover:opacity-60 group-hover:opacity-40"
+                    className="mg-grid-resize-handle"
                   />
                 </th>
               );

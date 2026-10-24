@@ -26,7 +26,7 @@ export default function CadastroRecordHeader({
   const atEnd = index >= total - 1;
 
   return (
-    <div className="mg-toolbar mg-card flex-wrap no-print">
+    <div className="mg-toolbar mg-card flex-wrap no-print" data-testid="cadastro-record-header">
       <Bookmark className="h-4 w-4 text-[var(--mg-icon)] shrink-0" aria-hidden />
       <span className="text-[13px] font-semibold text-slate-800 min-w-0 truncate">
         {code ? (
