@@ -261,3 +261,37 @@ Branch `cursor/ux-base1-paridade-visual-516d` (continua a partir de UX-17 / PR #
 ### Verificação (UX-18)
 
 - `npm run verify:all`
+
+## UX-19 (2026-10-24) — Piloto paridade visual **Marcas** (frota/equipamentos)
+
+Branch `cursor/ux-base1-paridade-marcas-516d` (inclui merge de UX-18 / PR #47 quando aplicável):
+
+### Checklist Marcas vs CONTROLE-DE-ESTOQUE (Equipamentos / Base1List)
+
+| Área | Status | Notas |
+|------|--------|-------|
+| Page shell (workspace header, subtítulo) | **Feito** | `CadastroWorkspace` + header mg-card |
+| Toolbar pill (Novo/Editar/Duplicar/Excluir, ícones, disabled) | **Feito** | `CadastroListaChrome`; ícones 14px / 3.5px pencil |
+| Busca pill, alternador Tabela/Registro/Cards, menu Mais | **Feito** | UX-18 + `CadastroSearchPill`; anexos visível (desabilitado) |
+| Faixa filtros (chips, recolher animado) | **Feito** | UX-18 `mg-pills-rail`; hint quando sem chips |
+| Grade (30/26px, seleção, menu coluna, congelar/sombra) | **Feito** | `Base1Grid` via `TabelaMarcas`; coluna Ativo = Sim/Não texto |
+| Rodapé summary + page size + carregar mais | **Feito** | `useCadastroListaFooter` |
+| Modo cards | **Feito** | `Base1Cards` + prefs; seleção MG |
+| Modo registro: toolbar Salvar/Cancelar + bookmark + nav | **Feito** | `recordToolbar` + `CadastroRecordHeader`; nav bloqueada em edição |
+| Form registro: campos `mg-field` flutuantes | **Feito** | `B1Field` + `FormularioMarca` embedded sem card duplicado |
+| Transições novo/editar/duplicar/voltar lista | **Feito** | `recordMode` + alternador; duplicar abre registro |
+| `mg-shell__scroll` no corpo lista/registro | **Feito** | Shell lista e registro alinhados ao MG |
+
+### Pendente antes de replicar outros cadastros
+
+| Item | Motivo |
+|------|--------|
+| `MgSelect` / `cmd-display` completo (popover pesquisável) | Piloto Marcas usa `<select>` nativo dentro de `mg-field` |
+| Modo registro **view** vs **edit** (barra Novo/Editar/Excluir em leitura) | Marcas abre direto em edição; frota alterna view/edit |
+| Pesquisa dropdown avançada + favoritos | Fora de escopo UX-18 |
+| Anexos / histórico nativos | Aguarda auditoria P8 |
+| Propagar `B1Field` + `recordToolbar` | Próximas missões cadastro |
+
+### Verificação (UX-19)
+
+- `npm run test:smoke`, `npm run gate:types`, `npm run gate:source-closure`, `npm run build`

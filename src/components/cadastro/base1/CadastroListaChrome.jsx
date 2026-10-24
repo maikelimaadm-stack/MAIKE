@@ -223,12 +223,10 @@ export default function CadastroListaChrome({
       </div>
 
       {recordMode ? (
-        <>
+        <div className="mg-shell mg-shell--fill min-h-0 flex-1 flex flex-col">
           {recordHeader}
-          <div className="mg-shell mg-shell--fill min-h-0 flex-1">
-            <div className="mg-form-scroll mg-shell__scroll p-2">{recordBody}</div>
-          </div>
-        </>
+          <div className="mg-form-scroll mg-shell__scroll min-h-0 flex-1 p-2">{recordBody}</div>
+        </div>
       ) : null}
 
       {!recordMode ? (
@@ -293,7 +291,7 @@ export default function CadastroListaChrome({
 
       {!recordMode ? (
       <div className="mg-shell mg-shell--table mg-shell--fill min-h-0 flex-1">
-        <div className="mg-shell__body">{children}</div>
+        <div className="mg-shell__scroll mg-shell__body min-h-0 flex-1">{children}</div>
         <div className="mg-summary no-print">
           <div className="mg-summary__counts">
             <span className="mg-summary__item">Selecionados: {selectedCount}</span>
