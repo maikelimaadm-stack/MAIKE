@@ -420,3 +420,21 @@ Branch `cursor/ux-base1-ssot-vidro-calendario-switch-516d` (PR #50):
 ### Verificação (UX-26)
 
 - `npm run verify:all`
+
+## UX-27 (2026-10-24) — Page size `MgSelect`: opções em coluna
+
+Branch `cursor/ux-base1-ssot-vidro-calendario-switch-516d` (PR #50):
+
+| Item | Correção |
+|------|----------|
+| Painel do rodapé | `Popover.Portal` renderizava fora de `.cadastro-b1`, sem estilos `cmd-option` — botões inline concatenavam labels (`100200`) |
+| `MgSelect` | Classe `cadastro-b1` no `Popover.Content`; lista `flex flex-col` e opções `w-full` (paridade `CmdPanel` / CONTROLE-DE-ESTOQUE) |
+| CSS | `cmd-panel-options` e `mg-pill-select-panel` com `flex-direction: column` |
+
+`CadastroListaChrome` já passava `PAGE_SIZES` como `{ value, label }` separados — sem alteração.
+
+**Arquivos:** `MgSelect.jsx`, `cadastro-b1-controls.css`, `cadastro-base1.css`.
+
+### Verificação (UX-27)
+
+- `npm run verify:all` (exceto `test:backend` sem `DATABASE_URL` no agente)

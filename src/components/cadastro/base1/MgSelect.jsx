@@ -68,7 +68,7 @@ function CmdPanel({
           aria-label="Pesquisar opção"
         />
       ) : null}
-      <div ref={listRef} className="cmd-panel-options" role="listbox">
+      <div ref={listRef} className="cmd-panel-options flex flex-col" role="listbox">
         {loading ? <div className="cmd-panel__empty">Carregando…</div> : null}
         {!loading && options.length === 0 ? <div className="cmd-panel__empty">{emptyText}</div> : null}
         {options.map((o, i) => (
@@ -77,7 +77,11 @@ function CmdPanel({
             key={o.value}
             role="option"
             aria-selected={o.value === value}
-            className={cn("cmd-option", o.value === value && "selected", i === hi && "highlighted")}
+            className={cn(
+              "cmd-option flex w-full min-w-0 items-center",
+              o.value === value && "selected",
+              i === hi && "highlighted",
+            )}
             title={o.title ?? undefined}
             onMouseEnter={() => setHi(i)}
             onClick={() => onPick(o)}
@@ -193,7 +197,7 @@ export function MgSelect({
           side={popoverSide}
           sideOffset={4}
           className={cn(
-            "cmd-panel mg-b1-glass-pop z-[10000] w-[var(--radix-popover-trigger-width)] min-w-[220px] outline-none",
+            "cadastro-b1 cmd-panel mg-b1-glass-pop z-[10000] w-[var(--radix-popover-trigger-width)] min-w-[220px] outline-none",
             contentClassName,
           )}
           onOpenAutoFocus={(e) => {

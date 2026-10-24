@@ -712,6 +712,19 @@
   backdrop-filter: none;
 }
 
+.cadastro-b1 .mg-pill-select-panel .cmd-panel-options {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.cadastro-b1 .mg-pill-select-panel .cmd-option {
+  display: flex;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+}
+
 .cadastro-b1 .mg-summary__footer-actions {
   display: flex;
   align-items: center;

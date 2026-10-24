@@ -128,6 +128,8 @@
 }
 
 .cadastro-b1 .cmd-panel-options {
+  display: flex;
+  flex-direction: column;
   max-height: 340px;
   overflow-y: auto;
   padding: 4px 0;
