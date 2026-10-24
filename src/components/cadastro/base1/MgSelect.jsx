@@ -18,7 +18,7 @@ export function MgSelect({ value, onChange, options, disabled, id }) {
       disabled={disabled}
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className={`${B1_FIELD_INPUT_CLS} cursor-pointer appearance-none`}
+      className={`${B1_FIELD_INPUT_CLS} cursor-pointer`}
     >
       {options.map((o) => (
         <option key={o.value} value={o.value}>

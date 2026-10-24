@@ -190,7 +190,7 @@ export default function CadastroListaChrome({
       : "flex min-h-0 flex-1 flex-col";
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-2" data-testid="cadastro-lista-chrome">
+    <div className="flex min-h-0 flex-1 flex-col gap-2" data-testid="b1-list" data-cadastro-chrome>
       <div className="mg-toolbar mg-card flex-wrap no-print">
         {recordMode ? (
           recordToolbar ?? null

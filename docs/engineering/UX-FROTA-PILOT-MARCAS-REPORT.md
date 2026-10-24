@@ -314,3 +314,26 @@ Branch `cursor/ux-base1-marcas-tela-inteira-516d` (continua UX-19 / PR #48):
 ### Verificação (UX-20)
 
 - `npm run test:smoke`, `npm run gate:types`, `npm run gate:source-closure`, `npm run build`
+
+## UX-21 (2026-10-24) — Paridade **grade + campos** Marcas (frota/equipamentos)
+
+Branch `cursor/ux-base1-marcas-tela-inteira-516d` (PR #49):
+
+| Lacuna vs CONTROLE-DE-ESTOQUE | Correção |
+|--------------------------------|----------|
+| Filtro de coluna shadcn (lista simples) vs `fpop` Excel no cabeçalho | `referenceHeaders` em `CadastroBase1Grade` / `TabelaMarcas`; `CadastroColunaFiltro` + `cadastroColunaFiltroLogic`; `Base1Grid` abre filtro direto no ⋮; CSS `cadastro-b1ref.css` |
+| `mg-field` simplificado (padding no control, inválido vermelho forte, Input shadcn `h-9`) | CSS alinhado a `globals.css` (label 9px, padding 17/5 no valor, `is-open`/`locked`/`disabled`); `FormularioMarca` com `<input>` nativo + `B1Field` |
+| Grade: viewport extra, sem `ResizeObserver`/pin, `tfoot` sticky | `mg-grid-wrap` sem `cadastro-grade-viewport`; pin + `ResizeObserver`; `tfoot` sticky; `mg-shell--fill` flex column |
+| Âncora do filtro | `data-testid="b1-list"` no `CadastroListaChrome` |
+
+### Pendente (Marcas)
+
+| Item | Motivo |
+|------|--------|
+| `cmd-display` / `MgSelect` popover pesquisável | Ativo segue `<select>` nativo dentro de `mg-field` |
+| Modo registro view vs edit | Fora do escopo UX-20/21 |
+| Calendário no filtro de coluna tipo `data` | Inputs texto; Marcas não usa data na grade |
+
+### Verificação (UX-21)
+
+- `npm run test:smoke`, `npm run gate:types`, `npm run gate:source-closure`, `npm run build`

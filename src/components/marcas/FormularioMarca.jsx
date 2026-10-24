@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import B1Field, { B1_FIELD_INPUT_CLS } from "@/components/cadastro/base1/B1Field";
 import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
@@ -53,21 +52,23 @@ export default function FormularioMarca({
         hasValue={Boolean(form.nome?.trim())}
         error={invalidFields.includes("nome") ? "Obrigatório" : undefined}
       >
-        <Input
+        <input
+          type="text"
           value={form.nome}
           onChange={(e) => handleChange("nome", e.target.value)}
           placeholder="NOME DA MARCA"
           className={B1_FIELD_INPUT_CLS}
-          style={{ textTransform: "uppercase" }}
+          autoComplete="off"
         />
       </B1Field>
       <B1Field label="Descrição" span={6} hasValue={Boolean(form.descricao?.trim())}>
-        <Input
+        <input
+          type="text"
           value={form.descricao}
           onChange={(e) => handleChange("descricao", e.target.value)}
           placeholder="DESCRIÇÃO"
           className={B1_FIELD_INPUT_CLS}
-          style={{ textTransform: "uppercase" }}
+          autoComplete="off"
         />
       </B1Field>
       <B1Field label="Ativo" span={3} hasValue>

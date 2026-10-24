@@ -27,6 +27,8 @@ const SPAN = {
  * @param {boolean} [props.hasValue]
  * @param {boolean} [props.multiline]
  * @param {boolean} [props.disabled]
+ * @param {boolean} [props.locked]
+ * @param {boolean} [props.open] seletor aberto (`is-open`)
  * @param {import('react').ReactNode} props.children
  * @param {string} [props.className]
  * @param {string} [props.controlId]
@@ -39,6 +41,8 @@ export default function B1Field({
   hasValue = true,
   multiline = false,
   disabled = false,
+  locked = false,
+  open = false,
   children,
   className,
   controlId,
@@ -58,14 +62,16 @@ export default function B1Field({
         className={cn(
           "mg-field",
           disabled && "mg-field--disabled",
+          locked && !disabled && "mg-field--locked",
           hasValue && "mg-has-value",
           multiline && "mg-field--multiline",
+          open && "is-open",
           error && "is-invalid",
         )}
       >
         <label htmlFor={id} className="mg-field__label">
           {label}
-          {required ? <span className="text-red-500"> *</span> : null}
+          {required ? <span className="req"> *</span> : null}
         </label>
         <div className="mg-field__control">{child}</div>
       </div>
@@ -74,5 +80,5 @@ export default function B1Field({
   );
 }
 
-export const B1_FIELD_INPUT_CLS =
-  "h-6 w-full min-h-0 border-0 bg-transparent px-0 text-[13px] font-medium text-[var(--mg-text-1)] shadow-none outline-none focus-visible:ring-0 read-only:bg-transparent disabled:bg-transparent uppercase";
+/** Classe para controles nativos dentro de `.mg-field` (altura 100%, sem caixa própria). */
+export const B1_FIELD_INPUT_CLS = "mg-input uppercase";

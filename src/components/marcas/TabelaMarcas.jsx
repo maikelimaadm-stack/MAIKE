@@ -56,6 +56,7 @@ export default function TabelaMarcas(props) {
       cardsPerRow={props.cardsPerRow}
       cardsTitleColId="nome"
       cardsCodeColId="numero"
+      referenceHeaders
     />
   );
 }

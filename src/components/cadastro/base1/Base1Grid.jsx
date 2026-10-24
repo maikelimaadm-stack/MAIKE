@@ -18,7 +18,7 @@ export const SELECT_COLUMN_WIDTH = 36;
  * Grade Modelo Base1 (referência CONTROLE-DE-ESTOQUE / frota equipamentos).
  *
  * @param {object} props
- * @param {Array<{ key: string; label: string; sortable?: boolean; align?: string; width?: number; render?: (r: object) => import('react').ReactNode; text?: (r: object) => string }>} props.columns
+ * @param {Array<{ key: string; label: string; sortable?: boolean; align?: string; width?: number; pinned?: 'left'; render?: (r: object) => import('react').ReactNode; text?: (r: object) => string }>} props.columns
  * @param {object[]} props.rows
  * @param {boolean} [props.loading]
  * @param {{ key: string; dir: 'asc'|'desc' }} [props.sort]
@@ -39,6 +39,7 @@ export const SELECT_COLUMN_WIDTH = 36;
  * @param {string} [props.emptyText]
  * @param {string|null} [props.scrollToId]
  * @param {import('react').ReactNode} [props.footer]
+ * @param {boolean} [props.referenceHeaders] menu da coluna abre filtro Excel (frota/equipamentos)
  */
 export default function Base1Grid({
   columns,
@@ -62,6 +63,7 @@ export default function Base1Grid({
   emptyText = "Nenhum registro encontrado",
   scrollToId,
   footer,
+  referenceHeaders = false,
 }) {
   const key = rowKey ?? ((r) => String(r.id));
   const allOn = rows.length > 0 && rows.every((r) => selected.has(key(r)));
@@ -70,7 +72,9 @@ export default function Base1Grid({
   const trs = React.useRef({});
   const [lefts, setLefts] = React.useState({});
   const [menuFor, setMenuFor] = React.useState(null);
-  const frozenCount = Math.max(0, Math.min(frozen, columns.length));
+  let pinnedCount = 0;
+  while (pinnedCount < columns.length && columns[pinnedCount]?.pinned === "left") pinnedCount++;
+  const frozenCount = Math.max(0, Math.min(Math.max(frozen, pinnedCount), columns.length));
 
   const measure = React.useCallback(() => {
     const out = {};
@@ -88,6 +92,16 @@ export default function Base1Grid({
   React.useLayoutEffect(() => {
     measure();
   }, [measure, rows.length]);
+
+  React.useEffect(() => {
+    if (!frozenCount || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => measure());
+    for (const c of columns.slice(0, frozenCount)) {
+      const el = ths.current[c.key];
+      if (el) ro.observe(el);
+    }
+    return () => ro.disconnect();
+  }, [columns, frozenCount, measure]);
 
   React.useEffect(() => {
     if (scrollToId) trs.current[scrollToId]?.scrollIntoView({ block: "center" });
@@ -120,7 +134,7 @@ export default function Base1Grid({
     on ? "var(--mg-selection-bg)" : ri % 2 === 1 ? "var(--mg-row-alt)" : "#fff";
 
   return (
-    <div className="mg-grid-wrap cadastro-grade-viewport">
+    <div className="mg-grid-wrap">
       <table className="mg-grid">
         <thead>
           <tr>
@@ -195,7 +209,17 @@ export default function Base1Grid({
                         )
                       ) : null}
                     </button>
-                    {itens.length ? (
+                    {referenceHeaders && onFilter ? (
+                      <button
+                        type="button"
+                        aria-label={`Abrir menu da coluna ${c.label}`}
+                        aria-haspopup="menu"
+                        className={cn("th-menu", filteredKeys?.has(c.key) && "is-on")}
+                        onClick={() => onFilter(c.key)}
+                      >
+                        {filteredKeys?.has(c.key) ? <Filter /> : <MoreVertical />}
+                      </button>
+                    ) : itens.length ? (
                       <B1Popover
                         className="w-52 p-1"
                         align="start"
