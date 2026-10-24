@@ -72,6 +72,11 @@ export default function TabelaCategoriasManejo(props) {
       resetFiltersKey={props.resetFiltersKey}
       onSelectionChange={props.onSelectionChange}
       onFiltersActiveChange={props.onFiltersActiveChange}
+      viewMode={props.viewMode}
+      displayLimit={props.displayLimit}
+      onListMetrics={props.onListMetrics}
+      cardFields={props.cardFields}
+      cardsPerRow={props.cardsPerRow}
       matchesSearch={(item, q) => {
         const hay = [item.nome, item.sigla, item.raca, item.categoria_oficial].filter(Boolean).join(" ").toLowerCase();
         return hay.includes(q);

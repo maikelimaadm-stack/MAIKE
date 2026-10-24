@@ -61,6 +61,8 @@ vi.mock('@/components/common/ConfirmDialog', () => ({
 }));
 
 vi.mock('../../src/components/empresa/TabelaEmpresas', () => ({
+  EMPRESAS_COLUNAS: [{ id: 'nome', label: 'Nome' }],
+  getEmpresaFieldValue: (item, id) => item[id] ?? '',
   default: ({ empresas, onEdit, onDelete, isLoading }) => (
     <div data-testid="tabela">
       <span data-testid="carregando">{String(isLoading)}</span>

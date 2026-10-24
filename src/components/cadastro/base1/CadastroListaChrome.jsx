@@ -16,8 +16,7 @@ import {
 } from "lucide-react";
 import CadastroSearchPill from "./CadastroSearchPill";
 import { B1Popover, IconBtn, MenuList, PillBtn, ViewSwitch } from "./Base1Ui";
-
-const PAGE_SIZES = [50, 100, 200, 500];
+import { CADASTRO_B1_PAGE_SIZES } from "./cadastroBase1List";
 
 /**
  * Chrome de listagem estilo Modelo Base1 (frota/equipamentos — CONTROLE-DE-ESTOQUE).
@@ -62,6 +61,7 @@ const PAGE_SIZES = [50, 100, 200, 500];
  * @param {import('react').ReactNode} [props.recordHeader] cabeçalho bookmark + navegação
  * @param {import('react').ReactNode} [props.recordBody] conteúdo rolável do registro
  * @param {boolean} [props.secondaryToolsLocked] oculta busca/alternador/menu (edição ou subfluxo ativo)
+ * @param {import('react').ReactNode} [props.cardsToolbar] botões layout/campos dos cards (modo cards)
  */
 export default function CadastroListaChrome({
   children,
@@ -103,6 +103,7 @@ export default function CadastroListaChrome({
   recordHeader = null,
   recordBody = null,
   secondaryToolsLocked = false,
+  cardsToolbar = null,
 }) {
   const oneSelected = selectedCount === 1;
   const anySelected = selectedCount > 0;
@@ -275,7 +276,8 @@ export default function CadastroListaChrome({
             </IconBtn>
           ) : null}
           <span className="mx-1 h-5 w-px bg-[var(--mg-divider)]" aria-hidden />
-          {onConfigureColumns ? (
+          {viewMode === "cards" && cardsToolbar ? cardsToolbar : null}
+          {viewMode !== "cards" && onConfigureColumns ? (
             <IconBtn
               size="sm"
               aria-label="Configurar colunas da tabela"
@@ -308,7 +310,7 @@ export default function CadastroListaChrome({
                   value={pageSize}
                   onChange={(e) => onPageSizeChange(Number(e.target.value))}
                 >
-                  {PAGE_SIZES.map((n) => (
+                  {CADASTRO_B1_PAGE_SIZES.map((n) => (
                     <option key={n} value={n}>
                       {n}
                     </option>

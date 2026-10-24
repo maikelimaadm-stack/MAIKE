@@ -4,7 +4,7 @@ import { Shield, User, Lock, Smartphone } from "lucide-react";
 import CadastroBase1Grade from "@/components/cadastro/base1/CadastroBase1Grade";
 import { getPermissionDisplayName } from "@/lib/userDisplayName";
 
-const COLUNAS = [
+export const USUARIOS_LIST_COLUNAS = [
   { id: "usuario", label: "Usuário", default: true, sortable: true, width: 220 },
   { id: "email", label: "Email", default: true, sortable: true, width: 220 },
   { id: "perfil", label: "Perfil Base44", default: true, sortable: true, width: 130 },
@@ -25,6 +25,11 @@ export default function TabelaUsuarios({
   chromeLayout = false,
   selectedIds = [],
   onSelectionChange,
+  viewMode,
+  displayLimit,
+  onListMetrics,
+  cardFields,
+  cardsPerRow,
 }) {
   const getPermissaoUsuario = (userEmail) => permissoes.find((item) => item.user_email === userEmail);
 
@@ -155,7 +160,7 @@ export default function TabelaUsuarios({
       <div className="overflow-hidden">
         <CadastroBase1Grade
           rows={usuarios}
-          columns={COLUNAS}
+          columns={USUARIOS_LIST_COLUNAS}
           storageKey="colunas_usuarios_v1"
           droppableId="colunas-usuarios"
           getFieldValue={getFieldValue}
@@ -166,6 +171,12 @@ export default function TabelaUsuarios({
           onOpen={onEdit}
           searchQuery={searchQuery}
           onSelectionChange={onSelectionChange}
+          viewMode={viewMode}
+          displayLimit={displayLimit}
+          onListMetrics={onListMetrics}
+          cardFields={cardFields}
+          cardsPerRow={cardsPerRow}
+          cardsTitleColId="usuario"
           rowKey={(usuario) => String(usuario.id || usuario.email)}
           matchesSearch={matchesSearch}
         />

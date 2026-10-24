@@ -12,13 +12,14 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import CadastroListaChrome from "@/components/cadastro/base1/CadastroListaChrome";
 import CadastroRecordHeader from "@/components/cadastro/base1/CadastroRecordHeader";
 import { useCadastroListaChromeState } from "@/hooks/useCadastroListaChromeState";
+import { useCadastroPageListBindings } from "@/hooks/useCadastroPageListBindings";
+import TabelaContasAcesso, { CONTAS_ACESSO_COLUNAS } from "@/components/usuarios/TabelaContasAcesso";
+import TabelaUsuarios, { USUARIOS_LIST_COLUNAS } from "@/components/usuarios/TabelaUsuarios";
 import { toast } from "sonner";
 import { getPermissionDisplayName, getUserDisplayName } from "@/lib/userDisplayName";
 
 import FormularioUsuario from "../components/usuarios/FormularioUsuario";
-import TabelaUsuarios from "../components/usuarios/TabelaUsuarios";
 import FormularioContaAcesso from "../components/usuarios/FormularioContaAcesso";
-import TabelaContasAcesso from "../components/usuarios/TabelaContasAcesso";
 import {
   listarContasAcesso,
   criarContaAcesso,
@@ -34,6 +35,16 @@ export default function Usuarios() {
   const [editingConta, setEditingConta] = useState(null);
   const chromeContas = useCadastroListaChromeState();
   const chromePerm = useCadastroListaChromeState();
+  const listBindingsContas = useCadastroPageListBindings({
+    storageKey: "colunas_contas_acesso_v1",
+    columns: CONTAS_ACESSO_COLUNAS,
+    chrome: chromeContas,
+  });
+  const listBindingsPerm = useCadastroPageListBindings({
+    storageKey: "colunas_usuarios_v1",
+    columns: USUARIOS_LIST_COLUNAS,
+    chrome: chromePerm,
+  });
   const queryClient = useQueryClient();
 
   const { data: currentUser } = useQuery({
@@ -367,13 +378,14 @@ export default function Usuarios() {
               ) : null
             }
             selectedCount={chromeContas.selectedIds.length}
-            listados={contasAcesso.length}
-            filtrados={contasFiltradas}
-            totais={contasAcesso.length}
+            {...listBindingsContas.listFooter.chromeFooter}
             createLabel="Nova conta"
             onNew={() => openContaForm(null)}
             onEdit={handleEditContaSelected}
             onDelete={null}
+            onPrint={() => window.print()}
+            cardsModeAvailable
+            cardsToolbar={listBindingsContas.cardsToolbar}
             searchValue={chromeContas.searchInput}
             onSearchChange={chromeContas.setSearchInput}
             onSearchApply={chromeContas.applySearch}
@@ -396,6 +408,11 @@ export default function Usuarios() {
                 onSelectionChange={chromeContas.onSelectionChange}
                 onEdit={(conta) => openContaForm(conta)}
                 isLoading={contasLoading}
+                viewMode={chromeContas.viewMode === "cards" ? "cards" : "table"}
+                displayLimit={listBindingsContas.listFooter.gradePaging.displayLimit}
+                onListMetrics={listBindingsContas.listFooter.gradePaging.onListMetrics}
+                cardFields={listBindingsContas.cardsPrefs.cardFields}
+                cardsPerRow={listBindingsContas.cardsPrefs.cardsPerRow}
               />
             ) : null}
           </CadastroListaChrome>
@@ -427,10 +444,11 @@ export default function Usuarios() {
             ) : null
           }
           selectedCount={chromePerm.selectedIds.length}
-          listados={usuarios.length}
-          filtrados={permFiltrados}
-          totais={usuarios.length}
+          {...listBindingsPerm.listFooter.chromeFooter}
           createLabel="Permissões"
+          onPrint={() => window.print()}
+          cardsModeAvailable
+          cardsToolbar={listBindingsPerm.cardsToolbar}
           onNew={() => {
             setEditingUsuario(null);
             setShowForm(true);
@@ -462,6 +480,11 @@ export default function Usuarios() {
               onEdit={handleEdit}
               onDelete={handleDelete}
               isLoading={isLoading}
+              viewMode={chromePerm.viewMode === "cards" ? "cards" : "table"}
+              displayLimit={listBindingsPerm.listFooter.gradePaging.displayLimit}
+              onListMetrics={listBindingsPerm.listFooter.gradePaging.onListMetrics}
+              cardFields={listBindingsPerm.cardsPrefs.cardFields}
+              cardsPerRow={listBindingsPerm.cardsPrefs.cardsPerRow}
             />
           ) : null}
         </CadastroListaChrome>

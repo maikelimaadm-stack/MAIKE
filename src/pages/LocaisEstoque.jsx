@@ -19,6 +19,9 @@ import CadastroListaChrome from "@/components/cadastro/base1/CadastroListaChrome
 import CadastroRecordHeader from "@/components/cadastro/base1/CadastroRecordHeader";
 import CadastroBase1Grade from "@/components/cadastro/base1/CadastroBase1Grade";
 import { useCadastroListaChromeState } from "@/hooks/useCadastroListaChromeState";
+import { useCadastroPageListBindings } from "@/hooks/useCadastroPageListBindings";
+import { useCadastroDuplicateAction } from "@/hooks/useCadastroDuplicateAction";
+import { exportCadastroCsv } from "@/components/cadastro/base1/cadastroExportCsv";
 import { toast } from "sonner";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 
@@ -84,6 +87,26 @@ export default function LocaisEstoque() {
   const [deleteState, setDeleteState] = useState({ open: false, ids: [] });
   const [errors, setErrors] = useState({});
   const chrome = useCadastroListaChromeState();
+  const listBindings = useCadastroPageListBindings({
+    storageKey: "colunas_locais_estoque",
+    columns: COLUNAS,
+    chrome,
+  });
+  const handleDuplicateSelected = useCadastroDuplicateAction({
+    chrome,
+    findById: (id) => locais.find((row) => row.id === id),
+    openDraft: (draft) => {
+      setEditing(draft);
+      setFormData({
+        nome: draft.nome || "",
+        capacidade: draft.capacidade || "",
+        descricao: draft.descricao || "",
+        ativo: draft.ativo !== false,
+      });
+      setShowForm(true);
+    },
+    labelField: "nome",
+  });
   const queryClient = useQueryClient();
   const { data: locais = [], isLoading } = useQuery({
     queryKey: ["locais_estoque"],
@@ -337,12 +360,15 @@ export default function LocaisEstoque() {
           }
           recordBody={showForm ? embeddedForm : null}
           selectedCount={chrome.selectedIds.length}
-          listados={locais.length}
-          filtrados={filtradosCount}
-          totais={locais.length}
+          {...listBindings.listFooter.chromeFooter}
           onNew={openNewForm}
           onEdit={handleEditSelected}
+          onDuplicate={handleDuplicateSelected}
           onDelete={handleDeleteSelected}
+          onExportCsv={() => exportCadastroCsv("locais-estoque.csv", COLUNAS, locais, getFieldValue)}
+          onPrint={() => window.print()}
+          cardsModeAvailable
+          cardsToolbar={listBindings.cardsToolbar}
           searchValue={chrome.searchInput}
           onSearchChange={chrome.setSearchInput}
           onSearchApply={chrome.applySearch}
@@ -373,6 +399,13 @@ export default function LocaisEstoque() {
                 resetFiltersKey={chrome.resetFiltersKey}
                 onSelectionChange={chrome.onSelectionChange}
                 onFiltersActiveChange={chrome.setFiltersActive}
+                viewMode={chrome.viewMode === "cards" ? "cards" : "table"}
+                displayLimit={listBindings.listFooter.gradePaging.displayLimit}
+                onListMetrics={listBindings.listFooter.gradePaging.onListMetrics}
+                cardFields={listBindings.cardsPrefs.cardFields}
+                cardsPerRow={listBindings.cardsPrefs.cardsPerRow}
+                cardsTitleColId="nome"
+                cardsCodeColId="numero"
                 matchesSearch={(item, q) => {
                   const hay = [item.nome, item.descricao, item.capacidade, item.numero_local].filter(Boolean).join(" ").toLowerCase();
                   return hay.includes(q);

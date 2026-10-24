@@ -104,6 +104,11 @@ export default function TabelaEmpresas({
   resetFiltersKey = 0,
   onSelectionChange,
   onFiltersActiveChange,
+  viewMode,
+  displayLimit,
+  onListMetrics,
+  cardFields,
+  cardsPerRow,
 }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [showConfigColunasInternal, setShowConfigColunasInternal] = useState(false);
@@ -177,6 +182,13 @@ export default function TabelaEmpresas({
       resetFiltersKey={resetFiltersKey}
       onSelectionChange={handleSelection}
       onFiltersActiveChange={onFiltersActiveChange}
+      viewMode={viewMode}
+      displayLimit={displayLimit}
+      onListMetrics={onListMetrics}
+      cardFields={cardFields}
+      cardsPerRow={cardsPerRow}
+      cardsTitleColId="nome"
+      cardsCodeColId="numero"
       matchesSearch={(empresa, q) => {
         const searchLower = q.toLowerCase();
         return (

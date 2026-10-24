@@ -18,6 +18,9 @@ import CadastroListaChrome from "@/components/cadastro/base1/CadastroListaChrome
 import CadastroRecordHeader from "@/components/cadastro/base1/CadastroRecordHeader";
 import CadastroBase1Grade from "@/components/cadastro/base1/CadastroBase1Grade";
 import { useCadastroListaChromeState } from "@/hooks/useCadastroListaChromeState";
+import { useCadastroPageListBindings } from "@/hooks/useCadastroPageListBindings";
+import { useCadastroDuplicateAction } from "@/hooks/useCadastroDuplicateAction";
+import { exportCadastroCsv } from "@/components/cadastro/base1/cadastroExportCsv";
 import { toast } from "sonner";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 
@@ -80,6 +83,21 @@ export default function UnidadesMedida() {
   const [deleteState, setDeleteState] = useState({ open: false, ids: [] });
   const [errors, setErrors] = useState({});
   const chrome = useCadastroListaChromeState();
+  const listBindings = useCadastroPageListBindings({
+    storageKey: "colunas_unidades_medida",
+    columns: COLUNAS,
+    chrome,
+  });
+  const handleDuplicateSelected = useCadastroDuplicateAction({
+    chrome,
+    findById: (id) => unidades.find((row) => row.id === id),
+    openDraft: (draft) => {
+      setEditing(draft);
+      setFormData({ sigla: draft.sigla || "", descricao: draft.descricao || "", ativo: draft.ativo !== false });
+      setShowForm(true);
+    },
+    labelField: "descricao",
+  });
   const queryClient = useQueryClient();
   const { data: unidades = [], isLoading } = useQuery({
     queryKey: ["unidades_medida"],
@@ -311,12 +329,17 @@ export default function UnidadesMedida() {
           }
           recordBody={showForm ? embeddedForm : null}
           selectedCount={chrome.selectedIds.length}
-          listados={unidades.length}
-          filtrados={filtradosCount}
-          totais={unidades.length}
+          {...listBindings.listFooter.chromeFooter}
           onNew={openNewForm}
           onEdit={handleEditSelected}
+          onDuplicate={handleDuplicateSelected}
           onDelete={handleDeleteSelected}
+          onExportCsv={() =>
+            exportCadastroCsv("unidades-medida.csv", COLUNAS, unidades, getFieldValue)
+          }
+          onPrint={() => window.print()}
+          cardsModeAvailable
+          cardsToolbar={listBindings.cardsToolbar}
           searchValue={chrome.searchInput}
           onSearchChange={chrome.setSearchInput}
           onSearchApply={chrome.applySearch}
@@ -347,6 +370,13 @@ export default function UnidadesMedida() {
                 resetFiltersKey={chrome.resetFiltersKey}
                 onSelectionChange={chrome.onSelectionChange}
                 onFiltersActiveChange={chrome.setFiltersActive}
+                viewMode={chrome.viewMode === "cards" ? "cards" : "table"}
+                displayLimit={listBindings.listFooter.gradePaging.displayLimit}
+                onListMetrics={listBindings.listFooter.gradePaging.onListMetrics}
+                cardFields={listBindings.cardsPrefs.cardFields}
+                cardsPerRow={listBindings.cardsPrefs.cardsPerRow}
+                cardsTitleColId="descricao"
+                cardsCodeColId="sigla"
                 matchesSearch={(item, q) => {
                   const hay = [item.sigla, item.descricao, item.numero_unidade].filter(Boolean).join(" ").toLowerCase();
                   return hay.includes(q);

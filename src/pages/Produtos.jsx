@@ -44,6 +44,8 @@ import CadastroWorkspace from "@/components/cadastro/CadastroWorkspace";
 import CadastroListaChrome from "@/components/cadastro/base1/CadastroListaChrome";
 import CadastroRecordHeader from "@/components/cadastro/base1/CadastroRecordHeader";
 import { useCadastroListaChromeState } from "@/hooks/useCadastroListaChromeState";
+import { useCadastroPageListBindings } from "@/hooks/useCadastroPageListBindings";
+import { useCadastroDuplicateAction } from "@/hooks/useCadastroDuplicateAction";
 import FormularioProduto from "../components/produtos/FormularioProduto";
 import TabelaProdutos, { PRODUTOS_COLUNAS, getProdutoFieldValue } from "../components/produtos/TabelaProdutos";
 import { exportCadastroCsv } from "@/components/cadastro/base1/cadastroExportCsv";
@@ -60,6 +62,17 @@ export default function Produtos() {
   const [showConfigColunas, setShowConfigColunas] = useState(false);
   const [bulkDeleteSignal, setBulkDeleteSignal] = useState(0);
   const chrome = useCadastroListaChromeState();
+  const listBindings = useCadastroPageListBindings({ storageKey: "colunas_produtos_v2", columns: PRODUTOS_COLUNAS, chrome });
+
+  const handleDuplicateSelected = useCadastroDuplicateAction({
+    chrome,
+    findById: (id) => produtos.find((row) => row.id === id),
+    openDraft: (draft) => {
+      setEditingProduto(draft);
+      setShowForm(true);
+    },
+    labelField: "nome_produto",
+  });
   const [importProgress, setImportProgress] = useState({ current: 0, total: 0, errors: 0 });
 
   const [showErrorDialog, setShowErrorDialog] = useState(false);
@@ -414,12 +427,14 @@ export default function Produtos() {
             ) : null
           }
           selectedCount={chrome.selectedIds.length}
-          listados={produtos.length}
-          filtrados={filtradosCount}
-          totais={produtos.length}
+          {...listBindings.listFooter.chromeFooter}
           onNew={openNew}
           onEdit={handleEditSelected}
           onDelete={handleDeleteSelected}
+          onDuplicate={handleDuplicateSelected}
+          onPrint={() => window.print()}
+          cardsModeAvailable
+          cardsToolbar={listBindings.cardsToolbar}
           searchValue={chrome.searchInput}
           onSearchChange={chrome.setSearchInput}
           onSearchApply={chrome.applySearch}
@@ -447,6 +462,11 @@ export default function Produtos() {
               onSelectionChange={chrome.onSelectionChange}
               onFiltersActiveChange={chrome.setFiltersActive}
               bulkDeleteSignal={bulkDeleteSignal}
+              viewMode={chrome.viewMode === "cards" ? "cards" : "table"}
+              displayLimit={listBindings.listFooter.gradePaging.displayLimit}
+              onListMetrics={listBindings.listFooter.gradePaging.onListMetrics}
+              cardFields={listBindings.cardsPrefs.cardFields}
+              cardsPerRow={listBindings.cardsPrefs.cardsPerRow}
             />
           ) : null}
         </CadastroListaChrome>

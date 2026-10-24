@@ -131,6 +131,11 @@ export default function TabelaCategoriasProduto(props) {
       resetFiltersKey={props.resetFiltersKey}
       onSelectionChange={props.onSelectionChange}
       onFiltersActiveChange={props.onFiltersActiveChange}
+      viewMode={props.viewMode}
+      displayLimit={props.displayLimit}
+      onListMetrics={props.onListMetrics}
+      cardFields={props.cardFields}
+      cardsPerRow={props.cardsPerRow}
     />
   );
 }
