@@ -405,3 +405,18 @@ Branch `cursor/ux-base1-ssot-vidro-calendario-switch-516d` (PR #50):
 ### Verificação (UX-25)
 
 - `npm run verify:all`
+
+## UX-26 (2026-10-24) — Chave compacta + painel do page size
+
+Branch `cursor/ux-base1-ssot-vidro-calendario-switch-516d` (PR #50):
+
+| Item | Correção |
+|------|----------|
+| **Ativo** (`B1ChaveRow`) | Remove faixa branca com borda; grupo `inline-flex` com rótulo + switch + Sim/Não adjacentes (paridade `ChaveSimNao` / `data-chave`) |
+| Rodapé page size (`MgSelect` pill) | Painel branco arredondado (`mg-pill-select-panel`); opção selecionada com fundo verde claro e texto verde (`globals.css` / `cmd-option.selected`) |
+
+**Arquivos:** `B1ChaveRow.jsx`, `cadastro-b1-controls.css`, `cadastro-base1.css`, `CadastroListaChrome.jsx`.
+
+### Verificação (UX-26)
+
+- `npm run verify:all`

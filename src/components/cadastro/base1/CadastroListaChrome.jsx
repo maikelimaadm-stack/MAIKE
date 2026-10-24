@@ -321,7 +321,7 @@ export default function CadastroListaChrome({
                     ariaLabel="Quantidade de registros por carregamento"
                     className="mg-pill-select"
                     wrapClassName="mg-pill-select-wrap"
-                    contentClassName="min-w-[var(--radix-popover-trigger-width)]"
+                    contentClassName="mg-pill-select-panel min-w-[var(--radix-popover-trigger-width)]"
                     popoverSide="top"
                     value={String(pageSize)}
                     options={pageSizeOptions}

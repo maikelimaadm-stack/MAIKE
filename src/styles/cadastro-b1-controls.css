@@ -156,8 +156,13 @@
 }
 
 .cadastro-b1 .cmd-option.selected {
-  color: #15803d;
+  color: var(--mg-accent);
   font-weight: 600;
+  background: var(--mg-accent-light);
+}
+
+.cadastro-b1 .cmd-option.selected.highlighted {
+  background: rgba(64, 222, 99, 0.13);
 }
 
 .cadastro-b1 .cmd-option__code {
@@ -572,18 +577,14 @@
   height: 13px;
 }
 
-/* ── linha chave sim/não (sem mg-field — paridade ChaveSimNao / campo.module.css) ── */
+/* ── linha chave sim/não (sem mg-field — paridade ChaveSimNao / data-chave em campo.module.css) ── */
 .cadastro-b1 .b1-chave-row {
-  display: flex;
+  display: inline-flex;
   flex-direction: row;
   align-items: center;
-  min-height: var(--mg-field-h);
-  border-radius: var(--mg-radius-control);
-  border: 1px solid #e7eaee;
-  background: #fff;
-  box-shadow: var(--mg-field-edge-shadow);
-  padding: 0 10px;
-  gap: 8px;
+  gap: 9px;
+  max-width: 100%;
+  min-height: 42px;
 }
 
 .cadastro-b1 .b1-chave-row__label {
@@ -592,19 +593,6 @@
   line-height: 1.1;
   font-weight: 500;
   color: var(--mg-text-2);
-  max-width: 50%;
-}
-
-.cadastro-b1 .b1-chave-row__control {
-  flex: 1 1 auto;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  min-width: 0;
-}
-
-.cadastro-b1 .b1-chave-row .b1-switch-wrap {
-  width: auto;
 }
 
 .cadastro-b1 .b1-chave-row button.b1-switch {

@@ -18,8 +18,8 @@ const SPAN = {
 };
 
 /**
- * Linha Sim/Não do cadastro Base1 (paridade `ChaveSimNao` / `.chave` — CONTROLE-DE-ESTOQUE).
- * Faixa branca com borda; rótulo à esquerda e switch à direita — sem `mg-field` / rótulo flutuante.
+ * Linha Sim/Não do cadastro Base1 (paridade `ChaveSimNao` / `data-chave` — CONTROLE-DE-ESTOQUE).
+ * Grupo compacto: rótulo + switch + Sim/Não adjacentes — sem caixa nem `mg-field`.
  *
  * @param {object} props
  * @param {string} props.label
@@ -50,16 +50,14 @@ export default function B1ChaveRow({
     <div className={cn("col-span-12", SPAN[span] ?? "md:col-span-12", className)}>
       <div className="b1-chave-row" data-chave-row>
         <span className="b1-chave-row__label" id={`${id}-label`}>{label}</span>
-        <div className="b1-chave-row__control">
-          <B1Switch
-            id={id}
-            checked={checked}
-            onChange={onChange}
-            disabled={disabled}
-            ariaLabel={ariaLabel ?? label}
-            showText={showText}
-          />
-        </div>
+        <B1Switch
+          id={id}
+          checked={checked}
+          onChange={onChange}
+          disabled={disabled}
+          ariaLabel={ariaLabel ?? label}
+          showText={showText}
+        />
       </div>
     </div>
   );
