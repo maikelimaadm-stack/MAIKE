@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { Check, FilterX, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { operadoresParaTipo } from "./cadastroColunaFiltroLogic";
+import { MgDatePicker, brToISO, isoToBR } from "./MgDatePicker";
 
 function Chk({ on, parte = false }) {
   return (
@@ -124,23 +125,45 @@ export default function CadastroColunaFiltro({
         </div>
         {op ? (
           <div className="fcond">
-            <input
-              className="fin"
-              value={v1}
-              onChange={(e) => setV1(e.target.value)}
-              placeholder={ph}
-              aria-label="Valor da condição"
-            />
+            {tipo === "data" ? (
+              <div className="b1-dp-filtro">
+                <MgDatePicker
+                  value={brToISO(v1)}
+                  onChange={(iso) => setV1(iso ? isoToBR(iso) : "")}
+                  placeholder={ph}
+                  variant="central"
+                />
+              </div>
+            ) : (
+              <input
+                className="fin"
+                value={v1}
+                onChange={(e) => setV1(e.target.value)}
+                placeholder={ph}
+                aria-label="Valor da condição"
+              />
+            )}
             {op === "entre" ? (
               <>
                 <span className="fe">e</span>
-                <input
-                  className="fin"
-                  value={v2}
-                  onChange={(e) => setV2(e.target.value)}
-                  placeholder={ph}
-                  aria-label="Segundo valor da condição"
-                />
+                {tipo === "data" ? (
+                  <div className="b1-dp-filtro">
+                    <MgDatePicker
+                      value={brToISO(v2)}
+                      onChange={(iso) => setV2(iso ? isoToBR(iso) : "")}
+                      placeholder={ph}
+                      variant="central"
+                    />
+                  </div>
+                ) : (
+                  <input
+                    className="fin"
+                    value={v2}
+                    onChange={(e) => setV2(e.target.value)}
+                    placeholder={ph}
+                    aria-label="Segundo valor da condição"
+                  />
+                )}
               </>
             ) : null}
           </div>

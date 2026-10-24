@@ -29,6 +29,7 @@ const SPAN = {
  * @param {boolean} [props.disabled]
  * @param {boolean} [props.locked]
  * @param {boolean} [props.open] seletor aberto (`is-open`)
+ * @param {'default'|'switch'} [props.variant] `switch` para Sim/Não (B1Switch)
  * @param {import('react').ReactNode} props.children
  * @param {string} [props.className]
  * @param {string} [props.controlId]
@@ -43,6 +44,7 @@ export default function B1Field({
   disabled = false,
   locked = false,
   open = false,
+  variant = "default",
   children,
   className,
   controlId,
@@ -61,6 +63,7 @@ export default function B1Field({
       <div
         className={cn(
           "mg-field",
+          variant === "switch" && "mg-field--switch",
           disabled && "mg-field--disabled",
           locked && !disabled && "mg-field--locked",
           hasValue && "mg-has-value",

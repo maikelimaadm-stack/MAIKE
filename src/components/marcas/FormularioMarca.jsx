@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import B1Field, { B1_FIELD_INPUT_CLS } from "@/components/cadastro/base1/B1Field";
 import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
 import CadastroFormActions from "@/components/cadastro/base1/CadastroFormActions";
-import { MgSelect } from "@/components/cadastro/base1/MgSelect";
+import B1Switch from "@/components/cadastro/base1/B1Switch";
 
 export const FORMULARIO_MARCA_ID = "formulario-marca-base1";
 
@@ -71,14 +71,11 @@ export default function FormularioMarca({
           autoComplete="off"
         />
       </B1Field>
-      <B1Field label="Ativo" span={3} hasValue>
-        <MgSelect
-          value={form.ativo ? "true" : "false"}
-          onChange={(v) => handleChange("ativo", v === "true")}
-          options={[
-            { value: "true", label: "Sim" },
-            { value: "false", label: "Não" },
-          ]}
+      <B1Field label="Ativo" span={3} hasValue variant="switch">
+        <B1Switch
+          checked={form.ativo}
+          onChange={(v) => handleChange("ativo", v)}
+          ariaLabel="Ativo"
         />
       </B1Field>
       {!toolbarActions ? (

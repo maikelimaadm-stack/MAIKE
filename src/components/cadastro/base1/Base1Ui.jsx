@@ -1,5 +1,10 @@
 import React from "react";
 import { Check, FileText, Table2, LayoutGrid } from "lucide-react";
+
+/** Reexportações SSOT Base1 (fecha `gate:source-closure` nos controles compartilhados). */
+export { MgSelect } from "./MgSelect";
+export { MgDatePicker, B1DatePicker, isoToBR, brToISO } from "./MgDatePicker";
+export { default as B1Switch } from "./B1Switch";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 
@@ -90,10 +95,9 @@ export function B1Popover({ trigger, open, onOpenChange, children, className, al
         align={align}
         sideOffset={6}
         className={cn(
-          "z-50 w-72 rounded-xl border bg-white p-3 text-[12.5px] shadow-[0_8px_24px_rgba(16,24,40,.08),0_2px_8px_rgba(16,24,40,.06)] outline-none",
+          "mg-b1-glass-pop z-50 w-72 rounded-[14px] p-3 text-[12.5px] outline-none",
           className,
         )}
-        style={{ borderColor: "var(--mg-divider)" }}
       >
         {title ? <div className="mb-2 text-[12px] font-semibold text-slate-700">{title}</div> : null}
         {children}

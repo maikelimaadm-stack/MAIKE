@@ -1,0 +1,685 @@
+/**
+ * Controles Base1 portados do CONTROLE-DE-ESTOQUE (central de vendas / globals.css + calendario-do-sistema).
+ * Escopo: `.cadastro-b1` e `.b1ref` (filtros `fpop`).
+ */
+
+/* ── vidro (popovers de listagem, seletor, calendário) ── */
+.b1ref .pop,
+.cadastro-b1 .mg-b1-glass-pop,
+.cadastro-b1 .cmd-panel {
+  box-sizing: border-box;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.72);
+  -webkit-backdrop-filter: blur(22px) saturate(180%);
+  backdrop-filter: blur(22px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  box-shadow:
+    0 18px 40px rgba(15, 23, 42, 0.18),
+    0 2px 8px rgba(15, 23, 42, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  animation: b1-glass-rise 230ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .b1ref .pop,
+  .cadastro-b1 .mg-b1-glass-pop,
+  .cadastro-b1 .cmd-panel {
+    background: rgba(255, 255, 255, 0.97);
+  }
+}
+
+@keyframes b1-glass-rise {
+  from {
+    opacity: 0;
+    transform: translateY(-7px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .b1ref .pop,
+  .cadastro-b1 .mg-b1-glass-pop,
+  .cadastro-b1 .cmd-panel {
+    animation: none;
+  }
+}
+
+.b1ref .fpop.pop {
+  border-radius: 12px;
+}
+
+.cadastro-b1 .cmd-panel {
+  border-radius: 12px;
+  z-index: 10000;
+}
+
+/* ── seletor cmd-display / cmd-panel ── */
+.cadastro-b1 .cmd-display {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  padding-right: 28px !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cadastro-b1 .cmd-display.is-empty .cmd-display-placeholder {
+  color: var(--mg-text-3);
+  font-weight: 500;
+}
+
+.cadastro-b1 .mg-field .cmd-display-placeholder {
+  visibility: hidden;
+}
+
+.cadastro-b1 .cmd-chevron {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  margin-top: -6px;
+  color: var(--mg-text-3);
+  pointer-events: none;
+  transition: transform 0.2s;
+  z-index: 1;
+}
+
+.cadastro-b1 .mg-field.is-open .cmd-chevron {
+  transform: rotate(180deg);
+}
+
+.cadastro-b1 .cmd-clear {
+  position: absolute;
+  right: 26px;
+  top: 50%;
+  margin-top: -7px;
+  width: 14px;
+  height: 14px;
+  color: var(--mg-text-3);
+  cursor: pointer;
+  z-index: 2;
+}
+
+.cadastro-b1 .cmd-clear:hover {
+  color: var(--mg-red);
+}
+
+.cadastro-b1 .cmd-panel__search {
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.07);
+  padding: 8px 10px;
+  font-size: 12px;
+  outline: none;
+  background: transparent;
+  color: var(--mg-text-1);
+}
+
+.cadastro-b1 .cmd-panel__search::placeholder {
+  color: var(--mg-text-3);
+}
+
+.cadastro-b1 .cmd-panel-options {
+  max-height: 340px;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+
+.cadastro-b1 .cmd-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: calc(100% - 8px);
+  margin: 2px 4px;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--mg-text-1);
+  cursor: pointer;
+  text-align: left;
+  background: transparent;
+  transition: background 0.12s;
+}
+
+.cadastro-b1 .cmd-option:hover,
+.cadastro-b1 .cmd-option.highlighted {
+  background: rgba(64, 222, 99, 0.13);
+}
+
+.cadastro-b1 .cmd-option.selected {
+  color: #15803d;
+  font-weight: 600;
+}
+
+.cadastro-b1 .cmd-option__code {
+  color: var(--mg-text-3);
+  font-weight: 500;
+}
+
+.cadastro-b1 .cmd-panel__empty {
+  padding: 12px;
+  font-size: 12px;
+  color: var(--mg-text-3);
+  text-align: center;
+}
+
+.cadastro-b1 .cmd-panel__footer {
+  border-top: 1px solid rgba(15, 23, 42, 0.07);
+  background: transparent;
+}
+
+/* ── MgDatePicker (campo + painel padrão mg-dp) ── */
+.cadastro-b1 .mg-dp-field {
+  width: 100%;
+  border: 0 !important;
+  background: transparent !important;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--mg-text-1);
+}
+
+.cadastro-b1 .mg-field .mg-dp-field {
+  padding-right: 32px !important;
+}
+
+.cadastro-b1 .mg-dp-icon {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  margin-top: -7px;
+  color: var(--mg-text-3);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.cadastro-b1 .mg-dp-icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+.cadastro-b1 .mg-dp-panel {
+  width: 280px;
+  height: 280px;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  border-radius: 14px;
+  overflow: hidden;
+  z-index: 10001;
+}
+
+.cadastro-b1 .mg-dp-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 40px;
+  min-height: 40px;
+  padding: 0 8px;
+  flex-shrink: 0;
+}
+
+.cadastro-b1 .mg-dp-nav {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: none;
+  border-radius: 8px;
+  color: var(--mg-text-2);
+  cursor: pointer;
+}
+
+.cadastro-b1 .mg-dp-nav:hover {
+  background: var(--mg-gray-fill);
+  color: var(--mg-text-1);
+}
+
+.cadastro-b1 .mg-dp-nav svg {
+  width: 16px;
+  height: 16px;
+}
+
+.cadastro-b1 .mg-dp-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--mg-text-1);
+  border: 0;
+  background: none;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  text-align: center;
+}
+
+.cadastro-b1 .mg-dp-body {
+  height: 240px;
+  overflow: hidden;
+}
+
+.cadastro-b1 .mg-dp-viewport {
+  height: 240px;
+  overflow: hidden;
+  position: relative;
+}
+
+.cadastro-b1 .mg-dp-view-track {
+  will-change: transform;
+  transition: transform 220ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.cadastro-b1 .mg-dp-view-layer {
+  height: 240px;
+  box-sizing: border-box;
+}
+
+.cadastro-b1 .mg-dp-view-layer--days {
+  display: flex;
+  flex-direction: column;
+}
+
+.cadastro-b1 .mg-dp-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  height: 22px;
+  padding: 0 8px;
+}
+
+.cadastro-b1 .mg-dp-wd {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--mg-text-3);
+  text-transform: uppercase;
+}
+
+.cadastro-b1 .mg-dp-days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  grid-template-rows: repeat(6, 1fr);
+  height: 218px;
+  padding: 0 8px 6px;
+}
+
+.cadastro-b1 .mg-dp-day {
+  width: 100%;
+  height: 100%;
+  max-width: 30px;
+  max-height: 30px;
+  margin: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--mg-text-1);
+  background: none;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  cursor: pointer;
+  padding: 0;
+}
+
+.cadastro-b1 .mg-dp-day.other {
+  color: var(--mg-text-3);
+  opacity: 0.25;
+  cursor: default;
+}
+
+.cadastro-b1 .mg-dp-day.today:not(.selected) {
+  border-color: var(--mg-accent);
+  color: var(--mg-accent);
+  font-weight: 600;
+}
+
+.cadastro-b1 .mg-dp-day.selected {
+  background: var(--mg-accent);
+  color: #fff;
+  font-weight: 700;
+  border-color: var(--mg-accent);
+}
+
+.cadastro-b1 .mg-dp-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  width: 100%;
+  height: 196px;
+  gap: 4px;
+  padding: 0 12px;
+}
+
+.cadastro-b1 .mg-dp-pick {
+  width: 100%;
+  height: 100%;
+  max-width: 50px;
+  max-height: 50px;
+  margin: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  border: 2px solid transparent;
+  background: none;
+  border-radius: 50%;
+  cursor: pointer;
+  color: var(--mg-text-1);
+  padding: 0;
+}
+
+.cadastro-b1 .mg-dp-pick.selected {
+  background: var(--mg-accent);
+  color: #fff;
+  font-weight: 600;
+}
+
+/* Calendário central de vendas (CalendarioDoSistema — painel 240px vidro) */
+.cadastro-b1 .b1-calendario {
+  width: 240px;
+  box-sizing: content-box;
+  padding: 8px 10px;
+  line-height: normal;
+  border-radius: 12px;
+  z-index: 10001;
+  outline: none;
+}
+
+.cadastro-b1 .b1-cal-cabecalho {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 0 0 4px;
+}
+
+.cadastro-b1 .b1-cal-titulo {
+  border: 0;
+  background: transparent;
+  padding: 2px 6px;
+  margin-left: -6px;
+  border-radius: 7px;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #1e293b;
+  cursor: pointer;
+  text-align: left;
+  font-variant-numeric: tabular-nums;
+}
+
+.cadastro-b1 .b1-cal-titulo::first-letter {
+  text-transform: uppercase;
+}
+
+.cadastro-b1 .b1-cal-titulo:hover:not(:disabled) {
+  background: rgba(15, 23, 42, 0.06);
+}
+
+.cadastro-b1 .b1-cal-setas {
+  display: inline-flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+.cadastro-b1 .b1-cal-seta {
+  width: 22px;
+  height: 14px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #475569;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+}
+
+.cadastro-b1 .b1-cal-dias {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 2px;
+}
+
+.cadastro-b1 .b1-cal-semana {
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: #a3adb9;
+}
+
+.cadastro-b1 .b1-cal-dia,
+.cadastro-b1 .b1-cal-celula {
+  border: 1.5px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  font-size: 12px;
+  color: #1e293b;
+  cursor: pointer;
+  padding: 0;
+  font-variant-numeric: tabular-nums;
+  box-sizing: border-box;
+}
+
+.cadastro-b1 .b1-cal-dia {
+  width: 24px;
+  height: 24px;
+  margin: 0 auto;
+}
+
+.cadastro-b1 .b1-cal-grade {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 2px;
+  height: 174px;
+  grid-auto-rows: 1fr;
+}
+
+.cadastro-b1 .b1-cal-celula {
+  width: 42px;
+  height: 42px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-transform: capitalize;
+}
+
+.cadastro-b1 .b1-cal-dia[data-fora],
+.cadastro-b1 .b1-cal-celula[data-fora] {
+  color: #c3cbd5;
+}
+
+.cadastro-b1 .b1-cal-dia[data-hoje],
+.cadastro-b1 .b1-cal-celula[data-hoje] {
+  font-weight: 700;
+  color: #40de63;
+  border-color: #40de63;
+}
+
+.cadastro-b1 .b1-cal-dia[aria-pressed="true"],
+.cadastro-b1 .b1-cal-celula[aria-pressed="true"] {
+  background: #40de63;
+  border-color: #40de63;
+  color: #fff;
+  font-weight: 700;
+}
+
+.cadastro-b1 .b1-cal-rodape {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(15, 23, 42, 0.07);
+}
+
+.cadastro-b1 .b1-cal-link {
+  border: 0;
+  background: transparent;
+  color: #15803d;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 6px;
+}
+
+.cadastro-b1 .b1-cal-link:hover {
+  background: #ecfdf3;
+}
+
+.cadastro-b1 .b1-cal-botao-data {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  width: 22px;
+  height: 22px;
+  margin-top: -11px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--mg-gray-fill);
+  color: var(--mg-icon);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 2;
+  padding: 0;
+}
+
+.cadastro-b1 .b1-cal-botao-data svg {
+  width: 13px;
+  height: 13px;
+}
+
+/* ── chave sim/não (B1Switch) ── */
+.cadastro-b1 .mg-field--switch {
+  background: var(--mg-gray-fill);
+}
+
+.cadastro-b1 .mg-field--switch.mg-has-value {
+  background: #fff;
+  border-color: #e7eaee;
+}
+
+.cadastro-b1 .mg-field--switch .mg-field__control {
+  align-items: center;
+  padding: 0 10px;
+}
+
+.cadastro-b1 .mg-field--switch .mg-field__control :is(input, select, textarea, .cmd-display, .mg-dp-field) {
+  padding-top: 17px !important;
+  padding-bottom: 5px !important;
+}
+
+.cadastro-b1 .b1-switch-wrap {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  min-height: 100%;
+}
+
+.cadastro-b1 .b1-switch {
+  --sw-w: 42px;
+  --sw-h: 20px;
+  --sw-g: 2px;
+  --sw-b: 1.375;
+  position: relative;
+  width: var(--sw-w);
+  height: var(--sw-h);
+  flex-shrink: 0;
+  box-sizing: border-box;
+  border: 0;
+  border-radius: 999px;
+  background: #e4e4e7;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  transition: background 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.cadastro-b1 .b1-switch__thumb {
+  position: absolute;
+  top: var(--sw-g);
+  bottom: var(--sw-g);
+  left: var(--sw-g);
+  width: auto;
+  aspect-ratio: var(--sw-b);
+  box-sizing: border-box;
+  border: 0;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 2px 5px rgba(15, 23, 42, 0.2), 0 1px 2px rgba(15, 23, 42, 0.14);
+  transform-origin: left center;
+  transition: transform 0.26s cubic-bezier(0.32, 1.4, 0.5, 1);
+}
+
+.cadastro-b1 .b1-switch:hover:not(:disabled) {
+  background: #d7d7dc;
+}
+
+.cadastro-b1 .b1-switch[aria-checked="true"] {
+  background: #40de63;
+}
+
+.cadastro-b1 .b1-switch[aria-checked="true"]:hover:not(:disabled) {
+  background: #35cf56;
+}
+
+.cadastro-b1 .b1-switch[aria-checked="true"] .b1-switch__thumb {
+  transform: translateX(calc(var(--sw-w) - var(--sw-g) * 2 - 100%));
+  transform-origin: right center;
+}
+
+.cadastro-b1 .b1-switch:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.cadastro-b1 .b1-switch__text {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--mg-text-1);
+  padding-top: 12px;
+}
+
+/* Data compacta dentro do filtro fpop */
+.b1ref .b1-dp-filtro {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 28px;
+}
+
+.b1ref .b1-dp-filtro .mg-dp-field {
+  height: 28px !important;
+  padding: 0 12px !important;
+  border-radius: 999px;
+  border: 1px solid #dfe2e7 !important;
+  background: #fff !important;
+  font-size: 12px !important;
+}
+
+.b1ref .b1-dp-filtro .mg-dp-icon {
+  right: 8px;
+}

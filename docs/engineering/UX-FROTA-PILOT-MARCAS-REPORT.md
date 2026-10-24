@@ -337,3 +337,24 @@ Branch `cursor/ux-base1-marcas-tela-inteira-516d` (PR #49):
 ### Verificação (UX-21)
 
 - `npm run test:smoke`, `npm run gate:types`, `npm run gate:source-closure`, `npm run build`
+
+## UX-22 (2026-10-24) — SSOT vidro + calendário central de vendas + switch Sim/Não
+
+Branch `cursor/ux-base1-ssot-vidro-calendario-switch-516d`:
+
+| Artefato | Origem (CONTROLE-DE-ESTOQUE) | Função |
+|----------|------------------------------|--------|
+| `src/styles/cadastro-b1-controls.css` | `globals.css` (cmd/mg-dp), `moldura.module.css` (`.popover`), `calendario-do-sistema.module.css`, `campo.module.css` (`.chave`) | Vidro em popovers de listagem; estilos cmd-panel, mg-dp, calendário e switch |
+| `B1Switch.jsx` | `features/central/campo.tsx` (`ChaveSimNao`) | Boolean Sim/Não com `role="switch"` |
+| `MgDatePicker.jsx` + `B1DatePicker` | `components/ui/mg-controls.tsx` | Texto dd/mm/aaaa + valor ISO |
+| `B1CalendarioDoSistema.jsx` | `components/ui/calendario-do-sistema.tsx` | Painel 240px vidro da central de vendas |
+| `MgSelect.jsx` | `mg-controls.tsx` (`CmdPanel` / `MgSelect`) | Seletor cmd-display com painel vidro |
+| `Base1Ui` `B1Popover` | vidro `.popover` da central | Menu “Mais opções” e popovers do chrome |
+| `CadastroColunaFiltro` | — | Colunas `data` usam `MgDatePicker` (variante central) |
+| `FormularioMarca` | — | Campo **Ativo** → `B1Switch` (piloto) |
+
+**Herança automática:** qualquer cadastro dentro de `.cadastro-b1` que importe `B1Switch`, `B1DatePicker`/`MgDatePicker`, `MgSelect` ou use `CadastroListaChrome`/`B1Popover`/`CadastroColunaFiltro` recebe o mesmo visual sem migração página a página.
+
+### Verificação (UX-22)
+
+- `npm run verify:all`
