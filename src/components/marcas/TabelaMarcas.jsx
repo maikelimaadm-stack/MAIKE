@@ -1,5 +1,4 @@
 import React from "react";
-import { Badge } from "@/components/ui/badge";
 import CadastroBase1Grade from "@/components/cadastro/base1/CadastroBase1Grade";
 
 export const MARCAS_COLUNAS = [
@@ -13,7 +12,7 @@ export function getMarcaFieldValue(item, id) {
   if (id === "numero") return item.numero_marca || "";
   if (id === "nome") return item.nome || "";
   if (id === "descricao") return item.descricao || "";
-  if (id === "ativo") return item.ativo !== false ? "Ativo" : "Inativo";
+  if (id === "ativo") return item.ativo !== false ? "Sim" : "Não";
   return "";
 }
 
@@ -22,14 +21,10 @@ function renderCell(item, colId) {
   if (colId === "nome") return <span className="uppercase">{item.nome || "–"}</span>;
   if (colId === "descricao") return item.descricao || "–";
   if (colId === "ativo") {
-    return item.ativo !== false ? (
-      <Badge variant="secondary" className="text-[10px] bg-emerald-100 text-emerald-700 border-0">
-        Ativo
-      </Badge>
-    ) : (
-      <Badge variant="secondary" className="text-[10px] bg-slate-100 text-slate-500 border-0">
-        Inativo
-      </Badge>
+    return (
+      <span className={item.ativo !== false ? "text-emerald-700" : "text-slate-500"}>
+        {item.ativo !== false ? "Sim" : "Não"}
+      </span>
     );
   }
   return "–";

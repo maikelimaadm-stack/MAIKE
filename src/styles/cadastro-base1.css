@@ -150,8 +150,10 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  height: var(--mg-toolbar-h);
   min-height: var(--mg-toolbar-h);
   padding: 4px 12px;
+  box-sizing: border-box;
   flex-wrap: wrap;
 }
 
@@ -212,7 +214,15 @@
   min-height: 0;
 }
 
-.cadastro-b1 .mg-shell__body {
+.cadastro-b1 .mg-shell__body,
+.cadastro-b1 .mg-shell__scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+
+.cadastro-b1 .mg-shell--fill > .mg-shell__scroll,
+.cadastro-b1 .mg-shell--fill > .mg-shell__body {
   flex: 1 1 auto;
   min-height: 0;
   overflow: auto;
@@ -688,6 +698,30 @@
   box-shadow: var(--mg-focus-ring);
 }
 
+.cadastro-b1 .mg-field.is-invalid {
+  border-color: var(--mg-red);
+  background: #fef2f2;
+}
+
+.cadastro-b1 .mg-field--multiline {
+  grid-template-rows: auto;
+  min-height: calc(var(--mg-field-h) + 24px);
+}
+
+.cadastro-b1 .mg-field--multiline .mg-field__control textarea {
+  min-height: 56px;
+  padding-top: 17px;
+}
+
+.cadastro-b1 .mg-field__control {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  grid-row: 1;
+  grid-column: 1;
+  padding: 0 10px;
+}
+
 .cadastro-b1 .mg-field__control input,
 .cadastro-b1 .mg-field__control select,
 .cadastro-b1 .mg-field__control textarea {
@@ -698,7 +732,7 @@
   font-size: 13px;
   font-weight: 500;
   color: var(--mg-text-1);
-  padding: 0 10px;
+  padding: 0;
 }
 
 .cadastro-b1 .mg-field.mg-has-value .mg-field__control input,
