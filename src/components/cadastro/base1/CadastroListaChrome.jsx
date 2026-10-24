@@ -57,6 +57,11 @@ const PAGE_SIZES = [50, 100, 200, 500];
  * @param {() => void} [props.onLoadMore]
  * @param {string} [props.attachDisabledReason]
  * @param {() => void} [props.onAttach]
+ * @param {boolean} [props.recordMode] modo registro (sem faixa de filtros / grade — corpo embutido)
+ * @param {import('react').ReactNode} [props.recordToolbar] barra de ações do registro (substitui Novo/Editar/…)
+ * @param {import('react').ReactNode} [props.recordHeader] cabeçalho bookmark + navegação
+ * @param {import('react').ReactNode} [props.recordBody] conteúdo rolável do registro
+ * @param {boolean} [props.secondaryToolsLocked] oculta busca/alternador/menu (edição ou subfluxo ativo)
  */
 export default function CadastroListaChrome({
   children,
@@ -93,6 +98,11 @@ export default function CadastroListaChrome({
   onLoadMore,
   attachDisabledReason = "Anexos disponíveis quando o cadastro tiver auditoria nativa.",
   onAttach,
+  recordMode = false,
+  recordToolbar = null,
+  recordHeader = null,
+  recordBody = null,
+  secondaryToolsLocked = false,
 }) {
   const oneSelected = selectedCount === 1;
   const anySelected = selectedCount > 0;
@@ -128,78 +138,99 @@ export default function CadastroListaChrome({
     attachDisabledReason ?? (oneSelected ? "Anexos" : "Selecione um registro");
   const showAttachControl = Boolean(onAttach ?? attachDisabledReason);
 
+  const rightTools = (
+    <div className="mg-toolbar__right">
+      {showAttachControl ? (
+        <IconBtn
+          aria-label="Anexos"
+          title={attachTitle}
+          disabled={!oneSelected || !onAttach}
+          onClick={() => onAttach?.()}
+          data-testid="b1-attach"
+        >
+          <Paperclip className="h-4 w-4" aria-hidden />
+        </IconBtn>
+      ) : null}
+      {!secondaryToolsLocked && onSearchChange ? (
+        <CadastroSearchPill
+          value={searchValue}
+          onChange={onSearchChange}
+          onApply={onSearchApply}
+          active={searchActive}
+          placeholder={searchPlaceholder}
+        />
+      ) : null}
+      {!secondaryToolsLocked && onViewModeChange ? (
+        <ViewSwitch
+          value={viewMode}
+          recordDisabled={!recordModeAvailable}
+          cardsDisabled={!cardsModeAvailable}
+          onChange={onViewModeChange}
+        />
+      ) : null}
+      {!secondaryToolsLocked ? (
+        <B1Popover
+          className="w-64 p-1.5"
+          trigger={
+            <IconBtn aria-label="Mais opções" title="Mais opções">
+              <MoreHorizontal className="h-4 w-4" aria-hidden />
+            </IconBtn>
+          }
+        >
+          <MenuList items={menuItems} onPick={onMenu} />
+        </B1Popover>
+      ) : null}
+    </div>
+  );
+
   return (
     <div className="cadastro-b1" data-testid="cadastro-lista-chrome">
       <div className="mg-toolbar mg-card no-print">
-        {onNew ? (
-          <PillBtn type="button" onClick={onNew}>
-            <Plus className="h-4 w-4" aria-hidden />
-            {createLabel}
-          </PillBtn>
-        ) : null}
-        {extraToolbar}
-        {onEdit ? (
-          <PillBtn type="button" tone="gray" disabled={!oneSelected} onClick={onEdit}>
-            <Pencil className="h-3.5 w-3.5" aria-hidden />
-            Editar
-          </PillBtn>
-        ) : null}
-        {onDuplicate ? (
-          <PillBtn type="button" tone="gray" disabled={!oneSelected} onClick={onDuplicate}>
-            <Copy className="h-3.5 w-3.5" aria-hidden />
-            Duplicar
-          </PillBtn>
-        ) : null}
-        {onDelete ? (
-          <PillBtn type="button" tone="red" disabled={!anySelected} onClick={onDelete}>
-            <Trash2 className="h-4 w-4" aria-hidden />
-            Excluir
-            {selectedCount > 1 ? ` (${selectedCount})` : ""}
-          </PillBtn>
-        ) : null}
-
-        <div className="mg-toolbar__right">
-          {showAttachControl ? (
-            <IconBtn
-              aria-label="Anexos"
-              title={attachTitle}
-              disabled={!oneSelected || !onAttach}
-              onClick={() => onAttach?.()}
-              data-testid="b1-attach"
-            >
-              <Paperclip className="h-4 w-4" aria-hidden />
-            </IconBtn>
-          ) : null}
-          {onSearchChange ? (
-            <CadastroSearchPill
-              value={searchValue}
-              onChange={onSearchChange}
-              onApply={onSearchApply}
-              active={searchActive}
-              placeholder={searchPlaceholder}
-            />
-          ) : null}
-          {onViewModeChange ? (
-            <ViewSwitch
-              value={viewMode}
-              recordDisabled={!recordModeAvailable}
-              cardsDisabled={!cardsModeAvailable}
-              onChange={onViewModeChange}
-            />
-          ) : null}
-          <B1Popover
-            className="w-64 p-1.5"
-            trigger={
-              <IconBtn aria-label="Mais opções" title="Mais opções">
-                <MoreHorizontal className="h-4 w-4" aria-hidden />
-              </IconBtn>
-            }
-          >
-            <MenuList items={menuItems} onPick={onMenu} />
-          </B1Popover>
-        </div>
+        {recordMode ? (
+          recordToolbar ?? null
+        ) : (
+          <>
+            {onNew ? (
+              <PillBtn type="button" onClick={onNew}>
+                <Plus className="h-4 w-4" aria-hidden />
+                {createLabel}
+              </PillBtn>
+            ) : null}
+            {extraToolbar}
+            {onEdit ? (
+              <PillBtn type="button" tone="gray" disabled={!oneSelected} onClick={onEdit}>
+                <Pencil className="h-3.5 w-3.5" aria-hidden />
+                Editar
+              </PillBtn>
+            ) : null}
+            {onDuplicate ? (
+              <PillBtn type="button" tone="gray" disabled={!oneSelected} onClick={onDuplicate}>
+                <Copy className="h-3.5 w-3.5" aria-hidden />
+                Duplicar
+              </PillBtn>
+            ) : null}
+            {onDelete ? (
+              <PillBtn type="button" tone="red" disabled={!anySelected} onClick={onDelete}>
+                <Trash2 className="h-4 w-4" aria-hidden />
+                Excluir
+                {selectedCount > 1 ? ` (${selectedCount})` : ""}
+              </PillBtn>
+            ) : null}
+          </>
+        )}
+        {rightTools}
       </div>
 
+      {recordMode ? (
+        <>
+          {recordHeader}
+          <div className="mg-shell mg-shell--fill min-h-0 flex-1">
+            <div className="mg-shell__scroll p-2">{recordBody}</div>
+          </div>
+        </>
+      ) : null}
+
+      {!recordMode ? (
       <div
         className={`mg-rail mg-card no-print mg-pills-rail ${showChips ? "is-expanded" : "is-collapsed"}`}
       >
@@ -256,7 +287,9 @@ export default function CadastroListaChrome({
           ) : null}
         </div>
       </div>
+      ) : null}
 
+      {!recordMode ? (
       <div className="mg-shell mg-shell--table mg-shell--fill min-h-0 flex-1">
         <div className="mg-shell__body">{children}</div>
         <div className="mg-summary no-print">
@@ -296,6 +329,7 @@ export default function CadastroListaChrome({
           ) : null}
         </div>
       </div>
+      ) : null}
     </div>
   );
 }

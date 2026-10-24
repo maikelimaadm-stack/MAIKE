@@ -184,3 +184,22 @@ Branch `cursor/ux-base1-paridade-pagina-completa-516d`:
 ## Verificação (UX-14)
 
 - `npm run test:smoke`, `npm run gate:types`, `npm run gate:source-closure`, `npm run build`
+
+## UX-15 (2026-10-24) — Paridade de comportamento Base1 (registro + Lançar)
+
+Branch `cursor/ux-base1-paridade-pagina-completa-516d` (PR #44):
+
+| Lacuna vs CONTROLE-DE-ESTOQUE | Correção |
+|-------------------------------|----------|
+| Detalhe/lista trocava o shell inteiro (`CadastroWorkspace` modo detalhe) e sumia com toolbar de listagem (busca, alternador Tabela/Registro, Mais opções) | `CadastroListaChrome` ganhou **`recordMode`**: corpo embutido + faixa superior com `recordToolbar` / `recordHeader` / `recordBody`; busca e alternador permanecem à direita (com **`secondaryToolsLocked`** durante subfluxos, como edição no MG) |
+| Modo Registro não fixava `viewMode` nem voltava à tabela pelo alternador | `useCadastroListaChromeState`: `exitRecordView`, `handleViewModeChange` chama `onExitRecord` ao sair de registro |
+| Bebedouros: Lançar/Histórico em `Dialog` shadcn (UX diferente do painel embutido) | `DetalhesBebedouro`: subviews **inline** (`lancamento` / `historico`); barra “Voltar ao resumo” no `recordToolbar`; formulário de lançamento ocupa o painel rolável (sem modal) |
+| Bebedouros: “Configurar colunas” no chrome não abria diálogo | `showConfigColunas` ligado ao `CadastroBase1Grade` |
+| Navegação entre registros no detalhe | **`CadastroRecordHeader`** (bookmark • título + primeiro/anterior/próximo/último) — piloto **Bebedouros** e **Marcas** |
+| Marcas: formulário substituía chrome (paridade frota/equipamentos) | **Marcas** usa `recordMode` no chrome (mesmo padrão de `ResourceForm` + `rightSlot` no estoque) |
+
+**Mapa / manejo:** `MapaGeral` continua usando `DetalhesBebedouro` em diálogo (fora do escopo cadastro Frota).
+
+### Verificação (UX-15)
+
+- `npm run test:smoke`, `npm run gate:types`, `npm run gate:source-closure`, `npm run build`

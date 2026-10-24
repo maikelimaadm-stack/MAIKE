@@ -1,12 +1,13 @@
 import React, { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useQuery } from "@tanstack/react-query";
 import { listarIconesPorTipoEntidade, listarPontosDaEmpresa } from "@/services/mapaService";
 import { listarTodosLotes } from "@/services/loteManejoService";
 import { useBebedouroHistorico } from "@/hooks/useBebedouroHistorico";
 import BebedouroTimeline from "./BebedouroTimeline";
 import FormularioLancamentoBebedouro from "./FormularioLancamentoBebedouro";
+import { PillBtn } from "@/components/cadastro/base1/Base1Ui";
+import { ArrowLeft } from "lucide-react";
 
 const formatDecimal = (value, digits = 2) => Number(value || 0).toLocaleString("pt-BR", { minimumFractionDigits: digits, maximumFractionDigits: digits });
 const formatDateBR = (value) => value ? new Date(`${String(value).split("T")[0]}T00:00:00`).toLocaleDateString("pt-BR") : "-";
@@ -25,11 +26,47 @@ const getPeriodDays = (periodicidade, personalizado) => {
 };
 const normalizeText = (value) => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
 
-export default function DetalhesBebedouro({ bebedouro }) {
+/**
+ * @param {object} props
+ * @param {object} props.bebedouro
+ * @param {(locked: boolean) => void} [props.onSubFlowChange] true enquanto lançamento/histórico ocupa a tela
+ * @param {(toolbar: import('react').ReactNode) => void} [props.onRecordToolbarChange]
+ */
+export default function DetalhesBebedouro({ bebedouro, onSubFlowChange, onRecordToolbarChange }) {
   const empresaId = localStorage.getItem("empresa_selecionada_id");
-  const [showLancamento, setShowLancamento] = useState(false);
-  const [showHistorico, setShowHistorico] = useState(false);
+  const [subView, setSubView] = useState(/** @type {'main'|'lancamento'|'historico'} */ ("main"));
   const registroReal = Boolean(bebedouro?.id && !String(bebedouro.id).startsWith("ponto-"));
+
+  React.useEffect(() => {
+    onSubFlowChange?.(subView !== "main");
+  }, [subView, onSubFlowChange]);
+
+  React.useEffect(() => {
+    if (subView === "lancamento") {
+      onRecordToolbarChange?.(
+        <PillBtn tone="gray" type="button" onClick={() => setSubView("main")}>
+          <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
+          Voltar ao resumo
+        </PillBtn>,
+      );
+      return;
+    }
+    if (subView === "historico") {
+      onRecordToolbarChange?.(
+        <PillBtn tone="gray" type="button" onClick={() => setSubView("main")}>
+          <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
+          Voltar ao resumo
+        </PillBtn>,
+      );
+      return;
+    }
+    onRecordToolbarChange?.(null);
+  }, [subView, onRecordToolbarChange]);
+
+  React.useEffect(() => {
+    setSubView("main");
+  }, [bebedouro?.id]);
+
   const { data: iconesConfig = [] } = useQuery({
     queryKey: ["configuracao-icones-bebedouro-detalhe", empresaId],
     queryFn: async () => {
@@ -93,6 +130,25 @@ export default function DetalhesBebedouro({ bebedouro }) {
   const proximaLimpeza = addDaysToDate(ultimoLancamentoLimpeza?.data_lancamento, diasLimpeza);
   const proximaInspecao = addDaysToDate(ultimaInspecao?.data_lancamento || ultimaInspecao?.data_avaliacao, diasInspecao);
 
+  if (subView === "lancamento") {
+    return (
+      <FormularioLancamentoBebedouro
+        bebedouro={bebedouro}
+        onCancel={() => setSubView("main")}
+        onSaved={() => setSubView("main")}
+      />
+    );
+  }
+
+  if (subView === "historico") {
+    return (
+      <div className="cadastro-b1">
+        <CardSection title="Histórico do Bebedouro">
+          <BebedouroTimeline historico={historico} />
+        </CardSection>
+      </div>
+    );
+  }
 
   return (
     <div className="cadastro-b1 space-y-2" translate="no">
@@ -103,8 +159,8 @@ export default function DetalhesBebedouro({ bebedouro }) {
       </div>
 
       <div className="grid grid-cols-2 gap-1">
-        <button type="button" className="tb-btn tb-btn-green w-full" onClick={() => setShowLancamento(true)}>Lançar</button>
-        <button type="button" className="tb-btn tb-btn-gray w-full" onClick={() => setShowHistorico(true)}>Histórico</button>
+        <button type="button" className="tb-btn tb-btn-green w-full" onClick={() => setSubView("lancamento")}>Lançar</button>
+        <button type="button" className="tb-btn tb-btn-gray w-full" onClick={() => setSubView("historico")}>Histórico</button>
       </div>
 
       <CardSection title="Resumo Operacional">
@@ -152,23 +208,12 @@ export default function DetalhesBebedouro({ bebedouro }) {
           <InfoLine label="Observações" value={bebedouro.observacoes || "-"} />
         </div>
       </CardSection>
-
-      <Dialog open={showLancamento} onOpenChange={setShowLancamento}><DialogContent className="max-w-[880px] max-h-[90vh] overflow-y-auto overflow-x-hidden"><FormularioLancamentoBebedouro bebedouro={bebedouro} onCancel={() => setShowLancamento(false)} onSaved={() => setShowLancamento(false)} /></DialogContent></Dialog>
-      <Dialog open={showHistorico} onOpenChange={setShowHistorico}><DialogContent className="bg-background px-2 py-2 fixed left-[50%] top-[50%] z-50 grid w-full translate-x-[-50%] translate-y-[-50%] gap-4 border shadow-lg sm:rounded-lg max-w-4xl max-h-[90vh] overflow-y-auto"><CardSection title="Histórico do Bebedouro"><BebedouroTimeline historico={historico} /></CardSection></DialogContent></Dialog>
     </div>
   );
 }
 
 function MetricBox({ label, value }) {
   return <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5"><div className="text-slate-500">{label}</div><div className="text-sm font-bold text-slate-900 break-words leading-tight">{value}</div></div>;
-}
-
-function SectionLabel({ children }) {
-  return <div className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mt-1 mb-0.5">{children}</div>;
-}
-
-function MiniInfo({ label, value }) {
-  return <div className="rounded border border-slate-200 bg-white px-1.5 py-1"><div className="text-slate-500">{label}</div><div className="font-semibold text-slate-900 break-words">{value}</div></div>;
 }
 
 function CardSection({ title, children }) {

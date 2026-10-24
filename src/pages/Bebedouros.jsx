@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import React, { useCallback, useMemo } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { useBebedouros } from "@/hooks/useBebedouros";
 import { useQuery } from "@tanstack/react-query";
 import { listarHistorico, listarSanidade } from "@/services/bebedouroDataService";
@@ -11,6 +11,7 @@ import { buildBebedouroAlertas, getBebedouroStatusVisual } from "@/services/bebe
 import CadastroWorkspace from "@/components/cadastro/CadastroWorkspace";
 import CadastroListaChrome from "@/components/cadastro/base1/CadastroListaChrome";
 import CadastroBase1Grade from "@/components/cadastro/base1/CadastroBase1Grade";
+import CadastroRecordHeader from "@/components/cadastro/base1/CadastroRecordHeader";
 import { useCadastroListaChromeState } from "@/hooks/useCadastroListaChromeState";
 
 const COLUNAS = [
@@ -25,7 +26,10 @@ const COLUNAS = [
 export default function Bebedouros() {
   const empresaId = localStorage.getItem("empresa_selecionada_id");
   const chrome = useCadastroListaChromeState();
-  const [detalhe, setDetalhe] = React.useState(null);
+  const [detalhe, setDetalhe] = useState(null);
+  const [showConfigColunas, setShowConfigColunas] = useState(false);
+  const [recordToolbar, setRecordToolbar] = useState(null);
+  const [subFlowLocked, setSubFlowLocked] = useState(false);
   const { data: bebedouros = [] } = useBebedouros(empresaId);
   const { data: historico = [] } = useQuery({
     queryKey: ["bebedouro-historico-all", empresaId],
@@ -85,16 +89,40 @@ export default function Bebedouros() {
     [bebedouros, historico, sanidade],
   );
 
+  const inRecord = Boolean(detalhe);
+
+  const exitRecord = useCallback(() => {
+    setDetalhe(null);
+    setRecordToolbar(null);
+    setSubFlowLocked(false);
+    chrome.exitRecordView();
+  }, [chrome]);
+
+  const openRecord = useCallback(
+    (item) => {
+      if (!item) return;
+      chrome.setViewMode("record");
+      if (!chrome.selectedIds.includes(item.id)) {
+        chrome.onSelectionChange([item.id]);
+      }
+      setDetalhe(item);
+    },
+    [chrome],
+  );
+
   const handleEditSelected = () => {
     const item = bebedouros.find((b) => b.id === chrome.selectedIds[0]);
-    if (item) setDetalhe(item);
+    if (item) openRecord(item);
   };
 
   const onViewModeChange = useCallback(
     (mode) => {
-      chrome.handleViewModeChange(mode, { onOpenRecord: () => handleEditSelected() });
+      chrome.handleViewModeChange(mode, {
+        onOpenRecord: () => handleEditSelected(),
+        onExitRecord: exitRecord,
+      });
     },
-    [chrome, bebedouros],
+    [chrome, exitRecord, bebedouros],
   );
 
   const getFieldValue = (item, colId) => {
@@ -137,44 +165,83 @@ export default function Bebedouros() {
     </Link>
   );
 
+  const recordNavRows = useMemo(() => {
+    const q = chrome.appliedSearch.trim().toLowerCase();
+    if (!q) return bebedouros;
+    return bebedouros.filter((item) =>
+      `${item.nome} ${item.codigo_interno} ${getPastosAtendidos(item)} ${item.origem_agua}`
+        .toLowerCase()
+        .includes(q),
+    );
+  }, [bebedouros, chrome.appliedSearch]);
+
+  const recordIndex = detalhe
+    ? Math.max(0, recordNavRows.findIndex((b) => b.id === detalhe.id))
+    : 0;
+
+  const goRecord = useCallback(
+    (index) => {
+      const row = recordNavRows[index];
+      if (row) openRecord(row);
+    },
+    [recordNavRows, openRecord],
+  );
+
   return (
     <CadastroWorkspace
-      mode={detalhe ? "detail" : "list"}
-      title={detalhe ? detalhe.nome || "Bebedouro" : "Bebedouros"}
-      subtitle={
-        detalhe
-          ? "Histórico, sanidade e vínculos do ponto de água."
-          : "Controle operacional, sanitário e histórico da água."
-      }
-      onBack={detalhe ? () => setDetalhe(null) : undefined}
+      mode="list"
+      title="Bebedouros"
+      subtitle="Controle operacional, sanitário e histórico da água."
     >
-      {detalhe ? (
-        <DetalhesBebedouro bebedouro={detalhe} />
-      ) : (
-        <div className="space-y-3">
-          <BebedouroResumoCards bebedouros={bebedouros} historico={historico} alertas={alertas} />
-          <CadastroListaChrome
-            selectedCount={chrome.selectedIds.length}
-            listados={bebedouros.length}
-            filtrados={filtradosCount}
-            totais={bebedouros.length}
-            onNew={null}
-            onEdit={handleEditSelected}
-            onDelete={null}
-            searchValue={chrome.searchInput}
-            onSearchChange={chrome.setSearchInput}
-            onSearchApply={chrome.applySearch}
-            searchActive={chrome.searchActive}
-            searchPlaceholder="Buscar bebedouros…"
-            onClearFilters={chrome.clearFilters}
-            filtersActive={chrome.filtersActive}
-            viewMode={chrome.viewMode}
-            onViewModeChange={onViewModeChange}
-            recordModeAvailable
-            extraToolbar={mapaLink}
-            filterRailHint="Cadastro geométrico no mapa; aqui é a operação e o acompanhamento."
-            onConfigureColumns={() => {}}
-          >
+      <CadastroListaChrome
+        recordMode={inRecord}
+        secondaryToolsLocked={inRecord && subFlowLocked}
+        recordToolbar={recordToolbar}
+        recordHeader={
+          inRecord && detalhe ? (
+            <CadastroRecordHeader
+              title={detalhe.nome || "Bebedouro"}
+              code={detalhe.codigo_interno || undefined}
+              index={recordIndex}
+              total={recordNavRows.length}
+              onGo={goRecord}
+              navDisabled={subFlowLocked}
+            />
+          ) : null
+        }
+        recordBody={
+          inRecord && detalhe ? (
+            <DetalhesBebedouro
+              bebedouro={detalhe}
+              onSubFlowChange={setSubFlowLocked}
+              onRecordToolbarChange={setRecordToolbar}
+            />
+          ) : null
+        }
+        selectedCount={chrome.selectedIds.length}
+        listados={bebedouros.length}
+        filtrados={filtradosCount}
+        totais={bebedouros.length}
+        onNew={null}
+        onEdit={handleEditSelected}
+        onDelete={null}
+        searchValue={chrome.searchInput}
+        onSearchChange={chrome.setSearchInput}
+        onSearchApply={chrome.applySearch}
+        searchActive={chrome.searchActive}
+        searchPlaceholder="Buscar bebedouros…"
+        onClearFilters={chrome.clearFilters}
+        filtersActive={chrome.filtersActive}
+        viewMode={inRecord ? "record" : chrome.viewMode}
+        onViewModeChange={onViewModeChange}
+        recordModeAvailable
+        extraToolbar={inRecord ? null : mapaLink}
+        filterRailHint="Cadastro geométrico no mapa; aqui é a operação e o acompanhamento."
+        onConfigureColumns={() => setShowConfigColunas(true)}
+      >
+        {!inRecord ? (
+          <div className="space-y-3">
+            <BebedouroResumoCards bebedouros={bebedouros} historico={historico} alertas={alertas} />
             <div className="overflow-hidden">
               <CadastroBase1Grade
                 rows={bebedouros}
@@ -185,11 +252,13 @@ export default function Bebedouros() {
                 renderCell={renderCell}
                 defaultSortKey="nome"
                 emptyText="Nenhum bebedouro encontrado"
-                onOpen={(item) => setDetalhe(item)}
+                onOpen={(item) => openRecord(item)}
                 searchQuery={chrome.appliedSearch}
                 resetFiltersKey={chrome.resetFiltersKey}
                 onSelectionChange={chrome.onSelectionChange}
                 onFiltersActiveChange={chrome.setFiltersActive}
+                showConfigColunas={showConfigColunas}
+                setShowConfigColunas={setShowConfigColunas}
                 matchesSearch={(item, q) =>
                   `${item.nome} ${item.codigo_interno} ${getPastosAtendidos(item)} ${item.origem_agua}`
                     .toLowerCase()
@@ -197,9 +266,9 @@ export default function Bebedouros() {
                 }
               />
             </div>
-          </CadastroListaChrome>
-        </div>
-      )}
+          </div>
+        ) : null}
+      </CadastroListaChrome>
     </CadastroWorkspace>
   );
 }
