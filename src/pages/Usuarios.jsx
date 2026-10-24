@@ -9,8 +9,8 @@ import {
 } from "@/services/sessionService";
 import { getApiErrorMessage, hasApiErrorCode, API_ERROR_CODES } from "@/apis/_core/ApiError";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { AnimatePresence } from "framer-motion";
 import CadastroListaChrome from "@/components/cadastro/base1/CadastroListaChrome";
+import CadastroRecordHeader from "@/components/cadastro/base1/CadastroRecordHeader";
 import { useCadastroListaChromeState } from "@/hooks/useCadastroListaChromeState";
 import { toast } from "sonner";
 import { getPermissionDisplayName, getUserDisplayName } from "@/lib/userDisplayName";
@@ -121,6 +121,18 @@ export default function Usuarios() {
     await updatePermissaoMutation.mutateAsync(data);
   };
 
+  const closePermForm = () => {
+    setShowForm(false);
+    setEditingUsuario(null);
+    chromePerm.exitRecordView();
+  };
+
+  const closeContaForm = () => {
+    setShowContaForm(false);
+    setEditingConta(null);
+    chromeContas.exitRecordView();
+  };
+
   const handleEdit = (usuario) => {
     const permissao = permissaoDoUsuario(permissoes, usuario.email);
     setEditingUsuario({
@@ -134,6 +146,19 @@ export default function Usuarios() {
       mapa_geral_permissoes: permissao?.mapa_geral_permissoes || {},
     });
     setShowForm(true);
+    chromePerm.setViewMode("record");
+    const sel = usuario.id || usuario.email;
+    if (sel) chromePerm.onSelectionChange([sel]);
+  };
+
+  const openContaForm = (conta) => {
+    setEditingConta(conta ?? null);
+    setShowContaForm(true);
+    chromeContas.setViewMode("record");
+    if (conta) {
+      const id = conta.id || conta.login || conta.email;
+      if (id) chromeContas.onSelectionChange([id]);
+    }
   };
 
   const contaMutation = useMutation({
@@ -178,8 +203,6 @@ export default function Usuarios() {
     }
   };
 
-  const inForm = showForm || showContaForm;
-
   const contasFiltradas = useMemo(() => {
     const q = chromeContas.appliedSearch.trim().toLowerCase();
     if (!q) return contasAcesso.length;
@@ -202,10 +225,7 @@ export default function Usuarios() {
   const handleEditContaSelected = () => {
     const id = chromeContas.selectedIds[0];
     const conta = contasAcesso.find((c) => (c.id || c.login || c.email) === id);
-    if (conta) {
-      setEditingConta(conta);
-      setShowContaForm(true);
-    }
+    if (conta) openContaForm(conta);
   };
 
   const handleEditPermSelected = () => {
@@ -221,123 +241,152 @@ export default function Usuarios() {
 
   const onViewModeContas = useCallback(
     (mode) => {
-      chromeContas.handleViewModeChange(mode, { onOpenRecord: () => handleEditContaSelected() });
+      chromeContas.handleViewModeChange(mode, {
+        onOpenRecord: () => handleEditContaSelected(),
+        onExitRecord: closeContaForm,
+      });
     },
-    [chromeContas, contasAcesso]
+    [chromeContas, handleEditContaSelected, closeContaForm],
   );
 
   const onViewModePerm = useCallback(
     (mode) => {
-      chromePerm.handleViewModeChange(mode, { onOpenRecord: () => handleEditPermSelected() });
+      chromePerm.handleViewModeChange(mode, {
+        onOpenRecord: () => handleEditPermSelected(),
+        onExitRecord: closePermForm,
+      });
     },
-    [chromePerm, usuarios]
+    [chromePerm, handleEditPermSelected, closePermForm],
   );
+
+  const recordNavContas = useMemo(() => {
+    const q = chromeContas.appliedSearch.trim().toLowerCase();
+    if (!q) return contasAcesso;
+    return contasAcesso.filter((conta) => {
+      const login = (conta.login || conta.email || "").toLowerCase();
+      const nome = (conta.nome || conta.full_name || "").toLowerCase();
+      return login.includes(q) || nome.includes(q);
+    });
+  }, [contasAcesso, chromeContas.appliedSearch]);
+
+  const recordNavPerm = useMemo(() => {
+    const q = chromePerm.appliedSearch.trim().toLowerCase();
+    if (!q) return usuarios;
+    return usuarios.filter((usuario) => {
+      const hay = [usuario.full_name, usuario.email, getUserDisplayName(usuario)].filter(Boolean).join(" ").toLowerCase();
+      return hay.includes(q);
+    });
+  }, [usuarios, chromePerm.appliedSearch]);
+
+  const contaRecordIndex = editingConta?.id
+    ? Math.max(
+        0,
+        recordNavContas.findIndex(
+          (c) => (c.id || c.login || c.email) === (editingConta.id || editingConta.login || editingConta.email),
+        ),
+      )
+    : 0;
+
+  const permRecordIndex = editingUsuario?.id
+    ? Math.max(0, recordNavPerm.findIndex((u) => u.id === editingUsuario.id || u.email === editingUsuario.email))
+    : 0;
+
+  const goContaRecord = (index) => {
+    const row = recordNavContas[index];
+    if (row) openContaForm(row);
+  };
+
+  const goPermRecord = (index) => {
+    const row = recordNavPerm[index];
+    if (row) handleEdit(row);
+  };
+
+  const contaDetailTitle = editingConta?.id
+    ? editingConta.nome || editingConta.login || editingConta.email || "Conta MAIKE"
+    : "Nova conta MAIKE";
+
+  const permDetailTitle = editingUsuario?.user_nome || editingUsuario?.full_name || getUserDisplayName(editingUsuario) || "Permissões";
 
   return (
     <CadastroWorkspace
-      mode={inForm ? "detail" : "list"}
-      title={
-        showContaForm
-          ? editingConta?.id
-            ? "Editar conta MAIKE"
-            : "Nova conta MAIKE"
-          : showForm
-            ? "Permissões de usuário"
-            : "Usuários e permissões"
-      }
-      subtitle={
-        inForm
-          ? "Salve para voltar à lista."
-          : "Contas de entrada nativas e permissões de menu por usuário."
-      }
-      onBack={
-        inForm
-          ? () => {
-              setShowForm(false);
-              setShowContaForm(false);
-              setEditingUsuario(null);
-              setEditingConta(null);
-            }
-          : undefined
-      }
+      mode="list"
+      title="Usuários e permissões"
+      subtitle="Contas de entrada nativas e permissões de menu por usuário."
       toolbar={null}
     >
-      {!showForm && !showContaForm && (
-        <>
-          <div className="cadastro-b1 mg-card p-3 mb-2 border-blue-200/80 bg-blue-50/90">
-            <div className="flex gap-3">
-              <div className="text-blue-600 mt-0.5">
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                </svg>
-              </div>
-              <div className="flex-1">
-                <h4 className="font-semibold text-sm text-blue-900 mb-1">Como funciona agora</h4>
-                <ul className="text-xs text-blue-800 space-y-1 list-disc pl-4">
-                  <li>Novos usuários começam com tudo bloqueado por padrão.</li>
-                  <li>Você libera primeiro os módulos do menu.</li>
-                  <li>Depois escolhe tela por tela o que o usuário pode visualizar e fazer.</li>
-                  <li>Também dá para escolher quais telas aparecem no menu inferior do mobile.</li>
-                  <li>Se o usuário não tiver permissão de ação, o sistema bloqueia e mostra um aviso.</li>
-                </ul>
-              </div>
+      {!showForm && !showContaForm ? (
+        <div className="cadastro-b1 mg-card p-3 mb-2 border-blue-200/80 bg-blue-50/90">
+          <div className="flex gap-3">
+            <div className="text-blue-600 mt-0.5">
+              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="flex-1">
+              <h4 className="font-semibold text-sm text-blue-900 mb-1">Como funciona agora</h4>
+              <ul className="text-xs text-blue-800 space-y-1 list-disc pl-4">
+                <li>Novos usuários começam com tudo bloqueado por padrão.</li>
+                <li>Você libera primeiro os módulos do menu.</li>
+                <li>Depois escolhe tela por tela o que o usuário pode visualizar e fazer.</li>
+                <li>Também dá para escolher quais telas aparecem no menu inferior do mobile.</li>
+                <li>Se o usuário não tiver permissão de ação, o sistema bloqueia e mostra um aviso.</li>
+              </ul>
             </div>
           </div>
-        </>
-      )}
+        </div>
+      ) : null}
 
-      <AnimatePresence>
-        {showForm && (
-          <FormularioUsuario
-            onSubmit={handleSubmit}
-            onCancel={() => { setShowForm(false); setEditingUsuario(null); }}
-            initialData={editingUsuario}
-            usuarios={usuarios}
-          />
-        )}
-        {showContaForm && (
-          <FormularioContaAcesso
-            onSubmit={handleContaSubmit}
-            onCancel={() => {
-              setShowContaForm(false);
-              setEditingConta(null);
-            }}
-            initialData={editingConta}
-          />
-        )}
-      </AnimatePresence>
-
-      {!showForm && !showContaForm && (
-        <div className="space-y-3">
-          {contasErro ? (
-            <div className="cadastro-b1 mg-card p-3 text-xs text-amber-800 bg-amber-50 border-amber-200">
-              Não foi possível carregar as contas nativas. Verifique se você está autenticado no backend MAIKE.
-            </div>
-          ) : (
-            <CadastroListaChrome
-              selectedCount={chromeContas.selectedIds.length}
-              listados={contasAcesso.length}
-              filtrados={contasFiltradas}
-              totais={contasAcesso.length}
-              createLabel="Nova conta"
-              onNew={() => {
-                setEditingConta(null);
-                setShowContaForm(true);
-              }}
-              onEdit={handleEditContaSelected}
-              onDelete={null}
-              searchValue={chromeContas.searchInput}
-              onSearchChange={chromeContas.setSearchInput}
-              onSearchApply={chromeContas.applySearch}
-              searchActive={chromeContas.searchActive}
-              searchPlaceholder="Buscar contas…"
-              onConfigureColumns={() => {}}
-              onClearFilters={chromeContas.clearFilters}
-              filtersActive={chromeContas.filtersActive}
-              viewMode={chromeContas.viewMode}
-              onViewModeChange={onViewModeContas}
-              filterRailHint="Login e senha do backend nativo MAIKE."
-            >
+      <div className="space-y-3">
+        {contasErro ? (
+          <div className="cadastro-b1 mg-card p-3 text-xs text-amber-800 bg-amber-50 border-amber-200">
+            Não foi possível carregar as contas nativas. Verifique se você está autenticado no backend MAIKE.
+          </div>
+        ) : (
+          <CadastroListaChrome
+            recordMode={showContaForm}
+            secondaryToolsLocked={showContaForm}
+            recordHeader={
+              showContaForm ? (
+                <CadastroRecordHeader
+                  title={contaDetailTitle}
+                  code={editingConta?.login || editingConta?.email || undefined}
+                  index={contaRecordIndex}
+                  total={recordNavContas.length}
+                  onGo={editingConta?.id ? goContaRecord : undefined}
+                  navDisabled={!editingConta?.id}
+                />
+              ) : null
+            }
+            recordBody={
+              showContaForm ? (
+                <FormularioContaAcesso
+                  onSubmit={handleContaSubmit}
+                  onCancel={closeContaForm}
+                  initialData={editingConta}
+                />
+              ) : null
+            }
+            selectedCount={chromeContas.selectedIds.length}
+            listados={contasAcesso.length}
+            filtrados={contasFiltradas}
+            totais={contasAcesso.length}
+            createLabel="Nova conta"
+            onNew={() => openContaForm(null)}
+            onEdit={handleEditContaSelected}
+            onDelete={null}
+            searchValue={chromeContas.searchInput}
+            onSearchChange={chromeContas.setSearchInput}
+            onSearchApply={chromeContas.applySearch}
+            searchActive={chromeContas.searchActive}
+            searchPlaceholder="Buscar contas…"
+            onConfigureColumns={() => {}}
+            onClearFilters={chromeContas.clearFilters}
+            filtersActive={chromeContas.filtersActive}
+            viewMode={showContaForm ? "record" : chromeContas.viewMode}
+            onViewModeChange={onViewModeContas}
+            filterRailHint="Login e senha do backend nativo MAIKE."
+          >
+            {!showContaForm ? (
               <TabelaContasAcesso
                 chromeLayout
                 contas={contasAcesso}
@@ -345,39 +394,63 @@ export default function Usuarios() {
                 searchQuery={chromeContas.appliedSearch}
                 selectedIds={chromeContas.selectedIds}
                 onSelectionChange={chromeContas.onSelectionChange}
-                onEdit={(conta) => {
-                  setEditingConta(conta);
-                  setShowContaForm(true);
-                }}
+                onEdit={(conta) => openContaForm(conta)}
                 isLoading={contasLoading}
               />
-            </CadastroListaChrome>
-          )}
+            ) : null}
+          </CadastroListaChrome>
+        )}
 
-          <CadastroListaChrome
-            selectedCount={chromePerm.selectedIds.length}
-            listados={usuarios.length}
-            filtrados={permFiltrados}
-            totais={usuarios.length}
-            createLabel="Permissões"
-            onNew={() => {
-              setEditingUsuario(null);
-              setShowForm(true);
-            }}
-            onEdit={handleEditPermSelected}
-            onDelete={handleDeletePermSelected}
-            searchValue={chromePerm.searchInput}
-            onSearchChange={chromePerm.setSearchInput}
-            onSearchApply={chromePerm.applySearch}
-            searchActive={chromePerm.searchActive}
-            searchPlaceholder="Buscar usuários…"
-            onConfigureColumns={() => {}}
-            onClearFilters={chromePerm.clearFilters}
-            filtersActive={chromePerm.filtersActive}
-            viewMode={chromePerm.viewMode}
-            onViewModeChange={onViewModePerm}
-            filterRailHint="Permissões de menu e telas por usuário Base44."
-          >
+        <CadastroListaChrome
+          recordMode={showForm}
+          secondaryToolsLocked={showForm}
+          recordHeader={
+            showForm ? (
+              <CadastroRecordHeader
+                title={permDetailTitle}
+                code={editingUsuario?.email || undefined}
+                index={permRecordIndex}
+                total={recordNavPerm.length}
+                onGo={editingUsuario?.id || editingUsuario?.email ? goPermRecord : undefined}
+                navDisabled={!(editingUsuario?.id || editingUsuario?.email)}
+              />
+            ) : null
+          }
+          recordBody={
+            showForm ? (
+              <FormularioUsuario
+                onSubmit={handleSubmit}
+                onCancel={closePermForm}
+                initialData={editingUsuario}
+                usuarios={usuarios}
+              />
+            ) : null
+          }
+          selectedCount={chromePerm.selectedIds.length}
+          listados={usuarios.length}
+          filtrados={permFiltrados}
+          totais={usuarios.length}
+          createLabel="Permissões"
+          onNew={() => {
+            setEditingUsuario(null);
+            setShowForm(true);
+            chromePerm.setViewMode("record");
+          }}
+          onEdit={handleEditPermSelected}
+          onDelete={handleDeletePermSelected}
+          searchValue={chromePerm.searchInput}
+          onSearchChange={chromePerm.setSearchInput}
+          onSearchApply={chromePerm.applySearch}
+          searchActive={chromePerm.searchActive}
+          searchPlaceholder="Buscar usuários…"
+          onConfigureColumns={() => {}}
+          onClearFilters={chromePerm.clearFilters}
+          filtersActive={chromePerm.filtersActive}
+          viewMode={showForm ? "record" : chromePerm.viewMode}
+          onViewModeChange={onViewModePerm}
+          filterRailHint="Permissões de menu e telas por usuário Base44."
+        >
+          {!showForm ? (
             <TabelaUsuarios
               chromeLayout
               usuarios={usuarios}
@@ -390,9 +463,9 @@ export default function Usuarios() {
               onDelete={handleDelete}
               isLoading={isLoading}
             />
-          </CadastroListaChrome>
-        </div>
-      )}
+          ) : null}
+        </CadastroListaChrome>
+      </div>
     </CadastroWorkspace>
   );
 }

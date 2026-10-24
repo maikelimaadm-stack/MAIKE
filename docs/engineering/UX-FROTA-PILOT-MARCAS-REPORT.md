@@ -203,3 +203,19 @@ Branch `cursor/ux-base1-paridade-pagina-completa-516d` (PR #44):
 ### Verificação (UX-15)
 
 - `npm run test:smoke`, `npm run gate:types`, `npm run gate:source-closure`, `npm run build`
+
+## UX-16 (2026-10-24) — `recordMode` em todos os cadastros com formulário
+
+Branch `cursor/ux-base1-paridade-pagina-completa-516d` (PR #44):
+
+| Página | Mudança |
+|--------|---------|
+| Produtos, Lotes, Setores, Categorias (produto + manejo), Grupos, Tipos, Empresa, Unidades, Locais, Usuários (contas + permissões) | Mesmo padrão de **Marcas/Bebedouros**: `CadastroWorkspace` sempre `mode="list"`; formulário em `recordBody`; `exitRecordView` + alternador Tabela/Registro; `CadastroRecordHeader` com navegação entre registros filtrados |
+
+**Já no padrão (UX-15):** Marcas, Bebedouros.
+
+**Fora de escopo:** `MapaGeral`, `MapaCadastro`, `ConfiguracoesGerais` (sem lista/registro Frota).
+
+### Verificação (UX-16)
+
+- `npm run test:smoke`, `npm run gate:types`, `npm run gate:source-closure`, `npm run build`

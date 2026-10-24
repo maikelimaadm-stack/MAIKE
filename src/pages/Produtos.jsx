@@ -20,7 +20,6 @@ import { emitDeleteDialog } from "@/lib/deleteDialogBus";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Download, Upload, FileSpreadsheet, Loader2, AlertCircle, X, RefreshCw } from "lucide-react";
-import { AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import {
@@ -43,6 +42,7 @@ import {
 
 import CadastroWorkspace from "@/components/cadastro/CadastroWorkspace";
 import CadastroListaChrome from "@/components/cadastro/base1/CadastroListaChrome";
+import CadastroRecordHeader from "@/components/cadastro/base1/CadastroRecordHeader";
 import { useCadastroListaChromeState } from "@/hooks/useCadastroListaChromeState";
 import FormularioProduto from "../components/produtos/FormularioProduto";
 import TabelaProdutos, { PRODUTOS_COLUNAS, getProdutoFieldValue } from "../components/produtos/TabelaProdutos";
@@ -159,6 +159,8 @@ export default function Produtos() {
   const handleEdit = (produto) => {
     setEditingProduto(produto);
     setShowForm(true);
+    chrome.setViewMode("record");
+    if (produto?.id) chrome.onSelectionChange([produto.id]);
   };
 
   const handleDelete = async (id) => {
@@ -281,12 +283,13 @@ export default function Produtos() {
   const closeForm = () => {
     setShowForm(false);
     setEditingProduto(null);
-    chrome.setViewMode("table");
+    chrome.exitRecordView();
   };
 
   const openNew = () => {
     setEditingProduto(null);
     setShowForm(true);
+    chrome.setViewMode("record");
   };
 
   const handleEditSelected = useCallback(() => {
@@ -299,9 +302,15 @@ export default function Produtos() {
     setBulkDeleteSignal((n) => n + 1);
   };
 
-  const onViewModeChange = useCallback((mode) => {
-    chrome.handleViewModeChange(mode, { onOpenRecord: () => handleEditSelected() });
-  }, [chrome, handleEditSelected]);
+  const onViewModeChange = useCallback(
+    (mode) => {
+      chrome.handleViewModeChange(mode, {
+        onOpenRecord: () => handleEditSelected(),
+        onExitRecord: closeForm,
+      });
+    },
+    [chrome, handleEditSelected, closeForm],
+  );
 
   const filtradosCount = useMemo(() => {
     const q = chrome.appliedSearch.trim().toLowerCase();
@@ -315,7 +324,30 @@ export default function Produtos() {
     }).length;
   }, [produtos, chrome.appliedSearch]);
 
-  const detailTitle = editingProduto?.id ? "Editar produto" : "Novo produto";
+  const detailTitle = editingProduto?.id
+    ? editingProduto.nome_produto || "Produto"
+    : "Novo produto";
+
+  const recordNavRows = useMemo(() => {
+    const q = chrome.appliedSearch.trim().toLowerCase();
+    if (!q) return produtos;
+    return produtos.filter((p) => {
+      const hay = [p.nome_produto, p.codigo_interno, p.categoria, p.marca, p.numero_produto]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return hay.includes(q);
+    });
+  }, [produtos, chrome.appliedSearch]);
+
+  const recordIndex = editingProduto?.id
+    ? Math.max(0, recordNavRows.findIndex((p) => p.id === editingProduto.id))
+    : 0;
+
+  const goRecord = (index) => {
+    const row = recordNavRows[index];
+    if (row) handleEdit(row);
+  };
 
   const extraToolbar = (
     <>
@@ -344,66 +376,80 @@ export default function Produtos() {
   return (
     <>
       <CadastroWorkspace
-        mode={showForm ? "detail" : "list"}
-        title={showForm ? detailTitle : "Produtos"}
-        subtitle={
-          showForm
-            ? "Cadastro vinculado à empresa selecionada; salve para voltar à lista."
-            : "Catálogo de produtos — importação CSV, exportação e colunas configuráveis."
-        }
-        onBack={showForm ? closeForm : undefined}
+        mode="list"
+        title="Produtos"
+        subtitle="Catálogo de produtos — importação CSV, exportação e colunas configuráveis."
         toolbar={null}
       >
-        <AnimatePresence mode="wait">
-          {showForm ? (
-            <FormularioProduto
-              key="form"
-              variant="embedded"
-              onSubmit={handleSubmit}
-              onCancel={closeForm}
-              initialData={editingProduto}
-              isEditing={!!editingProduto}
-            />
-          ) : (
-            <CadastroListaChrome
-              key="chrome"
-              selectedCount={chrome.selectedIds.length}
-              listados={produtos.length}
-              filtrados={filtradosCount}
-              totais={produtos.length}
-              onNew={openNew}
-              onEdit={handleEditSelected}
-              onDelete={handleDeleteSelected}
-              searchValue={chrome.searchInput}
-              onSearchChange={chrome.setSearchInput}
-              onSearchApply={chrome.applySearch}
-              searchActive={chrome.searchActive}
-              searchPlaceholder="Buscar produtos…"
-              onConfigureColumns={() => setShowConfigColunas(true)}
-              onExportCsv={() => exportCadastroCsv("produtos.csv", PRODUTOS_COLUNAS, produtos, getProdutoFieldValue)}
-              onClearFilters={chrome.clearFilters}
-              filtersActive={chrome.filtersActive}
-              viewMode={chrome.viewMode}
-              onViewModeChange={onViewModeChange}
-              extraToolbar={extraToolbar}
-            >
-              <TabelaProdutos
-                produtos={produtos}
-                onEdit={handleEdit}
-                onDelete={handleDelete}
-                onPrint={handlePrint}
-                isLoading={isLoading}
-                showConfigColunas={showConfigColunas}
-                setShowConfigColunas={setShowConfigColunas}
-                searchQuery={chrome.appliedSearch}
-                resetFiltersKey={chrome.resetFiltersKey}
-                onSelectionChange={chrome.onSelectionChange}
-                onFiltersActiveChange={chrome.setFiltersActive}
-                bulkDeleteSignal={bulkDeleteSignal}
+        <CadastroListaChrome
+          recordMode={showForm}
+          secondaryToolsLocked={showForm}
+          recordHeader={
+            showForm ? (
+              <CadastroRecordHeader
+                title={detailTitle}
+                code={
+                  editingProduto?.codigo_interno
+                    ? String(editingProduto.codigo_interno)
+                    : editingProduto?.numero_produto != null
+                      ? String(editingProduto.numero_produto)
+                      : undefined
+                }
+                index={recordIndex}
+                total={recordNavRows.length}
+                onGo={editingProduto?.id ? goRecord : undefined}
+                navDisabled={!editingProduto?.id}
               />
-            </CadastroListaChrome>
-          )}
-        </AnimatePresence>
+            ) : null
+          }
+          recordBody={
+            showForm ? (
+              <FormularioProduto
+                variant="embedded"
+                onSubmit={handleSubmit}
+                onCancel={closeForm}
+                initialData={editingProduto}
+                isEditing={!!editingProduto}
+              />
+            ) : null
+          }
+          selectedCount={chrome.selectedIds.length}
+          listados={produtos.length}
+          filtrados={filtradosCount}
+          totais={produtos.length}
+          onNew={openNew}
+          onEdit={handleEditSelected}
+          onDelete={handleDeleteSelected}
+          searchValue={chrome.searchInput}
+          onSearchChange={chrome.setSearchInput}
+          onSearchApply={chrome.applySearch}
+          searchActive={chrome.searchActive}
+          searchPlaceholder="Buscar produtos…"
+          onConfigureColumns={() => setShowConfigColunas(true)}
+          onExportCsv={() => exportCadastroCsv("produtos.csv", PRODUTOS_COLUNAS, produtos, getProdutoFieldValue)}
+          onClearFilters={chrome.clearFilters}
+          filtersActive={chrome.filtersActive}
+          viewMode={showForm ? "record" : chrome.viewMode}
+          onViewModeChange={onViewModeChange}
+          extraToolbar={extraToolbar}
+        >
+          {!showForm ? (
+            <TabelaProdutos
+              produtos={produtos}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+              onPrint={handlePrint}
+              isLoading={isLoading}
+              showConfigColunas={showConfigColunas}
+              setShowConfigColunas={setShowConfigColunas}
+              searchQuery={chrome.appliedSearch}
+              resetFiltersKey={chrome.resetFiltersKey}
+              onSelectionChange={chrome.onSelectionChange}
+              onFiltersActiveChange={chrome.setFiltersActive}
+              bulkDeleteSignal={bulkDeleteSignal}
+            />
+          ) : null}
+        </CadastroListaChrome>
       </CadastroWorkspace>
 
       {/* Modal de Ficha */}

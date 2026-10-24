@@ -9,10 +9,10 @@ import {
 import { getApiErrorMessage, hasApiErrorCode, API_ERROR_CODES } from "@/apis/_core/ApiError";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { AnimatePresence } from "framer-motion";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 import CadastroWorkspace from "@/components/cadastro/CadastroWorkspace";
 import CadastroListaChrome from "@/components/cadastro/base1/CadastroListaChrome";
+import CadastroRecordHeader from "@/components/cadastro/base1/CadastroRecordHeader";
 import { useCadastroListaChromeState } from "@/hooks/useCadastroListaChromeState";
 import TabelaCategoriasManejo, {
   CATEGORIAS_MANEJO_COLUNAS,
@@ -129,17 +129,20 @@ export default function CategoriasManejo() {
   const closeForm = () => {
     setShowForm(false);
     setEditando(null);
-    chrome.setViewMode("table");
+    chrome.exitRecordView();
   };
 
   const openNew = () => {
     setEditando(null);
     setShowForm(true);
+    chrome.setViewMode("record");
   };
 
   const handleEdit = (categoria) => {
     setEditando(categoria);
     setShowForm(true);
+    chrome.setViewMode("record");
+    if (categoria?.id) chrome.onSelectionChange([categoria.id]);
   };
 
   const handleEditSelected = () => {
@@ -173,9 +176,12 @@ export default function CategoriasManejo() {
 
   const onViewModeChange = useCallback(
     (mode) => {
-      chrome.handleViewModeChange(mode, { onOpenRecord: () => handleEditSelected() });
+      chrome.handleViewModeChange(mode, {
+        onOpenRecord: () => handleEditSelected(),
+        onExitRecord: closeForm,
+      });
     },
-    [chrome, handleEditSelected]
+    [chrome, handleEditSelected, closeForm],
   );
 
   const filtradosCount = useMemo(() => {
@@ -209,75 +215,101 @@ export default function CategoriasManejo() {
       }
     : getInitialFormData();
 
-  const detailTitle = editando?.id ? "Editar categoria de manejo" : "Nova categoria de manejo";
+  const detailTitle = editando?.id ? editando.nome || "Categoria" : "Nova categoria de manejo";
+
+  const recordNavRows = useMemo(() => {
+    const q = chrome.appliedSearch.trim().toLowerCase();
+    if (!q) return categorias;
+    return categorias.filter((c) => {
+      const hay = [c.nome, c.sigla, c.raca, c.categoria_oficial].filter(Boolean).join(" ").toLowerCase();
+      return hay.includes(q);
+    });
+  }, [categorias, chrome.appliedSearch]);
+
+  const recordIndex = editando?.id
+    ? Math.max(0, recordNavRows.findIndex((c) => c.id === editando.id))
+    : 0;
+
+  const goRecord = (index) => {
+    const row = recordNavRows[index];
+    if (row) handleEdit(row);
+  };
 
   return (
     <>
       <CadastroWorkspace
-        mode={showForm ? "detail" : "list"}
-        title={showForm ? detailTitle : "Categorias de manejo"}
-        subtitle={
-          showForm
-            ? "Preencha os dados e salve para voltar à lista."
-            : "Categorias de lotes e parâmetros de ganho de peso."
-        }
-        onBack={showForm ? closeForm : undefined}
+        mode="list"
+        title="Categorias de manejo"
+        subtitle="Categorias de lotes e parâmetros de ganho de peso."
         toolbar={null}
       >
-        <AnimatePresence mode="wait">
-          {showForm ? (
-            <FormularioCategoriaManejo
-              key="form"
-              variant="embedded"
-              initialData={formInitialData}
-              isEditing={!!editando}
-              onSubmit={handleSubmit}
-              onCancel={closeForm}
-              categoriasOficiaisDisponiveis={categoriasOficiaisDisponiveis}
-            />
-          ) : (
-            <CadastroListaChrome
-              key="chrome"
-              selectedCount={chrome.selectedIds.length}
-              listados={categorias.length}
-              filtrados={filtradosCount}
-              totais={categorias.length}
-              onNew={openNew}
-              onEdit={handleEditSelected}
-              onDelete={handleDeleteSelected}
-              searchValue={chrome.searchInput}
-              onSearchChange={chrome.setSearchInput}
-              onSearchApply={chrome.applySearch}
-              searchActive={chrome.searchActive}
-              searchPlaceholder="Buscar categorias…"
-              onConfigureColumns={() => setShowConfigColunas(true)}
-              onExportCsv={() =>
-                exportCadastroCsv(
-                  "categorias-manejo.csv",
-                  CATEGORIAS_MANEJO_COLUNAS,
-                  categorias,
-                  getCategoriaManejoFieldValue,
-                )
-              }
-              onClearFilters={chrome.clearFilters}
-              filtersActive={chrome.filtersActive}
-              viewMode={chrome.viewMode}
-              onViewModeChange={onViewModeChange}
-            >
-              <TabelaCategoriasManejo
-                categorias={categorias}
-                onEdit={handleEdit}
-                onDelete={handleRequestDelete}
-                showConfigColunas={showConfigColunas}
-                setShowConfigColunas={setShowConfigColunas}
-                searchQuery={chrome.appliedSearch}
-                resetFiltersKey={chrome.resetFiltersKey}
-                onSelectionChange={chrome.onSelectionChange}
-                onFiltersActiveChange={chrome.setFiltersActive}
+        <CadastroListaChrome
+          recordMode={showForm}
+          secondaryToolsLocked={showForm}
+          recordHeader={
+            showForm ? (
+              <CadastroRecordHeader
+                title={detailTitle}
+                code={editando?.sigla ? String(editando.sigla) : undefined}
+                index={recordIndex}
+                total={recordNavRows.length}
+                onGo={editando?.id ? goRecord : undefined}
+                navDisabled={!editando?.id}
               />
-            </CadastroListaChrome>
-          )}
-        </AnimatePresence>
+            ) : null
+          }
+          recordBody={
+            showForm ? (
+              <FormularioCategoriaManejo
+                variant="embedded"
+                initialData={formInitialData}
+                isEditing={!!editando}
+                onSubmit={handleSubmit}
+                onCancel={closeForm}
+                categoriasOficiaisDisponiveis={categoriasOficiaisDisponiveis}
+              />
+            ) : null
+          }
+          selectedCount={chrome.selectedIds.length}
+          listados={categorias.length}
+          filtrados={filtradosCount}
+          totais={categorias.length}
+          onNew={openNew}
+          onEdit={handleEditSelected}
+          onDelete={handleDeleteSelected}
+          searchValue={chrome.searchInput}
+          onSearchChange={chrome.setSearchInput}
+          onSearchApply={chrome.applySearch}
+          searchActive={chrome.searchActive}
+          searchPlaceholder="Buscar categorias…"
+          onConfigureColumns={() => setShowConfigColunas(true)}
+          onExportCsv={() =>
+            exportCadastroCsv(
+              "categorias-manejo.csv",
+              CATEGORIAS_MANEJO_COLUNAS,
+              categorias,
+              getCategoriaManejoFieldValue,
+            )
+          }
+          onClearFilters={chrome.clearFilters}
+          filtersActive={chrome.filtersActive}
+          viewMode={showForm ? "record" : chrome.viewMode}
+          onViewModeChange={onViewModeChange}
+        >
+          {!showForm ? (
+            <TabelaCategoriasManejo
+              categorias={categorias}
+              onEdit={handleEdit}
+              onDelete={handleRequestDelete}
+              showConfigColunas={showConfigColunas}
+              setShowConfigColunas={setShowConfigColunas}
+              searchQuery={chrome.appliedSearch}
+              resetFiltersKey={chrome.resetFiltersKey}
+              onSelectionChange={chrome.onSelectionChange}
+              onFiltersActiveChange={chrome.setFiltersActive}
+            />
+          ) : null}
+        </CadastroListaChrome>
       </CadastroWorkspace>
 
       <ConfirmDialog

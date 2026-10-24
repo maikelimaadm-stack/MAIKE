@@ -1,8 +1,8 @@
 import React, { useCallback, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { AnimatePresence } from "framer-motion";
 import FormularioLote from "@/components/lotes/FormularioLote";
+import CadastroRecordHeader from "@/components/cadastro/base1/CadastroRecordHeader";
 import TabelaLotes from "@/components/lotes/TabelaLotes";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 import RegistroAnexosDialog from "@/components/common/RegistroAnexosDialog";
@@ -69,7 +69,7 @@ export default function CadastroLotes() {
       await invalidateLotes();
       setShowForm(false);
       setEditingLote(null);
-      chrome.setViewMode("table");
+      chrome.exitRecordView();
       toast.success("Lote cadastrado!");
     },
     onError: (err) => toast.error(getApiErrorMessage(err, "Não foi possível salvar o lote.")),
@@ -81,7 +81,7 @@ export default function CadastroLotes() {
       await invalidateLotes();
       setShowForm(false);
       setEditingLote(null);
-      chrome.setViewMode("table");
+      chrome.exitRecordView();
       toast.success("Lote atualizado!");
     },
     onError: (err) => toast.error(getApiErrorMessage(err, "Não foi possível atualizar o lote.")),
@@ -96,7 +96,7 @@ export default function CadastroLotes() {
     setEditingLote(null);
     setPendingAttachments([]);
     setNewRecordAttachmentsOpen(false);
-    chrome.setViewMode("table");
+    chrome.exitRecordView();
   };
 
   const openNew = () => {
@@ -104,6 +104,7 @@ export default function CadastroLotes() {
     setPendingAttachments([]);
     setFormVersion((v) => v + 1);
     setShowForm(true);
+    chrome.setViewMode("record");
   };
 
   const handleSubmit = (data) => {
@@ -119,6 +120,8 @@ export default function CadastroLotes() {
     setEditingLote(lote);
     setFormVersion((v) => v + 1);
     setShowForm(true);
+    chrome.setViewMode("record");
+    if (lote?.id) chrome.onSelectionChange([lote.id]);
   };
 
   const handleEditSelected = () => {
@@ -161,9 +164,12 @@ export default function CadastroLotes() {
 
   const onViewModeChange = useCallback(
     (mode) => {
-      chrome.handleViewModeChange(mode, { onOpenRecord: () => handleEditSelected() });
+      chrome.handleViewModeChange(mode, {
+        onOpenRecord: () => handleEditSelected(),
+        onExitRecord: closeForm,
+      });
     },
-    [chrome, lotes]
+    [chrome, handleEditSelected, closeForm],
   );
 
   const filtradosCount = useMemo(() => {
@@ -190,8 +196,39 @@ export default function CadastroLotes() {
   const detailTitle = editingLote?.id
     ? editingLote._isDuplicate
       ? "Duplicar lote"
-      : "Editar lote"
+      : editingLote.nome || editingLote.numero_lote || "Lote"
     : "Novo lote";
+
+  const recordNavRows = useMemo(() => {
+    const q = chrome.appliedSearch.trim().toLowerCase();
+    if (!q) return lotes;
+    return lotes.filter((lote) => {
+      const hay = [
+        lote.numero_lote,
+        lote.nome,
+        lote.identificador_nome,
+        lote.identificador_sigla,
+        lote.categoria,
+        lote.status,
+        lote.area_entrada_nome,
+        lote.area_atual_nome,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return hay.includes(q);
+    });
+  }, [lotes, chrome.appliedSearch]);
+
+  const recordIndex =
+    editingLote?.id && !editingLote._isDuplicate
+      ? Math.max(0, recordNavRows.findIndex((l) => l.id === editingLote.id))
+      : 0;
+
+  const goRecord = (index) => {
+    const row = recordNavRows[index];
+    if (row) handleEdit(row);
+  };
 
   const attachLabel =
     editingLote?.nome || editingLote?.numero_lote || (showForm && !editingLote?.id ? "Novo lote" : "Lote");
@@ -199,67 +236,76 @@ export default function CadastroLotes() {
   return (
     <>
       <CadastroWorkspace
-        mode={showForm ? "detail" : "list"}
-        title={showForm ? detailTitle : "Cadastro de Lotes"}
-        subtitle={
-          showForm
-            ? "Preencha os dados do lote e salve para voltar à lista."
-            : "Lotes pecuários da empresa selecionada — busca global e filtros por coluna na grade."
-        }
-        onBack={showForm ? closeForm : undefined}
+        mode="list"
+        title="Cadastro de Lotes"
+        subtitle="Lotes pecuários da empresa selecionada — busca global e filtros por coluna na grade."
       >
-        <AnimatePresence mode="wait">
-          {showForm ? (
-            <FormularioLote
-              key={`form-${formVersion}-${editingLote?.id || "new"}`}
-              variant="embedded"
-              initialData={editingLote}
-              isEditing={!!editingLote?.id && !editingLote?._isDuplicate}
-              onSubmit={handleSubmit}
-              onCancel={closeForm}
-              onAttachClick={() =>
-                editingLote?.id ? setAttachmentsRecord(editingLote) : setNewRecordAttachmentsOpen(true)
-              }
-              attachDisabled={false}
-            />
-          ) : (
-            <CadastroListaChrome
-              key="chrome"
-              selectedCount={chrome.selectedIds.length}
-              listados={lotes.length}
-              filtrados={filtradosCount}
-              totais={lotes.length}
-              createLabel="Novo"
-              onNew={openNew}
-              onEdit={handleEditSelected}
-              onDelete={handleDeleteSelected}
-              searchValue={chrome.searchInput}
-              onSearchChange={chrome.setSearchInput}
-              onSearchApply={chrome.applySearch}
-              searchActive={chrome.searchActive}
-              searchPlaceholder="Buscar lotes…"
-              onConfigureColumns={() => setShowConfigColunas(true)}
-              onClearFilters={chrome.clearFilters}
-              filtersActive={chrome.filtersActive}
-              viewMode={chrome.viewMode}
-              onViewModeChange={onViewModeChange}
-              recordModeAvailable
-            >
-              <TabelaLotes
-                lotes={lotes}
-                areas={areas}
-                onEdit={handleEdit}
-                isLoading={isLoading}
-                showConfigColunas={showConfigColunas}
-                setShowConfigColunas={setShowConfigColunas}
-                searchTerm={chrome.appliedSearch}
-                resetFiltersKey={chrome.resetFiltersKey}
-                onSelectionChange={chrome.onSelectionChange}
-                onFiltersActiveChange={chrome.setFiltersActive}
+        <CadastroListaChrome
+          recordMode={showForm}
+          secondaryToolsLocked={showForm}
+          recordHeader={
+            showForm ? (
+              <CadastroRecordHeader
+                title={detailTitle}
+                code={editingLote?.numero_lote ? String(editingLote.numero_lote) : undefined}
+                index={recordIndex}
+                total={recordNavRows.length}
+                onGo={editingLote?.id && !editingLote._isDuplicate ? goRecord : undefined}
+                navDisabled={!editingLote?.id || editingLote._isDuplicate}
               />
-            </CadastroListaChrome>
-          )}
-        </AnimatePresence>
+            ) : null
+          }
+          recordBody={
+            showForm ? (
+              <FormularioLote
+                key={`form-${formVersion}-${editingLote?.id || "new"}`}
+                variant="embedded"
+                initialData={editingLote}
+                isEditing={!!editingLote?.id && !editingLote?._isDuplicate}
+                onSubmit={handleSubmit}
+                onCancel={closeForm}
+                onAttachClick={() =>
+                  editingLote?.id ? setAttachmentsRecord(editingLote) : setNewRecordAttachmentsOpen(true)
+                }
+                attachDisabled={false}
+              />
+            ) : null
+          }
+          selectedCount={chrome.selectedIds.length}
+          listados={lotes.length}
+          filtrados={filtradosCount}
+          totais={lotes.length}
+          createLabel="Novo"
+          onNew={openNew}
+          onEdit={handleEditSelected}
+          onDelete={handleDeleteSelected}
+          searchValue={chrome.searchInput}
+          onSearchChange={chrome.setSearchInput}
+          onSearchApply={chrome.applySearch}
+          searchActive={chrome.searchActive}
+          searchPlaceholder="Buscar lotes…"
+          onConfigureColumns={() => setShowConfigColunas(true)}
+          onClearFilters={chrome.clearFilters}
+          filtersActive={chrome.filtersActive}
+          viewMode={showForm ? "record" : chrome.viewMode}
+          onViewModeChange={onViewModeChange}
+          recordModeAvailable
+        >
+          {!showForm ? (
+            <TabelaLotes
+              lotes={lotes}
+              areas={areas}
+              onEdit={handleEdit}
+              isLoading={isLoading}
+              showConfigColunas={showConfigColunas}
+              setShowConfigColunas={setShowConfigColunas}
+              searchTerm={chrome.appliedSearch}
+              resetFiltersKey={chrome.resetFiltersKey}
+              onSelectionChange={chrome.onSelectionChange}
+              onFiltersActiveChange={chrome.setFiltersActive}
+            />
+          ) : null}
+        </CadastroListaChrome>
       </CadastroWorkspace>
 
       <RegistroAnexosDialog
