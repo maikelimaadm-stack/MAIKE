@@ -140,7 +140,7 @@ export default function CadastroListaChrome({
   const showAttachControl = Boolean(onAttach ?? attachDisabledReason);
 
   const rightTools = (
-    <div className="mg-toolbar__right">
+    <div className="ml-auto flex items-center gap-1.5 flex-wrap">
       {showAttachControl ? (
         <IconBtn
           aria-label="Anexos"
@@ -184,8 +184,13 @@ export default function CadastroListaChrome({
     </div>
   );
 
+  const listBodyClass =
+    viewMode === "cards"
+      ? "mg-shell__scroll min-h-0 flex-1 p-2.5"
+      : "flex min-h-0 flex-1 flex-col";
+
   return (
-    <div className="cadastro-b1" data-testid="cadastro-lista-chrome">
+    <div className="flex min-h-0 flex-1 flex-col gap-2" data-testid="cadastro-lista-chrome">
       <div className="mg-toolbar mg-card flex-wrap no-print">
         {recordMode ? (
           recordToolbar ?? null
@@ -223,10 +228,14 @@ export default function CadastroListaChrome({
       </div>
 
       {recordMode ? (
-        <div className="mg-shell mg-shell--fill min-h-0 flex-1 flex flex-col">
+        <>
           {recordHeader}
-          <div className="mg-form-scroll mg-shell__scroll min-h-0 flex-1 p-2">{recordBody}</div>
-        </div>
+          <div className="flex min-h-0 flex-1 gap-2">
+            <div className="mg-shell mg-shell--fill min-h-0 min-w-0 flex-1">
+              <div className="mg-form-scroll mg-shell__scroll min-h-0 flex-1 p-2">{recordBody}</div>
+            </div>
+          </div>
+        </>
       ) : null}
 
       {!recordMode ? (
@@ -290,8 +299,9 @@ export default function CadastroListaChrome({
       ) : null}
 
       {!recordMode ? (
-      <div className="mg-shell mg-shell--table mg-shell--fill min-h-0 flex-1">
-        <div className="mg-shell__scroll mg-shell__body min-h-0 flex-1">{children}</div>
+      <div className="flex min-h-0 flex-1 gap-2">
+        <div className="mg-shell mg-shell--fill min-h-0 min-w-0 flex-1">
+          <div className={listBodyClass}>{children}</div>
         <div className="mg-summary no-print">
           <div className="mg-summary__counts">
             <span className="mg-summary__item">Selecionados: {selectedCount}</span>
@@ -327,6 +337,7 @@ export default function CadastroListaChrome({
               ) : null}
             </span>
           ) : null}
+        </div>
         </div>
       </div>
       ) : null}

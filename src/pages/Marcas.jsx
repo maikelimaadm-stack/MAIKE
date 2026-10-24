@@ -174,12 +174,7 @@ export default function Marcas() {
 
   return (
     <>
-      <CadastroWorkspace
-        mode="list"
-        title="Marcas"
-        subtitle="Marcas de produto vinculadas à empresa selecionada."
-        toolbar={null}
-      >
+      <CadastroWorkspace mode="list" title="Marcas" pageLayout="base1-list">
         <CadastroListaChrome
           recordMode={showForm}
           secondaryToolsLocked={showForm}

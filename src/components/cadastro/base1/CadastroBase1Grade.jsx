@@ -434,7 +434,6 @@ export default function CadastroBase1Grade({
   if (viewMode === "cards") {
     return (
       <>
-        <div className="p-2.5">
         <Base1Cards
           rows={visibleRows}
           columns={dataCols}
@@ -451,7 +450,6 @@ export default function CadastroBase1Grade({
           codeColId={cardsCodeColId}
           emptyText={emptyText}
         />
-        </div>
         {dataCols.map((c) => renderFilterPopover(c.id))}
       </>
     );

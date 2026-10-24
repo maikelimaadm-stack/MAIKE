@@ -2,6 +2,20 @@
  * Tokens e superfícies do Modelo Base1 (referência CONTROLE-DE-ESTOQUE).
  * Escopo: `.cadastro-b1` — não altera Mapa Geral nem telas legadas.
  */
+.cadastro-b1.cadastro-b1--full-page {
+  height: 100%;
+  min-height: 0;
+  padding: 8px;
+  box-sizing: border-box;
+  background: #f0f2f5;
+}
+
+@media (min-width: 768px) {
+  .cadastro-b1.cadastro-b1--full-page {
+    padding: 8px 12px;
+  }
+}
+
 .cadastro-b1 {
   --mg-accent: #40de63;
   --mg-accent-hover: #36c956;
@@ -212,6 +226,10 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
+}
+
+.cadastro-b1 .mg-shell--fill > .mg-summary {
+  flex-shrink: 0;
 }
 
 .cadastro-b1 .mg-shell__body,

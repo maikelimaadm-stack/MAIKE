@@ -295,3 +295,22 @@ Branch `cursor/ux-base1-paridade-marcas-516d` (inclui merge de UX-18 / PR #47 qu
 ### Verificação (UX-19)
 
 - `npm run test:smoke`, `npm run gate:types`, `npm run gate:source-closure`, `npm run build`
+
+## UX-20 (2026-10-24) — Tela inteira Marcas = inventário frota/equipamentos (DOM Base1List)
+
+Branch `cursor/ux-base1-marcas-tela-inteira-516d` (continua UX-19 / PR #48):
+
+| Lacuna (só CSS; árvore DOM diferente do MG) | Correção |
+|---------------------------------------------|----------|
+| Cartão extra de título/subtítulo acima da toolbar (não existe no `ResourceList` / `Base1List`) | `CadastroWorkspace` `pageLayout="base1-list"`: sem header mg-card; título só em `sr-only`; fundo `#f0f2f5` e preenchimento `h-full` |
+| `cadastro-b1` aninhado + padding `p-3/md:p-4` deslocando a pilha | Um único `.cadastro-b1--full-page`; `CadastroListaChrome` raiz = `flex flex-col gap-2` (sem segunda classe escopo) |
+| Corpo lista: `mg-shell--table` + `mg-shell__body` (referência usa `mg-shell--fill` + coluna flex / `mg-shell__scroll` só em cards) | Lista: `flex → mg-shell--fill →` tabela em `flex flex-col` ou cards em `mg-shell__scroll p-2.5`; rodapé `mg-summary` filho direto do shell |
+| Registro: bookmark dentro do shell branco | `CadastroRecordHeader` fora do `mg-shell` (toolbar → bookmark → shell formulário), como camadas do MG |
+| Toolbar direita com gap largo | `ml-auto flex gap-1.5` (paridade `rightSlot` do `Base1List`) |
+| Cards com `p-2.5` duplicado | Padding único no scroll do chrome; removido wrapper extra em `CadastroBase1Grade` (modo cards) |
+
+**Escopo:** piloto **Marcas** (`pageLayout="base1-list"`). Demais cadastros mantêm `pageLayout` padrão até validação.
+
+### Verificação (UX-20)
+
+- `npm run test:smoke`, `npm run gate:types`, `npm run gate:source-closure`, `npm run build`
