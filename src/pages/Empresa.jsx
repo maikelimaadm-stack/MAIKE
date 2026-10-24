@@ -1,10 +1,10 @@
 import React, { useCallback, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 import CadastroWorkspace from "@/components/cadastro/CadastroWorkspace";
 import CadastroListaChrome from "@/components/cadastro/base1/CadastroListaChrome";
+import CadastroRecordHeader from "@/components/cadastro/base1/CadastroRecordHeader";
 import { useCadastroListaChromeState } from "@/hooks/useCadastroListaChromeState";
 import FormularioEmpresa from "../components/empresa/FormularioEmpresa";
 import TabelaEmpresas, { EMPRESAS_COLUNAS, getEmpresaFieldValue } from "../components/empresa/TabelaEmpresas";
@@ -61,12 +61,13 @@ export default function Empresa() {
   const closeForm = () => {
     setShowForm(false);
     setEditingEmpresa(null);
-    chrome.setViewMode("table");
+    chrome.exitRecordView();
   };
 
   const openNew = () => {
     setEditingEmpresa(null);
     setShowForm(true);
+    chrome.setViewMode("record");
   };
 
   const handleSubmit = (data) => {
@@ -77,6 +78,8 @@ export default function Empresa() {
   const handleEdit = (empresa) => {
     setEditingEmpresa(empresa);
     setShowForm(true);
+    chrome.setViewMode("record");
+    if (empresa?.id) chrome.onSelectionChange([empresa.id]);
   };
 
   const handleEditSelected = () => {
@@ -107,9 +110,12 @@ export default function Empresa() {
 
   const onViewModeChange = useCallback(
     (mode) => {
-      chrome.handleViewModeChange(mode, { onOpenRecord: () => handleEditSelected() });
+      chrome.handleViewModeChange(mode, {
+        onOpenRecord: () => handleEditSelected(),
+        onExitRecord: closeForm,
+      });
     },
-    [chrome, handleEditSelected]
+    [chrome, handleEditSelected, closeForm],
   );
 
   const filtradosCount = useMemo(() => {
@@ -124,70 +130,99 @@ export default function Empresa() {
     }).length;
   }, [empresas, chrome.appliedSearch]);
 
-  const detailTitle = editingEmpresa?.id ? "Editar empresa" : "Nova empresa";
+  const detailTitle = editingEmpresa?.id ? editingEmpresa.nome || editingEmpresa.apelido || "Empresa" : "Nova empresa";
+
+  const recordNavRows = useMemo(() => {
+    const q = chrome.appliedSearch.trim().toLowerCase();
+    if (!q) return empresas;
+    return empresas.filter((e) => {
+      const hay = [e.nome, e.apelido, e.cidade, e.cpf, e.cnpj, e.email]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return hay.includes(q);
+    });
+  }, [empresas, chrome.appliedSearch]);
+
+  const recordIndex = editingEmpresa?.id
+    ? Math.max(0, recordNavRows.findIndex((e) => e.id === editingEmpresa.id))
+    : 0;
+
+  const goRecord = (index) => {
+    const row = recordNavRows[index];
+    if (row) handleEdit(row);
+  };
 
   return (
     <>
       <CadastroWorkspace
-        mode={showForm ? "detail" : "list"}
-        title={showForm ? detailTitle : "Empresas"}
-        subtitle={
-          showForm
-            ? "Preencha os dados e salve para voltar à lista."
-            : "Cadastro de empresas (fazendas) vinculadas ao tenant."
-        }
-        onBack={showForm ? closeForm : undefined}
+        mode="list"
+        title="Empresas"
+        subtitle="Cadastro de empresas (fazendas) vinculadas ao tenant."
         toolbar={null}
       >
-        <AnimatePresence mode="wait">
-          {showForm ? (
-            <FormularioEmpresa
-              key="form"
-              variant="embedded"
-              onSubmit={handleSubmit}
-              onCancel={closeForm}
-              initialData={editingEmpresa}
-              isEditing={!!editingEmpresa}
-            />
-          ) : (
-            <CadastroListaChrome
-              key="chrome"
-              selectedCount={chrome.selectedIds.length}
-              listados={empresas.length}
-              filtrados={filtradosCount}
-              totais={empresas.length}
-              createLabel="Novo"
-              onNew={openNew}
-              onEdit={handleEditSelected}
-              onDelete={handleDeleteSelected}
-              searchValue={chrome.searchInput}
-              onSearchChange={chrome.setSearchInput}
-              onSearchApply={chrome.applySearch}
-              searchActive={chrome.searchActive}
-              searchPlaceholder="Buscar empresas…"
-              onConfigureColumns={() => setShowConfigColunas(true)}
-              onExportCsv={() => exportCadastroCsv("empresas.csv", EMPRESAS_COLUNAS, empresas, getEmpresaFieldValue)}
-              onClearFilters={chrome.clearFilters}
-              filtersActive={chrome.filtersActive}
-              viewMode={chrome.viewMode}
-              onViewModeChange={onViewModeChange}
-            >
-              <TabelaEmpresas
-                empresas={empresas}
-                onEdit={handleEdit}
-                onDelete={(id) => handleRequestDelete(id)}
-                isLoading={isLoading}
-                chromeLayout
-                showConfigColunas={showConfigColunas}
-                setShowConfigColunas={setShowConfigColunas}
-                searchQuery={chrome.appliedSearch}
-                resetFiltersKey={chrome.resetFiltersKey}
-                onSelectionChange={chrome.onSelectionChange}
-                onFiltersActiveChange={chrome.setFiltersActive}
+        <CadastroListaChrome
+          recordMode={showForm}
+          secondaryToolsLocked={showForm}
+          recordHeader={
+            showForm ? (
+              <CadastroRecordHeader
+                title={detailTitle}
+                code={editingEmpresa?.cnpj || editingEmpresa?.cpf || undefined}
+                index={recordIndex}
+                total={recordNavRows.length}
+                onGo={editingEmpresa?.id ? goRecord : undefined}
+                navDisabled={!editingEmpresa?.id}
               />
-            </CadastroListaChrome>
-          )}
-        </AnimatePresence>
+            ) : null
+          }
+          recordBody={
+            showForm ? (
+              <FormularioEmpresa
+                variant="embedded"
+                onSubmit={handleSubmit}
+                onCancel={closeForm}
+                initialData={editingEmpresa}
+                isEditing={!!editingEmpresa}
+              />
+            ) : null
+          }
+          selectedCount={chrome.selectedIds.length}
+          listados={empresas.length}
+          filtrados={filtradosCount}
+          totais={empresas.length}
+          createLabel="Novo"
+          onNew={openNew}
+          onEdit={handleEditSelected}
+          onDelete={handleDeleteSelected}
+          searchValue={chrome.searchInput}
+          onSearchChange={chrome.setSearchInput}
+          onSearchApply={chrome.applySearch}
+          searchActive={chrome.searchActive}
+          searchPlaceholder="Buscar empresas…"
+          onConfigureColumns={() => setShowConfigColunas(true)}
+          onExportCsv={() => exportCadastroCsv("empresas.csv", EMPRESAS_COLUNAS, empresas, getEmpresaFieldValue)}
+          onClearFilters={chrome.clearFilters}
+          filtersActive={chrome.filtersActive}
+          viewMode={showForm ? "record" : chrome.viewMode}
+          onViewModeChange={onViewModeChange}
+        >
+          {!showForm ? (
+            <TabelaEmpresas
+              empresas={empresas}
+              onEdit={handleEdit}
+              onDelete={(id) => handleRequestDelete(id)}
+              isLoading={isLoading}
+              chromeLayout
+              showConfigColunas={showConfigColunas}
+              setShowConfigColunas={setShowConfigColunas}
+              searchQuery={chrome.appliedSearch}
+              resetFiltersKey={chrome.resetFiltersKey}
+              onSelectionChange={chrome.onSelectionChange}
+              onFiltersActiveChange={chrome.setFiltersActive}
+            />
+          ) : null}
+        </CadastroListaChrome>
       </CadastroWorkspace>
 
       <ConfirmDialog

@@ -2,8 +2,8 @@ import React, { useCallback, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Download } from "lucide-react";
 import { toast } from "sonner";
-import { AnimatePresence } from "framer-motion";
 import FormularioGrupoAtividade from "@/components/grupos-atividades/FormularioGrupoAtividade";
+import CadastroRecordHeader from "@/components/cadastro/base1/CadastroRecordHeader";
 import TabelaGruposAtividades from "@/components/grupos-atividades/TabelaGruposAtividades";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 import CadastroWorkspace from "@/components/cadastro/CadastroWorkspace";
@@ -49,12 +49,13 @@ export default function GruposAtividades() {
   const closeForm = () => {
     setShowForm(false);
     setEditingGrupo(null);
-    chrome.setViewMode("table");
+    chrome.exitRecordView();
   };
 
   const openNew = () => {
     setEditingGrupo(null);
     setShowForm(true);
+    chrome.setViewMode("record");
   };
 
   const handleSubmit = (data) => {
@@ -68,6 +69,8 @@ export default function GruposAtividades() {
   const handleEdit = (grupo) => {
     setEditingGrupo(grupo);
     setShowForm(true);
+    chrome.setViewMode("record");
+    if (grupo?.id) chrome.onSelectionChange([grupo.id]);
   };
 
   const handleEditSelected = () => {
@@ -133,9 +136,12 @@ export default function GruposAtividades() {
 
   const onViewModeChange = useCallback(
     (mode) => {
-      chrome.handleViewModeChange(mode, { onOpenRecord: () => handleEditSelected() });
+      chrome.handleViewModeChange(mode, {
+        onOpenRecord: () => handleEditSelected(),
+        onExitRecord: closeForm,
+      });
     },
-    [chrome, handleEditSelected]
+    [chrome, handleEditSelected, closeForm],
   );
 
   const filtradosCount = useMemo(() => {
@@ -147,7 +153,25 @@ export default function GruposAtividades() {
     }).length;
   }, [grupos, chrome.appliedSearch]);
 
-  const detailTitle = editingGrupo?.id ? "Editar grupo de atividades" : "Novo grupo de atividades";
+  const detailTitle = editingGrupo?.id ? editingGrupo.nome_grupo || "Grupo" : "Novo grupo de atividades";
+
+  const recordNavRows = useMemo(() => {
+    const q = chrome.appliedSearch.trim().toLowerCase();
+    if (!q) return grupos;
+    return grupos.filter((g) => {
+      const hay = [g.nome_grupo, g.descricao, g.observacoes].filter(Boolean).join(" ").toLowerCase();
+      return hay.includes(q);
+    });
+  }, [grupos, chrome.appliedSearch]);
+
+  const recordIndex = editingGrupo?.id
+    ? Math.max(0, recordNavRows.findIndex((g) => g.id === editingGrupo.id))
+    : 0;
+
+  const goRecord = (index) => {
+    const row = recordNavRows[index];
+    if (row) handleEdit(row);
+  };
 
   const extraToolbar = (
     <button type="button" className="tb-btn tb-btn-gray" onClick={handleExport}>
@@ -159,63 +183,70 @@ export default function GruposAtividades() {
   return (
     <>
       <CadastroWorkspace
-        mode={showForm ? "detail" : "list"}
-        title={showForm ? detailTitle : "Grupos de atividades"}
-        subtitle={
-          showForm
-            ? "Preencha os dados e salve para voltar à lista."
-            : "Agrupamento de tipos de tarefa do mapa e do manejo."
-        }
-        onBack={showForm ? closeForm : undefined}
+        mode="list"
+        title="Grupos de atividades"
+        subtitle="Agrupamento de tipos de tarefa do mapa e do manejo."
         toolbar={null}
       >
-        <AnimatePresence mode="wait">
-          {showForm ? (
-            <FormularioGrupoAtividade
-              key="form"
-              variant="embedded"
-              initialData={editingGrupo}
-              isEditing={!!editingGrupo}
-              onSubmit={handleSubmit}
-              onCancel={closeForm}
-            />
-          ) : (
-            <CadastroListaChrome
-              key="chrome"
-              selectedCount={chrome.selectedIds.length}
-              listados={grupos.length}
-              filtrados={filtradosCount}
-              totais={grupos.length}
-              onNew={openNew}
-              onEdit={handleEditSelected}
-              onDelete={handleDeleteSelected}
-              searchValue={chrome.searchInput}
-              onSearchChange={chrome.setSearchInput}
-              onSearchApply={chrome.applySearch}
-              searchActive={chrome.searchActive}
-              searchPlaceholder="Buscar grupos…"
-              onConfigureColumns={() => setShowConfigColunas(true)}
-              onExportCsv={handleExport}
-              onClearFilters={chrome.clearFilters}
-              filtersActive={chrome.filtersActive}
-              viewMode={chrome.viewMode}
-              onViewModeChange={onViewModeChange}
-              extraToolbar={extraToolbar}
-            >
-              <TabelaGruposAtividades
-                grupos={grupos}
-                onEdit={handleEdit}
-                onDelete={handleRequestDelete}
-                showConfigColunas={showConfigColunas}
-                setShowConfigColunas={setShowConfigColunas}
-                searchQuery={chrome.appliedSearch}
-                resetFiltersKey={chrome.resetFiltersKey}
-                onSelectionChange={chrome.onSelectionChange}
-                onFiltersActiveChange={chrome.setFiltersActive}
+        <CadastroListaChrome
+          recordMode={showForm}
+          secondaryToolsLocked={showForm}
+          recordHeader={
+            showForm ? (
+              <CadastroRecordHeader
+                title={detailTitle}
+                index={recordIndex}
+                total={recordNavRows.length}
+                onGo={editingGrupo?.id ? goRecord : undefined}
+                navDisabled={!editingGrupo?.id}
               />
-            </CadastroListaChrome>
-          )}
-        </AnimatePresence>
+            ) : null
+          }
+          recordBody={
+            showForm ? (
+              <FormularioGrupoAtividade
+                variant="embedded"
+                initialData={editingGrupo}
+                isEditing={!!editingGrupo}
+                onSubmit={handleSubmit}
+                onCancel={closeForm}
+              />
+            ) : null
+          }
+          selectedCount={chrome.selectedIds.length}
+          listados={grupos.length}
+          filtrados={filtradosCount}
+          totais={grupos.length}
+          onNew={openNew}
+          onEdit={handleEditSelected}
+          onDelete={handleDeleteSelected}
+          searchValue={chrome.searchInput}
+          onSearchChange={chrome.setSearchInput}
+          onSearchApply={chrome.applySearch}
+          searchActive={chrome.searchActive}
+          searchPlaceholder="Buscar grupos…"
+          onConfigureColumns={() => setShowConfigColunas(true)}
+          onExportCsv={handleExport}
+          onClearFilters={chrome.clearFilters}
+          filtersActive={chrome.filtersActive}
+          viewMode={showForm ? "record" : chrome.viewMode}
+          onViewModeChange={onViewModeChange}
+          extraToolbar={extraToolbar}
+        >
+          {!showForm ? (
+            <TabelaGruposAtividades
+              grupos={grupos}
+              onEdit={handleEdit}
+              onDelete={handleRequestDelete}
+              showConfigColunas={showConfigColunas}
+              setShowConfigColunas={setShowConfigColunas}
+              searchQuery={chrome.appliedSearch}
+              resetFiltersKey={chrome.resetFiltersKey}
+              onSelectionChange={chrome.onSelectionChange}
+              onFiltersActiveChange={chrome.setFiltersActive}
+            />
+          ) : null}
+        </CadastroListaChrome>
       </CadastroWorkspace>
 
       <ConfirmDialog

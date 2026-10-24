@@ -3,10 +3,10 @@ import { listarMarcasDaEmpresa, criarMarca, atualizarMarca, excluirMarcas } from
 import { getApiErrorMessage } from "@/apis/_core/ApiError";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { AnimatePresence } from "framer-motion";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 import CadastroWorkspace from "@/components/cadastro/CadastroWorkspace";
 import CadastroListaChrome from "@/components/cadastro/base1/CadastroListaChrome";
+import CadastroRecordHeader from "@/components/cadastro/base1/CadastroRecordHeader";
 import { useCadastroListaChromeState } from "@/hooks/useCadastroListaChromeState";
 import FormularioMarca from "@/components/marcas/FormularioMarca";
 import TabelaMarcas from "@/components/marcas/TabelaMarcas";
@@ -73,12 +73,13 @@ export default function Marcas() {
   const closeForm = () => {
     setShowForm(false);
     setEditingItem(null);
-    chrome.setViewMode("table");
+    chrome.exitRecordView();
   };
 
   const openNew = () => {
     setEditingItem(null);
     setShowForm(true);
+    chrome.setViewMode("record");
   };
 
   const handleSubmit = (data) => {
@@ -89,6 +90,8 @@ export default function Marcas() {
   const handleEdit = (item) => {
     setEditingItem(item);
     setShowForm(true);
+    chrome.setViewMode("record");
+    if (item?.id) chrome.onSelectionChange([item.id]);
   };
 
   const handleEditSelected = () => {
@@ -127,9 +130,12 @@ export default function Marcas() {
 
   const onViewModeChange = useCallback(
     (mode) => {
-      chrome.handleViewModeChange(mode, { onOpenRecord: () => handleEditSelected() });
+      chrome.handleViewModeChange(mode, {
+        onOpenRecord: () => handleEditSelected(),
+        onExitRecord: closeForm,
+      });
     },
-    [chrome, handleEditSelected]
+    [chrome, handleEditSelected, closeForm],
   );
 
   const filtradosCount = useMemo(() => {
@@ -141,69 +147,95 @@ export default function Marcas() {
     }).length;
   }, [marcas, chrome.appliedSearch]);
 
-  const detailTitle = editingItem?.id ? "Editar marca" : "Nova marca";
+  const detailTitle = editingItem?.id ? editingItem.nome || "Marca" : "Nova marca";
+
+  const recordNavRows = useMemo(() => {
+    const q = chrome.appliedSearch.trim().toLowerCase();
+    if (!q) return marcas;
+    return marcas.filter((m) => {
+      const hay = [m.nome, m.descricao, m.numero_marca].filter(Boolean).join(" ").toLowerCase();
+      return hay.includes(q);
+    });
+  }, [marcas, chrome.appliedSearch]);
+
+  const recordIndex = editingItem?.id
+    ? Math.max(0, recordNavRows.findIndex((m) => m.id === editingItem.id))
+    : 0;
+
+  const goRecord = (index) => {
+    const row = recordNavRows[index];
+    if (row) handleEdit(row);
+  };
 
   return (
     <>
       <CadastroWorkspace
-        mode={showForm ? "detail" : "list"}
-        title={showForm ? detailTitle : "Marcas"}
-        subtitle={
-          showForm
-            ? "Preencha os dados e salve para voltar à lista."
-            : "Marcas de produto vinculadas à empresa selecionada."
-        }
-        onBack={showForm ? closeForm : undefined}
+        mode="list"
+        title="Marcas"
+        subtitle="Marcas de produto vinculadas à empresa selecionada."
         toolbar={null}
       >
-        <AnimatePresence mode="wait">
-          {showForm ? (
-            <FormularioMarca
-              key="form"
-              variant="embedded"
-              initialData={editingItem}
-              onSubmit={handleSubmit}
-              onCancel={closeForm}
-            />
-          ) : (
-            <CadastroListaChrome
-              key="chrome"
-              selectedCount={chrome.selectedIds.length}
-              listados={marcas.length}
-              filtrados={filtradosCount}
-              totais={marcas.length}
-              createLabel="Novo"
-              onNew={openNew}
-              onEdit={handleEditSelected}
-              onDuplicate={handleDuplicateSelected}
-              onDelete={handleDeleteSelected}
-              onExportCsv={exportCsv}
-              searchValue={chrome.searchInput}
-              onSearchChange={chrome.setSearchInput}
-              onSearchApply={chrome.applySearch}
-              searchActive={chrome.searchActive}
-              searchPlaceholder="Buscar marcas…"
-              onConfigureColumns={() => setShowConfigColunas(true)}
-              onClearFilters={chrome.clearFilters}
-              filtersActive={chrome.filtersActive}
-              viewMode={chrome.viewMode}
-              onViewModeChange={onViewModeChange}
-            >
-              <TabelaMarcas
-                marcas={marcas}
-                onEdit={handleEdit}
-                onDelete={handleRequestDelete}
-                isLoading={isLoading}
-                showConfigColunas={showConfigColunas}
-                setShowConfigColunas={setShowConfigColunas}
-                searchQuery={chrome.appliedSearch}
-                resetFiltersKey={chrome.resetFiltersKey}
-                onSelectionChange={chrome.onSelectionChange}
-                onFiltersActiveChange={chrome.setFiltersActive}
+        <CadastroListaChrome
+          recordMode={showForm}
+          secondaryToolsLocked={showForm}
+          recordHeader={
+            showForm ? (
+              <CadastroRecordHeader
+                title={detailTitle}
+                code={editingItem?.numero_marca ? String(editingItem.numero_marca) : undefined}
+                index={recordIndex}
+                total={recordNavRows.length}
+                onGo={editingItem?.id ? goRecord : undefined}
+                navDisabled={!editingItem?.id}
               />
-            </CadastroListaChrome>
-          )}
-        </AnimatePresence>
+            ) : null
+          }
+          recordBody={
+            showForm ? (
+              <FormularioMarca
+                variant="embedded"
+                initialData={editingItem}
+                onSubmit={handleSubmit}
+                onCancel={closeForm}
+              />
+            ) : null
+          }
+          selectedCount={chrome.selectedIds.length}
+          listados={marcas.length}
+          filtrados={filtradosCount}
+          totais={marcas.length}
+          createLabel="Novo"
+          onNew={openNew}
+          onEdit={handleEditSelected}
+          onDuplicate={handleDuplicateSelected}
+          onDelete={handleDeleteSelected}
+          onExportCsv={exportCsv}
+          searchValue={chrome.searchInput}
+          onSearchChange={chrome.setSearchInput}
+          onSearchApply={chrome.applySearch}
+          searchActive={chrome.searchActive}
+          searchPlaceholder="Buscar marcas…"
+          onConfigureColumns={() => setShowConfigColunas(true)}
+          onClearFilters={chrome.clearFilters}
+          filtersActive={chrome.filtersActive}
+          viewMode={showForm ? "record" : chrome.viewMode}
+          onViewModeChange={onViewModeChange}
+        >
+          {!showForm ? (
+            <TabelaMarcas
+              marcas={marcas}
+              onEdit={handleEdit}
+              onDelete={handleRequestDelete}
+              isLoading={isLoading}
+              showConfigColunas={showConfigColunas}
+              setShowConfigColunas={setShowConfigColunas}
+              searchQuery={chrome.appliedSearch}
+              resetFiltersKey={chrome.resetFiltersKey}
+              onSelectionChange={chrome.onSelectionChange}
+              onFiltersActiveChange={chrome.setFiltersActive}
+            />
+          ) : null}
+        </CadastroListaChrome>
       </CadastroWorkspace>
 
       <ConfirmDialog

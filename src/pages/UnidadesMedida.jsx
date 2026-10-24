@@ -15,10 +15,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import CadastroWorkspace from "@/components/cadastro/CadastroWorkspace";
 import CadastroListaChrome from "@/components/cadastro/base1/CadastroListaChrome";
+import CadastroRecordHeader from "@/components/cadastro/base1/CadastroRecordHeader";
 import CadastroBase1Grade from "@/components/cadastro/base1/CadastroBase1Grade";
 import { useCadastroListaChromeState } from "@/hooks/useCadastroListaChromeState";
 import { toast } from "sonner";
-import { AnimatePresence, motion } from "framer-motion";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 
 const COLUNAS = [
@@ -154,6 +154,8 @@ export default function UnidadesMedida() {
     setEditing(item);
     setFormData({ sigla: item.sigla || "", descricao: item.descricao || "", ativo: item.ativo !== false });
     setShowForm(true);
+    chrome.setViewMode("record");
+    if (item?.id) chrome.onSelectionChange([item.id]);
   };
   const handleRequestDelete = (id) => {
     const ids = Array.isArray(id) ? id : [id];
@@ -169,7 +171,7 @@ export default function UnidadesMedida() {
     setEditing(null);
     setFormData({ sigla: "", descricao: "", ativo: true });
     setErrors({});
-    chrome.setViewMode("table");
+    chrome.exitRecordView();
   };
 
   const openNewForm = () => {
@@ -177,6 +179,7 @@ export default function UnidadesMedida() {
     setFormData({ sigla: "", descricao: "", ativo: true });
     setErrors({});
     setShowForm(true);
+    chrome.setViewMode("record");
   };
 
   const handleEditSelected = useCallback(() => {
@@ -191,9 +194,12 @@ export default function UnidadesMedida() {
 
   const onViewModeChange = useCallback(
     (mode) => {
-      chrome.handleViewModeChange(mode, { onOpenRecord: () => handleEditSelected() });
+      chrome.handleViewModeChange(mode, {
+        onOpenRecord: () => handleEditSelected(),
+        onExitRecord: closeForm,
+      });
     },
-    [chrome, handleEditSelected],
+    [chrome, handleEditSelected, closeForm],
   );
 
   const filtradosCount = useMemo(() => {
@@ -209,121 +215,146 @@ export default function UnidadesMedida() {
     chrome.setSelectedIds((prev) => prev.filter((id) => unidades.some((c) => c.id === id)));
   }, [unidades, chrome.setSelectedIds]);
 
-  const detailTitle = editing?.id ? "Editar unidade de medida" : "Nova unidade de medida";
+  const detailTitle = editing?.id ? editing.descricao || editing.sigla || "Unidade" : "Nova unidade de medida";
+
+  const recordNavRows = useMemo(() => {
+    const q = chrome.appliedSearch.trim().toLowerCase();
+    if (!q) return unidades;
+    return unidades.filter((u) => {
+      const hay = [u.sigla, u.descricao, u.numero_unidade].filter(Boolean).join(" ").toLowerCase();
+      return hay.includes(q);
+    });
+  }, [unidades, chrome.appliedSearch]);
+
+  const recordIndex = editing?.id
+    ? Math.max(0, recordNavRows.findIndex((u) => u.id === editing.id))
+    : 0;
+
+  const goRecord = (index) => {
+    const row = recordNavRows[index];
+    if (row) handleEdit(row);
+  };
+
+  const embeddedForm = (
+    <Card className="shadow-sm border-slate-300">
+      <CardContent className="p-3 pt-2">
+        <form onSubmit={handleSubmit} className="space-y-0.5">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
+            <FL label="Sigla" required error={errors.sigla} dataField="sigla">
+              <Input
+                value={formData.sigla}
+                onChange={(e) => {
+                  setErrors((p) => ({ ...p, sigla: false }));
+                  setFormData((p) => ({ ...p, sigla: e.target.value }));
+                }}
+                placeholder="UN, KG, L"
+                className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent"
+                style={{ textTransform: "uppercase" }}
+              />
+            </FL>
+            <FL label="Descrição" required error={errors.descricao} dataField="descricao" className="col-span-2">
+              <Input
+                value={formData.descricao}
+                onChange={(e) => {
+                  setErrors((p) => ({ ...p, descricao: false }));
+                  setFormData((p) => ({ ...p, descricao: e.target.value }));
+                }}
+                placeholder="UNIDADE, QUILOGRAMA"
+                className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent"
+                style={{ textTransform: "uppercase" }}
+              />
+            </FL>
+          </div>
+          <div className="flex flex-wrap gap-6 py-1 px-1">
+            <div className="flex items-center gap-2">
+              <Checkbox id="um_ativo" checked={formData.ativo} onCheckedChange={(v) => setFormData((p) => ({ ...p, ativo: v }))} />
+              <label htmlFor="um_ativo" className="text-xs text-slate-700 cursor-pointer">
+                Ativo
+              </label>
+            </div>
+          </div>
+          <div className="flex flex-col-reverse lg:flex-row justify-end gap-1 pt-1 border-t">
+            <Button type="button" variant="outline" onClick={closeForm} size="sm" className="h-7 text-xs px-3">
+              Cancelar
+            </Button>
+            <Button type="submit" size="sm" className="h-7 text-xs px-3 bg-emerald-600 hover:bg-emerald-700 text-white">
+              {editing ? "Atualizar" : "Salvar"}
+            </Button>
+          </div>
+        </form>
+      </CardContent>
+    </Card>
+  );
 
   return (
     <>
       <CadastroWorkspace
-        mode={showForm ? "detail" : "list"}
-        title={showForm ? detailTitle : "Unidades de medida"}
-        subtitle={
-          showForm
-            ? "Preencha os dados e salve para voltar à lista."
-            : "Siglas e descrições usadas nos cadastros de produto."
-        }
-        onBack={showForm ? closeForm : undefined}
+        mode="list"
+        title="Unidades de medida"
+        subtitle="Siglas e descrições usadas nos cadastros de produto."
         toolbar={null}
       >
-        <AnimatePresence mode="wait">
-          {showForm ? (
-            <motion.div key="form" initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
-              <Card className="shadow-sm border-slate-300">
-                <CardContent className="p-3 pt-2">
-                  <form onSubmit={handleSubmit} className="space-y-0.5">
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
-                      <FL label="Sigla" required error={errors.sigla} dataField="sigla">
-                        <Input
-                          value={formData.sigla}
-                          onChange={(e) => {
-                            setErrors((p) => ({ ...p, sigla: false }));
-                            setFormData((p) => ({ ...p, sigla: e.target.value }));
-                          }}
-                          placeholder="UN, KG, L"
-                          className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent"
-                          style={{ textTransform: "uppercase" }}
-                        />
-                      </FL>
-                      <FL label="Descrição" required error={errors.descricao} dataField="descricao" className="col-span-2">
-                        <Input
-                          value={formData.descricao}
-                          onChange={(e) => {
-                            setErrors((p) => ({ ...p, descricao: false }));
-                            setFormData((p) => ({ ...p, descricao: e.target.value }));
-                          }}
-                          placeholder="UNIDADE, QUILOGRAMA"
-                          className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent"
-                          style={{ textTransform: "uppercase" }}
-                        />
-                      </FL>
-                    </div>
-                    <div className="flex flex-wrap gap-6 py-1 px-1">
-                      <div className="flex items-center gap-2">
-                        <Checkbox id="um_ativo" checked={formData.ativo} onCheckedChange={(v) => setFormData((p) => ({ ...p, ativo: v }))} />
-                        <label htmlFor="um_ativo" className="text-xs text-slate-700 cursor-pointer">
-                          Ativo
-                        </label>
-                      </div>
-                    </div>
-                    <div className="flex flex-col-reverse lg:flex-row justify-end gap-1 pt-1 border-t">
-                      <Button type="button" variant="outline" onClick={closeForm} size="sm" className="h-7 text-xs px-3">
-                        Cancelar
-                      </Button>
-                      <Button type="submit" size="sm" className="h-7 text-xs px-3 bg-emerald-600 hover:bg-emerald-700 text-white">
-                        {editing ? "Atualizar" : "Salvar"}
-                      </Button>
-                    </div>
-                  </form>
-                </CardContent>
-              </Card>
-            </motion.div>
-          ) : (
-            <CadastroListaChrome
-              key="chrome"
-              selectedCount={chrome.selectedIds.length}
-              listados={unidades.length}
-              filtrados={filtradosCount}
-              totais={unidades.length}
-              onNew={openNewForm}
-              onEdit={handleEditSelected}
-              onDelete={handleDeleteSelected}
-              searchValue={chrome.searchInput}
-              onSearchChange={chrome.setSearchInput}
-              onSearchApply={chrome.applySearch}
-              searchActive={chrome.searchActive}
-              searchPlaceholder="Buscar unidades…"
-              onConfigureColumns={() => setShowConfigColunas(true)}
-              onClearFilters={chrome.clearFilters}
-              filtersActive={chrome.filtersActive}
-              viewMode={chrome.viewMode}
-              onViewModeChange={onViewModeChange}
-            >
-              <div className="overflow-hidden">
-                <CadastroBase1Grade
-                  rows={unidades}
-                  columns={COLUNAS}
-                  storageKey="colunas_unidades_medida"
-                  droppableId="colunas-unidades-medida"
-                  getFieldValue={getFieldValue}
-                  renderCell={renderCell}
-                  defaultSortKey="sigla"
-                  emptyText="Nenhuma unidade encontrada"
-                  isLoading={isLoading}
-                  onOpen={handleEdit}
-                  showConfigColunas={showConfigColunas}
-                  setShowConfigColunas={setShowConfigColunas}
-                  searchQuery={chrome.appliedSearch}
-                  resetFiltersKey={chrome.resetFiltersKey}
-                  onSelectionChange={chrome.onSelectionChange}
-                  onFiltersActiveChange={chrome.setFiltersActive}
-                  matchesSearch={(item, q) => {
-                    const hay = [item.sigla, item.descricao, item.numero_unidade].filter(Boolean).join(" ").toLowerCase();
-                    return hay.includes(q);
-                  }}
-                />
-              </div>
-            </CadastroListaChrome>
-          )}
-        </AnimatePresence>
+        <CadastroListaChrome
+          recordMode={showForm}
+          secondaryToolsLocked={showForm}
+          recordHeader={
+            showForm ? (
+              <CadastroRecordHeader
+                title={detailTitle}
+                code={editing?.sigla ? String(editing.sigla) : formData.sigla || undefined}
+                index={recordIndex}
+                total={recordNavRows.length}
+                onGo={editing?.id ? goRecord : undefined}
+                navDisabled={!editing?.id}
+              />
+            ) : null
+          }
+          recordBody={showForm ? embeddedForm : null}
+          selectedCount={chrome.selectedIds.length}
+          listados={unidades.length}
+          filtrados={filtradosCount}
+          totais={unidades.length}
+          onNew={openNewForm}
+          onEdit={handleEditSelected}
+          onDelete={handleDeleteSelected}
+          searchValue={chrome.searchInput}
+          onSearchChange={chrome.setSearchInput}
+          onSearchApply={chrome.applySearch}
+          searchActive={chrome.searchActive}
+          searchPlaceholder="Buscar unidades…"
+          onConfigureColumns={() => setShowConfigColunas(true)}
+          onClearFilters={chrome.clearFilters}
+          filtersActive={chrome.filtersActive}
+          viewMode={showForm ? "record" : chrome.viewMode}
+          onViewModeChange={onViewModeChange}
+        >
+          {!showForm ? (
+            <div className="overflow-hidden">
+              <CadastroBase1Grade
+                rows={unidades}
+                columns={COLUNAS}
+                storageKey="colunas_unidades_medida"
+                droppableId="colunas-unidades-medida"
+                getFieldValue={getFieldValue}
+                renderCell={renderCell}
+                defaultSortKey="sigla"
+                emptyText="Nenhuma unidade encontrada"
+                isLoading={isLoading}
+                onOpen={handleEdit}
+                showConfigColunas={showConfigColunas}
+                setShowConfigColunas={setShowConfigColunas}
+                searchQuery={chrome.appliedSearch}
+                resetFiltersKey={chrome.resetFiltersKey}
+                onSelectionChange={chrome.onSelectionChange}
+                onFiltersActiveChange={chrome.setFiltersActive}
+                matchesSearch={(item, q) => {
+                  const hay = [item.sigla, item.descricao, item.numero_unidade].filter(Boolean).join(" ").toLowerCase();
+                  return hay.includes(q);
+                }}
+              />
+            </div>
+          ) : null}
+        </CadastroListaChrome>
       </CadastroWorkspace>
       <ConfirmDialog
         open={deleteState.open}

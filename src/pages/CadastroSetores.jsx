@@ -14,8 +14,8 @@ import { exportCadastroCsv } from "@/components/cadastro/base1/cadastroExportCsv
 import FormularioSetor from "@/components/setores/FormularioSetor";
 import CadastroWorkspace from "@/components/cadastro/CadastroWorkspace";
 import CadastroListaChrome from "@/components/cadastro/base1/CadastroListaChrome";
+import CadastroRecordHeader from "@/components/cadastro/base1/CadastroRecordHeader";
 import { useCadastroListaChromeState } from "@/hooks/useCadastroListaChromeState";
-import { AnimatePresence } from "framer-motion";
 
 const getInitialFormData = () => ({
   nome: "",
@@ -81,12 +81,13 @@ export default function CadastroSetores() {
   const closeForm = () => {
     setShowForm(false);
     setEditando(null);
-    chrome.setViewMode("table");
+    chrome.exitRecordView();
   };
 
   const openNew = () => {
     setEditando(null);
     setShowForm(true);
+    chrome.setViewMode("record");
   };
 
   const handleEdit = (setor) => {
@@ -97,6 +98,8 @@ export default function CadastroSetores() {
       capacidade_animais: setor.capacidade_animais || "",
     });
     setShowForm(true);
+    chrome.setViewMode("record");
+    if (setor?.id) chrome.onSelectionChange([setor.id]);
   };
 
   const handleEditSelected = useCallback(() => {
@@ -129,9 +132,15 @@ export default function CadastroSetores() {
     createMutation.mutate(data);
   };
 
-  const onViewModeChange = useCallback((mode) => {
-    chrome.handleViewModeChange(mode, { onOpenRecord: () => handleEditSelected() });
-  }, [chrome, handleEditSelected]);
+  const onViewModeChange = useCallback(
+    (mode) => {
+      chrome.handleViewModeChange(mode, {
+        onOpenRecord: () => handleEditSelected(),
+        onExitRecord: closeForm,
+      });
+    },
+    [chrome, handleEditSelected, closeForm],
+  );
 
   const filtradosCount = useMemo(() => {
     const q = chrome.appliedSearch.trim().toLowerCase();
@@ -142,68 +151,94 @@ export default function CadastroSetores() {
     }).length;
   }, [setores, chrome.appliedSearch]);
 
-  const detailTitle = editando?.id ? "Editar setor / fazenda" : "Novo setor / fazenda";
+  const detailTitle = editando?.id ? editando.nome || "Setor" : "Novo setor / fazenda";
+
+  const recordNavRows = useMemo(() => {
+    const q = chrome.appliedSearch.trim().toLowerCase();
+    if (!q) return setores;
+    return setores.filter((s) => {
+      const hay = [s.nome, s.sigla, s.cidade, s.responsavel].filter(Boolean).join(" ").toLowerCase();
+      return hay.includes(q);
+    });
+  }, [setores, chrome.appliedSearch]);
+
+  const recordIndex = editando?.id
+    ? Math.max(0, recordNavRows.findIndex((s) => s.id === editando.id))
+    : 0;
+
+  const goRecord = (index) => {
+    const row = recordNavRows[index];
+    if (row) handleEdit(row);
+  };
 
   return (
     <>
       <CadastroWorkspace
-        mode={showForm ? "detail" : "list"}
-        title={showForm ? detailTitle : "Setores / fazendas"}
-        subtitle={
-          showForm
-            ? "Preencha os dados e salve para voltar à lista."
-            : "Setores vinculados à empresa selecionada."
-        }
-        onBack={showForm ? closeForm : undefined}
+        mode="list"
+        title="Setores / fazendas"
+        subtitle="Setores vinculados à empresa selecionada."
         toolbar={null}
       >
-        <AnimatePresence mode="wait">
-          {showForm ? (
-            <FormularioSetor
-              key="form"
-              variant="embedded"
-              initialData={editando || getInitialFormData()}
-              isEditing={!!editando}
-              onSubmit={handleSubmit}
-              onCancel={closeForm}
-            />
-          ) : (
-            <CadastroListaChrome
-              key="chrome"
-              selectedCount={chrome.selectedIds.length}
-              listados={setores.length}
-              filtrados={filtradosCount}
-              totais={setores.length}
-              onNew={openNew}
-              onEdit={handleEditSelected}
-              onDelete={handleDeleteSelected}
-              searchValue={chrome.searchInput}
-              onSearchChange={chrome.setSearchInput}
-              onSearchApply={chrome.applySearch}
-              searchActive={chrome.searchActive}
-              searchPlaceholder="Buscar setores…"
-              onConfigureColumns={() => setShowConfigColunas(true)}
-              onExportCsv={() => exportCadastroCsv("setores.csv", SETORES_COLUNAS, setores, getSetorFieldValue)}
-              onClearFilters={chrome.clearFilters}
-              filtersActive={chrome.filtersActive}
-              viewMode={chrome.viewMode}
-              onViewModeChange={onViewModeChange}
-            >
-              <TabelaSetores
-                setores={setores}
-                isLoading={isLoading}
-                onEdit={handleEdit}
-                onDelete={(id) => handleRequestDelete(id)}
-                showConfigColunas={showConfigColunas}
-                setShowConfigColunas={setShowConfigColunas}
-                searchQuery={chrome.appliedSearch}
-                resetFiltersKey={chrome.resetFiltersKey}
-                onSelectionChange={chrome.onSelectionChange}
-                onFiltersActiveChange={chrome.setFiltersActive}
+        <CadastroListaChrome
+          recordMode={showForm}
+          secondaryToolsLocked={showForm}
+          recordHeader={
+            showForm ? (
+              <CadastroRecordHeader
+                title={detailTitle}
+                code={editando?.sigla ? String(editando.sigla) : undefined}
+                index={recordIndex}
+                total={recordNavRows.length}
+                onGo={editando?.id ? goRecord : undefined}
+                navDisabled={!editando?.id}
               />
-            </CadastroListaChrome>
-          )}
-        </AnimatePresence>
+            ) : null
+          }
+          recordBody={
+            showForm ? (
+              <FormularioSetor
+                variant="embedded"
+                initialData={editando || getInitialFormData()}
+                isEditing={!!editando}
+                onSubmit={handleSubmit}
+                onCancel={closeForm}
+              />
+            ) : null
+          }
+          selectedCount={chrome.selectedIds.length}
+          listados={setores.length}
+          filtrados={filtradosCount}
+          totais={setores.length}
+          onNew={openNew}
+          onEdit={handleEditSelected}
+          onDelete={handleDeleteSelected}
+          searchValue={chrome.searchInput}
+          onSearchChange={chrome.setSearchInput}
+          onSearchApply={chrome.applySearch}
+          searchActive={chrome.searchActive}
+          searchPlaceholder="Buscar setores…"
+          onConfigureColumns={() => setShowConfigColunas(true)}
+          onExportCsv={() => exportCadastroCsv("setores.csv", SETORES_COLUNAS, setores, getSetorFieldValue)}
+          onClearFilters={chrome.clearFilters}
+          filtersActive={chrome.filtersActive}
+          viewMode={showForm ? "record" : chrome.viewMode}
+          onViewModeChange={onViewModeChange}
+        >
+          {!showForm ? (
+            <TabelaSetores
+              setores={setores}
+              isLoading={isLoading}
+              onEdit={handleEdit}
+              onDelete={(id) => handleRequestDelete(id)}
+              showConfigColunas={showConfigColunas}
+              setShowConfigColunas={setShowConfigColunas}
+              searchQuery={chrome.appliedSearch}
+              resetFiltersKey={chrome.resetFiltersKey}
+              onSelectionChange={chrome.onSelectionChange}
+              onFiltersActiveChange={chrome.setFiltersActive}
+            />
+          ) : null}
+        </CadastroListaChrome>
       </CadastroWorkspace>
 
       <ConfirmDialog

@@ -24,17 +24,30 @@ export function useCadastroListaChromeState() {
     setResetFiltersKey((k) => k + 1);
   }, []);
 
-  const handleViewModeChange = useCallback((mode, { onOpenRecord }) => {
+  /**
+   * @param {'table'|'record'|'cards'} mode
+   * @param {{ onOpenRecord?: (id: string) => void; onExitRecord?: () => void }} [options]
+   */
+  const handleViewModeChange = useCallback((mode, options) => {
+    const { onOpenRecord, onExitRecord } = options ?? {};
     if (mode === "record") {
       if (selectedIds.length !== 1) {
         toast.info("Selecione um registro para abrir no modo Registro.");
         return;
       }
+      setViewMode("record");
       onOpenRecord?.(selectedIds[0]);
       return;
     }
+    if (viewMode === "record" && mode !== "record") {
+      onExitRecord?.();
+    }
     setViewMode(mode);
-  }, [selectedIds]);
+  }, [selectedIds, viewMode]);
+
+  const exitRecordView = useCallback(() => {
+    setViewMode("table");
+  }, []);
 
   return {
     selectedIds,
@@ -52,5 +65,6 @@ export function useCadastroListaChromeState() {
     setViewMode,
     onSelectionChange,
     handleViewModeChange,
+    exitRecordView,
   };
 }

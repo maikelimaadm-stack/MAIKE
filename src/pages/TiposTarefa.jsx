@@ -2,8 +2,8 @@ import React, { useCallback, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Download } from "lucide-react";
 import { toast } from "sonner";
-import { AnimatePresence } from "framer-motion";
 import TabelaTiposTarefa from "@/components/tipos-tarefa/TabelaTiposTarefa";
+import CadastroRecordHeader from "@/components/cadastro/base1/CadastroRecordHeader";
 import FormularioTipoTarefa from "@/components/tipos-tarefa/FormularioTipoTarefa";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 import CadastroWorkspace from "@/components/cadastro/CadastroWorkspace";
@@ -55,12 +55,13 @@ export default function TiposTarefa() {
   const closeForm = () => {
     setShowForm(false);
     setEditingTipo(null);
-    chrome.setViewMode("table");
+    chrome.exitRecordView();
   };
 
   const openNew = () => {
     setEditingTipo(null);
     setShowForm(true);
+    chrome.setViewMode("record");
   };
 
   const handleSubmit = (data) => {
@@ -71,6 +72,8 @@ export default function TiposTarefa() {
   const handleEdit = (tipo) => {
     setEditingTipo(tipo);
     setShowForm(true);
+    chrome.setViewMode("record");
+    if (tipo?.id) chrome.onSelectionChange([tipo.id]);
   };
 
   const handleEditSelected = () => {
@@ -135,9 +138,12 @@ export default function TiposTarefa() {
 
   const onViewModeChange = useCallback(
     (mode) => {
-      chrome.handleViewModeChange(mode, { onOpenRecord: () => handleEditSelected() });
+      chrome.handleViewModeChange(mode, {
+        onOpenRecord: () => handleEditSelected(),
+        onExitRecord: closeForm,
+      });
     },
-    [chrome, handleEditSelected]
+    [chrome, handleEditSelected, closeForm],
   );
 
   const filtradosCount = useMemo(() => {
@@ -150,7 +156,26 @@ export default function TiposTarefa() {
     }).length;
   }, [tipos, grupos, chrome.appliedSearch]);
 
-  const detailTitle = editingTipo?.id ? "Editar tipo de tarefa" : "Novo tipo de tarefa";
+  const detailTitle = editingTipo?.id ? editingTipo.nome_tipo || "Tipo" : "Novo tipo de tarefa";
+
+  const recordNavRows = useMemo(() => {
+    const q = chrome.appliedSearch.trim().toLowerCase();
+    if (!q) return tipos;
+    return tipos.filter((t) => {
+      const grupoNome = t.grupo_atividade_nome || grupos.find((g) => g.id === t.grupo_atividade_id)?.nome_grupo || "";
+      const hay = [t.nome_tipo, grupoNome, t.descricao].filter(Boolean).join(" ").toLowerCase();
+      return hay.includes(q);
+    });
+  }, [tipos, grupos, chrome.appliedSearch]);
+
+  const recordIndex = editingTipo?.id
+    ? Math.max(0, recordNavRows.findIndex((t) => t.id === editingTipo.id))
+    : 0;
+
+  const goRecord = (index) => {
+    const row = recordNavRows[index];
+    if (row) handleEdit(row);
+  };
 
   const extraToolbar = (
     <button type="button" className="tb-btn tb-btn-gray" onClick={handleExport}>
@@ -162,65 +187,72 @@ export default function TiposTarefa() {
   return (
     <>
       <CadastroWorkspace
-        mode={showForm ? "detail" : "list"}
-        title={showForm ? detailTitle : "Tipos de tarefa"}
-        subtitle={
-          showForm
-            ? "Preencha os dados e salve para voltar à lista."
-            : "Tipos usados em tarefas do mapa, vinculados a grupos de atividade."
-        }
-        onBack={showForm ? closeForm : undefined}
+        mode="list"
+        title="Tipos de tarefa"
+        subtitle="Tipos usados em tarefas do mapa, vinculados a grupos de atividade."
         toolbar={null}
       >
-        <AnimatePresence mode="wait">
-          {showForm ? (
-            <FormularioTipoTarefa
-              key="form"
-              variant="embedded"
-              initialData={editingTipo}
-              grupos={grupos}
-              isEditing={!!editingTipo}
-              onSubmit={handleSubmit}
-              onCancel={closeForm}
-            />
-          ) : (
-            <CadastroListaChrome
-              key="chrome"
-              selectedCount={chrome.selectedIds.length}
-              listados={tipos.length}
-              filtrados={filtradosCount}
-              totais={tipos.length}
-              onNew={openNew}
-              onEdit={handleEditSelected}
-              onDelete={handleDeleteSelected}
-              searchValue={chrome.searchInput}
-              onSearchChange={chrome.setSearchInput}
-              onSearchApply={chrome.applySearch}
-              searchActive={chrome.searchActive}
-              searchPlaceholder="Buscar tipos…"
-              onConfigureColumns={() => setShowConfigColunas(true)}
-              onExportCsv={handleExport}
-              onClearFilters={chrome.clearFilters}
-              filtersActive={chrome.filtersActive}
-              viewMode={chrome.viewMode}
-              onViewModeChange={onViewModeChange}
-              extraToolbar={extraToolbar}
-            >
-              <TabelaTiposTarefa
-                tipos={tipos}
-                grupos={grupos}
-                onEdit={handleEdit}
-                onDelete={handleRequestDelete}
-                showConfigColunas={showConfigColunas}
-                setShowConfigColunas={setShowConfigColunas}
-                searchQuery={chrome.appliedSearch}
-                resetFiltersKey={chrome.resetFiltersKey}
-                onSelectionChange={chrome.onSelectionChange}
-                onFiltersActiveChange={chrome.setFiltersActive}
+        <CadastroListaChrome
+          recordMode={showForm}
+          secondaryToolsLocked={showForm}
+          recordHeader={
+            showForm ? (
+              <CadastroRecordHeader
+                title={detailTitle}
+                index={recordIndex}
+                total={recordNavRows.length}
+                onGo={editingTipo?.id ? goRecord : undefined}
+                navDisabled={!editingTipo?.id}
               />
-            </CadastroListaChrome>
-          )}
-        </AnimatePresence>
+            ) : null
+          }
+          recordBody={
+            showForm ? (
+              <FormularioTipoTarefa
+                variant="embedded"
+                initialData={editingTipo}
+                grupos={grupos}
+                isEditing={!!editingTipo}
+                onSubmit={handleSubmit}
+                onCancel={closeForm}
+              />
+            ) : null
+          }
+          selectedCount={chrome.selectedIds.length}
+          listados={tipos.length}
+          filtrados={filtradosCount}
+          totais={tipos.length}
+          onNew={openNew}
+          onEdit={handleEditSelected}
+          onDelete={handleDeleteSelected}
+          searchValue={chrome.searchInput}
+          onSearchChange={chrome.setSearchInput}
+          onSearchApply={chrome.applySearch}
+          searchActive={chrome.searchActive}
+          searchPlaceholder="Buscar tipos…"
+          onConfigureColumns={() => setShowConfigColunas(true)}
+          onExportCsv={handleExport}
+          onClearFilters={chrome.clearFilters}
+          filtersActive={chrome.filtersActive}
+          viewMode={showForm ? "record" : chrome.viewMode}
+          onViewModeChange={onViewModeChange}
+          extraToolbar={extraToolbar}
+        >
+          {!showForm ? (
+            <TabelaTiposTarefa
+              tipos={tipos}
+              grupos={grupos}
+              onEdit={handleEdit}
+              onDelete={handleRequestDelete}
+              showConfigColunas={showConfigColunas}
+              setShowConfigColunas={setShowConfigColunas}
+              searchQuery={chrome.appliedSearch}
+              resetFiltersKey={chrome.resetFiltersKey}
+              onSelectionChange={chrome.onSelectionChange}
+              onFiltersActiveChange={chrome.setFiltersActive}
+            />
+          ) : null}
+        </CadastroListaChrome>
       </CadastroWorkspace>
 
       <ConfirmDialog
