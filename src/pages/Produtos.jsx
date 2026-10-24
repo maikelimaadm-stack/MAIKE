@@ -45,7 +45,8 @@ import CadastroWorkspace from "@/components/cadastro/CadastroWorkspace";
 import CadastroListaChrome from "@/components/cadastro/base1/CadastroListaChrome";
 import { useCadastroListaChromeState } from "@/hooks/useCadastroListaChromeState";
 import FormularioProduto from "../components/produtos/FormularioProduto";
-import TabelaProdutos from "../components/produtos/TabelaProdutos";
+import TabelaProdutos, { PRODUTOS_COLUNAS, getProdutoFieldValue } from "../components/produtos/TabelaProdutos";
+import { exportCadastroCsv } from "@/components/cadastro/base1/cadastroExportCsv";
 import FichaProduto from "../components/produtos/FichaProduto";
 
 // Próximo número de produto. Escopo P0.1: a sequência era global (Pesagem +
@@ -379,6 +380,7 @@ export default function Produtos() {
               searchActive={chrome.searchActive}
               searchPlaceholder="Buscar produtos…"
               onConfigureColumns={() => setShowConfigColunas(true)}
+              onExportCsv={() => exportCadastroCsv("produtos.csv", PRODUTOS_COLUNAS, produtos, getProdutoFieldValue)}
               onClearFilters={chrome.clearFilters}
               filtersActive={chrome.filtersActive}
               viewMode={chrome.viewMode}

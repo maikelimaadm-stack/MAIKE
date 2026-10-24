@@ -10,7 +10,7 @@ export function useCadastroListaChromeState() {
   const [appliedSearch, setAppliedSearch] = useState("");
   const [filtersActive, setFiltersActive] = useState(false);
   const [resetFiltersKey, setResetFiltersKey] = useState(0);
-  const [viewMode, setViewMode] = useState("table");
+  const [viewMode, setViewMode] = useState(/** @type {'table'|'record'|'cards'} */ ("table"));
 
   const onSelectionChange = useCallback((ids) => {
     setSelectedIds(ids);

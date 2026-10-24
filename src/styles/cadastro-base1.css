@@ -20,7 +20,15 @@
   --mg-focus-border: rgba(64, 222, 99, 0.35);
   --mg-focus-ring: inset 0 0 0 1px rgba(64, 222, 99, 0.12);
   --mg-btn-h: 28px;
+  --mg-btn-font-compact: 12px;
   --mg-toolbar-h: 36px;
+  --mg-field-h: 38px;
+  --mg-radius-control: 8px;
+  --mg-field-edge-shadow: inset 0 1px 2px rgba(100, 116, 139, 0.05),
+    inset 1px 0 1px rgba(148, 163, 184, 0.07), inset -1px 0 1px rgba(148, 163, 184, 0.07);
+  --mg-selection-bg: rgba(64, 222, 99, 0.12);
+  --mg-row-alt: #fafbfc;
+  --mg-row-hover: #eef6ff;
   --mg-red: #dc2626;
 
   display: flex;
@@ -105,6 +113,32 @@
   color: var(--mg-accent);
 }
 
+.cadastro-b1 .tb-btn-outline {
+  background: #fff;
+  color: var(--mg-text-1);
+  border-color: #dfe2e7;
+}
+
+.cadastro-b1 .tb-btn-outline:hover:not(:disabled) {
+  background: var(--mg-gray-fill);
+}
+
+.cadastro-b1 .tb-btn-sm {
+  height: 24px;
+  min-height: 24px;
+  width: 24px;
+  min-width: 24px;
+}
+
+.cadastro-b1 .tb-btn-sm svg {
+  width: 12px;
+  height: 12px;
+}
+
+.cadastro-b1 .tb-btn-icon.is-danger {
+  color: var(--mg-red);
+}
+
 .cadastro-b1 .mg-card {
   background: var(--mg-bg-card);
   border: 1px solid var(--mg-divider);
@@ -129,12 +163,25 @@
   flex-wrap: wrap;
 }
 
-.cadastro-b1 .mg-pills-rail {
+.cadastro-b1 .mg-pills-rail,
+.cadastro-b1 .mg-rail {
   display: flex;
   align-items: center;
   gap: 6px;
   padding: 4px 8px;
   min-height: var(--mg-toolbar-h);
+}
+
+.cadastro-b1 .mg-pills-rail.is-collapsed .mg-pills-rail__content {
+  display: none;
+}
+
+.cadastro-b1 .mg-pills-rail__content {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .cadastro-b1 .mg-pills-rail__hint {
@@ -274,4 +321,247 @@
   .cadastro-b1 .cadastro-grade-viewport {
     max-height: calc(100dvh - 220px);
   }
+}
+
+/* Grade emp-table-pro (frota / equipamentos — CONTROLE-DE-ESTOQUE) */
+.cadastro-b1 .mg-grid-wrap {
+  overflow: auto;
+}
+
+.cadastro-b1 .mg-shell--table {
+  max-height: calc(100dvh - 190px);
+}
+
+.cadastro-b1 .mg-shell--table > .mg-grid-wrap,
+.cadastro-b1 .mg-shell--fill > .mg-grid-wrap {
+  min-height: 120px;
+  flex: 1 1 auto;
+}
+
+.cadastro-b1 .mg-grid {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: auto;
+  font-size: 12px;
+}
+
+.cadastro-b1 .mg-grid thead th {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  height: 30px;
+  padding: 0 9px;
+  background: #fff;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: left;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--mg-table-line);
+  border-right: 1px solid var(--mg-table-line);
+}
+
+.cadastro-b1 .mg-grid thead th:last-child,
+.cadastro-b1 .mg-grid tbody td:last-child {
+  border-right: 0;
+}
+
+.cadastro-b1 .mg-grid tbody td {
+  height: 26px;
+  padding: 0 9px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--mg-text-1);
+  border-bottom: 1px solid var(--mg-table-line);
+  border-right: 1px solid var(--mg-table-line);
+}
+
+.cadastro-b1 .mg-grid tbody tr.even td {
+  background: #fff;
+}
+
+.cadastro-b1 .mg-grid tbody tr.odd td {
+  background: var(--mg-row-alt);
+}
+
+.cadastro-b1 .mg-grid tbody tr:hover td {
+  background: var(--mg-row-hover);
+}
+
+.cadastro-b1 .mg-grid tbody tr.selected td {
+  background: var(--mg-selection-bg);
+}
+
+.cadastro-b1 .mg-grid tbody tr.selected td:first-child {
+  box-shadow: inset 3px 0 0 var(--mg-accent);
+}
+
+.cadastro-b1 .mg-grid .th-menu {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  color: var(--mg-icon);
+  border-radius: 4px;
+}
+
+.cadastro-b1 .mg-grid .th-menu:hover,
+.cadastro-b1 .mg-grid .th-menu.is-on {
+  background: var(--mg-gray-fill);
+  color: var(--mg-accent);
+}
+
+.cadastro-b1 .mg-grid .th-menu svg {
+  width: 12px;
+  height: 12px;
+}
+
+.cadastro-b1 .mg-check {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 1.5px solid var(--mg-divider);
+  background: var(--mg-bg-card);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+  cursor: pointer;
+  vertical-align: middle;
+}
+
+.cadastro-b1 .mg-check.is-checked,
+.cadastro-b1 .mg-check.is-indeterminate {
+  background: var(--mg-accent);
+  border-color: var(--mg-accent);
+}
+
+.cadastro-b1 .mg-check__input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  margin: 0;
+  cursor: pointer;
+}
+
+.cadastro-b1 .mg-check__icon {
+  width: 12px;
+  height: 12px;
+  color: #fff;
+  stroke: #fff;
+  pointer-events: none;
+}
+
+.cadastro-b1 .mg-check__dash {
+  width: 8px;
+  height: 2px;
+  border-radius: 1px;
+  background: #fff;
+  pointer-events: none;
+}
+
+.cadastro-b1 .mg-grid .mg-check {
+  width: 16px;
+  height: 16px;
+  box-shadow: none;
+}
+
+.cadastro-b1 .mg-grid .mg-check__icon {
+  width: 10px;
+  height: 10px;
+}
+
+.cadastro-b1 .mg-grid .td-select > .mg-check,
+.cadastro-b1 .mg-grid .th-select > .mg-check {
+  margin: 0 auto;
+}
+
+.cadastro-b1 .mg-pill-select {
+  height: var(--mg-btn-h);
+  border-radius: 999px;
+  background: var(--mg-gray-fill);
+  border: 1px solid transparent;
+  padding: 0 28px 0 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--mg-text-1);
+  appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%235b6b80' stroke-width='2'><path d='m6 9 6 6 6-6'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+}
+
+.cadastro-b1 .mg-summary__footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Campos flutuantes (formulários Base1) */
+.cadastro-b1 .mg-field {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: var(--mg-field-h);
+  min-height: var(--mg-field-h);
+  border-radius: var(--mg-radius-control);
+  border: 1px solid transparent;
+  background: var(--mg-gray-fill);
+  box-shadow: var(--mg-field-edge-shadow);
+}
+
+.cadastro-b1 .mg-field__label {
+  grid-row: 1;
+  grid-column: 1;
+  align-self: center;
+  padding: 0 10px;
+  z-index: 2;
+  pointer-events: none;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--mg-text-3);
+}
+
+.cadastro-b1 .mg-field.mg-has-value .mg-field__label,
+.cadastro-b1 .mg-field:focus-within .mg-field__label {
+  align-self: start;
+  padding: 4px 10px 0;
+  font-size: 9px;
+}
+
+.cadastro-b1 .mg-field.mg-has-value,
+.cadastro-b1 .mg-field:focus-within {
+  background: #fff;
+  border-color: #e7eaee;
+  box-shadow: none;
+}
+
+.cadastro-b1 .mg-field:focus-within {
+  box-shadow: var(--mg-focus-ring);
+}
+
+.cadastro-b1 .mg-field__control input,
+.cadastro-b1 .mg-field__control select,
+.cadastro-b1 .mg-field__control textarea {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  outline: none;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--mg-text-1);
+  padding: 0 10px;
+}
+
+.cadastro-b1 .mg-field.mg-has-value .mg-field__control input,
+.cadastro-b1 .mg-field:focus-within .mg-field__control input {
+  padding-top: 17px;
+  padding-bottom: 5px;
 }

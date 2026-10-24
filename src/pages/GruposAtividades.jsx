@@ -195,6 +195,7 @@ export default function GruposAtividades() {
               searchActive={chrome.searchActive}
               searchPlaceholder="Buscar grupos…"
               onConfigureColumns={() => setShowConfigColunas(true)}
+              onExportCsv={handleExport}
               onClearFilters={chrome.clearFilters}
               filtersActive={chrome.filtersActive}
               viewMode={chrome.viewMode}

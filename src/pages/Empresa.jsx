@@ -7,7 +7,8 @@ import CadastroWorkspace from "@/components/cadastro/CadastroWorkspace";
 import CadastroListaChrome from "@/components/cadastro/base1/CadastroListaChrome";
 import { useCadastroListaChromeState } from "@/hooks/useCadastroListaChromeState";
 import FormularioEmpresa from "../components/empresa/FormularioEmpresa";
-import TabelaEmpresas from "../components/empresa/TabelaEmpresas";
+import TabelaEmpresas, { EMPRESAS_COLUNAS, getEmpresaFieldValue } from "../components/empresa/TabelaEmpresas";
+import { exportCadastroCsv } from "@/components/cadastro/base1/cadastroExportCsv";
 import * as empresaService from "@/services/empresaService";
 import { getApiErrorMessage } from "@/apis/_core/ApiError";
 
@@ -165,6 +166,7 @@ export default function Empresa() {
               searchActive={chrome.searchActive}
               searchPlaceholder="Buscar empresas…"
               onConfigureColumns={() => setShowConfigColunas(true)}
+              onExportCsv={() => exportCadastroCsv("empresas.csv", EMPRESAS_COLUNAS, empresas, getEmpresaFieldValue)}
               onClearFilters={chrome.clearFilters}
               filtersActive={chrome.filtersActive}
               viewMode={chrome.viewMode}

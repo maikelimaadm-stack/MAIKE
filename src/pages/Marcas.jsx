@@ -10,6 +10,8 @@ import CadastroListaChrome from "@/components/cadastro/base1/CadastroListaChrome
 import { useCadastroListaChromeState } from "@/hooks/useCadastroListaChromeState";
 import FormularioMarca from "@/components/marcas/FormularioMarca";
 import TabelaMarcas from "@/components/marcas/TabelaMarcas";
+import { MARCAS_COLUNAS, getMarcaFieldValue } from "@/components/marcas/TabelaMarcas";
+import { exportCadastroCsv } from "@/components/cadastro/base1/cadastroExportCsv";
 
 export default function Marcas() {
   const [showForm, setShowForm] = useState(false);
@@ -38,6 +40,7 @@ export default function Marcas() {
   });
 
   const updateMutation = useMutation({
+    /** @param {{ id: string; data: object }} vars */
     mutationFn: ({ id, data }) => atualizarMarca(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["marcas"] });
@@ -92,6 +95,20 @@ export default function Marcas() {
     const item = marcas.find((m) => m.id === chrome.selectedIds[0]);
     if (item) handleEdit(item);
   };
+
+  const handleDuplicateSelected = () => {
+    const item = marcas.find((m) => m.id === chrome.selectedIds[0]);
+    if (!item) return;
+    setEditingItem({
+      ...item,
+      id: undefined,
+      nome: item.nome ? `${item.nome} (cópia)` : "",
+    });
+    setShowForm(true);
+  };
+
+  const exportCsv = () =>
+    exportCadastroCsv("marcas.csv", MARCAS_COLUNAS, marcas, getMarcaFieldValue);
 
   const handleRequestDelete = (id) => {
     const ids = Array.isArray(id) ? id : [id];
@@ -158,7 +175,9 @@ export default function Marcas() {
               createLabel="Novo"
               onNew={openNew}
               onEdit={handleEditSelected}
+              onDuplicate={handleDuplicateSelected}
               onDelete={handleDeleteSelected}
+              onExportCsv={exportCsv}
               searchValue={chrome.searchInput}
               onSearchChange={chrome.setSearchInput}
               onSearchApply={chrome.applySearch}

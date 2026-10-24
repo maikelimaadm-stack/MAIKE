@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useMemo } from "react";
 import { useBebedouros } from "@/hooks/useBebedouros";
 import { useQuery } from "@tanstack/react-query";
 import { listarHistorico, listarSanidade } from "@/services/bebedouroDataService";
@@ -10,12 +10,22 @@ import BebedouroStatusBadge from "@/components/bebedouros/BebedouroStatusBadge";
 import { buildBebedouroAlertas, getBebedouroStatusVisual } from "@/services/bebedouroService";
 import CadastroWorkspace from "@/components/cadastro/CadastroWorkspace";
 import CadastroListaChrome from "@/components/cadastro/base1/CadastroListaChrome";
+import CadastroBase1Grade from "@/components/cadastro/base1/CadastroBase1Grade";
 import { useCadastroListaChromeState } from "@/hooks/useCadastroListaChromeState";
+
+const COLUNAS = [
+  { id: "nome", label: "Nome", default: true, sortable: true, width: 180 },
+  { id: "pastos", label: "Pastos atendidos", default: true, sortable: true, width: 220 },
+  { id: "tipo", label: "Tipo", default: true, sortable: true, width: 120 },
+  { id: "origem_agua", label: "Origem da água", default: true, sortable: true, width: 140 },
+  { id: "capacidade", label: "Capacidade", default: true, sortable: true, align: "right", width: 120 },
+  { id: "status", label: "Status", default: true, sortable: true, align: "center", width: 110 },
+];
 
 export default function Bebedouros() {
   const empresaId = localStorage.getItem("empresa_selecionada_id");
   const chrome = useCadastroListaChromeState();
-  const [detalhe, setDetalhe] = useState(null);
+  const [detalhe, setDetalhe] = React.useState(null);
   const { data: bebedouros = [] } = useBebedouros(empresaId);
   const { data: historico = [] } = useQuery({
     queryKey: ["bebedouro-historico-all", empresaId],
@@ -35,14 +45,32 @@ export default function Bebedouros() {
       ? item.area_vinculada_nomes.join(", ")
       : item.pasto_nome || "-";
 
-  const filtrados = useMemo(() => {
+  const historicoPorBebedouro = useMemo(() => {
+    const map = new Map();
+    historico.forEach((h) => {
+      const list = map.get(h.bebedouro_id) || [];
+      list.push(h);
+      map.set(h.bebedouro_id, list);
+    });
+    return map;
+  }, [historico]);
+
+  const sanidadePorBebedouro = useMemo(() => {
+    const map = new Map();
+    sanidade.forEach((s) => {
+      const list = map.get(s.bebedouro_id) || [];
+      list.push(s);
+      map.set(s.bebedouro_id, list);
+    });
+    return map;
+  }, [sanidade]);
+
+  const filtradosCount = useMemo(() => {
     const q = chrome.appliedSearch.trim().toLowerCase();
-    if (!q) return bebedouros;
+    if (!q) return bebedouros.length;
     return bebedouros.filter((item) =>
-      `${item.nome} ${item.codigo_interno} ${getPastosAtendidos(item)} ${item.origem_agua}`
-        .toLowerCase()
-        .includes(q)
-    );
+      `${item.nome} ${item.codigo_interno} ${getPastosAtendidos(item)} ${item.origem_agua}`.toLowerCase().includes(q),
+    ).length;
   }, [bebedouros, chrome.appliedSearch]);
 
   const alertas = useMemo(
@@ -51,18 +79,11 @@ export default function Bebedouros() {
         buildBebedouroAlertas(
           b,
           historico.filter((h) => h.bebedouro_id === b.id),
-          sanidade.filter((s) => s.bebedouro_id === b.id)
-        )
+          sanidade.filter((s) => s.bebedouro_id === b.id),
+        ),
       ),
-    [bebedouros, historico, sanidade]
+    [bebedouros, historico, sanidade],
   );
-
-  const toggleSelect = (id) => {
-    const { selectedIds, setSelectedIds } = chrome;
-    setSelectedIds(
-      selectedIds.includes(id) ? selectedIds.filter((x) => x !== id) : [...selectedIds, id]
-    );
-  };
 
   const handleEditSelected = () => {
     const item = bebedouros.find((b) => b.id === chrome.selectedIds[0]);
@@ -73,14 +94,45 @@ export default function Bebedouros() {
     (mode) => {
       chrome.handleViewModeChange(mode, { onOpenRecord: () => handleEditSelected() });
     },
-    [chrome, bebedouros]
+    [chrome, bebedouros],
   );
 
+  const getFieldValue = (item, colId) => {
+    if (colId === "nome") return item.nome || "";
+    if (colId === "pastos") return getPastosAtendidos(item);
+    if (colId === "tipo") return item.tipo || "";
+    if (colId === "origem_agua") return item.origem_agua || "";
+    if (colId === "capacidade") return item.capacidade_litros ? String(item.capacidade_litros) : "";
+    if (colId === "status") {
+      const h = historicoPorBebedouro.get(item.id) || [];
+      const s = sanidadePorBebedouro.get(item.id) || [];
+      const visual = getBebedouroStatusVisual({ bebedouro: item, historico: h, sanidade: s });
+      return visual.label || visual.status || "";
+    }
+    return "";
+  };
+
+  const renderCell = (item, colId) => {
+    if (colId === "nome") return <span className="uppercase">{item.nome || "–"}</span>;
+    if (colId === "pastos") return getPastosAtendidos(item);
+    if (colId === "tipo") return <span className="uppercase">{item.tipo || "–"}</span>;
+    if (colId === "origem_agua") return item.origem_agua || "–";
+    if (colId === "capacidade") {
+      return item.capacidade_litros
+        ? `${Number(item.capacidade_litros).toLocaleString("pt-BR")} L`
+        : "–";
+    }
+    if (colId === "status") {
+      const h = historicoPorBebedouro.get(item.id) || [];
+      const s = sanidadePorBebedouro.get(item.id) || [];
+      const visual = getBebedouroStatusVisual({ bebedouro: item, historico: h, sanidade: s });
+      return <BebedouroStatusBadge visual={visual} />;
+    }
+    return "–";
+  };
+
   const mapaLink = (
-    <Link
-      to={createPageUrl("MapaCadastro")}
-      className="tb-btn tb-btn-gray inline-flex items-center gap-1 no-underline"
-    >
+    <Link to={createPageUrl("MapaCadastro")} className="tb-btn tb-btn-gray inline-flex items-center gap-1 no-underline">
       Cadastrar no mapa
     </Link>
   );
@@ -104,7 +156,7 @@ export default function Bebedouros() {
           <CadastroListaChrome
             selectedCount={chrome.selectedIds.length}
             listados={bebedouros.length}
-            filtrados={filtrados.length}
+            filtrados={filtradosCount}
             totais={bebedouros.length}
             onNew={null}
             onEdit={handleEditSelected}
@@ -124,60 +176,26 @@ export default function Bebedouros() {
             onConfigureColumns={() => {}}
           >
             <div className="overflow-hidden">
-              <div
-                className="cadastro-grade-viewport relative w-full overflow-auto"
-                style={{ overscrollBehavior: "none", WebkitOverflowScrolling: "touch" }}
-              >
-                <table className="w-full min-w-[900px] border-separate border-spacing-0 text-xs table-fixed">
-                  <thead>
-                    <tr className="sticky top-0 z-40 bg-white">
-                      <th className="h-7 w-[25px] border-r border-b border-gray-200 p-0" />
-                      <th className="h-7 px-2 text-left font-medium border-r border-b border-gray-200">Nome</th>
-                      <th className="h-7 px-2 text-left font-medium border-r border-b border-gray-200">Pastos atendidos</th>
-                      <th className="h-7 px-2 text-left font-medium border-r border-b border-gray-200">Tipo</th>
-                      <th className="h-7 px-2 text-left font-medium border-r border-b border-gray-200">Origem da água</th>
-                      <th className="h-7 px-2 text-right font-medium border-r border-b border-gray-200">Capacidade</th>
-                      <th className="h-7 px-2 text-center font-medium border-r border-b border-gray-200">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filtrados.map((item) => {
-                      const h = historico.filter((x) => x.bebedouro_id === item.id);
-                      const s = sanidade.filter((x) => x.bebedouro_id === item.id);
-                      const visual = getBebedouroStatusVisual({ bebedouro: item, historico: h, sanidade: s });
-                      return (
-                        <tr
-                          key={item.id}
-                          className="border-b hover:bg-gray-100 cursor-pointer"
-                          onDoubleClick={() => setDetalhe(item)}
-                        >
-                          <td className="h-7 p-0 text-center border-r border-b border-gray-300" onClick={(e) => e.stopPropagation()}>
-                            <input
-                              type="checkbox"
-                              className="h-4 w-4"
-                              checked={chrome.selectedIds.includes(item.id)}
-                              onChange={() => toggleSelect(item.id)}
-                              aria-label={`Selecionar ${item.nome}`}
-                            />
-                          </td>
-                          <td className="h-7 px-2 uppercase border-r border-b border-gray-300">{item.nome}</td>
-                          <td className="h-7 px-2 border-r border-b border-gray-300">{getPastosAtendidos(item)}</td>
-                          <td className="h-7 px-2 uppercase border-r border-b border-gray-300">{item.tipo}</td>
-                          <td className="h-7 px-2 border-r border-b border-gray-300">{item.origem_agua || "-"}</td>
-                          <td className="h-7 px-2 text-right font-mono border-r border-b border-gray-300">
-                            {item.capacidade_litros
-                              ? `${Number(item.capacidade_litros).toLocaleString("pt-BR")} L`
-                              : "-"}
-                          </td>
-                          <td className="h-7 px-2 text-center border-r border-b border-gray-300">
-                            <BebedouroStatusBadge visual={visual} />
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+              <CadastroBase1Grade
+                rows={bebedouros}
+                columns={COLUNAS}
+                storageKey="colunas_bebedouros_v1"
+                droppableId="colunas-bebedouros"
+                getFieldValue={getFieldValue}
+                renderCell={renderCell}
+                defaultSortKey="nome"
+                emptyText="Nenhum bebedouro encontrado"
+                onOpen={(item) => setDetalhe(item)}
+                searchQuery={chrome.appliedSearch}
+                resetFiltersKey={chrome.resetFiltersKey}
+                onSelectionChange={chrome.onSelectionChange}
+                onFiltersActiveChange={chrome.setFiltersActive}
+                matchesSearch={(item, q) =>
+                  `${item.nome} ${item.codigo_interno} ${getPastosAtendidos(item)} ${item.origem_agua}`
+                    .toLowerCase()
+                    .includes(q)
+                }
+              />
             </div>
           </CadastroListaChrome>
         </div>

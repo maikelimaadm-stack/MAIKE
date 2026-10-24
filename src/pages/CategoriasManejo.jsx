@@ -14,7 +14,11 @@ import ConfirmDialog from "@/components/common/ConfirmDialog";
 import CadastroWorkspace from "@/components/cadastro/CadastroWorkspace";
 import CadastroListaChrome from "@/components/cadastro/base1/CadastroListaChrome";
 import { useCadastroListaChromeState } from "@/hooks/useCadastroListaChromeState";
-import TabelaCategoriasManejo from "@/components/categorias-manejo/TabelaCategoriasManejo";
+import TabelaCategoriasManejo, {
+  CATEGORIAS_MANEJO_COLUNAS,
+  getCategoriaManejoFieldValue,
+} from "@/components/categorias-manejo/TabelaCategoriasManejo";
+import { exportCadastroCsv } from "@/components/cadastro/base1/cadastroExportCsv";
 import FormularioCategoriaManejo from "@/components/categorias-manejo/FormularioCategoriaManejo";
 
 const getInitialFormData = () => ({
@@ -247,6 +251,14 @@ export default function CategoriasManejo() {
               searchActive={chrome.searchActive}
               searchPlaceholder="Buscar categorias…"
               onConfigureColumns={() => setShowConfigColunas(true)}
+              onExportCsv={() =>
+                exportCadastroCsv(
+                  "categorias-manejo.csv",
+                  CATEGORIAS_MANEJO_COLUNAS,
+                  categorias,
+                  getCategoriaManejoFieldValue,
+                )
+              }
               onClearFilters={chrome.clearFilters}
               filtersActive={chrome.filtersActive}
               viewMode={chrome.viewMode}
