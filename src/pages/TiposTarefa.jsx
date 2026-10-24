@@ -2,13 +2,15 @@ import React, { useCallback, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Download } from "lucide-react";
 import { toast } from "sonner";
-import TabelaTiposTarefa from "@/components/tipos-tarefa/TabelaTiposTarefa";
+import TabelaTiposTarefa, { TIPOS_TAREFA_COLUNAS } from "@/components/tipos-tarefa/TabelaTiposTarefa";
 import CadastroRecordHeader from "@/components/cadastro/base1/CadastroRecordHeader";
 import FormularioTipoTarefa from "@/components/tipos-tarefa/FormularioTipoTarefa";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 import CadastroWorkspace from "@/components/cadastro/CadastroWorkspace";
 import CadastroListaChrome from "@/components/cadastro/base1/CadastroListaChrome";
 import { useCadastroListaChromeState } from "@/hooks/useCadastroListaChromeState";
+import { useCadastroPageListBindings } from "@/hooks/useCadastroPageListBindings";
+import { useCadastroDuplicateAction } from "@/hooks/useCadastroDuplicateAction";
 import { listarGruposSimples, listarTipos, criarTipo, atualizarTipo, excluirTipos } from "@/services/tarefaCadastroService";
 import { getApiErrorMessage } from "@/apis/_core/ApiError";
 
@@ -19,6 +21,21 @@ export default function TiposTarefa() {
   const [showConfigColunas, setShowConfigColunas] = useState(false);
   const queryClient = useQueryClient();
   const chrome = useCadastroListaChromeState();
+  const listBindings = useCadastroPageListBindings({
+    storageKey: "colunas_largura_tipos_tarefa",
+    columns: TIPOS_TAREFA_COLUNAS,
+    chrome,
+  });
+
+  const handleDuplicateSelected = useCadastroDuplicateAction({
+    chrome,
+    findById: (id) => tipos.find((row) => row.id === id),
+    openDraft: (draft) => {
+      setEditingTipo(draft);
+      setShowForm(true);
+    },
+    labelField: "nome_tipo",
+  });
 
   const { data: grupos = [] } = useQuery({
     queryKey: ["grupos-atividades"],
@@ -219,12 +236,14 @@ export default function TiposTarefa() {
             ) : null
           }
           selectedCount={chrome.selectedIds.length}
-          listados={tipos.length}
-          filtrados={filtradosCount}
-          totais={tipos.length}
+          {...listBindings.listFooter.chromeFooter}
           onNew={openNew}
           onEdit={handleEditSelected}
           onDelete={handleDeleteSelected}
+          onDuplicate={handleDuplicateSelected}
+          onPrint={() => window.print()}
+          cardsModeAvailable
+          cardsToolbar={listBindings.cardsToolbar}
           searchValue={chrome.searchInput}
           onSearchChange={chrome.setSearchInput}
           onSearchApply={chrome.applySearch}
@@ -250,6 +269,11 @@ export default function TiposTarefa() {
               resetFiltersKey={chrome.resetFiltersKey}
               onSelectionChange={chrome.onSelectionChange}
               onFiltersActiveChange={chrome.setFiltersActive}
+              viewMode={chrome.viewMode === "cards" ? "cards" : "table"}
+              displayLimit={listBindings.listFooter.gradePaging.displayLimit}
+              onListMetrics={listBindings.listFooter.gradePaging.onListMetrics}
+              cardFields={listBindings.cardsPrefs.cardFields}
+              cardsPerRow={listBindings.cardsPrefs.cardsPerRow}
             />
           ) : null}
         </CadastroListaChrome>

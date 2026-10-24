@@ -52,6 +52,11 @@ export default function TabelaSetores(props) {
       resetFiltersKey={props.resetFiltersKey}
       onSelectionChange={props.onSelectionChange}
       onFiltersActiveChange={props.onFiltersActiveChange}
+      viewMode={props.viewMode}
+      displayLimit={props.displayLimit}
+      onListMetrics={props.onListMetrics}
+      cardFields={props.cardFields}
+      cardsPerRow={props.cardsPerRow}
       matchesSearch={(item, q) => {
         const hay = [item.nome, item.sigla, item.cidade, item.responsavel].filter(Boolean).join(" ").toLowerCase();
         return hay.includes(q);

@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import ConfiguracaoColunasMapaDialog from "@/components/mapa/ConfiguracaoColunasMapaDialog";
 import Base1Grid from "@/components/cadastro/base1/Base1Grid";
+import { Base1Cards } from "@/components/cadastro/base1/Base1Cards";
 import { MgCheck } from "@/components/cadastro/base1/Base1Ui";
 import { ArrowDownAZ, ArrowUpZA, X } from "lucide-react";
 
@@ -36,6 +37,13 @@ export function colunasBase1(defs) {
  * @param {(row: object) => string} [props.rowKey]
  * @param {import('react').ReactNode} [props.gridFooter] rodapé `<tfoot>` da grade
  * @param {(payload: { rows: object[]; selectedIds: string[] }) => void} [props.onDisplayChange]
+ * @param {'table'|'cards'} [props.viewMode]
+ * @param {number} [props.displayLimit] limite de linhas visíveis (paginação incremental)
+ * @param {(m: { filtrados: number; totais: number; listados: number }) => void} [props.onListMetrics]
+ * @param {string[]} [props.cardFields]
+ * @param {1|2|3|4} [props.cardsPerRow]
+ * @param {string} [props.cardsTitleColId]
+ * @param {string} [props.cardsCodeColId]
  */
 export default function CadastroBase1Grade({
   rows = [],
@@ -59,6 +67,13 @@ export default function CadastroBase1Grade({
   rowKey,
   gridFooter,
   onDisplayChange,
+  viewMode = "table",
+  displayLimit,
+  onListMetrics,
+  cardFields,
+  cardsPerRow = 4,
+  cardsTitleColId,
+  cardsCodeColId,
 }) {
   const dataCols = useMemo(() => colunasBase1(columns), [columns]);
   const defaultVisible = useMemo(
@@ -172,9 +187,27 @@ export default function CadastroBase1Grade({
     return s;
   }, [filtrados, sortConfig, getFieldValue]);
 
+  const cardFieldKeys = useMemo(() => {
+    if (cardFields?.length) return cardFields;
+    return dataCols.slice(0, 7).map((c) => c.id);
+  }, [cardFields, dataCols]);
+
+  const visibleRows = useMemo(() => {
+    if (displayLimit == null || displayLimit <= 0) return ordenados;
+    return ordenados.slice(0, displayLimit);
+  }, [ordenados, displayLimit]);
+
   useEffect(() => {
     onDisplayChange?.({ rows: ordenados, selectedIds: selectedItems.map(String) });
   }, [ordenados, selectedItems, onDisplayChange]);
+
+  useEffect(() => {
+    onListMetrics?.({
+      filtrados: ordenados.length,
+      totais: rows.length,
+      listados: visibleRows.length,
+    });
+  }, [ordenados.length, rows.length, visibleRows.length, onListMetrics]);
 
   const colunasOrdenadas = useMemo(
     () =>
@@ -398,11 +431,35 @@ export default function CadastroBase1Grade({
     );
   };
 
+  if (viewMode === "cards") {
+    return (
+      <>
+        <Base1Cards
+          rows={visibleRows}
+          columns={dataCols}
+          fields={cardFieldKeys}
+          perRow={cardsPerRow}
+          loading={isLoading}
+          onOpen={onOpen}
+          selected={selectedSet}
+          onSelectClick={onSelectClick}
+          getFieldValue={getFieldValue}
+          renderCell={renderCell}
+          rowKey={rowKey}
+          titleColId={cardsTitleColId}
+          codeColId={cardsCodeColId}
+          emptyText={emptyText}
+        />
+        {dataCols.map((c) => renderFilterPopover(c.id))}
+      </>
+    );
+  }
+
   return (
     <>
       <Base1Grid
         columns={gridColumns}
-        rows={ordenados}
+        rows={visibleRows}
         loading={isLoading}
         sort={{ key: sortConfig.key, dir: sortConfig.direction === "desc" ? "desc" : "asc" }}
         onSort={handleSort}

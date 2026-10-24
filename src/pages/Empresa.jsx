@@ -6,6 +6,8 @@ import CadastroWorkspace from "@/components/cadastro/CadastroWorkspace";
 import CadastroListaChrome from "@/components/cadastro/base1/CadastroListaChrome";
 import CadastroRecordHeader from "@/components/cadastro/base1/CadastroRecordHeader";
 import { useCadastroListaChromeState } from "@/hooks/useCadastroListaChromeState";
+import { useCadastroPageListBindings } from "@/hooks/useCadastroPageListBindings";
+import { useCadastroDuplicateAction } from "@/hooks/useCadastroDuplicateAction";
 import FormularioEmpresa from "../components/empresa/FormularioEmpresa";
 import TabelaEmpresas, { EMPRESAS_COLUNAS, getEmpresaFieldValue } from "../components/empresa/TabelaEmpresas";
 import { exportCadastroCsv } from "@/components/cadastro/base1/cadastroExportCsv";
@@ -18,6 +20,17 @@ export default function Empresa() {
   const [showConfigColunas, setShowConfigColunas] = useState(false);
   const [deleteState, setDeleteState] = useState({ open: false, ids: [] });
   const chrome = useCadastroListaChromeState();
+  const listBindings = useCadastroPageListBindings({ storageKey: "colunas_empresas_v1", columns: EMPRESAS_COLUNAS, chrome });
+
+  const handleDuplicateSelected = useCadastroDuplicateAction({
+    chrome,
+    findById: (id) => empresas.find((row) => row.id === id),
+    openDraft: (draft) => {
+      setEditingEmpresa(draft);
+      setShowForm(true);
+    },
+    labelField: "nome",
+  });
   const queryClient = useQueryClient();
 
   const { data: empresas = [], isLoading } = useQuery({
@@ -188,13 +201,15 @@ export default function Empresa() {
             ) : null
           }
           selectedCount={chrome.selectedIds.length}
-          listados={empresas.length}
-          filtrados={filtradosCount}
-          totais={empresas.length}
+          {...listBindings.listFooter.chromeFooter}
           createLabel="Novo"
           onNew={openNew}
           onEdit={handleEditSelected}
           onDelete={handleDeleteSelected}
+          onDuplicate={handleDuplicateSelected}
+          onPrint={() => window.print()}
+          cardsModeAvailable
+          cardsToolbar={listBindings.cardsToolbar}
           searchValue={chrome.searchInput}
           onSearchChange={chrome.setSearchInput}
           onSearchApply={chrome.applySearch}
@@ -220,6 +235,11 @@ export default function Empresa() {
               resetFiltersKey={chrome.resetFiltersKey}
               onSelectionChange={chrome.onSelectionChange}
               onFiltersActiveChange={chrome.setFiltersActive}
+              viewMode={chrome.viewMode === "cards" ? "cards" : "table"}
+              displayLimit={listBindings.listFooter.gradePaging.displayLimit}
+              onListMetrics={listBindings.listFooter.gradePaging.onListMetrics}
+              cardFields={listBindings.cardsPrefs.cardFields}
+              cardsPerRow={listBindings.cardsPrefs.cardsPerRow}
             />
           ) : null}
         </CadastroListaChrome>

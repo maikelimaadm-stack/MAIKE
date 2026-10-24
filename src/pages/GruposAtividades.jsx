@@ -4,11 +4,15 @@ import { Download } from "lucide-react";
 import { toast } from "sonner";
 import FormularioGrupoAtividade from "@/components/grupos-atividades/FormularioGrupoAtividade";
 import CadastroRecordHeader from "@/components/cadastro/base1/CadastroRecordHeader";
-import TabelaGruposAtividades from "@/components/grupos-atividades/TabelaGruposAtividades";
+import TabelaGruposAtividades, {
+  GRUPOS_ATIVIDADES_COLUNAS,
+} from "@/components/grupos-atividades/TabelaGruposAtividades";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 import CadastroWorkspace from "@/components/cadastro/CadastroWorkspace";
 import CadastroListaChrome from "@/components/cadastro/base1/CadastroListaChrome";
 import { useCadastroListaChromeState } from "@/hooks/useCadastroListaChromeState";
+import { useCadastroPageListBindings } from "@/hooks/useCadastroPageListBindings";
+import { useCadastroDuplicateAction } from "@/hooks/useCadastroDuplicateAction";
 import { listarGrupos, criarGrupo, atualizarGrupo, excluirGrupos } from "@/services/tarefaCadastroService";
 import { getApiErrorMessage } from "@/apis/_core/ApiError";
 
@@ -19,6 +23,21 @@ export default function GruposAtividades() {
   const [showConfigColunas, setShowConfigColunas] = useState(false);
   const queryClient = useQueryClient();
   const chrome = useCadastroListaChromeState();
+  const listBindings = useCadastroPageListBindings({
+    storageKey: "colunas_grupos_atividades",
+    columns: GRUPOS_ATIVIDADES_COLUNAS,
+    chrome,
+  });
+
+  const handleDuplicateSelected = useCadastroDuplicateAction({
+    chrome,
+    findById: (id) => grupos.find((row) => row.id === id),
+    openDraft: (draft) => {
+      setEditingGrupo(draft);
+      setShowForm(true);
+    },
+    labelField: "nome_grupo",
+  });
 
   const { data: grupos = [] } = useQuery({
     queryKey: ["grupos-atividades"],
@@ -214,12 +233,14 @@ export default function GruposAtividades() {
             ) : null
           }
           selectedCount={chrome.selectedIds.length}
-          listados={grupos.length}
-          filtrados={filtradosCount}
-          totais={grupos.length}
+          {...listBindings.listFooter.chromeFooter}
           onNew={openNew}
           onEdit={handleEditSelected}
           onDelete={handleDeleteSelected}
+          onDuplicate={handleDuplicateSelected}
+          onPrint={() => window.print()}
+          cardsModeAvailable
+          cardsToolbar={listBindings.cardsToolbar}
           searchValue={chrome.searchInput}
           onSearchChange={chrome.setSearchInput}
           onSearchApply={chrome.applySearch}
@@ -244,6 +265,11 @@ export default function GruposAtividades() {
               resetFiltersKey={chrome.resetFiltersKey}
               onSelectionChange={chrome.onSelectionChange}
               onFiltersActiveChange={chrome.setFiltersActive}
+              viewMode={chrome.viewMode === "cards" ? "cards" : "table"}
+              displayLimit={listBindings.listFooter.gradePaging.displayLimit}
+              onListMetrics={listBindings.listFooter.gradePaging.onListMetrics}
+              cardFields={listBindings.cardsPrefs.cardFields}
+              cardsPerRow={listBindings.cardsPrefs.cardsPerRow}
             />
           ) : null}
         </CadastroListaChrome>

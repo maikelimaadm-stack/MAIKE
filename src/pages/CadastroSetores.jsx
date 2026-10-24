@@ -16,6 +16,8 @@ import CadastroWorkspace from "@/components/cadastro/CadastroWorkspace";
 import CadastroListaChrome from "@/components/cadastro/base1/CadastroListaChrome";
 import CadastroRecordHeader from "@/components/cadastro/base1/CadastroRecordHeader";
 import { useCadastroListaChromeState } from "@/hooks/useCadastroListaChromeState";
+import { useCadastroPageListBindings } from "@/hooks/useCadastroPageListBindings";
+import { useCadastroDuplicateAction } from "@/hooks/useCadastroDuplicateAction";
 
 const getInitialFormData = () => ({
   nome: "",
@@ -40,6 +42,17 @@ export default function CadastroSetores() {
   const [editando, setEditando] = useState(null);
   const [deleteState, setDeleteState] = useState({ open: false, ids: [] });
   const chrome = useCadastroListaChromeState();
+  const listBindings = useCadastroPageListBindings({ storageKey: "colunas_largura_setores", columns: SETORES_COLUNAS, chrome });
+
+  const handleDuplicateSelected = useCadastroDuplicateAction({
+    chrome,
+    findById: (id) => setores.find((row) => row.id === id),
+    openDraft: (draft) => {
+      setEditando(draft);
+      setShowForm(true);
+    },
+    labelField: "nome",
+  });
 
   const { data: setores = [], isLoading } = useQuery({
     queryKey: ["setores", empresaSelecionadaId],
@@ -206,12 +219,14 @@ export default function CadastroSetores() {
             ) : null
           }
           selectedCount={chrome.selectedIds.length}
-          listados={setores.length}
-          filtrados={filtradosCount}
-          totais={setores.length}
+          {...listBindings.listFooter.chromeFooter}
           onNew={openNew}
           onEdit={handleEditSelected}
           onDelete={handleDeleteSelected}
+          onDuplicate={handleDuplicateSelected}
+          onPrint={() => window.print()}
+          cardsModeAvailable
+          cardsToolbar={listBindings.cardsToolbar}
           searchValue={chrome.searchInput}
           onSearchChange={chrome.setSearchInput}
           onSearchApply={chrome.applySearch}
@@ -236,6 +251,11 @@ export default function CadastroSetores() {
               resetFiltersKey={chrome.resetFiltersKey}
               onSelectionChange={chrome.onSelectionChange}
               onFiltersActiveChange={chrome.setFiltersActive}
+              viewMode={chrome.viewMode === "cards" ? "cards" : "table"}
+              displayLimit={listBindings.listFooter.gradePaging.displayLimit}
+              onListMetrics={listBindings.listFooter.gradePaging.onListMetrics}
+              cardFields={listBindings.cardsPrefs.cardFields}
+              cardsPerRow={listBindings.cardsPrefs.cardsPerRow}
             />
           ) : null}
         </CadastroListaChrome>

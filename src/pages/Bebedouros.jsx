@@ -13,6 +13,7 @@ import CadastroListaChrome from "@/components/cadastro/base1/CadastroListaChrome
 import CadastroBase1Grade from "@/components/cadastro/base1/CadastroBase1Grade";
 import CadastroRecordHeader from "@/components/cadastro/base1/CadastroRecordHeader";
 import { useCadastroListaChromeState } from "@/hooks/useCadastroListaChromeState";
+import { useCadastroPageListBindings } from "@/hooks/useCadastroPageListBindings";
 
 const COLUNAS = [
   { id: "nome", label: "Nome", default: true, sortable: true, width: 180 },
@@ -26,6 +27,11 @@ const COLUNAS = [
 export default function Bebedouros() {
   const empresaId = localStorage.getItem("empresa_selecionada_id");
   const chrome = useCadastroListaChromeState();
+  const listBindings = useCadastroPageListBindings({
+    storageKey: "colunas_bebedouros_v1",
+    columns: COLUNAS,
+    chrome,
+  });
   const [detalhe, setDetalhe] = useState(null);
   const [showConfigColunas, setShowConfigColunas] = useState(false);
   const [recordToolbar, setRecordToolbar] = useState(null);
@@ -219,12 +225,13 @@ export default function Bebedouros() {
           ) : null
         }
         selectedCount={chrome.selectedIds.length}
-        listados={bebedouros.length}
-        filtrados={filtradosCount}
-        totais={bebedouros.length}
+        {...listBindings.listFooter.chromeFooter}
         onNew={null}
         onEdit={handleEditSelected}
         onDelete={null}
+        onPrint={() => window.print()}
+        cardsModeAvailable
+        cardsToolbar={listBindings.cardsToolbar}
         searchValue={chrome.searchInput}
         onSearchChange={chrome.setSearchInput}
         onSearchApply={chrome.applySearch}
@@ -257,6 +264,13 @@ export default function Bebedouros() {
                 resetFiltersKey={chrome.resetFiltersKey}
                 onSelectionChange={chrome.onSelectionChange}
                 onFiltersActiveChange={chrome.setFiltersActive}
+                viewMode={chrome.viewMode === "cards" ? "cards" : "table"}
+                displayLimit={listBindings.listFooter.gradePaging.displayLimit}
+                onListMetrics={listBindings.listFooter.gradePaging.onListMetrics}
+                cardFields={listBindings.cardsPrefs.cardFields}
+                cardsPerRow={listBindings.cardsPrefs.cardsPerRow}
+                cardsTitleColId="nome"
+                cardsCodeColId="codigo_interno"
                 showConfigColunas={showConfigColunas}
                 setShowConfigColunas={setShowConfigColunas}
                 matchesSearch={(item, q) =>

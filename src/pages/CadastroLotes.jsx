@@ -3,12 +3,14 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import FormularioLote from "@/components/lotes/FormularioLote";
 import CadastroRecordHeader from "@/components/cadastro/base1/CadastroRecordHeader";
-import TabelaLotes from "@/components/lotes/TabelaLotes";
+import TabelaLotes, { COLUNAS_DISPONIVEIS } from "@/components/lotes/TabelaLotes";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 import RegistroAnexosDialog from "@/components/common/RegistroAnexosDialog";
 import CadastroWorkspace from "@/components/cadastro/CadastroWorkspace";
 import CadastroListaChrome from "@/components/cadastro/base1/CadastroListaChrome";
 import { useCadastroListaChromeState } from "@/hooks/useCadastroListaChromeState";
+import { useCadastroPageListBindings } from "@/hooks/useCadastroPageListBindings";
+import { useCadastroDuplicateAction } from "@/hooks/useCadastroDuplicateAction";
 import { refreshMapaCacheEntry } from "@/services/mapaCacheService";
 import {
   listarLotes,
@@ -31,6 +33,21 @@ export default function CadastroLotes() {
   const [pendingAttachments, setPendingAttachments] = useState([]);
   const [formVersion, setFormVersion] = useState(0);
   const chrome = useCadastroListaChromeState();
+  const listBindings = useCadastroPageListBindings({
+    storageKey: "colunas_cadastro_lotes",
+    columns: COLUNAS_DISPONIVEIS,
+    chrome,
+  });
+
+  const handleDuplicateSelected = useCadastroDuplicateAction({
+    chrome,
+    findById: (id) => lotes.find((row) => row.id === id),
+    openDraft: (draft) => {
+      setEditingLote(draft);
+      setShowForm(true);
+    },
+    labelField: "nome",
+  });
   const queryClient = useQueryClient();
   const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
 
@@ -272,13 +289,15 @@ export default function CadastroLotes() {
             ) : null
           }
           selectedCount={chrome.selectedIds.length}
-          listados={lotes.length}
-          filtrados={filtradosCount}
-          totais={lotes.length}
+          {...listBindings.listFooter.chromeFooter}
           createLabel="Novo"
           onNew={openNew}
           onEdit={handleEditSelected}
           onDelete={handleDeleteSelected}
+          onDuplicate={handleDuplicateSelected}
+          onPrint={() => window.print()}
+          cardsModeAvailable
+          cardsToolbar={listBindings.cardsToolbar}
           searchValue={chrome.searchInput}
           onSearchChange={chrome.setSearchInput}
           onSearchApply={chrome.applySearch}
@@ -303,6 +322,11 @@ export default function CadastroLotes() {
               resetFiltersKey={chrome.resetFiltersKey}
               onSelectionChange={chrome.onSelectionChange}
               onFiltersActiveChange={chrome.setFiltersActive}
+              viewMode={chrome.viewMode === "cards" ? "cards" : "table"}
+              displayLimit={listBindings.listFooter.gradePaging.displayLimit}
+              onListMetrics={listBindings.listFooter.gradePaging.onListMetrics}
+              cardFields={listBindings.cardsPrefs.cardFields}
+              cardsPerRow={listBindings.cardsPrefs.cardsPerRow}
             />
           ) : null}
         </CadastroListaChrome>
