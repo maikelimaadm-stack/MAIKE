@@ -1,7 +1,7 @@
 import React from "react";
 import CadastroBase1Grade from "@/components/cadastro/base1/CadastroBase1Grade";
 
-const COLUNAS = [
+export const CONTAS_ACESSO_COLUNAS = [
   { id: "login", label: "Login", default: true, sortable: true, width: 180 },
   { id: "nome", label: "Nome", default: true, sortable: true, width: 220 },
   { id: "status", label: "Status", default: true, sortable: true, align: "center", width: 100 },
@@ -46,13 +46,18 @@ export default function TabelaContasAcesso({
   chromeLayout = false,
   selectedIds = [],
   onSelectionChange,
+  viewMode,
+  displayLimit,
+  onListMetrics,
+  cardFields,
+  cardsPerRow,
 }) {
   const loginAtual = (currentUser?.login || currentUser?.email || "").trim().toLowerCase();
 
   const grade = (
     <CadastroBase1Grade
       rows={contas}
-      columns={COLUNAS}
+      columns={CONTAS_ACESSO_COLUNAS}
       storageKey="colunas_contas_acesso_v1"
       droppableId="colunas-contas-acesso"
       getFieldValue={getFieldValue}
@@ -67,6 +72,12 @@ export default function TabelaContasAcesso({
       }}
       searchQuery={searchQuery}
       onSelectionChange={onSelectionChange}
+      viewMode={viewMode}
+      displayLimit={displayLimit}
+      onListMetrics={onListMetrics}
+      cardFields={cardFields}
+      cardsPerRow={cardsPerRow}
+      cardsTitleColId="login"
       rowKey={(conta) => String(conta.id || conta.login || conta.email || "")}
       matchesSearch={(conta, q) => {
         const login = (conta.login || conta.email || "").toLowerCase();

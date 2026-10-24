@@ -12,6 +12,12 @@ import FormularioMarca from "@/components/marcas/FormularioMarca";
 import TabelaMarcas from "@/components/marcas/TabelaMarcas";
 import { MARCAS_COLUNAS, getMarcaFieldValue } from "@/components/marcas/TabelaMarcas";
 import { exportCadastroCsv } from "@/components/cadastro/base1/cadastroExportCsv";
+import { Base1CardsToolbar } from "@/components/cadastro/base1/Base1Cards";
+import { prepareCadastroDuplicate } from "@/components/cadastro/base1/cadastroDuplicateHelpers";
+import { useCadastroListaFooter } from "@/hooks/useCadastroListaFooter";
+import { useCadastroCardsPrefs } from "@/hooks/useCadastroCardsPrefs";
+
+const MARCAS_STORAGE_KEY = "colunas_marcas_v1";
 
 export default function Marcas() {
   const [showForm, setShowForm] = useState(false);
@@ -19,6 +25,14 @@ export default function Marcas() {
   const [showConfigColunas, setShowConfigColunas] = useState(false);
   const [deleteState, setDeleteState] = useState({ open: false, ids: [] });
   const chrome = useCadastroListaChromeState();
+  const listFooter = useCadastroListaFooter(
+    MARCAS_STORAGE_KEY,
+    `${chrome.resetFiltersKey}:${chrome.appliedSearch}`,
+  );
+  const cardsPrefs = useCadastroCardsPrefs(
+    MARCAS_STORAGE_KEY,
+    MARCAS_COLUNAS.map((c) => c.id),
+  );
   const queryClient = useQueryClient();
   const empresaId = localStorage.getItem("empresa_selecionada_id");
 
@@ -101,13 +115,11 @@ export default function Marcas() {
 
   const handleDuplicateSelected = () => {
     const item = marcas.find((m) => m.id === chrome.selectedIds[0]);
-    if (!item) return;
-    setEditingItem({
-      ...item,
-      id: undefined,
-      nome: item.nome ? `${item.nome} (cópia)` : "",
-    });
+    const draft = prepareCadastroDuplicate(item, { labelField: "nome" });
+    if (!draft) return;
+    setEditingItem(draft);
     setShowForm(true);
+    chrome.setViewMode("record");
   };
 
   const exportCsv = () =>
@@ -137,15 +149,6 @@ export default function Marcas() {
     },
     [chrome, handleEditSelected, closeForm],
   );
-
-  const filtradosCount = useMemo(() => {
-    const q = chrome.appliedSearch.trim().toLowerCase();
-    if (!q) return marcas.length;
-    return marcas.filter((m) => {
-      const hay = [m.nome, m.descricao, m.numero_marca].filter(Boolean).join(" ").toLowerCase();
-      return hay.includes(q);
-    }).length;
-  }, [marcas, chrome.appliedSearch]);
 
   const detailTitle = editingItem?.id ? editingItem.nome || "Marca" : "Nova marca";
 
@@ -201,15 +204,18 @@ export default function Marcas() {
             ) : null
           }
           selectedCount={chrome.selectedIds.length}
-          listados={marcas.length}
-          filtrados={filtradosCount}
-          totais={marcas.length}
+          {...listFooter.chromeFooter}
           createLabel="Novo"
           onNew={openNew}
           onEdit={handleEditSelected}
           onDuplicate={handleDuplicateSelected}
           onDelete={handleDeleteSelected}
           onExportCsv={exportCsv}
+          onPrint={() => window.print()}
+          cardsModeAvailable
+          cardsToolbar={
+            <Base1CardsToolbar columns={MARCAS_COLUNAS} cardsPrefs={cardsPrefs} />
+          }
           searchValue={chrome.searchInput}
           onSearchChange={chrome.setSearchInput}
           onSearchApply={chrome.applySearch}
@@ -233,6 +239,11 @@ export default function Marcas() {
               resetFiltersKey={chrome.resetFiltersKey}
               onSelectionChange={chrome.onSelectionChange}
               onFiltersActiveChange={chrome.setFiltersActive}
+              viewMode={chrome.viewMode === "cards" ? "cards" : "table"}
+              displayLimit={listFooter.gradePaging.displayLimit}
+              onListMetrics={listFooter.gradePaging.onListMetrics}
+              cardFields={cardsPrefs.cardFields}
+              cardsPerRow={cardsPrefs.cardsPerRow}
             />
           ) : null}
         </CadastroListaChrome>

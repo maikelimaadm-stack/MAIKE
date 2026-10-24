@@ -47,6 +47,11 @@ export default function TabelaTiposTarefa({ tipos = [], grupos = [], ...props })
       resetFiltersKey={props.resetFiltersKey}
       onSelectionChange={props.onSelectionChange}
       onFiltersActiveChange={props.onFiltersActiveChange}
+      viewMode={props.viewMode}
+      displayLimit={props.displayLimit}
+      onListMetrics={props.onListMetrics}
+      cardFields={props.cardFields}
+      cardsPerRow={props.cardsPerRow}
       matchesSearch={(item, q) => {
         const grupoNome =
           item.grupo_atividade_nome || grupos.find((g) => g.id === item.grupo_atividade_id)?.nome_grupo || "";

@@ -47,6 +47,11 @@ export default function TabelaGruposAtividades(props) {
       resetFiltersKey={props.resetFiltersKey}
       onSelectionChange={props.onSelectionChange}
       onFiltersActiveChange={props.onFiltersActiveChange}
+      viewMode={props.viewMode}
+      displayLimit={props.displayLimit}
+      onListMetrics={props.onListMetrics}
+      cardFields={props.cardFields}
+      cardsPerRow={props.cardsPerRow}
       matchesSearch={(item, q) => {
         const hay = [item.nome_grupo, item.descricao, item.observacoes].filter(Boolean).join(" ").toLowerCase();
         return hay.includes(q);

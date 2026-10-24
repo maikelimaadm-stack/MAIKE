@@ -122,6 +122,11 @@ export default function TabelaLotes({
   resetFiltersKey = 0,
   onFiltersActiveChange,
   isLoading = false,
+  viewMode,
+  displayLimit,
+  onListMetrics,
+  cardFields,
+  cardsPerRow,
 }) {
   const globalSearch = searchQuery || searchTerm;
 
@@ -302,6 +307,13 @@ export default function TabelaLotes({
         resetFiltersKey={resetFiltersKey}
         onSelectionChange={onSelectionChange}
         onFiltersActiveChange={onFiltersActiveChange}
+        viewMode={viewMode}
+        displayLimit={displayLimit}
+        onListMetrics={onListMetrics}
+        cardFields={cardFields}
+        cardsPerRow={cardsPerRow}
+        cardsTitleColId="nome"
+        cardsCodeColId="numero_lote"
         gridFooter={gridFooter}
         onDisplayChange={handleDisplayChange}
         matchesSearch={(lote, q) =>

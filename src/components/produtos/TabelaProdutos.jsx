@@ -100,6 +100,11 @@ export default function TabelaProdutos({
   onSelectionChange,
   onFiltersActiveChange,
   bulkDeleteSignal = 0,
+  viewMode,
+  displayLimit,
+  onListMetrics,
+  cardFields,
+  cardsPerRow,
 }) {
   const [selectedIds, setSelectedIds] = useState([]);
   const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
@@ -158,6 +163,13 @@ export default function TabelaProdutos({
         resetFiltersKey={resetFiltersKey}
         onSelectionChange={handleSelection}
         onFiltersActiveChange={onFiltersActiveChange}
+        viewMode={viewMode}
+        displayLimit={displayLimit}
+        onListMetrics={onListMetrics}
+        cardFields={cardFields}
+        cardsPerRow={cardsPerRow}
+        cardsTitleColId="nome_produto"
+        cardsCodeColId="numero_produto"
         matchesSearch={(p, q) => {
           const hay = [p.nome_produto, p.codigo_interno, p.categoria, p.marca, p.numero_produto]
             .filter(Boolean)

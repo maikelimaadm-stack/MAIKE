@@ -219,3 +219,22 @@ Branch `cursor/ux-base1-paridade-pagina-completa-516d` (PR #44):
 ### Verificação (UX-16)
 
 - `npm run test:smoke`, `npm run gate:types`, `npm run gate:source-closure`, `npm run build`
+
+## UX-17 (2026-10-24) — Cards, rodapé incremental e toolbar secundária (paridade CONTROLE-DE-ESTOQUE)
+
+Branch `cursor/ux-base1-paridade-continua-516d` (após merge do PR #45 em `main`):
+
+| Lacuna vs frota/equipamentos | Correção |
+|--------------------------------|----------|
+| Modo **Cards** desabilitado (`cardsDisabled`) | `Base1Cards` + prefs (`useCadastroCardsPrefs`) + popovers na faixa de filtros (`Base1CardsToolbar`) |
+| Rodapé sem page size / **Carregar mais** alinhados ao MG | `useCadastroListaPagination` + `useCadastroListaFooter`; tamanhos `[100…1000]` (`cadastroBase1List.js`); métricas Listados/Filtrados/Totais via `onListMetrics` na grade |
+| **Duplicar** / **Imprimir** só em piloto | `useCadastroDuplicateAction` + `prepareCadastroDuplicate` em todos os cadastros com formulário; `onPrint={() => window.print()}` no chrome |
+| Tokens cards / summary footer | `.b1-card`, `.b1-card__badge`, `.mg-summary__footer-actions` em `cadastro-base1.css` |
+
+**Escopo:** Marcas, Setores, Produtos, Lotes, Categorias (produto + manejo), Grupos, Tipos, Empresa, Usuários (contas + permissões), Unidades, Locais, Bebedouros.
+
+**Fora de escopo:** `MapaGeral`, `MapaCadastro`, anexos nativos (ícone permanece com tooltip até auditoria P8).
+
+### Verificação (UX-17)
+
+- `npm run test:smoke`, `npm run gate:types`, `npm run gate:source-closure`, `npm run build`

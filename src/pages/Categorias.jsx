@@ -13,6 +13,8 @@ import CadastroWorkspace from "@/components/cadastro/CadastroWorkspace";
 import CadastroListaChrome from "@/components/cadastro/base1/CadastroListaChrome";
 import CadastroRecordHeader from "@/components/cadastro/base1/CadastroRecordHeader";
 import { useCadastroListaChromeState } from "@/hooks/useCadastroListaChromeState";
+import { useCadastroPageListBindings } from "@/hooks/useCadastroPageListBindings";
+import { useCadastroDuplicateAction } from "@/hooks/useCadastroDuplicateAction";
 import FormularioCategoriaProduto from "../components/categorias-produto/FormularioCategoriaProduto";
 import TabelaCategoriasProduto, {
   CATEGORIAS_PRODUTO_COLUNAS,
@@ -26,6 +28,21 @@ export default function Categorias() {
   const [showConfigColunas, setShowConfigColunas] = useState(false);
   const [deleteState, setDeleteState] = useState({ open: false, ids: [] });
   const chrome = useCadastroListaChromeState();
+  const listBindings = useCadastroPageListBindings({
+    storageKey: "colunas_categorias_produto",
+    columns: CATEGORIAS_PRODUTO_COLUNAS,
+    chrome,
+  });
+
+  const handleDuplicateSelected = useCadastroDuplicateAction({
+    chrome,
+    findById: (id) => categorias.find((row) => row.id === id),
+    openDraft: (draft) => {
+      setEditingItem(draft);
+      setShowForm(true);
+    },
+    labelField: "nome",
+  });
   const queryClient = useQueryClient();
 
   const { data: categorias = [] } = useQuery({
@@ -182,12 +199,14 @@ export default function Categorias() {
             ) : null
           }
           selectedCount={chrome.selectedIds.length}
-          listados={categorias.length}
-          filtrados={filtradosCount}
-          totais={categorias.length}
+          {...listBindings.listFooter.chromeFooter}
           onNew={openNew}
           onEdit={handleEditSelected}
           onDelete={handleDeleteSelected}
+          onDuplicate={handleDuplicateSelected}
+          onPrint={() => window.print()}
+          cardsModeAvailable
+          cardsToolbar={listBindings.cardsToolbar}
           searchValue={chrome.searchInput}
           onSearchChange={chrome.setSearchInput}
           onSearchApply={chrome.applySearch}
@@ -218,6 +237,11 @@ export default function Categorias() {
               resetFiltersKey={chrome.resetFiltersKey}
               onSelectionChange={chrome.onSelectionChange}
               onFiltersActiveChange={chrome.setFiltersActive}
+              viewMode={chrome.viewMode === "cards" ? "cards" : "table"}
+              displayLimit={listBindings.listFooter.gradePaging.displayLimit}
+              onListMetrics={listBindings.listFooter.gradePaging.onListMetrics}
+              cardFields={listBindings.cardsPrefs.cardFields}
+              cardsPerRow={listBindings.cardsPrefs.cardsPerRow}
             />
           ) : null}
         </CadastroListaChrome>
