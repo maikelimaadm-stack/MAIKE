@@ -358,3 +358,18 @@ Branch `cursor/ux-base1-ssot-vidro-calendario-switch-516d`:
 ### Verificação (UX-22)
 
 - `npm run verify:all`
+
+## UX-23 (2026-10-24) — Bugfix switch **Ativo** + rodapé de listagem
+
+Branch `cursor/ux-base1-ssot-vidro-calendario-switch-516d` (PR #50):
+
+| Sintoma | Causa | Correção |
+|---------|-------|----------|
+| Campo **Ativo**: caixa minúscula, label flutuante 9px sobre o trilho, `Sim`/`Não` fora do campo | `mg-field` flutuante + `button { width: 100% }` esticava `.b1-switch`; label com `hasValue` sempre ativo | `mg-field--switch` em linha (paridade `.chave`): label fixo à esquerda, controle à direita; `b1-switch` com largura fixa; texto sem `padding-top` |
+| Listagens: grade e `mg-summary` competindo por altura / paginação espremida | `mg-grid-wrap` não era flex filho do shell — só regra para filho **direto** de `mg-shell--fill` | `CadastroListaChrome` usa `mg-shell__body`; CSS encadeia `.mg-shell__body .mg-grid-wrap` com scroll e `mg-summary` fixo no rodapé do shell |
+
+**Arquivos:** `cadastro-b1-controls.css`, `cadastro-base1.css`, `B1Field.jsx`, `FormularioMarca.jsx`, `CadastroListaChrome.jsx`.
+
+### Verificação (UX-23)
+
+- `npm run test:smoke`, `npm run gate:types`, `npm run build`

@@ -245,8 +245,21 @@
   overflow: auto;
 }
 
-.cadastro-b1 .mg-shell--fill > .mg-shell__scroll,
+.cadastro-b1 .mg-shell--fill > .mg-shell__scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+
 .cadastro-b1 .mg-shell--fill > .mg-shell__body {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.cadastro-b1 .mg-shell--fill > .mg-shell__body .mg-grid-wrap {
   flex: 1 1 auto;
   min-height: 0;
   overflow: auto;
@@ -847,7 +860,7 @@
 .cadastro-b1 .mg-field input:focus,
 .cadastro-b1 .mg-field select:focus,
 .cadastro-b1 .mg-field textarea:focus,
-.cadastro-b1 .mg-field button:focus {
+.cadastro-b1 .mg-field button:focus:not(.b1-switch) {
   width: 100%;
   border: 0 !important;
   background: transparent !important;

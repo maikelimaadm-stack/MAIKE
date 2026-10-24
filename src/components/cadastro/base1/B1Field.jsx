@@ -66,7 +66,7 @@ export default function B1Field({
           variant === "switch" && "mg-field--switch",
           disabled && "mg-field--disabled",
           locked && !disabled && "mg-field--locked",
-          hasValue && "mg-has-value",
+          (hasValue || variant === "switch") && "mg-has-value",
           multiline && "mg-field--multiline",
           open && "is-open",
           error && "is-invalid",

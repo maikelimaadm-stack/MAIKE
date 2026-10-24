@@ -572,8 +572,12 @@
   height: 13px;
 }
 
-/* ── chave sim/não (B1Switch) ── */
+/* ── chave sim/não (B1Switch — paridade campo.module.css `.chave`) ── */
 .cadastro-b1 .mg-field--switch {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  grid-template-rows: unset;
   background: var(--mg-gray-fill);
 }
 
@@ -582,22 +586,59 @@
   border-color: #e7eaee;
 }
 
+.cadastro-b1 .mg-field--switch .mg-field__label {
+  position: static;
+  grid-row: unset;
+  grid-column: unset;
+  flex: 0 0 auto;
+  align-self: center;
+  padding: 0 10px;
+  font-size: 12px;
+  line-height: 1.1;
+  max-width: 50%;
+}
+
+.cadastro-b1 .mg-field--switch.mg-has-value .mg-field__label,
+.cadastro-b1 .mg-field--switch:focus-within .mg-field__label {
+  align-self: center;
+  padding: 0 10px;
+  font-size: 12px;
+  line-height: 1.1;
+}
+
 .cadastro-b1 .mg-field--switch .mg-field__control {
+  grid-row: unset;
+  grid-column: unset;
+  flex: 1 1 auto;
+  display: flex;
   align-items: center;
+  justify-content: flex-end;
+  height: var(--mg-field-h);
+  min-width: 0;
   padding: 0 10px;
 }
 
-.cadastro-b1 .mg-field--switch .mg-field__control :is(input, select, textarea, .cmd-display, .mg-dp-field) {
-  padding-top: 17px !important;
-  padding-bottom: 5px !important;
+.cadastro-b1 .mg-field--switch .mg-field__control > * {
+  height: auto;
+  width: auto;
+  flex: 0 0 auto;
 }
 
 .cadastro-b1 .b1-switch-wrap {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 9px;
-  width: 100%;
-  min-height: 100%;
+  width: auto;
+  max-width: 100%;
+}
+
+.cadastro-b1 .mg-field button.b1-switch,
+.cadastro-b1 .mg-field button.b1-switch:focus {
+  width: var(--sw-w);
+  min-width: var(--sw-w);
+  max-width: var(--sw-w);
+  height: var(--sw-h);
+  flex-shrink: 0;
 }
 
 .cadastro-b1 .b1-switch {
@@ -661,7 +702,8 @@
   font-size: 13px;
   font-weight: 500;
   color: var(--mg-text-1);
-  padding-top: 12px;
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
 /* Data compacta dentro do filtro fpop */

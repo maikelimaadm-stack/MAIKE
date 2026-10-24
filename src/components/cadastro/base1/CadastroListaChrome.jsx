@@ -187,7 +187,7 @@ export default function CadastroListaChrome({
   const listBodyClass =
     viewMode === "cards"
       ? "mg-shell__scroll min-h-0 flex-1 p-2.5"
-      : "flex min-h-0 flex-1 flex-col";
+      : "mg-shell__body min-h-0 flex-1";
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2" data-testid="b1-list" data-cadastro-chrome>
@@ -302,42 +302,42 @@ export default function CadastroListaChrome({
       <div className="flex min-h-0 flex-1 gap-2">
         <div className="mg-shell mg-shell--fill min-h-0 min-w-0 flex-1">
           <div className={listBodyClass}>{children}</div>
-        <div className="mg-summary no-print">
-          <div className="mg-summary__counts">
-            <span className="mg-summary__item">Selecionados: {selectedCount}</span>
-            <span className="mg-summary__item">Listados: {listados}</span>
-            <span className="mg-summary__item">Filtrados: {filtrados}</span>
-            <span className="mg-summary__item">Totais: {totais}</span>
+          <div className="mg-summary no-print">
+            <div className="mg-summary__counts">
+              <span className="mg-summary__item">Selecionados: {selectedCount}</span>
+              <span className="mg-summary__item">Listados: {listados}</span>
+              <span className="mg-summary__item">Filtrados: {filtrados}</span>
+              <span className="mg-summary__item">Totais: {totais}</span>
+            </div>
+            {onPageSizeChange || onLoadMore ? (
+              <span className="mg-summary__footer-actions">
+                {onPageSizeChange ? (
+                  <select
+                    aria-label="Quantidade de registros por carregamento"
+                    className="mg-pill-select"
+                    value={pageSize}
+                    onChange={(e) => onPageSizeChange(Number(e.target.value))}
+                  >
+                    {CADASTRO_B1_PAGE_SIZES.map((n) => (
+                      <option key={n} value={n}>
+                        {n}
+                      </option>
+                    ))}
+                  </select>
+                ) : null}
+                {onLoadMore ? (
+                  <IconBtn
+                    aria-label="Carregar mais registros"
+                    title="Carregar mais registros"
+                    disabled={!hasMore || loadingMore}
+                    onClick={onLoadMore}
+                  >
+                    <ChevronsDown aria-hidden />
+                  </IconBtn>
+                ) : null}
+              </span>
+            ) : null}
           </div>
-          {onPageSizeChange || onLoadMore ? (
-            <span className="mg-summary__footer-actions">
-              {onPageSizeChange ? (
-                <select
-                  aria-label="Quantidade de registros por carregamento"
-                  className="mg-pill-select"
-                  value={pageSize}
-                  onChange={(e) => onPageSizeChange(Number(e.target.value))}
-                >
-                  {CADASTRO_B1_PAGE_SIZES.map((n) => (
-                    <option key={n} value={n}>
-                      {n}
-                    </option>
-                  ))}
-                </select>
-              ) : null}
-              {onLoadMore ? (
-                <IconBtn
-                  aria-label="Carregar mais registros"
-                  title="Carregar mais registros"
-                  disabled={!hasMore || loadingMore}
-                  onClick={onLoadMore}
-                >
-                  <ChevronsDown aria-hidden />
-                </IconBtn>
-              ) : null}
-            </span>
-          ) : null}
-        </div>
         </div>
       </div>
       ) : null}
