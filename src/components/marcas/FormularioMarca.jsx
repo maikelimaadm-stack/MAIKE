@@ -1,9 +1,9 @@
 import React, { useState } from "react";
 import { toast } from "sonner";
 import B1Field, { B1_FIELD_INPUT_CLS } from "@/components/cadastro/base1/B1Field";
+import B1ChaveRow from "@/components/cadastro/base1/B1ChaveRow";
 import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
 import CadastroFormActions from "@/components/cadastro/base1/CadastroFormActions";
-import B1Switch from "@/components/cadastro/base1/B1Switch";
 
 export const FORMULARIO_MARCA_ID = "formulario-marca-base1";
 
@@ -44,7 +44,11 @@ export default function FormularioMarca({
   };
 
   const formBody = (
-    <form id={FORMULARIO_MARCA_ID} onSubmit={handleSubmit} className="grid grid-cols-12 gap-3 p-1">
+    <form
+      id={FORMULARIO_MARCA_ID}
+      onSubmit={handleSubmit}
+      className="b1 grid min-h-0 w-full grid-cols-12 gap-3"
+    >
       <B1Field
         label="Nome"
         required
@@ -71,14 +75,13 @@ export default function FormularioMarca({
           autoComplete="off"
         />
       </B1Field>
-      <B1Field label="Ativo" span={12} hasValue variant="switch">
-        <B1Switch
-          checked={form.ativo}
-          onChange={(v) => handleChange("ativo", v)}
-          ariaLabel="Marca ativa"
-          showText
-        />
-      </B1Field>
+      <B1ChaveRow
+        label="Ativo"
+        span={12}
+        checked={form.ativo}
+        onChange={(v) => handleChange("ativo", v)}
+        ariaLabel="Marca ativa"
+      />
       {!toolbarActions ? (
         <div className="col-span-12">
           <CadastroFormActions

@@ -5,6 +5,7 @@ import { Check, FileText, Table2, LayoutGrid } from "lucide-react";
 export { MgSelect } from "./MgSelect";
 export { MgDatePicker, B1DatePicker, isoToBR, brToISO } from "./MgDatePicker";
 export { default as B1Switch } from "./B1Switch";
+export { default as B1ChaveRow } from "./B1ChaveRow";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 

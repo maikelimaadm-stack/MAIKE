@@ -388,3 +388,20 @@ Branch `cursor/ux-base1-ssot-vidro-calendario-switch-516d` (PR #50):
 ### Verificação (UX-24)
 
 - `npm run verify:all`
+
+## UX-25 (2026-10-24) — Registro Marcas = frota/equipamentos + `B1ChaveRow`
+
+Branch `cursor/ux-base1-ssot-vidro-calendario-switch-516d` (PR #50):
+
+| Item | Correção |
+|------|----------|
+| **Ativo** no formulário | `B1ChaveRow` (faixa branca com borda, rótulo cinza à esquerda, `B1Switch` + Sim/Não à direita) — **sem** `B1Field` / `mg-field` |
+| Modo registro (`CadastroListaChrome`) | Corpo do registro: `mg-form-scroll` com `p-3` (paridade `ResourceForm` / painel do equipamento); removido `mg-shell__scroll` duplicado |
+| `FormularioMarca` | Grade `grid-cols-12 gap-3` + classe `b1`; Nome/Descrição em `B1Field`; Ativo em linha chave |
+| Listagem | Rodapé mantém `MgSelect` pill + painel vidro (`UX-24`) |
+
+**Arquivos:** `B1ChaveRow.jsx`, `cadastro-b1-controls.css`, `FormularioMarca.jsx`, `CadastroListaChrome.jsx`, `Base1Ui.jsx`.
+
+### Verificação (UX-25)
+
+- `npm run verify:all`

@@ -237,7 +237,7 @@ export default function CadastroListaChrome({
           {recordHeader}
           <div className="flex min-h-0 flex-1 gap-2">
             <div className="mg-shell mg-shell--fill min-h-0 min-w-0 flex-1">
-              <div className="mg-form-scroll mg-shell__scroll min-h-0 flex-1 p-2">{recordBody}</div>
+              <div className="mg-form-scroll min-h-0 flex-1 overflow-auto p-3">{recordBody}</div>
             </div>
           </div>
         </>

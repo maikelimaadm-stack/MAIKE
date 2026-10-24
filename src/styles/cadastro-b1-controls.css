@@ -572,7 +572,48 @@
   height: 13px;
 }
 
-/* ── chave sim/não (B1Switch — paridade campo.module.css `.chave`) ── */
+/* ── linha chave sim/não (sem mg-field — paridade ChaveSimNao / campo.module.css) ── */
+.cadastro-b1 .b1-chave-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  min-height: var(--mg-field-h);
+  border-radius: var(--mg-radius-control);
+  border: 1px solid #e7eaee;
+  background: #fff;
+  box-shadow: var(--mg-field-edge-shadow);
+  padding: 0 10px;
+  gap: 8px;
+}
+
+.cadastro-b1 .b1-chave-row__label {
+  flex: 0 0 auto;
+  font-size: 12px;
+  line-height: 1.1;
+  font-weight: 500;
+  color: var(--mg-text-2);
+  max-width: 50%;
+}
+
+.cadastro-b1 .b1-chave-row__control {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.cadastro-b1 .b1-chave-row .b1-switch-wrap {
+  width: auto;
+}
+
+.cadastro-b1 .b1-chave-row button.b1-switch {
+  width: var(--sw-w);
+  min-width: var(--sw-w);
+  max-width: var(--sw-w);
+}
+
+/* ── chave sim/não legado em mg-field (B1Field variant="switch") ── */
 .cadastro-b1 .mg-field--switch {
   display: flex;
   flex-direction: row;
