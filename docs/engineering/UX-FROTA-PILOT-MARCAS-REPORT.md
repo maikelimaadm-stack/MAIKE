@@ -870,7 +870,7 @@ Branch `cursor/ux-base1-marcas-organize-516d` (docs + fix `gate:types` em #51).
 | **#51** | `e63aa297` | Motor UX-29–42 (cards, colunas, grade, portal join) + fix `ehCamadaAninhadaDoFiltro` (`Element`) |
 | **#52** | `0646cdf5` | `PLAN-EXECUCAO-PARIDADE-BASE1.md` + ROADMAP |
 | **#53** | `1849cb54` | UX-43 Fase 1 sign-off (toolbar mobile, cards `p-4`, D-PROD-40) |
-| **#54** | *(merge pendente)* | Checklist executável, D-PROD-41, UX-44 |
+| **#54** | `5df4458f` | Checklist executável, D-PROD-41, UX-44, UX-45 (gate §H) |
 
 **Organização Marcas (checklist A–G):** nenhum item **PARTIAL** restante em A–F; G.3–G.5 permanecem documentados (dialogs Fase 3, tenancy, `max+1`). Passagem CDE pós-merge: sem diff de código adicional além do fix de tipos em `cadastroColunaFiltroCamada.js` (smoke com `document.createElement`).
 
