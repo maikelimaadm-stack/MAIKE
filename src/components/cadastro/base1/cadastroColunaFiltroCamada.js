@@ -8,10 +8,9 @@ export const SELETOR_CAMADA_ANINHADA_DO_FILTRO =
 
 /** @param {EventTarget | null} alvo */
 export function ehCamadaAninhadaDoFiltro(alvo) {
-  return Boolean(
-    alvo &&
-      typeof alvo.closest === "function" &&
-      alvo.closest(SELETOR_CAMADA_ANINHADA_DO_FILTRO),
+  return (
+    alvo instanceof Element &&
+    Boolean(alvo.closest(SELETOR_CAMADA_ANINHADA_DO_FILTRO))
   );
 }
 

@@ -5,10 +5,14 @@ import {
   ehCamadaAninhadaDoFiltro,
 } from "@/components/cadastro/base1/cadastroColunaFiltroCamada";
 
-function alvoComClosest(resposta) {
-  return {
-    closest: (sel) => (sel === SELETOR_CAMADA_ANINHADA_DO_FILTRO ? resposta : null),
-  };
+function alvoComCamadaAninhada() {
+  const el = document.createElement("div");
+  el.setAttribute("data-filtro-camada", "");
+  return el;
+}
+
+function alvoSemCamadaAninhada() {
+  return document.createElement("span");
 }
 
 describe("cadastroColunaFiltroCamada — paridade CDE 357–360", () => {
@@ -26,7 +30,7 @@ describe("cadastroColunaFiltroCamada — paridade CDE 357–360", () => {
     };
     expect(
       deveFecharFiltroPorFora({
-        alvo: alvoComClosest(null),
+        alvo: alvoSemCamadaAninhada(),
         ponto: { clientX: 10, clientY: 10 },
         shell,
         doc: { querySelector: () => null },
@@ -39,14 +43,15 @@ describe("cadastroColunaFiltroCamada — paridade CDE 357–360", () => {
       contains: () => false,
       getBoundingClientRect: () => ({ left: 0, top: 0, right: 0, bottom: 0 }),
     };
+    const alvo = alvoComCamadaAninhada();
     expect(
       deveFecharFiltroPorFora({
-        alvo: alvoComClosest({}),
+        alvo,
         ponto: { clientX: 10, clientY: 10 },
         shell,
         doc: { querySelector: () => null },
       }),
     ).toBe(false);
-    expect(ehCamadaAninhadaDoFiltro(alvoComClosest({}))).toBe(true);
+    expect(ehCamadaAninhadaDoFiltro(alvo)).toBe(true);
   });
 });
