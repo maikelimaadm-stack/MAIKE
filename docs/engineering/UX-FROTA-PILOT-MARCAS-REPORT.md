@@ -1027,3 +1027,42 @@ Branch `cursor/ux-base1-marcas-next-516d`. Referência: CDE `features/base1/grid
 ### Verificação (UX-49)
 
 - `npm run verify:all` (CI com `DATABASE_URL`)
+
+## UX-50 (2026-10-26) — Revisão contínua Marcas (pós PR #59) + automação H.5
+
+**Branch:** `cursor/ux-base1-marcas-ux50-7cc9`  
+**Base:** `main` pós-merge **#59** (`eb3866ee`, UX-49).
+
+**Objetivo:** `verify:all` na `main`; auditoria CDE (portal compras + frota registro) nos eixos de dor do usuário; automatizar trecho do roteiro H.5; manter gate §H aguardando aceite proprietário (**D-PROD-41**, sem Setores).
+
+### `verify:all` na `main` (agente 2026-10-26)
+
+| Etapa | Resultado |
+|-------|-----------|
+| Gates 1–19 (exceto backend) | **Verde** |
+| `test:backend` | **Falha esperada** sem `DATABASE_URL` / Docker no agente |
+| `lint` | Verde (warning `eslint-disable` órfão em `Base1Grid` — removido em UX-50) |
+
+### Auditoria Marcas vs CDE (foco dor do usuário)
+
+| Eixo | CDE (`barraIntegrada` + `grid` / `Record`) | Marcas | Resultado |
+|------|--------------------------------------------|--------|-----------|
+| Filtros de cabeçalho + `fpop` | `referenceHeaders`, camadas 357–360, operador Radix | `TabelaMarcas` + UX-35–42 | **Paridade** |
+| Sensação resize coluna | Alça 6px, `col-resize`, mín. 48px, sync corpo/rodapé | `Base1Grid` + #58 `syncColunaInline` em `tfoot` | **Paridade** |
+| Chrome único tabela / cards / registro | `mg-shell` join + mesma barra | `joinTableToolbar` + `joinedShell` (UX-40) | **Paridade** |
+| Espaçamento | Toolbar ~36px; cards `p-4` / scroll `p-2.5`; summary 4 colunas | `portalComprasSkin` + UX-43 | **Paridade** |
+| Limpar filtros + busca | `clearAll` | `clearCadastroListaFiltersAndSearch` (SSOT UX-49/50) | **Paridade** |
+
+**Sem lacuna técnica nova** nos itens A–F do checklist; **H.5** permanece com produto.
+
+### Automação (roteiro H.5)
+
+| Roteiro manual | Automação |
+|----------------|-----------|
+| §7 Limpar filtros (coluna + busca) | `tests/smoke/cadastroListaClearFilters.test.js` + `src/lib/cadastroListaClearFilters.js` |
+| Prefs coluna / camadas fpop | Já em `cadastroBase1ColumnPrefs.test.js`, `cadastroColunaFiltroCamada.test.js` |
+
+### Verificação (UX-50)
+
+- `npm run test:smoke`
+- `npm run verify:all` (CI com Postgres)

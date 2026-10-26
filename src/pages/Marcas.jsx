@@ -17,6 +17,7 @@ import { PillBtn } from "@/components/cadastro/base1/Base1Ui";
 import FormularioMarca, { FORMULARIO_MARCA_ID } from "@/components/marcas/FormularioMarca";
 import { useCadastroListaFooter } from "@/hooks/useCadastroListaFooter";
 import { useCadastroCardsPrefs } from "@/hooks/useCadastroCardsPrefs";
+import { clearCadastroListaFiltersAndSearch } from "@/lib/cadastroListaClearFilters";
 
 const MARCAS_STORAGE_KEY = "colunas_marcas_v1";
 
@@ -269,11 +270,7 @@ export default function Marcas() {
           searchPlaceholder="Buscar marcas…"
           configureColumnsAnchorRef={configureColumnsAnchorRef}
           onConfigureColumns={() => setShowConfigColunas(true)}
-          onClearFilters={() => {
-            chrome.clearFilters();
-            chrome.setSearchInput("");
-            chrome.applySearch("");
-          }}
+          onClearFilters={() => clearCadastroListaFiltersAndSearch(chrome)}
           filtersActive={chrome.filtersActive || chrome.searchActive}
           viewMode={showForm ? "record" : chrome.viewMode}
           onViewModeChange={onViewModeChange}

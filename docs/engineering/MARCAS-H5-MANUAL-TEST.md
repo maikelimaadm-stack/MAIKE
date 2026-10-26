@@ -73,6 +73,8 @@
 1. Aplicar filtro de coluna + busca global → ícone limpar filtros ativo (toolbar e menu ⚡).
 2. **Limpar filtros** → remove filtros de cabeçalho **e** zera busca aplicada.
 
+**Automação (CI):** `tests/smoke/cadastroListaClearFilters.test.js` cobre o helper `clearCadastroListaFiltersAndSearch` usado em `Marcas.jsx`.
+
 ---
 
 ## Fora do escopo (não reprovar no H.5)
