@@ -177,26 +177,53 @@ const PER_ROW = [
   { n: 4, hint: "1 campo por linha no card" },
 ];
 
-/** Popovers de layout/campos dos cards (faixa de filtros Base1). */
-export function Base1CardsToolbar({ columns, cardsPrefs }) {
+/**
+ * Popovers de layout/campos dos cards (menu Mais opções / faixa Base1).
+ *
+ * @param {object} props
+ * @param {Array<{ id: string; label: string }>} props.columns
+ * @param {ReturnType<import('@/hooks/useCadastroCardsPrefs').useCadastroCardsPrefs>} props.cardsPrefs
+ * @param {boolean} [props.layoutOpen]
+ * @param {(open: boolean) => void} [props.onLayoutOpenChange]
+ * @param {boolean} [props.fieldsOpen]
+ * @param {(open: boolean) => void} [props.onFieldsOpenChange]
+ */
+export function Base1CardsToolbar({
+  columns,
+  cardsPrefs,
+  layoutOpen,
+  onLayoutOpenChange,
+  fieldsOpen,
+  onFieldsOpenChange,
+}) {
   const { cardsPerRow, setCardsPerRow, cardFields, setCardFields, restoreLayout, restoreFields } =
     cardsPrefs;
 
   return (
     <>
-      <CardsLayoutPopover value={cardsPerRow} onChange={setCardsPerRow} onRestore={restoreLayout} />
+      <CardsLayoutPopover
+        value={cardsPerRow}
+        onChange={setCardsPerRow}
+        onRestore={restoreLayout}
+        open={layoutOpen}
+        onOpenChange={onLayoutOpenChange}
+      />
       <CardFieldsPopover
         columns={columns}
         value={cardFields}
         onChange={setCardFields}
         onRestore={restoreFields}
+        open={fieldsOpen}
+        onOpenChange={onFieldsOpenChange}
       />
     </>
   );
 }
 
-function CardsLayoutPopover({ value, onChange, onRestore }) {
-  const [open, setOpen] = React.useState(false);
+function CardsLayoutPopover({ value, onChange, onRestore, open: openProp, onOpenChange: onOpenChangeProp }) {
+  const [openInternal, setOpenInternal] = React.useState(false);
+  const open = openProp ?? openInternal;
+  const setOpen = onOpenChangeProp ?? setOpenInternal;
   const [draft, setDraft] = React.useState(value);
   React.useEffect(() => {
     if (open) setDraft(value);
@@ -242,8 +269,17 @@ function CardsLayoutPopover({ value, onChange, onRestore }) {
   );
 }
 
-function CardFieldsPopover({ columns, value, onChange, onRestore }) {
-  const [open, setOpen] = React.useState(false);
+function CardFieldsPopover({
+  columns,
+  value,
+  onChange,
+  onRestore,
+  open: openProp,
+  onOpenChange: onOpenChangeProp,
+}) {
+  const [openInternal, setOpenInternal] = React.useState(false);
+  const open = openProp ?? openInternal;
+  const setOpen = onOpenChangeProp ?? setOpenInternal;
   const [draft, setDraft] = React.useState(value);
   React.useEffect(() => {
     if (open) setDraft(value);

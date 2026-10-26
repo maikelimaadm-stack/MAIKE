@@ -1,14 +1,9 @@
 import React, { useState } from "react";
 import { toast } from "sonner";
 import B1Field, { B1_FIELD_CTL_CLS } from "@/components/cadastro/base1/B1Field";
+import { B1ChaveRow } from "@/components/cadastro/base1/Base1Ui";
 import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
 import CadastroFormActions from "@/components/cadastro/base1/CadastroFormActions";
-import { MgSelect } from "@/components/cadastro/base1/MgSelect";
-
-const ATIVO_OPCOES = [
-  { value: "true", label: "Sim" },
-  { value: "false", label: "Não" },
-];
 
 export const FORMULARIO_MARCA_ID = "formulario-marca-base1";
 
@@ -28,7 +23,6 @@ export default function FormularioMarca({
     ativo: initialData?.ativo !== false,
   }));
   const [invalidFields, setInvalidFields] = useState([]);
-  const [openField, setOpenField] = useState(null);
 
   const handleChange = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -83,20 +77,13 @@ export default function FormularioMarca({
           autoComplete="off"
         />
       </B1Field>
-      <B1Field
+      <B1ChaveRow
         label="Ativo"
         span={6}
-        hasValue
-        open={openField === "ativo"}
-      >
-        <MgSelect
-          value={form.ativo ? "true" : "false"}
-          onChange={(v) => handleChange("ativo", v === "true")}
-          options={ATIVO_OPCOES}
-          onOpenChange={(o) => setOpenField(o ? "ativo" : null)}
-          ariaLabel="Marca ativa"
-        />
-      </B1Field>
+        checked={form.ativo}
+        onChange={(v) => handleChange("ativo", v)}
+        ariaLabel="Marca ativa"
+      />
       {!toolbarActions ? (
         <div className="col-span-12">
           <CadastroFormActions

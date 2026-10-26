@@ -537,3 +537,19 @@ Branch `cursor/ux-base1-cards-colunas-878d` (PR #51):
 ### Verificação (UX-32)
 
 - `npm run verify:all`
+
+## UX-33 (2026-10-26) — Marcas: grade full-width, Ativo switch, ferramentas no menu ⋮
+
+Branch `cursor/ux-base1-cards-colunas-878d` (PR #51):
+
+| Item | Correção |
+|------|----------|
+| **Formulário / lançamento** | `.mg-b1-record-form` sem `max-width` centralizado; grade `cols-12` alinhada à esquerda (paridade ResourceForm) |
+| **Ativo** | `B1ChaveRow` + `B1Switch` (reverte `MgSelect` Sim/Não da UX-32) |
+| **Chrome lista** | Configurar colunas, layout dos cards e campos dos cards só no menu **Mais opções**; removidos da toolbar e da faixa `mg-pills-rail` |
+
+**Arquivos:** `FormularioMarca.jsx`, `CadastroListaChrome.jsx`, `Base1Cards.jsx`, `cadastro-base1.css`.
+
+### Verificação (UX-33)
+
+- `npm run verify:all`

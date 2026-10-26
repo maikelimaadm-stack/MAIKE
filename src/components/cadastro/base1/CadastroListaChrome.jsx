@@ -3,7 +3,6 @@ import {
   Plus,
   Pencil,
   Trash2,
-  Columns3,
   FilterX,
   Copy,
   Paperclip,
@@ -112,6 +111,7 @@ export default function CadastroListaChrome({
   const oneSelected = selectedCount === 1;
   const anySelected = selectedCount > 0;
   const [showChips, setShowChips] = useState(true);
+  const [cardsPanel, setCardsPanel] = useState(null);
   const stripRef = useRef(null);
   const railEnabled = showFilterRail && !recordMode;
 
@@ -120,6 +120,7 @@ export default function CadastroListaChrome({
     [],
   );
 
+  const cardsToolsInMenu = Boolean(cardsToolbar);
   const menuItems = useMemo(
     () => [
       {
@@ -133,46 +134,53 @@ export default function CadastroListaChrome({
         label: "Configurar colunas",
         disabled: !onConfigureColumns,
       },
+      {
+        key: "cards-layout",
+        label: "Configurar layout dos cards",
+        disabled: !cardsToolsInMenu || viewMode !== "cards",
+      },
+      {
+        key: "cards-fields",
+        label: "Configurar campos dos cards",
+        disabled: !cardsToolsInMenu || viewMode !== "cards",
+      },
     ],
-    [onExportCsv, onPrint, onConfigureColumns],
+    [onExportCsv, onPrint, onConfigureColumns, cardsToolsInMenu, viewMode],
   );
 
   const onMenu = (k) => {
     if (k === "export") onExportCsv?.();
     if (k === "print") (onPrint ?? (() => window.print()))();
     if (k === "cfg") onConfigureColumns?.();
+    if (k === "cards-layout") setCardsPanel("layout");
+    if (k === "cards-fields") setCardsPanel("fields");
   };
+
+  const cardsToolbarHosted =
+    cardsToolbar && viewMode === "cards" && React.isValidElement(cardsToolbar)
+      ? React.cloneElement(cardsToolbar, {
+          layoutOpen: cardsPanel === "layout",
+          onLayoutOpenChange: (o) => setCardsPanel(o ? "layout" : null),
+          fieldsOpen: cardsPanel === "fields",
+          onFieldsOpenChange: (o) => setCardsPanel(o ? "fields" : null),
+        })
+      : null;
 
   const scrollStrip = (dx) => stripRef.current?.scrollBy({ left: dx, behavior: "smooth" });
 
   const listSecondaryTools =
-    !recordMode && !showFilterRail ? (
+    !recordMode && !showFilterRail && onClearFilters ? (
       <div className="mg-toolbar__list-tools flex flex-wrap items-center gap-1.5">
-        {viewMode === "cards" && cardsToolbar ? cardsToolbar : null}
-        {viewMode !== "cards" && onConfigureColumns ? (
-          <IconBtn
-            ref={configureColumnsAnchorRef}
-            size="sm"
-            data-testid="b1-col-config-trigger"
-            aria-label="Configurar colunas da tabela"
-            title="Configurar colunas da tabela"
-            onClick={onConfigureColumns}
-          >
-            <Columns3 className="h-4 w-4" />
-          </IconBtn>
-        ) : null}
-        {onClearFilters ? (
-          <IconBtn
-            size="sm"
-            aria-label="Limpar todos os filtros"
-            title="Limpar todos os filtros"
-            disabled={!filtersActive}
-            className={filtersActive ? "is-filter-active" : undefined}
-            onClick={onClearFilters}
-          >
-            <FilterX className="h-4 w-4" />
-          </IconBtn>
-        ) : null}
+        <IconBtn
+          size="sm"
+          aria-label="Limpar todos os filtros"
+          title="Limpar todos os filtros"
+          disabled={!filtersActive}
+          className={filtersActive ? "is-filter-active" : undefined}
+          onClick={onClearFilters}
+        >
+          <FilterX className="h-4 w-4" />
+        </IconBtn>
       </div>
     ) : null;
 
@@ -211,16 +219,26 @@ export default function CadastroListaChrome({
         />
       ) : null}
       {!secondaryToolsLocked ? (
-        <B1Popover
-          className="w-64 p-1.5"
-          trigger={
-            <IconBtn aria-label="Mais opções" title="Mais opções">
-              <MoreHorizontal className="h-4 w-4" aria-hidden />
-            </IconBtn>
-          }
-        >
-          <MenuList items={menuItems} onPick={onMenu} />
-        </B1Popover>
+        <div className="relative">
+          {onConfigureColumns ? (
+            <span
+              ref={configureColumnsAnchorRef}
+              data-testid="b1-col-config-trigger"
+              className="pointer-events-none absolute bottom-0 right-0 h-px w-px overflow-hidden"
+              aria-hidden="true"
+            />
+          ) : null}
+          <B1Popover
+            className="w-64 p-1.5"
+            trigger={
+              <IconBtn aria-label="Mais opções" title="Mais opções">
+                <MoreHorizontal className="h-4 w-4" aria-hidden />
+              </IconBtn>
+            }
+          >
+            <MenuList items={menuItems} onPick={onMenu} />
+          </B1Popover>
+        </div>
       ) : null}
     </div>
   );
@@ -328,19 +346,6 @@ export default function CadastroListaChrome({
             </IconBtn>
           ) : null}
           <span className="mx-1 h-5 w-px bg-[var(--mg-divider)]" aria-hidden />
-          {viewMode === "cards" && cardsToolbar ? cardsToolbar : null}
-          {viewMode !== "cards" && onConfigureColumns ? (
-            <IconBtn
-              ref={configureColumnsAnchorRef}
-              size="sm"
-              data-testid="b1-col-config-trigger"
-              aria-label="Configurar colunas da tabela"
-              title="Configurar colunas da tabela"
-              onClick={onConfigureColumns}
-            >
-              <Columns3 className="h-4 w-4" />
-            </IconBtn>
-          ) : null}
         </div>
       </div>
       ) : null}
@@ -385,6 +390,10 @@ export default function CadastroListaChrome({
           </div>
         </div>
       </div>
+      ) : null}
+
+      {cardsToolbarHosted ? (
+        <div className="sr-only" aria-hidden="true">{cardsToolbarHosted}</div>
       ) : null}
     </div>
   );
