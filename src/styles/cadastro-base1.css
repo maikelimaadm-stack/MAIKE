@@ -1304,7 +1304,21 @@
   padding-top: 8px;
 }
 
-/* Toolbar: quebra segura em telas estreitas */
+/* Toolbar: quebra segura em telas estreitas (mobile + tablet — UX-C / UX-43) */
+@media (max-width: 1023px) {
+  .cadastro-b1 .mg-toolbar--join {
+    row-gap: 6px;
+    height: auto;
+    min-height: var(--mg-toolbar-h);
+    align-items: flex-start;
+  }
+
+  .cadastro-b1 .mg-toolbar--join > .ml-auto {
+    max-width: 100%;
+    flex-wrap: wrap;
+  }
+}
+
 @media (max-width: 639px) {
   .cadastro-b1 .mg-toolbar {
     row-gap: 6px;
@@ -1324,6 +1338,15 @@
   .cadastro-b1 .mg-toolbar__list-tools {
     width: 100%;
     margin-left: 0;
+  }
+
+  /* Controles primários com texto: alvo de toque ~44px (ícones portal permanecem 25px) */
+  .cadastro-b1--full-page .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn.tb-btn-green,
+  .cadastro-b1--full-page .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn.tb-btn-red {
+    min-height: 44px !important;
+    height: auto !important;
+    padding-top: 8px !important;
+    padding-bottom: 8px !important;
   }
 
   /* Piloto Marcas / layout base1-list em mobile */
