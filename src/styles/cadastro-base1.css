@@ -1408,6 +1408,15 @@
   padding: 4px 11px;
 }
 
+/* Bookmark + nav do registro no mesmo shell join (tabela / cards / registro) */
+.cadastro-b1 .mg-shell--join-table > [data-testid="cadastro-record-header"] {
+  flex-shrink: 0;
+}
+
+.cadastro-b1 .mg-shell--join-table > .mg-form-scroll {
+  background: #fff;
+}
+
 .cadastro-b1 .mg-shell--join-table .mg-rail--join {
   flex-shrink: 0;
   margin: 0;

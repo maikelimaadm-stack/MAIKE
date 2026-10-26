@@ -16,7 +16,7 @@ export default function FormularioMarca({
   isSubmitting = false,
   readOnly = false,
 }) {
-  const isEditing = !!initialData?.id;
+  const isExistingRecord = Boolean(initialData?.id);
   const embedded = variant === "embedded";
   const [form, setForm] = useState(() => ({
     nome: initialData?.nome || "",
@@ -52,7 +52,7 @@ export default function FormularioMarca({
       noValidate
       data-testid="b1-form"
     >
-      {isEditing && initialData?.numero_marca ? (
+      {isExistingRecord && initialData?.numero_marca != null ? (
         <B1Field label="Nº" span={3} hasValue locked disabled>
           <input
             type="text"
@@ -67,7 +67,7 @@ export default function FormularioMarca({
       <B1Field
         label="Nome"
         required
-        span={isEditing && initialData?.numero_marca ? 9 : 6}
+        span={isExistingRecord && initialData?.numero_marca != null ? 9 : 6}
         hasValue={Boolean(form.nome?.trim())}
         locked={readOnly}
         disabled={readOnly}
@@ -112,7 +112,7 @@ export default function FormularioMarca({
         <div className="col-span-12">
           <CadastroFormActions
             onCancel={onCancel}
-            submitLabel={isEditing ? "Atualizar" : "Salvar"}
+            submitLabel={isExistingRecord ? "Atualizar" : "Salvar"}
             isSubmitting={isSubmitting}
           />
         </div>
@@ -121,7 +121,7 @@ export default function FormularioMarca({
   );
 
   return (
-    <CadastroFormShell embedded={embedded} title={isEditing ? "Editar Marca" : "Nova Marca"}>
+    <CadastroFormShell embedded={embedded} title={isExistingRecord ? "Editar Marca" : "Nova Marca"}>
       <div className={embedded ? "mg-b1-record-form" : undefined}>{formBody}</div>
     </CadastroFormShell>
   );

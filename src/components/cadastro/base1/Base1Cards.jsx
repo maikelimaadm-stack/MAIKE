@@ -124,7 +124,7 @@ export function Base1Cards({
             tabIndex={0}
             aria-selected={on}
             className={cn(
-              "mg-card b1-card group relative cursor-pointer select-none p-4 transition-shadow hover:shadow-[0_6px_20px_rgba(0,0,0,.09)]",
+              "mg-card b1-card group relative cursor-pointer select-none p-4",
               on && "is-selected",
             )}
             onClick={(e) => onSelectClick(id, selectClickOf(e))}
