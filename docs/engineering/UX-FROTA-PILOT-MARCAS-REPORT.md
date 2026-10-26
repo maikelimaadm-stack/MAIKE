@@ -608,3 +608,31 @@ Branch `cursor/ux-base1-cards-colunas-878d` (PR #51). Referência lida linha a l
 ### Verificação (UX-35)
 
 - `npm run verify:all`
+
+## UX-36 (2026-10-26) — SSOT prompt Agro ERP + gaps checklist §11
+
+Branch `cursor/ux-base1-cards-colunas-878d` (PR #51). Prompt persistido em `docs/engineering/PROMPT-MODELO-VISUAL-AGRO-ERP.md`; decisão **D-PROD-39**.
+
+| Item checklist §11 | Status | Notas |
+|--------------------|--------|-------|
+| 11.1 Shell `base1-list` | **Feito** | `CadastroWorkspace` |
+| 11.2 Toolbar join grade | **Feito** | UX-34 |
+| 11.3 Mais opções lista vertical | **Feito** | `MenuList` + popover `flex-col` (353) |
+| 11.4 Faixa chips Marcas | **N/A** | `showFilterRail={false}` por produto; portal compras mantém rail |
+| 11.5–11.8 Grade fpop/resize/congelar/autoajuste | **Feito** | UX-35 |
+| 11.9 Prefs coluna normalizadas | **Feito** | `cadastroBase1ColumnPrefs.js` + `{key}_prefs` (355–356) |
+| 11.10 Diálogo colunas | **Feito** | UX-34 |
+| 11.11 Cards SSOT | **Feito** | UX-29 |
+| 11.12 Tokens `--mg-*` + DM Sans | **Feito** | `cadastro-base1.css`, `index.html` |
+| 11.13 Form `mg-field` + Ativo chave | **Feito** | `B1Field` / `B1ChaveRow` |
+| 11.6 Camadas aninhadas filtro | **Feito** | `data-radix-popover-content` em `camadaAninhadaAberta` |
+| 11.10 `MgSelect` min-width painel | **Feito** | `cmd-panel` CSS (359) |
+| 11.14 Registro view vs edit | **Todo** | frota alterna leitura/edição |
+| 11.15 Pesquisa dropdown avançada | **Todo** | fora de escopo |
+| 11.16 Anexos nativos | **Todo** | P8 |
+
+**Arquivos:** `cadastroBase1ColumnPrefs.js`, `CadastroBase1Grade.jsx`, `CadastroColunaFiltro.jsx`, `CadastroListaChrome.jsx`, `cadastro-base1.css`, `cadastro-b1-controls.css`, `index.html`, `index.css`, `PROMPT-MODELO-VISUAL-AGRO-ERP.md`, `DECISIONS.md` (D-PROD-39).
+
+### Verificação (UX-36)
+
+- `npm run verify:all`

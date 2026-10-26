@@ -231,7 +231,7 @@ export default function CadastroListaChrome({
             />
           ) : null}
           <B1Popover
-            className="w-64 p-1.5"
+            className="flex w-56 min-w-[12rem] flex-col p-1"
             trigger={
               <IconBtn aria-label="Mais opções" title="Mais opções">
                 <MoreHorizontal className="h-4 w-4" aria-hidden />

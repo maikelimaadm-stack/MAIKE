@@ -17,7 +17,7 @@ function camadaAninhadaAberta(alvo) {
   if (!(alvo instanceof Element)) return false;
   return Boolean(
     alvo.closest(
-      "[data-radix-popper-content-wrapper], [data-radix-select-content], .cmd-panel, .mg-b1-glass-pop, .b1-dp-filtro",
+      "[data-radix-popper-content-wrapper], [data-radix-popover-content], [data-radix-select-content], .cmd-panel, .mg-b1-glass-pop, .b1-dp-filtro",
     ),
   );
 }

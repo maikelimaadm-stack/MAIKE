@@ -8,6 +8,10 @@ import { Base1Cards } from "@/components/cadastro/base1/Base1Cards";
 import CadastroColunaFiltro from "@/components/cadastro/base1/CadastroColunaFiltro";
 import { casaNoFiltroColuna, tipoFiltroDaColuna } from "@/components/cadastro/base1/cadastroColunaFiltroLogic";
 import { MgCheck } from "@/components/cadastro/base1/Base1Ui";
+import {
+  loadCadastroBase1ColumnPrefs,
+  persistCadastroBase1ColumnPrefs,
+} from "@/lib/cadastroBase1ColumnPrefs";
 import { ArrowDownAZ, ArrowUpZA, X } from "lucide-react";
 
 /** @param {Array<{ id: string; label: string; default?: boolean; sortable?: boolean; align?: string; width?: number; filterKind?: 'texto'|'num'|'data' }>} defs */
@@ -95,70 +99,29 @@ export default function CadastroBase1Grade({
   const [filtroTemp, setFiltroTemp] = useState({ colunaId: null, valores: [] });
   const [filtrosColunas, setFiltrosColunas] = useState({});
   const [headerFilters, setHeaderFilters] = useState({});
-  const [frozenCount, setFrozenCount] = useState(() => {
-    const saved = localStorage.getItem(`${storageKey}_congeladas`);
-    if (!saved) return 0;
-    const n = Number.parseInt(saved, 10);
-    return Number.isFinite(n) && n >= 0 ? n : 0;
-  });
-  const [autoFitKeys, setAutoFitKeys] = useState(() => {
-    const saved = localStorage.getItem(`${storageKey}_autofit`);
-    if (!saved) return new Set();
-    try {
-      const ids = JSON.parse(saved);
-      return new Set(Array.isArray(ids) ? ids : []);
-    } catch {
-      return new Set();
-    }
-  });
+  const prefsOnce = useRef(null);
+  if (!prefsOnce.current) {
+    prefsOnce.current = loadCadastroBase1ColumnPrefs(storageKey, dataCols);
+  }
+  const initialPrefs = prefsOnce.current;
+
+  const [frozenCount, setFrozenCount] = useState(initialPrefs.frozenCount);
+  const [autoFitKeys, setAutoFitKeys] = useState(initialPrefs.autoFitKeys);
   const lastPick = useRef(null);
 
-  const [columnWidths, setColumnWidths] = useState(() => {
-    const defs = Object.fromEntries(dataCols.map((c) => [c.id, c.width || 160]));
-    const saved = localStorage.getItem(`${storageKey}_largura`);
-    if (!saved) return defs;
-    try {
-      return { ...defs, ...JSON.parse(saved) };
-    } catch {
-      return defs;
-    }
-  });
-
-  const [colunasOrdem, setColunasOrdem] = useState(() => {
-    const saved = localStorage.getItem(`${storageKey}_ordem`);
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch {
-        /* ignore */
-      }
-    }
-    return dataCols.map((c) => c.id);
-  });
-
-  const [colunasVisiveis, setColunasVisiveis] = useState(() => {
-    const saved = localStorage.getItem(`${storageKey}_visiveis`);
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch {
-        /* ignore */
-      }
-    }
-    return defaultVisible;
-  });
+  const [columnWidths, setColumnWidths] = useState(initialPrefs.columnWidths);
+  const [colunasOrdem, setColunasOrdem] = useState(initialPrefs.colunasOrdem);
+  const [colunasVisiveis, setColunasVisiveis] = useState(initialPrefs.colunasVisiveis);
 
   useEffect(() => {
-    localStorage.setItem(`${storageKey}_largura`, JSON.stringify(columnWidths));
-  }, [columnWidths, storageKey]);
-
-  useEffect(() => {
-    localStorage.setItem(`${storageKey}_congeladas`, String(frozenCount));
-  }, [frozenCount, storageKey]);
-
-  useEffect(() => {
-    localStorage.setItem(`${storageKey}_autofit`, JSON.stringify([...autoFitKeys]));
-  }, [autoFitKeys, storageKey]);
+    persistCadastroBase1ColumnPrefs(storageKey, {
+      columnWidths,
+      colunasOrdem,
+      colunasVisiveis,
+      frozenCount,
+      autoFitKeys,
+    });
+  }, [columnWidths, colunasOrdem, colunasVisiveis, frozenCount, autoFitKeys, storageKey]);
 
   const idOf = rowKey ?? ((r) => String(r.id));
 
@@ -354,7 +317,6 @@ export default function CadastroBase1Grade({
 
   const applyVisibleKeys = (keys) => {
     setColunasVisiveis(keys);
-    localStorage.setItem(`${storageKey}_visiveis`, JSON.stringify(keys));
   };
 
   const toggleColuna = (id) => {
@@ -368,7 +330,6 @@ export default function CadastroBase1Grade({
     const [x] = items.splice(r.source.index, 1);
     items.splice(r.destination.index, 0, x);
     setColunasOrdem(items);
-    localStorage.setItem(`${storageKey}_ordem`, JSON.stringify(items));
   };
 
   const hasActiveFilter = (id) => (filtrosColunas[id] || []).length > 0;
@@ -526,7 +487,6 @@ export default function CadastroBase1Grade({
   const restaurarColunas = () => {
     applyVisibleKeys(defaultVisible);
     setColunasOrdem(dataCols.map((c) => c.id));
-    localStorage.setItem(`${storageKey}_ordem`, JSON.stringify(dataCols.map((c) => c.id)));
     setColumnWidths(Object.fromEntries(dataCols.map((c) => [c.id, c.width || 160])));
     setFrozenCount(0);
     setAutoFitKeys(new Set());
@@ -625,7 +585,6 @@ export default function CadastroBase1Grade({
           }}
           onOrdenar={(ids) => {
             setColunasOrdem(ids);
-            localStorage.setItem(`${storageKey}_ordem`, JSON.stringify(ids));
           }}
           onRestaurar={restaurarColunas}
         />

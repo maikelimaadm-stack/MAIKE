@@ -92,6 +92,7 @@
 .cadastro-b1 .cmd-panel {
   border-radius: 12px;
   z-index: 10000;
+  min-width: max(220px, var(--radix-popover-trigger-width, 220px));
 }
 
 /* ── seletor cmd-display / cmd-panel ── */
