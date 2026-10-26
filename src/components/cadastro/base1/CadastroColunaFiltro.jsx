@@ -1,6 +1,6 @@
 import React from "react";
 import { createPortal } from "react-dom";
-import { Check, FilterX, Search } from "lucide-react";
+import { Check, FilterX, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { operadoresParaTipo } from "./cadastroColunaFiltroLogic";
 import { MgDatePicker, brToISO, isoToBR } from "./MgDatePicker";
@@ -13,17 +13,31 @@ function Chk({ on, parte = false }) {
   );
 }
 
+function camadaAninhadaAberta(alvo) {
+  if (!(alvo instanceof Element)) return false;
+  return Boolean(
+    alvo.closest(
+      "[data-radix-popper-content-wrapper], [data-radix-select-content], .cmd-panel, .mg-b1-glass-pop, .b1-dp-filtro",
+    ),
+  );
+}
+
+function deveFecharPorFora({ alvo, ponto, shell, ancoraTh }) {
+  if (!(alvo instanceof Node)) return false;
+  if (shell?.contains(alvo)) return false;
+  if (ancoraTh?.contains(alvo)) return false;
+  if (camadaAninhadaAberta(alvo)) return false;
+  if (ponto && ancoraTh) {
+    const r = ancoraTh.getBoundingClientRect();
+    if (ponto.clientX >= r.left && ponto.clientX <= r.right && ponto.clientY >= r.top && ponto.clientY <= r.bottom) {
+      return false;
+    }
+  }
+  return true;
+}
+
 /**
- * Popover de filtro de cabeçalho (`fpop` — paridade frota/equipamentos).
- *
- * @param {object} props
- * @param {string} props.rotulo
- * @param {'texto'|'num'|'data'} props.tipo
- * @param {string} props.ancora seletor CSS do botão do cabeçalho
- * @param {string[]} props.valores valores distintos da coluna (linhas carregadas)
- * @param {import('./cadastroColunaFiltroLogic').CadastroColunaFiltroAtivo | null} props.atual
- * @param {(f: import('./cadastroColunaFiltroLogic').CadastroColunaFiltroAtivo | null) => void} props.onAplicar
- * @param {() => void} props.onFechar
+ * Popover de filtro de cabeçalho (`fpop` — paridade frota/equipamentos / portal compras).
  */
 export default function CadastroColunaFiltro({
   rotulo,
@@ -48,22 +62,11 @@ export default function CadastroColunaFiltro({
   const [v2, setV2] = React.useState(atual?.v2 ?? "");
   const [busca, setBusca] = React.useState("");
   const [pos, setPos] = React.useState(/** @type {React.CSSProperties} */ ({ visibility: "hidden" }));
-
+  const painel = React.useRef(null);
   const fechar = React.useRef(onFechar);
   fechar.current = onFechar;
 
-  React.useEffect(() => {
-    const teclado = (e) => {
-      if (e.key === "Escape" && !e.defaultPrevented) {
-        e.preventDefault();
-        fechar.current();
-      }
-    };
-    document.addEventListener("keydown", teclado);
-    return () => document.removeEventListener("keydown", teclado);
-  }, []);
-
-  React.useLayoutEffect(() => {
+  const reposicionar = React.useCallback(() => {
     const el = document.querySelector(ancora)?.closest("th");
     if (!el) return;
     const b = el.getBoundingClientRect();
@@ -72,10 +75,45 @@ export default function CadastroColunaFiltro({
     const acima = b.top - 12;
     setPos(
       abaixo >= 360 || abaixo >= acima
-        ? { top: b.bottom + 4, left, maxHeight: abaixo }
-        : { bottom: window.innerHeight - b.top + 4, left, maxHeight: acima },
+        ? { top: b.bottom + 4, left, maxHeight: abaixo, visibility: "visible" }
+        : {
+            bottom: window.innerHeight - b.top + 4,
+            left,
+            maxHeight: acima,
+            visibility: "visible",
+          },
     );
   }, [ancora]);
+
+  React.useLayoutEffect(() => {
+    reposicionar();
+  }, [reposicionar]);
+
+  React.useEffect(() => {
+    const teclado = (e) => {
+      if (e.key === "Escape" && !e.defaultPrevented) {
+        if (camadaAninhadaAberta(document.activeElement)) return;
+        e.preventDefault();
+        fechar.current();
+      }
+    };
+    const fora = (e) => {
+      const th = document.querySelector(ancora)?.closest("th") ?? null;
+      if (!deveFecharPorFora({ alvo: e.target, ponto: e, shell: painel.current, ancoraTh: th })) return;
+      fechar.current();
+    };
+    const scroll = () => reposicionar();
+    document.addEventListener("keydown", teclado);
+    document.addEventListener("mousedown", fora);
+    window.addEventListener("resize", scroll);
+    window.addEventListener("scroll", scroll, true);
+    return () => {
+      document.removeEventListener("keydown", teclado);
+      document.removeEventListener("mousedown", fora);
+      window.removeEventListener("resize", scroll);
+      window.removeEventListener("scroll", scroll, true);
+    };
+  }, [ancora, reposicionar]);
 
   const ops = operadoresParaTipo(tipo);
   const vistos = contagem.filter(([v]) => v.toLowerCase().includes(busca.toLowerCase()));
@@ -87,18 +125,16 @@ export default function CadastroColunaFiltro({
     onAplicar(!op && !valoresFiltrados ? null : { op, v1, v2, valores: valoresFiltrados });
   };
 
+  const aoEnviar = (e) => {
+    e.preventDefault();
+    aplicar();
+  };
+
   const ph = tipo === "data" ? "dd/mm/aaaa" : tipo === "num" ? "Número" : "Valor";
 
   return createPortal(
-    <div className="b1ref">
-      <button
-        type="button"
-        aria-label="Fechar o filtro"
-        tabIndex={-1}
-        className="fixed inset-0 z-[59] cursor-default"
-        onClick={onFechar}
-      />
-      <div className="pop fpop" role="menu" aria-label={`Filtrar coluna ${rotulo}`} style={pos}>
+    <div className="b1ref" ref={painel}>
+      <form className="pop fpop" role="menu" aria-label={`Filtrar coluna ${rotulo}`} style={pos} onSubmit={aoEnviar}>
         <button
           type="button"
           className="fmi"
@@ -228,14 +264,14 @@ export default function CadastroColunaFiltro({
         </div>
         <div className="fpop-f">
           <span style={{ flexGrow: 1 }} />
-          <button type="button" className="tb-btn tb-btn-out xs" onClick={onFechar}>
-            Cancelar
+          <button type="button" className="tb-btn tb-btn-icon tb-btn-sm shrink-0" title="Cancelar" aria-label="Cancelar" onClick={onFechar}>
+            <X className="h-4 w-4" />
           </button>
-          <button type="button" className="tb-btn novo xs" onClick={aplicar}>
-            Aplicar
+          <button type="submit" className="tb-btn tb-btn-icon shrink-0" title="Aplicar" aria-label="Aplicar">
+            <Check className="h-4 w-4" />
           </button>
         </div>
-      </div>
+      </form>
     </div>,
     document.body,
   );

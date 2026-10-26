@@ -580,9 +580,24 @@
 
 .cadastro-b1 .mg-grid th.is-frozen-anchor,
 .cadastro-b1 .mg-grid td.is-frozen-anchor {
-  box-shadow:
-    inset -2px 0 0 0 var(--mg-accent),
-    4px 0 8px -4px rgba(0, 0, 0, 0.18);
+  box-shadow: 4px 0 8px -4px rgba(15, 23, 42, 0.22);
+}
+
+.cadastro-b1 .mg-grid .th-estado {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 3px;
+  margin-left: 2px;
+  color: #94a3b8;
+}
+
+.cadastro-b1 .mg-grid .th-estado-icone {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+  display: block;
+  color: inherit;
 }
 
 .cadastro-b1 .mg-grid .th-select,
@@ -599,21 +614,18 @@
   position: absolute;
   right: 0;
   top: 0;
+  z-index: 5;
   height: 100%;
   width: 6px;
   cursor: col-resize;
-  opacity: 0;
-  transition: opacity 0.15s;
+  touch-action: none;
+  user-select: none;
+  background: transparent;
 }
 
 .cadastro-b1 .mg-grid thead th:hover .mg-grid-resize-handle,
 .cadastro-b1 .mg-grid-resize-handle:hover {
-  opacity: 0.6;
-  background: var(--mg-accent);
-}
-
-.cadastro-b1 .mg-grid thead th.group:hover .mg-grid-resize-handle {
-  opacity: 0.4;
+  background: rgba(64, 222, 99, 0.45);
 }
 
 .cadastro-b1 .mg-check {

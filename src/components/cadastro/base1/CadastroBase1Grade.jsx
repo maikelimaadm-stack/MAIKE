@@ -101,6 +101,16 @@ export default function CadastroBase1Grade({
     const n = Number.parseInt(saved, 10);
     return Number.isFinite(n) && n >= 0 ? n : 0;
   });
+  const [autoFitKeys, setAutoFitKeys] = useState(() => {
+    const saved = localStorage.getItem(`${storageKey}_autofit`);
+    if (!saved) return new Set();
+    try {
+      const ids = JSON.parse(saved);
+      return new Set(Array.isArray(ids) ? ids : []);
+    } catch {
+      return new Set();
+    }
+  });
   const lastPick = useRef(null);
 
   const [columnWidths, setColumnWidths] = useState(() => {
@@ -145,6 +155,10 @@ export default function CadastroBase1Grade({
   useEffect(() => {
     localStorage.setItem(`${storageKey}_congeladas`, String(frozenCount));
   }, [frozenCount, storageKey]);
+
+  useEffect(() => {
+    localStorage.setItem(`${storageKey}_autofit`, JSON.stringify([...autoFitKeys]));
+  }, [autoFitKeys, storageKey]);
 
   const idOf = rowKey ?? ((r) => String(r.id));
 
@@ -271,7 +285,7 @@ export default function CadastroBase1Grade({
     const col = dataCols.find((c) => c.id === colunaId);
     const colLabel = col?.label ?? colunaId;
     const valores = rows.map((r) => String(getFieldValue(r, colunaId) ?? ""));
-    const ancora = `[data-testid="b1-list"] [aria-label="Abrir menu da coluna ${colLabel}"]`;
+    const ancora = `[data-testid="b1-list"] [data-b1-col-menu="${colunaId}"]`;
     return (
       <CadastroColunaFiltro
         key={colunaId}
@@ -515,6 +529,16 @@ export default function CadastroBase1Grade({
     localStorage.setItem(`${storageKey}_ordem`, JSON.stringify(dataCols.map((c) => c.id)));
     setColumnWidths(Object.fromEntries(dataCols.map((c) => [c.id, c.width || 160])));
     setFrozenCount(0);
+    setAutoFitKeys(new Set());
+  };
+
+  const toggleAutoFit = (colKey) => {
+    setAutoFitKeys((prev) => {
+      const n = new Set(prev);
+      if (n.has(colKey)) n.delete(colKey);
+      else n.add(colKey);
+      return n;
+    });
   };
 
   if (viewMode === "cards") {
@@ -576,13 +600,8 @@ export default function CadastroBase1Grade({
         onFreeze={setFrozenCount}
         onHide={(k) => toggleColuna(k)}
         onResize={(k, w) => setColumnWidths((p) => ({ ...p, [k]: w }))}
-        onAutoFit={(k) =>
-          setColumnWidths((p) => {
-            const next = { ...p };
-            delete next[k];
-            return next;
-          })
-        }
+        onAutoFit={toggleAutoFit}
+        autoFitKeys={autoFitKeys}
         onFilter={(k) => setMenuFiltroAberto(k)}
         filteredKeys={filteredKeys}
         emptyText={emptyText}

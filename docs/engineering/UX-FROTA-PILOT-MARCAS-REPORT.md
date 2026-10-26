@@ -589,3 +589,22 @@ Referência CONTROLE-DE-ESTOQUE: `DocumentosDeCompraList` → `DocList` + `Base1
 ### Verificação (UX-34)
 
 - `npm run verify:all`
+
+## UX-35 (2026-10-26) — Grade Marcas: fpop, resize, congelar e autoajuste (paridade CONTROLE-DE-ESTOQUE)
+
+Branch `cursor/ux-base1-cards-colunas-878d` (PR #51). Referência lida linha a linha: `features/base1/grid.tsx`, `features/compras/filtro-de-coluna.tsx`, `app/b1ref.css`, `app/globals.css` (`.mg-grid`, alça de resize).
+
+| Item | Correção |
+|------|----------|
+| **Filtro `fpop`** | Sem overlay `fixed inset-0`; fecha por clique fora (respeita calendário/Radix); `<form>` + Enter aplica; rodapé ícones X/✓; painel sólido (sem vidro); reposiciona em scroll/resize |
+| **Âncora do filtro** | `data-b1-col-menu` no ⋮ do cabeçalho (estável vs `aria-label`) |
+| **Resize coluna** | Alça `z-index: 5`, `touch-action: none`, ignora duplo clique no arraste, duplo clique ajusta largura uma vez, `user-select: none` durante drag |
+| **Auto ajustar** | Estado `autoFitKeys` + `localStorage` (`_autofit`); ícones `th-estado`; reaplica ao mudar linhas/filtros; arraste desliga autoajuste |
+| **Congelar** | `leftBase` com coluna de seleção sticky quando há congelamento; sombra âncora = referência (sem barra verde inset) |
+| **Medição de largura** | `src/lib/larguraColuna.js` (paridade `largura-coluna.ts`) |
+
+**Arquivos:** `Base1Grid.jsx`, `CadastroBase1Grade.jsx`, `CadastroColunaFiltro.jsx`, `larguraColuna.js`, `cadastro-base1.css`, `cadastro-b1ref.css`, `cadastro-b1-controls.css`.
+
+### Verificação (UX-35)
+
+- `npm run verify:all`
