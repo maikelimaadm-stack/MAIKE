@@ -38,11 +38,27 @@ export default function TopNoticeDialog({
           <div className="h-8 flex items-center gap-2 border-b border-slate-200 px-2">
             <span className={`px-1.5 py-0.5 rounded-sm text-white text-[11px] font-bold ${badgeClass}`}>{badge}</span>
             <span className="text-xs font-semibold text-slate-700 truncate flex-1">{title}</span>
-            {confirmText && (
-              <Button type="button" onClick={handleConfirm} title="Confirmar" className={iconButtonClass}>
+            {cancelText ? (
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => onOpenChange?.(false)}
+                className="h-7 shrink-0 rounded-none px-2 text-[11px] font-semibold text-slate-600 shadow-none hover:bg-slate-50"
+              >
+                {cancelText}
+              </Button>
+            ) : null}
+            {confirmText ? (
+              <Button
+                type="button"
+                onClick={handleConfirm}
+                title={confirmText}
+                className={iconButtonClass}
+                aria-label={confirmText}
+              >
                 <Check className="w-4 h-4" />
               </Button>
-            )}
+            ) : null}
             <Button type="button" onClick={() => onOpenChange?.(false)} title="Fechar" className={iconButtonClass}>
               <X className="w-4 h-4" />
             </Button>

@@ -159,13 +159,20 @@ export default function CadastroListaChrome({
         icon: <ListChecks className="h-4 w-4" />,
         disabled: !cardsToolsInMenu || viewMode !== "cards",
       },
+      {
+        key: "clear-filters",
+        label: "Limpar filtros",
+        icon: <FilterX className="h-4 w-4" />,
+        disabled: !onClearFilters || !filtersActive,
+      },
     ],
-    [onExportCsv, onPrint, onConfigureColumns, cardsToolsInMenu, viewMode],
+    [onExportCsv, onPrint, onConfigureColumns, cardsToolsInMenu, viewMode, onClearFilters, filtersActive],
   );
 
   const onMenu = (k) => {
     if (k === "export") onExportCsv?.();
     if (k === "print") (onPrint ?? (() => window.print()))();
+    if (k === "clear-filters") onClearFilters?.();
     if (k === "cfg") {
       setMaisOpcoesOpen(false);
       onConfigureColumns?.();

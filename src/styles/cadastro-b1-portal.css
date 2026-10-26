@@ -150,6 +150,7 @@
 .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn:not(.tb-btn-icon) {
   height: 25px !important;
   min-height: 25px !important;
+  min-width: 4.5rem;
   border: 1px solid transparent !important;
   background: var(--portal-acao-bg) !important;
   color: var(--portal-acao-fg) !important;
