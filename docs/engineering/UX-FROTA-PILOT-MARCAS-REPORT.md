@@ -909,6 +909,26 @@ Branch `cursor/ux-base1-marcas-next-516d` (após merge #55 na `main`).
 
 - `npm run verify:all` (CI com Postgres; local sem `DATABASE_URL` falha só `test:backend`)
 
+## UX-47 (2026-10-26) — Marcas TRACK B: chrome unificado + formulário (revisão contínua)
+
+Branch `cursor/ux-base1-marcas-chrome-516d` (base: `main` pós-#55).
+
+**Objetivo:** consolidar **UX-46** e polir chrome compartilhado (tabela / cards / registro) vs CDE frota/portal — sem rollout Fase 2.
+
+| Área | Correção |
+|------|----------|
+| **Registro pós-salvar / leitura** | `Marcas.jsx`: atualizar volta a `readOnly`; `key` no `FormularioMarca` ao navegar bookmark |
+| **Formulário** | `mg-b1-form-grid` + **Nº** somente leitura em registro existente (`isExistingRecord`) |
+| **Exclusão G.3** | `TopNoticeDialog` exibe `cancelText` na barra; `ConfirmDialog` em Marcas |
+| **Cards** | Hover só via `.b1-card:hover` em `cadastro-base1.css` (remove sombra Tailwind duplicada) |
+| **Join shell registro** | `cadastro-record-header` + `mg-form-scroll` com `flex-shrink` / fundo branco no `mg-shell--join-table` |
+
+**Arquivos:** `CadastroListaChrome.jsx` (inalterado — comportamento UX-40 validado), `CadastroRecordHeader.jsx`, `Base1Cards.jsx`, `cadastro-base1.css`, `Marcas.jsx`, `FormularioMarca.jsx`, `TopNoticeDialog.jsx`, docs checklist/plano.
+
+### Verificação (UX-47)
+
+- `npm run verify:all`
+
 ## UX-47 (2026-10-26) — TRACK C: chrome menus (Mais opções, colunas, confirmação, page size)
 
 Branch `cursor/ux-base1-marcas-menus-516d` (revisão contínua pós-UX-46).

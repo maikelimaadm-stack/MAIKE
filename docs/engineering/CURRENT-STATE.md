@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-10-26 (**UX Base1** — PRs #51–#55 na `main`; UX-46/UX-47 em `cursor/ux-base1-marcas-menus-516d`; gate §H **5/6** — falta aceite **H.5**; rollout pausado **D-PROD-41**)
+**Atualizado em:** 2026-10-26 (**UX Base1** — PRs #51–#55 na `main`; UX-47 TRACK B em `cursor/ux-base1-marcas-chrome-516d`; gate §H **5/6** — falta aceite **H.5**; rollout pausado **D-PROD-41**)
 
 ---
 
@@ -13,7 +13,7 @@
 | Rollout demais cadastros | **Pausado** até aceite proprietário (**H.5**) — **D-PROD-41** |
 | Gate §H (checklist modelo) | **H.1–H.4, H.6** DONE; **H.5** TODO (produto) — ver `MARCAS-MODELO-BASE1-CHECKLIST.md` |
 | Merges UX Base1 (2026-10-26) | #51 `e63aa297` · #52 `0646cdf5` · #53 `1849cb54` · #54 `5df4458f` · #55 `54e1040d` (organização UX-45) |
-| Próximo passo Marcas (técnico) | UX-47 merge (TRACK C chrome menus); aceite **H.5** (produto) |
+| Próximo passo Marcas (técnico) | PR UX-47 (`cursor/ux-base1-marcas-chrome-516d`); aceite **H.5** (produto) |
 
 ---
 
