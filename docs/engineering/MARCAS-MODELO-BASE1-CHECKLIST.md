@@ -113,10 +113,10 @@
 |---|------|-------------|-------------|
 | H.1 | Seções **A–F**: todos os itens **DONE** ou **N/A** | **DONE** | Engenharia |
 | H.2 | Seção **G**: apenas **DEFER** / **P8** / **PARTIAL** documentados | **DONE** | Este arquivo + DECISIONS |
-| H.3 | `npm run verify:all` verde no commit de referência | **DONE** | CI `main` pós-merge #51–#54 (2026-10-26) |
-| H.4 | Teste manual §11 + matriz 360 / 390 / 768 / 1280 | **DONE** | UX-43, UX-44 |
-| H.5 | Aceite explícito do proprietário (“Marcas modelo OK”) | **TODO** | Produto |
-| H.6 | Motor UX-29–43 integrado na `main` (PR #51 + piloto) | **DONE** | #51 `e63aa297`, #53 `1849cb54`, modelo #54 |
+| H.3 | `npm run verify:all` verde no commit de referência | **DONE** | CI `main` pós-merge #51–#58 (2026-10-26) |
+| H.4 | Teste manual §11 + matriz 360 / 390 / 768 / 1280 | **DONE** | UX-43, UX-44; roteiro H.5 em [`MARCAS-H5-MANUAL-TEST.md`](./MARCAS-H5-MANUAL-TEST.md) |
+| H.5 | Aceite explícito do proprietário (“Marcas modelo OK”) | **TODO** | Produto — usar roteiro [`MARCAS-H5-MANUAL-TEST.md`](./MARCAS-H5-MANUAL-TEST.md) |
+| H.6 | Motor UX-29–47 integrado na `main` (PR #51 + piloto) | **DONE** | #51 `e63aa297`, #53 `1849cb54`, modelo #54, chrome #56, grade #58 `96ad16b1` |
 
 **Rollout Fase 2:** **PAUSADO** até **H.5** (aceite proprietário) — ver [`PLAN-EXECUCAO-PARIDADE-BASE1.md`](./PLAN-EXECUCAO-PARIDADE-BASE1.md).
 

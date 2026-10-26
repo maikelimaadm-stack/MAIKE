@@ -27,7 +27,9 @@ export default function Marcas() {
   const [showConfigColunas, setShowConfigColunas] = useState(false);
   const configureColumnsAnchorRef = useRef(null);
   const [deleteState, setDeleteState] = useState({ open: false, ids: [] });
+  const [formEpoch, setFormEpoch] = useState(0);
   const chrome = useCadastroListaChromeState();
+  const bumpFormEpoch = () => setFormEpoch((n) => n + 1);
   const listFooter = useCadastroListaFooter(
     MARCAS_STORAGE_KEY,
     `${chrome.resetFiltersKey}:${chrome.appliedSearch}`,
@@ -109,6 +111,7 @@ export default function Marcas() {
   };
 
   const openNew = () => {
+    bumpFormEpoch();
     setEditingItem(null);
     setIsEditing(true);
     setShowForm(true);
@@ -141,6 +144,7 @@ export default function Marcas() {
     const item = marcas.find((m) => m.id === chrome.selectedIds[0]);
     const draft = prepareCadastroDuplicate(item, { labelField: "nome" });
     if (!draft) return;
+    bumpFormEpoch();
     setEditingItem(draft);
     setIsEditing(true);
     setShowForm(true);
@@ -233,7 +237,7 @@ export default function Marcas() {
           recordBody={
             showForm ? (
               <FormularioMarca
-                key={editingItem?.id ?? "marca-nova"}
+                key={`${editingItem?.id ?? "marca-nova"}-${formEpoch}`}
                 variant="embedded"
                 toolbarActions
                 readOnly={!isEditing}
@@ -265,8 +269,12 @@ export default function Marcas() {
           searchPlaceholder="Buscar marcas…"
           configureColumnsAnchorRef={configureColumnsAnchorRef}
           onConfigureColumns={() => setShowConfigColunas(true)}
-          onClearFilters={chrome.clearFilters}
-          filtersActive={chrome.filtersActive}
+          onClearFilters={() => {
+            chrome.clearFilters();
+            chrome.setSearchInput("");
+            chrome.applySearch("");
+          }}
+          filtersActive={chrome.filtersActive || chrome.searchActive}
           viewMode={showForm ? "record" : chrome.viewMode}
           onViewModeChange={onViewModeChange}
         >
