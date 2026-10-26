@@ -734,3 +734,35 @@ Branch `cursor/ux-base1-cards-colunas-878d` (PR #51). Referência: CDE `grid.tsx
 ### Verificação (UX-40)
 
 - `npm run verify:all`
+
+## UX-41 (2026-10-26) — Micro detalhes (grade, fpop, toolbar, menus)
+
+Branch `cursor/ux-base1-cards-colunas-878d` (PR #51). Diff CDE: `globals.css`, `b1ref.css`, `portal-compras.module.css`, `grid.tsx`, `ui.tsx` (MenuList), `filtro-de-coluna.tsx`.
+
+| Área | Lacuna | Correção |
+|------|--------|----------|
+| Grade / cabeçalho | Menu ⋮ com hover verde (`--mg-accent`) fora do portal | `th-menu` `#475569` / hover `#0f172a` (paridade `globals.css`) |
+| Grade portal | Linhas da grade | `--mg-table-line: #dfe2e7` em `.cadastro-b1--portal-compras` |
+| Join shell | Toolbar join `min-height: 34px` | `var(--mg-toolbar-h)` (36px) |
+| ViewSwitch portal | Segmento pressionado texto `#0f172a` | Fundo branco + texto `var(--mg-accent)` |
+| Nav registro portal | `tb-btn-sm` (24px) nos ícones prev/next | Override portal mantém círculo 25px |
+| `fpop` | `z-index` 45/60 abaixo de overlays empilhados | `z-index: 10000` (`cadastro-b1ref.css` + `.b1-portal-compras.fpop`) |
+| `fpop` rodapé portal | `cadastro-b1-controls` forçava botões 28px branco/verde | Estilo legado só em `.b1ref:not(.b1-portal-compras)`; skin portal 25px |
+| `foperadores` | Itens da lista 28px | `min-height: 30px` nos `.fopt` dentro de `.foperadores` |
+| Operador Radix | Lista sem marcador portal no portal | `SeletorDeOperador` repassa `b1-portal-compras` no portal |
+| Mais opções / ⋮ coluna | Hover `mg-gray-fill` | `mg-b1-menuitem` e `[role=menuitem]` → hover `mg-bg-page`; danger vermelho em ícone+texto |
+| Rodapé lista | Contagens em flex solto | `mg-summary__counts` grid 4 colunas (CDE `globals.css`) |
+
+**Arquivos:** `cadastro-base1.css`, `cadastro-b1-portal.css`, `cadastro-b1ref.css`, `cadastro-b1-controls.css`, `CadastroColunaFiltro.jsx`, `SeletorDeOperador.jsx`.
+
+### Teste manual — Marcas (pós UX-41)
+
+1. **Grade:** linhas `#dfe2e7` no join portal; ⋮ e ícones de estado (`Filter`/`Scaling`/`PanelLeft`) em `#94a3b8`; hover da linha e seleção com faixa verde 3px na primeira célula; alça 6px verde no hover.
+2. **Ordenação:** clique no rótulo da coluna → seta `#94a3b8`.
+3. **`fpop`:** painel acima da grade sticky; operador abre lista 30px de altura; clicar fora com operador/calendário aberto não fecha o shell (357–360); rodapé X/✓ com pílulas portal 25px.
+4. **Toolbar / rodapé:** altura ~36px; ViewSwitch com segmento ativo verde; `mg-summary` em 4 colunas alinhado ao seletor de page-size.
+5. **Menus:** ⋮ coluna e Mais opções — itens 30px, hover fundo página; Excluir vermelho se exposto como `danger`.
+
+### Verificação (UX-41)
+
+- `npm run verify:all` (gates, smoke, build verdes; `test:backend` exige `DATABASE_URL` + Postgres local)
