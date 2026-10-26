@@ -1394,10 +1394,18 @@
   border-bottom: 1px solid #eef1f4;
 }
 
-.cadastro-b1 .mg-shell--join-table > .mg-shell__body {
+.cadastro-b1 .mg-shell--join-table > .mg-shell__body,
+.cadastro-b1 .mg-shell--join-table > .mg-shell__scroll,
+.cadastro-b1 .mg-shell--join-table > .mg-form-scroll {
   display: flex;
   flex-direction: column;
   min-height: 0;
+}
+
+.cadastro-b1 .mg-shell--join-table > .mg-shell__scroll,
+.cadastro-b1 .mg-shell--join-table > .mg-form-scroll {
+  flex: 1 1 auto;
+  overflow: auto;
 }
 
 .cadastro-b1 .mg-header-filter-hint {

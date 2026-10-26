@@ -694,7 +694,7 @@ Branch `cursor/ux-base1-cards-colunas-878d` (PR #51). Plano: `docs/engineering/P
 | Última coluna sem borda direita (CDE mantém — decisão 349) | Removido override `th/td:last-child` em `cadastro-base1.css` |
 | Menu ⋮ / Mais opções fora da skin portal | `Base1Grid` + `CadastroListaChrome` + `ConfiguracaoColunasB1Dialog` com `b1-portal-compras` |
 
-**Arquivos:** `SeletorDeOperador.jsx`, `portalComprasSkinContext.js`, `CadastroColunaFiltro.jsx`, `CadastroListaChrome.jsx`, `Base1Grid.jsx`, `ConfiguracaoColunasB1Dialog.jsx`, `Marcas.jsx`, `cadastro-b1-portal.css`, `cadastro-b1ref.css`, `cadastro-base1.css`, `index.css`, `PLAN-PORTAL-COMPRAS-PARIDADE-BASE1.md`.
+**Arquivos:** `SeletorDeOperador.jsx`, `portalComprasSkinContext.jsx`, `CadastroColunaFiltro.jsx`, `CadastroListaChrome.jsx`, `Base1Grid.jsx`, `ConfiguracaoColunasB1Dialog.jsx`, `Marcas.jsx`, `cadastro-b1-portal.css`, `cadastro-b1ref.css`, `cadastro-base1.css`, `index.css`, `PLAN-PORTAL-COMPRAS-PARIDADE-BASE1.md`.
 
 ### Teste manual — Marcas (pós UX-39)
 
@@ -705,5 +705,32 @@ Branch `cursor/ux-base1-cards-colunas-878d` (PR #51). Plano: `docs/engineering/P
 5. **Persistência:** congelar + autoajustar + larguras → recarregar → `colunas_marcas_v1_prefs`.
 
 ### Verificação (UX-39)
+
+- `npm run verify:all`
+
+## UX-40 (2026-10-26) — Resize colunas + chrome único tabela/cards/registro
+
+Branch `cursor/ux-base1-cards-colunas-878d` (PR #51). Referência: CDE `grid.tsx`, `list.tsx`, `cards.tsx`, `globals.css` (alça resize, decisão 356).
+
+| Lacuna vs CDE / checklist | Correção |
+|---------------------------|----------|
+| Arraste de coluna deixava inline `width` no DOM e desalinhava células; cursor global ausente | `Base1Grid` sincroniza `th`/`td` no drag, `col-resize` no `body`, limpa inline no `mouseup`; arraste desliga autoajustar sem ligar no duplo clique |
+| Piso de largura 40px nas prefs vs 48px na grade | `cadastroBase1ColumnPrefs.js` `MIN_COL_WIDTH = 48` |
+| Portal Marcas com coluna checkbox (decisão 356) | `TabelaMarcas` → `colunaSelecao={false}` `selecaoSticky={false}` |
+| Congelar/ocultar não devia limpar autoFit; ocultar não ajustava freeze | `CadastroBase1Grade` `handleFreeze`, `ocultarColuna` |
+| Cards/registro fora do `mg-shell--join-table`; registro sem `mg-summary`; toolbar duplicada | `CadastroListaChrome`: `joinedShell = joinTableToolbar` para tabela, cards e registro; um toolbar + um rodapé; corpo só troca (grade/cards/form) |
+| Cabeçalho de registro como card solto no join | `CadastroRecordHeader` `joinShell` |
+| Cards sem hover CDE | `Base1Cards` sombra no hover |
+
+**Arquivos:** `Base1Grid.jsx`, `CadastroBase1Grade.jsx`, `CadastroListaChrome.jsx`, `CadastroRecordHeader.jsx`, `Base1Cards.jsx`, `TabelaMarcas.jsx`, `cadastroBase1ColumnPrefs.js`, `cadastro-base1.css`, `tests/smoke/cadastroBase1ColumnPrefs.test.js`.
+
+### Teste manual — Marcas (pós UX-40)
+
+1. **Resize:** arrastar alça (6px, highlight verde); mínimo 48px; duplo clique ajusta uma vez sem ícone de autoajustar; com autoajustar ligado, arrastar desliga o modo; recarregar mantém larguras em `colunas_marcas_v1_prefs`.
+2. **Chrome:** alternar tabela ↔ cards ↔ registro — mesma faixa de botões (Novo/Editar/… ou Salvar/Cancelar), mesmo `mg-summary` embaixo, ViewSwitch no mesmo lugar; cards dentro do cartão join com `p-2.5`.
+3. **Registro:** bookmark + nav colados ao form dentro do shell; leitura mostra toolbar de lista; edição troca só os botões primários.
+4. **Grade portal:** sem coluna de checkbox; seleção por clique na linha.
+
+### Verificação (UX-40)
 
 - `npm run verify:all`

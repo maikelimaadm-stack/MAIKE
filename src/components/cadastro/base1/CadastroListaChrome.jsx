@@ -281,17 +281,32 @@ export default function CadastroListaChrome({
     </div>
   );
 
-  const listBodyClass =
-    viewMode === "cards"
+  const joinedShell = joinTableToolbar;
+
+  const listBodyClass = recordMode
+    ? "mg-form-scroll min-h-0 flex-1 overflow-auto p-3"
+    : viewMode === "cards"
       ? "mg-shell__scroll min-h-0 flex-1 p-2.5"
       : "mg-shell__body min-h-0 flex-1";
 
-  const joinedList = joinTableToolbar && !recordMode && viewMode !== "cards";
+  const recordHeaderNode =
+    recordMode && recordHeader && React.isValidElement(recordHeader)
+      ? React.cloneElement(recordHeader, { joinShell: joinedShell })
+      : recordHeader;
+
+  const shellBody = recordMode ? (
+    <>
+      {recordHeaderNode}
+      <div className={listBodyClass}>{recordBody}</div>
+    </>
+  ) : (
+    <div className={listBodyClass}>{children}</div>
+  );
 
   const toolbarRow = (
     <div
       className={
-        joinedList
+        joinedShell
           ? "mg-toolbar mg-toolbar--join flex-wrap no-print"
           : "mg-toolbar mg-card flex-wrap no-print"
       }
@@ -335,7 +350,7 @@ export default function CadastroListaChrome({
 
   const pillsRail = railEnabled ? (
     <div
-      className={`mg-rail no-print mg-pills-rail ${joinedList ? "mg-rail--join" : "mg-card"} ${showChips ? "is-expanded" : "is-collapsed"}`}
+      className={`mg-rail no-print mg-pills-rail ${joinedShell ? "mg-rail--join" : "mg-card"} ${showChips ? "is-expanded" : "is-collapsed"}`}
     >
       <IconBtn
         size="sm"
@@ -432,37 +447,22 @@ export default function CadastroListaChrome({
       data-testid="b1-list"
       data-cadastro-chrome
     >
-      {!joinedList ? toolbarRow : null}
+      {!joinedShell ? toolbarRow : null}
+      {!joinedShell ? pillsRail : null}
 
-      {recordMode ? (
-        <>
-          {recordHeader}
-          <div className="flex min-h-0 flex-1 gap-2">
-            <div className="mg-shell mg-shell--fill min-h-0 min-w-0 flex-1">
-              <div className="mg-form-scroll min-h-0 flex-1 overflow-auto p-3">{recordBody}</div>
-            </div>
-          </div>
-        </>
-      ) : null}
-
-      {!joinedList ? pillsRail : null}
-
-      {!recordMode ? (
       <div className="flex min-h-0 flex-1 gap-2">
         <div
-          className={
-            joinedList
-              ? "mg-shell mg-shell--fill mg-shell--join-table min-h-0 min-w-0 flex-1"
-              : "mg-shell mg-shell--fill min-h-0 min-w-0 flex-1"
-          }
+          className={cn(
+            "mg-shell mg-shell--fill min-h-0 min-w-0 flex-1",
+            joinedShell && "mg-shell--join-table",
+          )}
         >
-          {joinedList ? toolbarRow : null}
-          {joinedList ? pillsRail : null}
-          <div className={listBodyClass}>{children}</div>
+          {joinedShell ? toolbarRow : null}
+          {joinedShell ? pillsRail : null}
+          {shellBody}
           {listSummary}
         </div>
       </div>
-      ) : null}
 
       {cardsToolbarHosted ? (
         <div className="sr-only" aria-hidden="true">{cardsToolbarHosted}</div>

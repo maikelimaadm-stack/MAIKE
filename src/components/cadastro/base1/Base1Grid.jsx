@@ -179,17 +179,48 @@ export default function Base1Grid({
     const x0 = e.clientX;
     const w0 = th.getBoundingClientRect().width;
     const prevSelect = document.body.style.userSelect;
+    const prevCursor = document.body.style.cursor;
     document.body.style.userSelect = "none";
+    document.body.style.cursor = "col-resize";
+    const colIndex = columns.findIndex((col) => col.key === c.key);
     const move = (ev) => {
       const w = Math.max(48, w0 + ev.clientX - x0);
       th.style.width = th.style.minWidth = th.style.maxWidth = `${w}px`;
+      if (colIndex >= 0) {
+        const table = th.closest("table");
+        if (table) {
+          for (const row of table.querySelectorAll("tbody tr")) {
+            const td = row.children[colunaSelecao ? colIndex + 1 : colIndex];
+            if (td instanceof HTMLElement) {
+              td.style.width = td.style.minWidth = td.style.maxWidth = `${w}px`;
+            }
+          }
+        }
+      }
       measure();
+    };
+    const clearInline = () => {
+      th.style.width = th.style.minWidth = th.style.maxWidth = "";
+      if (colIndex >= 0) {
+        const table = th.closest("table");
+        if (table) {
+          for (const row of table.querySelectorAll("tbody tr")) {
+            const td = row.children[colunaSelecao ? colIndex + 1 : colIndex];
+            if (td instanceof HTMLElement) {
+              td.style.width = td.style.minWidth = td.style.maxWidth = "";
+            }
+          }
+        }
+      }
     };
     const up = (ev) => {
       window.removeEventListener("mousemove", move);
       window.removeEventListener("mouseup", up);
       document.body.style.userSelect = prevSelect;
-      onResize?.(c.key, Math.round(Math.max(48, w0 + ev.clientX - x0)));
+      document.body.style.cursor = prevCursor;
+      const w = Math.round(Math.max(48, w0 + ev.clientX - x0));
+      clearInline();
+      onResize?.(c.key, w);
       if (autoFitKeys?.has(c.key)) onAutoFit?.(c.key);
     };
     window.addEventListener("mousemove", move);

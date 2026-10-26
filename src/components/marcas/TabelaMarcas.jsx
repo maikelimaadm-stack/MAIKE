@@ -58,6 +58,8 @@ export default function TabelaMarcas(props) {
       cardsTitleColId="nome"
       cardsCodeColId="numero"
       referenceHeaders
+      colunaSelecao={false}
+      selecaoSticky={false}
       configureColumnsAnchorRef={props.configureColumnsAnchorRef}
     />
   );

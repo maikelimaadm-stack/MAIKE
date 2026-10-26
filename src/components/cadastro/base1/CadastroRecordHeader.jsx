@@ -1,6 +1,7 @@
 import React from "react";
 import { Bookmark, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { IconBtn } from "./Base1Ui";
+import { cn } from "@/lib/utils";
 
 /**
  * Cabeçalho de registro Modelo Base1 (código • título + navegação entre registros).
@@ -12,6 +13,7 @@ import { IconBtn } from "./Base1Ui";
  * @param {number} [props.total]
  * @param {(index: number) => void} [props.onGo]
  * @param {boolean} [props.navDisabled] bloqueia nav durante edição/lançamento
+ * @param {boolean} [props.joinShell] cabeçalho dentro do `mg-shell--join-table` (sem card solto)
  */
 export default function CadastroRecordHeader({
   title,
@@ -20,13 +22,20 @@ export default function CadastroRecordHeader({
   total = 0,
   onGo,
   navDisabled = false,
+  joinShell = false,
 }) {
   const showNav = total > 1 && onGo;
   const atStart = index <= 0;
   const atEnd = index >= total - 1;
 
   return (
-    <div className="mg-toolbar mg-card flex-wrap no-print" data-testid="cadastro-record-header">
+    <div
+      className={cn(
+        "mg-toolbar flex-wrap no-print shrink-0",
+        joinShell ? "mg-toolbar--join border-b border-[var(--mg-divider)]" : "mg-card",
+      )}
+      data-testid="cadastro-record-header"
+    >
       <Bookmark className="h-4 w-4 text-[var(--mg-icon)] shrink-0" aria-hidden />
       <span className="mg-b1-record-heading">
         {code ? (

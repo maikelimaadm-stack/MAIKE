@@ -9,7 +9,7 @@
 
 export const CADASTRO_B1_COLUMN_PREFS_VERSION = 1;
 
-const MIN_COL_WIDTH = 40;
+const MIN_COL_WIDTH = 48;
 const MAX_COL_WIDTH = 1200;
 const MAX_FROZEN = 30;
 

@@ -53,6 +53,8 @@ export function colunasBase1(defs) {
  * @param {string} [props.cardsCodeColId]
  * @param {boolean} [props.referenceHeaders] filtro de cabeçalho `fpop` (frota/equipamentos)
  * @param {import('react').RefObject<HTMLElement | null>} [props.configureColumnsAnchorRef] âncora do popover de colunas (referenceHeaders)
+ * @param {boolean} [props.colunaSelecao] coluna de checkbox (false no portal compras / decisão 356)
+ * @param {boolean} [props.selecaoSticky] checkbox sticky à esquerda (false no portal compras / decisão 338)
  */
 export default function CadastroBase1Grade({
   rows = [],
@@ -85,6 +87,8 @@ export default function CadastroBase1Grade({
   cardsCodeColId,
   referenceHeaders = false,
   configureColumnsAnchorRef,
+  colunaSelecao = true,
+  selecaoSticky = true,
 }) {
   const dataCols = useMemo(() => colunasBase1(columns), [columns]);
   const defaultVisible = useMemo(
@@ -324,6 +328,29 @@ export default function CadastroBase1Grade({
     applyVisibleKeys(n);
   };
 
+  const ocultarColuna = (colKey) => {
+    const keys = colunasOrdenadas.map((c) => c.id);
+    const idx = keys.indexOf(colKey);
+    if (idx < 0) return;
+    setColunasVisiveis((vis) => vis.filter((id) => id !== colKey));
+    setAutoFitKeys((prev) => {
+      const n = new Set(prev);
+      n.delete(colKey);
+      return n;
+    });
+    if (idx < frozenCount) {
+      setFrozenCount(Math.max(0, frozenCount - 1));
+    }
+  };
+
+  const handleColumnResize = (k, w) => {
+    setColumnWidths((p) => ({ ...p, [k]: w }));
+  };
+
+  const handleFreeze = (n) => {
+    setFrozenCount(n);
+  };
+
   const handleDragEnd = (r) => {
     if (!r.destination) return;
     const items = Array.from(colunasOrdem);
@@ -542,10 +569,12 @@ export default function CadastroBase1Grade({
         onToggleAll={onToggleAll}
         onOpen={onOpen}
         frozen={frozenCount}
-        onFreeze={setFrozenCount}
-        onHide={(k) => toggleColuna(k)}
-        onResize={(k, w) => setColumnWidths((p) => ({ ...p, [k]: w }))}
+        onFreeze={handleFreeze}
+        onHide={ocultarColuna}
+        onResize={handleColumnResize}
         onAutoFit={toggleAutoFit}
+        colunaSelecao={colunaSelecao}
+        selecaoSticky={selecaoSticky}
         autoFitKeys={autoFitKeys}
         onFilter={(k) => setMenuFiltroAberto(k)}
         filteredKeys={filteredKeys}
