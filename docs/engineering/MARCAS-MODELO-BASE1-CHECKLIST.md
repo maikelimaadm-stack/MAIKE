@@ -33,7 +33,7 @@
 |---|------|-------------|-------------------|
 | B.1 | Busca pílula + aplicar (Enter / botão) | **DONE** | §11.3 |
 | B.2 | Alternador Tabela / Cards / Registro (`ViewSwitch`) | **DONE** | UX-41 |
-| B.3 | Menu **Mais opções** vertical (export, colunas, limpar filtros) | **DONE** | UX-47 — item **Limpar filtros** no menu ⚡ |
+| B.3 | Menu **Mais opções** vertical (export, colunas, limpar filtros) | **DONE** | UX-48 — item **Limpar filtros** no menu ⚡ |
 | B.4 | Toolbar join: `data-testid="b1-toolbar"` | **DONE** | UX-43 / paridade CDE |
 | B.5 | Toolbar join responsiva (wrap, `height: auto` ≤1023px) | **DONE** | UX-43 |
 | B.6 | Toque 44px em pílulas primárias mobile (≤639px) | **DONE** | UX-43 |

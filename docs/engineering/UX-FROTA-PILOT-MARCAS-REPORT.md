@@ -929,7 +929,7 @@ Branch `cursor/ux-base1-marcas-chrome-516d` (base: `main` pós-#55).
 
 - `npm run verify:all`
 
-## UX-47 (2026-10-26) — TRACK C: chrome menus (Mais opções, colunas, confirmação, page size)
+## UX-48 (2026-10-26) — TRACK C: chrome menus (Mais opções, colunas, confirmação, page size)
 
 Branch `cursor/ux-base1-marcas-menus-516d` (revisão contínua pós-UX-46).
 
@@ -945,6 +945,6 @@ Branch `cursor/ux-base1-marcas-menus-516d` (revisão contínua pós-UX-46).
 
 **Arquivos:** `CadastroListaChrome.jsx`, `cadastro-b1-portal.css`, `TopNoticeDialog.jsx`, `Marcas.jsx`, `FormularioMarca.jsx`, docs checklist/plano.
 
-### Verificação (UX-47)
+### Verificação (UX-48)
 
 - `npm run verify:all`

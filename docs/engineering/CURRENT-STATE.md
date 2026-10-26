@@ -13,7 +13,7 @@
 | Rollout demais cadastros | **Pausado** até aceite proprietário (**H.5**) — **D-PROD-41** |
 | Gate §H (checklist modelo) | **H.1–H.4, H.6** DONE; **H.5** TODO (produto) — ver `MARCAS-MODELO-BASE1-CHECKLIST.md` |
 | Merges UX Base1 (2026-10-26) | #51 `e63aa297` · #52 `0646cdf5` · #53 `1849cb54` · #54 `5df4458f` · #55 `54e1040d` (organização UX-45) |
-| Próximo passo Marcas (técnico) | UX-47 merge (TRACK C chrome menus); aceite **H.5** (produto) |
+| Próximo passo Marcas (técnico) | UX-48 merge (TRACK C chrome menus); aceite **H.5** (produto) |
 
 ---
 
