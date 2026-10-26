@@ -4,6 +4,10 @@ import { Check, FilterX, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { operadoresParaTipo } from "./cadastroColunaFiltroLogic";
 import { MgDatePicker, brToISO, isoToBR } from "./MgDatePicker";
+import {
+  deveFecharFiltroPorFora,
+  haCamadaAninhadaDoFiltroAberta,
+} from "./cadastroColunaFiltroCamada";
 
 function Chk({ on, parte = false }) {
   return (
@@ -11,29 +15,6 @@ function Chk({ on, parte = false }) {
       {(on || parte) && <Check strokeWidth={3} />}
     </span>
   );
-}
-
-function camadaAninhadaAberta(alvo) {
-  if (!(alvo instanceof Element)) return false;
-  return Boolean(
-    alvo.closest(
-      "[data-radix-popper-content-wrapper], [data-radix-popover-content], [data-radix-select-content], .cmd-panel, .mg-b1-glass-pop, .b1-dp-filtro",
-    ),
-  );
-}
-
-function deveFecharPorFora({ alvo, ponto, shell, ancoraTh }) {
-  if (!(alvo instanceof Node)) return false;
-  if (shell?.contains(alvo)) return false;
-  if (ancoraTh?.contains(alvo)) return false;
-  if (camadaAninhadaAberta(alvo)) return false;
-  if (ponto && ancoraTh) {
-    const r = ancoraTh.getBoundingClientRect();
-    if (ponto.clientX >= r.left && ponto.clientX <= r.right && ponto.clientY >= r.top && ponto.clientY <= r.bottom) {
-      return false;
-    }
-  }
-  return true;
 }
 
 /**
@@ -91,15 +72,24 @@ export default function CadastroColunaFiltro({
 
   React.useEffect(() => {
     const teclado = (e) => {
-      if (e.key === "Escape" && !e.defaultPrevented) {
-        if (camadaAninhadaAberta(document.activeElement)) return;
-        e.preventDefault();
-        fechar.current();
-      }
+      if (e.key !== "Escape" || e.defaultPrevented) return;
+      if (haCamadaAninhadaDoFiltroAberta()) return;
+      e.preventDefault();
+      fechar.current();
     };
     const fora = (e) => {
       const th = document.querySelector(ancora)?.closest("th") ?? null;
-      if (!deveFecharPorFora({ alvo: e.target, ponto: e, shell: painel.current, ancoraTh: th })) return;
+      const shell = painel.current?.querySelector?.(".fpop") ?? painel.current;
+      if (
+        !deveFecharFiltroPorFora({
+          alvo: e.target,
+          ponto: e,
+          shell,
+          ancora: th,
+        })
+      ) {
+        return;
+      }
       fechar.current();
     };
     const scroll = () => reposicionar();

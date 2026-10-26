@@ -1,6 +1,26 @@
 import React from "react";
 import { Check, FileText, Table2, LayoutGrid } from "lucide-react";
 
+/** Ícone ⚡ do Mais opções (decisão 353 — paridade `IconeRaio` / Central). @param {{ className?: string }} props */
+export function IconeRaio({ className = undefined }) {
+  return (
+    <svg
+      width={16}
+      height={16}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+      className={className}
+    >
+      <path d="M13 2 3 14h9l-1 8 10-12h-9z" />
+    </svg>
+  );
+}
+
 /** Reexportações SSOT Base1 (fecha `gate:source-closure` nos controles compartilhados). */
 export { MgSelect } from "./MgSelect";
 export { MgDatePicker, B1DatePicker, isoToBR, brToISO } from "./MgDatePicker";

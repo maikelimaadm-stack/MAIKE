@@ -652,3 +652,31 @@ Branch `cursor/ux-base1-cards-colunas-878d` (PR #51).
 ### Verificação (UX-37)
 
 - `npm run verify:all`
+
+## UX-38 (2026-10-26) — Filtros/colunas/cards vs CONTROLE-DE-ESTOQUE (auditoria profunda)
+
+Branch `cursor/ux-base1-cards-colunas-878d` (PR #51). Prompt: `docs/engineering/PROMPT-MODELO-VISUAL-AGRO-ERP.md`. Referência lida: `grid.tsx`, `list.tsx`, `filtro-de-coluna.tsx`, `camada-aninhada-do-filtro.ts`, `colunas-dos-itens.tsx`, `preferences.ts`, `b1ref.css`.
+
+| Contrato (referência) | Lacuna MAIKE (antes) | Correção |
+|----------------------|----------------------|----------|
+| Marcas sem faixa acima da grade (sem `mg-pills-rail` nem barra “Filtro de cabeçalho”) | `mg-header-filter-hint` aparecia com filtro ativo | Removida a faixa; limpar filtros só pelo ícone da toolbar (`showFilterRail={false}` mantido) |
+| `fpop`: camadas 357–360, Escape, clique fora com geometria do ponteiro | `deveFecharPorFora` incompleto (sem 360, sem shell) | `cadastroColunaFiltroCamada.js` + `CadastroColunaFiltro.jsx` alinhados a `deveFecharFiltroPorFora` |
+| Menu ⋮: filtro + congelar + autoajustar + ocultar | Já em `referenceExtendedColumnMenu` | Mantido; `fpop` no ⋮ via menu |
+| `ColunasDosItens`: duas listas, busca separada, setas `dmid`, rascunho até ✓, sem ESC/fora | Diálogo aplicava ao clique; uma busca; sem setas; ESC/backdrop fechavam | `ConfiguracaoColunasB1Dialog.jsx` reescrito; CSS `dmid`/`cfgb-lista` em `cadastro-b1ref.css` |
+| Prefs: `columns.autoFit` | `autoFit` só na raiz do JSON unificado | `cadastroBase1ColumnPrefs.js` grava/lê `columns.autoFit` (+ legado) |
+| Mais opções ⚡ lista vertical (353); colunas/cards só no menu | `MoreHorizontal`; fechar menu antes do diálogo inconsistente | `IconeRaio` em `Base1Ui.jsx`; `CadastroListaChrome.jsx` controlado; ícones `Columns3`/`LayoutGrid`/`ListChecks` |
+| Cards layout/campos só em Mais opções | Toolbar visível dos popovers | `Base1CardsToolbar` continua em `sr-only` + abertura via menu |
+
+**Arquivos:** `cadastroColunaFiltroCamada.js`, `CadastroColunaFiltro.jsx`, `ConfiguracaoColunasB1Dialog.jsx`, `CadastroBase1Grade.jsx`, `CadastroListaChrome.jsx`, `Base1Ui.jsx`, `cadastroBase1ColumnPrefs.js`, `cadastro-b1ref.css`.
+
+### Teste manual — Marcas (pós UX-38)
+
+1. Tabela: toolbar colada à grade; **sem** rail de chips e **sem** linha “Filtro de cabeçalho” acima do `<th>`.
+2. ⋮ → “Abrir filtro avançado”: painel `fpop` no cabeçalho; Enter aplica; X cancela; calendário/condição não fecha o shell no primeiro clique fora.
+3. ⚡ Mais opções → Configurar colunas: duas listas, setas centrais, buscas independentes; editar e só aplicar em ✓; Restaurar padrão no cabeçalho do diálogo.
+4. Modo cards: layout e campos **somente** no menu ⚡ (não na toolbar).
+5. Autoajustar/congelar: recarregar página — prefs em `colunas_marcas_v1_prefs` com `columns.autoFit`.
+
+### Verificação (UX-38)
+
+- `npm run verify:all`

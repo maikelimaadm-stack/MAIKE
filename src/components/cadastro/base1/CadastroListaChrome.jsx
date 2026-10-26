@@ -6,7 +6,9 @@ import {
   FilterX,
   Copy,
   Paperclip,
-  MoreHorizontal,
+  Columns3,
+  LayoutGrid,
+  ListChecks,
   ChevronsDown,
   ListPlus,
   ListX,
@@ -14,7 +16,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import CadastroSearchPill from "./CadastroSearchPill";
-import { B1Popover, IconBtn, MenuList, MgSelect, PillBtn, ViewSwitch } from "./Base1Ui";
+import { B1Popover, IconBtn, IconeRaio, MenuList, MgSelect, PillBtn, ViewSwitch } from "./Base1Ui";
 import { CADASTRO_B1_PAGE_SIZES } from "./cadastroBase1List";
 
 /**
@@ -116,6 +118,7 @@ export default function CadastroListaChrome({
   const anySelected = selectedCount > 0;
   const [showChips, setShowChips] = useState(true);
   const [cardsPanel, setCardsPanel] = useState(null);
+  const [maisOpcoesOpen, setMaisOpcoesOpen] = useState(false);
   const stripRef = useRef(null);
   const railEnabled = showFilterRail && !recordMode;
 
@@ -136,16 +139,19 @@ export default function CadastroListaChrome({
       {
         key: "cfg",
         label: "Configurar colunas",
+        icon: <Columns3 className="h-4 w-4" />,
         disabled: !onConfigureColumns,
       },
       {
         key: "cards-layout",
-        label: "Configurar layout dos cards",
+        label: "Layout dos cards",
+        icon: <LayoutGrid className="h-4 w-4" />,
         disabled: !cardsToolsInMenu || viewMode !== "cards",
       },
       {
-        key: "cards-fields",
-        label: "Configurar campos dos cards",
+        key: "card-fields",
+        label: "Campos dos cards",
+        icon: <ListChecks className="h-4 w-4" />,
         disabled: !cardsToolsInMenu || viewMode !== "cards",
       },
     ],
@@ -155,9 +161,18 @@ export default function CadastroListaChrome({
   const onMenu = (k) => {
     if (k === "export") onExportCsv?.();
     if (k === "print") (onPrint ?? (() => window.print()))();
-    if (k === "cfg") onConfigureColumns?.();
-    if (k === "cards-layout") setCardsPanel("layout");
-    if (k === "cards-fields") setCardsPanel("fields");
+    if (k === "cfg") {
+      setMaisOpcoesOpen(false);
+      onConfigureColumns?.();
+    }
+    if (k === "cards-layout") {
+      setMaisOpcoesOpen(false);
+      setCardsPanel("layout");
+    }
+    if (k === "card-fields") {
+      setMaisOpcoesOpen(false);
+      setCardsPanel("fields");
+    }
   };
 
   const cardsToolbarHosted =
@@ -236,14 +251,22 @@ export default function CadastroListaChrome({
             />
           ) : null}
           <B1Popover
-            className="flex w-56 min-w-[12rem] flex-col p-1"
+            open={maisOpcoesOpen}
+            onOpenChange={setMaisOpcoesOpen}
+            className="flex w-64 min-w-[12rem] flex-col p-1.5"
             trigger={
               <IconBtn aria-label="Mais opções" title="Mais opções">
-                <MoreHorizontal className="h-4 w-4" aria-hidden />
+                <IconeRaio />
               </IconBtn>
             }
           >
-            <MenuList items={menuItems} onPick={onMenu} />
+            <MenuList
+              items={menuItems}
+              onPick={(k) => {
+                setMaisOpcoesOpen(false);
+                onMenu(k);
+              }}
+            />
           </B1Popover>
         </div>
       ) : null}

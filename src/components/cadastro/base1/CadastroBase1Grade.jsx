@@ -470,7 +470,6 @@ export default function CadastroBase1Grade({
     );
   };
 
-  const headerFiltersActive = referenceHeaders && Object.keys(headerFilters).length > 0;
   const ocultasSet = useMemo(
     () => new Set(dataCols.filter((c) => !colunasVisiveis.includes(c.id)).map((c) => c.id)),
     [dataCols, colunasVisiveis],
@@ -529,20 +528,6 @@ export default function CadastroBase1Grade({
 
   return (
     <>
-      {headerFiltersActive ? (
-        <div className="mg-header-filter-hint no-print">
-          <span>
-            Filtro de cabeçalho: {ordenados.length} de {rows.length} registros carregados
-          </span>
-          <button
-            type="button"
-            className="fchip-lim"
-            onClick={() => setHeaderFilters({})}
-          >
-            Limpar filtros de cabeçalho
-          </button>
-        </div>
-      ) : null}
       <Base1Grid
         referenceHeaders={referenceHeaders}
         referenceExtendedColumnMenu={referenceHeaders}
@@ -578,13 +563,9 @@ export default function CadastroBase1Grade({
           titulo="Colunas da tabela"
           colunas={colunasParaDialogo}
           ocultas={ocultasSet}
-          onMudar={(id, ocultar) => {
-            const visivel = colunasVisiveis.includes(id);
-            if (ocultar && visivel) toggleColuna(id);
-            if (!ocultar && !visivel) toggleColuna(id);
-          }}
-          onOrdenar={(ids) => {
-            setColunasOrdem(ids);
+          onAplicar={(visiveis, ordemCompleta) => {
+            setColunasVisiveis(visiveis);
+            setColunasOrdem(ordemCompleta);
           }}
           onRestaurar={restaurarColunas}
         />

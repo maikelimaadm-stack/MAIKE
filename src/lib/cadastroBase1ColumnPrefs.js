@@ -115,7 +115,7 @@ export function loadCadastroBase1ColumnPrefs(storageKey, dataCols) {
       colunasOrdem: normalizeColumnOrder(knownIds, cols.order),
       colunasVisiveis: normalizeVisibleColumns(defaultVisible, cols.visible, knownIds),
       frozenCount: normalizeFrozenCount(cols.frozen, knownIds.length),
-      autoFitKeys: normalizeAutoFitKeys(unified.autoFit, knownIds),
+      autoFitKeys: normalizeAutoFitKeys(cols.autoFit ?? unified.autoFit, knownIds),
     };
   }
 
@@ -155,8 +155,8 @@ export function persistCadastroBase1ColumnPrefs(storageKey, state) {
       order: colunasOrdem,
       visible: colunasVisiveis,
       frozen: frozenCount,
+      autoFit: autoFitArr,
     },
-    autoFit: autoFitArr,
   };
   localStorage.setItem(`${storageKey}_prefs`, JSON.stringify(unified));
 
