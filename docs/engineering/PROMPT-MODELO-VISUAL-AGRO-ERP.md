@@ -133,6 +133,7 @@ npm run verify:all
 ```
 
 Relatório de missão: `docs/engineering/UX-FROTA-PILOT-MARCAS-REPORT.md` (seções UX-*).
+Plano de execução (rollout cadastros): `docs/engineering/PLAN-EXECUCAO-PARIDADE-BASE1.md`.
 
 ---
 

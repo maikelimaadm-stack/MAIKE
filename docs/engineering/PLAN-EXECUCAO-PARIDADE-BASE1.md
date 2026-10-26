@@ -76,7 +76,7 @@ Abordagem: **estabilizar Marcas na linha da PR #51 → sign-off → replicar o p
 | `TopNoticeDialog` / `RegistroAnexosDialog` (Escape/clique fora) | **TODO** | UX-A, UX-B — PR Dialog/Popover transversal |
 | Tenancy / `empresa_selecionada_id` + filtro cliente | **RISCO / backend futuro** | SEC-A/B — PR separada segurança/dados, não misturar com UI |
 | `max+1` número de marca | **RISCO / backend** | DATA-A — quando Marca for nativa (P6+) |
-| PR #51 merge + preview sign-off | **TODO** | Fase 0 |
+| PR #51 merge + preview sign-off | **DONE** | merge `e63aa297` (2026-10-26) |
 
 ### Demais cadastros (`allowedPages` — rollout)
 
