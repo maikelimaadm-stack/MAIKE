@@ -2,6 +2,20 @@
  * Tokens e superfícies do Modelo Base1 (referência CONTROLE-DE-ESTOQUE).
  * Escopo: `.cadastro-b1` — não altera Mapa Geral nem telas legadas.
  */
+.cadastro-b1.cadastro-b1--full-page {
+  height: 100%;
+  min-height: 0;
+  padding: 8px;
+  box-sizing: border-box;
+  background: #f0f2f5;
+}
+
+@media (min-width: 768px) {
+  .cadastro-b1.cadastro-b1--full-page {
+    padding: 8px 12px;
+  }
+}
+
 .cadastro-b1 {
   --mg-accent: #40de63;
   --mg-accent-hover: #36c956;
@@ -150,8 +164,10 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  height: var(--mg-toolbar-h);
   min-height: var(--mg-toolbar-h);
   padding: 4px 12px;
+  box-sizing: border-box;
   flex-wrap: wrap;
 }
 
@@ -212,7 +228,38 @@
   min-height: 0;
 }
 
-.cadastro-b1 .mg-shell__body {
+.cadastro-b1 .mg-shell--fill {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.cadastro-b1 .mg-shell--fill > .mg-summary {
+  flex-shrink: 0;
+}
+
+.cadastro-b1 .mg-shell__body,
+.cadastro-b1 .mg-shell__scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+
+.cadastro-b1 .mg-shell--fill > .mg-shell__scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+
+.cadastro-b1 .mg-shell--fill > .mg-shell__body {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.cadastro-b1 .mg-shell--fill > .mg-shell__body .mg-grid-wrap {
   flex: 1 1 auto;
   min-height: 0;
   overflow: auto;
@@ -470,6 +517,15 @@
   color: var(--mg-text-1);
   border-bottom: 1px solid var(--mg-table-line);
   border-right: 1px solid var(--mg-table-line);
+  transition: none;
+}
+
+.cadastro-b1 .mg-grid tfoot th,
+.cadastro-b1 .mg-grid tfoot td {
+  position: sticky;
+  bottom: 0;
+  background: #f8fafc;
+  z-index: 3;
 }
 
 .cadastro-b1 .mg-grid tbody tr.even td {
@@ -624,20 +680,30 @@
   margin: 0 auto;
 }
 
-.cadastro-b1 .mg-pill-select {
+.cadastro-b1 .mg-pill-select-wrap {
+  width: auto;
+  flex: 0 0 auto;
+}
+
+.cadastro-b1 .mg-pill-select.cmd-display {
+  box-sizing: border-box;
   height: var(--mg-btn-h);
+  width: auto;
+  min-width: 3.25rem;
   border-radius: 999px;
   background: var(--mg-gray-fill);
   border: 1px solid transparent;
-  padding: 0 28px 0 12px;
+  padding: 0 28px 0 12px !important;
   font-size: 12px;
   font-weight: 600;
   color: var(--mg-text-1);
-  appearance: none;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%235b6b80' stroke-width='2'><path d='m6 9 6 6 6-6'/></svg>");
-  background-repeat: no-repeat;
-  background-position: right 10px center;
 }
+
+.cadastro-b1 .mg-pill-select-wrap .cmd-chevron {
+  right: 10px;
+}
+
+/* mg-pill-select-panel: ver cadastro-b1-controls.css (borda moldura #dfe2e7) */
 
 .cadastro-b1 .mg-summary__footer-actions {
   display: flex;
@@ -645,7 +711,7 @@
   gap: 8px;
 }
 
-/* Campos flutuantes (formulários Base1) */
+/* Campos flutuantes (formulários Base1 — paridade globals.css / B1Field) */
 .cadastro-b1 .mg-field {
   position: relative;
   display: grid;
@@ -656,55 +722,181 @@
   border: 1px solid transparent;
   background: var(--mg-gray-fill);
   box-shadow: var(--mg-field-edge-shadow);
+  transition:
+    background 0.22s cubic-bezier(0.2, 0.8, 0.2, 1),
+    box-shadow 0.22s cubic-bezier(0.2, 0.8, 0.2, 1),
+    border-color 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.cadastro-b1 .mg-field--multiline {
+  grid-template-rows: auto;
+  min-height: 64px;
 }
 
 .cadastro-b1 .mg-field__label {
   grid-row: 1;
   grid-column: 1;
   align-self: center;
+  justify-self: start;
   padding: 0 10px;
   z-index: 2;
   pointer-events: none;
   font-size: 12px;
   font-weight: 500;
+  line-height: 1.1;
   color: var(--mg-text-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: calc(100% - 16px);
+  transition:
+    font-size 0.22s cubic-bezier(0.2, 0.8, 0.2, 1),
+    padding 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.cadastro-b1 .mg-field__label .req {
+  color: var(--mg-red);
+  font-weight: 600;
 }
 
 .cadastro-b1 .mg-field.mg-has-value .mg-field__label,
-.cadastro-b1 .mg-field:focus-within .mg-field__label {
+.cadastro-b1 .mg-field:focus-within .mg-field__label,
+.cadastro-b1 .mg-field.is-open .mg-field__label,
+.cadastro-b1 .mg-field--multiline .mg-field__label {
   align-self: start;
   padding: 4px 10px 0;
   font-size: 9px;
+  line-height: 1;
 }
 
-.cadastro-b1 .mg-field.mg-has-value,
-.cadastro-b1 .mg-field:focus-within {
+.cadastro-b1 .mg-field__control {
+  grid-row: 1;
+  grid-column: 1;
+  display: flex;
+  align-items: stretch;
+  min-width: 0;
+  height: var(--mg-field-h);
+  padding: 0;
+}
+
+.cadastro-b1 .mg-field__control > * {
+  height: 100%;
+  min-height: 0;
+}
+
+.cadastro-b1 .mg-field__control :is(input, select, textarea, .cmd-display, .mg-dp-field, .mg-input) {
+  box-sizing: border-box;
+  height: 100% !important;
+  min-height: 0;
+  padding: 0 10px !important;
+  display: flex;
+  align-items: center;
+  transition: padding 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.cadastro-b1 .mg-field.mg-has-value .mg-field__control :is(input, select, textarea, .cmd-display, .mg-dp-field, .mg-input),
+.cadastro-b1 .mg-field:focus-within .mg-field__control :is(input, select, textarea, .cmd-display, .mg-dp-field, .mg-input),
+.cadastro-b1 .mg-field.is-open .mg-field__control :is(input, select, textarea, .cmd-display, .mg-dp-field, .mg-input) {
+  padding-top: 17px !important;
+  padding-bottom: 5px !important;
+  align-items: flex-end;
+}
+
+.cadastro-b1 .mg-field--multiline .mg-field__control {
+  height: auto;
+}
+
+.cadastro-b1 .mg-field--multiline .mg-field__control textarea {
+  height: auto !important;
+  min-height: 64px;
+  padding: 20px 10px 8px !important;
+}
+
+.cadastro-b1 .mg-field.mg-has-value:not(.mg-field--disabled):not(.mg-field--locked) {
   background: #fff;
   border-color: #e7eaee;
   box-shadow: none;
 }
 
-.cadastro-b1 .mg-field:focus-within {
+.cadastro-b1 .mg-field:focus-within:not(.mg-field--disabled),
+.cadastro-b1 .mg-field.is-open:not(.mg-field--disabled) {
   box-shadow: var(--mg-focus-ring);
 }
 
-.cadastro-b1 .mg-field__control input,
-.cadastro-b1 .mg-field__control select,
-.cadastro-b1 .mg-field__control textarea {
-  width: 100%;
-  border: 0;
-  background: transparent;
-  outline: none;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--mg-text-1);
-  padding: 0 10px;
+.cadastro-b1 .mg-field--locked {
+  background: #e9edf2;
+  border-color: transparent;
+  box-shadow: none;
+  pointer-events: none;
 }
 
-.cadastro-b1 .mg-field.mg-has-value .mg-field__control input,
-.cadastro-b1 .mg-field:focus-within .mg-field__control input {
-  padding-top: 17px;
-  padding-bottom: 5px;
+.cadastro-b1 .mg-field--locked .mg-field__control,
+.cadastro-b1 .mg-field--locked input,
+.cadastro-b1 .mg-field--locked select,
+.cadastro-b1 .mg-field--locked textarea,
+.cadastro-b1 .mg-field--locked .cmd-display {
+  color: #8b939e;
+  -webkit-text-fill-color: #8b939e;
+}
+
+.cadastro-b1 .mg-field--disabled {
+  background: #f6f8fa;
+  border-color: transparent;
+  box-shadow: none;
+  pointer-events: none;
+}
+
+.cadastro-b1 .mg-field--disabled:focus-within {
+  box-shadow: none;
+}
+
+.cadastro-b1 .mg-field.is-invalid {
+  border-color: rgba(239, 68, 68, 0.35);
+  box-shadow: inset 0 0 0 1px rgba(239, 68, 68, 0.12);
+  background: #fff;
+}
+
+.cadastro-b1 .mg-field.is-invalid:focus-within {
+  border-color: var(--mg-focus-border);
+  box-shadow: var(--mg-focus-ring);
+}
+
+.cadastro-b1 .mg-field input,
+.cadastro-b1 .mg-field select,
+.cadastro-b1 .mg-field textarea,
+.cadastro-b1 .mg-field .cmd-display,
+.cadastro-b1 .mg-field .mg-input,
+.cadastro-b1 .mg-field .mg-input:focus,
+.cadastro-b1 .mg-field input:focus,
+.cadastro-b1 .mg-field select:focus,
+.cadastro-b1 .mg-field textarea:focus,
+.cadastro-b1 .mg-field button:focus:not(.b1-switch) {
+  width: 100%;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  outline: none !important;
+  border-radius: 0;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.2;
+  color: var(--mg-text-1);
+}
+
+.cadastro-b1 .mg-field input::placeholder,
+.cadastro-b1 .mg-field textarea::placeholder {
+  color: transparent;
+}
+
+.cadastro-b1 .mg-field textarea {
+  min-height: 36px;
+  resize: vertical;
+}
+
+.cadastro-b1 .mg-field select.mg-input {
+  appearance: none;
+  background-image: none !important;
+  padding-right: 18px !important;
 }
 
 /* Formulários embutidos (label acima — paridade controle de estoque) */

@@ -31,13 +31,7 @@ export default function CadastroFormField({
         {label}
         {required && <span className="text-red-500 ml-0.5">*</span>}
       </label>
-      <div
-        className={`rounded-md border ${
-          error ? "border-red-500 bg-red-50" : "border-slate-300"
-        } focus-within:border-emerald-500 transition-colors`}
-      >
-        {children}
-      </div>
+      <div className={error ? "border-red-500 bg-red-50" : undefined}>{children}</div>
     </div>
   );
 }

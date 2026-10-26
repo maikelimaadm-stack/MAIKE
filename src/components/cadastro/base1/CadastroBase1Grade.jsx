@@ -4,10 +4,12 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import ConfiguracaoColunasMapaDialog from "@/components/mapa/ConfiguracaoColunasMapaDialog";
 import Base1Grid from "@/components/cadastro/base1/Base1Grid";
 import { Base1Cards } from "@/components/cadastro/base1/Base1Cards";
+import CadastroColunaFiltro from "@/components/cadastro/base1/CadastroColunaFiltro";
+import { casaNoFiltroColuna, tipoFiltroDaColuna } from "@/components/cadastro/base1/cadastroColunaFiltroLogic";
 import { MgCheck } from "@/components/cadastro/base1/Base1Ui";
 import { ArrowDownAZ, ArrowUpZA, X } from "lucide-react";
 
-/** @param {Array<{ id: string; label: string; default?: boolean; sortable?: boolean; align?: string; width?: number }>} defs */
+/** @param {Array<{ id: string; label: string; default?: boolean; sortable?: boolean; align?: string; width?: number; filterKind?: 'texto'|'num'|'data' }>} defs */
 export function colunasBase1(defs) {
   return defs.filter((c) => c.id !== "selecao" && c.id !== "acoes");
 }
@@ -17,7 +19,7 @@ export function colunasBase1(defs) {
  *
  * @param {object} props
  * @param {object[]} props.rows
- * @param {Array<{ id: string; label: string; default?: boolean; sortable?: boolean; align?: string; width?: number }>} props.columns
+ * @param {Array<{ id: string; label: string; default?: boolean; sortable?: boolean; align?: string; width?: number; filterKind?: 'texto'|'num'|'data' }>} props.columns
  * @param {string} props.storageKey prefixo localStorage (ordem/visíveis/largura)
  * @param {string} props.droppableId id dnd colunas
  * @param {(item: object, colId: string) => string} props.getFieldValue
@@ -44,6 +46,7 @@ export function colunasBase1(defs) {
  * @param {1|2|3|4} [props.cardsPerRow]
  * @param {string} [props.cardsTitleColId]
  * @param {string} [props.cardsCodeColId]
+ * @param {boolean} [props.referenceHeaders] filtro de cabeçalho `fpop` (frota/equipamentos)
  */
 export default function CadastroBase1Grade({
   rows = [],
@@ -74,6 +77,7 @@ export default function CadastroBase1Grade({
   cardsPerRow = 4,
   cardsTitleColId,
   cardsCodeColId,
+  referenceHeaders = false,
 }) {
   const dataCols = useMemo(() => colunasBase1(columns), [columns]);
   const defaultVisible = useMemo(
@@ -87,6 +91,7 @@ export default function CadastroBase1Grade({
   const [buscaFiltroMenu, setBuscaFiltroMenu] = useState("");
   const [filtroTemp, setFiltroTemp] = useState({ colunaId: null, valores: [] });
   const [filtrosColunas, setFiltrosColunas] = useState({});
+  const [headerFilters, setHeaderFilters] = useState({});
   const [frozenCount, setFrozenCount] = useState(0);
   const lastPick = useRef(null);
 
@@ -138,6 +143,7 @@ export default function CadastroBase1Grade({
   useEffect(() => {
     if (resetFiltersKey > 0) {
       setFiltrosColunas({});
+      setHeaderFilters({});
       setSortConfig({ key: defaultSortKey, direction: defaultSortDir });
     }
   }, [resetFiltersKey, defaultSortKey, defaultSortDir]);
@@ -147,9 +153,10 @@ export default function CadastroBase1Grade({
   }, [selectedItems, onSelectionChange]);
 
   useEffect(() => {
-    const active = Object.values(filtrosColunas).some((v) => (v || []).length > 0);
-    onFiltersActiveChange?.(active);
-  }, [filtrosColunas, onFiltersActiveChange]);
+    const activeLegacy = Object.values(filtrosColunas).some((v) => (v || []).length > 0);
+    const activeHeader = Object.keys(headerFilters).length > 0;
+    onFiltersActiveChange?.(referenceHeaders ? activeHeader : activeLegacy);
+  }, [filtrosColunas, headerFilters, referenceHeaders, onFiltersActiveChange]);
 
   const defaultMatchesSearch = (item, q) => {
     const hay = dataCols
@@ -167,13 +174,23 @@ export default function CadastroBase1Grade({
         const ok = matchesSearch ? matchesSearch(m, q) : defaultMatchesSearch(m, q);
         if (!ok) return false;
       }
+      if (referenceHeaders) {
+        for (const col of dataCols) {
+          const filtro = headerFilters[col.id];
+          if (!filtro) continue;
+          const tipo = tipoFiltroDaColuna(col.id, col);
+          const valor = String(getFieldValue(m, col.id) ?? "");
+          if (!casaNoFiltroColuna(filtro, tipo, valor)) return false;
+        }
+        return true;
+      }
       return dataCols.every((col) => {
         const f = filtrosColunas[col.id] || [];
         if (!f.length) return true;
         return f.includes(getFieldValue(m, col.id));
       });
     });
-  }, [rows, filtrosColunas, searchQuery, dataCols, matchesSearch]);
+  }, [rows, filtrosColunas, headerFilters, referenceHeaders, searchQuery, dataCols, matchesSearch, getFieldValue]);
 
   const ordenados = useMemo(() => {
     const s = [...filtrados];
@@ -232,10 +249,38 @@ export default function CadastroBase1Grade({
   );
 
   const selectedSet = useMemo(() => new Set(selectedItems.map(String)), [selectedItems]);
-  const filteredKeys = useMemo(
-    () => new Set(Object.entries(filtrosColunas).filter(([, v]) => (v || []).length).map(([k]) => k)),
-    [filtrosColunas],
-  );
+  const filteredKeys = useMemo(() => {
+    if (referenceHeaders) return new Set(Object.keys(headerFilters));
+    return new Set(Object.entries(filtrosColunas).filter(([, v]) => (v || []).length).map(([k]) => k));
+  }, [filtrosColunas, headerFilters, referenceHeaders]);
+
+  const renderReferenceFilter = (colunaId) => {
+    if (!referenceHeaders || menuFiltroAberto !== colunaId) return null;
+    const col = dataCols.find((c) => c.id === colunaId);
+    const colLabel = col?.label ?? colunaId;
+    const valores = rows.map((r) => String(getFieldValue(r, colunaId) ?? ""));
+    const ancora = `[data-testid="b1-list"] [aria-label="Abrir menu da coluna ${colLabel}"]`;
+    return (
+      <CadastroColunaFiltro
+        key={colunaId}
+        rotulo={colLabel}
+        tipo={tipoFiltroDaColuna(colunaId, col)}
+        ancora={ancora}
+        valores={valores}
+        atual={headerFilters[colunaId] ?? null}
+        onAplicar={(f) => {
+          setHeaderFilters((p) => {
+            const n = { ...p };
+            if (f) n[colunaId] = f;
+            else delete n[colunaId];
+            return n;
+          });
+          setMenuFiltroAberto(null);
+        }}
+        onFechar={() => setMenuFiltroAberto(null)}
+      />
+    );
+  };
 
   const onSelectClick = (id, mod) => {
     setSelectedItems((prev) => {
@@ -434,7 +479,6 @@ export default function CadastroBase1Grade({
   if (viewMode === "cards") {
     return (
       <>
-        <div className="p-2.5">
         <Base1Cards
           rows={visibleRows}
           columns={dataCols}
@@ -451,8 +495,9 @@ export default function CadastroBase1Grade({
           codeColId={cardsCodeColId}
           emptyText={emptyText}
         />
-        </div>
-        {dataCols.map((c) => renderFilterPopover(c.id))}
+        {referenceHeaders
+          ? dataCols.map((c) => renderReferenceFilter(c.id))
+          : dataCols.map((c) => renderFilterPopover(c.id))}
       </>
     );
   }
@@ -460,6 +505,7 @@ export default function CadastroBase1Grade({
   return (
     <>
       <Base1Grid
+        referenceHeaders={referenceHeaders}
         columns={gridColumns}
         rows={visibleRows}
         loading={isLoading}
@@ -487,7 +533,9 @@ export default function CadastroBase1Grade({
         rowKey={rowKey ? (r) => rowKey(r) : undefined}
         footer={gridFooter}
       />
-      {dataCols.map((c) => renderFilterPopover(c.id))}
+      {referenceHeaders
+        ? dataCols.map((c) => renderReferenceFilter(c.id))
+        : dataCols.map((c) => renderFilterPopover(c.id))}
       {setShowConfigColunas ? (
         <ConfiguracaoColunasMapaDialog
           open={showConfigColunas}

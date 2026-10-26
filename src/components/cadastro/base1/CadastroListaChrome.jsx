@@ -15,7 +15,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import CadastroSearchPill from "./CadastroSearchPill";
-import { B1Popover, IconBtn, MenuList, PillBtn, ViewSwitch } from "./Base1Ui";
+import { B1Popover, IconBtn, MenuList, MgSelect, PillBtn, ViewSwitch } from "./Base1Ui";
 import { CADASTRO_B1_PAGE_SIZES } from "./cadastroBase1List";
 
 /**
@@ -110,6 +110,11 @@ export default function CadastroListaChrome({
   const [showChips, setShowChips] = useState(true);
   const stripRef = useRef(null);
 
+  const pageSizeOptions = useMemo(
+    () => CADASTRO_B1_PAGE_SIZES.map((n) => ({ value: String(n), label: String(n) })),
+    [],
+  );
+
   const menuItems = useMemo(
     () => [
       {
@@ -140,7 +145,7 @@ export default function CadastroListaChrome({
   const showAttachControl = Boolean(onAttach ?? attachDisabledReason);
 
   const rightTools = (
-    <div className="mg-toolbar__right">
+    <div className="ml-auto flex items-center gap-1.5 flex-wrap">
       {showAttachControl ? (
         <IconBtn
           aria-label="Anexos"
@@ -184,8 +189,13 @@ export default function CadastroListaChrome({
     </div>
   );
 
+  const listBodyClass =
+    viewMode === "cards"
+      ? "mg-shell__scroll min-h-0 flex-1 p-2.5"
+      : "mg-shell__body min-h-0 flex-1";
+
   return (
-    <div className="cadastro-b1" data-testid="cadastro-lista-chrome">
+    <div className="flex min-h-0 flex-1 flex-col gap-2" data-testid="b1-list" data-cadastro-chrome>
       <div className="mg-toolbar mg-card flex-wrap no-print">
         {recordMode ? (
           recordToolbar ?? null
@@ -225,8 +235,10 @@ export default function CadastroListaChrome({
       {recordMode ? (
         <>
           {recordHeader}
-          <div className="mg-shell mg-shell--fill min-h-0 flex-1">
-            <div className="mg-form-scroll mg-shell__scroll p-2">{recordBody}</div>
+          <div className="flex min-h-0 flex-1 gap-2">
+            <div className="mg-shell mg-shell--fill min-h-0 min-w-0 flex-1">
+              <div className="mg-form-scroll min-h-0 flex-1 overflow-auto p-3">{recordBody}</div>
+            </div>
           </div>
         </>
       ) : null}
@@ -292,43 +304,43 @@ export default function CadastroListaChrome({
       ) : null}
 
       {!recordMode ? (
-      <div className="mg-shell mg-shell--table mg-shell--fill min-h-0 flex-1">
-        <div className="mg-shell__body">{children}</div>
-        <div className="mg-summary no-print">
-          <div className="mg-summary__counts">
-            <span className="mg-summary__item">Selecionados: {selectedCount}</span>
-            <span className="mg-summary__item">Listados: {listados}</span>
-            <span className="mg-summary__item">Filtrados: {filtrados}</span>
-            <span className="mg-summary__item">Totais: {totais}</span>
+      <div className="flex min-h-0 flex-1 gap-2">
+        <div className="mg-shell mg-shell--fill min-h-0 min-w-0 flex-1">
+          <div className={listBodyClass}>{children}</div>
+          <div className="mg-summary no-print">
+            <div className="mg-summary__counts">
+              <span className="mg-summary__item">Selecionados: {selectedCount}</span>
+              <span className="mg-summary__item">Listados: {listados}</span>
+              <span className="mg-summary__item">Filtrados: {filtrados}</span>
+              <span className="mg-summary__item">Totais: {totais}</span>
+            </div>
+            {onPageSizeChange || onLoadMore ? (
+              <span className="mg-summary__footer-actions">
+                {onPageSizeChange ? (
+                  <MgSelect
+                    ariaLabel="Quantidade de registros por carregamento"
+                    className="mg-pill-select"
+                    wrapClassName="mg-pill-select-wrap"
+                    contentClassName="mg-pill-select-panel min-w-[var(--radix-popover-trigger-width)]"
+                    popoverSide="top"
+                    value={String(pageSize)}
+                    options={pageSizeOptions}
+                    onChange={(v) => onPageSizeChange(Number(v))}
+                  />
+                ) : null}
+                {onLoadMore ? (
+                  <IconBtn
+                    aria-label="Carregar mais registros"
+                    title="Carregar mais registros"
+                    disabled={!hasMore || loadingMore}
+                    onClick={onLoadMore}
+                  >
+                    <ChevronsDown aria-hidden />
+                  </IconBtn>
+                ) : null}
+              </span>
+            ) : null}
           </div>
-          {onPageSizeChange || onLoadMore ? (
-            <span className="mg-summary__footer-actions">
-              {onPageSizeChange ? (
-                <select
-                  aria-label="Quantidade de registros por carregamento"
-                  className="mg-pill-select"
-                  value={pageSize}
-                  onChange={(e) => onPageSizeChange(Number(e.target.value))}
-                >
-                  {CADASTRO_B1_PAGE_SIZES.map((n) => (
-                    <option key={n} value={n}>
-                      {n}
-                    </option>
-                  ))}
-                </select>
-              ) : null}
-              {onLoadMore ? (
-                <IconBtn
-                  aria-label="Carregar mais registros"
-                  title="Carregar mais registros"
-                  disabled={!hasMore || loadingMore}
-                  onClick={onLoadMore}
-                >
-                  <ChevronsDown aria-hidden />
-                </IconBtn>
-              ) : null}
-            </span>
-          ) : null}
         </div>
       </div>
       ) : null}

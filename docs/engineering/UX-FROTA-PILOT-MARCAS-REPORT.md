@@ -261,3 +261,195 @@ Branch `cursor/ux-base1-paridade-visual-516d` (continua a partir de UX-17 / PR #
 ### Verificação (UX-18)
 
 - `npm run verify:all`
+
+## UX-19 (2026-10-24) — Piloto paridade visual **Marcas** (frota/equipamentos)
+
+Branch `cursor/ux-base1-paridade-marcas-516d` (inclui merge de UX-18 / PR #47 quando aplicável):
+
+### Checklist Marcas vs CONTROLE-DE-ESTOQUE (Equipamentos / Base1List)
+
+| Área | Status | Notas |
+|------|--------|-------|
+| Page shell (workspace header, subtítulo) | **Feito** | `CadastroWorkspace` + header mg-card |
+| Toolbar pill (Novo/Editar/Duplicar/Excluir, ícones, disabled) | **Feito** | `CadastroListaChrome`; ícones 14px / 3.5px pencil |
+| Busca pill, alternador Tabela/Registro/Cards, menu Mais | **Feito** | UX-18 + `CadastroSearchPill`; anexos visível (desabilitado) |
+| Faixa filtros (chips, recolher animado) | **Feito** | UX-18 `mg-pills-rail`; hint quando sem chips |
+| Grade (30/26px, seleção, menu coluna, congelar/sombra) | **Feito** | `Base1Grid` via `TabelaMarcas`; coluna Ativo = Sim/Não texto |
+| Rodapé summary + page size + carregar mais | **Feito** | `useCadastroListaFooter` |
+| Modo cards | **Feito** | `Base1Cards` + prefs; seleção MG |
+| Modo registro: toolbar Salvar/Cancelar + bookmark + nav | **Feito** | `recordToolbar` + `CadastroRecordHeader`; nav bloqueada em edição |
+| Form registro: campos `mg-field` flutuantes | **Feito** | `B1Field` + `FormularioMarca` embedded sem card duplicado |
+| Transições novo/editar/duplicar/voltar lista | **Feito** | `recordMode` + alternador; duplicar abre registro |
+| `mg-shell__scroll` no corpo lista/registro | **Feito** | Shell lista e registro alinhados ao MG |
+
+### Pendente antes de replicar outros cadastros
+
+| Item | Motivo |
+|------|--------|
+| `MgSelect` / `cmd-display` completo (popover pesquisável) | Piloto Marcas usa `<select>` nativo dentro de `mg-field` |
+| Modo registro **view** vs **edit** (barra Novo/Editar/Excluir em leitura) | Marcas abre direto em edição; frota alterna view/edit |
+| Pesquisa dropdown avançada + favoritos | Fora de escopo UX-18 |
+| Anexos / histórico nativos | Aguarda auditoria P8 |
+| Propagar `B1Field` + `recordToolbar` | Próximas missões cadastro |
+
+### Verificação (UX-19)
+
+- `npm run test:smoke`, `npm run gate:types`, `npm run gate:source-closure`, `npm run build`
+
+## UX-20 (2026-10-24) — Tela inteira Marcas = inventário frota/equipamentos (DOM Base1List)
+
+Branch `cursor/ux-base1-marcas-tela-inteira-516d` (continua UX-19 / PR #48):
+
+| Lacuna (só CSS; árvore DOM diferente do MG) | Correção |
+|---------------------------------------------|----------|
+| Cartão extra de título/subtítulo acima da toolbar (não existe no `ResourceList` / `Base1List`) | `CadastroWorkspace` `pageLayout="base1-list"`: sem header mg-card; título só em `sr-only`; fundo `#f0f2f5` e preenchimento `h-full` |
+| `cadastro-b1` aninhado + padding `p-3/md:p-4` deslocando a pilha | Um único `.cadastro-b1--full-page`; `CadastroListaChrome` raiz = `flex flex-col gap-2` (sem segunda classe escopo) |
+| Corpo lista: `mg-shell--table` + `mg-shell__body` (referência usa `mg-shell--fill` + coluna flex / `mg-shell__scroll` só em cards) | Lista: `flex → mg-shell--fill →` tabela em `flex flex-col` ou cards em `mg-shell__scroll p-2.5`; rodapé `mg-summary` filho direto do shell |
+| Registro: bookmark dentro do shell branco | `CadastroRecordHeader` fora do `mg-shell` (toolbar → bookmark → shell formulário), como camadas do MG |
+| Toolbar direita com gap largo | `ml-auto flex gap-1.5` (paridade `rightSlot` do `Base1List`) |
+| Cards com `p-2.5` duplicado | Padding único no scroll do chrome; removido wrapper extra em `CadastroBase1Grade` (modo cards) |
+
+**Escopo:** piloto **Marcas** (`pageLayout="base1-list"`). Demais cadastros mantêm `pageLayout` padrão até validação.
+
+### Verificação (UX-20)
+
+- `npm run test:smoke`, `npm run gate:types`, `npm run gate:source-closure`, `npm run build`
+
+## UX-21 (2026-10-24) — Paridade **grade + campos** Marcas (frota/equipamentos)
+
+Branch `cursor/ux-base1-marcas-tela-inteira-516d` (PR #49):
+
+| Lacuna vs CONTROLE-DE-ESTOQUE | Correção |
+|--------------------------------|----------|
+| Filtro de coluna shadcn (lista simples) vs `fpop` Excel no cabeçalho | `referenceHeaders` em `CadastroBase1Grade` / `TabelaMarcas`; `CadastroColunaFiltro` + `cadastroColunaFiltroLogic`; `Base1Grid` abre filtro direto no ⋮; CSS `cadastro-b1ref.css` |
+| `mg-field` simplificado (padding no control, inválido vermelho forte, Input shadcn `h-9`) | CSS alinhado a `globals.css` (label 9px, padding 17/5 no valor, `is-open`/`locked`/`disabled`); `FormularioMarca` com `<input>` nativo + `B1Field` |
+| Grade: viewport extra, sem `ResizeObserver`/pin, `tfoot` sticky | `mg-grid-wrap` sem `cadastro-grade-viewport`; pin + `ResizeObserver`; `tfoot` sticky; `mg-shell--fill` flex column |
+| Âncora do filtro | `data-testid="b1-list"` no `CadastroListaChrome` |
+
+### Pendente (Marcas)
+
+| Item | Motivo |
+|------|--------|
+| `cmd-display` / `MgSelect` popover pesquisável | Ativo segue `<select>` nativo dentro de `mg-field` |
+| Modo registro view vs edit | Fora do escopo UX-20/21 |
+| Calendário no filtro de coluna tipo `data` | Inputs texto; Marcas não usa data na grade |
+
+### Verificação (UX-21)
+
+- `npm run test:smoke`, `npm run gate:types`, `npm run gate:source-closure`, `npm run build`
+
+## UX-22 (2026-10-24) — SSOT vidro + calendário central de vendas + switch Sim/Não
+
+Branch `cursor/ux-base1-ssot-vidro-calendario-switch-516d`:
+
+| Artefato | Origem (CONTROLE-DE-ESTOQUE) | Função |
+|----------|------------------------------|--------|
+| `src/styles/cadastro-b1-controls.css` | `globals.css` (cmd/mg-dp), `moldura.module.css` (`.popover`), `calendario-do-sistema.module.css`, `campo.module.css` (`.chave`) | Vidro em popovers de listagem; estilos cmd-panel, mg-dp, calendário e switch |
+| `B1Switch.jsx` | `features/central/campo.tsx` (`ChaveSimNao`) | Boolean Sim/Não com `role="switch"` |
+| `MgDatePicker.jsx` + `B1DatePicker` | `components/ui/mg-controls.tsx` | Texto dd/mm/aaaa + valor ISO |
+| `B1CalendarioDoSistema.jsx` | `components/ui/calendario-do-sistema.tsx` | Painel 240px vidro da central de vendas |
+| `MgSelect.jsx` | `mg-controls.tsx` (`CmdPanel` / `MgSelect`) | Seletor cmd-display com painel vidro |
+| `Base1Ui` `B1Popover` | vidro `.popover` da central | Menu “Mais opções” e popovers do chrome |
+| `CadastroColunaFiltro` | — | Colunas `data` usam `MgDatePicker` (variante central) |
+| `FormularioMarca` | — | Campo **Ativo** → `B1Switch` (piloto) |
+
+**Herança automática:** qualquer cadastro dentro de `.cadastro-b1` que importe `B1Switch`, `B1DatePicker`/`MgDatePicker`, `MgSelect` ou use `CadastroListaChrome`/`B1Popover`/`CadastroColunaFiltro` recebe o mesmo visual sem migração página a página.
+
+### Verificação (UX-22)
+
+- `npm run verify:all`
+
+## UX-23 (2026-10-24) — Bugfix switch **Ativo** + rodapé de listagem
+
+Branch `cursor/ux-base1-ssot-vidro-calendario-switch-516d` (PR #50):
+
+| Sintoma | Causa | Correção |
+|---------|-------|----------|
+| Campo **Ativo**: caixa minúscula, label flutuante 9px sobre o trilho, `Sim`/`Não` fora do campo | `mg-field` flutuante + `button { width: 100% }` esticava `.b1-switch`; label com `hasValue` sempre ativo | `mg-field--switch` em linha (paridade `.chave`): label fixo à esquerda, controle à direita; `b1-switch` com largura fixa; texto sem `padding-top` |
+| Listagens: grade e `mg-summary` competindo por altura / paginação espremida | `mg-grid-wrap` não era flex filho do shell — só regra para filho **direto** de `mg-shell--fill` | `CadastroListaChrome` usa `mg-shell__body`; CSS encadeia `.mg-shell__body .mg-grid-wrap` com scroll e `mg-summary` fixo no rodapé do shell |
+
+**Arquivos:** `cadastro-b1-controls.css`, `cadastro-base1.css`, `B1Field.jsx`, `FormularioMarca.jsx`, `CadastroListaChrome.jsx`.
+
+### Verificação (UX-23)
+
+- `npm run test:smoke`, `npm run gate:types`, `npm run build`
+
+## UX-24 (2026-10-24) — Switch **Ativo** em linha + paginação `MgSelect` vidro
+
+Branch `cursor/ux-base1-ssot-vidro-calendario-switch-516d` (PR #50):
+
+| Item | Correção |
+|------|----------|
+| `FormularioMarca` **Ativo** | `B1Field` `variant="switch"` (`mg-field--switch`): rótulo à esquerda, `B1Switch` + texto Sim/Não à direita — paridade `ChaveSimNao` / `.chave`, sem caixa de input flutuante |
+| Rodapé `CadastroListaChrome` | `<select class="mg-pill-select">` → `MgSelect` com gatilho pill, painel `mg-b1-glass-pop` e opções 100–1000 (central de vendas / `cmd-display`) |
+
+**Arquivos:** `FormularioMarca.jsx`, `CadastroListaChrome.jsx`, `MgSelect.jsx`, `cadastro-base1.css`.
+
+### Verificação (UX-24)
+
+- `npm run verify:all`
+
+## UX-25 (2026-10-24) — Registro Marcas = frota/equipamentos + `B1ChaveRow`
+
+Branch `cursor/ux-base1-ssot-vidro-calendario-switch-516d` (PR #50):
+
+| Item | Correção |
+|------|----------|
+| **Ativo** no formulário | `B1ChaveRow` (faixa branca com borda, rótulo cinza à esquerda, `B1Switch` + Sim/Não à direita) — **sem** `B1Field` / `mg-field` |
+| Modo registro (`CadastroListaChrome`) | Corpo do registro: `mg-form-scroll` com `p-3` (paridade `ResourceForm` / painel do equipamento); removido `mg-shell__scroll` duplicado |
+| `FormularioMarca` | Grade `grid-cols-12 gap-3` + classe `b1`; Nome/Descrição em `B1Field`; Ativo em linha chave |
+| Listagem | Rodapé mantém `MgSelect` pill + painel vidro (`UX-24`) |
+
+**Arquivos:** `B1ChaveRow.jsx`, `cadastro-b1-controls.css`, `FormularioMarca.jsx`, `CadastroListaChrome.jsx`, `Base1Ui.jsx`.
+
+### Verificação (UX-25)
+
+- `npm run verify:all`
+
+## UX-26 (2026-10-24) — Chave compacta + painel do page size
+
+Branch `cursor/ux-base1-ssot-vidro-calendario-switch-516d` (PR #50):
+
+| Item | Correção |
+|------|----------|
+| **Ativo** (`B1ChaveRow`) | Remove faixa branca com borda; grupo `inline-flex` com rótulo + switch + Sim/Não adjacentes (paridade `ChaveSimNao` / `data-chave`) |
+| Rodapé page size (`MgSelect` pill) | Painel branco arredondado (`mg-pill-select-panel`); opção selecionada com fundo verde claro e texto verde (`globals.css` / `cmd-option.selected`) |
+
+**Arquivos:** `B1ChaveRow.jsx`, `cadastro-b1-controls.css`, `cadastro-base1.css`, `CadastroListaChrome.jsx`.
+
+### Verificação (UX-26)
+
+- `npm run verify:all`
+
+## UX-27 (2026-10-24) — Page size `MgSelect`: opções em coluna
+
+Branch `cursor/ux-base1-ssot-vidro-calendario-switch-516d` (PR #50):
+
+| Item | Correção |
+|------|----------|
+| Painel do rodapé | `Popover.Portal` renderizava fora de `.cadastro-b1`, sem estilos `cmd-option` — botões inline concatenavam labels (`100200`) |
+| `MgSelect` | Classe `cadastro-b1` no `Popover.Content`; lista `flex flex-col` e opções `w-full` (paridade `CmdPanel` / CONTROLE-DE-ESTOQUE) |
+| CSS | `cmd-panel-options` e `mg-pill-select-panel` com `flex-direction: column` |
+
+`CadastroListaChrome` já passava `PAGE_SIZES` como `{ value, label }` separados — sem alteração.
+
+**Arquivos:** `MgSelect.jsx`, `cadastro-b1-controls.css`, `cadastro-base1.css`.
+
+### Verificação (UX-27)
+
+- `npm run verify:all` (exceto `test:backend` sem `DATABASE_URL` no agente)
+
+## UX-28 (2026-10-24) — Page size: borda lateral do painel
+
+Branch `cursor/ux-base1-ssot-vidro-calendario-switch-516d` (PR #50):
+
+| Item | Correção |
+|------|----------|
+| `mg-pill-select-panel` | Fora do vidro (`:not(.mg-pill-select-panel)`); borda `1px solid #dfe2e7` (moldura/globals) em todos os lados; sombra leve |
+| Opções | `padding: 4px` no painel; itens `width: 100%` sem margem lateral; hover cinza (`--mg-gray-fill`); selecionado verde claro |
+
+**Arquivos:** `cadastro-b1-controls.css`, `cadastro-base1.css`.
+
+### Verificação (UX-28)
+
+- `npm run verify:all`

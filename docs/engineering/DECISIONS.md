@@ -1987,4 +1987,21 @@ restabelecer login.
 
 ---
 
-<!-- Próxima decisão: D-PROD-38 -->
+## D-PROD-38 — SSOT Base1: vidro, calendário central de vendas e switch Sim/Não
+
+**Data:** 2026-10-24  
+**Relatório:** `docs/engineering/UX-FROTA-PILOT-MARCAS-REPORT.md` (UX-22)
+
+**Decisão:** controles de listagem e formulário Base1 compartilhados vivem em
+`src/components/cadastro/base1/` (`B1Switch`, `MgDatePicker`/`B1DatePicker`,
+`MgSelect`) com estilos em `src/styles/cadastro-b1-controls.css`, portados do
+repositório CONTROLE-DE-ESTOQUE (central de vendas / `globals.css` +
+`calendario-do-sistema`). Boolean de cadastro usa switch, não `<select>` nem
+checkbox nativo.
+
+**Consequência:** novos cadastros `.cadastro-b1` importam os componentes SSOT em
+vez de duplicar markup ou CSS de referência.
+
+---
+
+<!-- Próxima decisão: D-PROD-39 -->

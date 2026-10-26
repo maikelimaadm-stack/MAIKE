@@ -8,12 +8,13 @@ import CadastroWorkspace from "@/components/cadastro/CadastroWorkspace";
 import CadastroListaChrome from "@/components/cadastro/base1/CadastroListaChrome";
 import CadastroRecordHeader from "@/components/cadastro/base1/CadastroRecordHeader";
 import { useCadastroListaChromeState } from "@/hooks/useCadastroListaChromeState";
-import FormularioMarca from "@/components/marcas/FormularioMarca";
 import TabelaMarcas from "@/components/marcas/TabelaMarcas";
 import { MARCAS_COLUNAS, getMarcaFieldValue } from "@/components/marcas/TabelaMarcas";
 import { exportCadastroCsv } from "@/components/cadastro/base1/cadastroExportCsv";
 import { Base1CardsToolbar } from "@/components/cadastro/base1/Base1Cards";
 import { prepareCadastroDuplicate } from "@/components/cadastro/base1/cadastroDuplicateHelpers";
+import { PillBtn } from "@/components/cadastro/base1/Base1Ui";
+import FormularioMarca, { FORMULARIO_MARCA_ID } from "@/components/marcas/FormularioMarca";
 import { useCadastroListaFooter } from "@/hooks/useCadastroListaFooter";
 import { useCadastroCardsPrefs } from "@/hooks/useCadastroCardsPrefs";
 
@@ -151,6 +152,7 @@ export default function Marcas() {
   );
 
   const detailTitle = editingItem?.id ? editingItem.nome || "Marca" : "Nova marca";
+  const saving = createMutation.isPending || updateMutation.isPending;
 
   const recordNavRows = useMemo(() => {
     const q = chrome.appliedSearch.trim().toLowerCase();
@@ -172,15 +174,22 @@ export default function Marcas() {
 
   return (
     <>
-      <CadastroWorkspace
-        mode="list"
-        title="Marcas"
-        subtitle="Marcas de produto vinculadas à empresa selecionada."
-        toolbar={null}
-      >
+      <CadastroWorkspace mode="list" title="Marcas" pageLayout="base1-list">
         <CadastroListaChrome
           recordMode={showForm}
           secondaryToolsLocked={showForm}
+          recordToolbar={
+            showForm ? (
+              <>
+                <PillBtn type="submit" form={FORMULARIO_MARCA_ID} disabled={saving}>
+                  {saving ? "Salvando…" : "Salvar"}
+                </PillBtn>
+                <PillBtn type="button" tone="gray" onClick={closeForm} disabled={saving}>
+                  Cancelar
+                </PillBtn>
+              </>
+            ) : null
+          }
           recordHeader={
             showForm ? (
               <CadastroRecordHeader
@@ -189,7 +198,7 @@ export default function Marcas() {
                 index={recordIndex}
                 total={recordNavRows.length}
                 onGo={editingItem?.id ? goRecord : undefined}
-                navDisabled={!editingItem?.id}
+                navDisabled={showForm}
               />
             ) : null
           }
@@ -197,12 +206,15 @@ export default function Marcas() {
             showForm ? (
               <FormularioMarca
                 variant="embedded"
+                toolbarActions
+                isSubmitting={saving}
                 initialData={editingItem}
                 onSubmit={handleSubmit}
                 onCancel={closeForm}
               />
             ) : null
           }
+          attachDisabledReason="Anexos disponíveis quando o cadastro tiver auditoria nativa."
           selectedCount={chrome.selectedIds.length}
           {...listFooter.chromeFooter}
           createLabel="Novo"

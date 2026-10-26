@@ -1,4 +1,6 @@
 @import "./styles/cadastro-base1.css";
+@import "./styles/cadastro-b1-controls.css";
+@import "./styles/cadastro-b1ref.css";
 
 @tailwind base;
 @tailwind components;

@@ -1,20 +1,20 @@
 import React, { useState } from "react";
-import { motion } from "framer-motion";
-import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import CadastroFormField, { CADASTRO_INPUT_CLS } from "@/components/cadastro/base1/CadastroFormField";
+import B1Field, { B1_FIELD_INPUT_CLS } from "@/components/cadastro/base1/B1Field";
+import B1ChaveRow from "@/components/cadastro/base1/B1ChaveRow";
 import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
 import CadastroFormActions from "@/components/cadastro/base1/CadastroFormActions";
 
-const FL = ({ label, required, error, children }) => (
-  <CadastroFormField label={label} required={required} error={error}>
-    {children}
-  </CadastroFormField>
-);
-const INPUT_CLS = CADASTRO_INPUT_CLS;
+export const FORMULARIO_MARCA_ID = "formulario-marca-base1";
 
-export default function FormularioMarca({ onSubmit, onCancel, initialData, variant = "card" }) {
+export default function FormularioMarca({
+  onSubmit,
+  onCancel,
+  initialData,
+  variant = "card",
+  toolbarActions = false,
+  isSubmitting = false,
+}) {
   const isEditing = !!initialData?.id;
   const embedded = variant === "embedded";
   const [form, setForm] = useState(() => ({
@@ -25,43 +25,78 @@ export default function FormularioMarca({ onSubmit, onCancel, initialData, varia
   const [invalidFields, setInvalidFields] = useState([]);
 
   const handleChange = (field, value) => {
-    setForm(prev => ({ ...prev, [field]: value }));
-    setInvalidFields(prev => prev.filter(f => f !== field));
+    setForm((prev) => ({ ...prev, [field]: value }));
+    setInvalidFields((prev) => prev.filter((f) => f !== field));
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!form.nome?.trim()) { setInvalidFields(['nome']); toast.error('Nome é obrigatório!'); return; }
-    onSubmit({ nome: form.nome.toUpperCase(), descricao: form.descricao?.toUpperCase() || undefined, ativo: form.ativo });
+    if (!form.nome?.trim()) {
+      setInvalidFields(["nome"]);
+      toast.error("Nome é obrigatório!");
+      return;
+    }
+    onSubmit({
+      nome: form.nome.toUpperCase(),
+      descricao: form.descricao?.toUpperCase() || undefined,
+      ativo: form.ativo,
+    });
   };
 
-  return (
-    <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
-      <CadastroFormShell
-        embedded={embedded}
-        title={isEditing ? "Editar Marca" : "Nova Marca"}
+  const formBody = (
+    <form
+      id={FORMULARIO_MARCA_ID}
+      onSubmit={handleSubmit}
+      className="b1 grid min-h-0 w-full grid-cols-12 gap-3"
+    >
+      <B1Field
+        label="Nome"
+        required
+        span={6}
+        hasValue={Boolean(form.nome?.trim())}
+        error={invalidFields.includes("nome") ? "Obrigatório" : undefined}
       >
-        <form onSubmit={handleSubmit} className="space-y-0.5">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
-            <FL label="Nome" required error={invalidFields.includes('nome')}>
-              <Input value={form.nome} onChange={(e) => handleChange('nome', e.target.value)} placeholder="NOME DA MARCA" className={`${INPUT_CLS} uppercase`} style={{ textTransform: 'uppercase' }} />
-            </FL>
-            <FL label="Descrição">
-              <Input value={form.descricao} onChange={(e) => handleChange('descricao', e.target.value)} placeholder="DESCRIÇÃO" className={`${INPUT_CLS} uppercase`} style={{ textTransform: 'uppercase' }} />
-            </FL>
-          </div>
-          <div className="flex flex-wrap gap-6 py-1 px-1">
-            <div className="flex items-center gap-2">
-              <Checkbox id="marca_ativo" checked={form.ativo} onCheckedChange={(v) => handleChange("ativo", v)} />
-              <label htmlFor="marca_ativo" className="text-xs text-slate-700 cursor-pointer">Ativo</label>
-            </div>
-          </div>
+        <input
+          type="text"
+          value={form.nome}
+          onChange={(e) => handleChange("nome", e.target.value)}
+          placeholder="NOME DA MARCA"
+          className={B1_FIELD_INPUT_CLS}
+          autoComplete="off"
+        />
+      </B1Field>
+      <B1Field label="Descrição" span={6} hasValue={Boolean(form.descricao?.trim())}>
+        <input
+          type="text"
+          value={form.descricao}
+          onChange={(e) => handleChange("descricao", e.target.value)}
+          placeholder="DESCRIÇÃO"
+          className={B1_FIELD_INPUT_CLS}
+          autoComplete="off"
+        />
+      </B1Field>
+      <B1ChaveRow
+        label="Ativo"
+        span={12}
+        checked={form.ativo}
+        onChange={(v) => handleChange("ativo", v)}
+        ariaLabel="Marca ativa"
+      />
+      {!toolbarActions ? (
+        <div className="col-span-12">
           <CadastroFormActions
             onCancel={onCancel}
             submitLabel={isEditing ? "Atualizar" : "Salvar"}
+            isSubmitting={isSubmitting}
           />
-        </form>
-      </CadastroFormShell>
-    </motion.div>
+        </div>
+      ) : null}
+    </form>
+  );
+
+  return (
+    <CadastroFormShell embedded={embedded} title={isEditing ? "Editar Marca" : "Nova Marca"}>
+      {formBody}
+    </CadastroFormShell>
   );
 }
