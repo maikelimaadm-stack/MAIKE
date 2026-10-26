@@ -512,11 +512,6 @@
   border-right: 1px solid var(--mg-table-line);
 }
 
-.cadastro-b1 .mg-grid thead th:last-child,
-.cadastro-b1 .mg-grid tbody td:last-child {
-  border-right: 0;
-}
-
 .cadastro-b1 .mg-grid tbody td {
   height: 26px;
   padding: 0 9px;

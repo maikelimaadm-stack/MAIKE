@@ -4,6 +4,8 @@ import { Check, FilterX, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { operadoresParaTipo } from "./cadastroColunaFiltroLogic";
 import { MgDatePicker, brToISO, isoToBR } from "./MgDatePicker";
+import SeletorDeOperador from "./SeletorDeOperador";
+import { usePortalComprasSkin } from "./portalComprasSkinContext";
 import {
   deveFecharFiltroPorFora,
   haCamadaAninhadaDoFiltroAberta,
@@ -29,6 +31,7 @@ export default function CadastroColunaFiltro({
   onAplicar,
   onFechar,
 }) {
+  const portalSkin = usePortalComprasSkin();
   const contagem = React.useMemo(() => {
     const m = new Map();
     for (const v of valores) m.set(v, (m.get(v) ?? 0) + 1);
@@ -122,9 +125,17 @@ export default function CadastroColunaFiltro({
 
   const ph = tipo === "data" ? "dd/mm/aaaa" : tipo === "num" ? "Número" : "Valor";
 
+  const shellClass = cn("b1ref", portalSkin && "b1-portal-compras");
+
   return createPortal(
-    <div className="b1ref" ref={painel}>
-      <form className="pop fpop" role="menu" aria-label={`Filtrar coluna ${rotulo}`} style={pos} onSubmit={aoEnviar}>
+    <div className={shellClass} ref={painel}>
+      <form
+        className={cn("pop fpop", portalSkin && "b1-portal-compras")}
+        role="menu"
+        aria-label={`Filtrar coluna ${rotulo}`}
+        style={pos}
+        onSubmit={aoEnviar}
+      >
         <button
           type="button"
           className="fmi"
@@ -136,18 +147,11 @@ export default function CadastroColunaFiltro({
         </button>
         <span className="opt-sep" aria-hidden="true" />
         <div className="fcond">
-          <select
-            className="fin w-full"
-            value={op || "sem"}
-            onChange={(e) => setOp(e.target.value === "sem" ? "" : e.target.value)}
-            aria-label="Condição do filtro"
-          >
-            {ops.map(([value, label]) => (
-              <option key={value || "sem"} value={value || "sem"}>
-                {label}
-              </option>
-            ))}
-          </select>
+          <SeletorDeOperador
+            valor={op || "sem"}
+            opcoes={ops.map(([value, label]) => ({ value: value || "sem", label }))}
+            onChange={(v) => setOp(v === "sem" ? "" : v)}
+          />
         </div>
         {op ? (
           <div className="fcond">

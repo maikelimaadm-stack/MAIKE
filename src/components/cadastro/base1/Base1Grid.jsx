@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { fonteDaCelula, medirLarguraColuna } from "@/lib/larguraColuna";
 import { B1Popover, MenuList, MgCheck } from "./Base1Ui";
 import { selectClickOf } from "./selectClick";
+import { usePortalComprasSkin } from "./portalComprasSkinContext";
 
 export const SELECT_COLUMN_WIDTH = 36;
 
@@ -74,6 +75,7 @@ export default function Base1Grid({
   selecaoSticky = true,
   colunaSelecao = true,
 }) {
+  const portalSkin = usePortalComprasSkin();
   const key = rowKey ?? ((r) => String(r.id));
   const allOn = rows.length > 0 && rows.every((r) => selected.has(key(r)));
   const someOn = !allOn && rows.some((r) => selected.has(key(r)));
@@ -307,7 +309,7 @@ export default function Base1Grid({
                       </button>
                     ) : itens.length ? (
                       <B1Popover
-                        className="w-52 p-1"
+                        className={cn("w-52 p-1", portalSkin && "b1-portal-compras")}
                         align="start"
                         open={menuFor === c.key}
                         onOpenChange={(o) => setMenuFor(o ? c.key : null)}

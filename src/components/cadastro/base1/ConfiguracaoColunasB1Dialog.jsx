@@ -12,6 +12,7 @@ import {
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { usePortalComprasSkin } from "./portalComprasSkinContext";
 
 /**
  * Configurador de colunas — paridade `ColunasDosItens` (portal compras / CONTROLE-DE-ESTOQUE).
@@ -35,6 +36,7 @@ export default function ConfiguracaoColunasB1Dialog({
   onAplicar,
   onRestaurar,
 }) {
+  const portalSkin = usePortalComprasSkin();
   const ordemInicial = React.useMemo(() => colunas.map((c) => c.id), [colunas]);
   const [qa, setQa] = React.useState("");
   const [qu, setQu] = React.useState("");
@@ -243,7 +245,7 @@ export default function ConfiguracaoColunasB1Dialog({
   );
 
   return createPortal(
-    <div className="b1ref">
+    <div className={cn("b1ref", portalSkin && "b1-portal-compras")}>
       <div className="mdl">
         <div className="mdlc" ref={dialogo} role="dialog" aria-modal="true" aria-label={titulo}>
           <div className="mdl-h">

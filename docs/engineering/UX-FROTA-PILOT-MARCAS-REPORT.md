@@ -680,3 +680,30 @@ Branch `cursor/ux-base1-cards-colunas-878d` (PR #51). Prompt: `docs/engineering/
 ### Verificação (UX-38)
 
 - `npm run verify:all`
+
+## UX-39 (2026-10-26) — Portal Compras: skin + fpop + grade (paridade 100%)
+
+Branch `cursor/ux-base1-cards-colunas-878d` (PR #51). Plano: `docs/engineering/PLAN-PORTAL-COMPRAS-PARIDADE-BASE1.md`. Diff CDE: `portal-compras.module.css`, `filtro-de-coluna.tsx`, `seletor-de-operador.tsx`, `grid.tsx`, `globals.css` (decisão 349).
+
+| Lacuna vs Portal Compras (CDE) | Correção |
+|--------------------------------|----------|
+| Toolbar/rodapé sem régua 25px + sombra verde (`portal-compras.module.css`) | `cadastro-b1-portal.css` + `portalComprasSkin` em `CadastroListaChrome` / `Marcas.jsx` |
+| `fpop` sem marcador `.b1-portal-compras` nos botões Cancelar/Aplicar | Classe no shell e no `<form class="fpop">` via `usePortalComprasSkin` |
+| Operador de condição = `<select>` nativo (não `SeletorDeOperador` Radix) | `SeletorDeOperador.jsx` + `CadastroColunaFiltro.jsx` |
+| `.foperadores` estreito (sem decisão 359 `max-content`) | `cadastro-b1ref.css` alinhado ao CDE |
+| Última coluna sem borda direita (CDE mantém — decisão 349) | Removido override `th/td:last-child` em `cadastro-base1.css` |
+| Menu ⋮ / Mais opções fora da skin portal | `Base1Grid` + `CadastroListaChrome` + `ConfiguracaoColunasB1Dialog` com `b1-portal-compras` |
+
+**Arquivos:** `SeletorDeOperador.jsx`, `portalComprasSkinContext.js`, `CadastroColunaFiltro.jsx`, `CadastroListaChrome.jsx`, `Base1Grid.jsx`, `ConfiguracaoColunasB1Dialog.jsx`, `Marcas.jsx`, `cadastro-b1-portal.css`, `cadastro-b1ref.css`, `cadastro-base1.css`, `index.css`, `PLAN-PORTAL-COMPRAS-PARIDADE-BASE1.md`.
+
+### Teste manual — Marcas (pós UX-39)
+
+1. **Join:** um cartão branco; toolbar colada à grade; botões Novo/Editar e ícones à direita com círculo 25px e sombra verde (não borda cinza no active).
+2. **Cabeçalho:** ⋮ abre menu (filtro, autoajustar, congelar, ocultar); alça de resize com highlight verde no hover; última coluna com borda vertical.
+3. **Filtro `fpop`:** ⋮ → Abrir filtro avançado; operador em pílula `fselb` com lista Radix larga o suficiente para “É maior ou igual a”; rodapé X/✓ com botões portal.
+4. **Colunas:** ⚡ → Configurar colunas; diálogo `mdl` com botões Restaurar/Pronto no estilo portal.
+5. **Persistência:** congelar + autoajustar + larguras → recarregar → `colunas_marcas_v1_prefs`.
+
+### Verificação (UX-39)
+
+- `npm run verify:all`

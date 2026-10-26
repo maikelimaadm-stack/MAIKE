@@ -18,6 +18,8 @@ import {
 import CadastroSearchPill from "./CadastroSearchPill";
 import { B1Popover, IconBtn, IconeRaio, MenuList, MgSelect, PillBtn, ViewSwitch } from "./Base1Ui";
 import { CADASTRO_B1_PAGE_SIZES } from "./cadastroBase1List";
+import { PortalComprasSkinProvider } from "./portalComprasSkinContext";
+import { cn } from "@/lib/utils";
 
 /**
  * Chrome de listagem estilo Modelo Base1 (frota/equipamentos — CONTROLE-DE-ESTOQUE).
@@ -67,6 +69,7 @@ import { CADASTRO_B1_PAGE_SIZES } from "./cadastroBase1List";
  * @param {import('react').RefObject<HTMLButtonElement | null>} [props.configureColumnsAnchorRef] âncora do popover de colunas (modo tabela)
  * @param {boolean} [props.showFilterRail] faixa `mg-pills-rail` (chips); false = ferramentas na toolbar (piloto Marcas)
  * @param {boolean} [props.joinTableToolbar] toolbar + grade no mesmo `mg-shell` (Portal de Compras / itpan)
+ * @param {boolean} [props.portalComprasSkin] régua visual portal compras (toolbar 25px, fpop/mdl marcados)
  */
 export default function CadastroListaChrome({
   children,
@@ -113,6 +116,7 @@ export default function CadastroListaChrome({
   configureColumnsAnchorRef = null,
   showFilterRail = true,
   joinTableToolbar = false,
+  portalComprasSkin = false,
 }) {
   const oneSelected = selectedCount === 1;
   const anySelected = selectedCount > 0;
@@ -121,6 +125,7 @@ export default function CadastroListaChrome({
   const [maisOpcoesOpen, setMaisOpcoesOpen] = useState(false);
   const stripRef = useRef(null);
   const railEnabled = showFilterRail && !recordMode;
+  const skinAtivo = portalComprasSkin && joinTableToolbar;
 
   const pageSizeOptions = useMemo(
     () => CADASTRO_B1_PAGE_SIZES.map((n) => ({ value: String(n), label: String(n) })),
@@ -253,7 +258,10 @@ export default function CadastroListaChrome({
           <B1Popover
             open={maisOpcoesOpen}
             onOpenChange={setMaisOpcoesOpen}
-            className="flex w-64 min-w-[12rem] flex-col p-1.5"
+            className={cn(
+              "flex w-64 min-w-[12rem] flex-col p-1.5",
+              skinAtivo && "b1-portal-compras",
+            )}
             trigger={
               <IconBtn aria-label="Mais opções" title="Mais opções">
                 <IconeRaio />
@@ -415,7 +423,15 @@ export default function CadastroListaChrome({
   );
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-2" data-testid="b1-list" data-cadastro-chrome>
+    <PortalComprasSkinProvider active={skinAtivo}>
+    <div
+      className={cn(
+        "flex min-h-0 flex-1 flex-col gap-2",
+        skinAtivo && "cadastro-b1--portal-compras",
+      )}
+      data-testid="b1-list"
+      data-cadastro-chrome
+    >
       {!joinedList ? toolbarRow : null}
 
       {recordMode ? (
@@ -452,5 +468,6 @@ export default function CadastroListaChrome({
         <div className="sr-only" aria-hidden="true">{cardsToolbarHosted}</div>
       ) : null}
     </div>
+    </PortalComprasSkinProvider>
   );
 }

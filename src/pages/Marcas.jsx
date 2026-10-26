@@ -196,6 +196,7 @@ export default function Marcas() {
         <CadastroListaChrome
           showFilterRail={false}
           joinTableToolbar
+          portalComprasSkin
           recordMode={showForm}
           recordEditing={isEditing}
           secondaryToolsLocked={showForm && isEditing}
