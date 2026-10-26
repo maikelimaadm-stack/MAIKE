@@ -170,6 +170,22 @@ export default function Base1Grid({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- mede com rows/columns atuais
   }, [autoFitKeys, rows, columns, frozenCount, sort?.key, sort?.dir, filtrosSig]);
 
+  const syncColunaInline = (table, colIndex, wPx) => {
+    if (colIndex < 0) return;
+    const cellIndex = colunaSelecao ? colIndex + 1 : colIndex;
+    const apply = (el) => {
+      if (!(el instanceof HTMLElement)) return;
+      if (wPx == null) {
+        el.style.width = el.style.minWidth = el.style.maxWidth = "";
+      } else {
+        el.style.width = el.style.minWidth = el.style.maxWidth = `${wPx}px`;
+      }
+    };
+    for (const row of table.querySelectorAll("tbody tr, tfoot tr")) {
+      apply(row.children[cellIndex]);
+    }
+  };
+
   const startResize = (e, c) => {
     if (e.detail > 1) return;
     e.preventDefault();
@@ -183,35 +199,16 @@ export default function Base1Grid({
     document.body.style.userSelect = "none";
     document.body.style.cursor = "col-resize";
     const colIndex = columns.findIndex((col) => col.key === c.key);
+    const table = th.closest("table");
     const move = (ev) => {
       const w = Math.max(48, w0 + ev.clientX - x0);
       th.style.width = th.style.minWidth = th.style.maxWidth = `${w}px`;
-      if (colIndex >= 0) {
-        const table = th.closest("table");
-        if (table) {
-          for (const row of table.querySelectorAll("tbody tr")) {
-            const td = row.children[colunaSelecao ? colIndex + 1 : colIndex];
-            if (td instanceof HTMLElement) {
-              td.style.width = td.style.minWidth = td.style.maxWidth = `${w}px`;
-            }
-          }
-        }
-      }
+      if (table) syncColunaInline(table, colIndex, w);
       measure();
     };
     const clearInline = () => {
       th.style.width = th.style.minWidth = th.style.maxWidth = "";
-      if (colIndex >= 0) {
-        const table = th.closest("table");
-        if (table) {
-          for (const row of table.querySelectorAll("tbody tr")) {
-            const td = row.children[colunaSelecao ? colIndex + 1 : colIndex];
-            if (td instanceof HTMLElement) {
-              td.style.width = td.style.minWidth = td.style.maxWidth = "";
-            }
-          }
-        }
-      }
+      if (table) syncColunaInline(table, colIndex, null);
     };
     const up = (ev) => {
       window.removeEventListener("mousemove", move);
