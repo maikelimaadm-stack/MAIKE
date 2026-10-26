@@ -62,6 +62,7 @@ import { CADASTRO_B1_PAGE_SIZES } from "./cadastroBase1List";
  * @param {import('react').ReactNode} [props.recordBody] conteúdo rolável do registro
  * @param {boolean} [props.secondaryToolsLocked] oculta busca/alternador/menu (edição ou subfluxo ativo)
  * @param {import('react').ReactNode} [props.cardsToolbar] botões layout/campos dos cards (modo cards)
+ * @param {import('react').RefObject<HTMLButtonElement | null>} [props.configureColumnsAnchorRef] âncora do popover de colunas (modo tabela)
  */
 export default function CadastroListaChrome({
   children,
@@ -104,6 +105,7 @@ export default function CadastroListaChrome({
   recordBody = null,
   secondaryToolsLocked = false,
   cardsToolbar = null,
+  configureColumnsAnchorRef = null,
 }) {
   const oneSelected = selectedCount === 1;
   const anySelected = selectedCount > 0;
@@ -291,7 +293,9 @@ export default function CadastroListaChrome({
           {viewMode === "cards" && cardsToolbar ? cardsToolbar : null}
           {viewMode !== "cards" && onConfigureColumns ? (
             <IconBtn
+              ref={configureColumnsAnchorRef}
               size="sm"
+              data-testid="b1-col-config-trigger"
               aria-label="Configurar colunas da tabela"
               title="Configurar colunas da tabela"
               onClick={onConfigureColumns}

@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 import { listarMarcasDaEmpresa, criarMarca, atualizarMarca, excluirMarcas } from "@/services/marcaService";
 import { getApiErrorMessage } from "@/apis/_core/ApiError";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -24,6 +24,7 @@ export default function Marcas() {
   const [showForm, setShowForm] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [showConfigColunas, setShowConfigColunas] = useState(false);
+  const configureColumnsAnchorRef = useRef(null);
   const [deleteState, setDeleteState] = useState({ open: false, ids: [] });
   const chrome = useCadastroListaChromeState();
   const listFooter = useCadastroListaFooter(
@@ -233,6 +234,7 @@ export default function Marcas() {
           onSearchApply={chrome.applySearch}
           searchActive={chrome.searchActive}
           searchPlaceholder="Buscar marcas…"
+          configureColumnsAnchorRef={configureColumnsAnchorRef}
           onConfigureColumns={() => setShowConfigColunas(true)}
           onClearFilters={chrome.clearFilters}
           filtersActive={chrome.filtersActive}
@@ -256,6 +258,7 @@ export default function Marcas() {
               onListMetrics={listFooter.gradePaging.onListMetrics}
               cardFields={cardsPrefs.cardFields}
               cardsPerRow={cardsPrefs.cardsPerRow}
+              configureColumnsAnchorRef={configureColumnsAnchorRef}
             />
           ) : null}
         </CadastroListaChrome>

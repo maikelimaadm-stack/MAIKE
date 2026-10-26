@@ -57,6 +57,7 @@ export default function TabelaMarcas(props) {
       cardsTitleColId="nome"
       cardsCodeColId="numero"
       referenceHeaders
+      configureColumnsAnchorRef={props.configureColumnsAnchorRef}
     />
   );
 }

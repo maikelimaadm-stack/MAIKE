@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from "react";
-import { Check, LayoutGrid, ListChecks, MoreVertical } from "lucide-react";
+import { Check, LayoutGrid, ListChecks } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { B1Popover, IconBtn, PillBtn } from "./Base1Ui";
+import { B1Popover, CheckRow, IconBtn, PillBtn, RadioRow } from "./Base1Ui";
 import { selectClickOf } from "./selectClick";
 
 const initials = (s) =>
@@ -17,6 +17,17 @@ const gridCls = {
   3: "md:grid-cols-2 xl:grid-cols-3",
   4: "md:grid-cols-2 xl:grid-cols-4",
 };
+
+const popoverFooter = (onRestore, onOk) => (
+  <>
+    <PillBtn tone="gray" className="flex-1 justify-center" onClick={onRestore}>
+      Restaurar
+    </PillBtn>
+    <PillBtn className="flex-1 justify-center" onClick={onOk}>
+      OK
+    </PillBtn>
+  </>
+);
 
 /**
  * @param {object} props
@@ -162,38 +173,6 @@ const PER_ROW = [
   { n: 4, hint: "1 campo por linha no card" },
 ];
 
-function RadioRow({ checked, onClick, title, hint }) {
-  return (
-    <button
-      type="button"
-      role="radio"
-      aria-checked={checked}
-      onClick={onClick}
-      className={cn(
-        "flex w-full flex-col rounded-lg px-2 py-2 text-left hover:bg-[var(--mg-gray-fill)]",
-        checked && "bg-[var(--mg-accent-light)]",
-      )}
-    >
-      <span className="text-[12.5px] font-semibold text-slate-800">{title}</span>
-      <span className="text-[11px] text-slate-500">{hint}</span>
-    </button>
-  );
-}
-
-function CheckRow({ checked, onChange, label }) {
-  return (
-    <label className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 hover:bg-[var(--mg-gray-fill)]">
-      <input
-        type="checkbox"
-        className="rounded border-slate-300"
-        checked={checked}
-        onChange={(e) => onChange(e.target.checked)}
-      />
-      <span className="text-[12.5px] text-slate-700">{label}</span>
-    </label>
-  );
-}
-
 /** Popovers de layout/campos dos cards (faixa de filtros Base1). */
 export function Base1CardsToolbar({ columns, cardsPrefs }) {
   const { cardsPerRow, setCardsPerRow, cardFields, setCardFields, restoreLayout, restoreFields } =
@@ -233,6 +212,16 @@ function CardsLayoutPopover({ value, onChange, onRestore }) {
           <LayoutGrid className="h-4 w-4" />
         </IconBtn>
       }
+      footer={popoverFooter(
+        () => {
+          onRestore();
+          setOpen(false);
+        },
+        () => {
+          onChange(draft);
+          setOpen(false);
+        },
+      )}
     >
       <div role="radiogroup" aria-label="Cards por linha">
         {PER_ROW.map((o) => (
@@ -244,20 +233,6 @@ function CardsLayoutPopover({ value, onChange, onRestore }) {
             hint={o.hint}
           />
         ))}
-      </div>
-      <div className="mt-3 flex gap-2">
-        <PillBtn tone="gray" className="flex-1 justify-center" onClick={() => { onRestore(); setOpen(false); }}>
-          Restaurar
-        </PillBtn>
-        <PillBtn
-          className="flex-1 justify-center"
-          onClick={() => {
-            onChange(draft);
-            setOpen(false);
-          }}
-        >
-          OK
-        </PillBtn>
       </div>
     </B1Popover>
   );
@@ -285,6 +260,16 @@ function CardFieldsPopover({ columns, value, onChange, onRestore }) {
           <ListChecks className="h-4 w-4" />
         </IconBtn>
       }
+      footer={popoverFooter(
+        () => {
+          onRestore();
+          setOpen(false);
+        },
+        () => {
+          onChange(draft);
+          setOpen(false);
+        },
+      )}
     >
       <div className="max-h-72 overflow-auto">
         {[...columns]
@@ -299,20 +284,6 @@ function CardFieldsPopover({ columns, value, onChange, onRestore }) {
               }
             />
           ))}
-      </div>
-      <div className="mt-3 flex gap-2">
-        <PillBtn tone="gray" className="flex-1 justify-center" onClick={() => { onRestore(); setOpen(false); }}>
-          Restaurar
-        </PillBtn>
-        <PillBtn
-          className="flex-1 justify-center"
-          onClick={() => {
-            onChange(draft);
-            setOpen(false);
-          }}
-        >
-          OK
-        </PillBtn>
       </div>
     </B1Popover>
   );

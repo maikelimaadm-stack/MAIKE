@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import ConfiguracaoColunasMapaDialog from "@/components/mapa/ConfiguracaoColunasMapaDialog";
+import ConfiguracaoColunasBase1Popover from "@/components/cadastro/base1/ConfiguracaoColunasBase1Popover";
 import Base1Grid from "@/components/cadastro/base1/Base1Grid";
 import { Base1Cards } from "@/components/cadastro/base1/Base1Cards";
 import CadastroColunaFiltro from "@/components/cadastro/base1/CadastroColunaFiltro";
@@ -47,6 +48,7 @@ export function colunasBase1(defs) {
  * @param {string} [props.cardsTitleColId]
  * @param {string} [props.cardsCodeColId]
  * @param {boolean} [props.referenceHeaders] filtro de cabeçalho `fpop` (frota/equipamentos)
+ * @param {import('react').RefObject<HTMLElement | null>} [props.configureColumnsAnchorRef] âncora do popover de colunas (referenceHeaders)
  */
 export default function CadastroBase1Grade({
   rows = [],
@@ -78,6 +80,7 @@ export default function CadastroBase1Grade({
   cardsTitleColId,
   cardsCodeColId,
   referenceHeaders = false,
+  configureColumnsAnchorRef,
 }) {
   const dataCols = useMemo(() => colunasBase1(columns), [columns]);
   const defaultVisible = useMemo(
@@ -326,10 +329,14 @@ export default function CadastroBase1Grade({
       direction: p.key === k && p.direction === "asc" ? "desc" : "asc",
     }));
 
+  const applyVisibleKeys = (keys) => {
+    setColunasVisiveis(keys);
+    localStorage.setItem(`${storageKey}_visiveis`, JSON.stringify(keys));
+  };
+
   const toggleColuna = (id) => {
     const n = colunasVisiveis.includes(id) ? colunasVisiveis.filter((i) => i !== id) : [...colunasVisiveis, id];
-    setColunasVisiveis(n);
-    localStorage.setItem(`${storageKey}_visiveis`, JSON.stringify(n));
+    applyVisibleKeys(n);
   };
 
   const handleDragEnd = (r) => {
@@ -536,7 +543,18 @@ export default function CadastroBase1Grade({
       {referenceHeaders
         ? dataCols.map((c) => renderReferenceFilter(c.id))
         : dataCols.map((c) => renderFilterPopover(c.id))}
-      {setShowConfigColunas ? (
+      {setShowConfigColunas && referenceHeaders ? (
+        <ConfiguracaoColunasBase1Popover
+          open={showConfigColunas}
+          onOpenChange={setShowConfigColunas}
+          anchorRef={configureColumnsAnchorRef}
+          columns={dataCols}
+          visibleKeys={colunasVisiveis}
+          defaultVisible={defaultVisible}
+          onApply={applyVisibleKeys}
+        />
+      ) : null}
+      {setShowConfigColunas && !referenceHeaders ? (
         <ConfiguracaoColunasMapaDialog
           open={showConfigColunas}
           onOpenChange={setShowConfigColunas}

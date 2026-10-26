@@ -453,3 +453,20 @@ Branch `cursor/ux-base1-ssot-vidro-calendario-switch-516d` (PR #50):
 ### Verificação (UX-28)
 
 - `npm run verify:all`
+
+## UX-29 (2026-10-26) — Cards + popovers de colunas (frota/equipamentos)
+
+Branch `cursor/ux-base1-cards-colunas-878d` (base `cursor/ux-base1-ssot-vidro-calendario-switch-516d`, PR #50/#51):
+
+| Item | Correção |
+|------|----------|
+| Popovers layout/campos dos cards | `CheckRow` / `RadioRow` SSOT em `Base1Ui` (check circular verde + hover cinza); `B1Popover` com `footer` Restaurar/OK |
+| Modo cards | `Base1Cards` + `Base1CardsToolbar` alinhados ao `CardFieldsPopover` / `CardsLayoutPopover` do CONTROLE-DE-ESTOQUE |
+| Modo tabela (`referenceHeaders`, piloto Marcas) | `ConfiguracaoColunasBase1Popover` ancorado ao botão da faixa de filtros (`b1-col-config-trigger`) em vez do diálogo mapa legado |
+| Herança cadastros | Componentes compartilhados em `cadastro/base1/`; demais telas com `referenceHeaders` recebem o mesmo padrão ao passar `configureColumnsAnchorRef` |
+
+**Arquivos:** `Base1Ui.jsx`, `Base1Cards.jsx`, `ConfiguracaoColunasBase1Popover.jsx`, `CadastroBase1Grade.jsx`, `CadastroListaChrome.jsx`, `Marcas.jsx`, `TabelaMarcas.jsx`.
+
+### Verificação (UX-29)
+
+- `npm run verify:all`
