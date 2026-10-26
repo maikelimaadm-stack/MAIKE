@@ -973,3 +973,57 @@ Branch `cursor/ux-base1-marcas-next-516d`. Referência: CDE `features/base1/grid
 ### Verificação (UX-47 TRACK A)
 
 - `npm run verify:all` (local: `test:backend` exige Postgres/`DATABASE_URL`)
+
+## UX-48 (2026-10-26) — Integração `main` pós-modelo (#56 + #58)
+
+**Objetivo:** consolidar na `main` o chrome TRACK B/C (PR **#56**) e a grade TRACK A (PR **#58**) sem abrir rollout Fase 2 (**D-PROD-41** / **H.5**).
+
+| PR | Merge | Conteúdo |
+|----|-------|----------|
+| **#56** | `7c1b6d4d` | UX-47 TRACK B/C — registro leitura/edição, formulário, menus ⚡, page size portal |
+| **#58** | `96ad16b1` | UX-47 TRACK A — resize `tfoot`, clamp largura prefs, `normalizeFrozenCount`, `larguraColuna` |
+
+**Gate §H após #56/#58:** H.1–H.4 e H.6 **DONE**; **H.5** permanece com produto.
+
+### Verificação (UX-48)
+
+- `npm run verify:all` na `main` com Postgres (CI)
+
+## UX-49 (2026-10-26) — Revisão contínua Marcas vs portal compras (pós #56/#58)
+
+**Branch:** `cursor/ux-base1-marcas-continue-516d`  
+**Objetivo:** passagem final CDE ↔ Marcas; corrigir lacunas **somente piloto**; preparar aceite **H.5** sem rollout Setores.
+
+### Auditoria Marcas vs CDE (`barraIntegrada` + `referenceHeaders`)
+
+| Área | CDE | Marcas | Resultado |
+|------|-----|--------|-----------|
+| Join toolbar + skin | `barraIntegrada` + `b1-portal-compras` | `joinTableToolbar` + `portalComprasSkin` | **Paridade** |
+| Sem rail chips | `semFaixaDeFiltros` | `showFilterRail={false}` | **Paridade** |
+| Checkbox seleção | Off com barra integrada | `colunaSelecao={false}` | **Paridade** |
+| Grade `fpop` / resize / freeze | `grid.tsx` + `filtro-de-coluna.tsx` | UX-35–42, #58 TRACK A | **Paridade** |
+| Cards padding | `cards.tsx` `p-4`, scroll `p-2.5` | `Base1Cards` | **Paridade** |
+| Registro view/edit | `Record` + `recMode` | `recordEditing` + `readOnly` | **Paridade** |
+| Limpar filtros | `clearAll` zera chips **e** busca | Antes: só filtros de coluna | **Corrigido** (UX-49) |
+| Form novo/duplicar | `key` por sessão de registro | Antes: `marca-nova` fixo remontava mal | **Corrigido** (`formEpoch`) |
+| Tenancy / `max+1` | Servidor | `localStorage` + `marcaService` | **G.4 / G.5** — documentado, sem UI |
+
+### Correções de código
+
+| Item | Arquivo |
+|------|---------|
+| Limpar filtros + busca (menu ⚡ e ícone toolbar) | `Marcas.jsx` |
+| Remount formulário em Novo/Duplicar consecutivos | `Marcas.jsx` (`formEpoch`) |
+
+### Documentação H.5
+
+| Artefato | Função |
+|----------|--------|
+| [`MARCAS-H5-MANUAL-TEST.md`](./MARCAS-H5-MANUAL-TEST.md) | Roteiro manual repetível + matriz viewport para sign-off proprietário |
+| [`MARCAS-MODELO-BASE1-CHECKLIST.md`](./MARCAS-MODELO-BASE1-CHECKLIST.md) | H.3–H.6 atualizados pós #58 |
+
+**Fora de escopo:** G.4 tenancy, G.5 numeração, §11.15 DEFER, §11.16 P8, rollout Setores.
+
+### Verificação (UX-49)
+
+- `npm run verify:all` (CI com `DATABASE_URL`)
