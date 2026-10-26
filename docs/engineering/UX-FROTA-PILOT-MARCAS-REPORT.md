@@ -826,3 +826,65 @@ Branch `cursor/ux-base1-marcas-gaps-516d` (base: `cursor/ux-base1-cards-colunas-
 ### Verificação (UX-43)
 
 - `npm run verify:all`
+
+## UX-44 (2026-10-26) — Marcas modelo Base1 (piloto fechado, rollout pausado)
+
+Branch `cursor/ux-base1-marcas-modelo-516d` (base: `cursor/ux-base1-marcas-gaps-516d` / UX-43).
+
+**Objetivo:** encerrar o piloto **Marcas** como referência executável para futuras réplicas, **sem** abrir rollout em Setores/Produtos (**D-PROD-41**).
+
+| Entrega | Status |
+|---------|--------|
+| Checklist executável | [`MARCAS-MODELO-BASE1-CHECKLIST.md`](./MARCAS-MODELO-BASE1-CHECKLIST.md) |
+| Plano Fase 2 | **Pausada** + gate §H em `PLAN-EXECUCAO-PARIDADE-BASE1.md` |
+| Decisão rollout | **D-PROD-41** em `DECISIONS.md` |
+| Caminho crítico A–F (técnico) | **100%** DONE/N/A (43/43 itens) |
+| Gate H (merge `main` + aceite proprietário) | Aberto |
+
+**Auditoria vs CDE (portal compras + `base1/list`):**
+
+| Área | Marcas | CDE `DocList` / `Base1List` |
+|------|--------|-----------------------------|
+| Toolbar join + skin portal | `joinTableToolbar` + `portalComprasSkin` | `barraIntegrada` + `b1-portal-compras` |
+| Filtro cabeçalho + `fpop` | `referenceHeaders` + camadas UX-42 | `referenceHeaders` + `headerFilters` |
+| Resize / freeze / autoFit | `CadastroBase1Grade` | `Base1Grid` |
+| Cards padding | `p-4` / viewport `p-2.5` | `cards.tsx` / `list.tsx` |
+| Checkbox seleção | Desligado (produto) | Desligado quando `barraIntegrada` |
+| Chips rail | `showFilterRail={false}` | `semFaixaDeFiltros` equivalente |
+
+**Fora do escopo desta missão (documentado, não código):** §11.15 DEFER, §11.16 P8, dialogs UX-A/B (Fase 3), tenancy/numeração (PRs backend).
+
+### Verificação (UX-44)
+
+- `npm run verify:all` na branch `cursor/ux-base1-marcas-modelo-516d`
+- `npm run gate:governance-paths`
+
+## UX-45 (2026-10-26) — Integração `main` + organização Marcas (D-PROD-41)
+
+Branch `cursor/ux-base1-marcas-organize-516d` (docs + fix `gate:types` em #51).
+
+**Objetivo:** mergear a fila de PRs do piloto Base1/Marcas e deixar o gate §H pronto para aceite do proprietário.
+
+| PR | Merge commit | Conteúdo |
+|----|--------------|----------|
+| **#51** | `e63aa297` | Motor UX-29–42 (cards, colunas, grade, portal join) + fix `ehCamadaAninhadaDoFiltro` (`Element`) |
+| **#52** | `0646cdf5` | `PLAN-EXECUCAO-PARIDADE-BASE1.md` + ROADMAP |
+| **#53** | `1849cb54` | UX-43 Fase 1 sign-off (toolbar mobile, cards `p-4`, D-PROD-40) |
+| **#54** | *(merge pendente)* | Checklist executável, D-PROD-41, UX-44 |
+
+**Organização Marcas (checklist A–G):** nenhum item **PARTIAL** restante em A–F; G.3–G.5 permanecem documentados (dialogs Fase 3, tenancy, `max+1`). Passagem CDE pós-merge: sem diff de código adicional além do fix de tipos em `cadastroColunaFiltroCamada.js` (smoke com `document.createElement`).
+
+**Gate §H após integração:**
+
+| Item | Status |
+|------|--------|
+| H.1–H.2 | DONE |
+| H.3 | DONE (CI verde nas branches integradas) |
+| H.4 | DONE (UX-43) |
+| H.5 | **TODO** — aceite “Marcas modelo OK” |
+| H.6 | DONE (#51 + #53 + modelo na `main`) |
+
+### Verificação (UX-45)
+
+- `npm run gate:governance-paths`
+- `npm run gate:types` (teto 1746)

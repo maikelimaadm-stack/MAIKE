@@ -1,6 +1,18 @@
 # Estado Atual
 
-**Atualizado em:** 2026-10-23 (**P4.3** geografia do mapa nativa — branch `cursor/p4-3-map-geography-native-516d`; **P4.2** AreaPastagem mergeada — PR #26 · **P4 em execução**)
+**Atualizado em:** 2026-10-26 (**UX Base1** — PRs #51–#54 mergeadas na `main`; gate §H **5/6** — falta aceite H.5; rollout pausado **D-PROD-41**; **P4.3** geografia — branch `cursor/p4-3-map-geography-native-516d`)
+
+---
+
+## Programa UX Base1 (cadastros)
+
+| Campo | Valor |
+|---|---|
+| Plano | `docs/engineering/PLAN-EXECUCAO-PARIDADE-BASE1.md` |
+| Piloto único | **Marcas** — checklist `docs/engineering/MARCAS-MODELO-BASE1-CHECKLIST.md` |
+| Rollout demais cadastros | **Pausado** até aceite proprietário (**H.5**) — **D-PROD-41** |
+| Gate §H (checklist modelo) | **H.1–H.4, H.6** DONE; **H.5** TODO (produto) — ver `MARCAS-MODELO-BASE1-CHECKLIST.md` |
+| Merges UX Base1 (2026-10-26) | #51 `e63aa297` (motor UX-29–42) · #52 `0646cdf5` (plano) · #53 `1849cb54` (Fase 1) · #54 (modelo D-PROD-41, em merge) |
 
 ---
 

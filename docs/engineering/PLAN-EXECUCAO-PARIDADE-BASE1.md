@@ -27,7 +27,7 @@ Abordagem: **estabilizar Marcas na linha da PR #51 → sign-off → replicar o p
 | Decisão SSOT visual | **D-PROD-39** em [`docs/engineering/DECISIONS.md`](./DECISIONS.md) |
 | Repositório referência (CDE) | **CONTROLE-DE-ESTOQUE** — clone sugerido `/tmp/controle-de-estoque` (`apps/web/src/features/compras/`, `features/base1/`, `app/globals.css`, `b1ref.css`) |
 | Auditoria aprofundada (2026-10-26) | Cópia de trabalho do agente: `uploads/deep-research-report_190f.md` (raiz do workspace Cursor); espelho recomendado no repo: `docs/engineering/audits/deep-research-ui-ux-base1-2026-10-26.md` quando arquivado |
-| PR em aberto (piloto) | **PR #51** — branch `cursor/ux-base1-cards-colunas-878d` (“UX-29: paridade cards e popover de colunas (Base1)” + UX-30…42) |
+| Piloto integrado na `main` | **PR #51** merge `e63aa297` + **#53** `1849cb54` + modelo **#54** (checklist D-PROD-41) |
 | Escopo executável | [`config/mapa-manejo-scope.json`](../../config/mapa-manejo-scope.json) |
 | Estado do programa | [`docs/engineering/CURRENT-STATE.md`](./CURRENT-STATE.md), [`docs/engineering/ROADMAP.md`](./ROADMAP.md) |
 
