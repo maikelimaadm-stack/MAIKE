@@ -83,7 +83,8 @@ Clone local sugerido: `/tmp/controle-de-estoque`.
 
 ## 8. Modo registro
 
-- `recordMode` no chrome: toolbar Salvar/Cancelar, `CadastroRecordHeader` (bookmark + navegação), corpo `mg-form-scroll`.
+- `recordMode` no chrome: `CadastroRecordHeader` (bookmark + navegação), corpo `mg-form-scroll`.
+- **`recordEditing`:** `true` = toolbar Salvar/Cancelar (`recordToolbar`); `false` = leitura com toolbar de lista (Novo/Editar/…) — paridade frota (UX-37).
 - Formulário: grade 12 colunas, campos texto em **`B1Field` / `mg-field`**; boolean **Ativo** em **`B1ChaveRow` + `B1Switch`** (não `mg-field` flutuante no piloto Marcas).
 
 ---
@@ -119,7 +120,7 @@ Clone local sugerido: `/tmp/controle-de-estoque`.
 | 11.11 | Cards + popovers SSOT | Feito |
 | 11.12 | Tokens `--mg-*` + DM Sans | Feito (UX-36) |
 | 11.13 | Form Nome/Descrição `mg-field`; Ativo `B1ChaveRow` | Feito |
-| 11.14 | Modo registro view vs edit (frota) | Pendente |
+| 11.14 | Modo registro view vs edit (frota) | Feito (UX-37) |
 | 11.15 | Pesquisa dropdown avançada / favoritos | Fora de escopo |
 | 11.16 | Anexos nativos | Pendente (P8) |
 

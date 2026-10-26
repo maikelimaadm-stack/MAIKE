@@ -14,6 +14,7 @@ export default function FormularioMarca({
   variant = "card",
   toolbarActions = false,
   isSubmitting = false,
+  readOnly = false,
 }) {
   const isEditing = !!initialData?.id;
   const embedded = variant === "embedded";
@@ -56,6 +57,8 @@ export default function FormularioMarca({
         required
         span={6}
         hasValue={Boolean(form.nome?.trim())}
+        locked={readOnly}
+        disabled={readOnly}
         error={invalidFields.includes("nome") ? "Obrigatório" : undefined}
       >
         <input
@@ -65,9 +68,16 @@ export default function FormularioMarca({
           placeholder="NOME DA MARCA"
           className={B1_FIELD_CTL_CLS}
           autoComplete="off"
+          readOnly={readOnly}
         />
       </B1Field>
-      <B1Field label="Descrição" span={6} hasValue={Boolean(form.descricao?.trim())}>
+      <B1Field
+        label="Descrição"
+        span={6}
+        hasValue={Boolean(form.descricao?.trim())}
+        locked={readOnly}
+        disabled={readOnly}
+      >
         <input
           type="text"
           value={form.descricao}
@@ -75,13 +85,15 @@ export default function FormularioMarca({
           placeholder="DESCRIÇÃO"
           className={B1_FIELD_CTL_CLS}
           autoComplete="off"
+          readOnly={readOnly}
         />
       </B1Field>
       <B1ChaveRow
         label="Ativo"
         span={6}
         checked={form.ativo}
-        onChange={(v) => handleChange("ativo", v)}
+        onChange={readOnly ? undefined : (v) => handleChange("ativo", v)}
+        disabled={readOnly}
         ariaLabel="Marca ativa"
       />
       {!toolbarActions ? (

@@ -56,6 +56,7 @@ import { CADASTRO_B1_PAGE_SIZES } from "./cadastroBase1List";
  * @param {string} [props.attachDisabledReason]
  * @param {() => void} [props.onAttach]
  * @param {boolean} [props.recordMode] modo registro (sem faixa de filtros / grade — corpo embutido)
+ * @param {boolean} [props.recordEditing] em `recordMode`, true = `recordToolbar` (Salvar/Cancelar); false = toolbar de lista (leitura)
  * @param {import('react').ReactNode} [props.recordToolbar] barra de ações do registro (substitui Novo/Editar/…)
  * @param {import('react').ReactNode} [props.recordHeader] cabeçalho bookmark + navegação
  * @param {import('react').ReactNode} [props.recordBody] conteúdo rolável do registro
@@ -101,6 +102,7 @@ export default function CadastroListaChrome({
   attachDisabledReason = "Anexos disponíveis quando o cadastro tiver auditoria nativa.",
   onAttach,
   recordMode = false,
+  recordEditing = true,
   recordToolbar = null,
   recordHeader = null,
   recordBody = null,
@@ -170,8 +172,11 @@ export default function CadastroListaChrome({
 
   const scrollStrip = (dx) => stripRef.current?.scrollBy({ left: dx, behavior: "smooth" });
 
+  const recordViewing = recordMode && !recordEditing;
+  const showListPrimaryToolbar = !recordMode || recordViewing;
+
   const listSecondaryTools =
-    !recordMode && !showFilterRail && onClearFilters ? (
+    showListPrimaryToolbar && !showFilterRail && onClearFilters ? (
       <div className="mg-toolbar__list-tools flex flex-wrap items-center gap-1.5">
         <IconBtn
           size="sm"
@@ -260,9 +265,9 @@ export default function CadastroListaChrome({
           : "mg-toolbar mg-card flex-wrap no-print"
       }
     >
-      {recordMode ? (
+      {recordMode && recordEditing ? (
         recordToolbar ?? null
-      ) : (
+      ) : showListPrimaryToolbar ? (
         <>
           {onNew ? (
             <PillBtn type="button" onClick={onNew}>
@@ -292,7 +297,7 @@ export default function CadastroListaChrome({
           ) : null}
           {listSecondaryTools}
         </>
-      )}
+      ) : null}
       {rightTools}
     </div>
   );

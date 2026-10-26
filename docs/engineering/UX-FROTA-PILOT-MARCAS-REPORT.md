@@ -627,12 +627,28 @@ Branch `cursor/ux-base1-cards-colunas-878d` (PR #51). Prompt persistido em `docs
 | 11.13 Form `mg-field` + Ativo chave | **Feito** | `B1Field` / `B1ChaveRow` |
 | 11.6 Camadas aninhadas filtro | **Feito** | `data-radix-popover-content` em `camadaAninhadaAberta` |
 | 11.10 `MgSelect` min-width painel | **Feito** | `cmd-panel` CSS (359) |
-| 11.14 Registro view vs edit | **Todo** | frota alterna leitura/edição |
+| 11.14 Registro view vs edit | **Feito** | UX-37 — ver abaixo |
 | 11.15 Pesquisa dropdown avançada | **Todo** | fora de escopo |
 | 11.16 Anexos nativos | **Todo** | P8 |
 
 **Arquivos:** `cadastroBase1ColumnPrefs.js`, `CadastroBase1Grade.jsx`, `CadastroColunaFiltro.jsx`, `CadastroListaChrome.jsx`, `cadastro-base1.css`, `cadastro-b1-controls.css`, `index.html`, `index.css`, `PROMPT-MODELO-VISUAL-AGRO-ERP.md`, `DECISIONS.md` (D-PROD-39).
 
 ### Verificação (UX-36)
+
+- `npm run verify:all`
+
+## UX-37 (2026-10-26) — Registro Marcas: leitura vs edição (checklist 11.14)
+
+Branch `cursor/ux-base1-cards-colunas-878d` (PR #51).
+
+| Lacuna vs frota/equipamentos | Correção |
+|------------------------------|----------|
+| Abrir registro existente ia direto para Salvar/Cancelar e bloqueava busca/alternador | `recordEditing` em `CadastroListaChrome`: leitura mantém toolbar Novo/Editar/Duplicar/Excluir + ferramentas à direita |
+| Form sempre editável | `FormularioMarca` `readOnly` em leitura (`B1Field` locked, `B1ChaveRow` disabled) |
+| Cancelar fechava o registro ao editar existente | `cancelForm` volta à leitura; novo/duplicado ainda fecha com Cancelar |
+
+**Arquivos:** `CadastroListaChrome.jsx`, `Marcas.jsx`, `FormularioMarca.jsx`, `PROMPT-MODELO-VISUAL-AGRO-ERP.md`.
+
+### Verificação (UX-37)
 
 - `npm run verify:all`

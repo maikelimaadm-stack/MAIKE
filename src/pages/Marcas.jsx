@@ -22,6 +22,7 @@ const MARCAS_STORAGE_KEY = "colunas_marcas_v1";
 
 export default function Marcas() {
   const [showForm, setShowForm] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [showConfigColunas, setShowConfigColunas] = useState(false);
   const configureColumnsAnchorRef = useRef(null);
@@ -88,12 +89,22 @@ export default function Marcas() {
 
   const closeForm = () => {
     setShowForm(false);
+    setIsEditing(false);
     setEditingItem(null);
     chrome.exitRecordView();
   };
 
+  const cancelForm = () => {
+    if (isEditing && editingItem?.id) {
+      setIsEditing(false);
+      return;
+    }
+    closeForm();
+  };
+
   const openNew = () => {
     setEditingItem(null);
+    setIsEditing(true);
     setShowForm(true);
     chrome.setViewMode("record");
   };
@@ -105,12 +116,17 @@ export default function Marcas() {
 
   const handleEdit = (item) => {
     setEditingItem(item);
+    setIsEditing(!item?.id);
     setShowForm(true);
     chrome.setViewMode("record");
     if (item?.id) chrome.onSelectionChange([item.id]);
   };
 
   const handleEditSelected = () => {
+    if (showForm && editingItem?.id && !isEditing) {
+      setIsEditing(true);
+      return;
+    }
     const item = marcas.find((m) => m.id === chrome.selectedIds[0]);
     if (item) handleEdit(item);
   };
@@ -120,6 +136,7 @@ export default function Marcas() {
     const draft = prepareCadastroDuplicate(item, { labelField: "nome" });
     if (!draft) return;
     setEditingItem(draft);
+    setIsEditing(true);
     setShowForm(true);
     chrome.setViewMode("record");
   };
@@ -180,14 +197,15 @@ export default function Marcas() {
           showFilterRail={false}
           joinTableToolbar
           recordMode={showForm}
-          secondaryToolsLocked={showForm}
+          recordEditing={isEditing}
+          secondaryToolsLocked={showForm && isEditing}
           recordToolbar={
-            showForm ? (
+            showForm && isEditing ? (
               <>
                 <PillBtn type="submit" form={FORMULARIO_MARCA_ID} disabled={saving}>
                   {saving ? "Salvando…" : "Salvar"}
                 </PillBtn>
-                <PillBtn type="button" tone="gray" onClick={closeForm} disabled={saving}>
+                <PillBtn type="button" tone="gray" onClick={cancelForm} disabled={saving}>
                   Cancelar
                 </PillBtn>
               </>
@@ -201,7 +219,7 @@ export default function Marcas() {
                 index={recordIndex}
                 total={recordNavRows.length}
                 onGo={editingItem?.id ? goRecord : undefined}
-                navDisabled={showForm}
+                navDisabled={showForm && isEditing}
               />
             ) : null
           }
@@ -210,10 +228,11 @@ export default function Marcas() {
               <FormularioMarca
                 variant="embedded"
                 toolbarActions
+                readOnly={!isEditing}
                 isSubmitting={saving}
                 initialData={editingItem}
                 onSubmit={handleSubmit}
-                onCancel={closeForm}
+                onCancel={cancelForm}
               />
             ) : null
           }
