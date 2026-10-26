@@ -4,6 +4,7 @@
  */
 
 /* ── vidro (popovers de listagem, seletor, calendário) ── */
+.cadastro-b1.mg-b1-glass-pop:not(.mg-pill-select-panel),
 .b1ref .pop,
 .cadastro-b1 .mg-b1-glass-pop:not(.mg-pill-select-panel),
 .cadastro-b1 .cmd-panel:not(.mg-pill-select-panel) {
@@ -21,6 +22,7 @@
 }
 
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .cadastro-b1.mg-b1-glass-pop:not(.mg-pill-select-panel),
   .b1ref .pop,
   .cadastro-b1 .mg-b1-glass-pop:not(.mg-pill-select-panel),
   .cadastro-b1 .cmd-panel:not(.mg-pill-select-panel) {
@@ -40,6 +42,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .cadastro-b1.mg-b1-glass-pop:not(.mg-pill-select-panel),
   .b1ref .pop,
   .cadastro-b1 .mg-b1-glass-pop:not(.mg-pill-select-panel),
   .cadastro-b1 .cmd-panel:not(.mg-pill-select-panel) {

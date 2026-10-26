@@ -705,12 +705,6 @@
 
 /* mg-pill-select-panel: ver cadastro-b1-controls.css (borda moldura #dfe2e7) */
 
-.cadastro-b1 .mg-summary__footer-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
 /* Campos flutuantes (formulários Base1 — paridade globals.css / B1Field) */
 .cadastro-b1 .mg-field {
   position: relative;
@@ -925,4 +919,123 @@
 .cadastro-b1 .cadastro-b1-form-field > div:last-child.border-red-500 {
   border-color: var(--mg-red);
   background: #fef2f2;
+}
+
+/* Popovers portados (Radix) — tokens e linhas SSOT (CheckRow / MenuList) */
+.cadastro-b1.mg-b1-glass-pop {
+  color: var(--mg-text-1);
+  font-size: 12.5px;
+}
+
+.cadastro-b1 .mg-b1-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  border-radius: 6px;
+  padding: 6px 4px;
+  cursor: pointer;
+  text-align: left;
+  font-size: 12.5px;
+  color: var(--mg-text-1);
+  transition: background 0.12s ease;
+}
+
+.cadastro-b1 .mg-b1-row:hover,
+.cadastro-b1 .mg-b1-row:focus-within {
+  background: var(--mg-gray-fill);
+}
+
+.cadastro-b1 .mg-b1-row--start {
+  align-items: flex-start;
+}
+
+.cadastro-b1 .mg-b1-check {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  border: 1px solid #cbd5e1;
+  background: var(--mg-bg-card);
+  color: #fff;
+}
+
+.cadastro-b1 .mg-b1-check.is-on {
+  border-color: var(--mg-accent);
+  background: var(--mg-accent);
+}
+
+.cadastro-b1 .mg-b1-check__icon {
+  width: 10px;
+  height: 10px;
+}
+
+.cadastro-b1 .mg-b1-check--radio.is-on::after {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: #fff;
+}
+
+.cadastro-b1 .mg-b1-row__title {
+  display: block;
+  font-weight: 500;
+  color: var(--mg-text-1);
+}
+
+.cadastro-b1 .mg-b1-row__hint {
+  display: block;
+  font-size: 11px;
+  color: var(--mg-text-2);
+}
+
+.cadastro-b1 .mg-b1-row__aside {
+  margin-left: auto;
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--mg-text-3);
+}
+
+.cadastro-b1 .mg-b1-menuitem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 30px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 8px;
+  font-size: 12.5px;
+  color: var(--mg-text-1);
+  text-align: left;
+  background: transparent;
+  cursor: pointer;
+}
+
+.cadastro-b1 .mg-b1-menuitem:hover:not(:disabled) {
+  background: var(--mg-gray-fill);
+}
+
+.cadastro-b1 .mg-b1-menuitem:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.cadastro-b1 .mg-b1-menuitem.is-danger {
+  color: var(--mg-red);
+}
+
+.cadastro-b1 .mg-empty-state {
+  padding: 2.5rem 0;
+  text-align: center;
+  font-size: 13px;
+  color: var(--mg-text-2);
+}
+
+.cadastro-b1 .mg-grid .mg-empty-state {
+  padding: 1.5rem 0;
 }

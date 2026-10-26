@@ -470,3 +470,31 @@ Branch `cursor/ux-base1-cards-colunas-878d` (base `cursor/ux-base1-ssot-vidro-ca
 ### Verificação (UX-29)
 
 - `npm run verify:all`
+
+## UX-30 (2026-10-26) — Design system, a11y popovers e notas OWASP (Base1 compartilhado)
+
+Branch `cursor/ux-base1-cards-colunas-878d` (PR #51):
+
+| Item | Correção |
+|------|----------|
+| Tokens `--mg-*` em popovers Radix | `B1Popover` e painéis portados carregam classe `cadastro-b1`; vidro (`mg-b1-glass-pop`) aplica também no nó raiz portado; animações Radix neutras no Base1 |
+| Linhas SSOT | `CheckRow` / `RadioRow` / `MenuList` usam classes `.mg-b1-row`, `.mg-b1-check`, `.mg-b1-menuitem` em `cadastro-base1.css` (menos `text-slate-*` solto) |
+| Modo cards | `title` no alternador; dica na faixa de filtros quando `cardsModeAvailable` |
+| Colunas (portal) | Foco inicial no primeiro checkbox; ciclo Tab no painel; restaura foco no gatilho ao fechar; `maxHeight` correto ao abrir acima do botão |
+| Estados vazios / loading | `.mg-empty-state` na grade e nos cards (`role="status"` ao carregar) |
+
+**Arquivos:** `cadastro-base1.css`, `cadastro-b1-controls.css`, `Base1Ui.jsx`, `Base1Grid.jsx`, `Base1Cards.jsx`, `ConfiguracaoColunasBase1Popover.jsx`, `CadastroListaChrome.jsx`, `cadastroExportCsv.js`.
+
+### Notas de segurança (frontend cadastro — não é pentest)
+
+| Tópico | Situação |
+|--------|----------|
+| XSS / `dangerouslySetInnerHTML` | Não há uso em `cadastro/base1/`; células e labels renderizam via React (escape padrão). |
+| Export CSV | Valores escapados (`"` duplicadas); nome de arquivo sanitizado (`SAFE_CSV_BASENAME`) contra caracteres de caminho. |
+| `localStorage` (grade) | Apenas ordem/visíveis/largura de colunas por `storageKey`; sem JWT nem credenciais (JWT permanece em `nativeTokenStorage`). |
+| Popovers em portal | Conteúdo é JSX estático + dados de coluna como texto; sem `innerHTML` de linha da API. |
+| CSV como vetor | Abrir CSV em Excel pode executar fórmulas se célula começar com `=`; mitigação completa seria prefixo/tab — fora do escopo desta missão. |
+
+### Verificação (UX-30)
+
+- `npm run verify:all`

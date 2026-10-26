@@ -270,7 +270,10 @@ export default function CadastroListaChrome({
             {filterChips}
             {!filterChips ? (
               <span className="mg-pills-rail__hint">
-                {filterRailHint ?? "Filtros por coluna na grade (menu ⋮ no cabeçalho)."}
+                {filterRailHint ??
+                  (cardsModeAvailable
+                    ? "Filtros no menu ⋮ da grade; modo cards no alternador à direita."
+                    : "Filtros por coluna na grade (menu ⋮ no cabeçalho).")}
               </span>
             ) : null}
           </div>

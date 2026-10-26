@@ -262,15 +262,15 @@ export default function Base1Grid({
         <tbody>
           {loading && rows.length === 0 ? (
             <tr>
-              <td colSpan={columns.length + 1} className="!h-24 text-center text-slate-400">
-                Carregando…
+              <td colSpan={columns.length + 1} className="!h-24">
+                <div className="mg-empty-state" role="status" aria-live="polite">Carregando…</div>
               </td>
             </tr>
           ) : null}
           {!loading && rows.length === 0 ? (
             <tr>
-              <td colSpan={columns.length + 1} className="!h-24 text-center text-slate-400">
-                {emptyText}
+              <td colSpan={columns.length + 1} className="!h-24">
+                <div className="mg-empty-state">{emptyText}</div>
               </td>
             </tr>
           ) : null}
@@ -316,7 +316,7 @@ export default function Base1Grid({
                         c.align === "center" && "text-center",
                       )}
                     >
-                      {c.render ? c.render(r) : t || <span className="text-slate-400">–</span>}
+                      {c.render ? c.render(r) : t || <span className="text-[var(--mg-text-3)]">–</span>}
                     </td>
                   );
                 })}

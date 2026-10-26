@@ -84,10 +84,14 @@ export function Base1Cards({
   }, [selected, rows.length]);
 
   if (loading && !rows.length) {
-    return <div className="py-10 text-center text-sm text-slate-500">Carregando…</div>;
+    return (
+      <div className="cadastro-b1 mg-empty-state" role="status" aria-live="polite">
+        Carregando…
+      </div>
+    );
   }
   if (!rows.length) {
-    return <div className="py-10 text-center text-sm text-slate-500">{emptyText}</div>;
+    return <div className="cadastro-b1 mg-empty-state">{emptyText}</div>;
   }
 
   const text = (col, r) => {
