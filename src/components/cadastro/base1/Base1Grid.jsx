@@ -167,7 +167,6 @@ export default function Base1Grid({
       const w = larguraPorConteudo(c, i);
       if (c.width !== w) onResize(c.key, w);
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- mede com rows/columns atuais
   }, [autoFitKeys, rows, columns, frozenCount, sort?.key, sort?.dir, filtrosSig]);
 
   const syncColunaInline = (table, colIndex, wPx) => {
