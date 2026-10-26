@@ -80,7 +80,7 @@ export function Base1Cards({
 
   useEffect(() => {
     const firstSel = [...selected][0];
-    if (firstSel) refs.current[firstSel]?.scrollIntoView({ block: "nearest" });
+    if (firstSel) refs.current[firstSel]?.scrollIntoView({ block: "center" });
   }, [selected, rows.length]);
 
   if (loading && !rows.length) {

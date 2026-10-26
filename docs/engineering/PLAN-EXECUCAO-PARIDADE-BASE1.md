@@ -71,12 +71,12 @@ Abordagem: **estabilizar Marcas na linha da PR #51 → sign-off → replicar o p
 | Cards + colunas SSOT | **DONE** | UX-29, UX-38 |
 | §11.15 Pesquisa dropdown avançada / favoritos | **DEFER** | Fora de escopo produto (manter deferido) |
 | §11.16 Anexos nativos | **TODO (P8)** | Ícone/toolbar até auditoria P8 |
-| Cards modo `p-4` / padding paridade CDE | **PARTIAL** | PR #51 / UX-29; validar visual pós-merge vs `cards.tsx` CDE |
-| Toolbar mobile (`height` fixa + `flex-wrap`) | **PARTIAL / risco** | Auditoria UX-C — corrigir em PR **foundations** antes ou com Fase 1 |
+| Cards modo `p-4` / padding paridade CDE | **DONE** | UX-29 + UX-43 (`Base1Cards` `p-4`; viewport `p-2.5` = CDE `list.tsx`) |
+| Toolbar mobile (`height` fixa + `flex-wrap`) | **DONE** | UX-43: join `height: auto` ≤1023px; toque 44px em pílulas primárias ≤639px |
 | `TopNoticeDialog` / `RegistroAnexosDialog` (Escape/clique fora) | **TODO** | UX-A, UX-B — PR Dialog/Popover transversal |
 | Tenancy / `empresa_selecionada_id` + filtro cliente | **RISCO / backend futuro** | SEC-A/B — PR separada segurança/dados, não misturar com UI |
 | `max+1` número de marca | **RISCO / backend** | DATA-A — quando Marca for nativa (P6+) |
-| PR #51 merge + preview sign-off | **TODO** | Fase 0 |
+| PR #51 merge + preview sign-off | **DONE** | merge `e63aa297` (2026-10-26) |
 
 ### Demais cadastros (`allowedPages` — rollout)
 
@@ -138,18 +138,18 @@ Páginas de **cadastro** no manifesto (excluindo mapa e config ícones):
 
 **Objetivo:** referência **estável** antes de clonar para outros cadastros.
 
-- [ ] **Cards:** paridade padding/layout (`p-4` / viewport CDE) — comparar `Base1Cards` × `cards.tsx`; uma PR pequena se diff confirmado.
-- [ ] **Toolbar mobile:** `min-height` + `height: auto` em `.mg-toolbar` onde aplicável; touch 44px só em controles primários mobile (auditoria UX-C).
-- [ ] **Sign-off visual** pós UX-41/42: ViewSwitch, `mg-summary` 4 colunas, `fpop` z-index, page-size 4.5rem.
-- [ ] Documentar explicitamente **11.15** como permanece fora de escopo (sem implementar).
-- [ ] **Anexos:** manter desabilitado/placeholder até P8; registrar em DECISIONS se comportamento da toolbar mudar.
-- [ ] Itens deep research ainda abertos **somente em Marcas** que não exijam backend (dialogs → adiar para Fase 3 se escopo transversal).
+- [x] **Cards:** paridade padding/layout (`p-4` / viewport CDE) — comparar `Base1Cards` × `cards.tsx`; uma PR pequena se diff confirmado.
+- [x] **Toolbar mobile:** `min-height` + `height: auto` em `.mg-toolbar` onde aplicável; touch 44px só em controles primários mobile (auditoria UX-C).
+- [x] **Sign-off visual** pós UX-41/42: ViewSwitch, `mg-summary` 4 colunas, `fpop` z-index, page-size 4.5rem.
+- [x] Documentar explicitamente **11.15** como permanece fora de escopo (sem implementar) — **D-PROD-40**.
+- [x] **Anexos:** manter desabilitado/placeholder até P8; registrar em DECISIONS se comportamento da toolbar mudar — **D-PROD-40**.
+- [x] Itens deep research ainda abertos **somente em Marcas** que não exijam backend (dialogs → adiar para Fase 3 se escopo transversal).
 
 **Aceite Fase 1**
 
-- [ ] Teste manual PROMPT §11 + UX-40/41/42 repetido em 360, 390, 768, 1280.
-- [ ] `npm run verify:all` verde.
-- [ ] `UX-FROTA-PILOT-MARCAS-REPORT.md` seção **UX-43+** ou entrada “Marcas sign-off” com data.
+- [x] Teste manual PROMPT §11 + UX-40/41/42 repetido em 360, 390, 768, 1280 (sign-off UX-43).
+- [x] `npm run verify:all` verde.
+- [x] `UX-FROTA-PILOT-MARCAS-REPORT.md` seção **UX-43+** ou entrada “Marcas sign-off” com data.
 
 ---
 

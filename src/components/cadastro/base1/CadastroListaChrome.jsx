@@ -305,6 +305,7 @@ export default function CadastroListaChrome({
 
   const toolbarRow = (
     <div
+      data-testid="b1-toolbar"
       className={
         joinedShell
           ? "mg-toolbar mg-toolbar--join flex-wrap no-print"
