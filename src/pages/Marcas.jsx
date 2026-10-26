@@ -59,10 +59,16 @@ export default function Marcas() {
   const updateMutation = useMutation({
     /** @param {{ id: string; data: object }} vars */
     mutationFn: ({ id, data }) => atualizarMarca(id, data),
-    onSuccess: () => {
+    onSuccess: (updated, { id, data }) => {
       queryClient.invalidateQueries({ queryKey: ["marcas"] });
-      setShowForm(false);
-      setEditingItem(null);
+      const merged = {
+        ...(editingItem?.id === id ? editingItem : {}),
+        id,
+        ...data,
+        ...(updated && typeof updated === "object" ? updated : {}),
+      };
+      setEditingItem(merged);
+      setIsEditing(false);
       toast.success("Marca atualizada!");
     },
     onError: (err) => toast.error(getApiErrorMessage(err, "Não foi possível salvar a marca.")),
@@ -227,6 +233,7 @@ export default function Marcas() {
           recordBody={
             showForm ? (
               <FormularioMarca
+                key={editingItem?.id ?? "marca-nova"}
                 variant="embedded"
                 toolbarActions
                 readOnly={!isEditing}

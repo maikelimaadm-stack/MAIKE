@@ -888,3 +888,63 @@ Branch `cursor/ux-base1-marcas-organize-516d` (docs + fix `gate:types` em #51).
 
 - `npm run gate:governance-paths`
 - `npm run gate:types` (teto 1746)
+
+## UX-46 (2026-10-26) — Marcas pós-modelo: registro + diálogo exclusão
+
+Branch `cursor/ux-base1-marcas-next-516d` (após merge #55 na `main`).
+
+**Objetivo:** fechar lacunas **somente Marcas** ainda abertas no checklist (G.3 fluxo exclusão; polish formulário registro vs frota/equipamentos) sem iniciar rollout Fase 2 (**D-PROD-41** / **H.5**).
+
+| Item | Correção |
+|------|----------|
+| **G.3 exclusão** | `TopNoticeDialog` honra `cancelText` (botão Cancelar na barra); política dismiss inalterada (sem ESC/clique fora) — `ConfirmDialog` em `Marcas.jsx` |
+| **Registro pós-salvar** | Atualizar marca volta ao modo **leitura** no mesmo registro (não fecha o painel) — paridade view/edit frota |
+| **Navegação entre registros** | `key` no `FormularioMarca` reseta estado ao mudar bookmark/prev/next |
+| **Formulário** | Grade SSOT `mg-b1-form-grid`; campo **Nº** somente leitura quando registro existente |
+| **Checklist** | G.3 Marcas → **DONE**; PARTIAL restantes: G.4 tenancy, G.5 `max+1` |
+
+**Fora de escopo:** §11.15, §11.16 P8, `RegistroAnexosDialog` transversal (Fase 3), Setores rollout.
+
+### Verificação (UX-46)
+
+- `npm run verify:all` (CI com Postgres; local sem `DATABASE_URL` falha só `test:backend`)
+
+## UX-47 (2026-10-26) — Marcas TRACK B: chrome unificado + formulário (revisão contínua)
+
+Branch `cursor/ux-base1-marcas-chrome-516d` (base: `main` pós-#55).
+
+**Objetivo:** consolidar **UX-46** e polir chrome compartilhado (tabela / cards / registro) vs CDE frota/portal — sem rollout Fase 2.
+
+| Área | Correção |
+|------|----------|
+| **Registro pós-salvar / leitura** | `Marcas.jsx`: atualizar volta a `readOnly`; `key` no `FormularioMarca` ao navegar bookmark |
+| **Formulário** | `mg-b1-form-grid` + **Nº** somente leitura em registro existente (`isExistingRecord`) |
+| **Exclusão G.3** | `TopNoticeDialog` exibe `cancelText` na barra; `ConfirmDialog` em Marcas |
+| **Cards** | Hover só via `.b1-card:hover` em `cadastro-base1.css` (remove sombra Tailwind duplicada) |
+| **Join shell registro** | `cadastro-record-header` + `mg-form-scroll` com `flex-shrink` / fundo branco no `mg-shell--join-table` |
+
+**Arquivos:** `CadastroListaChrome.jsx` (inalterado — comportamento UX-40 validado), `CadastroRecordHeader.jsx`, `Base1Cards.jsx`, `cadastro-base1.css`, `Marcas.jsx`, `FormularioMarca.jsx`, `TopNoticeDialog.jsx`, docs checklist/plano.
+
+### Verificação (UX-47)
+
+- `npm run verify:all`
+
+## UX-47 (2026-10-26) — TRACK C: chrome menus (Mais opções, colunas, confirmação, page size)
+
+Branch `cursor/ux-base1-marcas-menus-516d` (revisão contínua pós-UX-46).
+
+**Objetivo:** fechar paridade do chrome de lista no piloto Marcas (menu ⚡, diálogo de colunas, confirmação de exclusão, rodapé page size) sem ampliar rollout (**D-PROD-41**).
+
+| Item | Correção |
+|------|----------|
+| **Mais opções** | Entrada **Limpar filtros** no menu vertical (§11.3 / checklist B.3); ícone toolbar mantido quando `showFilterRail={false}` |
+| **Configurar colunas** | Fluxo menu → `onConfigureColumns` → `ConfiguracaoColunasB1Dialog` (rascunho até ✓; portal skin via `PortalComprasSkinProvider`) — sem alteração de contrato |
+| **Exclusão Marcas** | `ConfirmDialog` → `TopNoticeDialog` com `cancelText` visível na barra (UX-46) + política dismiss (sem ESC/clique fora) |
+| **Page size** | `MgSelect` pill no rodapé: `min-width: 4.5rem` preservado na skin portal compras (`cadastro-b1-portal.css`) |
+| **Checklist** | G.3 **DONE** (Marcas); B.3 evidência menu limpar filtros |
+
+**Arquivos:** `CadastroListaChrome.jsx`, `cadastro-b1-portal.css`, `TopNoticeDialog.jsx`, `Marcas.jsx`, `FormularioMarca.jsx`, docs checklist/plano.
+
+### Verificação (UX-47)
+
+- `npm run verify:all`

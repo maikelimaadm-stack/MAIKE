@@ -33,7 +33,7 @@
 |---|------|-------------|-------------------|
 | B.1 | Busca pílula + aplicar (Enter / botão) | **DONE** | §11.3 |
 | B.2 | Alternador Tabela / Cards / Registro (`ViewSwitch`) | **DONE** | UX-41 |
-| B.3 | Menu **Mais opções** vertical (export, colunas, limpar filtros) | **DONE** | |
+| B.3 | Menu **Mais opções** vertical (export, colunas, limpar filtros) | **DONE** | UX-47 — item **Limpar filtros** no menu ⚡ |
 | B.4 | Toolbar join: `data-testid="b1-toolbar"` | **DONE** | UX-43 / paridade CDE |
 | B.5 | Toolbar join responsiva (wrap, `height: auto` ≤1023px) | **DONE** | UX-43 |
 | B.6 | Toque 44px em pílulas primárias mobile (≤639px) | **DONE** | UX-43 |
@@ -77,7 +77,7 @@
 
 | # | Item | Marcas hoje | Evidência / notas |
 |---|------|-------------|-------------------|
-| E.1 | Grid `grid-cols-12 gap-3`, classe `b1` | **DONE** | `FormularioMarca` |
+| E.1 | Grid `mg-b1-form-grid` (12 colunas), classe `b1` | **DONE** | `FormularioMarca` — UX-46 |
 | E.2 | Nome / Descrição em `B1Field` + `B1_FIELD_CTL_CLS` (§11.13) | **DONE** | |
 | E.3 | Ativo em `B1ChaveRow` + `B1Switch` (não select nativo) | **DONE** | UX-36 |
 | E.4 | Modo leitura: campos `readOnly` / `locked` | **DONE** | §11.14 |
@@ -101,7 +101,7 @@
 |---|------|-------------|-------------------|
 | G.1 | §11.15 Pesquisa dropdown avançada / favoritos cards | **DEFER** | D-PROD-40 |
 | G.2 | §11.16 Anexos nativos (upload, grid 210px, P8) | **P8** | Toolbar placeholder — D-PROD-40 |
-| G.3 | `TopNoticeDialog` / `RegistroAnexosDialog` política dismiss (UX-A/B) | **PARTIAL** | Transversal Fase 3; Marcas usa `ConfirmDialog` |
+| G.3 | `TopNoticeDialog` / `RegistroAnexosDialog` política dismiss (UX-A/B) | **DONE** (Marcas) | Exclusão: `ConfirmDialog` → `TopNoticeDialog` (sem ESC/clique fora; Cancelar explícito — UX-46). `RegistroAnexosDialog` = Fase 3 / P8 |
 | G.4 | Tenancy `empresa_selecionada_id` / filtro servidor | **PARTIAL** | UI legada Base44; PR segurança separada |
 | G.5 | Numeração `max+1` concorrente | **PARTIAL** | `marcaService`; backend P6+ |
 
@@ -142,7 +142,7 @@ Ao clonar Marcas em outro cadastro, percorrer **A → H** nesta ordem:
 | **N/A** | 1 |
 | **DEFER** | 1 |
 | **P8** | 1 |
-| **PARTIAL** | 3 |
+| **PARTIAL** | 2 |
 | **TODO** (só gate H processo) | 1 |
 
 **Caminho crítico técnico (A–F):** 43/43 itens **DONE** ou **N/A** → **100%** do checklist aplicável.  

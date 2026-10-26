@@ -16,7 +16,7 @@ export default function FormularioMarca({
   isSubmitting = false,
   readOnly = false,
 }) {
-  const isEditing = !!initialData?.id;
+  const isExistingRecord = Boolean(initialData?.id);
   const embedded = variant === "embedded";
   const [form, setForm] = useState(() => ({
     nome: initialData?.nome || "",
@@ -48,14 +48,26 @@ export default function FormularioMarca({
     <form
       id={FORMULARIO_MARCA_ID}
       onSubmit={handleSubmit}
-      className="b1 grid w-full min-h-0 grid-cols-12 gap-3"
+      className="b1 mg-b1-form-grid w-full min-h-0"
       noValidate
       data-testid="b1-form"
     >
+      {isExistingRecord && initialData?.numero_marca != null ? (
+        <B1Field label="Nº" span={3} hasValue locked disabled>
+          <input
+            type="text"
+            value={String(initialData.numero_marca)}
+            className={B1_FIELD_CTL_CLS}
+            readOnly
+            tabIndex={-1}
+            aria-readonly="true"
+          />
+        </B1Field>
+      ) : null}
       <B1Field
         label="Nome"
         required
-        span={6}
+        span={isExistingRecord && initialData?.numero_marca != null ? 9 : 6}
         hasValue={Boolean(form.nome?.trim())}
         locked={readOnly}
         disabled={readOnly}
@@ -100,7 +112,7 @@ export default function FormularioMarca({
         <div className="col-span-12">
           <CadastroFormActions
             onCancel={onCancel}
-            submitLabel={isEditing ? "Atualizar" : "Salvar"}
+            submitLabel={isExistingRecord ? "Atualizar" : "Salvar"}
             isSubmitting={isSubmitting}
           />
         </div>
@@ -109,7 +121,7 @@ export default function FormularioMarca({
   );
 
   return (
-    <CadastroFormShell embedded={embedded} title={isEditing ? "Editar Marca" : "Nova Marca"}>
+    <CadastroFormShell embedded={embedded} title={isExistingRecord ? "Editar Marca" : "Nova Marca"}>
       <div className={embedded ? "mg-b1-record-form" : undefined}>{formBody}</div>
     </CadastroFormShell>
   );

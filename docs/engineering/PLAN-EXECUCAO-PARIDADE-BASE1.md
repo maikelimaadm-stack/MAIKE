@@ -73,7 +73,7 @@ Abordagem: **estabilizar Marcas na linha da PR #51 → sign-off → replicar o p
 | §11.16 Anexos nativos | **TODO (P8)** | Ícone/toolbar até auditoria P8 |
 | Cards modo `p-4` / padding paridade CDE | **DONE** | UX-29 + UX-43 (`Base1Cards` `p-4`; viewport `p-2.5` = CDE `list.tsx`) |
 | Toolbar mobile (`height` fixa + `flex-wrap`) | **DONE** | UX-43: join `height: auto` ≤1023px; toque 44px em pílulas primárias ≤639px |
-| `TopNoticeDialog` / `RegistroAnexosDialog` (Escape/clique fora) | **TODO** | UX-A, UX-B — PR Dialog/Popover transversal |
+| `TopNoticeDialog` / `RegistroAnexosDialog` (Escape/clique fora) | **DONE (Marcas exclusão)** / **TODO (anexos global)** | UX-46: `ConfirmDialog` em Marcas; UX-A/B — `RegistroAnexosDialog` transversal |
 | Tenancy / `empresa_selecionada_id` + filtro cliente | **RISCO / backend futuro** | SEC-A/B — PR separada segurança/dados, não misturar com UI |
 | `max+1` número de marca | **RISCO / backend** | DATA-A — quando Marca for nativa (P6+) |
 | PR #51 merge + preview sign-off | **DONE** | merge `e63aa297` (2026-10-26) |
