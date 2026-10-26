@@ -48,14 +48,26 @@ export default function FormularioMarca({
     <form
       id={FORMULARIO_MARCA_ID}
       onSubmit={handleSubmit}
-      className="b1 grid w-full min-h-0 grid-cols-12 gap-3"
+      className="b1 mg-b1-form-grid w-full min-h-0"
       noValidate
       data-testid="b1-form"
     >
+      {isEditing && initialData?.numero_marca ? (
+        <B1Field label="Nº" span={3} hasValue locked disabled>
+          <input
+            type="text"
+            value={String(initialData.numero_marca)}
+            className={B1_FIELD_CTL_CLS}
+            readOnly
+            tabIndex={-1}
+            aria-readonly="true"
+          />
+        </B1Field>
+      ) : null}
       <B1Field
         label="Nome"
         required
-        span={6}
+        span={isEditing && initialData?.numero_marca ? 9 : 6}
         hasValue={Boolean(form.nome?.trim())}
         locked={readOnly}
         disabled={readOnly}
