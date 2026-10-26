@@ -6,10 +6,12 @@
  *   clearFilters: () => void;
  *   setSearchInput: (v: string) => void;
  *   applySearch: (next?: string) => void;
+ *   setSelectedIds?: (ids: string[]) => void;
  * }} chrome
  */
 export function clearCadastroListaFiltersAndSearch(chrome) {
   chrome.clearFilters();
   chrome.setSearchInput("");
   chrome.applySearch("");
+  chrome.setSelectedIds?.([]);
 }

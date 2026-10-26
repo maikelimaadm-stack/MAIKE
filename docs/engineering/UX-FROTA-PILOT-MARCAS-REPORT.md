@@ -1066,3 +1066,46 @@ Branch `cursor/ux-base1-marcas-next-516d`. Referência: CDE `features/base1/grid
 
 - `npm run test:smoke`
 - `npm run verify:all` (CI com Postgres)
+
+## UX-51 (2026-10-26) — Revisão contínua Marcas (pós PR #60) + H.5 evidências
+
+**Branch:** `cursor/ux-base1-marcas-ux51-516d`  
+**Base:** `main` pós-merge **#60** (`d05304d4`, UX-50).
+
+**Objetivo:** `verify:all` na `main`; diff CDE nos arquivos tocados desde UX-50; fechar lacuna restante em **limpar filtros**; enriquecer roteiro H.5 para aceite proprietário — sem rollout Setores (**D-PROD-41**).
+
+### `verify:all` na `main` (agente 2026-10-26)
+
+| Etapa | Resultado |
+|-------|-----------|
+| Gates 1–19 (exceto backend) | **Verde** |
+| `test:backend` | **Falha esperada** sem Docker/`DATABASE_URL` no agente |
+| `build` | Verde |
+
+### Diff CDE vs delta UX-50 → UX-51
+
+**Arquivos alterados desde UX-49 (`eb3866ee`) até UX-50 (#60):** docs, `cadastroListaClearFilters.js`, `Marcas.jsx`, smoke, remoção `eslint-disable` em `Base1Grid`.
+
+| Eixo | CDE `list.tsx` `clearAll` | Marcas UX-50 | UX-51 |
+|------|---------------------------|--------------|-------|
+| Filtros cabeçalho | `setValues` + `resetFiltersKey` equivalente | `clearFilters()` | Mantido |
+| Busca | `setSearch("")` + `applied` | `setSearchInput` + `applySearch("")` | Mantido |
+| Seleção | `setSelected(new Set())` | **Ausente** | **`setSelectedIds([])`** no helper SSOT |
+
+**Demais eixos H.5 (fpop, resize, view modes, registro):** auditoria de código — sem lacuna nova vs checklist A–F.
+
+### Correções / documentação
+
+| Item | Arquivo |
+|------|---------|
+| Limpar filtros + busca + seleção | `src/lib/cadastroListaClearFilters.js`, smoke |
+| Matriz de screenshots + passo seleção no §7 | `MARCAS-H5-MANUAL-TEST.md` |
+| Evidência B.3 / H.3 | `MARCAS-MODELO-BASE1-CHECKLIST.md`, `CURRENT-STATE.md` |
+
+**Fora de escopo:** browser manual no agente (sem credenciais `.env.local`); G.4/G.5; §11.15/16; Setores.
+
+### Verificação (UX-51)
+
+- `npm run test:smoke`
+- `npm run gate:governance-paths`
+- `npm run verify:all` (CI com Postgres)

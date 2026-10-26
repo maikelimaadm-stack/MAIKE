@@ -71,7 +71,8 @@
 ### 7. Limpar filtros (paridade CDE `clearAll`)
 
 1. Aplicar filtro de coluna + busca global → ícone limpar filtros ativo (toolbar e menu ⚡).
-2. **Limpar filtros** → remove filtros de cabeçalho **e** zera busca aplicada.
+2. Selecionar uma ou mais linhas/cards.
+3. **Limpar filtros** → remove filtros de cabeçalho, zera busca aplicada **e** limpa seleção (como `clearAll` em `features/base1/list.tsx`).
 
 **Automação (CI):** `tests/smoke/cadastroListaClearFilters.test.js` cobre o helper `clearCadastroListaFiltersAndSearch` usado em `Marcas.jsx`.
 
@@ -89,6 +90,23 @@
 
 ---
 
+## Evidências visuais (opcional, anexar ao aceite H.5)
+
+Salvar capturas com nome `marcas-h5-<viewport>-<passo>.png` (ex.: `marcas-h5-1280-02-fpop.png`).
+
+| Passo roteiro | 360 | 390 | 768 | 1280 | ☐ OK |
+|---------------|-----|-----|-----|------|------|
+| 1 Shell + toolbar join (`b1-toolbar`) | | | | | |
+| 2 Grade ⋮ + `fpop` Nome | | | | | |
+| 4 Cards seleção + hover | | | | | |
+| 5 Registro leitura vs edição | | | | | |
+| 6 Exclusão `TopNoticeDialog` | | | | | |
+| 7 Limpar filtros (busca + coluna + seleção) | | | | | |
+
+**Atalho:** em DevTools, alternar dimensões responsivas; repetir passos 1–7 nas quatro larguras da matriz acima.
+
+---
+
 ## Registro de aceite (produto)
 
 | Campo | Valor |
@@ -97,5 +115,6 @@
 | Data | |
 | Commit / deploy | |
 | Viewports exercitados | 360 · 390 · 768 · 1280 |
+| Evidências | ☐ Tabela de screenshots preenchida ou pasta anexada |
 | Resultado | ☐ Aprovado (“Marcas modelo OK”) · ☐ Reprovado (anexar itens) |
 | Observações | |

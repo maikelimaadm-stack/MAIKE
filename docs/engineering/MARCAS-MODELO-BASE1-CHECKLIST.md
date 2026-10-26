@@ -33,7 +33,7 @@
 |---|------|-------------|-------------------|
 | B.1 | Busca pílula + aplicar (Enter / botão) | **DONE** | §11.3 |
 | B.2 | Alternador Tabela / Cards / Registro (`ViewSwitch`) | **DONE** | UX-41 |
-| B.3 | Menu **Mais opções** vertical (export, colunas, limpar filtros) | **DONE** | UX-47/49 — limpar coluna **e** busca (`clearCadastroListaFiltersAndSearch`); smoke `cadastroListaClearFilters` |
+| B.3 | Menu **Mais opções** vertical (export, colunas, limpar filtros) | **DONE** | UX-47/49/51 — limpar coluna, busca **e** seleção (`clearCadastroListaFiltersAndSearch` ≈ CDE `clearAll`); smoke `cadastroListaClearFilters` |
 | B.4 | Toolbar join: `data-testid="b1-toolbar"` | **DONE** | UX-43 / paridade CDE |
 | B.5 | Toolbar join responsiva (wrap, `height: auto` ≤1023px) | **DONE** | UX-43 |
 | B.6 | Toque 44px em pílulas primárias mobile (≤639px) | **DONE** | UX-43 |
@@ -113,7 +113,7 @@
 |---|------|-------------|-------------|
 | H.1 | Seções **A–F**: todos os itens **DONE** ou **N/A** | **DONE** | Engenharia |
 | H.2 | Seção **G**: apenas **DEFER** / **P8** / **PARTIAL** documentados | **DONE** | Este arquivo + DECISIONS |
-| H.3 | `npm run verify:all` verde no commit de referência | **DONE** | CI `main` pós-merge #51–#58 (2026-10-26) |
+| H.3 | `npm run verify:all` verde no commit de referência | **DONE** | CI `main` pós-merge #60 (UX-50/51); agente local sem Postgres falha só `test:backend` |
 | H.4 | Teste manual §11 + matriz 360 / 390 / 768 / 1280 | **DONE** | UX-43, UX-44; roteiro H.5 em [`MARCAS-H5-MANUAL-TEST.md`](./MARCAS-H5-MANUAL-TEST.md) |
 | H.5 | Aceite explícito do proprietário (“Marcas modelo OK”) | **TODO** | Produto — usar roteiro [`MARCAS-H5-MANUAL-TEST.md`](./MARCAS-H5-MANUAL-TEST.md) |
 | H.6 | Motor UX-29–47 integrado na `main` (PR #51 + piloto) | **DONE** | #51 `e63aa297`, #53 `1849cb54`, modelo #54, chrome #56, grade #58 `96ad16b1` |

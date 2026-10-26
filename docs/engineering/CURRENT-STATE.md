@@ -1,6 +1,6 @@
 # Estado Atual
 
-**Atualizado em:** 2026-10-26 (**UX Base1** — PR **#59** na `main`; UX-50 revisão contínua Marcas; gate §H **5/6** — **aguardando H.5** (produto); rollout pausado **D-PROD-41**)
+**Atualizado em:** 2026-10-26 (**UX Base1** — PR **#60** na `main`; UX-51 revisão contínua Marcas; gate §H **5/6** — **aguardando H.5** (produto); rollout pausado **D-PROD-41**)
 
 ---
 
@@ -12,8 +12,8 @@
 | Piloto único | **Marcas** — checklist `docs/engineering/MARCAS-MODELO-BASE1-CHECKLIST.md` |
 | Rollout demais cadastros | **Pausado** até aceite proprietário (**H.5**) — **D-PROD-41** |
 | Gate §H (checklist modelo) | **H.1–H.4, H.6** DONE; **H.5** TODO (produto) — ver `MARCAS-MODELO-BASE1-CHECKLIST.md` |
-| Merges UX Base1 (2026-10-26) | #51–#58 · **#59** `eb3866ee` (UX-49 limpar filtros+busca, roteiro H.5) |
-| Próximo passo Marcas | **Aguardando H.5** — aceite proprietário via `docs/engineering/MARCAS-H5-MANUAL-TEST.md` (smoke: `cadastroListaClearFilters`, prefs coluna, camadas fpop) |
+| Merges UX Base1 (2026-10-26) | #51–#58 · **#59** `eb3866ee` · **#60** `d05304d4` (UX-50 SSOT limpar filtros+busca) |
+| Próximo passo Marcas | **Aguardando H.5** — aceite proprietário via `docs/engineering/MARCAS-H5-MANUAL-TEST.md` (matriz screenshots + smoke: `cadastroListaClearFilters`, prefs coluna, camadas fpop) |
 
 ---
 
