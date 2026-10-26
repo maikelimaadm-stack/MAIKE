@@ -145,5 +145,5 @@ Ao clonar Marcas em outro cadastro, percorrer **A → H** nesta ordem:
 | **PARTIAL** | 3 |
 | **TODO** (só gate H processo) | 3 |
 
-**Caminho crítico técnico (A–F):** 42/43 itens **DONE** ou **N/A** → **~98%** do checklist aplicável.  
+**Caminho crítico técnico (A–F):** 43/43 itens **DONE** ou **N/A** → **100%** do checklist aplicável.  
 **Sign-off completo (incl. H):** aguarda merge na `main` + aceite H.5.

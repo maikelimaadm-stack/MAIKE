@@ -838,7 +838,7 @@ Branch `cursor/ux-base1-marcas-modelo-516d` (base: `cursor/ux-base1-marcas-gaps-
 | Checklist executável | [`MARCAS-MODELO-BASE1-CHECKLIST.md`](./MARCAS-MODELO-BASE1-CHECKLIST.md) |
 | Plano Fase 2 | **Pausada** + gate §H em `PLAN-EXECUCAO-PARIDADE-BASE1.md` |
 | Decisão rollout | **D-PROD-41** em `DECISIONS.md` |
-| Caminho crítico A–F (técnico) | **~98%** DONE/N/A (42/43 itens) |
+| Caminho crítico A–F (técnico) | **100%** DONE/N/A (43/43 itens) |
 | Gate H (merge `main` + aceite proprietário) | Aberto |
 
 **Auditoria vs CDE (portal compras + `base1/list`):**
