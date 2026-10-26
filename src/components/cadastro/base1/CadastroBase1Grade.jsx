@@ -11,6 +11,9 @@ import { MgCheck } from "@/components/cadastro/base1/Base1Ui";
 import {
   clampColumnPrefsToVisible,
   loadCadastroBase1ColumnPrefs,
+  MAX_COL_WIDTH,
+  MIN_COL_WIDTH,
+  normalizeFrozenCount,
   persistCadastroBase1ColumnPrefs,
 } from "@/lib/cadastroBase1ColumnPrefs";
 import { ArrowDownAZ, ArrowUpZA, X } from "lucide-react";
@@ -366,11 +369,12 @@ export default function CadastroBase1Grade({
   };
 
   const handleColumnResize = (k, w) => {
-    setColumnWidths((p) => ({ ...p, [k]: w }));
+    const clamped = Math.min(MAX_COL_WIDTH, Math.max(MIN_COL_WIDTH, Math.round(w)));
+    setColumnWidths((p) => ({ ...p, [k]: clamped }));
   };
 
   const handleFreeze = (n) => {
-    setFrozenCount(n);
+    setFrozenCount(normalizeFrozenCount(n, colunasOrdenadas.length));
   };
 
   const handleDragEnd = (r) => {

@@ -948,3 +948,28 @@ Branch `cursor/ux-base1-marcas-menus-516d` (revisão contínua pós-UX-46).
 ### Verificação (UX-47)
 
 - `npm run verify:all`
+
+## UX-47 (2026-10-26) — Revisão contínua **TRACK A** (grade / cabeçalho / fpop / resize / freeze)
+
+Branch `cursor/ux-base1-marcas-next-516d`. Referência: CDE `features/base1/grid.tsx`, `list.tsx`, `filtro-de-coluna.tsx`, `largura-coluna.ts`, `b1ref.css`.
+
+| Área TRACK A | Lacuna vs CDE | Correção |
+|--------------|---------------|----------|
+| **Resize** | Arraste sincronizava só `tbody`; `<tfoot>` (totais, ex. Lotes) desalinhava durante o drag | `Base1Grid` `syncColunaInline` em `tbody` + `tfoot` |
+| **Prefs largura** | `onResize` podia gravar fora de 48–1200px | `CadastroBase1Grade` usa `MIN_COL_WIDTH` / `MAX_COL_WIDTH` de `cadastroBase1ColumnPrefs.js` |
+| **Congelar** | `onFreeze` sem renormalizar ao nº de colunas visíveis | `normalizeFrozenCount(n, colunasOrdenadas.length)` (paridade `list.tsx`) |
+| **Autoajuste** | API de medição sem `fontCelula` / `chromeExtraCelula` opcionais | `larguraColuna.js` alinhado a `largura-coluna.ts` |
+| **fpop / cabeçalho** | Auditoria: `data-b1-col-menu`, reposicionamento scroll/resize, camadas 357–360, z-index 10000 — sem lacuna nova | Mantido |
+
+**Arquivos:** `Base1Grid.jsx`, `CadastroBase1Grade.jsx`, `larguraColuna.js`, `cadastroBase1ColumnPrefs.js`.
+
+### Teste manual — TRACK A (Marcas)
+
+1. Resize + duplo clique; autoajustar desliga ao arrastar; prefs em `colunas_marcas_v1_prefs`.
+2. Congelar / descongelar; sombra na âncora; ocultar coluna congelada → `frozen` coerente.
+3. ⋮ → fpop: Enter aplica; camadas aninhadas; painel segue o `<th>` no scroll.
+4. Ícones de estado no cabeçalho + menu ⋮ portal.
+
+### Verificação (UX-47 TRACK A)
+
+- `npm run verify:all` (local: `test:backend` exige Postgres/`DATABASE_URL`)

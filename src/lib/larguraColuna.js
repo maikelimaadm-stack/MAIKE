@@ -32,14 +32,21 @@ function medir(texto, font) {
 }
 
 /**
- * @param {{ rotulo: string; textosCelulas: readonly string[]; fontCabecalho: string; iconesEstado?: number }} opts
+ * @param {{
+ *   rotulo: string;
+ *   textosCelulas: readonly string[];
+ *   fontCabecalho: string;
+ *   fontCelula?: string;
+ *   iconesEstado?: number;
+ *   chromeExtraCelula?: number;
+ * }} opts
  */
 export function medirLarguraColuna(opts) {
   const fontH = opts.fontCabecalho;
-  const fontC = fonteDoCorpo(fontH);
+  const fontC = opts.fontCelula ?? fonteDoCorpo(fontH);
   const nIcones = Math.max(0, opts.iconesEstado ?? 0);
   const chromeTh = PAD + CHROME_MENU + nIcones * CHROME_ICONE_ESTADO;
-  const chromeTd = PAD;
+  const chromeTd = PAD + (opts.chromeExtraCelula ?? 0);
 
   const wTh = Math.ceil(medir(opts.rotulo, fontH) + chromeTh);
   let wTd = 0;
