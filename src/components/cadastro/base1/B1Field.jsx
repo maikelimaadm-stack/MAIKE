@@ -95,5 +95,12 @@ export default function B1Field({
   );
 }
 
-/** Classe para controles nativos dentro de `.mg-field` (altura 100%, sem caixa própria). */
+/**
+ * Controle dentro de `.mg-field` — paridade `ctl` do ResourceForm (CONTROLE-DE-ESTOQUE).
+ * Preferir esta classe em formulários Base1 novos; `B1_FIELD_INPUT_CLS` permanece para legado.
+ */
+export const B1_FIELD_CTL_CLS =
+  "h-5 w-full rounded-none border-0 bg-transparent px-0 text-[13px] font-medium uppercase text-[var(--mg-text-1)] shadow-none focus:ring-0 focus:outline-none read-only:bg-transparent disabled:bg-transparent disabled:text-[var(--mg-text-1)]";
+
+/** @deprecated Use `B1_FIELD_CTL_CLS` em cadastros Base1 alinhados ao MG. */
 export const B1_FIELD_INPUT_CLS = "mg-input uppercase";

@@ -521,3 +521,19 @@ Branch `cursor/ux-base1-cards-colunas-878d` (PR #51). Skills aplicadas: `ui-ux-p
 - `npm run test:smoke`
 - `npm run gate:types`
 - `npm run build`
+
+## UX-32 (2026-10-26) — Marcas: campos ResourceForm, sem faixa de chips, mobile
+
+Branch `cursor/ux-base1-cards-colunas-878d` (PR #51):
+
+| Item | Correção |
+|------|----------|
+| **Formulário / lançamento** | `FormularioMarca`: `B1Field` + `B1_FIELD_CTL_CLS` (paridade `ctl` / `campo-b1` do ResourceForm); **Ativo** via `MgSelect` Sim/Não (mesmo padrão boolean do frota/equipamentos), não `B1ChaveRow` |
+| **Faixa `mg-pills-rail`** | Removida no piloto Marcas (`showFilterRail={false}`); configuração de colunas, cards e limpar filtros na toolbar |
+| **Mobile (`base1-list`)** | Toolbar com altura flexível; rodapé `mg-summary` em coluna; grade com scroll horizontal; formulário sem `max-width` fixo no mobile |
+
+**Arquivos:** `B1Field.jsx`, `FormularioMarca.jsx`, `CadastroListaChrome.jsx`, `Marcas.jsx`, `cadastro-base1.css`.
+
+### Verificação (UX-32)
+
+- `npm run verify:all`

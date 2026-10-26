@@ -177,6 +177,7 @@ export default function Marcas() {
     <>
       <CadastroWorkspace mode="list" title="Marcas" pageLayout="base1-list">
         <CadastroListaChrome
+          showFilterRail={false}
           recordMode={showForm}
           secondaryToolsLocked={showForm}
           recordToolbar={

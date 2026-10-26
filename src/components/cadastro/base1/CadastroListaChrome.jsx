@@ -63,6 +63,7 @@ import { CADASTRO_B1_PAGE_SIZES } from "./cadastroBase1List";
  * @param {boolean} [props.secondaryToolsLocked] oculta busca/alternador/menu (edição ou subfluxo ativo)
  * @param {import('react').ReactNode} [props.cardsToolbar] botões layout/campos dos cards (modo cards)
  * @param {import('react').RefObject<HTMLButtonElement | null>} [props.configureColumnsAnchorRef] âncora do popover de colunas (modo tabela)
+ * @param {boolean} [props.showFilterRail] faixa `mg-pills-rail` (chips); false = ferramentas na toolbar (piloto Marcas)
  */
 export default function CadastroListaChrome({
   children,
@@ -106,11 +107,13 @@ export default function CadastroListaChrome({
   secondaryToolsLocked = false,
   cardsToolbar = null,
   configureColumnsAnchorRef = null,
+  showFilterRail = true,
 }) {
   const oneSelected = selectedCount === 1;
   const anySelected = selectedCount > 0;
   const [showChips, setShowChips] = useState(true);
   const stripRef = useRef(null);
+  const railEnabled = showFilterRail && !recordMode;
 
   const pageSizeOptions = useMemo(
     () => CADASTRO_B1_PAGE_SIZES.map((n) => ({ value: String(n), label: String(n) })),
@@ -141,6 +144,37 @@ export default function CadastroListaChrome({
   };
 
   const scrollStrip = (dx) => stripRef.current?.scrollBy({ left: dx, behavior: "smooth" });
+
+  const listSecondaryTools =
+    !recordMode && !showFilterRail ? (
+      <div className="mg-toolbar__list-tools flex flex-wrap items-center gap-1.5">
+        {viewMode === "cards" && cardsToolbar ? cardsToolbar : null}
+        {viewMode !== "cards" && onConfigureColumns ? (
+          <IconBtn
+            ref={configureColumnsAnchorRef}
+            size="sm"
+            data-testid="b1-col-config-trigger"
+            aria-label="Configurar colunas da tabela"
+            title="Configurar colunas da tabela"
+            onClick={onConfigureColumns}
+          >
+            <Columns3 className="h-4 w-4" />
+          </IconBtn>
+        ) : null}
+        {onClearFilters ? (
+          <IconBtn
+            size="sm"
+            aria-label="Limpar todos os filtros"
+            title="Limpar todos os filtros"
+            disabled={!filtersActive}
+            className={filtersActive ? "is-filter-active" : undefined}
+            onClick={onClearFilters}
+          >
+            <FilterX className="h-4 w-4" />
+          </IconBtn>
+        ) : null}
+      </div>
+    ) : null;
 
   const attachTitle =
     attachDisabledReason ?? (oneSelected ? "Anexos" : "Selecione um registro");
@@ -229,6 +263,7 @@ export default function CadastroListaChrome({
                 {selectedCount > 1 ? ` (${selectedCount})` : ""}
               </PillBtn>
             ) : null}
+            {listSecondaryTools}
           </>
         )}
         {rightTools}
@@ -245,7 +280,7 @@ export default function CadastroListaChrome({
         </>
       ) : null}
 
-      {!recordMode ? (
+      {railEnabled ? (
       <div
         className={`mg-rail mg-card no-print mg-pills-rail ${showChips ? "is-expanded" : "is-collapsed"}`}
       >

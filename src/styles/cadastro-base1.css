@@ -1291,6 +1291,10 @@
 @media (max-width: 639px) {
   .cadastro-b1 .mg-toolbar {
     row-gap: 6px;
+    height: auto;
+    min-height: var(--mg-toolbar-h);
+    padding-top: 6px;
+    padding-bottom: 6px;
   }
 
   .cadastro-b1 .mg-toolbar .mg-toolbar__right,
@@ -1298,5 +1302,53 @@
     margin-left: 0;
     width: 100%;
     justify-content: flex-start;
+  }
+
+  .cadastro-b1 .mg-toolbar__list-tools {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  /* Piloto Marcas / layout base1-list em mobile */
+  .cadastro-b1--full-page .mg-summary {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .cadastro-b1--full-page .mg-summary__counts {
+    gap: 4px 12px;
+    font-size: 11px;
+  }
+
+  .cadastro-b1--full-page .mg-summary__footer-actions {
+    width: 100%;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .cadastro-b1--full-page .mg-shell--fill > .mg-shell__body .mg-grid-wrap,
+  .cadastro-b1--full-page .mg-grid-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .cadastro-b1--full-page .mg-grid {
+    min-width: min(100%, 520px);
+  }
+
+  .cadastro-b1--full-page .mg-b1-record-form {
+    max-width: none;
+  }
+
+  .cadastro-b1--full-page .mg-b1-form-grid,
+  .cadastro-b1--full-page form.b1.grid {
+    gap: 12px;
+  }
+
+  .cadastro-b1--full-page .mg-form-scroll {
+    padding-left: 12px;
+    padding-right: 12px;
   }
 }
