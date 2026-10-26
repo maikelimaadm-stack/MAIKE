@@ -2024,4 +2024,22 @@ paridade conforme o checklist §11 do prompt; divergências exigem emenda em
 
 ---
 
-<!-- Próxima decisão: D-PROD-40 -->
+## D-PROD-40 — Marcas piloto Base1: defer §11.15 e anexos §11.16 (toolbar)
+
+**Data:** 2026-10-26  
+**Plano:** `docs/engineering/PLAN-EXECUCAO-PARIDADE-BASE1.md` (Fase 1)  
+**Relatório:** `docs/engineering/UX-FROTA-PILOT-MARCAS-REPORT.md` (UX-43)
+
+**Decisão:** no piloto **Marcas** (referência de rollout Base1), os itens **11.15**
+(pesquisa dropdown avançada / favoritos nos cards) permanecem **fora de escopo**
+de produto — não implementar no MAIKE Mapa + Manejo. O item **11.16** (anexos
+nativos) permanece **P8**; na toolbar o controle de anexos fica visível por
+paridade visual, **desabilitado** com `attachDisabledReason` até auditoria P8.
+
+**Consequência:** sign-off Fase 1 considera §11.1–11.14 **Feito**; 11.15 **Fora**;
+11.16 **Pendente P8** sem bloquear replicação do pacote Marcas nos demais
+cadastros (Fase 2).
+
+---
+
+<!-- Próxima decisão: D-PROD-41 -->

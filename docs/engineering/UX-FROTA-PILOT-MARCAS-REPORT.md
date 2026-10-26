@@ -793,3 +793,36 @@ Branch `cursor/ux-base1-cards-colunas-878d` (PR #51). Auditoria vs `grid.tsx`, `
 - `npm run test:smoke` (incl. `cadastroColunaFiltroCamada`, `cadastroBase1ColumnPrefs`)
 - `npm run test:gates`
 - `npm run verify:all` — falha esperada só em `test:backend` sem `DATABASE_URL`/Postgres local
+
+## UX-43 (2026-10-26) — Marcas sign-off Fase 1 (lacunas + viewport)
+
+Branch `cursor/ux-base1-marcas-gaps-516d` (base: `cursor/ux-base1-cards-colunas-878d` / PR #51 ainda aberta).
+
+**Objetivo:** fechar Fase 1 de `PLAN-EXECUCAO-PARIDADE-BASE1.md` antes do rollout Setores (Fase 2).
+
+| Item Fase 1 | Status | Evidência |
+|-------------|--------|-----------|
+| Cards `p-4` + grid `gap-3` | **Feito** | Paridade `features/base1/cards.tsx` CDE; viewport cards `mg-shell__scroll p-2.5` = `list.tsx` |
+| Toolbar join tablet/mobile | **Feito** | `cadastro-base1.css`: `mg-toolbar--join` `height: auto` + wrap ≤1023px; mobile ≤639px com pílulas primárias 44px |
+| Sign-off UX-40/41/42 | **Feito** | Checklist PROMPT §11.1–11.14; revisão CDE pós UX-42 |
+| §11.15 pesquisa avançada / favoritos | **Fora** | **D-PROD-40** |
+| §11.16 anexos | **P8** | Ícone toolbar desabilitado + `attachDisabledReason` — **D-PROD-40** |
+| Dialogs transversais (UX-A/B) | **Defer Fase 3** | Não bloqueia referência Marcas |
+
+**Ajustes de código (UX-43):**
+
+- `data-testid="b1-toolbar"` no chrome (paridade CDE / portal-compras).
+- `Base1Cards`: `scrollIntoView({ block: "center" })` como no CDE.
+- CSS toolbar responsiva join + toque primário mobile (ver acima).
+
+### Teste manual — Marcas sign-off (viewport)
+
+| Largura | Verificar |
+|---------|-----------|
+| 360 / 390 | Toolbar join quebra sem clip; Novo/Excluir tocáveis; cards `p-4`; summary 4 colunas empilha no mobile |
+| 768 | Toolbar join wrap; grade horizontal scroll; ViewSwitch segmento ativo verde |
+| 1280 | Shell join único cartão; `fpop` z-index 10000; page-size `4.5rem` |
+
+### Verificação (UX-43)
+
+- `npm run verify:all`
