@@ -766,3 +766,30 @@ Branch `cursor/ux-base1-cards-colunas-878d` (PR #51). Diff CDE: `globals.css`, `
 ### Verificação (UX-41)
 
 - `npm run verify:all` (gates, smoke, build verdes; `test:backend` exige `DATABASE_URL` + Postgres local)
+
+## UX-42 (2026-10-26) — Bug hunt Marcas / portal compras (paridade CDE)
+
+Branch `cursor/ux-base1-cards-colunas-878d` (PR #51). Auditoria vs `grid.tsx`, `list.tsx`, `camada-aninhada-do-filtro.ts`.
+
+| Sintoma | Causa | Correção |
+|---------|-------|----------|
+| `fpop` não fecha ao clicar fora com menus Radix da toolbar fechados | `SELETOR_CAMADA_ANINHADA` incluía `mg-b1-glass-pop` e `data-radix-popover-content` (qualquer popover) | Seletor alinhado ao CDE; `ehCamadaAninhadaDoFiltro` usa `closest` como na referência |
+| Congelamento “fantasma” após ocultar colunas no diálogo | `onAplicar` do configurador não limitava `frozen` nem `autoFit` às visíveis | `clampColumnPrefsToVisible` + apply no diálogo e em `ocultarColuna` |
+| Prefs carregavam `frozen` contra todas as colunas, não só visíveis | `loadCadastroBase1ColumnPrefs` usava `knownIds.length` | `frozen` e `autoFit` normalizados pelo conjunto visível |
+| Coluna **Nº** ordenava como texto (`10` antes de `2`) | `ordenados` sempre `toLowerCase` + comparação lexicográfica | Ordenação numérica quando `tipoFiltroDaColuna` = `num` (paridade `headerOrder` no CDE) |
+| Seletor de page-size no rodapé portal estreito / desalinhado | `min-width` 3.25rem vs CDE 4.5rem | `cadastro-base1.css` `.mg-pill-select` → `4.5rem` |
+
+**Arquivos:** `cadastroColunaFiltroCamada.js`, `CadastroBase1Grade.jsx`, `cadastroBase1ColumnPrefs.js`, `cadastro-base1.css`, `tests/smoke/cadastroColunaFiltroCamada.test.js`, `tests/smoke/cadastroBase1ColumnPrefs.test.js`.
+
+### Teste manual — Marcas (pós UX-42)
+
+1. Abrir filtro `fpop` em **Nome** → clicar na grade fora → painel fecha (sem precisar fechar ⋮/⚡ antes).
+2. Congelar 3 colunas → ⚡ Configurar colunas → ocultar coluna congelada → Pronto → âncora de freeze coerente; recarregar → `colunas_marcas_v1_prefs` com `frozen` ≤ colunas visíveis.
+3. Ordenar coluna **Nº** ascendente → ordem numérica (1, 2, 10…).
+4. Rodapé: seletor de page-size com largura estável (~4.5rem mínimo).
+
+### Verificação (UX-42)
+
+- `npm run test:smoke` (incl. `cadastroColunaFiltroCamada`, `cadastroBase1ColumnPrefs`)
+- `npm run test:gates`
+- `npm run verify:all` — falha esperada só em `test:backend` sem `DATABASE_URL`/Postgres local

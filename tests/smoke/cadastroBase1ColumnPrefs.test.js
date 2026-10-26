@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  clampColumnPrefsToVisible,
   normalizeColumnWidths,
   normalizeAutoFitKeys,
   normalizeFrozenCount,
@@ -28,5 +29,14 @@ describe("cadastroBase1ColumnPrefs — paridade CDE (355–356)", () => {
 
   it("versão unificada do JSON de prefs", () => {
     expect(CADASTRO_B1_COLUMN_PREFS_VERSION).toBe(1);
+  });
+
+  it("clamp após ocultar colunas no diálogo (paridade list.tsx onApply)", () => {
+    const out = clampColumnPrefsToVisible(
+      { frozenCount: 4, autoFitKeys: new Set(["nome", "descricao", "numero"]) },
+      ["nome", "descricao"],
+    );
+    expect(out.frozenCount).toBe(2);
+    expect([...out.autoFitKeys]).toEqual(["nome", "descricao"]);
   });
 });

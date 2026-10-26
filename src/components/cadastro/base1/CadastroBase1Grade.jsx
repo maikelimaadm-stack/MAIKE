@@ -9,6 +9,7 @@ import CadastroColunaFiltro from "@/components/cadastro/base1/CadastroColunaFilt
 import { casaNoFiltroColuna, tipoFiltroDaColuna } from "@/components/cadastro/base1/cadastroColunaFiltroLogic";
 import { MgCheck } from "@/components/cadastro/base1/Base1Ui";
 import {
+  clampColumnPrefsToVisible,
   loadCadastroBase1ColumnPrefs,
   persistCadastroBase1ColumnPrefs,
 } from "@/lib/cadastroBase1ColumnPrefs";
@@ -187,15 +188,34 @@ export default function CadastroBase1Grade({
 
   const ordenados = useMemo(() => {
     const s = [...filtrados];
+    const colDef = dataCols.find((c) => c.id === sortConfig.key);
+    const tipoSort = referenceHeaders ? tipoFiltroDaColuna(sortConfig.key, colDef) : "texto";
+    const numDeSort = (v) => {
+      const t = String(v ?? "").trim();
+      if (!/[0-9]/.test(t)) return null;
+      const n = Number(t.replace(/[^0-9,.-]/g, "").replace(/\./g, "").replace(",", "."));
+      return Number.isNaN(n) ? null : n;
+    };
     s.sort((a, b) => {
-      const av = String(getFieldValue(a, sortConfig.key) ?? "").toLowerCase();
-      const bv = String(getFieldValue(b, sortConfig.key) ?? "").toLowerCase();
-      if (av < bv) return sortConfig.direction === "asc" ? -1 : 1;
-      if (av > bv) return sortConfig.direction === "asc" ? 1 : -1;
-      return 0;
+      const rawA = getFieldValue(a, sortConfig.key);
+      const rawB = getFieldValue(b, sortConfig.key);
+      let cmp = 0;
+      if (tipoSort === "num") {
+        const na = numDeSort(rawA);
+        const nb = numDeSort(rawB);
+        if (na === null && nb === null) cmp = 0;
+        else if (na === null) cmp = 1;
+        else if (nb === null) cmp = -1;
+        else cmp = na - nb;
+      } else {
+        const av = String(rawA ?? "").toLowerCase();
+        const bv = String(rawB ?? "").toLowerCase();
+        cmp = av.localeCompare(bv, "pt-BR", { numeric: true });
+      }
+      return sortConfig.direction === "asc" ? cmp : -cmp;
     });
     return s;
-  }, [filtrados, sortConfig, getFieldValue]);
+  }, [filtrados, sortConfig, getFieldValue, dataCols, referenceHeaders]);
 
   const cardFieldKeys = useMemo(() => {
     if (cardFields?.length) return cardFields;
@@ -332,15 +352,17 @@ export default function CadastroBase1Grade({
     const keys = colunasOrdenadas.map((c) => c.id);
     const idx = keys.indexOf(colKey);
     if (idx < 0) return;
-    setColunasVisiveis((vis) => vis.filter((id) => id !== colKey));
-    setAutoFitKeys((prev) => {
-      const n = new Set(prev);
-      n.delete(colKey);
-      return n;
-    });
-    if (idx < frozenCount) {
-      setFrozenCount(Math.max(0, frozenCount - 1));
-    }
+    const visiveis = colunasVisiveis.filter((id) => id !== colKey);
+    setColunasVisiveis(visiveis);
+    const ajuste = clampColumnPrefsToVisible(
+      {
+        frozenCount: idx < frozenCount ? frozenCount - 1 : frozenCount,
+        autoFitKeys,
+      },
+      visiveis,
+    );
+    setFrozenCount(ajuste.frozenCount);
+    setAutoFitKeys(ajuste.autoFitKeys);
   };
 
   const handleColumnResize = (k, w) => {
@@ -595,6 +617,9 @@ export default function CadastroBase1Grade({
           onAplicar={(visiveis, ordemCompleta) => {
             setColunasVisiveis(visiveis);
             setColunasOrdem(ordemCompleta);
+            const ajuste = clampColumnPrefsToVisible({ frozenCount, autoFitKeys }, visiveis);
+            setFrozenCount(ajuste.frozenCount);
+            setAutoFitKeys(ajuste.autoFitKeys);
           }}
           onRestaurar={restaurarColunas}
         />

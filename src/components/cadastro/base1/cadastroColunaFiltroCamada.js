@@ -2,12 +2,17 @@
  * Camadas portaladas do filtro de coluna (paridade `camada-aninhada-do-filtro.ts`, decisões 357–360).
  */
 
+/** Paridade `camada-aninhada-do-filtro.ts` — sem popovers genéricos (evita bloquear dismiss do `fpop`). */
 export const SELETOR_CAMADA_ANINHADA_DO_FILTRO =
-  "[data-filtro-camada], [data-radix-select-content], [data-radix-popper-content-wrapper], [data-radix-popover-content], .fsell, .foperadores, .cmd-panel, .mg-dp-panel, .mg-b1-glass-pop, .b1-dp-filtro";
+  "[data-filtro-camada], [data-radix-select-content], .fsell, .foperadores, .cmd-panel, .mg-dp-panel, .b1-dp-filtro";
 
 /** @param {EventTarget | null} alvo */
 export function ehCamadaAninhadaDoFiltro(alvo) {
-  return alvo instanceof Element && Boolean(alvo.closest(SELETOR_CAMADA_ANINHADA_DO_FILTRO));
+  return Boolean(
+    alvo &&
+      typeof alvo.closest === "function" &&
+      alvo.closest(SELETOR_CAMADA_ANINHADA_DO_FILTRO),
+  );
 }
 
 /** @param {ParentNode | null | undefined} [doc] */

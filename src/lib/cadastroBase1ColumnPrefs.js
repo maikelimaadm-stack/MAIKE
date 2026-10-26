@@ -88,6 +88,20 @@ export function normalizeAutoFitKeys(raw, knownIds) {
   return new Set(list ?? []);
 }
 
+/**
+ * Após mudar colunas visíveis (diálogo ou ocultar) — paridade CDE `onApply` / `ColunasDosItens`.
+ *
+ * @param {{ frozenCount: number; autoFitKeys: Set<string> }} state
+ * @param {string[]} visiveis ids visíveis após aplicar
+ */
+export function clampColumnPrefsToVisible(state, visiveis) {
+  const visSet = new Set(visiveis);
+  return {
+    frozenCount: normalizeFrozenCount(state.frozenCount, visiveis.length),
+    autoFitKeys: new Set([...state.autoFitKeys].filter((k) => visSet.has(k))),
+  };
+}
+
 function readJson(key) {
   try {
     const s = localStorage.getItem(key);
@@ -110,12 +124,15 @@ export function loadCadastroBase1ColumnPrefs(storageKey, dataCols) {
   const unified = readJson(`${storageKey}_prefs`);
   if (unified && typeof unified === "object" && unified.version === CADASTRO_B1_COLUMN_PREFS_VERSION) {
     const cols = unified.columns && typeof unified.columns === "object" ? unified.columns : {};
+    const colunasVisiveis = normalizeVisibleColumns(defaultVisible, cols.visible, knownIds);
+    const autoFitKeys = normalizeAutoFitKeys(cols.autoFit ?? unified.autoFit, knownIds);
+    const frozenCount = normalizeFrozenCount(cols.frozen, colunasVisiveis.length);
     return {
       columnWidths: normalizeColumnWidths(defaults, cols.widths, knownIds),
       colunasOrdem: normalizeColumnOrder(knownIds, cols.order),
-      colunasVisiveis: normalizeVisibleColumns(defaultVisible, cols.visible, knownIds),
-      frozenCount: normalizeFrozenCount(cols.frozen, knownIds.length),
-      autoFitKeys: normalizeAutoFitKeys(cols.autoFit ?? unified.autoFit, knownIds),
+      colunasVisiveis,
+      frozenCount,
+      autoFitKeys: new Set([...autoFitKeys].filter((k) => colunasVisiveis.includes(k))),
     };
   }
 
@@ -125,12 +142,14 @@ export function loadCadastroBase1ColumnPrefs(storageKey, dataCols) {
   const legacyFrozen = localStorage.getItem(`${storageKey}_congeladas`);
   const legacyAutoFit = readJson(`${storageKey}_autofit`);
 
+  const colunasVisiveis = normalizeVisibleColumns(defaultVisible, legacyVisible, knownIds);
+  const autoFitKeys = normalizeAutoFitKeys(legacyAutoFit, knownIds);
   return {
     columnWidths: normalizeColumnWidths(defaults, legacyWidths, knownIds),
     colunasOrdem: normalizeColumnOrder(knownIds, legacyOrder),
-    colunasVisiveis: normalizeVisibleColumns(defaultVisible, legacyVisible, knownIds),
-    frozenCount: normalizeFrozenCount(legacyFrozen, knownIds.length),
-    autoFitKeys: normalizeAutoFitKeys(legacyAutoFit, knownIds),
+    colunasVisiveis,
+    frozenCount: normalizeFrozenCount(legacyFrozen, colunasVisiveis.length),
+    autoFitKeys: new Set([...autoFitKeys].filter((k) => colunasVisiveis.includes(k))),
   };
 }
 
