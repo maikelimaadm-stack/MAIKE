@@ -1348,3 +1348,69 @@
     padding-right: 12px;
   }
 }
+
+/* Portal de Compras / itpan — toolbar + faixa + grade no mesmo cartão */
+.cadastro-b1 .mg-shell--join-table {
+  --portal-espaco: 6px;
+}
+
+.cadastro-b1 .mg-shell--join-table .mg-toolbar--join {
+  flex-shrink: 0;
+  height: auto;
+  min-height: 34px;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: #fbfcfd;
+  border-bottom: 1px solid #eef1f4;
+  gap: var(--portal-espaco, 6px);
+  padding: 4px 11px;
+}
+
+.cadastro-b1 .mg-shell--join-table .mg-rail--join {
+  flex-shrink: 0;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: #fff;
+  border-bottom: 1px solid #eef1f4;
+}
+
+.cadastro-b1 .mg-shell--join-table > .mg-shell__body {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.cadastro-b1 .mg-header-filter-hint {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  font-size: 11.5px;
+  color: var(--mg-text-3);
+  border-bottom: 1px solid var(--mg-table-line);
+  background: #fff;
+}
+
+.cadastro-b1 .fchip-lim {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 0;
+  background: transparent;
+  color: #64748b;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+
+.cadastro-b1 .fchip-lim:hover {
+  background: #f4f6f7;
+  color: #0f172a;
+}

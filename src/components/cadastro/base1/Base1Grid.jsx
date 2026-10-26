@@ -39,7 +39,8 @@ export const SELECT_COLUMN_WIDTH = 36;
  * @param {string} [props.emptyText]
  * @param {string|null} [props.scrollToId]
  * @param {import('react').ReactNode} [props.footer]
- * @param {boolean} [props.referenceHeaders] menu da coluna abre filtro Excel (frota/equipamentos)
+ * @param {boolean} [props.referenceHeaders] menu da coluna abre filtro Excel (portal compras)
+ * @param {boolean} [props.referenceExtendedColumnMenu] com `referenceHeaders`, menu ⋮ com filtro + congelar/ocultar (cadastros)
  */
 export default function Base1Grid({
   columns,
@@ -64,6 +65,7 @@ export default function Base1Grid({
   scrollToId,
   footer,
   referenceHeaders = false,
+  referenceExtendedColumnMenu = false,
 }) {
   const key = rowKey ?? ((r) => String(r.id));
   const allOn = rows.length > 0 && rows.every((r) => selected.has(key(r)));
@@ -209,7 +211,7 @@ export default function Base1Grid({
                         )
                       ) : null}
                     </button>
-                    {referenceHeaders && onFilter ? (
+                    {referenceHeaders && onFilter && !referenceExtendedColumnMenu ? (
                       <button
                         type="button"
                         aria-label={`Abrir menu da coluna ${c.label}`}

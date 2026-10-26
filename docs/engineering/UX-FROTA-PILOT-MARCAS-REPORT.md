@@ -553,3 +553,39 @@ Branch `cursor/ux-base1-cards-colunas-878d` (PR #51):
 ### Verificação (UX-33)
 
 - `npm run verify:all`
+
+## UX-34 (2026-10-26) — Grade Marcas = Portal de Compras (documentos)
+
+Referência CONTROLE-DE-ESTOQUE: `DocumentosDeCompraList` → `DocList` + `Base1List` (`referenceHeaders`), `filtro-de-coluna.tsx` / `fpop`, `colunas-dos-itens.tsx`, painel `itpan`/`itbar` (toolbar fundida ao cartão da grade).
+
+| Item | Correção |
+|------|----------|
+| **Join toolbar + tabela** | `joinTableToolbar` em `CadastroListaChrome`: botões Novo/Editar/… na primeira linha do `mg-shell` (`mg-shell--join-table`), sem cartão `mg-card` separado acima da grade (paridade visual `itbar` + `itrolo`) |
+| **Filtro de coluna** | Mantido `CadastroColunaFiltro` (`fpop` / `cadastro-b1ref.css`); faixa “Filtro de cabeçalho” quando há filtros ativos (como `Base1List` do portal) |
+| **Menu ⋮ da coluna** | `referenceExtendedColumnMenu`: filtro Excel + congelar / autoajustar / ocultar (cadastro; portal documentos só abre `fpop` no ⋮) |
+| **Congelar colunas** | Persistência `localStorage` (`{storageKey}_congeladas`) |
+| **Configurar colunas** | `ConfiguracaoColunasB1Dialog` (duas listas + arraste, CSS `b1ref` `.mdl`) no lugar do popover simples — paridade `ColunasDosItens` do portal |
+| **Faixa pills** | Marcas mantém `showFilterRail={false}` (UX-33); portal compras continua com chips na rail — piloto cadastro sem rail |
+
+**Arquivos de referência (CONTROLE-DE-ESTOQUE):**
+
+- `apps/web/src/features/compras/documentos-compra-list.tsx`
+- `apps/web/src/features/base1/list.tsx`, `grid.tsx`
+- `apps/web/src/features/compras/filtro-de-coluna.tsx`, `colunas-dos-itens.tsx`
+- `apps/web/src/features/compras/itens-da-nota.tsx` (join `itbar`/`itrolo`)
+- `apps/web/src/features/compras/portal-compras.module.css`
+
+**Arquivos portados (MAIKE):** `CadastroListaChrome.jsx`, `CadastroBase1Grade.jsx`, `Base1Grid.jsx`, `ConfiguracaoColunasB1Dialog.jsx`, `Marcas.jsx`, `cadastro-base1.css`, `cadastro-b1ref.css` (inalterado — já tinha `.mdl` / `.fpop`).
+
+### Teste manual — Marcas
+
+1. Lista: toolbar (Novo, Editar, …) colada ao topo da grade, um único cartão branco.
+2. ⋮ no cabeçalho: popover com filtro avançado, congelar, autoajustar, ocultar; filtro abre painel `fpop` estilo Excel.
+3. Menu **Mais opções** → Configurar colunas: diálogo duas listas (arrastar/clicar), Restaurar padrão.
+4. Congelar até coluna N: rolagem horizontal mantém colunas fixas; recarregar página preserva congelamento.
+5. Limpar filtros (ícone na toolbar) e link “Limpar filtros de cabeçalho” quando filtro de coluna ativo.
+6. Sem faixa `mg-pills-rail` de chips.
+
+### Verificação (UX-34)
+
+- `npm run verify:all`

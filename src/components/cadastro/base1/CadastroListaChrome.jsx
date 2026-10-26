@@ -63,6 +63,7 @@ import { CADASTRO_B1_PAGE_SIZES } from "./cadastroBase1List";
  * @param {import('react').ReactNode} [props.cardsToolbar] botões layout/campos dos cards (modo cards)
  * @param {import('react').RefObject<HTMLButtonElement | null>} [props.configureColumnsAnchorRef] âncora do popover de colunas (modo tabela)
  * @param {boolean} [props.showFilterRail] faixa `mg-pills-rail` (chips); false = ferramentas na toolbar (piloto Marcas)
+ * @param {boolean} [props.joinTableToolbar] toolbar + grade no mesmo `mg-shell` (Portal de Compras / itpan)
  */
 export default function CadastroListaChrome({
   children,
@@ -107,6 +108,7 @@ export default function CadastroListaChrome({
   cardsToolbar = null,
   configureColumnsAnchorRef = null,
   showFilterRail = true,
+  joinTableToolbar = false,
 }) {
   const oneSelected = selectedCount === 1;
   const anySelected = selectedCount > 0;
@@ -248,44 +250,145 @@ export default function CadastroListaChrome({
       ? "mg-shell__scroll min-h-0 flex-1 p-2.5"
       : "mg-shell__body min-h-0 flex-1";
 
+  const joinedList = joinTableToolbar && !recordMode && viewMode !== "cards";
+
+  const toolbarRow = (
+    <div
+      className={
+        joinedList
+          ? "mg-toolbar mg-toolbar--join flex-wrap no-print"
+          : "mg-toolbar mg-card flex-wrap no-print"
+      }
+    >
+      {recordMode ? (
+        recordToolbar ?? null
+      ) : (
+        <>
+          {onNew ? (
+            <PillBtn type="button" onClick={onNew}>
+              <Plus className="h-4 w-4" aria-hidden />
+              {createLabel}
+            </PillBtn>
+          ) : null}
+          {extraToolbar}
+          {onEdit ? (
+            <PillBtn type="button" tone="gray" disabled={!oneSelected} onClick={onEdit}>
+              <Pencil className="h-3.5 w-3.5" aria-hidden />
+              Editar
+            </PillBtn>
+          ) : null}
+          {onDuplicate ? (
+            <PillBtn type="button" tone="gray" disabled={!oneSelected} onClick={onDuplicate}>
+              <Copy className="h-3.5 w-3.5" aria-hidden />
+              Duplicar
+            </PillBtn>
+          ) : null}
+          {onDelete ? (
+            <PillBtn type="button" tone="red" disabled={!anySelected} onClick={onDelete}>
+              <Trash2 className="h-4 w-4" aria-hidden />
+              Excluir
+              {selectedCount > 1 ? ` (${selectedCount})` : ""}
+            </PillBtn>
+          ) : null}
+          {listSecondaryTools}
+        </>
+      )}
+      {rightTools}
+    </div>
+  );
+
+  const pillsRail = railEnabled ? (
+    <div
+      className={`mg-rail no-print mg-pills-rail ${joinedList ? "mg-rail--join" : "mg-card"} ${showChips ? "is-expanded" : "is-collapsed"}`}
+    >
+      <IconBtn
+        size="sm"
+        aria-expanded={showChips}
+        aria-label={showChips ? "Recolher faixa de filtros" : "Mostrar faixa de filtros"}
+        title={showChips ? "Recolher faixa de filtros" : "Mostrar faixa de filtros"}
+        active={showChips}
+        onClick={() => setShowChips((v) => !v)}
+      >
+        {showChips ? <ListX className="h-4 w-4" /> : <ListPlus className="h-4 w-4" />}
+      </IconBtn>
+      <div className="mg-pills-rail__content" aria-hidden={!showChips}>
+        <IconBtn size="sm" aria-label="Rolar filtros para a esquerda" onClick={() => scrollStrip(-240)}>
+          <ChevronLeft className="h-4 w-4" />
+        </IconBtn>
+        <div
+          ref={stripRef}
+          className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto py-0.5 [scrollbar-width:none]"
+        >
+          {filterChips}
+          {!filterChips ? (
+            <span className="mg-pills-rail__hint">
+              {filterRailHint ??
+                (cardsModeAvailable
+                  ? "Filtros no menu ⋮ da grade; modo cards no alternador à direita."
+                  : "Filtros por coluna na grade (menu ⋮ no cabeçalho).")}
+            </span>
+          ) : null}
+        </div>
+        <IconBtn size="sm" aria-label="Rolar filtros para a direita" onClick={() => scrollStrip(240)}>
+          <ChevronRight className="h-4 w-4" />
+        </IconBtn>
+        {onClearFilters ? (
+          <IconBtn
+            size="sm"
+            aria-label="Limpar todos os filtros"
+            title="Limpar todos os filtros"
+            disabled={!filtersActive}
+            className={filtersActive ? "is-filter-active" : undefined}
+            onClick={onClearFilters}
+          >
+            <FilterX className="h-4 w-4" />
+          </IconBtn>
+        ) : null}
+        <span className="mx-1 h-5 w-px bg-[var(--mg-divider)]" aria-hidden />
+      </div>
+    </div>
+  ) : null;
+
+  const listSummary = (
+    <div className="mg-summary no-print">
+      <div className="mg-summary__counts">
+        <span className="mg-summary__item">Selecionados: {selectedCount}</span>
+        <span className="mg-summary__item">Listados: {listados}</span>
+        <span className="mg-summary__item">Filtrados: {filtrados}</span>
+        <span className="mg-summary__item">Totais: {totais}</span>
+      </div>
+      {onPageSizeChange || onLoadMore ? (
+        <span className="mg-summary__footer-actions">
+          {onPageSizeChange ? (
+            <MgSelect
+              ariaLabel="Quantidade de registros por carregamento"
+              className="mg-pill-select"
+              wrapClassName="mg-pill-select-wrap"
+              contentClassName="mg-pill-select-panel min-w-[var(--radix-popover-trigger-width)]"
+              popoverSide="top"
+              value={String(pageSize)}
+              options={pageSizeOptions}
+              onChange={(v) => onPageSizeChange(Number(v))}
+            />
+          ) : null}
+          {onLoadMore ? (
+            <IconBtn
+              aria-label="Carregar mais registros"
+              title="Carregar mais registros"
+              disabled={!hasMore || loadingMore}
+              onClick={onLoadMore}
+            >
+              <ChevronsDown aria-hidden />
+            </IconBtn>
+          ) : null}
+        </span>
+      ) : null}
+    </div>
+  );
+
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2" data-testid="b1-list" data-cadastro-chrome>
-      <div className="mg-toolbar mg-card flex-wrap no-print">
-        {recordMode ? (
-          recordToolbar ?? null
-        ) : (
-          <>
-            {onNew ? (
-              <PillBtn type="button" onClick={onNew}>
-                <Plus className="h-4 w-4" aria-hidden />
-                {createLabel}
-              </PillBtn>
-            ) : null}
-            {extraToolbar}
-            {onEdit ? (
-              <PillBtn type="button" tone="gray" disabled={!oneSelected} onClick={onEdit}>
-                <Pencil className="h-3.5 w-3.5" aria-hidden />
-                Editar
-              </PillBtn>
-            ) : null}
-            {onDuplicate ? (
-              <PillBtn type="button" tone="gray" disabled={!oneSelected} onClick={onDuplicate}>
-                <Copy className="h-3.5 w-3.5" aria-hidden />
-                Duplicar
-              </PillBtn>
-            ) : null}
-            {onDelete ? (
-              <PillBtn type="button" tone="red" disabled={!anySelected} onClick={onDelete}>
-                <Trash2 className="h-4 w-4" aria-hidden />
-                Excluir
-                {selectedCount > 1 ? ` (${selectedCount})` : ""}
-              </PillBtn>
-            ) : null}
-            {listSecondaryTools}
-          </>
-        )}
-        {rightTools}
-      </div>
+      {!joinedList ? toolbarRow : null}
 
       {recordMode ? (
         <>
@@ -298,96 +401,21 @@ export default function CadastroListaChrome({
         </>
       ) : null}
 
-      {railEnabled ? (
-      <div
-        className={`mg-rail mg-card no-print mg-pills-rail ${showChips ? "is-expanded" : "is-collapsed"}`}
-      >
-        <IconBtn
-          size="sm"
-          aria-expanded={showChips}
-          aria-label={showChips ? "Recolher faixa de filtros" : "Mostrar faixa de filtros"}
-          title={showChips ? "Recolher faixa de filtros" : "Mostrar faixa de filtros"}
-          active={showChips}
-          onClick={() => setShowChips((v) => !v)}
-        >
-          {showChips ? <ListX className="h-4 w-4" /> : <ListPlus className="h-4 w-4" />}
-        </IconBtn>
-        <div className="mg-pills-rail__content" aria-hidden={!showChips}>
-          <IconBtn size="sm" aria-label="Rolar filtros para a esquerda" onClick={() => scrollStrip(-240)}>
-            <ChevronLeft className="h-4 w-4" />
-          </IconBtn>
-          <div
-            ref={stripRef}
-            className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto py-0.5 [scrollbar-width:none]"
-          >
-            {filterChips}
-            {!filterChips ? (
-              <span className="mg-pills-rail__hint">
-                {filterRailHint ??
-                  (cardsModeAvailable
-                    ? "Filtros no menu ⋮ da grade; modo cards no alternador à direita."
-                    : "Filtros por coluna na grade (menu ⋮ no cabeçalho).")}
-              </span>
-            ) : null}
-          </div>
-          <IconBtn size="sm" aria-label="Rolar filtros para a direita" onClick={() => scrollStrip(240)}>
-            <ChevronRight className="h-4 w-4" />
-          </IconBtn>
-          {onClearFilters ? (
-            <IconBtn
-              size="sm"
-              aria-label="Limpar todos os filtros"
-              title="Limpar todos os filtros"
-              disabled={!filtersActive}
-              className={filtersActive ? "is-filter-active" : undefined}
-              onClick={onClearFilters}
-            >
-              <FilterX className="h-4 w-4" />
-            </IconBtn>
-          ) : null}
-          <span className="mx-1 h-5 w-px bg-[var(--mg-divider)]" aria-hidden />
-        </div>
-      </div>
-      ) : null}
+      {!joinedList ? pillsRail : null}
 
       {!recordMode ? (
       <div className="flex min-h-0 flex-1 gap-2">
-        <div className="mg-shell mg-shell--fill min-h-0 min-w-0 flex-1">
+        <div
+          className={
+            joinedList
+              ? "mg-shell mg-shell--fill mg-shell--join-table min-h-0 min-w-0 flex-1"
+              : "mg-shell mg-shell--fill min-h-0 min-w-0 flex-1"
+          }
+        >
+          {joinedList ? toolbarRow : null}
+          {joinedList ? pillsRail : null}
           <div className={listBodyClass}>{children}</div>
-          <div className="mg-summary no-print">
-            <div className="mg-summary__counts">
-              <span className="mg-summary__item">Selecionados: {selectedCount}</span>
-              <span className="mg-summary__item">Listados: {listados}</span>
-              <span className="mg-summary__item">Filtrados: {filtrados}</span>
-              <span className="mg-summary__item">Totais: {totais}</span>
-            </div>
-            {onPageSizeChange || onLoadMore ? (
-              <span className="mg-summary__footer-actions">
-                {onPageSizeChange ? (
-                  <MgSelect
-                    ariaLabel="Quantidade de registros por carregamento"
-                    className="mg-pill-select"
-                    wrapClassName="mg-pill-select-wrap"
-                    contentClassName="mg-pill-select-panel min-w-[var(--radix-popover-trigger-width)]"
-                    popoverSide="top"
-                    value={String(pageSize)}
-                    options={pageSizeOptions}
-                    onChange={(v) => onPageSizeChange(Number(v))}
-                  />
-                ) : null}
-                {onLoadMore ? (
-                  <IconBtn
-                    aria-label="Carregar mais registros"
-                    title="Carregar mais registros"
-                    disabled={!hasMore || loadingMore}
-                    onClick={onLoadMore}
-                  >
-                    <ChevronsDown aria-hidden />
-                  </IconBtn>
-                ) : null}
-              </span>
-            ) : null}
-          </div>
+          {listSummary}
         </div>
       </div>
       ) : null}

@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import ConfiguracaoColunasMapaDialog from "@/components/mapa/ConfiguracaoColunasMapaDialog";
-import ConfiguracaoColunasBase1Popover from "@/components/cadastro/base1/ConfiguracaoColunasBase1Popover";
+import ConfiguracaoColunasB1Dialog from "@/components/cadastro/base1/ConfiguracaoColunasB1Dialog";
 import Base1Grid from "@/components/cadastro/base1/Base1Grid";
 import { Base1Cards } from "@/components/cadastro/base1/Base1Cards";
 import CadastroColunaFiltro from "@/components/cadastro/base1/CadastroColunaFiltro";
@@ -95,7 +95,12 @@ export default function CadastroBase1Grade({
   const [filtroTemp, setFiltroTemp] = useState({ colunaId: null, valores: [] });
   const [filtrosColunas, setFiltrosColunas] = useState({});
   const [headerFilters, setHeaderFilters] = useState({});
-  const [frozenCount, setFrozenCount] = useState(0);
+  const [frozenCount, setFrozenCount] = useState(() => {
+    const saved = localStorage.getItem(`${storageKey}_congeladas`);
+    if (!saved) return 0;
+    const n = Number.parseInt(saved, 10);
+    return Number.isFinite(n) && n >= 0 ? n : 0;
+  });
   const lastPick = useRef(null);
 
   const [columnWidths, setColumnWidths] = useState(() => {
@@ -136,6 +141,10 @@ export default function CadastroBase1Grade({
   useEffect(() => {
     localStorage.setItem(`${storageKey}_largura`, JSON.stringify(columnWidths));
   }, [columnWidths, storageKey]);
+
+  useEffect(() => {
+    localStorage.setItem(`${storageKey}_congeladas`, String(frozenCount));
+  }, [frozenCount, storageKey]);
 
   const idOf = rowKey ?? ((r) => String(r.id));
 
@@ -486,6 +495,28 @@ export default function CadastroBase1Grade({
     );
   };
 
+  const headerFiltersActive = referenceHeaders && Object.keys(headerFilters).length > 0;
+  const ocultasSet = useMemo(
+    () => new Set(dataCols.filter((c) => !colunasVisiveis.includes(c.id)).map((c) => c.id)),
+    [dataCols, colunasVisiveis],
+  );
+  const colunasParaDialogo = useMemo(
+    () =>
+      colunasOrdem
+        .map((id) => dataCols.find((c) => c.id === id))
+        .filter(Boolean)
+        .map((c) => ({ id: c.id, label: c.label })),
+    [colunasOrdem, dataCols],
+  );
+
+  const restaurarColunas = () => {
+    applyVisibleKeys(defaultVisible);
+    setColunasOrdem(dataCols.map((c) => c.id));
+    localStorage.setItem(`${storageKey}_ordem`, JSON.stringify(dataCols.map((c) => c.id)));
+    setColumnWidths(Object.fromEntries(dataCols.map((c) => [c.id, c.width || 160])));
+    setFrozenCount(0);
+  };
+
   if (viewMode === "cards") {
     return (
       <>
@@ -514,8 +545,23 @@ export default function CadastroBase1Grade({
 
   return (
     <>
+      {headerFiltersActive ? (
+        <div className="mg-header-filter-hint no-print">
+          <span>
+            Filtro de cabeçalho: {ordenados.length} de {rows.length} registros carregados
+          </span>
+          <button
+            type="button"
+            className="fchip-lim"
+            onClick={() => setHeaderFilters({})}
+          >
+            Limpar filtros de cabeçalho
+          </button>
+        </div>
+      ) : null}
       <Base1Grid
         referenceHeaders={referenceHeaders}
+        referenceExtendedColumnMenu={referenceHeaders}
         columns={gridColumns}
         rows={visibleRows}
         loading={isLoading}
@@ -547,14 +593,22 @@ export default function CadastroBase1Grade({
         ? dataCols.map((c) => renderReferenceFilter(c.id))
         : dataCols.map((c) => renderFilterPopover(c.id))}
       {setShowConfigColunas && referenceHeaders ? (
-        <ConfiguracaoColunasBase1Popover
+        <ConfiguracaoColunasB1Dialog
           open={showConfigColunas}
-          onOpenChange={setShowConfigColunas}
-          anchorRef={configureColumnsAnchorRef}
-          columns={dataCols}
-          visibleKeys={colunasVisiveis}
-          defaultVisible={defaultVisible}
-          onApply={applyVisibleKeys}
+          onFechar={() => setShowConfigColunas(false)}
+          titulo="Colunas da tabela"
+          colunas={colunasParaDialogo}
+          ocultas={ocultasSet}
+          onMudar={(id, ocultar) => {
+            const visivel = colunasVisiveis.includes(id);
+            if (ocultar && visivel) toggleColuna(id);
+            if (!ocultar && !visivel) toggleColuna(id);
+          }}
+          onOrdenar={(ids) => {
+            setColunasOrdem(ids);
+            localStorage.setItem(`${storageKey}_ordem`, JSON.stringify(ids));
+          }}
+          onRestaurar={restaurarColunas}
         />
       ) : null}
       {setShowConfigColunas && !referenceHeaders ? (
