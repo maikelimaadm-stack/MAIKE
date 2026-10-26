@@ -113,12 +113,12 @@
 |---|------|-------------|-------------|
 | H.1 | Seções **A–F**: todos os itens **DONE** ou **N/A** | **DONE** | Engenharia |
 | H.2 | Seção **G**: apenas **DEFER** / **P8** / **PARTIAL** documentados | **DONE** | Este arquivo + DECISIONS |
-| H.3 | `npm run verify:all` verde no commit de referência | **TODO** | CI / agente (PR modelo) |
+| H.3 | `npm run verify:all` verde no commit de referência | **DONE** | CI `main` pós-merge #51–#54 (2026-10-26) |
 | H.4 | Teste manual §11 + matriz 360 / 390 / 768 / 1280 | **DONE** | UX-43, UX-44 |
 | H.5 | Aceite explícito do proprietário (“Marcas modelo OK”) | **TODO** | Produto |
-| H.6 | Motor UX-29–43 integrado na `main` (PR #51 + piloto) | **TODO** | Review merge |
+| H.6 | Motor UX-29–43 integrado na `main` (PR #51 + piloto) | **DONE** | #51 `e63aa297`, #53 `1849cb54`, modelo #54 |
 
-**Rollout Fase 2:** **PAUSADO** até H.3, H.5 e H.6 — ver [`PLAN-EXECUCAO-PARIDADE-BASE1.md`](./PLAN-EXECUCAO-PARIDADE-BASE1.md).
+**Rollout Fase 2:** **PAUSADO** até **H.5** (aceite proprietário) — ver [`PLAN-EXECUCAO-PARIDADE-BASE1.md`](./PLAN-EXECUCAO-PARIDADE-BASE1.md).
 
 ---
 
@@ -143,7 +143,7 @@ Ao clonar Marcas em outro cadastro, percorrer **A → H** nesta ordem:
 | **DEFER** | 1 |
 | **P8** | 1 |
 | **PARTIAL** | 3 |
-| **TODO** (só gate H processo) | 3 |
+| **TODO** (só gate H processo) | 1 |
 
 **Caminho crítico técnico (A–F):** 43/43 itens **DONE** ou **N/A** → **100%** do checklist aplicável.  
-**Sign-off completo (incl. H):** aguarda merge na `main` + aceite H.5.
+**Sign-off completo (incl. H):** aguarda apenas aceite **H.5** (produto).

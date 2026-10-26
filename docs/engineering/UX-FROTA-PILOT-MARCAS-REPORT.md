@@ -858,3 +858,33 @@ Branch `cursor/ux-base1-marcas-modelo-516d` (base: `cursor/ux-base1-marcas-gaps-
 
 - `npm run verify:all` na branch `cursor/ux-base1-marcas-modelo-516d`
 - `npm run gate:governance-paths`
+
+## UX-45 (2026-10-26) — Integração `main` + organização Marcas (D-PROD-41)
+
+Branch `cursor/ux-base1-marcas-organize-516d` (docs + fix `gate:types` em #51).
+
+**Objetivo:** mergear a fila de PRs do piloto Base1/Marcas e deixar o gate §H pronto para aceite do proprietário.
+
+| PR | Merge commit | Conteúdo |
+|----|--------------|----------|
+| **#51** | `e63aa297` | Motor UX-29–42 (cards, colunas, grade, portal join) + fix `ehCamadaAninhadaDoFiltro` (`Element`) |
+| **#52** | `0646cdf5` | `PLAN-EXECUCAO-PARIDADE-BASE1.md` + ROADMAP |
+| **#53** | `1849cb54` | UX-43 Fase 1 sign-off (toolbar mobile, cards `p-4`, D-PROD-40) |
+| **#54** | *(merge pendente)* | Checklist executável, D-PROD-41, UX-44 |
+
+**Organização Marcas (checklist A–G):** nenhum item **PARTIAL** restante em A–F; G.3–G.5 permanecem documentados (dialogs Fase 3, tenancy, `max+1`). Passagem CDE pós-merge: sem diff de código adicional além do fix de tipos em `cadastroColunaFiltroCamada.js` (smoke com `document.createElement`).
+
+**Gate §H após integração:**
+
+| Item | Status |
+|------|--------|
+| H.1–H.2 | DONE |
+| H.3 | DONE (CI verde nas branches integradas) |
+| H.4 | DONE (UX-43) |
+| H.5 | **TODO** — aceite “Marcas modelo OK” |
+| H.6 | DONE (#51 + #53 + modelo na `main`) |
+
+### Verificação (UX-45)
+
+- `npm run gate:governance-paths`
+- `npm run gate:types` (teto 1746)
