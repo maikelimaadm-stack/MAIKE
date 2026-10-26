@@ -2037,9 +2037,29 @@ nativos) permanece **P8**; na toolbar o controle de anexos fica visível por
 paridade visual, **desabilitado** com `attachDisabledReason` até auditoria P8.
 
 **Consequência:** sign-off Fase 1 considera §11.1–11.14 **Feito**; 11.15 **Fora**;
-11.16 **Pendente P8** sem bloquear replicação do pacote Marcas nos demais
-cadastros (Fase 2).
+11.16 **Pendente P8**. A consequência de rollout imediato foi **revogada** por
+**D-PROD-41**.
 
 ---
 
-<!-- Próxima decisão: D-PROD-41 -->
+## D-PROD-41 — Marcas único piloto Base1; rollout pausado até sign-off
+
+**Data:** 2026-10-26  
+**Plano:** `docs/engineering/PLAN-EXECUCAO-PARIDADE-BASE1.md`  
+**Checklist:** `docs/engineering/MARCAS-MODELO-BASE1-CHECKLIST.md` (gate §H)  
+**Relatório:** `docs/engineering/UX-FROTA-PILOT-MARCAS-REPORT.md` (UX-44)
+
+**Decisão:** **Marcas** é o **único** cadastro autorizado a receber trabalho de
+paridade “portal compras / tela inteira Base1” até o **gate de sign-off** do
+modelo (checklist executável §H + aceite do proprietário + `verify:all` na linha
+mergeada). **Não** abrir PRs de rollout (Setores, Produtos, etc.) antes desse
+gate — pedido explícito de produto (“não organizar primeiro a marca” = fechar
+Marcas como referência, não replicar ainda).
+
+**Consequência:** Fase 2 do plano de paridade Base1 permanece **pausada**;
+réplicas usam `MARCAS-MODELO-BASE1-CHECKLIST.md` como molde. Itens **PARTIAL**
+em G.3–G.5 não bloqueiam o modelo visual; dialogs transversais seguem Fase 3.
+
+---
+
+<!-- Próxima decisão: D-PROD-42 -->

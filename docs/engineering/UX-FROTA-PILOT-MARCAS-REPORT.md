@@ -826,3 +826,35 @@ Branch `cursor/ux-base1-marcas-gaps-516d` (base: `cursor/ux-base1-cards-colunas-
 ### Verificação (UX-43)
 
 - `npm run verify:all`
+
+## UX-44 (2026-10-26) — Marcas modelo Base1 (piloto fechado, rollout pausado)
+
+Branch `cursor/ux-base1-marcas-modelo-516d` (base: `cursor/ux-base1-marcas-gaps-516d` / UX-43).
+
+**Objetivo:** encerrar o piloto **Marcas** como referência executável para futuras réplicas, **sem** abrir rollout em Setores/Produtos (**D-PROD-41**).
+
+| Entrega | Status |
+|---------|--------|
+| Checklist executável | [`MARCAS-MODELO-BASE1-CHECKLIST.md`](./MARCAS-MODELO-BASE1-CHECKLIST.md) |
+| Plano Fase 2 | **Pausada** + gate §H em `PLAN-EXECUCAO-PARIDADE-BASE1.md` |
+| Decisão rollout | **D-PROD-41** em `DECISIONS.md` |
+| Caminho crítico A–F (técnico) | **~98%** DONE/N/A (42/43 itens) |
+| Gate H (merge `main` + aceite proprietário) | Aberto |
+
+**Auditoria vs CDE (portal compras + `base1/list`):**
+
+| Área | Marcas | CDE `DocList` / `Base1List` |
+|------|--------|-----------------------------|
+| Toolbar join + skin portal | `joinTableToolbar` + `portalComprasSkin` | `barraIntegrada` + `b1-portal-compras` |
+| Filtro cabeçalho + `fpop` | `referenceHeaders` + camadas UX-42 | `referenceHeaders` + `headerFilters` |
+| Resize / freeze / autoFit | `CadastroBase1Grade` | `Base1Grid` |
+| Cards padding | `p-4` / viewport `p-2.5` | `cards.tsx` / `list.tsx` |
+| Checkbox seleção | Desligado (produto) | Desligado quando `barraIntegrada` |
+| Chips rail | `showFilterRail={false}` | `semFaixaDeFiltros` equivalente |
+
+**Fora do escopo desta missão (documentado, não código):** §11.15 DEFER, §11.16 P8, dialogs UX-A/B (Fase 3), tenancy/numeração (PRs backend).
+
+### Verificação (UX-44)
+
+- `npm run verify:all` na branch `cursor/ux-base1-marcas-modelo-516d`
+- `npm run gate:governance-paths`

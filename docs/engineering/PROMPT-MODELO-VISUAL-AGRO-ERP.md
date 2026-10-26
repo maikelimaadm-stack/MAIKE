@@ -140,7 +140,7 @@ Relatório de missão: `docs/engineering/UX-FROTA-PILOT-MARCAS-REPORT.md` (seç�
 
 - Decisão de produto: **D-PROD-39** — SSOT deste prompt + `globals.css` da referência para tokens/comportamento Base1.
 - Não duplicar design system fora de `cadastro/base1` e `src/styles/cadastro-*.css`.
-- Uma missão = um PR; piloto atual: branch `cursor/ux-base1-cards-colunas-878d` (PR #51).
+- Uma missão = um PR; piloto modelo: **Marcas** (`cursor/ux-base1-marcas-modelo-516d`); motor compartilhado: PR #51 (`cursor/ux-base1-cards-colunas-878d`). Rollout outros cadastros: **D-PROD-41** (pausado).
 
 ---
 
