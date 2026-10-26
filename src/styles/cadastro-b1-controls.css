@@ -60,7 +60,7 @@
   animation: none;
 }
 
-.b1ref .fpop-f .tb-btn-icon {
+.b1ref:not(.b1-portal-compras) .fpop-f .tb-btn-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -75,17 +75,17 @@
   cursor: pointer;
 }
 
-.b1ref .fpop-f .tb-btn-icon:hover:not(:disabled) {
+.b1ref:not(.b1-portal-compras) .fpop-f .tb-btn-icon:hover:not(:disabled) {
   background: #f4f6f7;
 }
 
-.b1ref .fpop-f button[type="submit"].tb-btn-icon {
+.b1ref:not(.b1-portal-compras) .fpop-f button[type="submit"].tb-btn-icon {
   background: #40de63;
   border-color: #40de63;
   color: #fff;
 }
 
-.b1ref .fpop-f button[type="submit"].tb-btn-icon:hover:not(:disabled) {
+.b1ref:not(.b1-portal-compras) .fpop-f button[type="submit"].tb-btn-icon:hover:not(:disabled) {
   background: #35cf56;
 }
 

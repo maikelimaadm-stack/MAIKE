@@ -289,9 +289,9 @@
 }
 
 .cadastro-b1 .mg-summary__counts {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 16px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px 12px;
   flex: 1 1 auto;
   min-width: 0;
 }
@@ -558,13 +558,13 @@
   justify-content: center;
   width: 20px;
   height: 20px;
-  color: var(--mg-icon);
+  color: #475569;
   border-radius: 999px;
 }
 
 .cadastro-b1 .mg-grid .th-menu:hover {
   background: var(--mg-gray-fill);
-  color: var(--mg-accent);
+  color: #0f172a;
 }
 
 .cadastro-b1 .mg-grid .th-menu.is-on {
@@ -1033,7 +1033,7 @@
 }
 
 .cadastro-b1 .mg-b1-menuitem:hover:not(:disabled) {
-  background: var(--mg-gray-fill);
+  background: var(--mg-bg-page);
 }
 
 .cadastro-b1 .mg-b1-menuitem:disabled {
@@ -1041,7 +1041,8 @@
   cursor: not-allowed;
 }
 
-.cadastro-b1 .mg-b1-menuitem.is-danger {
+.cadastro-b1 .mg-b1-menuitem.is-danger,
+.cadastro-b1 .mg-b1-menuitem.is-danger > span {
   color: var(--mg-red);
 }
 
@@ -1373,7 +1374,7 @@
 .cadastro-b1 .mg-shell--join-table .mg-toolbar--join {
   flex-shrink: 0;
   height: auto;
-  min-height: 34px;
+  min-height: var(--mg-toolbar-h);
   margin: 0;
   border: 0;
   border-radius: 0;

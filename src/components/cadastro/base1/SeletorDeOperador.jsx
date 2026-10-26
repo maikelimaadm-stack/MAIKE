@@ -2,6 +2,7 @@ import React from "react";
 import * as Select from "@radix-ui/react-select";
 import { Check, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { usePortalComprasSkin } from "./portalComprasSkinContext";
 
 /**
  * Lista flutuante de operadores do filtro `fpop` (paridade CDE `seletor-de-operador.tsx`).
@@ -12,6 +13,7 @@ import { cn } from "@/lib/utils";
  * @param {(valor: string) => void} props.onChange
  */
 export default function SeletorDeOperador({ valor, opcoes, onChange }) {
+  const portalSkin = usePortalComprasSkin();
   return (
     <Select.Root value={valor} onValueChange={onChange}>
       <Select.Trigger className="fselb" aria-label="Condição">
@@ -23,7 +25,7 @@ export default function SeletorDeOperador({ valor, opcoes, onChange }) {
         </Select.Icon>
       </Select.Trigger>
       <Select.Portal>
-        <div className="b1ref" data-filtro-camada="">
+        <div className={cn("b1ref", portalSkin && "b1-portal-compras")} data-filtro-camada="">
           <Select.Content
             position="popper"
             sideOffset={4}

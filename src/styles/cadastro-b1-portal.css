@@ -6,6 +6,7 @@
 
 .cadastro-b1--portal-compras {
   --portal-espaco: 6px;
+  --mg-table-line: #dfe2e7;
   --portal-acao-bg: #f1f3f4;
   --portal-acao-fg: #475569;
   --portal-acao-hover: #e8ecef;
@@ -132,8 +133,16 @@
 
 .cadastro-b1--portal-compras .view-seg button[aria-pressed="true"] {
   background: #fff !important;
-  color: #0f172a !important;
+  color: var(--mg-accent) !important;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08) !important;
+}
+
+.cadastro-b1--portal-compras .mg-toolbar--join .tb-btn-icon.tb-btn-sm,
+.cadastro-b1--portal-compras .mg-summary .tb-btn-icon.tb-btn-sm {
+  width: 25px !important;
+  min-width: 25px !important;
+  height: 25px !important;
+  min-height: 25px !important;
 }
 
 .cadastro-b1--portal-compras .mg-pill-select,
@@ -207,10 +216,27 @@
   color: inherit !important;
 }
 
-.b1-portal-compras [role="menuitem"] {
+.b1-portal-compras [role="menuitem"],
+.b1-portal-compras .mg-b1-menuitem {
   color: #475569;
+}
+
+.b1-portal-compras [role="menuitem"]:hover:not(:disabled),
+.b1-portal-compras .mg-b1-menuitem:hover:not(:disabled) {
+  background: var(--mg-bg-page, #f0f2f5) !important;
+}
+
+.b1-portal-compras [role="menuitem"].is-danger,
+.b1-portal-compras .mg-b1-menuitem.is-danger,
+.b1-portal-compras [role="menuitem"].is-danger svg,
+.b1-portal-compras .mg-b1-menuitem.is-danger > span {
+  color: var(--mg-red) !important;
 }
 
 .b1-portal-compras [role="menuitem"] svg {
   color: #475569 !important;
+}
+
+.b1-portal-compras.fpop {
+  z-index: 10000;
 }
