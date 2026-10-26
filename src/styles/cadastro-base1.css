@@ -1039,3 +1039,264 @@
 .cadastro-b1 .mg-grid .mg-empty-state {
   padding: 1.5rem 0;
 }
+
+/* Tipografia SSOT (evita text-slate-* solto nos componentes Base1) */
+.cadastro-b1 .mg-b1-text-1 {
+  color: var(--mg-text-1);
+}
+
+.cadastro-b1 .mg-b1-text-2 {
+  color: var(--mg-text-2);
+}
+
+.cadastro-b1 .mg-b1-text-3 {
+  color: var(--mg-text-3);
+}
+
+.cadastro-b1 .mg-b1-record-heading {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--mg-text-1);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cadastro-b1 .mg-b1-record-sep {
+  color: var(--mg-text-3);
+}
+
+.cadastro-b1 .mg-b1-record-nav {
+  padding: 0 4px;
+  font-size: 12px;
+  color: var(--mg-text-2);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Status Sim/Não (grade e cards) */
+.cadastro-b1 .mg-b1-status--yes {
+  color: #15803d;
+  font-weight: 500;
+}
+
+.cadastro-b1 .mg-b1-status--no {
+  color: var(--mg-text-2);
+}
+
+/* Cards — hover e tipografia */
+.cadastro-b1 .b1-card {
+  transition:
+    box-shadow 0.2s ease,
+    background 0.15s ease;
+}
+
+.cadastro-b1 .b1-card:hover:not(.is-selected) {
+  box-shadow:
+    0 4px 14px rgba(15, 23, 42, 0.07),
+    0 1px 3px rgba(15, 23, 42, 0.04);
+}
+
+.cadastro-b1 .mg-b1-card__title {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: left;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--mg-text-1);
+}
+
+.cadastro-b1 .mg-b1-card__code {
+  color: var(--mg-text-2);
+}
+
+.cadastro-b1 .mg-b1-card__fields {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px 16px;
+  font-size: 12px;
+}
+
+.cadastro-b1 .mg-b1-card__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--mg-text-2);
+}
+
+.cadastro-b1 .mg-b1-card__value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+  color: var(--mg-text-1);
+}
+
+/* Formulário em modo registro (Marcas e cadastros Base1) */
+.cadastro-b1 .mg-b1-record-form {
+  width: 100%;
+  max-width: 56rem;
+  margin: 0 auto;
+}
+
+.cadastro-b1 .mg-b1-form-grid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 12px;
+  width: 100%;
+  min-height: 0;
+}
+
+@media (min-width: 768px) {
+  .cadastro-b1 .mg-b1-form-grid {
+    gap: 16px;
+  }
+}
+
+.cadastro-b1 .mg-b1-field-msg {
+  margin-top: 2px;
+  font-size: 11px;
+  line-height: 1.3;
+  color: var(--mg-red);
+}
+
+.cadastro-b1 .mg-b1-form-header {
+  border-bottom: 1px solid var(--mg-divider);
+  padding: 8px 12px;
+  background: var(--mg-row-alt);
+}
+
+.cadastro-b1 .mg-b1-form-header__subtitle {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--mg-text-2);
+}
+
+.cadastro-b1 .mg-grid-foot {
+  background: var(--mg-row-alt);
+  font-weight: 600;
+}
+
+/* Foco visível — teclado (ui-ux-pro-max / WCAG) */
+.cadastro-b1 .tb-btn:focus-visible,
+.cadastro-b1 .view-seg button:focus-visible,
+.cadastro-b1 .mg-b1-menuitem:focus-visible,
+.cadastro-b1 .mg-b1-row:focus-visible {
+  outline: 2px solid var(--mg-focus-border);
+  outline-offset: 2px;
+}
+
+.cadastro-b1 .mg-search-pill-clear:focus-visible {
+  outline: 2px solid var(--mg-focus-border);
+  outline-offset: 2px;
+  border-radius: 999px;
+}
+
+.cadastro-b1 .tb-btn-icon.is-filter-active {
+  color: var(--mg-red);
+}
+
+.cadastro-b1 .tb-btn-icon.is-filter-active:hover:not(:disabled) {
+  background: rgba(220, 38, 38, 0.08);
+}
+
+/* Menu de filtro de coluna (grade Base1) */
+.cadastro-b1 .mg-b1-col-filter-menu {
+  padding: 4px;
+  border-bottom: 1px solid var(--mg-divider);
+}
+
+.cadastro-b1 .mg-b1-col-filter-action {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 32px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--mg-text-1);
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.cadastro-b1 .mg-b1-col-filter-action:hover:not(:disabled) {
+  background: var(--mg-gray-fill);
+}
+
+.cadastro-b1 .mg-b1-col-filter-action:disabled {
+  color: var(--mg-text-3);
+  cursor: not-allowed;
+}
+
+.cadastro-b1 .mg-b1-col-filter-action svg {
+  width: 16px;
+  height: 16px;
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+
+.cadastro-b1 .mg-b1-col-filter-list {
+  max-height: 16rem;
+  overflow-y: auto;
+  padding: 4px;
+  border: 1px solid var(--mg-divider);
+  border-radius: var(--mg-radius-control);
+  background: var(--mg-bg-card);
+}
+
+.cadastro-b1 .mg-b1-col-filter-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 28px;
+  padding: 0 8px;
+  font-size: 12px;
+  color: var(--mg-text-1);
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.cadastro-b1 .mg-b1-col-filter-row:hover {
+  background: var(--mg-gray-fill);
+}
+
+.cadastro-b1 .mg-b1-col-filter-row--header {
+  height: 32px;
+  border-bottom: 1px solid var(--mg-divider);
+  margin-bottom: 2px;
+  font-weight: 500;
+}
+
+.cadastro-b1 .mg-b1-col-filter-body {
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cadastro-b1 .mg-b1-col-filter-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 8px;
+}
+
+/* Toolbar: quebra segura em telas estreitas */
+@media (max-width: 639px) {
+  .cadastro-b1 .mg-toolbar {
+    row-gap: 6px;
+  }
+
+  .cadastro-b1 .mg-toolbar .mg-toolbar__right,
+  .cadastro-b1 .mg-toolbar > .ml-auto {
+    margin-left: 0;
+    width: 100%;
+    justify-content: flex-start;
+  }
+}

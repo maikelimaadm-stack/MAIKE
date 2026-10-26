@@ -51,12 +51,20 @@ export default function B1Field({
 }) {
   const generated = React.useId();
   const id = controlId ?? generated;
-  const child =
-    !controlId &&
-    React.isValidElement(children) &&
-    !(/** @type {{ id?: string }} */ (children.props).id)
-      ? React.cloneElement(children, { id })
-      : children;
+  const errId = `${id}-error`;
+  const childExistingId =
+    React.isValidElement(children) ? /** @type {{ id?: string }} */ (children.props).id : undefined;
+  const child = React.isValidElement(children)
+    ? React.cloneElement(children, {
+        ...(childExistingId ? {} : { id }),
+        ...(error
+          ? {
+              "aria-invalid": true,
+              "aria-describedby": errId,
+            }
+          : {}),
+      })
+    : children;
 
   return (
     <div className={cn("col-span-12", SPAN[span] ?? "md:col-span-6", className)}>
@@ -78,7 +86,11 @@ export default function B1Field({
         </label>
         <div className="mg-field__control">{child}</div>
       </div>
-      {error ? <p className="mt-0.5 text-[11px] text-red-600">{error}</p> : null}
+      {error ? (
+        <p id={errId} className="mg-b1-field-msg" role="alert">
+          {error}
+        </p>
+      ) : null}
     </div>
   );
 }

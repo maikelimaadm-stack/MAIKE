@@ -385,50 +385,56 @@ export default function CadastroBase1Grade({
           <span className="sr-only">Filtro {colLabel}</span>
         </PopoverTrigger>
         {/* @ts-expect-error PopoverContent sem props tipadas */}
-        <PopoverContent align="end" side="bottom" sideOffset={4} className="w-[310px] p-0 z-[9999]">
-          <div className="p-1 space-y-0.5 border-b">
+        <PopoverContent
+          align="end"
+          side="bottom"
+          sideOffset={4}
+          className="cadastro-b1 w-[310px] p-0 z-[9999] rounded-[10px] border border-[var(--mg-divider)] bg-[var(--mg-bg-card)] shadow-md"
+        >
+          <div className="mg-b1-col-filter-menu">
             <button
               type="button"
-              className="flex items-center w-full px-2 h-8 text-xs hover:bg-slate-100 rounded"
+              className="mg-b1-col-filter-action"
               onClick={() => {
                 handleSort(colunaId);
                 setMenuFiltroAberto(null);
               }}
             >
-              <ArrowDownAZ className="w-4 h-4 mr-2" /> Menor para Maior
+              <ArrowDownAZ aria-hidden /> Menor para Maior
             </button>
             <button
               type="button"
-              className="flex items-center w-full px-2 h-8 text-xs hover:bg-slate-100 rounded"
+              className="mg-b1-col-filter-action"
               onClick={() => {
                 setSortConfig({ key: colunaId, direction: "desc" });
                 setMenuFiltroAberto(null);
               }}
             >
-              <ArrowUpZA className="w-4 h-4 mr-2" /> Maior para Menor
+              <ArrowUpZA aria-hidden /> Maior para Menor
             </button>
             <button
               type="button"
-              className={`flex items-center w-full px-2 h-8 text-xs rounded ${hasActiveFilter(colunaId) ? "hover:bg-slate-100" : "text-slate-300 cursor-not-allowed"}`}
+              className="mg-b1-col-filter-action"
               disabled={!hasActiveFilter(colunaId)}
               onClick={() => {
                 setFiltrosColunas((p) => ({ ...p, [colunaId]: [] }));
                 setMenuFiltroAberto(null);
               }}
             >
-              <X className="w-4 h-4 mr-2" /> Limpar Filtro
+              <X aria-hidden /> Limpar Filtro
             </button>
           </div>
-          <div className="p-2 space-y-2">
+          <div className="mg-b1-col-filter-body">
             <input
               type="text"
               value={buscaFiltroMenu}
               onChange={(e) => setBuscaFiltroMenu(e.target.value)}
               placeholder="PESQUISAR"
               className="mg-field h-8 w-full text-xs uppercase"
+              aria-label={`Pesquisar valores de ${colLabel}`}
             />
-            <div className="border border-slate-300 rounded-sm max-h-64 overflow-y-auto p-1 bg-white">
-              <label className="flex h-8 items-center gap-2 px-2 py-0 text-xs text-slate-700 border-b border-slate-200">
+            <div className="mg-b1-col-filter-list">
+              <label className="mg-b1-col-filter-row mg-b1-col-filter-row--header">
                 <MgCheck
                   checked={allSel}
                   indeterminate={!allSel && filtered.some((opt) => valoresSelecionados.includes(opt))}
@@ -445,10 +451,7 @@ export default function CadastroBase1Grade({
                 <span>(Selecionar Tudo)</span>
               </label>
               {filtered.map((opt) => (
-                <label
-                  key={String(opt)}
-                  className="flex h-6 items-center gap-2 px-2 py-0 text-xs text-slate-700 hover:bg-slate-50"
-                >
+                <label key={String(opt)} className="mg-b1-col-filter-row">
                   <MgCheck
                     checked={valoresSelecionados.includes(opt)}
                     onChange={(checked) =>
@@ -462,13 +465,13 @@ export default function CadastroBase1Grade({
                 </label>
               ))}
             </div>
-            <div className="flex items-center justify-end gap-2 pt-2">
+            <div className="mg-b1-col-filter-footer">
               <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setMenuFiltroAberto(null)}>
                 Cancelar
               </Button>
               <Button
                 size="sm"
-                className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+                className="tb-btn tb-btn-green h-8 text-xs"
                 onClick={() => {
                   setFiltrosColunas((p) => ({ ...p, [colunaId]: filtroTemp.valores }));
                   setMenuFiltroAberto(null);

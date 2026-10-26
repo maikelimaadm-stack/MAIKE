@@ -21,9 +21,10 @@ function renderCell(item, colId) {
   if (colId === "nome") return <span className="uppercase">{item.nome || "–"}</span>;
   if (colId === "descricao") return item.descricao || "–";
   if (colId === "ativo") {
+    const on = item.ativo !== false;
     return (
-      <span className={item.ativo !== false ? "text-emerald-700" : "text-slate-500"}>
-        {item.ativo !== false ? "Sim" : "Não"}
+      <span className={on ? "mg-b1-status--yes" : "mg-b1-status--no"}>
+        {on ? "Sim" : "Não"}
       </span>
     );
   }

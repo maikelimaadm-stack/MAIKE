@@ -47,7 +47,8 @@ export default function FormularioMarca({
     <form
       id={FORMULARIO_MARCA_ID}
       onSubmit={handleSubmit}
-      className="b1 grid min-h-0 w-full grid-cols-12 gap-3"
+      className="mg-b1-form-grid"
+      noValidate
     >
       <B1Field
         label="Nome"
@@ -96,7 +97,7 @@ export default function FormularioMarca({
 
   return (
     <CadastroFormShell embedded={embedded} title={isEditing ? "Editar Marca" : "Nova Marca"}>
-      {formBody}
+      <div className={embedded ? "mg-b1-record-form" : undefined}>{formBody}</div>
     </CadastroFormShell>
   );
 }

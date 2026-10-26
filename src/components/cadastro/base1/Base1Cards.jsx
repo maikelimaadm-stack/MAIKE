@@ -124,7 +124,7 @@ export function Base1Cards({
             tabIndex={0}
             aria-selected={on}
             className={cn(
-              "mg-card b1-card group relative cursor-pointer select-none p-4 transition-shadow hover:shadow-[0_6px_20px_rgba(0,0,0,.09)]",
+              "mg-card b1-card group relative cursor-pointer select-none p-4",
               on && "is-selected",
             )}
             onClick={(e) => onSelectClick(id, selectClickOf(e))}
@@ -148,16 +148,16 @@ export function Base1Cards({
               <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--mg-accent)] text-[11px] font-bold text-white">
                 {initials(typeof t === "string" ? t : getFieldValue(r, titleCol?.id))}
               </span>
-              <span className="min-w-0 flex-1 truncate text-left text-[12.5px] font-semibold text-slate-800">
-                {code ? <span className="text-slate-500">{code} • </span> : null}
+              <span className="mg-b1-card__title">
+                {code ? <span className="mg-b1-card__code">{code} • </span> : null}
                 {t}
               </span>
             </div>
-            <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-[12px]">
+            <dl className="mg-b1-card__fields">
               {shown.map((c) => (
                 <React.Fragment key={c.id}>
-                  <dt className="truncate text-slate-500">{c.label}:</dt>
-                  <dd className="truncate font-medium text-slate-800" title={String(text(c, r))}>
+                  <dt className="mg-b1-card__label">{c.label}:</dt>
+                  <dd className="mg-b1-card__value" title={String(text(c, r))}>
                     {renderCell ? renderCell(r, c.id) : text(c, r)}
                   </dd>
                 </React.Fragment>

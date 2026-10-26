@@ -498,3 +498,26 @@ Branch `cursor/ux-base1-cards-colunas-878d` (PR #51):
 ### Verificação (UX-30)
 
 - `npm run verify:all`
+
+## UX-31 (2026-10-26) — Marcas + Base1: tokens, foco, formulário e grade
+
+Branch `cursor/ux-base1-cards-colunas-878d` (PR #51). Skills aplicadas: `ui-ux-pro-max` (foco visível, erros inline, ritmo de espaçamento) e `ui-styling` (tokens `--mg-*`, menos utilitários Tailwind conflitantes).
+
+| Item | Correção |
+|------|----------|
+| **Marcas / listagem** | Célula Ativo com `.mg-b1-status--yes` / `--no` (remove `text-emerald-*` / `text-slate-*`) |
+| **Marcas / registro** | `FormularioMarca` em `.mg-b1-record-form` + grade `.mg-b1-form-grid`; `noValidate` + `B1Field` com `aria-invalid` / `aria-describedby` |
+| **Cabeçalho registro** | `CadastroRecordHeader` → classes `.mg-b1-record-*` |
+| **Cards** | Tipografia e hover via `cadastro-base1.css` (`.mg-b1-card__*`, sombra em hover sem arbitrary Tailwind) |
+| **Chrome lista** | Ícone “limpar filtros” ativo → `.is-filter-active`; toolbar com wrap seguro &lt;640px |
+| **Grade / filtro coluna** | Popover com `.cadastro-b1` portado; ações `.mg-b1-col-filter-*`; botão OK com `.tb-btn-green` |
+| **Form shell / rodapé grade** | `CadastroFormShell` header tokenizado; `Base1Grid` tfoot `.mg-grid-foot` |
+| **A11y teclado** | `:focus-visible` em `.tb-btn`, `.view-seg`, linhas de popover |
+
+**Componentes tocados:** `Marcas.jsx` (herança), `TabelaMarcas.jsx`, `FormularioMarca.jsx`, `CadastroWorkspace.jsx` (inalterado — layout `base1-list`), `CadastroListaChrome.jsx`, `CadastroRecordHeader.jsx`, `CadastroFormShell.jsx`, `CadastroBase1Grade.jsx`, `Base1Grid.jsx`, `Base1Cards.jsx`, `B1Field.jsx`, `B1ChaveRow.jsx` (inalterado), `ConfiguracaoColunasBase1Popover.jsx` (inalterado), `cadastro-base1.css`, `cadastro-b1-controls.css` (inalterado), `cadastro-b1ref.css` (inalterado).
+
+### Verificação (UX-31)
+
+- `npm run test:smoke`
+- `npm run gate:types`
+- `npm run build`

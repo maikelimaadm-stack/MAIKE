@@ -25,9 +25,9 @@ export default function CadastroFormShell({
     <div className={`cadastro-b1 min-h-0 ${className}`}>
       <div className="mg-card overflow-hidden">
         {title ? (
-          <div className="border-b border-[var(--mg-divider)] px-3 py-2 bg-slate-50/90">
+          <div className="mg-b1-form-header">
             <h2 className="mg-card-title">{title}</h2>
-            {subtitle ? <p className="text-[11px] text-slate-500 mt-0.5">{subtitle}</p> : null}
+            {subtitle ? <p className="mg-b1-form-header__subtitle">{subtitle}</p> : null}
           </div>
         ) : null}
         <div className="p-3">{children}</div>

@@ -324,7 +324,7 @@ export default function Base1Grid({
             );
           })}
         </tbody>
-        {footer ? <tfoot className="bg-slate-50 font-semibold">{footer}</tfoot> : null}
+        {footer ? <tfoot className="mg-grid-foot">{footer}</tfoot> : null}
       </table>
     </div>
   );

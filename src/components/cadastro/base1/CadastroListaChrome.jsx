@@ -286,7 +286,7 @@ export default function CadastroListaChrome({
               aria-label="Limpar todos os filtros"
               title="Limpar todos os filtros"
               disabled={!filtersActive}
-              className={filtersActive ? "text-red-600" : undefined}
+              className={filtersActive ? "is-filter-active" : undefined}
               onClick={onClearFilters}
             >
               <FilterX className="h-4 w-4" />
