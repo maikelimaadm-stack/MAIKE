@@ -2004,4 +2004,24 @@ vez de duplicar markup ou CSS de referência.
 
 ---
 
-<!-- Próxima decisão: D-PROD-39 -->
+## D-PROD-39 — SSOT modelo visual Base1 (Agro ERP / CONTROLE-DE-ESTOQUE)
+
+**Data:** 2026-10-26  
+**Relatório:** `docs/engineering/UX-FROTA-PILOT-MARCAS-REPORT.md` (UX-36)  
+**Prompt:** `docs/engineering/PROMPT-MODELO-VISUAL-AGRO-ERP.md`
+
+**Decisão:** paridade visual e de UX do MODELO BASE1 no MAIKE segue o prompt
+versionado em `docs/engineering/PROMPT-MODELO-VISUAL-AGRO-ERP.md`. Tokens,
+grade, toolbar, filtros `fpop`, popovers e formulário de cadastro usam o motor
+em `src/components/cadastro/base1/` e estilos `cadastro-base1.css` /
+`cadastro-b1-controls.css` / `cadastro-b1ref.css`. A referência de leitura para
+cores, medidas e comportamento de grade permanece o `globals.css` do repositório
+CONTROLE-DE-ESTOQUE (não copiado literalmente para fora do escopo `.cadastro-b1`).
+
+**Consequência:** novas telas de cadastro no escopo Mapa + Manejo implementam
+paridade conforme o checklist §11 do prompt; divergências exigem emenda em
+`PROMPT-MODELO-VISUAL-AGRO-ERP.md` e entrada própria em `DECISIONS.md`.
+
+---
+
+<!-- Próxima decisão: D-PROD-40 -->

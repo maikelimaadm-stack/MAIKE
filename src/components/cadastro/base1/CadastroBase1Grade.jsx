@@ -2,11 +2,17 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import ConfiguracaoColunasMapaDialog from "@/components/mapa/ConfiguracaoColunasMapaDialog";
+import ConfiguracaoColunasB1Dialog from "@/components/cadastro/base1/ConfiguracaoColunasB1Dialog";
 import Base1Grid from "@/components/cadastro/base1/Base1Grid";
 import { Base1Cards } from "@/components/cadastro/base1/Base1Cards";
 import CadastroColunaFiltro from "@/components/cadastro/base1/CadastroColunaFiltro";
 import { casaNoFiltroColuna, tipoFiltroDaColuna } from "@/components/cadastro/base1/cadastroColunaFiltroLogic";
 import { MgCheck } from "@/components/cadastro/base1/Base1Ui";
+import {
+  clampColumnPrefsToVisible,
+  loadCadastroBase1ColumnPrefs,
+  persistCadastroBase1ColumnPrefs,
+} from "@/lib/cadastroBase1ColumnPrefs";
 import { ArrowDownAZ, ArrowUpZA, X } from "lucide-react";
 
 /** @param {Array<{ id: string; label: string; default?: boolean; sortable?: boolean; align?: string; width?: number; filterKind?: 'texto'|'num'|'data' }>} defs */
@@ -47,6 +53,9 @@ export function colunasBase1(defs) {
  * @param {string} [props.cardsTitleColId]
  * @param {string} [props.cardsCodeColId]
  * @param {boolean} [props.referenceHeaders] filtro de cabeçalho `fpop` (frota/equipamentos)
+ * @param {import('react').RefObject<HTMLElement | null>} [props.configureColumnsAnchorRef] âncora do popover de colunas (referenceHeaders)
+ * @param {boolean} [props.colunaSelecao] coluna de checkbox (false no portal compras / decisão 356)
+ * @param {boolean} [props.selecaoSticky] checkbox sticky à esquerda (false no portal compras / decisão 338)
  */
 export default function CadastroBase1Grade({
   rows = [],
@@ -78,6 +87,9 @@ export default function CadastroBase1Grade({
   cardsTitleColId,
   cardsCodeColId,
   referenceHeaders = false,
+  configureColumnsAnchorRef,
+  colunaSelecao = true,
+  selecaoSticky = true,
 }) {
   const dataCols = useMemo(() => colunasBase1(columns), [columns]);
   const defaultVisible = useMemo(
@@ -92,47 +104,29 @@ export default function CadastroBase1Grade({
   const [filtroTemp, setFiltroTemp] = useState({ colunaId: null, valores: [] });
   const [filtrosColunas, setFiltrosColunas] = useState({});
   const [headerFilters, setHeaderFilters] = useState({});
-  const [frozenCount, setFrozenCount] = useState(0);
+  const prefsOnce = useRef(null);
+  if (!prefsOnce.current) {
+    prefsOnce.current = loadCadastroBase1ColumnPrefs(storageKey, dataCols);
+  }
+  const initialPrefs = prefsOnce.current;
+
+  const [frozenCount, setFrozenCount] = useState(initialPrefs.frozenCount);
+  const [autoFitKeys, setAutoFitKeys] = useState(initialPrefs.autoFitKeys);
   const lastPick = useRef(null);
 
-  const [columnWidths, setColumnWidths] = useState(() => {
-    const defs = Object.fromEntries(dataCols.map((c) => [c.id, c.width || 160]));
-    const saved = localStorage.getItem(`${storageKey}_largura`);
-    if (!saved) return defs;
-    try {
-      return { ...defs, ...JSON.parse(saved) };
-    } catch {
-      return defs;
-    }
-  });
-
-  const [colunasOrdem, setColunasOrdem] = useState(() => {
-    const saved = localStorage.getItem(`${storageKey}_ordem`);
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch {
-        /* ignore */
-      }
-    }
-    return dataCols.map((c) => c.id);
-  });
-
-  const [colunasVisiveis, setColunasVisiveis] = useState(() => {
-    const saved = localStorage.getItem(`${storageKey}_visiveis`);
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch {
-        /* ignore */
-      }
-    }
-    return defaultVisible;
-  });
+  const [columnWidths, setColumnWidths] = useState(initialPrefs.columnWidths);
+  const [colunasOrdem, setColunasOrdem] = useState(initialPrefs.colunasOrdem);
+  const [colunasVisiveis, setColunasVisiveis] = useState(initialPrefs.colunasVisiveis);
 
   useEffect(() => {
-    localStorage.setItem(`${storageKey}_largura`, JSON.stringify(columnWidths));
-  }, [columnWidths, storageKey]);
+    persistCadastroBase1ColumnPrefs(storageKey, {
+      columnWidths,
+      colunasOrdem,
+      colunasVisiveis,
+      frozenCount,
+      autoFitKeys,
+    });
+  }, [columnWidths, colunasOrdem, colunasVisiveis, frozenCount, autoFitKeys, storageKey]);
 
   const idOf = rowKey ?? ((r) => String(r.id));
 
@@ -194,15 +188,34 @@ export default function CadastroBase1Grade({
 
   const ordenados = useMemo(() => {
     const s = [...filtrados];
+    const colDef = dataCols.find((c) => c.id === sortConfig.key);
+    const tipoSort = referenceHeaders ? tipoFiltroDaColuna(sortConfig.key, colDef) : "texto";
+    const numDeSort = (v) => {
+      const t = String(v ?? "").trim();
+      if (!/[0-9]/.test(t)) return null;
+      const n = Number(t.replace(/[^0-9,.-]/g, "").replace(/\./g, "").replace(",", "."));
+      return Number.isNaN(n) ? null : n;
+    };
     s.sort((a, b) => {
-      const av = String(getFieldValue(a, sortConfig.key) ?? "").toLowerCase();
-      const bv = String(getFieldValue(b, sortConfig.key) ?? "").toLowerCase();
-      if (av < bv) return sortConfig.direction === "asc" ? -1 : 1;
-      if (av > bv) return sortConfig.direction === "asc" ? 1 : -1;
-      return 0;
+      const rawA = getFieldValue(a, sortConfig.key);
+      const rawB = getFieldValue(b, sortConfig.key);
+      let cmp = 0;
+      if (tipoSort === "num") {
+        const na = numDeSort(rawA);
+        const nb = numDeSort(rawB);
+        if (na === null && nb === null) cmp = 0;
+        else if (na === null) cmp = 1;
+        else if (nb === null) cmp = -1;
+        else cmp = na - nb;
+      } else {
+        const av = String(rawA ?? "").toLowerCase();
+        const bv = String(rawB ?? "").toLowerCase();
+        cmp = av.localeCompare(bv, "pt-BR", { numeric: true });
+      }
+      return sortConfig.direction === "asc" ? cmp : -cmp;
     });
     return s;
-  }, [filtrados, sortConfig, getFieldValue]);
+  }, [filtrados, sortConfig, getFieldValue, dataCols, referenceHeaders]);
 
   const cardFieldKeys = useMemo(() => {
     if (cardFields?.length) return cardFields;
@@ -259,7 +272,7 @@ export default function CadastroBase1Grade({
     const col = dataCols.find((c) => c.id === colunaId);
     const colLabel = col?.label ?? colunaId;
     const valores = rows.map((r) => String(getFieldValue(r, colunaId) ?? ""));
-    const ancora = `[data-testid="b1-list"] [aria-label="Abrir menu da coluna ${colLabel}"]`;
+    const ancora = `[data-testid="b1-list"] [data-b1-col-menu="${colunaId}"]`;
     return (
       <CadastroColunaFiltro
         key={colunaId}
@@ -326,10 +339,38 @@ export default function CadastroBase1Grade({
       direction: p.key === k && p.direction === "asc" ? "desc" : "asc",
     }));
 
+  const applyVisibleKeys = (keys) => {
+    setColunasVisiveis(keys);
+  };
+
   const toggleColuna = (id) => {
     const n = colunasVisiveis.includes(id) ? colunasVisiveis.filter((i) => i !== id) : [...colunasVisiveis, id];
-    setColunasVisiveis(n);
-    localStorage.setItem(`${storageKey}_visiveis`, JSON.stringify(n));
+    applyVisibleKeys(n);
+  };
+
+  const ocultarColuna = (colKey) => {
+    const keys = colunasOrdenadas.map((c) => c.id);
+    const idx = keys.indexOf(colKey);
+    if (idx < 0) return;
+    const visiveis = colunasVisiveis.filter((id) => id !== colKey);
+    setColunasVisiveis(visiveis);
+    const ajuste = clampColumnPrefsToVisible(
+      {
+        frozenCount: idx < frozenCount ? frozenCount - 1 : frozenCount,
+        autoFitKeys,
+      },
+      visiveis,
+    );
+    setFrozenCount(ajuste.frozenCount);
+    setAutoFitKeys(ajuste.autoFitKeys);
+  };
+
+  const handleColumnResize = (k, w) => {
+    setColumnWidths((p) => ({ ...p, [k]: w }));
+  };
+
+  const handleFreeze = (n) => {
+    setFrozenCount(n);
   };
 
   const handleDragEnd = (r) => {
@@ -338,7 +379,6 @@ export default function CadastroBase1Grade({
     const [x] = items.splice(r.source.index, 1);
     items.splice(r.destination.index, 0, x);
     setColunasOrdem(items);
-    localStorage.setItem(`${storageKey}_ordem`, JSON.stringify(items));
   };
 
   const hasActiveFilter = (id) => (filtrosColunas[id] || []).length > 0;
@@ -378,50 +418,56 @@ export default function CadastroBase1Grade({
           <span className="sr-only">Filtro {colLabel}</span>
         </PopoverTrigger>
         {/* @ts-expect-error PopoverContent sem props tipadas */}
-        <PopoverContent align="end" side="bottom" sideOffset={4} className="w-[310px] p-0 z-[9999]">
-          <div className="p-1 space-y-0.5 border-b">
+        <PopoverContent
+          align="end"
+          side="bottom"
+          sideOffset={4}
+          className="cadastro-b1 w-[310px] p-0 z-[9999] rounded-[10px] border border-[var(--mg-divider)] bg-[var(--mg-bg-card)] shadow-md"
+        >
+          <div className="mg-b1-col-filter-menu">
             <button
               type="button"
-              className="flex items-center w-full px-2 h-8 text-xs hover:bg-slate-100 rounded"
+              className="mg-b1-col-filter-action"
               onClick={() => {
                 handleSort(colunaId);
                 setMenuFiltroAberto(null);
               }}
             >
-              <ArrowDownAZ className="w-4 h-4 mr-2" /> Menor para Maior
+              <ArrowDownAZ aria-hidden /> Menor para Maior
             </button>
             <button
               type="button"
-              className="flex items-center w-full px-2 h-8 text-xs hover:bg-slate-100 rounded"
+              className="mg-b1-col-filter-action"
               onClick={() => {
                 setSortConfig({ key: colunaId, direction: "desc" });
                 setMenuFiltroAberto(null);
               }}
             >
-              <ArrowUpZA className="w-4 h-4 mr-2" /> Maior para Menor
+              <ArrowUpZA aria-hidden /> Maior para Menor
             </button>
             <button
               type="button"
-              className={`flex items-center w-full px-2 h-8 text-xs rounded ${hasActiveFilter(colunaId) ? "hover:bg-slate-100" : "text-slate-300 cursor-not-allowed"}`}
+              className="mg-b1-col-filter-action"
               disabled={!hasActiveFilter(colunaId)}
               onClick={() => {
                 setFiltrosColunas((p) => ({ ...p, [colunaId]: [] }));
                 setMenuFiltroAberto(null);
               }}
             >
-              <X className="w-4 h-4 mr-2" /> Limpar Filtro
+              <X aria-hidden /> Limpar Filtro
             </button>
           </div>
-          <div className="p-2 space-y-2">
+          <div className="mg-b1-col-filter-body">
             <input
               type="text"
               value={buscaFiltroMenu}
               onChange={(e) => setBuscaFiltroMenu(e.target.value)}
               placeholder="PESQUISAR"
               className="mg-field h-8 w-full text-xs uppercase"
+              aria-label={`Pesquisar valores de ${colLabel}`}
             />
-            <div className="border border-slate-300 rounded-sm max-h-64 overflow-y-auto p-1 bg-white">
-              <label className="flex h-8 items-center gap-2 px-2 py-0 text-xs text-slate-700 border-b border-slate-200">
+            <div className="mg-b1-col-filter-list">
+              <label className="mg-b1-col-filter-row mg-b1-col-filter-row--header">
                 <MgCheck
                   checked={allSel}
                   indeterminate={!allSel && filtered.some((opt) => valoresSelecionados.includes(opt))}
@@ -438,10 +484,7 @@ export default function CadastroBase1Grade({
                 <span>(Selecionar Tudo)</span>
               </label>
               {filtered.map((opt) => (
-                <label
-                  key={String(opt)}
-                  className="flex h-6 items-center gap-2 px-2 py-0 text-xs text-slate-700 hover:bg-slate-50"
-                >
+                <label key={String(opt)} className="mg-b1-col-filter-row">
                   <MgCheck
                     checked={valoresSelecionados.includes(opt)}
                     onChange={(checked) =>
@@ -455,13 +498,13 @@ export default function CadastroBase1Grade({
                 </label>
               ))}
             </div>
-            <div className="flex items-center justify-end gap-2 pt-2">
+            <div className="mg-b1-col-filter-footer">
               <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setMenuFiltroAberto(null)}>
                 Cancelar
               </Button>
               <Button
                 size="sm"
-                className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+                className="tb-btn tb-btn-green h-8 text-xs"
                 onClick={() => {
                   setFiltrosColunas((p) => ({ ...p, [colunaId]: filtroTemp.valores }));
                   setMenuFiltroAberto(null);
@@ -474,6 +517,36 @@ export default function CadastroBase1Grade({
         </PopoverContent>
       </Popover>
     );
+  };
+
+  const ocultasSet = useMemo(
+    () => new Set(dataCols.filter((c) => !colunasVisiveis.includes(c.id)).map((c) => c.id)),
+    [dataCols, colunasVisiveis],
+  );
+  const colunasParaDialogo = useMemo(
+    () =>
+      colunasOrdem
+        .map((id) => dataCols.find((c) => c.id === id))
+        .filter(Boolean)
+        .map((c) => ({ id: c.id, label: c.label })),
+    [colunasOrdem, dataCols],
+  );
+
+  const restaurarColunas = () => {
+    applyVisibleKeys(defaultVisible);
+    setColunasOrdem(dataCols.map((c) => c.id));
+    setColumnWidths(Object.fromEntries(dataCols.map((c) => [c.id, c.width || 160])));
+    setFrozenCount(0);
+    setAutoFitKeys(new Set());
+  };
+
+  const toggleAutoFit = (colKey) => {
+    setAutoFitKeys((prev) => {
+      const n = new Set(prev);
+      if (n.has(colKey)) n.delete(colKey);
+      else n.add(colKey);
+      return n;
+    });
   };
 
   if (viewMode === "cards") {
@@ -506,6 +579,7 @@ export default function CadastroBase1Grade({
     <>
       <Base1Grid
         referenceHeaders={referenceHeaders}
+        referenceExtendedColumnMenu={referenceHeaders}
         columns={gridColumns}
         rows={visibleRows}
         loading={isLoading}
@@ -517,16 +591,13 @@ export default function CadastroBase1Grade({
         onToggleAll={onToggleAll}
         onOpen={onOpen}
         frozen={frozenCount}
-        onFreeze={setFrozenCount}
-        onHide={(k) => toggleColuna(k)}
-        onResize={(k, w) => setColumnWidths((p) => ({ ...p, [k]: w }))}
-        onAutoFit={(k) =>
-          setColumnWidths((p) => {
-            const next = { ...p };
-            delete next[k];
-            return next;
-          })
-        }
+        onFreeze={handleFreeze}
+        onHide={ocultarColuna}
+        onResize={handleColumnResize}
+        onAutoFit={toggleAutoFit}
+        colunaSelecao={colunaSelecao}
+        selecaoSticky={selecaoSticky}
+        autoFitKeys={autoFitKeys}
         onFilter={(k) => setMenuFiltroAberto(k)}
         filteredKeys={filteredKeys}
         emptyText={emptyText}
@@ -536,7 +607,24 @@ export default function CadastroBase1Grade({
       {referenceHeaders
         ? dataCols.map((c) => renderReferenceFilter(c.id))
         : dataCols.map((c) => renderFilterPopover(c.id))}
-      {setShowConfigColunas ? (
+      {setShowConfigColunas && referenceHeaders ? (
+        <ConfiguracaoColunasB1Dialog
+          open={showConfigColunas}
+          onFechar={() => setShowConfigColunas(false)}
+          titulo="Colunas da tabela"
+          colunas={colunasParaDialogo}
+          ocultas={ocultasSet}
+          onAplicar={(visiveis, ordemCompleta) => {
+            setColunasVisiveis(visiveis);
+            setColunasOrdem(ordemCompleta);
+            const ajuste = clampColumnPrefsToVisible({ frozenCount, autoFitKeys }, visiveis);
+            setFrozenCount(ajuste.frozenCount);
+            setAutoFitKeys(ajuste.autoFitKeys);
+          }}
+          onRestaurar={restaurarColunas}
+        />
+      ) : null}
+      {setShowConfigColunas && !referenceHeaders ? (
         <ConfiguracaoColunasMapaDialog
           open={showConfigColunas}
           onOpenChange={setShowConfigColunas}

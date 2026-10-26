@@ -20,30 +20,39 @@
   --mg-accent: #40de63;
   --mg-accent-hover: #36c956;
   --mg-accent-light: rgba(64, 222, 99, 0.12);
+  --mg-blue: #2899f5;
+  --mg-red: #dc2626;
+  --mg-ink: #1a1f26;
   --mg-icon: #5b6b80;
   --mg-text-1: #111827;
   --mg-text-2: #6b7280;
   --mg-text-3: #9ca3af;
+  --mg-bg-page: #f0f2f5;
   --mg-bg-card: #ffffff;
   --mg-gray-fill: #f1f3f4;
   --mg-gray-fill2: #e5e7eb;
   --mg-divider: #e7eaee;
+  --mg-container-border: 1px solid #e7eaee;
   --mg-table-line: #e7eaee;
   --mg-radius-card: 12px;
+  --mg-radius-control: 8px;
   --mg-card-shadow: 0 1px 2px rgba(15, 23, 42, 0.03), 0 2px 6px rgba(15, 23, 42, 0.02);
   --mg-focus-border: rgba(64, 222, 99, 0.35);
   --mg-focus-ring: inset 0 0 0 1px rgba(64, 222, 99, 0.12);
   --mg-btn-h: 28px;
+  --mg-btn-font: 13px;
   --mg-btn-font-compact: 12px;
   --mg-toolbar-h: 36px;
   --mg-field-h: 38px;
-  --mg-radius-control: 8px;
   --mg-field-edge-shadow: inset 0 1px 2px rgba(100, 116, 139, 0.05),
     inset 1px 0 1px rgba(148, 163, 184, 0.07), inset -1px 0 1px rgba(148, 163, 184, 0.07);
   --mg-selection-bg: rgba(64, 222, 99, 0.12);
   --mg-row-alt: #fafbfc;
   --mg-row-hover: #eef6ff;
-  --mg-red: #dc2626;
+  --mg-overlay-bg: rgba(15, 23, 42, 0.45);
+  --mg-z-overlay: 40;
+  --mg-z-dialog: 50;
+  --mg-page-gap: 8px;
 
   display: flex;
   flex-direction: column;
@@ -280,9 +289,9 @@
 }
 
 .cadastro-b1 .mg-summary__counts {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 16px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px 12px;
   flex: 1 1 auto;
   min-width: 0;
 }
@@ -503,11 +512,6 @@
   border-right: 1px solid var(--mg-table-line);
 }
 
-.cadastro-b1 .mg-grid thead th:last-child,
-.cadastro-b1 .mg-grid tbody td:last-child {
-  border-right: 0;
-}
-
 .cadastro-b1 .mg-grid tbody td {
   height: 26px;
   padding: 0 9px;
@@ -554,13 +558,13 @@
   justify-content: center;
   width: 20px;
   height: 20px;
-  color: var(--mg-icon);
+  color: #475569;
   border-radius: 999px;
 }
 
 .cadastro-b1 .mg-grid .th-menu:hover {
   background: var(--mg-gray-fill);
-  color: var(--mg-accent);
+  color: #0f172a;
 }
 
 .cadastro-b1 .mg-grid .th-menu.is-on {
@@ -580,9 +584,24 @@
 
 .cadastro-b1 .mg-grid th.is-frozen-anchor,
 .cadastro-b1 .mg-grid td.is-frozen-anchor {
-  box-shadow:
-    inset -2px 0 0 0 var(--mg-accent),
-    4px 0 8px -4px rgba(0, 0, 0, 0.18);
+  box-shadow: 4px 0 8px -4px rgba(15, 23, 42, 0.22);
+}
+
+.cadastro-b1 .mg-grid .th-estado {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 3px;
+  margin-left: 2px;
+  color: #94a3b8;
+}
+
+.cadastro-b1 .mg-grid .th-estado-icone {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+  display: block;
+  color: inherit;
 }
 
 .cadastro-b1 .mg-grid .th-select,
@@ -599,21 +618,18 @@
   position: absolute;
   right: 0;
   top: 0;
+  z-index: 5;
   height: 100%;
   width: 6px;
   cursor: col-resize;
-  opacity: 0;
-  transition: opacity 0.15s;
+  touch-action: none;
+  user-select: none;
+  background: transparent;
 }
 
 .cadastro-b1 .mg-grid thead th:hover .mg-grid-resize-handle,
 .cadastro-b1 .mg-grid-resize-handle:hover {
-  opacity: 0.6;
-  background: var(--mg-accent);
-}
-
-.cadastro-b1 .mg-grid thead th.group:hover .mg-grid-resize-handle {
-  opacity: 0.4;
+  background: rgba(64, 222, 99, 0.45);
 }
 
 .cadastro-b1 .mg-check {
@@ -689,7 +705,7 @@
   box-sizing: border-box;
   height: var(--mg-btn-h);
   width: auto;
-  min-width: 3.25rem;
+  min-width: 4.5rem;
   border-radius: 999px;
   background: var(--mg-gray-fill);
   border: 1px solid transparent;
@@ -704,12 +720,6 @@
 }
 
 /* mg-pill-select-panel: ver cadastro-b1-controls.css (borda moldura #dfe2e7) */
-
-.cadastro-b1 .mg-summary__footer-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
 
 /* Campos flutuantes (formulários Base1 — paridade globals.css / B1Field) */
 .cadastro-b1 .mg-field {
@@ -925,4 +935,507 @@
 .cadastro-b1 .cadastro-b1-form-field > div:last-child.border-red-500 {
   border-color: var(--mg-red);
   background: #fef2f2;
+}
+
+/* Popovers portados (Radix) — tokens e linhas SSOT (CheckRow / MenuList) */
+.cadastro-b1.mg-b1-glass-pop {
+  color: var(--mg-text-1);
+  font-size: 12.5px;
+}
+
+.cadastro-b1 .mg-b1-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  border-radius: 6px;
+  padding: 6px 4px;
+  cursor: pointer;
+  text-align: left;
+  font-size: 12.5px;
+  color: var(--mg-text-1);
+  transition: background 0.12s ease;
+}
+
+.cadastro-b1 .mg-b1-row:hover,
+.cadastro-b1 .mg-b1-row:focus-within {
+  background: var(--mg-gray-fill);
+}
+
+.cadastro-b1 .mg-b1-row--start {
+  align-items: flex-start;
+}
+
+.cadastro-b1 .mg-b1-check {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  border: 1px solid #cbd5e1;
+  background: var(--mg-bg-card);
+  color: #fff;
+}
+
+.cadastro-b1 .mg-b1-check.is-on {
+  border-color: var(--mg-accent);
+  background: var(--mg-accent);
+}
+
+.cadastro-b1 .mg-b1-check__icon {
+  width: 10px;
+  height: 10px;
+}
+
+.cadastro-b1 .mg-b1-check--radio.is-on::after {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: #fff;
+}
+
+.cadastro-b1 .mg-b1-row__title {
+  display: block;
+  font-weight: 500;
+  color: var(--mg-text-1);
+}
+
+.cadastro-b1 .mg-b1-row__hint {
+  display: block;
+  font-size: 11px;
+  color: var(--mg-text-2);
+}
+
+.cadastro-b1 .mg-b1-row__aside {
+  margin-left: auto;
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--mg-text-3);
+}
+
+.cadastro-b1 .mg-b1-menuitem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 30px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 8px;
+  font-size: 12.5px;
+  color: var(--mg-text-1);
+  text-align: left;
+  background: transparent;
+  cursor: pointer;
+}
+
+.cadastro-b1 .mg-b1-menuitem:hover:not(:disabled) {
+  background: var(--mg-bg-page);
+}
+
+.cadastro-b1 .mg-b1-menuitem:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.cadastro-b1 .mg-b1-menuitem.is-danger,
+.cadastro-b1 .mg-b1-menuitem.is-danger > span {
+  color: var(--mg-red);
+}
+
+.cadastro-b1 .mg-empty-state {
+  padding: 2.5rem 0;
+  text-align: center;
+  font-size: 13px;
+  color: var(--mg-text-2);
+}
+
+.cadastro-b1 .mg-grid .mg-empty-state {
+  padding: 1.5rem 0;
+}
+
+/* Tipografia SSOT (evita text-slate-* solto nos componentes Base1) */
+.cadastro-b1 .mg-b1-text-1 {
+  color: var(--mg-text-1);
+}
+
+.cadastro-b1 .mg-b1-text-2 {
+  color: var(--mg-text-2);
+}
+
+.cadastro-b1 .mg-b1-text-3 {
+  color: var(--mg-text-3);
+}
+
+.cadastro-b1 .mg-b1-record-heading {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--mg-text-1);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cadastro-b1 .mg-b1-record-sep {
+  color: var(--mg-text-3);
+}
+
+.cadastro-b1 .mg-b1-record-nav {
+  padding: 0 4px;
+  font-size: 12px;
+  color: var(--mg-text-2);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Status Sim/Não (grade e cards) */
+.cadastro-b1 .mg-b1-status--yes {
+  color: #15803d;
+  font-weight: 500;
+}
+
+.cadastro-b1 .mg-b1-status--no {
+  color: var(--mg-text-2);
+}
+
+/* Cards — hover e tipografia */
+.cadastro-b1 .b1-card {
+  transition:
+    box-shadow 0.2s ease,
+    background 0.15s ease;
+}
+
+.cadastro-b1 .b1-card:hover:not(.is-selected) {
+  box-shadow:
+    0 4px 14px rgba(15, 23, 42, 0.07),
+    0 1px 3px rgba(15, 23, 42, 0.04);
+}
+
+.cadastro-b1 .mg-b1-card__title {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: left;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--mg-text-1);
+}
+
+.cadastro-b1 .mg-b1-card__code {
+  color: var(--mg-text-2);
+}
+
+.cadastro-b1 .mg-b1-card__fields {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px 16px;
+  font-size: 12px;
+}
+
+.cadastro-b1 .mg-b1-card__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--mg-text-2);
+}
+
+.cadastro-b1 .mg-b1-card__value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+  color: var(--mg-text-1);
+}
+
+/* Formulário em modo registro (Marcas e cadastros Base1) — grade 12 colunas, largura total */
+.cadastro-b1 .mg-b1-record-form {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+}
+
+.cadastro-b1 .mg-b1-form-grid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 12px;
+  width: 100%;
+  min-height: 0;
+}
+
+@media (min-width: 768px) {
+  .cadastro-b1 .mg-b1-form-grid {
+    gap: 16px;
+  }
+}
+
+.cadastro-b1 .mg-b1-field-msg {
+  margin-top: 2px;
+  font-size: 11px;
+  line-height: 1.3;
+  color: var(--mg-red);
+}
+
+.cadastro-b1 .mg-b1-form-header {
+  border-bottom: 1px solid var(--mg-divider);
+  padding: 8px 12px;
+  background: var(--mg-row-alt);
+}
+
+.cadastro-b1 .mg-b1-form-header__subtitle {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--mg-text-2);
+}
+
+.cadastro-b1 .mg-grid-foot {
+  background: var(--mg-row-alt);
+  font-weight: 600;
+}
+
+/* Foco visível — teclado (ui-ux-pro-max / WCAG) */
+.cadastro-b1 .tb-btn:focus-visible,
+.cadastro-b1 .view-seg button:focus-visible,
+.cadastro-b1 .mg-b1-menuitem:focus-visible,
+.cadastro-b1 .mg-b1-row:focus-visible {
+  outline: 2px solid var(--mg-focus-border);
+  outline-offset: 2px;
+}
+
+.cadastro-b1 .mg-search-pill-clear:focus-visible {
+  outline: 2px solid var(--mg-focus-border);
+  outline-offset: 2px;
+  border-radius: 999px;
+}
+
+.cadastro-b1 .tb-btn-icon.is-filter-active {
+  color: var(--mg-red);
+}
+
+.cadastro-b1 .tb-btn-icon.is-filter-active:hover:not(:disabled) {
+  background: rgba(220, 38, 38, 0.08);
+}
+
+/* Menu de filtro de coluna (grade Base1) */
+.cadastro-b1 .mg-b1-col-filter-menu {
+  padding: 4px;
+  border-bottom: 1px solid var(--mg-divider);
+}
+
+.cadastro-b1 .mg-b1-col-filter-action {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 32px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--mg-text-1);
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.cadastro-b1 .mg-b1-col-filter-action:hover:not(:disabled) {
+  background: var(--mg-gray-fill);
+}
+
+.cadastro-b1 .mg-b1-col-filter-action:disabled {
+  color: var(--mg-text-3);
+  cursor: not-allowed;
+}
+
+.cadastro-b1 .mg-b1-col-filter-action svg {
+  width: 16px;
+  height: 16px;
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+
+.cadastro-b1 .mg-b1-col-filter-list {
+  max-height: 16rem;
+  overflow-y: auto;
+  padding: 4px;
+  border: 1px solid var(--mg-divider);
+  border-radius: var(--mg-radius-control);
+  background: var(--mg-bg-card);
+}
+
+.cadastro-b1 .mg-b1-col-filter-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 28px;
+  padding: 0 8px;
+  font-size: 12px;
+  color: var(--mg-text-1);
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.cadastro-b1 .mg-b1-col-filter-row:hover {
+  background: var(--mg-gray-fill);
+}
+
+.cadastro-b1 .mg-b1-col-filter-row--header {
+  height: 32px;
+  border-bottom: 1px solid var(--mg-divider);
+  margin-bottom: 2px;
+  font-weight: 500;
+}
+
+.cadastro-b1 .mg-b1-col-filter-body {
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cadastro-b1 .mg-b1-col-filter-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 8px;
+}
+
+/* Toolbar: quebra segura em telas estreitas */
+@media (max-width: 639px) {
+  .cadastro-b1 .mg-toolbar {
+    row-gap: 6px;
+    height: auto;
+    min-height: var(--mg-toolbar-h);
+    padding-top: 6px;
+    padding-bottom: 6px;
+  }
+
+  .cadastro-b1 .mg-toolbar .mg-toolbar__right,
+  .cadastro-b1 .mg-toolbar > .ml-auto {
+    margin-left: 0;
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .cadastro-b1 .mg-toolbar__list-tools {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  /* Piloto Marcas / layout base1-list em mobile */
+  .cadastro-b1--full-page .mg-summary {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .cadastro-b1--full-page .mg-summary__counts {
+    gap: 4px 12px;
+    font-size: 11px;
+  }
+
+  .cadastro-b1--full-page .mg-summary__footer-actions {
+    width: 100%;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .cadastro-b1--full-page .mg-shell--fill > .mg-shell__body .mg-grid-wrap,
+  .cadastro-b1--full-page .mg-grid-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .cadastro-b1--full-page .mg-grid {
+    min-width: min(100%, 520px);
+  }
+
+  .cadastro-b1--full-page .mg-b1-form-grid,
+  .cadastro-b1--full-page form.b1.grid {
+    gap: 12px;
+  }
+
+  .cadastro-b1--full-page .mg-form-scroll {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+}
+
+/* Portal de Compras / itpan — toolbar + faixa + grade no mesmo cartão */
+.cadastro-b1 .mg-shell--join-table {
+  --portal-espaco: 6px;
+}
+
+.cadastro-b1 .mg-shell--join-table .mg-toolbar--join {
+  flex-shrink: 0;
+  height: auto;
+  min-height: var(--mg-toolbar-h);
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: #fbfcfd;
+  border-bottom: 1px solid #eef1f4;
+  gap: var(--portal-espaco, 6px);
+  padding: 4px 11px;
+}
+
+.cadastro-b1 .mg-shell--join-table .mg-rail--join {
+  flex-shrink: 0;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: #fff;
+  border-bottom: 1px solid #eef1f4;
+}
+
+.cadastro-b1 .mg-shell--join-table > .mg-shell__body,
+.cadastro-b1 .mg-shell--join-table > .mg-shell__scroll,
+.cadastro-b1 .mg-shell--join-table > .mg-form-scroll {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.cadastro-b1 .mg-shell--join-table > .mg-shell__scroll,
+.cadastro-b1 .mg-shell--join-table > .mg-form-scroll {
+  flex: 1 1 auto;
+  overflow: auto;
+}
+
+.cadastro-b1 .mg-header-filter-hint {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  font-size: 11.5px;
+  color: var(--mg-text-3);
+  border-bottom: 1px solid var(--mg-table-line);
+  background: #fff;
+}
+
+.cadastro-b1 .fchip-lim {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 0;
+  background: transparent;
+  color: #64748b;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+
+.cadastro-b1 .fchip-lim:hover {
+  background: #f4f6f7;
+  color: #0f172a;
 }

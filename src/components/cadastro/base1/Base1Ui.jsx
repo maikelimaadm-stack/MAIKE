@@ -1,6 +1,26 @@
 import React from "react";
 import { Check, FileText, Table2, LayoutGrid } from "lucide-react";
 
+/** Ícone ⚡ do Mais opções (decisão 353 — paridade `IconeRaio` / Central). @param {{ className?: string }} props */
+export function IconeRaio({ className = undefined }) {
+  return (
+    <svg
+      width={16}
+      height={16}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+      className={className}
+    >
+      <path d="M13 2 3 14h9l-1 8 10-12h-9z" />
+    </svg>
+  );
+}
+
 /** Reexportações SSOT Base1 (fecha `gate:source-closure` nos controles compartilhados). */
 export { MgSelect } from "./MgSelect";
 export { MgDatePicker, B1DatePicker, isoToBR, brToISO } from "./MgDatePicker";
@@ -56,11 +76,12 @@ PillBtn.displayName = "PillBtn";
  * @param {boolean} [props.cardsDisabled]
  */
 export function ViewSwitch({ value, onChange, recordDisabled, cardsDisabled }) {
-  const item = (m, label, Icon, disabled) => (
+  const item = (m, label, Icon, disabled, title) => (
     <button
       key={m}
       type="button"
       aria-label={label}
+      title={title ?? label}
       aria-pressed={value === m}
       disabled={disabled}
       onClick={() => onChange(m)}
@@ -70,9 +91,15 @@ export function ViewSwitch({ value, onChange, recordDisabled, cardsDisabled }) {
   );
   return (
     <div className="view-seg" role="group" aria-label="Modo de visualização">
-      {item("record", "Registro", FileText, recordDisabled)}
-      {item("table", "Tabela", Table2, false)}
-      {item("cards", "Cards", LayoutGrid, cardsDisabled)}
+      {item("record", "Registro", FileText, recordDisabled, "Abrir registro selecionado")}
+      {item("table", "Tabela", Table2, false, "Grade em tabela")}
+      {item(
+        "cards",
+        "Cards",
+        LayoutGrid,
+        cardsDisabled,
+        cardsDisabled ? "Modo cards indisponível" : "Visualizar em cards",
+      )}
     </div>
   );
 }
@@ -83,11 +110,21 @@ export function ViewSwitch({ value, onChange, recordDisabled, cardsDisabled }) {
  * @param {boolean} [props.open]
  * @param {(o: boolean) => void} [props.onOpenChange]
  * @param {import('react').ReactNode} props.children
+ * @param {import('react').ReactNode} [props.footer]
  * @param {string} [props.className]
  * @param {'start'|'center'|'end'} [props.align]
  * @param {string} [props.title]
  */
-export function B1Popover({ trigger, open, onOpenChange, children, className, align = "end", title }) {
+export function B1Popover({
+  trigger,
+  open,
+  onOpenChange,
+  children,
+  footer,
+  className,
+  align = "end",
+  title,
+}) {
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
       <PopoverTrigger asChild>{trigger}</PopoverTrigger>
@@ -96,14 +133,75 @@ export function B1Popover({ trigger, open, onOpenChange, children, className, al
         align={align}
         sideOffset={6}
         className={cn(
-          "mg-b1-glass-pop z-50 w-72 rounded-[14px] p-3 text-[12.5px] outline-none",
+          "cadastro-b1 mg-b1-glass-pop z-50 w-72 rounded-[14px] border-0 bg-transparent p-3 text-[12.5px] shadow-none outline-none",
+          "data-[state=open]:animate-none data-[state=closed]:animate-none",
           className,
         )}
       >
-        {title ? <div className="mb-2 text-[12px] font-semibold text-slate-700">{title}</div> : null}
+        {title ? <div className="mb-2 text-[12px] font-semibold text-[var(--mg-text-1)]">{title}</div> : null}
         {children}
+        {footer ? <div className="mt-3 flex items-center gap-2">{footer}</div> : null}
       </PopoverContent>
     </Popover>
+  );
+}
+
+/**
+ * @param {object} props
+ * @param {boolean} props.checked
+ * @param {() => void} props.onClick
+ * @param {string} props.title
+ * @param {string} [props.hint]
+ */
+export function RadioRow({ checked, onClick, title, hint }) {
+  return (
+    <button
+      type="button"
+      role="radio"
+      aria-checked={checked}
+      onClick={onClick}
+      className="mg-b1-row mg-b1-row--start"
+    >
+      <span className={cn("mg-b1-check mg-b1-check--radio mt-0.5", checked && "is-on")} aria-hidden />
+      <span>
+        <span className="mg-b1-row__title">{title}</span>
+        {hint ? <span className="mg-b1-row__hint">{hint}</span> : null}
+      </span>
+    </button>
+  );
+}
+
+/**
+ * @param {object} props
+ * @param {boolean} props.checked
+ * @param {(checked: boolean) => void} props.onChange
+ * @param {import('react').ReactNode} props.label
+ * @param {string} [props.hint]
+ */
+export function CheckRow({ checked, onChange, label, hint }) {
+  const id = React.useId();
+  return (
+    <label htmlFor={id} className="mg-b1-row">
+      <input
+        id={id}
+        type="checkbox"
+        className="sr-only"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        onKeyDown={(e) => {
+          if (e.key === " ") e.stopPropagation();
+        }}
+      />
+      <span className={cn("mg-b1-check", checked && "is-on")} aria-hidden>
+        {checked ? (
+          <svg viewBox="0 0 12 12" className="mg-b1-check__icon" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M2 6l3 3 5-6" />
+          </svg>
+        ) : null}
+      </span>
+      <span className="min-w-0 flex-1">{label}</span>
+      {hint ? <span className="mg-b1-row__aside">{hint}</span> : null}
+    </label>
   );
 }
 
@@ -118,10 +216,7 @@ export function MenuList({ items, onPick }) {
           role="menuitem"
           disabled={i.disabled}
           onClick={() => onPick(i.key)}
-          className={cn(
-            "flex h-[30px] items-center gap-2 rounded-lg px-2 text-left text-[12.5px] text-slate-700 hover:bg-[var(--mg-gray-fill)] disabled:opacity-40",
-            i.danger && "text-red-600",
-          )}
+          className={cn("mg-b1-menuitem", i.danger && "is-danger")}
         >
           {i.icon ? <span className="text-[var(--mg-icon)]">{i.icon}</span> : null}
           {i.label}

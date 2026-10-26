@@ -1,9 +1,15 @@
 import React from "react";
 import { createPortal } from "react-dom";
-import { Check, FilterX, Search } from "lucide-react";
+import { Check, FilterX, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { operadoresParaTipo } from "./cadastroColunaFiltroLogic";
 import { MgDatePicker, brToISO, isoToBR } from "./MgDatePicker";
+import SeletorDeOperador from "./SeletorDeOperador";
+import { usePortalComprasSkin } from "./portalComprasSkinContext";
+import {
+  deveFecharFiltroPorFora,
+  haCamadaAninhadaDoFiltroAberta,
+} from "./cadastroColunaFiltroCamada";
 
 function Chk({ on, parte = false }) {
   return (
@@ -14,16 +20,7 @@ function Chk({ on, parte = false }) {
 }
 
 /**
- * Popover de filtro de cabeçalho (`fpop` — paridade frota/equipamentos).
- *
- * @param {object} props
- * @param {string} props.rotulo
- * @param {'texto'|'num'|'data'} props.tipo
- * @param {string} props.ancora seletor CSS do botão do cabeçalho
- * @param {string[]} props.valores valores distintos da coluna (linhas carregadas)
- * @param {import('./cadastroColunaFiltroLogic').CadastroColunaFiltroAtivo | null} props.atual
- * @param {(f: import('./cadastroColunaFiltroLogic').CadastroColunaFiltroAtivo | null) => void} props.onAplicar
- * @param {() => void} props.onFechar
+ * Popover de filtro de cabeçalho (`fpop` — paridade frota/equipamentos / portal compras).
  */
 export default function CadastroColunaFiltro({
   rotulo,
@@ -34,6 +31,7 @@ export default function CadastroColunaFiltro({
   onAplicar,
   onFechar,
 }) {
+  const portalSkin = usePortalComprasSkin();
   const contagem = React.useMemo(() => {
     const m = new Map();
     for (const v of valores) m.set(v, (m.get(v) ?? 0) + 1);
@@ -48,22 +46,11 @@ export default function CadastroColunaFiltro({
   const [v2, setV2] = React.useState(atual?.v2 ?? "");
   const [busca, setBusca] = React.useState("");
   const [pos, setPos] = React.useState(/** @type {React.CSSProperties} */ ({ visibility: "hidden" }));
-
+  const painel = React.useRef(null);
   const fechar = React.useRef(onFechar);
   fechar.current = onFechar;
 
-  React.useEffect(() => {
-    const teclado = (e) => {
-      if (e.key === "Escape" && !e.defaultPrevented) {
-        e.preventDefault();
-        fechar.current();
-      }
-    };
-    document.addEventListener("keydown", teclado);
-    return () => document.removeEventListener("keydown", teclado);
-  }, []);
-
-  React.useLayoutEffect(() => {
+  const reposicionar = React.useCallback(() => {
     const el = document.querySelector(ancora)?.closest("th");
     if (!el) return;
     const b = el.getBoundingClientRect();
@@ -72,10 +59,54 @@ export default function CadastroColunaFiltro({
     const acima = b.top - 12;
     setPos(
       abaixo >= 360 || abaixo >= acima
-        ? { top: b.bottom + 4, left, maxHeight: abaixo }
-        : { bottom: window.innerHeight - b.top + 4, left, maxHeight: acima },
+        ? { top: b.bottom + 4, left, maxHeight: abaixo, visibility: "visible" }
+        : {
+            bottom: window.innerHeight - b.top + 4,
+            left,
+            maxHeight: acima,
+            visibility: "visible",
+          },
     );
   }, [ancora]);
+
+  React.useLayoutEffect(() => {
+    reposicionar();
+  }, [reposicionar]);
+
+  React.useEffect(() => {
+    const teclado = (e) => {
+      if (e.key !== "Escape" || e.defaultPrevented) return;
+      if (haCamadaAninhadaDoFiltroAberta()) return;
+      e.preventDefault();
+      fechar.current();
+    };
+    const fora = (e) => {
+      const th = document.querySelector(ancora)?.closest("th") ?? null;
+      const shell = painel.current?.querySelector?.(".fpop") ?? painel.current;
+      if (
+        !deveFecharFiltroPorFora({
+          alvo: e.target,
+          ponto: e,
+          shell,
+          ancora: th,
+        })
+      ) {
+        return;
+      }
+      fechar.current();
+    };
+    const scroll = () => reposicionar();
+    document.addEventListener("keydown", teclado);
+    document.addEventListener("mousedown", fora);
+    window.addEventListener("resize", scroll);
+    window.addEventListener("scroll", scroll, true);
+    return () => {
+      document.removeEventListener("keydown", teclado);
+      document.removeEventListener("mousedown", fora);
+      window.removeEventListener("resize", scroll);
+      window.removeEventListener("scroll", scroll, true);
+    };
+  }, [ancora, reposicionar]);
 
   const ops = operadoresParaTipo(tipo);
   const vistos = contagem.filter(([v]) => v.toLowerCase().includes(busca.toLowerCase()));
@@ -87,18 +118,24 @@ export default function CadastroColunaFiltro({
     onAplicar(!op && !valoresFiltrados ? null : { op, v1, v2, valores: valoresFiltrados });
   };
 
+  const aoEnviar = (e) => {
+    e.preventDefault();
+    aplicar();
+  };
+
   const ph = tipo === "data" ? "dd/mm/aaaa" : tipo === "num" ? "Número" : "Valor";
 
+  const shellClass = cn("b1ref", portalSkin && "b1-portal-compras");
+
   return createPortal(
-    <div className="b1ref">
-      <button
-        type="button"
-        aria-label="Fechar o filtro"
-        tabIndex={-1}
-        className="fixed inset-0 z-[59] cursor-default"
-        onClick={onFechar}
-      />
-      <div className="pop fpop" role="menu" aria-label={`Filtrar coluna ${rotulo}`} style={pos}>
+    <div className={shellClass} ref={painel}>
+      <form
+        className={cn("pop fpop", portalSkin && "b1-portal-compras")}
+        role="menu"
+        aria-label={`Filtrar coluna ${rotulo}`}
+        style={pos}
+        onSubmit={aoEnviar}
+      >
         <button
           type="button"
           className="fmi"
@@ -110,18 +147,11 @@ export default function CadastroColunaFiltro({
         </button>
         <span className="opt-sep" aria-hidden="true" />
         <div className="fcond">
-          <select
-            className="fin w-full"
-            value={op || "sem"}
-            onChange={(e) => setOp(e.target.value === "sem" ? "" : e.target.value)}
-            aria-label="Condição do filtro"
-          >
-            {ops.map(([value, label]) => (
-              <option key={value || "sem"} value={value || "sem"}>
-                {label}
-              </option>
-            ))}
-          </select>
+          <SeletorDeOperador
+            valor={op || "sem"}
+            opcoes={ops.map(([value, label]) => ({ value: value || "sem", label }))}
+            onChange={(v) => setOp(v === "sem" ? "" : v)}
+          />
         </div>
         {op ? (
           <div className="fcond">
@@ -228,14 +258,14 @@ export default function CadastroColunaFiltro({
         </div>
         <div className="fpop-f">
           <span style={{ flexGrow: 1 }} />
-          <button type="button" className="tb-btn tb-btn-out xs" onClick={onFechar}>
-            Cancelar
+          <button type="button" className="tb-btn tb-btn-icon tb-btn-sm shrink-0" title="Cancelar" aria-label="Cancelar" onClick={onFechar}>
+            <X className="h-4 w-4" />
           </button>
-          <button type="button" className="tb-btn novo xs" onClick={aplicar}>
-            Aplicar
+          <button type="submit" className="tb-btn tb-btn-icon tb-btn-sm shrink-0" title="Aplicar" aria-label="Aplicar">
+            <Check className="h-4 w-4" />
           </button>
         </div>
-      </div>
+      </form>
     </div>,
     document.body,
   );

@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { toast } from "sonner";
-import B1Field, { B1_FIELD_INPUT_CLS } from "@/components/cadastro/base1/B1Field";
-import B1ChaveRow from "@/components/cadastro/base1/B1ChaveRow";
+import B1Field, { B1_FIELD_CTL_CLS } from "@/components/cadastro/base1/B1Field";
+import { B1ChaveRow } from "@/components/cadastro/base1/Base1Ui";
 import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
 import CadastroFormActions from "@/components/cadastro/base1/CadastroFormActions";
 
@@ -14,6 +14,7 @@ export default function FormularioMarca({
   variant = "card",
   toolbarActions = false,
   isSubmitting = false,
+  readOnly = false,
 }) {
   const isEditing = !!initialData?.id;
   const embedded = variant === "embedded";
@@ -47,13 +48,17 @@ export default function FormularioMarca({
     <form
       id={FORMULARIO_MARCA_ID}
       onSubmit={handleSubmit}
-      className="b1 grid min-h-0 w-full grid-cols-12 gap-3"
+      className="b1 grid w-full min-h-0 grid-cols-12 gap-3"
+      noValidate
+      data-testid="b1-form"
     >
       <B1Field
         label="Nome"
         required
         span={6}
         hasValue={Boolean(form.nome?.trim())}
+        locked={readOnly}
+        disabled={readOnly}
         error={invalidFields.includes("nome") ? "Obrigatório" : undefined}
       >
         <input
@@ -61,25 +66,34 @@ export default function FormularioMarca({
           value={form.nome}
           onChange={(e) => handleChange("nome", e.target.value)}
           placeholder="NOME DA MARCA"
-          className={B1_FIELD_INPUT_CLS}
+          className={B1_FIELD_CTL_CLS}
           autoComplete="off"
+          readOnly={readOnly}
         />
       </B1Field>
-      <B1Field label="Descrição" span={6} hasValue={Boolean(form.descricao?.trim())}>
+      <B1Field
+        label="Descrição"
+        span={6}
+        hasValue={Boolean(form.descricao?.trim())}
+        locked={readOnly}
+        disabled={readOnly}
+      >
         <input
           type="text"
           value={form.descricao}
           onChange={(e) => handleChange("descricao", e.target.value)}
           placeholder="DESCRIÇÃO"
-          className={B1_FIELD_INPUT_CLS}
+          className={B1_FIELD_CTL_CLS}
           autoComplete="off"
+          readOnly={readOnly}
         />
       </B1Field>
       <B1ChaveRow
         label="Ativo"
-        span={12}
+        span={6}
         checked={form.ativo}
-        onChange={(v) => handleChange("ativo", v)}
+        onChange={readOnly ? undefined : (v) => handleChange("ativo", v)}
+        disabled={readOnly}
         ariaLabel="Marca ativa"
       />
       {!toolbarActions ? (
@@ -96,7 +110,7 @@ export default function FormularioMarca({
 
   return (
     <CadastroFormShell embedded={embedded} title={isEditing ? "Editar Marca" : "Nova Marca"}>
-      {formBody}
+      <div className={embedded ? "mg-b1-record-form" : undefined}>{formBody}</div>
     </CadastroFormShell>
   );
 }

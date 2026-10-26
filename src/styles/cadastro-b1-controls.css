@@ -4,6 +4,7 @@
  */
 
 /* ── vidro (popovers de listagem, seletor, calendário) ── */
+.cadastro-b1.mg-b1-glass-pop:not(.mg-pill-select-panel),
 .b1ref .pop,
 .cadastro-b1 .mg-b1-glass-pop:not(.mg-pill-select-panel),
 .cadastro-b1 .cmd-panel:not(.mg-pill-select-panel) {
@@ -21,6 +22,7 @@
 }
 
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .cadastro-b1.mg-b1-glass-pop:not(.mg-pill-select-panel),
   .b1ref .pop,
   .cadastro-b1 .mg-b1-glass-pop:not(.mg-pill-select-panel),
   .cadastro-b1 .cmd-panel:not(.mg-pill-select-panel) {
@@ -40,6 +42,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .cadastro-b1.mg-b1-glass-pop:not(.mg-pill-select-panel),
   .b1ref .pop,
   .cadastro-b1 .mg-b1-glass-pop:not(.mg-pill-select-panel),
   .cadastro-b1 .cmd-panel:not(.mg-pill-select-panel) {
@@ -49,11 +52,47 @@
 
 .b1ref .fpop.pop {
   border-radius: 12px;
+  background: #fff;
+  border: 1px solid #e7eaee;
+  box-shadow: 0 8px 24px rgba(16, 24, 40, 0.12);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  animation: none;
+}
+
+.b1ref:not(.b1-portal-compras) .fpop-f .tb-btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  min-height: 28px;
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid #dfe2e7;
+  background: #fff;
+  color: #334155;
+  cursor: pointer;
+}
+
+.b1ref:not(.b1-portal-compras) .fpop-f .tb-btn-icon:hover:not(:disabled) {
+  background: #f4f6f7;
+}
+
+.b1ref:not(.b1-portal-compras) .fpop-f button[type="submit"].tb-btn-icon {
+  background: #40de63;
+  border-color: #40de63;
+  color: #fff;
+}
+
+.b1ref:not(.b1-portal-compras) .fpop-f button[type="submit"].tb-btn-icon:hover:not(:disabled) {
+  background: #35cf56;
 }
 
 .cadastro-b1 .cmd-panel {
   border-radius: 12px;
   z-index: 10000;
+  min-width: max(220px, var(--radix-popover-trigger-width, 220px));
 }
 
 /* ── seletor cmd-display / cmd-panel ── */

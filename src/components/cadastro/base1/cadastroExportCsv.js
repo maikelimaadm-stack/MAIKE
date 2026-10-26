@@ -1,3 +1,10 @@
+const SAFE_CSV_BASENAME = (name) =>
+  String(name ?? "export")
+    .replace(/[/\\?%*:|"<>]/g, "_")
+    .replace(/\.\./g, "_")
+    .trim()
+    .slice(0, 180) || "export";
+
 /**
  * Exporta CSV (;) a partir de colunas de cadastro Base1.
  * @param {string} filename
@@ -14,8 +21,9 @@ export function exportCadastroCsv(filename, columns, rows, getFieldValue) {
   ];
   const blob = new Blob(["\ufeff" + lines.join("\n")], { type: "text/csv;charset=utf-8" });
   const a = document.createElement("a");
+  const base = SAFE_CSV_BASENAME(filename.replace(/\.csv$/i, ""));
   a.href = URL.createObjectURL(blob);
-  a.download = filename.endsWith(".csv") ? filename : `${filename}.csv`;
+  a.download = `${base}.csv`;
   a.click();
   URL.revokeObjectURL(a.href);
 }

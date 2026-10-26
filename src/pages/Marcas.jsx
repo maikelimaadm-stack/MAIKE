@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 import { listarMarcasDaEmpresa, criarMarca, atualizarMarca, excluirMarcas } from "@/services/marcaService";
 import { getApiErrorMessage } from "@/apis/_core/ApiError";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -22,8 +22,10 @@ const MARCAS_STORAGE_KEY = "colunas_marcas_v1";
 
 export default function Marcas() {
   const [showForm, setShowForm] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [showConfigColunas, setShowConfigColunas] = useState(false);
+  const configureColumnsAnchorRef = useRef(null);
   const [deleteState, setDeleteState] = useState({ open: false, ids: [] });
   const chrome = useCadastroListaChromeState();
   const listFooter = useCadastroListaFooter(
@@ -87,12 +89,22 @@ export default function Marcas() {
 
   const closeForm = () => {
     setShowForm(false);
+    setIsEditing(false);
     setEditingItem(null);
     chrome.exitRecordView();
   };
 
+  const cancelForm = () => {
+    if (isEditing && editingItem?.id) {
+      setIsEditing(false);
+      return;
+    }
+    closeForm();
+  };
+
   const openNew = () => {
     setEditingItem(null);
+    setIsEditing(true);
     setShowForm(true);
     chrome.setViewMode("record");
   };
@@ -104,12 +116,17 @@ export default function Marcas() {
 
   const handleEdit = (item) => {
     setEditingItem(item);
+    setIsEditing(!item?.id);
     setShowForm(true);
     chrome.setViewMode("record");
     if (item?.id) chrome.onSelectionChange([item.id]);
   };
 
   const handleEditSelected = () => {
+    if (showForm && editingItem?.id && !isEditing) {
+      setIsEditing(true);
+      return;
+    }
     const item = marcas.find((m) => m.id === chrome.selectedIds[0]);
     if (item) handleEdit(item);
   };
@@ -119,6 +136,7 @@ export default function Marcas() {
     const draft = prepareCadastroDuplicate(item, { labelField: "nome" });
     if (!draft) return;
     setEditingItem(draft);
+    setIsEditing(true);
     setShowForm(true);
     chrome.setViewMode("record");
   };
@@ -176,15 +194,19 @@ export default function Marcas() {
     <>
       <CadastroWorkspace mode="list" title="Marcas" pageLayout="base1-list">
         <CadastroListaChrome
+          showFilterRail={false}
+          joinTableToolbar
+          portalComprasSkin
           recordMode={showForm}
-          secondaryToolsLocked={showForm}
+          recordEditing={isEditing}
+          secondaryToolsLocked={showForm && isEditing}
           recordToolbar={
-            showForm ? (
+            showForm && isEditing ? (
               <>
                 <PillBtn type="submit" form={FORMULARIO_MARCA_ID} disabled={saving}>
                   {saving ? "Salvando…" : "Salvar"}
                 </PillBtn>
-                <PillBtn type="button" tone="gray" onClick={closeForm} disabled={saving}>
+                <PillBtn type="button" tone="gray" onClick={cancelForm} disabled={saving}>
                   Cancelar
                 </PillBtn>
               </>
@@ -198,7 +220,7 @@ export default function Marcas() {
                 index={recordIndex}
                 total={recordNavRows.length}
                 onGo={editingItem?.id ? goRecord : undefined}
-                navDisabled={showForm}
+                navDisabled={showForm && isEditing}
               />
             ) : null
           }
@@ -207,10 +229,11 @@ export default function Marcas() {
               <FormularioMarca
                 variant="embedded"
                 toolbarActions
+                readOnly={!isEditing}
                 isSubmitting={saving}
                 initialData={editingItem}
                 onSubmit={handleSubmit}
-                onCancel={closeForm}
+                onCancel={cancelForm}
               />
             ) : null
           }
@@ -233,6 +256,7 @@ export default function Marcas() {
           onSearchApply={chrome.applySearch}
           searchActive={chrome.searchActive}
           searchPlaceholder="Buscar marcas…"
+          configureColumnsAnchorRef={configureColumnsAnchorRef}
           onConfigureColumns={() => setShowConfigColunas(true)}
           onClearFilters={chrome.clearFilters}
           filtersActive={chrome.filtersActive}
@@ -256,6 +280,7 @@ export default function Marcas() {
               onListMetrics={listFooter.gradePaging.onListMetrics}
               cardFields={cardsPrefs.cardFields}
               cardsPerRow={cardsPrefs.cardsPerRow}
+              configureColumnsAnchorRef={configureColumnsAnchorRef}
             />
           ) : null}
         </CadastroListaChrome>

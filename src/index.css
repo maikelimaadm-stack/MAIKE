@@ -1,10 +1,15 @@
 @import "./styles/cadastro-base1.css";
+@import "./styles/cadastro-b1-portal.css";
 @import "./styles/cadastro-b1-controls.css";
 @import "./styles/cadastro-b1ref.css";
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+body {
+  font-family: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+}
 
 
 /* :root {
