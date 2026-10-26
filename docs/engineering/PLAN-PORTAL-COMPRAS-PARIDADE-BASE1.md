@@ -21,6 +21,7 @@ Abordagem: diff profundo CDE × MAIKE, correções no motor compartilhado Base1 
 |-----------|-----|
 | `PROMPT-MODELO-VISUAL-AGRO-ERP.md` | Checklist 11.x, mapeamento de arquivos |
 | `UX-FROTA-PILOT-MARCAS-REPORT.md` | Fatias UX-35…UX-39 |
+| `PLAN-EXECUCAO-PARIDADE-BASE1.md` | Rollout cadastros + fases 0–4 |
 | CDE `docs/UI-STANDARD.md`, `docs/PERSONALIZACAO.md` | Comportamento de prefs e grade |
 
 ---

@@ -13,7 +13,7 @@ Executar a **paridade visual e comportamental completa** do MODELO BASE1 do Agro
 
 O **piloto Marcas** concentra o checklist §11 de [`PROMPT-MODELO-VISUAL-AGRO-ERP.md`](./PROMPT-MODELO-VISUAL-AGRO-ERP.md) e as fatias **UX-34–UX-42** em [`UX-FROTA-PILOT-MARCAS-REPORT.md`](./UX-FROTA-PILOT-MARCAS-REPORT.md). As demais páginas já passaram por migração Frota/Base1 (UX-06–UX-17), mas **só Marcas** hoje liga `pageLayout="base1-list"`, `joinTableToolbar` e `portalComprasSkin` — ou seja, a paridade “tela inteira = portal compras” ainda não foi propagada.
 
-Abordagem: **fechar Marcas como modelo único** (checklist [`MARCAS-MODELO-BASE1-CHECKLIST.md`](./MARCAS-MODELO-BASE1-CHECKLIST.md) + gate §H + aceite proprietário) **antes** de qualquer réplica. Integrar motor PR #51 na `main`, sign-off Marcas, **só então** Fase 2 — **D-PROD-41** (rollout **pausado** até lá).
+Abordagem: **estabilizar Marcas na linha da PR #51 → sign-off → replicar o pacote de props/contratos por cadastro**, sem mega-PR e sem copiar domínio do CDE.
 
 ---
 
@@ -26,8 +26,6 @@ Abordagem: **fechar Marcas como modelo único** (checklist [`MARCAS-MODELO-BASE1
 | Histórico piloto Marcas | [`docs/engineering/UX-FROTA-PILOT-MARCAS-REPORT.md`](./UX-FROTA-PILOT-MARCAS-REPORT.md) (UX-34–42) |
 | Decisão SSOT visual | **D-PROD-39** em [`docs/engineering/DECISIONS.md`](./DECISIONS.md) |
 | Repositório referência (CDE) | **CONTROLE-DE-ESTOQUE** — clone sugerido `/tmp/controle-de-estoque` (`apps/web/src/features/compras/`, `features/base1/`, `app/globals.css`, `b1ref.css`) |
-| Checklist modelo Marcas (executável) | [`docs/engineering/MARCAS-MODELO-BASE1-CHECKLIST.md`](./MARCAS-MODELO-BASE1-CHECKLIST.md) |
-| Gate rollout | **D-PROD-41** — Fase 2 bloqueada até sign-off §H |
 | Auditoria aprofundada (2026-10-26) | Cópia de trabalho do agente: `uploads/deep-research-report_190f.md` (raiz do workspace Cursor); espelho recomendado no repo: `docs/engineering/audits/deep-research-ui-ux-base1-2026-10-26.md` quando arquivado |
 | PR em aberto (piloto) | **PR #51** — branch `cursor/ux-base1-cards-colunas-878d` (“UX-29: paridade cards e popover de colunas (Base1)” + UX-30…42) |
 | Escopo executável | [`config/mapa-manejo-scope.json`](../../config/mapa-manejo-scope.json) |
@@ -78,8 +76,7 @@ Abordagem: **fechar Marcas como modelo único** (checklist [`MARCAS-MODELO-BASE1
 | `TopNoticeDialog` / `RegistroAnexosDialog` (Escape/clique fora) | **TODO** | UX-A, UX-B — PR Dialog/Popover transversal |
 | Tenancy / `empresa_selecionada_id` + filtro cliente | **RISCO / backend futuro** | SEC-A/B — PR separada segurança/dados, não misturar com UI |
 | `max+1` número de marca | **RISCO / backend** | DATA-A — quando Marca for nativa (P6+) |
-| PR #51 merge + preview sign-off | **TODO** | Fase 0 / gate §H |
-| Gate sign-off modelo (§H checklist) | **TODO** | Aceite proprietário + verify:all na `main` — **bloqueia Fase 2** |
+| PR #51 merge + preview sign-off | **DONE** | merge `e63aa297` (2026-10-26) |
 
 ### Demais cadastros (`allowedPages` — rollout)
 
@@ -153,29 +150,10 @@ Páginas de **cadastro** no manifesto (excluindo mapa e config ícones):
 - [x] Teste manual PROMPT §11 + UX-40/41/42 repetido em 360, 390, 768, 1280 (sign-off UX-43).
 - [x] `npm run verify:all` verde.
 - [x] `UX-FROTA-PILOT-MARCAS-REPORT.md` seção **UX-43+** ou entrada “Marcas sign-off” com data.
-- [x] Checklist executável [`MARCAS-MODELO-BASE1-CHECKLIST.md`](./MARCAS-MODELO-BASE1-CHECKLIST.md) (UX-44).
 
 ---
 
-### Gate Marcas sign-off (bloqueia Fase 2 — D-PROD-41)
-
-**Status:** **ABERTO** — rollout **pausado**.
-
-| # | Critério | Estado |
-|---|----------|--------|
-| G1 | Seções A–F do checklist modelo = DONE/N/A | Feito (auditoria UX-44) |
-| G2 | §11.15 DEFER e §11.16 P8 documentados | Feito (D-PROD-40) |
-| G3 | `npm run verify:all` no commit de referência na `main` | Pendente merge PR #51 + PR modelo |
-| G4 | Teste manual 360 / 390 / 768 / 1280 | Feito (UX-43, UX-44) |
-| G5 | Aceite explícito do proprietário (“Marcas modelo OK”) | **Pendente** |
-
-**Proibido até G3+G5:** branches `ux-base1-paridade-setores-*`, Produtos, etc.
-
----
-
-### Fase 2 — Rollout por cadastro (portal join + paridade Marcas) — **PAUSADA**
-
-> **Não iniciar** até o gate acima (**D-PROD-41**). Ordem abaixo permanece válida **depois** do sign-off.
+### Fase 2 — Rollout por cadastro (portal join + paridade Marcas)
 
 **Objetivo:** cada página de cadastro herda o **mesmo pacote** que Marcas (props + grade + registro leitura/edição).
 
@@ -304,12 +282,11 @@ Alinhamento explícito com **PROMPT §11**: itens 11.1–11.14 devem constar com
 
 ---
 
-## Próximos PRs recomendados (rollout pausado)
+## Próximos três PRs recomendados
 
-1. **Marcas modelo (piloto fechado):** `cursor/ux-base1-marcas-modelo-516d` — checklist UX-44, D-PROD-41, gate §H.  
-2. **Merge motor:** integrar **PR #51** (`cursor/ux-base1-cards-colunas-878d`) + piloto Marcas na `main` — Fase 0.  
-3. **Aceite proprietário** no gate §H — só então autorizar Fase 2.  
-4. ~~Primeiro rollout Setores~~ — **não abrir** até G3+G5 do gate.
+1. **Merge + estabilização:** integrar **PR #51** (`cursor/ux-base1-cards-colunas-878d`) — Fase 0.  
+2. **Marcas sign-off:** `cursor/ux-base1-marcas-gaps-516d` — Fase 1 (cards `p-4`, toolbar mobile, evidências).  
+3. **Primeiro rollout:** `cursor/ux-base1-paridade-setores-516d` — Fase 2 (replicar pacote Marcas em `CadastroSetores`).
 
 ---
 

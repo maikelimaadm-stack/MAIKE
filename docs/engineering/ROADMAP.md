@@ -229,6 +229,17 @@ teste de restore, performance do mapa em campo, release.
 
 ---
 
+## Track paralelo — UX Base1 / paridade Portal Compras
+
+Execução incremental da paridade visual Agro ERP (MODELO BASE1) nos cadastros do
+manifesto — piloto **Marcas**, motor em `src/components/cadastro/base1/`. Plano
+operacional: [`docs/engineering/PLAN-EXECUCAO-PARIDADE-BASE1.md`](./PLAN-EXECUCAO-PARIDADE-BASE1.md)
+(checklist §11 em [`PROMPT-MODELO-VISUAL-AGRO-ERP.md`](./PROMPT-MODELO-VISUAL-AGRO-ERP.md);
+PR #51 / branch `cursor/ux-base1-cards-colunas-878d`). Não substitui missões P4–P8;
+anexos nativos permanecem em P8.
+
+---
+
 ## Fora do roadmap
 
 Plataforma low-code, Studio, MDP/MMM, marketplace, runtime universal, motor de
