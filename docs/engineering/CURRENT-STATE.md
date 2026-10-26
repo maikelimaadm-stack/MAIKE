@@ -12,7 +12,7 @@
 | Piloto único | **Marcas** — checklist `docs/engineering/MARCAS-MODELO-BASE1-CHECKLIST.md` |
 | Rollout demais cadastros | **Pausado** até aceite proprietário (**H.5**) — **D-PROD-41** |
 | Gate §H (checklist modelo) | **H.1–H.4, H.6** DONE; **H.5** TODO (produto) — ver `MARCAS-MODELO-BASE1-CHECKLIST.md` |
-| Merges UX Base1 (2026-10-26) | #51 `e63aa297` (motor UX-29–42) · #52 `0646cdf5` (plano) · #53 `1849cb54` (Fase 1) · #54 (modelo D-PROD-41, em merge) |
+| Merges UX Base1 (2026-10-26) | #51 `e63aa297` · #52 `0646cdf5` · #53 `1849cb54` · #54 `5df4458f` (modelo + UX-45) |
 
 ---
 
