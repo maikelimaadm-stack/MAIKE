@@ -34,6 +34,27 @@ export const COLUNAS_DISPONIVEIS = [
 
 const STORAGE_KEY = "colunas_cadastro_lotes";
 
+/** Referência estável quando a prop `lotes` é omitida (evita ciclo via matchesSearch). */
+const EMPTY_LOTES = [];
+
+/**
+ * @param {{ rows: object[]; selectedIds: string[] }} prev
+ * @param {{ rows: object[]; selectedIds: string[] }} next
+ */
+function displayPayloadEquivalent(prev, next) {
+  if (prev.rows === next.rows && prev.selectedIds === next.selectedIds) return true;
+  const { rows: prevRows, selectedIds: prevIds } = prev;
+  const { rows: nextRows, selectedIds: nextIds } = next;
+  if (prevRows.length !== nextRows.length || prevIds.length !== nextIds.length) return false;
+  for (let i = 0; i < prevRows.length; i += 1) {
+    if (prevRows[i] !== nextRows[i]) return false;
+  }
+  for (let i = 0; i < prevIds.length; i += 1) {
+    if (prevIds[i] !== nextIds[i]) return false;
+  }
+  return true;
+}
+
 /**
  * @typedef {object} ColunaLote
  * @property {string} id
@@ -109,7 +130,7 @@ function readColumnLayout(colunasDisponiveis) {
 }
 
 export default function TabelaLotes({
-  lotes = [],
+  lotes = EMPTY_LOTES,
   areas: _areas = [],
   onEdit,
   showConfigColunas,
@@ -275,18 +296,24 @@ export default function TabelaLotes({
     [colunasDisponiveis, getFieldValue, onVisibleDataChange],
   );
 
-  const handleDisplayChange = useCallback(
-    (payload) => {
-      setDisplayState(payload);
-      notifyVisibleDataChange(payload.rows, payload.selectedIds);
-    },
-    [notifyVisibleDataChange],
-  );
+  const handleDisplayChange = useCallback((payload) => {
+    setDisplayState((prev) => (displayPayloadEquivalent(prev, payload) ? prev : payload));
+  }, []);
+
+  useEffect(() => {
+    notifyVisibleDataChange(displayState.rows, displayState.selectedIds);
+  }, [displayState, notifyVisibleDataChange]);
 
   useEffect(() => {
     if (!selectedRecordId) return;
     onSelectionChange?.([selectedRecordId]);
   }, [selectedRecordId, onSelectionChange]);
+
+  const matchesSearch = useCallback(
+    (lote, q) =>
+      colunasDisponiveis.some((col) => String(getFieldValue(lote, col.id) || "").toLowerCase().includes(q)),
+    [colunasDisponiveis, getFieldValue],
+  );
 
   return (
     <div className="flex-1 min-h-0 overflow-hidden bg-white select-none">
@@ -316,9 +343,7 @@ export default function TabelaLotes({
         cardsCodeColId="numero_lote"
         gridFooter={gridFooter}
         onDisplayChange={handleDisplayChange}
-        matchesSearch={(lote, q) =>
-          colunasDisponiveis.some((col) => String(getFieldValue(lote, col.id) || "").toLowerCase().includes(q))
-        }
+        matchesSearch={matchesSearch}
       />
     </div>
   );
