@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { toast } from "sonner";
+import { notifyWarning } from "@/lib/maikeNotify";
 
 /**
  * Estado compartilhado do chrome Base1 em telas lista/detalhe.
@@ -25,7 +25,9 @@ export function useCadastroListaChromeState({ initialViewMode = "table" } = {}) 
   }, []);
 
   const applySearch = useCallback((next) => {
-    setAppliedSearch(typeof next === "string" ? next : searchInput);
+    const value = typeof next === "string" ? next : searchInput;
+    setSearchInput(value);
+    setAppliedSearch(value);
   }, [searchInput]);
 
   const clearFilters = useCallback(() => {
@@ -34,17 +36,26 @@ export function useCadastroListaChromeState({ initialViewMode = "table" } = {}) 
 
   /**
    * @param {'table'|'record'|'cards'} mode
-   * @param {{ onOpenRecord?: (id: string) => void; onExitRecord?: () => void }} [options]
+   * @param {{ onOpenRecord?: (id?: string) => boolean|void; onExitRecord?: () => void }} [options]
    */
   const handleViewModeChange = useCallback((mode, options) => {
     const { onOpenRecord, onExitRecord } = options ?? {};
     if (mode === "record") {
-      if (selectedIds.length !== 1) {
-        toast.info("Selecione um registro para abrir no modo Registro.");
+      if (selectedIds.length > 1) {
+        notifyWarning("Atenção", "Selecione apenas um registro para abrir no modo Registro.");
         return;
       }
-      setViewMode("record");
-      onOpenRecord?.(selectedIds[0]);
+      if (selectedIds.length === 1) {
+        // Não força viewMode aqui — a página só entra em registro se abrir o form.
+        onOpenRecord?.(selectedIds[0]);
+        return;
+      }
+      // 0 selecionados: a página pode abrir o primeiro da lista (retorna true).
+      // Se não abrir, mantém o aviso para o usuário selecionar.
+      const opened = onOpenRecord?.(undefined);
+      if (opened !== true) {
+        notifyWarning("Atenção", "Selecione um registro para abrir no modo Registro.");
+      }
       return;
     }
     if (viewMode === "record" && mode !== "record") {

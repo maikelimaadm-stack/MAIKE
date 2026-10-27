@@ -67,7 +67,13 @@ function CardsB1DialogShell({ open, onFechar, titulo, children, footer, testId, 
 const dialogFooter = (onOk) => (
   <>
     <span style={{ flexGrow: 1 }} />
-    <button type="button" className="tb-btn tb-btn-icon" aria-label="Pronto" title="Pronto" onClick={onOk}>
+    <button
+      type="button"
+      className="tb-btn tb-btn-icon tb-btn-green"
+      aria-label="Pronto"
+      title="Pronto"
+      onClick={onOk}
+    >
       <Check className="h-4 w-4" />
     </button>
   </>

@@ -59,6 +59,7 @@ const ETAPAS = [
   // o runner de teste passa a exercitar logo em seguida, e se a barreira
   // estiver quebrada é melhor saber antes de subir PostgreSQL (D-PROD-28).
   ['deploy-migrations', npm('gate:deploy-migrations')],
+  ['prisma:generate', npm('prisma:generate')],
   ['types', npm('gate:types')],
   ['typecheck:backend', npm('typecheck:backend')],
   ['lint', npm('lint')],

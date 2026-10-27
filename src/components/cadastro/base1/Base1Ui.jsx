@@ -53,6 +53,22 @@ const IconBtnRender = ({ className, active, size = "md", danger, children, title
 export const IconBtn = React.forwardRef(IconBtnRender);
 IconBtn.displayName = "IconBtn";
 
+/**
+ * Slot com transição fluida (água) para botões que entram/saem da toolbar.
+ * Mantém o nó montado para animar saída — não use unmount condicional no filho.
+ * @param {{ open: boolean; className?: string; children: import('react').ReactNode }} props
+ */
+export function FluidSlot({ open, className, children }) {
+  return (
+    <div
+      className={cn("mg-fluid-slot", open && "is-open", className)}
+      aria-hidden={!open}
+    >
+      <div className="mg-fluid-slot__inner">{children}</div>
+    </div>
+  );
+}
+
 /** @typedef {import('react').ComponentPropsWithoutRef<'button'> & { tone?: 'green'|'gray'|'red'|'outline'; title?: string; }} PillBtnProps */
 /** @type {import('react').ForwardRefRenderFunction<HTMLButtonElement, PillBtnProps>} */
 const PillBtnRender = ({ className, tone = "green", children, title, ...p }, ref) => {
@@ -91,7 +107,7 @@ export function ViewSwitch({ value, onChange, recordDisabled, cardsDisabled }) {
   );
   return (
     <div className="view-seg" role="group" aria-label="Modo de visualização">
-      {item("record", "Registro", FileText, recordDisabled, "Abrir registro selecionado")}
+      {item("record", "Registro", FileText, recordDisabled, "Abrir modo registro")}
       {item("table", "Tabela", Table2, false, "Grade em tabela")}
       {item(
         "cards",

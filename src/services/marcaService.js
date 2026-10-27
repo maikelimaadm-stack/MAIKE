@@ -1,25 +1,47 @@
 /**
- * Service de marcas — persistência nativa (P4.4-Marcas, D-PROD-42).
+ * Service de marcas — persistência nativa (P4.4-Marcas, D-PROD-42 + D-PROD-54).
  *
  * Unicidade de nome por empresa continua no service para falha rápida na UI, mas
  * a numeração e a constraint definitiva vivem no backend.
+ * Listagem de tela usa keyset (`listarMarcasPagina`); dropdowns usam página limitada.
  */
 
-import { listMarcas, createMarca, updateMarca, deleteMarca } from '@/apis/marcas';
+import { listMarcas, listMarcasPage, createMarca, updateMarca, deleteMarca } from '@/apis/marcas';
 import { ApiError, API_ERROR_CODES } from '@/apis/_core/ApiError';
 
 const chaveDeNome = (valor) => String(valor ?? '').trim().toUpperCase();
 
-/** Marcas da empresa, mais recentes primeiro (ordem do backend). */
-export const listarMarcasDaEmpresa = async (empresaId) => {
-  const todas = await listMarcas();
-  return todas.filter((marca) => marca.empresa_id === empresaId);
+/**
+ * Adapter de domínio → motor Base1 (`useCadastroInfiniteList` + `listMarcasPage`).
+ * @param {string} empresaId
+ * @param {{ limit?: number, cursor?: string|null, q?: string, ativo?: boolean }} [opts]
+ */
+export const listarMarcasPagina = async (empresaId, opts = {}) => {
+  if (!empresaId) {
+    return { items: [], next_cursor: null, has_more: false, total: 0, limit: opts.limit ?? 100 };
+  }
+  return listMarcasPage({
+    empresa_id: empresaId,
+    limit: opts.limit,
+    cursor: opts.cursor ?? undefined,
+    q: opts.q,
+    ativo: opts.ativo,
+  });
 };
 
-/** Marcas ativas da empresa — opções do formulário de produto. */
+/**
+ * Compat / dropdown: até 500 itens da empresa (não usar para “listar tudo”).
+ * @param {string} empresaId
+ */
+export const listarMarcasDaEmpresa = async (empresaId) => {
+  const page = await listarMarcasPagina(empresaId, { limit: 500 });
+  return page.items;
+};
+
+/** Marcas ativas da empresa — opções do formulário de produto (cap 500). */
 export const listarMarcasAtivas = async (empresaId) => {
-  const todas = await listMarcas();
-  return todas.filter((marca) => marca.empresa_id === empresaId && marca.ativo !== false);
+  const page = await listarMarcasPagina(empresaId, { limit: 500, ativo: true });
+  return page.items;
 };
 
 const assertNomeLivre = (marcas, nome, ignorarId) => {
@@ -64,3 +86,6 @@ export const excluirMarcas = async (ids) => {
 
   return { excluidas, falhas };
 };
+
+// reexport tipado para callers que ainda importam listMarcas via service legado
+export { listMarcas };

@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import ConfiguracaoColunasMapaDialog from "@/components/mapa/ConfiguracaoColunasMapaDialog";
 import ConfiguracaoColunasB1Dialog from "@/components/cadastro/base1/ConfiguracaoColunasB1Dialog";
@@ -16,7 +15,7 @@ import {
   normalizeFrozenCount,
   persistCadastroBase1ColumnPrefs,
 } from "@/lib/cadastroBase1ColumnPrefs";
-import { ArrowDownAZ, ArrowUpZA, X } from "lucide-react";
+import { ArrowDownAZ, ArrowUpZA, Check, X } from "lucide-react";
 
 /** Referência estável para listas vazias — evita ciclo de reconciliação de seleção. */
 const EMPTY_ROWS = [];
@@ -510,19 +509,25 @@ export default function CadastroBase1Grade({
               ))}
             </div>
             <div className="mg-b1-col-filter-footer">
-              <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setMenuFiltroAberto(null)}>
+              <button
+                type="button"
+                className="tb-btn tb-btn-gray h-8 text-xs"
+                onClick={() => setMenuFiltroAberto(null)}
+              >
+                <X className="h-4 w-4" aria-hidden />
                 Cancelar
-              </Button>
-              <Button
-                size="sm"
+              </button>
+              <button
+                type="button"
                 className="tb-btn tb-btn-green h-8 text-xs"
                 onClick={() => {
                   setFiltrosColunas((p) => ({ ...p, [colunaId]: filtroTemp.valores }));
                   setMenuFiltroAberto(null);
                 }}
               >
+                <Check className="h-4 w-4" aria-hidden />
                 OK
-              </Button>
+              </button>
             </div>
           </div>
         </PopoverContent>
@@ -610,6 +615,23 @@ export default function CadastroBase1Grade({
         selecaoSticky={selecaoSticky}
         autoFitKeys={autoFitKeys}
         onFilter={(k) => setMenuFiltroAberto(k)}
+        onClearFilter={(k) => {
+          if (referenceHeaders) {
+            setHeaderFilters((p) => {
+              if (!(k in p)) return p;
+              const n = { ...p };
+              delete n[k];
+              return n;
+            });
+            return;
+          }
+          setFiltrosColunas((p) => {
+            if (!(k in p)) return p;
+            const n = { ...p };
+            delete n[k];
+            return n;
+          });
+        }}
         filteredKeys={filteredKeys}
         emptyText={emptyText}
         rowKey={rowKey ? (r) => rowKey(r) : undefined}

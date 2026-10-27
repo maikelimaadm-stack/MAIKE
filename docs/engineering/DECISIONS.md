@@ -2249,4 +2249,62 @@ de escopo explícita (manifesto). Não reintroduzir `@base44/sdk`.
 
 ---
 
-<!-- Próxima decisão: D-PROD-53 -->
+## D-PROD-53 — Lista Base1: escala documentada; paginação de servidor é missão à parte
+
+**Missão:** alterações visuais Marcas / revisão de escala (branch
+`cursor/alteracoes-visuais-26e2`)  
+**Relatório:** `docs/engineering/CADASTRO-LISTA-SCALE-REVIEW-2026-10-27.md`
+
+**Decisão:** O chrome de cadastro (tabela/cards + “Carregar mais”) permanece
+**lista em memória + filtro/ordem no browser** até uma missão dedicada de
+paginação. O rodapé Base1 limita só o DOM (`displayLimit`), não o payload.
+Teto seguro atual: **centenas a baixo milhar** por listagem. Milhões/bilhões
+exigem cursor no `GET`, busca/sort no SQL, virtualização e export streaming —
+**fora** do escopo de PRs só-visuais.
+
+**Consequência:** Não vender “Carregar mais” como escala. Piloto futuro:
+`GET /marcas` com keyset + FE consumindo páginas; depois generalizar o chrome.
+Uma missão = um PR (R7).
+
+---
+
+## D-PROD-54 — Piloto de escala: GET /marcas com keyset + FE infinito + grade virtual
+
+**Missão:** lista-escala-marcas (branch `cursor/lista-escala-marcas-26e2`)  
+**Relatório:** `docs/engineering/LISTA-ESCALA-MARCAS-REPORT.md`
+
+**Decisão:** A listagem de Marcas deixa de ser full-fetch. `GET /marcas` devolve
+envelope `{ items, next_cursor, has_more, total, limit }` com keyset
+`(createdAt DESC, id DESC)`, filtros `empresa_id` / `q` / `ativo` no SQL, e
+`limit` capped em 500. O frontend usa `useInfiniteQuery`, janela máxima de
+2.000 linhas no browser, e a `Base1Grid` virtualiza a partir de 80 linhas.
+Export CSV só da janela carregada (com aviso). Offline continua no create/update
+(unwrap da 1ª página cap 500); a tela de lista **não** espelha o tenant inteiro.
+
+**Consequência:** Demais cadastros Base1 ainda são full-fetch até migrarem o
+mesmo contrato. `COUNT(*)` em bilhões continua caro — próximo passo: total
+aproximado ou omitir sob flag. Bulk delete e export streaming ficam para missão
+seguinte. Uma missão = um PR (R7).
+
+---
+
+## D-PROD-55 — Motor Base1 de lista é compartilhado; cadastros só consomem
+
+**Missão:** lista-escala-marcas (refino na mesma PR #101)  
+**Relatório:** `docs/engineering/MOTOR-BASE1-LISTA.md`
+
+**Decisão:** A escala de listagem não vive “dentro de Marcas”. O **motor** é:
+
+- FE: `cadastroListaScale.js` + `useCadastroInfiniteList` + `Base1Grid` virtual
+- BE: `shared/pagination/keysetCursor.js` (`montarEnvelopeKeyset`, limites)
+
+Marcas (e qualquer cadastro) **pluga** `fetchPage` + `queryKey`. Proibido criar
+hooks `useXxxInfiniteList` por entidade — isso duplicaria o motor. Mudança no
+motor altera todas as telas que o consomem.
+
+**Consequência:** Migrar Produtos/Lançamentos/etc. = implementar `listPage` no
+backend da entidade + ligar `useCadastroInfiniteList` na página. Sem fork.
+
+---
+
+<!-- Próxima decisão: D-PROD-56 -->

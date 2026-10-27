@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from "react";
 import { Check, LayoutGrid, ListChecks } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { IconBtn } from "./Base1Ui";
-import { selectClickOf } from "./selectClick";
+import { selectClickOf, useBlockNativeTextSelection } from "./selectClick";
 import {
   ConfiguracaoCamposCardsB1Dialog,
   ConfiguracaoLayoutCardsB1Dialog,
@@ -70,6 +70,8 @@ export function Base1Cards({
     .filter((c) => c && c !== titleCol && c !== codeCol);
 
   const refs = useRef(/** @type {Record<string, HTMLDivElement | null>} */ ({}));
+  const listRef = useRef(/** @type {HTMLDivElement|null} */ (null));
+  useBlockNativeTextSelection(listRef);
 
   useEffect(() => {
     const firstSel = [...selected][0];
@@ -97,6 +99,7 @@ export function Base1Cards({
 
   return (
     <div
+      ref={listRef}
       className={cn("grid grid-cols-1 gap-3", gridCls[perRow] || gridCls[4])}
       role="listbox"
       aria-multiselectable

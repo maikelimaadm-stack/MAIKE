@@ -4,16 +4,22 @@ import {
   ArrowUp,
   ArrowDown,
   Filter,
+  FilterX,
   Scaling,
   PanelLeft,
   EyeOff,
 } from "lucide-react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { cn } from "@/lib/utils";
 import { MIN_COL_WIDTH } from "@/lib/cadastroBase1ColumnPrefs";
 import { fonteDaCelula, medirLarguraColuna } from "@/lib/larguraColuna";
 import { B1Popover, MenuList, MgCheck } from "./Base1Ui";
-import { selectClickOf } from "./selectClick";
+import { selectClickOf, useBlockNativeTextSelection } from "./selectClick";
 import { usePortalComprasSkin } from "./portalComprasSkinContext";
+
+const ROW_ESTIMATE_PX = 32;
+/** Abaixo disso o custo do virtualizer não compensa. */
+const VIRTUALIZE_FROM = 80;
 
 export const SELECT_COLUMN_WIDTH = 36;
 
@@ -37,6 +43,7 @@ export const SELECT_COLUMN_WIDTH = 36;
  * @param {(key: string, width: number) => void} [props.onResize]
  * @param {(key: string) => void} [props.onAutoFit]
  * @param {(key: string) => void} [props.onFilter]
+ * @param {(key: string) => void} [props.onClearFilter]
  * @param {Set<string>} [props.filteredKeys]
  * @param {Set<string>} [props.autoFitKeys]
  * @param {(r: object) => string} [props.rowKey]
@@ -65,6 +72,7 @@ export default function Base1Grid({
   onResize,
   onAutoFit,
   onFilter,
+  onClearFilter,
   filteredKeys,
   autoFitKeys,
   rowKey,
@@ -229,8 +237,77 @@ export default function Base1Grid({
 
   const abrirFiltroDireto = referenceHeaders && onFilter && !referenceExtendedColumnMenu;
 
+  const scrollRef = React.useRef(/** @type {HTMLDivElement|null} */ (null));
+  useBlockNativeTextSelection(scrollRef);
+  const virtualizar = !loading && rows.length >= VIRTUALIZE_FROM;
+  const rowVirtualizer = useVirtualizer({
+    count: virtualizar ? rows.length : 0,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => ROW_ESTIMATE_PX,
+    overscan: 16,
+  });
+  const virtualRows = virtualizar ? rowVirtualizer.getVirtualItems() : null;
+  const padTop = virtualRows?.length ? virtualRows[0].start : 0;
+  const padBottom = virtualRows?.length
+    ? rowVirtualizer.getTotalSize() - virtualRows[virtualRows.length - 1].end
+    : 0;
+
+  const renderRow = (r, ri) => {
+    const id = key(r);
+    const on = selected.has(id);
+    return (
+      <tr
+        key={id}
+        ref={(el) => {
+          trs.current[id] = el;
+        }}
+        data-testid="b1-row"
+        aria-selected={on}
+        className={cn(on && "selected", ri % 2 === 1 ? "odd" : "even")}
+        onClick={(e) => onSelectClick(id, selectClickOf(e))}
+        onDoubleClick={() => onOpen?.(r)}
+      >
+        {colunaSelecao ? (
+          <td
+            className={cn("td-select", selectCongelado && "sticky left-0 z-[2]")}
+            style={selectCongelado ? { background: stickyBg(on, ri) } : undefined}
+            onClick={(e) => e.stopPropagation()}
+            onDoubleClick={(e) => e.stopPropagation()}
+          >
+            <MgCheck aria-label="Selecionar linha" checked={on} onChange={() => onToggle(id)} />
+          </td>
+        ) : null}
+        {columns.map((c, i) => {
+          const isFrozen = i < frozenCount;
+          const t = cellText(c, r);
+          return (
+            <td
+              key={c.key}
+              title={t}
+              style={{
+                ...(c.width ? { width: c.width, minWidth: c.width, maxWidth: c.width } : {}),
+                ...(isFrozen
+                  ? { left: lefts[c.key] ?? leftBase, zIndex: 2, background: stickyBg(on, ri) }
+                  : {}),
+              }}
+              className={cn(
+                onOpen && "cursor-pointer",
+                isFrozen && "is-frozen",
+                i === frozenCount - 1 && frozenCount > 0 && "is-frozen-anchor",
+                c.align === "right" && "!text-right tabular-nums",
+                c.align === "center" && "text-center",
+              )}
+            >
+              {c.render ? c.render(r) : t || <span className="text-[var(--mg-text-3)]">–</span>}
+            </td>
+          );
+        })}
+      </tr>
+    );
+  };
+
   return (
-    <div className="mg-grid-wrap">
+    <div ref={scrollRef} className="mg-grid-wrap">
       <table className="mg-grid">
         <thead>
           <tr>
@@ -318,22 +395,61 @@ export default function Base1Grid({
                       ) : null}
                     </button>
                     {temIcones ? (
-                      <span className="th-estado" aria-hidden>
-                        {filterOn ? <Filter className="th-estado-icone" strokeWidth={2.25} /> : null}
-                        {fitOn ? <Scaling className="th-estado-icone" strokeWidth={2.25} /> : null}
-                        {isAnchor ? <PanelLeft className="th-estado-icone" strokeWidth={2.25} /> : null}
+                      <span className="th-estado">
+                        {filterOn ? (
+                          <button
+                            type="button"
+                            className="th-estado-btn is-filter"
+                            title="Limpar filtro desta coluna"
+                            aria-label={`Limpar filtro de ${c.label}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onClearFilter?.(c.key);
+                            }}
+                          >
+                            <FilterX className="th-estado-icone" strokeWidth={2.25} />
+                          </button>
+                        ) : null}
+                        {fitOn ? (
+                          <button
+                            type="button"
+                            className="th-estado-btn"
+                            title="Desativar auto ajustar"
+                            aria-label={`Desativar auto ajustar de ${c.label}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onAutoFit?.(c.key);
+                            }}
+                          >
+                            <Scaling className="th-estado-icone" strokeWidth={2.25} />
+                          </button>
+                        ) : null}
+                        {isAnchor ? (
+                          <button
+                            type="button"
+                            className="th-estado-btn"
+                            title="Descongelar colunas"
+                            aria-label="Descongelar colunas"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onFreeze?.(0);
+                            }}
+                          >
+                            <PanelLeft className="th-estado-icone" strokeWidth={2.25} />
+                          </button>
+                        ) : null}
                       </span>
                     ) : null}
                     {abrirFiltroDireto ? (
                       <button
                         type="button"
                         data-b1-col-menu={c.key}
-                        aria-label={`Abrir menu da coluna ${c.label}`}
+                        aria-label={`Abrir filtro da coluna ${c.label}`}
                         aria-haspopup="menu"
                         className={cn("th-menu", filterOn && "is-on")}
                         onClick={() => onFilter(c.key)}
                       >
-                        {filterOn ? <Filter /> : <MoreVertical className="h-3 w-3" strokeWidth={2.25} />}
+                        <MoreVertical className="h-3 w-3" strokeWidth={2.25} />
                       </button>
                     ) : itens.length ? (
                       <B1Popover
@@ -397,59 +513,23 @@ export default function Base1Grid({
               </td>
             </tr>
           ) : null}
-          {rows.map((r, ri) => {
-            const id = key(r);
-            const on = selected.has(id);
-            return (
-              <tr
-                key={id}
-                ref={(el) => {
-                  trs.current[id] = el;
-                }}
-                data-testid="b1-row"
-                aria-selected={on}
-                className={cn(on && "selected", ri % 2 === 1 ? "odd" : "even")}
-                onClick={(e) => onSelectClick(id, selectClickOf(e))}
-                onDoubleClick={() => onOpen?.(r)}
-              >
-                {colunaSelecao ? (
-                  <td
-                    className={cn("td-select", selectCongelado && "sticky left-0 z-[2]")}
-                    style={selectCongelado ? { background: stickyBg(on, ri) } : undefined}
-                    onClick={(e) => e.stopPropagation()}
-                    onDoubleClick={(e) => e.stopPropagation()}
-                  >
-                    <MgCheck aria-label="Selecionar linha" checked={on} onChange={() => onToggle(id)} />
-                  </td>
+          {virtualRows
+            ? (
+              <>
+                {padTop > 0 ? (
+                  <tr aria-hidden className="mg-grid-virt-spacer">
+                    <td colSpan={Math.max(1, colSpanVazio)} style={{ height: padTop, padding: 0, border: 0 }} />
+                  </tr>
                 ) : null}
-                {columns.map((c, i) => {
-                  const isFrozen = i < frozenCount;
-                  const t = cellText(c, r);
-                  return (
-                    <td
-                      key={c.key}
-                      title={t}
-                      style={{
-                        ...(c.width ? { width: c.width, minWidth: c.width, maxWidth: c.width } : {}),
-                        ...(isFrozen
-                          ? { left: lefts[c.key] ?? leftBase, zIndex: 2, background: stickyBg(on, ri) }
-                          : {}),
-                      }}
-                      className={cn(
-                        onOpen && "cursor-pointer",
-                        isFrozen && "is-frozen",
-                        i === frozenCount - 1 && frozenCount > 0 && "is-frozen-anchor",
-                        c.align === "right" && "!text-right tabular-nums",
-                        c.align === "center" && "text-center",
-                      )}
-                    >
-                      {c.render ? c.render(r) : t || <span className="text-[var(--mg-text-3)]">–</span>}
-                    </td>
-                  );
-                })}
-              </tr>
-            );
-          })}
+                {virtualRows.map((vr) => renderRow(rows[vr.index], vr.index))}
+                {padBottom > 0 ? (
+                  <tr aria-hidden className="mg-grid-virt-spacer">
+                    <td colSpan={Math.max(1, colSpanVazio)} style={{ height: padBottom, padding: 0, border: 0 }} />
+                  </tr>
+                ) : null}
+              </>
+            )
+            : rows.map((r, ri) => renderRow(r, ri))}
         </tbody>
         {footer ? <tfoot className="mg-grid-foot">{footer}</tfoot> : null}
       </table>

@@ -12,13 +12,20 @@ import { registrarEvento } from '../auditoria/auditService.js';
 import { reservarNumero, ESCOPO_TENANT } from '../sequencias/entidadeCodigoService.js';
 import { marcaNotFound, marcaNomeConflito } from '../../shared/errors/AppError.js';
 import {
-  listarMarcas,
+  listarMarcasPagina,
+  contarMarcas,
   buscarMarca,
   existeMarcaComNome,
   inserirMarca,
   atualizarMarcaPorId,
   excluirMarcaPorId,
 } from './marcaRepository.js';
+import {
+  decodificarCursor,
+  normalizarLimite,
+  montarEnvelopeKeyset,
+} from '../../shared/pagination/keysetCursor.js';
+import { AppError } from '../../shared/errors/AppError.js';
 
 export const ENTIDADE_SEQUENCIA = 'Marca';
 
@@ -75,11 +82,50 @@ const camposDe = (entrada) => {
   return saida;
 };
 
-/** @param {{auth: import('../../shared/auth/authContext.js').AuthContext}} contexto */
-export const listar = async (contexto) => {
+/**
+ * Lista paginada por keyset (D-PROD-54).
+ *
+ * @param {{auth: import('../../shared/auth/authContext.js').AuthContext}} contexto
+ * @param {Record<string, unknown>} [query]
+ * @returns {Promise<{
+ *   items: ReturnType<typeof comoMarcaPublica>[],
+ *   next_cursor: string|null,
+ *   has_more: boolean,
+ *   total: number,
+ *   limit: number,
+ * }>}
+ */
+export const listar = async (contexto, query = {}) => {
   const auth = exigirAuthContext(contexto?.auth);
-  const registros = await listarMarcas(auth.clienteId);
-  return registros.map(comoMarcaPublica);
+  const limit = normalizarLimite(query.limit);
+  const empresaId =
+    typeof query.empresa_id === 'string' && query.empresa_id.trim()
+      ? query.empresa_id.trim()
+      : null;
+  const q = typeof query.q === 'string' ? query.q : null;
+  let ativo = null;
+  if (query.ativo === true || query.ativo === 'true' || query.ativo === '1') ativo = true;
+  if (query.ativo === false || query.ativo === 'false' || query.ativo === '0') ativo = false;
+
+  const cursorBruto = typeof query.cursor === 'string' ? query.cursor : null;
+  const cursor = cursorBruto ? decodificarCursor(cursorBruto) : null;
+  if (cursorBruto && !cursor) {
+    throw new AppError('REQUEST_VALIDATION_FAILED', 'cursor inválido');
+  }
+
+  const filtro = { empresaId, q, ativo, cursor, limit };
+  const [registros, total] = await Promise.all([
+    listarMarcasPagina(auth.clienteId, filtro),
+    // total ignora cursor — tamanho do conjunto filtrado
+    contarMarcas(auth.clienteId, { empresaId, q, ativo }),
+  ]);
+
+  return montarEnvelopeKeyset({
+    registros,
+    limit,
+    total,
+    mapItem: comoMarcaPublica,
+  });
 };
 
 /** @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto @param {Record<string, unknown>} entrada */

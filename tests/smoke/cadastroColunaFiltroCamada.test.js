@@ -4,6 +4,7 @@ import {
   deveFecharFiltroPorFora,
   ehCamadaAninhadaDoFiltro,
   haCamadaAninhadaDoFiltroAberta,
+  ponteiroSobreCamadaAninhada,
 } from "@/components/cadastro/base1/cadastroColunaFiltroCamada";
 
 function alvoComCamadaAninhada() {
@@ -51,16 +52,18 @@ describe("cadastroColunaFiltroCamada — paridade CDE 357–360", () => {
     expect(SELETOR_CAMADA_ANINHADA_DO_FILTRO).not.toContain(".b1-dp-filtro");
   });
 
-  it("bloqueia dismiss quando calendário do filtro está aberto", () => {
+  it("bloqueia dismiss quando o ponteiro está sobre o calendário aberto", () => {
     const painel = document.createElement("div");
     painel.className = "mg-dp-panel";
     painel.setAttribute("data-state", "open");
+    painel.getBoundingClientRect = () => ({ left: 0, top: 0, right: 40, bottom: 40 });
     const doc = {
       querySelector: (sel) => (sel.includes("data-state='open'") ? painel : null),
+      querySelectorAll: (sel) => (sel.includes("data-state='open'") ? [painel] : []),
     };
     const shell = {
       contains: () => false,
-      getBoundingClientRect: () => ({ left: 0, top: 0, right: 0, bottom: 0 }),
+      getBoundingClientRect: () => ({ left: 100, top: 100, right: 200, bottom: 200 }),
     };
     expect(
       deveFecharFiltroPorFora({
@@ -70,6 +73,7 @@ describe("cadastroColunaFiltroCamada — paridade CDE 357–360", () => {
         doc,
       }),
     ).toBe(false);
+    expect(ponteiroSobreCamadaAninhada({ clientX: 10, clientY: 10 }, doc)).toBe(true);
   });
 
   it("não fecha quando o alvo é camada do operador", () => {
@@ -83,9 +87,32 @@ describe("cadastroColunaFiltroCamada — paridade CDE 357–360", () => {
         alvo,
         ponto: { clientX: 10, clientY: 10 },
         shell,
-        doc: { querySelector: () => null },
+        doc: { querySelector: () => null, querySelectorAll: () => [] },
       }),
     ).toBe(false);
     expect(ehCamadaAninhadaDoFiltro(alvo)).toBe(true);
+  });
+
+  it("fecha com clique fora mesmo se houver cmd-panel fechado na página", () => {
+    const fechado = document.createElement("div");
+    fechado.className = "cmd-panel";
+    fechado.setAttribute("data-state", "closed");
+    document.body.appendChild(fechado);
+    try {
+      expect(haCamadaAninhadaDoFiltroAberta(document)).toBe(false);
+      expect(
+        deveFecharFiltroPorFora({
+          alvo: alvoSemCamadaAninhada(),
+          ponto: { clientX: 10, clientY: 10 },
+          shell: {
+            contains: () => false,
+            getBoundingClientRect: () => ({ left: 100, top: 100, right: 300, bottom: 400 }),
+          },
+          doc: document,
+        }),
+      ).toBe(true);
+    } finally {
+      fechado.remove();
+    }
   });
 });

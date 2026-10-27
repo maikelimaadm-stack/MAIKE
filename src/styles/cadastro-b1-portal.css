@@ -5,7 +5,7 @@
  */
 
 .cadastro-b1--portal-compras {
-  --portal-espaco: 6px;
+  --portal-espaco: 8px; /* espaçamento padrão entre botões */
   --mg-table-line: #dfe2e7;
   --portal-acao-bg: #f1f3f4;
   --portal-acao-fg: #475569;
@@ -165,6 +165,19 @@
   font-weight: 600 !important;
 }
 
+/* Novo / Salvar (tone green): verde + texto branco — padrão desktop e mobile */
+.cadastro-b1--portal-compras .mg-toolbar--join .tb-btn.tb-btn-green:not(.tb-btn-icon) {
+  background: var(--mg-accent) !important;
+  color: #fff !important;
+  box-shadow: var(--portal-sombra) !important;
+}
+
+.cadastro-b1--portal-compras .mg-toolbar--join .tb-btn.tb-btn-green:not(.tb-btn-icon):hover:not(:disabled) {
+  background: var(--mg-accent-hover) !important;
+  color: #fff !important;
+  box-shadow: var(--portal-sombra-hover) !important;
+}
+
 .cadastro-b1--portal-compras .mg-pill-select,
 .cadastro-b1--portal-compras button.mg-pill-select.cmd-display {
   height: 25px !important;
@@ -184,20 +197,66 @@
   box-shadow: var(--mg-focus-ring) !important;
 }
 
-.cadastro-b1--portal-compras .mg-toolbar--join .tb-btn-green,
-.cadastro-b1--portal-compras .mg-toolbar--join .tb-btn-gray,
-.cadastro-b1--portal-compras .mg-toolbar--join .tb-btn-red {
+.cadastro-b1--portal-compras .mg-toolbar--join .tb-btn-gray {
   background: var(--portal-acao-bg) !important;
   color: var(--portal-acao-fg) !important;
   box-shadow: var(--portal-sombra) !important;
 }
 
-.cadastro-b1--portal-compras .mg-toolbar--join .tb-btn-green:hover:not(:disabled),
-.cadastro-b1--portal-compras .mg-toolbar--join .tb-btn-gray:hover:not(:disabled),
-.cadastro-b1--portal-compras .mg-toolbar--join .tb-btn-red:hover:not(:disabled) {
+.cadastro-b1--portal-compras .mg-toolbar--join .tb-btn-gray:hover:not(:disabled) {
   background: var(--portal-acao-hover) !important;
   color: var(--portal-acao-fg-hover) !important;
   box-shadow: var(--portal-sombra-hover) !important;
+}
+
+/* Excluir: letra e ícone vermelhos (vence o cinza genérico :not(.tb-btn-icon)) */
+.cadastro-b1--portal-compras .mg-toolbar--join .tb-btn.tb-btn-red:not(.tb-btn-icon) {
+  background: var(--portal-acao-bg) !important;
+  color: var(--mg-red) !important;
+  box-shadow: var(--portal-sombra) !important;
+}
+
+.cadastro-b1--portal-compras .mg-toolbar--join .tb-btn.tb-btn-red:not(.tb-btn-icon):hover:not(:disabled) {
+  background: rgba(220, 38, 38, 0.08) !important;
+  color: var(--mg-red) !important;
+  box-shadow: var(--portal-sombra-hover) !important;
+}
+
+.cadastro-b1--portal-compras .mg-toolbar--join .tb-btn.tb-btn-red:not(.tb-btn-icon) svg {
+  color: var(--mg-red) !important;
+  stroke: currentColor !important;
+}
+
+/* Visto / OK / Pronto: fundo verde + ícone branco (vence o cinza do portal/fpop/mdl) */
+.cadastro-b1--portal-compras .tb-btn.tb-btn-icon.tb-btn-green,
+.b1-portal-compras .tb-btn.tb-btn-icon.tb-btn-green,
+.b1-portal-compras.fpop .tb-btn.tb-btn-icon.tb-btn-green,
+.b1-portal-compras .fpop-f .tb-btn.tb-btn-icon.tb-btn-green,
+.b1-portal-compras .mdl-f .tb-btn.tb-btn-icon.tb-btn-green,
+.b1ref.b1-portal-compras .tb-btn.tb-btn-icon.tb-btn-green {
+  background: #40de63 !important;
+  border-color: #40de63 !important;
+  color: #fff !important;
+}
+
+.cadastro-b1--portal-compras .tb-btn.tb-btn-icon.tb-btn-green:hover:not(:disabled),
+.b1-portal-compras .tb-btn.tb-btn-icon.tb-btn-green:hover:not(:disabled),
+.b1-portal-compras.fpop .tb-btn.tb-btn-icon.tb-btn-green:hover:not(:disabled),
+.b1-portal-compras .fpop-f .tb-btn.tb-btn-icon.tb-btn-green:hover:not(:disabled),
+.b1-portal-compras .mdl-f .tb-btn.tb-btn-icon.tb-btn-green:hover:not(:disabled),
+.b1ref.b1-portal-compras .tb-btn.tb-btn-icon.tb-btn-green:hover:not(:disabled) {
+  background: #36c956 !important;
+  border-color: #36c956 !important;
+  color: #fff !important;
+}
+
+.cadastro-b1--portal-compras .tb-btn.tb-btn-icon.tb-btn-green svg,
+.b1-portal-compras .tb-btn.tb-btn-icon.tb-btn-green svg,
+.b1-portal-compras.fpop .tb-btn.tb-btn-icon.tb-btn-green svg,
+.b1-portal-compras .fpop-f .tb-btn.tb-btn-icon.tb-btn-green svg,
+.b1-portal-compras .mdl-f .tb-btn.tb-btn-icon.tb-btn-green svg,
+.b1ref.b1-portal-compras .tb-btn.tb-btn-icon.tb-btn-green svg {
+  color: #fff !important;
 }
 
 /* Popovers / dialogs / fpop no body */
@@ -240,11 +299,62 @@
   box-shadow: 0 3px 9px rgba(34, 197, 94, 0.36) !important;
 }
 
+.b1-portal-compras .tb-btn.tb-btn-green,
+.b1-portal-compras.fpop .tb-btn.tb-btn-green,
+.b1-portal-compras .mdl-f .tb-btn.tb-btn-green {
+  background: #40de63 !important;
+  border-color: #40de63 !important;
+  color: #fff !important;
+}
+
+.b1-portal-compras .tb-btn.tb-btn-green:hover:not(:disabled),
+.b1-portal-compras.fpop .tb-btn.tb-btn-green:hover:not(:disabled),
+.b1-portal-compras .mdl-f .tb-btn.tb-btn-green:hover:not(:disabled) {
+  background: #36c956 !important;
+  border-color: #36c956 !important;
+  color: #fff !important;
+}
+
 .b1-portal-compras .tb-btn-icon,
 .b1-portal-compras .mdl-f .tb-btn-icon {
   width: 25px !important;
   min-width: 25px !important;
   padding: 0 !important;
+}
+
+/* Fechar / Cancelar (ícone, sem verde): fundo cinza explícito em diálogos e filtros */
+.b1-portal-compras .tb-btn.tb-btn-icon:not(.tb-btn-green),
+.b1-portal-compras.fpop .tb-btn.tb-btn-icon:not(.tb-btn-green),
+.b1-portal-compras .fpop-f .tb-btn.tb-btn-icon:not(.tb-btn-green),
+.b1-portal-compras .mdl-h .tb-btn.tb-btn-icon:not(.tb-btn-green),
+.b1-portal-compras .mdl-f .tb-btn.tb-btn-icon:not(.tb-btn-green),
+.b1ref.b1-portal-compras .tb-btn.tb-btn-icon:not(.tb-btn-green),
+.b1ref.b1-portal-compras .rm {
+  background: #f1f3f4 !important;
+  border-color: transparent !important;
+  color: #475569 !important;
+  box-shadow: 0 2px 6px rgba(34, 197, 94, 0.3) !important;
+}
+
+.b1-portal-compras .tb-btn.tb-btn-icon:not(.tb-btn-green):hover:not(:disabled),
+.b1-portal-compras.fpop .tb-btn.tb-btn-icon:not(.tb-btn-green):hover:not(:disabled),
+.b1-portal-compras .fpop-f .tb-btn.tb-btn-icon:not(.tb-btn-green):hover:not(:disabled),
+.b1-portal-compras .mdl-h .tb-btn.tb-btn-icon:not(.tb-btn-green):hover:not(:disabled),
+.b1-portal-compras .mdl-f .tb-btn.tb-btn-icon:not(.tb-btn-green):hover:not(:disabled),
+.b1ref.b1-portal-compras .tb-btn.tb-btn-icon:not(.tb-btn-green):hover:not(:disabled),
+.b1ref.b1-portal-compras .rm:hover {
+  background: #e8ecef !important;
+  color: #0f172a !important;
+  box-shadow: 0 3px 9px rgba(34, 197, 94, 0.36) !important;
+}
+
+.b1-portal-compras .tb-btn.tb-btn-icon:not(.tb-btn-green) svg,
+.b1-portal-compras.fpop .tb-btn.tb-btn-icon:not(.tb-btn-green) svg,
+.b1-portal-compras .fpop-f .tb-btn.tb-btn-icon:not(.tb-btn-green) svg,
+.b1-portal-compras .mdl-h .tb-btn.tb-btn-icon:not(.tb-btn-green) svg,
+.b1-portal-compras .mdl-f .tb-btn.tb-btn-icon:not(.tb-btn-green) svg,
+.b1ref.b1-portal-compras .rm svg {
+  color: inherit !important;
 }
 
 .b1-portal-compras .tb-btn svg,
@@ -322,14 +432,19 @@
     color: var(--mg-text-1) !important;
   }
 
-  .cadastro-b1--full-page .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn-red {
+  .cadastro-b1--full-page .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn.tb-btn-red:not(.tb-btn-icon) {
     background: var(--mg-gray-fill) !important;
     color: var(--mg-red) !important;
   }
 
-  .cadastro-b1--full-page .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn-red:hover:not(:disabled) {
+  .cadastro-b1--full-page .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn.tb-btn-red:not(.tb-btn-icon):hover:not(:disabled) {
     background: rgba(220, 38, 38, 0.08) !important;
     color: var(--mg-red) !important;
+  }
+
+  .cadastro-b1--full-page .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn.tb-btn-red:not(.tb-btn-icon) svg {
+    color: var(--mg-red) !important;
+    stroke: currentColor !important;
   }
 
   .cadastro-b1--full-page .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn-icon,
@@ -377,7 +492,7 @@
   }
 
   .b1-portal-compras .mdl-h {
-    gap: 6px;
+    gap: 8px;
     padding-left: 12px;
     padding-right: 8px;
   }
