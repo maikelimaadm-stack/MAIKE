@@ -202,8 +202,8 @@ Após merge em `main`: redeploy Production Vercel + `deploy:migrate` (no-op espe
 
 Marcar go-live somente quando **todos** forem verdadeiros:
 
-- [x] 6/6 migrations em `_prisma_migrations` (Supabase MAIKE, 2026-10-27)
-- [x] 10/10 tabelas Prisma + índices no Supabase (auditoria agente 2026-10-27 — `PRODUCAO-TABELAS-SUPABASE-AUDIT-2026-10-27.md`)
+- [x] 7/7 migrations em `_prisma_migrations` (Supabase MAIKE, 2026-10-27, pós-PR #73)
+- [x] 11/11 tabelas Prisma + índices no Supabase (auditoria agente 2026-10-27 — `PRODUCAO-TABELAS-SUPABASE-AUDIT-2026-10-27.md`)
 - [x] `main` com rewrites completos em `vercel.json` (aguarda redeploy Production se deploy antigo)
 - [x] `/health` OK no domínio de produção (`maike-five.vercel.app`, 2026-10-27)
 - [ ] Login nativo sem `VITE_SKIP_NATIVE_LOGIN` (Vercel env — agente sem acesso MCP ao projeto)
