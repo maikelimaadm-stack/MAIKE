@@ -170,7 +170,8 @@ const verificarSemBase44 = () => {
   for (const rel of alvos) {
     const codigo = semComentarios(ler(rel));
 
-    // `getDataProviderConfig` é a porta do token da Base44. Importá-la aqui
+    // Legado P7: `getDataProviderConfig` foi removido; manter o padrão impede
+    // reintroduzir a porta do token Base44 no cliente HTTP.
     // seria o primeiro passo para repassar credencial de um sistema ao outro —
     // proibido pela D-PROD-24, item B.
     const importsProibidos = [

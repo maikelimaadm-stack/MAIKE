@@ -2,7 +2,7 @@
  * Runtime offline de entidade — provider-agnostic (P1.4).
  *
  * O antecessor, `src/lib/offlineEntitySync.js`, recebia o cliente inteiro,
- * indexava `base44Client.entities[entityName]` com nome vindo de uma lista e
+ * indexava `client.entities[entityName]` do SDK legado com nome vindo de uma lista e
  * substituía `list`/`filter`/`create`/`update`/`delete` in place. Duas coisas
  * eram falsas nesse desenho: o runtime **não precisa** conhecer provider nenhum,
  * e o acesso por nome era exatamente a porta dinâmica que `gate:api-boundary`

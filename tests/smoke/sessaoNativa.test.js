@@ -98,13 +98,10 @@ describe('P4T — configuração do transporte nativo', () => {
     vi.stubGlobal('location', locationAnterior);
   });
 
-  it('P4T-02 a URL do MAIKE e a da Base44 são independentes', async () => {
+  it('P4T-02 a URL do MAIKE vem só de VITE_MAIKE_API_URL (P7 — sem legado Base44)', async () => {
     vi.stubEnv('VITE_MAIKE_API_URL', API);
-    vi.stubEnv('VITE_BASE44_BACKEND_URL', 'https://base44.exemplo.invalido');
-    const { getNativeApiUrl, getDataProviderConfig } = await import('@/config/runtimeConfig');
+    const { getNativeApiUrl } = await import('@/config/runtimeConfig');
     expect(getNativeApiUrl()).toBe(API);
-    expect(getDataProviderConfig().serverUrl).toBe('https://base44.exemplo.invalido');
-    expect(getNativeApiUrl()).not.toBe(getDataProviderConfig().serverUrl);
   });
 
   // ── P4.0-R2: base sem esquema (D-PROD-26) ───────────────────────────────

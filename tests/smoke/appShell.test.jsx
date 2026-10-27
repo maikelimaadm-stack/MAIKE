@@ -277,9 +277,9 @@ describe('ENV — contrato de variáveis e topologia de deploy', () => {
   const prosaDoEnvExample = () =>
     envExample().replace(/^\s*#\s?/gm, '').replace(/\s+/g, ' ');
 
-  it('ENV1 — as três variáveis consumidas estão documentadas', () => {
+  it('ENV1 — as variáveis VITE_ consumidas estão documentadas', () => {
     const texto = envExample();
-    for (const nome of ['VITE_GOOGLE_MAPS_API_KEY', 'VITE_BASE44_APP_ID', 'VITE_BASE44_BACKEND_URL']) {
+    for (const nome of ['VITE_GOOGLE_MAPS_API_KEY', 'VITE_MAIKE_API_URL']) {
       expect(texto).toMatch(new RegExp(`^${nome}=`, 'm'));
     }
   });

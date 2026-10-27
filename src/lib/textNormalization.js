@@ -2,7 +2,7 @@
  * Normalização de texto do produto (P0 · reescrita provider-agnostic em P1.4).
  *
  * Este módulo era, até a P1.3, um **monkey patch global**:
- * `installTextNormalization(base44Client)` varria `Object.values(base44Client.entities)`
+ * `installTextNormalization(client)` varria `Object.values(client.entities)` do SDK legado
  * e substituía `create`, `update`, `bulkCreate`, `list`, `filter`, `get`,
  * `subscribe` e os métodos de `auth` de cada entidade do SDK, in place. Três
  * problemas, e nenhum deles é estético:

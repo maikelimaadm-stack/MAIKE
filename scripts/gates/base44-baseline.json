@@ -1,10 +1,10 @@
 {
   "version": 2,
   "axes": {
-    "arquivosComSdk": 2,
+    "arquivosComSdk": 0,
     "importsSdk": 0,
     "entitiesRefs": 0,
-    "authRefs": 2,
+    "authRefs": 0,
     "integrationsRefs": 0,
     "functionsRefs": 0,
     "vitePlugin": 0,
