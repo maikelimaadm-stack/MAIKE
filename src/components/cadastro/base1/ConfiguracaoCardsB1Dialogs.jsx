@@ -1,9 +1,9 @@
 import React from "react";
 import { createPortal } from "react-dom";
-import { Check, X } from "lucide-react";
+import { Check, RotateCcw, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePortalComprasSkin } from "./portalComprasSkinContext";
-import { CheckRow, PillBtn, RadioRow } from "./Base1Ui";
+import { CheckRow, RadioRow } from "./Base1Ui";
 
 const PER_ROW = [
   { n: 1, hint: "Até 5 campos por linha no card" },
@@ -20,25 +20,30 @@ const PER_ROW = [
  * @param {import('react').ReactNode} [props.footer]
  * @param {string} props.titulo
  * @param {string} [props.testId]
- * @param {import('react').CSSProperties} [props.shellStyle]
+ * @param {() => void} [props.onRestaurarRascunho]
  */
-function CardsB1DialogShell({ open, onFechar, titulo, children, footer, testId, shellStyle }) {
+function CardsB1DialogShell({ open, onFechar, titulo, children, footer, testId, onRestaurarRascunho }) {
   const portalSkin = usePortalComprasSkin();
   if (!open) return null;
 
   return createPortal(
     <div className={cn("b1ref", portalSkin && "b1-portal-compras")}>
       <div className="mdl" data-testid={testId}>
-        <div
-          className="mdlc"
-          style={{ width: 440, maxWidth: "92%", height: "auto", maxHeight: "86%", ...shellStyle }}
-          role="dialog"
-          aria-modal="true"
-          aria-label={titulo}
-        >
+        <div className="mdlc" role="dialog" aria-modal="true" aria-label={titulo}>
           <div className="mdl-h">
             <span className="mdl-t">{titulo}</span>
             <span style={{ flexGrow: 1 }} />
+            {onRestaurarRascunho ? (
+              <button
+                type="button"
+                className="tb-btn tb-btn-icon tb-btn-sm"
+                aria-label="Restaurar padrão"
+                title="Restaurar padrão"
+                onClick={onRestaurarRascunho}
+              >
+                <RotateCcw className="h-4 w-4" />
+              </button>
+            ) : null}
             <button type="button" className="rm" aria-label="Fechar" title="Fechar" onClick={onFechar}>
               <X size={14} />
             </button>
@@ -52,11 +57,8 @@ function CardsB1DialogShell({ open, onFechar, titulo, children, footer, testId, 
   );
 }
 
-const dialogFooter = (onRestore, onOk) => (
+const dialogFooter = (onOk) => (
   <>
-    <PillBtn tone="gray" onClick={onRestore}>
-      Restaurar
-    </PillBtn>
     <span style={{ flexGrow: 1 }} />
     <button type="button" className="tb-btn tb-btn-icon" aria-label="Pronto" title="Pronto" onClick={onOk}>
       <Check className="h-4 w-4" />
@@ -74,6 +76,7 @@ const dialogFooter = (onRestore, onOk) => (
  */
 export function ConfiguracaoLayoutCardsB1Dialog({ open, onFechar, value, onAplicar, onRestaurar }) {
   const [draft, setDraft] = React.useState(value);
+  const [aplicarPadrao, setAplicarPadrao] = React.useState(false);
   const semeado = React.useRef(false);
 
   React.useEffect(() => {
@@ -84,14 +87,20 @@ export function ConfiguracaoLayoutCardsB1Dialog({ open, onFechar, value, onAplic
     if (semeado.current) return;
     semeado.current = true;
     setDraft(value);
+    setAplicarPadrao(false);
   }, [open, value]);
 
-  const restaurarEAplicar = () => {
-    onRestaurar();
-    onFechar();
+  const restaurarRascunho = () => {
+    setAplicarPadrao(true);
+    setDraft(4);
   };
 
   const salvar = () => {
+    if (aplicarPadrao) {
+      onRestaurar();
+      onFechar();
+      return;
+    }
     onAplicar(draft);
     onFechar();
   };
@@ -102,14 +111,18 @@ export function ConfiguracaoLayoutCardsB1Dialog({ open, onFechar, value, onAplic
       onFechar={onFechar}
       titulo="Layout dos cards"
       testId="b1-cards-layout-dialog"
-      footer={dialogFooter(restaurarEAplicar, salvar)}
+      onRestaurarRascunho={restaurarRascunho}
+      footer={dialogFooter(salvar)}
     >
       <div role="radiogroup" aria-label="Cards por linha" className="min-h-0 overflow-auto">
         {PER_ROW.map((o) => (
           <RadioRow
             key={o.n}
             checked={draft === o.n}
-            onClick={() => setDraft(/** @type {1|2|3|4} */ (o.n))}
+            onClick={() => {
+              setAplicarPadrao(false);
+              setDraft(/** @type {1|2|3|4} */ (o.n));
+            }}
             title={`${o.n} card${o.n > 1 ? "s" : ""} por linha`}
             hint={o.hint}
           />
@@ -137,7 +150,9 @@ export function ConfiguracaoCamposCardsB1Dialog({
   onRestaurar,
 }) {
   const [draft, setDraft] = React.useState(value);
+  const [aplicarPadrao, setAplicarPadrao] = React.useState(false);
   const semeado = React.useRef(false);
+  const padraoIds = React.useMemo(() => columns.map((c) => c.id), [columns]);
 
   React.useEffect(() => {
     if (!open) {
@@ -147,14 +162,20 @@ export function ConfiguracaoCamposCardsB1Dialog({
     if (semeado.current) return;
     semeado.current = true;
     setDraft(value);
+    setAplicarPadrao(false);
   }, [open, value]);
 
-  const restaurarEAplicar = () => {
-    onRestaurar();
-    onFechar();
+  const restaurarRascunho = () => {
+    setAplicarPadrao(true);
+    setDraft(padraoIds);
   };
 
   const salvar = () => {
+    if (aplicarPadrao) {
+      onRestaurar();
+      onFechar();
+      return;
+    }
     onAplicar(draft);
     onFechar();
   };
@@ -165,8 +186,8 @@ export function ConfiguracaoCamposCardsB1Dialog({
       onFechar={onFechar}
       titulo="Campos dos cards"
       testId="b1-cards-fields-dialog"
-      shellStyle={{ height: 480 }}
-      footer={dialogFooter(restaurarEAplicar, salvar)}
+      onRestaurarRascunho={restaurarRascunho}
+      footer={dialogFooter(salvar)}
     >
       <div className="min-h-0 flex-1 overflow-auto">
         {[...columns]
@@ -176,9 +197,10 @@ export function ConfiguracaoCamposCardsB1Dialog({
               key={c.id}
               label={c.label}
               checked={draft.includes(c.id)}
-              onChange={(on) =>
-                setDraft((d) => (on ? [...d, c.id] : d.filter((k) => k !== c.id)))
-              }
+              onChange={(on) => {
+                setAplicarPadrao(false);
+                setDraft((d) => (on ? [...d, c.id] : d.filter((k) => k !== c.id)));
+              }}
             />
           ))}
       </div>
