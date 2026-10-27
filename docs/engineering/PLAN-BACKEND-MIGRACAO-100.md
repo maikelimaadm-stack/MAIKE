@@ -207,6 +207,7 @@ Exige PostgreSQL acessível via `DATABASE_URL` na etapa `test:backend`. CI já f
 
 ## Referências
 
+- [`PRODUCAO-GO-LIVE-CHECKLIST.md`](./PRODUCAO-GO-LIVE-CHECKLIST.md) — checklist consolidado para o proprietário
 - `AGENTS.md` — comandos operacionais
 - `.env.example` — contrato de variáveis
 - `docs/engineering/DECISIONS.md` — D-PROD-28/29 (migrations), D-PROD-36 (Vercel), D-PROD-33/35 (login)

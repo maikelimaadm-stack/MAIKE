@@ -22,6 +22,8 @@
 | Railway | Pre-deploy migrations (DEPLOY-MIGRATION-01) — último registro certificado: **3** migrations; alinhar para **6** no próximo deploy originado da fonte |
 | Certificação agente 2026-10-27 | `prisma:deploy` + `test:backend` verdes com Postgres local; `verify:all` na branch desta missão |
 
+Checklist operacional de go-live: [`PRODUCAO-GO-LIVE-CHECKLIST.md`](./PRODUCAO-GO-LIVE-CHECKLIST.md).
+
 Variáveis críticas: `DATABASE_URL`, `MIGRATION_DATABASE_URL` (pre-deploy), `AUTH_SECRET`,
 `FRONTEND_ORIGINS`, `VITE_MAIKE_API_URL` (build frontend). Detalhes em `.env.example`.
 
