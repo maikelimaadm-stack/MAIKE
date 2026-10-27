@@ -42,6 +42,10 @@
 npm run verify:all
 ```
 
+Neste ambiente de agente, `test:backend` exige `DATABASE_URL` + PostgreSQL (Docker
+indisponível aqui); a CI do repositório fornece o serviço. Demais etapas (gates,
+lint, smoke, build) passaram após o hotfix.
+
 Testes relevantes:
 
 - `tests/smoke/manejoServices.test.js` — L4, L4b (motivo e empresa)
