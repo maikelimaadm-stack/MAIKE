@@ -18,6 +18,22 @@ const FL = ({ label, required, error, children, dataField }) => (
 const SELECT_EMPTY = "__VAZIO__";
 const REQUIRED_FIELDS = ["nome"];
 
+/** Todos os descendentes de `raizId` (não inclui a raiz). */
+export const idsDescendentesDe = (categorias, raizId) => {
+  const excluir = new Set();
+  const fila = [raizId];
+  while (fila.length) {
+    const atual = fila.shift();
+    for (const c of categorias) {
+      if (c.categoria_pai_id === atual && !excluir.has(c.id)) {
+        excluir.add(c.id);
+        fila.push(c.id);
+      }
+    }
+  }
+  return excluir;
+};
+
 export default function FormularioCategoriaProduto({
   onSubmit,
   onCancel,
@@ -50,9 +66,13 @@ export default function FormularioCategoriaProduto({
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const categoriasPaiDisponiveis = categoriasExistentes.filter(c => {
+  const descendentesDoEditado = initialData?.id
+    ? idsDescendentesDe(categoriasExistentes, initialData.id)
+    : new Set();
+
+  const categoriasPaiDisponiveis = categoriasExistentes.filter((c) => {
     if (initialData && c.id === initialData.id) return false;
-    if (initialData && c.categoria_pai_id === initialData.id) return false;
+    if (descendentesDoEditado.has(c.id)) return false;
     return true;
   });
 
@@ -87,9 +107,11 @@ export default function FormularioCategoriaProduto({
 
     const categoriaPai = categoriasExistentes.find(c => c.id === formData.categoria_pai_id);
 
+    const paiId = formData.categoria_pai_id || null;
+
     onSubmit({
       nome: formData.nome.toUpperCase(),
-      categoria_pai_id: formData.categoria_pai_id || undefined,
+      categoria_pai_id: paiId,
       categoria_pai_nome: categoriaPai?.nome || "",
       descricao: formData.descricao?.toUpperCase() || "",
       ativo: formData.ativo,

@@ -11,6 +11,7 @@ import {
   categoriaPaiNotFound,
   categoriaDeleteBlocked,
 } from '../../shared/errors/AppError.js';
+import { AppError } from '../../shared/errors/AppError.js';
 import {
   listarCategorias,
   buscarCategoria,
@@ -18,6 +19,7 @@ import {
   inserirCategoria,
   atualizarCategoriaPorId,
   excluirCategoriaPorId,
+  propagarNomePaiParaFilhas,
 } from './categoriaRepository.js';
 
 export const ENTIDADE_SEQUENCIA = 'Categoria';
@@ -72,8 +74,37 @@ const camposDe = (entrada) => {
   return saida;
 };
 
-const resolverPai = async (tx, auth, paiId) => {
+const hierarquiaInvalida = (message) =>
+  new AppError('REQUEST_VALIDATION_FAILED', message || 'hierarquia de categoria inválida');
+
+/**
+ * Rejeita auto-parentesco, descendência invertida e ciclos na cadeia de ancestrais.
+ * @param {import('@prisma/client').Prisma.TransactionClient} tx
+ * @param {import('../../shared/auth/authContext.js').AuthContext} auth
+ * @param {string} categoriaId registro sendo editado
+ * @param {string | null} novoPaiId
+ */
+const validarNovaHierarquia = async (tx, auth, categoriaId, novoPaiId) => {
+  if (!novoPaiId) return;
+  if (novoPaiId === categoriaId) throw hierarquiaInvalida();
+
+  const visitados = new Set();
+  let atual = novoPaiId;
+  while (atual) {
+    if (atual === categoriaId) throw hierarquiaInvalida();
+    if (visitados.has(atual)) throw hierarquiaInvalida();
+    visitados.add(atual);
+    const registro = await buscarCategoria(auth.clienteId, atual, tx);
+    if (!registro) throw categoriaPaiNotFound();
+    atual = registro.categoria_pai_id ?? null;
+  }
+};
+
+const resolverPai = async (tx, auth, paiId, categoriaIdEmEdicao) => {
   if (!paiId) return { categoria_pai_id: null, categoria_pai_nome: null };
+  if (categoriaIdEmEdicao) {
+    await validarNovaHierarquia(tx, auth, categoriaIdEmEdicao, paiId);
+  }
   const pai = await buscarCategoria(auth.clienteId, paiId, tx);
   if (!pai) throw categoriaPaiNotFound();
   return { categoria_pai_id: pai.id, categoria_pai_nome: pai.nome };
@@ -93,7 +124,7 @@ export const criar = async (contexto, entrada) => {
   const campos = camposDe(entrada);
 
   const criada = await prisma.$transaction(async (tx) => {
-    const pai = await resolverPai(tx, auth, campos.categoria_pai_id ?? null);
+    const pai = await resolverPai(tx, auth, campos.categoria_pai_id ?? null, null);
     const numero = await reservarNumero(tx, {
       clienteId: auth.clienteId,
       entidade: ENTIDADE_SEQUENCIA,
@@ -131,13 +162,22 @@ export const atualizar = async (contexto, id, entrada) => {
 
     const campos = camposDe(entrada);
     if (Object.prototype.hasOwnProperty.call(campos, 'categoria_pai_id')) {
-      const pai = await resolverPai(tx, auth, campos.categoria_pai_id ?? null);
+      const pai = await resolverPai(tx, auth, campos.categoria_pai_id ?? null, id);
       Object.assign(campos, pai);
     }
+
+    const nomeAlterado =
+      Object.prototype.hasOwnProperty.call(campos, 'nome') &&
+      campos.nome !== undefined &&
+      campos.nome !== anterior.nome;
 
     const registro = Object.keys(campos).length
       ? await atualizarCategoriaPorId(tx, auth.clienteId, id, campos)
       : anterior;
+
+    if (nomeAlterado && registro.nome) {
+      await propagarNomePaiParaFilhas(tx, auth.clienteId, id, registro.nome);
+    }
 
     const publica = comoCategoriaPublica(registro);
     await registrarEvento(
