@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { Upload, FileJson, CheckCircle, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
+import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 import {
   Dialog,
   DialogContent,
@@ -22,7 +23,7 @@ export default function ImportarGeoJSON({ open, onOpenChange }) {
   const [resultado, setResultado] = useState(null);
   
   const queryClient = useQueryClient();
-  const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
+  const empresaSelecionadaId = useEmpresaSelecionadaId();
 
   const handleFileUpload = (e) => {
     const file = e.target.files?.[0];

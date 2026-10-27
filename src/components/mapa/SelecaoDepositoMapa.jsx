@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { X, MapPin, Check } from "lucide-react";
 import { normalizeText } from "../suplementacao/estoqueSuplementacaoUtils";
 import { loadGoogleMaps } from "@/lib/googleMaps";
+import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 
 const loadGoogleMapsScript = () => loadGoogleMaps();
 
@@ -28,7 +29,7 @@ const applyMarkerIconPreservingAspectRatio = (marker, iconUrl, baseSize = 42) =>
 };
 
 export default function SelecaoDepositoMapa({ cochoCoords, depositoSelecionadoId, onSelect, onClose }) {
-  const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
+  const empresaSelecionadaId = useEmpresaSelecionadaId();
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const markersRef = useRef([]);

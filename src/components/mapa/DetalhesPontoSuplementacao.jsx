@@ -17,6 +17,7 @@ import { normalizeText } from "../suplementacao/estoqueSuplementacaoUtils";
 import { kgParaSacos } from "../suplementacao/unidadeConversaoUtils";
 import { consumoEsperadoGrupoDia, pesoMedioPonderadoLotes } from "../suplementacao/consumoPVUtils";
 import { sugerirPercentualPV } from "../suplementacao/suplementacaoRules";
+import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 
 const parseDateLocal = (value) => {
   if (!value) return null;
@@ -43,7 +44,7 @@ const diffLocalDays = (start, end = new Date()) => {
 };
 
 export default function DetalhesPontoSuplementacao({ ponto, onClose, permissions = {} }) {
-  const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
+  const empresaSelecionadaId = useEmpresaSelecionadaId();
   const queryClient = useQueryClient();
   const [showLancamento, setShowLancamento] = useState(false);
   const [showHistorico, setShowHistorico] = useState(false);

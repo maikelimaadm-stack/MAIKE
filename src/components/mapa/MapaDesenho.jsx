@@ -17,6 +17,7 @@ import FormularioArea from "./FormularioArea";
 import FormularioPonto from "./FormularioPonto";
 import FormularioLinha from "./FormularioLinha";
 import { loadGoogleMaps } from "@/lib/googleMaps";
+import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 
 const loadGoogleMapsScript = () => loadGoogleMaps();
 
@@ -123,7 +124,7 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
   }, [currentPoints]);
 
   const queryClient = useQueryClient();
-  const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
+  const empresaSelecionadaId = useEmpresaSelecionadaId();
 
   const { data: areas = [] } = useQuery({
     queryKey: ['areas', empresaSelecionadaId],

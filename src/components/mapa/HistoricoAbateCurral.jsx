@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { listarTodasMovimentacoes, listarTodosLotes, atualizarLote, excluirMovimentacao } from "@/services/loteManejoService";
 import { toast } from "sonner";
+import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 
 function formatDateOnly(value) {
   const raw = String(value || "");
@@ -16,7 +17,7 @@ function formatDateOnly(value) {
 }
 
 export default function HistoricoAbateCurral({ areaId }) {
-  const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
+  const empresaSelecionadaId = useEmpresaSelecionadaId();
   const queryClient = useQueryClient();
 
   const deleteMutation = useMutation({

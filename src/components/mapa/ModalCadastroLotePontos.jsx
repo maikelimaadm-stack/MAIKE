@@ -20,6 +20,7 @@ import {
 "@/components/ui/sheet";
 import FormularioPonto from "./FormularioPonto";
 import { loadGoogleMaps } from "@/lib/googleMaps";
+import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 
 const loadGoogleMapsScript = () => loadGoogleMaps();
 
@@ -110,7 +111,7 @@ const createPoint = (coords, lastPoint = null, detectedArea = null, detectedDepo
 });
 
 export default function ModalCadastroLotePontos({ open, onOpenChange }) {
-  const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
+  const empresaSelecionadaId = useEmpresaSelecionadaId();
   const queryClient = useQueryClient();
   const { setores } = useSetorAreas(empresaSelecionadaId);
 

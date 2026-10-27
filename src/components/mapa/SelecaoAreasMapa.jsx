@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { loadGoogleMaps } from "@/lib/googleMaps";
+import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 
 const CORES_DISPONIVEIS = [
 { nome: "Branco", cor: "#f8f9fa" },
@@ -89,7 +90,7 @@ export default function SelecaoAreasMapa({ onClose, selectedIds = [], selectionM
   const [batchValue, setBatchValue] = useState("");
   const [startNumber, setStartNumber] = useState("");
   const queryClient = useQueryClient();
-  const empresaId = localStorage.getItem('empresa_selecionada_id');
+  const empresaId = useEmpresaSelecionadaId();
 
   useEffect(() => {
     selecionadosRef.current = new Set(selectedIds || []);

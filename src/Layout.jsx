@@ -4,7 +4,10 @@ import { createPageUrl } from "@/utils";
 import { listEmpresas } from "@/services/empresaService";
 import { getCurrentUser, getCachedUser, listarPermissoes, permissaoDoUsuario, permissaoMinimaNativa } from "@/services/sessionService";
 import { useAuth } from "@/lib/AuthContext";
-import { EVENTO_EMPRESA_SELECIONADA } from "@/hooks/useEmpresaSelecionadaId";
+import {
+  EVENTO_EMPRESA_SELECIONADA,
+  persistirEmpresaSelecionada as gravarEmpresaSelecionada,
+} from "@/hooks/useEmpresaSelecionadaId";
 import {
   Users, LogOut, Package, Shield, FolderOpen, Map, ChevronDown, Menu, Search, X, EyeOff, Eye } from
 "lucide-react";
@@ -86,9 +89,8 @@ export default function Layout({ children, currentPageName }) {
 
   const persistirEmpresaSelecionada = React.useCallback((empresaId) => {
     setEmpresaSelecionada(empresaId);
-    localStorage.setItem('empresa_selecionada_id', empresaId);
-    window.dispatchEvent(new Event(EVENTO_EMPRESA_SELECIONADA));
-  }, []);
+    gravarEmpresaSelecionada(empresaId, clienteId);
+  }, [clienteId]);
   const [menuOculto, setMenuOculto] = useState(() => {
     return localStorage.getItem('menu_oculto') === 'true';
   });

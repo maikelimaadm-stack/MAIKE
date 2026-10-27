@@ -27,6 +27,8 @@ import {
   validarPatchContaAcesso,
 } from "@/services/usuarioAdminService";
 import CadastroWorkspace from "@/components/cadastro/CadastroWorkspace";
+import { useAuth } from "@/lib/AuthContext";
+import { isUsuariosListagemRestrita } from "@/lib/usuariosListQuery";
 
 export default function Usuarios() {
   const [showForm, setShowForm] = useState(false);
@@ -46,30 +48,37 @@ export default function Usuarios() {
     chrome: chromePerm,
   });
   const queryClient = useQueryClient();
+  const { clienteId, user } = useAuth();
+  const sessaoKey = clienteId || user?.id || "anon";
 
   const { data: currentUser } = useQuery({
-    queryKey: ["currentUser"],
+    queryKey: ["currentUser", sessaoKey],
     queryFn: () => getCurrentUser(),
   });
 
-  const { data: usuarios = [], isLoading } = useQuery({
-    queryKey: ["usuarios"],
+  const {
+    data: usuarios = [],
+    isLoading,
+    isError: usuariosErro,
+    error: usuariosQueryError,
+    isFetching: usuariosFetching,
+  } = useQuery({
+    queryKey: ["usuarios", sessaoKey],
     queryFn: async () => {
       try {
         return await listarUsuarios();
-      } catch {
-        // Sem permissão para listar usuários a tela ainda funciona com as
-        // permissões já gravadas — comportamento preservado da P0.
-        return [];
+      } catch (error) {
+        if (isUsuariosListagemRestrita(error)) {
+          return [];
+        }
+        throw error;
       }
     },
-    initialData: [],
   });
 
   const { data: permissoes = [] } = useQuery({
-    queryKey: ["permissoes"],
+    queryKey: ["permissoes", sessaoKey],
     queryFn: () => listarPermissoes(),
-    initialData: [],
   });
 
   const {
@@ -77,9 +86,8 @@ export default function Usuarios() {
     isLoading: contasLoading,
     isError: contasErro,
   } = useQuery({
-    queryKey: ["contasAcesso"],
+    queryKey: ["contasAcesso", sessaoKey],
     queryFn: () => listarContasAcesso(),
-    initialData: [],
   });
 
   const updatePermissaoMutation = useMutation({
@@ -100,8 +108,8 @@ export default function Usuarios() {
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["permissoes"] });
-      queryClient.invalidateQueries({ queryKey: ["usuarios"] });
+      queryClient.invalidateQueries({ queryKey: ["permissoes", sessaoKey] });
+      queryClient.invalidateQueries({ queryKey: ["usuarios", sessaoKey] });
       setShowForm(false);
       setEditingUsuario(null);
       toast.success("Permissões atualizadas!");
@@ -115,7 +123,7 @@ export default function Usuarios() {
     mutationFn: (userEmail) =>
       removerPermissao({ userEmail, permissoes, emailDoUsuarioAtual: currentUser?.email }),
     onSuccess: ({ removida }) => {
-      queryClient.invalidateQueries({ queryKey: ["permissoes"] });
+      queryClient.invalidateQueries({ queryKey: ["permissoes", sessaoKey] });
       if (removida) toast.success("Permissões removidas!");
     },
     onError: (error) => {
@@ -183,8 +191,8 @@ export default function Usuarios() {
       return criarContaAcesso(dados);
     },
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["contasAcesso"] });
-      queryClient.invalidateQueries({ queryKey: ["usuarios"] });
+      queryClient.invalidateQueries({ queryKey: ["contasAcesso", sessaoKey] });
+      queryClient.invalidateQueries({ queryKey: ["usuarios", sessaoKey] });
       setShowContaForm(false);
       setEditingConta(null);
       toast.success(variables.id ? "Conta atualizada!" : "Conta criada!");
@@ -417,6 +425,15 @@ export default function Usuarios() {
             ) : null}
           </CadastroListaChrome>
         )}
+
+        {usuariosErro && !usuariosFetching ? (
+          <div className="cadastro-b1 mg-card p-3 text-xs text-amber-800 bg-amber-50 border-amber-200 mb-2">
+            {getApiErrorMessage(
+              usuariosQueryError,
+              "Não foi possível carregar a lista de usuários. Tente novamente em instantes.",
+            )}
+          </div>
+        ) : null}
 
         <CadastroListaChrome
           recordMode={showForm}

@@ -50,6 +50,7 @@ import FormularioProduto from "../components/produtos/FormularioProduto";
 import TabelaProdutos, { PRODUTOS_COLUNAS, getProdutoFieldValue } from "../components/produtos/TabelaProdutos";
 import { exportCadastroCsv } from "@/components/cadastro/base1/cadastroExportCsv";
 import FichaProduto from "../components/produtos/FichaProduto";
+import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 
 // Próximo número de produto. Escopo P0.1: a sequência era global (Pesagem +
 // Fornecedor + Produto); os domínios de pesagem e safra saíram do produto, então
@@ -81,8 +82,7 @@ export default function Produtos() {
 
   const queryClient = useQueryClient();
 
-  // Pegar empresa selecionada
-  const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
+  const empresaSelecionadaId = useEmpresaSelecionadaId();
 
   const { data: produtos, isLoading, refetch } = useQuery({
     queryKey: ['produtos', empresaSelecionadaId],
