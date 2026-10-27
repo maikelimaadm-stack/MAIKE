@@ -1344,14 +1344,14 @@
   }
 }
 
-/* Toolbar Marcas / base1-list — linhas previsíveis no mobile; desktop inalterado (display:contents) */
-@media (min-width: 640px) {
+/* Toolbar Marcas / base1-list — linhas previsíveis até tablet; desktop join flat ≥1024 */
+@media (min-width: 1024px) {
   .cadastro-b1--full-page .mg-toolbar--responsive .mg-toolbar__row {
     display: contents;
   }
 }
 
-@media (max-width: 639px) {
+@media (max-width: 1023px) {
   .cadastro-b1 .mg-toolbar {
     row-gap: 6px;
     height: auto;
@@ -1408,44 +1408,13 @@
     justify-content: flex-start;
   }
 
-  .cadastro-b1 .mg-toolbar__list-tools {
-    width: 100%;
-    margin-left: 0;
-  }
-
-  /* Itens só no menu ⋮ em telas estreitas */
   .mg-b1-menuitem--compact-only {
     display: flex;
   }
+}
 
-  /* Controles primários com texto: alvo de toque ~44px */
-  .cadastro-b1--full-page .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn:not(.tb-btn-icon) {
-    min-height: 44px !important;
-    height: auto !important;
-    padding-top: 8px !important;
-    padding-bottom: 8px !important;
-  }
-
-  .cadastro-b1--full-page .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn-icon {
-    width: 44px !important;
-    min-width: 44px !important;
-    height: 44px !important;
-    min-height: 44px !important;
-  }
-
-  .cadastro-b1--full-page .cadastro-b1--portal-compras .view-seg {
-    min-height: 44px;
-    padding: 4px;
-  }
-
-  .cadastro-b1--full-page .cadastro-b1--portal-compras .view-seg button {
-    width: 36px !important;
-    min-width: 36px !important;
-    height: 36px !important;
-    min-height: 36px !important;
-  }
-
-  /* Piloto Marcas / layout base1-list em mobile */
+@media (max-width: 639px) {
+  /* Piloto Marcas / layout base1-list em mobile estreito */
   .cadastro-b1--full-page .mg-summary {
     flex-direction: column;
     align-items: stretch;
@@ -1476,16 +1445,6 @@
     gap: 8px;
   }
 
-  .cadastro-b1--full-page .mg-shell--fill > .mg-shell__body .mg-grid-wrap,
-  .cadastro-b1--full-page .mg-grid-wrap {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  .cadastro-b1--full-page .mg-grid {
-    min-width: min(100%, 520px);
-  }
-
   .cadastro-b1--full-page .mg-b1-form-grid,
   .cadastro-b1--full-page form.b1.grid {
     gap: 12px;
@@ -1506,7 +1465,7 @@
   }
 }
 
-@media (min-width: 640px) {
+@media (min-width: 1024px) {
   .mg-b1-menuitem--compact-only {
     display: none;
   }
