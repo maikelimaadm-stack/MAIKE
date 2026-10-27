@@ -2,6 +2,7 @@
  * Repositório de ManejoTecnicoRebanho (P5.5).
  */
 import { getPrismaClient } from '../../database/prismaClient.js';
+import { opcoesTakeDeFiltros } from '../../shared/http/listQueryLimit.js';
 
 export const listarRegistros = async (clienteId, filtros = {}) => {
   const prisma = getPrismaClient();
@@ -10,6 +11,7 @@ export const listarRegistros = async (clienteId, filtros = {}) => {
   return prisma.manejoTecnicoRebanho.findMany({
     where,
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    ...opcoesTakeDeFiltros(filtros),
   });
 };
 

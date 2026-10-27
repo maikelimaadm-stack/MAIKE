@@ -2,6 +2,7 @@
  * Rotas de BebedouroAlerta (P5.5).
  */
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
+import { querystringListagemEmpresa } from '../../shared/http/listQueryLimit.js';
 import { listar, criar, atualizar, excluir } from './bebedouroAlertaService.js';
 
 const ID_SCHEMA = {
@@ -23,13 +24,7 @@ const ATUALIZAR_SCHEMA = {
 };
 
 const LISTAR_SCHEMA = {
-  querystring: {
-    type: 'object',
-    additionalProperties: false,
-    properties: {
-      empresa_id: { type: 'string', minLength: 1, maxLength: 64 },
-    },
-  },
+  querystring: querystringListagemEmpresa(),
 };
 
 

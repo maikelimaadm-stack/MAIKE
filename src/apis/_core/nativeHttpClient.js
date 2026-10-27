@@ -83,11 +83,21 @@ const TRADUCAO_BACKEND_ONLY = Object.freeze({
 
 const ehObjeto = (valor) => Boolean(valor) && typeof valor === 'object' && !Array.isArray(valor);
 
-/** `request_id` é o único campo da resposta de erro que vale guardar. */
+/** Campos de diagnóstico de validação permitidos na resposta de erro. */
 const detalhesSeguros = (corpo, details) => {
   const requestId = typeof corpo?.request_id === 'string' ? corpo.request_id : null;
-  if (!requestId && !details) return null;
-  return { ...(details ?? {}), ...(requestId ? { requestId } : {}) };
+  const field = typeof corpo?.field === 'string' ? corpo.field : null;
+  const reason = typeof corpo?.reason === 'string' ? corpo.reason : null;
+  const diagnostico =
+    field && reason
+      ? { field, reason }
+      : null;
+  if (!requestId && !details && !diagnostico) return null;
+  return {
+    ...(details ?? {}),
+    ...(diagnostico ?? {}),
+    ...(requestId ? { requestId } : {}),
+  };
 };
 
 /**

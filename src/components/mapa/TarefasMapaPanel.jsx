@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Settings, WifiOff } from "lucide-react";
 import { toast } from "sonner";
+import { ApiError, API_ERROR_CODES, getApiErrorMessage, hasApiErrorCode } from "@/apis/_core/ApiError";
 import FormularioTarefaMapa, { normalizeTaskPriority } from "./FormularioTarefaMapa";
 import TabelaLancamentosTarefas from "@/components/tarefas/TabelaLancamentosTarefas";
 import { saveTarefaOffline, saveTarefaImageOffline } from "@/components/offline/IndexedDBManager";
@@ -81,16 +82,23 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
       const uploadedUrls = await uploadImages(pendingImageFiles);
       const payload = uploadedUrls.length > 0 ? { ...data, fotos: [...(data.fotos || []), ...uploadedUrls] } : data;
       const created = await criarTarefa(payload);
-      await registrarHistoricoApi({
-        empresa_id: created.empresa_id,
-        tarefa_id: created.id,
-        titulo_tarefa: created.titulo,
-        evento: 'Criação',
-        data_evento: new Date().toISOString(),
-        status: created.status,
-        responsavel: created.responsavel,
-        descricao: 'Tarefa criada pelo mapa.',
-      });
+      try {
+        await registrarHistoricoApi({
+          empresa_id: created.empresa_id,
+          tarefa_id: created.id,
+          titulo_tarefa: created.titulo,
+          evento: 'Criação',
+          data_evento: new Date().toISOString(),
+          status: created.status,
+          responsavel: created.responsavel,
+          descricao: 'Tarefa criada pelo mapa.',
+        });
+      } catch (historicoErr) {
+        throw new ApiError(API_ERROR_CODES.MAPA_PARTIAL_OPERATION, {
+          cause: historicoErr,
+          details: { taskId: created.id },
+        });
+      }
       return created;
     },
     onSuccess: () => {
@@ -103,7 +111,17 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
       setEditingTarefa(null);
     },
     onError: (err) => {
-      toast.error(`Erro ao salvar tarefa: ${err?.message || 'Tente novamente'}`);
+      if (hasApiErrorCode(err, API_ERROR_CODES.MAPA_PARTIAL_OPERATION)) {
+        queryClient.invalidateQueries({ queryKey: ['tarefas-mapa'] });
+        queryClient.invalidateQueries({ queryKey: ['mapa-tarefas'] });
+        queryClient.invalidateQueries({ queryKey: ['gestao-tarefas-unificada'] });
+        window.dispatchEvent(new CustomEvent('atualizar-mapa'));
+        toast.warning(getApiErrorMessage(err));
+        setShowForm(false);
+        setEditingTarefa(null);
+        return;
+      }
+      toast.error(`Erro ao salvar tarefa: ${getApiErrorMessage(err, 'Tente novamente')}`);
     }
   });
 

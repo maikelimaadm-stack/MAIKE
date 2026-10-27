@@ -1,3 +1,5 @@
+import { mensagemValidacaoSegura } from './validationUserMessage.js';
+
 /**
  * Erro estável da fronteira de dados (P1.1, D-PROD-18).
  *
@@ -255,8 +257,14 @@ export const isApiError = (erro) => erro instanceof ApiError;
  */
 export const getApiErrorMessage = (erro, fallback = MENSAGEM_PADRAO) => {
   const seguro = typeof fallback === 'string' && fallback.trim() ? fallback.trim() : MENSAGEM_PADRAO;
-  if (isApiError(erro) && typeof erro.message === 'string' && erro.message.trim()) {
-    return erro.message;
+  if (isApiError(erro)) {
+    if (erro.code === API_ERROR_CODES.INVALID_ARGUMENT && erro.details) {
+      const especifica = mensagemValidacaoSegura(erro.details);
+      if (especifica) return especifica;
+    }
+    if (typeof erro.message === 'string' && erro.message.trim()) {
+      return erro.message;
+    }
   }
   return seguro;
 };
