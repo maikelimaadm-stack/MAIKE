@@ -35,11 +35,11 @@ Este documento responde: *o que abre no menu, de onde vêm os dados (PostgreSQL 
 | **Setores** | `/CadastroSetores` | Manejo → Setores | **Nativo** — `GET/POST/PATCH /setores` → Prisma `Setor` | Base1 parcial | **Sim** | Sem `DELETE` no backend (D-PROD-25). Sincronização de nomes para entidades Base44 via `syncEntityReferences`. |
 | **Categorias de Manejo** | `/CategoriasManejo` | Manejo → Categorias de Manejo | **Base44** (`CategoriaManejo`) | Base1 parcial | **Sim*** | Ícones podem ler cache; entidade manejo na Base44. |
 | **Bebedouros** | `/Bebedouros` | Manejo → Bebedouros | **Base44** (`Bebedouro`, histórico, sanidade) | Base1 grade | **Sim*** | |
-| **Produtos** | `/Produtos` | Suporte do Mapa → Produtos | **Base44** (`Produto`, estoque) | Base1 parcial | **Sim*** | Sem backend Prisma `Produto` (P5+). |
-| **Categorias de Produto** | `/Categorias` | Suporte → Categorias de Produto | **Base44** (`Categoria`) | Base1 parcial | **Sim*** | |
+| **Produtos** | `/Produtos` | Suporte do Mapa → Produtos | **Nativo** — `/produtos` → Prisma `Produto` (P5.2) | Base1 parcial | **Sim** | Movimentações de estoque ainda Base44. |
+| **Categorias de Produto** | `/Categorias` | Suporte → Categorias de Produto | **Nativo** — `/categorias` → Prisma `Categoria` (P5.2) | Base1 parcial | **Sim** | |
 | **Marcas** | `/marcas` | Suporte → Marcas | **Nativo** — `GET/POST/PATCH/DELETE /marcas` → Prisma `Marca` (P4.4, D-PROD-43) | **Base1 modelo** (`pageLayout="base1-list"`) | **Sim** | `empresa_id`: empresa Base44 em `localStorage` ou fallback `cliente_id` do JWT (P4.6). |
 | **Unidades de Medida** | `/UnidadesMedida` | Suporte → Unidades de Medida | **Base44** (`UnidadeMedida`) | Base1 grade | **Sim*** | |
-| **Locais de Estoque** | `/LocaisEstoque` | Suporte → Locais de Estoque | **Base44** (`LocalEstoque`) | Base1 grade | **Sim*** | |
+| **Locais de Estoque** | `/LocaisEstoque` | Suporte → Locais de Estoque | **Nativo** — `/locais-estoque` → Prisma `LocalEstoque` (P5.2) | Base1 grade | **Sim** | |
 | **Tipos de Tarefa** | `/TiposTarefa` | Suporte → Tipos de Tarefa | **Base44** (`TipoTarefa`, `GrupoAtividade`) | Base1 parcial | **Sim*** | |
 | **Grupos de Atividades** | `/GruposAtividades` | Suporte → Grupos de Atividades | **Base44** (`GrupoAtividade`) | Base1 parcial | **Sim*** | |
 | **Empresa** | `/Empresa` | Administração → Empresa | **Base44** (`Empresa`) | Base1 parcial | **Sim*** | Seleção de empresa ativa usa `localStorage` (`empresa_selecionada_id`). |
@@ -80,8 +80,11 @@ Rewrites Vercel: `vercel.json` encaminha as rotas acima para `api/fastify.js` (D
 | `/usuarios` | GET, POST, PATCH `:id` | Usuario (sem DELETE) |
 | `/marcas` | GET, POST, PATCH `:id`, DELETE `:id` | Marca (P4.4) |
 | `/lotes` | GET, POST, PATCH `:id`, DELETE `:id` | Lote (P5.1) |
+| `/categorias` | GET, POST, PATCH `:id`, DELETE `:id` | Categoria (P5.2) |
+| `/locais-estoque` | GET, POST, PATCH `:id`, DELETE `:id` | LocalEstoque (P5.2) |
+| `/produtos` | GET, POST, PATCH `:id`, DELETE `:id` | Produto (P5.2) |
 
-Não existem rotas nativas para: Produto, Categoria, Empresa, Bebedouro, Permissao, `LancamentoTarefa`, etc. (roadmap P5–P6).
+Não existem rotas nativas para: Empresa, Bebedouro, Permissao, `LancamentoTarefa`, etc. (roadmap P5–P6).
 
 ---
 

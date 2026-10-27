@@ -115,13 +115,13 @@ describe('PR — produtos', () => {
     expect(await produtoSvc.proximoNumeroDeProduto()).toBe(13);
   });
 
-  it('PR4 — número vai como string e a empresa entra no payload', async () => {
-    produtos.listProdutos.mockResolvedValue([{ numero_produto: '4' }]);
+  it('PR4 — empresa entra no payload; numeração fica no backend nativo (P5.2)', async () => {
     produtos.createProduto.mockResolvedValue({ id: 'novo' });
     await produtoSvc.criarProduto({ dados: { nome_produto: 'SAL' }, empresaId: EMPRESA, produtos: [] });
     expect(produtos.createProduto).toHaveBeenCalledWith(
-      expect.objectContaining({ empresa_id: EMPRESA, numero_produto: '5' })
+      expect.objectContaining({ empresa_id: EMPRESA, nome_produto: 'SAL' })
     );
+    expect(produtos.createProduto.mock.calls[0][0].numero_produto).toBeUndefined();
   });
 
   it('PR5 — update sincroniza as referências denormalizadas', async () => {
@@ -329,11 +329,10 @@ describe('UM — unidades de medida', () => {
 // ── Locais de estoque ─────────────────────────────────────────────────────
 
 describe('LE — locais de estoque', () => {
-  it('LE1 — numeração max + 1', async () => {
-    estoque.listLocais.mockResolvedValue([{ numero_local: '8' }]);
+  it('LE1 — criação repassa payload; numeração fica no backend nativo (P5.2)', async () => {
     estoque.createLocal.mockResolvedValue({ id: 'l' });
     await localSvc.criarLocal({ nome: 'GALPÃO' });
-    expect(estoque.createLocal).toHaveBeenCalledWith(expect.objectContaining({ numero_local: '9' }));
+    expect(estoque.createLocal).toHaveBeenCalledWith({ nome: 'GALPÃO' });
   });
 
   it('LE2 — rename propaga para depósito, ponto de referência e cochos', async () => {

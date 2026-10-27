@@ -31,6 +31,9 @@ import { registrarUnidadeMedidaRoutes } from './modules/unidadesMedida/unidadeMe
 import { registrarGrupoAtividadeRoutes } from './modules/gruposAtividade/grupoAtividadeRoutes.js';
 import { registrarTipoTarefaRoutes } from './modules/tiposTarefa/tipoTarefaRoutes.js';
 import { registrarLoteRoutes } from './modules/lotes/loteRoutes.js';
+import { registrarCategoriaRoutes } from './modules/categorias/categoriaRoutes.js';
+import { registrarLocalEstoqueRoutes } from './modules/locaisEstoque/localEstoqueRoutes.js';
+import { registrarProdutoRoutes } from './modules/produtos/produtoRoutes.js';
 
 /**
  * @param {{logger?: boolean|object}} [opcoes]
@@ -100,6 +103,9 @@ export const construirApp = async (opcoes = {}) => {
   await app.register(registrarGrupoAtividadeRoutes);
   await app.register(registrarTipoTarefaRoutes);
   await app.register(registrarLoteRoutes);
+  await app.register(registrarCategoriaRoutes);
+  await app.register(registrarLocalEstoqueRoutes);
+  await app.register(registrarProdutoRoutes);
 
   return app;
 };

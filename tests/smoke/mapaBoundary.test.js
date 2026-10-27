@@ -109,11 +109,20 @@ describe('P1.2 — a UI do mapa não fala Base44', () => {
     expect([...getRegisteredEntityNames()].sort()).toEqual(expect.arrayContaining([
       'AplicacaoMedicamento', 'Bebedouro', 'Empresa',
       'EstoqueLoteNota', 'EventoSanitario', 'HistoricoLancamentoTarefa',
-      'LancamentoTarefa', 'LocalEstoque', 'ManejoTecnicoRebanho',
+      'LancamentoTarefa', 'ManejoTecnicoRebanho',
       'MovimentacaoEstoque', 'MovimentacaoMapa', 'MovimentacaoPecuaria', 'Permissao',
-      'PontoSuplementacao', 'Produto', 'SuplementacaoEvento',
+      'PontoSuplementacao', 'SuplementacaoEvento',
       'SuplementacaoLote', 'User',
     ]));
+  });
+
+  it('B11d — Categoria, LocalEstoque e Produto saíram do registry (P5.2 nativo)', () => {
+    for (const ent of ['Categoria', 'LocalEstoque', 'Produto']) {
+      expect(getRegisteredEntityNames()).not.toContain(ent);
+    }
+    expect(codigoDe('src/apis/categorias/categoriasApi.js')).toContain('categoriaPort');
+    expect(codigoDe('src/apis/locais-estoque/locaisEstoqueApi.js')).toContain('localEstoquePort');
+    expect(codigoDe('src/apis/produtos/produtosApi.js')).toContain('produtoPort');
   });
 
   it('B11c — GrupoAtividade e TipoTarefa saíram do registry (P5.0 nativo)', () => {

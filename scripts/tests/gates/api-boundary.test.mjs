@@ -1364,6 +1364,9 @@ describe('gate:api-boundary — P1.4 fechamento da P1', () => {
     'GrupoAtividade',
     'TipoTarefa',
     'Lote',
+    'Categoria',
+    'LocalEstoque',
+    'Produto',
   ];
 
   test('P14-N11/N12 o registry real é o manifesto menos as capacidades já nativas', () => {

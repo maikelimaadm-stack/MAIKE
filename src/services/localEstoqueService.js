@@ -36,10 +36,7 @@ export const proximoNumeroDeLocal = async () => {
   return numeros.length > 0 ? Math.max(...numeros) + 1 : 1;
 };
 
-export const criarLocal = async (dados) => {
-  const numero = await proximoNumeroDeLocal();
-  return createLocal({ ...dados, numero_local: String(numero) });
-};
+export const criarLocal = async (dados) => createLocal(dados);
 
 /**
  * Preenche `numero_local` nos registros antigos.
@@ -48,20 +45,8 @@ export const criarLocal = async (dados) => {
  */
 export const numerarLocaisSemNumero = async (locais) => {
   const semNumero = (Array.isArray(locais) ? locais : []).filter((local) => !local.numero_local);
-  const numerados = [];
-  const falhas = [];
-
-  for (const local of semNumero) {
-    try {
-      const numero = await proximoNumeroDeLocal();
-      await updateLocal(local.id, { numero_local: String(numero) });
-      numerados.push(local.id);
-    } catch {
-      falhas.push(local.id);
-    }
-  }
-
-  return { numerados, falhas };
+  if (semNumero.length === 0) return { numerados: [], falhas: [] };
+  return { numerados: [], falhas: semNumero.map((local) => local.id) };
 };
 
 const mesmasCoordenadas = (a, b) =>

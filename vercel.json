@@ -27,6 +27,12 @@
     { "source": "/tipos-tarefa", "destination": "/api/fastify" },
     { "source": "/tipos-tarefa/:path*", "destination": "/api/fastify" },
     { "source": "/lotes", "destination": "/api/fastify" },
-    { "source": "/lotes/:path*", "destination": "/api/fastify" }
+    { "source": "/lotes/:path*", "destination": "/api/fastify" },
+    { "source": "/categorias", "destination": "/api/fastify" },
+    { "source": "/categorias/:path*", "destination": "/api/fastify" },
+    { "source": "/locais-estoque", "destination": "/api/fastify" },
+    { "source": "/locais-estoque/:path*", "destination": "/api/fastify" },
+    { "source": "/produtos", "destination": "/api/fastify" },
+    { "source": "/produtos/:path*", "destination": "/api/fastify" }
   ]
 }

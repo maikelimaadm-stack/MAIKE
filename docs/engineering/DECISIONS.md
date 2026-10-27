@@ -2163,4 +2163,21 @@ Base44 até os destinos denormalizados migrarem.
 
 ---
 
-<!-- Próxima decisão: D-PROD-48 -->
+### D-PROD-48 — Categoria, LocalEstoque e Produto nativos (P5.2)
+
+**Missão:** P5.2 — saída Base44 dos cadastros de estoque/suporte  
+**Relatório:** `docs/engineering/P5.2-CADASTROS-ESTOQUE-NATIVE-REPORT.md`
+
+**Decisão:** `Categoria`, `LocalEstoque` e `Produto` persistem no PostgreSQL
+tenant-scoped, com numeração por `EntidadeCodigoSequencia` na criação. CRUD em
+`/categorias`, `/locais-estoque` e `/produtos`. Referências denormalizadas em
+`Produto` (marca, categoria, unidade, local) permanecem strings — paridade com o
+legado enquanto movimentações e `syncEntityReferences` seguem na Base44.
+
+**Consequência:** menus de Produtos, Categorias e Locais de Estoque deixam de
+exigir token Base44 para CRUD; suplementação e lançamentos ainda consomem
+`MovimentacaoEstoque`, `LancamentoTarefa`, etc. na Base44.
+
+---
+
+<!-- Próxima decisão: D-PROD-49 -->

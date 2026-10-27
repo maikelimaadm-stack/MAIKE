@@ -41,9 +41,9 @@ const OFFLINE_ENTITIES = new Set([
   'LancamentoTarefa', 'HistoricoLancamentoTarefa',
   'PontoSuplementacao',
   'SuplementacaoEvento', 'SuplementacaoLote', 'EstoqueLoteNota', 'MovimentacaoMapa',
-  'MovimentacaoEstoque', 'Fornecedor', 'Produto', 'Permissao',
+  'MovimentacaoEstoque', 'Fornecedor', 'Permissao',
   'Empresa', 'AplicacaoMedicamento', 'EventoSanitario', 'ManejoTecnicoRebanho',
-  'LocalEstoque', 'CategoriaManejo',
+  'CategoriaManejo',
 ]);
 
 /**
@@ -116,10 +116,9 @@ const ENTITY_REGISTRY = Object.freeze({
   SuplementacaoLote: comFronteira('SuplementacaoLote', base44.entities.SuplementacaoLote),
 
   // Estoque consumido pelos pontos de suplementação (P1.2)
-  LocalEstoque: comFronteira('LocalEstoque', base44.entities.LocalEstoque),
+  // `LocalEstoque` e `Produto` migraram na P5.2 (D-PROD-48): portas nativas.
   EstoqueLoteNota: comFronteira('EstoqueLoteNota', base44.entities.EstoqueLoteNota),
   MovimentacaoEstoque: comFronteira('MovimentacaoEstoque', base44.entities.MovimentacaoEstoque),
-  Produto: comFronteira('Produto', base44.entities.Produto),
 
   // Tarefas georreferenciadas (P1.2)
   LancamentoTarefa: comFronteira('LancamentoTarefa', base44.entities.LancamentoTarefa),
@@ -138,7 +137,7 @@ const ENTITY_REGISTRY = Object.freeze({
   ManejoTecnicoRebanho: comFronteira('ManejoTecnicoRebanho', base44.entities.ManejoTecnicoRebanho),
 
   // Cadastros do manejo (P1.3)
-  Categoria: comFronteira('Categoria', base44.entities.Categoria),
+  // `Categoria` (produto) migrou na P5.2 (D-PROD-48): `categoriaNativePort.js`.
   CategoriaManejo: comFronteira('CategoriaManejo', base44.entities.CategoriaManejo),
   Fornecedor: comFronteira('Fornecedor', base44.entities.Fornecedor),
 
@@ -250,20 +249,12 @@ export const lotesProvider = Object.freeze({
 // ── Estoque consumido pelos pontos de suplementação (P1.2) ────────────────
 
 export const estoqueProvider = Object.freeze({
-  listLocais: (ordenacao) => endpointOf('LocalEstoque').list(ordenacao),
-  createLocal: (dados) => endpointOf('LocalEstoque').create(dados),
-  updateLocal: (id, dados) => endpointOf('LocalEstoque').update(id, dados),
-  deleteLocal: (id) => endpointOf('LocalEstoque').delete(id),
-
   listLotesNota: (ordenacao) => endpointOf('EstoqueLoteNota').list(ordenacao),
   filterLotesNota: (criterio) => endpointOf('EstoqueLoteNota').filter(criterio),
   updateLoteNota: (id, dados) => endpointOf('EstoqueLoteNota').update(id, dados),
 
   listMovimentacoes: (ordenacao, limite) => endpointOf('MovimentacaoEstoque').list(ordenacao, limite),
   updateMovimentacao: (id, dados) => endpointOf('MovimentacaoEstoque').update(id, dados),
-
-  listProdutos: (ordenacao) => endpointOf('Produto').list(ordenacao),
-  filterProdutos: (criterio) => endpointOf('Produto').filter(criterio),
 
   // Movimentação e lote de nota completos, consumidos pela suplementação (P1.4)
   createMovimentacao: (dados) => endpointOf('MovimentacaoEstoque').create(dados),
@@ -362,13 +353,8 @@ export const arquivosProvider = Object.freeze({
 // é `src/apis/setores/setorNativePort.js`, e não existe adapter da Base44 para
 // esta entidade — nem para leitura, nem para escrita, nem como fallback.
 
-/** Categoria de produto, hierárquica por `categoria_pai_id`. */
-export const categoriasProvider = Object.freeze({
-  list: (ordenacao) => endpointOf('Categoria').list(ordenacao),
-  create: (dados) => endpointOf('Categoria').create(dados),
-  update: (id, dados) => endpointOf('Categoria').update(id, dados),
-  delete: (id) => endpointOf('Categoria').delete(id),
-});
+// `categoriasProvider` removido na P5.2 (D-PROD-48): Categoria é nativa em
+// `src/apis/categorias/categoriaNativePort.js`.
 
 /** Categoria de manejo do rebanho. */
 export const categoriasManejoProvider = Object.freeze({
@@ -417,14 +403,8 @@ export const bebedourosProvider = Object.freeze({
 
 // ── Suporte e administração (P1.4) ────────────────────────────────────────
 
-/** Produto: cadastro completo. A leitura pelo estoque continua em `estoqueProvider`. */
-export const produtosProvider = Object.freeze({
-  list: (ordenacao) => endpointOf('Produto').list(ordenacao),
-  filter: (criterio) => endpointOf('Produto').filter(criterio),
-  create: (dados) => endpointOf('Produto').create(dados),
-  update: (id, dados) => endpointOf('Produto').update(id, dados),
-  delete: (id) => endpointOf('Produto').delete(id),
-});
+// `produtosProvider` removido na P5.2 (D-PROD-48): Produto é nativo em
+// `src/apis/produtos/produtoNativePort.js`.
 
 /**
  * Suplementação: evento, lote de suplementação e o estoque que eles consomem.
@@ -456,8 +436,14 @@ export const suplementacaoProvider = Object.freeze({
   updateLoteNota: (id, dados) => endpointOf('EstoqueLoteNota').update(id, dados),
   deleteLoteNota: (id) => endpointOf('EstoqueLoteNota').delete(id),
 
-  listProdutos: (ordenacao) => endpointOf('Produto').list(ordenacao),
-  updateProduto: (id, dados) => endpointOf('Produto').update(id, dados),
+  listProdutos: async (ordenacao) => {
+    const { listProdutos } = await import('@/apis/produtos');
+    return listProdutos(ordenacao);
+  },
+  updateProduto: async (id, dados) => {
+    const { updateProduto } = await import('@/apis/produtos');
+    return updateProduto(id, dados);
+  },
 
   listMovimentacoesPecuarias: (ordenacao) => endpointOf('MovimentacaoPecuaria').list(ordenacao),
   listPontosSuplementacao: (ordenacao) => endpointOf('PontoSuplementacao').list(ordenacao),

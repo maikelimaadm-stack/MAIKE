@@ -6,7 +6,7 @@
  */
 
 import { runProviderCall, assertArgument } from '../_core/normalizeApiError.js';
-import { categoriasProvider } from '../_providers/base44Provider.js';
+import { categoriaPort } from './categoriaNativePort.js';
 
 const RESOURCE = 'Categoria';
 const isId = (valor) => typeof valor === 'string' && valor.trim().length > 0;
@@ -16,23 +16,23 @@ const comoLista = (registros) => (Array.isArray(registros) ? registros : []);
 const ctx = (operation) => ({ operation, resource: RESOURCE });
 
 export const listCategorias = async (ordenacao) =>
-  comoLista(await runProviderCall(() => categoriasProvider.list(ordenacao), ctx('listCategorias')));
+  comoLista(await runProviderCall(() => categoriaPort.list(ordenacao), ctx('listCategorias')));
 
 export const createCategoria = async (dados) => {
   const contexto = ctx('createCategoria');
   assertArgument(isObjeto(dados), 'dados', contexto);
-  return runProviderCall(() => categoriasProvider.create(dados), contexto);
+  return runProviderCall(() => categoriaPort.create(dados), contexto);
 };
 
 export const updateCategoria = async (id, dados) => {
   const contexto = ctx('updateCategoria');
   assertArgument(isId(id), 'id', contexto);
   assertArgument(isObjeto(dados), 'dados', contexto);
-  return runProviderCall(() => categoriasProvider.update(id, dados), contexto);
+  return runProviderCall(() => categoriaPort.update(id, dados), contexto);
 };
 
 export const deleteCategoria = async (id) => {
   const contexto = ctx('deleteCategoria');
   assertArgument(isId(id), 'id', contexto);
-  return runProviderCall(() => categoriasProvider.delete(id), contexto);
+  return runProviderCall(() => categoriaPort.delete(id), contexto);
 };
