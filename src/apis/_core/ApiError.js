@@ -99,6 +99,9 @@ export const API_ERROR_CODES = Object.freeze({
   SETOR_NOT_FOUND: 'SETOR_NOT_FOUND',
   SETOR_DELETE_UNAVAILABLE: 'SETOR_DELETE_UNAVAILABLE',
 
+  // P4.4-Marcas — cadastro nativo (D-PROD-42).
+  MARCA_NOT_FOUND: 'MARCA_NOT_FOUND',
+
   // P6.0 — administração de contas nativas (D-PROD-34).
   USUARIO_NOT_FOUND: 'USUARIO_NOT_FOUND',
   USUARIO_LOGIN_DUPLICADO: 'USUARIO_LOGIN_DUPLICADO',
@@ -154,6 +157,7 @@ const MENSAGENS = Object.freeze({
   [API_ERROR_CODES.SETOR_NOT_FOUND]: 'Este setor não foi encontrado. Atualize a lista e tente novamente.',
   [API_ERROR_CODES.SETOR_DELETE_UNAVAILABLE]:
     'A exclusão de setores está indisponível enquanto o cadastro é migrado. Nenhum dado foi alterado.',
+  [API_ERROR_CODES.MARCA_NOT_FOUND]: 'Esta marca não foi encontrada. Atualize a lista e tente novamente.',
 
   [API_ERROR_CODES.USUARIO_NOT_FOUND]: 'Este usuário não foi encontrado. Atualize a lista e tente novamente.',
   [API_ERROR_CODES.USUARIO_LOGIN_DUPLICADO]: 'Já existe um usuário com este login neste cliente.',

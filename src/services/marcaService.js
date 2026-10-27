@@ -1,13 +1,8 @@
 /**
- * Service de marcas (P1.4).
+ * Service de marcas — persistência nativa (P4.4-Marcas, D-PROD-42).
  *
- * Nome único por empresa, numeração automática por `max + 1` e CRUD. A regra de
- * unicidade estava dentro do `mutationFn` da página, comparando contra a lista
- * já carregada em memória — mantida, mas agora sobre a leitura do service.
- *
- * `max + 1` continua sem segurança de concorrência (DBT-06 da P1.2): duas
- * criações simultâneas podem receber o mesmo número. Fechar isso exige o
- * backend nativo da P3.
+ * Unicidade de nome por empresa continua no service para falha rápida na UI, mas
+ * a numeração e a constraint definitiva vivem no backend.
  */
 
 import { listMarcas, createMarca, updateMarca, deleteMarca } from '@/apis/marcas';
@@ -15,30 +10,16 @@ import { ApiError, API_ERROR_CODES } from '@/apis/_core/ApiError';
 
 const chaveDeNome = (valor) => String(valor ?? '').trim().toUpperCase();
 
-/** Marcas da empresa, mais recentes primeiro. */
+/** Marcas da empresa, mais recentes primeiro (ordem do backend). */
 export const listarMarcasDaEmpresa = async (empresaId) => {
-  const todas = await listMarcas({ order: '-created_date' });
+  const todas = await listMarcas();
   return todas.filter((marca) => marca.empresa_id === empresaId);
 };
 
-/** Marcas ativas da empresa — a fonte de opções do formulário de produto. */
+/** Marcas ativas da empresa — opções do formulário de produto. */
 export const listarMarcasAtivas = async (empresaId) => {
   const todas = await listMarcas();
   return todas.filter((marca) => marca.empresa_id === empresaId && marca.ativo !== false);
-};
-
-/**
- * Próximo `numero_marca`.
- *
- * A numeração olha **todas** as marcas, não só as da empresa: era o alcance da
- * página, e estreitá-lo geraria números repetidos entre empresas.
- */
-export const proximoNumeroDeMarca = async () => {
-  const todas = await listMarcas();
-  const numeros = todas
-    .map((marca) => Number.parseInt(marca.numero_marca, 10) || 0)
-    .filter((n) => n > 0 && n < 1000000000);
-  return numeros.length > 0 ? Math.max(...numeros) + 1 : 1;
 };
 
 const assertNomeLivre = (marcas, nome, ignorarId) => {
@@ -55,17 +36,16 @@ const assertNomeLivre = (marcas, nome, ignorarId) => {
 
 export const criarMarca = async ({ dados, empresaId, marcasDaEmpresa = [] }) => {
   assertNomeLivre(marcasDaEmpresa, dados?.nome);
-  const numero = await proximoNumeroDeMarca();
-  return createMarca({ ...dados, empresa_id: empresaId, numero_marca: String(numero) });
+  return createMarca({ ...dados, empresa_id: empresaId });
 };
 
-export const atualizarMarca = (id, dados) => updateMarca(id, dados);
+export const atualizarMarca = async (id, dados, marcasDaEmpresa = []) => {
+  if (dados?.nome) assertNomeLivre(marcasDaEmpresa, dados.nome, id);
+  return updateMarca(id, dados);
+};
 
 /**
- * Exclusão múltipla.
- *
- * Best-effort explícito: cada id é tentado, e o resultado diz quais saíram e
- * quais falharam. A página não some com a falha num `catch {}`.
+ * Exclusão múltipla (best-effort).
  *
  * @returns {Promise<{excluidas: string[], falhas: Array<{id: string, code: string}>}>}
  */

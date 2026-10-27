@@ -75,10 +75,11 @@ const comFronteira = (nome, endpoint) =>
  * `allowedBase44Entities` (`P11-API-BOUNDARY-SCOPE`). A P1.4 fechou o registry
  * **igual** ao manifesto, com 35 entidades.
  *
- * Desde a P4.1 a relação é de **inclusão, não igualdade**: 30 entidades aqui
- * para 35 no manifesto. `Setor` (D-PROD-25), `AreaPastagem` (D-PROD-31) e a
+ * Desde a P4.1 a relação é de **inclusão, não igualdade**: 29 entidades aqui
+ * para 35 no manifesto. `Setor` (D-PROD-25), `AreaPastagem` (D-PROD-31), a
  * tríade P4.3 (`ConfiguracaoIcone`, `PontoReferencia`, `LinhaGeografica`,
- * D-PROD-32) migraram para persistência nativa e saíram daqui, mas continuam no
+ * D-PROD-32) e `Marca` (D-PROD-43) migraram para persistência nativa e saíram
+ * daqui, mas continuam no
  * manifesto
  * porque a function `syncEntityReferences` ainda os cita. A diferença é o
  * número de capacidades já migradas — declaradas em `MIGRADAS_PARA_NATIVO`
@@ -149,7 +150,10 @@ const ENTITY_REGISTRY = Object.freeze({
   BebedouroAlerta: comFronteira('BebedouroAlerta', base44.entities.BebedouroAlerta),
 
   // Cadastros de suporte (P1.4)
-  Marca: comFronteira('Marca', base44.entities.Marca),
+  // `Marca` saiu na P4.4-Marcas (D-PROD-42): persistência nativa em
+  // `src/apis/marcas/marcaNativePort.js`. O schema continua em
+  // `base44/entities/Marca.jsonc` e o nome continua em `allowedBase44Entities`
+  // enquanto `Produto` referenciar marca na Base44.
   UnidadeMedida: comFronteira('UnidadeMedida', base44.entities.UnidadeMedida),
 });
 
@@ -458,14 +462,6 @@ export const produtosProvider = Object.freeze({
   create: (dados) => endpointOf('Produto').create(dados),
   update: (id, dados) => endpointOf('Produto').update(id, dados),
   delete: (id) => endpointOf('Produto').delete(id),
-});
-
-/** Marca de produto, por empresa. */
-export const marcasProvider = Object.freeze({
-  list: (ordenacao) => endpointOf('Marca').list(ordenacao),
-  create: (dados) => endpointOf('Marca').create(dados),
-  update: (id, dados) => endpointOf('Marca').update(id, dados),
-  delete: (id) => endpointOf('Marca').delete(id),
 });
 
 /** Unidade de medida. A sigla é a chave que o Produto referencia. */

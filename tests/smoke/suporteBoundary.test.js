@@ -231,6 +231,7 @@ describe('B17 — registry do provider é literal, exato e igual ao manifesto me
     'ConfiguracaoIcone',
     'PontoReferencia',
     'LinhaGeografica',
+    'Marca',
   ];
 
   const ESPERADO = [
@@ -238,20 +239,20 @@ describe('B17 — registry do provider é literal, exato e igual ao manifesto me
     'BebedouroSanidade', 'Categoria', 'CategoriaManejo', 'Empresa',
     'EstoqueLoteNota', 'EventoSanitario', 'Fornecedor', 'GrupoAtividade', 'HistoricoLancamentoTarefa',
     'LancamentoTarefa',
-    'LocalEstoque', 'Lote', 'ManejoTecnicoRebanho', 'Marca', 'MovimentacaoEstoque', 'MovimentacaoMapa',
+    'LocalEstoque', 'Lote', 'ManejoTecnicoRebanho', 'MovimentacaoEstoque', 'MovimentacaoMapa',
     'MovimentacaoPecuaria', 'Permissao', 'PontoSuplementacao', 'Produto',
     'RegistroAnexo', 'SuplementacaoEvento', 'SuplementacaoLote', 'TipoTarefa',
     'UnidadeMedida', 'User',
   ].sort();
 
-  it('são 30 entidades: manifesto (35) menos cinco nativas', async () => {
+  it('são 29 entidades: manifesto (35) menos seis nativas', async () => {
     const { getRegisteredEntityNames } = await import('@/apis/_providers/base44Provider');
     const registrados = getRegisteredEntityNames().slice().sort();
     const manifesto = JSON.parse(ler('config/mapa-manejo-scope.json')).allowedBase44Entities.slice().sort();
 
     expect(registrados).toEqual(ESPERADO);
     expect(registrados).toEqual(manifesto.filter((e) => !MIGRADAS_PARA_NATIVO.includes(e)));
-    expect(registrados.length).toBe(30);
+    expect(registrados.length).toBe(29);
     expect(manifesto.length).toBe(35);
   });
 
@@ -266,9 +267,9 @@ describe('B17 — registry do provider é literal, exato e igual ao manifesto me
     }
   });
 
-  it('só Marca e UnidadeMedida entraram na P1.4', () => {
+  it('UnidadeMedida permanece na P1.4; Marca migrou para nativo', () => {
     const registry = codigoDe('src/apis/_providers/base44Provider.js');
-    expect(registry).toContain("Marca: comFronteira('Marca', base44.entities.Marca)");
+    expect(registry).not.toContain("Marca: comFronteira('Marca', base44.entities.Marca)");
     expect(registry).toContain("UnidadeMedida: comFronteira('UnidadeMedida', base44.entities.UnidadeMedida)");
     expect(registry).not.toMatch(/entities\s*\[/);
   });

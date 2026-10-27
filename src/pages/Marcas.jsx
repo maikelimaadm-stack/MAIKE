@@ -61,7 +61,7 @@ export default function Marcas() {
 
   const updateMutation = useMutation({
     /** @param {{ id: string; data: object }} vars */
-    mutationFn: ({ id, data }) => atualizarMarca(id, data),
+    mutationFn: ({ id, data }) => atualizarMarca(id, data, marcas),
     onSuccess: (updated, { id, data }) => {
       queryClient.invalidateQueries({ queryKey: ["marcas"] });
       const merged = {

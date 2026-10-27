@@ -266,11 +266,13 @@ describe('MA — marcas', () => {
     ).rejects.toSatisfy((erro) => hasApiErrorCode(erro, API_ERROR_CODES.MARCA_NAME_CONFLICT));
   });
 
-  it('MA3 — numeração max + 1 sobre todas as marcas', async () => {
-    marcas.listMarcas.mockResolvedValue([{ numero_marca: '3' }, { numero_marca: '9' }]);
-    marcas.createMarca.mockResolvedValue({ id: 'nova' });
+  it('MA3 — criação delega numeração ao backend (sem numero_marca no cliente)', async () => {
+    marcas.createMarca.mockResolvedValue({ id: 'nova', numero_marca: '10' });
     await marcaSvc.criarMarca({ dados: { nome: 'ANGUS' }, empresaId: EMPRESA, marcasDaEmpresa: [] });
-    expect(marcas.createMarca).toHaveBeenCalledWith(expect.objectContaining({ numero_marca: '10' }));
+    expect(marcas.createMarca).toHaveBeenCalledWith(
+      expect.objectContaining({ empresa_id: EMPRESA, nome: 'ANGUS' })
+    );
+    expect(marcas.createMarca.mock.calls[0][0]).not.toHaveProperty('numero_marca');
   });
 
   it('MA4 — exclusão múltipla devolve o que saiu e o que falhou', async () => {

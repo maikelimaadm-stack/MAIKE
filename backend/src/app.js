@@ -26,6 +26,7 @@ import { registrarSetorRoutes } from './modules/setores/setorRoutes.js';
 import { registrarAreaPastagemRoutes } from './modules/areas/areaPastagemRoutes.js';
 import { registrarMapGeographyRoutes } from './modules/mapGeography/mapGeographyRoutes.js';
 import { registrarUsuarioRoutes } from './modules/usuarios/usuarioRoutes.js';
+import { registrarMarcaRoutes } from './modules/marcas/marcaRoutes.js';
 
 /**
  * @param {{logger?: boolean|object}} [opcoes]
@@ -90,6 +91,7 @@ export const construirApp = async (opcoes = {}) => {
   await app.register(registrarAreaPastagemRoutes);
   await app.register(registrarMapGeographyRoutes);
   await app.register(registrarUsuarioRoutes);
+  await app.register(registrarMarcaRoutes);
 
   return app;
 };

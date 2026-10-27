@@ -55,6 +55,7 @@ model Cliente {
   sequencias    EntidadeCodigoSequencia[]
   anexos        RegistroAnexo[]
   setores            Setor[]
+  marcas             Marca[]
   areasPastagem      AreaPastagem[]
   configuracoesIcone ConfiguracaoIcone[]
   pontosReferencia   PontoReferencia[]
@@ -270,6 +271,37 @@ model Setor {
 
   @@unique([cliente_id, numero_setor])
   @@unique([cliente_id, id])
+  @@index([cliente_id, empresa_id])
+  @@index([cliente_id, ativo])
+  @@index([cliente_id, nome])
+}
+
+// ---------------------------------------------------------------------------
+// Marca — cadastro de suporte migrado da Base44 (P4.4-Marcas, D-PROD-42).
+//
+// `numero_marca` é identificador de negócio, atribuído por
+// `EntidadeCodigoSequencia` no escopo `tenant` (mesmo raciocínio de Setor:
+// `Empresa` ainda não é model nativo). `empresa_id` é String simples, sem FK.
+//
+// Unicidade de nome é por empresa dentro do tenant — o cadastro legado já
+// recusava duplicata case-insensitive; o backend normaliza para maiúsculas.
+// ---------------------------------------------------------------------------
+model Marca {
+  id           String   @id @default(cuid())
+  cliente_id   String   @db.VarChar(64)
+  empresa_id   String   @db.VarChar(64)
+  numero_marca String   @db.VarChar(32)
+  nome         String   @db.VarChar(255)
+  descricao    String?  @db.VarChar(2000)
+  ativo        Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  cliente Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+
+  @@unique([cliente_id, numero_marca])
+  @@unique([cliente_id, id])
+  @@unique([cliente_id, empresa_id, nome])
   @@index([cliente_id, empresa_id])
   @@index([cliente_id, ativo])
   @@index([cliente_id, nome])
