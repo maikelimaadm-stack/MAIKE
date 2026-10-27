@@ -5,7 +5,7 @@
  */
 
 .cadastro-b1--portal-compras {
-  --portal-espaco: 6px;
+  --portal-espaco: 6px; /* espaçamento padrão entre botões */
   --mg-table-line: #dfe2e7;
   --portal-acao-bg: #f1f3f4;
   --portal-acao-fg: #475569;

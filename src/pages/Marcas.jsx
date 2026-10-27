@@ -483,8 +483,8 @@ export default function Marcas() {
             ? `Excluir ${deleteState.ids.length} registros de marca? A ação fica registrada na auditoria.`
             : "Excluir este registro de marca? A ação fica registrada na auditoria."
         }
-        confirmText="Confirmar"
-        cancelText="Fechar"
+        confirmText="Excluir"
+        cancelText="Cancelar"
         variant="destructive"
         onConfirm={handleConfirmDelete}
       />

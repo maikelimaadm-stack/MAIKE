@@ -1,5 +1,5 @@
 import React from "react";
-import { Check, X } from "lucide-react";
+import { Trash2, X } from "lucide-react";
 import {
   Dialog,
   DialogOverlay,
@@ -11,8 +11,7 @@ import { cn } from "@/lib/utils";
 
 /**
  * Pedido de confirmação — sempre no centro da tela.
- * Rodapé: X cinza + Check verde (paridade filtro do cabeçalho).
- * Notificações (salvar/excluir) ficam no canto via `maikeNotify`.
+ * Cancelar: X + texto. Excluir (destructive): lixeira + texto, fundo vermelho, ícone/texto brancos.
  */
 export default function ConfirmDialog({
   open,
@@ -20,10 +19,12 @@ export default function ConfirmDialog({
   title = "Confirme a exclusão",
   description = "Tem certeza que deseja excluir este item? Esta ação não pode ser desfeita.",
   onConfirm,
-  confirmText = "Confirmar",
-  cancelText = "Fechar",
+  confirmText = "Excluir",
+  cancelText = "Cancelar",
   variant = "default",
 }) {
+  const isDestructive = variant === "destructive" || variant === "danger";
+
   const handleConfirm = () => {
     onConfirm?.();
     onOpenChange?.(false);
@@ -48,7 +49,7 @@ export default function ConfirmDialog({
           <div
             className={cn(
               "mg-confirm-dialog cadastro-b1 b1ref b1-portal-compras",
-              variant === "destructive" && "mg-confirm-dialog--danger",
+              isDestructive && "mg-confirm-dialog--danger",
             )}
             role="alertdialog"
             aria-labelledby="mg-confirm-title"
@@ -66,21 +67,26 @@ export default function ConfirmDialog({
               <span style={{ flexGrow: 1 }} />
               <button
                 type="button"
-                className="tb-btn tb-btn-icon tb-btn-sm shrink-0"
+                className="tb-btn tb-btn-gray shrink-0"
                 title={cancelText}
                 aria-label={cancelText}
                 onClick={() => onOpenChange?.(false)}
               >
                 <X className="h-4 w-4" aria-hidden />
+                {cancelText}
               </button>
               <button
                 type="button"
-                className="tb-btn tb-btn-icon tb-btn-green tb-btn-sm shrink-0"
+                className={cn(
+                  "tb-btn shrink-0",
+                  isDestructive ? "tb-btn-red mg-confirm-dialog__excluir" : "tb-btn-green",
+                )}
                 title={confirmText}
                 aria-label={confirmText}
                 onClick={handleConfirm}
               >
-                <Check className="h-4 w-4" aria-hidden />
+                {isDestructive ? <Trash2 className="h-4 w-4" aria-hidden /> : null}
+                {confirmText}
               </button>
             </div>
           </div>

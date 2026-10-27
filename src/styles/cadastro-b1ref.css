@@ -11,10 +11,10 @@
 .b1ref /* ---------- colunas da tabela ---------- */
 .mdl{position:absolute;inset:0;z-index:80;display:flex;align-items:center;justify-content:center;background:rgba(15,23,42,.34)}
 .b1ref .mdlc{width:640px;height:520px;max-width:92%;max-height:86%;box-sizing:border-box;display:flex;flex-direction:column;border-radius:16px;background:#fff;box-shadow:0 24px 64px rgba(15,23,42,.26);overflow:hidden}
-.b1ref .mdl-h{flex-shrink:0;height:46px;box-sizing:border-box;display:flex;align-items:center;gap:10px;padding:0 12px 0 18px;border-bottom:1px solid #f1f4f6}
+.b1ref .mdl-h{flex-shrink:0;height:46px;box-sizing:border-box;display:flex;align-items:center;gap:6px;padding:0 12px 0 18px;border-bottom:1px solid #f1f4f6}
 .b1ref .mdl-t{font-size:13.5px;font-weight:600;color:#0f172a}
 .b1ref .mdl-b{flex-grow:1;min-height:0;overflow:hidden;padding:14px 18px;display:flex;flex-direction:column}
-.b1ref .mdl-f{flex-shrink:0;display:flex;align-items:center;gap:8px;padding:11px 14px;border-top:1px solid #f1f4f6;background:#fbfcfd}
+.b1ref .mdl-f{flex-shrink:0;display:flex;align-items:center;gap:6px;padding:11px 14px;border-top:1px solid #f1f4f6;background:#fbfcfd}
 .b1ref .dcol{display:flex;gap:8px;align-items:stretch;flex:1 1 auto;min-height:0;height:100%}
 .b1ref .dbox{flex:1 1 0;min-width:0;min-height:0;height:100%;display:flex;flex-direction:column;border:1px solid #eef1f4;border-radius:11px;padding:8px;overflow:hidden}
 .b1ref .dmid{flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:0 2px}
@@ -57,6 +57,7 @@
 .b1ref .fpop-h b{font-size:12px;font-weight:700;letter-spacing:0;text-transform:none;color:#0f172a}
 .b1ref .fpop-l{flex-grow:1;min-height:0;overflow:auto;padding:2px 5px 5px}
 .b1ref .fpop-f{flex-shrink:0;display:flex;align-items:center;gap:6px;padding:7px 8px;border-top:1px solid #f1f4f6;background:#fbfcfd}
+.cadastro-b1 .mg-search-suggest__footer{gap:6px}
 .b1ref .fval{display:flex;align-items:center;gap:9px;width:100%;box-sizing:border-box;min-height:27px;padding:0 8px;border:0;border-radius:7px;background:transparent;color:#334155;font-size:12px;cursor:pointer;text-align:left}
 .b1ref .fval:hover{background:#f4f6f7}
 .b1ref .fval.on{color:#0f172a}

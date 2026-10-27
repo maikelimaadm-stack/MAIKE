@@ -368,7 +368,7 @@ export default function CadastroListaChrome({
         </FluidSlot>
       </div>
       {!secondaryToolsLocked && joinedShell ? (
-        <div className="ml-auto flex items-center justify-end gap-1.5">
+        <div className="mg-toolbar__btns ml-auto flex items-center justify-end">
           {onClearFilters ? (
             <FluidSlot open={filtersActive}>
               <IconBtn
@@ -439,7 +439,7 @@ export default function CadastroListaChrome({
           {maisOpcoesPopover}
         </div>
       ) : (
-        <div className="ml-auto flex items-center gap-1.5 flex-wrap">
+        <div className="mg-toolbar__btns ml-auto flex items-center flex-wrap">
           {!secondaryToolsLocked && onClearFilters ? (
             <FluidSlot open={filtersActive}>
               <IconBtn
