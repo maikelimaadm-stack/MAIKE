@@ -240,6 +240,8 @@ do `vite.config.js`, arquivar `base44/` como referência histórica e substituir
 RLS no PostgreSQL, autorização real, rate limiting, observabilidade, backup com
 teste de restore, performance do mapa em campo, release.
 
+Checklist operacional (stub): [`P8-HARDENING-CHECKLIST.md`](./P8-HARDENING-CHECKLIST.md).
+
 ---
 
 ## Track paralelo — UX Base1 / paridade Portal Compras
