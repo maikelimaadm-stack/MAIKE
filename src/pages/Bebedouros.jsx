@@ -14,6 +14,7 @@ import CadastroBase1Grade from "@/components/cadastro/base1/CadastroBase1Grade";
 import CadastroRecordHeader from "@/components/cadastro/base1/CadastroRecordHeader";
 import { useCadastroListaChromeState } from "@/hooks/useCadastroListaChromeState";
 import { useCadastroPageListBindings } from "@/hooks/useCadastroPageListBindings";
+import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 
 const COLUNAS = [
   { id: "nome", label: "Nome", default: true, sortable: true, width: 180 },
@@ -25,7 +26,7 @@ const COLUNAS = [
 ];
 
 export default function Bebedouros() {
-  const empresaId = localStorage.getItem("empresa_selecionada_id");
+  const empresaId = useEmpresaSelecionadaId();
   const chrome = useCadastroListaChromeState();
   const listBindings = useCadastroPageListBindings({
     storageKey: "colunas_bebedouros_v1",

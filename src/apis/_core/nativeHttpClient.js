@@ -25,6 +25,7 @@
  * O texto exibível vem do catálogo local, indexado pelo `code`.
  */
 
+import { comPrefixoApiNativa } from '@/config/nativeApiPath.js';
 import { getNativeApiUrl } from '@/config/runtimeConfig';
 import { ApiError, API_ERROR_CODES } from './ApiError.js';
 import { getNativeToken } from '@/lib/auth/nativeTokenStorage';
@@ -115,7 +116,7 @@ const traduzirCodigo = (codigo) => {
  * entrada do usuário. Concatenar aqui uma URL arbitrária permitiria apontar o
  * `Authorization` para outro servidor.
  */
-const montarUrl = (base, caminho) => `${base}${caminho.startsWith('/') ? caminho : `/${caminho}`}`;
+const montarUrl = (base, caminho) => `${base}${comPrefixoApiNativa(caminho)}`;
 
 const erroDeIndisponibilidade = (contexto, cause) =>
   new ApiError(API_ERROR_CODES.PROVIDER_UNAVAILABLE, {
