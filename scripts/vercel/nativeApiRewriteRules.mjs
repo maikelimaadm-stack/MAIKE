@@ -1,11 +1,16 @@
 /**
- * Regras de rewrite Vercel: API nativa same-origin (D-PROD-36) sem roubar
- * navegação GET do SPA (deep links como /bebedouros).
+ * Regras de rewrite Vercel: API nativa same-origin (D-PROD-36) + deep links SPA.
  *
  * GET com `Accept` contendo `text/html` fica no SPA (Vite). Demais pedidos
  * no mesmo path vão para `/api/fastify` (fetch com `Accept: application/json`,
  * métodos mutáveis, OPTIONS, etc.).
  */
+
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import {
+  VERCEL_ACCEPT_TEXT_HTML_MISSING_CONDITION,
+} from './vercelAcceptMatch.mjs';
 
 /** @typedef {{ source: string, destination: string, has?: object[], missing?: object[] }} VercelRewrite */
 
@@ -56,9 +61,12 @@ const PREFIXOS_API = [
   '/registros-anexo',
 ];
 
-/** Navegação de documento no browser inclui text/html no Accept. */
+/**
+ * Guard: regra de API só aplica quando Accept **não** contém text/html (inclui Accept composto).
+ * `missing` = condição ausente → rewrite quando nenhuma condição `missing` está presente no request.
+ */
 export const VERCEL_SPA_DOCUMENT_ACCEPT_GUARD = {
-  missing: [{ type: 'header', key: 'accept', value: 'text/html' }],
+  missing: [VERCEL_ACCEPT_TEXT_HTML_MISSING_CONDITION],
 };
 
 /**
@@ -73,8 +81,29 @@ const rewritesParaPrefixo = (prefixo) => {
   ];
 };
 
+/** @param {string} pageName */
+const pagePathFromName = (pageName) => `/${pageName.toLowerCase()}`;
+
+/** Paths de páginas SPA (SSOT: config/mapa-manejo-scope.json). */
+const buildSpaPageRewrites = () => {
+  const scopePath = join(process.cwd(), 'config/mapa-manejo-scope.json');
+  const scope = JSON.parse(readFileSync(scopePath, 'utf8'));
+  /** @type {string[]} */
+  const paths = [];
+  for (const pageName of scope.allowedPages) {
+    paths.push(pagePathFromName(pageName));
+    paths.push(`/${pageName}`);
+  }
+  const unique = [...new Set(paths)].sort((a, b) => b.length - a.length);
+  return unique.map((source) => ({
+    source,
+    destination: '/index.html',
+  }));
+};
+
 /** @returns {VercelRewrite[]} */
 export const buildNativeApiRewrites = () => [
   ...REWRITES_INCONDICIONAIS,
   ...PREFIXOS_API.flatMap(rewritesParaPrefixo),
+  ...buildSpaPageRewrites(),
 ];
