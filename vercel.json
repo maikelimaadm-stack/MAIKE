@@ -6,6 +6,17 @@
   "rewrites": [
     { "source": "/auth/:path*", "destination": "/api/fastify" },
     { "source": "/health", "destination": "/api/fastify" },
-    { "source": "/setores/:path*", "destination": "/api/fastify" }
+    { "source": "/setores", "destination": "/api/fastify" },
+    { "source": "/setores/:path*", "destination": "/api/fastify" },
+    { "source": "/areas-pastagem", "destination": "/api/fastify" },
+    { "source": "/areas-pastagem/:path*", "destination": "/api/fastify" },
+    { "source": "/configuracao-icones", "destination": "/api/fastify" },
+    { "source": "/configuracao-icones/:path*", "destination": "/api/fastify" },
+    { "source": "/pontos-referencia", "destination": "/api/fastify" },
+    { "source": "/pontos-referencia/:path*", "destination": "/api/fastify" },
+    { "source": "/linhas-geograficas", "destination": "/api/fastify" },
+    { "source": "/linhas-geograficas/:path*", "destination": "/api/fastify" },
+    { "source": "/usuarios", "destination": "/api/fastify" },
+    { "source": "/usuarios/:path*", "destination": "/api/fastify" }
   ]
 }
