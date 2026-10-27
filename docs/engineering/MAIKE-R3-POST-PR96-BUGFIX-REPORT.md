@@ -8,7 +8,7 @@
 | Base declarada (prompt) | `main` @ `4ec0033504ecb7ba29b4da8934b6d85b6c9e8520` (merge #96) |
 | HEAD analisado | `origin/main` @ `4ec00335` (mesmo merge #96) |
 | PRs #95 / #96 abertas | **Não** — ambas **MERGED**; missão em branch única nova |
-| PR desta missão | DRAFT (link preenchido após push) |
+| PR desta missão | **Abrir manualmente (DRAFT):** https://github.com/maikelimaadm-stack/MAIKE/compare/main...cursor/maike-pos-pr96-bugfix-r3 |
 
 ## Resumo por item
 
