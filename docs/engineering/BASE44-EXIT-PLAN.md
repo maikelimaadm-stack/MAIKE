@@ -23,8 +23,11 @@
 2. ~~**Lote** (cadastro)~~ — **feito (P5.1, D-PROD-47)**. Movimentações mapa/pecuária seguem Base44.
 3. ~~**LancamentoTarefa** + histórico~~ — **feito (P5.3, D-PROD-49)**.
 4. ~~**Produto**, **Categoria**, **LocalEstoque**~~ — **feito (P5.2, D-PROD-48)**.
-5. **Empresa** — seleção `empresa_id` hoje via Base44 + `localStorage` — **próximo PR**.
-6. **Permissao** / matriz de menu — substituir ou espelhar no PostgreSQL (P6).
+5. ~~**Empresa**~~ — **feito (P5.4, D-PROD-50)**.
+6. ~~**Permissao**~~ (CRUD menu) — **feito (P5.4)**; refinamentos P6.
+7. ~~**MovimentacaoEstoque** / **EstoqueLoteNota** / **PontoSuplementacao**~~ — **feito (P5.4)**.
+8. ~~**Fornecedor**, **CategoriaManejo**, **Bebedouro** (cadastro)~~ — **feito (P5.4)**.
+9. **SuplementacaoEvento/Lote**, **MovimentacaoMapa/Pecuaria** — próximo PR.
 7. **syncEntityReferences** — eliminar quando destinos denormalizados forem nativos.
 8. **P7** — remover `@base44/sdk`, plugin Vite, `base44Client`, schemas órfãos.
 

@@ -105,14 +105,33 @@ describe('P1.2 — a UI do mapa não fala Base44', () => {
    * registry" nunca passe despercebido como se fosse a mesma coisa que
    * "migrou".
    */
-  it('B11 — as entidades da P1.2 continuam registradas', () => {
+  it('B11 — entidades Base44 do mapa/manejo ainda registradas', () => {
     expect([...getRegisteredEntityNames()].sort()).toEqual(expect.arrayContaining([
-      'AplicacaoMedicamento', 'Bebedouro', 'Empresa',
-      'EstoqueLoteNota', 'EventoSanitario', 'ManejoTecnicoRebanho',
-      'MovimentacaoEstoque', 'MovimentacaoMapa', 'MovimentacaoPecuaria', 'Permissao',
-      'PontoSuplementacao', 'SuplementacaoEvento',
-      'SuplementacaoLote', 'User',
+      'AplicacaoMedicamento',
+      'EventoSanitario',
+      'ManejoTecnicoRebanho',
+      'MovimentacaoMapa',
+      'MovimentacaoPecuaria',
+      'SuplementacaoEvento',
+      'SuplementacaoLote',
+      'User',
     ]));
+  });
+
+  it('B11f — P5.4 migrou estoque, empresa, permissões e pontos (nativo)', () => {
+    for (const ent of [
+      'Empresa',
+      'Permissao',
+      'Fornecedor',
+      'CategoriaManejo',
+      'Bebedouro',
+      'PontoSuplementacao',
+      'EstoqueLoteNota',
+      'MovimentacaoEstoque',
+    ]) {
+      expect(getRegisteredEntityNames()).not.toContain(ent);
+    }
+    expect(codigoDe('src/apis/mapa/mapaApi.js')).toContain("@/apis/pontos-suplementacao");
   });
 
   it('B11d — Categoria, LocalEstoque e Produto saíram do registry (P5.2 nativo)', () => {

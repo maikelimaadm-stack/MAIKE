@@ -1,7 +1,8 @@
 /** API do módulo Produtos (P1.4). */
 
 import { runProviderCall, assertArgument } from '../_core/normalizeApiError.js';
-import { estoqueProvider, referenciasProvider } from '../_providers/base44Provider.js';
+import { referenciasProvider } from '../_providers/base44Provider.js';
+import { listMovimentacoesEstoque as apiListMovimentacoesEstoque } from '@/apis/movimentacoes-estoque';
 import { produtoPort } from './produtoNativePort.js';
 
 const RESOURCE = 'Produto';
@@ -40,7 +41,7 @@ export const deleteProduto = async (id) => {
 
 /** Movimentações de estoque — leitura usada pela guarda de exclusão. */
 export const listMovimentacoesEstoque = async () =>
-  comoLista(await runProviderCall(() => estoqueProvider.listMovimentacoes(), ctx('listMovimentacoesEstoque')));
+  comoLista(await runProviderCall(() => apiListMovimentacoesEstoque(), ctx('listMovimentacoesEstoque')));
 
 /**
  * Sincroniza referências denormalizadas após renomear um produto.

@@ -23,6 +23,9 @@ vi.mock('@/api/base44Client', async () => {
   const { createBase44Stub } = await import('./base44Stub.js');
   return { base44: createBase44Stub() };
 });
+vi.mock('@/apis/_core/nativeHttpClient.js', () => ({
+  nativeRequest: vi.fn(async () => []),
+}));
 vi.mock('@/services/mapaCacheService', () => ({
   getMapaCachedData: () => Promise.resolve([]),
   refreshMapaCacheEntry: () => Promise.resolve([]),

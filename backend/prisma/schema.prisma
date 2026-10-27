@@ -69,6 +69,14 @@ model Cliente {
   produtos           Produto[]
   lancamentosTarefa  LancamentoTarefa[]
   historicosLancamentoTarefa HistoricoLancamentoTarefa[]
+  empresas               Empresa[]
+  permissoes             Permissao[]
+  fornecedores           Fornecedor[]
+  categoriasManejo       CategoriaManejo[]
+  bebedouros             Bebedouro[]
+  pontosSuplementacao    PontoSuplementacao[]
+  estoqueLotesNota       EstoqueLoteNota[]
+  movimentacoesEstoque   MovimentacaoEstoque[]
 
   @@index([nome])
   @@index([ativo])
@@ -824,4 +832,301 @@ model HistoricoLancamentoTarefa {
   @@index([cliente_id, tarefa_id])
   @@index([cliente_id, empresa_id])
   @@index([cliente_id, data_evento])
+}
+// ---------------------------------------------------------------------------
+// P5.4 — saída Base44: Empresa, estoque, suplementação, permissões (D-PROD-50+).
+// ---------------------------------------------------------------------------
+
+model Empresa {
+  id                 String   @id @default(cuid())
+  cliente_id         String   @db.VarChar(64)
+  apelido            String   @db.VarChar(255)
+  nome               String   @db.VarChar(255)
+  tipo_pessoa        String   @default("Jurídica") @db.VarChar(32)
+  cpf                String?  @db.VarChar(32)
+  rg                 String?  @db.VarChar(32)
+  cnpj               String?  @db.VarChar(32)
+  inscricao_estadual String?  @db.VarChar(64)
+  telefone           String?  @db.VarChar(64)
+  email              String?  @db.VarChar(255)
+  endereco           String?  @db.VarChar(255)
+  cidade             String?  @db.VarChar(128)
+  estado             String?  @db.VarChar(8)
+  cep                String?  @db.VarChar(16)
+  logotipo_url       String?  @db.VarChar(2000)
+  observacoes        String?  @db.VarChar(2000)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  cliente Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+
+  @@unique([cliente_id, id])
+  @@unique([cliente_id, nome])
+  @@index([cliente_id, apelido])
+}
+
+model Permissao {
+  id                    String   @id @default(cuid())
+  cliente_id            String   @db.VarChar(64)
+  user_email            String   @db.VarChar(255)
+  user_nome             String?  @db.VarChar(255)
+  modulos_permitidos    String[] @default([])
+  permissoes_telas      Json     @default("[]")
+  mobile_menu_ids       String[] @default([])
+  is_admin              Boolean  @default(false)
+  mapa_geral_permissoes Json     @default("{}")
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  cliente Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+
+  @@unique([cliente_id, id])
+  @@unique([cliente_id, user_email])
+}
+
+model Fornecedor {
+  id                 String    @id @default(cuid())
+  cliente_id         String    @db.VarChar(64)
+  empresa_id         String    @db.VarChar(64)
+  numero_cadastro    String    @db.VarChar(32)
+  tipo_pessoa        String    @db.VarChar(32)
+  nome               String    @db.VarChar(255)
+  cpf                String?   @db.VarChar(32)
+  rg                 String?   @db.VarChar(32)
+  data_nascimento    DateTime? @db.Date
+  cnpj               String?   @db.VarChar(32)
+  razao_social       String?   @db.VarChar(255)
+  inscricao_estadual String?   @db.VarChar(64)
+  nome_responsavel   String?   @db.VarChar(255)
+  telefone           String?   @db.VarChar(64)
+  email              String?   @db.VarChar(255)
+  endereco           String?   @db.VarChar(255)
+  cidade             String?   @db.VarChar(128)
+  codigo_ibge        String?   @db.VarChar(16)
+  estado             String?   @db.VarChar(8)
+  cep                String?   @db.VarChar(16)
+  observacoes        String?   @db.VarChar(2000)
+  tipos              String[]  @default([])
+  ativo              Boolean   @default(true)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  cliente Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+
+  @@unique([cliente_id, id])
+  @@unique([cliente_id, numero_cadastro])
+  @@index([cliente_id, empresa_id])
+}
+
+model CategoriaManejo {
+  id                    String   @id @default(cuid())
+  cliente_id            String   @db.VarChar(64)
+  empresa_id            String   @db.VarChar(64)
+  nome                  String   @db.VarChar(255)
+  sigla                 String?  @db.VarChar(32)
+  especie               String?  @db.VarChar(128)
+  sexo                  String?  @db.VarChar(32)
+  raca                  String?  @db.VarChar(128)
+  idade_minima_meses    Int?
+  idade_maxima_meses    Int?
+  categoria_oficial     String?  @db.VarChar(128)
+  ganho_peso_anual_kg   Decimal? @db.Decimal(14, 4)
+  gmd_janeiro           Decimal? @db.Decimal(14, 4)
+  gmd_fevereiro         Decimal? @db.Decimal(14, 4)
+  gmd_marco             Decimal? @db.Decimal(14, 4)
+  gmd_abril             Decimal? @db.Decimal(14, 4)
+  gmd_maio              Decimal? @db.Decimal(14, 4)
+  gmd_junho             Decimal? @db.Decimal(14, 4)
+  gmd_julho             Decimal? @db.Decimal(14, 4)
+  gmd_agosto            Decimal? @db.Decimal(14, 4)
+  gmd_setembro          Decimal? @db.Decimal(14, 4)
+  gmd_outubro           Decimal? @db.Decimal(14, 4)
+  gmd_novembro          Decimal? @db.Decimal(14, 4)
+  gmd_dezembro          Decimal? @db.Decimal(14, 4)
+  ativo                 Boolean  @default(true)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  cliente Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+
+  @@unique([cliente_id, id])
+  @@index([cliente_id, empresa_id])
+}
+
+model Bebedouro {
+  id                         String   @id @default(cuid())
+  cliente_id                 String   @db.VarChar(64)
+  empresa_id                 String   @db.VarChar(64)
+  ponto_referencia_id        String?  @db.VarChar(64)
+  nome                       String   @db.VarChar(255)
+  codigo_interno             String?  @db.VarChar(64)
+  pasto_id                   String?  @db.VarChar(64)
+  pasto_nome                 String?  @db.VarChar(255)
+  area_vinculada_ids         String[] @default([])
+  area_vinculada_nomes       String[] @default([])
+  setor_id                   String?  @db.VarChar(64)
+  setor_nome                 String?  @db.VarChar(255)
+  tipo                       String   @db.VarChar(64)
+  capacidade_litros          Decimal? @db.Decimal(14, 4)
+  origem_agua                String?  @db.VarChar(64)
+  coordenadas                Json?
+  status                     String   @default("Ativo") @db.VarChar(32)
+  periodicidade_limpeza      String?  @default("Mensal") @db.VarChar(32)
+  periodicidade_inspecao     String?  @default("Semanal") @db.VarChar(32)
+  dias_limpeza_personalizado Int?
+  dias_inspecao_personalizado Int?
+  observacoes                String?  @db.VarChar(2000)
+  fotos                      String[] @default([])
+  ativo                      Boolean  @default(true)
+  createdAt                  DateTime @default(now())
+  updatedAt                  DateTime @updatedAt
+
+  cliente Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+
+  @@unique([cliente_id, id])
+  @@index([cliente_id, empresa_id])
+}
+
+model PontoSuplementacao {
+  id                           String   @id @default(cuid())
+  cliente_id                   String   @db.VarChar(64)
+  empresa_id                   String   @db.VarChar(64)
+  numero_ponto                 String   @db.VarChar(32)
+  setor_id                     String?  @db.VarChar(64)
+  setor_nome                   String?  @db.VarChar(255)
+  nome_ponto                   String   @db.VarChar(255)
+  sigla                        String?  @db.VarChar(32)
+  categoria_ponto              String   @default("COCHO") @db.VarChar(32)
+  tipo                         String?  @db.VarChar(128)
+  produto_padrao               String?  @db.VarChar(255)
+  capacidade_cocho_kg          Decimal? @db.Decimal(14, 4)
+  estoque_minimo_kg            Decimal? @db.Decimal(14, 4)
+  metragem_cocho_m             Decimal? @db.Decimal(14, 4)
+  cobertura_cocho              String?  @db.VarChar(32)
+  area_vinculada_id            String?  @db.VarChar(64)
+  area_vinculada_nome          String?  @db.VarChar(255)
+  area_vinculada_ids           String[] @default([])
+  area_vinculada_nomes         String[] @default([])
+  deposito_origem_id           String?  @db.VarChar(64)
+  deposito_origem_nome         String?  @db.VarChar(255)
+  local_estoque_id             String?  @db.VarChar(64)
+  local_estoque_nome           String?  @db.VarChar(255)
+  consumo_ideal_por_cabeca_kg  Decimal? @db.Decimal(14, 4)
+  limite_minimo_consumo        Decimal? @db.Decimal(14, 4)
+  limite_maximo_consumo        Decimal? @db.Decimal(14, 4)
+  dias_alerta_reposicao        Int?     @default(3)
+  alerta_sem_lancamento_dias   Int?     @default(10)
+  coordenadas                  Json?
+  status                       String   @default("Ativo") @db.VarChar(32)
+  observacoes                  String?  @db.VarChar(2000)
+  createdAt                    DateTime @default(now())
+  updatedAt                    DateTime @updatedAt
+
+  cliente Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+
+  @@unique([cliente_id, id])
+  @@unique([cliente_id, numero_ponto])
+  @@index([cliente_id, empresa_id])
+}
+
+model EstoqueLoteNota {
+  id                      String    @id @default(cuid())
+  cliente_id              String    @db.VarChar(64)
+  empresa_id              String    @db.VarChar(64)
+  produto_id              String    @db.VarChar(64)
+  produto_nome            String?   @db.VarChar(255)
+  local_estoque_id        String    @db.VarChar(64)
+  local_estoque_nome      String?   @db.VarChar(255)
+  numero_documento        String?   @db.VarChar(64)
+  serie_documento         String?   @db.VarChar(32)
+  data_documento          DateTime? @db.Date
+  fornecedor_id           String?   @db.VarChar(64)
+  fornecedor_nome         String?   @db.VarChar(255)
+  custo_unitario          Decimal   @db.Decimal(14, 4)
+  quantidade_entrada      Decimal   @db.Decimal(14, 4)
+  quantidade_disponivel   Decimal   @db.Decimal(14, 4)
+  movimentacao_entrada_id String?   @db.VarChar(64)
+  status                  String    @default("Disponivel") @db.VarChar(32)
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  cliente Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+
+  @@unique([cliente_id, id])
+  @@index([cliente_id, empresa_id])
+  @@index([cliente_id, produto_id])
+}
+
+model MovimentacaoEstoque {
+  id                          String    @id @default(cuid())
+  cliente_id                  String    @db.VarChar(64)
+  empresa_id                  String    @db.VarChar(64)
+  numero_movimentacao         String    @db.VarChar(32)
+  tipo_movimentacao           String    @db.VarChar(32)
+  tipo_detalhado              String?   @db.VarChar(128)
+  tipo_documento              String?   @db.VarChar(64)
+  numero_documento            String?   @db.VarChar(64)
+  chave_documento             String?   @db.VarChar(2000)
+  data_documento              DateTime? @db.Date
+  data_movimentacao           DateTime
+  produto_id                  String    @db.VarChar(64)
+  produto_nome                String?   @db.VarChar(255)
+  produto_codigo              String?   @db.VarChar(64)
+  produto_categoria           String?   @db.VarChar(255)
+  quantidade                  Decimal   @db.Decimal(14, 4)
+  unidade_medida              String    @db.VarChar(32)
+  valor_unitario              Decimal?  @db.Decimal(14, 4)
+  valor_total                 Decimal?  @db.Decimal(14, 4)
+  local_origem                String?   @db.VarChar(255)
+  local_destino               String?   @db.VarChar(255)
+  local_estoque_origem        String?   @db.VarChar(255)
+  local_estoque_destino       String?   @db.VarChar(255)
+  custo_medio_antes           Decimal?  @db.Decimal(14, 4)
+  custo_medio_depois          Decimal?  @db.Decimal(14, 4)
+  saldo_antes                 Decimal?  @db.Decimal(14, 4)
+  saldo_depois                Decimal?  @db.Decimal(14, 4)
+  fornecedor_id               String?   @db.VarChar(64)
+  fornecedor_nome             String?   @db.VarChar(255)
+  cliente_nome                String?   @db.VarChar(255)
+  safra_id                    String?   @db.VarChar(64)
+  safra_nome                  String?   @db.VarChar(255)
+  centro_custo_id             String?   @db.VarChar(64)
+  centro_custo_nome           String?   @db.VarChar(255)
+  lancamento_origem_id        String?   @db.VarChar(64)
+  motivo_movimentacao         String?   @db.VarChar(255)
+  observacoes                 String?   @db.VarChar(2000)
+  responsavel                 String?   @db.VarChar(255)
+  usuario_responsavel         String?   @db.VarChar(255)
+  status                      String    @default("Ativa") @db.VarChar(32)
+  vinculado                   Boolean   @default(false)
+  tipo_vinculo                String?   @db.VarChar(32)
+  lote_vinculado_id           String?   @db.VarChar(64)
+  lote_vinculado_nome         String?   @db.VarChar(255)
+  area_vinculada_id           String?   @db.VarChar(64)
+  area_vinculada_nome         String?   @db.VarChar(255)
+  maquina_vinculada_id        String?   @db.VarChar(64)
+  maquina_vinculada_nome      String?   @db.VarChar(255)
+  origem_sistema              String    @default("manual") @db.VarChar(32)
+  deposito_id                 String?   @db.VarChar(64)
+  ponto_suplementacao_id      String?   @db.VarChar(64)
+  movimento_pai_id            String?   @db.VarChar(64)
+  movimento_filho_id          String?   @db.VarChar(64)
+  bloqueado_exclusao_estoque  Boolean   @default(false)
+  exclusao_somente_em         String?   @db.VarChar(32)
+  movimentacao_grupo_id       String?   @db.VarChar(64)
+  numero_movimentacao_seq     Int?
+  total_movimentacoes_grupo   Int?
+  is_registro_principal       Boolean   @default(false)
+  modo_saida_fifo             String?   @db.VarChar(32)
+  lotes_consumidos            Json?
+  createdAt                   DateTime  @default(now())
+  updatedAt                   DateTime  @updatedAt
+
+  cliente Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+
+  @@unique([cliente_id, id])
+  @@unique([cliente_id, numero_movimentacao])
+  @@index([cliente_id, empresa_id])
+  @@index([cliente_id, produto_id])
+  @@index([cliente_id, data_movimentacao])
 }

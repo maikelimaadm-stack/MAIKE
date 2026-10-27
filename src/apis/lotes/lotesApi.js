@@ -8,11 +8,11 @@
 import { runProviderCall, assertArgument } from '../_core/normalizeApiError.js';
 import {
   lotesProvider,
-  fornecedoresProvider,
-  categoriasManejoProvider,
   referenciasProvider,
 } from '../_providers/base44Provider.js';
 import { lotePort } from './loteNativePort.js';
+import { listFornecedoresNativos as apiListFornecedores } from '@/apis/fornecedores';
+import { listCategoriasManejo as apiListCategoriasManejo } from '@/apis/categorias-manejo';
 
 const RESOURCE = 'Lote';
 
@@ -145,10 +145,10 @@ export const deleteLote = async (id) => {
 };
 
 export const listFornecedores = async () =>
-  comoLista(await runProviderCall(() => fornecedoresProvider.list(), { operation: 'listFornecedores', resource: 'Fornecedor' }));
+  comoLista(await runProviderCall(() => apiListFornecedores(), { operation: 'listFornecedores', resource: 'Fornecedor' }));
 
 export const listCategoriasManejo = async () =>
-  comoLista(await runProviderCall(() => categoriasManejoProvider.list(), { operation: 'listCategoriasManejo', resource: 'CategoriaManejo' }));
+  comoLista(await runProviderCall(() => apiListCategoriasManejo(), { operation: 'listCategoriasManejo', resource: 'CategoriaManejo' }));
 
 /**
  * Sincroniza referências denormalizadas depois de renomear um lote.

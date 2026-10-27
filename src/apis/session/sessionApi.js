@@ -24,6 +24,12 @@ import { API_ERROR_CODES, hasApiErrorCode } from '../_core/ApiError.js';
 import { hasNativeToken } from '@/lib/auth/nativeTokenStorage';
 import { obterUsuarioAtualLegado } from './nativeSessionApi.js';
 import { sessionProvider } from '../_providers/base44Provider.js';
+import {
+  listPermissoesNativas,
+  createPermissaoNativa,
+  updatePermissaoNativa,
+  deletePermissaoNativa,
+} from '@/apis/permissoes';
 import { updateUsuario as updateUsuarioNativo } from '@/apis/usuarios';
 
 const RESOURCE = 'Sessao';
@@ -54,7 +60,7 @@ export const getCurrentUser = async () => {
 export { listUsuarios } from '@/apis/usuarios';
 
 export const listPermissoes = async () =>
-  comoLista(await runProviderCall(() => sessionProvider.listPermissoes(), ctx('listPermissoes')));
+  comoLista(await runProviderCall(() => listPermissoesNativas(), ctx('listPermissoes')));
 
 export const updateUsuario = async (id, dados) => {
   const contexto = ctx('updateUsuario');
@@ -66,20 +72,20 @@ export const updateUsuario = async (id, dados) => {
 export const createPermissao = async (dados) => {
   const contexto = ctx('createPermissao');
   assertArgument(isObjeto(dados), 'dados', contexto);
-  return runProviderCall(() => sessionProvider.createPermissao(dados), contexto);
+  return runProviderCall(() => createPermissaoNativa(dados), contexto);
 };
 
 export const updatePermissao = async (id, dados) => {
   const contexto = ctx('updatePermissao');
   assertArgument(isId(id), 'id', contexto);
   assertArgument(isObjeto(dados), 'dados', contexto);
-  return runProviderCall(() => sessionProvider.updatePermissao(id, dados), { ...contexto, details: { id } });
+  return runProviderCall(() => updatePermissaoNativa(id, dados), { ...contexto, details: { id } });
 };
 
 export const deletePermissao = async (id) => {
   const contexto = ctx('deletePermissao');
   assertArgument(isId(id), 'id', contexto);
-  return runProviderCall(() => sessionProvider.deletePermissao(id), { ...contexto, details: { id } });
+  return runProviderCall(() => deletePermissaoNativa(id), { ...contexto, details: { id } });
 };
 
 /**

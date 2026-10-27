@@ -2197,4 +2197,21 @@ com fallback admin mínimo nativo quando a lista falha. Próximo foco de saída:
 
 ---
 
-<!-- Próxima decisão: D-PROD-50 -->
+## D-PROD-50 — P5.4: estoque, empresa, permissões e cadastros de manejo nativos
+
+**Missão:** P5.4 — saída Base44 de movimentação/estoque e desbloqueio de manejo  
+**Relatório:** `docs/engineering/P5.4-BASE44-EXIT-MOVIMENTACAO-REPORT.md`
+
+**Decisão:** `Empresa`, `Permissao`, `Fornecedor`, `CategoriaManejo`, `Bebedouro`
+(cadastro), `PontoSuplementacao`, `EstoqueLoteNota` e `MovimentacaoEstoque`
+persistem no PostgreSQL tenant-scoped, com CRUD via Fastify e portas nativas.
+BebedouroHistorico/Sanidade/Alerta, SuplementacaoEvento/Lote e movimentações
+mapa/pecuária permanecem Base44 nesta fatia.
+
+**Consequência:** suplementação, seleção de empresa, menu (permissões) e estoque
+deixam de exigir token Base44 para CRUD; `entitiesRefs` cai oito entidades no
+registry (12 restantes).
+
+---
+
+<!-- Próxima decisão: D-PROD-51 -->

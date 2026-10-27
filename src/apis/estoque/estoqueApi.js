@@ -1,7 +1,15 @@
 /** API do módulo Estoque consumido pelos pontos de suplementação (P1.2). */
 
 import { runProviderCall, assertArgument } from '../_core/normalizeApiError.js';
-import { estoqueProvider } from '../_providers/base44Provider.js';
+import {
+  listMovimentacoesEstoque as listMovimentacoesNativas,
+  updateMovimentacaoEstoque as updateMovimentacaoNativa,
+} from '@/apis/movimentacoes-estoque';
+import {
+  listLotesNotaEstoque,
+  filterLotesNotaEstoque,
+  updateLoteNotaEstoque,
+} from '@/apis/estoque-lotes-nota';
 import { listLocais, createLocal, updateLocal, deleteLocal } from '@/apis/locais-estoque';
 import { listProdutos as listProdutosNativos, filterProdutos as filterProdutosNativos } from '@/apis/produtos';
 
@@ -14,19 +22,19 @@ const ctx = (operation) => ({ operation, resource: RESOURCE });
 export { listLocais, createLocal, updateLocal, deleteLocal };
 
 export const listLotesNota = async () =>
-  comoLista(await runProviderCall(() => estoqueProvider.listLotesNota(), ctx('listLotesNota')));
+  comoLista(await runProviderCall(() => listLotesNotaEstoque(), ctx('listLotesNota')));
 
 export const filterLotesNota = async (criterio) => {
   const contexto = ctx('filterLotesNota');
   assertArgument(isObjeto(criterio), 'criterio', contexto);
-  return comoLista(await runProviderCall(() => estoqueProvider.filterLotesNota(criterio), contexto));
+  return comoLista(await runProviderCall(() => filterLotesNotaEstoque(criterio), contexto));
 };
 
 export const updateLoteNota = async (id, dados) => {
   const contexto = ctx('updateLoteNota');
   assertArgument(isId(id), 'id', contexto);
   assertArgument(isObjeto(dados), 'dados', contexto);
-  return runProviderCall(() => estoqueProvider.updateLoteNota(id, dados), { ...contexto, details: { id } });
+  return runProviderCall(() => updateLoteNotaEstoque(id, dados), { ...contexto, details: { id } });
 };
 
 export const MOVIMENTACAO_ESTOQUE_DEFAULT_ORDER = '-data_movimentacao';
@@ -36,18 +44,18 @@ export const listMovimentacoes = async (opcoes = {}) => {
   const contexto = ctx('listMovimentacoes');
   const ordem = opcoes.order ?? MOVIMENTACAO_ESTOQUE_DEFAULT_ORDER;
   const limite = opcoes.limit ?? MOVIMENTACAO_ESTOQUE_DEFAULT_LIMIT;
-  return comoLista(await runProviderCall(() => estoqueProvider.listMovimentacoes(ordem, limite), contexto));
+  return comoLista(await runProviderCall(() => listMovimentacoesNativas(ordem, limite), contexto));
 };
 
 /** Sem ordenação/limite: o consumidor legado lista tudo e filtra em memória. */
 export const listTodasMovimentacoes = async () =>
-  comoLista(await runProviderCall(() => estoqueProvider.listMovimentacoes(), ctx('listTodasMovimentacoes')));
+  comoLista(await runProviderCall(() => listMovimentacoesNativas(), ctx('listTodasMovimentacoes')));
 
 export const updateMovimentacao = async (id, dados) => {
   const contexto = ctx('updateMovimentacao');
   assertArgument(isId(id), 'id', contexto);
   assertArgument(isObjeto(dados), 'dados', contexto);
-  return runProviderCall(() => estoqueProvider.updateMovimentacao(id, dados), { ...contexto, details: { id } });
+  return runProviderCall(() => updateMovimentacaoNativa(id, dados), { ...contexto, details: { id } });
 };
 
 export const listProdutos = async () => listProdutosNativos();
