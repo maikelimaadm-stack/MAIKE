@@ -14,9 +14,10 @@ import {
   ListX,
   ChevronLeft,
   ChevronRight,
+  MoreVertical,
 } from "lucide-react";
 import CadastroSearchPill from "./CadastroSearchPill";
-import { B1Popover, IconBtn, IconeRaio, MenuList, MgSelect, PillBtn, ViewSwitch } from "./Base1Ui";
+import { B1Popover, IconBtn, MenuList, MgSelect, PillBtn, ViewSwitch } from "./Base1Ui";
 import { CADASTRO_B1_PAGE_SIZES } from "./cadastroBase1List";
 import { PortalComprasSkinProvider } from "./portalComprasSkinContext";
 import { cn } from "@/lib/utils";
@@ -67,7 +68,7 @@ import { cn } from "@/lib/utils";
  * @param {boolean} [props.secondaryToolsLocked] oculta busca/alternador/menu (edição ou subfluxo ativo)
  * @param {import('react').ReactNode} [props.cardsToolbar] botões layout/campos dos cards (modo cards)
  * @param {import('react').RefObject<HTMLButtonElement | null>} [props.configureColumnsAnchorRef] âncora do popover de colunas (modo tabela)
- * @param {boolean} [props.showFilterRail] faixa `mg-pills-rail` (chips); false no piloto Marcas (limpar filtros só no menu ⚡)
+ * @param {boolean} [props.showFilterRail] faixa `mg-pills-rail` (chips); false no piloto Marcas (limpar filtros só no menu ⋮)
  * @param {boolean} [props.joinTableToolbar] toolbar + grade no mesmo `mg-shell` (Portal de Compras / itpan)
  * @param {boolean} [props.portalComprasSkin] régua visual portal compras (toolbar 25px, fpop/mdl marcados)
  */
@@ -124,7 +125,6 @@ export default function CadastroListaChrome({
   const [cardsPanel, setCardsPanel] = useState(null);
   const [maisOpcoesOpen, setMaisOpcoesOpen] = useState(false);
   const stripRef = useRef(null);
-  const maisOpcoesBtnRef = useRef(null);
   const railEnabled = showFilterRail && !recordMode;
   const skinAtivo = portalComprasSkin && joinTableToolbar;
 
@@ -134,8 +134,42 @@ export default function CadastroListaChrome({
   );
 
   const cardsToolsInMenu = Boolean(cardsToolbar);
+  const attachTitle =
+    attachDisabledReason ?? (oneSelected ? "Anexos" : "Selecione um registro");
+  const showAttachControl = Boolean(onAttach);
+
   const menuItems = useMemo(
     () => [
+      {
+        key: "edit",
+        label: "Editar",
+        icon: <Pencil className="h-4 w-4" />,
+        disabled: !onEdit || !oneSelected,
+        className: "mg-b1-menuitem--compact-only",
+      },
+      {
+        key: "duplicate",
+        label: "Duplicar",
+        icon: <Copy className="h-4 w-4" />,
+        disabled: !onDuplicate || !oneSelected,
+        className: "mg-b1-menuitem--compact-only",
+      },
+      {
+        key: "delete",
+        label: selectedCount > 1 ? `Excluir (${selectedCount})` : "Excluir",
+        icon: <Trash2 className="h-4 w-4" />,
+        disabled: !onDelete || !anySelected,
+        danger: true,
+        className: "mg-b1-menuitem--compact-only",
+      },
+      {
+        key: "attach-info",
+        label: "Anexos",
+        icon: <Paperclip className="h-4 w-4" />,
+        disabled: true,
+        title: attachTitle,
+        hidden: showAttachControl || !attachDisabledReason,
+      },
       {
         key: "export",
         label: "Exportar (CSV)",
@@ -166,11 +200,31 @@ export default function CadastroListaChrome({
         icon: <FilterX className="h-4 w-4" />,
         disabled: !onClearFilters || !filtersActive,
       },
+    ].filter((item) => !item.hidden),
+    [
+      onEdit,
+      onDuplicate,
+      onDelete,
+      oneSelected,
+      anySelected,
+      selectedCount,
+      showAttachControl,
+      attachDisabledReason,
+      attachTitle,
+      onExportCsv,
+      onPrint,
+      onConfigureColumns,
+      cardsToolsInMenu,
+      viewMode,
+      onClearFilters,
+      filtersActive,
     ],
-    [onExportCsv, onPrint, onConfigureColumns, cardsToolsInMenu, viewMode, onClearFilters, filtersActive],
   );
 
   const onMenu = (k) => {
+    if (k === "edit") onEdit?.();
+    if (k === "duplicate") onDuplicate?.();
+    if (k === "delete") onDelete?.();
     if (k === "export") onExportCsv?.();
     if (k === "print") (onPrint ?? (() => window.print()))();
     if (k === "clear-filters") onClearFilters?.();
@@ -201,75 +255,39 @@ export default function CadastroListaChrome({
   const recordViewing = recordMode && !recordEditing;
   const showListPrimaryToolbar = !recordMode || recordViewing;
 
-  const attachTitle =
-    attachDisabledReason ?? (oneSelected ? "Anexos" : "Selecione um registro");
-  const showAttachControl = Boolean(onAttach ?? attachDisabledReason);
-
-  const rightTools = (
-    <div className="ml-auto flex items-center gap-1.5 flex-wrap">
-      {showAttachControl ? (
-        <IconBtn
-          aria-label="Anexos"
-          title={attachTitle}
-          disabled={!oneSelected || !onAttach}
-          onClick={() => onAttach?.()}
-          data-testid="b1-attach"
-        >
-          <Paperclip className="h-4 w-4" aria-hidden />
-        </IconBtn>
-      ) : null}
-      {!secondaryToolsLocked && onSearchChange ? (
-        <CadastroSearchPill
-          value={searchValue}
-          onChange={onSearchChange}
-          onApply={onSearchApply}
-          active={searchActive}
-          placeholder={searchPlaceholder}
+  const maisOpcoesPopover = !secondaryToolsLocked ? (
+    <div className="relative mg-toolbar__more">
+      {onConfigureColumns ? (
+        <span
+          ref={configureColumnsAnchorRef}
+          data-testid="b1-col-config-trigger"
+          className="pointer-events-none absolute bottom-0 right-0 h-px w-px overflow-hidden"
+          aria-hidden="true"
         />
       ) : null}
-      {!secondaryToolsLocked && onViewModeChange ? (
-        <ViewSwitch
-          value={viewMode}
-          recordDisabled={!recordModeAvailable}
-          cardsDisabled={!cardsModeAvailable}
-          onChange={onViewModeChange}
+      <B1Popover
+        open={maisOpcoesOpen}
+        onOpenChange={setMaisOpcoesOpen}
+        className={cn(
+          "flex w-64 min-w-[12rem] flex-col p-1.5",
+          skinAtivo && "b1-portal-compras",
+        )}
+        trigger={
+          <IconBtn aria-label="Mais opções" title="Mais opções">
+            <MoreVertical className="h-4 w-4" aria-hidden />
+          </IconBtn>
+        }
+      >
+        <MenuList
+          items={menuItems}
+          onPick={(k) => {
+            setMaisOpcoesOpen(false);
+            onMenu(k);
+          }}
         />
-      ) : null}
-      {!secondaryToolsLocked ? (
-        <div className="relative">
-          {onConfigureColumns ? (
-            <span
-              ref={configureColumnsAnchorRef}
-              data-testid="b1-col-config-trigger"
-              className="pointer-events-none absolute bottom-0 right-0 h-px w-px overflow-hidden"
-              aria-hidden="true"
-            />
-          ) : null}
-          <B1Popover
-            open={maisOpcoesOpen}
-            onOpenChange={setMaisOpcoesOpen}
-            className={cn(
-              "flex w-64 min-w-[12rem] flex-col p-1.5",
-              skinAtivo && "b1-portal-compras",
-            )}
-            trigger={
-              <IconBtn ref={maisOpcoesBtnRef} aria-label="Mais opções" title="Mais opções">
-                <IconeRaio />
-              </IconBtn>
-            }
-          >
-            <MenuList
-              items={menuItems}
-              onPick={(k) => {
-                setMaisOpcoesOpen(false);
-                onMenu(k);
-              }}
-            />
-          </B1Popover>
-        </div>
-      ) : null}
+      </B1Popover>
     </div>
-  );
+  ) : null;
 
   const joinedShell = joinTableToolbar;
 
@@ -298,14 +316,14 @@ export default function CadastroListaChrome({
       data-testid="b1-toolbar"
       className={
         joinedShell
-          ? "mg-toolbar mg-toolbar--join flex-wrap no-print"
+          ? "mg-toolbar mg-toolbar--join mg-toolbar--responsive no-print"
           : "mg-toolbar mg-card flex-wrap no-print"
       }
     >
       {recordMode && recordEditing ? (
         recordToolbar ?? null
       ) : showListPrimaryToolbar ? (
-        <>
+        <div className="mg-toolbar__row mg-toolbar__row--actions">
           {onNew ? (
             <PillBtn type="button" onClick={onNew}>
               <Plus className="h-4 w-4" aria-hidden />
@@ -314,27 +332,113 @@ export default function CadastroListaChrome({
           ) : null}
           {extraToolbar}
           {onEdit ? (
-            <PillBtn type="button" tone="gray" disabled={!oneSelected} onClick={onEdit}>
+            <PillBtn
+              type="button"
+              tone="gray"
+              disabled={!oneSelected}
+              onClick={onEdit}
+              className="mg-toolbar__action--wide"
+            >
               <Pencil className="h-3.5 w-3.5" aria-hidden />
               Editar
             </PillBtn>
           ) : null}
           {onDuplicate ? (
-            <PillBtn type="button" tone="gray" disabled={!oneSelected} onClick={onDuplicate}>
+            <PillBtn
+              type="button"
+              tone="gray"
+              disabled={!oneSelected}
+              onClick={onDuplicate}
+              className="mg-toolbar__action--wide"
+            >
               <Copy className="h-3.5 w-3.5" aria-hidden />
               Duplicar
             </PillBtn>
           ) : null}
           {onDelete ? (
-            <PillBtn type="button" tone="red" disabled={!anySelected} onClick={onDelete}>
+            <PillBtn
+              type="button"
+              tone="red"
+              disabled={!anySelected}
+              onClick={onDelete}
+              className="mg-toolbar__action--wide"
+            >
               <Trash2 className="h-4 w-4" aria-hidden />
               Excluir
               {selectedCount > 1 ? ` (${selectedCount})` : ""}
             </PillBtn>
           ) : null}
-        </>
+          {joinedShell ? maisOpcoesPopover : null}
+        </div>
       ) : null}
-      {rightTools}
+      {!secondaryToolsLocked && joinedShell ? (
+        <>
+          {onSearchChange ? (
+            <div className="mg-toolbar__row mg-toolbar__row--search">
+              <CadastroSearchPill
+                value={searchValue}
+                onChange={onSearchChange}
+                onApply={onSearchApply}
+                active={searchActive}
+                placeholder={searchPlaceholder}
+              />
+            </div>
+          ) : null}
+          <div className="mg-toolbar__row mg-toolbar__row--views">
+            {showAttachControl ? (
+              <IconBtn
+                aria-label="Anexos"
+                title={attachTitle}
+                disabled={!oneSelected || !onAttach}
+                onClick={() => onAttach?.()}
+                data-testid="b1-attach"
+              >
+                <Paperclip className="h-4 w-4" aria-hidden />
+              </IconBtn>
+            ) : null}
+            {onViewModeChange ? (
+              <ViewSwitch
+                value={viewMode}
+                recordDisabled={!recordModeAvailable}
+                cardsDisabled={!cardsModeAvailable}
+                onChange={onViewModeChange}
+              />
+            ) : null}
+          </div>
+        </>
+      ) : (
+        <div className="ml-auto flex items-center gap-1.5 flex-wrap">
+          {showAttachControl ? (
+            <IconBtn
+              aria-label="Anexos"
+              title={attachTitle}
+              disabled={!oneSelected || !onAttach}
+              onClick={() => onAttach?.()}
+              data-testid="b1-attach"
+            >
+              <Paperclip className="h-4 w-4" aria-hidden />
+            </IconBtn>
+          ) : null}
+          {!secondaryToolsLocked && onSearchChange ? (
+            <CadastroSearchPill
+              value={searchValue}
+              onChange={onSearchChange}
+              onApply={onSearchApply}
+              active={searchActive}
+              placeholder={searchPlaceholder}
+            />
+          ) : null}
+          {!secondaryToolsLocked && onViewModeChange ? (
+            <ViewSwitch
+              value={viewMode}
+              recordDisabled={!recordModeAvailable}
+              cardsDisabled={!cardsModeAvailable}
+              onChange={onViewModeChange}
+            />
+          ) : null}
+          {maisOpcoesPopover}
+        </div>
+      )}
     </div>
   );
 
@@ -454,7 +558,9 @@ export default function CadastroListaChrome({
         </div>
       </div>
 
-      {cardsToolbarHosted ?? null}
+      {cardsToolbarHosted ? (
+        <div className="sr-only" aria-hidden="true">{cardsToolbarHosted}</div>
+      ) : null}
     </div>
     </PortalComprasSkinProvider>
   );

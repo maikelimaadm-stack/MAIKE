@@ -3,6 +3,7 @@ import {
   SELETOR_CAMADA_ANINHADA_DO_FILTRO,
   deveFecharFiltroPorFora,
   ehCamadaAninhadaDoFiltro,
+  haCamadaAninhadaDoFiltroAberta,
 } from "@/components/cadastro/base1/cadastroColunaFiltroCamada";
 
 function alvoComCamadaAninhada() {
@@ -36,6 +37,39 @@ describe("cadastroColunaFiltroCamada — paridade CDE 357–360", () => {
         doc: { querySelector: () => null },
       }),
     ).toBe(true);
+  });
+
+  it("não trata .b1-dp-filtro fechado como camada aninhada aberta", () => {
+    const doc = {
+      querySelector: (sel) => {
+        if (sel.includes("b1-dp-filtro")) return document.createElement("div");
+        if (sel.includes("data-state='open'")) return null;
+        return null;
+      },
+    };
+    expect(haCamadaAninhadaDoFiltroAberta(doc)).toBe(false);
+    expect(SELETOR_CAMADA_ANINHADA_DO_FILTRO).not.toContain(".b1-dp-filtro");
+  });
+
+  it("bloqueia dismiss quando calendário do filtro está aberto", () => {
+    const painel = document.createElement("div");
+    painel.className = "mg-dp-panel";
+    painel.setAttribute("data-state", "open");
+    const doc = {
+      querySelector: (sel) => (sel.includes("data-state='open'") ? painel : null),
+    };
+    const shell = {
+      contains: () => false,
+      getBoundingClientRect: () => ({ left: 0, top: 0, right: 0, bottom: 0 }),
+    };
+    expect(
+      deveFecharFiltroPorFora({
+        alvo: document.createElement("span"),
+        ponto: { clientX: 10, clientY: 10 },
+        shell,
+        doc,
+      }),
+    ).toBe(false);
   });
 
   it("não fecha quando o alvo é camada do operador", () => {

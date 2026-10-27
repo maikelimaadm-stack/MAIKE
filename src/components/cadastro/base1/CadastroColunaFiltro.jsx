@@ -98,11 +98,13 @@ export default function CadastroColunaFiltro({
     const scroll = () => reposicionar();
     document.addEventListener("keydown", teclado);
     document.addEventListener("mousedown", fora);
+    document.addEventListener("pointerdown", fora);
     window.addEventListener("resize", scroll);
     window.addEventListener("scroll", scroll, true);
     return () => {
       document.removeEventListener("keydown", teclado);
       document.removeEventListener("mousedown", fora);
+      document.removeEventListener("pointerdown", fora);
       window.removeEventListener("resize", scroll);
       window.removeEventListener("scroll", scroll, true);
     };
