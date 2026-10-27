@@ -16,7 +16,7 @@ produção em estado **verificável** — sem afirmar “live” sem smoke nos U
 | **A — Monólito Vercel (recomendado, D-PROD-36)** | Vercel | `api/fastify.js` + rewrites em `vercel.json` | **Vazio** ou omitido — o cliente usa a origem do navegador |
 | **B — Split** | Vercel | Railway `backend:start` | `https://<host-railway>` com esquema; `FRONTEND_ORIGINS` inclui o domínio Vercel |
 
-**Produção (pós-merge PR #70 em `main`, 2026-10-27):** `vercel.json` na `main` inclui rewrites completos para auth, health, setores, áreas-pastagem, configuracao-icones, pontos-referencia, linhas-geograficas e usuarios → `/api/fastify`. **Redeploy Production** no Vercel após o merge para o domínio publicado refletir o commit.
+**Produção (pós-merge PR #73 em `main`, 2026-10-27):** `vercel.json` na `main` inclui rewrites para auth, health, setores, áreas-pastagem, configuracao-icones, pontos-referencia, linhas-geograficas, usuarios e **marcas** → `/api/fastify`. Production em `maike-five.vercel.app` publicou commit `5b0fa1b8` (deploy Vercel READY).
 
 ---
 
