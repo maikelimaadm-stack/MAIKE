@@ -2288,4 +2288,23 @@ seguinte. Uma missão = um PR (R7).
 
 ---
 
-<!-- Próxima decisão: D-PROD-55 -->
+## D-PROD-55 — Motor Base1 de lista é compartilhado; cadastros só consomem
+
+**Missão:** lista-escala-marcas (refino na mesma PR #101)  
+**Relatório:** `docs/engineering/MOTOR-BASE1-LISTA.md`
+
+**Decisão:** A escala de listagem não vive “dentro de Marcas”. O **motor** é:
+
+- FE: `cadastroListaScale.js` + `useCadastroInfiniteList` + `Base1Grid` virtual
+- BE: `shared/pagination/keysetCursor.js` (`montarEnvelopeKeyset`, limites)
+
+Marcas (e qualquer cadastro) **pluga** `fetchPage` + `queryKey`. Proibido criar
+hooks `useXxxInfiniteList` por entidade — isso duplicaria o motor. Mudança no
+motor altera todas as telas que o consomem.
+
+**Consequência:** Migrar Produtos/Lançamentos/etc. = implementar `listPage` no
+backend da entidade + ligar `useCadastroInfiniteList` na página. Sem fork.
+
+---
+
+<!-- Próxima decisão: D-PROD-56 -->

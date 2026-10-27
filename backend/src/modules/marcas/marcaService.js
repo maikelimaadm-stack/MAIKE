@@ -21,9 +21,9 @@ import {
   excluirMarcaPorId,
 } from './marcaRepository.js';
 import {
-  codificarCursor,
   decodificarCursor,
   normalizarLimite,
+  montarEnvelopeKeyset,
 } from '../../shared/pagination/keysetCursor.js';
 import { AppError } from '../../shared/errors/AppError.js';
 
@@ -120,18 +120,12 @@ export const listar = async (contexto, query = {}) => {
     contarMarcas(auth.clienteId, { empresaId, q, ativo }),
   ]);
 
-  const hasMore = registros.length > limit;
-  const pagina = hasMore ? registros.slice(0, limit) : registros;
-  const ultimo = pagina[pagina.length - 1];
-  const nextCursor = hasMore && ultimo ? codificarCursor(ultimo) : null;
-
-  return {
-    items: pagina.map(comoMarcaPublica),
-    next_cursor: nextCursor,
-    has_more: hasMore,
-    total,
+  return montarEnvelopeKeyset({
+    registros,
     limit,
-  };
+    total,
+    mapItem: comoMarcaPublica,
+  });
 };
 
 /** @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto @param {Record<string, unknown>} entrada */

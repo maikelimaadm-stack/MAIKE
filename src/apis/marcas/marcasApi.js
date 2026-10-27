@@ -1,7 +1,8 @@
-/** API do módulo Marcas — nativo desde P4.4-Marcas (D-PROD-42); página keyset D-PROD-54. */
+/** API do módulo Marcas — nativo desde P4.4-Marcas (D-PROD-42); página keyset via motor Base1. */
 
 import { runProviderCall, assertArgument } from '../_core/normalizeApiError.js';
 import { marcaPort, operacoesNativas } from './marcaNativePort.js';
+import { LIMITE_PADRAO, normalizarEnvelopePagina } from '@/lib/cadastroListaScale';
 
 const RESOURCE = 'Marca';
 const isId = (valor) => typeof valor === 'string' && valor.trim().length > 0;
@@ -9,40 +10,13 @@ const isObjeto = (valor) => Boolean(valor) && typeof valor === 'object' && !Arra
 const ctx = (operation) => ({ operation, resource: RESOURCE });
 
 /**
- * @typedef {{
- *   items: object[],
- *   next_cursor: string|null,
- *   has_more: boolean,
- *   total: number,
- *   limit: number,
- * }} MarcasPage
- */
-
-/**
- * Página keyset — não passa pelo cache offline (página ≠ lista completa).
+ * Página keyset — motor Base1 (`normalizarEnvelopePagina`).
+ * Não passa pelo cache offline (página ≠ lista completa).
  * @param {Record<string, unknown>} [filtros]
- * @returns {Promise<MarcasPage>}
  */
 export const listMarcasPage = async (filtros = {}) => {
   const bruto = await runProviderCall(() => operacoesNativas.listPage(filtros), ctx('listMarcasPage'));
-  if (!bruto || typeof bruto !== 'object' || Array.isArray(bruto)) {
-    return {
-      items: [],
-      next_cursor: null,
-      has_more: false,
-      total: 0,
-      limit: Number(filtros.limit) || 100,
-    };
-  }
-  const page = /** @type {Record<string, unknown>} */ (bruto);
-  const items = Array.isArray(page.items) ? page.items : [];
-  return {
-    items,
-    next_cursor: typeof page.next_cursor === 'string' ? page.next_cursor : null,
-    has_more: Boolean(page.has_more),
-    total: Number(page.total) || 0,
-    limit: Number(page.limit) || items.length,
-  };
+  return normalizarEnvelopePagina(bruto, Number(filtros.limit) || LIMITE_PADRAO);
 };
 
 /**

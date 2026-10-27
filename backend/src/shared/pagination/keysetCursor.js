@@ -70,3 +70,38 @@ export const clausulaKeysetDesc = (cursor) => ({
     { AND: [{ createdAt: cursor.createdAt }, { id: { lt: cursor.id } }] },
   ],
 });
+
+/**
+ * Envelope HTTP padrão do motor Base1 (qualquer entidade).
+ *
+ * `registros` deve ter vindo com `take: limit + 1`.
+ *
+ * @template TRow
+ * @template TItem
+ * @param {{
+ *   registros: TRow[],
+ *   limit: number,
+ *   total: number,
+ *   mapItem: (row: TRow) => TItem,
+ *   cursorDe?: (row: TRow) => { createdAt: Date|string, id: string },
+ * }} args
+ */
+export const montarEnvelopeKeyset = ({
+  registros,
+  limit,
+  total,
+  mapItem,
+  cursorDe = (row) => /** @type {{ createdAt: Date|string, id: string }} */ (row),
+}) => {
+  const hasMore = registros.length > limit;
+  const pagina = hasMore ? registros.slice(0, limit) : registros;
+  const ultimo = pagina[pagina.length - 1];
+  const nextCursor = hasMore && ultimo ? codificarCursor(cursorDe(ultimo)) : null;
+  return {
+    items: pagina.map(mapItem),
+    next_cursor: nextCursor,
+    has_more: hasMore,
+    total,
+    limit,
+  };
+};
