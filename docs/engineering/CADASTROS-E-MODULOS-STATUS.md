@@ -103,7 +103,7 @@ Migration de produção: `20261028120000_p55_base44_exit_final`.
 |---|---|
 | **P5.5** (esta branch) | Saída final Base44 — dados 100% PostgreSQL; SDK removido |
 | **P6+** | Evoluções de produto (sem retorno ao provider Base44) |
-| **P7** (opcional) | Remover schemas `base44/entities` e `VITE_BASE44_*` |
+| **P7** (opcional) | Arquivar schemas `base44/entities` no manifesto — runtime já sem SDK (PR #85) |
 | **UX Base1** | Marcas piloto; demais cadastros pausados até aceite H.5 (D-PROD-41) |
 
 Ver `docs/engineering/ROADMAP.md`, `BASE44-EXIT-PLAN.md` e `CURRENT-STATE.md`.
