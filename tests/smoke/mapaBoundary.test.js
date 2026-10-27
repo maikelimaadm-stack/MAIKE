@@ -108,8 +108,7 @@ describe('P1.2 — a UI do mapa não fala Base44', () => {
   it('B11 — as entidades da P1.2 continuam registradas', () => {
     expect([...getRegisteredEntityNames()].sort()).toEqual(expect.arrayContaining([
       'AplicacaoMedicamento', 'Bebedouro', 'Empresa',
-      'EstoqueLoteNota', 'EventoSanitario', 'HistoricoLancamentoTarefa',
-      'LancamentoTarefa', 'ManejoTecnicoRebanho',
+      'EstoqueLoteNota', 'EventoSanitario', 'ManejoTecnicoRebanho',
       'MovimentacaoEstoque', 'MovimentacaoMapa', 'MovimentacaoPecuaria', 'Permissao',
       'PontoSuplementacao', 'SuplementacaoEvento',
       'SuplementacaoLote', 'User',
@@ -123,6 +122,15 @@ describe('P1.2 — a UI do mapa não fala Base44', () => {
     expect(codigoDe('src/apis/categorias/categoriasApi.js')).toContain('categoriaPort');
     expect(codigoDe('src/apis/locais-estoque/locaisEstoqueApi.js')).toContain('localEstoquePort');
     expect(codigoDe('src/apis/produtos/produtosApi.js')).toContain('produtoPort');
+  });
+
+  it('B11e — LancamentoTarefa e histórico saíram do registry (P5.3 nativo)', () => {
+    for (const ent of ['LancamentoTarefa', 'HistoricoLancamentoTarefa']) {
+      expect(getRegisteredEntityNames()).not.toContain(ent);
+    }
+    const tarefasApi = codigoDe('src/apis/tarefas/tarefasApi.js');
+    expect(tarefasApi).toContain('lancamentoTarefaPort');
+    expect(tarefasApi).toContain('historicoLancamentoTarefaPort');
   });
 
   it('B11c — GrupoAtividade e TipoTarefa saíram do registry (P5.0 nativo)', () => {
