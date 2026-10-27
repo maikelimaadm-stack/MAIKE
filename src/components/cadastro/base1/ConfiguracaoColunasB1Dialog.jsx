@@ -245,7 +245,7 @@ export default function ConfiguracaoColunasB1Dialog({
   );
 
   return createPortal(
-    <div className={cn("b1ref", portalSkin && "b1-portal-compras")}>
+    <div className={cn("b1ref cadastro-b1", portalSkin && "b1-portal-compras")}>
       <div className="mdl">
         <div className="mdlc" ref={dialogo} role="dialog" aria-modal="true" aria-label={titulo}>
           <div className="mdl-h">

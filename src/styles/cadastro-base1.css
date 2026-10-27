@@ -133,18 +133,23 @@
 }
 
 /* Botões de visto (OK / Aplicar / Pronto): verde + ícone branco */
-.cadastro-b1 .tb-btn-icon.tb-btn-green {
-  background: var(--mg-accent);
+.cadastro-b1 .tb-btn-icon.tb-btn-green,
+.b1ref .tb-btn-icon.tb-btn-green {
+  background: #40de63;
+  border-color: #40de63;
   color: #fff;
 }
 
-.cadastro-b1 .tb-btn-icon.tb-btn-green:hover:not(:disabled) {
-  background: var(--mg-accent-hover);
+.cadastro-b1 .tb-btn-icon.tb-btn-green:hover:not(:disabled),
+.b1ref .tb-btn-icon.tb-btn-green:hover:not(:disabled) {
+  background: #36c956;
+  border-color: #36c956;
   color: #fff;
 }
 
-.cadastro-b1 .tb-btn-icon.tb-btn-green svg {
-  color: inherit;
+.cadastro-b1 .tb-btn-icon.tb-btn-green svg,
+.b1ref .tb-btn-icon.tb-btn-green svg {
+  color: #fff;
 }
 
 .cadastro-b1 .tb-btn-icon.is-active {

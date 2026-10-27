@@ -127,7 +127,7 @@ export default function CadastroColunaFiltro({
 
   const ph = tipo === "data" ? "dd/mm/aaaa" : tipo === "num" ? "Número" : "Valor";
 
-  const shellClass = cn("b1ref", portalSkin && "b1-portal-compras");
+  const shellClass = cn("b1ref cadastro-b1", portalSkin && "b1-portal-compras");
 
   return createPortal(
     <div className={shellClass} ref={painel}>

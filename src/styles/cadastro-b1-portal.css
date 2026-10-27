@@ -226,22 +226,36 @@
   color: inherit !important;
 }
 
-/* Visto / OK / Pronto em ícone: verde + ícone branco */
-.cadastro-b1--portal-compras .tb-btn-icon.tb-btn-green,
-.b1-portal-compras .tb-btn-icon.tb-btn-green {
-  background: var(--mg-accent) !important;
+/* Visto / OK / Pronto: fundo verde + ícone branco (vence o cinza do portal/fpop/mdl) */
+.cadastro-b1--portal-compras .tb-btn.tb-btn-icon.tb-btn-green,
+.b1-portal-compras .tb-btn.tb-btn-icon.tb-btn-green,
+.b1-portal-compras.fpop .tb-btn.tb-btn-icon.tb-btn-green,
+.b1-portal-compras .fpop-f .tb-btn.tb-btn-icon.tb-btn-green,
+.b1-portal-compras .mdl-f .tb-btn.tb-btn-icon.tb-btn-green,
+.b1ref.b1-portal-compras .tb-btn.tb-btn-icon.tb-btn-green {
+  background: #40de63 !important;
+  border-color: #40de63 !important;
   color: #fff !important;
 }
 
-.cadastro-b1--portal-compras .tb-btn-icon.tb-btn-green:hover:not(:disabled),
-.b1-portal-compras .tb-btn-icon.tb-btn-green:hover:not(:disabled) {
-  background: var(--mg-accent-hover) !important;
+.cadastro-b1--portal-compras .tb-btn.tb-btn-icon.tb-btn-green:hover:not(:disabled),
+.b1-portal-compras .tb-btn.tb-btn-icon.tb-btn-green:hover:not(:disabled),
+.b1-portal-compras.fpop .tb-btn.tb-btn-icon.tb-btn-green:hover:not(:disabled),
+.b1-portal-compras .fpop-f .tb-btn.tb-btn-icon.tb-btn-green:hover:not(:disabled),
+.b1-portal-compras .mdl-f .tb-btn.tb-btn-icon.tb-btn-green:hover:not(:disabled),
+.b1ref.b1-portal-compras .tb-btn.tb-btn-icon.tb-btn-green:hover:not(:disabled) {
+  background: #36c956 !important;
+  border-color: #36c956 !important;
   color: #fff !important;
 }
 
-.cadastro-b1--portal-compras .tb-btn-icon.tb-btn-green svg,
-.b1-portal-compras .tb-btn-icon.tb-btn-green svg {
-  color: inherit !important;
+.cadastro-b1--portal-compras .tb-btn.tb-btn-icon.tb-btn-green svg,
+.b1-portal-compras .tb-btn.tb-btn-icon.tb-btn-green svg,
+.b1-portal-compras.fpop .tb-btn.tb-btn-icon.tb-btn-green svg,
+.b1-portal-compras .fpop-f .tb-btn.tb-btn-icon.tb-btn-green svg,
+.b1-portal-compras .mdl-f .tb-btn.tb-btn-icon.tb-btn-green svg,
+.b1ref.b1-portal-compras .tb-btn.tb-btn-icon.tb-btn-green svg {
+  color: #fff !important;
 }
 
 /* Popovers / dialogs / fpop no body */
@@ -287,14 +301,16 @@
 .b1-portal-compras .tb-btn.tb-btn-green,
 .b1-portal-compras.fpop .tb-btn.tb-btn-green,
 .b1-portal-compras .mdl-f .tb-btn.tb-btn-green {
-  background: var(--mg-accent) !important;
+  background: #40de63 !important;
+  border-color: #40de63 !important;
   color: #fff !important;
 }
 
 .b1-portal-compras .tb-btn.tb-btn-green:hover:not(:disabled),
 .b1-portal-compras.fpop .tb-btn.tb-btn-green:hover:not(:disabled),
 .b1-portal-compras .mdl-f .tb-btn.tb-btn-green:hover:not(:disabled) {
-  background: var(--mg-accent-hover) !important;
+  background: #36c956 !important;
+  border-color: #36c956 !important;
   color: #fff !important;
 }
 

@@ -80,14 +80,27 @@
   background: #f4f6f7;
 }
 
-.b1ref:not(.b1-portal-compras) .fpop-f button[type="submit"].tb-btn-icon {
-  background: #40de63;
-  border-color: #40de63;
-  color: #fff;
+.b1ref:not(.b1-portal-compras) .fpop-f button[type="submit"].tb-btn-icon,
+.b1ref .fpop-f button[type="submit"].tb-btn-icon.tb-btn-green,
+.b1ref.b1-portal-compras .fpop-f button[type="submit"].tb-btn-icon,
+.b1ref.b1-portal-compras .fpop-f .tb-btn-icon.tb-btn-green {
+  background: #40de63 !important;
+  border-color: #40de63 !important;
+  color: #fff !important;
 }
 
-.b1ref:not(.b1-portal-compras) .fpop-f button[type="submit"].tb-btn-icon:hover:not(:disabled) {
-  background: #35cf56;
+.b1ref:not(.b1-portal-compras) .fpop-f button[type="submit"].tb-btn-icon:hover:not(:disabled),
+.b1ref .fpop-f button[type="submit"].tb-btn-icon.tb-btn-green:hover:not(:disabled),
+.b1ref.b1-portal-compras .fpop-f button[type="submit"].tb-btn-icon:hover:not(:disabled),
+.b1ref.b1-portal-compras .fpop-f .tb-btn-icon.tb-btn-green:hover:not(:disabled) {
+  background: #36c956 !important;
+  border-color: #36c956 !important;
+  color: #fff !important;
+}
+
+.b1ref .fpop-f .tb-btn-icon.tb-btn-green svg,
+.b1ref.b1-portal-compras .fpop-f .tb-btn-icon.tb-btn-green svg {
+  color: #fff !important;
 }
 
 .cadastro-b1 .cmd-panel {

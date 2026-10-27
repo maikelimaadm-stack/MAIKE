@@ -32,6 +32,8 @@ export default function Marcas() {
   const configureColumnsAnchorRef = useRef(null);
   const [deleteState, setDeleteState] = useState({ open: false, ids: [] });
   const [formEpoch, setFormEpoch] = useState(0);
+  /** Registro em visualização antes de clicar Novo — restaurado no Cancelar. */
+  const recordBeforeNewRef = useRef(null);
   const chrome = useCadastroListaChromeState({
     initialViewMode:
       typeof window !== "undefined" &&
@@ -61,10 +63,21 @@ export default function Marcas() {
 
   const createMutation = useMutation({
     mutationFn: (data) => criarMarca({ dados: data, empresaId, marcasDaEmpresa: marcas }),
-    onSuccess: () => {
+    onSuccess: (created) => {
       queryClient.invalidateQueries({ queryKey: ["marcas"] });
-      setShowForm(false);
-      setEditingItem(null);
+      recordBeforeNewRef.current = null;
+      // Após Novo → Salvar, permanece em modo registro (leitura do criado).
+      if (created && typeof created === "object" && created.id) {
+        setEditingItem(created);
+        setIsEditing(false);
+        setShowForm(true);
+        chrome.setViewMode("record");
+        chrome.onSelectionChange([String(created.id)]);
+      } else {
+        setShowForm(false);
+        setEditingItem(null);
+        chrome.exitRecordView();
+      }
       toast.success("Marca criada!");
     },
     onError: (err) => toast.error(getApiErrorMessage(err, "Não foi possível salvar a marca.")),
@@ -108,6 +121,7 @@ export default function Marcas() {
   });
 
   const closeForm = () => {
+    recordBeforeNewRef.current = null;
     setShowForm(false);
     setIsEditing(false);
     setEditingItem(null);
@@ -119,11 +133,24 @@ export default function Marcas() {
       setIsEditing(false);
       return;
     }
+    // Cancelar um Novo aberto a partir de um registro: volta para ele em visualização.
+    const previous = recordBeforeNewRef.current;
+    recordBeforeNewRef.current = null;
+    if (previous?.id) {
+      bumpFormEpoch();
+      setEditingItem(previous);
+      setIsEditing(false);
+      setShowForm(true);
+      chrome.setViewMode("record");
+      chrome.onSelectionChange([String(previous.id)]);
+      return;
+    }
     closeForm();
   };
 
   const openNew = () => {
     bumpFormEpoch();
+    recordBeforeNewRef.current = showForm && editingItem?.id ? editingItem : null;
     setEditingItem(null);
     setIsEditing(true);
     setShowForm(true);
