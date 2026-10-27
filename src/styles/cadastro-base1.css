@@ -689,6 +689,9 @@
 /* Grade emp-table-pro (frota / equipamentos — CONTROLE-DE-ESTOQUE) */
 .cadastro-b1 .mg-grid-wrap {
   overflow: auto;
+  /* Sem seleção nativa azul ao arrastar — seleção de linhas é por clique */
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .cadastro-b1 .mg-shell--table {
@@ -708,6 +711,14 @@
   border-spacing: 0;
   table-layout: auto;
   font-size: 12px;
+  /* Sem seleção nativa azul ao arrastar — seleção de linhas é por clique */
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.cadastro-b1 .mg-grid ::selection {
+  background: transparent;
+  color: inherit;
 }
 
 .cadastro-b1 .mg-grid thead th {
@@ -1382,9 +1393,16 @@
 
 /* Cards — hover e tipografia */
 .cadastro-b1 .b1-card {
+  -webkit-user-select: none;
+  user-select: none;
   transition:
     box-shadow 0.2s ease,
     background 0.15s ease;
+}
+
+.cadastro-b1 .b1-card ::selection {
+  background: transparent;
+  color: inherit;
 }
 
 .cadastro-b1 .b1-card:hover:not(.is-selected) {

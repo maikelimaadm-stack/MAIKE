@@ -233,7 +233,14 @@ export default function Base1Grid({
   const abrirFiltroDireto = referenceHeaders && onFilter && !referenceExtendedColumnMenu;
 
   return (
-    <div className="mg-grid-wrap">
+    <div
+      className="mg-grid-wrap"
+      onSelectStart={(e) => e.preventDefault()}
+      onMouseDown={() => {
+        const sel = window.getSelection?.();
+        if (sel && sel.rangeCount > 0) sel.removeAllRanges();
+      }}
+    >
       <table className="mg-grid">
         <thead>
           <tr>

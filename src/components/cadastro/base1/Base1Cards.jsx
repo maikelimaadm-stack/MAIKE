@@ -100,6 +100,11 @@ export function Base1Cards({
       className={cn("grid grid-cols-1 gap-3", gridCls[perRow] || gridCls[4])}
       role="listbox"
       aria-multiselectable
+      onSelectStart={(e) => e.preventDefault()}
+      onMouseDown={() => {
+        const sel = window.getSelection?.();
+        if (sel && sel.rangeCount > 0) sel.removeAllRanges();
+      }}
     >
       {rows.map((r) => {
         const id = idOf(r);
