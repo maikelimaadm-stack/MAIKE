@@ -45,6 +45,7 @@ import BackButton from "@/components/common/BackButton";
 import PermissionAlertDialog from "@/components/common/PermissionAlertDialog";
 import { DEFAULT_MENU, flattenMenuPages, findMenuItemByUrl, getAllPages } from "@/lib/menuConfig";
 import { ACTION_LABELS, canAccessModule, canAccessPage, canPerformAction, detectPermissionAction, normalizePermissionRecord } from "@/lib/permissions";
+import { deveBloquearCliqueMenu } from "@/lib/menuNavigation";
 
 const iconsMap = { Map, Package, FolderOpen, Shield, Users };
 
@@ -72,6 +73,16 @@ export default function Layout({ children, currentPageName }) {
   const permissionRedirectRef = useRef(null);
   const permissionGateRef = useRef(null);
   const isChangingEmpresa = useRef(false);
+  const menuNavIntentRef = useRef(null);
+
+  const aoClicarMenu = (event, pathnameAlvo, aoFechar) => {
+    if (deveBloquearCliqueMenu(location.pathname, pathnameAlvo, menuNavIntentRef.current)) {
+      event.preventDefault();
+      return;
+    }
+    menuNavIntentRef.current = { path: pathnameAlvo, at: Date.now() };
+    if (typeof aoFechar === "function") aoFechar();
+  };
 
   const persistirEmpresaSelecionada = React.useCallback((empresaId) => {
     setEmpresaSelecionada(empresaId);
@@ -429,7 +440,9 @@ export default function Layout({ children, currentPageName }) {
                                   <Link
                                     key={sub.id}
                                     to={createPageUrl(sub.url)}
-                                    onClick={() => setMobileMenuOpen(false)}
+                                    onClick={(e) =>
+                                      aoClicarMenu(e, createPageUrl(sub.url), () => setMobileMenuOpen(false))
+                                    }
                                     className={`block px-2 py-1.5 text-xs rounded ${
                                     location.pathname === createPageUrl(sub.url) ?
                                     'bg-emerald-100 text-emerald-800 font-medium' :
@@ -449,7 +462,9 @@ export default function Layout({ children, currentPageName }) {
                         <Link
                           key={item.id}
                           to={createPageUrl(item.url)}
-                          onClick={() => setMobileMenuOpen(false)}
+                          onClick={(e) =>
+                            aoClicarMenu(e, createPageUrl(item.url), () => setMobileMenuOpen(false))
+                          }
                           className={`flex items-center gap-2 px-2 py-1.5 text-xs rounded ${
                           location.pathname === createPageUrl(item.url) ?
                           'bg-emerald-100 text-emerald-800 font-medium' :
@@ -502,6 +517,7 @@ export default function Layout({ children, currentPageName }) {
                               <Link
                                 key={sub.id}
                                 to={createPageUrl(sub.url)}
+                                onClick={(e) => aoClicarMenu(e, createPageUrl(sub.url))}
                                 className={`block px-4 py-2 text-xs hover:bg-slate-50 ${
                                 location.pathname === createPageUrl(sub.url) ?
                                 'bg-emerald-50 text-emerald-800 font-medium' :
@@ -519,19 +535,22 @@ export default function Layout({ children, currentPageName }) {
                 }
 
                 return (
-                  <Link key={item.id} to={createPageUrl(item.url)}>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className={`h-8 px-2.5 gap-1 text-xs font-medium rounded ${
-                      active ?
-                      'bg-emerald-600 text-white hover:bg-emerald-700' :
-                      'text-slate-700 hover:text-slate-900 hover:bg-slate-100'}`
-                      }>
-
+                  <Button
+                    key={item.id}
+                    asChild
+                    variant="ghost"
+                    size="sm"
+                    className={`h-8 px-2.5 gap-1 text-xs font-medium rounded ${
+                    active ?
+                    'bg-emerald-600 text-white hover:bg-emerald-700' :
+                    'text-slate-700 hover:text-slate-900 hover:bg-slate-100'}`
+                    }>
+                    <Link
+                      to={createPageUrl(item.url)}
+                      onClick={(e) => aoClicarMenu(e, createPageUrl(item.url))}>
                       {item.title}
-                    </Button>
-                  </Link>);
+                    </Link>
+                  </Button>);
 
               })}
             </div>
@@ -594,7 +613,12 @@ export default function Layout({ children, currentPageName }) {
                   <Link
                     key={page.id}
                     to={createPageUrl(page.url)}
-                    onClick={() => {setSearchOpen(false);setSearchTerm("");}}
+                    onClick={(e) => {
+                      aoClicarMenu(e, createPageUrl(page.url), () => {
+                        setSearchOpen(false);
+                        setSearchTerm("");
+                      });
+                    }}
                     className="block px-3 py-2 text-sm hover:bg-emerald-50 rounded-md transition-colors">
 
                           <div className="font-medium text-slate-900">{page.title}</div>
@@ -612,7 +636,7 @@ export default function Layout({ children, currentPageName }) {
 
 
       <main className="max-w-[1600px] mx-auto flex-1 min-h-0 w-full overflow-hidden pb-16 md:pb-0">
-        <div key={location.pathname} className="relative h-full min-h-0 overflow-hidden">
+        <div className="relative h-full min-h-0 overflow-hidden">
           {children}
         </div>
       </main>
@@ -632,6 +656,7 @@ export default function Layout({ children, currentPageName }) {
               key={page.id}
               to={createPageUrl(page.url)}
               aria-label={page.label}
+              onClick={(e) => aoClicarMenu(e, createPageUrl(page.url))}
               className={`flex items-center justify-center h-12 rounded-xl border transition-colors ${isCurrent ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-white border-slate-200 text-slate-600'}`}>
                 <Icon className="w-6 h-6" />
                 </Link> :
