@@ -9,7 +9,9 @@ import useSetorAreas from "@/hooks/useSetorAreas";
 import {
   listarCategoriasManejoAtivas,
   listarFornecedores,
+  normalizarMotivoEntrada,
 } from "@/services/loteCadastroService";
+import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 import AutocompleteGenerico from "@/components/financeiro/AutocompleteGenerico";
 import TopNoticeDialog from "@/components/common/TopNoticeDialog";
 import LegacyRecordToolbar from "./LegacyRecordToolbar.jsx";
@@ -107,7 +109,7 @@ export default function FormularioLote({
   const embedded = variant === "embedded";
   const isDuplicating = !!initialData?._isDuplicate;
   const shouldPersistEntrySnapshot = !isEditing || isDuplicating;
-  const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
+  const empresaSelecionadaId = useEmpresaSelecionadaId();
   const [errors, setErrors] = useState({});
   const [activeTab, setActiveTab] = useState("geral");
   const [layoutConfigOpen, setLayoutConfigOpen] = useState(false);
@@ -208,9 +210,13 @@ export default function FormularioLote({
   { id: "Misto", nome: "MISTO" }],
   []);
 
-  const opcoesMotivoEntrada = useMemo(() => {
-    return MOTIVOS_ENTRADA.map((item) => ({ id: item.toUpperCase(), nome: item.toUpperCase() })).sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR", { sensitivity: "base" }));
-  }, []);
+  const opcoesMotivoEntrada = useMemo(
+    () =>
+      MOTIVOS_ENTRADA.map((item) => ({ id: item, nome: item.toUpperCase() })).sort((a, b) =>
+        a.nome.localeCompare(b.nome, "pt-BR", { sensitivity: "base" ),
+      ),
+    [],
+  );
 
   const opcoesCores = useMemo(() => CORES_DISPONIVEIS.map((item) => ({ id: item.cor, nome: item.nome.toUpperCase(), cor: item.cor })), []);
 
@@ -274,6 +280,10 @@ export default function FormularioLote({
       }
     });
 
+    if (isEmptyValue(formData?.motivo_entrada)) {
+      nextErrors.motivo_entrada = true;
+    }
+
     if (isMotivoEntrada("COMPRA")) {
       [
       "fornecedor_id",
@@ -330,8 +340,12 @@ export default function FormularioLote({
     const quantidade = parseInt(formData.quantidade_cabecas) || 0;
     const peso = parseFloat(formData.peso_medio_kg) || 0;
 
+    const motivoEntrada =
+      normalizarMotivoEntrada(formData.motivo_entrada) ?? formData.motivo_entrada;
+
     const dataToSave = {
       ...formData,
+      motivo_entrada: motivoEntrada,
       campos_personalizados: initialData?.campos_personalizados || {},
       sistema_produtivo: parseSistemasProdutivos(formData.sistema_produtivo).join(", "),
       data_entrada: formData.data_entrada ? `${formData.data_entrada}T12:00:00` : null,

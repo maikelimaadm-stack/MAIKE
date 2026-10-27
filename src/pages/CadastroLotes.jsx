@@ -22,6 +22,7 @@ import {
 } from "@/services/loteCadastroService";
 import { persistirAnexosPendentes } from "@/services/anexoService";
 import { getApiErrorMessage } from "@/apis/_core/ApiError";
+import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 
 export default function CadastroLotes() {
   const [showForm, setShowForm] = useState(false);
@@ -49,7 +50,7 @@ export default function CadastroLotes() {
     labelField: "nome",
   });
   const queryClient = useQueryClient();
-  const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
+  const empresaSelecionadaId = useEmpresaSelecionadaId();
 
   const { data: lotes = [], isLoading } = useQuery({
     queryKey: ["lotes-cadastro", empresaSelecionadaId],

@@ -98,9 +98,22 @@ describe('L — cadastro de lotes', () => {
     lotes.createLote.mockResolvedValue({ id: 'novo' });
     await loteCadastro.criarLote({ nome: 'L' }, { empresaId: EMPRESA });
     expect(lotes.createLote).toHaveBeenCalledWith(
-      expect.objectContaining({ empresa_id: EMPRESA, status: 'Ativo', campos_personalizados: {} })
+      expect.objectContaining({
+        empresa_id: EMPRESA,
+        status: 'Ativo',
+        campos_personalizados: {},
+        motivo_entrada: 'Inventário',
+      })
     );
     expect(lotes.createLote.mock.calls[0][0]).not.toHaveProperty('numero_lote');
+  });
+
+  it('L4b — motivo_entrada maiúsculo vira enum do backend', async () => {
+    lotes.createLote.mockResolvedValue({ id: 'novo' });
+    await loteCadastro.criarLote({ nome: 'L', motivo_entrada: 'COMPRA' }, { empresaId: EMPRESA });
+    expect(lotes.createLote).toHaveBeenCalledWith(
+      expect.objectContaining({ motivo_entrada: 'Compra' })
+    );
   });
 
   it('L5 — atualizar sincroniza referências depois de gravar', async () => {

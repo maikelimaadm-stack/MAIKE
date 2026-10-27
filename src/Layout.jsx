@@ -4,6 +4,7 @@ import { createPageUrl } from "@/utils";
 import { listEmpresas } from "@/services/empresaService";
 import { getCurrentUser, getCachedUser, listarPermissoes, permissaoDoUsuario, permissaoMinimaNativa } from "@/services/sessionService";
 import { useAuth } from "@/lib/AuthContext";
+import { EVENTO_EMPRESA_SELECIONADA } from "@/hooks/useEmpresaSelecionadaId";
 import {
   Users, LogOut, Package, Shield, FolderOpen, Map, ChevronDown, Menu, Search, X, EyeOff, Eye } from
 "lucide-react";
@@ -71,7 +72,14 @@ export default function Layout({ children, currentPageName }) {
   const [userPermissions, setUserPermissions] = useState(null);
   const [permissionDialog, setPermissionDialog] = useState({ open: false, title: "", description: "" });
   const permissionRedirectRef = useRef(null);
+  const permissionGateRef = useRef(null);
   const isChangingEmpresa = useRef(false);
+
+  const persistirEmpresaSelecionada = React.useCallback((empresaId) => {
+    setEmpresaSelecionada(empresaId);
+    localStorage.setItem('empresa_selecionada_id', empresaId);
+    window.dispatchEvent(new Event(EVENTO_EMPRESA_SELECIONADA));
+  }, []);
   const [menuOculto, setMenuOculto] = useState(() => {
     return localStorage.getItem('menu_oculto') === 'true';
   });
@@ -117,25 +125,24 @@ export default function Layout({ children, currentPageName }) {
   // Selecionar primeira empresa SOMENTE UMA VEZ
   useEffect(() => {
     if (!empresaSelecionada && empresas.length > 0 && !isChangingEmpresa.current) {
-      const primeiraEmpresa = empresas[0].id;
-      setEmpresaSelecionada(primeiraEmpresa);
-      localStorage.setItem('empresa_selecionada_id', primeiraEmpresa);
+      persistirEmpresaSelecionada(empresas[0].id);
     }
-  }, [empresas.length]); // Apenas quando o tamanho mudar
+  }, [empresaSelecionada, empresas.length, persistirEmpresaSelecionada]);
 
   // Sem Base44 (ou lista vazia), cadastros nativos usam o tenant do JWT como empresa.
   useEffect(() => {
     if (empresaSelecionada || !clienteId || empresasLoading || empresas.length > 0) return;
     if (isChangingEmpresa.current) return;
-    setEmpresaSelecionada(clienteId);
-    localStorage.setItem('empresa_selecionada_id', clienteId);
-  }, [empresaSelecionada, clienteId, empresas.length, empresasLoading]);
+    persistirEmpresaSelecionada(clienteId);
+  }, [empresaSelecionada, clienteId, empresas.length, empresasLoading, persistirEmpresaSelecionada]);
 
   const handleEmpresaChange = (empresaId) => {
     if (empresaId === empresaSelecionada) return;
     isChangingEmpresa.current = true;
-    setEmpresaSelecionada(empresaId);
-    localStorage.setItem('empresa_selecionada_id', empresaId);
+    persistirEmpresaSelecionada(empresaId);
+    queueMicrotask(() => {
+      isChangingEmpresa.current = false;
+    });
   };
 
   useEffect(() => {
@@ -221,15 +228,21 @@ export default function Layout({ children, currentPageName }) {
   );
 
   useEffect(() => {
-    if (!currentMenuPage) return;
-    if (canAccessPage(normalizedPermissions, currentMenuPage.id, currentMenuPage.moduleId)) return;
+    if (!currentMenuPage || userPermissions === null) return;
+    const gateKey = `${location.pathname}:${currentMenuPage.id}`;
+    if (canAccessPage(normalizedPermissions, currentMenuPage.id, currentMenuPage.moduleId)) {
+      permissionGateRef.current = null;
+      return;
+    }
+    if (permissionGateRef.current === gateKey) return;
+    permissionGateRef.current = gateKey;
 
     openPermissionDialog(
       "Tela bloqueada",
       "Você não tem permissão para visualizar esta tela.",
       createPageUrl(firstAllowedPage?.url || PRIMARY_PAGE)
     );
-  }, [currentMenuPage, normalizedPermissions, firstAllowedPage]);
+  }, [currentMenuPage, normalizedPermissions, firstAllowedPage, userPermissions, location.pathname]);
 
   useEffect(() => {
     if (!currentMenuPage || currentMenuPage.id === 'pec-mapa-geral') return;
