@@ -19,6 +19,7 @@ import {
 import CadastroSearchPill from "./CadastroSearchPill";
 import {
   B1Popover,
+  FluidSlot,
   IconBtn,
   IconeRaio,
   MenuList,
@@ -316,54 +317,68 @@ export default function CadastroListaChrome({
             </PillBtn>
           ) : null}
           {extraToolbar}
-          {onEdit && oneSelected ? (
-            <PillBtn
-              type="button"
-              tone="gray"
-              onClick={onEdit}
-              className="mg-toolbar__action--wide"
-            >
-              <Pencil className="h-3.5 w-3.5" aria-hidden />
-              Editar
-            </PillBtn>
-          ) : null}
-          {onDuplicate && oneSelected ? (
-            <PillBtn
-              type="button"
-              tone="gray"
-              onClick={onDuplicate}
-              className="mg-toolbar__action--wide"
-            >
-              <Copy className="h-3.5 w-3.5" aria-hidden />
-              Duplicar
-            </PillBtn>
-          ) : null}
-          {onDelete && anySelected ? (
-            <PillBtn
-              type="button"
-              tone="red"
-              onClick={onDelete}
-              className="mg-toolbar__action--wide"
-            >
-              <Trash2 className="h-4 w-4" aria-hidden />
-              Excluir
-              {selectedCount > 1 ? ` (${selectedCount})` : ""}
-            </PillBtn>
+          {onEdit || onDuplicate || onDelete ? (
+            <FluidSlot open={anySelected} className="mg-fluid-slot--cluster">
+              <div className="mg-fluid-slot__cluster">
+                {onEdit ? (
+                  <PillBtn
+                    type="button"
+                    tone="gray"
+                    onClick={onEdit}
+                    disabled={!oneSelected}
+                    tabIndex={oneSelected ? undefined : -1}
+                    className={cn("mg-toolbar__action--wide", !oneSelected && "mg-fluid-slot__ghost")}
+                  >
+                    <Pencil className="h-3.5 w-3.5" aria-hidden />
+                    Editar
+                  </PillBtn>
+                ) : null}
+                {onDuplicate ? (
+                  <PillBtn
+                    type="button"
+                    tone="gray"
+                    onClick={onDuplicate}
+                    disabled={!oneSelected}
+                    tabIndex={oneSelected ? undefined : -1}
+                    className={cn("mg-toolbar__action--wide", !oneSelected && "mg-fluid-slot__ghost")}
+                  >
+                    <Copy className="h-3.5 w-3.5" aria-hidden />
+                    Duplicar
+                  </PillBtn>
+                ) : null}
+                {onDelete ? (
+                  <PillBtn
+                    type="button"
+                    tone="red"
+                    onClick={onDelete}
+                    tabIndex={anySelected ? undefined : -1}
+                    className="mg-toolbar__action--wide"
+                  >
+                    <Trash2 className="h-4 w-4" aria-hidden />
+                    Excluir
+                    {selectedCount > 1 ? ` (${selectedCount})` : ""}
+                  </PillBtn>
+                ) : null}
+              </div>
+            </FluidSlot>
           ) : null}
         </div>
       ) : null}
       {!secondaryToolsLocked && joinedShell ? (
         <div className="ml-auto flex items-center justify-end gap-1.5">
-          {onClearFilters && filtersActive ? (
-            <IconBtn
-              aria-label="Limpar filtros"
-              title="Limpar filtros"
-              className="is-filter-active"
-              onClick={onClearFilters}
-              data-testid="b1-clear-filters"
-            >
-              <FilterX className="h-4 w-4" aria-hidden />
-            </IconBtn>
+          {onClearFilters ? (
+            <FluidSlot open={filtersActive}>
+              <IconBtn
+                aria-label="Limpar filtros"
+                title="Limpar filtros"
+                className="is-filter-active"
+                onClick={onClearFilters}
+                tabIndex={filtersActive ? undefined : -1}
+                data-testid="b1-clear-filters"
+              >
+                <FilterX className="h-4 w-4" aria-hidden />
+              </IconBtn>
+            </FluidSlot>
           ) : null}
           {onSearchChange ? (
             <div
@@ -422,16 +437,19 @@ export default function CadastroListaChrome({
         </div>
       ) : (
         <div className="ml-auto flex items-center gap-1.5 flex-wrap">
-          {!secondaryToolsLocked && onClearFilters && filtersActive ? (
-            <IconBtn
-              aria-label="Limpar filtros"
-              title="Limpar filtros"
-              className="is-filter-active"
-              onClick={onClearFilters}
-              data-testid="b1-clear-filters"
-            >
-              <FilterX className="h-4 w-4" aria-hidden />
-            </IconBtn>
+          {!secondaryToolsLocked && onClearFilters ? (
+            <FluidSlot open={filtersActive}>
+              <IconBtn
+                aria-label="Limpar filtros"
+                title="Limpar filtros"
+                className="is-filter-active"
+                onClick={onClearFilters}
+                tabIndex={filtersActive ? undefined : -1}
+                data-testid="b1-clear-filters"
+              >
+                <FilterX className="h-4 w-4" aria-hidden />
+              </IconBtn>
+            </FluidSlot>
           ) : null}
           {showAttachControl ? (
             <IconBtn

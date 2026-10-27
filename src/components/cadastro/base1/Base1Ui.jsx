@@ -53,6 +53,22 @@ const IconBtnRender = ({ className, active, size = "md", danger, children, title
 export const IconBtn = React.forwardRef(IconBtnRender);
 IconBtn.displayName = "IconBtn";
 
+/**
+ * Slot com transição fluida (água) para botões que entram/saem da toolbar.
+ * Mantém o nó montado para animar saída — não use unmount condicional no filho.
+ * @param {{ open: boolean; className?: string; children: import('react').ReactNode }} props
+ */
+export function FluidSlot({ open, className, children }) {
+  return (
+    <div
+      className={cn("mg-fluid-slot", open && "is-open", className)}
+      aria-hidden={!open}
+    >
+      <div className="mg-fluid-slot__inner">{children}</div>
+    </div>
+  );
+}
+
 /** @typedef {import('react').ComponentPropsWithoutRef<'button'> & { tone?: 'green'|'gray'|'red'|'outline'; title?: string; }} PillBtnProps */
 /** @type {import('react').ForwardRefRenderFunction<HTMLButtonElement, PillBtnProps>} */
 const PillBtnRender = ({ className, tone = "green", children, title, ...p }, ref) => {

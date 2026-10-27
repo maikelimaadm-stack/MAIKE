@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 /**
  * Campo de busca em pílula (Modelo Base1).
  * Digitação mostra listagem; Enter / Confirmar aplica filtro na grade (não abre 1 registro).
- * Clique em um item da listagem abre só aquele registro.
+ * Clique em um item da listagem filtra só aquele registro (permanece na visão atual).
  *
  * @param {object} props
  * @param {string} props.value
@@ -115,7 +115,11 @@ export default function CadastroSearchPill({
           <Search className="mg-search-pill-icon" aria-hidden />
         )}
         <input
-          type="search"
+          type="text"
+          inputMode="search"
+          autoComplete="off"
+          autoCorrect="off"
+          spellCheck={false}
           autoFocus={autoFocus}
           value={value}
           onChange={(e) => {

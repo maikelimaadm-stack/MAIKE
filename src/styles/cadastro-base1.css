@@ -209,6 +209,89 @@
   flex-wrap: wrap;
 }
 
+/* Entrada/saída fluida (água) — botões da toolbar que aparecem e somem */
+.cadastro-b1 .mg-fluid-slot {
+  display: grid;
+  grid-template-columns: 0fr;
+  opacity: 0;
+  filter: blur(5px);
+  transform: translateY(2px) scale(0.92);
+  pointer-events: none;
+  transition:
+    grid-template-columns 0.42s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.34s cubic-bezier(0.22, 1, 0.36, 1),
+    filter 0.34s ease,
+    transform 0.42s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.cadastro-b1 .mg-fluid-slot.is-open {
+  grid-template-columns: 1fr;
+  opacity: 1;
+  filter: blur(0);
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+}
+
+.cadastro-b1 .mg-fluid-slot__inner {
+  overflow: hidden;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+
+.cadastro-b1 .mg-fluid-slot__inner > * {
+  flex-shrink: 0;
+}
+
+.cadastro-b1 .mg-fluid-slot__cluster {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+.cadastro-b1 .mg-fluid-slot__cluster .tb-btn + .tb-btn:not(.mg-fluid-slot__ghost) {
+  margin-left: 6px;
+}
+
+.cadastro-b1 .mg-fluid-slot__ghost + .tb-btn:not(.mg-fluid-slot__ghost) {
+  margin-left: 0;
+}
+
+.cadastro-b1 .mg-fluid-slot__cluster .tb-btn {
+  max-width: 11rem;
+  overflow: hidden;
+  transition:
+    max-width 0.36s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.28s ease,
+    padding 0.36s cubic-bezier(0.22, 1, 0.36, 1),
+    filter 0.28s ease,
+    transform 0.36s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Esconde Editar/Duplicar com o mesmo fluido quando a seleção passa de 1 */
+.cadastro-b1 .mg-fluid-slot__ghost {
+  max-width: 0 !important;
+  min-width: 0 !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  margin: 0 !important;
+  opacity: 0;
+  overflow: hidden;
+  border-width: 0 !important;
+  pointer-events: none;
+  filter: blur(4px);
+  transform: scale(0.92);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cadastro-b1 .mg-fluid-slot,
+  .cadastro-b1 .mg-fluid-slot__ghost {
+    transition: none;
+    filter: none;
+    transform: none;
+  }
+}
+
 .cadastro-b1 .mg-pills-rail,
 .cadastro-b1 .mg-rail {
   display: flex;
@@ -505,6 +588,20 @@
   background: transparent;
   font-size: 12px;
   color: var(--mg-text-1);
+  /* evita o X nativo do type=search (já temos o clear próprio) */
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.cadastro-b1 .mg-search-pill input[type="search"]::-webkit-search-cancel-button,
+.cadastro-b1 .mg-search-pill input[type="search"]::-webkit-search-decoration,
+.cadastro-b1 .mg-search-pill input[type="search"]::-webkit-search-results-button,
+.cadastro-b1 .mg-search-pill input[type="search"]::-webkit-search-results-decoration {
+  -webkit-appearance: none;
+  appearance: none;
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 .cadastro-b1 .mg-search-pill input::placeholder {

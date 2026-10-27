@@ -47,6 +47,7 @@ export default function TabelaMarcas(props) {
       showConfigColunas={props.showConfigColunas}
       setShowConfigColunas={props.setShowConfigColunas}
       searchQuery={props.searchQuery}
+      matchesSearch={props.matchesSearch}
       resetFiltersKey={props.resetFiltersKey}
       onSelectionChange={props.onSelectionChange}
       onFiltersActiveChange={props.onFiltersActiveChange}

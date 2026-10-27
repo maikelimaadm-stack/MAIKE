@@ -32,6 +32,8 @@ export default function Marcas() {
   const configureColumnsAnchorRef = useRef(null);
   const [deleteState, setDeleteState] = useState({ open: false, ids: [] });
   const [formEpoch, setFormEpoch] = useState(0);
+  /** Clique numa sugestão: isola só esse id na listagem (até limpar / nova busca). */
+  const [searchPickId, setSearchPickId] = useState(/** @type {string | null} */ (null));
   /** Registro em visualização antes de clicar Novo — restaurado no Cancelar. */
   const recordBeforeNewRef = useRef(null);
   const chrome = useCadastroListaChromeState({
@@ -171,10 +173,12 @@ export default function Marcas() {
     });
   }, []);
 
-  const recordNavRows = useMemo(
-    () => filtrarMarcasPorBusca(marcas, chrome.appliedSearch),
-    [marcas, chrome.appliedSearch, filtrarMarcasPorBusca],
-  );
+  const recordNavRows = useMemo(() => {
+    if (searchPickId) {
+      return marcas.filter((m) => String(m.id) === String(searchPickId));
+    }
+    return filtrarMarcasPorBusca(marcas, chrome.appliedSearch);
+  }, [marcas, chrome.appliedSearch, filtrarMarcasPorBusca, searchPickId]);
 
   const searchSuggestions = useMemo(() => {
     const q = chrome.searchInput.trim().toLowerCase();
@@ -187,6 +191,19 @@ export default function Marcas() {
         secondary: m.numero_marca ? `Nº ${m.numero_marca}` : m.descricao || undefined,
       }));
   }, [marcas, chrome.searchInput, filtrarMarcasPorBusca]);
+
+  /** Isola um id na grade (clique na sugestão) sem depender só do texto. */
+  const matchesMarcaSearch = useCallback(
+    (item, q) => {
+      if (searchPickId) return String(item.id) === String(searchPickId);
+      const hay = [item.nome, item.descricao, item.numero_marca]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return hay.includes(q);
+    },
+    [searchPickId],
+  );
 
   const handleEdit = useCallback(
     (item) => {
@@ -206,6 +223,7 @@ export default function Marcas() {
   const handleSearchApply = useCallback(
     (next) => {
       const texto = typeof next === "string" ? next : chrome.searchInput;
+      setSearchPickId(null);
       chrome.applySearch(texto);
       if (!showForm || isEditing) return;
       const filtradas = filtrarMarcasPorBusca(marcas, texto);
@@ -234,14 +252,35 @@ export default function Marcas() {
     ],
   );
 
-  /** Clique na sugestão: abre só aquele registro; o texto digitado vira filtro persistente. */
+  /** Clique na sugestão: filtra só aquele registro na visão atual (não abre modo registro). */
   const handleSearchSuggestionPick = useCallback(
     (item) => {
-      chrome.applySearch(chrome.searchInput);
-      const row = marcas.find((m) => String(m.id) === String(item.id));
-      if (row) handleEdit(row);
+      const id = String(item.id);
+      setSearchPickId(id);
+      chrome.applySearch(item.label || chrome.searchInput);
+      chrome.onSelectionChange([id]);
+      if (showForm && !isEditing) {
+        const row = marcas.find((m) => String(m.id) === id);
+        if (row) {
+          setEditingItem(row);
+          setIsEditing(false);
+        }
+      }
     },
-    [chrome, marcas, handleEdit],
+    [chrome, showForm, isEditing, marcas],
+  );
+
+  const handleClearFilters = useCallback(() => {
+    setSearchPickId(null);
+    clearCadastroListaFiltersAndSearch(chrome);
+  }, [chrome]);
+
+  const handleSearchInputChange = useCallback(
+    (v) => {
+      setSearchPickId(null);
+      chrome.setSearchInput(v);
+    },
+    [chrome],
   );
 
   const handleEditSelected = useCallback(() => {
@@ -382,17 +421,17 @@ export default function Marcas() {
             <Base1CardsToolbar columns={MARCAS_COLUNAS} cardsPrefs={cardsPrefs} />
           }
           searchValue={chrome.searchInput}
-          onSearchChange={chrome.setSearchInput}
+          onSearchChange={handleSearchInputChange}
           onSearchApply={handleSearchApply}
           searchCommittedValue={chrome.appliedSearch}
-          searchActive={chrome.searchActive}
+          searchActive={chrome.searchActive || Boolean(searchPickId)}
           searchPlaceholder="Buscar marcas…"
           searchSuggestions={searchSuggestions}
           onSearchSuggestionPick={handleSearchSuggestionPick}
           configureColumnsAnchorRef={configureColumnsAnchorRef}
           onConfigureColumns={() => setShowConfigColunas(true)}
-          onClearFilters={() => clearCadastroListaFiltersAndSearch(chrome)}
-          filtersActive={chrome.filtersActive || chrome.searchActive}
+          onClearFilters={handleClearFilters}
+          filtersActive={chrome.filtersActive || chrome.searchActive || Boolean(searchPickId)}
           viewMode={showForm ? "record" : chrome.viewMode}
           onViewModeChange={onViewModeChange}
         >
@@ -405,6 +444,7 @@ export default function Marcas() {
               showConfigColunas={showConfigColunas}
               setShowConfigColunas={setShowConfigColunas}
               searchQuery={chrome.appliedSearch}
+              matchesSearch={matchesMarcaSearch}
               resetFiltersKey={chrome.resetFiltersKey}
               onSelectionChange={chrome.onSelectionChange}
               onFiltersActiveChange={chrome.setFiltersActive}
