@@ -10,6 +10,7 @@ export default function CadastroSearchPill({
   onApply,
   placeholder = "Buscar…",
   active = false,
+  autoFocus = false,
 }) {
   const handleKeyDown = (e) => {
     if (e.key === "Enter") {
@@ -41,6 +42,7 @@ export default function CadastroSearchPill({
         )}
         <input
           type="search"
+          autoFocus={autoFocus}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={handleKeyDown}

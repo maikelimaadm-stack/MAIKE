@@ -30,7 +30,12 @@ export default function Marcas() {
   const configureColumnsAnchorRef = useRef(null);
   const [deleteState, setDeleteState] = useState({ open: false, ids: [] });
   const [formEpoch, setFormEpoch] = useState(0);
-  const chrome = useCadastroListaChromeState();
+  const chrome = useCadastroListaChromeState({
+    initialViewMode:
+      typeof window !== "undefined" && window.matchMedia("(max-width: 639px)").matches
+        ? "cards"
+        : "table",
+  });
   const bumpFormEpoch = () => setFormEpoch((n) => n + 1);
   const listFooter = useCadastroListaFooter(
     MARCAS_STORAGE_KEY,

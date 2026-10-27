@@ -376,7 +376,26 @@
     margin: 0 auto;
   }
 
-  .b1-portal-compras .mdl-h .tb-btn-icon,
+  .b1-portal-compras .mdl-h {
+    gap: 6px;
+    padding-left: 12px;
+    padding-right: 8px;
+  }
+
+  .b1-portal-compras .mdl-h .mdl-t {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .b1-portal-compras .mdl-h .tb-btn-icon {
+    width: 36px !important;
+    min-width: 36px !important;
+    height: 36px !important;
+    min-height: 36px !important;
+  }
+
   .b1-portal-compras .mdl-f .tb-btn-icon {
     width: 44px !important;
     min-width: 44px !important;
