@@ -20,6 +20,9 @@
  */
 
 import { runProviderCall, assertArgument } from '../_core/normalizeApiError.js';
+import { API_ERROR_CODES, hasApiErrorCode } from '../_core/ApiError.js';
+import { hasNativeToken } from '@/lib/auth/nativeTokenStorage';
+import { obterUsuarioAtualLegado } from './nativeSessionApi.js';
 import { sessionProvider } from '../_providers/base44Provider.js';
 import { updateUsuario as updateUsuarioNativo } from '@/apis/usuarios';
 
@@ -37,9 +40,15 @@ const ctx = (operation) => ({ operation, resource: RESOURCE });
  */
 export const getCapacidadesDeSessao = () => Object.freeze(sessionProvider.capacidades());
 
-/** Usuário autenticado. Erro vira `ApiError`; o service decide o fallback. */
-export const getCurrentUser = async () =>
-  runProviderCall(() => sessionProvider.me(), ctx('getCurrentUser'));
+/**
+ * Usuário autenticado — sessão nativa MAIKE (D-PROD-44).
+ *
+ * Sem token nativo, `null`. Não consulta `base44.auth`.
+ */
+export const getCurrentUser = async () => {
+  if (!hasNativeToken()) return null;
+  return runProviderCall(() => obterUsuarioAtualLegado(), ctx('getCurrentUser'));
+};
 
 /** Contas nativas do tenant (P6.0); formato legado inclui `email` = login. */
 export { listUsuarios } from '@/apis/usuarios';
@@ -148,11 +157,16 @@ export const getAppPublicSettings = async () => {
  * @returns {Promise<{autenticado: boolean, usuario: object|null, precisaAutenticar: boolean}>}
  */
 export const verificarSessao = async () => {
+  if (!hasNativeToken()) {
+    return { autenticado: false, usuario: null, precisaAutenticar: true };
+  }
   try {
-    const usuario = await sessionProvider.me();
+    const usuario = await obterUsuarioAtualLegado();
     return { autenticado: true, usuario: usuario ?? null, precisaAutenticar: false };
   } catch (erro) {
-    const status = statusDoProvider(erro);
-    return { autenticado: false, usuario: null, precisaAutenticar: status === 401 || status === 403 };
+    if (hasApiErrorCode(erro, API_ERROR_CODES.TENANT_CONTEXT_REQUIRED)) {
+      return { autenticado: false, usuario: null, precisaAutenticar: true };
+    }
+    return { autenticado: false, usuario: null, precisaAutenticar: false };
   }
 };

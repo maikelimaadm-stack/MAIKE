@@ -23,7 +23,7 @@
 
 import { base44 } from '@/api/base44Client';
 import { getDataProviderConfig } from '@/config/runtimeConfig';
-import { createNormalizedEntityAdapter, createNormalizedSessionAdapter } from '@/lib/textNormalization';
+import { createNormalizedEntityAdapter } from '@/lib/textNormalization';
 import {
   createOfflineEntityAdapter,
   offlineStorageDisponivel,
@@ -154,7 +154,7 @@ const ENTITY_REGISTRY = Object.freeze({
   // `src/apis/marcas/marcaNativePort.js`. O schema continua em
   // `base44/entities/Marca.jsonc` e o nome continua em `allowedBase44Entities`
   // enquanto `Produto` referenciar marca na Base44.
-  UnidadeMedida: comFronteira('UnidadeMedida', base44.entities.UnidadeMedida),
+  // `UnidadeMedida` saiu na P4.5 (D-PROD-44): `unidadeMedidaNativePort.js`.
 });
 
 // O replay ao voltar online é instalado uma única vez, aqui — o provider é o
@@ -301,41 +301,17 @@ export const tarefasProvider = Object.freeze({
 });
 
 // ── Sessão e permissão (P1.2) ─────────────────────────────────────────────
-// `me()` é a única porta para o usuário atual. O provider não conhece
-// `localStorage` — a política de fallback offline vive no service (seção 10).
+// Autenticação do aplicativo é nativa (P4.0). Este bloco cobre só cadastros
+// legados (`User`, `Permissao`) e configurações públicas do app na Base44.
 
-const authNormalizada = createNormalizedSessionAdapter({
-  me: base44.auth?.me ? () => base44.auth.me() : undefined,
-  updateMe: base44.auth?.updateMe ? (dados) => base44.auth.updateMe(dados) : undefined,
-});
-
-/**
- * Capacidades de autenticação que o provider atual realmente oferece (P1.4).
- *
- * `logout` e `redirectToLogin` saíram na **P4.0**, e por motivos diferentes.
- *
- * `redirectToLogin` mandava o usuário para a tela de login da Base44. Com a
- * autenticação do aplicativo nativa, isso autenticaria no lugar errado: o
- * usuário voltaria com token da Base44 e continuaria sem sessão MAIKE, num laço
- * sem saída. Não há equivalente a criar — o login nativo é uma superfície
- * dentro do próprio aplicativo, não um destino externo.
- *
- * `logout` saiu porque **não deve** ser chamado, não só porque ficou sem
- * consumidor. O token do SDK chega uma única vez pela query string; descartá-lo
- * no logout deixaria o próximo login com sessão MAIKE válida e provider de
- * dados morto, sem caminho de volta. Ele é a credencial da aplicação com a
- * Base44, não a do usuário com o MAIKE — e quem encerra a sessão do usuário é
- * `sairDaSessaoNativa`.
- */
 const capacidadesDeSessao = Object.freeze({
-  updateMe: typeof base44.auth?.updateMe === 'function',
+  updateMe: false,
 });
 
 export const sessionProvider = Object.freeze({
   /** Função, não propriedade: entrega **dado**, nunca uma referência interna. */
   capacidades: () => ({ ...capacidadesDeSessao }),
 
-  me: () => authNormalizada.me(),
   listUsuarios: (ordenacao, limite) => endpointOf('User').list(ordenacao, limite),
   listPermissoes: (ordenacao) => endpointOf('Permissao').list(ordenacao),
 
@@ -462,14 +438,6 @@ export const produtosProvider = Object.freeze({
   create: (dados) => endpointOf('Produto').create(dados),
   update: (id, dados) => endpointOf('Produto').update(id, dados),
   delete: (id) => endpointOf('Produto').delete(id),
-});
-
-/** Unidade de medida. A sigla é a chave que o Produto referencia. */
-export const unidadesMedidaProvider = Object.freeze({
-  list: (ordenacao) => endpointOf('UnidadeMedida').list(ordenacao),
-  create: (dados) => endpointOf('UnidadeMedida').create(dados),
-  update: (id, dados) => endpointOf('UnidadeMedida').update(id, dados),
-  delete: (id) => endpointOf('UnidadeMedida').delete(id),
 });
 
 /**

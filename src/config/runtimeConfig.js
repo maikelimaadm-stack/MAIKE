@@ -188,15 +188,6 @@ const ehSplitDevLocal = (origem, daEnv) =>
   /localhost/i.test(daEnv) &&
   origem !== daEnv;
 
-const lerSkipNativeLogin = () => {
-  try {
-    const valor = import.meta.env.VITE_SKIP_NATIVE_LOGIN;
-    return valor === 'true' || valor === '1';
-  } catch {
-    return false;
-  }
-};
-
 /**
  * Origem do documento atual, validada da mesma forma que a env.
  *
@@ -330,9 +321,6 @@ export const getNativeApiUrl = () => {
   return daEnv;
 };
 
-/** Bypass emergencial do gate de login nativo (D-PROD-37). Só via env de build. */
-export const isNativeLoginSkipped = () => lerSkipNativeLogin();
-
 /** O backend nativo está configurado? */
 export const isNativeApiConfigured = () => getNativeApiUrl() !== null;
 
@@ -352,5 +340,4 @@ export const describeRuntimeConfig = () => ({
   hasFunctionsVersion: Boolean(providerParams.functionsVersion),
   hasGoogleMapsApiKey: isGoogleMapsConfigured(),
   hasNativeApiUrl: isNativeApiConfigured(),
-  skipNativeLogin: isNativeLoginSkipped(),
 });

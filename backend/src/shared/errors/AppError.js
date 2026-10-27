@@ -102,3 +102,9 @@ export const marcaNotFound = (message, options) =>
 
 export const marcaNomeConflito = (message, options) =>
   new AppError('MARCA_NAME_CONFLICT', message || 'já existe marca com este nome nesta empresa', options);
+
+export const unidadeMedidaNotFound = (message, options) =>
+  new AppError('UNIDADE_MEDIDA_NOT_FOUND', message || 'unidade de medida não encontrada', options);
+
+export const unidadeMedidaSiglaConflito = (message, options) =>
+  new AppError('UNIDADE_MEDIDA_SIGLA_CONFLICT', message || 'já existe unidade com esta sigla', options);

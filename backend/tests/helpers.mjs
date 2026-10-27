@@ -26,6 +26,7 @@ const ORDEM_DE_LIMPEZA = [
   // fazer (P4.2).
   'areaPastagem',
   'marca',
+  'unidadeMedida',
   'setor',
   'entidadeCodigoSequencia',
   'usuario',

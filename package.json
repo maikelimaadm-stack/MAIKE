@@ -33,6 +33,7 @@
     "gate:native-api": "node scripts/gates/gate-native-api.mjs",
     "gate:setor-native": "node scripts/gates/gate-setor-native.mjs",
     "gate:marca-native": "node scripts/gates/gate-marca-native.mjs",
+    "gate:unidade-medida-native": "node scripts/gates/gate-unidade-medida-native.mjs",
     "gate:area-pastagem-native": "node scripts/gates/gate-area-pastagem-native.mjs",
     "gate:map-geography-native": "node scripts/gates/gate-map-geography-native.mjs",
     "gate:usuario-admin": "node scripts/gates/gate-usuario-admin.mjs",
