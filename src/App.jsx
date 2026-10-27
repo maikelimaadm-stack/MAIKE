@@ -5,7 +5,7 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
 import { pagesConfig } from './pages.config'
 import { BrowserRouter as Router, Navigate, Route, Routes, useLocation } from 'react-router-dom';
-import DebouncedOutlet from '@/components/navigation/DebouncedOutlet';
+import AppRouteContent from '@/components/navigation/AppRouteContent';
 import { createPageUrl } from '@/utils';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
@@ -36,11 +36,11 @@ const AppShell = () => {
   const { pathname } = useLocation();
   const currentPageName = pageNameFromPathname(pathname);
   if (!currentPageName) {
-    return <DebouncedOutlet />;
+    return <AppRouteContent />;
   }
   return (
     <LayoutWrapper currentPageName={currentPageName}>
-      <DebouncedOutlet />
+      <AppRouteContent />
     </LayoutWrapper>
   );
 };
@@ -110,7 +110,11 @@ const AuthenticatedApp = () => {
       <Route path="/" element={<Navigate to={createPageUrl(mainPage)} replace />} />
       <Route element={<AppShell />}>
         {Object.entries(Pages).map(([path, Page]) => (
-          <Route key={path} path={createPageUrl(path)} element={<Page />} />
+          <Route
+            key={path}
+            path={createPageUrl(path)}
+            element={path === 'MapaGeral' ? null : <Page />}
+          />
         ))}
       </Route>
       {/* Bookmarks e links antigos usavam PascalCase antes do SSOT em minúsculas. */}

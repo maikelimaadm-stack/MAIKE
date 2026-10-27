@@ -40,10 +40,10 @@ describe('escopo do produto', () => {
     expect(app).toContain('path={createPageUrl(path)}');
   });
 
-  it('Layout monta uma vez via AppShell + DebouncedOutlet (sem remount do Layout por rota)', () => {
+  it('Layout monta uma vez via AppShell + AppRouteContent (sem remount do Layout por rota)', () => {
     const app = readFileSync('src/App.jsx', 'utf8');
     expect(app).toContain('AppShell');
-    expect(app).toContain('DebouncedOutlet');
+    expect(app).toContain('AppRouteContent');
     expect(app).not.toMatch(/LayoutWrapper currentPageName=\{path\}[\s\S]*<Page \/>/);
   });
 
