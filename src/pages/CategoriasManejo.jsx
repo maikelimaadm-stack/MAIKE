@@ -103,6 +103,9 @@ export default function CategoriasManejo() {
       setEditando(null);
       toast.success("Categoria cadastrada!");
     },
+    onError: (error) => {
+      toast.error(getApiErrorMessage(error, "Não foi possível cadastrar a categoria."));
+    },
   });
 
   const updateMutation = useMutation(
@@ -118,6 +121,9 @@ export default function CategoriasManejo() {
         setShowForm(false);
         setEditando(null);
         toast.success("Categoria atualizada!");
+      },
+      onError: (error) => {
+        toast.error(getApiErrorMessage(error, "Não foi possível atualizar a categoria."));
       },
     })
   );

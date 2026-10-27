@@ -300,10 +300,20 @@ describe('C — categorias de produto', () => {
     expect(categorias.deleteCategoria).not.toHaveBeenCalled();
   });
 
-  it('C5b — filho excluído junto não bloqueia o pai', async () => {
-    categorias.listCategorias.mockResolvedValue([{ id: 'pai' }, { id: 'filho', categoria_pai_id: 'pai' }]);
+  it('C5b — filho excluído junto não bloqueia o pai (ordem folha→raiz)', async () => {
+    /** @type {{ id: string, categoria_pai_id?: string }[]} */
+    let store = [{ id: 'pai' }, { id: 'filho', categoria_pai_id: 'pai' }];
+    categorias.listCategorias.mockImplementation(async () => store.map((item) => ({ ...item })));
+    categorias.deleteCategoria.mockImplementation(async (id) => {
+      const temFilho = store.some((item) => item.categoria_pai_id === id);
+      if (temFilho) throw new Error('FK: categoria com subcategorias');
+      store = store.filter((item) => item.id !== id);
+    });
+
     await categoriaSvc.excluirCategorias(['pai', 'filho']);
     expect(categorias.deleteCategoria).toHaveBeenCalledTimes(2);
+    expect(categorias.deleteCategoria.mock.calls.map((c) => c[0])).toEqual(['filho', 'pai']);
+    expect(store).toEqual([]);
   });
 
   it('C6 — exclusão múltipla valida tudo antes de excluir', async () => {
@@ -402,11 +412,15 @@ describe('CM — categorias de manejo', () => {
     expect(categoriasManejo.updateCategoriaManejo).toHaveBeenCalledWith('c1', esperado);
   });
 
-  it('CM3c — vírgula decimal continua truncando, como antes (DBT-25)', () => {
+  it('CM3c — vírgula decimal pt-BR vira ponto (180,5 → 180.5; 0,0 → 0)', () => {
     const p = categoriaManejoSvc.normalizarCategoriaManejo(
       { ...FORM, ganho_peso_anual_kg: '180,5' }, { empresaId: EMPRESA }
     );
-    expect(p.ganho_peso_anual_kg).toBe(180);
+    expect(p.ganho_peso_anual_kg).toBe(180.5);
+    const zero = categoriaManejoSvc.normalizarCategoriaManejo(
+      { ...FORM, gmd_janeiro: '0,0' }, { empresaId: EMPRESA }
+    );
+    expect(zero.gmd_janeiro).toBe(0);
   });
 
   it('CM6/CM7 — exclui sem vínculo; bloqueia por código com lote vinculado', async () => {

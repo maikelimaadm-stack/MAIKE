@@ -39,6 +39,37 @@ describe('P5.4 — Empresa', () => {
     assert.equal(r.statusCode, 201);
     assert.equal(r.json().nome, 'FAZENDA TESTE');
   });
+
+  test('BE-P54-01b PATCH recusa metadados de leitura no corpo', async () => {
+    const { credenciais } = await criarTenant();
+    const { corpo } = await autenticarNoApp(app, credenciais);
+    const criado = await app.inject({
+      method: 'POST',
+      url: '/empresas',
+      headers: auth(corpo.token),
+      payload: { apelido: 'F1', nome: 'FAZENDA PATCH', tipo_pessoa: 'Jurídica' },
+    });
+    const id = criado.json().id;
+    const patch = await app.inject({
+      method: 'PATCH',
+      url: `/empresas/${id}`,
+      headers: auth(corpo.token),
+      payload: {
+        nome: 'FAZENDA PATCH OK',
+        id: 'outro-id',
+        created_date: '2020-01-01T00:00:00.000Z',
+        cliente_id: 'tenant-injetado',
+      },
+    });
+    assert.equal(patch.statusCode, 400);
+  });
+
+  test('BE-P54-01c /api/native/empresas exige autenticação como /empresas', async () => {
+    const rNativo = await app.inject({ method: 'GET', url: '/api/native/empresas' });
+    const rLegado = await app.inject({ method: 'GET', url: '/empresas' });
+    assert.equal(rNativo.statusCode, 401);
+    assert.equal(rLegado.statusCode, 401);
+  });
 });
 
 describe('P5.4 — MovimentacaoEstoque', () => {

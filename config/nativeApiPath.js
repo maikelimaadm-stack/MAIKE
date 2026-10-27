@@ -20,7 +20,23 @@ export const comPrefixoApiNativa = (caminho) => {
  */
 export const semPrefixoApiNativa = (url) => {
   if (typeof url !== 'string' || !url.startsWith(NATIVE_API_PATH_PREFIX)) return url;
-  const cortado = url.slice(NATIVE_API_PATH_PREFIX.length);
-  if (!cortado || cortado === '/') return '/';
-  return cortado.startsWith('/') ? cortado : `/${cortado}`;
+  const resto = url.slice(NATIVE_API_PATH_PREFIX.length);
+  // Fronteira exata: `/api/native` ou `/api/native/...` — não `/api/nativefake`.
+  if (resto !== '' && !resto.startsWith('/')) return url;
+  if (!resto || resto === '/') return '/';
+  return resto;
+};
+
+/**
+ * Normaliza path + query antes do roteamento Fastify (`rewriteUrl`).
+ *
+ * @param {string} url
+ * @returns {string}
+ */
+export const reescreverUrlApiNativa = (url) => {
+  if (typeof url !== 'string') return url;
+  const queryIndex = url.indexOf('?');
+  const pathOnly = queryIndex >= 0 ? url.slice(0, queryIndex) : url;
+  const query = queryIndex >= 0 ? url.slice(queryIndex) : '';
+  return `${semPrefixoApiNativa(pathOnly)}${query}`;
 };

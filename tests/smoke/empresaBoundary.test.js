@@ -239,6 +239,26 @@ describe('ApiError', () => {
   });
 });
 
+describe('empresaWritePayload', () => {
+  it('remove metadados de leitura do corpo de escrita', async () => {
+    const { projetarPayloadEmpresa } = await import('@/services/empresaWritePayload.js');
+    const payload = projetarPayloadEmpresa({
+      id: 'x',
+      created_date: '2020-01-01',
+      updated_date: '2020-01-02',
+      cliente_id: 'c1',
+      nome: 'FAZENDA',
+      apelido: 'FZ',
+      tipo_pessoa: 'Jurídica',
+    });
+    expect(payload).toEqual({
+      nome: 'FAZENDA',
+      apelido: 'FZ',
+      tipo_pessoa: 'Jurídica',
+    });
+  });
+});
+
 describe('empresaApi — adaptador de dados', () => {
   it('list encaminha a ordenação padrão', async () => {
     providerMock.list.mockResolvedValue([{ id: '1' }]);

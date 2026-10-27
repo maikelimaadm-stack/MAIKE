@@ -4,6 +4,48 @@
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { listar, criar, atualizar, excluir } from './empresaService.js';
 
+const CAMPOS = Object.freeze({
+  apelido: { type: 'string', minLength: 1, maxLength: 255, pattern: '\\S' },
+  nome: { type: 'string', minLength: 1, maxLength: 255, pattern: '\\S' },
+  tipo_pessoa: { type: 'string', minLength: 1, maxLength: 32 },
+  cpf: { type: ['string', 'null'], maxLength: 32 },
+  rg: { type: ['string', 'null'], maxLength: 32 },
+  cnpj: { type: ['string', 'null'], maxLength: 32 },
+  inscricao_estadual: { type: ['string', 'null'], maxLength: 64 },
+  telefone: { type: ['string', 'null'], maxLength: 64 },
+  email: { type: ['string', 'null'], maxLength: 255 },
+  endereco: { type: ['string', 'null'], maxLength: 255 },
+  cidade: { type: ['string', 'null'], maxLength: 128 },
+  estado: { type: ['string', 'null'], maxLength: 8 },
+  cep: { type: ['string', 'null'], maxLength: 16 },
+  logotipo_url: { type: ['string', 'null'], maxLength: 2000 },
+  observacoes: { type: ['string', 'null'], maxLength: 2000 },
+});
+
+const CRIAR_SCHEMA = {
+  body: {
+    type: 'object',
+    required: ['apelido', 'nome', 'tipo_pessoa'],
+    additionalProperties: false,
+    properties: { ...CAMPOS },
+  },
+};
+
+const ATUALIZAR_SCHEMA = {
+  params: {
+    type: 'object',
+    required: ['id'],
+    additionalProperties: false,
+    properties: { id: { type: 'string', minLength: 1, maxLength: 64 } },
+  },
+  body: {
+    type: 'object',
+    minProperties: 1,
+    additionalProperties: false,
+    properties: { ...CAMPOS },
+  },
+};
+
 const ID_SCHEMA = {
   params: {
     type: 'object',
@@ -11,15 +53,6 @@ const ID_SCHEMA = {
     additionalProperties: false,
     properties: { id: { type: 'string', minLength: 1, maxLength: 64 } },
   },
-};
-
-const CRIAR_SCHEMA = {
-  body: { type: 'object', additionalProperties: true, minProperties: 1 },
-};
-
-const ATUALIZAR_SCHEMA = {
-  ...ID_SCHEMA,
-  body: { type: 'object', additionalProperties: true, minProperties: 1 },
 };
 
 const LISTAR_SCHEMA = {

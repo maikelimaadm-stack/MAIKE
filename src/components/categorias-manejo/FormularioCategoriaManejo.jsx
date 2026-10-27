@@ -36,11 +36,7 @@ const REQUIRED_FIELDS = [
 "especie",
 "sexo",
 "raca",
-"categoria_oficial",
-"idade_minima_meses",
-"idade_maxima_meses",
-"ganho_peso_anual_kg",
-...MESES.map((mes) => mes.field)];
+"categoria_oficial"];
 
 
 const UPPERCASE_FIELDS = ["nome", "sigla", "raca"];

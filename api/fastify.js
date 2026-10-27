@@ -6,7 +6,7 @@
  * do Fastify, preservando rotas, CORS e JWT.
  */
 
-import { semPrefixoApiNativa } from '../config/nativeApiPath.js';
+import { reescreverUrlApiNativa } from '../config/nativeApiPath.js';
 import { exigirConfiguracaoCompleta } from '../backend/src/config/env.js';
 import { construirApp } from '../backend/src/app.js';
 
@@ -29,11 +29,8 @@ const obterApp = async () => {
 const envProducao = () => process.env.NODE_ENV === 'production' || process.env.VERCEL === '1';
 
 export default async function handler(req, res) {
-  if (typeof req.url === 'string' && req.url.startsWith('/api/native')) {
-    const queryIndex = req.url.indexOf('?');
-    const pathOnly = queryIndex >= 0 ? req.url.slice(0, queryIndex) : req.url;
-    const query = queryIndex >= 0 ? req.url.slice(queryIndex) : '';
-    req.url = `${semPrefixoApiNativa(pathOnly)}${query}`;
+  if (typeof req.url === 'string') {
+    req.url = reescreverUrlApiNativa(req.url);
   }
   const instancia = await obterApp();
   instancia.server.emit('request', req, res);

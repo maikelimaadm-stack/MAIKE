@@ -40,8 +40,21 @@ const MESES_GMD = Object.freeze([
 ]);
 
 /** Vazio vira `null`; caso contrário converte. Preservado da página. */
-const inteiroOuNulo = (valor) => (valor ? parseInt(valor, 10) : null);
-const decimalOuNulo = (valor) => (valor ? parseFloat(valor) : null);
+const inteiroOuNulo = (valor) => {
+  if (valor === undefined || valor === null || valor === '') return null;
+  const parsed = parseInt(String(valor).trim(), 10);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+const decimalOuNulo = (valor) => {
+  if (valor === undefined || valor === null || valor === '') return null;
+  if (typeof valor === 'number') return Number.isFinite(valor) ? valor : null;
+  const bruto = String(valor).trim();
+  if (!bruto) return null;
+  const normalizado =
+    bruto.includes(',') && !bruto.includes('.') ? bruto.replace(',', '.') : bruto;
+  const parsed = parseFloat(normalizado);
+  return Number.isFinite(parsed) ? parsed : null;
+};
 const maiusculoOuNulo = (valor) => (valor ? String(valor).toUpperCase() : null);
 
 /**
@@ -54,9 +67,7 @@ const maiusculoOuNulo = (valor) => (valor ? String(valor).toUpperCase() : null);
  * engano, que a tela não normalizava. Ela normalizava; a leitura parou no
  * `mutationFn`, que só repassava o objeto já pronto.
  *
- * A transformação aqui é **idêntica** à anterior, campo a campo. Nada foi
- * corrigido de passagem: `parseFloat` continua sem entender vírgula decimal
- * (DBT-25), porque consertar isso mudaria o dado gravado e é decisão própria.
+ * Decimais aceitam ponto ou vírgula pt-BR (`1,25`, `0,0`); zero numérico não vira null.
  *
  * @param {object} formData
  * @param {{empresaId?: string}} [opcoes]

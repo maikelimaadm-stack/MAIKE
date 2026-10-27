@@ -10,28 +10,55 @@ export const CATEGORIAS_PRODUTO_COLUNAS = [
   { id: "descricao", label: "Descrição", default: false, sortable: false, width: 220 },
 ];
 
-function buildHierarchy(items) {
+/** @param {Map<string, { categoria_pai_id?: string | null }>} indice */
+const paiEhDescendenteDe = (indice, ancestralId, nodeId, visitados = new Set()) => {
+  if (!nodeId) return false;
+  if (nodeId === ancestralId) return true;
+  if (visitados.has(nodeId)) return false;
+  visitados.add(nodeId);
+  const registro = indice.get(nodeId);
+  if (!registro?.categoria_pai_id) return false;
+  return paiEhDescendenteDe(indice, ancestralId, registro.categoria_pai_id, visitados);
+};
+
+export function buildHierarchy(items) {
   const map = {};
+  const indice = new Map();
   const roots = [];
-  items.forEach((g) => {
-    map[g.id] = { ...g, children: [] };
+  const ordenados = [...items].sort((a, b) => String(a.id).localeCompare(String(b.id)));
+
+  ordenados.forEach((g) => {
+    map[g.id] = { ...g, children: [], _hierarquiaAnomala: false };
+    indice.set(g.id, g);
   });
-  items.forEach((g) => {
-    if (g.categoria_pai_id && map[g.categoria_pai_id]) {
-      map[g.categoria_pai_id].children.push(map[g.id]);
-    } else {
-      roots.push(map[g.id]);
+
+  ordenados.forEach((g) => {
+    const node = map[g.id];
+    const paiId = g.categoria_pai_id;
+    if (!paiId || paiId === g.id || !map[paiId]) {
+      roots.push(node);
+      if (paiId && paiId !== g.id && !map[paiId]) node._hierarquiaAnomala = true;
+      return;
     }
+    if (paiEhDescendenteDe(indice, g.id, paiId)) {
+      node._hierarquiaAnomala = true;
+      roots.push(node);
+      return;
+    }
+    map[paiId].children.push(node);
   });
+
   const sortFn = (a, b) => (a.ordem ?? 999) - (b.ordem ?? 999);
   let counter = 0;
-  const assignCodes = (nodes, depth = 0) => {
+  const assignCodes = (nodes, depth = 0, visitados = new Set()) => {
     nodes.sort(sortFn);
     nodes.forEach((node) => {
+      if (visitados.has(node.id)) return;
+      visitados.add(node.id);
       counter += 1;
       node._numero = String(counter);
       node._depth = depth;
-      if (node.children.length) assignCodes(node.children, depth + 1);
+      if (node.children.length) assignCodes(node.children, depth + 1, visitados);
     });
   };
   assignCodes(roots);
@@ -92,7 +119,8 @@ export default function TabelaCategoriasProduto(props) {
             <span className="w-5" />
           )}
           <span
-            className={`uppercase ${item.ativo === false ? "text-slate-400 line-through" : ""} ${!item.categoria_pai_id ? "font-semibold" : ""}`}
+            className={`uppercase ${item.ativo === false ? "text-slate-400 line-through" : ""} ${!item.categoria_pai_id || item._hierarquiaAnomala ? "font-semibold" : ""}`}
+            title={item._hierarquiaAnomala ? "Hierarquia inconsistente — exibido como raiz" : undefined}
           >
             {item.nome || "–"}
           </span>
