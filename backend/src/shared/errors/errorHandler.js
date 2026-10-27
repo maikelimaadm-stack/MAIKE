@@ -14,6 +14,7 @@
  */
 
 import { AppError, ehAppError } from './AppError.js';
+import { extrairDiagnosticoValidacao } from './validationDiagnostic.js';
 
 /** Prisma sinaliza violação de unique com `P2002`. */
 const ehViolacaoDeUnique = (erro) => erro?.code === 'P2002';
@@ -56,8 +57,10 @@ export const normalizarErro = (erro) => {
   }
 
   if (ehErroDeValidacao(erro)) {
+    const diagnostico = extrairDiagnosticoValidacao(erro);
     const appError = new AppError('REQUEST_VALIDATION_FAILED', 'requisição inválida', {
       cause: erro,
+      details: diagnostico ?? undefined,
     });
     appError.status = 400;
     return appError;
@@ -100,9 +103,24 @@ export const errorHandler = (erro, request, reply) => {
     `erro tratado: ${appError.code}`
   );
 
-  reply.status(status).send({
+  /** @type {Record<string, unknown>} */
+  const corpo = {
     code: appError.code,
     message: status === 500 ? 'erro interno' : appError.message,
     request_id: request.contexto?.requestId,
-  });
+  };
+
+  const detalhes = appError.details;
+  if (
+    status !== 500 &&
+    detalhes &&
+    typeof detalhes === 'object' &&
+    typeof detalhes.field === 'string' &&
+    typeof detalhes.reason === 'string'
+  ) {
+    corpo.field = detalhes.field;
+    corpo.reason = detalhes.reason;
+  }
+
+  reply.status(status).send(corpo);
 };
