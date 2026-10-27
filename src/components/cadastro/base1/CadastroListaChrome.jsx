@@ -14,11 +14,18 @@ import {
   ListX,
   ChevronLeft,
   ChevronRight,
-  MoreVertical,
   Search,
 } from "lucide-react";
 import CadastroSearchPill from "./CadastroSearchPill";
-import { B1Popover, IconBtn, MenuList, MgSelect, PillBtn, ViewSwitch } from "./Base1Ui";
+import {
+  B1Popover,
+  IconBtn,
+  IconeRaio,
+  MenuList,
+  MgSelect,
+  PillBtn,
+  ViewSwitch,
+} from "./Base1Ui";
 import { CADASTRO_B1_PAGE_SIZES } from "./cadastroBase1List";
 import { PortalComprasSkinProvider } from "./portalComprasSkinContext";
 import { cn } from "@/lib/utils";
@@ -183,12 +190,6 @@ export default function CadastroListaChrome({
         icon: <ListChecks className="h-4 w-4" />,
         disabled: !cardsToolsInMenu || viewMode !== "cards",
       },
-      {
-        key: "clear-filters",
-        label: "Limpar filtros",
-        icon: <FilterX className="h-4 w-4" />,
-        disabled: !onClearFilters || !filtersActive,
-      },
     ].filter((item) => !item.hidden),
     [
       showAttachControl,
@@ -199,15 +200,12 @@ export default function CadastroListaChrome({
       onConfigureColumns,
       cardsToolsInMenu,
       viewMode,
-      onClearFilters,
-      filtersActive,
     ],
   );
 
   const onMenu = (k) => {
     if (k === "export") onExportCsv?.();
     if (k === "print") (onPrint ?? (() => window.print()))();
-    if (k === "clear-filters") onClearFilters?.();
     if (k === "cfg") {
       setMaisOpcoesOpen(false);
       onConfigureColumns?.();
@@ -254,7 +252,7 @@ export default function CadastroListaChrome({
         )}
         trigger={
           <IconBtn aria-label="Mais opções" title="Mais opções">
-            <MoreVertical className="h-4 w-4" aria-hidden />
+            <IconeRaio className="h-4 w-4" />
           </IconBtn>
         }
       >
@@ -312,11 +310,10 @@ export default function CadastroListaChrome({
             </PillBtn>
           ) : null}
           {extraToolbar}
-          {onEdit ? (
+          {onEdit && oneSelected ? (
             <PillBtn
               type="button"
               tone="gray"
-              disabled={!oneSelected}
               onClick={onEdit}
               className="mg-toolbar__action--wide"
             >
@@ -324,11 +321,10 @@ export default function CadastroListaChrome({
               Editar
             </PillBtn>
           ) : null}
-          {onDuplicate ? (
+          {onDuplicate && oneSelected ? (
             <PillBtn
               type="button"
               tone="gray"
-              disabled={!oneSelected}
               onClick={onDuplicate}
               className="mg-toolbar__action--wide"
             >
@@ -336,11 +332,10 @@ export default function CadastroListaChrome({
               Duplicar
             </PillBtn>
           ) : null}
-          {onDelete ? (
+          {onDelete && anySelected ? (
             <PillBtn
               type="button"
               tone="red"
-              disabled={!anySelected}
               onClick={onDelete}
               className="mg-toolbar__action--wide"
             >
@@ -382,28 +377,40 @@ export default function CadastroListaChrome({
               )}
             </div>
           ) : null}
-          <div className="mg-toolbar__row mg-toolbar__row--views">
-            {showAttachControl ? (
-              <IconBtn
-                aria-label="Anexos"
-                title={attachTitle}
-                disabled={!oneSelected || !onAttach}
-                onClick={() => onAttach?.()}
-                data-testid="b1-attach"
-              >
-                <Paperclip className="h-4 w-4" aria-hidden />
-              </IconBtn>
-            ) : null}
-            {onViewModeChange ? (
+          {showAttachControl ? (
+            <IconBtn
+              aria-label="Anexos"
+              title={attachTitle}
+              disabled={!oneSelected || !onAttach}
+              onClick={() => onAttach?.()}
+              data-testid="b1-attach"
+            >
+              <Paperclip className="h-4 w-4" aria-hidden />
+            </IconBtn>
+          ) : null}
+          {maisOpcoesPopover}
+          {onClearFilters ? (
+            <IconBtn
+              aria-label="Limpar filtros"
+              title="Limpar filtros"
+              disabled={!filtersActive}
+              className={filtersActive ? "is-filter-active" : undefined}
+              onClick={onClearFilters}
+              data-testid="b1-clear-filters"
+            >
+              <FilterX className="h-4 w-4" aria-hidden />
+            </IconBtn>
+          ) : null}
+          {onViewModeChange ? (
+            <div className="mg-toolbar__row mg-toolbar__row--views">
               <ViewSwitch
                 value={viewMode}
                 recordDisabled={!recordModeAvailable}
                 cardsDisabled={!cardsModeAvailable}
                 onChange={onViewModeChange}
               />
-            ) : null}
-          </div>
-          {maisOpcoesPopover}
+            </div>
+          ) : null}
         </div>
       ) : (
         <div className="ml-auto flex items-center gap-1.5 flex-wrap">
@@ -427,6 +434,19 @@ export default function CadastroListaChrome({
               placeholder={searchPlaceholder}
             />
           ) : null}
+          {maisOpcoesPopover}
+          {!secondaryToolsLocked && onClearFilters ? (
+            <IconBtn
+              aria-label="Limpar filtros"
+              title="Limpar filtros"
+              disabled={!filtersActive}
+              className={filtersActive ? "is-filter-active" : undefined}
+              onClick={onClearFilters}
+              data-testid="b1-clear-filters"
+            >
+              <FilterX className="h-4 w-4" aria-hidden />
+            </IconBtn>
+          ) : null}
           {!secondaryToolsLocked && onViewModeChange ? (
             <ViewSwitch
               value={viewMode}
@@ -435,7 +455,6 @@ export default function CadastroListaChrome({
               onChange={onViewModeChange}
             />
           ) : null}
-          {maisOpcoesPopover}
         </div>
       )}
     </div>
