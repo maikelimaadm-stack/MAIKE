@@ -24,9 +24,18 @@ import { exportCadastroCsv } from "@/components/cadastro/base1/cadastroExportCsv
 
 const EMPTY_CATEGORIAS = [];
 
+const toastPersistencia = (registro, mensagemOk) => {
+  if (registro?._isOffline || String(registro?.id || "").startsWith("offline_")) {
+    toast.message("Pendente de sincronização — será enviado quando a conexão voltar.");
+    return;
+  }
+  toast.success(mensagemOk);
+};
+
 export default function Categorias() {
   const [showForm, setShowForm] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
+  const [revealCategoriaId, setRevealCategoriaId] = useState(null);
   const [showConfigColunas, setShowConfigColunas] = useState(false);
   const [deleteState, setDeleteState] = useState({ open: false, ids: [] });
   const chrome = useCadastroListaChromeState();
@@ -62,22 +71,30 @@ export default function Categorias() {
 
   const createMutation = useMutation({
     mutationFn: (data) => criarCategoria(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["categorias_produto"] });
+    onSuccess: async (criada) => {
+      await queryClient.refetchQueries({ queryKey: ["categorias_produto"] });
+      if (criada?.id) {
+        setRevealCategoriaId(criada.id);
+        chrome.onSelectionChange([criada.id]);
+      }
       setShowForm(false);
       setEditingItem(null);
-      toast.success("Categoria criada!");
+      toastPersistencia(criada, "Categoria criada!");
     },
     onError: (err) => toast.error(getApiErrorMessage(err, "Não foi possível concluir a operação.")),
   });
 
   const updateMutation = useMutation({
     mutationFn: ({ id, data }) => atualizarCategoria(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["categorias_produto"] });
+    onSuccess: async (atualizada) => {
+      await queryClient.refetchQueries({ queryKey: ["categorias_produto"] });
+      if (atualizada?.id) {
+        setRevealCategoriaId(atualizada.id);
+        chrome.onSelectionChange([atualizada.id]);
+      }
       setShowForm(false);
       setEditingItem(null);
-      toast.success("Categoria atualizada!");
+      toastPersistencia(atualizada, "Categoria atualizada!");
     },
     onError: (err) => toast.error(getApiErrorMessage(err, "Não foi possível concluir a operação.")),
   });
@@ -252,6 +269,7 @@ export default function Categorias() {
           {!showForm ? (
             <TabelaCategoriasProduto
               categorias={categorias}
+              revealCategoriaId={revealCategoriaId}
               onEdit={handleEdit}
               onDelete={handleRequestDelete}
               showConfigColunas={showConfigColunas}

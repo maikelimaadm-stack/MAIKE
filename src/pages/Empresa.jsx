@@ -14,6 +14,16 @@ import { exportCadastroCsv } from "@/components/cadastro/base1/cadastroExportCsv
 import * as empresaService from "@/services/empresaService";
 import { getApiErrorMessage } from "@/apis/_core/ApiError";
 
+const EMPTY_EMPRESAS = [];
+
+const toastPersistenciaEmpresa = (registro, mensagemOk) => {
+  if (registro?._isOffline || String(registro?.id || "").startsWith("offline_")) {
+    toast.message("Pendente de sincronização — será enviada quando a conexão voltar.");
+    return;
+  }
+  toast.success(mensagemOk);
+};
+
 export default function Empresa() {
   const [showForm, setShowForm] = useState(false);
   const [editingEmpresa, setEditingEmpresa] = useState(null);
@@ -33,32 +43,43 @@ export default function Empresa() {
   });
   const queryClient = useQueryClient();
 
-  const { data: empresas = [], isLoading } = useQuery({
+  const {
+    data: empresasData,
+    isLoading,
+    isError: listaErro,
+    error: listaQueryError,
+    refetch: recarregarLista,
+    isFetching: listaFetching,
+  } = useQuery({
     queryKey: ["empresas"],
     queryFn: () => empresaService.listEmpresas(),
-    initialData: [],
   });
+  const empresas = listaErro ? EMPTY_EMPRESAS : (empresasData ?? EMPTY_EMPRESAS);
 
   const createMutation = useMutation({
     mutationFn: (data) => empresaService.createEmpresa(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["empresas"] });
+    onSuccess: async (criada) => {
+      await queryClient.refetchQueries({ queryKey: ["empresas"] });
+      if (criada?.id) chrome.onSelectionChange([criada.id]);
       setShowForm(false);
       setEditingEmpresa(null);
-      toast.success("Empresa cadastrada!");
+      toastPersistenciaEmpresa(criada, "Empresa cadastrada!");
     },
-    onError: (error) => toast.error(getApiErrorMessage(error, "Erro.")),
+    onError: (error) =>
+      toast.error(getApiErrorMessage(error, "Não foi possível cadastrar a empresa.")),
   });
 
   const updateMutation = useMutation({
     mutationFn: ({ id, data }) => empresaService.updateEmpresa(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["empresas"] });
+    onSuccess: async (atualizada) => {
+      await queryClient.refetchQueries({ queryKey: ["empresas"] });
+      if (atualizada?.id) chrome.onSelectionChange([atualizada.id]);
       setShowForm(false);
       setEditingEmpresa(null);
-      toast.success("Empresa atualizada!");
+      toastPersistenciaEmpresa(atualizada, "Empresa atualizada!");
     },
-    onError: (error) => toast.error(getApiErrorMessage(error, "Erro.")),
+    onError: (error) =>
+      toast.error(getApiErrorMessage(error, "Não foi possível atualizar a empresa.")),
   });
 
   const deleteMutation = useMutation({
@@ -174,6 +195,19 @@ export default function Empresa() {
         subtitle="Cadastro de empresas (fazendas) vinculadas ao tenant."
         toolbar={null}
       >
+        {listaErro && !listaFetching ? (
+          <div className="cadastro-b1 mg-card p-3 text-xs text-amber-800 bg-amber-50 border border-amber-200 mb-2 flex flex-wrap items-center gap-2">
+            <span>
+              {getApiErrorMessage(
+                listaQueryError,
+                "Não foi possível carregar as empresas. Verifique sua conexão e tente novamente.",
+              )}
+            </span>
+            <button type="button" className="tb-btn tb-btn-gray" onClick={() => recarregarLista()}>
+              Tentar novamente
+            </button>
+          </div>
+        ) : null}
         <CadastroListaChrome
           recordMode={showForm}
           secondaryToolsLocked={showForm}

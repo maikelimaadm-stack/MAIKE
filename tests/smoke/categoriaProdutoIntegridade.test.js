@@ -6,7 +6,11 @@ import { describe, it, expect } from 'vitest';
 
 import { ordenarExclusaoFolhasPrimeiro, filhasDe } from '@/services/categoriaProdutoService';
 import { idsDescendentesDe } from '@/components/categorias-produto/FormularioCategoriaProduto.jsx';
-import { buildHierarchy } from '@/components/categorias-produto/TabelaCategoriasProduto.jsx';
+import {
+  buildHierarchy,
+  flattenVisible,
+  idsAncestraisDe,
+} from '@/components/categorias-produto/TabelaCategoriasProduto.jsx';
 import { ApiError } from '@/apis/_core/ApiError';
 
 describe('R5 — ordenarExclusaoFolhasPrimeiro', () => {
@@ -76,6 +80,37 @@ describe('R5 — buildHierarchy defensiva', () => {
     const { roots } = buildHierarchy(items);
     expect(roots).toHaveLength(1);
     expect(roots[0].children[0].id).toBe('b');
+  });
+});
+
+describe('POS99 — visibilidade na grade', () => {
+  const arvore = [
+    { id: 'raiz', nome: 'Raiz', ordem: 1 },
+    { id: 'filha', nome: 'Filha', categoria_pai_id: 'raiz', ordem: 1 },
+    { id: 'neta', nome: 'Neta', categoria_pai_id: 'filha', ordem: 1 },
+  ];
+
+  it('filha fica oculta com pai recolhido (RED reproduzido)', () => {
+    const { roots, indice } = buildHierarchy(arvore);
+    const visiveis = flattenVisible(roots, {}, { indice });
+    expect(visiveis.map((n) => n.id)).toEqual(['raiz']);
+  });
+
+  it('revealIds expande ancestrais e exibe filha (GREEN)', () => {
+    const { roots, indice } = buildHierarchy(arvore);
+    const visiveis = flattenVisible(roots, {}, { indice, revealIds: new Set(['filha']) });
+    expect(visiveis.map((n) => n.id)).toEqual(['raiz', 'filha']);
+  });
+
+  it('busca por filha inclui ancestral na lista achatada', () => {
+    const { roots, indice } = buildHierarchy(arvore);
+    const visiveis = flattenVisible(roots, {}, { indice, searchQuery: 'neta' });
+    expect(visiveis.map((n) => n.id)).toEqual(['raiz', 'filha', 'neta']);
+  });
+
+  it('idsAncestraisDe percorre até a raiz', () => {
+    const { indice } = buildHierarchy(arvore);
+    expect(idsAncestraisDe(indice, 'neta')).toEqual(['filha', 'raiz']);
   });
 });
 
