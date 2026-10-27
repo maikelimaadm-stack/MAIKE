@@ -1,7 +1,8 @@
-/** API do módulo Unidades de Medida (P1.4). */
+/** API do módulo Unidades de Medida — nativo desde P4.5 (D-PROD-44). */
 
 import { runProviderCall, assertArgument } from '../_core/normalizeApiError.js';
-import { unidadesMedidaProvider, produtosProvider } from '../_providers/base44Provider.js';
+import { produtosProvider } from '../_providers/base44Provider.js';
+import { unidadeMedidaPort } from './unidadeMedidaNativePort.js';
 
 const RESOURCE = 'UnidadeMedida';
 const isId = (valor) => typeof valor === 'string' && valor.trim().length > 0;
@@ -9,26 +10,27 @@ const isObjeto = (valor) => Boolean(valor) && typeof valor === 'object' && !Arra
 const comoLista = (registros) => (Array.isArray(registros) ? registros : []);
 const ctx = (operation) => ({ operation, resource: RESOURCE });
 
-export const listUnidades = async (opcoes = {}) =>
-  comoLista(await runProviderCall(() => unidadesMedidaProvider.list(opcoes.order), ctx('listUnidades')));
+export const listUnidades = async () =>
+  comoLista(await runProviderCall(() => unidadeMedidaPort.list(), ctx('listUnidades')));
 
 export const createUnidade = async (dados) => {
   const contexto = ctx('createUnidade');
   assertArgument(isObjeto(dados), 'dados', contexto);
-  return runProviderCall(() => unidadesMedidaProvider.create(dados), contexto);
+  const { numero_unidade: _ignorado, ...resto } = dados;
+  return runProviderCall(() => unidadeMedidaPort.create(resto), contexto);
 };
 
 export const updateUnidade = async (id, dados) => {
   const contexto = ctx('updateUnidade');
   assertArgument(isId(id), 'id', contexto);
   assertArgument(isObjeto(dados), 'dados', contexto);
-  return runProviderCall(() => unidadesMedidaProvider.update(id, dados), { ...contexto, details: { id } });
+  return runProviderCall(() => unidadeMedidaPort.update(id, dados), { ...contexto, details: { id } });
 };
 
 export const deleteUnidade = async (id) => {
   const contexto = ctx('deleteUnidade');
   assertArgument(isId(id), 'id', contexto);
-  return runProviderCall(() => unidadesMedidaProvider.delete(id), { ...contexto, details: { id } });
+  return runProviderCall(() => unidadeMedidaPort.delete(id), { ...contexto, details: { id } });
 };
 
 /** Produtos — leitura usada pela guarda: o Produto referencia a **sigla**. */

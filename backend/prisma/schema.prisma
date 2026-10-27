@@ -56,6 +56,7 @@ model Cliente {
   anexos        RegistroAnexo[]
   setores            Setor[]
   marcas             Marca[]
+  unidadesMedida     UnidadeMedida[]
   areasPastagem      AreaPastagem[]
   configuracoesIcone ConfiguracaoIcone[]
   pontosReferencia   PontoReferencia[]
@@ -305,6 +306,31 @@ model Marca {
   @@index([cliente_id, empresa_id])
   @@index([cliente_id, ativo])
   @@index([cliente_id, nome])
+}
+
+// ---------------------------------------------------------------------------
+// UnidadeMedida — cadastro de suporte (P4.5, D-PROD-44).
+//
+// `numero_unidade` vem de `EntidadeCodigoSequencia` (escopo tenant). A sigla é
+// chave de negócio única por tenant — Produto na Base44 referencia por sigla.
+// ---------------------------------------------------------------------------
+model UnidadeMedida {
+  id             String   @id @default(cuid())
+  cliente_id     String   @db.VarChar(64)
+  numero_unidade String   @db.VarChar(32)
+  sigla          String   @db.VarChar(32)
+  descricao      String   @db.VarChar(255)
+  ativo          Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  cliente Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+
+  @@unique([cliente_id, numero_unidade])
+  @@unique([cliente_id, id])
+  @@unique([cliente_id, sigla])
+  @@index([cliente_id, ativo])
+  @@index([cliente_id, sigla])
 }
 
 // ---------------------------------------------------------------------------

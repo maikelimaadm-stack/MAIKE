@@ -3,8 +3,8 @@
   "axes": {
     "arquivosComSdk": 4,
     "importsSdk": 1,
-    "entitiesRefs": 33,
-    "authRefs": 5,
+    "entitiesRefs": 28,
+    "authRefs": 2,
     "integrationsRefs": 1,
     "functionsRefs": 1,
     "vitePlugin": 1,

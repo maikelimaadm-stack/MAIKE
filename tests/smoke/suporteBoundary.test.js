@@ -232,6 +232,7 @@ describe('B17 — registry do provider é literal, exato e igual ao manifesto me
     'PontoReferencia',
     'LinhaGeografica',
     'Marca',
+    'UnidadeMedida',
   ];
 
   const ESPERADO = [
@@ -242,17 +243,17 @@ describe('B17 — registry do provider é literal, exato e igual ao manifesto me
     'LocalEstoque', 'Lote', 'ManejoTecnicoRebanho', 'MovimentacaoEstoque', 'MovimentacaoMapa',
     'MovimentacaoPecuaria', 'Permissao', 'PontoSuplementacao', 'Produto',
     'RegistroAnexo', 'SuplementacaoEvento', 'SuplementacaoLote', 'TipoTarefa',
-    'UnidadeMedida', 'User',
+    'User',
   ].sort();
 
-  it('são 29 entidades: manifesto (35) menos seis nativas', async () => {
+  it('são 28 entidades: manifesto (35) menos sete nativas', async () => {
     const { getRegisteredEntityNames } = await import('@/apis/_providers/base44Provider');
     const registrados = getRegisteredEntityNames().slice().sort();
     const manifesto = JSON.parse(ler('config/mapa-manejo-scope.json')).allowedBase44Entities.slice().sort();
 
     expect(registrados).toEqual(ESPERADO);
     expect(registrados).toEqual(manifesto.filter((e) => !MIGRADAS_PARA_NATIVO.includes(e)));
-    expect(registrados.length).toBe(29);
+    expect(registrados.length).toBe(28);
     expect(manifesto.length).toBe(35);
   });
 
@@ -267,10 +268,10 @@ describe('B17 — registry do provider é literal, exato e igual ao manifesto me
     }
   });
 
-  it('UnidadeMedida permanece na P1.4; Marca migrou para nativo', () => {
+  it('Marca e UnidadeMedida migraram para nativo', () => {
     const registry = codigoDe('src/apis/_providers/base44Provider.js');
     expect(registry).not.toContain("Marca: comFronteira('Marca', base44.entities.Marca)");
-    expect(registry).toContain("UnidadeMedida: comFronteira('UnidadeMedida', base44.entities.UnidadeMedida)");
+    expect(registry).not.toContain("UnidadeMedida: comFronteira('UnidadeMedida', base44.entities.UnidadeMedida)");
     expect(registry).not.toMatch(/entities\s*\[/);
   });
 });

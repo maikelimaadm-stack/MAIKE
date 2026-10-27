@@ -179,7 +179,7 @@ describe('A11 — registry do provider é literal e exato', () => {
     // Nativas: Setor, AreaPastagem, ConfiguracaoIcone, PontoReferencia, LinhaGeografica.
     // Ver `MIGRADAS_PARA_NATIVO` em `tests/smoke/suporteBoundary.test.js`.
     'RegistroAnexo', 'SuplementacaoEvento', 'SuplementacaoLote', 'TipoTarefa',
-    'UnidadeMedida', 'User',
+    'User',
   ].sort();
 
   it('o conjunto é exatamente o esperado — igualdade, não inclusão', async () => {

@@ -286,18 +286,18 @@ describe('MA — marcas', () => {
 // ── Unidades de medida ────────────────────────────────────────────────────
 
 describe('UM — unidades de medida', () => {
-  it('UM1 — numeração max + 1', async () => {
-    unidades.listUnidades.mockResolvedValue([{ numero_unidade: '2' }, { numero_unidade: '5' }]);
-    unidades.createUnidade.mockResolvedValue({ id: 'u' });
-    await unidadeSvc.criarUnidade({ sigla: 'KG' });
-    expect(unidades.createUnidade).toHaveBeenCalledWith(expect.objectContaining({ numero_unidade: '6' }));
+  it('UM1 — criação delega numeração ao backend nativo', async () => {
+    unidades.createUnidade.mockResolvedValue({ id: 'u', numero_unidade: '6' });
+    await unidadeSvc.criarUnidade({ sigla: 'KG', descricao: 'Quilo' });
+    expect(unidades.createUnidade).toHaveBeenCalledWith({ sigla: 'KG', descricao: 'Quilo' });
+    expect(unidades.createUnidade.mock.calls[0][0]).not.toHaveProperty('numero_unidade');
   });
 
-  it('UM2 — autonumeração só toca quem não tem número', async () => {
-    unidades.listUnidades.mockResolvedValue([{ numero_unidade: '1' }]);
+  it('UM2 — legado sem numero_unidade reporta falha (numeração só na criação nativa)', async () => {
     const r = await unidadeSvc.numerarUnidadesSemNumero([{ id: 'a' }, { id: 'b', numero_unidade: '1' }]);
-    expect(r.numeradas).toEqual(['a']);
-    expect(unidades.updateUnidade).toHaveBeenCalledTimes(1);
+    expect(r.numeradas).toEqual([]);
+    expect(r.falhas).toEqual(['a']);
+    expect(unidades.updateUnidade).not.toHaveBeenCalled();
   });
 
   it('UM3 — produto que usa a sigla bloqueia a exclusão', async () => {

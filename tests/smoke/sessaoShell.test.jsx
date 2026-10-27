@@ -242,34 +242,6 @@ describe('AUTH — estados do AuthContext', () => {
     console_error.mockRestore();
   });
 
-  it('AUTH14 — VITE_SKIP_NATIVE_LOGIN autentica sem restaurar sessão', async () => {
-    vi.stubEnv('VITE_SKIP_NATIVE_LOGIN', 'true');
-    vi.resetModules();
-    const { AuthProvider: AuthProviderSkip, useAuth: useAuthSkip } = await import('@/lib/AuthContext');
-
-    const SondaSkip = () => {
-      const auth = useAuthSkip();
-      return (
-        <div>
-          <span data-testid="autenticado">{String(auth.isAuthenticated)}</span>
-          <span data-testid="usuario">{auth.user?.login ?? 'ninguem'}</span>
-        </div>
-      );
-    };
-
-    sessionService.restaurarSessaoNativaAtual.mockClear();
-    comQuery(
-      <AuthProviderSkip>
-        <SondaSkip />
-      </AuthProviderSkip>
-    );
-    await waitFor(() => expect(screen.getByTestId('autenticado')).toHaveTextContent('true'));
-    expect(screen.getByTestId('usuario')).toHaveTextContent('admin');
-    expect(sessionService.restaurarSessaoNativaAtual).not.toHaveBeenCalled();
-    vi.unstubAllEnvs();
-    vi.resetModules();
-    await import('@/lib/AuthContext');
-  });
 });
 
 /**

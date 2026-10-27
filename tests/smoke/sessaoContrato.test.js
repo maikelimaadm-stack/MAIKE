@@ -13,6 +13,20 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { ApiError, API_ERROR_CODES } from '@/apis/_core/ApiError';
+
+const nativeMocks = vi.hoisted(() => ({
+  hasNativeToken: vi.fn(),
+  obterUsuarioAtualLegado: vi.fn(),
+}));
+
+vi.mock('@/lib/auth/nativeTokenStorage', () => ({
+  hasNativeToken: () => nativeMocks.hasNativeToken(),
+}));
+
+vi.mock('@/apis/session/nativeSessionApi.js', () => ({
+  obterUsuarioAtualLegado: (...args) => nativeMocks.obterUsuarioAtualLegado(...args),
+}));
 
 const sessionProvider = {
   capacidades: vi.fn(() => ({ logout: true, redirectToLogin: true, updateMe: false })),
@@ -41,6 +55,7 @@ const erroDoProvider = ({ status, reason }) =>
 
 beforeEach(() => {
   vi.clearAllMocks();
+  nativeMocks.hasNativeToken.mockReturnValue(false);
 });
 
 describe('SE1–SE4 — configurações públicas com resultado discriminado', () => {
@@ -86,36 +101,33 @@ describe('SE1–SE4 — configurações públicas com resultado discriminado', (
 });
 
 describe('SE5–SE8 — veredito de autenticação', () => {
-  it('SE5 — me() com sucesso autentica', async () => {
-    sessionProvider.me.mockResolvedValue({ email: 'a@b.c' });
+  it('SE5 — contexto nativo com sucesso autentica', async () => {
+    nativeMocks.hasNativeToken.mockReturnValue(true);
+    nativeMocks.obterUsuarioAtualLegado.mockResolvedValue({ id: 'u1', email: 'a@b.c', login: 'a@b.c' });
     expect(await api.verificarSessao()).toEqual({
       autenticado: true,
-      usuario: { email: 'a@b.c' },
+      usuario: { id: 'u1', email: 'a@b.c', login: 'a@b.c' },
       precisaAutenticar: false,
     });
   });
 
-  it('SE6 — 401 pede autenticação', async () => {
-    sessionProvider.me.mockRejectedValue(erroDoProvider({ status: 401 }));
+  it('SE6 — sem token pede autenticação', async () => {
+    nativeMocks.hasNativeToken.mockReturnValue(false);
     expect(await api.verificarSessao()).toEqual({ autenticado: false, usuario: null, precisaAutenticar: true });
   });
 
-  it('SE7 — 403 pede autenticação', async () => {
-    sessionProvider.me.mockRejectedValue(erroDoProvider({ status: 403 }));
+  it('SE7 — token recusado pede autenticação', async () => {
+    nativeMocks.hasNativeToken.mockReturnValue(true);
+    nativeMocks.obterUsuarioAtualLegado.mockRejectedValue(
+      new ApiError(API_ERROR_CODES.TENANT_CONTEXT_REQUIRED, { operation: 't', resource: 'SessaoNativa' })
+    );
     expect(await api.verificarSessao()).toEqual({ autenticado: false, usuario: null, precisaAutenticar: true });
   });
 
   it('SE8 — falha de rede não autentica e não pede login', async () => {
-    sessionProvider.me.mockRejectedValue(new Error('ECONNRESET'));
+    nativeMocks.hasNativeToken.mockReturnValue(true);
+    nativeMocks.obterUsuarioAtualLegado.mockRejectedValue(new Error('ECONNRESET'));
     expect(await api.verificarSessao()).toEqual({ autenticado: false, usuario: null, precisaAutenticar: false });
-  });
-
-  it('SE8b — status em `statusCode` ou `response.status` também é reconhecido', async () => {
-    sessionProvider.me.mockRejectedValue(Object.assign(new Error('x'), { statusCode: 401 }));
-    expect((await api.verificarSessao()).precisaAutenticar).toBe(true);
-
-    sessionProvider.me.mockRejectedValue(Object.assign(new Error('x'), { response: { status: 403 } }));
-    expect((await api.verificarSessao()).precisaAutenticar).toBe(true);
   });
 });
 

@@ -21,17 +21,7 @@ import { assertExclusaoPermitida } from './deleteGuardService';
 
 export const listarUnidades = () => listUnidades();
 
-/** Próximo `numero_unidade`. `max + 1` sem concorrência segura (dívida aberta). */
-export const proximoNumeroDeUnidade = async () => {
-  const todas = await listUnidades();
-  const numeros = todas.map((item) => Number.parseInt(item.numero_unidade, 10) || 0).filter((n) => n > 0);
-  return numeros.length > 0 ? Math.max(...numeros) + 1 : 1;
-};
-
-export const criarUnidade = async (dados) => {
-  const numero = await proximoNumeroDeUnidade();
-  return createUnidade({ ...dados, numero_unidade: String(numero) });
-};
+export const criarUnidade = async (dados) => createUnidade(dados);
 
 export const atualizarUnidade = (id, dados) => updateUnidade(id, dados);
 
@@ -45,20 +35,9 @@ export const atualizarUnidade = (id, dados) => updateUnidade(id, dados);
  */
 export const numerarUnidadesSemNumero = async (unidades) => {
   const semNumero = (Array.isArray(unidades) ? unidades : []).filter((item) => !item.numero_unidade);
-  const numeradas = [];
-  const falhas = [];
-
-  for (const unidade of semNumero) {
-    try {
-      const numero = await proximoNumeroDeUnidade();
-      await updateUnidade(unidade.id, { numero_unidade: String(numero) });
-      numeradas.push(unidade.id);
-    } catch {
-      falhas.push(unidade.id);
-    }
-  }
-
-  return { numeradas, falhas };
+  if (semNumero.length === 0) return { numeradas: [], falhas: [] };
+  // Numeração é responsabilidade do backend nativo na criação (D-PROD-44).
+  return { numeradas: [], falhas: semNumero.map((item) => item.id) };
 };
 
 /**

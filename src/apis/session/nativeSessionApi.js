@@ -179,6 +179,26 @@ export const obterContexto = async () => {
 };
 
 /**
+ * Usuário atual no formato legado consumido pelo `Layout` e pelas telas de
+ * permissão — derivado **só** do JWT nativo (D-PROD-44).
+ *
+ * Não chama `base44.auth.me()`. O identificador de permissão legado (`email`)
+ * recebe o `login` nativo enquanto `Permissao` continuar na Base44.
+ *
+ * @returns {Promise<object|null>}
+ */
+export const obterUsuarioAtualLegado = async () => {
+  if (!hasNativeToken()) return null;
+  const contexto = await obterContexto();
+  const login = texto(contexto.login);
+  return {
+    id: contexto.usuario_id,
+    login,
+    email: login,
+  };
+};
+
+/**
  * Restaura a sessão de um reload, **validando** contra o servidor.
  *
  * A presença do token no `sessionStorage` não é evidência de sessão válida: ele

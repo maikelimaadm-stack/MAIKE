@@ -103,6 +103,14 @@ export const BACKEND_ONLY_CODES = Object.freeze({
     http: 409,
     meaning: 'já existe marca com este nome nesta empresa',
   },
+  UNIDADE_MEDIDA_NOT_FOUND: {
+    http: 404,
+    meaning: 'id não identifica unidade de medida deste tenant',
+  },
+  UNIDADE_MEDIDA_SIGLA_CONFLICT: {
+    http: 409,
+    meaning: 'já existe unidade de medida com esta sigla',
+  },
   INTERNAL_ERROR: { http: 500, meaning: 'erro não previsto' },
 });
 

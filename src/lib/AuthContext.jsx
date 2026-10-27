@@ -30,7 +30,6 @@ import {
   sairDaSessaoNativa,
   RAZOES_DE_SESSAO_DO_PRODUTO,
 } from '@/services/sessionService';
-import { isNativeLoginSkipped } from '@/config/runtimeConfig';
 import { clearNativeToken } from '@/lib/auth/nativeTokenStorage';
 
 /**
@@ -193,13 +192,6 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     carregarConfiguracoes();
-    if (isNativeLoginSkipped()) {
-      setUser({ id: 'acesso-sem-login', login: 'admin' });
-      setClienteId('acesso-sem-login');
-      setSessionValidationError(null);
-      setSessionState(ESTADOS_DE_SESSAO.AUTENTICADA);
-      return;
-    }
     restaurarSessao();
   }, [carregarConfiguracoes, restaurarSessao]);
 

@@ -2090,4 +2090,25 @@ capacidade.
 
 ---
 
-<!-- Próxima decisão: D-PROD-44 -->
+## D-PROD-44 — Aceleração da saída da Base44 (auth nativa + cadastros)
+
+**Data:** 2026-10-27  
+**Missão:** P4.5-Base44-Exit (branch `cursor/remove-base44-native-516d`)  
+**Relatório:** `docs/engineering/P4.5-BASE44-EXIT-ACCELERATION-REPORT.md`  
+**Plano:** `docs/engineering/BASE44-EXIT-PLAN.md`
+
+**Decisão:** (1) **Revogar** o bypass `VITE_SKIP_NATIVE_LOGIN` (D-PROD-37) — produção
+e preview exigem login nativo real; (2) **`getCurrentUser` / `verificarSessao`**
+deixam de chamar `base44.auth.me()` e passam a derivar o usuário de
+`GET /auth/contexto` quando há JWT nativo; (3) **`UnidadeMedida`** migra para
+PostgreSQL/Prisma/Fastify no molde de `Marca` (porta
+`unidadeMedidaNativePort.js`, gate `gate:unidade-medida-native`).
+
+**Consequência:** o eixo `authRefs` da catraca Base44 cai; `entitiesRefs` cai
+mais uma entidade. Permissões (`Permissao`, `User`) e dados de domínio críticos
+(`LancamentoTarefa`, `Lote`, `TipoTarefa`, `Produto`, …) permanecem na Base44
+até PRs seguintes do plano. Remover `VITE_SKIP_NATIVE_LOGIN` da Vercel após merge.
+
+---
+
+<!-- Próxima decisão: D-PROD-45 -->
