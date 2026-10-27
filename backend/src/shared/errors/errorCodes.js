@@ -98,6 +98,11 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   USUARIO_NOT_FOUND: { http: 404, meaning: 'id não identifica usuário deste tenant' },
   USUARIO_LOGIN_DUPLICADO: { http: 409, meaning: 'login já cadastrado neste cliente' },
   USUARIO_SELF_DEACTIVATE: { http: 400, meaning: 'conta autenticada não pode se desativar' },
+  EMPRESA_NOT_FOUND: { http: 404, meaning: 'id não identifica empresa deste tenant' },
+  EMPRESA_NAME_CONFLICT: {
+    http: 409,
+    meaning: 'já existe empresa com este nome neste tenant',
+  },
   MARCA_NOT_FOUND: { http: 404, meaning: 'id não identifica marca deste tenant' },
   MARCA_NAME_CONFLICT: {
     http: 409,

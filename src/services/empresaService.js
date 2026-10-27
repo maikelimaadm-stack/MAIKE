@@ -1,52 +1,15 @@
 /**
- * Service do módulo Empresa (P1.1, D-PROD-18).
+ * Service do módulo Empresa (P1.1, D-PROD-18, EMPRESA-NUM-01).
  *
- * A regra de nome duplicado estava dentro das mutations da página. Ela vinha
- * junto com um efeito colateral silencioso: a comparação usava a lista que o
- * React Query tinha em memória, então a validação dependia do estado do cache.
- * Aqui ela passa a comparar contra a leitura atual do provider.
- *
- * O comportamento observável é o mesmo de antes:
- *  - comparação sem diferença entre maiúsculas e minúsculas;
- *  - `trim` nas extremidades;
- *  - `create` recusa nome já existente;
- *  - `update` ignora o próprio registro;
- *  - mesma mensagem para o usuário.
- *
- * O que muda é como a UI identifica o conflito: pelo código
- * `EMPRESA_NAME_CONFLICT`, não pelo texto (QLT-P11-04).
+ * Duplicidade de nome é autoridade do backend — POST/PATCH não dependem de GET prévio.
  */
 
 import {
-  listEmpresas as listEmpresasApi,
   createEmpresa as createEmpresaApi,
   updateEmpresa as updateEmpresaApi,
   deleteEmpresa as deleteEmpresaApi,
+  listEmpresas as listEmpresasApi,
 } from '@/apis/empresa';
-import { ApiError, API_ERROR_CODES } from '@/apis/_core/ApiError';
-
-/** Chave de comparação de nome: sem espaço nas pontas, sem caixa. */
-const chaveDeNome = (nome) => (typeof nome === 'string' ? nome.trim().toUpperCase() : '');
-
-const conflito = (operation) =>
-  new ApiError(API_ERROR_CODES.EMPRESA_NAME_CONFLICT, {
-    operation,
-    resource: 'Empresa',
-  });
-
-/**
- * Já existe outra empresa com este nome?
- * @param {Array<object>} empresas
- * @param {string} nome
- * @param {string|null} ignorarId registro que não conta (o próprio, no update)
- */
-const nomeJaUsado = (empresas, nome, ignorarId = null) => {
-  const alvo = chaveDeNome(nome);
-  if (!alvo) return false;
-  return empresas.some(
-    (empresa) => chaveDeNome(empresa?.nome) === alvo && empresa?.id !== ignorarId
-  );
-};
 
 /**
  * Lista empresas na ordem padrão do módulo.
@@ -55,49 +18,19 @@ const nomeJaUsado = (empresas, nome, ignorarId = null) => {
 export const listEmpresas = () => listEmpresasApi();
 
 /**
- * Cria uma empresa, recusando nome já cadastrado.
+ * Cria uma empresa (conflito de nome vem do backend).
  * @param {object} dados
  * @returns {Promise<object>}
- * @throws {ApiError} `EMPRESA_NAME_CONFLICT`
  */
-export const createEmpresa = async (dados) => {
-  let empresas;
-  try {
-    empresas = await listEmpresasApi();
-  } catch (erro) {
-    if (erro instanceof ApiError) throw erro;
-    throw new ApiError(API_ERROR_CODES.PROVIDER_UNAVAILABLE, {
-      operation: 'listEmpresa',
-      resource: 'Empresa',
-      cause: erro,
-    });
-  }
-  if (nomeJaUsado(empresas, dados?.nome)) throw conflito('create');
-  return createEmpresaApi(dados);
-};
+export const createEmpresa = (dados) => createEmpresaApi(dados);
 
 /**
- * Atualiza uma empresa, recusando nome já usado por **outro** registro.
+ * Atualiza uma empresa.
  * @param {string} id
  * @param {object} dados
  * @returns {Promise<object>}
- * @throws {ApiError} `EMPRESA_NAME_CONFLICT`
  */
-export const updateEmpresa = async (id, dados) => {
-  let empresas;
-  try {
-    empresas = await listEmpresasApi();
-  } catch (erro) {
-    if (erro instanceof ApiError) throw erro;
-    throw new ApiError(API_ERROR_CODES.PROVIDER_UNAVAILABLE, {
-      operation: 'listEmpresa',
-      resource: 'Empresa',
-      cause: erro,
-    });
-  }
-  if (nomeJaUsado(empresas, dados?.nome, id)) throw conflito('update');
-  return updateEmpresaApi(id, dados);
-};
+export const updateEmpresa = (id, dados) => updateEmpresaApi(id, dados);
 
 /**
  * Exclui uma empresa.

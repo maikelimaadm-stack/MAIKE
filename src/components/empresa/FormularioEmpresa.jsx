@@ -33,6 +33,7 @@ export default function FormularioEmpresa({
   initialData,
   isEditing,
   variant = "standalone",
+  saving = false,
 }) {
   const embedded = variant === "embedded";
   const [formData, setFormData] = useState(initialData || {
@@ -149,6 +150,20 @@ export default function FormularioEmpresa({
           }}
         >
           <form onSubmit={handleSubmit} className="space-y-2" noValidate>
+            <FL label="Nº da Empresa">
+              <input
+                readOnly
+                value={
+                  isEditing && initialData?.numero_empresa > 0
+                    ? String(initialData.numero_empresa)
+                    : initialData?._isOffline || String(initialData?.id || "").startsWith("offline_")
+                      ? "Atribuído após sincronizar"
+                      : "Automático ao salvar"
+                }
+                className={`${INPUT_CLS} bg-slate-50 text-slate-600`}
+                aria-readonly="true"
+              />
+            </FL>
             <div className="space-y-1 pl-1">
               <span className="text-[12px] text-slate-500">Logotipo</span>
               <div className="flex items-center gap-4">
@@ -223,7 +238,6 @@ export default function FormularioEmpresa({
                     value={formData.cpf}
                     onChange={(e) => handleChange('cpf', e.target.value)}
                     placeholder="000.000.000-00"
-                    required
                     className={INPUT_CLS}
                   />
                 </FL>
@@ -245,7 +259,6 @@ export default function FormularioEmpresa({
                     value={formData.cnpj}
                     onChange={(e) => handleChange('cnpj', e.target.value)}
                     placeholder="00.000.000/0000-00"
-                    required
                     className={INPUT_CLS}
                   />
                 </FL>
@@ -262,7 +275,7 @@ export default function FormularioEmpresa({
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
               <FL label="Telefone">
-                <Input
+                <input
                   value={formData.telefone}
                   onChange={(e) => handleChange('telefone', e.target.value)}
                   placeholder="(00) 00000-0000"
@@ -270,7 +283,7 @@ export default function FormularioEmpresa({
                 />
               </FL>
               <FL label="E-mail" className="lg:col-span-2">
-                <Input
+                <input
                   type="email"
                   value={formData.email}
                   onChange={(e) => handleChange('email', e.target.value)}
@@ -281,7 +294,7 @@ export default function FormularioEmpresa({
             </div>
 
             <FL label="Endereço completo">
-              <Input
+              <input
                 value={formData.endereco}
                 onChange={(e) => handleChange('endereco', e.target.value)}
                 placeholder="RUA, NÚMERO, BAIRRO"
@@ -313,7 +326,7 @@ export default function FormularioEmpresa({
                 </Select>
               </FL>
               <FL label="CEP">
-                <Input
+                <input
                   value={formData.cep}
                   onChange={(e) => handleChange('cep', e.target.value)}
                   placeholder="00000-000"
@@ -339,8 +352,13 @@ export default function FormularioEmpresa({
                   Cancelar
                 </Button>
               )}
-              <Button type="submit" size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700">
-                {isEditing ? 'Atualizar' : 'Salvar'}
+              <Button
+                type="submit"
+                size="sm"
+                disabled={saving || uploadingLogo}
+                className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700"
+              >
+                {saving ? "Salvando…" : isEditing ? "Atualizar" : "Salvar"}
               </Button>
             </div>
           </form>

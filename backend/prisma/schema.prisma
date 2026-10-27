@@ -853,6 +853,7 @@ model HistoricoLancamentoTarefa {
 model Empresa {
   id                 String   @id @default(cuid())
   cliente_id         String   @db.VarChar(64)
+  numero_empresa     Int
   apelido            String   @db.VarChar(255)
   nome               String   @db.VarChar(255)
   tipo_pessoa        String   @default("Jurídica") @db.VarChar(32)
@@ -874,6 +875,7 @@ model Empresa {
   cliente Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
 
   @@unique([cliente_id, id])
+  @@unique([cliente_id, numero_empresa])
   @@unique([cliente_id, nome])
   @@index([cliente_id, apelido])
 }

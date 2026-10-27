@@ -9,7 +9,7 @@ export const listarRegistros = async (clienteId) => {
 
   return prisma.empresa.findMany({
     where,
-    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    orderBy: [{ numero_empresa: 'asc' }, { id: 'asc' }],
   });
 };
 

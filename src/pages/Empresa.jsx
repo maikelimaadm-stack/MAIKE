@@ -30,7 +30,7 @@ export default function Empresa() {
   const [showConfigColunas, setShowConfigColunas] = useState(false);
   const [deleteState, setDeleteState] = useState({ open: false, ids: [] });
   const chrome = useCadastroListaChromeState();
-  const listBindings = useCadastroPageListBindings({ storageKey: "colunas_empresas_v1", columns: EMPRESAS_COLUNAS, chrome });
+  const listBindings = useCadastroPageListBindings({ storageKey: "colunas_empresas_v2", columns: EMPRESAS_COLUNAS, chrome });
 
   const handleDuplicateSelected = useCadastroDuplicateAction({
     chrome,
@@ -59,10 +59,19 @@ export default function Empresa() {
   const createMutation = useMutation({
     mutationFn: (data) => empresaService.createEmpresa(data),
     onSuccess: async (criada) => {
+      if (!criada?._isOffline && (!criada?.id || !(Number(criada.numero_empresa) > 0))) {
+        toast.error("Resposta incompleta ao salvar. Recarregue a lista.");
+        return;
+      }
       await queryClient.refetchQueries({ queryKey: ["empresas"] });
       if (criada?.id) chrome.onSelectionChange([criada.id]);
-      setShowForm(false);
-      setEditingEmpresa(null);
+      if (criada?._isOffline || String(criada?.id || "").startsWith("offline_")) {
+        setEditingEmpresa(criada);
+        setShowForm(true);
+      } else {
+        setEditingEmpresa(criada);
+        setShowForm(true);
+      }
       toastPersistenciaEmpresa(criada, "Empresa cadastrada!");
     },
     onError: (error) =>
@@ -156,11 +165,11 @@ export default function Empresa() {
     const q = chrome.appliedSearch.trim().toLowerCase();
     if (!q) return empresas.length;
     return empresas.filter((e) => {
-      const hay = [e.nome, e.apelido, e.cidade, e.cpf, e.cnpj, e.email]
-        .filter(Boolean)
+      const hay = [e.numero_empresa, e.nome, e.apelido, e.cidade, e.cpf, e.cnpj, e.email]
+        .filter((v) => v != null && v !== "")
         .join(" ")
         .toLowerCase();
-      return hay.includes(q);
+      return hay.includes(q) || String(e.numero_empresa ?? "").includes(chrome.appliedSearch.trim());
     }).length;
   }, [empresas, chrome.appliedSearch]);
 
@@ -170,11 +179,11 @@ export default function Empresa() {
     const q = chrome.appliedSearch.trim().toLowerCase();
     if (!q) return empresas;
     return empresas.filter((e) => {
-      const hay = [e.nome, e.apelido, e.cidade, e.cpf, e.cnpj, e.email]
-        .filter(Boolean)
+      const hay = [e.numero_empresa, e.nome, e.apelido, e.cidade, e.cpf, e.cnpj, e.email]
+        .filter((v) => v != null && v !== "")
         .join(" ")
         .toLowerCase();
-      return hay.includes(q);
+      return hay.includes(q) || String(e.numero_empresa ?? "").includes(chrome.appliedSearch.trim());
     });
   }, [empresas, chrome.appliedSearch]);
 
@@ -215,7 +224,13 @@ export default function Empresa() {
             showForm ? (
               <CadastroRecordHeader
                 title={detailTitle}
-                code={editingEmpresa?.cnpj || editingEmpresa?.cpf || undefined}
+                code={
+                  editingEmpresa?.numero_empresa > 0
+                    ? `Nº ${editingEmpresa.numero_empresa}`
+                    : editingEmpresa?.id
+                      ? "Aguardando número"
+                      : undefined
+                }
                 index={recordIndex}
                 total={recordNavRows.length}
                 onGo={editingEmpresa?.id ? goRecord : undefined}
@@ -230,7 +245,8 @@ export default function Empresa() {
                 onSubmit={handleSubmit}
                 onCancel={closeForm}
                 initialData={editingEmpresa}
-                isEditing={!!editingEmpresa}
+                isEditing={!!editingEmpresa?.id}
+                saving={createMutation.isPending || updateMutation.isPending}
               />
             ) : null
           }
