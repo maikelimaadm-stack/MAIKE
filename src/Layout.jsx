@@ -237,6 +237,10 @@ export default function Layout({ children, currentPageName }) {
   );
 
   useEffect(() => {
+    menuNavIntentRef.current = null;
+  }, [location.pathname]);
+
+  useEffect(() => {
     if (!currentMenuPage || userPermissions === null) return;
     const gateKey = `${location.pathname}:${currentMenuPage.id}`;
     if (canAccessPage(normalizedPermissions, currentMenuPage.id, currentMenuPage.moduleId)) {
