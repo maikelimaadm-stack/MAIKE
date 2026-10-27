@@ -467,10 +467,30 @@ export default function MapaGeral() {
     return null; // padrao: usar cor da área
   }, [modoColoracao, lotes, categoriasGadoCores, tiposPastagemCores, uaPorAreaMap, situacaoPastoMap, getAreaEfetiva]);
 
+  const teardownMapInstance = useCallback(() => {
+    renderer.clearAll();
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+    if (projectionOverlayRef.current) {
+      projectionOverlayRef.current.setMap(null);
+      projectionOverlayRef.current = null;
+    }
+    const map = mapInstanceRef.current;
+    const mapsEvent = globalThis['google']?.maps?.event;
+    if (map && mapsEvent) {
+      mapsEvent.clearInstanceListeners(map);
+    }
+    mapInstanceRef.current = null;
+    setMapReady(false);
+  }, [renderer]);
+
   // ─── Inicializar Mapa ───
   useEffect(() => {
+    let cancelled = false;
     loadGoogleMapsScript().then(() => {
-      if (!mapRef.current || mapInstanceRef.current) return;
+      if (cancelled || !mapRef.current || mapInstanceRef.current) return;
       const mobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
       const initialMapType = 'satellite';
 
@@ -481,6 +501,10 @@ export default function MapaGeral() {
         zoomControl: !mobile, disableDefaultUI: mobile, clickableIcons: false,
         minZoom: 3, maxZoom: 22
       });
+      if (cancelled) {
+        globalThis['google']?.maps?.event?.clearInstanceListeners(map);
+        return;
+      }
       const overlay = new google.maps.OverlayView();
       overlay.onAdd = function () {};
       overlay.draw = function () {};
@@ -489,13 +513,19 @@ export default function MapaGeral() {
       projectionOverlayRef.current = overlay;
       mapInstanceRef.current = map;
       setMapType(initialMapType);
-      google.maps.event.addListenerOnce(map, 'idle', () => setMapReady(true));
+      google.maps.event.addListenerOnce(map, 'idle', () => {
+        if (!cancelled) setMapReady(true);
+      });
     }).catch((error) => {
+      if (cancelled) return;
       setMapLoadError(error?.message || 'Erro ao carregar mapa.');
       toast.error(error?.message || 'Erro ao carregar mapa.');
     });
-    return () => renderer.clearAll();
-  }, []);
+    return () => {
+      cancelled = true;
+      teardownMapInstance();
+    };
+  }, [teardownMapInstance]);
 
   useEffect(() => {if (mapInstanceRef.current) mapInstanceRef.current.setMapTypeId(mapType);}, [mapType]);
 

@@ -612,7 +612,9 @@ export default function Layout({ children, currentPageName }) {
 
 
       <main className="max-w-[1600px] mx-auto flex-1 min-h-0 w-full overflow-hidden pb-16 md:pb-0">
-        <div className="relative h-full min-h-0 overflow-hidden">{children}</div>
+        <div key={location.pathname} className="relative h-full min-h-0 overflow-hidden">
+          {children}
+        </div>
       </main>
 
       {/* Mobile bottom navigation */}

@@ -4,7 +4,8 @@ import GlobalDeleteBlockDialog from '@/components/common/GlobalDeleteBlockDialog
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
 import { pagesConfig } from './pages.config'
-import { BrowserRouter as Router, Navigate, Route, Routes, Outlet, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import DebouncedOutlet from '@/components/navigation/DebouncedOutlet';
 import { createPageUrl } from '@/utils';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
@@ -35,11 +36,11 @@ const AppShell = () => {
   const { pathname } = useLocation();
   const currentPageName = pageNameFromPathname(pathname);
   if (!currentPageName) {
-    return <Outlet />;
+    return <DebouncedOutlet />;
   }
   return (
     <LayoutWrapper currentPageName={currentPageName}>
-      <Outlet />
+      <DebouncedOutlet />
     </LayoutWrapper>
   );
 };

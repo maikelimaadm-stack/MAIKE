@@ -40,17 +40,17 @@ describe('escopo do produto', () => {
     expect(app).toContain('path={createPageUrl(path)}');
   });
 
-  it('Layout monta uma vez via AppShell + Outlet (sem remount por rota)', () => {
+  it('Layout monta uma vez via AppShell + DebouncedOutlet (sem remount do Layout por rota)', () => {
     const app = readFileSync('src/App.jsx', 'utf8');
     expect(app).toContain('AppShell');
-    expect(app).toContain('<Outlet />');
+    expect(app).toContain('DebouncedOutlet');
     expect(app).not.toMatch(/LayoutWrapper currentPageName=\{path\}[\s\S]*<Page \/>/);
   });
 
   it('Layout não empilha rotas com AnimatePresence (evita freeze entre menus)', () => {
     const layout = readFileSync('src/Layout.jsx', 'utf8');
     expect(layout).not.toContain('AnimatePresence');
-    expect(layout).not.toMatch(/key=\{location\.pathname\}/);
+    expect(layout).not.toContain('framer-motion');
   });
 
   it('o menu só aponta para páginas permitidas', () => {
