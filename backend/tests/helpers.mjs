@@ -27,6 +27,9 @@ const ORDEM_DE_LIMPEZA = [
   'areaPastagem',
   'marca',
   'unidadeMedida',
+  // P5.0 — TipoTarefa referencia GrupoAtividade (FK composta, Restrict).
+  'tipoTarefa',
+  'grupoAtividade',
   'setor',
   'entidadeCodigoSequencia',
   'usuario',
