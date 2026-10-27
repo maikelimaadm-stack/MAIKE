@@ -20,6 +20,7 @@ const erroNaoEncontrado = () => new AppError('FORNECEDOR_NOT_FOUND', 'Fornecedor
 
 /** @param {Record<string, unknown>} registro */
 export const comoPublico = (registro) => {
+  // eslint-disable-next-line no-unused-vars -- tenant não exposto na API pública
   const { createdAt, updatedAt, cliente_id, ...resto } = registro;
   return {
     ...resto,

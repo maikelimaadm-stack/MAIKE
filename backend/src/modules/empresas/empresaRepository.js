@@ -3,7 +3,7 @@
  */
 import { getPrismaClient } from '../../database/prismaClient.js';
 
-export const listarRegistros = async (clienteId, filtros = {}) => {
+export const listarRegistros = async (clienteId) => {
   const prisma = getPrismaClient();
   const where = { cliente_id: clienteId };
 

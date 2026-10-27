@@ -5,7 +5,6 @@ import { getPrismaClient } from '../../database/prismaClient.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { AppError } from '../../shared/errors/AppError.js';
 import { registrarEvento } from '../auditoria/auditService.js';
-import { reservarNumero, ESCOPO_TENANT } from '../sequencias/entidadeCodigoService.js';
 import {
   listarRegistros,
   buscarRegistro,
@@ -20,6 +19,7 @@ const erroNaoEncontrado = () => new AppError('CATEGORIA_MANEJO_NOT_FOUND', 'Cate
 
 /** @param {Record<string, unknown>} registro */
 export const comoPublico = (registro) => {
+  // eslint-disable-next-line no-unused-vars -- tenant não exposto na API pública
   const { createdAt, updatedAt, cliente_id, ...resto } = registro;
   return {
     ...resto,
