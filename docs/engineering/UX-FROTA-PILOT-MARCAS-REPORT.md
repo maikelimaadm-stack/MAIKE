@@ -1169,3 +1169,21 @@ Branch `cursor/ux-responsividade-maike-516d` · plano [`PLAN-RESPONSIVIDADE-MAIK
 ### Verificação (UX-54)
 
 - `npm run verify:all`
+
+## UX-55 (2026-10-27) — Menus Marcas: colunas por modo, popovers cards, sem filtro na toolbar
+
+Branch `cursor/ux-base1-marcas-menus-view-516d`.
+
+**Objetivo:** comportamento do chrome ⚡ no piloto Marcas — sem redesign.
+
+| Item | Correção |
+|------|----------|
+| **Configurar colunas** | Entrada do menu ⚡ habilitada só em `viewMode === "table"` (desligada em cards e registro) |
+| **Layout / campos dos cards** | Popovers abrem ancorados ao botão ⚡ (`B1Popover` + `PopoverAnchor` fixo); removido host `sr-only`/`aria-hidden` que clipava o gatilho Radix |
+| **Limpar filtros** | Removido ícone `FilterX` da toolbar quando `showFilterRail={false}`; mantidos menu ⚡, filtros `fpop` no cabeçalho e link na faixa de cabeçalho da grade |
+
+**Arquivos:** `CadastroListaChrome.jsx`, `Base1Cards.jsx`, `Base1Ui.jsx`.
+
+### Verificação (UX-55)
+
+- `npm run verify:all` (local sem `DATABASE_URL`: falha só `test:backend`)
