@@ -108,3 +108,22 @@ export const unidadeMedidaNotFound = (message, options) =>
 
 export const unidadeMedidaSiglaConflito = (message, options) =>
   new AppError('UNIDADE_MEDIDA_SIGLA_CONFLICT', message || 'já existe unidade com esta sigla', options);
+
+export const grupoAtividadeNotFound = (message, options) =>
+  new AppError('GRUPO_ATIVIDADE_NOT_FOUND', message || 'grupo de atividade não encontrado', options);
+
+export const grupoAtividadeNomeConflito = (message, options) =>
+  new AppError('GRUPO_ATIVIDADE_NAME_CONFLICT', message || 'já existe grupo com este nome', options);
+
+export const grupoAtividadeDeleteBlocked = (message, options) =>
+  new AppError(
+    'GRUPO_ATIVIDADE_DELETE_BLOCKED',
+    message || 'não é possível excluir grupo com tipos vinculados',
+    options
+  );
+
+export const tipoTarefaNotFound = (message, options) =>
+  new AppError('TIPO_TAREFA_NOT_FOUND', message || 'tipo de tarefa não encontrado', options);
+
+export const tipoTarefaNomeConflito = (message, options) =>
+  new AppError('TIPO_TAREFA_NAME_CONFLICT', message || 'já existe tipo com este nome no grupo', options);

@@ -28,6 +28,8 @@ import { registrarMapGeographyRoutes } from './modules/mapGeography/mapGeography
 import { registrarUsuarioRoutes } from './modules/usuarios/usuarioRoutes.js';
 import { registrarMarcaRoutes } from './modules/marcas/marcaRoutes.js';
 import { registrarUnidadeMedidaRoutes } from './modules/unidadesMedida/unidadeMedidaRoutes.js';
+import { registrarGrupoAtividadeRoutes } from './modules/gruposAtividade/grupoAtividadeRoutes.js';
+import { registrarTipoTarefaRoutes } from './modules/tiposTarefa/tipoTarefaRoutes.js';
 
 /**
  * @param {{logger?: boolean|object}} [opcoes]
@@ -94,6 +96,8 @@ export const construirApp = async (opcoes = {}) => {
   await app.register(registrarUsuarioRoutes);
   await app.register(registrarMarcaRoutes);
   await app.register(registrarUnidadeMedidaRoutes);
+  await app.register(registrarGrupoAtividadeRoutes);
+  await app.register(registrarTipoTarefaRoutes);
 
   return app;
 };

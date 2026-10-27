@@ -21,6 +21,10 @@
     { "source": "/marcas", "destination": "/api/fastify" },
     { "source": "/marcas/:path*", "destination": "/api/fastify" },
     { "source": "/unidades-medida", "destination": "/api/fastify" },
-    { "source": "/unidades-medida/:path*", "destination": "/api/fastify" }
+    { "source": "/unidades-medida/:path*", "destination": "/api/fastify" },
+    { "source": "/grupos-atividade", "destination": "/api/fastify" },
+    { "source": "/grupos-atividade/:path*", "destination": "/api/fastify" },
+    { "source": "/tipos-tarefa", "destination": "/api/fastify" },
+    { "source": "/tipos-tarefa/:path*", "destination": "/api/fastify" }
   ]
 }

@@ -34,6 +34,7 @@ const ETAPAS = [
   ['setor-native', npm('gate:setor-native')],
   ['marca-native', npm('gate:marca-native')],
   ['unidade-medida-native', npm('gate:unidade-medida-native')],
+  ['tarefa-cadastro-native', npm('gate:tarefa-cadastro-native')],
   // Logo depois, porque depende do que ele garante: a FK composta de
   // `AreaPastagem` só é tenant-aware se `Setor` mantiver o
   // `@@unique([cliente_id, id])` que `gate:setor-native` cobra.
