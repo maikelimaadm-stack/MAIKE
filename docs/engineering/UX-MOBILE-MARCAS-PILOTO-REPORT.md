@@ -56,6 +56,11 @@ Checklist manual: ver `MARCAS-H5-MANUAL-TEST.md`. Browser E2E/screenshots: **nã
 - [ ] Grade com scroll horizontal interno; página sem scroll lateral
 - [ ] Summary 2×2 + seletor de página sem sobrepor bottom nav (safe area)
 
+## PR
+
+- **Abrir (compare):** https://github.com/maikelimaadm-stack/MAIKE/compare/main...cursor/ux-base1-marcas-mobile-unica-516d
+- **Fechar duplicata:** PR #67 (`cursor/ux-base1-mobile-marcas-516d`) após o PR acima estar aberto — mesmo conteúdo, branch consolidada.
+
 ## Status
 
 **APROVÁVEL PARA HOMOLOGAÇÃO VISUAL** (pendente validação do proprietário em dispositivo real — checklist 375px acima).
