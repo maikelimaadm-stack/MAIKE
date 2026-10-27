@@ -67,16 +67,17 @@ describe('FormularioEmpresa — contrato alinhado ao backend', () => {
   });
 });
 
-describe('empresaService — GET prévio distinto de conflito', () => {
-  it('propaga falha de listagem sem chamar create', async () => {
+describe('empresaService — escrita sem GET prévio', () => {
+  it('create chama provider mesmo se list falharia', async () => {
     providerMock.list.mockRejectedValue(new ApiError(API_ERROR_CODES.PROVIDER_UNAVAILABLE));
+    providerMock.create.mockResolvedValue({ id: '3', numero_empresa: 1 });
     const { createEmpresa } = await import('@/services/empresaService');
 
-    const erro = await createEmpresa({ nome: 'Nova', apelido: 'NV', tipo_pessoa: 'Jurídica' }).catch(
-      (e) => e,
-    );
-    expect(erro.code).toBe('API_PROVIDER_UNAVAILABLE');
-    expect(providerMock.create).not.toHaveBeenCalled();
+    await expect(
+      createEmpresa({ nome: 'Nova', apelido: 'NV', tipo_pessoa: 'Jurídica' }),
+    ).resolves.toMatchObject({ id: '3', numero_empresa: 1 });
+    expect(providerMock.create).toHaveBeenCalled();
+    expect(providerMock.list).not.toHaveBeenCalled();
   });
 });
 

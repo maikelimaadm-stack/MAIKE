@@ -151,7 +151,7 @@ export default function FormularioEmpresa({
         >
           <form onSubmit={handleSubmit} className="space-y-2" noValidate>
             <FL label="Nº da Empresa">
-              <Input
+              <input
                 readOnly
                 value={
                   isEditing && initialData?.numero_empresa > 0
@@ -275,7 +275,7 @@ export default function FormularioEmpresa({
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
               <FL label="Telefone">
-                <Input
+                <input
                   value={formData.telefone}
                   onChange={(e) => handleChange('telefone', e.target.value)}
                   placeholder="(00) 00000-0000"
@@ -283,7 +283,7 @@ export default function FormularioEmpresa({
                 />
               </FL>
               <FL label="E-mail" className="lg:col-span-2">
-                <Input
+                <input
                   type="email"
                   value={formData.email}
                   onChange={(e) => handleChange('email', e.target.value)}
@@ -294,7 +294,7 @@ export default function FormularioEmpresa({
             </div>
 
             <FL label="Endereço completo">
-              <Input
+              <input
                 value={formData.endereco}
                 onChange={(e) => handleChange('endereco', e.target.value)}
                 placeholder="RUA, NÚMERO, BAIRRO"
@@ -326,7 +326,7 @@ export default function FormularioEmpresa({
                 </Select>
               </FL>
               <FL label="CEP">
-                <Input
+                <input
                   value={formData.cep}
                   onChange={(e) => handleChange('cep', e.target.value)}
                   placeholder="00000-000"

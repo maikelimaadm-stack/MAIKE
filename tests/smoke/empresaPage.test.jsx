@@ -113,7 +113,7 @@ describe('página Empresa — fiação com o service', () => {
   });
 
   it('cria uma empresa, recarrega a lista e avisa o usuário', async () => {
-    serviceMock.createEmpresa.mockResolvedValue({ id: '3' });
+    serviceMock.createEmpresa.mockResolvedValue({ id: '3', numero_empresa: 3 });
     const { refetchSpy } = await renderPagina();
 
     await screen.findByText('Fazenda Boa Vista');
