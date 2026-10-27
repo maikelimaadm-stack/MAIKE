@@ -111,38 +111,16 @@ export const listarFornecedores = async (empresaId) => {
 // ── Escrita ───────────────────────────────────────────────────────────────
 
 /**
- * Próximo `numero_lote`.
- *
- * **Risco conhecido (R2):** `max + 1` calculado no cliente não é seguro sob
- * concorrência — duas criações simultâneas podem receber o mesmo número. A
- * regra é preservada porque mudá-la exigiria sequência no servidor, que só
- * existe com persistência nativa (P4). Não há lock aqui e não se declara um.
- *
- * @param {any[]} lotes
- * @returns {string}
- */
-export const proximoNumeroLote = (lotes) => {
-  const maior = (lotes || []).reduce(
-    (max, lote) => Math.max(max, parseInt(lote.numero_lote, 10) || 0),
-    0
-  );
-  return String(maior + 1);
-};
-
-/**
  * @param {object} dados
  * @param {{empresaId?: string}} [opcoes]
  */
-export const criarLote = async (dados, { empresaId } = {}) => {
-  const todos = await listLotes();
-  return createLote({
+export const criarLote = async (dados, { empresaId } = {}) =>
+  createLote({
     ...dados,
     empresa_id: empresaId || dados.empresa_id,
-    numero_lote: dados.numero_lote || proximoNumeroLote(todos),
     status: dados.status || 'Ativo',
     campos_personalizados: dados.campos_personalizados || {},
   });
-};
 
 /**
  * Atualiza o lote e sincroniza as referências denormalizadas.

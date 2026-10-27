@@ -89,8 +89,9 @@ describe('L — cadastro de lotes', () => {
   });
 
   it('L3 — próximo número é max + 1, tolerando valor não numérico', () => {
-    expect(loteCadastro.proximoNumeroLote([{ numero_lote: '7' }, { numero_lote: 'x' }, { numero_lote: 3 }])).toBe('8');
-    expect(loteCadastro.proximoNumeroLote([])).toBe('1');
+    const { proximoNumeroLote } = await import('@/domain/lotes/numeroLote.js');
+    expect(proximoNumeroLote([{ numero_lote: '7' }, { numero_lote: 'x' }, { numero_lote: 3 }])).toBe('8');
+    expect(proximoNumeroLote([])).toBe('1');
   });
 
   it('L4 — criar aplica empresa, número, status e campos personalizados', async () => {

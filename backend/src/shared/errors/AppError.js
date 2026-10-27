@@ -127,3 +127,6 @@ export const tipoTarefaNotFound = (message, options) =>
 
 export const tipoTarefaNomeConflito = (message, options) =>
   new AppError('TIPO_TAREFA_NAME_CONFLICT', message || 'já existe tipo com este nome no grupo', options);
+
+export const loteNotFound = (message, options) =>
+  new AppError('LOTE_NOT_FOUND', message || 'lote não encontrado', options);

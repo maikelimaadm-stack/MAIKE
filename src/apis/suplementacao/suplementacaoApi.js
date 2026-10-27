@@ -157,8 +157,10 @@ export const updateProduto = async (id, dados) => {
   return runProviderCall(() => suplementacaoProvider.updateProduto(id, dados), { ...contexto, details: { id } });
 };
 
-export const listLotesRebanho = async () =>
-  comoLista(await runProviderCall(() => suplementacaoProvider.listLotesRebanho(), ctx('listLotesRebanho')));
+export const listLotesRebanho = async () => {
+  const { lotePort } = await import('../lotes/loteNativePort.js');
+  return comoLista(await runProviderCall(() => lotePort.list(), ctx('listLotesRebanho')));
+};
 
 export const listMovimentacoesPecuarias = async () =>
   comoLista(

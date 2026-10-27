@@ -2145,4 +2145,22 @@ sem lista Base44 de empresas. Migração completa de `Empresa` continua no plano
 
 ---
 
-<!-- Próxima decisão: D-PROD-47 -->
+### D-PROD-47 — Lote nativo (P5.1)
+
+**Missão:** P5.1 — saída Base44 do cadastro de lotes  
+**Relatório:** `docs/engineering/P5.1-LOTE-NATIVE-REPORT.md`
+
+**Decisão:** `Lote` persiste no PostgreSQL tenant-scoped, com FKs compostas para
+`Setor` e `AreaPastagem` quando informadas; `numero_lote` vem de
+`EntidadeCodigoSequencia` na criação; caches (`setor_nome`, `area_*_nome`) são
+derivados no servidor. CRUD exposto em `/lotes` e `loteNativePort.js`; movimentações
+(`MovimentacaoMapa`, `MovimentacaoPecuaria`, suplementação) permanecem Base44 nesta
+fatia.
+
+**Consequência:** `LancamentoTarefa` pode migrar na próxima missão com dependência
+de lote nativa satisfeita; `syncEntityReferences` para renomear lote continua na
+Base44 até os destinos denormalizados migrarem.
+
+---
+
+<!-- Próxima decisão: D-PROD-48 -->

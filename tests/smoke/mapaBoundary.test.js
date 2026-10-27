@@ -109,7 +109,7 @@ describe('P1.2 — a UI do mapa não fala Base44', () => {
     expect([...getRegisteredEntityNames()].sort()).toEqual(expect.arrayContaining([
       'AplicacaoMedicamento', 'Bebedouro', 'Empresa',
       'EstoqueLoteNota', 'EventoSanitario', 'HistoricoLancamentoTarefa',
-      'LancamentoTarefa', 'LocalEstoque', 'Lote', 'ManejoTecnicoRebanho',
+      'LancamentoTarefa', 'LocalEstoque', 'ManejoTecnicoRebanho',
       'MovimentacaoEstoque', 'MovimentacaoMapa', 'MovimentacaoPecuaria', 'Permissao',
       'PontoSuplementacao', 'Produto', 'SuplementacaoEvento',
       'SuplementacaoLote', 'User',
