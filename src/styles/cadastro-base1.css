@@ -54,12 +54,12 @@
   --mg-overlay-bg: rgba(15, 23, 42, 0.45);
   --mg-z-overlay: 40;
   --mg-z-dialog: 50;
-  --mg-page-gap: 6px;
-  --mg-btn-gap: 6px;
+  --mg-page-gap: 8px;
+  --mg-btn-gap: 8px;
 
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   min-height: 0;
   font-size: 13px;
 }
@@ -70,7 +70,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: var(--mg-btn-gap, 8px);
   padding: 0 13px;
   border-radius: 999px;
   cursor: pointer;
@@ -195,7 +195,7 @@
 .cadastro-b1 .mg-toolbar {
   display: flex;
   align-items: center;
-  gap: var(--mg-btn-gap, 6px);
+  gap: var(--mg-btn-gap, 8px);
   height: var(--mg-toolbar-h);
   min-height: var(--mg-toolbar-h);
   padding: 4px 12px;
@@ -209,7 +209,7 @@
   margin-left: auto;
   display: flex;
   align-items: center;
-  gap: var(--mg-btn-gap, 6px);
+  gap: var(--mg-btn-gap, 8px);
   flex-wrap: wrap;
 }
 
@@ -262,7 +262,7 @@
 .cadastro-b1 .mg-toolbar__row--actions {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--mg-btn-gap, 8px);
   min-width: 0;
   overflow: visible;
 }
@@ -270,7 +270,7 @@
 .cadastro-b1 .mg-fluid-slot__cluster {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--mg-btn-gap, 8px);
   overflow: visible;
 }
 
@@ -317,7 +317,7 @@
 .cadastro-b1 .mg-rail {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--mg-btn-gap, 8px);
   padding: 4px 8px;
   min-height: var(--mg-toolbar-h);
 }
@@ -325,7 +325,7 @@
 .cadastro-b1 .mg-pills-rail__content {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--mg-btn-gap, 8px);
   min-width: 0;
   flex: 1 1 auto;
   max-width: 100%;
@@ -566,7 +566,7 @@
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--mg-btn-gap, 8px);
   padding: 7px 8px;
   border-top: 1px solid #f1f4f6;
   background: #fbfcfd;
@@ -756,8 +756,17 @@
   background: var(--mg-row-alt);
 }
 
+/* Sem highlight de hover na grade — evita a “mancha” ao passar o mouse */
 .cadastro-b1 .mg-grid tbody tr:hover td {
-  background: var(--mg-row-hover);
+  background: inherit;
+}
+
+.cadastro-b1 .mg-grid tbody tr.even:hover td {
+  background: #fff;
+}
+
+.cadastro-b1 .mg-grid tbody tr.odd:hover td {
+  background: var(--mg-row-alt);
 }
 
 .cadastro-b1 .mg-grid tbody tr.selected td {
@@ -1574,7 +1583,7 @@
 /* Toolbar: quebra segura em telas estreitas (mobile + tablet — UX-C / UX-43) */
 @media (max-width: 1023px) {
   .cadastro-b1 .mg-toolbar--join {
-    row-gap: 6px;
+    row-gap: var(--mg-btn-gap, 8px);
     height: auto;
     min-height: var(--mg-toolbar-h);
     align-items: flex-start;
@@ -1610,7 +1619,7 @@
 
 @media (max-width: 1023px) {
   .cadastro-b1 .mg-toolbar {
-    row-gap: 6px;
+    row-gap: var(--mg-btn-gap, 8px);
     height: auto;
     min-height: var(--mg-toolbar-h);
     padding-top: 6px;
@@ -1627,7 +1636,7 @@
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 6px;
+    gap: var(--mg-btn-gap, 8px);
     width: 100%;
   }
 
@@ -1688,7 +1697,7 @@
     width: auto;
     margin-left: auto;
     justify-content: flex-end;
-    gap: 6px;
+    gap: var(--mg-btn-gap, 8px);
     flex-wrap: nowrap;
   }
 
@@ -1818,7 +1827,7 @@
 
 /* Portal de Compras / itpan — toolbar + faixa + grade no mesmo cartão */
 .cadastro-b1 .mg-shell--join-table {
-  --portal-espaco: 6px;
+  --portal-espaco: 8px;
 }
 
 .cadastro-b1 .mg-shell--join-table .mg-toolbar--join {
@@ -1831,7 +1840,7 @@
   box-shadow: none;
   background: #fff;
   border-bottom: 1px solid #eef1f4;
-  gap: var(--portal-espaco, 6px);
+  gap: var(--portal-espaco, 8px);
   padding: 4px 11px;
 }
 

@@ -116,7 +116,7 @@
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   min-height: 46px;
   padding: 0 18px;
   border-bottom: 1px solid #f1f4f6;
@@ -139,7 +139,7 @@
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   padding: 11px 14px;
   border-top: 1px solid #f1f4f6;
   background: #fbfcfd;
