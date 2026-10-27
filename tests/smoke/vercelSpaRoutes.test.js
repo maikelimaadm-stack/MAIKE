@@ -1,55 +1,125 @@
 /**
- * Deep links SPA vs API same-origin (FIX-MAP-LOOP-SPA-ROUTES).
+ * Deep links SPA vs API same-origin (R4 — namespace `/api/native`).
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { createPageUrl } from '../../src/utils/index.ts';
-import {
-  buildNativeApiRewrites,
-  VERCEL_SPA_DOCUMENT_ACCEPT_GUARD,
-} from '../../scripts/vercel/nativeApiRewriteRules.mjs';
+import { buildNativeApiRewrites } from '../../scripts/vercel/nativeApiRewriteRules.mjs';
+import { NATIVE_API_PATH_PREFIX } from '../../config/nativeApiPath.js';
+import { resolveRewrite } from '../../scripts/vercel/vercelAcceptMatch.mjs';
 
 const vercel = JSON.parse(readFileSync('vercel.json', 'utf8'));
+const rewrites = buildNativeApiRewrites();
 
-/** Páginas cujo pathname pode coincidir com prefixo REST. */
-const PAGINAS_SPA = [
+const CHROME_ACCEPT =
+  'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8';
+
+/** Páginas cujo pathname coincidia com prefixo REST antes do R4. */
+const PAGINAS_COLISAO_HISTORICA = [
   'Bebedouros',
   'Marcas',
   'Usuarios',
   'Produtos',
   'Categorias',
-  'UnidadesMedida',
-  'LocaisEstoque',
-  'TiposTarefa',
-  'GruposAtividades',
-  'CadastroLotes',
-  'CadastroSetores',
-  'CategoriasManejo',
-  'Empresa',
-  'MapaGeral',
 ];
 
-describe('VERCEL-SPA — deep link não cai na API', () => {
+/** Todas as páginas permitidas (16). */
+const TODAS_PAGINAS_SPA = [
+  'Bebedouros',
+  'CadastroLotes',
+  'CadastroSetores',
+  'Categorias',
+  'CategoriasManejo',
+  'ConfiguracoesGerais',
+  'Empresa',
+  'GruposAtividades',
+  'LocaisEstoque',
+  'MapaCadastro',
+  'MapaGeral',
+  'Marcas',
+  'Produtos',
+  'TiposTarefa',
+  'UnidadesMedida',
+  'Usuarios',
+];
+
+describe('VERCEL-SPA — vercel.json sincronizado', () => {
   it('vercel.json está sincronizado com o gerador SSOT', () => {
-    expect(vercel.rewrites).toEqual(buildNativeApiRewrites());
+    expect(vercel.rewrites).toEqual(rewrites);
   });
 
-  it('rotas REST colidentes exigem guard missing text/html no Accept', () => {
-    const pathsSpa = new Set(PAGINAS_SPA.map((nome) => createPageUrl(nome)));
-    for (const pathname of pathsSpa) {
-      const rewriteExato = vercel.rewrites.find((r) => r.source === pathname);
-      if (!rewriteExato) continue;
-      expect(rewriteExato.missing).toEqual(VERCEL_SPA_DOCUMENT_ACCEPT_GUARD.missing);
-      expect(rewriteExato.destination).toBe('/api/fastify');
+  it('não há rewrite de API no path SPA colidente (sem /api/native)', () => {
+    for (const nome of PAGINAS_COLISAO_HISTORICA) {
+      const path = createPageUrl(nome);
+      const apiRewrite = rewrites.find(
+        (r) => r.source === path && r.destination === '/api/fastify',
+      );
+      expect(apiRewrite, `API rewrite ainda presente em ${path}`).toBeFalsy();
     }
   });
+});
 
-  it('/bebedouros documento: simula Accept text/html (não reescreve como API)', () => {
-    const regra = vercel.rewrites.find((r) => r.source === '/bebedouros');
-    expect(regra).toBeTruthy();
-    expect(regra.missing).toEqual([
-      { type: 'header', key: 'accept', value: 'text/html' },
-    ]);
+describe('VERCEL-SPA — documento vs JSON', () => {
+  it('/produtos documento → index.html', () => {
+    const html = resolveRewrite(rewrites, {
+      pathname: '/produtos',
+      headers: { accept: CHROME_ACCEPT },
+    });
+    expect(html?.destination).toBe('/index.html');
+  });
+
+  it('/produtos JSON no path legado não roteia para Fastify', () => {
+    const json = resolveRewrite(rewrites, {
+      pathname: '/produtos',
+      headers: { accept: 'application/json' },
+    });
+    expect(json?.destination).not.toBe('/api/fastify');
+  });
+
+  it(`${NATIVE_API_PATH_PREFIX}/produtos JSON → API`, () => {
+    const json = resolveRewrite(rewrites, {
+      pathname: `${NATIVE_API_PATH_PREFIX}/produtos`,
+      headers: { accept: 'application/json' },
+    });
+    expect(json?.destination).toBe('/api/fastify');
+  });
+
+  it('alias PascalCase /Produtos → index.html', () => {
+    const hit = resolveRewrite(rewrites, {
+      pathname: '/Produtos',
+      headers: { accept: CHROME_ACCEPT },
+    });
+    expect(hit?.destination).toBe('/index.html');
+  });
+
+  it('trailing slash /marcas/ → index.html', () => {
+    const hit = resolveRewrite(rewrites, {
+      pathname: '/marcas/',
+      headers: { accept: CHROME_ACCEPT },
+    });
+    expect(hit?.destination).toBe('/index.html');
+  });
+
+  it('asset inexistente não recebe rewrite SPA conhecido', () => {
+    const hit = resolveRewrite(rewrites, {
+      pathname: '/assets/nao-existe-12345.js',
+      headers: { accept: CHROME_ACCEPT },
+    });
+    expect(hit).toBeNull();
+  });
+});
+
+describe('VERCEL-SPA — matriz das 16 páginas', () => {
+  it('cada página permitida tem rewrite SPA para index.html', () => {
+    for (const nome of TODAS_PAGINAS_SPA) {
+      const path = createPageUrl(nome);
+      const spa = rewrites.find((r) => r.source === path && r.destination === '/index.html');
+      expect(spa, `SPA rewrite ausente para ${path}`).toBeTruthy();
+      const pascal = rewrites.find(
+        (r) => r.source === `/${nome}` && r.destination === '/index.html',
+      );
+      expect(pascal, `SPA rewrite PascalCase ausente para /${nome}`).toBeTruthy();
+    }
   });
 });
 

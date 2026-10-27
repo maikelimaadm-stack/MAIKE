@@ -39,6 +39,56 @@ export const filhasDe = (categorias, id) =>
   (categorias || []).filter((categoria) => categoria.categoria_pai_id === id);
 
 /**
+ * Ordena ids para exclusão folha→raiz dentro do conjunto selecionado.
+ * Detecta ciclos no subgrafo e falha de forma controlada.
+ *
+ * @param {any[]} categorias
+ * @param {string[]} alvos
+ * @returns {string[]}
+ */
+export const ordenarExclusaoFolhasPrimeiro = (categorias, alvos) => {
+  const alvosSet = new Set(alvos);
+  /** @type {Map<string, string[]>} */
+  const filhosNoConjunto = new Map();
+  for (const id of alvos) filhosNoConjunto.set(id, []);
+
+  for (const categoria of categorias) {
+    if (!alvosSet.has(categoria.id)) continue;
+    const paiId = categoria.categoria_pai_id;
+    if (paiId && alvosSet.has(paiId)) {
+      filhosNoConjunto.get(paiId).push(categoria.id);
+    }
+  }
+
+  /** @type {string[]} */
+  const ordenado = [];
+  const restantes = new Set(alvos);
+
+  while (restantes.size > 0) {
+    const folhas = [...restantes].filter((id) => {
+      const filhos = filhosNoConjunto.get(id) || [];
+      return !filhos.some((filho) => restantes.has(filho));
+    });
+
+    if (!folhas.length) {
+      throw new ApiError(API_ERROR_CODES.INVALID_ARGUMENT, {
+        operation: 'excluirCategorias',
+        resource: 'Categoria',
+        details: { motivo: 'hierarquia_ciclica', ids: alvos },
+      });
+    }
+
+    folhas.sort();
+    for (const id of folhas) {
+      ordenado.push(id);
+      restantes.delete(id);
+    }
+  }
+
+  return ordenado;
+};
+
+/**
  * Exclui uma ou mais categorias.
  *
  * **Valida tudo antes de excluir qualquer coisa.** Com N ids, checar e excluir
@@ -72,8 +122,16 @@ export const excluirCategorias = async (ids) => {
     });
   }
 
+  let ordemExclusao;
+  try {
+    ordemExclusao = ordenarExclusaoFolhasPrimeiro(todas, alvos);
+  } catch (erro) {
+    if (erro instanceof ApiError) throw erro;
+    throw erro;
+  }
+
   const excluidas = [];
-  for (const id of alvos) {
+  for (const id of ordemExclusao) {
     try {
       await deleteCategoria(id);
       excluidas.push(id);

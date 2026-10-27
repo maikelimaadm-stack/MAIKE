@@ -37,6 +37,7 @@ import { normalizeText } from "../suplementacao/estoqueSuplementacaoUtils";
 import useSetorAreas from "@/hooks/useSetorAreas";
 import { atualizarBebedouro, criarBebedouro } from "@/services/bebedouroDataService";
 import { BEBEDOURO_ORIGENS_AGUA, BEBEDOURO_TIPOS } from "@/services/bebedouroService";
+import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 
 const FL = ({ label, required, error, children }) =>
 <div>
@@ -50,7 +51,7 @@ const FL = ({ label, required, error, children }) =>
 
 
 function ProdutoSuplementacaoSelect({ value, onChange }) {
-  const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
+  const empresaSelecionadaId = useEmpresaSelecionadaId();
 
   const { data: produtos = [] } = useQuery({
     queryKey: ["produtos-suplementacao", empresaSelecionadaId],
@@ -105,7 +106,7 @@ const createEmptyForm = () => ({
 });
 
 export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS = false, item = null, onBatchUpdate = null, suggestedDepositoId = null }) {
-  const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
+  const empresaSelecionadaId = useEmpresaSelecionadaId();
   const queryClient = useQueryClient();
   const [areaDetectada, setAreaDetectada] = useState(null);
   const [mostrarCapturaGPS, setMostrarCapturaGPS] = useState(usarGPS);

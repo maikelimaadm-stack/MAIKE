@@ -16,6 +16,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const API = 'https://backend.exemplo.invalido';
+const API_NATIVE = `${API}/api/native`;
 const TOKEN = 'jwt.nativo.sintetico';
 const EMPRESA = 'empresa-legada-1';
 
@@ -84,7 +85,7 @@ describe('FE-P41 — leitura', () => {
 
     expect(lista).toEqual([SETOR]);
     const { url, opcoes } = ultimaChamada();
-    expect(url).toBe(`${API}/setores`);
+    expect(url).toBe(`${API_NATIVE}/setores`);
     expect(opcoes.method ?? 'GET').toBe('GET');
     expect(opcoes.headers.Authorization).toBe(`Bearer ${TOKEN}`);
   });
@@ -122,7 +123,7 @@ describe('FE-P41 — o que vai para o fio na criação', () => {
     });
 
     const { url, opcoes, corpo } = ultimaChamada();
-    expect(url).toBe(`${API}/setores`);
+    expect(url).toBe(`${API_NATIVE}/setores`);
     expect(opcoes.method).toBe('POST');
     expect(corpo).toEqual({
       empresa_id: EMPRESA,
@@ -199,7 +200,7 @@ describe('FE-P41 — o que vai para o fio na atualização', () => {
     });
 
     const { url, opcoes, corpo } = ultimaChamada();
-    expect(url).toBe(`${API}/setores/set_1`);
+    expect(url).toBe(`${API_NATIVE}/setores/set_1`);
     expect(opcoes.method).toBe('PATCH');
     expect(corpo).toEqual({ nome: 'FAZENDA NOVA' });
     // Mover um setor de empresa mudaria, por vínculo denormalizado, todas as
@@ -213,7 +214,7 @@ describe('FE-P41 — o que vai para o fio na atualização', () => {
 
     await porta.operacoesNativas.update('a/../b?x=1', { nome: 'X' });
 
-    expect(ultimaChamada().url).toBe(`${API}/setores/${encodeURIComponent('a/../b?x=1')}`);
+    expect(ultimaChamada().url).toBe(`${API_NATIVE}/setores/${encodeURIComponent('a/../b?x=1')}`);
   });
 });
 

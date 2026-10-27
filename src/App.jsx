@@ -14,6 +14,7 @@ import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import NativeLoginForm from '@/components/auth/NativeLoginForm';
 import NativeSessionUnavailable from '@/components/auth/NativeSessionUnavailable';
+import { normalizeAppPathname } from '@/lib/navigation/normalizeAppPathname';
 
 const { Pages, Layout, mainPage } = pagesConfig;
 
@@ -23,8 +24,9 @@ const LayoutWrapper = ({ children, currentPageName }) => Layout ?
 
 /** Resolve o nome PascalCase da página a partir do pathname canônico (minúsculas). */
 const pageNameFromPathname = (pathname) => {
+  const normalized = normalizeAppPathname(pathname);
   for (const pageName of Object.keys(Pages)) {
-    if (pathname === createPageUrl(pageName)) return pageName;
+    if (normalized === createPageUrl(pageName)) return pageName;
   }
   return null;
 };
@@ -35,13 +37,18 @@ const pageNameFromPathname = (pathname) => {
  * clique no menu.
  */
 const AppShell = () => {
-  const { pathname } = useLocation();
-  const currentPageName = pageNameFromPathname(pathname);
-  if (!currentPageName) {
-    return <AppRouteContent />;
+  const location = useLocation();
+  const { pathname, search, hash } = location;
+  const normalizedPath = normalizeAppPathname(pathname);
+
+  if (pathname !== normalizedPath) {
+    return <Navigate to={`${normalizedPath}${search}${hash}`} replace />;
   }
+
+  const currentPageName = pageNameFromPathname(normalizedPath);
+
   return (
-    <LayoutWrapper currentPageName={currentPageName}>
+    <LayoutWrapper currentPageName={currentPageName || 'PageNotFound'}>
       <AppRouteContent />
     </LayoutWrapper>
   );
@@ -118,6 +125,7 @@ const AuthenticatedApp = () => {
             element={<Page />}
           />
         ))}
+        <Route path="*" element={<PageNotFound />} />
       </Route>
       {/* Bookmarks e links antigos usavam PascalCase antes do SSOT em minúsculas. */}
       {Object.keys(Pages).map((path) => (

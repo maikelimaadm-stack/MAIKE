@@ -6,6 +6,7 @@
  * do Fastify, preservando rotas, CORS e JWT.
  */
 
+import { reescreverUrlApiNativa } from '../config/nativeApiPath.js';
 import { exigirConfiguracaoCompleta } from '../backend/src/config/env.js';
 import { construirApp } from '../backend/src/app.js';
 
@@ -28,6 +29,9 @@ const obterApp = async () => {
 const envProducao = () => process.env.NODE_ENV === 'production' || process.env.VERCEL === '1';
 
 export default async function handler(req, res) {
+  if (typeof req.url === 'string') {
+    req.url = reescreverUrlApiNativa(req.url);
+  }
   const instancia = await obterApp();
   instancia.server.emit('request', req, res);
 }

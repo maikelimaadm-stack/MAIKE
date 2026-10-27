@@ -5,790 +5,268 @@
   "framework": "vite",
   "rewrites": [
     {
-      "source": "/auth/:path*",
+      "source": "/api/native",
       "destination": "/api/fastify"
     },
     {
-      "source": "/health",
+      "source": "/api/native/:path*",
       "destination": "/api/fastify"
     },
     {
-      "source": "/arquivos/upload",
-      "destination": "/api/fastify"
+      "source": "/configuracoesgerais/",
+      "destination": "/index.html"
     },
     {
-      "source": "/referencias/sincronizar",
-      "destination": "/api/fastify"
+      "source": "/ConfiguracoesGerais/",
+      "destination": "/index.html"
     },
     {
-      "source": "/setores",
-      "destination": "/api/fastify",
-      "missing": [
-        {
-          "type": "header",
-          "key": "accept",
-          "value": "text/html"
-        }
-      ]
+      "source": "/configuracoesgerais",
+      "destination": "/index.html"
     },
     {
-      "source": "/setores/:path*",
-      "destination": "/api/fastify",
-      "missing": [
-        {
-          "type": "header",
-          "key": "accept",
-          "value": "text/html"
-        }
-      ]
+      "source": "/ConfiguracoesGerais",
+      "destination": "/index.html"
     },
     {
-      "source": "/areas-pastagem",
-      "destination": "/api/fastify",
-      "missing": [
-        {
-          "type": "header",
-          "key": "accept",
-          "value": "text/html"
-        }
-      ]
+      "source": "/categoriasmanejo/",
+      "destination": "/index.html"
     },
     {
-      "source": "/areas-pastagem/:path*",
-      "destination": "/api/fastify",
-      "missing": [
-        {
-          "type": "header",
-          "key": "accept",
-          "value": "text/html"
-        }
-      ]
+      "source": "/CategoriasManejo/",
+      "destination": "/index.html"
     },
     {
-      "source": "/configuracao-icones",
-      "destination": "/api/fastify",
-      "missing": [
-        {
-          "type": "header",
-          "key": "accept",
-          "value": "text/html"
-        }
-      ]
+      "source": "/gruposatividades/",
+      "destination": "/index.html"
     },
     {
-      "source": "/configuracao-icones/:path*",
-      "destination": "/api/fastify",
-      "missing": [
-        {
-          "type": "header",
-          "key": "accept",
-          "value": "text/html"
-        }
-      ]
+      "source": "/GruposAtividades/",
+      "destination": "/index.html"
     },
     {
-      "source": "/pontos-referencia",
-      "destination": "/api/fastify",
-      "missing": [
-        {
-          "type": "header",
-          "key": "accept",
-          "value": "text/html"
-        }
-      ]
+      "source": "/cadastrosetores/",
+      "destination": "/index.html"
     },
     {
-      "source": "/pontos-referencia/:path*",
-      "destination": "/api/fastify",
-      "missing": [
-        {
-          "type": "header",
-          "key": "accept",
-          "value": "text/html"
-        }
-      ]
+      "source": "/CadastroSetores/",
+      "destination": "/index.html"
     },
     {
-      "source": "/linhas-geograficas",
-      "destination": "/api/fastify",
-      "missing": [
-        {
-          "type": "header",
-          "key": "accept",
-          "value": "text/html"
-        }
-      ]
+      "source": "/categoriasmanejo",
+      "destination": "/index.html"
     },
     {
-      "source": "/linhas-geograficas/:path*",
-      "destination": "/api/fastify",
-      "missing": [
-        {
-          "type": "header",
-          "key": "accept",
-          "value": "text/html"
-        }
-      ]
+      "source": "/CategoriasManejo",
+      "destination": "/index.html"
     },
     {
-      "source": "/usuarios",
-      "destination": "/api/fastify",
-      "missing": [
-        {
-          "type": "header",
-          "key": "accept",
-          "value": "text/html"
-        }
-      ]
+      "source": "/gruposatividades",
+      "destination": "/index.html"
     },
     {
-      "source": "/usuarios/:path*",
-      "destination": "/api/fastify",
-      "missing": [
-        {
-          "type": "header",
-          "key": "accept",
-          "value": "text/html"
-        }
-      ]
+      "source": "/GruposAtividades",
+      "destination": "/index.html"
     },
     {
-      "source": "/marcas",
-      "destination": "/api/fastify",
-      "missing": [
-        {
-          "type": "header",
-          "key": "accept",
-          "value": "text/html"
-        }
-      ]
+      "source": "/cadastrosetores",
+      "destination": "/index.html"
     },
     {
-      "source": "/marcas/:path*",
-      "destination": "/api/fastify",
-      "missing": [
-        {
-          "type": "header",
-          "key": "accept",
-          "value": "text/html"
-        }
-      ]
+      "source": "/CadastroSetores",
+      "destination": "/index.html"
     },
     {
-      "source": "/unidades-medida",
-      "destination": "/api/fastify",
-      "missing": [
-        {
-          "type": "header",
-          "key": "accept",
-          "value": "text/html"
-        }
-      ]
+      "source": "/unidadesmedida/",
+      "destination": "/index.html"
     },
     {
-      "source": "/unidades-medida/:path*",
-      "destination": "/api/fastify",
-      "missing": [
-        {
-          "type": "header",
-          "key": "accept",
-          "value": "text/html"
-        }
-      ]
+      "source": "/UnidadesMedida/",
+      "destination": "/index.html"
     },
     {
-      "source": "/grupos-atividade",
-      "destination": "/api/fastify",
-      "missing": [
-        {
-          "type": "header",
-          "key": "accept",
-          "value": "text/html"
-        }
-      ]
+      "source": "/cadastrolotes/",
+      "destination": "/index.html"
     },
     {
-      "source": "/grupos-atividade/:path*",
-      "destination": "/api/fastify",
-      "missing": [
-        {
-          "type": "header",
-          "key": "accept",
-          "value": "text/html"
-        }
-      ]
+      "source": "/CadastroLotes/",
+      "destination": "/index.html"
     },
     {
-      "source": "/tipos-tarefa",
-      "destination": "/api/fastify",
-      "missing": [
-        {
-          "type": "header",
-          "key": "accept",
-          "value": "text/html"
-        }
-      ]
+      "source": "/locaisestoque/",
+      "destination": "/index.html"
     },
     {
-      "source": "/tipos-tarefa/:path*",
-      "destination": "/api/fastify",
-      "missing": [
-        {
-          "type": "header",
-          "key": "accept",
-          "value": "text/html"
-        }
-      ]
+      "source": "/LocaisEstoque/",
+      "destination": "/index.html"
     },
     {
-      "source": "/lotes",
-      "destination": "/api/fastify",
-      "missing": [
-        {
-          "type": "header",
-          "key": "accept",
-          "value": "text/html"
-        }
-      ]
+      "source": "/unidadesmedida",
+      "destination": "/index.html"
     },
     {
-      "source": "/lotes/:path*",
-      "destination": "/api/fastify",
-      "missing": [
-        {
-          "type": "header",
-          "key": "accept",
-          "value": "text/html"
-        }
-      ]
+      "source": "/UnidadesMedida",
+      "destination": "/index.html"
     },
     {
-      "source": "/categorias",
-      "destination": "/api/fastify",
-      "missing": [
-        {
-          "type": "header",
-          "key": "accept",
-          "value": "text/html"
-        }
-      ]
+      "source": "/cadastrolotes",
+      "destination": "/index.html"
     },
     {
-      "source": "/categorias/:path*",
-      "destination": "/api/fastify",
-      "missing": [
-        {
-          "type": "header",
-          "key": "accept",
-          "value": "text/html"
-        }
-      ]
+      "source": "/CadastroLotes",
+      "destination": "/index.html"
     },
     {
-      "source": "/locais-estoque",
-      "destination": "/api/fastify",
-      "missing": [
-        {
-          "type": "header",
-          "key": "accept",
-          "value": "text/html"
-        }
-      ]
+      "source": "/locaisestoque",
+      "destination": "/index.html"
     },
     {
-      "source": "/locais-estoque/:path*",
-      "destination": "/api/fastify",
-      "missing": [
-        {
-          "type": "header",
-          "key": "accept",
-          "value": "text/html"
-        }
-      ]
+      "source": "/LocaisEstoque",
+      "destination": "/index.html"
     },
     {
-      "source": "/produtos",
-      "destination": "/api/fastify",
-      "missing": [
-        {
-          "type": "header",
-          "key": "accept",
-          "value": "text/html"
-        }
-      ]
+      "source": "/mapacadastro/",
+      "destination": "/index.html"
     },
     {
-      "source": "/produtos/:path*",
-      "destination": "/api/fastify",
-      "missing": [
-        {
-          "type": "header",
-          "key": "accept",
-          "value": "text/html"
-        }
-      ]
+      "source": "/MapaCadastro/",
+      "destination": "/index.html"
     },
     {
-      "source": "/lancamentos-tarefa",
-      "destination": "/api/fastify",
-      "missing": [
-        {
-          "type": "header",
-          "key": "accept",
-          "value": "text/html"
-        }
-      ]
+      "source": "/mapacadastro",
+      "destination": "/index.html"
     },
     {
-      "source": "/lancamentos-tarefa/:path*",
-      "destination": "/api/fastify",
-      "missing": [
-        {
-          "type": "header",
-          "key": "accept",
-          "value": "text/html"
-        }
-      ]
+      "source": "/MapaCadastro",
+      "destination": "/index.html"
     },
     {
-      "source": "/historicos-lancamento-tarefa",
-      "destination": "/api/fastify",
-      "missing": [
-        {
-          "type": "header",
-          "key": "accept",
-          "value": "text/html"
-        }
-      ]
+      "source": "/tipostarefa/",
+      "destination": "/index.html"
     },
     {
-      "source": "/historicos-lancamento-tarefa/:path*",
-      "destination": "/api/fastify",
-      "missing": [
-        {
-          "type": "header",
-          "key": "accept",
-          "value": "text/html"
-        }
-      ]
+      "source": "/TiposTarefa/",
+      "destination": "/index.html"
     },
     {
-      "source": "/empresas",
-      "destination": "/api/fastify",
-      "missing": [
-        {
-          "type": "header",
-          "key": "accept",
-          "value": "text/html"
-        }
-      ]
+      "source": "/bebedouros/",
+      "destination": "/index.html"
     },
     {
-      "source": "/empresas/:path*",
-      "destination": "/api/fastify",
-      "missing": [
-        {
-          "type": "header",
-          "key": "accept",
-          "value": "text/html"
-        }
-      ]
+      "source": "/Bebedouros/",
+      "destination": "/index.html"
     },
     {
-      "source": "/permissoes",
-      "destination": "/api/fastify",
-      "missing": [
-        {
-          "type": "header",
-          "key": "accept",
-          "value": "text/html"
-        }
-      ]
+      "source": "/categorias/",
+      "destination": "/index.html"
     },
     {
-      "source": "/permissoes/:path*",
-      "destination": "/api/fastify",
-      "missing": [
-        {
-          "type": "header",
-          "key": "accept",
-          "value": "text/html"
-        }
-      ]
+      "source": "/Categorias/",
+      "destination": "/index.html"
     },
     {
-      "source": "/fornecedores",
-      "destination": "/api/fastify",
-      "missing": [
-        {
-          "type": "header",
-          "key": "accept",
-          "value": "text/html"
-        }
-      ]
+      "source": "/tipostarefa",
+      "destination": "/index.html"
     },
     {
-      "source": "/fornecedores/:path*",
-      "destination": "/api/fastify",
-      "missing": [
-        {
-          "type": "header",
-          "key": "accept",
-          "value": "text/html"
-        }
-      ]
-    },
-    {
-      "source": "/categorias-manejo",
-      "destination": "/api/fastify",
-      "missing": [
-        {
-          "type": "header",
-          "key": "accept",
-          "value": "text/html"
-        }
-      ]
-    },
-    {
-      "source": "/categorias-manejo/:path*",
-      "destination": "/api/fastify",
-      "missing": [
-        {
-          "type": "header",
-          "key": "accept",
-          "value": "text/html"
-        }
-      ]
+      "source": "/TiposTarefa",
+      "destination": "/index.html"
     },
     {
       "source": "/bebedouros",
-      "destination": "/api/fastify",
-      "missing": [
-        {
-          "type": "header",
-          "key": "accept",
-          "value": "text/html"
-        }
-      ]
+      "destination": "/index.html"
     },
     {
-      "source": "/bebedouros/:path*",
-      "destination": "/api/fastify",
-      "missing": [
-        {
-          "type": "header",
-          "key": "accept",
-          "value": "text/html"
-        }
-      ]
+      "source": "/Bebedouros",
+      "destination": "/index.html"
     },
     {
-      "source": "/pontos-suplementacao",
-      "destination": "/api/fastify",
-      "missing": [
-        {
-          "type": "header",
-          "key": "accept",
-          "value": "text/html"
-        }
-      ]
+      "source": "/categorias",
+      "destination": "/index.html"
     },
     {
-      "source": "/pontos-suplementacao/:path*",
-      "destination": "/api/fastify",
-      "missing": [
-        {
-          "type": "header",
-          "key": "accept",
-          "value": "text/html"
-        }
-      ]
+      "source": "/Categorias",
+      "destination": "/index.html"
     },
     {
-      "source": "/estoque-lotes-nota",
-      "destination": "/api/fastify",
-      "missing": [
-        {
-          "type": "header",
-          "key": "accept",
-          "value": "text/html"
-        }
-      ]
+      "source": "/mapageral/",
+      "destination": "/index.html"
     },
     {
-      "source": "/estoque-lotes-nota/:path*",
-      "destination": "/api/fastify",
-      "missing": [
-        {
-          "type": "header",
-          "key": "accept",
-          "value": "text/html"
-        }
-      ]
+      "source": "/MapaGeral/",
+      "destination": "/index.html"
     },
     {
-      "source": "/movimentacoes-estoque",
-      "destination": "/api/fastify",
-      "missing": [
-        {
-          "type": "header",
-          "key": "accept",
-          "value": "text/html"
-        }
-      ]
+      "source": "/mapageral",
+      "destination": "/index.html"
     },
     {
-      "source": "/movimentacoes-estoque/:path*",
-      "destination": "/api/fastify",
-      "missing": [
-        {
-          "type": "header",
-          "key": "accept",
-          "value": "text/html"
-        }
-      ]
+      "source": "/MapaGeral",
+      "destination": "/index.html"
     },
     {
-      "source": "/movimentacoes-mapa",
-      "destination": "/api/fastify",
-      "missing": [
-        {
-          "type": "header",
-          "key": "accept",
-          "value": "text/html"
-        }
-      ]
+      "source": "/produtos/",
+      "destination": "/index.html"
     },
     {
-      "source": "/movimentacoes-mapa/:path*",
-      "destination": "/api/fastify",
-      "missing": [
-        {
-          "type": "header",
-          "key": "accept",
-          "value": "text/html"
-        }
-      ]
+      "source": "/Produtos/",
+      "destination": "/index.html"
     },
     {
-      "source": "/movimentacoes-pecuaria",
-      "destination": "/api/fastify",
-      "missing": [
-        {
-          "type": "header",
-          "key": "accept",
-          "value": "text/html"
-        }
-      ]
+      "source": "/usuarios/",
+      "destination": "/index.html"
     },
     {
-      "source": "/movimentacoes-pecuaria/:path*",
-      "destination": "/api/fastify",
-      "missing": [
-        {
-          "type": "header",
-          "key": "accept",
-          "value": "text/html"
-        }
-      ]
+      "source": "/Usuarios/",
+      "destination": "/index.html"
     },
     {
-      "source": "/suplementacao-eventos",
-      "destination": "/api/fastify",
-      "missing": [
-        {
-          "type": "header",
-          "key": "accept",
-          "value": "text/html"
-        }
-      ]
+      "source": "/empresa/",
+      "destination": "/index.html"
     },
     {
-      "source": "/suplementacao-eventos/:path*",
-      "destination": "/api/fastify",
-      "missing": [
-        {
-          "type": "header",
-          "key": "accept",
-          "value": "text/html"
-        }
-      ]
+      "source": "/Empresa/",
+      "destination": "/index.html"
     },
     {
-      "source": "/suplementacao-lotes",
-      "destination": "/api/fastify",
-      "missing": [
-        {
-          "type": "header",
-          "key": "accept",
-          "value": "text/html"
-        }
-      ]
+      "source": "/produtos",
+      "destination": "/index.html"
     },
     {
-      "source": "/suplementacao-lotes/:path*",
-      "destination": "/api/fastify",
-      "missing": [
-        {
-          "type": "header",
-          "key": "accept",
-          "value": "text/html"
-        }
-      ]
+      "source": "/Produtos",
+      "destination": "/index.html"
     },
     {
-      "source": "/aplicacoes-medicamento",
-      "destination": "/api/fastify",
-      "missing": [
-        {
-          "type": "header",
-          "key": "accept",
-          "value": "text/html"
-        }
-      ]
+      "source": "/usuarios",
+      "destination": "/index.html"
     },
     {
-      "source": "/aplicacoes-medicamento/:path*",
-      "destination": "/api/fastify",
-      "missing": [
-        {
-          "type": "header",
-          "key": "accept",
-          "value": "text/html"
-        }
-      ]
+      "source": "/Usuarios",
+      "destination": "/index.html"
     },
     {
-      "source": "/eventos-sanitarios",
-      "destination": "/api/fastify",
-      "missing": [
-        {
-          "type": "header",
-          "key": "accept",
-          "value": "text/html"
-        }
-      ]
+      "source": "/empresa",
+      "destination": "/index.html"
     },
     {
-      "source": "/eventos-sanitarios/:path*",
-      "destination": "/api/fastify",
-      "missing": [
-        {
-          "type": "header",
-          "key": "accept",
-          "value": "text/html"
-        }
-      ]
+      "source": "/Empresa",
+      "destination": "/index.html"
     },
     {
-      "source": "/manejos-tecnico-rebanho",
-      "destination": "/api/fastify",
-      "missing": [
-        {
-          "type": "header",
-          "key": "accept",
-          "value": "text/html"
-        }
-      ]
+      "source": "/marcas/",
+      "destination": "/index.html"
     },
     {
-      "source": "/manejos-tecnico-rebanho/:path*",
-      "destination": "/api/fastify",
-      "missing": [
-        {
-          "type": "header",
-          "key": "accept",
-          "value": "text/html"
-        }
-      ]
+      "source": "/Marcas/",
+      "destination": "/index.html"
     },
     {
-      "source": "/bebedouros-historico",
-      "destination": "/api/fastify",
-      "missing": [
-        {
-          "type": "header",
-          "key": "accept",
-          "value": "text/html"
-        }
-      ]
+      "source": "/marcas",
+      "destination": "/index.html"
     },
     {
-      "source": "/bebedouros-historico/:path*",
-      "destination": "/api/fastify",
-      "missing": [
-        {
-          "type": "header",
-          "key": "accept",
-          "value": "text/html"
-        }
-      ]
-    },
-    {
-      "source": "/bebedouros-sanidade",
-      "destination": "/api/fastify",
-      "missing": [
-        {
-          "type": "header",
-          "key": "accept",
-          "value": "text/html"
-        }
-      ]
-    },
-    {
-      "source": "/bebedouros-sanidade/:path*",
-      "destination": "/api/fastify",
-      "missing": [
-        {
-          "type": "header",
-          "key": "accept",
-          "value": "text/html"
-        }
-      ]
-    },
-    {
-      "source": "/bebedouros-alertas",
-      "destination": "/api/fastify",
-      "missing": [
-        {
-          "type": "header",
-          "key": "accept",
-          "value": "text/html"
-        }
-      ]
-    },
-    {
-      "source": "/bebedouros-alertas/:path*",
-      "destination": "/api/fastify",
-      "missing": [
-        {
-          "type": "header",
-          "key": "accept",
-          "value": "text/html"
-        }
-      ]
-    },
-    {
-      "source": "/registros-anexo",
-      "destination": "/api/fastify",
-      "missing": [
-        {
-          "type": "header",
-          "key": "accept",
-          "value": "text/html"
-        }
-      ]
-    },
-    {
-      "source": "/registros-anexo/:path*",
-      "destination": "/api/fastify",
-      "missing": [
-        {
-          "type": "header",
-          "key": "accept",
-          "value": "text/html"
-        }
-      ]
+      "source": "/Marcas",
+      "destination": "/index.html"
     }
   ]
 }

@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { projetarPayloadEmpresa } from "@/services/empresaWritePayload";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -54,6 +55,28 @@ export default function FormularioEmpresa({
 
   const [uploadingLogo, setUploadingLogo] = useState(false);
 
+  useEffect(() => {
+    if (!initialData) return;
+    setFormData((prev) => ({
+      ...prev,
+      apelido: initialData.apelido ?? "",
+      nome: initialData.nome ?? "",
+      tipo_pessoa: initialData.tipo_pessoa ?? "Jurídica",
+      cpf: initialData.cpf ?? "",
+      rg: initialData.rg ?? "",
+      cnpj: initialData.cnpj ?? "",
+      inscricao_estadual: initialData.inscricao_estadual ?? "",
+      telefone: initialData.telefone ?? "",
+      email: initialData.email ?? "",
+      endereco: initialData.endereco ?? "",
+      cidade: initialData.cidade ?? "",
+      estado: initialData.estado ?? "MT",
+      cep: initialData.cep ?? "",
+      observacoes: initialData.observacoes ?? "",
+      logotipo_url: initialData.logotipo_url ?? "",
+    }));
+  }, [initialData?.id]);
+
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
@@ -82,17 +105,7 @@ export default function FormularioEmpresa({
       return;
     }
 
-    if (formData.tipo_pessoa === 'Jurídica' && !formData.cnpj) {
-      toast.error('CNPJ é obrigatório para pessoa jurídica!');
-      return;
-    }
-
-    if (formData.tipo_pessoa === 'Física' && !formData.cpf) {
-      toast.error('CPF é obrigatório para pessoa física!');
-      return;
-    }
-
-    const dataToSubmit = {
+    const dataToSubmit = projetarPayloadEmpresa({
       ...formData,
       apelido: formData.apelido.toUpperCase(),
       nome: formData.nome.toUpperCase(),
@@ -107,7 +120,7 @@ export default function FormularioEmpresa({
       estado: formData.estado?.toUpperCase(),
       cep: formData.cep?.toUpperCase(),
       observacoes: formData.observacoes?.toUpperCase(),
-    };
+    });
 
     onSubmit(dataToSubmit);
   };
@@ -135,7 +148,7 @@ export default function FormularioEmpresa({
             scrollbarColor: "#cbd5e1 transparent",
           }}
         >
-          <form onSubmit={handleSubmit} className="space-y-2">
+          <form onSubmit={handleSubmit} className="space-y-2" noValidate>
             <div className="space-y-1 pl-1">
               <span className="text-[12px] text-slate-500">Logotipo</span>
               <div className="flex items-center gap-4">
@@ -205,7 +218,7 @@ export default function FormularioEmpresa({
 
             {formData.tipo_pessoa === 'Física' && (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
-                <FL label="CPF" required>
+                <FL label="CPF">
                   <Input
                     value={formData.cpf}
                     onChange={(e) => handleChange('cpf', e.target.value)}
@@ -227,7 +240,7 @@ export default function FormularioEmpresa({
 
             {formData.tipo_pessoa === 'Jurídica' && (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
-                <FL label="CNPJ" required>
+                <FL label="CNPJ">
                   <Input
                     value={formData.cnpj}
                     onChange={(e) => handleChange('cnpj', e.target.value)}

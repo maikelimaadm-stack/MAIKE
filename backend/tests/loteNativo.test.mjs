@@ -70,6 +70,26 @@ describe('P5.1 — Lote', () => {
     assert.equal(listar.json().length, 1);
   });
 
+  test('criar lote Inventário com campos mínimos (150 cabeças)', async () => {
+    const { token } = await tenantAutenticado();
+    const criar = await app.inject({
+      method: 'POST',
+      url: '/lotes',
+      headers: auth(token),
+      payload: {
+        empresa_id: 'emp-1',
+        nome: 'LOTE INVENTARIO',
+        quantidade_cabecas: 150,
+        motivo_entrada: 'Inventário',
+      },
+    });
+    assert.equal(criar.statusCode, 201);
+    const corpo = criar.json();
+    assert.equal(corpo.quantidade_cabecas, 150);
+    assert.equal(corpo.quantidade_entrada, 150);
+    assert.equal(corpo.motivo_entrada, 'Inventário');
+  });
+
   test('corpo com setor_nome enviado reprova', async () => {
     const { token } = await tenantAutenticado();
     const r = await app.inject({

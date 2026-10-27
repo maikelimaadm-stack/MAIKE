@@ -14,9 +14,10 @@ import { formatKg } from "../suplementacao/formatters";
 import { kgParaSacos } from "../suplementacao/unidadeConversaoUtils";
 import { getDepositoIndicator } from "./pontoStatusUtils";
 import { normalizeText } from "../suplementacao/estoqueSuplementacaoUtils";
+import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 
 export default function DetalhesDepositoSuplementacao({ deposito, onClose, permissions = {} }) {
-  const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
+  const empresaSelecionadaId = useEmpresaSelecionadaId();
   const queryClient = useQueryClient();
   const [showTransferencia, setShowTransferencia] = useState(false);
   const [showHistorico, setShowHistorico] = useState(false);

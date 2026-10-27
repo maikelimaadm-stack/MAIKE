@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -52,7 +53,21 @@ export default function MapaCadastro() {
   const [showCadastroLotePontos, setShowCadastroLotePontos] = useState(false);
 
   const queryClient = useQueryClient();
-  const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
+  const empresaSelecionadaId = useEmpresaSelecionadaId();
+  const empresaAnteriorRef = useRef(empresaSelecionadaId);
+
+  useEffect(() => {
+    const anterior = empresaAnteriorRef.current;
+    empresaAnteriorRef.current = empresaSelecionadaId;
+    if (!anterior || !empresaSelecionadaId || anterior === empresaSelecionadaId) return;
+    setModo("listagem");
+    setItemEditando(null);
+    setItemDetalhes(null);
+    setItemExcluir(null);
+    setShowEditarDetalhesArea(false);
+    setShowEditarDetalhesPonto(false);
+    setShowEditarDetalhesLinha(false);
+  }, [empresaSelecionadaId]);
 
   const { data: areas = [], refetch: refetchAreas } = useQuery({
     queryKey: ["areas", empresaSelecionadaId],

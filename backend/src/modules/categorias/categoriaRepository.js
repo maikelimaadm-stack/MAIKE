@@ -39,6 +39,13 @@ export const contarFilhas = async (tx, clienteId, paiId) =>
     where: { cliente_id: clienteId, categoria_pai_id: paiId },
   });
 
+/** Atualiza o cache `categoria_pai_nome` das filhas diretas após rename do pai. */
+export const propagarNomePaiParaFilhas = async (tx, clienteId, paiId, novoNome) =>
+  tx.categoria.updateMany({
+    where: { cliente_id: clienteId, categoria_pai_id: paiId },
+    data: { categoria_pai_nome: novoNome },
+  });
+
 export const inserirCategoria = async (tx, dados) =>
   tx.categoria.create({ data: dados, select: SELECAO });
 

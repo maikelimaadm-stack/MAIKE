@@ -24,9 +24,18 @@ import { exportCadastroCsv } from "@/components/cadastro/base1/cadastroExportCsv
 
 const EMPTY_CATEGORIAS = [];
 
+const toastPersistencia = (registro, mensagemOk) => {
+  if (registro?._isOffline || String(registro?.id || "").startsWith("offline_")) {
+    toast.message("Pendente de sincronização — será enviado quando a conexão voltar.");
+    return;
+  }
+  toast.success(mensagemOk);
+};
+
 export default function Categorias() {
   const [showForm, setShowForm] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
+  const [revealCategoriaId, setRevealCategoriaId] = useState(null);
   const [showConfigColunas, setShowConfigColunas] = useState(false);
   const [deleteState, setDeleteState] = useState({ open: false, ids: [] });
   const chrome = useCadastroListaChromeState();
@@ -47,30 +56,45 @@ export default function Categorias() {
   });
   const queryClient = useQueryClient();
 
-  const { data: categoriasData } = useQuery({
+  const {
+    data: categoriasData,
+    isLoading,
+    isError: listaErro,
+    error: listaQueryError,
+    refetch: recarregarLista,
+    isFetching: listaFetching,
+  } = useQuery({
     queryKey: ["categorias_produto"],
     queryFn: () => listarTodasCategorias(),
   });
-  const categorias = categoriasData ?? EMPTY_CATEGORIAS;
+  const categorias = listaErro ? EMPTY_CATEGORIAS : (categoriasData ?? EMPTY_CATEGORIAS);
 
   const createMutation = useMutation({
     mutationFn: (data) => criarCategoria(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["categorias_produto"] });
+    onSuccess: async (criada) => {
+      await queryClient.refetchQueries({ queryKey: ["categorias_produto"] });
+      if (criada?.id) {
+        setRevealCategoriaId(criada.id);
+        chrome.onSelectionChange([criada.id]);
+      }
       setShowForm(false);
       setEditingItem(null);
-      toast.success("Categoria criada!");
+      toastPersistencia(criada, "Categoria criada!");
     },
     onError: (err) => toast.error(getApiErrorMessage(err, "Não foi possível concluir a operação.")),
   });
 
   const updateMutation = useMutation({
     mutationFn: ({ id, data }) => atualizarCategoria(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["categorias_produto"] });
+    onSuccess: async (atualizada) => {
+      await queryClient.refetchQueries({ queryKey: ["categorias_produto"] });
+      if (atualizada?.id) {
+        setRevealCategoriaId(atualizada.id);
+        chrome.onSelectionChange([atualizada.id]);
+      }
       setShowForm(false);
       setEditingItem(null);
-      toast.success("Categoria atualizada!");
+      toastPersistencia(atualizada, "Categoria atualizada!");
     },
     onError: (err) => toast.error(getApiErrorMessage(err, "Não foi possível concluir a operação.")),
   });
@@ -176,6 +200,19 @@ export default function Categorias() {
         subtitle="Cadastro global de categorias usadas em produtos."
         toolbar={null}
       >
+        {listaErro && !listaFetching ? (
+          <div className="cadastro-b1 mg-card p-3 text-xs text-amber-800 bg-amber-50 border border-amber-200 mb-2 flex flex-wrap items-center gap-2">
+            <span>
+              {getApiErrorMessage(
+                listaQueryError,
+                "Não foi possível carregar as categorias. Verifique sua conexão e tente novamente.",
+              )}
+            </span>
+            <button type="button" className="tb-btn tb-btn-gray" onClick={() => recarregarLista()}>
+              Tentar novamente
+            </button>
+          </div>
+        ) : null}
         <CadastroListaChrome
           recordMode={showForm}
           secondaryToolsLocked={showForm}
@@ -232,6 +269,7 @@ export default function Categorias() {
           {!showForm ? (
             <TabelaCategoriasProduto
               categorias={categorias}
+              revealCategoriaId={revealCategoriaId}
               onEdit={handleEdit}
               onDelete={handleRequestDelete}
               showConfigColunas={showConfigColunas}

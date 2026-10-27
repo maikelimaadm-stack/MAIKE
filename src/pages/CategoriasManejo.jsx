@@ -1,4 +1,5 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 import {
   listarCategoriasManejoDaEmpresa,
   listarIconesDeLoteDaEmpresa,
@@ -51,8 +52,18 @@ const getInitialFormData = () => ({
 });
 
 export default function CategoriasManejo() {
-  const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
+  const empresaSelecionadaId = useEmpresaSelecionadaId();
+  const empresaAnteriorRef = useRef(empresaSelecionadaId);
   const queryClient = useQueryClient();
+
+  useEffect(() => {
+    const anterior = empresaAnteriorRef.current;
+    empresaAnteriorRef.current = empresaSelecionadaId;
+    if (!anterior || !empresaSelecionadaId || anterior === empresaSelecionadaId) return;
+    setShowForm(false);
+    setEditando(null);
+    setDeleteState({ open: false, ids: [] });
+  }, [empresaSelecionadaId]);
   const [showForm, setShowForm] = useState(false);
   const [showConfigColunas, setShowConfigColunas] = useState(false);
   const [editando, setEditando] = useState(null);
@@ -92,6 +103,9 @@ export default function CategoriasManejo() {
       setEditando(null);
       toast.success("Categoria cadastrada!");
     },
+    onError: (error) => {
+      toast.error(getApiErrorMessage(error, "Não foi possível cadastrar a categoria."));
+    },
   });
 
   const updateMutation = useMutation(
@@ -107,6 +121,9 @@ export default function CategoriasManejo() {
         setShowForm(false);
         setEditando(null);
         toast.success("Categoria atualizada!");
+      },
+      onError: (error) => {
+        toast.error(getApiErrorMessage(error, "Não foi possível atualizar a categoria."));
       },
     })
   );

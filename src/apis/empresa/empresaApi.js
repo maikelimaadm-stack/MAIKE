@@ -14,6 +14,7 @@
 
 import { runProviderCall, assertArgument } from '../_core/normalizeApiError.js';
 import { empresaPort } from './empresaNativePort.js';
+import { projetarPayloadEmpresa } from '@/services/empresaWritePayload.js';
 
 const RESOURCE = 'Empresa';
 
@@ -48,7 +49,7 @@ export const listEmpresas = async (opcoes = {}) => {
 export const createEmpresa = async (dados) => {
   const contexto = { operation: 'create', resource: RESOURCE };
   assertArgument(isPlainObject(dados), 'dados', contexto);
-  return runProviderCall(() => empresaPort.create(dados), contexto);
+  return runProviderCall(() => empresaPort.create(projetarPayloadEmpresa(dados)), contexto);
 };
 
 /**
@@ -61,7 +62,10 @@ export const updateEmpresa = async (id, dados) => {
   const contexto = { operation: 'update', resource: RESOURCE };
   assertArgument(isNonEmptyString(id), 'id', contexto);
   assertArgument(isPlainObject(dados), 'dados', contexto);
-  return runProviderCall(() => empresaPort.update(id, dados), { ...contexto, details: { id } });
+  return runProviderCall(() => empresaPort.update(id, projetarPayloadEmpresa(dados)), {
+    ...contexto,
+    details: { id },
+  });
 };
 
 /**

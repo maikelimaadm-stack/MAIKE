@@ -89,6 +89,10 @@ export default function Marcas() {
     return lista.items.filter((m) => String(m.id) === String(searchPickId));
   }, [lista.items, searchPickId]);
   const isLoading = lista.isLoading;
+  const listaErro = lista.isError;
+  const listaQueryError = lista.error;
+  const recarregarLista = lista.refetch;
+  const listaFetching = lista.isFetching;
 
   const createMutation = useMutation({
     mutationFn: (data) => criarMarca({ dados: data, empresaId, marcasDaEmpresa: lista.items }),
@@ -416,6 +420,19 @@ export default function Marcas() {
   return (
     <>
       <CadastroWorkspace mode="list" title="Marcas" pageLayout="base1-list">
+        {listaErro && !listaFetching ? (
+          <div className="cadastro-b1 mg-card p-3 text-xs text-amber-800 bg-amber-50 border border-amber-200 mb-2 flex flex-wrap items-center gap-2">
+            <span>
+              {getApiErrorMessage(
+                listaQueryError,
+                "Não foi possível carregar as marcas. Verifique sua conexão e tente novamente.",
+              )}
+            </span>
+            <button type="button" className="tb-btn tb-btn-gray" onClick={() => recarregarLista()}>
+              Tentar novamente
+            </button>
+          </div>
+        ) : null}
         <CadastroListaChrome
           showFilterRail={false}
           joinTableToolbar

@@ -11,16 +11,59 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/AuthContext';
 
 const chave = 'empresa_selecionada_id';
+const chaveTenant = 'empresa_selecionada_cliente_id';
 /** Disparado pelo Layout quando `empresa_selecionada_id` muda (mesma aba). */
 export const EVENTO_EMPRESA_SELECIONADA = 'maike:empresa-selecionada';
 
-const lerArmazenamento = () => {
+/**
+ * @param {string|null|undefined} clienteIdAtual
+ * @returns {string|null}
+ */
+/** Leitura tenant-aware (exportada para Layout e helpers síncronos). */
+export const lerEmpresaSelecionadaIdArmazenada = (clienteIdAtual) => {
   if (typeof window === 'undefined') return null;
   try {
-    return window.localStorage.getItem(chave);
+    const id = window.localStorage.getItem(chave);
+    if (!id) return null;
+    const tenantSalvo = window.localStorage.getItem(chaveTenant);
+    if (tenantSalvo && clienteIdAtual && tenantSalvo !== clienteIdAtual) {
+      return null;
+    }
+    return id;
   } catch {
     return null;
   }
+};
+
+/** Remove seleção de empresa ao encerrar sessão (evita vazamento entre logins). */
+export const limparEmpresaSelecionadaSessao = () => {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.removeItem(chave);
+    window.localStorage.removeItem(chaveTenant);
+  } catch {
+    // ignore
+  }
+  window.dispatchEvent(new Event(EVENTO_EMPRESA_SELECIONADA));
+};
+
+/**
+ * @param {string} empresaId
+ * @param {string|null|undefined} clienteId
+ */
+export const persistirEmpresaSelecionada = (empresaId, clienteId) => {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(chave, empresaId);
+    if (clienteId) {
+      window.localStorage.setItem(chaveTenant, clienteId);
+    } else {
+      window.localStorage.removeItem(chaveTenant);
+    }
+  } catch {
+    // ignore
+  }
+  window.dispatchEvent(new Event(EVENTO_EMPRESA_SELECIONADA));
 };
 
 /**
@@ -28,17 +71,21 @@ const lerArmazenamento = () => {
  */
 export const useEmpresaSelecionadaId = () => {
   const { clienteId } = useAuth();
-  const [armazenado, setArmazenado] = useState(lerArmazenamento);
+  const [armazenado, setArmazenado] = useState(() => lerEmpresaSelecionadaIdArmazenada(clienteId));
 
   useEffect(() => {
-    const sync = () => setArmazenado(lerArmazenamento());
+    setArmazenado(lerEmpresaSelecionadaIdArmazenada(clienteId));
+  }, [clienteId]);
+
+  useEffect(() => {
+    const sync = () => setArmazenado(lerEmpresaSelecionadaIdArmazenada(clienteId));
     window.addEventListener('storage', sync);
     window.addEventListener(EVENTO_EMPRESA_SELECIONADA, sync);
     return () => {
       window.removeEventListener('storage', sync);
       window.removeEventListener(EVENTO_EMPRESA_SELECIONADA, sync);
     };
-  }, []);
+  }, [clienteId]);
 
   return armazenado || clienteId || null;
 };

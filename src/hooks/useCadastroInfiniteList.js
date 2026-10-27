@@ -67,6 +67,8 @@ export function useCadastroInfiniteList({
     limit,
     isLoading: query.isLoading,
     isFetching: query.isFetching,
+    isError: query.isError,
+    error: query.error,
     isFetchingNextPage: query.isFetchingNextPage,
     hasMore,
     serverHasMore,

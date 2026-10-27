@@ -31,6 +31,8 @@ import {
   RAZOES_DE_SESSAO_DO_PRODUTO,
 } from '@/services/sessionService';
 import { clearNativeToken } from '@/lib/auth/nativeTokenStorage';
+import { resetAppQueryCache } from '@/lib/query-client';
+import { limparEmpresaSelecionadaSessao } from '@/hooks/useEmpresaSelecionadaId';
 
 /**
  * Estados possíveis da sessão nativa (P4.0-R1).
@@ -184,6 +186,8 @@ export const AuthProvider = ({ children }) => {
    * Útil quando a API voltou ou quando o usuário prefere entrar de novo.
    */
   const encerrarValidacaoEIrParaLogin = useCallback(() => {
+    resetAppQueryCache();
+    limparEmpresaSelecionadaSessao();
     clearNativeToken();
     setUser(null);
     setClienteId(null);
@@ -211,6 +215,7 @@ export const AuthProvider = ({ children }) => {
       ...sessao.usuario,
       email: login || sessao.usuario?.email,
     });
+    resetAppQueryCache();
     setClienteId(sessao.clienteId);
     setSessionState(ESTADOS_DE_SESSAO.AUTENTICADA);
     setSessionValidationError(null);
@@ -227,6 +232,8 @@ export const AuthProvider = ({ children }) => {
    */
   const logout = useCallback(() => {
     sairDaSessaoNativa();
+    resetAppQueryCache();
+    limparEmpresaSelecionadaSessao();
     setUser(null);
     setClienteId(null);
     setSessionValidationError(null);

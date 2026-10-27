@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import CapturaGPSPoligono from "./CapturaGPSPoligono";
+import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 
 const FL = ({ label, required, error, children }) => (
   <div>
@@ -25,7 +26,7 @@ const TIPOS_LINHA = ["Estrada", "Cerca", "Cerca Elétrica", "Rio", "Córrego", "
 const CORES_DISPONIVEIS = ["#f59e0b", "#ef4444", "#10b981", "#3b82f6", "#8b5cf6", "#ec4899", "#06b6d4", "#84cc16", "#f97316", "#6366f1"];
 
 export default function FormularioLinha({ coordenadas, onSave, onCancel, usarGPS = false, item = null }) {
-  const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
+  const empresaSelecionadaId = useEmpresaSelecionadaId();
   const [mostrarCapturaGPS, setMostrarCapturaGPS] = useState(usarGPS);
   const [coordenadasGPS, setCoordenadasGPS] = useState(coordenadas);
   const [invalidFields, setInvalidFields] = useState([]);

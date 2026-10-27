@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import FormularioTarefaMapa, { normalizeTaskPriority } from "./FormularioTarefaMapa";
 import TabelaLancamentosTarefas from "@/components/tarefas/TabelaLancamentosTarefas";
 import { saveTarefaOffline, saveTarefaImageOffline } from "@/components/offline/IndexedDBManager";
+import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 
 export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, pontoSuplId, onClose, initialCoordinates, openCreateOnMount = false, initialDraft = null, onRequestSelectLocation }) {
   const [showForm, setShowForm] = useState(false);
@@ -15,7 +16,7 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
   const [showConfigColunas, setShowConfigColunas] = useState(false);
 
   const queryClient = useQueryClient();
-  const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
+  const empresaSelecionadaId = useEmpresaSelecionadaId();
 
   const { data: tarefas = [], isLoading: loadingTarefas } = useQuery({
     queryKey: ['tarefas-mapa', empresaSelecionadaId, areaId, loteId, pontoSuplId],

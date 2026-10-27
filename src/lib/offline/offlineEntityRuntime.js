@@ -47,6 +47,16 @@ const getEmpresaId = () => {
   }
 };
 
+/**
+ * Catálogo do tenant (Empresa, Categoria de produto, etc.) não depende da
+ * empresa selecionada no menu — usar sempre a chave global evita listas
+ * divergentes ao trocar de fazenda.
+ */
+const empresaIdParaEntidade = (tenantCatalog, dados) => {
+  if (tenantCatalog) return GLOBAL_EMPRESA_KEY;
+  return dados?.empresa_id || getEmpresaId();
+};
+
 const chaveEmpresa = (empresaId) => empresaId || GLOBAL_EMPRESA_KEY;
 
 /**
@@ -308,6 +318,9 @@ const enfileirar = async (storage, payload) => {
  *        ainda vive na Base44 deixa isto falso: lá o replay usa a credencial da
  *        Base44, que não é tenant do MAIKE, e carimbar um tenant que não governa
  *        nada só inventaria dono.
+ * @param {boolean} [p.tenantCatalog] catálogo global do tenant (não filtrado pela
+ *        empresa selecionada): cache e fila usam `__GLOBAL__` em vez do id da
+ *        fazenda ativa.
  * @param {OfflineEntityStorage} [p.storage]
  * @returns {object} objeto com as mesmas chaves de `operations`
  */
@@ -316,6 +329,7 @@ export const createOfflineEntityAdapter = ({
   operations,
   enabled = true,
   tenantScoped = false,
+  tenantCatalog = false,
   storage,
 }) => {
   if (typeof entityName !== "string" || !entityName) {
@@ -327,13 +341,19 @@ export const createOfflineEntityAdapter = ({
   if (!enabled) return operations;
 
   const porta = storage || criarArmazenamentoIndexedDB();
-  CATALOGO.set(entityName, { operations, storage: porta, tenantScoped: Boolean(tenantScoped) });
+  const catalogoTenant = Boolean(tenantCatalog);
+  CATALOGO.set(entityName, {
+    operations,
+    storage: porta,
+    tenantScoped: Boolean(tenantScoped),
+    tenantCatalog: catalogoTenant,
+  });
 
   const adapter = { ...operations };
 
   if (typeof operations.list === "function") {
     adapter.list = async (order, limit) => {
-      const empresaId = getEmpresaId();
+      const empresaId = empresaIdParaEntidade(catalogoTenant);
       const tenantId = tenantDe(tenantScoped);
       if (!estaOnline()) return listarLocal(porta, entityName, { order, limit, empresaId, tenantId });
 
@@ -345,7 +365,7 @@ export const createOfflineEntityAdapter = ({
 
   if (typeof operations.filter === "function") {
     adapter.filter = async (filters = {}, order, limit) => {
-      const empresaId = getEmpresaId();
+      const empresaId = empresaIdParaEntidade(catalogoTenant);
       const tenantId = tenantDe(tenantScoped);
       if (estaOnline() && typeof operations.list === "function") {
         const resultado = await operations.list(order);
@@ -357,7 +377,7 @@ export const createOfflineEntityAdapter = ({
 
   if (typeof operations.create === "function") {
     adapter.create = async (dados) => {
-      const empresaId = dados?.empresa_id || getEmpresaId();
+      const empresaId = empresaIdParaEntidade(catalogoTenant, dados);
       const tenantId = tenantDe(tenantScoped);
 
       if (estaOnline()) {
@@ -402,7 +422,7 @@ export const createOfflineEntityAdapter = ({
 
   if (typeof operations.update === "function") {
     adapter.update = async (recordId, dados) => {
-      const empresaId = dados?.empresa_id || getEmpresaId();
+      const empresaId = empresaIdParaEntidade(catalogoTenant, dados);
       const tenantId = tenantDe(tenantScoped);
 
       if (estaOnline()) {
@@ -482,7 +502,7 @@ export const createOfflineEntityAdapter = ({
 
   if (typeof operations.delete === "function") {
     adapter.delete = async (recordId) => {
-      const empresaId = getEmpresaId();
+      const empresaId = empresaIdParaEntidade(catalogoTenant);
       const tenantId = tenantDe(tenantScoped);
 
       if (estaOnline()) {

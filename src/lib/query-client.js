@@ -9,3 +9,9 @@ export const queryClientInstance = new QueryClient({
 		},
 	},
 });
+
+/** Limpa cache React Query entre sessões (logout / troca de identidade). */
+export const resetAppQueryCache = () => {
+	queryClientInstance.cancelQueries();
+	queryClientInstance.clear();
+};
