@@ -260,8 +260,14 @@ export default function ConfiguracaoColunasB1Dialog({
             >
               <RotateCcw className="h-4 w-4" />
             </button>
-            <button type="button" className="rm" aria-label="Fechar" title="Fechar" onClick={onFechar}>
-              <X size={14} />
+            <button
+              type="button"
+              className="tb-btn tb-btn-icon tb-btn-sm"
+              aria-label="Fechar"
+              title="Fechar"
+              onClick={onFechar}
+            >
+              <X className="h-4 w-4" />
             </button>
           </div>
           <div className="mdl-b">

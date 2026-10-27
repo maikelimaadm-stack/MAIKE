@@ -200,10 +200,15 @@ export default function Marcas() {
   }, [showForm, editingItem, isEditing, chrome.selectedIds, recordNavRows, handleEdit]);
 
   const handleDuplicateSelected = () => {
-    const item = marcas.find((m) => String(m.id) === String(chrome.selectedIds[0]));
+    const item =
+      marcas.find((m) => String(m.id) === String(chrome.selectedIds[0])) ||
+      (editingItem?.id ? editingItem : null);
     const draft = prepareCadastroDuplicate(item, { labelField: "nome" });
     if (!draft) return;
     bumpFormEpoch();
+    // Guarda o registro de origem para Cancelar manter o modo Registro.
+    recordBeforeNewRef.current =
+      showForm && editingItem?.id ? editingItem : item?.id ? item : null;
     setEditingItem(draft);
     setIsEditing(true);
     setShowForm(true);
