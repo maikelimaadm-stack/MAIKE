@@ -1,5 +1,5 @@
 /**
- * Navegação rápida entre menus — contratos anti-freeze (FIX-MENU-NAV-FREEZE-4).
+ * Navegação rápida entre menus — contratos anti-freeze (ROOT-CAUSE 2026-10-27).
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -9,7 +9,7 @@ const codigoDe = (rel) =>
     .replace(/\/\*[\s\S]*?\*\//g, '')
     .replace(/^\s*\/\/.*$/gm, '');
 
-describe('NAV4 — AppRouteContent sem debounce de rota', () => {
+describe('NAV — AppRouteContent: Outlet único, sem mapa persistente', () => {
   it('AppShell usa AppRouteContent em vez de Outlet direto', () => {
     const app = codigoDe('src/App.jsx');
     expect(app).toContain('AppRouteContent');
@@ -17,24 +17,25 @@ describe('NAV4 — AppRouteContent sem debounce de rota', () => {
     expect(app).not.toContain('DebouncedOutlet');
   });
 
-  it('AppRouteContent cancela queries em flight sem atraso de settle', () => {
+  it('AppRouteContent é só Outlet + cancelamento assíncrono de queries', () => {
     const outlet = codigoDe('src/components/navigation/AppRouteContent.jsx');
-    expect(outlet).toContain('useLayoutEffect');
+    expect(outlet).toContain('useEffect');
     expect(outlet).toContain('cancelQueries');
+    expect(outlet).not.toContain('useLayoutEffect');
     expect(outlet).not.toContain('setTimeout');
-    expect(outlet).not.toContain('data-nav-pending');
+    expect(outlet).not.toContain('data-persistent-map');
+    expect(outlet).not.toContain('MapaGeral');
+    expect(outlet).not.toContain('mapaPersistenteAtivo');
   });
 
-  it('Mapa Geral persiste oculto após primeira visita', () => {
-    const outlet = codigoDe('src/components/navigation/AppRouteContent.jsx');
+  it('Mapa Geral monta via rota React Router (sem element null)', () => {
     const app = codigoDe('src/App.jsx');
-    expect(outlet).toContain('data-persistent-map');
-    expect(outlet).toContain('mapaPersistenteAtivo');
-    expect(app).toMatch(/path === ['"]MapaGeral['"] \? null/);
+    expect(app).not.toMatch(/path === ['"]MapaGeral['"] \? null/);
+    expect(app).toMatch(/element=\{<Page \/>}/);
   });
 });
 
-describe('NAV4 — Mapa Geral libera Google Maps ao sair (fallback unmount)', () => {
+describe('NAV — Mapa Geral libera Google Maps ao sair (teardown unmount)', () => {
   const fonte = codigoDe('src/pages/MapaGeral.jsx');
 
   it('teardown limpa overlay, listeners e referência do mapa', () => {
@@ -52,7 +53,7 @@ describe('NAV4 — Mapa Geral libera Google Maps ao sair (fallback unmount)', ()
   });
 });
 
-describe('NAV4 — renderer do mapa não deixa intervalos de blink', () => {
+describe('NAV — renderer do mapa não deixa intervalos de blink', () => {
   it('clearAll derruba blinkIntervals globais', () => {
     const renderer = codigoDe('src/components/mapa/useMapRenderer.jsx');
     expect(renderer).toContain('clearAllBlinkIntervals');
@@ -60,7 +61,7 @@ describe('NAV4 — renderer do mapa não deixa intervalos de blink', () => {
   });
 });
 
-describe('NAV4 — Layout evita remount duplo e navegação duplicada', () => {
+describe('NAV — Layout evita remount duplo e navegação duplicada', () => {
   it('main content não usa key de pathname', () => {
     const layout = codigoDe('src/Layout.jsx');
     expect(layout).not.toMatch(/key=\{location\.pathname\}/);
@@ -72,9 +73,15 @@ describe('NAV4 — Layout evita remount duplo e navegação duplicada', () => {
     expect(layout).toContain('deveBloquearCliqueMenu');
     expect(layout).not.toMatch(/<Link[^>]*>\s*<Button/);
   });
+
+  it('dedupe de menu limpa intento após mudança de rota', () => {
+    const layout = codigoDe('src/Layout.jsx');
+    expect(layout).toMatch(/menuNavIntentRef\.current = null/);
+    expect(layout).toMatch(/\[location\.pathname\]/);
+  });
 });
 
-describe('NAV4 — dedupe de clique no menu', () => {
+describe('NAV — dedupe de clique no menu', () => {
   it('bloqueia mesma rota e repetição rápida', async () => {
     const { deveBloquearCliqueMenu, MENU_NAV_DEDUPE_MS } = await import('@/lib/menuNavigation');
     expect(deveBloquearCliqueMenu('/mapageral', '/mapageral', null)).toBe(true);

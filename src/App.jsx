@@ -113,7 +113,7 @@ const AuthenticatedApp = () => {
           <Route
             key={path}
             path={createPageUrl(path)}
-            element={path === 'MapaGeral' ? null : <Page />}
+            element={<Page />}
           />
         ))}
       </Route>

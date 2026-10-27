@@ -64,11 +64,12 @@ describe('MAP-LOOP — init do Google Maps não depende do objeto renderer', () 
   });
 });
 
-describe('MAP-LOOP — Outlet permanece montado no AppRouteContent', () => {
+describe('MAP-LOOP — AppRouteContent sem mapa persistente duplicado', () => {
   const fonte = readFileSync('src/components/navigation/AppRouteContent.jsx', 'utf8');
 
-  it('Outlet não é condicionado a !onMapa', () => {
+  it('Outlet único; Mapa Geral não é montado em paralelo no shell', () => {
     expect(fonte).toContain('<Outlet />');
-    expect(fonte).not.toMatch(/\{!onMapa &&[\s\S]*<Outlet/);
+    expect(fonte).not.toContain('MapaGeral');
+    expect(fonte).not.toContain('data-persistent-map');
   });
 });
