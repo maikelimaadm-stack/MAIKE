@@ -23,7 +23,7 @@ Este documento responde: *o que abre no menu, de onde vêm os dados (PostgreSQL 
 
 **Áreas de pastagem:** não há item de menu `AreasPastagem` (domínio proibido no manifesto). Áreas são editadas em **Mapa Geral** e **Cadastro do Mapa**, com persistência nativa desde P4.2.
 
-**Base44 (P5.5):** dados de domínio **não** passam mais pelo SDK Base44. Permanecem apenas schemas `base44/entities/*.jsonc` como especificação legada (P7) e variáveis `VITE_BASE44_*` sem consumidor de dados.
+**Base44 (pós-P7):** dados de domínio **não** passam pelo SDK. Permanecem apenas schemas `base44/entities/*.jsonc` como especificação legada no manifesto; runtime `VITE_BASE44_*` removido (PR #85, D-PROD-52).
 
 ---
 
