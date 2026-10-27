@@ -39,6 +39,7 @@ import {
   atualizarSetorPorId,
 } from './setorRepository.js';
 import { propagarNomeDoSetor } from '../areas/areaPastagemRepository.js';
+import { propagarSetorNome } from '../lancamentosTarefa/lancamentoTarefaRepository.js';
 
 /** Nome da sequência. Literal, para não depender de nome de model do Prisma. */
 export const ENTIDADE_SEQUENCIA = 'Setor';
@@ -247,6 +248,7 @@ export const atualizar = async (contexto, id, entrada) => {
     // um PATCH que reenvia o mesmo nome não deve varrer as áreas à toa.
     if (registro.nome !== anterior.nome) {
       await propagarNomeDoSetor(tx, auth.clienteId, id, registro.nome);
+      await propagarSetorNome(tx, auth.clienteId, anterior.nome, registro.nome);
     }
 
     const publico = comoSetorPublico(registro);

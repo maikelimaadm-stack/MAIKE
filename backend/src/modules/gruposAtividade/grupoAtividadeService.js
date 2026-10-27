@@ -20,6 +20,10 @@ import {
   excluirGrupoPorId,
   propagarNomeGrupoNosTipos,
 } from './grupoAtividadeRepository.js';
+import {
+  contarPorGrupoAtividade,
+  propagarNomeGrupoAtividade,
+} from '../lancamentosTarefa/lancamentoTarefaRepository.js';
 
 const textoOuNulo = (valor) => {
   if (typeof valor !== 'string') return valor === undefined ? undefined : null;
@@ -132,7 +136,9 @@ export const atualizar = async (contexto, id, entrada) => {
       : anterior;
 
     if (campos.nome_grupo && campos.nome_grupo !== anterior.nome_grupo) {
-      await propagarNomeGrupoNosTipos(tx, auth.clienteId, id, String(registro.nome_grupo));
+      const nomeGrupo = String(registro.nome_grupo);
+      await propagarNomeGrupoNosTipos(tx, auth.clienteId, id, nomeGrupo);
+      await propagarNomeGrupoAtividade(tx, auth.clienteId, id, nomeGrupo);
     }
 
     const publico = comoGrupoPublico(registro);
@@ -165,6 +171,11 @@ export const excluir = async (contexto, id) => {
     const tipos = await contarTiposDoGrupo(tx, auth.clienteId, id);
     if (tipos > 0) {
       throw grupoAtividadeDeleteBlocked();
+    }
+
+    const lancamentos = await contarPorGrupoAtividade(tx, auth.clienteId, id);
+    if (lancamentos > 0) {
+      throw grupoAtividadeDeleteBlocked('não é possível excluir grupo com lançamentos de tarefa vinculados');
     }
 
     await excluirGrupoPorId(tx, auth.clienteId, id);

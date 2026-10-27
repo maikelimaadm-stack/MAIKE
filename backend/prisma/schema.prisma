@@ -67,6 +67,8 @@ model Cliente {
   categorias         Categoria[]
   locaisEstoque      LocalEstoque[]
   produtos           Produto[]
+  lancamentosTarefa  LancamentoTarefa[]
+  historicosLancamentoTarefa HistoricoLancamentoTarefa[]
 
   @@index([nome])
   @@index([ativo])
@@ -356,8 +358,9 @@ model GrupoAtividade {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  cliente Cliente      @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
-  tipos   TipoTarefa[]
+  cliente     Cliente              @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  tipos       TipoTarefa[]
+  lancamentos LancamentoTarefa[]
 
   @@unique([cliente_id, nome_grupo])
   @@unique([cliente_id, id])
@@ -386,7 +389,8 @@ model TipoTarefa {
   updatedAt            DateTime @updatedAt
 
   cliente Cliente        @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
-  grupo   GrupoAtividade @relation(fields: [cliente_id, grupo_atividade_id], references: [cliente_id, id], onDelete: Restrict)
+  grupo        GrupoAtividade   @relation(fields: [cliente_id, grupo_atividade_id], references: [cliente_id, id], onDelete: Restrict)
+  lancamentos  LancamentoTarefa[]
 
   @@unique([cliente_id, id])
   @@unique([cliente_id, grupo_atividade_id, nome_tipo])
@@ -469,8 +473,9 @@ model AreaPastagem {
 
   cliente       Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
   setor         Setor   @relation(fields: [cliente_id, setor_id], references: [cliente_id, id], onDelete: Restrict)
-  lotesEntrada  Lote[]  @relation("LoteAreaEntrada")
-  lotesAtual    Lote[]  @relation("LoteAreaAtual")
+  lotesEntrada  Lote[]             @relation("LoteAreaEntrada")
+  lotesAtual    Lote[]             @relation("LoteAreaAtual")
+  lancamentos   LancamentoTarefa[]
 
   @@unique([cliente_id, numero_area])
   @@unique([cliente_id, id])
@@ -632,8 +637,9 @@ model Lote {
 
   cliente     Cliente       @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
   setor       Setor?        @relation(fields: [cliente_id, setor_id], references: [cliente_id, id], onDelete: Restrict)
-  areaEntrada AreaPastagem? @relation("LoteAreaEntrada", fields: [cliente_id, area_entrada_id], references: [cliente_id, id], onDelete: Restrict)
-  areaAtual   AreaPastagem? @relation("LoteAreaAtual", fields: [cliente_id, area_atual_id], references: [cliente_id, id], onDelete: Restrict)
+  areaEntrada AreaPastagem?      @relation("LoteAreaEntrada", fields: [cliente_id, area_entrada_id], references: [cliente_id, id], onDelete: Restrict)
+  areaAtual   AreaPastagem?      @relation("LoteAreaAtual", fields: [cliente_id, area_atual_id], references: [cliente_id, id], onDelete: Restrict)
+  lancamentos LancamentoTarefa[]
 
   @@unique([cliente_id, numero_lote])
   @@unique([cliente_id, id])
@@ -733,4 +739,89 @@ model Produto {
   @@index([cliente_id, empresa_id])
   @@index([cliente_id, ativo])
   @@index([cliente_id, nome_produto])
+}
+
+// ---------------------------------------------------------------------------
+// LancamentoTarefa — manejo georreferenciado (P5.3, D-PROD-49).
+//
+// FK composta para TipoTarefa (obrigatório). Lote, área e grupo opcionais;
+// caches denormalizados derivados na escrita. `ponto_suplementacao_id` permanece
+// opaco — PontoSuplementacao ainda é Base44.
+// ---------------------------------------------------------------------------
+model LancamentoTarefa {
+  id                     String    @id @default(cuid())
+  cliente_id             String    @db.VarChar(64)
+  empresa_id             String    @db.VarChar(64)
+  titulo                 String    @db.VarChar(255)
+  descricao              String?   @db.VarChar(2000)
+  tipo                   String    @db.VarChar(64)
+  tipo_tarefa_id         String    @db.VarChar(64)
+  tipo_tarefa_nome       String    @db.VarChar(255)
+  grupo_atividade_id     String?   @db.VarChar(64)
+  grupo_atividade_nome   String?   @db.VarChar(255)
+  solicitante            String?   @db.VarChar(255)
+  data_pedido            DateTime? @db.Date
+  setor_nome             String?   @db.VarChar(255)
+  prioridade             String    @default("Média") @db.VarChar(32)
+  status                 String    @default("Pendente") @db.VarChar(32)
+  data_prevista          DateTime? @db.Date
+  data_inicio            DateTime?
+  data_conclusao         DateTime? @db.Date
+  area_id                String?   @db.VarChar(64)
+  area_nome              String?   @db.VarChar(255)
+  lote_id                String?   @db.VarChar(64)
+  lote_nome              String?   @db.VarChar(255)
+  ponto_suplementacao_id String?   @db.VarChar(64)
+  coordenadas            Json?
+  responsavel_id         String?   @db.VarChar(64)
+  responsavel            String?   @db.VarChar(255)
+  responsavel_geral      String?   @db.VarChar(255)
+  observacoes            String?   @db.VarChar(2000)
+  observacoes_conclusao  String?   @db.VarChar(2000)
+  fotos                  String[]  @default([])
+  anexos_urls            String[]  @default([])
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  cliente  Cliente         @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  tipoTarefa TipoTarefa    @relation(fields: [cliente_id, tipo_tarefa_id], references: [cliente_id, id], onDelete: Restrict)
+  grupo    GrupoAtividade? @relation(fields: [cliente_id, grupo_atividade_id], references: [cliente_id, id], onDelete: Restrict)
+  lote     Lote?           @relation(fields: [cliente_id, lote_id], references: [cliente_id, id], onDelete: Restrict)
+  area     AreaPastagem?   @relation(fields: [cliente_id, area_id], references: [cliente_id, id], onDelete: Restrict)
+  historicos HistoricoLancamentoTarefa[]
+
+  @@unique([cliente_id, id])
+  @@index([cliente_id, empresa_id])
+  @@index([cliente_id, tipo_tarefa_id])
+  @@index([cliente_id, grupo_atividade_id])
+  @@index([cliente_id, lote_id])
+  @@index([cliente_id, area_id])
+  @@index([cliente_id, status])
+  @@index([cliente_id, updatedAt])
+}
+
+// ---------------------------------------------------------------------------
+// HistoricoLancamentoTarefa — audit trail de tarefa (P5.3, D-PROD-49).
+// ---------------------------------------------------------------------------
+model HistoricoLancamentoTarefa {
+  id            String   @id @default(cuid())
+  cliente_id    String   @db.VarChar(64)
+  empresa_id    String   @db.VarChar(64)
+  tarefa_id     String   @db.VarChar(64)
+  titulo_tarefa String?  @db.VarChar(255)
+  evento        String   @db.VarChar(64)
+  data_evento   DateTime
+  status        String?  @db.VarChar(32)
+  responsavel   String?  @db.VarChar(255)
+  descricao     String?  @db.VarChar(2000)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  cliente Cliente          @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  tarefa  LancamentoTarefa @relation(fields: [cliente_id, tarefa_id], references: [cliente_id, id], onDelete: Cascade)
+
+  @@unique([cliente_id, id])
+  @@index([cliente_id, tarefa_id])
+  @@index([cliente_id, empresa_id])
+  @@index([cliente_id, data_evento])
 }

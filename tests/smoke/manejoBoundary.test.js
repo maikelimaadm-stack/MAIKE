@@ -172,8 +172,7 @@ describe('A11 — registry do provider é literal e exato', () => {
   const ESPERADO = [
     'AplicacaoMedicamento', 'Bebedouro', 'BebedouroAlerta', 'BebedouroHistorico',
     'BebedouroSanidade', 'CategoriaManejo', 'Empresa',
-    'EstoqueLoteNota', 'EventoSanitario', 'Fornecedor', 'HistoricoLancamentoTarefa',
-    'LancamentoTarefa',
+    'EstoqueLoteNota', 'EventoSanitario', 'Fornecedor',
     'ManejoTecnicoRebanho', 'MovimentacaoEstoque', 'MovimentacaoMapa',
     'MovimentacaoPecuaria', 'Permissao', 'PontoSuplementacao',
     // Nativas: ver MIGRADAS_PARA_NATIVO em suporteBoundary.test.js (incl. P5.2).

@@ -36,6 +36,7 @@
     "gate:unidade-medida-native": "node scripts/gates/gate-unidade-medida-native.mjs",
     "gate:tarefa-cadastro-native": "node scripts/gates/gate-tarefa-cadastro-native.mjs",
     "gate:lote-native": "node scripts/gates/gate-lote-native.mjs",
+    "gate:lancamento-tarefa-native": "node scripts/gates/gate-lancamento-tarefa-native.mjs",
     "gate:p52-cadastros-estoque-native": "node scripts/gates/gate-p52-cadastros-estoque-native.mjs",
     "gate:area-pastagem-native": "node scripts/gates/gate-area-pastagem-native.mjs",
     "gate:map-geography-native": "node scripts/gates/gate-map-geography-native.mjs",

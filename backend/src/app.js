@@ -34,6 +34,7 @@ import { registrarLoteRoutes } from './modules/lotes/loteRoutes.js';
 import { registrarCategoriaRoutes } from './modules/categorias/categoriaRoutes.js';
 import { registrarLocalEstoqueRoutes } from './modules/locaisEstoque/localEstoqueRoutes.js';
 import { registrarProdutoRoutes } from './modules/produtos/produtoRoutes.js';
+import { registrarLancamentoTarefaRoutes } from './modules/lancamentosTarefa/lancamentoTarefaRoutes.js';
 
 /**
  * @param {{logger?: boolean|object}} [opcoes]
@@ -106,6 +107,7 @@ export const construirApp = async (opcoes = {}) => {
   await app.register(registrarCategoriaRoutes);
   await app.register(registrarLocalEstoqueRoutes);
   await app.register(registrarProdutoRoutes);
+  await app.register(registrarLancamentoTarefaRoutes);
 
   return app;
 };

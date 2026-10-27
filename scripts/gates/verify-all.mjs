@@ -36,6 +36,7 @@ const ETAPAS = [
   ['unidade-medida-native', npm('gate:unidade-medida-native')],
   ['tarefa-cadastro-native', npm('gate:tarefa-cadastro-native')],
   ['lote-native', npm('gate:lote-native')],
+  ['lancamento-tarefa-native', npm('gate:lancamento-tarefa-native')],
   ['p52-cadastros-estoque-native', npm('gate:p52-cadastros-estoque-native')],
   // Logo depois, porque depende do que ele garante: a FK composta de
   // `AreaPastagem` só é tenant-aware se `Setor` mantiver o
