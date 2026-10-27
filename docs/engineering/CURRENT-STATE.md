@@ -1,7 +1,9 @@
 # Estado Atual
 
-**Atualizado em:** 2026-10-27 (**pós-P7** — PR **#85** mergeada; dados e SDK Base44
-fora do runtime; Supabase `_prisma_migrations` **14/14** — ver
+**Atualizado em:** 2026-10-27 (**pós-P7** + auditoria de gap — PR **#85** mergeada;
+dados e SDK Base44 fora do runtime; Supabase `_prisma_migrations` **14/14** e **38**
+tabelas de app alinhadas ao Prisma — ver
+[`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md) e
 `POST-P7-PRODUCAO-REPORT-2026-10-27.md`; UX Base1 — gate §H **5/6** aguardando **H.5**;
 rollout pausado **D-PROD-41**)
 
@@ -29,6 +31,27 @@ Variáveis críticas: `DATABASE_URL`, `MIGRATION_DATABASE_URL` (pre-deploy), `AU
 
 ---
 
+## Migração Base44 × banco — auditoria 2026-10-27
+
+**Não falta migração de entidades nem DDL pendente** para o escopo do produto.
+
+| Verificação | Resultado |
+|---|---|
+| `allowedBase44Entities` (35) × models Prisma | **100%** — `User` → `Usuario`; zero entidade do manifesto sem tabela |
+| Migrations repo × Supabase `_prisma_migrations` | **14/14** |
+| Runtime `src/` → Base44 como provider de dados | **Ausente** — registry vazio; APIs nativas |
+| Próximo trabalho de plataforma | **P8** (RLS se PostgREST, observabilidade, release) — não schema |
+
+Telas vazias ou poucos registros (ex.: lotes, produtos) são **conteúdo operacional**
+(bootstrap de tenant via `npm run auth:bootstrap:local`; empresa e cadastros pela UI
+`/Empresa` e demais rotas), não lacuna de migração. Relatório completo:
+[`GAP-AUDIT-POS-BASE44-2026-10-27.md`](./GAP-AUDIT-POS-BASE44-2026-10-27.md).
+
+Arquivos `base44/entities/*.jsonc` e entradas no manifesto são **spec legada** —
+não implicam que o app ainda persista na Base44.
+
+---
+
 ## Cadastros — o que funciona hoje
 
 **Matriz operacional (menu, rota, backend nativo vs Base44, UI, produção):**
@@ -53,8 +76,9 @@ Resumo: **todas as telas do escopo** persistem no PostgreSQL via APIs nativas (`
 
 ## Programa
 
-**MAIKE Pecuária — Mapa Geral + Manejo.** Sistema nativo e escalável, com a
-Base44 mantida apenas como provider temporário da cadeia preservada (D-PROD-04).
+**MAIKE Pecuária — Mapa Geral + Manejo.** Sistema nativo e escalável; persistência
+100% PostgreSQL no escopo. Base44 resta só como **especificação JSONC** no
+repositório (D-PROD-04 / P7 opcional de arquivo).
 
 | Campo | Valor |
 |---|---|
@@ -63,7 +87,7 @@ Base44 mantida apenas como provider temporário da cadeia preservada (D-PROD-04)
 | Missão em execução | **P8 — Hardening and Release** (RLS, observabilidade, release); UX Base1 aguarda **H.5** (D-PROD-41) |
 | Última mergeada (runtime) | **P7 — Base44 legacy cleanup** (PR **#85**, D-PROD-52); dados nativos fechados em **P5.5** (PR #84) |
 | Mergeadas anteriores | P3 — Backend + Prisma + PostgreSQL Foundation (PR #10, merge `4ce4608`), com a P3-R1; P2 — ModeloBase1 Pecuário Foundation (PR #7, merge `1851503`); SSOT sincronizada nas PRs #8 (`378bfd3`) e #11 (`672ea99`); emenda D-PROD-22 na PR #9 (merge `44b204c`) |
-| Próxima fatia autorizável | P4.4 — conforme ROADMAP (após merge da P4.3) |
+| Próxima fatia autorizável | **P8 — Hardening and Release** (ver `ROADMAP.md`) |
 | Contrato de dados | `config/modelobase1-pecuario.json` — **oficial**; obrigatório para P3–P6 |
 | Escopo executável | `config/mapa-manejo-scope.json` |
 | Roadmap | `docs/engineering/ROADMAP.md` |
@@ -89,7 +113,7 @@ armazenamento apenas em `.env.local` seguem pendentes com o proprietário — ve
 | P4 | Mapa Core Native Persistence | **concluída** — P4.0–P4.3 mergeadas; geografia e setor/área nativos em produção |
 | P5 | Manejo Core Native Persistence | **concluída (P5.x + P5.5)** — lotes, movimentações, bebedouros, manejo técnico nativos; ver relatórios P5.x |
 | P6 | Supporting Capabilities | **majoritariamente entregue** — cadastros, tarefas, empresa, usuários/permissoes nativos; entrada de estoque (DBT-04) permanece |
-| P7 | Base44 Final Removal | **parcial** — PR **#85** removeu runtime `VITE_BASE44_*` e acoplamento SDK (`gate:base44` zerado em `src/`); schemas `base44/` e gate ratchet permanecem até decisão de arquivo |
+| P7 | Base44 Final Removal | **runtime concluído** (PR **#85**) — sem SDK/`VITE_BASE44_*` em `src/`; opcional: arquivar schemas `base44/` e ratchet |
 | P8 | Hardening and Release | **próxima** — RLS, CSP/cookies, observabilidade, release |
 
 ## Inventário
