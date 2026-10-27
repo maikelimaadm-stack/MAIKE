@@ -16,7 +16,12 @@ export function useCadastroListaChromeState({ initialViewMode = "table" } = {}) 
   );
 
   const onSelectionChange = useCallback((ids) => {
-    setSelectedIds(ids);
+    setSelectedIds((prev) => {
+      if (prev.length === ids.length && prev.every((id, i) => id === ids[i])) {
+        return prev;
+      }
+      return ids;
+    });
   }, []);
 
   const applySearch = useCallback((next) => {

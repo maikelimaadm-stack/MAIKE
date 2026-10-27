@@ -23,6 +23,9 @@ import TabelaCategoriasManejo, {
 import { exportCadastroCsv } from "@/components/cadastro/base1/cadastroExportCsv";
 import FormularioCategoriaManejo from "@/components/categorias-manejo/FormularioCategoriaManejo";
 
+const EMPTY_CATEGORIAS_MANEJO = Object.freeze([]);
+const EMPTY_ICONES_CONFIG = Object.freeze([]);
+
 const getInitialFormData = () => ({
   nome: "",
   sigla: "",
@@ -67,17 +70,19 @@ export default function CategoriasManejo() {
     labelField: "nome",
   });
 
-  const { data: categorias = [] } = useQuery({
+  const { data: categoriasData } = useQuery({
     queryKey: ["categorias-manejo", empresaSelecionadaId],
     queryFn: async () => listarCategoriasManejoDaEmpresa(empresaSelecionadaId),
     enabled: !!empresaSelecionadaId,
   });
+  const categorias = categoriasData ?? EMPTY_CATEGORIAS_MANEJO;
 
-  const { data: iconesConfig = [] } = useQuery({
+  const { data: iconesConfigData } = useQuery({
     queryKey: ["configuracao-icones", empresaSelecionadaId],
     queryFn: async () => listarIconesDeLoteDaEmpresa(empresaSelecionadaId),
     enabled: !!empresaSelecionadaId,
   });
+  const iconesConfig = iconesConfigData ?? EMPTY_ICONES_CONFIG;
 
   const createMutation = useMutation({
     mutationFn: (formData) => criarCategoriaManejo(formData, { empresaId: empresaSelecionadaId }),

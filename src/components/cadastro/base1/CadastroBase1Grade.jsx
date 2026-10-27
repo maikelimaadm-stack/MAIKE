@@ -18,6 +18,9 @@ import {
 } from "@/lib/cadastroBase1ColumnPrefs";
 import { ArrowDownAZ, ArrowUpZA, X } from "lucide-react";
 
+/** Referência estável para listas vazias — evita ciclo de reconciliação de seleção. */
+const EMPTY_ROWS = Object.freeze([]);
+
 /** @param {Array<{ id: string; label: string; default?: boolean; sortable?: boolean; align?: string; width?: number; filterKind?: 'texto'|'num'|'data' }>} defs */
 export function colunasBase1(defs) {
   return defs.filter((c) => c.id !== "selecao" && c.id !== "acoes");
@@ -61,7 +64,7 @@ export function colunasBase1(defs) {
  * @param {boolean} [props.selecaoSticky] checkbox sticky à esquerda (false no portal compras / decisão 338)
  */
 export default function CadastroBase1Grade({
-  rows = [],
+  rows = EMPTY_ROWS,
   columns,
   storageKey,
   droppableId,
@@ -134,7 +137,11 @@ export default function CadastroBase1Grade({
   const idOf = rowKey ?? ((r) => String(r.id));
 
   useEffect(() => {
-    setSelectedItems((p) => p.filter((id) => rows.some((m) => idOf(m) === String(id))));
+    setSelectedItems((p) => {
+      const next = p.filter((id) => rows.some((m) => idOf(m) === String(id)));
+      if (next.length === p.length) return p;
+      return next;
+    });
   }, [rows, rowKey]);
 
   useEffect(() => {

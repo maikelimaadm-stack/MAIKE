@@ -21,6 +21,7 @@ import { clearCadastroListaFiltersAndSearch } from "@/lib/cadastroListaClearFilt
 import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 
 const MARCAS_STORAGE_KEY = "colunas_marcas_v1";
+const EMPTY_MARCAS = Object.freeze([]);
 
 export default function Marcas() {
   const [showForm, setShowForm] = useState(false);
@@ -50,11 +51,12 @@ export default function Marcas() {
   const queryClient = useQueryClient();
   const empresaId = useEmpresaSelecionadaId();
 
-  const { data: marcas = [], isLoading } = useQuery({
+  const { data: marcasData, isLoading } = useQuery({
     queryKey: ["marcas", empresaId],
     queryFn: () => listarMarcasDaEmpresa(empresaId),
     enabled: !!empresaId,
   });
+  const marcas = marcasData ?? EMPTY_MARCAS;
 
   const createMutation = useMutation({
     mutationFn: (data) => criarMarca({ dados: data, empresaId, marcasDaEmpresa: marcas }),

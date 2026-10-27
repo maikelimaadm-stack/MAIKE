@@ -1,20 +1,10 @@
-import { useEffect } from "react";
-import { Outlet, useLocation } from "react-router-dom";
-import { queryClientInstance } from "@/lib/query-client";
+import { Outlet } from "react-router-dom";
 
 /**
- * Conteúdo de rota no AppShell: cancela fetches da rota anterior sem bloquear
- * paint (useEffect, não useLayoutEffect). Mapa Geral monta/desmonta com a rota —
- * instância persistente oculta monopolizava a main thread (RC-MENU-FREEZE-2026-10-27).
+ * Conteúdo de rota no AppShell. Mapa Geral monta/desmonta com a rota — sem mapa
+ * persistente oculto (#94). Não cancela queries globalmente na troca de URL: isso
+ * atingia fetches compartilhados sem delimitar a rota anterior.
  */
 export default function AppRouteContent() {
-  const location = useLocation();
-
-  useEffect(() => {
-    queryClientInstance.cancelQueries({
-      predicate: (query) => query.state.fetchStatus === "fetching",
-    });
-  }, [location.pathname, location.search, location.hash]);
-
   return <Outlet />;
 }

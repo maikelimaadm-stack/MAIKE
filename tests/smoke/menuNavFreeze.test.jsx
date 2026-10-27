@@ -17,10 +17,11 @@ describe('NAV — AppRouteContent: Outlet único, sem mapa persistente', () => {
     expect(app).not.toContain('DebouncedOutlet');
   });
 
-  it('AppRouteContent é só Outlet + cancelamento assíncrono de queries', () => {
+  it('AppRouteContent é só Outlet, sem cancelamento global de queries', () => {
     const outlet = codigoDe('src/components/navigation/AppRouteContent.jsx');
-    expect(outlet).toContain('useEffect');
-    expect(outlet).toContain('cancelQueries');
+    expect(outlet).toContain('<Outlet');
+    expect(outlet).not.toContain('cancelQueries');
+    expect(outlet).not.toContain('queryClientInstance');
     expect(outlet).not.toContain('useLayoutEffect');
     expect(outlet).not.toContain('setTimeout');
     expect(outlet).not.toContain('data-persistent-map');

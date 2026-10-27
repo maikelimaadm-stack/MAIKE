@@ -22,6 +22,8 @@ import TabelaCategoriasProduto, {
 } from "../components/categorias-produto/TabelaCategoriasProduto";
 import { exportCadastroCsv } from "@/components/cadastro/base1/cadastroExportCsv";
 
+const EMPTY_CATEGORIAS = Object.freeze([]);
+
 export default function Categorias() {
   const [showForm, setShowForm] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
@@ -45,10 +47,11 @@ export default function Categorias() {
   });
   const queryClient = useQueryClient();
 
-  const { data: categorias = [] } = useQuery({
+  const { data: categoriasData } = useQuery({
     queryKey: ["categorias_produto"],
     queryFn: () => listarTodasCategorias(),
   });
+  const categorias = categoriasData ?? EMPTY_CATEGORIAS;
 
   const createMutation = useMutation({
     mutationFn: (data) => criarCategoria(data),

@@ -19,6 +19,8 @@ import { useCadastroListaChromeState } from "@/hooks/useCadastroListaChromeState
 import { useCadastroPageListBindings } from "@/hooks/useCadastroPageListBindings";
 import { useCadastroDuplicateAction } from "@/hooks/useCadastroDuplicateAction";
 
+const EMPTY_SETORES = Object.freeze([]);
+
 const getInitialFormData = () => ({
   nome: "",
   sigla: "",
@@ -54,11 +56,12 @@ export default function CadastroSetores() {
     labelField: "nome",
   });
 
-  const { data: setores = [], isLoading } = useQuery({
+  const { data: setoresData, isLoading } = useQuery({
     queryKey: ["setores", empresaSelecionadaId],
     queryFn: async () => listarSetoresDaEmpresa(empresaSelecionadaId),
     enabled: !!empresaSelecionadaId,
   });
+  const setores = setoresData ?? EMPTY_SETORES;
 
   const createMutation = useMutation({
     mutationFn: (data) => criarSetor(data, { empresaId: empresaSelecionadaId }),
