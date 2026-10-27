@@ -1187,3 +1187,21 @@ Branch `cursor/ux-base1-marcas-menus-view-516d`.
 ### Verificação (UX-55)
 
 - `npm run verify:all` (local sem `DATABASE_URL`: falha só `test:backend`)
+
+## UX-56 (2026-10-27) — Cards: diálogo modal centrado (paridade colunas)
+
+Branch `cursor/ux-base1-cards-dialog-516d`.
+
+**Objetivo:** layout e campos dos cards abrem como diálogo centrado (`b1ref` `.mdl`), não popover ancorado ao ⚡ — corrige flash ao fechar o menu.
+
+| Item | Correção |
+|------|----------|
+| **Layout / campos dos cards** | `ConfiguracaoLayoutCardsB1Dialog` e `ConfiguracaoCamposCardsB1Dialog` (portal + rascunho até ✓), mesmo padrão de `ConfiguracaoColunasB1Dialog` |
+| **Menu ⚡** | `cardsPanel` abre o diálogo sem `menuAnchorRect` / `B1Popover` ancorado |
+| **Flash** | Estado `open` do diálogo independente do fechamento do popover Mais opções |
+
+**Arquivos:** `ConfiguracaoCardsB1Dialogs.jsx` (novo), `Base1Cards.jsx`, `CadastroListaChrome.jsx`.
+
+### Verificação (UX-56)
+
+- `npm run verify:all`

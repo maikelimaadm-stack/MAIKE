@@ -122,7 +122,6 @@ export default function CadastroListaChrome({
   const anySelected = selectedCount > 0;
   const [showChips, setShowChips] = useState(true);
   const [cardsPanel, setCardsPanel] = useState(null);
-  const [cardsMenuAnchorRect, setCardsMenuAnchorRect] = useState(null);
   const [maisOpcoesOpen, setMaisOpcoesOpen] = useState(false);
   const stripRef = useRef(null);
   const maisOpcoesBtnRef = useRef(null);
@@ -171,11 +170,6 @@ export default function CadastroListaChrome({
     [onExportCsv, onPrint, onConfigureColumns, cardsToolsInMenu, viewMode, onClearFilters, filtersActive],
   );
 
-  const captureMaisOpcoesAnchor = () => {
-    const el = maisOpcoesBtnRef.current;
-    return el ? el.getBoundingClientRect() : null;
-  };
-
   const onMenu = (k) => {
     if (k === "export") onExportCsv?.();
     if (k === "print") (onPrint ?? (() => window.print()))();
@@ -185,13 +179,9 @@ export default function CadastroListaChrome({
       onConfigureColumns?.();
     }
     if (k === "cards-layout") {
-      setMaisOpcoesOpen(false);
-      setCardsMenuAnchorRect(captureMaisOpcoesAnchor());
       setCardsPanel("layout");
     }
     if (k === "card-fields") {
-      setMaisOpcoesOpen(false);
-      setCardsMenuAnchorRect(captureMaisOpcoesAnchor());
       setCardsPanel("fields");
     }
   };
@@ -203,7 +193,6 @@ export default function CadastroListaChrome({
           onLayoutOpenChange: (o) => setCardsPanel(o ? "layout" : null),
           fieldsOpen: cardsPanel === "fields",
           onFieldsOpenChange: (o) => setCardsPanel(o ? "fields" : null),
-          menuAnchorRect: cardsMenuAnchorRect,
         })
       : null;
 
