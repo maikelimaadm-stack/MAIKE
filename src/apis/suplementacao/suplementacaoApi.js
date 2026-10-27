@@ -8,6 +8,7 @@
 
 import { runProviderCall, assertArgument } from '../_core/normalizeApiError.js';
 import { suplementacaoProvider } from '../_providers/base44Provider.js';
+import { listLotes } from '../lotes/index.js';
 
 const RESOURCE = 'Suplementacao';
 const isId = (valor) => typeof valor === 'string' && valor.trim().length > 0;
@@ -157,10 +158,8 @@ export const updateProduto = async (id, dados) => {
   return runProviderCall(() => suplementacaoProvider.updateProduto(id, dados), { ...contexto, details: { id } });
 };
 
-export const listLotesRebanho = async () => {
-  const { lotePort } = await import('../lotes/loteNativePort.js');
-  return comoLista(await runProviderCall(() => lotePort.list(), ctx('listLotesRebanho')));
-};
+export const listLotesRebanho = async () =>
+  comoLista(await runProviderCall(() => listLotes(), ctx('listLotesRebanho')));
 
 export const listMovimentacoesPecuarias = async () =>
   comoLista(

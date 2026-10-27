@@ -203,13 +203,22 @@ export const criar = async (contexto, entrada) => {
     const quantidade = Number(campos.quantidade_cabecas);
     const motivo = String(campos.motivo_entrada);
 
-    const setor = await resolverSetor(tx, auth.clienteId, campos.setor_id);
-    const areaEntrada = await resolverArea(tx, auth.clienteId, campos.area_entrada_id);
-    const areaAtual = await resolverArea(
-      tx,
-      auth.clienteId,
-      campos.area_atual_id ?? areaEntrada.id
-    );
+    const setorId =
+      campos.setor_id === undefined || campos.setor_id === null
+        ? null
+        : String(campos.setor_id);
+    const areaEntradaId =
+      campos.area_entrada_id === undefined || campos.area_entrada_id === null
+        ? null
+        : String(campos.area_entrada_id);
+    const areaAtualIdRaw =
+      campos.area_atual_id === undefined || campos.area_atual_id === null
+        ? areaEntradaId
+        : String(campos.area_atual_id);
+
+    const setor = await resolverSetor(tx, auth.clienteId, setorId);
+    const areaEntrada = await resolverArea(tx, auth.clienteId, areaEntradaId);
+    const areaAtual = await resolverArea(tx, auth.clienteId, areaAtualIdRaw);
 
     const numero = await reservarNumero(tx, {
       clienteId: auth.clienteId,
@@ -303,13 +312,21 @@ export const atualizar = async (contexto, id, entrada) => {
     const patch = { ...campos };
 
     if (Object.prototype.hasOwnProperty.call(patch, 'setor_id')) {
-      const setor = await resolverSetor(tx, auth.clienteId, patch.setor_id);
+      const setorId =
+        patch.setor_id === undefined || patch.setor_id === null
+          ? null
+          : String(patch.setor_id);
+      const setor = await resolverSetor(tx, auth.clienteId, setorId);
       patch.setor_id = setor.setor_id;
       patch.setor_nome = setor.setor_nome;
     }
 
     if (Object.prototype.hasOwnProperty.call(patch, 'area_atual_id')) {
-      const area = await resolverArea(tx, auth.clienteId, patch.area_atual_id);
+      const areaId =
+        patch.area_atual_id === undefined || patch.area_atual_id === null
+          ? null
+          : String(patch.area_atual_id);
+      const area = await resolverArea(tx, auth.clienteId, areaId);
       patch.area_atual_id = area.id;
       patch.area_atual_nome = area.nome;
     }

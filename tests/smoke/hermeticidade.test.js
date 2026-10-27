@@ -19,8 +19,8 @@ describe('H — o smoke é hermético desde a avaliação dos módulos', () => {
   it('H1/H2 — o provider real carrega com o stub, sem inicializar o SDK', () => {
     // Se o SDK real tivesse sido instanciado, o import de topo já teria
     // disparado rede antes deste corpo rodar.
-    // 26: manifesto com 35 entidades; nove nativas (ver `suporteBoundary.test.js`).
-    expect(getRegisteredEntityNames().length).toBe(26);
+    // 25: manifesto com 35 entidades; dez nativas (ver `suporteBoundary.test.js`).
+    expect(getRegisteredEntityNames().length).toBe(25);
   });
 
   it('H3/H4 — operação do provider não toca fetch nem XMLHttpRequest', async () => {
