@@ -34,7 +34,7 @@ export function useCadastroListaChromeState({ initialViewMode = "table" } = {}) 
 
   /**
    * @param {'table'|'record'|'cards'} mode
-   * @param {{ onOpenRecord?: (id: string) => void; onExitRecord?: () => void }} [options]
+   * @param {{ onOpenRecord?: (id?: string) => boolean|void; onExitRecord?: () => void }} [options]
    */
   const handleViewModeChange = useCallback((mode, options) => {
     const { onOpenRecord, onExitRecord } = options ?? {};
