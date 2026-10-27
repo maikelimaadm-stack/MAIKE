@@ -4,6 +4,7 @@ import {
   ArrowUp,
   ArrowDown,
   Filter,
+  FilterX,
   Scaling,
   PanelLeft,
   EyeOff,
@@ -37,6 +38,7 @@ export const SELECT_COLUMN_WIDTH = 36;
  * @param {(key: string, width: number) => void} [props.onResize]
  * @param {(key: string) => void} [props.onAutoFit]
  * @param {(key: string) => void} [props.onFilter]
+ * @param {(key: string) => void} [props.onClearFilter]
  * @param {Set<string>} [props.filteredKeys]
  * @param {Set<string>} [props.autoFitKeys]
  * @param {(r: object) => string} [props.rowKey]
@@ -65,6 +67,7 @@ export default function Base1Grid({
   onResize,
   onAutoFit,
   onFilter,
+  onClearFilter,
   filteredKeys,
   autoFitKeys,
   rowKey,
@@ -318,22 +321,61 @@ export default function Base1Grid({
                       ) : null}
                     </button>
                     {temIcones ? (
-                      <span className="th-estado" aria-hidden>
-                        {filterOn ? <Filter className="th-estado-icone" strokeWidth={2.25} /> : null}
-                        {fitOn ? <Scaling className="th-estado-icone" strokeWidth={2.25} /> : null}
-                        {isAnchor ? <PanelLeft className="th-estado-icone" strokeWidth={2.25} /> : null}
+                      <span className="th-estado">
+                        {filterOn ? (
+                          <button
+                            type="button"
+                            className="th-estado-btn is-filter"
+                            title="Limpar filtro desta coluna"
+                            aria-label={`Limpar filtro de ${c.label}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onClearFilter?.(c.key);
+                            }}
+                          >
+                            <FilterX className="th-estado-icone" strokeWidth={2.25} />
+                          </button>
+                        ) : null}
+                        {fitOn ? (
+                          <button
+                            type="button"
+                            className="th-estado-btn"
+                            title="Desativar auto ajustar"
+                            aria-label={`Desativar auto ajustar de ${c.label}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onAutoFit?.(c.key);
+                            }}
+                          >
+                            <Scaling className="th-estado-icone" strokeWidth={2.25} />
+                          </button>
+                        ) : null}
+                        {isAnchor ? (
+                          <button
+                            type="button"
+                            className="th-estado-btn"
+                            title="Descongelar colunas"
+                            aria-label="Descongelar colunas"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onFreeze?.(0);
+                            }}
+                          >
+                            <PanelLeft className="th-estado-icone" strokeWidth={2.25} />
+                          </button>
+                        ) : null}
                       </span>
                     ) : null}
                     {abrirFiltroDireto ? (
                       <button
                         type="button"
                         data-b1-col-menu={c.key}
-                        aria-label={`Abrir menu da coluna ${c.label}`}
+                        aria-label={`Abrir filtro da coluna ${c.label}`}
                         aria-haspopup="menu"
                         className={cn("th-menu", filterOn && "is-on")}
                         onClick={() => onFilter(c.key)}
                       >
-                        {filterOn ? <Filter /> : <MoreVertical className="h-3 w-3" strokeWidth={2.25} />}
+                        <MoreVertical className="h-3 w-3" strokeWidth={2.25} />
                       </button>
                     ) : itens.length ? (
                       <B1Popover

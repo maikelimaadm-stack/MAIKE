@@ -49,6 +49,8 @@ import { cn } from "@/lib/utils";
  * @param {() => void} [props.onSearchApply]
  * @param {boolean} [props.searchActive]
  * @param {string} [props.searchPlaceholder]
+ * @param {{ id: string; label: string; secondary?: string }[]} [props.searchSuggestions]
+ * @param {(item: { id: string; label: string; secondary?: string }) => void} [props.onSearchSuggestionPick]
  * @param {() => void} [props.onConfigureColumns]
  * @param {() => void} [props.onClearFilters]
  * @param {boolean} [props.filtersActive]
@@ -96,6 +98,8 @@ export default function CadastroListaChrome({
   onSearchApply,
   searchActive = false,
   searchPlaceholder,
+  searchSuggestions = [],
+  onSearchSuggestionPick,
   onConfigureColumns,
   onClearFilters,
   filtersActive = false,
@@ -348,6 +352,17 @@ export default function CadastroListaChrome({
       ) : null}
       {!secondaryToolsLocked && joinedShell ? (
         <div className="ml-auto flex items-center justify-end gap-1.5">
+          {onClearFilters && filtersActive ? (
+            <IconBtn
+              aria-label="Limpar filtros"
+              title="Limpar filtros"
+              className="is-filter-active"
+              onClick={onClearFilters}
+              data-testid="b1-clear-filters"
+            >
+              <FilterX className="h-4 w-4" aria-hidden />
+            </IconBtn>
+          ) : null}
           {onSearchChange ? (
             <div
               className="mg-toolbar__row mg-toolbar__row--search"
@@ -365,6 +380,8 @@ export default function CadastroListaChrome({
                   active={searchActive}
                   placeholder={searchPlaceholder}
                   autoFocus
+                  suggestions={searchSuggestions}
+                  onPickSuggestion={onSearchSuggestionPick}
                 />
               ) : (
                 <IconBtn
@@ -388,19 +405,6 @@ export default function CadastroListaChrome({
               <Paperclip className="h-4 w-4" aria-hidden />
             </IconBtn>
           ) : null}
-          {maisOpcoesPopover}
-          {onClearFilters ? (
-            <IconBtn
-              aria-label="Limpar filtros"
-              title="Limpar filtros"
-              disabled={!filtersActive}
-              className={filtersActive ? "is-filter-active" : undefined}
-              onClick={onClearFilters}
-              data-testid="b1-clear-filters"
-            >
-              <FilterX className="h-4 w-4" aria-hidden />
-            </IconBtn>
-          ) : null}
           {onViewModeChange ? (
             <div className="mg-toolbar__row mg-toolbar__row--views">
               <ViewSwitch
@@ -411,9 +415,21 @@ export default function CadastroListaChrome({
               />
             </div>
           ) : null}
+          {maisOpcoesPopover}
         </div>
       ) : (
         <div className="ml-auto flex items-center gap-1.5 flex-wrap">
+          {!secondaryToolsLocked && onClearFilters && filtersActive ? (
+            <IconBtn
+              aria-label="Limpar filtros"
+              title="Limpar filtros"
+              className="is-filter-active"
+              onClick={onClearFilters}
+              data-testid="b1-clear-filters"
+            >
+              <FilterX className="h-4 w-4" aria-hidden />
+            </IconBtn>
+          ) : null}
           {showAttachControl ? (
             <IconBtn
               aria-label="Anexos"
@@ -432,20 +448,9 @@ export default function CadastroListaChrome({
               onApply={onSearchApply}
               active={searchActive}
               placeholder={searchPlaceholder}
+              suggestions={searchSuggestions}
+              onPickSuggestion={onSearchSuggestionPick}
             />
-          ) : null}
-          {maisOpcoesPopover}
-          {!secondaryToolsLocked && onClearFilters ? (
-            <IconBtn
-              aria-label="Limpar filtros"
-              title="Limpar filtros"
-              disabled={!filtersActive}
-              className={filtersActive ? "is-filter-active" : undefined}
-              onClick={onClearFilters}
-              data-testid="b1-clear-filters"
-            >
-              <FilterX className="h-4 w-4" aria-hidden />
-            </IconBtn>
           ) : null}
           {!secondaryToolsLocked && onViewModeChange ? (
             <ViewSwitch
@@ -455,6 +460,7 @@ export default function CadastroListaChrome({
               onChange={onViewModeChange}
             />
           ) : null}
+          {maisOpcoesPopover}
         </div>
       )}
     </div>

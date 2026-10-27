@@ -615,6 +615,23 @@ export default function CadastroBase1Grade({
         selecaoSticky={selecaoSticky}
         autoFitKeys={autoFitKeys}
         onFilter={(k) => setMenuFiltroAberto(k)}
+        onClearFilter={(k) => {
+          if (referenceHeaders) {
+            setHeaderFilters((p) => {
+              if (!(k in p)) return p;
+              const n = { ...p };
+              delete n[k];
+              return n;
+            });
+            return;
+          }
+          setFiltrosColunas((p) => {
+            if (!(k in p)) return p;
+            const n = { ...p };
+            delete n[k];
+            return n;
+          });
+        }}
         filteredKeys={filteredKeys}
         emptyText={emptyText}
         rowKey={rowKey ? (r) => rowKey(r) : undefined}

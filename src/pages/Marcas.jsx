@@ -171,6 +171,22 @@ export default function Marcas() {
     });
   }, [marcas, chrome.appliedSearch]);
 
+  const searchSuggestions = useMemo(() => {
+    const q = chrome.searchInput.trim().toLowerCase();
+    if (!q) return [];
+    return marcas
+      .filter((m) => {
+        const hay = [m.nome, m.descricao, m.numero_marca].filter(Boolean).join(" ").toLowerCase();
+        return hay.includes(q);
+      })
+      .slice(0, 8)
+      .map((m) => ({
+        id: String(m.id),
+        label: m.nome || "Marca",
+        secondary: m.numero_marca ? `Nº ${m.numero_marca}` : m.descricao || undefined,
+      }));
+  }, [marcas, chrome.searchInput]);
+
   const handleEdit = useCallback(
     (item) => {
       setEditingItem(item);
@@ -324,6 +340,11 @@ export default function Marcas() {
           onSearchApply={chrome.applySearch}
           searchActive={chrome.searchActive}
           searchPlaceholder="Buscar marcas…"
+          searchSuggestions={searchSuggestions}
+          onSearchSuggestionPick={(item) => {
+            const row = marcas.find((m) => String(m.id) === String(item.id));
+            if (row) handleEdit(row);
+          }}
           configureColumnsAnchorRef={configureColumnsAnchorRef}
           onConfigureColumns={() => setShowConfigColunas(true)}
           onClearFilters={() => clearCadastroListaFiltersAndSearch(chrome)}
