@@ -27,9 +27,10 @@ describe('NAV4 — AppRouteContent sem debounce de rota', () => {
 
   it('Mapa Geral persiste oculto após primeira visita', () => {
     const outlet = codigoDe('src/components/navigation/AppRouteContent.jsx');
+    const app = codigoDe('src/App.jsx');
     expect(outlet).toContain('data-persistent-map');
     expect(outlet).toContain('mapaPersistenteAtivo');
-    expect(outlet).toMatch(/path === ['"]MapaGeral['"] \? null/);
+    expect(app).toMatch(/path === ['"]MapaGeral['"] \? null/);
   });
 });
 
