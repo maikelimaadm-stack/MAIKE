@@ -12,8 +12,9 @@ export function prepareCadastroDuplicate(source, options = {}) {
     delete draft.id;
   }
   if (labelField && source[labelField] != null) {
-    const base = String(source[labelField]);
-    draft[labelField] = suffix ? `${base}${suffix}` : base;
+    // Remove sufixo legado "(cópia)" / "(CÓPIA)" — duplicar não acrescenta e limpa o antigo.
+    const limpo = String(source[labelField]).replace(/\s*\(\s*c[oó]pia\s*\)\s*$/i, "").trimEnd();
+    draft[labelField] = suffix ? `${limpo}${suffix}` : limpo;
   }
   return draft;
 }

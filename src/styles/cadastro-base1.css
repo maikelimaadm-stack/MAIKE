@@ -209,42 +209,46 @@
   flex-wrap: wrap;
 }
 
-/* Entrada/saída fluida (água) — botões da toolbar que aparecem e somem.
-   Transform/blur só no inner, com overflow hidden no slot — evita sobreposição. */
+/* Entrada/saída fluida (água).
+   Aberto: overflow visible (não corta sombra/borda = “linha branca”).
+   Fechado: max-width 0 + overflow hidden só na largura. */
 .cadastro-b1 .mg-fluid-slot {
-  display: grid;
-  grid-template-columns: 0fr;
+  display: inline-flex;
+  align-items: center;
+  max-width: 0;
   opacity: 0;
   overflow: hidden;
-  pointer-events: none;
   vertical-align: middle;
+  pointer-events: none;
   transition:
-    grid-template-columns 0.4s cubic-bezier(0.22, 1, 0.36, 1),
-    opacity 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+    max-width 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.3s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .cadastro-b1 .mg-fluid-slot.is-open {
-  grid-template-columns: 1fr;
+  max-width: 36rem;
   opacity: 1;
+  overflow: visible;
   pointer-events: auto;
 }
 
 .cadastro-b1 .mg-fluid-slot__inner {
-  overflow: hidden;
-  min-width: 0;
   display: flex;
   align-items: center;
-  filter: blur(4px);
-  transform: translateY(3px) scale(0.94);
-  transform-origin: left center;
+  min-width: 0;
+  filter: blur(5px);
+  opacity: 0.35;
+  transform: translateX(-6px);
   transition:
     filter 0.32s ease,
+    opacity 0.3s ease,
     transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .cadastro-b1 .mg-fluid-slot.is-open .mg-fluid-slot__inner {
   filter: blur(0);
-  transform: translateY(0) scale(1);
+  opacity: 1;
+  transform: translateX(0);
 }
 
 .cadastro-b1 .mg-fluid-slot__inner > * {
@@ -256,60 +260,49 @@
   align-items: center;
   gap: 6px;
   min-width: 0;
+  overflow: visible;
 }
 
 .cadastro-b1 .mg-fluid-slot__cluster {
   display: flex;
   align-items: center;
-  gap: 0;
-}
-
-.cadastro-b1 .mg-fluid-slot__cluster > .tb-btn + .tb-btn:not(.mg-fluid-slot__ghost),
-.cadastro-b1 .mg-fluid-slot__cluster > .mg-fluid-slot.is-open {
-  margin-left: 6px;
-}
-
-.cadastro-b1 .mg-fluid-slot__cluster .tb-btn + .tb-btn:not(.mg-fluid-slot__ghost) {
-  margin-left: 6px;
-}
-
-.cadastro-b1 .mg-fluid-slot__ghost + .tb-btn:not(.mg-fluid-slot__ghost) {
-  margin-left: 0;
+  gap: 6px;
+  overflow: visible;
 }
 
 .cadastro-b1 .mg-fluid-slot__cluster > .mg-fluid-slot:not(.is-open) {
   margin-left: 0;
 }
 
+/* Ghost: some sem cortar a sombra dos vizinhos */
 .cadastro-b1 .mg-fluid-slot__cluster .tb-btn {
   max-width: 11rem;
-  overflow: hidden;
   transition:
-    max-width 0.36s cubic-bezier(0.22, 1, 0.36, 1),
-    opacity 0.28s ease,
-    padding 0.36s cubic-bezier(0.22, 1, 0.36, 1),
-    filter 0.28s ease,
-    transform 0.36s cubic-bezier(0.22, 1, 0.36, 1);
+    max-width 0.34s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.26s ease,
+    padding 0.34s cubic-bezier(0.22, 1, 0.36, 1),
+    margin 0.34s cubic-bezier(0.22, 1, 0.36, 1),
+    border-width 0.2s ease;
 }
 
-/* Esconde Editar/Duplicar com o mesmo fluido quando a seleção passa de 1 */
 .cadastro-b1 .mg-fluid-slot__ghost {
   max-width: 0 !important;
   min-width: 0 !important;
-  width: 0 !important;
   padding-left: 0 !important;
   padding-right: 0 !important;
-  margin: 0 !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
   opacity: 0;
-  overflow: hidden;
   border-width: 0 !important;
+  box-shadow: none !important;
   pointer-events: none;
-  filter: blur(3px);
+  overflow: hidden;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .cadastro-b1 .mg-fluid-slot,
-  .cadastro-b1 .mg-fluid-slot__ghost {
+  .cadastro-b1 .mg-fluid-slot__inner,
+  .cadastro-b1 .mg-fluid-slot__cluster .tb-btn {
     transition: none;
     filter: none;
     transform: none;

@@ -118,7 +118,7 @@
   align-items: center;
   gap: 10px;
   min-height: 46px;
-  padding: 0 12px 0 18px;
+  padding: 0 18px;
   border-bottom: 1px solid #f1f4f6;
 }
 
@@ -139,28 +139,34 @@
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   padding: 11px 14px;
   border-top: 1px solid #f1f4f6;
   background: #fbfcfd;
 }
 
-.mg-confirm-dialog__close {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border: 0;
-  border-radius: 999px;
+/* Paridade fpop: X cinza / Check verde */
+.mg-confirm-dialog .mg-confirm-dialog__f .tb-btn-icon:not(.tb-btn-green) {
   background: #f1f3f4;
   color: #475569;
-  cursor: pointer;
-  line-height: 0;
+  box-shadow: none;
 }
 
-.mg-confirm-dialog__close:hover {
+.mg-confirm-dialog .mg-confirm-dialog__f .tb-btn-icon:not(.tb-btn-green):hover:not(:disabled) {
   background: #e8eaed;
   color: #0f172a;
+}
+
+.mg-confirm-dialog .mg-confirm-dialog__f .tb-btn-icon.tb-btn-green {
+  background: #40de63;
+  color: #fff;
+}
+
+.mg-confirm-dialog .mg-confirm-dialog__f .tb-btn-icon.tb-btn-green:hover:not(:disabled) {
+  background: #35cf56;
+  color: #fff;
+}
+
+.mg-confirm-dialog .mg-confirm-dialog__f .tb-btn-icon.tb-btn-green svg {
+  color: #fff;
 }
