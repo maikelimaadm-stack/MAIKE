@@ -105,16 +105,6 @@ export default function FormularioEmpresa({
       return;
     }
 
-    if (formData.tipo_pessoa === 'Jurídica' && !formData.cnpj) {
-      toast.error('CNPJ é obrigatório para pessoa jurídica!');
-      return;
-    }
-
-    if (formData.tipo_pessoa === 'Física' && !formData.cpf) {
-      toast.error('CPF é obrigatório para pessoa física!');
-      return;
-    }
-
     const dataToSubmit = projetarPayloadEmpresa({
       ...formData,
       apelido: formData.apelido.toUpperCase(),
@@ -158,7 +148,7 @@ export default function FormularioEmpresa({
             scrollbarColor: "#cbd5e1 transparent",
           }}
         >
-          <form onSubmit={handleSubmit} className="space-y-2">
+          <form onSubmit={handleSubmit} className="space-y-2" noValidate>
             <div className="space-y-1 pl-1">
               <span className="text-[12px] text-slate-500">Logotipo</span>
               <div className="flex items-center gap-4">
@@ -228,7 +218,7 @@ export default function FormularioEmpresa({
 
             {formData.tipo_pessoa === 'Física' && (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
-                <FL label="CPF" required>
+                <FL label="CPF">
                   <Input
                     value={formData.cpf}
                     onChange={(e) => handleChange('cpf', e.target.value)}
@@ -250,7 +240,7 @@ export default function FormularioEmpresa({
 
             {formData.tipo_pessoa === 'Jurídica' && (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
-                <FL label="CNPJ" required>
+                <FL label="CNPJ">
                   <Input
                     value={formData.cnpj}
                     onChange={(e) => handleChange('cnpj', e.target.value)}

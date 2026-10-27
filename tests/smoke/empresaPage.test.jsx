@@ -31,11 +31,12 @@ vi.mock('@/services/empresaService', () => ({
   deleteEmpresa: (...a) => serviceMock.deleteEmpresa(...a),
 }));
 
-const toastMock = { success: vi.fn(), error: vi.fn() };
+const toastMock = { success: vi.fn(), error: vi.fn(), message: vi.fn() };
 vi.mock('sonner', () => ({
   toast: {
     success: (...a) => toastMock.success(...a),
     error: (...a) => toastMock.error(...a),
+    message: (...a) => toastMock.message(...a),
   },
 }));
 
@@ -85,13 +86,13 @@ const EMPRESAS = [
 const renderPagina = async () => {
   const { default: Empresa } = await import('@/pages/Empresa');
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
+  const refetchSpy = vi.spyOn(queryClient, 'refetchQueries');
   const utils = render(
     <QueryClientProvider client={queryClient}>
       <Empresa />
     </QueryClientProvider>
   );
-  return { ...utils, queryClient, invalidateSpy };
+  return { ...utils, queryClient, refetchSpy };
 };
 
 beforeEach(() => {
@@ -111,9 +112,9 @@ describe('página Empresa — fiação com o service', () => {
     expect(screen.getByText('Sítio Alegre')).toBeInTheDocument();
   });
 
-  it('cria uma empresa, invalida a lista e avisa o usuário', async () => {
+  it('cria uma empresa, recarrega a lista e avisa o usuário', async () => {
     serviceMock.createEmpresa.mockResolvedValue({ id: '3' });
-    const { invalidateSpy } = await renderPagina();
+    const { refetchSpy } = await renderPagina();
 
     await screen.findByText('Fazenda Boa Vista');
     fireEvent.click(screen.getByRole('button', { name: /^novo$/i }));
@@ -124,7 +125,7 @@ describe('página Empresa — fiação com o service', () => {
     await waitFor(() => expect(serviceMock.createEmpresa).toHaveBeenCalled());
     expect(serviceMock.createEmpresa.mock.calls[0][0]).toMatchObject({ nome: 'Estância Nova' });
     await waitFor(() => expect(toastMock.success).toHaveBeenCalledWith('Empresa cadastrada!'));
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['empresas'] });
+    expect(refetchSpy).toHaveBeenCalledWith({ queryKey: ['empresas'] });
   });
 
   it('edita a empresa selecionada, passando id e dados', async () => {
@@ -178,7 +179,9 @@ describe('página Empresa — fiação com o service', () => {
     fireEvent.click(screen.getByRole('button', { name: /^novo$/i }));
     fireEvent.click(screen.getByRole('button', { name: 'salvar-formulario' }));
 
-    await waitFor(() => expect(toastMock.error).toHaveBeenCalledWith('Erro.'));
+    await waitFor(() =>
+      expect(toastMock.error).toHaveBeenCalledWith('Não foi possível cadastrar a empresa.'),
+    );
   });
 });
 

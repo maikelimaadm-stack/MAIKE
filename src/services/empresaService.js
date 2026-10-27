@@ -61,7 +61,17 @@ export const listEmpresas = () => listEmpresasApi();
  * @throws {ApiError} `EMPRESA_NAME_CONFLICT`
  */
 export const createEmpresa = async (dados) => {
-  const empresas = await listEmpresasApi();
+  let empresas;
+  try {
+    empresas = await listEmpresasApi();
+  } catch (erro) {
+    if (erro instanceof ApiError) throw erro;
+    throw new ApiError(API_ERROR_CODES.PROVIDER_UNAVAILABLE, {
+      operation: 'listEmpresa',
+      resource: 'Empresa',
+      cause: erro,
+    });
+  }
   if (nomeJaUsado(empresas, dados?.nome)) throw conflito('create');
   return createEmpresaApi(dados);
 };
@@ -74,7 +84,17 @@ export const createEmpresa = async (dados) => {
  * @throws {ApiError} `EMPRESA_NAME_CONFLICT`
  */
 export const updateEmpresa = async (id, dados) => {
-  const empresas = await listEmpresasApi();
+  let empresas;
+  try {
+    empresas = await listEmpresasApi();
+  } catch (erro) {
+    if (erro instanceof ApiError) throw erro;
+    throw new ApiError(API_ERROR_CODES.PROVIDER_UNAVAILABLE, {
+      operation: 'listEmpresa',
+      resource: 'Empresa',
+      cause: erro,
+    });
+  }
   if (nomeJaUsado(empresas, dados?.nome, id)) throw conflito('update');
   return updateEmpresaApi(id, dados);
 };

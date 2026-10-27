@@ -73,4 +73,5 @@ export const categoriaPort = createOfflineEntityAdapter({
   operations: operacoesNativas,
   enabled: offlineStorageDisponivel(),
   tenantScoped: true,
+  tenantCatalog: true,
 });
