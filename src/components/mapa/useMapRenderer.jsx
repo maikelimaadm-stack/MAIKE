@@ -4,6 +4,11 @@ import { useRef, useCallback } from "react";
 const iconSizeCache = new Map();
 const markerStateCache = new Map();
 const blinkIntervals = new Map();
+
+const clearAllBlinkIntervals = () => {
+  blinkIntervals.forEach((interval) => clearInterval(interval));
+  blinkIntervals.clear();
+};
 const areaPathSignature = (coords = []) => coords.map((c) => `${c[0] || c.lat},${c[1] || c.lng}`).join('|');
 
 const setBlinkElement = (target, shouldBlink, applyVisibility) => {
@@ -92,6 +97,7 @@ export default function useMapRenderer(mapInstanceRef) {
   const lotesIndicatorsRef = useRef(new Map());
 
   const clearAll = useCallback(() => {
+    clearAllBlinkIntervals();
     polygonsRef.current.forEach(p => p.setMap(null));
     polygonsRef.current.clear();
     labelsRef.current.forEach(l => l.setMap(null));
