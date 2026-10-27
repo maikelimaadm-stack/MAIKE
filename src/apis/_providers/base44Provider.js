@@ -39,7 +39,7 @@ import {
  */
 const OFFLINE_ENTITIES = new Set([
   'LancamentoTarefa', 'HistoricoLancamentoTarefa',
-  'PontoSuplementacao', 'Lote',
+  'PontoSuplementacao',
   'SuplementacaoEvento', 'SuplementacaoLote', 'EstoqueLoteNota', 'MovimentacaoMapa',
   'MovimentacaoEstoque', 'Fornecedor', 'Produto', 'Permissao',
   'Empresa', 'AplicacaoMedicamento', 'EventoSanitario', 'ManejoTecnicoRebanho',
@@ -109,7 +109,7 @@ const ENTITY_REGISTRY = Object.freeze({
   Bebedouro: comFronteira('Bebedouro', base44.entities.Bebedouro),
 
   // Lotes e manejo iniciado pelo mapa (P1.2)
-  Lote: comFronteira('Lote', base44.entities.Lote),
+  // `Lote` saiu na P5.1 (D-PROD-47): persistência nativa em `loteNativePort.js`.
   MovimentacaoMapa: comFronteira('MovimentacaoMapa', base44.entities.MovimentacaoMapa),
   MovimentacaoPecuaria: comFronteira('MovimentacaoPecuaria', base44.entities.MovimentacaoPecuaria),
   SuplementacaoEvento: comFronteira('SuplementacaoEvento', base44.entities.SuplementacaoEvento),
@@ -228,11 +228,6 @@ export const mapaProvider = Object.freeze({
 // ── Lotes e manejo (P1.2, reutilizável pela P1.3 — QLT-P12-01) ────────────
 
 export const lotesProvider = Object.freeze({
-  listLotes: (ordenacao) => endpointOf('Lote').list(ordenacao),
-  filterLotes: (criterio) => endpointOf('Lote').filter(criterio),
-  createLote: (dados) => endpointOf('Lote').create(dados),
-  updateLote: (id, dados) => endpointOf('Lote').update(id, dados),
-  deleteLote: (id) => endpointOf('Lote').delete(id),
   updateMovimentacao: (id, dados) => endpointOf('MovimentacaoMapa').update(id, dados),
 
   listMovimentacoes: (ordenacao, limite) => endpointOf('MovimentacaoMapa').list(ordenacao, limite),
@@ -464,7 +459,6 @@ export const suplementacaoProvider = Object.freeze({
   listProdutos: (ordenacao) => endpointOf('Produto').list(ordenacao),
   updateProduto: (id, dados) => endpointOf('Produto').update(id, dados),
 
-  listLotesRebanho: (ordenacao) => endpointOf('Lote').list(ordenacao),
   listMovimentacoesPecuarias: (ordenacao) => endpointOf('MovimentacaoPecuaria').list(ordenacao),
   listPontosSuplementacao: (ordenacao) => endpointOf('PontoSuplementacao').list(ordenacao),
 });

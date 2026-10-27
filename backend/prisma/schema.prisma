@@ -63,6 +63,7 @@ model Cliente {
   configuracoesIcone ConfiguracaoIcone[]
   pontosReferencia   PontoReferencia[]
   linhasGeograficas  LinhaGeografica[]
+  lotes              Lote[]
 
   @@index([nome])
   @@index([ativo])
@@ -271,6 +272,7 @@ model Setor {
 
   cliente Cliente        @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
   areas   AreaPastagem[]
+  lotes   Lote[]
 
   @@unique([cliente_id, numero_setor])
   @@unique([cliente_id, id])
@@ -462,8 +464,10 @@ model AreaPastagem {
   createdAt                    DateTime @default(now())
   updatedAt                    DateTime @updatedAt
 
-  cliente Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
-  setor   Setor   @relation(fields: [cliente_id, setor_id], references: [cliente_id, id], onDelete: Restrict)
+  cliente       Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  setor         Setor   @relation(fields: [cliente_id, setor_id], references: [cliente_id, id], onDelete: Restrict)
+  lotesEntrada  Lote[]  @relation("LoteAreaEntrada")
+  lotesAtual    Lote[]  @relation("LoteAreaAtual")
 
   @@unique([cliente_id, numero_area])
   @@unique([cliente_id, id])
@@ -563,5 +567,76 @@ model LinhaGeografica {
   @@unique([cliente_id, id])
   @@index([cliente_id, empresa_id])
   @@index([cliente_id, ativo])
+  @@index([cliente_id, nome])
+}
+
+// ---------------------------------------------------------------------------
+// Lote — manejo pecuário (P5.1, D-PROD-47).
+//
+// Primeira entidade de manejo nativa. FKs compostas para Setor e AreaPastagem
+// quando os ids estão presentes; caches denormalizados derivados na escrita.
+// `Fornecedor` e `CategoriaManejo` continuam na Base44 — ids e nomes são strings.
+// ---------------------------------------------------------------------------
+model Lote {
+  id                            String    @id @default(cuid())
+  cliente_id                    String    @db.VarChar(64)
+  empresa_id                    String    @db.VarChar(64)
+  numero_lote                   String    @db.VarChar(32)
+  nome                          String    @db.VarChar(255)
+  identificador_nome            String?   @db.VarChar(255)
+  identificador_sigla           String?   @db.VarChar(32)
+  identificador_cor             String?   @db.VarChar(32)
+  quantidade_cabecas            Int
+  quantidade_entrada            Int
+  categoria                     String?   @db.VarChar(128)
+  categoria_entrada             String?   @db.VarChar(128)
+  categoria_manejo_id           String?   @db.VarChar(64)
+  categoria_manejo_nome         String?   @db.VarChar(255)
+  categoria_manejo_entrada_id   String?   @db.VarChar(64)
+  categoria_manejo_entrada_nome String?   @db.VarChar(255)
+  sexo                          String?   @db.VarChar(32)
+  peso_medio_kg                 Decimal?  @db.Decimal(14, 4)
+  peso_entrada_kg               Decimal?  @db.Decimal(14, 4)
+  idade_media_meses             Int?
+  setor_id                      String?   @db.VarChar(64)
+  setor_nome                    String?   @db.VarChar(255)
+  area_entrada_id               String?   @db.VarChar(64)
+  area_entrada_nome             String?   @db.VarChar(255)
+  area_atual_id                 String?   @db.VarChar(64)
+  area_atual_nome               String?   @db.VarChar(255)
+  raca_predominante             String?   @db.VarChar(128)
+  sistema_produtivo             String?   @db.VarChar(128)
+  data_entrada                  DateTime? @db.Date
+  motivo_entrada                String    @db.VarChar(32)
+  origem                        String?   @db.VarChar(128)
+  fornecedor_id                 String?   @db.VarChar(64)
+  fornecedor_nome               String?   @db.VarChar(255)
+  nota_fiscal                   String?   @db.VarChar(64)
+  chave_nfe                     String?   @db.VarChar(64)
+  numero_gta                    String?   @db.VarChar(64)
+  cidade_origem                 String?   @db.VarChar(128)
+  estado_origem                 String?   @db.VarChar(8)
+  valor_total_compra            Decimal?  @db.Decimal(14, 4)
+  valor_por_cabeca              Decimal?  @db.Decimal(14, 4)
+  valor_frete                   Decimal?  @db.Decimal(14, 4)
+  motivo_ajuste                 String?   @db.VarChar(255)
+  motivo_outros                 String?   @db.VarChar(255)
+  observacoes                   String?   @db.VarChar(2000)
+  status                        String    @default("Ativo") @db.VarChar(32)
+  campos_personalizados         Json      @default("{}")
+  createdAt                     DateTime  @default(now())
+  updatedAt                     DateTime  @updatedAt
+
+  cliente     Cliente       @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  setor       Setor?        @relation(fields: [cliente_id, setor_id], references: [cliente_id, id], onDelete: Restrict)
+  areaEntrada AreaPastagem? @relation("LoteAreaEntrada", fields: [cliente_id, area_entrada_id], references: [cliente_id, id], onDelete: Restrict)
+  areaAtual   AreaPastagem? @relation("LoteAreaAtual", fields: [cliente_id, area_atual_id], references: [cliente_id, id], onDelete: Restrict)
+
+  @@unique([cliente_id, numero_lote])
+  @@unique([cliente_id, id])
+  @@index([cliente_id, empresa_id])
+  @@index([cliente_id, setor_id])
+  @@index([cliente_id, area_atual_id])
+  @@index([cliente_id, status])
   @@index([cliente_id, nome])
 }

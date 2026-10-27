@@ -12,6 +12,7 @@ import {
   categoriasManejoProvider,
   referenciasProvider,
 } from '../_providers/base44Provider.js';
+import { lotePort } from './loteNativePort.js';
 
 const RESOURCE = 'Lote';
 
@@ -20,26 +21,30 @@ const isObjeto = (valor) => Boolean(valor) && typeof valor === 'object' && !Arra
 const comoLista = (registros) => (Array.isArray(registros) ? registros : []);
 const ctx = (operation) => ({ operation, resource: RESOURCE });
 
+const coincideComCriterio = (registro, criterio) =>
+  Object.entries(criterio).every(([campo, valor]) => registro[campo] === valor);
+
 export const listLotes = async () =>
-  comoLista(await runProviderCall(() => lotesProvider.listLotes(), ctx('listLotes')));
+  comoLista(await runProviderCall(() => lotePort.list(), ctx('listLotes')));
 
 export const filterLotes = async (criterio) => {
   const contexto = ctx('filterLotes');
   assertArgument(isObjeto(criterio), 'criterio', contexto);
-  return comoLista(await runProviderCall(() => lotesProvider.filterLotes(criterio), contexto));
+  const todos = comoLista(await runProviderCall(() => lotePort.list(), contexto));
+  return todos.filter((item) => coincideComCriterio(item, criterio));
 };
 
 export const createLote = async (dados) => {
   const contexto = ctx('createLote');
   assertArgument(isObjeto(dados), 'dados', contexto);
-  return runProviderCall(() => lotesProvider.createLote(dados), contexto);
+  return runProviderCall(() => lotePort.create(dados), contexto);
 };
 
 export const updateLote = async (id, dados) => {
   const contexto = ctx('updateLote');
   assertArgument(isId(id), 'id', contexto);
   assertArgument(isObjeto(dados), 'dados', contexto);
-  return runProviderCall(() => lotesProvider.updateLote(id, dados), { ...contexto, details: { id } });
+  return runProviderCall(() => lotePort.update(id, dados), { ...contexto, details: { id } });
 };
 
 // ── Movimentações do mapa ─────────────────────────────────────────────────
@@ -136,7 +141,7 @@ export const bulkCreateSuplementacaoLote = async (registros) => {
 export const deleteLote = async (id) => {
   const contexto = ctx('deleteLote');
   assertArgument(isId(id), 'id', contexto);
-  return runProviderCall(() => lotesProvider.deleteLote(id), contexto);
+  return runProviderCall(() => lotePort.delete(id), { ...contexto, details: { id } });
 };
 
 export const listFornecedores = async () =>

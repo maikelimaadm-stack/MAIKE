@@ -30,6 +30,7 @@ import { registrarMarcaRoutes } from './modules/marcas/marcaRoutes.js';
 import { registrarUnidadeMedidaRoutes } from './modules/unidadesMedida/unidadeMedidaRoutes.js';
 import { registrarGrupoAtividadeRoutes } from './modules/gruposAtividade/grupoAtividadeRoutes.js';
 import { registrarTipoTarefaRoutes } from './modules/tiposTarefa/tipoTarefaRoutes.js';
+import { registrarLoteRoutes } from './modules/lotes/loteRoutes.js';
 
 /**
  * @param {{logger?: boolean|object}} [opcoes]
@@ -98,6 +99,7 @@ export const construirApp = async (opcoes = {}) => {
   await app.register(registrarUnidadeMedidaRoutes);
   await app.register(registrarGrupoAtividadeRoutes);
   await app.register(registrarTipoTarefaRoutes);
+  await app.register(registrarLoteRoutes);
 
   return app;
 };

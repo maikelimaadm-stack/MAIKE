@@ -131,6 +131,7 @@ export const BACKEND_ONLY_CODES = Object.freeze({
     http: 409,
     meaning: 'já existe tipo de tarefa com este nome no grupo',
   },
+  LOTE_NOT_FOUND: { http: 404, meaning: 'id não identifica lote deste tenant' },
   INTERNAL_ERROR: { http: 500, meaning: 'erro não previsto' },
 });
 

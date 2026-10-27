@@ -120,3 +120,12 @@ export const pesoAplicavel = ({ pesosPorLote, loteId, pesoPadrao }) => {
 
 /** Ganho de peso desde a última pesagem; peso anterior ausente conta como 0. */
 export const ganhoDePeso = (pesoNovo, pesoAnterior) => numero(pesoNovo) - numero(pesoAnterior);
+
+/** Preview legado de numeração — criação real usa sequência no servidor (P5.1). */
+export const proximoNumeroLote = (lotes) => {
+  const maior = (lotes || []).reduce(
+    (max, lote) => Math.max(max, parseInt(lote.numero_lote, 10) || 0),
+    0
+  );
+  return String(maior + 1);
+};

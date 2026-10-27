@@ -7,6 +7,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { proximoNumeroLote } from '@/domain/lotes/movimentacaoLote.js';
 
 const lotes = {
   listLotes: vi.fn(), filterLotes: vi.fn(), createLote: vi.fn(), updateLote: vi.fn(), deleteLote: vi.fn(),
@@ -89,17 +90,17 @@ describe('L — cadastro de lotes', () => {
   });
 
   it('L3 — próximo número é max + 1, tolerando valor não numérico', () => {
-    expect(loteCadastro.proximoNumeroLote([{ numero_lote: '7' }, { numero_lote: 'x' }, { numero_lote: 3 }])).toBe('8');
-    expect(loteCadastro.proximoNumeroLote([])).toBe('1');
+    expect(proximoNumeroLote([{ numero_lote: '7' }, { numero_lote: 'x' }, { numero_lote: 3 }])).toBe('8');
+    expect(proximoNumeroLote([])).toBe('1');
   });
 
-  it('L4 — criar aplica empresa, número, status e campos personalizados', async () => {
-    lotes.listLotes.mockResolvedValue([{ numero_lote: '4' }]);
+  it('L4 — criar aplica empresa, status e campos personalizados (numero_lote no servidor)', async () => {
     lotes.createLote.mockResolvedValue({ id: 'novo' });
     await loteCadastro.criarLote({ nome: 'L' }, { empresaId: EMPRESA });
     expect(lotes.createLote).toHaveBeenCalledWith(
-      expect.objectContaining({ empresa_id: EMPRESA, numero_lote: '5', status: 'Ativo', campos_personalizados: {} })
+      expect.objectContaining({ empresa_id: EMPRESA, status: 'Ativo', campos_personalizados: {} })
     );
+    expect(lotes.createLote.mock.calls[0][0]).not.toHaveProperty('numero_lote');
   });
 
   it('L5 — atualizar sincroniza referências depois de gravar', async () => {

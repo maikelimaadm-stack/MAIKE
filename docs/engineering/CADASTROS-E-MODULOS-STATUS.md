@@ -31,7 +31,7 @@ Este documento responde: *o que abre no menu, de onde vêm os dados (PostgreSQL 
 |---|---|---|---|---|---|---|
 | **Mapa Geral** | `/MapaGeral` | Mapa → Mapa Geral | **Misto** — setores/áreas/geografia nativos; lotes, tarefas, bebedouros, suplementação Base44 | Mapa (não é cadastro lista) | **Sim** | Superfície primária (D-PROD-05). Requer `VITE_GOOGLE_MAPS_API_KEY` no build. |
 | **Cadastro do Mapa** | `/MapaCadastro` | Mapa → Cadastro do Mapa | **Misto** — `AreaPastagem`, pontos, linhas, ícones nativos; demais camadas Base44 | Formulários mapa | **Sim** | CRUD de polígonos/áreas via API `/areas-pastagem`. |
-| **Lotes** | `/CadastroLotes` | Manejo → Lotes | **Base44** (`Lote`, movimentações, anexos) | Base1 parcial (chrome lista) | **Sim*** | *Depende do token Base44 e empresa selecionada (`localStorage`). |
+| **Lotes** | `/CadastroLotes` | Manejo → Lotes | **Misto** — cadastro **nativo** `GET/POST/PATCH/DELETE /lotes` → Prisma `Lote` (P5.1); movimentações/anexos Base44 | Base1 parcial (chrome lista) | **Sim** | `numero_lote` no servidor; movimentações do mapa ainda Base44. |
 | **Setores** | `/CadastroSetores` | Manejo → Setores | **Nativo** — `GET/POST/PATCH /setores` → Prisma `Setor` | Base1 parcial | **Sim** | Sem `DELETE` no backend (D-PROD-25). Sincronização de nomes para entidades Base44 via `syncEntityReferences`. |
 | **Categorias de Manejo** | `/CategoriasManejo` | Manejo → Categorias de Manejo | **Base44** (`CategoriaManejo`) | Base1 parcial | **Sim*** | Ícones podem ler cache; entidade manejo na Base44. |
 | **Bebedouros** | `/Bebedouros` | Manejo → Bebedouros | **Base44** (`Bebedouro`, histórico, sanidade) | Base1 grade | **Sim*** | |
@@ -79,8 +79,9 @@ Rewrites Vercel: `vercel.json` encaminha as rotas acima para `api/fastify.js` (D
 | `/linhas-geograficas` | GET, POST, PATCH `:id` | LinhaGeografica |
 | `/usuarios` | GET, POST, PATCH `:id` | Usuario (sem DELETE) |
 | `/marcas` | GET, POST, PATCH `:id`, DELETE `:id` | Marca (P4.4) |
+| `/lotes` | GET, POST, PATCH `:id`, DELETE `:id` | Lote (P5.1) |
 
-Não existem rotas nativas para: Produto, Categoria, Empresa, Lote, Bebedouro, Permissao, etc. (roadmap P5–P6).
+Não existem rotas nativas para: Produto, Categoria, Empresa, Bebedouro, Permissao, `LancamentoTarefa`, etc. (roadmap P5–P6).
 
 ---
 

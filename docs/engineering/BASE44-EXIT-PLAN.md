@@ -12,7 +12,7 @@
 | Usuário atual (Layout) | `/auth/contexto` | — |
 | Mapa geográfico | Setor, AreaPastagem, pontos, linhas, ícones | PontoSuplementacao, MovimentacaoMapa, Bebedouro, … |
 | Cadastros suporte | Marca, UnidadeMedida, **GrupoAtividade**, **TipoTarefa** | Produto, Categoria, LocalEstoque, Empresa, … |
-| Manejo / lançamentos | — | **LancamentoTarefa**, **Lote**, CategoriaManejo, suplementação, estoque |
+| Manejo / lançamentos | **Lote** (cadastro CRUD) | **LancamentoTarefa**, movimentações mapa/pecuária, CategoriaManejo, suplementação, estoque |
 | Admin | Usuario (contas) | Permissao, User (perfil legado), Empresa |
 | Functions | — | `syncEntityReferences` |
 | Infra | `base44Client`, vite-plugin, env `VITE_BASE44_*` | Até P7 |
@@ -20,8 +20,8 @@
 ## Ordem sugerida (desbloqueia testes de lançamentos)
 
 1. ~~**TipoTarefa** + **GrupoAtividade**~~ — **feito (P5.0, D-PROD-45)**.
-2. **Lote** + movimentações mapa/pecuária (P5) — **próximo PR**.
-3. **LancamentoTarefa** + histórico (P5).
+2. ~~**Lote** (cadastro)~~ — **feito (P5.1, D-PROD-47)**. Movimentações mapa/pecuária seguem Base44.
+3. **LancamentoTarefa** + histórico (P5) — **próximo PR**.
 4. **Produto**, **Categoria**, **LocalEstoque** — suplementação e fichas.
 5. **Empresa** — seleção `empresa_id` hoje via Base44 + `localStorage`.
 6. **Permissao** / matriz de menu — substituir ou espelhar no PostgreSQL (P6).
