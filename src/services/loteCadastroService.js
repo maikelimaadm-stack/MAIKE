@@ -37,6 +37,32 @@ import { assertExclusaoPermitida } from './deleteGuardService';
  * mudança de categoria) e não de um cadastro manual. A tela de cadastro os
  * esconde por padrão. Lista preservada do repositório removido.
  */
+/** Valores aceitos por POST /lotes (schema Fastify). */
+const MOTIVOS_ENTRADA_CANONICOS = Object.freeze(['Compra', 'Ajuste', 'Inventário', 'Outros']);
+
+/**
+ * Autocomplete legado enviava ids em maiúsculas; o backend exige enum exato.
+ * @param {unknown} valor
+ * @returns {string|undefined}
+ */
+export const normalizarMotivoEntrada = (valor) => {
+  if (valor === undefined || valor === null) return undefined;
+  const bruto = String(valor).trim();
+  if (!bruto) return undefined;
+  if (MOTIVOS_ENTRADA_CANONICOS.includes(bruto)) return bruto;
+  const chave = bruto
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase();
+  const mapa = Object.freeze({
+    COMPRA: 'Compra',
+    AJUSTE: 'Ajuste',
+    INVENTARIO: 'Inventário',
+    OUTROS: 'Outros',
+  });
+  return mapa[chave];
+};
+
 export const ORIGENS_SISTEMA = Object.freeze([
   'MOVIMENTAÇÃO',
   'REVERSÃO MOVIMENTAÇÃO',
@@ -114,13 +140,17 @@ export const listarFornecedores = async (empresaId) => {
  * @param {object} dados
  * @param {{empresaId?: string}} [opcoes]
  */
-export const criarLote = async (dados, { empresaId } = {}) =>
-  createLote({
+export const criarLote = async (dados, { empresaId } = {}) => {
+  const motivo =
+    normalizarMotivoEntrada(dados.motivo_entrada) ?? dados.motivo_entrada ?? 'Inventário';
+  return createLote({
     ...dados,
     empresa_id: empresaId || dados.empresa_id,
+    motivo_entrada: motivo,
     status: dados.status || 'Ativo',
     campos_personalizados: dados.campos_personalizados || {},
   });
+};
 
 /**
  * Atualiza o lote e sincroniza as referências denormalizadas.
