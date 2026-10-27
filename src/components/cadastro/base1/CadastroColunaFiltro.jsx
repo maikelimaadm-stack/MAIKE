@@ -263,7 +263,12 @@ export default function CadastroColunaFiltro({
           <button type="button" className="tb-btn tb-btn-icon tb-btn-sm shrink-0" title="Cancelar" aria-label="Cancelar" onClick={onFechar}>
             <X className="h-4 w-4" />
           </button>
-          <button type="submit" className="tb-btn tb-btn-icon tb-btn-sm shrink-0" title="Aplicar" aria-label="Aplicar">
+          <button
+            type="submit"
+            className="tb-btn tb-btn-icon tb-btn-green tb-btn-sm shrink-0"
+            title="Aplicar"
+            aria-label="Aplicar"
+          >
             <Check className="h-4 w-4" />
           </button>
         </div>

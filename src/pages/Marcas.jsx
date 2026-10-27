@@ -13,6 +13,7 @@ import { MARCAS_COLUNAS, getMarcaFieldValue } from "@/components/marcas/TabelaMa
 import { exportCadastroCsv } from "@/components/cadastro/base1/cadastroExportCsv";
 import { Base1CardsToolbar } from "@/components/cadastro/base1/Base1Cards";
 import { prepareCadastroDuplicate } from "@/components/cadastro/base1/cadastroDuplicateHelpers";
+import { Check, X } from "lucide-react";
 import { PillBtn } from "@/components/cadastro/base1/Base1Ui";
 import FormularioMarca, { FORMULARIO_MARCA_ID } from "@/components/marcas/FormularioMarca";
 import { useCadastroListaFooter } from "@/hooks/useCadastroListaFooter";
@@ -236,9 +237,11 @@ export default function Marcas() {
             showForm && isEditing ? (
               <>
                 <PillBtn type="submit" form={FORMULARIO_MARCA_ID} disabled={saving}>
+                  <Check className="h-4 w-4" aria-hidden />
                   {saving ? "Salvando…" : "Salvar"}
                 </PillBtn>
                 <PillBtn type="button" tone="gray" onClick={cancelForm} disabled={saving}>
+                  <X className="h-4 w-4" aria-hidden />
                   Cancelar
                 </PillBtn>
               </>

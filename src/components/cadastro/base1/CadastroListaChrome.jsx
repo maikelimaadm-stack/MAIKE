@@ -152,28 +152,6 @@ export default function CadastroListaChrome({
   const menuItems = useMemo(
     () => [
       {
-        key: "edit",
-        label: "Editar",
-        icon: <Pencil className="h-4 w-4" />,
-        disabled: !onEdit || !oneSelected,
-        className: "mg-b1-menuitem--compact-only",
-      },
-      {
-        key: "duplicate",
-        label: "Duplicar",
-        icon: <Copy className="h-4 w-4" />,
-        disabled: !onDuplicate || !oneSelected,
-        className: "mg-b1-menuitem--compact-only",
-      },
-      {
-        key: "delete",
-        label: selectedCount > 1 ? `Excluir (${selectedCount})` : "Excluir",
-        icon: <Trash2 className="h-4 w-4" />,
-        disabled: !onDelete || !anySelected,
-        danger: true,
-        className: "mg-b1-menuitem--compact-only",
-      },
-      {
         key: "attach-info",
         label: "Anexos",
         icon: <Paperclip className="h-4 w-4" />,
@@ -213,12 +191,6 @@ export default function CadastroListaChrome({
       },
     ].filter((item) => !item.hidden),
     [
-      onEdit,
-      onDuplicate,
-      onDelete,
-      oneSelected,
-      anySelected,
-      selectedCount,
       showAttachControl,
       attachDisabledReason,
       attachTitle,
@@ -233,9 +205,6 @@ export default function CadastroListaChrome({
   );
 
   const onMenu = (k) => {
-    if (k === "edit") onEdit?.();
-    if (k === "duplicate") onDuplicate?.();
-    if (k === "delete") onDelete?.();
     if (k === "export") onExportCsv?.();
     if (k === "print") (onPrint ?? (() => window.print()))();
     if (k === "clear-filters") onClearFilters?.();

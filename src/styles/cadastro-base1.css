@@ -132,6 +132,21 @@
   background: var(--mg-gray-fill2);
 }
 
+/* Botões de visto (OK / Aplicar / Pronto): verde + ícone branco */
+.cadastro-b1 .tb-btn-icon.tb-btn-green {
+  background: var(--mg-accent);
+  color: #fff;
+}
+
+.cadastro-b1 .tb-btn-icon.tb-btn-green:hover:not(:disabled) {
+  background: var(--mg-accent-hover);
+  color: #fff;
+}
+
+.cadastro-b1 .tb-btn-icon.tb-btn-green svg {
+  color: inherit;
+}
+
 .cadastro-b1 .tb-btn-icon.is-active {
   background: var(--mg-accent-light);
   color: var(--mg-accent);

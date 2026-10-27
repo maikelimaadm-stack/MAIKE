@@ -197,18 +197,51 @@
   box-shadow: var(--mg-focus-ring) !important;
 }
 
-.cadastro-b1--portal-compras .mg-toolbar--join .tb-btn-gray,
-.cadastro-b1--portal-compras .mg-toolbar--join .tb-btn-red {
+.cadastro-b1--portal-compras .mg-toolbar--join .tb-btn-gray {
   background: var(--portal-acao-bg) !important;
   color: var(--portal-acao-fg) !important;
   box-shadow: var(--portal-sombra) !important;
 }
 
-.cadastro-b1--portal-compras .mg-toolbar--join .tb-btn-gray:hover:not(:disabled),
-.cadastro-b1--portal-compras .mg-toolbar--join .tb-btn-red:hover:not(:disabled) {
+.cadastro-b1--portal-compras .mg-toolbar--join .tb-btn-gray:hover:not(:disabled) {
   background: var(--portal-acao-hover) !important;
   color: var(--portal-acao-fg-hover) !important;
   box-shadow: var(--portal-sombra-hover) !important;
+}
+
+/* Excluir: letra e ícone vermelhos (fundo cinza portal) */
+.cadastro-b1--portal-compras .mg-toolbar--join .tb-btn-red {
+  background: var(--portal-acao-bg) !important;
+  color: var(--mg-red) !important;
+  box-shadow: var(--portal-sombra) !important;
+}
+
+.cadastro-b1--portal-compras .mg-toolbar--join .tb-btn-red:hover:not(:disabled) {
+  background: rgba(220, 38, 38, 0.08) !important;
+  color: var(--mg-red) !important;
+  box-shadow: var(--portal-sombra-hover) !important;
+}
+
+.cadastro-b1--portal-compras .mg-toolbar--join .tb-btn-red svg {
+  color: inherit !important;
+}
+
+/* Visto / OK / Pronto em ícone: verde + ícone branco */
+.cadastro-b1--portal-compras .tb-btn-icon.tb-btn-green,
+.b1-portal-compras .tb-btn-icon.tb-btn-green {
+  background: var(--mg-accent) !important;
+  color: #fff !important;
+}
+
+.cadastro-b1--portal-compras .tb-btn-icon.tb-btn-green:hover:not(:disabled),
+.b1-portal-compras .tb-btn-icon.tb-btn-green:hover:not(:disabled) {
+  background: var(--mg-accent-hover) !important;
+  color: #fff !important;
+}
+
+.cadastro-b1--portal-compras .tb-btn-icon.tb-btn-green svg,
+.b1-portal-compras .tb-btn-icon.tb-btn-green svg {
+  color: inherit !important;
 }
 
 /* Popovers / dialogs / fpop no body */

@@ -318,7 +318,13 @@ export default function ConfiguracaoColunasB1Dialog({
           </div>
           <div className="mdl-f">
             <span style={{ flexGrow: 1 }} />
-            <button type="button" className="tb-btn tb-btn-icon" aria-label="Pronto" title="Pronto" onClick={salvar}>
+            <button
+              type="button"
+              className="tb-btn tb-btn-icon tb-btn-green"
+              aria-label="Pronto"
+              title="Pronto"
+              onClick={salvar}
+            >
               <Check className="h-4 w-4" />
             </button>
           </div>
