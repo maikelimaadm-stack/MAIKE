@@ -37,7 +37,7 @@ Este documento responde: *o que abre no menu, de onde vêm os dados (PostgreSQL 
 | **Bebedouros** | `/Bebedouros` | Manejo → Bebedouros | **Base44** (`Bebedouro`, histórico, sanidade) | Base1 grade | **Sim*** | |
 | **Produtos** | `/Produtos` | Suporte do Mapa → Produtos | **Base44** (`Produto`, estoque) | Base1 parcial | **Sim*** | Sem backend Prisma `Produto` (P5+). |
 | **Categorias de Produto** | `/Categorias` | Suporte → Categorias de Produto | **Base44** (`Categoria`) | Base1 parcial | **Sim*** | |
-| **Marcas** | `/Marcas` | Suporte → Marcas | **Nativo** — `GET/POST/PATCH/DELETE /marcas` → Prisma `Marca` (P4.4, D-PROD-43) | **Base1 modelo** (`pageLayout="base1-list"`) | **Sim** | `empresa_id` vem da empresa Base44 selecionada (`localStorage`); CRUD persiste no PostgreSQL. |
+| **Marcas** | `/marcas` | Suporte → Marcas | **Nativo** — `GET/POST/PATCH/DELETE /marcas` → Prisma `Marca` (P4.4, D-PROD-43) | **Base1 modelo** (`pageLayout="base1-list"`) | **Sim** | `empresa_id`: empresa Base44 em `localStorage` ou fallback `cliente_id` do JWT (P4.6). |
 | **Unidades de Medida** | `/UnidadesMedida` | Suporte → Unidades de Medida | **Base44** (`UnidadeMedida`) | Base1 grade | **Sim*** | |
 | **Locais de Estoque** | `/LocaisEstoque` | Suporte → Locais de Estoque | **Base44** (`LocalEstoque`) | Base1 grade | **Sim*** | |
 | **Tipos de Tarefa** | `/TiposTarefa` | Suporte → Tipos de Tarefa | **Base44** (`TipoTarefa`, `GrupoAtividade`) | Base1 parcial | **Sim*** | |

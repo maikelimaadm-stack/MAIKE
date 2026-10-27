@@ -29,10 +29,15 @@ describe('escopo do produto', () => {
     expect(pagesConfig.mainPage).toBe('MapaGeral');
   });
 
-  it('a raiz encaminha para /MapaGeral', () => {
+  it('a raiz encaminha para a URL canônica do mapa (minúsculas)', () => {
     const app = readFileSync('src/App.jsx', 'utf8');
-    expect(app).toMatch(/path="\/"\s+element=\{<Navigate to=\{`\/\$\{mainPage\}`\} replace \/>\}/);
+    expect(app).toContain('createPageUrl(mainPage)');
     expect(pagesConfig.mainPage).toBe('MapaGeral');
+  });
+
+  it('rotas registradas batem com createPageUrl do menu', () => {
+    const app = readFileSync('src/App.jsx', 'utf8');
+    expect(app).toContain('path={createPageUrl(path)}');
   });
 
   it('o menu só aponta para páginas permitidas', () => {
