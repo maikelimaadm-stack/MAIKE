@@ -120,6 +120,12 @@
 
 .cadastro-b1 .tb-btn-red:hover:not(:disabled) {
   background: rgba(220, 38, 38, 0.08);
+  color: var(--mg-red);
+}
+
+.cadastro-b1 .tb-btn-red svg {
+  color: inherit;
+  stroke: currentColor;
 }
 
 .cadastro-b1 .tb-btn-icon {

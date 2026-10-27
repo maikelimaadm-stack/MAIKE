@@ -209,21 +209,22 @@
   box-shadow: var(--portal-sombra-hover) !important;
 }
 
-/* Excluir: letra e ícone vermelhos (fundo cinza portal) */
-.cadastro-b1--portal-compras .mg-toolbar--join .tb-btn-red {
+/* Excluir: letra e ícone vermelhos (vence o cinza genérico :not(.tb-btn-icon)) */
+.cadastro-b1--portal-compras .mg-toolbar--join .tb-btn.tb-btn-red:not(.tb-btn-icon) {
   background: var(--portal-acao-bg) !important;
   color: var(--mg-red) !important;
   box-shadow: var(--portal-sombra) !important;
 }
 
-.cadastro-b1--portal-compras .mg-toolbar--join .tb-btn-red:hover:not(:disabled) {
+.cadastro-b1--portal-compras .mg-toolbar--join .tb-btn.tb-btn-red:not(.tb-btn-icon):hover:not(:disabled) {
   background: rgba(220, 38, 38, 0.08) !important;
   color: var(--mg-red) !important;
   box-shadow: var(--portal-sombra-hover) !important;
 }
 
-.cadastro-b1--portal-compras .mg-toolbar--join .tb-btn-red svg {
-  color: inherit !important;
+.cadastro-b1--portal-compras .mg-toolbar--join .tb-btn.tb-btn-red:not(.tb-btn-icon) svg {
+  color: var(--mg-red) !important;
+  stroke: currentColor !important;
 }
 
 /* Visto / OK / Pronto: fundo verde + ícone branco (vence o cinza do portal/fpop/mdl) */
@@ -431,14 +432,19 @@
     color: var(--mg-text-1) !important;
   }
 
-  .cadastro-b1--full-page .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn-red {
+  .cadastro-b1--full-page .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn.tb-btn-red:not(.tb-btn-icon) {
     background: var(--mg-gray-fill) !important;
     color: var(--mg-red) !important;
   }
 
-  .cadastro-b1--full-page .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn-red:hover:not(:disabled) {
+  .cadastro-b1--full-page .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn.tb-btn-red:not(.tb-btn-icon):hover:not(:disabled) {
     background: rgba(220, 38, 38, 0.08) !important;
     color: var(--mg-red) !important;
+  }
+
+  .cadastro-b1--full-page .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn.tb-btn-red:not(.tb-btn-icon) svg {
+    color: var(--mg-red) !important;
+    stroke: currentColor !important;
   }
 
   .cadastro-b1--full-page .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn-icon,

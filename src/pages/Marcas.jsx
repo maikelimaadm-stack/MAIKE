@@ -326,6 +326,22 @@ export default function Marcas() {
     recordNavRows,
   ]);
 
+  /** Segmento “Registro”: abre em visualização (leitura). Edição só pelo botão Editar. */
+  const handleOpenRecordSelected = useCallback(() => {
+    if (showForm && editingItem?.id) {
+      setIsEditing(false);
+      return true;
+    }
+    const selectedId = chrome.selectedIds[0];
+    const selected = selectedId
+      ? recordNavRows.find((m) => String(m.id) === String(selectedId))
+      : null;
+    const item = selected ?? (chrome.selectedIds.length === 0 ? recordNavRows[0] : null);
+    if (!item) return false;
+    handleEdit(item);
+    return true;
+  }, [showForm, editingItem, chrome.selectedIds, recordNavRows, handleEdit]);
+
   const handleDuplicateSelected = () => {
     const item =
       marcas.find((m) => String(m.id) === String(chrome.selectedIds[0])) ||
@@ -363,11 +379,11 @@ export default function Marcas() {
   const onViewModeChange = useCallback(
     (mode) => {
       chrome.handleViewModeChange(mode, {
-        onOpenRecord: () => handleEditSelected(),
+        onOpenRecord: () => handleOpenRecordSelected(),
         onExitRecord: closeForm,
       });
     },
-    [chrome, handleEditSelected, closeForm],
+    [chrome, handleOpenRecordSelected, closeForm],
   );
 
   const detailTitle = editingItem?.id ? editingItem.nome || "Marca" : "Nova marca";
