@@ -306,64 +306,67 @@ export default function CadastroListaChrome({
         searchExpanded && "is-search-expanded",
       )}
     >
-      {recordMode && recordEditing ? (
-        recordToolbar ?? null
-      ) : showListPrimaryToolbar ? (
-        <div className="mg-toolbar__row mg-toolbar__row--actions">
-          {onNew ? (
-            <PillBtn type="button" onClick={onNew}>
-              <Plus className="h-4 w-4" aria-hidden />
-              {createLabel}
-            </PillBtn>
-          ) : null}
-          {extraToolbar}
-          {onEdit || onDuplicate || onDelete ? (
-            <FluidSlot open={anySelected} className="mg-fluid-slot--cluster">
-              <div className="mg-fluid-slot__cluster">
-                {onEdit ? (
-                  <PillBtn
-                    type="button"
-                    tone="gray"
-                    onClick={onEdit}
-                    disabled={!oneSelected}
-                    tabIndex={oneSelected ? undefined : -1}
-                    className={cn("mg-toolbar__action--wide", !oneSelected && "mg-fluid-slot__ghost")}
-                  >
-                    <Pencil className="h-3.5 w-3.5" aria-hidden />
-                    Editar
-                  </PillBtn>
-                ) : null}
-                {onDuplicate ? (
-                  <PillBtn
-                    type="button"
-                    tone="gray"
-                    onClick={onDuplicate}
-                    disabled={!oneSelected}
-                    tabIndex={oneSelected ? undefined : -1}
-                    className={cn("mg-toolbar__action--wide", !oneSelected && "mg-fluid-slot__ghost")}
-                  >
-                    <Copy className="h-3.5 w-3.5" aria-hidden />
-                    Duplicar
-                  </PillBtn>
-                ) : null}
-                {onDelete ? (
-                  <PillBtn
-                    type="button"
-                    tone="red"
-                    onClick={onDelete}
-                    tabIndex={anySelected ? undefined : -1}
-                    className="mg-toolbar__action--wide"
-                  >
-                    <Trash2 className="h-4 w-4" aria-hidden />
-                    Excluir
-                    {selectedCount > 1 ? ` (${selectedCount})` : ""}
-                  </PillBtn>
-                ) : null}
-              </div>
-            </FluidSlot>
-          ) : null}
-        </div>
-      ) : null}
+      <div className="mg-toolbar__row mg-toolbar__row--actions">
+        <FluidSlot open={showListPrimaryToolbar} className="mg-fluid-slot--primary">
+          <div className="mg-fluid-slot__cluster">
+            {onNew ? (
+              <PillBtn type="button" onClick={onNew} tabIndex={showListPrimaryToolbar ? undefined : -1}>
+                <Plus className="h-4 w-4" aria-hidden />
+                {createLabel}
+              </PillBtn>
+            ) : null}
+            {extraToolbar}
+            {onEdit || onDuplicate || onDelete ? (
+              <FluidSlot open={anySelected} className="mg-fluid-slot--cluster">
+                <div className="mg-fluid-slot__cluster">
+                  {onEdit ? (
+                    <PillBtn
+                      type="button"
+                      tone="gray"
+                      onClick={onEdit}
+                      disabled={!oneSelected}
+                      tabIndex={showListPrimaryToolbar && oneSelected ? undefined : -1}
+                      className={cn("mg-toolbar__action--wide", !oneSelected && "mg-fluid-slot__ghost")}
+                    >
+                      <Pencil className="h-3.5 w-3.5" aria-hidden />
+                      Editar
+                    </PillBtn>
+                  ) : null}
+                  {onDuplicate ? (
+                    <PillBtn
+                      type="button"
+                      tone="gray"
+                      onClick={onDuplicate}
+                      disabled={!oneSelected}
+                      tabIndex={showListPrimaryToolbar && oneSelected ? undefined : -1}
+                      className={cn("mg-toolbar__action--wide", !oneSelected && "mg-fluid-slot__ghost")}
+                    >
+                      <Copy className="h-3.5 w-3.5" aria-hidden />
+                      Duplicar
+                    </PillBtn>
+                  ) : null}
+                  {onDelete ? (
+                    <PillBtn
+                      type="button"
+                      tone="red"
+                      onClick={onDelete}
+                      tabIndex={showListPrimaryToolbar && anySelected ? undefined : -1}
+                      className="mg-toolbar__action--wide"
+                    >
+                      <Trash2 className="h-4 w-4" aria-hidden />
+                      Excluir
+                      {selectedCount > 1 ? ` (${selectedCount})` : ""}
+                    </PillBtn>
+                  ) : null}
+                </div>
+              </FluidSlot>
+            ) : null}
+          </div>
+        </FluidSlot>
+        <FluidSlot open={Boolean(recordMode && recordEditing && recordToolbar)}>
+          <div className="mg-fluid-slot__cluster">{recordToolbar}</div>
+        </FluidSlot>
+      </div>
       {!secondaryToolsLocked && joinedShell ? (
         <div className="ml-auto flex items-center justify-end gap-1.5">
           {onClearFilters ? (

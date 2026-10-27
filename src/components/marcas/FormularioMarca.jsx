@@ -1,9 +1,9 @@
 import React, { useState } from "react";
-import { toast } from "sonner";
 import B1Field, { B1_FIELD_CTL_CLS } from "@/components/cadastro/base1/B1Field";
 import { B1ChaveRow } from "@/components/cadastro/base1/Base1Ui";
 import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
 import CadastroFormActions from "@/components/cadastro/base1/CadastroFormActions";
+import { notifyWarning } from "@/lib/maikeNotify";
 
 export const FORMULARIO_MARCA_ID = "formulario-marca-base1";
 
@@ -34,7 +34,7 @@ export default function FormularioMarca({
     e.preventDefault();
     if (!form.nome?.trim()) {
       setInvalidFields(["nome"]);
-      toast.error("Nome é obrigatório!");
+      notifyWarning("Atenção", "Preencha o campo obrigatório: Nome.");
       return;
     }
     onSubmit({

@@ -209,26 +209,23 @@
   flex-wrap: wrap;
 }
 
-/* Entrada/saída fluida (água) — botões da toolbar que aparecem e somem */
+/* Entrada/saída fluida (água) — botões da toolbar que aparecem e somem.
+   Transform/blur só no inner, com overflow hidden no slot — evita sobreposição. */
 .cadastro-b1 .mg-fluid-slot {
   display: grid;
   grid-template-columns: 0fr;
   opacity: 0;
-  filter: blur(5px);
-  transform: translateY(2px) scale(0.92);
+  overflow: hidden;
   pointer-events: none;
+  vertical-align: middle;
   transition:
-    grid-template-columns 0.42s cubic-bezier(0.22, 1, 0.36, 1),
-    opacity 0.34s cubic-bezier(0.22, 1, 0.36, 1),
-    filter 0.34s ease,
-    transform 0.42s cubic-bezier(0.22, 1, 0.36, 1);
+    grid-template-columns 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.32s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .cadastro-b1 .mg-fluid-slot.is-open {
   grid-template-columns: 1fr;
   opacity: 1;
-  filter: blur(0);
-  transform: translateY(0) scale(1);
   pointer-events: auto;
 }
 
@@ -237,10 +234,28 @@
   min-width: 0;
   display: flex;
   align-items: center;
+  filter: blur(4px);
+  transform: translateY(3px) scale(0.94);
+  transform-origin: left center;
+  transition:
+    filter 0.32s ease,
+    transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.cadastro-b1 .mg-fluid-slot.is-open .mg-fluid-slot__inner {
+  filter: blur(0);
+  transform: translateY(0) scale(1);
 }
 
 .cadastro-b1 .mg-fluid-slot__inner > * {
   flex-shrink: 0;
+}
+
+.cadastro-b1 .mg-toolbar__row--actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
 }
 
 .cadastro-b1 .mg-fluid-slot__cluster {
@@ -249,11 +264,20 @@
   gap: 0;
 }
 
+.cadastro-b1 .mg-fluid-slot__cluster > .tb-btn + .tb-btn:not(.mg-fluid-slot__ghost),
+.cadastro-b1 .mg-fluid-slot__cluster > .mg-fluid-slot.is-open {
+  margin-left: 6px;
+}
+
 .cadastro-b1 .mg-fluid-slot__cluster .tb-btn + .tb-btn:not(.mg-fluid-slot__ghost) {
   margin-left: 6px;
 }
 
 .cadastro-b1 .mg-fluid-slot__ghost + .tb-btn:not(.mg-fluid-slot__ghost) {
+  margin-left: 0;
+}
+
+.cadastro-b1 .mg-fluid-slot__cluster > .mg-fluid-slot:not(.is-open) {
   margin-left: 0;
 }
 
@@ -272,6 +296,7 @@
 .cadastro-b1 .mg-fluid-slot__ghost {
   max-width: 0 !important;
   min-width: 0 !important;
+  width: 0 !important;
   padding-left: 0 !important;
   padding-right: 0 !important;
   margin: 0 !important;
@@ -279,8 +304,7 @@
   overflow: hidden;
   border-width: 0 !important;
   pointer-events: none;
-  filter: blur(4px);
-  transform: scale(0.92);
+  filter: blur(3px);
 }
 
 @media (prefers-reduced-motion: reduce) {

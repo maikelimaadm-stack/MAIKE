@@ -2,8 +2,13 @@ import React, { useCallback, useMemo, useRef, useState } from "react";
 import { listarMarcasDaEmpresa, criarMarca, atualizarMarca, excluirMarcas } from "@/services/marcaService";
 import { getApiErrorMessage } from "@/apis/_core/ApiError";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
+import {
+  notifyError,
+  notifyExclusoesEmpilhadas,
+  notifySuccess,
+  notifyWarning,
+} from "@/lib/maikeNotify";
 import CadastroWorkspace from "@/components/cadastro/CadastroWorkspace";
 import CadastroListaChrome from "@/components/cadastro/base1/CadastroListaChrome";
 import CadastroRecordHeader from "@/components/cadastro/base1/CadastroRecordHeader";
@@ -80,9 +85,10 @@ export default function Marcas() {
         setEditingItem(null);
         chrome.exitRecordView();
       }
-      toast.success("Marca criada!");
+      notifySuccess("Sucesso", "Marca criada");
     },
-    onError: (err) => toast.error(getApiErrorMessage(err, "Não foi possível salvar a marca.")),
+    onError: (err) =>
+      notifyWarning("Atenção", getApiErrorMessage(err, "Não foi possível salvar a marca.")),
   });
 
   const updateMutation = useMutation({
@@ -98,9 +104,10 @@ export default function Marcas() {
       };
       setEditingItem(merged);
       setIsEditing(false);
-      toast.success("Marca atualizada!");
+      notifySuccess("Sucesso", "Marca atualizada");
     },
-    onError: (err) => toast.error(getApiErrorMessage(err, "Não foi possível salvar a marca.")),
+    onError: (err) =>
+      notifyWarning("Atenção", getApiErrorMessage(err, "Não foi possível salvar a marca.")),
   });
 
   const deleteMutation = useMutation({
@@ -108,18 +115,26 @@ export default function Marcas() {
     onSuccess: ({ excluidas, falhas }) => {
       queryClient.invalidateQueries({ queryKey: ["marcas"] });
       chrome.setSelectedIds([]);
+      if (showForm && editingItem?.id && excluidas.some((id) => String(id) === String(editingItem.id))) {
+        setShowForm(false);
+        setEditingItem(null);
+        setIsEditing(false);
+        chrome.exitRecordView();
+      }
       if (excluidas.length) {
-        toast.success(
-          excluidas.length === 1 ? "Marca excluída!" : `${excluidas.length} marcas excluídas!`,
-        );
+        notifyExclusoesEmpilhadas(excluidas.length, { singular: "Registro excluído" });
       }
       if (falhas.length) {
-        toast.error(
-          falhas.length === 1 ? "1 marca não pôde ser excluída." : `${falhas.length} marcas não puderam ser excluídas.`,
+        notifyError(
+          "Atenção",
+          falhas.length === 1
+            ? "1 marca não pôde ser excluída."
+            : `${falhas.length} marcas não puderam ser excluídas.`,
         );
       }
     },
-    onError: (err) => toast.error(getApiErrorMessage(err, "Não foi possível excluir.")),
+    onError: (err) =>
+      notifyError("Atenção", getApiErrorMessage(err, "Não foi possível excluir.")),
   });
 
   const closeForm = () => {
@@ -462,14 +477,14 @@ export default function Marcas() {
       <ConfirmDialog
         open={deleteState.open}
         onOpenChange={(open) => setDeleteState((prev) => ({ ...prev, open }))}
-        title="Confirmar exclusão"
+        title="Confirme a exclusão"
         description={
           deleteState.ids.length > 1
-            ? `Deseja excluir ${deleteState.ids.length} marcas?`
-            : "Deseja excluir esta marca?"
+            ? `Excluir ${deleteState.ids.length} registros de marca? A ação fica registrada na auditoria.`
+            : "Excluir este registro de marca? A ação fica registrada na auditoria."
         }
-        confirmText="Excluir"
-        cancelText="Cancelar"
+        confirmText="Confirmar"
+        cancelText="Fechar"
         variant="destructive"
         onConfirm={handleConfirmDelete}
       />

@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { toast } from "sonner";
+import { notifyWarning } from "@/lib/maikeNotify";
 
 /**
  * Estado compartilhado do chrome Base1 em telas lista/detalhe.
@@ -42,7 +42,7 @@ export function useCadastroListaChromeState({ initialViewMode = "table" } = {}) 
     const { onOpenRecord, onExitRecord } = options ?? {};
     if (mode === "record") {
       if (selectedIds.length > 1) {
-        toast.info("Selecione apenas um registro para abrir no modo Registro.");
+        notifyWarning("Atenção", "Selecione apenas um registro para abrir no modo Registro.");
         return;
       }
       if (selectedIds.length === 1) {
@@ -54,7 +54,7 @@ export function useCadastroListaChromeState({ initialViewMode = "table" } = {}) 
       // Se não abrir, mantém o aviso para o usuário selecionar.
       const opened = onOpenRecord?.(undefined);
       if (opened !== true) {
-        toast.info("Selecione um registro para abrir no modo Registro.");
+        notifyWarning("Atenção", "Selecione um registro para abrir no modo Registro.");
       }
       return;
     }
