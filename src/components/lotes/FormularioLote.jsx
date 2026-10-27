@@ -213,7 +213,7 @@ export default function FormularioLote({
   const opcoesMotivoEntrada = useMemo(
     () =>
       MOTIVOS_ENTRADA.map((item) => ({ id: item, nome: item.toUpperCase() })).sort((a, b) =>
-        a.nome.localeCompare(b.nome, "pt-BR", { sensitivity: "base" ),
+        a.nome.localeCompare(b.nome, "pt-BR", { sensitivity: "base" }),
       ),
     [],
   );
