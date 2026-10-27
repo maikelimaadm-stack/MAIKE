@@ -8,8 +8,8 @@
 
 | Área | Resultado |
 |------|-----------|
-| Tabelas vs models Prisma (10 models) | **OK** — todas presentes em `public` |
-| `_prisma_migrations` | **6/6** — nomes alinhados ao repositório |
+| Tabelas vs models Prisma (11 models) | **OK** — todas presentes em `public` |
+| `_prisma_migrations` | **7/7** — nomes alinhados ao repositório (incl. P4.4 Marcas, pós-PR #73) |
 | Índices (`gate:indices`) | **OK** — inclui `Usuario_login_ativo_global_key` (P6.1) |
 | FKs compostas (AreaPastagem, AuditLog) | **OK** |
 | Dados de domínio | **Vazios** (esperado); bootstrap **já aplicado** (1 `Cliente`, 1 `Usuario`) |
@@ -21,7 +21,7 @@
 
 | Model Prisma | Tabela `public` | Linhas (2026-10-27) | RLS |
 |--------------|-----------------|---------------------|-----|
-| — | `_prisma_migrations` | 6 | off (esperado até P8) |
+| — | `_prisma_migrations` | 7 | off (esperado até P8) |
 | `Cliente` | `Cliente` | 1 | off |
 | `Usuario` | `Usuario` | 1 | off |
 | `AuditLog` | `AuditLog` | 0 | off |
@@ -32,6 +32,7 @@
 | `ConfiguracaoIcone` | `ConfiguracaoIcone` | 0 | off |
 | `PontoReferencia` | `PontoReferencia` | 0 | off |
 | `LinhaGeografica` | `LinhaGeografica` | 0 | off |
+| `Marca` | `Marca` | 0 | off |
 
 **URL API Supabase (referência):** `https://uuemcasqcdjucflulkne.supabase.co` — o app MAIKE usa Prisma via `DATABASE_URL` no Vercel, não o client anon do Supabase.
 
@@ -45,6 +46,7 @@
 | `20260910190000_p4_2_area_pastagem_native` | 1 |
 | `20261023180000_p4_3_map_geography_native` | 1 |
 | `20261023210000_p6_1_login_global_hygiene` | 1 |
+| `20261027140000_p4_marcas_native` | 1 |
 
 Nota: a API `list_migrations` do Supabase MCP expõe `version` interna distinta do `migration_name` Prisma; a fonte de verdade para go-live é `_prisma_migrations.migration_name` (consulta acima).
 
@@ -56,8 +58,9 @@ Registradas em `backend/src/app.js` e reescritas em `vercel.json`:
 - `/setores`, `/areas-pastagem`
 - `/configuracao-icones`, `/pontos-referencia`, `/linhas-geograficas`
 - `/usuarios` (P6.0)
+- `/marcas` (P4.4)
 
-Nenhuma alteração de código necessária nesta missão.
+Nenhuma alteração de código necessária nesta missão (auditoria de schema; rotas Marcas publicadas em PR #73).
 
 ## Smoke HTTP (produção)
 
