@@ -162,30 +162,31 @@ export default function Marcas() {
     else createMutation.mutate(data);
   };
 
-  const recordNavRows = useMemo(() => {
-    const q = chrome.appliedSearch.trim().toLowerCase();
-    if (!q) return marcas;
-    return marcas.filter((m) => {
+  const filtrarMarcasPorBusca = useCallback((lista, texto) => {
+    const q = String(texto ?? "").trim().toLowerCase();
+    if (!q) return lista;
+    return lista.filter((m) => {
       const hay = [m.nome, m.descricao, m.numero_marca].filter(Boolean).join(" ").toLowerCase();
       return hay.includes(q);
     });
-  }, [marcas, chrome.appliedSearch]);
+  }, []);
+
+  const recordNavRows = useMemo(
+    () => filtrarMarcasPorBusca(marcas, chrome.appliedSearch),
+    [marcas, chrome.appliedSearch, filtrarMarcasPorBusca],
+  );
 
   const searchSuggestions = useMemo(() => {
     const q = chrome.searchInput.trim().toLowerCase();
     if (!q) return [];
-    return marcas
-      .filter((m) => {
-        const hay = [m.nome, m.descricao, m.numero_marca].filter(Boolean).join(" ").toLowerCase();
-        return hay.includes(q);
-      })
+    return filtrarMarcasPorBusca(marcas, chrome.searchInput)
       .slice(0, 8)
       .map((m) => ({
         id: String(m.id),
         label: m.nome || "Marca",
         secondary: m.numero_marca ? `Nº ${m.numero_marca}` : m.descricao || undefined,
       }));
-  }, [marcas, chrome.searchInput]);
+  }, [marcas, chrome.searchInput, filtrarMarcasPorBusca]);
 
   const handleEdit = useCallback(
     (item) => {
@@ -196,6 +197,51 @@ export default function Marcas() {
       if (item?.id) chrome.onSelectionChange([String(item.id)]);
     },
     [chrome.setViewMode, chrome.onSelectionChange],
+  );
+
+  /**
+   * Enter / Confirmar: aplica o filtro na listagem atual (tabela, cards ou registro).
+   * Não abre um único registro — em modo registro só sincroniza a navegação com o conjunto filtrado.
+   */
+  const handleSearchApply = useCallback(
+    (next) => {
+      const texto = typeof next === "string" ? next : chrome.searchInput;
+      chrome.applySearch(texto);
+      if (!showForm || isEditing) return;
+      const filtradas = filtrarMarcasPorBusca(marcas, texto);
+      if (!filtradas.length) return;
+      const atualAindaVale =
+        editingItem?.id &&
+        filtradas.some((m) => String(m.id) === String(editingItem.id));
+      if (atualAindaVale) {
+        chrome.onSelectionChange([String(editingItem.id)]);
+        return;
+      }
+      const primeiro = filtradas[0];
+      setEditingItem(primeiro);
+      setIsEditing(false);
+      setShowForm(true);
+      chrome.setViewMode("record");
+      chrome.onSelectionChange([String(primeiro.id)]);
+    },
+    [
+      chrome,
+      showForm,
+      isEditing,
+      editingItem,
+      marcas,
+      filtrarMarcasPorBusca,
+    ],
+  );
+
+  /** Clique na sugestão: abre só aquele registro; o texto digitado vira filtro persistente. */
+  const handleSearchSuggestionPick = useCallback(
+    (item) => {
+      chrome.applySearch(chrome.searchInput);
+      const row = marcas.find((m) => String(m.id) === String(item.id));
+      if (row) handleEdit(row);
+    },
+    [chrome, marcas, handleEdit],
   );
 
   const handleEditSelected = useCallback(() => {
@@ -337,14 +383,12 @@ export default function Marcas() {
           }
           searchValue={chrome.searchInput}
           onSearchChange={chrome.setSearchInput}
-          onSearchApply={chrome.applySearch}
+          onSearchApply={handleSearchApply}
+          searchCommittedValue={chrome.appliedSearch}
           searchActive={chrome.searchActive}
           searchPlaceholder="Buscar marcas…"
           searchSuggestions={searchSuggestions}
-          onSearchSuggestionPick={(item) => {
-            const row = marcas.find((m) => String(m.id) === String(item.id));
-            if (row) handleEdit(row);
-          }}
+          onSearchSuggestionPick={handleSearchSuggestionPick}
           configureColumnsAnchorRef={configureColumnsAnchorRef}
           onConfigureColumns={() => setShowConfigColunas(true)}
           onClearFilters={() => clearCadastroListaFiltersAndSearch(chrome)}

@@ -399,15 +399,31 @@
   left: 0;
   right: 0;
   z-index: 40;
-  margin: 0;
-  padding: 4px;
-  list-style: none;
-  max-height: min(280px, 50vh);
-  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  min-width: 220px;
+  max-height: min(320px, 55vh);
+  overflow: hidden;
   border-radius: 12px;
   border: 1px solid #dfe2e7;
   background: #fff;
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+}
+
+.cadastro-b1 .mg-search-suggest__list {
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  overflow: auto;
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+.cadastro-b1 .mg-search-suggest__empty {
+  padding: 12px 10px;
+  font-size: 12px;
+  color: var(--mg-text-2);
+  text-align: center;
 }
 
 .cadastro-b1 .mg-search-suggest__item {
@@ -440,6 +456,16 @@
   font-size: 11px;
   color: var(--mg-text-2);
   line-height: 1.25;
+}
+
+.cadastro-b1 .mg-search-suggest__footer {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 8px;
+  border-top: 1px solid #f1f4f6;
+  background: #fbfcfd;
 }
 
 .cadastro-b1 .mg-search-pill {

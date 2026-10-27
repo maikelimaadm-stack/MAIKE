@@ -47,6 +47,7 @@ import { cn } from "@/lib/utils";
  * @param {string} [props.searchValue]
  * @param {(v: string) => void} [props.onSearchChange]
  * @param {() => void} [props.onSearchApply]
+ * @param {string} [props.searchCommittedValue] valor já aplicado (Cancelar restaura)
  * @param {boolean} [props.searchActive]
  * @param {string} [props.searchPlaceholder]
  * @param {{ id: string; label: string; secondary?: string }[]} [props.searchSuggestions]
@@ -96,6 +97,7 @@ export default function CadastroListaChrome({
   searchValue = "",
   onSearchChange,
   onSearchApply,
+  searchCommittedValue = "",
   searchActive = false,
   searchPlaceholder,
   searchSuggestions = [],
@@ -377,6 +379,7 @@ export default function CadastroListaChrome({
                   value={searchValue}
                   onChange={onSearchChange}
                   onApply={onSearchApply}
+                  committedValue={searchCommittedValue}
                   active={searchActive}
                   placeholder={searchPlaceholder}
                   autoFocus
@@ -446,6 +449,7 @@ export default function CadastroListaChrome({
               value={searchValue}
               onChange={onSearchChange}
               onApply={onSearchApply}
+              committedValue={searchCommittedValue}
               active={searchActive}
               placeholder={searchPlaceholder}
               suggestions={searchSuggestions}

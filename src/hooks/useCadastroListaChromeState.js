@@ -25,7 +25,9 @@ export function useCadastroListaChromeState({ initialViewMode = "table" } = {}) 
   }, []);
 
   const applySearch = useCallback((next) => {
-    setAppliedSearch(typeof next === "string" ? next : searchInput);
+    const value = typeof next === "string" ? next : searchInput;
+    setSearchInput(value);
+    setAppliedSearch(value);
   }, [searchInput]);
 
   const clearFilters = useCallback(() => {
