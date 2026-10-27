@@ -91,7 +91,7 @@ export function ViewSwitch({ value, onChange, recordDisabled, cardsDisabled }) {
   );
   return (
     <div className="view-seg" role="group" aria-label="Modo de visualização">
-      {item("record", "Registro", FileText, recordDisabled, "Abrir registro selecionado")}
+      {item("record", "Registro", FileText, recordDisabled, "Abrir modo registro")}
       {item("table", "Tabela", Table2, false, "Grade em tabela")}
       {item(
         "cards",

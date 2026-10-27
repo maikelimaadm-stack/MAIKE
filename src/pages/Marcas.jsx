@@ -134,25 +134,45 @@ export default function Marcas() {
     else createMutation.mutate(data);
   };
 
-  const handleEdit = (item) => {
-    setEditingItem(item);
-    setIsEditing(!item?.id);
-    setShowForm(true);
-    chrome.setViewMode("record");
-    if (item?.id) chrome.onSelectionChange([item.id]);
-  };
+  const recordNavRows = useMemo(() => {
+    const q = chrome.appliedSearch.trim().toLowerCase();
+    if (!q) return marcas;
+    return marcas.filter((m) => {
+      const hay = [m.nome, m.descricao, m.numero_marca].filter(Boolean).join(" ").toLowerCase();
+      return hay.includes(q);
+    });
+  }, [marcas, chrome.appliedSearch]);
 
-  const handleEditSelected = () => {
+  const handleEdit = useCallback(
+    (item) => {
+      setEditingItem(item);
+      setIsEditing(!item?.id);
+      setShowForm(true);
+      chrome.setViewMode("record");
+      if (item?.id) chrome.onSelectionChange([String(item.id)]);
+    },
+    [chrome.setViewMode, chrome.onSelectionChange],
+  );
+
+  const handleEditSelected = useCallback(() => {
     if (showForm && editingItem?.id && !isEditing) {
       setIsEditing(true);
-      return;
+      return true;
     }
-    const item = marcas.find((m) => m.id === chrome.selectedIds[0]);
-    if (item) handleEdit(item);
-  };
+    const selectedId = chrome.selectedIds[0];
+    const selected = selectedId
+      ? recordNavRows.find((m) => String(m.id) === String(selectedId))
+      : null;
+    const item = selected ?? (chrome.selectedIds.length === 0 ? recordNavRows[0] : null);
+    if (item) {
+      handleEdit(item);
+      return true;
+    }
+    return false;
+  }, [showForm, editingItem, isEditing, chrome.selectedIds, recordNavRows, handleEdit]);
 
   const handleDuplicateSelected = () => {
-    const item = marcas.find((m) => m.id === chrome.selectedIds[0]);
+    const item = marcas.find((m) => String(m.id) === String(chrome.selectedIds[0]));
     const draft = prepareCadastroDuplicate(item, { labelField: "nome" });
     if (!draft) return;
     bumpFormEpoch();
@@ -192,15 +212,6 @@ export default function Marcas() {
 
   const detailTitle = editingItem?.id ? editingItem.nome || "Marca" : "Nova marca";
   const saving = createMutation.isPending || updateMutation.isPending;
-
-  const recordNavRows = useMemo(() => {
-    const q = chrome.appliedSearch.trim().toLowerCase();
-    if (!q) return marcas;
-    return marcas.filter((m) => {
-      const hay = [m.nome, m.descricao, m.numero_marca].filter(Boolean).join(" ").toLowerCase();
-      return hay.includes(q);
-    });
-  }, [marcas, chrome.appliedSearch]);
 
   const recordIndex = editingItem?.id
     ? Math.max(0, recordNavRows.findIndex((m) => m.id === editingItem.id))

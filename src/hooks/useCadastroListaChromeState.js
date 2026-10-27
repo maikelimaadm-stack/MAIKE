@@ -39,12 +39,21 @@ export function useCadastroListaChromeState({ initialViewMode = "table" } = {}) 
   const handleViewModeChange = useCallback((mode, options) => {
     const { onOpenRecord, onExitRecord } = options ?? {};
     if (mode === "record") {
-      if (selectedIds.length !== 1) {
-        toast.info("Selecione um registro para abrir no modo Registro.");
+      if (selectedIds.length > 1) {
+        toast.info("Selecione apenas um registro para abrir no modo Registro.");
         return;
       }
-      setViewMode("record");
-      onOpenRecord?.(selectedIds[0]);
+      if (selectedIds.length === 1) {
+        // Não força viewMode aqui — a página só entra em registro se abrir o form.
+        onOpenRecord?.(selectedIds[0]);
+        return;
+      }
+      // 0 selecionados: a página pode abrir o primeiro da lista (retorna true).
+      // Se não abrir, mantém o aviso para o usuário selecionar.
+      const opened = onOpenRecord?.(undefined);
+      if (opened !== true) {
+        toast.info("Selecione um registro para abrir no modo Registro.");
+      }
       return;
     }
     if (viewMode === "record" && mode !== "record") {
