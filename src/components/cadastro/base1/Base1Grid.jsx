@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
 import { MIN_COL_WIDTH } from "@/lib/cadastroBase1ColumnPrefs";
 import { fonteDaCelula, medirLarguraColuna } from "@/lib/larguraColuna";
 import { B1Popover, MenuList, MgCheck } from "./Base1Ui";
-import { selectClickOf } from "./selectClick";
+import { selectClickOf, useBlockNativeTextSelection } from "./selectClick";
 import { usePortalComprasSkin } from "./portalComprasSkinContext";
 
 const ROW_ESTIMATE_PX = 32;
@@ -238,6 +238,7 @@ export default function Base1Grid({
   const abrirFiltroDireto = referenceHeaders && onFilter && !referenceExtendedColumnMenu;
 
   const scrollRef = React.useRef(/** @type {HTMLDivElement|null} */ (null));
+  useBlockNativeTextSelection(scrollRef);
   const virtualizar = !loading && rows.length >= VIRTUALIZE_FROM;
   const rowVirtualizer = useVirtualizer({
     count: virtualizar ? rows.length : 0,
@@ -306,15 +307,7 @@ export default function Base1Grid({
   };
 
   return (
-    <div
-      ref={scrollRef}
-      className="mg-grid-wrap"
-      onSelectStart={(e) => e.preventDefault()}
-      onMouseDown={() => {
-        const sel = window.getSelection?.();
-        if (sel && sel.rangeCount > 0) sel.removeAllRanges();
-      }}
-    >
+    <div ref={scrollRef} className="mg-grid-wrap">
       <table className="mg-grid">
         <thead>
           <tr>

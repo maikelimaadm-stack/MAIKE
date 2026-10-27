@@ -1,11 +1,6 @@
 import React from "react";
 import { Trash2, X } from "lucide-react";
-import {
-  Dialog,
-  DialogOverlay,
-  DialogPortal,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogPortal } from "@/components/ui/dialog";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { cn } from "@/lib/utils";
 
@@ -33,7 +28,13 @@ export default function ConfirmDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogPortal>
-        <DialogOverlay className="fixed inset-0 z-[70] bg-black/45 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
+        <DialogPrimitive.Overlay
+          className={cn(
+            "fixed inset-0 z-[70] bg-black/45",
+            "data-[state=open]:animate-in data-[state=closed]:animate-out",
+            "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+          )}
+        />
         <DialogPrimitive.Content
           onInteractOutside={(event) => event.preventDefault()}
           onEscapeKeyDown={(event) => event.preventDefault()}
@@ -45,7 +46,7 @@ export default function ConfirmDialog({
           )}
           style={{ transform: "none", left: 0, top: 0, right: 0, bottom: 0 }}
         >
-          <DialogTitle className="sr-only">{title}</DialogTitle>
+          <DialogPrimitive.Title className="sr-only">{title}</DialogPrimitive.Title>
           <div
             className={cn(
               "mg-confirm-dialog cadastro-b1 b1ref b1-portal-compras",

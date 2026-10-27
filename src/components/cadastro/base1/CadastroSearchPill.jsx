@@ -57,7 +57,6 @@ export default function CadastroSearchPill({
     };
     document.addEventListener("mousedown", fora);
     return () => document.removeEventListener("mousedown", fora);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- fecha/cancela no clique fora
   }, [showPanel, committedValue]);
 
   const escolher = (item) => {

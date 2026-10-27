@@ -41,7 +41,7 @@ export function ponteiroSobreCamadaAninhada(ponto, doc) {
   const root = doc ?? (typeof document !== "undefined" ? document : null);
   const nodes = root?.querySelectorAll?.(SELETOR_CAMADA_ANINHADA_DO_FILTRO);
   if (!nodes?.length) return false;
-  for (const el of nodes) {
+  for (const el of Array.from(nodes)) {
     if (ponteiroSobreElemento(ponto, el)) return true;
   }
   return false;
