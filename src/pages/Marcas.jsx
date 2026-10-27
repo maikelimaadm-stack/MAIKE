@@ -32,7 +32,9 @@ export default function Marcas() {
   const [formEpoch, setFormEpoch] = useState(0);
   const chrome = useCadastroListaChromeState({
     initialViewMode:
-      typeof window !== "undefined" && window.matchMedia("(max-width: 639px)").matches
+      typeof window !== "undefined" &&
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(max-width: 639px)").matches
         ? "cards"
         : "table",
   });
