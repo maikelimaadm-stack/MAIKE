@@ -876,9 +876,12 @@
   background: transparent;
 }
 
+/* Sem barra verde de arrasto — handle invisível (cursor col-resize permanece) */
 .cadastro-b1 .mg-grid thead th:hover .mg-grid-resize-handle,
-.cadastro-b1 .mg-grid-resize-handle:hover {
-  background: rgba(64, 222, 99, 0.45);
+.cadastro-b1 .mg-grid-resize-handle:hover,
+.cadastro-b1 .mg-grid-resize-handle.is-active,
+.cadastro-b1 .mg-grid thead th.is-resizing .mg-grid-resize-handle {
+  background: transparent;
 }
 
 .cadastro-b1 .mg-check {

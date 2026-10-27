@@ -298,6 +298,7 @@ export default function Marcas() {
     [chrome],
   );
 
+  /** Toolbar Editar: abre direto em edição (tabela/cards/registro), sem passar pela visualização. */
   const handleEditSelected = useCallback(() => {
     if (showForm && editingItem?.id && !isEditing) {
       setIsEditing(true);
@@ -308,12 +309,22 @@ export default function Marcas() {
       ? recordNavRows.find((m) => String(m.id) === String(selectedId))
       : null;
     const item = selected ?? (chrome.selectedIds.length === 0 ? recordNavRows[0] : null);
-    if (item) {
-      handleEdit(item);
-      return true;
-    }
-    return false;
-  }, [showForm, editingItem, isEditing, chrome.selectedIds, recordNavRows, handleEdit]);
+    if (!item) return false;
+    setEditingItem(item);
+    setIsEditing(true);
+    setShowForm(true);
+    chrome.setViewMode("record");
+    if (item.id) chrome.onSelectionChange([String(item.id)]);
+    return true;
+  }, [
+    showForm,
+    editingItem,
+    isEditing,
+    chrome.selectedIds,
+    chrome.setViewMode,
+    chrome.onSelectionChange,
+    recordNavRows,
+  ]);
 
   const handleDuplicateSelected = () => {
     const item =
