@@ -1,7 +1,18 @@
 # UX mobile piloto Marcas — relatório de execução
 
-**Branch:** `cursor/ux-base1-mobile-marcas-516d`  
+**Branch (PR único):** `cursor/ux-base1-marcas-mobile-unica-516d`  
+**Substitui:** `cursor/ux-base1-mobile-marcas-516d` (PR #67 — fechada em favor desta branch)  
 **Escopo:** toolbar mobile/tablet Marcas, dismiss filtro de data, diálogos layout/campos dos cards (flash popover).
+
+## Commits vs `main` (2026-10-27)
+
+| Commit | Resumo |
+|--------|--------|
+| `f7ead267` → cherry-pick | Toolbar 3 linhas, filtro data/camada, `ConfiguracaoCardsB1Dialogs`, `MoreVertical`, teste camada |
+| `488df0fe` → cherry-pick | JSDoc `MenuList` (`className`, `title`) |
+| `c6002243` → cherry-pick | Skin mobile única ≤1023px em `cadastro-b1-portal.css`; diálogos cards paridade colunas; limpeza CSS duplicado |
+
+**Incluído vs `main`:** correções UX mobile piloto Marcas (toolbar, busca, view-seg, safe-area/tablet, Editar/Cancelar/Excluir coerentes ou no menu ⋮, modais cards alinhados a colunas). **Não incluído:** merge em `main` (homologação manual do proprietário).
 
 ## Defeitos confirmados e correções
 
@@ -19,7 +30,7 @@
 ## Testes
 
 - `npm run test:smoke` — `cadastroColunaFiltroCamada.test.js` (calendário fechado/aberto)
-- `npm run verify:all` — gate completo
+- `npm run verify:all` — gates + smoke + build OK; `test:backend` exige `DATABASE_URL` + Postgres (CI/local)
 
 ## Viewports
 
