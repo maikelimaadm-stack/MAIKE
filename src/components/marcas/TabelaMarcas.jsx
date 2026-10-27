@@ -5,7 +5,7 @@ export const MARCAS_COLUNAS = [
   { id: "numero", label: "Nº", default: true, sortable: true, width: 70 },
   { id: "nome", label: "Nome", default: true, sortable: true, width: 300 },
   { id: "descricao", label: "Descrição", default: true, sortable: true, width: 300 },
-  { id: "ativo", label: "Ativo", default: true, sortable: true, align: "center", width: 80 },
+  { id: "ativo", label: "Ativo", default: true, sortable: true, width: 80 },
 ];
 
 export function getMarcaFieldValue(item, id) {
@@ -21,12 +21,7 @@ function renderCell(item, colId) {
   if (colId === "nome") return <span className="uppercase">{item.nome || "–"}</span>;
   if (colId === "descricao") return item.descricao || "–";
   if (colId === "ativo") {
-    const on = item.ativo !== false;
-    return (
-      <span className={on ? "mg-b1-status--yes" : "mg-b1-status--no"}>
-        {on ? "Sim" : "Não"}
-      </span>
-    );
+    return item.ativo !== false ? "Sim" : "Não";
   }
   return "–";
 }

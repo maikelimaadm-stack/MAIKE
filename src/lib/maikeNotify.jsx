@@ -3,11 +3,13 @@ import { toast } from "sonner";
 import MaikeToastCard from "@/components/common/MaikeToastCard";
 
 /**
- * Notificações no modelo da foto (cartão branco + ícone).
- * Sucesso: topo centro. Avisos/erros: laterais (topo direita).
+ * Notificações no modelo Base1 (cartão branco + ícone).
+ * Todas no canto superior direito. Pedidos de confirmação usam modal centrado.
  */
 
-function show(tone, title, description, position, duration = 4200) {
+const TOAST_POSITION = "top-right";
+
+function show(tone, title, description, duration = 4200) {
   return toast.custom(
     (id) => (
       <MaikeToastCard
@@ -18,7 +20,7 @@ function show(tone, title, description, position, duration = 4200) {
       />
     ),
     {
-      position,
+      position: TOAST_POSITION,
       duration,
       unstyled: true,
       className: "mg-toast-host",
@@ -26,24 +28,24 @@ function show(tone, title, description, position, duration = 4200) {
   );
 }
 
-/** Sucesso (topo) — exclusão, salvar, etc. */
+/** Sucesso — salvar, excluir, etc. (canto superior direito) */
 export function notifySuccess(title, description) {
-  return show("success", title, description ?? "", "top-center");
+  return show("success", title, description ?? "");
 }
 
-/** Aviso lateral — campo obrigatório, nome duplicado, seleção, etc. */
+/** Aviso — campo obrigatório, nome duplicado, seleção, etc. */
 export function notifyWarning(title, description) {
-  return show("warning", title, description ?? "", "top-right", 5200);
+  return show("warning", title, description ?? "", 5200);
 }
 
-/** Erro lateral */
+/** Erro */
 export function notifyError(title, description) {
-  return show("error", title, description ?? "", "top-right", 5600);
+  return show("error", title, description ?? "", 5600);
 }
 
-/** Info lateral */
+/** Info */
 export function notifyInfo(title, description) {
-  return show("info", title, description ?? "", "top-right", 4500);
+  return show("info", title, description ?? "", 4500);
 }
 
 /**

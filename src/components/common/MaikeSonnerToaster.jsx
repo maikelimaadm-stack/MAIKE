@@ -1,12 +1,12 @@
 import React from "react";
 import { Toaster } from "sonner";
 
-/** Host Sonner — cartões custom via `maikeNotify` (unstyled). */
+/** Host Sonner — todas as notificações no canto superior direito. */
 export default function MaikeSonnerToaster() {
   return (
     <Toaster
       theme="light"
-      position="top-center"
+      position="top-right"
       visibleToasts={8}
       expand
       gap={10}
