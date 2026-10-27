@@ -1127,3 +1127,17 @@ Branch `cursor/ux-base1-pagination-borders-516d`:
 
 - `npm run test:smoke`
 - `npm run verify:all`
+
+## UX-53 (2026-10-27) — Contrato colunas (resize / autofit / prefs)
+
+Branch `cursor/ux-base1-colunas-contrato-516d` · decisão **D-PROD-42**:
+
+| Item | Entrega |
+|------|---------|
+| SSOT prompt | `docs/engineering/PROMPT-COLUNAS-PORTAL-COMPRAS.md` — tabela CDE ↔ MAIKE (`onResize` vs `onAutoFit`, duplo clique sem autofit, TETO 480, prefs `_prefs`) |
+| Auditoria código | `Base1Grid.jsx`, `cadastroBase1ColumnPrefs.js`, `larguraColuna.js` — alinhamento `MIN_COL_WIDTH` na alça de resize |
+
+### Verificação (UX-53)
+
+- `npm run test:smoke`
+- `npm run verify:all`

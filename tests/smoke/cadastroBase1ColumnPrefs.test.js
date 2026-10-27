@@ -5,7 +5,10 @@ import {
   normalizeAutoFitKeys,
   normalizeFrozenCount,
   CADASTRO_B1_COLUMN_PREFS_VERSION,
+  MIN_COL_WIDTH,
+  MAX_COL_WIDTH,
 } from "@/lib/cadastroBase1ColumnPrefs";
+import { AUTOFIT_MAX_COL_WIDTH } from "@/lib/larguraColuna";
 
 describe("cadastroBase1ColumnPrefs — paridade CDE (355–356)", () => {
   const known = ["nome", "descricao"];
@@ -29,6 +32,12 @@ describe("cadastroBase1ColumnPrefs — paridade CDE (355–356)", () => {
 
   it("versão unificada do JSON de prefs", () => {
     expect(CADASTRO_B1_COLUMN_PREFS_VERSION).toBe(1);
+  });
+
+  it("teto autofit 480px e piso 48px alinhados (contrato D-PROD-42)", () => {
+    expect(AUTOFIT_MAX_COL_WIDTH).toBe(480);
+    expect(MIN_COL_WIDTH).toBe(48);
+    expect(MAX_COL_WIDTH).toBeGreaterThan(AUTOFIT_MAX_COL_WIDTH);
   });
 
   it("clamp após ocultar colunas no diálogo (paridade list.tsx onApply)", () => {
