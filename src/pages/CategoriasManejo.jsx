@@ -23,8 +23,8 @@ import TabelaCategoriasManejo, {
 import { exportCadastroCsv } from "@/components/cadastro/base1/cadastroExportCsv";
 import FormularioCategoriaManejo from "@/components/categorias-manejo/FormularioCategoriaManejo";
 
-const EMPTY_CATEGORIAS_MANEJO = Object.freeze([]);
-const EMPTY_ICONES_CONFIG = Object.freeze([]);
+const EMPTY_CATEGORIAS_MANEJO = [];
+const EMPTY_ICONES_CONFIG = [];
 
 const getInitialFormData = () => ({
   nome: "",

@@ -19,7 +19,7 @@ import { useCadastroListaChromeState } from "@/hooks/useCadastroListaChromeState
 import { useCadastroPageListBindings } from "@/hooks/useCadastroPageListBindings";
 import { useCadastroDuplicateAction } from "@/hooks/useCadastroDuplicateAction";
 
-const EMPTY_SETORES = Object.freeze([]);
+const EMPTY_SETORES = [];
 
 const getInitialFormData = () => ({
   nome: "",

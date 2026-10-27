@@ -19,7 +19,7 @@ import {
 import { ArrowDownAZ, ArrowUpZA, X } from "lucide-react";
 
 /** Referência estável para listas vazias — evita ciclo de reconciliação de seleção. */
-const EMPTY_ROWS = Object.freeze([]);
+const EMPTY_ROWS = [];
 
 /** @param {Array<{ id: string; label: string; default?: boolean; sortable?: boolean; align?: string; width?: number; filterKind?: 'texto'|'num'|'data' }>} defs */
 export function colunasBase1(defs) {

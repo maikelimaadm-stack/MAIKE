@@ -21,7 +21,7 @@ import { clearCadastroListaFiltersAndSearch } from "@/lib/cadastroListaClearFilt
 import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 
 const MARCAS_STORAGE_KEY = "colunas_marcas_v1";
-const EMPTY_MARCAS = Object.freeze([]);
+const EMPTY_MARCAS = [];
 
 export default function Marcas() {
   const [showForm, setShowForm] = useState(false);

@@ -22,7 +22,7 @@ import TabelaCategoriasProduto, {
 } from "../components/categorias-produto/TabelaCategoriasProduto";
 import { exportCadastroCsv } from "@/components/cadastro/base1/cadastroExportCsv";
 
-const EMPTY_CATEGORIAS = Object.freeze([]);
+const EMPTY_CATEGORIAS = [];
 
 export default function Categorias() {
   const [showForm, setShowForm] = useState(false);
