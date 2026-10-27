@@ -2071,4 +2071,23 @@ em G.3–G.5 não bloqueiam o modelo visual; dialogs transversais seguem Fase 3.
 
 ---
 
-<!-- Próxima decisão: D-PROD-43 -->
+## D-PROD-43 — Marca é a primeira cadastro de suporte com persistência nativa
+
+**Data:** 2026-10-27  
+**Missão:** P4.4-Marcas (piloto de migração de cadastros)  
+**Relatório:** `docs/engineering/P4-MARCAS-NATIVE-REPORT.md`
+
+**Decisão:** `Marca` migra da Base44 para PostgreSQL/Prisma/Fastify com CRUD
+completo (`GET`/`POST`/`PATCH`/`DELETE`), numeração por `EntidadeCodigoSequencia`
+(escopo `tenant`), unicidade de nome por `empresa_id` dentro do tenant, e porta
+única `src/apis/marcas/marcaNativePort.js`. O schema `base44/entities/Marca.jsonc`
+e o nome em `allowedBase44Entities` permanecem enquanto `Produto` referenciar marca
+na Base44.
+
+**Consequência:** `gate:marca-native` entra na cadeia `verify:all`; próximos
+cadastros (Produtos, UnidadeMedida, etc.) seguem o mesmo molde, um PR por
+capacidade.
+
+---
+
+<!-- Próxima decisão: D-PROD-44 -->

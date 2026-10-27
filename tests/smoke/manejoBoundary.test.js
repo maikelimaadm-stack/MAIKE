@@ -178,7 +178,7 @@ describe('A11 — registry do provider é literal e exato', () => {
     'MovimentacaoPecuaria', 'Permissao', 'PontoSuplementacao', 'Produto',
     // Nativas: Setor, AreaPastagem, ConfiguracaoIcone, PontoReferencia, LinhaGeografica.
     // Ver `MIGRADAS_PARA_NATIVO` em `tests/smoke/suporteBoundary.test.js`.
-    'Marca', 'RegistroAnexo', 'SuplementacaoEvento', 'SuplementacaoLote', 'TipoTarefa',
+    'RegistroAnexo', 'SuplementacaoEvento', 'SuplementacaoLote', 'TipoTarefa',
     'UnidadeMedida', 'User',
   ].sort();
 

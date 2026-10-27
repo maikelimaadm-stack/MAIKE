@@ -17,6 +17,8 @@
     { "source": "/linhas-geograficas", "destination": "/api/fastify" },
     { "source": "/linhas-geograficas/:path*", "destination": "/api/fastify" },
     { "source": "/usuarios", "destination": "/api/fastify" },
-    { "source": "/usuarios/:path*", "destination": "/api/fastify" }
+    { "source": "/usuarios/:path*", "destination": "/api/fastify" },
+    { "source": "/marcas", "destination": "/api/fastify" },
+    { "source": "/marcas/:path*", "destination": "/api/fastify" }
   ]
 }

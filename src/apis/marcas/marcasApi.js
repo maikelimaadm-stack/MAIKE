@@ -1,7 +1,7 @@
-/** API do módulo Marcas (P1.4). */
+/** API do módulo Marcas — nativo desde P4.4-Marcas (D-PROD-42). */
 
 import { runProviderCall, assertArgument } from '../_core/normalizeApiError.js';
-import { marcasProvider } from '../_providers/base44Provider.js';
+import { marcaPort } from './marcaNativePort.js';
 
 const RESOURCE = 'Marca';
 const isId = (valor) => typeof valor === 'string' && valor.trim().length > 0;
@@ -9,24 +9,24 @@ const isObjeto = (valor) => Boolean(valor) && typeof valor === 'object' && !Arra
 const comoLista = (registros) => (Array.isArray(registros) ? registros : []);
 const ctx = (operation) => ({ operation, resource: RESOURCE });
 
-export const listMarcas = async (opcoes = {}) =>
-  comoLista(await runProviderCall(() => marcasProvider.list(opcoes.order), ctx('listMarcas')));
+export const listMarcas = async () =>
+  comoLista(await runProviderCall(() => marcaPort.list(), ctx('listMarcas')));
 
 export const createMarca = async (dados) => {
   const contexto = ctx('createMarca');
   assertArgument(isObjeto(dados), 'dados', contexto);
-  return runProviderCall(() => marcasProvider.create(dados), contexto);
+  return runProviderCall(() => marcaPort.create(dados), contexto);
 };
 
 export const updateMarca = async (id, dados) => {
   const contexto = ctx('updateMarca');
   assertArgument(isId(id), 'id', contexto);
   assertArgument(isObjeto(dados), 'dados', contexto);
-  return runProviderCall(() => marcasProvider.update(id, dados), { ...contexto, details: { id } });
+  return runProviderCall(() => marcaPort.update(id, dados), { ...contexto, details: { id } });
 };
 
 export const deleteMarca = async (id) => {
   const contexto = ctx('deleteMarca');
   assertArgument(isId(id), 'id', contexto);
-  return runProviderCall(() => marcasProvider.delete(id), { ...contexto, details: { id } });
+  return runProviderCall(() => marcaPort.delete(id), { ...contexto, details: { id } });
 };
