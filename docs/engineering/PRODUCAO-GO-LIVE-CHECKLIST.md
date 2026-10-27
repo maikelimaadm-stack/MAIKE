@@ -168,7 +168,7 @@ Substitua `<ORIGEM>` pelo domínio real (ex.: `https://maike-five.vercel.app`).
 | Mapa nativo | Login → Mapa Geral | Setores/áreas/geografia não retornam 404 por rewrite ausente |
 | Maps | Mapa carrega tiles | Chave Google configurada |
 
-**Produção Production (main, 2026-10-27):** commit `9cf0cda5` — **não** inclui rewrites P4.2+; smoke de áreas/geografia em Production falhará até merge #69 / go-live.
+**Produção (`maike-five.vercel.app`, 2026-10-27):** `/health` **OK** (`banco: up`). Rewrites P4.2+ dependem do deploy ativo em Production (ver `vercel.json` na `main` pós-PR #70).
 
 ---
 
@@ -201,9 +201,10 @@ Após merge em `main`: redeploy Production Vercel + `deploy:migrate` (no-op espe
 Marcar go-live somente quando **todos** forem verdadeiros:
 
 - [x] 6/6 migrations em `_prisma_migrations` (Supabase MAIKE, 2026-10-27)
-- [x] `main` com rewrites completos em `vercel.json` (aguarda redeploy Production)
-- [ ] `/health` OK no domínio de produção
-- [ ] Login nativo sem `VITE_SKIP_NATIVE_LOGIN`
+- [x] 10/10 tabelas Prisma + índices no Supabase (auditoria agente 2026-10-27 — `PRODUCAO-TABELAS-SUPABASE-AUDIT-2026-10-27.md`)
+- [x] `main` com rewrites completos em `vercel.json` (aguarda redeploy Production se deploy antigo)
+- [x] `/health` OK no domínio de produção (`maike-five.vercel.app`, 2026-10-27)
+- [ ] Login nativo sem `VITE_SKIP_NATIVE_LOGIN` (Vercel env — agente sem acesso MCP ao projeto)
 - [ ] Mapa Geral carrega e APIs nativas do mapa respondem (autenticadas)
 - [ ] `npm run verify:all` verde no CI da branch mergeada
 

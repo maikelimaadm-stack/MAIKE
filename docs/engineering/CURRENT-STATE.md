@@ -18,9 +18,9 @@
 | Banco local | `npm run db:up` (Docker `postgres:16.13-alpine`) + `npm run prisma:deploy` |
 | Testes backend | `npm run test:backend` — **142** testes; falha dura sem `DATABASE_URL` |
 | Monólito Vercel | `api/fastify.js` + `vercel.json` reescreve **todas** as rotas nativas para `/api/fastify` (correção 2026-10-27) |
-| Supabase (MAIKE) | Sync manual P4.2/P4.3 em 2026-10-23 — ver `SUPABASE-MAIKE-MIGRATIONS-SYNC-REPORT.md`; **confirmar** `p6_1_login_global_hygiene` aplicada |
+| Supabase (MAIKE) | **Auditoria 2026-10-27:** 10/10 tabelas Prisma + `_prisma_migrations` **6/6**; índices e FKs OK — ver `PRODUCAO-TABELAS-SUPABASE-AUDIT-2026-10-27.md` |
 | Railway | Pre-deploy migrations (DEPLOY-MIGRATION-01) — último registro certificado: **3** migrations; alinhar para **6** no próximo deploy originado da fonte |
-| Certificação agente 2026-10-27 | `prisma:deploy` + `test:backend` verdes com Postgres local; `verify:all` na branch desta missão |
+| Certificação agente 2026-10-27 | Supabase MAIKE auditado via MCP; `/health` produção **200**; Vercel env **não editável** pelo token MCP (projeto fora do escopo); `verify:all` local depende de Docker/`db:up` |
 
 Checklist operacional de go-live: [`PRODUCAO-GO-LIVE-CHECKLIST.md`](./PRODUCAO-GO-LIVE-CHECKLIST.md).
 
