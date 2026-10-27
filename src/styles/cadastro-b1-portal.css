@@ -277,4 +277,6 @@
 
 .b1-portal-compras.fpop {
   z-index: 10000;
+  max-width: min(calc(100vw - 16px), 24rem);
+  box-sizing: border-box;
 }
