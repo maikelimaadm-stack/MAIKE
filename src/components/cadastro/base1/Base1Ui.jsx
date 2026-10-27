@@ -233,8 +233,9 @@ export function MenuList({ items, onPick }) {
           type="button"
           role="menuitem"
           disabled={i.disabled}
+          title={i.title}
           onClick={() => onPick(i.key)}
-          className={cn("mg-b1-menuitem", i.danger && "is-danger")}
+          className={cn("mg-b1-menuitem", i.danger && "is-danger", i.className)}
         >
           {i.icon ? <span className="text-[var(--mg-icon)]">{i.icon}</span> : null}
           {i.label}
