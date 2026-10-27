@@ -108,12 +108,21 @@ describe('P1.2 — a UI do mapa não fala Base44', () => {
   it('B11 — as entidades da P1.2 continuam registradas', () => {
     expect([...getRegisteredEntityNames()].sort()).toEqual(expect.arrayContaining([
       'AplicacaoMedicamento', 'Bebedouro', 'Empresa',
-      'EstoqueLoteNota', 'EventoSanitario', 'GrupoAtividade', 'HistoricoLancamentoTarefa',
+      'EstoqueLoteNota', 'EventoSanitario', 'HistoricoLancamentoTarefa',
       'LancamentoTarefa', 'LocalEstoque', 'Lote', 'ManejoTecnicoRebanho',
       'MovimentacaoEstoque', 'MovimentacaoMapa', 'MovimentacaoPecuaria', 'Permissao',
       'PontoSuplementacao', 'Produto', 'SuplementacaoEvento',
-      'SuplementacaoLote', 'TipoTarefa', 'User',
+      'SuplementacaoLote', 'User',
     ]));
+  });
+
+  it('B11c — GrupoAtividade e TipoTarefa saíram do registry (P5.0 nativo)', () => {
+    for (const ent of ['GrupoAtividade', 'TipoTarefa']) {
+      expect(getRegisteredEntityNames()).not.toContain(ent);
+    }
+    const tarefasApi = codigoDe('src/apis/tarefas/tarefasApi.js');
+    expect(tarefasApi).toContain('grupoAtividadePort');
+    expect(tarefasApi).toContain('tipoTarefaPort');
   });
 
   it('B11b — Setor saiu do registry porque virou nativo, e o mapa continua lendo setores', async () => {

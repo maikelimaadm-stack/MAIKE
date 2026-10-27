@@ -57,6 +57,8 @@ model Cliente {
   setores            Setor[]
   marcas             Marca[]
   unidadesMedida     UnidadeMedida[]
+  gruposAtividade    GrupoAtividade[]
+  tiposTarefa        TipoTarefa[]
   areasPastagem      AreaPastagem[]
   configuracoesIcone ConfiguracaoIcone[]
   pontosReferencia   PontoReferencia[]
@@ -331,6 +333,60 @@ model UnidadeMedida {
   @@unique([cliente_id, sigla])
   @@index([cliente_id, ativo])
   @@index([cliente_id, sigla])
+}
+
+// ---------------------------------------------------------------------------
+// GrupoAtividade — cadastro de tarefas (P5.0, D-PROD-45).
+//
+// Sem numeração de negócio. Nome único por tenant.
+// ---------------------------------------------------------------------------
+model GrupoAtividade {
+  id          String   @id @default(cuid())
+  cliente_id  String   @db.VarChar(64)
+  nome_grupo  String   @db.VarChar(255)
+  ativo       Boolean  @default(true)
+  descricao   String?  @db.VarChar(2000)
+  cor_icone   String?  @db.VarChar(64)
+  observacoes String?  @db.VarChar(2000)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  cliente Cliente      @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  tipos   TipoTarefa[]
+
+  @@unique([cliente_id, nome_grupo])
+  @@unique([cliente_id, id])
+  @@index([cliente_id, ativo])
+}
+
+// ---------------------------------------------------------------------------
+// TipoTarefa — cadastro de tarefas (P5.0, D-PROD-45).
+//
+// FK composta para GrupoAtividade. `grupo_atividade_nome` é cache derivado do
+// grupo na escrita — paridade com o legado Base44.
+// ---------------------------------------------------------------------------
+model TipoTarefa {
+  id                   String   @id @default(cuid())
+  cliente_id           String   @db.VarChar(64)
+  nome_tipo            String   @db.VarChar(255)
+  grupo_atividade_id   String   @db.VarChar(64)
+  grupo_atividade_nome String   @db.VarChar(255)
+  ativo                Boolean  @default(true)
+  descricao            String?  @db.VarChar(2000)
+  exige_area           Boolean  @default(false)
+  pode_ter_produto     Boolean  @default(false)
+  pode_ter_maquina     Boolean  @default(false)
+  pode_ter_implemento  Boolean  @default(false)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  cliente Cliente        @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  grupo   GrupoAtividade @relation(fields: [cliente_id, grupo_atividade_id], references: [cliente_id, id], onDelete: Restrict)
+
+  @@unique([cliente_id, id])
+  @@unique([cliente_id, grupo_atividade_id, nome_tipo])
+  @@index([cliente_id, grupo_atividade_id])
+  @@index([cliente_id, ativo])
 }
 
 // ---------------------------------------------------------------------------

@@ -111,6 +111,26 @@ export const BACKEND_ONLY_CODES = Object.freeze({
     http: 409,
     meaning: 'já existe unidade de medida com esta sigla',
   },
+  GRUPO_ATIVIDADE_NOT_FOUND: {
+    http: 404,
+    meaning: 'id não identifica grupo de atividade deste tenant',
+  },
+  GRUPO_ATIVIDADE_NAME_CONFLICT: {
+    http: 409,
+    meaning: 'já existe grupo de atividade com este nome',
+  },
+  GRUPO_ATIVIDADE_DELETE_BLOCKED: {
+    http: 409,
+    meaning: 'grupo possui tipos de tarefa vinculados',
+  },
+  TIPO_TAREFA_NOT_FOUND: {
+    http: 404,
+    meaning: 'id não identifica tipo de tarefa deste tenant',
+  },
+  TIPO_TAREFA_NAME_CONFLICT: {
+    http: 409,
+    meaning: 'já existe tipo de tarefa com este nome no grupo',
+  },
   INTERNAL_ERROR: { http: 500, meaning: 'erro não previsto' },
 });
 

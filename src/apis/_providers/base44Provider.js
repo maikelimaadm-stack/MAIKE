@@ -41,7 +41,7 @@ const OFFLINE_ENTITIES = new Set([
   'LancamentoTarefa', 'HistoricoLancamentoTarefa',
   'PontoSuplementacao', 'Lote',
   'SuplementacaoEvento', 'SuplementacaoLote', 'EstoqueLoteNota', 'MovimentacaoMapa',
-  'MovimentacaoEstoque', 'TipoTarefa', 'Fornecedor', 'Produto', 'Permissao',
+  'MovimentacaoEstoque', 'Fornecedor', 'Produto', 'Permissao',
   'Empresa', 'AplicacaoMedicamento', 'EventoSanitario', 'ManejoTecnicoRebanho',
   'LocalEstoque', 'CategoriaManejo',
 ]);
@@ -124,8 +124,9 @@ const ENTITY_REGISTRY = Object.freeze({
   // Tarefas georreferenciadas (P1.2)
   LancamentoTarefa: comFronteira('LancamentoTarefa', base44.entities.LancamentoTarefa),
   HistoricoLancamentoTarefa: comFronteira('HistoricoLancamentoTarefa', base44.entities.HistoricoLancamentoTarefa),
-  TipoTarefa: comFronteira('TipoTarefa', base44.entities.TipoTarefa),
-  GrupoAtividade: comFronteira('GrupoAtividade', base44.entities.GrupoAtividade),
+  // TipoTarefa e GrupoAtividade migraram na P5.0 (D-PROD-45): portas em
+  // src/apis/tarefas/grupoAtividadeNativePort.js e tipoTarefaNativePort.js.
+  // Permanecem no manifesto por syncEntityReferences e LancamentoTarefa na Base44.
 
   // Sessão e permissão consumidas pelo mapa (P1.2)
   Permissao: comFronteira('Permissao', base44.entities.Permissao),
@@ -288,16 +289,6 @@ export const tarefasProvider = Object.freeze({
   createHistorico: (dados) => endpointOf('HistoricoLancamentoTarefa').create(dados),
   deleteHistorico: (id) => endpointOf('HistoricoLancamentoTarefa').delete(id),
 
-  listTipos: (ordenacao) => endpointOf('TipoTarefa').list(ordenacao),
-  listGrupos: (ordenacao) => endpointOf('GrupoAtividade').list(ordenacao),
-
-  // Cadastro de grupos e tipos (P1.4)
-  createGrupo: (dados) => endpointOf('GrupoAtividade').create(dados),
-  updateGrupo: (id, dados) => endpointOf('GrupoAtividade').update(id, dados),
-  deleteGrupo: (id) => endpointOf('GrupoAtividade').delete(id),
-  createTipo: (dados) => endpointOf('TipoTarefa').create(dados),
-  updateTipo: (id, dados) => endpointOf('TipoTarefa').update(id, dados),
-  deleteTipo: (id) => endpointOf('TipoTarefa').delete(id),
 });
 
 // ── Sessão e permissão (P1.2) ─────────────────────────────────────────────

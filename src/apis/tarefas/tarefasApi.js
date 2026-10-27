@@ -2,6 +2,8 @@
 
 import { runProviderCall, assertArgument } from '../_core/normalizeApiError.js';
 import { tarefasProvider, referenciasProvider } from '../_providers/base44Provider.js';
+import { grupoAtividadePort } from './grupoAtividadeNativePort.js';
+import { tipoTarefaPort } from './tipoTarefaNativePort.js';
 
 const RESOURCE = 'Tarefa';
 const isId = (valor) => typeof valor === 'string' && valor.trim().length > 0;
@@ -53,50 +55,50 @@ export const deleteHistorico = async (id) => {
   return runProviderCall(() => tarefasProvider.deleteHistorico(id), { ...contexto, details: { id } });
 };
 
-export const listTipos = async (opcoes = {}) =>
-  comoLista(await runProviderCall(() => tarefasProvider.listTipos(opcoes.order), ctx('listTipos')));
+export const listTipos = async (_opcoes = {}) =>
+  comoLista(await runProviderCall(() => tipoTarefaPort.list(), ctx('listTipos')));
 
-export const listGrupos = async (opcoes = {}) =>
-  comoLista(await runProviderCall(() => tarefasProvider.listGrupos(opcoes.order), ctx('listGrupos')));
+export const listGrupos = async (_opcoes = {}) =>
+  comoLista(await runProviderCall(() => grupoAtividadePort.list(), ctx('listGrupos')));
 
 // ── Cadastro de grupos e tipos (P1.4) ─────────────────────────────────────
 
 export const createGrupo = async (dados) => {
   const contexto = ctx('createGrupo');
   assertArgument(isObjeto(dados), 'dados', contexto);
-  return runProviderCall(() => tarefasProvider.createGrupo(dados), contexto);
+  return runProviderCall(() => grupoAtividadePort.create(dados), contexto);
 };
 
 export const updateGrupo = async (id, dados) => {
   const contexto = ctx('updateGrupo');
   assertArgument(isId(id), 'id', contexto);
   assertArgument(isObjeto(dados), 'dados', contexto);
-  return runProviderCall(() => tarefasProvider.updateGrupo(id, dados), { ...contexto, details: { id } });
+  return runProviderCall(() => grupoAtividadePort.update(id, dados), { ...contexto, details: { id } });
 };
 
 export const deleteGrupo = async (id) => {
   const contexto = ctx('deleteGrupo');
   assertArgument(isId(id), 'id', contexto);
-  return runProviderCall(() => tarefasProvider.deleteGrupo(id), { ...contexto, details: { id } });
+  return runProviderCall(() => grupoAtividadePort.delete(id), { ...contexto, details: { id } });
 };
 
 export const createTipo = async (dados) => {
   const contexto = ctx('createTipo');
   assertArgument(isObjeto(dados), 'dados', contexto);
-  return runProviderCall(() => tarefasProvider.createTipo(dados), contexto);
+  return runProviderCall(() => tipoTarefaPort.create(dados), contexto);
 };
 
 export const updateTipo = async (id, dados) => {
   const contexto = ctx('updateTipo');
   assertArgument(isId(id), 'id', contexto);
   assertArgument(isObjeto(dados), 'dados', contexto);
-  return runProviderCall(() => tarefasProvider.updateTipo(id, dados), { ...contexto, details: { id } });
+  return runProviderCall(() => tipoTarefaPort.update(id, dados), { ...contexto, details: { id } });
 };
 
 export const deleteTipo = async (id) => {
   const contexto = ctx('deleteTipo');
   assertArgument(isId(id), 'id', contexto);
-  return runProviderCall(() => tarefasProvider.deleteTipo(id), { ...contexto, details: { id } });
+  return runProviderCall(() => tipoTarefaPort.delete(id), { ...contexto, details: { id } });
 };
 
 /**

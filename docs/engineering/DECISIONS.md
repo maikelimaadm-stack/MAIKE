@@ -2111,4 +2111,22 @@ até PRs seguintes do plano. Remover `VITE_SKIP_NATIVE_LOGIN` da Vercel após me
 
 ---
 
-<!-- Próxima decisão: D-PROD-45 -->
+## D-PROD-45 — GrupoAtividade e TipoTarefa nativos
+
+**Data:** 2026-10-27  
+**Missão:** P5.0-Tarefa-Cadastro (branch `cursor/base44-exit-lote-tarefa-516d-ca63`)  
+**Relatório:** `docs/engineering/P5.0-TAREFA-CADASTRO-NATIVE-REPORT.md`
+
+**Decisão:** `GrupoAtividade` e `TipoTarefa` migram para PostgreSQL/Prisma/Fastify
+com CRUD completo, FK composta tenant-aware entre tipo e grupo, cache
+`grupo_atividade_nome` derivado na escrita (e propagado ao renomear grupo),
+portas `grupoAtividadeNativePort.js` / `tipoTarefaNativePort.js` e gate
+`gate:tarefa-cadastro-native`. **`Lote` e `LancamentoTarefa` permanecem Base44**
+nesta missão — escopo grande demais para um PR; ver `BASE44-EXIT-PLAN.md`.
+
+**Consequência:** `entitiesRefs` cai mais duas entidades; `syncEntityReferences`
+continua na Base44 para `LancamentoTarefa` ao renomear grupo/tipo.
+
+---
+
+<!-- Próxima decisão: D-PROD-46 -->

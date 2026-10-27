@@ -106,6 +106,12 @@ export const API_ERROR_CODES = Object.freeze({
   UNIDADE_MEDIDA_NOT_FOUND: 'UNIDADE_MEDIDA_NOT_FOUND',
   UNIDADE_MEDIDA_SIGLA_CONFLICT: 'UNIDADE_MEDIDA_SIGLA_CONFLICT',
 
+  // P5.0 — GrupoAtividade e TipoTarefa nativos (D-PROD-45).
+  GRUPO_ATIVIDADE_NOT_FOUND: 'GRUPO_ATIVIDADE_NOT_FOUND',
+  GRUPO_ATIVIDADE_NAME_CONFLICT: 'GRUPO_ATIVIDADE_NAME_CONFLICT',
+  TIPO_TAREFA_NOT_FOUND: 'TIPO_TAREFA_NOT_FOUND',
+  TIPO_TAREFA_NAME_CONFLICT: 'TIPO_TAREFA_NAME_CONFLICT',
+
   // P6.0 — administração de contas nativas (D-PROD-34).
   USUARIO_NOT_FOUND: 'USUARIO_NOT_FOUND',
   USUARIO_LOGIN_DUPLICADO: 'USUARIO_LOGIN_DUPLICADO',
@@ -165,6 +171,12 @@ const MENSAGENS = Object.freeze({
   [API_ERROR_CODES.UNIDADE_MEDIDA_NOT_FOUND]:
     'Esta unidade de medida não foi encontrada. Atualize a lista e tente novamente.',
   [API_ERROR_CODES.UNIDADE_MEDIDA_SIGLA_CONFLICT]: 'Já existe uma unidade cadastrada com esta sigla.',
+  [API_ERROR_CODES.GRUPO_ATIVIDADE_NOT_FOUND]:
+    'Este grupo de atividades não foi encontrado. Atualize a lista e tente novamente.',
+  [API_ERROR_CODES.GRUPO_ATIVIDADE_NAME_CONFLICT]: 'Já existe um grupo cadastrado com este nome.',
+  [API_ERROR_CODES.TIPO_TAREFA_NOT_FOUND]:
+    'Este tipo de tarefa não foi encontrado. Atualize a lista e tente novamente.',
+  [API_ERROR_CODES.TIPO_TAREFA_NAME_CONFLICT]: 'Já existe um tipo cadastrado com este nome neste grupo.',
 
   [API_ERROR_CODES.USUARIO_NOT_FOUND]: 'Este usuário não foi encontrado. Atualize a lista e tente novamente.',
   [API_ERROR_CODES.USUARIO_LOGIN_DUPLICADO]: 'Já existe um usuário com este login neste cliente.',
