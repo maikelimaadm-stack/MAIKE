@@ -2233,4 +2233,20 @@ opcional (P7): retirar schemas legados e `VITE_BASE44_*` do runtime.
 
 ---
 
-<!-- Próxima decisão: D-PROD-52 -->
+## D-PROD-52 — P7: limpeza de runtime e comentários Base44
+
+**Missão:** P7 — legacy cleanup  
+**Relatório:** `docs/engineering/P7-BASE44-LEGACY-CLEANUP-REPORT.md`
+
+**Decisão:** Após P5.5, nenhum caminho de dados lê `VITE_BASE44_*` nem
+`getDataProviderConfig`. P7 remove essas variáveis do runtime e da documentação
+de ambiente, elimina parâmetros legados (`app_id`, `server_url`, `access_token`
+via `runtimeConfig`) e reescreve comentários que ainda citavam `base44.auth` ou
+`base44Client` nos eixos do `gate:base44`.
+
+**Consequência:** Schemas `base44/entities/*.jsonc` **permanecem** até decisão
+de escopo explícita (manifesto). Não reintroduzir `@base44/sdk`.
+
+---
+
+<!-- Próxima decisão: D-PROD-53 -->

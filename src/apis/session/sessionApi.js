@@ -5,15 +5,8 @@
  * de permissão, a atualização de nome do usuário e as configurações públicas do
  * app.
  *
- * Desde a **P4.0** esta API não tem mais `logout` nem `redirectToLogin`: a
- * sessão do aplicativo é nativa (`nativeSessionApi`), e o que sobra aqui é
- * leitura de dados que ainda vivem no provider.
- *
- * O logout do provider não foi só movido — ele **não deve** ser chamado. O token
- * do SDK chega uma única vez pela query string; descartá-lo no logout deixaria
- * o próximo login com sessão MAIKE válida e provider de dados morto, sem
- * caminho de volta. Ele é credencial da aplicação com a Base44, não do usuário
- * com o MAIKE.
+ * Desde a **P4.0** a sessão é nativa (`nativeSessionApi`). Após P5.5/P7 não há
+ * provider de dados externo — CRUD e leituras usam portas HTTP nativas.
  *
  * A política de fallback offline vive no service — a API não conhece
  * `localStorage`.
@@ -52,7 +45,7 @@ export const getRegisteredEntityNames = () => [];
 /**
  * Usuário autenticado — sessão nativa MAIKE (D-PROD-44).
  *
- * Sem token nativo, `null`. Não consulta `base44.auth`.
+ * Sem token nativo, `null`. Deriva o usuário só do JWT MAIKE.
  */
 export const getCurrentUser = async () => {
   if (!hasNativeToken()) return null;

@@ -182,8 +182,8 @@ export const obterContexto = async () => {
  * Usuário atual no formato legado consumido pelo `Layout` e pelas telas de
  * permissão — derivado **só** do JWT nativo (D-PROD-44).
  *
- * Não chama `base44.auth.me()`. O identificador de permissão legado (`email`)
- * recebe o `login` nativo enquanto `Permissao` continuar na Base44.
+ * O identificador de permissão legado (`email`) recebe o `login` nativo para
+ * compatibilidade com telas que ainda leem `email`.
  *
  * @returns {Promise<object|null>}
  */
