@@ -47,6 +47,12 @@ describe('escopo do produto', () => {
     expect(app).not.toMatch(/LayoutWrapper currentPageName=\{path\}[\s\S]*<Page \/>/);
   });
 
+  it('Layout não empilha rotas com AnimatePresence (evita freeze entre menus)', () => {
+    const layout = readFileSync('src/Layout.jsx', 'utf8');
+    expect(layout).not.toContain('AnimatePresence');
+    expect(layout).not.toMatch(/key=\{location\.pathname\}/);
+  });
+
   it('o menu só aponta para páginas permitidas', () => {
     const permitidas = new Set(scope.allowedPages);
     for (const page of flattenMenuPages(DEFAULT_MENU)) {

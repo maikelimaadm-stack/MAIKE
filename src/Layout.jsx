@@ -46,8 +46,6 @@ import PermissionAlertDialog from "@/components/common/PermissionAlertDialog";
 import { DEFAULT_MENU, flattenMenuPages, findMenuItemByUrl, getAllPages } from "@/lib/menuConfig";
 import { ACTION_LABELS, canAccessModule, canAccessPage, canPerformAction, detectPermissionAction, normalizePermissionRecord } from "@/lib/permissions";
 
-import { AnimatePresence, motion } from "framer-motion";
-
 const iconsMap = { Map, Package, FolderOpen, Shield, Users };
 
 const PRIMARY_PAGE = "MapaGeral";
@@ -232,6 +230,7 @@ export default function Layout({ children, currentPageName }) {
     const gateKey = `${location.pathname}:${currentMenuPage.id}`;
     if (canAccessPage(normalizedPermissions, currentMenuPage.id, currentMenuPage.moduleId)) {
       permissionGateRef.current = null;
+      setPermissionDialog((prev) => (prev.open ? { ...prev, open: false } : prev));
       return;
     }
     if (permissionGateRef.current === gateKey) return;
@@ -613,18 +612,7 @@ export default function Layout({ children, currentPageName }) {
 
 
       <main className="max-w-[1600px] mx-auto flex-1 min-h-0 w-full overflow-hidden pb-16 md:pb-0">
-        <AnimatePresence initial={false}>
-          <motion.div
-            key={location.pathname}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.12, ease: "easeOut" }}
-            className="relative h-full min-h-0 overflow-hidden">
-
-            {children}
-          </motion.div>
-        </AnimatePresence>
+        <div className="relative h-full min-h-0 overflow-hidden">{children}</div>
       </main>
 
       {/* Mobile bottom navigation */}
