@@ -25,7 +25,7 @@ describe('H — o smoke é hermético desde a avaliação dos módulos', () => {
     // Se o SDK real tivesse sido instanciado, o import de topo já teria
     // disparado rede antes deste corpo rodar.
     // Manifesto com 35 entidades; 23 nativas (ver `suporteBoundary.test.js`).
-    expect(getRegisteredEntityNames().length).toBe(12);
+    expect(getRegisteredEntityNames().length).toBe(0);
   });
 
   it('H3/H4 — operação do provider não toca fetch nem XMLHttpRequest', async () => {

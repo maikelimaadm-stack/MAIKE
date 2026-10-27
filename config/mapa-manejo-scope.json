@@ -57,9 +57,7 @@
     "UnidadeMedida",
     "User"
   ],
-  "allowedBase44Functions": [
-    "syncEntityReferences"
-  ],
+  "allowedBase44Functions": [],
   "forbiddenBase44Entities": [
     "AbastecimentoMaquina",
     "Apartacao",

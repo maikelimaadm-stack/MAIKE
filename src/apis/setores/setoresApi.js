@@ -22,7 +22,7 @@
  */
 
 import { runProviderCall, assertArgument } from '../_core/normalizeApiError.js';
-import { referenciasProvider } from '../_providers/base44Provider.js';
+import { sincronizarReferencias } from '@/apis/referencias';
 import { setorPort } from './setorNativePort.js';
 
 const RESOURCE = 'Setor';
@@ -53,7 +53,7 @@ export const sincronizarReferenciasSetor = async ({ registro, registroAnterior }
   const contexto = ctx('sincronizarReferenciasSetor');
   assertArgument(isObjeto(registro), 'registro', contexto);
   return runProviderCall(
-    () => referenciasProvider.sincronizar({
+    () => sincronizarReferencias({
       event: { type: 'update', entity_name: 'Setor' },
       data: registro,
       old_data: registroAnterior,

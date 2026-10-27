@@ -1,7 +1,7 @@
 /** API do módulo Produtos (P1.4). */
 
 import { runProviderCall, assertArgument } from '../_core/normalizeApiError.js';
-import { referenciasProvider } from '../_providers/base44Provider.js';
+import { sincronizarReferencias } from '@/apis/referencias';
 import { listMovimentacoesEstoque as apiListMovimentacoesEstoque } from '@/apis/movimentacoes-estoque';
 import { produtoPort } from './produtoNativePort.js';
 
@@ -54,7 +54,7 @@ export const sincronizarReferenciasProduto = async ({ data, oldData }) => {
   assertArgument(isObjeto(data), 'data', contexto);
   return runProviderCall(
     () =>
-      referenciasProvider.sincronizar({
+      sincronizarReferencias({
         event: { type: 'update', entity_name: RESOURCE },
         data,
         old_data: oldData ?? null,

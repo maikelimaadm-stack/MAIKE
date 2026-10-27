@@ -31,7 +31,8 @@ export const comoPublico = (registro) => {
 /** @param {{auth: import('../../shared/auth/authContext.js').AuthContext}} contexto */
 export const listar = async (contexto, filtros = {}) => {
   const auth = exigirAuthContext(contexto?.auth);
-  const registros = await listarRegistros(auth.clienteId, filtros);
+  void filtros;
+  const registros = await listarRegistros(auth.clienteId);
   return registros.map(comoPublico);
 };
 

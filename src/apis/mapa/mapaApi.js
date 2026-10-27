@@ -11,8 +11,6 @@
  */
 
 import { runProviderCall, assertArgument } from '../_core/normalizeApiError.js';
-import { mapaProvider } from '../_providers/base44Provider.js';
-
 const RESOURCE = 'Mapa';
 
 const isId = (valor) => typeof valor === 'string' && valor.trim().length > 0;

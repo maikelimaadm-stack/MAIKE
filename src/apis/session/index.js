@@ -31,4 +31,5 @@ export {
   verificarSessao,
   getCapacidadesDeSessao,
   RAZOES_DE_SESSAO,
+  getRegisteredEntityNames,
 } from './sessionApi.js';

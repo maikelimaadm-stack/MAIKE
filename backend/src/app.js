@@ -43,6 +43,19 @@ import { registrarBebedouroRoutes } from './modules/bebedouros/bebedouroRoutes.j
 import { registrarPontoSuplementacaoRoutes } from './modules/pontosSuplementacao/pontoSuplementacaoRoutes.js';
 import { registrarEstoqueLoteNotaRoutes } from './modules/estoqueLotesNota/estoqueLoteNotaRoutes.js';
 import { registrarMovimentacaoEstoqueRoutes } from './modules/movimentacoesEstoque/movimentacaoEstoqueRoutes.js';
+import { registrarMovimentacaoMapaRoutes } from './modules/movimentacoesMapa/movimentacaoMapaRoutes.js';
+import { registrarMovimentacaoPecuariaRoutes } from './modules/movimentacoesPecuaria/movimentacaoPecuariaRoutes.js';
+import { registrarSuplementacaoEventoRoutes } from './modules/suplementacaoEventos/suplementacaoEventoRoutes.js';
+import { registrarSuplementacaoLoteRoutes } from './modules/suplementacaoLotes/suplementacaoLoteRoutes.js';
+import { registrarAplicacaoMedicamentoRoutes } from './modules/aplicacoesMedicamento/aplicacaoMedicamentoRoutes.js';
+import { registrarEventoSanitarioRoutes } from './modules/eventosSanitarios/eventoSanitarioRoutes.js';
+import { registrarManejoTecnicoRebanhoRoutes } from './modules/manejosTecnicoRebanho/manejoTecnicoRebanhoRoutes.js';
+import { registrarBebedouroHistoricoRoutes } from './modules/bebedourosHistorico/bebedouroHistoricoRoutes.js';
+import { registrarBebedouroSanidadeRoutes } from './modules/bebedourosSanidade/bebedouroSanidadeRoutes.js';
+import { registrarBebedouroAlertaRoutes } from './modules/bebedourosAlertas/bebedouroAlertaRoutes.js';
+import { registrarRegistroAnexoRoutes } from './modules/registrosAnexo/registroAnexoRoutes.js';
+import { registrarArquivoUploadRoutes } from './modules/arquivos/arquivoUploadRoutes.js';
+import { registrarReferenciasRoutes } from './modules/referencias/referenciasRoutes.js';
 
 /**
  * @param {{logger?: boolean|object}} [opcoes]
@@ -124,6 +137,19 @@ export const construirApp = async (opcoes = {}) => {
   await app.register(registrarPontoSuplementacaoRoutes);
   await app.register(registrarEstoqueLoteNotaRoutes);
   await app.register(registrarMovimentacaoEstoqueRoutes);
+  await app.register(registrarMovimentacaoMapaRoutes);
+  await app.register(registrarMovimentacaoPecuariaRoutes);
+  await app.register(registrarSuplementacaoEventoRoutes);
+  await app.register(registrarSuplementacaoLoteRoutes);
+  await app.register(registrarAplicacaoMedicamentoRoutes);
+  await app.register(registrarEventoSanitarioRoutes);
+  await app.register(registrarManejoTecnicoRebanhoRoutes);
+  await app.register(registrarBebedouroHistoricoRoutes);
+  await app.register(registrarBebedouroSanidadeRoutes);
+  await app.register(registrarBebedouroAlertaRoutes);
+  await app.register(registrarRegistroAnexoRoutes);
+  await app.register(registrarArquivoUploadRoutes);
+  await app.register(registrarReferenciasRoutes);
 
   return app;
 };

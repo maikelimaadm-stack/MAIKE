@@ -6,11 +6,25 @@
  */
 
 import { runProviderCall, assertArgument } from '../_core/normalizeApiError.js';
-import {
-  lotesProvider,
-  referenciasProvider,
-} from '../_providers/base44Provider.js';
 import { lotePort } from './loteNativePort.js';
+import {
+  listMovimentacoesMapaNativas,
+  filterMovimentacoesMapaNativas,
+  createMovimentacaoMapaNativa,
+  updateMovimentacaoMapaNativa,
+  deleteMovimentacaoMapaNativa,
+} from '@/apis/movimentacoes-mapa';
+import { listMovimentacoesPecuariaNativas } from '@/apis/movimentacoes-pecuaria';
+import {
+  listSuplementacaoEventosNativos,
+  createSuplementacaoEventoNativo,
+} from '@/apis/suplementacao-eventos';
+import {
+  listSuplementacaoLotesNativos,
+  filterSuplementacaoLotesNativos,
+  bulkCreateSuplementacaoLoteNativo,
+} from '@/apis/suplementacao-lotes';
+import { sincronizarReferencias } from '@/apis/referencias';
 import { listFornecedoresNativos as apiListFornecedores } from '@/apis/fornecedores';
 import { listCategoriasManejo as apiListCategoriasManejo } from '@/apis/categorias-manejo';
 
@@ -56,14 +70,14 @@ export const listMovimentacoes = async (opcoes = {}) => {
   const contexto = ctx('listMovimentacoes');
   const ordem = opcoes.order ?? MOVIMENTACAO_DEFAULT_ORDER;
   const limite = opcoes.limit ?? MOVIMENTACAO_DEFAULT_LIMIT;
-  return comoLista(await runProviderCall(() => lotesProvider.listMovimentacoes(ordem, limite), contexto));
+  return comoLista(await runProviderCall(() => listMovimentacoesMapaNativas(ordem, limite), contexto));
 };
 
 /** Sem limite: preserva o `list('-data_movimentacao')` sem teto do legado. */
 export const listTodasMovimentacoes = async (opcoes = {}) =>
   comoLista(
     await runProviderCall(
-      () => lotesProvider.listTodasMovimentacoes(opcoes.order ?? MOVIMENTACAO_DEFAULT_ORDER),
+      () => listMovimentacoesMapaNativas(opcoes.order ?? MOVIMENTACAO_DEFAULT_ORDER),
       ctx('listTodasMovimentacoes')
     )
   );
@@ -73,13 +87,13 @@ export const filterMovimentacoes = async (criterio, opcoes = {}) => {
   assertArgument(isObjeto(criterio), 'criterio', contexto);
   const ordem = opcoes.order ?? MOVIMENTACAO_DEFAULT_ORDER;
   const limite = opcoes.limit ?? 200;
-  return comoLista(await runProviderCall(() => lotesProvider.filterMovimentacoes(criterio, ordem, limite), contexto));
+  return comoLista(await runProviderCall(() => filterMovimentacoesMapaNativas(criterio, ordem, limite), contexto));
 };
 
 export const createMovimentacao = async (dados) => {
   const contexto = ctx('createMovimentacao');
   assertArgument(isObjeto(dados), 'dados', contexto);
-  return runProviderCall(() => lotesProvider.createMovimentacao(dados), contexto);
+  return runProviderCall(() => createMovimentacaoMapaNativa(dados), contexto);
 };
 
 /**
@@ -92,13 +106,13 @@ export const listMovimentacoesPecuarias = async (opcoes = {}) => {
   const contexto = ctx('listMovimentacoesPecuarias');
   const ordem = opcoes.order ?? '-created_date';
   const limite = opcoes.limit ?? 5000;
-  return comoLista(await runProviderCall(() => lotesProvider.listMovimentacoesPecuarias(ordem, limite), contexto));
+  return comoLista(await runProviderCall(() => listMovimentacoesPecuariaNativas(ordem, limite), contexto));
 };
 
 export const deleteMovimentacao = async (id) => {
   const contexto = ctx('deleteMovimentacao');
   assertArgument(isId(id), 'id', contexto);
-  return runProviderCall(() => lotesProvider.deleteMovimentacao(id), { ...contexto, details: { id } });
+  return runProviderCall(() => deleteMovimentacaoMapaNativa(id), { ...contexto, details: { id } });
 };
 
 // ── Suplementação ─────────────────────────────────────────────────────────
@@ -107,19 +121,19 @@ export const SUPLEMENTACAO_LOTE_DEFAULT_ORDER = '-data_lancamento';
 export const SUPLEMENTACAO_LOTE_DEFAULT_LIMIT = 500;
 
 export const listSuplementacaoEventos = async () =>
-  comoLista(await runProviderCall(() => lotesProvider.listSuplementacaoEventos(), ctx('listSuplementacaoEventos')));
+  comoLista(await runProviderCall(() => listSuplementacaoEventosNativos(), ctx('listSuplementacaoEventos')));
 
 export const createSuplementacaoEvento = async (dados) => {
   const contexto = ctx('createSuplementacaoEvento');
   assertArgument(isObjeto(dados), 'dados', contexto);
-  return runProviderCall(() => lotesProvider.createSuplementacaoEvento(dados), contexto);
+  return runProviderCall(() => createSuplementacaoEventoNativo(dados), contexto);
 };
 
 export const listSuplementacaoLotes = async (opcoes = {}) => {
   const contexto = ctx('listSuplementacaoLotes');
   const ordem = opcoes.order ?? SUPLEMENTACAO_LOTE_DEFAULT_ORDER;
   const limite = opcoes.limit ?? SUPLEMENTACAO_LOTE_DEFAULT_LIMIT;
-  return comoLista(await runProviderCall(() => lotesProvider.listSuplementacaoLotes(ordem, limite), contexto));
+  return comoLista(await runProviderCall(() => listSuplementacaoLotesNativos(ordem, limite), contexto));
 };
 
 export const filterSuplementacaoLotes = async (criterio, opcoes = {}) => {
@@ -127,13 +141,13 @@ export const filterSuplementacaoLotes = async (criterio, opcoes = {}) => {
   assertArgument(isObjeto(criterio), 'criterio', contexto);
   const ordem = opcoes.order ?? SUPLEMENTACAO_LOTE_DEFAULT_ORDER;
   const limite = opcoes.limit ?? 200;
-  return comoLista(await runProviderCall(() => lotesProvider.filterSuplementacaoLotes(criterio, ordem, limite), contexto));
+  return comoLista(await runProviderCall(() => filterSuplementacaoLotesNativos(criterio, ordem, limite), contexto));
 };
 
 export const bulkCreateSuplementacaoLote = async (registros) => {
   const contexto = ctx('bulkCreateSuplementacaoLote');
   assertArgument(Array.isArray(registros) && registros.length > 0, 'registros', contexto);
-  return runProviderCall(() => lotesProvider.bulkCreateSuplementacaoLote(registros), contexto);
+  return runProviderCall(() => bulkCreateSuplementacaoLoteNativo(registros), contexto);
 };
 
 // ── P1.3 — cadastro de lote: exclusão e cadastros auxiliares ───────────────
@@ -160,7 +174,7 @@ export const sincronizarReferenciasLote = async ({ registro, registroAnterior })
   const contexto = ctx('sincronizarReferenciasLote');
   assertArgument(isObjeto(registro), 'registro', contexto);
   return runProviderCall(
-    () => referenciasProvider.sincronizar({
+    () => sincronizarReferencias({
       event: { type: 'update', entity_name: 'Lote' },
       data: registro,
       old_data: registroAnterior,
@@ -173,5 +187,5 @@ export const updateMovimentacao = async (id, dados) => {
   const contexto = ctx('updateMovimentacao');
   assertArgument(isId(id), 'id', contexto);
   assertArgument(isObjeto(dados), 'dados', contexto);
-  return runProviderCall(() => lotesProvider.updateMovimentacao(id, dados), contexto);
+  return runProviderCall(() => updateMovimentacaoMapaNativa(id, dados), contexto);
 };

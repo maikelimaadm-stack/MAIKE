@@ -7,8 +7,14 @@
  */
 
 import { runProviderCall, assertArgument } from '../_core/normalizeApiError.js';
-import { bebedourosProvider } from '../_providers/base44Provider.js';
 import { bebedouroPort } from './bebedouroNativePort.js';
+import {
+  listBebedouroHistoricoNativo,
+  createBebedouroHistoricoNativo,
+  deleteBebedouroHistoricoNativo,
+} from '@/apis/bebedouros-historico';
+import { listBebedouroSanidadeNativo, createBebedouroSanidadeNativo } from '@/apis/bebedouros-sanidade';
+import { listBebedouroAlertasNativo } from '@/apis/bebedouros-alertas';
 
 const RESOURCE = 'Bebedouro';
 const isId = (valor) => typeof valor === 'string' && valor.trim().length > 0;
@@ -40,28 +46,28 @@ export const updateBebedouro = async (id, dados) => {
 };
 
 export const listHistorico = async (ordenacao = HISTORICO_DEFAULT_ORDER) =>
-  comoLista(await runProviderCall(() => bebedourosProvider.listHistorico(ordenacao), ctx('listHistorico')));
+  comoLista(await runProviderCall(() => listBebedouroHistoricoNativo(ordenacao), ctx('listHistorico')));
 
 export const createHistorico = async (dados) => {
   const contexto = ctx('createHistorico');
   assertArgument(isObjeto(dados), 'dados', contexto);
-  return runProviderCall(() => bebedourosProvider.createHistorico(dados), contexto);
+  return runProviderCall(() => createBebedouroHistoricoNativo(dados), contexto);
 };
 
 export const deleteHistorico = async (id) => {
   const contexto = ctx('deleteHistorico');
   assertArgument(isId(id), 'id', contexto);
-  return runProviderCall(() => bebedourosProvider.deleteHistorico(id), contexto);
+  return runProviderCall(() => deleteBebedouroHistoricoNativo(id), contexto);
 };
 
 export const listSanidade = async (ordenacao = SANIDADE_DEFAULT_ORDER) =>
-  comoLista(await runProviderCall(() => bebedourosProvider.listSanidade(ordenacao), ctx('listSanidade')));
+  comoLista(await runProviderCall(() => listBebedouroSanidadeNativo(ordenacao), ctx('listSanidade')));
 
 export const createSanidade = async (dados) => {
   const contexto = ctx('createSanidade');
   assertArgument(isObjeto(dados), 'dados', contexto);
-  return runProviderCall(() => bebedourosProvider.createSanidade(dados), contexto);
+  return runProviderCall(() => createBebedouroSanidadeNativo(dados), contexto);
 };
 
 export const listAlertas = async (ordenacao = ALERTA_DEFAULT_ORDER) =>
-  comoLista(await runProviderCall(() => bebedourosProvider.listAlertas(ordenacao), ctx('listAlertas')));
+  comoLista(await runProviderCall(() => listBebedouroAlertasNativo(ordenacao), ctx('listAlertas')));

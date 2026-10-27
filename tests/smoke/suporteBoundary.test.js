@@ -83,18 +83,12 @@ describe('B1–B6 — os 23 caminhos saíram da fronteira legada', () => {
     expect(infratores).toEqual([]);
   });
 
-  it('B5 — o client é o único importador do SDK e não instala nada', () => {
-    const fonte = codigoDe('src/api/base44Client.js');
-    expect(fonte).toContain("from '@base44/sdk'");
-    expect(fonte).not.toMatch(/install[A-Z]\w*\(/);
-    expect(fonte).not.toContain('applyDeleteGuards');
-    expect(fonte).not.toContain('OfflineEntitySync');
-    // Só uma chamada de criação; nada de monkey patch depois dela.
-    expect((fonte.match(/createClient\(/g) || []).length).toBe(1);
+  it('B5 — SDK Base44 removido do bundle (P5.5)', () => {
+    expect(existsSync(join(RAIZ, 'src/api/base44Client.js'))).toBe(false);
   });
 
-  it('B6 — nenhum monkey patch global sobrou no client nem nas libs', () => {
-    const suspeitos = ['src/api/base44Client.js', 'src/lib/textNormalization.js', 'src/lib/offline/offlineEntityRuntime.js'];
+  it('B6 — nenhum monkey patch global sobrou nas libs offline', () => {
+    const suspeitos = ['src/lib/textNormalization.js', 'src/lib/offline/offlineEntityRuntime.js'];
     for (const rel of suspeitos) {
       const fonte = codigoDe(rel);
       expect(fonte, rel).not.toMatch(/entityApi\.\w+\s*=/);
@@ -249,31 +243,30 @@ describe('B17 — registry do provider é literal, exato e igual ao manifesto me
     'PontoSuplementacao',
     'EstoqueLoteNota',
     'MovimentacaoEstoque',
-  ];
-
-  const ESPERADO = [
-    'AplicacaoMedicamento',
-    'BebedouroAlerta',
-    'BebedouroHistorico',
-    'BebedouroSanidade',
-    'EventoSanitario',
-    'ManejoTecnicoRebanho',
     'MovimentacaoMapa',
     'MovimentacaoPecuaria',
-    'RegistroAnexo',
     'SuplementacaoEvento',
     'SuplementacaoLote',
+    'AplicacaoMedicamento',
+    'EventoSanitario',
+    'ManejoTecnicoRebanho',
+    'RegistroAnexo',
+    'BebedouroHistorico',
+    'BebedouroSanidade',
+    'BebedouroAlerta',
     'User',
-  ].sort();
+  ];
 
-  it('são 12 entidades: manifesto (35) menos vinte e três nativas', async () => {
+  const ESPERADO = [].sort();
+
+  it('registry Base44 vazio após P5.5 — manifesto (35) permanece por schemas', async () => {
     const { getRegisteredEntityNames } = await import('@/apis/_providers/base44Provider');
     const registrados = getRegisteredEntityNames().slice().sort();
     const manifesto = JSON.parse(ler('config/mapa-manejo-scope.json')).allowedBase44Entities.slice().sort();
 
     expect(registrados).toEqual(ESPERADO);
     expect(registrados).toEqual(manifesto.filter((e) => !MIGRADAS_PARA_NATIVO.includes(e)));
-    expect(registrados.length).toBe(12);
+    expect(registrados.length).toBe(0);
     expect(manifesto.length).toBe(35);
   });
 

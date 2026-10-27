@@ -39,6 +39,7 @@
     "gate:lancamento-tarefa-native": "node scripts/gates/gate-lancamento-tarefa-native.mjs",
     "gate:p52-cadastros-estoque-native": "node scripts/gates/gate-p52-cadastros-estoque-native.mjs",
     "gate:p54-base44-exit": "node scripts/gates/gate-p54-base44-exit.mjs",
+    "gate:p55-base44-exit-final": "node scripts/gates/gate-p55-base44-exit-final.mjs",
     "gate:area-pastagem-native": "node scripts/gates/gate-area-pastagem-native.mjs",
     "gate:map-geography-native": "node scripts/gates/gate-map-geography-native.mjs",
     "gate:usuario-admin": "node scripts/gates/gate-usuario-admin.mjs",
@@ -54,8 +55,6 @@
     "verify:all": "node scripts/gates/verify-all.mjs"
   },
   "dependencies": {
-    "@base44/sdk": "^0.8.40",
-    "@base44/vite-plugin": "^1.0.30",
     "@fastify/cors": "^11.3.0",
     "@fastify/jwt": "^10.2.2",
     "@hello-pangea/dnd": "^17.0.0",

@@ -105,17 +105,8 @@ describe('P1.2 — a UI do mapa não fala Base44', () => {
    * registry" nunca passe despercebido como se fosse a mesma coisa que
    * "migrou".
    */
-  it('B11 — entidades Base44 do mapa/manejo ainda registradas', () => {
-    expect([...getRegisteredEntityNames()].sort()).toEqual(expect.arrayContaining([
-      'AplicacaoMedicamento',
-      'EventoSanitario',
-      'ManejoTecnicoRebanho',
-      'MovimentacaoMapa',
-      'MovimentacaoPecuaria',
-      'SuplementacaoEvento',
-      'SuplementacaoLote',
-      'User',
-    ]));
+  it('B11 — P5.5: registry Base44 vazio; manejo nativo', () => {
+    expect(getRegisteredEntityNames()).toEqual([]);
   });
 
   it('B11f — P5.4 migrou estoque, empresa, permissões e pontos (nativo)', () => {

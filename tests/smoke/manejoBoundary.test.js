@@ -118,8 +118,7 @@ describe('A8–A15 — a cadeia de camadas', () => {
     for (const rel of publicos) {
       expect(codigoDe(rel)).not.toMatch(/invoke|functionName/);
     }
-    // O nome da function fica literal no provider, não vem do chamador.
-    expect(codigoDe('src/apis/_providers/base44Provider.js')).toContain("invoke('syncEntityReferences'");
+    expect(codigoDe('src/apis/referencias/referenciasNativePort.js')).toContain('/referencias/sincronizar');
   });
 
   it('A14 — nenhum provider é exportado por superfície pública', () => {
@@ -152,13 +151,9 @@ describe('P1/P2 — o provider não tem porta dinâmica (P1.3-R1)', () => {
     expect(fonte).not.toMatch(/endpointOf\(\s*(nome|entityName|entidade|model)\w*\s*\)/);
   });
 
-  it('P2 — toda chamada a endpointOf usa string literal', () => {
+  it('P2 — registry esvaziado: nenhum endpointOf restante', () => {
     const fonte = codigoDe(ADAPTER);
-    const chamadas = [...fonte.matchAll(/endpointOf\(([^)]*)\)/g)].map((m) => m[1].trim());
-    expect(chamadas.length).toBeGreaterThan(20);
-
-    const naoLiterais = chamadas.filter((arg) => !/^(['"`])[A-Za-z]+\1$/.test(arg));
-    expect(naoLiterais).toEqual([]);
+    expect(fonte).not.toMatch(/endpointOf\s*\(/);
   });
 
   it('P2b — a API pública de lotes não expõe fonte de opção genérica', () => {
@@ -169,36 +164,14 @@ describe('P1/P2 — o provider não tem porta dinâmica (P1.3-R1)', () => {
 });
 
 describe('A11 — registry do provider é literal e exato', () => {
-  const ESPERADO = [
-    'AplicacaoMedicamento',
-    'BebedouroAlerta',
-    'BebedouroHistorico',
-    'BebedouroSanidade',
-    'EventoSanitario',
-    'ManejoTecnicoRebanho',
-    'MovimentacaoMapa',
-    'MovimentacaoPecuaria',
-    'RegistroAnexo',
-    'SuplementacaoEvento',
-    'SuplementacaoLote',
-    'User',
-  ].sort();
-
-  it('o conjunto é exatamente o esperado — igualdade, não inclusão', async () => {
+  it('registry Base44 vazio (P5.5)', async () => {
     const { getRegisteredEntityNames } = await import('@/apis/_providers/base44Provider');
-    expect(getRegisteredEntityNames().slice().sort()).toEqual(ESPERADO);
+    expect(getRegisteredEntityNames()).toEqual([]);
   });
 
-  it('cada entrada é literal: nenhum acesso computado no registry', () => {
+  it('provider não importa SDK', () => {
     const fonte = codigoDe('src/apis/_providers/base44Provider.js');
-    const registry = fonte.slice(fonte.indexOf('ENTITY_REGISTRY'), fonte.indexOf('getRegisteredEntityNames'));
-    expect(registry).not.toMatch(/entities\s*\[/);
-    // Desde a P1.4 cada entrada passa por `comFronteira`, que compõe
-    // normalização e runtime offline. O nome continua **literal** nos dois
-    // lugares: no rótulo e no acesso ao endpoint.
-    for (const nome of ESPERADO) {
-      expect(registry).toContain(`${nome}: comFronteira('${nome}', base44.entities.${nome})`);
-    }
+    expect(fonte).not.toMatch(/base44Client|@base44\/sdk|base44\.entities/);
   });
 });
 
