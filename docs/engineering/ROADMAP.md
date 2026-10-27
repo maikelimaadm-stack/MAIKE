@@ -121,7 +121,7 @@ nenhum model de manejo, que ficam para P4–P6, uma capacidade de cada vez.
 
 ## P4 — Mapa Core Native Persistence
 
-**Estado:** **em execução**, fatiada.
+**Estado:** **concluída** — P4.0–P4.3 mergeadas; mapa core persiste no PostgreSQL.
 
 | Fatia | Nome | Estado |
 |---|---|---|
@@ -179,15 +179,16 @@ fechando um dos seis destinos de `syncEntityReferences`; e os **dois** leitores
 de área no frontend (mapa e suplementação) passaram a ter dono único em
 `@/apis/areas`. Ver D-PROD-30.
 
-Ainda por migrar nesta fase: `PontoReferencia`, `PontoSuplementacao`,
-`LinhaGeografica`, `ConfiguracaoIcone`, `MovimentacaoMapa`.
-
 **Critério de aceite:** `MapaGeral` e `MapaCadastro` operam contra o backend
-próprio; `gate:base44` registra queda no acoplamento.
+próprio — **atendido** (P4.3 + extensões P5.x no mapa).
 
 ---
 
 ## P5 — Manejo Core Native Persistence
+
+**Estado:** **concluída** — fatias P5.1–P5.5 entregues (lotes, movimentações,
+bebedouros, manejo técnico/sanitário nativos). Relatórios em `docs/engineering/P5*.md`
+e fechamento **P5.5** (`P5.5-FINAL-BASE44-EXIT-REPORT.md`).
 
 Migrar o manejo iniciado no mapa: `Lote`, `CategoriaManejo`, movimentação,
 nascimento, morte, abate, mudança de categoria, pesagem do lote, junção,
@@ -200,6 +201,9 @@ de negócio no service e não no componente.
 ---
 
 ## P6 — Supporting Capabilities
+
+**Estado:** **majoritariamente entregue** — cadastros de suporte, tarefas, empresa,
+usuários/permissoes e anexos de upload nativos; **entrada de estoque** (DBT-04) permanece.
 
 Migrar o suporte: suplementação (`SuplementacaoEvento`, `SuplementacaoLote`),
 estoque do mapa (`EstoqueLoteNota`, `MovimentacaoEstoque`, `LocalEstoque`),
@@ -214,15 +218,24 @@ com o módulo de movimentações de estoque legado.
 
 ## P7 — Base44 Final Removal
 
+**Estado:** **parcial — mergeada PR #85 (2026-10-27)** — limpeza de runtime e
+comentários (D-PROD-52, `P7-BASE44-LEGACY-CLEANUP-REPORT.md`): sem `@base44/sdk` em
+`src/`, sem `VITE_BASE44_*`, baseline `gate:base44` com eixos de código zerados.
+Schemas `base44/entities/*.jsonc` permanecem como especificação legada no manifesto;
+remoção física e `gate:no-base44` absoluto ficam para decisão de produto pós-P8.
+
 Remover `@base44/sdk` e `@base44/vite-plugin` do `package.json`, remover o plugin
 do `vite.config.js`, arquivar `base44/` como referência histórica e substituir
 `gate:base44` por `gate:no-base44` (zero referências).
 
-**Critério de aceite:** `gate:no-base44` passa com contagem zero.
+**Critério de aceite:** `gate:no-base44` passa com contagem zero — **pendente**
+(arquivo de schemas ainda versionado).
 
 ---
 
 ## P8 — Hardening and Release
+
+**Estado:** **próxima missão autorizável** pós-P7.
 
 RLS no PostgreSQL, autorização real, rate limiting, observabilidade, backup com
 teste de restore, performance do mapa em campo, release.

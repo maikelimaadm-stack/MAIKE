@@ -1,9 +1,9 @@
 # Estado Atual
 
-**Atualizado em:** 2026-10-27 (**backend/migrations** — plano
-`docs/engineering/PLAN-BACKEND-MIGRACAO-100.md`, branch
-`cursor/backend-migracao-organize-516d`; UX Base1 — PR **#60** na `main`; gate §H
-**5/6** — **aguardando H.5**; rollout pausado **D-PROD-41**)
+**Atualizado em:** 2026-10-27 (**pós-P7** — PR **#85** mergeada; dados e SDK Base44
+fora do runtime; Supabase `_prisma_migrations` **14/14** — ver
+`POST-P7-PRODUCAO-REPORT-2026-10-27.md`; UX Base1 — gate §H **5/6** aguardando **H.5**;
+rollout pausado **D-PROD-41**)
 
 ---
 
@@ -12,15 +12,15 @@
 | Campo | Valor |
 |---|---|
 | Plano operacional | `docs/engineering/PLAN-BACKEND-MIGRACAO-100.md` |
-| Migrations no repositório | **6** (`backend/prisma/migrations/`) — fundação P3 até `p6_1_login_global_hygiene` |
-| Models Prisma (domínio + fundação) | `Cliente`, `Usuario`, fundação, `Setor`, `AreaPastagem`, geografia (P4.3), hygiene login (P6.1) |
+| Migrations no repositório | **14** (`backend/prisma/migrations/`) — até `20261028120000_p55_base44_exit_final` |
+| Models Prisma (domínio + fundação) | Fundação P3 + mapa P4 + cadastros/manejo P5.x + hygiene P6.1 (schema completo pós-P5.5) |
 | Runner de produção | `npm run deploy:migrate` — variável **`MIGRATION_DATABASE_URL`** (sem fallback para `DATABASE_URL`) |
 | Banco local | `npm run db:up` (Docker `postgres:16.13-alpine`) + `npm run prisma:deploy` |
 | Testes backend | `npm run test:backend` — **142** testes; falha dura sem `DATABASE_URL` |
 | Monólito Vercel | `api/fastify.js` + `vercel.json` reescreve **todas** as rotas nativas para `/api/fastify` (correção 2026-10-27) |
-| Supabase (MAIKE) | **Auditoria 2026-10-27:** 10/10 tabelas Prisma + `_prisma_migrations` **6/6**; índices e FKs OK — ver `PRODUCAO-TABELAS-SUPABASE-AUDIT-2026-10-27.md` |
-| Railway | Pre-deploy migrations (DEPLOY-MIGRATION-01) — último registro certificado: **3** migrations; alinhar para **6** no próximo deploy originado da fonte |
-| Certificação agente 2026-10-27 | Supabase MAIKE auditado via MCP; `/health` produção **200**; Vercel env **não editável** pelo token MCP (projeto fora do escopo); `verify:all` local depende de Docker/`db:up` |
+| Supabase (MAIKE) | **14/14** `_prisma_migrations` reconciliado 2026-10-27; DDL p51–p55 já aplicada — ledger alinhado sem reexecutar SQL — ver `POST-P7-PRODUCAO-REPORT-2026-10-27.md` |
+| Deploy | Monólito Vercel + Supabase; `npm run deploy:migrate` no pipeline quando `MIGRATION_DATABASE_URL` definida |
+| Certificação agente 2026-10-27 (pós-P7) | `/health` **200**; rotas `/marcas`, `/empresas`, `/lancamentos-tarefa` **401** sem JWT; Vercel MCP enxerga projeto `maike`; login autenticado não repetido (senha fora do repo) |
 
 Checklist operacional de go-live: [`PRODUCAO-GO-LIVE-CHECKLIST.md`](./PRODUCAO-GO-LIVE-CHECKLIST.md).
 
@@ -34,7 +34,7 @@ Variáveis críticas: `DATABASE_URL`, `MIGRATION_DATABASE_URL` (pre-deploy), `AU
 **Matriz operacional (menu, rota, backend nativo vs Base44, UI, produção):**
 [`CADASTROS-E-MODULOS-STATUS.md`](./CADASTROS-E-MODULOS-STATUS.md).
 
-Resumo: **login e contas de usuário** persistem no PostgreSQL (P4.0 + P6.0); **setores, áreas de pastagem e geografia do mapa** também. **Marcas, produtos, empresa, categorias, lotes, bebedouros** e a maior parte do manejo ainda leem/escrevem via **Base44** atrás de `src/apis/*`. Não há tela de **Cliente** (tenant) — só bootstrap. Áreas não têm menu próprio: use **Mapa Geral** / **Cadastro do Mapa**.
+Resumo: **todas as telas do escopo** persistem no PostgreSQL via APIs nativas (`src/apis/*` → monólito Vercel). **Base44** permanece só como schemas JSONC de referência (`base44/entities`) — sem SDK nem provider de dados (P5.5 + P7). Não há tela de **Cliente** (tenant) — só bootstrap. Áreas não têm menu próprio: use **Mapa Geral** / **Cadastro do Mapa**. Matriz detalhada: [`CADASTROS-E-MODULOS-STATUS.md`](./CADASTROS-E-MODULOS-STATUS.md).
 
 ---
 
@@ -60,8 +60,8 @@ Base44 mantida apenas como provider temporário da cadeia preservada (D-PROD-04)
 |---|---|
 | Produto | Pecuária — Mapa Geral + Manejo (D-PROD-01) |
 | Superfície primária | `MapaGeral` (D-PROD-05) |
-| Missão em execução | **P4 — Mapa Core Native Persistence** — fatias P4.0–P4.3 e hygiene P6.1 no schema; **P6.0** (admin usuários) em paralelo conforme ROADMAP. Infra backend: plano `PLAN-BACKEND-MIGRACAO-100.md` |
-| Última mergeada (domínio mapa) | **P4.2 — AreaPastagem** (PR #26); **P4.3** geografia e **P6.1** login global no repositório — confirmar merge/deploy em produção |
+| Missão em execução | **P8 — Hardening and Release** (RLS, observabilidade, release); UX Base1 aguarda **H.5** (D-PROD-41) |
+| Última mergeada (runtime) | **P7 — Base44 legacy cleanup** (PR **#85**, D-PROD-52); dados nativos fechados em **P5.5** (PR #84) |
 | Mergeadas anteriores | P3 — Backend + Prisma + PostgreSQL Foundation (PR #10, merge `4ce4608`), com a P3-R1; P2 — ModeloBase1 Pecuário Foundation (PR #7, merge `1851503`); SSOT sincronizada nas PRs #8 (`378bfd3`) e #11 (`672ea99`); emenda D-PROD-22 na PR #9 (merge `44b204c`) |
 | Próxima fatia autorizável | P4.4 — conforme ROADMAP (após merge da P4.3) |
 | Contrato de dados | `config/modelobase1-pecuario.json` — **oficial**; obrigatório para P3–P6 |
@@ -86,11 +86,11 @@ armazenamento apenas em `.env.local` seguem pendentes com o proprietário — ve
 | P1 | Native Foundation Bootstrap | **concluída e mergeada** — P1.1 a P1.3 em PRs anteriores; P1.4 e P1.4-R1 na PR #6, merge `7398d85`. Os seis eixos de `gate:api-boundary` estão em zero |
 | P2 | ModeloBase1 Pecuário Foundation | **mergeada** (PR #7, merge `1851503`) — inclui a correção P2-R1 |
 | P3 | Backend + Prisma + PostgreSQL Foundation | **concluída e mergeada** (PR #10, merge `4ce4608`) — `backend/` com Fastify, Prisma e PostgreSQL; cinco models; `gate:tenancy` e `gate:indices`. Inclui a correção **P3-R1** |
-| P4 | Mapa Core Native Persistence | **em execução** — **P4.0**–**P4.2** mergeadas (PRs #12, #14, #17, #26); **P4.3** no código (`gate:map-geography-native`); validar merge e migrations em produção |
-| P5 | Manejo Core Native Persistence | não iniciada |
-| P6 | Supporting Capabilities | **P6.0 em execução** — administração mínima de contas nativas (D-PROD-34, branch `cursor/p6-usuario-admin-minimo-516d`); demais itens do roadmap P6 não iniciados |
-| P7 | Base44 Final Removal | não iniciada |
-| P8 | Hardening and Release | não iniciada |
+| P4 | Mapa Core Native Persistence | **concluída** — P4.0–P4.3 mergeadas; geografia e setor/área nativos em produção |
+| P5 | Manejo Core Native Persistence | **concluída (P5.x + P5.5)** — lotes, movimentações, bebedouros, manejo técnico nativos; ver relatórios P5.x |
+| P6 | Supporting Capabilities | **majoritariamente entregue** — cadastros, tarefas, empresa, usuários/permissoes nativos; entrada de estoque (DBT-04) permanece |
+| P7 | Base44 Final Removal | **parcial** — PR **#85** removeu runtime `VITE_BASE44_*` e acoplamento SDK (`gate:base44` zerado em `src/`); schemas `base44/` e gate ratchet permanecem até decisão de arquivo |
+| P8 | Hardening and Release | **próxima** — RLS, CSP/cookies, observabilidade, release |
 
 ## Inventário
 
