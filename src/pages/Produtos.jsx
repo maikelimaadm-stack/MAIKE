@@ -84,12 +84,19 @@ export default function Produtos() {
 
   const empresaSelecionadaId = useEmpresaSelecionadaId();
 
-  const { data: produtos, isLoading, refetch } = useQuery({
+  const {
+    data: produtosData,
+    isLoading,
+    isError: listaErro,
+    error: listaQueryError,
+    refetch,
+    isFetching: listaFetching,
+  } = useQuery({
     queryKey: ['produtos', empresaSelecionadaId],
     queryFn: () => listarProdutosDaEmpresa(empresaSelecionadaId),
-    initialData: [],
     enabled: !!empresaSelecionadaId,
   });
+  const produtos = listaErro ? [] : (produtosData ?? []);
 
   // Numerar produtos existentes automaticamente
   React.useEffect(() => {
@@ -394,6 +401,19 @@ export default function Produtos() {
         subtitle="Catálogo de produtos — importação CSV, exportação e colunas configuráveis."
         toolbar={null}
       >
+        {listaErro && !listaFetching ? (
+          <div className="cadastro-b1 mg-card p-3 text-xs text-amber-800 bg-amber-50 border border-amber-200 mb-2 flex flex-wrap items-center gap-2">
+            <span>
+              {getApiErrorMessage(
+                listaQueryError,
+                "Não foi possível carregar os produtos. Verifique sua conexão e tente novamente.",
+              )}
+            </span>
+            <button type="button" className="tb-btn tb-btn-gray" onClick={() => refetch()}>
+              Tentar novamente
+            </button>
+          </div>
+        ) : null}
         <CadastroListaChrome
           recordMode={showForm}
           secondaryToolsLocked={showForm}

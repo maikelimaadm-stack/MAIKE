@@ -56,6 +56,7 @@ import { registrarBebedouroAlertaRoutes } from './modules/bebedourosAlertas/bebe
 import { registrarRegistroAnexoRoutes } from './modules/registrosAnexo/registroAnexoRoutes.js';
 import { registrarArquivoUploadRoutes } from './modules/arquivos/arquivoUploadRoutes.js';
 import { registrarReferenciasRoutes } from './modules/referencias/referenciasRoutes.js';
+import { aplicarStripPrefixoApiNativa } from './shared/http/nativeApiPathPrefix.js';
 
 /**
  * @param {{logger?: boolean|object}} [opcoes]
@@ -100,6 +101,10 @@ export const construirApp = async (opcoes = {}) => {
   await app.register(fastifyJwt, { secret: env.authSecret });
 
   registrarRequestContext(app);
+
+  app.addHook('onRequest', async (request) => {
+    aplicarStripPrefixoApiNativa(request);
+  });
 
   /**
    * Verifica o token e instala o `auth_context`.

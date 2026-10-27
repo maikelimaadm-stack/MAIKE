@@ -167,7 +167,7 @@ describe('P4T — configuração do transporte nativo', () => {
     const { login } = await carregar();
     await login({ login: 'joao', senha: 's3nh4' });
 
-    expect(fetchMock.mock.calls[0][0]).toBe('https://backend.exemplo.invalido/auth/login');
+    expect(fetchMock.mock.calls[0][0]).toBe('https://backend.exemplo.invalido/api/native/auth/login');
   });
 
   it('P4T-02b describeRuntimeConfig informa presença, nunca a URL', async () => {
@@ -190,7 +190,7 @@ describe('P4T — login', () => {
     await login({ login: 'joao', senha: 's3nh4' });
 
     const [url, opcoes] = fetchMock.mock.calls[0];
-    expect(url).toBe(`${API}/auth/login`);
+    expect(url).toBe(`${API}/api/native/auth/login`);
     const corpo = JSON.parse(opcoes.body);
     expect(Object.keys(corpo).sort()).toEqual(['login', 'senha']);
     expect(corpo).not.toHaveProperty('cliente');
@@ -209,7 +209,7 @@ describe('P4T — login', () => {
     await login({ login: 'joao', senha: 's3nh4' });
 
     const [url, opcoes] = fetchMock.mock.calls[1];
-    expect(url).toBe(`${API}/auth/contexto`);
+    expect(url).toBe(`${API}/api/native/auth/contexto`);
     expect(opcoes.headers.Authorization).toBe(`Bearer ${LOGIN_OK.token}`);
   });
 
@@ -289,7 +289,7 @@ describe('P4T — restauração e logout', () => {
     expect(veredito.contexto.cliente_id).toBe('cli_1');
     // A presença do token não basta: o servidor foi consultado.
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(fetchMock.mock.calls[0][0]).toBe(`${API}/auth/contexto`);
+    expect(fetchMock.mock.calls[0][0]).toBe(`${API}/api/native/auth/contexto`);
   });
 
   it('P4T-08 / P4R1-T04 token RECUSADO é removido do storage', async () => {

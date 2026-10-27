@@ -19,7 +19,8 @@ export const EVENTO_EMPRESA_SELECIONADA = 'maike:empresa-selecionada';
  * @param {string|null|undefined} clienteIdAtual
  * @returns {string|null}
  */
-const lerArmazenamento = (clienteIdAtual) => {
+/** Leitura tenant-aware (exportada para Layout e helpers síncronos). */
+export const lerEmpresaSelecionadaIdArmazenada = (clienteIdAtual) => {
   if (typeof window === 'undefined') return null;
   try {
     const id = window.localStorage.getItem(chave);
@@ -70,14 +71,14 @@ export const persistirEmpresaSelecionada = (empresaId, clienteId) => {
  */
 export const useEmpresaSelecionadaId = () => {
   const { clienteId } = useAuth();
-  const [armazenado, setArmazenado] = useState(() => lerArmazenamento(clienteId));
+  const [armazenado, setArmazenado] = useState(() => lerEmpresaSelecionadaIdArmazenada(clienteId));
 
   useEffect(() => {
-    setArmazenado(lerArmazenamento(clienteId));
+    setArmazenado(lerEmpresaSelecionadaIdArmazenada(clienteId));
   }, [clienteId]);
 
   useEffect(() => {
-    const sync = () => setArmazenado(lerArmazenamento(clienteId));
+    const sync = () => setArmazenado(lerEmpresaSelecionadaIdArmazenada(clienteId));
     window.addEventListener('storage', sync);
     window.addEventListener(EVENTO_EMPRESA_SELECIONADA, sync);
     return () => {

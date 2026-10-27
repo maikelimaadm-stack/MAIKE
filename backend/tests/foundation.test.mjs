@@ -74,6 +74,12 @@ describe('health', () => {
     assert.doesNotMatch(bruto, /postgresql:\/\//);
     assert.doesNotMatch(bruto, /at .*\.js:\d+/);
   });
+
+  test('BE-02b /api/native/health equivale a /health (R4)', async () => {
+    const resposta = await app.inject({ method: 'GET', url: '/api/native/health' });
+    assert.equal(resposta.statusCode, 200);
+    assert.equal(resposta.json().status, 'ok');
+  });
 });
 
 // ---------------------------------------------------------------------------

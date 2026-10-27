@@ -6,6 +6,7 @@ import { getCurrentUser, getCachedUser, listarPermissoes, permissaoDoUsuario, pe
 import { useAuth } from "@/lib/AuthContext";
 import {
   EVENTO_EMPRESA_SELECIONADA,
+  lerEmpresaSelecionadaIdArmazenada,
   persistirEmpresaSelecionada as gravarEmpresaSelecionada,
 } from "@/hooks/useEmpresaSelecionadaId";
 import {
@@ -110,9 +111,26 @@ export default function Layout({ children, currentPageName }) {
 
   const menuItems = DEFAULT_MENU;
 
-  const [empresaSelecionada, setEmpresaSelecionada] = useState(() => {
-    return localStorage.getItem('empresa_selecionada_id') || null;
-  });
+  const [empresaSelecionada, setEmpresaSelecionada] = useState(() =>
+    lerEmpresaSelecionadaIdArmazenada(clienteId),
+  );
+
+  useEffect(() => {
+    const validada = lerEmpresaSelecionadaIdArmazenada(clienteId);
+    if (validada !== empresaSelecionada) {
+      setEmpresaSelecionada(validada);
+    }
+  }, [clienteId, empresaSelecionada]);
+
+  useEffect(() => {
+    const sync = () => setEmpresaSelecionada(lerEmpresaSelecionadaIdArmazenada(clienteId));
+    window.addEventListener(EVENTO_EMPRESA_SELECIONADA, sync);
+    window.addEventListener('storage', sync);
+    return () => {
+      window.removeEventListener(EVENTO_EMPRESA_SELECIONADA, sync);
+      window.removeEventListener('storage', sync);
+    };
+  }, [clienteId]);
 
   const { data: empresas = [], isLoading: empresasLoading } = useQuery({
     queryKey: ['empresas'],
@@ -695,6 +713,4 @@ export default function Layout({ children, currentPageName }) {
 
 }
 
-export const getEmpresaSelecionada = () => {
-  return localStorage.getItem('empresa_selecionada_id');
-};
+export const getEmpresaSelecionada = () => lerEmpresaSelecionadaIdArmazenada(null);

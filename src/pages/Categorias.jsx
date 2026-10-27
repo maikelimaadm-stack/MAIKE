@@ -47,11 +47,18 @@ export default function Categorias() {
   });
   const queryClient = useQueryClient();
 
-  const { data: categoriasData } = useQuery({
+  const {
+    data: categoriasData,
+    isLoading,
+    isError: listaErro,
+    error: listaQueryError,
+    refetch: recarregarLista,
+    isFetching: listaFetching,
+  } = useQuery({
     queryKey: ["categorias_produto"],
     queryFn: () => listarTodasCategorias(),
   });
-  const categorias = categoriasData ?? EMPTY_CATEGORIAS;
+  const categorias = listaErro ? EMPTY_CATEGORIAS : (categoriasData ?? EMPTY_CATEGORIAS);
 
   const createMutation = useMutation({
     mutationFn: (data) => criarCategoria(data),
@@ -176,6 +183,19 @@ export default function Categorias() {
         subtitle="Cadastro global de categorias usadas em produtos."
         toolbar={null}
       >
+        {listaErro && !listaFetching ? (
+          <div className="cadastro-b1 mg-card p-3 text-xs text-amber-800 bg-amber-50 border border-amber-200 mb-2 flex flex-wrap items-center gap-2">
+            <span>
+              {getApiErrorMessage(
+                listaQueryError,
+                "Não foi possível carregar as categorias. Verifique sua conexão e tente novamente.",
+              )}
+            </span>
+            <button type="button" className="tb-btn tb-btn-gray" onClick={() => recarregarLista()}>
+              Tentar novamente
+            </button>
+          </div>
+        ) : null}
         <CadastroListaChrome
           recordMode={showForm}
           secondaryToolsLocked={showForm}
