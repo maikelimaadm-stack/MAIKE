@@ -3,7 +3,7 @@
 **Data:** 2026-10-27  
 **Branch:** `cursor/fix-menu-freeze-structural-516d`  
 **Base:** `main` @ `3000f17b` (inclui #94 — mapa persistente removido)  
-**SHA corrigido (agente):** `d0e7ef3e`
+**SHA corrigido (agente):** `63147128`
 
 ## Sintoma
 
