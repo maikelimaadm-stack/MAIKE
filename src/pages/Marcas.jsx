@@ -18,6 +18,7 @@ import FormularioMarca, { FORMULARIO_MARCA_ID } from "@/components/marcas/Formul
 import { useCadastroListaFooter } from "@/hooks/useCadastroListaFooter";
 import { useCadastroCardsPrefs } from "@/hooks/useCadastroCardsPrefs";
 import { clearCadastroListaFiltersAndSearch } from "@/lib/cadastroListaClearFilters";
+import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 
 const MARCAS_STORAGE_KEY = "colunas_marcas_v1";
 
@@ -40,7 +41,7 @@ export default function Marcas() {
     MARCAS_COLUNAS.map((c) => c.id),
   );
   const queryClient = useQueryClient();
-  const empresaId = localStorage.getItem("empresa_selecionada_id");
+  const empresaId = useEmpresaSelecionadaId();
 
   const { data: marcas = [], isLoading } = useQuery({
     queryKey: ["marcas", empresaId],

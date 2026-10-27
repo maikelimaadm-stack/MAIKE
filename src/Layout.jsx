@@ -59,6 +59,7 @@ const FIXED_MOBILE_NAV_ITEMS = [
 
 
 export default function Layout({ children, currentPageName }) {
+  const { clienteId } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
@@ -121,6 +122,14 @@ export default function Layout({ children, currentPageName }) {
       localStorage.setItem('empresa_selecionada_id', primeiraEmpresa);
     }
   }, [empresas.length]); // Apenas quando o tamanho mudar
+
+  // Sem Base44 (ou lista vazia), cadastros nativos usam o tenant do JWT como empresa.
+  useEffect(() => {
+    if (empresaSelecionada || !clienteId || empresasLoading || empresas.length > 0) return;
+    if (isChangingEmpresa.current) return;
+    setEmpresaSelecionada(clienteId);
+    localStorage.setItem('empresa_selecionada_id', clienteId);
+  }, [empresaSelecionada, clienteId, empresas.length, empresasLoading]);
 
   const handleEmpresaChange = (empresaId) => {
     if (empresaId === empresaSelecionada) return;

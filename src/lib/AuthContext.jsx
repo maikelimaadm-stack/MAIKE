@@ -151,7 +151,8 @@ export const AuthProvider = ({ children }) => {
       const veredito = await restaurarSessaoNativaAtual();
 
       if (veredito.autenticado && veredito.contexto) {
-        setUser({ id: veredito.contexto.usuario_id, login: veredito.contexto.login });
+        const login = veredito.contexto.login ?? '';
+        setUser({ id: veredito.contexto.usuario_id, login, email: login });
         setClienteId(veredito.contexto.cliente_id);
         setSessionState(ESTADOS_DE_SESSAO.AUTENTICADA);
         return;
@@ -205,7 +206,11 @@ export const AuthProvider = ({ children }) => {
    */
   const entrar = useCallback(async (credenciais) => {
     const sessao = await entrarComSessaoNativa(credenciais);
-    setUser(sessao.usuario);
+    const login = sessao.usuario?.login ?? '';
+    setUser({
+      ...sessao.usuario,
+      email: login || sessao.usuario?.email,
+    });
     setClienteId(sessao.clienteId);
     setSessionState(ESTADOS_DE_SESSAO.AUTENTICADA);
     setSessionValidationError(null);

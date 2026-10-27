@@ -5,6 +5,7 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
 import { pagesConfig } from './pages.config'
 import { BrowserRouter as Router, Navigate, Route, Routes } from 'react-router-dom';
+import { createPageUrl } from '@/utils';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
@@ -79,16 +80,24 @@ const AuthenticatedApp = () => {
   // Render the main app. A raiz encaminha para a superfície primária (D-PROD-05).
   return (
     <Routes>
-      <Route path="/" element={<Navigate to={`/${mainPage}`} replace />} />
+      <Route path="/" element={<Navigate to={createPageUrl(mainPage)} replace />} />
       {Object.entries(Pages).map(([path, Page]) => (
         <Route
           key={path}
-          path={`/${path}`}
+          path={createPageUrl(path)}
           element={
             <LayoutWrapper currentPageName={path}>
               <Page />
             </LayoutWrapper>
           }
+        />
+      ))}
+      {/* Bookmarks e links antigos usavam PascalCase antes do SSOT em minúsculas. */}
+      {Object.keys(Pages).map((path) => (
+        <Route
+          key={`legacy-${path}`}
+          path={`/${path}`}
+          element={<Navigate to={createPageUrl(path)} replace />}
         />
       ))}
       <Route path="*" element={<PageNotFound />} />

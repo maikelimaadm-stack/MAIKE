@@ -2129,4 +2129,20 @@ continua na Base44 para `LancamentoTarefa` ao renomear grupo/tipo.
 
 ---
 
-<!-- Próxima decisão: D-PROD-46 -->
+## D-PROD-46 — URLs de página canônicas em minúsculas
+
+**Data:** 2026-10-27  
+**Missão:** P4.6-Menus-Marcas (hotfix produção)  
+**Relatório:** `docs/engineering/P4.6-MENUS-MARCAS-ROUTING-REPORT.md`
+
+**Decisão:** O SSOT de URL de página é `createPageUrl()` (minúsculas, sem espaços).
+`App.jsx` registra rotas só nessa forma e mantém redirect PascalCase → canônica
+para bookmarks legados. Cadastros nativos usam `useEmpresaSelecionadaId()`:
+`localStorage.empresa_selecionada_id` ou, se ausente, `cliente_id` do JWT.
+
+**Consequência:** menu e router alinhados; Marcas/Unidades nativas funcionam mesmo
+sem lista Base44 de empresas. Migração completa de `Empresa` continua no plano P6/P7.
+
+---
+
+<!-- Próxima decisão: D-PROD-47 -->
