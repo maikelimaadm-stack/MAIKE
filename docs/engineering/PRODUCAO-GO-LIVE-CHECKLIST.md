@@ -16,7 +16,7 @@ produção em estado **verificável** — sem afirmar “live” sem smoke nos U
 | **A — Monólito Vercel (recomendado, D-PROD-36)** | Vercel | `api/fastify.js` + rewrites em `vercel.json` | **Vazio** ou omitido — o cliente usa a origem do navegador |
 | **B — Split** | Vercel | Railway `backend:start` | `https://<host-railway>` com esquema; `FRONTEND_ORIGINS` inclui o domínio Vercel |
 
-**Produção hoje (auditoria 2026-10-27):** deploy Production na `main` (**sem** rewrites completos — só `/auth`, `/health`, `/setores`). Preview da branch `cursor/backend-migracao-organize-516d` já tem rewrites do domínio Mapa. **Merge da PR #69 (ou desta missão) é pré-requisito** para Mapa Geral nativo em Production.
+**Produção (pós-merge PR #70 em `main`, 2026-10-27):** `vercel.json` na `main` inclui rewrites completos para auth, health, setores, áreas-pastagem, configuracao-icones, pontos-referencia, linhas-geograficas e usuarios → `/api/fastify`. **Redeploy Production** no Vercel após o merge para o domínio publicado refletir o commit.
 
 ---
 
@@ -51,22 +51,19 @@ Migration **não** roda no `server.js` (D-PROD-28). Pre-deploy Railway/Vercel: `
 
 | Item | Estado |
 |------|--------|
-| Registros em `_prisma_migrations` | **3** (só até P4.1-R2) |
-| Tabelas P4.2/P4.3 | **Existem** (DDL manual 2026-10-23 — ver `SUPABASE-MAIKE-MIGRATIONS-SYNC-REPORT.md`) |
+| Registros em `_prisma_migrations` | **6/6** (alinhado 2026-10-27 — histórico P4.2/P4.3/P6.1 registrado; DDL já existia desde 2026-10-23) |
+| Tabelas P4.2/P4.3 | **Existem** (ver `SUPABASE-MAIKE-MIGRATIONS-SYNC-REPORT.md`) |
 | Índice `Usuario_login_ativo_global_key` (P6.1) | **Presente** |
 
-**Risco:** `deploy:migrate` pode falhar ao reaplicar DDL já existente. Antes do próximo pre-deploy, alinhar o **histórico** Prisma (sessão **5432**, não pooler **6543**):
+**Próximo pre-deploy:** `npm run deploy:migrate` com `MIGRATION_DATABASE_URL` na sessão **5432** deve ser **no-op** (nenhuma migration pendente). Se o histórico divergir de novo, usar `prisma migrate resolve --applied <nome>` só para migrations cujo DDL já estiver no banco — nunca reaplicar DDL manualmente.
 
 ```bash
-# Na máquina do proprietário, com MIGRATION_DATABASE_URL na porta 5432:
-npx prisma migrate resolve --applied 20260910190000_p4_2_area_pastagem_native --schema backend/prisma/schema.prisma
-npx prisma migrate resolve --applied 20261023180000_p4_3_map_geography_native --schema backend/prisma/schema.prisma
-npx prisma migrate resolve --applied 20261023210000_p6_1_login_global_hygiene --schema backend/prisma/schema.prisma
-# Depois:
+# Referência (já executado no Supabase MAIKE em 2026-10-27):
+# resolve --applied 20260910190000_p4_2_area_pastagem_native
+# resolve --applied 20261023180000_p4_3_map_geography_native
+# resolve --applied 20261023210000_p6_1_login_global_hygiene
 npm run deploy:migrate
 ```
-
-Alternativa se o schema ainda não tiver P4.2+: apenas `npm run deploy:migrate` (aplica o que falta).
 
 **RLS:** permanece **desligado** até P8 — não habilitar sem políticas.
 
@@ -189,13 +186,13 @@ npm run verify:all
 
 ---
 
-## 9. Ordem de merge recomendada
+## 9. Ordem de merge (executado 2026-10-27)
 
-1. **PR #69** — `cursor/backend-migracao-organize-516d` (rewrites `vercel.json` + plano)
-2. **PR go-live** — `cursor/producao-go-live-516d` (este checklist; base após #69 ou com cherry-pick já feito)
-3. PRs de UX em paralelo só se não conflitarem com `vercel.json` / env
+1. **PR #70** — `cursor/producao-go-live-516d` → merge `7cb687e8` (checklist + rewrites; supersede #69)
+2. **PR #68** — `cursor/ux-base1-marcas-mobile-unica-516d` → merge `a312f857`
+3. **PR #69** — fechar manualmente no GitHub (duplicata de #70; token de agente sem permissão `closePullRequest`)
 
-Após merge em `main`: deploy Production Vercel + pre-deploy migrations + smoke seção 7.
+Após merge em `main`: redeploy Production Vercel + `deploy:migrate` (no-op esperado) + smoke seção 7.
 
 ---
 
@@ -203,8 +200,8 @@ Após merge em `main`: deploy Production Vercel + pre-deploy migrations + smoke 
 
 Marcar go-live somente quando **todos** forem verdadeiros:
 
-- [ ] 6/6 migrations em `_prisma_migrations` (ou resolve + deploy documentado)
-- [ ] Production Vercel no commit com rewrites completos
+- [x] 6/6 migrations em `_prisma_migrations` (Supabase MAIKE, 2026-10-27)
+- [x] `main` com rewrites completos em `vercel.json` (aguarda redeploy Production)
 - [ ] `/health` OK no domínio de produção
 - [ ] Login nativo sem `VITE_SKIP_NATIVE_LOGIN`
 - [ ] Mapa Geral carrega e APIs nativas do mapa respondem (autenticadas)
