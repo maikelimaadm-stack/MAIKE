@@ -15,6 +15,7 @@ import {
   ChevronLeft,
   ChevronRight,
   MoreVertical,
+  Search,
 } from "lucide-react";
 import CadastroSearchPill from "./CadastroSearchPill";
 import { B1Popover, IconBtn, MenuList, MgSelect, PillBtn, ViewSwitch } from "./Base1Ui";
@@ -124,6 +125,16 @@ export default function CadastroListaChrome({
   const [showChips, setShowChips] = useState(true);
   const [cardsPanel, setCardsPanel] = useState(null);
   const [maisOpcoesOpen, setMaisOpcoesOpen] = useState(false);
+  const [searchExpanded, setSearchExpanded] = useState(() => {
+    if (
+      typeof window !== "undefined" &&
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(min-width: 640px)").matches
+    ) {
+      return true;
+    }
+    return Boolean(searchValue);
+  });
   const stripRef = useRef(null);
   const railEnabled = showFilterRail && !recordMode;
   const skinAtivo = portalComprasSkin && joinTableToolbar;
@@ -314,11 +325,12 @@ export default function CadastroListaChrome({
   const toolbarRow = (
     <div
       data-testid="b1-toolbar"
-      className={
+      className={cn(
         joinedShell
           ? "mg-toolbar mg-toolbar--join mg-toolbar--responsive no-print"
-          : "mg-toolbar mg-card flex-wrap no-print"
-      }
+          : "mg-toolbar mg-card flex-wrap no-print",
+        searchExpanded && "is-search-expanded",
+      )}
     >
       {recordMode && recordEditing ? (
         recordToolbar ?? null
@@ -368,20 +380,37 @@ export default function CadastroListaChrome({
               {selectedCount > 1 ? ` (${selectedCount})` : ""}
             </PillBtn>
           ) : null}
-          {joinedShell ? maisOpcoesPopover : null}
         </div>
       ) : null}
       {!secondaryToolsLocked && joinedShell ? (
-        <>
+        <div className="ml-auto flex items-center justify-end gap-1.5">
           {onSearchChange ? (
-            <div className="mg-toolbar__row mg-toolbar__row--search">
-              <CadastroSearchPill
-                value={searchValue}
-                onChange={onSearchChange}
-                onApply={onSearchApply}
-                active={searchActive}
-                placeholder={searchPlaceholder}
-              />
+            <div
+              className="mg-toolbar__row mg-toolbar__row--search"
+              onBlur={(event) => {
+                if (!event.currentTarget.contains(event.relatedTarget)) {
+                  setSearchExpanded(false);
+                }
+              }}
+            >
+              {searchExpanded ? (
+                <CadastroSearchPill
+                  value={searchValue}
+                  onChange={onSearchChange}
+                  onApply={onSearchApply}
+                  active={searchActive}
+                  placeholder={searchPlaceholder}
+                  autoFocus
+                />
+              ) : (
+                <IconBtn
+                  aria-label="Abrir pesquisa"
+                  title="Pesquisar"
+                  onClick={() => setSearchExpanded(true)}
+                >
+                  <Search className="h-4 w-4" aria-hidden />
+                </IconBtn>
+              )}
             </div>
           ) : null}
           <div className="mg-toolbar__row mg-toolbar__row--views">
@@ -405,7 +434,8 @@ export default function CadastroListaChrome({
               />
             ) : null}
           </div>
-        </>
+          {maisOpcoesPopover}
+        </div>
       ) : (
         <div className="ml-auto flex items-center gap-1.5 flex-wrap">
           {showAttachControl ? (

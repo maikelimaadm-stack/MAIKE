@@ -3,14 +3,17 @@ import { toast } from "sonner";
 
 /**
  * Estado compartilhado do chrome Base1 em telas lista/detalhe.
+ * @param {{ initialViewMode?: 'table'|'record'|'cards' }} [opts]
  */
-export function useCadastroListaChromeState() {
+export function useCadastroListaChromeState({ initialViewMode = "table" } = {}) {
   const [selectedIds, setSelectedIds] = useState([]);
   const [searchInput, setSearchInput] = useState("");
   const [appliedSearch, setAppliedSearch] = useState("");
   const [filtersActive, setFiltersActive] = useState(false);
   const [resetFiltersKey, setResetFiltersKey] = useState(0);
-  const [viewMode, setViewMode] = useState(/** @type {'table'|'record'|'cards'} */ ("table"));
+  const [viewMode, setViewMode] = useState(
+    /** @type {'table'|'record'|'cards'} */ (initialViewMode),
+  );
 
   const onSelectionChange = useCallback((ids) => {
     setSelectedIds(ids);

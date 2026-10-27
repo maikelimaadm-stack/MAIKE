@@ -11,6 +11,7 @@ const PER_ROW = [
   { n: 3, hint: "1 campo por linha no card" },
   { n: 4, hint: "1 campo por linha no card" },
 ];
+const MAX_CARD_FIELDS = 10;
 
 /**
  * @param {object} props
@@ -27,7 +28,7 @@ function CardsB1DialogShell({ open, onFechar, titulo, children, footer, testId, 
   if (!open) return null;
 
   return createPortal(
-    <div className={cn("b1ref", portalSkin && "b1-portal-compras")}>
+    <div className={cn("b1ref cadastro-b1", portalSkin && "b1-portal-compras")}>
       <div className="mdl" data-testid={testId}>
         <div className="mdlc" role="dialog" aria-modal="true" aria-label={titulo}>
           <div className="mdl-h">
@@ -44,7 +45,13 @@ function CardsB1DialogShell({ open, onFechar, titulo, children, footer, testId, 
                 <RotateCcw className="h-4 w-4" />
               </button>
             ) : null}
-            <button type="button" className="rm" aria-label="Fechar" title="Fechar" onClick={onFechar}>
+            <button
+              type="button"
+              className="tb-btn tb-btn-icon tb-btn-sm"
+              aria-label="Fechar"
+              title="Fechar"
+              onClick={onFechar}
+            >
               <X size={14} />
             </button>
           </div>
@@ -152,7 +159,10 @@ export function ConfiguracaoCamposCardsB1Dialog({
   const [draft, setDraft] = React.useState(value);
   const [aplicarPadrao, setAplicarPadrao] = React.useState(false);
   const semeado = React.useRef(false);
-  const padraoIds = React.useMemo(() => columns.map((c) => c.id), [columns]);
+  const padraoIds = React.useMemo(
+    () => columns.slice(0, MAX_CARD_FIELDS).map((c) => c.id),
+    [columns],
+  );
 
   React.useEffect(() => {
     if (!open) {
@@ -161,7 +171,7 @@ export function ConfiguracaoCamposCardsB1Dialog({
     }
     if (semeado.current) return;
     semeado.current = true;
-    setDraft(value);
+    setDraft(value.slice(0, MAX_CARD_FIELDS));
     setAplicarPadrao(false);
   }, [open, value]);
 
@@ -189,20 +199,33 @@ export function ConfiguracaoCamposCardsB1Dialog({
       onRestaurarRascunho={restaurarRascunho}
       footer={dialogFooter(salvar)}
     >
-      <div className="min-h-0 flex-1 overflow-auto">
+      <div className="mb-3 text-xs text-[var(--mg-text-2)]">
+        {draft.length} de {Math.min(columns.length, MAX_CARD_FIELDS)} campos
+        {draft.length >= MAX_CARD_FIELDS ? " · máximo atingido" : ""}
+      </div>
+      <div className="min-h-0 flex-1 overflow-auto pr-1">
         {[...columns]
           .sort((a, b) => a.label.localeCompare(b.label, "pt-BR"))
-          .map((c) => (
-            <CheckRow
-              key={c.id}
-              label={c.label}
-              checked={draft.includes(c.id)}
-              onChange={(on) => {
-                setAplicarPadrao(false);
-                setDraft((d) => (on ? [...d, c.id] : d.filter((k) => k !== c.id)));
-              }}
-            />
-          ))}
+          .map((c) => {
+            const checked = draft.includes(c.id);
+            const disabled = !checked && draft.length >= MAX_CARD_FIELDS;
+            return (
+              <CheckRow
+                key={c.id}
+                label={c.label}
+                checked={checked}
+                disabled={disabled}
+                hint={disabled ? `Máximo ${MAX_CARD_FIELDS}` : undefined}
+                onChange={(on) => {
+                  setAplicarPadrao(false);
+                  setDraft((d) => {
+                    if (on && d.length >= MAX_CARD_FIELDS) return d;
+                    return on ? [...d, c.id] : d.filter((k) => k !== c.id);
+                  });
+                }}
+              />
+            );
+          })}
       </div>
     </CardsB1DialogShell>
   );

@@ -61,6 +61,22 @@ Checklist manual: ver `MARCAS-H5-MANUAL-TEST.md`. Browser E2E/screenshots: **nã
 - **Abrir (compare):** https://github.com/maikelimaadm-stack/MAIKE/compare/main...cursor/ux-base1-marcas-mobile-unica-516d
 - **Fechar duplicata:** PR #67 (`cursor/ux-base1-mobile-marcas-516d`) após o PR acima estar aberto — mesmo conteúdo, branch consolidada.
 
+## Sync Figma Make → repo (2026-10-27)
+
+Fonte: [Figma Make marcas](https://www.figma.com/make/NlwuGDUYIAQn3oInrncdrZ/marcas) (`preview-route=/#/marcas`).  
+Branch: `cursor/figma-make-marcas-visual-43b7`.
+
+Alterações aplicadas a partir do Make (em cima do piloto já em `main` via PR #68):
+
+| Item | Onde |
+|------|------|
+| Busca colapsável (ícone → campo + `autoFocus`; `is-search-expanded` ≤639px) | `CadastroListaChrome`, `CadastroSearchPill`, `cadastro-base1.css` |
+| Cards como view inicial em ≤639px | `Marcas.jsx` + `useCadastroListaChromeState({ initialViewMode })` |
+| Diálogos de cards: teto 10 campos, chrome `cadastro-b1`, fechar em `tb-btn` | `ConfiguracaoCardsB1Dialogs`, `Base1Ui.CheckRow` disabled |
+| Modais mobile (header/footer toque) | `cadastro-b1-portal.css` |
+
+Mantido do repo (melhor que o Make): `MoreVertical` como “Mais opções” (defeito F do piloto).
+
 ## Status
 
 **APROVÁVEL PARA HOMOLOGAÇÃO VISUAL** (pendente validação do proprietário em dispositivo real — checklist 375px acima).

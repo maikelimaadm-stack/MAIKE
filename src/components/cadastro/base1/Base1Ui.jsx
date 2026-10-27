@@ -195,16 +195,18 @@ export function RadioRow({ checked, onClick, title, hint }) {
  * @param {(checked: boolean) => void} props.onChange
  * @param {import('react').ReactNode} props.label
  * @param {string} [props.hint]
+ * @param {boolean} [props.disabled]
  */
-export function CheckRow({ checked, onChange, label, hint }) {
+export function CheckRow({ checked, onChange, label, hint, disabled = false }) {
   const id = React.useId();
   return (
-    <label htmlFor={id} className="mg-b1-row">
+    <label htmlFor={id} className={cn("mg-b1-row", disabled && "is-disabled")}>
       <input
         id={id}
         type="checkbox"
         className="sr-only"
         checked={checked}
+        disabled={disabled}
         onChange={(e) => onChange(e.target.checked)}
         onKeyDown={(e) => {
           if (e.key === " ") e.stopPropagation();
