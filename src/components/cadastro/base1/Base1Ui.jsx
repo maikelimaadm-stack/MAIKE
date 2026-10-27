@@ -26,7 +26,7 @@ export { MgSelect } from "./MgSelect";
 export { MgDatePicker, B1DatePicker, isoToBR, brToISO } from "./MgDatePicker";
 export { default as B1Switch } from "./B1Switch";
 export { default as B1ChaveRow } from "./B1ChaveRow";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 
 /** @typedef {import('react').ComponentPropsWithoutRef<'button'> & { active?: boolean; size?: 'sm'|'md'; danger?: boolean; title?: string; }} IconBtnProps */
@@ -114,6 +114,7 @@ export function ViewSwitch({ value, onChange, recordDisabled, cardsDisabled }) {
  * @param {string} [props.className]
  * @param {'start'|'center'|'end'} [props.align]
  * @param {string} [props.title]
+ * @param {DOMRect | null} [props.anchorRect] âncora fixa (menu Mais opções) sem gatilho visível
  */
 export function B1Popover({
   trigger,
@@ -124,10 +125,27 @@ export function B1Popover({
   className,
   align = "end",
   title,
+  anchorRect = null,
 }) {
+  const menuAnchored = Boolean(anchorRect);
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
-      <PopoverTrigger asChild>{trigger}</PopoverTrigger>
+      {menuAnchored ? (
+        <PopoverAnchor asChild>
+          <span
+            aria-hidden
+            style={{
+              position: "fixed",
+              left: anchorRect.left,
+              top: anchorRect.top,
+              width: anchorRect.width,
+              height: anchorRect.height,
+              pointerEvents: "none",
+            }}
+          />
+        </PopoverAnchor>
+      ) : null}
+      {trigger ? <PopoverTrigger asChild>{trigger}</PopoverTrigger> : null}
       {/* @ts-expect-error PopoverContent forwardRef sem props tipadas no ui/popover */}
       <PopoverContent
         align={align}

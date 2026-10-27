@@ -70,7 +70,7 @@
 
 ### 7. Limpar filtros (paridade CDE `clearAll`)
 
-1. Aplicar filtro de coluna + busca global → ícone limpar filtros ativo (toolbar e menu ⚡).
+1. Aplicar filtro de coluna + busca global → **Limpar filtros** habilitado no menu ⚡ (sem ícone na toolbar).
 2. Selecionar uma ou mais linhas/cards.
 3. **Limpar filtros** → remove filtros de cabeçalho, zera busca aplicada **e** limpa seleção (como `clearAll` em `features/base1/list.tsx`).
 
