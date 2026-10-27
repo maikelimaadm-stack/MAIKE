@@ -23,7 +23,6 @@ import { runProviderCall, assertArgument } from '../_core/normalizeApiError.js';
 import { API_ERROR_CODES, hasApiErrorCode } from '../_core/ApiError.js';
 import { hasNativeToken } from '@/lib/auth/nativeTokenStorage';
 import { obterUsuarioAtualLegado } from './nativeSessionApi.js';
-import { sessionProvider } from '../_providers/base44Provider.js';
 import {
   listPermissoesNativas,
   createPermissaoNativa,
@@ -31,6 +30,7 @@ import {
   deletePermissaoNativa,
 } from '@/apis/permissoes';
 import { updateUsuario as updateUsuarioNativo } from '@/apis/usuarios';
+import '../_providers/base44Provider.js';
 
 const RESOURCE = 'Sessao';
 const isId = (valor) => typeof valor === 'string' && valor.trim().length > 0;
@@ -44,7 +44,10 @@ const ctx = (operation) => ({ operation, resource: RESOURCE });
  * Cópia rasa e congelada: o consumidor lê, não altera, e não recebe referência
  * para dentro do provider.
  */
-export const getCapacidadesDeSessao = () => Object.freeze(sessionProvider.capacidades());
+export const getCapacidadesDeSessao = () => Object.freeze({ updateMe: false });
+
+/** Diagnóstico de registry Base44 (vazio após P5.5). */
+export const getRegisteredEntityNames = () => [];
 
 /**
  * Usuário autenticado — sessão nativa MAIKE (D-PROD-44).
@@ -141,17 +144,11 @@ const razaoDoProvider = (erro) => erro?.data?.extra_data?.reason ?? null;
  *
  * @returns {Promise<ResultadoDeConfiguracoesPublicas>}
  */
-export const getAppPublicSettings = async () => {
-  try {
-    return { ok: true, value: await sessionProvider.fetchPublicSettings(), reason: undefined };
-  } catch (erro) {
-    const razao = razaoDoProvider(erro);
-    if (statusDoProvider(erro) === 403 && RAZOES_RECONHECIDAS.has(razao)) {
-      return { ok: false, reason: razao, value: undefined };
-    }
-    return { ok: false, reason: RAZOES_DE_SESSAO.UNKNOWN, value: undefined };
-  }
-};
+export const getAppPublicSettings = async () => ({
+  ok: true,
+  value: { id: 'maike-native', public_settings: {} },
+  reason: undefined,
+});
 
 /**
  * Veredito de autenticação, **sem** fallback e sem erro cru.

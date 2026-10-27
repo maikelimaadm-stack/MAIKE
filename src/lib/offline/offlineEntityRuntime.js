@@ -698,3 +698,6 @@ export const instalarSincronizacaoAoVoltarOnline = () => {
     }, 1000);
   });
 };
+
+/** Reexport para fechamento de grafo (`gate:source-closure`) e composição explícita offline. */
+export { createNormalizedEntityAdapter } from '../textNormalization.js';

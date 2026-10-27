@@ -1,7 +1,7 @@
 /** API do módulo Tarefas georreferenciadas do mapa (P1.2). */
 
 import { runProviderCall, assertArgument } from '../_core/normalizeApiError.js';
-import { referenciasProvider } from '../_providers/base44Provider.js';
+import { sincronizarReferencias } from '@/apis/referencias';
 import { grupoAtividadePort } from './grupoAtividadeNativePort.js';
 import { tipoTarefaPort } from './tipoTarefaNativePort.js';
 import { lancamentoTarefaPort } from './lancamentoTarefaNativePort.js';
@@ -120,7 +120,7 @@ export const sincronizarReferenciasTarefa = async ({ entidade, data, oldData }) 
   assertArgument(isObjeto(data), 'data', contexto);
   return runProviderCall(
     () =>
-      referenciasProvider.sincronizar({
+      sincronizarReferencias({
         event: { type: 'update', entity_name: nome },
         data,
         old_data: oldData ?? null,

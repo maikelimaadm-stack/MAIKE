@@ -76,6 +76,14 @@ export const sanitizarPayload = (valor, profundidade = 0) => {
   }
 
   if (valor instanceof Date) return valor.toISOString();
+  if (
+    typeof valor === 'object' &&
+    valor !== null &&
+    typeof /** @type {{ toFixed?: unknown, toJSON?: () => unknown }} */ (valor).toFixed === 'function' &&
+    typeof /** @type {{ toJSON?: () => unknown }} */ (valor).toJSON === 'function'
+  ) {
+    return /** @type {{ toJSON: () => unknown }} */ (valor).toJSON();
+  }
   if (typeof valor === 'object') {
     /** @type {Record<string, unknown>} */
     const saida = {};

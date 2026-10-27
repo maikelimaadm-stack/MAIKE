@@ -58,45 +58,13 @@ beforeEach(() => {
   nativeMocks.hasNativeToken.mockReturnValue(false);
 });
 
-describe('SE1–SE4 — configurações públicas com resultado discriminado', () => {
-  it('SE1 — sucesso devolve { ok: true, value }', async () => {
-    sessionProvider.fetchPublicSettings.mockResolvedValue({ id: 'app', public_settings: { x: 1 } });
+describe('SE1–SE4 — configurações públicas nativas (P5.5)', () => {
+  it('SE1 — devolve stub nativo estável', async () => {
     expect(await api.getAppPublicSettings()).toEqual({
       ok: true,
-      value: { id: 'app', public_settings: { x: 1 } },
+      value: { id: 'maike-native', public_settings: {} },
+      reason: undefined,
     });
-  });
-
-  it('SE2 — 403 + auth_required vira razão estável', async () => {
-    sessionProvider.fetchPublicSettings.mockRejectedValue(erroDoProvider({ status: 403, reason: 'auth_required' }));
-    expect(await api.getAppPublicSettings()).toEqual({ ok: false, reason: 'auth_required' });
-  });
-
-  it('SE3 — 403 + user_not_registered vira razão estável', async () => {
-    sessionProvider.fetchPublicSettings.mockRejectedValue(
-      erroDoProvider({ status: 403, reason: 'user_not_registered' })
-    );
-    expect(await api.getAppPublicSettings()).toEqual({ ok: false, reason: 'user_not_registered' });
-  });
-
-  it('SE4 — qualquer outra falha vira unknown, sem vazar o erro', async () => {
-    const casos = [
-      erroDoProvider({ status: 500 }),
-      erroDoProvider({ status: 403, reason: 'motivo_que_o_produto_nao_conhece' }),
-      erroDoProvider({ status: 401, reason: 'auth_required' }), // razão certa, status errado
-      new Error('rede caiu'),
-    ];
-
-    for (const erro of casos) {
-      sessionProvider.fetchPublicSettings.mockRejectedValue(erro);
-      const resultado = await api.getAppPublicSettings();
-      expect(resultado).toEqual({ ok: false, reason: 'unknown' });
-      // Nada do erro cru atravessa: as únicas chaves são as do contrato, e o
-      // lado inválido da união vem explicitamente `undefined` — é isso que faz
-      // o `checkJs` estreitar `resultado.value` depois de testar `resultado.ok`.
-      expect(Object.keys(resultado).sort()).toEqual(['ok', 'reason', 'value']);
-      expect(resultado.value).toBeUndefined();
-    }
   });
 });
 

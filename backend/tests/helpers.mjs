@@ -17,6 +17,17 @@ import { gerarSenhaHash } from '../src/modules/auth/authService.js';
 const ORDEM_DE_LIMPEZA = [
   'auditLog',
   'registroAnexo',
+  // P5.5 — documentos JSON tenant-scoped (Restrict → Cliente).
+  'bebedouroAlerta',
+  'bebedouroSanidade',
+  'bebedouroHistorico',
+  'aplicacaoMedicamento',
+  'eventoSanitario',
+  'manejoTecnicoRebanho',
+  'suplementacaoLote',
+  'suplementacaoEvento',
+  'movimentacaoPecuaria',
+  'movimentacaoMapa',
   // P4.3 — geografia referencia Cliente com Restrict; limpar antes da raiz.
   'pontoReferencia',
   'linhaGeografica',

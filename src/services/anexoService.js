@@ -61,7 +61,7 @@ export const anexarArquivo = async ({ entityName, recordId, arquivo, nome }) => 
     throw new ApiError(API_ERROR_CODES.INVALID_ARGUMENT, { ...contexto, details: { argumento: 'recordId' } });
   }
 
-  const enviado = await uploadArquivo(arquivo);
+  const enviado = /** @type {{ file_url?: string }} */ (await uploadArquivo({ file: arquivo }));
 
   return createAnexo({
     entity_name: entityName,

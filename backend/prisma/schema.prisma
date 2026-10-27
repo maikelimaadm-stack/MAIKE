@@ -77,6 +77,16 @@ model Cliente {
   pontosSuplementacao    PontoSuplementacao[]
   estoqueLotesNota       EstoqueLoteNota[]
   movimentacoesEstoque   MovimentacaoEstoque[]
+  movimentacoesMapa      MovimentacaoMapa[]
+  movimentacoesPecuaria  MovimentacaoPecuaria[]
+  suplementacaoEventos   SuplementacaoEvento[]
+  suplementacaoLotes     SuplementacaoLote[]
+  aplicacoesMedicamento  AplicacaoMedicamento[]
+  eventosSanitarios      EventoSanitario[]
+  manejosTecnicoRebanho  ManejoTecnicoRebanho[]
+  bebedourosHistorico    BebedouroHistorico[]
+  bebedourosSanidade     BebedouroSanidade[]
+  bebedourosAlertas      BebedouroAlerta[]
 
   @@index([nome])
   @@index([ativo])
@@ -1129,4 +1139,148 @@ model MovimentacaoEstoque {
   @@index([cliente_id, empresa_id])
   @@index([cliente_id, produto_id])
   @@index([cliente_id, data_movimentacao])
+}
+
+// ---------------------------------------------------------------------------
+// P5.5 — entidades finais migradas da Base44 (documento JSON + índices mínimos).
+// ---------------------------------------------------------------------------
+
+model MovimentacaoMapa {
+  id         String   @id @default(cuid())
+  cliente_id String   @db.VarChar(64)
+  empresa_id String   @db.VarChar(64)
+  dados      Json     @default("{}")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  cliente Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+
+  @@unique([cliente_id, id])
+  @@index([cliente_id, empresa_id])
+}
+
+model MovimentacaoPecuaria {
+  id         String   @id @default(cuid())
+  cliente_id String   @db.VarChar(64)
+  empresa_id String   @db.VarChar(64)
+  dados      Json     @default("{}")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  cliente Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+
+  @@unique([cliente_id, id])
+  @@index([cliente_id, empresa_id])
+}
+
+model SuplementacaoEvento {
+  id         String   @id @default(cuid())
+  cliente_id String   @db.VarChar(64)
+  empresa_id String   @db.VarChar(64)
+  dados      Json     @default("{}")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  cliente Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+
+  @@unique([cliente_id, id])
+  @@index([cliente_id, empresa_id])
+}
+
+model SuplementacaoLote {
+  id         String   @id @default(cuid())
+  cliente_id String   @db.VarChar(64)
+  empresa_id String   @db.VarChar(64)
+  dados      Json     @default("{}")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  cliente Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+
+  @@unique([cliente_id, id])
+  @@index([cliente_id, empresa_id])
+}
+
+model AplicacaoMedicamento {
+  id         String   @id @default(cuid())
+  cliente_id String   @db.VarChar(64)
+  empresa_id String   @db.VarChar(64)
+  dados      Json     @default("{}")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  cliente Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+
+  @@unique([cliente_id, id])
+  @@index([cliente_id, empresa_id])
+}
+
+model EventoSanitario {
+  id         String   @id @default(cuid())
+  cliente_id String   @db.VarChar(64)
+  empresa_id String   @db.VarChar(64)
+  dados      Json     @default("{}")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  cliente Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+
+  @@unique([cliente_id, id])
+  @@index([cliente_id, empresa_id])
+}
+
+model ManejoTecnicoRebanho {
+  id         String   @id @default(cuid())
+  cliente_id String   @db.VarChar(64)
+  empresa_id String   @db.VarChar(64)
+  dados      Json     @default("{}")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  cliente Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+
+  @@unique([cliente_id, id])
+  @@index([cliente_id, empresa_id])
+}
+
+model BebedouroHistorico {
+  id         String   @id @default(cuid())
+  cliente_id String   @db.VarChar(64)
+  empresa_id String   @db.VarChar(64)
+  dados      Json     @default("{}")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  cliente Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+
+  @@unique([cliente_id, id])
+  @@index([cliente_id, empresa_id])
+}
+
+model BebedouroSanidade {
+  id         String   @id @default(cuid())
+  cliente_id String   @db.VarChar(64)
+  empresa_id String   @db.VarChar(64)
+  dados      Json     @default("{}")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  cliente Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+
+  @@unique([cliente_id, id])
+  @@index([cliente_id, empresa_id])
+}
+
+model BebedouroAlerta {
+  id         String   @id @default(cuid())
+  cliente_id String   @db.VarChar(64)
+  empresa_id String   @db.VarChar(64)
+  dados      Json     @default("{}")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  cliente Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+
+  @@unique([cliente_id, id])
+  @@index([cliente_id, empresa_id])
 }

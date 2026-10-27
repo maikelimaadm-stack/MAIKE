@@ -1,15 +1,15 @@
 {
   "version": 2,
   "axes": {
-    "arquivosComSdk": 4,
-    "importsSdk": 1,
-    "entitiesRefs": 12,
+    "arquivosComSdk": 2,
+    "importsSdk": 0,
+    "entitiesRefs": 0,
     "authRefs": 2,
-    "integrationsRefs": 1,
-    "functionsRefs": 1,
-    "vitePlugin": 1,
-    "runtimeConfigRefs": 1,
+    "integrationsRefs": 0,
+    "functionsRefs": 0,
+    "vitePlugin": 0,
+    "runtimeConfigRefs": 0,
     "schemas": 35,
-    "functionsBase44": 1
+    "functionsBase44": 0
   }
 }

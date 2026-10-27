@@ -2214,4 +2214,23 @@ registry (12 restantes).
 
 ---
 
-<!-- Próxima decisão: D-PROD-51 -->
+## D-PROD-51 — P5.5: saída final Base44 (dados 100% nativos)
+
+**Missão:** P5.5 — últimas 12 entidades + infra Base44  
+**Relatório:** `docs/engineering/P5.5-FINAL-BASE44-EXIT-REPORT.md`
+
+**Decisão:** As entidades restantes (`MovimentacaoMapa`, `MovimentacaoPecuaria`,
+suplementação, histórico sanitário, satélites de bebedouro, `RegistroAnexo` via
+API) persistem no PostgreSQL com documento JSON tenant-scoped. `User` deixa de ser
+consumido — contas vivem em `Usuario`. Upload de arquivos e
+`syncEntityReferences` migram para `/arquivos/upload` e `/referencias/sincronizar`.
+Configurações públicas do app passam a stub nativo; sessão não usa token Base44.
+Removidos `@base44/sdk`, `@base44/vite-plugin` e `base44Client.js`; registry vazio.
+
+**Consequência:** `entitiesRefs` = 0; acoplamento residual limita-se a schemas
+`base44/entities/*.jsonc` (spec) e comentários em libs offline. Próximo passo
+opcional (P7): retirar schemas legados e `VITE_BASE44_*` do runtime.
+
+---
+
+<!-- Próxima decisão: D-PROD-52 -->

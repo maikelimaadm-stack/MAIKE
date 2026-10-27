@@ -61,5 +61,9 @@ export const excluirHistorico = (id) => deleteHistorico(id);
  *
  * O formato do payload e o retorno são os mesmos de antes — esta slice move a
  * fronteira, não muda o fluxo de upload.
+ *
+ * @param {{ file: File|Blob }} payload
+ * @returns {Promise<{ file_url: string }>}
  */
-export const enviarAnexo = (payload) => uploadArquivo(payload);
+export const enviarAnexo = (payload) =>
+  /** @type {Promise<{ file_url: string }>} */ (uploadArquivo(payload));

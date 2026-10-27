@@ -24,7 +24,7 @@ export const enviarArquivo = async (arquivo) => {
     throw new ApiError(API_ERROR_CODES.INVALID_ARGUMENT, { ...contexto, details: { campo: 'arquivo' } });
   }
 
-  const resultado = await uploadArquivo({ file: arquivo });
+  const resultado = /** @type {{ file_url?: string }} */ (await uploadArquivo({ file: arquivo }));
   const url = resultado?.file_url;
 
   if (typeof url !== 'string' || !url) {

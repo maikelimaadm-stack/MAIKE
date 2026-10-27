@@ -7,7 +7,9 @@
  */
 
 import { runProviderCall } from '../_core/normalizeApiError.js';
-import { rebanhoProvider } from '../_providers/base44Provider.js';
+import { listAplicacoesMedicamentoNativas } from '@/apis/aplicacoes-medicamento';
+import { listEventosSanitariosNativos } from '@/apis/eventos-sanitarios';
+import { listManejosTecnicoRebanhoNativos } from '@/apis/manejos-tecnico-rebanho';
 
 const RESOURCE = 'Rebanho';
 const comoLista = (registros) => (Array.isArray(registros) ? registros : []);
@@ -21,7 +23,7 @@ export const listAplicacoesMedicamento = async (opcoes = {}) =>
   comoLista(
     await runProviderCall(
       () =>
-        rebanhoProvider.listAplicacoesMedicamento(
+        listAplicacoesMedicamentoNativas(
           opcoes.order ?? APLICACAO_DEFAULT_ORDER,
           opcoes.limit ?? REBANHO_DEFAULT_LIMIT
         ),
@@ -33,7 +35,7 @@ export const listEventosSanitarios = async (opcoes = {}) =>
   comoLista(
     await runProviderCall(
       () =>
-        rebanhoProvider.listEventosSanitarios(
+        listEventosSanitariosNativos(
           opcoes.order ?? EVENTO_DEFAULT_ORDER,
           opcoes.limit ?? REBANHO_DEFAULT_LIMIT
         ),
@@ -45,7 +47,7 @@ export const listManejosTecnicos = async (opcoes = {}) =>
   comoLista(
     await runProviderCall(
       () =>
-        rebanhoProvider.listManejosTecnicos(
+        listManejosTecnicoRebanhoNativos(
           opcoes.order ?? EVENTO_DEFAULT_ORDER,
           opcoes.limit ?? REBANHO_DEFAULT_LIMIT
         ),

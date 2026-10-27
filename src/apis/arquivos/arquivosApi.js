@@ -1,25 +1,40 @@
 /**
- * API do módulo Arquivos (P1.2).
- *
- * Upload de anexo de tarefa. Integração, não entidade — fica fora do registry
- * por natureza. O formato do payload e o retorno são os mesmos de antes: esta
- * slice move a fronteira, não muda o fluxo de upload.
+ * API do módulo Arquivos (P5.5 — upload nativo).
  */
 
 import { runProviderCall, assertArgument } from '../_core/normalizeApiError.js';
-import { arquivosProvider } from '../_providers/base44Provider.js';
+import { nativeRequest } from '../_core/nativeHttpClient.js';
 
 const RESOURCE = 'Arquivo';
 
+const fileToBase64 = (file) =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = typeof reader.result === 'string' ? reader.result : '';
+      const base64 = result.includes(',') ? result.split(',')[1] : result;
+      resolve(base64);
+    };
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+
 /**
- * Envia um arquivo e devolve o payload do provider (inclui `file_url`).
- *
- * Nada do conteúdo entra em log, mensagem ou `details` (QLT-P12-07).
- *
  * @param {{file: File|Blob}} payload
  */
 export const uploadArquivo = async (payload) => {
   const contexto = { operation: 'uploadArquivo', resource: RESOURCE };
   assertArgument(Boolean(payload) && typeof payload === 'object' && 'file' in payload, 'file', contexto);
-  return runProviderCall(() => arquivosProvider.upload(payload), contexto);
+  const file = payload.file;
+  const conteudo_base64 = await fileToBase64(file);
+  const mime_type = file.type || 'application/octet-stream';
+  return runProviderCall(
+    () =>
+      nativeRequest('/arquivos/upload', {
+        method: 'POST',
+        body: { conteudo_base64, mime_type },
+        autenticado: true,
+      }, contexto),
+    contexto
+  );
 };

@@ -1,14 +1,13 @@
 /**
- * API do módulo Anexos (P1.3, D-PROD-18).
- *
- * `RegistroAnexo` é genérica no provider — tem `entity_name` livre. A superfície
- * pública **não** é: hoje o único consumidor migrado é o Lote, e abrir a API
- * para qualquer entidade criaria um caminho sem dono para as slices seguintes.
- * A validação fica no service, que é quem conhece o domínio.
+ * API do módulo Anexos (P1.3, nativo P5.5).
  */
 
 import { runProviderCall, assertArgument } from '../_core/normalizeApiError.js';
-import { anexosProvider } from '../_providers/base44Provider.js';
+import {
+  filterRegistrosAnexoNativos,
+  createRegistroAnexoNativo,
+  deleteRegistroAnexoNativo,
+} from '@/apis/registros-anexo';
 
 const RESOURCE = 'RegistroAnexo';
 const isId = (valor) => typeof valor === 'string' && valor.trim().length > 0;
@@ -22,17 +21,18 @@ export const ANEXO_DEFAULT_ORDER = '-created_date';
 export const filterAnexos = async (criterio, ordenacao = ANEXO_DEFAULT_ORDER) => {
   const contexto = ctx('filterAnexos');
   assertArgument(isObjeto(criterio), 'criterio', contexto);
-  return comoLista(await runProviderCall(() => anexosProvider.filter(criterio, ordenacao), contexto));
+  void ordenacao;
+  return comoLista(await runProviderCall(() => filterRegistrosAnexoNativos(criterio), contexto));
 };
 
 export const createAnexo = async (dados) => {
   const contexto = ctx('createAnexo');
   assertArgument(isObjeto(dados), 'dados', contexto);
-  return runProviderCall(() => anexosProvider.create(dados), contexto);
+  return runProviderCall(() => createRegistroAnexoNativo(dados), contexto);
 };
 
 export const deleteAnexo = async (id) => {
   const contexto = ctx('deleteAnexo');
   assertArgument(isId(id), 'id', contexto);
-  return runProviderCall(() => anexosProvider.delete(id), contexto);
+  return runProviderCall(() => deleteRegistroAnexoNativo(id), contexto);
 };
