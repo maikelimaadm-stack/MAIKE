@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 
 /**
  * Pedido de confirmação — sempre no centro da tela.
- * Cancelar: X + texto. Excluir (destructive): lixeira + texto, fundo vermelho, ícone/texto brancos.
+ * Cancelar: X + texto. Excluir (destructive): lixeira + texto vermelhos, fundo cinza (paridade toolbar).
  */
 export default function ConfirmDialog({
   open,

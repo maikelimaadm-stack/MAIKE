@@ -2249,4 +2249,23 @@ de escopo explícita (manifesto). Não reintroduzir `@base44/sdk`.
 
 ---
 
-<!-- Próxima decisão: D-PROD-53 -->
+## D-PROD-53 — Lista Base1: escala documentada; paginação de servidor é missão à parte
+
+**Missão:** alterações visuais Marcas / revisão de escala (branch
+`cursor/alteracoes-visuais-26e2`)  
+**Relatório:** `docs/engineering/CADASTRO-LISTA-SCALE-REVIEW-2026-10-27.md`
+
+**Decisão:** O chrome de cadastro (tabela/cards + “Carregar mais”) permanece
+**lista em memória + filtro/ordem no browser** até uma missão dedicada de
+paginação. O rodapé Base1 limita só o DOM (`displayLimit`), não o payload.
+Teto seguro atual: **centenas a baixo milhar** por listagem. Milhões/bilhões
+exigem cursor no `GET`, busca/sort no SQL, virtualização e export streaming —
+**fora** do escopo de PRs só-visuais.
+
+**Consequência:** Não vender “Carregar mais” como escala. Piloto futuro:
+`GET /marcas` com keyset + FE consumindo páginas; depois generalizar o chrome.
+Uma missão = um PR (R7).
+
+---
+
+<!-- Próxima decisão: D-PROD-54 -->
