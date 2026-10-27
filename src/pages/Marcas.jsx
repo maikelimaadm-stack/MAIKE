@@ -1,5 +1,10 @@
 import React, { useCallback, useMemo, useRef, useState } from "react";
-import { criarMarca, atualizarMarca, excluirMarcas } from "@/services/marcaService";
+import {
+  criarMarca,
+  atualizarMarca,
+  excluirMarcas,
+  listarMarcasPagina,
+} from "@/services/marcaService";
 import { getApiErrorMessage } from "@/apis/_core/ApiError";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
@@ -25,7 +30,7 @@ import { useCadastroListaPagination } from "@/hooks/useCadastroListaPagination";
 import { useCadastroCardsPrefs } from "@/hooks/useCadastroCardsPrefs";
 import { clearCadastroListaFiltersAndSearch } from "@/lib/cadastroListaClearFilters";
 import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
-import { useMarcasInfiniteList } from "@/hooks/useMarcasInfiniteList";
+import { useCadastroInfiniteList } from "@/hooks/useCadastroInfiniteList";
 
 const MARCAS_STORAGE_KEY = "colunas_marcas_v1";
 
@@ -61,19 +66,32 @@ export default function Marcas() {
   const queryClient = useQueryClient();
   const empresaId = useEmpresaSelecionadaId();
 
-  const lista = useMarcasInfiniteList({
-    empresaId,
-    q: chrome.appliedSearch,
+  const qBusca = chrome.appliedSearch;
+  const fetchMarcasPage = useCallback(
+    ({ limit, cursor }) =>
+      listarMarcasPagina(empresaId, {
+        limit,
+        cursor,
+        q: qBusca || undefined,
+      }),
+    [empresaId, qBusca],
+  );
+
+  /** Motor Base1 — Marcas só pluga fetch + queryKey. */
+  const lista = useCadastroInfiniteList({
+    queryKey: ["marcas", "page", empresaId, qBusca],
+    enabled: Boolean(empresaId),
     pageSize,
+    fetchPage: fetchMarcasPage,
   });
   const marcas = useMemo(() => {
-    if (!searchPickId) return lista.marcas;
-    return lista.marcas.filter((m) => String(m.id) === String(searchPickId));
-  }, [lista.marcas, searchPickId]);
+    if (!searchPickId) return lista.items;
+    return lista.items.filter((m) => String(m.id) === String(searchPickId));
+  }, [lista.items, searchPickId]);
   const isLoading = lista.isLoading;
 
   const createMutation = useMutation({
-    mutationFn: (data) => criarMarca({ dados: data, empresaId, marcasDaEmpresa: lista.marcas }),
+    mutationFn: (data) => criarMarca({ dados: data, empresaId, marcasDaEmpresa: lista.items }),
     onSuccess: (created) => {
       queryClient.invalidateQueries({ queryKey: ["marcas"] });
       recordBeforeNewRef.current = null;
@@ -97,7 +115,7 @@ export default function Marcas() {
 
   const updateMutation = useMutation({
     /** @param {{ id: string; data: object }} vars */
-    mutationFn: ({ id, data }) => atualizarMarca(id, data, lista.marcas),
+    mutationFn: ({ id, data }) => atualizarMarca(id, data, lista.items),
     onSuccess: (updated, { id, data }) => {
       queryClient.invalidateQueries({ queryKey: ["marcas"] });
       const merged = {
@@ -189,7 +207,7 @@ export default function Marcas() {
   const searchSuggestions = useMemo(() => {
     const q = chrome.searchInput.trim().toLowerCase();
     if (!q) return [];
-    return lista.marcas
+    return lista.items
       .filter((m) => {
         const hay = [m.nome, m.descricao, m.numero_marca].filter(Boolean).join(" ").toLowerCase();
         return hay.includes(q);
@@ -200,7 +218,7 @@ export default function Marcas() {
         label: m.nome || "Marca",
         secondary: m.numero_marca ? `Nº ${m.numero_marca}` : m.descricao || undefined,
       }));
-  }, [lista.marcas, chrome.searchInput]);
+  }, [lista.items, chrome.searchInput]);
 
   /** Busca já veio do servidor — a grade não refiltra por texto. */
   const matchesMarcaSearch = useCallback((item) => {

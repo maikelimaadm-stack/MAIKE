@@ -11,11 +11,8 @@ import { ApiError, API_ERROR_CODES } from '@/apis/_core/ApiError';
 
 const chaveDeNome = (valor) => String(valor ?? '').trim().toUpperCase();
 
-/** Teto de linhas acumuladas no browser — além disso refine a busca (escala). */
-export const MARCAS_MAX_JANELA_CLIENTE = 2000;
-
 /**
- * Página keyset da empresa (tela Marcas).
+ * Adapter de domínio → motor Base1 (`useCadastroInfiniteList` + `listMarcasPage`).
  * @param {string} empresaId
  * @param {{ limit?: number, cursor?: string|null, q?: string, ativo?: boolean }} [opts]
  */

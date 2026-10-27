@@ -10,6 +10,7 @@ import {
   normalizarLimite,
   LIMITE_MAXIMO,
   clausulaKeysetDesc,
+  montarEnvelopeKeyset,
 } from '../src/shared/pagination/keysetCursor.js';
 
 describe('keysetCursor', () => {
@@ -38,5 +39,25 @@ describe('keysetCursor', () => {
     const c = clausulaKeysetDesc({ createdAt: new Date('2026-01-01T00:00:00.000Z'), id: 'a' });
     assert.ok(Array.isArray(c.OR));
     assert.equal(c.OR.length, 2);
+  });
+
+  test('montarEnvelopeKeyset corta limit+1 e gera next_cursor', () => {
+    const createdAt = new Date('2026-10-27T12:00:00.000Z');
+    const registros = [
+      { id: 'a', createdAt, nome: 'A' },
+      { id: 'b', createdAt, nome: 'B' },
+    ];
+    const env = montarEnvelopeKeyset({
+      registros,
+      limit: 1,
+      total: 99,
+      mapItem: (r) => ({ id: r.id, nome: r.nome }),
+    });
+    assert.equal(env.items.length, 1);
+    assert.equal(env.items[0].id, 'a');
+    assert.equal(env.has_more, true);
+    assert.equal(typeof env.next_cursor, 'string');
+    assert.equal(env.total, 99);
+    assert.equal(env.limit, 1);
   });
 });

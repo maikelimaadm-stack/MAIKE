@@ -67,9 +67,20 @@ O que **ainda** não é “bilhões perfeitos”:
 
 ---
 
+## Refino D-PROD-55 (mesma PR)
+
+Motor extraído de Marcas → Base1 compartilhado:
+
+- `useCadastroInfiniteList` (genérico)
+- `cadastroListaScale.js` (tetos + envelope)
+- `montarEnvelopeKeyset` no backend shared
+- Doc: `MOTOR-BASE1-LISTA.md`
+
+Marcas só consome (`fetchPage` + `queryKey`).
+
 ## Próximas missões (não nesta PR)
 
-1. Generalizar o contrato keyset para Produto / Lançamentos / etc.  
+1. Plugar Produto / Lançamentos / etc. no **mesmo** motor  
 2. `total` aproximado ou `include_total=0`  
 3. Bulk delete + export job  
 4. Typeahead de sugestões via endpoint dedicado (não só janela local)
