@@ -18,6 +18,7 @@ import CadastroFormField, {
 } from "@/components/cadastro/base1/CadastroFormField";
 import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
 import CadastroFormActions from "@/components/cadastro/base1/CadastroFormActions";
+import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 
 const FL = ({ label, required, error, children }) => (
   <CadastroFormField label={label} required={required} error={error}>
@@ -36,7 +37,7 @@ const parseNumero = (val) => {
 
 export default function FormularioProduto({ onSubmit, onCancel, initialData, isEditing, variant = "card" }) {
   const embedded = variant === "embedded";
-  const empresaId = localStorage.getItem('empresa_selecionada_id');
+  const empresaId = useEmpresaSelecionadaId();
 
   const [formData, setFormData] = useState(() => {
     const defaults = {

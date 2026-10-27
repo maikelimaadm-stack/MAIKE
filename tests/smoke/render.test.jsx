@@ -3,6 +3,7 @@ import { render, screen, waitFor, cleanup } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import React from 'react';
+import { AuthProvider } from '@/lib/AuthContext';
 
 // ── Nenhuma chamada real à Base44 ─────────────────────────────────────────
 vi.mock('@/api/base44Client', async () => {
@@ -29,7 +30,9 @@ const wrapper = ({ children }) => {
   });
   return (
     <MemoryRouter>
-      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+      <QueryClientProvider client={client}>
+        <AuthProvider>{children}</AuthProvider>
+      </QueryClientProvider>
     </MemoryRouter>
   );
 };

@@ -18,6 +18,7 @@ import CadastroRecordHeader from "@/components/cadastro/base1/CadastroRecordHead
 import { useCadastroListaChromeState } from "@/hooks/useCadastroListaChromeState";
 import { useCadastroPageListBindings } from "@/hooks/useCadastroPageListBindings";
 import { useCadastroDuplicateAction } from "@/hooks/useCadastroDuplicateAction";
+import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 
 const EMPTY_SETORES = [];
 
@@ -37,7 +38,7 @@ const getInitialFormData = () => ({
 });
 
 export default function CadastroSetores() {
-  const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
+  const empresaSelecionadaId = useEmpresaSelecionadaId();
   const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const [showConfigColunas, setShowConfigColunas] = useState(false);

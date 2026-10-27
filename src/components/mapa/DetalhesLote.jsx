@@ -57,9 +57,10 @@ import InformacoesArea from "./InformacoesArea";
 import { Progress } from "@/components/ui/progress";
 import { AlertTriangle } from "lucide-react";
 import { validarOrdemTemporalLote, validarOrdemTemporalLotes } from "../lotes/manejoValidations.jsx";
+import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 
 export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
-  const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
+  const empresaSelecionadaId = useEmpresaSelecionadaId();
   const [showMovimentacao, setShowMovimentacao] = useState(false);
   const [showMorte, setShowMorte] = useState(false);
   const [showNascimento, setShowNascimento] = useState(false);

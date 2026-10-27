@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { MapPin } from "lucide-react";
 import { loadGoogleMaps } from "@/lib/googleMaps";
+import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 
 const loadGoogleMapsScript = () => loadGoogleMaps();
 
@@ -41,7 +42,7 @@ export default function TaskLocationPickerDialog({ open, onOpenChange, areas = [
   useEffect(() => { onOpenChangeRef.current = onOpenChange; }, [onOpenChange]);
   useEffect(() => { initialCoordsRef.current = initialCoordinates; }, [initialCoordinates]);
 
-  const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
+  const empresaSelecionadaId = useEmpresaSelecionadaId();
 
   const { data: tarefasPendentes = [] } = useQuery({
     queryKey: ["tarefas-picker-pendentes", empresaSelecionadaId],

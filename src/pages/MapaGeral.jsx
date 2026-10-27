@@ -35,6 +35,8 @@ import { getCochoIndicator, getDepositoIndicator, buildProgressIconUrl } from ".
 import { buildMapaAlertasSuplementacao } from "../components/mapa/mapaAlertasSuplementacaoUtils";
 import { normalizeText } from "../components/suplementacao/estoqueSuplementacaoUtils";
 import { loadGoogleMaps, isGoogleMapsConfigured, GOOGLE_MAPS_MISSING_KEY_MESSAGE } from "@/lib/googleMaps";
+import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
+import { lerFiltrosMapaGeral, salvarFiltrosMapaGeral } from "@/lib/mapaGeralFiltrosStorage";
 
 const loadGoogleMapsScript = () => loadGoogleMaps();
 
@@ -91,12 +93,11 @@ export default function MapaGeral() {
   const [showTaskIcons, setShowTaskIcons] = useState(true);
   const [dragLotesEnabled, setDragLotesEnabled] = useState(false);
 
-  const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
+  const empresaSelecionadaId = useEmpresaSelecionadaId();
 
   useEffect(() => {
-    const saved = localStorage.getItem(`mapa_geral_filtros_${empresaSelecionadaId || 'default'}`) || localStorage.getItem('mapa_geral_filtros');
-    if (!saved) return;
-    const state = JSON.parse(saved);
+    const state = lerFiltrosMapaGeral(empresaSelecionadaId);
+    if (!state) return;
     setMapType('satellite');
     if (typeof state.showAreas === 'boolean') setShowAreas(state.showAreas);
     if (typeof state.showPontos === 'boolean') setShowPontos(state.showPontos);
@@ -128,7 +129,7 @@ export default function MapaGeral() {
   }, [empresaSelecionadaId]);
 
   useEffect(() => {
-    localStorage.setItem(`mapa_geral_filtros_${empresaSelecionadaId || 'default'}`, JSON.stringify({
+    salvarFiltrosMapaGeral(empresaSelecionadaId, {
       mapType,
       showAreas,
       showPontos,
@@ -152,8 +153,8 @@ export default function MapaGeral() {
       filtroSetor,
       filtroPesoMin,
       filtroPesoMax,
-      modoColoracao
-    }));
+      modoColoracao,
+    });
   }, [empresaSelecionadaId, mapType, showAreas, showPontos, showLinhas, showLotes, showTaskIcons, dragLotesEnabled, showCochos, showDepositos, showAlertas, showUserLocation, showNomesAreas, showHectaresAreas, filtroCategoria, filtroIdentificador, filtroStatus, filtroSistema, filtroAlertaTipo, filtroTipoCultura, filtroTipoPastagem, filtroSetor, filtroPesoMin, filtroPesoMax, modoColoracao]);
 
   const mapRef = useRef(null);

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Printer, X } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 
 const formatarNumero = (numero) => {
   if (!numero && numero !== 0) return "0,00";
@@ -14,7 +15,7 @@ const formatarNumero = (numero) => {
 };
 
 export default function FichaProduto({ produto, open, onClose, empresa: empresaProp = null }) {
-  const empresaSelecionadaId = typeof window !== "undefined" ? localStorage.getItem("empresa_selecionada_id") : null;
+  const empresaSelecionadaId = useEmpresaSelecionadaId();
 
   // Carrega a empresa selecionada para o cabeçalho (fallback quando não vem por prop)
   const { data: empresaCarregada } = useQuery({

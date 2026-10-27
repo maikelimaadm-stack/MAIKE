@@ -13,6 +13,7 @@ import { listarSetoresAtivos, atualizarArea } from "@/services/mapaService";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ordenarPorNomeNumerico } from "@/hooks/useSetorAreas";
 import { toast } from "sonner";
+import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 
 const COLUNAS_DISPONIVEIS = [
   { id: "selecao", label: "Seleção", default: true, fixo: true, width: 25 },
@@ -34,7 +35,7 @@ const COLUMN_WIDTHS_KEY = "colunas_largura_areas_geo";
 const MIN_COLUMN_WIDTH = 80;
 
 export default function TabelaAreasGeo({ areas = [], onEdit, onEditDetalhes, onDelete, showConfigColunas, setShowConfigColunas }) {
-  const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
+  const empresaSelecionadaId = useEmpresaSelecionadaId();
   const queryClient = useQueryClient();
   const [selectedItems, setSelectedItems] = useState([]);
   const [sortConfig, setSortConfig] = useState({ key: "nome", direction: "asc" });

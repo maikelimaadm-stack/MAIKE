@@ -20,6 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import CapturaGPSPoligono from "./CapturaGPSPoligono";
+import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 
 const APROVEITAMENTO = ["Alta", "Média", "Baixa"];
 const TIPOS_USO = ["Pastagem", "Agricultura", "Reserva", "APP", "Infraestrutura"];
@@ -42,7 +43,7 @@ const CORES_DISPONIVEIS = [
 ];
 
 export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS = false, item }) {
-  const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
+  const empresaSelecionadaId = useEmpresaSelecionadaId();
   const [mostrarCapturaGPS, setMostrarCapturaGPS] = useState(usarGPS);
   const [coordenadasGPS, setCoordenadasGPS] = useState(coordenadas);
   const [invalidFields, setInvalidFields] = useState([]);

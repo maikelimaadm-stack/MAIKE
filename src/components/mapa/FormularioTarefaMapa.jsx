@@ -15,6 +15,7 @@ import TaskLocationPickerDialog from "./TaskLocationPickerDialog";
 import useSetorAreas from "@/hooks/useSetorAreas";
 import { getPermissionDisplayName, getUserDisplayName, isExcludedSystemUser } from "@/lib/userDisplayName";
 import { canAccessPage, normalizePermissionRecord } from "@/lib/permissions";
+import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 
 const FL = ({ label, required, error, children, dataField }) => (
   <div data-field={dataField}>
@@ -57,7 +58,7 @@ const getAreaCenter = (area) => {
 };
 
 export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId, loteNome, pontoSuplId, initialCoordinates, initialDraft, onSubmit, onCancel, onRequestSelectLocation, externalSubmitting = false }) {
-  const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
+  const empresaSelecionadaId = useEmpresaSelecionadaId();
   const [showLocationPicker, setShowLocationPicker] = useState(false);
   const [setorSelecionadoId, setSetorSelecionadoId] = useState("");
 
