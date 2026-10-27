@@ -20,7 +20,14 @@
   gap: var(--portal-espaco);
 }
 
-.cadastro-b1--portal-compras button:is(:active, .is-active, [data-state="open"], [aria-pressed="true"], [aria-expanded="true"]) {
+.cadastro-b1--portal-compras
+  button:not(.mg-pill-select):is(
+    :active,
+    .is-active,
+    [data-state="open"],
+    [aria-pressed="true"],
+    [aria-expanded="true"]
+  ) {
   border-color: transparent !important;
 }
 
@@ -145,8 +152,6 @@
   min-height: 25px !important;
 }
 
-.cadastro-b1--portal-compras .mg-pill-select,
-.cadastro-b1--portal-compras button.mg-pill-select.cmd-display,
 .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn:not(.tb-btn-icon) {
   height: 25px !important;
   min-height: 25px !important;
@@ -158,6 +163,25 @@
   border-radius: 999px !important;
   font-size: 12px !important;
   font-weight: 600 !important;
+}
+
+.cadastro-b1--portal-compras .mg-pill-select,
+.cadastro-b1--portal-compras button.mg-pill-select.cmd-display {
+  height: 25px !important;
+  min-height: 25px !important;
+  min-width: 4.5rem;
+  border: 1px solid #dfe2e7 !important;
+  background: #fff !important;
+  color: var(--portal-acao-fg) !important;
+  box-shadow: var(--mg-field-edge-shadow) !important;
+  border-radius: 999px !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+}
+
+.cadastro-b1--portal-compras button.mg-pill-select.cmd-display[aria-expanded="true"] {
+  border-color: var(--mg-focus-border) !important;
+  box-shadow: var(--mg-focus-ring) !important;
 }
 
 .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn-green,
@@ -177,8 +201,21 @@
 }
 
 /* Popovers / dialogs / fpop no body */
-.b1-portal-compras button:is(:active, .is-active, [data-state="open"], [aria-pressed="true"], [aria-expanded="true"]) {
+.b1-portal-compras
+  button:not(.mg-pill-select):is(
+    :active,
+    .is-active,
+    [data-state="open"],
+    [aria-pressed="true"],
+    [aria-expanded="true"]
+  ) {
   border-color: transparent !important;
+}
+
+.b1-portal-compras.mg-pill-select-panel.cmd-panel {
+  border: 1px solid #dfe2e7 !important;
+  border-left: 1px solid #dfe2e7 !important;
+  border-right: 1px solid #dfe2e7 !important;
 }
 
 .b1-portal-compras .tb-btn,

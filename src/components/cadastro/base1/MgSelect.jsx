@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import * as Popover from "@radix-ui/react-popover";
 import { ChevronDown, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { usePortalComprasSkin } from "./portalComprasSkinContext";
 
 /**
  * @param {object} props
@@ -161,6 +162,8 @@ export function MgSelect({
   popoverSide = "bottom",
   ariaLabel,
 }) {
+  const portalSkin = usePortalComprasSkin();
+  const isPillPanel = Boolean(contentClassName?.includes("mg-pill-select-panel"));
   const [open, setOpenState] = useState(false);
   const [search, setSearch] = useState("");
   const setOpen = (o) => {
@@ -197,7 +200,9 @@ export function MgSelect({
           side={popoverSide}
           sideOffset={4}
           className={cn(
-            "cadastro-b1 cmd-panel mg-b1-glass-pop z-[10000] w-[var(--radix-popover-trigger-width)] min-w-[220px] outline-none",
+            "cadastro-b1 cmd-panel z-[10000] w-[var(--radix-popover-trigger-width)] min-w-[220px] outline-none",
+            !isPillPanel && "mg-b1-glass-pop",
+            portalSkin && "b1-portal-compras",
             contentClassName,
           )}
           onOpenAutoFocus={(e) => {

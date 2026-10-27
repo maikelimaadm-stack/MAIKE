@@ -707,12 +707,21 @@
   width: auto;
   min-width: 4.5rem;
   border-radius: 999px;
-  background: var(--mg-gray-fill);
-  border: 1px solid transparent;
+  background: #fff;
+  border: 1px solid #dfe2e7;
+  box-shadow: var(--mg-field-edge-shadow);
   padding: 0 28px 0 12px !important;
   font-size: 12px;
   font-weight: 600;
   color: var(--mg-text-1);
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
+}
+
+.cadastro-b1 .mg-pill-select.cmd-display[aria-expanded="true"] {
+  border-color: var(--mg-focus-border);
+  box-shadow: var(--mg-focus-ring);
 }
 
 .cadastro-b1 .mg-pill-select-wrap .cmd-chevron {

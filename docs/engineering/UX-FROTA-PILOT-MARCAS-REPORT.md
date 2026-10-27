@@ -1109,3 +1109,21 @@ Branch `cursor/ux-base1-marcas-next-516d`. Referência: CDE `features/base1/grid
 - `npm run test:smoke`
 - `npm run gate:governance-paths`
 - `npm run verify:all` (CI com Postgres)
+
+## UX-52 (2026-10-27) — Page size: bordas laterais do gatilho (paridade CDE)
+
+Branch `cursor/ux-base1-pagination-borders-516d`:
+
+| Item | Antes | Depois |
+|------|-------|--------|
+| Gatilho `.mg-pill-select.cmd-display` | `border: 1px solid transparent`; fundo `--mg-gray-fill` | `border: 1px solid #dfe2e7`; fundo `#fff`; `box-shadow: var(--mg-field-edge-shadow)` |
+| Portal compras (aberto) | `button[aria-expanded="true"]` forçava `border-color: transparent !important` | `:not(.mg-pill-select)` no reset; pill mantém `#dfe2e7` / foco `--mg-focus-border` |
+| Portal compras pill | Agrupado com `.tb-btn` (`border: transparent`, sombra verde) | Bloco próprio: borda `#dfe2e7`, fundo branco, sombra de campo |
+| Painel `mg-pill-select-panel` | Só `border` shorthand | Laterais explícitas `#dfe2e7`; sem `mg-b1-glass-pop` no pill; `b1-portal-compras` no portal |
+
+**Arquivos:** `cadastro-base1.css`, `cadastro-b1-portal.css`, `cadastro-b1-controls.css`, `MgSelect.jsx`.
+
+### Verificação (UX-52)
+
+- `npm run test:smoke`
+- `npm run verify:all`
