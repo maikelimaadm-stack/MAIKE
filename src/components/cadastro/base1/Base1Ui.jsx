@@ -223,7 +223,7 @@ export function CheckRow({ checked, onChange, label, hint }) {
   );
 }
 
-/** @param {{ items: { key: string; label: string; icon?: React.ReactNode; danger?: boolean; disabled?: boolean }[]; onPick: (key: string) => void }} props */
+/** @param {{ items: { key: string; label: string; icon?: React.ReactNode; danger?: boolean; disabled?: boolean; className?: string; title?: string; hidden?: boolean }[]; onPick: (key: string) => void }} props */
 export function MenuList({ items, onPick }) {
   return (
     <div className="flex flex-col" role="menu">
