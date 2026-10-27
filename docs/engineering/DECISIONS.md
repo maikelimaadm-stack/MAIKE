@@ -2268,4 +2268,24 @@ Uma missão = um PR (R7).
 
 ---
 
-<!-- Próxima decisão: D-PROD-54 -->
+## D-PROD-54 — Piloto de escala: GET /marcas com keyset + FE infinito + grade virtual
+
+**Missão:** lista-escala-marcas (branch `cursor/lista-escala-marcas-26e2`)  
+**Relatório:** `docs/engineering/LISTA-ESCALA-MARCAS-REPORT.md`
+
+**Decisão:** A listagem de Marcas deixa de ser full-fetch. `GET /marcas` devolve
+envelope `{ items, next_cursor, has_more, total, limit }` com keyset
+`(createdAt DESC, id DESC)`, filtros `empresa_id` / `q` / `ativo` no SQL, e
+`limit` capped em 500. O frontend usa `useInfiniteQuery`, janela máxima de
+2.000 linhas no browser, e a `Base1Grid` virtualiza a partir de 80 linhas.
+Export CSV só da janela carregada (com aviso). Offline continua no create/update
+(unwrap da 1ª página cap 500); a tela de lista **não** espelha o tenant inteiro.
+
+**Consequência:** Demais cadastros Base1 ainda são full-fetch até migrarem o
+mesmo contrato. `COUNT(*)` em bilhões continua caro — próximo passo: total
+aproximado ou omitir sob flag. Bulk delete e export streaming ficam para missão
+seguinte. Uma missão = um PR (R7).
+
+---
+
+<!-- Próxima decisão: D-PROD-55 -->

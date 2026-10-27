@@ -82,7 +82,10 @@ describe('P4.4-Marcas — tenant e unicidade', () => {
     const id = criada.json().id;
 
     const listaB = await app.inject({ method: 'GET', url: '/marcas', headers: auth(b.token) });
-    assert.equal(listaB.json().length, 0);
+    const corpoB = listaB.json();
+    assert.ok(Array.isArray(corpoB.items));
+    assert.equal(corpoB.items.length, 0);
+    assert.equal(corpoB.total, 0);
 
     const patch = await app.inject({
       method: 'PATCH',
@@ -116,5 +119,65 @@ describe('P4.4-Marcas — exclusão', () => {
     });
     assert.equal(del.statusCode, 204);
     assert.equal(await getPrismaClient().marca.count(), 0);
+  });
+});
+
+describe('P4.4-Marcas — listagem keyset (D-PROD-54)', () => {
+  test('BE-P54-01 GET /marcas devolve envelope paginado', async () => {
+    const { token } = await tenantAutenticado();
+    await criarMarca(token, { nome: 'ALPHA' });
+    await criarMarca(token, { nome: 'BETA' });
+
+    const r = await app.inject({
+      method: 'GET',
+      url: '/marcas?empresa_id=empresa-legada-1&limit=1',
+      headers: auth(token),
+    });
+    assert.equal(r.statusCode, 200);
+    const corpo = r.json();
+    assert.equal(corpo.items.length, 1);
+    assert.equal(corpo.limit, 1);
+    assert.equal(corpo.total, 2);
+    assert.equal(corpo.has_more, true);
+    assert.equal(typeof corpo.next_cursor, 'string');
+
+    const r2 = await app.inject({
+      method: 'GET',
+      url: `/marcas?empresa_id=empresa-legada-1&limit=1&cursor=${encodeURIComponent(corpo.next_cursor)}`,
+      headers: auth(token),
+    });
+    assert.equal(r2.statusCode, 200);
+    const corpo2 = r2.json();
+    assert.equal(corpo2.items.length, 1);
+    assert.notEqual(corpo2.items[0].id, corpo.items[0].id);
+    assert.equal(corpo2.has_more, false);
+    assert.equal(corpo2.next_cursor, null);
+  });
+
+  test('BE-P54-02 busca q filtra no servidor', async () => {
+    const { token } = await tenantAutenticado();
+    await criarMarca(token, { nome: 'NELORE' });
+    await criarMarca(token, { nome: 'ANGUS' });
+
+    const r = await app.inject({
+      method: 'GET',
+      url: '/marcas?empresa_id=empresa-legada-1&q=nel',
+      headers: auth(token),
+    });
+    assert.equal(r.statusCode, 200);
+    const corpo = r.json();
+    assert.equal(corpo.total, 1);
+    assert.equal(corpo.items[0].nome, 'NELORE');
+  });
+
+  test('BE-P54-03 cursor inválido reprova 400', async () => {
+    const { token } = await tenantAutenticado();
+    const r = await app.inject({
+      method: 'GET',
+      url: '/marcas?cursor=nao-e-cursor',
+      headers: auth(token),
+    });
+    assert.equal(r.statusCode, 400);
+    assert.equal(r.json().code, 'REQUEST_VALIDATION_FAILED');
   });
 });

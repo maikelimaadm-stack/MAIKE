@@ -1,7 +1,7 @@
 import React, { useCallback, useMemo, useRef, useState } from "react";
-import { listarMarcasDaEmpresa, criarMarca, atualizarMarca, excluirMarcas } from "@/services/marcaService";
+import { criarMarca, atualizarMarca, excluirMarcas } from "@/services/marcaService";
 import { getApiErrorMessage } from "@/apis/_core/ApiError";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 import {
   notifyError,
@@ -21,13 +21,13 @@ import { prepareCadastroDuplicate } from "@/components/cadastro/base1/cadastroDu
 import { Check, X } from "lucide-react";
 import { PillBtn } from "@/components/cadastro/base1/Base1Ui";
 import FormularioMarca, { FORMULARIO_MARCA_ID } from "@/components/marcas/FormularioMarca";
-import { useCadastroListaFooter } from "@/hooks/useCadastroListaFooter";
+import { useCadastroListaPagination } from "@/hooks/useCadastroListaPagination";
 import { useCadastroCardsPrefs } from "@/hooks/useCadastroCardsPrefs";
 import { clearCadastroListaFiltersAndSearch } from "@/lib/cadastroListaClearFilters";
 import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
+import { useMarcasInfiniteList } from "@/hooks/useMarcasInfiniteList";
 
 const MARCAS_STORAGE_KEY = "colunas_marcas_v1";
-const EMPTY_MARCAS = [];
 
 export default function Marcas() {
   const [showForm, setShowForm] = useState(false);
@@ -50,7 +50,7 @@ export default function Marcas() {
         : "table",
   });
   const bumpFormEpoch = () => setFormEpoch((n) => n + 1);
-  const listFooter = useCadastroListaFooter(
+  const { pageSize, setPageSize } = useCadastroListaPagination(
     MARCAS_STORAGE_KEY,
     `${chrome.resetFiltersKey}:${chrome.appliedSearch}`,
   );
@@ -61,15 +61,19 @@ export default function Marcas() {
   const queryClient = useQueryClient();
   const empresaId = useEmpresaSelecionadaId();
 
-  const { data: marcasData, isLoading } = useQuery({
-    queryKey: ["marcas", empresaId],
-    queryFn: () => listarMarcasDaEmpresa(empresaId),
-    enabled: !!empresaId,
+  const lista = useMarcasInfiniteList({
+    empresaId,
+    q: chrome.appliedSearch,
+    pageSize,
   });
-  const marcas = marcasData ?? EMPTY_MARCAS;
+  const marcas = useMemo(() => {
+    if (!searchPickId) return lista.marcas;
+    return lista.marcas.filter((m) => String(m.id) === String(searchPickId));
+  }, [lista.marcas, searchPickId]);
+  const isLoading = lista.isLoading;
 
   const createMutation = useMutation({
-    mutationFn: (data) => criarMarca({ dados: data, empresaId, marcasDaEmpresa: marcas }),
+    mutationFn: (data) => criarMarca({ dados: data, empresaId, marcasDaEmpresa: lista.marcas }),
     onSuccess: (created) => {
       queryClient.invalidateQueries({ queryKey: ["marcas"] });
       recordBeforeNewRef.current = null;
@@ -93,7 +97,7 @@ export default function Marcas() {
 
   const updateMutation = useMutation({
     /** @param {{ id: string; data: object }} vars */
-    mutationFn: ({ id, data }) => atualizarMarca(id, data, marcas),
+    mutationFn: ({ id, data }) => atualizarMarca(id, data, lista.marcas),
     onSuccess: (updated, { id, data }) => {
       queryClient.invalidateQueries({ queryKey: ["marcas"] });
       const merged = {
@@ -179,46 +183,30 @@ export default function Marcas() {
     else createMutation.mutate(data);
   };
 
-  const filtrarMarcasPorBusca = useCallback((lista, texto) => {
-    const q = String(texto ?? "").trim().toLowerCase();
-    if (!q) return lista;
-    return lista.filter((m) => {
-      const hay = [m.nome, m.descricao, m.numero_marca].filter(Boolean).join(" ").toLowerCase();
-      return hay.includes(q);
-    });
-  }, []);
+  const recordNavRows = useMemo(() => marcas, [marcas]);
 
-  const recordNavRows = useMemo(() => {
-    if (searchPickId) {
-      return marcas.filter((m) => String(m.id) === String(searchPickId));
-    }
-    return filtrarMarcasPorBusca(marcas, chrome.appliedSearch);
-  }, [marcas, chrome.appliedSearch, filtrarMarcasPorBusca, searchPickId]);
-
+  /** Sugestões a partir da janela já carregada (busca pesada é no servidor via `q`). */
   const searchSuggestions = useMemo(() => {
     const q = chrome.searchInput.trim().toLowerCase();
     if (!q) return [];
-    return filtrarMarcasPorBusca(marcas, chrome.searchInput)
+    return lista.marcas
+      .filter((m) => {
+        const hay = [m.nome, m.descricao, m.numero_marca].filter(Boolean).join(" ").toLowerCase();
+        return hay.includes(q);
+      })
       .slice(0, 8)
       .map((m) => ({
         id: String(m.id),
         label: m.nome || "Marca",
         secondary: m.numero_marca ? `Nº ${m.numero_marca}` : m.descricao || undefined,
       }));
-  }, [marcas, chrome.searchInput, filtrarMarcasPorBusca]);
+  }, [lista.marcas, chrome.searchInput]);
 
-  /** Isola um id na grade (clique na sugestão) sem depender só do texto. */
-  const matchesMarcaSearch = useCallback(
-    (item, q) => {
-      if (searchPickId) return String(item.id) === String(searchPickId);
-      const hay = [item.nome, item.descricao, item.numero_marca]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
-      return hay.includes(q);
-    },
-    [searchPickId],
-  );
+  /** Busca já veio do servidor — a grade não refiltra por texto. */
+  const matchesMarcaSearch = useCallback((item) => {
+    if (searchPickId) return String(item.id) === String(searchPickId);
+    return true;
+  }, [searchPickId]);
 
   const handleEdit = useCallback(
     (item) => {
@@ -240,31 +228,13 @@ export default function Marcas() {
       const texto = typeof next === "string" ? next : chrome.searchInput;
       setSearchPickId(null);
       chrome.applySearch(texto);
+      // A listagem recarrega via keyset com `q`; em modo registro só sincroniza seleção se ainda couber.
       if (!showForm || isEditing) return;
-      const filtradas = filtrarMarcasPorBusca(marcas, texto);
-      if (!filtradas.length) return;
-      const atualAindaVale =
-        editingItem?.id &&
-        filtradas.some((m) => String(m.id) === String(editingItem.id));
-      if (atualAindaVale) {
+      if (editingItem?.id) {
         chrome.onSelectionChange([String(editingItem.id)]);
-        return;
       }
-      const primeiro = filtradas[0];
-      setEditingItem(primeiro);
-      setIsEditing(false);
-      setShowForm(true);
-      chrome.setViewMode("record");
-      chrome.onSelectionChange([String(primeiro.id)]);
     },
-    [
-      chrome,
-      showForm,
-      isEditing,
-      editingItem,
-      marcas,
-      filtrarMarcasPorBusca,
-    ],
+    [chrome, showForm, isEditing, editingItem],
   );
 
   /** Clique na sugestão: filtra só aquele registro na visão atual (não abre modo registro). */
@@ -358,8 +328,35 @@ export default function Marcas() {
     chrome.setViewMode("record");
   };
 
-  const exportCsv = () =>
+  const exportCsv = () => {
+    if (lista.serverHasMore || lista.janelaCheia) {
+      notifyWarning(
+        "Atenção",
+        "Exporta só a janela carregada. Refine a busca para reduzir o conjunto antes de exportar tudo.",
+      );
+    }
     exportCadastroCsv("marcas.csv", MARCAS_COLUNAS, marcas, getMarcaFieldValue);
+  };
+
+  const chromeFooter = {
+    pageSize,
+    onPageSizeChange: setPageSize,
+    hasMore: lista.hasMore,
+    loadingMore: lista.isFetchingNextPage,
+    onLoadMore: () => {
+      if (lista.janelaCheia) {
+        notifyWarning(
+          "Atenção",
+          "Janela máxima no navegador. Refine a busca para continuar navegando em escala.",
+        );
+        return;
+      }
+      lista.loadMore();
+    },
+    listados: marcas.length,
+    filtrados: searchPickId ? marcas.length : lista.total,
+    totais: lista.total,
+  };
 
   const handleRequestDelete = (id) => {
     const ids = Array.isArray(id) ? id : [id];
@@ -450,7 +447,7 @@ export default function Marcas() {
           }
           attachDisabledReason="Anexos disponíveis quando o cadastro tiver auditoria nativa."
           selectedCount={chrome.selectedIds.length}
-          {...listFooter.chromeFooter}
+          {...chromeFooter}
           createLabel="Novo"
           onNew={openNew}
           onEdit={handleEditSelected}
@@ -485,14 +482,12 @@ export default function Marcas() {
               isLoading={isLoading}
               showConfigColunas={showConfigColunas}
               setShowConfigColunas={setShowConfigColunas}
-              searchQuery={chrome.appliedSearch}
+              searchQuery=""
               matchesSearch={matchesMarcaSearch}
               resetFiltersKey={chrome.resetFiltersKey}
               onSelectionChange={chrome.onSelectionChange}
               onFiltersActiveChange={chrome.setFiltersActive}
               viewMode={chrome.viewMode === "cards" ? "cards" : "table"}
-              displayLimit={listFooter.gradePaging.displayLimit}
-              onListMetrics={listFooter.gradePaging.onListMetrics}
               cardFields={cardsPrefs.cardFields}
               cardsPerRow={cardsPrefs.cardsPerRow}
               configureColumnsAnchorRef={configureColumnsAnchorRef}

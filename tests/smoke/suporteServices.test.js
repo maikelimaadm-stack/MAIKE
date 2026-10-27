@@ -13,7 +13,13 @@ const produtos = {
   updateProduto: vi.fn(), deleteProduto: vi.fn(),
   listMovimentacoesEstoque: vi.fn(), sincronizarReferenciasProduto: vi.fn(),
 };
-const marcas = { listMarcas: vi.fn(), createMarca: vi.fn(), updateMarca: vi.fn(), deleteMarca: vi.fn() };
+const marcas = {
+  listMarcas: vi.fn(),
+  listMarcasPage: vi.fn(),
+  createMarca: vi.fn(),
+  updateMarca: vi.fn(),
+  deleteMarca: vi.fn(),
+};
 const unidades = {
   listUnidades: vi.fn(), createUnidade: vi.fn(), updateUnidade: vi.fn(),
   deleteUnidade: vi.fn(), listProdutosVinculados: vi.fn(),
@@ -180,7 +186,13 @@ describe('PR — produtos', () => {
     categorias.listCategorias.mockResolvedValue([{ id: 'c1' }]);
     unidades.listUnidades.mockResolvedValue([{ id: 'u1' }]);
     estoque.listLocais.mockResolvedValue([{ id: 'l1' }]);
-    marcas.listMarcas.mockResolvedValue([{ id: 'm1', empresa_id: EMPRESA, ativo: true }]);
+    marcas.listMarcasPage.mockResolvedValue({
+      items: [{ id: 'm1', empresa_id: EMPRESA, ativo: true }],
+      next_cursor: null,
+      has_more: false,
+      total: 1,
+      limit: 500,
+    });
 
     const fontes = await produtoSvc.carregarFontesDoFormulario(EMPRESA);
     expect(Object.keys(fontes).sort()).toEqual(['categorias', 'locais', 'marcas', 'unidades']);
@@ -253,11 +265,18 @@ describe('CSV — importação e exportação de produtos', () => {
 // ── Marcas ────────────────────────────────────────────────────────────────
 
 describe('MA — marcas', () => {
-  it('MA1 — filtro por empresa', async () => {
-    marcas.listMarcas.mockResolvedValue([
-      { id: 'a', empresa_id: EMPRESA }, { id: 'b', empresa_id: 'outra' },
-    ]);
+  it('MA1 — listagem da empresa via página keyset', async () => {
+    marcas.listMarcasPage.mockResolvedValue({
+      items: [{ id: 'a', empresa_id: EMPRESA }],
+      next_cursor: null,
+      has_more: false,
+      total: 1,
+      limit: 500,
+    });
     expect(await marcaSvc.listarMarcasDaEmpresa(EMPRESA)).toEqual([{ id: 'a', empresa_id: EMPRESA }]);
+    expect(marcas.listMarcasPage).toHaveBeenCalledWith(
+      expect.objectContaining({ empresa_id: EMPRESA, limit: 500 }),
+    );
   });
 
   it('MA2 — nome duplicado reprova por código', async () => {

@@ -112,6 +112,7 @@ plataforma quando entidades densas usarem o mesmo chrome.
 
 ## Próximo passo sugerido (missão separada)
 
-1 missão = 1 PR. Candidata: **Paginacão cursor no `GET /marcas` + FE consumindo
-páginas** (piloto), depois generalizar o chrome Base1. Não misturar com ajustes
-visuais.
+~~1 missão = 1 PR. Candidata: paginação cursor no `GET /marcas` + FE.~~  
+**Feito no piloto D-PROD-54** — ver `LISTA-ESCALA-MARCAS-REPORT.md`
+(`cursor/lista-escala-marcas-26e2`). Restante: generalizar o chrome Base1,
+`COUNT` aproximado, export streaming, bulk delete.
