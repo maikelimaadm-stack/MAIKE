@@ -39,8 +39,8 @@ describe('nativeApiPath — SSOT', () => {
     expect(fonte).toContain('comPrefixoApiNativa');
   });
 
-  it('adaptador Vercel remove prefixo antes do Fastify', () => {
+  it('adaptador Vercel normaliza ingresso serverless antes do Fastify', () => {
     const fonte = readFileSync('api/fastify.js', 'utf8');
-    expect(fonte).toContain('reescreverUrlApiNativa');
+    expect(fonte).toContain('normalizarIngressoServerlessVercel');
   });
 });

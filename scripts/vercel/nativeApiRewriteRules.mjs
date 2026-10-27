@@ -15,7 +15,11 @@ import { NATIVE_API_PATH_PREFIX } from '../../config/nativeApiPath.js';
 /** Entrada única da API nativa na Vercel — sem guard de Accept. */
 const REWRITES_API_NATIVA = [
   { source: NATIVE_API_PATH_PREFIX, destination: '/api/fastify' },
-  { source: `${NATIVE_API_PATH_PREFIX}/:path*`, destination: '/api/fastify' },
+  {
+    source: `${NATIVE_API_PATH_PREFIX}/:path*`,
+    // Consome `:path*` no destino para não propagar `path` à query (PR #105).
+    destination: '/api/fastify?__native_route=:path*',
+  },
 ];
 
 /** @param {string} pageName */

@@ -6,7 +6,10 @@
  * do Fastify, preservando rotas, CORS e JWT.
  */
 
-import { reescreverUrlApiNativa } from '../config/nativeApiPath.js';
+import {
+  normalizarIngressoServerlessVercel,
+  RotaNativaIngressoInvalidoError,
+} from '../config/vercelFastifyIngress.js';
 import { exigirConfiguracaoCompleta } from '../backend/src/config/env.js';
 import { construirApp } from '../backend/src/app.js';
 
@@ -30,7 +33,22 @@ const envProducao = () => process.env.NODE_ENV === 'production' || process.env.V
 
 export default async function handler(req, res) {
   if (typeof req.url === 'string') {
-    req.url = reescreverUrlApiNativa(req.url);
+    try {
+      req.url = normalizarIngressoServerlessVercel(req.url);
+    } catch (err) {
+      if (err instanceof RotaNativaIngressoInvalidoError) {
+        res.statusCode = 400;
+        res.setHeader('content-type', 'application/json; charset=utf-8');
+        res.end(
+          JSON.stringify({
+            code: 'INVALID_NATIVE_ROUTE',
+            message: 'Rota nativa inválida.',
+          }),
+        );
+        return;
+      }
+      throw err;
+    }
   }
   const instancia = await obterApp();
   instancia.server.emit('request', req, res);

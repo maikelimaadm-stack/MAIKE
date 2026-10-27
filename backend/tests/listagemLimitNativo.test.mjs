@@ -20,6 +20,8 @@ const ENDPOINTS = [
   '/bebedouros-historico',
   '/bebedouros-sanidade',
   '/bebedouros-alertas',
+  '/aplicacoes-medicamento',
+  '/eventos-sanitarios',
 ];
 
 before(async () => {
@@ -66,6 +68,34 @@ describe('listagem GET — parâmetro limit', () => {
       headers: auth(token),
     });
     assert.equal(r.statusCode, 200);
+    assert.ok(Array.isArray(r.json()));
+  });
+
+  test('simulação ingresso Vercel — path legado não chega ao AJV', async () => {
+    const { normalizarIngressoServerlessVercel } = await import('../../config/vercelFastifyIngress.js');
+    const { token } = await tenantAutenticado();
+    const url = normalizarIngressoServerlessVercel('/api/fastify?path=aplicacoes-medicamento&limit=200');
+    const r = await app.inject({
+      method: 'GET',
+      url,
+      headers: auth(token),
+    });
+    assert.equal(r.statusCode, 200, url);
+    assert.ok(Array.isArray(r.json()));
+  });
+
+  test('simulação ingresso Vercel — __native_route (rewrite PR #105)', async () => {
+    const { normalizarIngressoServerlessVercel } = await import('../../config/vercelFastifyIngress.js');
+    const { token } = await tenantAutenticado();
+    const url = normalizarIngressoServerlessVercel(
+      '/api/fastify?__native_route=eventos-sanitarios&limit=200',
+    );
+    const r = await app.inject({
+      method: 'GET',
+      url,
+      headers: auth(token),
+    });
+    assert.equal(r.statusCode, 200, url);
     assert.ok(Array.isArray(r.json()));
   });
 
