@@ -29,6 +29,15 @@ Variáveis críticas: `DATABASE_URL`, `MIGRATION_DATABASE_URL` (pre-deploy), `AU
 
 ---
 
+## Cadastros — o que funciona hoje
+
+**Matriz operacional (menu, rota, backend nativo vs Base44, UI, produção):**
+[`CADASTROS-E-MODULOS-STATUS.md`](./CADASTROS-E-MODULOS-STATUS.md).
+
+Resumo: **login e contas de usuário** persistem no PostgreSQL (P4.0 + P6.0); **setores, áreas de pastagem e geografia do mapa** também. **Marcas, produtos, empresa, categorias, lotes, bebedouros** e a maior parte do manejo ainda leem/escrevem via **Base44** atrás de `src/apis/*`. Não há tela de **Cliente** (tenant) — só bootstrap. Áreas não têm menu próprio: use **Mapa Geral** / **Cadastro do Mapa**.
+
+---
+
 ## Programa UX Base1 (cadastros)
 
 | Campo | Valor |
