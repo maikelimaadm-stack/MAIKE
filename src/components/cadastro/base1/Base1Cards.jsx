@@ -187,6 +187,7 @@ const PER_ROW = [
  * @param {(open: boolean) => void} [props.onLayoutOpenChange]
  * @param {boolean} [props.fieldsOpen]
  * @param {(open: boolean) => void} [props.onFieldsOpenChange]
+ * @param {DOMRect | null} [props.menuAnchorRect] âncora do menu Mais opções (sem botões na toolbar)
  */
 export function Base1CardsToolbar({
   columns,
@@ -195,6 +196,7 @@ export function Base1CardsToolbar({
   onLayoutOpenChange,
   fieldsOpen,
   onFieldsOpenChange,
+  menuAnchorRect = null,
 }) {
   const { cardsPerRow, setCardsPerRow, cardFields, setCardFields, restoreLayout, restoreFields } =
     cardsPrefs;
@@ -207,6 +209,7 @@ export function Base1CardsToolbar({
         onRestore={restoreLayout}
         open={layoutOpen}
         onOpenChange={onLayoutOpenChange}
+        menuAnchorRect={menuAnchorRect}
       />
       <CardFieldsPopover
         columns={columns}
@@ -215,16 +218,25 @@ export function Base1CardsToolbar({
         onRestore={restoreFields}
         open={fieldsOpen}
         onOpenChange={onFieldsOpenChange}
+        menuAnchorRect={menuAnchorRect}
       />
     </>
   );
 }
 
-function CardsLayoutPopover({ value, onChange, onRestore, open: openProp, onOpenChange: onOpenChangeProp }) {
+function CardsLayoutPopover({
+  value,
+  onChange,
+  onRestore,
+  open: openProp,
+  onOpenChange: onOpenChangeProp,
+  menuAnchorRect = null,
+}) {
   const [openInternal, setOpenInternal] = React.useState(false);
   const open = openProp ?? openInternal;
   const setOpen = onOpenChangeProp ?? setOpenInternal;
   const [draft, setDraft] = React.useState(value);
+  const menuDriven = Boolean(menuAnchorRect);
   React.useEffect(() => {
     if (open) setDraft(value);
   }, [open, value]);
@@ -233,15 +245,20 @@ function CardsLayoutPopover({ value, onChange, onRestore, open: openProp, onOpen
     <B1Popover
       open={open}
       onOpenChange={setOpen}
+      anchorRect={menuDriven ? menuAnchorRect : null}
       trigger={
-        <IconBtn
-          size="sm"
-          aria-label="Configurar layout dos cards"
-          title="Configurar layout dos cards"
-          active={open}
-        >
-          <LayoutGrid className="h-4 w-4" />
-        </IconBtn>
+        menuDriven
+          ? null
+          : (
+            <IconBtn
+              size="sm"
+              aria-label="Configurar layout dos cards"
+              title="Configurar layout dos cards"
+              active={open}
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </IconBtn>
+          )
       }
       footer={popoverFooter(
         () => {
@@ -276,11 +293,13 @@ function CardFieldsPopover({
   onRestore,
   open: openProp,
   onOpenChange: onOpenChangeProp,
+  menuAnchorRect = null,
 }) {
   const [openInternal, setOpenInternal] = React.useState(false);
   const open = openProp ?? openInternal;
   const setOpen = onOpenChangeProp ?? setOpenInternal;
   const [draft, setDraft] = React.useState(value);
+  const menuDriven = Boolean(menuAnchorRect);
   React.useEffect(() => {
     if (open) setDraft(value);
   }, [open, value]);
@@ -290,15 +309,20 @@ function CardFieldsPopover({
       open={open}
       onOpenChange={setOpen}
       className="w-72"
+      anchorRect={menuDriven ? menuAnchorRect : null}
       trigger={
-        <IconBtn
-          size="sm"
-          aria-label="Configurar campos dos cards"
-          title="Configurar campos dos cards"
-          active={open}
-        >
-          <ListChecks className="h-4 w-4" />
-        </IconBtn>
+        menuDriven
+          ? null
+          : (
+            <IconBtn
+              size="sm"
+              aria-label="Configurar campos dos cards"
+              title="Configurar campos dos cards"
+              active={open}
+            >
+              <ListChecks className="h-4 w-4" />
+            </IconBtn>
+          )
       }
       footer={popoverFooter(
         () => {

@@ -67,7 +67,7 @@ import { cn } from "@/lib/utils";
  * @param {boolean} [props.secondaryToolsLocked] oculta busca/alternador/menu (edição ou subfluxo ativo)
  * @param {import('react').ReactNode} [props.cardsToolbar] botões layout/campos dos cards (modo cards)
  * @param {import('react').RefObject<HTMLButtonElement | null>} [props.configureColumnsAnchorRef] âncora do popover de colunas (modo tabela)
- * @param {boolean} [props.showFilterRail] faixa `mg-pills-rail` (chips); false = ferramentas na toolbar (piloto Marcas)
+ * @param {boolean} [props.showFilterRail] faixa `mg-pills-rail` (chips); false no piloto Marcas (limpar filtros só no menu ⚡)
  * @param {boolean} [props.joinTableToolbar] toolbar + grade no mesmo `mg-shell` (Portal de Compras / itpan)
  * @param {boolean} [props.portalComprasSkin] régua visual portal compras (toolbar 25px, fpop/mdl marcados)
  */
@@ -122,8 +122,10 @@ export default function CadastroListaChrome({
   const anySelected = selectedCount > 0;
   const [showChips, setShowChips] = useState(true);
   const [cardsPanel, setCardsPanel] = useState(null);
+  const [cardsMenuAnchorRect, setCardsMenuAnchorRect] = useState(null);
   const [maisOpcoesOpen, setMaisOpcoesOpen] = useState(false);
   const stripRef = useRef(null);
+  const maisOpcoesBtnRef = useRef(null);
   const railEnabled = showFilterRail && !recordMode;
   const skinAtivo = portalComprasSkin && joinTableToolbar;
 
@@ -145,7 +147,7 @@ export default function CadastroListaChrome({
         key: "cfg",
         label: "Configurar colunas",
         icon: <Columns3 className="h-4 w-4" />,
-        disabled: !onConfigureColumns,
+        disabled: !onConfigureColumns || viewMode !== "table",
       },
       {
         key: "cards-layout",
@@ -169,6 +171,11 @@ export default function CadastroListaChrome({
     [onExportCsv, onPrint, onConfigureColumns, cardsToolsInMenu, viewMode, onClearFilters, filtersActive],
   );
 
+  const captureMaisOpcoesAnchor = () => {
+    const el = maisOpcoesBtnRef.current;
+    return el ? el.getBoundingClientRect() : null;
+  };
+
   const onMenu = (k) => {
     if (k === "export") onExportCsv?.();
     if (k === "print") (onPrint ?? (() => window.print()))();
@@ -179,10 +186,12 @@ export default function CadastroListaChrome({
     }
     if (k === "cards-layout") {
       setMaisOpcoesOpen(false);
+      setCardsMenuAnchorRect(captureMaisOpcoesAnchor());
       setCardsPanel("layout");
     }
     if (k === "card-fields") {
       setMaisOpcoesOpen(false);
+      setCardsMenuAnchorRect(captureMaisOpcoesAnchor());
       setCardsPanel("fields");
     }
   };
@@ -194,6 +203,7 @@ export default function CadastroListaChrome({
           onLayoutOpenChange: (o) => setCardsPanel(o ? "layout" : null),
           fieldsOpen: cardsPanel === "fields",
           onFieldsOpenChange: (o) => setCardsPanel(o ? "fields" : null),
+          menuAnchorRect: cardsMenuAnchorRect,
         })
       : null;
 
@@ -201,22 +211,6 @@ export default function CadastroListaChrome({
 
   const recordViewing = recordMode && !recordEditing;
   const showListPrimaryToolbar = !recordMode || recordViewing;
-
-  const listSecondaryTools =
-    showListPrimaryToolbar && !showFilterRail && onClearFilters ? (
-      <div className="mg-toolbar__list-tools flex flex-wrap items-center gap-1.5">
-        <IconBtn
-          size="sm"
-          aria-label="Limpar todos os filtros"
-          title="Limpar todos os filtros"
-          disabled={!filtersActive}
-          className={filtersActive ? "is-filter-active" : undefined}
-          onClick={onClearFilters}
-        >
-          <FilterX className="h-4 w-4" />
-        </IconBtn>
-      </div>
-    ) : null;
 
   const attachTitle =
     attachDisabledReason ?? (oneSelected ? "Anexos" : "Selecione um registro");
@@ -270,7 +264,7 @@ export default function CadastroListaChrome({
               skinAtivo && "b1-portal-compras",
             )}
             trigger={
-              <IconBtn aria-label="Mais opções" title="Mais opções">
+              <IconBtn ref={maisOpcoesBtnRef} aria-label="Mais opções" title="Mais opções">
                 <IconeRaio />
               </IconBtn>
             }
@@ -349,7 +343,6 @@ export default function CadastroListaChrome({
               {selectedCount > 1 ? ` (${selectedCount})` : ""}
             </PillBtn>
           ) : null}
-          {listSecondaryTools}
         </>
       ) : null}
       {rightTools}
@@ -472,9 +465,7 @@ export default function CadastroListaChrome({
         </div>
       </div>
 
-      {cardsToolbarHosted ? (
-        <div className="sr-only" aria-hidden="true">{cardsToolbarHosted}</div>
-      ) : null}
+      {cardsToolbarHosted ?? null}
     </div>
     </PortalComprasSkinProvider>
   );
