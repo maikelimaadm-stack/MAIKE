@@ -64,6 +64,9 @@ model Cliente {
   pontosReferencia   PontoReferencia[]
   linhasGeograficas  LinhaGeografica[]
   lotes              Lote[]
+  categorias         Categoria[]
+  locaisEstoque      LocalEstoque[]
+  produtos           Produto[]
 
   @@index([nome])
   @@index([ativo])
@@ -639,4 +642,95 @@ model Lote {
   @@index([cliente_id, area_atual_id])
   @@index([cliente_id, status])
   @@index([cliente_id, nome])
+}
+
+// ---------------------------------------------------------------------------
+// Categoria — cadastro hierárquico de produtos (P5.2, D-PROD-48).
+// ---------------------------------------------------------------------------
+model Categoria {
+  id                 String   @id @default(cuid())
+  cliente_id         String   @db.VarChar(64)
+  numero_categoria   String   @db.VarChar(32)
+  nome               String   @db.VarChar(255)
+  categoria_pai_id   String?  @db.VarChar(64)
+  categoria_pai_nome String?  @db.VarChar(255)
+  descricao          String?  @db.VarChar(2000)
+  ordem              Int?
+  ativo              Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  cliente Cliente     @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  pai     Categoria?  @relation("CategoriaHierarquia", fields: [cliente_id, categoria_pai_id], references: [cliente_id, id], onDelete: Restrict)
+  filhas  Categoria[] @relation("CategoriaHierarquia")
+
+  @@unique([cliente_id, numero_categoria])
+  @@unique([cliente_id, id])
+  @@index([cliente_id, ativo])
+  @@index([cliente_id, nome])
+  @@index([cliente_id, categoria_pai_id])
+}
+
+// ---------------------------------------------------------------------------
+// LocalEstoque — locais de armazenamento (P5.2, D-PROD-48).
+// ---------------------------------------------------------------------------
+model LocalEstoque {
+  id           String   @id @default(cuid())
+  cliente_id   String   @db.VarChar(64)
+  numero_local String   @db.VarChar(32)
+  nome         String   @db.VarChar(255)
+  descricao    String?  @db.VarChar(2000)
+  capacidade   String?  @db.VarChar(255)
+  ativo        Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  cliente Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+
+  @@unique([cliente_id, numero_local])
+  @@unique([cliente_id, id])
+  @@index([cliente_id, ativo])
+  @@index([cliente_id, nome])
+}
+
+// ---------------------------------------------------------------------------
+// Produto — cadastro de produtos e insumos (P5.2, D-PROD-48).
+// ---------------------------------------------------------------------------
+model Produto {
+  id                        String   @id @default(cuid())
+  cliente_id                String   @db.VarChar(64)
+  empresa_id                String   @db.VarChar(64)
+  numero_produto            String   @db.VarChar(32)
+  nome_produto              String   @db.VarChar(255)
+  tipo_uso                  String?  @db.VarChar(64)
+  codigo_interno            String?  @db.VarChar(64)
+  codigo_barras             String?  @db.VarChar(64)
+  categoria                 String?  @db.VarChar(255)
+  marca                     String?  @db.VarChar(255)
+  descricao                 String?  @db.VarChar(2000)
+  unidade_medida            String?  @db.VarChar(32)
+  preco_custo               Decimal? @db.Decimal(14, 4)
+  preco_venda               Decimal? @db.Decimal(14, 4)
+  estoque_atual             Decimal  @default(0) @db.Decimal(14, 4)
+  estoque_minimo            Decimal  @default(0) @db.Decimal(14, 4)
+  local_estoque             String?  @db.VarChar(255)
+  tipo_consumo              String?  @db.VarChar(32)
+  percentual_consumo_pv     Decimal? @db.Decimal(14, 6)
+  consumo_minimo_pv         Decimal? @db.Decimal(14, 6)
+  consumo_maximo_pv         Decimal? @db.Decimal(14, 6)
+  unidade_principal_estoque String   @default("KG") @db.VarChar(16)
+  peso_por_saco_kg          Decimal? @db.Decimal(14, 4)
+  observacoes               String?  @db.VarChar(2000)
+  ativo                     Boolean  @default(true)
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+
+  cliente Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+
+  @@unique([cliente_id, numero_produto])
+  @@unique([cliente_id, id])
+  @@unique([cliente_id, empresa_id, nome_produto])
+  @@index([cliente_id, empresa_id])
+  @@index([cliente_id, ativo])
+  @@index([cliente_id, nome_produto])
 }

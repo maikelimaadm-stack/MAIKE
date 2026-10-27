@@ -132,6 +132,21 @@ export const BACKEND_ONLY_CODES = Object.freeze({
     meaning: 'já existe tipo de tarefa com este nome no grupo',
   },
   LOTE_NOT_FOUND: { http: 404, meaning: 'id não identifica lote deste tenant' },
+  CATEGORIA_NOT_FOUND: { http: 404, meaning: 'id não identifica categoria deste tenant' },
+  CATEGORIA_PAI_NOT_FOUND: { http: 404, meaning: 'categoria pai não pertence a este tenant' },
+  CATEGORIA_DELETE_BLOCKED: {
+    http: 409,
+    meaning: 'categoria possui subcategorias vinculadas',
+  },
+  LOCAL_ESTOQUE_NOT_FOUND: {
+    http: 404,
+    meaning: 'id não identifica local de estoque deste tenant',
+  },
+  PRODUTO_NOT_FOUND: { http: 404, meaning: 'id não identifica produto deste tenant' },
+  PRODUTO_NAME_CONFLICT: {
+    http: 409,
+    meaning: 'já existe produto com este nome nesta empresa',
+  },
   INTERNAL_ERROR: { http: 500, meaning: 'erro não previsto' },
 });
 

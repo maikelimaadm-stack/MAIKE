@@ -120,11 +120,10 @@ export const normalizarProduto = (formData, { isEditing = false } = {}) => {
   return payload;
 };
 
-/** Cria o produto com empresa e número. */
+/** Cria o produto com empresa; numeração é do backend nativo (P5.2). */
 export const criarProduto = async ({ dados, empresaId, produtos = [] }) => {
   assertNomeLivre({ produtos, nome: dados?.nome_produto, empresaId });
-  const numero = await proximoNumeroDeProduto();
-  return createProduto({ ...dados, empresa_id: empresaId, numero_produto: String(numero) });
+  return createProduto({ ...dados, empresa_id: empresaId });
 };
 
 /** Atualiza o produto e sincroniza as referências denormalizadas. */
@@ -144,20 +143,8 @@ export const numerarProdutosSemNumero = async (produtos) => {
   const semNumero = (Array.isArray(produtos) ? produtos : []).filter(
     (produto) => !produto.numero_produto || produto.numero_produto === ''
   );
-  const numerados = [];
-  const falhas = [];
-
-  for (const produto of semNumero) {
-    try {
-      const numero = await proximoNumeroDeProduto();
-      await updateProduto(produto.id, { numero_produto: String(numero) });
-      numerados.push(produto.id);
-    } catch {
-      falhas.push(produto.id);
-    }
-  }
-
-  return { numerados, falhas };
+  if (semNumero.length === 0) return { numerados: [], falhas: [] };
+  return { numerados: [], falhas: semNumero.map((produto) => produto.id) };
 };
 
 /**

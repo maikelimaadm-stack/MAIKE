@@ -130,3 +130,29 @@ export const tipoTarefaNomeConflito = (message, options) =>
 
 export const loteNotFound = (message, options) =>
   new AppError('LOTE_NOT_FOUND', message || 'lote não encontrado', options);
+
+export const categoriaNotFound = (message, options) =>
+  new AppError('CATEGORIA_NOT_FOUND', message || 'categoria não encontrada', options);
+
+export const categoriaPaiNotFound = (message, options) =>
+  new AppError('CATEGORIA_PAI_NOT_FOUND', message || 'categoria pai não encontrada', options);
+
+export const categoriaDeleteBlocked = (message, options) =>
+  new AppError(
+    'CATEGORIA_DELETE_BLOCKED',
+    message || 'não é possível excluir categoria com subcategorias',
+    options
+  );
+
+export const localEstoqueNotFound = (message, options) =>
+  new AppError('LOCAL_ESTOQUE_NOT_FOUND', message || 'local de estoque não encontrado', options);
+
+export const produtoNotFound = (message, options) =>
+  new AppError('PRODUTO_NOT_FOUND', message || 'produto não encontrado', options);
+
+export const produtoNomeConflito = (message, options) =>
+  new AppError(
+    'PRODUTO_NAME_CONFLICT',
+    message || 'já existe produto com este nome nesta empresa',
+    options
+  );

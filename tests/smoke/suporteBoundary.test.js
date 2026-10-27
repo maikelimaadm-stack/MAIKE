@@ -236,27 +236,30 @@ describe('B17 — registry do provider é literal, exato e igual ao manifesto me
     'GrupoAtividade',
     'TipoTarefa',
     'Lote',
+    'Categoria',
+    'LocalEstoque',
+    'Produto',
   ];
 
   const ESPERADO = [
     'AplicacaoMedicamento', 'Bebedouro', 'BebedouroAlerta', 'BebedouroHistorico',
-    'BebedouroSanidade', 'Categoria', 'CategoriaManejo', 'Empresa',
+    'BebedouroSanidade', 'CategoriaManejo', 'Empresa',
     'EstoqueLoteNota', 'EventoSanitario', 'Fornecedor', 'HistoricoLancamentoTarefa',
     'LancamentoTarefa',
-    'LocalEstoque', 'ManejoTecnicoRebanho', 'MovimentacaoEstoque', 'MovimentacaoMapa',
-    'MovimentacaoPecuaria', 'Permissao', 'PontoSuplementacao', 'Produto',
+    'ManejoTecnicoRebanho', 'MovimentacaoEstoque', 'MovimentacaoMapa',
+    'MovimentacaoPecuaria', 'Permissao', 'PontoSuplementacao',
     'RegistroAnexo', 'SuplementacaoEvento', 'SuplementacaoLote',
     'User',
   ].sort();
 
-  it('são 25 entidades: manifesto (35) menos dez nativas', async () => {
+  it('são 22 entidades: manifesto (35) menos treze nativas', async () => {
     const { getRegisteredEntityNames } = await import('@/apis/_providers/base44Provider');
     const registrados = getRegisteredEntityNames().slice().sort();
     const manifesto = JSON.parse(ler('config/mapa-manejo-scope.json')).allowedBase44Entities.slice().sort();
 
     expect(registrados).toEqual(ESPERADO);
     expect(registrados).toEqual(manifesto.filter((e) => !MIGRADAS_PARA_NATIVO.includes(e)));
-    expect(registrados.length).toBe(25);
+    expect(registrados.length).toBe(22);
     expect(manifesto.length).toBe(35);
   });
 

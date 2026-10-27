@@ -24,6 +24,9 @@ const ORDEM_DE_LIMPEZA = [
   // `areaPastagem` antes de `setor`: a FK composta é Restrict, e apagar setor
   // com área ainda pendurada falha — que é exatamente o que ela existe para
   // fazer (P4.2).
+  'produto',
+  'localEstoque',
+  'categoria',
   'lote',
   'areaPastagem',
   'marca',
@@ -39,6 +42,12 @@ const ORDEM_DE_LIMPEZA = [
 
 export const limparBanco = async () => {
   const prisma = getPrismaClient();
+  for (let pass = 0; pass < 8; pass += 1) {
+    const removidas = await prisma.categoria.deleteMany({
+      where: { categoria_pai_id: { not: null } },
+    });
+    if (removidas.count === 0) break;
+  }
   for (const model of ORDEM_DE_LIMPEZA) {
     await prisma[model].deleteMany({});
   }

@@ -1,7 +1,7 @@
 /** API do módulo Unidades de Medida — nativo desde P4.5 (D-PROD-44). */
 
 import { runProviderCall, assertArgument } from '../_core/normalizeApiError.js';
-import { produtosProvider } from '../_providers/base44Provider.js';
+import { listProdutos } from '@/apis/produtos';
 import { unidadeMedidaPort } from './unidadeMedidaNativePort.js';
 
 const RESOURCE = 'UnidadeMedida';
@@ -35,4 +35,4 @@ export const deleteUnidade = async (id) => {
 
 /** Produtos — leitura usada pela guarda: o Produto referencia a **sigla**. */
 export const listProdutosVinculados = async () =>
-  comoLista(await runProviderCall(() => produtosProvider.list(), ctx('listProdutosVinculados')));
+  comoLista(await runProviderCall(() => listProdutos(), ctx('listProdutosVinculados')));
