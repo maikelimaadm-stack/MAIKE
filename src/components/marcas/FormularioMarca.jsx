@@ -52,22 +52,10 @@ export default function FormularioMarca({
       noValidate
       data-testid="b1-form"
     >
-      {isExistingRecord && initialData?.numero_marca != null ? (
-        <B1Field label="Nº" span={3} hasValue locked disabled>
-          <input
-            type="text"
-            value={String(initialData.numero_marca)}
-            className={B1_FIELD_CTL_CLS}
-            readOnly
-            tabIndex={-1}
-            aria-readonly="true"
-          />
-        </B1Field>
-      ) : null}
       <B1Field
         label="Nome"
         required
-        span={isExistingRecord && initialData?.numero_marca != null ? 9 : 6}
+        span={6}
         hasValue={Boolean(form.nome?.trim())}
         locked={readOnly}
         disabled={readOnly}
