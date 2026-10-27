@@ -1,7 +1,7 @@
 # Cadastros e módulos — status operacional
 
 **Atualizado em:** 2026-10-27  
-**Branch de referência:** `origin/main` (pós-merge PR #71)  
+**Branch de referência:** `origin/main` (pós-merge PR #73)  
 **URL de produção observada:** `https://maike-five.vercel.app`  
 **SSOT de escopo:** `config/mapa-manejo-scope.json` · **Menu:** `src/lib/menuConfig.js` · **Rotas:** `src/pages.config.js` → `/NomeDaPagina`
 
@@ -37,7 +37,7 @@ Este documento responde: *o que abre no menu, de onde vêm os dados (PostgreSQL 
 | **Bebedouros** | `/Bebedouros` | Manejo → Bebedouros | **Base44** (`Bebedouro`, histórico, sanidade) | Base1 grade | **Sim*** | |
 | **Produtos** | `/Produtos` | Suporte do Mapa → Produtos | **Base44** (`Produto`, estoque) | Base1 parcial | **Sim*** | Sem backend Prisma `Produto` (P5+). |
 | **Categorias de Produto** | `/Categorias` | Suporte → Categorias de Produto | **Base44** (`Categoria`) | Base1 parcial | **Sim*** | |
-| **Marcas** | `/Marcas` | Suporte → Marcas | **Base44** (`Marca`) | **Base1 modelo** (`pageLayout="base1-list"`) | **Sim*** | Piloto UX Base1 (D-PROD-41); rollout dos demais pausado até H.5. |
+| **Marcas** | `/Marcas` | Suporte → Marcas | **Nativo** — `GET/POST/PATCH/DELETE /marcas` → Prisma `Marca` (P4.4, D-PROD-43) | **Base1 modelo** (`pageLayout="base1-list"`) | **Sim** | `empresa_id` vem da empresa Base44 selecionada (`localStorage`); CRUD persiste no PostgreSQL. |
 | **Unidades de Medida** | `/UnidadesMedida` | Suporte → Unidades de Medida | **Base44** (`UnidadeMedida`) | Base1 grade | **Sim*** | |
 | **Locais de Estoque** | `/LocaisEstoque` | Suporte → Locais de Estoque | **Base44** (`LocalEstoque`) | Base1 grade | **Sim*** | |
 | **Tipos de Tarefa** | `/TiposTarefa` | Suporte → Tipos de Tarefa | **Base44** (`TipoTarefa`, `GrupoAtividade`) | Base1 parcial | **Sim*** | |
@@ -78,8 +78,9 @@ Rewrites Vercel: `vercel.json` encaminha as rotas acima para `api/fastify.js` (D
 | `/pontos-referencia` | GET, POST, PATCH, DELETE `:id` | PontoReferencia |
 | `/linhas-geograficas` | GET, POST, PATCH `:id` | LinhaGeografica |
 | `/usuarios` | GET, POST, PATCH `:id` | Usuario (sem DELETE) |
+| `/marcas` | GET, POST, PATCH `:id`, DELETE `:id` | Marca (P4.4) |
 
-Não existem rotas nativas para: Produto, Marca, Categoria, Empresa, Lote, Bebedouro, Permissao, etc. (roadmap P5–P6).
+Não existem rotas nativas para: Produto, Categoria, Empresa, Lote, Bebedouro, Permissao, etc. (roadmap P5–P6).
 
 ---
 
@@ -92,7 +93,8 @@ Não existem rotas nativas para: Produto, Marca, Categoria, Empresa, Lote, Bebed
 | Geografia | `mapaGeografia/mapaGeografiaApi.js` | nativo |
 | Usuários admin | `usuarios/usuariosApi.js` | `usuarioNativePort` |
 | Sessão (permissões, `me` legado) | `session/sessionApi.js` | Base44 + patch nome via nativo |
-| Marcas, Produtos, Empresa, estoque, tarefas, … | respectivos `*Api.js` | `base44Provider.js` |
+| Marcas | `marcas/marcasApi.js` | `marcaNativePort` |
+| Produtos, Empresa, estoque, tarefas, … | respectivos `*Api.js` | `base44Provider.js` |
 
 ---
 
@@ -100,7 +102,7 @@ Não existem rotas nativas para: Produto, Marca, Categoria, Empresa, Lote, Bebed
 
 | Missão | Impacto nos cadastros |
 |---|---|
-| **P4** (em execução) | Mapa core nativo — setores, áreas, geografia **feitos** no código; validar deploy/migrations em produção |
+| **P4** (em execução) | Mapa core + **Marcas** nativos (setores, áreas, geografia, marcas); migration `20261027140000_p4_marcas_native` aplicada no Supabase MAIKE pós-PR #73 |
 | **P5** | Manejo core nativo — lotes, bebedouros, categorias manejo (futuro) |
 | **P6** | **P6.0** usuários nativos **entregue** no backend; permissões ainda Base44; demais itens P6 não iniciados |
 | **P7** | Remoção final Base44 |
@@ -114,9 +116,10 @@ Ver `docs/engineering/ROADMAP.md` e `docs/engineering/CURRENT-STATE.md`.
 
 1. Login nativo com usuário bootstrapado no Supabase/PostgreSQL.  
 2. `GET /health` → `banco: up`.  
-3. Monólito: `VITE_MAIKE_API_URL` vazio no build (same-origin).  
-4. `FRONTEND_ORIGINS` inclui a URL exata do frontend.  
-5. Cadastros Base44: empresa selecionada e provider respondendo.  
-6. Mapa: chave Google Maps no build.
+3. `GET /marcas` sem JWT → **401** `TENANT_CONTEXT_REQUIRED` (rota nativa publicada).  
+4. Monólito: `VITE_MAIKE_API_URL` vazio no build (same-origin).  
+5. `FRONTEND_ORIGINS` inclui a URL exata do frontend.  
+6. Cadastros Base44: empresa selecionada e provider respondendo.  
+7. Mapa: chave Google Maps no build.
 
 Detalhes: `docs/engineering/PRODUCAO-GO-LIVE-CHECKLIST.md`.

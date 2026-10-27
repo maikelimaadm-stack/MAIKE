@@ -44,14 +44,16 @@ Migration **não** roda no `server.js` (D-PROD-28). Pre-deploy Railway/Vercel: `
 | 4 | `20260910190000_p4_2_area_pastagem_native` |
 | 5 | `20261023180000_p4_3_map_geography_native` |
 | 6 | `20261023210000_p6_1_login_global_hygiene` |
+| 7 | `20261027140000_p4_marcas_native` |
 
-**Meta:** `SELECT count(*) FROM _prisma_migrations;` → **6**.
+**Meta:** `SELECT count(*) FROM _prisma_migrations;` → **7**.
 
-### Supabase MAIKE (`uuemcasqcdjucflulkne`, sa-east-1) — estado verificado 2026-10-27
+### Supabase MAIKE (`uuemcasqcdjucflulkne`, sa-east-1) — estado verificado 2026-10-27 (pós-PR #73)
 
 | Item | Estado |
 |------|--------|
-| Registros em `_prisma_migrations` | **6/6** (alinhado 2026-10-27 — histórico P4.2/P4.3/P6.1 registrado; DDL já existia desde 2026-10-23) |
+| Registros em `_prisma_migrations` | **7/7** — inclui `20261027140000_p4_marcas_native` (DDL + histórico via Supabase MCP pós-merge) |
+| Tabela `Marca` (P4.4) | **Presente** |
 | Tabelas P4.2/P4.3 | **Existem** (ver `SUPABASE-MAIKE-MIGRATIONS-SYNC-REPORT.md`) |
 | Índice `Usuario_login_ativo_global_key` (P6.1) | **Presente** |
 
