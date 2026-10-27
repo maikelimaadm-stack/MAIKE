@@ -165,6 +165,19 @@
   font-weight: 600 !important;
 }
 
+/* Novo / Salvar (tone green): verde + texto branco — padrão desktop e mobile */
+.cadastro-b1--portal-compras .mg-toolbar--join .tb-btn.tb-btn-green:not(.tb-btn-icon) {
+  background: var(--mg-accent) !important;
+  color: #fff !important;
+  box-shadow: var(--portal-sombra) !important;
+}
+
+.cadastro-b1--portal-compras .mg-toolbar--join .tb-btn.tb-btn-green:not(.tb-btn-icon):hover:not(:disabled) {
+  background: var(--mg-accent-hover) !important;
+  color: #fff !important;
+  box-shadow: var(--portal-sombra-hover) !important;
+}
+
 .cadastro-b1--portal-compras .mg-pill-select,
 .cadastro-b1--portal-compras button.mg-pill-select.cmd-display {
   height: 25px !important;
@@ -184,7 +197,6 @@
   box-shadow: var(--mg-focus-ring) !important;
 }
 
-.cadastro-b1--portal-compras .mg-toolbar--join .tb-btn-green,
 .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn-gray,
 .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn-red {
   background: var(--portal-acao-bg) !important;
@@ -192,7 +204,6 @@
   box-shadow: var(--portal-sombra) !important;
 }
 
-.cadastro-b1--portal-compras .mg-toolbar--join .tb-btn-green:hover:not(:disabled),
 .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn-gray:hover:not(:disabled),
 .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn-red:hover:not(:disabled) {
   background: var(--portal-acao-hover) !important;
@@ -238,6 +249,20 @@
   background: #e8ecef !important;
   color: #0f172a !important;
   box-shadow: 0 3px 9px rgba(34, 197, 94, 0.36) !important;
+}
+
+.b1-portal-compras .tb-btn.tb-btn-green,
+.b1-portal-compras.fpop .tb-btn.tb-btn-green,
+.b1-portal-compras .mdl-f .tb-btn.tb-btn-green {
+  background: var(--mg-accent) !important;
+  color: #fff !important;
+}
+
+.b1-portal-compras .tb-btn.tb-btn-green:hover:not(:disabled),
+.b1-portal-compras.fpop .tb-btn.tb-btn-green:hover:not(:disabled),
+.b1-portal-compras .mdl-f .tb-btn.tb-btn-green:hover:not(:disabled) {
+  background: var(--mg-accent-hover) !important;
+  color: #fff !important;
 }
 
 .b1-portal-compras .tb-btn-icon,
