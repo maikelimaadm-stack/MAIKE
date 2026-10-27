@@ -84,7 +84,7 @@ Rewrites Vercel: `vercel.json` encaminha as rotas acima para `api/fastify.js` (D
 | `/locais-estoque` | GET, POST, PATCH `:id`, DELETE `:id` | LocalEstoque (P5.2) |
 | `/produtos` | GET, POST, PATCH `:id`, DELETE `:id` | Produto (P5.2) |
 
-Não existem rotas nativas para: Empresa, Bebedouro, Permissao, `LancamentoTarefa`, etc. (roadmap P5–P6).
+**LancamentoTarefa** e **HistoricoLancamentoTarefa** são nativos (P5.3, `/lancamentos-tarefa`). Ainda Base44: Empresa, Bebedouro, Permissao, movimentações, suplementação (roadmap P5–P6).
 
 ---
 
@@ -98,7 +98,10 @@ Não existem rotas nativas para: Empresa, Bebedouro, Permissao, `LancamentoTaref
 | Usuários admin | `usuarios/usuariosApi.js` | `usuarioNativePort` |
 | Sessão (permissões, `me` legado) | `session/sessionApi.js` | Base44 + patch nome via nativo |
 | Marcas | `marcas/marcasApi.js` | `marcaNativePort` |
-| Produtos, Empresa, estoque, tarefas, … | respectivos `*Api.js` | `base44Provider.js` |
+| Categorias produto | `categorias/categoriasApi.js` | `categoriaNativePort` |
+| Locais estoque | `locais-estoque/locaisEstoqueApi.js` | `localEstoqueNativePort` |
+| Produtos | `produtos/produtosApi.js` | `produtoNativePort` |
+| Empresa, estoque (mov.), tarefas, … | respectivos `*Api.js` | `base44Provider.js` |
 
 ---
 

@@ -34,6 +34,7 @@ import {
   logoutNativo,
 } from '@/apis/session';
 import { ApiError, API_ERROR_CODES } from '@/apis/_core/ApiError';
+import { normalizePermissionRecord } from '@/lib/permissions';
 
 const OFFLINE_USER_KEY = 'offline_current_user';
 
@@ -179,6 +180,25 @@ export const sairDaSessaoNativa = () => {
 /** Permissão do usuário informado, ou `null`. */
 export const permissaoDoUsuario = (permissoes, email) =>
   (Array.isArray(permissoes) ? permissoes : []).find((item) => item.user_email === email) || null;
+
+/**
+ * Permissão mínima quando a Base44 não responde — evita menu/telas em branco
+ * para operadores autenticados nativamente (P5.3, D-PROD-49).
+ *
+ * @param {{ email?: string, login?: string, nome?: string } | null | undefined} usuario
+ */
+export const permissaoMinimaNativa = (usuario) => {
+  const email = usuario?.email || usuario?.login;
+  if (!email) return null;
+  return normalizePermissionRecord({
+    user_email: email,
+    user_nome: usuario?.nome || email,
+    is_admin: true,
+    modulos_permitidos: [],
+    permissoes_telas: [],
+    mobile_menu_ids: [],
+  });
+};
 
 /**
  * O usuário é administrador?

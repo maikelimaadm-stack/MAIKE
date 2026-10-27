@@ -33,6 +33,10 @@
     { "source": "/locais-estoque", "destination": "/api/fastify" },
     { "source": "/locais-estoque/:path*", "destination": "/api/fastify" },
     { "source": "/produtos", "destination": "/api/fastify" },
-    { "source": "/produtos/:path*", "destination": "/api/fastify" }
+    { "source": "/produtos/:path*", "destination": "/api/fastify" },
+    { "source": "/lancamentos-tarefa", "destination": "/api/fastify" },
+    { "source": "/lancamentos-tarefa/:path*", "destination": "/api/fastify" },
+    { "source": "/historicos-lancamento-tarefa", "destination": "/api/fastify" },
+    { "source": "/historicos-lancamento-tarefa/:path*", "destination": "/api/fastify" }
   ]
 }

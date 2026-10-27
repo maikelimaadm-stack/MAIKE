@@ -2180,4 +2180,21 @@ exigir token Base44 para CRUD; suplementação e lançamentos ainda consomem
 
 ---
 
-<!-- Próxima decisão: D-PROD-49 -->
+## D-PROD-49 — LancamentoTarefa e histórico nativos (P5.3)
+
+**Decisão:** `LancamentoTarefa` e `HistoricoLancamentoTarefa` persistem no
+PostgreSQL tenant-scoped. CRUD em `/lancamentos-tarefa` e
+`/historicos-lancamento-tarefa`. Caches (`tipo_tarefa_nome`, `grupo_atividade_nome`,
+`area_nome`, `lote_nome`, `setor_nome` quando derivável da área) são escritos
+pelo servidor, não pelo cliente. Renomear setor, grupo ou tipo propaga nos
+lançamentos na mesma transação — reduz dependência de `syncEntityReferences` para
+esses campos.
+
+**Consequência:** painel de tarefas do mapa e cadastros de tarefa deixam de
+exigir Base44 para lançamentos/histórico. Permissões de menu ainda vêm da Base44
+com fallback admin mínimo nativo quando a lista falha. Próximo foco de saída:
+`Empresa`, movimentações e suplementação.
+
+---
+
+<!-- Próxima decisão: D-PROD-50 -->

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { listEmpresas } from "@/services/empresaService";
-import { getCurrentUser, getCachedUser, listarPermissoes, permissaoDoUsuario } from "@/services/sessionService";
+import { getCurrentUser, getCachedUser, listarPermissoes, permissaoDoUsuario, permissaoMinimaNativa } from "@/services/sessionService";
 import { useAuth } from "@/lib/AuthContext";
 import {
   Users, LogOut, Package, Shield, FolderOpen, Map, ChevronDown, Menu, Search, X, EyeOff, Eye } from
@@ -150,10 +150,13 @@ export default function Layout({ children, currentPageName }) {
         // Carregar permissões do usuário
         try {
           const allPermissoes = await listarPermissoes();
-          setUserPermissions(permissaoDoUsuario(allPermissoes, currentUser?.email));
+          const permissao =
+            permissaoDoUsuario(allPermissoes, currentUser?.email) ||
+            permissaoMinimaNativa(currentUser);
+          setUserPermissions(permissao);
         } catch (error) {
           console.error("Erro ao carregar permissões:", error);
-          setUserPermissions(null);
+          setUserPermissions(permissaoMinimaNativa(currentUser));
         }
       } catch (error) {
         console.error("Erro ao carregar usuário:", error);

@@ -38,7 +38,6 @@ import {
  * fala com a rede e ponto.
  */
 const OFFLINE_ENTITIES = new Set([
-  'LancamentoTarefa', 'HistoricoLancamentoTarefa',
   'PontoSuplementacao',
   'SuplementacaoEvento', 'SuplementacaoLote', 'EstoqueLoteNota', 'MovimentacaoMapa',
   'MovimentacaoEstoque', 'Fornecedor', 'Permissao',
@@ -121,11 +120,9 @@ const ENTITY_REGISTRY = Object.freeze({
   MovimentacaoEstoque: comFronteira('MovimentacaoEstoque', base44.entities.MovimentacaoEstoque),
 
   // Tarefas georreferenciadas (P1.2)
-  LancamentoTarefa: comFronteira('LancamentoTarefa', base44.entities.LancamentoTarefa),
-  HistoricoLancamentoTarefa: comFronteira('HistoricoLancamentoTarefa', base44.entities.HistoricoLancamentoTarefa),
-  // TipoTarefa e GrupoAtividade migraram na P5.0 (D-PROD-45): portas em
-  // src/apis/tarefas/grupoAtividadeNativePort.js e tipoTarefaNativePort.js.
-  // Permanecem no manifesto por syncEntityReferences e LancamentoTarefa na Base44.
+  // LancamentoTarefa e HistoricoLancamentoTarefa migraram na P5.3 (D-PROD-49):
+  // portas em lancamentoTarefaNativePort.js e historicoLancamentoTarefaNativePort.js.
+  // TipoTarefa e GrupoAtividade migraram na P5.0 (D-PROD-45).
 
   // Sessão e permissão consumidas pelo mapa (P1.2)
   Permissao: comFronteira('Permissao', base44.entities.Permissao),
@@ -261,20 +258,6 @@ export const estoqueProvider = Object.freeze({
   deleteMovimentacao: (id) => endpointOf('MovimentacaoEstoque').delete(id),
   createLoteNota: (dados) => endpointOf('EstoqueLoteNota').create(dados),
   deleteLoteNota: (id) => endpointOf('EstoqueLoteNota').delete(id),
-});
-
-// ── Tarefas georreferenciadas (P1.2) ──────────────────────────────────────
-
-export const tarefasProvider = Object.freeze({
-  listLancamentos: (ordenacao) => endpointOf('LancamentoTarefa').list(ordenacao),
-  createLancamento: (dados) => endpointOf('LancamentoTarefa').create(dados),
-  updateLancamento: (id, dados) => endpointOf('LancamentoTarefa').update(id, dados),
-  deleteLancamento: (id) => endpointOf('LancamentoTarefa').delete(id),
-
-  listHistorico: (ordenacao, limite) => endpointOf('HistoricoLancamentoTarefa').list(ordenacao, limite),
-  createHistorico: (dados) => endpointOf('HistoricoLancamentoTarefa').create(dados),
-  deleteHistorico: (id) => endpointOf('HistoricoLancamentoTarefa').delete(id),
-
 });
 
 // ── Sessão e permissão (P1.2) ─────────────────────────────────────────────

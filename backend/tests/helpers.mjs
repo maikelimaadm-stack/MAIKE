@@ -27,6 +27,8 @@ const ORDEM_DE_LIMPEZA = [
   'produto',
   'localEstoque',
   'categoria',
+  'historicoLancamentoTarefa',
+  'lancamentoTarefa',
   'lote',
   'areaPastagem',
   'marca',

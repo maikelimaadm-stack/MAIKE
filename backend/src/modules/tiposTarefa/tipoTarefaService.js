@@ -10,6 +10,7 @@ import {
   tipoTarefaNotFound,
   tipoTarefaNomeConflito,
   grupoAtividadeNotFound,
+  grupoAtividadeDeleteBlocked,
 } from '../../shared/errors/AppError.js';
 import {
   listarTipos,
@@ -19,6 +20,10 @@ import {
   atualizarTipoPorId,
   excluirTipoPorId,
 } from './tipoTarefaRepository.js';
+import {
+  contarPorTipoTarefa,
+  propagarNomeTipoTarefa,
+} from '../lancamentosTarefa/lancamentoTarefaRepository.js';
 
 const textoOuNulo = (valor) => {
   if (typeof valor !== 'string') return valor === undefined ? undefined : null;
@@ -167,6 +172,10 @@ export const atualizar = async (contexto, id, entrada) => {
       ? await atualizarTipoPorId(tx, auth.clienteId, id, campos)
       : anterior;
 
+    if (campos.nome_tipo && campos.nome_tipo !== anterior.nome_tipo) {
+      await propagarNomeTipoTarefa(tx, auth.clienteId, id, String(registro.nome_tipo));
+    }
+
     const publico = comoTipoPublico(registro);
 
     await registrarEvento(
@@ -193,6 +202,11 @@ export const excluir = async (contexto, id) => {
   await prisma.$transaction(async (tx) => {
     const anterior = await buscarTipo(auth.clienteId, id, tx);
     if (!anterior) throw tipoTarefaNotFound();
+
+    const lancamentos = await contarPorTipoTarefa(tx, auth.clienteId, id);
+    if (lancamentos > 0) {
+      throw grupoAtividadeDeleteBlocked('não é possível excluir tipo com lançamentos de tarefa vinculados');
+    }
 
     await excluirTipoPorId(tx, auth.clienteId, id);
 
