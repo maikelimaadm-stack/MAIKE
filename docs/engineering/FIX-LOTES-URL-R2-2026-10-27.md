@@ -2,6 +2,7 @@
 
 **Data:** 2026-10-27  
 **Branch:** `cursor/lotes-url-direta-r2-516d`  
+**SHA corrigido (agente):** `bc29e226`  
 **Base:** `main` @ `4a75bc96` (PR #95 — menu freeze estrutural)
 
 ## Sintomas
