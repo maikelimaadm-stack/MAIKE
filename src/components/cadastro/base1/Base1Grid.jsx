@@ -9,12 +9,17 @@ import {
   PanelLeft,
   EyeOff,
 } from "lucide-react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { cn } from "@/lib/utils";
 import { MIN_COL_WIDTH } from "@/lib/cadastroBase1ColumnPrefs";
 import { fonteDaCelula, medirLarguraColuna } from "@/lib/larguraColuna";
 import { B1Popover, MenuList, MgCheck } from "./Base1Ui";
 import { selectClickOf } from "./selectClick";
 import { usePortalComprasSkin } from "./portalComprasSkinContext";
+
+const ROW_ESTIMATE_PX = 32;
+/** Abaixo disso o custo do virtualizer não compensa. */
+const VIRTUALIZE_FROM = 80;
 
 export const SELECT_COLUMN_WIDTH = 36;
 
@@ -232,8 +237,77 @@ export default function Base1Grid({
 
   const abrirFiltroDireto = referenceHeaders && onFilter && !referenceExtendedColumnMenu;
 
+  const scrollRef = React.useRef(/** @type {HTMLDivElement|null} */ (null));
+  const virtualizar = !loading && rows.length >= VIRTUALIZE_FROM;
+  const rowVirtualizer = useVirtualizer({
+    count: virtualizar ? rows.length : 0,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => ROW_ESTIMATE_PX,
+    overscan: 16,
+  });
+  const virtualRows = virtualizar ? rowVirtualizer.getVirtualItems() : null;
+  const padTop = virtualRows?.length ? virtualRows[0].start : 0;
+  const padBottom = virtualRows?.length
+    ? rowVirtualizer.getTotalSize() - virtualRows[virtualRows.length - 1].end
+    : 0;
+
+  const renderRow = (r, ri) => {
+    const id = key(r);
+    const on = selected.has(id);
+    return (
+      <tr
+        key={id}
+        ref={(el) => {
+          trs.current[id] = el;
+        }}
+        data-testid="b1-row"
+        aria-selected={on}
+        className={cn(on && "selected", ri % 2 === 1 ? "odd" : "even")}
+        onClick={(e) => onSelectClick(id, selectClickOf(e))}
+        onDoubleClick={() => onOpen?.(r)}
+      >
+        {colunaSelecao ? (
+          <td
+            className={cn("td-select", selectCongelado && "sticky left-0 z-[2]")}
+            style={selectCongelado ? { background: stickyBg(on, ri) } : undefined}
+            onClick={(e) => e.stopPropagation()}
+            onDoubleClick={(e) => e.stopPropagation()}
+          >
+            <MgCheck aria-label="Selecionar linha" checked={on} onChange={() => onToggle(id)} />
+          </td>
+        ) : null}
+        {columns.map((c, i) => {
+          const isFrozen = i < frozenCount;
+          const t = cellText(c, r);
+          return (
+            <td
+              key={c.key}
+              title={t}
+              style={{
+                ...(c.width ? { width: c.width, minWidth: c.width, maxWidth: c.width } : {}),
+                ...(isFrozen
+                  ? { left: lefts[c.key] ?? leftBase, zIndex: 2, background: stickyBg(on, ri) }
+                  : {}),
+              }}
+              className={cn(
+                onOpen && "cursor-pointer",
+                isFrozen && "is-frozen",
+                i === frozenCount - 1 && frozenCount > 0 && "is-frozen-anchor",
+                c.align === "right" && "!text-right tabular-nums",
+                c.align === "center" && "text-center",
+              )}
+            >
+              {c.render ? c.render(r) : t || <span className="text-[var(--mg-text-3)]">–</span>}
+            </td>
+          );
+        })}
+      </tr>
+    );
+  };
+
   return (
     <div
+      ref={scrollRef}
       className="mg-grid-wrap"
       onSelectStart={(e) => e.preventDefault()}
       onMouseDown={() => {
@@ -446,59 +520,23 @@ export default function Base1Grid({
               </td>
             </tr>
           ) : null}
-          {rows.map((r, ri) => {
-            const id = key(r);
-            const on = selected.has(id);
-            return (
-              <tr
-                key={id}
-                ref={(el) => {
-                  trs.current[id] = el;
-                }}
-                data-testid="b1-row"
-                aria-selected={on}
-                className={cn(on && "selected", ri % 2 === 1 ? "odd" : "even")}
-                onClick={(e) => onSelectClick(id, selectClickOf(e))}
-                onDoubleClick={() => onOpen?.(r)}
-              >
-                {colunaSelecao ? (
-                  <td
-                    className={cn("td-select", selectCongelado && "sticky left-0 z-[2]")}
-                    style={selectCongelado ? { background: stickyBg(on, ri) } : undefined}
-                    onClick={(e) => e.stopPropagation()}
-                    onDoubleClick={(e) => e.stopPropagation()}
-                  >
-                    <MgCheck aria-label="Selecionar linha" checked={on} onChange={() => onToggle(id)} />
-                  </td>
+          {virtualRows
+            ? (
+              <>
+                {padTop > 0 ? (
+                  <tr aria-hidden className="mg-grid-virt-spacer">
+                    <td colSpan={Math.max(1, colSpanVazio)} style={{ height: padTop, padding: 0, border: 0 }} />
+                  </tr>
                 ) : null}
-                {columns.map((c, i) => {
-                  const isFrozen = i < frozenCount;
-                  const t = cellText(c, r);
-                  return (
-                    <td
-                      key={c.key}
-                      title={t}
-                      style={{
-                        ...(c.width ? { width: c.width, minWidth: c.width, maxWidth: c.width } : {}),
-                        ...(isFrozen
-                          ? { left: lefts[c.key] ?? leftBase, zIndex: 2, background: stickyBg(on, ri) }
-                          : {}),
-                      }}
-                      className={cn(
-                        onOpen && "cursor-pointer",
-                        isFrozen && "is-frozen",
-                        i === frozenCount - 1 && frozenCount > 0 && "is-frozen-anchor",
-                        c.align === "right" && "!text-right tabular-nums",
-                        c.align === "center" && "text-center",
-                      )}
-                    >
-                      {c.render ? c.render(r) : t || <span className="text-[var(--mg-text-3)]">–</span>}
-                    </td>
-                  );
-                })}
-              </tr>
-            );
-          })}
+                {virtualRows.map((vr) => renderRow(rows[vr.index], vr.index))}
+                {padBottom > 0 ? (
+                  <tr aria-hidden className="mg-grid-virt-spacer">
+                    <td colSpan={Math.max(1, colSpanVazio)} style={{ height: padBottom, padding: 0, border: 0 }} />
+                  </tr>
+                ) : null}
+              </>
+            )
+            : rows.map((r, ri) => renderRow(r, ri))}
         </tbody>
         {footer ? <tfoot className="mg-grid-foot">{footer}</tfoot> : null}
       </table>

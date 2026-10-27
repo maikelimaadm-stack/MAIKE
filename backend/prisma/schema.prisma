@@ -333,6 +333,9 @@ model Marca {
   @@index([cliente_id, empresa_id])
   @@index([cliente_id, ativo])
   @@index([cliente_id, nome])
+  // Keyset listagem (createdAt DESC, id DESC) por tenant/empresa — D-PROD-54
+  @@index([cliente_id, empresa_id, createdAt, id])
+  @@index([cliente_id, createdAt, id])
 }
 
 // ---------------------------------------------------------------------------

@@ -1,11 +1,12 @@
 /**
- * Repositório de Marca (P4.4-Marcas, D-PROD-42).
+ * Repositório de Marca (P4.4-Marcas, D-PROD-42 + D-PROD-54 escala).
  *
  * Nenhuma consulta sem `cliente_id`. Leituras e escritas usam o unique composto
- * `[cliente_id, id]`.
+ * `[cliente_id, id]`. Listagem usa keyset (createdAt, id) — sem OFFSET.
  */
 
 import { getPrismaClient } from '../../database/prismaClient.js';
+import { clausulaKeysetDesc } from '../../shared/pagination/keysetCursor.js';
 
 const SELECAO = Object.freeze({
   id: true,
@@ -19,6 +20,81 @@ const SELECAO = Object.freeze({
   updatedAt: true,
 });
 
+/**
+ * @param {string} clienteId
+ * @param {{
+ *   empresaId?: string|null,
+ *   q?: string|null,
+ *   ativo?: boolean|null,
+ *   cursor?: { createdAt: Date, id: string }|null,
+ *   limit: number,
+ * }} filtro
+ */
+export const montarWhereMarcas = (clienteId, filtro) => {
+  /** @type {import('@prisma/client').Prisma.MarcaWhereInput} */
+  const where = { cliente_id: clienteId };
+  if (filtro.empresaId) where.empresa_id = filtro.empresaId;
+  if (filtro.ativo === true || filtro.ativo === false) where.ativo = filtro.ativo;
+  const q = typeof filtro.q === 'string' ? filtro.q.trim() : '';
+  if (q) {
+    where.AND = [
+      ...(Array.isArray(where.AND) ? where.AND : []),
+      {
+        OR: [
+          { nome: { contains: q, mode: 'insensitive' } },
+          { descricao: { contains: q, mode: 'insensitive' } },
+          { numero_marca: { contains: q, mode: 'insensitive' } },
+        ],
+      },
+    ];
+  }
+  if (filtro.cursor) {
+    where.AND = [...(Array.isArray(where.AND) ? where.AND : []), clausulaKeysetDesc(filtro.cursor)];
+  }
+  return where;
+};
+
+/**
+ * Página keyset (+1 para detectar has_more).
+ * @param {string} clienteId
+ * @param {{
+ *   empresaId?: string|null,
+ *   q?: string|null,
+ *   ativo?: boolean|null,
+ *   cursor?: { createdAt: Date, id: string }|null,
+ *   limit: number,
+ * }} filtro
+ */
+export const listarMarcasPagina = async (clienteId, filtro) => {
+  const prisma = getPrismaClient();
+  return prisma.marca.findMany({
+    where: montarWhereMarcas(clienteId, filtro),
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    take: filtro.limit + 1,
+    select: SELECAO,
+  });
+};
+
+/**
+ * Contagem do conjunto filtrado (sem cursor) — total do rodapé.
+ * Em bilhões pode ficar cara; índices tenant+empresa mitigam o caso típico.
+ * @param {string} clienteId
+ * @param {{ empresaId?: string|null, q?: string|null, ativo?: boolean|null }} filtro
+ */
+export const contarMarcas = async (clienteId, filtro) => {
+  const prisma = getPrismaClient();
+  return prisma.marca.count({
+    where: montarWhereMarcas(clienteId, {
+      empresaId: filtro.empresaId,
+      q: filtro.q,
+      ativo: filtro.ativo,
+      cursor: null,
+      limit: 1,
+    }),
+  });
+};
+
+/** @deprecated Preferir listarMarcasPagina — mantido só se algum caller interno precisar. */
 /** @param {string} clienteId */
 export const listarMarcas = async (clienteId) => {
   const prisma = getPrismaClient();

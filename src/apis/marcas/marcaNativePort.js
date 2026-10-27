@@ -39,8 +39,47 @@ export const corpoDeEnvio = (dados, permitidos) => {
   return corpo;
 };
 
+/**
+ * Querystring da listagem paginada (tenant só no JWT — nunca `cliente_id` aqui).
+ * @param {Record<string, unknown>} [filtros]
+ */
+export const montarCaminhoListagem = (filtros = {}) => {
+  const params = new URLSearchParams();
+  if (filtros.limit != null) params.set('limit', String(filtros.limit));
+  if (typeof filtros.cursor === 'string' && filtros.cursor) params.set('cursor', filtros.cursor);
+  if (typeof filtros.empresa_id === 'string' && filtros.empresa_id.trim()) {
+    params.set('empresa_id', filtros.empresa_id.trim());
+  }
+  if (typeof filtros.q === 'string' && filtros.q.trim()) params.set('q', filtros.q.trim());
+  if (filtros.ativo === true || filtros.ativo === false) params.set('ativo', String(filtros.ativo));
+  const qs = params.toString();
+  return qs ? `${CAMINHO}?${qs}` : CAMINHO;
+};
+
 export const operacoesNativas = Object.freeze({
-  list: () => nativeRequest(CAMINHO, { autenticado: true }, ctx('listMarcas')),
+  /**
+   * Compat offline/adapter: devolve **array** (unwrap de `items`).
+   * Cap 500 — não é listagem de escala; a tela Marcas usa `listPage`.
+   */
+  list: async () => {
+    const page = await nativeRequest(
+      montarCaminhoListagem({ limit: 500 }),
+      { autenticado: true },
+      ctx('listMarcas'),
+    );
+    if (Array.isArray(page)) return page;
+    if (page && typeof page === 'object' && Array.isArray(/** @type {{items?: unknown}} */ (page).items)) {
+      return /** @type {{items: object[]}} */ (page).items;
+    }
+    return [];
+  },
+
+  /**
+   * Página keyset — resposta `{ items, next_cursor, has_more, total, limit }`.
+   * @param {Record<string, unknown>} [filtros]
+   */
+  listPage: (filtros = {}) =>
+    nativeRequest(montarCaminhoListagem(filtros), { autenticado: true }, ctx('listMarcasPage')),
 
   create: (dados) =>
     nativeRequest(
