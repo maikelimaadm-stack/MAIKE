@@ -15,7 +15,10 @@ export function useCadastroListaFooter(storageKey, resetToken) {
   const [metrics, setMetrics] = useState({ filtrados: 0, totais: 0 });
 
   const onListMetrics = useCallback(({ filtrados, totais }) => {
-    setMetrics({ filtrados, totais });
+    setMetrics((prev) => {
+      if (prev.filtrados === filtrados && prev.totais === totais) return prev;
+      return { filtrados, totais };
+    });
   }, []);
 
   const listados = Math.min(displayLimit, metrics.filtrados);
