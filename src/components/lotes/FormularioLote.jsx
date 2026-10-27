@@ -46,19 +46,12 @@ const UPPERCASE_FIELDS = [
 "motivo_outros",
 "observacoes"];
 
+/** Mínimo para entrada em área — alinhado a POST /lotes (P5.1) + vínculo de área. */
 const REQUIRED_FIELDS = [
 "nome",
 "quantidade_cabecas",
-"data_entrada",
-"categoria_manejo_id",
-"categoria",
-"sexo",
-"raca_predominante",
-"peso_medio_kg",
-"idade_media_meses",
-"setor_id",
 "area_entrada_id",
-"sistema_produtivo"];
+"motivo_entrada"];
 
 const CORES_DISPONIVEIS = [
 { nome: "Branco", cor: "#f8f9fa" },
@@ -280,26 +273,9 @@ export default function FormularioLote({
       }
     });
 
-    if (isEmptyValue(formData?.motivo_entrada)) {
-      nextErrors.motivo_entrada = true;
-    }
-
-    if (isMotivoEntrada("COMPRA")) {
-      [
-      "fornecedor_id",
-      "cidade_origem",
-      "estado_origem",
-      "nota_fiscal",
-      "chave_nfe",
-      "numero_gta",
-      "valor_total_compra",
-      "valor_por_cabeca",
-      "valor_frete"].
-      forEach((field) => {
-        if (isEmptyValue(formData?.[field])) {
-          nextErrors[field] = true;
-        }
-      });
+    const qtd = parseInt(String(formData?.quantidade_cabecas ?? "").trim(), 10);
+    if (!Number.isFinite(qtd) || qtd <= 0) {
+      nextErrors.quantidade_cabecas = true;
     }
 
     if (isMotivoEntrada("AJUSTE") && isEmptyValue(formData?.motivo_ajuste)) {

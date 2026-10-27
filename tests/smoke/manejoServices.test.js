@@ -412,11 +412,15 @@ describe('CM — categorias de manejo', () => {
     expect(categoriasManejo.updateCategoriaManejo).toHaveBeenCalledWith('c1', esperado);
   });
 
-  it('CM3c — vírgula decimal continua truncando, como antes (DBT-25)', () => {
+  it('CM3c — vírgula decimal pt-BR vira ponto (180,5 → 180.5; 0,0 → 0)', () => {
     const p = categoriaManejoSvc.normalizarCategoriaManejo(
       { ...FORM, ganho_peso_anual_kg: '180,5' }, { empresaId: EMPRESA }
     );
-    expect(p.ganho_peso_anual_kg).toBe(180);
+    expect(p.ganho_peso_anual_kg).toBe(180.5);
+    const zero = categoriaManejoSvc.normalizarCategoriaManejo(
+      { ...FORM, gmd_janeiro: '0,0' }, { empresaId: EMPRESA }
+    );
+    expect(zero.gmd_janeiro).toBe(0);
   });
 
   it('CM6/CM7 — exclui sem vínculo; bloqueia por código com lote vinculado', async () => {

@@ -6,6 +6,7 @@ import { readFileSync } from 'node:fs';
 import {
   comPrefixoApiNativa,
   semPrefixoApiNativa,
+  reescreverUrlApiNativa,
   NATIVE_API_PATH_PREFIX,
 } from '../../config/nativeApiPath.js';
 
@@ -20,6 +21,17 @@ describe('nativeApiPath — SSOT', () => {
   it('semPrefixoApiNativa preserva paths legados', () => {
     expect(semPrefixoApiNativa(`${NATIVE_API_PATH_PREFIX}/produtos`)).toBe('/produtos');
     expect(semPrefixoApiNativa('/health')).toBe('/health');
+    expect(semPrefixoApiNativa(`${NATIVE_API_PATH_PREFIX}`)).toBe('/');
+  });
+
+  it('semPrefixoApiNativa não confunde prefixo com /api/nativefake', () => {
+    expect(semPrefixoApiNativa('/api/nativefake/produtos')).toBe('/api/nativefake/produtos');
+  });
+
+  it('reescreverUrlApiNativa é idempotente e preserva query', () => {
+    const url = `${NATIVE_API_PATH_PREFIX}/health?x=1`;
+    expect(reescreverUrlApiNativa(url)).toBe('/health?x=1');
+    expect(reescreverUrlApiNativa('/health?x=1')).toBe('/health?x=1');
   });
 
   it('nativeHttpClient monta URL com prefixo', () => {
@@ -29,6 +41,6 @@ describe('nativeApiPath — SSOT', () => {
 
   it('adaptador Vercel remove prefixo antes do Fastify', () => {
     const fonte = readFileSync('api/fastify.js', 'utf8');
-    expect(fonte).toContain('semPrefixoApiNativa');
+    expect(fonte).toContain('reescreverUrlApiNativa');
   });
 });

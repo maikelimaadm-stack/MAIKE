@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { projetarPayloadEmpresa } from "@/services/empresaWritePayload";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -54,6 +55,28 @@ export default function FormularioEmpresa({
 
   const [uploadingLogo, setUploadingLogo] = useState(false);
 
+  useEffect(() => {
+    if (!initialData) return;
+    setFormData((prev) => ({
+      ...prev,
+      apelido: initialData.apelido ?? "",
+      nome: initialData.nome ?? "",
+      tipo_pessoa: initialData.tipo_pessoa ?? "Jurídica",
+      cpf: initialData.cpf ?? "",
+      rg: initialData.rg ?? "",
+      cnpj: initialData.cnpj ?? "",
+      inscricao_estadual: initialData.inscricao_estadual ?? "",
+      telefone: initialData.telefone ?? "",
+      email: initialData.email ?? "",
+      endereco: initialData.endereco ?? "",
+      cidade: initialData.cidade ?? "",
+      estado: initialData.estado ?? "MT",
+      cep: initialData.cep ?? "",
+      observacoes: initialData.observacoes ?? "",
+      logotipo_url: initialData.logotipo_url ?? "",
+    }));
+  }, [initialData?.id]);
+
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
@@ -92,7 +115,7 @@ export default function FormularioEmpresa({
       return;
     }
 
-    const dataToSubmit = {
+    const dataToSubmit = projetarPayloadEmpresa({
       ...formData,
       apelido: formData.apelido.toUpperCase(),
       nome: formData.nome.toUpperCase(),
@@ -107,7 +130,7 @@ export default function FormularioEmpresa({
       estado: formData.estado?.toUpperCase(),
       cep: formData.cep?.toUpperCase(),
       observacoes: formData.observacoes?.toUpperCase(),
-    };
+    });
 
     onSubmit(dataToSubmit);
   };
