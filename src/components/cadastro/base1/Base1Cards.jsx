@@ -1,8 +1,12 @@
 import React, { useEffect, useRef } from "react";
 import { Check, LayoutGrid, ListChecks } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { B1Popover, CheckRow, IconBtn, PillBtn, RadioRow } from "./Base1Ui";
+import { IconBtn } from "./Base1Ui";
 import { selectClickOf } from "./selectClick";
+import {
+  ConfiguracaoCamposCardsB1Dialog,
+  ConfiguracaoLayoutCardsB1Dialog,
+} from "./ConfiguracaoCardsB1Dialogs";
 
 const initials = (s) =>
   String(s || "")
@@ -17,17 +21,6 @@ const gridCls = {
   3: "md:grid-cols-2 xl:grid-cols-3",
   4: "md:grid-cols-2 xl:grid-cols-4",
 };
-
-const popoverFooter = (onRestore, onOk) => (
-  <>
-    <PillBtn tone="gray" className="flex-1 justify-center" onClick={onRestore}>
-      Restaurar
-    </PillBtn>
-    <PillBtn className="flex-1 justify-center" onClick={onOk}>
-      OK
-    </PillBtn>
-  </>
-);
 
 /**
  * @param {object} props
@@ -170,15 +163,8 @@ export function Base1Cards({
   );
 }
 
-const PER_ROW = [
-  { n: 1, hint: "Até 5 campos por linha no card" },
-  { n: 2, hint: "Até 2 campos por linha no card" },
-  { n: 3, hint: "1 campo por linha no card" },
-  { n: 4, hint: "1 campo por linha no card" },
-];
-
 /**
- * Popovers de layout/campos dos cards (menu Mais opções / faixa Base1).
+ * Diálogos de layout/campos dos cards (menu Mais opções / faixa Base1).
  *
  * @param {object} props
  * @param {Array<{ id: string; label: string }>} props.columns
@@ -187,7 +173,7 @@ const PER_ROW = [
  * @param {(open: boolean) => void} [props.onLayoutOpenChange]
  * @param {boolean} [props.fieldsOpen]
  * @param {(open: boolean) => void} [props.onFieldsOpenChange]
- * @param {DOMRect | null} [props.menuAnchorRect] âncora do menu Mais opções (sem botões na toolbar)
+ * @param {boolean} [props.showToolbarTriggers] botões na faixa (fora do menu ⚡)
  */
 export function Base1CardsToolbar({
   columns,
@@ -196,159 +182,58 @@ export function Base1CardsToolbar({
   onLayoutOpenChange,
   fieldsOpen,
   onFieldsOpenChange,
-  menuAnchorRect = null,
+  showToolbarTriggers = false,
 }) {
   const { cardsPerRow, setCardsPerRow, cardFields, setCardFields, restoreLayout, restoreFields } =
     cardsPrefs;
 
+  const [layoutInternal, setLayoutInternal] = React.useState(false);
+  const [fieldsInternal, setFieldsInternal] = React.useState(false);
+
+  const layoutDialogOpen = layoutOpen ?? layoutInternal;
+  const setLayoutDialogOpen = onLayoutOpenChange ?? setLayoutInternal;
+  const fieldsDialogOpen = fieldsOpen ?? fieldsInternal;
+  const setFieldsDialogOpen = onFieldsOpenChange ?? setFieldsInternal;
+
   return (
     <>
-      <CardsLayoutPopover
+      {showToolbarTriggers ? (
+        <>
+          <IconBtn
+            size="sm"
+            aria-label="Configurar layout dos cards"
+            title="Configurar layout dos cards"
+            active={layoutDialogOpen}
+            onClick={() => setLayoutDialogOpen(true)}
+          >
+            <LayoutGrid className="h-4 w-4" />
+          </IconBtn>
+          <IconBtn
+            size="sm"
+            aria-label="Configurar campos dos cards"
+            title="Configurar campos dos cards"
+            active={fieldsDialogOpen}
+            onClick={() => setFieldsDialogOpen(true)}
+          >
+            <ListChecks className="h-4 w-4" />
+          </IconBtn>
+        </>
+      ) : null}
+      <ConfiguracaoLayoutCardsB1Dialog
+        open={layoutDialogOpen}
+        onFechar={() => setLayoutDialogOpen(false)}
         value={cardsPerRow}
-        onChange={setCardsPerRow}
-        onRestore={restoreLayout}
-        open={layoutOpen}
-        onOpenChange={onLayoutOpenChange}
-        menuAnchorRect={menuAnchorRect}
+        onAplicar={setCardsPerRow}
+        onRestaurar={restoreLayout}
       />
-      <CardFieldsPopover
+      <ConfiguracaoCamposCardsB1Dialog
+        open={fieldsDialogOpen}
+        onFechar={() => setFieldsDialogOpen(false)}
         columns={columns}
         value={cardFields}
-        onChange={setCardFields}
-        onRestore={restoreFields}
-        open={fieldsOpen}
-        onOpenChange={onFieldsOpenChange}
-        menuAnchorRect={menuAnchorRect}
+        onAplicar={setCardFields}
+        onRestaurar={restoreFields}
       />
     </>
-  );
-}
-
-function CardsLayoutPopover({
-  value,
-  onChange,
-  onRestore,
-  open: openProp,
-  onOpenChange: onOpenChangeProp,
-  menuAnchorRect = null,
-}) {
-  const [openInternal, setOpenInternal] = React.useState(false);
-  const open = openProp ?? openInternal;
-  const setOpen = onOpenChangeProp ?? setOpenInternal;
-  const [draft, setDraft] = React.useState(value);
-  const menuDriven = Boolean(menuAnchorRect);
-  React.useEffect(() => {
-    if (open) setDraft(value);
-  }, [open, value]);
-
-  return (
-    <B1Popover
-      open={open}
-      onOpenChange={setOpen}
-      anchorRect={menuDriven ? menuAnchorRect : null}
-      trigger={
-        menuDriven
-          ? null
-          : (
-            <IconBtn
-              size="sm"
-              aria-label="Configurar layout dos cards"
-              title="Configurar layout dos cards"
-              active={open}
-            >
-              <LayoutGrid className="h-4 w-4" />
-            </IconBtn>
-          )
-      }
-      footer={popoverFooter(
-        () => {
-          onRestore();
-          setOpen(false);
-        },
-        () => {
-          onChange(draft);
-          setOpen(false);
-        },
-      )}
-    >
-      <div role="radiogroup" aria-label="Cards por linha">
-        {PER_ROW.map((o) => (
-          <RadioRow
-            key={o.n}
-            checked={draft === o.n}
-            onClick={() => setDraft(/** @type {1|2|3|4} */ (o.n))}
-            title={`${o.n} card${o.n > 1 ? "s" : ""} por linha`}
-            hint={o.hint}
-          />
-        ))}
-      </div>
-    </B1Popover>
-  );
-}
-
-function CardFieldsPopover({
-  columns,
-  value,
-  onChange,
-  onRestore,
-  open: openProp,
-  onOpenChange: onOpenChangeProp,
-  menuAnchorRect = null,
-}) {
-  const [openInternal, setOpenInternal] = React.useState(false);
-  const open = openProp ?? openInternal;
-  const setOpen = onOpenChangeProp ?? setOpenInternal;
-  const [draft, setDraft] = React.useState(value);
-  const menuDriven = Boolean(menuAnchorRect);
-  React.useEffect(() => {
-    if (open) setDraft(value);
-  }, [open, value]);
-
-  return (
-    <B1Popover
-      open={open}
-      onOpenChange={setOpen}
-      className="w-72"
-      anchorRect={menuDriven ? menuAnchorRect : null}
-      trigger={
-        menuDriven
-          ? null
-          : (
-            <IconBtn
-              size="sm"
-              aria-label="Configurar campos dos cards"
-              title="Configurar campos dos cards"
-              active={open}
-            >
-              <ListChecks className="h-4 w-4" />
-            </IconBtn>
-          )
-      }
-      footer={popoverFooter(
-        () => {
-          onRestore();
-          setOpen(false);
-        },
-        () => {
-          onChange(draft);
-          setOpen(false);
-        },
-      )}
-    >
-      <div className="max-h-72 overflow-auto">
-        {[...columns]
-          .sort((a, b) => a.label.localeCompare(b.label, "pt-BR"))
-          .map((c) => (
-            <CheckRow
-              key={c.id}
-              label={c.label}
-              checked={draft.includes(c.id)}
-              onChange={(on) =>
-                setDraft((d) => (on ? [...d, c.id] : d.filter((k) => k !== c.id)))
-              }
-            />
-          ))}
-      </div>
-    </B1Popover>
   );
 }
