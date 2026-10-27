@@ -43,8 +43,10 @@ describe('POS99 — Empresa nativa', () => {
       payload: { apelido: 'JUR', nome: 'EMPRESA JUR', tipo_pessoa: 'Jurídica' },
     });
     assert.equal(post.statusCode, 201);
-    const id = post.json().id;
+    const corpo = post.json();
+    const id = corpo.id;
     assert.ok(id);
+    assert.equal(corpo.numero_empresa, 1);
 
     const lista = await app.inject({ method: 'GET', url: '/empresas', headers: auth(token) });
     assert.equal(lista.statusCode, 200);

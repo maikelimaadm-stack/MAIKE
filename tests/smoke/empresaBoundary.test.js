@@ -335,54 +335,23 @@ describe('empresaApi — adaptador de dados', () => {
   });
 });
 
-describe('empresaService — regra de nome duplicado', () => {
-  const existentes = [
-    { id: '1', nome: 'Fazenda Boa Vista' },
-    { id: '2', nome: 'Sítio Alegre' },
-  ];
-
-  it('create recusa nome já cadastrado', async () => {
-    providerMock.list.mockResolvedValue(existentes);
+describe('empresaService — delegação ao provider (sem GET prévio na escrita)', () => {
+  it('create chama provider.create diretamente', async () => {
+    providerMock.create.mockResolvedValue({ id: '3', numero_empresa: 1 });
     const { createEmpresa } = await import('@/services/empresaService');
 
-    const erro = await createEmpresa({ nome: 'Fazenda Boa Vista' }).catch((e) => e);
-    expect(erro.code).toBe('EMPRESA_NAME_CONFLICT');
-    expect(providerMock.create).not.toHaveBeenCalled();
-  });
-
-  it('create ignora diferença de caixa e espaços nas pontas', async () => {
-    providerMock.list.mockResolvedValue(existentes);
-    const { createEmpresa } = await import('@/services/empresaService');
-
-    const erro = await createEmpresa({ nome: '  fazenda boa vista  ' }).catch((e) => e);
-    expect(erro.code).toBe('EMPRESA_NAME_CONFLICT');
-  });
-
-  it('create aceita nome novo', async () => {
-    providerMock.list.mockResolvedValue(existentes);
-    providerMock.create.mockResolvedValue({ id: '3' });
-    const { createEmpresa } = await import('@/services/empresaService');
-
-    await expect(createEmpresa({ nome: 'Estância Nova' })).resolves.toEqual({ id: '3' });
+    await expect(createEmpresa({ nome: 'Estância Nova' })).resolves.toEqual({ id: '3', numero_empresa: 1 });
     expect(providerMock.create).toHaveBeenCalledWith({ nome: 'Estância Nova' });
+    expect(providerMock.list).not.toHaveBeenCalled();
   });
 
-  it('update recusa nome de outro registro', async () => {
-    providerMock.list.mockResolvedValue(existentes);
-    const { updateEmpresa } = await import('@/services/empresaService');
-
-    const erro = await updateEmpresa('2', { nome: 'Fazenda Boa Vista' }).catch((e) => e);
-    expect(erro.code).toBe('EMPRESA_NAME_CONFLICT');
-    expect(providerMock.update).not.toHaveBeenCalled();
-  });
-
-  it('update aceita manter o próprio nome', async () => {
-    providerMock.list.mockResolvedValue(existentes);
+  it('update chama provider.update sem listar antes', async () => {
     providerMock.update.mockResolvedValue({ id: '1' });
     const { updateEmpresa } = await import('@/services/empresaService');
 
     await expect(updateEmpresa('1', { nome: 'Fazenda Boa Vista' })).resolves.toEqual({ id: '1' });
     expect(providerMock.update).toHaveBeenCalledWith('1', { nome: 'Fazenda Boa Vista' });
+    expect(providerMock.list).not.toHaveBeenCalled();
   });
 
   it('delete encaminha o id', async () => {
@@ -391,13 +360,5 @@ describe('empresaService — regra de nome duplicado', () => {
 
     await deleteEmpresa('1');
     expect(providerMock.delete).toHaveBeenCalledWith('1');
-  });
-
-  it('lista sem nome não gera falso conflito', async () => {
-    providerMock.list.mockResolvedValue([{ id: '1' }, { id: '2', nome: null }]);
-    providerMock.create.mockResolvedValue({ id: '3' });
-    const { createEmpresa } = await import('@/services/empresaService');
-
-    await expect(createEmpresa({ nome: 'Qualquer' })).resolves.toEqual({ id: '3' });
   });
 });

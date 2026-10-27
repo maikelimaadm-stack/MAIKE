@@ -24,6 +24,7 @@ import ConfirmDialog from "@/components/common/ConfirmDialog";
 import CadastroBase1Grade from "@/components/cadastro/base1/CadastroBase1Grade";
 
 export const EMPRESAS_COLUNAS = [
+  { id: "numero_empresa", label: "Nº", default: true, sortable: true, width: 56, align: "right" },
   { id: "logotipo", label: "Logo", default: true, sortable: false, width: 72 },
   { id: "apelido", label: "Apelido", default: true, sortable: true, width: 140 },
   { id: "nome", label: "Nome/Razão Social", default: true, sortable: true, width: 220 },
@@ -38,6 +39,10 @@ export const EMPRESAS_COLUNAS = [
  * @param {string} colId
  */
 export function getEmpresaFieldValue(empresa, colId) {
+  if (colId === "numero_empresa") {
+    const n = empresa?.numero_empresa;
+    return n != null && n !== "" ? String(n) : "";
+  }
   if (colId === "logotipo") return empresa.logotipo_url ? "Com logo" : "";
   if (colId === "apelido") return empresa.apelido || "";
   if (colId === "nome") return empresa.nome || "";
@@ -57,6 +62,14 @@ export function getEmpresaFieldValue(empresa, colId) {
  * @param {string} colId
  */
 function renderCell(empresa, colId) {
+  if (colId === "numero_empresa") {
+    const n = empresa?.numero_empresa;
+    return n != null && n > 0 ? (
+      <span className="font-mono tabular-nums text-slate-800">{n}</span>
+    ) : (
+      <span className="text-[11px] text-amber-700">Pendente</span>
+    );
+  }
   if (colId === "logotipo") {
     return empresa.logotipo_url ? (
       <img src={empresa.logotipo_url} alt={empresa.apelido || ""} className="h-10 w-10 object-contain border rounded" />
@@ -168,7 +181,7 @@ export default function TabelaEmpresas({
     <CadastroBase1Grade
       rows={empresas}
       columns={EMPRESAS_COLUNAS}
-      storageKey="colunas_empresas_v1"
+      storageKey="colunas_empresas_v2"
       droppableId="colunas-empresas"
       getFieldValue={getEmpresaFieldValue}
       renderCell={renderCell}
@@ -188,10 +201,12 @@ export default function TabelaEmpresas({
       cardFields={cardFields}
       cardsPerRow={cardsPerRow}
       cardsTitleColId="nome"
-      cardsCodeColId="numero"
+      cardsCodeColId="numero_empresa"
       matchesSearch={(empresa, q) => {
         const searchLower = q.toLowerCase();
+        const numStr = empresa.numero_empresa != null ? String(empresa.numero_empresa) : "";
         return (
+          numStr.includes(q.trim()) ||
           empresa.nome?.toLowerCase().includes(searchLower) ||
           empresa.apelido?.toLowerCase().includes(searchLower) ||
           empresa.cidade?.toLowerCase().includes(searchLower) ||
