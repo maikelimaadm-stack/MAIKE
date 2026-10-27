@@ -1141,3 +1141,31 @@ Branch `cursor/ux-base1-colunas-contrato-516d` · decisão **D-PROD-42**:
 
 - `npm run test:smoke`
 - `npm run verify:all`
+
+## UX-54 (2026-10-27) — Responsividade Base1 (Marcas + chrome compartilhado)
+
+Branch `cursor/ux-responsividade-maike-516d` · plano [`PLAN-RESPONSIVIDADE-MAIKE.md`](./PLAN-RESPONSIVIDADE-MAIKE.md).
+
+**Objetivo:** adaptação viewport (320px–desktop) **sem redesign** — tokens `--mg-*`, skins portal e identidade Base1 intactos.
+
+| Item | Entrega |
+|------|---------|
+| Cadeia flex `min-w-0` | `cadastro-b1--full-page`, `CadastroWorkspace`, `CadastroListaChrome` |
+| Summary 2×2 | `mg-summary__counts` ≤1023px em `base1-list` |
+| Grade | `overflow-x` no `.mg-grid-wrap` ≤1023px (antes só ≤639px) |
+| Toolbar mobile | Busca `mg-search-pill-wrap` largura total na linha `.ml-auto` ≤639px |
+| Popovers | `max-width: min(calc(100vw - 16px), 24rem)` vidro / `cmd-panel` / `fpop` |
+
+**Fora (P2):** toque 44px em ícones portal 25px; `Layout.jsx` global; `scripts/check-overflow.js`.
+
+### Matriz manual (H.4 / responsividade)
+
+| Largura | Verificar |
+|---------|-----------|
+| 320 / 375 / 390 / 414 | Sem scroll horizontal na página; summary 2×2; popover dentro da viewport |
+| 768 / 1024 | Grade scroll no cartão; toolbar join wrap |
+| 1280 / 1440 / 1920 | Paridade visual pré-UX-54 |
+
+### Verificação (UX-54)
+
+- `npm run verify:all`

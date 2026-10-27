@@ -30,7 +30,7 @@ export default function CadastroWorkspace({
 
   if (pageLayout === "base1-list") {
     return (
-      <div className="cadastro-b1 cadastro-b1--full-page flex h-full min-h-0 flex-1 flex-col gap-2">
+      <div className="cadastro-b1 cadastro-b1--full-page flex h-full min-h-0 min-w-0 flex-1 flex-col gap-2">
         {title ? <h1 className="sr-only">{title}</h1> : null}
         {children}
       </div>

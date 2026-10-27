@@ -5,6 +5,7 @@
 .cadastro-b1.cadastro-b1--full-page {
   height: 100%;
   min-height: 0;
+  min-width: 0;
   padding: 8px;
   box-sizing: border-box;
   background: #f0f2f5;
@@ -1326,6 +1327,21 @@
     max-width: 100%;
     flex-wrap: wrap;
   }
+
+  /* Tablet: summary 2×2 e grade com scroll interno (UX-54) */
+  .cadastro-b1--full-page .mg-summary__counts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .cadastro-b1--full-page .mg-shell--fill > .mg-shell__body .mg-grid-wrap,
+  .cadastro-b1--full-page .mg-grid-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .cadastro-b1--full-page .mg-grid {
+    min-width: min(100%, 520px);
+  }
 }
 
 @media (max-width: 639px) {
@@ -1366,8 +1382,20 @@
   }
 
   .cadastro-b1--full-page .mg-summary__counts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 4px 12px;
     font-size: 11px;
+  }
+
+  .cadastro-b1--full-page .mg-toolbar--join > .ml-auto {
+    align-items: center;
+    gap: 8px;
+  }
+
+  .cadastro-b1--full-page .mg-toolbar--join > .ml-auto .mg-search-pill-wrap {
+    flex: 1 1 100%;
+    width: 100%;
+    min-width: 0;
   }
 
   .cadastro-b1--full-page .mg-summary__footer-actions {
