@@ -4,7 +4,7 @@
 
 /** Paridade `camada-aninhada-do-filtro.ts` — sem popovers genéricos (evita bloquear dismiss do `fpop`). */
 export const SELETOR_CAMADA_ANINHADA_DO_FILTRO =
-  "[data-filtro-camada], [data-radix-select-content], .fsell, .foperadores, .cmd-panel, .mg-dp-panel, .b1-dp-filtro";
+  "[data-filtro-camada], [data-radix-select-content], .fsell, .foperadores, .cmd-panel, .mg-dp-panel[data-state='open']";
 
 /** @param {EventTarget | null} alvo */
 export function ehCamadaAninhadaDoFiltro(alvo) {
