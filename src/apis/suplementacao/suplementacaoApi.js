@@ -8,6 +8,20 @@
 
 import { runProviderCall, assertArgument } from '../_core/normalizeApiError.js';
 import { suplementacaoProvider } from '../_providers/base44Provider.js';
+import {
+  listMovimentacoesEstoque as apiListMovimentacoesEstoque,
+  createMovimentacaoEstoque as apiCreateMovimentacaoEstoque,
+  updateMovimentacaoEstoque as apiUpdateMovimentacaoEstoque,
+  deleteMovimentacaoEstoque as apiDeleteMovimentacaoEstoque,
+} from '@/apis/movimentacoes-estoque';
+import {
+  listLotesNotaEstoque as apiListLotesNota,
+  filterLotesNotaEstoque as apiFilterLotesNota,
+  createLoteNotaEstoque as apiCreateLoteNota,
+  updateLoteNotaEstoque as apiUpdateLoteNota,
+  deleteLoteNotaEstoque as apiDeleteLoteNota,
+} from '@/apis/estoque-lotes-nota';
+import { listPontosSuplementacao as apiListPontosSuplementacao } from '@/apis/pontos-suplementacao';
 import { listLotes } from '../lotes/index.js';
 
 const RESOURCE = 'Suplementacao';
@@ -88,7 +102,7 @@ export const deleteLoteSuplementacao = async (id) => {
 export const listMovimentacoesEstoque = async (opcoes = {}) =>
   comoLista(
     await runProviderCall(
-      () => suplementacaoProvider.listMovimentacoesEstoque(opcoes.order, opcoes.limit),
+      () => apiListMovimentacoesEstoque(opcoes.order, opcoes.limit),
       ctx('listMovimentacoesEstoque')
     )
   );
@@ -96,14 +110,14 @@ export const listMovimentacoesEstoque = async (opcoes = {}) =>
 export const createMovimentacaoEstoque = async (dados) => {
   const contexto = ctx('createMovimentacaoEstoque');
   assertArgument(isObjeto(dados), 'dados', contexto);
-  return runProviderCall(() => suplementacaoProvider.createMovimentacaoEstoque(dados), contexto);
+  return runProviderCall(() => apiCreateMovimentacaoEstoque(dados), contexto);
 };
 
 export const updateMovimentacaoEstoque = async (id, dados) => {
   const contexto = ctx('updateMovimentacaoEstoque');
   assertArgument(isId(id), 'id', contexto);
   assertArgument(isObjeto(dados), 'dados', contexto);
-  return runProviderCall(() => suplementacaoProvider.updateMovimentacaoEstoque(id, dados), {
+  return runProviderCall(() => apiUpdateMovimentacaoEstoque(id, dados), {
     ...contexto,
     details: { id },
   });
@@ -112,38 +126,38 @@ export const updateMovimentacaoEstoque = async (id, dados) => {
 export const deleteMovimentacaoEstoque = async (id) => {
   const contexto = ctx('deleteMovimentacaoEstoque');
   assertArgument(isId(id), 'id', contexto);
-  return runProviderCall(() => suplementacaoProvider.deleteMovimentacaoEstoque(id), {
+  return runProviderCall(() => apiDeleteMovimentacaoEstoque(id), {
     ...contexto,
     details: { id },
   });
 };
 
 export const listLotesNota = async () =>
-  comoLista(await runProviderCall(() => suplementacaoProvider.listLotesNota(), ctx('listLotesNota')));
+  comoLista(await runProviderCall(() => apiListLotesNota(), ctx('listLotesNota')));
 
 export const filterLotesNota = async (criterio) => {
   const contexto = ctx('filterLotesNota');
   assertArgument(isObjeto(criterio), 'criterio', contexto);
-  return comoLista(await runProviderCall(() => suplementacaoProvider.filterLotesNota(criterio), contexto));
+  return comoLista(await runProviderCall(() => apiFilterLotesNota(criterio), contexto));
 };
 
 export const createLoteNota = async (dados) => {
   const contexto = ctx('createLoteNota');
   assertArgument(isObjeto(dados), 'dados', contexto);
-  return runProviderCall(() => suplementacaoProvider.createLoteNota(dados), contexto);
+  return runProviderCall(() => apiCreateLoteNota(dados), contexto);
 };
 
 export const updateLoteNota = async (id, dados) => {
   const contexto = ctx('updateLoteNota');
   assertArgument(isId(id), 'id', contexto);
   assertArgument(isObjeto(dados), 'dados', contexto);
-  return runProviderCall(() => suplementacaoProvider.updateLoteNota(id, dados), { ...contexto, details: { id } });
+  return runProviderCall(() => apiUpdateLoteNota(id, dados), { ...contexto, details: { id } });
 };
 
 export const deleteLoteNota = async (id) => {
   const contexto = ctx('deleteLoteNota');
   assertArgument(isId(id), 'id', contexto);
-  return runProviderCall(() => suplementacaoProvider.deleteLoteNota(id), { ...contexto, details: { id } });
+  return runProviderCall(() => apiDeleteLoteNota(id), { ...contexto, details: { id } });
 };
 
 // ── Leituras de apoio ─────────────────────────────────────────────────────
@@ -178,5 +192,5 @@ export { listAreas } from '@/apis/areas';
 
 export const listPontosSuplementacao = async () =>
   comoLista(
-    await runProviderCall(() => suplementacaoProvider.listPontosSuplementacao(), ctx('listPontosSuplementacao'))
+    await runProviderCall(() => apiListPontosSuplementacao(), ctx('listPontosSuplementacao'))
   );

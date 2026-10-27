@@ -30,14 +30,13 @@ const providerMock = {
   delete: vi.fn(),
 };
 
-vi.mock('@/apis/_providers/base44Provider', () => ({
-  empresaProvider: {
+vi.mock('@/apis/empresa/empresaNativePort.js', () => ({
+  empresaPort: {
     list: (...a) => providerMock.list(...a),
     create: (...a) => providerMock.create(...a),
     update: (...a) => providerMock.update(...a),
     delete: (...a) => providerMock.delete(...a),
   },
-  getRegisteredEntityNames: () => ['Empresa'],
 }));
 
 beforeEach(() => {

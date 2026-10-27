@@ -69,27 +69,12 @@ export {
 
 // ── Pontos de suplementação ───────────────────────────────────────────────
 
-export const listPontosSuplementacao = async () =>
-  comoLista(await runProviderCall(() => mapaProvider.listPontosSuplementacao(), ctx('listPontosSuplementacao')));
-
-export const createPontoSuplementacao = async (dados) => {
-  const contexto = ctx('createPontoSuplementacao');
-  assertArgument(isObjeto(dados), 'dados', contexto);
-  return runProviderCall(() => mapaProvider.createPontoSuplementacao(dados), contexto);
-};
-
-export const updatePontoSuplementacao = async (id, dados) => {
-  const contexto = ctx('updatePontoSuplementacao');
-  assertArgument(isId(id), 'id', contexto);
-  assertArgument(isObjeto(dados), 'dados', contexto);
-  return runProviderCall(() => mapaProvider.updatePontoSuplementacao(id, dados), { ...contexto, details: { id } });
-};
-
-export const deletePontoSuplementacao = async (id) => {
-  const contexto = ctx('deletePontoSuplementacao');
-  assertArgument(isId(id), 'id', contexto);
-  return runProviderCall(() => mapaProvider.deletePontoSuplementacao(id), { ...contexto, details: { id } });
-};
+export {
+  listPontosSuplementacao,
+  createPontoSuplementacao,
+  updatePontoSuplementacao,
+  deletePontoSuplementacao,
+} from '@/apis/pontos-suplementacao';
 
 // ── Apoio: setores, bebedouros ──────────────────────────────────────────────
 
@@ -108,5 +93,4 @@ export const deletePontoSuplementacao = async (id) => {
  */
 export { listSetores } from '@/apis/setores';
 
-export const listBebedouros = async () =>
-  comoLista(await runProviderCall(() => mapaProvider.listBebedouros(), ctx('listBebedouros')));
+export { listBebedouros } from '@/apis/bebedouros';

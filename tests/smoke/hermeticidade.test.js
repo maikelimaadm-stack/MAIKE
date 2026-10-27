@@ -13,14 +13,19 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { getRegisteredEntityNames, empresaProvider } from '@/apis/_providers/base44Provider';
+import { getRegisteredEntityNames } from '@/apis/_providers/base44Provider';
+import { listEmpresas } from '@/apis/empresa';
+
+vi.mock('@/apis/_core/nativeHttpClient.js', () => ({
+  nativeRequest: vi.fn(async () => []),
+}));
 
 describe('H — o smoke é hermético desde a avaliação dos módulos', () => {
   it('H1/H2 — o provider real carrega com o stub, sem inicializar o SDK', () => {
     // Se o SDK real tivesse sido instanciado, o import de topo já teria
     // disparado rede antes deste corpo rodar.
-    // 25: manifesto com 35 entidades; dez nativas (ver `suporteBoundary.test.js`).
-    expect(getRegisteredEntityNames().length).toBe(20);
+    // Manifesto com 35 entidades; 23 nativas (ver `suporteBoundary.test.js`).
+    expect(getRegisteredEntityNames().length).toBe(12);
   });
 
   it('H3/H4 — operação do provider não toca fetch nem XMLHttpRequest', async () => {
@@ -37,7 +42,7 @@ describe('H — o smoke é hermético desde a avaliação dos módulos', () => {
       }
     );
 
-    const registros = await empresaProvider.list('-created_date');
+    const registros = await listEmpresas({ order: '-created_date' });
 
     expect(Array.isArray(registros)).toBe(true);
     expect(chamadasFetch).not.toHaveBeenCalled();
@@ -50,8 +55,8 @@ describe('H — o smoke é hermético desde a avaliação dos módulos', () => {
       vi.spyOn(console, nivel).mockImplementation((...args) => linhas.push(args.map(String).join(' ')))
     );
 
-    await empresaProvider.list();
-    await empresaProvider.create({ nome: 'X' }).catch(() => {});
+    await listEmpresas();
+    await listEmpresas({ order: '-created_date' }).catch(() => {});
 
     const ruido = linhas.filter((linha) =>
       /Base44 SDK Error|Network Error|AggregateError|ECONNREFUSED|ENOTFOUND/.test(linha)

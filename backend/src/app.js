@@ -35,6 +35,14 @@ import { registrarCategoriaRoutes } from './modules/categorias/categoriaRoutes.j
 import { registrarLocalEstoqueRoutes } from './modules/locaisEstoque/localEstoqueRoutes.js';
 import { registrarProdutoRoutes } from './modules/produtos/produtoRoutes.js';
 import { registrarLancamentoTarefaRoutes } from './modules/lancamentosTarefa/lancamentoTarefaRoutes.js';
+import { registrarEmpresaRoutes } from './modules/empresas/empresaRoutes.js';
+import { registrarPermissaoRoutes } from './modules/permissoes/permissaoRoutes.js';
+import { registrarFornecedorRoutes } from './modules/fornecedores/fornecedorRoutes.js';
+import { registrarCategoriaManejoRoutes } from './modules/categoriasManejo/categoriaManejoRoutes.js';
+import { registrarBebedouroRoutes } from './modules/bebedouros/bebedouroRoutes.js';
+import { registrarPontoSuplementacaoRoutes } from './modules/pontosSuplementacao/pontoSuplementacaoRoutes.js';
+import { registrarEstoqueLoteNotaRoutes } from './modules/estoqueLotesNota/estoqueLoteNotaRoutes.js';
+import { registrarMovimentacaoEstoqueRoutes } from './modules/movimentacoesEstoque/movimentacaoEstoqueRoutes.js';
 
 /**
  * @param {{logger?: boolean|object}} [opcoes]
@@ -108,6 +116,14 @@ export const construirApp = async (opcoes = {}) => {
   await app.register(registrarLocalEstoqueRoutes);
   await app.register(registrarProdutoRoutes);
   await app.register(registrarLancamentoTarefaRoutes);
+  await app.register(registrarEmpresaRoutes);
+  await app.register(registrarPermissaoRoutes);
+  await app.register(registrarFornecedorRoutes);
+  await app.register(registrarCategoriaManejoRoutes);
+  await app.register(registrarBebedouroRoutes);
+  await app.register(registrarPontoSuplementacaoRoutes);
+  await app.register(registrarEstoqueLoteNotaRoutes);
+  await app.register(registrarMovimentacaoEstoqueRoutes);
 
   return app;
 };

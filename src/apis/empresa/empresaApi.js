@@ -13,7 +13,7 @@
  */
 
 import { runProviderCall, assertArgument } from '../_core/normalizeApiError.js';
-import { empresaProvider } from '../_providers/base44Provider.js';
+import { empresaPort } from './empresaNativePort.js';
 
 const RESOURCE = 'Empresa';
 
@@ -34,7 +34,7 @@ export const listEmpresas = async (opcoes = {}) => {
   const contexto = { operation: 'list', resource: RESOURCE };
   assertArgument(isNonEmptyString(order), 'order', contexto);
 
-  const registros = await runProviderCall(() => empresaProvider.list(order), contexto);
+  const registros = await runProviderCall(() => empresaPort.list(order), contexto);
   // O provider pode devolver `undefined` quando não há registro; a fronteira
   // sempre entrega uma lista, para a UI não precisar defender contra isso.
   return Array.isArray(registros) ? registros : [];
@@ -48,7 +48,7 @@ export const listEmpresas = async (opcoes = {}) => {
 export const createEmpresa = async (dados) => {
   const contexto = { operation: 'create', resource: RESOURCE };
   assertArgument(isPlainObject(dados), 'dados', contexto);
-  return runProviderCall(() => empresaProvider.create(dados), contexto);
+  return runProviderCall(() => empresaPort.create(dados), contexto);
 };
 
 /**
@@ -61,7 +61,7 @@ export const updateEmpresa = async (id, dados) => {
   const contexto = { operation: 'update', resource: RESOURCE };
   assertArgument(isNonEmptyString(id), 'id', contexto);
   assertArgument(isPlainObject(dados), 'dados', contexto);
-  return runProviderCall(() => empresaProvider.update(id, dados), { ...contexto, details: { id } });
+  return runProviderCall(() => empresaPort.update(id, dados), { ...contexto, details: { id } });
 };
 
 /**
@@ -72,5 +72,5 @@ export const updateEmpresa = async (id, dados) => {
 export const deleteEmpresa = async (id) => {
   const contexto = { operation: 'delete', resource: RESOURCE };
   assertArgument(isNonEmptyString(id), 'id', contexto);
-  return runProviderCall(() => empresaProvider.delete(id), { ...contexto, details: { id } });
+  return runProviderCall(() => empresaPort.delete(id), { ...contexto, details: { id } });
 };

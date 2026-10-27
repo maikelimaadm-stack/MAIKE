@@ -8,6 +8,7 @@
 
 import { runProviderCall, assertArgument } from '../_core/normalizeApiError.js';
 import { bebedourosProvider } from '../_providers/base44Provider.js';
+import { bebedouroPort } from './bebedouroNativePort.js';
 
 const RESOURCE = 'Bebedouro';
 const isId = (valor) => typeof valor === 'string' && valor.trim().length > 0;
@@ -23,19 +24,19 @@ export const SANIDADE_DEFAULT_ORDER = '-data_avaliacao';
 export const ALERTA_DEFAULT_ORDER = '-data_alerta';
 
 export const listBebedouros = async (ordenacao = BEBEDOURO_DEFAULT_ORDER) =>
-  comoLista(await runProviderCall(() => bebedourosProvider.listBebedouros(ordenacao), ctx('listBebedouros')));
+  comoLista(await runProviderCall(() => bebedouroPort.list(ordenacao), ctx('listBebedouros')));
 
 export const createBebedouro = async (dados) => {
   const contexto = ctx('createBebedouro');
   assertArgument(isObjeto(dados), 'dados', contexto);
-  return runProviderCall(() => bebedourosProvider.createBebedouro(dados), contexto);
+  return runProviderCall(() => bebedouroPort.create(dados), contexto);
 };
 
 export const updateBebedouro = async (id, dados) => {
   const contexto = ctx('updateBebedouro');
   assertArgument(isId(id), 'id', contexto);
   assertArgument(isObjeto(dados), 'dados', contexto);
-  return runProviderCall(() => bebedourosProvider.updateBebedouro(id, dados), contexto);
+  return runProviderCall(() => bebedouroPort.update(id, dados), contexto);
 };
 
 export const listHistorico = async (ordenacao = HISTORICO_DEFAULT_ORDER) =>

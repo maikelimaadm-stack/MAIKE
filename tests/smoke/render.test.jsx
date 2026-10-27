@@ -9,6 +9,9 @@ vi.mock('@/api/base44Client', async () => {
   const { createBase44Stub } = await import('./base44Stub.js');
   return { base44: createBase44Stub() };
 });
+vi.mock('@/apis/_core/nativeHttpClient.js', () => ({
+  nativeRequest: vi.fn(async () => []),
+}));
 
 // O cache offline usa IndexedDB, que não existe no jsdom. Desde a P1.2 a
 // política vive em `@/services/mapaCacheService`; o arquivo antigo não existe
