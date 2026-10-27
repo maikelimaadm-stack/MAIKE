@@ -9,6 +9,7 @@ import {
   EyeOff,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { MIN_COL_WIDTH } from "@/lib/cadastroBase1ColumnPrefs";
 import { fonteDaCelula, medirLarguraColuna } from "@/lib/larguraColuna";
 import { B1Popover, MenuList, MgCheck } from "./Base1Ui";
 import { selectClickOf } from "./selectClick";
@@ -200,7 +201,7 @@ export default function Base1Grid({
     const colIndex = columns.findIndex((col) => col.key === c.key);
     const table = th.closest("table");
     const move = (ev) => {
-      const w = Math.max(48, w0 + ev.clientX - x0);
+      const w = Math.max(MIN_COL_WIDTH, w0 + ev.clientX - x0);
       th.style.width = th.style.minWidth = th.style.maxWidth = `${w}px`;
       if (table) syncColunaInline(table, colIndex, w);
       measure();
@@ -214,7 +215,7 @@ export default function Base1Grid({
       window.removeEventListener("mouseup", up);
       document.body.style.userSelect = prevSelect;
       document.body.style.cursor = prevCursor;
-      const w = Math.round(Math.max(48, w0 + ev.clientX - x0));
+      const w = Math.round(Math.max(MIN_COL_WIDTH, w0 + ev.clientX - x0));
       clearInline();
       onResize?.(c.key, w);
       if (autoFitKeys?.has(c.key)) onAutoFit?.(c.key);

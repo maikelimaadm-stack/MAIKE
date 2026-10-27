@@ -2062,4 +2062,13 @@ em G.3–G.5 não bloqueiam o modelo visual; dialogs transversais seguem Fase 3.
 
 ---
 
-<!-- Próxima decisão: D-PROD-42 -->
+## D-PROD-42 — Contrato SSOT colunas Base1 (resize / autofit / prefs)
+
+**Data:** 2026-10-27  
+**Documento:** `docs/engineering/PROMPT-COLUNAS-PORTAL-COMPRAS.md`
+
+**Decisão:** Separar **`onResize`** (largura explícita) de **`onAutoFit`** (toggle persistente); duplo clique na alça ajusta uma vez **sem** ligar autoajuste; medição autofit com teto **480px**; persistência manual **48–1200px** — paridade CDE `grid.tsx` / `preferences.ts` no piloto Marcas até **D-PROD-41**.
+
+---
+
+<!-- Próxima decisão: D-PROD-43 -->

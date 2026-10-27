@@ -5,7 +5,9 @@ import {
   normalizeAutoFitKeys,
   normalizeFrozenCount,
   CADASTRO_B1_COLUMN_PREFS_VERSION,
+  MIN_COL_WIDTH,
 } from "@/lib/cadastroBase1ColumnPrefs";
+import { AUTOFIT_MAX_COL_WIDTH, medirLarguraColuna } from "@/lib/larguraColuna";
 
 describe("cadastroBase1ColumnPrefs — paridade CDE (355–356)", () => {
   const known = ["nome", "descricao"];

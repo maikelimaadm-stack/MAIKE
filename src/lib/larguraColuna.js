@@ -2,8 +2,12 @@
  * Largura de coluna pelo texto — paridade CONTROLE-DE-ESTOQUE / largura-coluna.ts.
  */
 
-const TETO = 480;
-const PISO = 48;
+import { MIN_COL_WIDTH } from "@/lib/cadastroBase1ColumnPrefs";
+
+/** Teto de medição para autofit / duplo clique (CDE `largura-coluna.ts`). */
+export const AUTOFIT_MAX_COL_WIDTH = 480;
+const TETO = AUTOFIT_MAX_COL_WIDTH;
+const PISO = MIN_COL_WIDTH;
 const PAD = 18 + 2;
 const CHROME_MENU = 20 + 4;
 export const CHROME_ICONE_ESTADO = 12 + 4;
