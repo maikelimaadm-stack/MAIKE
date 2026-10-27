@@ -10,7 +10,7 @@
     },
     {
       "source": "/api/native/:path*",
-      "destination": "/api/fastify"
+      "destination": "/api/fastify?__native_route=:path*"
     },
     {
       "source": "/configuracoesgerais/",

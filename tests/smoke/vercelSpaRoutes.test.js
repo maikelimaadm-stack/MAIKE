@@ -81,7 +81,7 @@ describe('VERCEL-SPA — documento vs JSON', () => {
       pathname: `${NATIVE_API_PATH_PREFIX}/produtos`,
       headers: { accept: 'application/json' },
     });
-    expect(json?.destination).toBe('/api/fastify');
+    expect(json?.destination).toBe('/api/fastify?__native_route=:path*');
   });
 
   it('alias PascalCase /Produtos → index.html', () => {
