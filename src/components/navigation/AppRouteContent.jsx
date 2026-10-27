@@ -38,11 +38,14 @@ export default function AppRouteContent() {
           <MapaGeral />
         </div>
       )}
-      {!onMapa && (
-        <div className="relative z-20 h-full min-h-0 overflow-hidden">
-          <Outlet />
-        </div>
-      )}
+      <div
+        className={`relative h-full min-h-0 overflow-hidden ${
+          onMapa ? "pointer-events-none invisible z-0" : "z-20"
+        }`}
+        aria-hidden={onMapa}
+      >
+        <Outlet />
+      </div>
     </div>
   );
 }

@@ -484,7 +484,8 @@ export default function MapaGeral() {
     }
     mapInstanceRef.current = null;
     setMapReady(false);
-  }, [renderer]);
+    // `useMapRenderer` devolve objeto novo a cada render; só `clearAll` é estável.
+  }, [renderer.clearAll]);
 
   // ─── Inicializar Mapa ───
   useEffect(() => {
