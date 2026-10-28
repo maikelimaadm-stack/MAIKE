@@ -2484,4 +2484,36 @@ catálogo global autorizado; slice 1 não migra legado `ConfiguracaoIcone` nem U
 
 ---
 
-<!-- Próxima decisão: D-PROD-61 -->
+## D-PROD-61 — MapLibre M2-B1: seletor local de tarefas
+
+**Missão:** `MAPLIBRE-M2B1-TASK-LOCATION-PICKER-01`  
+**Relatório:** `docs/engineering/MAPLIBRE-M2B1-TASK-PICKER-REPORT.md`  
+**Branch:** `cursor/maplibre-m2b1-task-location-picker-f5fd`  
+**Base:** `origin/main` pós-merge PR #130 (catálogo global slice 1 / D-PROD-60)  
+**Nota de ID:** D-PROD-60 ficou com o catálogo global (#130). MapLibre M2-B1 usa **D-PROD-61**.
+
+**Decisão:**
+
+1. `TaskLocationPickerDialog` deixa de carregar Maps JS de terceiros e passa a
+   renderizar com **MapLibre GL JS**, reusando `src/lib/geografia/` e
+   `src/lib/maplibre/` (basemap ruas OpenFreeMap Liberty, lifecycle).
+2. Contrato com `FormularioTarefaMapa` **congelado**:
+   `onSelect(coords, area)` com `coords = { lat, lng }` e `area` original ou
+   `null`; Escape/X/fora não disparam `onSelect`; uma seleção por abertura.
+3. Coordenadas: adapters `parseVertex` / `parsePickerCoordinate` — **nunca**
+   `c[0] || c.lat` (zero válido). Labels via `textContent` (sem `innerHTML`).
+   Point-in-polygon determinístico; sobreposição = **primeira área na ordem
+   do array** `areas` (clique em feature usa o `id` da feature).
+4. Ícones de prioridade vêm de `listarIconesDaEmpresa` (legado por tenant),
+   **não** do catálogo global D-PROD-57/60. Satélite só com
+   `VITE_MAP_SATELLITE_STYLE_URL` licenciada — sem botão falso; UI declara
+   diferença vs satélite legado.
+5. Fora de escopo: `SelecaoAreasMapa` (M2-B2), `SelecaoDepositoMapa`,
+   `MapaGeral`, `CapturaGPS*`, backend, Supabase/RLS, Base1, catálogo UI.
+
+**Consequência:** `src/lib/googleMaps.js` permanece para consumidores restantes.
+Merge só pelo proprietário após auditoria.
+
+---
+
+<!-- Próxima decisão: D-PROD-62 -->
