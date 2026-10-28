@@ -71,8 +71,8 @@ export default function LocaisEstoque() {
 
   useEffect(() => {
     const numerar = async () => {
-      const { numeradas } = await numerarLocaisSemNumero(controller.visibleRows);
-      if (numeradas.length) queryClient.invalidateQueries({ queryKey: ["locais_estoque"] });
+      const { numerados } = await numerarLocaisSemNumero(controller.visibleRows);
+      if (numerados.length) queryClient.invalidateQueries({ queryKey: ["locais_estoque"] });
     };
     if (!controller.isLoading && controller.visibleRows.length > 0) numerar();
   }, [controller.visibleRows, controller.isLoading, queryClient]);
