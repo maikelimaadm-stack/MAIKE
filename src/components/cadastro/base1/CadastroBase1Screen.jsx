@@ -25,6 +25,9 @@ import { BASE1_LISTA_INTEGRADA_VISUAL } from "@/components/cadastro/base1/base1V
  *   listSlot: React.ReactNode,
  *   deleteDialog: { title: string, descriptionOne: string, descriptionMany: (n: number) => string },
  *   recordCode?: string,
+ *   extraToolbar?: React.ReactNode,
+ *   onExportCsv?: () => void,
+ *   onPrint?: () => void,
  * }} props
  */
 export default function CadastroBase1Screen({
@@ -40,6 +43,9 @@ export default function CadastroBase1Screen({
   listSlot,
   deleteDialog,
   recordCode,
+  extraToolbar = null,
+  onExportCsv,
+  onPrint,
 }) {
   return (
     <>
@@ -96,8 +102,9 @@ export default function CadastroBase1Screen({
           onEdit={c.handleEditSelected}
           onDuplicate={c.handleDuplicateSelected}
           onDelete={c.handleDeleteSelected}
-          onExportCsv={c.exportCsv}
-          onPrint={() => window.print()}
+          onExportCsv={onExportCsv ?? c.exportCsv}
+          onPrint={onPrint ?? (() => window.print())}
+          extraToolbar={extraToolbar}
           cardsModeAvailable
           cardsToolbar={
             <Base1CardsToolbar columns={columnsForCardsToolbar} cardsPrefs={c.cardsPrefs} />

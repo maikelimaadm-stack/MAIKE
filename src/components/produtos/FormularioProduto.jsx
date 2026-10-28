@@ -20,6 +20,8 @@ import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
 import CadastroFormActions from "@/components/cadastro/base1/CadastroFormActions";
 import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 
+export const FORMULARIO_PRODUTO_ID = "formulario-produto-base1";
+
 const FL = ({ label, required, error, children }) => (
   <CadastroFormField label={label} required={required} error={error}>
     {children}
@@ -35,8 +37,18 @@ const parseNumero = (val) => {
   return parseMoedaInput(val);
 };
 
-export default function FormularioProduto({ onSubmit, onCancel, initialData, isEditing, variant = "card" }) {
+export default function FormularioProduto({
+  onSubmit,
+  onCancel,
+  initialData,
+  isEditing,
+  variant = "card",
+  toolbarActions = false,
+  isSubmitting = false,
+  readOnly = false,
+}) {
   const embedded = variant === "embedded";
+  const isExistingRecord = Boolean(initialData?.id);
   const empresaId = useEmpresaSelecionadaId();
 
   const [formData, setFormData] = useState(() => {
@@ -163,10 +175,13 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
         title={isEditing ? "Editar Produto" : "Novo Produto"}
       >
           <form
+            id={FORMULARIO_PRODUTO_ID}
             onSubmit={handleSubmit}
-            className="space-y-0.5"
+            className={embedded ? "mg-b1-record-form space-y-0.5" : "space-y-0.5"}
             style={embedded ? undefined : { maxHeight: "calc(100vh - 150px)", overflowY: "auto", scrollbarWidth: "thin", scrollbarColor: "#cbd5e1 transparent" }}
+            noValidate
           >
+            <fieldset disabled={readOnly} className="space-y-0.5 border-0 p-0 m-0 min-w-0">
             {/* LINHA 1: Nome | Tipo de Uso | Código | Cód Barras */}
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-1">
               <FL label="Nome do Produto" required error={invalidFields.includes('nome_produto')}>
@@ -346,10 +361,14 @@ export default function FormularioProduto({ onSubmit, onCancel, initialData, isE
               </div>
             </div>
 
-            <CadastroFormActions
-              onCancel={onCancel}
-              submitLabel={isEditing ? "Atualizar" : "Salvar"}
-            />
+            </fieldset>
+            {!toolbarActions ? (
+              <CadastroFormActions
+                onCancel={onCancel}
+                submitLabel={isExistingRecord ? "Atualizar" : "Salvar"}
+                isSubmitting={isSubmitting}
+              />
+            ) : null}
           </form>
       </CadastroFormShell>
     </motion.div>

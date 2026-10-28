@@ -1,12 +1,12 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  listarProdutosPagina,
   listarProdutosDaEmpresa,
-  proximoNumeroDeProduto,
   criarProduto,
   atualizarProduto,
-  numerarProdutosSemNumero,
-  excluirProduto,
+  excluirProdutos,
   importarProdutos,
+  isProdutoDeleteBlockedError,
 } from "@/services/produtoService";
 import {
   BOM_UTF8,
@@ -17,7 +17,7 @@ import {
 } from "@/domain/produtos/csvProduto";
 import { getApiErrorMessage, hasApiErrorCode, API_ERROR_CODES } from "@/apis/_core/ApiError";
 import { emitDeleteDialog } from "@/lib/deleteDialogBus";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Download, Upload, FileSpreadsheet, Loader2, AlertCircle, X, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
@@ -38,185 +38,216 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-
-
-import CadastroWorkspace from "@/components/cadastro/CadastroWorkspace";
-import CadastroListaChrome from "@/components/cadastro/base1/CadastroListaChrome";
-import CadastroRecordHeader from "@/components/cadastro/base1/CadastroRecordHeader";
-import { useCadastroListaChromeState } from "@/hooks/useCadastroListaChromeState";
-import { useCadastroPageListBindings } from "@/hooks/useCadastroPageListBindings";
-import { useCadastroDuplicateAction } from "@/hooks/useCadastroDuplicateAction";
-import FormularioProduto from "../components/produtos/FormularioProduto";
+import {
+  notifyError,
+  notifyExclusoesEmpilhadas,
+  notifySuccess,
+  notifyWarning,
+} from "@/lib/maikeNotify";
+import CadastroBase1Screen from "@/components/cadastro/base1/CadastroBase1Screen";
 import TabelaProdutos, { PRODUTOS_COLUNAS, getProdutoFieldValue } from "../components/produtos/TabelaProdutos";
-import { exportCadastroCsv } from "@/components/cadastro/base1/cadastroExportCsv";
+import FormularioProduto, { FORMULARIO_PRODUTO_ID } from "../components/produtos/FormularioProduto";
 import FichaProduto from "../components/produtos/FichaProduto";
+import { useCadastroBase1Controller } from "@/hooks/useCadastroBase1Controller";
 import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 
-// Próximo número de produto. Escopo P0.1: a sequência era global (Pesagem +
-// Fornecedor + Produto); os domínios de pesagem e safra saíram do produto, então
-// a numeração passa a considerar apenas Produto.
+const PRODUTOS_STORAGE_KEY = "colunas_produtos_v2";
+
 export default function Produtos() {
-  const [showForm, setShowForm] = useState(false);
-  const [editingProduto, setEditingProduto] = useState(null);
+  const queryClient = useQueryClient();
+  const empresaId = useEmpresaSelecionadaId();
+  const submitRef = useRef(/** @type {(data: object) => void} */ (() => {}));
+  const deleteRef = useRef(/** @type {(ids: string[]) => void} */ (() => {}));
+  const prevEmpresaRef = useRef(empresaId);
+
   const [fichaProduto, setFichaProduto] = useState(null);
   const [showImportProgress, setShowImportProgress] = useState(false);
-  const [showConfigColunas, setShowConfigColunas] = useState(false);
-  const [bulkDeleteSignal, setBulkDeleteSignal] = useState(0);
-  const chrome = useCadastroListaChromeState();
-  const listBindings = useCadastroPageListBindings({ storageKey: "colunas_produtos_v2", columns: PRODUTOS_COLUNAS, chrome });
-
-  const handleDuplicateSelected = useCadastroDuplicateAction({
-    chrome,
-    findById: (id) => produtos.find((row) => row.id === id),
-    openDraft: (draft) => {
-      setEditingProduto(draft);
-      setShowForm(true);
-    },
-    labelField: "nome_produto",
-  });
   const [importProgress, setImportProgress] = useState({ current: 0, total: 0, errors: 0 });
-
   const [showErrorDialog, setShowErrorDialog] = useState(false);
   const [importErrors, setImportErrors] = useState([]);
   const [validRecordsToImport, setValidRecordsToImport] = useState([]);
 
-  const queryClient = useQueryClient();
+  const fetchProdutosPage = useCallback(
+    ({ limit, cursor, q }) =>
+      listarProdutosPagina(empresaId, {
+        limit,
+        cursor,
+        q: q || undefined,
+      }),
+    [empresaId],
+  );
 
-  const empresaSelecionadaId = useEmpresaSelecionadaId();
-
-  const {
-    data: produtosData,
-    isLoading,
-    isError: listaErro,
-    error: listaQueryError,
-    refetch,
-    isFetching: listaFetching,
-  } = useQuery({
-    queryKey: ['produtos', empresaSelecionadaId],
-    queryFn: () => listarProdutosDaEmpresa(empresaSelecionadaId),
-    enabled: !!empresaSelecionadaId,
-  });
-  const produtos = listaErro ? [] : (produtosData ?? []);
-
-  // Numerar produtos existentes automaticamente
-  React.useEffect(() => {
-    const numerarProdutosExistentes = async () => {
-      const { numerados } = await numerarProdutosSemNumero(produtos);
-      if (numerados.length) queryClient.invalidateQueries({ queryKey: ['produtos', empresaSelecionadaId] });
-    };
-
-    if (!isLoading && produtos && produtos.length > 0 && empresaSelecionadaId) {
-      numerarProdutosExistentes();
-    }
-  }, [produtos, queryClient, isLoading, empresaSelecionadaId]);
-
-  // A unicidade de nome por empresa e o `syncEntityReferences` vivem no service.
-  const createMutation = useMutation({
-    mutationFn: (data) => criarProduto({ dados: data, empresaId: empresaSelecionadaId, produtos }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['produtos', empresaSelecionadaId] });
-      setShowForm(false);
-      setEditingProduto(null);
-      toast.success('Produto cadastrado!');
+  const controller = useCadastroBase1Controller({
+    storageKey: PRODUTOS_STORAGE_KEY,
+    columnIds: PRODUTOS_COLUNAS.map((c) => c.id),
+    listEnabled: Boolean(empresaId),
+    queryKey: ["produtos", "page", empresaId],
+    fetchPage: fetchProdutosPage,
+    duplicateLabelField: "nome_produto",
+    searchPlaceholder: "Buscar produtos…",
+    exportFileName: "produtos.csv",
+    exportColumns: PRODUTOS_COLUNAS,
+    getExportFieldValue: getProdutoFieldValue,
+    getRecordTitle: (item) => (item?.id ? item.nome_produto || "Produto" : "Novo produto"),
+    getRecordCode: (item) => {
+      if (item?.codigo_interno) return String(item.codigo_interno);
+      if (item?.numero_produto != null) return String(item.numero_produto);
+      return undefined;
     },
-    onError: (error) => {
-      toast.error(getApiErrorMessage(error, 'Não foi possível salvar o produto.'));
-    }
+    getSearchHaystack: (p) =>
+      [p.nome_produto, p.codigo_interno, p.categoria, p.marca, p.numero_produto].filter(Boolean).join(" "),
+    mapSearchSuggestion: (p) => ({
+      id: String(p.id),
+      label: p.nome_produto || "Produto",
+      secondary: p.numero_produto ? `Nº ${p.numero_produto}` : p.codigo_interno || undefined,
+    }),
+    matchRowId: (p, id) => String(p.id) === String(id),
+    getRowId: (p) => String(p.id),
+    findRowById: (rows, id) => rows.find((p) => String(p.id) === String(id)),
+    onSubmitRecord: (data) => submitRef.current(data),
+    onRequestDeleteMutation: (ids) => deleteRef.current(ids),
+  });
+
+  useEffect(() => {
+    if (prevEmpresaRef.current === empresaId) return;
+    prevEmpresaRef.current = empresaId;
+    controller.recordHelpers.closeForm();
+    controller.chrome.setSelectedIds([]);
+    controller.handleClearFilters();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- troca de empresa apenas
+  }, [empresaId]);
+
+  const createMutation = useMutation({
+    mutationFn: (data) => criarProduto({ dados: data, empresaId, produtos: controller.visibleRows }),
+    onSuccess: (created) => {
+      queryClient.invalidateQueries({ queryKey: ["produtos"] });
+      controller.recordHelpers.recordBeforeNewRef.current = null;
+      if (created && typeof created === "object" && created.id) {
+        controller.recordHelpers.setEditingItem(created);
+        controller.recordHelpers.setIsEditing(false);
+        controller.recordHelpers.setShowForm(true);
+        controller.recordHelpers.chrome.setViewMode("record");
+        controller.recordHelpers.chrome.onSelectionChange([String(created.id)]);
+      } else {
+        controller.recordHelpers.closeForm();
+      }
+      notifySuccess("Sucesso", "Produto cadastrado");
+    },
+    onError: (err) =>
+      notifyWarning("Atenção", getApiErrorMessage(err, "Não foi possível salvar o produto.")),
   });
 
   const updateMutation = useMutation({
     mutationFn: ({ id, data, oldData }) =>
-      atualizarProduto({ id, dados: data, oldData, empresaId: empresaSelecionadaId, produtos }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['produtos', empresaSelecionadaId] });
-      setShowForm(false);
-      setEditingProduto(null);
-      toast.success('Produto atualizado!');
+      atualizarProduto({ id, dados: data, oldData, empresaId, produtos: controller.visibleRows }),
+    onSuccess: (updated, { id, data }) => {
+      queryClient.invalidateQueries({ queryKey: ["produtos"] });
+      const merged = {
+        ...(controller.editingItem?.id === id ? controller.editingItem : {}),
+        id,
+        ...data,
+        ...(updated && typeof updated === "object" ? updated : {}),
+      };
+      controller.setEditingItem(merged);
+      controller.setIsEditing(false);
+      notifySuccess("Sucesso", "Produto atualizado");
     },
-    onError: (error) => {
-      toast.error(getApiErrorMessage(error, 'Não foi possível salvar o produto.'));
-    }
+    onError: (err) =>
+      notifyWarning("Atenção", getApiErrorMessage(err, "Não foi possível salvar o produto.")),
   });
 
-  /**
-   * O bloqueio por movimentação virou `PRODUTO_DELETE_BLOCKED`.
-   *
-   * O legado abria o diálogo de dentro da mutation e sinalizava com
-   * `new Error('DELETE_BLOCKED')`, reconhecido por comparação de texto. Agora a
-   * decisão é por código e o diálogo é montado aqui, com a contagem que o
-   * service devolve em `details`.
-   */
   const deleteMutation = useMutation({
-    mutationFn: (id) => excluirProduto(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['produtos', empresaSelecionadaId] });
-      toast.success('Produto excluído!');
+    mutationFn: (ids) => excluirProdutos(ids),
+    onSuccess: ({ excluidas, falhas }) => {
+      queryClient.invalidateQueries({ queryKey: ["produtos"] });
+      controller.chrome.setSelectedIds([]);
+      if (
+        controller.showForm &&
+        controller.editingItem?.id &&
+        excluidas.some((id) => String(id) === String(controller.editingItem.id))
+      ) {
+        controller.recordHelpers.closeForm();
+      }
+      if (excluidas.length) {
+        notifyExclusoesEmpilhadas(excluidas.length, { singular: "Produto excluído" });
+      }
+      for (const falha of falhas) {
+        if (isProdutoDeleteBlockedError(falha.erro)) {
+          const quantidade = /** @type {any} */ (falha.erro).details?.quantidade ?? 0;
+          emitDeleteDialog(
+            `Este produto já possui ${quantidade} registro(s) lançados em movimentações de estoque e não pode ser excluído.`,
+          );
+        } else {
+          notifyError(
+            "Atenção",
+            getApiErrorMessage(falha.erro, "Não foi possível excluir o produto."),
+          );
+        }
+      }
     },
-    onError: (error) => {
-      if (hasApiErrorCode(error, API_ERROR_CODES.PRODUTO_DELETE_BLOCKED)) {
-        const quantidade = /** @type {any} */ (error).details?.quantidade ?? 0;
+    onError: (err) => {
+      controller.setDeleteState({ open: false, ids: [] });
+      if (hasApiErrorCode(err, API_ERROR_CODES.PRODUTO_DELETE_BLOCKED)) {
+        const quantidade = /** @type {any} */ (err).details?.quantidade ?? 0;
         emitDeleteDialog(
-          `Este produto já possui ${quantidade} registro(s) lançados em movimentações de estoque e não pode ser excluído.`
+          `Este produto já possui ${quantidade} registro(s) lançados em movimentações de estoque e não pode ser excluído.`,
         );
         return;
       }
-      toast.error(getApiErrorMessage(error, 'Não foi possível excluir o produto.'));
-    }
+      notifyError("Atenção", getApiErrorMessage(err, "Não foi possível excluir o produto."));
+    },
   });
 
-  const handleSubmit = async (data) => {
-    try {
-      if (editingProduto) {
-        await updateMutation.mutateAsync({ id: editingProduto.id, data, oldData: editingProduto });
-      } else {
-        await createMutation.mutateAsync(data);
-      }
-    } catch {
-      // A mensagem já foi exibida por `onError` da mutation.
+  submitRef.current = (data) => {
+    if (controller.editingItem?.id) {
+      updateMutation.mutate({
+        id: controller.editingItem.id,
+        data,
+        oldData: controller.editingItem,
+      });
+    } else {
+      createMutation.mutate(data);
     }
   };
+  deleteRef.current = (ids) => deleteMutation.mutate(ids);
 
-  const handleEdit = (produto) => {
-    setEditingProduto(produto);
-    setShowForm(true);
-    chrome.setViewMode("record");
-    if (produto?.id) chrome.onSelectionChange([produto.id]);
-  };
+  const saving = createMutation.isPending || updateMutation.isPending;
 
-  const handleDelete = async (id) => {
-    try {
-      await deleteMutation.mutateAsync(id);
-    } catch (error) {
-      console.error('Erro:', error);
-    }
-  };
+  const listErrorMessage = useMemo(
+    () =>
+      getApiErrorMessage(
+        controller.listaQueryError,
+        "Não foi possível carregar os produtos. Verifique sua conexão e tente novamente.",
+      ),
+    [controller.listaQueryError],
+  );
 
-  const handlePrint = (produto) => {
-    setFichaProduto(produto);
-  };
-
-  const handleCancelForm = () => {
-    setShowForm(false);
-    setEditingProduto(null);
-  };
-
-  /** O download é da tela; a montagem do CSV é pura. */
   const baixarCsv = (conteudo, nomeArquivo) => {
-    const blob = new Blob([BOM_UTF8 + conteudo], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
+    const blob = new Blob([BOM_UTF8 + conteudo], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
     link.download = nomeArquivo;
     link.click();
   };
 
-  const handleExport = () => {
-    baixarCsv(montarCsvDeProdutos(produtos), `produtos_${format(new Date(), 'yyyy-MM-dd')}.csv`);
-    toast.success('Exportado!');
+  const handleExportEmpresaCompleta = async () => {
+    if (!empresaId) return;
+    try {
+      const todos = await listarProdutosDaEmpresa(empresaId);
+      baixarCsv(montarCsvDeProdutos(todos), `produtos_${format(new Date(), "yyyy-MM-dd")}.csv`);
+      toast.success("Exportado!");
+    } catch {
+      toast.error("Erro ao exportar!");
+    }
+  };
+
+  const downloadTemplate = () => {
+    baixarCsv(montarTemplateCsv(), "modelo_produtos.csv");
   };
 
   const downloadErrosImportacao = () => {
-    baixarCsv(montarCsvDeErros(importErrors), `erros_produtos_${format(new Date(), 'yyyy-MM-dd')}.csv`);
-    toast.success('Planilha de erros baixada!');
+    baixarCsv(montarCsvDeErros(importErrors), `erros_produtos_${format(new Date(), "yyyy-MM-dd")}.csv`);
+    toast.success("Planilha de erros baixada!");
   };
 
   const executarImportacao = async (validRecords) => {
@@ -224,10 +255,10 @@ export default function Produtos() {
     setImportProgress({ current: 0, total: validRecords.length, errors: 0 });
 
     const { importados, falhas } = await importarProdutos(validRecords, ({ atual }) => {
-      setImportProgress(prev => ({ ...prev, current: atual }));
+      setImportProgress((prev) => ({ ...prev, current: atual }));
     });
 
-    await queryClient.invalidateQueries({ queryKey: ['produtos', empresaSelecionadaId] });
+    await queryClient.invalidateQueries({ queryKey: ["produtos"] });
 
     setImportProgress({ current: validRecords.length, total: validRecords.length, errors: falhas });
 
@@ -244,12 +275,8 @@ export default function Produtos() {
     const reader = new FileReader();
     reader.onload = async (e) => {
       try {
-        // A leitura do arquivo é da tela. Parse, validação e numeração são
-        // puros — `parseCsvDeProdutos` em `src/domain/produtos/csvProduto.js`.
-        const numeroInicial = await proximoNumeroDeProduto();
-        const { validos, erros } = parseCsvDeProdutos(String(e.target.result ?? ''), {
-          empresaId: empresaSelecionadaId,
-          numeroInicial,
+        const { validos, erros } = parseCsvDeProdutos(String(e.target.result ?? ""), {
+          empresaId,
         });
 
         if (erros.length > 0) {
@@ -260,19 +287,18 @@ export default function Produtos() {
         }
 
         if (validos.length === 0) {
-          toast.error('Nenhum registro válido!');
+          toast.error("Nenhum registro válido!");
           return;
         }
 
         await executarImportacao(validos);
-
       } catch (error) {
-        console.error('Erro ao importar:', error);
-        toast.error('Erro ao importar!');
+        console.error("Erro ao importar:", error);
+        toast.error("Erro ao importar!");
       }
     };
-    reader.readAsText(file, 'UTF-8');
-    event.target.value = '';
+    reader.readAsText(file, "UTF-8");
+    event.target.value = "";
   };
 
   const confirmarImportacaoComErros = async () => {
@@ -284,98 +310,28 @@ export default function Produtos() {
     setShowErrorDialog(false);
     setImportErrors([]);
     setValidRecordsToImport([]);
-    toast.info('Importação cancelada.');
+    toast.info("Importação cancelada.");
   };
 
-  const downloadTemplate = () => {
-    baixarCsv(montarTemplateCsv(), 'modelo_produtos.csv');
+  const handlePrintFicha = () => {
+    const id = controller.chrome.selectedIds[0];
+    const row = id
+      ? controller.visibleRows.find((p) => String(p.id) === String(id))
+      : controller.editingItem;
+    if (row) setFichaProduto(row);
+    else window.print();
   };
 
-  const formatarNumero = (numero) => {
-    if (!numero && numero !== 0) return "0,00";
-    return numero.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-  };
-
-  const progressPercentage = importProgress.total > 0 
-    ? Math.round((importProgress.current / importProgress.total) * 100) 
-    : 0;
-
-  const closeForm = () => {
-    setShowForm(false);
-    setEditingProduto(null);
-    chrome.exitRecordView();
-  };
-
-  const openNew = () => {
-    setEditingProduto(null);
-    setShowForm(true);
-    chrome.setViewMode("record");
-  };
-
-  const handleEditSelected = useCallback(() => {
-    const item = produtos.find((p) => p.id === chrome.selectedIds[0]);
-    if (item) handleEdit(item);
-  }, [produtos, chrome.selectedIds]);
-
-  const handleDeleteSelected = () => {
-    if (!chrome.selectedIds.length) return;
-    setBulkDeleteSignal((n) => n + 1);
-  };
-
-  const onViewModeChange = useCallback(
-    (mode) => {
-      chrome.handleViewModeChange(mode, {
-        onOpenRecord: () => handleEditSelected(),
-        onExitRecord: closeForm,
-      });
-    },
-    [chrome, handleEditSelected, closeForm],
-  );
-
-  const filtradosCount = useMemo(() => {
-    const q = chrome.appliedSearch.trim().toLowerCase();
-    if (!q) return produtos.length;
-    return produtos.filter((p) => {
-      const hay = [p.nome_produto, p.codigo_interno, p.categoria, p.marca, p.numero_produto]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
-      return hay.includes(q);
-    }).length;
-  }, [produtos, chrome.appliedSearch]);
-
-  const detailTitle = editingProduto?.id
-    ? editingProduto.nome_produto || "Produto"
-    : "Novo produto";
-
-  const recordNavRows = useMemo(() => {
-    const q = chrome.appliedSearch.trim().toLowerCase();
-    if (!q) return produtos;
-    return produtos.filter((p) => {
-      const hay = [p.nome_produto, p.codigo_interno, p.categoria, p.marca, p.numero_produto]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
-      return hay.includes(q);
-    });
-  }, [produtos, chrome.appliedSearch]);
-
-  const recordIndex = editingProduto?.id
-    ? Math.max(0, recordNavRows.findIndex((p) => p.id === editingProduto.id))
-    : 0;
-
-  const goRecord = (index) => {
-    const row = recordNavRows[index];
-    if (row) handleEdit(row);
-  };
+  const progressPercentage =
+    importProgress.total > 0 ? Math.round((importProgress.current / importProgress.total) * 100) : 0;
 
   const extraToolbar = (
     <>
-      <button type="button" className="tb-btn tb-btn-gray" onClick={() => refetch()}>
+      <button type="button" className="tb-btn tb-btn-gray" onClick={() => controller.recarregarLista()}>
         <RefreshCw aria-hidden />
         Atualizar
       </button>
-      <button type="button" className="tb-btn tb-btn-gray" onClick={handleExport}>
+      <button type="button" className="tb-btn tb-btn-gray" onClick={handleExportEmpresaCompleta}>
         <Download aria-hidden />
         Exportar
       </button>
@@ -393,113 +349,67 @@ export default function Produtos() {
     </>
   );
 
+  const recordCode = controller.editingItem?.codigo_interno
+    ? String(controller.editingItem.codigo_interno)
+    : controller.editingItem?.numero_produto != null
+      ? String(controller.editingItem.numero_produto)
+      : undefined;
+
+  const screenController = { ...controller, saving };
+
   return (
     <>
-      <CadastroWorkspace
-        mode="list"
-        title="Produtos"
-        subtitle="Catálogo de produtos — importação CSV, exportação e colunas configuráveis."
-        toolbar={null}
-      >
-        {listaErro && !listaFetching ? (
-          <div className="cadastro-b1 mg-card p-3 text-xs text-amber-800 bg-amber-50 border border-amber-200 mb-2 flex flex-wrap items-center gap-2">
-            <span>
-              {getApiErrorMessage(
-                listaQueryError,
-                "Não foi possível carregar os produtos. Verifique sua conexão e tente novamente.",
-              )}
-            </span>
-            <button type="button" className="tb-btn tb-btn-gray" onClick={() => refetch()}>
-              Tentar novamente
-            </button>
-          </div>
-        ) : null}
-        <CadastroListaChrome
-          recordMode={showForm}
-          secondaryToolsLocked={showForm}
-          recordHeader={
-            showForm ? (
-              <CadastroRecordHeader
-                title={detailTitle}
-                code={
-                  editingProduto?.codigo_interno
-                    ? String(editingProduto.codigo_interno)
-                    : editingProduto?.numero_produto != null
-                      ? String(editingProduto.numero_produto)
-                      : undefined
-                }
-                index={recordIndex}
-                total={recordNavRows.length}
-                onGo={editingProduto?.id ? goRecord : undefined}
-                navDisabled={!editingProduto?.id}
-              />
-            ) : null
-          }
-          recordBody={
-            showForm ? (
-              <FormularioProduto
-                variant="embedded"
-                onSubmit={handleSubmit}
-                onCancel={closeForm}
-                initialData={editingProduto}
-                isEditing={!!editingProduto}
-              />
-            ) : null
-          }
-          selectedCount={chrome.selectedIds.length}
-          {...listBindings.listFooter.chromeFooter}
-          onNew={openNew}
-          onEdit={handleEditSelected}
-          onDelete={handleDeleteSelected}
-          onDuplicate={handleDuplicateSelected}
-          onPrint={() => window.print()}
-          cardsModeAvailable
-          cardsToolbar={listBindings.cardsToolbar}
-          searchValue={chrome.searchInput}
-          onSearchChange={chrome.setSearchInput}
-          onSearchApply={chrome.applySearch}
-          searchActive={chrome.searchActive}
-          searchPlaceholder="Buscar produtos…"
-          onConfigureColumns={() => setShowConfigColunas(true)}
-          onExportCsv={() => exportCadastroCsv("produtos.csv", PRODUTOS_COLUNAS, produtos, getProdutoFieldValue)}
-          onClearFilters={chrome.clearFilters}
-          filtersActive={chrome.filtersActive}
-          viewMode={showForm ? "record" : chrome.viewMode}
-          onViewModeChange={onViewModeChange}
-          extraToolbar={extraToolbar}
-        >
-          {!showForm ? (
-            <TabelaProdutos
-              produtos={produtos}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
-              onPrint={handlePrint}
-              isLoading={isLoading}
-              showConfigColunas={showConfigColunas}
-              setShowConfigColunas={setShowConfigColunas}
-              searchQuery={chrome.appliedSearch}
-              resetFiltersKey={chrome.resetFiltersKey}
-              onSelectionChange={chrome.onSelectionChange}
-              onFiltersActiveChange={chrome.setFiltersActive}
-              bulkDeleteSignal={bulkDeleteSignal}
-              viewMode={chrome.viewMode === "cards" ? "cards" : "table"}
-              displayLimit={listBindings.listFooter.gradePaging.displayLimit}
-              onListMetrics={listBindings.listFooter.gradePaging.onListMetrics}
-              cardFields={listBindings.cardsPrefs.cardFields}
-              cardsPerRow={listBindings.cardsPrefs.cardsPerRow}
-            />
-          ) : null}
-        </CadastroListaChrome>
-      </CadastroWorkspace>
-
-      {/* Modal de Ficha */}
-      <FichaProduto
-        produto={fichaProduto}
-        open={!!fichaProduto}
-        onClose={() => setFichaProduto(null)}
+      <CadastroBase1Screen
+        workspaceTitle="Produtos"
+        searchPlaceholder="Buscar produtos…"
+        formId={FORMULARIO_PRODUTO_ID}
+        columnsForCardsToolbar={PRODUTOS_COLUNAS}
+        controller={screenController}
+        listErrorMessage={listErrorMessage}
+        recordCode={recordCode}
+        extraToolbar={extraToolbar}
+        onExportCsv={controller.exportCsv}
+        onPrint={handlePrintFicha}
+        deleteDialog={{
+          title: "Confirmar exclusão",
+          descriptionOne: "Excluir este produto? A ação fica registrada na auditoria.",
+          descriptionMany: (n) => `Excluir ${n} produtos? A ação fica registrada na auditoria.`,
+        }}
+        recordForm={
+          <FormularioProduto
+            key={`${controller.editingItem?.id ?? "produto-nova"}-${controller.formEpoch}`}
+            variant="embedded"
+            toolbarActions
+            readOnly={!controller.isEditing}
+            isSubmitting={saving}
+            initialData={controller.editingItem}
+            isEditing={!!controller.editingItem?.id}
+            onSubmit={controller.handleSubmit}
+            onCancel={controller.cancelForm}
+          />
+        }
+        listSlot={
+          <TabelaProdutos
+            produtos={controller.visibleRows}
+            onEdit={controller.handleEdit}
+            isLoading={controller.isLoading}
+            showConfigColunas={controller.showConfigColunas}
+            setShowConfigColunas={controller.setShowConfigColunas}
+            searchQuery=""
+            matchesSearch={controller.matchesSearch}
+            resetFiltersKey={controller.chrome.resetFiltersKey}
+            onSelectionChange={controller.chrome.onSelectionChange}
+            onFiltersActiveChange={controller.chrome.setFiltersActive}
+            viewMode={controller.chrome.viewMode === "cards" ? "cards" : "table"}
+            cardFields={controller.cardsPrefs.cardFields}
+            cardsPerRow={controller.cardsPrefs.cardsPerRow}
+            configureColumnsAnchorRef={controller.configureColumnsAnchorRef}
+          />
+        }
       />
 
-      {/* Modal de Erros de Validação */}
+      <FichaProduto produto={fichaProduto} open={!!fichaProduto} onClose={() => setFichaProduto(null)} />
+
       <Dialog open={showErrorDialog} onOpenChange={setShowErrorDialog}>
         <DialogContent className="sm:max-w-3xl max-h-[80vh] overflow-hidden flex flex-col">
           <DialogHeader>
@@ -508,11 +418,11 @@ export default function Produtos() {
               Erros Encontrados na Importação
             </DialogTitle>
             <DialogDescription>
-              Foram encontrados {importErrors.length} erro(s) no arquivo. 
-              {validRecordsToImport.length > 0 && ` ${validRecordsToImport.length} registro(s) estão válidos e podem ser importados.`}
+              Foram encontrados {importErrors.length} erro(s) no arquivo.
+              {validRecordsToImport.length > 0 &&
+                ` ${validRecordsToImport.length} registro(s) estão válidos e podem ser importados.`}
             </DialogDescription>
           </DialogHeader>
-          
           <div className="flex-1 overflow-auto border rounded-lg">
             <Table>
               <TableHeader className="sticky top-0 bg-white z-10">
@@ -525,32 +435,25 @@ export default function Produtos() {
               <TableBody>
                 {importErrors.map((erro, idx) => (
                   <TableRow key={idx}>
-                    <TableCell className="font-bold text-orange-700">
-                      {erro.linha}
-                    </TableCell>
-                    <TableCell className="text-red-600">
-                      {erro.erro}
-                    </TableCell>
-                    <TableCell className="font-mono text-xs text-slate-600">
-                      {erro.dados}
-                    </TableCell>
+                    <TableCell className="font-bold text-orange-700">{erro.linha}</TableCell>
+                    <TableCell className="text-red-600">{erro.erro}</TableCell>
+                    <TableCell className="font-mono text-xs text-slate-600">{erro.dados}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
           </div>
-
           <div className="flex flex-col gap-3 pt-4 border-t">
             {validRecordsToImport.length > 0 && (
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                 <p className="text-sm text-blue-800">
-                  💡 <strong>{validRecordsToImport.length} registro(s) válido(s)</strong> podem ser importados mesmo com os erros acima.
+                  <strong>{validRecordsToImport.length} registro(s) válido(s)</strong> podem ser importados mesmo com
+                  os erros acima.
                 </p>
               </div>
             )}
-            
             <div className="flex justify-between items-center gap-3">
-              <Button 
+              <Button
                 variant="outline"
                 onClick={downloadErrosImportacao}
                 className="gap-2 border-orange-300 text-orange-700 hover:bg-orange-50"
@@ -558,22 +461,13 @@ export default function Produtos() {
                 <Download className="w-4 h-4" />
                 Baixar Planilha de Erros
               </Button>
-
               <div className="flex gap-3">
-                <Button 
-                  variant="outline" 
-                  onClick={cancelarImportacao}
-                  className="gap-2"
-                >
+                <Button variant="outline" onClick={cancelarImportacao} className="gap-2">
                   <X className="w-4 h-4" />
                   Cancelar e Corrigir
                 </Button>
-                
                 {validRecordsToImport.length > 0 && (
-                  <Button 
-                    onClick={confirmarImportacaoComErros}
-                    className="bg-orange-600 hover:bg-orange-700 gap-2"
-                  >
+                  <Button onClick={confirmarImportacaoComErros} className="bg-orange-600 hover:bg-orange-700 gap-2">
                     <Upload className="w-4 h-4" />
                     Importar {validRecordsToImport.length} Válido(s)
                   </Button>
@@ -584,7 +478,6 @@ export default function Produtos() {
         </DialogContent>
       </Dialog>
 
-      {/* Modal de Progresso de Importação */}
       <Dialog open={showImportProgress} onOpenChange={setShowImportProgress}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -592,9 +485,7 @@ export default function Produtos() {
               <Loader2 className="w-5 h-5 animate-spin text-green-600" />
               Importando Produtos
             </DialogTitle>
-            <DialogDescription>
-              Aguarde enquanto importamos os registros...
-            </DialogDescription>
+            <DialogDescription>Aguarde enquanto importamos os registros…</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
@@ -605,23 +496,7 @@ export default function Produtos() {
                 </span>
               </div>
               <Progress value={progressPercentage} className="h-3" />
-              <p className="text-center text-sm font-medium text-green-600">
-                {progressPercentage}%
-              </p>
-            </div>
-            
-            {importProgress.errors > 0 && (
-              <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
-                <p className="text-sm text-orange-800">
-                  ⚠️ {importProgress.errors} registro(s) com erro
-                </p>
-              </div>
-            )}
-            
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-              <p className="text-xs text-blue-700">
-                💡 Dica: Registros são importados individualmente para garantir numeração única
-              </p>
+              <p className="text-center text-sm font-medium text-green-600">{progressPercentage}%</p>
             </div>
           </div>
         </DialogContent>

@@ -2,8 +2,8 @@
 
 import { runProviderCall, assertArgument } from '../_core/normalizeApiError.js';
 import { sincronizarReferencias } from '@/apis/referencias';
-import { listMovimentacoesEstoque as apiListMovimentacoesEstoque } from '@/apis/movimentacoes-estoque';
-import { produtoPort } from './produtoNativePort.js';
+import { produtoPort, operacoesNativas } from './produtoNativePort.js';
+import { LIMITE_PADRAO, normalizarEnvelopePagina } from '@/lib/cadastroListaScale';
 
 const RESOURCE = 'Produto';
 const isId = (valor) => typeof valor === 'string' && valor.trim().length > 0;
@@ -18,6 +18,15 @@ export const filterProdutos = async (criterio) => {
   const contexto = ctx('filterProdutos');
   assertArgument(isObjeto(criterio), 'criterio', contexto);
   return comoLista(await runProviderCall(() => produtoPort.filter(criterio), contexto));
+};
+
+/**
+ * Página keyset — motor Base1 (`normalizarEnvelopePagina`).
+ * @param {Record<string, unknown>} [filtros]
+ */
+export const listProdutosPage = async (filtros = {}) => {
+  const bruto = await runProviderCall(() => operacoesNativas.listPage(filtros), ctx('listProdutosPage'));
+  return normalizarEnvelopePagina(bruto, Number(filtros.limit) || LIMITE_PADRAO);
 };
 
 export const createProduto = async (dados) => {
@@ -38,10 +47,6 @@ export const deleteProduto = async (id) => {
   assertArgument(isId(id), 'id', contexto);
   return runProviderCall(() => produtoPort.delete(id), { ...contexto, details: { id } });
 };
-
-/** Movimentações de estoque — leitura usada pela guarda de exclusão. */
-export const listMovimentacoesEstoque = async () =>
-  comoLista(await runProviderCall(() => apiListMovimentacoesEstoque(), ctx('listMovimentacoesEstoque')));
 
 /**
  * Sincroniza referências denormalizadas após renomear um produto.

@@ -71,6 +71,23 @@ const queryDeFiltro = (criterio) => {
   return texto ? `?${texto}` : '';
 };
 
+/**
+ * Querystring da listagem paginada (tenant só no JWT).
+ * @param {Record<string, unknown>} [filtros]
+ */
+export const montarCaminhoListagemPagina = (filtros = {}) => {
+  const params = new URLSearchParams();
+  if (typeof filtros.empresa_id === 'string' && filtros.empresa_id.trim()) {
+    params.set('empresa_id', filtros.empresa_id.trim());
+  }
+  if (filtros.limit != null) params.set('limit', String(filtros.limit));
+  if (typeof filtros.cursor === 'string' && filtros.cursor) params.set('cursor', filtros.cursor);
+  if (typeof filtros.q === 'string' && filtros.q.trim()) params.set('q', filtros.q.trim());
+  if (filtros.ativo === true || filtros.ativo === false) params.set('ativo', String(filtros.ativo));
+  const qs = params.toString();
+  return qs ? `${CAMINHO}/page?${qs}` : `${CAMINHO}/page`;
+};
+
 export const operacoesNativas = Object.freeze({
   list: (ordenacao) => {
     void ordenacao;
@@ -79,6 +96,10 @@ export const operacoesNativas = Object.freeze({
 
   filter: (criterio) =>
     nativeRequest(`${CAMINHO}${queryDeFiltro(criterio)}`, { autenticado: true }, ctx('filterProdutos')),
+
+  /** Página keyset — fora do cache offline (página ≠ lista completa). */
+  listPage: (filtros = {}) =>
+    nativeRequest(montarCaminhoListagemPagina(filtros), { autenticado: true }, ctx('listProdutosPage')),
 
   create: (dados) =>
     nativeRequest(

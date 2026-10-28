@@ -91,4 +91,68 @@ describe('P5.2 — Produto', () => {
     });
     assert.equal(lista.json().length, 1);
   });
+
+  test('BE-P52-PAGE-01 GET /produtos/page exige empresa_id e devolve envelope', async () => {
+    const { token } = await tenantAutenticado();
+    await app.inject({
+      method: 'POST',
+      url: '/produtos',
+      headers: auth(token),
+      payload: { empresa_id: EMPRESA, nome_produto: 'Soja' },
+    });
+    const page = await app.inject({
+      method: 'GET',
+      url: `/produtos/page?empresa_id=${EMPRESA}&limit=10`,
+      headers: auth(token),
+    });
+    assert.equal(page.statusCode, 200);
+    const corpo = page.json();
+    assert.equal(corpo.total, 1);
+    assert.equal(corpo.items.length, 1);
+    assert.equal(corpo.items[0].nome_produto, 'SOJA');
+    assert.equal(typeof corpo.has_more, 'boolean');
+  });
+
+  test('BE-P52-PAGE-02 GET /produtos legado continua array', async () => {
+    const { token } = await tenantAutenticado();
+    const r = await app.inject({
+      method: 'GET',
+      url: `/produtos?empresa_id=${EMPRESA}`,
+      headers: auth(token),
+    });
+    assert.equal(r.statusCode, 200);
+    assert.ok(Array.isArray(r.json()));
+  });
+
+  test('BE-P52-05 DELETE bloqueado com movimentação (PRODUTO_DELETE_BLOCKED)', async () => {
+    const { token } = await tenantAutenticado();
+    const criado = await app.inject({
+      method: 'POST',
+      url: '/produtos',
+      headers: auth(token),
+      payload: { empresa_id: EMPRESA, nome_produto: 'Ração bloqueada' },
+    });
+    const produtoId = criado.json().id;
+    await app.inject({
+      method: 'POST',
+      url: '/movimentacoes-estoque',
+      headers: auth(token),
+      payload: {
+        empresa_id: EMPRESA,
+        tipo_movimentacao: 'Entrada',
+        data_movimentacao: new Date().toISOString(),
+        produto_id: produtoId,
+        quantidade: 5,
+        unidade_medida: 'KG',
+      },
+    });
+    const del = await app.inject({
+      method: 'DELETE',
+      url: `/produtos/${produtoId}`,
+      headers: auth(token),
+    });
+    assert.equal(del.statusCode, 409);
+    assert.equal(del.json().code, 'PRODUTO_DELETE_BLOCKED');
+    assert.equal(del.json().details?.quantidade, 1);
+  });
 });

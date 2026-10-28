@@ -2,6 +2,7 @@
  * Repositório de Produto (P5.2, D-PROD-48).
  */
 import { getPrismaClient } from '../../database/prismaClient.js';
+import { clausulaKeysetDesc } from '../../shared/pagination/keysetCursor.js';
 
 const SELECAO = Object.freeze({
   id: true,
@@ -44,6 +45,77 @@ export const listarProdutos = async (clienteId, filtros = {}) => {
     select: SELECAO,
   });
 };
+
+/**
+ * @param {string} clienteId
+ * @param {{
+ *   empresaId: string,
+ *   q?: string|null,
+ *   ativo?: boolean|null,
+ *   cursor?: { createdAt: Date, id: string }|null,
+ *   limit: number,
+ * }} filtro
+ */
+export const montarWhereProdutos = (clienteId, filtro) => {
+  /** @type {import('@prisma/client').Prisma.ProdutoWhereInput} */
+  const where = { cliente_id: clienteId, empresa_id: filtro.empresaId };
+  if (filtro.ativo === true || filtro.ativo === false) where.ativo = filtro.ativo;
+  const q = typeof filtro.q === 'string' ? filtro.q.trim() : '';
+  if (q) {
+    where.AND = [
+      ...(Array.isArray(where.AND) ? where.AND : []),
+      {
+        OR: [
+          { nome_produto: { contains: q, mode: 'insensitive' } },
+          { codigo_interno: { contains: q, mode: 'insensitive' } },
+          { codigo_barras: { contains: q, mode: 'insensitive' } },
+          { categoria: { contains: q, mode: 'insensitive' } },
+          { marca: { contains: q, mode: 'insensitive' } },
+          { numero_produto: { contains: q, mode: 'insensitive' } },
+        ],
+      },
+    ];
+  }
+  if (filtro.cursor) {
+    where.AND = [...(Array.isArray(where.AND) ? where.AND : []), clausulaKeysetDesc(filtro.cursor)];
+  }
+  return where;
+};
+
+/** @param {string} clienteId @param {Parameters<typeof montarWhereProdutos>[1]} filtro */
+export const listarProdutosPagina = async (clienteId, filtro) => {
+  const prisma = getPrismaClient();
+  return prisma.produto.findMany({
+    where: montarWhereProdutos(clienteId, filtro),
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    take: filtro.limit + 1,
+    select: SELECAO,
+  });
+};
+
+/** @param {string} clienteId @param {{ empresaId: string, q?: string|null, ativo?: boolean|null }} filtro */
+export const contarProdutos = async (clienteId, filtro) => {
+  const prisma = getPrismaClient();
+  return prisma.produto.count({
+    where: montarWhereProdutos(clienteId, {
+      empresaId: filtro.empresaId,
+      q: filtro.q,
+      ativo: filtro.ativo,
+      cursor: null,
+      limit: 1,
+    }),
+  });
+};
+
+/**
+ * @param {import('@prisma/client').Prisma.TransactionClient} tx
+ * @param {string} clienteId
+ * @param {string} produtoId
+ */
+export const contarMovimentacoesPorProduto = async (tx, clienteId, produtoId) =>
+  tx.movimentacaoEstoque.count({
+    where: { cliente_id: clienteId, produto_id: produtoId },
+  });
 
 export const buscarProduto = async (clienteId, id, tx) => {
   const cliente = tx || getPrismaClient();

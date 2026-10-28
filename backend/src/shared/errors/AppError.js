@@ -156,3 +156,10 @@ export const produtoNomeConflito = (message, options) =>
     message || 'já existe produto com este nome nesta empresa',
     options
   );
+
+export const produtoDeleteBlocked = (quantidade, options) =>
+  new AppError(
+    'PRODUTO_DELETE_BLOCKED',
+    'não é possível excluir produto com movimentações de estoque',
+    { ...options, details: { ...(options?.details ?? {}), quantidade } }
+  );
