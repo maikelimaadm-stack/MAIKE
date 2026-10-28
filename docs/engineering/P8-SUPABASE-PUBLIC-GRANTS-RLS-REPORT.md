@@ -3,15 +3,33 @@
 **Data:** 2026-10-28  
 **Branch:** `cursor/supabase-seguranca-rls-26e2`  
 **Base:** `main`  
-**HEAD:** `ff8356864e3593e56699fc4a104f533fd481dce2`  
+**HEAD:** (atualiza no commit pós-apply)  
 **Compare:** https://github.com/maikelimaadm-stack/MAIKE/compare/main...cursor/supabase-seguranca-rls-26e2?expand=1  
-**PR:** criação via API/integração retornou 403 neste ambiente — abrir draft manualmente no compare (ou via ManagePullRequest quando disponível)  
+**PR:** [#123](https://github.com/maikelimaadm-stack/MAIKE/pull/123)  
 **Missão:** correção prioritária de acesso direto ao PostgreSQL Supabase  
 **Decisão:** D-PROD-56  
 
+### Apply remoto (2026-10-28) — AUTORIZADO
+
+Autorização explícita do proprietário:
+`AUTORIZO APPLY REMOTO SUPABASE — D-PROD-56 / migration 20261028240000_p8_supabase_public_revoke_rls — PR #123`
+
+| Item | Resultado |
+|---|---|
+| Caminho | Supabase MCP `apply_migration` (DDL) + insert em `_prisma_migrations` com checksum Prisma SHA-256 |
+| Por que não `npm run deploy:migrate` neste agente | `MIGRATION_DATABASE_URL` no Vercel é `sensitive` — MCP não devolve o valor; `.env` local só aponta para `127.0.0.1` |
+| Pending no remoto antes | só `20261028240000_p8_supabase_public_revoke_rls` (17/17 até `operacao_idempotente`) |
+| Ledger após | **18/18**; checksum `fe60da87828cc890b57c5fefb6f30a3e6ee8c67788b747c8a73b2b6a5b13ea54` |
+| RLS | **40/40** `relrowsecurity=true`, **0** FORCE |
+| Grants `anon`/`authenticated` | **0** linhas em `role_table_grants` (public) |
+| Políticas | só `maike_backend_all` × 40 → `{maike_vercel}` |
+| Privilegios spot-check | `maike_vercel` SELECT em `Cliente` = true; `anon`/`authenticated` = false |
+| Advisors Security | **0** lints (antes: 40× `rls_disabled_in_public`) |
+| Defaults `supabase_admin` | ainda concedem a anon em objetos **futuros** criados por esse papel — residual documentado |
+
 ---
 
-## 1. Vulnerabilidades confirmadas (somente leitura)
+## 1. Vulnerabilidades confirmadas (somente leitura — pré-apply)
 
 | Achado | Evidência |
 |---|---|
@@ -52,7 +70,7 @@ dados de domínio, não inventar RLS tenant via `auth.uid()` (JWT próprio).
 4. Política `maike_backend_all` **somente** `TO maike_vercel` (se o papel existir)
 5. Gate estático `gate:supabase-public-grants` + lab em Postgres descartável
 
-**Não** truncar/dropar tabelas. **Não** aplicar DDL no remoto nesta missão.
+**Não** truncar/dropar tabelas. DDL remoto foi aplicado **após** autorização explícita do dono (ver bloco Apply remoto).
 
 ---
 
@@ -112,14 +130,14 @@ conferidos — ausência de lint sozinha não basta.
 
 ---
 
-## 6. Rollout proposto (remoto — AGUARDA AUTORIZAÇÃO)
+## 6. Rollout proposto (remoto)
 
 1. **Backup** snapshot/PITR Supabase MAIKE  
 2. Manter janela curta; app usa Prisma — REVOKE em anon não corta o monólito  
-3. Aplicar via `npm run deploy:migrate` com `MIGRATION_DATABASE_URL` sessão **5432**  
-   (ou `prisma migrate deploy` equivalente pelo runner) — **não** `db push`  
-4. Rodar SQL de verificação + advisors  
-5. Smoke: `/health`, login nativo, listar/criar área/lote (ambiente autorizado)  
+3. Preferir `npm run deploy:migrate` com `MIGRATION_DATABASE_URL` sessão **5432**  
+   — neste apply: MCP `apply_migration` + ledger Prisma (URL sensitive indisponível ao agente)  
+4. Rodar SQL de verificação + advisors — **feito**  
+5. Smoke: login nativo, listar/criar área/lote (ambiente autorizado) — dono  
 6. Se precisar reverter grants/RLS: ver `P8-SUPABASE-PUBLIC-GRANTS-RLS-ROLLBACK.sql`  
    (não apaga dados; reabre exposição — só emergência)
 
@@ -145,9 +163,9 @@ conferidos — ausência de lint sozinha não basta.
 | Lab Postgres local — migration apply + BE-P8-GRANTS-* | **PASS** (4/4); RLS 40/40 |
 | `npm run test:backend` | **PASS** (236) |
 | `npm run verify:all` | **PASS** (todas as etapas, incl. build) |
-| Apply DDL remoto Supabase | **NÃO executado** — aguarda dono |
+| Apply DDL remoto Supabase | **EXECUTADO** 2026-10-28 (autorização dono; ver bloco Apply remoto) |
 | Data API com anon key de produção | **NÃO** — proibido logar chave real |
-| Criação automática de PR draft | **BLOCKED** (gh 403; ManagePullRequest ausente) |
+| Criação automática de PR draft | PR **#123** (abertura anterior / compare) |
 
 ---
 
@@ -155,12 +173,12 @@ conferidos — ausência de lint sozinha não basta.
 
 | Risco | Mitigação / próximo |
 |---|---|
-| Defaults `supabase_admin` ainda concedem a anon em objetos criados por esse papel | Passo operacional pós-merge com privilégio adequado |
+| Defaults `supabase_admin` ainda concedem a anon em objetos criados por esse papel | Passo operacional com privilégio adequado (fora deste DDL) |
 | `service_role` mantém grants + bypass | Correto para admin; segredo nunca no frontend |
 | Marketplace `NEXT_PUBLIC_SUPABASE_*` | Higiene env separada |
 | Políticas tenant no PostgREST | Desnecessário enquanto Data API bloqueada; P8+ se reabrir superfície |
-| MapLibre | Só após merge/exceção formal desta PR |
+| Próximo `npm run deploy:migrate` | Deve ser **no-op** (18/18); se checksum divergir, investigar antes de `--applied` |
+| Smoke app pós-apply | Login nativo + listar/criar área/lote no ambiente autorizado (agente sem senha de usuário) |
 
-**Verdict merge manual:** conteúdo da PR = **GO para revisão** (draft).  
-**Verdict apply remoto:** **NO-GO** até autorização explícita do proprietário com
-o SQL desta migration.
+**Verdict merge manual:** conteúdo da PR = **GO para revisão**.  
+**Verdict apply remoto:** **APLICADO e verificado** (RLS 40/40; grants Data API zerados; ledger Prisma 18/18).
