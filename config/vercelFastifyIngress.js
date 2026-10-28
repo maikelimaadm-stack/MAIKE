@@ -57,6 +57,59 @@ export const validarSegmentosRotaNativa = (bruto) => {
 };
 
 /**
+ * @param {string} pathname
+ * @returns {string | null} segmentos após `/api/native`, ou `null` se não for fronteira nativa
+ */
+const segmentosDoPathnameNativo = (pathname) => {
+  if (!pathname.startsWith(NATIVE_API_PATH_PREFIX)) return null;
+  const resto = pathname.slice(NATIVE_API_PATH_PREFIX.length);
+  if (resto !== '' && !resto.startsWith('/')) return null;
+  const bruto = resto.replace(/^\//, '').replace(/\/+$/, '');
+  if (!bruto) return '';
+  return validarSegmentosRotaNativa(bruto);
+};
+
+/**
+ * Consome metadados de transporte na query quando o pathname já fixou a rota
+ * (`/api/native/{rota}`). `__native_route` contraditório rejeita; `path` legado
+ * só é removido quando coincide com a rota do pathname.
+ *
+ * @param {URLSearchParams} params
+ * @param {string} segmentosPathname
+ */
+const consumirMetadadosQueryComPathnameNativo = (params, segmentosPathname) => {
+  if (params.getAll(NATIVE_ROUTE_QUERY_PARAM).length > 1) {
+    throw new RotaNativaIngressoInvalidoError();
+  }
+
+  if (params.has(NATIVE_ROUTE_QUERY_PARAM)) {
+    const capturado = validarSegmentosRotaNativa(params.get(NATIVE_ROUTE_QUERY_PARAM));
+    if (capturado !== segmentosPathname) {
+      throw new RotaNativaIngressoInvalidoError();
+    }
+    params.delete(NATIVE_ROUTE_QUERY_PARAM);
+  }
+
+  if (params.has(VERCEL_LEGACY_CAPTURED_PATH_QUERY)) {
+    const legado = validarSegmentosRotaNativa(params.get(VERCEL_LEGACY_CAPTURED_PATH_QUERY));
+    if (legado === segmentosPathname) {
+      params.delete(VERCEL_LEGACY_CAPTURED_PATH_QUERY);
+    }
+  }
+};
+
+/**
+ * @param {string} pathname
+ * @param {URLSearchParams} params
+ * @returns {string}
+ */
+const montarUrlNativaComQuery = (pathname, params) => {
+  const queryLimpa = params.toString();
+  const urlNativa = queryLimpa ? `${pathname}?${queryLimpa}` : pathname;
+  return reescreverUrlApiNativa(urlNativa);
+};
+
+/**
  * Adaptador exclusivo da função serverless: reconstrói rota a partir do rewrite
  * e remove parâmetros internos da query.
  *
@@ -70,11 +123,25 @@ export const normalizarIngressoServerlessVercel = (url) => {
   const pathname = queryIndex >= 0 ? url.slice(0, queryIndex) : url;
   const search = queryIndex >= 0 ? url.slice(queryIndex + 1) : '';
 
+  const segmentosNativos = segmentosDoPathnameNativo(pathname);
+  if (segmentosNativos !== null) {
+    const params = new URLSearchParams(search);
+    consumirMetadadosQueryComPathnameNativo(params, segmentosNativos);
+    const pathNativo = segmentosNativos
+      ? `${NATIVE_API_PATH_PREFIX}/${segmentosNativos}`
+      : NATIVE_API_PATH_PREFIX;
+    return montarUrlNativaComQuery(pathNativo, params);
+  }
+
   if (pathname !== '/api/fastify') {
     return reescreverUrlApiNativa(url);
   }
 
   const params = new URLSearchParams(search);
+  if (params.getAll(NATIVE_ROUTE_QUERY_PARAM).length > 1) {
+    throw new RotaNativaIngressoInvalidoError();
+  }
+
   const rotaCapturada =
     params.get(NATIVE_ROUTE_QUERY_PARAM) ?? params.get(VERCEL_LEGACY_CAPTURED_PATH_QUERY) ?? '';
   params.delete(NATIVE_ROUTE_QUERY_PARAM);
@@ -85,7 +152,5 @@ export const normalizarIngressoServerlessVercel = (url) => {
     ? `${NATIVE_API_PATH_PREFIX}/${segmentos}`
     : NATIVE_API_PATH_PREFIX;
 
-  const queryLimpa = params.toString();
-  const urlNativa = queryLimpa ? `${pathNativo}?${queryLimpa}` : pathNativo;
-  return reescreverUrlApiNativa(urlNativa);
+  return montarUrlNativaComQuery(pathNativo, params);
 };

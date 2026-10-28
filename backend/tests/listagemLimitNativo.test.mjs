@@ -100,6 +100,36 @@ describe('listagem GET — parâmetro limit', () => {
     assert.ok(Array.isArray(r.json()));
   });
 
+  test('PR #107 — pathname /api/native + __native_route espelhado não vaza para AJV', async () => {
+    const { normalizarIngressoServerlessVercel } = await import('../../config/vercelFastifyIngress.js');
+    const { token } = await tenantAutenticado();
+    const entrada =
+      '/api/native/suplementacao-eventos?__native_route=suplementacao-eventos&limit=12';
+    const url = normalizarIngressoServerlessVercel(entrada);
+    assert.equal(url, '/suplementacao-eventos?limit=12');
+    const r = await app.inject({
+      method: 'GET',
+      url,
+      headers: auth(token),
+    });
+    assert.equal(r.statusCode, 200, url);
+    assert.ok(Array.isArray(r.json()));
+  });
+
+  test('PR #107 — __native_route vazando reprova field query (prova de regressão)', async () => {
+    const { token } = await tenantAutenticado();
+    const r = await app.inject({
+      method: 'GET',
+      url: '/movimentacoes-mapa?__native_route=movimentacoes-mapa&limit=200',
+      headers: auth(token),
+    });
+    assert.equal(r.statusCode, 400);
+    const corpo = r.json();
+    assert.equal(corpo.code, 'REQUEST_VALIDATION_FAILED');
+    assert.equal(corpo.field, 'query');
+    assert.equal(corpo.reason, 'unknown_field');
+  });
+
   test('query desconhecida continua 400 com field/reason sanitizado', async () => {
     const { token } = await tenantAutenticado();
     const r = await app.inject({
