@@ -217,3 +217,8 @@ export function buildGuiaCollection(from, to) {
     ],
   };
 }
+
+export {
+  buildAccuracyCircleCollection,
+  buildUserPointCollection,
+} from "./gpsCapture.js";

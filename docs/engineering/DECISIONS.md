@@ -2425,4 +2425,36 @@ próxima fatia (M2) só após merge manual desta.
 
 ---
 
-<!-- Próxima decisão: D-PROD-59 -->
+## D-PROD-59 — MapLibre M2-A: captura GPS de áreas/linhas
+
+**Missão:** `MAPLIBRE-M2A-GPS-AREAS-LINHAS-01`  
+**Relatório:** `docs/engineering/MAPLIBRE-M2A-GPS-REPORT.md`  
+**Branch:** `cursor/maplibre-m2a-gps-areas-linhas-f5fd`  
+**Base:** `origin/main` pós-merge PR #127 (MapLibre M1 / D-PROD-58)
+
+**Decisão:**
+
+1. A tela `CapturaGPSPoligono` (usada por `FormularioArea` / `FormularioLinha`
+   com `tipo="area"|"linha"`) deixa de carregar Google Maps e passa a usar
+   **MapLibre GL JS**, reaproveitando `src/lib/geografia/` e
+   `src/lib/maplibre/` da M1 (basemap, lifecycle, medidas).
+2. Contrato público **inalterado**: `onSalvar(pontos)` com
+   `{ lat, lng, accuracy?, timestamp? }[]`; mínimo 3 (área) / 2 (linha);
+   `onCancelar()`; persistência via `toPersistedCoords` → JSONB
+   `[[lat,lng],…]`. Sem migration, PostGIS ou escrita remota nesta fatia.
+3. Geolocalização (`watchPosition`) é **independente dos tiles**; uma
+   assinatura por ativação; `clearWatch` inclusive com id `0`; sem
+   auto-restart após `PERMISSION_DENIED`; precisão em metros é aviso, não
+   bloqueio arbitrário.
+4. `CapturaGPSPonto` permanece fora do rewrite (já sem Google Maps).
+   `MapaGeral`, pickers e modal de lote continuam Google até **M2-B / M3**.
+   `src/lib/googleMaps.js` e `VITE_GOOGLE_MAPS_API_KEY` permanecem.
+5. Fora de escopo: Configurações Gerais / catálogo global (D-PROD-57), Base1
+   keyset, Supabase RLS/grants, backend/Prisma.
+
+**Consequência:** M2-B (seletores) e M3 (Mapa Geral) são PRs posteriores.
+Merge desta fatia só pelo proprietário após auditoria.
+
+---
+
+<!-- Próxima decisão: D-PROD-60 -->
