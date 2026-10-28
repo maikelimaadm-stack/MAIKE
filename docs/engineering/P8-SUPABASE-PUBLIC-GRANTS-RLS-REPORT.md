@@ -3,6 +3,9 @@
 **Data:** 2026-10-28  
 **Branch:** `cursor/supabase-seguranca-rls-26e2`  
 **Base:** `main`  
+**HEAD:** `c0cc9434799bdec0afdc62bd42ab08072d1a038e`  
+**Compare:** https://github.com/maikelimaadm-stack/MAIKE/compare/main...cursor/supabase-seguranca-rls-26e2?expand=1  
+**PR:** criação via API/integração retornou 403 neste ambiente — abrir draft manualmente no compare (ou via ManagePullRequest quando disponível)  
 **Missão:** correção prioritária de acesso direto ao PostgreSQL Supabase  
 **Decisão:** D-PROD-56  
 
