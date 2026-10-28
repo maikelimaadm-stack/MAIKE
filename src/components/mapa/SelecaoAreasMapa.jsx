@@ -424,15 +424,16 @@ export default function SelecaoAreasMapa({
     const ids = Array.from(selecionadosRef.current);
     const start = Number.parseInt(startNumber || "1", 10);
     const planned = planRenumeracao(areasRef.current, ids, start);
-    if (!planned.ok) {
-      toast.error(planned.reason);
+    if (planned.ok !== true) {
+      toast.error(planned.reason || "Renumeração inválida");
       return;
     }
+    const plan = planned.plan;
 
     setBatchBusy(true);
     try {
       // Fail-fast sequencial — não finge sucesso total
-      for (const step of planned.plan) {
+      for (const step of plan) {
         await atualizarArea(step.id, { numero_area: step.numero_area });
       }
       toast.success("Códigos reatribuídos");
