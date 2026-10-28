@@ -16,9 +16,9 @@ import AutocompleteGenerico from "@/components/financeiro/AutocompleteGenerico";
 import TopNoticeDialog from "@/components/common/TopNoticeDialog";
 import LegacyRecordToolbar from "./LegacyRecordToolbar.jsx";
 import LegacyTabs from "./LegacyTabs.jsx";
+import Base1PanelTabs from "@/components/cadastro/base1/Base1PanelTabs.jsx";
 import DynamicFormRenderer from "@/components/dynamic/DynamicFormRenderer";
 import LayoutConfiguratorDialog from "@/components/dynamic/LayoutConfiguratorDialog";
-import ToggleSwitch from "@/components/common/ToggleSwitch";
 export const FORMULARIO_LOTE_ID = "formulario-lote-base1";
 
 const FL = ({ label, required, error, children, dataField, wide = false, compact = false, medium = false }) =>
@@ -385,7 +385,15 @@ export default function FormularioLote({
 
   const dynamicFields = useMemo(() => [
   { id: "nome", name: "nome", label: "Descrição", type: "text", required: true, errorKey: "nome", wide: true, render: () => <Input value={formData.nome || ""} onChange={(e) => handleChange("nome", e.target.value)} placeholder="NOME DO LOTE" className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1" style={{ textTransform: "uppercase" }} /> },
-  { id: "status", name: "status", label: "Ativo", type: "switch", compact: true, render: () => <div className="h-[22px] flex items-center px-1"><ToggleSwitch checked={formData.status !== "Inativo"} onChange={(checked) => handleChange("status", checked ? "Ativo" : "Inativo")} disabled={isReadOnly} /></div> },
+  {
+    id: "status",
+    name: "status",
+    label: "Ativo",
+    type: "switch",
+    compact: true,
+    switchGetChecked: (v) => v !== "Inativo",
+    switchToValue: (checked) => (checked ? "Ativo" : "Inativo"),
+  },
   { id: "numero_lote", name: "numero_lote", label: "Código", type: "text", compact: true, readOnly: true, render: () => <Input value={formData.numero_lote || ""} readOnly className="h-[22px] text-xs text-left border-0 rounded-none shadow-none focus-visible:ring-0 bg-slate-50 px-1" /> },
   { id: "data_entrada", name: "data_entrada", label: "Data de Entrada", type: "date", required: true, compact: true, errorKey: "data_entrada" },
   { id: "setor_id", name: "setor_id", label: "Setor", type: "autocomplete", required: true, errorKey: "setor_id", options: setores, placeholder: "BUSCAR SETOR...", displayField: "nome", searchFields: ["nome", "numero_setor"], render: ({ value }) => <AutocompleteGenerico items={setores} value={value} onChange={(nextValue) => {if (isReadOnly) return;setIsDirty(true);setFormData((prev) => ({ ...prev, setor_id: nextValue || "", area_entrada_id: "" }));setErrors((prev) => ({ ...prev, setor_id: false, area_entrada_id: false }));}} placeholder="BUSCAR SETOR..." displayField="nome" searchFields={["nome", "numero_setor"]} className="w-full" inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[22px] text-xs px-1" /> },
@@ -553,28 +561,75 @@ export default function FormularioLote({
             </div>
           </fieldset>
 
-          <LegacyTabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
-          <fieldset className={isReadOnly ? "pointer-events-none [&_input]:cursor-default [&_textarea]:cursor-default [&_button]:cursor-default" : ""}>
-          <div className={`min-h-[360px] py-1 ${useBase1Visual ? "px-2" : "px-4 md:px-8"}`}>
-            <div className={useBase1Visual ? "w-full space-y-1" : "max-w-[780px] space-y-1"}>
-              <DynamicFormRenderer
-                panels={tabs}
-                fields={dynamicFields}
-                layout={activeLayoutConfig.layout}
-                hiddenFieldIds={activeLayoutConfig.hiddenFieldIds || []}
-                lockedFieldIds={activeLayoutConfig.lockedFieldIds || []}
-                requiredFieldIds={activeLayoutConfig.requiredFieldIds || []}
-                visibilityRules={activeLayoutConfig.visibilityRules || {}}
-                activePanelId={activeTab}
-                values={formData}
-                errors={errors}
-                onChange={handleChange}
-                readOnly={isReadOnly}
-                visualVariant={useBase1Visual ? "base1" : "legacy"}
-                />
-            </div>
-          </div>
-        </fieldset>
+          {useBase1Visual ? (
+            <Base1PanelTabs
+              tabs={tabs}
+              value={activeTab}
+              onChange={setActiveTab}
+              preferenceKey="motorbase1_lotes_panel_style"
+              animate={!isReadOnly}
+              animationKey={initialData?.id ?? initialData?.numero_lote ?? "novo"}
+              className="min-h-[360px] py-1 px-2"
+              renderPanel={(panelId) => (
+                <fieldset
+                  className={
+                    isReadOnly
+                      ? "pointer-events-none [&_input]:cursor-default [&_textarea]:cursor-default [&_button]:cursor-default min-w-0 border-0 p-0 m-0"
+                      : "min-w-0 border-0 p-0 m-0"
+                  }
+                >
+                  <div className="w-full space-y-1">
+                    <DynamicFormRenderer
+                      panels={tabs}
+                      fields={dynamicFields}
+                      layout={activeLayoutConfig.layout}
+                      hiddenFieldIds={activeLayoutConfig.hiddenFieldIds || []}
+                      lockedFieldIds={activeLayoutConfig.lockedFieldIds || []}
+                      requiredFieldIds={activeLayoutConfig.requiredFieldIds || []}
+                      visibilityRules={activeLayoutConfig.visibilityRules || {}}
+                      activePanelId={panelId}
+                      values={formData}
+                      errors={errors}
+                      onChange={handleChange}
+                      readOnly={isReadOnly}
+                      visualVariant="base1"
+                    />
+                  </div>
+                </fieldset>
+              )}
+            />
+          ) : (
+            <>
+              <LegacyTabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
+              <fieldset
+                className={
+                  isReadOnly
+                    ? "pointer-events-none [&_input]:cursor-default [&_textarea]:cursor-default [&_button]:cursor-default"
+                    : ""
+                }
+              >
+                <div className="min-h-[360px] py-1 px-4 md:px-8">
+                  <div className="max-w-[780px] space-y-1">
+                    <DynamicFormRenderer
+                      panels={tabs}
+                      fields={dynamicFields}
+                      layout={activeLayoutConfig.layout}
+                      hiddenFieldIds={activeLayoutConfig.hiddenFieldIds || []}
+                      lockedFieldIds={activeLayoutConfig.lockedFieldIds || []}
+                      requiredFieldIds={activeLayoutConfig.requiredFieldIds || []}
+                      visibilityRules={activeLayoutConfig.visibilityRules || {}}
+                      activePanelId={activeTab}
+                      values={formData}
+                      errors={errors}
+                      onChange={handleChange}
+                      readOnly={isReadOnly}
+                      visualVariant="legacy"
+                    />
+                  </div>
+                </div>
+              </fieldset>
+            </>
+          )}
 
         {embedded && !toolbarActions ? (
           <div className="flex flex-wrap items-center justify-end gap-2 border-t border-slate-200 px-4 py-2 bg-slate-50">

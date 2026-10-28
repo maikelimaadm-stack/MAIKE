@@ -1954,3 +1954,208 @@
   background: #f4f6f7;
   color: var(--mg-text-1);
 }
+
+/* ── painéis de formulário Base1 (paridade PanelTabs / Novo Equipamento) ── */
+@keyframes b1-panel-fade {
+  from {
+    opacity: 0.88;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.cadastro-b1 .b1-panel-motion--animate {
+  animation: b1-panel-fade 0.22s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cadastro-b1 .b1-panel-motion--animate {
+    animation: none;
+  }
+}
+
+.cadastro-b1 .b1-panel-tabs-rail {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+  min-height: 36px;
+  margin-bottom: 8px;
+  padding: 0 4px;
+}
+
+.cadastro-b1 .b1-panel-tabs-rail__leading {
+  display: inline-flex;
+  align-items: center;
+  padding-right: 4px;
+  flex-shrink: 0;
+}
+
+.cadastro-b1 .b1-panel-nav-btn {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: var(--mg-gray-fill);
+  color: var(--mg-icon, #64748b);
+  cursor: pointer;
+  transition: background 0.12s, box-shadow 0.22s;
+}
+
+.cadastro-b1 .b1-panel-nav-btn:hover {
+  background: var(--mg-gray-fill2);
+}
+
+.cadastro-b1 .b1-panel-nav-btn.is-active {
+  border-color: var(--mg-focus-border, #86efac);
+  box-shadow: var(--mg-focus-ring, 0 0 0 2px rgba(34, 197, 94, 0.25));
+}
+
+.cadastro-b1 .b1-panel-nav-btn svg {
+  width: 13px;
+  height: 13px;
+}
+
+.cadastro-b1 .b1-panel-tabs-strip {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  border-bottom: 1px solid #d0d5dc;
+  box-shadow: inset 0 1px 0 rgba(15, 23, 42, 0.05);
+  scrollbar-width: thin;
+}
+
+.cadastro-b1 .b1-panel-tab {
+  position: relative;
+  flex: 0 0 auto;
+  padding: 6px 12px 8px;
+  min-height: 34px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--mg-text-2);
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.cadastro-b1 .b1-panel-tab:hover {
+  color: var(--mg-text-1);
+}
+
+.cadastro-b1 .b1-panel-tab.is-active {
+  color: var(--mg-text-1);
+  font-weight: 700;
+}
+
+.cadastro-b1 .b1-panel-tab.is-active::after {
+  content: "";
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 0;
+  height: 2px;
+  background: #000;
+  border-radius: 2px;
+}
+
+.cadastro-b1 .b1-panel-tab:focus-visible {
+  outline: 2px solid var(--mg-focus-border, #22c55e);
+  outline-offset: 2px;
+}
+
+.cadastro-b1 .b1-panel-sidebar-layout {
+  display: flex;
+  align-items: stretch;
+  gap: 12px;
+  min-height: 0;
+}
+
+.cadastro-b1 .b1-panel-sidebar-layout__tabs {
+  flex: 0 0 268px;
+  min-width: 246px;
+  max-width: 292px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 0 0 1px rgba(255, 255, 255, 0.96),
+    0 0 0 2px rgba(226, 232, 240, 0.62);
+  padding: 8px 8px 12px;
+  align-self: stretch;
+  box-sizing: border-box;
+}
+
+.cadastro-b1 .b1-panel-sidebar-layout__content {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.cadastro-b1 .b1-panel-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.cadastro-b1 .b1-panel-list__leading {
+  display: flex;
+  align-items: center;
+  padding: 0 0 4px;
+}
+
+.cadastro-b1 .b1-panel-list__tab {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: #4f6278;
+  cursor: pointer;
+  text-align: left;
+  border-radius: 7px;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.2;
+  transition:
+    background-color 0.22s cubic-bezier(0.2, 0.8, 0.2, 1),
+    color 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.cadastro-b1 .b1-panel-list__tab:hover {
+  color: #3b4e63;
+  background: #f3f6fa;
+}
+
+.cadastro-b1 .b1-panel-list__tab.is-active {
+  color: #2f7a5b;
+  background: #d8ece7;
+  font-weight: 700;
+}
+
+.cadastro-b1 .b1-panel-list__tab:focus-visible {
+  outline: 2px solid var(--mg-focus-border, #22c55e);
+  outline-offset: 1px;
+}
+
+@media (max-width: 767px) {
+  .cadastro-b1 .b1-panel-sidebar-layout {
+    flex-direction: column;
+  }
+
+  .cadastro-b1 .b1-panel-sidebar-layout__tabs {
+    flex-basis: auto;
+    max-width: none;
+    min-width: 0;
+    width: 100%;
+  }
+}

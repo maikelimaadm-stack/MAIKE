@@ -31,6 +31,7 @@ const SPAN = {
  * @param {boolean} [props.showText]
  * @param {string} [props.className]
  * @param {string} [props.controlId]
+ * @param {string} [props.dataField] atributo data-field para scroll/validação
  */
 export default function B1ChaveRow({
   label,
@@ -42,12 +43,16 @@ export default function B1ChaveRow({
   showText = true,
   className,
   controlId,
+  dataField,
 }) {
   const generated = React.useId();
   const id = controlId ?? generated;
 
   return (
-    <div className={cn("col-span-12", SPAN[span] ?? "md:col-span-12", className)}>
+    <div
+      className={cn("col-span-12", SPAN[span] ?? "md:col-span-12", className)}
+      data-field={dataField}
+    >
       <div className="b1-chave-row" data-chave-row>
         <span className="b1-chave-row__label" id={`${id}-label`}>{label}</span>
         <B1Switch
