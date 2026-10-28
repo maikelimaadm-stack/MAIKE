@@ -118,6 +118,7 @@ model Usuario {
 
   cliente   Cliente    @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
   auditLogs AuditLog[]
+  operadorProdutoMaike OperadorProdutoMaike[]
 
   @@unique([cliente_id, login])
   // Chave referenciável tenant-aware. Existe para que quem aponta para um
@@ -1310,4 +1311,161 @@ model BebedouroAlerta {
 
   @@unique([cliente_id, id])
   @@index([cliente_id, empresa_id])
+}
+
+// ---------------------------------------------------------------------------
+// Catálogo global de ícones (D-PROD-57, slice 1 backend — D-PROD-60).
+// Sem cliente_id: compartilhado entre todos os tenants. Escrita só via operador
+// de produto validado no backend; RLS P8 + grants revogados para Data API.
+// ---------------------------------------------------------------------------
+
+model CatalogoMeta {
+  id        String   @id @default(cuid())
+  chave     String   @unique @default("global") @db.VarChar(32)
+  revisao   Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model CatalogoTipoEntidade {
+  id        String   @id @default(cuid())
+  codigo    String   @unique @db.VarChar(64)
+  nome      String   @db.VarChar(255)
+  ordem     Int      @default(0)
+  ativo     Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  categorias CatalogoCategoriaVisual[]
+  icones     CatalogoIcone[]
+  regrasMisto CatalogoRegraMisto[]
+
+  @@index([ativo, ordem])
+}
+
+model CatalogoCategoriaVisual {
+  id        String   @id @default(cuid())
+  tipo_id   String   @db.VarChar(64)
+  codigo    String   @db.VarChar(64)
+  nome      String   @db.VarChar(255)
+  ordem     Int      @default(0)
+  ativo     Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tipo              CatalogoTipoEntidade @relation(fields: [tipo_id], references: [id], onDelete: Restrict)
+  icones            CatalogoIcone[]
+  regrasMistoCategorias CatalogoRegraMistoCategoria[]
+
+  @@unique([tipo_id, codigo])
+  @@index([tipo_id, ativo, ordem])
+}
+
+model CatalogoAsset {
+  id            String   @id @default(cuid())
+  bucket        String   @db.VarChar(128)
+  storage_path  String   @unique @db.VarChar(512)
+  mime          String   @db.VarChar(128)
+  bytes         Int
+  sha256        String   @db.VarChar(64)
+  largura       Int?
+  altura        Int?
+  revisao       Int      @default(1)
+  estado        String   @default("pendente") @db.VarChar(32)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  iconesPrincipal CatalogoIcone[] @relation("IconeAssetPrincipal")
+  iconesSub       CatalogoIcone[] @relation("IconeAssetSub")
+
+  @@index([estado])
+}
+
+model CatalogoIcone {
+  id                  String   @id @default(cuid())
+  tipo_id             String   @db.VarChar(64)
+  categoria_id        String   @db.VarChar(64)
+  asset_principal_id  String?  @db.VarChar(64)
+  asset_subicone_id   String?  @db.VarChar(64)
+  cor_fallback        String?  @db.VarChar(32)
+  estado              String   @default("rascunho") @db.VarChar(32)
+  revisao             Int      @default(1)
+  ativo               Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  tipo            CatalogoTipoEntidade    @relation(fields: [tipo_id], references: [id], onDelete: Restrict)
+  categoria       CatalogoCategoriaVisual @relation(fields: [categoria_id], references: [id], onDelete: Restrict)
+  assetPrincipal  CatalogoAsset?          @relation("IconeAssetPrincipal", fields: [asset_principal_id], references: [id], onDelete: Restrict)
+  assetSubicone   CatalogoAsset?          @relation("IconeAssetSub", fields: [asset_subicone_id], references: [id], onDelete: Restrict)
+  regrasMistoResultado CatalogoRegraMisto[]
+
+  @@index([tipo_id, categoria_id, estado])
+  @@index([estado, ativo])
+}
+
+model CatalogoRegraMisto {
+  id             String   @id @default(cuid())
+  tipo_id        String   @db.VarChar(64)
+  icone_id       String   @db.VarChar(64)
+  prioridade     Int      @default(0)
+  especificidade Int      @default(0)
+  ativo          Boolean  @default(true)
+  estado         String   @default("rascunho") @db.VarChar(32)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  tipo       CatalogoTipoEntidade @relation(fields: [tipo_id], references: [id], onDelete: Restrict)
+  icone      CatalogoIcone        @relation(fields: [icone_id], references: [id], onDelete: Restrict)
+  categorias CatalogoRegraMistoCategoria[]
+
+  @@index([tipo_id, estado, prioridade, especificidade])
+}
+
+model CatalogoRegraMistoCategoria {
+  id           String   @id @default(cuid())
+  regra_id     String   @db.VarChar(64)
+  categoria_id String   @db.VarChar(64)
+  ordem        Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  regra     CatalogoRegraMisto       @relation(fields: [regra_id], references: [id], onDelete: Restrict)
+  categoria CatalogoCategoriaVisual @relation(fields: [categoria_id], references: [id], onDelete: Restrict)
+
+  @@unique([regra_id, categoria_id])
+  @@index([regra_id, ordem])
+}
+
+model OperadorProdutoMaike {
+  id         String   @id @default(cuid())
+  cliente_id String   @db.VarChar(64)
+  usuario_id String   @db.VarChar(64)
+  papel      String   @default("editor") @db.VarChar(32)
+  ativo      Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  usuario   Usuario @relation(fields: [cliente_id, usuario_id], references: [cliente_id, id], onDelete: Restrict)
+  auditorias AuditoriaCatalogoGlobal[]
+
+  @@unique([cliente_id, usuario_id])
+  @@index([ativo])
+}
+
+model AuditoriaCatalogoGlobal {
+  id          String   @id @default(cuid())
+  operador_id String?  @db.VarChar(64)
+  acao        String   @db.VarChar(64)
+  entidade    String   @db.VarChar(64)
+  entidade_id String?  @db.VarChar(64)
+  dados       Json?
+  request_id  String   @db.VarChar(128)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  operador OperadorProdutoMaike? @relation(fields: [operador_id], references: [id], onDelete: Restrict)
+
+  @@index([createdAt])
+  @@index([entidade, entidade_id])
 }

@@ -44,6 +44,8 @@ declare module 'fastify' {
     requestId: string;
     /** Nulo até a rota exigir autenticação. */
     auth: AuthContext | null;
+    /** Operador de produto MAIKE — só após `exigirOperadorProduto`. */
+    operadorProduto?: { id: string; papel: string; ativo: boolean };
   }
 
   interface FastifyRequest {

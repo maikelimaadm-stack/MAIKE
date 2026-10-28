@@ -304,31 +304,26 @@ exigirIgual(
   true
 );
 
-// Cliente é a ÚNICA exceção estrutural sem cliente_id.
 if (!Array.isArray(tenancy.modelsWithoutTenantField)) {
   registrar('P2-MB1-TENANCY', 'tenancy.modelsWithoutTenantField deve ser lista');
+} else if (!Array.isArray(tenancy.globalCatalogModels)) {
+  registrar('P2-MB1-TENANCY', 'tenancy.globalCatalogModels deve ser lista');
 } else {
-  const excecoes = tenancy.modelsWithoutTenantField;
-  if (excecoes.length !== 1 || excecoes[0] !== ROOT_MODEL) {
-    const extras = excecoes.filter((m) => m !== ROOT_MODEL);
+  const catalogo = [...tenancy.globalCatalogModels].sort();
+  const esperadoSemTenant = [ROOT_MODEL, ...catalogo].sort();
+  const excecoes = [...tenancy.modelsWithoutTenantField].sort();
+  if (JSON.stringify(excecoes) !== JSON.stringify(esperadoSemTenant)) {
     registrar(
       'P2-MB1-TENANCY',
-      `tenancy.modelsWithoutTenantField deve conter apenas ["${ROOT_MODEL}"] — ` +
-        (extras.length
-          ? `exceção não autorizada: ${extras.join(', ')}`
-          : `encontrado ${JSON.stringify(excecoes)}`)
+      'tenancy.modelsWithoutTenantField deve ser exatamente Cliente + globalCatalogModels (D-PROD-60) — ' +
+        `encontrado ${JSON.stringify(tenancy.modelsWithoutTenantField)}`
     );
   }
-}
-
-// Catálogo global adicional permanece vazio nesta fundação.
-if (!Array.isArray(tenancy.globalCatalogModels)) {
-  registrar('P2-MB1-TENANCY', 'tenancy.globalCatalogModels deve ser lista');
-} else if (tenancy.globalCatalogModels.length > 0) {
-  registrar(
-    'P2-MB1-TENANCY',
-    `tenancy.globalCatalogModels deve estar vazio na P2 — encontrado: ${tenancy.globalCatalogModels.join(', ')}`
-  );
+  for (const model of tenancy.globalCatalogModels) {
+    if (model === ROOT_MODEL) {
+      registrar('P2-MB1-TENANCY', 'globalCatalogModels não pode incluir Cliente');
+    }
+  }
 }
 
 exigirIgual('P2-MB1-TENANCY', 'tenancy.tenantSource', tenancy.tenantSource, AUTH_CONTEXT);

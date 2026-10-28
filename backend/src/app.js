@@ -56,6 +56,7 @@ import { registrarBebedouroAlertaRoutes } from './modules/bebedourosAlertas/bebe
 import { registrarRegistroAnexoRoutes } from './modules/registrosAnexo/registroAnexoRoutes.js';
 import { registrarArquivoUploadRoutes } from './modules/arquivos/arquivoUploadRoutes.js';
 import { registrarReferenciasRoutes } from './modules/referencias/referenciasRoutes.js';
+import { registrarCatalogoGlobalRoutes } from './modules/catalogoGlobal/catalogoGlobalRoutes.js';
 import { reescreverUrlApiNativa } from '../../config/nativeApiPath.js';
 
 /**
@@ -153,6 +154,7 @@ export const construirApp = async (opcoes = {}) => {
   await app.register(registrarRegistroAnexoRoutes);
   await app.register(registrarArquivoUploadRoutes);
   await app.register(registrarReferenciasRoutes);
+  await app.register(registrarCatalogoGlobalRoutes);
 
   return app;
 };
