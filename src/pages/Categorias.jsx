@@ -257,7 +257,7 @@ export default function Categorias() {
           showConfigColunas={controller.showConfigColunas}
           setShowConfigColunas={controller.setShowConfigColunas}
           searchQuery={controller.chrome.appliedSearch}
-          matchesSearch={controller.matchesSearch}
+          searchPickId={controller.searchPickId}
           resetFiltersKey={controller.chrome.resetFiltersKey}
           onSelectionChange={controller.chrome.onSelectionChange}
           onFiltersActiveChange={controller.chrome.setFiltersActive}

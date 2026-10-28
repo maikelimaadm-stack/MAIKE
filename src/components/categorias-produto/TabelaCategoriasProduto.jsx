@@ -60,6 +60,32 @@ export function prepareCategoriasExportRows(items, { appliedSearch, searchPickId
   return ordered.filter((n) => matchIds.has(n.id));
 }
 
+/**
+ * Projeção pura das linhas da grade: hierarquia + expand + busca/reveal.
+ * A busca expande ancestrais dos matches; não filtra linhas (evita double-filter na grade).
+ *
+ * @param {object[]} categorias
+ * @param {{
+ *   expanded?: Record<string, boolean>,
+ *   appliedSearch?: string,
+ *   searchPickId?: string|null,
+ *   revealRowIds?: string[],
+ * }} opcoes
+ */
+export function projectCategoriasGradeRows(categorias, opcoes = {}) {
+  const {
+    expanded = {},
+    appliedSearch = "",
+    searchPickId = null,
+    revealRowIds = [],
+  } = opcoes;
+  const { roots, indice } = buildHierarchy(categorias || []);
+  const revealIds = new Set(revealRowIds);
+  if (searchPickId) revealIds.add(searchPickId);
+  const searchQuery = searchPickId ? "" : appliedSearch;
+  return flattenVisible(roots, expanded, { indice, searchQuery, revealIds });
+}
+
 /** Rodapé: totais = tenant; filtrados = matches; listados = nós renderizados na árvore. */
 export function getCategoriasListFooterMetrics(
   items,
@@ -67,14 +93,10 @@ export function getCategoriasListFooterMetrics(
 ) {
   const totais = (items || []).length;
   const filtrados = matchCount;
-  const { roots, indice } = buildHierarchy(items || []);
-  const revealIds = new Set();
-  if (revealRowId) revealIds.add(revealRowId);
-  if (searchPickId) revealIds.add(searchPickId);
-  const listados = flattenVisible(roots, /** @type {Record<string, boolean>} */ ({}), {
-    indice,
-    searchQuery: appliedSearch,
-    revealIds,
+  const listados = projectCategoriasGradeRows(items, {
+    appliedSearch,
+    searchPickId,
+    revealRowIds: revealRowId ? [revealRowId] : [],
   }).length;
   return { listados, filtrados, totais };
 }
@@ -200,13 +222,7 @@ export function getCategoriaProdutoFieldValue(item, colunaId) {
 
 export default function TabelaCategoriasProduto(props) {
   const [expanded, setExpanded] = useState(/** @type {Record<string, boolean>} */ ({}));
-  const { roots, indice } = useMemo(() => buildHierarchy(props.categorias || []), [props.categorias]);
-
-  const revealSet = useMemo(() => {
-    const ids = new Set();
-    if (props.revealCategoriaId) ids.add(props.revealCategoriaId);
-    return ids;
-  }, [props.revealCategoriaId]);
+  const { indice } = useMemo(() => buildHierarchy(props.categorias || []), [props.categorias]);
 
   useEffect(() => {
     if (!props.revealCategoriaId || !indice.has(props.revealCategoriaId)) return;
@@ -221,12 +237,13 @@ export default function TabelaCategoriasProduto(props) {
 
   const flatRows = useMemo(
     () =>
-      flattenVisible(roots, expanded, {
-        searchQuery: props.searchQuery,
-        indice,
-        revealIds: revealSet,
+      projectCategoriasGradeRows(props.categorias || [], {
+        expanded,
+        appliedSearch: props.searchQuery ?? "",
+        searchPickId: props.searchPickId ?? null,
+        revealRowIds: props.revealCategoriaId ? [props.revealCategoriaId] : [],
       }),
-    [roots, expanded, props.searchQuery, indice, revealSet],
+    [props.categorias, expanded, props.searchQuery, props.searchPickId, props.revealCategoriaId],
   );
 
   const toggleExpand = (id) => setExpanded((p) => ({ ...p, [id]: !p[id] }));
@@ -290,8 +307,6 @@ export default function TabelaCategoriasProduto(props) {
       onOpen={props.onEdit}
       showConfigColunas={props.showConfigColunas}
       setShowConfigColunas={props.setShowConfigColunas}
-      searchQuery={props.searchQuery}
-      matchesSearch={props.matchesSearch}
       resetFiltersKey={props.resetFiltersKey}
       onSelectionChange={props.onSelectionChange}
       onFiltersActiveChange={props.onFiltersActiveChange}
