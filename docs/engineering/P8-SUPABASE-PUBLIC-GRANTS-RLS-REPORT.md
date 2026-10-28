@@ -3,7 +3,7 @@
 **Data:** 2026-10-28  
 **Branch:** `cursor/supabase-seguranca-rls-26e2`  
 **Base:** `main`  
-**HEAD:** `c0cc9434799bdec0afdc62bd42ab08072d1a038e`  
+**HEAD:** `3f99f282cc8c1a87cdf06917fd83a50e6f153f98`  
 **Compare:** https://github.com/maikelimaadm-stack/MAIKE/compare/main...cursor/supabase-seguranca-rls-26e2?expand=1  
 **PR:** criação via API/integração retornou 403 neste ambiente — abrir draft manualmente no compare (ou via ManagePullRequest quando disponível)  
 **Missão:** correção prioritária de acesso direto ao PostgreSQL Supabase  
@@ -139,12 +139,15 @@ conferidos — ausência de lint sozinha não basta.
 
 | Comando | Resultado |
 |---|---|
-| `npm run gate:supabase-public-grants` | esperado PASS |
-| `npm run test:gates` (inclui P56-*) | esperado PASS |
-| `npm run prisma:validate` | esperado PASS |
-| Lab `test:backend` (Postgres local `maike_dev`) | BE-P8-GRANTS-* |
+| `npm run gate:supabase-public-grants` | **PASS** |
+| `npm run test:gates` (604, incl. P56-*) | **PASS** |
+| `npm run prisma:validate` | **PASS** |
+| Lab Postgres local — migration apply + BE-P8-GRANTS-* | **PASS** (4/4); RLS 40/40 |
+| `npm run test:backend` | **PASS** (236) |
+| `npm run verify:all` | **PASS** (todas as etapas, incl. build) |
 | Apply DDL remoto Supabase | **NÃO executado** — aguarda dono |
 | Data API com anon key de produção | **NÃO** — proibido logar chave real |
+| Criação automática de PR draft | **BLOCKED** (gh 403; ManagePullRequest ausente) |
 
 ---
 
