@@ -112,9 +112,10 @@ describe('página Empresa — fiação com o service', () => {
     expect(screen.getByText('Sítio Alegre')).toBeInTheDocument();
   });
 
-  it('cria uma empresa, recarrega a lista e avisa o usuário', async () => {
-    serviceMock.createEmpresa.mockResolvedValue({ id: '3', numero_empresa: 3 });
-    const { refetchSpy } = await renderPagina();
+  it('cria uma empresa, invalida a lista e avisa o usuário sem depender de refetch síncrono', async () => {
+    serviceMock.createEmpresa.mockResolvedValue({ id: '3', numero_empresa: 3, nome: 'Estância Nova' });
+    const { queryClient } = await renderPagina();
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
 
     await screen.findByText('Fazenda Boa Vista');
     fireEvent.click(screen.getByRole('button', { name: /^novo$/i }));
@@ -125,7 +126,27 @@ describe('página Empresa — fiação com o service', () => {
     await waitFor(() => expect(serviceMock.createEmpresa).toHaveBeenCalled());
     expect(serviceMock.createEmpresa.mock.calls[0][0]).toMatchObject({ nome: 'Estância Nova' });
     await waitFor(() => expect(toastMock.success).toHaveBeenCalledWith('Empresa cadastrada!'));
-    expect(refetchSpy).toHaveBeenCalledWith({ queryKey: ['empresas'] });
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['empresas'] });
+    expect(queryClient.getQueryData(['empresas']).some((e) => e.id === '3')).toBe(true);
+  });
+
+  it('POST ok mantém toast de sucesso mesmo se o refetch disparado falhar', async () => {
+    serviceMock.createEmpresa.mockResolvedValue({ id: '9', numero_empresa: 9, nome: 'Salva Offline' });
+    let listCalls = 0;
+    serviceMock.listEmpresas.mockImplementation(async () => {
+      listCalls += 1;
+      if (listCalls === 1) return EMPRESAS;
+      if (listCalls === 2) throw new Error('rede');
+      return EMPRESAS;
+    });
+    const { queryClient } = await renderPagina();
+
+    await screen.findByText('Fazenda Boa Vista');
+    fireEvent.click(screen.getByRole('button', { name: /^novo$/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'salvar-formulario' }));
+
+    await waitFor(() => expect(toastMock.success).toHaveBeenCalledWith('Empresa cadastrada!'));
+    expect(queryClient.getQueryData(['empresas']).some((e) => e.id === '9')).toBe(true);
   });
 
   it('edita a empresa selecionada, passando id e dados', async () => {

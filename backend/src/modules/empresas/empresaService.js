@@ -13,6 +13,7 @@ import {
   excluirRegistroPorId,
 } from './empresaRepository.js';
 import { reservarNumeroEmpresa } from './empresaSequencia.js';
+import { erroNomeConflitoEmpresa, lancarSeP2002Empresa } from './empresaUniqueViolation.js';
 
 const CAMPOS_GRAVAVEIS = Object.freeze([
   'apelido',
@@ -33,8 +34,7 @@ const CAMPOS_GRAVAVEIS = Object.freeze([
 ]);
 
 const erroNaoEncontrado = () => new AppError('EMPRESA_NOT_FOUND', 'Empresa não encontrado');
-const erroNomeConflito = () =>
-  new AppError('EMPRESA_NAME_CONFLICT', 'Já existe uma empresa cadastrada com este nome.');
+const erroNomeConflito = erroNomeConflitoEmpresa;
 const erroCampoImutavel = (campo) =>
   new AppError('REQUEST_VALIDATION_FAILED', `Campo não permitido na escrita: ${campo}`);
 
@@ -130,7 +130,7 @@ export const criar = async (contexto, entrada) => {
     return comoPublico(criado);
   } catch (erro) {
     if (erro instanceof AppError) throw erro;
-    if (/** @type {{code?: string}} */ (erro)?.code === 'P2002') throw erroNomeConflito();
+    lancarSeP2002Empresa(erro);
     throw erro;
   }
 };
@@ -164,7 +164,7 @@ export const atualizar = async (contexto, id, entrada) => {
     return comoPublico(atualizado);
   } catch (erro) {
     if (erro instanceof AppError) throw erro;
-    if (/** @type {{code?: string}} */ (erro)?.code === 'P2002') throw erroNomeConflito();
+    lancarSeP2002Empresa(erro);
     throw erro;
   }
 };

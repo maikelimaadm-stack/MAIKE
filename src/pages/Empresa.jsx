@@ -56,22 +56,37 @@ export default function Empresa() {
   });
   const empresas = listaErro ? EMPTY_EMPRESAS : (empresasData ?? EMPTY_EMPRESAS);
 
+  const mesclarEmpresaNaLista = useCallback(
+    (criada) => {
+      if (!criada?.id || criada._isOffline) return;
+      queryClient.setQueryData(["empresas"], (prev) => {
+        const base = Array.isArray(prev) ? prev : [];
+        const idx = base.findIndex((e) => e.id === criada.id);
+        if (idx >= 0) {
+          const next = base.slice();
+          next[idx] = { ...base[idx], ...criada };
+          return next;
+        }
+        return [...base, criada];
+      });
+    },
+    [queryClient],
+  );
+
   const createMutation = useMutation({
     mutationFn: (data) => empresaService.createEmpresa(data),
-    onSuccess: async (criada) => {
+    onSuccess: (criada) => {
       if (!criada?._isOffline && (!criada?.id || !(Number(criada.numero_empresa) > 0))) {
         toast.error("Resposta incompleta ao salvar. Recarregue a lista.");
         return;
       }
-      await queryClient.refetchQueries({ queryKey: ["empresas"] });
+      mesclarEmpresaNaLista(criada);
+      void queryClient.invalidateQueries({ queryKey: ["empresas"] }).finally(() => {
+        mesclarEmpresaNaLista(criada);
+      });
       if (criada?.id) chrome.onSelectionChange([criada.id]);
-      if (criada?._isOffline || String(criada?.id || "").startsWith("offline_")) {
-        setEditingEmpresa(criada);
-        setShowForm(true);
-      } else {
-        setEditingEmpresa(criada);
-        setShowForm(true);
-      }
+      setEditingEmpresa(criada);
+      setShowForm(true);
       toastPersistenciaEmpresa(criada, "Empresa cadastrada!");
     },
     onError: (error) =>
@@ -80,8 +95,11 @@ export default function Empresa() {
 
   const updateMutation = useMutation({
     mutationFn: ({ id, data }) => empresaService.updateEmpresa(id, data),
-    onSuccess: async (atualizada) => {
-      await queryClient.refetchQueries({ queryKey: ["empresas"] });
+    onSuccess: (atualizada) => {
+      mesclarEmpresaNaLista(atualizada);
+      void queryClient.invalidateQueries({ queryKey: ["empresas"] }).finally(() => {
+        mesclarEmpresaNaLista(atualizada);
+      });
       if (atualizada?.id) chrome.onSelectionChange([atualizada.id]);
       setShowForm(false);
       setEditingEmpresa(null);
