@@ -37,3 +37,22 @@ export const updateEmpresa = (id, dados) => updateEmpresaApi(id, dados);
  * @param {string} id
  */
 export const deleteEmpresa = (id) => deleteEmpresaApi(id);
+
+/**
+ * Exclusão em lote — resultado honesto por id (sem contagem falsa).
+ * @param {string[]} ids
+ * @returns {Promise<{ excluidos: string[], bloqueados: { id: string, erro: unknown }[] }>}
+ */
+export const excluirEmpresas = async (ids) => {
+  const excluidos = [];
+  const bloqueados = [];
+  for (const id of Array.isArray(ids) ? ids : []) {
+    try {
+      await deleteEmpresaApi(id);
+      excluidos.push(id);
+    } catch (erro) {
+      bloqueados.push({ id, erro });
+    }
+  }
+  return { excluidos, bloqueados };
+};

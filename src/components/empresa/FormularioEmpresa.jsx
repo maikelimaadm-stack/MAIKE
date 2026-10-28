@@ -1,111 +1,138 @@
-import React, { useState, useEffect } from "react";
+import React, { useRef, useState } from "react";
+import { Upload, X } from "lucide-react";
 import { projetarPayloadEmpresa } from "@/services/empresaWritePayload";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import CadastroFormField, {
-  CADASTRO_INPUT_CLS,
-  CADASTRO_SELECT_CLS,
-  CADASTRO_TEXTAREA_CLS,
-} from "@/components/cadastro/base1/CadastroFormField";
-
-const FL = ({ label, required = false, error = false, children, className = "" }) => (
-  <CadastroFormField label={label} required={required} error={error} className={className}>
-    {children}
-  </CadastroFormField>
-);
-const INPUT_CLS = CADASTRO_INPUT_CLS;
-const SELECT_CLS = CADASTRO_SELECT_CLS;
-const TEXTAREA_CLS = CADASTRO_TEXTAREA_CLS;
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Building2, Upload, X, Save } from "lucide-react";
-import { motion } from "framer-motion";
+import B1Field, { B1_FIELD_CTL_CLS } from "@/components/cadastro/base1/B1Field";
+import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
+import CadastroFormActions from "@/components/cadastro/base1/CadastroFormActions";
+import Base1PanelTabs from "@/components/cadastro/base1/Base1PanelTabs";
+import { MgSelect, PillBtn } from "@/components/cadastro/base1/Base1Ui";
 import { enviarArquivo } from "@/services/arquivoService";
 import { getApiErrorMessage } from "@/apis/_core/ApiError";
+import { notifyWarning } from "@/lib/maikeNotify";
 import { toast } from "sonner";
 
-const ESTADOS = ["AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"];
+export const FORMULARIO_EMPRESA_ID = "formulario-empresa-base1";
+
+const ESTADOS = [
+  "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG",
+  "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO",
+];
+
+const TIPO_OPTIONS = [
+  { value: "Física", label: "Pessoa Física" },
+  { value: "Jurídica", label: "Pessoa Jurídica" },
+];
+
+const UF_OPTIONS = ESTADOS.map((uf) => ({ value: uf, label: uf }));
+
+const PANEL_TABS = [
+  { id: "documentos", label: "Documentos" },
+  { id: "contato", label: "Contato e endereço" },
+  { id: "outros", label: "Observações e logotipo" },
+];
+
+const emptyForm = () => ({
+  apelido: "",
+  nome: "",
+  tipo_pessoa: "Jurídica",
+  cpf: "",
+  rg: "",
+  cnpj: "",
+  inscricao_estadual: "",
+  telefone: "",
+  email: "",
+  endereco: "",
+  cidade: "",
+  estado: "MT",
+  cep: "",
+  observacoes: "",
+  logotipo_url: "",
+});
+
+function mapInitialToForm(initialData) {
+  if (!initialData) return emptyForm();
+  return {
+    apelido: initialData.apelido ?? "",
+    nome: initialData.nome ?? "",
+    tipo_pessoa: initialData.tipo_pessoa ?? "Jurídica",
+    cpf: initialData.cpf ?? "",
+    rg: initialData.rg ?? "",
+    cnpj: initialData.cnpj ?? "",
+    inscricao_estadual: initialData.inscricao_estadual ?? "",
+    telefone: initialData.telefone ?? "",
+    email: initialData.email ?? "",
+    endereco: initialData.endereco ?? "",
+    cidade: initialData.cidade ?? "",
+    estado: initialData.estado ?? "MT",
+    cep: initialData.cep ?? "",
+    observacoes: initialData.observacoes ?? "",
+    logotipo_url: initialData.logotipo_url ?? "",
+  };
+}
 
 export default function FormularioEmpresa({
   onSubmit,
   onCancel,
   initialData,
-  isEditing,
+  isEditing = false,
   variant = "standalone",
-  saving = false,
+  toolbarActions = false,
+  isSubmitting = false,
+  readOnly = false,
 }) {
   const embedded = variant === "embedded";
-  const [formData, setFormData] = useState(initialData || {
-    apelido: "",
-    nome: "",
-    tipo_pessoa: "Jurídica",
-    cpf: "",
-    rg: "",
-    cnpj: "",
-    inscricao_estadual: "",
-    telefone: "",
-    email: "",
-    endereco: "",
-    cidade: "",
-    estado: "MT",
-    cep: "",
-    observacoes: "",
-    logotipo_url: ""
-  });
-
+  const isExistingRecord = Boolean(initialData?.id);
+  const [activePanel, setActivePanel] = useState("documentos");
+  const [formData, setFormData] = useState(() => mapInitialToForm(initialData));
+  const [invalidFields, setInvalidFields] = useState([]);
   const [uploadingLogo, setUploadingLogo] = useState(false);
-
-  useEffect(() => {
-    if (!initialData) return;
-    setFormData((prev) => ({
-      ...prev,
-      apelido: initialData.apelido ?? "",
-      nome: initialData.nome ?? "",
-      tipo_pessoa: initialData.tipo_pessoa ?? "Jurídica",
-      cpf: initialData.cpf ?? "",
-      rg: initialData.rg ?? "",
-      cnpj: initialData.cnpj ?? "",
-      inscricao_estadual: initialData.inscricao_estadual ?? "",
-      telefone: initialData.telefone ?? "",
-      email: initialData.email ?? "",
-      endereco: initialData.endereco ?? "",
-      cidade: initialData.cidade ?? "",
-      estado: initialData.estado ?? "MT",
-      cep: initialData.cep ?? "",
-      observacoes: initialData.observacoes ?? "",
-      logotipo_url: initialData.logotipo_url ?? "",
-    }));
-  }, [initialData?.id]);
+  const logoInputRef = useRef(/** @type {HTMLInputElement|null} */ (null));
 
   const handleChange = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
+    setInvalidFields((prev) => prev.filter((f) => f !== field));
+  };
+
+  const numeroLabel = () => {
+    if (isExistingRecord && initialData?.numero_empresa > 0) {
+      return String(initialData.numero_empresa);
+    }
+    if (
+      initialData?._isOffline ||
+      String(initialData?.id || "").startsWith("offline_")
+    ) {
+      return "Atribuído após sincronizar";
+    }
+    return "Automático ao salvar";
   };
 
   const handleLogoUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
+    const file = e.target.files?.[0];
+    if (!file || readOnly) return;
     setUploadingLogo(true);
     try {
       const file_url = await enviarArquivo(file);
-      handleChange('logotipo_url', file_url);
-      toast.success('Logotipo enviado com sucesso!');
+      handleChange("logotipo_url", file_url);
+      toast.success("Logotipo enviado com sucesso!");
     } catch (error) {
-      toast.error(getApiErrorMessage(error, 'Não foi possível enviar o logotipo.'));
+      toast.error(getApiErrorMessage(error, "Não foi possível enviar o logotipo."));
     } finally {
       setUploadingLogo(false);
+      if (logoInputRef.current) logoInputRef.current.value = "";
     }
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    
-    if (!formData.apelido || !formData.nome) {
-      toast.error('Preencha os campos obrigatórios!');
+    if (readOnly) return;
+    if (!formData.apelido?.trim() || !formData.nome?.trim()) {
+      const missing = [];
+      if (!formData.apelido?.trim()) missing.push("apelido");
+      if (!formData.nome?.trim()) missing.push("nome");
+      setInvalidFields(missing);
+      notifyWarning("Atenção", "Preencha Apelido e Nome/Razão Social.");
       return;
     }
-
     const dataToSubmit = projetarPayloadEmpresa({
       ...formData,
       apelido: formData.apelido.toUpperCase(),
@@ -122,248 +149,341 @@ export default function FormularioEmpresa({
       cep: formData.cep?.toUpperCase(),
       observacoes: formData.observacoes?.toUpperCase(),
     });
-
     onSubmit(dataToSubmit);
   };
 
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: -20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -20 }}
-    >
-      <Card className={`shadow-sm border-slate-300 bg-white ${embedded ? "border-0 shadow-none" : ""}`}>
-        {!embedded ? (
-          <CardHeader className="bg-slate-50 border-b border-slate-200 py-3">
-            <CardTitle className="text-sm font-semibold text-slate-900">
-              {isEditing ? "Editar Empresa" : "Nova Empresa"}
-            </CardTitle>
-          </CardHeader>
-        ) : null}
-        <CardContent
-          className="p-4"
-          style={{
-            maxHeight: embedded ? "none" : "calc(100vh - 150px)",
-            overflowY: "auto",
-            scrollbarWidth: "thin",
-            scrollbarColor: "#cbd5e1 transparent",
-          }}
-        >
-          <form onSubmit={handleSubmit} className="space-y-2" noValidate>
-            <FL label="Nº da Empresa">
-              <input
-                readOnly
-                value={
-                  isEditing && initialData?.numero_empresa > 0
-                    ? String(initialData.numero_empresa)
-                    : initialData?._isOffline || String(initialData?.id || "").startsWith("offline_")
-                      ? "Atribuído após sincronizar"
-                      : "Automático ao salvar"
-                }
-                className={`${INPUT_CLS} bg-slate-50 text-slate-600`}
-                aria-readonly="true"
-              />
-            </FL>
-            <div className="space-y-1 pl-1">
-              <span className="text-[12px] text-slate-500">Logotipo</span>
-              <div className="flex items-center gap-4">
-                {formData.logotipo_url && (
-                  <img 
-                    src={formData.logotipo_url} 
-                    alt="Logo" 
-                    className="h-16 object-contain border rounded p-2"
-                  />
-                )}
-                <div>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleLogoUpload}
-                    className="hidden"
-                    id="logo-upload"
-                    disabled={uploadingLogo}
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => document.getElementById('logo-upload').click()}
-                    disabled={uploadingLogo}
-                    className="h-8 text-xs"
-                  >
-                    {uploadingLogo ? 'Enviando...' : 'Enviar'}
-                  </Button>
-                </div>
-              </div>
-            </div>
+  const renderDocumentos = () => (
+    <div className="mg-b1-form-grid col-span-12 grid grid-cols-12 gap-x-3 gap-y-2">
+      {formData.tipo_pessoa === "Física" ? (
+        <>
+          <B1Field
+            label="CPF"
+            span={4}
+            hasValue={Boolean(formData.cpf?.trim())}
+            locked={readOnly}
+            disabled={readOnly}
+          >
+            <input
+              type="text"
+              value={formData.cpf}
+              onChange={(e) => handleChange("cpf", e.target.value)}
+              placeholder="000.000.000-00"
+              className={B1_FIELD_CTL_CLS}
+              readOnly={readOnly}
+            />
+          </B1Field>
+          <B1Field
+            label="RG"
+            span={8}
+            hasValue={Boolean(formData.rg?.trim())}
+            locked={readOnly}
+            disabled={readOnly}
+          >
+            <input
+              type="text"
+              value={formData.rg}
+              onChange={(e) => handleChange("rg", e.target.value)}
+              placeholder="00.000.000-0"
+              className={B1_FIELD_CTL_CLS}
+              readOnly={readOnly}
+            />
+          </B1Field>
+        </>
+      ) : (
+        <>
+          <B1Field
+            label="CNPJ"
+            span={4}
+            hasValue={Boolean(formData.cnpj?.trim())}
+            locked={readOnly}
+            disabled={readOnly}
+          >
+            <input
+              type="text"
+              value={formData.cnpj}
+              onChange={(e) => handleChange("cnpj", e.target.value)}
+              placeholder="00.000.000/0000-00"
+              className={B1_FIELD_CTL_CLS}
+              readOnly={readOnly}
+            />
+          </B1Field>
+          <B1Field
+            label="Inscrição Estadual"
+            span={8}
+            hasValue={Boolean(formData.inscricao_estadual?.trim())}
+            locked={readOnly}
+            disabled={readOnly}
+          >
+            <input
+              type="text"
+              value={formData.inscricao_estadual}
+              onChange={(e) => handleChange("inscricao_estadual", e.target.value)}
+              placeholder="000.000.000.000"
+              className={B1_FIELD_CTL_CLS}
+              readOnly={readOnly}
+            />
+          </B1Field>
+        </>
+      )}
+    </div>
+  );
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
-              <FL label="Apelido" required>
-                <Input
-                  value={formData.apelido}
-                  onChange={(e) => handleChange('apelido', e.target.value)}
-                  placeholder="FAZENDA PALMITAL"
-                  required
-                  className={`${INPUT_CLS} uppercase`}
-                  style={{ textTransform: 'uppercase' }}
-                />
-              </FL>
-              <FL label="Nome/Razão Social" required>
-                <Input
-                  value={formData.nome}
-                  onChange={(e) => handleChange('nome', e.target.value)}
-                  placeholder="NOME COMPLETO"
-                  required
-                  className={`${INPUT_CLS} uppercase`}
-                  style={{ textTransform: 'uppercase' }}
-                />
-              </FL>
-              <FL label="Tipo" required>
-                <Select value={formData.tipo_pessoa} onValueChange={(value) => handleChange('tipo_pessoa', value)}>
-                  <SelectTrigger className={SELECT_CLS}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Física" className="text-xs">Pessoa Física</SelectItem>
-                    <SelectItem value="Jurídica" className="text-xs">Pessoa Jurídica</SelectItem>
-                  </SelectContent>
-                </Select>
-              </FL>
-            </div>
+  const renderContato = () => (
+    <div className="mg-b1-form-grid col-span-12 grid grid-cols-12 gap-x-3 gap-y-2">
+      <B1Field
+        label="Telefone"
+        span={4}
+        hasValue={Boolean(formData.telefone?.trim())}
+        locked={readOnly}
+        disabled={readOnly}
+      >
+        <input
+          type="text"
+          value={formData.telefone}
+          onChange={(e) => handleChange("telefone", e.target.value)}
+          placeholder="(00) 00000-0000"
+          className={B1_FIELD_CTL_CLS}
+          readOnly={readOnly}
+        />
+      </B1Field>
+      <B1Field
+        label="E-mail"
+        span={8}
+        hasValue={Boolean(formData.email?.trim())}
+        locked={readOnly}
+        disabled={readOnly}
+      >
+        <input
+          type="email"
+          value={formData.email}
+          onChange={(e) => handleChange("email", e.target.value)}
+          placeholder="exemplo@email.com"
+          className={B1_FIELD_CTL_CLS}
+          readOnly={readOnly}
+        />
+      </B1Field>
+      <B1Field
+        label="Endereço completo"
+        span={12}
+        hasValue={Boolean(formData.endereco?.trim())}
+        locked={readOnly}
+        disabled={readOnly}
+      >
+        <input
+          type="text"
+          value={formData.endereco}
+          onChange={(e) => handleChange("endereco", e.target.value)}
+          placeholder="RUA, NÚMERO, BAIRRO"
+          className={`${B1_FIELD_CTL_CLS} uppercase`}
+          readOnly={readOnly}
+        />
+      </B1Field>
+      <B1Field
+        label="Cidade"
+        span={4}
+        hasValue={Boolean(formData.cidade?.trim())}
+        locked={readOnly}
+        disabled={readOnly}
+      >
+        <input
+          type="text"
+          value={formData.cidade}
+          onChange={(e) => handleChange("cidade", e.target.value)}
+          placeholder="CIDADE"
+          className={`${B1_FIELD_CTL_CLS} uppercase`}
+          readOnly={readOnly}
+        />
+      </B1Field>
+      <B1Field label="Estado/UF" span={4} hasValue={Boolean(formData.estado)} locked={readOnly} disabled={readOnly}>
+        <MgSelect
+          value={formData.estado}
+          onChange={readOnly ? () => {} : (v) => handleChange("estado", v)}
+          options={UF_OPTIONS}
+          disabled={readOnly}
+          ariaLabel="Estado"
+        />
+      </B1Field>
+      <B1Field
+        label="CEP"
+        span={4}
+        hasValue={Boolean(formData.cep?.trim())}
+        locked={readOnly}
+        disabled={readOnly}
+      >
+        <input
+          type="text"
+          value={formData.cep}
+          onChange={(e) => handleChange("cep", e.target.value)}
+          placeholder="00000-000"
+          className={B1_FIELD_CTL_CLS}
+          readOnly={readOnly}
+        />
+      </B1Field>
+    </div>
+  );
 
-            {formData.tipo_pessoa === 'Física' && (
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
-                <FL label="CPF">
-                  <Input
-                    value={formData.cpf}
-                    onChange={(e) => handleChange('cpf', e.target.value)}
-                    placeholder="000.000.000-00"
-                    className={INPUT_CLS}
-                  />
-                </FL>
-                <FL label="RG" className="lg:col-span-2">
-                  <Input
-                    value={formData.rg}
-                    onChange={(e) => handleChange('rg', e.target.value)}
-                    placeholder="00.000.000-0"
-                    className={INPUT_CLS}
-                  />
-                </FL>
-              </div>
-            )}
-
-            {formData.tipo_pessoa === 'Jurídica' && (
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
-                <FL label="CNPJ">
-                  <Input
-                    value={formData.cnpj}
-                    onChange={(e) => handleChange('cnpj', e.target.value)}
-                    placeholder="00.000.000/0000-00"
-                    className={INPUT_CLS}
-                  />
-                </FL>
-                <FL label="Inscrição Estadual" className="lg:col-span-2">
-                  <Input
-                    value={formData.inscricao_estadual}
-                    onChange={(e) => handleChange('inscricao_estadual', e.target.value)}
-                    placeholder="000.000.000.000"
-                    className={INPUT_CLS}
-                  />
-                </FL>
-              </div>
-            )}
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
-              <FL label="Telefone">
-                <input
-                  value={formData.telefone}
-                  onChange={(e) => handleChange('telefone', e.target.value)}
-                  placeholder="(00) 00000-0000"
-                  className={INPUT_CLS}
-                />
-              </FL>
-              <FL label="E-mail" className="lg:col-span-2">
-                <input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => handleChange('email', e.target.value)}
-                  placeholder="exemplo@email.com"
-                  className={INPUT_CLS}
-                />
-              </FL>
-            </div>
-
-            <FL label="Endereço completo">
-              <input
-                value={formData.endereco}
-                onChange={(e) => handleChange('endereco', e.target.value)}
-                placeholder="RUA, NÚMERO, BAIRRO"
-                className={`${INPUT_CLS} uppercase`}
-                style={{ textTransform: 'uppercase' }}
-              />
-            </FL>
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
-              <FL label="Cidade">
-                <Input
-                  value={formData.cidade}
-                  onChange={(e) => handleChange('cidade', e.target.value)}
-                  placeholder="CIDADE"
-                  className={`${INPUT_CLS} uppercase`}
-                  style={{ textTransform: 'uppercase' }}
-                />
-              </FL>
-              <FL label="Estado">
-                <Select value={formData.estado} onValueChange={(value) => handleChange('estado', value)}>
-                  <SelectTrigger className={SELECT_CLS}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ESTADOS.map(uf => (
-                      <SelectItem key={uf} value={uf} className="text-xs">{uf}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </FL>
-              <FL label="CEP">
-                <input
-                  value={formData.cep}
-                  onChange={(e) => handleChange('cep', e.target.value)}
-                  placeholder="00000-000"
-                  className={INPUT_CLS}
-                />
-              </FL>
-            </div>
-
-            <FL label="Observações">
-              <Textarea
-                value={formData.observacoes}
-                onChange={(e) => handleChange('observacoes', e.target.value)}
-                placeholder="OBSERVAÇÕES GERAIS..."
-                className={`${TEXTAREA_CLS} uppercase`}
-                style={{ textTransform: 'uppercase' }}
-                rows={2}
-              />
-            </FL>
-
-            <div className="flex justify-end gap-2 pt-2 border-t">
-              {onCancel && (
-                <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 text-xs">
-                  Cancelar
-                </Button>
-              )}
-              <Button
-                type="submit"
-                size="sm"
-                disabled={saving || uploadingLogo}
-                className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700"
+  const renderOutros = () => (
+    <div className="mg-b1-form-grid col-span-12 grid grid-cols-12 gap-x-3 gap-y-2">
+      <B1Field
+        label="Observações"
+        span={12}
+        hasValue={Boolean(formData.observacoes?.trim())}
+        locked={readOnly}
+        disabled={readOnly}
+      >
+        <textarea
+          value={formData.observacoes}
+          onChange={(e) => handleChange("observacoes", e.target.value)}
+          placeholder="OBSERVAÇÕES GERAIS…"
+          rows={3}
+          className={`${B1_FIELD_CTL_CLS} min-h-[72px] resize-y uppercase`}
+          readOnly={readOnly}
+        />
+      </B1Field>
+      <div className="col-span-12">
+        <span className="text-[11px] font-medium text-slate-600">Logotipo</span>
+        <div className="mt-1 flex flex-wrap items-center gap-3">
+          {formData.logotipo_url ? (
+            <img
+              src={formData.logotipo_url}
+              alt="Logotipo"
+              className="h-16 max-w-[160px] object-contain border rounded p-1 bg-white"
+            />
+          ) : null}
+          <input
+            ref={logoInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleLogoUpload}
+            disabled={readOnly || uploadingLogo}
+          />
+          {!readOnly ? (
+            <>
+              <PillBtn
+                type="button"
+                tone="gray"
+                disabled={uploadingLogo}
+                onClick={() => logoInputRef.current?.click()}
               >
-                {saving ? "Salvando…" : isEditing ? "Atualizar" : "Salvar"}
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
-    </motion.div>
+                <Upload className="h-4 w-4" aria-hidden />
+                {uploadingLogo ? "Enviando…" : formData.logotipo_url ? "Alterar" : "Enviar"}
+              </PillBtn>
+              {formData.logotipo_url ? (
+                <PillBtn
+                  type="button"
+                  tone="gray"
+                  disabled={uploadingLogo}
+                  onClick={() => handleChange("logotipo_url", "")}
+                >
+                  <X className="h-4 w-4" aria-hidden />
+                  Remover
+                </PillBtn>
+              ) : null}
+            </>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+
+  const formBody = (
+    <form
+      id={FORMULARIO_EMPRESA_ID}
+      onSubmit={handleSubmit}
+      className="b1 mg-b1-form-grid w-full min-h-0 grid grid-cols-12 gap-x-3 gap-y-2"
+      noValidate
+      data-testid="b1-form-empresa"
+    >
+      <B1Field label="Nº da Empresa" span={3} hasValue locked disabled>
+        <input type="text" readOnly value={numeroLabel()} className={`${B1_FIELD_CTL_CLS} bg-slate-50`} />
+      </B1Field>
+      <B1Field
+        label="Apelido"
+        required
+        span={3}
+        hasValue={Boolean(formData.apelido?.trim())}
+        locked={readOnly}
+        disabled={readOnly}
+        error={invalidFields.includes("apelido") ? "Obrigatório" : undefined}
+      >
+        <input
+          type="text"
+          value={formData.apelido}
+          onChange={(e) => handleChange("apelido", e.target.value)}
+          placeholder="FAZENDA PALMITAL"
+          className={`${B1_FIELD_CTL_CLS} uppercase`}
+          readOnly={readOnly}
+        />
+      </B1Field>
+      <B1Field
+        label="Nome/Razão Social"
+        required
+        span={4}
+        hasValue={Boolean(formData.nome?.trim())}
+        locked={readOnly}
+        disabled={readOnly}
+        error={invalidFields.includes("nome") ? "Obrigatório" : undefined}
+      >
+        <input
+          type="text"
+          value={formData.nome}
+          onChange={(e) => handleChange("nome", e.target.value)}
+          placeholder="NOME COMPLETO"
+          className={`${B1_FIELD_CTL_CLS} uppercase`}
+          readOnly={readOnly}
+        />
+      </B1Field>
+      <B1Field
+        label="Tipo"
+        required
+        span={2}
+        hasValue={Boolean(formData.tipo_pessoa)}
+        locked={readOnly}
+        disabled={readOnly}
+      >
+        <MgSelect
+          value={formData.tipo_pessoa}
+          onChange={readOnly ? () => {} : (v) => handleChange("tipo_pessoa", v)}
+          options={TIPO_OPTIONS}
+          disabled={readOnly}
+          ariaLabel="Tipo de pessoa"
+        />
+      </B1Field>
+
+      <div className="col-span-12">
+        <Base1PanelTabs
+          tabs={PANEL_TABS}
+          value={activePanel}
+          onChange={setActivePanel}
+          preferenceKey="empresa_form_panels_v1"
+          animationKey={initialData?.id ?? "nova"}
+          renderPanel={(panelId) => {
+            if (panelId === "documentos") return renderDocumentos();
+            if (panelId === "contato") return renderContato();
+            return renderOutros();
+          }}
+        />
+      </div>
+
+      {!toolbarActions ? (
+        <div className="col-span-12">
+          <CadastroFormActions
+            onCancel={onCancel}
+            submitLabel={isExistingRecord ? "Atualizar" : "Salvar"}
+            isSubmitting={isSubmitting || uploadingLogo}
+          />
+        </div>
+      ) : null}
+    </form>
+  );
+
+  return (
+    <CadastroFormShell
+      embedded={embedded}
+      title={isExistingRecord ? "Editar Empresa" : "Nova Empresa"}
+    >
+      <div className={embedded ? "mg-b1-record-form" : undefined}>{formBody}</div>
+    </CadastroFormShell>
   );
 }
