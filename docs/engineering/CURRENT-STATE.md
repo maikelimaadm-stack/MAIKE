@@ -84,7 +84,7 @@ repositório (D-PROD-04 / P7 opcional de arquivo).
 |---|---|
 | Produto | Pecuária — Mapa Geral + Manejo (D-PROD-01) |
 | Superfície primária | `MapaGeral` (D-PROD-05) |
-| Missão em execução | **P8 — Hardening** fatia Supabase grants/RLS (**D-PROD-56**, PR **#123** — **apply remoto feito** 2026-10-28; ledger **18/18**); UX Base1 aguarda **H.5** (D-PROD-41) |
+| Missão em execução | **P8 — Hardening** fatia Supabase grants/RLS (**D-PROD-56**, PR **#123** — **apply remoto feito** 2026-10-28; ledger **18/18**); UX Base1 aguarda **H.5** (D-PROD-41); **MapLibre M1** editor Cadastro (**D-PROD-57**) em branch isolada — PR **não aberta** até reconciliação do trabalho de mapa paralelo |
 | Última mergeada (runtime) | **P7 — Base44 legacy cleanup** (PR **#85**, D-PROD-52); dados nativos fechados em **P5.5** (PR #84) |
 | Mergeadas anteriores | P3 — Backend + Prisma + PostgreSQL Foundation (PR #10, merge `4ce4608`), com a P3-R1; P2 — ModeloBase1 Pecuário Foundation (PR #7, merge `1851503`); SSOT sincronizada nas PRs #8 (`378bfd3`) e #11 (`672ea99`); emenda D-PROD-22 na PR #9 (merge `44b204c`) |
 | Próxima fatia autorizável | **P8 — Hardening and Release** (ver `ROADMAP.md`) |

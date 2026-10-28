@@ -50,6 +50,18 @@ const lerMaikeApiUrl = () => {
 };
 
 /**
+ * Style URL licenciado para basemap satélite MapLibre (M1 / D-PROD-57).
+ * Ausente = satélite não configurado (UI honesta; ruas via OpenFreeMap).
+ */
+const lerMapSatelliteStyleUrl = () => {
+  try {
+    return normalizarEnv(import.meta.env.VITE_MAP_SATELLITE_STYLE_URL);
+  } catch {
+    return null;
+  }
+};
+
+/**
  * Remove barras finais sem tocar no resto da URL.
  */
 const semBarraFinal = (url) => (typeof url === 'string' ? url.replace(/\/+$/, '') : url);
@@ -89,6 +101,15 @@ export const getGoogleMapsApiKey = () => lerGoogleMapsApiKey();
 export const isGoogleMapsConfigured = () => getGoogleMapsApiKey() !== null;
 
 /**
+ * Style URL de satélite para MapLibre (opcional).
+ * @returns {string|null}
+ */
+export const getMapSatelliteStyleUrl = () => lerMapSatelliteStyleUrl();
+
+/** Satélite MapLibre tem style URL licenciada? */
+export const isMapSatelliteConfigured = () => getMapSatelliteStyleUrl() !== null;
+
+/**
  * Base URL do backend nativo MAIKE, sem barra final, ou `null`.
  *
  * Sem override por query string ou `localStorage` (D-PROD-26, D-PROD-36).
@@ -123,4 +144,5 @@ export const isNativeApiConfigured = () => getNativeApiUrl() !== null;
 export const describeRuntimeConfig = () => ({
   hasGoogleMapsApiKey: isGoogleMapsConfigured(),
   hasNativeApiUrl: isNativeApiConfigured(),
+  hasMapSatelliteStyleUrl: isMapSatelliteConfigured(),
 });

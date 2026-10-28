@@ -1,5 +1,4 @@
-/* global google */
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { listarTodasLinhas, criarLinha, atualizarLinha } from "@/services/mapaService";
 import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -10,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import CapturaGPSPoligono from "./CapturaGPSPoligono";
 import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
+import { comprimentoMetros, toPersistedCoords, parseVertices } from "@/lib/geografia";
 
 const FL = ({ label, required, error, children }) => (
   <div>
@@ -47,7 +47,7 @@ export default function FormularioLinha({ coordenadas, onSave, onCancel, usarGPS
         return atualizarLinha(item.id, {
           ...data,
           coordenadas: {
-            coords: (coordenadasGPS || coordenadas || item.coordenadas?.coords)?.map((p) => [p.lat || p[0], p.lng || p[1]]),
+            coords: toPersistedCoords(coordenadasGPS || coordenadas || item.coordenadas?.coords),
             cor: data.cor,
           },
         });
@@ -56,12 +56,8 @@ export default function FormularioLinha({ coordenadas, onSave, onCancel, usarGPS
       // Numeração calculada sobre todas as linhas, como antes da P1.2.
       const allLinhas = await listarTodasLinhas();
       const maxNum = allLinhas.reduce((max, l) => Math.max(max, parseInt(l.numero_linha) || 0), 0);
-      const coords = coordenadasGPS || coordenadas;
-      let comprimentoMetros = 0;
-      if (window.google?.maps?.geometry && coords.length >= 2) {
-        const path = coords.map((p) => new google.maps.LatLng(p.lat, p.lng));
-        comprimentoMetros = google.maps.geometry.spherical.computeLength(path);
-      }
+      const coords = parseVertices(coordenadasGPS || coordenadas);
+      const metros = coords.length >= 2 ? comprimentoMetros(coords) : 0;
 
       return criarLinha({
         nome: data.nome,
@@ -71,9 +67,9 @@ export default function FormularioLinha({ coordenadas, onSave, onCancel, usarGPS
         empresa_id: empresaSelecionadaId,
         numero_linha: String(maxNum + 1),
         ativo: true,
-        comprimento_metros: comprimentoMetros,
+        comprimento_metros: metros,
         coordenadas: {
-          coords: coords.map((p) => [p.lat, p.lng]),
+          coords: toPersistedCoords(coords),
           cor: data.cor,
         },
       });

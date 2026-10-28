@@ -2337,4 +2337,30 @@ ficam fora desta missão (R7).
 
 ---
 
-<!-- Próxima decisão: D-PROD-57 -->
+## D-PROD-57 — MapLibre M1: editor do Cadastro de Áreas (isolamento)
+
+**Missão:** `MAPLIBRE-M1-EDITOR-AREAS-01`  
+**Relatório:** `docs/engineering/MAPLIBRE-M1-EDITOR-AREAS-REPORT.md`  
+**Branch:** `cursor/maplibre-m1-editor-areas-f5fd` (worktree isolado)
+
+**Decisão:**
+
+1. O editor de `MapaDesenho` (fluxo `MapaCadastro` — área, ponto e linha) passa a
+   renderizar com **MapLibre GL JS**; Google Maps permanece nos demais
+   consumidores até cutover explícito (M2 pickers/GPS, M3 Mapa Geral, M4 remoção).
+2. Persistência geográfica **não muda**: JSONB `{ coords: [[lat,lng],...], cor }`.
+   Adapters puros em `src/lib/geografia/` traduzem para GeoJSON `[lng,lat]` na UI.
+3. Basemap `ruas` = OpenFreeMap Liberty (público + atribuição). Satélite só via
+   `VITE_MAP_SATELLITE_STYLE_URL` licenciada; sem URL o UI declara
+   "satélite não configurado" — sem fingir tiles nem reutilizar a chave Maps JS
+   como Map Tiles API.
+4. Desenvolvimento e push da branch M1 são autorizados em **worktree isolado**;
+   **PR / merge / deploy** ficam bloqueados até o proprietário declarar a
+   configuração de mapa paralela concluída e reconciliada com esta branch.
+
+**Consequência:** M1 não toca Supabase/RLS, Base1/keyset, nem `MapaGeral`. A
+próxima fatia (M2) só após merge manual desta.
+
+---
+
+<!-- Próxima decisão: D-PROD-58 -->

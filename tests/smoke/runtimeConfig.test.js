@@ -55,6 +55,7 @@ describe('ENV — variáveis de build com referência estática', () => {
   it.each([
     ['ENV2', 'VITE_GOOGLE_MAPS_API_KEY'],
     ['ENV3', 'VITE_MAIKE_API_URL'],
+    ['ENV4', 'VITE_MAP_SATELLITE_STYLE_URL'],
   ])('%s — %s aparece como referência estática literal', (_id, variavel) => {
     expect(codigoConfig()).toContain(`import.meta.env.${variavel}`);
   });

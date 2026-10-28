@@ -428,25 +428,27 @@ describe('MAP13/MAP16 — nenhuma dependência da Drawing Library', () => {
   });
 
   /**
-   * MAP16 — o desenho manual é o que substitui o `DrawingManager`, e sempre foi:
-   * o produto nunca dependeu dele. Se estas primitivas sumissem de
-   * `MapaDesenho`, a remoção teria custado funcionalidade.
+   * MAP16 — M1 (D-PROD-57): o editor do Cadastro desenha à mão em MapLibre
+   * (GeoJSON + layers), sem Drawing Library Google. Google permanece nos
+   * demais consumidores até M2/M3.
    */
-  it('MAP16 — ponto, linha e polígono continuam desenhados à mão', () => {
+  it('MAP16 — ponto, linha e polígono continuam desenhados à mão (MapLibre M1)', () => {
     const desenho = semComentarios(readFileSync('src/components/mapa/MapaDesenho.jsx', 'utf8'));
 
-    expect(desenho).toContain('new google.maps.Marker');    // ponto
-    expect(desenho).toContain('new google.maps.Polyline');  // linha
-    expect(desenho).toContain('new google.maps.Polygon');   // polígono
-    // O ciclo manual: ouvir o mapa, acumular vértices, fechar no duplo clique.
-    expect(desenho).toContain("google.maps.event.addListener(mapInstanceRef.current, 'dblclick'");
-    expect(desenho).toContain("google.maps.event.addListener(mapInstanceRef.current, 'mousemove'");
+    expect(desenho).toMatch(/maplibre|createEditorMap|SOURCE_IDS/);
+    expect(desenho).toContain('buildDesenhoCollection');
+    expect(desenho).toContain('buildVerticesCollection');
+    expect(desenho).toContain("tipoDesenho === \"ponto\"");
+    expect(desenho).toContain("tipoDesenho === \"area\"");
+    expect(desenho).toContain("tipoDesenho === \"linha\"");
+    expect(desenho).not.toMatch(/google\.maps\.(Marker|Polygon|Polyline)/);
   });
 
-  it('MAP15 — geometry continua sendo usada de verdade, por isso permanece exigida', () => {
+  it('MAP15 — geometry continua sendo usada de verdade nos consumidores Google restantes', () => {
     const usos = fontes().filter(([, fonte]) => /google\.maps\.geometry\./.test(semComentarios(fonte)));
-    // Área, comprimento, distância e contenção de ponto em polígono.
-    expect(usos.length).toBeGreaterThanOrEqual(5);
+    // M1 removeu geometry de MapaDesenho/FormularioArea/FormularioLinha (Turf).
+    // Restam pickers/GPS/seleção até M2/M3 — teto mínimo = 3 arquivos.
+    expect(usos.length).toBeGreaterThanOrEqual(3);
     expect(GOOGLE_MAPS_REQUIRED_LIBRARIES).toContain('geometry');
   });
 });
