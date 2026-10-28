@@ -5,7 +5,10 @@
 **Branch:** `cursor/maplibre-m2b1-task-location-picker-f5fd`  
 **Worktree:** `/home/ubuntu/worktrees/MAIKE-maplibre-m2b1`  
 **Base `origin/main`:** `aa340b526b96f8d9be57acaa1c4964b34ccb0d77` (merge PR #130)  
-**PR:** DRAFT se token permitir; senão compare URL. **Merge = NO-GO** até auditoria.
+**HEAD:** `ac1b80630ecefb219d5b18ed487046fe8e3fe64c`  
+**PR create via `gh`:** `Resource not accessible by integration` — abrir **uma** DRAFT na UI:  
+https://github.com/maikelimaadm-stack/MAIKE/compare/main...cursor/maplibre-m2b1-task-location-picker-f5fd?expand=1  
+**Merge = NO-GO** até auditoria manual.
 
 ---
 
