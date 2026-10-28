@@ -43,4 +43,19 @@ describe('MotorBase1 — paridade de arquitetura Marcas/Unidades', () => {
     expect(screen).not.toMatch(/pages\//);
     expect(screen).not.toMatch(/services\//);
   });
+
+  it('status ativo vem do motor (cellKind + CadastroAtivoBadge), não JSX duplicado nos adapters', () => {
+    const grade = read('src/components/cadastro/base1/CadastroBase1Grade.jsx');
+    expect(grade).toMatch(/composeCadastroBase1RenderCell/);
+    expect(read('src/components/cadastro/base1/CadastroAtivoBadge.jsx')).toMatch(/cadastro-ativo-badge/);
+    for (const table of [
+      'src/components/marcas/TabelaMarcas.jsx',
+      'src/components/unidades-medida/TabelaUnidadesMedida.jsx',
+    ]) {
+      const src = read(table);
+      expect(src).toMatch(/cellKind:\s*CADASTRO_BASE1_CELL_KIND\.ATIVO_BADGE/);
+      expect(src).not.toMatch(/from "@\/components\/ui\/badge"/);
+      expect(src).not.toMatch(/<Badge/);
+    }
+  });
 });

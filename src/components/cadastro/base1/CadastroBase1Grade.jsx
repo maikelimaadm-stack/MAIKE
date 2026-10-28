@@ -16,11 +16,12 @@ import {
   persistCadastroBase1ColumnPrefs,
 } from "@/lib/cadastroBase1ColumnPrefs";
 import { ArrowDownAZ, ArrowUpZA, Check, X } from "lucide-react";
+import { composeCadastroBase1RenderCell } from "@/components/cadastro/base1/cadastroBase1CellKind";
 
 /** Referência estável para listas vazias — evita ciclo de reconciliação de seleção. */
 const EMPTY_ROWS = [];
 
-/** @param {Array<{ id: string; label: string; default?: boolean; sortable?: boolean; align?: string; width?: number; filterKind?: 'texto'|'num'|'data' }>} defs */
+/** @param {Array<{ id: string; label: string; default?: boolean; sortable?: boolean; align?: string; width?: number; filterKind?: 'texto'|'num'|'data'; cellKind?: import('./cadastroBase1CellKind').CadastroBase1CellKind; statusField?: string }>} defs */
 export function colunasBase1(defs) {
   return defs.filter((c) => c.id !== "selecao" && c.id !== "acoes");
 }
@@ -30,7 +31,7 @@ export function colunasBase1(defs) {
  *
  * @param {object} props
  * @param {object[]} props.rows
- * @param {Array<{ id: string; label: string; default?: boolean; sortable?: boolean; align?: string; width?: number; filterKind?: 'texto'|'num'|'data' }>} props.columns
+ * @param {Array<{ id: string; label: string; default?: boolean; sortable?: boolean; align?: string; width?: number; filterKind?: 'texto'|'num'|'data'; cellKind?: import('./cadastroBase1CellKind').CadastroBase1CellKind; statusField?: string }>} props.columns
  * @param {string} props.storageKey prefixo localStorage (ordem/visíveis/largura)
  * @param {string} props.droppableId id dnd colunas
  * @param {(item: object, colId: string) => string} props.getFieldValue
@@ -256,6 +257,11 @@ export default function CadastroBase1Grade({
     [colunasOrdem, colunasVisiveis, dataCols],
   );
 
+  const composedRenderCell = useMemo(
+    () => composeCadastroBase1RenderCell(dataCols, renderCell),
+    [dataCols, renderCell],
+  );
+
   const gridColumns = useMemo(
     () =>
       colunasOrdenadas.map((c) => ({
@@ -265,9 +271,13 @@ export default function CadastroBase1Grade({
         align: c.align,
         width: columnWidths[c.id] || c.width,
         text: (r) => getFieldValue(r, c.id),
-        render: renderCell ? (r) => renderCell(r, c.id) : undefined,
+        render: (r) => {
+          const node = composedRenderCell(r, c.id);
+          if (node !== undefined && node !== null) return node;
+          return getFieldValue(r, c.id) || "–";
+        },
       })),
-    [colunasOrdenadas, columnWidths, getFieldValue, renderCell],
+    [colunasOrdenadas, columnWidths, getFieldValue, composedRenderCell],
   );
 
   const selectedSet = useMemo(() => new Set(selectedItems.map(String)), [selectedItems]);
@@ -578,7 +588,7 @@ export default function CadastroBase1Grade({
           selected={selectedSet}
           onSelectClick={onSelectClick}
           getFieldValue={getFieldValue}
-          renderCell={renderCell}
+          renderCell={composedRenderCell}
           rowKey={rowKey}
           titleColId={cardsTitleColId}
           codeColId={cardsCodeColId}

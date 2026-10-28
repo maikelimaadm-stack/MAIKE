@@ -1,19 +1,29 @@
 import React from "react";
 import CadastroBase1Grade from "@/components/cadastro/base1/CadastroBase1Grade";
+import { CADASTRO_BASE1_CELL_KIND } from "@/components/cadastro/base1/cadastroBase1CellKind";
 import { BASE1_LISTA_INTEGRADA_VISUAL } from "@/components/cadastro/base1/base1VisualPreset";
+import { getCadastroAtivoFieldValue } from "@/lib/cadastroAtivoStatus";
 
 export const MARCAS_COLUNAS = [
   { id: "numero", label: "Nº", default: true, sortable: true, width: 70 },
   { id: "nome", label: "Nome", default: true, sortable: true, width: 300 },
   { id: "descricao", label: "Descrição", default: true, sortable: true, width: 300 },
-  { id: "ativo", label: "Ativo", default: true, sortable: true, width: 80 },
+  {
+    id: "ativo",
+    label: "Ativo",
+    default: true,
+    sortable: true,
+    align: "center",
+    width: 80,
+    cellKind: CADASTRO_BASE1_CELL_KIND.ATIVO_BADGE,
+  },
 ];
 
 export function getMarcaFieldValue(item, id) {
   if (id === "numero") return item.numero_marca || "";
   if (id === "nome") return item.nome || "";
   if (id === "descricao") return item.descricao || "";
-  if (id === "ativo") return item.ativo !== false ? "Sim" : "Não";
+  if (id === "ativo") return getCadastroAtivoFieldValue(item, "ativo");
   return "";
 }
 
@@ -21,9 +31,6 @@ function renderCell(item, colId) {
   if (colId === "numero") return <span className="font-mono">{item.numero_marca || "–"}</span>;
   if (colId === "nome") return <span className="uppercase">{item.nome || "–"}</span>;
   if (colId === "descricao") return item.descricao || "–";
-  if (colId === "ativo") {
-    return item.ativo !== false ? "Sim" : "Não";
-  }
   return "–";
 }
 

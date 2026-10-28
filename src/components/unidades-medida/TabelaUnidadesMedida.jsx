@@ -1,20 +1,29 @@
 import React from "react";
 import CadastroBase1Grade from "@/components/cadastro/base1/CadastroBase1Grade";
+import { CADASTRO_BASE1_CELL_KIND } from "@/components/cadastro/base1/cadastroBase1CellKind";
 import { BASE1_LISTA_INTEGRADA_VISUAL } from "@/components/cadastro/base1/base1VisualPreset";
-import { Badge } from "@/components/ui/badge";
+import { getCadastroAtivoFieldValue } from "@/lib/cadastroAtivoStatus";
 
 export const UNIDADES_COLUNAS = [
   { id: "numero", label: "Nº", default: true, sortable: true, align: "left", width: 60 },
   { id: "sigla", label: "Sigla", default: true, sortable: true, align: "left", width: 120 },
   { id: "descricao", label: "Descrição", default: true, sortable: true, align: "left", width: 300 },
-  { id: "ativo", label: "Ativo", default: true, sortable: true, align: "center", width: 80 },
+  {
+    id: "ativo",
+    label: "Ativo",
+    default: true,
+    sortable: true,
+    align: "center",
+    width: 80,
+    cellKind: CADASTRO_BASE1_CELL_KIND.ATIVO_BADGE,
+  },
 ];
 
 export function getUnidadeFieldValue(item, colId) {
   if (colId === "numero") return item.numero_unidade || "";
   if (colId === "sigla") return item.sigla || "";
   if (colId === "descricao") return item.descricao || "";
-  if (colId === "ativo") return item.ativo !== false ? "Ativo" : "Inativo";
+  if (colId === "ativo") return getCadastroAtivoFieldValue(item, "ativo");
   return "";
 }
 
@@ -30,17 +39,6 @@ function renderCell(item, colId) {
     );
   }
   if (colId === "descricao") return item.descricao || "–";
-  if (colId === "ativo") {
-    return item.ativo !== false ? (
-      <Badge variant="secondary" className="text-[10px] bg-emerald-100 text-emerald-700">
-        Ativo
-      </Badge>
-    ) : (
-      <Badge variant="secondary" className="text-[10px] bg-slate-100 text-slate-500">
-        Inativo
-      </Badge>
-    );
-  }
   return "–";
 }
 
