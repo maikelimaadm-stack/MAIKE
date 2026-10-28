@@ -1,6 +1,6 @@
 # MAIKE — Plano de separação entre padrões internos e Configurações Gerais
 
-**Data:** 28/10/2026  
+**Data:** 28/10/2026 (atualizado R3 catálogo global, 28/10/2026)
 **Repositório:** `maikelimaadm-stack/MAIKE`  
 **Referência consultada:** `main` em `1590655fc9ef080d8d178d270c22f9ec3c50fe1d` (merge PR #125).  
 **Natureza:** documento de planejamento — **sem alterações de código de produto** nesta fase.
@@ -9,19 +9,21 @@
 
 Existem dois domínios diferentes e eles não devem mais coexistir como se fossem um cadastro editável pelo cliente.
 
-1. **Padrões internos do MAIKE (autoridade do produto):** ícones oficiais, categorias visuais padrão e tipos-padrão de pontos de interesse, como cocho, bebedouro etc. O operador da fazenda não cria e não altera esse catálogo. A versão será governada no código/repositório; se um catálogo compartilhado editável em runtime for necessário no futuro, o banco pode armazenar metadados globais com controle exclusivamente administrativo do produto. Decisão sobre armazenamento de arquivos (assets versionados ou objetos) deve obedecer às necessidades de offline/cache. Não adotar duplicação por `cliente_id` apenas para dar a todos os clientes o mesmo padrão.
-2. **Configurações Gerais do cliente (autoridade do administrador do tenant):** preferências que o produto realmente permitir ajustar para a operação do cliente; dados isolados por `cliente_id` quando o comportamento for por cliente, por `empresa_id` somente se uma regra de negócio exigir distinção entre fazendas, e por usuário quando o ajuste for pessoal. **Não copiar** cadastro de Empresas nem Permissões.
+1. **Administração interna do produto MAIKE (catálogo global):** ícones oficiais, subícones, categorias visuais, tipos de entidade/POI e regras **MISTO** de exibição no mapa. Compartilhado entre **todos** os clientes; **sem** `cliente_id` no modelo final; **sem** edição por administrador de fazenda. Governança operacional via **painel interno exclusivo** do produto. **Fonte de verdade definitiva:** metadados e regras no **PostgreSQL do Supabase**; bytes visuais no **Supabase Storage** com revisão/versionamento — **não** o repositório GitHub como autoridade de alterações operacionais do catálogo. GitHub permanece autoridade de código, contratos, migrations e seed inicial. Alterações normais de imagem, associação, ordem, cor, categoria ou regra pelo painel **não** exigem commit/deploy quando o contrato já suporta a mudança; mudanças estruturais de schema/lógica ainda exigem migration e deploy. Política explícita contra substituição silenciosa de arquivos no mesmo caminho cacheado (CDN/cache).
+2. **Configurações Gerais do cliente (autoridade do administrador do tenant):** preferências que o produto realmente permitir ajustar para a operação do cliente; dados isolados por `cliente_id` quando o comportamento for por cliente, por `empresa_id` somente se uma regra de negócio exigir distinção entre fazendas, e por usuário quando o ajuste for pessoal. **Não copiar** cadastro de Empresas, Permissões **nem** o catálogo global.
 
-**Padrões internos e configurações do cliente são conceitos distintos mesmo quando o produto os exibe na área administrativa.**
+**Catálogo global e configurações do cliente são conceitos distintos** mesmo quando o produto os exibe na área administrativa. O painel interno do catálogo **não** deve ser projetado como submenu de um tenant.
 
 ## 2. Verificação concreta da main
 
 - `src/pages/ConfiguracoesGerais.jsx` mostra `GerenciadorIcones` e um cartão explicativo de `MISTO`. Não há um módulo completo de preferências gerais do cliente nessa página.
-- `src/components/configuracoes/GerenciadorIcones.jsx` permite criar, editar e desativar ícones, com upload e seleção de `tipo_entidade`/`categoria`.
-- `backend/prisma/schema.prisma` define `ConfiguracaoIcone` com `cliente_id` obrigatório, `empresa_id` opcional, `tipo_entidade`, `categoria`, URLs de imagem e status. Assim a coleção atual é **por tenant**, não catálogo global único.
-- `backend/src/modules/mapGeography/configuracaoIconeRepository.js` lista ícones filtrando `cliente_id`. `PontoReferencia.configuracao_icone_id` é uma referência opaca existente; migrar ids sem auditoria pode quebrar pontos já cadastrados.
+- `src/components/configuracoes/GerenciadorIcones.jsx` permite criar, editar e desativar ícones, com upload e seleção de `tipo_entidade`/`categoria`; `TIPOS_ENTIDADE` e `CATEGORIAS_SUGERIDAS` estão **hardcoded** — não são SSOT aprovada.
+- `backend/prisma/schema.prisma` define `ConfiguracaoIcone` com `cliente_id` obrigatório, `empresa_id` opcional, `tipo_entidade`, `categoria`, URLs de imagem, `categorias_misto` JSON e status. Coleção **por tenant**, não catálogo global.
+- `backend/src/modules/mapGeography/configuracaoIconeRepository.js` lista ícones filtrando `cliente_id`. Chaves React Query com segmento `global` **não** alteram o escopo do banco.
+- `PontoReferencia.configuracao_icone_id` é referência opaca (sem FK composta); URLs copiadas no registro — migrar ids/imagens sem auditoria pode quebrar pontos e caches.
+- `src/components/mapa/useMapRenderer.jsx`: categoria única → ícone por categoria; várias categorias → registros `categoria=MISTO` com `categorias_misto` cobrindo todas, escolhendo regra válida mais específica (menor lista). Comportamento a **preservar** até migração testada. Referências a Google Maps podem coexistir; MapLibre paralelo não presume integração.
 - `src/lib/menuConfig.js` tem entrada própria `adm-configuracoes` → `ConfiguracoesGerais`.
-- GitHub não retornou PR aberta ao consultar; isso **não prova** ausência de branch local ou trabalho paralelo ainda não submetido. O usuário informou trabalho ativo em mapa, portanto a política de exclusão de arquivos continua válida.
+- Trabalho paralelo de mapa pode existir sem PR visível; ausência de PR **não** autoriza tocar mapa nesta branch.
 
 ## 3. Bloqueio de colisão — já em vigor
 
@@ -29,10 +31,10 @@ Existem dois domínios diferentes e eles não devem mais coexistir como se fosse
 
 Enquanto o trabalho paralelo em mapa estiver ativo:
 
-- NÃO abrir nova PR para **implementação** de Configurações Gerais; uma PR/slice ativa por vez conforme regra de governança.
+- NÃO abrir nova PR para **implementação** de Configurações Gerais ou catálogo global; uma PR/slice ativa por vez conforme regra de governança.
 - NÃO modificar `src/pages/ConfiguracoesGerais.jsx`, `src/components/configuracoes/GerenciadorIcones.jsx`, `src/apis/mapa/**`, `src/services/configuracaoIconeService.js`, `backend/src/modules/mapGeography/**`, `src/components/mapa/**`, `src/pages/MapaGeral.jsx`, `src/pages/MapaCadastro.jsx`, `src/lib/menuConfig.js`, `src/pages.config.js`, `config/mapa-manejo-scope.json`, `backend/prisma/schema.prisma` ou migrations enquanto houver possibilidade de colisão.
 - Não renomear, apagar, resetar, remapear nem migrar `ConfiguracaoIcone`, IDs de pontos de interesse ou caches de mapa.
-- Somente planejamento e governança em `docs/` nesta fase; após merge do mapa, fazer preflight atualizado e mapear o diff real antes de nova PR de código.
+- Somente planejamento e governança em `docs/` nesta fase (PR #126); após merge do mapa, preflight atualizado e diff real antes de nova PR de código.
 
 ## 4. Matriz de possíveis preferências do cliente — propostas, não funcionalidades existentes
 
@@ -48,34 +50,58 @@ Enquanto o trabalho paralelo em mapa estiver ativo:
 
 ## 5. Arquitetura a definir antes de implementar
 
-- Fazer inventário de opções realmente existentes hoje em `localStorage`, `Layout`, Serviços, cadastros, relatórios e mapa (somente leitura). Não transplantar opções sem dono.
-- Para cada preferência aprovada: chave estável, nome, tipo, default, escopo, regra de leitura, regra de escrita, validação, consumidor real, comportamento offline, política de atualização, auditoria, permissões de leitura/escrita e estratégia de migração.
-- SSOT backend para preferências compartilhadas persistidas no banco, com isolamento de tenant derivado do token **e nunca do body/query**; alterações pela API somente a administradores autorizados segundo regra comprovada em backend, não apenas menu/frontend.
-- Preferências do usuário devem usar escopo de usuário, não afetar outros integrantes do tenant, e não vazar em sessões diferentes.
-- Não duplicar funcionalidades do `Cadastro de Empresas` ou da tela `Permissões`.
-- Catálogo de ícones é projeto próprio de sistema, coordenado com mapa, e será tratado em uma slice separada **após** a PR paralela de mapas, com plano de migração de IDs legados.
+### 5.1 Catálogo global (slice futura — Supabase)
+
+Modelo conceitual (nomes físicos sujeitos a auditoria):
+
+| Entidade | Responsabilidade |
+|---|---|
+| Tipo entidade/ícone | Código estável, rótulo, estado, ordem |
+| Categoria visual | Tipo compatível, código estável, rótulo, estado, ordem |
+| Ícone oficial | ID estável, tipo/categoria, refs Storage (principal + subícone), cor/fallback, revisão |
+| Asset Storage | Caminho, revisão, MIME, dimensões, hash, publicação, auditoria |
+| Regra MISTO | IDs das categorias participantes, ícone resultado, especificidade, empate determinístico, fallback |
+
+**MISTO:** regra de exibição visual governada; distinta do sexo `Misto` em lotes; participantes por ID estável; validação de duplicatas/sobreposição/empates.
+
+**Segurança:** autorização produto MAIKE no backend + dados; leitura tenant separada da escrita; upload Storage restrito; sem service-role no frontend.
+
+**Offline/mobile:** manifest/revisão de catálogo, cache versionado, pré-download, invalidação pós-sync, fallback e rollback.
+
+**Migração legado:** inventário `(cliente_id, id ConfiguracaoIcone) → id global`; reversibilidade; **não** executar nesta PR.
+
+### 5.2 Preferências do cliente
+
+- Inventário read-only de opções em `localStorage`, `Layout`, serviços, cadastros, relatórios e mapa.
+- Por preferência aprovada: chave estável, tipo, default, escopo, leitura/escrita, validação, consumidor, offline, auditoria, permissões.
+- SSOT backend; tenant **sempre** do token; escrita só a roles comprovadas no backend.
+- Não duplicar Empresas nem Permissões.
 
 ## 6. Ordem operacional
 
-**Agora (governança em docs):** congelar o prompt PR #126 anterior; definir a matriz de preferências legítimas de cliente; registrar esta separação de responsabilidades (D-PROD-57); monitorar somente o status do mapa quando o usuário apresentar o relatório ou confirmar merge.
+**Agora (PR #126, governança em docs):** D-PROD-57 corrigida (Supabase DB + Storage + painel interno); matriz de preferências; proteção mapa; PR **DRAFT** para auditoria — **sem** implementação.
 
-**Quando o trabalho paralelo do mapa terminar e tiver merge manual:** confirmar SHA `main`, CI exato do merge, PRs abertas e diff do mapa; só então escolher nova branch/PR única para Configurações Gerais sem colisão.
+**Após merge manual desta PR:** aguardar conclusão/merge do trabalho paralelo de mapa (**não** inferir término pela ausência de PR).
 
-**Primeira PR após liberação:** modernizar Configurações Gerais **apenas para preferências aprovadas e com consumidores reais**, sem mexer no catálogo de ícones; criar backend/configuração e UI apenas quando a necessidade do cliente justificar persistência, com testes de isolamento e autorização.
+**Preflight pós-mapa:** SHA `main`, CI, PRs abertas, diffs e contratos alterados pelo mapa.
 
-**PR posterior coordenada com mapa:** criar catálogo global de ícones/tipos do MAIKE e migrar referências com compatibilidade. Essa atividade é separada de Configurações Gerais e requer testes de renderização, consulta, offline, cache e referências antigas.
+**Auditoria autorizada pelo proprietário:** leitura Supabase (schema, RLS/grants, Storage, auth, migrações) e Vercel — **sem** alterar ambientes na fase documental.
+
+**Slice isolada — catálogo global:** PostgreSQL + Storage + painel interno + testes (leitura global, isolamento escrita, IDs, MISTO, cache, offline, migração).
+
+**Slice independente — Configurações Gerais do cliente:** somente após lista fechada de preferências com consumidores; ordem relativa ao catálogo **revalidada** por dependências (não presumida).
 
 ## 7. Critérios mínimos de aceitação futura
 
 - Nenhum diff em diretórios/contratos congelados do mapa na PR de Configurações Gerais.
-- Nenhuma capacidade do usuário de alterar ícones globais.
-- Configurações persistentes identificadas com escopo claro (`cliente`, `empresa` ou `usuario`), sem vazamento entre clientes.
-- Acesso negado no backend com teste para sessão não autorizada; não inferir `is_admin` do frontend como autorização suficiente.
-- Build, smoke, testes backend e `verify:all` conforme condições de ambiente; testes E2E/visual declarados PENDING quando não executados.
-- Somente um PR DRAFT aberta; usuário faz merge manual após auditoria.
+- Nenhuma capacidade do administrador de fazenda de alterar catálogo global; painel interno produto MAIKE exclusivo.
+- Catálogo servido de Supabase; assets em Storage com revisão; operações normais sem deploy Git quando contrato permitir.
+- Configurações persistentes com escopo claro; tenant do token; backend nega escrita não autorizada (teste).
+- Testes: leitura global, MISTO, compatibilidade IDs legados, invalidação cache, offline onde aplicável.
+- Build, smoke, backend e `verify:all` conforme ambiente; E2E/visual PENDING quando não executados.
 
 ## 8. Estado
 
 **READY FOR PRODUCT DEFINITION — NOT READY FOR IMPLEMENTATION.**
 
-Nenhuma alteração de Supabase, mapa ou telas de Configurações Gerais foi executada nesta missão de governança.
+Nenhuma alteração de Supabase, Storage, mapa ou telas de Configurações Gerais foi executada nesta missão de governança (inclui correção R3 documental).
