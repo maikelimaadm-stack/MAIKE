@@ -27,6 +27,7 @@ Todos têm teste unitário com casos de falha reais em `scripts/tests/gates/`.
 | **no-secrets** | `npm run gate:no-secrets` | Nenhum segredo literal em **arquivo versionado ou não ignorado**; nenhum `.env` versionado | D-PROD-07 · D-PROD-14 | `scripts/gates/gate-no-hardcoded-secrets.mjs` |
 | **base44** | `npm run gate:base44` | Acoplamento com a Base44 só diminui (catraca, 10 eixos) | D-PROD-04 | `scripts/gates/gate-base44-ratchet.mjs` |
 | **modelobase1-pecuario** | `npm run gate:modelobase1-pecuario` | O contrato base de persistência e domínio: identidade, tenancy, timestamps, auditoria, numeração, anexos, exclusão, concorrência, códigos de erro, padrões proibidos e handoff da P3 | D-PROD-21 | `scripts/gates/gate-modelobase1-pecuario.mjs` |
+| **motorbase1-independence** | `npm run gate:motorbase1-independence` | Motor Base1 compartilhado (`base1/`, hooks `useCadastro*`, `lib/cadastro*`) não importa Mapa, entidades, páginas, services nem apis | D-PROD-55 | `scripts/gates/gate-motorbase1-independence.mjs` |
 | **tenancy** | `npm run gate:tenancy` | O schema Prisma e o backend cumprem a tenancy: `Cliente` como única raiz, `cliente_id` obrigatório, relação com a raiz, unique de negócio tenant-scoped, identidade `cuid()`, timestamps, tenant nunca vindo da requisição, zero Base44 | D-PROD-21 · D-PROD-22 · D-PROD-23 | `scripts/gates/gate-tenancy.mjs` |
 | **indices** | `npm run gate:indices` | Índice tenant-scoped começa por `cliente_id`; unique de negócio inclui o tenant; unique da sequência é exatamente o do contrato; `escopo_id` nunca nullable sob unique comum | D-PROD-21 · D-PROD-23 | `scripts/gates/gate-indices.mjs` |
 | **test:backend** | `npm run test:backend` | Backend contra PostgreSQL real: migration em banco vazio, sessão, isolamento entre tenants, concorrência de sequência, auditoria e anexos | D-PROD-23 | `scripts/tests/run-backend-tests.mjs` |
@@ -41,7 +42,7 @@ Contratos baratos primeiro, build por último:
 ```
 test:gates → governance-paths → package-sync → product-scope → api-boundary
 → native-api → setor-native → source-closure → import-integrity → no-secrets
-→ base44 → modelobase1-pecuario → tenancy → indices → deploy-migrations
+→ base44 → modelobase1-pecuario → motorbase1-independence → tenancy → indices → deploy-migrations
 → types → typecheck:backend → lint → test:backend → test:smoke → build
 ```
 

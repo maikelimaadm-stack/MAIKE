@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import ConfiguracaoColunasMapaDialog from "@/components/mapa/ConfiguracaoColunasMapaDialog";
+import ConfiguracaoColunasLegacyDialog from "@/components/cadastro/base1/ConfiguracaoColunasLegacyDialog";
 import ConfiguracaoColunasB1Dialog from "@/components/cadastro/base1/ConfiguracaoColunasB1Dialog";
 import Base1Grid from "@/components/cadastro/base1/Base1Grid";
 import { Base1Cards } from "@/components/cadastro/base1/Base1Cards";
@@ -658,7 +658,7 @@ export default function CadastroBase1Grade({
         />
       ) : null}
       {setShowConfigColunas && !referenceHeaders ? (
-        <ConfiguracaoColunasMapaDialog
+        <ConfiguracaoColunasLegacyDialog
           open={showConfigColunas}
           onOpenChange={setShowConfigColunas}
           colunasDisponiveis={dataCols}

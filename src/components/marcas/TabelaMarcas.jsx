@@ -1,5 +1,6 @@
 import React from "react";
 import CadastroBase1Grade from "@/components/cadastro/base1/CadastroBase1Grade";
+import { BASE1_MARCAS_MODEL_VISUAL } from "@/components/cadastro/base1/base1VisualPreset";
 
 export const MARCAS_COLUNAS = [
   { id: "numero", label: "Nº", default: true, sortable: true, width: 70 },
@@ -53,7 +54,7 @@ export default function TabelaMarcas(props) {
       cardsPerRow={props.cardsPerRow}
       cardsTitleColId="nome"
       cardsCodeColId="numero"
-      referenceHeaders
+      {...BASE1_MARCAS_MODEL_VISUAL.grade}
       colunaSelecao={false}
       selecaoSticky={false}
       configureColumnsAnchorRef={props.configureColumnsAnchorRef}

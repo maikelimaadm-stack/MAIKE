@@ -50,6 +50,7 @@
     "gate:deploy-migrations": "node scripts/gates/gate-deploy-migrations.mjs",
     "gate:base44": "node scripts/gates/gate-base44-ratchet.mjs",
     "gate:modelobase1-pecuario": "node scripts/gates/gate-modelobase1-pecuario.mjs",
+    "gate:motorbase1-independence": "node scripts/gates/gate-motorbase1-independence.mjs",
     "gate:tenancy": "node scripts/gates/gate-tenancy.mjs",
     "gate:indices": "node scripts/gates/gate-indices.mjs",
     "gate:types": "node scripts/gates/gate-typecheck-ratchet.mjs",

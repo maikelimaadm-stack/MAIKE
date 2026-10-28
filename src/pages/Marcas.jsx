@@ -31,6 +31,7 @@ import { useCadastroCardsPrefs } from "@/hooks/useCadastroCardsPrefs";
 import { clearCadastroListaFiltersAndSearch } from "@/lib/cadastroListaClearFilters";
 import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 import { useCadastroInfiniteList } from "@/hooks/useCadastroInfiniteList";
+import { BASE1_MARCAS_MODEL_VISUAL } from "@/components/cadastro/base1/base1VisualPreset";
 
 const MARCAS_STORAGE_KEY = "colunas_marcas_v1";
 
@@ -419,7 +420,7 @@ export default function Marcas() {
 
   return (
     <>
-      <CadastroWorkspace mode="list" title="Marcas" pageLayout="base1-list">
+      <CadastroWorkspace mode="list" title="Marcas" {...BASE1_MARCAS_MODEL_VISUAL.workspace}>
         {listaErro && !listaFetching ? (
           <div className="cadastro-b1 mg-card p-3 text-xs text-amber-800 bg-amber-50 border border-amber-200 mb-2 flex flex-wrap items-center gap-2">
             <span>
@@ -434,9 +435,7 @@ export default function Marcas() {
           </div>
         ) : null}
         <CadastroListaChrome
-          showFilterRail={false}
-          joinTableToolbar
-          portalComprasSkin
+          {...BASE1_MARCAS_MODEL_VISUAL.chrome}
           recordMode={showForm}
           recordEditing={isEditing}
           secondaryToolsLocked={showForm && isEditing}
