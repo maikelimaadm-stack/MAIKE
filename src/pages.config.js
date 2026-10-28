@@ -20,6 +20,7 @@ import TiposTarefa from './pages/TiposTarefa';
 import GruposAtividades from './pages/GruposAtividades';
 import Empresa from './pages/Empresa';
 import Usuarios from './pages/Usuarios';
+import Permissoes from './pages/Permissoes';
 import ConfiguracoesGerais from './pages/ConfiguracoesGerais';
 import __Layout from './Layout.jsx';
 
@@ -39,6 +40,7 @@ export const PAGES = {
     "GruposAtividades": GruposAtividades,
     "Empresa": Empresa,
     "Usuarios": Usuarios,
+    "Permissoes": Permissoes,
     "ConfiguracoesGerais": ConfiguracoesGerais,
 };
 

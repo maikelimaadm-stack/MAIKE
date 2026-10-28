@@ -173,6 +173,14 @@
       "destination": "/index.html"
     },
     {
+      "source": "/permissoes/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/Permissoes/",
+      "destination": "/index.html"
+    },
+    {
       "source": "/bebedouros",
       "destination": "/index.html"
     },
@@ -194,6 +202,14 @@
     },
     {
       "source": "/MapaGeral/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/permissoes",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/Permissoes",
       "destination": "/index.html"
     },
     {
