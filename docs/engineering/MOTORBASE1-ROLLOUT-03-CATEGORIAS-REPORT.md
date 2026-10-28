@@ -40,6 +40,12 @@ Preservado `excluirCategorias` (validação prévia, folha→raiz, `CATEGORIA_PA
 - `tests/smoke/categoriaProdutoIntegridade.test.js` (ampliado)
 - `npm run verify:all`
 
+## Follow-up FIX-01 (PR #116)
+
+- **Double-filter:** grade não re-filtra busca quando a árvore já projeta linhas (`projectCategoriasGradeRows`).
+- Relatório: [`MOTORBASE1-CATEGORIAS-HIERARCHY-FIX-01-REPORT.md`](./MOTORBASE1-CATEGORIAS-HIERARCHY-FIX-01-REPORT.md)
+- Teste: `tests/smoke/categoriasHierarchyFix.test.jsx`
+
 ## Pendências
 
 - Revisão visual manual 360/390/768/1024/1280 px — **PENDING VISUAL** (sem browser autenticado neste run).
