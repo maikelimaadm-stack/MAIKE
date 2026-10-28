@@ -32,14 +32,16 @@ pública e callers (`MapaCadastro`, `FormularioPonto`).
 Ruas OpenFreeMap Liberty. Legado usava satélite Maps JS — diferença visual
 documentada na UI; satélite MapLibre só com `VITE_MAP_SATELLITE_STYLE_URL`.
 
-## Testes / gates
+## Testes / gates (evidências)
 
 | Item | Resultado |
 |---|---|
-| `maplibreSelecaoAreasMapa.test.jsx` | PASS (15) — matriz 1–14 + lifecycle |
-| Demais smoke / verify:all | preencher na execução |
-| `test:backend` | NOT_RUN/FAIL sem Postgres |
-| E2E WebGL | BLOCKED/PENDING |
+| Gate 0: main `00ab053b`, CI `40788297147` success, 0 PRs | OK |
+| `maplibreSelecaoAreasMapa.test.jsx` | PASS (15) |
+| `npm run test:smoke` | PASS — **819** |
+| gates types/product-scope/import/source-closure/map-geography/backend-types/lint/build | PASS |
+| `verify:all` | FAIL só `test:backend` (sem Postgres Docker) |
+| E2E WebGL | **BLOCKED** — validação manual antes do merge |
 
 ## Próximo
 
