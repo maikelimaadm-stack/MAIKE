@@ -11,7 +11,7 @@ export const CONTAS_ACESSO_COLUNAS = [
  * @param {object} conta
  * @param {string} colId
  */
-function getFieldValue(conta, colId) {
+export function getContaAcessoFieldValue(conta, colId) {
   if (colId === "login") return conta.login || conta.email || "";
   if (colId === "nome") return conta.nome || conta.full_name || "";
   if (colId === "status") return conta.ativo === false ? "Inativa" : "Ativa";
@@ -47,10 +47,16 @@ export default function TabelaContasAcesso({
   selectedIds = [],
   onSelectionChange,
   viewMode,
-  displayLimit,
-  onListMetrics,
+  displayLimit = undefined,
+  onListMetrics = undefined,
   cardFields,
   cardsPerRow,
+  showConfigColunas,
+  setShowConfigColunas,
+  configureColumnsAnchorRef,
+  resetFiltersKey,
+  onFiltersActiveChange,
+  matchesSearch,
 }) {
   const loginAtual = (currentUser?.login || currentUser?.email || "").trim().toLowerCase();
 
@@ -60,7 +66,7 @@ export default function TabelaContasAcesso({
       columns={CONTAS_ACESSO_COLUNAS}
       storageKey="colunas_contas_acesso_v1"
       droppableId="colunas-contas-acesso"
-      getFieldValue={getFieldValue}
+      getFieldValue={getContaAcessoFieldValue}
       renderCell={renderCell}
       defaultSortKey="login"
       emptyText="Nenhuma conta encontrada."
@@ -79,11 +85,19 @@ export default function TabelaContasAcesso({
       cardsPerRow={cardsPerRow}
       cardsTitleColId="login"
       rowKey={(conta) => String(conta.id || conta.login || conta.email || "")}
-      matchesSearch={(conta, q) => {
-        const login = (conta.login || conta.email || "").toLowerCase();
-        const nome = (conta.nome || conta.full_name || "").toLowerCase();
-        return login.includes(q) || nome.includes(q);
-      }}
+      matchesSearch={
+        matchesSearch ||
+        ((conta, q) => {
+          const login = (conta.login || conta.email || "").toLowerCase();
+          const nome = (conta.nome || conta.full_name || "").toLowerCase();
+          return login.includes(q) || nome.includes(q);
+        })
+      }
+      showConfigColunas={showConfigColunas}
+      setShowConfigColunas={setShowConfigColunas}
+      configureColumnsAnchorRef={configureColumnsAnchorRef}
+      resetFiltersKey={resetFiltersKey}
+      onFiltersActiveChange={onFiltersActiveChange}
     />
   );
 

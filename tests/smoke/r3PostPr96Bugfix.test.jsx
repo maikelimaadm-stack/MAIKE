@@ -27,6 +27,7 @@ vi.mock('@/lib/AuthContext', () => ({
 }));
 
 const listarUsuariosMock = vi.fn();
+const listarContasAcessoMock = vi.fn(async () => []);
 vi.mock('@/services/sessionService', async (importOriginal) => {
   const orig = await importOriginal();
   return {
@@ -38,7 +39,7 @@ vi.mock('@/services/sessionService', async (importOriginal) => {
 });
 
 vi.mock('@/services/usuarioAdminService', () => ({
-  listarContasAcesso: vi.fn(async () => []),
+  listarContasAcesso: (...a) => listarContasAcessoMock(...a),
   criarContaAcesso: vi.fn(),
   atualizarContaAcesso: vi.fn(),
   validarPatchContaAcesso: vi.fn(),
@@ -59,6 +60,8 @@ beforeEach(() => {
   cleanup();
   localStorage.clear();
   listarUsuariosMock.mockReset();
+  listarContasAcessoMock.mockReset();
+  listarContasAcessoMock.mockResolvedValue([]);
   authState.clienteId = 'tenant-1';
 });
 
@@ -158,7 +161,7 @@ describe('R3-04 — filtros Mapa Geral', () => {
   });
 });
 
-describe('R3-05 — Usuarios erro vs restrito', () => {
+describe('R3-05 — Usuarios (contas) erro de listagem', () => {
   const renderUsuarios = async () => {
     const { default: Usuarios } = await import('@/pages/Usuarios');
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -170,25 +173,37 @@ describe('R3-05 — Usuarios erro vs restrito', () => {
   };
 
   it('indisponibilidade exibe banner de erro', async () => {
-    listarUsuariosMock.mockRejectedValue(new ApiError(API_ERROR_CODES.PROVIDER_UNAVAILABLE));
+    listarContasAcessoMock.mockRejectedValue(new ApiError(API_ERROR_CODES.PROVIDER_UNAVAILABLE));
     await renderUsuarios();
     await waitFor(() =>
-      expect(screen.getByText(/indisponível|lista de usuários/i)).toBeInTheDocument(),
+      expect(screen.getByText(/contas nativas|indisponível/i)).toBeInTheDocument(),
     );
   });
+
+  it('lista vazia real não exibe banner de erro', async () => {
+    listarContasAcessoMock.mockResolvedValue([]);
+    await renderUsuarios();
+    await waitFor(() => expect(listarContasAcessoMock).toHaveBeenCalled());
+    expect(screen.queryByText(/Não foi possível carregar as contas nativas/i)).toBeNull();
+  });
+});
+
+describe('R3-05b — Permissoes erro vs restrito', () => {
+  const renderPermissoes = async () => {
+    const { default: Permissoes } = await import('@/pages/Permissoes');
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={client}>
+        <Permissoes />
+      </QueryClientProvider>,
+    );
+  };
 
   it('REQUEST_REJECTED mantém tela sem banner de erro', async () => {
     listarUsuariosMock.mockRejectedValue(
       new ApiError(API_ERROR_CODES.INVALID_ARGUMENT, { cause: { code: 'REQUEST_REJECTED' } }),
     );
-    await renderUsuarios();
-    await waitFor(() => expect(listarUsuariosMock).toHaveBeenCalled());
-    expect(screen.queryByText(/Não foi possível carregar a lista de usuários/i)).toBeNull();
-  });
-
-  it('lista vazia real não exibe banner de erro', async () => {
-    listarUsuariosMock.mockResolvedValue([]);
-    await renderUsuarios();
+    await renderPermissoes();
     await waitFor(() => expect(listarUsuariosMock).toHaveBeenCalled());
     expect(screen.queryByText(/Não foi possível carregar a lista de usuários/i)).toBeNull();
   });

@@ -45,7 +45,8 @@ export const DEFAULT_MENU = [
     icon: "Shield",
     submenu: [
       { id: "adm-empresa", title: "Empresa", url: "Empresa" },
-      { id: "adm-usuarios", title: "Usuários e Permissões", url: "Usuarios" },
+      { id: "adm-usuarios", title: "Usuários", url: "Usuarios" },
+      { id: "adm-permissoes", title: "Permissões", url: "Permissoes" },
       { id: "adm-configuracoes", title: "Configurações Gerais", url: "ConfiguracoesGerais" },
     ],
   },
