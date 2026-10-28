@@ -1,60 +1,35 @@
-import React, { useCallback, useMemo, useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import React, { useCallback, useMemo, useRef } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import ConfirmDialog from "@/components/common/ConfirmDialog";
-import CadastroWorkspace from "@/components/cadastro/CadastroWorkspace";
-import CadastroListaChrome from "@/components/cadastro/base1/CadastroListaChrome";
-import CadastroRecordHeader from "@/components/cadastro/base1/CadastroRecordHeader";
-import { useCadastroListaChromeState } from "@/hooks/useCadastroListaChromeState";
-import { useCadastroPageListBindings } from "@/hooks/useCadastroPageListBindings";
-import { useCadastroDuplicateAction } from "@/hooks/useCadastroDuplicateAction";
-import FormularioEmpresa from "../components/empresa/FormularioEmpresa";
-import TabelaEmpresas, { EMPRESAS_COLUNAS, getEmpresaFieldValue } from "../components/empresa/TabelaEmpresas";
-import { exportCadastroCsv } from "@/components/cadastro/base1/cadastroExportCsv";
+import CadastroBase1Screen from "@/components/cadastro/base1/CadastroBase1Screen";
+import FormularioEmpresa, { FORMULARIO_EMPRESA_ID } from "@/components/empresa/FormularioEmpresa";
+import TabelaEmpresas, { EMPRESAS_COLUNAS, getEmpresaFieldValue } from "@/components/empresa/TabelaEmpresas";
+import { useCadastroBase1FullListController } from "@/hooks/useCadastroBase1FullListController";
 import * as empresaService from "@/services/empresaService";
-import { getApiErrorMessage } from "@/apis/_core/ApiError";
+import { getApiErrorMessage, hasApiErrorCode, API_ERROR_CODES } from "@/apis/_core/ApiError";
+import {
+  notifyError,
+  notifyExclusoesEmpilhadas,
+  notifySuccess,
+  notifyWarning,
+} from "@/lib/maikeNotify";
 
-const EMPTY_EMPRESAS = [];
+const STORAGE_KEY = "colunas_empresas_v2";
 
 const toastPersistenciaEmpresa = (registro, mensagemOk) => {
   if (registro?._isOffline || String(registro?.id || "").startsWith("offline_")) {
     toast.message("Pendente de sincronização — será enviada quando a conexão voltar.");
     return;
   }
-  toast.success(mensagemOk);
+  notifySuccess("Sucesso", mensagemOk);
 };
 
 export default function Empresa() {
-  const [showForm, setShowForm] = useState(false);
-  const [editingEmpresa, setEditingEmpresa] = useState(null);
-  const [showConfigColunas, setShowConfigColunas] = useState(false);
-  const [deleteState, setDeleteState] = useState({ open: false, ids: [] });
-  const chrome = useCadastroListaChromeState();
-  const listBindings = useCadastroPageListBindings({ storageKey: "colunas_empresas_v2", columns: EMPRESAS_COLUNAS, chrome });
-
-  const handleDuplicateSelected = useCadastroDuplicateAction({
-    chrome,
-    findById: (id) => empresas.find((row) => row.id === id),
-    openDraft: (draft) => {
-      setEditingEmpresa(draft);
-      setShowForm(true);
-    },
-    labelField: "nome",
-  });
   const queryClient = useQueryClient();
+  const submitRef = useRef(/** @type {(data: object) => void} */ (() => {}));
+  const deleteRef = useRef(/** @type {(ids: string[]) => void} */ (() => {}));
 
-  const {
-    data: empresasData,
-    isLoading,
-    isError: listaErro,
-    error: listaQueryError,
-    refetch: recarregarLista,
-    isFetching: listaFetching,
-  } = useQuery({
-    queryKey: ["empresas"],
-    queryFn: () => empresaService.listEmpresas(),
-  });
-  const empresas = listaErro ? EMPTY_EMPRESAS : (empresasData ?? EMPTY_EMPRESAS);
+  const fetchAll = useCallback(() => empresaService.listEmpresas(), []);
 
   const mesclarEmpresaNaLista = useCallback(
     (criada) => {
@@ -73,260 +48,230 @@ export default function Empresa() {
     [queryClient],
   );
 
+  const controller = useCadastroBase1FullListController({
+    storageKey: STORAGE_KEY,
+    columnIds: EMPRESAS_COLUNAS.map((c) => c.id),
+    queryKey: ["empresas"],
+    fetchAll,
+    duplicateLabelField: "nome",
+    exportFileName: "empresas.csv",
+    exportColumns: EMPRESAS_COLUNAS,
+    getExportFieldValue: getEmpresaFieldValue,
+    getRecordTitle: (/** @type {any} */ item) =>
+      item?.id ? item.nome || item.apelido || "Empresa" : "Nova empresa",
+    getRecordCode: (/** @type {any} */ item) => {
+      const n = item?.numero_empresa;
+      return n != null && Number(n) > 0 ? String(n) : undefined;
+    },
+    getSearchHaystack: (/** @type {any} */ e) =>
+      [
+        e.numero_empresa,
+        e.nome,
+        e.apelido,
+        e.cidade,
+        e.cpf,
+        e.cnpj,
+        e.email,
+        e.telefone,
+      ]
+        .filter((v) => v != null && v !== "")
+        .join(" "),
+    mapSearchSuggestion: (/** @type {any} */ e) => ({
+      id: String(e.id),
+      label: e.apelido || e.nome || "Empresa",
+      secondary:
+        e.numero_empresa != null && Number(e.numero_empresa) > 0
+          ? `Nº ${e.numero_empresa}`
+          : e.nome || undefined,
+    }),
+    matchRowId: (/** @type {any} */ e, id) => String(e.id) === String(id),
+    getRowId: (/** @type {any} */ e) => String(e.id),
+    findRowById: (/** @type {any} */ rows, id) => rows.find((e) => String(e.id) === String(id)),
+    onSubmitRecord: (data) => submitRef.current(data),
+    onRequestDeleteMutation: (ids) => deleteRef.current(ids),
+  });
+
   const createMutation = useMutation({
+    /** @param {object} data */
     mutationFn: (data) => empresaService.createEmpresa(data),
     onSuccess: (criada) => {
       if (!criada?._isOffline && (!criada?.id || !(Number(criada.numero_empresa) > 0))) {
-        toast.error("Resposta incompleta ao salvar. Recarregue a lista.");
+        notifyError("Atenção", "Resposta incompleta ao salvar. Recarregue a lista.");
         return;
       }
       mesclarEmpresaNaLista(criada);
       void queryClient.invalidateQueries({ queryKey: ["empresas"] }).finally(() => {
         mesclarEmpresaNaLista(criada);
       });
-      if (criada?.id) chrome.onSelectionChange([criada.id]);
-      setEditingEmpresa(criada);
-      setShowForm(true);
+      controller.recordHelpers.recordBeforeNewRef.current = null;
+      if (criada?.id) {
+        controller.recordHelpers.setEditingItem(criada);
+        controller.recordHelpers.setIsEditing(false);
+        controller.recordHelpers.setShowForm(true);
+        controller.recordHelpers.chrome.setViewMode("record");
+        controller.recordHelpers.chrome.onSelectionChange([String(criada.id)]);
+      } else {
+        controller.recordHelpers.closeForm();
+      }
       toastPersistenciaEmpresa(criada, "Empresa cadastrada!");
     },
-    onError: (error) =>
-      toast.error(getApiErrorMessage(error, "Não foi possível cadastrar a empresa.")),
+    onError: (error) => {
+      if (hasApiErrorCode(error, API_ERROR_CODES.EMPRESA_NAME_CONFLICT)) {
+        notifyWarning(
+          "Atenção",
+          getApiErrorMessage(error, "Já existe uma empresa com este nome neste tenant."),
+        );
+        return;
+      }
+      notifyWarning("Atenção", getApiErrorMessage(error, "Não foi possível cadastrar a empresa."));
+    },
   });
 
   const updateMutation = useMutation({
+    /** @param {{ id: string, data: object }} vars */
     mutationFn: ({ id, data }) => empresaService.updateEmpresa(id, data),
-    onSuccess: (atualizada) => {
+    /** @param {object} atualizada @param {{ id: string, data: object }} vars */
+    onSuccess: (atualizada, { id, data }) => {
       mesclarEmpresaNaLista(atualizada);
       void queryClient.invalidateQueries({ queryKey: ["empresas"] }).finally(() => {
         mesclarEmpresaNaLista(atualizada);
       });
-      if (atualizada?.id) chrome.onSelectionChange([atualizada.id]);
-      setShowForm(false);
-      setEditingEmpresa(null);
+      const merged = {
+        ...(controller.editingItem?.id === id ? controller.editingItem : {}),
+        id,
+        ...data,
+        ...(atualizada && typeof atualizada === "object" ? atualizada : {}),
+      };
+      controller.setEditingItem(merged);
+      controller.setIsEditing(false);
+      if (atualizada?.id) controller.chrome.onSelectionChange([String(atualizada.id)]);
       toastPersistenciaEmpresa(atualizada, "Empresa atualizada!");
     },
-    onError: (error) =>
-      toast.error(getApiErrorMessage(error, "Não foi possível atualizar a empresa.")),
+    onError: (error) => {
+      if (hasApiErrorCode(error, API_ERROR_CODES.EMPRESA_NAME_CONFLICT)) {
+        notifyWarning(
+          "Atenção",
+          getApiErrorMessage(error, "Já existe uma empresa com este nome neste tenant."),
+        );
+        return;
+      }
+      notifyWarning("Atenção", getApiErrorMessage(error, "Não foi possível atualizar a empresa."));
+    },
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id) => empresaService.deleteEmpresa(id),
-    onSuccess: () => {
+    /** @param {string[]} ids */
+    mutationFn: (ids) => empresaService.excluirEmpresas(ids),
+    /** @param {{ excluidos: string[], bloqueados: { id: string, erro: unknown }[] }} result */
+    onSuccess: ({ excluidos, bloqueados }) => {
       queryClient.invalidateQueries({ queryKey: ["empresas"] });
-      chrome.setSelectedIds([]);
-      toast.success("Empresa excluída!");
+      const blockedIds = new Set(bloqueados.map((b) => String(b.id)));
+      const remainingSelection = (controller.chrome.selectedIds || []).filter((id) =>
+        blockedIds.has(String(id)),
+      );
+      controller.chrome.setSelectedIds(remainingSelection);
+      if (
+        controller.showForm &&
+        controller.editingItem?.id &&
+        excluidos.some((id) => String(id) === String(controller.editingItem.id))
+      ) {
+        controller.recordHelpers.closeForm();
+      }
+      if (excluidos.length) {
+        notifyExclusoesEmpilhadas(excluidos.length, { singular: "Empresa excluída" });
+      }
+      if (bloqueados.length) {
+        notifyError(
+          "Atenção",
+          bloqueados.length === 1
+            ? getApiErrorMessage(
+                bloqueados[0].erro,
+                "Esta empresa não pôde ser excluída — pode haver registros vinculados.",
+              )
+            : `${bloqueados.length} empresas não puderam ser excluídas.`,
+        );
+      }
     },
-    onError: () => toast.error("Erro."),
+    onError: (err) => {
+      controller.setDeleteState({ open: false, ids: [] });
+      notifyError("Atenção", getApiErrorMessage(err, "Não foi possível excluir."));
+    },
   });
 
-  const closeForm = () => {
-    setShowForm(false);
-    setEditingEmpresa(null);
-    chrome.exitRecordView();
-  };
-
-  const openNew = () => {
-    setEditingEmpresa(null);
-    setShowForm(true);
-    chrome.setViewMode("record");
-  };
-
-  const handleSubmit = (data) => {
-    if (editingEmpresa?.id) updateMutation.mutate({ id: editingEmpresa.id, data });
-    else createMutation.mutate(data);
-  };
-
-  const handleEdit = (empresa) => {
-    setEditingEmpresa(empresa);
-    setShowForm(true);
-    chrome.setViewMode("record");
-    if (empresa?.id) chrome.onSelectionChange([empresa.id]);
-  };
-
-  const handleEditSelected = () => {
-    const item = empresas.find((e) => e.id === chrome.selectedIds[0]);
-    if (item) handleEdit(item);
-  };
-
-  const handleRequestDelete = (id) => {
-    const ids = Array.isArray(id) ? id : [id];
-    setDeleteState({ open: true, ids });
-  };
-
-  const handleDeleteSelected = () => {
-    if (!chrome.selectedIds.length) return;
-    handleRequestDelete(chrome.selectedIds);
-  };
-
-  const handleConfirmDelete = async () => {
-    for (const id of deleteState.ids) {
-      try {
-        await deleteMutation.mutateAsync(id);
-      } catch {
-        /* toast no onError */
-      }
+  submitRef.current = (data) => {
+    const editing = /** @type {any} */ (controller.editingItem);
+    if (editing?.id) {
+      updateMutation.mutate({ id: editing.id, data });
+      return;
     }
-    setDeleteState({ open: false, ids: [] });
+    createMutation.mutate(data);
   };
+  deleteRef.current = (ids) => deleteMutation.mutate(ids);
 
-  const onViewModeChange = useCallback(
-    (mode) => {
-      chrome.handleViewModeChange(mode, {
-        onOpenRecord: () => handleEditSelected(),
-        onExitRecord: closeForm,
-      });
-    },
-    [chrome, handleEditSelected, closeForm],
+  const saving = createMutation.isPending || updateMutation.isPending;
+
+  const listErrorMessage = useMemo(
+    () =>
+      getApiErrorMessage(
+        controller.listaQueryError,
+        "Não foi possível carregar as empresas. Verifique sua conexão e tente novamente.",
+      ),
+    [controller.listaQueryError],
   );
 
-  const filtradosCount = useMemo(() => {
-    const q = chrome.appliedSearch.trim().toLowerCase();
-    if (!q) return empresas.length;
-    return empresas.filter((e) => {
-      const hay = [e.numero_empresa, e.nome, e.apelido, e.cidade, e.cpf, e.cnpj, e.email]
-        .filter((v) => v != null && v !== "")
-        .join(" ")
-        .toLowerCase();
-      return hay.includes(q) || String(e.numero_empresa ?? "").includes(chrome.appliedSearch.trim());
-    }).length;
-  }, [empresas, chrome.appliedSearch]);
+  const editingRecord = /** @type {any} */ (controller.editingItem);
+  const recordCode =
+    editingRecord?.numero_empresa != null && Number(editingRecord.numero_empresa) > 0
+      ? String(editingRecord.numero_empresa)
+      : undefined;
 
-  const detailTitle = editingEmpresa?.id ? editingEmpresa.nome || editingEmpresa.apelido || "Empresa" : "Nova empresa";
-
-  const recordNavRows = useMemo(() => {
-    const q = chrome.appliedSearch.trim().toLowerCase();
-    if (!q) return empresas;
-    return empresas.filter((e) => {
-      const hay = [e.numero_empresa, e.nome, e.apelido, e.cidade, e.cpf, e.cnpj, e.email]
-        .filter((v) => v != null && v !== "")
-        .join(" ")
-        .toLowerCase();
-      return hay.includes(q) || String(e.numero_empresa ?? "").includes(chrome.appliedSearch.trim());
-    });
-  }, [empresas, chrome.appliedSearch]);
-
-  const recordIndex = editingEmpresa?.id
-    ? Math.max(0, recordNavRows.findIndex((e) => e.id === editingEmpresa.id))
-    : 0;
-
-  const goRecord = (index) => {
-    const row = recordNavRows[index];
-    if (row) handleEdit(row);
-  };
+  const screenController = { ...controller, saving };
 
   return (
-    <>
-      <CadastroWorkspace
-        mode="list"
-        title="Empresas"
-        subtitle="Cadastro de empresas (fazendas) vinculadas ao tenant."
-        toolbar={null}
-      >
-        {listaErro && !listaFetching ? (
-          <div className="cadastro-b1 mg-card p-3 text-xs text-amber-800 bg-amber-50 border border-amber-200 mb-2 flex flex-wrap items-center gap-2">
-            <span>
-              {getApiErrorMessage(
-                listaQueryError,
-                "Não foi possível carregar as empresas. Verifique sua conexão e tente novamente.",
-              )}
-            </span>
-            <button type="button" className="tb-btn tb-btn-gray" onClick={() => recarregarLista()}>
-              Tentar novamente
-            </button>
-          </div>
-        ) : null}
-        <CadastroListaChrome
-          recordMode={showForm}
-          secondaryToolsLocked={showForm}
-          recordHeader={
-            showForm ? (
-              <CadastroRecordHeader
-                title={detailTitle}
-                code={
-                  editingEmpresa?.numero_empresa > 0
-                    ? `Nº ${editingEmpresa.numero_empresa}`
-                    : editingEmpresa?.id
-                      ? "Aguardando número"
-                      : undefined
-                }
-                index={recordIndex}
-                total={recordNavRows.length}
-                onGo={editingEmpresa?.id ? goRecord : undefined}
-                navDisabled={!editingEmpresa?.id}
-              />
-            ) : null
-          }
-          recordBody={
-            showForm ? (
-              <FormularioEmpresa
-                variant="embedded"
-                onSubmit={handleSubmit}
-                onCancel={closeForm}
-                initialData={editingEmpresa}
-                isEditing={!!editingEmpresa?.id}
-                saving={createMutation.isPending || updateMutation.isPending}
-              />
-            ) : null
-          }
-          selectedCount={chrome.selectedIds.length}
-          {...listBindings.listFooter.chromeFooter}
-          createLabel="Novo"
-          onNew={openNew}
-          onEdit={handleEditSelected}
-          onDelete={handleDeleteSelected}
-          onDuplicate={handleDuplicateSelected}
-          onPrint={() => window.print()}
-          cardsModeAvailable
-          cardsToolbar={listBindings.cardsToolbar}
-          searchValue={chrome.searchInput}
-          onSearchChange={chrome.setSearchInput}
-          onSearchApply={chrome.applySearch}
-          searchActive={chrome.searchActive}
-          searchPlaceholder="Buscar empresas…"
-          onConfigureColumns={() => setShowConfigColunas(true)}
-          onExportCsv={() => exportCadastroCsv("empresas.csv", EMPRESAS_COLUNAS, empresas, getEmpresaFieldValue)}
-          onClearFilters={chrome.clearFilters}
-          filtersActive={chrome.filtersActive}
-          viewMode={showForm ? "record" : chrome.viewMode}
-          onViewModeChange={onViewModeChange}
-        >
-          {!showForm ? (
-            <TabelaEmpresas
-              empresas={empresas}
-              onEdit={handleEdit}
-              onDelete={(id) => handleRequestDelete(id)}
-              isLoading={isLoading}
-              chromeLayout
-              showConfigColunas={showConfigColunas}
-              setShowConfigColunas={setShowConfigColunas}
-              searchQuery={chrome.appliedSearch}
-              resetFiltersKey={chrome.resetFiltersKey}
-              onSelectionChange={chrome.onSelectionChange}
-              onFiltersActiveChange={chrome.setFiltersActive}
-              viewMode={chrome.viewMode === "cards" ? "cards" : "table"}
-              displayLimit={listBindings.listFooter.gradePaging.displayLimit}
-              onListMetrics={listBindings.listFooter.gradePaging.onListMetrics}
-              cardFields={listBindings.cardsPrefs.cardFields}
-              cardsPerRow={listBindings.cardsPrefs.cardsPerRow}
-            />
-          ) : null}
-        </CadastroListaChrome>
-      </CadastroWorkspace>
-
-      <ConfirmDialog
-        open={deleteState.open}
-        onOpenChange={(open) => setDeleteState((prev) => ({ ...prev, open }))}
-        title="Confirmar exclusão"
-        description={
-          deleteState.ids.length > 1
-            ? `Deseja excluir ${deleteState.ids.length} empresas?`
-            : "Deseja excluir esta empresa?"
-        }
-        confirmText="Excluir"
-        cancelText="Cancelar"
-        variant="destructive"
-        onConfirm={handleConfirmDelete}
-      />
-    </>
+    <CadastroBase1Screen
+      workspaceTitle="Empresas"
+      searchPlaceholder="Buscar empresas…"
+      formId={FORMULARIO_EMPRESA_ID}
+      columnsForCardsToolbar={EMPRESAS_COLUNAS}
+      controller={screenController}
+      listErrorMessage={listErrorMessage}
+      recordCode={recordCode}
+      deleteDialog={{
+        title: "Confirmar exclusão",
+        descriptionOne: "Deseja excluir esta empresa? A ação pode falhar se houver registros vinculados.",
+        descriptionMany: (n) => `Deseja excluir ${n} empresas selecionadas?`,
+      }}
+      recordForm={
+        <FormularioEmpresa
+          key={`${controller.editingItem?.id ?? "empresa-nova"}-${controller.formEpoch}`}
+          variant="embedded"
+          toolbarActions
+          readOnly={!controller.isEditing}
+          isSubmitting={saving}
+          initialData={controller.editingItem}
+          isEditing={!!editingRecord?.id}
+          onSubmit={controller.handleSubmit}
+          onCancel={controller.cancelForm}
+        />
+      }
+      listSlot={
+        <TabelaEmpresas
+          empresas={controller.visibleRows}
+          onEdit={controller.handleEdit}
+          isLoading={controller.isLoading}
+          showConfigColunas={controller.showConfigColunas}
+          setShowConfigColunas={controller.setShowConfigColunas}
+          searchQuery={controller.chrome.appliedSearch}
+          resetFiltersKey={controller.chrome.resetFiltersKey}
+          onSelectionChange={controller.chrome.onSelectionChange}
+          onFiltersActiveChange={controller.chrome.setFiltersActive}
+          viewMode={controller.chrome.viewMode === "cards" ? "cards" : "table"}
+          cardFields={controller.cardsPrefs.cardFields}
+          cardsPerRow={controller.cardsPrefs.cardsPerRow}
+          configureColumnsAnchorRef={controller.configureColumnsAnchorRef}
+          matchesSearch={controller.matchesSearch}
+        />
+      }
+    />
   );
 }

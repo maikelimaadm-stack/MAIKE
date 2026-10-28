@@ -44,7 +44,7 @@ Este documento responde: *o que abre no menu, de onde vêm os dados (PostgreSQL 
 | **Locais de Estoque** | `/LocaisEstoque` | Suporte → Locais de Estoque | **Nativo** — `/locais-estoque` (P5.2) | Base1 grade | **Sim** | |
 | **Tipos de Tarefa** | `/TiposTarefa` | Suporte → Tipos de Tarefa | **Nativo** — `/tipos-tarefa`, `/grupos-atividades` | Base1 parcial | **Sim** | |
 | **Grupos de Atividades** | `/GruposAtividades` | Suporte → Grupos de Atividades | **Nativo** — `/grupos-atividades` | Base1 parcial | **Sim** | |
-| **Empresa** | `/Empresa` | Administração → Empresa | **Nativo** — `/empresas` (P5.4) | Base1 parcial | **Sim** | Seleção de empresa ativa em `localStorage`. |
+| **Empresa** | `/Empresa` | Administração → Empresa | **Nativo** — `/empresas` (P5.4) | **Base1 completo** (MOTORBASE1-ROLLOUT-07, PR #123) | **Sim** | Lista tenant-global; seleção ativa em `localStorage`. |
 | **Usuários e Permissões** | `/Usuarios` | Administração → Usuários e Permissões | **Nativo** — `/usuarios` + `/permissoes` (P6.0 + P5.4) | Base1 parcial | **Sim** | Matriz de menu no PostgreSQL. |
 | **Configurações Gerais** | `/ConfiguracoesGerais` | Administração → Configurações Gerais | **Nativo** — `/configuracao-icones` (P4.3) | Workspace + cards | **Parcial** | Exige perfil admin (`sessionService` + permissões nativas). |
 
