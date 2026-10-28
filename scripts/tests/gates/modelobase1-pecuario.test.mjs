@@ -210,14 +210,19 @@ describe('gate:modelobase1-pecuario — contrato base pecuário', () => {
     const r = rodarCom(mutar((c) => { c.tenancy.modelsWithoutTenantField.push('ConfiguracaoIcone'); }));
     assert.equal(r.status, 1);
     assert.match(r.output, /P2-MB1-TENANCY/);
-    assert.match(r.output, /exceção não autorizada: ConfiguracaoIcone/);
+    assert.match(r.output, /modelsWithoutTenantField deve ser exatamente Cliente \+ globalCatalogModels/);
   });
 
-  test('MB1-07b catálogo global adicional reprova', () => {
-    const r = rodarCom(mutar((c) => { c.tenancy.globalCatalogModels = ['UnidadeMedida']; }));
+  test('MB1-07b catálogo global fora de modelsWithoutTenantField reprova', () => {
+    const r = rodarCom(
+      mutar((c) => {
+        c.tenancy.globalCatalogModels.push('UnidadeMedida');
+        c.tenancy.modelsWithoutTenantField = ['Cliente'];
+      })
+    );
     assert.equal(r.status, 1);
     assert.match(r.output, /P2-MB1-TENANCY/);
-    assert.match(r.output, /globalCatalogModels deve estar vazio/);
+    assert.match(r.output, /modelsWithoutTenantField deve ser exatamente Cliente \+ globalCatalogModels/);
   });
 
   test('MB1-08 unique de negócio sem tenant reprova', () => {
@@ -537,8 +542,9 @@ describe('gate:modelobase1-pecuario — contrato base pecuário', () => {
     assert.equal(c.identity.prismaGenerator, 'cuid()');
     assert.equal(c.identity.clientSupplied, false);
     assert.equal(c.tenancy.rootModel, 'Cliente');
-    assert.deepEqual(c.tenancy.modelsWithoutTenantField, ['Cliente']);
-    assert.deepEqual(c.tenancy.globalCatalogModels, []);
+    assert.ok(c.tenancy.modelsWithoutTenantField.includes('Cliente'));
+    assert.ok(c.tenancy.globalCatalogModels.length >= 1);
+    assert.ok(c.tenancy.globalCatalogModels.includes('CatalogoIcone'));
     assert.equal(c.p3Handoff.authorizedInP2, false);
     assert.equal(c.p3Handoff.domainMigrationStartsIn, 'P4');
   });

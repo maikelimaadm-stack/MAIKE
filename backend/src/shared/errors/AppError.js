@@ -78,6 +78,22 @@ export const areaNotFound = (message, options) =>
 export const usuarioNotFound = (message, options) =>
   new AppError('USUARIO_NOT_FOUND', message || 'usuário não encontrado', options);
 
+export const productOperatorRequired = (message, options) =>
+  new AppError(
+    'PRODUCT_OPERATOR_REQUIRED',
+    message || 'operador de produto MAIKE não autorizado',
+    options
+  );
+
+export const catalogoGlobalInvalid = (message, details) =>
+  new AppError('CATALOGO_GLOBAL_INVALID', message || 'catálogo global inválido', { details });
+
+export const catalogoGlobalNotFound = (message, options) =>
+  new AppError('CATALOGO_GLOBAL_NOT_FOUND', message || 'recurso do catálogo não encontrado', options);
+
+export const catalogoAssetInvalid = (message, details) =>
+  new AppError('CATALOGO_ASSET_INVALID', message || 'asset inválido', { details });
+
 export const usuarioLoginDuplicado = (message, options) =>
   new AppError('USUARIO_LOGIN_DUPLICADO', message || 'login já existe neste cliente', options);
 

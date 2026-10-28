@@ -34,12 +34,33 @@
     "rootModel": "Cliente",
     "tenantField": "cliente_id",
     "tenantFieldRequiredOnTenantModels": true,
-    "modelsWithoutTenantField": ["Cliente"],
-    "globalCatalogModels": [],
+    "modelsWithoutTenantField": [
+      "Cliente",
+      "CatalogoMeta",
+      "CatalogoTipoEntidade",
+      "CatalogoCategoriaVisual",
+      "CatalogoAsset",
+      "CatalogoIcone",
+      "CatalogoRegraMisto",
+      "CatalogoRegraMistoCategoria",
+      "OperadorProdutoMaike",
+      "AuditoriaCatalogoGlobal"
+    ],
+    "globalCatalogModels": [
+      "CatalogoMeta",
+      "CatalogoTipoEntidade",
+      "CatalogoCategoriaVisual",
+      "CatalogoAsset",
+      "CatalogoIcone",
+      "CatalogoRegraMisto",
+      "CatalogoRegraMistoCategoria",
+      "OperadorProdutoMaike",
+      "AuditoriaCatalogoGlobal"
+    ],
     "modelKinds": {
       "root": "Cliente — o próprio tenant; não carrega cliente_id porque é a raiz",
       "tenant": "todo model de domínio; cliente_id obrigatório e não nulo",
-      "systemCatalog": "catálogo realmente global, sem dono; vazio nesta fundação"
+      "systemCatalog": "catálogo global oficial MAIKE (D-PROD-57/59); sem cliente_id de escopo tenant"
     },
     "tenantSource": "auth_context",
     "forbiddenTenantSources": ["body", "query", "params", "headers", "cookie"],

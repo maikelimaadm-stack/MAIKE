@@ -15,6 +15,15 @@ import { gerarSenhaHash } from '../src/modules/auth/authService.js';
 
 /** Ordem de limpeza respeita as foreign keys (tudo é Restrict). */
 const ORDEM_DE_LIMPEZA = [
+  'auditoriaCatalogoGlobal',
+  'catalogoRegraMistoCategoria',
+  'catalogoRegraMisto',
+  'catalogoIcone',
+  'catalogoAsset',
+  'catalogoCategoriaVisual',
+  'catalogoTipoEntidade',
+  'operadorProdutoMaike',
+  'catalogoMeta',
   'auditLog',
   'registroAnexo',
   // P5.5 — documentos JSON tenant-scoped (Restrict → Cliente).

@@ -2457,4 +2457,31 @@ Merge desta fatia só pelo proprietário após auditoria.
 
 ---
 
-<!-- Próxima decisão: D-PROD-60 -->
+## D-PROD-60 — Catálogo global slice 1: exceções de tenancy no ModeloBase1
+
+**Missão:** `CATALOGO-GLOBAL-SLICE1-BACKEND-01` (28/10/2026)  
+**Autoridade de produto:** D-PROD-57 (catálogo global Supabase + Storage)
+
+**Decisão:**
+
+1. Os models Prisma do catálogo global oficial (`CatalogoMeta`, `CatalogoTipoEntidade`,
+   `CatalogoCategoriaVisual`, `CatalogoAsset`, `CatalogoIcone`, `CatalogoRegraMisto`,
+   `CatalogoRegraMistoCategoria`, `OperadorProdutoMaike`, `AuditoriaCatalogoGlobal`)
+   **não** carregam `cliente_id` de escopo tenant: são compartilhados entre todos os
+   clientes (D-PROD-57).
+2. `OperadorProdutoMaike` referencia `(cliente_id, usuario_id)` do `auth_context` apenas
+   para **identidade verificada** de quem pode escrever no catálogo — não transforma o
+   catálogo em dado por fazenda.
+3. `config/modelobase1-pecuario.json` passa a listar esses models em
+   `tenancy.globalCatalogModels` e em `tenancy.modelsWithoutTenantField` junto com
+   `Cliente`. Demais invariantes (índices tenant-aware, unique de negócio com tenant)
+   **não** se aplicam a esses models.
+4. Escrita no catálogo exige registro ativo em `OperadorProdutoMaike` validado no
+   backend (`is_admin` de tenant continua **insuficiente**).
+
+**Consequência:** `gate:modelobase1-pecuario` e testes MB1-07/MB1-07b/MB1-20b refletem
+catálogo global autorizado; slice 1 não migra legado `ConfiguracaoIcone` nem UI de mapa.
+
+---
+
+<!-- Próxima decisão: D-PROD-61 -->

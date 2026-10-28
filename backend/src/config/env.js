@@ -74,6 +74,12 @@ export const env = {
    * aberta, e é o tipo de padrão que só se percebe errado depois do incidente.
    */
   frontendOrigins: listaDeOrigins('FRONTEND_ORIGINS'),
+  /** Supabase project URL (server-only; nunca VITE_). */
+  supabaseUrl: texto('SUPABASE_URL'),
+  /** Service role — upload Storage catálogo global; nunca expor ao cliente. */
+  supabaseServiceRoleKey: texto('SUPABASE_SERVICE_ROLE_KEY'),
+  catalogoStorageBucket: texto('CATALOGO_STORAGE_BUCKET') || 'maike-catalogo-global',
+  catalogoAssetMaxBytes: inteiro('CATALOGO_ASSET_MAX_BYTES', 512 * 1024),
 };
 
 export const ehProducao = () => env.nodeEnv === 'production';

@@ -188,6 +188,22 @@ export const BACKEND_ONLY_CODES = Object.freeze({
     http: 404,
     meaning: 'id não identifica evento de suplementação deste tenant',
   },
+  PRODUCT_OPERATOR_REQUIRED: {
+    http: 403,
+    meaning: 'identidade não autorizada a alterar o catálogo global do produto',
+  },
+  CATALOGO_GLOBAL_INVALID: {
+    http: 422,
+    meaning: 'dados do catálogo global inválidos ou incompletos para publicação',
+  },
+  CATALOGO_GLOBAL_NOT_FOUND: {
+    http: 404,
+    meaning: 'recurso do catálogo global não encontrado',
+  },
+  CATALOGO_ASSET_INVALID: {
+    http: 400,
+    meaning: 'asset visual reprovado (mime, tamanho ou conteúdo)',
+  },
   INTERNAL_ERROR: { http: 500, meaning: 'erro não previsto' },
 });
 
