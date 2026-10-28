@@ -147,6 +147,10 @@ export const BACKEND_ONLY_CODES = Object.freeze({
     http: 404,
     meaning: 'id não identifica local de estoque deste tenant',
   },
+  LOCAL_ESTOQUE_DELETE_BLOCKED: {
+    http: 409,
+    meaning: 'local de estoque possui registros vinculados e não pode ser excluído',
+  },
   PRODUTO_NOT_FOUND: { http: 404, meaning: 'id não identifica produto deste tenant' },
   PRODUTO_NAME_CONFLICT: {
     http: 409,

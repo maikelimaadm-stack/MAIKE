@@ -6,14 +6,22 @@ import { getPrismaClient } from '../../database/prismaClient.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { registrarEvento } from '../auditoria/auditService.js';
 import { reservarNumero, ESCOPO_TENANT } from '../sequencias/entidadeCodigoService.js';
-import { localEstoqueNotFound } from '../../shared/errors/AppError.js';
+import { AppError, localEstoqueDeleteBlocked, localEstoqueNotFound } from '../../shared/errors/AppError.js';
 import {
   listarLocais,
+  listarLocaisPagina,
+  contarLocais,
   buscarLocal,
   inserirLocal,
   atualizarLocalPorId,
   excluirLocalPorId,
+  motivoBloqueioExclusaoLocal,
 } from './localEstoqueRepository.js';
+import {
+  decodificarCursor,
+  normalizarLimite,
+  montarEnvelopeKeyset,
+} from '../../shared/pagination/keysetCursor.js';
 
 export const ENTIDADE_SEQUENCIA = 'LocalEstoque';
 export const escopoDaNumeracao = () => ESCOPO_TENANT;
@@ -62,6 +70,39 @@ export const listar = async (contexto) => {
   const auth = exigirAuthContext(contexto?.auth);
   const registros = await listarLocais(auth.clienteId);
   return registros.map(comoLocalPublico);
+};
+
+/**
+ * Listagem paginada keyset — motor Base1 (D-PROD-55). Escopo tenant (sem empresa_id).
+ * @param {{auth: import('../../shared/auth/authContext.js').AuthContext}} contexto
+ * @param {Record<string, unknown>} query
+ */
+export const listarPagina = async (contexto, query = {}) => {
+  const auth = exigirAuthContext(contexto?.auth);
+  const limit = normalizarLimite(query.limit);
+  const q = typeof query.q === 'string' ? query.q : null;
+  let ativo = null;
+  if (query.ativo === true || query.ativo === 'true' || query.ativo === '1') ativo = true;
+  if (query.ativo === false || query.ativo === 'false' || query.ativo === '0') ativo = false;
+
+  const cursorBruto = typeof query.cursor === 'string' ? query.cursor : null;
+  const cursor = cursorBruto ? decodificarCursor(cursorBruto) : null;
+  if (cursorBruto && !cursor) {
+    throw new AppError('REQUEST_VALIDATION_FAILED', 'cursor inválido');
+  }
+
+  const filtro = { q, ativo, cursor, limit };
+  const [registros, total] = await Promise.all([
+    listarLocaisPagina(auth.clienteId, filtro),
+    contarLocais(auth.clienteId, { q, ativo }),
+  ]);
+
+  return montarEnvelopeKeyset({
+    registros,
+    limit,
+    total,
+    mapItem: comoLocalPublico,
+  });
 };
 
 /** @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto @param {Record<string, unknown>} entrada */
@@ -134,6 +175,11 @@ export const excluir = async (contexto, id) => {
   await prisma.$transaction(async (tx) => {
     const anterior = await buscarLocal(auth.clienteId, id, tx);
     if (!anterior) throw localEstoqueNotFound();
+
+    const motivo = await motivoBloqueioExclusaoLocal(tx, auth.clienteId, id, anterior.nome);
+    if (motivo) {
+      throw localEstoqueDeleteBlocked(motivo, { details: { id } });
+    }
 
     await excluirLocalPorId(tx, auth.clienteId, id);
     await registrarEvento(

@@ -1,7 +1,8 @@
 /** API pública de locais de estoque (P5.2). */
 
 import { runProviderCall, assertArgument } from '../_core/normalizeApiError.js';
-import { localEstoquePort } from './localEstoqueNativePort.js';
+import { localEstoquePort, operacoesNativas } from './localEstoqueNativePort.js';
+import { LIMITE_PADRAO, normalizarEnvelopePagina } from '@/lib/cadastroListaScale';
 
 const RESOURCE = 'LocalEstoque';
 const isId = (valor) => typeof valor === 'string' && valor.trim().length > 0;
@@ -11,6 +12,15 @@ const ctx = (operation) => ({ operation, resource: RESOURCE });
 
 export const listLocais = async () =>
   comoLista(await runProviderCall(() => localEstoquePort.list(), ctx('listLocais')));
+
+/**
+ * Página keyset — motor Base1. Sem cache offline (página ≠ array legado).
+ * @param {Record<string, unknown>} [filtros]
+ */
+export const listLocaisPage = async (filtros = {}) => {
+  const bruto = await runProviderCall(() => operacoesNativas.listPage(filtros), ctx('listLocaisPage'));
+  return normalizarEnvelopePagina(bruto, Number(filtros.limit) || LIMITE_PADRAO);
+};
 
 export const createLocal = async (dados) => {
   const contexto = ctx('createLocal');

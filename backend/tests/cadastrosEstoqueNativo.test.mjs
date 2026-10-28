@@ -60,6 +60,77 @@ describe('P5.2 — LocalEstoque', () => {
     assert.equal(r.statusCode, 201);
     assert.equal(r.json().numero_local, '1');
   });
+
+  test('BE-P52-PAGE-03 GET /locais-estoque/page devolve envelope tenant-global', async () => {
+    const { token } = await tenantAutenticado();
+    await app.inject({
+      method: 'POST',
+      url: '/locais-estoque',
+      headers: auth(token),
+      payload: { nome: 'Galpão A' },
+    });
+    const page = await app.inject({
+      method: 'GET',
+      url: '/locais-estoque/page?limit=10',
+      headers: auth(token),
+    });
+    assert.equal(page.statusCode, 200);
+    const corpo = page.json();
+    assert.equal(corpo.total, 1);
+    assert.equal(corpo.items.length, 1);
+    assert.match(corpo.items[0].nome, /galpão/i);
+    assert.equal(typeof corpo.has_more, 'boolean');
+  });
+
+  test('BE-P52-PAGE-04 GET /locais-estoque legado continua array', async () => {
+    const { token } = await tenantAutenticado();
+    const r = await app.inject({
+      method: 'GET',
+      url: '/locais-estoque',
+      headers: auth(token),
+    });
+    assert.equal(r.statusCode, 200);
+    assert.ok(Array.isArray(r.json()));
+  });
+
+  test('BE-P52-06 DELETE bloqueado com movimentação (LOCAL_ESTOQUE_DELETE_BLOCKED)', async () => {
+    const { token } = await tenantAutenticado();
+    const local = await app.inject({
+      method: 'POST',
+      url: '/locais-estoque',
+      headers: auth(token),
+      payload: { nome: 'Local bloqueado' },
+    });
+    const localId = local.json().id;
+    const produto = await app.inject({
+      method: 'POST',
+      url: '/produtos',
+      headers: auth(token),
+      payload: { empresa_id: EMPRESA, nome_produto: 'Item teste' },
+    });
+    await app.inject({
+      method: 'POST',
+      url: '/movimentacoes-estoque',
+      headers: auth(token),
+      payload: {
+        empresa_id: EMPRESA,
+        tipo_movimentacao: 'Entrada',
+        data_movimentacao: new Date().toISOString(),
+        produto_id: produto.json().id,
+        quantidade: 3,
+        unidade_medida: 'KG',
+        local_estoque_destino: localId,
+      },
+    });
+    const del = await app.inject({
+      method: 'DELETE',
+      url: `/locais-estoque/${localId}`,
+      headers: auth(token),
+    });
+    assert.equal(del.statusCode, 409);
+    assert.equal(del.json().code, 'LOCAL_ESTOQUE_DELETE_BLOCKED');
+    assert.equal(del.json().details?.motivo, 'movimentacoes_vinculadas');
+  });
 });
 
 describe('P5.2 — Produto', () => {

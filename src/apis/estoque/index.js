@@ -2,6 +2,7 @@
 
 export {
   listLocais,
+  listLocaisPage,
   createLocal,
   updateLocal,
   deleteLocal,
