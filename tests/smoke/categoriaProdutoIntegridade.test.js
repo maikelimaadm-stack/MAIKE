@@ -10,6 +10,8 @@ import {
   buildHierarchy,
   flattenVisible,
   idsAncestraisDe,
+  flattenHierarchyOrdered,
+  filterCategoriasRecordNavRows,
 } from '@/components/categorias-produto/TabelaCategoriasProduto.jsx';
 import { ApiError } from '@/apis/_core/ApiError';
 
@@ -120,5 +122,31 @@ describe('R5 — filhasDe', () => {
     const alvos = ['pai', 'filho'];
     const restantes = todas.filter((c) => !alvos.includes(c.id));
     expect(filhasDe(restantes, 'pai')).toHaveLength(0);
+  });
+});
+
+describe('ROLLOUT-03 — navegação registro vs ancestrais', () => {
+  const arvore = [
+    { id: 'raiz', nome: 'Raiz', ordem: 1 },
+    { id: 'filha', nome: 'Filha', categoria_pai_id: 'raiz', ordem: 1 },
+    { id: 'neta', nome: 'Neta', categoria_pai_id: 'filha', ordem: 1 },
+  ];
+
+  it('recordNav só inclui match real, não ancestral', () => {
+    const nav = filterCategoriasRecordNavRows(arvore, { appliedSearch: 'neta', searchPickId: null });
+    expect(nav.map((n) => n.id)).toEqual(['neta']);
+  });
+
+  it('profundidade ≥3 com 120 itens mantém ordem hierárquica completa', () => {
+    const items = [];
+    for (let i = 0; i < 120; i += 1) {
+      items.push({
+        id: `id-${i}`,
+        nome: `N${i}`,
+        ordem: 1,
+        categoria_pai_id: i === 0 ? undefined : `id-${i - 1}`,
+      });
+    }
+    expect(flattenHierarchyOrdered(items)).toHaveLength(120);
   });
 });

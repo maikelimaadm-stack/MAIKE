@@ -1,14 +1,83 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Badge } from "@/components/ui/badge";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import CadastroBase1Grade from "@/components/cadastro/base1/CadastroBase1Grade";
+import {
+  CADASTRO_BASE1_CELL_KIND,
+  composeCadastroBase1RenderCell,
+} from "@/components/cadastro/base1/cadastroBase1CellKind";
+import { BASE1_LISTA_INTEGRADA_VISUAL } from "@/components/cadastro/base1/base1VisualPreset";
+import { getCadastroAtivoFieldValue } from "@/lib/cadastroAtivoStatus";
 
 export const CATEGORIAS_PRODUTO_COLUNAS = [
   { id: "numero", label: "Nº", default: true, sortable: true, width: 60 },
   { id: "nome", label: "Nome", default: true, sortable: true, width: 280 },
-  { id: "ativo", label: "Ativo", default: true, sortable: true, align: "center", width: 80 },
+  {
+    id: "ativo",
+    label: "Ativo",
+    default: true,
+    sortable: true,
+    align: "center",
+    width: 80,
+    cellKind: CADASTRO_BASE1_CELL_KIND.ATIVO_BADGE,
+  },
   { id: "descricao", label: "Descrição", default: false, sortable: false, width: 220 },
 ];
+
+const categoriaCombinaBuscaExport = (categoria, query) => {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  const hay = [categoria.nome, categoria.descricao].filter(Boolean).join(" ").toLowerCase();
+  return hay.includes(q);
+};
+
+/** Linhas achatadas em ordem hierárquica (todos os nós expandidos) — export e numeração. */
+export function flattenHierarchyOrdered(items) {
+  const { roots, indice } = buildHierarchy(items || []);
+  const expanded = {};
+  for (const id of indice.keys()) expanded[id] = true;
+  return flattenVisible(roots, expanded, { indice });
+}
+
+/** Navegação registro / duplicar: só matches reais, nunca ancestrais estruturais. */
+export function filterCategoriasRecordNavRows(items, { appliedSearch, searchPickId }) {
+  if (searchPickId) return (items || []).filter((c) => String(c.id) === String(searchPickId));
+  const q = appliedSearch.trim().toLowerCase();
+  if (!q) return items || [];
+  return (items || []).filter((c) => categoriaCombinaBuscaExport(c, q));
+}
+
+/** Export CSV: ordem hierárquica, respeitando filtro (sem ancestrais extras). */
+export function prepareCategoriasExportRows(items, { appliedSearch, searchPickId }) {
+  const ordered = flattenHierarchyOrdered(items);
+  if (searchPickId) {
+    return ordered.filter((n) => String(n.id) === String(searchPickId));
+  }
+  const q = appliedSearch.trim().toLowerCase();
+  if (!q) return ordered;
+  const matchIds = new Set(
+    (items || []).filter((c) => categoriaCombinaBuscaExport(c, q)).map((c) => c.id),
+  );
+  return ordered.filter((n) => matchIds.has(n.id));
+}
+
+/** Rodapé: totais = tenant; filtrados = matches; listados = nós renderizados na árvore. */
+export function getCategoriasListFooterMetrics(
+  items,
+  { appliedSearch, searchPickId, matchCount, revealRowId },
+) {
+  const totais = (items || []).length;
+  const filtrados = matchCount;
+  const { roots, indice } = buildHierarchy(items || []);
+  const revealIds = new Set();
+  if (revealRowId) revealIds.add(revealRowId);
+  if (searchPickId) revealIds.add(searchPickId);
+  const listados = flattenVisible(roots, {}, {
+    indice,
+    searchQuery: appliedSearch,
+    revealIds,
+  }).length;
+  return { listados, filtrados, totais };
+}
 
 /** @param {Map<string, { categoria_pai_id?: string | null }>} indice */
 const paiEhDescendenteDe = (indice, ancestralId, nodeId, visitados = new Set()) => {
@@ -124,7 +193,7 @@ export function flattenVisible(nodes, expanded, opcoes = {}) {
 export function getCategoriaProdutoFieldValue(item, colunaId) {
   if (colunaId === "numero") return item._numero || "";
   if (colunaId === "nome") return item.nome || "";
-  if (colunaId === "ativo") return item.ativo !== false ? "Ativo" : "Inativo";
+  if (colunaId === "ativo") return getCadastroAtivoFieldValue(item, "ativo");
   if (colunaId === "descricao") return item.descricao || "";
   return "";
 }
@@ -162,7 +231,11 @@ export default function TabelaCategoriasProduto(props) {
 
   const toggleExpand = (id) => setExpanded((p) => ({ ...p, [id]: !p[id] }));
 
-  const renderCell = (item, colunaId) => {
+  useEffect(() => {
+    props.onListMetrics?.({ listados: flatRows.length });
+  }, [flatRows.length, props.onListMetrics]);
+
+  const renderCellCustom = (item, colunaId) => {
     if (colunaId === "numero") return <span className="font-mono">{item._numero || "–"}</span>;
     if (colunaId === "nome") {
       const hasChildren = (item.children?.length || 0) > 0;
@@ -197,20 +270,11 @@ export default function TabelaCategoriasProduto(props) {
         </div>
       );
     }
-    if (colunaId === "ativo") {
-      return item.ativo !== false ? (
-        <Badge variant="secondary" className="text-[10px] bg-emerald-100 text-emerald-700 border-0">
-          Ativo
-        </Badge>
-      ) : (
-        <Badge variant="secondary" className="text-[10px] bg-slate-100 text-slate-500 border-0">
-          Inativo
-        </Badge>
-      );
-    }
     if (colunaId === "descricao") return item.descricao || "–";
     return "–";
   };
+
+  const renderCell = composeCadastroBase1RenderCell(CATEGORIAS_PRODUTO_COLUNAS, renderCellCustom);
 
   return (
     <CadastroBase1Grade
@@ -222,19 +286,25 @@ export default function TabelaCategoriasProduto(props) {
       renderCell={renderCell}
       defaultSortKey="numero"
       emptyText="Nenhuma categoria encontrada"
+      isLoading={props.isLoading}
       onOpen={props.onEdit}
       showConfigColunas={props.showConfigColunas}
       setShowConfigColunas={props.setShowConfigColunas}
       searchQuery={props.searchQuery}
+      matchesSearch={props.matchesSearch}
       resetFiltersKey={props.resetFiltersKey}
       onSelectionChange={props.onSelectionChange}
       onFiltersActiveChange={props.onFiltersActiveChange}
       viewMode={props.viewMode}
-      displayLimit={props.displayLimit}
-      onListMetrics={props.onListMetrics}
       cardFields={props.cardFields}
       cardsPerRow={props.cardsPerRow}
+      cardsTitleColId="nome"
+      cardsCodeColId="numero"
+      configureColumnsAnchorRef={props.configureColumnsAnchorRef}
       rowKey={(row) => row.id}
+      {...BASE1_LISTA_INTEGRADA_VISUAL.grade}
+      colunaSelecao={false}
+      selecaoSticky={false}
     />
   );
 }
