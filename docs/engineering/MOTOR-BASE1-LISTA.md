@@ -27,15 +27,17 @@ Alterar o motor = alterar o comportamento de **todas** as telas que o plugaram.
 
 ## Preset visual (consumo)
 
-Perfil “modelo Marcas” (portal compras integrado), congelado em `BASE1_MARCAS_MODEL_VISUAL`:
+Perfil lista integrada (portal compras; piloto Marcas), congelado em `BASE1_LISTA_INTEGRADA_VISUAL`:
 
 ```js
-import { BASE1_MARCAS_MODEL_VISUAL } from '@/components/cadastro/base1/base1VisualPreset';
+import { BASE1_LISTA_INTEGRADA_VISUAL } from '@/components/cadastro/base1/base1VisualPreset';
 
-<CadastroWorkspace {...BASE1_MARCAS_MODEL_VISUAL.workspace} />
-<CadastroListaChrome {...BASE1_MARCAS_MODEL_VISUAL.chrome} />
-<CadastroBase1Grade {...BASE1_MARCAS_MODEL_VISUAL.grade} /* + colunas, storageKey, fetch */ />
+<CadastroWorkspace {...BASE1_LISTA_INTEGRADA_VISUAL.workspace} />
+<CadastroListaChrome {...BASE1_LISTA_INTEGRADA_VISUAL.chrome} />
+<CadastroBase1Grade {...BASE1_LISTA_INTEGRADA_VISUAL.grade} /* + colunas, storageKey, fetch */ />
 ```
+
+Rollout por cadastro: ver `MOTORBASE1-ROLLOUT-01-UNIDADES-REPORT.md` (Unidades de medida).
 
 Overrides típicos **na tela** (não no preset global): `colunaSelecao`, `selecaoSticky`, `initialViewMode` cards ≤639px, `cardFields`, actions, formulário.
 

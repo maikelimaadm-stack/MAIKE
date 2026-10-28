@@ -8,6 +8,7 @@ import CadastroBase1Grade from '@/components/cadastro/base1/CadastroBase1Grade';
 import {
   BASE1_GRADE_REFERENCE_HEADERS,
   BASE1_LISTA_CHROME_VISUAL,
+  BASE1_LISTA_INTEGRADA_VISUAL,
 } from '@/components/cadastro/base1/base1VisualPreset';
 
 vi.mock('@/components/cadastro/base1/Base1Grid', () => ({
@@ -57,5 +58,12 @@ describe('motorBase1 fictitious entity harness', () => {
     );
     expect(screen.getByTestId('mock-base1-grid')).toBeTruthy();
     expect(BASE1_LISTA_CHROME_VISUAL.joinTableToolbar).toBe(true);
+  });
+
+  it('preset lista integrada congela workspace, chrome e grade', () => {
+    expect(BASE1_LISTA_INTEGRADA_VISUAL.workspace.pageLayout).toBe('base1-list');
+    expect(BASE1_LISTA_INTEGRADA_VISUAL.chrome.portalComprasSkin).toBe(true);
+    expect(BASE1_LISTA_INTEGRADA_VISUAL.grade.referenceHeaders).toBe(true);
+    expect(Object.isFrozen(BASE1_LISTA_INTEGRADA_VISUAL)).toBe(true);
   });
 });

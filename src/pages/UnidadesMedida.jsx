@@ -23,6 +23,7 @@ import { useCadastroDuplicateAction } from "@/hooks/useCadastroDuplicateAction";
 import { exportCadastroCsv } from "@/components/cadastro/base1/cadastroExportCsv";
 import { toast } from "sonner";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
+import { BASE1_LISTA_INTEGRADA_VISUAL } from "@/components/cadastro/base1/base1VisualPreset";
 
 const COLUNAS = [
   { id: "numero", label: "Nº", default: true, sortable: true, align: "left", width: 60 },
@@ -306,13 +307,9 @@ export default function UnidadesMedida() {
 
   return (
     <>
-      <CadastroWorkspace
-        mode="list"
-        title="Unidades de medida"
-        subtitle="Siglas e descrições usadas nos cadastros de produto."
-        toolbar={null}
-      >
+      <CadastroWorkspace mode="list" title="Unidades de medida" {...BASE1_LISTA_INTEGRADA_VISUAL.workspace}>
         <CadastroListaChrome
+          {...BASE1_LISTA_INTEGRADA_VISUAL.chrome}
           recordMode={showForm}
           secondaryToolsLocked={showForm}
           recordHeader={
@@ -354,6 +351,7 @@ export default function UnidadesMedida() {
           {!showForm ? (
             <div className="overflow-hidden">
               <CadastroBase1Grade
+                {...BASE1_LISTA_INTEGRADA_VISUAL.grade}
                 rows={unidades}
                 columns={COLUNAS}
                 storageKey="colunas_unidades_medida"

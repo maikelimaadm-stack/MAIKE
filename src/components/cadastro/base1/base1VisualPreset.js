@@ -32,10 +32,10 @@ export const BASE1_GRADE_REFERENCE_HEADERS = Object.freeze({
 });
 
 /**
- * Spread único para CadastroWorkspace + CadastroListaChrome (Marcas e futuras telas).
+ * Spread único para CadastroWorkspace + CadastroListaChrome + grade (lista integrada Base1).
  * Overrides de entidade (seleção, cards mobile, colunas, storageKey) ficam na tela.
  */
-export const BASE1_MARCAS_MODEL_VISUAL = Object.freeze({
+export const BASE1_LISTA_INTEGRADA_VISUAL = Object.freeze({
   workspace: BASE1_WORKSPACE_LIST_VISUAL,
   chrome: BASE1_LISTA_CHROME_VISUAL,
   grade: BASE1_GRADE_REFERENCE_HEADERS,

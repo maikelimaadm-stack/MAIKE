@@ -3,7 +3,7 @@
  */
 
 import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { join, relative, dirname, resolve, normalize } from 'node:path';
 
 import ts from 'typescript';
 
@@ -36,12 +36,10 @@ const ALLOWED_COMPONENT_PREFIXES = [
 /**
  * @param {string} spec módulo resolvido relativo a src/ ou pacote externo
  */
-export const classifyImport = (spec) => {
-  if (!spec || typeof spec !== 'string') return 'external';
-  if (spec.startsWith('.') || spec.startsWith('/')) return 'relative';
-  if (!spec.startsWith('@/')) return 'external';
-
-  const path = spec.slice(2);
+/** @param {string} aliasPath caminho sob src/ (sem prefixo @/) */
+export const classifyAliasPath = (aliasPath) => {
+  if (!aliasPath || typeof aliasPath !== 'string') return 'external';
+  const path = aliasPath.replace(/\\/g, '/');
   if (path.startsWith('components/')) {
     if (ALLOWED_COMPONENT_PREFIXES.some((p) => path.startsWith(p))) return 'allowed';
     return 'forbidden-domain-component';
@@ -51,6 +49,31 @@ export const classifyImport = (spec) => {
   if (path.startsWith('apis/')) return 'forbidden-apis';
   if (path.startsWith('lib/') || path.startsWith('hooks/')) return 'allowed';
   return 'forbidden-other';
+};
+
+export const classifyImport = (spec) => {
+  if (!spec || typeof spec !== 'string') return 'external';
+  if (spec.startsWith('.') || spec.startsWith('/')) return 'relative';
+  if (!spec.startsWith('@/')) return 'external';
+  return classifyAliasPath(spec.slice(2));
+};
+
+/**
+ * Resolve import relativo (ex.: ../../marcas/Foo) para classificação sob src/.
+ *
+ * @param {string} spec
+ * @param {string} importerAbs
+ * @param {string} repoRoot
+ */
+export const classifyImportInFile = (spec, importerAbs, repoRoot) => {
+  if (!spec || typeof spec !== 'string') return 'external';
+  if (!spec.startsWith('.') && !spec.startsWith('/')) return classifyImport(spec);
+
+  const srcRoot = join(repoRoot, 'src');
+  const resolved = normalize(resolve(dirname(importerAbs), spec));
+  if (!resolved.startsWith(srcRoot)) return 'forbidden-other';
+  const aliasPath = relative(srcRoot, resolved).replace(/\\/g, '/');
+  return classifyAliasPath(aliasPath);
 };
 
 const parse = (source, fileName) =>
@@ -117,8 +140,8 @@ export const scanMotorBase1Independence = (opts = {}) => {
     walk(sf, (node) => {
       const spec = moduleSpec(node);
       if (!spec) return;
-      const kind = classifyImport(spec);
-      if (kind === 'relative' || kind === 'external' || kind === 'allowed') return;
+      const kind = classifyImportInFile(spec, abs, repoRoot);
+      if (kind === 'external' || kind === 'allowed') return;
 
       const { line } = sf.getLineAndCharacterOfPosition(node.getStart(sf));
       violations.push({
