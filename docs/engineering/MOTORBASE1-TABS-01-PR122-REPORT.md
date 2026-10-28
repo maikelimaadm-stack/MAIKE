@@ -6,6 +6,8 @@
 |---|---|
 | Base | `origin/main` pós-merge PR #121 (`f3c85ceb`) |
 | Branch | `cursor/motorbase1-tabs-lotes-ativo-516d` |
+| HEAD | `018bb90af96c252a61222bf067bb2a249a4cb886` |
+| PR | **Pendente criação manual** — push OK; `gh pr create` bloqueado por permissão de integração. URL sugerida: https://github.com/maikelimaadm-stack/MAIKE/compare/main...cursor/motorbase1-tabs-lotes-ativo-516d |
 | CI main | run `40751394762` SUCCESS |
 | PR abertas no preflight | nenhuma |
 
