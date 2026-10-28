@@ -6,6 +6,7 @@ import { readFileSync } from 'node:fs';
 import { createPageUrl } from '../../src/utils/index.ts';
 import { buildNativeApiRewrites } from '../../scripts/vercel/nativeApiRewriteRules.mjs';
 import { NATIVE_API_PATH_PREFIX } from '../../config/nativeApiPath.js';
+import { normalizarIngressoServerlessVercel } from '../../config/vercelFastifyIngress.js';
 import { resolveRewrite } from '../../scripts/vercel/vercelAcceptMatch.mjs';
 
 const vercel = JSON.parse(readFileSync('vercel.json', 'utf8'));
@@ -42,6 +43,14 @@ const TODAS_PAGINAS_SPA = [
   'UnidadesMedida',
   'Usuarios',
 ];
+
+describe('VERCEL-INGRESS — contrato handler ↔ normalizador (PR #107)', () => {
+  it('counterexample /api/native/{rota}?__native_route= não vaza metadado', () => {
+    expect(
+      normalizarIngressoServerlessVercel('/api/native/empresas?__native_route=empresas&limit=200'),
+    ).toBe('/empresas?limit=200');
+  });
+});
 
 describe('VERCEL-SPA — vercel.json sincronizado', () => {
   it('vercel.json está sincronizado com o gerador SSOT', () => {
