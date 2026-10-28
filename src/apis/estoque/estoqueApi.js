@@ -10,7 +10,7 @@ import {
   filterLotesNotaEstoque,
   updateLoteNotaEstoque,
 } from '@/apis/estoque-lotes-nota';
-import { listLocais, createLocal, updateLocal, deleteLocal } from '@/apis/locais-estoque';
+import { listLocais, listLocaisPage, createLocal, updateLocal, deleteLocal } from '@/apis/locais-estoque';
 import { listProdutos as listProdutosNativos, filterProdutos as filterProdutosNativos } from '@/apis/produtos';
 
 const RESOURCE = 'Estoque';
@@ -19,7 +19,7 @@ const isObjeto = (valor) => Boolean(valor) && typeof valor === 'object' && !Arra
 const comoLista = (registros) => (Array.isArray(registros) ? registros : []);
 const ctx = (operation) => ({ operation, resource: RESOURCE });
 
-export { listLocais, createLocal, updateLocal, deleteLocal };
+export { listLocais, listLocaisPage, createLocal, updateLocal, deleteLocal };
 
 export const listLotesNota = async () =>
   comoLista(await runProviderCall(() => listLotesNotaEstoque(), ctx('listLotesNota')));

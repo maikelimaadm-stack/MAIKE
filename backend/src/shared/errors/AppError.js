@@ -147,6 +147,13 @@ export const categoriaDeleteBlocked = (message, options) =>
 export const localEstoqueNotFound = (message, options) =>
   new AppError('LOCAL_ESTOQUE_NOT_FOUND', message || 'local de estoque não encontrado', options);
 
+export const localEstoqueDeleteBlocked = (motivo, options) =>
+  new AppError(
+    'LOCAL_ESTOQUE_DELETE_BLOCKED',
+    'não é possível excluir local de estoque com registros vinculados',
+    { ...options, details: { ...(options?.details ?? {}), motivo } }
+  );
+
 export const produtoNotFound = (message, options) =>
   new AppError('PRODUTO_NOT_FOUND', message || 'produto não encontrado', options);
 

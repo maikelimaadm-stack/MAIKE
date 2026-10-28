@@ -15,6 +15,7 @@
 
 import {
   listLocais,
+  listLocaisPage,
   createLocal,
   updateLocal,
   deleteLocal,
@@ -28,6 +29,18 @@ import { ApiError, API_ERROR_CODES } from '@/apis/_core/ApiError';
 const CATEGORIA_DEPOSITO = 'DEPOSITO';
 
 export const listarLocais = () => listLocais();
+
+/**
+ * Adapter de domínio → motor Base1 (`useCadastroInfiniteList`).
+ * @param {{ limit?: number, cursor?: string|null, q?: string, ativo?: boolean }} [opts]
+ */
+export const listarLocaisPagina = async (opts = {}) =>
+  listLocaisPage({
+    limit: opts.limit,
+    cursor: opts.cursor ?? undefined,
+    q: opts.q,
+    ativo: opts.ativo,
+  });
 
 /** Próximo `numero_local`. `max + 1` sem concorrência segura (dívida aberta). */
 export const proximoNumeroDeLocal = async () => {
