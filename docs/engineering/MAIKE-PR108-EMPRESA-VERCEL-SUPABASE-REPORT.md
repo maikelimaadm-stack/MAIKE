@@ -8,7 +8,7 @@ Relatório de missão: diagnóstico e correção do fluxo **Empresas** na arquit
 | Item | Valor |
 |------|--------|
 | Base `main` (início) | `be1ee97143179efbd403229a464cc48f386c3aa3` (merge PR #107) |
-| HEAD desta PR | `57ffe9a7` (branch `cursor/pr108-empresa-vercel-supabase-516d`) |
+| HEAD desta PR | `10ce6483` (branch `cursor/pr108-empresa-vercel-supabase-516d`) |
 | Supabase project ref | `uuemcasqcdjucflulkne` |
 | Vercel project | `maike` (`prj_jbLcws3pOJqXu2Fo3joKFJG86dzh`) |
 
