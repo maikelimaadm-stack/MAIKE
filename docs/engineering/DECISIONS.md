@@ -2337,4 +2337,21 @@ ficam fora desta missão (R7).
 
 ---
 
-<!-- Próxima decisão: D-PROD-57 -->
+## D-PROD-57 — Padrões internos MAIKE ≠ Configurações Gerais do tenant
+
+**Missão:** governança Configurações Gerais × mapa (28/10/2026)  
+**Relatório:** `docs/engineering/CONFIGURACOES-GERAIS-SEPARACAO-MAPA-REPORT-2026-10-28.md`  
+**Plano:** `docs/engineering/PLAN-CONFIGURACOES-GERAIS-SEPARACAO-MAPA-2026-10-28.md`
+
+**Decisão:** Dois domínios distintos:
+
+1. **Padrões internos do produto** (ícones oficiais, categorias visuais, tipos-padrão de POI): autoridade do repositório/produto; operador de fazenda **não** edita catálogo global. Duplicar o mesmo padrão por `cliente_id` só para uniformizar é proibido como modelo final.
+2. **Configurações Gerais do cliente:** preferências com caso de uso e consumidor real, escopo explícito (`cliente`, `empresa` ou `usuario`), persistência tenant-aware quando compartilhadas, tenant **sempre** do token. Não duplicar Empresas nem Permissões.
+
+O estado atual (`ConfiguracaoIcone` tenant-scoped + `GerenciadorIcones` em Configurações Gerais) é legado a migrar em slice **separada** do mapa, com compatibilidade de IDs em pontos já cadastrados. Modernização MotorBase1 do editor de ícones (prompt PR #126) permanece **congelada** enquanto houver risco de colisão com trabalho de mapa.
+
+**Consequência:** Nenhuma PR de implementação de preferências ou catálogo global nesta fase. Inventário read-only de prefs existentes (localStorage/UI) precede qualquer schema. Critérios de aceitação futuros: sem diff em contratos congelados do mapa na PR de prefs; backend nega escrita não autorizada com teste; `verify:all` verde.
+
+---
+
+<!-- Próxima decisão: D-PROD-58 -->
