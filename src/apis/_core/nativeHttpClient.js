@@ -89,13 +89,15 @@ const detalhesSeguros = (corpo, details) => {
   const requestId = typeof corpo?.request_id === 'string' ? corpo.request_id : null;
   const field = typeof corpo?.field === 'string' ? corpo.field : null;
   const reason = typeof corpo?.reason === 'string' ? corpo.reason : null;
+  const corpoDetails = ehObjeto(corpo?.details) ? corpo.details : null;
   const diagnostico =
     field && reason
       ? { field, reason }
       : null;
-  if (!requestId && !details && !diagnostico) return null;
+  if (!requestId && !details && !diagnostico && !corpoDetails) return null;
   return {
     ...(details ?? {}),
+    ...(corpoDetails ?? {}),
     ...(diagnostico ?? {}),
     ...(requestId ? { requestId } : {}),
   };
