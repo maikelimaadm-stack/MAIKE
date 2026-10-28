@@ -95,3 +95,50 @@ export const excluirLotePorId = async (tx, clienteId, id) =>
     where: { cliente_id_id: { cliente_id: clienteId, id } },
     select: SELECAO,
   });
+
+/** @param {string} loteId */
+const filtroJsonLoteId = (loteId) => ({
+  path: ['lote_id'],
+  equals: loteId,
+});
+
+/**
+ * Cinco famílias de vínculo (paridade deleteRules / P1.3).
+ * @param {import('@prisma/client').Prisma.TransactionClient} tx
+ * @param {string} clienteId
+ * @param {string} loteId
+ * @returns {Promise<string|null>} motivo ou null se livre
+ */
+export const motivoBloqueioExclusaoLote = async (tx, clienteId, loteId) => {
+  const mapa = await tx.movimentacaoMapa.findFirst({
+    where: { cliente_id: clienteId, dados: filtroJsonLoteId(loteId) },
+    select: { id: true },
+  });
+  if (mapa) return 'movimentacoes_mapa';
+
+  const pecuaria = await tx.movimentacaoPecuaria.findFirst({
+    where: { cliente_id: clienteId, dados: filtroJsonLoteId(loteId) },
+    select: { id: true },
+  });
+  if (pecuaria) return 'movimentacoes_pecuarias';
+
+  const suplementacao = await tx.suplementacaoLote.findFirst({
+    where: { cliente_id: clienteId, dados: filtroJsonLoteId(loteId) },
+    select: { id: true },
+  });
+  if (suplementacao) return 'suplementacao_lote';
+
+  const tarefa = await tx.lancamentoTarefa.findFirst({
+    where: { cliente_id: clienteId, lote_id: loteId },
+    select: { id: true },
+  });
+  if (tarefa) return 'lancamentos_tarefa';
+
+  const manejo = await tx.manejoTecnicoRebanho.findFirst({
+    where: { cliente_id: clienteId, dados: filtroJsonLoteId(loteId) },
+    select: { id: true },
+  });
+  if (manejo) return 'manejos_tecnicos';
+
+  return null;
+};

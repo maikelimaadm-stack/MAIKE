@@ -200,3 +200,40 @@ export const validarExclusaoDeLote = async (id) => {
     operation: 'validarExclusaoDeLote',
   });
 };
+
+/**
+ * Exclusão em lote com resultado explícito (Motor Base1).
+ * @param {string[]} ids
+ * @param {{ lotes?: object[] }} [opcoes]
+ */
+export const excluirLotes = async (ids, { lotes = [] } = {}) => {
+  const listaIds = Array.isArray(ids) ? ids : [];
+  /** @type {string[]} */
+  const excluidos = [];
+  /** @type {Array<{ id: string, code?: string, erro?: unknown }>} */
+  const bloqueados = [];
+
+  for (const id of listaIds) {
+    const atual = (lotes || []).find((item) => item.id === id) || null;
+    try {
+      await assertExclusaoPermitida({
+        entityName: 'Lote',
+        id,
+        currentRecord: atual,
+        carregadores: CARREGADORES_DE_DEPENDENCIA,
+        blockedCode: API_ERROR_CODES.LOTE_DELETE_BLOCKED,
+        operation: 'excluirLotes',
+      });
+      await deleteLote(id);
+      excluidos.push(id);
+    } catch (erro) {
+      bloqueados.push({
+        id,
+        code: /** @type {{ code?: string }} */ (erro)?.code ?? API_ERROR_CODES.OPERATION_FAILED,
+        erro,
+      });
+    }
+  }
+
+  return { excluidos, bloqueados };
+};

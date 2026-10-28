@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -19,6 +19,8 @@ import LegacyTabs from "./LegacyTabs.jsx";
 import DynamicFormRenderer from "@/components/dynamic/DynamicFormRenderer";
 import LayoutConfiguratorDialog from "@/components/dynamic/LayoutConfiguratorDialog";
 import ToggleSwitch from "@/components/common/ToggleSwitch";
+export const FORMULARIO_LOTE_ID = "formulario-lote-base1";
+
 const FL = ({ label, required, error, children, dataField, wide = false, compact = false, medium = false }) =>
 <div data-field={dataField} className={`grid grid-cols-[190px_minmax(0,1fr)] items-center gap-1 ${wide ? "md:col-span-2" : ""}`}>
     <label className="text-[12px] text-slate-600 text-right leading-none">
@@ -77,6 +79,10 @@ const parseSistemasProdutivos = (valor) => {
 
 export default function FormularioLote({
   variant = "card",
+  visualVariant = "legacy",
+  toolbarActions = false,
+  readOnly: readOnlyProp = false,
+  isSubmitting = false,
   onSubmit,
   onCancel,
   onAttachClick = undefined,
@@ -213,7 +219,15 @@ export default function FormularioLote({
 
   const opcoesCores = useMemo(() => CORES_DISPONIVEIS.map((item) => ({ id: item.cor, nome: item.nome.toUpperCase(), cor: item.cor })), []);
 
-  const isReadOnly = isEditing && !isDuplicating && !editMode;
+  const useBase1Visual = visualVariant === "base1" || (embedded && toolbarActions);
+  const isReadOnly = toolbarActions
+    ? readOnlyProp
+    : isEditing && !isDuplicating && !editMode;
+
+  React.useEffect(() => {
+    if (!toolbarActions) return;
+    setEditMode(!readOnlyProp);
+  }, [toolbarActions, readOnlyProp]);
   const readOnlyClass = isReadOnly ? "cursor-default" : "";
 
   const getFieldClassName = (field, baseClass) => {
@@ -477,7 +491,13 @@ export default function FormularioLote({
         type="warning"
         confirmText="Entendi"
       />
-      <form ref={formRef} onSubmit={handleSubmit} className="bg-white h-full min-h-0 overflow-hidden flex flex-col">
+      <form
+        ref={formRef}
+        id={toolbarActions ? FORMULARIO_LOTE_ID : undefined}
+        onSubmit={handleSubmit}
+        className={`bg-white h-full min-h-0 overflow-hidden flex flex-col ${useBase1Visual ? "cadastro-b1" : ""}`}
+        noValidate
+      >
         {!embedded ? (
           <LegacyRecordToolbar
             title={`${formData.numero_lote ? `${formData.numero_lote} - ` : ""}${formData.nome || (isDuplicating ? "Duplicar lote" : isEditing ? "Editar lote" : "Novo lote")}`}
@@ -514,7 +534,7 @@ export default function FormularioLote({
 
         <div className="flex-1 min-h-0 overflow-y-auto pb-6 pr-2" style={{ scrollbarWidth: "thin", scrollbarColor: "#cbd5e1 transparent" }}>
           <fieldset className={isReadOnly ? "pointer-events-none [&_input]:cursor-default [&_textarea]:cursor-default [&_button]:cursor-default" : ""}>
-            <div className="px-4 md:px-8 py-1 max-w-[780px]">
+            <div className={useBase1Visual ? "px-2 py-1 w-full" : "px-4 md:px-8 py-1 max-w-[780px]"}>
               <DynamicFormRenderer
                 panels={activeLayoutConfig.panels}
                 fields={dynamicFields}
@@ -528,14 +548,15 @@ export default function FormularioLote({
                 errors={errors}
                 onChange={handleChange}
                 readOnly={isReadOnly}
+                visualVariant={useBase1Visual ? "base1" : "legacy"}
                 />
             </div>
           </fieldset>
 
           <LegacyTabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
           <fieldset className={isReadOnly ? "pointer-events-none [&_input]:cursor-default [&_textarea]:cursor-default [&_button]:cursor-default" : ""}>
-          <div className="min-h-[360px] px-4 md:px-8 py-1">
-            <div className="max-w-[780px] space-y-1">
+          <div className={`min-h-[360px] py-1 ${useBase1Visual ? "px-2" : "px-4 md:px-8"}`}>
+            <div className={useBase1Visual ? "w-full space-y-1" : "max-w-[780px] space-y-1"}>
               <DynamicFormRenderer
                 panels={tabs}
                 fields={dynamicFields}
@@ -549,13 +570,13 @@ export default function FormularioLote({
                 errors={errors}
                 onChange={handleChange}
                 readOnly={isReadOnly}
+                visualVariant={useBase1Visual ? "base1" : "legacy"}
                 />
-              
             </div>
           </div>
         </fieldset>
 
-        {embedded ? (
+        {embedded && !toolbarActions ? (
           <div className="flex flex-wrap items-center justify-end gap-2 border-t border-slate-200 px-4 py-2 bg-slate-50">
             {onAttachClick ? (
               <Button
@@ -576,9 +597,10 @@ export default function FormularioLote({
               type="button"
               size="sm"
               className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+              disabled={isSubmitting}
               onClick={() => formRef.current?.requestSubmit()}
             >
-              Salvar
+              {isSubmitting ? "Salvando…" : "Salvar"}
             </Button>
           </div>
         ) : null}
@@ -587,6 +609,14 @@ export default function FormularioLote({
       </form>
     </>
   );
+
+  if (useBase1Visual) {
+    return (
+      <CadastroFormShell embedded={embedded} className="h-full min-h-0 overflow-hidden">
+        {formInner}
+      </CadastroFormShell>
+    );
+  }
 
   return (
     <div className={`h-full min-h-0 overflow-hidden ${embedded ? "rounded-md border border-slate-300 shadow-sm bg-white" : "bg-white"}`}>
