@@ -446,9 +446,17 @@ describe('MAP13/MAP16 — nenhuma dependência da Drawing Library', () => {
 
   it('MAP15 — geometry continua sendo usada de verdade nos consumidores Google restantes', () => {
     const usos = fontes().filter(([, fonte]) => /google\.maps\.geometry\./.test(semComentarios(fonte)));
-    // M1 removeu geometry de MapaDesenho/FormularioArea/FormularioLinha (Turf).
-    // Restam pickers/GPS/seleção até M2/M3 — teto mínimo = 3 arquivos.
-    expect(usos.length).toBeGreaterThanOrEqual(3);
+    // M1: removeu geometry de MapaDesenho/FormularioArea/FormularioLinha (Turf).
+    // M2-A: CapturaGPSPoligono → MapLibre (sem geometry).
+    // M2-B1: TaskLocationPickerDialog → MapLibre (PIP próprio).
+    // Restam SelecaoDepositoMapa / ModalCadastroLotePontos (+ outros) até M2-B2/M3.
+    expect(usos.length).toBeGreaterThanOrEqual(2);
+    expect(usos.map(([rel]) => rel).sort()).toEqual(
+      expect.arrayContaining([
+        'src/components/mapa/SelecaoDepositoMapa.jsx',
+        'src/components/mapa/ModalCadastroLotePontos.jsx',
+      ])
+    );
     expect(GOOGLE_MAPS_REQUIRED_LIBRARIES).toContain('geometry');
   });
 });
