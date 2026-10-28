@@ -77,10 +77,10 @@ export default function CadastroSetores() {
     controller.recordHelpers.closeForm();
     controller.chrome.setSelectedIds([]);
     controller.handleClearFilters();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- reset só quando empresa muda
   }, [empresaId]);
 
   const createMutation = useMutation({
+    /** @param {object} data */
     mutationFn: (data) => criarSetor(data, { empresaId }),
     onSuccess: (created) => {
       queryClient.invalidateQueries({ queryKey: ["setores"] });
@@ -101,6 +101,7 @@ export default function CadastroSetores() {
   });
 
   const updateMutation = useMutation({
+    /** @param {{ id: string, data: object, oldData?: object }} vars */
     mutationFn: ({ id, data, oldData }) => atualizarSetor(id, data, { registroAnterior: oldData }),
     onSuccess: (updated, { id, data }) => {
       queryClient.invalidateQueries({ queryKey: ["setores"] });
@@ -119,6 +120,7 @@ export default function CadastroSetores() {
   });
 
   const deleteMutation = useMutation({
+    /** @param {string[]} ids */
     mutationFn: async (ids) => {
       for (const id of ids) {
         await excluirSetor(id);

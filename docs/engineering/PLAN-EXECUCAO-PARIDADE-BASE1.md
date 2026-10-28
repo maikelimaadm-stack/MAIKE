@@ -89,7 +89,7 @@ Páginas de **cadastro** no manifesto (excluindo mapa e config ícones):
 | `Categorias` | Sim | Não |
 | `Produtos` | Sim | Não |
 | `CadastroLotes` | Sim | Não |
-| `UnidadesMedida` | Sim | Não |
+| `UnidadesMedida` | Sim (motor COMPLETE) | **Sim** (ROLLOUT-01) |
 | `LocaisEstoque` | Sim | Não |
 | `CategoriasManejo` | Sim | Não |
 | `GruposAtividades` | Sim | Não |
