@@ -15,7 +15,7 @@ import {
 
 
 
-const erroNaoEncontrado = () => new AppError('ESTOQUE_LOTE_NOTA_NOT_FOUND', 'EstoqueLoteNota não encontrado');
+const erroNaoEncontrado = () => new AppError('ESTOQUE_LOTE_NOT_FOUND', 'EstoqueLoteNota não encontrado');
 
 /** @param {Record<string, unknown>} registro */
 export const comoPublico = (registro) => {
@@ -33,6 +33,14 @@ export const listar = async (contexto, filtros = {}) => {
   const auth = exigirAuthContext(contexto?.auth);
   const registros = await listarRegistros(auth.clienteId, filtros);
   return registros.map(comoPublico);
+};
+
+/** @param {{auth: import('../../shared/auth/authContext.js').AuthContext}} contexto @param {string} id */
+export const buscarPorId = async (contexto, id) => {
+  const auth = exigirAuthContext(contexto?.auth);
+  const registro = await buscarRegistro(auth.clienteId, id);
+  if (!registro) throw erroNaoEncontrado();
+  return comoPublico(registro);
 };
 
 /** @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto */

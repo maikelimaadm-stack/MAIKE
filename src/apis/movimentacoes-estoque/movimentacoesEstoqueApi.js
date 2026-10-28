@@ -7,3 +7,8 @@ export const listMovimentacoesEstoque = (ordenacao, limite) =>
 export const createMovimentacaoEstoque = (dados) => movimentacaoEstoquePort.create(dados);
 export const updateMovimentacaoEstoque = (id, dados) => movimentacaoEstoquePort.update(id, dados);
 export const deleteMovimentacaoEstoque = (id) => movimentacaoEstoquePort.delete(id);
+
+export {
+  comandoSaidaSuplementacao,
+  comandoTransferenciaEntreLocais,
+} from './movimentacaoEstoqueComandosApi.js';

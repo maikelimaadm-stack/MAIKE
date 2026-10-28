@@ -12,10 +12,8 @@
 import {
   listEventos,
   filterEventos,
-  createEvento,
   updateEvento,
   listLotesSuplementacao,
-  bulkCreateLotesSuplementacao,
   updateLoteSuplementacao,
   listProdutos,
   listLotesRebanho,
@@ -31,6 +29,21 @@ import {
   PATCH_REABERTURA_EVENTO,
   PATCH_REABERTURA_LOTE,
 } from '@/components/utils/consumoUtils';
+import { comandoLancamentoComLotes } from '@/apis/suplementacao-eventos';
+import { ApiError, API_ERROR_CODES } from '@/apis/_core/ApiError';
+
+const novaOperationId = () =>
+  typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `op-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+const exigirConexaoParaComando = () => {
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    throw new ApiError(API_ERROR_CODES.INVALID_ARGUMENT, {
+      operation: 'registrarLancamento',
+      resource: 'Suplementacao',
+      details: { motivo: 'offline_comando_composto', mensagem: 'Lançamento requer conexão para confirmar.' },
+    });
+  }
+};
 
 /**
  * @param {Array<any>} registros
@@ -77,14 +90,18 @@ export const listarEventosDaEmpresa = async (empresaId) => {
 
 // ── Escrita do lançamento ─────────────────────────────────────────────────
 
-/** Cria o evento e, quando há lotes afetados, grava-os em lote. */
-export const registrarLancamento = async ({ evento, lotes }) => {
-  const criado = await createEvento(evento);
-  if (Array.isArray(lotes) && lotes.length) {
-    const comEvento = lotes.map((lote) => ({ ...lote, suplementacao_evento_id: criado.id }));
-    await bulkCreateLotesSuplementacao(comEvento);
-  }
-  return criado;
+/**
+ * Cria evento + lotes rateados em comando transacional único (ESTAB-P0-01).
+ * @param {{ evento: Record<string, unknown>, lotes?: Array<Record<string, unknown>>, operationId?: string }} params
+ */
+export const registrarLancamento = async ({ evento, lotes, operationId }) => {
+  exigirConexaoParaComando();
+  const resposta = await comandoLancamentoComLotes({
+    operation_id: operationId || novaOperationId(),
+    evento,
+    lotes: Array.isArray(lotes) ? lotes : [],
+  });
+  return resposta.evento;
 };
 
 // ── Fechamento e reabertura de período ────────────────────────────────────

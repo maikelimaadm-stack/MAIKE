@@ -53,6 +53,7 @@ model Cliente {
   usuarios      Usuario[]
   auditLogs     AuditLog[]
   sequencias    EntidadeCodigoSequencia[]
+  operacoesIdempotentes OperacaoIdempotente[]
   anexos        RegistroAnexo[]
   setores            Setor[]
   marcas             Marca[]
@@ -211,6 +212,27 @@ model EntidadeCodigoSequencia {
 
   @@unique([cliente_id, entidade, escopo_tipo, escopo_id])
   @@index([cliente_id, entidade])
+}
+
+// ---------------------------------------------------------------------------
+// OperacaoIdempotente — deduplicação durável de comandos compostos (ESTAB-P0-01).
+// ---------------------------------------------------------------------------
+model OperacaoIdempotente {
+  id             String   @id @default(cuid())
+  cliente_id     String   @db.VarChar(64)
+  operation_key  String   @db.VarChar(128)
+  tipo_operacao  String   @db.VarChar(64)
+  fingerprint    String   @db.VarChar(128)
+  status         String   @db.VarChar(32)
+  http_status    Int?
+  response_json  Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  cliente Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+
+  @@unique([cliente_id, operation_key, tipo_operacao])
+  @@index([cliente_id, createdAt])
 }
 
 // ---------------------------------------------------------------------------

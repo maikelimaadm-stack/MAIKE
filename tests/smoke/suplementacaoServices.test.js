@@ -25,6 +25,23 @@ const suplementacao = {
 
 vi.mock('@/apis/suplementacao', () => suplementacao);
 
+const comandosEstoque = {
+  comandoSaidaSuplementacao: vi.fn(),
+  comandoTransferenciaEntreLocais: vi.fn(),
+};
+
+vi.mock('@/apis/movimentacoes-estoque', async (importOriginal) => ({
+  ...(await importOriginal()),
+  ...comandosEstoque,
+}));
+
+const comandosSuplementacao = { comandoLancamentoComLotes: vi.fn() };
+
+vi.mock('@/apis/suplementacao-eventos', async (importOriginal) => ({
+  ...(await importOriginal()),
+  ...comandosSuplementacao,
+}));
+
 const estoqueSvc = await import('@/services/suplementacaoEstoqueService');
 const historicoSvc = await import('@/services/suplementacaoHistoricoService');
 const supSvc = await import('@/services/suplementacaoService');
@@ -52,6 +69,29 @@ beforeEach(() => {
   suplementacao.createMovimentacaoEstoque.mockImplementation(async (d) => ({ id: `mov-${d.tipo_movimentacao}`, ...d }));
   suplementacao.createEvento.mockImplementation(async (d) => ({ id: 'evt-1', ...d }));
   suplementacao.createLoteNota.mockImplementation(async (d) => ({ id: 'novo-lote', ...d }));
+  comandosEstoque.comandoSaidaSuplementacao.mockImplementation(async (body) => ({
+    committed: true,
+    operation_id: body.operation_id,
+    movimentacao: { id: 'mov-saida', tipo_movimentacao: 'Saída', ...body },
+    rateio: [
+      { lote_id: 'lote-antigo', quantidade_consumida: 60 },
+      { lote_id: 'lote-novo', quantidade_consumida: 20 },
+    ],
+  }));
+  comandosEstoque.comandoTransferenciaEntreLocais.mockImplementation(async (body) => ({
+    committed: true,
+    operation_id: body.operation_id,
+    movimentacao_saida: { id: 'mov-Saída', tipo_movimentacao: 'Saída' },
+    movimentacao_entrada: { id: 'mov-Entrada', tipo_movimentacao: 'Entrada', movimento_pai_id: 'mov-Saída' },
+    rateio: [
+      { numero_documento: 'NF1', quantidade_consumida: 60, custo_unitario: 2 },
+      { numero_documento: 'NF2', quantidade_consumida: 10, custo_unitario: 3 },
+    ],
+  }));
+  comandosSuplementacao.comandoLancamentoComLotes.mockImplementation(async ({ evento }) => ({
+    committed: true,
+    evento: { id: 'evt-1', ...evento },
+  }));
 });
 
 // ── Cálculo puro ──────────────────────────────────────────────────────────
@@ -108,37 +148,32 @@ describe('SF — FIFO puro', () => {
 // ── Baixa e transferência ─────────────────────────────────────────────────
 
 describe('SB — baixa de suplementação', () => {
-  it('SB1 — cria a movimentação, baixa os lotes e ajusta o estoque do produto', async () => {
-    suplementacao.filterLotesNota.mockImplementation(async ({ id }) =>
-      lotesNota().filter((l) => l.id === id)
-    );
-    suplementacao.listMovimentacoesEstoque.mockResolvedValue([{ numero_movimentacao: '5' }]);
-
+  it('SB1 — delega ao comando transacional do backend', async () => {
     const r = await estoqueSvc.registrarSaidaSuplementacao({
-      empresaId: EMPRESA, userEmail: 'a@b.c', produto: PRODUTO, quantidade: 80,
+      empresaId: EMPRESA, produto: PRODUTO, quantidade: 80,
       localOrigemId: 'loc-1', localOrigemNome: 'GALPÃO', lotesNota: lotesNota(),
-      dataMovimentacao: '2026-03-01',
+      dataMovimentacao: '2026-03-01', operationId: 'op-test-sb1',
     });
 
-    expect(suplementacao.createMovimentacaoEstoque).toHaveBeenCalledWith(expect.objectContaining({
-      numero_movimentacao: '6', tipo_movimentacao: 'Saída', tipo_detalhado: 'suplementacao',
-      quantidade: 80, saldo_antes: 100, saldo_depois: 20, origem_sistema: 'suplementacao',
-      exclusao_somente_em: 'cocho', usuario_responsavel: 'a@b.c',
-      data_movimentacao: '2026-03-01T12:00:00.000Z',
-    }));
-    expect(suplementacao.updateLoteNota).toHaveBeenCalledWith('lote-antigo', { quantidade_disponivel: 0, status: 'Esgotado' });
-    expect(suplementacao.updateLoteNota).toHaveBeenCalledWith('lote-novo', { quantidade_disponivel: 20, status: 'Disponivel' });
-    expect(suplementacao.updateProduto).toHaveBeenCalledWith('prod-1', { estoque_atual: 20 });
+    expect(comandosEstoque.comandoSaidaSuplementacao).toHaveBeenCalledWith(
+      expect.objectContaining({
+        operation_id: 'op-test-sb1',
+        empresa_id: EMPRESA,
+        produto_id: 'prod-1',
+        quantidade: 80,
+      })
+    );
+    expect(suplementacao.createMovimentacaoEstoque).not.toHaveBeenCalled();
+    expect(r.committed).toBe(true);
     expect(r.rateio).toHaveLength(2);
   });
 
-  it('SB2 — a observação carrega o rateio FIFO', async () => {
-    suplementacao.filterLotesNota.mockImplementation(async ({ id }) => lotesNota().filter((l) => l.id === id));
+  it('SB2 — a observação carrega o rateio FIFO no payload do comando', async () => {
     await estoqueSvc.registrarSaidaSuplementacao({
       empresaId: EMPRESA, produto: PRODUTO, quantidade: 10,
       localOrigemId: 'loc-1', localOrigemNome: 'GALPÃO', lotesNota: lotesNota(), observacoes: 'obs',
     });
-    const payload = suplementacao.createMovimentacaoEstoque.mock.calls[0][0];
+    const payload = comandosEstoque.comandoSaidaSuplementacao.mock.calls[0][0];
     expect(payload.observacoes).toContain('[RATEIO_FIFO]');
     expect(payload.observacoes).toContain('NF1');
   });
@@ -153,61 +188,42 @@ describe('SB — baixa de suplementação', () => {
     expect(suplementacao.createMovimentacaoEstoque).not.toHaveBeenCalled();
   });
 
-  it('SB4 — falha depois da movimentação vira erro parcial com as etapas', async () => {
-    suplementacao.filterLotesNota.mockRejectedValue(new Error('rede'));
+  it('SB4 — falha de rede no comando propaga (sem sucesso parcial local)', async () => {
+    comandosEstoque.comandoSaidaSuplementacao.mockRejectedValue(new Error('rede'));
     await expect(
       estoqueSvc.registrarSaidaSuplementacao({
         empresaId: EMPRESA, produto: PRODUTO, quantidade: 10,
         localOrigemId: 'loc-1', localOrigemNome: 'GALPÃO', lotesNota: lotesNota(),
       })
-    ).rejects.toSatisfy(
-      (erro) => hasApiErrorCode(erro, API_ERROR_CODES.SUPLEMENTACAO_PARTIAL_OPERATION)
-        && erro.details.etapas.includes('movimentacao')
-    );
+    ).rejects.toThrow('rede');
   });
 });
 
 describe('ST — transferência entre locais', () => {
-  it('ST1 — saída e entrada pareadas, com vínculo e lotes recriados no destino', async () => {
-    suplementacao.filterLotesNota.mockImplementation(async ({ id }) => lotesNota().filter((l) => l.id === id));
-    suplementacao.listMovimentacoesEstoque.mockResolvedValue([{ numero_movimentacao: '10' }]);
-
+  it('ST1 — delega transferência pareada ao comando transacional', async () => {
     const r = await estoqueSvc.registrarTransferenciaEntreLocais({
       empresaId: EMPRESA, produto: PRODUTO, quantidade: 70,
       localOrigemId: 'loc-1', localOrigemNome: 'GALPÃO',
       localDestinoId: 'loc-2', localDestinoNome: 'COCHO', lotesNota: lotesNota(),
     });
 
-    const [saida, entrada] = suplementacao.createMovimentacaoEstoque.mock.calls.map(([d]) => d);
-    expect(saida).toMatchObject({ numero_movimentacao: '11', tipo_detalhado: 'transferencia_enviada', is_registro_principal: true });
-    expect(entrada).toMatchObject({ numero_movimentacao: '12', tipo_detalhado: 'transferencia_recebida', movimento_pai_id: 'mov-Saída' });
-    expect(suplementacao.updateMovimentacaoEstoque).toHaveBeenCalledWith('mov-Saída', { movimento_filho_id: 'mov-Entrada' });
-
-    // Um lote no destino por faixa de custo, preservando a origem documental.
-    const criados = suplementacao.createLoteNota.mock.calls.map(([d]) => d);
-    expect(criados.map((c) => [c.numero_documento, c.quantidade_entrada, c.custo_unitario])).toEqual([
-      ['NF1', 60, 2], ['NF2', 10, 3],
-    ]);
+    expect(comandosEstoque.comandoTransferenciaEntreLocais).toHaveBeenCalledWith(
+      expect.objectContaining({ empresa_id: EMPRESA, quantidade: 70 })
+    );
+    expect(suplementacao.createMovimentacaoEstoque).not.toHaveBeenCalled();
+    expect(r.movimentacaoSaida?.id).toBe('mov-Saída');
     expect(r.rateio).toHaveLength(2);
   });
 
-  it('ST2 — sem lote no local, o saldo do produto vira lote SALDO-INICIAL', async () => {
-    suplementacao.filterLotesNota.mockImplementation(async () => []);
-    suplementacao.createLoteNota.mockImplementation(async (d) => ({
-      id: 'saldo-inicial', ...d,
-      // devolve como lote disponível para o rateio seguinte
-      empresa_id: EMPRESA, status: 'Disponivel', produto_id: 'prod-1',
-      local_estoque_id: 'loc-1', quantidade_disponivel: d.quantidade_disponivel,
-    }));
-
-    await estoqueSvc.registrarTransferenciaEntreLocais({
-      empresaId: EMPRESA, produto: PRODUTO, quantidade: 10,
-      localOrigemId: 'loc-1', localOrigemNome: 'GALPÃO',
-      localDestinoId: 'loc-2', localDestinoNome: 'COCHO', lotesNota: [],
-    });
-
-    const primeiro = suplementacao.createLoteNota.mock.calls[0][0];
-    expect(primeiro).toMatchObject({ numero_documento: 'SALDO-INICIAL', serie_documento: 'INI', quantidade_entrada: 100 });
+  it('ST2 — sem lote no local recusa antes do comando (sem SALDO-INICIAL silencioso)', async () => {
+    await expect(
+      estoqueSvc.registrarTransferenciaEntreLocais({
+        empresaId: EMPRESA, produto: PRODUTO, quantidade: 10,
+        localOrigemId: 'loc-1', localOrigemNome: 'GALPÃO',
+        localDestinoId: 'loc-2', localDestinoNome: 'COCHO', lotesNota: [],
+      })
+    ).rejects.toSatisfy((erro) => hasApiErrorCode(erro, API_ERROR_CODES.INVALID_ARGUMENT));
+    expect(comandosEstoque.comandoTransferenciaEntreLocais).not.toHaveBeenCalled();
   });
 });
 
@@ -370,20 +386,25 @@ describe('SP — fechamento e reabertura de período', () => {
     });
   });
 
-  it('SP4 — o lançamento cria o evento e vincula os lotes ao id gerado', async () => {
+  it('SP4 — o lançamento usa comando transacional evento + lotes', async () => {
     await supSvc.registrarLancamento({
-      evento: { ponto_suplementacao_id: 'p1' },
-      lotes: [{ lote_id: 'l1' }, { lote_id: 'l2' }],
+      evento: { empresa_id: EMPRESA, ponto_suplementacao_id: 'p1' },
+      lotes: [{ lote_id: 'l1', empresa_id: EMPRESA }, { lote_id: 'l2', empresa_id: EMPRESA }],
     });
-    expect(suplementacao.bulkCreateLotesSuplementacao).toHaveBeenCalledWith([
-      { lote_id: 'l1', suplementacao_evento_id: 'evt-1' },
-      { lote_id: 'l2', suplementacao_evento_id: 'evt-1' },
-    ]);
+    expect(comandosSuplementacao.comandoLancamentoComLotes).toHaveBeenCalledWith(
+      expect.objectContaining({
+        evento: expect.objectContaining({ ponto_suplementacao_id: 'p1' }),
+        lotes: expect.any(Array),
+      })
+    );
+    expect(suplementacao.createEvento).not.toHaveBeenCalled();
   });
 
-  it('SP5 — lançamento sem lotes não chama o bulkCreate', async () => {
-    await supSvc.registrarLancamento({ evento: {}, lotes: [] });
-    expect(suplementacao.bulkCreateLotesSuplementacao).not.toHaveBeenCalled();
+  it('SP5 — lançamento sem lotes ainda envia comando com array vazio', async () => {
+    await supSvc.registrarLancamento({ evento: { empresa_id: EMPRESA }, lotes: [] });
+    expect(comandosSuplementacao.comandoLancamentoComLotes).toHaveBeenCalledWith(
+      expect.objectContaining({ lotes: [] })
+    );
   });
 
   it('SP6 — o último evento do ponto vem do filtro ordenado, com limite 1', async () => {

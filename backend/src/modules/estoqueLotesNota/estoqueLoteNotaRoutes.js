@@ -2,7 +2,7 @@
  * Rotas de EstoqueLoteNota (P5.4).
  */
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
-import { listar, criar, atualizar, excluir } from './estoqueLoteNotaService.js';
+import { listar, buscarPorId, criar, atualizar, excluir } from './estoqueLoteNotaService.js';
 
 const ID_SCHEMA = {
   params: {
@@ -39,9 +39,13 @@ export const registrarEstoqueLoteNotaRoutes = async (app) => {
   app.get('/estoque-lotes-nota', { onRequest: [app.autenticar], schema: LISTAR_SCHEMA }, async (request) => {
     exigirAuthContext(request.contexto.auth);
     const query = /** @type {Record<string, string>} */ (request.query ?? {});
-    let registros = await listar(request.contexto, query);
+    return listar(request.contexto, query);
+  });
 
-    return registros;
+  app.get('/estoque-lotes-nota/:id', { onRequest: [app.autenticar], schema: ID_SCHEMA }, async (request) => {
+    exigirAuthContext(request.contexto.auth);
+    const { id } = /** @type {{id: string}} */ (request.params);
+    return buscarPorId(request.contexto, id);
   });
 
   app.post('/estoque-lotes-nota', { onRequest: [app.autenticar], schema: CRIAR_SCHEMA }, async (request, reply) => {

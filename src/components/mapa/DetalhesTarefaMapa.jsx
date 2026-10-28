@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { registrarHistorico as registrarHistoricoApi, atualizarTarefa, enviarAnexo } from "@/services/tarefasMapaService";
+import { atualizarTarefa, enviarAnexo } from "@/services/tarefasMapaService";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getMapaCachedData, refreshMapaCacheEntry } from "@/services/mapaCacheService";
 import { Badge } from "@/components/ui/badge";
@@ -119,19 +119,6 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
   const podeConcluir = currentTarefa.status !== "Concluída" && currentTarefa.status !== "Cancelada";
   const podeCancelar = currentTarefa.status !== "Cancelada" && currentTarefa.status !== "Concluída";
 
-  const registrarHistorico = async (registro, evento, descricao, dataEvento) => {
-    await registrarHistoricoApi({
-      empresa_id: registro.empresa_id,
-      tarefa_id: registro.id,
-      titulo_tarefa: registro.titulo,
-      evento,
-      data_evento: dataEvento,
-      status: registro.status,
-      responsavel: registro.responsavel,
-      descricao
-    });
-  };
-
   const updateMutation = useMutation({
     mutationFn: async ({ id, data, pendingImageFiles = [] }) => {
       // Upload de novas imagens antes de salvar
@@ -143,29 +130,32 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
       const finalData = uploadedUrls.length > 0
         ? { ...data, fotos: [...(data.fotos || []), ...uploadedUrls] }
         : data;
-      const updated = await atualizarTarefa(id, finalData);
       const mudouLocal = data.coordenadas?.lat !== currentTarefa?.coordenadas?.lat || data.coordenadas?.lng !== currentTarefa?.coordenadas?.lng;
       const mudouStatus = data.status && data.status !== currentTarefa?.status;
       const evento = mudouLocal ?
       "Mudança de Local" :
-      updated.status === "Concluída" && mudouStatus ?
+      finalData.status === "Concluída" && mudouStatus ?
       "Conclusão" :
-      updated.status === "Cancelada" && mudouStatus ?
+      finalData.status === "Cancelada" && mudouStatus ?
       "Cancelamento" :
       mudouStatus ?
       "Mudança de Status" :
       "Edição";
       const descricao = mudouLocal ?
       "Local da tarefa alterado no mapa." :
-      updated.status === "Concluída" && mudouStatus ?
+      finalData.status === "Concluída" && mudouStatus ?
       "Tarefa concluída pelo mapa." :
-      updated.status === "Cancelada" && mudouStatus ?
+      finalData.status === "Cancelada" && mudouStatus ?
       "Tarefa cancelada pelo mapa." :
       mudouStatus ?
-      `Status alterado para ${updated.status}.` :
+      `Status alterado para ${finalData.status}.` :
       "Tarefa editada.";
-      await registrarHistorico(updated, evento, descricao, new Date().toISOString());
-      return updated;
+      return atualizarTarefa(id, {
+        ...finalData,
+        historico_evento: evento,
+        historico_descricao: descricao,
+        historico_data_evento: new Date().toISOString(),
+      });
     },
     onSuccess: (updated) => {
       // Otimista no mapa e nas listas
@@ -198,7 +188,11 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
           toast.error("Registro só pode ser lançado depois que a tarefa estiver em andamento.");
           return currentTarefa;
         }
-        await registrarHistorico(currentTarefa, "Registro", eventoDescricao || "Registro manual da tarefa.", dataEventoIso);
+        registroAtualizado = await atualizarTarefa(currentTarefa.id, {
+          historico_evento: "Registro",
+          historico_descricao: eventoDescricao || "Registro manual da tarefa.",
+          historico_data_evento: dataEventoIso,
+        });
       } else {
         const novoStatus = eventoTipo;
         const payload = {
@@ -207,9 +201,13 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
           data_conclusao: novoStatus === "Concluída" ? dataEventoIso.split("T")[0] : currentTarefa.data_conclusao,
           observacoes_conclusao: eventoDescricao || currentTarefa.observacoes_conclusao || ""
         };
-        registroAtualizado = await atualizarTarefa(currentTarefa.id, payload);
         const evento = novoStatus === "Concluída" ? "Conclusão" : novoStatus === "Cancelada" ? "Cancelamento" : "Mudança de Status";
-        await registrarHistorico(registroAtualizado, evento, eventoDescricao || `Status alterado para ${novoStatus}.`, dataEventoIso);
+        registroAtualizado = await atualizarTarefa(currentTarefa.id, {
+          ...payload,
+          historico_evento: evento,
+          historico_descricao: eventoDescricao || `Status alterado para ${novoStatus}.`,
+          historico_data_evento: dataEventoIso,
+        });
       }
 
       return registroAtualizado;

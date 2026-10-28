@@ -12,6 +12,7 @@ import { criarApp, criarTenant, limparBanco, encerrar, autenticarNoApp } from '.
 let app;
 
 const ENDPOINTS = [
+  '/movimentacoes-estoque',
   '/movimentacoes-mapa',
   '/movimentacoes-pecuaria',
   '/suplementacao-lotes',

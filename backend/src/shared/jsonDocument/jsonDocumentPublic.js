@@ -35,7 +35,9 @@ export const montarDocumento = (clienteId, entrada, opcoes = {}) => {
 
   const empresa_id = typeof corpo.empresa_id === 'string' && corpo.empresa_id.trim() ? corpo.empresa_id.trim() : null;
   if (!empresa_id) {
-    throw new AppError('VALIDATION_FAILED', 'empresa_id é obrigatório');
+    throw new AppError('REQUEST_VALIDATION_FAILED', 'empresa_id é obrigatório', {
+      details: { field: 'empresa_id', reason: 'required' },
+    });
   }
 
   /** @type {Record<string, unknown>} */

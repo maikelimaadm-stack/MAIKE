@@ -243,11 +243,62 @@ export const listar = async (contexto) => {
   return registros.map(comoLancamentoPublico);
 };
 
-/** @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto @param {Record<string, unknown>} entrada */
+/**
+ * @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto
+ * @param {import('@prisma/client').Prisma.TransactionClient} tx
+ * @param {import('../../shared/auth/authContext.js').AuthContext} auth
+ * @param {Record<string, unknown>} registro
+ * @param {{ evento?: string; descricao?: string | null; data_evento?: Date } | null} entradaHistorico
+ */
+const registrarHistoricoMapaTx = async (contexto, tx, auth, registro, entradaHistorico) => {
+  if (!entradaHistorico?.evento) return;
+  const registroHistorico = await inserirHistorico(tx, {
+    cliente_id: auth.clienteId,
+    empresa_id: registro.empresa_id,
+    tarefa_id: registro.id,
+    titulo_tarefa: registro.titulo,
+    evento: entradaHistorico.evento,
+    data_evento: entradaHistorico.data_evento ?? new Date(),
+    status: registro.status,
+    responsavel: registro.responsavel,
+    descricao: entradaHistorico.descricao ?? null,
+  });
+  await registrarEvento(
+    contexto,
+    {
+      acao: 'create',
+      entidade: 'HistoricoLancamentoTarefa',
+      entidadeId: registroHistorico.id,
+      dadosNovos: comoHistoricoPublico(registroHistorico),
+    },
+    tx
+  );
+};
+
+/** @param {Record<string, unknown>} entrada */
+const separarHistoricoMapa = (entrada) => {
+  const {
+    historico_evento: evento,
+    historico_descricao: descricao,
+    historico_data_evento: data_evento,
+    ...resto
+  } = entrada;
+  const historico =
+    typeof evento === 'string' && evento.trim()
+      ? {
+          evento: evento.trim(),
+          descricao: typeof descricao === 'string' ? descricao : null,
+          data_evento: parseDateTime(data_evento) ?? new Date(),
+        }
+      : null;
+  return { corpo: resto, historico };
+};
+
 export const criar = async (contexto, entrada) => {
   const auth = exigirAuthContext(contexto?.auth);
   const prisma = getPrismaClient();
-  const campos = camposDeLancamento(entrada);
+  const { corpo, historico } = separarHistoricoMapa(entrada);
+  const campos = camposDeLancamento(corpo);
 
   const criado = await prisma.$transaction(async (tx) => {
     const dados = await aplicarCachesDeFk(tx, auth.clienteId, campos);
@@ -261,6 +312,7 @@ export const criar = async (contexto, entrada) => {
       { acao: 'create', entidade: 'LancamentoTarefa', entidadeId: registro.id, dadosNovos: publico },
       tx
     );
+    await registrarHistoricoMapaTx(contexto, tx, auth, registro, historico);
     return publico;
   });
 
@@ -271,12 +323,13 @@ export const criar = async (contexto, entrada) => {
 export const atualizar = async (contexto, id, entrada) => {
   const auth = exigirAuthContext(contexto?.auth);
   const prisma = getPrismaClient();
+  const { corpo, historico } = separarHistoricoMapa(entrada);
 
   return prisma.$transaction(async (tx) => {
     const anterior = await buscarLancamento(auth.clienteId, id, tx);
     if (!anterior) throw attachmentOwnerInvalid();
 
-    const campos = camposDeLancamento(entrada);
+    const campos = camposDeLancamento(corpo);
     const dados =
       Object.keys(campos).length > 0
         ? await aplicarCachesDeFk(tx, auth.clienteId, campos)
@@ -299,6 +352,7 @@ export const atualizar = async (contexto, id, entrada) => {
       },
       tx
     );
+    await registrarHistoricoMapaTx(contexto, tx, auth, registro, historico);
     return publico;
   });
 };

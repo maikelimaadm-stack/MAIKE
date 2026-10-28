@@ -2,7 +2,12 @@
  * Rotas de MovimentacaoEstoque (P5.4).
  */
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
+import { PROPRIEDADE_LIMIT_LISTAGEM } from '../../shared/http/listQueryLimit.js';
 import { listar, criar, atualizar, excluir } from './movimentacaoEstoqueService.js';
+import {
+  comandoSaidaSuplementacao,
+  comandoTransferenciaEntreLocais,
+} from './movimentacaoEstoqueComandoService.js';
 
 const ID_SCHEMA = {
   params: {
@@ -29,7 +34,58 @@ const LISTAR_SCHEMA = {
     properties: {
       empresa_id: { type: 'string', minLength: 1, maxLength: 64 },
       produto_id: { type: 'string', minLength: 1, maxLength: 64 },
-      limit: { type: 'integer', minimum: 1, maximum: 5000 }
+      limit: PROPRIEDADE_LIMIT_LISTAGEM,
+    },
+  },
+};
+
+const OPERATION_ID = { type: 'string', minLength: 8, maxLength: 128, pattern: '\\S' };
+
+const COMANDO_SAIDA_SCHEMA = {
+  body: {
+    type: 'object',
+    required: ['operation_id', 'empresa_id', 'produto_id', 'local_origem_id', 'quantidade'],
+    additionalProperties: false,
+    properties: {
+      operation_id: OPERATION_ID,
+      empresa_id: { type: 'string', minLength: 1, maxLength: 64 },
+      produto_id: { type: 'string', minLength: 1, maxLength: 64 },
+      local_origem_id: { type: 'string', minLength: 1, maxLength: 64 },
+      local_origem_nome: { type: ['string', 'null'], maxLength: 255 },
+      quantidade: { type: 'number', exclusiveMinimum: 0 },
+      area_id: { type: ['string', 'null'], maxLength: 64 },
+      area_nome: { type: ['string', 'null'], maxLength: 255 },
+      deposito_id: { type: ['string', 'null'], maxLength: 64 },
+      ponto_suplementacao_id: { type: ['string', 'null'], maxLength: 64 },
+      data_movimentacao: { type: ['string', 'null'], maxLength: 32 },
+      observacoes: { type: ['string', 'null'], maxLength: 2000 },
+    },
+  },
+};
+
+const COMANDO_TRANSFERENCIA_SCHEMA = {
+  body: {
+    type: 'object',
+    required: [
+      'operation_id',
+      'empresa_id',
+      'produto_id',
+      'local_origem_id',
+      'local_destino_id',
+      'quantidade',
+    ],
+    additionalProperties: false,
+    properties: {
+      operation_id: OPERATION_ID,
+      empresa_id: { type: 'string', minLength: 1, maxLength: 64 },
+      produto_id: { type: 'string', minLength: 1, maxLength: 64 },
+      local_origem_id: { type: 'string', minLength: 1, maxLength: 64 },
+      local_origem_nome: { type: ['string', 'null'], maxLength: 255 },
+      local_destino_id: { type: 'string', minLength: 1, maxLength: 64 },
+      local_destino_nome: { type: ['string', 'null'], maxLength: 255 },
+      quantidade: { type: 'number', exclusiveMinimum: 0 },
+      data_movimentacao: { type: ['string', 'null'], maxLength: 32 },
+      observacoes: { type: ['string', 'null'], maxLength: 2000 },
     },
   },
 };
@@ -39,11 +95,34 @@ export const registrarMovimentacaoEstoqueRoutes = async (app) => {
   app.get('/movimentacoes-estoque', { onRequest: [app.autenticar], schema: LISTAR_SCHEMA }, async (request) => {
     exigirAuthContext(request.contexto.auth);
     const query = /** @type {Record<string, string>} */ (request.query ?? {});
-    let registros = await listar(request.contexto, query);
-    const limite = Number(query.limit);
-    if (Number.isFinite(limite) && limite > 0) registros = registros.slice(0, limite);
-    return registros;
+    return listar(request.contexto, query);
   });
+
+  app.post(
+    '/movimentacoes-estoque/comandos/saida-suplementacao',
+    { onRequest: [app.autenticar], schema: COMANDO_SAIDA_SCHEMA },
+    async (request, reply) => {
+      exigirAuthContext(request.contexto.auth);
+      const corpo = await comandoSaidaSuplementacao(
+        request.contexto,
+        /** @type {Record<string, unknown>} */ (request.body)
+      );
+      return reply.status(corpo.replay ? 200 : 201).send(corpo);
+    }
+  );
+
+  app.post(
+    '/movimentacoes-estoque/comandos/transferencia-locais',
+    { onRequest: [app.autenticar], schema: COMANDO_TRANSFERENCIA_SCHEMA },
+    async (request, reply) => {
+      exigirAuthContext(request.contexto.auth);
+      const corpo = await comandoTransferenciaEntreLocais(
+        request.contexto,
+        /** @type {Record<string, unknown>} */ (request.body)
+      );
+      return reply.status(corpo.replay ? 200 : 201).send(corpo);
+    }
+  );
 
   app.post('/movimentacoes-estoque', { onRequest: [app.autenticar], schema: CRIAR_SCHEMA }, async (request, reply) => {
     exigirAuthContext(request.contexto.auth);

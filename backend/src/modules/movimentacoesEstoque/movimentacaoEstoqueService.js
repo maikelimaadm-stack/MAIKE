@@ -43,15 +43,16 @@ export const criar = async (contexto, entrada) => {
   const criado = await prisma.$transaction(async (tx) => {
     /** @type {Record<string, unknown>} */
     const dados = { ...entrada, cliente_id: auth.clienteId };
-    if (!dados.numero_movimentacao) {
-      dados.numero_movimentacao = String(
-        await reservarNumero(tx, {
-          clienteId: auth.clienteId,
-          entidade: ENTIDADE_SEQUENCIA,
-          escopoTipo: ESCOPO_TENANT,
-        })
-      );
+    if (Object.prototype.hasOwnProperty.call(dados, 'numero_movimentacao')) {
+      delete dados.numero_movimentacao;
     }
+    dados.numero_movimentacao = String(
+      await reservarNumero(tx, {
+        clienteId: auth.clienteId,
+        entidade: ENTIDADE_SEQUENCIA,
+        escopoTipo: ESCOPO_TENANT,
+      })
+    );
     const registro = await inserirRegistro(tx, dados);
     await registrarEvento(
       contexto,
@@ -69,7 +70,11 @@ export const atualizar = async (contexto, id, entrada) => {
   const atualizado = await prisma.$transaction(async (tx) => {
     const existente = await buscarRegistro(auth.clienteId, id, tx);
     if (!existente) throw erroNaoEncontrado();
-    const registro = await atualizarRegistroPorId(tx, auth.clienteId, id, { ...entrada });
+    const patch = { ...entrada };
+    if (Object.prototype.hasOwnProperty.call(patch, 'numero_movimentacao')) {
+      delete patch.numero_movimentacao;
+    }
+    const registro = await atualizarRegistroPorId(tx, auth.clienteId, id, patch);
     await registrarEvento(
       contexto,
       {

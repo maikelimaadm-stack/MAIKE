@@ -2,6 +2,7 @@
  * Repositório de MovimentacaoEstoque (P5.4).
  */
 import { getPrismaClient } from '../../database/prismaClient.js';
+import { opcoesTakeDeFiltros } from '../../shared/http/listQueryLimit.js';
 
 export const listarRegistros = async (clienteId, filtros = {}) => {
   const prisma = getPrismaClient();
@@ -11,6 +12,7 @@ export const listarRegistros = async (clienteId, filtros = {}) => {
   return prisma.movimentacaoEstoque.findMany({
     where,
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    ...opcoesTakeDeFiltros(filtros),
   });
 };
 

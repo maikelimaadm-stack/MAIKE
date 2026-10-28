@@ -40,11 +40,27 @@ const MSG_REGISTRO_POSTERIOR =
   'Existem registros posteriores para este lote. Exclua primeiro os lançamentos mais recentes e refaça o registro, se necessário.';
 
 /** Carrega os lançamentos do lote pelas APIs explícitas. */
+const LIMITE_CONSULTA_TEMPORAL = 200;
+
 const carregarLancamentosDoLote = async (empresaId, loteId) => {
   const [movimentacoes, suplementacoes] = await Promise.all([
-    filterMovimentacoes({ empresa_id: empresaId, lote_id: loteId }, { limit: 200 }),
-    filterSuplementacaoLotes({ empresa_id: empresaId, lote_id: loteId }, { limit: 200 }),
+    filterMovimentacoes({ empresa_id: empresaId, lote_id: loteId }, { limit: LIMITE_CONSULTA_TEMPORAL }),
+    filterSuplementacaoLotes({ empresa_id: empresaId, lote_id: loteId }, { limit: LIMITE_CONSULTA_TEMPORAL }),
   ]);
+  if (
+    movimentacoes.length >= LIMITE_CONSULTA_TEMPORAL ||
+    suplementacoes.length >= LIMITE_CONSULTA_TEMPORAL
+  ) {
+    throw new ApiError(API_ERROR_CODES.INVALID_ARGUMENT, {
+      operation: 'validarOrdemTemporalLote',
+      resource: 'LoteManejo',
+      details: {
+        motivo: 'historico_truncado',
+        mensagem:
+          'Não foi possível garantir a ordem temporal: há mais registros do que o limite seguro de consulta. Próxima slice deve usar paginação SQL completa.',
+      },
+    });
+  }
   return { movimentacoes, suplementacoes };
 };
 
