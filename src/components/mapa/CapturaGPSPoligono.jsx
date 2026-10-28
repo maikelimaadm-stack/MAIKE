@@ -47,6 +47,7 @@ const COR_LINHA = "#f59e0b";
 /**
  * @param {{ lat: number, lng: number, accuracy?: number|null, timestamp?: number|null }[]} pontos
  * @param {'area'|'linha'} tipo
+ * @returns {GeoJSON.FeatureCollection}
  */
 function buildGpsDesenhoCollection(pontos, tipo) {
   const base = buildDesenhoCollection(pontos, tipo === "linha" ? "linha" : "area");
@@ -63,6 +64,7 @@ function buildGpsDesenhoCollection(pontos, tipo) {
 /**
  * @param {{ lat: number, lng: number }[]} pontos
  * @param {'area'|'linha'} tipo
+ * @returns {GeoJSON.FeatureCollection}
  */
 function buildGpsVerticesCollection(pontos, tipo) {
   const base = buildVerticesCollection(pontos);
@@ -136,18 +138,35 @@ function createVertexMarkers(map, pontos, tipo, onDragEnd) {
 /**
  * Captura GPS de área/linha — MapLibre M2-A (sem google.maps.*).
  * Contrato público: onSalvar(pontos[{lat,lng,accuracy?,timestamp?}]), onCancelar(), tipo.
+ *
+ * @param {{
+ *   tipo?: 'area' | 'linha',
+ *   onSalvar: (pontos: { lat: number, lng: number, accuracy?: number, timestamp?: number }[]) => void,
+ *   onCancelar: () => void,
+ * }} props
  */
 export default function CapturaGPSPoligono({ tipo = "area", onSalvar, onCancelar }) {
-  const [pontos, setPontos] = useState([]);
-  const [localizacaoAtual, setLocalizacaoAtual] = useState(null);
-  const [gpsStatus, setGpsStatus] = useState("iniciando"); // iniciando|ativo|erro|inativo
-  const [gpsErro, setGpsErro] = useState(null);
+  /** @type {'area' | 'linha'} */
+  const modo = tipo === "linha" ? "linha" : "area";
+
+  const [pontos, setPontos] = useState(
+    /** @type {{ lat: number, lng: number, accuracy?: number|null, timestamp?: number|null }[]} */ ([])
+  );
+  const [localizacaoAtual, setLocalizacaoAtual] = useState(
+    /** @type {{ lat: number, lng: number, accuracy: number|null, timestamp: number, stale?: boolean } | null} */ (null)
+  );
+  const [gpsStatus, setGpsStatus] = useState(
+    /** @type {'iniciando'|'ativo'|'erro'|'inativo'} */ ("iniciando")
+  );
+  const [gpsErro, setGpsErro] = useState(/** @type {string | null} */ (null));
   const [mapReady, setMapReady] = useState(false);
-  const [mapError, setMapError] = useState(null);
+  const [mapError, setMapError] = useState(/** @type {string | null} */ (null));
   const [mapEpoch, setMapEpoch] = useState(0);
   const [seguirGps, setSeguirGps] = useState(true);
-  const [basemapId, setBasemapId] = useState(BASEMAP_IDS.RUAS);
-  const [satMsg, setSatMsg] = useState(null);
+  const [basemapId, setBasemapId] = useState(
+    /** @type {typeof BASEMAP_IDS.RUAS | typeof BASEMAP_IDS.SATELITE} */ (BASEMAP_IDS.RUAS)
+  );
+  const [satMsg, setSatMsg] = useState(/** @type {string | null} */ (null));
 
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
@@ -364,11 +383,11 @@ export default function CapturaGPSPoligono({ tipo = "area", onSalvar, onCancelar
     const map = mapInstanceRef.current;
     if (!map || !mapReady) return;
 
-    setSourceData(map, GPS_SOURCE_IDS.DESENHO, buildGpsDesenhoCollection(pontos, tipo));
-    setSourceData(map, GPS_SOURCE_IDS.VERTICES, buildGpsVerticesCollection(pontos, tipo));
+    setSourceData(map, GPS_SOURCE_IDS.DESENHO, buildGpsDesenhoCollection(pontos, modo));
+    setSourceData(map, GPS_SOURCE_IDS.VERTICES, buildGpsVerticesCollection(pontos, modo));
 
     limparVertexMarkers();
-    vertexMarkersRef.current = createVertexMarkers(map, pontos, tipo, (index, next) => {
+    vertexMarkersRef.current = createVertexMarkers(map, pontos, modo, (index, next) => {
       setPontos((prev) => {
         if (index < 0 || index >= prev.length) return prev;
         const copy = [...prev];
@@ -377,7 +396,7 @@ export default function CapturaGPSPoligono({ tipo = "area", onSalvar, onCancelar
       });
       toast.success(`Ponto ${index + 1} reposicionado`);
     });
-  }, [pontos, tipo, mapReady, limparVertexMarkers]);
+  }, [pontos, modo, mapReady, limparVertexMarkers]);
 
   const retryMap = () => {
     styleSwapCancelRef.current?.cancel?.();
@@ -416,10 +435,10 @@ export default function CapturaGPSPoligono({ tipo = "area", onSalvar, onCancelar
           GPS_SOURCE_IDS.ACCURACY,
           buildAccuracyCircleCollection(localizacaoAtual, localizacaoAtual?.accuracy)
         );
-        setSourceData(map, GPS_SOURCE_IDS.DESENHO, buildGpsDesenhoCollection(pontosRef.current, tipo));
-        setSourceData(map, GPS_SOURCE_IDS.VERTICES, buildGpsVerticesCollection(pontosRef.current, tipo));
+        setSourceData(map, GPS_SOURCE_IDS.DESENHO, buildGpsDesenhoCollection(pontosRef.current, modo));
+        setSourceData(map, GPS_SOURCE_IDS.VERTICES, buildGpsVerticesCollection(pontosRef.current, modo));
         limparVertexMarkers();
-        vertexMarkersRef.current = createVertexMarkers(map, pontosRef.current, tipo, (index, next) => {
+        vertexMarkersRef.current = createVertexMarkers(map, pontosRef.current, modo, (index, next) => {
           setPontos((prev) => {
             if (index < 0 || index >= prev.length) return prev;
             const copy = [...prev];
@@ -427,7 +446,12 @@ export default function CapturaGPSPoligono({ tipo = "area", onSalvar, onCancelar
             return copy;
           });
         });
-        setBasemapId(resolveBasemapProvider(id).id === BASEMAP_IDS.SATELITE ? BASEMAP_IDS.SATELITE : BASEMAP_IDS.RUAS);
+        /** @type {typeof BASEMAP_IDS.RUAS | typeof BASEMAP_IDS.SATELITE} */
+        const resolved =
+          resolveBasemapProvider(id).id === BASEMAP_IDS.SATELITE
+            ? BASEMAP_IDS.SATELITE
+            : BASEMAP_IDS.RUAS;
+        setBasemapId(resolved);
         setMapError(null);
       },
       onError: (err) => {
@@ -490,10 +514,10 @@ export default function CapturaGPSPoligono({ tipo = "area", onSalvar, onCancelar
   };
 
   const medidaTexto = () => {
-    if (tipo === "area" && pontos.length >= 3) {
+    if (modo === "area" && pontos.length >= 3) {
       return { valor: formatHectaresPt(areaHectares(pontos)), unidade: "ha" };
     }
-    if (tipo === "linha" && pontos.length >= 2) {
+    if (modo === "linha" && pontos.length >= 2) {
       return { valor: formatDistanciaPt(comprimentoMetros(pontos)), unidade: "" };
     }
     return null;
@@ -501,14 +525,14 @@ export default function CapturaGPSPoligono({ tipo = "area", onSalvar, onCancelar
 
   const handleSalvar = () => {
     if (salvandoRef.current) return;
-    const minimos = tipo === "area" ? 3 : 2;
+    const minimos = modo === "area" ? 3 : 2;
     if (pontos.length < minimos) {
       toast.error(`Marque pelo menos ${minimos} pontos`);
       return;
     }
 
     const validation =
-      tipo === "area" ? validatePolygonForSave(pontos) : validateLineForSave(pontos);
+      modo === "area" ? validatePolygonForSave(pontos) : validateLineForSave(pontos);
     if (!validation.ok) {
       toast.error(validation.reason || "Geometria inválida");
       return;
@@ -550,7 +574,7 @@ export default function CapturaGPSPoligono({ tipo = "area", onSalvar, onCancelar
         <div className="flex items-center justify-between gap-2">
           <div className="min-w-0">
             <h3 className="text-base font-bold text-slate-900 truncate">
-              {tipo === "area" ? "Captura de Área" : "Captura de Linha"}
+              {modo === "area" ? "Captura de Área" : "Captura de Linha"}
             </h3>
             <p className="text-xs text-slate-600 mt-0.5">
               Ande e marque pontos em cada vértice
@@ -622,7 +646,7 @@ export default function CapturaGPSPoligono({ tipo = "area", onSalvar, onCancelar
                 <>
                   <div className="h-4 w-px bg-slate-300" />
                   <div className="flex items-center gap-2">
-                    <div className={`text-xl font-bold ${tipo === "area" ? "text-emerald-600" : "text-amber-600"}`}>
+                    <div className={`text-xl font-bold ${modo === "area" ? "text-emerald-600" : "text-amber-600"}`}>
                       {medida.valor}
                     </div>
                     {medida.unidade ? <div className="text-xs text-slate-600">{medida.unidade}</div> : null}
@@ -695,7 +719,7 @@ export default function CapturaGPSPoligono({ tipo = "area", onSalvar, onCancelar
 
           <Button
             onClick={handleSalvar}
-            disabled={pontos.length < (tipo === "area" ? 3 : 2) || salvandoRef.current}
+            disabled={pontos.length < (modo === "area" ? 3 : 2) || salvandoRef.current}
             className="h-11 sm:h-12 text-sm bg-blue-600 hover:bg-blue-700"
           >
             <Check className="w-4 h-4 mr-2" />

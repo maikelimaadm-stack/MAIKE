@@ -48,14 +48,20 @@ coexistência com Google fora da slice (MapaGeral, pickers, M2-B/M3).
 - Callback / formulário: `{ lat, lng, accuracy?, timestamp? }`.
 - Persistência: `toPersistedCoords` → `[[lat,lng],…]` JSONB (accuracy/timestamp **não** gravados).
 
-## Testes / gates
+## Testes / gates (evidências deste agente)
 
 | Comando | Resultado |
 |---|---|
+| Gate 0 CI `quality` main pós-#127 (`40779939571`) | **success** |
 | `tests/smoke/maplibreGpsCapture.test.js` | PASS (13) |
-| Demais smoke + gates / `verify:all` | preencher após execução completa |
-| `test:backend` | **NOT_RUN** se sem `DATABASE_URL`/Docker |
-| E2E browser WebGL mobile | **BLOCKED** neste ambiente agente — validação manual antes do merge |
+| `npm run test:smoke` | PASS — **792** testes |
+| `npm run test:gates` | PASS (604) |
+| `gate:product-scope` / import / source-closure / map-geography / area-pastagem / api-boundary / supabase-public-grants / types / tenancy / indices / base44 / no-secrets / … | PASS |
+| `typecheck:backend` / `lint` / `build` / `prisma:validate` (com `DATABASE_URL` dummy local) | PASS |
+| `npm run verify:all` | FAIL **somente** em `test:backend` |
+| `test:backend` | **NOT_RUN/FAIL** — Docker/`DATABASE_URL` real ausente neste VM (não usar Supabase MAIKE) |
+| E2E browser WebGL mobile/desktop | **BLOCKED** — sem Playwright/WebGL neste ambiente; validação manual antes do merge |
+| `git diff --check` | PASS |
 
 ## Riscos / rollback
 
