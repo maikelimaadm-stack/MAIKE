@@ -1,22 +1,13 @@
-import React, { useState, useEffect } from "react";
-import { motion } from "framer-motion";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
-import { toast } from "sonner";
-import CadastroFormField from "@/components/cadastro/base1/CadastroFormField";
+import React, { useMemo, useState } from "react";
+import B1Field, { B1_FIELD_CTL_CLS } from "@/components/cadastro/base1/B1Field";
+import { B1ChaveRow } from "@/components/cadastro/base1/Base1Ui";
+import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
+import CadastroFormActions from "@/components/cadastro/base1/CadastroFormActions";
+import { notifyWarning } from "@/lib/maikeNotify";
 
-const FL = ({ label, required, error, children, dataField }) => (
-  <CadastroFormField label={label} required={required} error={error} dataField={dataField}>
-    {children}
-  </CadastroFormField>
-);
+export const FORMULARIO_CATEGORIA_ID = "formulario-categoria-produto-base1";
 
 const SELECT_EMPTY = "__VAZIO__";
-const REQUIRED_FIELDS = ["nome"];
 
 /** Todos os descendentes de `raizId` (não inclui a raiz). */
 export const idsDescendentesDe = (categorias, raizId) => {
@@ -40,62 +31,53 @@ export default function FormularioCategoriaProduto({
   initialData,
   categoriasExistentes = [],
   variant = "card",
+  toolbarActions = false,
+  isSubmitting = false,
+  readOnly = false,
 }) {
   const embedded = variant === "embedded";
-  const [errors, setErrors] = useState({});
-  const [formData, setFormData] = useState({
-    nome: "",
-    categoria_pai_id: "",
-    descricao: "",
-    ativo: true,
-  });
-
-  useEffect(() => {
-    if (initialData) {
-      setFormData({
-        nome: initialData.nome || "",
-        categoria_pai_id: initialData.categoria_pai_id || "",
-        descricao: initialData.descricao || "",
-        ativo: initialData.ativo !== false,
-      });
-    }
-  }, [initialData]);
+  const [invalidFields, setInvalidFields] = useState([]);
+  const [formData, setFormData] = useState(() => ({
+    nome: initialData?.nome || "",
+    categoria_pai_id: initialData?.categoria_pai_id || "",
+    descricao: initialData?.descricao || "",
+    ativo: initialData?.ativo !== false,
+  }));
 
   const handleChange = (field, value) => {
-    setErrors(prev => ({ ...prev, [field]: false }));
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setInvalidFields((prev) => prev.filter((f) => f !== field));
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   const descendentesDoEditado = initialData?.id
     ? idsDescendentesDe(categoriasExistentes, initialData.id)
     : new Set();
 
-  const categoriasPaiDisponiveis = categoriasExistentes.filter((c) => {
-    if (initialData && c.id === initialData.id) return false;
-    if (descendentesDoEditado.has(c.id)) return false;
-    return true;
-  });
+  const categoriasPaiDisponiveis = useMemo(
+    () =>
+      categoriasExistentes.filter((c) => {
+        if (initialData && c.id === initialData.id) return false;
+        if (descendentesDoEditado.has(c.id)) return false;
+        return true;
+      }),
+    [categoriasExistentes, initialData, descendentesDoEditado],
+  );
 
   const validateForm = () => {
-    const nextErrors = {};
-    REQUIRED_FIELDS.forEach(field => {
-      const val = formData[field];
-      if (!val || (typeof val === "string" && val.trim() === "")) nextErrors[field] = true;
-    });
-    setErrors(nextErrors);
-    if (Object.keys(nextErrors).length === 0) return true;
-    toast.error("PREENCHA OS CAMPOS OBRIGATÓRIOS.");
-    const firstField = Object.keys(nextErrors)[0];
-    const element = document.querySelector(`[data-field="${firstField}"]`);
-    element?.scrollIntoView({ behavior: "smooth", block: "center" });
-    return false;
+    if (!formData.nome?.trim()) {
+      setInvalidFields(["nome"]);
+      notifyWarning("Atenção", "Preencha o campo obrigatório: Nome.");
+      return false;
+    }
+    return true;
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (readOnly) return;
     if (!validateForm()) return;
 
-    const siblings = categoriasExistentes.filter(c => {
+    const siblings = categoriasExistentes.filter((c) => {
       if (formData.categoria_pai_id) return c.categoria_pai_id === formData.categoria_pai_id;
       return !c.categoria_pai_id;
     });
@@ -105,8 +87,7 @@ export default function FormularioCategoriaProduto({
       ordem = maxOrdem + 1;
     }
 
-    const categoriaPai = categoriasExistentes.find(c => c.id === formData.categoria_pai_id);
-
+    const categoriaPai = categoriasExistentes.find((c) => c.id === formData.categoria_pai_id);
     const paiId = formData.categoria_pai_id || null;
 
     onSubmit({
@@ -119,72 +100,110 @@ export default function FormularioCategoriaProduto({
     });
   };
 
-  const isEditing = !!initialData?.id;
+  const paiSelectClass = `${B1_FIELD_CTL_CLS} uppercase`;
+
+  const formBody = (
+    <form
+      id={FORMULARIO_CATEGORIA_ID}
+      onSubmit={handleSubmit}
+      className="b1 mg-b1-form-grid w-full min-h-0"
+      noValidate
+      data-testid="b1-form-categoria"
+    >
+      <B1Field
+        label="Nome"
+        required
+        span={6}
+        hasValue={Boolean(formData.nome?.trim())}
+        locked={readOnly}
+        disabled={readOnly}
+        error={invalidFields.includes("nome") ? "Obrigatório" : undefined}
+      >
+        <input
+          type="text"
+          value={formData.nome}
+          onChange={(e) => handleChange("nome", e.target.value)}
+          placeholder="NOME DA CATEGORIA"
+          className={B1_FIELD_CTL_CLS}
+          autoComplete="off"
+          readOnly={readOnly}
+        />
+      </B1Field>
+      <B1Field
+        label="Categoria pai"
+        span={6}
+        hasValue={Boolean(formData.categoria_pai_id)}
+        locked={readOnly}
+        disabled={readOnly}
+      >
+        {readOnly ? (
+          <input
+            type="text"
+            readOnly
+            value={
+              formData.categoria_pai_id
+                ? (categoriasExistentes.find((c) => c.id === formData.categoria_pai_id)?.nome || "").toUpperCase()
+                : "NENHUMA (RAIZ)"
+            }
+            className={B1_FIELD_CTL_CLS}
+          />
+        ) : (
+          <select
+            value={formData.categoria_pai_id || SELECT_EMPTY}
+            onChange={(e) =>
+              handleChange("categoria_pai_id", e.target.value === SELECT_EMPTY ? "" : e.target.value)
+            }
+            className={paiSelectClass}
+          >
+            <option value={SELECT_EMPTY}>NENHUMA (RAIZ / PRINCIPAL)</option>
+            {categoriasPaiDisponiveis.map((c) => (
+              <option key={c.id} value={c.id}>
+                {(c.nome || "").toUpperCase()}
+              </option>
+            ))}
+          </select>
+        )}
+      </B1Field>
+      <B1Field
+        label="Descrição"
+        span={12}
+        multiline
+        hasValue={Boolean(formData.descricao?.trim())}
+        locked={readOnly}
+        disabled={readOnly}
+      >
+        <textarea
+          value={formData.descricao}
+          onChange={(e) => handleChange("descricao", e.target.value)}
+          placeholder="DESCRIÇÃO OPCIONAL..."
+          className={`${B1_FIELD_CTL_CLS} uppercase min-h-[4rem]`}
+          rows={2}
+          readOnly={readOnly}
+        />
+      </B1Field>
+      <B1ChaveRow
+        label="Categoria ativa"
+        span={4}
+        checked={formData.ativo}
+        onChange={readOnly ? undefined : (v) => handleChange("ativo", v)}
+        disabled={readOnly}
+        ariaLabel="Categoria ativa"
+      />
+      {!toolbarActions ? (
+        <div className="col-span-12">
+          <CadastroFormActions
+            onCancel={onCancel}
+            submitLabel={initialData?.id ? "Atualizar" : "Salvar"}
+            isSubmitting={isSubmitting}
+          />
+        </div>
+      ) : null}
+    </form>
+  );
 
   return (
-    <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
-      <Card className="shadow-sm border-slate-300">
-        {!embedded ? (
-          <CardHeader className="flex flex-col space-y-1.5 p-6 bg-slate-50 border-b py-1 px-1">
-            <CardTitle className="text-sm font-semibold text-slate-700">
-              {isEditing ? "Editar Categoria" : "Nova Categoria"}
-            </CardTitle>
-          </CardHeader>
-        ) : null}
-        <CardContent className={embedded ? "p-3 pt-2" : "p-1"}>
-          <form onSubmit={handleSubmit} className="space-y-0.5">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
-              <FL label="Nome" required error={errors.nome} dataField="nome">
-                <Input
-                  value={formData.nome}
-                  onChange={(e) => handleChange("nome", e.target.value)}
-                  placeholder="NOME DA CATEGORIA"
-                  className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent"
-                  style={{ textTransform: "uppercase" }}
-                />
-              </FL>
-              <FL label="Categoria Pai" dataField="categoria_pai_id">
-                <Select value={formData.categoria_pai_id || SELECT_EMPTY} onValueChange={(v) => handleChange("categoria_pai_id", v === SELECT_EMPTY ? "" : v)}>
-                  <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue placeholder="NENHUMA (RAIZ)" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={SELECT_EMPTY} className="text-xs">NENHUMA (RAIZ / PRINCIPAL)</SelectItem>
-                    {categoriasPaiDisponiveis.map(c => (
-                      <SelectItem key={c.id} value={c.id} className="text-xs">{(c.nome || "").toUpperCase()}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </FL>
-            </div>
-
-            <FL label="Descrição" dataField="descricao">
-              <Textarea
-                value={formData.descricao}
-                onChange={(e) => handleChange("descricao", e.target.value)}
-                placeholder="DESCRIÇÃO OPCIONAL..."
-                className="text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent"
-                style={{ textTransform: "uppercase" }}
-                rows={2}
-              />
-            </FL>
-
-            <div className="flex flex-wrap gap-6 py-1 px-1">
-              <div className="flex items-center gap-2">
-                <Checkbox id="cat_ativo" checked={formData.ativo} onCheckedChange={(v) => handleChange("ativo", v)} />
-                <label htmlFor="cat_ativo" className="text-xs text-slate-700 cursor-pointer">Ativo</label>
-              </div>
-            </div>
-
-            <div className="flex flex-col-reverse lg:flex-row justify-end gap-1 pt-1 border-t">
-              <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-7 text-xs px-3">
-                Cancelar
-              </Button>
-              <Button type="submit" size="sm" className="h-7 text-xs px-3 bg-emerald-600 hover:bg-emerald-700 text-white">
-                {isEditing ? "Atualizar" : "Salvar"}
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
-    </motion.div>
+    <CadastroFormShell embedded={embedded} title={null}>
+      {formBody}
+    </CadastroFormShell>
   );
 }

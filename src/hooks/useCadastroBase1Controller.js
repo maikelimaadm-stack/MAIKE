@@ -9,6 +9,54 @@ import { exportCadastroCsv } from "@/components/cadastro/base1/cadastroExportCsv
 import { notifyWarning } from "@/lib/maikeNotify";
 
 /**
+ * Superfície consumida por `CadastroBase1Screen` (keyset ou hierárquico full-list).
+ * @typedef {Object} CadastroBase1ControllerSurface
+ * @property {ReturnType<typeof useCadastroBase1Controller>['chrome']} chrome
+ * @property {boolean} showForm
+ * @property {boolean} isEditing
+ * @property {object|null} editingItem
+ * @property {boolean} saving
+ * @property {object} cardsPrefs
+ * @property {object} lista
+ * @property {boolean} listaErro
+ * @property {Error|null|undefined} listaQueryError
+ * @property {() => void} recarregarLista
+ * @property {boolean} listaFetching
+ * @property {number} formEpoch
+ * @property {boolean} showConfigColunas
+ * @property {React.Dispatch<React.SetStateAction<boolean>>} setShowConfigColunas
+ * @property {React.MutableRefObject<null>} configureColumnsAnchorRef
+ * @property {object} deleteState
+ * @property {React.Dispatch<React.SetStateAction<object>>} setDeleteState
+ * @property {string|null} searchPickId
+ * @property {() => void} closeForm
+ * @property {() => void} cancelForm
+ * @property {() => void} openNew
+ * @property {(data: object) => void} handleSubmit
+ * @property {(item: object) => void} handleEdit
+ * @property {(next?: string) => void} handleSearchApply
+ * @property {(item: object) => void} handleSearchSuggestionPick
+ * @property {() => void} handleClearFilters
+ * @property {(v: string) => void} handleSearchInputChange
+ * @property {() => boolean} handleEditSelected
+ * @property {() => void} handleDuplicateSelected
+ * @property {() => void} exportCsv
+ * @property {object} chromeFooter
+ * @property {(id: string|string[]) => void} handleRequestDelete
+ * @property {() => void} handleDeleteSelected
+ * @property {() => void} handleConfirmDelete
+ * @property {(mode: string) => void} onViewModeChange
+ * @property {string} detailTitle
+ * @property {number} recordIndex
+ * @property {object[]} recordNavRows
+ * @property {(index: number) => void} goRecord
+ * @property {(item: object) => boolean} matchesSearch
+ * @property {Array<{ id: string, label: string, secondary?: string }>} searchSuggestions
+ * @property {(item: object|null) => void} [setEditingItem]
+ * @property {(v: boolean) => void} [setIsEditing]
+ */
+
+/**
  * Motor Base1 — orquestração compartilhada de cadastro lista/registro (D-PROD-55).
  * Domínio entra só por config/callbacks; este hook não importa entidades nem services.
  *

@@ -19,7 +19,7 @@ import { BASE1_LISTA_INTEGRADA_VISUAL } from "@/components/cadastro/base1/base1V
  *   attachDisabledReason?: string,
  *   formId?: string,
  *   columnsForCardsToolbar: object[],
- *   controller: ReturnType<import('@/hooks/useCadastroBase1Controller').useCadastroBase1Controller>,
+ *   controller: import('@/hooks/useCadastroBase1Controller').CadastroBase1ControllerSurface,
  *   listErrorMessage?: string,
  *   recordForm: React.ReactNode,
  *   listSlot: React.ReactNode,

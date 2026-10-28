@@ -86,7 +86,7 @@ Páginas de **cadastro** no manifesto (excluindo mapa e config ícones):
 |--------|----------------------|----------------------------------|
 | `Marcas` | Sim | **Sim (piloto)** |
 | `CadastroSetores` | Sim (motor COMPLETE + keyset PR #114) | **Sim** (ROLLOUT-02) |
-| `Categorias` | Sim | Não |
+| `Categorias` | Sim (motor hierárquico full-list PR #115) | **Sim** (ROLLOUT-03) |
 | `Produtos` | Sim | Não |
 | `CadastroLotes` | Sim | Não |
 | `UnidadesMedida` | Sim (motor COMPLETE) | **Sim** (ROLLOUT-01) |
