@@ -100,6 +100,6 @@ Persistência remota: **inalterada**. Sem migration. Sem escrita nas 4 áreas.
 
 | Critério | Veredito |
 |---|---|
-| PR DRAFT | **GO** (zero PRs abertas no preflight; critérios R6 atendidos) |
+| PR DRAFT | **GO** conteúdo/gates; **create via API BLOQUEADO** (`gh`: Resource not accessible by integration) — usar compare URL / UI GitHub |
 | MERGE | **NO-GO** até auditoria do arquiteto + aprovação manual do proprietário |
 | E2E WebGL / backend Postgres | **BLOCKED/NOT_RUN** — limitações de ambiente, documentadas |
