@@ -44,16 +44,20 @@ o contrato com `FormularioTarefaMapa` e coexistência Google fora da slice.
 - Late query (`tarefas`/`icones`) redesenha overlays sem recriar mapa
 - `empresaSelecionadaId` nas queryKeys → refetch
 
-## Testes / gates
+## Testes / gates (evidências deste agente)
 
 | Comando | Resultado |
 |---|---|
-| Gate 0: 0 PRs abertas; main = merge #130 | OK |
-| CI quality main tip (`40784956215`) | preencher (in_progress no start) |
+| Gate 0: 0 PRs abertas; main = merge #130 `aa340b52` | OK |
+| CI quality main tip (`40784956215`) | **success** |
 | `maplibreTaskLocationPicker.test.js` | PASS (12) |
-| `test:smoke` / gates / `verify:all` | preencher após execução |
-| `test:backend` | **NOT_RUN/FAIL** sem Postgres Docker — nunca mentir |
-| E2E WebGL | **BLOCKED** neste ambiente |
+| `npm run test:smoke` | PASS — **804** testes (MAP15 ajustado ≥2 geometry) |
+| `test:gates` / product-scope / import / source-closure / map-geography / types / tenancy / supabase-public-grants / … | PASS |
+| `typecheck:backend` / `lint` / `build` | PASS |
+| `npm run verify:all` | FAIL **somente** `test:backend` |
+| `test:backend` | **FAIL** — sem Docker/Postgres local (não usar Supabase MAIKE) |
+| E2E WebGL mobile/desktop | **BLOCKED** — validação manual antes do merge |
+| `git diff --check` | PASS |
 
 ## Quando o picker deixa de depender de Google
 
