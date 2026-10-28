@@ -140,13 +140,7 @@ export default function CadastroListaChrome({
   const [cardsPanel, setCardsPanel] = useState(null);
   const [maisOpcoesOpen, setMaisOpcoesOpen] = useState(false);
   const [searchExpanded, setSearchExpanded] = useState(() => {
-    if (
-      typeof window !== "undefined" &&
-      typeof window.matchMedia === "function" &&
-      window.matchMedia("(min-width: 640px)").matches
-    ) {
-      return true;
-    }
+    if (joinTableToolbar) return false;
     return Boolean(searchValue);
   });
   const stripRef = useRef(null);

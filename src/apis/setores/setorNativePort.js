@@ -57,6 +57,23 @@ export const ENTIDADE_OFFLINE = 'Setor';
 const ctx = (operation) => ({ operation, resource: RESOURCE });
 
 /**
+ * Querystring da listagem paginada (tenant só no JWT).
+ * @param {Record<string, unknown>} [filtros]
+ */
+export const montarCaminhoListagemPagina = (filtros = {}) => {
+  const params = new URLSearchParams();
+  if (typeof filtros.empresa_id === 'string' && filtros.empresa_id.trim()) {
+    params.set('empresa_id', filtros.empresa_id.trim());
+  }
+  if (filtros.limit != null) params.set('limit', String(filtros.limit));
+  if (typeof filtros.cursor === 'string' && filtros.cursor) params.set('cursor', filtros.cursor);
+  if (typeof filtros.q === 'string' && filtros.q.trim()) params.set('q', filtros.q.trim());
+  if (filtros.ativo === true || filtros.ativo === false) params.set('ativo', String(filtros.ativo));
+  const qs = params.toString();
+  return qs ? `${CAMINHO}/page?${qs}` : `${CAMINHO}/page`;
+};
+
+/**
  * Campos aceitos na CRIAÇÃO, na ordem do cadastro.
  *
  * `empresa_id` entra aqui e só aqui: na criação ele define a empresa do setor;
@@ -117,6 +134,13 @@ export const corpoDeEnvio = (dados, permitidos) => {
 export const operacoesNativas = Object.freeze({
   /** @returns {Promise<unknown>} */
   list: () => nativeRequest(CAMINHO, { autenticado: true }, ctx('listSetores')),
+
+  /**
+   * Página keyset — fora do cache offline (página ≠ lista completa).
+   * @param {Record<string, unknown>} [filtros]
+   */
+  listPage: (filtros = {}) =>
+    nativeRequest(montarCaminhoListagemPagina(filtros), { autenticado: true }, ctx('listSetoresPage')),
 
   /** @param {Record<string, unknown>} dados */
   create: (dados) =>

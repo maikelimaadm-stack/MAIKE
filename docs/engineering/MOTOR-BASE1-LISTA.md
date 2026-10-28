@@ -21,7 +21,7 @@ Alterar o motor = alterar o comportamento de **todas** as telas que o plugaram.
 | | Badge `ativo` (SSOT) | `CadastroAtivoBadge.jsx`, `cadastroBase1CellKind.jsx`, `cadastroAtivoStatus.js` | Coluna com `cellKind: 'ativo-badge'` — leitura tabela/cards; export/filtro via `Ativo`/`Inativo` |
 | | Chrome / page size | `cadastroBase1List.js`, `CadastroListaChrome` | seletor 100–500 + Carregar mais |
 | **Orquestração** | Controlador + screen | `useCadastroBase1Controller.js`, `CadastroBase1Screen.jsx` | busca/registro/toolbar/paginação/export compartilhados (D-PROD-55 COMPLETE-01) |
-| **Adapter por cadastro** | Página + tabela + form | ex.: `Marcas.jsx`, `UnidadesMedida.jsx` | colunas, `storageKey`, fetch, CRUD, mensagens — **sem** duplicar handlers genéricos |
+| **Adapter por cadastro** | Página + tabela + form | ex.: `Marcas.jsx`, `UnidadesMedida.jsx`, `CadastroSetores.jsx` | colunas, `storageKey`, fetch, CRUD, mensagens — **sem** duplicar handlers genéricos |
 
 **Dependência permitida (uma direção):** Tela → Motor Base1 → primitivos genéricos (`ui/`, `common/`, `lib/utils`). O gate `gate:motorbase1-independence` impede import inverso (Mapa, Marcas, `pages/`, `services/`, `apis/`).
 
@@ -39,7 +39,7 @@ import { BASE1_LISTA_INTEGRADA_VISUAL } from '@/components/cadastro/base1/base1V
 <CadastroBase1Grade {...BASE1_LISTA_INTEGRADA_VISUAL.grade} /* + colunas, storageKey, fetch */ />
 ```
 
-Rollout por cadastro: ver `MOTORBASE1-ROLLOUT-01-UNIDADES-REPORT.md` (Unidades de medida).
+Rollout por cadastro: `MOTORBASE1-ROLLOUT-01-UNIDADES-REPORT.md` (Unidades), `MOTORBASE1-ROLLOUT-02-SETORES-SEARCH-REPORT.md` (Setores + busca integrada fechada ao entrar).
 
 Overrides típicos **na tela** (não no preset global): `colunaSelecao`, `selecaoSticky`, `initialViewMode` cards ≤639px, `cardFields`, actions, formulário.
 

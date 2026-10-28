@@ -9,6 +9,7 @@
  */
 export {
   listSetores,
+  listSetoresPage,
   createSetor,
   updateSetor,
   sincronizarReferenciasSetor,

@@ -19,6 +19,7 @@
  */
 
 import { getPrismaClient } from '../../database/prismaClient.js';
+import { clausulaKeysetDesc } from '../../shared/pagination/keysetCursor.js';
 
 /**
  * Campos devolvidos ao cliente HTTP.
@@ -66,6 +67,79 @@ export const listarSetores = async (clienteId) => {
     where: { cliente_id: clienteId },
     orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
     select: SELECAO,
+  });
+};
+
+/**
+ * @param {string} clienteId
+ * @param {{
+ *   empresaId: string,
+ *   q?: string|null,
+ *   ativo?: boolean|null,
+ *   cursor?: { createdAt: Date, id: string }|null,
+ *   limit: number,
+ * }} filtro
+ */
+export const montarWhereSetores = (clienteId, filtro) => {
+  /** @type {import('@prisma/client').Prisma.SetorWhereInput} */
+  const where = { cliente_id: clienteId, empresa_id: filtro.empresaId };
+  if (filtro.ativo === true || filtro.ativo === false) where.ativo = filtro.ativo;
+  const q = typeof filtro.q === 'string' ? filtro.q.trim() : '';
+  if (q) {
+    where.AND = [
+      ...(Array.isArray(where.AND) ? where.AND : []),
+      {
+        OR: [
+          { nome: { contains: q, mode: 'insensitive' } },
+          { sigla: { contains: q, mode: 'insensitive' } },
+          { responsavel: { contains: q, mode: 'insensitive' } },
+          { cidade: { contains: q, mode: 'insensitive' } },
+          { numero_setor: { contains: q, mode: 'insensitive' } },
+        ],
+      },
+    ];
+  }
+  if (filtro.cursor) {
+    where.AND = [...(Array.isArray(where.AND) ? where.AND : []), clausulaKeysetDesc(filtro.cursor)];
+  }
+  return where;
+};
+
+/**
+ * Página keyset (+1 para detectar has_more).
+ * @param {string} clienteId
+ * @param {{
+ *   empresaId: string,
+ *   q?: string|null,
+ *   ativo?: boolean|null,
+ *   cursor?: { createdAt: Date, id: string }|null,
+ *   limit: number,
+ * }} filtro
+ */
+export const listarSetoresPagina = async (clienteId, filtro) => {
+  const prisma = getPrismaClient();
+  return prisma.setor.findMany({
+    where: montarWhereSetores(clienteId, filtro),
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    take: filtro.limit + 1,
+    select: SELECAO,
+  });
+};
+
+/**
+ * @param {string} clienteId
+ * @param {{ empresaId: string, q?: string|null, ativo?: boolean|null }} filtro
+ */
+export const contarSetores = async (clienteId, filtro) => {
+  const prisma = getPrismaClient();
+  return prisma.setor.count({
+    where: montarWhereSetores(clienteId, {
+      empresaId: filtro.empresaId,
+      q: filtro.q,
+      ativo: filtro.ativo,
+      cursor: null,
+      limit: 1,
+    }),
   });
 };
 

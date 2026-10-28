@@ -85,7 +85,7 @@ Páginas de **cadastro** no manifesto (excluindo mapa e config ícones):
 | Página | Base1 motor (UX-14+) | Portal join + skin (como Marcas) |
 |--------|----------------------|----------------------------------|
 | `Marcas` | Sim | **Sim (piloto)** |
-| `CadastroSetores` | Sim | Não |
+| `CadastroSetores` | Sim (motor COMPLETE + keyset PR #114) | **Sim** (ROLLOUT-02) |
 | `Categorias` | Sim | Não |
 | `Produtos` | Sim | Não |
 | `CadastroLotes` | Sim | Não |

@@ -660,3 +660,90 @@ describe('P4.1-R2 — default de tipo', () => {
     assert.equal(r.json().tipo, 'Arrendado');
   });
 });
+
+describe('P4.1-Setor — listagem keyset /setores/page (MotorBase1)', () => {
+  test('BE-P41-PAGE-01 GET /setores/page sem token reprova', async () => {
+    const r = await app.inject({ method: 'GET', url: `/setores/page?empresa_id=${EMPRESA}` });
+    assert.equal(r.statusCode, 401);
+    assert.equal(r.json().code, 'TENANT_CONTEXT_REQUIRED');
+  });
+
+  test('BE-P41-PAGE-02 GET /setores legado continua array', async () => {
+    const { token } = await tenantAutenticado();
+    await criarSetor(token, { nome: 'LEGADO A' });
+    const r = await app.inject({ method: 'GET', url: '/setores', headers: auth(token) });
+    assert.equal(r.statusCode, 200);
+    assert.ok(Array.isArray(r.json()));
+    assert.equal(r.json().length, 1);
+  });
+
+  test('BE-P41-PAGE-03 envelope paginado filtra por empresa_id', async () => {
+    const { token } = await tenantAutenticado();
+    await criarSetor(token, { nome: 'EMPRESA 1', empresa_id: EMPRESA });
+    await criarSetor(token, { nome: 'OUTRA EMP', empresa_id: 'empresa-outra' });
+
+    const r = await app.inject({
+      method: 'GET',
+      url: `/setores/page?empresa_id=${EMPRESA}&limit=10`,
+      headers: auth(token),
+    });
+    assert.equal(r.statusCode, 200);
+    const corpo = r.json();
+    assert.equal(corpo.total, 1);
+    assert.equal(corpo.items[0].nome, 'EMPRESA 1');
+  });
+
+  test('BE-P41-PAGE-04 busca q e cursor sem duplicar', async () => {
+    const { token } = await tenantAutenticado();
+    await criarSetor(token, { nome: 'ALPHA FAZENDA', sigla: 'AF' });
+    await criarSetor(token, { nome: 'BETA FAZENDA', sigla: 'BF' });
+
+    const filtrado = await app.inject({
+      method: 'GET',
+      url: `/setores/page?empresa_id=${EMPRESA}&q=alpha`,
+      headers: auth(token),
+    });
+    assert.equal(filtrado.statusCode, 200);
+    assert.equal(filtrado.json().total, 1);
+
+    const p1 = await app.inject({
+      method: 'GET',
+      url: `/setores/page?empresa_id=${EMPRESA}&limit=1`,
+      headers: auth(token),
+    });
+    const c1 = p1.json();
+    assert.equal(c1.items.length, 1);
+    assert.equal(c1.has_more, true);
+
+    const p2 = await app.inject({
+      method: 'GET',
+      url: `/setores/page?empresa_id=${EMPRESA}&limit=1&cursor=${encodeURIComponent(c1.next_cursor)}`,
+      headers: auth(token),
+    });
+    const c2 = p2.json();
+    assert.equal(c2.items.length, 1);
+    assert.notEqual(c2.items[0].id, c1.items[0].id);
+  });
+
+  test('BE-P41-PAGE-05 cursor inválido reprova 400', async () => {
+    const { token } = await tenantAutenticado();
+    const r = await app.inject({
+      method: 'GET',
+      url: `/setores/page?empresa_id=${EMPRESA}&cursor=invalido`,
+      headers: auth(token),
+    });
+    assert.equal(r.statusCode, 400);
+    assert.equal(r.json().code, 'REQUEST_VALIDATION_FAILED');
+  });
+
+  test('BE-P41-PAGE-06 DELETE /setores/:id continua ausente', async () => {
+    const { token } = await tenantAutenticado();
+    const criado = (await criarSetor(token)).json();
+    const r = await app.inject({
+      method: 'DELETE',
+      url: `/setores/${criado.id}`,
+      headers: auth(token),
+    });
+    assert.equal(r.statusCode, 404);
+  });
+});

@@ -26,7 +26,13 @@
  * versões da mesma regra, que divergiriam na primeira vez que uma mudasse.
  */
 
-import { listSetores, createSetor, updateSetor, sincronizarReferenciasSetor } from '@/apis/setores';
+import {
+  listSetores,
+  listSetoresPage,
+  createSetor,
+  updateSetor,
+  sincronizarReferenciasSetor,
+} from '@/apis/setores';
 import { ApiError, API_ERROR_CODES } from '@/apis/_core/ApiError';
 import { parseDecimalPtBR, parseInteiroPtBR } from '@/domain/numeroPtBR';
 
@@ -35,6 +41,24 @@ const daEmpresa = (items, empresaId) => items.filter((item) => item.empresa_id =
 
 /** @returns {Promise<any[]>} */
 export const listarSetoresDaEmpresa = async (empresaId) => daEmpresa(await listSetores(), empresaId);
+
+/**
+ * Adapter de domínio → motor Base1.
+ * @param {string} empresaId
+ * @param {{ limit?: number, cursor?: string|null, q?: string, ativo?: boolean }} [opts]
+ */
+export const listarSetoresPagina = async (empresaId, opts = {}) => {
+  if (!empresaId) {
+    return { items: [], next_cursor: null, has_more: false, total: 0, limit: opts.limit ?? 100 };
+  }
+  return listSetoresPage({
+    empresa_id: empresaId,
+    limit: opts.limit,
+    cursor: opts.cursor ?? undefined,
+    q: opts.q,
+    ativo: opts.ativo,
+  });
+};
 
 const maiusculoOuNulo = (valor) => {
   const texto = String(valor ?? '').toUpperCase().trim();
