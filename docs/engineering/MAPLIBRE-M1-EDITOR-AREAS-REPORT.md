@@ -1,12 +1,13 @@
 # MAPLIBRE-M1 — Editor Cadastro de Áreas (MapLibre)
 
-**Missão:** `MAPLIBRE-M1-EDITOR-AREAS-01` (+ **R5 corretiva**)  
-**Decisão:** D-PROD-57  
-**Branch:** `cursor/maplibre-m1-editor-areas-f5fd` (mesma; sem nova PR)  
+**Missão:** `MAPLIBRE-M1-EDITOR-AREAS-01` (R4 + R5 + **R6 pós-#126**)  
+**Decisão MapLibre:** **D-PROD-58** (D-PROD-57 da PR #126 = Configurações Gerais / catálogo global — preservada)  
+**Branch:** `cursor/maplibre-m1-editor-areas-f5fd`  
 **Base original R4:** `d4e07df960f58acfb9eee65a8ee08909a6d9f7c5`  
-**Base após merge R5:** `origin/main` @ `1590655fc9ef080d8d178d270c22f9ec3c50fe1d` (PR #125 Usuários/Permissões — sem interseção com `MapaDesenho`/`maplibre/`)  
+**Base após merge R5:** `1590655fc9ef080d8d178d270c22f9ec3c50fe1d` (PR #125)  
+**Base após merge R6:** `origin/main` @ `fbbf8363bd382847b5cdc086ab8b37c01ec5aa0c` (PR #126)  
 **Worktree:** `/home/ubuntu/worktrees/MAIKE-maplibre-m1`  
-**PR:** **não aberta** — barreira R4/R5 mantida enquanto configuração de mapa paralela estiver ativa.
+**PR:** DRAFT autorizável após R6 (ver seção R6); **merge = NO-GO** até auditoria do arquiteto + aprovação manual.
 
 ---
 
@@ -27,68 +28,65 @@ Migrar o editor do **Cadastro do Mapa** (`MapaDesenho` usado por `MapaCadastro`)
 | `MapaGeral` / `useMapRenderer` / pickers | **inalterados** (ainda Google; M3) |
 | Supabase / Prisma / RLS / grants | **inalterados** |
 | Base1 / Marcas keyset | **inalterados** |
+| Catálogo global ícones (D-PROD-57 #126) | **não implementado** neste slice; leitura legado compatível |
 
 ## Provider de basemap
 
 | Id | Fonte | Status |
 |---|---|---|
 | `ruas` | OpenFreeMap Liberty `https://tiles.openfreemap.org/styles/liberty` | real / atribuição OSM + OpenFreeMap |
-| `satelite` | `VITE_MAP_SATELLITE_STYLE_URL` | **não configurado** neste ambiente — botão informa "Satélite não configurado" e permanece em ruas |
+| `satelite` | `VITE_MAP_SATELLITE_STYLE_URL` | **não configurado** — UI: "Satélite não configurado" |
 
-Não se usa a chave `VITE_GOOGLE_MAPS_API_KEY` como autorização da Google Map Tiles API. Não há demotiles em produção.
+Não se usa `VITE_GOOGLE_MAPS_API_KEY` como autorização da Google Map Tiles API.
 
 ## Contrato de dados
 
-- Persistência continua `[lat, lng]` no JSONB; GeoJSON só na UI (`[lng, lat]`, anel fechado).
-- Round-trip coberto por testes; closing vertex não é regravado.
-- `tamanho_hectares` / `comprimento_metros` calculados com Turf no submit do formulário do editor; **não** há recalculo em massa das áreas remotas.
-
-## Diferenças conhecidas
-
-1. **ImportarGeoJSON** ainda usa cálculo projetado antigo — não refatorado (fora do slice).
-2. **GPS** (`CapturaGPSPoligono`) permanece Google até M2; integração pelo formulário preservada.
-3. Default visual do basemap no editor M1 é **ruas** (satélite sem licença). Preferência: ao reconciliar com o trabalho visual paralelo, preservar o visual final da outra configuração.
-4. Medidas Turf podem divergir levemente de `google.maps.geometry.spherical` (tolerância geodésica); testes fixam ordem de grandeza, não bit-identity com Google.
-5. Ícones de ponto com `icone_url` usam `maplibregl.Marker` HTML; pontos sem ícone usam layer circle.
+- Persistência: `{ coords: [[lat,lng],...], cor }` JSONB; GeoJSON `[lng,lat]` só na UI.
+- Round-trip testado; closing vertex não regravado; `0` válido; geometria legada corrupta bloqueia save destrutivo.
+- Sem migration Prisma/PostGIS; 4 áreas remotas não tocadas.
 
 ## Lifecycle / freeze
 
-- Uma instância MapLibre por montagem; `map.remove()` no unmount; flag cancelled impede late-init.
-- Troca de basemap via `setStyle` + reaplicação das layers de negócio.
+- Uma instância MapLibre por montagem; `map.remove()` no unmount.
+- Troca de basemap via `setStyle` + rehydrate completo (sources + overlays).
 - Não altera `App` / `Layout` / `AppRouteContent` / `MapaGeral`.
-
-## Colisões
-
-- Trabalho paralelo de mapa declarado pelo proprietário (pode ser invisível no GitHub).
-- Branch `cursor/alteracoes-visuais-26e2` existe (UX Base1/Marcas); no instante da auditoria **não** havia diff de arquivos `mapa/*` vs `main`, mas o protocolo R4 exige **não abrir PR** até declaração de conclusão + reconciliação.
-- Zero PRs abertas no início; push da branch M1 é permitido para preservar progresso; merge/PR Draft só após gate do proprietário.
 
 ## R5 — correções de interação (2026-10-28)
 
 | ID | Correção |
 |---|---|
-| R5-01 | Removido `map.project([])` morto; hit-test só com `[x,y]` + layers; teste UI `mapaDesenhoClick` |
-| R5-02 | Fechar polígono só no **primeiro** vértice (`isNearFirstVertex`); testes snap |
-| R5-03 | Transação de drag: um undo no pointerup se mudou; Esc/blur/window pointerup restaura `dragPan` |
-| R5-04 | Handlers `touchstart/move/end` + pointer; E2E mobile real = **BLOCKED** (sem Playwright/browser WebGL neste ambiente) |
-| R5-05 | `applyBasemapStyle` retorna `cancel()`; rehydrate DESENHO/VERTICES/MIDPOINTS/GUIA |
-| R5-06 | Retry via `mapEpoch` + cleanup do effect (sem create fora do ciclo) |
-| R5-07 | `resolvePontoIconUrl` usa `cfg` por `tipo_entidade=Ponto`+`categoria`; sem circle+ícone duplicado |
-| R5-08 | `validatePolygonForSave` / `validateLineForSave` / `inspectVertices`; bloqueio de save destrutivo; limpeza ao trocar empresa |
+| R5-01 | Removido `map.project([])` morto; hit-test `[x,y]` |
+| R5-02 | Fechar só no primeiro vértice |
+| R5-03 | Transação de drag / undo |
+| R5-04 | Touch handlers; E2E mobile BLOCKED |
+| R5-05 | Style swap cancel + rehydrate GeoJSON |
+| R5-06 | Retry via `mapEpoch` |
+| R5-07 | `resolvePontoIconUrl` legado |
+| R5-08 | Validação save + limpeza empresa |
 
-**Veredito R5:** correções de código **GO para continuar na branch**; **NO-GO para PR** até o proprietário liberar a configuração paralela. Não equivale a merge.
+## R6 — pós-merge PR #126 (2026-10-28)
 
-## Testes / gates (evidências R5)
-
-| Comando | Resultado |
+| ID | Correção |
 |---|---|
-| `gate:supabase-public-grants` | PASS |
-| `gate:area-pastagem-native` / `map-geography-native` | PASS |
-| `gate:product-scope` / `api-boundary` / `import-integrity` / `source-closure` | PASS |
-| `gate:types` / `typecheck:backend` / `lint` / `test:gates` | PASS |
-| `test:smoke` | PASS — **776** testes (inclui suite R5 interação) |
-| `build` | PASS |
-| `verify:all` | **1 falha:** `test:backend` — `DATABASE_URL` ausente / Docker indisponível → **NOT_RUN** |
-| E2E browser WebGL real (desktop+mobile) | **BLOCKED** — sem browser/Playwright neste cloud agent |
+| R6-01 | SSOT `rebuildOverlayMarkers` — style swap reconstrói labels/ícones (não `clearLabels` solto) |
+| R6-02 | `retryMap` sem `innerHTML=''` prematuro; só epoch + cancel style |
+| R6-03 | Fluxos clique/close/drag/undo mantidos; sem reintroduzir `map.project([])` |
+| R6-04 | Contrato JSONB + `inspectVertices` / validate* preservados |
+| R6-05 | Sem catálogo global; leitura legado `ConfiguracaoIcone` |
+| R6-06 | Google remanescente fora do editor; E2E WebGL = BLOCKED neste ambiente |
+| R6-07 | Satélite só via style URL licenciada |
+| Docs | D-PROD-57 (#126) preservada; MapLibre renumerado para **D-PROD-58** |
 
-Persistência remota: **não alterada**; nenhuma migration; nenhuma escrita nas 4 áreas Supabase.
+**Colisão docs:** único overlap com main foi `DECISIONS.md` — resolvido semanticamente. Worktree `/workspace` limpo; zero PRs abertas no preflight R6. Branch local `cursor/config-gerais-separacao-mapa-516d` já mergeada (#126). Trabalho local de mapa paralelo não visível em outros worktrees neste VM.
+
+## Testes / gates (preencher na execução R6)
+
+Ver seção final após `verify:all`.
+
+## Vereditos
+
+| Critério | Veredito |
+|---|---|
+| PR DRAFT | **GO** se gates executáveis PASS e zero PRs abertas no momento do create |
+| MERGE | **NO-GO** até auditoria do arquiteto + aprovação manual do proprietário |
+| E2E WebGL / backend Postgres | **BLOCKED/NOT_RUN** — limitações de ambiente, documentadas |

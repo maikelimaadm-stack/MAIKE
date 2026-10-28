@@ -94,9 +94,12 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
   const dragStateRef = useRef(null);
   const areasRef = useRef([]);
   const linhasRef = useRef([]);
+  const pontosRef = useRef([]);
+  const iconesConfigRef = useRef([]);
   const styleSwapCancelRef = useRef(null);
   const mountedRef = useRef(true);
   const empresaRef = useRef(null);
+  const overlayEpochRef = useRef(0);
 
   const syncHistoryUi = useCallback(() => {
     setUndoLen(undoStackRef.current.length);
@@ -155,6 +158,12 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
   useEffect(() => {
     linhasRef.current = linhas;
   }, [linhas]);
+  useEffect(() => {
+    pontosRef.current = pontos;
+  }, [pontos]);
+  useEffect(() => {
+    iconesConfigRef.current = iconesConfig;
+  }, [iconesConfig]);
 
   const clearLabels = useCallback(() => {
     labelsRef.current.forEach((m) => {
@@ -174,6 +183,75 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
     });
     iconMarkersRef.current = [];
   }, []);
+
+  /**
+   * SSOT de rótulos/HTML markers (R6-01): limpa e reconstrói a partir do snapshot atual.
+   * Usado no load e após style.swap — nunca clearLabels() sem rebuild.
+   * @param {import('maplibre-gl').Map} map
+   * @param {{ areas?: unknown[], pontos?: unknown[], iconesConfig?: unknown[], editingId?: string | null, tipoDesenho?: string | null }} [snap]
+   * @returns {unknown[]} pontos sem ícone (para layer circle)
+   */
+  const rebuildOverlayMarkers = useCallback(
+    (map, snap = {}) => {
+      if (!map) return [];
+      clearLabels();
+      const areasSnap = snap.areas ?? areasRef.current ?? [];
+      const pontosSnap = snap.pontos ?? pontosRef.current ?? [];
+      const iconesSnap = snap.iconesConfig ?? iconesConfigRef.current ?? [];
+      const editingId = snap.editingId ?? itemEditando?.id ?? null;
+      const tipo = snap.tipoDesenho ?? tipoDesenho;
+      const pontosSemIcone = [];
+
+      pontosSnap.forEach((ponto) => {
+        const v = parseVertex(ponto.coordenadas);
+        if (!v) return;
+        const url = resolvePontoIconUrl(ponto, iconesSnap);
+        if (url) {
+          const img = document.createElement("img");
+          img.src = url;
+          img.alt = ponto.nome || "";
+          img.style.width = "44px";
+          img.style.height = "auto";
+          img.style.maxHeight = "44px";
+          img.style.objectFit = "contain";
+          img.style.pointerEvents = "none";
+          const marker = new maplibregl.Marker({ element: img, anchor: "center" })
+            .setLngLat([v.lng, v.lat])
+            .addTo(map);
+          iconMarkersRef.current.push(marker);
+        } else {
+          pontosSemIcone.push(ponto);
+        }
+      });
+
+      areasSnap.forEach((area) => {
+        if (editingId && area.id === editingId && tipo === "area") return;
+        const ring = parseVertices(area.coordenadas?.coords);
+        if (ring.length < 3) return;
+        let lat = 0;
+        let lng = 0;
+        ring.forEach((p) => {
+          lat += p.lat;
+          lng += p.lng;
+        });
+        lat /= ring.length;
+        lng /= ring.length;
+        const el = document.createElement("div");
+        el.className =
+          "pointer-events-none whitespace-nowrap text-[11px] font-bold uppercase tracking-[0.02em] text-white";
+        el.style.textShadow = "0 1px 3px rgba(0,0,0,0.95)";
+        el.textContent = area.nome || area.numero_area || "ÁREA";
+        const marker = new maplibregl.Marker({ element: el, anchor: "center" })
+          .setLngLat([lng, lat])
+          .addTo(map);
+        labelsRef.current.push(marker);
+      });
+
+      overlayEpochRef.current += 1;
+      return pontosSemIcone;
+    },
+    [clearLabels, itemEditando, tipoDesenho]
+  );
 
   const cancelarDesenho = useCallback(() => {
     const map = mapInstanceRef.current;
@@ -223,10 +301,14 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
         })
       );
       setSourceData(map, SOURCE_IDS.LINHAS, buildLinhasCollection(linhasRef.current));
-      setSourceData(map, SOURCE_IDS.PONTOS, buildPontosCollection(
-        // pontos sem ícone customizado ficam na layer circle; ícones HTML são markers
-        (typeof pontos !== "undefined" ? pontos : []).filter((p) => !resolvePontoIconUrl(p, iconesConfig))
-      ));
+      const pontosSemIcone = rebuildOverlayMarkers(map, {
+        areas: areasRef.current,
+        pontos: pontosRef.current,
+        iconesConfig: iconesConfigRef.current,
+        editingId,
+        tipoDesenho,
+      });
+      setSourceData(map, SOURCE_IDS.PONTOS, buildPontosCollection(pontosSemIcone));
       setSourceData(map, SOURCE_IDS.DESENHO, buildDesenhoCollection(pts, tipoDesenho, marker));
       if ((tipoDesenho === "area" || tipoDesenho === "linha") && pts.length > 0) {
         setSourceData(map, SOURCE_IDS.VERTICES, buildVerticesCollection(pts));
@@ -244,7 +326,7 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
       }
       setSourceData(map, SOURCE_IDS.GUIA, emptyFc());
     },
-    [itemEditando, tipoDesenho, pontos, iconesConfig]
+    [itemEditando, tipoDesenho, rebuildOverlayMarkers]
   );
 
   // Init MapLibre — depende de mapEpoch para retry limpo (R5-06)
@@ -402,7 +484,7 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
     }
   }, [areas, mapReady, itemEditando]);
 
-  // Sync GeoJSON + labels/ícones
+  // Sync GeoJSON + labels/ícones (SSOT rebuildOverlayMarkers)
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map || !mapReady) return;
@@ -415,55 +497,15 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
       buildAreasCollection(areas, { hideFillForId: tipoDesenho === "area" ? editingId : null })
     );
     setSourceData(map, SOURCE_IDS.LINHAS, buildLinhasCollection(linhas));
-
-    clearLabels();
-
-    const pontosSemIcone = [];
-    pontos.forEach((ponto) => {
-      const v = parseVertex(ponto.coordenadas);
-      if (!v) return;
-      const url = resolvePontoIconUrl(ponto, iconesConfig);
-      if (url) {
-        const img = document.createElement("img");
-        img.src = url;
-        img.alt = ponto.nome || "";
-        img.style.width = "44px";
-        img.style.height = "auto";
-        img.style.maxHeight = "44px";
-        img.style.objectFit = "contain";
-        img.style.pointerEvents = "none";
-        const marker = new maplibregl.Marker({ element: img, anchor: "center" })
-          .setLngLat([v.lng, v.lat])
-          .addTo(map);
-        iconMarkersRef.current.push(marker);
-      } else {
-        pontosSemIcone.push(ponto);
-      }
+    const pontosSemIcone = rebuildOverlayMarkers(map, {
+      areas,
+      pontos,
+      iconesConfig,
+      editingId,
+      tipoDesenho,
     });
     setSourceData(map, SOURCE_IDS.PONTOS, buildPontosCollection(pontosSemIcone));
-
-    areas.forEach((area) => {
-      if (editingId && area.id === editingId && tipoDesenho === "area") return;
-      const ring = parseVertices(area.coordenadas?.coords);
-      if (ring.length < 3) return;
-      let lat = 0;
-      let lng = 0;
-      ring.forEach((p) => {
-        lat += p.lat;
-        lng += p.lng;
-      });
-      lat /= ring.length;
-      lng /= ring.length;
-      const el = document.createElement("div");
-      el.className = "pointer-events-none whitespace-nowrap text-[11px] font-bold uppercase tracking-[0.02em] text-white";
-      el.style.textShadow = "0 1px 3px rgba(0,0,0,0.95)";
-      el.textContent = area.nome || area.numero_area || "ÁREA";
-      const marker = new maplibregl.Marker({ element: el, anchor: "center" })
-        .setLngLat([lng, lat])
-        .addTo(map);
-      labelsRef.current.push(marker);
-    });
-  }, [areas, pontos, linhas, iconesConfig, mapReady, itemEditando, tipoDesenho, clearLabels]);
+  }, [areas, pontos, linhas, iconesConfig, mapReady, itemEditando, tipoDesenho, rebuildOverlayMarkers]);
 
   // Sync desenho atual
   useEffect(() => {
@@ -818,9 +860,8 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
     styleSwapCancelRef.current = applyBasemapStyle(map, id, {
       onReady: () => {
         if (!mountedRef.current) return;
+        // rehydrateAllSources já chama rebuildOverlayMarkers (R6-01)
         rehydrateAllSources(map);
-        // Reaplicar labels/ícones HTML
-        clearLabels();
       },
       onError: () => {
         if (!mountedRef.current) return;
@@ -849,11 +890,15 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
     }
   };
 
-  /** Retry via epoch — teardown completo no cleanup do effect (R5-06) */
+  /**
+   * Retry via epoch — NÃO limpar innerHTML antes do cleanup (R6-02).
+   * O effect de mapEpoch faz map.remove() + listeners/timers no unmount.
+   */
   const retryMap = () => {
     setMapError(null);
     setMapReady(false);
-    if (mapRef.current) mapRef.current.innerHTML = "";
+    styleSwapCancelRef.current?.cancel?.();
+    styleSwapCancelRef.current = null;
     setMapEpoch((n) => n + 1);
   };
 

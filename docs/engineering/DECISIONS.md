@@ -2337,11 +2337,72 @@ ficam fora desta missão (R7).
 
 ---
 
-## D-PROD-57 — MapLibre M1: editor do Cadastro de Áreas (isolamento)
+## D-PROD-57 — Padrões internos MAIKE ≠ Configurações Gerais do tenant
 
-**Missão:** `MAPLIBRE-M1-EDITOR-AREAS-01`  
+**Missão:** governança Configurações Gerais × mapa (28/10/2026); correção R3 catálogo global (28/10/2026, pedido do proprietário)
+**Relatório:** `docs/engineering/CONFIGURACOES-GERAIS-SEPARACAO-MAPA-REPORT-2026-10-28.md`  
+**Plano:** `docs/engineering/PLAN-CONFIGURACOES-GERAIS-SEPARACAO-MAPA-2026-10-28.md`
+
+**Decisão — separação de domínios (definitiva):**
+
+1. **Administração interna do produto MAIKE:** catálogo visual **global, oficial e editável em runtime** — tipos de entidade/ícone, categorias visuais, ícones, subícones, cores/fallbacks, associações e **regras MISTO** de exibição — compartilhado entre todos os clientes, **sem** duplicação por `cliente_id` e **sem** capacidade de edição por administradores de fazenda/tenant. Esse catálogo **não** vive no menu administrativo de um cliente como se permissão de fazenda bastasse; exige **painel interno exclusivo** da equipe/produto MAIKE.
+2. **Configurações Gerais de cada cliente:** somente preferências operacionais reais, com escopo justificável (`cliente`, `empresa` ou `usuario`), consumidor e persistência comprovados. Não duplicar Cadastro de Empresas, Permissões nem o catálogo global.
+
+**Fonte de verdade do catálogo global (requisito definitivo, não opcional):**
+
+| Camada | Papel |
+|---|---|
+| **Supabase PostgreSQL** | Registros globais: tipos, categorias, ícones, subícones, associações, regras MISTO, versões/revisões de catálogo e metadados. IDs/códigos lógicos **estáveis**; rótulos, estados, ordem e regras operacionais **administráveis em runtime** pelo painel interno. |
+| **Supabase Storage** | Bytes dos arquivos visuais (ícone principal, subícone, variantes). Caminho, revisão, MIME, dimensões, hash e controle de publicação. **Não** persistir binários grandes na tabela SQL — apenas referências a objetos e revisões no PostgreSQL. |
+| **GitHub** | Código, contratos, políticas, scripts, migrations e eventual **seed inicial**. Alterações operacionais normais (imagem, associação, ordem, cor, regra ou categoria) pelo painel **não** exigem novo commit/deploy **desde que** o contrato de produto já suporte a alteração. Mudanças de schema ou lógica estrutural ainda exigem migration/commit/deploy. |
+
+**Risco de URLs, CDN e cache:** substituir silenciosamente um arquivo no mesmo caminho cacheado **sem** política de versionamento/revisão é proibido como prática operacional; invalidação e revisões devem ser planejadas.
+
+**Modelo conceitual (planejamento — nomes físicos sujeitos a auditoria; nenhuma tabela criada nesta decisão):**
+
+- **Tipo de entidade/ícone:** código estável, rótulo, estado, ordem.
+- **Categoria visual:** vinculada a tipo compatível; código estável, rótulo, estado, ordem.
+- **Ícone oficial:** ID estável, tipo/categoria, imagem principal, subícone, cor/fallback, estado, revisão de catálogo.
+- **Asset Storage:** caminho, revisão, MIME, dimensões, hash, publicação, auditoria.
+- **Regra MISTO:** conjunto de IDs das categorias participantes, ícone de resultado, prioridade/especificidade, empate determinístico, fallback quando não houver correspondência.
+- **Migração:** mapa `(cliente_id + id legado ConfiguracaoIcone) → id global`, preservando pontos, áreas, lotes, relatórios e caches que usam IDs ou URLs antigas.
+
+**Regras MISTO (governança):**
+
+- MISTO para **exibição visual** de categorias coexistentes no mapa é regra governada pelo catálogo global; **não** é sinônimo automático do campo sexo `Misto` dos lotes.
+- Preservar o comportamento atual de seleção (`useMapRenderer`: categoria única vs filtro `MISTO` + `categorias_misto`, regra válida mais específica) até migração comprovada com testes; nesta fase **não** alterar renderizadores nem implementar nova regra de seleção.
+- Combinações participantes referenciadas por **IDs estáveis**, não apenas strings de nome; validar duplicatas, sobreposição, empates e fallback.
+
+**Segurança do produto:**
+
+- Escrita no catálogo global só com identidade/autorização **do produto MAIKE** validada no backend e na camada de dados (RLS/grants, trilha de auditoria, mínimo privilégio).
+- **Não** confiar em `is_admin` do frontend, `cliente_id` em body/query/params nem `user_metadata` editável para conceder esse privilégio.
+- **Nunca** expor segredo/service-role no frontend; uploads restritos; validar MIME, tamanho, extensões; sanitização/segurança de SVG se permitido.
+- Leitura do catálogo por tenants: controlada e separada da escrita; bucket público somente para assets oficiais não sensíveis, com upload sempre restrito.
+
+**Estabilidade, mobilidade e offline:**
+
+- Ícone e subícone são assets distintos, com versões substituíveis sem invalidar o ID lógico.
+- Planejar manifest/revisão de catálogo, cache versionado, pré-download offline no mobile, invalidação pós-sync, fallback quando asset ausente, rollback e exclusão lógica de itens referenciados.
+- Compatível com mapa atual e futura migração MapLibre **sem** alterar renderizadores nesta etapa documental.
+
+**Legado:**
+
+- `ConfiguracaoIcone` com `cliente_id` obrigatório, `GerenciadorIcones` e listas hardcoded (`TIPOS_ENTIDADE`, `CATEGORIAS_SUGERIDAS`) são **legado**, não modelo global aprovado. **Não** alterar `cliente_id`, `PontoReferencia`, URLs copiadas ou caches nesta missão.
+- Migração exige inventário real de referências, mapeamento e plano reversível **antes** de implementação. Supabase/Vercel de produção **não** foram auditados nesta missão documental.
+
+**Congelamento de implementação UI (MotorBase1 / prompt anterior PR #126):** permanece enquanto houver risco de colisão com trabalho paralelo de mapa.
+
+**Consequência:** Nenhuma PR de implementação de catálogo global, Storage, painel interno ou preferências de cliente **nesta** fase (PR #126 = só docs). Ordem pós-merge manual desta governança: aguardar mapa → preflight em `main` → auditoria Supabase/Vercel autorizada → slice isolada do catálogo global → Configurações Gerais do cliente conforme lista aprovada (ordem 5 vs 6 revalidada por dependências).
+
+---
+
+## D-PROD-58 — MapLibre M1: editor do Cadastro de Áreas
+
+**Missão:** `MAPLIBRE-M1-EDITOR-AREAS-01` (R4–R6)  
 **Relatório:** `docs/engineering/MAPLIBRE-M1-EDITOR-AREAS-REPORT.md`  
-**Branch:** `cursor/maplibre-m1-editor-areas-f5fd` (worktree isolado)
+**Branch:** `cursor/maplibre-m1-editor-areas-f5fd`  
+**Nota de ID:** o identificador D-PROD-57 ficou com a governança de Configurações Gerais (PR #126). MapLibre M1 usa **D-PROD-58**.
 
 **Decisão:**
 
@@ -2350,17 +2411,18 @@ ficam fora desta missão (R7).
    consumidores até cutover explícito (M2 pickers/GPS, M3 Mapa Geral, M4 remoção).
 2. Persistência geográfica **não muda**: JSONB `{ coords: [[lat,lng],...], cor }`.
    Adapters puros em `src/lib/geografia/` traduzem para GeoJSON `[lng,lat]` na UI.
+   Sem migration Prisma/PostGIS neste slice.
 3. Basemap `ruas` = OpenFreeMap Liberty (público + atribuição). Satélite só via
    `VITE_MAP_SATELLITE_STYLE_URL` licenciada; sem URL o UI declara
-   "satélite não configurado" — sem fingir tiles nem reutilizar a chave Maps JS
-   como Map Tiles API.
-4. Desenvolvimento e push da branch M1 são autorizados em **worktree isolado**;
-   **PR / merge / deploy** ficam bloqueados até o proprietário declarar a
-   configuração de mapa paralela concluída e reconciliada com esta branch.
+   "satélite não configurado" — sem reutilizar a chave Maps JS como Map Tiles API.
+4. Catálogo global de ícones (D-PROD-57) **não** é implementado aqui; M1 só lê o
+   legado `ConfiguracaoIcone` / URLs de ponto de forma compatível.
+5. PR DRAFT de revisão é autorizável pós-#126 e reconciliação; **merge** só pelo
+   proprietário após auditoria.
 
 **Consequência:** M1 não toca Supabase/RLS, Base1/keyset, nem `MapaGeral`. A
 próxima fatia (M2) só após merge manual desta.
 
 ---
 
-<!-- Próxima decisão: D-PROD-58 -->
+<!-- Próxima decisão: D-PROD-59 -->

@@ -50,7 +50,7 @@ const lerMaikeApiUrl = () => {
 };
 
 /**
- * Style URL licenciado para basemap satélite MapLibre (M1 / D-PROD-57).
+ * Style URL licenciado para basemap satélite MapLibre (M1 / D-PROD-58).
  * Ausente = satélite não configurado (UI honesta; ruas via OpenFreeMap).
  */
 const lerMapSatelliteStyleUrl = () => {
