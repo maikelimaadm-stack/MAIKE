@@ -1,13 +1,22 @@
 import React, { useState } from "react";
-import { motion } from "framer-motion";
-import { toast } from "sonner";
-import CadastroFormField, { CADASTRO_INPUT_CLS } from "@/components/cadastro/base1/CadastroFormField";
+import B1Field, { B1_FIELD_CTL_CLS } from "@/components/cadastro/base1/B1Field";
+import { B1ChaveRow } from "@/components/cadastro/base1/Base1Ui";
 import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
 import CadastroFormActions from "@/components/cadastro/base1/CadastroFormActions";
+import { toast } from "sonner";
 
-const INPUT_CLS = `${CADASTRO_INPUT_CLS} w-full px-2`;
+export const FORMULARIO_CONTA_ACESSO_ID = "formulario-conta-acesso-base1";
 
-export default function FormularioContaAcesso({ onSubmit, onCancel, initialData }) {
+export default function FormularioContaAcesso({
+  onSubmit,
+  onCancel,
+  initialData,
+  variant = "card",
+  toolbarActions = false,
+  isSubmitting = false,
+  readOnly = false,
+}) {
+  const embedded = variant === "embedded";
   const isEditing = Boolean(initialData?.id);
   const [form, setForm] = useState(() => ({
     nome: initialData?.nome || initialData?.full_name || "",
@@ -19,12 +28,14 @@ export default function FormularioContaAcesso({ onSubmit, onCancel, initialData 
   const [invalidFields, setInvalidFields] = useState([]);
 
   const handleChange = (field, value) => {
+    if (readOnly) return;
     setForm((prev) => ({ ...prev, [field]: value }));
     setInvalidFields((prev) => prev.filter((f) => f !== field));
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (readOnly) return;
     const invalid = [];
     if (!form.nome?.trim()) invalid.push("nome");
     if (!isEditing) {
@@ -43,6 +54,7 @@ export default function FormularioContaAcesso({ onSubmit, onCancel, initialData 
       const patch = { nome: form.nome.trim(), ativo: form.ativo };
       if (form.nova_senha) patch.nova_senha = form.nova_senha;
       onSubmit(patch);
+      setForm((prev) => ({ ...prev, senha: "", nova_senha: "" }));
       return;
     }
 
@@ -51,79 +63,98 @@ export default function FormularioContaAcesso({ onSubmit, onCancel, initialData 
       login: form.login.trim(),
       senha: form.senha,
     });
+    setForm((prev) => ({ ...prev, senha: "" }));
   };
 
-  const fieldError = (name) => invalidFields.includes(name);
+  const fieldError = (name) => (invalidFields.includes(name) ? "invalid" : undefined);
+
+  const loginField = isEditing ? (
+    <B1Field label="Login (imutável)" locked>
+      <input
+        type="text"
+        readOnly
+        value={form.login}
+        className={`${B1_FIELD_CTL_CLS} font-mono opacity-80`}
+        tabIndex={-1}
+      />
+    </B1Field>
+  ) : (
+    <B1Field label="Login (usuário)" required error={fieldError("login")} disabled={readOnly} hasValue={Boolean(form.login)}>
+      <input
+        type="text"
+        value={form.login}
+        onChange={(e) => handleChange("login", e.target.value)}
+        placeholder="Identificador de entrada"
+        className={B1_FIELD_CTL_CLS}
+        autoComplete="off"
+        readOnly={readOnly}
+        disabled={readOnly}
+      />
+    </B1Field>
+  );
 
   return (
-    <motion.div initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }}>
-      <CadastroFormShell
-        embedded
-        title={isEditing ? "Editar conta MAIKE" : "Nova conta MAIKE"}
-        subtitle="Login e senha usados na entrada nativa. Permissões de menu ficam na tabela abaixo."
-      >
-        <form onSubmit={handleSubmit} className="space-y-2 max-w-xl">
-          <CadastroFormField label="Nome" required error={fieldError("nome")}>
+    <CadastroFormShell
+      embedded={embedded}
+      title={isEditing ? "Editar conta" : "Nova conta"}
+      subtitle="Login e senha da entrada nativa MAIKE. Permissões de menu ficam em Administração › Permissões."
+    >
+      <form id={FORMULARIO_CONTA_ACESSO_ID} onSubmit={handleSubmit} className="space-y-2 max-w-xl">
+        <B1Field label="Nome" required error={fieldError("nome")} disabled={readOnly}>
+          <input
+            type="text"
+            value={form.nome}
+            onChange={(e) => handleChange("nome", e.target.value)}
+            placeholder="Nome de exibição"
+            className={B1_FIELD_CTL_CLS}
+            readOnly={readOnly}
+            disabled={readOnly}
+          />
+        </B1Field>
+        {loginField}
+        {!isEditing ? (
+          <B1Field label="Senha inicial" required error={fieldError("senha")} disabled={readOnly}>
             <input
-              type="text"
-              value={form.nome}
-              onChange={(e) => handleChange("nome", e.target.value)}
-              placeholder="Nome de exibição"
-              className={INPUT_CLS}
+              type="password"
+              value={form.senha}
+              onChange={(e) => handleChange("senha", e.target.value)}
+              placeholder="Mínimo 8 caracteres"
+              className={B1_FIELD_CTL_CLS}
+              autoComplete="new-password"
+              readOnly={readOnly}
+              disabled={readOnly}
             />
-          </CadastroFormField>
-          {!isEditing ? (
-            <>
-              <CadastroFormField label="Login (usuário)" required error={fieldError("login")}>
-                <input
-                  type="text"
-                  value={form.login}
-                  onChange={(e) => handleChange("login", e.target.value)}
-                  placeholder="Identificador de entrada"
-                  className={INPUT_CLS}
-                  autoComplete="off"
-                />
-              </CadastroFormField>
-              <CadastroFormField label="Senha inicial" required error={fieldError("senha")}>
-                <input
-                  type="password"
-                  value={form.senha}
-                  onChange={(e) => handleChange("senha", e.target.value)}
-                  placeholder="Mínimo 8 caracteres"
-                  className={INPUT_CLS}
-                  autoComplete="new-password"
-                />
-              </CadastroFormField>
-            </>
-          ) : (
-            <CadastroFormField label="Nova senha (opcional)" error={fieldError("nova_senha")}>
-              <input
-                type="password"
-                value={form.nova_senha}
-                onChange={(e) => handleChange("nova_senha", e.target.value)}
-                placeholder="Deixe em branco para manter"
-                className={INPUT_CLS}
-                autoComplete="new-password"
-              />
-            </CadastroFormField>
-          )}
-          {isEditing ? (
-            <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer pl-1">
-              <input
-                type="checkbox"
-                checked={form.ativo}
-                onChange={(e) => handleChange("ativo", e.target.checked)}
-                className="rounded border-slate-300"
-              />
-              Conta ativa (desmarcado impede login)
-            </label>
-          ) : null}
+          </B1Field>
+        ) : (
+          <B1Field label="Nova senha (opcional)" error={fieldError("nova_senha")} disabled={readOnly}>
+            <input
+              type="password"
+              value={form.nova_senha}
+              onChange={(e) => handleChange("nova_senha", e.target.value)}
+              placeholder="Deixe em branco para manter"
+              className={B1_FIELD_CTL_CLS}
+              autoComplete="new-password"
+              readOnly={readOnly}
+              disabled={readOnly}
+            />
+          </B1Field>
+        )}
+        {isEditing ? (
+          <B1ChaveRow
+            label="Conta ativa"
+            checked={form.ativo}
+            onChange={(checked) => handleChange("ativo", checked)}
+            disabled={readOnly}
+          />
+        ) : null}
+        {!toolbarActions ? (
           <CadastroFormActions
             onCancel={onCancel}
             submitLabel={isEditing ? "Salvar conta" : "Criar conta"}
+            isSubmitting={isSubmitting}
           />
-        </form>
-      </CadastroFormShell>
-    </motion.div>
+        ) : null}
+      </form>
+    </CadastroFormShell>
   );
 }

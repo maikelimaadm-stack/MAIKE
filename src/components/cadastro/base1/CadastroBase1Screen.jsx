@@ -30,6 +30,7 @@ import { BASE1_LISTA_INTEGRADA_VISUAL } from "@/components/cadastro/base1/base1V
  *   exportCsvLabel?: string,
  *   onExportCsv?: () => void,
  *   onPrint?: () => void,
+ *   showDelete?: boolean,
  * }} props
  */
 export default function CadastroBase1Screen({
@@ -50,6 +51,7 @@ export default function CadastroBase1Screen({
   exportCsvLabel,
   onExportCsv,
   onPrint,
+  showDelete = true,
 }) {
   return (
     <>
@@ -105,7 +107,7 @@ export default function CadastroBase1Screen({
           onNew={c.openNew}
           onEdit={c.handleEditSelected}
           onDuplicate={c.handleDuplicateSelected}
-          onDelete={c.handleDeleteSelected}
+          onDelete={showDelete ? c.handleDeleteSelected : undefined}
           onExportCsv={onExportCsv ?? c.exportCsv}
           onPrint={onPrint ?? (() => window.print())}
           extraToolbar={extraToolbar}

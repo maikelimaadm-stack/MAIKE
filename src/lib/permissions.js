@@ -21,10 +21,23 @@ export const normalizePermissionRecord = (permission) => {
   };
 };
 
+/** IDs de menu que compartilham a mesma linha em `permissoes_telas` (retrocompat). */
+export const PERMISSION_PAGE_ALIASES = {
+  "adm-permissoes": "adm-usuarios",
+};
+
+export const resolvePermissionPageId = (pageId) => PERMISSION_PAGE_ALIASES[pageId] ?? pageId;
+
 export const getPagePermission = (permission, pageId) => {
   const normalized = normalizePermissionRecord(permission);
   if (!normalized) return null;
-  return normalized.permissoes_telas.find((item) => item.tela_id === pageId) || null;
+  const direct = normalized.permissoes_telas.find((item) => item.tela_id === pageId);
+  if (direct) return direct;
+  const alias = resolvePermissionPageId(pageId);
+  if (alias !== pageId) {
+    return normalized.permissoes_telas.find((item) => item.tela_id === alias) || null;
+  }
+  return null;
 };
 
 export const canAccessModule = (permission, moduleId) => {

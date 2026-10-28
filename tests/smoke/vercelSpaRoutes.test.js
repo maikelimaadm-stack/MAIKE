@@ -24,7 +24,7 @@ const PAGINAS_COLISAO_HISTORICA = [
   'Categorias',
 ];
 
-/** Todas as páginas permitidas (16). */
+/** Todas as páginas permitidas (17). */
 const TODAS_PAGINAS_SPA = [
   'Bebedouros',
   'CadastroLotes',
@@ -42,6 +42,7 @@ const TODAS_PAGINAS_SPA = [
   'TiposTarefa',
   'UnidadesMedida',
   'Usuarios',
+  'Permissoes',
 ];
 
 describe('VERCEL-INGRESS — contrato handler ↔ normalizador (PR #107)', () => {
