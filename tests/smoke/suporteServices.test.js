@@ -7,11 +7,16 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { ApiError, API_ERROR_CODES, hasApiErrorCode } from '@/apis/_core/ApiError';
 
 const produtos = {
-  listProdutos: vi.fn(), filterProdutos: vi.fn(), createProduto: vi.fn(),
-  updateProduto: vi.fn(), deleteProduto: vi.fn(),
-  listMovimentacoesEstoque: vi.fn(), sincronizarReferenciasProduto: vi.fn(),
+  listProdutos: vi.fn(),
+  listProdutosPage: vi.fn(),
+  filterProdutos: vi.fn(),
+  createProduto: vi.fn(),
+  updateProduto: vi.fn(),
+  deleteProduto: vi.fn(),
+  sincronizarReferenciasProduto: vi.fn(),
 };
 const marcas = {
   listMarcas: vi.fn(),
@@ -80,8 +85,6 @@ const iconeSvc = await import('@/services/configuracaoIconeService');
 const arquivoSvc = await import('@/services/arquivoService');
 const csv = await import('@/domain/produtos/csvProduto');
 const { parseDecimalPtBR, parseInteiroPtBR } = await import('@/domain/numeroPtBR');
-const { API_ERROR_CODES, hasApiErrorCode } = await import('@/apis/_core/ApiError');
-
 const EMPRESA = 'emp-1';
 
 beforeEach(() => {
@@ -142,18 +145,20 @@ describe('PR — produtos', () => {
     });
   });
 
-  it('PR6 — exclusão bloqueada por movimentação, com a contagem em details', async () => {
-    produtos.listMovimentacoesEstoque.mockResolvedValue([
-      { produto_id: 'p1' }, { produto_id: 'p1' }, { produto_id: 'outro' },
-    ]);
+  it('PR6 — exclusão repassa erro PRODUTO_DELETE_BLOCKED do backend', async () => {
+    const bloqueio = new ApiError(API_ERROR_CODES.PRODUTO_DELETE_BLOCKED, {
+      operation: 'deleteProduto',
+      resource: 'Produto',
+      details: { quantidade: 2 },
+    });
+    produtos.deleteProduto.mockRejectedValue(bloqueio);
     await expect(produtoSvc.excluirProduto('p1')).rejects.toSatisfy(
-      (erro) => hasApiErrorCode(erro, API_ERROR_CODES.PRODUTO_DELETE_BLOCKED) && erro.details.quantidade === 2
+      (erro) => hasApiErrorCode(erro, API_ERROR_CODES.PRODUTO_DELETE_BLOCKED) && erro.details.quantidade === 2,
     );
-    expect(produtos.deleteProduto).not.toHaveBeenCalled();
   });
 
-  it('PR7 — sem movimentação, exclui', async () => {
-    produtos.listMovimentacoesEstoque.mockResolvedValue([{ produto_id: 'outro' }]);
+  it('PR7 — exclusão bem-sucedida delega ao DELETE nativo', async () => {
+    produtos.deleteProduto.mockResolvedValue(undefined);
     await produtoSvc.excluirProduto('p1');
     expect(produtos.deleteProduto).toHaveBeenCalledWith('p1');
   });
@@ -220,37 +225,39 @@ describe('CSV — importação e exportação de produtos', () => {
   it('CSV1 — vírgula decimal é lida corretamente', () => {
     const { validos } = csv.parseCsvDeProdutos(
       `${CABECALHO}\nMILHO;M1;789;RAÇÃO;desc;KG;10,50;15,00;100;10;obs`,
-      { empresaId: EMPRESA, numeroInicial: 7 }
+      { empresaId: EMPRESA },
     );
     expect(validos).toHaveLength(1);
     expect(validos[0].preco_custo).toBe(10.5);
     expect(validos[0].preco_venda).toBe(15);
-    expect(validos[0].numero_produto).toBe('7');
+    expect(validos[0].numero_produto).toBeUndefined();
     expect(validos[0].empresa_id).toBe(EMPRESA);
   });
 
-  it('CSV2 — linha sem nome vira erro e não consome número', () => {
+  it('CSV2 — linha sem nome vira erro', () => {
     const { validos, erros } = csv.parseCsvDeProdutos(
       `${CABECALHO}\n;;;;;;;;;;\nSAL;S1;;;;KG;1;2;3;4;`,
-      { empresaId: EMPRESA, numeroInicial: 1 }
+      { empresaId: EMPRESA },
     );
     expect(erros).toHaveLength(1);
     expect(erros[0].linha).toBe(2);
     expect(validos).toHaveLength(1);
-    expect(validos[0].numero_produto).toBe('1');
+    expect(validos[0].nome_produto).toBe('SAL');
   });
 
-  it('CSV3 — numeração avança por registro válido', () => {
+  it('CSV3 — não atribui numero_produto no parse (SSOT backend)', () => {
     const { validos } = csv.parseCsvDeProdutos(
       `${CABECALHO}\nA;;;;;;;;;;\nB;;;;;;;;;;`,
-      { empresaId: EMPRESA, numeroInicial: 10 }
+      { empresaId: EMPRESA },
     );
-    expect(validos.map((p) => p.numero_produto)).toEqual(['10', '11']);
+    expect(validos).toHaveLength(2);
+    expect(validos.every((p) => p.numero_produto === undefined)).toBe(true);
   });
 
   it('CSV4 — arquivo só com cabeçalho não produz nada', () => {
-    expect(csv.parseCsvDeProdutos(CABECALHO, { empresaId: EMPRESA, numeroInicial: 1 })).toEqual({
-      validos: [], erros: [],
+    expect(csv.parseCsvDeProdutos(CABECALHO, { empresaId: EMPRESA })).toEqual({
+      validos: [],
+      erros: [],
     });
   });
 

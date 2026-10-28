@@ -152,6 +152,10 @@ export const BACKEND_ONLY_CODES = Object.freeze({
     http: 409,
     meaning: 'já existe produto com este nome nesta empresa',
   },
+  PRODUTO_DELETE_BLOCKED: {
+    http: 409,
+    meaning: 'produto possui movimentações de estoque e não pode ser excluído',
+  },
   MOVIMENTACAO_ESTOQUE_NOT_FOUND: {
     http: 404,
     meaning: 'id não identifica movimentação de estoque deste tenant',

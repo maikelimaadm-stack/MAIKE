@@ -74,4 +74,8 @@ Não criar `useProdutosInfiniteList`, `useLotesInfiniteList`, etc. — isso queb
 | Tela | Consome o motor? |
 |---|---|
 | Marcas | **Sim** (piloto) |
+| Unidades de medida | **Sim** (preset visual, ROLLOUT-01) |
+| Setores | **Sim** (keyset + busca, ROLLOUT-02) |
+| Categorias produto | **Sim** (hierárquico full-list, ROLLOUT-03) |
+| Produtos | **Sim** (keyset + CSV, ROLLOUT-04) |
 | Demais cadastros Base1 | Ainda full-fetch — migrar um a um |

@@ -16,16 +16,16 @@
 
 import {
   listProdutos,
+  listProdutosPage,
   createProduto,
   updateProduto,
   deleteProduto,
-  listMovimentacoesEstoque,
   sincronizarReferenciasProduto,
 } from '@/apis/produtos';
 import { listCategorias } from '@/apis/categorias';
 import { listUnidades } from '@/apis/unidades-medida';
 import { listLocais } from '@/apis/estoque';
-import { ApiError, API_ERROR_CODES } from '@/apis/_core/ApiError';
+import { ApiError, API_ERROR_CODES, hasApiErrorCode } from '@/apis/_core/ApiError';
 import { parseDecimalPtBR } from '@/domain/numeroPtBR';
 import { listarMarcasAtivas } from './marcaService';
 
@@ -35,10 +35,30 @@ const maiusculoOuIndefinido = (valor) => {
   return texto ? texto.toUpperCase() : undefined;
 };
 
-/** Produtos da empresa, mais recentes primeiro. */
+/** Produtos da empresa via GET /produtos (lista completa — exportação, dropdowns). */
 export const listarProdutosDaEmpresa = async (empresaId) => {
-  const todos = await listProdutos({ order: '-created_date' });
-  return todos.filter((produto) => produto.empresa_id === empresaId);
+  if (!empresaId) return [];
+  return listProdutos({ order: '-created_date' }).then((todos) =>
+    todos.filter((produto) => produto.empresa_id === empresaId),
+  );
+};
+
+/**
+ * Adapter de domínio → motor Base1 (keyset).
+ * @param {string} empresaId
+ * @param {{ limit?: number, cursor?: string|null, q?: string, ativo?: boolean }} [opts]
+ */
+export const listarProdutosPagina = async (empresaId, opts = {}) => {
+  if (!empresaId) {
+    return { items: [], next_cursor: null, has_more: false, total: 0, limit: opts.limit ?? 100 };
+  }
+  return listProdutosPage({
+    empresa_id: empresaId,
+    limit: opts.limit,
+    cursor: opts.cursor ?? undefined,
+    q: opts.q,
+    ativo: opts.ativo,
+  });
 };
 
 /**
@@ -156,20 +176,33 @@ export const numerarProdutosSemNumero = async (produtos) => {
  * o bloqueio é `PRODUTO_DELETE_BLOCKED`, e `details.quantidade` carrega a
  * contagem para a tela montar a frase.
  */
-export const excluirProduto = async (id) => {
-  const movimentacoes = await listMovimentacoesEstoque();
-  const vinculadas = movimentacoes.filter((movimentacao) => movimentacao.produto_id === id);
+/** Exclui um produto — guarda de vínculo no backend (`PRODUTO_DELETE_BLOCKED`). */
+export const excluirProduto = async (id) => deleteProduto(id);
 
-  if (vinculadas.length > 0) {
-    throw new ApiError(API_ERROR_CODES.PRODUTO_DELETE_BLOCKED, {
-      operation: 'excluirProduto',
-      resource: 'Produto',
-      details: { id, vinculo: 'movimentações de estoque', quantidade: vinculadas.length },
-    });
+/**
+ * Exclusão em lote com resultado explícito (Motor Base1).
+ * @param {string[]} ids
+ */
+export const excluirProdutos = async (ids) => {
+  const lista = Array.isArray(ids) ? ids : [];
+  /** @type {string[]} */
+  const excluidas = [];
+  /** @type {Array<{ id: string, erro: unknown }>} */
+  const falhas = [];
+  for (const id of lista) {
+    try {
+      await deleteProduto(id);
+      excluidas.push(id);
+    } catch (erro) {
+      falhas.push({ id, erro });
+    }
   }
-
-  return deleteProduto(id);
+  return { excluidas, falhas };
 };
+
+/** @param {unknown} erro */
+export const isProdutoDeleteBlockedError = (erro) =>
+  hasApiErrorCode(erro, API_ERROR_CODES.PRODUTO_DELETE_BLOCKED);
 
 /**
  * Fontes de opção do formulário.

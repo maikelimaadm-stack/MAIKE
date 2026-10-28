@@ -111,15 +111,20 @@ export const errorHandler = (erro, request, reply) => {
   };
 
   const detalhes = appError.details;
-  if (
-    status !== 500 &&
-    detalhes &&
-    typeof detalhes === 'object' &&
-    typeof detalhes.field === 'string' &&
-    typeof detalhes.reason === 'string'
-  ) {
-    corpo.field = detalhes.field;
-    corpo.reason = detalhes.reason;
+  if (status !== 500 && detalhes && typeof detalhes === 'object') {
+    if (typeof detalhes.field === 'string' && typeof detalhes.reason === 'string') {
+      corpo.field = detalhes.field;
+      corpo.reason = detalhes.reason;
+    }
+    /** @type {Record<string, unknown>} */
+    const extras = {};
+    for (const [chave, valor] of Object.entries(detalhes)) {
+      if (chave === 'field' || chave === 'reason') continue;
+      extras[chave] = valor;
+    }
+    if (Object.keys(extras).length > 0) {
+      corpo.details = extras;
+    }
   }
 
   reply.status(status).send(corpo);

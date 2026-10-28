@@ -6,14 +6,22 @@ import { getPrismaClient } from '../../database/prismaClient.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { registrarEvento } from '../auditoria/auditService.js';
 import { reservarNumero, ESCOPO_TENANT } from '../sequencias/entidadeCodigoService.js';
-import { produtoNotFound, produtoNomeConflito } from '../../shared/errors/AppError.js';
+import {
+  decodificarCursor,
+  montarEnvelopeKeyset,
+  normalizarLimite,
+} from '../../shared/pagination/keysetCursor.js';
+import { AppError, produtoNotFound, produtoNomeConflito, produtoDeleteBlocked } from '../../shared/errors/AppError.js';
 import {
   listarProdutos,
+  listarProdutosPagina,
+  contarProdutos,
   buscarProduto,
   existeProdutoComNome,
   inserirProduto,
   atualizarProdutoPorId,
   excluirProdutoPorId,
+  contarMovimentacoesPorProduto,
 } from './produtoRepository.js';
 
 export const ENTIDADE_SEQUENCIA = 'Produto';
@@ -126,6 +134,46 @@ export const listar = async (contexto, filtros = {}) => {
   return registros.map(comoProdutoPublico);
 };
 
+/**
+ * Listagem paginada keyset — motor Base1 (D-PROD-55).
+ * @param {{auth: import('../../shared/auth/authContext.js').AuthContext}} contexto
+ * @param {Record<string, unknown>} query
+ */
+export const listarPagina = async (contexto, query = {}) => {
+  const auth = exigirAuthContext(contexto?.auth);
+  const limit = normalizarLimite(query.limit);
+  const empresaId =
+    typeof query.empresa_id === 'string' && query.empresa_id.trim()
+      ? query.empresa_id.trim()
+      : null;
+  if (!empresaId) {
+    throw new AppError('REQUEST_VALIDATION_FAILED', 'empresa_id é obrigatório');
+  }
+  const q = typeof query.q === 'string' ? query.q : null;
+  let ativo = null;
+  if (query.ativo === true || query.ativo === 'true' || query.ativo === '1') ativo = true;
+  if (query.ativo === false || query.ativo === 'false' || query.ativo === '0') ativo = false;
+
+  const cursorBruto = typeof query.cursor === 'string' ? query.cursor : null;
+  const cursor = cursorBruto ? decodificarCursor(cursorBruto) : null;
+  if (cursorBruto && !cursor) {
+    throw new AppError('REQUEST_VALIDATION_FAILED', 'cursor inválido');
+  }
+
+  const filtro = { empresaId, q, ativo, cursor, limit };
+  const [registros, total] = await Promise.all([
+    listarProdutosPagina(auth.clienteId, filtro),
+    contarProdutos(auth.clienteId, { empresaId, q, ativo }),
+  ]);
+
+  return montarEnvelopeKeyset({
+    registros,
+    limit,
+    total,
+    mapItem: comoProdutoPublico,
+  });
+};
+
 /** @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto @param {Record<string, unknown>} entrada */
 export const criar = async (contexto, entrada) => {
   const auth = exigirAuthContext(contexto?.auth);
@@ -212,6 +260,11 @@ export const excluir = async (contexto, id) => {
   await prisma.$transaction(async (tx) => {
     const anterior = await buscarProduto(auth.clienteId, id, tx);
     if (!anterior) throw produtoNotFound();
+
+    const quantidade = await contarMovimentacoesPorProduto(tx, auth.clienteId, id);
+    if (quantidade > 0) {
+      throw produtoDeleteBlocked(quantidade, { details: { id, vinculo: 'movimentações de estoque' } });
+    }
 
     await excluirProdutoPorId(tx, auth.clienteId, id);
     await registrarEvento(

@@ -3,7 +3,8 @@
  */
 
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
-import { listar, criar, atualizar, excluir } from './produtoService.js';
+import { LIMITE_MAXIMO, LIMITE_PADRAO } from '../../shared/pagination/keysetCursor.js';
+import { listar, listarPagina, criar, atualizar, excluir } from './produtoService.js';
 
 const CAMPOS = Object.freeze({
   empresa_id: { type: 'string', minLength: 1, maxLength: 64, pattern: '\\S' },
@@ -78,6 +79,21 @@ const LISTAR_SCHEMA = {
   },
 };
 
+const LISTAR_PAGINA_SCHEMA = {
+  querystring: {
+    type: 'object',
+    required: ['empresa_id'],
+    additionalProperties: false,
+    properties: {
+      empresa_id: { type: 'string', minLength: 1, maxLength: 64, pattern: '\\S' },
+      limit: { type: 'integer', minimum: 1, maximum: LIMITE_MAXIMO, default: LIMITE_PADRAO },
+      cursor: { type: 'string', minLength: 1, maxLength: 512 },
+      q: { type: 'string', maxLength: 200 },
+      ativo: { anyOf: [{ type: 'boolean' }, { type: 'string', enum: ['true', 'false', '1', '0'] }] },
+    },
+  },
+};
+
 /** @param {unknown} corpo @returns {Record<string, unknown>} */
 const corpoValidado = (corpo) => /** @type {Record<string, unknown>} */ (corpo);
 
@@ -88,6 +104,15 @@ export const registrarProdutoRoutes = async (app) => {
     const query = /** @type {{empresa_id?: string, ativo?: boolean}} */ (request.query ?? {});
     return listar(request.contexto, query);
   });
+
+  app.get(
+    '/produtos/page',
+    { onRequest: [app.autenticar], schema: LISTAR_PAGINA_SCHEMA },
+    async (request) => {
+      exigirAuthContext(request.contexto.auth);
+      return listarPagina(request.contexto, /** @type {Record<string, unknown>} */ (request.query ?? {}));
+    },
+  );
 
   app.post('/produtos', { onRequest: [app.autenticar], schema: CRIAR_SCHEMA }, async (request, reply) => {
     exigirAuthContext(request.contexto.auth);

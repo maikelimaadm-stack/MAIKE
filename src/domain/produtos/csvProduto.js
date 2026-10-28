@@ -75,14 +75,14 @@ export const montarCsvDeErros = (erros) =>
 /**
  * Converte o texto do CSV em registros prontos para persistir.
  *
- * Numeração sequencial a partir de `numeroInicial`: o número só avança para
- * linha válida, igual ao legado. Linha sem nome é erro e não consome número.
+ * Numeração (`numero_produto`) é atribuída pelo backend na criação — o CSV não
+ * envia número. Linha sem nome é erro.
  *
  * @param {string} texto conteúdo do arquivo, já lido pela UI
- * @param {{empresaId: string, numeroInicial: number}} p
+ * @param {{empresaId: string}} p
  * @returns {{validos: Array<object>, erros: Array<{linha: number, erro: string, dados: string}>}}
  */
-export const parseCsvDeProdutos = (texto, { empresaId, numeroInicial }) => {
+export const parseCsvDeProdutos = (texto, { empresaId }) => {
   const linhas = String(texto ?? '')
     .split('\n')
     .filter((linha) => linha.trim());
@@ -92,14 +92,11 @@ export const parseCsvDeProdutos = (texto, { empresaId, numeroInicial }) => {
 
   if (linhas.length <= 1) return { validos, erros };
 
-  let numero = Number.isFinite(numeroInicial) ? numeroInicial : 1;
-
   for (let i = 1; i < linhas.length; i += 1) {
     const valores = linhas[i].split(';');
 
     const produto = {
       empresa_id: empresaId,
-      numero_produto: String(numero),
       nome_produto: maiusculoOuIndefinido(valores[0]),
       codigo_interno: maiusculoOuIndefinido(valores[1]),
       codigo_barras: String(valores[2] ?? '').trim() || undefined,
@@ -119,7 +116,6 @@ export const parseCsvDeProdutos = (texto, { empresaId, numeroInicial }) => {
     }
 
     validos.push(produto);
-    numero += 1;
   }
 
   return { validos, erros };
