@@ -60,8 +60,8 @@ export function colunasBase1(defs) {
  * @param {string} [props.cardsCodeColId]
  * @param {boolean} [props.referenceHeaders] filtro de cabeçalho `fpop` (frota/equipamentos)
  * @param {import('react').RefObject<HTMLElement | null>} [props.configureColumnsAnchorRef] âncora do popover de colunas (referenceHeaders)
- * @param {boolean} [props.colunaSelecao] coluna de checkbox (false no portal compras / decisão 356)
- * @param {boolean} [props.selecaoSticky] checkbox sticky à esquerda (false no portal compras / decisão 338)
+ * @param {boolean} [props.colunaSelecao] coluna de checkbox (SSOT `BASE1_GRADE_REFERENCE_HEADERS`)
+ * @param {boolean} [props.selecaoSticky] checkbox sticky à esquerda (SSOT preset Base1)
  */
 export default function CadastroBase1Grade({
   rows = EMPTY_ROWS,
@@ -349,7 +349,16 @@ export default function CadastroBase1Grade({
   };
 
   const onToggleAll = (on) => {
-    setSelectedItems(on ? ordenados.map((r) => idOf(r)) : []);
+    const visibleIds = visibleRows.map((r) => idOf(r));
+    setSelectedItems((prev) => {
+      const n = new Set(prev.map(String));
+      if (on) {
+        for (const id of visibleIds) n.add(id);
+        return [...n];
+      }
+      for (const id of visibleIds) n.delete(id);
+      return [...n];
+    });
   };
 
   const handleSort = (k) =>
@@ -587,6 +596,7 @@ export default function CadastroBase1Grade({
           onOpen={onOpen}
           selected={selectedSet}
           onSelectClick={onSelectClick}
+          onToggle={onToggle}
           getFieldValue={getFieldValue}
           renderCell={composedRenderCell}
           rowKey={rowKey}

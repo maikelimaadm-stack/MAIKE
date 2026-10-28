@@ -318,8 +318,6 @@ export default function TabelaCategoriasProduto(props) {
       configureColumnsAnchorRef={props.configureColumnsAnchorRef}
       rowKey={(row) => row.id}
       {...BASE1_LISTA_INTEGRADA_VISUAL.grade}
-      colunaSelecao={false}
-      selecaoSticky={false}
     />
   );
 }

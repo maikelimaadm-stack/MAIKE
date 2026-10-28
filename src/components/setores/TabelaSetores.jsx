@@ -73,8 +73,6 @@ export default function TabelaSetores(props) {
       cardsTitleColId="nome"
       cardsCodeColId="sigla"
       {...BASE1_LISTA_INTEGRADA_VISUAL.grade}
-      colunaSelecao={false}
-      selecaoSticky={false}
       configureColumnsAnchorRef={props.configureColumnsAnchorRef}
     />
   );

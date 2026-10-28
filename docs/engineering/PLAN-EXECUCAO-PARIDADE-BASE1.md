@@ -50,7 +50,7 @@ Abordagem: **estabilizar Marcas na linha da PR #51 → sign-off → replicar o p
 
 1. Importar e aplicar `BASE1_MARCAS_MODEL_VISUAL` de `base1VisualPreset.js` (workspace + chrome + grade) — **não copiar props literais de `Marcas.jsx`**.
 2. Adapter local: colunas, `storageKey`, `fetchPage`, formulário, overrides (`colunaSelecao`, view mobile cards, etc.).
-3. Tabela/grade: storage key estável; `colunaSelecao` conforme produto (Marcas: sem checkbox — UX-40).
+3. Tabela/grade: storage key estável; `colunaSelecao`/`selecaoSticky` via `BASE1_GRADE_REFERENCE_HEADERS` (PR #120 — checkbox em todos os cadastros Base1).
 4. `recordEditing` + formulário `readOnly` em leitura.
 5. Teste manual §11 + matriz viewport da auditoria (360/390/768/1280).
 6. `npm run verify:all` verde.

@@ -54,7 +54,7 @@
 | C.4 | Congelar colunas + sombra âncora (§11.8) | **DONE** | UX-42 prefs |
 | C.5 | Prefs normalizadas `storageKey_prefs` + legado (§11.9) | **DONE** | `cadastroBase1ColumnPrefs.js` |
 | C.6 | Ordenação numérica coluna **Nº** | **DONE** | UX-42 |
-| C.7 | Sem coluna checkbox seleção (produto Marcas) | **DONE** | `colunaSelecao={false}` UX-40 |
+| C.7 | Coluna checkbox seleção | **DONE (rev. PR #120)** | Antes UX-40 sem checkbox; **PR #120** reativa via preset global |
 | C.8 | Duplo clique / abrir registro | **DONE** | `onOpen` → `handleEdit` |
 | C.9 | Diálogo colunas duas listas + rascunho até ✓ (§11.10) | **DONE** | `ConfiguracaoColunasB1Dialog` UX-38 |
 | C.10 | `z-index` `fpop` acima da grade (portal) | **DONE** | UX-41 |

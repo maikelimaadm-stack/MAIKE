@@ -11,6 +11,24 @@
   background: #f0f2f5;
 }
 
+.cadastro-b1__page-title {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 4px 2px 2px;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--mg-text-1);
+  letter-spacing: -0.01em;
+}
+
+@media (min-width: 768px) {
+  .cadastro-b1__page-title {
+    padding: 6px 4px 4px;
+    font-size: 16px;
+  }
+}
+
 @media (min-width: 768px) {
   .cadastro-b1.cadastro-b1--full-page {
     padding: 8px 12px;
