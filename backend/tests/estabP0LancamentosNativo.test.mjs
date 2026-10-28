@@ -118,7 +118,7 @@ describe('ESTAB-P0 — contratos HTTP', () => {
   });
 
   test('GET /movimentacoes-estoque?limit=1 aplica take no SQL', async () => {
-    const { token, clienteId } = await tenantAutenticado();
+    const { token } = await tenantAutenticado();
     const base = await seedMinimoEstoque(token);
     const op = randomUUID();
     await app.inject({
@@ -189,7 +189,7 @@ describe('ESTAB-P0 — comando saída suplementação', () => {
   });
 
   test('numero_movimentacao do cliente é ignorado no POST legado', async () => {
-    const { token, clienteId } = await tenantAutenticado();
+    const { token } = await tenantAutenticado();
     const base = await seedMinimoEstoque(token);
     const r = await app.inject({
       method: 'POST',

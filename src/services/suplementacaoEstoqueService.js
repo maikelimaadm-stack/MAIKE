@@ -18,7 +18,7 @@ import {
 import {
   comandoSaidaSuplementacao,
   comandoTransferenciaEntreLocais,
-} from '@/apis/movimentacoes-estoque/movimentacaoEstoqueComandosApi';
+} from '@/apis/movimentacoes-estoque';
 import { ApiError, API_ERROR_CODES } from '@/apis/_core/ApiError';
 import {
   proximoNumeroDeMovimentacao,
@@ -61,7 +61,10 @@ const recusar = (operation, motivo, detalhes = {}) => {
 const observacaoComRateio = (observacoes, rateio) =>
   `${observacoes || ''}${observacoes ? '\n' : ''}[RATEIO_FIFO] ${buildRateioObservacao(rateio)}`;
 
-/** Baixa de suplementação — comando transacional único no backend (ESTAB-P0-01). */
+/**
+ * Baixa de suplementação — comando transacional único no backend (ESTAB-P0-01).
+ * @param {{ empresaId: string, produto: object, quantidade: number, localOrigemId: string, localOrigemNome?: string, areaId?: string, areaNome?: string, observacoes?: string, lotesNota?: object[], depositoId?: string, pontoSuplementacaoId?: string, dataMovimentacao?: string, operationId?: string }} params
+ */
 export const registrarSaidaSuplementacao = async ({
   empresaId,
   produto,
@@ -109,6 +112,9 @@ export const registrarSaidaSuplementacao = async ({
 /**
  * Transferência entre locais: saída, baixa FIFO, entrada pareada, vínculo
  * saída→entrada e os lotes recriados no destino com o custo de origem.
+ */
+/**
+ * @param {{ empresaId: string, produto: object, quantidade: number, localOrigemId: string, localOrigemNome?: string, localDestinoId: string, localDestinoNome?: string, observacoes?: string, lotesNota?: object[], dataMovimentacao?: string, operationId?: string }} params
  */
 export const registrarTransferenciaEntreLocais = async ({
   empresaId,

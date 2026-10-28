@@ -16,12 +16,10 @@ const dataFifo = (lote) => {
 };
 
 /**
- * @param {Array<Record<string, unknown>>} lotesNota
- * @param {string} produtoId
- * @param {string} localEstoqueId
- * @param {unknown} quantidade
+ * @param {{ lotesNota: Array<Record<string, unknown>>; produtoId: string; localEstoqueId: string; quantidade: unknown }} params
  */
-export const calcularRateioFifo = ({ lotesNota, produtoId, localEstoqueId, quantidade }) => {
+export const calcularRateioFifo = (params) => {
+  const { lotesNota, produtoId, localEstoqueId, quantidade } = params;
   const quantidadeSolicitada = parseNumero(quantidade);
   const lotesElegiveis = (lotesNota || []).filter(
     (lote) =>

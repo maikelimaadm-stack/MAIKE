@@ -243,7 +243,13 @@ export const listar = async (contexto) => {
   return registros.map(comoLancamentoPublico);
 };
 
-/** @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto @param {Record<string, unknown>} entrada */
+/**
+ * @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto
+ * @param {import('@prisma/client').Prisma.TransactionClient} tx
+ * @param {import('../../shared/auth/authContext.js').AuthContext} auth
+ * @param {Record<string, unknown>} registro
+ * @param {{ evento?: string; descricao?: string | null; data_evento?: Date } | null} entradaHistorico
+ */
 const registrarHistoricoMapaTx = async (contexto, tx, auth, registro, entradaHistorico) => {
   if (!entradaHistorico?.evento) return;
   const registroHistorico = await inserirHistorico(tx, {

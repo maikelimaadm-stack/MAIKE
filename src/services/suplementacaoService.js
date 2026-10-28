@@ -29,7 +29,7 @@ import {
   PATCH_REABERTURA_EVENTO,
   PATCH_REABERTURA_LOTE,
 } from '@/components/utils/consumoUtils';
-import { comandoLancamentoComLotes } from '@/apis/suplementacao-eventos/suplementacaoEventoComandosApi';
+import { comandoLancamentoComLotes } from '@/apis/suplementacao-eventos';
 import { ApiError, API_ERROR_CODES } from '@/apis/_core/ApiError';
 
 const novaOperationId = () =>
@@ -90,7 +90,10 @@ export const listarEventosDaEmpresa = async (empresaId) => {
 
 // ── Escrita do lançamento ─────────────────────────────────────────────────
 
-/** Cria evento + lotes rateados em comando transacional único (ESTAB-P0-01). */
+/**
+ * Cria evento + lotes rateados em comando transacional único (ESTAB-P0-01).
+ * @param {{ evento: Record<string, unknown>, lotes?: Array<Record<string, unknown>>, operationId?: string }} params
+ */
 export const registrarLancamento = async ({ evento, lotes, operationId }) => {
   exigirConexaoParaComando();
   const resposta = await comandoLancamentoComLotes({

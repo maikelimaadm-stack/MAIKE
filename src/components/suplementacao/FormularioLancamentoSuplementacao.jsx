@@ -394,6 +394,8 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
     }
 
     try {
+      const operationId =
+        typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `op-${Date.now()}`;
       const deveBaixarDeposito = depositoVinculado?.local_estoque_id && produtoSelecionado && quantidadeKg > 0;
       const totalPassos = (deveBaixarDeposito ? 1 : 0) + 1;
       let passoAtual = 0;
@@ -420,7 +422,6 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
         setProgresso({ show: true, atual: ++passoAtual, total: totalPassos, mensagem: "Baixando saldo do depósito..." });
         const saidaRegistrada = await registrarSaidaSuplementacao({
           empresaId: empresaSelecionadaId,
-          userEmail: user?.email,
           produto: produtoSelecionado,
           quantidade: quantidadeKg,
           localOrigemId: depositoVinculado.local_estoque_id,
@@ -432,6 +433,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
           depositoId: depositoVinculado.id,
           pontoSuplementacaoId: ponto.id,
           dataMovimentacao: formData.data_lancamento,
+          operationId,
         });
         movimentoEstoque = saidaRegistrada.movimentacao;
       }
@@ -497,7 +499,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
       });
 
       // O service cria o evento e, com o id dele, grava os lotes em bloco.
-      const novoEvento = await registrarLancamento({ evento: eventoPayload, lotes: lotesPayload });
+      const novoEvento = await registrarLancamento({ evento: eventoPayload, lotes: lotesPayload, operationId });
 
       try {
         if (ultimoEvento && ultimoEvento.dias_periodo == null) {

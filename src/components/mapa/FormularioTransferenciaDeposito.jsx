@@ -111,7 +111,7 @@ export default function FormularioTransferenciaDeposito({ deposito, initialDirec
     setSaving(true);
     try {
       await registrarTransferenciaEntreLocais({
-        empresaId: empresaSelecionadaId, userEmail: user?.email, produto: produtoSelecionado,
+        empresaId: empresaSelecionadaId, produto: produtoSelecionado,
         quantidade: quantidadeFinal, localOrigemId, localOrigemNome, localDestinoId, localDestinoNome,
         observacoes: observacoes || `${direction === 'entrada' ? 'Entrada' : 'Saída'} pelo depósito ${deposito.nome_ponto}`, lotesNota,
         dataMovimentacao,

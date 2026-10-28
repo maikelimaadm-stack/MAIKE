@@ -121,7 +121,7 @@ const dataMovimentacaoDeEntrada = (valor) => {
  */
 export const comandoSaidaSuplementacao = async (contexto, entrada) => {
   const auth = exigirAuthContext(contexto?.auth);
-  const operationKey = exigirOperationId(entrada.operation_id);
+  const operationKey = exigirOperationId(String(entrada.operation_id ?? ''));
   const empresaId = String(entrada.empresa_id || '').trim();
   const produtoId = String(entrada.produto_id || '').trim();
   const localOrigemId = String(entrada.local_origem_id || '').trim();
@@ -272,7 +272,7 @@ export const comandoSaidaSuplementacao = async (contexto, entrada) => {
  */
 export const comandoTransferenciaEntreLocais = async (contexto, entrada) => {
   const auth = exigirAuthContext(contexto?.auth);
-  const operationKey = exigirOperationId(entrada.operation_id);
+  const operationKey = exigirOperationId(String(entrada.operation_id ?? ''));
   const empresaId = String(entrada.empresa_id || '').trim();
   const produtoId = String(entrada.produto_id || '').trim();
   const localOrigemId = String(entrada.local_origem_id || '').trim();

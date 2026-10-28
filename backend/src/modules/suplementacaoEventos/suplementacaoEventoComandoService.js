@@ -30,7 +30,7 @@ const exigirOperationId = (operationId) => {
  */
 export const comandoLancamentoComLotes = async (contexto, entrada) => {
   const auth = exigirAuthContext(contexto?.auth);
-  const operationKey = exigirOperationId(entrada.operation_id);
+  const operationKey = exigirOperationId(String(entrada.operation_id ?? ''));
   const evento = /** @type {Record<string, unknown>} */ (entrada.evento);
   const lotes = Array.isArray(entrada.lotes) ? entrada.lotes : [];
 

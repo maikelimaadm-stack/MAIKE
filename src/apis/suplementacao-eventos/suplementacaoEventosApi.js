@@ -5,3 +5,5 @@ export const filterSuplementacaoEventosNativos = (...args) => suplementacaoEvent
 export const createSuplementacaoEventoNativo = (...args) => suplementacaoEventoPort.create(...args);
 export const updateSuplementacaoEventoNativo = (...args) => suplementacaoEventoPort.update(...args);
 export const deleteSuplementacaoEventoNativo = (...args) => suplementacaoEventoPort.delete(...args);
+
+export { comandoLancamentoComLotes } from './suplementacaoEventoComandosApi.js';

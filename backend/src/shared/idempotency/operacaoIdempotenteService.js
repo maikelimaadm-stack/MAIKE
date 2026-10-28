@@ -89,7 +89,7 @@ export const executarComIdempotencia = async (tx, opcoes) => {
     data: {
       status: 'committed',
       http_status: httpStatus,
-      response_json: body,
+      response_json: /** @type {import('@prisma/client').Prisma.InputJsonValue} */ (body),
     },
   });
   return { replay: false, httpStatus, body };
