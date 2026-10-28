@@ -79,14 +79,25 @@ Não se usa `VITE_GOOGLE_MAPS_API_KEY` como autorização da Google Map Tiles AP
 
 **Colisão docs:** único overlap com main foi `DECISIONS.md` — resolvido semanticamente. Worktree `/workspace` limpo; zero PRs abertas no preflight R6. Branch local `cursor/config-gerais-separacao-mapa-516d` já mergeada (#126). Trabalho local de mapa paralelo não visível em outros worktrees neste VM.
 
-## Testes / gates (preencher na execução R6)
+## Testes / gates (evidências R6)
 
-Ver seção final após `verify:all`.
+| Comando | Resultado |
+|---|---|
+| `gate:supabase-public-grants` / area / map-geography / product-scope / api-boundary / import / source-closure / tenancy / indices | PASS |
+| `gate:types` / `typecheck:backend` / `lint` / `test:gates` | PASS |
+| `test:smoke` | PASS — **779** testes (R6 + R5 + legado) |
+| `build` | PASS |
+| `test:backend` | **NOT_RUN** — `DATABASE_URL` ausente / Docker indisponível (não usar Supabase MAIKE) |
+| `verify:all` | FAIL só por `test:backend` (esperado neste ambiente) |
+| E2E browser WebGL desktop/mobile | **BLOCKED** — sem Playwright/browser WebGL |
+| CI `quality` pós-#126 (`40777920016`) | reconsultar no momento do push/PR |
+
+Persistência remota: **inalterada**. Sem migration. Sem escrita nas 4 áreas.
 
 ## Vereditos
 
 | Critério | Veredito |
 |---|---|
-| PR DRAFT | **GO** se gates executáveis PASS e zero PRs abertas no momento do create |
+| PR DRAFT | **GO** (zero PRs abertas no preflight; critérios R6 atendidos) |
 | MERGE | **NO-GO** até auditoria do arquiteto + aprovação manual do proprietário |
 | E2E WebGL / backend Postgres | **BLOCKED/NOT_RUN** — limitações de ambiente, documentadas |
