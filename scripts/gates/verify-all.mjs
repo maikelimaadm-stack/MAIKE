@@ -51,6 +51,7 @@ const ETAPAS = [
   ['no-secrets', npm('gate:no-secrets')],
   ['base44', npm('gate:base44')],
   ['modelobase1-pecuario', npm('gate:modelobase1-pecuario')],
+  ['motorbase1-independence', npm('gate:motorbase1-independence')],
   ['tenancy', npm('gate:tenancy')],
   ['indices', npm('gate:indices')],
   // Depois dos gates de schema e antes de qualquer coisa que toque banco: ele

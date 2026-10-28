@@ -14,10 +14,10 @@
 
 | # | Item | Marcas hoje | Evidência / notas |
 |---|------|-------------|-------------------|
-| A.1 | `CadastroWorkspace` com `pageLayout="base1-list"` | **DONE** | `Marcas.jsx` |
-| A.2 | `joinTableToolbar` + um cartão branco (§11.2) | **DONE** | `portalComprasSkin` |
-| A.3 | `showFilterRail={false}` (sem `mg-pills-rail`; portal compras) | **DONE** | §11.4 N/A |
-| A.4 | `portalComprasSkin={true}` | **DONE** | `cadastro-b1-portal.css` |
+| A.1 | `CadastroWorkspace` com `pageLayout="base1-list"` | **DONE** | `Marcas.jsx` — spread `BASE1_MARCAS_MODEL_VISUAL.workspace` |
+| A.2 | `joinTableToolbar` + um cartão branco (§11.2) | **DONE** | preset `BASE1_MARCAS_MODEL_VISUAL.chrome` |
+| A.3 | `showFilterRail={false}` (sem `mg-pills-rail`; portal compras) | **DONE** | idem preset chrome |
+| A.4 | `portalComprasSkin={true}` | **DONE** | idem + `cadastro-b1-portal.css` |
 | A.5 | Storage key estável de colunas (`*_v1`) | **DONE** | `colunas_marcas_v1` |
 | A.6 | `useCadastroListaChromeState` + footer paging | **DONE** | `useCadastroListaFooter` |
 | A.7 | Export CSV / Imprimir / Duplicar no chrome | **DONE** | `onExportCsv`, `onPrint`, `prepareCadastroDuplicate` |

@@ -48,9 +48,9 @@ Abordagem: **estabilizar Marcas na linha da PR #51 → sign-off → replicar o p
 
 **Padrão de rollout por cadastro (checklist extraído de Marcas):**
 
-1. Página: `pageLayout="base1-list"` no `CadastroWorkspace`.
-2. `CadastroListaChrome`: `joinTableToolbar`, `portalComprasSkin`, `showFilterRail={false}` (cadastro sem rail de chips — alinhado a Marcas; exceções documentadas).
-3. Tabela/grade: `referenceHeaders` + storage key estável; `colunaSelecao` conforme produto (Marcas: sem checkbox — UX-40).
+1. Importar e aplicar `BASE1_MARCAS_MODEL_VISUAL` de `base1VisualPreset.js` (workspace + chrome + grade) — **não copiar props literais de `Marcas.jsx`**.
+2. Adapter local: colunas, `storageKey`, `fetchPage`, formulário, overrides (`colunaSelecao`, view mobile cards, etc.).
+3. Tabela/grade: storage key estável; `colunaSelecao` conforme produto (Marcas: sem checkbox — UX-40).
 4. `recordEditing` + formulário `readOnly` em leitura.
 5. Teste manual §11 + matriz viewport da auditoria (360/390/768/1280).
 6. `npm run verify:all` verde.
