@@ -3,6 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import AutocompleteGenerico from "@/components/financeiro/AutocompleteGenerico";
 import ToggleSwitch from "@/components/common/ToggleSwitch";
+import B1Field from "@/components/cadastro/base1/B1Field";
 import {
   CADASTRO_AC_INPUT_CLS,
   CADASTRO_INPUT_CLS,
@@ -94,6 +95,38 @@ const conditionMatches = (current, expected, sourceField) => {
   return currentValues.has(expectedText);
 };
 
+function spanForField(field) {
+  if (field.wide) return 12;
+  if (field.compact) return 4;
+  if (field.medium) return 8;
+  return 6;
+}
+
+function hasFieldValue(field, value) {
+  if (field.type === "checkbox" || field.type === "switch") return Boolean(value);
+  if (Array.isArray(value)) return value.length > 0;
+  if (value === null || value === undefined) return false;
+  return String(value).trim() !== "";
+}
+
+function Base1FieldFrame({ field, error, value, readOnly, children }) {
+  return (
+    <B1Field
+      label={field.label}
+      required={field.required}
+      error={error ? String(error) : undefined}
+      span={spanForField(field)}
+      hasValue={hasFieldValue(field, value)}
+      locked={readOnly}
+      disabled={readOnly}
+      multiline={field.type === "textarea"}
+      variant={field.type === "switch" ? "switch" : "default"}
+    >
+      {children}
+    </B1Field>
+  );
+}
+
 function FieldFrame({ field, error, children }) {
   return (
     <div data-field={field.dataField || field.name} className={field.wide ? "md:col-span-2" : ""}>
@@ -127,6 +160,7 @@ export default function DynamicFormRenderer({
   onChange,
   readOnly = false,
   context = {},
+  visualVariant = "legacy",
 }) {
   const activePanel = panels.find((panel) => panel.id === activePanelId) || panels[0];
   const activeFieldIds = layout?.[activePanel?.id] || [];
@@ -150,39 +184,57 @@ export default function DynamicFormRenderer({
 
   if (!activePanel) return null;
 
+  const useBase1 = visualVariant === "base1";
+
+  const renderField = (field) => {
+    const value = field.getValue ? field.getValue(values, context) : values[field.name];
+    const error = errors[field.errorKey || field.name];
+    const configuredField = { ...field, required: field.required || requiredFieldIds.includes(field.id) };
+    const fieldReadOnly = readOnly || lockedFieldIds.includes(field.id);
+    const control = field.render
+      ? field.render({
+          field: configuredField,
+          value,
+          values,
+          errors,
+          onChange,
+          readOnly: fieldReadOnly,
+          context,
+        })
+      : (
+        <DefaultControl
+          field={configuredField}
+          value={value}
+          onChange={onChange}
+          readOnly={fieldReadOnly}
+        />
+      );
+    if (useBase1) {
+      return (
+        <Base1FieldFrame
+          key={field.id}
+          field={configuredField}
+          error={error}
+          value={value}
+          readOnly={fieldReadOnly}
+        >
+          {control}
+        </Base1FieldFrame>
+      );
+    }
+    return (
+      <FieldFrame key={field.id} field={configuredField} error={error}>
+        {control}
+      </FieldFrame>
+    );
+  };
+
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
+    <div className={useBase1 ? "b1 mg-b1-form-grid w-full min-h-0 col-span-12" : "grid grid-cols-1 lg:grid-cols-2 gap-1"}>
       {visibleFields.length === 0 ? (
         <div className="col-span-full text-xs text-slate-500 py-2">Nenhum campo configurado para este painel.</div>
       ) : (
-        visibleFields.map((field) => {
-          const value = field.getValue ? field.getValue(values, context) : values[field.name];
-          const error = errors[field.errorKey || field.name];
-          const configuredField = { ...field, required: field.required || requiredFieldIds.includes(field.id) };
-          const fieldReadOnly = readOnly || lockedFieldIds.includes(field.id);
-          return (
-            <FieldFrame key={field.id} field={configuredField} error={error}>
-              {field.render
-                ? field.render({
-                    field: configuredField,
-                    value,
-                    values,
-                    errors,
-                    onChange,
-                    readOnly: fieldReadOnly,
-                    context,
-                  })
-                : (
-                  <DefaultControl
-                    field={configuredField}
-                    value={value}
-                    onChange={onChange}
-                    readOnly={fieldReadOnly}
-                  />
-                )}
-            </FieldFrame>
-          );
-        })
+        visibleFields.map((field) => renderField(field))
       )}
     </div>
   );

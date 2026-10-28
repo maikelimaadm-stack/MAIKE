@@ -131,6 +131,13 @@ export const tipoTarefaNomeConflito = (message, options) =>
 export const loteNotFound = (message, options) =>
   new AppError('LOTE_NOT_FOUND', message || 'lote não encontrado', options);
 
+export const loteDeleteBlocked = (vinculo, options) =>
+  new AppError(
+    'LOTE_DELETE_BLOCKED',
+    'não é possível excluir lote com registros vinculados',
+    { ...options, details: { ...(options?.details ?? {}), vinculo } }
+  );
+
 export const categoriaNotFound = (message, options) =>
   new AppError('CATEGORIA_NOT_FOUND', message || 'categoria não encontrada', options);
 

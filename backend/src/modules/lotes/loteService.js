@@ -9,7 +9,7 @@ import { getPrismaClient } from '../../database/prismaClient.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { registrarEvento } from '../auditoria/auditService.js';
 import { reservarNumero, ESCOPO_TENANT } from '../sequencias/entidadeCodigoService.js';
-import { loteNotFound, setorNotFound, areaNotFound } from '../../shared/errors/AppError.js';
+import { loteNotFound, loteDeleteBlocked, setorNotFound, areaNotFound } from '../../shared/errors/AppError.js';
 import { buscarSetor } from '../setores/setorRepository.js';
 import { buscarArea } from '../areas/areaPastagemRepository.js';
 import {
@@ -18,6 +18,7 @@ import {
   inserirLote,
   atualizarLotePorId,
   excluirLotePorId,
+  motivoBloqueioExclusaoLote,
 } from './loteRepository.js';
 
 export const ENTIDADE_SEQUENCIA = 'Lote';
@@ -361,6 +362,11 @@ export const excluir = async (contexto, id) => {
   await prisma.$transaction(async (tx) => {
     const anterior = await buscarLote(auth.clienteId, id, tx);
     if (!anterior) throw loteNotFound();
+
+    const motivo = await motivoBloqueioExclusaoLote(tx, auth.clienteId, id);
+    if (motivo) {
+      throw loteDeleteBlocked(motivo, { details: { id } });
+    }
 
     await excluirLotePorId(tx, auth.clienteId, id);
 

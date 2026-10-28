@@ -6,6 +6,7 @@ import { test, describe, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { criarApp, criarTenant, limparBanco, encerrar, autenticarNoApp } from './helpers.mjs';
+import { getPrismaClient } from '../src/database/prismaClient.js';
 
 /** @type {import('fastify').FastifyInstance} */
 let app;
@@ -105,5 +106,53 @@ describe('P5.1 — Lote', () => {
       },
     });
     assert.equal(r.statusCode, 400);
+  });
+
+  test('DELETE bloqueado com movimentação do mapa (LOTE_DELETE_BLOCKED)', async () => {
+    const tenant = await criarTenant();
+    const { corpo: login } = await autenticarNoApp(app, tenant.credenciais);
+    const token = login.token;
+
+    const criar = await app.inject({
+      method: 'POST',
+      url: '/lotes',
+      headers: auth(token),
+      payload: {
+        empresa_id: 'emp-1',
+        nome: 'Lote Vinculado',
+        quantidade_cabecas: 10,
+        motivo_entrada: 'Inventário',
+      },
+    });
+    assert.equal(criar.statusCode, 201);
+    const loteId = criar.json().id;
+
+    const prisma = getPrismaClient();
+    await prisma.movimentacaoMapa.create({
+      data: {
+        id: 'mov-map-lote-del',
+        cliente_id: tenant.cliente.id,
+        empresa_id: 'emp-1',
+        dados: { lote_id: loteId, origem: 'teste-delete-guard' },
+      },
+    });
+
+    const del = await app.inject({
+      method: 'DELETE',
+      url: `/lotes/${loteId}`,
+      headers: auth(token),
+    });
+    assert.equal(del.statusCode, 409);
+    assert.equal(del.json().code, 'LOTE_DELETE_BLOCKED');
+    assert.equal(del.json().details?.vinculo, 'movimentacoes_mapa');
+
+    await prisma.movimentacaoMapa.deleteMany({ where: { id: 'mov-map-lote-del' } });
+
+    const delOk = await app.inject({
+      method: 'DELETE',
+      url: `/lotes/${loteId}`,
+      headers: auth(token),
+    });
+    assert.equal(delOk.statusCode, 204);
   });
 });

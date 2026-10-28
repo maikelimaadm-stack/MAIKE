@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import CadastroBase1Grade from "@/components/cadastro/base1/CadastroBase1Grade";
+import { BASE1_LISTA_INTEGRADA_VISUAL } from "@/components/cadastro/base1/base1VisualPreset";
 import campoEngine from "@/services/campoEngine";
 
 export const COLUNAS_DISPONIVEIS = [
@@ -31,6 +32,15 @@ export const COLUNAS_DISPONIVEIS = [
   { id: "valor_frete", label: "Valor Frete", default: true, sortable: true, align: "right", width: 130 },
   { id: "observacoes", label: "Observações", default: true, sortable: false, align: "left", width: 220 },
 ];
+
+/** @param {object} lote @param {string} colId */
+export const getLoteFieldValue = (lote, colId) => {
+  const coluna = COLUNAS_DISPONIVEIS.find((item) => item.id === colId);
+  if (colId === "cabecas") {
+    return String(Number(lote.quantidade_entrada || lote.quantidade_cabecas || 0));
+  }
+  return String(campoEngine.getValorCampo(lote, coluna || { id: colId }, {}) ?? "");
+};
 
 const STORAGE_KEY = "colunas_cadastro_lotes";
 
@@ -144,10 +154,11 @@ export default function TabelaLotes({
   onFiltersActiveChange,
   isLoading = false,
   viewMode,
-  displayLimit,
-  onListMetrics,
+  displayLimit = undefined,
+  onListMetrics = undefined,
   cardFields,
   cardsPerRow,
+  configureColumnsAnchorRef,
 }) {
   const globalSearch = searchQuery || searchTerm;
 
@@ -341,9 +352,11 @@ export default function TabelaLotes({
         cardsPerRow={cardsPerRow}
         cardsTitleColId="nome"
         cardsCodeColId="numero_lote"
+        referenceHeaders={BASE1_LISTA_INTEGRADA_VISUAL.grade.referenceHeaders}
         gridFooter={gridFooter}
         onDisplayChange={handleDisplayChange}
         matchesSearch={matchesSearch}
+        configureColumnsAnchorRef={configureColumnsAnchorRef}
       />
     </div>
   );

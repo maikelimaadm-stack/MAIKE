@@ -1,80 +1,112 @@
-import React, { useCallback, useMemo, useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
-import FormularioLote from "@/components/lotes/FormularioLote";
-import CadastroRecordHeader from "@/components/cadastro/base1/CadastroRecordHeader";
-import TabelaLotes, { COLUNAS_DISPONIVEIS } from "@/components/lotes/TabelaLotes";
-import ConfirmDialog from "@/components/common/ConfirmDialog";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Paperclip } from "lucide-react";
+import CadastroBase1Screen from "@/components/cadastro/base1/CadastroBase1Screen";
+import FormularioLote, { FORMULARIO_LOTE_ID } from "@/components/lotes/FormularioLote";
+import TabelaLotes, { COLUNAS_DISPONIVEIS, getLoteFieldValue } from "@/components/lotes/TabelaLotes";
 import RegistroAnexosDialog from "@/components/common/RegistroAnexosDialog";
-import CadastroWorkspace from "@/components/cadastro/CadastroWorkspace";
-import CadastroListaChrome from "@/components/cadastro/base1/CadastroListaChrome";
-import { useCadastroListaChromeState } from "@/hooks/useCadastroListaChromeState";
-import { useCadastroPageListBindings } from "@/hooks/useCadastroPageListBindings";
-import { useCadastroDuplicateAction } from "@/hooks/useCadastroDuplicateAction";
+import { PillBtn } from "@/components/cadastro/base1/Base1Ui";
+import { useCadastroBase1FullListController } from "@/hooks/useCadastroBase1FullListController";
+import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 import { refreshMapaCacheEntry } from "@/services/mapaCacheService";
 import {
   listarLotes,
-  listarAreasAtivas,
   criarLote,
   atualizarLote,
-  excluirLote,
-  validarExclusaoDeLote,
+  excluirLotes,
 } from "@/services/loteCadastroService";
 import { persistirAnexosPendentes } from "@/services/anexoService";
-import { getApiErrorMessage } from "@/apis/_core/ApiError";
-import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
+import { getApiErrorMessage, hasApiErrorCode, API_ERROR_CODES } from "@/apis/_core/ApiError";
+import {
+  notifyError,
+  notifyExclusoesEmpilhadas,
+  notifySuccess,
+  notifyWarning,
+} from "@/lib/maikeNotify";
+
+const STORAGE_KEY = "colunas_cadastro_lotes";
 
 export default function CadastroLotes() {
-  const [showForm, setShowForm] = useState(false);
-  const [editingLote, setEditingLote] = useState(null);
-  const [deleteState, setDeleteState] = useState({ open: false, ids: [] });
-  const [showConfigColunas, setShowConfigColunas] = useState(false);
+  const empresaSelecionadaId = useEmpresaSelecionadaId();
+  const queryClient = useQueryClient();
+  const submitRef = useRef(/** @type {(data: object) => void} */ (() => {}));
+  const deleteRef = useRef(/** @type {(ids: string[]) => void} */ (() => {}));
+  const prevEmpresaRef = useRef(empresaSelecionadaId);
+
   const [attachmentsRecord, setAttachmentsRecord] = useState(null);
   const [newRecordAttachmentsOpen, setNewRecordAttachmentsOpen] = useState(false);
   const [pendingAttachments, setPendingAttachments] = useState([]);
-  const [formVersion, setFormVersion] = useState(0);
-  const chrome = useCadastroListaChromeState();
-  const listBindings = useCadastroPageListBindings({
-    storageKey: "colunas_cadastro_lotes",
-    columns: COLUNAS_DISPONIVEIS,
-    chrome,
-  });
 
-  const handleDuplicateSelected = useCadastroDuplicateAction({
-    chrome,
-    findById: (id) => lotes.find((row) => row.id === id),
-    openDraft: (draft) => {
-      setEditingLote(draft);
-      setShowForm(true);
-    },
-    labelField: "nome",
-  });
-  const queryClient = useQueryClient();
-  const empresaSelecionadaId = useEmpresaSelecionadaId();
+  const fetchAll = useCallback(
+    () => listarLotes({ empresaId: empresaSelecionadaId, incluirSistema: false }),
+    [empresaSelecionadaId],
+  );
 
-  const { data: lotes = [], isLoading } = useQuery({
+  const controller = useCadastroBase1FullListController({
+    storageKey: STORAGE_KEY,
+    columnIds: COLUNAS_DISPONIVEIS.map((c) => c.id),
+    listEnabled: Boolean(empresaSelecionadaId),
     queryKey: ["lotes-cadastro", empresaSelecionadaId],
-    queryFn: () => listarLotes({ empresaId: empresaSelecionadaId, incluirSistema: false }),
-    enabled: !!empresaSelecionadaId,
-    initialData: [],
+    fetchAll,
+    duplicateLabelField: "nome",
+    exportFileName: "lotes.csv",
+    exportColumns: COLUNAS_DISPONIVEIS,
+    getExportFieldValue: getLoteFieldValue,
+    getRecordTitle: (/** @type {any} */ item) => {
+      if (item?._isDuplicate) return "Duplicar lote";
+      if (item?.id) return item.nome || item.numero_lote || "Lote";
+      return "Novo lote";
+    },
+    getRecordCode: (/** @type {any} */ item) =>
+      item?.numero_lote ? String(item.numero_lote) : undefined,
+    getSearchHaystack: (/** @type {any} */ lote) =>
+      [
+        lote.numero_lote,
+        lote.nome,
+        lote.identificador_nome,
+        lote.identificador_sigla,
+        lote.categoria,
+        lote.status,
+        lote.area_entrada_nome,
+        lote.area_atual_nome,
+      ]
+        .filter(Boolean)
+        .join(" "),
+    mapSearchSuggestion: (/** @type {any} */ lote) => ({
+      id: String(lote.id),
+      label: lote.nome || lote.numero_lote || "Lote",
+      secondary: lote.numero_lote ? String(lote.numero_lote) : undefined,
+    }),
+    matchRowId: (/** @type {any} */ lote, id) => String(lote.id) === String(id),
+    getRowId: (/** @type {any} */ lote) => String(lote.id),
+    findRowById: (/** @type {any} */ rows, id) => rows.find((l) => String(l.id) === String(id)),
+    onSubmitRecord: (data) => submitRef.current(data),
+    onRequestDeleteMutation: (ids) => deleteRef.current(ids),
   });
 
-  const { data: areas = [] } = useQuery({
-    queryKey: ["areas", empresaSelecionadaId],
-    queryFn: () => listarAreasAtivas(empresaSelecionadaId),
-    enabled: !!empresaSelecionadaId,
-    initialData: [],
-  });
+  useEffect(() => {
+    if (prevEmpresaRef.current === empresaSelecionadaId) return;
+    prevEmpresaRef.current = empresaSelecionadaId;
+    controller.recordHelpers.closeForm();
+    controller.chrome.setSelectedIds([]);
+    controller.handleClearFilters();
+    setPendingAttachments([]);
+    setAttachmentsRecord(null);
+    setNewRecordAttachmentsOpen(false);
+  }, [empresaSelecionadaId, controller]);
 
-  const invalidateLotes = async () => {
+  const invalidateLotesComMapa = useCallback(async () => {
     await queryClient.invalidateQueries({ queryKey: ["lotes-cadastro", empresaSelecionadaId] });
-    await queryClient.refetchQueries({ queryKey: ["lotes-cadastro", empresaSelecionadaId], exact: true });
     await refreshMapaCacheEntry("lotes", empresaSelecionadaId, { force: true });
     window.dispatchEvent(new CustomEvent("atualizar-mapa"));
-  };
+  }, [queryClient, empresaSelecionadaId]);
 
-  const createLoteMutation = useMutation({
-    mutationFn: (data) => criarLote(data, { empresaId: empresaSelecionadaId }),
+  const createMutation = useMutation({
+    /** @param {object} data */
+    mutationFn: (data) => {
+      const { _isDuplicate, ...cleanData } = data;
+      return criarLote(cleanData, { empresaId: empresaSelecionadaId });
+    },
     onSuccess: async (created) => {
       if (pendingAttachments.length) {
         await persistirAnexosPendentes({
@@ -84,254 +116,176 @@ export default function CadastroLotes() {
         });
         setPendingAttachments([]);
       }
-      await invalidateLotes();
-      setShowForm(false);
-      setEditingLote(null);
-      chrome.exitRecordView();
-      toast.success("Lote cadastrado!");
+      await invalidateLotesComMapa();
+      controller.recordHelpers.recordBeforeNewRef.current = null;
+      if (created?.id) {
+        controller.recordHelpers.setEditingItem(created);
+        controller.recordHelpers.setIsEditing(false);
+        controller.recordHelpers.setShowForm(true);
+        controller.recordHelpers.chrome.setViewMode("record");
+        controller.recordHelpers.chrome.onSelectionChange([String(created.id)]);
+      } else {
+        controller.recordHelpers.closeForm();
+      }
+      notifySuccess("Sucesso", "Lote cadastrado");
     },
-    onError: (err) => toast.error(getApiErrorMessage(err, "Não foi possível salvar o lote.")),
+    onError: (err) =>
+      notifyWarning("Atenção", getApiErrorMessage(err, "Não foi possível salvar o lote.")),
   });
 
-  const updateLoteMutation = useMutation({
+  const updateMutation = useMutation({
+    /** @param {{ id: string, data: object, oldData?: object }} vars */
     mutationFn: ({ id, data, oldData }) => atualizarLote(id, data, { registroAnterior: oldData }),
-    onSuccess: async () => {
-      await invalidateLotes();
-      setShowForm(false);
-      setEditingLote(null);
-      chrome.exitRecordView();
-      toast.success("Lote atualizado!");
+    onSuccess: async (updated, { id, data }) => {
+      await invalidateLotesComMapa();
+      const merged = {
+        ...(controller.editingItem?.id === id ? controller.editingItem : {}),
+        id,
+        ...data,
+        ...(updated && typeof updated === "object" ? updated : {}),
+      };
+      controller.setEditingItem(merged);
+      controller.setIsEditing(false);
+      notifySuccess("Sucesso", "Lote atualizado");
     },
-    onError: (err) => toast.error(getApiErrorMessage(err, "Não foi possível atualizar o lote.")),
+    onError: (err) =>
+      notifyWarning("Atenção", getApiErrorMessage(err, "Não foi possível atualizar o lote.")),
   });
 
-  const deleteLoteMutation = useMutation({
-    mutationFn: (id) => excluirLote(id),
+  const deleteMutation = useMutation({
+    /** @param {string[]} ids */
+    mutationFn: (ids) => excluirLotes(ids, { lotes: controller.allItems }),
+    onSuccess: async ({ excluidos, bloqueados }) => {
+      if (excluidos.length) {
+        await invalidateLotesComMapa();
+      }
+      controller.chrome.setSelectedIds([]);
+      if (
+        controller.showForm &&
+        controller.editingItem?.id &&
+        excluidos.some((id) => String(id) === String(controller.editingItem.id))
+      ) {
+        controller.recordHelpers.closeForm();
+      }
+      if (excluidos.length) {
+        notifyExclusoesEmpilhadas(excluidos.length, { singular: "Lote excluído" });
+      }
+      if (bloqueados.length) {
+        const soBloqueio = bloqueados.every((b) =>
+          hasApiErrorCode(b.erro, API_ERROR_CODES.LOTE_DELETE_BLOCKED),
+        );
+        notifyError(
+          "Atenção",
+          soBloqueio
+            ? bloqueados.length === 1
+              ? "Este lote não pôde ser excluído: existem registros vinculados."
+              : `${bloqueados.length} lotes não puderam ser excluídos: existem registros vinculados.`
+            : "Alguns lotes não puderam ser excluídos.",
+        );
+      }
+    },
+    onError: (err) => {
+      controller.setDeleteState({ open: false, ids: [] });
+      if (hasApiErrorCode(err, API_ERROR_CODES.LOTE_DELETE_BLOCKED)) return;
+      notifyError("Atenção", getApiErrorMessage(err, "Não foi possível excluir."));
+    },
   });
 
-  const closeForm = () => {
-    setShowForm(false);
-    setEditingLote(null);
-    setPendingAttachments([]);
-    setNewRecordAttachmentsOpen(false);
-    chrome.exitRecordView();
-  };
-
-  const openNew = () => {
-    setEditingLote(null);
-    setPendingAttachments([]);
-    setFormVersion((v) => v + 1);
-    setShowForm(true);
-    chrome.setViewMode("record");
-  };
-
-  const handleSubmit = (data) => {
-    if (editingLote?.id && !editingLote._isDuplicate) {
-      updateLoteMutation.mutate({ id: editingLote.id, data, oldData: editingLote });
+  submitRef.current = (data) => {
+    const editing = /** @type {any} */ (controller.editingItem);
+    if (editing?.id && !editing._isDuplicate) {
+      updateMutation.mutate({ id: editing.id, data, oldData: editing });
       return;
     }
-    const { _isDuplicate, ...cleanData } = data;
-    createLoteMutation.mutate(cleanData);
+    createMutation.mutate(data);
   };
+  deleteRef.current = (ids) => deleteMutation.mutate(ids);
 
-  const handleEdit = (lote) => {
-    setEditingLote(lote);
-    setFormVersion((v) => v + 1);
-    setShowForm(true);
-    chrome.setViewMode("record");
-    if (lote?.id) chrome.onSelectionChange([lote.id]);
-  };
+  const saving = createMutation.isPending || updateMutation.isPending;
 
-  const handleEditSelected = () => {
-    const item = lotes.find((l) => l.id === chrome.selectedIds[0]);
-    if (item) handleEdit(item);
-  };
-
-  const handleRequestDelete = (ids) => {
-    setDeleteState({ open: true, ids: Array.isArray(ids) ? ids : [ids] });
-  };
-
-  const handleDeleteSelected = () => {
-    if (!chrome.selectedIds.length) return;
-    handleRequestDelete(chrome.selectedIds);
-  };
-
-  const handleConfirmDelete = async () => {
-    const ids = deleteState.ids;
-    setDeleteState({ open: false, ids: [] });
-
-    let deletedCount = 0;
-    for (const id of ids) {
-      try {
-        await validarExclusaoDeLote(id);
-        await deleteLoteMutation.mutateAsync(id);
-        deletedCount += 1;
-      } catch {
-        /* best-effort por registro */
-      }
-    }
-
-    if (deletedCount > 0) {
-      await invalidateLotes();
-      chrome.setSelectedIds([]);
-      toast.success(deletedCount === 1 ? "Lote excluído!" : `${deletedCount} lotes excluídos!`);
-    } else if (ids.length) {
-      toast.error("Nenhum lote pôde ser excluído.");
-    }
-  };
-
-  const onViewModeChange = useCallback(
-    (mode) => {
-      chrome.handleViewModeChange(mode, {
-        onOpenRecord: () => handleEditSelected(),
-        onExitRecord: closeForm,
-      });
-    },
-    [chrome, handleEditSelected, closeForm],
+  const listErrorMessage = useMemo(
+    () =>
+      getApiErrorMessage(
+        controller.listaQueryError,
+        "Não foi possível carregar os lotes. Verifique sua conexão e tente novamente.",
+      ),
+    [controller.listaQueryError],
   );
 
-  const filtradosCount = useMemo(() => {
-    const q = chrome.appliedSearch.trim().toLowerCase();
-    if (!q) return lotes.length;
-    return lotes.filter((lote) => {
-      const hay = [
-        lote.numero_lote,
-        lote.nome,
-        lote.identificador_nome,
-        lote.identificador_sigla,
-        lote.categoria,
-        lote.status,
-        lote.area_entrada_nome,
-        lote.area_atual_nome,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
-      return hay.includes(q);
-    }).length;
-  }, [lotes, chrome.appliedSearch]);
+  const editingRecord = /** @type {any} */ (controller.editingItem);
+  const attachLabel =
+    editingRecord?.nome ||
+    editingRecord?.numero_lote ||
+    (controller.showForm && !editingRecord?.id ? "Novo lote" : "Lote");
 
-  const detailTitle = editingLote?.id
-    ? editingLote._isDuplicate
-      ? "Duplicar lote"
-      : editingLote.nome || editingLote.numero_lote || "Lote"
-    : "Novo lote";
-
-  const recordNavRows = useMemo(() => {
-    const q = chrome.appliedSearch.trim().toLowerCase();
-    if (!q) return lotes;
-    return lotes.filter((lote) => {
-      const hay = [
-        lote.numero_lote,
-        lote.nome,
-        lote.identificador_nome,
-        lote.identificador_sigla,
-        lote.categoria,
-        lote.status,
-        lote.area_entrada_nome,
-        lote.area_atual_nome,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
-      return hay.includes(q);
-    });
-  }, [lotes, chrome.appliedSearch]);
-
-  const recordIndex =
-    editingLote?.id && !editingLote._isDuplicate
-      ? Math.max(0, recordNavRows.findIndex((l) => l.id === editingLote.id))
-      : 0;
-
-  const goRecord = (index) => {
-    const row = recordNavRows[index];
-    if (row) handleEdit(row);
+  const openAttachments = () => {
+    if (controller.editingItem?.id) {
+      setAttachmentsRecord(controller.editingItem);
+    } else {
+      setNewRecordAttachmentsOpen(true);
+    }
   };
 
-  const attachLabel =
-    editingLote?.nome || editingLote?.numero_lote || (showForm && !editingLote?.id ? "Novo lote" : "Lote");
+  const recordCode = editingRecord?.numero_lote ? String(editingRecord.numero_lote) : undefined;
+
+  const screenController = { ...controller, saving };
 
   return (
     <>
-      <CadastroWorkspace
-        mode="list"
-        title="Cadastro de Lotes"
-        subtitle="Lotes pecuários da empresa selecionada — busca global e filtros por coluna na grade."
-      >
-        <CadastroListaChrome
-          recordMode={showForm}
-          secondaryToolsLocked={showForm}
-          recordHeader={
-            showForm ? (
-              <CadastroRecordHeader
-                title={detailTitle}
-                code={editingLote?.numero_lote ? String(editingLote.numero_lote) : undefined}
-                index={recordIndex}
-                total={recordNavRows.length}
-                onGo={editingLote?.id && !editingLote._isDuplicate ? goRecord : undefined}
-                navDisabled={!editingLote?.id || editingLote._isDuplicate}
-              />
-            ) : null
-          }
-          recordBody={
-            showForm ? (
-              <FormularioLote
-                key={`form-${formVersion}-${editingLote?.id || "new"}`}
-                variant="embedded"
-                initialData={editingLote}
-                isEditing={!!editingLote?.id && !editingLote?._isDuplicate}
-                onSubmit={handleSubmit}
-                onCancel={closeForm}
-                onAttachClick={() =>
-                  editingLote?.id ? setAttachmentsRecord(editingLote) : setNewRecordAttachmentsOpen(true)
-                }
-                attachDisabled={false}
-              />
-            ) : null
-          }
-          selectedCount={chrome.selectedIds.length}
-          {...listBindings.listFooter.chromeFooter}
-          createLabel="Novo"
-          onNew={openNew}
-          onEdit={handleEditSelected}
-          onDelete={handleDeleteSelected}
-          onDuplicate={handleDuplicateSelected}
-          onPrint={() => window.print()}
-          cardsModeAvailable
-          cardsToolbar={listBindings.cardsToolbar}
-          searchValue={chrome.searchInput}
-          onSearchChange={chrome.setSearchInput}
-          onSearchApply={chrome.applySearch}
-          searchActive={chrome.searchActive}
-          searchPlaceholder="Buscar lotes…"
-          onConfigureColumns={() => setShowConfigColunas(true)}
-          onClearFilters={chrome.clearFilters}
-          filtersActive={chrome.filtersActive}
-          viewMode={showForm ? "record" : chrome.viewMode}
-          onViewModeChange={onViewModeChange}
-          recordModeAvailable
-        >
-          {!showForm ? (
-            <TabelaLotes
-              lotes={lotes}
-              areas={areas}
-              onEdit={handleEdit}
-              isLoading={isLoading}
-              showConfigColunas={showConfigColunas}
-              setShowConfigColunas={setShowConfigColunas}
-              searchTerm={chrome.appliedSearch}
-              resetFiltersKey={chrome.resetFiltersKey}
-              onSelectionChange={chrome.onSelectionChange}
-              onFiltersActiveChange={chrome.setFiltersActive}
-              viewMode={chrome.viewMode === "cards" ? "cards" : "table"}
-              displayLimit={listBindings.listFooter.gradePaging.displayLimit}
-              onListMetrics={listBindings.listFooter.gradePaging.onListMetrics}
-              cardFields={listBindings.cardsPrefs.cardFields}
-              cardsPerRow={listBindings.cardsPrefs.cardsPerRow}
-            />
-          ) : null}
-        </CadastroListaChrome>
-      </CadastroWorkspace>
+      <CadastroBase1Screen
+        workspaceTitle="Cadastro de Lotes"
+        searchPlaceholder="Buscar lotes…"
+        formId={FORMULARIO_LOTE_ID}
+        attachDisabledReason=""
+        columnsForCardsToolbar={COLUNAS_DISPONIVEIS}
+        controller={screenController}
+        listErrorMessage={listErrorMessage}
+        recordCode={recordCode}
+        extraToolbar={
+          controller.showForm ? (
+            <PillBtn type="button" tone="gray" onClick={openAttachments}>
+              <Paperclip className="h-4 w-4" aria-hidden />
+              Anexos
+            </PillBtn>
+          ) : null
+        }
+        deleteDialog={{
+          title: "Confirmar exclusão",
+          descriptionOne: "Deseja realmente excluir este lote?",
+          descriptionMany: (n) => `Deseja realmente excluir ${n} lotes selecionados?`,
+        }}
+        recordForm={
+          <FormularioLote
+            key={`${controller.editingItem?.id ?? "lote-novo"}-${controller.formEpoch}`}
+            variant="embedded"
+            visualVariant="base1"
+            toolbarActions
+            readOnly={!controller.isEditing}
+            isSubmitting={saving}
+            initialData={controller.editingItem}
+            isEditing={!!editingRecord?.id && !editingRecord?._isDuplicate}
+            onSubmit={controller.handleSubmit}
+            onCancel={controller.cancelForm}
+          />
+        }
+        listSlot={
+          <TabelaLotes
+            lotes={controller.visibleRows}
+            onEdit={controller.handleEdit}
+            isLoading={controller.isLoading}
+            showConfigColunas={controller.showConfigColunas}
+            setShowConfigColunas={controller.setShowConfigColunas}
+            searchTerm={controller.chrome.appliedSearch}
+            resetFiltersKey={controller.chrome.resetFiltersKey}
+            onSelectionChange={controller.chrome.onSelectionChange}
+            onFiltersActiveChange={controller.chrome.setFiltersActive}
+            viewMode={controller.chrome.viewMode === "cards" ? "cards" : "table"}
+            cardFields={controller.cardsPrefs.cardFields}
+            cardsPerRow={controller.cardsPrefs.cardsPerRow}
+            configureColumnsAnchorRef={controller.configureColumnsAnchorRef}
+          />
+        }
+      />
 
       <RegistroAnexosDialog
         open={!!attachmentsRecord?.id || newRecordAttachmentsOpen}
@@ -346,21 +300,6 @@ export default function CadastroLotes() {
         title={attachLabel}
         pendingAnexos={pendingAttachments}
         onPendingChange={setPendingAttachments}
-      />
-
-      <ConfirmDialog
-        open={deleteState.open}
-        onOpenChange={(open) => setDeleteState((prev) => ({ ...prev, open }))}
-        title="Confirmar exclusão"
-        description={
-          deleteState.ids.length > 1
-            ? `Deseja realmente excluir ${deleteState.ids.length} lotes selecionados?`
-            : "Deseja realmente excluir este lote?"
-        }
-        confirmText="Excluir"
-        cancelText="Cancelar"
-        variant="destructive"
-        onConfirm={handleConfirmDelete}
       />
     </>
   );
