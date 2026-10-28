@@ -108,13 +108,13 @@ Ordem **obrigatória** antes de promover runtime que depende de `numero_empresa`
 | Escopo | Status |
 |--------|--------|
 | GO técnico (código + gates locais/CI) | Alvo desta PR após CI verde |
-| GO produção | **BLOCKED** até `deploy:migrate` aplicar
-  `20261028210000_empresa_numero_empresa` (e dependentes) no Supabase usado pelo runtime |
+| GO produção (schema) | **OK** — migrations `20261028200000` … `20261028230000` aplicadas no Supabase `uuemcasqcdjucflulkne` em **2026-10-28** (MCP + `_prisma_migrations` alinhado) |
+| GO produção (runtime) | **Pendente redeploy Vercel** se Production ainda não inclui PR #108 |
 
 ## O que o operador precisa fazer
 
 1. Revisar e mergear PR #108 (DRAFT) manualmente quando satisfeito.
-2. Executar **`npm run deploy:migrate`** no Supabase correto (evidência acima).
+2. ~~Executar **`npm run deploy:migrate`**~~ — **feito** no Supabase (2026-10-28); próximo `deploy:migrate` deve ser no-op.
 3. Redeploy Production Vercel; confirmar SHA deployado = commit mergeado.
 4. Smoke autenticado Cadastro Empresas (criar, duplicar nome, listar).
 5. Se persistir 500: usar `request_id` nos logs Vercel Functions — não Railway.

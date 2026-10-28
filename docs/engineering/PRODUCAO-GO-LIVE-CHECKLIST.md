@@ -1,6 +1,6 @@
 # Produção — checklist go-live (MAIKE Mapa + API nativa)
 
-**Atualizado em:** 2026-10-27  
+**Atualizado em:** 2026-10-28  
 **Missão:** `cursor/producao-go-live-516d`  
 **Plano detalhado:** [`PLAN-BACKEND-MIGRACAO-100.md`](./PLAN-BACKEND-MIGRACAO-100.md)
 
@@ -48,16 +48,16 @@ Migration **não** roda no `server.js` (D-PROD-28). Pre-deploy Railway/Vercel: `
 
 **Meta:** `SELECT count(*) FROM _prisma_migrations;` → **7**.
 
-### Supabase MAIKE (`uuemcasqcdjucflulkne`, sa-east-1) — estado verificado 2026-10-27 (pós-PR #73)
+### Supabase MAIKE (`uuemcasqcdjucflulkne`, sa-east-1) — estado verificado 2026-10-28
 
 | Item | Estado |
 |------|--------|
-| Registros em `_prisma_migrations` | **7/7** — inclui `20261027140000_p4_marcas_native` (DDL + histórico via Supabase MCP pós-merge) |
-| Tabela `Marca` (P4.4) | **Presente** |
-| Tabelas P4.2/P4.3 | **Existem** (ver `SUPABASE-MAIKE-MIGRATIONS-SYNC-REPORT.md`) |
-| Índice `Usuario_login_ativo_global_key` (P6.1) | **Presente** |
+| Registros em `_prisma_migrations` | **17** — inclui `20261028210000_empresa_numero_empresa` e `20261028230000_operacao_idempotente` (ver `SUPABASE-MAIKE-MIGRATIONS-SYNC-REPORT.md`) |
+| Coluna `Empresa.numero_empresa` | **Presente** (NOT NULL, backfill OK) |
+| Tabela `OperacaoIdempotente` | **Presente** |
+| Índices keyset `Marca` (P5.4) | **Presentes** |
 
-**Próximo pre-deploy:** `npm run deploy:migrate` com `MIGRATION_DATABASE_URL` na sessão **5432** deve ser **no-op** (nenhuma migration pendente). Se o histórico divergir de novo, usar `prisma migrate resolve --applied <nome>` só para migrations cujo DDL já estiver no banco — nunca reaplicar DDL manualmente.
+**Próximo pre-deploy:** `npm run deploy:migrate` com `MIGRATION_DATABASE_URL` na sessão **5432** deve ser **no-op** (nenhuma migration pendente no repositório). Se o histórico divergir de novo, usar `prisma migrate resolve --applied <nome>` só para migrations cujo DDL já estiver no banco — nunca reaplicar DDL manualmente.
 
 ```bash
 # Referência (já executado no Supabase MAIKE em 2026-10-27):
