@@ -84,7 +84,7 @@ repositório (D-PROD-04 / P7 opcional de arquivo).
 |---|---|
 | Produto | Pecuária — Mapa Geral + Manejo (D-PROD-01) |
 | Superfície primária | `MapaGeral` (D-PROD-05) |
-| Missão em execução | **P8 — Hardening** fatia Supabase grants/RLS (**D-PROD-56**, PR **#123**); **D-PROD-57**/ **D-PROD-60** catálogo global (docs #126 + slice1 backend #130); UX Base1 aguarda **H.5** (D-PROD-41); **MapLibre M1** (**D-PROD-58**, #127) + **M2-A** (**D-PROD-59**, #129) em `main`; **MapLibre M2-B1** seletor local de tarefas (**D-PROD-61**) na branch `cursor/maplibre-m2b1-task-location-picker-f5fd` — PR DRAFT de revisão, merge só após auditoria |
+| Missão em execução | **P8 — Hardening** (**D-PROD-56**); catálogo **D-PROD-57/60** (#126/#130); UX Base1 **H.5**; MapLibre M1/M2-A/M2-B1 (**D-PROD-58/59/61**, #127/#129/#131) em `main`; **MapLibre M2-B2** seleção de áreas (**D-PROD-62**) na branch `cursor/maplibre-m2b2-selecao-areas-01-f5fd` — PR DRAFT, merge só após auditoria |
 | Última mergeada (runtime) | **P7 — Base44 legacy cleanup** (PR **#85**, D-PROD-52); dados nativos fechados em **P5.5** (PR #84) |
 | Mergeadas anteriores | P3 — Backend + Prisma + PostgreSQL Foundation (PR #10, merge `4ce4608`), com a P3-R1; P2 — ModeloBase1 Pecuário Foundation (PR #7, merge `1851503`); SSOT sincronizada nas PRs #8 (`378bfd3`) e #11 (`672ea99`); emenda D-PROD-22 na PR #9 (merge `44b204c`) |
 | Próxima fatia autorizável | **P8 — Hardening and Release** (ver `ROADMAP.md`) |
