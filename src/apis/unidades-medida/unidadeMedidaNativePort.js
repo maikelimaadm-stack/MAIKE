@@ -10,6 +10,18 @@ import {
 
 const RESOURCE = 'UnidadeMedida';
 const CAMINHO = '/unidades-medida';
+const CAMINHO_PAGINA = '/unidades-medida/page';
+
+/** @param {Record<string, unknown>} [filtros] */
+const montarQueryPagina = (filtros = {}) => {
+  const params = new URLSearchParams();
+  if (filtros.limit != null) params.set('limit', String(filtros.limit));
+  if (typeof filtros.cursor === 'string' && filtros.cursor) params.set('cursor', filtros.cursor);
+  if (typeof filtros.q === 'string' && filtros.q.trim()) params.set('q', filtros.q.trim());
+  if (filtros.ativo === true || filtros.ativo === false) params.set('ativo', String(filtros.ativo));
+  const qs = params.toString();
+  return qs ? `${CAMINHO_PAGINA}?${qs}` : CAMINHO_PAGINA;
+};
 
 export const ENTIDADE_OFFLINE = 'UnidadeMedida';
 
@@ -39,6 +51,10 @@ export const corpoDeEnvio = (dados, permitidos) => {
 
 export const operacoesNativas = Object.freeze({
   list: () => nativeRequest(CAMINHO, { autenticado: true }, ctx('listUnidades')),
+
+  /** Página keyset — não passa pelo adapter offline (janela ≠ lista completa). */
+  listPage: (filtros = {}) =>
+    nativeRequest(montarQueryPagina(filtros), { autenticado: true }, ctx('listUnidadesPage')),
 
   create: (dados) =>
     nativeRequest(

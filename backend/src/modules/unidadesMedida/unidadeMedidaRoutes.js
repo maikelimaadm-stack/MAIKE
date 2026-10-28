@@ -3,7 +3,8 @@
  */
 
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
-import { listar, criar, atualizar, excluir } from './unidadeMedidaService.js';
+import { LIMITE_MAXIMO, LIMITE_PADRAO } from '../../shared/pagination/keysetCursor.js';
+import { listar, listarPagina, criar, atualizar, excluir } from './unidadeMedidaService.js';
 
 const CAMPOS = Object.freeze({
   sigla: { type: 'string', minLength: 1, maxLength: 32, pattern: '\\S' },
@@ -40,6 +41,19 @@ const ATUALIZAR_SCHEMA = {
   },
 };
 
+const LISTAR_PAGINA_SCHEMA = {
+  querystring: {
+    type: 'object',
+    additionalProperties: false,
+    properties: {
+      limit: { type: 'integer', minimum: 1, maximum: LIMITE_MAXIMO, default: LIMITE_PADRAO },
+      cursor: { type: 'string', minLength: 1, maxLength: 512 },
+      q: { type: 'string', maxLength: 200 },
+      ativo: { anyOf: [{ type: 'boolean' }, { type: 'string', enum: ['true', 'false', '1', '0'] }] },
+    },
+  },
+};
+
 const EXCLUIR_SCHEMA = {
   params: {
     type: 'object',
@@ -58,6 +72,15 @@ export const registrarUnidadeMedidaRoutes = async (app) => {
     exigirAuthContext(request.contexto.auth);
     return listar(request.contexto);
   });
+
+  app.get(
+    '/unidades-medida/page',
+    { onRequest: [app.autenticar], schema: LISTAR_PAGINA_SCHEMA },
+    async (request) => {
+      exigirAuthContext(request.contexto.auth);
+      return listarPagina(request.contexto, /** @type {Record<string, unknown>} */ (request.query ?? {}));
+    },
+  );
 
   app.post('/unidades-medida', { onRequest: [app.autenticar], schema: CRIAR_SCHEMA }, async (request, reply) => {
     exigirAuthContext(request.contexto.auth);

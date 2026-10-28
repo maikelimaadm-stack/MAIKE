@@ -2,6 +2,7 @@
 
 export {
   listUnidades,
+  listUnidadesPage,
   createUnidade,
   updateUnidade,
   deleteUnidade,

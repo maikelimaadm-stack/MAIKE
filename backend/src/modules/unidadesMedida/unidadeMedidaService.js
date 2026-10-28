@@ -9,12 +9,20 @@ import { reservarNumero, ESCOPO_TENANT } from '../sequencias/entidadeCodigoServi
 import { unidadeMedidaNotFound, unidadeMedidaSiglaConflito } from '../../shared/errors/AppError.js';
 import {
   listarUnidades,
+  listarUnidadesPagina,
+  contarUnidades,
   buscarUnidade,
   existeUnidadeComSigla,
   inserirUnidade,
   atualizarUnidadePorId,
   excluirUnidadePorId,
 } from './unidadeMedidaRepository.js';
+import {
+  decodificarCursor,
+  normalizarLimite,
+  montarEnvelopeKeyset,
+} from '../../shared/pagination/keysetCursor.js';
+import { AppError } from '../../shared/errors/AppError.js';
 
 export const ENTIDADE_SEQUENCIA = 'UnidadeMedida';
 
@@ -75,6 +83,39 @@ export const listar = async (contexto) => {
   const auth = exigirAuthContext(contexto?.auth);
   const registros = await listarUnidades(auth.clienteId);
   return registros.map(comoUnidadePublica);
+};
+
+/**
+ * Listagem paginada keyset — motor Base1 (D-PROD-55).
+ * @param {{auth: import('../../shared/auth/authContext.js').AuthContext}} contexto
+ * @param {Record<string, unknown>} query
+ */
+export const listarPagina = async (contexto, query = {}) => {
+  const auth = exigirAuthContext(contexto?.auth);
+  const limit = normalizarLimite(query.limit);
+  const q = typeof query.q === 'string' ? query.q : null;
+  let ativo = null;
+  if (query.ativo === true || query.ativo === 'true' || query.ativo === '1') ativo = true;
+  if (query.ativo === false || query.ativo === 'false' || query.ativo === '0') ativo = false;
+
+  const cursorBruto = typeof query.cursor === 'string' ? query.cursor : null;
+  const cursor = cursorBruto ? decodificarCursor(cursorBruto) : null;
+  if (cursorBruto && !cursor) {
+    throw new AppError('REQUEST_VALIDATION_FAILED', 'cursor inválido');
+  }
+
+  const filtro = { q, ativo, cursor, limit };
+  const [registros, total] = await Promise.all([
+    listarUnidadesPagina(auth.clienteId, filtro),
+    contarUnidades(auth.clienteId, { q, ativo }),
+  ]);
+
+  return montarEnvelopeKeyset({
+    registros,
+    limit,
+    total,
+    mapItem: comoUnidadePublica,
+  });
 };
 
 /** @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto @param {Record<string, unknown>} entrada */
