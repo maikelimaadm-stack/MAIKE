@@ -94,11 +94,12 @@ describe('UnidadesMedida — rollout preset Base1 lista integrada', () => {
     const fs = await import('node:fs');
     const path = await import('node:path');
     const src = fs.readFileSync(path.join(process.cwd(), 'src/pages/UnidadesMedida.jsx'), 'utf8');
-    expect(src).toMatch(/BASE1_LISTA_INTEGRADA_VISUAL/);
+    expect(src).toMatch(/CadastroBase1Screen/);
     expect(src).toMatch(/unidadeMedidaService/);
     expect(src).not.toMatch(/marcaService/);
     expect(src).toMatch(/colunas_unidades_medida/);
-    expect(src).toMatch(/colunas-unidades-medida/);
+    const tabela = fs.readFileSync(path.join(process.cwd(), 'src/components/unidades-medida/TabelaUnidadesMedida.jsx'), 'utf8');
+    expect(tabela).toMatch(/colunas-unidades-medida/);
     expect(src).toMatch(/useCadastroBase1Controller/);
     expect(src).toMatch(/\["unidades_medida", "page"\]/);
   });

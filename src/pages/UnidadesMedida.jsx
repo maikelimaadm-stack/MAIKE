@@ -76,6 +76,7 @@ export default function UnidadesMedida() {
   }, [controller.visibleRows, controller.isLoading, queryClient]);
 
   const createMutation = useMutation({
+    /** @param {object} data */
     mutationFn: (data) => criarUnidade(data),
     onSuccess: (created) => {
       queryClient.invalidateQueries({ queryKey: ["unidades_medida"] });
@@ -96,6 +97,7 @@ export default function UnidadesMedida() {
   });
 
   const updateMutation = useMutation({
+    /** @param {{ id: string, data: object }} vars */
     mutationFn: ({ id, data }) => atualizarUnidade(id, data),
     onSuccess: (updated, { id, data }) => {
       queryClient.invalidateQueries({ queryKey: ["unidades_medida"] });
@@ -114,6 +116,7 @@ export default function UnidadesMedida() {
   });
 
   const deleteMutation = useMutation({
+    /** @param {string[]} ids */
     mutationFn: (ids) => excluirUnidades(ids, { unidades: controller.visibleRows }),
     onSuccess: ({ excluidas, bloqueadas }) => {
       queryClient.invalidateQueries({ queryKey: ["unidades_medida"] });

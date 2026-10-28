@@ -32,9 +32,13 @@ function renderCell(item, colId) {
   if (colId === "descricao") return item.descricao || "–";
   if (colId === "ativo") {
     return item.ativo !== false ? (
-      <Badge className="text-[10px] bg-emerald-100 text-emerald-700">Ativo</Badge>
+      <Badge variant="secondary" className="text-[10px] bg-emerald-100 text-emerald-700">
+        Ativo
+      </Badge>
     ) : (
-      <Badge className="text-[10px] bg-slate-100 text-slate-500">Inativo</Badge>
+      <Badge variant="secondary" className="text-[10px] bg-slate-100 text-slate-500">
+        Inativo
+      </Badge>
     );
   }
   return "–";

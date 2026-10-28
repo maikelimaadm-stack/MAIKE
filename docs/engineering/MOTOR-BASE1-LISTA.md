@@ -19,7 +19,8 @@ Alterar o motor = alterar o comportamento de **todas** as telas que o plugaram.
 | **Visual / preset** | Preset Base1 lista | `src/components/cadastro/base1/base1VisualPreset.js` | SSOT de flags de apresentação (`pageLayout`, chrome portal, `referenceHeaders`) — **sem entidade** |
 | | Grade + prefs | `CadastroBase1Grade`, `cadastroBase1ColumnPrefs.js` | Filtro/sort/prefs, `Base1Grid` / cards |
 | | Chrome / page size | `cadastroBase1List.js`, `CadastroListaChrome` | seletor 100–500 + Carregar mais |
-| **Adapter por cadastro** | Página + tabela + form | ex.: `Marcas.jsx`, `TabelaMarcas.jsx` | colunas, `storageKey`, fetch, CRUD, overrides (`colunaSelecao`, view mobile) |
+| **Orquestração** | Controlador + screen | `useCadastroBase1Controller.js`, `CadastroBase1Screen.jsx` | busca/registro/toolbar/paginação/export compartilhados (D-PROD-55 COMPLETE-01) |
+| **Adapter por cadastro** | Página + tabela + form | ex.: `Marcas.jsx`, `UnidadesMedida.jsx` | colunas, `storageKey`, fetch, CRUD, mensagens — **sem** duplicar handlers genéricos |
 
 **Dependência permitida (uma direção):** Tela → Motor Base1 → primitivos genéricos (`ui/`, `common/`, `lib/utils`). O gate `gate:motorbase1-independence` impede import inverso (Mapa, Marcas, `pages/`, `services/`, `apis/`).
 

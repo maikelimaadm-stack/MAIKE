@@ -64,6 +64,7 @@ export default function Marcas() {
   });
 
   const createMutation = useMutation({
+    /** @param {object} data */
     mutationFn: (data) => criarMarca({ dados: data, empresaId, marcasDaEmpresa: controller.visibleRows }),
     onSuccess: (created) => {
       queryClient.invalidateQueries({ queryKey: ["marcas"] });
@@ -84,6 +85,7 @@ export default function Marcas() {
   });
 
   const updateMutation = useMutation({
+    /** @param {{ id: string, data: object }} vars */
     mutationFn: ({ id, data }) => atualizarMarca(id, data, controller.visibleRows),
     onSuccess: (updated, { id, data }) => {
       queryClient.invalidateQueries({ queryKey: ["marcas"] });
@@ -102,6 +104,7 @@ export default function Marcas() {
   });
 
   const deleteMutation = useMutation({
+    /** @param {string[]} ids */
     mutationFn: (ids) => excluirMarcas(ids),
     onSuccess: ({ excluidas, falhas }) => {
       queryClient.invalidateQueries({ queryKey: ["marcas"] });

@@ -12,13 +12,13 @@ import { notifyWarning } from "@/lib/maikeNotify";
  * Motor Base1 — orquestração compartilhada de cadastro lista/registro (D-PROD-55).
  * Domínio entra só por config/callbacks; este hook não importa entidades nem services.
  *
- * @template T extends { id?: string }
+ * @template {{ id?: string }} T
  * @param {{
  *   storageKey: string,
  *   columnIds: string[],
  *   listEnabled?: boolean,
  *   queryKey: unknown[],
- *   fetchPage: (args: { limit: number, cursor: string|null }) => Promise<{
+ *   fetchPage: (args: { limit: number, cursor: string|null, q?: string }) => Promise<{
  *     items: T[],
  *     next_cursor: string|null,
  *     has_more: boolean,

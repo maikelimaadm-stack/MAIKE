@@ -78,7 +78,11 @@ export default function CadastroBase1Screen({
                 code={recordCode}
                 index={c.recordIndex}
                 total={c.recordNavRows.length}
-                onGo={c.editingItem?.id ? c.goRecord : undefined}
+                onGo={
+                  c.editingItem && typeof c.editingItem === "object" && "id" in c.editingItem && c.editingItem.id
+                    ? c.goRecord
+                    : undefined
+                }
                 navDisabled={c.showForm && c.isEditing}
               />
             ) : null
