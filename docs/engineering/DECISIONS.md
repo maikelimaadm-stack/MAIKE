@@ -2397,4 +2397,32 @@ ficam fora desta missão (R7).
 
 ---
 
-<!-- Próxima decisão: D-PROD-58 -->
+## D-PROD-58 — MapLibre M1: editor do Cadastro de Áreas
+
+**Missão:** `MAPLIBRE-M1-EDITOR-AREAS-01` (R4–R6)  
+**Relatório:** `docs/engineering/MAPLIBRE-M1-EDITOR-AREAS-REPORT.md`  
+**Branch:** `cursor/maplibre-m1-editor-areas-f5fd`  
+**Nota de ID:** o identificador D-PROD-57 ficou com a governança de Configurações Gerais (PR #126). MapLibre M1 usa **D-PROD-58**.
+
+**Decisão:**
+
+1. O editor de `MapaDesenho` (fluxo `MapaCadastro` — área, ponto e linha) passa a
+   renderizar com **MapLibre GL JS**; Google Maps permanece nos demais
+   consumidores até cutover explícito (M2 pickers/GPS, M3 Mapa Geral, M4 remoção).
+2. Persistência geográfica **não muda**: JSONB `{ coords: [[lat,lng],...], cor }`.
+   Adapters puros em `src/lib/geografia/` traduzem para GeoJSON `[lng,lat]` na UI.
+   Sem migration Prisma/PostGIS neste slice.
+3. Basemap `ruas` = OpenFreeMap Liberty (público + atribuição). Satélite só via
+   `VITE_MAP_SATELLITE_STYLE_URL` licenciada; sem URL o UI declara
+   "satélite não configurado" — sem reutilizar a chave Maps JS como Map Tiles API.
+4. Catálogo global de ícones (D-PROD-57) **não** é implementado aqui; M1 só lê o
+   legado `ConfiguracaoIcone` / URLs de ponto de forma compatível.
+5. PR DRAFT de revisão é autorizável pós-#126 e reconciliação; **merge** só pelo
+   proprietário após auditoria.
+
+**Consequência:** M1 não toca Supabase/RLS, Base1/keyset, nem `MapaGeral`. A
+próxima fatia (M2) só após merge manual desta.
+
+---
+
+<!-- Próxima decisão: D-PROD-59 -->

@@ -35,6 +35,15 @@ const onRejection = (event) => {
   event.preventDefault?.();
 };
 
+// MapLibre GL JS chama URL.createObjectURL no load do módulo (worker blob).
+// jsdom não implementa — stub estável para qualquer import transitivo de maplibre-gl.
+if (typeof URL !== 'undefined' && typeof URL.createObjectURL !== 'function') {
+  URL.createObjectURL = () => 'blob:smoke-maplibre-worker';
+}
+if (typeof URL !== 'undefined' && typeof URL.revokeObjectURL !== 'function') {
+  URL.revokeObjectURL = () => {};
+}
+
 beforeEach(() => {
   erros.length = 0;
   rejeicoes.length = 0;

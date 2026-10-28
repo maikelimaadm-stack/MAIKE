@@ -1,8 +1,14 @@
-/* global google */
 import React, { useEffect, useState } from "react";
 import { listarSetoresAtivos, listarTodasAreas, criarArea, atualizarArea } from "@/services/mapaService";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
+import {
+  areaHectares,
+  toPersistedCoords,
+  parseVertices,
+  inspectVertices,
+  validatePolygonForSave,
+} from "@/lib/geografia";
 
 const FloatingField = ({ label, required, error, children }) => (
   <div>
@@ -83,7 +89,7 @@ export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS 
           ...data,
           numero_area: data.numero_area || item.numero_area,
           coordenadas: {
-            coords: (coordenadasGPS || coordenadas || item.coordenadas?.coords)?.map((p) => [p.lat || p[0], p.lng || p[1]]),
+            coords: toPersistedCoords(coordenadasGPS || coordenadas || item.coordenadas?.coords),
             cor: data.cor,
           },
         });
@@ -99,7 +105,7 @@ export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS 
         quantidade_atual: 0,
         status_ocupacao: 'Disponível',
         ativo: true,
-        coordenadas: { coords: (coordenadasGPS || coordenadas)?.map((p) => [p.lat, p.lng]), cor: data.cor },
+        coordenadas: { coords: toPersistedCoords(coordenadasGPS || coordenadas), cor: data.cor },
       });
     },
     onSuccess: () => { toast.success(item ? "Área atualizada!" : "Área cadastrada!"); onSave(); },
@@ -121,11 +127,9 @@ export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS 
   };
 
   React.useEffect(() => {
-    const coords = coordenadasGPS || coordenadas;
-    if (window.google?.maps?.geometry && coords && coords.length >= 3) {
-      const polygon = new google.maps.Polygon({ paths: coords.map((c) => new google.maps.LatLng(c.lat, c.lng)) });
-      const areaM2 = google.maps.geometry.spherical.computeArea(polygon.getPath());
-      const areaHa = (areaM2 / 10000);
+    const coords = parseVertices(coordenadasGPS || coordenadas);
+    if (coords.length >= 3) {
+      const areaHa = areaHectares(coords);
       setFormData((prev) => ({ ...prev, area_total: formatHa(areaHa) }));
     }
   }, [coordenadasGPS, coordenadas]);
@@ -141,12 +145,23 @@ export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS 
     if (formData.tipo_cultura !== 'Infraestrutura' && !formData.tipo_pastagem) missing.push("tipo_pastagem");
     if (missing.length) { setInvalidFields(missing); toast.error("Preencha os campos obrigatórios."); return; }
 
-    const coords = coordenadasGPS || coordenadas;
+    const rawCoords = coordenadasGPS || coordenadas || item?.coordenadas?.coords;
+    const inspected = inspectVertices(rawCoords);
+    if (Array.isArray(rawCoords) && inspected.invalidCount > 0) {
+      toast.error(
+        `Não é possível salvar: ${inspected.invalidCount} vértice(s) inválido(s) na geometria. Corrija no mapa antes de sobrescrever.`
+      );
+      return;
+    }
+    const coords = inspected.vertices.length ? inspected.vertices : parseVertices(rawCoords);
+    const polyCheck = validatePolygonForSave(coords);
+    if (!polyCheck.ok && formData.tipo_cultura !== "Infraestrutura") {
+      toast.error(polyCheck.reason || "Polígono inválido");
+      return;
+    }
     let tamanhoHectares = 0;
-    if (window.google?.maps?.geometry && coords && coords.length >= 3) {
-      const polygon = new google.maps.Polygon({ paths: coords.map((c) => new google.maps.LatLng(c.lat, c.lng)) });
-      const areaM2 = google.maps.geometry.spherical.computeArea(polygon.getPath());
-      tamanhoHectares = parseFloat((areaM2 / 10000).toFixed(2));
+    if (coords.length >= 3) {
+      tamanhoHectares = parseFloat(areaHectares(coords).toFixed(2));
     }
 
     createAreaMutation.mutate({
