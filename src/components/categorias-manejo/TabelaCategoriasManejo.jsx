@@ -70,6 +70,8 @@ export default function TabelaCategoriasManejo(props) {
       setShowConfigColunas={props.setShowConfigColunas}
       searchQuery={props.searchQuery}
       resetFiltersKey={props.resetFiltersKey}
+      configureColumnsAnchorRef={props.configureColumnsAnchorRef}
+      isLoading={props.isLoading}
       onSelectionChange={props.onSelectionChange}
       onFiltersActiveChange={props.onFiltersActiveChange}
       viewMode={props.viewMode}
@@ -77,10 +79,16 @@ export default function TabelaCategoriasManejo(props) {
       onListMetrics={props.onListMetrics}
       cardFields={props.cardFields}
       cardsPerRow={props.cardsPerRow}
-      matchesSearch={(item, q) => {
-        const hay = [item.nome, item.sigla, item.raca, item.categoria_oficial].filter(Boolean).join(" ").toLowerCase();
-        return hay.includes(q);
-      }}
+      matchesSearch={
+        props.matchesSearch ??
+        ((item, q) => {
+          const hay = [item.nome, item.sigla, item.raca, item.categoria_oficial]
+            .filter(Boolean)
+            .join(" ")
+            .toLowerCase();
+          return hay.includes(q);
+        })
+      }
     />
   );
 }

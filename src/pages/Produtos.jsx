@@ -58,6 +58,7 @@ export default function Produtos() {
   const empresaId = useEmpresaSelecionadaId();
   const submitRef = useRef(/** @type {(data: object) => void} */ (() => {}));
   const deleteRef = useRef(/** @type {(ids: string[]) => void} */ (() => {}));
+  const importInputRef = useRef(/** @type {HTMLInputElement|null} */ (null));
   const prevEmpresaRef = useRef(empresaId);
 
   const [fichaProduto, setFichaProduto] = useState(null);
@@ -328,28 +329,38 @@ export default function Produtos() {
   const progressPercentage =
     importProgress.total > 0 ? Math.round((importProgress.current / importProgress.total) * 100) : 0;
 
-  const extraToolbar = (
-    <>
-      <button type="button" className="tb-btn tb-btn-gray" onClick={() => controller.recarregarLista()}>
-        <RefreshCw aria-hidden />
-        Atualizar
-      </button>
-      <button type="button" className="tb-btn tb-btn-gray" onClick={handleExportEmpresaCompleta}>
-        <Download aria-hidden />
-        Exportar
-      </button>
-      <button type="button" className="tb-btn tb-btn-gray" onClick={downloadTemplate}>
-        <FileSpreadsheet aria-hidden />
-        Modelo
-      </button>
-      <label className="inline-flex">
-        <span className="tb-btn tb-btn-gray cursor-pointer">
-          <Upload aria-hidden />
-          Importar
-        </span>
-        <input type="file" accept=".csv" onChange={handleImport} className="hidden" disabled={showImportProgress} />
-      </label>
-    </>
+  const additionalMoreActions = useMemo(
+    () => [
+      {
+        key: "produtos-refresh",
+        label: "Atualizar lista",
+        icon: <RefreshCw className="h-4 w-4" aria-hidden />,
+        onSelect: () => controller.recarregarLista(),
+      },
+      {
+        key: "produtos-export-empresa",
+        label: "Exportar todos os produtos da empresa (CSV)",
+        icon: <Download className="h-4 w-4" aria-hidden />,
+        disabled: !empresaId,
+        onSelect: () => {
+          void handleExportEmpresaCompleta();
+        },
+      },
+      {
+        key: "produtos-template",
+        label: "Baixar modelo CSV",
+        icon: <FileSpreadsheet className="h-4 w-4" aria-hidden />,
+        onSelect: downloadTemplate,
+      },
+      {
+        key: "produtos-import",
+        label: "Importar CSV",
+        icon: <Upload className="h-4 w-4" aria-hidden />,
+        disabled: showImportProgress,
+        onSelect: () => importInputRef.current?.click(),
+      },
+    ],
+    [controller, empresaId, showImportProgress],
   );
 
   const recordCode = controller.editingItem?.codigo_interno
@@ -370,7 +381,8 @@ export default function Produtos() {
         controller={screenController}
         listErrorMessage={listErrorMessage}
         recordCode={recordCode}
-        extraToolbar={extraToolbar}
+        additionalMoreActions={additionalMoreActions}
+        exportCsvLabel="Exportar janela carregada (CSV)"
         onExportCsv={controller.exportCsv}
         onPrint={handlePrintFicha}
         deleteDialog={{
@@ -409,6 +421,17 @@ export default function Produtos() {
             configureColumnsAnchorRef={controller.configureColumnsAnchorRef}
           />
         }
+      />
+
+      <input
+        ref={importInputRef}
+        type="file"
+        accept=".csv"
+        onChange={handleImport}
+        className="sr-only"
+        tabIndex={-1}
+        aria-hidden
+        disabled={showImportProgress}
       />
 
       <FichaProduto produto={fichaProduto} open={!!fichaProduto} onClose={() => setFichaProduto(null)} />

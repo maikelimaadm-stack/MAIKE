@@ -1,80 +1,49 @@
-import React, { useEffect, useState } from "react";
-import { motion } from "framer-motion";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { toast } from "sonner";
+import React, { useState } from "react";
+import B1Field, { B1_FIELD_CTL_CLS } from "@/components/cadastro/base1/B1Field";
+import { B1ChaveRow } from "@/components/cadastro/base1/Base1Ui";
+import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
+import CadastroFormActions from "@/components/cadastro/base1/CadastroFormActions";
+import { notifyWarning } from "@/lib/maikeNotify";
 
-import CadastroFormField from "@/components/cadastro/base1/CadastroFormField";
+export const FORMULARIO_GRUPO_ATIVIDADE_ID = "formulario-grupo-atividade-base1";
 
-const FL = ({ label, required, error, children, dataField }) => (
-  <CadastroFormField label={label} required={required} error={error} dataField={dataField}>
-    {children}
-  </CadastroFormField>
-);
-
-const REQUIRED_FIELDS = ["nome_grupo"];
 const UPPERCASE_FIELDS = ["nome_grupo", "descricao", "observacoes"];
-const SELECT_EMPTY = "__VAZIO__";
 
-export default function FormularioGrupoAtividade({ initialData, isEditing, onSubmit, onCancel, variant = "card" }) {
+export default function FormularioGrupoAtividade({
+  initialData,
+  isEditing,
+  onSubmit,
+  onCancel,
+  variant = "card",
+  toolbarActions = false,
+  isSubmitting = false,
+  readOnly = false,
+}) {
   const embedded = variant === "embedded";
-  const [errors, setErrors] = useState({});
-  const [formData, setFormData] = useState({
-    nome_grupo: "",
-    ativo: true,
-    descricao: "",
-    observacoes: "",
-  });
-
-  useEffect(() => {
-    setFormData({
-      nome_grupo: initialData?.nome_grupo || "",
-      ativo: initialData?.ativo ?? true,
-      descricao: initialData?.descricao || "",
-      observacoes: initialData?.observacoes || "",
-    });
-    setErrors({});
-  }, [initialData]);
-
-  const getFieldClassName = (field, baseClass) => {
-    return `${baseClass} ${errors[field] ? "border-red-500 bg-red-50 focus-visible:ring-red-500" : ""}`.trim();
-  };
+  const isExistingRecord = Boolean(initialData?.id);
+  const [invalidFields, setInvalidFields] = useState([]);
+  const [formData, setFormData] = useState(() => ({
+    nome_grupo: initialData?.nome_grupo || "",
+    ativo: initialData?.ativo ?? true,
+    descricao: initialData?.descricao || "",
+    observacoes: initialData?.observacoes || "",
+  }));
 
   const handleChange = (field, value) => {
-    const normalizedValue = UPPERCASE_FIELDS.includes(field) && typeof value === "string" ? value.toUpperCase() : value;
-    setErrors((prev) => ({ ...prev, [field]: false }));
+    const normalizedValue =
+      UPPERCASE_FIELDS.includes(field) && typeof value === "string" ? value.toUpperCase() : value;
+    setInvalidFields((prev) => prev.filter((f) => f !== field));
     setFormData((prev) => ({ ...prev, [field]: normalizedValue }));
-  };
-
-  const validateForm = () => {
-    const nextErrors = {};
-
-    REQUIRED_FIELDS.forEach((field) => {
-      if (!String(formData?.[field] || "").trim()) {
-        nextErrors[field] = true;
-      }
-    });
-
-    setErrors(nextErrors);
-
-    if (Object.keys(nextErrors).length === 0) return true;
-
-    toast.error("PREENCHA OS CAMPOS OBRIGATÓRIOS.");
-    const firstField = Object.keys(nextErrors)[0];
-    const element = document.querySelector(`[data-field="${firstField}"]`);
-    element?.scrollIntoView({ behavior: "smooth", block: "center" });
-    element?.focus?.();
-    return false;
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!validateForm()) return;
-
+    if (readOnly) return;
+    if (!formData.nome_grupo?.trim()) {
+      setInvalidFields(["nome_grupo"]);
+      notifyWarning("Atenção", "Preencha o campo obrigatório: Nome do Grupo.");
+      return;
+    }
     onSubmit({
       ...formData,
       nome_grupo: String(formData.nome_grupo || "").toUpperCase(),
@@ -83,48 +52,95 @@ export default function FormularioGrupoAtividade({ initialData, isEditing, onSub
     });
   };
 
+  const formBody = (
+    <form
+      id={FORMULARIO_GRUPO_ATIVIDADE_ID}
+      onSubmit={handleSubmit}
+      className="b1 mg-b1-form-grid w-full min-h-0"
+      noValidate
+      data-testid="b1-form-grupo-atividade"
+    >
+      <B1Field
+        label="Nome do Grupo"
+        required
+        span={6}
+        hasValue={Boolean(formData.nome_grupo?.trim())}
+        locked={readOnly}
+        disabled={readOnly || isSubmitting}
+        error={invalidFields.includes("nome_grupo") ? "Obrigatório" : undefined}
+      >
+        <input
+          type="text"
+          value={formData.nome_grupo}
+          onChange={(e) => handleChange("nome_grupo", e.target.value)}
+          placeholder="NOME DO GRUPO"
+          className={`${B1_FIELD_CTL_CLS} uppercase`}
+          readOnly={readOnly}
+          data-field="nome_grupo"
+        />
+      </B1Field>
+
+      <B1ChaveRow
+        label="Ativo"
+        span={6}
+        checked={formData.ativo}
+        onChange={readOnly ? undefined : (v) => handleChange("ativo", v)}
+        disabled={readOnly || isSubmitting}
+        ariaLabel="Grupo ativo"
+      />
+
+      <B1Field
+        label="Descrição"
+        span={6}
+        hasValue={Boolean(formData.descricao?.trim())}
+        locked={readOnly}
+        disabled={readOnly || isSubmitting}
+      >
+        <textarea
+          value={formData.descricao}
+          onChange={(e) => handleChange("descricao", e.target.value)}
+          placeholder="DESCRIÇÃO DO GRUPO"
+          className={`${B1_FIELD_CTL_CLS} uppercase min-h-[3rem] resize-y`}
+          rows={2}
+          readOnly={readOnly}
+        />
+      </B1Field>
+
+      <B1Field
+        label="Observações"
+        span={6}
+        hasValue={Boolean(formData.observacoes?.trim())}
+        locked={readOnly}
+        disabled={readOnly || isSubmitting}
+      >
+        <textarea
+          value={formData.observacoes}
+          onChange={(e) => handleChange("observacoes", e.target.value)}
+          placeholder="OBSERVAÇÕES GERAIS..."
+          className={`${B1_FIELD_CTL_CLS} uppercase min-h-[3rem] resize-y`}
+          rows={2}
+          readOnly={readOnly}
+        />
+      </B1Field>
+
+      {!toolbarActions ? (
+        <div className="col-span-12">
+          <CadastroFormActions
+            onCancel={onCancel}
+            submitLabel={isExistingRecord ? "Atualizar" : "Salvar"}
+            isSubmitting={isSubmitting}
+          />
+        </div>
+      ) : null}
+    </form>
+  );
+
   return (
-    <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
-      <Card className="shadow-sm border-slate-300">
-        {!embedded ? (
-          <CardHeader className="flex flex-col space-y-1.5 p-6 bg-slate-50 border-b py-1 px-1">
-            <CardTitle className="text-sm font-semibold text-slate-900">
-              {isEditing ? "Editar Grupo de Atividades" : "Novo Grupo de Atividades"}
-            </CardTitle>
-          </CardHeader>
-        ) : null}
-        <CardContent className={embedded ? "p-3 pt-2" : "p-1"}>
-          <form onSubmit={handleSubmit} className="space-y-0.5">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
-              <FL label="Nome do Grupo" required error={errors.nome_grupo} dataField="nome_grupo">
-                <Input value={formData.nome_grupo || ""} onChange={(e) => handleChange("nome_grupo", e.target.value)} placeholder="NOME DO GRUPO" className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" style={{ textTransform: "uppercase" }} />
-              </FL>
-              <FL label="Ativo" dataField="ativo">
-                <Select value={String(formData.ativo ?? true)} onValueChange={(value) => handleChange("ativo", value === "true")}>
-                  <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue placeholder="SELECIONE" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={SELECT_EMPTY} className="text-xs">SELECIONE</SelectItem>
-                    <SelectItem value="true" className="text-xs">SIM</SelectItem>
-                    <SelectItem value="false" className="text-xs">NÃO</SelectItem>
-                  </SelectContent>
-                </Select>
-              </FL>
-            </div>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-1 pt-0.5 border-t">
-              <FL label="Descrição" dataField="descricao">
-                <Textarea value={formData.descricao || ""} onChange={(e) => handleChange("descricao", e.target.value)} placeholder="DESCRIÇÃO DO GRUPO" className="text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" style={{ textTransform: "uppercase" }} rows={2} />
-              </FL>
-              <FL label="Observações" dataField="observacoes">
-                <Textarea value={formData.observacoes || ""} onChange={(e) => handleChange("observacoes", e.target.value)} placeholder="OBSERVAÇÕES GERAIS..." className="text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" style={{ textTransform: "uppercase" }} rows={2} />
-              </FL>
-            </div>
-            <div className="flex flex-col-reverse lg:flex-row justify-end gap-1 pt-1 border-t">
-              <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-7 text-xs">Cancelar</Button>
-              <Button type="submit" size="sm" className="h-7 text-xs px-3 bg-emerald-600 hover:bg-emerald-700 text-white">{isEditing ? "Atualizar" : "Salvar"}</Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
-    </motion.div>
+    <CadastroFormShell
+      embedded={embedded}
+      title={isEditing ? "Editar Grupo de Atividades" : "Novo Grupo de Atividades"}
+    >
+      {formBody}
+    </CadastroFormShell>
   );
 }

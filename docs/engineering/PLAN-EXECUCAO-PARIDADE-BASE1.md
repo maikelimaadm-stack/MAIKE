@@ -290,6 +290,18 @@ Alinhamento explícito com **PROMPT §11**: itens 11.1–11.14 devem constar com
 
 ---
 
+## Exceção BATCH-01 (2026-10-28)
+
+| Item | Evidência |
+|------|-----------|
+| Grupos + Tipos + Categorias manejo em **1 PR** | [`MOTORBASE1-BATCH-01-PR119-REPORT.md`](./MOTORBASE1-BATCH-01-PR119-REPORT.md) |
+| Produtos menu + campos B1 + CTA `Novo` categorias | mesmo relatório; `tests/smoke/motorbase1Batch01.test.jsx` |
+| Controller full-list neutro | `src/hooks/useCadastroBase1FullListController.js` |
+
+Granularidade “1 cadastro = 1 PR” permanece norma; exceção documentada e testada por área.
+
+---
+
 ## Referências cruzadas
 
 - Plano portal (escopo UX-39): [`PLAN-PORTAL-COMPRAS-PARIDADE-BASE1.md`](./PLAN-PORTAL-COMPRAS-PARIDADE-BASE1.md)  

@@ -1,10 +1,20 @@
 import React from "react";
 import CadastroBase1Grade from "@/components/cadastro/base1/CadastroBase1Grade";
+import { CADASTRO_BASE1_CELL_KIND } from "@/components/cadastro/base1/cadastroBase1CellKind";
+import { getCadastroAtivoFieldValue } from "@/lib/cadastroAtivoStatus";
 
 export const TIPOS_TAREFA_COLUNAS = [
   { id: "nome_tipo", label: "Tipo", default: true, sortable: true, width: 220 },
   { id: "grupo_atividade_nome", label: "Grupo", default: true, sortable: true, width: 220 },
-  { id: "ativo", label: "Ativo", default: true, sortable: true, width: 100 },
+  {
+    id: "ativo",
+    label: "Ativo",
+    default: true,
+    sortable: true,
+    width: 100,
+    align: "center",
+    cellKind: CADASTRO_BASE1_CELL_KIND.ATIVO_BADGE,
+  },
   { id: "descricao", label: "Descrição", default: true, sortable: true, width: 260 },
   { id: "created_date", label: "Criado em", default: false, sortable: true, width: 170 },
   { id: "updated_date", label: "Atualizado em", default: true, sortable: true, width: 170 },
@@ -20,7 +30,7 @@ export function getTipoTarefaFieldValue(item, colunaId, grupos = []) {
     if (colunaId === "nome_tipo") return item.nome_tipo || "";
     if (colunaId === "grupo_atividade_nome")
       return item.grupo_atividade_nome || grupos.find((g) => g.id === item.grupo_atividade_id)?.nome_grupo || "";
-    if (colunaId === "ativo") return item.ativo ? "Sim" : "Não";
+    if (colunaId === "ativo") return getCadastroAtivoFieldValue(item, "ativo");
     if (colunaId === "descricao") return item.descricao || "";
     if (colunaId === "created_date") return formatarDataHora(item.created_date);
     if (colunaId === "updated_date") return formatarDataHora(item.updated_date);
@@ -45,6 +55,8 @@ export default function TabelaTiposTarefa({ tipos = [], grupos = [], ...props })
       setShowConfigColunas={props.setShowConfigColunas}
       searchQuery={props.searchQuery}
       resetFiltersKey={props.resetFiltersKey}
+      configureColumnsAnchorRef={props.configureColumnsAnchorRef}
+      isLoading={props.isLoading}
       onSelectionChange={props.onSelectionChange}
       onFiltersActiveChange={props.onFiltersActiveChange}
       viewMode={props.viewMode}
@@ -52,12 +64,17 @@ export default function TabelaTiposTarefa({ tipos = [], grupos = [], ...props })
       onListMetrics={props.onListMetrics}
       cardFields={props.cardFields}
       cardsPerRow={props.cardsPerRow}
-      matchesSearch={(item, q) => {
-        const grupoNome =
-          item.grupo_atividade_nome || grupos.find((g) => g.id === item.grupo_atividade_id)?.nome_grupo || "";
-        const hay = [item.nome_tipo, grupoNome, item.descricao].filter(Boolean).join(" ").toLowerCase();
-        return hay.includes(q);
-      }}
+      matchesSearch={
+        props.matchesSearch ??
+        ((item, q) => {
+          const grupoNome =
+            item.grupo_atividade_nome ||
+            grupos.find((g) => g.id === item.grupo_atividade_id)?.nome_grupo ||
+            "";
+          const hay = [item.nome_tipo, grupoNome, item.descricao].filter(Boolean).join(" ").toLowerCase();
+          return hay.includes(q);
+        })
+      }
     />
   );
 }

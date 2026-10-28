@@ -1,77 +1,59 @@
-import React, { useEffect, useState } from "react";
-import { motion } from "framer-motion";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { toast } from "sonner";
+import React, { useState } from "react";
+import B1Field, { B1_FIELD_CTL_CLS } from "@/components/cadastro/base1/B1Field";
+import { B1ChaveRow } from "@/components/cadastro/base1/Base1Ui";
+import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
+import CadastroFormActions from "@/components/cadastro/base1/CadastroFormActions";
+import { notifyWarning } from "@/lib/maikeNotify";
 
-import CadastroFormField from "@/components/cadastro/base1/CadastroFormField";
+export const FORMULARIO_TIPO_TAREFA_ID = "formulario-tipo-tarefa-base1";
 
-const FL = ({ label, required, error, children, dataField }) => (
-  <CadastroFormField label={label} required={required} error={error} dataField={dataField}>
-    {children}
-  </CadastroFormField>
-);
-
-const REQUIRED_FIELDS = ["nome_tipo", "grupo_atividade_id"];
-const UPPERCASE_FIELDS = ["nome_tipo", "descricao"];
 const SELECT_EMPTY = "__VAZIO__";
+const UPPERCASE_FIELDS = ["nome_tipo", "descricao"];
 
-export default function FormularioTipoTarefa({ initialData, grupos, isEditing, onSubmit, onCancel, variant = "card" }) {
+export default function FormularioTipoTarefa({
+  initialData,
+  grupos = [],
+  isEditing,
+  onSubmit,
+  onCancel,
+  variant = "card",
+  toolbarActions = false,
+  isSubmitting = false,
+  readOnly = false,
+}) {
   const embedded = variant === "embedded";
-  const [errors, setErrors] = useState({});
-  const [formData, setFormData] = useState({
-    nome_tipo: "",
-    grupo_atividade_id: "",
-    grupo_atividade_nome: "",
-    ativo: true,
-    descricao: "",
-    exige_area: false,
-    pode_ter_produto: false,
-    pode_ter_maquina: false,
-    pode_ter_implemento: false,
-  });
-
-  useEffect(() => {
-    setFormData({
-      nome_tipo: initialData?.nome_tipo || "",
-      grupo_atividade_id: initialData?.grupo_atividade_id || "",
-      grupo_atividade_nome: initialData?.grupo_atividade_nome || "",
-      ativo: initialData?.ativo ?? true,
-      descricao: initialData?.descricao || "",
-      exige_area: initialData?.exige_area ?? false,
-      pode_ter_produto: initialData?.pode_ter_produto ?? false,
-      pode_ter_maquina: initialData?.pode_ter_maquina ?? false,
-      pode_ter_implemento: initialData?.pode_ter_implemento ?? false,
-    });
-    setErrors({});
-  }, [initialData]);
-
-  const getFieldClassName = (field, baseClass) => `${baseClass} ${errors[field] ? "border-red-500 bg-red-50 focus-visible:ring-red-500" : ""}`.trim();
+  const isExistingRecord = Boolean(initialData?.id);
+  const [invalidFields, setInvalidFields] = useState([]);
+  const [formData, setFormData] = useState(() => ({
+    nome_tipo: initialData?.nome_tipo || "",
+    grupo_atividade_id: initialData?.grupo_atividade_id || "",
+    grupo_atividade_nome: initialData?.grupo_atividade_nome || "",
+    ativo: initialData?.ativo ?? true,
+    descricao: initialData?.descricao || "",
+    exige_area: initialData?.exige_area ?? false,
+    pode_ter_produto: initialData?.pode_ter_produto ?? false,
+    pode_ter_maquina: initialData?.pode_ter_maquina ?? false,
+    pode_ter_implemento: initialData?.pode_ter_implemento ?? false,
+  }));
 
   const handleChange = (field, value) => {
-    const normalizedValue = UPPERCASE_FIELDS.includes(field) && typeof value === "string" ? value.toUpperCase() : value;
-    setErrors((prev) => ({ ...prev, [field]: false }));
+    const normalizedValue =
+      UPPERCASE_FIELDS.includes(field) && typeof value === "string" ? value.toUpperCase() : value;
+    setInvalidFields((prev) => prev.filter((f) => f !== field));
     setFormData((prev) => ({ ...prev, [field]: normalizedValue }));
-  };
-
-  const validateForm = () => {
-    const nextErrors = {};
-    REQUIRED_FIELDS.forEach((field) => {
-      if (!String(formData?.[field] || "").trim()) nextErrors[field] = true;
-    });
-    setErrors(nextErrors);
-    if (Object.keys(nextErrors).length === 0) return true;
-    toast.error("PREENCHA OS CAMPOS OBRIGATÓRIOS.");
-    return false;
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!validateForm()) return;
+    if (readOnly) return;
+    const missing = [];
+    if (!formData.nome_tipo?.trim()) missing.push("nome_tipo");
+    if (!formData.grupo_atividade_id?.trim()) missing.push("grupo_atividade_id");
+    if (missing.length) {
+      setInvalidFields(missing);
+      notifyWarning("Atenção", "Preencha os campos obrigatórios: Tipo e Grupo.");
+      return;
+    }
     const grupo = grupos.find((item) => item.id === formData.grupo_atividade_id);
     onSubmit({
       ...formData,
@@ -81,53 +63,145 @@ export default function FormularioTipoTarefa({ initialData, grupos, isEditing, o
     });
   };
 
+  const grupoLabel =
+    grupos.find((g) => g.id === formData.grupo_atividade_id)?.nome_grupo ||
+    formData.grupo_atividade_nome ||
+    "";
+
+  const formBody = (
+    <form
+      id={FORMULARIO_TIPO_TAREFA_ID}
+      onSubmit={handleSubmit}
+      className="b1 mg-b1-form-grid w-full min-h-0"
+      noValidate
+      data-testid="b1-form-tipo-tarefa"
+    >
+      <B1Field
+        label="Tipo de Tarefa"
+        required
+        span={6}
+        hasValue={Boolean(formData.nome_tipo?.trim())}
+        locked={readOnly}
+        disabled={readOnly || isSubmitting}
+        error={invalidFields.includes("nome_tipo") ? "Obrigatório" : undefined}
+      >
+        <input
+          type="text"
+          value={formData.nome_tipo}
+          onChange={(e) => handleChange("nome_tipo", e.target.value)}
+          placeholder="NOME DO TIPO"
+          className={`${B1_FIELD_CTL_CLS} uppercase`}
+          readOnly={readOnly}
+        />
+      </B1Field>
+
+      <B1Field
+        label="Grupo"
+        required
+        span={6}
+        hasValue={Boolean(formData.grupo_atividade_id)}
+        locked={readOnly}
+        disabled={readOnly || isSubmitting}
+        error={invalidFields.includes("grupo_atividade_id") ? "Obrigatório" : undefined}
+      >
+        {readOnly ? (
+          <input type="text" readOnly value={grupoLabel.toUpperCase()} className={B1_FIELD_CTL_CLS} />
+        ) : (
+          <select
+            value={formData.grupo_atividade_id || SELECT_EMPTY}
+            onChange={(e) =>
+              handleChange("grupo_atividade_id", e.target.value === SELECT_EMPTY ? "" : e.target.value)
+            }
+            className={B1_FIELD_CTL_CLS}
+          >
+            <option value={SELECT_EMPTY}>SELECIONE</option>
+            {grupos.map((grupo) => (
+              <option key={grupo.id} value={grupo.id}>
+                {String(grupo.nome_grupo || "").toUpperCase()}
+                {grupo.ativo === false ? " (INATIVO)" : ""}
+              </option>
+            ))}
+          </select>
+        )}
+      </B1Field>
+
+      <B1ChaveRow
+        label="Ativo"
+        span={6}
+        checked={formData.ativo}
+        onChange={readOnly ? undefined : (v) => handleChange("ativo", v)}
+        disabled={readOnly || isSubmitting}
+        ariaLabel="Tipo ativo"
+      />
+
+      <B1Field
+        label="Descrição"
+        span={12}
+        hasValue={Boolean(formData.descricao?.trim())}
+        locked={readOnly}
+        disabled={readOnly || isSubmitting}
+      >
+        <textarea
+          value={formData.descricao}
+          onChange={(e) => handleChange("descricao", e.target.value)}
+          placeholder="DESCRIÇÃO DO TIPO"
+          className={`${B1_FIELD_CTL_CLS} uppercase min-h-[3rem] resize-y`}
+          rows={2}
+          readOnly={readOnly}
+        />
+      </B1Field>
+
+      <B1ChaveRow
+        label="Exige área"
+        span={3}
+        checked={formData.exige_area}
+        onChange={readOnly ? undefined : (v) => handleChange("exige_area", v)}
+        disabled={readOnly || isSubmitting}
+        ariaLabel="Exige área"
+      />
+      <B1ChaveRow
+        label="Pode ter produto"
+        span={3}
+        checked={formData.pode_ter_produto}
+        onChange={readOnly ? undefined : (v) => handleChange("pode_ter_produto", v)}
+        disabled={readOnly || isSubmitting}
+        ariaLabel="Pode ter produto"
+      />
+      <B1ChaveRow
+        label="Pode ter máquina"
+        span={3}
+        checked={formData.pode_ter_maquina}
+        onChange={readOnly ? undefined : (v) => handleChange("pode_ter_maquina", v)}
+        disabled={readOnly || isSubmitting}
+        ariaLabel="Pode ter máquina"
+      />
+      <B1ChaveRow
+        label="Pode ter implemento"
+        span={3}
+        checked={formData.pode_ter_implemento}
+        onChange={readOnly ? undefined : (v) => handleChange("pode_ter_implemento", v)}
+        disabled={readOnly || isSubmitting}
+        ariaLabel="Pode ter implemento"
+      />
+
+      {!toolbarActions ? (
+        <div className="col-span-12">
+          <CadastroFormActions
+            onCancel={onCancel}
+            submitLabel={isExistingRecord ? "Atualizar" : "Salvar"}
+            isSubmitting={isSubmitting}
+          />
+        </div>
+      ) : null}
+    </form>
+  );
+
   return (
-    <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
-      <Card className="shadow-sm border-slate-300">
-        {!embedded ? (
-          <CardHeader className="flex flex-col space-y-1.5 p-6 bg-slate-50 border-b py-1 px-1">
-            <CardTitle className="text-sm font-semibold text-slate-900">
-              {isEditing ? "Editar Tipo de Tarefa" : "Novo Tipo de Tarefa"}
-            </CardTitle>
-          </CardHeader>
-        ) : null}
-        <CardContent className={embedded ? "p-3 pt-2" : "p-1"}>
-          <form onSubmit={handleSubmit} className="space-y-0.5">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
-              <FL label="Tipo de Tarefa" required error={errors.nome_tipo} dataField="nome_tipo">
-                <Input value={formData.nome_tipo || ""} onChange={(e) => handleChange("nome_tipo", e.target.value)} placeholder="NOME DO TIPO" className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" style={{ textTransform: "uppercase" }} />
-              </FL>
-              <FL label="Grupo" required error={errors.grupo_atividade_id} dataField="grupo_atividade_id">
-                <Select value={formData.grupo_atividade_id || SELECT_EMPTY} onValueChange={(value) => handleChange("grupo_atividade_id", value === SELECT_EMPTY ? "" : value)}>
-                  <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue placeholder="SELECIONE" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={SELECT_EMPTY} className="text-xs">SELECIONE</SelectItem>
-                    {grupos.map((grupo) => <SelectItem key={grupo.id} value={grupo.id} className="text-xs">{String(grupo.nome_grupo || "").toUpperCase()}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </FL>
-            </div>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-1 pt-0.5 border-t">
-              <FL label="Ativo">
-                <Select value={String(formData.ativo ?? true)} onValueChange={(value) => handleChange("ativo", value === "true")}>
-                  <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue placeholder="SELECIONE" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="true" className="text-xs">SIM</SelectItem>
-                    <SelectItem value="false" className="text-xs">NÃO</SelectItem>
-                  </SelectContent>
-                </Select>
-              </FL>
-            </div>
-            <FL label="Descrição">
-              <Textarea value={formData.descricao || ""} onChange={(e) => handleChange("descricao", e.target.value)} placeholder="DESCRIÇÃO DO TIPO" className="text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" style={{ textTransform: "uppercase" }} rows={2} />
-            </FL>
-            <div className="flex flex-col-reverse lg:flex-row justify-end gap-1 pt-1 border-t">
-              <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-7 text-xs">Cancelar</Button>
-              <Button type="submit" size="sm" className="h-7 text-xs px-3 bg-emerald-600 hover:bg-emerald-700 text-white">{isEditing ? "Atualizar" : "Salvar"}</Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
-    </motion.div>
+    <CadastroFormShell
+      embedded={embedded}
+      title={isEditing ? "Editar Tipo de Tarefa" : "Novo Tipo de Tarefa"}
+    >
+      {formBody}
+    </CadastroFormShell>
   );
 }
