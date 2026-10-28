@@ -31,13 +31,20 @@ import { getPrismaClient } from '../../database/prismaClient.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { registrarEvento } from '../auditoria/auditService.js';
 import { reservarNumero, ESCOPO_TENANT } from '../sequencias/entidadeCodigoService.js';
-import { setorNotFound } from '../../shared/errors/AppError.js';
+import { AppError, setorNotFound } from '../../shared/errors/AppError.js';
 import {
   listarSetores,
+  listarSetoresPagina,
+  contarSetores,
   buscarSetor,
   inserirSetor,
   atualizarSetorPorId,
 } from './setorRepository.js';
+import {
+  decodificarCursor,
+  montarEnvelopeKeyset,
+  normalizarLimite,
+} from '../../shared/pagination/keysetCursor.js';
 import { propagarNomeDoSetor } from '../areas/areaPastagemRepository.js';
 import { propagarSetorNome } from '../lancamentosTarefa/lancamentoTarefaRepository.js';
 
@@ -159,6 +166,46 @@ export const listar = async (contexto) => {
   const auth = exigirAuthContext(contexto?.auth);
   const registros = await listarSetores(auth.clienteId);
   return registros.map(comoSetorPublico);
+};
+
+/**
+ * Listagem paginada keyset — motor Base1 (D-PROD-55).
+ * @param {{auth: import('../../shared/auth/authContext.js').AuthContext}} contexto
+ * @param {Record<string, unknown>} query
+ */
+export const listarPagina = async (contexto, query = {}) => {
+  const auth = exigirAuthContext(contexto?.auth);
+  const limit = normalizarLimite(query.limit);
+  const empresaId =
+    typeof query.empresa_id === 'string' && query.empresa_id.trim()
+      ? query.empresa_id.trim()
+      : null;
+  if (!empresaId) {
+    throw new AppError('REQUEST_VALIDATION_FAILED', 'empresa_id é obrigatório');
+  }
+  const q = typeof query.q === 'string' ? query.q : null;
+  let ativo = null;
+  if (query.ativo === true || query.ativo === 'true' || query.ativo === '1') ativo = true;
+  if (query.ativo === false || query.ativo === 'false' || query.ativo === '0') ativo = false;
+
+  const cursorBruto = typeof query.cursor === 'string' ? query.cursor : null;
+  const cursor = cursorBruto ? decodificarCursor(cursorBruto) : null;
+  if (cursorBruto && !cursor) {
+    throw new AppError('REQUEST_VALIDATION_FAILED', 'cursor inválido');
+  }
+
+  const filtro = { empresaId, q, ativo, cursor, limit };
+  const [registros, total] = await Promise.all([
+    listarSetoresPagina(auth.clienteId, filtro),
+    contarSetores(auth.clienteId, { empresaId, q, ativo }),
+  ]);
+
+  return montarEnvelopeKeyset({
+    registros,
+    limit,
+    total,
+    mapItem: comoSetorPublico,
+  });
 };
 
 /**

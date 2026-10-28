@@ -1,47 +1,50 @@
 import React, { useState } from "react";
-import { motion } from "framer-motion";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
-import { toast } from "sonner";
-import CadastroFormField from "@/components/cadastro/base1/CadastroFormField";
+import B1Field, { B1_FIELD_CTL_CLS } from "@/components/cadastro/base1/B1Field";
+import { B1ChaveRow } from "@/components/cadastro/base1/Base1Ui";
 import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
 import CadastroFormActions from "@/components/cadastro/base1/CadastroFormActions";
+import { notifyWarning } from "@/lib/maikeNotify";
+
+export const FORMULARIO_SETOR_ID = "formulario-setor-base1";
 
 const TIPOS_SETOR = ["Próprio", "Arrendado", "Parceria", "Terceiros"];
-const ESTADOS_BR = ["AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"];
-const SELECT_EMPTY = "__VAZIO__";
+const ESTADOS_BR = [
+  "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI",
+  "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO",
+];
 const UPPERCASE_FIELDS = ["nome", "sigla", "responsavel", "endereco", "cidade", "observacoes"];
-const REQUIRED_FIELDS = ["nome", "sigla", "endereco", "cidade", "estado"];
+const REQUIRED_FIELDS = ["nome", "sigla", "endereco", "cidade", "estado", "tipo"];
 
 export default function FormularioSetor({
   initialData,
-  isEditing,
   onSubmit,
   onCancel,
   variant = "card",
+  toolbarActions = false,
+  isSubmitting = false,
+  readOnly = false,
 }) {
   const embedded = variant === "embedded";
-  const [formData, setFormData] = useState(initialData);
+  const [form, setForm] = useState(() => ({
+    nome: initialData?.nome || "",
+    sigla: initialData?.sigla || "",
+    tipo: initialData?.tipo || "Próprio",
+    responsavel: initialData?.responsavel || "",
+    telefone: initialData?.telefone || "",
+    endereco: initialData?.endereco || "",
+    cidade: initialData?.cidade || "",
+    estado: initialData?.estado || "",
+    area_total: initialData?.area_total ?? "",
+    capacidade_animais: initialData?.capacidade_animais ?? "",
+    observacoes: initialData?.observacoes || "",
+    ativo: initialData?.ativo !== false,
+  }));
   const [invalidFields, setInvalidFields] = useState([]);
 
-  const FL = ({ label, required, error, children, dataField }) => (
-    <CadastroFormField label={label} required={required} error={error} dataField={dataField}>
-      {children}
-    </CadastroFormField>
-  );
-
-
-
-
-
   const handleChange = (field, value) => {
-    const nextValue = UPPERCASE_FIELDS.includes(field) && typeof value === "string" ?
-    value.toUpperCase() :
-    value;
-    setFormData((prev) => ({ ...prev, [field]: nextValue }));
+    const nextValue =
+      UPPERCASE_FIELDS.includes(field) && typeof value === "string" ? value.toUpperCase() : value;
+    setForm((prev) => ({ ...prev, [field]: nextValue }));
     setInvalidFields((prev) => prev.filter((item) => item !== field));
   };
 
@@ -50,84 +53,253 @@ export default function FormularioSetor({
     return value === undefined || value === null || value === "";
   };
 
-  const getFieldClassName = (field, baseClass = "") => {
-    return `${baseClass} ${invalidFields.includes(field) ? "border-red-500 bg-red-50 focus-visible:ring-red-500" : ""}`.trim();
-  };
-
   const handleSubmit = (e) => {
     e.preventDefault();
-
-    const missingFields = REQUIRED_FIELDS.filter((field) => isEmptyValue(formData?.[field]));
-
+    const missingFields = REQUIRED_FIELDS.filter((field) => isEmptyValue(form[field]));
     if (missingFields.length > 0) {
       setInvalidFields(missingFields);
-      toast.error("PREENCHA OS CAMPOS OBRIGATÓRIOS.");
+      notifyWarning("Atenção", "Preencha os campos obrigatórios.");
       return;
     }
-
-    onSubmit(formData);
+    onSubmit(form);
   };
 
-  return (
-    <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
-    <CadastroFormShell
-      embedded={embedded}
-      title={isEditing ? "Editar Setor / Fazenda" : "Novo Setor / Fazenda"}
+  const selectClass = `${B1_FIELD_CTL_CLS} appearance-none`;
+
+  const formBody = (
+    <form
+      id={FORMULARIO_SETOR_ID}
+      onSubmit={handleSubmit}
+      className="b1 mg-b1-form-grid w-full min-h-0"
+      noValidate
+      data-testid="b1-form-setor"
     >
-<form onSubmit={handleSubmit} className="space-y-0.5">
-  <div className="grid grid-cols-1 lg:grid-cols-4 gap-1">
-    <FL label="Nome do Setor/Fazenda" required error={invalidFields.includes('nome')} dataField="nome">
-      <Input value={formData.nome} onChange={(e) => handleChange("nome", e.target.value)} placeholder="NOME DO SETOR / FAZENDA" className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" style={{ textTransform: "uppercase" }} />
-    </FL>
-    <FL label="Sigla" required error={invalidFields.includes('sigla')} dataField="sigla">
-      <Input value={formData.sigla} onChange={(e) => handleChange("sigla", e.target.value)} placeholder="SIGLA" className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" style={{ textTransform: "uppercase" }} maxLength={10} />
-    </FL>
-    <FL label="Tipo" required error={invalidFields.includes('tipo')} dataField="tipo">
-      <Select value={formData.tipo} onValueChange={(value) => handleChange("tipo", value)}>
-        <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue placeholder="Selecione" /></SelectTrigger>
-        <SelectContent>{TIPOS_SETOR.map((tipo) => <SelectItem key={tipo} value={tipo} className="text-xs">{tipo}</SelectItem>)}</SelectContent>
-      </Select>
-    </FL>
-    <FL label="Responsável">
-      <Input value={formData.responsavel} onChange={(e) => handleChange("responsavel", e.target.value)} placeholder="RESPONSÁVEL" className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" style={{ textTransform: "uppercase" }} />
-    </FL>
-    <FL label="Telefone">
-      <Input value={formData.telefone} onChange={(e) => handleChange("telefone", e.target.value)} placeholder="(00) 00000-0000" className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" />
-    </FL>
-    <FL label="Área Total (ha)">
-      <Input type="number" step="0.01" value={formData.area_total} onChange={(e) => handleChange("area_total", e.target.value)} placeholder="0,00" className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" />
-    </FL>
-    <FL label="Capacidade (animais)">
-      <Input type="number" value={formData.capacidade_animais} onChange={(e) => handleChange("capacidade_animais", e.target.value)} placeholder="0" className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" />
-    </FL>
-    <FL label="Endereço" required error={invalidFields.includes('endereco')} dataField="endereco">
-      <Input value={formData.endereco} onChange={(e) => handleChange("endereco", e.target.value)} placeholder="ENDEREÇO COMPLETO" className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" style={{ textTransform: "uppercase" }} />
-    </FL>
-    <FL label="Cidade" required error={invalidFields.includes('cidade')} dataField="cidade">
-      <Input value={formData.cidade} onChange={(e) => handleChange("cidade", e.target.value)} placeholder="CIDADE" className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" style={{ textTransform: "uppercase" }} />
-    </FL>
-    <FL label="Estado" required error={invalidFields.includes('estado')} dataField="estado">
-      <Select value={formData.estado || SELECT_EMPTY} onValueChange={(value) => handleChange("estado", value === SELECT_EMPTY ? "" : value)}>
-        <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue placeholder="SELECIONE" /></SelectTrigger>
-        <SelectContent>
-          <SelectItem value={SELECT_EMPTY} className="text-xs">SELECIONE</SelectItem>
-          {ESTADOS_BR.map((uf) => <SelectItem key={uf} value={uf} className="text-xs">{uf}</SelectItem>)}
-        </SelectContent>
-      </Select>
-    </FL>
-    <div className="flex items-center gap-2 pt-4">
-      <Switch checked={formData.ativo} onCheckedChange={(value) => handleChange("ativo", value)} />
-      <label className="text-[12px] text-slate-500">Setor Ativo</label>
-    </div>
-  </div>
+      <B1Field
+        label="Nome do Setor/Fazenda"
+        required
+        span={6}
+        hasValue={Boolean(form.nome?.trim())}
+        locked={readOnly}
+        disabled={readOnly}
+        error={invalidFields.includes("nome") ? "Obrigatório" : undefined}
+      >
+        <input
+          type="text"
+          value={form.nome}
+          onChange={(e) => handleChange("nome", e.target.value)}
+          placeholder="NOME DO SETOR / FAZENDA"
+          className={`${B1_FIELD_CTL_CLS} uppercase`}
+          autoComplete="off"
+          readOnly={readOnly}
+        />
+      </B1Field>
+      <B1Field
+        label="Sigla"
+        required
+        span={3}
+        hasValue={Boolean(form.sigla?.trim())}
+        locked={readOnly}
+        disabled={readOnly}
+        error={invalidFields.includes("sigla") ? "Obrigatório" : undefined}
+      >
+        <input
+          type="text"
+          value={form.sigla}
+          onChange={(e) => handleChange("sigla", e.target.value)}
+          placeholder="SIGLA"
+          className={`${B1_FIELD_CTL_CLS} uppercase font-mono`}
+          maxLength={10}
+          autoComplete="off"
+          readOnly={readOnly}
+        />
+      </B1Field>
+      <B1Field
+        label="Tipo"
+        required
+        span={3}
+        hasValue={Boolean(form.tipo)}
+        locked={readOnly}
+        disabled={readOnly}
+        error={invalidFields.includes("tipo") ? "Obrigatório" : undefined}
+      >
+        {readOnly ? (
+          <input type="text" value={form.tipo} className={B1_FIELD_CTL_CLS} readOnly tabIndex={-1} />
+        ) : (
+          <select
+            value={form.tipo}
+            onChange={(e) => handleChange("tipo", e.target.value)}
+            className={selectClass}
+          >
+            {TIPOS_SETOR.map((tipo) => (
+              <option key={tipo} value={tipo}>
+                {tipo}
+              </option>
+            ))}
+          </select>
+        )}
+      </B1Field>
+      <B1Field label="Responsável" span={4} hasValue={Boolean(form.responsavel?.trim())} locked={readOnly} disabled={readOnly}>
+        <input
+          type="text"
+          value={form.responsavel}
+          onChange={(e) => handleChange("responsavel", e.target.value)}
+          placeholder="RESPONSÁVEL"
+          className={`${B1_FIELD_CTL_CLS} uppercase`}
+          autoComplete="off"
+          readOnly={readOnly}
+        />
+      </B1Field>
+      <B1Field label="Telefone" span={4} hasValue={Boolean(form.telefone?.trim())} locked={readOnly} disabled={readOnly}>
+        <input
+          type="text"
+          value={form.telefone}
+          onChange={(e) => handleChange("telefone", e.target.value)}
+          placeholder="(00) 00000-0000"
+          className={B1_FIELD_CTL_CLS}
+          autoComplete="off"
+          readOnly={readOnly}
+        />
+      </B1Field>
+      <B1Field
+        label="Área Total (ha)"
+        span={4}
+        hasValue={form.area_total !== "" && form.area_total != null}
+        locked={readOnly}
+        disabled={readOnly}
+      >
+        <input
+          type="text"
+          inputMode="decimal"
+          value={form.area_total}
+          onChange={(e) => handleChange("area_total", e.target.value)}
+          placeholder="0,00"
+          className={B1_FIELD_CTL_CLS}
+          autoComplete="off"
+          readOnly={readOnly}
+        />
+      </B1Field>
+      <B1Field
+        label="Capacidade (animais)"
+        span={4}
+        hasValue={form.capacidade_animais !== "" && form.capacidade_animais != null}
+        locked={readOnly}
+        disabled={readOnly}
+      >
+        <input
+          type="text"
+          inputMode="numeric"
+          value={form.capacidade_animais}
+          onChange={(e) => handleChange("capacidade_animais", e.target.value)}
+          placeholder="0"
+          className={B1_FIELD_CTL_CLS}
+          autoComplete="off"
+          readOnly={readOnly}
+        />
+      </B1Field>
+      <B1Field
+        label="Endereço"
+        required
+        span={8}
+        hasValue={Boolean(form.endereco?.trim())}
+        locked={readOnly}
+        disabled={readOnly}
+        error={invalidFields.includes("endereco") ? "Obrigatório" : undefined}
+      >
+        <input
+          type="text"
+          value={form.endereco}
+          onChange={(e) => handleChange("endereco", e.target.value)}
+          placeholder="ENDEREÇO COMPLETO"
+          className={`${B1_FIELD_CTL_CLS} uppercase`}
+          autoComplete="off"
+          readOnly={readOnly}
+        />
+      </B1Field>
+      <B1Field
+        label="Cidade"
+        required
+        span={4}
+        hasValue={Boolean(form.cidade?.trim())}
+        locked={readOnly}
+        disabled={readOnly}
+        error={invalidFields.includes("cidade") ? "Obrigatório" : undefined}
+      >
+        <input
+          type="text"
+          value={form.cidade}
+          onChange={(e) => handleChange("cidade", e.target.value)}
+          placeholder="CIDADE"
+          className={`${B1_FIELD_CTL_CLS} uppercase`}
+          autoComplete="off"
+          readOnly={readOnly}
+        />
+      </B1Field>
+      <B1Field
+        label="Estado"
+        required
+        span={4}
+        hasValue={Boolean(form.estado?.trim())}
+        locked={readOnly}
+        disabled={readOnly}
+        error={invalidFields.includes("estado") ? "Obrigatório" : undefined}
+      >
+        {readOnly ? (
+          <input type="text" value={form.estado} className={B1_FIELD_CTL_CLS} readOnly tabIndex={-1} />
+        ) : (
+          <select
+            value={form.estado || ""}
+            onChange={(e) => handleChange("estado", e.target.value)}
+            className={selectClass}
+          >
+            <option value="">SELECIONE</option>
+            {ESTADOS_BR.map((uf) => (
+              <option key={uf} value={uf}>
+                {uf}
+              </option>
+            ))}
+          </select>
+        )}
+      </B1Field>
+      <B1ChaveRow
+        label="Setor Ativo"
+        span={4}
+        checked={form.ativo}
+        onChange={readOnly ? undefined : (v) => handleChange("ativo", v)}
+        disabled={readOnly}
+        ariaLabel="Setor ativo"
+      />
+      <B1Field
+        label="Observações"
+        span={12}
+        multiline
+        hasValue={Boolean(form.observacoes?.trim())}
+        locked={readOnly}
+        disabled={readOnly}
+      >
+        <textarea
+          value={form.observacoes}
+          onChange={(e) => handleChange("observacoes", e.target.value)}
+          placeholder="OBSERVAÇÕES GERAIS..."
+          className={`${B1_FIELD_CTL_CLS} uppercase min-h-[4rem]`}
+          rows={2}
+          readOnly={readOnly}
+        />
+      </B1Field>
+      {!toolbarActions ? (
+        <div className="col-span-12">
+          <CadastroFormActions
+            onCancel={onCancel}
+            submitLabel={initialData?.id ? "Atualizar" : "Salvar"}
+            isSubmitting={isSubmitting}
+          />
+        </div>
+      ) : null}
+    </form>
+  );
 
-  <FL label="Observações">
-    <Textarea value={formData.observacoes} onChange={(e) => handleChange("observacoes", e.target.value)} placeholder="OBSERVAÇÕES GERAIS..." className="text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" style={{ textTransform: "uppercase" }} rows={2} />
-  </FL>
-
-  <CadastroFormActions onCancel={onCancel} submitLabel={isEditing ? "Atualizar" : "Salvar"} />
-</form>
-      </CadastroFormShell>
-    </motion.div>);
-
+  return (
+    <CadastroFormShell embedded={embedded} title={null}>
+      {formBody}
+    </CadastroFormShell>
+  );
 }

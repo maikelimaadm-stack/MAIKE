@@ -23,7 +23,8 @@
 
 import { runProviderCall, assertArgument } from '../_core/normalizeApiError.js';
 import { sincronizarReferencias } from '@/apis/referencias';
-import { setorPort } from './setorNativePort.js';
+import { setorPort, operacoesNativas } from './setorNativePort.js';
+import { LIMITE_PADRAO, normalizarEnvelopePagina } from '@/lib/cadastroListaScale';
 
 const RESOURCE = 'Setor';
 const isId = (valor) => typeof valor === 'string' && valor.trim().length > 0;
@@ -34,6 +35,15 @@ const ctx = (operation) => ({ operation, resource: RESOURCE });
 
 export const listSetores = async () =>
   comoLista(await runProviderCall(() => setorPort.list(), ctx('listSetores')));
+
+/**
+ * Página keyset — motor Base1 (`normalizarEnvelopePagina`).
+ * @param {Record<string, unknown>} [filtros]
+ */
+export const listSetoresPage = async (filtros = {}) => {
+  const bruto = await runProviderCall(() => operacoesNativas.listPage(filtros), ctx('listSetoresPage'));
+  return normalizarEnvelopePagina(bruto, Number(filtros.limit) || LIMITE_PADRAO);
+};
 
 export const createSetor = async (dados) => {
   const contexto = ctx('createSetor');

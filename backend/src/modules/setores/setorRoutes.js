@@ -36,7 +36,8 @@
  */
 
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
-import { listar, criar, atualizar } from './setorService.js';
+import { LIMITE_MAXIMO, LIMITE_PADRAO } from '../../shared/pagination/keysetCursor.js';
+import { listar, listarPagina, criar, atualizar } from './setorService.js';
 
 /** Os quatro tipos do cadastro. Fechado: enum, não string livre. */
 const TIPOS = ['Próprio', 'Arrendado', 'Parceria', 'Terceiros'];
@@ -98,6 +99,21 @@ const CAMPOS_EDITAVEIS = Object.freeze(
   Object.fromEntries(Object.entries(CAMPOS).filter(([campo]) => campo !== 'empresa_id'))
 );
 
+const LISTAR_PAGINA_SCHEMA = {
+  querystring: {
+    type: 'object',
+    required: ['empresa_id'],
+    additionalProperties: false,
+    properties: {
+      empresa_id: { type: 'string', minLength: 1, maxLength: 64, pattern: '\\S' },
+      limit: { type: 'integer', minimum: 1, maximum: LIMITE_MAXIMO, default: LIMITE_PADRAO },
+      cursor: { type: 'string', minLength: 1, maxLength: 512 },
+      q: { type: 'string', maxLength: 200 },
+      ativo: { anyOf: [{ type: 'boolean' }, { type: 'string', enum: ['true', 'false', '1', '0'] }] },
+    },
+  },
+};
+
 const ATUALIZAR_SCHEMA = {
   params: {
     type: 'object',
@@ -134,6 +150,15 @@ export const registrarSetorRoutes = async (app) => {
     exigirAuthContext(request.contexto.auth);
     return listar(request.contexto);
   });
+
+  app.get(
+    '/setores/page',
+    { onRequest: [app.autenticar], schema: LISTAR_PAGINA_SCHEMA },
+    async (request) => {
+      exigirAuthContext(request.contexto.auth);
+      return listarPagina(request.contexto, /** @type {Record<string, unknown>} */ (request.query ?? {}));
+    },
+  );
 
   app.post('/setores', { onRequest: [app.autenticar], schema: CRIAR_SCHEMA }, async (request, reply) => {
     exigirAuthContext(request.contexto.auth);

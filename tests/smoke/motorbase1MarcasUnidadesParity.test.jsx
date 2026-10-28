@@ -9,7 +9,7 @@ const read = (rel) => fs.readFileSync(path.join(process.cwd(), rel), 'utf8');
 
 describe('MotorBase1 — paridade de arquitetura Marcas/Unidades', () => {
   it('ambas as páginas importam useCadastroBase1Controller e CadastroBase1Screen', () => {
-    for (const page of ['src/pages/Marcas.jsx', 'src/pages/UnidadesMedida.jsx']) {
+    for (const page of ['src/pages/Marcas.jsx', 'src/pages/UnidadesMedida.jsx', 'src/pages/CadastroSetores.jsx']) {
       const src = read(page);
       expect(src).toMatch(/useCadastroBase1Controller/);
       expect(src).toMatch(/CadastroBase1Screen/);
@@ -51,6 +51,7 @@ describe('MotorBase1 — paridade de arquitetura Marcas/Unidades', () => {
     for (const table of [
       'src/components/marcas/TabelaMarcas.jsx',
       'src/components/unidades-medida/TabelaUnidadesMedida.jsx',
+      'src/components/setores/TabelaSetores.jsx',
     ]) {
       const src = read(table);
       expect(src).toMatch(/cellKind:\s*CADASTRO_BASE1_CELL_KIND\.ATIVO_BADGE/);
