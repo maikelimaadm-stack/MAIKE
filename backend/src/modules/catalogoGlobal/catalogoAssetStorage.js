@@ -41,6 +41,28 @@ const armazenamentoMemoria = () => ({
   },
 });
 
+const supabaseConfiguracaoParcial = () => {
+  const temUrl = Boolean(env.supabaseUrl?.trim());
+  const temKey = Boolean(env.supabaseServiceRoleKey?.trim());
+  return temUrl !== temKey;
+};
+
+/** Falha em produção se Storage live não estiver disponível (fail-closed). */
+export const exigirArmazenamentoCatalogoAoVivo = () => {
+  if (supabaseConfiguracaoParcial()) {
+    throw catalogoAssetInvalid(
+      'SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY devem estar ambos configurados ou ambos ausentes'
+    );
+  }
+  const storage = criarArmazenamentoCatalogo();
+  if (process.env.NODE_ENV === 'production' && !storage.aoVivo) {
+    throw catalogoAssetInvalid(
+      'Storage do catálogo indisponível: configure Supabase server-side em produção'
+    );
+  }
+  return storage;
+};
+
 /** @returns {ArmazenamentoCatalogo} */
 const armazenamentoSupabase = () => {
   const base = env.supabaseUrl?.replace(/\/+$/, '');

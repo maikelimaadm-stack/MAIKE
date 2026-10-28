@@ -1378,6 +1378,7 @@ model CatalogoAsset {
   iconesPrincipal CatalogoIcone[] @relation("IconeAssetPrincipal")
   iconesSub       CatalogoIcone[] @relation("IconeAssetSub")
 
+  @@unique([sha256, revisao])
   @@index([estado])
 }
 

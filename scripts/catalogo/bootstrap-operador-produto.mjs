@@ -15,8 +15,15 @@ const texto = (nome) => {
   return typeof v === 'string' && v.trim() ? v.trim() : null;
 };
 
-if (process.env.NODE_ENV === 'production') {
-  console.error('bootstrap-operador-produto: recusado em NODE_ENV=production');
+if (process.env.NODE_ENV === 'production' && texto('BOOTSTRAP_OPERADOR_ALLOW_PRODUCTION') !== 'sim') {
+  console.error(
+    'bootstrap-operador-produto: recusado em NODE_ENV=production (use BOOTSTRAP_OPERADOR_ALLOW_PRODUCTION=sim se intencional)'
+  );
+  process.exit(1);
+}
+
+if (!process.env.DATABASE_URL?.trim()) {
+  console.error('bootstrap-operador-produto: DATABASE_URL ausente');
   process.exit(1);
 }
 

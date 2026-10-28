@@ -7,7 +7,10 @@ import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 
 import { getPrismaClient } from '../src/database/prismaClient.js';
-import { criarArmazenamentoCatalogo } from '../src/modules/catalogoGlobal/catalogoAssetStorage.js';
+import {
+  criarArmazenamentoCatalogo,
+  exigirArmazenamentoCatalogoAoVivo,
+} from '../src/modules/catalogoGlobal/catalogoAssetStorage.js';
 import { validarBufferAssetCatalogo } from '../src/modules/catalogoGlobal/catalogoAssetValidation.js';
 import { criarApp, criarTenant, limparBanco, encerrar, autenticarNoApp } from './helpers.mjs';
 
@@ -44,6 +47,16 @@ beforeEach(async () => {
 });
 
 const auth = (token) => ({ authorization: `Bearer ${token}` });
+
+const revisaoManifesto = async (token) => {
+  const r = await app.inject({
+    method: 'GET',
+    url: '/catalogo-global/manifest',
+    headers: auth(token),
+  });
+  assert.equal(r.statusCode, 200);
+  return r.json().revisao;
+};
 
 const tenantComToken = async () => {
   const { cliente, usuario, credenciais } = await criarTenant();
@@ -180,6 +193,7 @@ describe('catálogo global — operador e CRUD', () => {
     });
     assert.equal(list.json().length, 1);
     assert.equal(list.json()[0].id, iconeId);
+    assert.ok('asset_principal_url' in list.json()[0]);
   });
 });
 
@@ -187,6 +201,13 @@ describe('catálogo global — validação asset', () => {
   test('CG-06 SVG reprovado', () => {
     const svg = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>');
     assert.throws(() => validarBufferAssetCatalogo(svg, 'image/svg+xml'), (e) => e.code === 'CATALOGO_ASSET_INVALID');
+  });
+
+  test('CG-09 MIME declarado divergente reprovado', () => {
+    assert.throws(
+      () => validarBufferAssetCatalogo(PNG_1X1, 'image/jpeg'),
+      (e) => e.code === 'CATALOGO_ASSET_INVALID'
+    );
   });
 });
 
@@ -277,6 +298,231 @@ describe('catálogo global — regra MISTO', () => {
     });
     assert.equal(list.json().length, 1);
     assert.deepEqual(list.json()[0].categoria_ids.sort(), [c1.id, c2.id].sort());
+  });
+
+  test('CG-10 ícone de outro tipo na regra MISTO → 422', async () => {
+    const { cliente, usuario, token } = await tenantComToken();
+    await registrarOperador(cliente.id, usuario.id);
+
+    const tipoA = (
+      await app.inject({
+        method: 'POST',
+        url: '/catalogo-global/admin/tipos',
+        headers: auth(token),
+        payload: { codigo: 'ta', nome: 'TA' },
+      })
+    ).json();
+    const tipoB = (
+      await app.inject({
+        method: 'POST',
+        url: '/catalogo-global/admin/tipos',
+        headers: auth(token),
+        payload: { codigo: 'tb', nome: 'TB' },
+      })
+    ).json();
+
+    const cA = (
+      await app.inject({
+        method: 'POST',
+        url: '/catalogo-global/admin/categorias',
+        headers: auth(token),
+        payload: { tipo_id: tipoA.id, codigo: 'ca', nome: 'CA' },
+      })
+    ).json();
+    const cB = (
+      await app.inject({
+        method: 'POST',
+        url: '/catalogo-global/admin/categorias',
+        headers: auth(token),
+        payload: { tipo_id: tipoA.id, codigo: 'cb', nome: 'CB' },
+      })
+    ).json();
+    const cBtipo = (
+      await app.inject({
+        method: 'POST',
+        url: '/catalogo-global/admin/categorias',
+        headers: auth(token),
+        payload: { tipo_id: tipoB.id, codigo: 'cb2', nome: 'CB2' },
+      })
+    ).json();
+
+    const asset = (
+      await app.inject({
+        method: 'POST',
+        url: '/catalogo-global/admin/assets',
+        headers: auth(token),
+        payload: { mime_type: 'image/png', conteudo_base64: PNG_1X1.toString('base64') },
+      })
+    ).json();
+
+    const icone = (
+      await app.inject({
+        method: 'POST',
+        url: '/catalogo-global/admin/icones',
+        headers: auth(token),
+        payload: { tipo_id: tipoB.id, categoria_id: cBtipo.id, asset_principal_id: asset.id },
+      })
+    ).json();
+
+    const regra = await app.inject({
+      method: 'POST',
+      url: '/catalogo-global/admin/regras-misto',
+      headers: auth(token),
+      payload: { tipo_id: tipoA.id, icone_id: icone.id, categoria_ids: [cA.id, cB.id] },
+    });
+    assert.equal(regra.statusCode, 422);
+  });
+});
+
+describe('catálogo global — CAS e ícone', () => {
+  test('CG-11 revisão divergente → 409 CONCURRENCY_CONFLICT', async () => {
+    const { cliente, usuario, token } = await tenantComToken();
+    await registrarOperador(cliente.id, usuario.id);
+
+    const criado = await app.inject({
+      method: 'POST',
+      url: '/catalogo-global/admin/tipos',
+      headers: auth(token),
+      payload: { codigo: 'cas', nome: 'CAS' },
+    });
+    const tipoId = criado.json().id;
+
+    const stale = await app.inject({
+      method: 'PATCH',
+      url: `/catalogo-global/admin/tipos/${tipoId}`,
+      headers: auth(token),
+      payload: { nome: 'X', revisao_esperada: 0 },
+    });
+    assert.equal(stale.statusCode, 409);
+    assert.equal(stale.json().code, 'CONCURRENCY_CONFLICT');
+    assert.equal(stale.json().details?.revisao_atual, 1);
+  });
+
+  test('CG-12 PATCH ícone mantém id e valida categoria/tipo', async () => {
+    const { cliente, usuario, token } = await tenantComToken();
+    await registrarOperador(cliente.id, usuario.id);
+
+    const tipo = (
+      await app.inject({
+        method: 'POST',
+        url: '/catalogo-global/admin/tipos',
+        headers: auth(token),
+        payload: { codigo: 'patch', nome: 'Patch' },
+      })
+    ).json();
+    const cat = (
+      await app.inject({
+        method: 'POST',
+        url: '/catalogo-global/admin/categorias',
+        headers: auth(token),
+        payload: { tipo_id: tipo.id, codigo: 'pc', nome: 'PC' },
+      })
+    ).json();
+    const asset = (
+      await app.inject({
+        method: 'POST',
+        url: '/catalogo-global/admin/assets',
+        headers: auth(token),
+        payload: { mime_type: 'image/png', conteudo_base64: PNG_1X1.toString('base64') },
+      })
+    ).json();
+
+    const icone = (
+      await app.inject({
+        method: 'POST',
+        url: '/catalogo-global/admin/icones',
+        headers: auth(token),
+        payload: {
+          tipo_id: tipo.id,
+          categoria_id: cat.id,
+          asset_principal_id: asset.id,
+        },
+      })
+    ).json();
+
+    const rev = await revisaoManifesto(token);
+    const patch = await app.inject({
+      method: 'PATCH',
+      url: `/catalogo-global/admin/icones/${icone.id}`,
+      headers: auth(token),
+      payload: { cor_fallback: '#ff0000', revisao_esperada: rev },
+    });
+    assert.equal(patch.statusCode, 200);
+    assert.equal(patch.json().id, icone.id);
+    assert.equal(patch.json().cor_fallback, '#ff0000');
+  });
+
+  test('CG-13 categoria de outro tipo ao criar ícone → 422', async () => {
+    const { cliente, usuario, token } = await tenantComToken();
+    await registrarOperador(cliente.id, usuario.id);
+
+    const t1 = (
+      await app.inject({
+        method: 'POST',
+        url: '/catalogo-global/admin/tipos',
+        headers: auth(token),
+        payload: { codigo: 't1', nome: 'T1' },
+      })
+    ).json();
+    const t2 = (
+      await app.inject({
+        method: 'POST',
+        url: '/catalogo-global/admin/tipos',
+        headers: auth(token),
+        payload: { codigo: 't2', nome: 'T2' },
+      })
+    ).json();
+    const cat2 = (
+      await app.inject({
+        method: 'POST',
+        url: '/catalogo-global/admin/categorias',
+        headers: auth(token),
+        payload: { tipo_id: t2.id, codigo: 'c2', nome: 'C2' },
+      })
+    ).json();
+
+    const r = await app.inject({
+      method: 'POST',
+      url: '/catalogo-global/admin/icones',
+      headers: auth(token),
+      payload: { tipo_id: t1.id, categoria_id: cat2.id },
+    });
+    assert.equal(r.statusCode, 422);
+  });
+});
+
+describe('catálogo global — asset path e storage', () => {
+  test('CG-14 storage_path versionado pela revisão do manifesto', async () => {
+    const { cliente, usuario, token } = await tenantComToken();
+    await registrarOperador(cliente.id, usuario.id);
+
+    const rev = await revisaoManifesto(token);
+    const asset = await app.inject({
+      method: 'POST',
+      url: '/catalogo-global/admin/assets',
+      headers: auth(token),
+      payload: {
+        mime_type: 'image/png',
+        conteudo_base64: PNG_1X1.toString('base64'),
+        revisao_esperada: rev,
+      },
+    });
+    assert.equal(asset.statusCode, 201);
+    assert.match(asset.json().storage_path, new RegExp(`^v${rev}/`));
+    assert.equal(asset.json().revisao, rev);
+  });
+
+  test('CG-15 produção sem Supabase live reprova upload', () => {
+    const prev = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'production';
+    try {
+      assert.throws(
+        () => exigirArmazenamentoCatalogoAoVivo(),
+        (e) => e.code === 'CATALOGO_ASSET_INVALID'
+      );
+    } finally {
+      process.env.NODE_ENV = prev;
+    }
   });
 });
 
