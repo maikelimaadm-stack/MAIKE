@@ -223,7 +223,7 @@ export default function Categorias() {
     <CadastroBase1Screen
       workspaceTitle="Categorias de produtos"
       searchPlaceholder="Buscar categorias…"
-      createLabel="Nova categoria"
+      createLabel="Novo"
       formId={FORMULARIO_CATEGORIA_ID}
       columnsForCardsToolbar={CATEGORIAS_PRODUTO_COLUNAS}
       controller={screenController}

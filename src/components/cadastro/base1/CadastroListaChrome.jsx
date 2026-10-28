@@ -63,6 +63,8 @@ import { cn } from "@/lib/utils";
  * @param {string} [props.filterRailHint]
  * @param {import('react').ReactNode} [props.filterChips]
  * @param {import('react').ReactNode} [props.extraToolbar]
+ * @param {Array<{ key: string, label: string, icon?: import('react').ReactNode, disabled?: boolean, hidden?: boolean, onSelect: () => void }>} [props.additionalMoreActions]
+ * @param {string} [props.exportCsvLabel]
  * @param {() => void} [props.onExportCsv]
  * @param {() => void} [props.onPrint]
  * @param {number} [props.pageSize]
@@ -113,6 +115,8 @@ export default function CadastroListaChrome({
   filterRailHint = null,
   filterChips = null,
   extraToolbar = null,
+  additionalMoreActions = null,
+  exportCsvLabel = "Exportar (CSV)",
   onExportCsv,
   onPrint,
   pageSize = 100,
@@ -157,6 +161,19 @@ export default function CadastroListaChrome({
     attachDisabledReason ?? (oneSelected ? "Anexos" : "Selecione um registro");
   const showAttachControl = Boolean(onAttach);
 
+  const extraMenuItems = useMemo(
+    () =>
+      (additionalMoreActions ?? [])
+        .filter((item) => !item.hidden)
+        .map((item) => ({
+          key: item.key,
+          label: item.label,
+          icon: item.icon,
+          disabled: item.disabled,
+        })),
+    [additionalMoreActions],
+  );
+
   const menuItems = useMemo(
     () => [
       {
@@ -167,9 +184,10 @@ export default function CadastroListaChrome({
         title: attachTitle,
         hidden: showAttachControl || !attachDisabledReason,
       },
+      ...extraMenuItems,
       {
         key: "export",
-        label: "Exportar (CSV)",
+        label: exportCsvLabel,
         disabled: !onExportCsv,
       },
       { key: "print", label: "Imprimir", disabled: !onPrint },
@@ -193,6 +211,8 @@ export default function CadastroListaChrome({
       },
     ].filter((item) => !item.hidden),
     [
+      extraMenuItems,
+      exportCsvLabel,
       showAttachControl,
       attachDisabledReason,
       attachTitle,
@@ -205,6 +225,11 @@ export default function CadastroListaChrome({
   );
 
   const onMenu = (k) => {
+    const extra = additionalMoreActions?.find((item) => item.key === k);
+    if (extra?.onSelect) {
+      extra.onSelect();
+      return;
+    }
     if (k === "export") onExportCsv?.();
     if (k === "print") (onPrint ?? (() => window.print()))();
     if (k === "cfg") {
