@@ -9,17 +9,25 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BASE1_LISTA_INTEGRADA_VISUAL } from '@/components/cadastro/base1/base1VisualPreset';
 
 const serviceMock = {
-  listarUnidades: vi.fn(),
+  listarUnidadesPagina: vi.fn(),
   numerarUnidadesSemNumero: vi.fn(),
 };
 
 vi.mock('@/services/unidadeMedidaService', () => ({
-  listarUnidades: (...a) => serviceMock.listarUnidades(...a),
+  listarUnidadesPagina: (...a) => serviceMock.listarUnidadesPagina(...a),
   criarUnidade: vi.fn(),
   atualizarUnidade: vi.fn(),
   numerarUnidadesSemNumero: (...a) => serviceMock.numerarUnidadesSemNumero(...a),
   excluirUnidades: vi.fn(),
 }));
+
+const PAGE_ENVELOPE = {
+  items: [],
+  next_cursor: null,
+  has_more: false,
+  total: 0,
+  limit: 100,
+};
 
 vi.mock('sonner', () => ({
   toast: { success: vi.fn(), error: vi.fn(), message: vi.fn() },
@@ -54,7 +62,7 @@ const renderPagina = async () => {
 };
 
 beforeEach(() => {
-  serviceMock.listarUnidades.mockResolvedValue(UNIDADES);
+  serviceMock.listarUnidadesPagina.mockResolvedValue({ ...PAGE_ENVELOPE, items: UNIDADES, total: 1 });
   serviceMock.numerarUnidadesSemNumero.mockResolvedValue({ numeradas: [] });
 });
 
@@ -86,11 +94,13 @@ describe('UnidadesMedida — rollout preset Base1 lista integrada', () => {
     const fs = await import('node:fs');
     const path = await import('node:path');
     const src = fs.readFileSync(path.join(process.cwd(), 'src/pages/UnidadesMedida.jsx'), 'utf8');
-    expect(src).toMatch(/BASE1_LISTA_INTEGRADA_VISUAL/);
+    expect(src).toMatch(/CadastroBase1Screen/);
     expect(src).toMatch(/unidadeMedidaService/);
     expect(src).not.toMatch(/marcaService/);
     expect(src).toMatch(/colunas_unidades_medida/);
-    expect(src).toMatch(/colunas-unidades-medida/);
-    expect(src).toMatch(/\["unidades_medida"\]/);
+    const tabela = fs.readFileSync(path.join(process.cwd(), 'src/components/unidades-medida/TabelaUnidadesMedida.jsx'), 'utf8');
+    expect(tabela).toMatch(/colunas-unidades-medida/);
+    expect(src).toMatch(/useCadastroBase1Controller/);
+    expect(src).toMatch(/\["unidades_medida", "page"\]/);
   });
 });

@@ -3,6 +3,7 @@
  */
 
 import { getPrismaClient } from '../../database/prismaClient.js';
+import { clausulaKeysetDesc } from '../../shared/pagination/keysetCursor.js';
 
 const SELECAO = Object.freeze({
   id: true,
@@ -14,6 +15,74 @@ const SELECAO = Object.freeze({
   createdAt: true,
   updatedAt: true,
 });
+
+/**
+ * @param {string} clienteId
+ * @param {{
+ *   q?: string|null,
+ *   ativo?: boolean|null,
+ *   cursor?: { createdAt: Date, id: string }|null,
+ *   limit: number,
+ * }} filtro
+ */
+export const montarWhereUnidades = (clienteId, filtro) => {
+  /** @type {import('@prisma/client').Prisma.UnidadeMedidaWhereInput} */
+  const where = { cliente_id: clienteId };
+  if (filtro.ativo === true || filtro.ativo === false) where.ativo = filtro.ativo;
+  const q = typeof filtro.q === 'string' ? filtro.q.trim() : '';
+  if (q) {
+    where.AND = [
+      ...(Array.isArray(where.AND) ? where.AND : []),
+      {
+        OR: [
+          { sigla: { contains: q, mode: 'insensitive' } },
+          { descricao: { contains: q, mode: 'insensitive' } },
+          { numero_unidade: { contains: q, mode: 'insensitive' } },
+        ],
+      },
+    ];
+  }
+  if (filtro.cursor) {
+    where.AND = [...(Array.isArray(where.AND) ? where.AND : []), clausulaKeysetDesc(filtro.cursor)];
+  }
+  return where;
+};
+
+/**
+ * Página keyset (+1 para detectar has_more). Ordenação estável: createdAt DESC, id DESC.
+ * @param {string} clienteId
+ * @param {{
+ *   q?: string|null,
+ *   ativo?: boolean|null,
+ *   cursor?: { createdAt: Date, id: string }|null,
+ *   limit: number,
+ * }} filtro
+ */
+export const listarUnidadesPagina = async (clienteId, filtro) => {
+  const prisma = getPrismaClient();
+  return prisma.unidadeMedida.findMany({
+    where: montarWhereUnidades(clienteId, filtro),
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    take: filtro.limit + 1,
+    select: SELECAO,
+  });
+};
+
+/**
+ * @param {string} clienteId
+ * @param {{ q?: string|null, ativo?: boolean|null }} filtro
+ */
+export const contarUnidades = async (clienteId, filtro) => {
+  const prisma = getPrismaClient();
+  return prisma.unidadeMedida.count({
+    where: montarWhereUnidades(clienteId, {
+      q: filtro.q,
+      ativo: filtro.ativo,
+      cursor: null,
+      limit: 1,
+    }),
+  });
+};
 
 /** @param {string} clienteId */
 export const listarUnidades = async (clienteId) => {

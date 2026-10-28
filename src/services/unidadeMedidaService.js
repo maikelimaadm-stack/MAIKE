@@ -9,6 +9,7 @@
 
 import {
   listUnidades,
+  listUnidadesPage,
   createUnidade,
   updateUnidade,
   deleteUnidade,
@@ -20,6 +21,18 @@ import { API_ERROR_CODES } from '@/apis/_core/ApiError';
 import { assertExclusaoPermitida } from './deleteGuardService';
 
 export const listarUnidades = () => listUnidades();
+
+/**
+ * Adapter de domínio → motor Base1 (`useCadastroInfiniteList`).
+ * @param {{ limit?: number, cursor?: string|null, q?: string, ativo?: boolean }} [opts]
+ */
+export const listarUnidadesPagina = async (opts = {}) =>
+  listUnidadesPage({
+    limit: opts.limit,
+    cursor: opts.cursor ?? undefined,
+    q: opts.q,
+    ativo: opts.ativo,
+  });
 
 export const criarUnidade = async (dados) => createUnidade(dados);
 

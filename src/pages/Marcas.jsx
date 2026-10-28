@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef, useState } from "react";
+import React, { useCallback, useMemo, useRef } from "react";
 import {
   criarMarca,
   atualizarMarca,
@@ -7,110 +7,76 @@ import {
 } from "@/services/marcaService";
 import { getApiErrorMessage } from "@/apis/_core/ApiError";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import ConfirmDialog from "@/components/common/ConfirmDialog";
 import {
   notifyError,
   notifyExclusoesEmpilhadas,
   notifySuccess,
   notifyWarning,
 } from "@/lib/maikeNotify";
-import CadastroWorkspace from "@/components/cadastro/CadastroWorkspace";
-import CadastroListaChrome from "@/components/cadastro/base1/CadastroListaChrome";
-import CadastroRecordHeader from "@/components/cadastro/base1/CadastroRecordHeader";
-import { useCadastroListaChromeState } from "@/hooks/useCadastroListaChromeState";
-import TabelaMarcas from "@/components/marcas/TabelaMarcas";
-import { MARCAS_COLUNAS, getMarcaFieldValue } from "@/components/marcas/TabelaMarcas";
-import { exportCadastroCsv } from "@/components/cadastro/base1/cadastroExportCsv";
-import { Base1CardsToolbar } from "@/components/cadastro/base1/Base1Cards";
-import { prepareCadastroDuplicate } from "@/components/cadastro/base1/cadastroDuplicateHelpers";
-import { Check, X } from "lucide-react";
-import { PillBtn } from "@/components/cadastro/base1/Base1Ui";
+import CadastroBase1Screen from "@/components/cadastro/base1/CadastroBase1Screen";
+import TabelaMarcas, { MARCAS_COLUNAS, getMarcaFieldValue } from "@/components/marcas/TabelaMarcas";
 import FormularioMarca, { FORMULARIO_MARCA_ID } from "@/components/marcas/FormularioMarca";
-import { useCadastroListaPagination } from "@/hooks/useCadastroListaPagination";
-import { useCadastroCardsPrefs } from "@/hooks/useCadastroCardsPrefs";
-import { clearCadastroListaFiltersAndSearch } from "@/lib/cadastroListaClearFilters";
+import { useCadastroBase1Controller } from "@/hooks/useCadastroBase1Controller";
 import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
-import { useCadastroInfiniteList } from "@/hooks/useCadastroInfiniteList";
-import { BASE1_LISTA_INTEGRADA_VISUAL } from "@/components/cadastro/base1/base1VisualPreset";
 
 const MARCAS_STORAGE_KEY = "colunas_marcas_v1";
 
 export default function Marcas() {
-  const [showForm, setShowForm] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-  const [editingItem, setEditingItem] = useState(null);
-  const [showConfigColunas, setShowConfigColunas] = useState(false);
-  const configureColumnsAnchorRef = useRef(null);
-  const [deleteState, setDeleteState] = useState({ open: false, ids: [] });
-  const [formEpoch, setFormEpoch] = useState(0);
-  /** Clique numa sugestão: isola só esse id na listagem (até limpar / nova busca). */
-  const [searchPickId, setSearchPickId] = useState(/** @type {string | null} */ (null));
-  /** Registro em visualização antes de clicar Novo — restaurado no Cancelar. */
-  const recordBeforeNewRef = useRef(null);
-  const chrome = useCadastroListaChromeState({
-    initialViewMode:
-      typeof window !== "undefined" &&
-      typeof window.matchMedia === "function" &&
-      window.matchMedia("(max-width: 639px)").matches
-        ? "cards"
-        : "table",
-  });
-  const bumpFormEpoch = () => setFormEpoch((n) => n + 1);
-  const { pageSize, setPageSize } = useCadastroListaPagination(
-    MARCAS_STORAGE_KEY,
-    `${chrome.resetFiltersKey}:${chrome.appliedSearch}`,
-  );
-  const cardsPrefs = useCadastroCardsPrefs(
-    MARCAS_STORAGE_KEY,
-    MARCAS_COLUNAS.map((c) => c.id),
-  );
   const queryClient = useQueryClient();
   const empresaId = useEmpresaSelecionadaId();
+  const submitRef = useRef(/** @type {(data: object) => void} */ (() => {}));
+  const deleteRef = useRef(/** @type {(ids: string[]) => void} */ (() => {}));
 
-  const qBusca = chrome.appliedSearch;
   const fetchMarcasPage = useCallback(
-    ({ limit, cursor }) =>
+    ({ limit, cursor, q }) =>
       listarMarcasPagina(empresaId, {
         limit,
         cursor,
-        q: qBusca || undefined,
+        q: q || undefined,
       }),
-    [empresaId, qBusca],
+    [empresaId],
   );
 
-  /** Motor Base1 — Marcas só pluga fetch + queryKey. */
-  const lista = useCadastroInfiniteList({
-    queryKey: ["marcas", "page", empresaId, qBusca],
-    enabled: Boolean(empresaId),
-    pageSize,
+  const controller = useCadastroBase1Controller({
+    storageKey: MARCAS_STORAGE_KEY,
+    columnIds: MARCAS_COLUNAS.map((c) => c.id),
+    listEnabled: Boolean(empresaId),
+    queryKey: ["marcas", "page", empresaId],
     fetchPage: fetchMarcasPage,
+    duplicateLabelField: "nome",
+    searchPlaceholder: "Buscar marcas…",
+    exportFileName: "marcas.csv",
+    exportColumns: MARCAS_COLUNAS,
+    getExportFieldValue: getMarcaFieldValue,
+    getRecordTitle: (item) => (item?.id ? item.nome || "Marca" : "Nova marca"),
+    getRecordCode: (item) => (item?.numero_marca ? String(item.numero_marca) : undefined),
+    getSearchHaystack: (m) => [m.nome, m.descricao, m.numero_marca].filter(Boolean).join(" "),
+    mapSearchSuggestion: (m) => ({
+      id: String(m.id),
+      label: m.nome || "Marca",
+      secondary: m.numero_marca ? `Nº ${m.numero_marca}` : m.descricao || undefined,
+    }),
+    matchRowId: (m, id) => String(m.id) === String(id),
+    getRowId: (m) => String(m.id),
+    findRowById: (rows, id) => rows.find((m) => String(m.id) === String(id)),
+    onSubmitRecord: (data) => submitRef.current(data),
+    onRequestDeleteMutation: (ids) => deleteRef.current(ids),
   });
-  const marcas = useMemo(() => {
-    if (!searchPickId) return lista.items;
-    return lista.items.filter((m) => String(m.id) === String(searchPickId));
-  }, [lista.items, searchPickId]);
-  const isLoading = lista.isLoading;
-  const listaErro = lista.isError;
-  const listaQueryError = lista.error;
-  const recarregarLista = lista.refetch;
-  const listaFetching = lista.isFetching;
 
   const createMutation = useMutation({
-    mutationFn: (data) => criarMarca({ dados: data, empresaId, marcasDaEmpresa: lista.items }),
+    /** @param {object} data */
+    mutationFn: (data) => criarMarca({ dados: data, empresaId, marcasDaEmpresa: controller.visibleRows }),
     onSuccess: (created) => {
       queryClient.invalidateQueries({ queryKey: ["marcas"] });
-      recordBeforeNewRef.current = null;
-      // Após Novo → Salvar, permanece em modo registro (leitura do criado).
+      controller.recordHelpers.recordBeforeNewRef.current = null;
       if (created && typeof created === "object" && created.id) {
-        setEditingItem(created);
-        setIsEditing(false);
-        setShowForm(true);
-        chrome.setViewMode("record");
-        chrome.onSelectionChange([String(created.id)]);
+        controller.recordHelpers.setEditingItem(created);
+        controller.recordHelpers.setIsEditing(false);
+        controller.recordHelpers.setShowForm(true);
+        controller.recordHelpers.chrome.setViewMode("record");
+        controller.recordHelpers.chrome.onSelectionChange([String(created.id)]);
       } else {
-        setShowForm(false);
-        setEditingItem(null);
-        chrome.exitRecordView();
+        controller.recordHelpers.closeForm();
       }
       notifySuccess("Sucesso", "Marca criada");
     },
@@ -119,18 +85,18 @@ export default function Marcas() {
   });
 
   const updateMutation = useMutation({
-    /** @param {{ id: string; data: object }} vars */
-    mutationFn: ({ id, data }) => atualizarMarca(id, data, lista.items),
+    /** @param {{ id: string, data: object }} vars */
+    mutationFn: ({ id, data }) => atualizarMarca(id, data, controller.visibleRows),
     onSuccess: (updated, { id, data }) => {
       queryClient.invalidateQueries({ queryKey: ["marcas"] });
       const merged = {
-        ...(editingItem?.id === id ? editingItem : {}),
+        ...(controller.editingItem?.id === id ? controller.editingItem : {}),
         id,
         ...data,
         ...(updated && typeof updated === "object" ? updated : {}),
       };
-      setEditingItem(merged);
-      setIsEditing(false);
+      controller.setEditingItem(merged);
+      controller.setIsEditing(false);
       notifySuccess("Sucesso", "Marca atualizada");
     },
     onError: (err) =>
@@ -138,15 +104,17 @@ export default function Marcas() {
   });
 
   const deleteMutation = useMutation({
+    /** @param {string[]} ids */
     mutationFn: (ids) => excluirMarcas(ids),
     onSuccess: ({ excluidas, falhas }) => {
       queryClient.invalidateQueries({ queryKey: ["marcas"] });
-      chrome.setSelectedIds([]);
-      if (showForm && editingItem?.id && excluidas.some((id) => String(id) === String(editingItem.id))) {
-        setShowForm(false);
-        setEditingItem(null);
-        setIsEditing(false);
-        chrome.exitRecordView();
+      controller.chrome.setSelectedIds([]);
+      if (
+        controller.showForm &&
+        controller.editingItem?.id &&
+        excluidas.some((id) => String(id) === String(controller.editingItem.id))
+      ) {
+        controller.recordHelpers.closeForm();
       }
       if (excluidas.length) {
         notifyExclusoesEmpilhadas(excluidas.length, { singular: "Registro excluído" });
@@ -164,386 +132,78 @@ export default function Marcas() {
       notifyError("Atenção", getApiErrorMessage(err, "Não foi possível excluir.")),
   });
 
-  const closeForm = () => {
-    recordBeforeNewRef.current = null;
-    setShowForm(false);
-    setIsEditing(false);
-    setEditingItem(null);
-    chrome.exitRecordView();
-  };
-
-  const cancelForm = () => {
-    if (isEditing && editingItem?.id) {
-      setIsEditing(false);
-      return;
+  submitRef.current = (data) => {
+    if (controller.editingItem?.id) {
+      updateMutation.mutate({ id: controller.editingItem.id, data });
+    } else {
+      createMutation.mutate(data);
     }
-    // Cancelar um Novo aberto a partir de um registro: volta para ele em visualização.
-    const previous = recordBeforeNewRef.current;
-    recordBeforeNewRef.current = null;
-    if (previous?.id) {
-      bumpFormEpoch();
-      setEditingItem(previous);
-      setIsEditing(false);
-      setShowForm(true);
-      chrome.setViewMode("record");
-      chrome.onSelectionChange([String(previous.id)]);
-      return;
-    }
-    closeForm();
   };
+  deleteRef.current = (ids) => deleteMutation.mutate(ids);
 
-  const openNew = () => {
-    bumpFormEpoch();
-    recordBeforeNewRef.current = showForm && editingItem?.id ? editingItem : null;
-    setEditingItem(null);
-    setIsEditing(true);
-    setShowForm(true);
-    chrome.setViewMode("record");
-  };
-
-  const handleSubmit = (data) => {
-    if (editingItem?.id) updateMutation.mutate({ id: editingItem.id, data });
-    else createMutation.mutate(data);
-  };
-
-  const recordNavRows = useMemo(() => marcas, [marcas]);
-
-  /** Sugestões a partir da janela já carregada (busca pesada é no servidor via `q`). */
-  const searchSuggestions = useMemo(() => {
-    const q = chrome.searchInput.trim().toLowerCase();
-    if (!q) return [];
-    return lista.items
-      .filter((m) => {
-        const hay = [m.nome, m.descricao, m.numero_marca].filter(Boolean).join(" ").toLowerCase();
-        return hay.includes(q);
-      })
-      .slice(0, 8)
-      .map((m) => ({
-        id: String(m.id),
-        label: m.nome || "Marca",
-        secondary: m.numero_marca ? `Nº ${m.numero_marca}` : m.descricao || undefined,
-      }));
-  }, [lista.items, chrome.searchInput]);
-
-  /** Busca já veio do servidor — a grade não refiltra por texto. */
-  const matchesMarcaSearch = useCallback((item) => {
-    if (searchPickId) return String(item.id) === String(searchPickId);
-    return true;
-  }, [searchPickId]);
-
-  const handleEdit = useCallback(
-    (item) => {
-      setEditingItem(item);
-      setIsEditing(!item?.id);
-      setShowForm(true);
-      chrome.setViewMode("record");
-      if (item?.id) chrome.onSelectionChange([String(item.id)]);
-    },
-    [chrome.setViewMode, chrome.onSelectionChange],
-  );
-
-  /**
-   * Enter / Confirmar: aplica o filtro na listagem atual (tabela, cards ou registro).
-   * Não abre um único registro — em modo registro só sincroniza a navegação com o conjunto filtrado.
-   */
-  const handleSearchApply = useCallback(
-    (next) => {
-      const texto = typeof next === "string" ? next : chrome.searchInput;
-      setSearchPickId(null);
-      chrome.applySearch(texto);
-      // A listagem recarrega via keyset com `q`; em modo registro só sincroniza seleção se ainda couber.
-      if (!showForm || isEditing) return;
-      if (editingItem?.id) {
-        chrome.onSelectionChange([String(editingItem.id)]);
-      }
-    },
-    [chrome, showForm, isEditing, editingItem],
-  );
-
-  /** Clique na sugestão: filtra só aquele registro na visão atual (não abre modo registro). */
-  const handleSearchSuggestionPick = useCallback(
-    (item) => {
-      const id = String(item.id);
-      setSearchPickId(id);
-      chrome.applySearch(item.label || chrome.searchInput);
-      chrome.onSelectionChange([id]);
-      if (showForm && !isEditing) {
-        const row = marcas.find((m) => String(m.id) === id);
-        if (row) {
-          setEditingItem(row);
-          setIsEditing(false);
-        }
-      }
-    },
-    [chrome, showForm, isEditing, marcas],
-  );
-
-  const handleClearFilters = useCallback(() => {
-    setSearchPickId(null);
-    clearCadastroListaFiltersAndSearch(chrome);
-  }, [chrome]);
-
-  const handleSearchInputChange = useCallback(
-    (v) => {
-      setSearchPickId(null);
-      chrome.setSearchInput(v);
-    },
-    [chrome],
-  );
-
-  /** Toolbar Editar: abre direto em edição (tabela/cards/registro), sem passar pela visualização. */
-  const handleEditSelected = useCallback(() => {
-    if (showForm && editingItem?.id && !isEditing) {
-      setIsEditing(true);
-      return true;
-    }
-    const selectedId = chrome.selectedIds[0];
-    const selected = selectedId
-      ? recordNavRows.find((m) => String(m.id) === String(selectedId))
-      : null;
-    const item = selected ?? (chrome.selectedIds.length === 0 ? recordNavRows[0] : null);
-    if (!item) return false;
-    setEditingItem(item);
-    setIsEditing(true);
-    setShowForm(true);
-    chrome.setViewMode("record");
-    if (item.id) chrome.onSelectionChange([String(item.id)]);
-    return true;
-  }, [
-    showForm,
-    editingItem,
-    isEditing,
-    chrome.selectedIds,
-    chrome.setViewMode,
-    chrome.onSelectionChange,
-    recordNavRows,
-  ]);
-
-  /** Segmento “Registro”: abre em visualização (leitura). Edição só pelo botão Editar. */
-  const handleOpenRecordSelected = useCallback(() => {
-    if (showForm && editingItem?.id) {
-      setIsEditing(false);
-      return true;
-    }
-    const selectedId = chrome.selectedIds[0];
-    const selected = selectedId
-      ? recordNavRows.find((m) => String(m.id) === String(selectedId))
-      : null;
-    const item = selected ?? (chrome.selectedIds.length === 0 ? recordNavRows[0] : null);
-    if (!item) return false;
-    handleEdit(item);
-    return true;
-  }, [showForm, editingItem, chrome.selectedIds, recordNavRows, handleEdit]);
-
-  const handleDuplicateSelected = () => {
-    const item =
-      marcas.find((m) => String(m.id) === String(chrome.selectedIds[0])) ||
-      (editingItem?.id ? editingItem : null);
-    const draft = prepareCadastroDuplicate(item, { labelField: "nome" });
-    if (!draft) return;
-    bumpFormEpoch();
-    // Guarda o registro de origem para Cancelar manter o modo Registro.
-    recordBeforeNewRef.current =
-      showForm && editingItem?.id ? editingItem : item?.id ? item : null;
-    setEditingItem(draft);
-    setIsEditing(true);
-    setShowForm(true);
-    chrome.setViewMode("record");
-  };
-
-  const exportCsv = () => {
-    if (lista.serverHasMore || lista.janelaCheia) {
-      notifyWarning(
-        "Atenção",
-        "Exporta só a janela carregada. Refine a busca para reduzir o conjunto antes de exportar tudo.",
-      );
-    }
-    exportCadastroCsv("marcas.csv", MARCAS_COLUNAS, marcas, getMarcaFieldValue);
-  };
-
-  const chromeFooter = {
-    pageSize,
-    onPageSizeChange: setPageSize,
-    hasMore: lista.hasMore,
-    loadingMore: lista.isFetchingNextPage,
-    onLoadMore: () => {
-      if (lista.janelaCheia) {
-        notifyWarning(
-          "Atenção",
-          "Janela máxima no navegador. Refine a busca para continuar navegando em escala.",
-        );
-        return;
-      }
-      lista.loadMore();
-    },
-    listados: marcas.length,
-    filtrados: searchPickId ? marcas.length : lista.total,
-    totais: lista.total,
-  };
-
-  const handleRequestDelete = (id) => {
-    const ids = Array.isArray(id) ? id : [id];
-    setDeleteState({ open: true, ids });
-  };
-
-  const handleDeleteSelected = () => {
-    if (!chrome.selectedIds.length) return;
-    handleRequestDelete(chrome.selectedIds);
-  };
-
-  const handleConfirmDelete = () => {
-    deleteMutation.mutate(deleteState.ids);
-    setDeleteState({ open: false, ids: [] });
-  };
-
-  const onViewModeChange = useCallback(
-    (mode) => {
-      chrome.handleViewModeChange(mode, {
-        onOpenRecord: () => handleOpenRecordSelected(),
-        onExitRecord: closeForm,
-      });
-    },
-    [chrome, handleOpenRecordSelected, closeForm],
-  );
-
-  const detailTitle = editingItem?.id ? editingItem.nome || "Marca" : "Nova marca";
   const saving = createMutation.isPending || updateMutation.isPending;
 
-  const recordIndex = editingItem?.id
-    ? Math.max(0, recordNavRows.findIndex((m) => m.id === editingItem.id))
-    : 0;
+  const recordCode = controller.editingItem?.numero_marca
+    ? String(controller.editingItem.numero_marca)
+    : undefined;
 
-  const goRecord = (index) => {
-    const row = recordNavRows[index];
-    if (row) handleEdit(row);
-  };
+  const listErrorMessage = useMemo(
+    () =>
+      getApiErrorMessage(
+        controller.listaQueryError,
+        "Não foi possível carregar as marcas. Verifique sua conexão e tente novamente.",
+      ),
+    [controller.listaQueryError],
+  );
+
+  const screenController = { ...controller, saving };
 
   return (
-    <>
-      <CadastroWorkspace mode="list" title="Marcas" {...BASE1_LISTA_INTEGRADA_VISUAL.workspace}>
-        {listaErro && !listaFetching ? (
-          <div className="cadastro-b1 mg-card p-3 text-xs text-amber-800 bg-amber-50 border border-amber-200 mb-2 flex flex-wrap items-center gap-2">
-            <span>
-              {getApiErrorMessage(
-                listaQueryError,
-                "Não foi possível carregar as marcas. Verifique sua conexão e tente novamente.",
-              )}
-            </span>
-            <button type="button" className="tb-btn tb-btn-gray" onClick={() => recarregarLista()}>
-              Tentar novamente
-            </button>
-          </div>
-        ) : null}
-        <CadastroListaChrome
-          {...BASE1_LISTA_INTEGRADA_VISUAL.chrome}
-          recordMode={showForm}
-          recordEditing={isEditing}
-          secondaryToolsLocked={showForm && isEditing}
-          recordToolbar={
-            showForm && isEditing ? (
-              <>
-                <PillBtn type="submit" form={FORMULARIO_MARCA_ID} disabled={saving}>
-                  <Check className="h-4 w-4" aria-hidden />
-                  {saving ? "Salvando…" : "Salvar"}
-                </PillBtn>
-                <PillBtn type="button" tone="gray" onClick={cancelForm} disabled={saving}>
-                  <X className="h-4 w-4" aria-hidden />
-                  Cancelar
-                </PillBtn>
-              </>
-            ) : null
-          }
-          recordHeader={
-            showForm ? (
-              <CadastroRecordHeader
-                title={detailTitle}
-                code={editingItem?.numero_marca ? String(editingItem.numero_marca) : undefined}
-                index={recordIndex}
-                total={recordNavRows.length}
-                onGo={editingItem?.id ? goRecord : undefined}
-                navDisabled={showForm && isEditing}
-              />
-            ) : null
-          }
-          recordBody={
-            showForm ? (
-              <FormularioMarca
-                key={`${editingItem?.id ?? "marca-nova"}-${formEpoch}`}
-                variant="embedded"
-                toolbarActions
-                readOnly={!isEditing}
-                isSubmitting={saving}
-                initialData={editingItem}
-                onSubmit={handleSubmit}
-                onCancel={cancelForm}
-              />
-            ) : null
-          }
-          attachDisabledReason="Anexos disponíveis quando o cadastro tiver auditoria nativa."
-          selectedCount={chrome.selectedIds.length}
-          {...chromeFooter}
-          createLabel="Novo"
-          onNew={openNew}
-          onEdit={handleEditSelected}
-          onDuplicate={handleDuplicateSelected}
-          onDelete={handleDeleteSelected}
-          onExportCsv={exportCsv}
-          onPrint={() => window.print()}
-          cardsModeAvailable
-          cardsToolbar={
-            <Base1CardsToolbar columns={MARCAS_COLUNAS} cardsPrefs={cardsPrefs} />
-          }
-          searchValue={chrome.searchInput}
-          onSearchChange={handleSearchInputChange}
-          onSearchApply={handleSearchApply}
-          searchCommittedValue={chrome.appliedSearch}
-          searchActive={chrome.searchActive || Boolean(searchPickId)}
-          searchPlaceholder="Buscar marcas…"
-          searchSuggestions={searchSuggestions}
-          onSearchSuggestionPick={handleSearchSuggestionPick}
-          configureColumnsAnchorRef={configureColumnsAnchorRef}
-          onConfigureColumns={() => setShowConfigColunas(true)}
-          onClearFilters={handleClearFilters}
-          filtersActive={chrome.filtersActive || chrome.searchActive || Boolean(searchPickId)}
-          viewMode={showForm ? "record" : chrome.viewMode}
-          onViewModeChange={onViewModeChange}
-        >
-          {!showForm ? (
-            <TabelaMarcas
-              marcas={marcas}
-              onEdit={handleEdit}
-              onDelete={handleRequestDelete}
-              isLoading={isLoading}
-              showConfigColunas={showConfigColunas}
-              setShowConfigColunas={setShowConfigColunas}
-              searchQuery=""
-              matchesSearch={matchesMarcaSearch}
-              resetFiltersKey={chrome.resetFiltersKey}
-              onSelectionChange={chrome.onSelectionChange}
-              onFiltersActiveChange={chrome.setFiltersActive}
-              viewMode={chrome.viewMode === "cards" ? "cards" : "table"}
-              cardFields={cardsPrefs.cardFields}
-              cardsPerRow={cardsPrefs.cardsPerRow}
-              configureColumnsAnchorRef={configureColumnsAnchorRef}
-            />
-          ) : null}
-        </CadastroListaChrome>
-      </CadastroWorkspace>
-
-      <ConfirmDialog
-        open={deleteState.open}
-        onOpenChange={(open) => setDeleteState((prev) => ({ ...prev, open }))}
-        title="Confirme a exclusão"
-        description={
-          deleteState.ids.length > 1
-            ? `Excluir ${deleteState.ids.length} registros de marca? A ação fica registrada na auditoria.`
-            : "Excluir este registro de marca? A ação fica registrada na auditoria."
-        }
-        confirmText="Excluir"
-        cancelText="Cancelar"
-        variant="destructive"
-        onConfirm={handleConfirmDelete}
-      />
-    </>
+    <CadastroBase1Screen
+      workspaceTitle="Marcas"
+      searchPlaceholder="Buscar marcas…"
+      formId={FORMULARIO_MARCA_ID}
+      columnsForCardsToolbar={MARCAS_COLUNAS}
+      controller={screenController}
+      listErrorMessage={listErrorMessage}
+      recordCode={recordCode}
+      deleteDialog={{
+        title: "Confirme a exclusão",
+        descriptionOne: "Excluir este registro de marca? A ação fica registrada na auditoria.",
+        descriptionMany: (n) =>
+          `Excluir ${n} registros de marca? A ação fica registrada na auditoria.`,
+      }}
+      recordForm={
+        <FormularioMarca
+          key={`${controller.editingItem?.id ?? "marca-nova"}-${controller.formEpoch}`}
+          variant="embedded"
+          toolbarActions
+          readOnly={!controller.isEditing}
+          isSubmitting={saving}
+          initialData={controller.editingItem}
+          onSubmit={controller.handleSubmit}
+          onCancel={controller.cancelForm}
+        />
+      }
+      listSlot={
+        <TabelaMarcas
+          marcas={controller.visibleRows}
+          onEdit={controller.handleEdit}
+          onDelete={controller.handleRequestDelete}
+          isLoading={controller.isLoading}
+          showConfigColunas={controller.showConfigColunas}
+          setShowConfigColunas={controller.setShowConfigColunas}
+          searchQuery=""
+          matchesSearch={controller.matchesSearch}
+          resetFiltersKey={controller.chrome.resetFiltersKey}
+          onSelectionChange={controller.chrome.onSelectionChange}
+          onFiltersActiveChange={controller.chrome.setFiltersActive}
+          viewMode={controller.chrome.viewMode === "cards" ? "cards" : "table"}
+          cardFields={controller.cardsPrefs.cardFields}
+          cardsPerRow={controller.cardsPrefs.cardsPerRow}
+          configureColumnsAnchorRef={controller.configureColumnsAnchorRef}
+        />
+      }
+    />
   );
 }

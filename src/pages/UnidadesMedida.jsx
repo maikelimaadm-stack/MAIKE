@@ -1,403 +1,219 @@
-import React, { useCallback, useState, useEffect, useMemo } from "react";
+import React, { useCallback, useEffect, useMemo, useRef } from "react";
 import {
-  listarUnidades,
+  listarUnidadesPagina,
   criarUnidade,
   atualizarUnidade,
   numerarUnidadesSemNumero,
   excluirUnidades,
 } from "@/services/unidadeMedidaService";
 import { getApiErrorMessage } from "@/apis/_core/ApiError";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Badge } from "@/components/ui/badge";
-import CadastroWorkspace from "@/components/cadastro/CadastroWorkspace";
-import CadastroListaChrome from "@/components/cadastro/base1/CadastroListaChrome";
-import CadastroRecordHeader from "@/components/cadastro/base1/CadastroRecordHeader";
-import CadastroBase1Grade from "@/components/cadastro/base1/CadastroBase1Grade";
-import { useCadastroListaChromeState } from "@/hooks/useCadastroListaChromeState";
-import { useCadastroPageListBindings } from "@/hooks/useCadastroPageListBindings";
-import { useCadastroDuplicateAction } from "@/hooks/useCadastroDuplicateAction";
-import { exportCadastroCsv } from "@/components/cadastro/base1/cadastroExportCsv";
-import { toast } from "sonner";
-import ConfirmDialog from "@/components/common/ConfirmDialog";
-import { BASE1_LISTA_INTEGRADA_VISUAL } from "@/components/cadastro/base1/base1VisualPreset";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  notifyError,
+  notifyExclusoesEmpilhadas,
+  notifySuccess,
+  notifyWarning,
+} from "@/lib/maikeNotify";
+import CadastroBase1Screen from "@/components/cadastro/base1/CadastroBase1Screen";
+import TabelaUnidadesMedida, {
+  UNIDADES_COLUNAS,
+  getUnidadeFieldValue,
+} from "@/components/unidades-medida/TabelaUnidadesMedida";
+import FormularioUnidadeMedida, {
+  FORMULARIO_UNIDADE_MEDIDA_ID,
+} from "@/components/unidades-medida/FormularioUnidadeMedida";
+import { useCadastroBase1Controller } from "@/hooks/useCadastroBase1Controller";
 
-const COLUNAS = [
-  { id: "numero", label: "Nº", default: true, sortable: true, align: "left", width: 60 },
-  { id: "sigla", label: "Sigla", default: true, sortable: true, align: "left", width: 120 },
-  { id: "descricao", label: "Descrição", default: true, sortable: true, align: "left", width: 300 },
-  { id: "ativo", label: "Ativo", default: true, sortable: true, align: "center", width: 80 },
-];
-
-const FL = ({ label, required, error, children, dataField }) => (
-  <div data-field={dataField}>
-    <label className="text-[12px] text-slate-500 pl-1 leading-none">
-      {label}
-      {required && <span className="text-red-500 ml-0.5">*</span>}
-    </label>
-    <div
-      className={`rounded-md border ${error ? "border-red-500 bg-red-50" : "border-slate-300"} focus-within:border-emerald-500 transition-colors`}
-    >
-      {children}
-    </div>
-  </div>
-);
-
-/** @param {object} item @param {string} colId */
-function getFieldValue(item, colId) {
-  if (colId === "numero") return item.numero_unidade || "";
-  if (colId === "sigla") return item.sigla || "";
-  if (colId === "descricao") return item.descricao || "";
-  if (colId === "ativo") return item.ativo !== false ? "Ativo" : "Inativo";
-  return "";
-}
-
-/** @param {object} item @param {string} colId */
-function renderCell(item, colId) {
-  if (colId === "numero") return item.numero_unidade || "–";
-  if (colId === "sigla") {
-    return (
-      <span className={`uppercase font-mono font-semibold ${item.ativo === false ? "text-slate-400 line-through" : ""}`}>
-        {item.sigla || "–"}
-      </span>
-    );
-  }
-  if (colId === "descricao") return item.descricao || "–";
-  if (colId === "ativo") {
-    return item.ativo !== false ? (
-      <Badge className="text-[10px] bg-emerald-100 text-emerald-700">Ativo</Badge>
-    ) : (
-      <Badge className="text-[10px] bg-slate-100 text-slate-500">Inativo</Badge>
-    );
-  }
-  return "–";
-}
+const UNIDADES_STORAGE_KEY = "colunas_unidades_medida";
 
 export default function UnidadesMedida() {
-  const [showForm, setShowForm] = useState(false);
-  const [editing, setEditing] = useState(null);
-  const [formData, setFormData] = useState({ sigla: "", descricao: "", ativo: true });
-  const [showConfigColunas, setShowConfigColunas] = useState(false);
-  const [deleteState, setDeleteState] = useState({ open: false, ids: [] });
-  const [errors, setErrors] = useState({});
-  const chrome = useCadastroListaChromeState();
-  const listBindings = useCadastroPageListBindings({
-    storageKey: "colunas_unidades_medida",
-    columns: COLUNAS,
-    chrome,
-  });
-  const handleDuplicateSelected = useCadastroDuplicateAction({
-    chrome,
-    findById: (id) => unidades.find((row) => row.id === id),
-    openDraft: (draft) => {
-      setEditing(draft);
-      setFormData({ sigla: draft.sigla || "", descricao: draft.descricao || "", ativo: draft.ativo !== false });
-      setShowForm(true);
-    },
-    labelField: "descricao",
-  });
   const queryClient = useQueryClient();
-  const { data: unidades = [], isLoading } = useQuery({
-    queryKey: ["unidades_medida"],
-    queryFn: () => listarUnidades(),
-    initialData: [],
+  const submitRef = useRef(/** @type {(data: object) => void} */ (() => {}));
+  const deleteRef = useRef(/** @type {(ids: string[]) => void} */ (() => {}));
+
+  const fetchUnidadesPage = useCallback(
+    ({ limit, cursor, q }) =>
+      listarUnidadesPagina({
+        limit,
+        cursor,
+        q: q || undefined,
+      }),
+    [],
+  );
+
+  const controller = useCadastroBase1Controller({
+    storageKey: UNIDADES_STORAGE_KEY,
+    columnIds: UNIDADES_COLUNAS.map((c) => c.id),
+    queryKey: ["unidades_medida", "page"],
+    fetchPage: fetchUnidadesPage,
+    duplicateLabelField: "descricao",
+    searchPlaceholder: "Buscar unidades…",
+    exportFileName: "unidades-medida.csv",
+    exportColumns: UNIDADES_COLUNAS,
+    getExportFieldValue: getUnidadeFieldValue,
+    getRecordTitle: (item) =>
+      item?.id ? item.descricao || item.sigla || "Unidade" : "Nova unidade de medida",
+    getRecordCode: (item) => (item?.sigla ? String(item.sigla) : undefined),
+    getSearchHaystack: (u) => [u.sigla, u.descricao, u.numero_unidade].filter(Boolean).join(" "),
+    mapSearchSuggestion: (u) => ({
+      id: String(u.id),
+      label: u.descricao || u.sigla || "Unidade",
+      secondary: u.sigla ? u.sigla : u.numero_unidade ? `Nº ${u.numero_unidade}` : undefined,
+    }),
+    matchRowId: (u, id) => String(u.id) === String(id),
+    getRowId: (u) => String(u.id),
+    findRowById: (rows, id) => rows.find((u) => String(u.id) === String(id)),
+    onSubmitRecord: (data) => submitRef.current(data),
+    onRequestDeleteMutation: (ids) => deleteRef.current(ids),
   });
 
   useEffect(() => {
     const numerar = async () => {
-      const { numeradas } = await numerarUnidadesSemNumero(unidades);
+      const { numeradas } = await numerarUnidadesSemNumero(controller.visibleRows);
       if (numeradas.length) queryClient.invalidateQueries({ queryKey: ["unidades_medida"] });
     };
-    if (!isLoading && unidades.length > 0) numerar();
-  }, [unidades, isLoading, queryClient]);
+    if (!controller.isLoading && controller.visibleRows.length > 0) numerar();
+  }, [controller.visibleRows, controller.isLoading, queryClient]);
 
   const createMutation = useMutation({
+    /** @param {object} data */
     mutationFn: (data) => criarUnidade(data),
-    onSuccess: () => {
+    onSuccess: (created) => {
       queryClient.invalidateQueries({ queryKey: ["unidades_medida"] });
-      setShowForm(false);
-      setEditing(null);
-      toast.success("Unidade cadastrada!");
+      controller.recordHelpers.recordBeforeNewRef.current = null;
+      if (created && typeof created === "object" && created.id) {
+        controller.recordHelpers.setEditingItem(created);
+        controller.recordHelpers.setIsEditing(false);
+        controller.recordHelpers.setShowForm(true);
+        controller.recordHelpers.chrome.setViewMode("record");
+        controller.recordHelpers.chrome.onSelectionChange([String(created.id)]);
+      } else {
+        controller.recordHelpers.closeForm();
+      }
+      notifySuccess("Sucesso", "Unidade cadastrada");
     },
-    onError: (err) => toast.error(getApiErrorMessage(err, "Não foi possível salvar a unidade.")),
+    onError: (err) =>
+      notifyWarning("Atenção", getApiErrorMessage(err, "Não foi possível salvar a unidade.")),
   });
+
   const updateMutation = useMutation({
+    /** @param {{ id: string, data: object }} vars */
     mutationFn: ({ id, data }) => atualizarUnidade(id, data),
-    onSuccess: () => {
+    onSuccess: (updated, { id, data }) => {
       queryClient.invalidateQueries({ queryKey: ["unidades_medida"] });
-      setShowForm(false);
-      setEditing(null);
-      toast.success("Unidade atualizada!");
+      const merged = {
+        ...(controller.editingItem?.id === id ? controller.editingItem : {}),
+        id,
+        ...data,
+        ...(updated && typeof updated === "object" ? updated : {}),
+      };
+      controller.setEditingItem(merged);
+      controller.setIsEditing(false);
+      notifySuccess("Sucesso", "Unidade atualizada");
     },
-    onError: (err) => toast.error(getApiErrorMessage(err, "Não foi possível salvar a unidade.")),
+    onError: (err) =>
+      notifyWarning("Atenção", getApiErrorMessage(err, "Não foi possível salvar a unidade.")),
   });
+
   const deleteMutation = useMutation({
-    mutationFn: (ids) => excluirUnidades(ids, { unidades }),
+    /** @param {string[]} ids */
+    mutationFn: (ids) => excluirUnidades(ids, { unidades: controller.visibleRows }),
     onSuccess: ({ excluidas, bloqueadas }) => {
       queryClient.invalidateQueries({ queryKey: ["unidades_medida"] });
-      chrome.setSelectedIds([]);
-      if (excluidas.length) toast.success(excluidas.length === 1 ? "Unidade excluída!" : `${excluidas.length} unidades excluídas!`);
+      controller.chrome.setSelectedIds([]);
+      if (
+        controller.showForm &&
+        controller.editingItem?.id &&
+        excluidas.some((id) => String(id) === String(controller.editingItem.id))
+      ) {
+        controller.recordHelpers.closeForm();
+      }
+      if (excluidas.length) {
+        notifyExclusoesEmpilhadas(excluidas.length, { singular: "Unidade excluída" });
+      }
       if (bloqueadas.length) {
-        toast.error(
+        notifyError(
+          "Atenção",
           bloqueadas.length === 1
             ? "1 unidade não pôde ser excluída: existem registros vinculados."
             : `${bloqueadas.length} unidades não puderam ser excluídas: existem registros vinculados.`,
         );
       }
     },
-    onError: (err) => toast.error(getApiErrorMessage(err, "Não foi possível excluir.")),
+    onError: (err) =>
+      notifyError("Atenção", getApiErrorMessage(err, "Não foi possível excluir.")),
   });
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    const ne = {};
-    if (!formData.sigla?.trim()) ne.sigla = true;
-    if (!formData.descricao?.trim()) ne.descricao = true;
-    setErrors(ne);
-    if (Object.keys(ne).length > 0) {
-      toast.error("PREENCHA OS CAMPOS OBRIGATÓRIOS.");
-      return;
+  submitRef.current = (data) => {
+    if (controller.editingItem?.id) {
+      updateMutation.mutate({ id: controller.editingItem.id, data });
+    } else {
+      createMutation.mutate(data);
     }
-    const data = {
-      sigla: formData.sigla.toUpperCase(),
-      descricao: formData.descricao.toUpperCase(),
-      ativo: formData.ativo,
-    };
-    if (editing) updateMutation.mutate({ id: editing.id, data });
-    else createMutation.mutate(data);
   };
-  const handleEdit = (item) => {
-    setEditing(item);
-    setFormData({ sigla: item.sigla || "", descricao: item.descricao || "", ativo: item.ativo !== false });
-    setShowForm(true);
-    chrome.setViewMode("record");
-    if (item?.id) chrome.onSelectionChange([item.id]);
-  };
-  const handleRequestDelete = (id) => {
-    const ids = Array.isArray(id) ? id : [id];
-    setDeleteState({ open: true, ids });
-  };
-  const handleConfirmDelete = () => {
-    deleteMutation.mutate(deleteState.ids);
-    setDeleteState({ open: false, ids: [] });
-  };
+  deleteRef.current = (ids) => deleteMutation.mutate(ids);
 
-  const closeForm = () => {
-    setShowForm(false);
-    setEditing(null);
-    setFormData({ sigla: "", descricao: "", ativo: true });
-    setErrors({});
-    chrome.exitRecordView();
-  };
+  const saving = createMutation.isPending || updateMutation.isPending;
 
-  const openNewForm = () => {
-    setEditing(null);
-    setFormData({ sigla: "", descricao: "", ativo: true });
-    setErrors({});
-    setShowForm(true);
-    chrome.setViewMode("record");
-  };
+  const recordCode =
+    controller.editingItem?.sigla != null
+      ? String(controller.editingItem.sigla)
+      : undefined;
 
-  const handleEditSelected = useCallback(() => {
-    const item = unidades.find((u) => u.id === chrome.selectedIds[0]);
-    if (item) handleEdit(item);
-  }, [unidades, chrome.selectedIds]);
-
-  const handleDeleteSelected = () => {
-    if (!chrome.selectedIds.length) return;
-    handleRequestDelete(chrome.selectedIds);
-  };
-
-  const onViewModeChange = useCallback(
-    (mode) => {
-      chrome.handleViewModeChange(mode, {
-        onOpenRecord: () => handleEditSelected(),
-        onExitRecord: closeForm,
-      });
-    },
-    [chrome, handleEditSelected, closeForm],
-  );
-
-  const filtradosCount = useMemo(() => {
-    const q = chrome.appliedSearch.trim().toLowerCase();
-    if (!q) return unidades.length;
-    return unidades.filter((u) => {
-      const hay = [u.sigla, u.descricao, u.numero_unidade].filter(Boolean).join(" ").toLowerCase();
-      return hay.includes(q);
-    }).length;
-  }, [unidades, chrome.appliedSearch]);
-
-  useEffect(() => {
-    chrome.setSelectedIds((prev) => prev.filter((id) => unidades.some((c) => c.id === id)));
-  }, [unidades, chrome.setSelectedIds]);
-
-  const detailTitle = editing?.id ? editing.descricao || editing.sigla || "Unidade" : "Nova unidade de medida";
-
-  const recordNavRows = useMemo(() => {
-    const q = chrome.appliedSearch.trim().toLowerCase();
-    if (!q) return unidades;
-    return unidades.filter((u) => {
-      const hay = [u.sigla, u.descricao, u.numero_unidade].filter(Boolean).join(" ").toLowerCase();
-      return hay.includes(q);
-    });
-  }, [unidades, chrome.appliedSearch]);
-
-  const recordIndex = editing?.id
-    ? Math.max(0, recordNavRows.findIndex((u) => u.id === editing.id))
-    : 0;
-
-  const goRecord = (index) => {
-    const row = recordNavRows[index];
-    if (row) handleEdit(row);
-  };
-
-  const embeddedForm = (
-    <Card className="shadow-sm border-slate-300">
-      <CardContent className="p-3 pt-2">
-        <form onSubmit={handleSubmit} className="space-y-0.5">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-1">
-            <FL label="Sigla" required error={errors.sigla} dataField="sigla">
-              <Input
-                value={formData.sigla}
-                onChange={(e) => {
-                  setErrors((p) => ({ ...p, sigla: false }));
-                  setFormData((p) => ({ ...p, sigla: e.target.value }));
-                }}
-                placeholder="UN, KG, L"
-                className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent"
-                style={{ textTransform: "uppercase" }}
-              />
-            </FL>
-            <FL label="Descrição" required error={errors.descricao} dataField="descricao" className="col-span-2">
-              <Input
-                value={formData.descricao}
-                onChange={(e) => {
-                  setErrors((p) => ({ ...p, descricao: false }));
-                  setFormData((p) => ({ ...p, descricao: e.target.value }));
-                }}
-                placeholder="UNIDADE, QUILOGRAMA"
-                className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent"
-                style={{ textTransform: "uppercase" }}
-              />
-            </FL>
-          </div>
-          <div className="flex flex-wrap gap-6 py-1 px-1">
-            <div className="flex items-center gap-2">
-              <Checkbox id="um_ativo" checked={formData.ativo} onCheckedChange={(v) => setFormData((p) => ({ ...p, ativo: v }))} />
-              <label htmlFor="um_ativo" className="text-xs text-slate-700 cursor-pointer">
-                Ativo
-              </label>
-            </div>
-          </div>
-          <div className="flex flex-col-reverse lg:flex-row justify-end gap-1 pt-1 border-t">
-            <Button type="button" variant="outline" onClick={closeForm} size="sm" className="h-7 text-xs px-3">
-              Cancelar
-            </Button>
-            <Button type="submit" size="sm" className="h-7 text-xs px-3 bg-emerald-600 hover:bg-emerald-700 text-white">
-              {editing ? "Atualizar" : "Salvar"}
-            </Button>
-          </div>
-        </form>
-      </CardContent>
-    </Card>
+  const listErrorMessage = useMemo(
+    () =>
+      getApiErrorMessage(
+        controller.listaQueryError,
+        "Não foi possível carregar as unidades. Verifique sua conexão e tente novamente.",
+      ),
+    [controller.listaQueryError],
   );
 
   return (
-    <>
-      <CadastroWorkspace mode="list" title="Unidades de medida" {...BASE1_LISTA_INTEGRADA_VISUAL.workspace}>
-        <CadastroListaChrome
-          {...BASE1_LISTA_INTEGRADA_VISUAL.chrome}
-          recordMode={showForm}
-          secondaryToolsLocked={showForm}
-          recordHeader={
-            showForm ? (
-              <CadastroRecordHeader
-                title={detailTitle}
-                code={editing?.sigla ? String(editing.sigla) : formData.sigla || undefined}
-                index={recordIndex}
-                total={recordNavRows.length}
-                onGo={editing?.id ? goRecord : undefined}
-                navDisabled={!editing?.id}
-              />
-            ) : null
-          }
-          recordBody={showForm ? embeddedForm : null}
-          selectedCount={chrome.selectedIds.length}
-          {...listBindings.listFooter.chromeFooter}
-          onNew={openNewForm}
-          onEdit={handleEditSelected}
-          onDuplicate={handleDuplicateSelected}
-          onDelete={handleDeleteSelected}
-          onExportCsv={() =>
-            exportCadastroCsv("unidades-medida.csv", COLUNAS, unidades, getFieldValue)
-          }
-          onPrint={() => window.print()}
-          cardsModeAvailable
-          cardsToolbar={listBindings.cardsToolbar}
-          searchValue={chrome.searchInput}
-          onSearchChange={chrome.setSearchInput}
-          onSearchApply={chrome.applySearch}
-          searchActive={chrome.searchActive}
-          searchPlaceholder="Buscar unidades…"
-          onConfigureColumns={() => setShowConfigColunas(true)}
-          onClearFilters={chrome.clearFilters}
-          filtersActive={chrome.filtersActive}
-          viewMode={showForm ? "record" : chrome.viewMode}
-          onViewModeChange={onViewModeChange}
-        >
-          {!showForm ? (
-            <div className="overflow-hidden">
-              <CadastroBase1Grade
-                {...BASE1_LISTA_INTEGRADA_VISUAL.grade}
-                rows={unidades}
-                columns={COLUNAS}
-                storageKey="colunas_unidades_medida"
-                droppableId="colunas-unidades-medida"
-                getFieldValue={getFieldValue}
-                renderCell={renderCell}
-                defaultSortKey="sigla"
-                emptyText="Nenhuma unidade encontrada"
-                isLoading={isLoading}
-                onOpen={handleEdit}
-                showConfigColunas={showConfigColunas}
-                setShowConfigColunas={setShowConfigColunas}
-                searchQuery={chrome.appliedSearch}
-                resetFiltersKey={chrome.resetFiltersKey}
-                onSelectionChange={chrome.onSelectionChange}
-                onFiltersActiveChange={chrome.setFiltersActive}
-                viewMode={chrome.viewMode === "cards" ? "cards" : "table"}
-                displayLimit={listBindings.listFooter.gradePaging.displayLimit}
-                onListMetrics={listBindings.listFooter.gradePaging.onListMetrics}
-                cardFields={listBindings.cardsPrefs.cardFields}
-                cardsPerRow={listBindings.cardsPrefs.cardsPerRow}
-                cardsTitleColId="descricao"
-                cardsCodeColId="sigla"
-                matchesSearch={(item, q) => {
-                  const hay = [item.sigla, item.descricao, item.numero_unidade].filter(Boolean).join(" ").toLowerCase();
-                  return hay.includes(q);
-                }}
-              />
-            </div>
-          ) : null}
-        </CadastroListaChrome>
-      </CadastroWorkspace>
-      <ConfirmDialog
-        open={deleteState.open}
-        onOpenChange={(open) => setDeleteState((prev) => ({ ...prev, open }))}
-        title="Confirmar exclusão"
-        description={
-          deleteState.ids.length > 1
-            ? `Deseja excluir ${deleteState.ids.length} unidades selecionadas?`
-            : "Deseja excluir esta unidade?"
-        }
-        confirmText="Excluir"
-        cancelText="Cancelar"
-        variant="destructive"
-        onConfirm={handleConfirmDelete}
-      />
-    </>
+    <CadastroBase1Screen
+      workspaceTitle="Unidades de medida"
+      searchPlaceholder="Buscar unidades…"
+      formId={FORMULARIO_UNIDADE_MEDIDA_ID}
+      columnsForCardsToolbar={UNIDADES_COLUNAS}
+      controller={{ ...controller, saving }}
+      listErrorMessage={listErrorMessage}
+      recordCode={recordCode}
+      deleteDialog={{
+        title: "Confirmar exclusão",
+        descriptionOne: "Deseja excluir esta unidade?",
+        descriptionMany: (n) => `Deseja excluir ${n} unidades selecionadas?`,
+      }}
+      recordForm={
+        <FormularioUnidadeMedida
+          key={`${controller.editingItem?.id ?? "unidade-nova"}-${controller.formEpoch}`}
+          variant="embedded"
+          toolbarActions
+          readOnly={!controller.isEditing}
+          isSubmitting={saving}
+          initialData={controller.editingItem}
+          onSubmit={controller.handleSubmit}
+          onCancel={controller.cancelForm}
+        />
+      }
+      listSlot={
+        <TabelaUnidadesMedida
+          unidades={controller.visibleRows}
+          onEdit={controller.handleEdit}
+          onDelete={controller.handleRequestDelete}
+          isLoading={controller.isLoading}
+          showConfigColunas={controller.showConfigColunas}
+          setShowConfigColunas={controller.setShowConfigColunas}
+          searchQuery=""
+          matchesSearch={controller.matchesSearch}
+          resetFiltersKey={controller.chrome.resetFiltersKey}
+          onSelectionChange={controller.chrome.onSelectionChange}
+          onFiltersActiveChange={controller.chrome.setFiltersActive}
+          viewMode={controller.chrome.viewMode === "cards" ? "cards" : "table"}
+          cardFields={controller.cardsPrefs.cardFields}
+          cardsPerRow={controller.cardsPrefs.cardsPerRow}
+          configureColumnsAnchorRef={controller.configureColumnsAnchorRef}
+        />
+      }
+    />
   );
 }
