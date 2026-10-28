@@ -8,8 +8,12 @@ Referência: [`ROADMAP.md`](./ROADMAP.md) § P8 · [`GAP-AUDIT-POS-BASE44-2026-1
 
 ## Segurança de dados e acesso
 
-- [ ] **RLS** — políticas por `cliente_id` se PostgREST/anon key forem expostos;
-  hoje o app usa Prisma com credencial de servidor (`gate:rls` futuro).
+- [x] **Acesso direto Supabase (P8 fatia D-PROD-56)** — migration versionada
+  REVOKE `anon`/`authenticated` + ENABLE RLS sem política aberta Data API +
+  `gate:supabase-public-grants`. **Apply remoto aguarda autorização do dono.**
+  Relatório: `P8-SUPABASE-PUBLIC-GRANTS-RLS-REPORT.md`.
+- [ ] **RLS tenant-aware no PostgREST** — só se a Data API voltar a ser superfície;
+  hoje isolamento tenant fica na API Fastify (`cliente_id`).
 - [ ] **Autorização real** — além de JWT + tenant; perfis/permissões (continuação P6).
 - [ ] **Rate limiting** — login e APIs sensíveis.
 - [ ] **CSP / cookies** — endurecer front; JWT permanece memória + `sessionStorage`
