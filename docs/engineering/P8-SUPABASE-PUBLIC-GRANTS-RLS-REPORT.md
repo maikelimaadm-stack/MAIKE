@@ -3,7 +3,7 @@
 **Data:** 2026-10-28  
 **Branch:** `cursor/supabase-seguranca-rls-26e2`  
 **Base:** `main`  
-**HEAD:** (atualiza no commit pós-apply)  
+**HEAD:** `3c91e059e4d32e371423d0453daad01cc5411396`  
 **Compare:** https://github.com/maikelimaadm-stack/MAIKE/compare/main...cursor/supabase-seguranca-rls-26e2?expand=1  
 **PR:** [#123](https://github.com/maikelimaadm-stack/MAIKE/pull/123)  
 **Missão:** correção prioritária de acesso direto ao PostgreSQL Supabase  
