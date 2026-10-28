@@ -6,8 +6,8 @@
 |---|---|
 | Baseline `main` (preflight) | `f740d1beadadf3d73568f844655c2529c5fd69f6` |
 | Branch | `cursor/motorbase1-global-select-title-01-516d` |
-| PR | #120 (DRAFT) |
-| HEAD | `78651bb3` |
+| PR | **PENDENTE** — token do agente não pode abrir PR; branch pushed; abrir DRAFT manualmente |
+| HEAD | `3e7dcfcc` |
 
 ## Decisão de produto
 
@@ -42,7 +42,7 @@ Instrução explícita do proprietário revoga a exceção UX-40 (Marcas/Setores
 
 ```bash
 npm run test:smoke -- tests/smoke/motorbase1GlobalSelectionTitle.test.jsx  # 12 passed
-npm run verify:all  # ver CI da PR
+npm run verify:all  # local: falhou só test:backend (DATABASE_URL — sem Docker neste pod); demais etapas PASS incl. build
 ```
 
 Regressões preservadas: `cadastroGradeSelectionStability`, `categoriasHierarchyFix`, `motorbase1Batch01`, demais smokes na suíte `verify:all`.
