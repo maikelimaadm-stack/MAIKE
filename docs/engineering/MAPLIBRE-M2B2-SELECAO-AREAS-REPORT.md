@@ -5,8 +5,12 @@
 **Branch:** `cursor/maplibre-m2b2-selecao-areas-01-f5fd`  
 **Worktree:** `/home/ubuntu/worktrees/MAIKE-maplibre-m2b2`  
 **Base `origin/main`:** `00ab053b819b36b513ddb651883b6f39682128e8` (merge PR #131)  
+**HEAD:** `db892fd01ce25725d520fb75b4cf97177eda76b8`  
 **CI main:** run `40788297147` — **success**  
-**PR:** DRAFT se token permitir; senão compare URL. **Merge = NO-GO** até auditoria.
+**PR DRAFT:** **HOLD_OPEN_PR** — #132 aberta no push; não criar segunda PR.  
+Compare (abrir DRAFT só quando #132 fechar):  
+https://github.com/maikelimaadm-stack/MAIKE/compare/main...cursor/maplibre-m2b2-selecao-areas-01-f5fd?expand=1  
+**Merge = NO-GO** até auditoria.
 
 ---
 
