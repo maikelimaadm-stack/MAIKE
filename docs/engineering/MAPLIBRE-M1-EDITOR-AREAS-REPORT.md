@@ -63,22 +63,32 @@ Não se usa a chave `VITE_GOOGLE_MAPS_API_KEY` como autorização da Google Map 
 - Branch `cursor/alteracoes-visuais-26e2` existe (UX Base1/Marcas); no instante da auditoria **não** havia diff de arquivos `mapa/*` vs `main`, mas o protocolo R4 exige **não abrir PR** até declaração de conclusão + reconciliação.
 - Zero PRs abertas no início; push da branch M1 é permitido para preservar progresso; merge/PR Draft só após gate do proprietário.
 
-## Testes / gates (evidências)
+## R5 — correções de interação (2026-10-28)
+
+| ID | Correção |
+|---|---|
+| R5-01 | Removido `map.project([])` morto; hit-test só com `[x,y]` + layers; teste UI `mapaDesenhoClick` |
+| R5-02 | Fechar polígono só no **primeiro** vértice (`isNearFirstVertex`); testes snap |
+| R5-03 | Transação de drag: um undo no pointerup se mudou; Esc/blur/window pointerup restaura `dragPan` |
+| R5-04 | Handlers `touchstart/move/end` + pointer; E2E mobile real = **BLOCKED** (sem Playwright/browser WebGL neste ambiente) |
+| R5-05 | `applyBasemapStyle` retorna `cancel()`; rehydrate DESENHO/VERTICES/MIDPOINTS/GUIA |
+| R5-06 | Retry via `mapEpoch` + cleanup do effect (sem create fora do ciclo) |
+| R5-07 | `resolvePontoIconUrl` usa `cfg` por `tipo_entidade=Ponto`+`categoria`; sem circle+ícone duplicado |
+| R5-08 | `validatePolygonForSave` / `validateLineForSave` / `inspectVertices`; bloqueio de save destrutivo; limpeza ao trocar empresa |
+
+**Veredito R5:** correções de código **GO para continuar na branch**; **NO-GO para PR** até o proprietário liberar a configuração paralela. Não equivale a merge.
+
+## Testes / gates (evidências R5)
 
 | Comando | Resultado |
 |---|---|
 | `gate:supabase-public-grants` | PASS |
-| `gate:area-pastagem-native` | PASS |
-| `gate:map-geography-native` | PASS |
-| `gate:product-scope` | PASS |
-| `gate:api-boundary` | PASS |
-| `gate:import-integrity` | PASS |
-| `gate:source-closure` | PASS |
-| `gate:types` | PASS (dívida ↓; zero diagnóstico novo nos módulos M1) |
-| `lint` | PASS (2 warnings pré-existentes fora do M1) |
-| `test:smoke` | PASS — **749** testes |
-| `test:gates` | PASS |
-| `build` | PASS (~3,4 MB JS com maplibre-gl; CSS +maplibre) |
-| `verify:all` | **1 falha:** `test:backend` — `DATABASE_URL` ausente; Docker indisponível neste ambiente → **NOT_RUN** (não executado contra Supabase remoto) |
+| `gate:area-pastagem-native` / `map-geography-native` | PASS |
+| `gate:product-scope` / `api-boundary` / `import-integrity` / `source-closure` | PASS |
+| `gate:types` / `typecheck:backend` / `lint` / `test:gates` | PASS |
+| `test:smoke` | PASS — **776** testes (inclui suite R5 interação) |
+| `build` | PASS |
+| `verify:all` | **1 falha:** `test:backend` — `DATABASE_URL` ausente / Docker indisponível → **NOT_RUN** |
+| E2E browser WebGL real (desktop+mobile) | **BLOCKED** — sem browser/Playwright neste cloud agent |
 
-E2E browser real (desenhar/editar/salvar): **não executado** neste ambiente cloud (sem browser automation solicitada neste slice). Cobertura automatizada via Vitest + mock MapLibre lifecycle.
+Persistência remota: **não alterada**; nenhuma migration; nenhuma escrita nas 4 áreas Supabase.
