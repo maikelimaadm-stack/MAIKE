@@ -14,13 +14,13 @@ rollout pausado **D-PROD-41**)
 | Campo | Valor |
 |---|---|
 | Plano operacional | `docs/engineering/PLAN-BACKEND-MIGRACAO-100.md` |
-| Migrations no repositório | **14** (`backend/prisma/migrations/`) — até `20261028120000_p55_base44_exit_final` |
+| Migrations no repositório | **18** (`backend/prisma/migrations/`) — até `20261028240000_p8_supabase_public_revoke_rls` |
 | Models Prisma (domínio + fundação) | Fundação P3 + mapa P4 + cadastros/manejo P5.x + hygiene P6.1 (schema completo pós-P5.5) |
 | Runner de produção | `npm run deploy:migrate` — variável **`MIGRATION_DATABASE_URL`** (sem fallback para `DATABASE_URL`) |
 | Banco local | `npm run db:up` (Docker `postgres:16.13-alpine`) + `npm run prisma:deploy` |
 | Testes backend | `npm run test:backend` — **142** testes; falha dura sem `DATABASE_URL` |
 | Monólito Vercel | `api/fastify.js` + `vercel.json` reescreve **todas** as rotas nativas para `/api/fastify` (correção 2026-10-27) |
-| Supabase (MAIKE) | **14/14** `_prisma_migrations` reconciliado 2026-10-27; DDL p51–p55 já aplicada — ledger alinhado sem reexecutar SQL — ver `POST-P7-PRODUCAO-REPORT-2026-10-27.md` |
+| Supabase (MAIKE) | **18/18** `_prisma_migrations` (P8 D-PROD-56 aplicado 2026-10-28: RLS 40/40, grants anon/authenticated zerados; ver `P8-SUPABASE-PUBLIC-GRANTS-RLS-REPORT.md`) |
 | Deploy | Monólito Vercel + Supabase; `npm run deploy:migrate` no pipeline quando `MIGRATION_DATABASE_URL` definida |
 | Certificação agente 2026-10-27 (pós-P7) | `/health` **200**; rotas `/marcas`, `/empresas`, `/lancamentos-tarefa` **401** sem JWT; Vercel MCP enxerga projeto `maike`; login autenticado não repetido (senha fora do repo) |
 
@@ -84,7 +84,7 @@ repositório (D-PROD-04 / P7 opcional de arquivo).
 |---|---|
 | Produto | Pecuária — Mapa Geral + Manejo (D-PROD-01) |
 | Superfície primária | `MapaGeral` (D-PROD-05) |
-| Missão em execução | **P8 — Hardening and Release** (RLS, observabilidade, release); UX Base1 aguarda **H.5** (D-PROD-41) |
+| Missão em execução | **P8 — Hardening** fatia Supabase grants/RLS (**D-PROD-56**, PR **#123** — **apply remoto feito** 2026-10-28; ledger **18/18**); UX Base1 aguarda **H.5** (D-PROD-41) |
 | Última mergeada (runtime) | **P7 — Base44 legacy cleanup** (PR **#85**, D-PROD-52); dados nativos fechados em **P5.5** (PR #84) |
 | Mergeadas anteriores | P3 — Backend + Prisma + PostgreSQL Foundation (PR #10, merge `4ce4608`), com a P3-R1; P2 — ModeloBase1 Pecuário Foundation (PR #7, merge `1851503`); SSOT sincronizada nas PRs #8 (`378bfd3`) e #11 (`672ea99`); emenda D-PROD-22 na PR #9 (merge `44b204c`) |
 | Próxima fatia autorizável | **P8 — Hardening and Release** (ver `ROADMAP.md`) |
@@ -114,7 +114,7 @@ armazenamento apenas em `.env.local` seguem pendentes com o proprietário — ve
 | P5 | Manejo Core Native Persistence | **concluída (P5.x + P5.5)** — lotes, movimentações, bebedouros, manejo técnico nativos; ver relatórios P5.x |
 | P6 | Supporting Capabilities | **majoritariamente entregue** — cadastros, tarefas, empresa, usuários/permissoes nativos; entrada de estoque (DBT-04) permanece |
 | P7 | Base44 Final Removal | **runtime concluído** (PR **#85**) — sem SDK/`VITE_BASE44_*` em `src/`; opcional: arquivar schemas `base44/` e ratchet |
-| P8 | Hardening and Release | **próxima** — RLS, CSP/cookies, observabilidade, release |
+| P8 | Hardening and Release | **em curso** — fatia grants/RLS (**D-PROD-56**) aplicada no remoto; restam CSP/cookies, observabilidade, release |
 
 ## Inventário
 

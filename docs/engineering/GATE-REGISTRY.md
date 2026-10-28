@@ -17,6 +17,7 @@ Todos têm teste unitário com casos de falha reais em `scripts/tests/gates/`.
 | **product-scope** | `npm run gate:product-scope` | Rotas, menu, schemas e functions dentro de `config/mapa-manejo-scope.json`; superfície primária é `MapaGeral`; **entidades citadas dentro das functions** | D-PROD-01 · D-PROD-05 · D-PROD-06 | `scripts/gates/gate-product-scope.mjs` |
 | **api-boundary** | `npm run gate:api-boundary` | A UI não fala com o provider de dados: fronteira `src/apis/` protegida por identidade de arquivo | D-PROD-18 | `scripts/gates/gate-api-boundary.mjs` |
 | **deploy-migrations** | `npm run gate:deploy-migrations` | A migration chega ao banco antes do código novo rodar: runner com conexão própria sem fallback, recusa do pooler de transação, migration fora do startup, e a CI exercitando o mesmo caminho de produção | D-PROD-28 | `scripts/gates/gate-deploy-migrations.mjs` |
+| **supabase-public-grants** | `npm run gate:supabase-public-grants` | Migration P8 versionada revoga `anon`/`authenticated` em `public`, habilita RLS sem `FORCE`, e não cria política aberta para papéis da Data API | D-PROD-56 | `scripts/gates/gate-supabase-public-grants.mjs` |
 | **native-api** | `npm run gate:native-api` | Transporte e sessão nativos: URL por referência estática sem override **e com esquema absoluto**, JWT só em `sessionStorage` numa guarda única, login sem `cliente_id`, os oito códigos do contrato no catálogo do frontend, fronteira HTTP única e CORS com allowlist exata | D-PROD-24 · D-PROD-26 | `scripts/gates/gate-native-api.mjs` |
 | **setor-native** | `npm run gate:setor-native` | Setor nativo: model tenant-scoped com migration, numeração por sequência dentro de transação, ausência de rota de exclusão, zero Base44 no caminho de Setor, porta única no frontend, tenant só do token, id offline fora da rede, sem fallback silencioso, auditoria transacional, rotas autenticadas e **cache/fila offline com dono** | D-PROD-25 | `scripts/gates/gate-setor-native.mjs` |
 | **area-pastagem-native** | `npm run gate:area-pastagem-native` | AreaPastagem nativa: model tenant-scoped com migration, **FK composta tenant-aware para `Setor`** (ordem das colunas verificada estruturalmente) com `onDelete: Restrict` e índice próprio, numeração por sequência dentro de transação, **`setor_nome` derivado do setor lido e recusado no corpo**, propagação nativa da renomeação, zero Base44 no caminho de área, **porta única compartilhada por mapa e suplementação**, tenant só do token, sem fallback silencioso, auditoria transacional, ausência de rota de exclusão e fila offline com dono | D-PROD-31 | `scripts/gates/gate-area-pastagem-native.mjs` |
@@ -43,10 +44,10 @@ Contratos baratos primeiro, build por último:
 test:gates → governance-paths → package-sync → product-scope → api-boundary
 → native-api → setor-native → source-closure → import-integrity → no-secrets
 → base44 → modelobase1-pecuario → motorbase1-independence → tenancy → indices → deploy-migrations
-→ types → typecheck:backend → lint → test:backend → test:smoke → build
+→ supabase-public-grants → types → typecheck:backend → lint → test:backend → test:smoke → build
 ```
 
-**21 etapas desde a DEPLOY-MIGRATION-01.** O princípio não mudou: contrato barato antes, banco e
+**Etapas do `verify:all` incluem `supabase-public-grants` (D-PROD-56).** O princípio não mudou: contrato barato antes, banco e
 teste depois, build por último.
 
 `setor-native` entra logo depois de `native-api` porque é a primeira capacidade
@@ -163,6 +164,11 @@ Nenhuma etapa é ignorada nem tem o exit code convertido em sucesso.
 | `P28-DEPLOY-CI` | deploy-migrations |
 | `P28-DEPLOY-ENV` | deploy-migrations |
 | `P28-DEPLOY-ACTIVATION` | deploy-migrations |
+| `P56-SUPABASE-MIGRATION` | supabase-public-grants |
+| `P56-SUPABASE-REVOKE` | supabase-public-grants |
+| `P56-SUPABASE-RLS` | supabase-public-grants |
+| `P56-SUPABASE-NO-FORCE` | supabase-public-grants |
+| `P56-SUPABASE-NO-OPEN-POLICY` | supabase-public-grants |
 | `P3-IDX-SCHEMA-MISSING` | indices |
 | `P3-IDX-TENANT-PREFIX` | indices |
 | `P3-IDX-BUSINESS-UNIQUE` | indices |
@@ -1215,7 +1221,7 @@ o escopo sozinho — propõe e aguarda aprovação (A11).
 |---|---|---|
 | `gate:apis` | P1 | Componente não acessa provider de dados direto |
 | `gate:no-base44` | P7 | Zero referências. Substitui a catraca |
-| `gate:rls` | P8 | Toda tabela tem policy de RLS |
+| `gate:rls-tenant-policies` | P8+ | Políticas tenant-aware por `cliente_id` **se** PostgREST voltar a ser superfície (hoje: REVOKE + RLS sem policy Data API — `gate:supabase-public-grants`) |
 
 `gate:tenancy` e `gate:indices` saíram desta lista na **P3**: os dois existem,
 estão no `verify:all` e têm prova negativa por invariante. Ver as seções acima.

@@ -60,6 +60,9 @@ const ETAPAS = [
   // o runner de teste passa a exercitar logo em seguida, e se a barreira
   // estiver quebrada é melhor saber antes de subir PostgreSQL (D-PROD-28).
   ['deploy-migrations', npm('gate:deploy-migrations')],
+  // Depois da barreira de deploy: a migration P8 de REVOKE/RLS precisa existir
+  // e não pode degradar para FORCE nem política aberta de Data API (D-PROD-56).
+  ['supabase-public-grants', npm('gate:supabase-public-grants')],
   ['prisma:generate', npm('prisma:generate')],
   ['types', npm('gate:types')],
   ['typecheck:backend', npm('typecheck:backend')],

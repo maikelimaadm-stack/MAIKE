@@ -88,6 +88,7 @@ Todos os scripts vivem em `scripts/gates/`.
 | Contrato base pecuário | `npm run gate:modelobase1-pecuario` | O contrato de persistência e domínio da P2 (D-PROD-21) — **absoluto**, sem baseline |
 | Tenancy | `npm run gate:tenancy` | Schema Prisma e backend cumprem a tenancy — **absoluto** |
 | Índices | `npm run gate:indices` | Índice e unique tenant-aware — **absoluto** |
+| Grants Supabase/public | `npm run gate:supabase-public-grants` | Migration P8: REVOKE anon/authenticated + RLS sem FORCE/política aberta Data API — **absoluto** |
 | Tipos (`src/`) | `npm run gate:types` | A dívida de tipos não cresce |
 | Tipos (`backend/`) | `npm run typecheck:backend` | O backend tem **zero** diagnóstico — **absoluto**, sem baseline |
 | Transporte nativo | `npm run gate:native-api` | URL, token, tenant, catálogo de erros, fronteira HTTP e CORS da P4.0 — **absoluto** |

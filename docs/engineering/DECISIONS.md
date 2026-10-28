@@ -2307,4 +2307,34 @@ backend da entidade + ligar `useCadastroInfiniteList` na página. Sem fork.
 
 ---
 
-<!-- Próxima decisão: D-PROD-56 -->
+## D-PROD-56 — Supabase public: REVOKE Data API + RLS sem política aberta
+
+**Missão:** correção urgente de acesso direto ao banco Supabase (P8 fatia
+segurança; branch `cursor/supabase-seguranca-rls-26e2`)  
+**Relatório:** `docs/engineering/P8-SUPABASE-PUBLIC-GRANTS-RLS-REPORT.md`
+
+**Decisão:** O MAIKE **não** usa PostgREST/`supabase-js` no runtime. Persistência
+é Fastify → Prisma → PostgreSQL (papel de servidor). Em `public`:
+
+1. **REVOKE** de `anon` e `authenticated` em tabelas, sequências e rotinas;
+2. **ALTER DEFAULT PRIVILEGES** no grantor efetivo (`postgres` / current_user)
+   para não recriar esses grants em objetos novos;
+3. **ENABLE ROW LEVEL SECURITY** em todas as tabelas `public`, **sem FORCE**;
+4. Política `maike_backend_all` **somente** para o papel de backend
+   `maike_vercel` (se existir), porque ele não tem `BYPASSRLS` e não é owner —
+   sem isso o Prisma quebra. Políticas `USING (true)` para `anon`/`authenticated`
+   são **proibidas** (falso isolamento). Isolamento tenant continua na API
+   (`cliente_id` / `empresa_id`); **não** usar `auth.uid()` do Supabase Auth.
+
+Gate absoluto: `gate:supabase-public-grants`. Aplicação DDL no projeto Supabase
+MAIKE (`uuemcasqcdjucflulkne`) **exige autorização explícita do proprietário** —
+a PR só versiona migration + provas em lab.
+
+**Consequência:** Advisors `rls_disabled_in_public` devem zerar após apply; grants
+ainda precisam ser re-auditados (linter ≠ grants). Defaults de
+`supabase_admin` podem exigir passo operacional separado. MapLibre e UX Base1
+ficam fora desta missão (R7).
+
+---
+
+<!-- Próxima decisão: D-PROD-57 -->
