@@ -5,8 +5,11 @@
 **Branch:** `cursor/maplibre-m2a-gps-areas-linhas-f5fd`  
 **Worktree:** `/home/ubuntu/worktrees/MAIKE-maplibre-m2a`  
 **Base `origin/main`:** `ed32521abc57b68202a536ac5229c99464f2224e` (merge PR #127 — MapLibre M1)  
+**HEAD branch:** `5afc7ee106fdd…` → ver `git rev-parse HEAD` (`5afc7ee1`)  
 **CI `quality` pós-#127:** run `40779939571` — **success** (Gate 0)  
-**PR:** DRAFT se token permitir; senão compare URL (sem duplicar). **Merge = NO-GO** até auditoria manual.
+**PR create via `gh`:** `Resource not accessible by integration` — abrir **uma** DRAFT na UI:  
+https://github.com/maikelimaadm-stack/MAIKE/compare/main...cursor/maplibre-m2a-gps-areas-linhas-f5fd?expand=1  
+**Merge = NO-GO** até auditoria manual do arquiteto.
 
 ---
 
