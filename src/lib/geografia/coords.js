@@ -70,6 +70,50 @@ export function parseVertices(list) {
 }
 
 /**
+ * Analisa lista bruta sem descartar silenciosamente inválidos (R5-08).
+ * @param {unknown} list
+ * @returns {{ ok: boolean, vertices: LatLng[], invalidCount: number, rawCount: number }}
+ */
+export function inspectVertices(list) {
+  if (!Array.isArray(list)) {
+    return { ok: false, vertices: [], invalidCount: 0, rawCount: 0 };
+  }
+  /** @type {LatLng[]} */
+  const vertices = [];
+  let invalidCount = 0;
+  for (const item of list) {
+    const v = parseVertex(item);
+    if (v) vertices.push(v);
+    else invalidCount += 1;
+  }
+  return {
+    ok: invalidCount === 0 && vertices.length === list.length,
+    vertices,
+    invalidCount,
+    rawCount: list.length,
+  };
+}
+
+/**
+ * Remove pares consecutivos duplicados (linhas).
+ * @param {LatLng[] | unknown[]} points
+ * @returns {LatLng[]}
+ */
+export function dedupeConsecutive(points) {
+  const parsed = parseVertices(points);
+  if (parsed.length === 0) return [];
+  /** @type {LatLng[]} */
+  const out = [parsed[0]];
+  for (let i = 1; i < parsed.length; i += 1) {
+    const prev = out[out.length - 1];
+    const cur = parsed[i];
+    if (prev.lat === cur.lat && prev.lng === cur.lng) continue;
+    out.push(cur);
+  }
+  return out;
+}
+
+/**
  * @param {LatLng} point
  * @returns {[number, number]}
  */

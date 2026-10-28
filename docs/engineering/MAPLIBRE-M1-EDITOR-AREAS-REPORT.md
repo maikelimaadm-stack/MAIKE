@@ -1,11 +1,12 @@
 # MAPLIBRE-M1 — Editor Cadastro de Áreas (MapLibre)
 
-**Missão:** `MAPLIBRE-M1-EDITOR-AREAS-01`  
+**Missão:** `MAPLIBRE-M1-EDITOR-AREAS-01` (+ **R5 corretiva**)  
 **Decisão:** D-PROD-57  
-**Branch:** `cursor/maplibre-m1-editor-areas-f5fd`  
-**Base:** `origin/main` @ `d4e07df960f58acfb9eee65a8ee08909a6d9f7c5`  
+**Branch:** `cursor/maplibre-m1-editor-areas-f5fd` (mesma; sem nova PR)  
+**Base original R4:** `d4e07df960f58acfb9eee65a8ee08909a6d9f7c5`  
+**Base após merge R5:** `origin/main` @ `1590655fc9ef080d8d178d270c22f9ec3c50fe1d` (PR #125 Usuários/Permissões — sem interseção com `MapaDesenho`/`maplibre/`)  
 **Worktree:** `/home/ubuntu/worktrees/MAIKE-maplibre-m1`  
-**PR:** **não aberta** — aguarda finalização da configuração de mapa em paralelo e reconciliação explícita do proprietário.
+**PR:** **não aberta** — barreira R4/R5 mantida enquanto configuração de mapa paralela estiver ativa.
 
 ---
 

@@ -10,9 +10,12 @@ import {
   parseVertices,
   stripClosingVertex,
   toOpenRingLngLat,
+  dedupeConsecutive,
 } from "./coords.js";
 
 const M2_POR_HA = 10000;
+/** Área mínima aceitável no editor (m²) — evita polígono degenerado/colinear. */
+export const AREA_MINIMA_M2 = 1e-2;
 
 /**
  * Área geodésica em m². Polígono inválido → 0.
@@ -72,6 +75,42 @@ export function perimetroMetros(points) {
   } catch {
     return 0;
   }
+}
+
+/**
+ * Polígono salvável: ≥3 vértices distintos e área geodésica > tolerância.
+ * @param {import('./coords.js').LatLng[] | unknown[]} points
+ * @returns {{ ok: boolean, reason?: string, areaM2?: number }}
+ */
+export function validatePolygonForSave(points) {
+  /** @type {import('./coords.js').LatLng[]} */
+  const ring = stripClosingVertex(parseVertices(points));
+  if (!isValidPolygonRing(ring)) {
+    return { ok: false, reason: "Polígono inválido: precisa de pelo menos 3 vértices distintos." };
+  }
+  const m2 = areaMetrosQuadrados(ring);
+  if (!(m2 > AREA_MINIMA_M2)) {
+    return { ok: false, reason: "Área inválida (vértices colineares ou degenerados).", areaM2: m2 };
+  }
+  return { ok: true, areaM2: m2 };
+}
+
+/**
+ * Linha salvável: ≥2 pontos sem duplicata consecutiva e comprimento > 0.
+ * @param {import('./coords.js').LatLng[] | unknown[]} points
+ * @returns {{ ok: boolean, reason?: string, meters?: number, cleaned?: import('./coords.js').LatLng[] }}
+ */
+export function validateLineForSave(points) {
+  /** @type {import('./coords.js').LatLng[]} */
+  const cleaned = dedupeConsecutive(points);
+  if (cleaned.length < 2) {
+    return { ok: false, reason: "Linha inválida: precisa de pelo menos 2 pontos distintos." };
+  }
+  const meters = comprimentoMetros(cleaned);
+  if (!(meters > 0)) {
+    return { ok: false, reason: "Comprimento da linha é zero.", meters };
+  }
+  return { ok: true, meters, cleaned };
 }
 
 /**

@@ -17,10 +17,13 @@ import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 import {
   parseVertices,
   parseVertex,
+  inspectVertices,
   areaHectares,
   comprimentoMetros,
   formatHectaresPt,
   formatDistanciaPt,
+  validatePolygonForSave,
+  validateLineForSave,
 } from "@/lib/geografia";
 import {
   BASEMAP_IDS,
@@ -46,7 +49,12 @@ import {
   buildMidpointsCollection,
   buildGuiaCollection,
 } from "@/lib/maplibre/geojsonBuilders.js";
-import { findNearestSnap, isNearAnyVertex } from "@/lib/maplibre/snap.js";
+import { findNearestSnap, isNearFirstVertex } from "@/lib/maplibre/snap.js";
+import {
+  commitDragTransaction,
+  resolvePontoIconUrl,
+  hitEditLayers,
+} from "@/lib/maplibre/editorInteraction.js";
 
 /** @returns {GeoJSON.FeatureCollection} */
 const emptyFc = () => /** @type {GeoJSON.FeatureCollection} */ ({ type: "FeatureCollection", features: [] });
@@ -54,6 +62,7 @@ const emptyFc = () => /** @type {GeoJSON.FeatureCollection} */ ({ type: "Feature
 export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando, onSalvar, onCancelar }) {
   const [mapReady, setMapReady] = useState(false);
   const [mapError, setMapError] = useState(null);
+  const [mapEpoch, setMapEpoch] = useState(0);
   /** @type {[string, React.Dispatch<React.SetStateAction<string>>]} */
   const [basemapId, setBasemapId] = useState(/** @type {string} */ (BASEMAP_IDS.RUAS));
   const [snappingEnabled, setSnappingEnabled] = useState(true);
@@ -61,6 +70,8 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
   const [currentPoints, setCurrentPoints] = useState([]);
   const [currentMarker, setCurrentMarker] = useState(null);
   const [drawingClosed, setDrawingClosed] = useState(false);
+  const [undoLen, setUndoLen] = useState(0);
+  const [redoLen, setRedoLen] = useState(0);
 
   const [showFormularioArea, setShowFormularioArea] = useState(usarGPS && tipoDesenho === "area");
   const [showFormularioPonto, setShowFormularioPonto] = useState(usarGPS && tipoDesenho === "ponto");
@@ -72,25 +83,44 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
   const labelsRef = useRef([]);
   const iconMarkersRef = useRef([]);
   const currentPointsRef = useRef([]);
+  const currentMarkerRef = useRef(null);
   const undoStackRef = useRef([]);
   const redoStackRef = useRef([]);
   const snappingRef = useRef(snappingEnabled);
   const drawingClosedRef = useRef(drawingClosed);
   const zoomingRef = useRef(false);
+  const zoomTimerRef = useRef(null);
   const hasCenteredRef = useRef(false);
   const dragStateRef = useRef(null);
   const areasRef = useRef([]);
   const linhasRef = useRef([]);
+  const styleSwapCancelRef = useRef(null);
+  const mountedRef = useRef(true);
+  const empresaRef = useRef(null);
+
+  const syncHistoryUi = useCallback(() => {
+    setUndoLen(undoStackRef.current.length);
+    setRedoLen(redoStackRef.current.length);
+  }, []);
 
   useEffect(() => {
     currentPointsRef.current = currentPoints;
   }, [currentPoints]);
+  useEffect(() => {
+    currentMarkerRef.current = currentMarker;
+  }, [currentMarker]);
   useEffect(() => {
     snappingRef.current = snappingEnabled;
   }, [snappingEnabled]);
   useEffect(() => {
     drawingClosedRef.current = drawingClosed;
   }, [drawingClosed]);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   const queryClient = useQueryClient();
   const empresaSelecionadaId = useEmpresaSelecionadaId();
@@ -155,16 +185,74 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
     }
     undoStackRef.current = [];
     redoStackRef.current = [];
+    syncHistoryUi();
     setCurrentPoints([]);
     setCurrentMarker(null);
     setDrawingClosed(false);
-  }, []);
+  }, [syncHistoryUi]);
 
-  // Init MapLibre once
+  // Troca de empresa: limpa edição e evita misturar layers (R5-08)
   useEffect(() => {
-    if (!mapRef.current || mapInstanceRef.current) return;
+    const prev = empresaRef.current;
+    empresaRef.current = empresaSelecionadaId;
+    if (!prev || !empresaSelecionadaId || prev === empresaSelecionadaId) return;
+    cancelarDesenho();
+    hasCenteredRef.current = false;
+    clearLabels();
+    const map = mapInstanceRef.current;
+    if (map) {
+      setSourceData(map, SOURCE_IDS.AREAS, emptyFc());
+      setSourceData(map, SOURCE_IDS.LINHAS, emptyFc());
+      setSourceData(map, SOURCE_IDS.PONTOS, emptyFc());
+    }
+  }, [empresaSelecionadaId, cancelarDesenho, clearLabels]);
+
+  const rehydrateAllSources = useCallback(
+    (map) => {
+      if (!map || !map.isStyleLoaded?.()) return;
+      const editingId = itemEditando?.id || null;
+      const pts = currentPointsRef.current;
+      const marker = currentMarkerRef.current;
+      const canEditVerts = drawingClosedRef.current || !!itemEditando;
+
+      setSourceData(
+        map,
+        SOURCE_IDS.AREAS,
+        buildAreasCollection(areasRef.current, {
+          hideFillForId: tipoDesenho === "area" ? editingId : null,
+        })
+      );
+      setSourceData(map, SOURCE_IDS.LINHAS, buildLinhasCollection(linhasRef.current));
+      setSourceData(map, SOURCE_IDS.PONTOS, buildPontosCollection(
+        // pontos sem ícone customizado ficam na layer circle; ícones HTML são markers
+        (typeof pontos !== "undefined" ? pontos : []).filter((p) => !resolvePontoIconUrl(p, iconesConfig))
+      ));
+      setSourceData(map, SOURCE_IDS.DESENHO, buildDesenhoCollection(pts, tipoDesenho, marker));
+      if ((tipoDesenho === "area" || tipoDesenho === "linha") && pts.length > 0) {
+        setSourceData(map, SOURCE_IDS.VERTICES, buildVerticesCollection(pts));
+        setSourceData(
+          map,
+          SOURCE_IDS.MIDPOINTS,
+          canEditVerts ? buildMidpointsCollection(pts, tipoDesenho) : emptyFc()
+        );
+      } else if (tipoDesenho === "ponto" && marker) {
+        setSourceData(map, SOURCE_IDS.VERTICES, buildVerticesCollection([marker]));
+        setSourceData(map, SOURCE_IDS.MIDPOINTS, emptyFc());
+      } else {
+        setSourceData(map, SOURCE_IDS.VERTICES, emptyFc());
+        setSourceData(map, SOURCE_IDS.MIDPOINTS, emptyFc());
+      }
+      setSourceData(map, SOURCE_IDS.GUIA, emptyFc());
+    },
+    [itemEditando, tipoDesenho, pontos, iconesConfig]
+  );
+
+  // Init MapLibre — depende de mapEpoch para retry limpo (R5-06)
+  useEffect(() => {
+    if (!mapRef.current) return undefined;
     let cancelled = false;
     setMapError(null);
+    setMapReady(false);
 
     let created;
     try {
@@ -174,61 +262,84 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
         zoom: 17,
       });
     } catch (err) {
-      setMapError(err?.message || "Falha ao criar mapa (WebGL?)");
-      toast.error("Erro ao carregar mapa.");
+      if (mountedRef.current) {
+        setMapError(err?.message || "Falha ao criar mapa (WebGL?)");
+        toast.error("Erro ao carregar mapa.");
+      }
       return undefined;
     }
 
     mapInstanceRef.current = created.map;
     disposeRef.current = created.dispose;
-
     const map = created.map;
 
     const onLoad = () => {
-      if (cancelled || created.getCancelled()) return;
+      if (cancelled || created.getCancelled() || !mountedRef.current) return;
       try {
         ensureBusinessLayers(map);
         syncDivisaWidth(map);
         setMapReady(true);
       } catch (err) {
-        setMapError(err?.message || "Falha ao preparar camadas");
-        toast.error("Erro ao preparar o mapa.");
+        if (mountedRef.current) {
+          setMapError(err?.message || "Falha ao preparar camadas");
+          toast.error("Erro ao preparar o mapa.");
+        }
       }
     };
 
     const onError = (e) => {
+      if (cancelled || !mountedRef.current) return;
       const msg = e?.error?.message || e?.message || "Erro de estilo/tiles";
       if (/style|tile|fetch|network|xhr/i.test(String(msg))) {
         setMapError("Falha ao carregar o estilo ou tiles do mapa. Verifique a rede e tente novamente.");
       }
     };
 
-    map.on("load", onLoad);
-    map.on("error", onError);
-    map.on("zoom", () => {
+    const onZoom = () => {
       zoomingRef.current = true;
       syncDivisaWidth(map);
-      window.setTimeout(() => {
+      if (zoomTimerRef.current) window.clearTimeout(zoomTimerRef.current);
+      zoomTimerRef.current = window.setTimeout(() => {
         zoomingRef.current = false;
       }, 400);
-    });
+    };
+
+    map.on("load", onLoad);
+    map.on("error", onError);
+    map.on("zoom", onZoom);
 
     return () => {
       cancelled = true;
+      styleSwapCancelRef.current?.cancel?.();
+      styleSwapCancelRef.current = null;
       map.off("load", onLoad);
       map.off("error", onError);
+      map.off("zoom", onZoom);
+      if (zoomTimerRef.current) {
+        window.clearTimeout(zoomTimerRef.current);
+        zoomTimerRef.current = null;
+      }
       clearLabels();
       disposeRef.current?.();
       disposeRef.current = null;
       mapInstanceRef.current = null;
-      setMapReady(false);
+      if (mountedRef.current) setMapReady(false);
     };
-  }, [clearLabels]);
+  }, [mapEpoch, clearLabels]);
 
-  // Carregar item em edição
+  // Carregar item em edição — bloquear se geometria legada corrompida (R5-08)
   useEffect(() => {
     if (itemEditando && tipoDesenho === "area" && itemEditando.coordenadas?.coords) {
-      const coords = parseVertices(itemEditando.coordenadas.coords);
+      const inspected = inspectVertices(itemEditando.coordenadas.coords);
+      if (!inspected.ok && inspected.invalidCount > 0) {
+        toast.error(
+          `Geometria da área tem ${inspected.invalidCount} vértice(s) inválido(s). Corrija antes de sobrescrever.`
+        );
+        setCurrentPoints(inspected.vertices);
+        setDrawingClosed(false);
+        return undefined;
+      }
+      const coords = inspected.vertices;
       setCurrentPoints(coords);
       setDrawingClosed(coords.length >= 3);
       const t = window.setTimeout(() => {
@@ -241,7 +352,13 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
       return () => window.clearTimeout(t);
     }
     if (itemEditando && tipoDesenho === "linha" && itemEditando.coordenadas?.coords) {
-      const coords = parseVertices(itemEditando.coordenadas.coords);
+      const inspected = inspectVertices(itemEditando.coordenadas.coords);
+      if (!inspected.ok && inspected.invalidCount > 0) {
+        toast.error(
+          `Geometria da linha tem ${inspected.invalidCount} vértice(s) inválido(s). Corrija antes de sobrescrever.`
+        );
+      }
+      const coords = inspected.vertices;
       setCurrentPoints(coords);
       const t = window.setTimeout(() => {
         const map = mapInstanceRef.current;
@@ -268,7 +385,6 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
     return undefined;
   }, [itemEditando, tipoDesenho]);
 
-  // Centralizar nas áreas
   useEffect(() => {
     if (!mapInstanceRef.current || !mapReady || itemEditando || hasCenteredRef.current) return;
     if (areas.length === 0) return;
@@ -286,7 +402,7 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
     }
   }, [areas, mapReady, itemEditando]);
 
-  // Sync GeoJSON sources + labels
+  // Sync GeoJSON + labels/ícones
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map || !mapReady) return;
@@ -299,9 +415,33 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
       buildAreasCollection(areas, { hideFillForId: tipoDesenho === "area" ? editingId : null })
     );
     setSourceData(map, SOURCE_IDS.LINHAS, buildLinhasCollection(linhas));
-    setSourceData(map, SOURCE_IDS.PONTOS, buildPontosCollection(pontos));
 
     clearLabels();
+
+    const pontosSemIcone = [];
+    pontos.forEach((ponto) => {
+      const v = parseVertex(ponto.coordenadas);
+      if (!v) return;
+      const url = resolvePontoIconUrl(ponto, iconesConfig);
+      if (url) {
+        const img = document.createElement("img");
+        img.src = url;
+        img.alt = ponto.nome || "";
+        img.style.width = "44px";
+        img.style.height = "auto";
+        img.style.maxHeight = "44px";
+        img.style.objectFit = "contain";
+        img.style.pointerEvents = "none";
+        const marker = new maplibregl.Marker({ element: img, anchor: "center" })
+          .setLngLat([v.lng, v.lat])
+          .addTo(map);
+        iconMarkersRef.current.push(marker);
+      } else {
+        pontosSemIcone.push(ponto);
+      }
+    });
+    setSourceData(map, SOURCE_IDS.PONTOS, buildPontosCollection(pontosSemIcone));
+
     areas.forEach((area) => {
       if (editingId && area.id === editingId && tipoDesenho === "area") return;
       const ring = parseVertices(area.coordenadas?.coords);
@@ -323,25 +463,6 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
         .addTo(map);
       labelsRef.current.push(marker);
     });
-
-    // Ícones customizados de pontos (HTML marker) — sem centenas de listeners Google
-    pontos.forEach((ponto) => {
-      const v = parseVertex(ponto.coordenadas);
-      if (!v || !ponto.icone_url) return;
-      const cfg = (iconesConfig || []).find((c) => c.tipo === ponto.tipo);
-      const url = ponto.icone_url || cfg?.icone_url;
-      if (!url) return;
-      const img = document.createElement("img");
-      img.src = url;
-      img.alt = ponto.nome || "";
-      img.style.width = "44px";
-      img.style.height = "auto";
-      img.style.pointerEvents = "none";
-      const marker = new maplibregl.Marker({ element: img, anchor: "center" })
-        .setLngLat([v.lng, v.lat])
-        .addTo(map);
-      iconMarkersRef.current.push(marker);
-    });
   }, [areas, pontos, linhas, iconesConfig, mapReady, itemEditando, tipoDesenho, clearLabels]);
 
   // Sync desenho atual
@@ -355,11 +476,11 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
     const canEditVerts = drawingClosed || !!itemEditando;
     if ((tipoDesenho === "area" || tipoDesenho === "linha") && currentPoints.length > 0) {
       setSourceData(map, SOURCE_IDS.VERTICES, buildVerticesCollection(currentPoints));
-      if (canEditVerts) {
-        setSourceData(map, SOURCE_IDS.MIDPOINTS, buildMidpointsCollection(currentPoints, tipoDesenho));
-      } else {
-        setSourceData(map, SOURCE_IDS.MIDPOINTS, emptyFc());
-      }
+      setSourceData(
+        map,
+        SOURCE_IDS.MIDPOINTS,
+        canEditVerts ? buildMidpointsCollection(currentPoints, tipoDesenho) : emptyFc()
+      );
     } else if (tipoDesenho === "ponto" && currentMarker) {
       setSourceData(map, SOURCE_IDS.VERTICES, buildVerticesCollection([currentMarker]));
       setSourceData(map, SOURCE_IDS.MIDPOINTS, emptyFc());
@@ -369,10 +490,10 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
     }
   }, [currentPoints, currentMarker, tipoDesenho, drawingClosed, itemEditando, mapReady]);
 
-  // Clique para adicionar pontos (pointer filtering)
+  // Clique para adicionar pontos — R5-01 (sem map.project inválido)
   useEffect(() => {
     const map = mapInstanceRef.current;
-    if (!map || !tipoDesenho || !mapReady || itemEditando) return;
+    if (!map || !tipoDesenho || !mapReady || itemEditando) return undefined;
 
     const MAX_CLICK_DURATION = 400;
     const MAX_CLICK_DISTANCE = 10;
@@ -385,7 +506,7 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
       if (drawingClosedRef.current) return;
       if (zoomingRef.current) return;
 
-      if (tipoDesenho === "area" && isNearAnyVertex(map, latLng, currentPointsRef.current, 20)) {
+      if (tipoDesenho === "area" && isNearFirstVertex(map, latLng, currentPointsRef.current, 20)) {
         setDrawingClosed(true);
         toast.success("Área fechada! Ajuste os pontos ou clique Salvar.", { duration: 2000 });
         return;
@@ -409,22 +530,25 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
       } else if (tipoDesenho === "area" || tipoDesenho === "linha") {
         const newPoint = { lat, lng };
         setCurrentPoints((prev) => {
-          undoStackRef.current.push(prev);
+          undoStackRef.current.push(prev.map((p) => ({ ...p })));
           redoStackRef.current = [];
+          syncHistoryUi();
           const updated = [...prev, newPoint];
-          toast.success(`Ponto ${updated.length} adicionado`, { duration: 800 });
           return updated;
         });
+        toast.success("Ponto adicionado", { duration: 800 });
       }
     };
 
     const onDown = (ev) => {
+      if (ev.pointerType === "touch" && ev.isPrimary === false) return;
       downPos = { x: ev.clientX, y: ev.clientY };
       downTime = Date.now();
     };
 
     const onUp = (ev) => {
       if (!downPos) return;
+      if (ev.pointerType === "touch" && ev.isPrimary === false) return;
       const elapsed = Date.now() - downTime;
       const dx = ev.clientX - downPos.x;
       const dy = ev.clientY - downPos.y;
@@ -434,19 +558,10 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
       if (zoomingRef.current) return;
       if (dragStateRef.current) return;
 
-      // Não adicionar se clicou em vértice/midpoint (edição)
-      const feats = map.queryRenderedFeatures(map.project([
-        // use event relative to canvas
-      ]));
-      void feats;
-
       const rect = canvas.getBoundingClientRect();
       const x = ev.clientX - rect.left;
       const y = ev.clientY - rect.top;
-      const hit = map.queryRenderedFeatures([x, y], {
-        layers: [LAYER_IDS.VERTICES, LAYER_IDS.MIDPOINTS].filter((id) => map.getLayer(id)),
-      });
-      if (hit.length > 0) return;
+      if (hitEditLayers(map, x, y, [LAYER_IDS.VERTICES, LAYER_IDS.MIDPOINTS])) return;
 
       const ll = map.unproject([x, y]);
       handleAddPoint({ lat: ll.lat, lng: ll.lng });
@@ -459,13 +574,13 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
       canvas.removeEventListener("pointerdown", onDown);
       canvas.removeEventListener("pointerup", onUp);
     };
-  }, [tipoDesenho, mapReady, itemEditando, drawingClosed]);
+  }, [tipoDesenho, mapReady, itemEditando, drawingClosed, syncHistoryUi]);
 
   // Guia elástica
   useEffect(() => {
     const map = mapInstanceRef.current;
-    if (!map || !mapReady) return;
-    if (!(tipoDesenho === "area" || tipoDesenho === "linha") || itemEditando) return;
+    if (!map || !mapReady) return undefined;
+    if (!(tipoDesenho === "area" || tipoDesenho === "linha") || itemEditando) return undefined;
 
     if (drawingClosed) {
       setSourceData(map, SOURCE_IDS.GUIA, emptyFc());
@@ -501,15 +616,100 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
     };
   }, [mapReady, tipoDesenho, itemEditando, snappingEnabled, drawingClosed]);
 
-  // Drag vértices / midpoints / ponto
+  // Drag vértices/midpoints — pointer + touch (R5-03, R5-04)
   useEffect(() => {
     const map = mapInstanceRef.current;
-    if (!map || !mapReady || !tipoDesenho) return;
+    if (!map || !mapReady || !tipoDesenho) return undefined;
     const canDrag = drawingClosed || !!itemEditando || tipoDesenho === "ponto";
-    if (!canDrag) return;
+    if (!canDrag) return undefined;
 
-    const onMouseDown = (e) => {
+    const canvas = map.getCanvas();
+
+    const endDrag = (lngLat, { cancel = false } = {}) => {
+      const st = dragStateRef.current;
+      if (!st) return;
+      map.dragPan.enable();
+      dragStateRef.current = null;
+
+      if (cancel) {
+        if (tipoDesenho === "ponto") {
+          setCurrentMarker(st.beforeMarker || st.before?.[0] || null);
+        } else {
+          setCurrentPoints(st.before || []);
+        }
+        return;
+      }
+
+      let target = lngLat ? { lat: lngLat.lat, lng: lngLat.lng } : null;
+      if (target) {
+        const snapped = findNearestSnap(map, target, {
+          areas: areasRef.current,
+          linhas: linhasRef.current,
+          enabled: snappingRef.current,
+        });
+        if (snapped) {
+          target = snapped;
+          toast.success("Encaixado!", { duration: 600 });
+        }
+      }
+
+      if (st.role === "midpoint" && target && (tipoDesenho === "area" || tipoDesenho === "linha")) {
+        const insertAfter = st.index;
+        const before = st.before || [];
+        const after = [...before];
+        after.splice(insertAfter + 1, 0, target);
+        const tx = commitDragTransaction({
+          undo: undoStackRef.current,
+          redo: redoStackRef.current,
+          before,
+          after,
+        });
+        undoStackRef.current = tx.undo;
+        redoStackRef.current = tx.redo;
+        syncHistoryUi();
+        setCurrentPoints(after);
+        if (tx.committed) toast.success("Novo ponto inserido", { duration: 800 });
+        return;
+      }
+
+      if (tipoDesenho === "ponto" && target) {
+        const before = st.beforeMarker ? [{ ...st.beforeMarker }] : [];
+        const after = [target];
+        const tx = commitDragTransaction({
+          undo: undoStackRef.current,
+          redo: redoStackRef.current,
+          before,
+          after,
+        });
+        undoStackRef.current = tx.undo;
+        redoStackRef.current = tx.redo;
+        syncHistoryUi();
+        setCurrentMarker(target);
+        return;
+      }
+
+      if (st.role === "vertex" && target && tipoDesenho !== "ponto") {
+        const before = st.before || [];
+        const after = before.map((p) => ({ ...p }));
+        if (after[st.index]) after[st.index] = target;
+        const tx = commitDragTransaction({
+          undo: undoStackRef.current,
+          redo: redoStackRef.current,
+          before,
+          after,
+        });
+        undoStackRef.current = tx.undo;
+        redoStackRef.current = tx.redo;
+        syncHistoryUi();
+        setCurrentPoints(after);
+        if (tx.committed) toast.success(`Ponto ${st.index + 1} reposicionado`, { duration: 800 });
+      }
+    };
+
+    const onPointerDown = (e) => {
+      if (e.pointerType === "touch" && !e.isPrimary) return;
       const layers = [LAYER_IDS.VERTICES, LAYER_IDS.MIDPOINTS].filter((id) => map.getLayer(id));
+      if (layers.length === 0) return;
       const feats = map.queryRenderedFeatures(e.point, { layers });
       if (!feats.length) return;
       const f = feats[0];
@@ -517,10 +717,16 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
       const index = Number(f.properties?.index);
       e.preventDefault();
       map.dragPan.disable();
-      dragStateRef.current = { role, index };
+      dragStateRef.current = {
+        role,
+        index,
+        before: currentPointsRef.current.map((p) => ({ ...p })),
+        beforeMarker: currentMarkerRef.current ? { ...currentMarkerRef.current } : null,
+        pointerId: e.originalEvent?.pointerId,
+      };
     };
 
-    const onMouseMove = (e) => {
+    const onPointerMove = (e) => {
       const st = dragStateRef.current;
       if (!st) return;
       let target = { lat: e.lngLat.lat, lng: e.lngLat.lng };
@@ -535,7 +741,6 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
         setCurrentMarker(target);
         return;
       }
-
       if (st.role === "vertex") {
         setCurrentPoints((prev) => {
           const updated = [...prev];
@@ -545,60 +750,56 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
       }
     };
 
-    const onMouseUp = (e) => {
-      const st = dragStateRef.current;
-      if (!st) return;
-      map.dragPan.enable();
-
-      let target = { lat: e.lngLat.lat, lng: e.lngLat.lng };
-      const snapped = findNearestSnap(map, target, {
-        areas: areasRef.current,
-        linhas: linhasRef.current,
-        enabled: snappingRef.current,
-      });
-      if (snapped) {
-        target = snapped;
-        toast.success("Encaixado!", { duration: 600 });
-      }
-
-      if (st.role === "midpoint" && (tipoDesenho === "area" || tipoDesenho === "linha")) {
-        const insertAfter = st.index;
-        setCurrentPoints((prev) => {
-          undoStackRef.current.push(prev);
-          redoStackRef.current = [];
-          const updated = [...prev];
-          updated.splice(insertAfter + 1, 0, target);
-          return updated;
-        });
-        toast.success("Novo ponto inserido", { duration: 800 });
-      } else if (st.role === "vertex" && tipoDesenho !== "ponto") {
-        setCurrentPoints((prev) => {
-          const updated = [...prev];
-          if (updated[st.index]) updated[st.index] = target;
-          return updated;
-        });
-        toast.success(`Ponto ${st.index + 1} reposicionado`, { duration: 800 });
-      } else if (tipoDesenho === "ponto") {
-        setCurrentMarker(target);
-      }
-
-      dragStateRef.current = null;
+    const onPointerUp = (e) => {
+      if (!dragStateRef.current) return;
+      endDrag(e.lngLat, { cancel: false });
     };
 
-    map.on("mousedown", LAYER_IDS.VERTICES, onMouseDown);
-    map.on("mousedown", LAYER_IDS.MIDPOINTS, onMouseDown);
-    map.on("mousemove", onMouseMove);
-    map.on("mouseup", onMouseUp);
+    const onWindowPointerUp = () => {
+      if (!dragStateRef.current) return;
+      endDrag(null, { cancel: true });
+      map.dragPan.enable();
+    };
+
+    const onKeyDown = (ev) => {
+      if (ev.key === "Escape" && dragStateRef.current) {
+        endDrag(null, { cancel: true });
+      }
+    };
+
+    const onBlur = () => {
+      if (dragStateRef.current) endDrag(null, { cancel: true });
+    };
+
+    map.on("mousedown", LAYER_IDS.VERTICES, onPointerDown);
+    map.on("mousedown", LAYER_IDS.MIDPOINTS, onPointerDown);
+    map.on("touchstart", LAYER_IDS.VERTICES, onPointerDown);
+    map.on("touchstart", LAYER_IDS.MIDPOINTS, onPointerDown);
+    map.on("mousemove", onPointerMove);
+    map.on("touchmove", onPointerMove);
+    map.on("mouseup", onPointerUp);
+    map.on("touchend", onPointerUp);
+    window.addEventListener("pointerup", onWindowPointerUp);
+    window.addEventListener("blur", onBlur);
+    window.addEventListener("keydown", onKeyDown);
 
     return () => {
-      map.off("mousedown", LAYER_IDS.VERTICES, onMouseDown);
-      map.off("mousedown", LAYER_IDS.MIDPOINTS, onMouseDown);
-      map.off("mousemove", onMouseMove);
-      map.off("mouseup", onMouseUp);
+      map.off("mousedown", LAYER_IDS.VERTICES, onPointerDown);
+      map.off("mousedown", LAYER_IDS.MIDPOINTS, onPointerDown);
+      map.off("touchstart", LAYER_IDS.VERTICES, onPointerDown);
+      map.off("touchstart", LAYER_IDS.MIDPOINTS, onPointerDown);
+      map.off("mousemove", onPointerMove);
+      map.off("touchmove", onPointerMove);
+      map.off("mouseup", onPointerUp);
+      map.off("touchend", onPointerUp);
+      window.removeEventListener("pointerup", onWindowPointerUp);
+      window.removeEventListener("blur", onBlur);
+      window.removeEventListener("keydown", onKeyDown);
       map.dragPan.enable();
       dragStateRef.current = null;
+      void canvas;
     };
-  }, [mapReady, tipoDesenho, drawingClosed, itemEditando]);
+  }, [mapReady, tipoDesenho, drawingClosed, itemEditando, syncHistoryUi]);
 
   const trocarBasemap = (id) => {
     if (id === BASEMAP_IDS.SATELITE) {
@@ -612,25 +813,17 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
     }
     const map = mapInstanceRef.current;
     if (!map) return;
+    styleSwapCancelRef.current?.cancel?.();
     setBasemapId(id);
-    applyBasemapStyle(map, id, {
+    styleSwapCancelRef.current = applyBasemapStyle(map, id, {
       onReady: () => {
-        // Re-sync data after style swap
-        setSourceData(
-          map,
-          SOURCE_IDS.AREAS,
-          buildAreasCollection(areas, {
-            hideFillForId: tipoDesenho === "area" ? itemEditando?.id : null,
-          })
-        );
-        setSourceData(map, SOURCE_IDS.LINHAS, buildLinhasCollection(linhas));
-        setSourceData(map, SOURCE_IDS.PONTOS, buildPontosCollection(pontos));
-        setSourceData(map, SOURCE_IDS.DESENHO, buildDesenhoCollection(currentPoints, tipoDesenho, currentMarker));
-        setSourceData(map, SOURCE_IDS.VERTICES, buildVerticesCollection(
-          tipoDesenho === "ponto" && currentMarker ? [currentMarker] : currentPoints
-        ));
+        if (!mountedRef.current) return;
+        rehydrateAllSources(map);
+        // Reaplicar labels/ícones HTML
+        clearLabels();
       },
       onError: () => {
+        if (!mountedRef.current) return;
         toast.error("Falha ao trocar o mapa-base.");
         setBasemapId(BASEMAP_IDS.RUAS);
       },
@@ -639,49 +832,29 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
 
   const finalizarDesenho = () => {
     if (tipoDesenho === "area") {
-      if (currentPoints.length < 3) {
-        toast.error("Desenhe pelo menos 3 pontos!");
+      const check = validatePolygonForSave(currentPoints);
+      if (!check.ok) {
+        toast.error(check.reason || "Polígono inválido");
         return;
       }
       setShowFormularioArea(true);
     } else if (tipoDesenho === "linha") {
-      if (currentPoints.length < 2) {
-        toast.error("Desenhe pelo menos 2 pontos!");
+      const check = validateLineForSave(currentPoints);
+      if (!check.ok) {
+        toast.error(check.reason || "Linha inválida");
         return;
       }
+      if (check.cleaned) setCurrentPoints(check.cleaned);
       setShowFormularioLinha(true);
     }
   };
 
+  /** Retry via epoch — teardown completo no cleanup do effect (R5-06) */
   const retryMap = () => {
     setMapError(null);
     setMapReady(false);
-    disposeRef.current?.();
-    disposeRef.current = null;
-    mapInstanceRef.current = null;
-    // Force remount via key-less re-init: clear container and re-run effect by toggling
-    if (mapRef.current) {
-      mapRef.current.innerHTML = "";
-    }
-    try {
-      const created = createEditorMap(mapRef.current, {
-        basemapId: BASEMAP_IDS.RUAS,
-        center: CENTRO_PADRAO,
-        zoom: 17,
-      });
-      mapInstanceRef.current = created.map;
-      disposeRef.current = created.dispose;
-      created.map.once("load", () => {
-        ensureBusinessLayers(created.map);
-        syncDivisaWidth(created.map);
-        setMapReady(true);
-      });
-      created.map.on("error", () => {
-        setMapError("Falha ao carregar o estilo ou tiles do mapa. Verifique a rede e tente novamente.");
-      });
-    } catch (err) {
-      setMapError(err?.message || "Falha ao criar mapa");
-    }
+    if (mapRef.current) mapRef.current.innerHTML = "";
+    setMapEpoch((n) => n + 1);
   };
 
   const crosshair = tipoDesenho && mapReady && !itemEditando && !drawingClosed;
@@ -842,12 +1015,13 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
                   onClick={() => {
                     if (undoStackRef.current.length > 0) {
                       const prevPts = undoStackRef.current.pop();
-                      redoStackRef.current.push(currentPoints);
+                      redoStackRef.current.push(currentPoints.map((p) => ({ ...p })));
                       setCurrentPoints(prevPts);
+                      syncHistoryUi();
                       toast.success("Desfeito");
                     }
                   }}
-                  disabled={undoStackRef.current.length === 0}
+                  disabled={undoLen === 0}
                 >
                   Desfazer
                 </Button>
@@ -859,12 +1033,13 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
                   onClick={() => {
                     if (redoStackRef.current.length > 0) {
                       const nextPts = redoStackRef.current.pop();
-                      undoStackRef.current.push(currentPoints);
+                      undoStackRef.current.push(currentPoints.map((p) => ({ ...p })));
                       setCurrentPoints(nextPts);
+                      syncHistoryUi();
                       toast.success("Refeito");
                     }
                   }}
-                  disabled={redoStackRef.current.length === 0}
+                  disabled={redoLen === 0}
                 >
                   Refazer
                 </Button>
@@ -881,9 +1056,21 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
                   }
                   onClick={() => {
                     if (itemEditando) {
-                      if (tipoDesenho === "area") setShowFormularioArea(true);
-                      else if (tipoDesenho === "linha") setShowFormularioLinha(true);
-                      else if (tipoDesenho === "ponto") setShowFormularioPonto(true);
+                      if (tipoDesenho === "area") {
+                        const check = validatePolygonForSave(currentPoints);
+                        if (!check.ok) {
+                          toast.error(check.reason || "Polígono inválido");
+                          return;
+                        }
+                        setShowFormularioArea(true);
+                      } else if (tipoDesenho === "linha") {
+                        const check = validateLineForSave(currentPoints);
+                        if (!check.ok) {
+                          toast.error(check.reason || "Linha inválida");
+                          return;
+                        }
+                        setShowFormularioLinha(true);
+                      } else if (tipoDesenho === "ponto") setShowFormularioPonto(true);
                     } else if (tipoDesenho === "ponto") {
                       setShowFormularioPonto(true);
                     } else {

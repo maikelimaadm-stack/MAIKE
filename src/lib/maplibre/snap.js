@@ -123,20 +123,29 @@ export function findNearestSnap(map, mouse, opts = {}) {
 }
 
 /**
- * Fecha polígono se o clique está perto de algum vértice existente.
+ * Fecha polígono somente perto do **primeiro** vértice (R5-02).
+ * Requer ≥3 vértices distintos; clique perto de vértice intermediário NÃO fecha.
  * @param {import('maplibre-gl').Map} map
  * @param {{ lat: number, lng: number }} click
  * @param {{ lat: number, lng: number }[]} points
  * @param {number} [tolPx]
  * @returns {boolean}
  */
-export function isNearAnyVertex(map, click, points, tolPx = 20) {
+export function isNearFirstVertex(map, click, points, tolPx = 20) {
   if (!points || points.length < 3) return false;
+  const first = points[0];
+  if (!first) return false;
+  // Exige ≥3 posições distintas antes de permitir fechar
+  const keys = new Set(points.map((p) => `${p.lat},${p.lng}`));
+  if (keys.size < 3) return false;
   const clickPx = projectLatLng(map, click);
   if (!clickPx) return false;
-  for (const p of points) {
-    const px = projectLatLng(map, p);
-    if (px && distPx(clickPx, px) < tolPx) return true;
-  }
-  return false;
+  const firstPx = projectLatLng(map, first);
+  if (!firstPx) return false;
+  return distPx(clickPx, firstPx) < tolPx;
+}
+
+/** @deprecated use isNearFirstVertex — mantido só se algum caller legado existir */
+export function isNearAnyVertex(map, click, points, tolPx = 20) {
+  return isNearFirstVertex(map, click, points, tolPx);
 }

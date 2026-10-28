@@ -2,7 +2,13 @@ import React, { useEffect, useState } from "react";
 import { listarSetoresAtivos, listarTodasAreas, criarArea, atualizarArea } from "@/services/mapaService";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { areaHectares, toPersistedCoords, parseVertices } from "@/lib/geografia";
+import {
+  areaHectares,
+  toPersistedCoords,
+  parseVertices,
+  inspectVertices,
+  validatePolygonForSave,
+} from "@/lib/geografia";
 
 const FloatingField = ({ label, required, error, children }) => (
   <div>
@@ -139,7 +145,20 @@ export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS 
     if (formData.tipo_cultura !== 'Infraestrutura' && !formData.tipo_pastagem) missing.push("tipo_pastagem");
     if (missing.length) { setInvalidFields(missing); toast.error("Preencha os campos obrigatórios."); return; }
 
-    const coords = parseVertices(coordenadasGPS || coordenadas);
+    const rawCoords = coordenadasGPS || coordenadas || item?.coordenadas?.coords;
+    const inspected = inspectVertices(rawCoords);
+    if (Array.isArray(rawCoords) && inspected.invalidCount > 0) {
+      toast.error(
+        `Não é possível salvar: ${inspected.invalidCount} vértice(s) inválido(s) na geometria. Corrija no mapa antes de sobrescrever.`
+      );
+      return;
+    }
+    const coords = inspected.vertices.length ? inspected.vertices : parseVertices(rawCoords);
+    const polyCheck = validatePolygonForSave(coords);
+    if (!polyCheck.ok && formData.tipo_cultura !== "Infraestrutura") {
+      toast.error(polyCheck.reason || "Polígono inválido");
+      return;
+    }
     let tamanhoHectares = 0;
     if (coords.length >= 3) {
       tamanhoHectares = parseFloat(areaHectares(coords).toFixed(2));

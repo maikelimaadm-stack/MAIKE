@@ -3,6 +3,8 @@ export {
   isValidLatLng,
   parseVertex,
   parseVertices,
+  inspectVertices,
+  dedupeConsecutive,
   latLngToLngLat,
   lngLatToLatLng,
   toPersistedCoords,
@@ -22,4 +24,7 @@ export {
   perimetroMetros,
   formatHectaresPt,
   formatDistanciaPt,
+  validatePolygonForSave,
+  validateLineForSave,
+  AREA_MINIMA_M2,
 } from "./medidas.js";

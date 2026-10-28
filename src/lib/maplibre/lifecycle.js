@@ -224,31 +224,46 @@ export function setSourceData(map, sourceId, data) {
 
 /**
  * Troca basemap com setStyle e reaplica layers de negócio.
+ * Retorna cancel() para invalidar style.load de trocas substituídas (R5-05).
  * @param {import('maplibre-gl').Map} map
  * @param {string} basemapId
  * @param {{ onReady?: () => void, onError?: (err: Error) => void }} [hooks]
+ * @returns {{ cancel: () => void }}
  */
 export function applyBasemapStyle(map, basemapId, hooks = {}) {
+  let cancelled = false;
   const provider = resolveBasemapProvider(basemapId);
   if (!provider.styleUrl) {
     hooks.onError?.(new Error("Style URL ausente"));
-    return;
+    return { cancel: () => { cancelled = true; } };
   }
   const onStyle = () => {
+    if (cancelled) return;
     try {
       ensureBusinessLayers(map);
       syncDivisaWidth(map);
-      hooks.onReady?.();
+      if (!cancelled) hooks.onReady?.();
     } catch (err) {
-      hooks.onError?.(err instanceof Error ? err : new Error(String(err)));
+      if (!cancelled) hooks.onError?.(err instanceof Error ? err : new Error(String(err)));
     }
   };
   map.once("style.load", onStyle);
   try {
     map.setStyle(provider.styleUrl);
   } catch (err) {
+    cancelled = true;
     hooks.onError?.(err instanceof Error ? err : new Error(String(err)));
   }
+  return {
+    cancel: () => {
+      cancelled = true;
+      try {
+        map.off("style.load", onStyle);
+      } catch {
+        /* ignore */
+      }
+    },
+  };
 }
 
 export { corExibidaNoMapa, maplibregl };
