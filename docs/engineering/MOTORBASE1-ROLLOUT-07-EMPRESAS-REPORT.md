@@ -7,8 +7,8 @@
 | Missão | MOTORBASE1-EMPRESAS-01 / PR #123 |
 | Baseline main | `009db6893c92c2b505965166f8606e405f31fce8` (merge PR #122) |
 | Branch | `cursor/motorbase1-empresas-completo-516d` |
-| HEAD (registrar após push) | ver `git rev-parse HEAD` no CI |
-| PR | DRAFT #123 (GitHub) |
+| HEAD | `980c5c95bf017bbd7c8d73a1310fc8c8b37186e8` |
+| PR | DRAFT #123 — criar manualmente: https://github.com/maikelimaadm-stack/MAIKE/compare/main...cursor/motorbase1-empresas-completo-516d |
 
 ## Antes / depois
 
