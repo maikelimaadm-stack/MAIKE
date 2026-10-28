@@ -7,7 +7,9 @@
 **Base após merge R5:** `1590655fc9ef080d8d178d270c22f9ec3c50fe1d` (PR #125)  
 **Base após merge R6:** `origin/main` @ `fbbf8363bd382847b5cdc086ab8b37c01ec5aa0c` (PR #126)  
 **Worktree:** `/home/ubuntu/worktrees/MAIKE-maplibre-m1`  
-**PR:** DRAFT autorizável após R6 (ver seção R6); **merge = NO-GO** até auditoria do arquiteto + aprovação manual.
+**PR:** critérios de conteúdo **GO para DRAFT**; criação via `gh` neste ambiente retornou `Resource not accessible by integration` — abrir manualmente:  
+https://github.com/maikelimaadm-stack/MAIKE/compare/main...cursor/maplibre-m1-editor-areas-f5fd?expand=1  
+**merge = NO-GO** até auditoria do arquiteto + aprovação manual.
 
 ---
 
