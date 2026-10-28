@@ -4,6 +4,7 @@ import { Textarea } from "@/components/ui/textarea";
 import AutocompleteGenerico from "@/components/financeiro/AutocompleteGenerico";
 import ToggleSwitch from "@/components/common/ToggleSwitch";
 import B1Field from "@/components/cadastro/base1/B1Field";
+import B1ChaveRow from "@/components/cadastro/base1/B1ChaveRow";
 import {
   CADASTRO_AC_INPUT_CLS,
   CADASTRO_INPUT_CLS,
@@ -102,21 +103,34 @@ function spanForField(field) {
   return 6;
 }
 
-function hasFieldValue(field, value) {
-  if (field.type === "checkbox" || field.type === "switch") return Boolean(value);
+function resolveSwitchChecked(field, value, values) {
+  if (typeof field.getChecked === "function") return Boolean(field.getChecked(value, values));
+  if (typeof field.switchGetChecked === "function") return Boolean(field.switchGetChecked(value, values));
+  return Boolean(value);
+}
+
+function resolveSwitchToValue(field, checked, values) {
+  if (typeof field.toValue === "function") return field.toValue(checked, values);
+  if (typeof field.switchToValue === "function") return field.switchToValue(checked, values);
+  return checked;
+}
+
+function hasFieldValue(field, value, values = {}) {
+  if (field.type === "switch") return resolveSwitchChecked(field, value, values) || value === "Inativo" || value === "Ativo" || Boolean(value);
+  if (field.type === "checkbox") return Boolean(value);
   if (Array.isArray(value)) return value.length > 0;
   if (value === null || value === undefined) return false;
   return String(value).trim() !== "";
 }
 
-function Base1FieldFrame({ field, error, value, readOnly, children }) {
+function Base1FieldFrame({ field, error, value, values, readOnly, children }) {
   return (
     <B1Field
       label={field.label}
       required={field.required}
       error={error ? String(error) : undefined}
       span={spanForField(field)}
-      hasValue={hasFieldValue(field, value)}
+      hasValue={hasFieldValue(field, value, values)}
       locked={readOnly}
       disabled={readOnly}
       multiline={field.type === "textarea"}
@@ -191,6 +205,28 @@ export default function DynamicFormRenderer({
     const error = errors[field.errorKey || field.name];
     const configuredField = { ...field, required: field.required || requiredFieldIds.includes(field.id) };
     const fieldReadOnly = readOnly || lockedFieldIds.includes(field.id);
+
+    if (useBase1 && configuredField.type === "switch" && !configuredField.render) {
+      const checked = resolveSwitchChecked(configuredField, value, values);
+      return (
+        <B1ChaveRow
+          key={field.id}
+          label={configuredField.label}
+          span={spanForField(configuredField)}
+          checked={checked}
+          onChange={
+            fieldReadOnly
+              ? undefined
+              : (nextChecked) =>
+                  onChange(configuredField.name, resolveSwitchToValue(configuredField, nextChecked, values))
+          }
+          disabled={fieldReadOnly}
+          ariaLabel={configuredField.label}
+          dataField={configuredField.dataField || configuredField.name}
+        />
+      );
+    }
+
     const control = field.render
       ? field.render({
           field: configuredField,
@@ -216,6 +252,7 @@ export default function DynamicFormRenderer({
           field={configuredField}
           error={error}
           value={value}
+          values={values}
           readOnly={fieldReadOnly}
         >
           {control}
