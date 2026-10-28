@@ -62,8 +62,6 @@ export default function TabelaMarcas(props) {
       cardsTitleColId="nome"
       cardsCodeColId="numero"
       {...BASE1_LISTA_INTEGRADA_VISUAL.grade}
-      colunaSelecao={false}
-      selecaoSticky={false}
       configureColumnsAnchorRef={props.configureColumnsAnchorRef}
     />
   );

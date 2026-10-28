@@ -68,8 +68,6 @@ export default function TabelaUnidadesMedida(props) {
       cardsTitleColId="descricao"
       cardsCodeColId="sigla"
       {...BASE1_LISTA_INTEGRADA_VISUAL.grade}
-      colunaSelecao={false}
-      selecaoSticky={false}
       configureColumnsAnchorRef={props.configureColumnsAnchorRef}
     />
   );

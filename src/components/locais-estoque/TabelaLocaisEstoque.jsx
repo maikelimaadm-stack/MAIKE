@@ -69,8 +69,6 @@ export default function TabelaLocaisEstoque(props) {
       cardsTitleColId="nome"
       cardsCodeColId="numero"
       {...BASE1_LISTA_INTEGRADA_VISUAL.grade}
-      colunaSelecao={false}
-      selecaoSticky={false}
       configureColumnsAnchorRef={props.configureColumnsAnchorRef}
     />
   );

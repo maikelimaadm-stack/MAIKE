@@ -5,7 +5,7 @@ Referência: Marcas na main pós PR #111. Destino: `useCadastroBase1Controller` 
 | ID | Recurso | Marcas (ref.) | Unidades (antes #112) | Destino motor | Exceção domínio | Testes | Status |
 |---|---|---|---|---|---|---|---|
 | D1 | Shell / toolbar / segmentos | Base1 lista integrada | Preset visual só | `CadastroBase1Screen` + preset | Títulos/labels por adapter | smoke rollout, parity | PASS |
-| D2 | Grade seleção | `colunaSelecao={false}` | Checkbox coluna implícita | `TabelaUnidadesMedida` espelha Marcas | — | grade props | PASS |
+| D2 | Grade seleção | ~~`colunaSelecao={false}`~~ **PR #120:** checkbox global via `BASE1_GRADE_REFERENCE_HEADERS` | Checkbox coluna implícita | Preset SSOT + adapters sem override | — | `motorbase1GlobalSelectionTitle` | PASS |
 | D3 | Busca / sugestões / pick | searchPickId + clear completo | Filtro local + clear parcial | Controller compartilhado | Campos haystack no adapter | controller unit | PASS |
 | D4 | Registro read/edit | Toolbar Salvar/Cancelar | Form inline + sempre edit | Controller + Form Base1 | — | controller unit | PASS |
 | D5 | Formulário | `FormularioMarca` B1 | Card/Input legado | `FormularioUnidadeMedida` | sigla/descrição/ativo | parity test | PASS |

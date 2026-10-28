@@ -12,6 +12,8 @@
  *
  * @typedef {Object} Base1GradeVisualPreset
  * @property {true} referenceHeaders
+ * @property {true} colunaSelecao
+ * @property {true} selecaoSticky
  */
 
 /** @type {Readonly<Base1WorkspaceVisualPreset>} */
@@ -29,6 +31,8 @@ export const BASE1_LISTA_CHROME_VISUAL = Object.freeze({
 /** @type {Readonly<Base1GradeVisualPreset>} */
 export const BASE1_GRADE_REFERENCE_HEADERS = Object.freeze({
   referenceHeaders: true,
+  colunaSelecao: true,
+  selecaoSticky: true,
 });
 
 /**
