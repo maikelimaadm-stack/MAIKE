@@ -44,22 +44,25 @@ export default function TiposTarefa() {
     exportFileName: "tipos-tarefa.csv",
     exportColumns: TIPOS_TAREFA_COLUNAS,
     getExportFieldValue: (item, colId) => getTipoTarefaFieldValue(item, colId, grupos),
-    getRecordTitle: (item) => (item?.id ? item.nome_tipo || "Tipo" : "Novo tipo de tarefa"),
-    getSearchHaystack: (t) =>
+    getRecordTitle: (/** @type {any} */ item) =>
+      item?.id ? item.nome_tipo || "Tipo" : "Novo tipo de tarefa",
+    getRecordCode: () => undefined,
+    getSearchHaystack: (/** @type {any} */ t) =>
       [t.nome_tipo, t.grupo_atividade_nome, t.descricao].filter(Boolean).join(" "),
-    mapSearchSuggestion: (t) => ({
+    mapSearchSuggestion: (/** @type {any} */ t) => ({
       id: String(t.id),
       label: t.nome_tipo || "Tipo",
       secondary: t.grupo_atividade_nome || undefined,
     }),
-    matchRowId: (t, id) => String(t.id) === String(id),
-    getRowId: (t) => String(t.id),
-    findRowById: (rows, id) => rows.find((t) => String(t.id) === String(id)),
+    matchRowId: (/** @type {any} */ t, id) => String(t.id) === String(id),
+    getRowId: (/** @type {any} */ t) => String(t.id),
+    findRowById: (/** @type {any} */ rows, id) => rows.find((t) => String(t.id) === String(id)),
     onSubmitRecord: (data) => submitRef.current(data),
     onRequestDeleteMutation: (ids) => deleteRef.current(ids),
   });
 
   const createMutation = useMutation({
+    /** @param {object} data */
     mutationFn: (data) => criarTipo(data),
     onSuccess: (created) => {
       queryClient.invalidateQueries({ queryKey: ["tipos-tarefa"] });
@@ -80,6 +83,7 @@ export default function TiposTarefa() {
   });
 
   const updateMutation = useMutation({
+    /** @param {{ id: string, data: object, oldData?: object }} vars */
     mutationFn: ({ id, data, oldData }) => atualizarTipo({ id, dados: data, oldData }),
     onSuccess: (updated, { id, data }) => {
       queryClient.invalidateQueries({ queryKey: ["tipos-tarefa"] });
@@ -98,6 +102,7 @@ export default function TiposTarefa() {
   });
 
   const deleteMutation = useMutation({
+    /** @param {string[]} ids */
     mutationFn: (ids) => excluirTipos(ids, { tipos: controller.allItems }),
     onSuccess: ({ excluidos, bloqueados }) => {
       queryClient.invalidateQueries({ queryKey: ["tipos-tarefa"] });

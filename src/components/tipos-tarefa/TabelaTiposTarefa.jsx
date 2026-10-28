@@ -54,7 +54,6 @@ export default function TabelaTiposTarefa({ tipos = [], grupos = [], ...props })
       showConfigColunas={props.showConfigColunas}
       setShowConfigColunas={props.setShowConfigColunas}
       searchQuery={props.searchQuery}
-      matchesSearch={props.matchesSearch}
       resetFiltersKey={props.resetFiltersKey}
       configureColumnsAnchorRef={props.configureColumnsAnchorRef}
       isLoading={props.isLoading}

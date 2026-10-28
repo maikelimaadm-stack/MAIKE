@@ -54,7 +54,6 @@ export default function TabelaGruposAtividades(props) {
       showConfigColunas={props.showConfigColunas}
       setShowConfigColunas={props.setShowConfigColunas}
       searchQuery={props.searchQuery}
-      matchesSearch={props.matchesSearch}
       resetFiltersKey={props.resetFiltersKey}
       configureColumnsAnchorRef={props.configureColumnsAnchorRef}
       isLoading={props.isLoading}

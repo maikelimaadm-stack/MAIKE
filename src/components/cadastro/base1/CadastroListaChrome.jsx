@@ -209,7 +209,7 @@ export default function CadastroListaChrome({
         icon: <ListChecks className="h-4 w-4" />,
         disabled: !cardsToolsInMenu || viewMode !== "cards",
       },
-    ].filter((item) => !item.hidden),
+    ].filter((item) => !("hidden" in item) || !item.hidden),
     [
       extraMenuItems,
       exportCsvLabel,

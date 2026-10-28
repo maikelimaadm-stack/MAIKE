@@ -35,23 +35,25 @@ export default function GruposAtividades() {
     exportFileName: "grupos-atividades.csv",
     exportColumns: GRUPOS_ATIVIDADES_COLUNAS,
     getExportFieldValue: getGrupoAtividadeFieldValue,
-    getRecordTitle: (item) =>
+    getRecordTitle: (/** @type {any} */ item) =>
       item?.id ? item.nome_grupo || "Grupo" : "Novo grupo de atividades",
-    getSearchHaystack: (g) =>
+    getRecordCode: () => undefined,
+    getSearchHaystack: (/** @type {any} */ g) =>
       [g.nome_grupo, g.descricao, g.observacoes].filter(Boolean).join(" "),
-    mapSearchSuggestion: (g) => ({
+    mapSearchSuggestion: (/** @type {any} */ g) => ({
       id: String(g.id),
       label: g.nome_grupo || "Grupo",
       secondary: g.descricao || undefined,
     }),
-    matchRowId: (g, id) => String(g.id) === String(id),
-    getRowId: (g) => String(g.id),
-    findRowById: (rows, id) => rows.find((g) => String(g.id) === String(id)),
+    matchRowId: (/** @type {any} */ g, id) => String(g.id) === String(id),
+    getRowId: (/** @type {any} */ g) => String(g.id),
+    findRowById: (/** @type {any} */ rows, id) => rows.find((g) => String(g.id) === String(id)),
     onSubmitRecord: (data) => submitRef.current(data),
     onRequestDeleteMutation: (ids) => deleteRef.current(ids),
   });
 
   const createMutation = useMutation({
+    /** @param {object} data */
     mutationFn: (data) => criarGrupo(data),
     onSuccess: (created) => {
       queryClient.invalidateQueries({ queryKey: ["grupos-atividades"] });
@@ -72,6 +74,7 @@ export default function GruposAtividades() {
   });
 
   const updateMutation = useMutation({
+    /** @param {{ id: string, data: object, oldData?: object }} vars */
     mutationFn: ({ id, data, oldData }) => atualizarGrupo({ id, dados: data, oldData }),
     onSuccess: (updated, { id, data }) => {
       queryClient.invalidateQueries({ queryKey: ["grupos-atividades"] });
@@ -90,6 +93,7 @@ export default function GruposAtividades() {
   });
 
   const deleteMutation = useMutation({
+    /** @param {string[]} ids */
     mutationFn: (ids) => excluirGrupos(ids, { grupos: controller.allItems }),
     onSuccess: ({ excluidos, bloqueados }) => {
       queryClient.invalidateQueries({ queryKey: ["grupos-atividades"] });

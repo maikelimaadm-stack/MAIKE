@@ -50,19 +50,19 @@ export default function CategoriasManejo() {
     exportFileName: "categorias-manejo.csv",
     exportColumns: CATEGORIAS_MANEJO_COLUNAS,
     getExportFieldValue: getCategoriaManejoFieldValue,
-    getRecordTitle: (item) =>
+    getRecordTitle: (/** @type {any} */ item) =>
       item?.id ? item.nome || "Categoria" : "Nova categoria de manejo",
-    getRecordCode: (item) => (item?.sigla ? String(item.sigla) : undefined),
-    getSearchHaystack: (c) =>
+    getRecordCode: (/** @type {any} */ item) => (item?.sigla ? String(item.sigla) : undefined),
+    getSearchHaystack: (/** @type {any} */ c) =>
       [c.nome, c.sigla, c.raca, c.categoria_oficial, c.especie, c.sexo].filter(Boolean).join(" "),
-    mapSearchSuggestion: (c) => ({
+    mapSearchSuggestion: (/** @type {any} */ c) => ({
       id: String(c.id),
       label: c.nome || "Categoria",
       secondary: c.sigla ? String(c.sigla) : undefined,
     }),
-    matchRowId: (c, id) => String(c.id) === String(id),
-    getRowId: (c) => String(c.id),
-    findRowById: (rows, id) => rows.find((c) => String(c.id) === String(id)),
+    matchRowId: (/** @type {any} */ c, id) => String(c.id) === String(id),
+    getRowId: (/** @type {any} */ c) => String(c.id),
+    findRowById: (/** @type {any} */ rows, id) => rows.find((c) => String(c.id) === String(id)),
     onSubmitRecord: (data) => submitRef.current(data),
     onRequestDeleteMutation: (ids) => deleteRef.current(ids),
   });
@@ -102,6 +102,7 @@ export default function CategoriasManejo() {
   }, [iconesConfig]);
 
   const createMutation = useMutation({
+    /** @param {object} formData */
     mutationFn: (formData) => criarCategoriaManejo(formData, { empresaId: empresaSelecionadaId }),
     onSuccess: (created) => {
       queryClient.invalidateQueries({ queryKey: ["categorias-manejo"] });
@@ -122,8 +123,9 @@ export default function CategoriasManejo() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data, oldData }) =>
-      atualizarCategoriaManejo(id, data, { empresaId: empresaSelecionadaId, oldData }),
+    /** @param {{ id: string, data: object }} vars */
+    mutationFn: ({ id, data }) =>
+      atualizarCategoriaManejo(id, data, { empresaId: empresaSelecionadaId }),
     onSuccess: (updated, { id, data }) => {
       queryClient.invalidateQueries({ queryKey: ["categorias-manejo"] });
       const merged = {
@@ -141,13 +143,15 @@ export default function CategoriasManejo() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (ids) => {
+    /** @param {string[]} ids */
+    mutationFn: async (ids) => {
       const [firstId] = ids;
-      if (!firstId) return Promise.resolve({ excluidos: [], bloqueados: ids });
+      if (!firstId) return { excluidos: [], bloqueados: ids };
       if (ids.length > 1) {
-        return Promise.resolve({ excluidos: [], bloqueados: ids.slice(1) });
+        return { excluidos: [], bloqueados: ids.slice(1) };
       }
-      return excluirCategoriaManejo(firstId).then(() => ({ excluidos: [firstId], bloqueados: [] }));
+      await excluirCategoriaManejo(firstId);
+      return { excluidos: [firstId], bloqueados: [] };
     },
     onSuccess: ({ excluidos, bloqueados }) => {
       queryClient.invalidateQueries({ queryKey: ["categorias-manejo"] });
@@ -180,7 +184,6 @@ export default function CategoriasManejo() {
       updateMutation.mutate({
         id: controller.editingItem.id,
         data,
-        oldData: controller.editingItem,
       });
     } else {
       createMutation.mutate(data);
@@ -203,7 +206,8 @@ export default function CategoriasManejo() {
     ? buildFormInitialFromRecord(controller.editingItem)
     : getInitialFormData();
 
-  const recordCode = controller.editingItem?.sigla ? String(controller.editingItem.sigla) : undefined;
+  const editingRecord = /** @type {any} */ (controller.editingItem);
+  const recordCode = editingRecord?.sigla ? String(editingRecord.sigla) : undefined;
 
   const screenController = { ...controller, saving };
 
