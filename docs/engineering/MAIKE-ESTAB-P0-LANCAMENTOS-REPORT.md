@@ -18,8 +18,13 @@ Data: 2026-10-28. Branch: `cursor/maike-estab-p0-lancamentos-516d`. Base: `origi
 
 ## Testes
 
-- `backend/tests/estabP0LancamentosNativo.test.mjs` — PostgreSQL real.
+- `backend/tests/estabP0LancamentosNativo.test.mjs` — PostgreSQL real (6 casos).
 - `listagemLimitNativo` inclui `/movimentacoes-estoque`.
+- Local: `npm run verify:all` PASS (206 testes backend, 646 smoke, build produção).
+
+## PR
+
+Branch pushed: `cursor/maike-estab-p0-lancamentos-516d` @ `a149b8a3`. Draft PR via `gh` bloqueado (integração); abrir manualmente em GitHub.
 
 ## Pendências / próxima slice
 
