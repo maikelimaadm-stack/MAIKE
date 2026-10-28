@@ -23,7 +23,9 @@ Rewrite SSOT: `/api/native/:path*` → `/api/fastify?__native_route=:path*`. Dep
 |---|---|
 | `origin/main` início | `7e6e61ecfa504e889be9ecd9f4a24fc2f49a129d` (merge PR #106) |
 | Branch | `cursor/pr107-ingress-query-global-516d` |
+| HEAD | `989e27602ae640aa95a613c7fd03e426df000362` |
 | Base | `main` |
+| PR GitHub | **Pendente** — branch pushed; abrir DRAFT manualmente se integração não criar |
 | Arquivos principais | `config/vercelFastifyIngress.js`, `tests/smoke/vercelFastifyIngress.test.js`, `tests/smoke/vercelSpaRoutes.test.js`, `backend/tests/listagemLimitNativo.test.mjs`, `backend/tests/vercelFastifyHandlerNativo.test.mjs` |
 
 ## PROVAS
