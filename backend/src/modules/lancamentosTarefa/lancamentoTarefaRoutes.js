@@ -42,16 +42,28 @@ const CAMPOS_LANCAMENTO_CRIACAO = Object.freeze({
   anexos_urls: { type: 'array', items: { type: 'string' } },
 });
 
-const CAMPOS_LANCAMENTO_ATUALIZACAO = Object.freeze(
-  Object.fromEntries(Object.entries(CAMPOS_LANCAMENTO_CRIACAO).filter(([campo]) => campo !== 'empresa_id'))
-);
+const CAMPOS_HISTORICO_MAPA = Object.freeze({
+  historico_evento: { type: 'string', enum: EVENTOS },
+  historico_descricao: { type: ['string', 'null'], maxLength: 2000 },
+  historico_data_evento: { type: ['string', 'null'], maxLength: 64 },
+});
+
+const CAMPOS_LANCAMENTO_ATUALIZACAO = Object.freeze({
+  ...Object.fromEntries(Object.entries(CAMPOS_LANCAMENTO_CRIACAO).filter(([campo]) => campo !== 'empresa_id')),
+  ...CAMPOS_HISTORICO_MAPA,
+});
+
+const CAMPOS_LANCAMENTO_CRIACAO_COM_HISTORICO = Object.freeze({
+  ...CAMPOS_LANCAMENTO_CRIACAO,
+  ...CAMPOS_HISTORICO_MAPA,
+});
 
 const CRIAR_LANCAMENTO_SCHEMA = {
   body: {
     type: 'object',
     required: ['empresa_id', 'titulo', 'tipo', 'tipo_tarefa_id'],
     additionalProperties: false,
-    properties: { ...CAMPOS_LANCAMENTO_CRIACAO },
+    properties: { ...CAMPOS_LANCAMENTO_CRIACAO_COM_HISTORICO },
   },
 };
 

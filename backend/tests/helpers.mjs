@@ -56,6 +56,7 @@ const ORDEM_DE_LIMPEZA = [
   'tipoTarefa',
   'grupoAtividade',
   'setor',
+  'operacaoIdempotente',
   'entidadeCodigoSequencia',
   'usuario',
   'cliente',

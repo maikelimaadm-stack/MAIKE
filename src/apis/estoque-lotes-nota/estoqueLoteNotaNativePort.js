@@ -29,8 +29,20 @@ const operacoesNativas = Object.freeze({
     void ordenacao;
     return nativeRequest(CAMINHO, { autenticado: true }, ctx('listEstoqueLoteNota'));
   },
-  filter: (criterio) =>
-    nativeRequest(`${CAMINHO}${queryDeFiltro(criterio)}`, { autenticado: true }, ctx('filterEstoqueLoteNota')),
+  filter: async (criterio) => {
+    const chaves = Object.keys(criterio || {}).filter(
+      (k) => criterio[k] !== undefined && criterio[k] !== null && criterio[k] !== ''
+    );
+    if (chaves.length === 1 && chaves[0] === 'id') {
+      const item = await nativeRequest(
+        `${CAMINHO}/${encodeURIComponent(String(criterio.id))}`,
+        { autenticado: true },
+        ctx('getEstoqueLoteNotaById')
+      );
+      return item ? [item] : [];
+    }
+    return nativeRequest(`${CAMINHO}${queryDeFiltro(criterio)}`, { autenticado: true }, ctx('filterEstoqueLoteNota'));
+  },
   create: (dados) =>
     nativeRequest(CAMINHO, { method: 'POST', body: dados, autenticado: true }, ctx('createEstoqueLoteNota')),
   update: (id, dados) =>
@@ -52,5 +64,6 @@ export const estoqueLoteNotaPort = offlineStorageDisponivel()
       entityName: ENTIDADE_OFFLINE,
       operations: operacoesNativas,
       enabled: true,
+      tenantScoped: true,
     })
   : operacoesNativas;

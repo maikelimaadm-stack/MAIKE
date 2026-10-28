@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { listarTarefasDaEmpresa, listarIconesPorTipo, criarTarefa, atualizarTarefa, excluirTarefa, registrarHistorico as registrarHistoricoApi, enviarAnexo } from "@/services/tarefasMapaService";
+import { listarTarefasDaEmpresa, listarIconesPorTipo, criarTarefa, atualizarTarefa, excluirTarefa, enviarAnexo } from "@/services/tarefasMapaService";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -81,25 +81,12 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
     mutationFn: async ({ data, pendingImageFiles = [] }) => {
       const uploadedUrls = await uploadImages(pendingImageFiles);
       const payload = uploadedUrls.length > 0 ? { ...data, fotos: [...(data.fotos || []), ...uploadedUrls] } : data;
-      const created = await criarTarefa(payload);
-      try {
-        await registrarHistoricoApi({
-          empresa_id: created.empresa_id,
-          tarefa_id: created.id,
-          titulo_tarefa: created.titulo,
-          evento: 'Criação',
-          data_evento: new Date().toISOString(),
-          status: created.status,
-          responsavel: created.responsavel,
-          descricao: 'Tarefa criada pelo mapa.',
-        });
-      } catch (historicoErr) {
-        throw new ApiError(API_ERROR_CODES.MAPA_PARTIAL_OPERATION, {
-          cause: historicoErr,
-          details: { taskId: created.id },
-        });
-      }
-      return created;
+      return criarTarefa({
+        ...payload,
+        historico_evento: 'Criação',
+        historico_descricao: 'Tarefa criada pelo mapa.',
+        historico_data_evento: new Date().toISOString(),
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tarefas-mapa'] });
@@ -129,22 +116,16 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
     mutationFn: async ({ id, data, previous, pendingImageFiles = [] }) => {
       const uploadedUrls = await uploadImages(pendingImageFiles);
       const payload = uploadedUrls.length > 0 ? { ...data, fotos: [...(data.fotos || []), ...uploadedUrls] } : data;
-      const updated = await atualizarTarefa(id, payload);
       const mudouLocal = data.coordenadas?.lat !== previous?.coordenadas?.lat || data.coordenadas?.lng !== previous?.coordenadas?.lng;
       const mudouStatus = data.status && data.status !== previous?.status;
-      const evento = mudouLocal ? 'Mudança de Local' : updated.status === 'Concluída' && mudouStatus ? 'Conclusão' : updated.status === 'Cancelada' && mudouStatus ? 'Cancelamento' : mudouStatus ? 'Mudança de Status' : 'Edição';
-      const descricao = mudouLocal ? 'Local da tarefa alterado pelo mapa.' : updated.status === 'Concluída' && mudouStatus ? 'Tarefa concluída pelo mapa.' : updated.status === 'Cancelada' && mudouStatus ? 'Tarefa cancelada pelo mapa.' : mudouStatus ? `Status alterado para ${updated.status}.` : 'Tarefa atualizada pelo mapa.';
-      await registrarHistoricoApi({
-        empresa_id: updated.empresa_id,
-        tarefa_id: updated.id,
-        titulo_tarefa: updated.titulo,
-        evento,
-        data_evento: new Date().toISOString(),
-        status: updated.status,
-        responsavel: updated.responsavel,
-        descricao,
+      const evento = mudouLocal ? 'Mudança de Local' : payload.status === 'Concluída' && mudouStatus ? 'Conclusão' : payload.status === 'Cancelada' && mudouStatus ? 'Cancelamento' : mudouStatus ? 'Mudança de Status' : 'Edição';
+      const descricao = mudouLocal ? 'Local da tarefa alterado pelo mapa.' : payload.status === 'Concluída' && mudouStatus ? 'Tarefa concluída pelo mapa.' : payload.status === 'Cancelada' && mudouStatus ? 'Tarefa cancelada pelo mapa.' : mudouStatus ? `Status alterado para ${payload.status}.` : 'Tarefa atualizada pelo mapa.';
+      return atualizarTarefa(id, {
+        ...payload,
+        historico_evento: evento,
+        historico_descricao: descricao,
+        historico_data_evento: new Date().toISOString(),
       });
-      return updated;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tarefas-mapa'] });

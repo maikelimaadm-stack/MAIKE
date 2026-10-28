@@ -4,6 +4,7 @@
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { querystringListagemEmpresa } from '../../shared/http/listQueryLimit.js';
 import { listar, criar, atualizar, excluir } from './suplementacaoEventoService.js';
+import { comandoLancamentoComLotes } from './suplementacaoEventoComandoService.js';
 
 const ID_SCHEMA = {
   params: {
@@ -41,6 +42,33 @@ export const registrarSuplementacaoEventoRoutes = async (app) => {
     const registro = await criar(request.contexto, /** @type {Record<string, unknown>} */ (request.body));
     return reply.status(201).send(registro);
   });
+
+  app.post(
+    '/suplementacao-eventos/comandos/lancamento-com-lotes',
+    {
+      onRequest: [app.autenticar],
+      schema: {
+        body: {
+          type: 'object',
+          required: ['operation_id', 'evento'],
+          additionalProperties: false,
+          properties: {
+            operation_id: { type: 'string', minLength: 8, maxLength: 128, pattern: '\\S' },
+            evento: { type: 'object', minProperties: 1 },
+            lotes: { type: 'array', items: { type: 'object' } },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      exigirAuthContext(request.contexto.auth);
+      const corpo = await comandoLancamentoComLotes(
+        request.contexto,
+        /** @type {Record<string, unknown>} */ (request.body)
+      );
+      return reply.status(corpo.replay ? 200 : 201).send(corpo);
+    }
+  );
 
   app.patch('/suplementacao-eventos/:id', { onRequest: [app.autenticar], schema: ATUALIZAR_SCHEMA }, async (request) => {
     exigirAuthContext(request.contexto.auth);

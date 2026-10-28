@@ -53,5 +53,6 @@ export const suplementacaoEventoPort = offlineStorageDisponivel()
       entityName: ENTIDADE_OFFLINE,
       operations: operacoesNativas,
       enabled: true,
+      tenantScoped: true,
     })
   : operacoesNativas;

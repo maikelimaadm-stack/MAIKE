@@ -152,6 +152,30 @@ export const BACKEND_ONLY_CODES = Object.freeze({
     http: 409,
     meaning: 'já existe produto com este nome nesta empresa',
   },
+  MOVIMENTACAO_ESTOQUE_NOT_FOUND: {
+    http: 404,
+    meaning: 'id não identifica movimentação de estoque deste tenant',
+  },
+  ESTOQUE_LOTE_NOT_FOUND: {
+    http: 404,
+    meaning: 'id não identifica lote de nota deste tenant',
+  },
+  ESTOQUE_SALDO_INSUFICIENTE: {
+    http: 422,
+    meaning: 'saldo ou FIFO insuficiente para a operação',
+  },
+  IDEMPOTENCY_CONFLICT: {
+    http: 409,
+    meaning: 'operation_id reutilizado com intenção diferente',
+  },
+  IDEMPOTENCY_IN_PROGRESS: {
+    http: 409,
+    meaning: 'mesma operation_id ainda em processamento',
+  },
+  SUPLEMENTACAOEVENTO_NOT_FOUND: {
+    http: 404,
+    meaning: 'id não identifica evento de suplementação deste tenant',
+  },
   INTERNAL_ERROR: { http: 500, meaning: 'erro não previsto' },
 });
 
