@@ -7,11 +7,16 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { ApiError, API_ERROR_CODES, hasApiErrorCode } from '@/apis/_core/ApiError';
 
 const produtos = {
-  listProdutos: vi.fn(), filterProdutos: vi.fn(), createProduto: vi.fn(),
-  updateProduto: vi.fn(), deleteProduto: vi.fn(),
-  listMovimentacoesEstoque: vi.fn(), sincronizarReferenciasProduto: vi.fn(),
+  listProdutos: vi.fn(),
+  listProdutosPage: vi.fn(),
+  filterProdutos: vi.fn(),
+  createProduto: vi.fn(),
+  updateProduto: vi.fn(),
+  deleteProduto: vi.fn(),
+  sincronizarReferenciasProduto: vi.fn(),
 };
 const marcas = {
   listMarcas: vi.fn(),
@@ -80,8 +85,6 @@ const iconeSvc = await import('@/services/configuracaoIconeService');
 const arquivoSvc = await import('@/services/arquivoService');
 const csv = await import('@/domain/produtos/csvProduto');
 const { parseDecimalPtBR, parseInteiroPtBR } = await import('@/domain/numeroPtBR');
-const { API_ERROR_CODES, hasApiErrorCode } = await import('@/apis/_core/ApiError');
-
 const EMPRESA = 'emp-1';
 
 beforeEach(() => {

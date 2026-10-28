@@ -118,6 +118,7 @@ export default function Produtos() {
   }, [empresaId]);
 
   const createMutation = useMutation({
+    /** @param {object} data */
     mutationFn: (data) => criarProduto({ dados: data, empresaId, produtos: controller.visibleRows }),
     onSuccess: (created) => {
       queryClient.invalidateQueries({ queryKey: ["produtos"] });
@@ -138,6 +139,7 @@ export default function Produtos() {
   });
 
   const updateMutation = useMutation({
+    /** @param {{ id: string, data: object, oldData?: object }} vars */
     mutationFn: ({ id, data, oldData }) =>
       atualizarProduto({ id, dados: data, oldData, empresaId, produtos: controller.visibleRows }),
     onSuccess: (updated, { id, data }) => {
@@ -157,6 +159,7 @@ export default function Produtos() {
   });
 
   const deleteMutation = useMutation({
+    /** @param {string[]} ids */
     mutationFn: (ids) => excluirProdutos(ids),
     onSuccess: ({ excluidas, falhas }) => {
       queryClient.invalidateQueries({ queryKey: ["produtos"] });

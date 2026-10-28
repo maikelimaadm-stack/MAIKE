@@ -2,10 +2,10 @@
 
 export {
   listProdutos,
+  listProdutosPage,
   filterProdutos,
   createProduto,
   updateProduto,
   deleteProduto,
-  listMovimentacoesEstoque,
   sincronizarReferenciasProduto,
 } from './produtosApi.js';
