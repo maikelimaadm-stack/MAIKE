@@ -19,10 +19,13 @@ export function useCadastroBase1FullList({ queryKey, enabled = true, fetchAll })
   });
 
   const items = query.data ?? [];
+  const limit = Math.max(items.length, 100);
 
   return {
     items,
     total: items.length,
+    limit,
+    queryKey,
     isLoading: query.isLoading,
     isError: query.isError,
     error: query.error,

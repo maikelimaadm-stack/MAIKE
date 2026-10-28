@@ -33,7 +33,7 @@ const categoriaCombinaBuscaExport = (categoria, query) => {
 /** Linhas achatadas em ordem hierárquica (todos os nós expandidos) — export e numeração. */
 export function flattenHierarchyOrdered(items) {
   const { roots, indice } = buildHierarchy(items || []);
-  const expanded = {};
+  const expanded = /** @type {Record<string, boolean>} */ ({});
   for (const id of indice.keys()) expanded[id] = true;
   return flattenVisible(roots, expanded, { indice });
 }
@@ -71,7 +71,7 @@ export function getCategoriasListFooterMetrics(
   const revealIds = new Set();
   if (revealRowId) revealIds.add(revealRowId);
   if (searchPickId) revealIds.add(searchPickId);
-  const listados = flattenVisible(roots, {}, {
+  const listados = flattenVisible(roots, /** @type {Record<string, boolean>} */ ({}), {
     indice,
     searchQuery: appliedSearch,
     revealIds,
@@ -199,7 +199,7 @@ export function getCategoriaProdutoFieldValue(item, colunaId) {
 }
 
 export default function TabelaCategoriasProduto(props) {
-  const [expanded, setExpanded] = useState({});
+  const [expanded, setExpanded] = useState(/** @type {Record<string, boolean>} */ ({}));
   const { roots, indice } = useMemo(() => buildHierarchy(props.categorias || []), [props.categorias]);
 
   const revealSet = useMemo(() => {

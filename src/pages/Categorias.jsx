@@ -101,6 +101,7 @@ export default function Categorias() {
   revealRowIdRef.current = controller.revealRowId;
 
   const createMutation = useMutation({
+    /** @param {object} data */
     mutationFn: (data) => criarCategoria(data),
     onSuccess: async (criada) => {
       await queryClient.refetchQueries({ queryKey: ["categorias_produto"] });
@@ -122,6 +123,7 @@ export default function Categorias() {
   });
 
   const updateMutation = useMutation({
+    /** @param {{ id: string, data: object }} vars */
     mutationFn: ({ id, data }) => atualizarCategoria(id, data),
     onSuccess: async (atualizada, { id, data }) => {
       await queryClient.refetchQueries({ queryKey: ["categorias_produto"] });
@@ -144,7 +146,9 @@ export default function Categorias() {
   });
 
   const deleteMutation = useMutation({
+    /** @param {string[]} ids */
     mutationFn: (ids) => excluirCategorias(ids),
+    /** @param {{ excluidas: string[] }} result */
     onSuccess: ({ excluidas }) => {
       queryClient.invalidateQueries({ queryKey: ["categorias_produto"] });
       controller.chrome.setSelectedIds([]);
@@ -200,7 +204,10 @@ export default function Categorias() {
     [controller.listaQueryError],
   );
 
-  const screenController = { ...controller, saving };
+  const screenController = /** @type {import('@/hooks/useCadastroBase1Controller').CadastroBase1ControllerSurface} */ ({
+    ...controller,
+    saving,
+  });
 
   const recordCode = controller.editingItem?.numero_categoria
     ? String(controller.editingItem.numero_categoria)
