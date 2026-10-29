@@ -9,16 +9,15 @@ export default function SplashScreen({ visible, logoUrl }) {
       }`}
     >
       <div className="flex flex-col items-center gap-4">
-        <div className="relative flex items-center justify-center">
-          <div className="absolute h-36 w-36 rounded-full bg-emerald-500/20 animate-ping" />
+        <div className="flex items-center justify-center">
           {logoUrl ? (
             <img
               src={logoUrl}
               alt="Logo"
-              className="h-32 w-32 object-contain animate-pulse"
+              className="h-32 w-32 object-contain"
             />
           ) : (
-            <div className="h-32 w-32 rounded-md bg-emerald-600 text-white flex items-center justify-center text-2xl font-bold animate-pulse">
+            <div className="h-32 w-32 rounded-md bg-emerald-600 text-white flex items-center justify-center text-2xl font-bold shadow-sm">
               M
             </div>
           )}
