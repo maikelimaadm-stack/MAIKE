@@ -42,6 +42,12 @@ StrictMode já estava desligado em `main.jsx` — não era fator.
    único no fim).
 3. Navegar no menu — **sem** splash de 5s de novo (shell único inalterado).
 
-## Gates
+## Gates / CI
 
 `gate:source-closure`, `gate:import-integrity` — OK nos arquivos tocados.
+
+**CI (`test:smoke`):** na primeira passagem do PR, `appShell.test.jsx` montava
+`Layout` sem `BootSplashProvider`. Com `useBootSplash()` no Layout, o helper
+`renderShell` quebrou com `useBootSplash must be used within BootSplashProvider`.
+Correção: envolver o Layout no mesmo provider que o `App` usa em produção
+(`9ff62367`).
