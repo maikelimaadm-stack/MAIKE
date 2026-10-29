@@ -119,6 +119,23 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllEnvs());
 
+describe('BOOT — splash sem espera artificial', () => {
+  it('BOOT1 — Layout não impõe timer mínimo de 5s no splash', () => {
+    const codigo = codigoDe(LAYOUT);
+    expect(codigo).not.toMatch(/setTimeout\([^,]+,\s*5000\s*\)/);
+    expect(codigo).not.toMatch(/minTimePassed/);
+    expect(codigo).toMatch(/markLayoutBootReady\s*\(/);
+  });
+
+  it('BOOT2 — pesquisa de telas permanece no header do Layout', async () => {
+    await renderShell();
+    await waitFor(() => expect(screen.getByRole('main')).toBeInTheDocument());
+    const codigo = codigoDe(LAYOUT);
+    expect(codigo).toMatch(/setSearchOpen\(true\)/);
+    expect(codigo).toMatch(/Buscar telas/);
+  });
+});
+
 describe('SHELL — a página do mapa vive dentro do shell', () => {
   it('SHELL1 — a raiz de MapaGeral não é overlay global', () => {
     const raiz = raizDaPagina(MAPA_GERAL);

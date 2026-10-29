@@ -36,7 +36,7 @@ const pageNameFromPathname = (pathname) => {
 
 /**
  * Shell único: o Layout monta uma vez por sessão. Antes cada `<Route>` embrulhava
- * o Layout de novo — splash de 5s, getCurrentUser e permissões repetiam a cada
+ * o Layout de novo — splash, getCurrentUser e permissões repetiam a cada
  * clique no menu.
  */
 const AppShell = () => {
