@@ -1,7 +1,8 @@
 import React, { createContext, useCallback, useContext, useState } from 'react';
 
 /**
- * Sinaliza quando o Layout terminou o bootstrap (usuário, permissões, empresas).
+ * Sinaliza quando o Layout terminou o bootstrap (auth + empresas).
+ * Sem duração mínima: o splash some assim que os dados necessários estão prontos.
  * O splash de entrada fica no App — uma instância só — para não remontar ao sair
  * do carregamento de auth.
  */

@@ -102,13 +102,6 @@ export default function Layout({ children, currentPageName }) {
     document.documentElement.setAttribute('lang', 'pt-BR');
   }, []);
 
-  // Splash: mínimo 5s; só esconder quando o app estiver pronto
-  const [minTimePassed, setMinTimePassed] = useState(false);
-  useEffect(() => {
-    const t = setTimeout(() => setMinTimePassed(true), 5000);
-    return () => clearTimeout(t);
-  }, []);
-
   const menuItems = DEFAULT_MENU;
 
   const [empresaSelecionada, setEmpresaSelecionada] = useState(() =>
@@ -139,12 +132,12 @@ export default function Layout({ children, currentPageName }) {
     refetchOnWindowFocus: false
   });
 
-  // Ocultar splash global (App) somente após 5s mínimos + dados prontos
+  // Ocultar splash global (App) assim que auth + empresas estiverem prontos — sem tempo mínimo
   useEffect(() => {
-    if (minTimePassed && !authLoading && !empresasLoading) {
+    if (!authLoading && !empresasLoading) {
       markLayoutBootReady();
     }
-  }, [minTimePassed, authLoading, empresasLoading, markLayoutBootReady]);
+  }, [authLoading, empresasLoading, markLayoutBootReady]);
 
   const empresaAtual = React.useMemo(() => {
     if (!empresaSelecionada || !empresas.length) return null;
