@@ -27,18 +27,36 @@ export const incrementarRevisaoCatalogo = async (tx) =>
   });
 
 /**
- * Incrementa a revisão e confirma que nenhuma outra transação avançou desde a
- * leitura (CAS sob o lock de linha do UPDATE). Sem isso, duas mutações
- * concorrentes que leram a mesma revisão commitariam ambas.
+ * Contrato único de CAS do catálogo (R3), usado pelas dez mutações.
+ *
+ * Incrementa a revisão global exatamente uma vez. O UPDATE trava a linha de
+ * `CatalogoMeta` e, em READ COMMITTED, reavalia sobre a última versão
+ * commitada — então o valor devolvido reflete toda escrita concorrente já
+ * confirmada. Com `revisaoEsperada` informada, qualquer valor diferente de
+ * `revisaoEsperada + 1` é corrida perdida: 409 e rollback da transação.
+ *
+ * `revisaoEsperada` omitida (null/undefined) mantém o contrato HTTP antigo:
+ * sem CAS, última escrita vence, revisão ainda incrementa uma vez.
  *
  * @param {import('@prisma/client').Prisma.TransactionClient} tx
- * @param {number} revisaoLida revisão obtida por `assertRevisaoCatalogo`
+ * @param {number | null | undefined} revisaoEsperada
  */
-export const avancarRevisaoCatalogo = async (tx, revisaoLida) => {
-  const meta = await incrementarRevisaoCatalogo(tx);
-  if (meta.revisao !== revisaoLida + 1) {
+export const avancarRevisaoCatalogo = async (tx, revisaoEsperada) => {
+  let meta;
+  try {
+    meta = await incrementarRevisaoCatalogo(tx);
+  } catch (erro) {
+    // Primeira escrita concorrente com a linha ainda inexistente.
+    if (erro?.code === 'P2002') {
+      throw concurrencyConflict('revisão do catálogo divergente', {
+        details: { revisao_atual: null, revisao_esperada: revisaoEsperada ?? null },
+      });
+    }
+    throw erro;
+  }
+  if (revisaoEsperada != null && meta.revisao !== revisaoEsperada + 1) {
     throw concurrencyConflict('revisão do catálogo divergente', {
-      details: { revisao_atual: meta.revisao - 1, revisao_esperada: revisaoLida },
+      details: { revisao_atual: meta.revisao - 1, revisao_esperada: revisaoEsperada },
     });
   }
   return meta;

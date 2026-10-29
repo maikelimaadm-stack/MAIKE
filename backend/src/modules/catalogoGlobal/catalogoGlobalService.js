@@ -3,6 +3,7 @@ import { catalogoGlobalInvalid, catalogoGlobalNotFound } from '../../shared/erro
 import { urlPublicaAssetCatalogo } from './catalogoAssetUrls.js';
 import { validarBufferAssetCatalogo } from './catalogoAssetValidation.js';
 import {
+  caminhoObjetoCatalogo,
   exigirArmazenamentoCatalogoAoVivo,
   extensaoDeMime,
   novoIdentificadorAsset,
@@ -11,7 +12,6 @@ import { registrarAuditoriaCatalogo } from './catalogoAuditoria.js';
 import {
   assertRevisaoCatalogo,
   avancarRevisaoCatalogo,
-  incrementarRevisaoCatalogo,
 } from './catalogoRevisao.js';
 import {
   exigirAssetPublicado,
@@ -98,7 +98,7 @@ export const criarTipo = async ({ dados, revisaoEsperada, operador, requestId })
         ativo: dados.ativo ?? true,
       },
     });
-    await incrementarRevisaoCatalogo(tx);
+    await avancarRevisaoCatalogo(tx, revisaoEsperada);
     await registrarAuditoriaCatalogo(
       {
       operadorId: operador.id,
@@ -126,7 +126,7 @@ export const atualizarTipo = async ({ id, dados, revisaoEsperada, operador, requ
         ...(dados.ativo !== undefined ? { ativo: dados.ativo } : {}),
       },
     });
-    await incrementarRevisaoCatalogo(tx);
+    await avancarRevisaoCatalogo(tx, revisaoEsperada);
     await registrarAuditoriaCatalogo(
       {
       operadorId: operador.id,
@@ -157,7 +157,7 @@ export const criarCategoria = async ({ dados, revisaoEsperada, operador, request
         ativo: dados.ativo ?? true,
       },
     });
-    await incrementarRevisaoCatalogo(tx);
+    await avancarRevisaoCatalogo(tx, revisaoEsperada);
     await registrarAuditoriaCatalogo(
       {
       operadorId: operador.id,
@@ -175,13 +175,41 @@ export const criarCategoria = async ({ dados, revisaoEsperada, operador, request
 };
 
 /**
- * Compensa o objeto gravado por uma tentativa de `registrarAsset` que falhou.
+ * Fases de `registrarAsset`, registradas só no servidor (R3). Decidem o que a
+ * compensação pode fazer com segurança:
  *
- * Só remove quando o banco confirma que NENHUM asset referencia o objeto. Se
- * o resultado do commit é incerto (ex.: conexão caiu no COMMIT) ou a própria
- * verificação falha, o objeto fica — órfão é recuperável, link quebrado não.
- * Todo desfecho diferente de "removido" vira evento `catalogo_asset_orfao`
- * no log, com o path para limpeza manual (ver relatório R2).
+ *  - `upload_enviado`      gravação sem resposta conclusiva; banco nunca tocado.
+ *  - `upload_confirmado`   objeto gravado; transação ainda não aberta.
+ *  - `transacao_iniciada`  callback em curso. Se ele rejeita, o Prisma nunca
+ *                          envia COMMIT: a transação não pode confirmar.
+ *  - `callback_concluido`  callback terminou e o COMMIT foi enviado. Falha
+ *                          aqui é AMBÍGUA (queda de conexão após o COMMIT é
+ *                          indistinguível de rollback), qualquer que seja o
+ *                          erro — não classificamos por código Prisma.
+ *  - `commit_confirmado`   `$transaction` resolveu.
+ */
+const FASES_ASSET = Object.freeze({
+  antesUpload: 'antes_upload',
+  uploadEnviado: 'upload_enviado',
+  uploadConfirmado: 'upload_confirmado',
+  transacaoIniciada: 'transacao_iniciada',
+  callbackConcluido: 'callback_concluido',
+  commitConfirmado: 'commit_confirmado',
+});
+
+/** Motivo técnico sanitizado: só código/nome/status, nunca mensagem ou corpo. */
+const motivoSanitizado = (erro) => ({
+  motivo: erro?.code ?? erro?.name ?? 'erro',
+  ...(erro?.details?.status ? { status: erro.details.status } : {}),
+});
+
+/**
+ * Compensa o objeto de uma tentativa de `registrarAsset` que falhou.
+ *
+ * Política conservadora: remove só com evidência positiva de que nenhuma
+ * transação pode ter confirmado E de que nenhum asset referencia o path. Na
+ * dúvida o objeto fica — órfão é recuperável, link quebrado não. Todo
+ * desfecho diferente de "removido" limpo vira evento `catalogo_asset_orfao`.
  *
  * Nunca lança: o erro original da operação é o que o chamador recebe.
  *
@@ -190,21 +218,47 @@ export const criarCategoria = async ({ dados, revisaoEsperada, operador, request
  * @param {import('./catalogoAssetStorage.js').ArmazenamentoCatalogo} p.storage
  * @param {string} p.storagePath
  * @param {string} p.requestId
- * @returns {Promise<'removido' | 'referenciado' | 'mantido_incerto' | 'falha_remocao'>}
+ * @param {string} [p.fase] uma de FASES_ASSET; default `transacao_iniciada`
+ * @param {unknown} [p.erroOriginal]
+ * @returns {Promise<'removido' | 'referenciado' | 'mantido_incerto' | 'falha_remocao' | 'commit_incerto' | 'upload_incerto'>}
  */
-export const compensarObjetoAssetCatalogo = async ({ client, storage, storagePath, requestId }) => {
+export const compensarObjetoAssetCatalogo = async ({
+  client,
+  storage,
+  storagePath,
+  requestId,
+  fase = FASES_ASSET.transacaoIniciada,
+  erroOriginal,
+}) => {
   const reportar = (desfecho, extra = {}) => {
     console.warn(
       JSON.stringify({
         evento: 'catalogo_asset_orfao',
         desfecho,
+        fase,
         storage_path: storagePath,
         request_id: requestId,
+        ...(erroOriginal ? { erro_original: motivoSanitizado(erroOriginal) } : {}),
         ...extra,
       })
     );
     return desfecho;
   };
+
+  // COMMIT enviado e resposta perdida/erro: não há prova de rollback.
+  if (fase === FASES_ASSET.callbackConcluido) return reportar('commit_incerto');
+
+  // Upload sem resposta conclusiva. O banco nunca foi tocado e o path é
+  // exclusivo desta tentativa (assetId novo): nenhuma linha pode referenciá-lo,
+  // então tentar remover é seguro (404 conta como removido). Sempre logado.
+  if (fase === FASES_ASSET.uploadEnviado) {
+    try {
+      await storage.remover(storagePath);
+      return reportar('upload_incerto', { remocao: 'removido' });
+    } catch (erro) {
+      return reportar('upload_incerto', { remocao: 'falhou', ...motivoSanitizado(erro) });
+    }
+  }
 
   let referenciado;
   try {
@@ -213,7 +267,7 @@ export const compensarObjetoAssetCatalogo = async ({ client, storage, storagePat
       select: { id: true },
     });
   } catch (erro) {
-    return reportar('mantido_incerto', { motivo: erro?.code ?? erro?.name ?? 'erro' });
+    return reportar('mantido_incerto', motivoSanitizado(erro));
   }
   if (referenciado) return reportar('referenciado', { asset_id: referenciado.id });
 
@@ -221,19 +275,22 @@ export const compensarObjetoAssetCatalogo = async ({ client, storage, storagePat
     await storage.remover(storagePath);
     return 'removido';
   } catch (erro) {
-    return reportar('falha_remocao', { motivo: erro?.code ?? erro?.name ?? 'erro' });
+    return reportar('falha_remocao', motivoSanitizado(erro));
   }
 };
 
 /**
- * Registra um asset do catálogo (R2 — integridade transacional).
+ * Registra um asset do catálogo (R2/R3 — integridade transacional).
  *
  *  1. Lê a revisão (CAS) e o dedupe `(sha256, revisao)` fora de transação.
- *  2. Grava o objeto num path exclusivo desta tentativa — sem transação aberta
- *     durante a rede.
- *  3. Numa única transação: revalida revisão e dedupe, cria o asset, grava a
- *     auditoria e avança a revisão com CAS. Tudo ou nada.
- *  4. Falhou depois do upload: compensa o objeto, só se nada o referencia.
+ *  2. Fixa `assetId` e o path exclusivo da tentativa ANTES da rede; grava o
+ *     objeto sem transação aberta.
+ *  3. Numa única transação: cria o asset, grava a auditoria e avança a revisão
+ *     com CAS estrito (sempre, mesmo sem `revisao_esperada`: o path é versionado
+ *     pela revisão lida). Tudo ou nada.
+ *  4. Falhou: compensa conforme a fase (ver FASES_ASSET).
+ *  5. Corrida de dois uploads idênticos `(sha256, revisao)`: o perdedor recebe a
+ *     linha vencedora (mesma semântica do dedupe), sem tocar no objeto dela.
  */
 export const registrarAsset = async ({ buffer, mimeDeclarado, revisaoEsperada, operador, requestId }) => {
   const metaValidacao = validarBufferAssetCatalogo(buffer, mimeDeclarado);
@@ -241,31 +298,52 @@ export const registrarAsset = async ({ buffer, mimeDeclarado, revisaoEsperada, o
   const extensao = extensaoDeMime(metaValidacao.mime);
 
   const revisaoCatalogo = await assertRevisaoCatalogo(prisma(), revisaoEsperada);
-  const existente = await prisma().catalogoAsset.findFirst({
-    where: { sha256: metaValidacao.sha256, revisao: revisaoCatalogo },
-  });
+  const dedupe = { sha256: metaValidacao.sha256, revisao: revisaoCatalogo };
+  const existente = await prisma().catalogoAsset.findFirst({ where: dedupe });
   if (existente) {
     // Dedupe: nada foi gravado nem alterado, então nada é auditado.
     return { ...existente, public_url: urlPublicaAssetCatalogo(existente) ?? null };
   }
 
   const assetId = novoIdentificadorAsset();
-  const upload = await storage.gravar({
-    buffer,
-    sha256: metaValidacao.sha256,
-    revisao: revisaoCatalogo,
-    extensao,
-    idObjeto: assetId,
-  });
+  const storagePath = caminhoObjetoCatalogo({ ...dedupe, extensao, idObjeto: assetId });
+  /** @type {string} */
+  let fase = FASES_ASSET.uploadEnviado;
+
+  const compensar = (erroOriginal) =>
+    compensarObjetoAssetCatalogo({
+      client: prisma(),
+      storage,
+      storagePath,
+      requestId,
+      fase,
+      erroOriginal,
+    });
+
+  let upload;
+  try {
+    upload = await storage.gravar({ buffer, ...dedupe, extensao, idObjeto: assetId });
+  } catch (erro) {
+    // Recusa explícita do Storage (resposta 4xx recebida): nada foi gravado.
+    if (!erro?.gravacaoRecusada) await compensar(erro);
+    throw erro;
+  }
+  if (upload.storage_path !== storagePath) {
+    // Adaptador fora do contrato de caminhoObjetoCatalogo: não confiar no path.
+    const erro = new Error('adaptador de Storage devolveu path fora do contrato');
+    await compensar(erro);
+    throw erro;
+  }
+  fase = FASES_ASSET.uploadConfirmado;
 
   try {
     const registro = await prisma().$transaction(async (tx) => {
-      await assertRevisaoCatalogo(tx, revisaoCatalogo);
+      fase = FASES_ASSET.transacaoIniciada;
       const asset = await tx.catalogoAsset.create({
         data: {
           id: assetId,
           bucket: upload.bucket,
-          storage_path: upload.storage_path,
+          storage_path: storagePath,
           mime: metaValidacao.mime,
           bytes: metaValidacao.bytes,
           sha256: metaValidacao.sha256,
@@ -287,16 +365,17 @@ export const registrarAsset = async ({ buffer, mimeDeclarado, revisaoEsperada, o
         tx
       );
       await avancarRevisaoCatalogo(tx, revisaoCatalogo);
+      fase = FASES_ASSET.callbackConcluido;
       return asset;
     });
+    fase = FASES_ASSET.commitConfirmado;
     return { ...registro, public_url: upload.publicUrl ?? urlPublicaAssetCatalogo(registro) ?? null };
   } catch (erro) {
-    await compensarObjetoAssetCatalogo({
-      client: prisma(),
-      storage,
-      storagePath: upload.storage_path,
-      requestId,
-    });
+    await compensar(erro);
+    if (erro?.code === 'P2002' && fase === FASES_ASSET.transacaoIniciada) {
+      const vencedor = await prisma().catalogoAsset.findFirst({ where: dedupe });
+      if (vencedor) return { ...vencedor, public_url: urlPublicaAssetCatalogo(vencedor) ?? null };
+    }
     throw erro;
   }
 };
@@ -320,7 +399,7 @@ export const criarIcone = async ({ dados, revisaoEsperada, operador, requestId }
         ativo: true,
       },
     });
-    await incrementarRevisaoCatalogo(tx);
+    await avancarRevisaoCatalogo(tx, revisaoEsperada);
     await registrarAuditoriaCatalogo(
       {
       operadorId: operador.id,
@@ -371,7 +450,7 @@ export const atualizarIcone = async ({ id, dados, revisaoEsperada, operador, req
       await validarIconePublicavel(id, tx);
     }
 
-    await incrementarRevisaoCatalogo(tx);
+    await avancarRevisaoCatalogo(tx, revisaoEsperada);
     await registrarAuditoriaCatalogo(
       {
       operadorId: operador.id,
@@ -416,7 +495,7 @@ export const publicarIcone = async ({ id, revisaoEsperada, operador, requestId }
       where: { id },
       data: { estado: 'publicado', revisao: { increment: 1 } },
     });
-    await incrementarRevisaoCatalogo(tx);
+    await avancarRevisaoCatalogo(tx, revisaoEsperada);
     await registrarAuditoriaCatalogo(
       {
       operadorId: operador.id,
@@ -440,7 +519,7 @@ export const desativarIcone = async ({ id, revisaoEsperada, operador, requestId 
       where: { id },
       data: { ativo: false, estado: 'inativo' },
     });
-    await incrementarRevisaoCatalogo(tx);
+    await avancarRevisaoCatalogo(tx, revisaoEsperada);
     await registrarAuditoriaCatalogo(
       {
       operadorId: operador.id,
@@ -495,7 +574,7 @@ export const criarRegraMisto = async ({ dados, revisaoEsperada, operador, reques
       },
       include: { categorias: true },
     });
-    await incrementarRevisaoCatalogo(tx);
+    await avancarRevisaoCatalogo(tx, revisaoEsperada);
     await registrarAuditoriaCatalogo(
       {
       operadorId: operador.id,
@@ -529,7 +608,7 @@ export const publicarRegraMisto = async ({ id, revisaoEsperada, operador, reques
       where: { id },
       data: { estado: 'publicado' },
     });
-    await incrementarRevisaoCatalogo(tx);
+    await avancarRevisaoCatalogo(tx, revisaoEsperada);
     await registrarAuditoriaCatalogo(
       {
       operadorId: operador.id,

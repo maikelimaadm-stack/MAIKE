@@ -13,6 +13,10 @@ import {
   exigirArmazenamentoCatalogoAoVivo,
 } from '../src/modules/catalogoGlobal/catalogoAssetStorage.js';
 import { compensarObjetoAssetCatalogo } from '../src/modules/catalogoGlobal/catalogoGlobalService.js';
+import {
+  assertRevisaoCatalogo,
+  avancarRevisaoCatalogo,
+} from '../src/modules/catalogoGlobal/catalogoRevisao.js';
 import { validarBufferAssetCatalogo } from '../src/modules/catalogoGlobal/catalogoAssetValidation.js';
 import { criarApp, criarTenant, limparBanco, encerrar, autenticarNoApp } from './helpers.mjs';
 
@@ -34,20 +38,43 @@ const storageFake = {
   /** @type {string[]} */
   removidos: [],
   falharGravacao: false,
+  falharAposGravar: false,
   falharRemocao: false,
+  /** @type {null | { esperadas: number, chegadas: number, liberar: () => void, pronta: Promise<void> }} */
+  barreira: null,
   reset() {
     this.objetos.clear();
     this.gravados = [];
     this.removidos = [];
     this.falharGravacao = false;
+    this.falharAposGravar = false;
     this.falharRemocao = false;
+    this.barreira = null;
+  },
+  /** Faz `n` gravações esperarem umas pelas outras (corrida determinística, sem sleep). */
+  sincronizar(n) {
+    let liberar;
+    const pronta = new Promise((r) => {
+      liberar = r;
+    });
+    this.barreira = { esperadas: n, chegadas: 0, liberar, pronta };
   },
   async gravar({ buffer, sha256, revisao, extensao, idObjeto }) {
-    if (this.falharGravacao) throw new Error('storage indisponível (injetado)');
+    if (this.barreira) {
+      this.barreira.chegadas += 1;
+      if (this.barreira.chegadas >= this.barreira.esperadas) this.barreira.liberar();
+      await this.barreira.pronta;
+    }
+    if (this.falharGravacao) {
+      // Recusa explícita (4xx recebido): nada gravado.
+      throw Object.assign(new Error('storage recusou (injetado)'), { gravacaoRecusada: true });
+    }
     const storage_path = caminhoObjetoCatalogo({ sha256, revisao, extensao, idObjeto });
     if (this.objetos.has(storage_path)) throw new Error('objeto já existe (x-upsert: false)');
     this.objetos.set(storage_path, buffer);
     this.gravados.push(storage_path);
+    // Objeto persistido, resposta perdida: resultado remoto incerto.
+    if (this.falharAposGravar) throw Object.assign(new Error('socket hang up'), { code: 'ECONNRESET' });
     return { bucket: 'maike-catalogo-global', storage_path };
   },
   async remover(storage_path) {
@@ -616,6 +643,18 @@ const contagens = async () => {
   };
 };
 
+/** Captura `console.warn` (eventos JSON de órfão) durante `fn`. */
+const capturarAvisos = async (fn) => {
+  const avisos = [];
+  const original = console.warn;
+  console.warn = (m) => avisos.push(JSON.parse(m));
+  try {
+    return { valor: await fn(), avisos };
+  } finally {
+    console.warn = original;
+  }
+};
+
 const operadorComToken = async () => {
   const t = await tenantComToken();
   await registrarOperador(t.cliente.id, t.usuario.id);
@@ -664,17 +703,26 @@ describe('catálogo global R2 — integridade transacional de assets', () => {
     assert.equal(storageFake.objetos.size, 0);
   });
 
-  test('R2-03 falha no COMMIT (trigger deferido): nada persiste e objeto é compensado', async () => {
+  // R3: expectativa ajustada (mais conservadora). Falha depois do callback é
+  // tratada como COMMIT ambíguo — sem prova de rollback o objeto fica e vira
+  // evento de reconciliação, mesmo com o SELECT posterior sem linha.
+  test('R2-03 falha no COMMIT (trigger deferido): nada persiste e objeto é RETIDO + logado', async () => {
     const { token } = await operadorComToken();
     const antes = await contagens();
-    const r = await comTriggerDeFalha('AuditoriaCatalogoGlobal', { deferido: true }, () =>
-      postarAsset(token)
+    const { valor: r, avisos } = await capturarAvisos(() =>
+      comTriggerDeFalha('AuditoriaCatalogoGlobal', { deferido: true }, () => postarAsset(token))
     );
 
     assert.equal(r.statusCode, 500);
     assert.deepEqual(await contagens(), antes);
-    assert.deepEqual(storageFake.removidos, storageFake.gravados);
-    assert.equal(storageFake.objetos.size, 0);
+    assert.equal(storageFake.gravados.length, 1);
+    assert.deepEqual(storageFake.removidos, []);
+    assert.ok(storageFake.objetos.has(storageFake.gravados[0]));
+    assert.equal(avisos.length, 1);
+    assert.equal(avisos[0].desfecho, 'commit_incerto');
+    assert.equal(avisos[0].fase, 'callback_concluido');
+    assert.equal(avisos[0].storage_path, storageFake.gravados[0]);
+    assert.ok(avisos[0].request_id);
   });
 
   test('R2-04 erro do Storage antes de gravar: banco intacto e nenhuma remoção', async () => {
@@ -869,5 +917,212 @@ describe('catálogo global R2 — auditoria atômica nas mutações administrati
     });
     assert.equal(r.statusCode, 401);
     assert.deepEqual(storageFake.gravados, []);
+  });
+});
+
+describe('catálogo global R3 — upload incerto e COMMIT ambíguo', () => {
+  test('R3-01 Storage grava e a resposta se perde: banco intacto, objeto removido e logado', async () => {
+    const { token } = await operadorComToken();
+    const antes = await contagens();
+    storageFake.falharAposGravar = true;
+    const { valor: r, avisos } = await capturarAvisos(() => postarAsset(token));
+
+    assert.equal(r.statusCode, 500);
+    assert.deepEqual(await contagens(), antes);
+    assert.equal(storageFake.gravados.length, 1);
+    assert.deepEqual(storageFake.removidos, storageFake.gravados);
+    assert.equal(storageFake.objetos.size, 0);
+    assert.equal(avisos.length, 1);
+    assert.equal(avisos[0].desfecho, 'upload_incerto');
+    assert.equal(avisos[0].fase, 'upload_enviado');
+    assert.equal(avisos[0].remocao, 'removido');
+    assert.equal(avisos[0].storage_path, storageFake.gravados[0]);
+    assert.equal(avisos[0].erro_original.motivo, 'ECONNRESET');
+  });
+
+  test('R3-02 upload incerto e remoção falha: objeto retido e órfão visível no log', async () => {
+    const { token } = await operadorComToken();
+    const antes = await contagens();
+    storageFake.falharAposGravar = true;
+    storageFake.falharRemocao = true;
+    const { valor: r, avisos } = await capturarAvisos(() => postarAsset(token));
+
+    assert.equal(r.statusCode, 500);
+    assert.deepEqual(await contagens(), antes);
+    assert.ok(storageFake.objetos.has(storageFake.gravados[0]));
+    assert.equal(avisos.length, 1);
+    assert.equal(avisos[0].desfecho, 'upload_incerto');
+    assert.equal(avisos[0].remocao, 'falhou');
+  });
+
+  test('R3-03 recusa explícita do Storage (4xx): sem remoção e sem evento de órfão', async () => {
+    const { token } = await operadorComToken();
+    const antes = await contagens();
+    storageFake.falharGravacao = true;
+    const { valor: r, avisos } = await capturarAvisos(() => postarAsset(token));
+
+    assert.equal(r.statusCode, 500);
+    assert.deepEqual(await contagens(), antes);
+    assert.deepEqual(storageFake.removidos, []);
+    assert.deepEqual(avisos, []);
+  });
+
+  test('R3-04 compensação em fase callback_concluido com SELECT sem linha NÃO remove', async () => {
+    storageFake.objetos.set('v0/incerto.png', Buffer.from([1]));
+    const { valor: desfecho, avisos } = await capturarAvisos(() =>
+      compensarObjetoAssetCatalogo({
+        client: getPrismaClient(),
+        storage: storageFake,
+        storagePath: 'v0/incerto.png',
+        requestId: 'req-r3',
+        fase: 'callback_concluido',
+      })
+    );
+    assert.equal(desfecho, 'commit_incerto');
+    assert.deepEqual(storageFake.removidos, []);
+    assert.ok(storageFake.objetos.has('v0/incerto.png'));
+    assert.equal(avisos[0].desfecho, 'commit_incerto');
+  });
+
+  test('R3-05 dois uploads idênticos simultâneos: um registro, objeto vencedor intacto, perdedor idempotente', async () => {
+    const { token } = await operadorComToken();
+    storageFake.sincronizar(2);
+    const respostas = await Promise.all([
+      postarAsset(token, PNG_1X1, { revisao_esperada: 0 }),
+      postarAsset(token, PNG_1X1, { revisao_esperada: 0 }),
+    ]);
+
+    assert.deepEqual(respostas.map((x) => x.statusCode), [201, 201]);
+    assert.equal(respostas[0].json().id, respostas[1].json().id);
+    const c = await contagens();
+    assert.deepEqual(c, { assets: 1, auditorias: 1, revisao: 1 });
+
+    const vencedor = respostas[0].json().storage_path;
+    assert.equal(storageFake.gravados.length, 2);
+    assert.deepEqual(storageFake.removidos, storageFake.gravados.filter((p) => p !== vencedor));
+    assert.deepEqual([...storageFake.objetos.keys()], [vencedor]);
+  });
+});
+
+describe('catálogo global R3 — CAS em todas as mutações', () => {
+  const criarTipoApi = (token, payload) =>
+    app.inject({ method: 'POST', url: '/catalogo-global/admin/tipos', headers: auth(token), payload });
+  const patchTipo = (token, id, payload) =>
+    app.inject({
+      method: 'PATCH',
+      url: `/catalogo-global/admin/tipos/${id}`,
+      headers: auth(token),
+      payload,
+    });
+  const auditoriasDe = (acao, entidadeId) =>
+    getPrismaClient().auditoriaCatalogoGlobal.count({ where: { acao, entidade_id: entidadeId } });
+
+  test('R3-06 atualizarTipo concorrente com a mesma revisão: 200 + 409, uma auditoria, revisão +1', async () => {
+    const { token } = await operadorComToken();
+    const id = (await criarTipoApi(token, { codigo: 'cas1', nome: 'Base' })).json().id;
+
+    const respostas = await Promise.all([
+      patchTipo(token, id, { nome: 'A', revisao_esperada: 1 }),
+      patchTipo(token, id, { nome: 'B', revisao_esperada: 1 }),
+    ]);
+    const codigos = respostas.map((x) => x.statusCode).sort();
+    assert.deepEqual(codigos, [200, 409]);
+    const perdedor = respostas.find((x) => x.statusCode === 409).json();
+    assert.equal(perdedor.code, 'CONCURRENCY_CONFLICT');
+    assert.equal(perdedor.details.revisao_esperada, 1);
+    assert.equal(perdedor.details.revisao_atual, 2);
+
+    const vencedor = respostas.find((x) => x.statusCode === 200).json();
+    const tipo = await getPrismaClient().catalogoTipoEntidade.findUnique({ where: { id } });
+    assert.equal(tipo.nome, vencedor.nome);
+    assert.equal(await auditoriasDe('atualizar', id), 1);
+    assert.equal((await contagens()).revisao, 2);
+  });
+
+  test('R3-07 criarTipo concorrente com a mesma revisão: 201 + 409, um tipo, uma auditoria', async () => {
+    const { token } = await operadorComToken();
+    const respostas = await Promise.all([
+      criarTipoApi(token, { codigo: 'x1', nome: 'X1', revisao_esperada: 0 }),
+      criarTipoApi(token, { codigo: 'x2', nome: 'X2', revisao_esperada: 0 }),
+    ]);
+    assert.deepEqual(respostas.map((x) => x.statusCode).sort(), [201, 409]);
+    assert.equal(await getPrismaClient().catalogoTipoEntidade.count(), 1);
+    assert.deepEqual(await contagens(), { assets: 0, auditorias: 1, revisao: 1 });
+  });
+
+  test('R3-08 publicarIcone concorrente com a mesma revisão: 200 + 409, uma auditoria de publicação', async () => {
+    const { token } = await operadorComToken();
+    const tipoId = (await criarTipoApi(token, { codigo: 'lote', nome: 'Lote' })).json().id;
+    const categoriaId = (
+      await app.inject({
+        method: 'POST',
+        url: '/catalogo-global/admin/categorias',
+        headers: auth(token),
+        payload: { tipo_id: tipoId, codigo: 'c1', nome: 'C1' },
+      })
+    ).json().id;
+    const assetId = (await postarAsset(token)).json().id;
+    const iconeId = (
+      await app.inject({
+        method: 'POST',
+        url: '/catalogo-global/admin/icones',
+        headers: auth(token),
+        payload: { tipo_id: tipoId, categoria_id: categoriaId, asset_principal_id: assetId },
+      })
+    ).json().id;
+    const rev = (await contagens()).revisao;
+
+    const publicar = () =>
+      app.inject({
+        method: 'POST',
+        url: `/catalogo-global/admin/icones/${iconeId}/publicar`,
+        headers: auth(token),
+        payload: { revisao_esperada: rev },
+      });
+    const respostas = await Promise.all([publicar(), publicar()]);
+    assert.deepEqual(respostas.map((x) => x.statusCode).sort(), [200, 409]);
+    assert.equal(await auditoriasDe('publicar', iconeId), 1);
+    assert.equal((await contagens()).revisao, rev + 1);
+    const icone = await getPrismaClient().catalogoIcone.findUnique({ where: { id: iconeId } });
+    assert.equal(icone.estado, 'publicado');
+  });
+
+  test('R3-09 sem revisao_esperada (contrato antigo): ambas aplicam, revisão +2, duas auditorias', async () => {
+    const { token } = await operadorComToken();
+    const id = (await criarTipoApi(token, { codigo: 'lww', nome: 'Base' })).json().id;
+    const respostas = await Promise.all([
+      patchTipo(token, id, { nome: 'A' }),
+      patchTipo(token, id, { nome: 'B' }),
+    ]);
+    assert.deepEqual(respostas.map((x) => x.statusCode), [200, 200]);
+    assert.equal(await auditoriasDe('atualizar', id), 2);
+    assert.equal((await contagens()).revisao, 3);
+  });
+
+  test('R3-10 TOCTOU determinístico: escrita confirmada entre assert e avanço → 409 e rollback', async () => {
+    const prisma = getPrismaClient();
+    await prisma.catalogoMeta.create({ data: { chave: 'global', revisao: 5 } });
+
+    const erro = await prisma
+      .$transaction(async (tx) => {
+        const lida = await assertRevisaoCatalogo(tx, 5); // passa: 5
+        // Outra transação confirma enquanto esta está aberta (conexão própria).
+        await prisma.catalogoMeta.update({
+          where: { chave: 'global' },
+          data: { revisao: { increment: 1 } },
+        });
+        await tx.catalogoTipoEntidade.create({ data: { codigo: 'toctou', nome: 'T' } });
+        await avancarRevisaoCatalogo(tx, lida);
+      })
+      .then(
+        () => null,
+        (e) => e
+      );
+
+    assert.equal(erro?.code, 'CONCURRENCY_CONFLICT');
+    assert.equal(erro.details.revisao_atual, 6);
+    assert.equal(erro.details.revisao_esperada, 5);
+    assert.equal(await prisma.catalogoTipoEntidade.count(), 0);
+    assert.equal((await prisma.catalogoMeta.findUnique({ where: { chave: 'global' } })).revisao, 6);
   });
 });

@@ -97,10 +97,16 @@ const armazenamentoSupabase = () => {
       });
       if (!resposta.ok) {
         const texto = await resposta.text().catch(() => '');
-        throw catalogoAssetInvalid('falha ao gravar objeto no Storage', {
+        const erro = catalogoAssetInvalid('falha ao gravar objeto no Storage', {
           status: resposta.status,
           detalhe: texto.slice(0, 200),
         });
+        // 4xx = Storage respondeu e recusou: objeto não gravado. 5xx ou erro de
+        // rede ficam sem a marca — resultado remoto incerto (R3).
+        if (resposta.status >= 400 && resposta.status < 500) {
+          /** @type {any} */ (erro).gravacaoRecusada = true;
+        }
+        throw erro;
       }
       return {
         bucket,
