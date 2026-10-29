@@ -74,7 +74,9 @@ const renderShell = async (rotaInicial = '/mapageral') => {
   // `AuthContext` — que no aplicativo real sempre o envolve. Montá-lo solto
   // aqui testaria uma configuração que não existe em produção. Sem token
   // guardado, o provider resolve para "não autenticado" sem tocar a rede.
+  // O splash único exige `BootSplashProvider` acima do Layout (mesma árvore do App).
   const { AuthProvider } = await import('@/lib/AuthContext');
+  const { BootSplashProvider } = await import('@/lib/bootSplashContext');
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
 
   let utils;
@@ -83,6 +85,7 @@ const renderShell = async (rotaInicial = '/mapageral') => {
     <MemoryRouter initialEntries={[rotaInicial]}>
       <QueryClientProvider client={client}>
        <AuthProvider>
+        <BootSplashProvider>
         <SondaDeRota />
         <Routes>
           <Route
@@ -99,6 +102,7 @@ const renderShell = async (rotaInicial = '/mapageral') => {
             }
           />
         </Routes>
+        </BootSplashProvider>
        </AuthProvider>
       </QueryClientProvider>
     </MemoryRouter>

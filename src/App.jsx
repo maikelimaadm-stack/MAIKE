@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Toaster } from "@/components/ui/toaster"
 import MaikeSonnerToaster from "@/components/common/MaikeSonnerToaster";
 import GlobalRequiredFieldsGuard from '@/components/common/GlobalRequiredFieldsGuard';
@@ -14,6 +15,8 @@ import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import NativeLoginForm from '@/components/auth/NativeLoginForm';
 import NativeSessionUnavailable from '@/components/auth/NativeSessionUnavailable';
+import SplashScreen from '@/components/common/SplashScreen';
+import { BootSplashProvider, useBootSplash } from '@/lib/bootSplashContext';
 import { normalizeAppPathname } from '@/lib/navigation/normalizeAppPathname';
 
 const { Pages, Layout, mainPage } = pagesConfig;
@@ -65,6 +68,19 @@ const AuthenticatedApp = () => {
     revalidarSessao,
     encerrarValidacaoEIrParaLogin,
   } = useAuth();
+  const { layoutBootReady, resetLayoutBoot } = useBootSplash();
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      resetLayoutBoot();
+    }
+  }, [isAuthenticated, resetLayoutBoot]);
+
+  const authBooting = isLoadingPublicSettings || isLoadingAuth;
+  const showMainApp =
+    isAuthenticated && authError?.type !== 'user_not_registered';
+  const showBootSplash =
+    authBooting || (showMainApp && !layoutBootReady);
 
   // A ordem destes quatro ramos é o contrato da P4.0-R1, e cada posição
   // importa:
@@ -76,14 +92,6 @@ const AuthenticatedApp = () => {
   //
   // O segundo ramo é o que faltava. Sem ele, "não sabemos" caía no terceiro e
   // virava pedido de senha.
-
-  if (isLoadingPublicSettings || isLoadingAuth) {
-    return (
-      <div className="fixed inset-0 flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-slate-200 border-t-slate-800 rounded-full animate-spin"></div>
-      </div>
-    );
-  }
 
   // Indisponibilidade: o token continua guardado e o aplicativo continua
   // fechado. Nem login, nem conteúdo protegido — só a chance de tentar de novo
@@ -102,41 +110,47 @@ const AuthenticatedApp = () => {
   // mais redirecionamento para o login da Base44: a autenticação do aplicativo
   // é do MAIKE, e mandar o usuário para fora seria autenticá-lo no provider
   // errado.
-  if (!isAuthenticated) {
+  if (!authBooting && !isAuthenticated) {
     return <NativeLoginForm entrar={entrar} onAutenticado={() => {}} />;
   }
 
   // A recusa do provider de dados legado continua tendo tela própria — ela
   // descreve o acesso do usuário às capacidades ainda não migradas, e não a
   // sessão do aplicativo.
-  if (authError?.type === 'user_not_registered') {
+  if (!authBooting && authError?.type === 'user_not_registered') {
     return <UserNotRegisteredError />;
   }
 
-  // Render the main app. A raiz encaminha para a superfície primária (D-PROD-05).
+  // Um único SplashScreen do fim do auth até o Layout sinalizar pronto — evita
+  // remontar ao trocar auth → rotas (causa do piscar pós-#135).
   return (
-    <Routes>
-      <Route path="/" element={<Navigate to={createPageUrl(mainPage)} replace />} />
-      <Route element={<AppShell />}>
-        {Object.entries(Pages).map(([path, Page]) => (
-          <Route
-            key={path}
-            path={createPageUrl(path)}
-            element={<Page />}
-          />
-        ))}
-        <Route path="*" element={<PageNotFound />} />
-      </Route>
-      {/* Bookmarks e links antigos usavam PascalCase antes do SSOT em minúsculas. */}
-      {Object.keys(Pages).map((path) => (
-        <Route
-          key={`legacy-${path}`}
-          path={`/${path}`}
-          element={<Navigate to={createPageUrl(path)} replace />}
-        />
-      ))}
-      <Route path="*" element={<PageNotFound />} />
-    </Routes>
+    <>
+      <SplashScreen visible={showBootSplash} />
+      {showMainApp && (
+        <Routes>
+          <Route path="/" element={<Navigate to={createPageUrl(mainPage)} replace />} />
+          <Route element={<AppShell />}>
+            {Object.entries(Pages).map(([path, Page]) => (
+              <Route
+                key={path}
+                path={createPageUrl(path)}
+                element={<Page />}
+              />
+            ))}
+            <Route path="*" element={<PageNotFound />} />
+          </Route>
+          {/* Bookmarks e links antigos usavam PascalCase antes do SSOT em minúsculas. */}
+          {Object.keys(Pages).map((path) => (
+            <Route
+              key={`legacy-${path}`}
+              path={`/${path}`}
+              element={<Navigate to={createPageUrl(path)} replace />}
+            />
+          ))}
+          <Route path="*" element={<PageNotFound />} />
+        </Routes>
+      )}
+    </>
   );
 };
 
@@ -145,6 +159,7 @@ function App() {
 
   return (
     <AuthProvider>
+      <BootSplashProvider>
       <QueryClientProvider client={queryClientInstance}>
         <GlobalRequiredFieldsGuard />
         <GlobalDeleteBlockDialog />
@@ -154,6 +169,7 @@ function App() {
         <Toaster />
         <MaikeSonnerToaster />
       </QueryClientProvider>
+      </BootSplashProvider>
     </AuthProvider>
   )
 }

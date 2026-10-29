@@ -4,6 +4,7 @@ import { createPageUrl } from "@/utils";
 import { listEmpresas } from "@/services/empresaService";
 import { getCurrentUser, getCachedUser, listarPermissoes, permissaoDoUsuario, permissaoMinimaNativa } from "@/services/sessionService";
 import { useAuth } from "@/lib/AuthContext";
+import { useBootSplash } from "@/lib/bootSplashContext";
 import {
   EVENTO_EMPRESA_SELECIONADA,
   lerEmpresaSelecionadaIdArmazenada,
@@ -44,7 +45,6 @@ import {
   DialogTitle } from
 "@/components/ui/dialog";
 
-import SplashScreen from "@/components/common/SplashScreen";
 import BackButton from "@/components/common/BackButton";
 import PermissionAlertDialog from "@/components/common/PermissionAlertDialog";
 import { DEFAULT_MENU, flattenMenuPages, findMenuItemByUrl, getAllPages } from "@/lib/menuConfig";
@@ -64,11 +64,11 @@ const FIXED_MOBILE_NAV_ITEMS = [
 
 export default function Layout({ children, currentPageName }) {
   const { clienteId } = useAuth();
+  const { markLayoutBootReady } = useBootSplash();
   const location = useLocation();
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
-  const [showSplash, setShowSplash] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -139,12 +139,12 @@ export default function Layout({ children, currentPageName }) {
     refetchOnWindowFocus: false
   });
 
-  // Ocultar splash somente após 5s mínimos + dados prontos
+  // Ocultar splash global (App) somente após 5s mínimos + dados prontos
   useEffect(() => {
     if (minTimePassed && !authLoading && !empresasLoading) {
-      setShowSplash(false);
+      markLayoutBootReady();
     }
-  }, [minTimePassed, authLoading, empresasLoading]);
+  }, [minTimePassed, authLoading, empresasLoading, markLayoutBootReady]);
 
   const empresaAtual = React.useMemo(() => {
     if (!empresaSelecionada || !empresas.length) return null;
@@ -335,7 +335,6 @@ export default function Layout({ children, currentPageName }) {
         .safe-area-top { padding-top: env(safe-area-inset-top); }
         .safe-area-bottom { padding-bottom: env(safe-area-inset-bottom); }
       `}</style>
-      <SplashScreen visible={showSplash} />
       <header className="bg-white border-b border-slate-200 flex-none">
         <div className="max-w-[1600px] mx-auto px-4 py-2">
           <div className="flex items-center justify-between">
