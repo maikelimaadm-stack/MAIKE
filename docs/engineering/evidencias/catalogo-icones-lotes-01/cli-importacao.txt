@@ -1,0 +1,70 @@
+### 1) validação local (sem rede)
+manifesto: tipo "lote", 1 item(ns)
+  - bezerro_fixture: ./bezerro-fixture.png (image/png, 74 B, sha256 a86ed1f1f215855c…)
+MAIKE_API_URL ausente: só validação local (dry-run).
+
+### 2) dry-run contra 127.0.0.1
+manifesto: tipo "lote", 1 item(ns)
+  - bezerro_fixture: ./bezerro-fixture.png (image/png, 74 B, sha256 a86ed1f1f215855c…)
+
+plano contra 127.0.0.1:
+  criar tipo "lote"
+  bezerro_fixture: criar_e_publicar + criar categoria
+
+DRY-RUN: nada foi gravado. Para aplicar: --apply --confirmar=<host da API>.
+
+### 3) --apply sem --confirmar (deve recusar)
+manifesto: tipo "lote", 1 item(ns)
+  - bezerro_fixture: ./bezerro-fixture.png (image/png, 74 B, sha256 a86ed1f1f215855c…)
+
+plano contra 127.0.0.1:
+  criar tipo "lote"
+  bezerro_fixture: criar_e_publicar + criar categoria
+importar-icones: --apply exige --confirmar=127.0.0.1 (confirmação explícita do ambiente)
+exit=1
+
+### 4) admin do tenant (ui.cli) tenta aplicar
+manifesto: tipo "lote", 1 item(ns)
+  - bezerro_fixture: ./bezerro-fixture.png (image/png, 74 B, sha256 a86ed1f1f215855c…)
+
+plano contra 127.0.0.1:
+  criar tipo "lote"
+  bezerro_fixture: criar_e_publicar + criar categoria
+file:///home/user/MAIKE/scripts/catalogo/importarIconesLib.mjs:96
+  throw new Error(`${contexto}: HTTP ${r.status} ${codigo}${r.body?.message ? ` — ${r.body.message}` : ''}`);
+        ^
+
+Error: criar tipo: HTTP 403 PRODUCT_OPERATOR_REQUIRED — operador de produto MAIKE não autorizado
+    at exigirOk (file:///home/user/MAIKE/scripts/catalogo/importarIconesLib.mjs:96:9)
+    at escrever (file:///home/user/MAIKE/scripts/catalogo/importarIconesLib.mjs:133:5)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async aplicar (file:///home/user/MAIKE/scripts/catalogo/importarIconesLib.mjs:138:12)
+    at async file:///home/user/MAIKE/scripts/catalogo/importar-icones.mjs:96:32
+
+Node.js v22.22.0
+exit=1
+
+### 5) --apply --confirmar=127.0.0.1 (operador)
+manifesto: tipo "lote", 1 item(ns)
+  - bezerro_fixture: ./bezerro-fixture.png (image/png, 74 B, sha256 a86ed1f1f215855c…)
+
+plano contra 127.0.0.1:
+  criar tipo "lote"
+  bezerro_fixture: criar_e_publicar + criar categoria
+  tipo criado: lote (cmvtvlcw900007dtxwsscfmty)
+  bezerro_fixture: categoria criada (cmvtvlcwz00057dtxgzjbge97)
+  bezerro_fixture: ícone cmvtvld09000d7dtx99fr0fyb criado e publicado
+
+aplicado. tipo_id=cmvtvlcw900007dtxwsscfmty
+  bezerro_fixture: criar_e_publicar — categoria_visual_id=cmvtvlcwz00057dtxgzjbge97 icone_id=cmvtvld09000d7dtx99fr0fyb
+
+### 6) reaplicar (idempotente)
+manifesto: tipo "lote", 1 item(ns)
+  - bezerro_fixture: ./bezerro-fixture.png (image/png, 74 B, sha256 a86ed1f1f215855c…)
+
+plano contra 127.0.0.1:
+  bezerro_fixture: nada (ícone cmvtvld09000d7dtx99fr0fyb)
+  bezerro_fixture: já publicado com a mesma imagem — nada a fazer
+
+aplicado. tipo_id=cmvtvlcw900007dtxwsscfmty
+  bezerro_fixture: nada — categoria_visual_id=cmvtvlcwz00057dtxgzjbge97 icone_id=cmvtvld09000d7dtx99fr0fyb

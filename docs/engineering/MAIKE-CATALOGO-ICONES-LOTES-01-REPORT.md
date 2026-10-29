@@ -111,7 +111,7 @@ A primeira versão desta PR (painel `/CatalogoGlobalMaike` e prévia com `catego
 
 Evidências em `docs/engineering/evidencias/catalogo-icones-lotes-01/`.
 
-1. **CLI** (`cli-importacao.log`):
+1. **CLI** (`cli-importacao.txt`):
    - validação local;
    - dry-run (plano, nada gravado);
    - `--apply` sem `--confirmar` → recusado;
