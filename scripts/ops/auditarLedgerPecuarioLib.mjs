@@ -21,7 +21,11 @@
  *    cadastro SÓ com histórico presente e igual ao atual; senão
  *    `mapeamento_categorias` explícito; senão quarentena (não aplica).
  *  - `apto_para_backfill` (geral e por empresa): true só se conciliada sem
- *    lacuna/suspeita/quarentena — e mesmo assim não executa nada.
+ *    lacuna/suspeita/quarentena (`apto_matematico`) E com manifesto de snapshot
+ *    externo válido e coerente (R4) — e mesmo assim não executa nada.
+ *  - Integridade (R4): ID de lote/movimento vazio ou repetido, lote
+ *    referenciado ambíguo e movimento de empresa ≠ empresa do lote →
+ *    quarentena impeditiva; nada é escolhido nem corrigido.
  *  - Quantidades: inteiro estrito > 0 (número inteiro ou string só de dígitos).
  *    `10.5`, `NaN`, vazio, negativo ou lixo → quarentena, nunca truncado.
  *  - Só "Transferência de Área" é aplicada; outros tipos → quarentena impeditiva.
@@ -82,21 +86,186 @@ const categoriaAtual = (lote) => {
   return t ? { chave: `texto:${t}`, confiavel: false } : { chave: CATEGORIA_SEM, confiavel: true };
 };
 
+export const VERSAO_MANIFESTO_SNAPSHOT = 1;
+const MODOS_CONSISTENCIA = new Set(['snapshot_transacional', 'export_consistente_equivalente']);
+const RE_DATA_HORA_UTC = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,3})?Z$/;
+const ehObjeto = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
+const ehContagem = (v) => Number.isSafeInteger(v) && v >= 0;
+const textoNaoVazio = (v, max = 128) => typeof v === 'string' && v.trim() !== '' && v.length <= max;
+/** Origem com cara de credencial/URL privada nunca é aceita nem ecoada. */
+const pareceSensivel = (v) => /:\/\/|@|senha|password|secret|token|apikey|api_key/i.test(String(v ?? ''));
+
+/**
+ * Estado de uma coleção do dump: `ausente` (propriedade omitida — NUNCA é
+ * "zero comprovado"), `malformada` (não-array ou com linha que não é objeto)
+ * ou `presente` (array de objetos; `[]` vale como zero quando o manifesto o
+ * declara).
+ * @param {unknown} v
+ * @returns {'ausente' | 'malformada' | 'presente'}
+ */
+export const estadoDaFonte = (v) => {
+  if (v === undefined) return 'ausente';
+  if (!Array.isArray(v) || v.some((x) => !ehObjeto(x))) return 'malformada';
+  return 'presente';
+};
+
+/**
+ * CONFERE (não produz) o manifesto externo do snapshot — contrato v1, ver
+ * CONTRATO.md §7.1. Puro: só lê. O manifesto é uma DECLARAÇÃO de quem extraiu
+ * o dump; não é prova criptográfica e não substitui conferência humana da
+ * extração e do ambiente. Nada aqui gera manifesto a partir dos próprios
+ * arrays (isso só repetiria um recorte incompleto).
+ * @param {Record<string, any>} dump
+ * @param {(id: unknown) => string | null} rot
+ */
+export const validarManifestoSnapshot = (dump, rot = (x) => (x === undefined || x === null ? null : String(x))) => {
+  /** @type {Array<{ codigo: string } & Record<string, unknown>>} */
+  const impedimentos = [];
+  /** @type {Array<{ codigo: string } & Record<string, unknown>>} */
+  const avisos = [];
+  const impedir = (codigo, extra = {}) => impedimentos.push({ codigo, ...extra });
+  const fontes = { lotes: estadoDaFonte(dump?.lotes), movimentacoes_mapa: estadoDaFonte(dump?.movimentacoes_mapa) };
+  for (const [nome, estado] of Object.entries(fontes)) {
+    if (estado !== 'presente') impedir(`fonte_${nome}_${estado}`);
+  }
+  const lotes = fontes.lotes === 'presente' ? dump.lotes : [];
+  const movs = fontes.movimentacoes_mapa === 'presente' ? dump.movimentacoes_mapa : [];
+  const lidas = { lotes: Array.isArray(dump?.lotes) ? dump.lotes.length : null, movimentacoes_mapa: Array.isArray(dump?.movimentacoes_mapa) ? dump.movimentacoes_mapa.length : null };
+
+  const m = dump?.manifesto_snapshot;
+  /** @type {Record<string, unknown>} */
+  const resumo = { presente: m !== undefined };
+  if (m === undefined) {
+    impedir('manifesto_ausente');
+    return { valido: false, fontes, resumo, contagens: { declaradas: null, lidas }, empresas: { declaradas: [], sem_registros: [], fora_do_escopo: [] }, impedimentos, avisos, escopoEmpresasRotuladas: new Set() };
+  }
+  if (!ehObjeto(m)) {
+    impedir('manifesto_malformado');
+    return { valido: false, fontes, resumo, contagens: { declaradas: null, lidas }, empresas: { declaradas: [], sem_registros: [], fora_do_escopo: [] }, impedimentos, avisos, escopoEmpresasRotuladas: new Set() };
+  }
+  if (m.versao !== VERSAO_MANIFESTO_SNAPSHOT) impedir('manifesto_versao_nao_suportada', { versao: m.versao ?? null });
+  if (!textoNaoVazio(m.snapshot_id)) impedir('manifesto_snapshot_id_invalido');
+  if (!(typeof m.capturado_em === 'string' && RE_DATA_HORA_UTC.test(m.capturado_em) && !Number.isNaN(Date.parse(m.capturado_em)))) {
+    impedir('manifesto_capturado_em_invalido');
+  } else if (Date.parse(m.capturado_em) > Date.now() + 5 * 60_000) {
+    impedir('manifesto_capturado_em_no_futuro');
+  }
+  const escopo = ehObjeto(m.escopo) ? m.escopo : null;
+  const clienteId = escopo && textoNaoVazio(escopo.cliente_id, 64) ? escopo.cliente_id : null;
+  if (!clienteId) impedir('manifesto_escopo_cliente_invalido');
+  const empresasDecl = escopo && Array.isArray(escopo.empresas) ? escopo.empresas : null;
+  const empresasValidas = Array.isArray(empresasDecl) && empresasDecl.length > 0 && empresasDecl.every((e) => textoNaoVazio(e, 64)) && new Set(empresasDecl).size === empresasDecl.length;
+  if (!empresasValidas) impedir('manifesto_escopo_empresas_invalido');
+  const escopoEmpresas = new Set(empresasValidas ? empresasDecl : []);
+
+  const cont = ehObjeto(m.contagens) ? m.contagens : null;
+  const declaradas = cont ? { lotes: cont.lotes, movimentacoes_mapa: cont.movimentacoes_mapa } : null;
+  if (!cont || !ehContagem(cont.lotes) || !ehContagem(cont.movimentacoes_mapa)) {
+    impedir('manifesto_contagens_invalidas');
+  } else {
+    if (lidas.lotes !== cont.lotes) impedir('contagem_lotes_divergente', { declarada: cont.lotes, lida: lidas.lotes });
+    if (lidas.movimentacoes_mapa !== cont.movimentacoes_mapa) impedir('contagem_movimentacoes_divergente', { declarada: cont.movimentacoes_mapa, lida: lidas.movimentacoes_mapa });
+  }
+
+  // Escopo por empresa: registro fora do escopo bloqueia; empresa declarada
+  // sem nenhum registro só é aceita se `por_empresa` declarar ZERO explícito.
+  const lidosPorEmpresa = new Map();
+  const somar = (emp, campo) => {
+    const k = emp ?? null;
+    if (!lidosPorEmpresa.has(k)) lidosPorEmpresa.set(k, { lotes: 0, movimentacoes_mapa: 0 });
+    lidosPorEmpresa.get(k)[campo] += 1;
+  };
+  for (const l of lotes) somar(l.empresa_id, 'lotes');
+  for (const mv of movs) somar(mv.empresa_id ?? null, 'movimentacoes_mapa');
+  const foraDoEscopo = [...lidosPorEmpresa.keys()].filter((e) => e === null || !escopoEmpresas.has(e));
+  for (const e of foraDoEscopo) impedir('registro_fora_do_escopo', { empresa: e === null ? '(sem_empresa)' : rot(e) });
+
+  const porEmpresaDecl = cont && cont.por_empresa !== undefined ? cont.por_empresa : undefined;
+  if (porEmpresaDecl !== undefined && !ehObjeto(porEmpresaDecl)) impedir('manifesto_por_empresa_malformado');
+  const semRegistros = [];
+  for (const e of escopoEmpresas) {
+    const lido = lidosPorEmpresa.get(e) ?? { lotes: 0, movimentacoes_mapa: 0 };
+    const decl = ehObjeto(porEmpresaDecl) ? porEmpresaDecl[e] : undefined;
+    if (decl !== undefined) {
+      if (!ehObjeto(decl) || !ehContagem(decl.lotes) || !ehContagem(decl.movimentacoes_mapa)) impedir('manifesto_por_empresa_malformado', { empresa: rot(e) });
+      else if (decl.lotes !== lido.lotes || decl.movimentacoes_mapa !== lido.movimentacoes_mapa) {
+        impedir('contagem_por_empresa_divergente', { empresa: rot(e), declarada: { lotes: decl.lotes, movimentacoes_mapa: decl.movimentacoes_mapa }, lida: lido });
+      }
+    }
+    if (lido.lotes === 0 && lido.movimentacoes_mapa === 0) {
+      semRegistros.push(rot(e));
+      if (!(ehObjeto(decl) && decl.lotes === 0 && decl.movimentacoes_mapa === 0)) impedir('empresa_do_escopo_sem_prova_de_zero', { empresa: rot(e) });
+    }
+  }
+  if (ehObjeto(porEmpresaDecl)) {
+    for (const e of Object.keys(porEmpresaDecl)) if (!escopoEmpresas.has(e)) impedir('manifesto_por_empresa_fora_do_escopo', { empresa: rot(e) });
+  }
+
+  // Tenant: só confere quando as linhas trazem cliente_id; nunca infere.
+  let semCliente = 0;
+  for (const r of [...lotes, ...movs]) {
+    if (r.cliente_id === undefined || r.cliente_id === null || r.cliente_id === '') semCliente += 1;
+    else if (clienteId && r.cliente_id !== clienteId) {
+      impedir('cliente_divergente_do_escopo');
+      break;
+    }
+  }
+  if (semCliente > 0) avisos.push({ codigo: 'cliente_nao_verificado_em_linhas', linhas: semCliente });
+
+  const consist = ehObjeto(m.consistencia) ? m.consistencia : null;
+  if (!consist || !MODOS_CONSISTENCIA.has(consist.modo) || consist.confirmado !== true) impedir('manifesto_consistencia_nao_declarada');
+  const origem = ehObjeto(m.origem) ? m.origem : null;
+  const origemSensivel = origem && (pareceSensivel(origem.tipo) || pareceSensivel(origem.referencia));
+  if (!origem || !textoNaoVazio(origem.tipo, 64)) impedir('manifesto_origem_ausente');
+  else if (origemSensivel) impedir('manifesto_origem_com_dado_sensivel');
+
+  Object.assign(resumo, {
+    versao: m.versao ?? null,
+    snapshot_id: textoNaoVazio(m.snapshot_id) ? rot(m.snapshot_id) : null,
+    capturado_em: typeof m.capturado_em === 'string' && RE_DATA_HORA_UTC.test(m.capturado_em) ? m.capturado_em : null,
+    cliente: clienteId ? rot(clienteId) : null,
+    consistencia: consist && MODOS_CONSISTENCIA.has(consist.modo) ? consist.modo : null,
+    origem_tipo: origem && textoNaoVazio(origem.tipo, 64) && !origemSensivel ? origem.tipo : null,
+  });
+  return {
+    valido: impedimentos.length === 0,
+    fontes,
+    resumo,
+    contagens: { declaradas, lidas },
+    empresas: { declaradas: [...escopoEmpresas].map(rot), sem_registros: semRegistros, fora_do_escopo: foraDoEscopo.map((e) => (e === null ? '(sem_empresa)' : rot(e))) },
+    impedimentos,
+    avisos,
+    escopoEmpresasRotuladas: new Set([...escopoEmpresas].map(rot)),
+  };
+};
+
 /**
  * @param {{
  *   lotes?: Array<Record<string, any>>,
  *   movimentacoes_mapa?: Array<Record<string, any>>,
  *   mapeamento_categorias?: Record<string, string>,
+ *   manifesto_snapshot?: Record<string, any>,
  * }} dump `mapeamento_categorias`: texto (ex.: "BOI") → categoria_manejo_id, decidido e
  *   revisado por gente; vira `fonte: 'mapeamento'` no resultado.
  * @param {{ mostrarIds?: boolean }} [opcoes]
  */
 export const auditarLedgerPecuario = (dump, opcoes = {}) => {
   const rot = fabricaRotulo(opcoes.mostrarIds === true);
-  const lotes = Array.isArray(dump?.lotes) ? dump.lotes : [];
-  const movs = Array.isArray(dump?.movimentacoes_mapa) ? dump.movimentacoes_mapa : [];
+  // Só linhas-objeto entram; fonte ausente/malformada fica registrada no
+  // `snapshot` e torna a aptidão impossível (nunca vira "zero").
+  const lotes = Array.isArray(dump?.lotes) ? dump.lotes.filter(ehObjeto) : [];
+  const movs = Array.isArray(dump?.movimentacoes_mapa) ? dump.movimentacoes_mapa.filter(ehObjeto) : [];
   const mapeamento = dump?.mapeamento_categorias && typeof dump.mapeamento_categorias === 'object' ? dump.mapeamento_categorias : {};
-  const lotePorId = new Map(lotes.map((l) => [l.id, l]));
+  const snapshot = validarManifestoSnapshot(dump ?? {}, rot);
+  // ID repetido torna o Map ambíguo: o lote vira `null` (nunca "a última
+  // linha vence") e todo movimento que o cite fica sem prova.
+  const contagemIds = (lista) => lista.reduce((mp, x) => mp.set(x.id, (mp.get(x.id) ?? 0) + 1), new Map());
+  const idsLote = contagemIds(lotes);
+  const idsMov = contagemIds(movs);
+  const idVazio = (id) => id === undefined || id === null || String(id).trim() === '';
+  /** @type {Map<unknown, Record<string, any> | null>} */
+  const lotePorId = new Map();
+  for (const l of lotes) if (!idVazio(l.id)) lotePorId.set(l.id, idsLote.get(l.id) > 1 ? null : l);
 
   /** @type {Map<string, { empresa: string, area: string, categoria: string, entradas: number, transf_in: number, transf_out: number, observada: number }>} */
   const linhas = new Map();
@@ -116,7 +285,11 @@ export const auditarLedgerPecuario = (dump, opcoes = {}) => {
   const suspeitar = (empresa, tipo, impeditiva, extra = {}) => suspeitas.push({ tipo, empresa, impeditiva, ...extra });
   const quarentenar = (empresa, motivo, impeditiva, extra = {}) => quarentena.push({ motivo, empresa, impeditiva, ...extra });
 
+  for (const [id, n] of idsLote) if (!idVazio(id) && n > 1) quarentenar(null, 'lote_id_duplicado', true, { lote: rot(id), ocorrencias: n });
+  for (const [id, n] of idsMov) if (!idVazio(id) && n > 1) quarentenar(null, 'movimentacao_id_duplicada', true, { movimentacao: rot(id), ocorrencias: n });
+
   for (const lote of lotes) {
+    if (idVazio(lote.id)) quarentenar(rot(lote.empresa_id), 'lote_id_ausente', true, {});
     const empresa = rot(lote.empresa_id);
     if (!empresa) {
       // Sem empresa não há linha onde contar: nunca vira sucesso silencioso.
@@ -168,10 +341,21 @@ export const auditarLedgerPecuario = (dump, opcoes = {}) => {
   const assinaturas = new Map();
   for (const mov of movs) {
     const d = mov?.dados && typeof mov.dados === 'object' ? mov.dados : {};
-    const lote = lotePorId.get(d.lote_id);
+    const lote = lotePorId.get(d.lote_id) ?? undefined;
     const empresa = rot(mov.empresa_id ?? lote?.empresa_id);
+    if (idVazio(mov.id)) quarentenar(empresa, 'movimentacao_id_ausente', true, {});
     if (!empresa) {
       quarentenar(null, 'empresa_ausente', true, { movimentacao: rot(mov.id) });
+      continue;
+    }
+    if (lotePorId.has(d.lote_id) && lotePorId.get(d.lote_id) === null) {
+      quarentenar(empresa, 'lote_referenciado_ambiguo', true, { movimentacao: rot(mov.id), lote: rot(d.lote_id) });
+      continue;
+    }
+    // Vínculo cruzado: movimento de uma empresa sobre lote de outra. Não
+    // aplica, não "corrige" a empresa para fechar saldo.
+    if (lote && mov.empresa_id && lote.empresa_id && mov.empresa_id !== lote.empresa_id) {
+      quarentenar(empresa, 'movimento_empresa_divergente_do_lote', true, { movimentacao: rot(mov.id), lote: rot(d.lote_id), empresa_do_lote: rot(lote.empresa_id) });
       continue;
     }
     if (semAcento(d.tipo) !== 'TRANSFERENCIA DE AREA') {
@@ -275,7 +459,7 @@ export const auditarLedgerPecuario = (dump, opcoes = {}) => {
    * presentes. Mesmo `true` não executa nada: é só o pré-requisito mínimo
    * para uma revisão humana (contrato §5).
    */
-  const apto = ({ empresa, estado, lacunas, qs, ss, linhasMatriz }) =>
+  const aptoMatematico = ({ empresa, estado, lacunas, qs, ss, linhasMatriz }) =>
     empresa !== null && estado === 'conciliada' && lacunas === 0 && qs === 0 && ss === 0 && linhasMatriz > 0;
   const porEmpresa = empresas.map((empresa) => {
     const m = matriz.filter((l) => l.empresa === empresa);
@@ -285,10 +469,14 @@ export const auditarLedgerPecuario = (dump, opcoes = {}) => {
     const totalEntradas = m.reduce((t, l) => t + l.entradas, 0);
     const totalObservado = m.reduce((t, l) => t + l.observada, 0);
     const estado = estadoDe(lacunas, [...qs, ...ss]);
+    const apto_matematico = aptoMatematico({ empresa, estado, lacunas, qs: qs.length, ss: ss.length, linhasMatriz: m.length });
+    const noEscopo = empresa !== null && snapshot.escopoEmpresasRotuladas.has(empresa);
     return {
       empresa: empresa ?? '(sem_empresa)',
       estado,
-      apto_para_backfill: apto({ empresa, estado, lacunas, qs: qs.length, ss: ss.length, linhasMatriz: m.length }),
+      // R4: conta conciliada SEM snapshot comprovado nunca é apta.
+      apto_matematico,
+      apto_para_backfill: apto_matematico && snapshot.valido && noEscopo,
       total_entradas: totalEntradas,
       total_observado: totalObservado,
       diferenca_total: totalObservado - totalEntradas,
@@ -302,11 +490,23 @@ export const auditarLedgerPecuario = (dump, opcoes = {}) => {
   const totalObservado = matriz.reduce((t, l) => t + l.observada, 0);
   const lacunasTotais = matriz.filter((l) => l.lacuna !== 0).length;
   const estadoGeral = lotes.length === 0 ? 'sem_dados' : estadoDe(lacunasTotais, [...quarentena, ...suspeitas]);
+  const aptoMatematicoGeral =
+    estadoGeral === 'conciliada' && porEmpresa.length > 0 && porEmpresa.every((e) => e.apto_matematico) && lacunasTotais === 0 && quarentena.length === 0 && suspeitas.length === 0;
+  /** Motivos estáveis de a aptidão ser false (vazio só quando apta). */
+  const motivosBloqueio = [
+    ...(estadoGeral === 'sem_dados' ? ['sem_dados'] : []),
+    ...(!aptoMatematicoGeral && estadoGeral !== 'sem_dados' ? ['reconciliacao_nao_conciliada'] : []),
+    ...snapshot.impedimentos.map((i) => i.codigo),
+  ];
+  const snapshotPublico = { ...snapshot };
+  delete snapshotPublico.escopoEmpresasRotuladas;
   return {
     modo: 'somente-leitura',
     estado: estadoGeral,
-    apto_para_backfill:
-      estadoGeral === 'conciliada' && porEmpresa.length > 0 && porEmpresa.every((e) => e.apto_para_backfill) && lacunasTotais === 0 && quarentena.length === 0 && suspeitas.length === 0,
+    apto_matematico: aptoMatematicoGeral,
+    apto_para_backfill: aptoMatematicoGeral && snapshot.valido && porEmpresa.every((e) => e.apto_para_backfill),
+    motivos_bloqueio_backfill: [...new Set(motivosBloqueio)],
+    snapshot: snapshotPublico,
     resumo: {
       lotes: lotes.length,
       movimentacoes: movs.length,

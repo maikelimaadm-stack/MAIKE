@@ -269,10 +269,11 @@ esses códigos para o mapa global e define o status HTTP.
 
 ## 7. Reconciliação read-only do legado (R2)
 
-`node scripts/ops/auditar-ledger-pecuario.mjs --entrada dump.json [--saida r.json] [--mostrar-ids]`
+`node scripts/ops/auditar-ledger-pecuario.mjs --entrada dump.json [--saida r.json] [--mostrar-ids] [--exigir-apto]`
 
 **Entrada do script:**
-- dump local `{ lotes, movimentacoes_mapa, mapeamento_categorias? }`;
+- dump local `{ manifesto_snapshot, lotes, movimentacoes_mapa, mapeamento_categorias? }`
+  (formato e manifesto: §7.1);
 - não conecta em banco, não lê env, não tem endereço de produção e não
   escreve fora do arquivo de saída pedido.
 
@@ -359,6 +360,8 @@ empresas que só aparecem em quarentena ou suspeita. Dump vazio sai como
   - empresa ausente;
   - dump vazio.
 - Uma empresa inapta torna o geral `false`.
+- **R4:** a conta acima virou `apto_matematico`. `apto_para_backfill` exige
+  também o manifesto externo válido (§7.1).
 
 **Mesmo `apto_para_backfill === true` não autoriza nada sozinho.** É só o
 pré-requisito mínimo para *considerar* um backfill. Depois ainda dependem:
@@ -378,6 +381,141 @@ Nunca executar automaticamente.
 | 150 → 135 + movimento de 15 para a própria área | lacuna −15 em X, suspeita `origem_igual_destino`, `reconciliacao_parcial` (sem remendo) |
 | 250 → 50 parcial (lote gerado 50) → 200 total | P = 0, Q = 50, R = 200; o gerado não é compra |
 | Lote que mudou de categoria + transferência anterior | entrada sob a categoria histórica, posição sob a atual, movimento em quarentena, lacuna visível, `bloqueada_para_backfill` |
+
+### 7.1 Integridade do snapshot: manifesto externo v1 (R4)
+
+**Problema.** A conta da reconciliação só vale para o recorte que recebeu.
+Um dump sem `movimentacoes_mapa`, com uma empresa faltando ou com lotes
+cortados podia sair `conciliada` e `apto_para_backfill: true`, porque o
+auditor não tinha como saber o que **deveria** estar lá.
+
+**Regra.** `apto_para_backfill` só é `true` com um `manifesto_snapshot`
+**externo**, explícito e versionado, escrito por quem extraiu o dump. O
+auditor só **confere** o manifesto: nunca o gera a partir dos próprios
+arrays, porque isso só repetiria o recorte incompleto. A conferência continua
+pura e read-only.
+
+**Formato v1 (todos os campos obrigatórios, salvo `por_empresa`):**
+
+```json
+{
+  "manifesto_snapshot": {
+    "versao": 1,
+    "snapshot_id": "<identificador opaco da extração>",
+    "capturado_em": "2026-10-01T12:00:00Z",
+    "escopo": { "cliente_id": "<tenant>", "empresas": ["<empresa_id>", "..."] },
+    "contagens": {
+      "lotes": 0,
+      "movimentacoes_mapa": 0,
+      "por_empresa": { "<empresa_id>": { "lotes": 0, "movimentacoes_mapa": 0 } }
+    },
+    "consistencia": { "modo": "snapshot_transacional", "confirmado": true },
+    "origem": { "tipo": "pg_dump_local", "referencia": "<rótulo não sensível, opcional>" }
+  },
+  "lotes": [],
+  "movimentacoes_mapa": []
+}
+```
+
+| Campo | Regra | Impedimento se falhar |
+|---|---|---|
+| propriedade `manifesto_snapshot` | presente e objeto | `manifesto_ausente` / `manifesto_malformado` |
+| `versao` | exatamente `1` | `manifesto_versao_nao_suportada` |
+| `snapshot_id` | texto não vazio, ≤ 128 | `manifesto_snapshot_id_invalido` |
+| `capturado_em` | `AAAA-MM-DDTHH:MM:SS[.mmm]Z` válido; até 5 min no futuro | `manifesto_capturado_em_invalido` / `_no_futuro` |
+| `escopo.cliente_id` | texto não vazio, ≤ 64 | `manifesto_escopo_cliente_invalido` |
+| `escopo.empresas` | lista não vazia, sem repetição, textos ≤ 64 | `manifesto_escopo_empresas_invalido` |
+| `contagens.lotes` / `.movimentacoes_mapa` | inteiro ≥ 0 (**zero incluso**), igual ao lido | `manifesto_contagens_invalidas`, `contagem_lotes_divergente`, `contagem_movimentacoes_divergente` |
+| `contagens.por_empresa` (opcional) | objeto; cada empresa do escopo com contagens iguais às lidas | `manifesto_por_empresa_malformado`, `contagem_por_empresa_divergente`, `manifesto_por_empresa_fora_do_escopo` |
+| `consistencia` | `modo` ∈ {`snapshot_transacional`, `export_consistente_equivalente`} e `confirmado: true` | `manifesto_consistencia_nao_declarada` |
+| `origem.tipo` | texto não vazio; nem `tipo` nem `referencia` podem parecer URL/credencial (`://`, `@`, senha, token…) | `manifesto_origem_ausente` / `manifesto_origem_com_dado_sensivel` |
+
+**Fontes: ausente × malformada × vazia legítima** (`estadoDaFonte`):
+
+| Valor de `lotes` / `movimentacoes_mapa` | Estado | Efeito |
+|---|---|---|
+| propriedade omitida | `ausente` | `fonte_<nome>_ausente`, **nunca** vira zero |
+| não-array, ou linha que não é objeto | `malformada` | `fonte_<nome>_malformada` |
+| `[]` | `presente` | só vale como zero se o manifesto declarar `0` |
+
+**Escopo:**
+- Registro de empresa fora de `escopo.empresas`, ou sem empresa →
+  `registro_fora_do_escopo`.
+- Empresa do escopo sem nenhum registro só é aceita com **zero explícito** em
+  `por_empresa` → senão `empresa_do_escopo_sem_prova_de_zero`.
+- `cliente_id` das linhas: quando presente, tem de ser igual a
+  `escopo.cliente_id` (`cliente_divergente_do_escopo`). Quando ausente, o
+  aviso não impeditivo `cliente_nao_verificado_em_linhas` diz quantas linhas
+  ficaram sem verificar. Nada é inferido.
+
+**Integridade de linha (quarentena impeditiva, deltas não aplicados):**
+
+| Motivo | Quando |
+|---|---|
+| `movimento_empresa_divergente_do_lote` | `empresa_id` do movimento ≠ `empresa_id` do lote referenciado |
+| `lote_id_duplicado` / `movimentacao_id_duplicada` | o mesmo ID aparece em mais de uma linha (nunca "a última linha vence") |
+| `lote_referenciado_ambiguo` | movimento aponta para um ID de lote duplicado |
+| `lote_id_ausente` / `movimentacao_id_ausente` | ID vazio, nulo ou só espaços |
+
+**Saída (geral; por empresa também):**
+- `estado`: continua **só matemático**. Pode ser `conciliada` sem manifesto.
+- `apto_matematico`: a regra fail-closed da R3.
+- `apto_para_backfill` = `apto_matematico` **e** `snapshot.valido` **e**
+  empresa dentro do escopo.
+- `motivos_bloqueio_backfill`: códigos estáveis, vazio só quando apto:
+  - `sem_dados`;
+  - `reconciliacao_nao_conciliada`;
+  - os impedimentos do manifesto (tabela acima).
+- `snapshot`, sem IDs crus por padrão (hash; `--mostrar-ids` para ver):
+  - `valido` e `fontes`;
+  - `resumo` do manifesto;
+  - `contagens` `{ declaradas, lidas }`;
+  - `empresas` `{ declaradas, sem_registros, fora_do_escopo }`;
+  - `impedimentos` e `avisos`.
+
+**Limites, sem ilusão:**
+- O manifesto é uma **declaração** de quem extraiu, **não é prova
+  criptográfica**. Ele detecta recorte acidental (fonte esquecida, empresa
+  faltando, contagem cortada, linha de outro tenant). Não detecta um
+  manifesto escrito para combinar com um dump errado.
+- Conferi-lo é **necessário, nunca suficiente**. A extração (consulta usada,
+  isolamento transacional, ambiente) continua sujeita a revisão humana, e o
+  §7 continua valendo: nada roda automaticamente.
+
+**CLI, códigos de saída:**
+
+| Código | Quando |
+|---|---|
+| `0` | auditoria executada (sem `--exigir-apto`, mesmo se inapta) |
+| `1` | falha técnica: arquivo ilegível, JSON inválido, erro ao gravar a saída. Nunca ecoa o conteúdo |
+| `2` | uso incorreto |
+| `3` | `--exigir-apto` e `apto_para_backfill !== true` |
+
+O relatório mostra:
+- `estado` e `apto`;
+- o resumo do manifesto;
+- as contagens declaradas × lidas;
+- as empresas do escopo, sem registros e fora do escopo;
+- os motivos de bloqueio.
+
+#### Runbook local: como montar o dump (sem acesso remoto)
+
+1. Só em banco **local ou de teste**, ou numa cópia autorizada pelo
+   proprietário. Este repositório não traz endereço, credencial nem comando
+   de captura remota, e o script não conecta em nada.
+2. Ler `Lote` e `MovimentacaoMapa` do mesmo tenant e das empresas do escopo,
+   **na mesma transação** (`REPEATABLE READ` / snapshot) ou num export
+   equivalente e consistente. Isso é o que `consistencia.confirmado: true`
+   declara.
+3. Contar as linhas de cada tabela **na mesma transação**, por empresa, e
+   escrever essas contagens no manifesto. Empresa sem linhas recebe zero
+   explícito.
+4. `origem.tipo` é um rótulo genérico (ex.: `pg_dump_local`). Nunca URL,
+   host, usuário, senha ou token.
+5. Gravar o JSON **fora do repositório** (ex.: diretório temporário). Dump
+   real **nunca** vai para o git; os testes usam só fixtures sintéticas.
+6. Rodar `--entrada <dump> --exigir-apto`. O código `3` mostra os motivos;
+   o código `0` só autoriza **pedir** a revisão humana do §7.
 
 ## 8. Correção recomendada no legado (diferida para L2)
 

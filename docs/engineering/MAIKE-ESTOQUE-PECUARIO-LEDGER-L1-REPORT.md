@@ -1,4 +1,4 @@
-# MAIKE-LEDGER-PECUARIO-L1 — relatório (L1 + R2 de correções da auditoria)
+# MAIKE-LEDGER-PECUARIO-L1 — relatório (L1 + R2, R3 e R4 de correções da auditoria)
 
 **Branch:** `claude/maike-ledger-pecuario-l1`, numa worktree física separada,
 base `origin/main` = `1344ffe2`.\
@@ -7,7 +7,7 @@ base `origin/main` = `1344ffe2`.\
 **Paralelismo:**
 - A PR #145 não foi tocada.
 - A lista de arquivos dela é variável: 35 numa leitura inicial, 95 no head
-  `9bad34ce`.
+  `9bad34ce`, 125 no head `61a7fa44` (R4).
 - A interseção com os 11 arquivos do L1 é recalculada contra o head atual da
   #145 antes de cada push; foi **vazia** em todas as verificações.
 
@@ -44,6 +44,34 @@ estes dois documentos. O motor transacional não foi tocado.
   `(sem_empresa)` e dump vazio);
 - limites `int4` / `MAX_SAFE_INTEGER` em entrada, posição e movimento.
 
+## R4 — integridade do snapshot (sobre `cb5aae23`)
+
+Escopo: os mesmos arquivos da R3 (lib e CLI do auditor, teste de contrato,
+estes dois documentos). O motor transacional não foi tocado. Contrato do
+manifesto: CONTRATO §7.1.
+
+Diagnóstico BEFORE: probe sobre o código `cb5aae23`, não versionado, com
+fixtures sintéticas.
+
+| Defeito | BEFORE (`cb5aae23`, medido) | Correção | AFTER (medido) |
+|---|---|---|---|
+| **P0** fonte omitida virava zero | `movimentacoes_mapa` omitido → `conciliada`, `apto_para_backfill: true` | `estadoDaFonte` (`ausente` / `malformada` / `presente`) + manifesto externo v1 obrigatório para aptidão | `apto=false`, motivo `fonte_movimentacoes_mapa_ausente`; `[]` só vale zero com manifesto declarando `0` |
+| **P0** recorte incompleto indetectável | dump sem uma empresa ou com lotes cortados saía apto | `validarManifestoSnapshot` confere contagens, escopo de empresas, zero explícito por empresa, tenant, consistência e origem; nunca gera manifesto | `contagem_*_divergente`, `empresa_do_escopo_sem_prova_de_zero`, `registro_fora_do_escopo`, `cliente_divergente_do_escopo` |
+| **P1** movimento de outra empresa | movimento da empresa Y sobre lote da X: **aplicado**, sem quarentena | quarentena impeditiva `movimento_empresa_divergente_do_lote` antes de qualquer delta | não aplicado em nenhuma das duas empresas; `bloqueada_para_backfill` |
+| **P1** IDs duplicados/vazios | lote com ID duplicado → `conciliada`, apto `true` ("a última linha vence"); ID vazio → apto `true` | contagem de IDs; lote duplicado vira `null` no índice; quarentena `lote_id_duplicado`, `movimentacao_id_duplicada`, `lote_referenciado_ambiguo`, `*_id_ausente` | `bloqueada_para_backfill`, apto `false` |
+| **P1** estado × aptidão misturados | `apto_para_backfill` só refletia a conta | `estado` continua só matemático; `apto_matematico` (R3) + `apto_para_backfill` (R4) + `motivos_bloqueio_backfill` estáveis | conta fechada sem manifesto: `conciliada`, `apto_matematico: true`, `apto: false`, motivo `manifesto_ausente` |
+| CLI | sem gate de aptidão; exit sempre 0 | `--exigir-apto` (0 apto, 3 inapto, 1 falha técnica, 2 uso); relatório mostra manifesto, contagens declaradas × lidas, empresas e motivos | provado por spawn do CLI com fixture temporária (teste M) |
+
+**Testes R4 (14 novos no arquivo de contrato):** A–M do pedido, mais a
+validação campo a campo do manifesto. N é a suíte transacional, que continua
+27/27.
+
+Duas fixtures da R3 que esperavam `apto=true` receberam manifesto **coerente**
+(contagens escritas à mão). Nenhum assert foi afrouxado. O cenário "empresa só
+com quarentena" agora prova também que o lote sem empresa está **fora do
+escopo** (`apto_para_backfill` de E cai para `false` com `apto_matematico`
+`true`). Uma segunda variante sem o lote órfão mostra E apta e F não.
+
 ## O que é real × o que é pendente
 
 | Item | Estado |
@@ -51,7 +79,7 @@ estes dois documentos. O motor transacional não foi tocado.
 | Contrato puro + validação contra snapshot do lote | **Código escrito e testado** (unitário) |
 | Serviço transacional (idempotência real, trava de Lote e de posições, rollback, retry) | **Código escrito e testado contra PostgreSQL 16 real**, em esquema descartável `ledger_l1_<hex>` |
 | Tabelas do ledger | **Prova de conceito:** DDL em esquema descartável. **Não** existe migration nem model Prisma. |
-| Reconciliação read-only | **Código escrito e testado** (fixtures sintéticas: Inativo total, caso real 150/250/50, mudança de categoria, texto/mapeamento, quantidades inválidas, anulação/nascimento/derivados, duplicata) |
+| Reconciliação read-only | **Código escrito e testado** (fixtures sintéticas: Inativo total, caso real 150/250/50, mudança de categoria, texto/mapeamento, quantidades inválidas, anulação/nascimento/derivados, duplicata; R4: manifesto, fontes, escopo, IDs, empresa divergente) |
 | Models Prisma + migration, rota, grants/RLS, backfill, mapa lendo a posição | **PENDING L2** (5 `test.todo`), **não automático**: exige aprovação manual de cada etapa (contrato §5) |
 
 **Não está pronto para produção nem para usuários:** não há API, migration nem
@@ -61,9 +89,10 @@ integração de frontend.
 
 | Arquivo / comando | Resultado |
 |---|---|
-| `estoquePecuarioLedgerTransacional.test.mjs` (PostgreSQL 16 real) | 27/27 PASS em 5 execuções seguidas (7,6–8,1 s cada) |
-| `estoquePecuarioLedgerContrato.test.mjs` | 38 PASS (24 da R2 + 14 da R3) + 5 `todo` (PENDING L2, não contados como PASS) |
-| `npm run verify:all` | PASS, 29/29 etapas, 405 s. `test:backend`: 342 testes, 337 pass, 0 fail, 5 todo (inclui `prisma validate`). `test:smoke`: 918/918. Typecheck backend, gate:types, lint, tenancy e build PASS. |
+| `estoquePecuarioLedgerTransacional.test.mjs` (PostgreSQL 16 real) | 27/27 PASS em 5 execuções seguidas na R2 (7,6–8,1 s cada); R4: 27/27 em 3 execuções (9,1–9,4 s) |
+| `estoquePecuarioLedgerContrato.test.mjs` | 52 PASS (24 da R2 + 14 da R3 + 14 da R4) + 5 `todo` (PENDING L2, não contados como PASS) |
+| `npm run verify:all` (R4) | PASS, 29/29 etapas, 433 s. `test:backend`: 370 testes, 365 pass, 0 fail, 5 todo. `test:smoke`: 918/918. |
+| `npm run verify:all` (R3) | PASS, 29/29 etapas, 405 s. `test:backend`: 342 testes, 337 pass, 0 fail, 5 todo (inclui `prisma validate`). `test:smoke`: 918/918. Typecheck backend, gate:types, lint, tenancy e build PASS. |
 
 ## Riscos remanescentes
 
@@ -80,6 +109,11 @@ integração de frontend.
   as transferências em quarentena até existir categoria no evento ou um
   mapeamento revisado. Isso é intencional: o backfill fica bloqueado.
 - `apto_para_backfill === true` é condição necessária, não suficiente.
+- R4: o manifesto é declaração de quem extraiu, não prova criptográfica.
+  Detecta recorte acidental, não um manifesto escrito para combinar com um
+  dump errado. A extração continua sujeita a revisão humana (runbook §7.1).
+- R4: linhas sem `cliente_id` não são verificadas contra o tenant. O aviso
+  `cliente_nao_verificado_em_linhas` diz quantas.
 
 ## Próximos passos L2 (após merge da #145; nada automático)
 
