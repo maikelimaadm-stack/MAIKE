@@ -31,17 +31,28 @@ import {
 } from '../src/modules/estoquePecuarioLedger/ledgerPecuarioContrato.js';
 import { esquemaSeguro, gerarEsquemaDescartavel, ddlRemoverLedgerPecuario } from '../src/modules/estoquePecuarioLedger/ledgerPecuarioDdl.js';
 import { CODIGOS_LEDGER_PECUARIO as C, LedgerPecuarioError, ehErroLedger } from '../src/modules/estoquePecuarioLedger/ledgerPecuarioErros.js';
-import { QUANTIDADE_MAXIMA_REGISTRO_HISTORICO, auditarLedgerPecuario, estadoDaFonte, inteiroPositivoEstrito, validarManifestoSnapshot } from '../../scripts/ops/auditarLedgerPecuarioLib.mjs';
+import {
+  ANO_MAXIMO_CAPTURADO_EM,
+  ANO_MINIMO_CAPTURADO_EM,
+  QUANTIDADE_MAXIMA_REGISTRO_HISTORICO,
+  TOLERANCIA_FUTURO_CAPTURADO_EM_MS,
+  auditarLedgerPecuario,
+  estadoDaFonte,
+  instanteUtcEstrito,
+  inteiroPositivoEstrito,
+  validarManifestoSnapshot,
+} from '../../scripts/ops/auditarLedgerPecuarioLib.mjs';
 
 /**
  * Manifesto v1 SINTÉTICO (CONTRATO §7.1), com contagens escritas à mão pelo
  * teste — nunca derivadas dos arrays do dump.
  */
+const CLIENTE_SINTETICO = 'cliente-sintetico';
 const manifestoV1 = ({ empresas, lotes, movimentacoes_mapa, por_empresa, ...o }) => ({
   versao: 1,
   snapshot_id: 'snap-sintetico-001',
   capturado_em: '2026-10-01T12:00:00Z',
-  escopo: { cliente_id: 'cliente-sintetico', empresas },
+  escopo: { cliente_id: CLIENTE_SINTETICO, empresas },
   contagens: { lotes, movimentacoes_mapa, ...(por_empresa === undefined ? {} : { por_empresa }) },
   consistencia: { modo: 'snapshot_transacional', confirmado: true },
   origem: { tipo: 'dump_local_sintetico' },
@@ -376,8 +387,9 @@ describe('R3 — categoria do movimento só com prova (fail-closed)', () => {
 });
 
 describe('R3 — apto_para_backfill (fail-closed)', () => {
-  const lote = (o) => ({ empresa_id: 'E', origem: 'Compra', status: 'Ativo', categoria: 'BOI', categoria_manejo_id: 'boi', categoria_manejo_entrada_id: 'boi', ...o });
-  const transf = (id, o) => ({ id, empresa_id: 'E', dados: { tipo: 'Transferência de Área', ...o } });
+  // R5: toda linha traz o tenant do escopo; a ausência é provada à parte.
+  const lote = (o) => ({ cliente_id: CLIENTE_SINTETICO, empresa_id: 'E', origem: 'Compra', status: 'Ativo', categoria: 'BOI', categoria_manejo_id: 'boi', categoria_manejo_entrada_id: 'boi', ...o });
+  const transf = (id, o) => ({ id, cliente_id: CLIENTE_SINTETICO, empresa_id: 'E', dados: { tipo: 'Transferência de Área', ...o } });
 
   test('1000 A→B integralmente conciliado → apto=true (geral e por empresa)', () => {
     const r = auditarLedgerPecuario({
@@ -488,8 +500,9 @@ describe('R3 — quantidades: inteiro seguro até int4, sem truncar', () => {
 });
 
 describe('R4 — integridade do snapshot (manifesto externo v1)', () => {
-  const lote = (o) => ({ empresa_id: 'E', origem: 'Compra', status: 'Ativo', categoria: 'BOI', categoria_manejo_id: 'boi', categoria_manejo_entrada_id: 'boi', ...o });
-  const transf = (id, o) => ({ id, empresa_id: 'E', dados: { tipo: 'Transferência de Área', ...o } });
+  // R5: toda linha traz o tenant do escopo; a ausência é provada à parte.
+  const lote = (o) => ({ cliente_id: CLIENTE_SINTETICO, empresa_id: 'E', origem: 'Compra', status: 'Ativo', categoria: 'BOI', categoria_manejo_id: 'boi', categoria_manejo_entrada_id: 'boi', ...o });
+  const transf = (id, o) => ({ id, cliente_id: CLIENTE_SINTETICO, empresa_id: 'E', dados: { tipo: 'Transferência de Área', ...o } });
   // Cenário conciliado de referência: 1000 cabeças A→B na empresa E (2 lotes, 1 movimento).
   const conciliado = (extra = {}) => ({
     lotes: [
@@ -667,7 +680,7 @@ describe('R4 — integridade do snapshot (manifesto externo v1)', () => {
     assert.equal('manifesto_snapshot' in semManifesto, false);
   });
 
-  test('(L) isolamento por empresa e tenant: cliente divergente bloqueia; ausente só avisa', () => {
+  test('(L) isolamento por empresa e tenant: duas empresas com tenant presente e igual → aptas; divergente bloqueia', () => {
     const dump = {
       lotes: [
         lote({ id: 'L1', quantidade_entrada: 5, quantidade_cabecas: 5, area_entrada_id: 'A', area_atual_id: 'A' }),
@@ -679,16 +692,13 @@ describe('R4 — integridade do snapshot (manifesto externo v1)', () => {
     const r = auditar(dump);
     assert.deepEqual(r.por_empresa.map((e) => [e.empresa, e.total_entradas, e.apto_para_backfill]), [['E', 5, true], ['F', 9, true]]);
     assert.equal(r.apto_para_backfill, true);
-    assert.deepEqual(r.snapshot.avisos, [{ codigo: 'cliente_nao_verificado_em_linhas', linhas: 2 }]);
-    const mesmo = structuredClone(dump);
-    for (const l of mesmo.lotes) l.cliente_id = 'cliente-sintetico';
-    assert.equal(auditar(mesmo).apto_para_backfill, true);
-    assert.deepEqual(auditar(mesmo).snapshot.avisos, []);
-    const outro = structuredClone(mesmo);
+    assert.deepEqual(r.snapshot.avisos, []);
+    const outro = structuredClone(dump);
     outro.lotes[1].cliente_id = 'outro-cliente';
     const ro = auditar(outro);
     assert.ok(motivos(ro).includes('cliente_divergente_do_escopo'));
     assert.equal(ro.apto_para_backfill, false);
+    assert.ok(ro.por_empresa.every((e) => e.apto_para_backfill === false));
   });
 
   test('manifesto: campos obrigatórios e origem sem dado sensível; IDs do manifesto saem com hash', () => {
@@ -745,6 +755,202 @@ describe('R4 — integridade do snapshot (manifesto externo v1)', () => {
       assert.equal(rodar('--entrada', join(dir, 'inexistente.json'), '--exigir-apto').status, 1);
       assert.equal(rodar().status, 2);
       assert.equal(rodar('--entrada').status, 2);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('R5 — tenant verificado em TODA linha e capturado_em como instante UTC real', () => {
+  const lote = (o) => ({ cliente_id: CLIENTE_SINTETICO, empresa_id: 'E', origem: 'Compra', status: 'Ativo', categoria: 'BOI', categoria_manejo_id: 'boi', categoria_manejo_entrada_id: 'boi', ...o });
+  const transf = (id, o) => ({ id, cliente_id: CLIENTE_SINTETICO, empresa_id: 'E', dados: { tipo: 'Transferência de Área', ...o } });
+  // 1000 A→B conciliado; tenant em todas as linhas (controle positivo).
+  const conciliado = () => ({
+    lotes: [
+      lote({ id: 'L', status: 'Inativo', quantidade_entrada: 1000, quantidade_cabecas: 0, area_entrada_id: 'A', area_atual_id: 'A' }),
+      lote({ id: 'G', origem: 'MOVIMENTAÇÃO', quantidade_entrada: 1000, quantidade_cabecas: 1000, area_entrada_id: 'B', area_atual_id: 'B' }),
+    ],
+    movimentacoes_mapa: [transf('M', { lote_id: 'L', quantidade_animais: 1000, area_origem_id: 'A', area_destino_id: 'B' })],
+    manifesto_snapshot: manifestoV1({ empresas: ['E'], lotes: 2, movimentacoes_mapa: 1 }),
+  });
+  const auditar = (dump, opcoes = { mostrarIds: true }) => auditarLedgerPecuario(dump, opcoes);
+  const impedimento = (r, codigo) => r.snapshot.impedimentos.find((i) => i.codigo === codigo);
+  /** Conta fechada, tenant não verificável: aptidão cai, matemática intacta. */
+  const assertInaptoSoPeloTenant = (r, codigo, linhas) => {
+    assert.equal(r.estado, 'conciliada');
+    assert.equal(r.apto_matematico, true);
+    assert.equal(r.snapshot.valido, false);
+    assert.equal(r.apto_para_backfill, false);
+    assert.ok(r.por_empresa.every((e) => e.apto_matematico === true && e.apto_para_backfill === false));
+    assert.deepEqual(r.motivos_bloqueio_backfill, [codigo]);
+    assert.equal(impedimento(r, codigo).linhas, linhas);
+  };
+
+  test('(6) controle: tenant presente e igual em todas as linhas + manifesto válido → apto=true', () => {
+    const r = auditar(conciliado());
+    assert.equal(r.snapshot.valido, true);
+    assert.equal(r.apto_para_backfill, true);
+    assert.deepEqual(r.snapshot.avisos, []);
+  });
+
+  test('(1) lote conciliado SEM cliente_id → cliente_ausente_em_linhas; o cliente do manifesto não substitui o da linha', () => {
+    const d = conciliado();
+    delete d.lotes[0].cliente_id;
+    const r = auditar(d);
+    assertInaptoSoPeloTenant(r, 'cliente_ausente_em_linhas', 1);
+    assert.deepEqual(r.snapshot.avisos, [{ codigo: 'cliente_nao_verificado_em_linhas', linhas: 1 }]);
+    assert.equal('cliente_id' in d.lotes[0], false, 'auditor não preenche o tenant');
+  });
+
+  test('(2) movimento conciliado SEM cliente_id → cliente_ausente_em_linhas', () => {
+    const d = conciliado();
+    delete d.movimentacoes_mapa[0].cliente_id;
+    assertInaptoSoPeloTenant(auditar(d), 'cliente_ausente_em_linhas', 1);
+  });
+
+  test('(3) mistura de linhas com e sem cliente_id → conta todas as não verificáveis', () => {
+    const d = conciliado();
+    d.lotes[1].cliente_id = undefined;
+    d.movimentacoes_mapa[0].cliente_id = null;
+    assertInaptoSoPeloTenant(auditar(d), 'cliente_ausente_em_linhas', 2);
+  });
+
+  test('(4) linha de OUTRO tenant → cliente_divergente_do_escopo (sem inferir pela empresa)', () => {
+    const d = conciliado();
+    d.movimentacoes_mapa[0].cliente_id = 'outro-cliente';
+    assertInaptoSoPeloTenant(auditar(d), 'cliente_divergente_do_escopo', 1);
+    const pad = conciliado();
+    pad.lotes[0].cliente_id = ` ${CLIENTE_SINTETICO} `;
+    assertInaptoSoPeloTenant(auditar(pad), 'cliente_divergente_do_escopo', 1);
+  });
+
+  test('(5) cliente_id vazio/só espaços = ausente; tipo inesperado = inválido', () => {
+    for (const v of ['', ' ', '\t\n']) {
+      const d = conciliado();
+      d.lotes[0].cliente_id = v;
+      assertInaptoSoPeloTenant(auditar(d), 'cliente_ausente_em_linhas', 1);
+    }
+    for (const v of [7, 0, true, {}, [CLIENTE_SINTETICO], { id: CLIENTE_SINTETICO }]) {
+      const d = conciliado();
+      d.movimentacoes_mapa[0].cliente_id = v;
+      assertInaptoSoPeloTenant(auditar(d), 'cliente_invalido_em_linhas', 1);
+    }
+  });
+
+  test('(7) estado matemático × aptidão: conta quebrada E tenant ausente mostram os dois motivos, sem um esconder o outro', () => {
+    const d = {
+      lotes: [{ id: 'L1', empresa_id: 'E', origem: 'Compra', status: 'Ativo', categoria_manejo_id: 'boi', categoria_manejo_entrada_id: 'boi', quantidade_entrada: 150, quantidade_cabecas: 135, area_entrada_id: 'X', area_atual_id: 'X' }],
+      movimentacoes_mapa: [],
+      manifesto_snapshot: manifestoV1({ empresas: ['E'], lotes: 1, movimentacoes_mapa: 0 }),
+    };
+    const r = auditar(d);
+    assert.equal(r.estado, 'reconciliacao_parcial');
+    assert.equal(r.apto_matematico, false);
+    assert.equal(r.apto_para_backfill, false);
+    assert.deepEqual(r.motivos_bloqueio_backfill, ['reconciliacao_nao_conciliada', 'cliente_ausente_em_linhas']);
+    assert.equal(r.matriz[0].lacuna, -15, 'a divergência matemática continua visível');
+  });
+
+  test('multitenant + multiempresa com escopo explícito: uma linha de outro tenant derruba tudo; saída padrão sem tenant cru', () => {
+    const base = () => ({
+      lotes: [
+        lote({ id: 'E1', quantidade_entrada: 5, quantidade_cabecas: 5, area_entrada_id: 'A', area_atual_id: 'A' }),
+        lote({ id: 'F1', empresa_id: 'F', quantidade_entrada: 9, quantidade_cabecas: 9, area_entrada_id: 'A', area_atual_id: 'A' }),
+      ],
+      movimentacoes_mapa: [],
+      manifesto_snapshot: manifestoV1({ empresas: ['E', 'F'], lotes: 2, movimentacoes_mapa: 0 }),
+    });
+    assert.equal(auditar(base()).apto_para_backfill, true);
+    const d = base();
+    d.lotes[1].cliente_id = 'tenant-vizinho-segredo';
+    const r = auditar(d, {});
+    assert.equal(r.apto_para_backfill, false);
+    assert.ok(r.por_empresa.every((e) => e.apto_matematico === true && e.apto_para_backfill === false), 'E também cai: o snapshot inteiro está contaminado');
+    assert.ok(r.motivos_bloqueio_backfill.includes('cliente_divergente_do_escopo'));
+    const texto = JSON.stringify(r);
+    for (const cru of ['tenant-vizinho-segredo', CLIENTE_SINTETICO]) assert.ok(!texto.includes(cru), `${cru} não sai cru`);
+  });
+
+  test('(8) capturado_em: datas inexistentes, horas inválidas, zona/espaço/sufixo e fora da faixa → manifesto_capturado_em_invalido', () => {
+    const invalidos = [
+      '2026-02-30T12:00:00Z', '2026-04-31T00:00:00Z', '1900-02-29T00:00:00Z', '2100-02-29T00:00:00Z', '2023-02-29T00:00:00Z',
+      '2026-10-29T24:00:00Z', '2026-10-29T12:60:00Z', '2026-10-29T12:00:60Z', '2026-12-31T23:59:60Z',
+      '2026-00-10T00:00:00Z', '2026-13-01T00:00:00Z', '2026-10-00T00:00:00Z', '2026-10-32T00:00:00Z',
+      '2026-10-29T12:00:00+00:00', '2026-10-29T12:00:00z', '2026-10-29t12:00:00Z', '2026-10-29 12:00:00Z',
+      ' 2026-10-29T12:00:00Z', '2026-10-29T12:00:00Z ', '2026-10-29T12:00:00Zx', '2026-10-29T12:00:00',
+      '2026-10-29T12:00:00.Z', '2026-10-29T12:00:00.1234Z', '2026-10-29T12:00Z', '+002026-10-29T12:00:00Z',
+      '1899-12-31T23:59:59Z', '0099-01-01T00:00:00Z', '0000-01-01T00:00:00Z', '',
+      Date.UTC(2026, 9, 1), new Date(Date.UTC(2026, 9, 1)), null, undefined,
+    ];
+    for (const v of invalidos) {
+      assert.equal(instanteUtcEstrito(v), null, String(v));
+      const d = conciliado();
+      d.manifesto_snapshot.capturado_em = v;
+      const r = auditar(d);
+      assert.deepEqual(r.motivos_bloqueio_backfill, ['manifesto_capturado_em_invalido'], String(v));
+      assert.equal(r.snapshot.resumo.capturado_em, null, 'valor rejeitado não é ecoado');
+      assert.equal(r.apto_para_backfill, false);
+    }
+  });
+
+  test('(9) capturado_em válido: bissextos, milissegundos de 1–3 dígitos e limites da faixa', () => {
+    assert.equal(ANO_MINIMO_CAPTURADO_EM, 1900);
+    assert.equal(ANO_MAXIMO_CAPTURADO_EM, 9999);
+    const validos = [
+      ['2024-02-29T10:11:12Z', Date.UTC(2024, 1, 29, 10, 11, 12)],
+      ['2000-02-29T23:59:59.123Z', Date.UTC(2000, 1, 29, 23, 59, 59, 123)],
+      ['2026-10-29T12:00:00.5Z', Date.UTC(2026, 9, 29, 12, 0, 0, 500)],
+      ['2026-10-29T12:00:00.05Z', Date.UTC(2026, 9, 29, 12, 0, 0, 50)],
+      ['2026-12-31T23:59:59Z', Date.UTC(2026, 11, 31, 23, 59, 59)],
+      ['1900-01-01T00:00:00Z', Date.UTC(1900, 0, 1)],
+      ['9999-12-31T23:59:59.999Z', Date.UTC(9999, 11, 31, 23, 59, 59, 999)],
+    ];
+    for (const [v, ms] of validos) assert.equal(instanteUtcEstrito(v), ms, v);
+    const d = conciliado();
+    d.manifesto_snapshot.capturado_em = '2024-02-29T10:11:12Z';
+    const r = auditar(d);
+    assert.equal(r.apto_para_backfill, true);
+    assert.equal(r.snapshot.resumo.capturado_em, '2024-02-29T10:11:12Z');
+  });
+
+  test('capturado_em no futuro: relógio controlado, limite exato de 5 min', () => {
+    const agora = Date.UTC(2026, 9, 1, 12, 0, 0);
+    assert.equal(TOLERANCIA_FUTURO_CAPTURADO_EM_MS, 300_000);
+    const comCaptura = (iso) => {
+      const d = conciliado();
+      d.manifesto_snapshot.capturado_em = iso;
+      return validarManifestoSnapshot(d, undefined, agora).impedimentos.map((i) => i.codigo);
+    };
+    assert.deepEqual(comCaptura('2026-10-01T12:05:00.000Z'), [], 'exatamente +5 min é aceito');
+    assert.deepEqual(comCaptura('2026-10-01T12:05:00.001Z'), ['manifesto_capturado_em_no_futuro']);
+    assert.deepEqual(comCaptura('2026-10-01T11:00:00Z'), []);
+    assert.deepEqual(comCaptura('2026-02-30T12:00:00Z'), ['manifesto_capturado_em_invalido'], 'calendário vem antes do relógio');
+  });
+
+  test('(10) CLI --exigir-apto: tenant não verificável ou divergente → exit 3, sem ecoar tenant cru', () => {
+    const cli = fileURLToPath(new URL('../../scripts/ops/auditar-ledger-pecuario.mjs', import.meta.url));
+    const dir = mkdtempSync(join(tmpdir(), 'ledger-r5-'));
+    try {
+      const rodar = (nome, dump) => {
+        const p = join(dir, nome);
+        writeFileSync(p, JSON.stringify(dump));
+        return spawnSync(process.execPath, [cli, '--entrada', p, '--exigir-apto'], { encoding: 'utf8', env: {} });
+      };
+      const ok = rodar('ok.json', conciliado());
+      assert.equal(ok.status, 0, ok.stderr);
+      const sem = conciliado();
+      delete sem.lotes[0].cliente_id;
+      const r1 = rodar('sem.json', sem);
+      assert.equal(r1.status, 3);
+      assert.match(r1.stdout, /motivos de bloqueio: cliente_ausente_em_linhas/);
+      const outro = conciliado();
+      outro.movimentacoes_mapa[0].cliente_id = 'tenant-vizinho-segredo';
+      const r2 = rodar('outro.json', outro);
+      assert.equal(r2.status, 3);
+      assert.match(r2.stdout, /cliente_divergente_do_escopo/);
+      for (const r of [ok, r1, r2]) {
+        for (const cru of ['tenant-vizinho-segredo', CLIENTE_SINTETICO, 'snap-sintetico-001']) assert.ok(!`${r.stdout}${r.stderr}`.includes(cru), cru);
+      }
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

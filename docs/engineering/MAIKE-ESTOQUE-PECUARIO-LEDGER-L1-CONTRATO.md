@@ -422,7 +422,7 @@ pura e read-only.
 | propriedade `manifesto_snapshot` | presente e objeto | `manifesto_ausente` / `manifesto_malformado` |
 | `versao` | exatamente `1` | `manifesto_versao_nao_suportada` |
 | `snapshot_id` | texto não vazio, ≤ 128 | `manifesto_snapshot_id_invalido` |
-| `capturado_em` | `AAAA-MM-DDTHH:MM:SS[.mmm]Z` válido; até 5 min no futuro | `manifesto_capturado_em_invalido` / `_no_futuro` |
+| `capturado_em` | instante UTC **real** (R5): formato exato `AAAA-MM-DDTHH:MM:SS[.mmm]Z`, ano 1900–9999, data civil existente, hora 00–23, min/seg 00–59; até 5 min no futuro | `manifesto_capturado_em_invalido` / `_no_futuro` |
 | `escopo.cliente_id` | texto não vazio, ≤ 64 | `manifesto_escopo_cliente_invalido` |
 | `escopo.empresas` | lista não vazia, sem repetição, textos ≤ 64 | `manifesto_escopo_empresas_invalido` |
 | `contagens.lotes` / `.movimentacoes_mapa` | inteiro ≥ 0 (**zero incluso**), igual ao lido | `manifesto_contagens_invalidas`, `contagem_lotes_divergente`, `contagem_movimentacoes_divergente` |
@@ -443,10 +443,25 @@ pura e read-only.
   `registro_fora_do_escopo`.
 - Empresa do escopo sem nenhum registro só é aceita com **zero explícito** em
   `por_empresa` → senão `empresa_do_escopo_sem_prova_de_zero`.
-- `cliente_id` das linhas: quando presente, tem de ser igual a
-  `escopo.cliente_id` (`cliente_divergente_do_escopo`). Quando ausente, o
-  aviso não impeditivo `cliente_nao_verificado_em_linhas` diz quantas linhas
-  ficaram sem verificar. Nada é inferido.
+- `cliente_id` das linhas (R5: verificado em **toda** linha de `lotes` e
+  `movimentacoes_mapa`). Cada caso é um impedimento estável, com só a
+  contagem `linhas` (nunca o valor cru):
+
+  | Valor na linha | Impedimento |
+  |---|---|
+  | ausente, `null`, `""` ou só espaços | `cliente_ausente_em_linhas` (mais o aviso `cliente_nao_verificado_em_linhas`) |
+  | não-texto (número, booleano, objeto, lista) | `cliente_invalido_em_linhas` |
+  | texto diferente de `escopo.cliente_id` (inclusive com espaços em volta) | `cliente_divergente_do_escopo` |
+
+  Nada é inferido: nem da empresa, nem do lote, nem do próprio
+  `escopo.cliente_id`. O manifesto declara o tenant; só a linha prova que
+  pertence a ele.
+- **Por que exigir em toda linha:** no banco, `Lote.cliente_id` e
+  `MovimentacaoMapa.cliente_id` são `VarChar(64)` **obrigatórios**
+  (`schema.prisma`). Um export correto sempre traz a coluna. Linha sem ela
+  significa uma consulta de exportação que descartou o tenant, e então o
+  isolamento do arquivo não é verificável de ponta a ponta. O dump é um
+  arquivo solto, fora das garantias do banco (FK, RLS, `auth_context`).
 
 **Integridade de linha (quarentena impeditiva, deltas não aplicados):**
 
@@ -473,6 +488,28 @@ pura e read-only.
   - `empresas` `{ declaradas, sem_registros, fora_do_escopo }`;
   - `impedimentos` e `avisos`.
 
+**`capturado_em` sem normalização (R5).** `Date.parse` não serve como prova
+de calendário, porque normaliza datas inexistentes. No Node 22 desta suíte:
+
+| Entrada | `Date.parse` devolve |
+|---|---|
+| `2026-02-30T12:00:00Z` | 2 de março |
+| `2026-04-31T00:00:00Z` | 1º de maio |
+| `1900-02-29T00:00:00Z` | 1º de março |
+| `2026-10-29T24:00:00Z` | dia 30 à meia-noite |
+
+`instanteUtcEstrito` resolve isso:
+- decompõe os componentes;
+- confere mês, dia (bissexto gregoriano), hora, minuto e segundo (sem leap
+  second `:60`);
+- reconstrói com `setUTCFullYear`, e não com `Date.UTC`, que leria os anos
+  0–99 como 19xx;
+- exige igualdade exata de todos os componentes.
+
+Ficam fora: zona `+00:00`, `z` minúsculo, espaço, sufixo e mais de 3 dígitos
+de fração. A checagem de futuro usa o relógio do processo; nos testes, um
+relógio fixo injetado em `validarManifestoSnapshot(dump, rot, agoraMs)`.
+
 **Limites, sem ilusão:**
 - O manifesto é uma **declaração** de quem extraiu, **não é prova
   criptográfica**. Ele detecta recorte acidental (fonte esquecida, empresa
@@ -481,6 +518,9 @@ pura e read-only.
 - Conferi-lo é **necessário, nunca suficiente**. A extração (consulta usada,
   isolamento transacional, ambiente) continua sujeita a revisão humana, e o
   §7 continua valendo: nada roda automaticamente.
+- `cliente_id` correto em toda linha prova que o **arquivo** não mistura
+  tenants. Não prova que o export trouxe **todas** as linhas do tenant: isso
+  continua sendo a declaração de contagens do manifesto.
 
 **CLI, códigos de saída:**
 

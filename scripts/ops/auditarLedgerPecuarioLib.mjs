@@ -88,7 +88,41 @@ const categoriaAtual = (lote) => {
 
 export const VERSAO_MANIFESTO_SNAPSHOT = 1;
 const MODOS_CONSISTENCIA = new Set(['snapshot_transacional', 'export_consistente_equivalente']);
-const RE_DATA_HORA_UTC = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,3})?Z$/;
+const RE_DATA_HORA_UTC = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,3}))?Z$/;
+/** Faixa de ano aceita em `capturado_em` (CONTRATO §7.1). */
+export const ANO_MINIMO_CAPTURADO_EM = 1900;
+export const ANO_MAXIMO_CAPTURADO_EM = 9999;
+/** Tolerância de relógio para `capturado_em` no futuro. */
+export const TOLERANCIA_FUTURO_CAPTURADO_EM_MS = 5 * 60_000;
+
+/**
+ * Instante UTC REAL, sem normalização: `AAAA-MM-DDTHH:MM:SS[.mmm]Z`, data
+ * civil existente (bissexto gregoriano), hora 00–23, minuto 00–59, segundo
+ * 00–59 (sem leap second). `Date.parse` sozinho não serve: normaliza
+ * `2026-02-30` para 2 de março. Retorna epoch ms ou `null`.
+ * @param {unknown} v
+ * @returns {number | null}
+ */
+export const instanteUtcEstrito = (v) => {
+  if (typeof v !== 'string') return null;
+  const m = RE_DATA_HORA_UTC.exec(v);
+  if (!m) return null;
+  const [ano, mes, dia, hora, minuto, segundo] = m.slice(1, 7).map(Number);
+  const ms = m[7] === undefined ? 0 : Number(m[7].padEnd(3, '0'));
+  if (ano < ANO_MINIMO_CAPTURADO_EM || ano > ANO_MAXIMO_CAPTURADO_EM) return null;
+  if (mes < 1 || mes > 12 || hora > 23 || minuto > 59 || segundo > 59) return null;
+  const bissexto = (ano % 4 === 0 && ano % 100 !== 0) || ano % 400 === 0;
+  const diasNoMes = [31, bissexto ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][mes - 1];
+  if (dia < 1 || dia > diasNoMes) return null;
+  // setUTCFullYear não reinterpreta anos 0–99 como 19xx (Date.UTC faria).
+  const d = new Date(0);
+  d.setUTCFullYear(ano, mes - 1, dia);
+  d.setUTCHours(hora, minuto, segundo, ms);
+  const confere =
+    d.getUTCFullYear() === ano && d.getUTCMonth() === mes - 1 && d.getUTCDate() === dia &&
+    d.getUTCHours() === hora && d.getUTCMinutes() === minuto && d.getUTCSeconds() === segundo && d.getUTCMilliseconds() === ms;
+  return confere ? d.getTime() : null;
+};
 const ehObjeto = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 const ehContagem = (v) => Number.isSafeInteger(v) && v >= 0;
 const textoNaoVazio = (v, max = 128) => typeof v === 'string' && v.trim() !== '' && v.length <= max;
@@ -118,7 +152,7 @@ export const estadoDaFonte = (v) => {
  * @param {Record<string, any>} dump
  * @param {(id: unknown) => string | null} rot
  */
-export const validarManifestoSnapshot = (dump, rot = (x) => (x === undefined || x === null ? null : String(x))) => {
+export const validarManifestoSnapshot = (dump, rot = (x) => (x === undefined || x === null ? null : String(x)), agoraMs = Date.now()) => {
   /** @type {Array<{ codigo: string } & Record<string, unknown>>} */
   const impedimentos = [];
   /** @type {Array<{ codigo: string } & Record<string, unknown>>} */
@@ -145,9 +179,10 @@ export const validarManifestoSnapshot = (dump, rot = (x) => (x === undefined || 
   }
   if (m.versao !== VERSAO_MANIFESTO_SNAPSHOT) impedir('manifesto_versao_nao_suportada', { versao: m.versao ?? null });
   if (!textoNaoVazio(m.snapshot_id)) impedir('manifesto_snapshot_id_invalido');
-  if (!(typeof m.capturado_em === 'string' && RE_DATA_HORA_UTC.test(m.capturado_em) && !Number.isNaN(Date.parse(m.capturado_em)))) {
+  const capturadoEmMs = instanteUtcEstrito(m.capturado_em);
+  if (capturadoEmMs === null) {
     impedir('manifesto_capturado_em_invalido');
-  } else if (Date.parse(m.capturado_em) > Date.now() + 5 * 60_000) {
+  } else if (capturadoEmMs > agoraMs + TOLERANCIA_FUTURO_CAPTURADO_EM_MS) {
     impedir('manifesto_capturado_em_no_futuro');
   }
   const escopo = ehObjeto(m.escopo) ? m.escopo : null;
@@ -201,16 +236,26 @@ export const validarManifestoSnapshot = (dump, rot = (x) => (x === undefined || 
     for (const e of Object.keys(porEmpresaDecl)) if (!escopoEmpresas.has(e)) impedir('manifesto_por_empresa_fora_do_escopo', { empresa: rot(e) });
   }
 
-  // Tenant: só confere quando as linhas trazem cliente_id; nunca infere.
+  // Tenant (R5): TODA linha precisa trazer cliente_id texto igual ao do
+  // escopo. Ausente, vazio ou só espaços → impedimento (linha não verificável:
+  // nunca prova de isolamento); outro tipo → inválido; outro valor →
+  // divergente. Nada é inferido de empresa, lote ou do próprio manifesto.
+  // Só contagens saem no resultado, nunca o valor cru.
   let semCliente = 0;
+  let clienteInvalido = 0;
+  let clienteDivergente = 0;
   for (const r of [...lotes, ...movs]) {
-    if (r.cliente_id === undefined || r.cliente_id === null || r.cliente_id === '') semCliente += 1;
-    else if (clienteId && r.cliente_id !== clienteId) {
-      impedir('cliente_divergente_do_escopo');
-      break;
-    }
+    const c = r.cliente_id;
+    if (c === undefined || c === null || (typeof c === 'string' && c.trim() === '')) semCliente += 1;
+    else if (typeof c !== 'string') clienteInvalido += 1;
+    else if (clienteId && c !== clienteId) clienteDivergente += 1;
   }
-  if (semCliente > 0) avisos.push({ codigo: 'cliente_nao_verificado_em_linhas', linhas: semCliente });
+  if (semCliente > 0) {
+    avisos.push({ codigo: 'cliente_nao_verificado_em_linhas', linhas: semCliente });
+    impedir('cliente_ausente_em_linhas', { linhas: semCliente });
+  }
+  if (clienteInvalido > 0) impedir('cliente_invalido_em_linhas', { linhas: clienteInvalido });
+  if (clienteDivergente > 0) impedir('cliente_divergente_do_escopo', { linhas: clienteDivergente });
 
   const consist = ehObjeto(m.consistencia) ? m.consistencia : null;
   if (!consist || !MODOS_CONSISTENCIA.has(consist.modo) || consist.confirmado !== true) impedir('manifesto_consistencia_nao_declarada');
@@ -222,7 +267,7 @@ export const validarManifestoSnapshot = (dump, rot = (x) => (x === undefined || 
   Object.assign(resumo, {
     versao: m.versao ?? null,
     snapshot_id: textoNaoVazio(m.snapshot_id) ? rot(m.snapshot_id) : null,
-    capturado_em: typeof m.capturado_em === 'string' && RE_DATA_HORA_UTC.test(m.capturado_em) ? m.capturado_em : null,
+    capturado_em: capturadoEmMs === null ? null : m.capturado_em,
     cliente: clienteId ? rot(clienteId) : null,
     consistencia: consist && MODOS_CONSISTENCIA.has(consist.modo) ? consist.modo : null,
     origem_tipo: origem && textoNaoVazio(origem.tipo, 64) && !origemSensivel ? origem.tipo : null,

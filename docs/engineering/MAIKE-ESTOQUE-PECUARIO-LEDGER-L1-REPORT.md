@@ -1,4 +1,4 @@
-# MAIKE-LEDGER-PECUARIO-L1 — relatório (L1 + R2, R3 e R4 de correções da auditoria)
+# MAIKE-LEDGER-PECUARIO-L1 — relatório (L1 + R2, R3, R4 e R5 de correções da auditoria)
 
 **Branch:** `claude/maike-ledger-pecuario-l1`, numa worktree física separada,
 base `origin/main` = `1344ffe2`.\
@@ -7,7 +7,7 @@ base `origin/main` = `1344ffe2`.\
 **Paralelismo:**
 - A PR #145 não foi tocada.
 - A lista de arquivos dela é variável: 35 numa leitura inicial, 95 no head
-  `9bad34ce`, 125 no head `61a7fa44` (R4).
+  `9bad34ce`, 125 no head `61a7fa44` (R4), 138 no head `1cf1b9e9` (R5).
 - A interseção com os 11 arquivos do L1 é recalculada contra o head atual da
   #145 antes de cada push; foi **vazia** em todas as verificações.
 
@@ -43,6 +43,38 @@ estes dois documentos. O motor transacional não foi tocado.
 - `apto_para_backfill` em 6 cenários (inclui empresa só com quarentena,
   `(sem_empresa)` e dump vazio);
 - limites `int4` / `MAX_SAFE_INTEGER` em entrada, posição e movimento.
+
+## R5 — tenant verificado e `capturado_em` real (sobre `49f1d274`)
+
+Escopo:
+- só `auditarLedgerPecuarioLib.mjs`, o teste de contrato e estes dois
+  documentos;
+- CLI, motor transacional e schema **não** foram tocados;
+- `schema.prisma` só foi **lido**, para documentar que `cliente_id` é
+  obrigatório nas duas tabelas.
+
+Diagnóstico BEFORE: probe sobre a lib de `49f1d274`, fixtures sintéticas,
+Node 22.22.0.
+
+| Defeito | BEFORE (`49f1d274`, medido) | Correção | AFTER (medido) |
+|---|---|---|---|
+| **P0** aptidão sem tenant verificado | lote e movimento **sem** `cliente_id`, conta conciliada e manifesto válido: `snapshot.valido: true`, `apto_para_backfill: true`, motivos `[]` (só aviso) | toda linha tem de trazer `cliente_id` texto igual ao escopo; impedimentos `cliente_ausente_em_linhas`, `cliente_invalido_em_linhas`, `cliente_divergente_do_escopo` (com contagem de linhas) | `snapshot.valido: false`, apto `false` (geral e por empresa); `estado: conciliada` e `apto_matematico: true` preservados |
+| **P0** `cliente_id: "  "` / numérico | só bloqueava por coincidência (`cliente_divergente_do_escopo`) | espaços = ausente; não-texto = inválido | motivo correto e estável |
+| **P1** `capturado_em` normalizado | `2026-02-30`, `2026-04-31`, `1900-02-29` aceitos → apto `true`; `T24:00` só caía por parecer futuro | `instanteUtcEstrito`: componentes, bissexto, limites, reconstrução UTC exata, faixa 1900–9999 | os 33 valores inválidos do teste → `manifesto_capturado_em_invalido` |
+
+**Prova de que os testes discriminam:**
+- Rodar a suíte R5 contra a lib de `49f1d274`, com só os novos exports
+  preenchidos por stub de R4 (regex + `Date.parse`): **9 de 12 falham**.
+- Os 3 que passam também em R4 são controles positivos: tenant correto,
+  datas válidas e o multitenant com valor divergente, que a R4 já bloqueava.
+- Sem os stubs, a suíte nem carrega (`does not provide an export`).
+
+**Fixtures antigas.**
+- As fixtures R3/R4 que esperam `apto=true` passaram a trazer
+  `cliente_id: 'cliente-sintetico'` (o tenant do manifesto sintético).
+- Nenhum assert negativo foi removido.
+- O teste R4 (L), que afirmava "cliente ausente só avisa", foi reescrito:
+  ausência agora é provada como impedimento nos testes R5 (1)–(3).
 
 ## R4 — integridade do snapshot (sobre `cb5aae23`)
 
@@ -90,7 +122,8 @@ integração de frontend.
 | Arquivo / comando | Resultado |
 |---|---|
 | `estoquePecuarioLedgerTransacional.test.mjs` (PostgreSQL 16 real) | 27/27 PASS em 5 execuções seguidas na R2 (7,6–8,1 s cada); R4: 27/27 em 3 execuções (9,1–9,4 s) |
-| `estoquePecuarioLedgerContrato.test.mjs` | 52 PASS (24 da R2 + 14 da R3 + 14 da R4) + 5 `todo` (PENDING L2, não contados como PASS) |
+| `estoquePecuarioLedgerContrato.test.mjs` | 64 PASS (24 da R2 + 14 da R3 + 14 da R4 + 12 da R5) + 5 `todo` (PENDING L2, não contados como PASS) |
+| `npm run verify:all` (R5) | PASS, 29/29 etapas, 370 s. `test:backend`: 382 testes, 377 pass, 0 fail, 5 todo. `test:smoke`: 918/918. Transacional: 27/27 em 3 execuções (7,3–9,6 s). |
 | `npm run verify:all` (R4) | PASS, 29/29 etapas, 433 s. `test:backend`: 370 testes, 365 pass, 0 fail, 5 todo. `test:smoke`: 918/918. |
 | `npm run verify:all` (R3) | PASS, 29/29 etapas, 405 s. `test:backend`: 342 testes, 337 pass, 0 fail, 5 todo (inclui `prisma validate`). `test:smoke`: 918/918. Typecheck backend, gate:types, lint, tenancy e build PASS. |
 
@@ -112,8 +145,10 @@ integração de frontend.
 - R4: o manifesto é declaração de quem extraiu, não prova criptográfica.
   Detecta recorte acidental, não um manifesto escrito para combinar com um
   dump errado. A extração continua sujeita a revisão humana (runbook §7.1).
-- R4: linhas sem `cliente_id` não são verificadas contra o tenant. O aviso
-  `cliente_nao_verificado_em_linhas` diz quantas.
+- R5: linha sem `cliente_id` agora **bloqueia** (antes, na R4, só avisava).
+  Tenant correto em toda linha prova que o arquivo não mistura tenants. Não
+  prova que o export está completo: isso continua sendo a declaração de
+  contagens.
 
 ## Próximos passos L2 (após merge da #145; nada automático)
 
