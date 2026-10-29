@@ -8,9 +8,11 @@ import { spawnSync } from 'node:child_process';
 
 import { getPrismaClient } from '../src/database/prismaClient.js';
 import {
+  caminhoObjetoCatalogo,
   criarArmazenamentoCatalogo,
   exigirArmazenamentoCatalogoAoVivo,
 } from '../src/modules/catalogoGlobal/catalogoAssetStorage.js';
+import { compensarObjetoAssetCatalogo } from '../src/modules/catalogoGlobal/catalogoGlobalService.js';
 import { validarBufferAssetCatalogo } from '../src/modules/catalogoGlobal/catalogoAssetValidation.js';
 import { criarApp, criarTenant, limparBanco, encerrar, autenticarNoApp } from './helpers.mjs';
 
@@ -19,20 +21,47 @@ const PNG_1X1 = Buffer.from(
   'base64'
 );
 
+/**
+ * Storage falso controlável: registra objetos, gravações e remoções, e aceita
+ * falha injetada. Representa o bucket — o banco é PostgreSQL real.
+ */
+const storageFake = {
+  aoVivo: false,
+  /** @type {Map<string, Buffer>} */
+  objetos: new Map(),
+  /** @type {string[]} */
+  gravados: [],
+  /** @type {string[]} */
+  removidos: [],
+  falharGravacao: false,
+  falharRemocao: false,
+  reset() {
+    this.objetos.clear();
+    this.gravados = [];
+    this.removidos = [];
+    this.falharGravacao = false;
+    this.falharRemocao = false;
+  },
+  async gravar({ buffer, sha256, revisao, extensao, idObjeto }) {
+    if (this.falharGravacao) throw new Error('storage indisponível (injetado)');
+    const storage_path = caminhoObjetoCatalogo({ sha256, revisao, extensao, idObjeto });
+    if (this.objetos.has(storage_path)) throw new Error('objeto já existe (x-upsert: false)');
+    this.objetos.set(storage_path, buffer);
+    this.gravados.push(storage_path);
+    return { bucket: 'maike-catalogo-global', storage_path };
+  },
+  async remover(storage_path) {
+    if (this.falharRemocao) throw new Error('remoção falhou (injetado)');
+    this.objetos.delete(storage_path);
+    this.removidos.push(storage_path);
+  },
+};
+
 /** @type {import('fastify').FastifyInstance} */
 let app;
 
 before(async () => {
-  criarArmazenamentoCatalogo({
-    aoVivo: false,
-    async gravar({ sha256, revisao, extensao }) {
-      return {
-        bucket: 'maike-catalogo-global',
-        storage_path: `v${revisao}/${sha256.slice(0, 16)}.${extensao}`,
-      };
-    },
-    async remover() {},
-  });
+  criarArmazenamentoCatalogo(storageFake);
   app = await criarApp();
   await app.ready();
 });
@@ -44,6 +73,7 @@ after(async () => {
 
 beforeEach(async () => {
   await limparBanco();
+  storageFake.reset();
 });
 
 const auth = (token) => ({ authorization: `Bearer ${token}` });
@@ -549,5 +579,295 @@ describe('catálogo global — DDL / grants', () => {
       { encoding: 'utf8' }
     );
     assert.notEqual(anon.status, 0, anon.stderr || anon.stdout);
+  });
+});
+
+/**
+ * R2 — integridade transacional. Falhas injetadas por trigger no PostgreSQL
+ * real (não mock de banco); o trigger é removido no `finally` de cada teste.
+ */
+const sql = (comando) => getPrismaClient().$executeRawUnsafe(comando);
+
+const comTriggerDeFalha = async (tabela, { deferido = false } = {}, corpo) => {
+  await sql(`CREATE OR REPLACE FUNCTION r2_falha_injetada() RETURNS trigger LANGUAGE plpgsql AS $$
+    BEGIN RAISE EXCEPTION 'falha injetada R2'; END $$`);
+  await sql(
+    deferido
+      ? `CREATE CONSTRAINT TRIGGER r2_falha AFTER INSERT ON "${tabela}"
+           DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION r2_falha_injetada()`
+      : `CREATE TRIGGER r2_falha BEFORE INSERT ON "${tabela}"
+           FOR EACH ROW EXECUTE FUNCTION r2_falha_injetada()`
+  );
+  try {
+    return await corpo();
+  } finally {
+    await sql(`DROP TRIGGER IF EXISTS r2_falha ON "${tabela}"`);
+    await sql(`DROP FUNCTION IF EXISTS r2_falha_injetada()`);
+  }
+};
+
+const contagens = async () => {
+  const prisma = getPrismaClient();
+  const meta = await prisma.catalogoMeta.findUnique({ where: { chave: 'global' } });
+  return {
+    assets: await prisma.catalogoAsset.count(),
+    auditorias: await prisma.auditoriaCatalogoGlobal.count(),
+    revisao: meta?.revisao ?? 0,
+  };
+};
+
+const operadorComToken = async () => {
+  const t = await tenantComToken();
+  await registrarOperador(t.cliente.id, t.usuario.id);
+  return t;
+};
+
+const postarAsset = (token, buffer = PNG_1X1, extra = {}) =>
+  app.inject({
+    method: 'POST',
+    url: '/catalogo-global/admin/assets',
+    headers: auth(token),
+    payload: { mime_type: 'image/png', conteudo_base64: buffer.toString('base64'), ...extra },
+  });
+
+describe('catálogo global R2 — integridade transacional de assets', () => {
+  test('R2-01 sucesso: objeto, asset, auditoria com request id e revisão consistentes', async () => {
+    const { token } = await operadorComToken();
+    const r = await postarAsset(token);
+    assert.equal(r.statusCode, 201);
+    const asset = r.json();
+
+    assert.deepEqual(storageFake.gravados, [asset.storage_path]);
+    assert.ok(storageFake.objetos.has(asset.storage_path));
+    assert.match(asset.storage_path, new RegExp(`^v0/[0-9a-f]{16}-${asset.id}\\.png$`));
+    assert.deepEqual(storageFake.removidos, []);
+
+    const auditorias = await getPrismaClient().auditoriaCatalogoGlobal.findMany({
+      where: { entidade: 'CatalogoAsset' },
+    });
+    assert.equal(auditorias.length, 1);
+    assert.equal(auditorias[0].entidade_id, asset.id);
+    assert.equal(auditorias[0].acao, 'registrar_asset');
+    assert.ok(auditorias[0].request_id);
+    assert.equal((await contagens()).revisao, 1);
+  });
+
+  test('R2-02 falha na auditoria: transação inteira reverte e objeto novo é compensado', async () => {
+    const { token } = await operadorComToken();
+    const antes = await contagens();
+    const r = await comTriggerDeFalha('AuditoriaCatalogoGlobal', {}, () => postarAsset(token));
+
+    assert.equal(r.statusCode, 500);
+    assert.deepEqual(await contagens(), antes);
+    assert.equal(storageFake.gravados.length, 1);
+    assert.deepEqual(storageFake.removidos, storageFake.gravados);
+    assert.equal(storageFake.objetos.size, 0);
+  });
+
+  test('R2-03 falha no COMMIT (trigger deferido): nada persiste e objeto é compensado', async () => {
+    const { token } = await operadorComToken();
+    const antes = await contagens();
+    const r = await comTriggerDeFalha('AuditoriaCatalogoGlobal', { deferido: true }, () =>
+      postarAsset(token)
+    );
+
+    assert.equal(r.statusCode, 500);
+    assert.deepEqual(await contagens(), antes);
+    assert.deepEqual(storageFake.removidos, storageFake.gravados);
+    assert.equal(storageFake.objetos.size, 0);
+  });
+
+  test('R2-04 erro do Storage antes de gravar: banco intacto e nenhuma remoção', async () => {
+    const { token } = await operadorComToken();
+    const antes = await contagens();
+    storageFake.falharGravacao = true;
+    const r = await postarAsset(token);
+
+    assert.equal(r.statusCode, 500);
+    assert.deepEqual(await contagens(), antes);
+    assert.deepEqual(storageFake.removidos, []);
+  });
+
+  test('R2-05 erro de banco após upload: só o objeto novo desta tentativa é removido', async () => {
+    const { token } = await operadorComToken();
+    const ok = await postarAsset(token);
+    assert.equal(ok.statusCode, 201);
+    const caminhoExistente = ok.json().storage_path;
+    const antes = await contagens();
+
+    const outro = Buffer.concat([PNG_1X1, Buffer.from([0])]);
+    const r = await comTriggerDeFalha('CatalogoAsset', {}, () => postarAsset(token, outro));
+
+    assert.equal(r.statusCode, 500);
+    assert.deepEqual(await contagens(), antes);
+    assert.equal(storageFake.removidos.length, 1);
+    assert.notEqual(storageFake.removidos[0], caminhoExistente);
+    assert.ok(storageFake.objetos.has(caminhoExistente));
+  });
+
+  test('R2-06 dedupe (sha256, revisão): sem novo registro, upload, remoção ou auditoria', async () => {
+    const { token } = await operadorComToken();
+    const primeiro = await postarAsset(token, PNG_1X1, { revisao_esperada: 0 });
+    assert.equal(primeiro.statusCode, 201);
+    await getPrismaClient().catalogoMeta.update({
+      where: { chave: 'global' },
+      data: { revisao: 0 },
+    });
+    const antes = await contagens();
+    storageFake.gravados = [];
+
+    const repetido = await postarAsset(token, PNG_1X1, { revisao_esperada: 0 });
+    assert.equal(repetido.statusCode, 201);
+    assert.equal(repetido.json().id, primeiro.json().id);
+    assert.deepEqual(await contagens(), antes);
+    assert.deepEqual(storageFake.gravados, []);
+    assert.deepEqual(storageFake.removidos, []);
+    assert.ok(storageFake.objetos.has(primeiro.json().storage_path));
+  });
+
+  test('R2-07 corrida com a mesma revisão esperada: um vence, o outro 409 e é compensado', async () => {
+    const { token } = await operadorComToken();
+    const b = Buffer.concat([PNG_1X1, Buffer.from([1])]);
+    const respostas = await Promise.all([
+      postarAsset(token, PNG_1X1, { revisao_esperada: 0 }),
+      postarAsset(token, b, { revisao_esperada: 0 }),
+    ]);
+    const codigos = respostas.map((x) => x.statusCode).sort();
+    assert.deepEqual(codigos, [201, 409]);
+
+    const c = await contagens();
+    assert.equal(c.assets, 1);
+    assert.equal(c.auditorias, 1);
+    assert.equal(c.revisao, 1);
+    const vencedor = respostas.find((x) => x.statusCode === 201).json();
+    assert.deepEqual([...storageFake.objetos.keys()], [vencedor.storage_path]);
+  });
+
+  test('R2-08 compensação não remove objeto referenciado nem com verificação incerta', async () => {
+    const { token } = await operadorComToken();
+    const ok = await postarAsset(token);
+    const caminho = ok.json().storage_path;
+    const avisos = [];
+    const warnOriginal = console.warn;
+    console.warn = (m) => avisos.push(JSON.parse(m));
+    try {
+      const referenciado = await compensarObjetoAssetCatalogo({
+        client: getPrismaClient(),
+        storage: storageFake,
+        storagePath: caminho,
+        requestId: 'req-r2',
+      });
+      assert.equal(referenciado, 'referenciado');
+
+      const incerto = await compensarObjetoAssetCatalogo({
+        client: { catalogoAsset: { findFirst: async () => { throw new Error('conexão perdida'); } } },
+        storage: storageFake,
+        storagePath: 'v9/orfao-incerto.png',
+        requestId: 'req-r2',
+      });
+      assert.equal(incerto, 'mantido_incerto');
+
+      storageFake.falharRemocao = true;
+      const falha = await compensarObjetoAssetCatalogo({
+        client: getPrismaClient(),
+        storage: storageFake,
+        storagePath: 'v9/sem-registro.png',
+        requestId: 'req-r2',
+      });
+      assert.equal(falha, 'falha_remocao');
+    } finally {
+      console.warn = warnOriginal;
+    }
+    assert.deepEqual(storageFake.removidos, []);
+    assert.ok(storageFake.objetos.has(caminho));
+    assert.deepEqual(
+      avisos.map((a) => [a.evento, a.desfecho, a.request_id]),
+      [
+        ['catalogo_asset_orfao', 'referenciado', 'req-r2'],
+        ['catalogo_asset_orfao', 'mantido_incerto', 'req-r2'],
+        ['catalogo_asset_orfao', 'falha_remocao', 'req-r2'],
+      ]
+    );
+  });
+});
+
+describe('catálogo global R2 — auditoria atômica nas mutações administrativas', () => {
+  test('R2-09 falha na auditoria ao criar tipo: nada persiste e revisão não avança', async () => {
+    const { token } = await operadorComToken();
+    const antes = await contagens();
+    const r = await comTriggerDeFalha('AuditoriaCatalogoGlobal', {}, () =>
+      app.inject({
+        method: 'POST',
+        url: '/catalogo-global/admin/tipos',
+        headers: auth(token),
+        payload: { codigo: 'r2', nome: 'R2', revisao_esperada: 0 },
+      })
+    );
+    assert.equal(r.statusCode, 500);
+    assert.equal(await getPrismaClient().catalogoTipoEntidade.count(), 0);
+    assert.deepEqual(await contagens(), antes);
+
+    const retry = await app.inject({
+      method: 'POST',
+      url: '/catalogo-global/admin/tipos',
+      headers: auth(token),
+      payload: { codigo: 'r2', nome: 'R2', revisao_esperada: 0 },
+    });
+    assert.equal(retry.statusCode, 201);
+    assert.equal((await contagens()).auditorias, 1);
+  });
+
+  test('R2-10 falha na auditoria ao atualizar tipo: alteração revertida; CAS segue 409', async () => {
+    const { token } = await operadorComToken();
+    const criado = await app.inject({
+      method: 'POST',
+      url: '/catalogo-global/admin/tipos',
+      headers: auth(token),
+      payload: { codigo: 'r2b', nome: 'Original' },
+    });
+    const id = criado.json().id;
+    const antes = await contagens();
+
+    const r = await comTriggerDeFalha('AuditoriaCatalogoGlobal', {}, () =>
+      app.inject({
+        method: 'PATCH',
+        url: `/catalogo-global/admin/tipos/${id}`,
+        headers: auth(token),
+        payload: { nome: 'Alterado', revisao_esperada: 1 },
+      })
+    );
+    assert.equal(r.statusCode, 500);
+    const tipo = await getPrismaClient().catalogoTipoEntidade.findUnique({ where: { id } });
+    assert.equal(tipo.nome, 'Original');
+    assert.deepEqual(await contagens(), antes);
+
+    const stale = await app.inject({
+      method: 'PATCH',
+      url: `/catalogo-global/admin/tipos/${id}`,
+      headers: auth(token),
+      payload: { nome: 'X', revisao_esperada: 0 },
+    });
+    assert.equal(stale.statusCode, 409);
+  });
+
+  test('R2-11 admin do tenant (is_admin) sem operador de produto → 403 no upload', async () => {
+    const { cliente, usuario, token } = await tenantComToken();
+    await getPrismaClient().permissao.create({
+      data: { cliente_id: cliente.id, user_email: usuario.login, is_admin: true },
+    });
+    const r = await postarAsset(token);
+    assert.equal(r.statusCode, 403);
+    assert.equal(r.json().code, 'PRODUCT_OPERATOR_REQUIRED');
+    assert.deepEqual(storageFake.gravados, []);
+  });
+
+  test('R2-12 upload sem JWT → 401 e nada gravado', async () => {
+    const r = await app.inject({
+      method: 'POST',
+      url: '/catalogo-global/admin/assets',
+      payload: { mime_type: 'image/png', conteudo_base64: PNG_1X1.toString('base64') },
+    });
+    assert.equal(r.statusCode, 401);
+    assert.deepEqual(storageFake.gravados, []);
   });
 });

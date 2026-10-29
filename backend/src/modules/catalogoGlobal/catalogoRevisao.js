@@ -25,3 +25,21 @@ export const incrementarRevisaoCatalogo = async (tx) =>
     create: { chave: 'global', revisao: 1 },
     update: { revisao: { increment: 1 } },
   });
+
+/**
+ * Incrementa a revisão e confirma que nenhuma outra transação avançou desde a
+ * leitura (CAS sob o lock de linha do UPDATE). Sem isso, duas mutações
+ * concorrentes que leram a mesma revisão commitariam ambas.
+ *
+ * @param {import('@prisma/client').Prisma.TransactionClient} tx
+ * @param {number} revisaoLida revisão obtida por `assertRevisaoCatalogo`
+ */
+export const avancarRevisaoCatalogo = async (tx, revisaoLida) => {
+  const meta = await incrementarRevisaoCatalogo(tx);
+  if (meta.revisao !== revisaoLida + 1) {
+    throw concurrencyConflict('revisão do catálogo divergente', {
+      details: { revisao_atual: meta.revisao - 1, revisao_esperada: revisaoLida },
+    });
+  }
+  return meta;
+};

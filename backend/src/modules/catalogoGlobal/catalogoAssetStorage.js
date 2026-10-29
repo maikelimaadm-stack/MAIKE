@@ -19,10 +19,20 @@ import { catalogoAssetInvalid } from '../../shared/errors/AppError.js';
 
 /**
  * @typedef {object} ArmazenamentoCatalogo
- * @property {(params: { buffer: Buffer, sha256: string, revisao: number, extensao: string }) => Promise<ResultadoUpload>} gravar
+ * @property {(params: { buffer: Buffer, sha256: string, revisao: number, extensao: string, idObjeto: string }) => Promise<ResultadoUpload>} gravar
  * @property {(storage_path: string) => Promise<void>} remover
  * @property {boolean} aoVivo
  */
+
+/**
+ * Path versionado pela revisão e exclusivo da tentativa (`idObjeto` = id do
+ * asset). Cada upload escreve num objeto que só ele possui: a compensação de
+ * uma tentativa falha nunca alcança objeto de outra, nem um já referenciado.
+ *
+ * @param {{ sha256: string, revisao: number, extensao: string, idObjeto: string }} p
+ */
+export const caminhoObjetoCatalogo = ({ sha256, revisao, extensao, idObjeto }) =>
+  `v${revisao}/${sha256.slice(0, 16)}-${idObjeto}.${extensao}`;
 
 /** @type {Map<string, Buffer>} */
 const memoria = new Map();
@@ -30,9 +40,9 @@ const memoria = new Map();
 /** @returns {ArmazenamentoCatalogo} */
 const armazenamentoMemoria = () => ({
   aoVivo: false,
-  async gravar({ buffer, sha256, revisao, extensao }) {
+  async gravar({ buffer, sha256, revisao, extensao, idObjeto }) {
     const bucket = env.catalogoStorageBucket;
-    const storage_path = `v${revisao}/${sha256.slice(0, 16)}.${extensao}`;
+    const storage_path = caminhoObjetoCatalogo({ sha256, revisao, extensao, idObjeto });
     memoria.set(`${bucket}/${storage_path}`, buffer);
     return { bucket, storage_path };
   },
@@ -71,9 +81,9 @@ const armazenamentoSupabase = () => {
 
   return {
     aoVivo: true,
-    async gravar({ buffer, sha256, revisao, extensao }) {
+    async gravar({ buffer, sha256, revisao, extensao, idObjeto }) {
       const bucket = env.catalogoStorageBucket;
-      const storage_path = `v${revisao}/${sha256.slice(0, 16)}.${extensao}`;
+      const storage_path = caminhoObjetoCatalogo({ sha256, revisao, extensao, idObjeto });
       const url = `${base}/storage/v1/object/${encodeURIComponent(bucket)}/${storage_path}`;
       const resposta = await fetch(url, {
         method: 'POST',
@@ -101,10 +111,13 @@ const armazenamentoSupabase = () => {
     async remover(storage_path) {
       const bucket = env.catalogoStorageBucket;
       const url = `${base}/storage/v1/object/${encodeURIComponent(bucket)}/${storage_path}`;
-      await fetch(url, {
+      const resposta = await fetch(url, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${key}`, apikey: key },
       });
+      if (!resposta.ok && resposta.status !== 404) {
+        throw catalogoAssetInvalid('falha ao remover objeto do Storage', { status: resposta.status });
+      }
     },
   };
 };

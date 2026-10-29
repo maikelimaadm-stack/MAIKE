@@ -1,5 +1,3 @@
-import { getPrismaClient } from '../../database/prismaClient.js';
-
 const CHAVES_PROIBIDAS = new Set([
   'senha',
   'senha_hash',
@@ -38,6 +36,11 @@ const filtrarValor = (valor) => {
  * @param {string | null | undefined} params.entidadeId
  * @param {Record<string, unknown> | null | undefined} params.dados
  * @param {string} params.requestId
+ * @param {import('@prisma/client').Prisma.TransactionClient} tx transação da mutação auditada
+ *
+ * A auditoria é gravada na MESMA transação da mutação (R2): ou ambas
+ * commitam, ou nenhuma. Não há caminho com client próprio — mutação sem
+ * audit trail não pode ser confirmada.
  */
 export const registrarAuditoriaCatalogo = async ({
   operadorId,
@@ -46,9 +49,9 @@ export const registrarAuditoriaCatalogo = async ({
   entidadeId,
   dados,
   requestId,
-}) => {
-  const prisma = getPrismaClient();
-  await prisma.auditoriaCatalogoGlobal.create({
+}, tx) => {
+  if (!tx) throw new Error('registrarAuditoriaCatalogo exige a transação da mutação');
+  await tx.auditoriaCatalogoGlobal.create({
     data: {
       operador_id: operadorId ?? null,
       acao,

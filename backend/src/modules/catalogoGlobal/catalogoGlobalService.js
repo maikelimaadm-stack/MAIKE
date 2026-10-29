@@ -8,7 +8,11 @@ import {
   novoIdentificadorAsset,
 } from './catalogoAssetStorage.js';
 import { registrarAuditoriaCatalogo } from './catalogoAuditoria.js';
-import { assertRevisaoCatalogo, incrementarRevisaoCatalogo } from './catalogoRevisao.js';
+import {
+  assertRevisaoCatalogo,
+  avancarRevisaoCatalogo,
+  incrementarRevisaoCatalogo,
+} from './catalogoRevisao.js';
 import {
   exigirAssetPublicado,
   exigirCategoriaDoTipo,
@@ -95,15 +99,18 @@ export const criarTipo = async ({ dados, revisaoEsperada, operador, requestId })
       },
     });
     await incrementarRevisaoCatalogo(tx);
+    await registrarAuditoriaCatalogo(
+      {
+      operadorId: operador.id,
+      acao: 'criar',
+      entidade: 'CatalogoTipoEntidade',
+      entidadeId: tipo.id,
+      dados: { codigo: tipo.codigo },
+      requestId,
+      },
+      tx
+    );
     return tipo;
-  });
-  await registrarAuditoriaCatalogo({
-    operadorId: operador.id,
-    acao: 'criar',
-    entidade: 'CatalogoTipoEntidade',
-    entidadeId: criado.id,
-    dados: { codigo: criado.codigo },
-    requestId,
   });
   return criado;
 };
@@ -120,15 +127,18 @@ export const atualizarTipo = async ({ id, dados, revisaoEsperada, operador, requ
       },
     });
     await incrementarRevisaoCatalogo(tx);
+    await registrarAuditoriaCatalogo(
+      {
+      operadorId: operador.id,
+      acao: 'atualizar',
+      entidade: 'CatalogoTipoEntidade',
+      entidadeId: id,
+      dados,
+      requestId,
+      },
+      tx
+    );
     return tipo;
-  });
-  await registrarAuditoriaCatalogo({
-    operadorId: operador.id,
-    acao: 'atualizar',
-    entidade: 'CatalogoTipoEntidade',
-    entidadeId: id,
-    dados,
-    requestId,
   });
   return atualizado;
 };
@@ -148,50 +158,114 @@ export const criarCategoria = async ({ dados, revisaoEsperada, operador, request
       },
     });
     await incrementarRevisaoCatalogo(tx);
+    await registrarAuditoriaCatalogo(
+      {
+      operadorId: operador.id,
+      acao: 'criar',
+      entidade: 'CatalogoCategoriaVisual',
+      entidadeId: cat.id,
+      dados: { codigo: cat.codigo, tipo_id: cat.tipo_id },
+      requestId,
+      },
+      tx
+    );
     return cat;
-  });
-  await registrarAuditoriaCatalogo({
-    operadorId: operador.id,
-    acao: 'criar',
-    entidade: 'CatalogoCategoriaVisual',
-    entidadeId: criada.id,
-    dados: { codigo: criada.codigo, tipo_id: criada.tipo_id },
-    requestId,
   });
   return criada;
 };
 
+/**
+ * Compensa o objeto gravado por uma tentativa de `registrarAsset` que falhou.
+ *
+ * Só remove quando o banco confirma que NENHUM asset referencia o objeto. Se
+ * o resultado do commit é incerto (ex.: conexão caiu no COMMIT) ou a própria
+ * verificação falha, o objeto fica — órfão é recuperável, link quebrado não.
+ * Todo desfecho diferente de "removido" vira evento `catalogo_asset_orfao`
+ * no log, com o path para limpeza manual (ver relatório R2).
+ *
+ * Nunca lança: o erro original da operação é o que o chamador recebe.
+ *
+ * @param {object} p
+ * @param {{ catalogoAsset: { findFirst: Function } }} p.client
+ * @param {import('./catalogoAssetStorage.js').ArmazenamentoCatalogo} p.storage
+ * @param {string} p.storagePath
+ * @param {string} p.requestId
+ * @returns {Promise<'removido' | 'referenciado' | 'mantido_incerto' | 'falha_remocao'>}
+ */
+export const compensarObjetoAssetCatalogo = async ({ client, storage, storagePath, requestId }) => {
+  const reportar = (desfecho, extra = {}) => {
+    console.warn(
+      JSON.stringify({
+        evento: 'catalogo_asset_orfao',
+        desfecho,
+        storage_path: storagePath,
+        request_id: requestId,
+        ...extra,
+      })
+    );
+    return desfecho;
+  };
+
+  let referenciado;
+  try {
+    referenciado = await client.catalogoAsset.findFirst({
+      where: { storage_path: storagePath },
+      select: { id: true },
+    });
+  } catch (erro) {
+    return reportar('mantido_incerto', { motivo: erro?.code ?? erro?.name ?? 'erro' });
+  }
+  if (referenciado) return reportar('referenciado', { asset_id: referenciado.id });
+
+  try {
+    await storage.remover(storagePath);
+    return 'removido';
+  } catch (erro) {
+    return reportar('falha_remocao', { motivo: erro?.code ?? erro?.name ?? 'erro' });
+  }
+};
+
+/**
+ * Registra um asset do catálogo (R2 — integridade transacional).
+ *
+ *  1. Lê a revisão (CAS) e o dedupe `(sha256, revisao)` fora de transação.
+ *  2. Grava o objeto num path exclusivo desta tentativa — sem transação aberta
+ *     durante a rede.
+ *  3. Numa única transação: revalida revisão e dedupe, cria o asset, grava a
+ *     auditoria e avança a revisão com CAS. Tudo ou nada.
+ *  4. Falhou depois do upload: compensa o objeto, só se nada o referencia.
+ */
 export const registrarAsset = async ({ buffer, mimeDeclarado, revisaoEsperada, operador, requestId }) => {
   const metaValidacao = validarBufferAssetCatalogo(buffer, mimeDeclarado);
   const storage = exigirArmazenamentoCatalogoAoVivo();
   const extensao = extensaoDeMime(metaValidacao.mime);
 
-  /** @type {import('./catalogoAssetStorage.js').ResultadoUpload | undefined} */
-  let uploadResult;
+  const revisaoCatalogo = await assertRevisaoCatalogo(prisma(), revisaoEsperada);
+  const existente = await prisma().catalogoAsset.findFirst({
+    where: { sha256: metaValidacao.sha256, revisao: revisaoCatalogo },
+  });
+  if (existente) {
+    // Dedupe: nada foi gravado nem alterado, então nada é auditado.
+    return { ...existente, public_url: urlPublicaAssetCatalogo(existente) ?? null };
+  }
+
+  const assetId = novoIdentificadorAsset();
+  const upload = await storage.gravar({
+    buffer,
+    sha256: metaValidacao.sha256,
+    revisao: revisaoCatalogo,
+    extensao,
+    idObjeto: assetId,
+  });
 
   try {
-    const { registro, upload } = await prisma().$transaction(async (tx) => {
-      const revisaoCatalogo = await assertRevisaoCatalogo(tx, revisaoEsperada);
-
-      const existente = await tx.catalogoAsset.findFirst({
-        where: { sha256: metaValidacao.sha256, revisao: revisaoCatalogo },
-      });
-      if (existente) {
-        return { registro: existente, upload: null };
-      }
-
-      uploadResult = await storage.gravar({
-        buffer,
-        sha256: metaValidacao.sha256,
-        revisao: revisaoCatalogo,
-        extensao,
-      });
-
+    const registro = await prisma().$transaction(async (tx) => {
+      await assertRevisaoCatalogo(tx, revisaoCatalogo);
       const asset = await tx.catalogoAsset.create({
         data: {
-          id: novoIdentificadorAsset(),
-          bucket: uploadResult.bucket,
-          storage_path: uploadResult.storage_path,
+          id: assetId,
+          bucket: upload.bucket,
+          storage_path: upload.storage_path,
           mime: metaValidacao.mime,
           bytes: metaValidacao.bytes,
           sha256: metaValidacao.sha256,
@@ -201,26 +275,28 @@ export const registrarAsset = async ({ buffer, mimeDeclarado, revisaoEsperada, o
           estado: 'publicado',
         },
       });
-      await incrementarRevisaoCatalogo(tx);
-      return { registro: asset, upload: uploadResult };
+      await registrarAuditoriaCatalogo(
+        {
+          operadorId: operador.id,
+          acao: 'registrar_asset',
+          entidade: 'CatalogoAsset',
+          entidadeId: asset.id,
+          dados: { storage_path: asset.storage_path, mime: asset.mime },
+          requestId,
+        },
+        tx
+      );
+      await avancarRevisaoCatalogo(tx, revisaoCatalogo);
+      return asset;
     });
-
-    await registrarAuditoriaCatalogo({
-      operadorId: operador.id,
-      acao: 'registrar_asset',
-      entidade: 'CatalogoAsset',
-      entidadeId: registro.id,
-      dados: { storage_path: registro.storage_path, mime: registro.mime },
+    return { ...registro, public_url: upload.publicUrl ?? urlPublicaAssetCatalogo(registro) ?? null };
+  } catch (erro) {
+    await compensarObjetoAssetCatalogo({
+      client: prisma(),
+      storage,
+      storagePath: upload.storage_path,
       requestId,
     });
-
-    const public_url =
-      upload?.publicUrl ?? urlPublicaAssetCatalogo(registro) ?? null;
-    return { ...registro, public_url };
-  } catch (erro) {
-    if (uploadResult?.storage_path) {
-      await storage.remover(uploadResult.storage_path).catch(() => {});
-    }
     throw erro;
   }
 };
@@ -245,15 +321,18 @@ export const criarIcone = async ({ dados, revisaoEsperada, operador, requestId }
       },
     });
     await incrementarRevisaoCatalogo(tx);
+    await registrarAuditoriaCatalogo(
+      {
+      operadorId: operador.id,
+      acao: 'criar',
+      entidade: 'CatalogoIcone',
+      entidadeId: icone.id,
+      dados: { tipo_id: icone.tipo_id, categoria_id: icone.categoria_id },
+      requestId,
+      },
+      tx
+    );
     return icone;
-  });
-  await registrarAuditoriaCatalogo({
-    operadorId: operador.id,
-    acao: 'criar',
-    entidade: 'CatalogoIcone',
-    entidadeId: criado.id,
-    dados: { tipo_id: criado.tipo_id, categoria_id: criado.categoria_id },
-    requestId,
   });
   return criado;
 };
@@ -293,16 +372,18 @@ export const atualizarIcone = async ({ id, dados, revisaoEsperada, operador, req
     }
 
     await incrementarRevisaoCatalogo(tx);
+    await registrarAuditoriaCatalogo(
+      {
+      operadorId: operador.id,
+      acao: 'atualizar',
+      entidade: 'CatalogoIcone',
+      entidadeId: id,
+      dados,
+      requestId,
+      },
+      tx
+    );
     return iconeAtualizado;
-  });
-
-  await registrarAuditoriaCatalogo({
-    operadorId: operador.id,
-    acao: 'atualizar',
-    entidade: 'CatalogoIcone',
-    entidadeId: id,
-    dados,
-    requestId,
   });
   return atualizado;
 };
@@ -336,15 +417,18 @@ export const publicarIcone = async ({ id, revisaoEsperada, operador, requestId }
       data: { estado: 'publicado', revisao: { increment: 1 } },
     });
     await incrementarRevisaoCatalogo(tx);
+    await registrarAuditoriaCatalogo(
+      {
+      operadorId: operador.id,
+      acao: 'publicar',
+      entidade: 'CatalogoIcone',
+      entidadeId: id,
+      dados: null,
+      requestId,
+      },
+      tx
+    );
     return icone;
-  });
-  await registrarAuditoriaCatalogo({
-    operadorId: operador.id,
-    acao: 'publicar',
-    entidade: 'CatalogoIcone',
-    entidadeId: id,
-    dados: null,
-    requestId,
   });
   return publicado;
 };
@@ -357,15 +441,18 @@ export const desativarIcone = async ({ id, revisaoEsperada, operador, requestId 
       data: { ativo: false, estado: 'inativo' },
     });
     await incrementarRevisaoCatalogo(tx);
+    await registrarAuditoriaCatalogo(
+      {
+      operadorId: operador.id,
+      acao: 'desativar',
+      entidade: 'CatalogoIcone',
+      entidadeId: id,
+      dados: null,
+      requestId,
+      },
+      tx
+    );
     return icone;
-  });
-  await registrarAuditoriaCatalogo({
-    operadorId: operador.id,
-    acao: 'desativar',
-    entidade: 'CatalogoIcone',
-    entidadeId: id,
-    dados: null,
-    requestId,
   });
   return atualizado;
 };
@@ -409,16 +496,18 @@ export const criarRegraMisto = async ({ dados, revisaoEsperada, operador, reques
       include: { categorias: true },
     });
     await incrementarRevisaoCatalogo(tx);
+    await registrarAuditoriaCatalogo(
+      {
+      operadorId: operador.id,
+      acao: 'criar',
+      entidade: 'CatalogoRegraMisto',
+      entidadeId: regra.id,
+      dados: { categoria_ids: ids },
+      requestId,
+      },
+      tx
+    );
     return regra;
-  });
-
-  await registrarAuditoriaCatalogo({
-    operadorId: operador.id,
-    acao: 'criar',
-    entidade: 'CatalogoRegraMisto',
-    entidadeId: criada.id,
-    dados: { categoria_ids: ids },
-    requestId,
   });
   return criada;
 };
@@ -441,15 +530,18 @@ export const publicarRegraMisto = async ({ id, revisaoEsperada, operador, reques
       data: { estado: 'publicado' },
     });
     await incrementarRevisaoCatalogo(tx);
+    await registrarAuditoriaCatalogo(
+      {
+      operadorId: operador.id,
+      acao: 'publicar',
+      entidade: 'CatalogoRegraMisto',
+      entidadeId: id,
+      dados: null,
+      requestId,
+      },
+      tx
+    );
     return atualizada;
-  });
-  await registrarAuditoriaCatalogo({
-    operadorId: operador.id,
-    acao: 'publicar',
-    entidade: 'CatalogoRegraMisto',
-    entidadeId: id,
-    dados: null,
-    requestId,
   });
   return publicada;
 };
