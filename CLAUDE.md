@@ -54,7 +54,7 @@ Desde a **P3** as regras de backend deixaram de ser futuras e têm gate próprio
 
 | # | Regra | Gate |
 |---|---|---|
-| R9 | Todo model tenant-scoped tem `cliente_id` obrigatório; `Cliente` é a única exceção, por ser a raiz (D-PROD-22) | `gate:tenancy` |
+| R9 | Todo model tenant-scoped tem `cliente_id` obrigatório. Exceções fechadas: `Cliente` (raiz, D-PROD-22) e exatamente os nove models do catálogo global listados em `tenancy.globalCatalogModels` de `config/modelobase1-pecuario.json` (D-PROD-60). Nenhuma outra | `gate:tenancy` |
 | R10 | Índice e unique tenant-scoped começam por `cliente_id` | `gate:indices` |
 | R11 | O tenant vem de `auth_context`, nunca de `body`, `query`, `params`, `headers` ou `cookie` | `gate:tenancy` |
 | R12 | Zero Base44 no backend, em qualquer forma de carregamento | `gate:tenancy` |
