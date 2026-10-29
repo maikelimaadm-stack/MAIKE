@@ -19,6 +19,7 @@ import { join, resolve } from 'node:path';
 import {
   validarAmbienteBench,
   validarIdentidadeConexao,
+  servidoresPermitidos,
   urlEfetivaDoBackend,
   descreverUrl,
 } from '../../performance/benchGuard.mjs';
@@ -143,5 +144,17 @@ describe('benchGuard — função pura', () => {
     assert.equal(validarIdentidadeConexao({ banco: 'maike_perf', servidor: '10.1.2.3', rolesSupabase: 0 }, 'maike_perf').ok, false);
     assert.equal(validarIdentidadeConexao({ banco: 'maike_perf', servidor: '127.0.0.1', rolesSupabase: 2 }, 'maike_perf').ok, false);
     assert.doesNotMatch(descreverUrl(LOCAL), /segredo/);
+  });
+
+  test('BG-13 PERF_SERVIDOR_PERMITIDO aceita só IP privado exato (container local)', () => {
+    const id = (servidor) => ({ banco: 'maike_perf', servidor, rolesSupabase: 0 });
+    const extras = servidoresPermitidos('172.18.0.2, 8.8.8.8, 10.0.0.9, abc, 172.32.0.1');
+    assert.deepEqual([...extras].sort(), ['10.0.0.9', '172.18.0.2']);
+    assert.equal(validarIdentidadeConexao(id('172.18.0.2/32'), 'maike_perf', extras).ok, true);
+    assert.equal(validarIdentidadeConexao(id('172.18.0.3'), 'maike_perf', extras).ok, false, 'outro IP privado');
+    assert.equal(validarIdentidadeConexao(id('8.8.8.8'), 'maike_perf', extras).ok, false, 'público nunca');
+    assert.equal(validarIdentidadeConexao(id('172.18.0.2'), 'maike_perf').ok, false, 'sem opt-in');
+    const comRoles = { banco: 'maike_perf', servidor: '172.18.0.2', rolesSupabase: 1 };
+    assert.equal(validarIdentidadeConexao(comRoles, 'maike_perf', extras).ok, false, 'Supabase mesmo permitido');
   });
 });

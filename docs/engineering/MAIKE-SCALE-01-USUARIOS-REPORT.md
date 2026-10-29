@@ -258,6 +258,16 @@ Execução real em `maike_perf` (PostgreSQL 16.15 local) com dois sentinelas:
 
 Advisory locks após o `SIGINT`: 0. Logs sem credenciais.
 
+## Container local: `PERF_SERVIDOR_PERMITIDO`
+
+A primeira CI da R3 (run 40887958014) reprovou o BE-04: no GitHub Actions o PostgreSQL é um
+container de serviço; `localhost:5432` é port-forward e `inet_server_addr()` responde com o IP da
+bridge (`172.18.0.2`). O guard recusou como deveria — é exatamente o caso "localhost não prova
+ausência de túnel". Em vez de afrouxar a regra, foi criado um opt-in explícito e estreito:
+`PERF_SERVIDOR_PERMITIDO=<ip>[,<ip>]` aceita **somente IPs exatos IPv4 privados (RFC 1918)**;
+IP público é descartado, outro IP privado não listado continua recusado e as roles Supabase
+continuam reprovando. O BE-04 passa o IP real do servidor; BG-13 cobre a regra.
+
 ## Limitações residuais
 
 - `SIGKILL`/queda: índice pode ficar ausente (comando de recuperação impresso no início) e os

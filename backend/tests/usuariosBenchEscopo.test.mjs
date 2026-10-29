@@ -128,9 +128,21 @@ describe('SCALE-01 R3 — exclusão mútua entre processos', () => {
       const segundoNoMesmoProcesso = await adquirirLockBench(tempUrl);
       assert.equal(segundoNoMesmoProcesso.ok, false, 'lock é por sessão, não por processo');
 
+      // Em container (CI), o servidor responde com o IP da bridge Docker; o
+      // opt-in exato é o mesmo que um operador usaria localmente.
+      const [{ servidor }] = await temp.$queryRawUnsafe(
+        `SELECT host(inet_server_addr()) AS servidor`
+      );
       const r = spawnSync(process.execPath, [fileURLToPath(new URL('../../scripts/performance/usuarios-bench.mjs', import.meta.url))], {
         cwd: dir,
-        env: { PATH: process.env.PATH, HOME: dir, PERF_TEST_LOCAL: 'sim', PERF_GUARD_TRACE: '1', DATABASE_URL: tempUrl },
+        env: {
+          PATH: process.env.PATH,
+          HOME: dir,
+          PERF_TEST_LOCAL: 'sim',
+          PERF_GUARD_TRACE: '1',
+          DATABASE_URL: tempUrl,
+          ...(servidor ? { PERF_SERVIDOR_PERMITIDO: servidor } : {}),
+        },
         encoding: 'utf8',
         timeout: 60000,
       });

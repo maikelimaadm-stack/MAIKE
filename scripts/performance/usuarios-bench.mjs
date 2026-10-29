@@ -50,7 +50,9 @@ const rastro = (marca) => {
 //    precedência de URL do backend. Nada de banco foi importado até aqui.
 const { config: carregarDotenv } = await import('dotenv');
 carregarDotenv({ quiet: true });
-const { validarAmbienteBench, validarIdentidadeConexao, descreverUrl } = await import('./benchGuard.mjs');
+const { validarAmbienteBench, validarIdentidadeConexao, servidoresPermitidos, descreverUrl } = await import(
+  './benchGuard.mjs'
+);
 const guard = validarAmbienteBench(process.env);
 if (!guard.ok) falhar(guard.motivo);
 const banco = guard.banco;
@@ -89,7 +91,7 @@ const prisma = getPrismaClient();
               (SELECT count(*)::int FROM pg_roles WHERE rolname IN ('supabase_admin','authenticator','supabase_auth_admin')) AS "rolesSupabase"`
     )
   );
-  const ok = validarIdentidadeConexao(id, banco);
+  const ok = validarIdentidadeConexao(id, banco, servidoresPermitidos(process.env.PERF_SERVIDOR_PERMITIDO));
   if (!ok.ok) {
     await closePrismaClient();
     falhar(`identidade da conexão: ${ok.motivo}`);

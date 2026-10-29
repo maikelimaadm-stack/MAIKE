@@ -93,19 +93,48 @@ export const validarAmbienteBench = (env) => {
   return { ok: true, url: aprovada, banco, host: url.hostname };
 };
 
+/** IPv4 privado (RFC 1918) — faixas de rede Docker/VM local, nunca públicas. */
+const ehIpv4Privado = (ip) => {
+  const m = /^(\d+)\.(\d+)\.(\d+)\.(\d+)$/.exec(ip);
+  if (!m) return false;
+  const [a, b] = [Number(m[1]), Number(m[2])];
+  return a === 10 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168);
+};
+
+/**
+ * `PERF_SERVIDOR_PERMITIDO`: lista de IPs EXATOS de servidor aceitos além do
+ * loopback — para PostgreSQL local em container (Docker publica a porta em
+ * `localhost`, mas o servidor responde com o IP da bridge, ex.: 172.18.0.2).
+ * Só IPv4 privado (RFC 1918) entra; IP público é ignorado.
+ *
+ * @param {string|undefined|null} bruto
+ * @returns {Set<string>}
+ */
+export const servidoresPermitidos = (bruto) =>
+  new Set(
+    String(bruto ?? '')
+      .split(',')
+      .map((x) => x.trim())
+      .filter((ip) => ehIpv4Privado(ip))
+  );
+
 /**
  * Confere a conexão REALMENTE aberta antes de qualquer mutação.
  *
  * @param {{ banco: string, servidor: string|null, rolesSupabase: number }} identidade
  * @param {string} bancoAprovado
+ * @param {Set<string>} [extrasPermitidos] ver `servidoresPermitidos`
  */
-export const validarIdentidadeConexao = (identidade, bancoAprovado) => {
+export const validarIdentidadeConexao = (identidade, bancoAprovado, extrasPermitidos = new Set()) => {
   if (identidade.banco !== bancoAprovado) {
     return { ok: false, motivo: `conectado em "${identidade.banco}", aprovado "${bancoAprovado}".` };
   }
-  const s = identidade.servidor;
-  if (s !== null && !['127.0.0.1', '::1'].includes(s.replace(/\/\d+$/, ''))) {
-    return { ok: false, motivo: `servidor ${s} não é loopback.` };
+  const s = identidade.servidor === null ? null : identidade.servidor.replace(/\/\d+$/, '');
+  if (s !== null && !['127.0.0.1', '::1'].includes(s) && !extrasPermitidos.has(s)) {
+    return {
+      ok: false,
+      motivo: `servidor ${s} não é loopback (container local? defina PERF_SERVIDOR_PERMITIDO=${s} se for IP privado seu).`,
+    };
   }
   if (identidade.rolesSupabase > 0) {
     return { ok: false, motivo: 'roles típicas do Supabase presentes (supabase_admin/authenticator).' };
