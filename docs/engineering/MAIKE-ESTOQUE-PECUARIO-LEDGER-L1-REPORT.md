@@ -27,6 +27,23 @@ corretivas.
 | **P1** data operacional frouxa | aceitava `2026-10-29abc`, `2026-02-30`, `2026-02-29`, `" 2026-10-29"` | Regex na string inteira + reconstrução UTC dos componentes | os 16 casos inválidos são recusados; 2024-02-29 e 2000-02-29 aceitos |
 | **P1** esquema arbitrário (DROP CASCADE) | aceitava `auth`, `storage`, `pg_catalog`, `information_schema`, `prisma`, arbitrário | Só `^ledger_l1_[0-9a-f]{12,32}$`; `gerarEsquemaDescartavel()` | 18 nomes negativos recusados (criar e DROP); a suíte prova que criou/removeu só o próprio esquema |
 
+## R3 — correção final do auditor de reconciliação (sobre `8be082f2`)
+
+Escopo: só `scripts/ops/auditarLedgerPecuarioLib.mjs`, o teste de contrato e
+estes dois documentos. O motor transacional não foi tocado.
+
+| Defeito | BEFORE (`8be082f2`, medido) | Código afetado | AFTER (medido) |
+|---|---|---|---|
+| **P1** inferência de categoria do movimento | histórica ausente + atual presente + movimento sem categoria: **aplicado**, sem quarentena (ramo `!lote.categoria_manejo_entrada_id \|\| …`) | bloco "Categoria do movimento" da lib: 3 fontes com proveniência (`evento` / `lote_estavel` / `mapeamento`) | não aplicado; quarentena `categoria_do_movimento_nao_comprovavel`; `bloqueada_para_backfill` |
+| **P1** sinal de aptidão | não existia (`apto_para_backfill` ausente) | `apto(...)` por empresa + agregado geral fail-closed; `sem_dados`; `(sem_empresa)` | 150/135: `false`; 1000 A→B conciliado: `true`; quarentena: `false`; lacunas opostas: `false`; self-target sem lacuna: `false` |
+| **P1** quantidade fora de inteiro seguro | `MAX_SAFE_INTEGER + 1` e `2^31` **aceitos** | `inteiroPositivoEstrito` + `QUANTIDADE_MAXIMA_REGISTRO_HISTORICO` (int4) | ambos `null` → quarentena; `2.147.483.647` aceito |
+
+**Novas provas negativas** (14 testes no arquivo de contrato):
+- categoria (a)–(e), mais pureza do dump;
+- `apto_para_backfill` em 6 cenários (inclui empresa só com quarentena,
+  `(sem_empresa)` e dump vazio);
+- limites `int4` / `MAX_SAFE_INTEGER` em entrada, posição e movimento.
+
 ## O que é real × o que é pendente
 
 | Item | Estado |
@@ -45,7 +62,7 @@ integração de frontend.
 | Arquivo / comando | Resultado |
 |---|---|
 | `estoquePecuarioLedgerTransacional.test.mjs` (PostgreSQL 16 real) | 27/27 PASS em 5 execuções seguidas (7,6–8,1 s cada) |
-| `estoquePecuarioLedgerContrato.test.mjs` | 24 PASS + 5 `todo` (PENDING L2, não contados como PASS) |
+| `estoquePecuarioLedgerContrato.test.mjs` | 38 PASS (24 da R2 + 14 da R3) + 5 `todo` (PENDING L2, não contados como PASS) |
 | `npm run verify:all` | PASS, 29/29 etapas, 405 s. `test:backend`: 342 testes, 337 pass, 0 fail, 5 todo (inclui `prisma validate`). `test:smoke`: 918/918. Typecheck backend, gate:types, lint, tenancy e build PASS. |
 
 ## Riscos remanescentes
@@ -59,6 +76,10 @@ integração de frontend.
   reconciliação bloqueia o backfill enquanto existirem.
 - Dados reais nunca foram lidos. Os resultados são de fixtures que reproduzem
   o padrão relatado.
+- R3 é mais restritiva: lotes legados sem `categoria_manejo_entrada_id` terão
+  as transferências em quarentena até existir categoria no evento ou um
+  mapeamento revisado. Isso é intencional: o backfill fica bloqueado.
+- `apto_para_backfill === true` é condição necessária, não suficiente.
 
 ## Próximos passos L2 (após merge da #145; nada automático)
 

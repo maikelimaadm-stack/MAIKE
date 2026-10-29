@@ -211,7 +211,8 @@ ledger_pecuario_posicao  (projeção materializada, reconstruível)
 4. **Rotas.** `POST /estoque-pecuario/entradas|transferencias|estornos` e
    `GET /estoque-pecuario/posicoes`, com `auth_context`, e os códigos abaixo
    registrados no mapa global de erros.
-5. **Backfill.** Só depois da reconciliação revisada (§7), em lote, com
+5. **Backfill.** Só com `apto_para_backfill === true` (§7) **e** a
+   aprovação humana descrita lá. Em lote, com
    `operation_id` determinístico por registro legado, para que reexecutar
    seja replay.
 
@@ -291,18 +292,41 @@ esses códigos para o mapa global e define o status HTTP.
 - lote com categoria de entrada ≠ atual → `mudanca_categoria_nao_suportada`
   (impeditiva).
 
-**Categoria da transferência**, em ordem:
-1. `dados.categoria_manejo_id` do evento;
-2. a do lote, **só se ele nunca mudou** de categoria (entrada = atual);
-3. `mapeamento_categorias` explícito, revisado por gente e devolvido em
-   `categorias_por_mapeamento`;
-4. senão, quarentena `categoria_do_movimento_nao_comprovavel`. O movimento
-   **não** é aplicado e nada é inventado.
+**Categoria da transferência (R3, fail-closed).** Só três fontes contam, e
+cada uso fica registrado em `proveniencia_categoria_movimento`:
+
+1. **`evento`:** `dados.categoria_manejo_id` com forma de ID válida.
+   - Se o lote tem categorias conhecidas (entrada/atual) e o ID do evento não
+     é uma delas: quarentena `categoria_do_movimento_conflitante`.
+   - Forma inválida: quarentena `categoria_do_movimento_invalida`.
+2. **`lote_estavel`:** só para lote de **cadastro** com
+   `categoria_manejo_entrada_id` **presente e igual** à
+   `categoria_manejo_id` atual.
+   - **Ausência do histórico não prova nada:** vai para quarentena.
+   - Lote derivado (MOVIMENTAÇÃO etc.) nunca serve de prova, porque o legado
+     copia a categoria de entrada da origem.
+3. **`mapeamento`:** texto → ID explícito, revisado por gente. Mapeamento com
+   ID malformado: quarentena `mapeamento_categoria_invalido`.
+4. **Sem prova:** quarentena impeditiva
+   `categoria_do_movimento_nao_comprovavel`. O movimento **não** entra na
+   matriz e nenhum nome livre vira ID.
 
 **Quantidades:**
-- inteiro estrito > 0;
-- `10.5`, `""`, `NaN`, negativos, `"12abc"` e `"1e3"` vão para quarentena,
-  sem truncar.
+- inteiro **seguro** estrito, 0 < n ≤ 2.147.483.647 (`int4`, o tipo das
+  colunas de fatos);
+- `10.5`, `""`, `NaN`, negativos, `"12abc"`, `"1e3"`, `2^31` e
+  `MAX_SAFE_INTEGER + 1` vão para quarentena, sem truncar nem converter.
+
+**Dois limites, propositalmente diferentes:**
+- **Comando do ledger:** até 1.000.000 por evento
+  (`QUANTIDADE_MAXIMA_POR_EVENTO`).
+- **Auditoria do legado:** até `int4` por registro
+  (`QUANTIDADE_MAXIMA_REGISTRO_HISTORICO`). Ela ainda enxerga um registro
+  acima de 1.000.000 (que o comando recusaria); acima de `int4` o valor não é
+  representável e vai para quarentena.
+
+**Empresa:** registro sem `empresa_id` vai para quarentena `empresa_ausente`
+e aparece como `(sem_empresa)` em `por_empresa`, nunca apto.
 
 **Tipos de movimento:**
 - só "Transferência de Área" é aplicada;
@@ -320,7 +344,31 @@ esses códigos para o mapa global e define o status HTTP.
 | `bloqueada_para_backfill` | Há item impeditivo |
 
 Diferença zero com item em quarentena **nunca** sai como `conciliada`.
-`por_empresa` traz totais, lacunas e contagem por motivo/tipo.
+`por_empresa` traz totais, lacunas e contagem por motivo/tipo, inclusive para
+empresas que só aparecem em quarentena ou suspeita. Dump vazio sai como
+`sem_dados`.
+
+**`apto_para_backfill` (R3, fail-closed), geral e por empresa:**
+- É `true` **somente** com estado `conciliada`, zero lacunas, zero
+  suspeitas, zero quarentena, empresa identificada e dados presentes.
+- Qualquer outro caso é `false`:
+  - `reconciliacao_parcial` com lacuna (150/135);
+  - diferença total zero com lacunas opostas por área;
+  - self-target sem lacuna;
+  - quarentena;
+  - empresa ausente;
+  - dump vazio.
+- Uma empresa inapta torna o geral `false`.
+
+**Mesmo `apto_para_backfill === true` não autoriza nada sozinho.** É só o
+pré-requisito mínimo para *considerar* um backfill. Depois ainda dependem:
+- revisão humana;
+- backup;
+- migration revisada;
+- ensaios em ambiente descartável;
+- **aprovação escrita do proprietário**.
+
+Nunca executar automaticamente.
 
 **Casos provados (fixtures sintéticas; nada lido do remoto):**
 

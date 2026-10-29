@@ -16,9 +16,12 @@
  *  - Categoria da ENTRADA = categoria HISTÓRICA (`categoria_manejo_entrada_id`),
  *    nunca a atual. Posição observada usa a categoria ATUAL. Lote que mudou de
  *    categoria → suspeita impeditiva (mudança de categoria não suportada).
- *  - Categoria da TRANSFERÊNCIA: `dados.categoria_manejo_id` do evento; senão a
- *    do lote SÓ se ele nunca mudou de categoria; senão `mapeamento_categorias`
- *    explícito (auditável); senão quarentena (não aplica, não inventa).
+ *  - Categoria da TRANSFERÊNCIA (R3, fail-closed): `dados.categoria_manejo_id`
+ *    do evento (forma válida, sem conflito com o lote); senão a do lote de
+ *    cadastro SÓ com histórico presente e igual ao atual; senão
+ *    `mapeamento_categorias` explícito; senão quarentena (não aplica).
+ *  - `apto_para_backfill` (geral e por empresa): true só se conciliada sem
+ *    lacuna/suspeita/quarentena — e mesmo assim não executa nada.
  *  - Quantidades: inteiro estrito > 0 (número inteiro ou string só de dígitos).
  *    `10.5`, `NaN`, vazio, negativo ou lixo → quarentena, nunca truncado.
  *  - Só "Transferência de Área" é aplicada; outros tipos → quarentena impeditiva.
@@ -37,18 +40,29 @@ const STATUS_COM_CARA_DE_ANULACAO = new Set(['CANCELADO', 'CANCELADA', 'EXCLUIDO
 const ehAtivo = (lote) => semAcento(lote?.status || 'ATIVO') === 'ATIVO';
 
 /**
- * Inteiro estrito > 0, sem truncar: 10 e "10" valem; 10.5, "10.5", "", " ",
- * NaN, -3, "1e3", "abc" não.
+ * Teto de quantidade de um REGISTRO histórico na auditoria: o maior inteiro que
+ * cabe em `int4` (Int do Prisma / `integer` das colunas de fatos). O limite por
+ * EVENTO do ledger é menor (`QUANTIDADE_MAXIMA_POR_EVENTO` = 1.000.000, no
+ * contrato); acima dele o comando recusa, mas a auditoria ainda enxerga o
+ * registro legado — e o que passa de int4 nem é representável: quarentena.
+ */
+export const QUANTIDADE_MAXIMA_REGISTRO_HISTORICO = 2_147_483_647;
+const RE_ID_CATEGORIA = /^[A-Za-z0-9_-]{1,64}$/;
+
+/**
+ * Inteiro seguro estrito, 0 < n ≤ int4, sem truncar nem converter: 10 e "10"
+ * valem; 10.5, "10.5", "", " ", NaN, -3, "1e3", "abc", 2^31 e
+ * MAX_SAFE_INTEGER+1 não.
  * @param {unknown} v
  * @returns {number | null}
  */
 export const inteiroPositivoEstrito = (v) => {
-  if (typeof v === 'number') return Number.isInteger(v) && v > 0 ? v : null;
-  if (typeof v === 'string' && /^\d+$/.test(v)) {
-    const n = Number(v);
-    return Number.isSafeInteger(n) && n > 0 ? n : null;
-  }
-  return null;
+  /** @type {number} */
+  let n;
+  if (typeof v === 'number') n = v;
+  else if (typeof v === 'string' && /^\d{1,10}$/.test(v)) n = Number(v);
+  else return null;
+  return Number.isSafeInteger(n) && n > 0 && n <= QUANTIDADE_MAXIMA_REGISTRO_HISTORICO ? n : null;
 };
 
 /**
@@ -97,13 +111,18 @@ export const auditarLedgerPecuario = (dump, opcoes = {}) => {
   const quarentena = [];
   /** @type {Array<Record<string, unknown>>} */
   const lotesGerados = [];
-  /** @type {Array<Record<string, unknown>>} */
-  const categoriasPorMapeamento = [];
+  /** @type {Array<{ movimentacao: string | null, fonte: 'evento' | 'lote_estavel' | 'mapeamento', categoria: string, texto?: string }>} */
+  const proveniencia = [];
   const suspeitar = (empresa, tipo, impeditiva, extra = {}) => suspeitas.push({ tipo, empresa, impeditiva, ...extra });
   const quarentenar = (empresa, motivo, impeditiva, extra = {}) => quarentena.push({ motivo, empresa, impeditiva, ...extra });
 
   for (const lote of lotes) {
     const empresa = rot(lote.empresa_id);
+    if (!empresa) {
+      // Sem empresa não há linha onde contar: nunca vira sucesso silencioso.
+      quarentenar(null, 'empresa_ausente', true, { lote: rot(lote.id) });
+      continue;
+    }
     const classe = classificarOrigemLote(lote.origem);
     const ehEntrada = classe === 'cadastro' || classe === 'nascimento';
 
@@ -151,6 +170,10 @@ export const auditarLedgerPecuario = (dump, opcoes = {}) => {
     const d = mov?.dados && typeof mov.dados === 'object' ? mov.dados : {};
     const lote = lotePorId.get(d.lote_id);
     const empresa = rot(mov.empresa_id ?? lote?.empresa_id);
+    if (!empresa) {
+      quarentenar(null, 'empresa_ausente', true, { movimentacao: rot(mov.id) });
+      continue;
+    }
     if (semAcento(d.tipo) !== 'TRANSFERENCIA DE AREA') {
       quarentenar(empresa, 'tipo_nao_aplicado', true, { tipo: d.tipo ?? null, movimentacao: rot(mov.id) });
       continue;
@@ -169,33 +192,49 @@ export const auditarLedgerPecuario = (dump, opcoes = {}) => {
       continue; // neutra no saldo; revisão manual
     }
 
-    // Categoria do movimento: nunca inferida do estado atual se ele mudou.
+    // Categoria do movimento (R3, fail-closed). Só três fontes contam:
+    //  1. `evento`: `dados.categoria_manejo_id` com forma de ID válida e sem
+    //     conflito com as categorias conhecidas do lote;
+    //  2. `lote_estavel`: lote de CADASTRO com `categoria_manejo_entrada_id`
+    //     presente E igual à `categoria_manejo_id` atual (prova de que não
+    //     mudou). Ausência do histórico NÃO prova nada — vai para quarentena;
+    //     lote derivado (MOVIMENTAÇÃO etc.) nunca serve de prova;
+    //  3. `mapeamento`: texto → ID explícito, revisado por gente.
+    // Sem prova: quarentena impeditiva e o movimento NÃO entra na matriz.
     /** @type {string | null} */
     let catMov = null;
-    if (typeof d.categoria_manejo_id === 'string' && d.categoria_manejo_id.trim()) {
-      catMov = `cm:${d.categoria_manejo_id.trim()}`;
-    } else if (lote && lote.categoria_manejo_id && (!lote.categoria_manejo_entrada_id || lote.categoria_manejo_entrada_id === lote.categoria_manejo_id)) {
-      catMov = `cm:${lote.categoria_manejo_id}`;
-    } else if (lote && !lote.categoria_manejo_id && !lote.categoria_manejo_entrada_id) {
-      const t = semAcento(lote.categoria ?? d.categoria_animal);
-      if (t && mapeamento[t]) {
-        catMov = `cm:${mapeamento[t]}`;
-        categoriasPorMapeamento.push({ movimentacao: rot(mov.id), texto: t });
-      } else if (t) {
-        catMov = `texto:${t}`;
-        suspeitar(empresa, 'categoria_somente_texto', true, { movimentacao: rot(mov.id), onde: 'transferencia' });
-      } else {
-        catMov = CATEGORIA_SEM;
+    /** @type {null | { motivo: string }} */
+    let recusa = null;
+    const idEvento = typeof d.categoria_manejo_id === 'string' ? d.categoria_manejo_id.trim() : '';
+    if (idEvento) {
+      const conhecidas = new Set([lote?.categoria_manejo_entrada_id, lote?.categoria_manejo_id].filter((x) => typeof x === 'string' && x.trim()));
+      if (!RE_ID_CATEGORIA.test(idEvento)) recusa = { motivo: 'categoria_do_movimento_invalida' };
+      else if (conhecidas.size > 0 && !conhecidas.has(idEvento)) recusa = { motivo: 'categoria_do_movimento_conflitante' };
+      else {
+        catMov = `cm:${idEvento}`;
+        proveniencia.push({ movimentacao: rot(mov.id), fonte: 'evento', categoria: catMov });
       }
-    } else if (!lote) {
-      const t = semAcento(d.categoria_animal);
-      if (t && mapeamento[t]) {
-        catMov = `cm:${mapeamento[t]}`;
-        categoriasPorMapeamento.push({ movimentacao: rot(mov.id), texto: t });
+    } else if (
+      lote &&
+      classificarOrigemLote(lote.origem) === 'cadastro' &&
+      typeof lote.categoria_manejo_entrada_id === 'string' &&
+      lote.categoria_manejo_entrada_id.trim() &&
+      lote.categoria_manejo_entrada_id === lote.categoria_manejo_id
+    ) {
+      catMov = `cm:${lote.categoria_manejo_id}`;
+      proveniencia.push({ movimentacao: rot(mov.id), fonte: 'lote_estavel', categoria: catMov });
+    } else {
+      const t = semAcento(d.categoria_animal ?? (lote && !lote.categoria_manejo_id && !lote.categoria_manejo_entrada_id ? lote.categoria : null));
+      const mapeado = t ? mapeamento[t] : undefined;
+      if (mapeado !== undefined && !(typeof mapeado === 'string' && RE_ID_CATEGORIA.test(mapeado))) {
+        recusa = { motivo: 'mapeamento_categoria_invalido' };
+      } else if (mapeado) {
+        catMov = `cm:${mapeado}`;
+        proveniencia.push({ movimentacao: rot(mov.id), fonte: 'mapeamento', categoria: catMov, texto: t });
       }
     }
     if (catMov === null) {
-      quarentenar(empresa, 'categoria_do_movimento_nao_comprovavel', true, { movimentacao: rot(mov.id), lote: rot(d.lote_id) });
+      quarentenar(empresa, recusa?.motivo ?? 'categoria_do_movimento_nao_comprovavel', true, { movimentacao: rot(mov.id), lote: rot(d.lote_id) });
       continue;
     }
 
@@ -225,7 +264,19 @@ export const auditarLedgerPecuario = (dump, opcoes = {}) => {
     itens.some((i) => i.impeditiva) ? 'bloqueada_para_backfill' : lacunas > 0 || itens.length > 0 ? 'reconciliacao_parcial' : 'conciliada';
   const contar = (lista, campo) => lista.reduce((m, i) => ({ ...m, [String(i[campo])]: (m[String(i[campo])] ?? 0) + 1 }), /** @type {Record<string, number>} */ ({}));
 
-  const empresas = [...new Set([...matriz.map((l) => l.empresa), ...quarentena.map((q) => q.empresa), ...suspeitas.map((s) => s.empresa)])].sort();
+  // Toda empresa citada em matriz, quarentena OU suspeita entra (inclusive a
+  // "sem empresa"): nenhuma linha órfã sai como sucesso.
+  const empresas = [...new Set([...matriz.map((l) => l.empresa), ...quarentena.map((q) => q.empresa), ...suspeitas.map((s) => s.empresa)])].sort((a, b) =>
+    String(a ?? '').localeCompare(String(b ?? ''))
+  );
+  /**
+   * Aptidão para backfill — FAIL-CLOSED: true só com estado `conciliada`, zero
+   * lacunas, zero suspeitas, zero quarentena, empresa identificada e dados
+   * presentes. Mesmo `true` não executa nada: é só o pré-requisito mínimo
+   * para uma revisão humana (contrato §5).
+   */
+  const apto = ({ empresa, estado, lacunas, qs, ss, linhasMatriz }) =>
+    empresa !== null && estado === 'conciliada' && lacunas === 0 && qs === 0 && ss === 0 && linhasMatriz > 0;
   const porEmpresa = empresas.map((empresa) => {
     const m = matriz.filter((l) => l.empresa === empresa);
     const qs = quarentena.filter((q) => q.empresa === empresa);
@@ -233,9 +284,11 @@ export const auditarLedgerPecuario = (dump, opcoes = {}) => {
     const lacunas = m.filter((l) => l.lacuna !== 0).length;
     const totalEntradas = m.reduce((t, l) => t + l.entradas, 0);
     const totalObservado = m.reduce((t, l) => t + l.observada, 0);
+    const estado = estadoDe(lacunas, [...qs, ...ss]);
     return {
-      empresa,
-      estado: estadoDe(lacunas, [...qs, ...ss]),
+      empresa: empresa ?? '(sem_empresa)',
+      estado,
+      apto_para_backfill: apto({ empresa, estado, lacunas, qs: qs.length, ss: ss.length, linhasMatriz: m.length }),
       total_entradas: totalEntradas,
       total_observado: totalObservado,
       diferenca_total: totalObservado - totalEntradas,
@@ -248,9 +301,12 @@ export const auditarLedgerPecuario = (dump, opcoes = {}) => {
   const totalEntradas = matriz.reduce((t, l) => t + l.entradas, 0);
   const totalObservado = matriz.reduce((t, l) => t + l.observada, 0);
   const lacunasTotais = matriz.filter((l) => l.lacuna !== 0).length;
+  const estadoGeral = lotes.length === 0 ? 'sem_dados' : estadoDe(lacunasTotais, [...quarentena, ...suspeitas]);
   return {
     modo: 'somente-leitura',
-    estado: estadoDe(lacunasTotais, [...quarentena, ...suspeitas]),
+    estado: estadoGeral,
+    apto_para_backfill:
+      estadoGeral === 'conciliada' && porEmpresa.length > 0 && porEmpresa.every((e) => e.apto_para_backfill) && lacunasTotais === 0 && quarentena.length === 0 && suspeitas.length === 0,
     resumo: {
       lotes: lotes.length,
       movimentacoes: movs.length,
@@ -268,6 +324,7 @@ export const auditarLedgerPecuario = (dump, opcoes = {}) => {
     suspeitas,
     quarentena,
     lotes_gerados_pelo_legado: lotesGerados,
-    categorias_por_mapeamento: categoriasPorMapeamento,
+    proveniencia_categoria_movimento: proveniencia,
+    categorias_por_mapeamento: proveniencia.filter((p) => p.fonte === 'mapeamento').map((p) => ({ movimentacao: p.movimentacao, texto: p.texto })),
   };
 };

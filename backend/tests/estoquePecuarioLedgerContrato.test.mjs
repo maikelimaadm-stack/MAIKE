@@ -26,7 +26,7 @@ import {
 } from '../src/modules/estoquePecuarioLedger/ledgerPecuarioContrato.js';
 import { esquemaSeguro, gerarEsquemaDescartavel, ddlRemoverLedgerPecuario } from '../src/modules/estoquePecuarioLedger/ledgerPecuarioDdl.js';
 import { CODIGOS_LEDGER_PECUARIO as C, LedgerPecuarioError, ehErroLedger } from '../src/modules/estoquePecuarioLedger/ledgerPecuarioErros.js';
-import { auditarLedgerPecuario, inteiroPositivoEstrito } from '../../scripts/ops/auditarLedgerPecuarioLib.mjs';
+import { QUANTIDADE_MAXIMA_REGISTRO_HISTORICO, auditarLedgerPecuario, inteiroPositivoEstrito } from '../../scripts/ops/auditarLedgerPecuarioLib.mjs';
 
 const erroCom = (codigo) => (e) => ehErroLedger(e, codigo);
 const base = { empresa_id: 'emp1', categoria_manejo_id: 'boi', data_operacional: '2026-10-29' };
@@ -291,6 +291,159 @@ describe('reconciliação read-only do legado (dry-run)', () => {
     const r = auditarLedgerPecuario(casoReal);
     assert.ok(r.matriz.every((l) => /^#[0-9a-f]{10}$/.test(l.area)));
     assert.ok(!JSON.stringify(r).includes('"L2"'));
+  });
+});
+
+describe('R3 — categoria do movimento só com prova (fail-closed)', () => {
+  const lote = (o) => ({ id: 'L', empresa_id: 'E', origem: 'Compra', status: 'Ativo', categoria: 'BOI', quantidade_entrada: 10, quantidade_cabecas: 10, area_entrada_id: 'A', area_atual_id: 'B', ...o });
+  const mov = (dados = {}) => ({ id: 'M', empresa_id: 'E', dados: { tipo: 'Transferência de Área', lote_id: 'L', quantidade_animais: 10, area_origem_id: 'A', area_destino_id: 'B', ...dados } });
+  const aplicado = (r) => r.matriz.some((l) => l.transf_out > 0 || l.transf_in > 0);
+  const motivos = (r) => r.quarentena.map((q) => q.motivo);
+
+  test('(a) histórica AUSENTE + atual presente + movimento sem categoria → bloqueado, não aplicado', () => {
+    const r = auditarLedgerPecuario({ lotes: [lote({ categoria_manejo_id: 'boi', categoria_manejo_entrada_id: null })], movimentacoes_mapa: [mov()] }, { mostrarIds: true });
+    assert.equal(aplicado(r), false);
+    assert.ok(motivos(r).includes('categoria_do_movimento_nao_comprovavel'));
+    assert.equal(r.estado, 'bloqueada_para_backfill');
+    assert.equal(r.apto_para_backfill, false);
+  });
+
+  test('(b) histórica PRESENTE e igual à atual (lote de cadastro) → infere, com proveniência lote_estavel', () => {
+    const r = auditarLedgerPecuario({ lotes: [lote({ categoria_manejo_id: 'boi', categoria_manejo_entrada_id: 'boi' })], movimentacoes_mapa: [mov()] }, { mostrarIds: true });
+    assert.equal(aplicado(r), true);
+    assert.deepEqual(r.proveniencia_categoria_movimento, [{ movimentacao: 'M', fonte: 'lote_estavel', categoria: 'cm:boi' }]);
+    assert.equal(r.quarentena.length, 0);
+  });
+
+  test('(c) histórica DIFERENTE da atual → quarentena (e mudança de categoria impeditiva)', () => {
+    const r = auditarLedgerPecuario({ lotes: [lote({ categoria_manejo_id: 'garrote', categoria_manejo_entrada_id: 'bezerro' })], movimentacoes_mapa: [mov()] }, { mostrarIds: true });
+    assert.equal(aplicado(r), false);
+    assert.ok(motivos(r).includes('categoria_do_movimento_nao_comprovavel'));
+    assert.ok(r.suspeitas.some((x) => x.tipo === 'mudanca_categoria_nao_suportada'));
+  });
+
+  test('(d) categoria explícita no evento: forma válida e sem conflito → evento; inválida/conflitante → quarentena; mapeamento só explícito', () => {
+    const base = lote({ categoria_manejo_id: 'garrote', categoria_manejo_entrada_id: 'bezerro' });
+    const ok = auditarLedgerPecuario({ lotes: [base], movimentacoes_mapa: [mov({ categoria_manejo_id: 'bezerro' })] }, { mostrarIds: true });
+    assert.deepEqual(ok.proveniencia_categoria_movimento, [{ movimentacao: 'M', fonte: 'evento', categoria: 'cm:bezerro' }]);
+    assert.equal(aplicado(ok), true);
+    const conflito = auditarLedgerPecuario({ lotes: [base], movimentacoes_mapa: [mov({ categoria_manejo_id: 'vaca' })] }, { mostrarIds: true });
+    assert.equal(aplicado(conflito), false);
+    assert.ok(motivos(conflito).includes('categoria_do_movimento_conflitante'));
+    const invalida = auditarLedgerPecuario({ lotes: [base], movimentacoes_mapa: [mov({ categoria_manejo_id: 'BOI GORDO' })] }, { mostrarIds: true });
+    assert.ok(motivos(invalida).includes('categoria_do_movimento_invalida'));
+    // nome livre nunca vira ID sem mapeamento revisado
+    const semMapa = auditarLedgerPecuario({ lotes: [], movimentacoes_mapa: [mov({ lote_id: 'X', categoria_animal: 'BOI' })] }, { mostrarIds: true });
+    assert.ok(motivos(semMapa).includes('categoria_do_movimento_nao_comprovavel'));
+    const comMapa = auditarLedgerPecuario({ lotes: [], movimentacoes_mapa: [mov({ lote_id: 'X', categoria_animal: 'BOI' })], mapeamento_categorias: { BOI: 'boi' } }, { mostrarIds: true });
+    assert.deepEqual(comMapa.proveniencia_categoria_movimento, [{ movimentacao: 'M', fonte: 'mapeamento', categoria: 'cm:boi', texto: 'BOI' }]);
+    const mapaRuim = auditarLedgerPecuario({ lotes: [], movimentacoes_mapa: [mov({ lote_id: 'X', categoria_animal: 'BOI' })], mapeamento_categorias: { BOI: 'BOI GORDO' } }, { mostrarIds: true });
+    assert.ok(motivos(mapaRuim).includes('mapeamento_categoria_invalido'));
+  });
+
+  test('(e) lote gerado por MOVIMENTAÇÃO nunca serve de prova de categoria (mesmo com histórico = atual)', () => {
+    const r = auditarLedgerPecuario({ lotes: [lote({ origem: 'MOVIMENTAÇÃO', categoria_manejo_id: 'boi', categoria_manejo_entrada_id: 'boi' })], movimentacoes_mapa: [mov()] }, { mostrarIds: true });
+    assert.equal(aplicado(r), false);
+    assert.ok(motivos(r).includes('categoria_do_movimento_nao_comprovavel'));
+  });
+
+  test('auditoria continua pura: não altera o dump (campos históricos do lote intactos)', () => {
+    const dump = { lotes: [lote({ categoria_manejo_id: 'boi', categoria_manejo_entrada_id: null })], movimentacoes_mapa: [mov()] };
+    const copia = structuredClone(dump);
+    auditarLedgerPecuario(dump, { mostrarIds: true });
+    assert.deepEqual(dump, copia);
+  });
+});
+
+describe('R3 — apto_para_backfill (fail-closed)', () => {
+  const lote = (o) => ({ empresa_id: 'E', origem: 'Compra', status: 'Ativo', categoria: 'BOI', categoria_manejo_id: 'boi', categoria_manejo_entrada_id: 'boi', ...o });
+  const transf = (id, o) => ({ id, empresa_id: 'E', dados: { tipo: 'Transferência de Área', ...o } });
+
+  test('1000 A→B integralmente conciliado → apto=true (geral e por empresa)', () => {
+    const r = auditarLedgerPecuario({
+      lotes: [
+        lote({ id: 'L', status: 'Inativo', quantidade_entrada: 1000, quantidade_cabecas: 0, area_entrada_id: 'A', area_atual_id: 'A' }),
+        lote({ id: 'G', origem: 'MOVIMENTAÇÃO', quantidade_entrada: 1000, quantidade_cabecas: 1000, area_entrada_id: 'B', area_atual_id: 'B' }),
+      ],
+      movimentacoes_mapa: [transf('M', { lote_id: 'L', quantidade_animais: 1000, area_origem_id: 'A', area_destino_id: 'B' })],
+    }, { mostrarIds: true });
+    assert.equal(r.estado, 'conciliada');
+    assert.equal(r.apto_para_backfill, true);
+    assert.deepEqual(r.por_empresa.map((e) => [e.empresa, e.estado, e.apto_para_backfill]), [['E', 'conciliada', true]]);
+  });
+
+  test('150/135 + self-target de 15 → reconciliacao_parcial e apto=false', () => {
+    const r = auditarLedgerPecuario({
+      lotes: [lote({ id: 'L1', quantidade_entrada: 150, quantidade_cabecas: 135, area_entrada_id: 'X', area_atual_id: 'X' })],
+      movimentacoes_mapa: [transf('M1', { lote_id: 'L1', quantidade_animais: 15, area_origem_id: 'X', area_destino_id: 'X' })],
+    }, { mostrarIds: true });
+    assert.equal(r.estado, 'reconciliacao_parcial');
+    assert.equal(r.apto_para_backfill, false);
+    assert.equal(r.por_empresa[0].apto_para_backfill, false);
+  });
+
+  test('quarentena impeditiva → apto=false', () => {
+    const r = auditarLedgerPecuario({ lotes: [lote({ id: 'N', origem: 'Nascimento', quantidade_entrada: 3, quantidade_cabecas: 3, area_entrada_id: 'A', area_atual_id: 'A' })], movimentacoes_mapa: [] }, { mostrarIds: true });
+    assert.equal(r.estado, 'bloqueada_para_backfill');
+    assert.equal(r.apto_para_backfill, false);
+  });
+
+  test('diferença TOTAL zero com duas lacunas opostas por área → apto=false', () => {
+    const r = auditarLedgerPecuario({ lotes: [lote({ id: 'L', quantidade_entrada: 10, quantidade_cabecas: 10, area_entrada_id: 'A', area_atual_id: 'B' })], movimentacoes_mapa: [] }, { mostrarIds: true });
+    assert.equal(r.resumo.diferenca_total, 0);
+    assert.equal(r.resumo.linhas_com_lacuna, 2);
+    assert.equal(r.apto_para_backfill, false);
+  });
+
+  test('self-target SEM lacuna (só suspeita) → apto=false', () => {
+    const r = auditarLedgerPecuario({
+      lotes: [lote({ id: 'L', quantidade_entrada: 20, quantidade_cabecas: 20, area_entrada_id: 'A', area_atual_id: 'A' })],
+      movimentacoes_mapa: [transf('M', { lote_id: 'L', quantidade_animais: 5, area_origem_id: 'A', area_destino_id: 'A' })],
+    }, { mostrarIds: true });
+    assert.equal(r.resumo.linhas_com_lacuna, 0);
+    assert.equal(r.apto_para_backfill, false);
+  });
+
+  test('empresa só com quarentena/suspeita aparece em por_empresa e não é apta; sem empresa → (sem_empresa); dump vazio → sem_dados', () => {
+    const r = auditarLedgerPecuario({
+      lotes: [
+        lote({ id: 'OK', quantidade_entrada: 5, quantidade_cabecas: 5, area_entrada_id: 'A', area_atual_id: 'A' }),
+        lote({ id: 'Q', empresa_id: 'F', quantidade_entrada: '1.5', quantidade_cabecas: 0, area_entrada_id: 'A', area_atual_id: 'A' }),
+        lote({ id: 'S', empresa_id: null, quantidade_entrada: 4, quantidade_cabecas: 4, area_entrada_id: 'A', area_atual_id: 'A' }),
+      ],
+      movimentacoes_mapa: [],
+    }, { mostrarIds: true });
+    const por = Object.fromEntries(r.por_empresa.map((e) => [e.empresa, e]));
+    assert.equal(por.E.apto_para_backfill, true);
+    assert.equal(por.F.apto_para_backfill, false);
+    assert.equal(por.F.estado, 'bloqueada_para_backfill');
+    assert.equal(por['(sem_empresa)'].apto_para_backfill, false);
+    assert.equal(r.apto_para_backfill, false, 'uma empresa inapta derruba o geral');
+    const vazio = auditarLedgerPecuario({ lotes: [], movimentacoes_mapa: [] });
+    assert.equal(vazio.estado, 'sem_dados');
+    assert.equal(vazio.apto_para_backfill, false);
+  });
+});
+
+describe('R3 — quantidades: inteiro seguro até int4, sem truncar', () => {
+  test('limites', () => {
+    assert.equal(QUANTIDADE_MAXIMA_REGISTRO_HISTORICO, 2_147_483_647);
+    assert.equal(inteiroPositivoEstrito(2_147_483_647), 2_147_483_647, 'limite int4 válido');
+    assert.equal(inteiroPositivoEstrito('2147483647'), 2_147_483_647);
+    for (const v of [2_147_483_648, '2147483648', Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER + 1, '9007199254740993', 1e300, '99999999999']) {
+      assert.equal(inteiroPositivoEstrito(v), null, String(v));
+    }
+  });
+
+  test('quantidade acima de int4 vai para quarentena (entrada e movimento), nunca para a matriz', () => {
+    const r = auditarLedgerPecuario({
+      lotes: [{ id: 'L', empresa_id: 'E', origem: 'Compra', status: 'Ativo', categoria_manejo_id: 'b', categoria_manejo_entrada_id: 'b', quantidade_entrada: Number.MAX_SAFE_INTEGER + 1, quantidade_cabecas: 2 ** 31, area_entrada_id: 'A', area_atual_id: 'A' }],
+      movimentacoes_mapa: [{ id: 'M', empresa_id: 'E', dados: { tipo: 'Transferência de Área', lote_id: 'L', quantidade_animais: 2 ** 31, area_origem_id: 'A', area_destino_id: 'B' } }],
+    }, { mostrarIds: true });
+    const m = r.quarentena.map((q) => q.motivo);
+    for (const x of ['quantidade_entrada_invalida', 'quantidade_cabecas_invalida', 'quantidade_movimento_invalida']) assert.ok(m.includes(x), x);
+    assert.equal(r.matriz.length, 0);
+    assert.equal(r.apto_para_backfill, false);
   });
 });
 
