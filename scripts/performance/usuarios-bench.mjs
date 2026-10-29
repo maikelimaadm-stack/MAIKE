@@ -5,8 +5,12 @@
  * Só roda contra PostgreSQL comprovadamente local e descartável:
  *   PERF_TEST_LOCAL=sim
  *   DATABASE_URL=postgresql://…@localhost|127.0.0.1|::1/<banco com "perf" ou "test" no nome>
- * Qualquer outro host (Supabase, Vercel, pooler, IP remoto), NODE_ENV=production
- * ou ausência do opt-in → falha dura, sem tocar no banco.
+ * Qualquer outro host (Supabase, Vercel, pooler, IP remoto), NODE_ENV=production,
+ * ausência do opt-in, ou QUALQUER alias de conexão (POSTGRES_PRISMA_URL,
+ * POSTGRES_URL, MIGRATION_DATABASE_URL, DIRECT_URL…) diferente de DATABASE_URL —
+ * inclusive vindo do `.env` — → falha dura ANTES de importar Prisma
+ * (ver benchGuard.mjs). Depois de conectar, confere `current_database()`,
+ * `inet_server_addr()` e ausência de roles Supabase antes de mutar.
  *
  * O que faz, por tamanho de dataset (default 1000,10000,100000 usuários num
  * único tenant sintético `perf-scale01-*`):
@@ -17,7 +21,8 @@
  *      (fetch + keep-alive): p50/p95/p99, throughput, erros, payload, nas
  *      concorrências PERF_CONCORRENCIAS (default 10,50,100);
  *   4. repete 2–3 SEM o índice `Usuario_cliente_id_createdAt_id_idx`
- *      (DROP/CREATE só neste banco local) para o comparativo antes/depois.
+ *      (DROP/CREATE só neste banco local) para o comparativo antes/depois;
+ *      ao final o índice volta ao estado de ORIGEM (presente ou ausente).
  * Limpeza: remove apenas os tenants `perf-scale01-*` que ele mesmo criou.
  *
  * Saída: JSON em PERF_SAIDA (default stdout) + resumo legível no stderr.
@@ -30,30 +35,32 @@ const falhar = (msg) => {
   console.error(`usuarios-bench: RECUSADO — ${msg}`);
   process.exit(2);
 };
+/** Marcadores de fase para os testes de recusa (nunca contém URL/segredo). */
+const rastro = (marca) => {
+  if (process.env.PERF_GUARD_TRACE === '1') console.error(`usuarios-bench: TRACE ${marca}`);
+};
 
 // ---------------------------------------------------------------- guardrails
-if (process.env.PERF_TEST_LOCAL !== 'sim') falhar('defina PERF_TEST_LOCAL=sim (opt-in explícito).');
-if (process.env.NODE_ENV === 'production') falhar('NODE_ENV=production.');
-const urlBruta = process.env.DATABASE_URL || '';
-let url;
-try {
-  url = new URL(urlBruta);
-} catch {
-  falhar('DATABASE_URL ausente ou inválida.');
-}
-const HOSTS_LOCAIS = new Set(['localhost', '127.0.0.1', '[::1]', '::1']);
-if (!['postgresql:', 'postgres:'].includes(url.protocol)) falhar('DATABASE_URL não é PostgreSQL.');
-if (!HOSTS_LOCAIS.has(url.hostname)) falhar(`host "${url.hostname}" não é local.`);
-if (/supabase|vercel|pooler|neon|rds|amazonaws/i.test(urlBruta)) falhar('URL com provedor remoto.');
-if (url.port === '6543') falhar('porta 6543 (pooler) recusada.');
-const banco = url.pathname.replace(/^\//, '');
-if (!/perf|test/i.test(banco)) falhar(`banco "${banco}" não tem "perf"/"test" no nome.`);
-for (const v of ['MIGRATION_DATABASE_URL', 'DIRECT_URL']) {
-  const outro = process.env[v];
-  if (outro && outro !== urlBruta) falhar(`${v} difere de DATABASE_URL — ambiente ambíguo.`);
-}
+// 1) Carrega o `.env` exatamente como o backend fará (dotenv não sobrescreve
+//    variáveis já definidas) — assim um POSTGRES_PRISMA_URL vindo do `.env`
+//    também passa pela validação. 2) Valida o ambiente resultante com a mesma
+//    precedência de URL do backend. Nada de banco foi importado até aqui.
+const { config: carregarDotenv } = await import('dotenv');
+carregarDotenv({ quiet: true });
+const { validarAmbienteBench, validarIdentidadeConexao, descreverUrl } = await import('./benchGuard.mjs');
+const guard = validarAmbienteBench(process.env);
+if (!guard.ok) falhar(guard.motivo);
+const banco = guard.banco;
+rastro('ENV_OK');
+
 process.env.AUTH_SECRET ||= 'perf-local-efemero';
 process.env.FRONTEND_ORIGINS ||= 'http://localhost:5173';
+
+// 3) A configuração que o backend REALMENTE vai usar precisa ser a aprovada.
+const { env: envBackend } = await import('../../backend/src/config/env.js');
+if (envBackend.databaseUrl !== guard.url) falhar('env.databaseUrl do backend difere da URL aprovada.');
+if (envBackend.nodeEnv === 'production') falhar('env.nodeEnv do backend é production.');
+rastro('BACKEND_ENV_OK');
 
 // ---------------------------------------------------------------- parâmetros
 const lista = (v, d) => (v || d).split(',').map((x) => Number(x.trim())).filter((n) => n > 0);
@@ -64,12 +71,30 @@ const LEGADO_ATE = Number(process.env.PERF_LEGADO_ATE || 100000);
 const PREFIXO = 'perf-scale01-';
 const INDICE = 'Usuario_cliente_id_createdAt_id_idx';
 
+rastro('IMPORT_PRISMA');
 const { getPrismaClient, closePrismaClient } = await import('../../backend/src/database/prismaClient.js');
 const { construirApp } = await import('../../backend/src/app.js');
 const { gerarSenhaHash } = await import('../../backend/src/modules/auth/authService.js');
 const { codificarCursor } = await import('../../backend/src/shared/pagination/keysetCursor.js');
 
 const prisma = getPrismaClient();
+
+// 4) Identidade da conexão aberta, antes de QUALQUER mutação.
+{
+  const [id] = /** @type {any[]} */ (
+    await prisma.$queryRawUnsafe(
+      `SELECT current_database() AS banco, inet_server_addr()::text AS servidor,
+              (SELECT count(*)::int FROM pg_roles WHERE rolname IN ('supabase_admin','authenticator','supabase_auth_admin')) AS "rolesSupabase"`
+    )
+  );
+  const ok = validarIdentidadeConexao(id, banco);
+  if (!ok.ok) {
+    await closePrismaClient();
+    falhar(`identidade da conexão: ${ok.motivo}`);
+  }
+  console.error(`usuarios-bench: conectado em ${descreverUrl(guard.url)} (servidor ${id.servidor ?? 'socket unix'})`);
+  rastro('IDENTIDADE_OK');
+}
 const percentil = (ordenado, p) =>
   ordenado.length ? ordenado[Math.min(ordenado.length - 1, Math.ceil((p / 100) * ordenado.length) - 1)] : null;
 const r2 = (n) => (n == null ? null : Math.round(n * 100) / 100);
@@ -207,14 +232,41 @@ const resultado = {
     node: process.version,
     postgres: /** @type {any} */ (await prisma.$queryRawUnsafe('SHOW server_version'))[0].server_version,
     banco,
-    host: url.hostname,
+    host: guard.host,
     tipoMedicao: 'HTTP real (Fastify em 127.0.0.1, fetch keep-alive) + EXPLAIN ANALYZE local',
   },
   parametros: { TAMANHOS, CONCORRENCIAS, REQS_POR_NIVEL, LEGADO_ATE },
   datasets: [],
 };
 
+// Estado do índice é restaurado ao original em sucesso, exceção ou sinal.
+// Risco residual: SIGKILL/queda de energia entre DROP e CREATE deixa o banco
+// local sem o índice; a próxima execução avisa e o comando de recuperação é
+// impresso abaixo (banco descartável — nunca produção).
+const CRIAR_INDICE = `CREATE INDEX IF NOT EXISTS "${INDICE}" ON "Usuario" (cliente_id, "createdAt", id)`;
 const indiceNaOrigem = await indiceExiste();
+console.error(`usuarios-bench: índice ${INDICE} na origem: ${indiceNaOrigem ? 'presente' : 'ausente'} (recuperação: ${CRIAR_INDICE})`);
+const restaurarIndice = async () => {
+  const agora = await indiceExiste();
+  if (indiceNaOrigem && !agora) await prisma.$executeRawUnsafe(CRIAR_INDICE);
+  if (!indiceNaOrigem && agora) await prisma.$executeRawUnsafe(`DROP INDEX IF EXISTS "${INDICE}"`);
+  return (await indiceExiste()) === indiceNaOrigem;
+};
+let encerrando = false;
+for (const sinal of ['SIGINT', 'SIGTERM']) {
+  process.on(sinal, async () => {
+    if (encerrando) return;
+    encerrando = true;
+    console.error(`usuarios-bench: ${sinal} — restaurando índice e limpando dados perf…`);
+    try {
+      await restaurarIndice();
+      await limparPerf();
+    } finally {
+      await closePrismaClient();
+      process.exit(130);
+    }
+  });
+}
 const app = await construirApp({ logger: false });
 await app.listen({ host: '127.0.0.1', port: 0 });
 const base = `http://127.0.0.1:${/** @type {any} */ (app.server.address()).port}`;
@@ -261,14 +313,13 @@ try {
     };
 
     const ds = { usuarios: n + 1, seedMs: r2(s.seedMs), fases: [] };
-    if (!(await indiceExiste())) {
-      await prisma.$executeRawUnsafe(`CREATE INDEX "${INDICE}" ON "Usuario" (cliente_id, "createdAt", id)`);
-    }
+    await prisma.$executeRawUnsafe(CRIAR_INDICE);
+    await prisma.$executeRawUnsafe('ANALYZE "Usuario"');
     ds.fases.push(await fase('com_indice'));
     await prisma.$executeRawUnsafe(`DROP INDEX IF EXISTS "${INDICE}"`);
     await prisma.$executeRawUnsafe('ANALYZE "Usuario"');
     ds.fases.push(await fase('sem_indice'));
-    await prisma.$executeRawUnsafe(`CREATE INDEX "${INDICE}" ON "Usuario" (cliente_id, "createdAt", id)`);
+    await prisma.$executeRawUnsafe(CRIAR_INDICE);
     await prisma.$executeRawUnsafe('ANALYZE "Usuario"');
 
     // Baseline da tela antiga: GET /usuarios devolve o tenant inteiro.
@@ -296,9 +347,9 @@ try {
   }
 } finally {
   await app.close();
-  if (indiceNaOrigem && !(await indiceExiste())) {
-    await prisma.$executeRawUnsafe(`CREATE INDEX "${INDICE}" ON "Usuario" (cliente_id, "createdAt", id)`);
-  }
+  const restaurado = await restaurarIndice();
+  resultado.indice = { origem: indiceNaOrigem ? 'presente' : 'ausente', restaurado };
+  console.error(`usuarios-bench: índice restaurado ao estado de origem: ${restaurado}`);
   await limparPerf();
   await closePrismaClient();
 }

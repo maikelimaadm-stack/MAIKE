@@ -1,7 +1,7 @@
 # MAIKE-SCALE-01 — Usuários paginados + benchmark local isolado
 
 **Data:** 29/10/2026 · **Branch:** `claude/new-session-abgn5w` · **Base:** `main` `e8540e7d` (pós-merge #139)
-**Missão:** `MAIKE-SCALE-01-USUARIOS-PAGINACAO-E-BENCHMARK-ISOLADO` · **PR:** não criada (decisão do proprietário)
+**Missão:** `MAIKE-SCALE-01-USUARIOS-PAGINACAO-E-BENCHMARK-ISOLADO` (+ R2 `MAIKE-SCALE-01-R2-BENCH-GUARDRAILS-CI-PR-DRAFT`) · **PR:** DRAFT aberta na R2 para rodar o CI
 
 ## 1. Problema (comprovado no código)
 
@@ -17,7 +17,7 @@ Medido localmente: 100 mil usuários = **21,7 MB por carregamento, p95 19,6 s, 0
 | Ordem | `createdAt DESC, id DESC`, `take: limit + 1`, cursor `keysetCursor.js`. Sem OFFSET. |
 | Keyset indexável | `createdAt <= t AND (createdAt < t OR id < i)` (local em `usuarioRepository`). A forma do helper compartilhado (`OR`) vira só filtro e varre o índice desde o topo. |
 | Busca `q` | `nome`/`login` contains case-insensitive, **curingas `%`, `_`, `\` escapados** (bug encontrado pelo teste: o `contains` do Prisma não escapa — `q=%` casava tudo). |
-| Total | Contado **só na 1ª página** (sem cursor); páginas seguintes devolvem `total: null` = "não calculado nesta página" (nunca 0 nem estimativa). O motor Base1 lê o total da página 0. |
+| Total | Contado **só na 1ª página** (sem cursor); páginas seguintes devolvem `total: null` = "não calculado nesta página" (nunca 0 nem estimativa). O motor Base1 lê o total da página 0. Na R2, `listUsuariosPage` preserva o `null` (o normalizador compartilhado o convertia em 0) — correção local, motor Base1 intocado. |
 | Campos | Só `id, nome, login, ativo, created_date, updated_date`. Nunca `senha_hash`/`cliente_id`. |
 | Índice | `Usuario(cliente_id, createdAt, id)` — migration aditiva `20261029100000_scale01_usuario_keyset_index`. Aplicada **apenas** em PostgreSQL local. |
 | Legado | `GET /usuarios` **inalterado** (array completo, `createdAt ASC`) para Permissões/Mapa. |
@@ -127,3 +127,77 @@ keyset, com os mesmos testes de ordem/tenant e o benchmark reaproveitado.
 
 0 writes em Supabase/Vercel/Storage, 0 migrations aplicadas fora do PostgreSQL local, 0 testes de
 carga externos.
+
+---
+
+# R2 — guardrails do benchmark, contrato `total` e CI
+
+## Bug P0 corrigido: benchmark validava um banco e conectava em outro
+
+`backend/src/config/env.js` resolve a URL do Prisma como
+`POSTGRES_PRISMA_URL ?? DATABASE_URL ?? POSTGRES_URL` (depois de `dotenv`). O script R1 validava
+só `DATABASE_URL`. **Reproduzido** com o script do commit `7b1907b`: `DATABASE_URL=…/maike_perf`
+(validado) + `POSTGRES_PRISMA_URL=…/maike_vitima` (banco local vazio criado para a prova) →
+o Prisma conectou em `maike_vitima` (`The table public.Cliente does not exist`). Contra um
+`POSTGRES_PRISMA_URL` real de produção, o mesmo caminho faria `INSERT`/`DELETE`/`DROP INDEX` lá.
+
+**Correção** (`scripts/performance/benchGuard.mjs`, função pura, + preflight do script):
+
+1. carrega o `.env` com o mesmo `dotenv` do backend **antes** de validar (aliases do `.env` contam);
+2. exige `PERF_TEST_LOCAL=sim`, `DATABASE_URL` explícita, local (`localhost`/`127.0.0.1`/`::1`),
+   PostgreSQL, sem provedor remoto, sem `host=`/`pgbouncer` na query, porta ≠ 6543, banco com
+   `perf`/`test` no nome; `NODE_ENV≠production` (processo ou `.env`);
+3. qualquer alias presente — `POSTGRES_PRISMA_URL`, `POSTGRES_URL`, `POSTGRES_URL_NON_POOLING`,
+   `MIGRATION_DATABASE_URL`, `DIRECT_URL` — precisa ser **idêntico** a `DATABASE_URL`; a URL
+   efetiva calculada com a precedência do backend precisa ser a aprovada;
+4. só então importa `backend/src/config/env.js` e confere `env.databaseUrl === aprovada` e
+   `env.nodeEnv ≠ production`; só então importa Prisma;
+5. com a conexão aberta e **antes de qualquer mutação**: `current_database()` = aprovado,
+   `inet_server_addr()` loopback ou socket, nenhuma role Supabase (`supabase_admin`,
+   `authenticator`, `supabase_auth_admin`);
+6. logs mostram só `protocolo://host:porta/banco` — nunca usuário/senha.
+
+**Limitação explícita:** `localhost` não prova ausência de túnel/port-forward para um banco
+remoto; a checagem de identidade reduz, não elimina, esse risco. Use apenas PostgreSQL
+descartável de fato.
+
+**Testes negativos** `scripts/tests/deploy/usuarios-bench-guard.test.mjs` (rodam no `test:gates`
+da CI, **sem banco**): script real em processo filho, ambiente limpo, `.env` de fixture em
+diretório temporário, `PERF_GUARD_TRACE=1`. Cada caso exige exit 2, `RECUSADO`, ausência dos
+marcadores `ENV_OK`/`IMPORT_PRISMA` (recusa antes de importar Prisma) e nenhuma credencial no log:
+BG-01 sem opt-in · BG-02 remoto direto/pooler · **BG-03 `POSTGRES_PRISMA_URL` remoto no processo**
+· **BG-04 o mesmo só no `.env`** · BG-05 `POSTGRES_URL` (processo/.env) · BG-06
+`MIGRATION_DATABASE_URL`/`DIRECT_URL` diferentes · BG-07 `NODE_ENV=production` (processo/.env)
+· BG-08 porta 6543 e banco não descartável · BG-09 sem `DATABASE_URL`; BG-10..12 função pura
+(aceite local, precedência, IP/`host=`/`pgbouncer`/mysql, identidade). **12/12.**
+
+## Estado do índice preservado
+
+Antes: a R1 criava o índice se ausente e o recriava ao fim — deixava índice novo num banco onde
+ele não existia. Agora `restaurarIndice()` devolve ao estado de **origem** em sucesso, exceção e
+`SIGINT`/`SIGTERM`. Provado no PostgreSQL local:
+
+| Caso | antes | depois |
+|---|---|---|
+| origem presente, execução completa | 1 | 1 |
+| origem ausente, execução completa | 0 | 0 |
+| `SIGINT` durante a fase sem índice (100k) | 0 (no meio) | 1, tenants `perf-*` = 0, exit 130 |
+
+Risco residual: `SIGKILL`/queda entre `DROP` e `CREATE` deixa o banco local sem o índice; o
+script imprime o comando de recuperação (`CREATE INDEX IF NOT EXISTS …`) no início.
+
+## Números
+
+Os números da seção 4 são da R1 (mesma metodologia e mesmo código de consulta). Na R2 o script
+foi reexecutado só em 1k para provar guard/identidade/índice. **1M: NOT_RUN.** Bilhão: fora do
+escopo.
+
+## Rollout futuro do índice (não executado)
+
+O runner `deploy:migrate` chama `prisma migrate deploy`, que no PostgreSQL executa o arquivo da
+migration dentro de transação; `CREATE INDEX CONCURRENTLY` não roda em bloco de transação
+(comportamento a confirmar no ensaio do rollout), então a migration versionada fica como está. Plano: (1) medir tamanho real de
+`Usuario` em produção; (2) com volume pequeno, a migration normal (bloqueio curto de escrita) é
+aceitável na janela de deploy; (3) com volume grande, criar antes manualmente
+`CREATE INDEX CONCURRENTLY IF NOT EXISTS "Usuario_cliente_id_createdAt_id_idx" …` e marcar a
+migration como aplicada (`prisma migrate resolve --applied`) — decisão e backup do proprietário.
