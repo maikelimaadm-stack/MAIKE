@@ -8,7 +8,10 @@ describe("R6-01/R6-02 source contracts", () => {
     expect(src).toContain("rebuildOverlayMarkers");
     expect(src).toContain("rehydrateAllSources(map)");
     // Não pode terminar o onReady só com clearLabels()
-    const onReadyBlock = src.slice(src.indexOf("trocarBasemap"), src.indexOf("finalizarDesenho"));
+    // D-PROD-65: troca de base vive em useBasemap; quando há setStyle (estilo
+    // licenciado) o callback reaplicarCamadas reidrata tudo.
+    const onReadyBlock = src.slice(src.indexOf("useBasemap(basemapMap"), src.indexOf("const trocarBasemap"));
+    expect(onReadyBlock).toContain("reaplicarCamadas");
     expect(onReadyBlock).toContain("rehydrateAllSources(map)");
     expect(onReadyBlock).not.toMatch(/onReady:\s*\(\)\s*=>\s*\{[^}]*clearLabels\(\);\s*\}/);
   });

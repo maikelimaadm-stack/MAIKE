@@ -1,0 +1,252 @@
+{
+ "GEO05_pan_vazio_sem_ponto": true,
+ "GEO01_preview_2pts": {
+  "m1-desenho-fill": 0,
+  "m1-desenho-line": 0,
+  "m1-vertices": 2,
+  "desenhoGeom": null,
+  "desenhoVertices": null,
+  "zoom": 16.74
+ },
+ "GEO01_aberto_4pts": {
+  "m1-desenho-fill": 0,
+  "m1-desenho-line": 0,
+  "m1-vertices": 4,
+  "desenhoGeom": null,
+  "desenhoVertices": null,
+  "zoom": 16.74
+ },
+ "GEO01_fechado": {
+  "m1-desenho-fill": 0,
+  "m1-desenho-line": 0,
+  "m1-vertices": 4,
+  "desenhoGeom": null,
+  "desenhoVertices": null,
+  "zoom": 16.74
+ },
+ "GEO01_fechado_px": {
+  "arquivo": "r1-geo01-fechado.png",
+  "pixel": [
+   248,
+   244,
+   240
+  ],
+  "laranja": false
+ },
+ "GEO02_navegar": {
+  "m1-desenho-fill": 0,
+  "m1-desenho-line": 0,
+  "m1-vertices": 4,
+  "desenhoGeom": null,
+  "desenhoVertices": null,
+  "zoom": 17.15
+ },
+ "GEO02_medidas": "Área: 1,82 haPerímetro: 440 m",
+ "GEO02_navegar_px": {
+  "arquivo": "r1-geo02-navegar-pan-zoom.png",
+  "pixel": [
+   74,
+   73,
+   72
+  ],
+  "laranja": false
+ },
+ "GEO04_apos_arrastar": {
+  "m1-desenho-fill": 1,
+  "m1-desenho-line": 1,
+  "m1-vertices": 4,
+  "desenhoGeom": "Polygon",
+  "desenhoVertices": 4,
+  "zoom": 17.15,
+  "medidas": "Área: 2,13 haPerímetro: 491 m"
+ },
+ "GEO04_apos_inserir_medio": {
+  "m1-desenho-fill": 1,
+  "m1-desenho-line": 1,
+  "m1-vertices": 5,
+  "desenhoGeom": "Polygon",
+  "desenhoVertices": 5,
+  "zoom": 17.15,
+  "medidas": "Área: 2,13 haPerímetro: 491 m"
+ },
+ "GEO04_selecionou": true,
+ "GEO04_apos_remover": {
+  "m1-desenho-fill": 1,
+  "m1-desenho-line": 1,
+  "m1-vertices": 4,
+  "desenhoGeom": "Polygon",
+  "desenhoVertices": 4,
+  "zoom": 17.15,
+  "medidas": "Área: 1,08 haPerímetro: 299 m"
+ },
+ "GEO04_apos_remover_px": {
+  "arquivo": "r1-geo04-editar-remover.png",
+  "pixel": [
+   247,
+   215,
+   165
+  ],
+  "laranja": true
+ },
+ "GEO05_mover_camera_parada": true,
+ "GEO04_apos_mover": {
+  "m1-desenho-fill": 2,
+  "m1-desenho-line": 2,
+  "m1-vertices": 4,
+  "desenhoGeom": "Polygon",
+  "desenhoVertices": 4,
+  "zoom": 17.15,
+  "medidas": "Área: 1,08 haPerímetro: 299 m"
+ },
+ "GEO04_apos_mover_px": {
+  "arquivo": "r1-geo04-mover.png",
+  "pixel": [
+   247,
+   215,
+   165
+  ],
+  "laranja": true
+ },
+ "GEO04_undo": {
+  "m1-desenho-fill": 1,
+  "m1-desenho-line": 1,
+  "m1-vertices": 4,
+  "desenhoGeom": "Polygon",
+  "desenhoVertices": 4,
+  "zoom": 17.15,
+  "medidas": "Área: 1,08 haPerímetro: 299 m"
+ },
+ "GEO04_redo_igual": true,
+ "GEO04_redo_geo": {
+  "m1-desenho-fill": 2,
+  "m1-desenho-line": 2,
+  "m1-vertices": 4,
+  "desenhoGeom": "Polygon",
+  "desenhoVertices": 4,
+  "zoom": 17.15
+ },
+ "GEO06_apos_trocas": {
+  "m1-desenho-fill": 2,
+  "m1-desenho-line": 2,
+  "m1-vertices": 4,
+  "desenhoGeom": "Polygon",
+  "desenhoVertices": 4,
+  "zoom": 17.15,
+  "medidas": "Área: 1,08 haPerímetro: 299 m"
+ },
+ "GEO06_px": {
+  "arquivo": "r1-geo06-apos-trocas-base.png",
+  "pixel": [
+   247,
+   215,
+   165
+  ],
+  "laranja": true
+ },
+ "D06_shift_45": 0,
+ "erros": [],
+ "GEO03_abertura": {
+  "m1-desenho-fill": 0,
+  "m1-desenho-line": 0,
+  "m1-vertices": 4,
+  "m1-areas-fill": 0,
+  "desenhoGeom": null,
+  "desenhoVertices": null,
+  "zoom": 17.14
+ },
+ "GEO03_abertura_px": {
+  "arquivo": "r1-geo03-editar-existente.png",
+  "pixel": [
+   248,
+   244,
+   240
+  ],
+  "laranja": false
+ },
+ "GEO03_medidas": "Área: 10,75 haPerímetro: 978 m",
+ "GEO03_apos_pan": {
+  "m1-desenho-fill": 0,
+  "m1-desenho-line": 0,
+  "m1-vertices": 4,
+  "desenhoGeom": null,
+  "desenhoVertices": null,
+  "zoom": 17.14
+ },
+ "GEO03_apos_pan_px": {
+  "arquivo": "r1-geo03-editar-existente-pan.png",
+  "pixel": [
+   248,
+   244,
+   240
+  ],
+  "laranja": false
+ },
+ "GEO07_ids": [
+  "a1",
+  "a2",
+  "a3"
+ ],
+ "GEO07_divisas": 5,
+ "GEO07_pixels": {
+  "a1": {
+   "fill": "#196fb1",
+   "pixel": [
+    74,
+    140,
+    191
+   ]
+  },
+  "a2": {
+   "fill": "#97cd30",
+   "pixel": [
+    172,
+    214,
+    90
+   ]
+  },
+  "a3": {
+   "fill": "#f0ce25",
+   "pixel": [
+    243,
+    213,
+    66
+   ]
+  }
+ },
+ "GEO07_clique_curral_abre_detalhe": true,
+ "GEO10_desenhar": {
+  "m1-desenho-fill": 4,
+  "m1-desenho-line": 4,
+  "m1-vertices": 4,
+  "desenhoGeom": "Polygon",
+  "desenhoVertices": 4,
+  "zoom": 15.13
+ },
+ "GEO10_editar_px": {
+  "arquivo": "r1-geo10-mobile-editar.png",
+  "pixel": [
+   252,
+   222,
+   175
+  ],
+  "laranja": true
+ },
+ "GEO10_navegar_px": {
+  "arquivo": "r1-geo10-mobile-navegar.png",
+  "pixel": [
+   252,
+   222,
+   175
+  ],
+  "laranja": true
+ },
+ "GEO10_mover": {
+  "m1-desenho-fill": 4,
+  "m1-desenho-line": 4,
+  "m1-vertices": 4,
+  "desenhoGeom": "Polygon",
+  "desenhoVertices": 4,
+  "zoom": 15.13
+ },
+ "GEO10_overflow": false
+}

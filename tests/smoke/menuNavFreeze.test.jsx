@@ -36,13 +36,14 @@ describe('NAV — AppRouteContent: Outlet único, sem mapa persistente', () => {
   });
 });
 
-describe('NAV — Mapa Geral libera Google Maps ao sair (teardown unmount)', () => {
+describe('NAV — Mapa Geral libera o MapLibre ao sair (teardown unmount)', () => {
   const fonte = codigoDe('src/pages/MapaGeral.jsx');
 
-  it('teardown limpa overlay, listeners e referência do mapa', () => {
+  it('teardown limpa marcadores, listeners e a instância (map.remove via dispose)', () => {
     expect(fonte).toContain('teardownMapInstance');
-    expect(fonte).toContain('clearInstanceListeners(map)');
-    expect(fonte).toContain('projectionOverlayRef.current.setMap(null)');
+    expect(fonte).toContain('renderer.clearAll()');
+    expect(fonte).toContain('disposeMapRef.current?.()');
+    expect(fonte).toContain('created.dispose()');
     expect(fonte).toContain('mapInstanceRef.current = null');
     expect(fonte).toContain('setMapReady(false)');
   });
@@ -57,8 +58,8 @@ describe('NAV — Mapa Geral libera Google Maps ao sair (teardown unmount)', () 
 describe('NAV — renderer do mapa não deixa intervalos de blink', () => {
   it('clearAll derruba blinkIntervals globais', () => {
     const renderer = codigoDe('src/components/mapa/useMapRenderer.jsx');
-    expect(renderer).toContain('clearAllBlinkIntervals');
-    expect(renderer).toMatch(/clearAllBlinkIntervals\(\)/);
+    expect(renderer).toContain('const clearBlinks');
+    expect(renderer).toMatch(/const clearAll = useCallback\(\(\) => \{\s*clearBlinks\(\);/);
   });
 });
 

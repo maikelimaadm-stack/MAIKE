@@ -218,7 +218,8 @@ describe("maplibre/taskLocationPicker — sem Maps JS no picker", () => {
       "utf8"
     );
     const gmaps = fs.readFileSync(path.join(process.cwd(), "src/lib/googleMaps.js"), "utf8");
-    expect(geral).toMatch(/loadGoogleMaps/);
+    // MAPLIBRE-AREAS (D-PROD-65): Mapa Geral migrou para MapLibre; Google segue só no lote de pontos.
+    expect(geral).not.toMatch(/loadGoogleMaps|google\.maps\./);
     expect(deposito).toMatch(/loadGoogleMaps/);
     expect(gmaps).toMatch(/export const loadGoogleMaps/);
   });

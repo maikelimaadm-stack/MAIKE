@@ -19,7 +19,7 @@ import {
   OPACIDADE_FILL_DESENHO,
   SOURCE_IDS,
   corExibidaNoMapa,
-  espessuraDivisaPorZoom,
+  paintAreaDivisa,
 } from "./estiloAreas.js";
 
 /**
@@ -98,16 +98,8 @@ export function ensureBusinessLayers(map) {
     });
   }
   if (!map.getLayer(LAYER_IDS.AREAS_LINE)) {
-    map.addLayer({
-      id: LAYER_IDS.AREAS_LINE,
-      type: "line",
-      source: SOURCE_IDS.AREAS,
-      paint: {
-        "line-color": COR_LINHA_AREA,
-        "line-width": espessuraDivisaPorZoom(map.getZoom()),
-        "line-opacity": 0.95,
-      },
-    });
+    // SSOT com o Mapa Geral (D-PROD-65): divisa branca fina interpolada por zoom.
+    map.addLayer({ id: LAYER_IDS.AREAS_LINE, type: "line", source: SOURCE_IDS.AREAS, paint: paintAreaDivisa() });
   }
   if (!map.getLayer(LAYER_IDS.LINHAS)) {
     map.addLayer({
@@ -142,8 +134,10 @@ export function ensureBusinessLayers(map) {
       source: SOURCE_IDS.DESENHO,
       filter: ["==", ["geometry-type"], "Polygon"],
       paint: {
-        "fill-color": COR_DESENHO,
-        "fill-opacity": OPACIDADE_FILL_DESENHO,
+        // Área existente em edição: cor salva (mesma opacidade da área cadastrada);
+        // rascunho novo: laranja translúcido.
+        "fill-color": ["coalesce", ["get", "fill"], COR_DESENHO],
+        "fill-opacity": ["case", ["has", "fill"], OPACIDADE_FILL_AREA, OPACIDADE_FILL_DESENHO],
       },
     });
   }
@@ -178,9 +172,9 @@ export function ensureBusinessLayers(map) {
       type: "circle",
       source: SOURCE_IDS.VERTICES,
       paint: {
-        "circle-radius": 5,
-        "circle-color": COR_VERTICE_FILL,
-        "circle-stroke-color": COR_VERTICE_STROKE,
+        "circle-radius": ["case", ["boolean", ["get", "selecionado"], false], 8, 5],
+        "circle-color": ["case", ["boolean", ["get", "selecionado"], false], COR_VERTICE_STROKE, COR_VERTICE_FILL],
+        "circle-stroke-color": ["case", ["boolean", ["get", "selecionado"], false], COR_VERTICE_FILL, COR_VERTICE_STROKE],
         "circle-stroke-width": 2.4,
       },
     });
@@ -206,8 +200,10 @@ export function ensureBusinessLayers(map) {
  * @param {import('maplibre-gl').Map} map
  */
 export function syncDivisaWidth(map) {
+  // Largura agora é expressão interpolada por zoom (SSOT `paintAreaDivisa`);
+  // mantido por compatibilidade dos callers — reaplica a expressão.
   if (!map.getLayer(LAYER_IDS.AREAS_LINE)) return;
-  map.setPaintProperty(LAYER_IDS.AREAS_LINE, "line-width", espessuraDivisaPorZoom(map.getZoom()));
+  map.setPaintProperty(LAYER_IDS.AREAS_LINE, "line-width", paintAreaDivisa()["line-width"]);
 }
 
 /**
