@@ -201,3 +201,67 @@ migration dentro de transação; `CREATE INDEX CONCURRENTLY` não roda em bloco 
 aceitável na janela de deploy; (3) com volume grande, criar antes manualmente
 `CREATE INDEX CONCURRENTLY IF NOT EXISTS "Usuario_cliente_id_createdAt_id_idx" …` e marcar a
 migration como aplicada (`prisma migrate resolve --applied`) — decisão e backup do proprietário.
+
+---
+
+# R3 — escopo de limpeza por execução e exclusão mútua
+
+## Bug corrigido
+
+A R2 limpava **todo** cliente com `codigo` começando por `perf-scale01-` (no início, entre datasets
+e no fim). Isso apagaria um tenant de teste criado à mão com esse prefixo, restos de outra execução
+e os dados de uma execução concorrente — e a documentação dizia o contrário.
+
+## Escopo (`scripts/performance/benchEscopo.mjs`)
+
+- Cada execução gera `ID_EXECUCAO` (16 hex de um UUID v4) e cria tenants `perf-scale01-<id>-<n>`.
+- Os ids exatos dos clientes criados ficam num `Set` em memória.
+- `limparClientesDaExecucao` apaga `AuditLog`/`Usuario`/`Cliente` **só** de ids desse conjunto
+  **e** cujo `codigo` começa pelo prefixo da execução (segunda trava). Prefixo genérico é recusado.
+- Não existe mais limpeza no início nem por prefixo. Restos de execução morta por `SIGKILL` ficam no
+  banco até inspeção manual:
+  `SELECT id, codigo FROM "Cliente" WHERE codigo LIKE 'perf-scale01-%';` → apagar pelo id da
+  execução impressa no log (`usuarios-bench: execução <id>`), nunca por `perf-scale01-%`.
+
+## Exclusão mútua
+
+`pg_try_advisory_lock(710120260129)` numa conexão dedicada (`connection_limit=1`) mantida aberta
+a execução inteira. É adquirido logo após a checagem de identidade e **antes** de ler o estado do
+índice, criar tenant ou rodar DDL. Ocupado → exit 2, "outra execução … está ativa … Nada foi
+alterado". O lock é por banco, vale entre processos e o servidor o libera se o processo morrer.
+É liberado no fim, em erro e em `SIGINT`/`SIGTERM`.
+
+## Restauração do índice
+
+Inalterada desde a R2 (estado de origem), agora com verificação explícita: se `restaurarIndice()`
+não confirmar o estado de origem, o log diz `false` com o comando de recuperação e o processo sai
+com código 3. Nunca é anunciado sem `SELECT` em `pg_indexes`.
+
+## Provas
+
+Testes (PostgreSQL real, `test:backend`), `backend/tests/usuariosBenchEscopo.test.mjs` 4/4:
+BE-01 limpar a execução A preserva a execução B e dois sentinelas `perf-scale01-sentinela-manual`
+e `perf-scale01-1000-<timestamp>` (formato da R1/R2) · BE-02 id alheio passado por engano não é
+apagado · BE-03 prefixo genérico/id inválido recusado · BE-04 com o lock ocupado num banco
+temporário `maike_perf_lock_*`, o script real em processo filho sai com exit 2 após
+`IDENTIDADE_OK` e antes de `LOCK_OK`/fase de índice, o banco temporário continua sem nenhuma
+relação, e o lock é readquirível após liberar. Guard R2 BG-01..12 mantido (`test:gates`).
+
+Execução real em `maike_perf` (PostgreSQL 16.15 local) com dois sentinelas:
+
+| Cenário | índice antes → depois | tenants da execução | sentinelas |
+|---|---|---|---|
+| 1k+10k, origem presente | 1 → 1 | criados 2, removidos 2 (11.002 usuários), pendentes 0 | intactos |
+| 1k, origem ausente | 0 → 0 | criados 1, removidos 1 (1.001) | intactos |
+| 2ª execução concorrente | — | recusada (exit 2) após `IDENTIDADE_OK`, sem `LOCK_OK` | intactos |
+| `SIGINT` na fase sem índice, 100k | 1 → 0 (no meio) → 1 | tenant de 100.001 usuários removido, exit 130 | intactos |
+
+Advisory locks após o `SIGINT`: 0. Logs sem credenciais.
+
+## Limitações residuais
+
+- `SIGKILL`/queda: índice pode ficar ausente (comando de recuperação impresso no início) e os
+  tenants da execução ficam para limpeza manual pelo id da execução.
+- O lock só protege contra outra instância deste script; DDL manual concorrente no mesmo banco
+  não é bloqueada. Use banco descartável dedicado.
+- 1M: NOT_RUN. Nenhum SLO certificado.

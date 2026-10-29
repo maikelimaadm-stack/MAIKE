@@ -23,7 +23,10 @@
  *   4. repete 2–3 SEM o índice `Usuario_cliente_id_createdAt_id_idx`
  *      (DROP/CREATE só neste banco local) para o comparativo antes/depois;
  *      ao final o índice volta ao estado de ORIGEM (presente ou ausente).
- * Limpeza: remove apenas os tenants `perf-scale01-*` que ele mesmo criou.
+ * Escopo (R3): cada execução gera um id único; cria tenants `perf-scale01-<id>-*`
+ * e a limpeza apaga só os ids exatos que ELA criou. Nunca limpa por prefixo
+ * genérico nem restos de outras execuções. Exclusão mútua por advisory lock
+ * (benchEscopo.mjs): segunda execução no mesmo banco é recusada antes de DDL.
  *
  * Saída: JSON em PERF_SAIDA (default stdout) + resumo legível no stderr.
  */
@@ -68,7 +71,6 @@ const TAMANHOS = lista(process.env.PERF_TAMANHOS, '1000,10000,100000');
 const CONCORRENCIAS = lista(process.env.PERF_CONCORRENCIAS, '10,50,100');
 const REQS_POR_NIVEL = Number(process.env.PERF_REQS || 400);
 const LEGADO_ATE = Number(process.env.PERF_LEGADO_ATE || 100000);
-const PREFIXO = 'perf-scale01-';
 const INDICE = 'Usuario_cliente_id_createdAt_id_idx';
 
 rastro('IMPORT_PRISMA');
@@ -95,22 +97,46 @@ const prisma = getPrismaClient();
   console.error(`usuarios-bench: conectado em ${descreverUrl(guard.url)} (servidor ${id.servidor ?? 'socket unix'})`);
   rastro('IDENTIDADE_OK');
 }
+
+// 5) Exclusão mútua entre processos ANTES de qualquer DDL/inserção: o
+//    benchmark derruba e recria um índice compartilhado do banco.
+const { adquirirLockBench, novoIdExecucao, prefixoDaExecucao, limparClientesDaExecucao } = await import(
+  './benchEscopo.mjs'
+);
+const lock = await adquirirLockBench(guard.url);
+if (!lock.ok) {
+  await closePrismaClient();
+  falhar('outra execução do usuarios-bench está ativa neste banco (advisory lock ocupado). Nada foi alterado.');
+}
+rastro('LOCK_OK');
+
+// 6) Escopo de dados: só o que ESTA execução criar (ids exatos + prefixo único).
+const ID_EXECUCAO = novoIdExecucao();
+const PREFIXO = prefixoDaExecucao(ID_EXECUCAO);
+/** @type {Set<string>} */
+const clientesCriados = new Set();
+console.error(`usuarios-bench: execução ${ID_EXECUCAO} — tenants sintéticos com prefixo ${PREFIXO}`);
 const percentil = (ordenado, p) =>
   ordenado.length ? ordenado[Math.min(ordenado.length - 1, Math.ceil((p / 100) * ordenado.length) - 1)] : null;
 const r2 = (n) => (n == null ? null : Math.round(n * 100) / 100);
 
-const limparPerf = async () => {
-  const clientes = await prisma.cliente.findMany({ where: { codigo: { startsWith: PREFIXO } }, select: { id: true } });
-  const ids = clientes.map((c) => c.id);
-  if (!ids.length) return;
-  await prisma.auditLog.deleteMany({ where: { cliente_id: { in: ids } } });
-  await prisma.usuario.deleteMany({ where: { cliente_id: { in: ids } } });
-  await prisma.cliente.deleteMany({ where: { id: { in: ids } } });
+/** Acumulado do que esta execução criou e removeu (evidência no JSON/log). */
+const contabil = { criados: 0, clientes: 0, usuarios: 0, auditLogs: 0 };
+/** Remove apenas os tenants criados por ESTA execução (ver benchEscopo.mjs). */
+const limparExecucao = async () => {
+  const r = await limparClientesDaExecucao(prisma, { prefixo: PREFIXO, clienteIds: clientesCriados });
+  for (const id of [...clientesCriados]) clientesCriados.delete(id);
+  contabil.clientes += r.clientes;
+  contabil.usuarios += r.usuarios;
+  contabil.auditLogs += r.auditLogs;
+  return r;
 };
 
 const semear = async (n) => {
-  const codigo = `${PREFIXO}${n}-${Date.now()}`;
+  const codigo = `${PREFIXO}${n}`;
   const cliente = await prisma.cliente.create({ data: { codigo, nome: `Perf ${n}` } });
+  clientesCriados.add(cliente.id);
+  contabil.criados += 1;
   const senha = 'perf-senha-local-1';
   const operador = await prisma.usuario.create({
     data: { cliente_id: cliente.id, nome: 'Operador Perf', login: `${codigo}.op`, senha_hash: await gerarSenhaHash(senha) },
@@ -257,13 +283,20 @@ for (const sinal of ['SIGINT', 'SIGTERM']) {
   process.on(sinal, async () => {
     if (encerrando) return;
     encerrando = true;
-    console.error(`usuarios-bench: ${sinal} — restaurando índice e limpando dados perf…`);
+    console.error(`usuarios-bench: ${sinal} — restaurando índice e limpando os dados desta execução…`);
+    let codigo = 130;
     try {
-      await restaurarIndice();
-      await limparPerf();
+      const ok = await restaurarIndice();
+      console.error(`usuarios-bench: índice restaurado ao estado de origem: ${ok}${ok ? '' : ` — recupere com: ${CRIAR_INDICE}`}`);
+      if (!ok) codigo = 3;
+      await limparExecucao();
+    } catch (erro) {
+      codigo = 3;
+      console.error(`usuarios-bench: falha ao restaurar (${erro?.code ?? erro?.name}); recuperação: ${CRIAR_INDICE}`);
     } finally {
+      await lock.liberar().catch(() => {});
       await closePrismaClient();
-      process.exit(130);
+      process.exit(codigo);
     }
   });
 }
@@ -272,7 +305,6 @@ await app.listen({ host: '127.0.0.1', port: 0 });
 const base = `http://127.0.0.1:${/** @type {any} */ (app.server.address()).port}`;
 
 try {
-  await limparPerf();
   for (const n of TAMANHOS) {
     const s = await semear(n);
     const login = await fetch(`${base}/auth/login`, {
@@ -343,15 +375,21 @@ try {
           ? ` || legado c10 p95=${ds.legadoListaCompleta.p95}ms ${ds.legadoListaCompleta.payloadMedioKB}KB`
           : '')
     );
-    await limparPerf();
+    await limparExecucao();
   }
 } finally {
   await app.close();
   const restaurado = await restaurarIndice();
   resultado.indice = { origem: indiceNaOrigem ? 'presente' : 'ausente', restaurado };
-  console.error(`usuarios-bench: índice restaurado ao estado de origem: ${restaurado}`);
-  await limparPerf();
+  console.error(
+    `usuarios-bench: índice restaurado ao estado de origem: ${restaurado}${restaurado ? '' : ` — recupere com: ${CRIAR_INDICE}`}`
+  );
+  await limparExecucao();
+  resultado.limpeza = { execucao: ID_EXECUCAO, ...contabil, pendentes: clientesCriados.size };
+  console.error(`usuarios-bench: limpeza da execução ${ID_EXECUCAO}: ${JSON.stringify(resultado.limpeza)}`);
+  await lock.liberar();
   await closePrismaClient();
+  if (!restaurado) process.exitCode = 3;
 }
 
 const saida = JSON.stringify(resultado, null, 2);
