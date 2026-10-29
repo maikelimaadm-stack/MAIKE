@@ -1,0 +1,63 @@
+{
+ "geral_labels": [
+  "PASTO 01ha 18,40",
+  "PASTO 02ha 9,10",
+  "CURRALha 1,20"
+ ],
+ "geral_lotes": [
+  "42",
+  "17"
+ ],
+ "geral_marcadores": 4,
+ "geral_satelite_msg": [
+  "Satélite não configurado: defina VITE_GOOGLE_MAPS_API_KEY com acesso à Map Tiles API. Exibindo o mapa de ruas.Tentar novamente"
+ ],
+ "geral_canvas": {
+  "w": 1440,
+  "h": 900,
+  "gl": true
+ },
+ "geral_apos_satelite_labels": 3,
+ "geral_erros": [],
+ "geral_mobile_overflow": false,
+ "D01_sem_ponto_apos_pan": true,
+ "D02_area_antes": "Área: 1,82 ha",
+ "D02_area_fechada": "Área: 1,82 haPerímetro: 440 m",
+ "D02_modo_editar": "true",
+ "D03_area_apos_pan": "Área: 1,82 haPerímetro: 440 m",
+ "D03_area_apos_clique_navegar": "Área: 1,82 haPerímetro: 440 m",
+ "D04_area_apos_arrastar": "Área: 2,27 haPerímetro: 515 m",
+ "D08_area_apos_desfazer": "Área: 1,82 haPerímetro: 440 m",
+ "D08_area_apos_refazer": "Área: 2,27 haPerímetro: 515 m",
+ "D07_area_apos_mover": "Área: 2,27 haPerímetro: 515 m",
+ "regua_segmentos": [
+  "205 m",
+  "144 m",
+  "165 m",
+  "110 m"
+ ],
+ "D05_selecionado": true,
+ "D05_area_apos_remover": "Área: 1,12 haPerímetro: 452 m",
+ "S05_alerta": [
+  "Satélite não configurado: defina VITE_GOOGLE_MAPS_API_KEY com acesso à Map Tiles API. Exibindo o mapa de ruas.Tentar novamente"
+ ],
+ "S05_area_mantida": "Área: 1,12 haPerímetro: 452 m",
+ "D09_confirmar_saida": true,
+ "D09_cancelados": 0,
+ "editor_erros": [],
+ "mobile_area": "Área: 6,56 ha",
+ "mobile_botoes_44": [
+  44,
+  44,
+  44,
+  44
+ ],
+ "mobile_overflow": false,
+ "mobile_viewport": {
+  "width": 412,
+  "height": 839
+ },
+ "D10_area_existente": "Área: 10,75 haPerímetro: 978 m",
+ "D10_modo": "true",
+ "D10_sair_sem_alteracao": 1
+}

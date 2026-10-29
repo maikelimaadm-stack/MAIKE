@@ -2613,4 +2613,55 @@ Merge só pelo proprietário após auditoria.
 
 ---
 
-<!-- Próxima decisão: D-PROD-65 -->
+## D-PROD-65 — MapLibre: áreas unificadas (desenho, edição, visualização) e satélite real
+
+**Missão:** `MAPLIBRE-AREAS-UNIFICACAO-VISUAL-FUNCIONAL-01`\
+**Relatório:** `docs/engineering/MAPLIBRE-AREAS-UNIFICACAO-VISUAL-FUNCIONAL-REPORT.md`\
+**Base:** `origin/main` = `5c8b4852` (merge #136)\
+**Referência de comportamento (read-only):** `CONTROLE-DE-ESTOQUE@6aef845e` (`mapa-de-manejo/*`)
+
+**Decisão:**
+
+1. **Editor (`MapaDesenho`)** ganha máquina de estados explícita
+   (`src/lib/maplibre/editorModos.js`): NAVEGAR / DESENHAR / EDITAR / MOVER.
+   - Só DESENHAR com desenho aberto cria vértice. Fechar no 1º vértice passa para
+     EDITAR, e o usuário pode navegar e voltar a editar sem perder o desenho.
+   - Toque sem arrasto num vértice seleciona; "Remover ponto" respeita o mínimo
+     de vértices.
+   - MOVER (mão) translada a área inteira, com undo/redo.
+   - Shift trava em 45°; Alt suspende o ímã; a régua mostra os segmentos.
+   - Sair com alterações não salvas pede confirmação.
+2. **Mapa Geral sai do Google Maps JS** e passa a MapLibre.
+   - `useMapRenderer` foi reescrito com o MESMO contrato público (`sync*`,
+     `clearAll`): filtros, permissões, painéis, lotes (contagem, identificador,
+     arrasto para mover), cochos/depósitos, bebedouros, tarefas, long-press e
+     localização foram preservados.
+   - Áreas usam o SSOT de pintura `estiloAreas.js` (`paintAreaFill`,
+     `paintAreaDivisa`, `paintAreaDestaque`), compartilhado com o editor:
+     cor salva +5% de branco, divisa branca fina interpolada por zoom, destaque
+     por feature-state.
+3. **Satélite real** via Google **Map Tiles API** (`createSession` + `2dtiles`
+   raster), portado do Controle de Estoque.
+   - A camada raster é inserida acima do estilo-base e abaixo das camadas de
+     negócio. Alternar Mapa↔Satélite só muda a visibilidade: sem `setStyle` e
+     sem remontar.
+   - Atribuição "Google Maps" + `copyright` do endpoint de viewport.
+   - A sessão fica só em memória (renovada pelo `expiry`). Nada de pre-fetch,
+     cache ou storage.
+   - Erros 401/403/429/rede voltam honestamente para Mapa, com aviso e "Tentar
+     novamente".
+   - `VITE_MAP_SATELLITE_STYLE_URL` continua como alternativa (estilo licenciado).
+4. Fora do escopo:
+   - `ModalCadastroLotePontos` (único consumidor Google restante), que mantém
+     `googleMaps.js` e `VITE_GOOGLE_MAPS_API_KEY`;
+   - catálogo global de ícones, backend, schema, migrations, RLS;
+   - ficha/formulários e menus.
+
+**Consequência:** a chave `VITE_GOOGLE_MAPS_API_KEY` passa a precisar da
+**Map Tiles API** habilitada no projeto Google para o satélite funcionar.
+Habilitar a API e a cobrança é decisão do proprietário. Sem ela, o satélite
+mostra o bloqueio de forma honesta. Merge só pelo proprietário após auditoria.
+
+---
+
+<!-- Próxima decisão: D-PROD-66 -->

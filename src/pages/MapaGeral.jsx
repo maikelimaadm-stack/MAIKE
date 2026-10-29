@@ -1,4 +1,3 @@
-/* global google */
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getMapaCachedData, refreshMapaCacheEntry } from "@/services/mapaCacheService";
@@ -34,20 +33,23 @@ import { useBebedouros } from "@/hooks/useBebedouros";
 import { getCochoIndicator, getDepositoIndicator, buildProgressIconUrl } from "../components/mapa/pontoStatusUtils";
 import { buildMapaAlertasSuplementacao } from "../components/mapa/mapaAlertasSuplementacaoUtils";
 import { normalizeText } from "../components/suplementacao/estoqueSuplementacaoUtils";
-import { loadGoogleMaps, isGoogleMapsConfigured, GOOGLE_MAPS_MISSING_KEY_MESSAGE } from "@/lib/googleMaps";
+import { BASEMAP_IDS, CENTRO_PADRAO } from "@/lib/maplibre/basemap.js";
+import { createEditorMap } from "@/lib/maplibre/lifecycle.js";
+import { boundsDasAreas, lerVisaoSalva } from "@/lib/maplibre/mapaGeralRender.js";
+import { parseVertices } from "@/lib/geografia/coords.js";
+import useBasemap from "../components/mapa/useBasemap";
+import BasemapAtribuicao from "../components/mapa/BasemapAtribuicao";
 import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 import { lerFiltrosMapaGeral, salvarFiltrosMapaGeral } from "@/lib/mapaGeralFiltrosStorage";
-
-const loadGoogleMapsScript = () => loadGoogleMaps();
 
 export default function MapaGeral() {
   const queryClient = useQueryClient();
   // ─── State ───
   const [mapReady, setMapReady] = useState(false);
-  const [mapLoadError, setMapLoadError] = useState(
-    isGoogleMapsConfigured() ? null : GOOGLE_MAPS_MISSING_KEY_MESSAGE
-  );
-  const [mapType, setMapType] = useState('satellite');
+  const [mapLoadError, setMapLoadError] = useState(null);
+  const [mapEpoch, setMapEpoch] = useState(0);
+  const [mapInstance, setMapInstance] = useState(null);
+  const [mapType, setMapTypeState] = useState('satellite');
   const [showAreas, setShowAreas] = useState(true);
   const [showPontos, setShowPontos] = useState(true);
   const [showLinhas, setShowLinhas] = useState(true);
@@ -98,7 +100,7 @@ export default function MapaGeral() {
   useEffect(() => {
     const state = lerFiltrosMapaGeral(empresaSelecionadaId);
     if (!state) return;
-    setMapType('satellite');
+    setMapTypeState('satellite');
     if (typeof state.showAreas === 'boolean') setShowAreas(state.showAreas);
     if (typeof state.showPontos === 'boolean') setShowPontos(state.showPontos);
     if (typeof state.showLinhas === 'boolean') setShowLinhas(state.showLinhas);
@@ -159,7 +161,7 @@ export default function MapaGeral() {
 
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
-  const projectionOverlayRef = useRef(null);
+  const disposeMapRef = useRef(null);
   const firstFitDoneRef = useRef(false);
   const mapViewRestoredRef = useRef(false);
   const longPressTimerRef = useRef(null);
@@ -167,6 +169,21 @@ export default function MapaGeral() {
   const longPressTriggeredRef = useRef(false);
   const ignoreNextMapClickRef = useRef(false);
   const renderer = useMapRenderer(mapInstanceRef);
+  const rendererEnsureRef = useRef(renderer.ensureLayers);
+  const rendererHitRef = useRef(renderer.hitArea);
+  rendererHitRef.current = renderer.hitArea;
+  rendererEnsureRef.current = renderer.ensureLayers;
+  const basemap = useBasemap(mapInstance, {
+    inicial: BASEMAP_IDS.SATELITE,
+    reaplicarCamadas: () => rendererEnsureRef.current?.(),
+  });
+  const basemapSetRef = useRef(basemap.setBasemap);
+  basemapSetRef.current = basemap.setBasemap;
+  const setMapType = useCallback((tipo) => {
+    setMapTypeState(tipo);
+    basemapSetRef.current(tipo === 'satellite' ? BASEMAP_IDS.SATELITE : BASEMAP_IDS.RUAS);
+  }, []);
+  const mapTypeEfetivo = basemap.basemapId === BASEMAP_IDS.SATELITE ? 'satellite' : 'roadmap';
 
   const { setores } = useSetorAreas(empresaSelecionadaId);
   useEffect(() => {firstFitDoneRef.current = false;mapViewRestoredRef.current = false;}, [empresaSelecionadaId]);
@@ -474,62 +491,74 @@ export default function MapaGeral() {
       clearTimeout(longPressTimerRef.current);
       longPressTimerRef.current = null;
     }
-    if (projectionOverlayRef.current) {
-      projectionOverlayRef.current.setMap(null);
-      projectionOverlayRef.current = null;
-    }
-    const map = mapInstanceRef.current;
-    const mapsEvent = globalThis['google']?.maps?.event;
-    if (map && mapsEvent) {
-      mapsEvent.clearInstanceListeners(map);
-    }
+    disposeMapRef.current?.();
+    disposeMapRef.current = null;
     mapInstanceRef.current = null;
+    setMapInstance(null);
     setMapReady(false);
     // `useMapRenderer` devolve objeto novo a cada render; só `clearAll` é estável.
   }, [renderer.clearAll]);
 
-  // ─── Inicializar Mapa ───
+  // ─── Inicializar Mapa (MapLibre, uma instância; recriada só por retry) ───
   useEffect(() => {
     let cancelled = false;
-    loadGoogleMapsScript().then(() => {
+    setMapLoadError(null);
+    const t = window.setTimeout(() => {
       if (cancelled || !mapRef.current || mapInstanceRef.current) return;
-      const mobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-      const initialMapType = 'satellite';
-
-      const map = new google.maps.Map(mapRef.current, {
-        center: { lat: -15.0067, lng: -59.9533 }, zoom: 15, mapTypeId: initialMapType,
-        mapTypeControl: false, streetViewControl: false, fullscreenControl: false,
-        gestureHandling: 'greedy',
-        zoomControl: !mobile, disableDefaultUI: mobile, clickableIcons: false,
-        minZoom: 3, maxZoom: 22
-      });
-      if (cancelled) {
-        globalThis['google']?.maps?.event?.clearInstanceListeners(map);
+      if (typeof window.WebGLRenderingContext === 'undefined') {
+        setMapLoadError('Este navegador não oferece WebGL — o mapa não pode ser exibido aqui.');
         return;
       }
-      const overlay = new google.maps.OverlayView();
-      overlay.onAdd = function () {};
-      overlay.draw = function () {};
-      overlay.onRemove = function () {};
-      overlay.setMap(map);
-      projectionOverlayRef.current = overlay;
+      let created;
+      try {
+        created = createEditorMap(mapRef.current, { center: CENTRO_PADRAO, zoom: 15 });
+      } catch (error) {
+        setMapLoadError(error?.message || 'Não foi possível iniciar o mapa (WebGL indisponível?).');
+        return;
+      }
+      const map = created.map;
+      try {
+        map.setMinZoom(3);
+        map.setMaxZoom(22);
+      } catch { /* best-effort */ }
       mapInstanceRef.current = map;
-      setMapType(initialMapType);
-      google.maps.event.addListenerOnce(map, 'idle', () => {
-        if (!cancelled) setMapReady(true);
-      });
-    }).catch((error) => {
-      if (cancelled) return;
-      setMapLoadError(error?.message || 'Erro ao carregar mapa.');
-      toast.error(error?.message || 'Erro ao carregar mapa.');
-    });
+      const onLoad = () => {
+        if (cancelled || created.getCancelled()) return;
+        rendererEnsureRef.current?.();
+        setMapLoadError(null);
+        setMapInstance(map);
+        setMapReady(true);
+      };
+      const onError = (e) => {
+        if (cancelled) return;
+        const msg = String(e?.error?.message || e?.message || '');
+        if (e?.sourceId && String(e.sourceId).startsWith('maike-basemap')) return;
+        if (!map.isStyleLoaded?.() && /style|fetch|network|xhr|40\d/i.test(msg)) {
+          setMapLoadError('Falha ao carregar o estilo ou os tiles do mapa. Verifique a conexão e tente novamente.');
+        }
+      };
+      map.on('load', onLoad);
+      map.on('error', onError);
+      disposeMapRef.current = () => {
+        try {
+          map.off('load', onLoad);
+          map.off('error', onError);
+        } catch { /* ignore */ }
+        created.dispose();
+      };
+    }, 0);
     return () => {
       cancelled = true;
+      window.clearTimeout(t);
       teardownMapInstance();
     };
-  }, [teardownMapInstance]);
+  }, [teardownMapInstance, mapEpoch]);
 
-  useEffect(() => {if (mapInstanceRef.current) mapInstanceRef.current.setMapTypeId(mapType);}, [mapType]);
+  const retryMapa = useCallback(() => {
+    teardownMapInstance();
+    setMapLoadError(null);
+    setMapEpoch((n) => n + 1);
+  }, [teardownMapInstance]);
 
   useEffect(() => {
     if (!mapReady || !mapInstanceRef.current) return;
@@ -537,40 +566,38 @@ export default function MapaGeral() {
     const persistView = () => {
       const center = map.getCenter();
       if (!center) return;
-      localStorage.setItem(`mapa_geral_view_${empresaSelecionadaId || 'default'}`, JSON.stringify({
-        center: { lat: center.lat(), lng: center.lng() },
-        zoom: map.getZoom()
-      }));
+      try {
+        localStorage.setItem(`mapa_geral_view_${empresaSelecionadaId || 'default'}`, JSON.stringify({
+          center: { lat: center.lat, lng: center.lng },
+          zoom: map.getZoom()
+        }));
+      } catch { /* armazenamento indisponível */ }
     };
-    const idleListener = map.addListener('idle', persistView);
-    return () => idleListener?.remove();
+    map.on('moveend', persistView);
+    return () => map.off('moveend', persistView);
   }, [mapReady, empresaSelecionadaId]);
 
-  // Fit bounds 1x
+  // Fit bounds 1x (ou visão salva da empresa)
   useEffect(() => {
-    if (!mapInstanceRef.current || !mapReady || !areas.length || firstFitDoneRef.current) return;
+    const map = mapInstanceRef.current;
+    if (!map || !mapReady || !areas.length || firstFitDoneRef.current) return;
 
-    const savedView = localStorage.getItem(`mapa_geral_view_${empresaSelecionadaId || 'default'}`);
-    if (savedView && !mapViewRestoredRef.current) {
-      try {
-        const parsed = JSON.parse(savedView);
-        if (parsed?.center && typeof parsed?.zoom === 'number') {
-          mapInstanceRef.current.setCenter(parsed.center);
-          mapInstanceRef.current.setZoom(parsed.zoom);
-          firstFitDoneRef.current = true;
-          mapViewRestoredRef.current = true;
-          return;
-        }
-      } catch { /* falha ignorada intencionalmente: operação best-effort */ }
+    if (!mapViewRestoredRef.current) {
+      let saved = null;
+      try { saved = lerVisaoSalva(localStorage.getItem(`mapa_geral_view_${empresaSelecionadaId || 'default'}`)); } catch { saved = null; }
+      if (saved) {
+        map.jumpTo({ center: [saved.center.lng, saved.center.lat], zoom: saved.zoom });
+        firstFitDoneRef.current = true;
+        mapViewRestoredRef.current = true;
+        return;
+      }
     }
 
-    const b = new google.maps.LatLngBounds();
-    let ok = false;
-    areas.forEach((a) => (a.coordenadas?.coords || []).forEach((c) => {
-      const lat = c[0] || c.lat,lng = c[1] || c.lng;
-      if (typeof lat === 'number' && typeof lng === 'number' && isFinite(lat) && isFinite(lng)) {b.extend({ lat, lng });ok = true;}
-    }));
-    if (ok) {mapInstanceRef.current.fitBounds(b, { padding: 50 });firstFitDoneRef.current = true;}
+    const b = boundsDasAreas(areas);
+    if (b) {
+      try { map.fitBounds(b, { padding: 50, duration: 0, maxZoom: 18 }); } catch { /* ignore */ }
+      firstFitDoneRef.current = true;
+    }
   }, [areas, mapReady, empresaSelecionadaId]);
 
   // ─── Handlers ───
@@ -578,8 +605,7 @@ export default function MapaGeral() {
     for (const area of areas) {
       const pontosArea = area.coordenadas?.coords || [];
       if (pontosArea.length < 3) continue;
-      const polygon = pontosArea.map((coord) => ({ lat: coord[0] || coord.lat, lng: coord[1] || coord.lng }));
-      if (ptInPoly(coords, polygon)) return area;
+      if (ptInPoly(coords, parseVertices(pontosArea))) return area;
     }
     return null;
   }, [areas]);
@@ -701,9 +727,9 @@ export default function MapaGeral() {
   const handleDragLotes = useCallback((newPos, lotesNaArea, areaId, allAreas) => {
     if (!mapaGeralPermissions.mover_lotes) return;
     const orig = allAreas.find((a) => a.id === areaId);
-    if (orig) {const ps = orig.coordenadas.coords.map((c) => ({ lat: c[0] || c.lat, lng: c[1] || c.lng }));if (ptInPoly(newPos, ps)) {toast.error('Arraste para outra área');return;}}
+    if (orig) {if (ptInPoly(newPos, parseVertices(orig.coordenadas?.coords))) {toast.error('Arraste para outra área');return;}}
     let dest = null;
-    for (const a of allAreas) {if (a.id === areaId || !a.coordenadas?.coords || a.coordenadas.coords.length < 3) continue;if (ptInPoly(newPos, a.coordenadas.coords.map((c) => ({ lat: c[0] || c.lat, lng: c[1] || c.lng })))) {dest = a;break;}}
+    for (const a of allAreas) {if (a.id === areaId || !a.coordenadas?.coords || a.coordenadas.coords.length < 3) continue;if (ptInPoly(newPos, parseVertices(a.coordenadas.coords))) {dest = a;break;}}
     if (dest) {setSelectedLote(lotesNaArea);setShowDetalhesLote(true);queueMicrotask(() => window.dispatchEvent(new CustomEvent('open-movimentacao', { detail: { areaDestinoId: dest.id } })));} else
     toast.error('Solte sobre outra área');
   }, [mapaGeralPermissions.mover_lotes, dragLotesEnabled]);
@@ -739,7 +765,7 @@ export default function MapaGeral() {
   const handleLocate = useCallback(() => {
     if (!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(
-      (pos) => {const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };setUserLocation(loc);setShowUserLocation(true);if (mapInstanceRef.current) {mapInstanceRef.current.setCenter(loc);mapInstanceRef.current.setZoom(18);}},
+      (pos) => {const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };setUserLocation(loc);setShowUserLocation(true);if (mapInstanceRef.current) {mapInstanceRef.current.jumpTo({ center: [loc.lng, loc.lat], zoom: 18 });}},
       () => toast.error('Erro ao obter localização')
     );
   }, []);
@@ -754,7 +780,7 @@ export default function MapaGeral() {
   }, [podeUsarTarefasMapa]);
 
   useEffect(() => {
-    if (!mapReady || !mapInstanceRef.current || !mapRef.current || !projectionOverlayRef.current) return;
+    if (!mapReady || !mapInstanceRef.current || !mapRef.current) return;
     const map = mapInstanceRef.current;
     const mapElement = mapRef.current;
 
@@ -779,13 +805,10 @@ export default function MapaGeral() {
     };
 
     const getCoordsFromPoint = (point) => {
-      const projection = projectionOverlayRef.current?.getProjection?.();
-      if (!projection || !point) return null;
+      if (!point) return null;
       const rect = mapElement.getBoundingClientRect();
-      const pixel = new google.maps.Point(point.x - rect.left, point.y - rect.top);
-      const latLng = projection.fromContainerPixelToLatLng(pixel);
-      if (!latLng) return null;
-      return { lat: latLng.lat(), lng: latLng.lng() };
+      const ll = map.unproject([point.x - rect.left, point.y - rect.top]);
+      return ll ? { lat: ll.lat, lng: ll.lng } : null;
     };
 
     const handlePressStart = (event) => {
@@ -831,21 +854,33 @@ export default function MapaGeral() {
     mapElement.addEventListener('touchend', handlePressEnd);
     mapElement.addEventListener('touchcancel', handlePressEnd);
 
-    const listeners = [
-    map.addListener('rightclick', (event) => {
-      if (!podeUsarTarefasMapa || selecionandoLocalTarefa || !event?.latLng) return;
-      abrirLancamentoTarefa({ lat: event.latLng.lat(), lng: event.latLng.lng() });
-    }),
-    map.addListener('click', (event) => {
+    // Pan/zoom (arraste, pinça) cancela o long-press: nada é criado por navegação.
+    const onMoveStart = () => clearLongPress();
+    // Clique/menu sobre área é tratado pelo renderer (área) — aqui só o resto do mapa.
+    const onContextMenu = (event) => {
+      if (!podeUsarTarefasMapa || selecionandoLocalTarefa || !event?.lngLat) return;
+      if (rendererHitRef.current?.(event.point)) return;
+      abrirLancamentoTarefa({ lat: event.lngLat.lat, lng: event.lngLat.lng });
+    };
+    const onMapClick = (event) => {
       clearLongPress();
       if (ignoreNextMapClickRef.current) {
         ignoreNextMapClickRef.current = false;
         return;
       }
-      if (!selecionandoLocalTarefa || !event?.latLng) return;
-      const coords = { lat: event.latLng.lat(), lng: event.latLng.lng() };
+      if (!selecionandoLocalTarefa || !event?.lngLat) return;
+      if (rendererHitRef.current?.(event.point)) return;
+      const coords = { lat: event.lngLat.lat, lng: event.lngLat.lng };
       handleSelectTaskLocation(coords, detectarAreaPorCoordenada(coords));
-    })];
+    };
+    map.on('movestart', onMoveStart);
+    map.on('contextmenu', onContextMenu);
+    map.on('click', onMapClick);
+    const listeners = [
+      { remove: () => map.off('movestart', onMoveStart) },
+      { remove: () => map.off('contextmenu', onContextMenu) },
+      { remove: () => map.off('click', onMapClick) },
+    ];
 
 
     return () => {
@@ -971,11 +1006,13 @@ export default function MapaGeral() {
   return (
     <div className="relative h-full min-h-0 w-full overflow-hidden bg-white" translate="no">
       <div className="w-full h-full relative">
-        <div ref={mapRef} style={{ height: '100%', width: '100%', backgroundColor: '#e5e7eb', touchAction: 'pan-x pan-y', WebkitOverflowScrolling: 'touch' }} />
+        <div ref={mapRef} data-testid="mapa-geral-maplibre" style={{ height: '100%', width: '100%', backgroundColor: '#e5e7eb', touchAction: 'none' }} />
+
+        <BasemapAtribuicao atribuicao={basemap.atribuicao} status={basemap.status} mensagem={basemap.mensagem} onRetry={basemap.retry} />
 
         {/* Controles Mobile */}
         <MapaControlesMobile
-          mapType={mapType} setMapType={setMapType}
+          mapType={mapTypeEfetivo} setMapType={setMapType}
           onRefresh={handleRefresh} onLocate={handleLocate}
           dragEnabled={dragLotesEnabled}
           onToggleDrag={() => setDragLotesEnabled((prev) => !prev)}
@@ -1016,6 +1053,7 @@ export default function MapaGeral() {
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10 max-w-md bg-white px-6 py-4 rounded-lg shadow-2xl border border-amber-300">
             <div className="font-semibold text-slate-800 text-sm mb-1">Mapa indisponível</div>
             <p className="text-xs text-slate-600">{mapLoadError}</p>
+            <Button type="button" size="sm" className="mt-2 h-8 bg-emerald-600 hover:bg-emerald-700" onClick={retryMapa}>Tentar novamente</Button>
           </div>
         }
 

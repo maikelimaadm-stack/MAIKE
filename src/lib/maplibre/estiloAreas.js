@@ -96,3 +96,39 @@ export const SOURCE_IDS = Object.freeze({
   MIDPOINTS: "m1-midpoints",
   GUIA: "m1-guia",
 });
+
+/**
+ * SSOT de pintura de áreas cadastradas (editor, seleção e Mapa Geral) — D-PROD-65.
+ * Mesmos valores da referência (Controle de Estoque `mapa-base.tsx`):
+ * preenchimento pela cor salva (+5% branco), divisa branca fina por zoom e
+ * destaque (hover/seleção) só na linha branca mais marcada.
+ */
+export const LARGURA_DIVISA_EXPR = Object.freeze(["interpolate", ["linear"], ["zoom"], 10, 0.3, 13, 0.45, 16, 0.55, 18, 0.7]);
+export const LARGURA_DESTAQUE_EXPR = Object.freeze(["interpolate", ["linear"], ["zoom"], 10, 1.4, 14, 1.8, 18, 2.2]);
+
+/** @param {string} [corProp] propriedade com a cor já exibida */
+export function paintAreaFill(corProp = "fill") {
+  return {
+    "fill-color": ["coalesce", ["get", corProp], "#94a3b8"],
+    "fill-opacity": OPACIDADE_FILL_AREA,
+  };
+}
+
+export function paintAreaDivisa() {
+  return { "line-color": COR_LINHA_AREA, "line-opacity": 1, "line-width": /** @type {any} */ ([...LARGURA_DIVISA_EXPR]) };
+}
+
+export function paintAreaDestaque() {
+  return {
+    "line-color": COR_LINHA_AREA,
+    "line-opacity": [
+      "case",
+      ["boolean", ["feature-state", "selecionada"], false],
+      1,
+      ["boolean", ["feature-state", "hover"], false],
+      1,
+      0,
+    ],
+    "line-width": /** @type {any} */ ([...LARGURA_DESTAQUE_EXPR]),
+  };
+}

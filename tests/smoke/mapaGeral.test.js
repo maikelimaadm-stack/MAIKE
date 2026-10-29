@@ -138,9 +138,11 @@ describe('MG8 — chave do Google Maps ausente', () => {
     expect(GOOGLE_MAPS_MISSING_KEY_MESSAGE.trim()).not.toBe('');
   });
 
-  it('a página nasce com o erro de mapa preenchido em vez de tentar carregar', () => {
+  it('Mapa Geral não depende mais da chave: MapLibre + basemap SSOT (D-PROD-65)', () => {
     const fonte = codigoDe(MAPA_GERAL);
-    expect(fonte).toContain('isGoogleMapsConfigured() ? null : GOOGLE_MAPS_MISSING_KEY_MESSAGE');
+    expect(fonte).not.toMatch(/loadGoogleMaps|GOOGLE_MAPS_MISSING_KEY_MESSAGE|google\.maps\./);
+    expect(fonte).toContain('createEditorMap');
+    expect(fonte).toContain('useBasemap');
   });
 
   it('a mensagem pública não carrega valor de chave', async () => {

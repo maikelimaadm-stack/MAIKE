@@ -44,7 +44,9 @@ beforeEach(() => {
 });
 
 describe('MapaGeral — superfície primária', () => {
-  it('sem chave do Google Maps, mostra fallback controlado e não fica em branco', async () => {
+  // D-PROD-65: Mapa Geral é MapLibre. Sem chave Google ele continua abrindo (ruas);
+  // no jsdom não há WebGL — a tela mostra fallback controlado, não fica em branco.
+  it('sem WebGL/chave, mostra fallback controlado e não fica em branco', async () => {
     vi.stubEnv('VITE_GOOGLE_MAPS_API_KEY', '');
     const { default: MapaGeral } = await import('@/pages/MapaGeral');
 
@@ -54,14 +56,14 @@ describe('MapaGeral — superfície primária', () => {
       expect(screen.getByText('Mapa indisponível')).toBeInTheDocument();
     });
 
-    expect(screen.getByText(/VITE_GOOGLE_MAPS_API_KEY/)).toBeInTheDocument();
-    // Tela branca = container sem conteúdo. Aqui há árvore renderizada.
+    expect(screen.getByText(/WebGL/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Tentar novamente' })).toBeInTheDocument();
     expect(container.textContent.trim().length).toBeGreaterThan(0);
     expect(container.querySelectorAll('*').length).toBeGreaterThan(10);
   });
 
   it('a mensagem de fallback não vaza nenhuma chave', async () => {
-    vi.stubEnv('VITE_GOOGLE_MAPS_API_KEY', '');
+    vi.stubEnv('VITE_GOOGLE_MAPS_API_KEY', 'AIzaFAKEFAKEFAKEFAKEFAKE');
     const { default: MapaGeral } = await import('@/pages/MapaGeral');
     const { container } = render(<MapaGeral />, { wrapper });
 

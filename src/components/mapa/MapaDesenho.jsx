@@ -25,20 +25,29 @@ import {
   validatePolygonForSave,
   validateLineForSave,
 } from "@/lib/geografia";
-import {
-  BASEMAP_IDS,
-  getSatelliteProvider,
-  mensagemSateliteNaoConfigurado,
-  CENTRO_PADRAO,
-} from "@/lib/maplibre/basemap.js";
+import { BASEMAP_IDS, CENTRO_PADRAO } from "@/lib/maplibre/basemap.js";
 import {
   createEditorMap,
   ensureBusinessLayers,
   setSourceData,
   syncDivisaWidth,
-  applyBasemapStyle,
   maplibregl,
 } from "@/lib/maplibre/lifecycle.js";
+import {
+  MODOS,
+  cursorDoModo,
+  desenhoAlterado,
+  modoInicial,
+  podeAdicionarVertice,
+  podeEditarVertices,
+  podeMoverArea,
+  removerVertice,
+  segmentosDaRegua,
+  transladarPontos,
+  travarAngulo45,
+} from "@/lib/maplibre/editorModos.js";
+import useBasemap from "./useBasemap";
+import BasemapAtribuicao from "./BasemapAtribuicao";
 import { SOURCE_IDS, LAYER_IDS } from "@/lib/maplibre/estiloAreas.js";
 import {
   buildAreasCollection,
@@ -63,9 +72,11 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
   const [mapReady, setMapReady] = useState(false);
   const [mapError, setMapError] = useState(null);
   const [mapEpoch, setMapEpoch] = useState(0);
-  /** @type {[string, React.Dispatch<React.SetStateAction<string>>]} */
-  const [basemapId, setBasemapId] = useState(/** @type {string} */ (BASEMAP_IDS.RUAS));
   const [snappingEnabled, setSnappingEnabled] = useState(true);
+  const [modo, setModo] = useState(() => /** @type {string} */ (modoInicial({ tipo: tipoDesenho, editando: !!itemEditando })));
+  const [verticeSelecionado, setVerticeSelecionado] = useState(/** @type {number | null} */ (null));
+  const [reguaAtiva, setReguaAtiva] = useState(false);
+  const [confirmarSaida, setConfirmarSaida] = useState(false);
 
   const [currentPoints, setCurrentPoints] = useState([]);
   const [currentMarker, setCurrentMarker] = useState(null);
@@ -100,6 +111,9 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
   const mountedRef = useRef(true);
   const empresaRef = useRef(null);
   const overlayEpochRef = useRef(0);
+  const modoRef = useRef(modo);
+  const originalPontosRef = useRef(/** @type {{ lat: number, lng: number }[]} */ ([]));
+  const reguaMarkersRef = useRef(/** @type {any[]} */ ([]));
 
   const syncHistoryUi = useCallback(() => {
     setUndoLen(undoStackRef.current.length);
@@ -118,6 +132,10 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
   useEffect(() => {
     drawingClosedRef.current = drawingClosed;
   }, [drawingClosed]);
+  useEffect(() => {
+    modoRef.current = modo;
+    if (modo !== MODOS.EDITAR) setVerticeSelecionado(null);
+  }, [modo]);
   useEffect(() => {
     mountedRef.current = true;
     return () => {
@@ -422,6 +440,7 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
         return undefined;
       }
       const coords = inspected.vertices;
+      originalPontosRef.current = coords.map((p) => ({ ...p }));
       setCurrentPoints(coords);
       setDrawingClosed(coords.length >= 3);
       const t = window.setTimeout(() => {
@@ -441,6 +460,7 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
         );
       }
       const coords = inspected.vertices;
+      originalPontosRef.current = coords.map((p) => ({ ...p }));
       setCurrentPoints(coords);
       const t = window.setTimeout(() => {
         const map = mapInstanceRef.current;
@@ -536,6 +556,7 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map || !tipoDesenho || !mapReady || itemEditando) return undefined;
+    if (!podeAdicionarVertice(modo, drawingClosed)) return undefined;
 
     const MAX_CLICK_DURATION = 400;
     const MAX_CLICK_DISTANCE = 10;
@@ -543,22 +564,30 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
     let downPos = null;
     let downTime = 0;
 
-    const handleAddPoint = (latLng) => {
+    const handleAddPoint = (latLng, mods = {}) => {
       if (!latLng) return;
-      if (drawingClosedRef.current) return;
+      if (!podeAdicionarVertice(modoRef.current, drawingClosedRef.current)) return;
       if (zoomingRef.current) return;
 
       if (tipoDesenho === "area" && isNearFirstVertex(map, latLng, currentPointsRef.current, 20)) {
         setDrawingClosed(true);
-        toast.success("Área fechada! Ajuste os pontos ou clique Salvar.", { duration: 2000 });
+        setModo(MODOS.EDITAR);
+        toast.success("Área fechada! Arraste os pontos, navegue ou clique Salvar.", { duration: 2000 });
         return;
       }
 
       let { lat, lng } = latLng;
-      const snapped = findNearestSnap(map, latLng, {
+      const ultimo = currentPointsRef.current[currentPointsRef.current.length - 1];
+      if (mods.shift && ultimo && tipoDesenho !== "ponto") {
+        const travado = travarAngulo45(map.project([ultimo.lng, ultimo.lat]), map.project([lng, lat]));
+        const ll = map.unproject([travado.x, travado.y]);
+        lat = ll.lat;
+        lng = ll.lng;
+      }
+      const snapped = findNearestSnap(map, { lat, lng }, {
         areas: areasRef.current,
         linhas: linhasRef.current,
-        enabled: snappingRef.current,
+        enabled: snappingRef.current && !mods.alt,
       });
       if (snapped) {
         lat = snapped.lat;
@@ -603,10 +632,13 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
       const rect = canvas.getBoundingClientRect();
       const x = ev.clientX - rect.left;
       const y = ev.clientY - rect.top;
-      if (hitEditLayers(map, x, y, [LAYER_IDS.VERTICES, LAYER_IDS.MIDPOINTS])) return;
-
       const ll = map.unproject([x, y]);
-      handleAddPoint({ lat: ll.lat, lng: ll.lng });
+      // Fechar tocando o 1º vértice tem prioridade sobre "toque em vértice não cria ponto".
+      const fechaNoPrimeiro =
+        tipoDesenho === "area" && isNearFirstVertex(map, { lat: ll.lat, lng: ll.lng }, currentPointsRef.current, 20);
+      if (!fechaNoPrimeiro && hitEditLayers(map, x, y, [LAYER_IDS.VERTICES, LAYER_IDS.MIDPOINTS])) return;
+
+      handleAddPoint({ lat: ll.lat, lng: ll.lng }, { shift: !!ev.shiftKey, alt: !!ev.altKey });
     };
 
     canvas.addEventListener("pointerdown", onDown, { passive: true });
@@ -616,7 +648,7 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
       canvas.removeEventListener("pointerdown", onDown);
       canvas.removeEventListener("pointerup", onUp);
     };
-  }, [tipoDesenho, mapReady, itemEditando, drawingClosed, syncHistoryUi]);
+  }, [tipoDesenho, mapReady, itemEditando, drawingClosed, syncHistoryUi, modo]);
 
   // Guia elástica
   useEffect(() => {
@@ -624,7 +656,7 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
     if (!map || !mapReady) return undefined;
     if (!(tipoDesenho === "area" || tipoDesenho === "linha") || itemEditando) return undefined;
 
-    if (drawingClosed) {
+    if (!podeAdicionarVertice(modo, drawingClosed)) {
       setSourceData(map, SOURCE_IDS.GUIA, emptyFc());
       return undefined;
     }
@@ -637,10 +669,15 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
         return;
       }
       let target = { lat: e.lngLat.lat, lng: e.lngLat.lng };
+      if (e.originalEvent?.shiftKey) {
+        const t = travarAngulo45(map.project([last.lng, last.lat]), e.point);
+        const ll = map.unproject([t.x, t.y]);
+        target = { lat: ll.lat, lng: ll.lng };
+      }
       const snapped = findNearestSnap(map, target, {
         areas: areasRef.current,
         linhas: linhasRef.current,
-        enabled: snappingRef.current,
+        enabled: snappingRef.current && !e.originalEvent?.altKey,
       });
       if (snapped) target = snapped;
       setSourceData(map, SOURCE_IDS.GUIA, buildGuiaCollection(last, target));
@@ -656,14 +693,15 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
       map.getCanvas().removeEventListener("mouseleave", onLeave);
       setSourceData(map, SOURCE_IDS.GUIA, emptyFc());
     };
-  }, [mapReady, tipoDesenho, itemEditando, snappingEnabled, drawingClosed]);
+  }, [mapReady, tipoDesenho, itemEditando, snappingEnabled, drawingClosed, modo]);
 
   // Drag vértices/midpoints — pointer + touch (R5-03, R5-04)
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map || !mapReady || !tipoDesenho) return undefined;
-    const canDrag = drawingClosed || !!itemEditando || tipoDesenho === "ponto";
-    if (!canDrag) return undefined;
+    if (!podeEditarVertices(modo, tipoDesenho)) return undefined;
+    if (tipoDesenho === "ponto" && !currentMarkerRef.current) return undefined;
+    const LIMIAR_ARRASTO_PX = 4;
 
     const canvas = map.getCanvas();
 
@@ -682,12 +720,20 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
         return;
       }
 
+      // Toque sem arrasto em vértice = selecionar (para remover), nunca mover.
+      if (!st.moved && st.role === "vertex" && tipoDesenho !== "ponto") {
+        setCurrentPoints(st.before || []);
+        setVerticeSelecionado(st.index);
+        return;
+      }
+      if (!st.moved && tipoDesenho === "ponto") return;
+
       let target = lngLat ? { lat: lngLat.lat, lng: lngLat.lng } : null;
       if (target) {
         const snapped = findNearestSnap(map, target, {
           areas: areasRef.current,
           linhas: linhasRef.current,
-          enabled: snappingRef.current,
+          enabled: snappingRef.current && !st.alt,
         });
         if (snapped) {
           target = snapped;
@@ -752,7 +798,15 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
       if (e.pointerType === "touch" && !e.isPrimary) return;
       const layers = [LAYER_IDS.VERTICES, LAYER_IDS.MIDPOINTS].filter((id) => map.getLayer(id));
       if (layers.length === 0) return;
-      const feats = map.queryRenderedFeatures(e.point, { layers });
+      // Alvo de toque generoso (vértice desenhado tem ~10px).
+      const tol = e.originalEvent?.type?.startsWith("touch") ? 14 : 8;
+      const feats = map.queryRenderedFeatures(
+        [
+          [e.point.x - tol, e.point.y - tol],
+          [e.point.x + tol, e.point.y + tol],
+        ],
+        { layers }
+      );
       if (!feats.length) return;
       const f = feats[0];
       const role = f.properties?.role;
@@ -765,17 +819,25 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
         before: currentPointsRef.current.map((p) => ({ ...p })),
         beforeMarker: currentMarkerRef.current ? { ...currentMarkerRef.current } : null,
         pointerId: e.originalEvent?.pointerId,
+        downPx: { x: e.point.x, y: e.point.y },
+        moved: false,
+        alt: !!e.originalEvent?.altKey,
       };
     };
 
     const onPointerMove = (e) => {
       const st = dragStateRef.current;
       if (!st) return;
+      if (!st.moved) {
+        if (Math.hypot(e.point.x - st.downPx.x, e.point.y - st.downPx.y) < LIMIAR_ARRASTO_PX) return;
+        st.moved = true;
+      }
+      st.alt = !!e.originalEvent?.altKey;
       let target = { lat: e.lngLat.lat, lng: e.lngLat.lng };
       const snapped = findNearestSnap(map, target, {
         areas: areasRef.current,
         linhas: linhasRef.current,
-        enabled: snappingRef.current,
+        enabled: snappingRef.current && !st.alt,
       });
       if (snapped) target = snapped;
 
@@ -797,8 +859,12 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
       endDrag(e.lngLat, { cancel: false });
     };
 
-    const onWindowPointerUp = () => {
+    // Soltar FORA do mapa cancela; dentro, quem conclui é o mouseup/touchend do
+    // mapa (o pointerup da janela chega antes e cancelava todo arrasto).
+    const onWindowPointerUp = (ev) => {
       if (!dragStateRef.current) return;
+      const alvo = /** @type {Node | null} */ (ev?.target ?? null);
+      if (alvo && (alvo === canvas || canvas.contains(alvo))) return;
       endDrag(null, { cancel: true });
       map.dragPan.enable();
     };
@@ -841,34 +907,164 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
       dragStateRef.current = null;
       void canvas;
     };
-  }, [mapReady, tipoDesenho, drawingClosed, itemEditando, syncHistoryUi]);
+  }, [mapReady, tipoDesenho, drawingClosed, itemEditando, syncHistoryUi, modo, currentMarker]);
 
-  const trocarBasemap = (id) => {
-    if (id === BASEMAP_IDS.SATELITE) {
-      const sat = getSatelliteProvider();
-      if (!sat.configured) {
-        toast.message(mensagemSateliteNaoConfigurado(), {
-          description: "Defina VITE_MAP_SATELLITE_STYLE_URL com um style URL licenciado.",
-        });
+  // Mover área inteira — só com a mão (MOVER); arrasto no interior translada tudo.
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map || !mapReady || !(tipoDesenho === "area" || tipoDesenho === "linha")) return undefined;
+    if (modo !== MODOS.MOVER) return undefined;
+    /** @type {null | { inicio: { lat: number, lng: number }, before: { lat: number, lng: number }[], moved: boolean }} */
+    let mov = null;
+    const camadas = () => [LAYER_IDS.DESENHO_FILL, LAYER_IDS.DESENHO_LINE].filter((id) => map.getLayer(id));
+    const onDown = (e) => {
+      if (!podeMoverArea(modoRef.current, currentPointsRef.current)) return;
+      const tol = 6;
+      const hit = map.queryRenderedFeatures(
+        [
+          [e.point.x - tol, e.point.y - tol],
+          [e.point.x + tol, e.point.y + tol],
+        ],
+        { layers: camadas() }
+      );
+      if (!hit.length) return;
+      e.preventDefault();
+      map.dragPan.disable();
+      mov = { inicio: { lat: e.lngLat.lat, lng: e.lngLat.lng }, before: currentPointsRef.current.map((p) => ({ ...p })), moved: false };
+    };
+    const onMove = (e) => {
+      if (!mov) return;
+      mov.moved = true;
+      setCurrentPoints(transladarPontos(mov.before, e.lngLat.lat - mov.inicio.lat, e.lngLat.lng - mov.inicio.lng));
+    };
+    const onUp = (e) => {
+      if (!mov) return;
+      const m = mov;
+      mov = null;
+      map.dragPan.enable();
+      if (!m.moved || !e?.lngLat) {
+        setCurrentPoints(m.before);
         return;
       }
-    }
+      const after = transladarPontos(m.before, e.lngLat.lat - m.inicio.lat, e.lngLat.lng - m.inicio.lng);
+      const tx = commitDragTransaction({ undo: undoStackRef.current, redo: redoStackRef.current, before: m.before, after });
+      undoStackRef.current = tx.undo;
+      redoStackRef.current = tx.redo;
+      syncHistoryUi();
+      setCurrentPoints(after);
+    };
+    const onCancel = () => {
+      if (!mov) return;
+      setCurrentPoints(mov.before);
+      mov = null;
+      map.dragPan.enable();
+    };
+    map.on("mousedown", onDown);
+    map.on("touchstart", onDown);
+    map.on("mousemove", onMove);
+    map.on("touchmove", onMove);
+    map.on("mouseup", onUp);
+    map.on("touchend", onUp);
+    window.addEventListener("blur", onCancel);
+    return () => {
+      map.off("mousedown", onDown);
+      map.off("touchstart", onDown);
+      map.off("mousemove", onMove);
+      map.off("touchmove", onMove);
+      map.off("mouseup", onUp);
+      map.off("touchend", onUp);
+      window.removeEventListener("blur", onCancel);
+      map.dragPan.enable();
+    };
+  }, [mapReady, tipoDesenho, modo, syncHistoryUi]);
+
+  // Vértice selecionado (destaque) e Delete/Backspace para remover.
+  useEffect(() => {
     const map = mapInstanceRef.current;
-    if (!map) return;
-    styleSwapCancelRef.current?.cancel?.();
-    setBasemapId(id);
-    styleSwapCancelRef.current = applyBasemapStyle(map, id, {
-      onReady: () => {
-        if (!mountedRef.current) return;
-        // rehydrateAllSources já chama rebuildOverlayMarkers (R6-01)
-        rehydrateAllSources(map);
-      },
-      onError: () => {
-        if (!mountedRef.current) return;
-        toast.error("Falha ao trocar o mapa-base.");
-        setBasemapId(BASEMAP_IDS.RUAS);
-      },
+    if (!map || !mapReady || !(tipoDesenho === "area" || tipoDesenho === "linha")) return;
+    const fc = buildVerticesCollection(currentPoints);
+    fc.features.forEach((f) => {
+      if (f.properties && Number(f.properties.index) === verticeSelecionado) f.properties.selecionado = true;
     });
+    setSourceData(map, SOURCE_IDS.VERTICES, currentPoints.length > 0 ? fc : emptyFc());
+  }, [verticeSelecionado, currentPoints, mapReady, tipoDesenho]);
+
+  // Régua: comprimento de cada segmento (DOM markers, textContent).
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    reguaMarkersRef.current.forEach((m) => m.remove());
+    reguaMarkersRef.current = [];
+    if (!map || !mapReady || !reguaAtiva || !(tipoDesenho === "area" || tipoDesenho === "linha")) return undefined;
+    const fechado = tipoDesenho === "area" && (drawingClosed || !!itemEditando);
+    for (const seg of segmentosDaRegua(currentPoints, fechado, (a, b) => comprimentoMetros([a, b]))) {
+      const el = document.createElement("div");
+      el.className = "pointer-events-none whitespace-nowrap rounded bg-black/70 px-1 text-[10px] font-semibold text-white";
+      el.textContent = formatDistanciaPt(seg.metros);
+      reguaMarkersRef.current.push(new maplibregl.Marker({ element: el, anchor: "center" }).setLngLat([seg.meio.lng, seg.meio.lat]).addTo(map));
+    }
+    return () => {
+      reguaMarkersRef.current.forEach((m) => m.remove());
+      reguaMarkersRef.current = [];
+    };
+  }, [reguaAtiva, currentPoints, drawingClosed, itemEditando, mapReady, tipoDesenho]);
+
+  const removerVerticeSelecionado = useCallback(() => {
+    if (verticeSelecionado == null) return;
+    const before = currentPointsRef.current.map((p) => ({ ...p }));
+    const after = removerVertice(before, verticeSelecionado, tipoDesenho);
+    if (!after) {
+      toast.error(tipoDesenho === "area" ? "A área precisa de pelo menos 3 pontos." : "A linha precisa de pelo menos 2 pontos.");
+      return;
+    }
+    const tx = commitDragTransaction({ undo: undoStackRef.current, redo: redoStackRef.current, before, after });
+    undoStackRef.current = tx.undo;
+    redoStackRef.current = tx.redo;
+    syncHistoryUi();
+    setCurrentPoints(after);
+    setVerticeSelecionado(null);
+    toast.success("Ponto removido", { duration: 800 });
+  }, [verticeSelecionado, tipoDesenho, syncHistoryUi]);
+
+  useEffect(() => {
+    if (verticeSelecionado == null) return undefined;
+    const onKey = (ev) => {
+      const alvo = /** @type {HTMLElement | null} */ (ev.target);
+      if (alvo && /^(INPUT|TEXTAREA|SELECT)$/.test(alvo.tagName)) return;
+      if (ev.key === "Delete" || ev.key === "Backspace") {
+        ev.preventDefault();
+        removerVerticeSelecionado();
+      } else if (ev.key === "Escape") {
+        setVerticeSelecionado(null);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [verticeSelecionado, removerVerticeSelecionado]);
+
+  const basemapMap = mapReady ? mapInstanceRef.current : null;
+  const basemap = useBasemap(basemapMap, {
+    reaplicarCamadas: () => {
+      const map = mapInstanceRef.current;
+      if (!map) return;
+      ensureBusinessLayers(map);
+      syncDivisaWidth(map);
+      rehydrateAllSources(map);
+    },
+  });
+
+  const trocarBasemap = (id) => basemap.setBasemap(id);
+
+  const temAlteracoes = () => {
+    if (tipoDesenho === "ponto") return !!currentMarker && !itemEditando;
+    return desenhoAlterado(itemEditando ? originalPontosRef.current : [], currentPoints);
+  };
+
+  const sair = () => {
+    if (temAlteracoes()) {
+      setConfirmarSaida(true);
+      return;
+    }
+    onCancelar?.();
   };
 
   const finalizarDesenho = () => {
@@ -897,12 +1093,15 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
   const retryMap = () => {
     setMapError(null);
     setMapReady(false);
-    styleSwapCancelRef.current?.cancel?.();
-    styleSwapCancelRef.current = null;
     setMapEpoch((n) => n + 1);
   };
 
-  const crosshair = tipoDesenho && mapReady && !itemEditando && !drawingClosed;
+  const crosshair = tipoDesenho && mapReady && podeAdicionarVertice(modo, drawingClosed) && !itemEditando;
+  const cursorModo = mapReady ? cursorDoModo(modo) : "";
+  const desenhaAreaOuLinha = tipoDesenho === "area" || tipoDesenho === "linha";
+  const fechadoParaMedir = tipoDesenho === "area" && (drawingClosed || !!itemEditando);
+  const botaoModo = (ativo) =>
+    `h-11 min-w-[44px] px-2 text-xs font-semibold rounded-md border shadow-sm ${ativo ? "bg-slate-900 text-white border-slate-900 hover:bg-slate-800" : "bg-white text-slate-800 border-slate-300 hover:bg-slate-100"}`;
 
   return (
     <div className="fixed inset-0 z-50 bg-white">
@@ -914,14 +1113,32 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
             height: "100%",
             width: "100%",
             backgroundColor: "#e5e7eb",
-            cursor: crosshair ? "crosshair" : "default",
-            touchAction: "manipulation",
+            cursor: crosshair ? "crosshair" : cursorModo || "default",
+            touchAction: "none",
           }}
           className={crosshair ? "[&_*]:cursor-crosshair" : ""}
         />
 
+        <BasemapAtribuicao atribuicao={basemap.atribuicao} status={basemap.status} mensagem={basemap.mensagem} onRetry={basemap.retry} />
+
+        {confirmarSaida && (
+          <div role="alertdialog" aria-label="Descartar alterações" className="absolute left-1/2 top-1/3 z-40 w-[min(92vw,360px)] -translate-x-1/2 space-y-3 rounded-lg bg-white p-4 shadow-2xl">
+            <p className="text-sm font-semibold text-slate-900">Descartar o desenho não salvo?</p>
+            <p className="text-xs text-slate-600">As alterações no mapa ainda não foram salvas.</p>
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" size="sm" className="h-10" onClick={() => setConfirmarSaida(false)}>
+                Voltar ao desenho
+              </Button>
+              <Button type="button" size="sm" className="h-10 bg-red-600 text-white hover:bg-red-700" onClick={() => { setConfirmarSaida(false); onCancelar?.(); }}>
+                Descartar
+              </Button>
+            </div>
+          </div>
+        )}
+
         <Button
-          onClick={onCancelar}
+          onClick={sair}
+          aria-label="Fechar editor"
           variant="secondary"
           size="icon"
           className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 text-secondary-foreground absolute top-1 left-1 z-20 h-7 w-7 rounded-full bg-white/90 backdrop-blur-sm shadow-lg hover:bg-white"
@@ -931,18 +1148,21 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
 
         <div className="absolute top-4 right-4 z-20 flex items-center gap-1">
           <Button
-            variant={basemapId === BASEMAP_IDS.RUAS ? "default" : "secondary"}
+            variant={basemap.basemapId === BASEMAP_IDS.RUAS ? "default" : "secondary"}
             size="sm"
+            aria-pressed={basemap.basemapId === BASEMAP_IDS.RUAS}
             onClick={() => trocarBasemap(BASEMAP_IDS.RUAS)}
             className="w-9 bg-background text-[hsl(var(--foreground))] px-7 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input shadow-sm hover:bg-accent hover:text-accent-foreground active:bg-black active:text-white h-7"
           >
             Mapa
           </Button>
           <Button
-            variant={basemapId === BASEMAP_IDS.SATELITE ? "default" : "secondary"}
+            variant={basemap.basemapId === BASEMAP_IDS.SATELITE ? "default" : "secondary"}
             size="sm"
+            aria-pressed={basemap.basemapId === BASEMAP_IDS.SATELITE}
+            disabled={basemap.status === "carregando"}
             onClick={() => trocarBasemap(BASEMAP_IDS.SATELITE)}
-            title={getSatelliteProvider().configured ? "Satélite" : mensagemSateliteNaoConfigurado()}
+            title="Satélite"
             className="w-9 bg-background text-[hsl(var(--foreground))] px-7 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input shadow-sm hover:bg-accent hover:text-accent-foreground active:bg-black active:text-white h-7"
           >
             Satélite
@@ -978,11 +1198,25 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
             size="sm"
             onClick={() => setSnappingEnabled(!snappingEnabled)}
             className="w-9 bg-background text-[hsl(var(--foreground))] px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input shadow-sm hover:bg-accent hover:text-accent-foreground active:bg-black active:text-white h-7"
-            title={snappingEnabled ? "Ímã ativado" : "Ímã desativado"}
+            title={snappingEnabled ? "Ímã ativado (Alt suspende)" : "Ímã desativado"}
             aria-label="Alternar ímã"
+            aria-pressed={snappingEnabled}
           >
             <span className="text-base leading-none">🧲</span>
           </Button>
+          {desenhaAreaOuLinha && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setReguaAtiva((v) => !v)}
+              className="w-9 bg-background px-3 text-xs h-7 border border-input shadow-sm"
+              title={reguaAtiva ? "Régua ativada" : "Régua desativada"}
+              aria-label="Alternar régua"
+              aria-pressed={reguaAtiva}
+            >
+              <span className="text-base leading-none">📏</span>
+            </Button>
+          )}
         </div>
 
         {!mapReady && !mapError && (
@@ -1006,10 +1240,31 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
 
         {tipoDesenho && mapReady && (
           <>
+            {desenhaAreaOuLinha && (
+              <div role="toolbar" aria-label="Modo do editor" className="absolute left-1 top-12 z-20 flex flex-col gap-1" style={{ top: "max(3rem, env(safe-area-inset-top))" }}>
+                <button type="button" className={botaoModo(modo === MODOS.NAVEGAR)} aria-pressed={modo === MODOS.NAVEGAR} aria-label="Navegar no mapa" title="Navegar: mover e ampliar sem criar pontos" onClick={() => setModo(MODOS.NAVEGAR)}>
+                  ✋ Navegar
+                </button>
+                {!itemEditando && !drawingClosed && (
+                  <button type="button" className={botaoModo(modo === MODOS.DESENHAR)} aria-pressed={modo === MODOS.DESENHAR} aria-label="Desenhar pontos" title="Desenhar: toque curto cria ponto (Shift trava 45°)" onClick={() => setModo(MODOS.DESENHAR)}>
+                    ✏️ Desenhar
+                  </button>
+                )}
+                <button type="button" className={botaoModo(modo === MODOS.EDITAR)} aria-pressed={modo === MODOS.EDITAR} aria-label="Editar pontos" title="Editar: arraste pontos, toque no meio para inserir, toque num ponto para selecionar" disabled={currentPoints.length === 0} onClick={() => setModo(MODOS.EDITAR)}>
+                  ⬚ Editar
+                </button>
+                <button type="button" className={botaoModo(modo === MODOS.MOVER)} aria-pressed={modo === MODOS.MOVER} aria-label="Mover área inteira" title="Mão: arraste o interior para mover a área inteira" disabled={currentPoints.length === 0} onClick={() => setModo(MODOS.MOVER)}>
+                  ✥ Mover
+                </button>
+              </div>
+            )}
             {tipoDesenho === "area" && currentPoints.length >= 3 && (
               <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10 pointer-events-none">
-                <div className="bg-black/70 text-white px-3 py-1.5 rounded text-sm font-semibold">
-                  Área: {formatHectaresPt(areaHectares(currentPoints))} ha
+                <div data-testid="medidas-area" className="bg-black/70 text-white px-3 py-1.5 rounded text-sm font-semibold text-center">
+                  <div>Área: {formatHectaresPt(areaHectares(currentPoints))} ha</div>
+                  {fechadoParaMedir && (
+                    <div className="text-[11px] font-normal">Perímetro: {formatDistanciaPt(comprimentoMetros([...currentPoints, currentPoints[0]]))}</div>
+                  )}
                 </div>
               </div>
             )}
@@ -1032,9 +1287,12 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
                   {tipoDesenho === "area" ? "Toque para desenhar a área" : "Toque para desenhar a linha"}
                 </div>
               )}
-              {itemEditando && (
+              {desenhaAreaOuLinha && currentPoints.length > 0 && (
                 <div className="bg-black/70 text-white px-4 py-2 rounded-lg text-xs font-semibold">
-                  Arraste os pontos para ajustar
+                  {modo === MODOS.NAVEGAR && "Navegando — o mapa move sem criar pontos"}
+                  {modo === MODOS.DESENHAR && "Toque para adicionar pontos"}
+                  {modo === MODOS.EDITAR && (verticeSelecionado != null ? `Ponto ${verticeSelecionado + 1} selecionado` : "Arraste os pontos para ajustar")}
+                  {modo === MODOS.MOVER && "Arraste o interior para mover a área"}
                 </div>
               )}
 
@@ -1046,6 +1304,7 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
                     className="bg-background text-[hsl(var(--foreground))] px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input shadow-sm hover:bg-accent hover:text-accent-foreground h-7"
                     onClick={() => {
                       cancelarDesenho();
+                      setModo(MODOS.DESENHAR);
                       toast.success("Desenho reiniciado", { duration: 1000 });
                     }}
                   >
@@ -1053,12 +1312,23 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
                   </Button>
                 )}
 
+                {verticeSelecionado != null && modo === MODOS.EDITAR && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 px-3 text-xs border-red-300 text-red-700"
+                    onClick={removerVerticeSelecionado}
+                  >
+                    Remover ponto
+                  </Button>
+                )}
                 <Button
                   variant="outline"
                   size="sm"
                   className="bg-background text-[hsl(var(--foreground))] px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input shadow-sm hover:bg-accent hover:text-accent-foreground h-7"
                   onClick={() => {
                     if (undoStackRef.current.length > 0) {
+                      setVerticeSelecionado(null);
                       const prevPts = undoStackRef.current.pop();
                       redoStackRef.current.push(currentPoints.map((p) => ({ ...p })));
                       setCurrentPoints(prevPts);
@@ -1077,6 +1347,7 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
                   className="bg-background text-[hsl(var(--foreground))] px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input shadow-sm hover:bg-accent hover:text-accent-foreground h-7"
                   onClick={() => {
                     if (redoStackRef.current.length > 0) {
+                      setVerticeSelecionado(null);
                       const nextPts = redoStackRef.current.pop();
                       undoStackRef.current.push(currentPoints.map((p) => ({ ...p })));
                       setCurrentPoints(nextPts);
