@@ -7,10 +7,10 @@ import TabelaContasAcesso, {
   CONTAS_ACESSO_COLUNAS,
   getContaAcessoFieldValue,
 } from "@/components/usuarios/TabelaContasAcesso";
-import { useCadastroBase1FullListController } from "@/hooks/useCadastroBase1FullListController";
+import { useCadastroBase1Controller } from "@/hooks/useCadastroBase1Controller";
 import { getCurrentUser } from "@/services/sessionService";
 import {
-  listarContasAcesso,
+  listarContasAcessoPagina,
   criarContaAcesso,
   atualizarContaAcesso,
   validarPatchContaAcesso,
@@ -31,13 +31,19 @@ export default function Usuarios() {
     queryFn: () => getCurrentUser(),
   });
 
-  const fetchAll = useCallback(() => listarContasAcesso(), []);
+  // SCALE-01: página keyset do servidor (busca `q` no backend), em vez de
+  // baixar o tenant inteiro e filtrar no navegador.
+  const fetchPage = useCallback(
+    ({ limit, cursor, q }) => listarContasAcessoPagina({ limit, cursor, q: q || undefined }),
+    [],
+  );
 
-  const controller = useCadastroBase1FullListController({
+  const controller = useCadastroBase1Controller({
     storageKey: STORAGE_KEY,
     columnIds: CONTAS_ACESSO_COLUNAS.map((c) => c.id),
-    queryKey: ["contasAcesso", sessaoKey],
-    fetchAll,
+    queryKey: ["contasAcesso", sessaoKey, "page"],
+    fetchPage,
+    searchPlaceholder: "Buscar contas…",
     duplicateLabelField: "login",
     exportFileName: "contas-acesso.csv",
     exportColumns: CONTAS_ACESSO_COLUNAS,

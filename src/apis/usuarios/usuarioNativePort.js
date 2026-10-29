@@ -6,6 +6,7 @@ import { nativeRequest } from '../_core/nativeHttpClient.js';
 
 const RESOURCE = 'Usuario';
 const CAMINHO = '/usuarios';
+const CAMINHO_PAGINA = '/usuarios/page';
 
 const ctx = (operation) => ({ operation, resource: RESOURCE });
 
@@ -25,6 +26,21 @@ export const listUsuariosNativos = async () => {
   const resposta = await nativeRequest(CAMINHO, { method: 'GET' }, ctx('listUsuarios'));
   return Array.isArray(resposta) ? resposta : [];
 };
+
+/** @param {{ limit?: number, cursor?: string|null, q?: string, ativo?: boolean }} [filtros] */
+const montarQueryPagina = (filtros = {}) => {
+  const params = new URLSearchParams();
+  if (filtros.limit != null) params.set('limit', String(filtros.limit));
+  if (typeof filtros.cursor === 'string' && filtros.cursor) params.set('cursor', filtros.cursor);
+  if (typeof filtros.q === 'string' && filtros.q.trim()) params.set('q', filtros.q.trim());
+  if (filtros.ativo === true || filtros.ativo === false) params.set('ativo', String(filtros.ativo));
+  const qs = params.toString();
+  return qs ? `${CAMINHO_PAGINA}?${qs}` : CAMINHO_PAGINA;
+};
+
+/** Página keyset (SCALE-01) — a tela Usuários não baixa mais o tenant inteiro. */
+export const listUsuariosPaginaNativo = (filtros = {}) =>
+  nativeRequest(montarQueryPagina(filtros), { method: 'GET' }, ctx('listUsuariosPage'));
 
 export const createUsuarioNativo = async (dados) => {
   const corpo = corpoDe(dados, CAMPOS_CRIACAO);

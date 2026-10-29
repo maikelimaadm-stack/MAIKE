@@ -20,7 +20,7 @@ const listarUsuariosMock = vi.fn();
 const listarPermissoesMock = vi.fn();
 
 vi.mock("@/services/usuarioAdminService", () => ({
-  listarContasAcesso: (...a) => listarContasMock(...a),
+  listarContasAcessoPagina: (...a) => listarContasMock(...a),
   criarContaAcesso: (...a) => criarContaMock(...a),
   atualizarContaAcesso: vi.fn(),
   validarPatchContaAcesso: vi.fn(),
@@ -65,7 +65,11 @@ describe("MENU-SCOPE — split Usuários / Permissões", () => {
   it("Usuarios.jsx usa MotorBase1; Permissoes.jsx não mistura contas", () => {
     const usuariosSrc = readFileSync("src/pages/Usuarios.jsx", "utf8");
     expect(usuariosSrc).toMatch(/CadastroBase1Screen/);
-    expect(usuariosSrc).toMatch(/useCadastroBase1FullListController/);
+    // SCALE-01: motor keyset paginado no servidor, não full-list no navegador.
+    expect(usuariosSrc).toMatch(/useCadastroBase1Controller\b/);
+    expect(usuariosSrc).not.toMatch(/useCadastroBase1FullListController/);
+    expect(usuariosSrc).toMatch(/listarContasAcessoPagina/);
+    expect(usuariosSrc).not.toMatch(/listarContasAcesso\(\)/);
     expect(usuariosSrc).not.toMatch(/listarPermissoes/);
     expect(usuariosSrc).not.toMatch(/FormularioUsuario/);
     expect(usuariosSrc).toMatch(/showDelete=\{false\}/);
@@ -129,9 +133,13 @@ describe("AUTH-REDTEAM — adm-permissoes herda adm-usuarios", () => {
 describe("DOM — /usuarios contas nativas", () => {
   beforeEach(() => {
     listarContasMock.mockReset();
-    listarContasMock.mockResolvedValue([
-      { id: "1", login: "op1", nome: "Operador", ativo: true },
-    ]);
+    listarContasMock.mockResolvedValue({
+      items: [{ id: "1", login: "op1", nome: "Operador", ativo: true }],
+      next_cursor: null,
+      has_more: false,
+      total: 1,
+      limit: 100,
+    });
   });
 
   it("lista contas e botão Novo", async () => {

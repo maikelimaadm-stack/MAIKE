@@ -126,6 +126,8 @@ model Usuario {
   // solto que poderia pertencer a outro tenant. Ver AuditLog.
   @@unique([cliente_id, id])
   @@index([cliente_id, ativo])
+  // Keyset da listagem paginada GET /usuarios/page (SCALE-01).
+  @@index([cliente_id, createdAt, id])
   // Login global entre contas ativas: migration `p6_1_login_global_hygiene` +
   // índice parcial SQL `Usuario_login_ativo_global_key` (D-PROD-35). No Prisma
   // permanece @@unique([cliente_id, login]); índice só em `login` violaria gate:indices.

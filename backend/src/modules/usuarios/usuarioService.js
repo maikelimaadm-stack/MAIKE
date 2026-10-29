@@ -14,9 +14,17 @@ import {
   usuarioLoginDuplicado,
   usuarioNotFound,
   usuarioSelfDeactivate,
+  AppError,
 } from '../../shared/errors/AppError.js';
 import {
+  decodificarCursor,
+  normalizarLimite,
+  montarEnvelopeKeyset,
+} from '../../shared/pagination/keysetCursor.js';
+import {
   listarUsuarios,
+  listarUsuariosPagina,
+  contarUsuarios,
   buscarUsuario,
   inserirUsuario,
   atualizarUsuarioPorId,
@@ -47,6 +55,44 @@ export const listar = async (contexto) => {
   const auth = exigirAuthContext(contexto?.auth);
   const registros = await listarUsuarios(auth.clienteId);
   return registros.map(comoUsuarioPublico);
+};
+
+/**
+ * Listagem paginada por keyset (SCALE-01) — `GET /usuarios/page`.
+ *
+ * `total` é contado só na primeira página (sem cursor): o motor Base1 lê o
+ * total da página 0, e recontar o conjunto a cada "carregar mais" custaria um
+ * COUNT por página. Nas páginas seguintes `total` é `null` — "não calculado
+ * nesta página", nunca zero nem estimativa.
+ *
+ * @param {{auth: import('../../shared/auth/authContext.js').AuthContext}} contexto
+ * @param {Record<string, unknown>} [query]
+ */
+export const listarPagina = async (contexto, query = {}) => {
+  const auth = exigirAuthContext(contexto?.auth);
+  const limit = normalizarLimite(query.limit);
+  const q = typeof query.q === 'string' ? query.q : null;
+  let ativo = null;
+  if (query.ativo === true || query.ativo === 'true' || query.ativo === '1') ativo = true;
+  if (query.ativo === false || query.ativo === 'false' || query.ativo === '0') ativo = false;
+
+  const cursorBruto = typeof query.cursor === 'string' ? query.cursor : null;
+  const cursor = cursorBruto ? decodificarCursor(cursorBruto) : null;
+  if (cursorBruto && !cursor) {
+    throw new AppError('REQUEST_VALIDATION_FAILED', 'cursor inválido');
+  }
+
+  const [registros, total] = await Promise.all([
+    listarUsuariosPagina(auth.clienteId, { q, ativo, cursor, limit }),
+    cursor ? Promise.resolve(null) : contarUsuarios(auth.clienteId, { q, ativo }),
+  ]);
+
+  return montarEnvelopeKeyset({
+    registros,
+    limit,
+    total: /** @type {number} */ (/** @type {unknown} */ (total)),
+    mapItem: comoUsuarioPublico,
+  });
 };
 
 /**

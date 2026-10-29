@@ -1,12 +1,16 @@
 /**
  * Rotas de administração de Usuario (P6.0, D-PROD-34).
  *
- * GET/POST/PATCH autenticados. Sem DELETE — desativar com `ativo: false`.
+ * GET/POST/PATCH autenticados. `GET /usuarios` (lista completa) fica como
+ * compatibilidade para Permissões/Mapa; a tela Usuários usa `GET /usuarios/page`
+ * (keyset `createdAt DESC, id DESC`, SCALE-01).
+ * Sem DELETE — desativar com `ativo: false`.
  * `senha_hash` nunca entra nem sai; criação usa `senha`, edição usa `nova_senha`.
  */
 
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
-import { listar, criar, atualizar } from './usuarioService.js';
+import { LIMITE_MAXIMO, LIMITE_PADRAO } from '../../shared/pagination/keysetCursor.js';
+import { listar, listarPagina, criar, atualizar } from './usuarioService.js';
 
 const CAMPOS_CRIAR = Object.freeze({
   nome: { type: 'string', minLength: 1, maxLength: 255, pattern: '\\S' },
@@ -26,6 +30,19 @@ const CRIAR_SCHEMA = {
     required: ['nome', 'login', 'senha'],
     additionalProperties: false,
     properties: { ...CAMPOS_CRIAR },
+  },
+};
+
+const LISTAR_PAGINA_SCHEMA = {
+  querystring: {
+    type: 'object',
+    additionalProperties: false,
+    properties: {
+      limit: { type: 'integer', minimum: 1, maximum: LIMITE_MAXIMO, default: LIMITE_PADRAO },
+      cursor: { type: 'string', minLength: 1, maxLength: 512 },
+      q: { type: 'string', maxLength: 200 },
+      ativo: { anyOf: [{ type: 'boolean' }, { type: 'string', enum: ['true', 'false', '1', '0'] }] },
+    },
   },
 };
 
@@ -53,6 +70,15 @@ export const registrarUsuarioRoutes = async (app) => {
     exigirAuthContext(request.contexto.auth);
     return listar(request.contexto);
   });
+
+  app.get(
+    '/usuarios/page',
+    { onRequest: [app.autenticar], schema: LISTAR_PAGINA_SCHEMA },
+    async (request) => {
+      exigirAuthContext(request.contexto.auth);
+      return listarPagina(request.contexto, /** @type {Record<string, unknown>} */ (request.query ?? {}));
+    },
+  );
 
   app.post('/usuarios', { onRequest: [app.autenticar], schema: CRIAR_SCHEMA }, async (request, reply) => {
     exigirAuthContext(request.contexto.auth);

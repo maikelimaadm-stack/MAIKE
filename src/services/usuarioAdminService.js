@@ -5,10 +5,22 @@
  * na UI usa login/email; o backend recusa com USUARIO_SELF_DEACTIVATE.
  */
 
-import { listUsuarios, createUsuario, updateUsuario } from '@/apis/usuarios';
+import { listUsuarios, listUsuariosPage, createUsuario, updateUsuario } from '@/apis/usuarios';
 import { ApiError, API_ERROR_CODES } from '@/apis/_core/ApiError';
 
 export const listarContasAcesso = () => listUsuarios();
+
+/**
+ * Página keyset de contas (SCALE-01). Busca `q` e filtro `ativo` são do servidor.
+ * @param {{ limit?: number, cursor?: string|null, q?: string, ativo?: boolean }} [opts]
+ */
+export const listarContasAcessoPagina = (opts = {}) =>
+  listUsuariosPage({
+    limit: opts.limit,
+    cursor: opts.cursor ?? undefined,
+    q: opts.q,
+    ativo: opts.ativo,
+  });
 
 export const criarContaAcesso = (dados) => createUsuario(dados);
 
