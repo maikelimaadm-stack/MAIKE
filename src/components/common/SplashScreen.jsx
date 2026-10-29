@@ -1,7 +1,7 @@
 import React from "react";
 import { Loader2 } from "lucide-react";
 
-export default function SplashScreen({ visible, logoUrl }) {
+export default function SplashScreen({ visible, logoUrl = null }) {
   return (
     <div
       className={`fixed inset-0 z-[1000] flex items-center justify-center bg-white transition-opacity duration-500 ${

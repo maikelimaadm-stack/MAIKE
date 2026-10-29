@@ -106,3 +106,9 @@ Arquivos alterados na R1: `src/components/mapa/SelecaoDepositoMapa.jsx`, `src/li
 WebGL real desktop/mobile continua **BLOCKED** (sem navegador com sessão autenticada/dados autorizados no container). Checklist manual acima, mais: duplo toque rápido num depósito; trocar de empresa com depósito já vinculado e ver o aviso + Confirmado desabilitado; ícone muito largo não achatado.
 
 Riscos residuais: guarda R1-01 depende do caller atualizar `depositoSelecionadoId` (o `FormularioPonto` atual atualiza); sem E2E WebGL.
+
+### R1 — CI herdado da `main` (autorizado pelo proprietário)
+
+- O CI do `1265f611` (run `40852803648`) falhou só em `gate:types`, por causa da `main` pós-#135 (`2f5a2383`, `src/App.jsx` TS2741: `logoUrl` ausente). A `main` falhava igual (run `40851473534`).
+- Com autorização explícita do proprietário: mesclei `origin/main` na branch (merge commit, sem rebase) e tornei `logoUrl` opcional em `src/components/common/SplashScreen.jsx` (`logoUrl = null`, sem mudança de comportamento: `null` e `undefined` já caíam no mesmo ramo).
+- `verify:all` local na árvore mesclada: TODAS AS ETAPAS PASSARAM (smoke 840/840; `gate:types` 1375 diagnósticos, sem regressão).
