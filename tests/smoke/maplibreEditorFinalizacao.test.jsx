@@ -21,14 +21,17 @@ const quad = [{ lat: 0, lng: 0 }, { lat: 0, lng: 0.01 }, { lat: -0.01, lng: 0.01
 const base = { pts: quad, marker: null, tipo: "area", fechado: false, previa: false, cor: null, arrastando: false, selecionado: null };
 
 describe("D-PROD-67 — o que o editor pinta por estado", () => {
-  it("A aberto: polilinha sem lado de fecho, vértices, sem meios", () => {
+  it("A aberto: polilinha sem lado de fecho, vértices, meios só nas arestas desenhadas (D-PROD-68)", () => {
     const m = mapaFalso();
     pintarEdicao(/** @type {any} */ (m), base);
     const linhas = m.dados[SOURCE_IDS.DESENHO].features.filter((f) => f.geometry.type === "LineString");
     expect(linhas).toHaveLength(1);
     expect(linhas[0].geometry.coordinates).toHaveLength(4); // não volta ao 1º
     expect(m.dados[SOURCE_IDS.VERTICES].features).toHaveLength(4);
-    expect(m.dados[SOURCE_IDS.MIDPOINTS].features).toHaveLength(0);
+    // D-PROD-68: 3 meios (0–1, 1–2, 2–3); nenhum no último→primeiro, que ainda não existe
+    const meios = m.dados[SOURCE_IDS.MIDPOINTS].features;
+    expect(meios).toHaveLength(3);
+    expect(meios.map((f) => f.geometry.coordinates)).not.toContainEqual([0, -0.005]);
   });
 
   it("B fechado: contorno inteiro e meio da aresta último→primeiro", () => {

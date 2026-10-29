@@ -178,15 +178,20 @@ export function buildVerticesCollection(points) {
 }
 
 /**
+ * Pontos médios das arestas que EXISTEM: área fechada inclui último→primeiro;
+ * área ainda aberta (cadastro em andamento) e linha só as arestas consecutivas
+ * — a de fecho ainda não existe (referência `acertar`, D-PROD-68).
  * @param {{ lat: number, lng: number }[]} points
  * @param {'area' | 'linha'} tipo
+ * @param {{ fechado?: boolean }} [opts] padrão `true` (comportamento anterior)
  * @returns {GeoJSON.FeatureCollection}
  */
-export function buildMidpointsCollection(points, tipo) {
+export function buildMidpointsCollection(points, tipo, opts = {}) {
   /** @type {GeoJSON.Feature[]} */
   const features = [];
   if (!points || points.length < 2) return { type: "FeatureCollection", features };
-  const segCount = tipo === "area" ? points.length : points.length - 1;
+  const fechaAnel = tipo === "area" && opts.fechado !== false;
+  const segCount = fechaAnel ? points.length : points.length - 1;
   for (let i = 0; i < segCount; i += 1) {
     const a = points[i];
     const b = points[(i + 1) % points.length];

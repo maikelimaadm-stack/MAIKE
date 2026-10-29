@@ -1,0 +1,183 @@
+{
+ "fase": "antes",
+ "gerado_em": "2026-10-29T15:50:08.785Z",
+ "cenas": {
+  "390": {
+   "a_2_pontos": {
+    "n_vertices": 2,
+    "n_meios": 0,
+    "n_esperado": 1,
+    "todos_nas_arestas": false,
+    "meio_de_fecho_presente": false,
+    "meios_pintados": 0
+   },
+   "b_4_pontos": {
+    "n_vertices": 4,
+    "n_meios": 0,
+    "n_esperado": 3,
+    "todos_nas_arestas": false,
+    "meio_de_fecho_presente": false,
+    "meios_pintados": 0
+   },
+   "e_clique_vazio": {
+    "n_antes": 4,
+    "n_depois": 5,
+    "primeiros_iguais": true,
+    "n_meios": 0,
+    "n_esperado": 4,
+    "todos_nas_arestas": false,
+    "meio_de_fecho_presente": false
+   },
+   "h_fechado": {
+    "rotulo": "Fechar área",
+    "n_meios": 5,
+    "n_esperado": 5,
+    "todos_nas_arestas": true,
+    "meio_de_fecho_presente": true,
+    "desenho": [
+     {
+      "geom": "Polygon",
+      "fechado": true
+     }
+    ]
+   },
+   "i_previa": {
+    "n_vertices": 0,
+    "n_meios": 0,
+    "dialogo": true
+   },
+   "j_cancelado": {
+    "n_vertices": 5,
+    "iguais": true,
+    "n_meios": 5,
+    "n_esperado": 5,
+    "todos_nas_arestas": true,
+    "meio_de_fecho_presente": true
+   },
+   "erros": []
+  },
+  "412": {
+   "a_2_pontos": {
+    "n_vertices": 2,
+    "n_meios": 0,
+    "n_esperado": 1,
+    "todos_nas_arestas": false,
+    "meio_de_fecho_presente": false,
+    "meios_pintados": 0
+   },
+   "b_4_pontos": {
+    "n_vertices": 4,
+    "n_meios": 0,
+    "n_esperado": 3,
+    "todos_nas_arestas": false,
+    "meio_de_fecho_presente": false,
+    "meios_pintados": 0
+   },
+   "e_clique_vazio": {
+    "n_antes": 4,
+    "n_depois": 5,
+    "primeiros_iguais": true,
+    "n_meios": 0,
+    "n_esperado": 4,
+    "todos_nas_arestas": false,
+    "meio_de_fecho_presente": false
+   },
+   "h_fechado": {
+    "rotulo": "Fechar área",
+    "n_meios": 5,
+    "n_esperado": 5,
+    "todos_nas_arestas": true,
+    "meio_de_fecho_presente": true,
+    "desenho": [
+     {
+      "geom": "Polygon",
+      "fechado": true
+     }
+    ]
+   },
+   "i_previa": {
+    "n_vertices": 0,
+    "n_meios": 0,
+    "dialogo": true
+   },
+   "j_cancelado": {
+    "n_vertices": 5,
+    "iguais": true,
+    "n_meios": 5,
+    "n_esperado": 5,
+    "todos_nas_arestas": true,
+    "meio_de_fecho_presente": true
+   },
+   "erros": []
+  },
+  "1440": {
+   "a_2_pontos": {
+    "n_vertices": 2,
+    "n_meios": 0,
+    "n_esperado": 1,
+    "todos_nas_arestas": false,
+    "meio_de_fecho_presente": false,
+    "meios_pintados": 0
+   },
+   "b_4_pontos": {
+    "n_vertices": 4,
+    "n_meios": 0,
+    "n_esperado": 3,
+    "todos_nas_arestas": false,
+    "meio_de_fecho_presente": false,
+    "meios_pintados": 0
+   },
+   "e_clique_vazio": {
+    "n_antes": 4,
+    "n_depois": 5,
+    "primeiros_iguais": true,
+    "n_meios": 0,
+    "n_esperado": 4,
+    "todos_nas_arestas": false,
+    "meio_de_fecho_presente": false
+   },
+   "f_desfazer_2x": {
+    "n_vertices": 3,
+    "iguais_aos_4_originais": false
+   },
+   "f_refazer": {
+    "n_vertices": 4
+   },
+   "h_fechado": {
+    "rotulo": "Fechar área",
+    "n_meios": 4,
+    "n_esperado": 4,
+    "todos_nas_arestas": true,
+    "meio_de_fecho_presente": true,
+    "desenho": [
+     {
+      "geom": "Polygon",
+      "fechado": true
+     }
+    ]
+   },
+   "i_previa": {
+    "n_vertices": 0,
+    "n_meios": 0,
+    "dialogo": true
+   },
+   "j_cancelado": {
+    "n_vertices": 4,
+    "iguais": true,
+    "n_meios": 4,
+    "n_esperado": 4,
+    "todos_nas_arestas": true,
+    "meio_de_fecho_presente": true
+   },
+   "erros": []
+  },
+  "existente": {
+   "n_vertices": 4,
+   "n_meios": 4,
+   "n_esperado": 4,
+   "todos_nas_arestas": true,
+   "meio_de_fecho_presente": true,
+   "erros": []
+  }
+ }
+}

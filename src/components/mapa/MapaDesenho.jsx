@@ -64,6 +64,18 @@ import {
   hitEditLayers,
 } from "@/lib/maplibre/editorInteraction.js";
 
+/**
+ * Ponto médio exato da aresta i→i+1 (fecho incluso por módulo).
+ * @param {{ lat: number, lng: number }[]} pts
+ * @param {number} i
+ * @param {{ lat: number, lng: number }} reserva usado se o índice não existir
+ */
+const meioDaAresta = (pts, i, reserva) => {
+  const a = pts[i];
+  const b = pts[(i + 1) % pts.length];
+  return a && b ? { lat: (a.lat + b.lat) / 2, lng: (a.lng + b.lng) / 2 } : { ...reserva };
+};
+
 /** @returns {GeoJSON.FeatureCollection} */
 const emptyFc = () => /** @type {GeoJSON.FeatureCollection} */ ({ type: "FeatureCollection", features: [] });
 
@@ -93,6 +105,9 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
   // do Sheet. Os pontos continuam em estado; cancelar devolve a edição como estava.
   const emPrevia = (showFormularioArea && tipoDesenho === "area") || (showFormularioLinha && tipoDesenho === "linha");
   const modoInteracao = emPrevia ? MODOS.NAVEGAR : modo;
+  // Cadastro de área ainda aberta: só os pontos médios são alvo (inserir/arrastar
+  // o novo vértice); vértices, mover e clique-adiciona seguem como antes (D-PROD-68).
+  const meiosNoCadastro = modoInteracao === MODOS.DESENHAR && tipoDesenho === "area" && !drawingClosed && !itemEditando;
 
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
@@ -698,6 +713,7 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
       // Pan/zoom em curso: nada de cursor de inserção (como na referência).
       if (movendo || map.isMoving()) return limpar();
       if (Date.now() - ultimoToque < 800) return limpar();
+      if (dragStateRef.current) return limpar(); // arrastando um ponto médio
       const pts = currentPointsRef.current;
       const r = resolverAlvoDesenho(map, { lat: e.lngLat.lat, lng: e.lngLat.lng }, {
         pontos: pts,
@@ -725,7 +741,9 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
         SOURCE_IDS.GUIA,
         buildGuiaCollection(last, last ? r.alvo : null, { shiftAte, imaAresta: r.ima?.tipo === "aresta" ? r.ima.aresta : null })
       );
-      cursorRef.current?.atualizar({ cur, ima: r.ima, cruz: true, rumo });
+      // Sobre um ponto médio a cruz some (referência: hover esconde a cruzinha).
+      const sobreMeio = pts.length >= 2 && !!acertoEditor(map, e.point, { camadas: { vertices: null, meios: LAYER_IDS.MIDPOINTS } });
+      cursorRef.current?.atualizar({ cur, ima: r.ima, cruz: !sobreMeio, rumo });
     };
 
     const onMoveStart = () => {
@@ -756,7 +774,7 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map || !mapReady || !(tipoDesenho === "area" || tipoDesenho === "linha")) return undefined;
-    if (!podeEditarVertices(modoInteracao, tipoDesenho)) return undefined;
+    if (!podeEditarVertices(modoInteracao, tipoDesenho) && !meiosNoCadastro) return undefined;
     const canvas = map.getCanvas();
     /** @type {{ source: string, id: string } | null} */
     let atual = null;
@@ -774,7 +792,7 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
     const onMove = (e) => {
       if (dragStateRef.current) return;
       if (map.isMoving()) return soltar();
-      const a = acertoEditor(map, e.point, { camadas: { vertices: LAYER_IDS.VERTICES, meios: LAYER_IDS.MIDPOINTS } });
+      const a = acertoEditor(map, e.point, { camadas: { vertices: meiosNoCadastro ? null : LAYER_IDS.VERTICES, meios: LAYER_IDS.MIDPOINTS } });
       const alvo = a ? { source: a.role === "vertex" ? SOURCE_IDS.VERTICES : SOURCE_IDS.MIDPOINTS, id: a.id } : null;
       if (alvo && atual && alvo.source === atual.source && alvo.id === atual.id) return;
       soltar();
@@ -790,13 +808,13 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
       canvas.removeEventListener("mouseleave", soltar);
       soltar();
     };
-  }, [mapReady, tipoDesenho, modoInteracao]);
+  }, [mapReady, tipoDesenho, modoInteracao, meiosNoCadastro]);
 
   // Drag vértices/midpoints — pointer + touch (R5-03, R5-04)
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map || !mapReady || !tipoDesenho) return undefined;
-    if (!podeEditarVertices(modoInteracao, tipoDesenho)) return undefined;
+    if (!podeEditarVertices(modoInteracao, tipoDesenho) && !meiosNoCadastro) return undefined;
     if (tipoDesenho === "ponto" && !currentMarkerRef.current) return undefined;
     const LIMIAR_ARRASTO_PX = 4;
 
@@ -912,7 +930,7 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
       // Área de acerto maior que o desenho (mouse 8px, toque 14px) — VIS-04.
       const a = acertoEditor(map, e.point, {
         toque: !!oe?.type?.startsWith("touch"),
-        camadas: { vertices: LAYER_IDS.VERTICES, meios: LAYER_IDS.MIDPOINTS },
+        camadas: { vertices: meiosNoCadastro ? null : LAYER_IDS.VERTICES, meios: LAYER_IDS.MIDPOINTS },
       });
       if (!a) return;
       e.preventDefault();
@@ -920,7 +938,8 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
       dragStateRef.current = {
         role: a.role,
         index: a.index,
-        meio: a.role === "midpoint" ? { lat: a.lat, lng: a.lng } : null,
+        // Meio exato da aresta (a geometria renderizada vem quantizada do tile).
+        meio: a.role === "midpoint" ? meioDaAresta(currentPointsRef.current, a.index, { lat: a.lat, lng: a.lng }) : null,
         inserido: false,
         ativoId: null,
         before: currentPointsRef.current.map((p) => ({ ...p })),
@@ -1026,7 +1045,7 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
       dragStateRef.current = null;
       void canvas;
     };
-  }, [mapReady, tipoDesenho, drawingClosed, itemEditando, syncHistoryUi, modoInteracao, currentMarker]);
+  }, [mapReady, tipoDesenho, drawingClosed, itemEditando, syncHistoryUi, modoInteracao, currentMarker, meiosNoCadastro]);
 
   // Mover área inteira — só com a mão (MOVER); arrasto no interior translada tudo.
   useEffect(() => {
