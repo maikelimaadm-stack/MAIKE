@@ -1,0 +1,28 @@
+$ MIGRATION_DATABASE_URL=<banco local> npm run deploy:migrate
+> maike-mapa-manejo@0.0.0 deploy:migrate
+deploy:migrate — aplicando migrations versionadas...
+25 migrations found in prisma/migrations
+Applying migration `20261028250000_catalogo_global_slice1`
+Applying migration `20261028250100_catalogo_global_slice1_schema_fix`
+Applying migration `20261028250200_catalogo_global_slice1_r1_assets`
+Applying migration `20261029100000_scale01_usuario_keyset_index`
+Applying migration `20261029200000_categoria_manejo_vinculo_catalogo`
+Applying migration `20261029300000_admin_principal_maike`
+Applying migration `20261029400000_usuario_papel_tenant`
+The following migration(s) have been applied:
+All migrations have been successfully applied.
+deploy:migrate — migrations aplicadas.
+$ (de novo — idempotente)
+deploy:migrate — aplicando migrations versionadas...
+No pending migrations to apply.
+deploy:migrate — migrations aplicadas.
+$ node scripts/deploy/preflight-schema.mjs
+migrations: 25/25 aplicadas
+papéis: 1 cliente(s) com usuário ativo, 0 administrador(es) da fazenda, 1 cliente(s) sem administrador
+AVISO 1 cliente(s) com usuário ativo e sem administrador da fazenda: ninguém cria contas lá até papel-tenant.mjs
+PREFLIGHT OK: o schema atende o código desta branch.
+exit=0
+$ node scripts/deploy/preflight-schema.mjs --exigir-admin-por-cliente
+FALHA 1 cliente(s) com usuário ativo e sem administrador da fazenda: ninguém cria contas lá até papel-tenant.mjs
+PREFLIGHT FALHOU: NÃO publique este código neste banco.
+exit=1

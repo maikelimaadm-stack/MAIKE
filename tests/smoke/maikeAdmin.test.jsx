@@ -50,7 +50,7 @@ const servidor = (rotas) => {
     const corpo = init.body ? JSON.parse(init.body) : undefined;
     chamadas.push({ metodo, caminho, corpo, headers: init.headers || {}, credentials: init.credentials });
     const h = rotas[`${metodo} ${caminho}`];
-    const [status, resposta] = h ? h(corpo, init) : [404, { code: 'NOT_FOUND', message: caminho }];
+    const [status, resposta] = h ? await h(corpo, init) : [404, { code: 'NOT_FOUND', message: caminho }];
     return { ok: status < 400, status, text: async () => (resposta === undefined ? '' : JSON.stringify(resposta)) };
   });
   vi.stubGlobal('fetch', fn);
@@ -171,16 +171,40 @@ describe('Ícones: principal + subícone, troca com id estável', () => {
     escolherArquivo('^Subícone', new File([PNG.slice(0, 9)], 's.png', { type: 'image/png' }));
     await screen.findByAltText('Prévia: Subícone');
     fireEvent.click(screen.getByRole('button', { name: 'Criar ícone' }));
+    // "Já concluído" aparece assim que a 1ª etapa termina, ainda com o envio em curso;
+    // o botão só vira "Tentar de novo" quando a falha assenta — esperar por ELE.
     expect(await screen.findByText(/Já concluído: imagem principal enviada\./)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Tentar de novo' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Tentar de novo' }));
     expect(await screen.findByText(/subícone enviado, rascunho criado/)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Tentar de novo' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Tentar de novo' }));
     await waitFor(() => expect(screen.getByRole('button', { name: 'Criar ícone' })).toBeInTheDocument());
     const por = (c) => chamadas.filter((x) => x.caminho === c).length;
     expect(por('/catalogo-global/admin/assets')).toBe(3); // principal 1x, subícone 1 falha + 1 sucesso
     expect(por('/catalogo-global/admin/icones')).toBe(1); // um único rascunho
     expect(por('/catalogo-global/admin/icones/i-novo-0001/publicar')).toBe(2);
     expect(chamadas.find((x) => x.caminho === '/catalogo-global/admin/icones').corpo).toMatchObject({ asset_principal_id: 'asset-1', asset_subicone_id: 'asset-3' });
+  });
+
+  it('enquanto envia, o botão fica desabilitado: clique duplo não duplica envio (R5)', async () => {
+    let liberar;
+    const segurar = new Promise((r) => { liberar = r; });
+    const chamadas = servidor({
+      'GET /admin-maike/catalogo/revisao': () => [200, { revisao: 1 }],
+      'POST /catalogo-global/admin/assets': async () => { await segurar; return [201, { id: 'asset-1' }]; },
+      'POST /catalogo-global/admin/icones': () => [201, { id: 'i-novo-0001' }],
+      'POST /catalogo-global/admin/icones/i-novo-0001/publicar': () => [200, { id: 'i-novo-0001' }],
+    });
+    render(<Icones dados={{ ...DADOS, icones: [] }} executar={executar} />);
+    fireEvent.change(screen.getByLabelText('Categoria visual'), { target: { value: 'c-gar' } });
+    escolherArquivo('^Imagem principal', new File([PNG], 'p.png', { type: 'image/png' }));
+    await screen.findByAltText('Prévia: Imagem principal');
+    fireEvent.click(screen.getByRole('button', { name: 'Criar ícone' }));
+    const aguarde = await screen.findByRole('button', { name: 'Aguarde…' });
+    expect(aguarde).toBeDisabled();
+    fireEvent.click(aguarde);
+    liberar();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Criar ícone' })).toBeInTheDocument());
+    expect(chamadas.filter((x) => x.caminho === '/catalogo-global/admin/icones')).toHaveLength(1);
   });
 
   it('arquivo acima do limite ou SVG: orientação e nenhuma chamada', async () => {

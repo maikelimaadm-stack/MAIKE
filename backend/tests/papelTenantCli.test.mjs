@@ -50,4 +50,12 @@ describe('papel-tenant (caminho confiável de elevação)', () => {
     assert.equal((await getPrismaClient().usuario.findUnique({ where: { id: t.usuario.id } })).papel_tenant, 'usuario');
     assert.equal(await getPrismaClient().auditLog.count({ where: { acao: 'papel_tenant' } }), 0);
   });
+
+  test('PT-03 (R5) banco fora desta máquina sem NODE_ENV=production também exige a liberação explícita', () => {
+    const remoto = { DATABASE_URL: 'postgresql://ops:fixture-nao-segredo@db.exemplo.invalid:5432/postgres' };
+    const r = rodar(['--cliente', 'x', '--login', 'y', '--papel', 'administrador'], 'CONFIRMAR', remoto);
+    assert.equal(r.status, 1);
+    assert.match(r.stderr, /recusado em banco fora desta máquina \(exige PAPEL_TENANT_ALLOW_PRODUCTION=sim/);
+    assert.equal(`${r.stdout}${r.stderr}`.includes('exemplo.invalid'), false, 'não imprime o host');
+  });
 });

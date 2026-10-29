@@ -1,0 +1,10 @@
+  403 /admin-maike/catalogo ADMIN_PRINCIPAL_REQUIRED
+  403 /admin-maike/conta/sessoes ADMIN_PRINCIPAL_REQUIRED
+  403 /admin-maike/sessao ADMIN_PRINCIPAL_REQUIRED
+  404 /page
+  404 /revisao
+  404 /validacao
+rotas GET sem parâmetro varridas: 44; status: {"200":38,"403":3,"404":3}
+respostas com chave cliente_id (exceto /auth/contexto): 0
+Nota: os 3 x 404 (/page, /revisao, /validacao) são artefatos da leitura da árvore de rotas (subcaminho sem o prefixo), não rotas reais;
+os 3 x 403 são as rotas do MAIKE Admin recusando o JWT de tenant (esperado).

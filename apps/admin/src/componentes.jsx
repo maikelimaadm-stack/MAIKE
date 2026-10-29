@@ -22,7 +22,8 @@ export const Campo = ({ rotulo, dica, children, id }) => (
 );
 
 export const Botao = ({ variante = 'primario', ocupado = false, children, ...resto }) => (
-  <button type="button" className={`botao botao-${variante}`} disabled={ocupado || resto.disabled} {...resto}>
+  // `disabled` DEPOIS do spread: um `disabled` vindo de fora não pode reabilitar o botão ocupado.
+  <button type="button" className={`botao botao-${variante}`} {...resto} disabled={ocupado || resto.disabled}>
     {ocupado ? 'Aguarde…' : children}
   </button>
 );

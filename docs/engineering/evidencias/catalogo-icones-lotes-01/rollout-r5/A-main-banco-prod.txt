@@ -1,0 +1,11 @@
+[A main×banco-prod] /health: 200 status=ok banco=up
+[A main×banco-prod] login usuário legado (is_admin=true): 200
+[A main×banco-prod] GET /auth/contexto: 200
+[A main×banco-prod] GET /usuarios: 200 (2 contas)
+[A main×banco-prod] GET /permissoes: 200
+[A main×banco-prod] GET /categorias-manejo: 200
+[A main×banco-prod] GET /lotes: 200
+[A main×banco-prod] POST /lotes: 201
+[A main×banco-prod] PATCH /lotes/:id: 200
+[A main×banco-prod] legado POST /usuarios (criar conta): 201
+[A main×banco-prod] legado PATCH própria conta (nome): 200

@@ -8,6 +8,7 @@
 | R2 | `MAIKE-PR145-CATALOGO-SUPABASE-LOTES-R2` | vínculo CategoriaManejo → catálogo, D-PROD-69 |
 | R3 | `MAIKE-PR145-R3-ADMIN-PRINCIPAL-CATALOGO-ICONES-01` | proprietário independente + MAIKE Admin, D-PROD-70 |
 | R4 | `MAIKE-PR145-R4-SEGURANCA-USUARIOS-PERMISSOES-01` | administrador da fazenda server-owned, Permissões, endurecimento do admin, D-PROD-71 (§9) |
+| R5 | `MAIKE-PR145-R5-PRE-MERGE-ROLLOUT-SEGURO` | preflight de schema, ordem pré-merge, alvo protegido nos scripts, D-PROD-72 (§10) |
 
 **Base:** `main` `1344ffe2` · **Branch:** `claude/catalogo-global-icones-lotes-01` · **Merge:** exclusivo do proprietário.
 **Runbook:** `docs/engineering/MAIKE-CATALOGO-OPERACAO-SUPABASE.md`
@@ -237,3 +238,99 @@ A1–A7 foram reproduzidos com servidor real sobre o commit `9bad34ce` (worktree
 5. MapLibre/WebGL: fora do escopo, pendente.
 
 **Veredito da R4:** ver o relatório final da rodada na PR. Produção: NOT_RUN.
+
+## 10. R5 — pré-merge e rollout seguro, sem executar produção (D-PROD-72)
+
+Evidências em `evidencias/catalogo-icones-lotes-01/rollout-r5/`. Nenhuma escrita em produção: Supabase e Vercel foram só lidos (SELECT agregado e metadados), sem ler valor de variável.
+
+### 10.1 Estado real (29/10/2026, retrato)
+
+**Vercel:** a produção é a `main` em `1344ffe2`, com publicação automática. SPA e API estão no mesmo projeto, e o build não migra. Os builds da PR são previews e usam o mesmo `DATABASE_URL` de produção, atrás do SSO. Não existem `ADMIN_MAIKE_CHAVE` nem `ADMIN_ORIGINS`. Nenhum projeto do admin aparece ligado ao repositório (evidência indireta).
+
+**Supabase:**
+
+| Item | Valor |
+|---|---|
+| Migrations | 18/25; faltam 4 da `main` e 3 desta PR |
+| Colunas e tabelas novas | ausentes |
+| Buckets | 0 |
+| RLS | ligado em todas as tabelas `public` |
+| Grants para `anon`/`authenticated` | 0 |
+| Dados | 1 usuário, 1 cliente, 1 `Permissao.is_admin` legado |
+
+**PR #146:** 11 arquivos, interseção vazia com a #145 e nenhuma rota HTTP.
+
+### 10.2 Simulação local (PostgreSQL 16, banco no estado de produção, dados sintéticos)
+
+| Fase | Código × banco | Resultado |
+|---|---|---|
+| A | `main` × produção (18 migrations) | tudo 200/201 (login, usuários, permissões, categorias, lotes, criar conta) |
+| B | PR × produção, **sem migration** | 500 P2022 em `GET /usuarios`, `/permissoes`, `/categorias-manejo` e `POST /usuarios`; `/health` = **ok** (falha invisível) |
+| — | preflight antes | **exit 1**: 7 pendentes, colunas e tabelas listadas |
+| — | `deploy:migrate` (2×) | 7 aplicadas; a segunda diz "No pending migrations" |
+| — | preflight depois | **exit 0**; aviso: 1 cliente sem administrador; com `--exigir-admin-por-cliente`, exit 1 |
+| C | `main` × banco migrado | tudo igual à fase A: rollback da aplicação compatível |
+| D | PR × banco migrado | tudo 200/201; o legado `is_admin` não cria conta (403) |
+
+### 10.3 Provisionamento (G2) — `G2-provisionamento.txt`
+
+**Logo após a migration:** todos os usuários ficam `usuario` e há 0 administradores. O legado com `is_admin=true`:
+
+| Ação | Resultado |
+|---|---|
+| login, listar usuários | 200 |
+| criar conta, trocar senha de outro, POST/PATCH/DELETE de Permissão | 403 |
+| manter a própria conta e a própria senha, com a senha atual | 200 |
+| própria senha sem a senha atual | 403 |
+| `papel_tenant` no corpo | 400 |
+
+**O script `papel-tenant.mjs`:**
+
+- sem `--login`: uso, exit 1;
+- sem `CONFIRMAR`: nada muda;
+- com confirmação: promove 1 usuário só e grava 1 `AuditLog` (ator nulo, sem senha nem hash);
+- o JWT antigo passa a funcionar (201/200);
+- revogado: o mesmo JWT volta a 403 na hora;
+- `NODE_ENV=production` sem liberação: recusado.
+
+### 10.4 Defeito corrigido nesta rodada
+
+As travas de produção dos scripts operacionais (`papel-tenant.mjs`, `bootstrap-admin-principal.mjs`) só olhavam `NODE_ENV=production`. Um terminal de operador apontado para o banco de produção, sem essa variável, pulava a exigência de liberação explícita.
+
+- **Correção:** `scripts/auth/alvoProtegido.mjs`. Banco fora desta máquina também é alvo protegido.
+- **Testes:** PT-03 e B-03, que também provam que o host não é impresso.
+
+Segundo defeito, achado ao investigar um smoke intermitente (2 falhas em 5 execuções):
+
+- **Botão ocupado ainda clicável.** No MAIKE Admin, `Botao` aplicava `{...resto}` depois de `disabled`. No botão de envio do "Novo ícone", o `disabled` de fora reabilitava o botão durante o envio; um clique duplo podia mandar dois cadastros.
+- **Correção:** `apps/admin/src/componentes.jsx` aplica o `disabled` depois do spread.
+- **Teste:** o smoke "clique duplo não duplica envio" falhou antes da correção (`toBeDisabled`) e passa depois.
+- **Causa da intermitência:** o teste de retry da R4 clicava antes de a falha assentar. Agora espera o botão "Tentar de novo".
+- **Resultado:** 8/8 e 12/12 execuções seguidas.
+
+**Validação:** `npm run verify:all` (PG 16, banco recriado do zero) PASS em todas as etapas:
+
+| Etapa | Resultado |
+|---|---|
+| gates | 640/640 (27 arquivos) |
+| backend | 342/342 |
+| smoke | 945/945 (79 arquivos) |
+| types | 1337 ≤ 1746 |
+| lint | 0 erros |
+| builds e isolamento | cliente + admin + isolamento nos bundles |
+
+### 10.5 Regressão do hook global de `cliente_id` (G4)
+
+- **Rotas:** nenhuma rota aceita `cliente_id` no corpo.
+- **Respostas:** varredura das 44 rotas GET sem parâmetro com o backend real. Nenhuma resposta devolve `cliente_id`, exceto `/auth/contexto`, por desenho. Logo, a SPA não tem de onde ecoá-lo.
+- **Fila offline:** o replay envia só `item.data`.
+- **#146:** sem rotas HTTP; o hook não a alcança.
+
+### 10.6 Riscos remanescentes do rollout
+
+1. **Merge antes das migrations:** a falha é real e invisível ao `/health`. O merge fica bloqueado pelo preflight (§0b).
+2. **Previews:** usam o banco de produção; não migram, estão atrás do SSO e dão 500 nas rotas novas até a migração.
+3. **Limitador do admin atrás do proxy da Vercel** (sem `trustProxy`): o limite por IP pode ser compartilhado entre clientes. O pior caso é negação temporária do login do admin, nunca bypass. Verificar em staging.
+4. **`AUTH_SECRET`:** marcado pela Vercel como "readable-secret". Recomenda-se o tipo *Sensitive*, com aprovação.
+5. **`FRONTEND_ORIGINS`** de produção inclui `http://localhost:5173` (pré-existente).
+6. **Rewrite e domínio do admin:** inexistentes. O admin não está acessível só por existir em `apps/admin`.

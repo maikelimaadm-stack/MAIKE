@@ -5,8 +5,9 @@
  * - Sem administrador padrão e sem senha no código, em argumento ou em variável.
  * - Login e senha são pedidos no terminal (senha oculta, digitada duas vezes).
  * - Exige confirmação digitada; recusa se já existir proprietário.
- * - Recusa NODE_ENV=production sem ADMIN_BOOTSTRAP_ALLOW_PRODUCTION=sim
- *   (produção só com aprovação separada do proprietário — ver runbook).
+ * - Recusa NODE_ENV=production ou banco fora desta máquina sem
+ *   ADMIN_BOOTSTRAP_ALLOW_PRODUCTION=sim (produção só com aprovação separada
+ *   do proprietário — ver runbook). A checagem vem antes de qualquer conexão.
  * - Nunca imprime senha, hash ou DATABASE_URL.
  * - O MFA NÃO é criado aqui: o primeiro login no MAIKE Admin obriga a inscrição.
  *
@@ -15,21 +16,23 @@
  */
 
 import { createInterface } from 'node:readline';
+import { motivoAlvoProtegido } from '../auth/alvoProtegido.mjs';
 
 const sair = (msg, codigo = 1) => {
   console.error(`bootstrap-admin-principal: ${msg}`);
   process.exit(codigo);
 };
 
-if (process.env.NODE_ENV === 'production' && process.env.ADMIN_BOOTSTRAP_ALLOW_PRODUCTION !== 'sim') {
-  sair('recusado em NODE_ENV=production (exige ADMIN_BOOTSTRAP_ALLOW_PRODUCTION=sim e aprovação separada)');
-}
 if (!process.stdin.isTTY && process.env.ADMIN_BOOTSTRAP_STDIN !== 'sim') {
   sair('execute num terminal interativo (a senha não é aceita por argumento nem variável)');
 }
 
 const { env } = await import('../../backend/src/config/env.js');
 if (!env.databaseUrl) sair('DATABASE_URL ausente');
+const motivo = motivoAlvoProtegido(process.env, env.databaseUrl);
+if (motivo && process.env.ADMIN_BOOTSTRAP_ALLOW_PRODUCTION !== 'sim') {
+  sair(`recusado em ${motivo} (exige ADMIN_BOOTSTRAP_ALLOW_PRODUCTION=sim e aprovação separada)`);
+}
 
 const rl = createInterface({ input: process.stdin, output: process.stdout, terminal: Boolean(process.stdin.isTTY) });
 const linhas = rl[Symbol.asyncIterator]();

@@ -1,6 +1,6 @@
 # Runbook — catálogo global de ícones: MAIKE Admin + Supabase
 
-**Decisões:** D-PROD-70, D-PROD-71 (sobre D-PROD-57/60/62/69) · **Para:** proprietário do produto MAIKE.
+**Decisões:** D-PROD-70, D-PROD-71, D-PROD-72 (sobre D-PROD-57/60/62/69) · **Para:** proprietário do produto MAIKE.
 
 Os ícones oficiais são dados globais do produto:
 
@@ -21,6 +21,62 @@ Os ícones oficiais são dados globais do produto:
 | Local | PostgreSQL local | adaptador em memória ou Storage falso | `npm run dev:admin` → http://localhost:5174 (proxy para a API em `:3333`) |
 | Staging | projeto Supabase de staging | bucket de staging | projeto Vercel "maike-admin-staging" (§3) |
 | Produção | projeto Supabase de produção | bucket de produção | só depois de aprovação separada |
+
+## 0b. Rollout seguro da PR #145 — ordem pré-merge (D-PROD-72)
+
+**Por que a ordem importa.** O projeto Vercel `maike` publica a `main` em produção **automaticamente** a cada merge, com SPA e API juntas (`/api/native` → `/api/fastify`). O build **não** roda migrations.
+
+O backend desta PR sobre o banco atual responde **500** (Prisma P2022) em Usuários, Permissões e Categoria de Manejo, e `/health` continua `ok`. Prova local: `evidencias/catalogo-icones-lotes-01/rollout-r5/B-r4-sem-migration.txt`.
+
+Já o código atual da `main`, sobre o banco **com** as migrations aditivas, funciona igual (`C-main-banco-migrado.txt`). Por isso:
+
+- **as migrations vêm ANTES do merge**;
+- voltar a aplicação para a `main` anterior é um rollback válido, sem desfazer o schema.
+
+**Estado de produção lido em 29/10/2026** (só leitura; `rollout-r5/00-estado-producao-somente-leitura.txt`; revalidar na janela):
+
+- faltam **7 migrations**: 4 já da `main` (`20261028250000`, `…250100`, `…250200`, `20261029100000`) e as 3 desta PR;
+- não há bucket;
+- não existem `ADMIN_MAIKE_CHAVE` nem `ADMIN_ORIGINS`;
+- há 1 cliente com 1 usuário e 1 `Permissao.is_admin=true` legado, que **não** vira administrador.
+
+Status: **FEITO** = provado; **PENDENTE** = ainda não executado; **—** = não se aplica. Nenhum passo de produção foi executado.
+
+| # | Etapa | Pré-condição | Execução manual | Evidência | Rollback | Bloqueia merge? | Local / Staging / Produção |
+|---|---|---|---|---|---|---|---|
+| 1 | Aprovação escrita do proprietário | — | O proprietário registra, por escrito, a janela e cada ação: migrations, quem promover, envs, bucket, projeto do admin, bootstrap | registro da aprovação | — | **SIM** | — / PENDENTE / PENDENTE |
+| 2 | Backup / PITR | 1 | Supabase → Database → Backups: confirmar o último backup ou o PITR ativo e anotar o horário | horário anotado | é o rollback de último recurso | **SIM** | — / PENDENTE / PENDENTE |
+| 3 | Preflight "antes" (só leitura) | 1 | `DATABASE_URL=<conexão direta> node scripts/deploy/preflight-schema.mjs` (esperado: 7 pendentes, exit 1) | saída do preflight | — | não (diagnóstico) | FEITO (`preflight-antes.txt`) / PENDENTE / PENDENTE |
+| 4 | Migrations aditivas | 2, 3 | `MIGRATION_DATABASE_URL=<conexão direta ou de sessão, porta 5432, nunca a 6543> npm run deploy:migrate`; repetir deve dizer "No pending migrations" | 7 "Applying migration", depois idempotente | A app da `main` segue compatível (passo 6). Reverter o schema só pelo SQL documentado no topo de cada migration, com a app já compatível; em último caso, PITR. **Nunca** `DROP` com dados | **SIM** | FEITO (`migrations-e-preflight-depois.txt`) / PENDENTE / PENDENTE |
+| 5 | Auditoria só leitura | 4 | Preflight de novo (exit 0) + consultas do §1 (migrations, RLS, grants) | saída + consultas | — | **SIM** | FEITO / PENDENTE / PENDENTE |
+| 6 | Backend atual com o schema expandido | 4 | Usar o MAIKE em produção **antes** do merge: login, Usuários, Permissões, Categoria de Manejo, lotes (criar/editar) | anotação do teste | — | **SIM** | FEITO (`C-main-banco-migrado.txt`) / PENDENTE / PENDENTE |
+| 7 | Promover o administrador de cada fazenda (nominal) | 5 e aprovação que **nomeia** a pessoa | `DATABASE_URL=… PAPEL_TENANT_ALLOW_PRODUCTION=sim node scripts/auth/papel-tenant.mjs --cliente <codigo> --login <login> --papel administrador`, digitando `CONFIRMAR`. Depois `preflight-schema.mjs --exigir-admin-por-cliente` → exit 0 | id de auditoria `ops-papel-tenant-…` (não publicar o login) | `--papel usuario` (vale na hora) | **SIM** (sem isso, após o merge ninguém cria contas) | FEITO (`G2-provisionamento.txt`) / PENDENTE / PENDENTE |
+| 8 | Merge MANUAL da PR #145 | 1–7 | Só o proprietário, no GitHub | commit de merge na `main` | Vercel → Deployments → *Instant Rollback* para o deploy anterior (`1344ffe2`): compatível com o schema novo (passo 6) | — | — / — / PENDENTE |
+| 9 | Acompanhar o deploy automático e testar | 8 | Deploy da `main` READY. Positivos: login, lotes, Categoria de Manejo com ícone; o administrador cria uma conta. Negativos: o usuário comum recebe 403 ao criar conta e ao mexer em Permissões | anotação | passo 8 (rollback) | — | FEITO (`D-r4-banco-migrado.txt`, `G2`) / PENDENTE / PENDENTE |
+| 10 | Projeto Vercel SEPARADO do MAIKE Admin | 9 e aprovação | §3: Root Directory `apps/admin`, domínio real, rewrite `/api/native` → backend real (**não está no repositório**; o endereço é decisão do proprietário) | URL real do admin | despublicar o projeto do admin; a SPA não depende dele | não | — / PENDENTE / PENDENTE |
+| 11 | Variáveis server-only + bucket | 10 | No projeto **`maike`** (onde roda o backend): `ADMIN_MAIKE_CHAVE` (tipo *Sensitive*) e `ADMIN_ORIGINS` = a origin real do admin. No Supabase Storage: criar o bucket **público** `maike-catalogo-global` (o backend não cria; recomendado limitar no bucket os mesmos tipos e tamanho que o backend valida: PNG, JPEG, WebP, GIF, 512 KB) | nomes das variáveis (sem valor); bucket listado | remover a variável → o admin volta a 503 (falha fechada) | não | — / PENDENTE / PENDENTE |
+| 12 | Smoke do deploy do admin | 10, 11 | `node scripts/admin/smoke-admin-deploy.mjs --url https://<endereço-real-do-admin>` sem falhas | saída do smoke | — | não | parcial local (`usuarios-r4/smoke-deploy-local.txt`) / PENDENTE / PENDENTE |
+| 13 | Bootstrap do proprietário + MFA | 12 | §4: `DATABASE_URL=… ADMIN_BOOTSTRAP_ALLOW_PRODUCTION=sim npm run admin:bootstrap` (interativo); 1º login com inscrição TOTP; guardar os códigos | login no admin com MFA | §5 (recuperação manual) | não | FEITO (E2E admin 29/29) / PENDENTE / PENDENTE |
+| 14 | Imagens reais do proprietário + publicação | 13 | §6, pelo MAIKE Admin; sem commit e sem deploy | aba Validação sem erros | desativar o ícone | não | FEITO com PNG sintéticos / PENDENTE / PENDENTE |
+| 15 | Vincular a Categoria de Manejo no cliente | 14 | §8: o administrador da fazenda vincula; conferir a prévia no lote | captura | desvincular | não | FEITO (E2E R2 15/15) / PENDENTE / PENDENTE |
+
+**NO-GO**, ou seja, não fazer o merge, se qualquer um destes faltar:
+
+- aprovação (1);
+- backup confirmado (2);
+- preflight exit 0 depois das migrations (5);
+- o teste do passo 6;
+- administrador provisionado para cada fazenda com usuários ativos (7).
+
+A ação mais curta para destravar é sempre o primeiro passo pendente da tabela.
+
+**Previews da PR usam o banco de produção.** `DATABASE_URL` vale para `production` e `preview` no projeto Vercel. Os previews:
+
+- ficam atrás da proteção SSO da Vercel;
+- não rodam migrations;
+- respondem 500 nas rotas que dependem das colunas novas até o passo 4.
+
+Não use preview para testar escrita.
 
 ## 1. Migrations, grants e RLS (antes de tudo)
 
@@ -56,7 +112,7 @@ As variáveis abaixo são só do servidor, nunca `VITE_`, e não aparecem em nen
 | Variável | Para quê |
 |---|---|
 | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | Upload no Storage. Em produção, configuração parcial é recusada. |
-| `CATALOGO_STORAGE_BUCKET` | Opcional; padrão `maike-catalogo-global`. |
+| `CATALOGO_STORAGE_BUCKET` | Opcional; padrão `maike-catalogo-global`. O bucket **precisa existir** e ser **público** (os clientes leem pela URL pública versionada); o backend não o cria. Em 29/10/2026 produção não tinha bucket nenhum. |
 | `ADMIN_MAIKE_CHAVE` | Chave-mestra (base64, ≥ 32 bytes) que cifra o segredo TOTP e assina o CSRF. **Obrigatória em produção.** Gere com `openssl rand -base64 32` direto no painel. Trocá-la invalida os autenticadores inscritos: exige nova inscrição. Ausente ou inválida em produção, **todo** o MAIKE Admin responde 503 `ADMIN_INDISPONIVEL` ("configuração do servidor incompleta"), sem criar sessão: falha fechada, sem chave derivada. |
 | `ADMIN_ORIGINS` | Origins exatas do MAIKE Admin (a URL real do projeto, sem barra final). Vazio em produção = nenhuma mutação admin (403 `ADMIN_ORIGEM_RECUSADA`, inclusive o login). |
 | `ADMIN_SESSAO_HORAS` / `ADMIN_SESSAO_OCIOSA_MINUTOS` | Opcionais; padrões 8 h e 30 min. |
@@ -93,7 +149,7 @@ DATABASE_URL=… npm run admin:bootstrap
 - O comando é interativo: pede o login e a senha (oculta, duas vezes, mínimo de 12 caracteres) e a confirmação `CRIAR PROPRIETARIO`.
 - Não existe admin padrão nem senha no código, em argumento ou em variável.
 - A segunda execução é recusada (proprietário único).
-- Em `NODE_ENV=production`, o comando recusa sem `ADMIN_BOOTSTRAP_ALLOW_PRODUCTION=sim`, e esse passo exige aprovação separada.
+- Em `NODE_ENV=production` **ou com banco fora desta máquina** (produção, staging), o comando recusa sem `ADMIN_BOOTSTRAP_ALLOW_PRODUCTION=sim`, e esse passo exige aprovação separada.
 
 **Primeiro login no MAIKE Admin:**
 
@@ -119,7 +175,7 @@ São dois papéis diferentes (D-PROD-71):
   - Um usuário por vez. Mostra fazenda, usuário e papel atual → novo e exige `CONFIRMAR` digitado.
   - Recusa usuário desativado. Grava `AuditLog` (`acao = 'papel_tenant'`) na mesma transação.
   - Revogar: o mesmo comando com `--papel usuario`. Vale na próxima ação privilegiada, sem novo login (o servidor relê o papel no banco).
-  - Em `NODE_ENV=production`, recusa sem `PAPEL_TENANT_ALLOW_PRODUCTION=sim`. **Produção exige aprovação separada do proprietário, por fazenda e por pessoa.**
+  - Em `NODE_ENV=production` **ou com banco fora desta máquina**, recusa sem `PAPEL_TENANT_ALLOW_PRODUCTION=sim`, antes de qualquer conexão. **Produção exige aprovação separada do proprietário, por fazenda e por pessoa.**
 - Cada usuário continua trocando a **própria** senha na tela Usuários, informando a senha atual.
 
 ## 5. Conta e segurança (tela "Minha conta")

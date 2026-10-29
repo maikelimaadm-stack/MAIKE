@@ -2900,4 +2900,36 @@ Merge só pelo proprietário após auditoria.
 
 ---
 
-<!-- Próxima decisão: D-PROD-72 -->
+## D-PROD-72 — Rollout da PR #145: migrations antes do merge, preflight de schema e alvo protegido
+
+**Missão:** `MAIKE-PR145-R5-PRE-MERGE-ROLLOUT-SEGURO` (PR #145)\
+**Runbook:** `docs/engineering/MAIKE-CATALOGO-OPERACAO-SUPABASE.md` (§0b)\
+**Evidência:** `docs/engineering/evidencias/catalogo-icones-lotes-01/rollout-r5/`\
+**Autoridade:** decisão do proprietário (29/10/2026). Nada de produção foi executado.
+
+**Contexto (lido, só leitura):**
+- O projeto Vercel `maike` publica a `main` automaticamente, com SPA e API juntas; o build não migra.
+- O banco de produção está 7 migrations atrás do repositório, 4 delas já da `main`.
+- Os previews usam o mesmo `DATABASE_URL` de produção.
+
+**Decisão:**
+
+1. **Migrations antes do merge.**
+   - **Provado local:** o backend da PR sobre o banco no estado de produção dá 500 (P2022) em Usuários, Permissões e Categoria de Manejo, com `/health` = `ok`.
+   - **Provado local:** o código da `main` funciona igual sobre o banco migrado.
+   - **Ordem:** aprovação → backup → `deploy:migrate` → auditoria → promoção nominal → merge manual. Ver a tabela do §0b.
+2. **Preflight de schema** (`scripts/deploy/preflight-schema.mjs`).
+   - É só leitura e é o critério GO/NO-GO do merge.
+   - Exige: nenhuma migration pendente ou com falha; as colunas e tabelas de que o código depende; RLS ligado; nenhum grant para `anon`/`authenticated`.
+   - Com `--exigir-admin-por-cliente`, exige também um administrador da fazenda em cada cliente com usuário ativo.
+   - O `/health` não muda.
+3. **Rollback.**
+   - **Aplicação:** *Instant Rollback* para o deploy anterior da `main`, compatível com o schema expandido.
+   - **Schema:** só pelo SQL documentado em cada migration, depois de a aplicação estar compatível.
+   - **Último recurso:** PITR. Nunca `DROP` com dados.
+4. **Alvo protegido nos scripts operacionais.** `papel-tenant.mjs` e `bootstrap-admin-principal.mjs` passam a exigir a liberação explícita (`…_ALLOW_PRODUCTION=sim`) também quando o banco está fora desta máquina, e não só com `NODE_ENV=production`. Antes, um terminal de operador apontado para produção sem `NODE_ENV` pulava a trava. A checagem vem antes de qualquer conexão e não imprime o host.
+5. **Bucket.** `maike-catalogo-global` precisa existir e ser público antes do primeiro upload; o backend não o cria.
+
+---
+
+<!-- Próxima decisão: D-PROD-73 -->

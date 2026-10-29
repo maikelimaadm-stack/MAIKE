@@ -47,4 +47,13 @@ describe('bootstrap do proprietário (CLI)', () => {
     assert.match(semTty.stderr, /terminal interativo/);
     assert.equal(await getPrismaClient().adminPrincipalMaike.count(), 0);
   });
+
+  test('B-03 (R5) banco fora desta máquina sem NODE_ENV=production também exige a liberação explícita', async () => {
+    const remoto = { DATABASE_URL: 'postgresql://ops:fixture-nao-segredo@db.exemplo.invalid:5432/postgres' };
+    const r = rodar(['dono.maike', SENHA, SENHA, 'CRIAR PROPRIETARIO'], remoto);
+    assert.equal(r.status, 1);
+    assert.match(r.stderr, /recusado em banco fora desta máquina \(exige ADMIN_BOOTSTRAP_ALLOW_PRODUCTION=sim/);
+    assert.equal(`${r.stdout}${r.stderr}`.includes('exemplo.invalid'), false, 'não imprime o host');
+    assert.equal(await getPrismaClient().adminPrincipalMaike.count(), 0);
+  });
 });

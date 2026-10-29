@@ -12,8 +12,9 @@
  *   digitada `CONFIRMAR`.
  * - Reversível: `--papel usuario` revoga.
  * - Auditado: grava `AuditLog` (evento de sistema, ator nulo) na MESMA transação.
- * - Recusa NODE_ENV=production sem PAPEL_TENANT_ALLOW_PRODUCTION=sim (exige
- *   aprovação separada do proprietário — runbook).
+ * - Recusa NODE_ENV=production ou banco fora desta máquina sem
+ *   PAPEL_TENANT_ALLOW_PRODUCTION=sim (exige aprovação separada do
+ *   proprietário — runbook). A checagem vem antes de qualquer conexão.
  * - Não imprime senha, hash nem DATABASE_URL.
  *
  * Uso:
@@ -24,6 +25,7 @@
 
 import { randomUUID } from 'node:crypto';
 import { createInterface } from 'node:readline';
+import { motivoAlvoProtegido } from './alvoProtegido.mjs';
 
 const sair = (msg, codigo = 1) => {
   console.error(`papel-tenant: ${msg}`);
@@ -35,9 +37,6 @@ const valor = (nome) => {
   return i >= 0 ? (args[i + 1] ?? '').trim() : '';
 };
 
-if (process.env.NODE_ENV === 'production' && process.env.PAPEL_TENANT_ALLOW_PRODUCTION !== 'sim') {
-  sair('recusado em NODE_ENV=production (exige PAPEL_TENANT_ALLOW_PRODUCTION=sim e aprovação separada)');
-}
 if (!process.stdin.isTTY && process.env.PAPEL_TENANT_STDIN !== 'sim') sair('execute num terminal interativo');
 
 const codigoCliente = valor('--cliente');
@@ -49,6 +48,10 @@ if (!codigoCliente || !login || !['administrador', 'usuario'].includes(papel)) {
 
 const { env } = await import('../../backend/src/config/env.js');
 if (!env.databaseUrl) sair('DATABASE_URL ausente');
+const motivo = motivoAlvoProtegido(process.env, env.databaseUrl);
+if (motivo && process.env.PAPEL_TENANT_ALLOW_PRODUCTION !== 'sim') {
+  sair(`recusado em ${motivo} (exige PAPEL_TENANT_ALLOW_PRODUCTION=sim e aprovação separada)`);
+}
 const { getPrismaClient, closePrismaClient } = await import('../../backend/src/database/prismaClient.js');
 const prisma = getPrismaClient();
 
