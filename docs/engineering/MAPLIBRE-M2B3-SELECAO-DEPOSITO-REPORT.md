@@ -25,7 +25,7 @@ workflows, `CLAUDE.md`, manifests, catálogo): **não tocados**. Nenhuma depend�
 
 - Props `cochoCoords`, `depositoSelecionadoId`, `onSelect`, `onClose` — idênticas.
 - Clique/toque/Enter (marker é `<button>`) → `onSelect(deposito.id)` **uma vez**.
-- `Confirmado` (desabilitado sem `depositoSelecionadoId`, como antes) e `Cancelar`/`X` → só `onClose()`.
+- `Confirmado` e `Cancelar`/`X` → só `onClose()`. Desde a R1, `Confirmado` só habilita quando `depositoSelecionadoId` existe na lista filtrada da empresa atual (ver R1-02); o fechamento continua sem `onSelect` extra.
 - Queries: mesmas funções e mesmas `queryKey`s por empresa; mesmo filtro empresa/ativo.
 - Ícone: legado `icone_url` dos pontos de referência; mesma política de correspondência
   nome **ou** sigla, primeira referência ativa da empresa (ordem da API). Catálogo global não usado.
@@ -65,3 +65,44 @@ Mudança visual consciente: basemap ruas (OpenFreeMap Liberty) em vez do satéli
 - Diferença visual satélite → ruas (documentada, mesma política das fatias M1–M2-B2).
 - Sem E2E WebGL automatizado nesta fatia.
 - Google ainda presente em `ModalCadastroLotePontos` e `MapaGeral` (M3/M4).
+
+## Rodada R1 — auditoria corretiva (`MAPLIBRE-M2B3-SELECAO-DEPOSITO-01-R1`)
+
+HEAD antes: `73a2f914b8198b24dfe91ba402ae369db0e45f49` (CI `quality` run `40849245132` = success).\
+HEAD depois: ver commit `fix(maplibre-m2b3): R1 …` na mesma branch; CI do novo HEAD registrado na PR #134.\
+Mesma branch `claude/new-session-26kpxu`, mesma PR #134 (DRAFT). Nenhuma outra branch/PR criada.\
+PRs abertas no Gate Zero: #134, #135 (splash: `src/App.jsx`, `SplashScreen.jsx`) e #136 (catálogo global R2: `backend/**`, `CLAUDE.md`, relatório próprio) — sem arquivo em comum com esta missão; o proprietário autorizou seguir.
+
+Arquivos alterados na R1: `src/components/mapa/SelecaoDepositoMapa.jsx`, `src/lib/maplibre/selecaoDepositoMapa.js`, `tests/smoke/maplibreSelecaoDepositoMapa.test.jsx`, este relatório.
+
+| Item | Achado | Correção |
+|---|---|---|
+| R1-01 | Dois cliques/toques rápidos no mesmo marcador chamavam `onSelect` duas vezes | `ultimoEmitidoRef`: não reemite o mesmo id antes do prop mudar; sincronizado com `depositoSelecionadoId`. Sem debounce/timer: a 1ª ativação é imediata e A→B→A emitem todas. `stopPropagation` mantém o clique fora do mapa. Assinatura `onSelect(id)` e `onClose` inalteradas |
+| R1-02 | `Confirmado` habilitava com id obsoleto (outra empresa, inativado) | `resolverDepositoSelecionado` (compara ids como string) valida contra a lista filtrada da empresa atual; `Confirmado` desabilitado se inválido, carregando ou com erro; aviso discreto "O depósito vinculado não está disponível nesta empresa"; formulário não é mutado |
+| R1-03 | Piso de 20px no eixo menor achatava ícones extremos (1000×10 → 42×20) | Proporção exata (42×1); área de toque mínima 44×44 no `<button>`, separada da imagem. Corrida de `onload/onerror` após troca de empresa coberta; URL inválida → círculo |
+
+### Testes R1 (integração DOM com MapLibre mockado — não é E2E)
+
+| Caso | Resultado |
+|---|---|
+| Duplo clique no mesmo marcador → 1 `onSelect`; A→B→A → 3 chamadas; clique não chega ao mapa; Cancelar/X não selecionam | PASS |
+| Prop atualizado após callback; reclicar selecionado não reemite; marcador é `<button type="button">` (Enter/Space: JSDOM não sintetiza click de keydown — limite honesto; no navegador a ativação nativa gera `click`) | PASS |
+| `depositoSelecionadoId` de emp-1 → troca para emp-2: sem dados de emp-1 no DOM, aviso de obsoleto, Confirmado desabilitado até escolher `x1` | PASS |
+| Depósito inativado após refetch → seleção inválida; id `"7"` casa com `7` | PASS |
+| Loading/erro de consulta não habilitam Confirmado | PASS |
+| Ícone antigo carregando após troca de empresa não altera marcador novo; URL inválida → fallback sem exceção | PASS |
+| Área de toque ≥44px; nome com HTML é texto puro (sem execução) | PASS |
+| Helpers `mesmoId`/`resolverDepositoSelecionado`; aspecto 1000×10 e 10×1000 | PASS |
+| Mutação: removendo a guarda R1-01 e voltando `disabled={!depositoSelecionadoId}` → 5 testes R1 falham | confirmado |
+
+### Gates R1 (local)
+
+| Comando | Resultado |
+|---|---|
+| `git diff --check` | limpo |
+| `npx vitest run tests/smoke/maplibreSelecaoDepositoMapa.test.jsx` | 21/21 PASS |
+| `npm run verify:all` (PostgreSQL 16 efêmero local, `localhost`) | TODAS AS ETAPAS PASSARAM — smoke 840/840, `test:gates`, todos os gates, `gate:types` (sem regressão; 1ª execução pegou 1 diagnóstico novo de JSDoc, corrigido antes do commit), `typecheck:backend`, `lint`, `test:backend`, `build` |
+
+WebGL real desktop/mobile continua **BLOCKED** (sem navegador com sessão autenticada/dados autorizados no container). Checklist manual acima, mais: duplo toque rápido num depósito; trocar de empresa com depósito já vinculado e ver o aviso + Confirmado desabilitado; ícone muito largo não achatado.
+
+Riscos residuais: guarda R1-01 depende do caller atualizar `depositoSelecionadoId` (o `FormularioPonto` atual atualiza); sem E2E WebGL.

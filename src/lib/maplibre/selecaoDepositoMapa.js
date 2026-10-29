@@ -25,7 +25,10 @@ export const DEPOSITO_CORES = Object.freeze({
   DESTAQUE: "#f59e0b",
 });
 
-export const ICONE_TAMANHO = Object.freeze({ BASE: 42, DESTAQUE: 50, MIN: 20 });
+export const ICONE_TAMANHO = Object.freeze({ BASE: 42, DESTAQUE: 50 });
+
+/** Área mínima de toque do botão do marcador (separada do tamanho visual do ícone). */
+export const AREA_TOQUE_MIN_PX = 44;
 
 /** @typedef {{ lat: number, lng: number }} LatLng */
 
@@ -152,7 +155,8 @@ export function boundsLngLats(cocho, depositos) {
 }
 
 /**
- * Dimensão do ícone preservando aspecto (mesma regra do legado).
+ * Dimensão do ícone preservando aspecto. Sem piso no eixo menor (o piso de 20px
+ * do legado achatava ícones muito largos/altos); a área de toque é do botão.
  * @param {number} naturalWidth
  * @param {number} naturalHeight
  * @param {number} [baseSize]
@@ -163,9 +167,9 @@ export function iconSizePreservingAspect(naturalWidth, naturalHeight, baseSize =
   const h = naturalHeight > 0 ? naturalHeight : baseSize;
   const ratio = w / h;
   if (ratio >= 1) {
-    return { width: baseSize, height: Math.max(ICONE_TAMANHO.MIN, Math.round(baseSize / ratio)) };
+    return { width: baseSize, height: Math.max(1, Math.round(baseSize / ratio)) };
   }
-  return { width: Math.max(ICONE_TAMANHO.MIN, Math.round(baseSize * ratio)), height: baseSize };
+  return { width: Math.max(1, Math.round(baseSize * ratio)), height: baseSize };
 }
 
 /**
@@ -176,9 +180,31 @@ export function iconSizePreservingAspect(naturalWidth, naturalHeight, baseSize =
  * @returns {"selecionado" | "destaque" | "normal"}
  */
 export function estadoDeposito(id, selecionadoId, destaqueId) {
-  if (selecionadoId != null && id === selecionadoId) return "selecionado";
-  if (destaqueId != null && id === destaqueId) return "destaque";
+  if (mesmoId(id, selecionadoId)) return "selecionado";
+  if (mesmoId(id, destaqueId)) return "destaque";
   return "normal";
+}
+
+/**
+ * Compara ids tolerando string/number (ex.: "7" vs 7); null nunca casa.
+ * @param {unknown} a
+ * @param {unknown} b
+ */
+export function mesmoId(a, b) {
+  if (a == null || b == null) return false;
+  return String(a) === String(b);
+}
+
+/**
+ * Depósito selecionado só vale se estiver na lista filtrada da empresa atual.
+ * @template {Record<string, any>} T
+ * @param {T[]} depositos
+ * @param {unknown} id
+ * @returns {T | null}
+ */
+export function resolverDepositoSelecionado(depositos, id) {
+  if (id == null || id === "") return null;
+  return depositos.find((d) => mesmoId(d.id, id)) || null;
 }
 
 /**

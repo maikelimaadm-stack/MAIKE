@@ -15,6 +15,7 @@ import { createEditorMap, maplibregl, setSourceData } from "@/lib/maplibre/lifec
 import {
   DEPOSITO_CORES,
   DEPOSITO_SOURCE_IDS,
+  AREA_TOQUE_MIN_PX,
   ICONE_TAMANHO,
   boundsLngLats,
   buildDepositos,
@@ -24,6 +25,8 @@ import {
   estadoDeposito,
   formatDistanciaMetros,
   iconSizePreservingAspect,
+  mesmoId,
+  resolverDepositoSelecionado,
 } from "@/lib/maplibre/selecaoDepositoMapa.js";
 
 const CORES_ESTADO = {
@@ -73,7 +76,9 @@ export default function SelecaoDepositoMapa({ cochoCoords, depositoSelecionadoId
   const didFitRef = useRef(false);
   const mountedRef = useRef(true);
   const onSelectRef = useRef(onSelect);
-  const estadoRef = useRef({ selecionadoId: depositoSelecionadoId, destaqueId: null });
+  const estadoRef = useRef({ selecionadoId: /** @type {unknown} */ (null), destaqueId: /** @type {unknown} */ (null) });
+  // Último id emitido por onSelect: dupla ativação rápida no mesmo depósito não reemite.
+  const ultimoEmitidoRef = useRef(/** @type {unknown} */ (depositoSelecionadoId ?? null));
 
   const [mapReady, setMapReady] = useState(false);
   const [mapError, setMapError] = useState(/** @type {string | null} */ (null));
@@ -87,6 +92,10 @@ export default function SelecaoDepositoMapa({ cochoCoords, depositoSelecionadoId
   useEffect(() => {
     onSelectRef.current = onSelect;
   }, [onSelect]);
+
+  useEffect(() => {
+    ultimoEmitidoRef.current = depositoSelecionadoId ?? null;
+  }, [depositoSelecionadoId]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -125,8 +134,11 @@ export default function SelecaoDepositoMapa({ cochoCoords, depositoSelecionadoId
     [pontosSuplementacao, pontosReferencia, empresaSelecionadaId]
   );
 
-  const destaqueId = hoveredDepositoId ?? depositoSelecionadoId ?? null;
-  const depositoEmDestaque = depositos.find((d) => d.id === destaqueId) || null;
+  // Seleção recebida do formulário só conta se existir na lista da empresa atual.
+  const depositoSelecionado = resolverDepositoSelecionado(depositos, depositoSelecionadoId);
+  const selecionadoEfetivoId = depositoSelecionado ? depositoSelecionado.id : null;
+  const destaqueId = hoveredDepositoId ?? selecionadoEfetivoId;
+  const depositoEmDestaque = depositos.find((d) => mesmoId(d.id, destaqueId)) || null;
   const distanciaMetros = depositoEmDestaque
     ? distanciaCochoDeposito(cochoEstavel, depositoEmDestaque.coords)
     : null;
@@ -274,7 +286,7 @@ export default function SelecaoDepositoMapa({ cochoCoords, depositoSelecionadoId
       el.setAttribute("aria-label", `Selecionar depósito ${deposito.nome_ponto || ""}`.trim());
       el.title = String(deposito.nome_ponto || "");
       el.style.cssText =
-        "display:flex;align-items:center;justify-content:center;padding:6px;background:transparent;border:0;cursor:pointer;touch-action:manipulation;";
+        `display:flex;align-items:center;justify-content:center;min-width:${AREA_TOQUE_MIN_PX}px;min-height:${AREA_TOQUE_MIN_PX}px;padding:0;background:transparent;border:0;cursor:pointer;touch-action:manipulation;`;
       const dot = document.createElement("span");
       dot.style.cssText = "display:block;border-radius:9999px;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.5);";
       el.appendChild(dot);
@@ -307,6 +319,8 @@ export default function SelecaoDepositoMapa({ cochoCoords, depositoSelecionadoId
       const onClick = (ev) => {
         ev.stopPropagation();
         setHoveredDepositoId(deposito.id);
+        if (mesmoId(ultimoEmitidoRef.current, deposito.id)) return;
+        ultimoEmitidoRef.current = deposito.id;
         onSelectRef.current?.(deposito.id);
       };
       const onEnter = () => setHoveredDepositoId(deposito.id);
@@ -337,11 +351,11 @@ export default function SelecaoDepositoMapa({ cochoCoords, depositoSelecionadoId
 
   // Restyle sem recriar marcadores.
   useEffect(() => {
-    estadoRef.current = { selecionadoId: depositoSelecionadoId, destaqueId: hoveredDepositoId };
+    estadoRef.current = { selecionadoId: selecionadoEfetivoId, destaqueId: hoveredDepositoId };
     markersRef.current.forEach((entry) => {
-      pintarMarcador(entry, estadoDeposito(entry.id, depositoSelecionadoId, hoveredDepositoId));
+      pintarMarcador(entry, estadoDeposito(entry.id, selecionadoEfetivoId, hoveredDepositoId));
     });
-  }, [depositoSelecionadoId, hoveredDepositoId, depositos, mapReady]);
+  }, [selecionadoEfetivoId, hoveredDepositoId, depositos, mapReady]);
 
   // Linha cocho → depósito em destaque.
   const linhaDestinoCoords = depositoEmDestaque?.coords || null;
@@ -448,6 +462,12 @@ export default function SelecaoDepositoMapa({ cochoCoords, depositoSelecionadoId
             <p className="text-[11px] text-slate-600">Nenhum depósito ativo com coordenadas nesta empresa.</p>
           )}
 
+          {depositoSelecionadoId != null && depositoSelecionadoId !== "" && !depositoSelecionado && !carregandoDados && !erroDados && (
+            <p data-testid="deposito-obsoleto" className="text-[11px] text-amber-800">
+              O depósito vinculado não está disponível nesta empresa. Selecione um depósito no mapa.
+            </p>
+          )}
+
           {depositoEmDestaque && (
             <div data-testid="deposito-destaque" className="space-y-1 rounded-lg border border-amber-200 bg-amber-50 p-2 text-xs">
               <div className="font-semibold text-amber-900">{depositoEmDestaque.nome_ponto}</div>
@@ -470,7 +490,7 @@ export default function SelecaoDepositoMapa({ cochoCoords, depositoSelecionadoId
               type="button"
               size="sm"
               className="h-8 bg-emerald-600 text-xs text-white hover:bg-emerald-700"
-              disabled={!depositoSelecionadoId}
+              disabled={!depositoSelecionado || carregandoDados || erroDados}
               onClick={onClose}
             >
               <Check className="mr-1.5 h-3.5 w-3.5" /> Confirmado

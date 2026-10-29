@@ -14,6 +14,8 @@ import {
   estadoDeposito,
   formatDistanciaMetros,
   iconSizePreservingAspect,
+  mesmoId,
+  resolverDepositoSelecionado,
 } from "@/lib/maplibre/selecaoDepositoMapa.js";
 
 // ---------------------------------------------------------------- mocks DOM
@@ -192,7 +194,11 @@ describe("M2-B3 helpers — distância / linha / bounds", () => {
     expect(iconSizePreservingAspect(200, 100, 42)).toEqual({ width: 42, height: 21 });
     expect(iconSizePreservingAspect(100, 200, 42)).toEqual({ width: 21, height: 42 });
     expect(iconSizePreservingAspect(0, 0, 42)).toEqual({ width: 42, height: 42 });
-    expect(iconSizePreservingAspect(1000, 10, 42).height).toBe(20);
+    // R1-03: sem piso de 20px — 1000×10 mantém 100:1 (antes virava 42×20, achatado)
+    const largo = iconSizePreservingAspect(1000, 10, 42);
+    expect(largo).toEqual({ width: 42, height: 1 });
+    const alto = iconSizePreservingAspect(10, 1000, 42);
+    expect(alto).toEqual({ width: 1, height: 42 });
     expect(estadoDeposito("a", "a", "b")).toBe("selecionado");
     expect(estadoDeposito("b", "a", "b")).toBe("destaque");
     expect(estadoDeposito("c", "a", "b")).toBe("normal");
@@ -383,5 +389,152 @@ describe("M2-B3 — SelecaoDepositoMapa (DOM, MapLibre mockado)", () => {
     h.supl = {};
     montar();
     await waitFor(() => expect(screen.getByText(/Nenhum depósito ativo/)).toBeTruthy());
+  });
+  // ---------------------------------------------------------------- R1
+  it("R1-01: dupla ativação rápida no mesmo depósito emite 1x; A depois B emite ambos", async () => {
+    const { onSelect, onClose, getByText } = montar();
+    await carregar();
+    const a = screen.getByLabelText("Selecionar depósito Dep d1");
+    const b = screen.getByLabelText("Selecionar depósito Zero");
+    fireEvent.click(a);
+    fireEvent.click(a); // duplo clique / duplo toque, antes do prop atualizar
+    expect(onSelect).toHaveBeenCalledTimes(1);
+    expect(onSelect).toHaveBeenLastCalledWith("d1");
+    fireEvent.click(b);
+    expect(onSelect).toHaveBeenCalledTimes(2);
+    expect(onSelect).toHaveBeenLastCalledWith("d2");
+    fireEvent.click(a);
+    expect(onSelect).toHaveBeenCalledTimes(3);
+    expect(onSelect).toHaveBeenLastCalledWith("d1");
+    // clique sobe só até o botão: mapa não recebe (stopPropagation)
+    const mapClick = vi.fn();
+    h.maps[0].container.addEventListener("click", mapClick);
+    fireEvent.click(b);
+    expect(mapClick).not.toHaveBeenCalled();
+    const total = onSelect.mock.calls.length;
+    fireEvent.click(getByText("Cancelar"));
+    fireEvent.click(screen.getByLabelText("Fechar seleção de depósito"));
+    expect(onSelect).toHaveBeenCalledTimes(total);
+    expect(onClose).toHaveBeenCalledTimes(2);
+  });
+
+  it("R1-01: prop atualizado após callback; reclicar o já selecionado não reemite; teclado é <button> nativo", async () => {
+    const { onSelect, onClose, rerenderWith, getByText } = montar();
+    await carregar();
+    const a = screen.getByLabelText("Selecionar depósito Dep d1");
+    fireEvent.click(a);
+    rerenderWith({ depositoSelecionadoId: "d1" });
+    await waitFor(() => expect(a.getAttribute("aria-pressed")).toBe("true"));
+    fireEvent.click(a);
+    expect(onSelect).toHaveBeenCalledTimes(1);
+    // Enter/Space: JSDOM não sintetiza click a partir de keydown; o marcador é
+    // <button type="button">, cuja ativação por teclado no navegador gera "click".
+    expect(a.tagName).toBe("BUTTON");
+    expect(a.getAttribute("type")).toBe("button");
+    fireEvent.click(getByText("Confirmado"));
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(onSelect).toHaveBeenCalledTimes(1);
+  });
+
+  it("R1-02: id de outra empresa fica obsoleto — Confirmado desabilitado até escolher válido", async () => {
+    h.supl["emp-2"] = [
+      dep("x1", { empresa_id: "emp-2", nome_ponto: "Outra" }),
+    ];
+    const { onSelect, rerenderWith, getByText } = montar({ depositoSelecionadoId: "d1" });
+    await carregar();
+    const confirmar = () => getByText("Confirmado").closest("button");
+    expect(confirmar().disabled).toBe(false);
+    h.empresa = "emp-2";
+    rerenderWith({ depositoSelecionadoId: "d1" });
+    await waitFor(() => expect(screen.getByLabelText("Selecionar depósito Outra")).toBeTruthy());
+    expect(screen.queryByText(/Dep d1/)).toBeNull();
+    expect(screen.queryByTestId("deposito-destaque")).toBeNull();
+    expect(screen.getByTestId("deposito-obsoleto")).toBeTruthy();
+    expect(confirmar().disabled).toBe(true);
+    fireEvent.click(screen.getByLabelText("Selecionar depósito Outra"));
+    expect(onSelect).toHaveBeenLastCalledWith("x1");
+    rerenderWith({ depositoSelecionadoId: "x1" });
+    await waitFor(() => expect(confirmar().disabled).toBe(false));
+    expect(screen.queryByTestId("deposito-obsoleto")).toBeNull();
+  });
+
+  it("R1-02: depósito inativado após refetch invalida seleção; ids string/number casam", async () => {
+    h.supl["emp-1"] = [dep(7, { nome_ponto: "Sete" }), dep("d2", { nome_ponto: "Zero" })];
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const props = { cochoCoords: { lat: -15, lng: -59 }, depositoSelecionadoId: "7", onSelect: vi.fn(), onClose: vi.fn() };
+    render(
+      <QueryClientProvider client={qc}>
+        <SelecaoDepositoMapa {...props} />
+      </QueryClientProvider>
+    );
+    await carregar();
+    const sete = screen.getByLabelText("Selecionar depósito Sete");
+    expect(sete.getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByText("Confirmado").closest("button").disabled).toBe(false);
+    h.supl["emp-1"] = [dep(7, { nome_ponto: "Sete", status: "Inativo" }), dep("d2", { nome_ponto: "Zero" })];
+    await act(() => qc.invalidateQueries());
+    await waitFor(() => expect(screen.queryByLabelText("Selecionar depósito Sete")).toBeNull());
+    expect(screen.getByTestId("deposito-obsoleto")).toBeTruthy();
+    expect(screen.getByText("Confirmado").closest("button").disabled).toBe(true);
+    expect(props.onSelect).not.toHaveBeenCalled();
+  });
+
+  it("R1-02: loading e erro não habilitam Confirmado", async () => {
+    h.suplFail = true;
+    const { getByText } = montar({ depositoSelecionadoId: "d1" });
+    await waitFor(() => expect(h.maps.length).toBe(1));
+    expect(getByText("Confirmado").closest("button").disabled).toBe(true);
+    act(() => h.maps[0].fire("load"));
+    await waitFor(() => expect(screen.getByText("Falha ao carregar depósitos.")).toBeTruthy());
+    expect(getByText("Confirmado").closest("button").disabled).toBe(true);
+    expect(screen.queryByTestId("deposito-obsoleto")).toBeNull();
+  });
+
+  it("R1-03: ícone antigo carregando após troca de empresa não altera marcador novo; URL inválida cai no fallback", async () => {
+    h.supl["emp-2"] = [dep("x1", { empresa_id: "emp-2", nome_ponto: "Outra" })];
+    h.refs["emp-2"] = [{ empresa_id: "emp-2", nome: "Outra", icone_url: "nao-e-url::" }];
+    const { rerenderWith } = montar();
+    await carregar();
+    const velho = screen.getByLabelText("Selecionar depósito Dep d1").querySelector("img");
+    const onloadVelho = velho.onload;
+    h.empresa = "emp-2";
+    rerenderWith({});
+    const novo = await screen.findByLabelText("Selecionar depósito Outra");
+    const imgNovo = novo.querySelector("img");
+    const dotNovo = novo.querySelector("span");
+    Object.defineProperty(velho, "naturalWidth", { value: 300 });
+    Object.defineProperty(velho, "naturalHeight", { value: 10 });
+    expect(() => onloadVelho?.()).not.toThrow();
+    expect(velho.onload).toBeNull();
+    expect(imgNovo.style.width).toBe("");
+    expect(dotNovo.style.display).toBe("block");
+    expect(() => act(() => imgNovo.onerror())).not.toThrow();
+    expect(imgNovo.style.display).toBe("none");
+    expect(dotNovo.style.display).toBe("block");
+  });
+
+  it("R1-03: botão do marcador tem área de toque ≥44px separada do ícone; rótulo é texto puro", async () => {
+    h.supl["emp-1"] = [dep("d9", { nome_ponto: '<img src=x onerror="window.__xss=1">' })];
+    montar();
+    await waitFor(() => expect(h.maps.length).toBe(1));
+    act(() => h.maps[0].fire("load"));
+    const btn = await screen.findByLabelText(/Selecionar depósito <img/);
+    expect(btn.style.minWidth).toBe("44px");
+    expect(btn.style.minHeight).toBe("44px");
+    expect(btn.querySelector("img")).toBeNull();
+    expect(/** @type {any} */ (window).__xss).toBeUndefined();
+  });
+});
+
+describe("R1 helpers — ids e seleção válida", () => {
+  it("mesmoId e resolverDepositoSelecionado", () => {
+    expect(mesmoId("7", 7)).toBe(true);
+    expect(mesmoId(null, null)).toBe(false);
+    expect(mesmoId(undefined, "a")).toBe(false);
+    const lista = [{ id: 7 }, { id: "b" }];
+    expect(resolverDepositoSelecionado(lista, "7")).toEqual({ id: 7 });
+    expect(resolverDepositoSelecionado(lista, "zz")).toBeNull();
+    expect(resolverDepositoSelecionado(lista, "")).toBeNull();
+    expect(resolverDepositoSelecionado(lista, null)).toBeNull();
   });
 });
