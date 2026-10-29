@@ -45,7 +45,7 @@ import {
   segmentosDaRegua,
   transladarPontos,
 } from "@/lib/maplibre/editorModos.js";
-import { acertoEditor, pontaGuiaShift, resolverAlvoDesenho, rumoGraus } from "@/lib/maplibre/editorVisual.js";
+import { acertoEditor, pintarEdicao, pontaGuiaShift, resolverAlvoDesenho, rumoGraus } from "@/lib/maplibre/editorVisual.js";
 import CursorEditorOverlay from "./CursorEditorOverlay";
 import { pontoRotuloSeguro, textoHectares } from "@/lib/maplibre/mapaGeralRender.js";
 import useBasemap from "./useBasemap";
@@ -55,9 +55,6 @@ import {
   buildAreasCollection,
   buildLinhasCollection,
   buildPontosCollection,
-  buildDesenhoCollection,
-  buildVerticesCollection,
-  buildMidpointsCollection,
   buildGuiaCollection,
 } from "@/lib/maplibre/geojsonBuilders.js";
 import { findNearestSnap, findNearestSnapDetalhado, isNearFirstVertex } from "@/lib/maplibre/snap.js";
@@ -89,6 +86,13 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
   const [showFormularioArea, setShowFormularioArea] = useState(usarGPS && tipoDesenho === "area");
   const [showFormularioPonto, setShowFormularioPonto] = useState(usarGPS && tipoDesenho === "ponto");
   const [showFormularioLinha, setShowFormularioLinha] = useState(usarGPS && tipoDesenho === "linha");
+  /** Cor escolhida no formulário de área (prévia ao vivo antes de salvar, como a referência). */
+  const [corPrevia, setCorPrevia] = useState(/** @type {string | null} */ (null));
+  // PRÉVIA (D-PROD-67): com o formulário aberto a geometria fica fechada e visível,
+  // mas manipuladores/cursor somem e nenhuma interação do editor fica ativa por trás
+  // do Sheet. Os pontos continuam em estado; cancelar devolve a edição como estava.
+  const emPrevia = (showFormularioArea && tipoDesenho === "area") || (showFormularioLinha && tipoDesenho === "linha");
+  const modoInteracao = emPrevia ? MODOS.NAVEGAR : modo;
 
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
@@ -116,6 +120,12 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
   const modoRef = useRef(modo);
   const originalPontosRef = useRef(/** @type {{ lat: number, lng: number }[]} */ ([]));
   const reguaMarkersRef = useRef(/** @type {any[]} */ ([]));
+  const verticeSelecionadoRef = useRef(verticeSelecionado);
+  verticeSelecionadoRef.current = verticeSelecionado;
+  const emPreviaRef = useRef(emPrevia);
+  emPreviaRef.current = emPrevia;
+  const corPreviaRef = useRef(corPrevia);
+  corPreviaRef.current = corPrevia;
   /** Overlay do cursor (cruz/ímã/rumo) — atualizado sem re-render. */
   const cursorRef = useRef(/** @type {{ atualizar: Function, limpar: Function } | null} */ (null));
 
@@ -344,21 +354,16 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
         tipoDesenho,
       });
       setSourceData(map, SOURCE_IDS.PONTOS, buildPontosCollection(pontosSemIcone));
-      setSourceData(map, SOURCE_IDS.DESENHO, buildDesenhoCollection(pts, tipoDesenho, marker, { cor: itemEditando?.coordenadas?.cor || itemEditando?.cor || null, fechado: canEditVerts }));
-      if ((tipoDesenho === "area" || tipoDesenho === "linha") && pts.length > 0) {
-        setSourceData(map, SOURCE_IDS.VERTICES, buildVerticesCollection(pts));
-        setSourceData(
-          map,
-          SOURCE_IDS.MIDPOINTS,
-          canEditVerts && !dragStateRef.current?.moved ? buildMidpointsCollection(pts, tipoDesenho) : emptyFc()
-        );
-      } else if (tipoDesenho === "ponto" && marker) {
-        setSourceData(map, SOURCE_IDS.VERTICES, buildVerticesCollection([marker]));
-        setSourceData(map, SOURCE_IDS.MIDPOINTS, emptyFc());
-      } else {
-        setSourceData(map, SOURCE_IDS.VERTICES, emptyFc());
-        setSourceData(map, SOURCE_IDS.MIDPOINTS, emptyFc());
-      }
+      pintarEdicao(map, {
+        pts,
+        marker,
+        tipo: tipoDesenho,
+        fechado: canEditVerts,
+        previa: emPreviaRef.current,
+        cor: (emPreviaRef.current && corPreviaRef.current) || itemEditando?.coordenadas?.cor || itemEditando?.cor || null,
+        arrastando: !!dragStateRef.current?.moved,
+        selecionado: verticeSelecionadoRef.current,
+      });
       setSourceData(map, SOURCE_IDS.GUIA, emptyFc());
     },
     [itemEditando, tipoDesenho, rebuildOverlayMarkers]
@@ -557,32 +562,25 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
     // vértices (outro efeito, sem a guarda) apareciam; preenchimento/contorno não.
     if (!map.getSource(SOURCE_IDS.DESENHO)) return;
 
-    const canEditVerts = drawingClosed || !!itemEditando;
-    // Rascunho aberto: polilinha sem o lado de fecho + preenchimento sutil (D-PROD-66).
-    setSourceData(map, SOURCE_IDS.DESENHO, buildDesenhoCollection(currentPoints, tipoDesenho, currentMarker, { cor: itemEditando?.coordenadas?.cor || itemEditando?.cor || null, fechado: canEditVerts }));
-
-    if ((tipoDesenho === "area" || tipoDesenho === "linha") && currentPoints.length > 0) {
-      setSourceData(map, SOURCE_IDS.VERTICES, buildVerticesCollection(currentPoints));
-      // Durante o arrasto os meios somem (referência), voltam ao soltar.
-      setSourceData(
-        map,
-        SOURCE_IDS.MIDPOINTS,
-        canEditVerts && !dragStateRef.current?.moved ? buildMidpointsCollection(currentPoints, tipoDesenho) : emptyFc()
-      );
-    } else if (tipoDesenho === "ponto" && currentMarker) {
-      setSourceData(map, SOURCE_IDS.VERTICES, buildVerticesCollection([currentMarker]));
-      setSourceData(map, SOURCE_IDS.MIDPOINTS, emptyFc());
-    } else {
-      setSourceData(map, SOURCE_IDS.VERTICES, emptyFc());
-      setSourceData(map, SOURCE_IDS.MIDPOINTS, emptyFc());
-    }
-  }, [currentPoints, currentMarker, tipoDesenho, drawingClosed, itemEditando, mapReady]);
+    // Rascunho aberto: polilinha sem o lado de fecho + preenchimento sutil (D-PROD-66);
+    // prévia do formulário: fechada, na cor escolhida, sem manipuladores (D-PROD-67).
+    pintarEdicao(map, {
+      pts: currentPoints,
+      marker: currentMarker,
+      tipo: tipoDesenho,
+      fechado: drawingClosed || !!itemEditando,
+      previa: emPrevia,
+      cor: (emPrevia && corPrevia) || itemEditando?.coordenadas?.cor || itemEditando?.cor || null,
+      arrastando: !!dragStateRef.current?.moved,
+      selecionado: verticeSelecionado,
+    });
+  }, [currentPoints, currentMarker, tipoDesenho, drawingClosed, itemEditando, mapReady, emPrevia, corPrevia, verticeSelecionado]);
 
   // Clique para adicionar pontos — R5-01 (sem map.project inválido)
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map || !tipoDesenho || !mapReady || itemEditando) return undefined;
-    if (!podeAdicionarVertice(modo, drawingClosed)) return undefined;
+    if (!podeAdicionarVertice(modoInteracao, drawingClosed)) return undefined;
 
     const MAX_CLICK_DURATION = 400;
     const MAX_CLICK_DISTANCE = 10;
@@ -668,7 +666,7 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
       canvas.removeEventListener("pointerdown", onDown);
       canvas.removeEventListener("pointerup", onUp);
     };
-  }, [tipoDesenho, mapReady, itemEditando, drawingClosed, syncHistoryUi, modo]);
+  }, [tipoDesenho, mapReady, itemEditando, drawingClosed, syncHistoryUi, modoInteracao]);
 
   // Cursor do DESENHAR (D-PROD-66): elástico sólido, guia Shift adicional, aresta
   // do ímã (layers MapLibre) + cruz/anel/rumo (overlay DOM, sem re-render).
@@ -681,7 +679,7 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
       setSourceData(map, SOURCE_IDS.GUIA, emptyFc());
       cursorRef.current?.limpar();
     };
-    if (!podeAdicionarVertice(modo, drawingClosed)) {
+    if (!podeAdicionarVertice(modoInteracao, drawingClosed)) {
       limpar();
       return undefined;
     }
@@ -752,13 +750,13 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
       canvas.removeEventListener("mouseleave", limpar);
       limpar();
     };
-  }, [mapReady, tipoDesenho, itemEditando, snappingEnabled, drawingClosed, modo]);
+  }, [mapReady, tipoDesenho, itemEditando, snappingEnabled, drawingClosed, modoInteracao]);
 
   // EDITAR: hover de vértice/meio com área de acerto maior que o círculo (8px mouse).
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map || !mapReady || !(tipoDesenho === "area" || tipoDesenho === "linha")) return undefined;
-    if (!podeEditarVertices(modo, tipoDesenho)) return undefined;
+    if (!podeEditarVertices(modoInteracao, tipoDesenho)) return undefined;
     const canvas = map.getCanvas();
     /** @type {{ source: string, id: string } | null} */
     let atual = null;
@@ -792,13 +790,13 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
       canvas.removeEventListener("mouseleave", soltar);
       soltar();
     };
-  }, [mapReady, tipoDesenho, modo]);
+  }, [mapReady, tipoDesenho, modoInteracao]);
 
   // Drag vértices/midpoints — pointer + touch (R5-03, R5-04)
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map || !mapReady || !tipoDesenho) return undefined;
-    if (!podeEditarVertices(modo, tipoDesenho)) return undefined;
+    if (!podeEditarVertices(modoInteracao, tipoDesenho)) return undefined;
     if (tipoDesenho === "ponto" && !currentMarkerRef.current) return undefined;
     const LIMIAR_ARRASTO_PX = 4;
 
@@ -1028,13 +1026,13 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
       dragStateRef.current = null;
       void canvas;
     };
-  }, [mapReady, tipoDesenho, drawingClosed, itemEditando, syncHistoryUi, modo, currentMarker]);
+  }, [mapReady, tipoDesenho, drawingClosed, itemEditando, syncHistoryUi, modoInteracao, currentMarker]);
 
   // Mover área inteira — só com a mão (MOVER); arrasto no interior translada tudo.
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map || !mapReady || !(tipoDesenho === "area" || tipoDesenho === "linha")) return undefined;
-    if (modo !== MODOS.MOVER) return undefined;
+    if (modoInteracao !== MODOS.MOVER) return undefined;
     /** @type {null | { inicio: { lat: number, lng: number }, before: { lat: number, lng: number }[], moved: boolean }} */
     let mov = null;
     const camadas = () => [LAYER_IDS.DESENHO_FILL, LAYER_IDS.DESENHO_LINE].filter((id) => map.getLayer(id));
@@ -1097,18 +1095,9 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
       window.removeEventListener("blur", onCancel);
       map.dragPan.enable();
     };
-  }, [mapReady, tipoDesenho, modo, syncHistoryUi]);
+  }, [mapReady, tipoDesenho, modoInteracao, syncHistoryUi]);
 
-  // Vértice selecionado (destaque) e Delete/Backspace para remover.
-  useEffect(() => {
-    const map = mapInstanceRef.current;
-    if (!map || !mapReady || !(tipoDesenho === "area" || tipoDesenho === "linha")) return;
-    const fc = buildVerticesCollection(currentPoints);
-    fc.features.forEach((f) => {
-      if (f.properties && Number(f.properties.index) === verticeSelecionado) f.properties.selecionado = true;
-    });
-    setSourceData(map, SOURCE_IDS.VERTICES, currentPoints.length > 0 ? fc : emptyFc());
-  }, [verticeSelecionado, currentPoints, mapReady, tipoDesenho]);
+  // Vértice selecionado: destaque pintado em `pintarEdicao`; Delete/Backspace remove.
 
   // Régua: comprimento de cada segmento (DOM markers, textContent).
   useEffect(() => {
@@ -1147,7 +1136,8 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
   }, [verticeSelecionado, tipoDesenho, syncHistoryUi]);
 
   useEffect(() => {
-    if (verticeSelecionado == null) return undefined;
+    // Com o formulário aberto (prévia) as teclas são do formulário, nunca do desenho.
+    if (verticeSelecionado == null || emPrevia) return undefined;
     const onKey = (ev) => {
       const alvo = /** @type {HTMLElement | null} */ (ev.target);
       if (alvo && /^(INPUT|TEXTAREA|SELECT)$/.test(alvo.tagName)) return;
@@ -1160,7 +1150,7 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [verticeSelecionado, removerVerticeSelecionado]);
+  }, [verticeSelecionado, removerVerticeSelecionado, emPrevia]);
 
   const basemapMap = mapReady ? mapInstanceRef.current : null;
   const basemap = useBasemap(basemapMap, {
@@ -1190,6 +1180,16 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
 
   const finalizarDesenho = () => {
     if (tipoDesenho === "area") {
+      // Como `confirmar()` da referência: aberta com ≥3 pontos, o 1º comando só FECHA
+      // (aresta último→primeiro, meios e preenchimento de fechada); nada grava e o
+      // formulário só abre no comando seguinte, já com a geometria fechada.
+      if (!drawingClosed && !itemEditando) {
+        if (currentPoints.length < 3) return;
+        setDrawingClosed(true);
+        setModo(MODOS.EDITAR);
+        toast.success("Área fechada! Arraste os pontos, navegue ou clique Salvar.", { duration: 2000 });
+        return;
+      }
       const check = validatePolygonForSave(currentPoints);
       if (!check.ok) {
         toast.error(check.reason || "Polígono inválido");
@@ -1217,8 +1217,8 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
     setMapEpoch((n) => n + 1);
   };
 
-  const crosshair = tipoDesenho && mapReady && podeAdicionarVertice(modo, drawingClosed) && !itemEditando;
-  const cursorModo = mapReady ? cursorDoModo(modo) : "";
+  const crosshair = tipoDesenho && mapReady && podeAdicionarVertice(modoInteracao, drawingClosed) && !itemEditando;
+  const cursorModo = mapReady ? cursorDoModo(modoInteracao) : "";
   const desenhaAreaOuLinha = tipoDesenho === "area" || tipoDesenho === "linha";
   const fechadoParaMedir = tipoDesenho === "area" && (drawingClosed || !!itemEditando);
   const botaoModo = (ativo) =>
@@ -1517,7 +1517,7 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
                     }
                   }}
                 >
-                  {itemEditando ? "Salvar" : drawingClosed ? "Salvar" : "Terminar"}
+                  {itemEditando || drawingClosed ? "Salvar" : tipoDesenho === "area" ? "Fechar área" : "Terminar"}
                 </Button>
               </div>
             </div>
@@ -1525,7 +1525,13 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
         )}
       </div>
 
-      <Sheet open={showFormularioArea} onOpenChange={setShowFormularioArea}>
+      <Sheet
+        open={showFormularioArea}
+        onOpenChange={(aberto) => {
+          setShowFormularioArea(aberto);
+          if (!aberto) setCorPrevia(null);
+        }}
+      >
         <SheetContent side="right" className="w-[320px] sm:w-[400px] overflow-y-auto">
           <SheetHeader>
             <SheetTitle>{itemEditando ? "Editar Área" : "Cadastrar Área"}</SheetTitle>
@@ -1534,13 +1540,18 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
             coordenadas={currentPoints}
             usarGPS={usarGPS}
             item={itemEditando}
+            onCorChange={setCorPrevia}
             onSave={() => {
               setShowFormularioArea(false);
+              setCorPrevia(null);
               cancelarDesenho();
               queryClient.invalidateQueries({ queryKey: ["areas"] });
               onSalvar();
             }}
-            onCancel={() => setShowFormularioArea(false)}
+            onCancel={() => {
+              setShowFormularioArea(false);
+              setCorPrevia(null);
+            }}
           />
         </SheetContent>
       </Sheet>

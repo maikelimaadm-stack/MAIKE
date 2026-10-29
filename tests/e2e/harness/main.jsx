@@ -24,15 +24,18 @@ const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 window.__E2E__ = { salvos: 0, cancelados: 0 };
 
 function App() {
+  // Como `MapaCadastro`: salvar ou cancelar fecha o editor (volta à listagem).
+  const [fechado, setFechado] = React.useState(null);
   if (cena === "geral") return <div style={{ height: "100vh" }}><MapaGeral /></div>;
+  if (fechado) return <div data-testid="harness-listagem">listagem ({fechado})</div>;
   // GEO-08: "editar-salva" reabre a última área gravada no store local.
   const editar = cena === "editar" ? AREAS[1] : cena === "editar-salva" ? lerAreasSalvas().at(-1) || null : null;
   return (
     <MapaDesenho
       tipoDesenho="area"
       itemEditando={editar}
-      onSalvar={() => { window.__E2E__.salvos += 1; }}
-      onCancelar={() => { window.__E2E__.cancelados += 1; }}
+      onSalvar={() => { window.__E2E__.salvos += 1; setFechado("salvo"); }}
+      onCancelar={() => { window.__E2E__.cancelados += 1; setFechado("cancelado"); }}
     />
   );
 }

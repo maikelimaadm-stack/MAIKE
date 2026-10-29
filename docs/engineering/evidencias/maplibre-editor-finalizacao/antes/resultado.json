@@ -1,0 +1,979 @@
+{
+ "fase": "antes",
+ "gerado_em": "2026-10-29T14:37:57.807Z",
+ "cenas": {
+  "1440_A_aberto": {
+   "editor": true,
+   "dialogo": false,
+   "desenho": [
+    {
+     "geom": "Polygon",
+     "fechado": false,
+     "contorno": false,
+     "fill": null
+    },
+    {
+     "geom": "LineString",
+     "fechado": null,
+     "contorno": true,
+     "fill": null
+    }
+   ],
+   "anel_n": 5,
+   "vertices": 4,
+   "selecionados": 0,
+   "meios": 0,
+   "guia": 2,
+   "pintado": {
+    "fill": 1,
+    "linha": 1,
+    "vertices": 4,
+    "meios": 0,
+    "selecao": 0
+   },
+   "overlay": {
+    "cruz": false,
+    "ima": true
+   },
+   "botao_finalizar": "Terminar",
+   "modo_editar": "false",
+   "areas_cadastradas": [
+    {
+     "id": "a1",
+     "fill": "#196fb1"
+    },
+    {
+     "id": "a2",
+     "fill": "#97cd30"
+    },
+    {
+     "id": "a3",
+     "fill": "#f0ce25"
+    }
+   ]
+  },
+  "1440_B_apos_1o_comando": {
+   "rotulo_clicado": "Terminar",
+   "editor": true,
+   "dialogo": true,
+   "desenho": [
+    {
+     "geom": "Polygon",
+     "fechado": false,
+     "contorno": false,
+     "fill": null
+    },
+    {
+     "geom": "LineString",
+     "fechado": null,
+     "contorno": true,
+     "fill": null
+    }
+   ],
+   "anel_n": 5,
+   "vertices": 4,
+   "selecionados": 0,
+   "meios": 0,
+   "guia": 0,
+   "pintado": {
+    "fill": 1,
+    "linha": 1,
+    "vertices": 4,
+    "meios": 0,
+    "selecao": 0
+   },
+   "overlay": {
+    "cruz": false,
+    "ima": false
+   },
+   "botao_finalizar": "Terminar",
+   "modo_editar": "false",
+   "areas_cadastradas": [
+    {
+     "id": "a1",
+     "fill": "#196fb1"
+    },
+    {
+     "id": "a2",
+     "fill": "#97cd30"
+    },
+    {
+     "id": "a3",
+     "fill": "#f0ce25"
+    }
+   ],
+   "formulario_abriu_com_poligono_aberto": true
+  },
+  "1440_D_formulario": {
+   "editor": true,
+   "dialogo": true,
+   "desenho": [
+    {
+     "geom": "Polygon",
+     "fechado": false,
+     "contorno": false,
+     "fill": null
+    },
+    {
+     "geom": "LineString",
+     "fechado": null,
+     "contorno": true,
+     "fill": null
+    }
+   ],
+   "anel_n": 5,
+   "vertices": 4,
+   "selecionados": 0,
+   "meios": 0,
+   "guia": 0,
+   "pintado": {
+    "fill": 1,
+    "linha": 1,
+    "vertices": 4,
+    "meios": 0,
+    "selecao": 0
+   },
+   "overlay": {
+    "cruz": false,
+    "ima": false
+   },
+   "botao_finalizar": "Terminar",
+   "modo_editar": "false",
+   "areas_cadastradas": [
+    {
+     "id": "a1",
+     "fill": "#196fb1"
+    },
+    {
+     "id": "a2",
+     "fill": "#97cd30"
+    },
+    {
+     "id": "a3",
+     "fill": "#f0ce25"
+    }
+   ]
+  },
+  "1440_D_formulario_cor_laranja": {
+   "editor": true,
+   "dialogo": true,
+   "desenho": [
+    {
+     "geom": "Polygon",
+     "fechado": false,
+     "contorno": false,
+     "fill": null
+    },
+    {
+     "geom": "LineString",
+     "fechado": null,
+     "contorno": true,
+     "fill": null
+    }
+   ],
+   "anel_n": 5,
+   "vertices": 4,
+   "selecionados": 0,
+   "meios": 0,
+   "guia": 0,
+   "pintado": {
+    "fill": 1,
+    "linha": 1,
+    "vertices": 4,
+    "meios": 0,
+    "selecao": 0
+   },
+   "overlay": {
+    "cruz": false,
+    "ima": false
+   },
+   "botao_finalizar": "Terminar",
+   "modo_editar": "false",
+   "areas_cadastradas": [
+    {
+     "id": "a1",
+     "fill": "#196fb1"
+    },
+    {
+     "id": "a2",
+     "fill": "#97cd30"
+    },
+    {
+     "id": "a3",
+     "fill": "#f0ce25"
+    }
+   ]
+  },
+  "1440_D_cancelado": {
+   "editor": true,
+   "dialogo": false,
+   "desenho": [
+    {
+     "geom": "Polygon",
+     "fechado": false,
+     "contorno": false,
+     "fill": null
+    },
+    {
+     "geom": "LineString",
+     "fechado": null,
+     "contorno": true,
+     "fill": null
+    }
+   ],
+   "anel_n": 5,
+   "vertices": 4,
+   "selecionados": 0,
+   "meios": 0,
+   "guia": 0,
+   "pintado": {
+    "fill": 1,
+    "linha": 1,
+    "vertices": 4,
+    "meios": 0,
+    "selecao": 0
+   },
+   "overlay": {
+    "cruz": false,
+    "ima": false
+   },
+   "botao_finalizar": "Terminar",
+   "modo_editar": "false",
+   "areas_cadastradas": [
+    {
+     "id": "a1",
+     "fill": "#196fb1"
+    },
+    {
+     "id": "a2",
+     "fill": "#97cd30"
+    },
+    {
+     "id": "a3",
+     "fill": "#f0ce25"
+    }
+   ],
+   "geometria_intacta": true
+  },
+  "1440_D_clique_fora": {
+   "editor": true,
+   "dialogo": false,
+   "desenho": [
+    {
+     "geom": "Polygon",
+     "fechado": false,
+     "contorno": false,
+     "fill": null
+    },
+    {
+     "geom": "LineString",
+     "fechado": null,
+     "contorno": true,
+     "fill": null
+    }
+   ],
+   "anel_n": 5,
+   "vertices": 4,
+   "selecionados": 0,
+   "meios": 0,
+   "guia": 0,
+   "pintado": {
+    "fill": 1,
+    "linha": 1,
+    "vertices": 4,
+    "meios": 0,
+    "selecao": 0
+   },
+   "overlay": {
+    "cruz": false,
+    "ima": false
+   },
+   "botao_finalizar": "Terminar",
+   "modo_editar": "false",
+   "areas_cadastradas": [
+    {
+     "id": "a1",
+     "fill": "#196fb1"
+    },
+    {
+     "id": "a2",
+     "fill": "#97cd30"
+    },
+    {
+     "id": "a3",
+     "fill": "#f0ce25"
+    }
+   ],
+   "geometria_intacta": true
+  },
+  "1440_E_salvo": {
+   "editor": true,
+   "dialogo": false,
+   "desenho": [],
+   "anel_n": 0,
+   "vertices": 0,
+   "selecionados": 0,
+   "meios": 0,
+   "guia": 0,
+   "pintado": {
+    "fill": 0,
+    "linha": 0,
+    "vertices": 0,
+    "meios": 0,
+    "selecao": 0
+   },
+   "overlay": {
+    "cruz": false,
+    "ima": false
+   },
+   "botao_finalizar": "Terminar",
+   "modo_editar": "false",
+   "areas_cadastradas": [
+    {
+     "id": "a1",
+     "fill": "#196fb1"
+    },
+    {
+     "id": "a2",
+     "fill": "#97cd30"
+    },
+    {
+     "id": "a3",
+     "fill": "#f0ce25"
+    },
+    {
+     "id": "nova-1",
+     "fill": "#f6a526"
+    }
+   ],
+   "listagem": 0,
+   "overlay_no_dom": 1,
+   "salva": {
+    "cor": "#f5a01b",
+    "n": 4,
+    "coords_iguais_ao_desenho": true
+   }
+  },
+  "1440_E_area_normal": {
+   "editor": true,
+   "dialogo": false,
+   "desenho": [],
+   "anel_n": 0,
+   "vertices": 0,
+   "selecionados": 0,
+   "meios": 0,
+   "guia": 0,
+   "pintado": {
+    "fill": 0,
+    "linha": 0,
+    "vertices": 0,
+    "meios": 0,
+    "selecao": 0
+   },
+   "overlay": {
+    "cruz": false,
+    "ima": false
+   },
+   "botao_finalizar": "Terminar",
+   "modo_editar": "false",
+   "areas_cadastradas": [
+    {
+     "id": "a1",
+     "fill": "#196fb1"
+    },
+    {
+     "id": "a2",
+     "fill": "#97cd30"
+    },
+    {
+     "id": "a3",
+     "fill": "#f0ce25"
+    },
+    {
+     "id": "nova-1",
+     "fill": "#f6a526"
+    }
+   ],
+   "salva_no_mapa": {
+    "id": "nova-1",
+    "fill": "#f6a526"
+   }
+  },
+  "1440_E_reaberto": {
+   "editor": true,
+   "dialogo": false,
+   "desenho": [
+    {
+     "geom": "Polygon",
+     "fechado": true,
+     "contorno": true,
+     "fill": "#f6a526"
+    }
+   ],
+   "anel_n": 5,
+   "vertices": 4,
+   "selecionados": 0,
+   "meios": 4,
+   "guia": 0,
+   "pintado": {
+    "fill": 4,
+    "linha": 4,
+    "vertices": 4,
+    "meios": 4,
+    "selecao": 0
+   },
+   "overlay": {
+    "cruz": false,
+    "ima": false
+   },
+   "botao_finalizar": "Salvar",
+   "modo_editar": "true",
+   "areas_cadastradas": [
+    {
+     "id": "a1",
+     "fill": "#196fb1"
+    },
+    {
+     "id": "a2",
+     "fill": "#97cd30"
+    },
+    {
+     "id": "a3",
+     "fill": "#f0ce25"
+    }
+   ],
+   "coords_iguais": true
+  },
+  "1440_erros": [],
+  "390_A_aberto": {
+   "editor": true,
+   "dialogo": false,
+   "desenho": [
+    {
+     "geom": "Polygon",
+     "fechado": false,
+     "contorno": false,
+     "fill": null
+    },
+    {
+     "geom": "LineString",
+     "fechado": null,
+     "contorno": true,
+     "fill": null
+    }
+   ],
+   "anel_n": 5,
+   "vertices": 4,
+   "selecionados": 0,
+   "meios": 0,
+   "guia": 0,
+   "pintado": {
+    "fill": 2,
+    "linha": 2,
+    "vertices": 4,
+    "meios": 0,
+    "selecao": 0
+   },
+   "overlay": {
+    "cruz": false,
+    "ima": false
+   },
+   "botao_finalizar": "Terminar",
+   "modo_editar": "false",
+   "areas_cadastradas": [
+    {
+     "id": "a1",
+     "fill": "#196fb1"
+    },
+    {
+     "id": "a2",
+     "fill": "#97cd30"
+    },
+    {
+     "id": "a3",
+     "fill": "#f0ce25"
+    }
+   ]
+  },
+  "390_B_apos_1o_comando": {
+   "rotulo_clicado": "Terminar",
+   "editor": true,
+   "dialogo": true,
+   "desenho": [
+    {
+     "geom": "Polygon",
+     "fechado": false,
+     "contorno": false,
+     "fill": null
+    },
+    {
+     "geom": "LineString",
+     "fechado": null,
+     "contorno": true,
+     "fill": null
+    }
+   ],
+   "anel_n": 5,
+   "vertices": 4,
+   "selecionados": 0,
+   "meios": 0,
+   "guia": 0,
+   "pintado": {
+    "fill": 2,
+    "linha": 2,
+    "vertices": 4,
+    "meios": 0,
+    "selecao": 0
+   },
+   "overlay": {
+    "cruz": false,
+    "ima": false
+   },
+   "botao_finalizar": "Terminar",
+   "modo_editar": "false",
+   "areas_cadastradas": [
+    {
+     "id": "a1",
+     "fill": "#196fb1"
+    },
+    {
+     "id": "a2",
+     "fill": "#97cd30"
+    },
+    {
+     "id": "a3",
+     "fill": "#f0ce25"
+    }
+   ],
+   "formulario_abriu_com_poligono_aberto": true
+  },
+  "390_D_formulario": {
+   "editor": true,
+   "dialogo": true,
+   "desenho": [
+    {
+     "geom": "Polygon",
+     "fechado": false,
+     "contorno": false,
+     "fill": null
+    },
+    {
+     "geom": "LineString",
+     "fechado": null,
+     "contorno": true,
+     "fill": null
+    }
+   ],
+   "anel_n": 5,
+   "vertices": 4,
+   "selecionados": 0,
+   "meios": 0,
+   "guia": 0,
+   "pintado": {
+    "fill": 2,
+    "linha": 2,
+    "vertices": 4,
+    "meios": 0,
+    "selecao": 0
+   },
+   "overlay": {
+    "cruz": false,
+    "ima": false
+   },
+   "botao_finalizar": "Terminar",
+   "modo_editar": "false",
+   "areas_cadastradas": [
+    {
+     "id": "a1",
+     "fill": "#196fb1"
+    },
+    {
+     "id": "a2",
+     "fill": "#97cd30"
+    },
+    {
+     "id": "a3",
+     "fill": "#f0ce25"
+    }
+   ]
+  },
+  "390_D_cancelado": {
+   "editor": true,
+   "dialogo": false,
+   "desenho": [
+    {
+     "geom": "Polygon",
+     "fechado": false,
+     "contorno": false,
+     "fill": null
+    },
+    {
+     "geom": "LineString",
+     "fechado": null,
+     "contorno": true,
+     "fill": null
+    }
+   ],
+   "anel_n": 5,
+   "vertices": 4,
+   "selecionados": 0,
+   "meios": 0,
+   "guia": 0,
+   "pintado": {
+    "fill": 2,
+    "linha": 2,
+    "vertices": 4,
+    "meios": 0,
+    "selecao": 0
+   },
+   "overlay": {
+    "cruz": false,
+    "ima": false
+   },
+   "botao_finalizar": "Terminar",
+   "modo_editar": "false",
+   "areas_cadastradas": [
+    {
+     "id": "a1",
+     "fill": "#196fb1"
+    },
+    {
+     "id": "a2",
+     "fill": "#97cd30"
+    },
+    {
+     "id": "a3",
+     "fill": "#f0ce25"
+    }
+   ],
+   "geometria_intacta": true
+  },
+  "390_erros": [],
+  "412_A_aberto": {
+   "editor": true,
+   "dialogo": false,
+   "desenho": [
+    {
+     "geom": "Polygon",
+     "fechado": false,
+     "contorno": false,
+     "fill": null
+    },
+    {
+     "geom": "LineString",
+     "fechado": null,
+     "contorno": true,
+     "fill": null
+    }
+   ],
+   "anel_n": 5,
+   "vertices": 4,
+   "selecionados": 0,
+   "meios": 0,
+   "guia": 0,
+   "pintado": {
+    "fill": 2,
+    "linha": 2,
+    "vertices": 4,
+    "meios": 0,
+    "selecao": 0
+   },
+   "overlay": {
+    "cruz": false,
+    "ima": false
+   },
+   "botao_finalizar": "Terminar",
+   "modo_editar": "false",
+   "areas_cadastradas": [
+    {
+     "id": "a1",
+     "fill": "#196fb1"
+    },
+    {
+     "id": "a2",
+     "fill": "#97cd30"
+    },
+    {
+     "id": "a3",
+     "fill": "#f0ce25"
+    }
+   ]
+  },
+  "412_B_apos_1o_comando": {
+   "rotulo_clicado": "Terminar",
+   "editor": true,
+   "dialogo": true,
+   "desenho": [
+    {
+     "geom": "Polygon",
+     "fechado": false,
+     "contorno": false,
+     "fill": null
+    },
+    {
+     "geom": "LineString",
+     "fechado": null,
+     "contorno": true,
+     "fill": null
+    }
+   ],
+   "anel_n": 5,
+   "vertices": 4,
+   "selecionados": 0,
+   "meios": 0,
+   "guia": 0,
+   "pintado": {
+    "fill": 2,
+    "linha": 2,
+    "vertices": 4,
+    "meios": 0,
+    "selecao": 0
+   },
+   "overlay": {
+    "cruz": false,
+    "ima": false
+   },
+   "botao_finalizar": "Terminar",
+   "modo_editar": "false",
+   "areas_cadastradas": [
+    {
+     "id": "a1",
+     "fill": "#196fb1"
+    },
+    {
+     "id": "a2",
+     "fill": "#97cd30"
+    },
+    {
+     "id": "a3",
+     "fill": "#f0ce25"
+    }
+   ],
+   "formulario_abriu_com_poligono_aberto": true
+  },
+  "412_D_formulario": {
+   "editor": true,
+   "dialogo": true,
+   "desenho": [
+    {
+     "geom": "Polygon",
+     "fechado": false,
+     "contorno": false,
+     "fill": null
+    },
+    {
+     "geom": "LineString",
+     "fechado": null,
+     "contorno": true,
+     "fill": null
+    }
+   ],
+   "anel_n": 5,
+   "vertices": 4,
+   "selecionados": 0,
+   "meios": 0,
+   "guia": 0,
+   "pintado": {
+    "fill": 2,
+    "linha": 2,
+    "vertices": 4,
+    "meios": 0,
+    "selecao": 0
+   },
+   "overlay": {
+    "cruz": false,
+    "ima": false
+   },
+   "botao_finalizar": "Terminar",
+   "modo_editar": "false",
+   "areas_cadastradas": [
+    {
+     "id": "a1",
+     "fill": "#196fb1"
+    },
+    {
+     "id": "a2",
+     "fill": "#97cd30"
+    },
+    {
+     "id": "a3",
+     "fill": "#f0ce25"
+    }
+   ]
+  },
+  "412_D_cancelado": {
+   "editor": true,
+   "dialogo": false,
+   "desenho": [
+    {
+     "geom": "Polygon",
+     "fechado": false,
+     "contorno": false,
+     "fill": null
+    },
+    {
+     "geom": "LineString",
+     "fechado": null,
+     "contorno": true,
+     "fill": null
+    }
+   ],
+   "anel_n": 5,
+   "vertices": 4,
+   "selecionados": 0,
+   "meios": 0,
+   "guia": 0,
+   "pintado": {
+    "fill": 2,
+    "linha": 2,
+    "vertices": 4,
+    "meios": 0,
+    "selecao": 0
+   },
+   "overlay": {
+    "cruz": false,
+    "ima": false
+   },
+   "botao_finalizar": "Terminar",
+   "modo_editar": "false",
+   "areas_cadastradas": [
+    {
+     "id": "a1",
+     "fill": "#196fb1"
+    },
+    {
+     "id": "a2",
+     "fill": "#97cd30"
+    },
+    {
+     "id": "a3",
+     "fill": "#f0ce25"
+    }
+   ],
+   "geometria_intacta": true
+  },
+  "412_erros": [],
+  "C_existente_edicao": {
+   "editor": true,
+   "dialogo": false,
+   "desenho": [
+    {
+     "geom": "Polygon",
+     "fechado": true,
+     "contorno": true,
+     "fill": "#97cd30"
+    }
+   ],
+   "anel_n": 5,
+   "vertices": 4,
+   "selecionados": 0,
+   "meios": 4,
+   "guia": 0,
+   "pintado": {
+    "fill": 4,
+    "linha": 4,
+    "vertices": 4,
+    "meios": 4,
+    "selecao": 0
+   },
+   "overlay": {
+    "cruz": false,
+    "ima": false
+   },
+   "botao_finalizar": "Salvar",
+   "modo_editar": "true",
+   "areas_cadastradas": [
+    {
+     "id": "a1",
+     "fill": "#196fb1"
+    },
+    {
+     "id": "a3",
+     "fill": "#f0ce25"
+    }
+   ]
+  },
+  "C_existente_formulario": {
+   "editor": true,
+   "dialogo": true,
+   "desenho": [
+    {
+     "geom": "Polygon",
+     "fechado": true,
+     "contorno": true,
+     "fill": "#97cd30"
+    }
+   ],
+   "anel_n": 5,
+   "vertices": 4,
+   "selecionados": 0,
+   "meios": 4,
+   "guia": 0,
+   "pintado": {
+    "fill": 4,
+    "linha": 4,
+    "vertices": 4,
+    "meios": 4,
+    "selecao": 0
+   },
+   "overlay": {
+    "cruz": false,
+    "ima": false
+   },
+   "botao_finalizar": "Salvar",
+   "modo_editar": "true",
+   "areas_cadastradas": [
+    {
+     "id": "a1",
+     "fill": "#196fb1"
+    },
+    {
+     "id": "a3",
+     "fill": "#f0ce25"
+    }
+   ]
+  },
+  "C_existente_cancelado": {
+   "editor": true,
+   "dialogo": false,
+   "desenho": [
+    {
+     "geom": "Polygon",
+     "fechado": true,
+     "contorno": true,
+     "fill": "#97cd30"
+    }
+   ],
+   "anel_n": 5,
+   "vertices": 4,
+   "selecionados": 0,
+   "meios": 4,
+   "guia": 0,
+   "pintado": {
+    "fill": 4,
+    "linha": 4,
+    "vertices": 4,
+    "meios": 4,
+    "selecao": 0
+   },
+   "overlay": {
+    "cruz": false,
+    "ima": false
+   },
+   "botao_finalizar": "Salvar",
+   "modo_editar": "true",
+   "areas_cadastradas": [
+    {
+     "id": "a1",
+     "fill": "#196fb1"
+    },
+    {
+     "id": "a3",
+     "fill": "#f0ce25"
+    }
+   ],
+   "geometria_intacta": true
+  },
+  "C_erros": []
+ }
+}
