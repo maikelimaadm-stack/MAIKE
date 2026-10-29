@@ -2664,4 +2664,56 @@ mostra o bloqueio de forma honesta. Merge só pelo proprietário após auditoria
 
 ---
 
-<!-- Próxima decisão: D-PROD-66 -->
+## D-PROD-66 — Editor de polígonos: paridade visual com o CONTROLE-DE-ESTOQUE
+
+**Missão:** `MAPLIBRE-EDITOR-PARIDADE-VISUAL-01`\
+**Relatório:** `docs/engineering/MAPLIBRE-EDITOR-PARIDADE-VISUAL-REPORT.md`\
+**Base:** `origin/main` = `e8540e7d` (merge #139, CI `quality` 40876450764 verde)\
+**Referência visual (read-only):** `CONTROLE-DE-ESTOQUE@6aef845e` (`mapa-de-manejo/camada-desenho.tsx`)
+
+**Decisão:**
+
+1. Os valores de desenho da referência viram tokens em `estiloAreas.js`
+   (`EDITOR_VISUAL`), separados do SSOT das áreas cadastradas (`paintArea*`,
+   intocado). Os valores:
+   - linha 2.2 px com junta e ponta redondas;
+   - vértice r5, branco, borda laranja 2.4; r5.6 em hover ou arrasto;
+   - meio r2.8, laranja sólido sem borda; r3.4 no hover;
+   - anel do ímã r8 / 1.6;
+   - cruz de 7 px / 1.8;
+   - guia Shift 1.2 px com traço 4/6;
+   - preenchimento: 0.1 aberto, 0.18 fechado, 0.78 com a cor salva.
+2. **MapLibre desenha `circle-stroke` por fora do raio, e o SVG desenha a borda
+   centrada.** O raio MapLibre é `raio SVG − borda/2`
+   (`raioCirculoMapLibre`), para ficar com o mesmo tamanho visível.
+3. **Geometria e transitórios do cursor ficam em camadas MapLibre**, na ordem da
+   referência: aresta do ímã, preenchimento, contorno, elástico, guia Shift,
+   meios, vértices.
+   - O rascunho aberto mostra só a polilinha, sem o lado de fecho.
+   - O elástico é sólido. A guia Shift é uma feição **adicional**.
+   - Hover e arrasto usam `feature-state`.
+4. **Cruz, anel do ímã e rumo** ficam num overlay SVG `pointer-events: none`
+   (`CursorEditorOverlay`), atualizado imperativamente, sem re-render React por
+   mousemove. Some no pan/zoom, ao sair do canvas, na troca de modo e após um
+   toque.
+5. **O cursor e o clique usam o mesmo alvo** (`resolverAlvoDesenho`: fechar no
+   1º → trava 45° → ímã). `findNearestSnapDetalhado` expõe vértice/aresta com
+   a **mesma regra** do ímã, que fica congelada.
+6. **Acerto de vértice/meio pelo mapa com tolerância** (mouse 8 px, toque
+   14 px), não pela camada.
+   - Clique no meio sem arrastar insere no meio exato.
+   - Segurar no meio e arrastar cria e arrasta o ponto, com undo/redo.
+7. **Rótulos das áreas gravadas somem nos modos DESENHAR/EDITAR/MOVER** e voltam
+   no NAVEGAR, como na referência (`ocultarRotulos={desenhando}`).
+
+**Fora do escopo (inalterado):**
+- `MapaGeral`, `useMapRenderer`;
+- formulários, catálogo de ícones;
+- backend/Prisma/RLS;
+- provider e URLs do satélite.
+
+Merge só pelo proprietário após auditoria.
+
+---
+
+<!-- Próxima decisão: D-PROD-67 -->

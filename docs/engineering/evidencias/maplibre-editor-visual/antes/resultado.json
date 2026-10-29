@@ -1,0 +1,4015 @@
+{
+ "fase": "antes",
+ "gerado_em": "2026-10-29T13:21:13.364Z",
+ "cenas": {
+  "01_aberto_2pts": {
+   "estado": {
+    "layers": {
+     "m1-desenho-fill": {
+      "tipo": "fill",
+      "filter": [
+       "==",
+       [
+        "geometry-type"
+       ],
+       "Polygon"
+      ],
+      "paint": {
+       "fill-color": [
+        "coalesce",
+        [
+         "get",
+         "fill"
+        ],
+        "#f5a01b"
+       ],
+       "fill-opacity": [
+        "case",
+        [
+         "has",
+         "fill"
+        ],
+        0.78,
+        0.35
+       ]
+      },
+      "layout": {},
+      "renderizadas": 0
+     },
+     "m1-desenho-line": {
+      "tipo": "line",
+      "filter": null,
+      "paint": {
+       "line-color": "#f5a01b",
+       "line-width": 2.2,
+       "line-opacity": 1
+      },
+      "layout": {},
+      "renderizadas": 1
+     },
+     "m1-ima-aresta-halo": null,
+     "m1-ima-aresta": null,
+     "m1-guia": {
+      "tipo": "line",
+      "filter": null,
+      "paint": {
+       "line-color": "#f5a01b",
+       "line-width": 2,
+       "line-opacity": 0.9,
+       "line-dasharray": [
+        1.5,
+        1.5
+       ]
+      },
+      "layout": {},
+      "renderizadas": 1
+     },
+     "m1-guia-shift": null,
+     "m1-midpoints": {
+      "tipo": "circle",
+      "filter": null,
+      "paint": {
+       "circle-radius": 3.5,
+       "circle-color": "#f5a01b",
+       "circle-opacity": 0.55,
+       "circle-stroke-color": "#f5a01b",
+       "circle-stroke-width": 1
+      },
+      "layout": {},
+      "renderizadas": 0
+     },
+     "m1-vertices-selecao": null,
+     "m1-vertices": {
+      "tipo": "circle",
+      "filter": null,
+      "paint": {
+       "circle-radius": [
+        "case",
+        [
+         "boolean",
+         [
+          "get",
+          "selecionado"
+         ],
+         false
+        ],
+        8,
+        5
+       ],
+       "circle-color": [
+        "case",
+        [
+         "boolean",
+         [
+          "get",
+          "selecionado"
+         ],
+         false
+        ],
+        "#f5a01b",
+        "#ffffff"
+       ],
+       "circle-stroke-color": [
+        "case",
+        [
+         "boolean",
+         [
+          "get",
+          "selecionado"
+         ],
+         false
+        ],
+        "#ffffff",
+        "#f5a01b"
+       ],
+       "circle-stroke-width": 2.4
+      },
+      "layout": {},
+      "renderizadas": 2
+     }
+    },
+    "ordem": [
+     "m1-areas-fill",
+     "m1-areas-line",
+     "m1-linhas",
+     "m1-pontos",
+     "m1-desenho-fill",
+     "m1-desenho-line",
+     "m1-guia",
+     "m1-vertices",
+     "m1-midpoints"
+    ],
+    "desenho": [
+     {
+      "geom": "LineString",
+      "props": {
+       "id": "desenho"
+      }
+     }
+    ],
+    "guia": [
+     {
+      "geom": "LineString",
+      "props": {
+       "id": "guia"
+      }
+     }
+    ],
+    "vertices": [
+     {
+      "id": "v-0",
+      "props": {
+       "id": "v-0",
+       "index": 0,
+       "role": "vertex"
+      },
+      "state": {}
+     },
+     {
+      "id": "v-1",
+      "props": {
+       "id": "v-1",
+       "index": 1,
+       "role": "vertex"
+      },
+      "state": {}
+     }
+    ],
+    "meios": [],
+    "overlay": {
+     "existe": false,
+     "pointerEvents": null,
+     "cruzinha": false,
+     "ima": null,
+     "rumo": null
+    },
+    "cursorCanvas": "grab"
+   },
+   "elastico_solidez": 0.44,
+   "linha_P0_P1_solidez": 1,
+   "vertice": {
+    "miolo_branco": 5,
+    "externo": 5
+   },
+   "cruz_no_cursor": 0
+  },
+  "01b_aberto_3pts": {
+   "estado": {
+    "layers": {
+     "m1-desenho-fill": {
+      "tipo": "fill",
+      "filter": [
+       "==",
+       [
+        "geometry-type"
+       ],
+       "Polygon"
+      ],
+      "paint": {
+       "fill-color": [
+        "coalesce",
+        [
+         "get",
+         "fill"
+        ],
+        "#f5a01b"
+       ],
+       "fill-opacity": [
+        "case",
+        [
+         "has",
+         "fill"
+        ],
+        0.78,
+        0.35
+       ]
+      },
+      "layout": {},
+      "renderizadas": 1
+     },
+     "m1-desenho-line": {
+      "tipo": "line",
+      "filter": null,
+      "paint": {
+       "line-color": "#f5a01b",
+       "line-width": 2.2,
+       "line-opacity": 1
+      },
+      "layout": {},
+      "renderizadas": 1
+     },
+     "m1-ima-aresta-halo": null,
+     "m1-ima-aresta": null,
+     "m1-guia": {
+      "tipo": "line",
+      "filter": null,
+      "paint": {
+       "line-color": "#f5a01b",
+       "line-width": 2,
+       "line-opacity": 0.9,
+       "line-dasharray": [
+        1.5,
+        1.5
+       ]
+      },
+      "layout": {},
+      "renderizadas": 1
+     },
+     "m1-guia-shift": null,
+     "m1-midpoints": {
+      "tipo": "circle",
+      "filter": null,
+      "paint": {
+       "circle-radius": 3.5,
+       "circle-color": "#f5a01b",
+       "circle-opacity": 0.55,
+       "circle-stroke-color": "#f5a01b",
+       "circle-stroke-width": 1
+      },
+      "layout": {},
+      "renderizadas": 0
+     },
+     "m1-vertices-selecao": null,
+     "m1-vertices": {
+      "tipo": "circle",
+      "filter": null,
+      "paint": {
+       "circle-radius": [
+        "case",
+        [
+         "boolean",
+         [
+          "get",
+          "selecionado"
+         ],
+         false
+        ],
+        8,
+        5
+       ],
+       "circle-color": [
+        "case",
+        [
+         "boolean",
+         [
+          "get",
+          "selecionado"
+         ],
+         false
+        ],
+        "#f5a01b",
+        "#ffffff"
+       ],
+       "circle-stroke-color": [
+        "case",
+        [
+         "boolean",
+         [
+          "get",
+          "selecionado"
+         ],
+         false
+        ],
+        "#ffffff",
+        "#f5a01b"
+       ],
+       "circle-stroke-width": 2.4
+      },
+      "layout": {},
+      "renderizadas": 3
+     }
+    },
+    "ordem": [
+     "m1-areas-fill",
+     "m1-areas-line",
+     "m1-linhas",
+     "m1-pontos",
+     "m1-desenho-fill",
+     "m1-desenho-line",
+     "m1-guia",
+     "m1-vertices",
+     "m1-midpoints"
+    ],
+    "desenho": [
+     {
+      "geom": "Polygon",
+      "props": {
+       "id": "desenho"
+      }
+     }
+    ],
+    "guia": [
+     {
+      "geom": "LineString",
+      "props": {
+       "id": "guia"
+      }
+     }
+    ],
+    "vertices": [
+     {
+      "id": "v-0",
+      "props": {
+       "id": "v-0",
+       "index": 0,
+       "role": "vertex"
+      },
+      "state": {}
+     },
+     {
+      "id": "v-1",
+      "props": {
+       "id": "v-1",
+       "index": 1,
+       "role": "vertex"
+      },
+      "state": {}
+     },
+     {
+      "id": "v-2",
+      "props": {
+       "id": "v-2",
+       "index": 2,
+       "role": "vertex"
+      },
+      "state": {}
+     }
+    ],
+    "meios": [],
+    "overlay": {
+     "existe": false,
+     "pointerEvents": null,
+     "cruzinha": false,
+     "ima": null,
+     "rumo": null
+    },
+    "cursorCanvas": "grab"
+   },
+   "lado_de_fecho_P2_P0_solidez": 0.945,
+   "pixel_interior": [
+    134,
+    147,
+    134
+   ]
+  },
+  "05b_ima_fechar": {
+   "estado": {
+    "layers": {
+     "m1-desenho-fill": {
+      "tipo": "fill",
+      "filter": [
+       "==",
+       [
+        "geometry-type"
+       ],
+       "Polygon"
+      ],
+      "paint": {
+       "fill-color": [
+        "coalesce",
+        [
+         "get",
+         "fill"
+        ],
+        "#f5a01b"
+       ],
+       "fill-opacity": [
+        "case",
+        [
+         "has",
+         "fill"
+        ],
+        0.78,
+        0.35
+       ]
+      },
+      "layout": {},
+      "renderizadas": 1
+     },
+     "m1-desenho-line": {
+      "tipo": "line",
+      "filter": null,
+      "paint": {
+       "line-color": "#f5a01b",
+       "line-width": 2.2,
+       "line-opacity": 1
+      },
+      "layout": {},
+      "renderizadas": 1
+     },
+     "m1-ima-aresta-halo": null,
+     "m1-ima-aresta": null,
+     "m1-guia": {
+      "tipo": "line",
+      "filter": null,
+      "paint": {
+       "line-color": "#f5a01b",
+       "line-width": 2,
+       "line-opacity": 0.9,
+       "line-dasharray": [
+        1.5,
+        1.5
+       ]
+      },
+      "layout": {},
+      "renderizadas": 1
+     },
+     "m1-guia-shift": null,
+     "m1-midpoints": {
+      "tipo": "circle",
+      "filter": null,
+      "paint": {
+       "circle-radius": 3.5,
+       "circle-color": "#f5a01b",
+       "circle-opacity": 0.55,
+       "circle-stroke-color": "#f5a01b",
+       "circle-stroke-width": 1
+      },
+      "layout": {},
+      "renderizadas": 0
+     },
+     "m1-vertices-selecao": null,
+     "m1-vertices": {
+      "tipo": "circle",
+      "filter": null,
+      "paint": {
+       "circle-radius": [
+        "case",
+        [
+         "boolean",
+         [
+          "get",
+          "selecionado"
+         ],
+         false
+        ],
+        8,
+        5
+       ],
+       "circle-color": [
+        "case",
+        [
+         "boolean",
+         [
+          "get",
+          "selecionado"
+         ],
+         false
+        ],
+        "#f5a01b",
+        "#ffffff"
+       ],
+       "circle-stroke-color": [
+        "case",
+        [
+         "boolean",
+         [
+          "get",
+          "selecionado"
+         ],
+         false
+        ],
+        "#ffffff",
+        "#f5a01b"
+       ],
+       "circle-stroke-width": 2.4
+      },
+      "layout": {},
+      "renderizadas": 4
+     }
+    },
+    "ordem": [
+     "m1-areas-fill",
+     "m1-areas-line",
+     "m1-linhas",
+     "m1-pontos",
+     "m1-desenho-fill",
+     "m1-desenho-line",
+     "m1-guia",
+     "m1-vertices",
+     "m1-midpoints"
+    ],
+    "desenho": [
+     {
+      "geom": "Polygon",
+      "props": {
+       "id": "desenho"
+      }
+     }
+    ],
+    "guia": [
+     {
+      "geom": "LineString",
+      "props": {
+       "id": "guia"
+      }
+     }
+    ],
+    "vertices": [
+     {
+      "id": "v-0",
+      "props": {
+       "id": "v-0",
+       "index": 0,
+       "role": "vertex"
+      },
+      "state": {}
+     },
+     {
+      "id": "v-1",
+      "props": {
+       "id": "v-1",
+       "index": 1,
+       "role": "vertex"
+      },
+      "state": {}
+     },
+     {
+      "id": "v-2",
+      "props": {
+       "id": "v-2",
+       "index": 2,
+       "role": "vertex"
+      },
+      "state": {}
+     },
+     {
+      "id": "v-3",
+      "props": {
+       "id": "v-3",
+       "index": 3,
+       "role": "vertex"
+      },
+      "state": {}
+     }
+    ],
+    "meios": [],
+    "overlay": {
+     "existe": false,
+     "pointerEvents": null,
+     "cruzinha": false,
+     "ima": null,
+     "rumo": null
+    },
+    "cursorCanvas": "grab"
+   },
+   "anel_no_primeiro": 5
+  },
+  "02_fechado": {
+   "estado": {
+    "layers": {
+     "m1-desenho-fill": {
+      "tipo": "fill",
+      "filter": [
+       "==",
+       [
+        "geometry-type"
+       ],
+       "Polygon"
+      ],
+      "paint": {
+       "fill-color": [
+        "coalesce",
+        [
+         "get",
+         "fill"
+        ],
+        "#f5a01b"
+       ],
+       "fill-opacity": [
+        "case",
+        [
+         "has",
+         "fill"
+        ],
+        0.78,
+        0.35
+       ]
+      },
+      "layout": {},
+      "renderizadas": 1
+     },
+     "m1-desenho-line": {
+      "tipo": "line",
+      "filter": null,
+      "paint": {
+       "line-color": "#f5a01b",
+       "line-width": 2.2,
+       "line-opacity": 1
+      },
+      "layout": {},
+      "renderizadas": 1
+     },
+     "m1-ima-aresta-halo": null,
+     "m1-ima-aresta": null,
+     "m1-guia": {
+      "tipo": "line",
+      "filter": null,
+      "paint": {
+       "line-color": "#f5a01b",
+       "line-width": 2,
+       "line-opacity": 0.9,
+       "line-dasharray": [
+        1.5,
+        1.5
+       ]
+      },
+      "layout": {},
+      "renderizadas": 0
+     },
+     "m1-guia-shift": null,
+     "m1-midpoints": {
+      "tipo": "circle",
+      "filter": null,
+      "paint": {
+       "circle-radius": 3.5,
+       "circle-color": "#f5a01b",
+       "circle-opacity": 0.55,
+       "circle-stroke-color": "#f5a01b",
+       "circle-stroke-width": 1
+      },
+      "layout": {},
+      "renderizadas": 4
+     },
+     "m1-vertices-selecao": null,
+     "m1-vertices": {
+      "tipo": "circle",
+      "filter": null,
+      "paint": {
+       "circle-radius": [
+        "case",
+        [
+         "boolean",
+         [
+          "get",
+          "selecionado"
+         ],
+         false
+        ],
+        8,
+        5
+       ],
+       "circle-color": [
+        "case",
+        [
+         "boolean",
+         [
+          "get",
+          "selecionado"
+         ],
+         false
+        ],
+        "#f5a01b",
+        "#ffffff"
+       ],
+       "circle-stroke-color": [
+        "case",
+        [
+         "boolean",
+         [
+          "get",
+          "selecionado"
+         ],
+         false
+        ],
+        "#ffffff",
+        "#f5a01b"
+       ],
+       "circle-stroke-width": 2.4
+      },
+      "layout": {},
+      "renderizadas": 4
+     }
+    },
+    "ordem": [
+     "m1-areas-fill",
+     "m1-areas-line",
+     "m1-linhas",
+     "m1-pontos",
+     "m1-desenho-fill",
+     "m1-desenho-line",
+     "m1-guia",
+     "m1-vertices",
+     "m1-midpoints"
+    ],
+    "desenho": [
+     {
+      "geom": "Polygon",
+      "props": {
+       "id": "desenho"
+      }
+     }
+    ],
+    "guia": [],
+    "vertices": [
+     {
+      "id": "v-0",
+      "props": {
+       "id": "v-0",
+       "index": 0,
+       "role": "vertex"
+      },
+      "state": {}
+     },
+     {
+      "id": "v-1",
+      "props": {
+       "id": "v-1",
+       "index": 1,
+       "role": "vertex"
+      },
+      "state": {}
+     },
+     {
+      "id": "v-2",
+      "props": {
+       "id": "v-2",
+       "index": 2,
+       "role": "vertex"
+      },
+      "state": {}
+     },
+     {
+      "id": "v-3",
+      "props": {
+       "id": "v-3",
+       "index": 3,
+       "role": "vertex"
+      },
+      "state": {}
+     }
+    ],
+    "meios": [
+     {
+      "id": "m-0",
+      "state": {}
+     },
+     {
+      "id": "m-1",
+      "state": {}
+     },
+     {
+      "id": "m-2",
+      "state": {}
+     },
+     {
+      "id": "m-3",
+      "state": {}
+     }
+    ],
+    "overlay": {
+     "existe": false,
+     "pointerEvents": null,
+     "cruzinha": false,
+     "ima": null,
+     "rumo": null
+    },
+    "cursorCanvas": "grab"
+   },
+   "contorno_P3_P0_solidez": 1,
+   "vertice": {
+    "miolo_branco": 5,
+    "externo": 5
+   },
+   "meio": 2
+  },
+  "03_hover_vertice": {
+   "estado": {
+    "layers": {
+     "m1-desenho-fill": {
+      "tipo": "fill",
+      "filter": [
+       "==",
+       [
+        "geometry-type"
+       ],
+       "Polygon"
+      ],
+      "paint": {
+       "fill-color": [
+        "coalesce",
+        [
+         "get",
+         "fill"
+        ],
+        "#f5a01b"
+       ],
+       "fill-opacity": [
+        "case",
+        [
+         "has",
+         "fill"
+        ],
+        0.78,
+        0.35
+       ]
+      },
+      "layout": {},
+      "renderizadas": 1
+     },
+     "m1-desenho-line": {
+      "tipo": "line",
+      "filter": null,
+      "paint": {
+       "line-color": "#f5a01b",
+       "line-width": 2.2,
+       "line-opacity": 1
+      },
+      "layout": {},
+      "renderizadas": 1
+     },
+     "m1-ima-aresta-halo": null,
+     "m1-ima-aresta": null,
+     "m1-guia": {
+      "tipo": "line",
+      "filter": null,
+      "paint": {
+       "line-color": "#f5a01b",
+       "line-width": 2,
+       "line-opacity": 0.9,
+       "line-dasharray": [
+        1.5,
+        1.5
+       ]
+      },
+      "layout": {},
+      "renderizadas": 0
+     },
+     "m1-guia-shift": null,
+     "m1-midpoints": {
+      "tipo": "circle",
+      "filter": null,
+      "paint": {
+       "circle-radius": 3.5,
+       "circle-color": "#f5a01b",
+       "circle-opacity": 0.55,
+       "circle-stroke-color": "#f5a01b",
+       "circle-stroke-width": 1
+      },
+      "layout": {},
+      "renderizadas": 4
+     },
+     "m1-vertices-selecao": null,
+     "m1-vertices": {
+      "tipo": "circle",
+      "filter": null,
+      "paint": {
+       "circle-radius": [
+        "case",
+        [
+         "boolean",
+         [
+          "get",
+          "selecionado"
+         ],
+         false
+        ],
+        8,
+        5
+       ],
+       "circle-color": [
+        "case",
+        [
+         "boolean",
+         [
+          "get",
+          "selecionado"
+         ],
+         false
+        ],
+        "#f5a01b",
+        "#ffffff"
+       ],
+       "circle-stroke-color": [
+        "case",
+        [
+         "boolean",
+         [
+          "get",
+          "selecionado"
+         ],
+         false
+        ],
+        "#ffffff",
+        "#f5a01b"
+       ],
+       "circle-stroke-width": 2.4
+      },
+      "layout": {},
+      "renderizadas": 4
+     }
+    },
+    "ordem": [
+     "m1-areas-fill",
+     "m1-areas-line",
+     "m1-linhas",
+     "m1-pontos",
+     "m1-desenho-fill",
+     "m1-desenho-line",
+     "m1-guia",
+     "m1-vertices",
+     "m1-midpoints"
+    ],
+    "desenho": [
+     {
+      "geom": "Polygon",
+      "props": {
+       "id": "desenho"
+      }
+     }
+    ],
+    "guia": [],
+    "vertices": [
+     {
+      "id": "v-0",
+      "props": {
+       "id": "v-0",
+       "index": 0,
+       "role": "vertex"
+      },
+      "state": {}
+     },
+     {
+      "id": "v-1",
+      "props": {
+       "id": "v-1",
+       "index": 1,
+       "role": "vertex"
+      },
+      "state": {}
+     },
+     {
+      "id": "v-2",
+      "props": {
+       "id": "v-2",
+       "index": 2,
+       "role": "vertex"
+      },
+      "state": {}
+     },
+     {
+      "id": "v-3",
+      "props": {
+       "id": "v-3",
+       "index": 3,
+       "role": "vertex"
+      },
+      "state": {}
+     }
+    ],
+    "meios": [
+     {
+      "id": "m-0",
+      "state": {}
+     },
+     {
+      "id": "m-1",
+      "state": {}
+     },
+     {
+      "id": "m-2",
+      "state": {}
+     },
+     {
+      "id": "m-3",
+      "state": {}
+     }
+    ],
+    "overlay": {
+     "existe": false,
+     "pointerEvents": null,
+     "cruzinha": false,
+     "ima": null,
+     "rumo": null
+    },
+    "cursorCanvas": "grab"
+   },
+   "vertice_hover": {
+    "miolo_branco": 5,
+    "externo": 6
+   },
+   "vertice_normal": {
+    "miolo_branco": 5,
+    "externo": 6
+   }
+  },
+  "04_meio_hover": {
+   "estado": {
+    "layers": {
+     "m1-desenho-fill": {
+      "tipo": "fill",
+      "filter": [
+       "==",
+       [
+        "geometry-type"
+       ],
+       "Polygon"
+      ],
+      "paint": {
+       "fill-color": [
+        "coalesce",
+        [
+         "get",
+         "fill"
+        ],
+        "#f5a01b"
+       ],
+       "fill-opacity": [
+        "case",
+        [
+         "has",
+         "fill"
+        ],
+        0.78,
+        0.35
+       ]
+      },
+      "layout": {},
+      "renderizadas": 1
+     },
+     "m1-desenho-line": {
+      "tipo": "line",
+      "filter": null,
+      "paint": {
+       "line-color": "#f5a01b",
+       "line-width": 2.2,
+       "line-opacity": 1
+      },
+      "layout": {},
+      "renderizadas": 1
+     },
+     "m1-ima-aresta-halo": null,
+     "m1-ima-aresta": null,
+     "m1-guia": {
+      "tipo": "line",
+      "filter": null,
+      "paint": {
+       "line-color": "#f5a01b",
+       "line-width": 2,
+       "line-opacity": 0.9,
+       "line-dasharray": [
+        1.5,
+        1.5
+       ]
+      },
+      "layout": {},
+      "renderizadas": 0
+     },
+     "m1-guia-shift": null,
+     "m1-midpoints": {
+      "tipo": "circle",
+      "filter": null,
+      "paint": {
+       "circle-radius": 3.5,
+       "circle-color": "#f5a01b",
+       "circle-opacity": 0.55,
+       "circle-stroke-color": "#f5a01b",
+       "circle-stroke-width": 1
+      },
+      "layout": {},
+      "renderizadas": 4
+     },
+     "m1-vertices-selecao": null,
+     "m1-vertices": {
+      "tipo": "circle",
+      "filter": null,
+      "paint": {
+       "circle-radius": [
+        "case",
+        [
+         "boolean",
+         [
+          "get",
+          "selecionado"
+         ],
+         false
+        ],
+        8,
+        5
+       ],
+       "circle-color": [
+        "case",
+        [
+         "boolean",
+         [
+          "get",
+          "selecionado"
+         ],
+         false
+        ],
+        "#f5a01b",
+        "#ffffff"
+       ],
+       "circle-stroke-color": [
+        "case",
+        [
+         "boolean",
+         [
+          "get",
+          "selecionado"
+         ],
+         false
+        ],
+        "#ffffff",
+        "#f5a01b"
+       ],
+       "circle-stroke-width": 2.4
+      },
+      "layout": {},
+      "renderizadas": 4
+     }
+    },
+    "ordem": [
+     "m1-areas-fill",
+     "m1-areas-line",
+     "m1-linhas",
+     "m1-pontos",
+     "m1-desenho-fill",
+     "m1-desenho-line",
+     "m1-guia",
+     "m1-vertices",
+     "m1-midpoints"
+    ],
+    "desenho": [
+     {
+      "geom": "Polygon",
+      "props": {
+       "id": "desenho"
+      }
+     }
+    ],
+    "guia": [],
+    "vertices": [
+     {
+      "id": "v-0",
+      "props": {
+       "id": "v-0",
+       "index": 0,
+       "role": "vertex"
+      },
+      "state": {}
+     },
+     {
+      "id": "v-1",
+      "props": {
+       "id": "v-1",
+       "index": 1,
+       "role": "vertex"
+      },
+      "state": {}
+     },
+     {
+      "id": "v-2",
+      "props": {
+       "id": "v-2",
+       "index": 2,
+       "role": "vertex"
+      },
+      "state": {}
+     },
+     {
+      "id": "v-3",
+      "props": {
+       "id": "v-3",
+       "index": 3,
+       "role": "vertex"
+      },
+      "state": {}
+     }
+    ],
+    "meios": [
+     {
+      "id": "m-0",
+      "state": {}
+     },
+     {
+      "id": "m-1",
+      "state": {}
+     },
+     {
+      "id": "m-2",
+      "state": {}
+     },
+     {
+      "id": "m-3",
+      "state": {}
+     }
+    ],
+    "overlay": {
+     "existe": false,
+     "pointerEvents": null,
+     "cruzinha": false,
+     "ima": null,
+     "rumo": null
+    },
+    "cursorCanvas": "grab"
+   },
+   "meio_hover": 2,
+   "meio_normal": 2
+  },
+  "04b_inserir_no_meio": {
+   "vertices_antes": 4,
+   "vertices_depois": 4,
+   "novo_vertice_px": {
+    "x": 598.0000000197799,
+    "y": 414.9999997117784
+   },
+   "meio_px": {
+    "x": 583.999999971743,
+    "y": 305.49984636094837
+   },
+   "erro_px": 110.39
+  },
+  "07_arrasto": {
+   "estado": {
+    "layers": {
+     "m1-desenho-fill": {
+      "tipo": "fill",
+      "filter": [
+       "==",
+       [
+        "geometry-type"
+       ],
+       "Polygon"
+      ],
+      "paint": {
+       "fill-color": [
+        "coalesce",
+        [
+         "get",
+         "fill"
+        ],
+        "#f5a01b"
+       ],
+       "fill-opacity": [
+        "case",
+        [
+         "has",
+         "fill"
+        ],
+        0.78,
+        0.35
+       ]
+      },
+      "layout": {},
+      "renderizadas": 1
+     },
+     "m1-desenho-line": {
+      "tipo": "line",
+      "filter": null,
+      "paint": {
+       "line-color": "#f5a01b",
+       "line-width": 2.2,
+       "line-opacity": 1
+      },
+      "layout": {},
+      "renderizadas": 1
+     },
+     "m1-ima-aresta-halo": null,
+     "m1-ima-aresta": null,
+     "m1-guia": {
+      "tipo": "line",
+      "filter": null,
+      "paint": {
+       "line-color": "#f5a01b",
+       "line-width": 2,
+       "line-opacity": 0.9,
+       "line-dasharray": [
+        1.5,
+        1.5
+       ]
+      },
+      "layout": {},
+      "renderizadas": 0
+     },
+     "m1-guia-shift": null,
+     "m1-midpoints": {
+      "tipo": "circle",
+      "filter": null,
+      "paint": {
+       "circle-radius": 3.5,
+       "circle-color": "#f5a01b",
+       "circle-opacity": 0.55,
+       "circle-stroke-color": "#f5a01b",
+       "circle-stroke-width": 1
+      },
+      "layout": {},
+      "renderizadas": 4
+     },
+     "m1-vertices-selecao": null,
+     "m1-vertices": {
+      "tipo": "circle",
+      "filter": null,
+      "paint": {
+       "circle-radius": [
+        "case",
+        [
+         "boolean",
+         [
+          "get",
+          "selecionado"
+         ],
+         false
+        ],
+        8,
+        5
+       ],
+       "circle-color": [
+        "case",
+        [
+         "boolean",
+         [
+          "get",
+          "selecionado"
+         ],
+         false
+        ],
+        "#f5a01b",
+        "#ffffff"
+       ],
+       "circle-stroke-color": [
+        "case",
+        [
+         "boolean",
+         [
+          "get",
+          "selecionado"
+         ],
+         false
+        ],
+        "#ffffff",
+        "#f5a01b"
+       ],
+       "circle-stroke-width": 2.4
+      },
+      "layout": {},
+      "renderizadas": 4
+     }
+    },
+    "ordem": [
+     "m1-areas-fill",
+     "m1-areas-line",
+     "m1-linhas",
+     "m1-pontos",
+     "m1-desenho-fill",
+     "m1-desenho-line",
+     "m1-guia",
+     "m1-vertices",
+     "m1-midpoints"
+    ],
+    "desenho": [
+     {
+      "geom": "Polygon",
+      "props": {
+       "id": "desenho"
+      }
+     }
+    ],
+    "guia": [],
+    "vertices": [
+     {
+      "id": "v-0",
+      "props": {
+       "id": "v-0",
+       "index": 0,
+       "role": "vertex"
+      },
+      "state": {}
+     },
+     {
+      "id": "v-1",
+      "props": {
+       "id": "v-1",
+       "index": 1,
+       "role": "vertex"
+      },
+      "state": {}
+     },
+     {
+      "id": "v-2",
+      "props": {
+       "id": "v-2",
+       "index": 2,
+       "role": "vertex"
+      },
+      "state": {}
+     },
+     {
+      "id": "v-3",
+      "props": {
+       "id": "v-3",
+       "index": 3,
+       "role": "vertex"
+      },
+      "state": {}
+     }
+    ],
+    "meios": [
+     {
+      "id": "m-0",
+      "state": {}
+     },
+     {
+      "id": "m-1",
+      "state": {}
+     },
+     {
+      "id": "m-2",
+      "state": {}
+     },
+     {
+      "id": "m-3",
+      "state": {}
+     }
+    ],
+    "overlay": {
+     "existe": false,
+     "pointerEvents": null,
+     "cruzinha": false,
+     "ima": null,
+     "rumo": null
+    },
+    "cursorCanvas": "grabbing"
+   },
+   "vertice_arrastado": {
+    "miolo_branco": 5,
+    "externo": 6
+   },
+   "vertices_apos": 4
+  },
+  "08_navegar_pan": {
+   "estado": {
+    "layers": {
+     "m1-desenho-fill": {
+      "tipo": "fill",
+      "filter": [
+       "==",
+       [
+        "geometry-type"
+       ],
+       "Polygon"
+      ],
+      "paint": {
+       "fill-color": [
+        "coalesce",
+        [
+         "get",
+         "fill"
+        ],
+        "#f5a01b"
+       ],
+       "fill-opacity": [
+        "case",
+        [
+         "has",
+         "fill"
+        ],
+        0.78,
+        0.35
+       ]
+      },
+      "layout": {},
+      "renderizadas": 1
+     },
+     "m1-desenho-line": {
+      "tipo": "line",
+      "filter": null,
+      "paint": {
+       "line-color": "#f5a01b",
+       "line-width": 2.2,
+       "line-opacity": 1
+      },
+      "layout": {},
+      "renderizadas": 1
+     },
+     "m1-ima-aresta-halo": null,
+     "m1-ima-aresta": null,
+     "m1-guia": {
+      "tipo": "line",
+      "filter": null,
+      "paint": {
+       "line-color": "#f5a01b",
+       "line-width": 2,
+       "line-opacity": 0.9,
+       "line-dasharray": [
+        1.5,
+        1.5
+       ]
+      },
+      "layout": {},
+      "renderizadas": 0
+     },
+     "m1-guia-shift": null,
+     "m1-midpoints": {
+      "tipo": "circle",
+      "filter": null,
+      "paint": {
+       "circle-radius": 3.5,
+       "circle-color": "#f5a01b",
+       "circle-opacity": 0.55,
+       "circle-stroke-color": "#f5a01b",
+       "circle-stroke-width": 1
+      },
+      "layout": {},
+      "renderizadas": 4
+     },
+     "m1-vertices-selecao": null,
+     "m1-vertices": {
+      "tipo": "circle",
+      "filter": null,
+      "paint": {
+       "circle-radius": [
+        "case",
+        [
+         "boolean",
+         [
+          "get",
+          "selecionado"
+         ],
+         false
+        ],
+        8,
+        5
+       ],
+       "circle-color": [
+        "case",
+        [
+         "boolean",
+         [
+          "get",
+          "selecionado"
+         ],
+         false
+        ],
+        "#f5a01b",
+        "#ffffff"
+       ],
+       "circle-stroke-color": [
+        "case",
+        [
+         "boolean",
+         [
+          "get",
+          "selecionado"
+         ],
+         false
+        ],
+        "#ffffff",
+        "#f5a01b"
+       ],
+       "circle-stroke-width": 2.4
+      },
+      "layout": {},
+      "renderizadas": 4
+     }
+    },
+    "ordem": [
+     "m1-areas-fill",
+     "m1-areas-line",
+     "m1-linhas",
+     "m1-pontos",
+     "m1-desenho-fill",
+     "m1-desenho-line",
+     "m1-guia",
+     "m1-vertices",
+     "m1-midpoints"
+    ],
+    "desenho": [
+     {
+      "geom": "Polygon",
+      "props": {
+       "id": "desenho"
+      }
+     }
+    ],
+    "guia": [],
+    "vertices": [
+     {
+      "id": "v-0",
+      "props": {
+       "id": "v-0",
+       "index": 0,
+       "role": "vertex"
+      },
+      "state": {}
+     },
+     {
+      "id": "v-1",
+      "props": {
+       "id": "v-1",
+       "index": 1,
+       "role": "vertex"
+      },
+      "state": {}
+     },
+     {
+      "id": "v-2",
+      "props": {
+       "id": "v-2",
+       "index": 2,
+       "role": "vertex"
+      },
+      "state": {}
+     },
+     {
+      "id": "v-3",
+      "props": {
+       "id": "v-3",
+       "index": 3,
+       "role": "vertex"
+      },
+      "state": {}
+     }
+    ],
+    "meios": [
+     {
+      "id": "m-0",
+      "state": {}
+     },
+     {
+      "id": "m-1",
+      "state": {}
+     },
+     {
+      "id": "m-2",
+      "state": {}
+     },
+     {
+      "id": "m-3",
+      "state": {}
+     }
+    ],
+    "overlay": {
+     "existe": false,
+     "pointerEvents": null,
+     "cruzinha": false,
+     "ima": null,
+     "rumo": null
+    },
+    "cursorCanvas": "grab"
+   },
+   "n_antes": 4,
+   "n_depois": 4,
+   "deslocamento_px": {
+    "dx": -140,
+    "dy": 100
+   },
+   "retorno_px": {
+    "dx": 0,
+    "dy": 0
+   },
+   "pintado_apos_retorno": 1
+  },
+  "08b_mover_sem_efeitos": {
+   "estado": {
+    "layers": {
+     "m1-desenho-fill": {
+      "tipo": "fill",
+      "filter": [
+       "==",
+       [
+        "geometry-type"
+       ],
+       "Polygon"
+      ],
+      "paint": {
+       "fill-color": [
+        "coalesce",
+        [
+         "get",
+         "fill"
+        ],
+        "#f5a01b"
+       ],
+       "fill-opacity": [
+        "case",
+        [
+         "has",
+         "fill"
+        ],
+        0.78,
+        0.35
+       ]
+      },
+      "layout": {},
+      "renderizadas": 1
+     },
+     "m1-desenho-line": {
+      "tipo": "line",
+      "filter": null,
+      "paint": {
+       "line-color": "#f5a01b",
+       "line-width": 2.2,
+       "line-opacity": 1
+      },
+      "layout": {},
+      "renderizadas": 1
+     },
+     "m1-ima-aresta-halo": null,
+     "m1-ima-aresta": null,
+     "m1-guia": {
+      "tipo": "line",
+      "filter": null,
+      "paint": {
+       "line-color": "#f5a01b",
+       "line-width": 2,
+       "line-opacity": 0.9,
+       "line-dasharray": [
+        1.5,
+        1.5
+       ]
+      },
+      "layout": {},
+      "renderizadas": 0
+     },
+     "m1-guia-shift": null,
+     "m1-midpoints": {
+      "tipo": "circle",
+      "filter": null,
+      "paint": {
+       "circle-radius": 3.5,
+       "circle-color": "#f5a01b",
+       "circle-opacity": 0.55,
+       "circle-stroke-color": "#f5a01b",
+       "circle-stroke-width": 1
+      },
+      "layout": {},
+      "renderizadas": 4
+     },
+     "m1-vertices-selecao": null,
+     "m1-vertices": {
+      "tipo": "circle",
+      "filter": null,
+      "paint": {
+       "circle-radius": [
+        "case",
+        [
+         "boolean",
+         [
+          "get",
+          "selecionado"
+         ],
+         false
+        ],
+        8,
+        5
+       ],
+       "circle-color": [
+        "case",
+        [
+         "boolean",
+         [
+          "get",
+          "selecionado"
+         ],
+         false
+        ],
+        "#f5a01b",
+        "#ffffff"
+       ],
+       "circle-stroke-color": [
+        "case",
+        [
+         "boolean",
+         [
+          "get",
+          "selecionado"
+         ],
+         false
+        ],
+        "#ffffff",
+        "#f5a01b"
+       ],
+       "circle-stroke-width": 2.4
+      },
+      "layout": {},
+      "renderizadas": 4
+     }
+    },
+    "ordem": [
+     "m1-areas-fill",
+     "m1-areas-line",
+     "m1-linhas",
+     "m1-pontos",
+     "m1-desenho-fill",
+     "m1-desenho-line",
+     "m1-guia",
+     "m1-vertices",
+     "m1-midpoints"
+    ],
+    "desenho": [
+     {
+      "geom": "Polygon",
+      "props": {
+       "id": "desenho"
+      }
+     }
+    ],
+    "guia": [],
+    "vertices": [
+     {
+      "id": "v-0",
+      "props": {
+       "id": "v-0",
+       "index": 0,
+       "role": "vertex"
+      },
+      "state": {}
+     },
+     {
+      "id": "v-1",
+      "props": {
+       "id": "v-1",
+       "index": 1,
+       "role": "vertex"
+      },
+      "state": {}
+     },
+     {
+      "id": "v-2",
+      "props": {
+       "id": "v-2",
+       "index": 2,
+       "role": "vertex"
+      },
+      "state": {}
+     },
+     {
+      "id": "v-3",
+      "props": {
+       "id": "v-3",
+       "index": 3,
+       "role": "vertex"
+      },
+      "state": {}
+     }
+    ],
+    "meios": [
+     {
+      "id": "m-0",
+      "state": {}
+     },
+     {
+      "id": "m-1",
+      "state": {}
+     },
+     {
+      "id": "m-2",
+      "state": {}
+     },
+     {
+      "id": "m-3",
+      "state": {}
+     }
+    ],
+    "overlay": {
+     "existe": false,
+     "pointerEvents": null,
+     "cruzinha": false,
+     "ima": null,
+     "rumo": null
+    },
+    "cursorCanvas": "grab"
+   }
+  },
+  "desktop_erros": [],
+  "05_ima_vertice": {
+   "alvo_px": {
+    "x": 428.382224166305,
+    "y": 660.4237339782715
+   },
+   "estado": {
+    "layers": {
+     "m1-desenho-fill": {
+      "tipo": "fill",
+      "filter": [
+       "==",
+       [
+        "geometry-type"
+       ],
+       "Polygon"
+      ],
+      "paint": {
+       "fill-color": [
+        "coalesce",
+        [
+         "get",
+         "fill"
+        ],
+        "#f5a01b"
+       ],
+       "fill-opacity": [
+        "case",
+        [
+         "has",
+         "fill"
+        ],
+        0.78,
+        0.35
+       ]
+      },
+      "layout": {},
+      "renderizadas": 0
+     },
+     "m1-desenho-line": {
+      "tipo": "line",
+      "filter": null,
+      "paint": {
+       "line-color": "#f5a01b",
+       "line-width": 2.2,
+       "line-opacity": 1
+      },
+      "layout": {},
+      "renderizadas": 0
+     },
+     "m1-ima-aresta-halo": null,
+     "m1-ima-aresta": null,
+     "m1-guia": {
+      "tipo": "line",
+      "filter": null,
+      "paint": {
+       "line-color": "#f5a01b",
+       "line-width": 2,
+       "line-opacity": 0.9,
+       "line-dasharray": [
+        1.5,
+        1.5
+       ]
+      },
+      "layout": {},
+      "renderizadas": 1
+     },
+     "m1-guia-shift": null,
+     "m1-midpoints": {
+      "tipo": "circle",
+      "filter": null,
+      "paint": {
+       "circle-radius": 3.5,
+       "circle-color": "#f5a01b",
+       "circle-opacity": 0.55,
+       "circle-stroke-color": "#f5a01b",
+       "circle-stroke-width": 1
+      },
+      "layout": {},
+      "renderizadas": 0
+     },
+     "m1-vertices-selecao": null,
+     "m1-vertices": {
+      "tipo": "circle",
+      "filter": null,
+      "paint": {
+       "circle-radius": [
+        "case",
+        [
+         "boolean",
+         [
+          "get",
+          "selecionado"
+         ],
+         false
+        ],
+        8,
+        5
+       ],
+       "circle-color": [
+        "case",
+        [
+         "boolean",
+         [
+          "get",
+          "selecionado"
+         ],
+         false
+        ],
+        "#f5a01b",
+        "#ffffff"
+       ],
+       "circle-stroke-color": [
+        "case",
+        [
+         "boolean",
+         [
+          "get",
+          "selecionado"
+         ],
+         false
+        ],
+        "#ffffff",
+        "#f5a01b"
+       ],
+       "circle-stroke-width": 2.4
+      },
+      "layout": {},
+      "renderizadas": 1
+     }
+    },
+    "ordem": [
+     "m1-areas-fill",
+     "m1-areas-line",
+     "m1-linhas",
+     "m1-pontos",
+     "m1-desenho-fill",
+     "m1-desenho-line",
+     "m1-guia",
+     "m1-vertices",
+     "m1-midpoints"
+    ],
+    "desenho": [],
+    "guia": [
+     {
+      "geom": "LineString",
+      "props": {
+       "id": "guia"
+      }
+     }
+    ],
+    "vertices": [
+     {
+      "id": "v-0",
+      "props": {
+       "id": "v-0",
+       "index": 0,
+       "role": "vertex"
+      },
+      "state": {}
+     }
+    ],
+    "meios": [],
+    "overlay": {
+     "existe": false,
+     "pointerEvents": null,
+     "cruzinha": false,
+     "ima": null,
+     "rumo": null
+    },
+    "cursorCanvas": "grab"
+   },
+   "anel_ou_cruz_no_alvo": 0
+  },
+  "05_ima_aresta": {
+   "alvo_px": {
+    "x": 605.1202701243648,
+    "y": 660.4237339782715
+   },
+   "estado": {
+    "layers": {
+     "m1-desenho-fill": {
+      "tipo": "fill",
+      "filter": [
+       "==",
+       [
+        "geometry-type"
+       ],
+       "Polygon"
+      ],
+      "paint": {
+       "fill-color": [
+        "coalesce",
+        [
+         "get",
+         "fill"
+        ],
+        "#f5a01b"
+       ],
+       "fill-opacity": [
+        "case",
+        [
+         "has",
+         "fill"
+        ],
+        0.78,
+        0.35
+       ]
+      },
+      "layout": {},
+      "renderizadas": 0
+     },
+     "m1-desenho-line": {
+      "tipo": "line",
+      "filter": null,
+      "paint": {
+       "line-color": "#f5a01b",
+       "line-width": 2.2,
+       "line-opacity": 1
+      },
+      "layout": {},
+      "renderizadas": 0
+     },
+     "m1-ima-aresta-halo": null,
+     "m1-ima-aresta": null,
+     "m1-guia": {
+      "tipo": "line",
+      "filter": null,
+      "paint": {
+       "line-color": "#f5a01b",
+       "line-width": 2,
+       "line-opacity": 0.9,
+       "line-dasharray": [
+        1.5,
+        1.5
+       ]
+      },
+      "layout": {},
+      "renderizadas": 1
+     },
+     "m1-guia-shift": null,
+     "m1-midpoints": {
+      "tipo": "circle",
+      "filter": null,
+      "paint": {
+       "circle-radius": 3.5,
+       "circle-color": "#f5a01b",
+       "circle-opacity": 0.55,
+       "circle-stroke-color": "#f5a01b",
+       "circle-stroke-width": 1
+      },
+      "layout": {},
+      "renderizadas": 0
+     },
+     "m1-vertices-selecao": null,
+     "m1-vertices": {
+      "tipo": "circle",
+      "filter": null,
+      "paint": {
+       "circle-radius": [
+        "case",
+        [
+         "boolean",
+         [
+          "get",
+          "selecionado"
+         ],
+         false
+        ],
+        8,
+        5
+       ],
+       "circle-color": [
+        "case",
+        [
+         "boolean",
+         [
+          "get",
+          "selecionado"
+         ],
+         false
+        ],
+        "#f5a01b",
+        "#ffffff"
+       ],
+       "circle-stroke-color": [
+        "case",
+        [
+         "boolean",
+         [
+          "get",
+          "selecionado"
+         ],
+         false
+        ],
+        "#ffffff",
+        "#f5a01b"
+       ],
+       "circle-stroke-width": 2.4
+      },
+      "layout": {},
+      "renderizadas": 1
+     }
+    },
+    "ordem": [
+     "m1-areas-fill",
+     "m1-areas-line",
+     "m1-linhas",
+     "m1-pontos",
+     "m1-desenho-fill",
+     "m1-desenho-line",
+     "m1-guia",
+     "m1-vertices",
+     "m1-midpoints"
+    ],
+    "desenho": [],
+    "guia": [
+     {
+      "geom": "LineString",
+      "props": {
+       "id": "guia"
+      }
+     }
+    ],
+    "vertices": [
+     {
+      "id": "v-0",
+      "props": {
+       "id": "v-0",
+       "index": 0,
+       "role": "vertex"
+      },
+      "state": {}
+     }
+    ],
+    "meios": [],
+    "overlay": {
+     "existe": false,
+     "pointerEvents": null,
+     "cruzinha": false,
+     "ima": null,
+     "rumo": null
+    },
+    "cursorCanvas": "grab"
+   },
+   "aresta_destacada_solidez": 0
+  },
+  "05c_alt_suspende": {
+   "estado": {
+    "layers": {
+     "m1-desenho-fill": {
+      "tipo": "fill",
+      "filter": [
+       "==",
+       [
+        "geometry-type"
+       ],
+       "Polygon"
+      ],
+      "paint": {
+       "fill-color": [
+        "coalesce",
+        [
+         "get",
+         "fill"
+        ],
+        "#f5a01b"
+       ],
+       "fill-opacity": [
+        "case",
+        [
+         "has",
+         "fill"
+        ],
+        0.78,
+        0.35
+       ]
+      },
+      "layout": {},
+      "renderizadas": 0
+     },
+     "m1-desenho-line": {
+      "tipo": "line",
+      "filter": null,
+      "paint": {
+       "line-color": "#f5a01b",
+       "line-width": 2.2,
+       "line-opacity": 1
+      },
+      "layout": {},
+      "renderizadas": 0
+     },
+     "m1-ima-aresta-halo": null,
+     "m1-ima-aresta": null,
+     "m1-guia": {
+      "tipo": "line",
+      "filter": null,
+      "paint": {
+       "line-color": "#f5a01b",
+       "line-width": 2,
+       "line-opacity": 0.9,
+       "line-dasharray": [
+        1.5,
+        1.5
+       ]
+      },
+      "layout": {},
+      "renderizadas": 1
+     },
+     "m1-guia-shift": null,
+     "m1-midpoints": {
+      "tipo": "circle",
+      "filter": null,
+      "paint": {
+       "circle-radius": 3.5,
+       "circle-color": "#f5a01b",
+       "circle-opacity": 0.55,
+       "circle-stroke-color": "#f5a01b",
+       "circle-stroke-width": 1
+      },
+      "layout": {},
+      "renderizadas": 0
+     },
+     "m1-vertices-selecao": null,
+     "m1-vertices": {
+      "tipo": "circle",
+      "filter": null,
+      "paint": {
+       "circle-radius": [
+        "case",
+        [
+         "boolean",
+         [
+          "get",
+          "selecionado"
+         ],
+         false
+        ],
+        8,
+        5
+       ],
+       "circle-color": [
+        "case",
+        [
+         "boolean",
+         [
+          "get",
+          "selecionado"
+         ],
+         false
+        ],
+        "#f5a01b",
+        "#ffffff"
+       ],
+       "circle-stroke-color": [
+        "case",
+        [
+         "boolean",
+         [
+          "get",
+          "selecionado"
+         ],
+         false
+        ],
+        "#ffffff",
+        "#f5a01b"
+       ],
+       "circle-stroke-width": 2.4
+      },
+      "layout": {},
+      "renderizadas": 1
+     }
+    },
+    "ordem": [
+     "m1-areas-fill",
+     "m1-areas-line",
+     "m1-linhas",
+     "m1-pontos",
+     "m1-desenho-fill",
+     "m1-desenho-line",
+     "m1-guia",
+     "m1-vertices",
+     "m1-midpoints"
+    ],
+    "desenho": [],
+    "guia": [
+     {
+      "geom": "LineString",
+      "props": {
+       "id": "guia"
+      }
+     }
+    ],
+    "vertices": [
+     {
+      "id": "v-0",
+      "props": {
+       "id": "v-0",
+       "index": 0,
+       "role": "vertex"
+      },
+      "state": {}
+     }
+    ],
+    "meios": [],
+    "overlay": {
+     "existe": false,
+     "pointerEvents": null,
+     "cruzinha": false,
+     "ima": null,
+     "rumo": null
+    },
+    "cursorCanvas": "grab"
+   }
+  },
+  "06_shift": {
+   "estado": {
+    "layers": {
+     "m1-desenho-fill": {
+      "tipo": "fill",
+      "filter": [
+       "==",
+       [
+        "geometry-type"
+       ],
+       "Polygon"
+      ],
+      "paint": {
+       "fill-color": [
+        "coalesce",
+        [
+         "get",
+         "fill"
+        ],
+        "#f5a01b"
+       ],
+       "fill-opacity": [
+        "case",
+        [
+         "has",
+         "fill"
+        ],
+        0.78,
+        0.35
+       ]
+      },
+      "layout": {},
+      "renderizadas": 0
+     },
+     "m1-desenho-line": {
+      "tipo": "line",
+      "filter": null,
+      "paint": {
+       "line-color": "#f5a01b",
+       "line-width": 2.2,
+       "line-opacity": 1
+      },
+      "layout": {},
+      "renderizadas": 0
+     },
+     "m1-ima-aresta-halo": null,
+     "m1-ima-aresta": null,
+     "m1-guia": {
+      "tipo": "line",
+      "filter": null,
+      "paint": {
+       "line-color": "#f5a01b",
+       "line-width": 2,
+       "line-opacity": 0.9,
+       "line-dasharray": [
+        1.5,
+        1.5
+       ]
+      },
+      "layout": {},
+      "renderizadas": 1
+     },
+     "m1-guia-shift": null,
+     "m1-midpoints": {
+      "tipo": "circle",
+      "filter": null,
+      "paint": {
+       "circle-radius": 3.5,
+       "circle-color": "#f5a01b",
+       "circle-opacity": 0.55,
+       "circle-stroke-color": "#f5a01b",
+       "circle-stroke-width": 1
+      },
+      "layout": {},
+      "renderizadas": 0
+     },
+     "m1-vertices-selecao": null,
+     "m1-vertices": {
+      "tipo": "circle",
+      "filter": null,
+      "paint": {
+       "circle-radius": [
+        "case",
+        [
+         "boolean",
+         [
+          "get",
+          "selecionado"
+         ],
+         false
+        ],
+        8,
+        5
+       ],
+       "circle-color": [
+        "case",
+        [
+         "boolean",
+         [
+          "get",
+          "selecionado"
+         ],
+         false
+        ],
+        "#f5a01b",
+        "#ffffff"
+       ],
+       "circle-stroke-color": [
+        "case",
+        [
+         "boolean",
+         [
+          "get",
+          "selecionado"
+         ],
+         false
+        ],
+        "#ffffff",
+        "#f5a01b"
+       ],
+       "circle-stroke-width": 2.4
+      },
+      "layout": {},
+      "renderizadas": 1
+     }
+    },
+    "ordem": [
+     "m1-areas-fill",
+     "m1-areas-line",
+     "m1-linhas",
+     "m1-pontos",
+     "m1-desenho-fill",
+     "m1-desenho-line",
+     "m1-guia",
+     "m1-vertices",
+     "m1-midpoints"
+    ],
+    "desenho": [],
+    "guia": [
+     {
+      "geom": "LineString",
+      "props": {
+       "id": "guia"
+      }
+     }
+    ],
+    "vertices": [
+     {
+      "id": "v-0",
+      "props": {
+       "id": "v-0",
+       "index": 0,
+       "role": "vertex"
+      },
+      "state": {}
+     }
+    ],
+    "meios": [],
+    "overlay": {
+     "existe": false,
+     "pointerEvents": null,
+     "cruzinha": false,
+     "ima": null,
+     "rumo": null
+    },
+    "cursorCanvas": "grab"
+   },
+   "elastico_solidez": 0.422,
+   "angulo_elastico_graus": 45
+  },
+  "06b_fora_do_canvas": {
+   "estado": {
+    "layers": {
+     "m1-desenho-fill": {
+      "tipo": "fill",
+      "filter": [
+       "==",
+       [
+        "geometry-type"
+       ],
+       "Polygon"
+      ],
+      "paint": {
+       "fill-color": [
+        "coalesce",
+        [
+         "get",
+         "fill"
+        ],
+        "#f5a01b"
+       ],
+       "fill-opacity": [
+        "case",
+        [
+         "has",
+         "fill"
+        ],
+        0.78,
+        0.35
+       ]
+      },
+      "layout": {},
+      "renderizadas": 0
+     },
+     "m1-desenho-line": {
+      "tipo": "line",
+      "filter": null,
+      "paint": {
+       "line-color": "#f5a01b",
+       "line-width": 2.2,
+       "line-opacity": 1
+      },
+      "layout": {},
+      "renderizadas": 0
+     },
+     "m1-ima-aresta-halo": null,
+     "m1-ima-aresta": null,
+     "m1-guia": {
+      "tipo": "line",
+      "filter": null,
+      "paint": {
+       "line-color": "#f5a01b",
+       "line-width": 2,
+       "line-opacity": 0.9,
+       "line-dasharray": [
+        1.5,
+        1.5
+       ]
+      },
+      "layout": {},
+      "renderizadas": 0
+     },
+     "m1-guia-shift": null,
+     "m1-midpoints": {
+      "tipo": "circle",
+      "filter": null,
+      "paint": {
+       "circle-radius": 3.5,
+       "circle-color": "#f5a01b",
+       "circle-opacity": 0.55,
+       "circle-stroke-color": "#f5a01b",
+       "circle-stroke-width": 1
+      },
+      "layout": {},
+      "renderizadas": 0
+     },
+     "m1-vertices-selecao": null,
+     "m1-vertices": {
+      "tipo": "circle",
+      "filter": null,
+      "paint": {
+       "circle-radius": [
+        "case",
+        [
+         "boolean",
+         [
+          "get",
+          "selecionado"
+         ],
+         false
+        ],
+        8,
+        5
+       ],
+       "circle-color": [
+        "case",
+        [
+         "boolean",
+         [
+          "get",
+          "selecionado"
+         ],
+         false
+        ],
+        "#f5a01b",
+        "#ffffff"
+       ],
+       "circle-stroke-color": [
+        "case",
+        [
+         "boolean",
+         [
+          "get",
+          "selecionado"
+         ],
+         false
+        ],
+        "#ffffff",
+        "#f5a01b"
+       ],
+       "circle-stroke-width": 2.4
+      },
+      "layout": {},
+      "renderizadas": 1
+     }
+    },
+    "ordem": [
+     "m1-areas-fill",
+     "m1-areas-line",
+     "m1-linhas",
+     "m1-pontos",
+     "m1-desenho-fill",
+     "m1-desenho-line",
+     "m1-guia",
+     "m1-vertices",
+     "m1-midpoints"
+    ],
+    "desenho": [],
+    "guia": [],
+    "vertices": [
+     {
+      "id": "v-0",
+      "props": {
+       "id": "v-0",
+       "index": 0,
+       "role": "vertex"
+      },
+      "state": {}
+     }
+    ],
+    "meios": [],
+    "overlay": {
+     "existe": false,
+     "pointerEvents": null,
+     "cruzinha": false,
+     "ima": null,
+     "rumo": null
+    },
+    "cursorCanvas": "grab"
+   }
+  },
+  "06c_durante_pan": {
+   "estado": {
+    "layers": {
+     "m1-desenho-fill": {
+      "tipo": "fill",
+      "filter": [
+       "==",
+       [
+        "geometry-type"
+       ],
+       "Polygon"
+      ],
+      "paint": {
+       "fill-color": [
+        "coalesce",
+        [
+         "get",
+         "fill"
+        ],
+        "#f5a01b"
+       ],
+       "fill-opacity": [
+        "case",
+        [
+         "has",
+         "fill"
+        ],
+        0.78,
+        0.35
+       ]
+      },
+      "layout": {},
+      "renderizadas": 0
+     },
+     "m1-desenho-line": {
+      "tipo": "line",
+      "filter": null,
+      "paint": {
+       "line-color": "#f5a01b",
+       "line-width": 2.2,
+       "line-opacity": 1
+      },
+      "layout": {},
+      "renderizadas": 0
+     },
+     "m1-ima-aresta-halo": null,
+     "m1-ima-aresta": null,
+     "m1-guia": {
+      "tipo": "line",
+      "filter": null,
+      "paint": {
+       "line-color": "#f5a01b",
+       "line-width": 2,
+       "line-opacity": 0.9,
+       "line-dasharray": [
+        1.5,
+        1.5
+       ]
+      },
+      "layout": {},
+      "renderizadas": 1
+     },
+     "m1-guia-shift": null,
+     "m1-midpoints": {
+      "tipo": "circle",
+      "filter": null,
+      "paint": {
+       "circle-radius": 3.5,
+       "circle-color": "#f5a01b",
+       "circle-opacity": 0.55,
+       "circle-stroke-color": "#f5a01b",
+       "circle-stroke-width": 1
+      },
+      "layout": {},
+      "renderizadas": 0
+     },
+     "m1-vertices-selecao": null,
+     "m1-vertices": {
+      "tipo": "circle",
+      "filter": null,
+      "paint": {
+       "circle-radius": [
+        "case",
+        [
+         "boolean",
+         [
+          "get",
+          "selecionado"
+         ],
+         false
+        ],
+        8,
+        5
+       ],
+       "circle-color": [
+        "case",
+        [
+         "boolean",
+         [
+          "get",
+          "selecionado"
+         ],
+         false
+        ],
+        "#f5a01b",
+        "#ffffff"
+       ],
+       "circle-stroke-color": [
+        "case",
+        [
+         "boolean",
+         [
+          "get",
+          "selecionado"
+         ],
+         false
+        ],
+        "#ffffff",
+        "#f5a01b"
+       ],
+       "circle-stroke-width": 2.4
+      },
+      "layout": {},
+      "renderizadas": 1
+     }
+    },
+    "ordem": [
+     "m1-areas-fill",
+     "m1-areas-line",
+     "m1-linhas",
+     "m1-pontos",
+     "m1-desenho-fill",
+     "m1-desenho-line",
+     "m1-guia",
+     "m1-vertices",
+     "m1-midpoints"
+    ],
+    "desenho": [],
+    "guia": [
+     {
+      "geom": "LineString",
+      "props": {
+       "id": "guia"
+      }
+     }
+    ],
+    "vertices": [
+     {
+      "id": "v-0",
+      "props": {
+       "id": "v-0",
+       "index": 0,
+       "role": "vertex"
+      },
+      "state": {}
+     }
+    ],
+    "meios": [],
+    "overlay": {
+     "existe": false,
+     "pointerEvents": null,
+     "cruzinha": false,
+     "ima": null,
+     "rumo": null
+    },
+    "cursorCanvas": "grabbing"
+   }
+  },
+  "ima_erros": [],
+  "09_existente": {
+   "estado": {
+    "layers": {
+     "m1-desenho-fill": {
+      "tipo": "fill",
+      "filter": [
+       "==",
+       [
+        "geometry-type"
+       ],
+       "Polygon"
+      ],
+      "paint": {
+       "fill-color": [
+        "coalesce",
+        [
+         "get",
+         "fill"
+        ],
+        "#f5a01b"
+       ],
+       "fill-opacity": [
+        "case",
+        [
+         "has",
+         "fill"
+        ],
+        0.78,
+        0.35
+       ]
+      },
+      "layout": {},
+      "renderizadas": 4
+     },
+     "m1-desenho-line": {
+      "tipo": "line",
+      "filter": null,
+      "paint": {
+       "line-color": "#f5a01b",
+       "line-width": 2.2,
+       "line-opacity": 1
+      },
+      "layout": {},
+      "renderizadas": 4
+     },
+     "m1-ima-aresta-halo": null,
+     "m1-ima-aresta": null,
+     "m1-guia": {
+      "tipo": "line",
+      "filter": null,
+      "paint": {
+       "line-color": "#f5a01b",
+       "line-width": 2,
+       "line-opacity": 0.9,
+       "line-dasharray": [
+        1.5,
+        1.5
+       ]
+      },
+      "layout": {},
+      "renderizadas": 0
+     },
+     "m1-guia-shift": null,
+     "m1-midpoints": {
+      "tipo": "circle",
+      "filter": null,
+      "paint": {
+       "circle-radius": 3.5,
+       "circle-color": "#f5a01b",
+       "circle-opacity": 0.55,
+       "circle-stroke-color": "#f5a01b",
+       "circle-stroke-width": 1
+      },
+      "layout": {},
+      "renderizadas": 4
+     },
+     "m1-vertices-selecao": null,
+     "m1-vertices": {
+      "tipo": "circle",
+      "filter": null,
+      "paint": {
+       "circle-radius": [
+        "case",
+        [
+         "boolean",
+         [
+          "get",
+          "selecionado"
+         ],
+         false
+        ],
+        8,
+        5
+       ],
+       "circle-color": [
+        "case",
+        [
+         "boolean",
+         [
+          "get",
+          "selecionado"
+         ],
+         false
+        ],
+        "#f5a01b",
+        "#ffffff"
+       ],
+       "circle-stroke-color": [
+        "case",
+        [
+         "boolean",
+         [
+          "get",
+          "selecionado"
+         ],
+         false
+        ],
+        "#ffffff",
+        "#f5a01b"
+       ],
+       "circle-stroke-width": 2.4
+      },
+      "layout": {},
+      "renderizadas": 4
+     }
+    },
+    "ordem": [
+     "m1-areas-fill",
+     "m1-areas-line",
+     "m1-linhas",
+     "m1-pontos",
+     "m1-desenho-fill",
+     "m1-desenho-line",
+     "m1-guia",
+     "m1-vertices",
+     "m1-midpoints"
+    ],
+    "desenho": [
+     {
+      "geom": "Polygon",
+      "props": {
+       "id": "desenho",
+       "fill": "#97cd30"
+      }
+     }
+    ],
+    "guia": [],
+    "vertices": [
+     {
+      "id": "v-0",
+      "props": {
+       "id": "v-0",
+       "index": 0,
+       "role": "vertex"
+      },
+      "state": {}
+     },
+     {
+      "id": "v-1",
+      "props": {
+       "id": "v-1",
+       "index": 1,
+       "role": "vertex"
+      },
+      "state": {}
+     },
+     {
+      "id": "v-2",
+      "props": {
+       "id": "v-2",
+       "index": 2,
+       "role": "vertex"
+      },
+      "state": {}
+     },
+     {
+      "id": "v-3",
+      "props": {
+       "id": "v-3",
+       "index": 3,
+       "role": "vertex"
+      },
+      "state": {}
+     }
+    ],
+    "meios": [
+     {
+      "id": "m-0",
+      "state": {}
+     },
+     {
+      "id": "m-1",
+      "state": {}
+     },
+     {
+      "id": "m-2",
+      "state": {}
+     },
+     {
+      "id": "m-3",
+      "state": {}
+     }
+    ],
+    "overlay": {
+     "existe": false,
+     "pointerEvents": null,
+     "cruzinha": false,
+     "ima": null,
+     "rumo": null
+    },
+    "cursorCanvas": "grab"
+   },
+   "pixel_interior": [
+    172,
+    214,
+    90
+   ],
+   "pixel_contorno": [
+    245,
+    160,
+    27
+   ],
+   "vertice": {
+    "miolo_branco": 5,
+    "externo": 6
+   }
+  },
+  "existente_erros": [],
+  "10_mobile_390_aberto": {
+   "estado": {
+    "layers": {
+     "m1-desenho-fill": {
+      "tipo": "fill",
+      "filter": [
+       "==",
+       [
+        "geometry-type"
+       ],
+       "Polygon"
+      ],
+      "paint": {
+       "fill-color": [
+        "coalesce",
+        [
+         "get",
+         "fill"
+        ],
+        "#f5a01b"
+       ],
+       "fill-opacity": [
+        "case",
+        [
+         "has",
+         "fill"
+        ],
+        0.78,
+        0.35
+       ]
+      },
+      "layout": {},
+      "renderizadas": 4
+     },
+     "m1-desenho-line": {
+      "tipo": "line",
+      "filter": null,
+      "paint": {
+       "line-color": "#f5a01b",
+       "line-width": 2.2,
+       "line-opacity": 1
+      },
+      "layout": {},
+      "renderizadas": 4
+     },
+     "m1-ima-aresta-halo": null,
+     "m1-ima-aresta": null,
+     "m1-guia": {
+      "tipo": "line",
+      "filter": null,
+      "paint": {
+       "line-color": "#f5a01b",
+       "line-width": 2,
+       "line-opacity": 0.9,
+       "line-dasharray": [
+        1.5,
+        1.5
+       ]
+      },
+      "layout": {},
+      "renderizadas": 1
+     },
+     "m1-guia-shift": null,
+     "m1-midpoints": {
+      "tipo": "circle",
+      "filter": null,
+      "paint": {
+       "circle-radius": 3.5,
+       "circle-color": "#f5a01b",
+       "circle-opacity": 0.55,
+       "circle-stroke-color": "#f5a01b",
+       "circle-stroke-width": 1
+      },
+      "layout": {},
+      "renderizadas": 0
+     },
+     "m1-vertices-selecao": null,
+     "m1-vertices": {
+      "tipo": "circle",
+      "filter": null,
+      "paint": {
+       "circle-radius": [
+        "case",
+        [
+         "boolean",
+         [
+          "get",
+          "selecionado"
+         ],
+         false
+        ],
+        8,
+        5
+       ],
+       "circle-color": [
+        "case",
+        [
+         "boolean",
+         [
+          "get",
+          "selecionado"
+         ],
+         false
+        ],
+        "#f5a01b",
+        "#ffffff"
+       ],
+       "circle-stroke-color": [
+        "case",
+        [
+         "boolean",
+         [
+          "get",
+          "selecionado"
+         ],
+         false
+        ],
+        "#ffffff",
+        "#f5a01b"
+       ],
+       "circle-stroke-width": 2.4
+      },
+      "layout": {},
+      "renderizadas": 4
+     }
+    },
+    "ordem": [
+     "m1-areas-fill",
+     "m1-areas-line",
+     "m1-linhas",
+     "m1-pontos",
+     "m1-desenho-fill",
+     "m1-desenho-line",
+     "m1-guia",
+     "m1-vertices",
+     "m1-midpoints"
+    ],
+    "desenho": [
+     {
+      "geom": "Polygon",
+      "props": {
+       "id": "desenho"
+      }
+     }
+    ],
+    "guia": [
+     {
+      "geom": "LineString",
+      "props": {
+       "id": "guia"
+      }
+     }
+    ],
+    "vertices": [
+     {
+      "id": "v-0",
+      "props": {
+       "id": "v-0",
+       "index": 0,
+       "role": "vertex"
+      },
+      "state": {}
+     },
+     {
+      "id": "v-1",
+      "props": {
+       "id": "v-1",
+       "index": 1,
+       "role": "vertex"
+      },
+      "state": {}
+     },
+     {
+      "id": "v-2",
+      "props": {
+       "id": "v-2",
+       "index": 2,
+       "role": "vertex"
+      },
+      "state": {}
+     },
+     {
+      "id": "v-3",
+      "props": {
+       "id": "v-3",
+       "index": 3,
+       "role": "vertex"
+      },
+      "state": {}
+     }
+    ],
+    "meios": [],
+    "overlay": {
+     "existe": false,
+     "pointerEvents": null,
+     "cruzinha": false,
+     "ima": null,
+     "rumo": null
+    },
+    "cursorCanvas": "grab"
+   },
+   "n": 4,
+   "vertice": {
+    "miolo_branco": 5,
+    "externo": 7.25
+   }
+  },
+  "10_mobile_390_fechado": {
+   "estado": {
+    "layers": {
+     "m1-desenho-fill": {
+      "tipo": "fill",
+      "filter": [
+       "==",
+       [
+        "geometry-type"
+       ],
+       "Polygon"
+      ],
+      "paint": {
+       "fill-color": [
+        "coalesce",
+        [
+         "get",
+         "fill"
+        ],
+        "#f5a01b"
+       ],
+       "fill-opacity": [
+        "case",
+        [
+         "has",
+         "fill"
+        ],
+        0.78,
+        0.35
+       ]
+      },
+      "layout": {},
+      "renderizadas": 4
+     },
+     "m1-desenho-line": {
+      "tipo": "line",
+      "filter": null,
+      "paint": {
+       "line-color": "#f5a01b",
+       "line-width": 2.2,
+       "line-opacity": 1
+      },
+      "layout": {},
+      "renderizadas": 4
+     },
+     "m1-ima-aresta-halo": null,
+     "m1-ima-aresta": null,
+     "m1-guia": {
+      "tipo": "line",
+      "filter": null,
+      "paint": {
+       "line-color": "#f5a01b",
+       "line-width": 2,
+       "line-opacity": 0.9,
+       "line-dasharray": [
+        1.5,
+        1.5
+       ]
+      },
+      "layout": {},
+      "renderizadas": 0
+     },
+     "m1-guia-shift": null,
+     "m1-midpoints": {
+      "tipo": "circle",
+      "filter": null,
+      "paint": {
+       "circle-radius": 3.5,
+       "circle-color": "#f5a01b",
+       "circle-opacity": 0.55,
+       "circle-stroke-color": "#f5a01b",
+       "circle-stroke-width": 1
+      },
+      "layout": {},
+      "renderizadas": 4
+     },
+     "m1-vertices-selecao": null,
+     "m1-vertices": {
+      "tipo": "circle",
+      "filter": null,
+      "paint": {
+       "circle-radius": [
+        "case",
+        [
+         "boolean",
+         [
+          "get",
+          "selecionado"
+         ],
+         false
+        ],
+        8,
+        5
+       ],
+       "circle-color": [
+        "case",
+        [
+         "boolean",
+         [
+          "get",
+          "selecionado"
+         ],
+         false
+        ],
+        "#f5a01b",
+        "#ffffff"
+       ],
+       "circle-stroke-color": [
+        "case",
+        [
+         "boolean",
+         [
+          "get",
+          "selecionado"
+         ],
+         false
+        ],
+        "#ffffff",
+        "#f5a01b"
+       ],
+       "circle-stroke-width": 2.4
+      },
+      "layout": {},
+      "renderizadas": 4
+     }
+    },
+    "ordem": [
+     "m1-areas-fill",
+     "m1-areas-line",
+     "m1-linhas",
+     "m1-pontos",
+     "m1-desenho-fill",
+     "m1-desenho-line",
+     "m1-guia",
+     "m1-vertices",
+     "m1-midpoints"
+    ],
+    "desenho": [
+     {
+      "geom": "Polygon",
+      "props": {
+       "id": "desenho"
+      }
+     }
+    ],
+    "guia": [],
+    "vertices": [
+     {
+      "id": "v-0",
+      "props": {
+       "id": "v-0",
+       "index": 0,
+       "role": "vertex"
+      },
+      "state": {}
+     },
+     {
+      "id": "v-1",
+      "props": {
+       "id": "v-1",
+       "index": 1,
+       "role": "vertex"
+      },
+      "state": {}
+     },
+     {
+      "id": "v-2",
+      "props": {
+       "id": "v-2",
+       "index": 2,
+       "role": "vertex"
+      },
+      "state": {}
+     },
+     {
+      "id": "v-3",
+      "props": {
+       "id": "v-3",
+       "index": 3,
+       "role": "vertex"
+      },
+      "state": {}
+     }
+    ],
+    "meios": [
+     {
+      "id": "m-0",
+      "state": {}
+     },
+     {
+      "id": "m-1",
+      "state": {}
+     },
+     {
+      "id": "m-2",
+      "state": {}
+     },
+     {
+      "id": "m-3",
+      "state": {}
+     }
+    ],
+    "overlay": {
+     "existe": false,
+     "pointerEvents": null,
+     "cruzinha": false,
+     "ima": null,
+     "rumo": null
+    },
+    "cursorCanvas": "grab"
+   },
+   "n": 4,
+   "vertice": {
+    "miolo_branco": 5,
+    "externo": 7.25
+   },
+   "meio": 4.25,
+   "sem_scroll_horizontal": true,
+   "toque_meio_12px_vertices": 4
+  },
+  "mobile_390_erros": [],
+  "10_mobile_412_aberto": {
+   "estado": {
+    "layers": {
+     "m1-desenho-fill": {
+      "tipo": "fill",
+      "filter": [
+       "==",
+       [
+        "geometry-type"
+       ],
+       "Polygon"
+      ],
+      "paint": {
+       "fill-color": [
+        "coalesce",
+        [
+         "get",
+         "fill"
+        ],
+        "#f5a01b"
+       ],
+       "fill-opacity": [
+        "case",
+        [
+         "has",
+         "fill"
+        ],
+        0.78,
+        0.35
+       ]
+      },
+      "layout": {},
+      "renderizadas": 4
+     },
+     "m1-desenho-line": {
+      "tipo": "line",
+      "filter": null,
+      "paint": {
+       "line-color": "#f5a01b",
+       "line-width": 2.2,
+       "line-opacity": 1
+      },
+      "layout": {},
+      "renderizadas": 4
+     },
+     "m1-ima-aresta-halo": null,
+     "m1-ima-aresta": null,
+     "m1-guia": {
+      "tipo": "line",
+      "filter": null,
+      "paint": {
+       "line-color": "#f5a01b",
+       "line-width": 2,
+       "line-opacity": 0.9,
+       "line-dasharray": [
+        1.5,
+        1.5
+       ]
+      },
+      "layout": {},
+      "renderizadas": 0
+     },
+     "m1-guia-shift": null,
+     "m1-midpoints": {
+      "tipo": "circle",
+      "filter": null,
+      "paint": {
+       "circle-radius": 3.5,
+       "circle-color": "#f5a01b",
+       "circle-opacity": 0.55,
+       "circle-stroke-color": "#f5a01b",
+       "circle-stroke-width": 1
+      },
+      "layout": {},
+      "renderizadas": 0
+     },
+     "m1-vertices-selecao": null,
+     "m1-vertices": {
+      "tipo": "circle",
+      "filter": null,
+      "paint": {
+       "circle-radius": [
+        "case",
+        [
+         "boolean",
+         [
+          "get",
+          "selecionado"
+         ],
+         false
+        ],
+        8,
+        5
+       ],
+       "circle-color": [
+        "case",
+        [
+         "boolean",
+         [
+          "get",
+          "selecionado"
+         ],
+         false
+        ],
+        "#f5a01b",
+        "#ffffff"
+       ],
+       "circle-stroke-color": [
+        "case",
+        [
+         "boolean",
+         [
+          "get",
+          "selecionado"
+         ],
+         false
+        ],
+        "#ffffff",
+        "#f5a01b"
+       ],
+       "circle-stroke-width": 2.4
+      },
+      "layout": {},
+      "renderizadas": 4
+     }
+    },
+    "ordem": [
+     "m1-areas-fill",
+     "m1-areas-line",
+     "m1-linhas",
+     "m1-pontos",
+     "m1-desenho-fill",
+     "m1-desenho-line",
+     "m1-guia",
+     "m1-vertices",
+     "m1-midpoints"
+    ],
+    "desenho": [
+     {
+      "geom": "Polygon",
+      "props": {
+       "id": "desenho"
+      }
+     }
+    ],
+    "guia": [
+     {
+      "geom": "LineString",
+      "props": {
+       "id": "guia"
+      }
+     }
+    ],
+    "vertices": [
+     {
+      "id": "v-0",
+      "props": {
+       "id": "v-0",
+       "index": 0,
+       "role": "vertex"
+      },
+      "state": {}
+     },
+     {
+      "id": "v-1",
+      "props": {
+       "id": "v-1",
+       "index": 1,
+       "role": "vertex"
+      },
+      "state": {}
+     },
+     {
+      "id": "v-2",
+      "props": {
+       "id": "v-2",
+       "index": 2,
+       "role": "vertex"
+      },
+      "state": {}
+     },
+     {
+      "id": "v-3",
+      "props": {
+       "id": "v-3",
+       "index": 3,
+       "role": "vertex"
+      },
+      "state": {}
+     }
+    ],
+    "meios": [],
+    "overlay": {
+     "existe": false,
+     "pointerEvents": null,
+     "cruzinha": false,
+     "ima": null,
+     "rumo": null
+    },
+    "cursorCanvas": "grab"
+   },
+   "n": 4,
+   "vertice": {
+    "miolo_branco": 5,
+    "externo": 14.5
+   }
+  },
+  "10_mobile_412_fechado": {
+   "estado": {
+    "layers": {
+     "m1-desenho-fill": {
+      "tipo": "fill",
+      "filter": [
+       "==",
+       [
+        "geometry-type"
+       ],
+       "Polygon"
+      ],
+      "paint": {
+       "fill-color": [
+        "coalesce",
+        [
+         "get",
+         "fill"
+        ],
+        "#f5a01b"
+       ],
+       "fill-opacity": [
+        "case",
+        [
+         "has",
+         "fill"
+        ],
+        0.78,
+        0.35
+       ]
+      },
+      "layout": {},
+      "renderizadas": 4
+     },
+     "m1-desenho-line": {
+      "tipo": "line",
+      "filter": null,
+      "paint": {
+       "line-color": "#f5a01b",
+       "line-width": 2.2,
+       "line-opacity": 1
+      },
+      "layout": {},
+      "renderizadas": 4
+     },
+     "m1-ima-aresta-halo": null,
+     "m1-ima-aresta": null,
+     "m1-guia": {
+      "tipo": "line",
+      "filter": null,
+      "paint": {
+       "line-color": "#f5a01b",
+       "line-width": 2,
+       "line-opacity": 0.9,
+       "line-dasharray": [
+        1.5,
+        1.5
+       ]
+      },
+      "layout": {},
+      "renderizadas": 0
+     },
+     "m1-guia-shift": null,
+     "m1-midpoints": {
+      "tipo": "circle",
+      "filter": null,
+      "paint": {
+       "circle-radius": 3.5,
+       "circle-color": "#f5a01b",
+       "circle-opacity": 0.55,
+       "circle-stroke-color": "#f5a01b",
+       "circle-stroke-width": 1
+      },
+      "layout": {},
+      "renderizadas": 4
+     },
+     "m1-vertices-selecao": null,
+     "m1-vertices": {
+      "tipo": "circle",
+      "filter": null,
+      "paint": {
+       "circle-radius": [
+        "case",
+        [
+         "boolean",
+         [
+          "get",
+          "selecionado"
+         ],
+         false
+        ],
+        8,
+        5
+       ],
+       "circle-color": [
+        "case",
+        [
+         "boolean",
+         [
+          "get",
+          "selecionado"
+         ],
+         false
+        ],
+        "#f5a01b",
+        "#ffffff"
+       ],
+       "circle-stroke-color": [
+        "case",
+        [
+         "boolean",
+         [
+          "get",
+          "selecionado"
+         ],
+         false
+        ],
+        "#ffffff",
+        "#f5a01b"
+       ],
+       "circle-stroke-width": 2.4
+      },
+      "layout": {},
+      "renderizadas": 4
+     }
+    },
+    "ordem": [
+     "m1-areas-fill",
+     "m1-areas-line",
+     "m1-linhas",
+     "m1-pontos",
+     "m1-desenho-fill",
+     "m1-desenho-line",
+     "m1-guia",
+     "m1-vertices",
+     "m1-midpoints"
+    ],
+    "desenho": [
+     {
+      "geom": "Polygon",
+      "props": {
+       "id": "desenho"
+      }
+     }
+    ],
+    "guia": [],
+    "vertices": [
+     {
+      "id": "v-0",
+      "props": {
+       "id": "v-0",
+       "index": 0,
+       "role": "vertex"
+      },
+      "state": {}
+     },
+     {
+      "id": "v-1",
+      "props": {
+       "id": "v-1",
+       "index": 1,
+       "role": "vertex"
+      },
+      "state": {}
+     },
+     {
+      "id": "v-2",
+      "props": {
+       "id": "v-2",
+       "index": 2,
+       "role": "vertex"
+      },
+      "state": {}
+     },
+     {
+      "id": "v-3",
+      "props": {
+       "id": "v-3",
+       "index": 3,
+       "role": "vertex"
+      },
+      "state": {}
+     }
+    ],
+    "meios": [
+     {
+      "id": "m-0",
+      "state": {}
+     },
+     {
+      "id": "m-1",
+      "state": {}
+     },
+     {
+      "id": "m-2",
+      "state": {}
+     },
+     {
+      "id": "m-3",
+      "state": {}
+     }
+    ],
+    "overlay": {
+     "existe": false,
+     "pointerEvents": null,
+     "cruzinha": false,
+     "ima": null,
+     "rumo": null
+    },
+    "cursorCanvas": "grab"
+   },
+   "n": 4,
+   "vertice": {
+    "miolo_branco": 5,
+    "externo": 14.5
+   },
+   "meio": 4.25,
+   "sem_scroll_horizontal": true,
+   "toque_meio_12px_vertices": 4
+  },
+  "mobile_412_erros": []
+ }
+}
