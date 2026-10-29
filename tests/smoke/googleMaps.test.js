@@ -436,8 +436,13 @@ describe('MAP13/MAP16 — nenhuma dependência da Drawing Library', () => {
     const desenho = semComentarios(readFileSync('src/components/mapa/MapaDesenho.jsx', 'utf8'));
 
     expect(desenho).toMatch(/maplibre|createEditorMap|SOURCE_IDS/);
-    expect(desenho).toContain('buildDesenhoCollection');
-    expect(desenho).toContain('buildVerticesCollection');
+    // D-PROD-67: a pintura da geometria em edição foi para `pintarEdicao`
+    // (editorVisual.js) — o editor delega e o delegado usa os builders GeoJSON.
+    expect(desenho).toContain('pintarEdicao');
+    const visual = semComentarios(readFileSync('src/lib/maplibre/editorVisual.js', 'utf8'));
+    expect(visual).toContain('buildDesenhoCollection');
+    expect(visual).toContain('buildVerticesCollection');
+    expect(visual).not.toMatch(/google\.maps\./);
     expect(desenho).toContain("tipoDesenho === \"ponto\"");
     expect(desenho).toContain("tipoDesenho === \"area\"");
     expect(desenho).toContain("tipoDesenho === \"linha\"");

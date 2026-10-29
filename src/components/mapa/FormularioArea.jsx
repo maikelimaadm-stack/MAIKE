@@ -48,7 +48,7 @@ const CORES_DISPONIVEIS = [
   { nome: "Roxo", cor: "#966fe1" },
 ];
 
-export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS = false, item }) {
+export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS = false, item, onCorChange = null }) {
   const empresaSelecionadaId = useEmpresaSelecionadaId();
   const [mostrarCapturaGPS, setMostrarCapturaGPS] = useState(usarGPS);
   const [coordenadasGPS, setCoordenadasGPS] = useState(coordenadas);
@@ -68,6 +68,11 @@ export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS 
     cor: item?.cor || item?.coordenadas?.cor || CORES_DISPONIVEIS[4].cor,
     observacoes: item?.observacoes || "",
   });
+
+  // Prévia no mapa acompanha a cor escolhida antes de salvar (D-PROD-67); opcional.
+  useEffect(() => {
+    onCorChange?.(formData.cor);
+  }, [formData.cor, onCorChange]);
 
   const { data: setores = [] } = useQuery({
     queryKey: ["setores-form-area", empresaSelecionadaId],

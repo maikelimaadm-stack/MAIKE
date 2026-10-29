@@ -2716,4 +2716,45 @@ Merge só pelo proprietário após auditoria.
 
 ---
 
-<!-- Próxima decisão: D-PROD-67 -->
+## D-PROD-67 — Editor de polígonos: fechar, finalizar e prévia do formulário
+
+**Missão:** `MAPLIBRE-EDITOR-PONTOS-FINALIZACAO-02`\
+**Relatório:** `docs/engineering/MAPLIBRE-EDITOR-PONTOS-FINALIZACAO-REPORT.md`\
+**Base:** `origin/main` = `8f489416` (merges #141 e #140, CI `quality` 40891011505 verde)\
+**Referência (read-only):** `CONTROLE-DE-ESTOQUE`, commit `6aef845e`, `editor-contorno.tsx`
+(`confirmar()` / `fechar()` / `sairDoDesenho()`, `corPreview`)
+
+**Decisão:**
+
+1. **Fechar antes de finalizar.** Com a área nova aberta e ≥3 pontos, o comando
+   de finalização ("Fechar área") **só fecha**: entram a aresta último→primeiro,
+   os meios e o preenchimento de fechada, e o editor vai para EDITAR.
+   - Nada é gravado.
+   - O formulário abre apenas no comando seguinte ("Salvar").
+   - Linha e ponto seguem como antes.
+2. **Prévia com o formulário aberto (área/linha).**
+   - A geometria fica fechada e visível no mapa.
+   - Vértices, meios, anel de seleção, cruz, ímã e guias somem.
+   - O editor passa a `modoInteracao = NAVEGAR`: nenhum clique, arrasto, hover
+     ou Delete altera o desenho por trás do Sheet.
+   - `currentPoints` e o modo ficam intactos. Cancelar devolve a edição como
+     estava. Salvar mantém o fluxo atual: o pai fecha o editor.
+3. **A cor da prévia é a do formulário**, ao vivo, como `corPreview` na
+   referência. `FormularioArea` ganha a prop opcional `onCorChange`, sem mudar
+   contrato nem persistência. Fora do formulário:
+   - área existente: cor salva;
+   - rascunho novo: laranja.
+4. **`pintarEdicao`** (`editorVisual.js`) é o SSOT do que o editor pinta por
+   estado (edição × prévia; seleção e arrasto). A seleção deixa de ter um
+   efeito próprio que reescrevia a fonte de vértices.
+
+**Fora do escopo (inalterado):**
+- aparência dos pontos da D-PROD-66;
+- Mapa Geral/renderer, satélite;
+- backend/persistência, ícones, outros formulários.
+
+Merge só pelo proprietário após auditoria.
+
+---
+
+<!-- Próxima decisão: D-PROD-68 -->

@@ -4,7 +4,9 @@
  * Não altera regras: fechar no 1º ponto, trava 45° e ímã vêm dos módulos
  * existentes (`snap.js`, `editorModos.js`).
  */
-import { EDITOR_VISUAL } from "./estiloAreas.js";
+import { EDITOR_VISUAL, SOURCE_IDS } from "./estiloAreas.js";
+import { buildDesenhoCollection, buildMidpointsCollection, buildVerticesCollection } from "./geojsonBuilders.js";
+import { setSourceData } from "./lifecycle.js";
 import { travarAngulo45 } from "./editorModos.js";
 import { findNearestSnapDetalhado, isNearFirstVertex } from "./snap.js";
 
@@ -101,4 +103,35 @@ export function acertoEditor(map, ponto, opts) {
     }
   }
   return melhor;
+}
+
+/** @returns {GeoJSON.FeatureCollection} */
+const vazia = () => ({ type: "FeatureCollection", features: [] });
+
+/**
+ * SSOT do que o editor pinta para a geometria em curso (D-PROD-67).
+ * EDIÇÃO: geometria + vértices (+ meios se fechada, nunca durante arrasto).
+ * PRÉVIA (formulário aberto): só a geometria, fechada e na cor do formulário —
+ * nenhum manipulador. Ponto único mantém o marcador (é a própria prévia).
+ * @param {import('maplibre-gl').Map} map
+ * @param {{ pts: { lat: number, lng: number }[], marker: { lat: number, lng: number } | null, tipo: string, fechado: boolean, previa: boolean, cor: string | null, arrastando: boolean, selecionado: number | null }} e
+ */
+export function pintarEdicao(map, e) {
+  const linear = e.tipo === "area" || e.tipo === "linha";
+  setSourceData(map, SOURCE_IDS.DESENHO, buildDesenhoCollection(e.pts, /** @type {any} */ (e.tipo), e.marker, { cor: e.cor, fechado: e.fechado || e.previa }));
+  if (linear && e.pts.length > 0 && !e.previa) {
+    const vs = buildVerticesCollection(e.pts);
+    vs.features.forEach((f) => {
+      if (f.properties && Number(f.properties.index) === e.selecionado) f.properties.selecionado = true;
+    });
+    setSourceData(map, SOURCE_IDS.VERTICES, vs);
+    // Durante o arrasto os meios somem (referência), voltam ao soltar.
+    setSourceData(map, SOURCE_IDS.MIDPOINTS, e.fechado && !e.arrastando ? buildMidpointsCollection(e.pts, /** @type {any} */ (e.tipo)) : vazia());
+  } else if (e.tipo === "ponto" && e.marker) {
+    setSourceData(map, SOURCE_IDS.VERTICES, buildVerticesCollection([e.marker]));
+    setSourceData(map, SOURCE_IDS.MIDPOINTS, vazia());
+  } else {
+    setSourceData(map, SOURCE_IDS.VERTICES, vazia());
+    setSourceData(map, SOURCE_IDS.MIDPOINTS, vazia());
+  }
 }
