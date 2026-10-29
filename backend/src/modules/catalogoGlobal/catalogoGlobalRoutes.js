@@ -13,7 +13,6 @@ import {
   listarRegrasMistoPublicadas,
   listarTiposPublicados,
   obterManifesto,
-  obterVisaoAdmin,
   publicarIcone,
   publicarRegraMisto,
   registrarAsset,
@@ -187,10 +186,6 @@ export const registrarCatalogoGlobalRoutes = async (app) => {
   });
 
   const adminGuard = [app.autenticar, exigirOperadorProduto];
-
-  // Visão completa para o painel interno (inclui rascunhos/inativos e limites).
-  // Também é o "sou operador?" da UI: tenant comum recebe 403 aqui.
-  app.get(`${PREFIX}/admin/visao`, { onRequest: adminGuard }, async () => obterVisaoAdmin());
 
   app.post(`${PREFIX}/admin/tipos`, { onRequest: adminGuard, schema: CRIAR_TIPO }, async (request, reply) => {
     const operador = request.contexto.operadorProduto;

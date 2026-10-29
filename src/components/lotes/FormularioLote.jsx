@@ -186,6 +186,13 @@ export default function FormularioLote({
     enabled: !!empresaSelecionadaId
   });
 
+  // Vínculo explícito categoria de manejo → categoria visual global; o lote não guarda ícone.
+  const categoriaVisualIdDoLote = useMemo(
+    () =>
+      categoriasManejo.find((item) => item.id === formData.categoria_manejo_id)?.catalogo_categoria_visual_id ?? null,
+    [categoriasManejo, formData.categoria_manejo_id]
+  );
+
   const { data: fornecedores = [] } = useQuery({
     queryKey: ["fornecedores", empresaSelecionadaId],
     queryFn: () => listarFornecedores(empresaSelecionadaId),
@@ -559,8 +566,11 @@ export default function FormularioLote({
                 readOnly={isReadOnly}
                 visualVariant={useBase1Visual ? "base1" : "legacy"}
                 />
-              {/* Catálogo global (somente leitura): sem vínculo explícito, mostra pendência — nunca palpite. */}
-              <IconeOficialLotePreview categoriaVisualId={null} />
+              {/* Catálogo global (somente leitura): ícone derivado do vínculo da categoria de manejo (D-PROD-69). */}
+              <IconeOficialLotePreview
+                categoriaVisualId={categoriaVisualIdDoLote}
+                categoriaManejoSelecionada={Boolean(formData.categoria_manejo_id)}
+              />
             </div>
           </fieldset>
 

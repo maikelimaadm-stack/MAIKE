@@ -137,6 +137,7 @@ export const BACKEND_ONLY_CODES = Object.freeze({
     meaning: 'já existe tipo de tarefa com este nome no grupo',
   },
   LOTE_NOT_FOUND: { http: 404, meaning: 'id não identifica lote deste tenant' },
+  CATEGORIA_MANEJO_NOT_FOUND: { http: 404, meaning: 'id não identifica categoria de manejo deste tenant' },
   LOTE_DELETE_BLOCKED: {
     http: 409,
     meaning: 'lote possui registros vinculados e não pode ser excluído',

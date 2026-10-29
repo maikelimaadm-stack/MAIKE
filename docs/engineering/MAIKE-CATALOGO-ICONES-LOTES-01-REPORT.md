@@ -1,100 +1,160 @@
-# MAIKE-CATALOGO-GLOBAL-ICONES-LOTES-01 — painel interno do catálogo global + ícone no cadastro de lotes
+# MAIKE-CATALOGO-ICONES-LOTES-01 — ícone oficial no cadastro de lotes (R2: sem painel, vínculo real)
 
-**Data:** 29/10/2026 · **Base:** `main` `1344ffe2` (pós-#144) · **Branch:** `claude/catalogo-global-icones-lotes-01`
-**PR:** DRAFT (link na própria PR) · **Merge:** exclusivo do proprietário.
+**Missões:** `MAIKE-CATALOGO-GLOBAL-ICONES-LOTES-01` → corretiva `MAIKE-PR145-CATALOGO-SUPABASE-LOTES-R2`
+**Data:** 29/10/2026 · **Base:** `main` `1344ffe2` (pós-#144) · **Branch:** `claude/catalogo-global-icones-lotes-01` · **PR:** #145 (DRAFT)
+**Decisão:** D-PROD-69 · **Runbook:** `docs/engineering/MAIKE-CATALOGO-OPERACAO-SUPABASE.md` · **Merge:** exclusivo do proprietário.
 
-## 1. Gate zero
+## 1. Mudança de decisão (R2)
 
-PR #144 já **MERGED** (17:36 UTC). Nenhuma PR aberta no início. Worktree limpo; branch nova a partir de `origin/main`.
+O proprietário já tem as imagens oficiais e **não quer painel de gerenciamento de ícones no MAIKE**, nem oculto por URL.
+O catálogo é dado global do produto:
 
-## 2. Inventário — fonte de verdade global vs legado
+- metadados no Supabase PostgreSQL e bytes no Supabase Storage;
+- mantido server-side pelo proprietário;
+- os clientes só consomem o que está publicado.
 
-| Peça | Arquivo | Papel |
+A primeira versão desta PR (painel `/CatalogoGlobalMaike` e prévia com `categoriaVisualId={null}`) foi **revertida**.
+
+## 2. Inventário antes → depois
+
+| Peça | Antes (R1 da PR) | Depois (R2) |
 |---|---|---|
-| Catálogo global (SSOT) | `backend/prisma/schema.prisma` (`Catalogo*`, `OperadorProdutoMaike`, `AuditoriaCatalogoGlobal`) | já existia — **não recriado** |
-| Leitura publicada | `catalogoGlobalRoutes.js` `/catalogo-global/{manifest,tipos,categorias,icones,regras-misto}` | já existia |
-| Escrita admin | `/catalogo-global/admin/*` sob `exigirOperadorProduto` (`backend/src/shared/auth/exigirOperadorProduto.js`) | já existia; CAS/409, auditoria atômica, compensação de Storage (R2/R3) preservados |
-| Cliente frontend do catálogo | — | **não existia** |
-| Legado por tenant | `ConfiguracaoIcone`, `src/components/configuracoes/GerenciadorIcones.jsx`, `src/services/configuracaoIconeService.js`, `mapaCacheService` (`icones`) | **intocado** — continua servindo o mapa |
-| Lote | `Lote` (sem campo de ícone); `categoria_manejo_id` → `CategoriaManejo` | intocado |
-| `CategoriaManejo.categoria_oficial` | texto livre: lista fixa em `src/pages/CategoriasManejo.jsx:86-101` + categorias do `ConfiguracaoIcone` do tenant | **não é identificador estável** |
+| `src/pages/CatalogoGlobalMaike.jsx` | painel ~537 linhas | **removido** |
+| `src/pages.config.js`, `config/mapa-manejo-scope.json` | página registrada | **revertidos** = `main` |
+| `vercel.json` | 4 rewrites do painel | **regenerado** por `scripts/vercel/sync-vercel-json.mjs` = `main` |
+| `GET /catalogo-global/admin/visao`, `obterVisaoAdmin`, `limitesUploadCatalogo` | adicionados | **revertidos** (os 3 arquivos = `main`) |
+| Frontend `src/apis/catalogoGlobal/*`, `catalogoGlobalService` | leitura + escrita admin + upload | **só leitura**: tipos, categorias e ícones publicados |
+| Rotas admin preexistentes (`/admin/tipos`, `/categorias`, `/assets`, `/icones`, publicar/desativar, regras-misto), `exigirOperadorProduto`, `Catalogo*`, CAS, auditoria, compensação de Storage, migrations | — | **preservadas** sem alteração |
+| Vínculo CategoriaManejo → catálogo | inexistente (`null` fixo) | `CategoriaManejo.catalogo_categoria_visual_id` |
+| `FormularioLote` | `<IconeOficialLotePreview categoriaVisualId={null} />` | id real derivado da categoria de manejo |
+| Legado `ConfiguracaoIcone`, `GerenciadorIcones`, MapLibre, `MapaGeral` | intocados | intocados |
 
-### Matriz de lacunas
+## 3. Vínculo real (D-PROD-69)
 
-| Necessário | Já existe | Lacuna | Arquivo afetado | Risco |
-|---|---|---|---|---|
-| Painel listar tudo (rascunho/inativo) | só leitura publicada | leitura admin | `GET /catalogo-global/admin/visao` (novo) | baixo — só operador |
-| Limites de upload na UI | validador backend | expor limites | `limitesUploadCatalogo()` | nenhum (mesma constante) |
-| Upload/criar/trocar/publicar/desativar | endpoints admin | UI + cliente | `src/apis/catalogoGlobal/*`, `src/services/catalogoGlobalService.js`, `src/pages/CatalogoGlobalMaike.jsx` | médio — UI nova |
-| Rota direta + refresh | — | registrar página | `config/mapa-manejo-scope.json`, `src/pages.config.js`, `vercel.json` (gerado) | baixo |
-| Ícone do lote por vínculo explícito | — | **vínculo inexistente** | — | ver §4 |
+**Uma fonte de verdade:** `CategoriaManejo.catalogo_categoria_visual_id`. Não havia mecanismo global equivalente:
+`categoria_oficial` é texto livre e o `Lote` só tem `categoria_manejo_id`.
 
-## 3. Entregas reais
+- **Migration aditiva** `backend/prisma/migrations/20261029200000_categoria_manejo_vinculo_catalogo`:
+  - coluna `VARCHAR(64)` nullable;
+  - índice `(cliente_id, catalogo_categoria_visual_id)`, conforme `gate:indices`;
+  - FK `ON DELETE RESTRICT` para `CatalogoCategoriaVisual.id`. O id é global (catálogo sem `cliente_id`, D-PROD-60), então
+    a FK não cruza tenants.
+  - SQL de reversão no cabeçalho.
+  - `prisma migrate diff` (migrations → schema) = vazio.
+- **Backend** (`categoriaManejoService.js` + `catalogoValidacao.exigirCategoriaVisualLoteVinculavel`):
+  - aceita só categoria **ativa** do tipo **`lote`** **ativo**;
+  - inexistente, de outro tipo ou inativa → 422 `CATALOGO_GLOBAL_INVALID`;
+  - `SELECT … FOR SHARE` na mesma transação da gravação (corrida com desativação);
+  - `null`/vazio remove o vínculo; sem o campo no corpo, o vínculo é mantido;
+  - reenviar o mesmo vínculo já gravado não revalida, então um cadastro antigo segue editável;
+  - tenant sempre de `auth_context`.
 
-**Backend (aditivo):**
-- `GET /catalogo-global/admin/visao` — `exigirOperadorProduto`; devolve `revisao`, `limites` (`mimes`, `max_bytes` do validador real), tipos, categorias, ícones em **qualquer estado** com assets e `public_url`, últimos 200 assets. Sem `cliente_id`, sem `storage_path`, sem chave. Também é o "sou operador?" da UI (403 `PRODUCT_OPERATOR_REQUIRED`).
-- Nenhuma mutação nova; nenhum schema/migration novo.
+  Exposto pelo contrato nativo existente (`comoPublico` devolve o campo). Correção lateral: `CATEGORIA_MANEJO_NOT_FOUND`
+  passou a ser 404 (antes caía em 500).
+- **Frontend:**
+  - `FormularioCategoriaManejo` ganhou o campo "Ícone oficial (catálogo MAIKE)" (`CategoriaOficialCatalogoSelect`). Ele lista
+    só as categorias publicadas do tipo `lote` e não tem upload, cor ou edição de imagem. Um vínculo inativo continua visível
+    em vez de ser apagado em silêncio.
+  - `normalizarCategoriaManejo` envia `catalogo_categoria_visual_id`.
+- **Lote:** o payload não muda. `FormularioLote` resolve `categoria_manejo_id` → `catalogo_categoria_visual_id` em memória e
+  passa o id para `IconeOficialLotePreview`, ao criar, editar e duplicar. Os status são:
+  - `sem_categoria`;
+  - `mapeamento_pendente` (categoria sem vínculo; nem consulta o catálogo);
+  - `carregando`;
+  - `ok`;
+  - `sem_icone_publicado`;
+  - `erro` (aviso, não bloqueia salvar).
 
-**Frontend:**
-- Porta/API/service: `src/apis/catalogoGlobal/{catalogoGlobalNativePort,catalogoGlobalApi,index}.js`, `src/services/catalogoGlobalService.js`.
-- Painel `src/pages/CatalogoGlobalMaike.jsx` (rota `/CatalogoGlobalMaike`, **fora do menu**):
-  - lista ícones (prévia principal/subícone, categoria, tipo, revisão, estado rascunho/publicado/inativo) com filtro por tipo;
-  - cria tipo e categoria (códigos `^[a-z0-9_]+$`, sem lista hardcoded);
-  - novo ícone: tipo + categoria + imagem principal e subícone opcional (prévia local antes do envio), cor de fallback; nasce rascunho;
-  - trocar imagem (novo asset versionado, **mesmo id lógico** via PATCH), publicar, desativar (registro e asset preservados);
-  - toda escrita envia `revisao_esperada`; fluxo de várias escritas relê a revisão entre passos; 409 → aviso "alterado por outro operador", recarrega, nada sobrescrito; sucesso só após resposta;
-  - estados: carregando, vazio, erro com "Tentar novamente", acesso restrito (403), enviando.
-  - **Imagens enviadas sem transformação** (FileReader → base64); validação real no backend (MIME real, whitelist PNG/JPEG/WebP/GIF, ≤ 512 KB; SVG recusado).
+  Imagem quebrada → cor de fallback. Cache: 60 s.
+- **Resolver** (`resolverIconeOficialDoLote`):
+  - filtra pelo tipo `lote` e pelo `categoria_id` exato;
+  - com vários publicados, **maior `revisao` vence; empate → menor `id`**, determinístico;
+  - nunca usa nome, sexo, raça ou idade. MISTO fora do escopo.
 
-## 4. Cadastro de lotes — `LOTES_MAPPING_PENDING`
+## 4. Operação no Supabase sem UI
 
-Não há vínculo explícito entre `CategoriaManejo` (tenant) e `CatalogoCategoriaVisual` (global). `categoria_oficial`
-é texto livre; casar por nome/sexo exibiria ícone errado e confundiria a regra visual MISTO com `sexo = Misto`.
-Nenhum campo foi adicionado a `Lote`.
+- Runbook `docs/engineering/MAIKE-CATALOGO-OPERACAO-SUPABASE.md`:
+  - preflight de migrations, RLS e grants por ambiente;
+  - bucket e publicação;
+  - operador;
+  - manifesto de exemplo **fictício**;
+  - troca de imagem sem deploy, mantendo o id;
+  - associação, validação em staging, backup, rollback e checklist;
+  - proibição de mexer em produção sem aprovação separada.
+- CLI `scripts/catalogo/importar-icones.mjs` (núcleo `importarIconesLib.mjs`):
+  - **dry-run por padrão**; `--apply` exige `--confirmar=<host da API>`;
+  - usa só a API admin existente, então herda validação, CAS, auditoria e compensação;
+  - envia os bytes sem transformação;
+  - é idempotente pelo sha256 da URL versionada;
+  - lê as credenciais do ambiente e nunca as imprime.
 
-Implementado:
-- `resolverIconeOficialDoLote({ categoriaVisualId, icones })` — só resolve com **id explícito**; sem ele →
-  `mapeamento_pendente`; id sem ícone publicado → `sem_icone_publicado`.
-- `src/components/catalogoGlobal/IconeOficialLotePreview.jsx` no `FormularioLote` (fora do `DynamicFormRenderer`,
-  para não alterar layouts salvos por usuário nem o payload): hoje mostra "vínculo da categoria com o catálogo MAIKE
-  ainda não configurado", **não consulta o catálogo** sem vínculo, nunca bloqueia o cadastro. Payload do lote inalterado.
+## 5. Gates e testes (local, PostgreSQL 16)
 
-Próximo slice proposto (decisão de domínio do proprietário): coluna opcional
-`CategoriaManejo.catalogo_categoria_visual_id` (nullable, migration aditiva), escolhida no formulário de Categoria de
-Manejo a partir das categorias publicadas do tipo `lote`; lotes legados continuam sem vínculo (fallback). O resolver
-e a prévia já aceitam o id.
-
-**MapLibre / mapa:** nenhuma alteração. O mapa continua no `ConfiguracaoIcone` legado; migração para o catálogo
-global é slice separado.
-
-## 5. Gates e evidências
-
-| Gate | Resultado |
+| Gate / teste | Resultado |
 |---|---|
 | `git diff --check` | PASS |
-| `npm run verify:all` (PostgreSQL 16 local) | PASS — gates 617/617, backend 290/290, smoke 929/929 (77 arquivos), types 1337 ≤ 1746, lint 0 erros |
-| Backend novos CG-16..19 | PASS — 401 sem JWT; 403 para `is_admin` sem operador; visão do operador com rascunho/limites/revisão sem `cliente_id`/`storage_path`; SVG, MIME divergente e > limite → 4xx sem persistir; desativar preserva id/asset/auditoria |
-| Smoke `tests/smoke/catalogoGlobalPainel.test.jsx` | PASS 11/11 — 403, erro+retry, prévia/limites, 409 sem sucesso + recarga, CAS no criar tipo, upload sem alteração + revisão relida, resolver, whitelist/limite local, prévia pendente sem consulta, fallback em erro |
-| E2E real local (Chromium; Fastify + Vite + PG `maike_ui_test`; operador/tenant sintéticos) | PASS 13/13 — `docs/engineering/evidencias/catalogo-icones-lotes-01/smoke-e2e-resultado.txt` |
-| Responsivo 1440 / 768 / 390 / 412 | PASS — sem rolagem horizontal; capturas na pasta de evidências |
-| CI da PR | ver PR |
+| `npm run verify:all` (migrations da branch aplicadas do zero em `maike_test`) | ver PR / §8 |
+| Backend `categoriaManejoVinculoCatalogo.test.mjs` | **10/10**: vínculo nulo, persistência e listagem, inexistente (sem gravar nem auditar), tipo errado, categoria ou tipo inativos, atualização (troca, preserva, reenvio do vínculo desativado, remoção), isolamento de tenant (404 e `cliente_id` do corpo ignorado), rollback por falha de auditoria, corrida com desativação (422 via `FOR SHARE`), FK RESTRICT |
+| Backend `catalogoImportacaoIcones.test.mjs` | **3/3**: manifesto inválido (SVG, acima do limite, repetido, código, ausente) sem escrita; aplicar → publicado, reaplicar → nada, trocar imagem → **mesmo id** e URL nova, auditado; admin do tenant → 403 e nada gravado |
+| Backend `catalogoGlobalNativo.test.mjs` CG-16..19 | CG-16 `/admin/visao` → **404**; CG-17 usuário comum e admin do tenant: publicar e alterar → 403, rascunho fora da leitura publicada, nada muda; CG-18 upload inválido não persiste; CG-19 desativar preserva id, asset e auditoria (via Prisma) |
+| Smoke `tests/smoke/catalogoGlobalLote.test.jsx` | **13/13**: sem página, escopo ou rewrite do painel; API do frontend só leitura; resolver (tipo, categoria, precedência independente da ordem); Categoria de Manejo lista só publicadas `lote` e o id vai no payload; edição com catálogo fora do ar salva; prévia troca e limpa ao mudar de categoria, fallback de imagem; FormularioLote novo, editar, duplicar, sem vínculo e catálogo fora do ar salvando sem campo de ícone |
 
-Observação: a sobreposição de texto no campo "Sistema produtivo" do formulário de lote (captura 05) é **preexistente**, não alterada aqui.
+## 6. E2E local com ícone publicado
 
-## 6. Rollout — `DEPLOYMENT_NOT_READY`
+**Ambiente:**
 
-Leitura (SELECT) no Supabase `uuemcasqcdjucflulkne`, 29/10/2026: migrations do catálogo `20261028250000/250100/250200` **0/3**,
-tabelas do catálogo **0**, bucket `maike-catalogo-global` **ausente**; migration `20261029100000` (SCALE-01) também não aplicada.
-Variáveis `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY`/`CATALOGO_STORAGE_BUCKET` na Vercel e operador produto: **NÃO VERIFICADO**
-(acesso Vercel bloqueado nesta sessão). Em produção hoje o painel mostraria erro ao carregar; o cadastro de lotes não é afetado.
+- Chromium com Fastify + Vite;
+- PostgreSQL `maike_ui_test` recriado do zero, com as migrations da branch;
+- Storage falso local no formato da API do Supabase Storage, em `127.0.0.1`;
+- tenant e operador sintéticos;
+- imagem fixture PNG 8×8 gerada no teste (nenhum asset do proprietário).
 
-Procedimento (para aprovação do proprietário, não executado): (1) backup/PITR; (2) `npm run deploy:migrate` com
-`MIGRATION_DATABASE_URL` direta; conferir 3/3 + 9 tabelas + RLS/REVOKE; (3) criar bucket conforme
-`scripts/catalogo/bootstrap-storage-bucket.sql` (instruções) com escrita só servidor; (4) envs server-only na Vercel;
-(5) `scripts/catalogo/bootstrap-operador-produto.mjs` para o usuário do proprietário; (6) smoke: `/admin/visao` 200 para
-operador e 403 para tenant, upload de uma imagem real, publicar. Reversão: desativar ícones; tabelas ficam vazias/inertes.
+Evidências em `docs/engineering/evidencias/catalogo-icones-lotes-01/`.
 
-## 7. Veredito
+1. **CLI** (`cli-importacao.log`):
+   - validação local;
+   - dry-run (plano, nada gravado);
+   - `--apply` sem `--confirmar` → recusado;
+   - admin do tenant → 403;
+   - operador `--apply --confirmar=127.0.0.1` → tipo, categoria e ícone publicados;
+   - reaplicar → "nada a fazer".
+2. **UI** (`e2e-ui-resultado.txt`, **15/15 PASS**):
+   - o admin do tenant edita a Categoria de Manejo; o select lista só "Bezerro (fixture E2E)"; não há input de arquivo;
+     salvar e recarregar → vínculo persiste (captura 01);
+   - lote novo: sem categoria → fallback; categoria sem vínculo → pendente; categoria vinculada → imagem servida pelo Storage
+     (URL `v2/{sha16}-{uuid}.png`, carregada); trocar de categoria limpa a prévia; salvar (captura 02);
+   - reabrir o lote salvo → ícone (04); duplicar → ícone (05);
+   - 768, 390 e 412 px: prévia com ícone, sem rolagem horizontal (06-*);
+   - `/CatalogoGlobalMaike` → 404 da SPA, sem UI administrativa (07).
+3. **API negativa** (`provas-negativas-api.txt`):
+   - admin do tenant em publicar, alterar ou upload → 403;
+   - `/admin/visao` → 404;
+   - sem JWT → 401;
+   - vínculo com id inexistente → 422;
+   - ícone inalterado.
 
-**READY_FOR_CODE_REVIEW** (código, testes e E2E local verdes) · **DEPLOYMENT_NOT_READY** (rollout remoto pendente) ·
-**LOTES_MAPPING_PENDING** (vínculo categoria → catálogo exige decisão de domínio + migration).
+Observação: a sobreposição de texto em "Sistema produtivo" no formulário de lote é **preexistente** e não foi alterada aqui.
+
+## 7. Rollout — PENDENTE DE AUTORIZAÇÃO
+
+Produção: **NOT_RUN** para migrations, Storage, seeds, uploads, operador, envs da Vercel e deploy. Nenhuma escrita remota
+nesta missão.
+
+O relato de 29/10 (SELECT somente leitura: 0/3 migrations do catálogo, 0 tabelas, bucket ausente) **não foi revalidado**
+nesta R2. A migration `20261029200000` também está pendente.
+
+**Ordem obrigatória do rollout:**
+
+1. migrations;
+2. backend;
+3. bucket e envs;
+4. operador;
+5. importação com as imagens reais;
+6. vínculos.
+
+O backend **não pode** ir antes da migration: o salvamento de Categoria de Manejo passa a enviar a coluna nova.
+
+## 8. Veredito
+
+**READY_FOR_ARCHITECT_AUDIT** (código, testes e E2E locais verdes) · **PENDENTE DE ROLLOUT/ASSET** (imagens reais e ambiente
+remoto dependem do proprietário). Não é READY_FOR_PRODUCTION.

@@ -1,0 +1,7 @@
+admin do tenant (ui.cli) — publicar: 403
+admin do tenant — alterar ícone: 403
+admin do tenant — upload: 403
+GET /catalogo-global/admin/visao (removido): 404
+sem JWT — icones publicados: 401
+vínculo com id inexistente: {"code":"CATALOGO_GLOBAL_INVALID","message":"categoria oficial não encontrada no catálogo","request_id":"f67c8996-895b-4535-8f0c-6fb88e5a3e8f","details":{"campo":"catalogo_categoria_visual_id"}}
+cor do ícone inalterada: #16a34a|publicado

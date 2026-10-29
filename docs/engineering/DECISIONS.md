@@ -2794,4 +2794,35 @@ Merge só pelo proprietário após auditoria.
 
 ---
 
-<!-- Próxima decisão: D-PROD-69 -->
+## D-PROD-69 — Ícone oficial do lote via vínculo CategoriaManejo → catálogo global
+
+**Missão:** `MAIKE-PR145-CATALOGO-SUPABASE-LOTES-R2` (PR #145)\
+**Relatório:** `docs/engineering/MAIKE-CATALOGO-ICONES-LOTES-01-REPORT.md`\
+**Runbook:** `docs/engineering/MAIKE-CATALOGO-OPERACAO-SUPABASE.md`\
+**Autoridade:** decisão do proprietário (29/10/2026) — sem painel de ícones no MAIKE.
+
+**Decisão:**
+
+1. **Sem UI de gerenciamento.** O catálogo global (D-PROD-57/60/62) é mantido só
+   server-side pelo proprietário: Supabase PostgreSQL (metadados) + Storage (bytes),
+   pela API admin existente (`/catalogo-global/admin/*`, `exigirOperadorProduto`) ou
+   pela CLI local `scripts/catalogo/importar-icones.mjs` (dry-run padrão). O
+   frontend só lê o publicado (`/catalogo-global/{tipos,categorias,icones}`).
+2. **Uma fonte de verdade para o vínculo:** `CategoriaManejo.catalogo_categoria_visual_id`
+   (opcional, migration aditiva `20261029200000`), FK `RESTRICT` para o id GLOBAL de
+   `CatalogoCategoriaVisual` (catálogo sem `cliente_id`; não é FK entre tenants).
+   O backend aceita só categoria ativa do tipo `lote` (tipo ativo), com `FOR SHARE`
+   na transação; reenviar o mesmo vínculo já gravado não revalida (cadastro antigo
+   segue editável). `null`/vazio remove o vínculo.
+3. **Lote não muda:** nenhum campo novo; o ícone deriva de `categoria_manejo_id` →
+   vínculo → ícone publicado. `categoria_oficial` (texto) continua só informativo;
+   nunca se casa ícone por nome, sexo, raça ou idade. MISTO fora do escopo.
+4. **Precedência explícita** quando houver mais de um ícone publicado para a mesma
+   categoria (o catálogo não impõe unicidade): maior `revisao`; empate → menor `id`.
+   A CLI usa a mesma regra para decidir qual ícone trocar.
+5. Correção lateral: `CATEGORIA_MANEJO_NOT_FOUND` entra no catálogo de erros
+   (404); antes caía em 500.
+
+---
+
+<!-- Próxima decisão: D-PROD-70 -->

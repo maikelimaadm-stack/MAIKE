@@ -3,8 +3,9 @@
  */
 import { getPrismaClient } from '../../database/prismaClient.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
-import { AppError } from '../../shared/errors/AppError.js';
+import { AppError, catalogoGlobalInvalid } from '../../shared/errors/AppError.js';
 import { registrarEvento } from '../auditoria/auditService.js';
+import { exigirCategoriaVisualLoteVinculavel } from '../catalogoGlobal/catalogoValidacao.js';
 import {
   listarRegistros,
   buscarRegistro,
@@ -16,6 +17,33 @@ import {
 
 
 const erroNaoEncontrado = () => new AppError('CATEGORIA_MANEJO_NOT_FOUND', 'CategoriaManejo não encontrado');
+
+const CAMPO_VINCULO = 'catalogo_categoria_visual_id';
+
+/**
+ * Normaliza e valida o vínculo opcional com a categoria visual global
+ * (D-PROD-69). Ausente no corpo → não mexe; `null`/'' → remove o vínculo;
+ * id → só categoria ativa do tipo oficial `lote`. O tenant escolhe a
+ * categoria; o ícone continua sendo do catálogo global.
+ *
+ * Na edição, reenviar o MESMO vínculo já gravado não revalida: se a categoria
+ * oficial foi desativada depois, o cadastro antigo continua editável.
+ *
+ * @param {import('@prisma/client').Prisma.TransactionClient} tx
+ * @param {Record<string, unknown>} dados
+ * @param {Record<string, unknown> | null} [existente]
+ */
+const validarVinculoCatalogo = async (tx, dados, existente = null) => {
+  if (!Object.prototype.hasOwnProperty.call(dados, CAMPO_VINCULO)) return dados;
+  const valor = dados[CAMPO_VINCULO];
+  if (valor === null || valor === '') return { ...dados, [CAMPO_VINCULO]: null };
+  if (typeof valor !== 'string' || valor.length > 64) {
+    throw catalogoGlobalInvalid('identificador de categoria oficial inválido', { campo: CAMPO_VINCULO });
+  }
+  if (existente && existente[CAMPO_VINCULO] === valor) return dados;
+  await exigirCategoriaVisualLoteVinculavel(tx, valor);
+  return dados;
+};
 
 /** @param {Record<string, unknown>} registro */
 export const comoPublico = (registro) => {
@@ -41,7 +69,7 @@ export const criar = async (contexto, entrada) => {
   const prisma = getPrismaClient();
   const criado = await prisma.$transaction(async (tx) => {
     /** @type {Record<string, unknown>} */
-    const dados = { ...entrada, cliente_id: auth.clienteId };
+    const dados = await validarVinculoCatalogo(tx, { ...entrada, cliente_id: auth.clienteId });
 
     const registro = await inserirRegistro(tx, dados);
     await registrarEvento(
@@ -60,7 +88,8 @@ export const atualizar = async (contexto, id, entrada) => {
   const atualizado = await prisma.$transaction(async (tx) => {
     const existente = await buscarRegistro(auth.clienteId, id, tx);
     if (!existente) throw erroNaoEncontrado();
-    const registro = await atualizarRegistroPorId(tx, auth.clienteId, id, { ...entrada });
+    const dados = await validarVinculoCatalogo(tx, { ...entrada }, existente);
+    const registro = await atualizarRegistroPorId(tx, auth.clienteId, id, dados);
     await registrarEvento(
       contexto,
       {

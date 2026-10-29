@@ -40,3 +40,33 @@ export const exigirAssetPublicado = async (db, assetId, rotulo = 'asset') => {
   }
   return asset;
 };
+
+/** Código do tipo oficial cujas categorias visuais podem ser vinculadas a CategoriaManejo. */
+export const CODIGO_TIPO_LOTE = 'lote';
+
+/**
+ * Valida o vínculo `CategoriaManejo.catalogo_categoria_visual_id` (D-PROD-69):
+ * a categoria visual tem de existir, estar ativa e pertencer ao tipo oficial
+ * `lote`, também ativo. Trava as duas linhas (FOR SHARE) até o fim da
+ * transação do chamador, para uma desativação concorrente não passar entre a
+ * validação e a gravação.
+ *
+ * @param {import('@prisma/client').Prisma.TransactionClient} tx
+ * @param {string} categoriaId
+ */
+export const exigirCategoriaVisualLoteVinculavel = async (tx, categoriaId) => {
+  /** @type {Array<{ ativo: boolean, tipo_codigo: string, tipo_ativo: boolean }>} */
+  const linhas = await tx.$queryRaw`
+    SELECT c."ativo", t."codigo" AS tipo_codigo, t."ativo" AS tipo_ativo
+      FROM "CatalogoCategoriaVisual" c
+      JOIN "CatalogoTipoEntidade" t ON t."id" = c."tipo_id"
+     WHERE c."id" = ${categoriaId}
+       FOR SHARE OF c, t`;
+  const linha = linhas[0];
+  const detalhes = { campo: 'catalogo_categoria_visual_id' };
+  if (!linha) throw catalogoGlobalInvalid('categoria oficial não encontrada no catálogo', detalhes);
+  if (linha.tipo_codigo !== CODIGO_TIPO_LOTE) {
+    throw catalogoGlobalInvalid('categoria oficial não pertence ao tipo lote', detalhes);
+  }
+  if (!linha.ativo || !linha.tipo_ativo) throw catalogoGlobalInvalid('categoria oficial inativa', detalhes);
+};

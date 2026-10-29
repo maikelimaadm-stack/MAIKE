@@ -83,6 +83,8 @@ export const normalizarCategoriaManejo = (formData, { empresaId } = {}) => ({
   idade_minima_meses: inteiroOuNulo(formData.idade_minima_meses),
   idade_maxima_meses: inteiroOuNulo(formData.idade_maxima_meses),
   categoria_oficial: formData.categoria_oficial || null,
+  // Vínculo com a categoria visual global do tipo `lote` (D-PROD-69).
+  catalogo_categoria_visual_id: formData.catalogo_categoria_visual_id || null,
   ganho_peso_anual_kg: decimalOuNulo(formData.ganho_peso_anual_kg),
   ...Object.fromEntries(MESES_GMD.map((mes) => [mes, decimalOuNulo(formData[mes])])),
   ativo: true,

@@ -79,6 +79,12 @@ export const limparBanco = async () => {
     });
     if (removidas.count === 0) break;
   }
+  // CategoriaManejo (tenant) referencia CatalogoCategoriaVisual (global), que é
+  // limpo antes dela na ordem abaixo: solta o vínculo opcional primeiro.
+  await prisma.categoriaManejo.updateMany({
+    where: { catalogo_categoria_visual_id: { not: null } },
+    data: { catalogo_categoria_visual_id: null },
+  });
   for (const model of ORDEM_DE_LIMPEZA) {
     await prisma[model].deleteMany({});
   }

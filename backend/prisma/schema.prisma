@@ -970,6 +970,9 @@ model CategoriaManejo {
   idade_minima_meses    Int?
   idade_maxima_meses    Int?
   categoria_oficial     String?  @db.VarChar(128)
+  /// Vínculo explícito com a categoria visual GLOBAL do tipo `lote` (D-PROD-69).
+  /// Opcional: categorias antigas continuam válidas sem vínculo.
+  catalogo_categoria_visual_id String? @db.VarChar(64)
   ganho_peso_anual_kg   Decimal? @db.Decimal(14, 4)
   gmd_janeiro           Decimal? @db.Decimal(14, 4)
   gmd_fevereiro         Decimal? @db.Decimal(14, 4)
@@ -988,9 +991,11 @@ model CategoriaManejo {
   updatedAt             DateTime @updatedAt
 
   cliente Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  catalogoCategoriaVisual CatalogoCategoriaVisual? @relation(fields: [catalogo_categoria_visual_id], references: [id], onDelete: Restrict)
 
   @@unique([cliente_id, id])
   @@index([cliente_id, empresa_id])
+  @@index([cliente_id, catalogo_categoria_visual_id])
 }
 
 model Bebedouro {
@@ -1358,6 +1363,7 @@ model CatalogoCategoriaVisual {
   tipo              CatalogoTipoEntidade @relation(fields: [tipo_id], references: [id], onDelete: Restrict)
   icones            CatalogoIcone[]
   regrasMistoCategorias CatalogoRegraMistoCategoria[]
+  categoriasManejo  CategoriaManejo[]
 
   @@unique([tipo_id, codigo])
   @@index([tipo_id, ativo, ordem])
