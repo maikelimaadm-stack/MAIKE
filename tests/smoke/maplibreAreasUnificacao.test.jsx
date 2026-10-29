@@ -609,8 +609,11 @@ describe("R1 — polígono do editor sempre representado", () => {
     const edit = buildDesenhoCollection(pts, "area", null, { cor: "#92ca25" }).features[0];
     expect(edit.properties.fill).toBe(corExibidaNoMapa("#92ca25"));
     expect(edit.geometry.coordinates[0][0]).toEqual([0, 0]);
+    // D-PROD-66: a expressão vive no SSOT de estilo; o lifecycle só a consome.
     const life = readFileSync("src/lib/maplibre/lifecycle.js", "utf8");
-    expect(life).toContain('["coalesce", ["get", "fill"], COR_DESENHO]');
+    expect(life).toContain("paint: paintEditorPreenchimento()");
+    const estilo = readFileSync("src/lib/maplibre/estiloAreas.js", "utf8");
+    expect(estilo).toContain('"fill-color": ["coalesce", ["get", "fill"], COR_DESENHO]');
   });
 });
 

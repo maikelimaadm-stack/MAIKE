@@ -44,8 +44,9 @@ import {
   removerVertice,
   segmentosDaRegua,
   transladarPontos,
-  travarAngulo45,
 } from "@/lib/maplibre/editorModos.js";
+import { acertoEditor, pontaGuiaShift, resolverAlvoDesenho, rumoGraus } from "@/lib/maplibre/editorVisual.js";
+import CursorEditorOverlay from "./CursorEditorOverlay";
 import { pontoRotuloSeguro, textoHectares } from "@/lib/maplibre/mapaGeralRender.js";
 import useBasemap from "./useBasemap";
 import BasemapAtribuicao from "./BasemapAtribuicao";
@@ -59,7 +60,7 @@ import {
   buildMidpointsCollection,
   buildGuiaCollection,
 } from "@/lib/maplibre/geojsonBuilders.js";
-import { findNearestSnap, isNearFirstVertex } from "@/lib/maplibre/snap.js";
+import { findNearestSnap, findNearestSnapDetalhado, isNearFirstVertex } from "@/lib/maplibre/snap.js";
 import {
   commitDragTransaction,
   resolvePontoIconUrl,
@@ -115,6 +116,8 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
   const modoRef = useRef(modo);
   const originalPontosRef = useRef(/** @type {{ lat: number, lng: number }[]} */ ([]));
   const reguaMarkersRef = useRef(/** @type {any[]} */ ([]));
+  /** Overlay do cursor (cruz/ímã/rumo) — atualizado sem re-render. */
+  const cursorRef = useRef(/** @type {{ atualizar: Function, limpar: Function } | null} */ (null));
 
   const syncHistoryUi = useCallback(() => {
     setUndoLen(undoStackRef.current.length);
@@ -136,6 +139,9 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
   useEffect(() => {
     modoRef.current = modo;
     if (modo !== MODOS.EDITAR) setVerticeSelecionado(null);
+    labelsRef.current.forEach((m) => {
+      m.getElement().style.visibility = modo === MODOS.NAVEGAR ? "" : "hidden";
+    });
   }, [modo]);
   useEffect(() => {
     mountedRef.current = true;
@@ -265,6 +271,9 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
           haEl.textContent = ha;
           el.appendChild(haEl);
         }
+        // Como na referência (`ocultarRotulos={desenhando}`): rótulo não cobre
+        // vértices enquanto desenha/edita; volta no NAVEGAR (D-PROD-66).
+        el.style.visibility = modoRef.current === MODOS.NAVEGAR ? "" : "hidden";
         const marker = new maplibregl.Marker({ element: el, anchor: "center" })
           .setLngLat([lng, lat])
           .addTo(map);
@@ -335,13 +344,13 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
         tipoDesenho,
       });
       setSourceData(map, SOURCE_IDS.PONTOS, buildPontosCollection(pontosSemIcone));
-      setSourceData(map, SOURCE_IDS.DESENHO, buildDesenhoCollection(pts, tipoDesenho, marker, { cor: itemEditando?.coordenadas?.cor || itemEditando?.cor || null }));
+      setSourceData(map, SOURCE_IDS.DESENHO, buildDesenhoCollection(pts, tipoDesenho, marker, { cor: itemEditando?.coordenadas?.cor || itemEditando?.cor || null, fechado: canEditVerts }));
       if ((tipoDesenho === "area" || tipoDesenho === "linha") && pts.length > 0) {
         setSourceData(map, SOURCE_IDS.VERTICES, buildVerticesCollection(pts));
         setSourceData(
           map,
           SOURCE_IDS.MIDPOINTS,
-          canEditVerts ? buildMidpointsCollection(pts, tipoDesenho) : emptyFc()
+          canEditVerts && !dragStateRef.current?.moved ? buildMidpointsCollection(pts, tipoDesenho) : emptyFc()
         );
       } else if (tipoDesenho === "ponto" && marker) {
         setSourceData(map, SOURCE_IDS.VERTICES, buildVerticesCollection([marker]));
@@ -548,15 +557,17 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
     // vértices (outro efeito, sem a guarda) apareciam; preenchimento/contorno não.
     if (!map.getSource(SOURCE_IDS.DESENHO)) return;
 
-    setSourceData(map, SOURCE_IDS.DESENHO, buildDesenhoCollection(currentPoints, tipoDesenho, currentMarker, { cor: itemEditando?.coordenadas?.cor || itemEditando?.cor || null }));
-
     const canEditVerts = drawingClosed || !!itemEditando;
+    // Rascunho aberto: polilinha sem o lado de fecho + preenchimento sutil (D-PROD-66).
+    setSourceData(map, SOURCE_IDS.DESENHO, buildDesenhoCollection(currentPoints, tipoDesenho, currentMarker, { cor: itemEditando?.coordenadas?.cor || itemEditando?.cor || null, fechado: canEditVerts }));
+
     if ((tipoDesenho === "area" || tipoDesenho === "linha") && currentPoints.length > 0) {
       setSourceData(map, SOURCE_IDS.VERTICES, buildVerticesCollection(currentPoints));
+      // Durante o arrasto os meios somem (referência), voltam ao soltar.
       setSourceData(
         map,
         SOURCE_IDS.MIDPOINTS,
-        canEditVerts ? buildMidpointsCollection(currentPoints, tipoDesenho) : emptyFc()
+        canEditVerts && !dragStateRef.current?.moved ? buildMidpointsCollection(currentPoints, tipoDesenho) : emptyFc()
       );
     } else if (tipoDesenho === "ponto" && currentMarker) {
       setSourceData(map, SOURCE_IDS.VERTICES, buildVerticesCollection([currentMarker]));
@@ -584,31 +595,25 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
       if (!podeAdicionarVertice(modoRef.current, drawingClosedRef.current)) return;
       if (zoomingRef.current) return;
 
-      if (tipoDesenho === "area" && isNearFirstVertex(map, latLng, currentPointsRef.current, 20)) {
+      // Mesmo alvo do cursor (fechar → trava 45° → ímã): o ponto cai onde a cruz/anel mostrava.
+      const r = resolverAlvoDesenho(map, latLng, {
+        pontos: currentPointsRef.current,
+        tipo: tipoDesenho,
+        shift: mods.shift,
+        alt: mods.alt,
+        imaLigado: snappingRef.current,
+        areas: areasRef.current,
+        linhas: linhasRef.current,
+      });
+      if (r.ima?.tipo === "fechar") {
         setDrawingClosed(true);
         setModo(MODOS.EDITAR);
         toast.success("Área fechada! Arraste os pontos, navegue ou clique Salvar.", { duration: 2000 });
         return;
       }
 
-      let { lat, lng } = latLng;
-      const ultimo = currentPointsRef.current[currentPointsRef.current.length - 1];
-      if (mods.shift && ultimo && tipoDesenho !== "ponto") {
-        const travado = travarAngulo45(map.project([ultimo.lng, ultimo.lat]), map.project([lng, lat]));
-        const ll = map.unproject([travado.x, travado.y]);
-        lat = ll.lat;
-        lng = ll.lng;
-      }
-      const snapped = findNearestSnap(map, { lat, lng }, {
-        areas: areasRef.current,
-        linhas: linhasRef.current,
-        enabled: snappingRef.current && !mods.alt,
-      });
-      if (snapped) {
-        lat = snapped.lat;
-        lng = snapped.lng;
-        toast.success("Encaixado!", { duration: 600 });
-      }
+      const { lat, lng } = r.alvo;
+      if (r.ima) toast.success("Encaixado!", { duration: 600 });
 
       if (tipoDesenho === "ponto") {
         setCurrentMarker({ lat, lng });
@@ -665,50 +670,129 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
     };
   }, [tipoDesenho, mapReady, itemEditando, drawingClosed, syncHistoryUi, modo]);
 
-  // Guia elástica
+  // Cursor do DESENHAR (D-PROD-66): elástico sólido, guia Shift adicional, aresta
+  // do ímã (layers MapLibre) + cruz/anel/rumo (overlay DOM, sem re-render).
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map || !mapReady) return undefined;
     if (!(tipoDesenho === "area" || tipoDesenho === "linha") || itemEditando) return undefined;
 
-    if (!podeAdicionarVertice(modo, drawingClosed)) {
+    const limpar = () => {
       setSourceData(map, SOURCE_IDS.GUIA, emptyFc());
+      cursorRef.current?.limpar();
+    };
+    if (!podeAdicionarVertice(modo, drawingClosed)) {
+      limpar();
       return undefined;
     }
 
+    let movendo = false;
+    let ultimoToque = 0;
+    // Toque não tem cursor: o mousemove de compatibilidade que segue o tap não
+    // pode deixar cruz/anel/elástico "presos" onde o dedo tocou.
+    const onPointerDown = (ev) => {
+      if (ev.pointerType && ev.pointerType !== "mouse") {
+        ultimoToque = Date.now();
+        limpar();
+      }
+    };
     const onMove = (e) => {
+      // Pan/zoom em curso: nada de cursor de inserção (como na referência).
+      if (movendo || map.isMoving()) return limpar();
+      if (Date.now() - ultimoToque < 800) return limpar();
       const pts = currentPointsRef.current;
-      const last = pts[pts.length - 1];
-      if (!last) {
-        setSourceData(map, SOURCE_IDS.GUIA, emptyFc());
-        return;
-      }
-      let target = { lat: e.lngLat.lat, lng: e.lngLat.lng };
-      if (e.originalEvent?.shiftKey) {
-        const t = travarAngulo45(map.project([last.lng, last.lat]), e.point);
-        const ll = map.unproject([t.x, t.y]);
-        target = { lat: ll.lat, lng: ll.lng };
-      }
-      const snapped = findNearestSnap(map, target, {
+      const r = resolverAlvoDesenho(map, { lat: e.lngLat.lat, lng: e.lngLat.lng }, {
+        pontos: pts,
+        tipo: tipoDesenho,
+        shift: !!e.originalEvent?.shiftKey,
+        alt: !!e.originalEvent?.altKey,
+        imaLigado: snappingRef.current,
         areas: areasRef.current,
         linhas: linhasRef.current,
-        enabled: snappingRef.current && !e.originalEvent?.altKey,
       });
-      if (snapped) target = snapped;
-      setSourceData(map, SOURCE_IDS.GUIA, buildGuiaCollection(last, target));
+      const curPx = map.project([r.alvo.lng, r.alvo.lat]);
+      const cur = { x: curPx.x, y: curPx.y };
+      const last = pts[pts.length - 1] || null;
+      let shiftAte = null;
+      let rumo = null;
+      if (r.travado && last) {
+        const lastPx = map.project([last.lng, last.lat]);
+        const p = pontaGuiaShift(lastPx, cur);
+        const ponta = map.unproject([p.x, p.y]);
+        shiftAte = { lat: ponta.lat, lng: ponta.lng };
+        rumo = rumoGraus(lastPx, cur);
+      }
+      setSourceData(
+        map,
+        SOURCE_IDS.GUIA,
+        buildGuiaCollection(last, last ? r.alvo : null, { shiftAte, imaAresta: r.ima?.tipo === "aresta" ? r.ima.aresta : null })
+      );
+      cursorRef.current?.atualizar({ cur, ima: r.ima, cruz: true, rumo });
     };
 
-    const onLeave = () => setSourceData(map, SOURCE_IDS.GUIA, emptyFc());
-
+    const onMoveStart = () => {
+      movendo = true;
+      limpar();
+    };
+    const onMoveEnd = () => {
+      movendo = false;
+    };
+    const canvas = map.getCanvas();
     map.on("mousemove", onMove);
-    map.getCanvas().addEventListener("mouseleave", onLeave);
+    map.on("movestart", onMoveStart);
+    map.on("moveend", onMoveEnd);
+    canvas.addEventListener("mouseleave", limpar);
+    canvas.addEventListener("pointerdown", onPointerDown, { passive: true });
 
     return () => {
+      canvas.removeEventListener("pointerdown", onPointerDown);
       map.off("mousemove", onMove);
-      map.getCanvas().removeEventListener("mouseleave", onLeave);
-      setSourceData(map, SOURCE_IDS.GUIA, emptyFc());
+      map.off("movestart", onMoveStart);
+      map.off("moveend", onMoveEnd);
+      canvas.removeEventListener("mouseleave", limpar);
+      limpar();
     };
   }, [mapReady, tipoDesenho, itemEditando, snappingEnabled, drawingClosed, modo]);
+
+  // EDITAR: hover de vértice/meio com área de acerto maior que o círculo (8px mouse).
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map || !mapReady || !(tipoDesenho === "area" || tipoDesenho === "linha")) return undefined;
+    if (!podeEditarVertices(modo, tipoDesenho)) return undefined;
+    const canvas = map.getCanvas();
+    /** @type {{ source: string, id: string } | null} */
+    let atual = null;
+    const soltar = () => {
+      if (atual) {
+        try {
+          map.removeFeatureState(atual, atual.source === SOURCE_IDS.VERTICES ? "ativo" : "hover");
+        } catch {
+          /* fonte recriada (troca de estilo) */
+        }
+      }
+      atual = null;
+      canvas.style.cursor = "";
+    };
+    const onMove = (e) => {
+      if (dragStateRef.current) return;
+      if (map.isMoving()) return soltar();
+      const a = acertoEditor(map, e.point, { camadas: { vertices: LAYER_IDS.VERTICES, meios: LAYER_IDS.MIDPOINTS } });
+      const alvo = a ? { source: a.role === "vertex" ? SOURCE_IDS.VERTICES : SOURCE_IDS.MIDPOINTS, id: a.id } : null;
+      if (alvo && atual && alvo.source === atual.source && alvo.id === atual.id) return;
+      soltar();
+      if (!alvo) return;
+      atual = alvo;
+      map.setFeatureState(alvo, alvo.source === SOURCE_IDS.VERTICES ? { ativo: true } : { hover: true });
+      canvas.style.cursor = a.role === "vertex" ? "move" : "copy";
+    };
+    map.on("mousemove", onMove);
+    canvas.addEventListener("mouseleave", soltar);
+    return () => {
+      map.off("mousemove", onMove);
+      canvas.removeEventListener("mouseleave", soltar);
+      soltar();
+    };
+  }, [mapReady, tipoDesenho, modo]);
 
   // Drag vértices/midpoints — pointer + touch (R5-03, R5-04)
   useEffect(() => {
@@ -720,11 +804,24 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
 
     const canvas = map.getCanvas();
 
+    const limparVisualArrasto = (st) => {
+      setSourceData(map, SOURCE_IDS.GUIA, emptyFc());
+      cursorRef.current?.limpar();
+      if (st?.ativoId) {
+        try {
+          map.removeFeatureState({ source: SOURCE_IDS.VERTICES, id: st.ativoId }, "ativo");
+        } catch {
+          /* fonte recriada */
+        }
+      }
+    };
+
     const endDrag = (lngLat, { cancel = false } = {}) => {
       const st = dragStateRef.current;
       if (!st) return;
       map.dragPan.enable();
       dragStateRef.current = null;
+      limparVisualArrasto(st);
 
       if (cancel) {
         if (tipoDesenho === "ponto") {
@@ -743,24 +840,12 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
       }
       if (!st.moved && tipoDesenho === "ponto") return;
 
-      let target = lngLat ? { lat: lngLat.lat, lng: lngLat.lng } : null;
-      if (target) {
-        const snapped = findNearestSnap(map, target, {
-          areas: areasRef.current,
-          linhas: linhasRef.current,
-          enabled: snappingRef.current && !st.alt,
-        });
-        if (snapped) {
-          target = snapped;
-          toast.success("Encaixado!", { duration: 600 });
-        }
-      }
-
-      if (st.role === "midpoint" && target && (tipoDesenho === "area" || tipoDesenho === "linha")) {
+      // Toque/clique no meio sem arrastar: ponto novo exatamente no meio do lado.
+      if (st.role === "midpoint" && (tipoDesenho === "area" || tipoDesenho === "linha")) {
         const insertAfter = st.index;
         const before = st.before || [];
         const after = [...before];
-        after.splice(insertAfter + 1, 0, target);
+        after.splice(insertAfter + 1, 0, { ...st.meio });
         const tx = commitDragTransaction({
           undo: undoStackRef.current,
           redo: redoStackRef.current,
@@ -773,6 +858,19 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
         setCurrentPoints(after);
         if (tx.committed) toast.success("Novo ponto inserido", { duration: 800 });
         return;
+      }
+
+      let target = lngLat ? { lat: lngLat.lat, lng: lngLat.lng } : null;
+      if (target) {
+        const snapped = findNearestSnap(map, target, {
+          areas: areasRef.current,
+          linhas: linhasRef.current,
+          enabled: snappingRef.current && !st.alt,
+        });
+        if (snapped) {
+          target = snapped;
+          toast.success("Encaixado!", { duration: 600 });
+        }
       }
 
       if (tipoDesenho === "ponto" && target) {
@@ -794,7 +892,8 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
       if (st.role === "vertex" && target && tipoDesenho !== "ponto") {
         const before = st.before || [];
         const after = before.map((p) => ({ ...p }));
-        if (after[st.index]) after[st.index] = target;
+        if (st.inserido) after.splice(st.index, 0, target);
+        else if (after[st.index]) after[st.index] = target;
         const tx = commitDragTransaction({
           undo: undoStackRef.current,
           redo: redoStackRef.current,
@@ -805,38 +904,33 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
         redoStackRef.current = tx.redo;
         syncHistoryUi();
         setCurrentPoints(after);
-        if (tx.committed) toast.success(`Ponto ${st.index + 1} reposicionado`, { duration: 800 });
+        if (tx.committed) toast.success(st.inserido ? "Novo ponto inserido" : `Ponto ${st.index + 1} reposicionado`, { duration: 800 });
       }
     };
 
     const onPointerDown = (e) => {
-      if (e.pointerType === "touch" && !e.isPrimary) return;
-      const layers = [LAYER_IDS.VERTICES, LAYER_IDS.MIDPOINTS].filter((id) => map.getLayer(id));
-      if (layers.length === 0) return;
-      // Alvo de toque generoso (vértice desenhado tem ~10px).
-      const tol = e.originalEvent?.type?.startsWith("touch") ? 14 : 8;
-      const feats = map.queryRenderedFeatures(
-        [
-          [e.point.x - tol, e.point.y - tol],
-          [e.point.x + tol, e.point.y + tol],
-        ],
-        { layers }
-      );
-      if (!feats.length) return;
-      const f = feats[0];
-      const role = f.properties?.role;
-      const index = Number(f.properties?.index);
+      const oe = e.originalEvent;
+      if (oe?.touches && oe.touches.length > 1) return; // pinça é do mapa
+      // Área de acerto maior que o desenho (mouse 8px, toque 14px) — VIS-04.
+      const a = acertoEditor(map, e.point, {
+        toque: !!oe?.type?.startsWith("touch"),
+        camadas: { vertices: LAYER_IDS.VERTICES, meios: LAYER_IDS.MIDPOINTS },
+      });
+      if (!a) return;
       e.preventDefault();
       map.dragPan.disable();
       dragStateRef.current = {
-        role,
-        index,
+        role: a.role,
+        index: a.index,
+        meio: a.role === "midpoint" ? { lat: a.lat, lng: a.lng } : null,
+        inserido: false,
+        ativoId: null,
         before: currentPointsRef.current.map((p) => ({ ...p })),
         beforeMarker: currentMarkerRef.current ? { ...currentMarkerRef.current } : null,
-        pointerId: e.originalEvent?.pointerId,
+        pointerId: oe?.pointerId,
         downPx: { x: e.point.x, y: e.point.y },
         moved: false,
-        alt: !!e.originalEvent?.altKey,
+        alt: !!oe?.altKey,
       };
     };
 
@@ -846,24 +940,39 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
       if (!st.moved) {
         if (Math.hypot(e.point.x - st.downPx.x, e.point.y - st.downPx.y) < LIMIAR_ARRASTO_PX) return;
         st.moved = true;
+        // Segurar no meio e arrastar: cria o ponto e passa a arrastá-lo (referência).
+        if (st.role === "midpoint" && tipoDesenho !== "ponto") {
+          st.role = "vertex";
+          st.index += 1;
+          st.inserido = true;
+        }
+        if (st.role === "vertex" && tipoDesenho !== "ponto") {
+          st.ativoId = `v-${st.index}`;
+          map.setFeatureState({ source: SOURCE_IDS.VERTICES, id: st.ativoId }, { ativo: true });
+        }
       }
       st.alt = !!e.originalEvent?.altKey;
       let target = { lat: e.lngLat.lat, lng: e.lngLat.lng };
-      const snapped = findNearestSnap(map, target, {
+      const snapped = findNearestSnapDetalhado(map, target, {
         areas: areasRef.current,
         linhas: linhasRef.current,
         enabled: snappingRef.current && !st.alt,
       });
-      if (snapped) target = snapped;
+      if (snapped) target = { lat: snapped.lat, lng: snapped.lng };
+      // Feedback do ímã também no arrasto: anel + cruz no alvo, aresta destacada.
+      const curPx = map.project([target.lng, target.lat]);
+      cursorRef.current?.atualizar({ cur: { x: curPx.x, y: curPx.y }, ima: snapped ? { tipo: snapped.tipo } : null, cruz: false });
+      setSourceData(map, SOURCE_IDS.GUIA, buildGuiaCollection(null, null, { imaAresta: snapped?.tipo === "aresta" ? snapped.aresta : null }));
 
       if (tipoDesenho === "ponto") {
         setCurrentMarker(target);
         return;
       }
       if (st.role === "vertex") {
-        setCurrentPoints((prev) => {
-          const updated = [...prev];
-          if (updated[st.index]) updated[st.index] = target;
+        setCurrentPoints(() => {
+          const updated = st.before.map((p) => ({ ...p }));
+          if (st.inserido) updated.splice(st.index, 0, target);
+          else if (updated[st.index]) updated[st.index] = target;
           return updated;
         });
       }
@@ -894,10 +1003,8 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
       if (dragStateRef.current) endDrag(null, { cancel: true });
     };
 
-    map.on("mousedown", LAYER_IDS.VERTICES, onPointerDown);
-    map.on("mousedown", LAYER_IDS.MIDPOINTS, onPointerDown);
-    map.on("touchstart", LAYER_IDS.VERTICES, onPointerDown);
-    map.on("touchstart", LAYER_IDS.MIDPOINTS, onPointerDown);
+    map.on("mousedown", onPointerDown);
+    map.on("touchstart", onPointerDown);
     map.on("mousemove", onPointerMove);
     map.on("touchmove", onPointerMove);
     map.on("mouseup", onPointerUp);
@@ -907,10 +1014,8 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
     window.addEventListener("keydown", onKeyDown);
 
     return () => {
-      map.off("mousedown", LAYER_IDS.VERTICES, onPointerDown);
-      map.off("mousedown", LAYER_IDS.MIDPOINTS, onPointerDown);
-      map.off("touchstart", LAYER_IDS.VERTICES, onPointerDown);
-      map.off("touchstart", LAYER_IDS.MIDPOINTS, onPointerDown);
+      map.off("mousedown", onPointerDown);
+      map.off("touchstart", onPointerDown);
       map.off("mousemove", onPointerMove);
       map.off("touchmove", onPointerMove);
       map.off("mouseup", onPointerUp);
@@ -919,6 +1024,7 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
       window.removeEventListener("blur", onBlur);
       window.removeEventListener("keydown", onKeyDown);
       map.dragPan.enable();
+      limparVisualArrasto(dragStateRef.current);
       dragStateRef.current = null;
       void canvas;
     };
@@ -1133,6 +1239,8 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
           }}
           className={crosshair ? "[&_*]:cursor-crosshair" : ""}
         />
+
+        <CursorEditorOverlay ref={cursorRef} />
 
         <BasemapAtribuicao atribuicao={basemap.atribuicao} status={basemap.status} mensagem={basemap.mensagem} onRetry={basemap.retry} />
 

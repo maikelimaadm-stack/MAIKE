@@ -10,16 +10,21 @@ import {
   resolveBasemapProvider,
 } from "./basemap.js";
 import {
-  COR_DESENHO,
   COR_LINHA_AREA,
-  COR_VERTICE_FILL,
-  COR_VERTICE_STROKE,
   LAYER_IDS,
+  LAYOUT_LINHA_REDONDA,
   OPACIDADE_FILL_AREA,
-  OPACIDADE_FILL_DESENHO,
   SOURCE_IDS,
   corExibidaNoMapa,
   paintAreaDivisa,
+  paintEditorContorno,
+  paintEditorMeios,
+  paintEditorPreenchimento,
+  paintEditorVertices,
+  paintElastico,
+  paintGuiaShift,
+  paintImaAresta,
+  paintVerticeSelecao,
 } from "./estiloAreas.js";
 
 /**
@@ -127,72 +132,67 @@ export function ensureBusinessLayers(map) {
       },
     });
   }
-  if (!map.getLayer(LAYER_IDS.DESENHO_FILL)) {
-    map.addLayer({
-      id: LAYER_IDS.DESENHO_FILL,
-      type: "fill",
-      source: SOURCE_IDS.DESENHO,
-      filter: ["==", ["geometry-type"], "Polygon"],
-      paint: {
-        // Área existente em edição: cor salva (mesma opacidade da área cadastrada);
-        // rascunho novo: laranja translúcido.
-        "fill-color": ["coalesce", ["get", "fill"], COR_DESENHO],
-        "fill-opacity": ["case", ["has", "fill"], OPACIDADE_FILL_AREA, OPACIDADE_FILL_DESENHO],
-      },
-    });
-  }
-  if (!map.getLayer(LAYER_IDS.DESENHO_LINE)) {
-    map.addLayer({
-      id: LAYER_IDS.DESENHO_LINE,
-      type: "line",
-      source: SOURCE_IDS.DESENHO,
-      paint: {
-        "line-color": COR_DESENHO,
-        "line-width": 2.2,
-        "line-opacity": 1,
-      },
-    });
-  }
-  if (!map.getLayer(LAYER_IDS.GUIA)) {
-    map.addLayer({
-      id: LAYER_IDS.GUIA,
-      type: "line",
-      source: SOURCE_IDS.GUIA,
-      paint: {
-        "line-color": COR_DESENHO,
-        "line-width": 2,
-        "line-opacity": 0.9,
-        "line-dasharray": [1.5, 1.5],
-      },
-    });
-  }
-  if (!map.getLayer(LAYER_IDS.VERTICES)) {
-    map.addLayer({
-      id: LAYER_IDS.VERTICES,
-      type: "circle",
-      source: SOURCE_IDS.VERTICES,
-      paint: {
-        "circle-radius": ["case", ["boolean", ["get", "selecionado"], false], 8, 5],
-        "circle-color": ["case", ["boolean", ["get", "selecionado"], false], COR_VERTICE_STROKE, COR_VERTICE_FILL],
-        "circle-stroke-color": ["case", ["boolean", ["get", "selecionado"], false], COR_VERTICE_FILL, COR_VERTICE_STROKE],
-        "circle-stroke-width": 2.4,
-      },
-    });
-  }
-  if (!map.getLayer(LAYER_IDS.MIDPOINTS)) {
-    map.addLayer({
-      id: LAYER_IDS.MIDPOINTS,
-      type: "circle",
-      source: SOURCE_IDS.MIDPOINTS,
-      paint: {
-        "circle-radius": 3.5,
-        "circle-color": COR_DESENHO,
-        "circle-opacity": 0.55,
-        "circle-stroke-color": COR_DESENHO,
-        "circle-stroke-width": 1,
-      },
-    });
-  }
+  // Editor — ordem da referência (`camada-desenho.tsx`): aresta do ímã, preenchimento,
+  // contorno, elástico, guia Shift, meios, vértices (cursor/anel ficam no overlay DOM).
+  const addLayer = (spec) => {
+    if (!map.getLayer(spec.id)) map.addLayer(spec);
+  };
+  addLayer({
+    id: LAYER_IDS.DESENHO_FILL,
+    type: "fill",
+    source: SOURCE_IDS.DESENHO,
+    filter: ["==", ["geometry-type"], "Polygon"],
+    paint: paintEditorPreenchimento(),
+  });
+  addLayer({
+    id: LAYER_IDS.IMA_ARESTA_HALO,
+    type: "line",
+    source: SOURCE_IDS.GUIA,
+    filter: ["==", ["get", "tipo"], "ima-aresta"],
+    layout: { ...LAYOUT_LINHA_REDONDA },
+    paint: paintImaAresta(true),
+  });
+  addLayer({
+    id: LAYER_IDS.IMA_ARESTA,
+    type: "line",
+    source: SOURCE_IDS.GUIA,
+    filter: ["==", ["get", "tipo"], "ima-aresta"],
+    layout: { ...LAYOUT_LINHA_REDONDA },
+    paint: paintImaAresta(false),
+  });
+  addLayer({
+    id: LAYER_IDS.DESENHO_LINE,
+    type: "line",
+    source: SOURCE_IDS.DESENHO,
+    // Rascunho aberto: só a polilinha (sem o lado de fecho); fechado: contorno inteiro.
+    filter: ["==", ["get", "contorno"], true],
+    layout: { ...LAYOUT_LINHA_REDONDA },
+    paint: paintEditorContorno(),
+  });
+  addLayer({
+    id: LAYER_IDS.GUIA,
+    type: "line",
+    source: SOURCE_IDS.GUIA,
+    filter: ["==", ["get", "tipo"], "elastico"],
+    layout: { "line-cap": "round" },
+    paint: paintElastico(),
+  });
+  addLayer({
+    id: LAYER_IDS.GUIA_SHIFT,
+    type: "line",
+    source: SOURCE_IDS.GUIA,
+    filter: ["==", ["get", "tipo"], "shift"],
+    paint: paintGuiaShift(),
+  });
+  addLayer({ id: LAYER_IDS.MIDPOINTS, type: "circle", source: SOURCE_IDS.MIDPOINTS, paint: paintEditorMeios() });
+  addLayer({
+    id: LAYER_IDS.VERTICES_SELECAO,
+    type: "circle",
+    source: SOURCE_IDS.VERTICES,
+    filter: ["==", ["get", "selecionado"], true],
+    paint: paintVerticeSelecao(),
+  });
+  addLayer({ id: LAYER_IDS.VERTICES, type: "circle", source: SOURCE_IDS.VERTICES, paint: paintEditorVertices() });
 }
 
 /**

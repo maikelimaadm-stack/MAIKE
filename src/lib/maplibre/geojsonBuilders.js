@@ -106,30 +106,33 @@ export function buildPontosCollection(pontos) {
  * @param {{ lat: number, lng: number }[]} points
  * @param {'area' | 'linha' | 'ponto'} tipo
  * @param {{ lat: number, lng: number } | null} [marker]
- * @param {{ cor?: string | null }} [opts] cor salva da área em edição (pinta o
- *   preenchimento com a cor real, +5% branco; sem cor = laranja de rascunho)
+ * @param {{ cor?: string | null, fechado?: boolean }} [opts]
+ *   `cor`: cor salva da área em edição (preenchimento e contorno na cor real,
+ *   +5% branco; sem cor = laranja de rascunho).
+ *   `fechado`: false = rascunho aberto — preenchimento sutil sem o lado de fecho,
+ *   contorno só na polilinha (referência `camada-desenho.tsx`). Padrão true.
  * @returns {GeoJSON.FeatureCollection}
  */
 export function buildDesenhoCollection(points, tipo, marker = null, opts = {}) {
-  const fill = opts.cor ? corExibidaNoMapa(opts.cor) : null;
+  const fechado = opts.fechado !== false;
+  const fill = opts.cor && fechado ? corExibidaNoMapa(opts.cor) : null;
   /** @type {GeoJSON.Feature[]} */
   const features = [];
   if (tipo === "area") {
     const geometry = toGeoJsonPolygon(points);
     if (geometry) {
-      features.push({
-        type: "Feature",
-        id: "desenho",
-        properties: fill ? { id: "desenho", fill } : { id: "desenho" },
-        geometry,
-      });
-    } else if (points.length >= 2) {
-      const line = toGeoJsonLineString(points);
+      /** @type {Record<string, unknown>} */
+      const properties = { id: "desenho", fechado, contorno: fechado };
+      if (fill) properties.fill = fill;
+      features.push({ type: "Feature", id: "desenho", properties, geometry });
+    }
+    if (!fechado || !geometry) {
+      const line = points.length >= 2 ? toGeoJsonLineString(points) : null;
       if (line) {
         features.push({
           type: "Feature",
-          id: "desenho",
-          properties: { id: "desenho" },
+          id: geometry ? "desenho-contorno" : "desenho",
+          properties: { id: geometry ? "desenho-contorno" : "desenho", contorno: true },
           geometry: line,
         });
       }
@@ -140,7 +143,7 @@ export function buildDesenhoCollection(points, tipo, marker = null, opts = {}) {
       features.push({
         type: "Feature",
         id: "desenho",
-        properties: { id: "desenho" },
+        properties: { id: "desenho", contorno: true },
         geometry,
       });
     }
@@ -199,26 +202,30 @@ export function buildMidpointsCollection(points, tipo) {
 }
 
 /**
+ * Feições transitórias do cursor no editor (source GUIA), por `tipo`:
+ * `elastico` (último ponto → cursor), `shift` (guia adicional do 45°) e
+ * `ima-aresta` (lado sob o ímã). Só apresentação — nunca persiste.
  * @param {{ lat: number, lng: number } | null} from
  * @param {{ lat: number, lng: number } | null} to
+ * @param {{ shiftAte?: { lat: number, lng: number } | null, imaAresta?: [{ lat: number, lng: number }, { lat: number, lng: number }] | null }} [opts]
  * @returns {GeoJSON.FeatureCollection}
  */
-export function buildGuiaCollection(from, to) {
-  if (!from || !to) return { type: "FeatureCollection", features: [] };
-  return {
-    type: "FeatureCollection",
-    features: [
-      {
-        type: "Feature",
-        id: "guia",
-        properties: { id: "guia" },
-        geometry: {
-          type: "LineString",
-          coordinates: [latLngToLngLat(from), latLngToLngLat(to)],
-        },
-      },
-    ],
-  };
+export function buildGuiaCollection(from, to, opts = {}) {
+  /** @type {GeoJSON.Feature[]} */
+  const features = [];
+  const linha = (id, tipo, a, b) =>
+    features.push({
+      type: "Feature",
+      id,
+      properties: { id, tipo },
+      geometry: { type: "LineString", coordinates: [latLngToLngLat(a), latLngToLngLat(b)] },
+    });
+  if (opts.imaAresta && opts.imaAresta[0] && opts.imaAresta[1]) linha("ima-aresta", "ima-aresta", opts.imaAresta[0], opts.imaAresta[1]);
+  if (from && to) {
+    linha("guia", "elastico", from, to);
+    if (opts.shiftAte) linha("guia-shift", "shift", from, opts.shiftAte);
+  }
+  return { type: "FeatureCollection", features };
 }
 
 export {

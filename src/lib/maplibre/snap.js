@@ -60,17 +60,35 @@ export function unprojectPx(map, px) {
  */
 
 /**
+ * @typedef {{ lat: number, lng: number, tipo: 'vertice' | 'aresta', aresta?: [{ lat: number, lng: number }, { lat: number, lng: number }] }} SnapDetalhado
+ */
+
+/**
  * @param {import('maplibre-gl').Map} map
  * @param {{ lat: number, lng: number }} mouse
  * @param {{ areas?: SnapEntidade[], linhas?: SnapEntidade[], toleranciaPx?: number, enabled?: boolean }} opts
  * @returns {{ lat: number, lng: number } | null}
  */
 export function findNearestSnap(map, mouse, opts = {}) {
+  const s = findNearestSnapDetalhado(map, mouse, opts);
+  return s ? { lat: s.lat, lng: s.lng } : null;
+}
+
+/**
+ * Mesma regra de `findNearestSnap` (inalterada), devolvendo também o que foi
+ * atraído — vértice ou aresta (com as pontas) — para o feedback visual do ímã.
+ * @param {import('maplibre-gl').Map} map
+ * @param {{ lat: number, lng: number }} mouse
+ * @param {{ areas?: SnapEntidade[], linhas?: SnapEntidade[], toleranciaPx?: number, enabled?: boolean }} opts
+ * @returns {SnapDetalhado | null}
+ */
+export function findNearestSnapDetalhado(map, mouse, opts = {}) {
   if (opts.enabled === false) return null;
   const tol = opts.toleranciaPx ?? 16;
   const mousePx = projectLatLng(map, mouse);
   if (!mousePx) return null;
 
+  /** @type {SnapDetalhado | null} */
   let best = null;
   let bestDist = Infinity;
 
@@ -80,7 +98,7 @@ export function findNearestSnap(map, mouse, opts = {}) {
     const d = distPx(mousePx, px);
     if (d < tol && d < bestDist) {
       bestDist = d;
-      best = { lat, lng };
+      best = { lat, lng, tipo: "vertice" };
     }
   };
 
@@ -94,7 +112,7 @@ export function findNearestSnap(map, mouse, opts = {}) {
       const ll = unprojectPx(map, q);
       if (ll) {
         bestDist = d;
-        best = ll;
+        best = { lat: ll.lat, lng: ll.lng, tipo: "aresta", aresta: [{ lat: a.lat, lng: a.lng }, { lat: b.lat, lng: b.lng }] };
       }
     }
   };
