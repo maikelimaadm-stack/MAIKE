@@ -449,14 +449,12 @@ describe('MAP13/MAP16 — nenhuma dependência da Drawing Library', () => {
     // M1: removeu geometry de MapaDesenho/FormularioArea/FormularioLinha (Turf).
     // M2-A: CapturaGPSPoligono → MapLibre (sem geometry).
     // M2-B1: TaskLocationPickerDialog → MapLibre (PIP próprio).
-    // Restam SelecaoDepositoMapa / ModalCadastroLotePontos (+ outros) até M2-B2/M3.
-    expect(usos.length).toBeGreaterThanOrEqual(2);
-    expect(usos.map(([rel]) => rel).sort()).toEqual(
-      expect.arrayContaining([
-        'src/components/mapa/SelecaoDepositoMapa.jsx',
-        'src/components/mapa/ModalCadastroLotePontos.jsx',
-      ])
-    );
+    // M2-B3: SelecaoDepositoMapa → MapLibre (distância via Turf).
+    // Resta ModalCadastroLotePontos (+ outros) até M3.
+    expect(usos.length).toBeGreaterThanOrEqual(1);
+    const rels = usos.map(([rel]) => rel);
+    expect(rels).toContain('src/components/mapa/ModalCadastroLotePontos.jsx');
+    expect(rels).not.toContain('src/components/mapa/SelecaoDepositoMapa.jsx');
     expect(GOOGLE_MAPS_REQUIRED_LIBRARIES).toContain('geometry');
   });
 });

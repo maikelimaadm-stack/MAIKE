@@ -2578,4 +2578,39 @@ Merge só pelo proprietário após auditoria.
 
 ---
 
-<!-- Próxima decisão: D-PROD-64 -->
+## D-PROD-64 — MapLibre M2-B3: seleção de depósito no mapa
+
+**Missão:** `MAPLIBRE-M2B3-SELECAO-DEPOSITO-01`\
+**Relatório:** `docs/engineering/MAPLIBRE-M2B3-SELECAO-DEPOSITO-REPORT.md`\
+**Branch:** `claude/new-session-26kpxu`\
+**Base:** `origin/main` = `91a11e16` (merge PR #133 / D-PROD-63)
+
+**Decisão:**
+
+1. `SelecaoDepositoMapa` deixa de usar Maps JS (`loadGoogleMaps`, `google.maps.*`,
+   `geometry.spherical`) e passa a MapLibre GL JS, reusando `createEditorMap`,
+   `setSourceData`, basemap ruas OpenFreeMap Liberty e `geografia/` (Turf).
+2. API pública **congelada**: `cochoCoords`, `depositoSelecionadoId`,
+   `onSelect(depositoId)`, `onClose()` (caller: `FormularioPonto`, não tocado).
+   Clique/toque/Enter no depósito chama `onSelect` uma vez; `Confirmado` e
+   `Cancelar` só chamam `onClose` (igual ao legado).
+3. Helpers puros em `src/lib/maplibre/selecaoDepositoMapa.js`: filtro
+   empresa/ativo/`DEPOSITO`, coords zero-safe (`parseVertex`), dedupe por id,
+   associação de ícone por nome/sigla **com a mesma política do legado**
+   (primeira referência ativa da empresa), distância geodésica sem SDK,
+   linha `[lng,lat]`, tamanho de ícone preservando aspecto.
+4. Correções vs legado: zero válido; mapa não é recriado quando props mudam;
+   `fitBounds` uma vez por instância/empresa; ícone assíncrono ignorado após
+   troca de lista/unmount (sem overlay morto); ícone quebrado cai em círculo
+   estável; falha de consulta/tiles/WebGL visível com retry; safe-area.
+5. Ícone continua vindo do legado `icone_url` dos pontos de referência — **não**
+   liga ao catálogo global (D-PROD-57/60/62).
+6. Fora: `ModalCadastroLotePontos`, `MapaGeral`, `useMapRenderer`, catálogo,
+   backend/RLS, `src/lib/googleMaps.js` e `VITE_GOOGLE_MAPS_API_KEY` (ainda usados).
+
+**Consequência:** Google permanece em `ModalCadastroLotePontos`/`MapaGeral` até M3/M4.
+Merge só pelo proprietário após auditoria.
+
+---
+
+<!-- Próxima decisão: D-PROD-65 -->

@@ -212,9 +212,9 @@ describe("maplibre/taskLocationPicker — sem Maps JS no picker", () => {
     const fs = await import("node:fs");
     const path = await import("node:path");
     const geral = fs.readFileSync(path.join(process.cwd(), "src/pages/MapaGeral.jsx"), "utf8");
-    // M2-B2 migrou SelecaoAreasMapa; prova remanescente: depósito + loader
+    // M2-B2/M2-B3 migraram áreas e depósito; prova remanescente: lote de pontos + loader
     const deposito = fs.readFileSync(
-      path.join(process.cwd(), "src/components/mapa/SelecaoDepositoMapa.jsx"),
+      path.join(process.cwd(), "src/components/mapa/ModalCadastroLotePontos.jsx"),
       "utf8"
     );
     const gmaps = fs.readFileSync(path.join(process.cwd(), "src/lib/googleMaps.js"), "utf8");
