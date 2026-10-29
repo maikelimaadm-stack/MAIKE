@@ -2516,12 +2516,47 @@ Merge só pelo proprietário após auditoria.
 
 ---
 
-## D-PROD-62 — MapLibre M2-B2: seleção de áreas no mapa
+## D-PROD-62 — Catálogo global slice 1 R1: confiabilidade backend
+
+**Missão:** `CATALOGO-GLOBAL-SLICE1-R1-BACKEND-01` (28/10/2026)  
+**Autoridade:** D-PROD-57 / D-PROD-60 (pós-merge PR #130)  
+**Nota de ID:** D-PROD-61 ficou com MapLibre M2-B1 (#131). Slice 1 R1 usa **D-PROD-62**.
+
+**Decisão:**
+
+1. **Storage fail-closed:** em `NODE_ENV=production`, registro de asset exige adaptador
+   Supabase live (`SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`); configuração parcial
+   reprova; sem fallback silencioso para memória em produção.
+2. **Paths versionados:** objetos Storage usam prefixo `v{revisao}` da `CatalogoMeta`
+   global no momento do upload; unique `(sha256, revisao)` em `CatalogoAsset` evita
+   duplicata na mesma revisão.
+3. **MIME real:** bytes inspecionados; `mime_type` declarado deve coincidir com o
+   detectado (já obrigatório na validação R1).
+4. **Compensação:** falha após upload remove objeto Storage best-effort antes de
+   propagar erro.
+5. **Leitura de ícones:** lista publicada inclui URLs públicas derivadas de
+   `bucket` + `storage_path` quando `SUPABASE_URL` está configurada no servidor.
+6. **Integridade tipo/categoria/asset:** criação/atualização de ícone e regras MISTO
+   validam compatibilidade de `tipo_id`, categorias ativas e assets publicados.
+7. **MISTO:** normalização determinística de `categoria_ids` (unique + sort); ícone
+   da regra deve pertencer ao mesmo tipo; publicação exige ícone publicável.
+8. **CAS catálogo:** mutações admin aceitam `revisao_esperada`; divergência →
+   `CONCURRENCY_CONFLICT` (409) com `revisao_atual` em `details`.
+9. **Ícone estável:** `PATCH /catalogo-global/admin/icones/:id` altera principal,
+   subícone e cor mantendo o mesmo `id`.
+
+**Consequência:** migration `20261028250200_catalogo_global_slice1_r1_assets`; testes
+CG-09+; runbook Storage/operador endurecido; UI painel interno continua fora de escopo.
+
+---
+
+## D-PROD-63 — MapLibre M2-B2: seleção de áreas no mapa
 
 **Missão:** `MAPLIBRE-M2B2-SELECAO-AREAS-01`  
 **Relatório:** `docs/engineering/MAPLIBRE-M2B2-SELECAO-AREAS-REPORT.md`  
 **Branch:** `cursor/maplibre-m2b2-selecao-areas-01-f5fd`  
-**Base:** `origin/main` pós-merge PR #131 (MapLibre M2-B1 / D-PROD-61)
+**Base:** `origin/main` pós-merge PR #132 (catálogo R1 / D-PROD-62)  
+**Nota de ID:** D-PROD-62 ficou com o catálogo slice 1 R1 (#132). MapLibre M2-B2 usa **D-PROD-63**.
 
 **Decisão:**
 
@@ -2543,4 +2578,4 @@ Merge só pelo proprietário após auditoria.
 
 ---
 
-<!-- Próxima decisão: D-PROD-63 -->
+<!-- Próxima decisão: D-PROD-64 -->

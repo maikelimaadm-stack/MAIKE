@@ -1,27 +1,23 @@
 import { getPrismaClient } from '../../database/prismaClient.js';
-import {
-  catalogoGlobalInvalid,
-  catalogoGlobalNotFound,
-  concurrencyConflict,
-} from '../../shared/errors/AppError.js';
+import { catalogoGlobalInvalid, catalogoGlobalNotFound } from '../../shared/errors/AppError.js';
+import { urlPublicaAssetCatalogo } from './catalogoAssetUrls.js';
 import { validarBufferAssetCatalogo } from './catalogoAssetValidation.js';
 import {
-  criarArmazenamentoCatalogo,
+  exigirArmazenamentoCatalogoAoVivo,
   extensaoDeMime,
   novoIdentificadorAsset,
 } from './catalogoAssetStorage.js';
 import { registrarAuditoriaCatalogo } from './catalogoAuditoria.js';
+import { assertRevisaoCatalogo, incrementarRevisaoCatalogo } from './catalogoRevisao.js';
+import {
+  exigirAssetPublicado,
+  exigirCategoriaDoTipo,
+  exigirTipoAtivo,
+} from './catalogoValidacao.js';
 
 const ESTADOS_PUBLICADOS = ['publicado'];
 
 const prisma = () => getPrismaClient();
-
-const incrementarRevisao = async (tx) =>
-  tx.catalogoMeta.upsert({
-    where: { chave: 'global' },
-    create: { chave: 'global', revisao: 1 },
-    update: { revisao: { increment: 1 } },
-  });
 
 export const obterManifesto = async () => {
   const meta = await prisma().catalogoMeta.findUnique({ where: { chave: 'global' } });
@@ -46,20 +42,28 @@ export const listarTiposPublicados = async () =>
     select: { id: true, codigo: true, nome: true, ordem: true },
   });
 
-export const listarIconesPublicados = async () =>
-  prisma().catalogoIcone.findMany({
+export const listarIconesPublicados = async () => {
+  const icones = await prisma().catalogoIcone.findMany({
     where: { ativo: true, estado: { in: ESTADOS_PUBLICADOS } },
     orderBy: [{ tipo_id: 'asc' }, { categoria_id: 'asc' }],
-    select: {
-      id: true,
-      tipo_id: true,
-      categoria_id: true,
-      cor_fallback: true,
-      revisao: true,
-      asset_principal_id: true,
-      asset_subicone_id: true,
+    include: {
+      assetPrincipal: true,
+      assetSubicone: true,
     },
   });
+
+  return icones.map((i) => ({
+    id: i.id,
+    tipo_id: i.tipo_id,
+    categoria_id: i.categoria_id,
+    cor_fallback: i.cor_fallback,
+    revisao: i.revisao,
+    asset_principal_id: i.asset_principal_id,
+    asset_subicone_id: i.asset_subicone_id,
+    asset_principal_url: urlPublicaAssetCatalogo(i.assetPrincipal),
+    asset_subicone_url: urlPublicaAssetCatalogo(i.assetSubicone),
+  }));
+};
 
 export const listarRegrasMistoPublicadas = async () => {
   const regras = await prisma().catalogoRegraMisto.findMany({
@@ -79,8 +83,9 @@ export const listarRegrasMistoPublicadas = async () => {
   }));
 };
 
-export const criarTipo = async ({ dados, operador, requestId }) => {
+export const criarTipo = async ({ dados, revisaoEsperada, operador, requestId }) => {
   const criado = await prisma().$transaction(async (tx) => {
+    await assertRevisaoCatalogo(tx, revisaoEsperada);
     const tipo = await tx.catalogoTipoEntidade.create({
       data: {
         codigo: dados.codigo.trim(),
@@ -89,7 +94,7 @@ export const criarTipo = async ({ dados, operador, requestId }) => {
         ativo: dados.ativo ?? true,
       },
     });
-    await incrementarRevisao(tx);
+    await incrementarRevisaoCatalogo(tx);
     return tipo;
   });
   await registrarAuditoriaCatalogo({
@@ -105,10 +110,7 @@ export const criarTipo = async ({ dados, operador, requestId }) => {
 
 export const atualizarTipo = async ({ id, dados, revisaoEsperada, operador, requestId }) => {
   const atualizado = await prisma().$transaction(async (tx) => {
-    const meta = await tx.catalogoMeta.findUnique({ where: { chave: 'global' } });
-    if (revisaoEsperada != null && meta && meta.revisao !== revisaoEsperada) {
-      throw concurrencyConflict('revisão do catálogo divergente');
-    }
+    await assertRevisaoCatalogo(tx, revisaoEsperada);
     const tipo = await tx.catalogoTipoEntidade.update({
       where: { id },
       data: {
@@ -117,7 +119,7 @@ export const atualizarTipo = async ({ id, dados, revisaoEsperada, operador, requ
         ...(dados.ativo !== undefined ? { ativo: dados.ativo } : {}),
       },
     });
-    await incrementarRevisao(tx);
+    await incrementarRevisaoCatalogo(tx);
     return tipo;
   });
   await registrarAuditoriaCatalogo({
@@ -131,11 +133,11 @@ export const atualizarTipo = async ({ id, dados, revisaoEsperada, operador, requ
   return atualizado;
 };
 
-export const criarCategoria = async ({ dados, operador, requestId }) => {
-  const tipo = await prisma().catalogoTipoEntidade.findUnique({ where: { id: dados.tipo_id } });
-  if (!tipo) throw catalogoGlobalNotFound('tipo não encontrado');
+export const criarCategoria = async ({ dados, revisaoEsperada, operador, requestId }) => {
+  await exigirTipoAtivo(prisma(), dados.tipo_id);
 
   const criada = await prisma().$transaction(async (tx) => {
+    await assertRevisaoCatalogo(tx, revisaoEsperada);
     const cat = await tx.catalogoCategoriaVisual.create({
       data: {
         tipo_id: dados.tipo_id,
@@ -145,7 +147,7 @@ export const criarCategoria = async ({ dados, operador, requestId }) => {
         ativo: dados.ativo ?? true,
       },
     });
-    await incrementarRevisao(tx);
+    await incrementarRevisaoCatalogo(tx);
     return cat;
   });
   await registrarAuditoriaCatalogo({
@@ -159,51 +161,78 @@ export const criarCategoria = async ({ dados, operador, requestId }) => {
   return criada;
 };
 
-export const registrarAsset = async ({ buffer, mimeDeclarado, operador, requestId }) => {
+export const registrarAsset = async ({ buffer, mimeDeclarado, revisaoEsperada, operador, requestId }) => {
   const metaValidacao = validarBufferAssetCatalogo(buffer, mimeDeclarado);
-  const storage = criarArmazenamentoCatalogo();
-  const revisao = 1;
+  const storage = exigirArmazenamentoCatalogoAoVivo();
   const extensao = extensaoDeMime(metaValidacao.mime);
 
-  const { registro, upload } = await prisma().$transaction(async (tx) => {
-    const uploadResult = await storage.gravar({
-      buffer,
-      sha256: metaValidacao.sha256,
-      revisao,
-      extensao,
-    });
-    const asset = await tx.catalogoAsset.create({
-      data: {
-        id: novoIdentificadorAsset(),
-        bucket: uploadResult.bucket,
-        storage_path: uploadResult.storage_path,
-        mime: metaValidacao.mime,
-        bytes: metaValidacao.bytes,
+  /** @type {import('./catalogoAssetStorage.js').ResultadoUpload | undefined} */
+  let uploadResult;
+
+  try {
+    const { registro, upload } = await prisma().$transaction(async (tx) => {
+      const revisaoCatalogo = await assertRevisaoCatalogo(tx, revisaoEsperada);
+
+      const existente = await tx.catalogoAsset.findFirst({
+        where: { sha256: metaValidacao.sha256, revisao: revisaoCatalogo },
+      });
+      if (existente) {
+        return { registro: existente, upload: null };
+      }
+
+      uploadResult = await storage.gravar({
+        buffer,
         sha256: metaValidacao.sha256,
-        largura: metaValidacao.largura,
-        altura: metaValidacao.altura,
-        revisao,
-        estado: 'publicado',
-      },
+        revisao: revisaoCatalogo,
+        extensao,
+      });
+
+      const asset = await tx.catalogoAsset.create({
+        data: {
+          id: novoIdentificadorAsset(),
+          bucket: uploadResult.bucket,
+          storage_path: uploadResult.storage_path,
+          mime: metaValidacao.mime,
+          bytes: metaValidacao.bytes,
+          sha256: metaValidacao.sha256,
+          largura: metaValidacao.largura,
+          altura: metaValidacao.altura,
+          revisao: revisaoCatalogo,
+          estado: 'publicado',
+        },
+      });
+      await incrementarRevisaoCatalogo(tx);
+      return { registro: asset, upload: uploadResult };
     });
-    await incrementarRevisao(tx);
-    return { registro: asset, upload: uploadResult };
-  });
 
-  await registrarAuditoriaCatalogo({
-    operadorId: operador.id,
-    acao: 'registrar_asset',
-    entidade: 'CatalogoAsset',
-    entidadeId: registro.id,
-    dados: { storage_path: registro.storage_path, mime: registro.mime },
-    requestId,
-  });
+    await registrarAuditoriaCatalogo({
+      operadorId: operador.id,
+      acao: 'registrar_asset',
+      entidade: 'CatalogoAsset',
+      entidadeId: registro.id,
+      dados: { storage_path: registro.storage_path, mime: registro.mime },
+      requestId,
+    });
 
-  return { ...registro, public_url: upload.publicUrl ?? null };
+    const public_url =
+      upload?.publicUrl ?? urlPublicaAssetCatalogo(registro) ?? null;
+    return { ...registro, public_url };
+  } catch (erro) {
+    if (uploadResult?.storage_path) {
+      await storage.remover(uploadResult.storage_path).catch(() => {});
+    }
+    throw erro;
+  }
 };
 
-export const criarIcone = async ({ dados, operador, requestId }) => {
+export const criarIcone = async ({ dados, revisaoEsperada, operador, requestId }) => {
+  await exigirTipoAtivo(prisma(), dados.tipo_id);
+  await exigirCategoriaDoTipo(prisma(), dados.tipo_id, dados.categoria_id);
+  await exigirAssetPublicado(prisma(), dados.asset_principal_id, 'asset principal');
+  await exigirAssetPublicado(prisma(), dados.asset_subicone_id, 'subícone');
+
   const criado = await prisma().$transaction(async (tx) => {
+    await assertRevisaoCatalogo(tx, revisaoEsperada);
     const icone = await tx.catalogoIcone.create({
       data: {
         tipo_id: dados.tipo_id,
@@ -215,7 +244,7 @@ export const criarIcone = async ({ dados, operador, requestId }) => {
         ativo: true,
       },
     });
-    await incrementarRevisao(tx);
+    await incrementarRevisaoCatalogo(tx);
     return icone;
   });
   await registrarAuditoriaCatalogo({
@@ -229,10 +258,59 @@ export const criarIcone = async ({ dados, operador, requestId }) => {
   return criado;
 };
 
+export const atualizarIcone = async ({ id, dados, revisaoEsperada, operador, requestId }) => {
+  const atualizado = await prisma().$transaction(async (tx) => {
+    await assertRevisaoCatalogo(tx, revisaoEsperada);
+    const icone = await tx.catalogoIcone.findUnique({ where: { id } });
+    if (!icone) throw catalogoGlobalNotFound('ícone não encontrado');
+
+    if (dados.asset_principal_id !== undefined) {
+      await exigirAssetPublicado(tx, dados.asset_principal_id, 'asset principal');
+    }
+    if (dados.asset_subicone_id !== undefined) {
+      await exigirAssetPublicado(tx, dados.asset_subicone_id, 'subícone');
+    }
+
+    const iconeAtualizado = await tx.catalogoIcone.update({
+      where: { id },
+      data: {
+        ...(dados.asset_principal_id !== undefined
+          ? { asset_principal_id: dados.asset_principal_id }
+          : {}),
+        ...(dados.asset_subicone_id !== undefined ? { asset_subicone_id: dados.asset_subicone_id } : {}),
+        ...(dados.cor_fallback !== undefined ? { cor_fallback: dados.cor_fallback } : {}),
+        revisao: { increment: 1 },
+      },
+    });
+
+    if (
+      icone.estado === 'publicado' &&
+      (dados.asset_principal_id !== undefined ||
+        dados.asset_subicone_id !== undefined ||
+        dados.cor_fallback !== undefined)
+    ) {
+      await validarIconePublicavel(id, tx);
+    }
+
+    await incrementarRevisaoCatalogo(tx);
+    return iconeAtualizado;
+  });
+
+  await registrarAuditoriaCatalogo({
+    operadorId: operador.id,
+    acao: 'atualizar',
+    entidade: 'CatalogoIcone',
+    entidadeId: id,
+    dados,
+    requestId,
+  });
+  return atualizado;
+};
+
 const validarIconePublicavel = async (iconeId, tx) => {
   const icone = await tx.catalogoIcone.findUnique({
     where: { id: iconeId },
-    include: { assetPrincipal: true },
+    include: { assetPrincipal: true, assetSubicone: true },
   });
   if (!icone) throw catalogoGlobalNotFound('ícone não encontrado');
   if (!icone.asset_principal_id || !icone.assetPrincipal) {
@@ -241,21 +319,23 @@ const validarIconePublicavel = async (iconeId, tx) => {
   if (icone.assetPrincipal.estado !== 'publicado') {
     throw catalogoGlobalInvalid('asset principal não está publicado');
   }
+  if (icone.asset_subicone_id) {
+    if (!icone.assetSubicone || icone.assetSubicone.estado !== 'publicado') {
+      throw catalogoGlobalInvalid('subícone não está publicado');
+    }
+  }
   return icone;
 };
 
 export const publicarIcone = async ({ id, revisaoEsperada, operador, requestId }) => {
   const publicado = await prisma().$transaction(async (tx) => {
-    const meta = await tx.catalogoMeta.findUnique({ where: { chave: 'global' } });
-    if (revisaoEsperada != null && meta && meta.revisao !== revisaoEsperada) {
-      throw concurrencyConflict('revisão do catálogo divergente');
-    }
+    await assertRevisaoCatalogo(tx, revisaoEsperada);
     await validarIconePublicavel(id, tx);
     const icone = await tx.catalogoIcone.update({
       where: { id },
       data: { estado: 'publicado', revisao: { increment: 1 } },
     });
-    await incrementarRevisao(tx);
+    await incrementarRevisaoCatalogo(tx);
     return icone;
   });
   await registrarAuditoriaCatalogo({
@@ -269,13 +349,14 @@ export const publicarIcone = async ({ id, revisaoEsperada, operador, requestId }
   return publicado;
 };
 
-export const desativarIcone = async ({ id, operador, requestId }) => {
+export const desativarIcone = async ({ id, revisaoEsperada, operador, requestId }) => {
   const atualizado = await prisma().$transaction(async (tx) => {
+    await assertRevisaoCatalogo(tx, revisaoEsperada);
     const icone = await tx.catalogoIcone.update({
       where: { id },
       data: { ativo: false, estado: 'inativo' },
     });
-    await incrementarRevisao(tx);
+    await incrementarRevisaoCatalogo(tx);
     return icone;
   });
   await registrarAuditoriaCatalogo({
@@ -289,11 +370,13 @@ export const desativarIcone = async ({ id, operador, requestId }) => {
   return atualizado;
 };
 
-export const criarRegraMisto = async ({ dados, operador, requestId }) => {
-  const ids = dados.categoria_ids ?? [];
+const normalizarCategoriaIdsMisto = (ids) => [...new Set(ids)].sort();
+
+export const criarRegraMisto = async ({ dados, revisaoEsperada, operador, requestId }) => {
+  const ids = normalizarCategoriaIdsMisto(dados.categoria_ids ?? []);
   if (ids.length < 2) throw catalogoGlobalInvalid('regra MISTO exige ao menos duas categorias');
-  const unicos = new Set(ids);
-  if (unicos.size !== ids.length) throw catalogoGlobalInvalid('categorias duplicadas na regra MISTO');
+
+  await exigirTipoAtivo(prisma(), dados.tipo_id);
 
   const categorias = await prisma().catalogoCategoriaVisual.findMany({
     where: { id: { in: ids } },
@@ -303,7 +386,14 @@ export const criarRegraMisto = async ({ dados, operador, requestId }) => {
     throw catalogoGlobalInvalid('categoria incompatível com o tipo da regra');
   }
 
+  const icone = await prisma().catalogoIcone.findUnique({ where: { id: dados.icone_id } });
+  if (!icone) throw catalogoGlobalNotFound('ícone não encontrado');
+  if (icone.tipo_id !== dados.tipo_id) {
+    throw catalogoGlobalInvalid('ícone incompatível com o tipo da regra MISTO');
+  }
+
   const criada = await prisma().$transaction(async (tx) => {
+    await assertRevisaoCatalogo(tx, revisaoEsperada);
     const regra = await tx.catalogoRegraMisto.create({
       data: {
         tipo_id: dados.tipo_id,
@@ -318,7 +408,7 @@ export const criarRegraMisto = async ({ dados, operador, requestId }) => {
       },
       include: { categorias: true },
     });
-    await incrementarRevisao(tx);
+    await incrementarRevisaoCatalogo(tx);
     return regra;
   });
 
@@ -335,22 +425,22 @@ export const criarRegraMisto = async ({ dados, operador, requestId }) => {
 
 export const publicarRegraMisto = async ({ id, revisaoEsperada, operador, requestId }) => {
   const publicada = await prisma().$transaction(async (tx) => {
-    const meta = await tx.catalogoMeta.findUnique({ where: { chave: 'global' } });
-    if (revisaoEsperada != null && meta && meta.revisao !== revisaoEsperada) {
-      throw concurrencyConflict('revisão do catálogo divergente');
-    }
+    await assertRevisaoCatalogo(tx, revisaoEsperada);
     const regra = await tx.catalogoRegraMisto.findUnique({
       where: { id },
       include: { categorias: true, icone: true },
     });
     if (!regra) throw catalogoGlobalNotFound('regra MISTO não encontrada');
     if (regra.categorias.length < 2) throw catalogoGlobalInvalid('regra MISTO incompleta');
+    if (regra.icone.tipo_id !== regra.tipo_id) {
+      throw catalogoGlobalInvalid('ícone incompatível com o tipo da regra MISTO');
+    }
     await validarIconePublicavel(regra.icone_id, tx);
     const atualizada = await tx.catalogoRegraMisto.update({
       where: { id },
       data: { estado: 'publicado' },
     });
-    await incrementarRevisao(tx);
+    await incrementarRevisaoCatalogo(tx);
     return atualizada;
   });
   await registrarAuditoriaCatalogo({

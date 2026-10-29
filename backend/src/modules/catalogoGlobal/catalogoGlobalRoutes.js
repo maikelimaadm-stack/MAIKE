@@ -6,6 +6,7 @@ import {
   criarRegraMisto,
   criarTipo,
   atualizarTipo,
+  atualizarIcone,
   desativarIcone,
   listarCategoriasPublicadas,
   listarIconesPublicados,
@@ -19,6 +20,8 @@ import {
 
 const PREFIX = '/catalogo-global';
 
+const REVISAO_OPCIONAL = { revisao_esperada: { type: 'integer', minimum: 0 } };
+
 const CRIAR_TIPO = {
   body: {
     type: 'object',
@@ -29,6 +32,7 @@ const CRIAR_TIPO = {
       nome: { type: 'string', minLength: 1, maxLength: 255 },
       ordem: { type: 'integer', minimum: 0, maximum: 999999 },
       ativo: { type: 'boolean' },
+      ...REVISAO_OPCIONAL,
     },
   },
 };
@@ -63,6 +67,7 @@ const CRIAR_CATEGORIA = {
       nome: { type: 'string', minLength: 1, maxLength: 255 },
       ordem: { type: 'integer', minimum: 0, maximum: 999999 },
       ativo: { type: 'boolean' },
+      ...REVISAO_OPCIONAL,
     },
   },
 };
@@ -75,6 +80,7 @@ const ASSET_UPLOAD = {
     properties: {
       conteudo_base64: { type: 'string', minLength: 1 },
       mime_type: { type: 'string', minLength: 3, maxLength: 128 },
+      ...REVISAO_OPCIONAL,
     },
   },
 };
@@ -90,6 +96,26 @@ const CRIAR_ICONE = {
       asset_principal_id: { type: ['string', 'null'], minLength: 1, maxLength: 64 },
       asset_subicone_id: { type: ['string', 'null'], minLength: 1, maxLength: 64 },
       cor_fallback: { type: ['string', 'null'], maxLength: 32 },
+      ...REVISAO_OPCIONAL,
+    },
+  },
+};
+
+const ATUALIZAR_ICONE = {
+  params: {
+    type: 'object',
+    required: ['id'],
+    additionalProperties: false,
+    properties: { id: { type: 'string', minLength: 1, maxLength: 64 } },
+  },
+  body: {
+    type: 'object',
+    additionalProperties: false,
+    properties: {
+      asset_principal_id: { type: ['string', 'null'], minLength: 1, maxLength: 64 },
+      asset_subicone_id: { type: ['string', 'null'], minLength: 1, maxLength: 64 },
+      cor_fallback: { type: ['string', 'null'], maxLength: 32 },
+      revisao_esperada: { type: 'integer', minimum: 0 },
     },
   },
 };
@@ -123,6 +149,7 @@ const CRIAR_REGRA = {
         items: { type: 'string', minLength: 1, maxLength: 64 },
       },
       prioridade: { type: 'integer', minimum: 0, maximum: 999999 },
+      ...REVISAO_OPCIONAL,
     },
   },
 };
@@ -162,8 +189,10 @@ export const registrarCatalogoGlobalRoutes = async (app) => {
 
   app.post(`${PREFIX}/admin/tipos`, { onRequest: adminGuard, schema: CRIAR_TIPO }, async (request, reply) => {
     const operador = request.contexto.operadorProduto;
+    const body = /** @type {any} */ (request.body);
     const criado = await criarTipo({
-      dados: /** @type {any} */ (request.body),
+      dados: body,
+      revisaoEsperada: body.revisao_esperada,
       operador,
       requestId: request.contexto.requestId,
     });
@@ -192,8 +221,10 @@ export const registrarCatalogoGlobalRoutes = async (app) => {
     { onRequest: adminGuard, schema: CRIAR_CATEGORIA },
     async (request, reply) => {
       const operador = request.contexto.operadorProduto;
+      const body = /** @type {any} */ (request.body);
       const criada = await criarCategoria({
-        dados: /** @type {any} */ (request.body),
+        dados: body,
+        revisaoEsperada: body.revisao_esperada,
         operador,
         requestId: request.contexto.requestId,
       });
@@ -210,9 +241,11 @@ export const registrarCatalogoGlobalRoutes = async (app) => {
         request.body
       );
       const buffer = Buffer.from(conteudo_base64, 'base64');
+      const body = /** @type {any} */ (request.body);
       const registro = await registrarAsset({
         buffer,
         mimeDeclarado: mime_type,
+        revisaoEsperada: body.revisao_esperada,
         operador,
         requestId: request.contexto.requestId,
       });
@@ -222,13 +255,32 @@ export const registrarCatalogoGlobalRoutes = async (app) => {
 
   app.post(`${PREFIX}/admin/icones`, { onRequest: adminGuard, schema: CRIAR_ICONE }, async (request, reply) => {
     const operador = request.contexto.operadorProduto;
+    const body = /** @type {any} */ (request.body);
     const criado = await criarIcone({
-      dados: /** @type {any} */ (request.body),
+      dados: body,
+      revisaoEsperada: body.revisao_esperada,
       operador,
       requestId: request.contexto.requestId,
     });
     return reply.status(201).send(criado);
   });
+
+  app.patch(
+    `${PREFIX}/admin/icones/:id`,
+    { onRequest: adminGuard, schema: ATUALIZAR_ICONE },
+    async (request) => {
+      const operador = request.contexto.operadorProduto;
+      const { id } = /** @type {{id: string}} */ (request.params);
+      const body = /** @type {any} */ (request.body);
+      return atualizarIcone({
+        id,
+        dados: body,
+        revisaoEsperada: body.revisao_esperada,
+        operador,
+        requestId: request.contexto.requestId,
+      });
+    }
+  );
 
   app.post(
     `${PREFIX}/admin/icones/:id/publicar`,
@@ -252,8 +304,10 @@ export const registrarCatalogoGlobalRoutes = async (app) => {
     async (request) => {
       const operador = request.contexto.operadorProduto;
       const { id } = /** @type {{id: string}} */ (request.params);
+      const body = /** @type {any} */ (request.body) ?? {};
       return desativarIcone({
         id,
+        revisaoEsperada: body.revisao_esperada,
         operador,
         requestId: request.contexto.requestId,
       });
@@ -265,8 +319,10 @@ export const registrarCatalogoGlobalRoutes = async (app) => {
     { onRequest: adminGuard, schema: CRIAR_REGRA },
     async (request, reply) => {
       const operador = request.contexto.operadorProduto;
+      const body = /** @type {any} */ (request.body);
       const criada = await criarRegraMisto({
-        dados: /** @type {any} */ (request.body),
+        dados: body,
+        revisaoEsperada: body.revisao_esperada,
         operador,
         requestId: request.contexto.requestId,
       });
