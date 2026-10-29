@@ -27,7 +27,8 @@ vi.mock('@/lib/AuthContext', () => ({
 }));
 
 const listarUsuariosMock = vi.fn();
-const listarContasAcessoMock = vi.fn(async () => []);
+const PAGINA_VAZIA = { items: [], next_cursor: null, has_more: false, total: 0, limit: 100 };
+const listarContasAcessoMock = vi.fn(async () => PAGINA_VAZIA);
 vi.mock('@/services/sessionService', async (importOriginal) => {
   const orig = await importOriginal();
   return {
@@ -39,7 +40,7 @@ vi.mock('@/services/sessionService', async (importOriginal) => {
 });
 
 vi.mock('@/services/usuarioAdminService', () => ({
-  listarContasAcesso: (...a) => listarContasAcessoMock(...a),
+  listarContasAcessoPagina: (...a) => listarContasAcessoMock(...a),
   criarContaAcesso: vi.fn(),
   atualizarContaAcesso: vi.fn(),
   validarPatchContaAcesso: vi.fn(),
@@ -61,7 +62,7 @@ beforeEach(() => {
   localStorage.clear();
   listarUsuariosMock.mockReset();
   listarContasAcessoMock.mockReset();
-  listarContasAcessoMock.mockResolvedValue([]);
+  listarContasAcessoMock.mockResolvedValue(PAGINA_VAZIA);
   authState.clienteId = 'tenant-1';
 });
 
@@ -181,7 +182,7 @@ describe('R3-05 — Usuarios (contas) erro de listagem', () => {
   });
 
   it('lista vazia real não exibe banner de erro', async () => {
-    listarContasAcessoMock.mockResolvedValue([]);
+    listarContasAcessoMock.mockResolvedValue(PAGINA_VAZIA);
     await renderUsuarios();
     await waitFor(() => expect(listarContasAcessoMock).toHaveBeenCalled());
     expect(screen.queryByText(/Não foi possível carregar as contas nativas/i)).toBeNull();

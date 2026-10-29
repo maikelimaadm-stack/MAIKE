@@ -1,8 +1,10 @@
 /** API de administração de usuários nativos (P6.0). */
 
 import { runProviderCall, assertArgument } from '../_core/normalizeApiError.js';
+import { LIMITE_PADRAO, normalizarEnvelopePagina } from '@/lib/cadastroListaScale';
 import {
   listUsuariosNativos,
+  listUsuariosPaginaNativo,
   createUsuarioNativo,
   updateUsuarioNativo,
   comoUsuarioLegado,
@@ -16,6 +18,13 @@ const ctx = (operation) => ({ operation, resource: RESOURCE });
 export const listUsuarios = async () => {
   const lista = await runProviderCall(() => listUsuariosNativos(), ctx('listUsuarios'));
   return (Array.isArray(lista) ? lista : []).map(comoUsuarioLegado);
+};
+
+/** Página keyset do motor Base1 (SCALE-01); itens no formato legado da tela. */
+export const listUsuariosPage = async (filtros = {}) => {
+  const bruto = await runProviderCall(() => listUsuariosPaginaNativo(filtros), ctx('listUsuariosPage'));
+  const pagina = normalizarEnvelopePagina(bruto, Number(filtros.limit) || LIMITE_PADRAO);
+  return { ...pagina, items: pagina.items.map(comoUsuarioLegado) };
 };
 
 export const createUsuario = async (dados) => {

@@ -1,0 +1,11 @@
+-- SCALE-01 — índice keyset da listagem paginada de Usuario (GET /usuarios/page).
+--
+-- Ordem da página: cliente_id = $1 ORDER BY "createdAt" DESC, id DESC LIMIT n+1.
+-- Sem este índice o PostgreSQL lê todas as linhas do tenant e ordena; com ele
+-- percorre o B-tree de trás para frente e para no LIMIT (medição em
+-- docs/engineering/MAIKE-SCALE-01-USUARIOS-REPORT.md).
+--
+-- Aditiva e reversível: DROP INDEX "Usuario_cliente_id_createdAt_id_idx".
+-- Em tabela grande de produção, preferir CREATE INDEX CONCURRENTLY numa janela
+-- própria — decisão do rollout, não desta migration.
+CREATE INDEX "Usuario_cliente_id_createdAt_id_idx" ON "Usuario"("cliente_id", "createdAt", "id");

@@ -1,1 +1,1 @@
-export { listUsuarios, createUsuario, updateUsuario } from './usuariosApi.js';
+export { listUsuarios, listUsuariosPage, createUsuario, updateUsuario } from './usuariosApi.js';
