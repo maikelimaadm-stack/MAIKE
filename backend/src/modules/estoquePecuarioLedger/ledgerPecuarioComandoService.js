@@ -27,6 +27,7 @@ import {
   planejarEntrada,
   planejarEstorno,
   planejarTransferencia,
+  validarEntradaContraLote,
 } from './ledgerPecuarioContrato.js';
 import { esquemaSeguro } from './ledgerPecuarioDdl.js';
 import { CODIGOS_LEDGER_PECUARIO as C, LedgerPecuarioError } from './ledgerPecuarioErros.js';
@@ -110,12 +111,13 @@ export const criarLedgerPecuario = (deps) => {
 
   /**
    * Área precisa ser do tenant E da empresa do evento (bloqueia cruzar empresas).
-   * Destino inativo é recusado; origem inativa é aceita (tirar animais de lá).
+   * Destino inativo é recusado; origem inativa é aceita (tirar animais de lá);
+   * área de ENTRADA inativa é aceita (o fato histórico continua verdadeiro).
    * @param {any} tx
    * @param {string} clienteId
    * @param {string} empresaId
    * @param {string} areaId
-   * @param {'origem' | 'destino'} papel
+   * @param {'origem' | 'destino' | 'entrada'} papel
    */
   const exigirArea = async (tx, clienteId, empresaId, areaId, papel) => {
     const area = await tx.areaPastagem.findFirst({
@@ -123,7 +125,8 @@ export const criarLedgerPecuario = (deps) => {
       select: { id: true, ativo: true },
     });
     const codigo = papel === 'origem' ? C.ORIGEM_INVALIDA : C.DESTINO_INVALIDO;
-    if (!area) throw new LedgerPecuarioError(codigo, `área de ${papel} não pertence a esta empresa/tenant`, { details: { field: `area_${papel}_id` } });
+    const campo = papel === 'entrada' ? 'area_id' : `area_${papel}_id`;
+    if (!area) throw new LedgerPecuarioError(codigo, `área de ${papel} não pertence a esta empresa/tenant`, { details: { field: campo } });
     if (papel === 'destino' && area.ativo === false) {
       throw new LedgerPecuarioError(codigo, 'área de destino inativa', { details: { field: 'area_destino_id' } });
     }
@@ -257,20 +260,23 @@ export const criarLedgerPecuario = (deps) => {
      */
     registrarEntrada: async (contexto, entrada) => {
       const plano = planejarEntrada(entrada);
+      const loteId = /** @type {string} */ (plano.lote_referencia_id);
       return executarComando(contexto, TIPOS_EVENTO.ENTRADA, entrada, async (tx, auth, operationId) => {
         await exigirEmpresa(tx, auth.clienteId, plano.empresa_id);
-        await exigirArea(tx, auth.clienteId, plano.empresa_id, /** @type {string} */ (plano.area_destino_id), 'destino');
-        await exigirCategoria(tx, auth.clienteId, plano.empresa_id, plano.categoria_manejo_id);
-        if (plano.lote_referencia_id) {
-          const lote = await tx.lote.findFirst({
-            where: { cliente_id: auth.clienteId, empresa_id: plano.empresa_id, id: plano.lote_referencia_id },
-            select: { id: true },
-          });
-          if (!lote) throw new LedgerPecuarioError(C.LOTE_REFERENCIA_INVALIDO, 'lote de referência não pertence a esta empresa/tenant', { details: { field: 'lote_referencia_id' } });
-          if (await repo.loteTemEntradaAtiva(tx, esquema, auth.clienteId, plano.lote_referencia_id)) {
-            throw new LedgerPecuarioError(C.LOTE_REFERENCIA_INVALIDO, 'este lote já tem entrada lançada no ledger', { details: { field: 'lote_referencia_id' } });
-          }
+        // Serialização por LOTE (P0 R2): trava o cadastro antes de qualquer
+        // checagem. Entradas concorrentes do mesmo lote — com operation_id
+        // diferentes, até em áreas diferentes — passam uma de cada vez.
+        const lote = await repo.travarLoteReferencia(tx, auth.clienteId, plano.empresa_id, loteId);
+        if (!lote) {
+          throw new LedgerPecuarioError(C.LOTE_REFERENCIA_INVALIDO, 'lote de referência não pertence a esta empresa/tenant', { details: { field: 'lote_referencia_id' } });
         }
+        validarEntradaContraLote(plano, lote);
+        if (await repo.loteTemEntradaAtiva(tx, esquema, auth.clienteId, loteId)) {
+          throw new LedgerPecuarioError(C.LOTE_REFERENCIA_INVALIDO, 'este lote já tem entrada lançada no ledger', { details: { field: 'lote_referencia_id' } });
+        }
+        // Entrada é fato histórico: área de entrada hoje inativa não apaga o fato.
+        await exigirArea(tx, auth.clienteId, plano.empresa_id, /** @type {string} */ (plano.area_destino_id), 'entrada');
+        await exigirCategoria(tx, auth.clienteId, plano.empresa_id, plano.categoria_manejo_id);
         return gravar(tx, auth, contexto, operationId, plano, null);
       });
     },

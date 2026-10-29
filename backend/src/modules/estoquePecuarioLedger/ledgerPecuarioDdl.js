@@ -17,9 +17,20 @@
  * versionada + grants/RLS backend-only. O desenho abaixo é o insumo.
  */
 
+import { randomUUID } from 'node:crypto';
+
 import { CODIGOS_LEDGER_PECUARIO as C, LedgerPecuarioError } from './ledgerPecuarioErros.js';
 
-const RE_ESQUEMA = /^[a-z_][a-z0-9_]{0,62}$/;
+/**
+ * Namespace EXCLUSIVO dos esquemas descartáveis do L1. Só este formato é
+ * aceito para criar, operar e — principalmente — `DROP SCHEMA … CASCADE`.
+ * `public`, `auth`, `storage`, `pg_catalog`, `information_schema`, `prisma`,
+ * esquemas de aplicação e qualquer outro nome ficam de fora por construção.
+ */
+const RE_ESQUEMA_L1 = /^ledger_l1_[0-9a-f]{12,32}$/;
+
+/** Nome novo e inequívoco de esquema descartável (`ledger_l1_<12 hex>`). */
+export const gerarEsquemaDescartavel = () => `ledger_l1_${randomUUID().replace(/-/g, '').slice(0, 12)}`;
 
 /**
  * @param {unknown} esquema
@@ -27,9 +38,9 @@ const RE_ESQUEMA = /^[a-z_][a-z0-9_]{0,62}$/;
  */
 export const esquemaSeguro = (esquema) => {
   const nome = typeof esquema === 'string' ? esquema : '';
-  if (!RE_ESQUEMA.test(nome) || nome === 'public') {
-    throw new LedgerPecuarioError(C.ESQUEMA_INVALIDO, 'esquema do ledger inválido (L1 só opera em esquema descartável, nunca public)', {
-      details: { esquema: nome },
+  if (!RE_ESQUEMA_L1.test(nome)) {
+    throw new LedgerPecuarioError(C.ESQUEMA_INVALIDO, 'esquema do ledger inválido: L1 só opera em ledger_l1_<hex>', {
+      details: { esquema: nome.slice(0, 64) },
     });
   }
   return `"${nome}"`;

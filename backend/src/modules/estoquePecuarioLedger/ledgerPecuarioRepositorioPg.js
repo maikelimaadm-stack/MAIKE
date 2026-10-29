@@ -197,7 +197,36 @@ export const buscarEventoParaEstorno = async (tx, esquema, clienteId, eventoId) 
 };
 
 /**
+ * Trava o cadastro do lote de referência (`SELECT … FOR UPDATE` na tabela real
+ * `"Lote"`, escopo tenant + empresa) e devolve o snapshot histórico de entrada.
+ * É o ponto de serialização das ENTRADAS do mesmo lote: duas transações com
+ * `operation_id` diferentes esperam uma pela outra AQUI, e a segunda enxerga a
+ * entrada já gravada pela primeira. Só leitura + trava; o ledger não escreve
+ * no Lote. Lote de outro tenant/empresa simplesmente não é encontrado.
+ * @param {ClienteSql} tx
+ * @param {string} clienteId
+ * @param {string} empresaId
+ * @param {string} loteId
+ */
+export const travarLoteReferencia = async (tx, clienteId, empresaId, loteId) => {
+  /** @type {Array<Record<string, any>>} */
+  const linhas = await tx.$queryRawUnsafe(
+    `SELECT id, origem, status, quantidade_entrada, area_entrada_id, categoria_manejo_entrada_id,
+            categoria_entrada, categoria_manejo_id, categoria
+       FROM "Lote" WHERE cliente_id = $1 AND empresa_id = $2 AND id = $3
+        FOR UPDATE`,
+    clienteId,
+    empresaId,
+    loteId
+  );
+  if (!linhas.length) return null;
+  const l = linhas[0];
+  return { ...l, quantidade_entrada: l.quantidade_entrada === null ? null : Number(l.quantidade_entrada) };
+};
+
+/**
  * Lote já tem ENTRADA ativa (não estornada)? Evita contar a mesma compra 2x.
+ * Só é confiável depois de `travarLoteReferencia` na mesma transação.
  * @param {ClienteSql} tx
  * @param {string} esquema
  * @param {string} clienteId

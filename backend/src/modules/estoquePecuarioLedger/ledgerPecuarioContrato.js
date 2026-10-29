@@ -27,7 +27,7 @@ export const TIPOS_EVENTO = Object.freeze({
 export const CATEGORIA_SEM = 'SEM_CATEGORIA';
 const PREFIXO_CATEGORIA_MANEJO = 'cm:';
 const RE_ID = /^[A-Za-z0-9_-]{1,64}$/;
-const RE_DATA = /^\d{4}-\d{2}-\d{2}$/;
+const RE_DATA = /^(\d{4})-(\d{2})-(\d{2})$/;
 
 /** Limite defensivo por evento (rebanho real fica muito abaixo; evita overflow de int4). */
 export const QUANTIDADE_MAXIMA_POR_EVENTO = 1_000_000;
@@ -88,16 +88,25 @@ export const normalizarCategoria = (entrada) => {
 };
 
 /**
+ * Data operacional estrita: a string INTEIRA tem de ser `AAAA-MM-DD` (sem
+ * espaço, sem hora, sem sufixo) e ser uma data de calendário real — conferida
+ * reconstruindo os componentes em UTC (2024-02-29 vale; 2026-02-29, 2026-02-30,
+ * mês 13 e dia 00 não). Nada é normalizado em silêncio.
  * @param {unknown} valor
  * @returns {string} AAAA-MM-DD (data operacional; não é o createdAt)
  */
 export const normalizarDataOperacional = (valor) => {
-  const texto = typeof valor === 'string' ? valor.trim().slice(0, 10) : '';
-  if (!RE_DATA.test(texto) || Number.isNaN(Date.parse(`${texto}T12:00:00.000Z`))) {
-    throw new LedgerPecuarioError(C.DATA_INVALIDA, 'data_operacional deve ser AAAA-MM-DD', {
+  const texto = typeof valor === 'string' ? valor : '';
+  const m = RE_DATA.exec(texto);
+  const recusar = () => {
+    throw new LedgerPecuarioError(C.DATA_INVALIDA, 'data_operacional deve ser AAAA-MM-DD (data de calendário real)', {
       details: { field: 'data_operacional' },
     });
-  }
+  };
+  if (!m) return recusar();
+  const [ano, mes, dia] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  const d = new Date(Date.UTC(ano, mes - 1, dia));
+  if (ano < 1900 || d.getUTCFullYear() !== ano || d.getUTCMonth() !== mes - 1 || d.getUTCDate() !== dia) return recusar();
   return texto;
 };
 
@@ -143,21 +152,39 @@ const textoOpcional = (valor) => {
 };
 
 /**
- * ENTRADA histórica: um crédito na área de entrada. `lote_referencia_id`
- * aponta para o cadastro do lote (fato de compra/nascimento) — só referência;
- * o ledger nunca escreve no Lote.
+ * Classe da origem do cadastro de lote (valores de `ORIGENS_SISTEMA` em
+ * `src/services/loteCadastroService.js`, comparados sem acento/caixa):
+ *  - `cadastro`: lote cadastrado pelo usuário (compra/entrada) — fato histórico;
+ *  - `nascimento`: fato legítimo, mas SEM contrato de evento no L1;
+ *  - `derivado_movimento` / `derivado_reversao` / `derivado_categoria`: efeito
+ *    colateral do legado (movimento parcial, reversão, mudança de categoria) —
+ *    nunca é entrada nova.
+ * @param {unknown} origem
+ * @returns {'cadastro' | 'nascimento' | 'derivado_movimento' | 'derivado_reversao' | 'derivado_categoria'}
+ */
+export const classificarOrigemLote = (origem) => {
+  const t = String(origem ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toUpperCase();
+  if (t === 'MOVIMENTACAO') return 'derivado_movimento';
+  if (t === 'REVERSAO MOVIMENTACAO') return 'derivado_reversao';
+  if (t === 'MUDANCA DE CATEGORIA') return 'derivado_categoria';
+  if (t === 'NASCIMENTO') return 'nascimento';
+  return 'cadastro';
+};
+
+/**
+ * ENTRADA histórica = o cadastro do lote (decisão do proprietário). Por isso
+ * `lote_referencia_id` é OBRIGATÓRIO: não existe entrada "solta" sem
+ * documento de origem no L1. Nascimento/ajuste ficam fora (L2, com contrato).
+ * O lote é só referência — o ledger nunca escreve nele.
  * @param {Record<string, unknown>} entrada
  * @returns {EventoPlanejado}
  */
 export const planejarEntrada = (entrada) => {
   const empresaId = exigirId(entrada.empresa_id, 'empresa_id', C.EMPRESA_INVALIDA);
+  const lote = exigirId(entrada.lote_referencia_id, 'lote_referencia_id', C.LOTE_REFERENCIA_INVALIDO);
   const areaDestino = exigirId(entrada.area_id, 'area_id', C.DESTINO_INVALIDO);
   const quantidade = normalizarQuantidade(entrada.quantidade);
   const { chave, categoriaManejoId } = normalizarCategoria(entrada);
-  const lote =
-    entrada.lote_referencia_id === undefined || entrada.lote_referencia_id === null
-      ? null
-      : exigirId(entrada.lote_referencia_id, 'lote_referencia_id', C.LOTE_REFERENCIA_INVALIDO);
   return {
     tipo: TIPOS_EVENTO.ENTRADA,
     empresa_id: empresaId,
@@ -171,6 +198,61 @@ export const planejarEntrada = (entrada) => {
     motivo: textoOpcional(entrada.motivo),
     partidas: [{ area_id: areaDestino, categoria_chave: chave, delta: quantidade }],
   };
+};
+
+/**
+ * @typedef {{
+ *   origem?: unknown, quantidade_entrada?: unknown, area_entrada_id?: unknown,
+ *   categoria_manejo_entrada_id?: unknown, categoria_entrada?: unknown,
+ *   categoria_manejo_id?: unknown, categoria?: unknown,
+ * }} SnapshotLote
+ */
+
+/**
+ * Categoria HISTÓRICA da entrada do lote (nunca a atual, que muda com manejo):
+ *  - `categoria_manejo_entrada_id` presente → `cm:<id>` (confiável);
+ *  - lote sem NENHUMA categoria (nem ID, nem texto, de entrada ou atual) →
+ *    `SEM_CATEGORIA` (confiável: a ausência é explícita);
+ *  - qualquer outro caso (só texto, ou só a categoria atual) → não confiável:
+ *    a dimensão da entrada não é comprovável e vai para quarentena.
+ * @param {SnapshotLote} lote
+ * @returns {{ chave: string | null, confiavel: boolean, motivo?: string }}
+ */
+export const categoriaHistoricaDaEntrada = (lote) => {
+  const id = typeof lote.categoria_manejo_entrada_id === 'string' ? lote.categoria_manejo_entrada_id.trim() : '';
+  if (id) return { chave: `${PREFIXO_CATEGORIA_MANEJO}${id}`, confiavel: true };
+  const algum = [lote.categoria_entrada, lote.categoria_manejo_id, lote.categoria].some((v) => String(v ?? '').trim() !== '');
+  if (!algum) return { chave: CATEGORIA_SEM, confiavel: true };
+  return { chave: null, confiavel: false, motivo: 'categoria_historica_sem_id' };
+};
+
+/**
+ * A entrada do ledger precisa BATER com o snapshot histórico do cadastro:
+ * quantidade = `quantidade_entrada` (não a atual `quantidade_cabecas`), área =
+ * `area_entrada_id`, categoria = categoria histórica. Divergência é recusada —
+ * nunca "ajustada" em silêncio. Origem derivada/nascimento: fora do L1.
+ * @param {EventoPlanejado} plano
+ * @param {SnapshotLote} lote
+ */
+export const validarEntradaContraLote = (plano, lote) => {
+  const classe = classificarOrigemLote(lote.origem);
+  if (classe !== 'cadastro') {
+    throw new LedgerPecuarioError(C.LOTE_ORIGEM_NAO_SUPORTADA, 'origem do lote não é cadastro de entrada (derivado do legado ou nascimento sem contrato no L1)', {
+      details: { field: 'lote_referencia_id', origem_classe: classe },
+    });
+  }
+  const divergente = (campo, motivo) => {
+    throw new LedgerPecuarioError(C.ENTRADA_DIVERGENTE_DO_LOTE, `entrada diverge do cadastro histórico do lote (${campo})`, {
+      details: { field: campo, motivo },
+    });
+  };
+  if (!(typeof lote.quantidade_entrada === 'number' && Number.isInteger(lote.quantidade_entrada) && lote.quantidade_entrada === plano.quantidade)) {
+    divergente('quantidade', 'diferente_de_quantidade_entrada');
+  }
+  if (lote.area_entrada_id !== plano.area_destino_id) divergente('area_id', 'diferente_de_area_entrada_id');
+  const cat = categoriaHistoricaDaEntrada(lote);
+  if (!cat.confiavel) divergente('categoria_manejo_id', cat.motivo || 'categoria_historica_nao_comprovavel');
+  if (cat.chave !== plano.categoria_chave) divergente('categoria_manejo_id', 'diferente_da_categoria_de_entrada');
 };
 
 /**

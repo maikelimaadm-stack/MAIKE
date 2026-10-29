@@ -1,7 +1,7 @@
 # MAIKE — Ledger de estoque pecuário por área (L1): contrato
 
-**Status:** L1 — backend isolado, **sem rota, sem migration, sem UI**. Não é
-produção. A integração (L2) depende do merge da PR #145 e de um rebase
+**Status:** L1-R2 (correções da auditoria) — backend isolado, **sem rota,
+sem migration, sem UI**. Não é produção. A integração (L2) depende do merge da PR #145 e de um rebase
 supervisionado.
 
 **Código:**
@@ -29,9 +29,57 @@ cadastro nem do mapa.
 
 | Evento | Partidas | Observações |
 |---|---|---|
-| `ENTRADA` | `+q` em (área, categoria) | `lote_referencia_id` opcional aponta o cadastro (só referência, o ledger nunca escreve em `Lote`). Só **uma** entrada ativa (não estornada) por lote. |
+| `ENTRADA` | `+q` em (área, categoria) | `lote_referencia_id` **obrigatório**: cadastro de lote = entrada histórica. Ver §2.1. O ledger nunca escreve em `Lote`. Só **uma** entrada ativa (não estornada) por lote. |
 | `TRANSFERENCIA` | `−q` origem, `+q` destino | Origem ≠ destino **por ID**. As duas áreas precisam ser da mesma empresa e do mesmo tenant. Destino inativo é recusado; origem inativa pode ser esvaziada. |
 | `ESTORNO` | Inverso exato das partidas do original | Exige motivo. Um estorno por original (`UNIQUE(cliente_id, estorno_de_evento_id)`). Estorno de estorno é recusado. Exige saldo para desfazer. |
+
+### 2.1 Entrada = snapshot histórico do cadastro (R2)
+
+A ENTRADA só é aceita se bater com o snapshot do lote, lido com
+`SELECT … FOR UPDATE` na tabela real `"Lote"` (escopo tenant + empresa):
+
+| Campo do pedido | Precisa ser igual a | Divergência |
+|---|---|---|
+| `quantidade` | `Lote.quantidade_entrada`. **Não** a atual `quantidade_cabecas`. | `LEDGER_PECUARIO_ENTRADA_DIVERGENTE_DO_LOTE` |
+| `area_id` | `Lote.area_entrada_id` | idem |
+| categoria | `cm:<Lote.categoria_manejo_entrada_id>`. Sem nenhuma categoria (nem ID nem texto, de entrada ou atual) = `SEM_CATEGORIA`. Só texto, ou só a categoria atual, não é comprovável e é recusado. | idem |
+| origem do lote | classe `cadastro` (§2.2) | `LEDGER_PECUARIO_LOTE_ORIGEM_NAO_SUPORTADA` |
+
+- Nada é "ajustado" em silêncio.
+- O status operacional do lote (Ativo/Inativo…) **não** impede lançar a
+  entrada histórica.
+- Uma área de entrada hoje inativa também não impede.
+
+**Serialização (P0 R2):**
+- A trava do Lote acontece **antes** da checagem de "entrada ativa", na mesma
+  transação da idempotência.
+- Duas ENTRADAS do mesmo lote com `operation_id` diferentes esperam uma pela
+  outra; a segunda enxerga a primeira e é recusada
+  (`LEDGER_PECUARIO_LOTE_REFERENCIA_INVALIDO`).
+- Área diferente para o mesmo lote cai na divergência de snapshot.
+- Não há UNIQUE de "entrada ativa por lote" na prova de conceito, porque a
+  regra depende da tabela de estornos. A garantia é a trava, provada em 10
+  rodadas de transações reais. No L2 avaliar uma coluna/índice que torne a
+  regra declarativa.
+
+**Fora do L1 (sem contrato de evento):**
+- nascimento, ajuste e entrada sem documento;
+- lotes derivados do legado.
+
+Não existe entrada "solta" sem `lote_referencia_id`.
+
+### 2.2 Classes de origem do lote (`classificarOrigemLote`)
+
+Base: `ORIGENS_SISTEMA` em `src/services/loteCadastroService.js`, comparado
+sem acento/caixa.
+
+| Origem | Classe | Ledger (comando) | Reconciliação |
+|---|---|---|---|
+| qualquer outra (ex.: "Compra") | `cadastro` | ENTRADA aceita | conta como entrada |
+| `NASCIMENTO` / `Nascimento` | `nascimento` | recusado (L2) | conta como entrada (fato real) + quarentena impeditiva |
+| `MOVIMENTAÇÃO` | `derivado_movimento` | recusado | não é entrada; o efeito vem da transferência |
+| `REVERSÃO MOVIMENTAÇÃO` | `derivado_reversao` | recusado | não é entrada + quarentena impeditiva |
+| `MUDANÇA DE CATEGORIA` | `derivado_categoria` | recusado | não é entrada + quarentena impeditiva |
 
 **Categoria:**
 - a chave canônica é `cm:<categoria_manejo_id>` (ID estável da
@@ -46,6 +94,11 @@ cadastro nem do mapa.
 ## 3. Invariantes (todas testadas contra PostgreSQL)
 
 1. Quantidade inteira positiva (≤ 1.000.000 por evento); sem coerção de string.
+   `data_operacional` estrita: a string **inteira** é `AAAA-MM-DD` e é uma data
+   de calendário real.
+   - aceitos: 2024-02-29, 2000-02-29;
+   - recusados: 2026-02-29, 2026-02-30, mês 13, dia 00, sufixo, hora,
+     espaços.
 2. Origem ≠ destino (ID).
 3. Empresa, áreas, categoria e lote verificados **no tenant do
    `auth_context`**. Nunca vêm de body, query, header ou cookie.
@@ -62,6 +115,8 @@ cadastro nem do mapa.
    saldo, nem linha de idempotência.
 9. Eventos e partidas são **append-only no banco**: trigger recusa
    UPDATE/DELETE.
+10. ENTRADA bate com o snapshot histórico do lote (§2.1) e há no máximo uma
+    entrada ativa por lote, mesmo sob concorrência.
 
 ## 4. Concorrência
 
@@ -84,12 +139,24 @@ a idempotência devolve replay ou o conflito real. Se esgotar:
 **Provas no banco:**
 - duas saídas simultâneas pelo mesmo saldo: exatamente uma passa, 10 rodadas;
 - 8 transferências A↔B cruzadas sem deadlock;
-- a mesma `operation_id` em paralelo grava um único evento.
+- a mesma `operation_id` em paralelo grava um único evento;
+- **duas ENTRADAS do mesmo lote com `operation_id` diferentes**: exatamente 1
+  em 10 rodadas, sem idempotência presa da perdedora.
 
 ## 5. Modelo de dados proposto
 
 No L1 as tabelas existem só como DDL em esquema descartável
-(`ledgerPecuarioDdl.js`). `public` é recusado.
+(`ledgerPecuarioDdl.js`).
+
+**Namespace exclusivo (R2):**
+- só nomes `^ledger_l1_[0-9a-f]{12,32}$` são aceitos para criar, operar e
+  `DROP SCHEMA … CASCADE`;
+- `public`, `auth`, `storage`, `pg_catalog`, `information_schema`, `prisma`,
+  esquemas de aplicação, vazio e formato arbitrário são recusados por
+  construção;
+- `gerarEsquemaDescartavel()` cria o nome;
+- a suíte compara os esquemas `ledger_l1_%` antes e depois e prova que criou e
+  removeu só o seu.
 
 ```
 ledger_pecuario_evento   (append-only)
@@ -148,6 +215,28 @@ ledger_pecuario_posicao  (projeção materializada, reconstruível)
    `operation_id` determinístico por registro legado, para que reexecutar
    seja replay.
 
+**O L2 não é automático depois do merge da #145.** Antes de qualquer
+migração real, cada item exige aprovação explícita:
+- rebase supervisionado;
+- models/migration Prisma com FKs tenant-aware;
+- grants/RLS;
+- API autenticada;
+- idempotência operacional;
+- E2E real;
+- export/backup;
+- reconciliação validada com dump autorizado;
+- **aprovação manual** de backfill e cutover.
+
+**Escrita sombra:**
+- nada de dual-write cliente/servidor em transações separadas sem plano de
+  atomicidade/reprocessamento;
+- nenhuma entrada histórica duplicada;
+- o ledger fica desligado para usuários até os gates de paridade e rollback
+  estarem aprovados.
+
+**Leitura do mapa:** não vira para o ledger enquanto houver quarentena ou
+dupla fonte de verdade sem consistência comprovada.
+
 ## 6. Códigos de erro (estáveis)
 
 | Código | Quando |
@@ -158,7 +247,9 @@ ledger_pecuario_posicao  (projeção materializada, reconstruível)
 | `LEDGER_PECUARIO_DESTINO_INVALIDO` | Área de destino fora da empresa/tenant ou inativa |
 | `LEDGER_PECUARIO_ORIGEM_IGUAL_DESTINO` | Origem = destino (ID) |
 | `LEDGER_PECUARIO_EMPRESA_INVALIDA` | Empresa fora do tenant |
-| `LEDGER_PECUARIO_LOTE_REFERENCIA_INVALIDO` | Lote fora da empresa/tenant ou com entrada ativa já lançada |
+| `LEDGER_PECUARIO_LOTE_REFERENCIA_INVALIDO` | Lote ausente (obrigatório), fora da empresa/tenant, ou com entrada ativa já lançada |
+| `LEDGER_PECUARIO_LOTE_ORIGEM_NAO_SUPORTADA` | Lote derivado do legado (movimento/reversão/mudança de categoria) ou nascimento (sem contrato no L1) |
+| `LEDGER_PECUARIO_ENTRADA_DIVERGENTE_DO_LOTE` | Quantidade/área/categoria ≠ snapshot histórico do lote, ou categoria histórica não comprovável |
 | `LEDGER_PECUARIO_SALDO_INSUFICIENTE` | Posição ficaria negativa |
 | `LEDGER_PECUARIO_OPERACAO_INVALIDA` | `operation_id` fora de 8–128 caracteres |
 | `LEDGER_PECUARIO_DATA_INVALIDA` | `data_operacional` não é AAAA-MM-DD válida |
@@ -169,43 +260,76 @@ ledger_pecuario_posicao  (projeção materializada, reconstruível)
 | `LEDGER_PECUARIO_IDEMPOTENCIA_EM_PROCESSAMENTO` | Mesma chave ainda em processamento |
 | `LEDGER_PECUARIO_CONCORRENCIA_ESGOTADA` | Retry de conflito transitório esgotado |
 | `LEDGER_PECUARIO_CONTEXTO_OBRIGATORIO` | Sem `auth_context` |
-| `LEDGER_PECUARIO_ESQUEMA_INVALIDO` | Esquema `public` ou identificador inválido (salvaguarda do L1) |
+| `LEDGER_PECUARIO_ESQUEMA_INVALIDO` | Esquema fora de `ledger_l1_<hex>` (salvaguarda do L1) |
 
 `LedgerPecuarioError` é uma classe própria, porque `AppError` exige código
 registrado em `errorCodes.js`, arquivo compartilhado com a #145. O L2 move
 esses códigos para o mapa global e define o status HTTP.
 
-## 7. Reconciliação read-only do legado
+## 7. Reconciliação read-only do legado (R2)
 
 `node scripts/ops/auditar-ledger-pecuario.mjs --entrada dump.json [--saida r.json] [--mostrar-ids]`
 
-- **Entrada:** dump local `{ lotes, movimentacoes_mapa }`. Não conecta em
-  banco, não lê env, não tem endereço de produção e não escreve fora do
-  arquivo de saída pedido.
-- **Entradas legadas:** lote com `origem` ≠ "MOVIMENTAÇÃO" e não cancelado
-  conta `quantidade_entrada` em `area_entrada_id`. Lote com origem
-  "MOVIMENTAÇÃO" é efeito do movimento parcial do legado e **não conta como
-  compra**.
-- **Movimentações:** só "Transferência de Área" é aplicada. Morte, abate,
-  nascimento, junção, pesagem e mudança de categoria vão para **quarentena**
-  (semântica de saldo não comprovada no legado).
-- **Matriz** por empresa/área/categoria: entradas, transferências
-  entrada/saída, esperada, observada (`quantidade_cabecas` dos lotes ativos em
-  `area_atual_id`) e lacuna.
-- **Suspeitas apontadas** (nunca corrigidas):
-  - origem = destino (self-target);
-  - duplicata por assinatura (lote, quantidade, origem, destino, data);
-  - saldo esperado negativo;
-  - categoria só textual.
-- IDs saem com hash curto por padrão; nome de usuário nunca sai.
+**Entrada do script:**
+- dump local `{ lotes, movimentacoes_mapa, mapeamento_categorias? }`;
+- não conecta em banco, não lê env, não tem endereço de produção e não
+  escreve fora do arquivo de saída pedido.
 
-**Caso real observado (29/10/2026, reproduzido por fixture sintética):**
-- **Lote 1** (150 → 135): a reconciliação espera 150 na área de entrada,
-  observa 135 (**lacuna −15**) e marca o movimento de 15 para a própria área
-  como `origem_igual_destino`.
-- **Lote 2** (250 → 50 parcial → 200 total): esperado P = 0, Q = 50, R = 200;
-  sem lacuna. O **lote 3** (50, origem "MOVIMENTAÇÃO") fica listado como
-  gerado e **não** é somado como compra.
+**Entradas históricas:**
+- Contam pela classe de origem (§2.2), **qualquer que seja o status
+  operacional atual**: Ativo, Inativo, Vendido, Abatido, Transferido…
+  Status é estado operacional, não prova de anulação.
+- O legado não tem mecanismo formal de anulação de compra. Por isso um status
+  com cara de anulação (Cancelado/Excluído/Estornado/Anulado) **conta** e vai
+  para quarentena (`status_de_anulacao_sem_prova_formal`).
+
+**Categoria da entrada:**
+- é a **histórica** (`categoria_manejo_entrada_id`);
+- sem ela, conta sob chave `texto:` e gera suspeita impeditiva
+  `categoria_somente_texto`;
+- a **posição observada** usa a categoria **atual**;
+- lote com categoria de entrada ≠ atual → `mudanca_categoria_nao_suportada`
+  (impeditiva).
+
+**Categoria da transferência**, em ordem:
+1. `dados.categoria_manejo_id` do evento;
+2. a do lote, **só se ele nunca mudou** de categoria (entrada = atual);
+3. `mapeamento_categorias` explícito, revisado por gente e devolvido em
+   `categorias_por_mapeamento`;
+4. senão, quarentena `categoria_do_movimento_nao_comprovavel`. O movimento
+   **não** é aplicado e nada é inventado.
+
+**Quantidades:**
+- inteiro estrito > 0;
+- `10.5`, `""`, `NaN`, negativos, `"12abc"` e `"1e3"` vão para quarentena,
+  sem truncar.
+
+**Tipos de movimento:**
+- só "Transferência de Área" é aplicada;
+- os demais vão para quarentena impeditiva `tipo_nao_aplicado`;
+- origem = destino é suspeita não impeditiva (neutra no saldo);
+- duplicata por assinatura e saldo esperado negativo são suspeitas
+  impeditivas.
+
+**Estado (geral e por empresa):**
+
+| Estado | Quando |
+|---|---|
+| `conciliada` | Nenhuma lacuna, suspeita ou quarentena |
+| `reconciliacao_parcial` | Há lacuna ou item não impeditivo |
+| `bloqueada_para_backfill` | Há item impeditivo |
+
+Diferença zero com item em quarentena **nunca** sai como `conciliada`.
+`por_empresa` traz totais, lacunas e contagem por motivo/tipo.
+
+**Casos provados (fixtures sintéticas; nada lido do remoto):**
+
+| Caso | Resultado |
+|---|---|
+| 1000 em A → transferência total para B; lote original **Inativo**; lote gerado "MOVIMENTAÇÃO" Ativo em B | A = 0, B = 1000, total 1000, 0 lacunas, `conciliada` |
+| 150 → 135 + movimento de 15 para a própria área | lacuna −15 em X, suspeita `origem_igual_destino`, `reconciliacao_parcial` (sem remendo) |
+| 250 → 50 parcial (lote gerado 50) → 200 total | P = 0, Q = 50, R = 200; o gerado não é compra |
+| Lote que mudou de categoria + transferência anterior | entrada sob a categoria histórica, posição sob a atual, movimento em quarentena, lacuna visível, `bloqueada_para_backfill` |
 
 ## 8. Correção recomendada no legado (diferida para L2)
 
@@ -239,6 +363,10 @@ Com o ledger, o próprio comando recusa origem = destino
 
 ## 10. Mapa arquivo → dono (L1 × PR #145)
 
+A lista de arquivos da #145 **muda com o tempo**: eram 35 numa leitura
+inicial e 95 no head `9bad34ce`. Por isso a interseção é recalculada contra o
+head **atual** da #145 a cada push (`git diff --name-only origin/main...<head>`).
+
 Arquivos do L1, todos **novos**:
 - `backend/src/modules/estoquePecuarioLedger/*`
 - `backend/tests/estoquePecuarioLedger*.test.mjs`
@@ -247,7 +375,7 @@ Arquivos do L1, todos **novos**:
 - este documento
 - `docs/engineering/MAIKE-ESTOQUE-PECUARIO-LEDGER-L1-REPORT.md`
 
-A interseção com os 35 arquivos da PR #145 é **vazia**. Os arquivos
+A interseção com a PR #145 atual é **vazia**. Os arquivos
 compartilhados não foram tocados (as entradas no registro ficam para o rebase
 do L2):
 - `schema.prisma`, `app.js`, `errorCodes.js`, `helpers.mjs`;
