@@ -70,14 +70,15 @@ export function resolverAlvoDesenho(map, bruto, ctx) {
 /**
  * Vértice/meio sob o ponteiro com área de acerto maior que o círculo visível
  * (mouse 8px, toque 14px). Vértice tem prioridade; entre iguais, o mais próximo.
+ * `vertices: null` limita o acerto aos meios (cadastro aberto, D-PROD-68).
  * @param {import('maplibre-gl').Map} map
  * @param {{ x: number, y: number }} ponto
- * @param {{ toque?: boolean, camadas: { vertices: string, meios: string } }} opts
+ * @param {{ toque?: boolean, camadas: { vertices: string | null, meios: string } }} opts
  * @returns {{ role: 'vertex' | 'midpoint', index: number, id: string, lat: number, lng: number } | null}
  */
 export function acertoEditor(map, ponto, opts) {
   const tol = opts.toque ? EDITOR_VISUAL.acerto.toque : EDITOR_VISUAL.acerto.mouse;
-  const layers = [opts.camadas.vertices, opts.camadas.meios].filter((id) => map.getLayer(id));
+  const layers = [opts.camadas.vertices, opts.camadas.meios].filter((id) => id && map.getLayer(id));
   if (!layers.length) return null;
   const feats = map.queryRenderedFeatures(
     [
@@ -125,8 +126,11 @@ export function pintarEdicao(map, e) {
       if (f.properties && Number(f.properties.index) === e.selecionado) f.properties.selecionado = true;
     });
     setSourceData(map, SOURCE_IDS.VERTICES, vs);
-    // Durante o arrasto os meios somem (referência), voltam ao soltar.
-    setSourceData(map, SOURCE_IDS.MIDPOINTS, e.fechado && !e.arrastando ? buildMidpointsCollection(e.pts, /** @type {any} */ (e.tipo)) : vazia());
+    // Durante o arrasto os meios somem (referência), voltam ao soltar. Área em
+    // cadastro (aberta) também tem meios, só nas arestas já desenhadas (D-PROD-68);
+    // linha nova continua sem meios até ser editada.
+    const comMeios = (e.fechado || e.tipo === "area") && !e.arrastando;
+    setSourceData(map, SOURCE_IDS.MIDPOINTS, comMeios ? buildMidpointsCollection(e.pts, /** @type {any} */ (e.tipo), { fechado: e.fechado }) : vazia());
   } else if (e.tipo === "ponto" && e.marker) {
     setSourceData(map, SOURCE_IDS.VERTICES, buildVerticesCollection([e.marker]));
     setSourceData(map, SOURCE_IDS.MIDPOINTS, vazia());

@@ -2757,4 +2757,41 @@ Merge só pelo proprietário após auditoria.
 
 ---
 
-<!-- Próxima decisão: D-PROD-68 -->
+## D-PROD-68 — Pontos médios no cadastro de área ainda aberta
+
+**Missão:** `MAPLIBRE-PONTOS-MÉDIOS-NO-CADASTRO-03`\
+**Relatório:** `docs/engineering/MAPLIBRE-PONTOS-MEDIOS-CADASTRO-REPORT.md`\
+**Base:** `origin/main` = `d490fad8` (merge #142)\
+**Referência (read-only):** `CONTROLE-DE-ESTOQUE`, commit `6aef845e`:
+- `editor-desenho.ts` `acertar`: aberto = n−1 meios, fechado = n;
+- `editor-contorno.tsx` `aoPressionar`: segurar o meio cria e arrasta o vértice.
+
+**Decisão:**
+
+1. **Meios só nas arestas que existem.** `buildMidpointsCollection(…, { fechado })`
+   faz isto:
+   - área aberta: só as arestas consecutivas, sem a futura aresta último→primeiro;
+   - área fechada (padrão): inclui o fecho;
+   - linha: n−1, sempre.
+
+   Em `pintarEdicao`, a área em cadastro mostra os meios a partir de 2 vértices.
+   A linha nova continua sem meios. Prévia e arrasto continuam ocultando os meios.
+2. **No Desenhar de área aberta, só os meios são alvo** (`meiosNoCadastro`):
+   - clicar ou tocar insere o vértice no meio **exato** da aresta (calculado
+     dos vértices, não da geometria quantizada do tile);
+   - segurar e arrastar cria e move o vértice, com undo/redo;
+   - vértices, mover e o clique que adiciona ao fim seguem como antes;
+   - `podeEditarVertices` não mudou.
+3. **O clique no meio não adiciona também um ponto final.** O clique-adiciona
+   ignora o gesto quando há arrasto em curso.
+
+**Inalterado:**
+- aparência e alvo de acerto (D-PROD-66);
+- fechar/prévia/cor/cancelar/salvar (D-PROD-67);
+- linhas, pontos, GPS, formulários, backend.
+
+Merge só pelo proprietário após auditoria.
+
+---
+
+<!-- Próxima decisão: D-PROD-69 -->
