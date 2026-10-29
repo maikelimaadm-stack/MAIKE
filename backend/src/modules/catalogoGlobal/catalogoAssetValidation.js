@@ -5,6 +5,12 @@ import { catalogoAssetInvalid } from '../../shared/errors/AppError.js';
 
 const MIMES_PERMITIDOS = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif']);
 
+/** Limites que o validador aplica — expostos ao painel para não duplicar regra. */
+export const limitesUploadCatalogo = () => ({
+  mimes: [...MIMES_PERMITIDOS],
+  max_bytes: env.catalogoAssetMaxBytes,
+});
+
 /** @param {Buffer} buffer */
 export const detectarMimeReal = (buffer) => {
   if (buffer.length >= 8 && buffer[0] === 0x89 && buffer[1] === 0x50) return 'image/png';

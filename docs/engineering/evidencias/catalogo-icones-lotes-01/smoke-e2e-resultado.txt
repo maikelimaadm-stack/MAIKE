@@ -1,0 +1,13 @@
+PASS tenant comum vê "Acesso restrito" (403 do backend)
+PASS tenant comum não vê formulário "Novo ícone"
+PASS operador abre o painel por URL direta
+PASS tipo criado e listado
+PASS prévia local antes de enviar
+PASS ícone criado como rascunho
+PASS ícone publicado
+PASS refresh na rota mantém o painel e o estado
+PASS sem rolagem horizontal em 768px — scrollWidth=768
+PASS sem rolagem horizontal em 390px — scrollWidth=390
+PASS sem rolagem horizontal em 412px — scrollWidth=412
+PASS formulário de lote mostra a prévia do ícone oficial
+PASS prévia em "mapeamento_pendente" (sem palpite) — Ícone oficial: vínculo da categoria com o catálogo MAIKE ainda não configurado.

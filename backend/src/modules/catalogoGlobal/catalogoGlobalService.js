@@ -1,7 +1,7 @@
 import { getPrismaClient } from '../../database/prismaClient.js';
 import { catalogoGlobalInvalid, catalogoGlobalNotFound } from '../../shared/errors/AppError.js';
 import { urlPublicaAssetCatalogo } from './catalogoAssetUrls.js';
-import { validarBufferAssetCatalogo } from './catalogoAssetValidation.js';
+import { limitesUploadCatalogo, validarBufferAssetCatalogo } from './catalogoAssetValidation.js';
 import {
   caminhoObjetoCatalogo,
   exigirArmazenamentoCatalogoAoVivo,
@@ -85,6 +85,66 @@ export const listarRegrasMistoPublicadas = async () => {
     especificidade: r.especificidade,
     categoria_ids: r.categorias.map((c) => c.categoria_id),
   }));
+};
+
+/**
+ * Visão administrativa completa do catálogo (painel interno do operador).
+ *
+ * Diferente das leituras publicadas (que só expõem o que está `publicado` e
+ * ativo), aqui vêm também rascunhos e inativos, os assets disponíveis e os
+ * limites de upload que o backend realmente aplica — para a UI nunca manter
+ * uma segunda lista de regras. Só é exposta sob `exigirOperadorProduto`.
+ */
+export const obterVisaoAdmin = async () => {
+  const db = prisma();
+  const [meta, tipos, categorias, icones, assets] = await Promise.all([
+    db.catalogoMeta.findUnique({ where: { chave: 'global' } }),
+    db.catalogoTipoEntidade.findMany({ orderBy: [{ ordem: 'asc' }, { codigo: 'asc' }] }),
+    db.catalogoCategoriaVisual.findMany({ orderBy: [{ tipo_id: 'asc' }, { ordem: 'asc' }, { codigo: 'asc' }] }),
+    db.catalogoIcone.findMany({
+      orderBy: [{ tipo_id: 'asc' }, { categoria_id: 'asc' }, { createdAt: 'asc' }],
+      include: { assetPrincipal: true, assetSubicone: true },
+    }),
+    db.catalogoAsset.findMany({ orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: 200 }),
+  ]);
+  const comoAsset = (a) =>
+    a
+      ? {
+          id: a.id,
+          mime: a.mime,
+          bytes: a.bytes,
+          largura: a.largura,
+          altura: a.altura,
+          estado: a.estado,
+          revisao: a.revisao,
+          public_url: urlPublicaAssetCatalogo(a),
+        }
+      : null;
+  return {
+    revisao: meta?.revisao ?? 0,
+    limites: limitesUploadCatalogo(),
+    tipos: tipos.map((t) => ({ id: t.id, codigo: t.codigo, nome: t.nome, ordem: t.ordem, ativo: t.ativo })),
+    categorias: categorias.map((c) => ({
+      id: c.id,
+      tipo_id: c.tipo_id,
+      codigo: c.codigo,
+      nome: c.nome,
+      ordem: c.ordem,
+      ativo: c.ativo,
+    })),
+    icones: icones.map((i) => ({
+      id: i.id,
+      tipo_id: i.tipo_id,
+      categoria_id: i.categoria_id,
+      estado: i.estado,
+      ativo: i.ativo,
+      revisao: i.revisao,
+      cor_fallback: i.cor_fallback,
+      asset_principal: comoAsset(i.assetPrincipal),
+      asset_subicone: comoAsset(i.assetSubicone),
+    })),
+    assets: assets.map(comoAsset),
+  };
 };
 
 export const criarTipo = async ({ dados, revisaoEsperada, operador, requestId }) => {

@@ -18,7 +18,8 @@
     "TiposTarefa",
     "UnidadesMedida",
     "Usuarios",
-    "Permissoes"
+    "Permissoes",
+    "CatalogoGlobalMaike"
   ],
   "allowedManualRoutes": [],
   "allowedBase44Entities": [

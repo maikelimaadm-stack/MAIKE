@@ -18,6 +18,7 @@ import LegacyRecordToolbar from "./LegacyRecordToolbar.jsx";
 import LegacyTabs from "./LegacyTabs.jsx";
 import Base1PanelTabs from "@/components/cadastro/base1/Base1PanelTabs.jsx";
 import DynamicFormRenderer from "@/components/dynamic/DynamicFormRenderer";
+import IconeOficialLotePreview from "@/components/catalogoGlobal/IconeOficialLotePreview";
 import LayoutConfiguratorDialog from "@/components/dynamic/LayoutConfiguratorDialog";
 export const FORMULARIO_LOTE_ID = "formulario-lote-base1";
 
@@ -558,6 +559,8 @@ export default function FormularioLote({
                 readOnly={isReadOnly}
                 visualVariant={useBase1Visual ? "base1" : "legacy"}
                 />
+              {/* Catálogo global (somente leitura): sem vínculo explícito, mostra pendência — nunca palpite. */}
+              <IconeOficialLotePreview categoriaVisualId={null} />
             </div>
           </fieldset>
 

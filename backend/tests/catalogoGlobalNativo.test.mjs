@@ -1126,3 +1126,130 @@ describe('catálogo global R3 — CAS em todas as mutações', () => {
     assert.equal((await prisma.catalogoMeta.findUnique({ where: { chave: 'global' } })).revisao, 6);
   });
 });
+
+describe('catálogo global — painel interno (ICONES-LOTES-01)', () => {
+  const visao = (token) =>
+    app.inject({ method: 'GET', url: '/catalogo-global/admin/visao', ...(token ? { headers: auth(token) } : {}) });
+
+  test('CG-16 /admin/visao: 401 sem JWT, 403 para admin do tenant sem operador', async () => {
+    assert.equal((await visao()).statusCode, 401);
+    const { cliente, usuario, token } = await tenantComToken();
+    await getPrismaClient().permissao.create({
+      data: { cliente_id: cliente.id, user_email: usuario.login, is_admin: true },
+    });
+    const r = await visao(token);
+    assert.equal(r.statusCode, 403);
+    assert.equal(r.json().code, 'PRODUCT_OPERATOR_REQUIRED');
+  });
+
+  test('CG-17 /admin/visao do operador traz rascunho, assets, limites e revisão — sem cliente_id', async () => {
+    const { token } = await operadorComToken();
+    const tipo = (
+      await app.inject({
+        method: 'POST',
+        url: '/catalogo-global/admin/tipos',
+        headers: auth(token),
+        payload: { codigo: 'lote', nome: 'Lote' },
+      })
+    ).json();
+    const cat = (
+      await app.inject({
+        method: 'POST',
+        url: '/catalogo-global/admin/categorias',
+        headers: auth(token),
+        payload: { tipo_id: tipo.id, codigo: 'bezerro', nome: 'Bezerro' },
+      })
+    ).json();
+    const asset = (await postarAsset(token)).json();
+    const icone = (
+      await app.inject({
+        method: 'POST',
+        url: '/catalogo-global/admin/icones',
+        headers: auth(token),
+        payload: { tipo_id: tipo.id, categoria_id: cat.id, asset_principal_id: asset.id, cor_fallback: '#16a34a' },
+      })
+    ).json();
+
+    const r = await visao(token);
+    assert.equal(r.statusCode, 200);
+    const v = r.json();
+    assert.equal(v.revisao, (await contagens()).revisao);
+    assert.deepEqual(v.limites.mimes.sort(), ['image/gif', 'image/jpeg', 'image/png', 'image/webp']);
+    assert.ok(v.limites.max_bytes > 0);
+    assert.deepEqual(v.tipos.map((t) => t.codigo), ['lote']);
+    assert.deepEqual(v.categorias.map((c) => c.codigo), ['bezerro']);
+    assert.equal(v.icones.length, 1);
+    assert.equal(v.icones[0].id, icone.id);
+    assert.equal(v.icones[0].estado, 'rascunho');
+    assert.equal(v.icones[0].asset_principal.id, asset.id);
+    assert.equal(v.assets[0].id, asset.id);
+    assert.doesNotMatch(r.body, /cliente_id|storage_path|service_role/);
+
+    // Leitura publicada não mostra o rascunho.
+    const pub = await app.inject({ method: 'GET', url: '/catalogo-global/icones', headers: auth(token) });
+    assert.deepEqual(pub.json(), []);
+  });
+
+  test('CG-18 upload inválido (SVG, MIME divergente, acima do limite) não persiste nada', async () => {
+    const { token } = await operadorComToken();
+    const antes = await contagens();
+    const casos = [
+      { mime_type: 'image/svg+xml', conteudo_base64: Buffer.from('<svg onload="x()"></svg>').toString('base64') },
+      { mime_type: 'image/jpeg', conteudo_base64: PNG_1X1.toString('base64') },
+      {
+        mime_type: 'image/png',
+        conteudo_base64: Buffer.concat([PNG_1X1, Buffer.alloc(600 * 1024)]).toString('base64'),
+      },
+    ];
+    for (const payload of casos) {
+      const r = await app.inject({ method: 'POST', url: '/catalogo-global/admin/assets', headers: auth(token), payload });
+      assert.ok(r.statusCode >= 400 && r.statusCode < 500, `${payload.mime_type}: ${r.statusCode}`);
+    }
+    assert.deepEqual(await contagens(), antes);
+    assert.deepEqual(storageFake.gravados, []);
+  });
+
+  test('CG-19 desativar ícone mantém id, asset e auditoria; some da leitura publicada', async () => {
+    const { token } = await operadorComToken();
+    const tipo = (
+      await app.inject({ method: 'POST', url: '/catalogo-global/admin/tipos', headers: auth(token), payload: { codigo: 't', nome: 'T' } })
+    ).json();
+    const cat = (
+      await app.inject({
+        method: 'POST',
+        url: '/catalogo-global/admin/categorias',
+        headers: auth(token),
+        payload: { tipo_id: tipo.id, codigo: 'c', nome: 'C' },
+      })
+    ).json();
+    const asset = (await postarAsset(token)).json();
+    const icone = (
+      await app.inject({
+        method: 'POST',
+        url: '/catalogo-global/admin/icones',
+        headers: auth(token),
+        payload: { tipo_id: tipo.id, categoria_id: cat.id, asset_principal_id: asset.id },
+      })
+    ).json();
+    await app.inject({ method: 'POST', url: `/catalogo-global/admin/icones/${icone.id}/publicar`, headers: auth(token), payload: {} });
+    assert.equal((await app.inject({ method: 'GET', url: '/catalogo-global/icones', headers: auth(token) })).json().length, 1);
+
+    const off = await app.inject({
+      method: 'POST',
+      url: `/catalogo-global/admin/icones/${icone.id}/desativar`,
+      headers: auth(token),
+      payload: {},
+    });
+    assert.equal(off.statusCode, 200);
+    assert.equal((await app.inject({ method: 'GET', url: '/catalogo-global/icones', headers: auth(token) })).json().length, 0);
+    const v = (await visao(token)).json();
+    assert.equal(v.icones[0].id, icone.id);
+    assert.equal(v.icones[0].estado, 'inativo');
+    assert.equal(v.icones[0].asset_principal.id, asset.id);
+    assert.equal(await getPrismaClient().catalogoAsset.count({ where: { id: asset.id } }), 1);
+    assert.equal(
+      await getPrismaClient().auditoriaCatalogoGlobal.count({ where: { entidade_id: icone.id, acao: 'desativar' } }),
+      1
+    );
+  });
+});

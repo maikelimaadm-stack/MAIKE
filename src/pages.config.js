@@ -22,6 +22,7 @@ import Empresa from './pages/Empresa';
 import Usuarios from './pages/Usuarios';
 import Permissoes from './pages/Permissoes';
 import ConfiguracoesGerais from './pages/ConfiguracoesGerais';
+import CatalogoGlobalMaike from './pages/CatalogoGlobalMaike';
 import __Layout from './Layout.jsx';
 
 export const PAGES = {
@@ -42,6 +43,8 @@ export const PAGES = {
     "Usuarios": Usuarios,
     "Permissoes": Permissoes,
     "ConfiguracoesGerais": ConfiguracoesGerais,
+    // Painel interno do operador do produto (fora do menu; autorização no backend).
+    "CatalogoGlobalMaike": CatalogoGlobalMaike,
 };
 
 export const pagesConfig = {
