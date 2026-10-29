@@ -1,11 +1,14 @@
 import React from "react";
 import { Loader2 } from "lucide-react";
 
+/**
+ * @param {{ visible: boolean, logoUrl?: string }} props
+ */
 export default function SplashScreen({ visible, logoUrl }) {
   return (
     <div
-      className={`fixed inset-0 z-[1000] flex items-center justify-center bg-white transition-opacity duration-500 ${
-        visible ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+      className={`fixed inset-0 z-[1000] flex items-center justify-center bg-white ${
+        visible ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none transition-opacity duration-500"
       }`}
     >
       <div className="flex flex-col items-center gap-4">
