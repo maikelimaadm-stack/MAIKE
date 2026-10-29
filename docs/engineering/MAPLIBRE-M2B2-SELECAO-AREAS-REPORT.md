@@ -6,7 +6,7 @@
 **Branch:** `cursor/maplibre-m2b2-selecao-areas-01-f5fd`  
 **Worktree:** `/home/ubuntu/worktrees/MAIKE-maplibre-m2b2`  
 **Base `origin/main`:** `00ab053b819b36b513ddb651883b6f39682128e8` (merge PR #131)  
-**HEAD:** `30e4ac4a7b815e768de7edba0b3ca71d0d5fe787` (pós-merge #132 + D-PROD-63)  
+**HEAD:** `4c41182ad17fc4ec16667be3b1044dfe9b45b728` (pós-merge #132 + D-PROD-63)  
 **CI main pós-#132:** run `40842857580` — **success**  
 **PR create via `gh`:** `Resource not accessible by integration` — abrir **uma** DRAFT na UI:  
 https://github.com/maikelimaadm-stack/MAIKE/compare/main...cursor/maplibre-m2b2-selecao-areas-01-f5fd?expand=1  
