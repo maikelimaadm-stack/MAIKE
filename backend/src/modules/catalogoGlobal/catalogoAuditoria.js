@@ -30,7 +30,8 @@ const filtrarValor = (valor) => {
 
 /**
  * @param {object} params
- * @param {string | null | undefined} params.operadorId
+ * @param {string | null | undefined} params.operadorId operador legado (histórico, antes da D-PROD-70)
+ * @param {string | null | undefined} [params.adminId] administrador principal (D-PROD-70)
  * @param {string} params.acao
  * @param {string} params.entidade
  * @param {string | null | undefined} params.entidadeId
@@ -44,6 +45,7 @@ const filtrarValor = (valor) => {
  */
 export const registrarAuditoriaCatalogo = async ({
   operadorId,
+  adminId,
   acao,
   entidade,
   entidadeId,
@@ -51,9 +53,12 @@ export const registrarAuditoriaCatalogo = async ({
   requestId,
 }, tx) => {
   if (!tx) throw new Error('registrarAuditoriaCatalogo exige a transação da mutação');
+  // Evento privilegiado sem ator não é confirmável.
+  if (!operadorId && !adminId) throw new Error('registrarAuditoriaCatalogo exige o ator (adminId)');
   await tx.auditoriaCatalogoGlobal.create({
     data: {
       operador_id: operadorId ?? null,
+      admin_id: adminId ?? null,
       acao,
       entidade,
       entidade_id: entidadeId ?? null,

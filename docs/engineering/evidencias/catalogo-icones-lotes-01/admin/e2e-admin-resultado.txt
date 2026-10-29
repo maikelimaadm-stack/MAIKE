@@ -1,0 +1,29 @@
+PASS usuário de tenant não autentica no MAIKE Admin
+PASS primeiro acesso exige ativar o segundo fator
+PASS MFA ativado e 10 códigos de recuperação exibidos uma vez
+PASS catálogo aberto após MFA
+PASS cookie de sessão HttpOnly + SameSite=Strict, sem token no localStorage
+PASS tipo "lote" criado
+PASS duas categorias visuais criadas
+PASS código duplicado recusado com mensagem clara
+PASS SVG recusado antes do envio
+PASS arquivo acima do limite recusado com orientação
+PASS prévia local de principal e subícone
+PASS ícone criado e publicado
+PASS principal e subícone servidos pelo Storage (2 assets distintos, carregados) — ["maike-catalogo-global/v3/d068090c7ef86281-96a3c57f-2d0f-4652-85fe-e7d66b46c7b6.png","maike-catalogo-global/v4/fc8debd9c086074d-05ec4d6b-88a2-4111-9f1c-b0c5d8235b18.png"]
+PASS estado publicado no cartão
+PASS troca da principal mantém id e subícone
+PASS ícone criado como rascunho
+PASS rascunho publicado pelo botão
+PASS aviso: MISTO não é sexo do lote e não muda o mapa
+PASS regra MISTO criada
+PASS regra MISTO publicada
+PASS regra duplicada (mesmo conjunto) recusada
+PASS validação sem erros e prévia dos publicados
+PASS 768px: sem rolagem horizontal — scrollWidth=768
+PASS 390px: sem rolagem horizontal — scrollWidth=390
+PASS 412px: sem rolagem horizontal — scrollWidth=412
+PASS tela de conta com sessão atual
+PASS sair volta ao login
+PASS após sair, API admin responde 401
+PASS login com TOTP do autenticador

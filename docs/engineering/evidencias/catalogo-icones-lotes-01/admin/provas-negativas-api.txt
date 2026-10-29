@@ -1,0 +1,21 @@
+== Rotas admin com credencial que NÃO é do proprietário
+admin_do_tenant POST /catalogo-global/admin/tipos: 403
+admin_do_tenant GET /admin-maike/catalogo (rascunhos): 403
+operador_legado POST /catalogo-global/admin/tipos: 403
+operador_legado GET /admin-maike/catalogo (rascunhos): 403
+sem credencial GET /admin-maike/catalogo: 401
+cookie forjado GET /admin-maike/catalogo: 401
+login do proprietário sem Origin: 403
+login do proprietário com Origin estranha: 403
+usuário de tenant no login admin: {"code":"ADMIN_CREDENCIAIS_INVALIDAS","message":"credenciais inválidas","request_id":"d1608c0b-15e9-4dac-a468-2def5473b155"}
+rota antiga /catalogo-global/admin/visao: 404
+SPA cliente /CatalogoGlobalMaike (HTML da SPA, rota inexistente no app): 200
+
+== Auditoria PATCH /usuarios/:id (usuário comum x outro usuário do MESMO tenant)
+admin do tenant cria usuário comum: 201
+ui.comum tem Permissao? 0
+ui.comum PATCH /usuarios/<ui.cli> nova_senha: 200
+ui.cli com senha antiga: 401
+ui.cli com senha definida pelo comum: 200
+ui.comum no login admin: 401
+proprietário intacto: dono.maike|t

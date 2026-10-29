@@ -1,180 +1,179 @@
-# Runbook — operação do catálogo global de ícones no Supabase
+# Runbook — catálogo global de ícones: MAIKE Admin + Supabase
 
-**Decisão:** D-PROD-69 (sobre D-PROD-57/60/62) · **Público:** proprietário do produto MAIKE.
+**Decisões:** D-PROD-70 (sobre D-PROD-57/60/62/69) · **Para:** proprietário do produto MAIKE.
 
-O MAIKE **não tem tela de gerenciamento de ícones**. Os ícones oficiais são dados globais do produto:
+Os ícones oficiais são dados globais do produto:
 
 - os metadados ficam no Supabase PostgreSQL (`Catalogo*`);
-- os bytes ficam no Supabase Storage, no bucket `maike-catalogo-global`;
-- os clientes só leem o que está publicado. Nenhum tenant edita ícone, nem o admin do tenant.
+- os bytes ficam no Supabase Storage (bucket `maike-catalogo-global`);
+- a gestão é feita pelo **MAIKE Admin** (`apps/admin`), um app privado e separado da SPA dos clientes;
+- os clientes só leem o que está publicado; nenhum tenant edita ícone, nem o admin do tenant.
 
-> **Proibido sem aprovação separada e por escrito do proprietário:** aplicar migration, criar bucket, registrar
-> operador, enviar imagem ou alterar variáveis na **produção**. Este runbook vale primeiro para **local** e
-> **staging**. Nunca cole segredos em chat, issue, commit ou log.
+> **Proibido sem aprovação separada e por escrito do proprietário:** em **produção**, aplicar migration, criar
+> o proprietário, criar bucket, enviar imagens, publicar o MAIKE Admin ou alterar variáveis. Este runbook vale
+> primeiro para **local** e **staging**. Nunca cole senha, chave, código TOTP ou connection string em chat,
+> issue, commit ou log.
 
 ## 0. Ambientes
 
-| Ambiente | Banco | Storage | Quem executa |
+| Ambiente | Banco | Storage | MAIKE Admin |
 |---|---|---|---|
-| Local | PostgreSQL local (`DATABASE_URL`) | adaptador em memória (sem `SUPABASE_URL`) ou Storage falso | desenvolvedor |
-| Staging | projeto Supabase de staging | bucket de staging | proprietário |
-| Produção | projeto Supabase de produção | bucket de produção | proprietário, **só com aprovação separada** |
+| Local | PostgreSQL local | adaptador em memória ou Storage falso | `npm run dev:admin` → http://localhost:5174 (proxy para a API em `:3333`) |
+| Staging | projeto Supabase de staging | bucket de staging | projeto Vercel "maike-admin-staging" (§3) |
+| Produção | projeto Supabase de produção | bucket de produção | só depois de aprovação separada |
 
-## 1. Preflight — migrations, grants e RLS
+## 1. Migrations, grants e RLS (antes de tudo)
 
-1. Confirme que o backend implantado contém a PR do catálogo e a migration `20261029200000_categoria_manejo_vinculo_catalogo`.
-   **Ordem obrigatória:** aplicar as migrations **antes** de publicar um backend que grave
-   `catalogo_categoria_visual_id`. Sem a coluna, o salvamento de Categoria de Manejo falha.
-2. Faça backup ou confirme o PITR no painel do Supabase (Database → Backups).
-3. Aplique as migrations com a conexão direta, nunca pelo pooler:
-   `MIGRATION_DATABASE_URL=… npm run deploy:migrate`. O build da Vercel **não** roda migrations.
-4. Confira com estas consultas, todas só de leitura:
+**Ordem obrigatória:**
+
+1. backup;
+2. migrations;
+3. backend;
+4. MAIKE Admin.
+
+Um backend novo sobre banco antigo falha: ele grava `catalogo_categoria_visual_id` e usa as tabelas `*AdminMaike`.
+
+1. Confirme o backup ou o PITR (Database → Backups).
+2. Aplique as migrations pela conexão direta, nunca pelo pooler: `MIGRATION_DATABASE_URL=… npm run deploy:migrate`. O build da Vercel **não** roda migrations.
+3. Confira com consultas só de leitura:
    ```sql
    SELECT migration_name, finished_at FROM "_prisma_migrations"
     WHERE migration_name LIKE '20261028250%' OR migration_name LIKE '20261029%' ORDER BY 1;
+   -- esperado: 20261028250000/250100/250200, 20261029100000, 20261029200000, 20261029300000
    SELECT relname, relrowsecurity FROM pg_class
-    WHERE relname IN ('CatalogoMeta','CatalogoTipoEntidade','CatalogoCategoriaVisual','CatalogoAsset',
-                      'CatalogoIcone','CatalogoRegraMisto','CatalogoRegraMistoCategoria',
-                      'OperadorProdutoMaike','AuditoriaCatalogoGlobal');
-   SELECT grantee, privilege_type FROM information_schema.role_table_grants
-    WHERE table_name = 'CatalogoIcone' AND grantee IN ('anon','authenticated');  -- deve vir vazio
-   SELECT column_name FROM information_schema.columns
-    WHERE table_name = 'CategoriaManejo' AND column_name = 'catalogo_categoria_visual_id';
+    WHERE relname IN ('CatalogoIcone','AuditoriaCatalogoGlobal','AdminPrincipalMaike','SessaoAdminMaike',
+                      'CodigoRecuperacaoAdminMaike','EventoSegurancaAdminMaike');          -- todos com RLS = t
+   SELECT table_name, grantee FROM information_schema.role_table_grants
+    WHERE table_name IN ('CatalogoIcone','AdminPrincipalMaike','SessaoAdminMaike')
+      AND grantee IN ('anon','authenticated');                                            -- deve vir vazio
    ```
-   Resultado esperado:
-   - as migrations do catálogo e as de 29/10 aplicadas;
-   - as 9 tabelas com RLS;
-   - nenhum grant para `anon` ou `authenticated`;
-   - a coluna nova existindo.
 
-## 2. Bucket do Storage
+## 2. Variáveis server-only do backend
 
-1. Crie o bucket `maike-catalogo-global` pelo painel. A referência está em `scripts/catalogo/bootstrap-storage-bucket.sql`.
-   - Ele é **público só para leitura**. A escrita é feita apenas pelo backend com `service_role`.
-   - Não crie políticas de upload para `anon` ou `authenticated`.
-2. As variáveis do backend são só do servidor, nunca `VITE_`:
-   - `SUPABASE_URL`;
-   - `SUPABASE_SERVICE_ROLE_KEY`;
-   - opcionalmente `CATALOGO_STORAGE_BUCKET`.
+As variáveis abaixo são só do servidor, nunca `VITE_`, e não aparecem em nenhum bundle (`gate:admin-isolation`).
 
-   Em `NODE_ENV=production`, o upload exige o adaptador ao vivo e recusa configuração parcial.
-3. **Publicação e visibilidade:**
-   - a API só lista ícones `publicado` e ativos;
-   - o objeto de um rascunho fica no bucket público, num caminho imprevisível
-     (`v{rev}/{sha16}-{uuid}.ext`) que não é listado por nenhuma API.
+| Variável | Para quê |
+|---|---|
+| `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | Upload no Storage. Em produção, configuração parcial é recusada. |
+| `CATALOGO_STORAGE_BUCKET` | Opcional; padrão `maike-catalogo-global`. |
+| `ADMIN_MAIKE_CHAVE` | Chave-mestra (base64, ≥ 32 bytes) que cifra o segredo TOTP e assina o CSRF. **Obrigatória em produção.** Gere com `openssl rand -base64 32` direto no painel. Trocá-la invalida os autenticadores inscritos: exige nova inscrição. |
+| `ADMIN_ORIGINS` | Origins exatas do MAIKE Admin, ex.: `https://admin-staging.<seu-domínio>`. Vazio em produção = nenhuma mutação admin. |
+| `ADMIN_SESSAO_HORAS` / `ADMIN_SESSAO_OCIOSA_MINUTOS` | Opcionais; padrões 8 h e 30 min. |
 
-   Por isso, **envie só imagens oficiais**: não use o bucket para testes ou rascunhos de arte.
+## 3. Implantar o MAIKE Admin (projeto Vercel separado)
 
-## 3. Operador de produto
+1. Crie um **novo projeto** Vercel apontando para o mesmo repositório, com **Root Directory = `apps/admin`**.
+   - O `apps/admin/vercel.json` já define install/build (`npm run build:admin`), a saída `dist` e os cabeçalhos de segurança: CSP, `frame-ancestors 'none'`, HSTS e `noindex`.
+   - Não reutilize o projeto da SPA dos clientes.
+2. **Mesma origin para a API.** Acrescente ao `apps/admin/vercel.json`, **antes** do fallback da SPA, o rewrite para o backend real do ambiente:
+   ```json
+   { "source": "/api/native/:path*", "destination": "https://<backend-do-ambiente>/api/native/:path*" }
+   ```
+   Com isso o cookie da sessão é first-party do domínio do admin. Não se relaxa CORS nem `SameSite`.
+3. Use um domínio exclusivo (ex.: `admin-staging.<seu-domínio>`) e só HTTPS. Coloque-o em `ADMIN_ORIGINS` no backend.
+4. Ter o endereço não autoriza nada: toda leitura e escrita passa pela guarda do backend (sessão + MFA + Origin + CSRF).
 
-Só um `OperadorProdutoMaike` ativo escreve no catálogo. `Permissao.is_admin` do tenant recebe 403.
-
-```bash
-BOOTSTRAP_OPERADOR_CLIENTE_ID=… BOOTSTRAP_OPERADOR_USUARIO_ID=… BOOTSTRAP_OPERADOR_CONFIRM=sim \
-  node scripts/catalogo/bootstrap-operador-produto.mjs
-```
-
-Em produção, o script recusa a execução sem `BOOTSTRAP_OPERADOR_ALLOW_PRODUCTION=sim`. Esse passo exige a aprovação separada.
-
-## 4. Cadastrar ou trocar imagens já prontas (CLI local)
-
-As imagens são **as do proprietário, sem alteração**: não redimensionar, não converter, não otimizar.
-
-- Formatos aceitos: PNG, JPEG, WebP e GIF. **SVG é recusado.**
-- Limite de 512 KB por arquivo (`CATALOGO_ASSET_MAX_BYTES`).
-- O MIME é conferido pelos bytes reais.
-
-Manifesto de exemplo. Os nomes e caminhos são **fictícios**:
-
-```json
-{
-  "tipo": { "codigo": "lote", "nome": "Lote" },
-  "itens": [
-    { "categoria": { "codigo": "bezerro", "nome": "Bezerro" }, "imagem": "./icones/bezerro.png", "cor_fallback": "#16a34a" },
-    { "categoria": { "codigo": "novilha", "nome": "Novilha" }, "imagem": "./icones/novilha.webp" }
-  ]
-}
-```
-
-Os caminhos são relativos ao arquivo do manifesto. O tipo precisa ser `lote`: é o único que a Categoria de Manejo aceita.
+## 4. Criar o proprietário (uma única vez por ambiente)
 
 ```bash
-# 1) Validação local apenas (sem rede):
-node scripts/catalogo/importar-icones.mjs --manifesto ./icones/manifesto.json
+DATABASE_URL=… npm run admin:bootstrap
 ```
 
-```bash
-# 2) Plano contra o ambiente, ainda sem escrever (DRY-RUN):
-MAIKE_API_URL=https://<backend-staging> MAIKE_OPERADOR_LOGIN=… MAIKE_OPERADOR_SENHA=… \
-  node scripts/catalogo/importar-icones.mjs --manifesto ./icones/manifesto.json
-```
+- O comando é interativo: pede o login e a senha (oculta, duas vezes, mínimo de 12 caracteres) e a confirmação `CRIAR PROPRIETARIO`.
+- Não existe admin padrão nem senha no código, em argumento ou em variável.
+- A segunda execução é recusada (proprietário único).
+- Em `NODE_ENV=production`, o comando recusa sem `ADMIN_BOOTSTRAP_ALLOW_PRODUCTION=sim`, e esse passo exige aprovação separada.
 
-```bash
-# 3) Aplicar (exige confirmar o host):
-MAIKE_API_URL=https://<backend-staging> MAIKE_OPERADOR_LOGIN=… MAIKE_OPERADOR_SENHA=… \
-  node scripts/catalogo/importar-icones.mjs --manifesto ./icones/manifesto.json --apply --confirmar=<backend-staging>
-```
+**Primeiro login no MAIKE Admin:**
 
-O que a CLI faz (`scripts/catalogo/importarIconesLib.mjs`):
+1. Informe login e senha. O admin então obriga a **inscrição do segundo fator**: cadastre a chave mostrada num aplicativo autenticador e confirme com o código de 6 dígitos.
+2. Os **10 códigos de recuperação** aparecem uma única vez. Guarde-os fora do computador.
+3. Sem MFA confirmado, nenhuma rota de catálogo responde (403 `ADMIN_MFA_REQUIRED`).
 
-- **Rotas usadas:** só a API admin existente. Herda a validação real de imagem, o CAS por `revisao_esperada`
-  (relido antes de cada escrita), a auditoria (`AuditoriaCatalogoGlobal`) e a compensação de objeto órfão no Storage.
-  Não faz INSERT direto nem grava binário no SQL.
-- **Idempotência:** compara o `sha256` do arquivo com o do ícone publicado (tirado da URL versionada).
-  Imagem igual não gera nenhuma escrita. Imagem nova faz upload de um asset novo e `PATCH` no **mesmo id de ícone**.
-  Categoria nova cria categoria, ícone em rascunho e depois o publica.
-- **Falha parcial:** um 409 (outro operador alterou o catálogo) ou qualquer erro interrompe a execução. Reexecutar é seguro.
-  Os possíveis restos são inertes:
-  - um asset registrado e não usado;
-  - um ícone em rascunho, invisível para os clientes.
-- **Sem URL pública** (ambiente sem `SUPABASE_URL`): a CLI não consegue comparar o hash e reenvia a imagem.
-  O id continua o mesmo.
+## 5. Conta e segurança (tela "Minha conta")
 
-**Trocar um ícone no futuro:** basta trocar o arquivo e reaplicar o manifesto. Não precisa de commit nem de deploy.
+- **Trocar senha ou login:** exige senha atual + código do autenticador e encerra **todas** as sessões. Entre de novo depois.
+- **Encerrar outras sessões:** use se suspeitar de acesso indevido.
+- **Perdi o autenticador:** na tela do segundo fator, escolha "usar código de recuperação". Cada código vale uma vez e encerra as outras sessões. Depois, gere novos códigos em "Minha conta".
+- **Perdi senha e códigos:** não há reset por e-mail. Quem tem acesso ao banco, com aprovação, faz em transação: `UPDATE "AdminPrincipalMaike" SET ativo = false, chave_proprietario = NULL WHERE chave_proprietario = 'proprietario';` e revoga as sessões (`UPDATE "SessaoAdminMaike" SET revogada_em = now(), motivo_revogacao = 'recuperacao_manual' WHERE revogada_em IS NULL;`). Depois roda um novo bootstrap. A linha antiga e o histórico de auditoria ficam.
+- **Bloqueio:**
+  - 5 falhas seguidas de senha ou código bloqueiam a conta por 15 minutos;
+  - rajadas por IP recebem 429;
+  - a mensagem é sempre genérica.
 
-- O id do ícone e o da categoria se mantêm.
-- O asset, a URL versionada e a revisão mudam.
-- Os clientes passam a ver a imagem nova em até 60 s (cache de leitura do frontend).
+## 6. Cadastrar e trocar ícones (via MAIKE Admin)
 
-**Precedência:** com mais de um ícone publicado para a mesma categoria, vence o de maior `revisao`; no empate, vence o menor `id`.
-Para evitar ambiguidade, mantenha **um** ícone publicado por categoria. Para desativar os demais, use
-`POST /catalogo-global/admin/icones/:id/desativar`; o registro e o asset são preservados.
+As imagens são **as do proprietário, sem alteração**: o admin envia os bytes como estão.
 
-## 5. Associar à Categoria de Manejo
+- Formatos: PNG, JPEG, WebP e GIF. **SVG é recusado.**
+- Limite: 512 KB (`CATALOGO_ASSET_MAX_BYTES`). Acima disso, exporte menor; o limite não é aumentado em silêncio.
 
-- **Pelo usuário do tenant:** no formulário **Categoria de Manejo**, o campo "Ícone oficial (catálogo MAIKE)" lista
-  só as categorias publicadas do tipo `lote`. Não há upload, cor ou edição de imagem. O backend valida que a categoria
-  existe, está ativa e é do tipo `lote` (422 `CATALOGO_GLOBAL_INVALID` se não for).
-- **Lote:** não guarda ícone. O `FormularioLote` resolve
-  `categoria_manejo_id` → `catalogo_categoria_visual_id` → ícone publicado, ao criar, editar e duplicar.
-  Sem vínculo, mostra um aviso discreto e salva normalmente.
-- Associação em massa por SQL **não** é o caminho recomendado. Se for indispensável, rode-a em transação, filtrando por
-  `cliente_id`, e só com ids que a consulta de categorias ativas do tipo `lote` retornar.
+1. **Tipos e categorias:**
+   - crie o tipo `lote` (o único que a Categoria de Manejo dos clientes vincula);
+   - crie as categorias com **código lógico estável** (minúsculas, números e `_`). O código não muda depois; rótulo, ordem e estado podem mudar;
+   - nada é apagado: "Desativar" tira a categoria da leitura dos clientes.
+2. **Ícones → Novo ícone:**
+   - escolha tipo e categoria, a **imagem principal** e, se houver, o **subícone** (dois arquivos distintos);
+   - a cor de fallback é opcional;
+   - a prévia local aparece antes do envio; deixe "Publicar em seguida" marcado ou publique depois.
+3. **Trocar uma imagem:** use "Trocar imagem" ou "Trocar subícone" no cartão do ícone.
+   - O **id do ícone se mantém**; só o asset, a URL versionada e a revisão mudam.
+   - Não precisa de commit nem de deploy. Os clientes veem a imagem nova em até 60 s.
+4. **Desativar e reativar:** "Desativar" é soft delete (registro e imagens ficam); "Publicar" de novo reativa o mesmo id.
+5. **Precedência:** mantenha um ícone publicado por categoria. Se houver mais de um, vale o de maior revisão, e a aba Validação avisa.
+6. **Conflito:** se outra sessão alterou o catálogo, a tela mostra "alterado em outra sessão" e recarrega. Nada é sobrescrito (CAS / 409).
 
-## 6. Validação em staging
+## 7. Regras MISTO
 
-1. `GET /catalogo-global/manifest` (com JWT) responde 200 com a `revisao` atual.
-2. `GET /catalogo-global/icones` traz os ícones publicados, com `asset_principal_url` acessível no navegador.
-3. Um usuário comum e um admin de tenant recebem 403 em `POST /catalogo-global/admin/icones/:id/publicar`.
-4. Editar uma Categoria de Manejo, escolher a categoria oficial, salvar e reabrir: o vínculo persiste.
-5. Lote novo com essa categoria: a prévia mostra o ícone. Salvar, reabrir e duplicar: a prévia continua certa.
-   Repetir no desktop e no celular.
-6. Categoria de Manejo sem vínculo: o lote salva e mostra o aviso.
+- São uma regra **visual** do catálogo: um conjunto de categorias (2 ou mais, do mesmo tipo) → um ícone resultado.
+  **Não** é o sexo "Misto" do lote, e **não altera o mapa atual** (o renderer segue no legado `ConfiguracaoIcone`, congelado).
+- A regra é criada como rascunho. Só publica com o ícone resultado publicado. Pode ser editada (conjunto, ícone, prioridade; o id fica) e desativada.
+- Um conjunto duplicado é recusado.
+- A aba **Validação** aponta:
+  - duplicatas;
+  - empates (mesma prioridade e especificidade com sobreposição);
+  - regra com ícone não publicado;
+  - categoria sem ícone;
+  - ícone publicado sem imagem.
 
-## 7. Backup, rollback e checklist
+## 8. Associação à Categoria de Manejo (clientes)
 
-- [ ] Backup/PITR confirmado antes de qualquer migration.
+- No MAIKE dos clientes, o formulário **Categoria de Manejo** tem o campo "Ícone oficial (catálogo MAIKE)". Ele lista só categorias publicadas do tipo `lote`.
+- O `FormularioLote` mostra a prévia ao criar, editar e duplicar. Sem vínculo, mostra um aviso discreto. Se o catálogo estiver fora do ar, o lote salva assim mesmo.
+
+## 9. CLI de contingência (opcional)
+
+`scripts/catalogo/importar-icones.mjs` usa a mesma sessão do proprietário: senha + TOTP (`MAIKE_ADMIN_TOTP` ou pergunta no terminal).
+
+- O padrão é **dry-run**.
+- `--apply` exige `--confirmar=<host>` e **só roda contra API local**. Em staging ou produção, use o MAIKE Admin.
+- A CLI é idempotente pelo hash da imagem e reaproveita um rascunho de execução interrompida.
+
+## 10. Validação em staging
+
+1. Faça login no MAIKE Admin com MFA. Confirme a inscrição, os códigos e o 401 depois de "Sair".
+2. Crie o tipo `lote` e as categorias. Envie um ícone com principal + subícone, publique, troque a principal e confirme que o id é o mesmo.
+3. Crie uma regra MISTO, publique, e veja a aba Validação sem erros.
+4. Prova negativa: um usuário de tenant e um admin de tenant recebem 403 em `/catalogo-global/admin/*` e não entram no MAIKE Admin.
+5. No MAIKE dos clientes, vincule uma Categoria de Manejo e confira a prévia no lote (novo, editar, duplicar), no desktop e no celular.
+
+## 11. Backup, rollback e checklist
+
+- [ ] Backup/PITR antes de qualquer migration.
 - [ ] Grants e RLS conferidos (§1).
-- [ ] Bucket sem política de escrita pública (§2).
-- [ ] Operador de produto registrado só para o usuário do proprietário.
-- [ ] Dry-run revisado antes de `--apply`.
+- [ ] `ADMIN_MAIKE_CHAVE`, `ADMIN_ORIGINS` e Storage configurados só no servidor (§2).
+- [ ] Projeto Vercel do admin separado, HTTPS, domínio exclusivo e rewrite same-origin (§3).
+- [ ] Proprietário criado uma vez, MFA ativo e códigos guardados (§4).
 - [ ] Produção: **aprovação separada do proprietário** registrada.
 
 **Rollback:**
 
-- **Ícone:** desativar (`/admin/icones/:id/desativar`). Os lotes voltam ao aviso, sem erro.
-- **Vínculo:** a Categoria de Manejo volta para "SEM VÍNCULO".
-- **Schema:** reversão manual, documentada no topo de
-  `backend/prisma/migrations/20261029200000_categoria_manejo_vinculo_catalogo/migration.sql`.
-  Antes, volte o backend para uma versão que não use a coluna.
-- As tabelas do catálogo podem ficar vazias e inertes, sem efeito nos cadastros.
+- **Ícone ou regra:** desativar. Os lotes voltam ao aviso, sem erro.
+- **MAIKE Admin:** despublicar o projeto Vercel do admin. A SPA dos clientes não depende dele.
+- **Schema:** reversão manual, documentada no topo de cada migration (`20261029200000`, `20261029300000`). Antes, volte o backend para uma versão que não use as colunas e tabelas.
+
+## 12. Portabilidade (limite atual)
+
+- O frontend nunca fala com o Storage para escrever: a API é a barreira.
+- A URL pública dos assets ainda é a do Supabase Storage (`catalogoAssetUrls.js`, `catalogoAssetStorage.js`). Trocar de provedor exige um adaptador novo nesses dois módulos e a migração dos objetos.
+- Esta PR não promete portabilidade total.

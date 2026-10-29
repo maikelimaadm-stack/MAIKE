@@ -1,10 +1,10 @@
-PASS select lista só categorias oficiais publicadas do tipo lote — ["SEM VÍNCULO","Bezerro (fixture E2E)"]
+PASS select lista só categorias oficiais publicadas do tipo lote — ["SEM VÍNCULO","Bezerro (fixture E2E)","Garrote (fixture E2E)"]
 PASS formulário de categoria sem upload/cor de ícone
 PASS vínculo persiste após salvar e recarregar
 PASS lote novo sem categoria mostra fallback
 PASS categoria sem vínculo → mapeamento_pendente, sem imagem
 PASS categoria vinculada → ícone publicado
-PASS imagem servida pelo Storage (URL versionada) e carregada — http://127.0.0.1:54321/storage/v1/object/public/maike-catalogo-global/v2/a86ed1f1f215855c-4604147b-b2f9-4f2a-8a35-314fc4e23459.png
+PASS imagem servida pelo Storage (URL versionada) e carregada — http://127.0.0.1:54321/storage/v1/object/public/maike-catalogo-global/v7/19b6583253aeaae5-096c7bab-5eb8-4f72-84c9-d072a31f99be.png
 PASS troca de categoria limpa a prévia anterior
 PASS lote salvo aparece na lista
 PASS reabrir lote salvo: prévia real do ícone

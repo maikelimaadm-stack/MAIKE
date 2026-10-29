@@ -1473,8 +1473,96 @@ model AuditoriaCatalogoGlobal {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  /// Ator desde a R3 (D-PROD-70). Registros antigos mantêm só `operador_id`.
+  admin_id    String?  @db.VarChar(64)
+
   operador OperadorProdutoMaike? @relation(fields: [operador_id], references: [id], onDelete: Restrict)
+  admin    AdminPrincipalMaike?  @relation(fields: [admin_id], references: [id], onDelete: Restrict)
 
   @@index([createdAt])
   @@index([entidade, entidade_id])
+  @@index([admin_id, createdAt])
+}
+
+/// Identidade do PRODUTO MAIKE (D-PROD-70): sem cliente_id/empresa_id, não é
+/// Usuario de tenant e não acessa dados de tenants. Administra só o catálogo
+/// global oficial e a própria segurança.
+model AdminPrincipalMaike {
+  id                  String    @id @default(cuid())
+  login               String    @unique @db.VarChar(120)
+  papel               String    @default("proprietario") @db.VarChar(32)
+  /// Igual a "proprietario" em exatamente uma linha: o bootstrap é único.
+  chave_proprietario  String?   @unique @db.VarChar(32)
+  /// scrypt versionado (`scrypt$1$N$r$p$salt$hash`); nunca texto.
+  senha_hash          String    @db.VarChar(255)
+  /// Segredo TOTP cifrado (AES-256-GCM, chave server-only).
+  mfa_segredo_cifrado String?   @db.VarChar(512)
+  mfa_ativo           Boolean   @default(false)
+  /// Último passo TOTP aceito — impede reuso do mesmo código.
+  mfa_ultimo_passo    Int?
+  tentativas_falhas   Int       @default(0)
+  bloqueado_ate       DateTime?
+  senha_alterada_em   DateTime?
+  ativo               Boolean   @default(true)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  sessoes            SessaoAdminMaike[]
+  codigosRecuperacao CodigoRecuperacaoAdminMaike[]
+  eventosSeguranca   EventoSegurancaAdminMaike[]
+  auditoriasCatalogo AuditoriaCatalogoGlobal[]
+}
+
+/// Sessão opaca do MAIKE Admin: só o sha256 do token fica no banco.
+model SessaoAdminMaike {
+  id               String    @id @default(cuid())
+  admin_id         String    @db.VarChar(64)
+  token_hash       String    @unique @db.VarChar(64)
+  mfa_verificado   Boolean   @default(false)
+  tentativas_mfa   Int       @default(0)
+  expira_em        DateTime
+  ultimo_uso_em    DateTime  @default(now())
+  revogada_em      DateTime?
+  motivo_revogacao String?   @db.VarChar(64)
+  ip               String?   @db.VarChar(64)
+  user_agent       String?   @db.VarChar(255)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  admin AdminPrincipalMaike @relation(fields: [admin_id], references: [id], onDelete: Restrict)
+
+  @@index([admin_id, revogada_em])
+  @@index([expira_em])
+}
+
+/// Códigos de recuperação de MFA: só o hash; uso único.
+model CodigoRecuperacaoAdminMaike {
+  id          String    @id @default(cuid())
+  admin_id    String    @db.VarChar(64)
+  codigo_hash String    @unique @db.VarChar(64)
+  usado_em    DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  admin AdminPrincipalMaike @relation(fields: [admin_id], references: [id], onDelete: Restrict)
+
+  @@index([admin_id, usado_em])
+}
+
+/// Trilha de segurança do MAIKE Admin (login, MFA, troca de senha/login, sessões).
+model EventoSegurancaAdminMaike {
+  id         String   @id @default(cuid())
+  admin_id   String?  @db.VarChar(64)
+  acao       String   @db.VarChar(64)
+  sucesso    Boolean
+  ip         String?  @db.VarChar(64)
+  request_id String   @db.VarChar(128)
+  dados      Json?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  admin AdminPrincipalMaike? @relation(fields: [admin_id], references: [id], onDelete: Restrict)
+
+  @@index([admin_id, createdAt])
+  @@index([createdAt])
 }

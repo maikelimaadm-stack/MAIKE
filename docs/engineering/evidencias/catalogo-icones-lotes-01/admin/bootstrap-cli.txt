@@ -1,0 +1,5 @@
+Criação do proprietário do MAIKE (uma única vez).
+Login do proprietário: Senha (mín. 12 caracteres, não aparece na tela): 
+Repita a senha: 
+Digite CRIAR PROPRIETARIO para confirmar: proprietário criado: login=dono.maike id=<cuid>
+Próximo passo: entre no MAIKE Admin; o segundo fator (TOTP) será exigido no primeiro acesso.

@@ -44,7 +44,11 @@
       "CatalogoRegraMisto",
       "CatalogoRegraMistoCategoria",
       "OperadorProdutoMaike",
-      "AuditoriaCatalogoGlobal"
+      "AuditoriaCatalogoGlobal",
+      "AdminPrincipalMaike",
+      "SessaoAdminMaike",
+      "CodigoRecuperacaoAdminMaike",
+      "EventoSegurancaAdminMaike"
     ],
     "globalCatalogModels": [
       "CatalogoMeta",
@@ -57,10 +61,17 @@
       "OperadorProdutoMaike",
       "AuditoriaCatalogoGlobal"
     ],
+    "productAdminModels": [
+      "AdminPrincipalMaike",
+      "SessaoAdminMaike",
+      "CodigoRecuperacaoAdminMaike",
+      "EventoSegurancaAdminMaike"
+    ],
     "modelKinds": {
       "root": "Cliente — o próprio tenant; não carrega cliente_id porque é a raiz",
       "tenant": "todo model de domínio; cliente_id obrigatório e não nulo",
-      "systemCatalog": "catálogo global oficial MAIKE (D-PROD-57/59); sem cliente_id de escopo tenant"
+      "systemCatalog": "catálogo global oficial MAIKE (D-PROD-57/59); sem cliente_id de escopo tenant",
+      "productAdmin": "identidade/sessão do proprietário do produto (D-PROD-70); sem cliente_id; não acessa dados de tenant"
     },
     "tenantSource": "auth_context",
     "forbiddenTenantSources": ["body", "query", "params", "headers", "cookie"],

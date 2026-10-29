@@ -15,7 +15,7 @@ import { env } from '../src/config/env.js';
 import { getPrismaClient } from '../src/database/prismaClient.js';
 import { caminhoObjetoCatalogo, criarArmazenamentoCatalogo } from '../src/modules/catalogoGlobal/catalogoAssetStorage.js';
 import { aplicar, carregarManifesto, planejar } from '../../scripts/catalogo/importarIconesLib.mjs';
-import { criarApp, criarTenant, limparBanco, encerrar, autenticarNoApp } from './helpers.mjs';
+import { criarApp, criarTenant, limparBanco, encerrar, autenticarNoApp, criarAdminComSessao } from './helpers.mjs';
 
 const PNG_1X1 = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
@@ -62,18 +62,19 @@ beforeEach(async () => {
   objetos.clear();
 });
 
-const httpCom = (token) => async ({ method, url, payload }) => {
-  const r = await app.inject({ method, url, headers: { authorization: `Bearer ${token}` }, payload });
+/** `headers` = sessão do proprietário (cookie+CSRF+Origin) ou só `authorization` de tenant. */
+const httpCom = (headers) => async ({ method, url, payload }) => {
+  const r = await app.inject({ method, url, headers, payload });
   return { status: r.statusCode, body: r.body ? r.json() : null };
 };
 
-const operador = async () => {
-  const { cliente, usuario, credenciais } = await criarTenant();
-  await getPrismaClient().operadorProdutoMaike.create({
-    data: { cliente_id: cliente.id, usuario_id: usuario.id, papel: 'editor', ativo: true },
-  });
+const operador = async () => (await criarAdminComSessao(app)).headers;
+
+/** Leitura publicada, como um cliente a veria. */
+const publicadosComoCliente = async () => {
+  const { credenciais } = await criarTenant();
   const { corpo } = await autenticarNoApp(app, credenciais);
-  return corpo.token;
+  return (await httpCom({ authorization: `Bearer ${corpo.token}` })({ method: 'GET', url: '/catalogo-global/icones' })).body;
 };
 
 const manifestoEm = async (itens, arquivos) => {
@@ -84,7 +85,7 @@ const manifestoEm = async (itens, arquivos) => {
   return caminho;
 };
 
-describe('importação de ícones oficiais (D-PROD-69)', () => {
+describe('importação de ícones oficiais (D-PROD-69/70)', () => {
   test('I-01 manifesto inválido: erros locais e nenhuma escrita', async () => {
     const caminho = await manifestoEm(
       [
@@ -105,8 +106,7 @@ describe('importação de ícones oficiais (D-PROD-69)', () => {
   });
 
   test('I-02 aplicar cria tipo/categoria/ícone publicado; reaplicar é idempotente; trocar imagem mantém o id', async () => {
-    const token = await operador();
-    const http = httpCom(token);
+    const http = httpCom(await operador());
     const caminho = await manifestoEm(
       [{ categoria: { codigo: 'bezerro', nome: 'Bezerro' }, imagem: 'bezerro.png', cor_fallback: '#16a34a' }],
       { 'bezerro.png': PNG_1X1 }
@@ -121,7 +121,7 @@ describe('importação de ícones oficiais (D-PROD-69)', () => {
     const r1 = await aplicar(m, http);
     const [item] = r1.resultado;
     assert.equal(item.acao, 'criar_e_publicar');
-    const publicados = (await http({ method: 'GET', url: '/catalogo-global/icones' })).body;
+    const publicados = await publicadosComoCliente();
     assert.equal(publicados.length, 1);
     assert.equal(publicados[0].id, item.icone_id);
     assert.match(publicados[0].asset_principal_url, /^https:\/\/storage\.teste\.local\/storage\/v1\/object\/public\//);
@@ -135,7 +135,7 @@ describe('importação de ícones oficiais (D-PROD-69)', () => {
     const r3 = await aplicar(await carregarManifesto(caminho), http);
     assert.equal(r3.resultado[0].acao, 'trocar_imagem');
     assert.equal(r3.resultado[0].icone_id, item.icone_id, 'id lógico estável');
-    const depois = (await http({ method: 'GET', url: '/catalogo-global/icones' })).body;
+    const depois = await publicadosComoCliente();
     assert.equal(depois.length, 1);
     assert.notEqual(depois[0].asset_principal_url, publicados[0].asset_principal_url, 'URL versionada nova');
     assert.ok(
@@ -144,15 +144,39 @@ describe('importação de ícones oficiais (D-PROD-69)', () => {
     );
   });
 
-  test('I-03 admin do tenant sem OperadorProdutoMaike: aplicar falha em 403 e nada é gravado', async () => {
+  test('I-03 admin de tenant (e operador legado) não importa: 403 e nada é gravado', async () => {
     const { cliente, usuario, credenciais } = await criarTenant();
     await getPrismaClient().permissao.create({ data: { cliente_id: cliente.id, user_email: usuario.login, is_admin: true } });
     const { corpo } = await autenticarNoApp(app, credenciais);
     const caminho = await manifestoEm([{ categoria: { codigo: 'bezerro', nome: 'Bezerro' }, imagem: 'b.png' }], {
       'b.png': PNG_1X1,
     });
-    await assert.rejects(aplicar(await carregarManifesto(caminho), httpCom(corpo.token)), /HTTP 403 PRODUCT_OPERATOR_REQUIRED/);
+    await getPrismaClient().operadorProdutoMaike.create({ data: { cliente_id: cliente.id, usuario_id: usuario.id, ativo: true } });
+    await assert.rejects(
+      aplicar(await carregarManifesto(caminho), httpCom({ authorization: `Bearer ${corpo.token}` })),
+      /HTTP 403 ADMIN_PRINCIPAL_REQUIRED/
+    );
     assert.equal(await getPrismaClient().catalogoTipoEntidade.count(), 0);
     assert.equal(objetos.size, 0);
+  });
+
+  test('I-04 execução interrompida deixa rascunho: reexecutar publica o MESMO ícone, sem duplicar', async () => {
+    const http = httpCom(await operador());
+    const caminho = await manifestoEm([{ categoria: { codigo: 'bezerro', nome: 'Bezerro' }, imagem: 'b.png' }], {
+      'b.png': PNG_1X1,
+    });
+    const m = await carregarManifesto(caminho);
+    // Simula queda entre "criar ícone" e "publicar".
+    let publicacoes = 0;
+    const quebraNaPublicacao = async (req) => {
+      if (req.url.endsWith('/publicar') && publicacoes++ === 0) return { status: 503, body: { code: 'INDISPONIVEL' } };
+      return http(req);
+    };
+    await assert.rejects(aplicar(m, quebraNaPublicacao), /HTTP 503/);
+    assert.equal(await getPrismaClient().catalogoIcone.count({ where: { estado: 'rascunho' } }), 1);
+    const r = await aplicar(m, http);
+    assert.equal(r.resultado[0].acao, 'publicar_rascunho');
+    assert.equal(await getPrismaClient().catalogoIcone.count(), 1);
+    assert.equal((await publicadosComoCliente()).length, 1);
   });
 });

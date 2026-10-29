@@ -225,6 +225,22 @@ describe('gate:modelobase1-pecuario — contrato base pecuário', () => {
     assert.match(r.output, /modelsWithoutTenantField deve ser exatamente Cliente \+ globalCatalogModels/);
   });
 
+  test('MB1-07c admin do produto (D-PROD-70) fora de modelsWithoutTenantField reprova', () => {
+    const r = rodarCom(
+      mutar((c) => {
+        c.tenancy.modelsWithoutTenantField = c.tenancy.modelsWithoutTenantField.filter((m) => m !== 'SessaoAdminMaike');
+      })
+    );
+    assert.equal(r.status, 1);
+    assert.match(r.output, /productAdminModels \(D-PROD-70\)/);
+  });
+
+  test('MB1-07d productAdminModels não pode repetir model do catálogo', () => {
+    const r = rodarCom(mutar((c) => { c.tenancy.productAdminModels.push('CatalogoIcone'); }));
+    assert.equal(r.status, 1);
+    assert.match(r.output, /productAdminModels não pode repetir/);
+  });
+
   test('MB1-08 unique de negócio sem tenant reprova', () => {
     const r = rodarCom(mutar((c) => { c.tenancy.businessUniqueIncludesTenant = false; }));
     assert.equal(r.status, 1);

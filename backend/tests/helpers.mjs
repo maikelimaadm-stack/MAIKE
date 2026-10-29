@@ -12,10 +12,18 @@ import { randomUUID } from 'node:crypto';
 import { construirApp } from '../src/app.js';
 import { getPrismaClient, closePrismaClient } from '../src/database/prismaClient.js';
 import { gerarSenhaHash } from '../src/modules/auth/authService.js';
+import { criarProprietarioInicial } from '../src/modules/adminMaike/adminService.js';
+import { zerarLimitadorAdmin } from '../src/modules/adminMaike/adminSessao.js';
+import { codigoTotp, passoTotpAtual } from '../src/modules/adminMaike/adminCrypto.js';
 
 /** Ordem de limpeza respeita as foreign keys (tudo é Restrict). */
 const ORDEM_DE_LIMPEZA = [
   'auditoriaCatalogoGlobal',
+  // D-PROD-70 — identidade do produto (sem tenant).
+  'eventoSegurancaAdminMaike',
+  'codigoRecuperacaoAdminMaike',
+  'sessaoAdminMaike',
+  'adminPrincipalMaike',
   'catalogoRegraMistoCategoria',
   'catalogoRegraMisto',
   'catalogoIcone',
@@ -73,6 +81,7 @@ const ORDEM_DE_LIMPEZA = [
 
 export const limparBanco = async () => {
   const prisma = getPrismaClient();
+  zerarLimitadorAdmin();
   for (let pass = 0; pass < 8; pass += 1) {
     const removidas = await prisma.categoria.deleteMany({
       where: { categoria_pai_id: { not: null } },
@@ -137,4 +146,56 @@ export const autenticarNoApp = async (app, credenciais) => {
     payload: credenciais,
   });
   return { resposta, corpo: resposta.json() };
+};
+
+// ─── MAIKE Admin (D-PROD-70) ───────────────────────────────────────────────
+
+/** Origin do app admin aceita fora de produção (ver `originsAdminPermitidas`). */
+export const ORIGEM_ADMIN = 'http://localhost:5174';
+
+/** @param {import('light-my-request').Response} resposta @returns {string|null} `nome=valor` do cookie admin */
+export const cookieAdminDe = (resposta) => {
+  const bruto = resposta.headers['set-cookie'];
+  const lista = Array.isArray(bruto) ? bruto : bruto ? [String(bruto)] : [];
+  const c = lista.find((x) => x.startsWith('maike_admin='));
+  return c ? c.split(';')[0] : null;
+};
+
+/**
+ * Cria o proprietário, faz login, inscreve o TOTP e devolve uma sessão
+ * VERIFICADA pronta para as rotas admin. `proximoCodigo()` gera um TOTP ainda
+ * não usado (passo seguinte), para reautenticações.
+ *
+ * @param {import('fastify').FastifyInstance} app
+ * @param {{ login?: string, senha?: string }} [opcoes]
+ */
+export const criarAdminComSessao = async (app, opcoes = {}) => {
+  const login = opcoes.login ?? 'dono.maike';
+  const senha = opcoes.senha ?? 'senha-forte-do-dono-1';
+  const admin = await criarProprietarioInicial({ login, senha });
+  const base = { origin: ORIGEM_ADMIN };
+  const r1 = await app.inject({ method: 'POST', url: '/admin-maike/auth/login', headers: base, payload: { login, senha } });
+  if (r1.statusCode !== 200) throw new Error(`login admin falhou: ${r1.statusCode} ${r1.body}`);
+  const pre = { ...base, cookie: cookieAdminDe(r1), 'x-maike-admin-csrf': r1.json().csrf_token };
+  const insc = await app.inject({ method: 'POST', url: '/admin-maike/mfa/inscricao', headers: pre, payload: {} });
+  const segredo = insc.json().segredo;
+  let passo = passoTotpAtual();
+  const r2 = await app.inject({
+    method: 'POST',
+    url: '/admin-maike/mfa/confirmar',
+    headers: pre,
+    payload: { codigo: codigoTotp(segredo, passo) },
+  });
+  if (r2.statusCode !== 200) throw new Error(`MFA admin falhou: ${r2.statusCode} ${r2.body}`);
+  const headers = { ...base, cookie: cookieAdminDe(r2), 'x-maike-admin-csrf': r2.json().csrf_token };
+  // Simula "próxima janela de 30 s": libera o passo atual e devolve o código dele.
+  const proximoCodigo = async () => {
+    passo = passoTotpAtual();
+    await getPrismaClient().adminPrincipalMaike.update({
+      where: { id: admin.id },
+      data: { mfa_ultimo_passo: passo - 2 },
+    });
+    return codigoTotp(segredo, passo);
+  };
+  return { admin, login, senha, segredo, headers, codigosRecuperacao: r2.json().codigos_recuperacao, proximoCodigo };
 };

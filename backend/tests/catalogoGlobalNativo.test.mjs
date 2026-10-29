@@ -18,7 +18,7 @@ import {
   avancarRevisaoCatalogo,
 } from '../src/modules/catalogoGlobal/catalogoRevisao.js';
 import { validarBufferAssetCatalogo } from '../src/modules/catalogoGlobal/catalogoAssetValidation.js';
-import { criarApp, criarTenant, limparBanco, encerrar, autenticarNoApp } from './helpers.mjs';
+import { criarApp, criarTenant, limparBanco, encerrar, autenticarNoApp, criarAdminComSessao } from './helpers.mjs';
 
 const PNG_1X1 = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
@@ -103,7 +103,15 @@ beforeEach(async () => {
   storageFake.reset();
 });
 
-const auth = (token) => ({ authorization: `Bearer ${token}` });
+/**
+ * `token` string = JWT de tenant. Objeto = proprietário (D-PROD-70): cookie de
+ * sessão admin + CSRF + Origin, junto com um JWT de tenant para as leituras
+ * publicadas (que continuam exigindo `auth_context`).
+ */
+const auth = (token) =>
+  typeof token === 'string'
+    ? { authorization: `Bearer ${token}` }
+    : { authorization: `Bearer ${token.jwt}`, ...token.admin };
 
 const revisaoManifesto = async (token) => {
   const r = await app.inject({
@@ -121,11 +129,16 @@ const tenantComToken = async () => {
   return { cliente, usuario, token: corpo.token, credenciais };
 };
 
-const registrarOperador = async (cliente_id, usuario_id) => {
-  const prisma = getPrismaClient();
-  return prisma.operadorProdutoMaike.create({
-    data: { cliente_id, usuario_id, papel: 'editor', ativo: true },
-  });
+/** Sessão do proprietário (uma por teste: o bootstrap é único por banco). */
+let sessaoDono = null;
+beforeEach(() => {
+  sessaoDono = null;
+});
+
+const operadorComToken = async () => {
+  const t = await tenantComToken();
+  sessaoDono ??= await criarAdminComSessao(app);
+  return { ...t, token: { jwt: t.token, admin: sessaoDono.headers }, dono: sessaoDono };
 };
 
 describe('catálogo global — auth', () => {
@@ -143,14 +156,13 @@ describe('catálogo global — auth', () => {
       payload: { codigo: 'ponto', nome: 'Ponto' },
     });
     assert.equal(r.statusCode, 403);
-    assert.equal(r.json().code, 'PRODUCT_OPERATOR_REQUIRED');
+    assert.equal(r.json().code, 'ADMIN_PRINCIPAL_REQUIRED');
   });
 });
 
 describe('catálogo global — operador e CRUD', () => {
   test('CG-03 operador registra tipo e leitura publicada', async () => {
-    const { cliente, usuario, token } = await tenantComToken();
-    await registrarOperador(cliente.id, usuario.id);
+    const { token } = await operadorComToken();
 
     const criar = await app.inject({
       method: 'POST',
@@ -171,8 +183,7 @@ describe('catálogo global — operador e CRUD', () => {
   });
 
   test('CG-04 outro tenant autenticado também lê catálogo global', async () => {
-    const a = await tenantComToken();
-    await registrarOperador(a.cliente.id, a.usuario.id);
+    const a = await operadorComToken();
     await app.inject({
       method: 'POST',
       url: '/catalogo-global/admin/tipos',
@@ -191,8 +202,7 @@ describe('catálogo global — operador e CRUD', () => {
   });
 
   test('CG-05 fluxo ícone publicado com asset PNG', async () => {
-    const { cliente, usuario, token } = await tenantComToken();
-    await registrarOperador(cliente.id, usuario.id);
+    const { token } = await operadorComToken();
 
     const tipo = await app.inject({
       method: 'POST',
@@ -270,8 +280,7 @@ describe('catálogo global — validação asset', () => {
 
 describe('catálogo global — regra MISTO', () => {
   test('CG-07 regra com duas categorias e publicação', async () => {
-    const { cliente, usuario, token } = await tenantComToken();
-    await registrarOperador(cliente.id, usuario.id);
+    const { token } = await operadorComToken();
 
     const tipo = (
       await app.inject({
@@ -358,8 +367,7 @@ describe('catálogo global — regra MISTO', () => {
   });
 
   test('CG-10 ícone de outro tipo na regra MISTO → 422', async () => {
-    const { cliente, usuario, token } = await tenantComToken();
-    await registrarOperador(cliente.id, usuario.id);
+    const { token } = await operadorComToken();
 
     const tipoA = (
       await app.inject({
@@ -433,8 +441,7 @@ describe('catálogo global — regra MISTO', () => {
 
 describe('catálogo global — CAS e ícone', () => {
   test('CG-11 revisão divergente → 409 CONCURRENCY_CONFLICT', async () => {
-    const { cliente, usuario, token } = await tenantComToken();
-    await registrarOperador(cliente.id, usuario.id);
+    const { token } = await operadorComToken();
 
     const criado = await app.inject({
       method: 'POST',
@@ -456,8 +463,7 @@ describe('catálogo global — CAS e ícone', () => {
   });
 
   test('CG-12 PATCH ícone mantém id e valida categoria/tipo', async () => {
-    const { cliente, usuario, token } = await tenantComToken();
-    await registrarOperador(cliente.id, usuario.id);
+    const { token } = await operadorComToken();
 
     const tipo = (
       await app.inject({
@@ -510,8 +516,7 @@ describe('catálogo global — CAS e ícone', () => {
   });
 
   test('CG-13 categoria de outro tipo ao criar ícone → 422', async () => {
-    const { cliente, usuario, token } = await tenantComToken();
-    await registrarOperador(cliente.id, usuario.id);
+    const { token } = await operadorComToken();
 
     const t1 = (
       await app.inject({
@@ -550,8 +555,7 @@ describe('catálogo global — CAS e ícone', () => {
 
 describe('catálogo global — asset path e storage', () => {
   test('CG-14 storage_path versionado pela revisão do manifesto', async () => {
-    const { cliente, usuario, token } = await tenantComToken();
-    await registrarOperador(cliente.id, usuario.id);
+    const { token } = await operadorComToken();
 
     const rev = await revisaoManifesto(token);
     const asset = await app.inject({
@@ -655,11 +659,6 @@ const capturarAvisos = async (fn) => {
   }
 };
 
-const operadorComToken = async () => {
-  const t = await tenantComToken();
-  await registrarOperador(t.cliente.id, t.usuario.id);
-  return t;
-};
 
 const postarAsset = (token, buffer = PNG_1X1, extra = {}) =>
   app.inject({
@@ -905,7 +904,7 @@ describe('catálogo global R2 — auditoria atômica nas mutações administrati
     });
     const r = await postarAsset(token);
     assert.equal(r.statusCode, 403);
-    assert.equal(r.json().code, 'PRODUCT_OPERATOR_REQUIRED');
+    assert.equal(r.json().code, 'ADMIN_PRINCIPAL_REQUIRED');
     assert.deepEqual(storageFake.gravados, []);
   });
 
@@ -1171,7 +1170,7 @@ describe('catálogo global — sem painel no MAIKE; manutenção só server-side
         payload: {},
       });
       assert.equal(pub.statusCode, 403);
-      assert.equal(pub.json().code, 'PRODUCT_OPERATOR_REQUIRED');
+      assert.equal(pub.json().code, 'ADMIN_PRINCIPAL_REQUIRED');
       const alt = await app.inject({
         method: 'PATCH',
         url: `/catalogo-global/admin/icones/${icone.id}`,

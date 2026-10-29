@@ -16,4 +16,5 @@
 --    x-upsert: false — overwrite silencioso proibido; nova revisão de catálogo → novo prefixo.
 
 -- 4) Pós-merge backend: npm run deploy:migrate (ou prisma migrate deploy)
--- 5) Bootstrap operador: scripts/catalogo/bootstrap-operador-produto.mjs
+-- 5) Bootstrap do proprietário (D-PROD-70): npm run admin:bootstrap (interativo; ver runbook).
+--    O antigo OperadorProdutoMaike não escreve mais no catálogo.

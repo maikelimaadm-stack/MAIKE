@@ -201,6 +201,17 @@ export const BACKEND_ONLY_CODES = Object.freeze({
     http: 404,
     meaning: 'recurso do catálogo global não encontrado',
   },
+  ADMIN_SESSAO_REQUIRED: { http: 401, meaning: 'sessão do MAIKE Admin ausente, expirada ou revogada' },
+  ADMIN_PRINCIPAL_REQUIRED: {
+    http: 403,
+    meaning: 'credencial não é de administrador principal do produto (tenant, admin de tenant ou operador legado)',
+  },
+  ADMIN_MFA_REQUIRED: { http: 403, meaning: 'sessão do MAIKE Admin sem segundo fator verificado' },
+  ADMIN_CREDENCIAIS_INVALIDAS: { http: 401, meaning: 'credenciais do MAIKE Admin inválidas (mensagem genérica)' },
+  ADMIN_ORIGEM_RECUSADA: { http: 403, meaning: 'mutação admin sem Origin permitido ou sem token CSRF da sessão' },
+  ADMIN_RATE_LIMITED: { http: 429, meaning: 'tentativas demais; aguarde antes de tentar de novo' },
+  ADMIN_ENTRADA_INVALIDA: { http: 422, meaning: 'dados do MAIKE Admin inválidos' },
+  ADMIN_JA_CONFIGURADO: { http: 409, meaning: 'proprietário ou MFA já configurado' },
   CATALOGO_ASSET_INVALID: {
     http: 400,
     meaning: 'asset visual reprovado (mime, tamanho ou conteúdo)',

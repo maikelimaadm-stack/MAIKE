@@ -308,20 +308,29 @@ if (!Array.isArray(tenancy.modelsWithoutTenantField)) {
   registrar('P2-MB1-TENANCY', 'tenancy.modelsWithoutTenantField deve ser lista');
 } else if (!Array.isArray(tenancy.globalCatalogModels)) {
   registrar('P2-MB1-TENANCY', 'tenancy.globalCatalogModels deve ser lista');
+} else if (tenancy.productAdminModels !== undefined && !Array.isArray(tenancy.productAdminModels)) {
+  registrar('P2-MB1-TENANCY', 'tenancy.productAdminModels deve ser lista');
 } else {
   const catalogo = [...tenancy.globalCatalogModels].sort();
-  const esperadoSemTenant = [ROOT_MODEL, ...catalogo].sort();
+  // D-PROD-70: identidade do produto (proprietário MAIKE) — lista fechada e própria.
+  const adminProduto = [...(tenancy.productAdminModels ?? [])].sort();
+  const esperadoSemTenant = [ROOT_MODEL, ...catalogo, ...adminProduto].sort();
   const excecoes = [...tenancy.modelsWithoutTenantField].sort();
   if (JSON.stringify(excecoes) !== JSON.stringify(esperadoSemTenant)) {
     registrar(
       'P2-MB1-TENANCY',
-      'tenancy.modelsWithoutTenantField deve ser exatamente Cliente + globalCatalogModels (D-PROD-60) — ' +
+      'tenancy.modelsWithoutTenantField deve ser exatamente Cliente + globalCatalogModels (D-PROD-60) + productAdminModels (D-PROD-70) — ' +
         `encontrado ${JSON.stringify(tenancy.modelsWithoutTenantField)}`
     );
   }
   for (const model of tenancy.globalCatalogModels) {
     if (model === ROOT_MODEL) {
       registrar('P2-MB1-TENANCY', 'globalCatalogModels não pode incluir Cliente');
+    }
+  }
+  for (const model of adminProduto) {
+    if (model === ROOT_MODEL || catalogo.includes(model)) {
+      registrar('P2-MB1-TENANCY', `productAdminModels não pode repetir Cliente nem catálogo: ${model}`);
     }
   }
 }

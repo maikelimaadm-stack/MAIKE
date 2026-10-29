@@ -2825,4 +2825,48 @@ Merge só pelo proprietário após auditoria.
 
 ---
 
-<!-- Próxima decisão: D-PROD-70 -->
+## D-PROD-70 — MAIKE Admin: identidade própria do proprietário e app administrativo separado
+
+**Missão:** `MAIKE-PR145-R3-ADMIN-PRINCIPAL-CATALOGO-ICONES-01` (PR #145)\
+**Relatório:** `docs/engineering/MAIKE-CATALOGO-ICONES-LOTES-01-REPORT.md`\
+**Runbook:** `docs/engineering/MAIKE-CATALOGO-OPERACAO-SUPABASE.md`\
+**Autoridade:** decisão do proprietário (29/10/2026). Revê o item 1 da D-PROD-69: agora há administração VISUAL, mas fora da SPA dos clientes.
+
+**Decisão:**
+
+1. **Identidade do produto, sem tenant.** São quatro models sem `cliente_id`, listados em `tenancy.productAdminModels`; o gate exige essa lista fechada:
+   - `AdminPrincipalMaike`;
+   - `SessaoAdminMaike`;
+   - `CodigoRecuperacaoAdminMaike`;
+   - `EventoSegurancaAdminMaike`.
+
+   Não usa `Usuario`, `Permissao.is_admin` nem JWT de tenant.
+2. **Credenciais.**
+   - Senha com scrypt versionado (`N=2^15, r=8, p=1`).
+   - Sessão opaca: 256 bits num cookie `HttpOnly` + `SameSite=Strict` (`Secure` e `__Host-` em produção). O banco guarda só o sha256. A sessão vale 8 h e cai após 30 min ociosa; pode ser revogada.
+   - MFA TOTP (RFC 6238) obrigatório, com anti-replay por passo. O segredo é cifrado com AES-256-GCM sob `ADMIN_MAIKE_CHAVE`.
+   - 10 códigos de recuperação de uso único, guardados só como hash. Usar um deles revoga as demais sessões.
+   - Trocar senha ou login exige senha atual + TOTP e revoga todas as sessões.
+   - Bloqueio persistido por conta (5 falhas → 15 min) e limitador por IP.
+3. **CSRF e origem.** Toda mutação exige `Origin` em `ADMIN_ORIGINS` e o cabeçalho `x-maike-admin-csrf` igual a um HMAC da sessão. O admin fala com a API pela mesma origin (proxy `/api/native`), sem CORS com credenciais.
+4. **Guarda trocada.** `/catalogo-global/admin/*` passa a usar `exigirSessaoAdmin()`.
+   - JWT de tenant, admin de tenant e o antigo `OperadorProdutoMaike` recebem 403; sem credencial, 401.
+   - `exigirOperadorProduto` foi removido. A tabela e o histórico de `OperadorProdutoMaike` ficam.
+   - A auditoria ganha `admin_id` (migration aditiva `20261029300000`) e exige ator.
+5. **App separado.** `apps/admin` tem Vite, build (`npm run build:admin`), porta (5174) e projeto Vercel próprios. `gate:admin-isolation` impede ponte de código, de API ou de credencial com `src/`.
+6. **Escopo da conta.** A conta administra só o catálogo oficial e a própria segurança, sem acesso a dados de tenants. O bootstrap é único (`npm run admin:bootstrap`, interativo) e não existe admin padrão.
+7. **Catálogo.** O admin passa a ter:
+   - leitura `/admin-maike/catalogo`, `/validacao` e `/revisao`;
+   - `PATCH` de categoria e de regra MISTO, e desativação de regra MISTO;
+   - recusa de conjunto MISTO duplicado;
+   - exigência de ícone resultado publicado ao publicar uma regra;
+   - reativação de ícone desativado ao republicá-lo.
+
+   As regras MISTO do catálogo **não** alteram o mapa legado.
+8. **CLI de importação.** Vira contingência: usa a sessão do proprietário (senha + TOTP) e só aceita `--apply` contra API local.
+
+**Risco registrado fora do escopo:** `PATCH /usuarios/:id` deixa qualquer usuário do tenant trocar a senha de outro usuário do mesmo tenant. Não alcança o proprietário. A correção vai numa PR separada.
+
+---
+
+<!-- Próxima decisão: D-PROD-71 -->
