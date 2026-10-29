@@ -112,3 +112,20 @@ Riscos residuais: guarda R1-01 depende do caller atualizar `depositoSelecionadoI
 - O CI do `1265f611` (run `40852803648`) falhou só em `gate:types`, por causa da `main` pós-#135 (`2f5a2383`, `src/App.jsx` TS2741: `logoUrl` ausente). A `main` falhava igual (run `40851473534`).
 - Com autorização explícita do proprietário: mesclei `origin/main` na branch (merge commit, sem rebase) e tornei `logoUrl` opcional em `src/components/common/SplashScreen.jsx` (`logoUrl = null`, sem mudança de comportamento: `null` e `undefined` já caíam no mesmo ramo).
 - `verify:all` local na árvore mesclada: TODAS AS ETAPAS PASSARAM (smoke 840/840; `gate:types` 1375 diagnósticos, sem regressão).
+
+## R2 — reconciliação pós-#137
+
+- Base anterior `91a11e16`. A #135 deixou `src/App.jsx` incompatível com `SplashScreen` (TS2741, `gate:types` vermelho no CI da `main`, run `40851473534`, e no CI da PR, run `40852803648`).
+- A #137 corrigiu isso na `main`: `4593bb18`, CI `40854092387` success. Por isso o ajuste paliativo `logoUrl = null` do commit `ce98a459` foi **descartado**.
+- `git merge origin/main` (`4593bb18`) na mesma branch → merge commit `713b75f3`, sem rebase e sem force-push.
+- Conflito Git real: só em `src/components/common/SplashScreen.jsx` (o ajuste da R1 contra a #137). Resolvido com a versão da `main`, sem edição. `SplashScreen`, `App.jsx`, `Layout.jsx`, `bootSplashContext.jsx` e `appShell.test.jsx` ficaram idênticos à `main`.
+- Diff da PR contra a `main`: os 9 arquivos da missão (nenhum arquivo de Splash). Os fixes R1 foram preservados.
+
+| Comando (árvore mesclada) | Resultado |
+|---|---|
+| `git diff --check` | limpo |
+| `npx vitest run tests/smoke/maplibreSelecaoDepositoMapa.test.jsx` | 21/21 PASS |
+| `npm run verify:all` (PostgreSQL 16 efêmero local) | TODAS AS ETAPAS PASSARAM — smoke 840/840; `types`, `import-integrity`, `source-closure`, `map-geography-native`, `lint`, `test:backend` e `build` PASS |
+
+- WebGL real: **não executado** (BLOCKED); o checklist manual segue acima.
+- A PR #136 foi preservada. Nenhuma branch ou PR nova foi criada. O CI do novo HEAD está registrado na PR #134.
