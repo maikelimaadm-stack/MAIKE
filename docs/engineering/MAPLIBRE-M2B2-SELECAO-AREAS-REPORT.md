@@ -1,7 +1,8 @@
 # MAPLIBRE-M2-B2 — Seleção de áreas no mapa
 
 **Missão:** `MAPLIBRE-M2B2-SELECAO-AREAS-01`  
-**Decisão:** **D-PROD-62**  
+**Decisão:** **D-PROD-63** (D-PROD-62 = catálogo slice 1 R1 #132 — preservada)  
+
 **Branch:** `cursor/maplibre-m2b2-selecao-areas-01-f5fd`  
 **Worktree:** `/home/ubuntu/worktrees/MAIKE-maplibre-m2b2`  
 **Base `origin/main`:** `00ab053b819b36b513ddb651883b6f39682128e8` (merge PR #131)  
@@ -29,7 +30,7 @@ pública e callers (`MapaCadastro`, `FormularioPonto`).
 | Zero-safe coords; labels `textContent`; fitBounds inicial; lote parcial; renumeração fail-fast | feito |
 | `FormularioPonto` / `MapaCadastro` | **inalterados** |
 | `SelecaoDepositoMapa` / `googleMaps.js` / MapaGeral | **preservados** |
-| D-PROD-62 + este relatório + CURRENT-STATE | feitos |
+| D-PROD-63 + este relatório + CURRENT-STATE | feitos |
 
 ## Basemap
 
