@@ -212,13 +212,14 @@ describe("maplibre/taskLocationPicker — sem Maps JS no picker", () => {
     const fs = await import("node:fs");
     const path = await import("node:path");
     const geral = fs.readFileSync(path.join(process.cwd(), "src/pages/MapaGeral.jsx"), "utf8");
-    const selecao = fs.readFileSync(
-      path.join(process.cwd(), "src/components/mapa/SelecaoAreasMapa.jsx"),
+    // M2-B2 migrou SelecaoAreasMapa; prova remanescente: depósito + loader
+    const deposito = fs.readFileSync(
+      path.join(process.cwd(), "src/components/mapa/SelecaoDepositoMapa.jsx"),
       "utf8"
     );
     const gmaps = fs.readFileSync(path.join(process.cwd(), "src/lib/googleMaps.js"), "utf8");
     expect(geral).toMatch(/loadGoogleMaps/);
-    expect(selecao).toMatch(/loadGoogleMaps/);
+    expect(deposito).toMatch(/loadGoogleMaps/);
     expect(gmaps).toMatch(/export const loadGoogleMaps/);
   });
 });

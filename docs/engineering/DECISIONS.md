@@ -2550,4 +2550,32 @@ CG-09+; runbook Storage/operador endurecido; UI painel interno continua fora de 
 
 ---
 
-<!-- Próxima decisão: D-PROD-63 -->
+## D-PROD-63 — MapLibre M2-B2: seleção de áreas no mapa
+
+**Missão:** `MAPLIBRE-M2B2-SELECAO-AREAS-01`  
+**Relatório:** `docs/engineering/MAPLIBRE-M2B2-SELECAO-AREAS-REPORT.md`  
+**Branch:** `cursor/maplibre-m2b2-selecao-areas-01-f5fd`  
+**Base:** `origin/main` pós-merge PR #132 (catálogo R1 / D-PROD-62)  
+**Nota de ID:** D-PROD-62 ficou com o catálogo slice 1 R1 (#132). MapLibre M2-B2 usa **D-PROD-63**.
+
+**Decisão:**
+
+1. `SelecaoAreasMapa` deixa de usar Maps JS e passa a MapLibre GL JS,
+   reusando `geografia/` + `maplibre/` (basemap ruas OpenFreeMap Liberty).
+2. API pública **congelada**:
+   `onClose`, `selectedIds=[]`, `selectionMode=false`, `onConfirmSelection=null`
+   (callers: `MapaCadastro`, `FormularioPonto`).
+3. Correções vs legado: coords zero-safe (`parseVertex`); labels `textContent`
+   (sem `createRoot`/`innerHTML`); `fitBounds` só na carga inicial; sync de
+   `selectedIds` sem apagar toggles da sessão; seleção visual distinta
+   (feature-state); lote parcial honesto; cor preserva `coordenadas.coords`;
+   renumeração fail-fast em conflito.
+4. Fora: `SelecaoDepositoMapa`, `ModalCadastroLotePontos`, `MapaGeral`,
+   CapturaGPS*, TaskLocationPicker, catálogo global, backend/RLS.
+
+**Consequência:** Google permanece nos consumidores restantes até M2-B3/M3.
+Merge só pelo proprietário após auditoria.
+
+---
+
+<!-- Próxima decisão: D-PROD-64 -->
