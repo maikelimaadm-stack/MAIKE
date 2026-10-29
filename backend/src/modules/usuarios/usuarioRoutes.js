@@ -22,6 +22,8 @@ const CAMPOS_ATUALIZAR = Object.freeze({
   nome: { type: 'string', minLength: 1, maxLength: 255, pattern: '\\S' },
   ativo: { type: 'boolean' },
   nova_senha: { type: 'string', minLength: 8, maxLength: 512 },
+  /** Obrigatória (e conferida) só quando o usuário troca a PRÓPRIA senha. */
+  senha_atual: { type: 'string', minLength: 1, maxLength: 512 },
 });
 
 const CRIAR_SCHEMA = {

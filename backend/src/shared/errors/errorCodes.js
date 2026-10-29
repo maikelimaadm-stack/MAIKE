@@ -97,6 +97,7 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   },
   USUARIO_NOT_FOUND: { http: 404, meaning: 'id não identifica usuário deste tenant' },
   USUARIO_LOGIN_DUPLICADO: { http: 409, meaning: 'login já cadastrado neste cliente' },
+  PERMISSAO_NOT_FOUND: { http: 404, meaning: 'id não identifica permissão deste tenant' },
   USUARIO_SELF_DEACTIVATE: { http: 400, meaning: 'conta autenticada não pode se desativar' },
   EMPRESA_NOT_FOUND: { http: 404, meaning: 'id não identifica empresa deste tenant' },
   EMPRESA_NAME_CONFLICT: {
@@ -201,6 +202,13 @@ export const BACKEND_ONLY_CODES = Object.freeze({
     http: 404,
     meaning: 'recurso do catálogo global não encontrado',
   },
+  TENANT_ADMIN_REQUIRED: {
+    http: 403,
+    meaning: 'ação restrita ao administrador da fazenda (Usuario.papel_tenant server-owned, ativo)',
+  },
+  USUARIO_INATIVO: { http: 403, meaning: 'conta desativada não altera dados (JWT antigo não basta)' },
+  USUARIO_SENHA_ATUAL_INVALIDA: { http: 403, meaning: 'senha atual ausente ou incorreta para trocar a própria senha' },
+  ADMIN_INDISPONIVEL: { http: 503, meaning: 'MAIKE Admin indisponível: configuração do servidor incompleta' },
   ADMIN_SESSAO_REQUIRED: { http: 401, meaning: 'sessão do MAIKE Admin ausente, expirada ou revogada' },
   ADMIN_PRINCIPAL_REQUIRED: {
     http: 403,

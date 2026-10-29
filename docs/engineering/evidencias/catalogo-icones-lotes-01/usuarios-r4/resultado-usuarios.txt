@@ -1,0 +1,2 @@
+PASS [sem-papel] Permissao.is_admin sozinho NÃO cria conta: mensagem do servidor
+PASS [com-papel] administrador (papel server-owned) cria a conta

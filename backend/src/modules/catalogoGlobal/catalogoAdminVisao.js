@@ -29,7 +29,7 @@ const comoAsset = (a) =>
 
 const carregar = async () => {
   const db = prisma();
-  const [meta, tipos, categorias, icones, regras] = await Promise.all([
+  const [meta, tipos, categorias, icones, regras, assetIds] = await Promise.all([
     db.catalogoMeta.findUnique({ where: { chave: 'global' } }),
     db.catalogoTipoEntidade.findMany({ orderBy: [{ ordem: 'asc' }, { codigo: 'asc' }] }),
     db.catalogoCategoriaVisual.findMany({ orderBy: [{ tipo_id: 'asc' }, { ordem: 'asc' }, { codigo: 'asc' }] }),
@@ -41,8 +41,9 @@ const carregar = async () => {
       orderBy: [{ tipo_id: 'asc' }, { prioridade: 'desc' }, { especificidade: 'desc' }, { id: 'asc' }],
       include: { categorias: { orderBy: { ordem: 'asc' } } },
     }),
+    db.catalogoAsset.findMany({ select: { id: true } }),
   ]);
-  return { revisao: meta?.revisao ?? 0, tipos, categorias, icones, regras };
+  return { revisao: meta?.revisao ?? 0, tipos, categorias, icones, regras, assetIds: assetIds.map((a) => a.id) };
 };
 
 export const obterVisaoAdminCatalogo = async () => {
@@ -94,7 +95,7 @@ const chaveConjunto = (r) => `${r.tipo_id}|${r.categorias.map((c) => c.categoria
  * `erros` impedem publicar com segurança; `avisos` pedem atenção.
  */
 export const validarCatalogoAdmin = async () => {
-  const { revisao, tipos, categorias, icones, regras } = await carregar();
+  const { revisao, tipos, categorias, icones, regras, assetIds } = await carregar();
   /** @type {Array<{codigo: string, mensagem: string, ids: string[]}>} */
   const erros = [];
   /** @type {Array<{codigo: string, mensagem: string, ids: string[]}>} */
@@ -157,6 +158,17 @@ export const validarCatalogoAdmin = async () => {
         });
       }
     }
+  }
+  // Imagem enviada e nunca usada (ex.: cadastro interrompido, troca de imagem).
+  // Inofensiva e NÃO apagada automaticamente: só informada (PR145-R4).
+  const usados = new Set(icones.flatMap((i) => [i.asset_principal_id, i.asset_subicone_id]).filter(Boolean));
+  const semUso = assetIds.filter((id) => !usados.has(id));
+  if (semUso.length) {
+    avisos.push({
+      codigo: 'ASSET_SEM_USO',
+      mensagem: `${semUso.length} imagem(ns) enviada(s) sem ícone associado (histórico de trocas ou cadastro interrompido); não afetam os clientes`,
+      ids: semUso.slice(0, 50),
+    });
   }
   return { revisao, ok: erros.length === 0, erros, avisos };
 };

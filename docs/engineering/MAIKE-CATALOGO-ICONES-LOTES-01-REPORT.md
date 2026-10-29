@@ -7,6 +7,7 @@
 | R1 | `MAIKE-CATALOGO-GLOBAL-ICONES-LOTES-01` | painel na SPA (revertido) |
 | R2 | `MAIKE-PR145-CATALOGO-SUPABASE-LOTES-R2` | vínculo CategoriaManejo → catálogo, D-PROD-69 |
 | R3 | `MAIKE-PR145-R3-ADMIN-PRINCIPAL-CATALOGO-ICONES-01` | proprietário independente + MAIKE Admin, D-PROD-70 |
+| R4 | `MAIKE-PR145-R4-SEGURANCA-USUARIOS-PERMISSOES-01` | administrador da fazenda server-owned, Permissões, endurecimento do admin, D-PROD-71 (§9) |
 
 **Base:** `main` `1344ffe2` · **Branch:** `claude/catalogo-global-icones-lotes-01` · **Merge:** exclusivo do proprietário.
 **Runbook:** `docs/engineering/MAIKE-CATALOGO-OPERACAO-SUPABASE.md`
@@ -136,10 +137,7 @@ Sem captura da tela de inscrição do MFA: ela mostra a chave TOTP, mesmo sendo 
 
 ## 7. Riscos e limitações
 
-1. **`PATCH /usuarios/:id`:** qualquer usuário autenticado do tenant troca a senha de **outro** usuário do mesmo tenant. A prova reproduzível está nas provas negativas: o comum troca a senha do admin do tenant e o login antigo passa a falhar.
-   - Não alcança o proprietário do produto.
-   - Fica **fora desta PR**; tarefa sugerida.
-   - **Bloqueia o lançamento** até a correção numa PR própria.
+1. ~~**`PATCH /usuarios/:id`:** qualquer usuário autenticado do tenant troca a senha de **outro** usuário do mesmo tenant.~~ **Corrigido na R4** (§9, D-PROD-71), junto com `POST /usuarios` e `POST`/`PATCH`/`DELETE /permissoes`.
 2. O limitador por IP é por processo (serverless = por instância). O bloqueio por conta é persistido e cobre o caso distribuído.
 3. A inscrição do TOTP é por chave digitada ou link `otpauth`; não há QR code (sem dependência nova).
 4. A unicidade de conjunto MISTO é verificada na transação; duas criações simultâneas **sem** CAS poderiam passar. O app sempre envia `revisao_esperada`, o que serializa.
@@ -159,4 +157,83 @@ Produção: **NOT_RUN** para todos estes itens:
 
 Nenhuma escrita remota foi feita nesta missão. Ordem: backup → migrations → backend → envs → admin → bootstrap → MFA → imagens → vínculos.
 
-**Veredito:** READY_FOR_ARCHITECT_AUDIT (código e testes locais) · NOT_READY_FOR_PRODUCTION (rollout pendente e risco do item 7.1).
+**Veredito (R3):** READY_FOR_ARCHITECT_AUDIT (código e testes locais) · NOT_READY_FOR_PRODUCTION (rollout pendente e risco do item 7.1, fechado na R4).
+
+## 9. R4 — segurança de Usuários e Permissões, endurecimento do MAIKE Admin (D-PROD-71)
+
+### 9.1 Achados reproduzidos (antes da R4, no código da R3)
+
+A1–A7 foram reproduzidos com servidor real sobre o commit `9bad34ce` (worktree separado, banco sintético): `evidencias/catalogo-icones-lotes-01/usuarios-r4/provas-api-antes-r3.txt`. O "depois" está em `provas-api-r4.txt`. A8–A9 vêm da leitura do código da R3 e são provados no depois pelos testes S-15/S-16.
+
+| # | Achado | Severidade | Antes | Depois |
+|---|---|---|---|---|
+| A1 | `PATCH /usuarios/:id`: usuário comum troca a senha de outro usuário (inclusive do admin da fazenda) | **crítica** (tomada de conta) | 200; senha original → 401; a senha injetada abre a conta do admin | 403 `TENANT_ADMIN_REQUIRED`; hash intacto; senha injetada → 401 |
+| A2 | `POST /usuarios`: usuário comum cria contas | alta | 201 | 403 |
+| A3 | `POST`/`PATCH`/`DELETE /permissoes`: usuário comum se dá `is_admin`, cria ou apaga permissões | alta (escalada) | 201 / 200 (`is_admin` virou `true`) / 204 | 403 nas três |
+| A4 | Autoridade era `Permissao.is_admin`, editável pela própria API | alta | — | autoridade é `Usuario.papel_tenant`, sem endpoint de escrita |
+| A5 | `cliente_id` no corpo de `PATCH` genérico (Permissao, CategoriaManejo, …) movia o registro para outro tenant | **crítica** (quebra de isolamento) | 200; a permissão do admin sumiu do tenant original | 400 `REQUEST_VALIDATION_FAILED` em toda a API; registro fica |
+| A6 | `GET /permissoes` entregava todas as linhas completas a qualquer usuário | média | 10 colunas, inclusive `is_admin`, telas e módulos | não-admin: a própria linha + `id`, `user_email`, `user_nome` das demais |
+| A7 | Troca da própria senha sem a senha atual (sessão roubada = conta roubada) | média | 200 | exige `senha_atual` (403 sem ela) |
+| A8 | A guarda do admin não olhava `AdminPrincipalMaike.papel` (latente: hoje só existe a linha do proprietário) | baixa | qualquer papel passava | só `papel = 'proprietario'`; outro → 403 / login genérico |
+| A9 | Produção sem `ADMIN_MAIKE_CHAVE` válida: `Error` genérico só no primeiro uso da chave, no meio do fluxo | média | 500 não catalogado | 503 `ADMIN_INDISPONIVEL`, sem sessão |
+| A10 | `PERMISSAO_NOT_FOUND` fora do catálogo de erros | baixa | 500 | 404 |
+| A11 | Tela Usuários mandava as chamadas sem JWT (bug pré-existente da `main`) | média (tela inutilizável) | sempre "Sua sessão expirou" | funciona |
+
+### 9.2 Contrato de autorização
+
+- `backend/src/shared/auth/exigirAdminTenant.js`: lê o ator no banco por `id` + `cliente_id` do `auth_context`; exige `ativo` e `papel_tenant = 'administrador'`. Chamado antes de qualquer busca e de novo dentro da transação (sem janela de corrida).
+- Usuários: `POST` → admin. `PATCH` de outro → admin. `PATCH` próprio → conta ativa; `nova_senha` exige `senha_atual`; desativar a própria conta segue recusado; `papel_tenant` no corpo → 400.
+- Permissões: `POST`/`PATCH`/`DELETE` → admin; `GET` reduzido para não-admin; campos do servidor (`id`, `cliente_id`, timestamps) nunca vêm do corpo.
+- Global: `cliente_id` em qualquer corpo → 400.
+- Auditoria: sem senha nem hash (`dados_novos` só com campos públicos).
+- O proprietário do produto não é usuário de tenant: o cookie do admin em `/usuarios` → 401.
+
+### 9.3 Bootstrap confiável do administrador da fazenda
+
+- Migration aditiva `20261029400000_usuario_papel_tenant`: coluna + CHECK; todos ficam `'usuario'`; rollback no topo do arquivo.
+- `scripts/auth/papel-tenant.mjs` (runbook §4b): único caminho de elevação, individual, `CONFIRMAR` digitado, auditado, reversível, produção bloqueada sem aprovação.
+- Testes antigos usam fixture de banco (`criarTenant({ papelTenant: 'administrador' })`), nunca `Permissao.is_admin`.
+
+### 9.4 Compatibilidade da UI
+
+- Usuários: a porta agora envia o JWT; o formulário pede "Senha atual" só ao trocar a própria senha; a recusa do servidor aparece como "Somente o administrador da fazenda pode fazer isso. Peça ao administrador da sua fazenda."
+- Permissões: sem mudança de tela; quem não é admin recebe a mensagem do servidor ao salvar.
+- MAIKE Admin, "Novo ícone": falha parcial mostra "Já concluído: …" e **Tentar de novo** reenvia só o que faltou (sem asset duplicado, sem perder a referência).
+- Validação do catálogo: aviso `ASSET_SEM_USO` (nada é apagado).
+
+### 9.5 Provas (local, PostgreSQL 16)
+
+| Prova | Resultado |
+|---|---|
+| `git diff --check`; `prisma validate`; `migrate deploy` do zero + reexecução ("No pending migrations"); `migrate diff` migrations→schema | PASS; após a migration, `papel_tenant` = `'usuario'` em todas as linhas e CHECK presente |
+| `npm run verify:all` (PG 16, banco recriado do zero) | **PASS — todas as etapas**: gates 634/634 (26 arquivos), backend 340/340, smoke 944/944 (79 arquivos), types 1337 ≤ 1746, typecheck backend 0, lint 0 erros (2 avisos pré-existentes fora do diff), build cliente + `build:admin` + `gate:admin-isolation` nos bundles |
+| Backend completo | **340/340** — inclui `usuariosAutorizacaoTenant.test.mjs` 10/10 (U-01..U-10), `papelTenantCli.test.mjs` 2/2, `adminMaikeSeguranca.test.mjs` 16/16 (S-15 papel ≠ proprietário; S-16 chave ausente/inválida → 503 e `ADMIN_ORIGINS` vazio → 403) |
+| Gate tests | `admin-deploy-smoke.test.mjs` 6/6; `admin-isolation.test.mjs` 9/9 |
+| Smokes | `usuariosAutorizacaoR4.test.jsx` 3/3; `maikeAdmin.test.jsx` 10/10 (retry); Usuários 12/12 |
+| Provas de API com servidor real | `evidencias/catalogo-icones-lotes-01/usuarios-r4/provas-api-r4.txt` — negativas A1–A8, positivas do admin da fazenda, revogação com JWT antigo → 403 |
+| CLI de papel | `usuarios-r4/papel-tenant-cli.txt` (id de auditoria ocultado) |
+| E2E Usuários (Chromium) | `usuarios-r4/resultado-usuarios.txt` — sem papel (só `is_admin`): recusado com a mensagem do servidor; após `papel-tenant`: cria a conta. Capturas 01 e 02 |
+| E2E MAIKE Admin | **29/29** no código da R4, 1440/768/390/412 |
+| E2E R2 (lote) | **15/15** no código da R4, 1440/768/390/412 |
+| Smoke de deploy contra o Vite local | `usuarios-r4/smoke-deploy-local.txt` — proxy, Origin, login genérico, tenant fechado e bundle **PASS**; CSP, `X-Frame-Options` e `noindex` **FAIL por definição** (o Vite não aplica `vercel.json`). A prova real só existe contra o deploy |
+
+### 9.6 Gate de rollout do admin
+
+| Pronto localmente | Falta (operacional, com aprovação) |
+|---|---|
+| `apps/admin/vercel.json` com cabeçalhos; `build:admin`; `gate:admin-isolation` nos bundles | Projeto Vercel do admin com Root Directory `apps/admin` |
+| Smoke `smoke-admin-deploy.mjs` com diagnóstico por falha | Endereço real do admin + rewrite `/api/native` → backend real (não inventado aqui) |
+| Falha fechada sem chave / sem origin | `ADMIN_MAIKE_CHAVE` e `ADMIN_ORIGINS` no backend do ambiente |
+| Migrations testadas do zero e idempotentes | Aplicar `20261028250000`…`20261029400000` com backup |
+| `admin:bootstrap` e `papel-tenant.mjs` testados | Criar o proprietário; promover o administrador de cada fazenda |
+| Troca de imagem sem deploy (mesmo id, URL versionada) | Upload das imagens reais pelo proprietário |
+
+### 9.7 Riscos remanescentes
+
+1. **JWT de tenant (8 h):** um usuário desativado ou rebaixado perde na hora toda ação privilegiada (o papel é relido), mas o JWT ainda abre rotas **não privilegiadas** até expirar. Revogação de sessão de tenant fica para PR própria.
+2. **Provisionamento:** após o deploy nenhuma fazenda tem administrador; ninguém cria contas até `papel-tenant.mjs` (intencional, falha fechada).
+3. Códigos `*_NOT_FOUND` não catalogados em outros módulos (aplicação de medicamento, bebedouro, evento sanitário, fornecedor, manejo técnico, movimentações, ponto e suplementação) → 500 em vez de 404, sem vazamento.
+4. Limitador por IP do admin por instância (o bloqueio por conta é persistido).
+5. MapLibre/WebGL: fora do escopo, pendente.
+
+**Veredito da R4:** ver o relatório final da rodada na PR. Produção: NOT_RUN.

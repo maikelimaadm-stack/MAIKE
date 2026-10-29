@@ -1,0 +1,13 @@
+$ node scripts/admin/smoke-admin-deploy.mjs --url http://127.0.0.1:5174 --permitir-http   # admin LOCAL (vite dev)
+PASS HTTPS — use https:// no endereço público
+PASS página do MAIKE Admin — HTTP 200
+FAIL CSP com frame-ancestors 'none' — ausente
+FAIL X-Frame-Options DENY — ausente
+FAIL noindex — ausente
+PASS proxy /api/native até o backend — HTTP 401
+PASS Origin aceita e login genérico — HTTP 401 ADMIN_CREDENCIAIS_INVALIDAS
+PASS API de tenant exige sessão — HTTP 401
+PASS bundle sem credencial server-only — 2 script(s)
+
+3 verificação(ões) falharam: o MAIKE Admin NÃO está pronto neste endereço.
+exit=1

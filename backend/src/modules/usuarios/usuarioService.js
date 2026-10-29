@@ -7,7 +7,8 @@
 
 import { getPrismaClient } from '../../database/prismaClient.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
-import { gerarSenhaHash } from '../auth/authService.js';
+import { gerarSenhaHash, senhaConfereComHash } from '../auth/authService.js';
+import { atorDoTenant, ehAdminTenantAtivo, exigirAdminTenant } from '../../shared/auth/exigirAdminTenant.js';
 import { buscarUsuarioAtivoPorLogin } from '../auth/authRepository.js';
 import { registrarEvento } from '../auditoria/auditService.js';
 import {
@@ -48,13 +49,20 @@ export const comoUsuarioPublico = (registro) => ({
     registro.updatedAt instanceof Date ? registro.updatedAt.toISOString() : registro.updatedAt,
 });
 
+/** Visão para o administrador da fazenda: inclui o papel (PR145-R4). */
+const comoUsuarioParaAdmin = (registro) => ({ ...comoUsuarioPublico(registro), papel_tenant: registro.papel_tenant });
+
+/** Usuário comum vê nomes/logins dos colegas (tarefas, responsáveis), nunca o papel. */
+const mapeadorPara = async (contexto) =>
+  ehAdminTenantAtivo(await atorDoTenant(contexto)) ? comoUsuarioParaAdmin : comoUsuarioPublico;
+
 /**
  * @param {{auth: import('../../shared/auth/authContext.js').AuthContext}} contexto
  */
 export const listar = async (contexto) => {
   const auth = exigirAuthContext(contexto?.auth);
-  const registros = await listarUsuarios(auth.clienteId);
-  return registros.map(comoUsuarioPublico);
+  const [registros, mapear] = await Promise.all([listarUsuarios(auth.clienteId), mapeadorPara(contexto)]);
+  return registros.map(mapear);
 };
 
 /**
@@ -82,16 +90,17 @@ export const listarPagina = async (contexto, query = {}) => {
     throw new AppError('REQUEST_VALIDATION_FAILED', 'cursor inválido');
   }
 
-  const [registros, total] = await Promise.all([
+  const [registros, total, mapear] = await Promise.all([
     listarUsuariosPagina(auth.clienteId, { q, ativo, cursor, limit }),
     cursor ? Promise.resolve(null) : contarUsuarios(auth.clienteId, { q, ativo }),
+    mapeadorPara(contexto),
   ]);
 
   return montarEnvelopeKeyset({
     registros,
     limit,
     total: /** @type {number} */ (/** @type {unknown} */ (total)),
-    mapItem: comoUsuarioPublico,
+    mapItem: mapear,
   });
 };
 
@@ -102,6 +111,10 @@ export const listarPagina = async (contexto, query = {}) => {
 export const criar = async (contexto, entrada) => {
   const auth = exigirAuthContext(contexto?.auth);
   const prisma = getPrismaClient();
+  // PR145-R4: só o administrador ATIVO da fazenda cria contas (antes de qualquer
+  // consulta, para não revelar logins a quem não pode criar). A conta nasce
+  // `usuario`: o corpo não tem como definir papel.
+  await exigirAdminTenant(contexto);
 
   const nome = textoOuNulo(entrada.nome);
   const loginBruto = textoOuNulo(entrada.login);
@@ -117,6 +130,7 @@ export const criar = async (contexto, entrada) => {
 
   try {
     const criado = await prisma.$transaction(async (tx) => {
+      await exigirAdminTenant(contexto, tx);
       const senha_hash = await gerarSenhaHash(senha);
       const registro = await inserirUsuario(tx, {
         cliente_id: auth.clienteId,
@@ -124,6 +138,7 @@ export const criar = async (contexto, entrada) => {
         login,
         senha_hash,
         ativo: true,
+        papel_tenant: 'usuario',
       });
 
       const publico = comoUsuarioPublico(registro);
@@ -157,10 +172,23 @@ export const criar = async (contexto, entrada) => {
 export const atualizar = async (contexto, id, entrada) => {
   const auth = exigirAuthContext(contexto?.auth);
   const prisma = getPrismaClient();
+  // PR145-R4: outra conta → só administrador ATIVO da fazenda (403 antes de
+  // consultar o id, então não revela nada). A própria conta → nome, e senha
+  // somente com a senha atual conferida no servidor.
+  const ehPropria = id === auth.usuarioId;
+  if (!ehPropria) await exigirAdminTenant(contexto);
 
   return prisma.$transaction(async (tx) => {
+    const ator = ehPropria ? await atorDoTenant(contexto, tx) : await exigirAdminTenant(contexto, tx);
+    if (!ator?.ativo) throw new AppError('USUARIO_INATIVO', 'conta desativada');
     const anterior = await buscarUsuario(auth.clienteId, id, tx);
     if (!anterior) throw usuarioNotFound();
+
+    if (ehPropria && Object.prototype.hasOwnProperty.call(entrada, 'nova_senha')) {
+      if (!(await senhaConfereComHash(entrada.senha_atual, ator.senha_hash))) {
+        throw new AppError('USUARIO_SENHA_ATUAL_INVALIDA', 'senha atual incorreta');
+      }
+    }
 
     /** @type {Record<string, unknown>} */
     const dados = {};

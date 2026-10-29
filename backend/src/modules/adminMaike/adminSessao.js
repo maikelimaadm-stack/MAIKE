@@ -16,7 +16,16 @@
 import { getPrismaClient } from '../../database/prismaClient.js';
 import { env, ehProducao } from '../../config/env.js';
 import { adminError } from '../../shared/errors/AppError.js';
-import { csrfDaSessao, iguaisTempoConstante, novoTokenSessao, sha256Hex } from './adminCrypto.js';
+import {
+  csrfDaSessao,
+  exigirChaveAdminConfigurada,
+  iguaisTempoConstante,
+  novoTokenSessao,
+  sha256Hex,
+} from './adminCrypto.js';
+
+/** Único papel com as prerrogativas do proprietário (catálogo + própria conta). */
+export const PAPEL_PROPRIETARIO = 'proprietario';
 
 export const CABECALHO_CSRF = 'x-maike-admin-csrf';
 /** Sessão antes do segundo fator: curta e restrita às rotas de MFA. */
@@ -102,8 +111,11 @@ const exigirOrigemECsrf = (request, sessaoId) => {
   }
 };
 
-/** Só a checagem de Origin (login, antes de existir sessão). */
-export const exigirOrigemAdmin = (request) => exigirOrigemECsrf(request, null);
+/** Só a checagem de Origin (login, antes de existir sessão) — e a chave configurada. */
+export const exigirOrigemAdmin = (request) => {
+  exigirChaveAdminConfigurada();
+  exigirOrigemECsrf(request, null);
+};
 
 const METODOS_LEITURA = new Set(['GET', 'HEAD', 'OPTIONS']);
 
@@ -117,6 +129,7 @@ const METODOS_LEITURA = new Set(['GET', 'HEAD', 'OPTIONS']);
  */
 export const exigirSessaoAdmin = ({ permitirSemMfa = false } = {}) =>
   async (request) => {
+    exigirChaveAdminConfigurada();
     const token = lerCookie(request.headers.cookie, nomeCookieAdmin());
     if (!token) {
       if (request.headers.authorization) {
@@ -138,6 +151,11 @@ export const exigirSessaoAdmin = ({ permitirSemMfa = false } = {}) =>
       sessao.admin.ativo &&
       (!sessao.mfa_verificado || sessao.ultimo_uso_em.getTime() + ociosaMs > agora);
     if (!valida) throw adminError('ADMIN_SESSAO_REQUIRED', 'sessão do MAIKE Admin expirada ou revogada');
+    // PR145-R4: sessão válida de OUTRO papel global não herda as prerrogativas
+    // do proprietário (a tabela admite papéis futuros).
+    if (sessao.admin.papel !== PAPEL_PROPRIETARIO) {
+      throw adminError('ADMIN_PRINCIPAL_REQUIRED', 'acesso exclusivo do proprietário do MAIKE');
+    }
     if (!sessao.mfa_verificado && !permitirSemMfa) {
       throw adminError('ADMIN_MFA_REQUIRED', 'confirme o segundo fator para continuar');
     }

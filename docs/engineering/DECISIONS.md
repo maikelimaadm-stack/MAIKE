@@ -2865,8 +2865,39 @@ Merge só pelo proprietário após auditoria.
    As regras MISTO do catálogo **não** alteram o mapa legado.
 8. **CLI de importação.** Vira contingência: usa a sessão do proprietário (senha + TOTP) e só aceita `--apply` contra API local.
 
-**Risco registrado fora do escopo:** `PATCH /usuarios/:id` deixa qualquer usuário do tenant trocar a senha de outro usuário do mesmo tenant. Não alcança o proprietário. A correção vai numa PR separada.
+**Risco registrado fora do escopo:** `PATCH /usuarios/:id` deixa qualquer usuário do tenant trocar a senha de outro usuário do mesmo tenant. Não alcança o proprietário. ~~A correção vai numa PR separada.~~ Corrigido na própria PR #145 por decisão do proprietário: ver D-PROD-71.
 
 ---
 
-<!-- Próxima decisão: D-PROD-71 -->
+## D-PROD-71 — Administrador da fazenda server-owned e endurecimento do MAIKE Admin
+
+**Missão:** `MAIKE-PR145-R4-SEGURANCA-USUARIOS-PERMISSOES-01` (PR #145)\
+**Relatório:** `docs/engineering/MAIKE-CATALOGO-ICONES-LOTES-01-REPORT.md` (§9)\
+**Runbook:** `docs/engineering/MAIKE-CATALOGO-OPERACAO-SUPABASE.md` (§2, §3.5, §4b, §6)\
+**Autoridade:** decisão do proprietário (29/10/2026). Fecha o risco registrado na D-PROD-70 e o amplia a Permissões.
+
+**Decisão:**
+
+1. **Papel de administrador da fazenda.** `Usuario.papel_tenant` (`'usuario'` | `'administrador'`, CHECK no banco, padrão `'usuario'`) é a única autoridade para administrar contas e permissões dentro de um tenant.
+   - A migration `20261029400000_usuario_papel_tenant` é aditiva e **não promove ninguém**.
+   - Nenhum endpoint grava o campo; ele não está no contrato de `POST`/`PATCH /usuarios`.
+   - `Permissao.is_admin` continua existindo como dado, mas **não é autoridade**.
+2. **Caminho confiável de elevação.** Só `scripts/auth/papel-tenant.mjs`: individual, confirmação digitada, recusa usuário inativo, update condicional + `AuditLog` na mesma transação, reversível, recusa produção sem `PAPEL_TENANT_ALLOW_PRODUCTION=sim` e aprovação separada. `bootstrap-local.mjs` (só local) cria o primeiro usuário já como administrador.
+3. **Contrato de autorização (backend, relido do banco a cada ação).** `exigirAdminTenant()` lê o ator por `id` + `cliente_id` do `auth_context`, exige `ativo` e `papel_tenant = 'administrador'`, antes de qualquer busca e de novo dentro da transação. Um papel revogado vale na hora, mesmo com JWT antigo.
+   - `POST /usuarios`, `PATCH /usuarios/:id` de **outro** usuário e `POST`/`PATCH`/`DELETE /permissoes` → 403 `TENANT_ADMIN_REQUIRED` para quem não é administrador.
+   - Trocar a **própria** senha exige `senha_atual` (403 `USUARIO_SENHA_ATUAL_INVALIDA`); conta inativa → 403 `USUARIO_INATIVO`.
+   - `GET /usuarios` sem papel não traz `papel_tenant` alheio; `GET /permissoes` sem papel traz a própria linha inteira e as outras só como `id`, `user_email`, `user_nome`.
+   - A auditoria nunca grava senha nem hash.
+4. **`cliente_id` no corpo é recusado em toda a API** (hook `preValidation` global, 400 `REQUEST_VALIDATION_FAILED`). Antes, `PATCH` genérico movia o registro para outro tenant.
+5. **Proprietário.** Só `AdminPrincipalMaike.papel = 'proprietario'` loga e passa pela guarda; outro papel → login genérico recusado e 403 `ADMIN_PRINCIPAL_REQUIRED` mesmo com sessão válida.
+6. **Falha fechada de configuração.** Em produção, `ADMIN_MAIKE_CHAVE` ausente ou inválida (base64 < 32 bytes) → 503 `ADMIN_INDISPONIVEL` em todo o MAIKE Admin, sem sessão; nada é derivado de `AUTH_SECRET` fora do ambiente local. `ADMIN_ORIGINS` vazio recusa toda mutação.
+7. **Rollout verificável.** `scripts/admin/smoke-admin-deploy.mjs` checa o deploy real do admin, só leitura. Nenhum domínio nem rewrite foi inventado: o rewrite continua sendo passo do runbook com o endereço real.
+8. **Cadastro resiliente.** O "Novo ícone" do admin retoma após falha parcial sem reenviar o que já foi aceito; imagens sem uso aparecem como aviso `ASSET_SEM_USO` e nunca são apagadas sozinhas.
+
+**Consequência operacional:** logo após o deploy, nenhuma fazenda tem administrador e ninguém cria contas até rodar `papel-tenant.mjs` com aprovação. É intencional.
+
+**Riscos residuais:** o JWT de tenant (8 h) de um usuário desativado ainda abre rotas **não privilegiadas** até expirar; códigos `*_NOT_FOUND` não catalogados em outros módulos respondem 500 em vez de 404 (sem vazamento); o limitador por IP do admin é por instância.
+
+---
+
+<!-- Próxima decisão: D-PROD-72 -->

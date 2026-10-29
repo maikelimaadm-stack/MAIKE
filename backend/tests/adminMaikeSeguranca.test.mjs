@@ -7,9 +7,11 @@
 import { describe, test, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 
+import { env } from '../src/config/env.js';
 import { getPrismaClient } from '../src/database/prismaClient.js';
+import { criarSessaoAdmin } from '../src/modules/adminMaike/adminSessao.js';
 import { criarProprietarioInicial, MAX_FALHAS_CONTA } from '../src/modules/adminMaike/adminService.js';
-import { codigoTotp, passoTotpAtual, verificarSenhaAdmin } from '../src/modules/adminMaike/adminCrypto.js';
+import { codigoTotp, gerarHashSenhaAdmin, passoTotpAtual, verificarSenhaAdmin } from '../src/modules/adminMaike/adminCrypto.js';
 import {
   criarApp,
   criarTenant,
@@ -323,5 +325,55 @@ describe('conta e segurança', () => {
     const [a] = await prisma().auditoriaCatalogoGlobal.findMany();
     assert.equal(a.admin_id, dono.admin.id);
     assert.equal(a.operador_id, null);
+  });
+});
+
+describe('PR145-R4 — só o papel proprietário; chave obrigatória em produção', () => {
+  test('S-15 linha global de OUTRO papel, mesmo com sessão verificada, não tem prerrogativas', async () => {
+    await criarAdminComSessao(app);
+    const outro = await prisma().adminPrincipalMaike.create({
+      data: { login: 'operador.catalogo', papel: 'operador_catalogo', senha_hash: await gerarHashSenhaAdmin(SENHA), mfa_ativo: true },
+    });
+    assert.equal((await login('operador.catalogo', SENHA)).statusCode, 401, 'não entra pelo login');
+    const { token, csrf } = await criarSessaoAdmin(prisma(), { adminId: outro.id, mfaVerificado: true });
+    const h = { ...base, cookie: `maike_admin=${token}`, 'x-maike-admin-csrf': csrf };
+    for (const [m, u, payload] of [
+      ['GET', '/admin-maike/catalogo'],
+      ['GET', '/admin-maike/sessao'],
+      ['POST', '/catalogo-global/admin/tipos', { codigo: 'lote', nome: 'Lote' }],
+      ['POST', '/admin-maike/conta/sessoes/revogar-outras', {}],
+    ]) {
+      const r = await app.inject({ method: m, url: u, headers: h, payload });
+      assert.equal(r.statusCode, 403, `${m} ${u}`);
+      assert.equal(r.json().code, 'ADMIN_PRINCIPAL_REQUIRED');
+    }
+    assert.equal(await prisma().catalogoTipoEntidade.count(), 0);
+  });
+
+  test('S-16 produção sem ADMIN_MAIKE_CHAVE (ou inválida) falha FECHADA com 503 sanitizado; ADMIN_ORIGINS vazio recusa', async () => {
+    await criarProprietarioInicial({ login: LOGIN, senha: SENHA });
+    const original = { nodeEnv: env.nodeEnv, chave: env.adminMaikeChave, origins: env.adminOrigins };
+    try {
+      env.nodeEnv = 'production';
+      for (const chave of [null, 'curta', 'não-base64!!']) {
+        env.adminMaikeChave = chave;
+        env.adminOrigins = [ORIGEM_ADMIN];
+        const r = await login();
+        assert.equal(r.statusCode, 503);
+        assert.equal(r.json().code, 'ADMIN_INDISPONIVEL');
+        assert.equal(r.body.includes('curta') || r.body.includes('base64!!'), false, 'sem valor na resposta');
+        assert.equal((await get('/admin-maike/catalogo', base)).statusCode, 503);
+      }
+      assert.equal(await prisma().sessaoAdminMaike.count(), 0, 'nada de sessão sem chave');
+      env.adminMaikeChave = Buffer.alloc(32, 7).toString('base64');
+      env.adminOrigins = [];
+      const semOrigins = await login();
+      assert.equal(semOrigins.statusCode, 403);
+      assert.equal(semOrigins.json().code, 'ADMIN_ORIGEM_RECUSADA');
+    } finally {
+      env.nodeEnv = original.nodeEnv;
+      env.adminMaikeChave = original.chave;
+      env.adminOrigins = original.origins;
+    }
   });
 });

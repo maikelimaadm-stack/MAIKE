@@ -1,5 +1,8 @@
 /**
  * Porta nativa de Usuario — administração de contas (P6.0, D-PROD-34).
+ *
+ * Toda chamada é autenticada (PR145-R4): sem `autenticado: true` o JWT não ia
+ * e a tela Usuários recebia 401 ("sessão expirou") para qualquer usuário.
  */
 
 import { nativeRequest } from '../_core/nativeHttpClient.js';
@@ -11,7 +14,7 @@ const CAMINHO_PAGINA = '/usuarios/page';
 const ctx = (operation) => ({ operation, resource: RESOURCE });
 
 const CAMPOS_CRIACAO = Object.freeze(['nome', 'login', 'senha']);
-const CAMPOS_ATUALIZACAO = Object.freeze(['nome', 'ativo', 'nova_senha']);
+const CAMPOS_ATUALIZACAO = Object.freeze(['nome', 'ativo', 'nova_senha', 'senha_atual']);
 
 const corpoDe = (dados, campos) => {
   /** @type {Record<string, unknown>} */
@@ -23,7 +26,7 @@ const corpoDe = (dados, campos) => {
 };
 
 export const listUsuariosNativos = async () => {
-  const resposta = await nativeRequest(CAMINHO, { method: 'GET' }, ctx('listUsuarios'));
+  const resposta = await nativeRequest(CAMINHO, { method: 'GET', autenticado: true }, ctx('listUsuarios'));
   return Array.isArray(resposta) ? resposta : [];
 };
 
@@ -40,16 +43,16 @@ const montarQueryPagina = (filtros = {}) => {
 
 /** Página keyset (SCALE-01) — a tela Usuários não baixa mais o tenant inteiro. */
 export const listUsuariosPaginaNativo = (filtros = {}) =>
-  nativeRequest(montarQueryPagina(filtros), { method: 'GET' }, ctx('listUsuariosPage'));
+  nativeRequest(montarQueryPagina(filtros), { method: 'GET', autenticado: true }, ctx('listUsuariosPage'));
 
 export const createUsuarioNativo = async (dados) => {
   const corpo = corpoDe(dados, CAMPOS_CRIACAO);
-  return nativeRequest(CAMINHO, { method: 'POST', body: corpo }, ctx('createUsuario'));
+  return nativeRequest(CAMINHO, { method: 'POST', body: corpo, autenticado: true }, ctx('createUsuario'));
 };
 
 export const updateUsuarioNativo = async (id, dados) => {
   const corpo = corpoDe(dados, CAMPOS_ATUALIZACAO);
-  return nativeRequest(`${CAMINHO}/${id}`, { method: 'PATCH', body: corpo }, ctx('updateUsuario'));
+  return nativeRequest(`${CAMINHO}/${id}`, { method: 'PATCH', body: corpo, autenticado: true }, ctx('updateUsuario'));
 };
 
 /** Compatibilidade com telas que ainda usam `email` (Permissao Base44). */

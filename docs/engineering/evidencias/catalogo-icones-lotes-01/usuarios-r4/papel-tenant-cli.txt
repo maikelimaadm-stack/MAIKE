@@ -1,0 +1,6 @@
+$ node scripts/auth/papel-tenant.mjs --cliente fazenda-teste --login ui.cli --papel administrador
+Fazenda: Fazenda Teste (sintética) (fazenda-teste)
+Usuário: Admin Fazenda <ui.cli>
+Papel:   usuario → administrador
+Digite CONFIRMAR para aplicar: aplicado: ui.cli agora é "administrador" (auditoria ops-papel-tenant-<uuid>)
+Vale na próxima ação privilegiada (o servidor relê o papel no banco); não precisa novo login.

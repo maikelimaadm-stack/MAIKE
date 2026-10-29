@@ -94,6 +94,10 @@ export const criarClienteEUsuario = async (prisma, entrada) => {
       nome: entrada.nome,
       senha_hash: await gerarSenhaHash(entrada.senha),
       ativo: true,
+      // Ferramenta LOCAL (recusa produção): o primeiro usuário local administra a
+      // fazenda de teste. Em ambiente real o papel é atribuído individualmente por
+      // `scripts/auth/papel-tenant.mjs` (PR145-R4, D-PROD-71).
+      papel_tenant: 'administrador',
     },
   });
 

@@ -113,6 +113,12 @@ model Usuario {
   login      String   @db.VarChar(120)
   senha_hash String   @db.VarChar(255)
   ativo      Boolean  @default(true)
+  /// Autoridade de administrador DA FAZENDA (tenant), server-owned (PR145-R4, D-PROD-71).
+  /// `usuario` (padrão) | `administrador`. Nenhuma rota HTTP grava este campo:
+  /// só o script operacional `scripts/auth/papel-tenant.mjs`. Não confundir com
+  /// `Permissao.is_admin` (preferência de menu, editável) nem com o proprietário
+  /// do produto (`AdminPrincipalMaike`).
+  papel_tenant String @default("usuario") @db.VarChar(32)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 

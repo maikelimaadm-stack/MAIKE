@@ -105,7 +105,11 @@ export const encerrar = async () => {
 
 /**
  * Cria um tenant com um usuário, prontos para autenticar.
- * @param {{codigo?: string, login?: string, senha?: string}} [opcoes]
+ *
+ * `papelTenant: 'administrador'` é a fixture DE BANCO do administrador da
+ * fazenda (PR145-R4) — o mesmo efeito do script operacional; nenhuma rota HTTP
+ * concede esse papel. Padrão: usuário comum.
+ * @param {{codigo?: string, login?: string, senha?: string, papelTenant?: 'usuario'|'administrador'}} [opcoes]
  */
 export const criarTenant = async (opcoes = {}) => {
   const prisma = getPrismaClient();
@@ -125,6 +129,7 @@ export const criarTenant = async (opcoes = {}) => {
       nome: 'Operador de Teste',
       login,
       senha_hash: await gerarSenhaHash(senha),
+      papel_tenant: opcoes.papelTenant ?? 'usuario',
     },
   });
 

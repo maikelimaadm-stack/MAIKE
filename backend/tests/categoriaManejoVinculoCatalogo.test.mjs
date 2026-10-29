@@ -154,11 +154,17 @@ describe('CategoriaManejo ↔ catálogo global (D-PROD-69)', () => {
     assert.equal(eventos, 1 + 5, 'create + 5 updates aceitos; recusas não auditam');
   });
 
-  test('V-07 isolamento de tenant: B não vê nem altera o vínculo de A; cliente_id do corpo é ignorado', async () => {
+  test('V-07 isolamento de tenant: B não vê nem altera o vínculo de A; cliente_id no corpo é recusado', async () => {
     const { bezerro, garrote } = await semearCatalogo();
     const a = await tenantComToken();
     const b = await tenantComToken();
-    const id = (await criar(a.token, { catalogo_categoria_visual_id: bezerro.id, cliente_id: b.cliente.id })).json().id;
+    // PR145-R4: cliente_id no corpo → 400 (antes era ignorado no POST e MOVIA o registro no PATCH).
+    const injetado = await criar(a.token, { catalogo_categoria_visual_id: bezerro.id, cliente_id: b.cliente.id });
+    assert.equal(injetado.statusCode, 400);
+    assert.equal(injetado.json().code, 'REQUEST_VALIDATION_FAILED');
+    const id = (await criar(a.token, { catalogo_categoria_visual_id: bezerro.id })).json().id;
+    const mover = await atualizar(a.token, id, { cliente_id: b.cliente.id });
+    assert.equal(mover.statusCode, 400);
 
     const gravada = await getPrismaClient().categoriaManejo.findUnique({ where: { id } });
     assert.equal(gravada.cliente_id, a.cliente.id);

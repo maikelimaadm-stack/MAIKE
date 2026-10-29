@@ -10,7 +10,7 @@ PASS SVG recusado antes do envio
 PASS arquivo acima do limite recusado com orientação
 PASS prévia local de principal e subícone
 PASS ícone criado e publicado
-PASS principal e subícone servidos pelo Storage (2 assets distintos, carregados) — ["maike-catalogo-global/v3/d068090c7ef86281-96a3c57f-2d0f-4652-85fe-e7d66b46c7b6.png","maike-catalogo-global/v4/fc8debd9c086074d-05ec4d6b-88a2-4111-9f1c-b0c5d8235b18.png"]
+PASS principal e subícone servidos pelo Storage (2 assets distintos, carregados) — ["maike-catalogo-global/v3/d068090c7ef86281-4655a158-7f8f-43b1-a2e5-eee9b683a61e.png","maike-catalogo-global/v4/fc8debd9c086074d-fd4829cd-4539-494e-a8ca-ddf685b4b8fc.png"]
 PASS estado publicado no cartão
 PASS troca da principal mantém id e subícone
 PASS ícone criado como rascunho

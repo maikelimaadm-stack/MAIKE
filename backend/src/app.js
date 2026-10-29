@@ -19,7 +19,7 @@ import { opcoesDeCors } from './shared/http/corsPolicy.js';
 import { errorHandler } from './shared/errors/errorHandler.js';
 import { registrarRequestContext } from './shared/request/requestContext.js';
 import { construirAuthContext } from './shared/auth/authContext.js';
-import { tenantContextRequired } from './shared/errors/AppError.js';
+import { AppError, tenantContextRequired } from './shared/errors/AppError.js';
 import { registrarHealthRoutes } from './modules/health/healthRoutes.js';
 import { registrarAuthRoutes } from './modules/auth/authRoutes.js';
 import { registrarSetorRoutes } from './modules/setores/setorRoutes.js';
@@ -105,6 +105,23 @@ export const construirApp = async (opcoes = {}) => {
   await app.register(fastifyJwt, { secret: env.authSecret });
 
   registrarRequestContext(app);
+
+  /**
+   * PR145-R4: o tenant vem SÓ do auth_context. Vários services fazem
+   * `update({ ...entrada })`; um `cliente_id` no corpo moveria o registro para
+   * outro tenant. Barreira única, antes de qualquer rota: corpo com
+   * `cliente_id` (no topo ou em item de lista) é recusado com 400
+   * REQUEST_VALIDATION_FAILED — o mesmo contrato das rotas com schema fechado.
+   */
+  app.addHook('preValidation', async (request) => {
+    const corpo = request.body;
+    const itens = Array.isArray(corpo) ? corpo : [corpo];
+    for (const item of itens) {
+      if (item && typeof item === 'object' && Object.prototype.hasOwnProperty.call(item, 'cliente_id')) {
+        throw new AppError('REQUEST_VALIDATION_FAILED', 'cliente_id não é aceito no corpo; o tenant vem da sessão');
+      }
+    }
+  });
 
   /**
    * Verifica o token e instala o `auth_context`.

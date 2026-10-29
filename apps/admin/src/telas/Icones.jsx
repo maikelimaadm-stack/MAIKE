@@ -57,6 +57,13 @@ const EscolherImagem = ({ id, rotulo, limites, arquivo, onArquivo, opcional = fa
   );
 };
 
+/**
+ * Cadastro em várias chamadas (imagem principal, subícone, ícone, publicar):
+ * não é atômico. O que já foi concluído fica guardado aqui; ao tentar de novo
+ * só o que falta é enviado — sem reenviar imagem já registrada nem criar um
+ * segundo rascunho. Uma imagem que subiu e não chegou a ser usada fica como
+ * asset sem uso (visível na Validação), nunca apagada às cegas.
+ */
 const NovoIcone = ({ dados, executar }) => {
   const [tipoId, setTipoId] = useState(dados.tipos.find((t) => t.ativo)?.id ?? '');
   const [categoriaId, setCategoriaId] = useState('');
@@ -66,41 +73,68 @@ const NovoIcone = ({ dados, executar }) => {
   const [publicar, setPublicar] = useState(true);
   const [ocupado, setOcupado] = useState(false);
   const [chave, setChave] = useState(0);
+  /** @type {[{ principal?: {arquivo: File, id: string}, sub?: {arquivo: File, id: string}, iconeId?: string }, Function]} */
+  const [feito, setFeito] = useState({});
   const categorias = dados.categorias.filter((c) => c.tipo_id === tipoId && c.ativo);
+  const trocarPrincipal = (f) => {
+    setPrincipal(f);
+    setFeito((x) => ({ ...x, principal: undefined, iconeId: undefined }));
+  };
+  const trocarSub = (f) => {
+    setSub(f);
+    setFeito((x) => ({ ...x, sub: undefined, iconeId: undefined }));
+  };
   const salvar = async (e) => {
     e.preventDefault();
     setOcupado(true);
+    const progresso = { ...feito };
     try {
       await executar(async () => {
-        const a = await enviarArquivo(principal, dados.limites);
-        const s = sub ? await enviarArquivo(sub, dados.limites) : null;
-        const icone = await catalogo.criarIcone({
-          tipo_id: tipoId,
-          categoria_id: categoriaId,
-          asset_principal_id: a.id,
-          asset_subicone_id: s?.id ?? null,
-          cor_fallback: cor || null,
-        });
-        if (publicar) await catalogo.publicarIcone(icone.id);
-        return icone;
+        if (progresso.principal?.arquivo !== principal) {
+          progresso.principal = { arquivo: principal, id: (await enviarArquivo(principal, dados.limites)).id };
+          setFeito({ ...progresso });
+        }
+        if (sub && progresso.sub?.arquivo !== sub) {
+          progresso.sub = { arquivo: sub, id: (await enviarArquivo(sub, dados.limites)).id };
+          setFeito({ ...progresso });
+        }
+        if (!progresso.iconeId) {
+          const icone = await catalogo.criarIcone({
+            tipo_id: tipoId,
+            categoria_id: categoriaId,
+            asset_principal_id: progresso.principal.id,
+            asset_subicone_id: sub ? progresso.sub.id : null,
+            cor_fallback: cor || null,
+          });
+          progresso.iconeId = icone.id;
+          setFeito({ ...progresso });
+        }
+        if (publicar) await catalogo.publicarIcone(progresso.iconeId);
+        return progresso.iconeId;
       }, publicar ? 'Ícone criado e publicado.' : 'Ícone criado como rascunho.');
       setPrincipal(null);
       setSub(null);
       setCor('');
       setCategoriaId('');
+      setFeito({});
       setChave((k) => k + 1);
     } catch {
-      /* aviso já exibido */
+      /* aviso já exibido; `feito` guarda as etapas concluídas para o retry */
     } finally {
       setOcupado(false);
     }
   };
+  const etapas = [
+    feito.principal ? 'imagem principal enviada' : null,
+    feito.sub ? 'subícone enviado' : null,
+    feito.iconeId ? `rascunho criado (${feito.iconeId.slice(0, 8)}…)` : null,
+  ].filter(Boolean);
   return (
     <details className="painel" open={dados.icones.length === 0}>
       <summary>Novo ícone</summary>
       <form className="formulario grade-2" onSubmit={salvar} key={chave}>
         <Campo rotulo="Tipo" id="novo-tipo">
-          <select id="novo-tipo" value={tipoId} onChange={(e) => { setTipoId(e.target.value); setCategoriaId(''); }} required>
+          <select id="novo-tipo" value={tipoId} onChange={(e) => { setTipoId(e.target.value); setCategoriaId(''); setFeito((x) => ({ ...x, iconeId: undefined })); }} required>
             <option value="">Selecione</option>
             {dados.tipos.filter((t) => t.ativo).map((t) => (
               <option key={t.id} value={t.id}>
@@ -110,7 +144,7 @@ const NovoIcone = ({ dados, executar }) => {
           </select>
         </Campo>
         <Campo rotulo="Categoria visual" id="novo-categoria" dica={categorias.length ? '' : 'Crie a categoria em "Tipos e categorias".'}>
-          <select id="novo-categoria" value={categoriaId} onChange={(e) => setCategoriaId(e.target.value)} required>
+          <select id="novo-categoria" value={categoriaId} onChange={(e) => { setCategoriaId(e.target.value); setFeito((x) => ({ ...x, iconeId: undefined })); }} required>
             <option value="">Selecione</option>
             {categorias.map((c) => (
               <option key={c.id} value={c.id}>
@@ -119,8 +153,8 @@ const NovoIcone = ({ dados, executar }) => {
             ))}
           </select>
         </Campo>
-        <EscolherImagem id="novo-principal" rotulo="Imagem principal" limites={dados.limites} arquivo={principal} onArquivo={setPrincipal} />
-        <EscolherImagem id="novo-subicone" rotulo="Subícone" opcional limites={dados.limites} arquivo={sub} onArquivo={setSub} />
+        <EscolherImagem id="novo-principal" rotulo="Imagem principal" limites={dados.limites} arquivo={principal} onArquivo={trocarPrincipal} />
+        <EscolherImagem id="novo-subicone" rotulo="Subícone" opcional limites={dados.limites} arquivo={sub} onArquivo={trocarSub} />
         <Campo rotulo="Cor de fallback (opcional)" id="novo-cor" dica="Usada só se a imagem não carregar.">
           <span className="linha">
             <input id="novo-cor" type="color" value={cor || '#16a34a'} onChange={(e) => setCor(e.target.value)} />
@@ -136,9 +170,16 @@ const NovoIcone = ({ dados, executar }) => {
         <label className="checagem">
           <input type="checkbox" checked={publicar} onChange={(e) => setPublicar(e.target.checked)} /> Publicar em seguida
         </label>
+        {etapas.length ? (
+          <div className="acoes">
+            <Aviso tipo="aviso">
+              Já concluído: {etapas.join(', ')}. Ao tentar de novo, só o que falta é enviado.
+            </Aviso>
+          </div>
+        ) : null}
         <div className="acoes">
           <Botao type="submit" ocupado={ocupado} disabled={!principal || !categoriaId}>
-            Criar ícone
+            {etapas.length ? 'Tentar de novo' : 'Criar ícone'}
           </Botao>
         </div>
       </form>

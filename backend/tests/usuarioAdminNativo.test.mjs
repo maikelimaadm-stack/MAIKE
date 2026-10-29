@@ -32,7 +32,7 @@ beforeEach(async () => {
 const auth = (token) => ({ authorization: `Bearer ${token}` });
 
 const tenantAutenticado = async (opcoes) => {
-  const { cliente, usuario, credenciais } = await criarTenant(opcoes);
+  const { cliente, usuario, credenciais } = await criarTenant({ papelTenant: 'administrador', ...opcoes });
   const { corpo } = await autenticarNoApp(app, credenciais);
   return { cliente, usuario, token: corpo.token, credenciais };
 };
@@ -90,14 +90,15 @@ describe('P6.0 — CRUD mínimo', () => {
   });
 
   test('BE-P60-05 PATCH atualiza nome, ativo e nova_senha', async () => {
-    const { token, usuario } = await tenantAutenticado();
+    const { token, usuario, credenciais } = await tenantAutenticado();
     const hashAntes = usuario.senha_hash;
 
+    // PR145-R4: trocar a PRÓPRIA senha exige a senha atual conferida no servidor.
     const r = await app.inject({
       method: 'PATCH',
       url: `/usuarios/${usuario.id}`,
       headers: auth(token),
-      payload: { nome: 'Nome Novo', nova_senha: 'outra-senha-99' },
+      payload: { nome: 'Nome Novo', nova_senha: 'outra-senha-99', senha_atual: credenciais.senha },
     });
     assert.equal(r.statusCode, 200);
     assert.equal(r.json().nome, 'Nome Novo');

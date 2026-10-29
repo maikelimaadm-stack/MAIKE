@@ -142,6 +142,47 @@ describe('Ícones: principal + subícone, troca com id estável', () => {
     expect(icone.corpo).toMatchObject({ tipo_id: 't-lote', categoria_id: 'c-gar', asset_principal_id: 'asset-1', asset_subicone_id: 'asset-2', revisao_esperada: 6 });
   });
 
+  it('falha no 2º arquivo e depois na publicação: retry reaproveita o que já subiu, sem duplicar', async () => {
+    let assets = 0;
+    let falharSub = true;
+    let falharPublicar = true;
+    const chamadas = servidor({
+      'GET /admin-maike/catalogo/revisao': () => [200, { revisao: 1 }],
+      'POST /catalogo-global/admin/assets': () => {
+        assets += 1;
+        if (assets === 2 && falharSub) {
+          falharSub = false;
+          return [503, { code: 'PROVIDER_UNAVAILABLE', message: 'Storage fora' }];
+        }
+        return [201, { id: `asset-${assets}` }];
+      },
+      'POST /catalogo-global/admin/icones': () => [201, { id: 'i-novo-0001' }],
+      'POST /catalogo-global/admin/icones/i-novo-0001/publicar': () => {
+        if (falharPublicar) {
+          falharPublicar = false;
+          return [503, { code: 'PROVIDER_UNAVAILABLE', message: 'fora' }];
+        }
+        return [200, { id: 'i-novo-0001' }];
+      },
+    });
+    render(<Icones dados={{ ...DADOS, icones: [] }} executar={executar} />);
+    fireEvent.change(screen.getByLabelText('Categoria visual'), { target: { value: 'c-gar' } });
+    escolherArquivo('^Imagem principal', new File([PNG], 'p.png', { type: 'image/png' }));
+    escolherArquivo('^Subícone', new File([PNG.slice(0, 9)], 's.png', { type: 'image/png' }));
+    await screen.findByAltText('Prévia: Subícone');
+    fireEvent.click(screen.getByRole('button', { name: 'Criar ícone' }));
+    expect(await screen.findByText(/Já concluído: imagem principal enviada\./)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Tentar de novo' }));
+    expect(await screen.findByText(/subícone enviado, rascunho criado/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Tentar de novo' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Criar ícone' })).toBeInTheDocument());
+    const por = (c) => chamadas.filter((x) => x.caminho === c).length;
+    expect(por('/catalogo-global/admin/assets')).toBe(3); // principal 1x, subícone 1 falha + 1 sucesso
+    expect(por('/catalogo-global/admin/icones')).toBe(1); // um único rascunho
+    expect(por('/catalogo-global/admin/icones/i-novo-0001/publicar')).toBe(2);
+    expect(chamadas.find((x) => x.caminho === '/catalogo-global/admin/icones').corpo).toMatchObject({ asset_principal_id: 'asset-1', asset_subicone_id: 'asset-3' });
+  });
+
   it('arquivo acima do limite ou SVG: orientação e nenhuma chamada', async () => {
     const chamadas = servidor({});
     render(<Icones dados={{ ...DADOS, limites: { ...DADOS.limites, max_bytes: 4 } }} executar={executar} />);

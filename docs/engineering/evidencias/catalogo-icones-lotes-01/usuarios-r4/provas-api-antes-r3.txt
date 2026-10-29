@@ -1,0 +1,12 @@
+== ANTES (código da R3, 9bad34ce): usuário comum "ui.comum" (Permissao.is_admin=false)
+A1 comum PATCH /usuarios/<admin> nova_senha: 200
+A1 admin entra com a senha original: 401
+A1 senha injetada pelo comum abre a conta do admin: 200
+A2 comum POST /usuarios: 201
+A6 comum GET /permissoes — chaves da linha do admin: ["created_date","id","is_admin","mapa_geral_permissoes","mobile_menu_ids","modulos_permitidos","permissoes_telas","updated_date","user_email","user_nome"]
+A3 comum PATCH /permissoes/<própria> is_admin=true: 200 (is_admin agora: true)
+A3 comum POST /permissoes is_admin=true: 201
+A5 PATCH /permissoes/<admin> com cliente_id de outro tenant: 200
+A5 a permissão do admin ainda aparece no tenant original: NÃO (movida para outro tenant)
+A3 comum DELETE /permissoes/<id>: 204
+A7 comum troca a própria senha sem informar a atual: 200

@@ -4,7 +4,7 @@ PASS vínculo persiste após salvar e recarregar
 PASS lote novo sem categoria mostra fallback
 PASS categoria sem vínculo → mapeamento_pendente, sem imagem
 PASS categoria vinculada → ícone publicado
-PASS imagem servida pelo Storage (URL versionada) e carregada — http://127.0.0.1:54321/storage/v1/object/public/maike-catalogo-global/v7/19b6583253aeaae5-096c7bab-5eb8-4f72-84c9-d072a31f99be.png
+PASS imagem servida pelo Storage (URL versionada) e carregada — http://127.0.0.1:54321/storage/v1/object/public/maike-catalogo-global/v7/19b6583253aeaae5-8be14500-a015-4778-817b-a781fae1fa67.png
 PASS troca de categoria limpa a prévia anterior
 PASS lote salvo aparece na lista
 PASS reabrir lote salvo: prévia real do ícone

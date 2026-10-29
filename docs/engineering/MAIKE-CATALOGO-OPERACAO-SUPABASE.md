@@ -1,6 +1,6 @@
 # Runbook — catálogo global de ícones: MAIKE Admin + Supabase
 
-**Decisões:** D-PROD-70 (sobre D-PROD-57/60/62/69) · **Para:** proprietário do produto MAIKE.
+**Decisões:** D-PROD-70, D-PROD-71 (sobre D-PROD-57/60/62/69) · **Para:** proprietário do produto MAIKE.
 
 Os ícones oficiais são dados globais do produto:
 
@@ -10,7 +10,7 @@ Os ícones oficiais são dados globais do produto:
 - os clientes só leem o que está publicado; nenhum tenant edita ícone, nem o admin do tenant.
 
 > **Proibido sem aprovação separada e por escrito do proprietário:** em **produção**, aplicar migration, criar
-> o proprietário, criar bucket, enviar imagens, publicar o MAIKE Admin ou alterar variáveis. Este runbook vale
+> o proprietário, promover administrador de fazenda, criar bucket, enviar imagens, publicar o MAIKE Admin ou alterar variáveis. Este runbook vale
 > primeiro para **local** e **staging**. Nunca cole senha, chave, código TOTP ou connection string em chat,
 > issue, commit ou log.
 
@@ -39,7 +39,8 @@ Um backend novo sobre banco antigo falha: ele grava `catalogo_categoria_visual_i
    ```sql
    SELECT migration_name, finished_at FROM "_prisma_migrations"
     WHERE migration_name LIKE '20261028250%' OR migration_name LIKE '20261029%' ORDER BY 1;
-   -- esperado: 20261028250000/250100/250200, 20261029100000, 20261029200000, 20261029300000
+   -- esperado: 20261028250000/250100/250200, 20261029100000, 20261029200000, 20261029300000, 20261029400000
+   SELECT papel_tenant, count(*) FROM "Usuario" GROUP BY 1;                              -- logo após a migration: só 'usuario'
    SELECT relname, relrowsecurity FROM pg_class
     WHERE relname IN ('CatalogoIcone','AuditoriaCatalogoGlobal','AdminPrincipalMaike','SessaoAdminMaike',
                       'CodigoRecuperacaoAdminMaike','EventoSegurancaAdminMaike');          -- todos com RLS = t
@@ -56,8 +57,8 @@ As variáveis abaixo são só do servidor, nunca `VITE_`, e não aparecem em nen
 |---|---|
 | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | Upload no Storage. Em produção, configuração parcial é recusada. |
 | `CATALOGO_STORAGE_BUCKET` | Opcional; padrão `maike-catalogo-global`. |
-| `ADMIN_MAIKE_CHAVE` | Chave-mestra (base64, ≥ 32 bytes) que cifra o segredo TOTP e assina o CSRF. **Obrigatória em produção.** Gere com `openssl rand -base64 32` direto no painel. Trocá-la invalida os autenticadores inscritos: exige nova inscrição. |
-| `ADMIN_ORIGINS` | Origins exatas do MAIKE Admin, ex.: `https://admin-staging.<seu-domínio>`. Vazio em produção = nenhuma mutação admin. |
+| `ADMIN_MAIKE_CHAVE` | Chave-mestra (base64, ≥ 32 bytes) que cifra o segredo TOTP e assina o CSRF. **Obrigatória em produção.** Gere com `openssl rand -base64 32` direto no painel. Trocá-la invalida os autenticadores inscritos: exige nova inscrição. Ausente ou inválida em produção, **todo** o MAIKE Admin responde 503 `ADMIN_INDISPONIVEL` ("configuração do servidor incompleta"), sem criar sessão: falha fechada, sem chave derivada. |
+| `ADMIN_ORIGINS` | Origins exatas do MAIKE Admin (a URL real do projeto, sem barra final). Vazio em produção = nenhuma mutação admin (403 `ADMIN_ORIGEM_RECUSADA`, inclusive o login). |
 | `ADMIN_SESSAO_HORAS` / `ADMIN_SESSAO_OCIOSA_MINUTOS` | Opcionais; padrões 8 h e 30 min. |
 
 ## 3. Implantar o MAIKE Admin (projeto Vercel separado)
@@ -72,6 +73,16 @@ As variáveis abaixo são só do servidor, nunca `VITE_`, e não aparecem em nen
    Com isso o cookie da sessão é first-party do domínio do admin. Não se relaxa CORS nem `SameSite`.
 3. Use um domínio exclusivo (ex.: `admin-staging.<seu-domínio>`) e só HTTPS. Coloque-o em `ADMIN_ORIGINS` no backend.
 4. Ter o endereço não autoriza nada: toda leitura e escrita passa pela guarda do backend (sessão + MFA + Origin + CSRF).
+5. **Smoke pós-deploy (obrigatório antes do bootstrap):**
+   ```bash
+   node scripts/admin/smoke-admin-deploy.mjs --url https://<endereço-real-do-admin>
+   ```
+   Só leitura, sem credencial; o único POST é um login com login aleatório inexistente (não bloqueia a conta real). Confere HTTPS, a página do admin, CSP `frame-ancestors 'none'`, `X-Frame-Options`, HSTS, `noindex`, o proxy `/api/native` até o backend, `ADMIN_ORIGINS` contendo esta origin, a API de tenant fechada e o bundle sem credencial server-only. Cada falha vem com o diagnóstico:
+   - resposta HTML em `/api/native/...` → falta o rewrite do passo 2 (caiu no fallback da SPA);
+   - 503 `ADMIN_INDISPONIVEL` → backend sem `ADMIN_MAIKE_CHAVE` válida;
+   - 403 `ADMIN_ORIGEM_RECUSADA` → `ADMIN_ORIGINS` sem esta origin.
+
+   Sai com código ≠ 0 se algo falhar. Contra o Vite local os cabeçalhos falham por definição (o Vite não aplica `vercel.json`); use `--permitir-http` só para ensaio local.
 
 ## 4. Criar o proprietário (uma única vez por ambiente)
 
@@ -89,6 +100,27 @@ DATABASE_URL=… npm run admin:bootstrap
 1. Informe login e senha. O admin então obriga a **inscrição do segundo fator**: cadastre a chave mostrada num aplicativo autenticador e confirme com o código de 6 dígitos.
 2. Os **10 códigos de recuperação** aparecem uma única vez. Guarde-os fora do computador.
 3. Sem MFA confirmado, nenhuma rota de catálogo responde (403 `ADMIN_MFA_REQUIRED`).
+
+## 4b. Administrador da fazenda (tenant) — não confundir com o proprietário
+
+São dois papéis diferentes (D-PROD-71):
+
+| Papel | Onde vive | Pode | Não pode |
+|---|---|---|---|
+| **Proprietário do produto** | `AdminPrincipalMaike` (`papel = 'proprietario'`), MAIKE Admin | catálogo oficial e a própria segurança | ver ou alterar dados de qualquer fazenda |
+| **Administrador da fazenda** | `Usuario.papel_tenant = 'administrador'`, SPA dos clientes | criar contas, trocar senha ou desativar **outros** usuários, gerir Permissões, tudo no próprio tenant | catálogo oficial, outras fazendas |
+
+- `Permissao.is_admin` **não** dá poder de administrar contas: é um dado editável e não é autoridade.
+- A migration `20261029400000` cria a coluna com `'usuario'` para todos e **não promove ninguém**. Logo depois do deploy, nenhuma fazenda tem administrador: ninguém cria contas até o passo abaixo. Isso é intencional (falha fechada).
+- O único caminho de elevação é o script, por quem tem acesso ao banco. Não existe endpoint:
+  ```bash
+  DATABASE_URL=… node scripts/auth/papel-tenant.mjs --cliente <codigo-do-cliente> --login <login> --papel administrador
+  ```
+  - Um usuário por vez. Mostra fazenda, usuário e papel atual → novo e exige `CONFIRMAR` digitado.
+  - Recusa usuário desativado. Grava `AuditLog` (`acao = 'papel_tenant'`) na mesma transação.
+  - Revogar: o mesmo comando com `--papel usuario`. Vale na próxima ação privilegiada, sem novo login (o servidor relê o papel no banco).
+  - Em `NODE_ENV=production`, recusa sem `PAPEL_TENANT_ALLOW_PRODUCTION=sim`. **Produção exige aprovação separada do proprietário, por fazenda e por pessoa.**
+- Cada usuário continua trocando a **própria** senha na tela Usuários, informando a senha atual.
 
 ## 5. Conta e segurança (tela "Minha conta")
 
@@ -122,6 +154,8 @@ As imagens são **as do proprietário, sem alteração**: o admin envia os bytes
 4. **Desativar e reativar:** "Desativar" é soft delete (registro e imagens ficam); "Publicar" de novo reativa o mesmo id.
 5. **Precedência:** mantenha um ícone publicado por categoria. Se houver mais de um, vale o de maior revisão, e a aba Validação avisa.
 6. **Conflito:** se outra sessão alterou o catálogo, a tela mostra "alterado em outra sessão" e recarrega. Nada é sobrescrito (CAS / 409).
+7. **Falha no meio do cadastro** (rede caiu entre a imagem principal, o subícone e o ícone): a tela mostra "Já concluído: …" e o botão **Tentar de novo** reenvia só o que faltou, reaproveitando as imagens já enviadas e o ícone já criado. Trocar o arquivo ou a categoria refaz só a parte afetada.
+8. **Imagem sem uso:** a aba Validação avisa `ASSET_SEM_USO` para imagens enviadas sem ícone associado (troca de imagem, cadastro interrompido). É inofensivo para os clientes e **nada é apagado automaticamente**.
 
 ## 7. Regras MISTO
 
@@ -163,14 +197,16 @@ As imagens são **as do proprietário, sem alteração**: o admin envia os bytes
 - [ ] Grants e RLS conferidos (§1).
 - [ ] `ADMIN_MAIKE_CHAVE`, `ADMIN_ORIGINS` e Storage configurados só no servidor (§2).
 - [ ] Projeto Vercel do admin separado, HTTPS, domínio exclusivo e rewrite same-origin (§3).
+- [ ] `smoke-admin-deploy.mjs` sem falhas contra o endereço real (§3.5).
 - [ ] Proprietário criado uma vez, MFA ativo e códigos guardados (§4).
+- [ ] Administrador de cada fazenda provisionado com `papel-tenant.mjs`, com aprovação (§4b).
 - [ ] Produção: **aprovação separada do proprietário** registrada.
 
 **Rollback:**
 
 - **Ícone ou regra:** desativar. Os lotes voltam ao aviso, sem erro.
 - **MAIKE Admin:** despublicar o projeto Vercel do admin. A SPA dos clientes não depende dele.
-- **Schema:** reversão manual, documentada no topo de cada migration (`20261029200000`, `20261029300000`). Antes, volte o backend para uma versão que não use as colunas e tabelas.
+- **Schema:** reversão manual, documentada no topo de cada migration (`20261029200000`, `20261029300000`, `20261029400000`). Antes, volte o backend para uma versão que não use as colunas e tabelas.
 
 ## 12. Portabilidade (limite atual)
 

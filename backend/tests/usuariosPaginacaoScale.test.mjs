@@ -34,7 +34,7 @@ beforeEach(async () => {
 const auth = (token) => ({ authorization: `Bearer ${token}` });
 
 const tenantAutenticado = async (opcoes) => {
-  const { cliente, usuario, credenciais } = await criarTenant(opcoes);
+  const { cliente, usuario, credenciais } = await criarTenant({ papelTenant: 'administrador', ...opcoes });
   const { corpo } = await autenticarNoApp(app, credenciais);
   return { cliente, usuario, token: corpo.token };
 };
@@ -231,7 +231,8 @@ describe('SCALE-01 — tenant, busca e filtros', () => {
     await semear(cliente.id, 'pv', 5);
     const corpo = (await pagina(token)).json();
     for (const u of corpo.items) {
-      assert.deepEqual(Object.keys(u).sort(), ['ativo', 'created_date', 'id', 'login', 'nome', 'updated_date']);
+      // PR145-R4: o administrador da fazenda também vê o papel (server-owned).
+      assert.deepEqual(Object.keys(u).sort(), ['ativo', 'created_date', 'id', 'login', 'nome', 'papel_tenant', 'updated_date']);
     }
     assert.ok(!JSON.stringify(corpo).includes(HASH_INERTE));
   });

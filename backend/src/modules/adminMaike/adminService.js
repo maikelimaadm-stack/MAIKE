@@ -122,7 +122,8 @@ export const loginAdmin = async ({ login, senha, ip, userAgent, requestId }) => 
   // Verifica sempre (mesmo bloqueado ou inexistente) para não vazar estado pelo tempo.
   const senhaOk = await verificarSenhaAdmin(typeof senha === 'string' ? senha : '', admin?.senha_hash);
 
-  if (!admin || !admin.ativo || bloqueado || !senhaOk) {
+  // Só o papel proprietário entra no MAIKE Admin (PR145-R4); outro papel = credencial inválida.
+  if (!admin || !admin.ativo || admin.papel !== 'proprietario' || bloqueado || !senhaOk) {
     if (admin && !bloqueado) await contarFalhaConta(admin.id);
     await registrarEventoSeguranca({
       adminId: admin?.id ?? null,

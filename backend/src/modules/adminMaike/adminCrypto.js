@@ -21,6 +21,7 @@ import {
   timingSafeEqual,
 } from 'node:crypto';
 import { env, ehProducao } from '../../config/env.js';
+import { adminError } from '../../shared/errors/AppError.js';
 
 /**
  * scrypt assíncrono com opções (o `promisify` tipado perde a sobrecarga de 4 argumentos).
@@ -96,22 +97,34 @@ export const iguaisTempoConstante = (a, b) => {
 };
 
 /**
- * Chave de 32 bytes derivada por finalidade. Em produção a chave-mestra
- * `ADMIN_MAIKE_CHAVE` (base64, ≥ 32 bytes) é obrigatória; fora de produção
- * deriva-se de `AUTH_SECRET` para o ambiente local e de teste funcionar.
- *
- * @param {'mfa'|'csrf'} finalidade
+ * Chave-mestra. Em produção `ADMIN_MAIKE_CHAVE` (base64, ≥ 32 bytes) é
+ * obrigatória; fora de produção, sem a variável, deriva-se de `AUTH_SECRET`
+ * para o ambiente local e de teste funcionar. Valor inválido → null.
+ * @returns {Buffer|null}
  */
-const chaveDerivada = (finalidade) => {
-  const mestra = env.adminMaikeChave
-    ? Buffer.from(env.adminMaikeChave, 'base64')
-    : ehProducao()
-      ? null
-      : Buffer.from(`dev-only:${env.authSecret ?? ''}`, 'utf8');
-  if (!mestra || mestra.length < 32) {
-    throw new Error('ADMIN_MAIKE_CHAVE ausente ou curta (base64 de ≥ 32 bytes) — MAIKE Admin indisponível');
+const chaveMestra = () => {
+  if (env.adminMaikeChave) {
+    const bruto = env.adminMaikeChave;
+    const b = /^[A-Za-z0-9+/]+={0,2}$/.test(bruto) ? Buffer.from(bruto, 'base64') : Buffer.alloc(0);
+    return b.length >= 32 ? b : null;
   }
-  return Buffer.from(hkdfSync('sha256', mestra, Buffer.alloc(0), `maike-admin:${finalidade}:v1`, 32));
+  return ehProducao() ? null : Buffer.from(`dev-only:${env.authSecret ?? ''}`, 'utf8');
+};
+
+/**
+ * Falha FECHADA: sem chave válida o MAIKE Admin responde 503 genérico, sem
+ * mostrar valor nem detalhe da configuração (PR145-R4).
+ */
+export const exigirChaveAdminConfigurada = () => {
+  if (!chaveMestra()) {
+    throw adminError('ADMIN_INDISPONIVEL', 'MAIKE Admin indisponível: configuração do servidor incompleta');
+  }
+};
+
+/** Chave de 32 bytes derivada por finalidade. @param {'mfa'|'csrf'} finalidade */
+const chaveDerivada = (finalidade) => {
+  exigirChaveAdminConfigurada();
+  return Buffer.from(hkdfSync('sha256', /** @type {Buffer} */ (chaveMestra()), Buffer.alloc(0), `maike-admin:${finalidade}:v1`, 32));
 };
 
 /** CSRF vinculado à sessão: HMAC(id da sessão). */
