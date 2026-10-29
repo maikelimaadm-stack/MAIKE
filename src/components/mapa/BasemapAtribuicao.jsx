@@ -1,22 +1,62 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
+
+/** Acima disto, em telas estreitas, o texto vai para "Fontes de dados". */
+const LIMITE_TEXTO_CURTO = 48;
 
 /**
- * Atribuição dinâmica do satélite (Google Maps + copyright do viewport) e aviso
- * honesto de falha com "Tentar novamente". Texto via React (sem innerHTML).
+ * Atribuição do satélite (Google Maps + copyright do viewport) e aviso honesto
+ * de falha com "Tentar novamente" (D-PROD-65 / R1-02).
+ *
+ * Política Map Tiles: o copyright é exibido por inteiro. Sem `truncate`:
+ * em telas largas o texto quebra linha; em telas estreitas (ou texto longo)
+ * há o botão acessível "Fontes de dados" que abre o texto integral.
+ * Fica à esquerda dos controles nativos (zoom/ⓘ OpenFreeMap) para não cobri-los.
  *
  * @param {{ atribuicao?: string | null, status?: string, mensagem?: string | null, onRetry?: () => void, className?: string }} props
  */
 export default function BasemapAtribuicao({ atribuicao, status, mensagem, onRetry, className = "" }) {
+  const [aberto, setAberto] = useState(false);
+  useEffect(() => {
+    if (!atribuicao) setAberto(false);
+  }, [atribuicao]);
+
+  const longo = (atribuicao || "").length > LIMITE_TEXTO_CURTO;
+
   return (
     <>
       {atribuicao ? (
         <div
           data-testid="basemap-atribuicao"
-          className={`pointer-events-none absolute z-20 max-w-[70%] truncate rounded bg-white/80 px-1.5 py-0.5 text-[10px] text-slate-700 ${className}`}
-          style={{ right: "max(0.25rem, env(safe-area-inset-right))", bottom: "max(1.75rem, calc(env(safe-area-inset-bottom) + 1.5rem))" }}
-          title={atribuicao}
+          className={`absolute z-20 flex max-w-[min(70vw,440px)] flex-col items-end gap-1 ${className}`}
+          style={{ right: "calc(3.5rem + env(safe-area-inset-right))", bottom: "calc(2.25rem + env(safe-area-inset-bottom))" }}
         >
-          {atribuicao}
+          {aberto ? (
+            <div
+              id="basemap-fontes-dados"
+              role="region"
+              aria-label="Fontes de dados do mapa"
+              className="rounded bg-white/95 px-2 py-1 text-[11px] leading-snug text-slate-800 shadow break-words"
+            >
+              {atribuicao}
+            </div>
+          ) : null}
+          <div className="flex items-center gap-1 rounded bg-white/85 px-1.5 py-0.5 text-[10px] leading-snug text-slate-800">
+            <span data-testid="basemap-atribuicao-texto" className={longo ? "hidden break-words sm:inline" : "break-words"}>
+              {atribuicao}
+            </span>
+            {longo ? <span className="sm:hidden">Google Maps</span> : null}
+            {longo ? (
+              <button
+                type="button"
+                className="min-h-[24px] rounded px-1 font-semibold underline sm:hidden"
+                aria-expanded={aberto}
+                aria-controls="basemap-fontes-dados"
+                onClick={() => setAberto((v) => !v)}
+              >
+                Fontes de dados
+              </button>
+            ) : null}
+          </div>
         </div>
       ) : null}
       {status === "carregando" ? (

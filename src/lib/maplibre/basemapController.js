@@ -68,6 +68,7 @@ export function primeiraCamadaDeNegocio(map, prefixos = PREFIXOS_FONTES_NEGOCIO)
  *   fetchImpl?: typeof fetch,
  *   reaplicarCamadas?: () => void,
  *   prefixosNegocio?: readonly string[],
+ *   timeoutProvaMs?: number,
  * }} [opts]
  */
 export function createBasemapController(map, opts = {}) {
@@ -80,7 +81,15 @@ export function createBasemapController(map, opts = {}) {
   let viewportAbort = null;
   /** @type {ReturnType<typeof setTimeout> | null} */
   let viewportTimer = null;
-  let falhaTileTratada = false;
+  /** Prova de raster: só "pronto" depois de tile real carregado (R1-01). */
+  let prova = { pedido: 0, ok: 0, erros: 0, errosSeguidos: 0, renovou: false };
+  /** @type {ReturnType<typeof setTimeout> | null} */
+  let provaTimer = null;
+  let viewportSeq = 0;
+  const limparProvaTimer = () => {
+    if (provaTimer) clearTimeout(provaTimer);
+    provaTimer = null;
+  };
 
   /** @type {EstadoBasemap} */
   let estado = {
@@ -122,10 +131,14 @@ export function createBasemapController(map, opts = {}) {
           east: b.getEast(),
           west: b.getWest(),
         });
+        const seq = ++viewportSeq;
+        const sessao = sessaoAtiva.session;
         const r = await fetchImpl(url, ctrl ? { signal: ctrl.signal } : undefined);
         if (!r || !r.ok) return;
         const j = await r.json();
-        if (disposed || ctrl?.signal.aborted || estado.basemapId !== BASEMAP_IDS.SATELITE) return;
+        // Resposta atrasada (outra câmera/sessão/base) não sobrescreve a mais recente.
+        if (disposed || ctrl?.signal.aborted || seq !== viewportSeq) return;
+        if (estado.basemapId !== BASEMAP_IDS.SATELITE || sessaoAtiva?.session !== sessao) return;
         emit({ atribuicao: textoAtribuicaoGoogle(j?.copyright) });
       } catch {
         /* atribuição mínima "Google Maps" já exibida */
@@ -134,27 +147,74 @@ export function createBasemapController(map, opts = {}) {
   };
 
   const falhar = (mensagem) => {
+    limparProvaTimer();
+    prova = { ...prova, pedido: -1 };
+    viewportAbort?.abort();
     setSatVisivel(false);
     sessaoAtiva = null;
     emit({ basemapId: BASEMAP_IDS.RUAS, status: "erro", provedor: provedorSatelite(), mensagem, atribuicao: null });
   };
 
+  /**
+   * Erro pertence ao satélite? MapLibre nem sempre preenche `sourceId`
+   * (falha de rede/CORS de tile chega só com a URL na mensagem).
+   */
+  const ehErroDoSatelite = (e) => {
+    if (e?.sourceId === SAT_SOURCE_ID || e?.source?.id === SAT_SOURCE_ID) return true;
+    if (e?.sourceId) return false;
+    const txt = `${e?.error?.url || ""} ${e?.error?.message || ""} ${e?.message || ""}`;
+    return txt.includes("tile.googleapis.com");
+  };
+
+  const statusDoErro = (e) => {
+    const n = Number(e?.error?.status ?? e?.status);
+    if (Number.isFinite(n) && n > 0) return n;
+    const m = /\b(4\d\d|5\d\d)\b/.exec(String(e?.error?.message || e?.message || ""));
+    return m ? Number(m[1]) : null;
+  };
+
   const onMapError = (e) => {
-    if (disposed || e?.sourceId !== SAT_SOURCE_ID) return;
-    const status = Number(e?.error?.status) || null;
-    if (status === 401 || status === 403 || status === 429) {
-      if (falhaTileTratada) return;
-      falhaTileTratada = true;
+    if (disposed || !ehErroDoSatelite(e)) return;
+    if (prova.pedido !== pedido || prova.pedido < 0) return;
+    const status = statusDoErro(e);
+    prova.erros += 1;
+    prova.errosSeguidos += 1;
+    // 401/403: sessão expirada/recusada → renova UMA vez; se repetir, falha.
+    if ((status === 401 || status === 403) && !prova.renovou && sessaoAtiva) {
+      prova.renovou = true;
       descartarSessoesMapTiles();
+      void ativarSateliteGoogle(true, { renovacao: true });
+      return;
+    }
+    if (status === 401 || status === 403 || status === 429) {
       falhar(classificarFalhaMapTiles(status).mensagem);
+      return;
+    }
+    // 404/5xx/rede/CORS: antes de qualquer tile ok, 3 erros bastam; depois,
+    // só uma sequência longa sem sucesso (falha isolada/retry não derruba).
+    const limite = prova.ok === 0 ? 3 : 8;
+    if (prova.errosSeguidos >= limite) falhar(classificarFalhaMapTiles(status).mensagem);
+  };
+
+  const onSourceData = (e) => {
+    if (disposed || e?.sourceId !== SAT_SOURCE_ID || !e?.tile) return;
+    if (prova.pedido !== pedido || prova.pedido < 0) return;
+    prova.ok += 1;
+    prova.errosSeguidos = 0;
+    if (estado.status === "carregando") {
+      limparProvaTimer();
+      emit({ basemapId: BASEMAP_IDS.SATELITE, status: "pronto", mensagem: null, atribuicao: estado.atribuicao || ATRIBUICAO_GOOGLE });
+      atualizarAtribuicao();
     }
   };
 
   map.on("moveend", atualizarAtribuicao);
   map.on("error", onMapError);
+  map.on("sourcedata", onSourceData);
 
-  const ativarSateliteGoogle = async (forcar) => {
+  const ativarSateliteGoogle = async (forcar, extra = {}) => {
     const meu = ++pedido;
+    limparProvaTimer();
     emit({ status: "carregando", provedor: "google-map-tiles", mensagem: null });
     const s = await obterSessaoMapTiles({ fetchImpl, forcar });
     if (disposed || meu !== pedido) return;
@@ -178,10 +238,20 @@ export function createBasemapController(map, opts = {}) {
         );
       }
       sessaoAtiva = { session: String(s.session), key: String(s.key) };
-      falhaTileTratada = false;
+      prova = { pedido: meu, ok: 0, erros: 0, errosSeguidos: 0, renovou: !!extra.renovacao };
       setSatVisivel(true);
-      emit({ basemapId: BASEMAP_IDS.SATELITE, status: "pronto", mensagem: null, atribuicao: ATRIBUICAO_GOOGLE });
-      atualizarAtribuicao();
+      // Mesma sessão já com tiles em cache do MapLibre: a fonte pode já estar carregada.
+      if (mesmaSessao && map.isSourceLoaded?.(SAT_SOURCE_ID)) {
+        prova.ok = 1;
+        emit({ basemapId: BASEMAP_IDS.SATELITE, status: "pronto", mensagem: null, atribuicao: estado.atribuicao || ATRIBUICAO_GOOGLE });
+        atualizarAtribuicao();
+        return;
+      }
+      provaTimer = setTimeout(() => {
+        provaTimer = null;
+        if (disposed || meu !== pedido || prova.ok > 0) return;
+        falhar("Satélite indisponível: as imagens não chegaram a tempo (rede ou provedor).");
+      }, opts.timeoutProvaMs ?? 15000);
     } catch (err) {
       falhar(err instanceof Error && err.message ? `Satélite indisponível: ${err.message}` : "Satélite indisponível.");
     }
@@ -250,6 +320,9 @@ export function createBasemapController(map, opts = {}) {
         /* ignore */
       }
     }
+    limparProvaTimer();
+    prova = { ...prova, pedido: -1 };
+    viewportAbort?.abort();
     setSatVisivel(false);
     emit({ basemapId: BASEMAP_IDS.RUAS, status: "pronto", provedor: "openfreemap", mensagem: null, atribuicao: null });
   };
@@ -262,10 +335,12 @@ export function createBasemapController(map, opts = {}) {
       disposed = true;
       pedido++;
       if (viewportTimer) clearTimeout(viewportTimer);
+      limparProvaTimer();
       viewportAbort?.abort();
       try {
         map.off("moveend", atualizarAtribuicao);
         map.off("error", onMapError);
+        map.off("sourcedata", onSourceData);
       } catch {
         /* ignore */
       }

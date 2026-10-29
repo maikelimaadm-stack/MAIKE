@@ -24,3 +24,11 @@ export const LINHAS = [
   { id: "ln1", empresa_id: EMPRESA, nome: "Cerca", tipo: "Cerca", coordenadas: { coords: [[base.lat + 0.0025, base.lng - 0.004], [base.lat + 0.0025, base.lng + 0.0033]], cor: "#f59e0b" } },
 ];
 export const USUARIO = { id: "u1", email: "e2e@maike.local", role: "admin", full_name: "E2E" };
+
+/** Empresa B (GEO-09): áreas em outro lugar e cores diferentes — nunca podem aparecer em A. */
+export const EMPRESA_B = "emp-b";
+const baseB = { lat: -15.02, lng: -59.97 };
+export const AREAS_B = [
+  { id: "b1", empresa_id: EMPRESA_B, nome: "RETIRO B1", numero_area: 1, tamanho_hectares: 7.7, ativo: true, coordenadas: { coords: [[baseB.lat, baseB.lng], [baseB.lat, baseB.lng + 0.003], [baseB.lat - 0.002, baseB.lng + 0.003], [baseB.lat - 0.002, baseB.lng]], cor: "#966fe1" } },
+];
+export const LOTES_B = [{ id: "lb1", empresa_id: EMPRESA_B, nome: "Lote B", area_atual_id: "b1", quantidade_cabecas: 9, categoria: "BOI", status: "Ativo", alertas: [] }];

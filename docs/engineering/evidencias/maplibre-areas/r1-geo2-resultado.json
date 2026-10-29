@@ -1,0 +1,118 @@
+{
+ "GEO08_medidas_desenho": "Área: 1,46 haPerímetro: 394 m",
+ "GEO08_salvos": 1,
+ "GEO08_formato_persistido": {
+  "coordsIsArrayLatLng": true,
+  "n": 4,
+  "cor": "#f5a01b",
+  "tamanho_hectares": 1.46,
+  "nome": "PIQUETE R1"
+ },
+ "GEO08_coords_iguais_ao_desenho": true,
+ "GEO08_reaberto_coords_iguais": true,
+ "GEO08_reaberto_desenho": {
+  "geom": "Polygon",
+  "fill": "#f6a526",
+  "pintado": 4
+ },
+ "GEO08_reaberto_medidas": "Área: 1,46 haPerímetro: 394 m",
+ "GEO08_editado_medidas": "Área: 1,65 haPerímetro: 430 m",
+ "GEO08_regravada_coords_iguais_editado": true,
+ "GEO08_regravada_mesmo_id": true,
+ "GEO08_regravada_cor_preservada": true,
+ "GEO08_reaberto2_coords_iguais": true,
+ "GEO08_reaberto2_medidas": "Área: 1,65 haPerímetro: 430 m",
+ "GEO08_reaberto2_desenho": {
+  "geom": "Polygon",
+  "fill": "#f6a526",
+  "pintado": 4
+ },
+ "GEO08_erros": [],
+ "GEO09_A": {
+  "labels": [
+   "PASTO 01",
+   "PASTO 02",
+   "CURRAL"
+  ],
+  "lotes": [
+   "42",
+   "17"
+  ],
+  "fonteAreas": [
+   "a1",
+   "a2",
+   "a3"
+  ],
+  "pintadas": [
+   "a1",
+   "a2",
+   "a3"
+  ]
+ },
+ "GEO09_B_pendente": {
+  "labels": [],
+  "lotes": [],
+  "fonteAreas": [],
+  "pintadas": []
+ },
+ "GEO09_B": {
+  "labels": [
+   "RETIRO B1"
+  ],
+  "lotes": [
+   "9"
+  ],
+  "fonteAreas": [
+   "b1"
+  ],
+  "pintadas": [
+   "b1"
+  ]
+ },
+ "GEO09_A2_pendente": {
+  "labels": [
+   "PASTO 01",
+   "PASTO 02",
+   "CURRAL"
+  ],
+  "lotes": [
+   "42",
+   "17"
+  ],
+  "fonteAreas": [
+   "a1",
+   "a2",
+   "a3"
+  ],
+  "pintadas": [
+   "a1",
+   "a2",
+   "a3"
+  ]
+ },
+ "GEO09_A2": {
+  "labels": [
+   "PASTO 01",
+   "PASTO 02",
+   "CURRAL"
+  ],
+  "lotes": [
+   "42",
+   "17"
+  ],
+  "fonteAreas": [
+   "a1",
+   "a2",
+   "a3"
+  ],
+  "pintadas": [
+   "a1",
+   "a2",
+   "a3"
+  ]
+ },
+ "GEO09_visao_por_empresa": [
+  "mapa_geral_view_emp-b",
+  "mapa_geral_view_emp-e2e"
+ ]
+}

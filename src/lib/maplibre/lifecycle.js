@@ -134,8 +134,10 @@ export function ensureBusinessLayers(map) {
       source: SOURCE_IDS.DESENHO,
       filter: ["==", ["geometry-type"], "Polygon"],
       paint: {
-        "fill-color": COR_DESENHO,
-        "fill-opacity": OPACIDADE_FILL_DESENHO,
+        // Área existente em edição: cor salva (mesma opacidade da área cadastrada);
+        // rascunho novo: laranja translúcido.
+        "fill-color": ["coalesce", ["get", "fill"], COR_DESENHO],
+        "fill-opacity": ["case", ["has", "fill"], OPACIDADE_FILL_AREA, OPACIDADE_FILL_DESENHO],
       },
     });
   }

@@ -103,3 +103,60 @@ Custo: cobrança por tile e por sessão conforme a tabela da Map Tiles API. Não
 
 ## Arquivos
 Ver `git diff origin/main --name-status` na PR.
+
+## R1 — ajuste de escopo: polígonos
+
+O escopo foi corrigido pelo proprietário: mapa interativo da fazenda (ruas ou aérea **apenas como fundo**) com os polígonos das áreas desenhados por cima, mais o editor com qualidade equivalente ao do Controle de Estoque. Não entram NDVI, imagery nem módulos novos. O prompt `PR139_R1_FECHAMENTO_AREAS_SATELITE_EVIDENCIAS` foi cancelado; deste trabalho só se aproveitou a correção limitada do fundo satélite (P3).
+
+### Causa raiz do polígono invisível (P0)
+- **Sintoma** (screenshots do HEAD `c84d83c3`):
+  - `editor-fechado-navegar.png` e `editor-editar-existente.png` mostram 4 vértices e a área em ha, mas **sem preenchimento nem contorno**;
+  - `editor-movido.png` mostrava o polígono.
+- **Causa:** em `MapaDesenho.jsx`, os efeitos que gravam as fontes `m1-desenho` (geometria em edição) e `m1-areas` saíam cedo com a guarda `isStyleLoaded()`.
+  - Essa função fica `false` enquanto tiles do mapa-base ainda carregam.
+  - O efeito retornava **sem gravar** e só rodava de novo na próxima mudança de pontos.
+  - Os vértices vêm de outro efeito, sem essa guarda, e por isso apareciam; o modo Mover regravava a cada passo do arrasto, e por isso "consertava".
+- **Prova do antes** (`r1-ANTES-geo-resultado.json`, mesmo roteiro de E2E no código anterior):
+  - `m1-desenho` vazio (`desenhoGeom: null`);
+  - `queryRenderedFeatures(m1-desenho-fill) = 0`;
+  - pixel interno igual ao do mapa-base (`r1-ANTES-geo01-fechado.png`, `r1-ANTES-geo03-editar-existente.png`).
+- **Correção:**
+  - a guarda passou a ser "a fonte de negócio existe" (`map.getSource(...)`), que é verdadeira desde o `load` e após a reidratação de um `setStyle`;
+  - a reidratação (`rehydrateAllSources`) usa a mesma guarda.
+  - Não há timer, re-render forçado nem CSS.
+- **Prova do depois** (`r1-geo-resultado.json`):
+  - fill e line renderizados em todas as etapas;
+  - **prova A/B de pixel**: screenshot com as camadas do desenho e outro com elas ocultas; o pixel interno muda (Δ 37–256).
+
+### Outras correções R1
+- **Toque engolido após o zoom inicial:** o listener `zoom` do editor marcava "zoom em andamento" também no `fitBounds` programático, e o 1º toque de desenho logo após abrir o mapa era ignorado (visto no E2E mobile). Agora só gesto do usuário (`originalEvent`) bloqueia toques.
+- **Área existente em edição:** o preenchimento usa a **cor salva** (+5% de branco, opacidade da área cadastrada). Contorno e vértices continuam laranja de edição. Rascunho novo continua laranja translúcido.
+- **Rótulos:** ponto seguro **dentro** do polígono, inclusive em áreas côncavas (`pontoRotuloSeguro`). No editor, as áreas de referência mostram nome + ha, como no Mapa Geral.
+- **Fundo satélite** (só mapa-base):
+  - o estado "pronto" só vale depois de um tile raster carregado de verdade (`sourcedata` com `tile`); erros sem `sourceId` são identificados pela URL;
+  - 3 falhas antes de qualquer sucesso ou timeout de 15 s voltam para ruas com aviso; 401/403 renovam a sessão uma única vez;
+  - atribuição completa, sem `truncate`; em tela estreita fica em "Fontes de dados", acessível;
+  - polígonos permanecem por cima: `r1-geo06-*`, `satelite-sintetico-*` (tile **sintético**, não é imagem Google).
+
+### Matriz GEO (WebGL real, Chromium + SwiftShader, **dados sintéticos do harness — não é app autenticado**)
+
+| Caso | Resultado | Prova |
+|---|---|---|
+| GEO-01 novo polígono | PASS: prévia em linha (2 pts) → Polygon (4) → fechado, fill/line pintados | `r1-geo01-fechado.png` |
+| GEO-02 navegar, pan, zoom | PASS: 1,82 ha preservados, pintado | `r1-geo02-navegar-pan-zoom.png` |
+| GEO-03 editar existente | PASS: cor salva, fill 4 / line 4; pan mantém. A captura antiga reprovaria | `r1-geo03-*.png` |
+| GEO-04 arrastar, inserir, remover, mover, undo/redo | PASS: geometria pintada em cada etapa; medidas atualizam; redo igual | `r1-geo04-*.png` |
+| GEO-05 gestos | PASS: pan vazio não cria ponto; Mover mantém a câmera (centro idêntico) | json |
+| GEO-06 troca de base 3× | PASS: fontes e geometria preservadas; com tiles sintéticos 1 sessão, sem `setStyle` | `r1-geo06-*.png`, `satelite-sintetico-*` |
+| GEO-07 Mapa Geral | PASS: a1/a2/a3 pintadas (A/B pixel), 5 divisas, clique no curral abre o detalhe | `r1-geo07-mapa-geral.png` |
+| GEO-08 salvar/reabrir | PASS no harness: FormularioArea **real** + store local (sessionStorage) que sobrevive ao reload. `[[lat,lng]]` idênticos ao desenho, mesmo id, cor preservada, edição regravada e reaberta igual | `r1-geo08-*.png`, `r1-geo2-resultado.json` |
+| GEO-08 app autenticado + backend | NOT_VERIFIED nesta rodada | — |
+| GEO-09 empresa A→B→A | PASS: durante o fetch pendente de B nada de A aparece; B mostra só b1; visão salva por empresa | `r1-geo09-empresa-b.png` |
+| GEO-10 mobile 412 | PASS: desenhar/fechar, navegar, editar, mover com polígono pintado; sem overflow | `r1-geo10-*.png` |
+| GEO-11 bordas | PASS (unit): côncavo, zero, anel fechado duplicado, lixo/NaN sem exceção | smoke |
+| GEO-12 erros/limpeza | PASS (unit/smoke): sem WebGL, retry, teardown; satélite 404/403/timeout com fallback (E2E) | smoke + `satelite-falha-404.png` |
+| D06 teclado real | PASS: Shift com alvo a ~10° travou em 0° (E2E). Alt sem ímã: só unit | json |
+
+### Limitações
+- Imagem aérea real do Google: **BLOCKED_EXTERNAL_BASEMAP**. Não há chave nem acesso ao projeto Google neste ambiente; só tiles sintéticos.
+- No mobile, a atribuição nativa expandida do MapLibre (OpenFreeMap/OSM) fica parcialmente sob a barra inferior do editor até ser recolhida. Isso já existia antes e não foi alterado.

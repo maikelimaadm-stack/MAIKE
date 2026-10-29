@@ -255,7 +255,14 @@ describe("S — satélite via Google Map Tiles API", () => {
     const map = fakeMap();
     const c = createBasemapController(/** @type {any} */ (map), { fetchImpl, onState: (s) => states.push(s) });
     c.setBasemap("satelite");
-    await vi.waitFor(() => expect(states.at(-1).status).toBe("pronto"));
+    // R1-01: sessão + camada NÃO bastam — continua "carregando" até tile real.
+    await vi.waitFor(() => expect(map.sources.get("maike-basemap-satelite")).toBeTruthy());
+    expect(states.at(-1).status).toBe("carregando");
+    expect(states.some((x) => x.status === "pronto" && x.basemapId === "satelite")).toBe(false);
+    map.fire("sourcedata", { sourceId: "outra-fonte", tile: {} });
+    expect(states.at(-1).status).toBe("carregando");
+    map.fire("sourcedata", { sourceId: "maike-basemap-satelite", tile: { tileID: {} } });
+    expect(states.at(-1).status).toBe("pronto");
     expect(states.at(-1).basemapId).toBe("satelite");
     expect(map.layers.map((l) => l.id)).toEqual(["base-bg", "maike-basemap-satelite", "mg-areas-fill"]);
     const src = map.sources.get("maike-basemap-satelite");
@@ -294,11 +301,116 @@ describe("S — satélite via Google Map Tiles API", () => {
     expect(states.at(-1).mensagem).toMatch(/Map Tiles API/);
     falhar = false;
     c.retry();
-    await vi.waitFor(() => expect(states.at(-1).basemapId).toBe("satelite"));
+    await vi.waitFor(() => expect(map.layout.get("maike-basemap-satelite")).toBe("visible"));
+    map.fire("sourcedata", { sourceId: "maike-basemap-satelite", tile: {} });
+    expect(states.at(-1).basemapId).toBe("satelite");
     map.fire("error", { sourceId: "maike-basemap-satelite", error: { status: 429 } });
     expect(states.at(-1).status).toBe("erro");
     expect(states.at(-1).mensagem).toMatch(/429/);
     expect(map.layout.get("maike-basemap-satelite")).toBe("none");
+    c.dispose();
+  });
+
+  const prepararSessao = async (opts = {}) => {
+    vi.stubEnv("VITE_GOOGLE_MAPS_API_KEY", "chave-teste");
+    const { createBasemapController } = await import("@/lib/maplibre/basemapController.js");
+    const { descartarSessoesMapTiles } = await import("@/lib/maplibre/googleMapTiles.js");
+    descartarSessoesMapTiles();
+    let n = 0;
+    const fetchImpl = vi.fn(async (url) => {
+      if (String(url).includes("createSession")) {
+        n += 1;
+        return resp(200, { session: `SESS${n}`, expiry: "9999999999" });
+      }
+      return opts.viewport ? opts.viewport(url) : resp(200, { copyright: "©X" });
+    });
+    const states = [];
+    const map = fakeMap();
+    const c = createBasemapController(/** @type {any} */ (map), { fetchImpl, onState: (st) => states.push(st), timeoutProvaMs: opts.timeout ?? 15000 });
+    return { c, map, states, fetchImpl, sessoes: () => n };
+  };
+
+  it("S03b — tiles 404/5xx/rede sem sourceId: não fica 'pronto'; após 3 falhas volta a Mapa", async () => {
+    const { c, map, states } = await prepararSessao();
+    c.setBasemap("satelite");
+    await vi.waitFor(() => expect(map.layout.get("maike-basemap-satelite")).toBe("visible"));
+    // erro de OUTRA fonte (ruas) não derruba nada
+    map.fire("error", { sourceId: "openmaptiles", error: { status: 500 } });
+    // erro de rede/CORS sem sourceId, identificado pela URL do tile
+    map.fire("error", { error: { message: "Failed to fetch https://tile.googleapis.com/v1/2dtiles/1/2/3?session=…" } });
+    map.fire("error", { sourceId: "maike-basemap-satelite", error: { status: 404 } });
+    expect(states.at(-1).status).toBe("carregando");
+    map.fire("error", { sourceId: "maike-basemap-satelite", error: { message: "AJAXError: Internal (500)" } });
+    expect(states.at(-1).status).toBe("erro");
+    expect(states.at(-1).basemapId).toBe("ruas");
+    expect(map.layout.get("maike-basemap-satelite")).toBe("none");
+    c.dispose();
+  });
+
+  it("S03c — depois de tiles ok, falha isolada não derruba; sequência longa sim", async () => {
+    const { c, map, states } = await prepararSessao();
+    c.setBasemap("satelite");
+    await vi.waitFor(() => expect(map.layout.get("maike-basemap-satelite")).toBe("visible"));
+    map.fire("sourcedata", { sourceId: "maike-basemap-satelite", tile: {} });
+    for (let i = 0; i < 5; i += 1) map.fire("error", { sourceId: "maike-basemap-satelite", error: { status: 503 } });
+    map.fire("sourcedata", { sourceId: "maike-basemap-satelite", tile: {} });
+    expect(states.at(-1).status).toBe("pronto");
+    for (let i = 0; i < 8; i += 1) map.fire("error", { sourceId: "maike-basemap-satelite", error: { status: 503 } });
+    expect(states.at(-1).status).toBe("erro");
+    c.dispose();
+  });
+
+  it("S03d — timeout sem nenhum tile: falha explícita e recuperável", async () => {
+    const { c, map, states } = await prepararSessao({ timeout: 50 });
+    c.setBasemap("satelite");
+    await vi.waitFor(() => expect(states.at(-1).status).toBe("erro"), { timeout: 2000 });
+    expect(states.at(-1).mensagem).toMatch(/não chegaram a tempo/);
+    expect(map.layout.get("maike-basemap-satelite")).toBe("none");
+    c.dispose();
+  });
+
+  it("S05b — 403 de tile com sessão ativa (expirada): renova UMA vez; 403 de novo → erro", async () => {
+    const { c, map, states, sessoes } = await prepararSessao();
+    c.setBasemap("satelite");
+    await vi.waitFor(() => expect(map.layout.get("maike-basemap-satelite")).toBe("visible"));
+    map.fire("sourcedata", { sourceId: "maike-basemap-satelite", tile: {} });
+    expect(sessoes()).toBe(1);
+    map.fire("error", { sourceId: "maike-basemap-satelite", error: { status: 403 } });
+    await vi.waitFor(() => expect(sessoes()).toBe(2));
+    await vi.waitFor(() => expect(map.sources.get("maike-basemap-satelite").tiles[0]).toMatch(/session=SESS2/));
+    map.fire("error", { sourceId: "maike-basemap-satelite", error: { status: 403 } });
+    expect(states.at(-1).status).toBe("erro");
+    expect(sessoes()).toBe(2);
+    c.dispose();
+  });
+
+  it("S02b — troca rápida satélite→ruas antes da sessão não ressuscita a camada", async () => {
+    const { c, map, states } = await prepararSessao();
+    c.setBasemap("satelite");
+    c.setBasemap("ruas");
+    await new Promise((r) => setTimeout(r, 30));
+    expect(map.sources.get("maike-basemap-satelite")).toBeUndefined();
+    expect(states.at(-1).basemapId).toBe("ruas");
+    expect(states.at(-1).status).toBe("pronto");
+    c.dispose();
+  });
+
+  it("S04b — resposta de viewport atrasada não sobrescreve a mais recente", async () => {
+    const resolvers = [];
+    const { c, map, states } = await prepararSessao({
+      viewport: () => new Promise((res) => resolvers.push(res)),
+    });
+    c.setBasemap("satelite");
+    await vi.waitFor(() => expect(map.layout.get("maike-basemap-satelite")).toBe("visible"));
+    map.fire("sourcedata", { sourceId: "maike-basemap-satelite", tile: {} });
+    await vi.waitFor(() => expect(resolvers.length).toBe(1), { timeout: 2000 });
+    map.fire("moveend");
+    await vi.waitFor(() => expect(resolvers.length).toBe(2), { timeout: 2000 });
+    resolvers[1](resp(200, { copyright: "Novo ©B" }));
+    await vi.waitFor(() => expect(states.at(-1).atribuicao).toBe("Google Maps · Novo ©B"));
+    resolvers[0](resp(200, { copyright: "Velho ©A" }));
+    await new Promise((r) => setTimeout(r, 20));
+    expect(states.at(-1).atribuicao).toBe("Google Maps · Novo ©B");
     c.dispose();
   });
 
@@ -467,5 +579,63 @@ describe("V03 — renderer MapLibre preserva o contrato do Mapa Geral", () => {
       expect(src).not.toMatch(/c\[0\] \|\| c\.lat/);
     }
     expect(readFileSync("src/components/mapa/ModalCadastroLotePontos.jsx", "utf8")).toMatch(/google\.maps/);
+  });
+});
+
+// ───────────────────────────────────── R1 polígonos (GEO-01/03/11, P0)
+import { buildDesenhoCollection } from "@/lib/maplibre/geojsonBuilders.js";
+import { pontoRotuloSeguro } from "@/lib/maplibre/mapaGeralRender.js";
+import { pointInPolygonRing } from "@/lib/maplibre/taskLocationPicker.js";
+
+describe("R1 — polígono do editor sempre representado", () => {
+  it("P0: sync do DESENHO não depende de isStyleLoaded (causa raiz do polígono invisível)", () => {
+    const src = readFileSync("src/components/mapa/MapaDesenho.jsx", "utf8");
+    expect(src).not.toMatch(/if \(!map\.isStyleLoaded\(\)\) return;/);
+    expect(src).not.toMatch(/!map\.isStyleLoaded\?\.\(\)\) return;/);
+    expect(src).toMatch(/if \(!map\.getSource\(SOURCE_IDS\.DESENHO\)\) return;/);
+  });
+
+  it("zoom programático não bloqueia toque (só gesto com originalEvent)", () => {
+    const src = readFileSync("src/components/mapa/MapaDesenho.jsx", "utf8");
+    expect(src).toMatch(/if \(!e\?\.originalEvent\) return;\s*zoomingRef\.current = true;/);
+  });
+
+  it("GEO-01/03: área ≥3 vira Polygon; 2 pontos = linha de prévia; edição usa a cor salva", () => {
+    const pts = [{ lat: 0, lng: 0 }, { lat: 0, lng: 0.001 }, { lat: -0.001, lng: 0.001 }];
+    expect(buildDesenhoCollection(pts.slice(0, 2), "area").features[0].geometry.type).toBe("LineString");
+    const novo = buildDesenhoCollection(pts, "area").features[0];
+    expect(novo.geometry.type).toBe("Polygon");
+    expect(novo.properties.fill).toBeUndefined();
+    const edit = buildDesenhoCollection(pts, "area", null, { cor: "#92ca25" }).features[0];
+    expect(edit.properties.fill).toBe(corExibidaNoMapa("#92ca25"));
+    expect(edit.geometry.coordinates[0][0]).toEqual([0, 0]);
+    const life = readFileSync("src/lib/maplibre/lifecycle.js", "utf8");
+    expect(life).toContain('["coalesce", ["get", "fill"], COR_DESENHO]');
+  });
+});
+
+describe("GEO-11 — coordenadas e casos de borda", () => {
+  it("rótulo de área côncava (U) fica DENTRO do polígono", () => {
+    // U: centroide cai no "vão" (fora)
+    const u = [
+      { lat: 0, lng: 0 }, { lat: 0, lng: 3 }, { lat: -3, lng: 3 }, { lat: -3, lng: 2 },
+      { lat: -1, lng: 2 }, { lat: -1, lng: 1 }, { lat: -3, lng: 1 }, { lat: -3, lng: 0 },
+    ];
+    const p = pontoRotuloSeguro(u);
+    expect(pointInPolygonRing(p, u)).toBe(true);
+    const quad = [{ lat: 0, lng: 0 }, { lat: 0, lng: 2 }, { lat: -2, lng: 2 }, { lat: -2, lng: 0 }];
+    expect(pontoRotuloSeguro(quad)).toEqual({ lat: -1, lng: 1 });
+  });
+
+  it("zero, negativos, anel fechado duplicado e lixo não lançam nem inventam posição", () => {
+    const fechado = [[0, 0], [0, 0.01], [-0.01, 0.01], [-0.01, 0], [0, 0]];
+    const fc = buildMgAreasCollection([area("z", { coordenadas: { coords: fechado, cor: "#000000" } })]);
+    expect(fc.features).toHaveLength(1);
+    expect(fc.features[0].geometry.coordinates[0][0]).toEqual([0, 0]);
+    const lixo = [area("x", { coordenadas: { coords: [["a", "b"], [NaN, 1], null] } }), area("y", { coordenadas: null }), { id: null }];
+    expect(() => buildMgAreasCollection(lixo)).not.toThrow();
+    expect(buildMgAreasCollection(lixo).features).toHaveLength(0);
+    expect(centroideArea(area("y", { coordenadas: null }))).toBeNull();
+    expect(() => buildDesenhoCollection([{ lat: NaN, lng: 0 }], "area")).not.toThrow();
   });
 });

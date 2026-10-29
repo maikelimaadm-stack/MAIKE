@@ -46,6 +46,7 @@ import {
   transladarPontos,
   travarAngulo45,
 } from "@/lib/maplibre/editorModos.js";
+import { pontoRotuloSeguro, textoHectares } from "@/lib/maplibre/mapaGeralRender.js";
 import useBasemap from "./useBasemap";
 import BasemapAtribuicao from "./BasemapAtribuicao";
 import { SOURCE_IDS, LAYER_IDS } from "@/lib/maplibre/estiloAreas.js";
@@ -246,19 +247,24 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
         if (editingId && area.id === editingId && tipo === "area") return;
         const ring = parseVertices(area.coordenadas?.coords);
         if (ring.length < 3) return;
-        let lat = 0;
-        let lng = 0;
-        ring.forEach((p) => {
-          lat += p.lat;
-          lng += p.lng;
-        });
-        lat /= ring.length;
-        lng /= ring.length;
+        // Mesmo ponto seguro e mesmo texto (nome + ha) do Mapa Geral (R1).
+        const pos = pontoRotuloSeguro(ring);
+        if (!pos) return;
+        const { lat, lng } = pos;
         const el = document.createElement("div");
         el.className =
-          "pointer-events-none whitespace-nowrap text-[11px] font-bold uppercase tracking-[0.02em] text-white";
+          "pointer-events-none whitespace-nowrap text-center text-[11px] font-bold uppercase leading-tight tracking-[0.02em] text-white";
         el.style.textShadow = "0 1px 3px rgba(0,0,0,0.95)";
-        el.textContent = area.nome || area.numero_area || "ÁREA";
+        const nomeEl = document.createElement("div");
+        nomeEl.textContent = area.nome || area.numero_area || "ÁREA";
+        el.appendChild(nomeEl);
+        const ha = textoHectares(area);
+        if (ha) {
+          const haEl = document.createElement("div");
+          haEl.className = "text-[10px] font-normal normal-case";
+          haEl.textContent = ha;
+          el.appendChild(haEl);
+        }
         const marker = new maplibregl.Marker({ element: el, anchor: "center" })
           .setLngLat([lng, lat])
           .addTo(map);
@@ -305,7 +311,9 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
 
   const rehydrateAllSources = useCallback(
     (map) => {
-      if (!map || !map.isStyleLoaded?.()) return;
+      // R1: a guarda é "fontes de negócio existem", não isStyleLoaded() (que fica
+      // false enquanto tiles carregam e fazia o sync ser pulado sem retry).
+      if (!map || !map.getSource(SOURCE_IDS.DESENHO)) return;
       const editingId = itemEditando?.id || null;
       const pts = currentPointsRef.current;
       const marker = currentMarkerRef.current;
@@ -327,7 +335,7 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
         tipoDesenho,
       });
       setSourceData(map, SOURCE_IDS.PONTOS, buildPontosCollection(pontosSemIcone));
-      setSourceData(map, SOURCE_IDS.DESENHO, buildDesenhoCollection(pts, tipoDesenho, marker));
+      setSourceData(map, SOURCE_IDS.DESENHO, buildDesenhoCollection(pts, tipoDesenho, marker, { cor: itemEditando?.coordenadas?.cor || itemEditando?.cor || null }));
       if ((tipoDesenho === "area" || tipoDesenho === "linha") && pts.length > 0) {
         setSourceData(map, SOURCE_IDS.VERTICES, buildVerticesCollection(pts));
         setSourceData(
@@ -395,9 +403,12 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
       }
     };
 
-    const onZoom = () => {
-      zoomingRef.current = true;
+    const onZoom = (e) => {
       syncDivisaWidth(map);
+      // Só gesto do usuário (pinça/roda) bloqueia toques; zoom programático
+      // (fitBounds inicial) não pode engolir o 1º toque de desenho (R1).
+      if (!e?.originalEvent) return;
+      zoomingRef.current = true;
       if (zoomTimerRef.current) window.clearTimeout(zoomTimerRef.current);
       zoomTimerRef.current = window.setTimeout(() => {
         zoomingRef.current = false;
@@ -508,7 +519,7 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map || !mapReady) return;
-    if (!map.isStyleLoaded()) return;
+    if (!map.getSource(SOURCE_IDS.AREAS)) return;
 
     const editingId = itemEditando?.id || null;
     setSourceData(
@@ -531,9 +542,13 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map || !mapReady || !tipoDesenho) return;
-    if (!map.isStyleLoaded()) return;
+    // R1 (causa raiz do polígono invisível): antes a guarda era isStyleLoaded().
+    // Com tiles ainda carregando o estilo reporta "não carregado", o efeito saía
+    // sem gravar DESENHO e só rodava de novo na próxima mudança de pontos —
+    // vértices (outro efeito, sem a guarda) apareciam; preenchimento/contorno não.
+    if (!map.getSource(SOURCE_IDS.DESENHO)) return;
 
-    setSourceData(map, SOURCE_IDS.DESENHO, buildDesenhoCollection(currentPoints, tipoDesenho, currentMarker));
+    setSourceData(map, SOURCE_IDS.DESENHO, buildDesenhoCollection(currentPoints, tipoDesenho, currentMarker, { cor: itemEditando?.coordenadas?.cor || itemEditando?.cor || null }));
 
     const canEditVerts = drawingClosed || !!itemEditando;
     if ((tipoDesenho === "area" || tipoDesenho === "linha") && currentPoints.length > 0) {

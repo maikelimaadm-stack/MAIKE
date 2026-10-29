@@ -8,7 +8,7 @@
  */
 import { parseVertex, parseVertices, toGeoJsonLineString, toGeoJsonPolygon } from "@/lib/geografia/coords.js";
 import { corExibidaNoMapa, paintAreaDestaque, paintAreaDivisa, paintAreaFill } from "./estiloAreas.js";
-import { safeCentroid } from "./taskLocationPicker.js";
+import { pointInPolygonRing, safeCentroid } from "./taskLocationPicker.js";
 
 export const MG_SOURCE_IDS = Object.freeze({
   AREAS: "mg-areas",
@@ -86,7 +86,45 @@ export function buildMgLinhasCollection(linhas) {
 export function centroideArea(area) {
   const ring = parseVertices(area?.coordenadas?.coords);
   if (ring.length < 3) return null;
-  return safeCentroid(ring);
+  return pontoRotuloSeguro(ring);
+}
+
+/**
+ * Ponto para rótulo/ícone SEMPRE dentro do polígono (R1 / GEO-11).
+ * Convexo: centroide. Côncavo (U, L…) com centroide fora: varre linhas
+ * horizontais e usa o meio do trecho interno mais largo — nunca cai em outro pasto.
+ * @param {{ lat: number, lng: number }[]} ring anel aberto válido (≥3)
+ * @returns {{ lat: number, lng: number } | null}
+ */
+export function pontoRotuloSeguro(ring) {
+  const c = safeCentroid(ring);
+  if (c && pointInPolygonRing(c, ring)) return c;
+  let minLat = Infinity;
+  let maxLat = -Infinity;
+  for (const p of ring) {
+    if (p.lat < minLat) minLat = p.lat;
+    if (p.lat > maxLat) maxLat = p.lat;
+  }
+  if (!(maxLat > minLat)) return c;
+  let melhor = null;
+  const FAIXAS = 24;
+  for (let k = 1; k < FAIXAS; k += 1) {
+    const y = minLat + ((maxLat - minLat) * k) / FAIXAS;
+    const xs = [];
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      const a = ring[i];
+      const b = ring[j];
+      if ((a.lat > y) !== (b.lat > y)) xs.push(a.lng + ((y - a.lat) * (b.lng - a.lng)) / (b.lat - a.lat));
+    }
+    xs.sort((m, n) => m - n);
+    for (let i = 0; i + 1 < xs.length; i += 2) {
+      const largura = xs[i + 1] - xs[i];
+      // prefere trechos largos e perto do meio vertical
+      const peso = largura * (1 - Math.abs(k / FAIXAS - 0.5));
+      if (!melhor || peso > melhor.peso) melhor = { peso, lat: y, lng: (xs[i] + xs[i + 1]) / 2 };
+    }
+  }
+  return melhor ? { lat: melhor.lat, lng: melhor.lng } : c;
 }
 
 /** Fonte do rótulo por faixas largas de zoom (sem “pulsar” a cada leve zoom). */

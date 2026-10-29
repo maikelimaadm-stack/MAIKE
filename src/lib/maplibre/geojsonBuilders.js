@@ -106,9 +106,12 @@ export function buildPontosCollection(pontos) {
  * @param {{ lat: number, lng: number }[]} points
  * @param {'area' | 'linha' | 'ponto'} tipo
  * @param {{ lat: number, lng: number } | null} [marker]
+ * @param {{ cor?: string | null }} [opts] cor salva da área em edição (pinta o
+ *   preenchimento com a cor real, +5% branco; sem cor = laranja de rascunho)
  * @returns {GeoJSON.FeatureCollection}
  */
-export function buildDesenhoCollection(points, tipo, marker = null) {
+export function buildDesenhoCollection(points, tipo, marker = null, opts = {}) {
+  const fill = opts.cor ? corExibidaNoMapa(opts.cor) : null;
   /** @type {GeoJSON.Feature[]} */
   const features = [];
   if (tipo === "area") {
@@ -117,7 +120,7 @@ export function buildDesenhoCollection(points, tipo, marker = null) {
       features.push({
         type: "Feature",
         id: "desenho",
-        properties: { id: "desenho" },
+        properties: fill ? { id: "desenho", fill } : { id: "desenho" },
         geometry,
       });
     } else if (points.length >= 2) {
