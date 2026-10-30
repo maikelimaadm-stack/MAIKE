@@ -3128,4 +3128,17 @@ Provas:
 
 ---
 
-<!-- Próxima decisão: D-PROD-83 -->
+## D-PROD-83 — Quantidade de cabeças: um pouco mais abaixo, maior, e encolhe para caber
+
+**Pedido do proprietário:** o número fica mais baixo e um pouco maior. Até 4 caracteres cabem no tamanho base; com mais caracteres, a fonte se reduz para caber no ícone (as imagens não têm fundo).
+
+**Decisão:**
+- `.mg-lote-count` a 72% da altura;
+- fonte base de 11 px para até 4 caracteres;
+- acima disso, `11 × 4 / caracteres`, com mínimo de 6 px (`src/lib/maplibre/contagemLote.js`).
+
+Exemplos: "12500" usa 8 px e "125000" usa 7 px. Testes CNT-01..03.
+
+---
+
+<!-- Próxima decisão: D-PROD-84 -->

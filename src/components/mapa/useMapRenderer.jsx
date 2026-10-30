@@ -17,6 +17,7 @@ import {
   resolverIconeTarefa,
   textoHectares,
 } from "@/lib/maplibre/mapaGeralRender.js";
+import { tamanhoFonteContagem } from "@/lib/maplibre/contagemLote.js";
 
 /**
  * Renderizador incremental do Mapa Geral sobre MapLibre (D-PROD-65).
@@ -498,9 +499,10 @@ export default function useMapRenderer(mapInstanceRef) {
           const badge = document.createElement("div");
           badge.className = "mg-lote-count";
           badge.style.cssText =
-            // Quantidade de cabeças: cinza escuro, fonte menor e abaixo da figura,
-            // com halo claro para ler sobre o ícone (pedido do proprietário, D-PROD-82).
-            "position:absolute;left:50%;top:64%;transform:translate(-50%,-50%);color:#374151;font:700 9px Inter,Arial,sans-serif;text-shadow:0 0 2px rgba(255,255,255,.95),0 0 3px rgba(255,255,255,.8);pointer-events:none;";
+            // Quantidade de cabeças: cinza escuro, abaixo da figura, com halo claro
+            // para ler sobre o ícone (D-PROD-82). O tamanho da fonte se ajusta ao
+            // número de caracteres em `preencherLote` (D-PROD-83).
+            "position:absolute;left:50%;top:72%;transform:translate(-50%,-50%);color:#374151;font-weight:700;font-family:Inter,Arial,sans-serif;line-height:1;white-space:nowrap;text-shadow:0 0 2px rgba(255,255,255,.95),0 0 3px rgba(255,255,255,.8);pointer-events:none;";
           const ind = document.createElement("div");
           ind.className = "mg-lote-ident";
           ind.style.cssText = "position:absolute;left:calc(50% + 20px);top:calc(50% - 25px);transform:translate(-50%,-50%);display:flex;pointer-events:none;";
@@ -634,7 +636,9 @@ function identificadoresDoLote(lotesNaArea) {
 }
 
 function preencherLote(entry, { totalCabecas, identificadores, totalAlertas, blinkAlerts, key, canDragLotes }) {
-  entry.badge.textContent = String(totalCabecas);
+  const textoCabecas = String(totalCabecas);
+  entry.badge.textContent = textoCabecas;
+  entry.badge.style.fontSize = `${tamanhoFonteContagem(textoCabecas)}px`;
   entry.ind.replaceChildren(
     ...identificadores.map((i) => {
       const d = document.createElement("div");
