@@ -1,0 +1,1167 @@
+/*
+ * Shell do celular (abaixo de 768px) e folha de baixo única — UX-MOBILE-V2.
+ * Valores do protótipo "MAIKE App v2" (Claude Design), sobre os tokens Base1.
+ */
+
+/* ── Cabeçalho ─────────────────────────────────────────────────────────── */
+.mk-mhdr {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 56px;
+  padding: 4px 6px;
+  background: #fff;
+}
+
+.mk-mhdr__back {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.mk-mhdr__back > span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  background: #f1f3f4;
+  color: #5b6b80;
+}
+
+.mk-mhdr__gap {
+  flex: 0 0 auto;
+  width: 10px;
+}
+
+.mk-mhdr__main {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 48px;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 0 4px;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.mk-mhdr__title {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  color: #1e293b;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mk-mhdr__sub {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  color: #9ca3af;
+  font-size: 11.5px;
+}
+
+.mk-mhdr__sub > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Barra inferior de vidro ───────────────────────────────────────────── */
+.mk-tabbar {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: end;
+  padding: 6px 8px calc(8px + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid #e7eaee;
+  background: rgba(255, 255, 255, 0.92);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+}
+
+.mk-tabbar__item {
+  display: flex;
+  min-width: 0;
+  min-height: 52px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #9ca3af;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mk-tabbar__item.is-active {
+  color: #15803d;
+}
+
+.mk-tabbar__item.is-locked {
+  color: #d1d5db;
+}
+
+.mk-tabbar__item > span {
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+/* ── Tela de Módulos ───────────────────────────────────────────────────── */
+.mk-mods {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  overflow: auto;
+  overscroll-behavior: contain;
+  background: #f0f2f5;
+}
+
+.mk-mods__inner {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+}
+
+.mk-pill {
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  height: 44px;
+  padding: 0 14px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: #f1f3f4;
+  transition: background 0.22s, border-color 0.22s;
+}
+
+.mk-mods .mk-pill {
+  background: #fff;
+  border-color: #e7eaee;
+}
+
+.mk-pill:focus-within {
+  border-color: rgba(64, 222, 99, 0.35);
+  background: #fff;
+  box-shadow: inset 0 0 0 1px rgba(64, 222, 99, 0.12);
+}
+
+.mk-pill__icon {
+  display: flex;
+  flex-shrink: 0;
+  margin-right: 6px;
+  color: #9ca3af;
+}
+
+.mk-pill:focus-within .mk-pill__icon {
+  color: #5b6b80;
+}
+
+.mk-pill__clear {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  margin-right: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #dc2626;
+  line-height: 0;
+  cursor: pointer;
+}
+
+.mk-pill input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: #334155;
+  font-size: 16px;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.mk-mods__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.mk-mods__tile {
+  position: relative;
+  display: flex;
+  min-height: 100px;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  padding: 14px 8px 12px;
+  border: 1px solid #e7eaee;
+  border-radius: 12px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.mk-mods__tile.is-current {
+  border-color: rgba(64, 222, 99, 0.35);
+}
+
+.mk-mods__badge {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid #d4f7e1;
+  border-radius: 11px;
+  background: #ecfdf3;
+  color: #15803d;
+}
+
+.mk-mods__tile-name {
+  color: #334155;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.25;
+  text-align: center;
+  text-wrap: pretty;
+}
+
+.mk-mods__tile-count,
+.mk-mods__count {
+  color: #9ca3af;
+  font-size: 11px;
+}
+
+.mk-mods__count {
+  font-size: 12px;
+}
+
+.mk-mods__hint {
+  padding: 0 4px;
+  color: #9ca3af;
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
+.mk-mods__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 2px 0;
+}
+
+.mk-mods__head-eyebrow {
+  color: #6b7280;
+  font-size: 11.5px;
+}
+
+.mk-mods__head-name {
+  color: #334155;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.mk-mods__list {
+  overflow: hidden;
+  border: 1px solid #e7eaee;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.mk-mods__row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 56px;
+  padding: 10px 14px;
+  border-bottom: 1px solid #f1f3f4;
+  background: #fff;
+  color: #334155;
+  text-decoration: none;
+}
+
+.mk-mods__row:last-child {
+  border-bottom: 0;
+}
+
+.mk-mods__row-icon {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: #f1f3f4;
+  color: #5b6b80;
+}
+
+.mk-mods__row-label {
+  flex: 1;
+  min-width: 0;
+  color: #334155;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.mk-mods__row-sub {
+  display: block;
+  margin-top: 2px;
+  color: #6b7280;
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.mk-mods__open {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(64, 222, 99, 0.12);
+  color: #15803d;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.mk-mods__chev {
+  display: flex;
+  color: #9ca3af;
+}
+
+.mk-mods__empty {
+  padding: 16px 14px;
+  color: #6b7280;
+  font-size: 13px;
+}
+
+/* ── Folha de baixo (MobileSheet) ──────────────────────────────────────── */
+.mk-sheet-root {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+}
+
+.mk-sheet-scrim {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.mk-sheet {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  border-radius: 18px 18px 0 0;
+  background: #fff;
+  box-shadow: 0 -8px 30px rgba(15, 23, 42, 0.18);
+  color: #334155;
+  transition: height 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.mk-sheet__handle {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  height: 26px;
+  cursor: grab;
+  touch-action: none;
+}
+
+.mk-sheet__handle > span {
+  width: 40px;
+  height: 5px;
+  border-radius: 999px;
+  background: #d1d5db;
+}
+
+.mk-sheet__head {
+  display: flex;
+  flex-shrink: 0;
+  align-items: baseline;
+  gap: 8px;
+  padding: 4px 16px 8px;
+}
+
+.mk-sheet__title {
+  flex: 1;
+  min-width: 0;
+  color: #334155;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.mk-sheet__aside {
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.mk-sheet__body {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.mk-sheet__footer {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-top: 1px solid #f1f4f6;
+  background: #fbfcfd;
+}
+
+/* Trocar empresa */
+.mk-co__desc {
+  margin: 0;
+  padding: 0 18px 10px;
+  color: #6b7280;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.mk-co__list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 16px 18px;
+}
+
+.mk-co__item {
+  display: flex;
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 60px;
+  padding: 10px 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #fff;
+  color: #334155;
+  text-align: left;
+  cursor: pointer;
+}
+
+.mk-co__item.is-on {
+  border-color: #40de63;
+  background: #ecfdf0;
+}
+
+.mk-co__name {
+  display: block;
+  color: #334155;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.mk-co__sub {
+  display: block;
+  color: #6b7280;
+  font-size: 13px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+/* ── Filtro de coluna (fpop): pesquisa, checks e bloqueio de zero ───────── */
+.b1ref .fpop .fpop-busca {
+  flex-shrink: 0;
+  height: 28px;
+  margin: 4px 8px 6px;
+  padding: 0 10px;
+}
+
+.b1ref .fpop .fpop-busca input {
+  font-size: 12px;
+}
+
+.b1ref .fpop .chk {
+  width: 20px;
+  height: 20px;
+  border: 1.5px solid #e7eaee;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+
+.b1ref .fpop .chk svg {
+  width: 12px;
+  height: 12px;
+}
+
+.b1ref .fpop .chk.on {
+  border-color: #40de63;
+}
+
+.b1ref .fpop .fvr {
+  grid-template-columns: 36px minmax(0, 1fr) 54px;
+}
+
+.b1ref .fpop .fmi-limpar {
+  color: #9ca3af;
+}
+
+.b1ref .fpop .fmi-limpar.is-on {
+  color: #dc2626;
+}
+
+.b1ref .fpop .fpop-zero {
+  flex-grow: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: #dc2626;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.b1ref .fpop button[type="submit"]:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* No celular o filtro vive dentro da MobileSheet: ocupa a folha inteira. */
+.mk-sheet .b1ref {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+}
+
+.b1ref .fpop.fpop--sheet {
+  position: static;
+  display: flex;
+  width: 100%;
+  min-height: 0;
+  max-height: none;
+  flex: 1 1 auto;
+  flex-direction: column;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  font-size: 16px;
+}
+
+.b1ref .fpop--sheet .fmi,
+.b1ref .fpop--sheet .fopt {
+  min-height: 44px;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.b1ref .fpop--sheet .fin,
+.b1ref .fpop--sheet .cmd-display {
+  height: 40px;
+  font-size: 16px;
+}
+
+.b1ref .fpop--sheet .fpop-busca {
+  height: 44px;
+}
+
+.b1ref .fpop--sheet .fpop-busca input {
+  font-size: 16px;
+}
+
+.b1ref .fpop--sheet .pr {
+  min-height: 44px;
+  height: 44px;
+  color: #334155;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.b1ref .fpop--sheet .pr .r {
+  font-size: 13px;
+}
+
+.b1ref .fpop--sheet .dvaz {
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.b1ref .fpop--sheet .fpop-f .tb-btn-icon {
+  width: 40px !important;
+  min-width: 40px !important;
+  height: 40px !important;
+  min-height: 40px !important;
+}
+
+/* Título da tela já está no cabeçalho do celular. */
+@media (max-width: 767px) {
+  .cadastro-b1__page-title {
+    display: none;
+  }
+}
+
+/* ── Chrome Base1: ações só com ícone (Novo, Editar, Duplicar, Excluir, Salvar, Cancelar) ── */
+.cadastro-b1 .tb-btn.mg-act-ic {
+  width: var(--mg-btn-h);
+  min-width: var(--mg-btn-h);
+  height: var(--mg-btn-h) !important;
+  min-height: var(--mg-btn-h) !important;
+  padding: 0 !important;
+  gap: 0;
+}
+
+.cadastro-b1 .tb-btn.mg-act-ic.mg-fluid-slot__ghost {
+  width: 0;
+  min-width: 0;
+}
+
+.cadastro-b1 .tb-btn-icon.is-filter-on {
+  border-color: rgba(64, 222, 99, 0.35) !important;
+  background: rgba(64, 222, 99, 0.12) !important;
+  color: #15803d !important;
+}
+
+/* Painel "Filtrar por campo" */
+.fpc {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  color: #334155;
+}
+
+.fpc--pop {
+  position: fixed;
+  z-index: 10000;
+  width: 260px;
+  padding: 4px;
+  border: 1px solid #e7eaee;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.97);
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.18);
+  font-size: 12.5px;
+}
+
+.fpc--sheet {
+  flex: 1 1 auto;
+  padding: 0 8px 10px;
+}
+
+.fpc__titulo {
+  flex-shrink: 0;
+  padding: 6px 10px;
+  color: #6b7280;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.fpc__busca {
+  flex-shrink: 0;
+  height: 28px;
+  margin: 0 6px 6px;
+  padding: 0 10px;
+}
+
+.fpc__busca input {
+  font-size: 12px;
+}
+
+.fpc--sheet .fpc__busca {
+  height: 44px;
+}
+
+.fpc--sheet .fpc__busca input {
+  font-size: 16px;
+}
+
+.fpc__lista {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.fpc__item {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 30px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #334155;
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.fpc__item:hover {
+  background: #f0f2f5;
+}
+
+.fpc--sheet .fpc__item {
+  height: 48px;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.fpc__ic {
+  display: flex;
+  flex-shrink: 0;
+  color: #5b6b80;
+}
+
+.fpc__ic.is-on {
+  color: #15803d;
+}
+
+.fpc__nome {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fpc__resumo {
+  flex-shrink: 0;
+  max-width: 45%;
+  overflow: hidden;
+  color: #15803d;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fpc--sheet .fpc__resumo {
+  font-size: 13px;
+}
+
+.fpc__chev {
+  display: flex;
+  color: #9ca3af;
+}
+
+.fpc__vazio {
+  display: block;
+  padding: 14px 10px;
+  color: #a9b2bd;
+  font-size: 11.5px;
+  text-align: center;
+}
+
+.fpc--sheet .fpc__vazio {
+  color: #6b7280;
+  font-size: 13px;
+}
+
+/* Navegação entre registros no celular — centralizada no rodapé */
+.mg-rec-pager {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 0 -8px -8px;
+  padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid #e7eaee;
+  background: #fff;
+}
+
+.mg-rec-pager__btn {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: #f1f3f4;
+  color: #5b6b80;
+  box-shadow: 0 2px 6px rgba(34, 197, 94, 0.3);
+  cursor: pointer;
+  transition: background 0.13s, color 0.13s, box-shadow 0.13s;
+}
+
+.mg-rec-pager__btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.mg-rec-pager__pos {
+  min-width: 44px;
+  color: #6b7280;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  text-align: center;
+}
+
+.cadastro-b1 .mg-summary__loading {
+  color: #9ca3af;
+  font-size: 11px;
+}
+
+/* Sombra verde dos botões da barra (igual ao raio) no celular e tablet */
+@media (max-width: 1023px) {
+  .cadastro-b1--full-page .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn,
+  .cadastro-b1--full-page .cadastro-b1--portal-compras .mg-toolbar--join .view-seg {
+    box-shadow: 0 2px 6px rgba(34, 197, 94, 0.3) !important;
+    transition: background 0.13s, color 0.13s, box-shadow 0.13s;
+  }
+
+  .cadastro-b1--full-page .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn.mg-act-ic {
+    width: 44px;
+    min-width: 44px;
+  }
+
+  .cadastro-b1--full-page .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn.mg-act-ic.mg-fluid-slot__ghost {
+    width: 0;
+    min-width: 0;
+    box-shadow: none !important;
+  }
+}
+
+/* Celular: faixa de ações (com o raio à direita) + linha pesquisa · filtros · visualização */
+@media (max-width: 639px) {
+  .cadastro-b1--full-page .mg-toolbar--responsive,
+  .cadastro-b1--full-page .mg-toolbar--responsive.is-search-expanded {
+    flex-flow: column nowrap;
+    align-items: stretch;
+    gap: 8px;
+    padding: 8px 10px;
+  }
+
+  .cadastro-b1--full-page .mg-toolbar--responsive .mg-toolbar__row--actions,
+  .cadastro-b1--full-page .mg-toolbar--responsive.is-search-expanded .mg-toolbar__row--actions {
+    display: flex;
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 8px;
+    width: auto;
+    margin: -8px -10px 0;
+    padding: 8px 12px;
+    overflow-x: auto;
+    border-bottom: 1px solid #e7eaee;
+    scrollbar-width: none;
+  }
+
+  .cadastro-b1--full-page .mg-toolbar--responsive .mg-toolbar__row--actions .mg-toolbar__more,
+  .cadastro-b1--full-page .mg-toolbar--responsive.is-search-expanded .mg-toolbar__row--actions .mg-toolbar__more {
+    display: block;
+    margin-left: auto;
+  }
+
+  .cadastro-b1--full-page .mg-toolbar--responsive > .ml-auto,
+  .cadastro-b1--full-page .mg-toolbar--responsive.is-search-expanded > .ml-auto {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 8px;
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .cadastro-b1--full-page .mg-toolbar--responsive > .ml-auto .mg-toolbar__row--views {
+    margin-left: auto;
+  }
+
+  .cadastro-b1--full-page .mg-toolbar--responsive.is-search-expanded .mg-filtros-btn,
+  .cadastro-b1--full-page .mg-toolbar--responsive.is-search-expanded .mg-toolbar__row--views {
+    display: none;
+  }
+
+  /* Registro: título e navegação saem do cartão (cabeçalho do app + rodapé ‹ n/N ›) */
+  .cadastro-b1--full-page [data-testid="cadastro-record-header"] {
+    display: none;
+  }
+
+  .cadastro-b1--full-page .mg-summary__counts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* ── Seletor (MgSelect) na folha de baixo ──────────────────────────────── */
+.mgs__busca {
+  flex-shrink: 0;
+  margin: 0 12px 8px;
+}
+
+.mgs__count {
+  flex-shrink: 0;
+  padding: 0 14px 4px;
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.mgs__lista {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  overflow-y: auto;
+  padding: 4px 8px 8px;
+}
+
+.mgs__op {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 46px;
+  margin: 1px 0;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #334155;
+  font-size: 16px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+}
+
+.mgs__op.is-on {
+  background: rgba(64, 222, 99, 0.12);
+  color: #15803d;
+  font-weight: 600;
+}
+
+.mgs__code {
+  flex-shrink: 0;
+  min-width: 44px;
+  color: #9ca3af;
+  font-weight: 500;
+}
+
+.mgs__label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mgs__vazio {
+  padding: 14px 10px;
+  color: #6b7280;
+  font-size: 13px;
+  text-align: center;
+}
+
+.mgs__mais {
+  flex: 1;
+  color: #6b7280;
+  font-size: 11.5px;
+  text-align: center;
+}
+
+/* ── Chave Sim/Não maior no toque (celular e tablet) ───────────────────── */
+@media (max-width: 1023px) {
+  .cadastro-b1 .b1-switch {
+    --sw-w: 52px;
+    --sw-h: 30px;
+    --sw-b: 1;
+  }
+
+  .cadastro-b1 .b1-chave-row {
+    min-height: 48px;
+    gap: 12px;
+  }
+
+  .cadastro-b1 .b1-chave-row__label {
+    font-size: 14px;
+  }
+
+  .cadastro-b1 .b1-switch__text {
+    font-size: 15px;
+  }
+}
+
+/* ── Campos do registro no celular: 48px, texto 16px (sem zoom do iPhone) ── */
+@media (max-width: 639px) {
+  .cadastro-b1.cadastro-b1--full-page {
+    --mg-field-h: 48px;
+  }
+
+  .cadastro-b1--full-page .mg-field__label {
+    font-size: 14px;
+  }
+
+  .cadastro-b1--full-page .mg-field.mg-has-value .mg-field__label,
+  .cadastro-b1--full-page .mg-field:focus-within .mg-field__label,
+  .cadastro-b1--full-page .mg-field.is-open .mg-field__label,
+  .cadastro-b1--full-page .mg-field--multiline .mg-field__label {
+    font-size: 10.5px;
+  }
+
+  .cadastro-b1--full-page .mg-field__control :is(input, select, textarea, .cmd-display, .mg-dp-field, .mg-input) {
+    font-size: 16px !important;
+  }
+
+  .cadastro-b1--full-page .mg-field--switch .mg-field__label {
+    font-size: 14px;
+  }
+}
+
+/* ── Mais opções (raio) no celular: lista branca sólida, itens de toque ─── */
+.mg-mais-opcoes-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 49;
+  background: rgba(15, 23, 42, 0.16);
+  pointer-events: none;
+}
+
+@media (max-width: 639px) {
+  .mg-b1-glass-pop.mg-mais-opcoes {
+    width: auto !important;
+    min-width: 236px;
+    max-width: calc(100vw - 24px);
+    padding: 6px !important;
+    border: 1px solid #e7eaee !important;
+    border-radius: 18px !important;
+    background: #fff !important;
+    box-shadow: 0 18px 44px rgba(15, 23, 42, 0.24) !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+
+  .mg-mais-opcoes .mg-b1-menuitem {
+    gap: 12px;
+    min-height: 48px;
+    padding: 0 10px;
+    border-radius: 12px;
+    color: #334155;
+    font-size: 16px;
+    font-weight: 500;
+  }
+
+  .mg-mais-opcoes .mg-b1-menuitem svg {
+    width: 16px;
+    height: 16px;
+    color: #5b6b80 !important;
+  }
+
+  /* Diálogos dos cards: cabeçalho que comporta botões de 44px, checks maiores */
+  .b1-portal-compras .mdl-h,
+  .b1ref .mdl-h {
+    min-height: 60px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+
+  .b1-portal-compras .mdl-h .tb-btn-icon,
+  .b1ref .mdl-h .tb-btn-icon {
+    width: 44px !important;
+    min-width: 44px !important;
+    height: 44px !important;
+    min-height: 44px !important;
+  }
+
+  .b1ref .mdl .mg-b1-row {
+    min-height: 44px;
+    padding: 11px 6px;
+    font-size: 14px;
+  }
+
+  .b1ref .mdl .mg-b1-check {
+    width: 22px;
+    height: 22px;
+  }
+
+  .b1ref .mdl .mg-b1-check__icon {
+    width: 14px;
+    height: 14px;
+  }
+}
+
+/* Cards se alinham sozinhos abaixo do desktop */
+@media (max-width: 1023px) {
+  .cadastro-b1 .mg-b1-cards-grid {
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)) !important;
+  }
+
+  .cadastro-b1 .mg-b1-card__fields {
+    grid-template-columns: auto minmax(0, 1fr) !important;
+  }
+}
+
+@media (max-width: 639px) {
+  .cadastro-b1 .mg-b1-cards-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
+
+/* Menu da coluna na folha de baixo */
+.mg-col-menu-sheet .mk-sheet__body {
+  padding: 0 8px 10px;
+}
+
+.mg-col-menu-sheet .mg-b1-menuitem {
+  gap: 10px;
+  min-height: 48px;
+  padding: 0 8px;
+  border-radius: 8px;
+  color: #334155;
+  font-size: 16px;
+}
+
+/* Editar/Duplicar/Excluir ficam na faixa de ações (antes iam para o menu ⋮ abaixo de 1024px). */
+@media (max-width: 1023px) {
+  .cadastro-b1--full-page .mg-toolbar--responsive .mg-toolbar__action--wide {
+    display: inline-flex;
+  }
+
+  .cadastro-b1--full-page .mg-toolbar--responsive .mg-toolbar__action--wide:disabled {
+    display: none;
+  }
+}
+
+.b1ref .fpop--sheet .fvr {
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+}
+
+.b1ref .fpop--sheet .pr .r {
+  padding-right: 12px;
+  white-space: nowrap;
+}
