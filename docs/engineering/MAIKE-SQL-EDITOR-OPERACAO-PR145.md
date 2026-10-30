@@ -27,6 +27,7 @@ Nunca cole conexão, senha ou chave no chat.
 | 3 | `01-precheck-somente-leitura.sql` de novo | SQL Editor | VEREDITO `PRONTO PARA O 02` e a linha `impressao_inventario` |
 | 4 | MAIKE atual no navegador, **só olhando** | Navegador | Login, Usuários, Permissões, Categoria de Manejo e Lotes sem erro |
 | 5 | `02-reset-e-bootstrap-maike-POS-25-MIGRATIONS.sql` com a impressão colada | SQL Editor | `CONCLUIDO`, com a senha **mostrada uma única vez** |
+| 5b | **Se o 01 disser `MAIKE EXISTENTE`** (cliente e conta `maike` já existem): `04-limpeza-preservando-maike.sql` com a impressão, NO LUGAR do 02 | SQL Editor ou conector | `CONCLUIDO`; conta e senha preservadas, só o papel vira `administrador` (D-PROD-76) |
 | 6 | `03-postcheck-somente-leitura.sql` | SQL Editor | Todas as linhas `OK`; VEREDITO `INICIALIZADO` |
 | 7 | Login no MAIKE com `maike` e a senha guardada | Navegador | Entra; as telas aparecem vazias |
 

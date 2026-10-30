@@ -4,8 +4,10 @@
 -- Onde: Supabase → projeto MAIKE → SQL Editor → New query → cole TUDO → Run.
 -- O que faz: só SELECT. Não altera nada. Não mostra senha, hash, e-mail nem nome.
 -- Rode ANTES das migrations (espera "MIGRAR PRIMEIRO") e DE NOVO depois delas:
--- a linha "impressao_inventario" desta segunda execução é o código que vai no 02.
--- Leia a coluna "status": qualquer PARAR = não prossiga.
+-- a linha "impressao_inventario" desta segunda execução é o código que vai no 02
+-- (banco sem "maike") ou no 04 (cliente e conta "maike" já existentes).
+-- Leia a coluna "status": qualquer PARAR = não prossiga; o VEREDITO nunca é
+-- positivo se alguma linha disser PARAR (G4-R5).
 -- =============================================================================
 WITH
 esperado AS (
@@ -69,7 +71,30 @@ estado AS (
   SELECT (SELECT count(*) FROM "Cliente") AS clientes,
          (SELECT count(*) FROM "Cliente" WHERE codigo = 'maike') AS cliente_maike,
          (SELECT count(*) FROM "Usuario" WHERE lower(login) = 'maike') AS login_maike,
-         (SELECT count(*) FROM "Usuario") AS usuarios
+         (SELECT count(*) FROM "Usuario") AS usuarios,
+         (SELECT count(*) FROM "Usuario" u JOIN "Cliente" c ON c.id = u.cliente_id
+           WHERE c.codigo = 'maike' AND u.login = 'maike' AND u.ativo AND c.ativo) AS maike_vinculada,
+         (SELECT count(*) FROM "Usuario" u JOIN "Cliente" c ON c.id = u.cliente_id
+           WHERE c.codigo = 'maike' AND u.login = 'maike' AND u.papel_tenant = 'administrador') AS maike_admin,
+         (SELECT coalesce(sum(n), 0) FROM contagem WHERE nome NOT IN ('Usuario', 'AuditLog', 'Cliente')) AS extra,
+         (SELECT count(*) FROM "AuditLog") AS auditoria,
+         (SELECT count(*) FROM "AuditLog" WHERE acao NOT IN ('ops_inicializacao', 'papel_tenant')) AS auditoria_fora,
+         (SELECT count(*) FROM "AuditLog" WHERE acao = 'ops_inicializacao') AS inicializacoes
+),
+-- nenhum = sem "maike" (caminho 02) · inicializado = contrato do 03 integral ·
+-- existente = único cliente/conta "maike" ainda não inicializado, com dados ou papel
+--   a corrigir (caminho 04) ·
+-- anomalo = qualquer outra combinação com "maike" (PARAR).
+estado_tipo AS (
+  SELECT CASE
+           WHEN cliente_maike + login_maike = 0 THEN 'nenhum'
+           WHEN clientes = 1 AND cliente_maike = 1 AND usuarios = 1 AND login_maike = 1 AND maike_vinculada = 1
+                AND maike_admin = 1 AND extra = 0 AND auditoria_fora = 0 AND auditoria >= 2 THEN 'inicializado'
+           WHEN clientes = 1 AND cliente_maike = 1 AND usuarios = 1 AND login_maike = 1 AND maike_vinculada = 1
+                AND inicializacoes = 0 THEN 'existente'
+           ELSE 'anomalo'
+         END AS tipo
+    FROM estado
 ),
 impressao AS (
   SELECT left(md5('v1|'
@@ -77,7 +102,7 @@ impressao AS (
            || (SELECT string_agg(nome || '=' || n, ',' ORDER BY ord) FROM contagem) || '|'
            || (SELECT coalesce(string_agg(id, ',' ORDER BY id), '') FROM "Cliente")), 12) AS codigo
 ),
-linhas(ordem, item, valor, esperado, status) AS (
+base(ordem, item, valor, esperado, status) AS (
   SELECT 1, 'alvo: system_identifier', (SELECT system_identifier::text FROM pg_control_system()), (SELECT sid FROM esperado),
          CASE WHEN (SELECT system_identifier::text FROM pg_control_system()) = (SELECT sid FROM esperado) THEN 'OK' ELSE 'PARAR' END
   UNION ALL
@@ -120,8 +145,22 @@ linhas(ordem, item, valor, esperado, status) AS (
          CASE WHEN (SELECT clientes FROM estado) = 1 THEN 'OK' ELSE 'ATENÇÃO: revise antes' END
   UNION ALL
   SELECT 13, 'cliente "maike" / login "maike" já existem',
-         (SELECT cliente_maike || ' / ' || login_maike FROM estado), '0 / 0',
-         CASE WHEN (SELECT cliente_maike + login_maike FROM estado) = 0 THEN 'OK' ELSE 'PARAR (estado já inicializado ou anômalo)' END
+         (SELECT cliente_maike || ' / ' || login_maike FROM estado), '0 / 0 (02) ou 1 / 1 (04)',
+         CASE (SELECT tipo FROM estado_tipo)
+           WHEN 'nenhum' THEN 'OK (caminho 02)'
+           WHEN 'existente' THEN 'MAIKE EXISTENTE (caminho 04)'
+           WHEN 'inicializado' THEN 'INICIALIZADO'
+           ELSE 'PARAR (combinação inesperada com "maike")' END
+  UNION ALL
+  SELECT 16, 'conta "maike": papel_tenant administrador', (SELECT maike_admin::text FROM estado), '1 depois do 02/04',
+         CASE WHEN (SELECT tipo FROM estado_tipo) = 'inicializado' THEN 'OK'
+              WHEN (SELECT tipo FROM estado_tipo) IN ('nenhum', 'existente') THEN 'AINDA NÃO' ELSE 'PARAR' END
+  UNION ALL
+  SELECT 17, 'linhas de tenant além do cliente, da conta e da auditoria', (SELECT extra::text FROM estado), '0 depois do 02/04',
+         CASE WHEN (SELECT extra FROM estado) = 0 THEN 'OK' ELSE 'CONFIRA (serão apagadas pelo 02/04)' END
+  UNION ALL
+  SELECT 18, 'AuditLog fora de ops_inicializacao/papel_tenant', (SELECT auditoria_fora::text FROM estado), '0 depois do 02/04',
+         CASE WHEN (SELECT auditoria_fora FROM estado) = 0 THEN 'OK' ELSE 'CONFIRA (serão apagadas pelo 02/04)' END
   UNION ALL
   SELECT 14, 'linhas de teste (todas as tabelas de tenant)', (SELECT sum(n)::text FROM contagem WHERE n > 0), '~126 (retrato 30/10)', 'CONFIRA'
   UNION ALL
@@ -134,22 +173,30 @@ linhas(ordem, item, valor, esperado, status) AS (
   SELECT 100 + ord, '  linhas em ' || nome, n::text, '-', CASE WHEN n < 0 THEN 'ausente' ELSE 'CONFIRA' END FROM contagem WHERE n <> 0
   UNION ALL
   SELECT 900, 'impressao_inventario (copie para o 02 depois das migrations)', (SELECT codigo FROM impressao), '-',
-         CASE WHEN (SELECT concluidas FROM mig) = 25 THEN 'USE NO 02' ELSE 'ainda não (migrações pendentes)' END
+         CASE WHEN (SELECT concluidas FROM mig) = 25 THEN 'USE NO 02 OU NO 04' ELSE 'ainda não (migrações pendentes)' END
+),
+contrato AS (
+  SELECT (SELECT concluidas FROM mig) = 25 AND (SELECT novas_pendentes FROM mig) = 0
+         AND (SELECT count(*) FROM tabelas) = 53
+         AND (SELECT count(*) FROM tabelas WHERE tipo <> 'r') = 0
+         AND NOT EXISTS (SELECT 1 FROM tabelas WHERE nome NOT IN (SELECT nome FROM tenant UNION SELECT nome FROM preservada UNION SELECT '_prisma_migrations'))
+         AND (SELECT count(*) FROM tabelas WHERE NOT rls) = 0
+         AND (SELECT count(*) FROM information_schema.role_table_grants WHERE table_schema = 'public' AND grantee IN ('anon','authenticated')) = 0
+         AS ok
+),
+linhas(ordem, item, valor, esperado, status) AS (
+  SELECT * FROM base
   UNION ALL
   SELECT 999, 'VEREDITO',
          CASE
            WHEN (SELECT system_identifier::text FROM pg_control_system()) <> (SELECT sid FROM esperado) OR current_database() <> (SELECT banco FROM esperado) THEN 'PARAR: banco errado'
            WHEN (SELECT com_falha FROM mig) > 0 THEN 'PARAR: migration com falha'
+           WHEN EXISTS (SELECT 1 FROM base WHERE status LIKE 'PARAR%') THEN 'PARAR: há linha PARAR acima; revise antes de qualquer script'
            WHEN (SELECT concluidas FROM mig) = 18 AND (SELECT novas_pendentes FROM mig) = 7 THEN 'MIGRAR PRIMEIRO (npm run deploy:migrate); depois rode este 01 de novo'
-           WHEN (SELECT concluidas FROM mig) = 25 AND (SELECT novas_pendentes FROM mig) = 0
-                AND (SELECT count(*) FROM tabelas) = 53
-                AND (SELECT count(*) FROM tabelas WHERE tipo <> 'r') = 0
-                AND NOT EXISTS (SELECT 1 FROM tabelas WHERE nome NOT IN (SELECT nome FROM tenant UNION SELECT nome FROM preservada UNION SELECT '_prisma_migrations'))
-                AND (SELECT count(*) FROM tabelas WHERE NOT rls) = 0
-                AND (SELECT cliente_maike + login_maike FROM estado) = 0
-             THEN 'PRONTO PARA O 02 (confira as contagens e use a impressão acima)'
-           WHEN (SELECT concluidas FROM mig) = 25 AND (SELECT clientes = 1 AND cliente_maike = 1 AND login_maike = 1 AND usuarios = 1 FROM estado)
-             THEN 'JÁ INICIALIZADO: não rode o 02; confira com o 03-postcheck'
+           WHEN NOT (SELECT ok FROM contrato) THEN 'PARAR: schema, RLS ou grants fora do contrato'
+           WHEN (SELECT tipo FROM estado_tipo) = 'nenhum' THEN 'PRONTO PARA O 02 (confira as contagens e use a impressão acima)'
+           WHEN (SELECT tipo FROM estado_tipo) = 'existente' THEN 'MAIKE EXISTENTE — LIMPEZA CONTROLADA NECESSÁRIA: não rode o 02; use o 04 com a impressão acima'
+           WHEN (SELECT tipo FROM estado_tipo) = 'inicializado' THEN 'INICIALIZADO: não rode o 02 nem o 04; confira com o 03-postcheck'
            ELSE 'PARAR: estado inesperado; revise as linhas acima'
          END, '-', '-'
 )

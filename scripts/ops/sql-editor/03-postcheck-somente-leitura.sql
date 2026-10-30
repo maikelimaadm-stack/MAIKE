@@ -4,6 +4,8 @@
 -- Onde: Supabase → projeto MAIKE → SQL Editor → New query → cole TUDO → Run.
 -- Só SELECT. Não mostra senha, hash, e-mail nem ids. Esperado: tudo "OK" e
 -- VEREDITO "INICIALIZADO".
+-- Vale depois do 02 (conta nova) e do 04 (conta existente preservada: o nome
+-- de exibição não é conferido, só login, atividade, papel e hash bcrypt).
 -- =============================================================================
 WITH
 tenant(nome) AS (
@@ -26,7 +28,7 @@ contagem AS (
 ),
 conta AS (
   SELECT count(*) AS n,
-         count(*) FILTER (WHERE u.login = 'maike' AND u.nome = 'Maike' AND u.ativo AND u.papel_tenant = 'administrador'
+         count(*) FILTER (WHERE u.login = 'maike' AND u.ativo AND u.papel_tenant = 'administrador'
                             AND c.codigo = 'maike' AND c.ativo AND u.senha_hash LIKE '$2%') AS certas
     FROM "Usuario" u JOIN "Cliente" c ON c.id = u.cliente_id
 ),

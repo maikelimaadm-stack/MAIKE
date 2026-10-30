@@ -321,7 +321,7 @@ describe('SQL Editor — 02 sucesso + 03 postcheck + API real', () => {
     assert.equal(r1.status, 'CONCLUIDO');
     const p = prisma();
     const conta = await p.usuario.findFirst();
-    assert.match(linhasDe(psql(precheck())).VEREDITO.valor, /JÁ INICIALIZADO/);
+    assert.match(linhasDe(psql(precheck())).VEREDITO.valor, /^INICIALIZADO/);
     const r2 = psql(reset({ impressao: impressaoAtual() }));
     assert.equal(r2.status, 0, r2.stderr);
     const res2 = resultado(r2);
