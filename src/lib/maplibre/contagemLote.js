@@ -16,11 +16,12 @@ export const FONTE_CONTAGEM_FAMILIA = 'Inter,Arial,sans-serif';
 export const larguraEstimada = (texto, px) => String(texto).length * 0.6 * px;
 
 /**
- * Mede a largura real do texto com canvas; sem canvas, usa a estimativa.
+ * Mede a largura real do texto com OffscreenCanvas; onde ele não existe
+ * (ex.: jsdom nos testes), usa a estimativa.
  * @returns {(texto: string, px: number) => number}
  */
 export const criarMedidorDeTexto = () => {
-  const ctx = typeof document !== 'undefined' ? document.createElement('canvas').getContext?.('2d') : null;
+  const ctx = typeof OffscreenCanvas !== 'undefined' ? new OffscreenCanvas(1, 1).getContext('2d') : null;
   if (!ctx) return larguraEstimada;
   return (texto, px) => {
     ctx.font = `700 ${px}px ${FONTE_CONTAGEM_FAMILIA}`;

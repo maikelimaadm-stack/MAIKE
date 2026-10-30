@@ -3135,7 +3135,7 @@ Provas:
 **Decisão:**
 - `.mg-lote-count` a 72% da altura;
 - fonte base de 11 px;
-- a largura do texto é medida com canvas (`700 11px Inter,Arial,sans-serif`); se passar de 22 px, a fonte vira `11 × 22 / largura`, com mínimo de 5 px (`src/lib/maplibre/contagemLote.js`). Sem canvas, usa a estimativa de 0,6 em por dígito.
+- a largura do texto é medida com OffscreenCanvas (`700 11px Inter,Arial,sans-serif`); se passar de 22 px, a fonte vira `11 × 22 / largura`, com mínimo de 5 px (`src/lib/maplibre/contagemLote.js`). Sem OffscreenCanvas (ex.: jsdom), usa a estimativa de 0,6 em por dígito.
 
 Exemplos no Chromium: "500" fica em 11 px, "5000" em 8 px, "12500" em 7 px, "125000" em 5 px, "1250000" em 5 px. Testes CNT-01..04.
 
