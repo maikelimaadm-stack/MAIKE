@@ -132,15 +132,15 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           ref: ${{ github.event.pull_request.head.sha }}
-          fetch-depth: 2
+          fetch-depth: 10
           persist-credentials: false
 
       - name: Conferir código = auditado + este arquivo
         run: |
           set -euo pipefail
           [ "$(git rev-parse HEAD)" = "$SHA_HEAD" ] || { echo "PARAR: checkout difere do head do evento."; exit 1; }
-          [ "$(git rev-parse HEAD^)" = "$SHA_AUDITADO" ] || { echo "PARAR: o pai do head não é o commit auditado."; exit 1; }
-          [ "$(git diff --name-only HEAD^ HEAD)" = "$ESTE_ARQUIVO" ] || { echo "PARAR: o head muda algo além deste workflow."; exit 1; }
+          git merge-base --is-ancestor "$SHA_AUDITADO" HEAD || { echo "PARAR: o commit auditado não é ancestral do head."; exit 1; }
+          [ "$(git diff --name-only "$SHA_AUDITADO" HEAD)" = "$ESTE_ARQUIVO" ] || { echo "PARAR: desde o auditado, o head muda algo além deste workflow."; exit 1; }
           [ -z "$(git status --porcelain)" ] || { echo "PARAR: árvore suja."; exit 1; }
           total="$(find backend/prisma/migrations -mindepth 1 -maxdepth 1 -type d -name '[0-9]*_*' | wc -l)"
           [ "$total" = "25" ] || { echo "PARAR: $total migrations no repositório (esperado 25)."; exit 1; }
@@ -169,6 +169,54 @@ jobs:
           set +e -uo pipefail  # códigos de saída tratados um a um
           limpar() { sed -E -e 's#postgres(ql)?://[^[:space:]"'"'"']*#<conexao-oculta>#g' -e 's#[A-Za-z0-9.-]+\.supabase\.(co|com)(:[0-9]+)?#<host-oculto>#g' -e 's#(user|role) "[^"]*"#\1 "<oculto>"#g'; }
           [ -n "$MIGRATION_DATABASE_URL" ] || { echo "PARAR: segredo MIGRATION_DATABASE_URL ausente no environment."; exit 1; }
+          # Diagnóstico SÓ de forma (nenhum valor): o run 1 parou em "sem acesso (erro)"
+          # sem código. Imprime categorias e booleanos, e a classe/código do erro Prisma.
+          cat > .diag-alvo.mjs <<'DIAG'
+          const bruto = process.env.MIGRATION_DATABASE_URL ?? '';
+          const s = {
+            espaco_ou_quebra: /\s/.test(bruto), aspas: /["'`]/.test(bruto), prefixo_nome_variavel: /^[A-Za-z_]+=/.test(bruto),
+            protocolo: (bruto.match(/^([a-z]+):\/\//) || [null, '?'])[1], arrobas: (bruto.match(/@/g) || []).length,
+            colchetes: /[[\]]/.test(bruto), placeholder: /YOUR-PASSWORD|SUA-SENHA/i.test(bruto),
+          };
+          let u = null;
+          try { u = new URL(bruto.trim()); s.url_valida = true; } catch { s.url_valida = false; }
+          if (u) {
+            const h = u.hostname;
+            s.porta = u.port || '(padrão)';
+            s.host = h.endsWith('.pooler.supabase.com') ? 'pooler supabase' : h.endsWith('.supabase.co') ? 'direto supabase (só IPv6)' : 'outro';
+            let nome = u.username; try { nome = decodeURIComponent(nome); } catch {}
+            s.usuario = /^postgres\.[a-z0-9]{20}$/.test(nome) ? 'postgres.<ref>' : nome === 'postgres' ? 'postgres' : 'outro';
+            s.tem_senha = u.password.length > 0;
+            s.banco = u.pathname === '/postgres' ? 'postgres' : 'outro';
+            s.parametros = [...u.searchParams.keys()].join(',') || '-';
+          }
+          console.log(`forma da conexão (sem valores): ${JSON.stringify(s)}`);
+          const { PrismaClient } = await import('@prisma/client');
+          const c = new PrismaClient({ datasourceUrl: bruto });
+          try {
+            await c.$queryRawUnsafe('SELECT 1');
+            console.log('conexão direta de teste: OK');
+          } catch (e) {
+            const m = String(e?.message ?? '');
+            const tipos = [
+              [/Can't reach database server/i, 'servidor inalcançável (host/porta/IPv6)'],
+              [/Tenant or user not found/i, 'pooler: usuário/tenant não encontrado (usuário deve ser postgres.<ref>)'],
+              [/Authentication failed|password authentication/i, 'autenticação recusada (usuário ou senha)'],
+              [/must start with the protocol/i, 'URL sem protocolo postgres'],
+              [/invalid port/i, 'porta inválida'],
+              [/timed out|timeout/i, 'tempo esgotado'],
+              [/closed the connection|Server has closed/i, 'servidor fechou a conexão'],
+              [/certificate|SSL|TLS/i, 'TLS/certificado'],
+              [/validating datasource|parse|invalid/i, 'URL inválida para o Prisma'],
+            ];
+            const tipo = (tipos.find(([r]) => r.test(m)) || [null, 'outro'])[1];
+            console.log(`conexão direta de teste: FALHOU · classe=${e?.constructor?.name ?? '?'} · código=${e?.errorCode ?? e?.code ?? '-'} · tipo=${tipo}`);
+          } finally {
+            await c.$disconnect().catch(() => {});
+          }
+          DIAG
+          node .diag-alvo.mjs 2>&1 | limpar | grep -E '^(forma da conexão|conexão direta de teste)'
+          rm -f .diag-alvo.mjs
           node scripts/deploy/conferir-alvo-banco.mjs 2>&1 | limpar
           [ "${PIPESTATUS[0]}" = "0" ] || { echo "PARAR: alvo não confere."; exit 1; }
           node scripts/deploy/preflight-schema.mjs --sistema "$MIGRATION_EXPECTED_SYSTEM_IDENTIFIER" > "$RUNNER_TEMP/antes.log" 2>&1
