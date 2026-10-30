@@ -188,7 +188,8 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
       // O cache de áreas pode não ter a área criada há pouco (caso real: destino
       // gravado com id certo e nome vazio). Faltando alguma, relê as áreas.
       let areasConhecidas = areas;
-      const faltaArea = [formData.area_saida_id, formData.area_entrada_id].some(
+      const idsDasAreas = /** @type {{ area_saida_id?: string, area_entrada_id?: string }} */ (/** @type {unknown} */ (formData));
+      const faltaArea = [idsDasAreas.area_saida_id, idsDasAreas.area_entrada_id].some(
         (id) => id && !areaPorId(areasConhecidas, id)
       );
       if (faltaArea && navigator.onLine) {
