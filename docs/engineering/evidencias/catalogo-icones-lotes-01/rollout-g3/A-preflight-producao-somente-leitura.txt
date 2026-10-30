@@ -1,0 +1,55 @@
+MAIKE-PR145-G3 — FASE A (preflight SOMENTE LEITURA), 30/10/2026
+Retrato do instante: revalidar imediatamente antes da Fase B. Nenhuma escrita foi feita.
+Nenhum valor de variável, URL, chave, senha ou dado pessoal foi lido ou registrado.
+
+== Identidade
+Repo maikelimaadm-stack/MAIKE · PR #145 DRAFT · head 1cf1b9e9 (sem avanço) · base main 1344ffe2
+CI #145: verify:all SUCCESS (run 40961315110) · mergeable_state clean
+PR #146: head 49f1d274 (avançou desde a R5), 11 arquivos, 0 migrations, interseção com #145 = vazia
+Supabase: projeto "MAIKE" (sa-east-1, PG 17, ACTIVE_HEALTHY), organização no plano Pro.
+  O vínculo deste projeto com o DATABASE_URL da Vercel NÃO foi provado por valor (não lido);
+  só por nome e por conteúdo coerente. O proprietário confirma no painel.
+Vercel: projeto "maike"; produção = main@1344ffe2, READY, candidato a Instant Rollback.
+
+== A2 — Supabase (SELECT agregado)
+_prisma_migrations: 18 concluídas, 0 com falha, 0 revertidas; nenhuma desconhecida do repositório.
+Checksums: os 14 com checksum gravado são IDÊNTICOS ao sha256 dos arquivos do repositório;
+  4 constam como "manual" (aplicadas à mão no passado: p3_foundation, p4_1_setor_native,
+  p4_1_r2_setor_tipo_default, p4_marcas_native). A PR não edita nenhuma migration existente.
+Pendentes (7) = exatamente as esperadas:
+  main: 20261028250000, 20261028250100, 20261028250200, 20261029100000
+  #145: 20261029200000, 20261029300000, 20261029400000
+Usuario.papel_tenant: ausente · CategoriaManejo.catalogo_categoria_visual_id: ausente
+Tabelas Catalogo*/AdminMaike*: 0 · tabelas public: 40, sem RLS: 0 · grants anon/authenticated: 0
+Contagens: 1 cliente, 1 usuário (ativo), 1 Permissao.is_admin · buckets: 0
+archive_mode=on, wal_level=logical (indicador; NÃO prova backup restaurável)
+
+== A3 — preflight
+Sem conexão direta segura a partir desta sessão (a URL não foi deduzida nem pedida).
+Equivalente: as leituras acima passaram pela MESMA função do repositório (avaliarPreflight):
+  migrations: 18/25 aplicadas
+  FALHA migrations pendentes (7): …250000, …250100, …250200, 20261029100000, …200000, …300000, …400000
+  FALHA colunas ausentes: Usuario.papel_tenant, CategoriaManejo.catalogo_categoria_visual_id
+  FALHA tabelas ausentes: 13 (Catalogo*, OperadorProdutoMaike, AuditoriaCatalogoGlobal, *AdminMaike)
+  → exit=1 (esperado enquanto faltam migrations)
+
+== A4 — Vercel / API de produção (GET sem credencial)
+/health 200 status=ok · /usuarios, /permissoes, /categorias-manejo, /lotes, /catalogo-global/manifest → 401
+/admin-maike/sessao → 404 (produção roda o código da main, sem o admin)
+Publicação automática: os 3 últimos deploys de produção vieram de merges na main (#142, #143, #144).
+Build = "prisma:generate && build": não migra. Compatibilidade autenticada: ensaio local da R5
+(fases A e C, rollout-r5/); smoke autenticado real fica para B5, com o operador.
+
+== A5 — Preview × produção (só nomes e alvos)
+DATABASE_URL, MIGRATION_DATABASE_URL, AUTH_SECRET, FRONTEND_ORIGINS → production E preview
+VITE_MAIKE_API_URL (preview) = a API de PRODUÇÃO → a SPA do preview escreve via API de produção
+Nenhuma variável específica da branch da #145.
+RISCO ALTO: (1) teste de escrita em preview = escrita em produção; (2) JWT emitido por preview
+vale em produção (mesmo AUTH_SECRET); (3) MIGRATION_DATABASE_URL no preview: uma PR que
+mudasse o buildCommand migraria produção antes do merge. Mitigação atual: SSO da Vercel nos
+previews. Nada foi alterado.
+
+== A6 — Backup / PITR
+Plano Pro (backups diários incluídos; PITR é add-on). O conector NÃO lista backups:
+existência e recuperabilidade NÃO comprovadas → GATE NO-GO até o proprietário confirmar no
+painel (Database → Backups: horário do último backup; PITR ligado ou não).

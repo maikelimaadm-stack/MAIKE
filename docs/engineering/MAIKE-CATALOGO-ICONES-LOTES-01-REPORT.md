@@ -9,6 +9,7 @@
 | R3 | `MAIKE-PR145-R3-ADMIN-PRINCIPAL-CATALOGO-ICONES-01` | proprietário independente + MAIKE Admin, D-PROD-70 |
 | R4 | `MAIKE-PR145-R4-SEGURANCA-USUARIOS-PERMISSOES-01` | administrador da fazenda server-owned, Permissões, endurecimento do admin, D-PROD-71 (§9) |
 | R5 | `MAIKE-PR145-R5-PRE-MERGE-ROLLOUT-SEGURO` | preflight de schema, ordem pré-merge, alvo protegido nos scripts, D-PROD-72 (§10) |
+| G3 | `MAIKE-PR145-G3-ROLLOUT-OPERACIONAL-CONTROLADO-01` | Fase A (preflight só leitura) concluída; parada aguardando autorização (§11) |
 
 **Base:** `main` `1344ffe2` · **Branch:** `claude/catalogo-global-icones-lotes-01` · **Merge:** exclusivo do proprietário.
 **Runbook:** `docs/engineering/MAIKE-CATALOGO-OPERACAO-SUPABASE.md`
@@ -334,3 +335,31 @@ Segundo defeito, achado ao investigar um smoke intermitente (2 falhas em 5 execu
 4. **`AUTH_SECRET`:** marcado pela Vercel como "readable-secret". Recomenda-se o tipo *Sensitive*, com aprovação.
 5. **`FRONTEND_ORIGINS`** de produção inclui `http://localhost:5173` (pré-existente).
 6. **Rewrite e domínio do admin:** inexistentes. O admin não está acessível só por existir em `apps/admin`.
+
+## 11. G3 — rollout operacional controlado: Fase A (30/10/2026)
+
+Missão de **operação**, não de código. Não houve R6. Evidência em `evidencias/catalogo-icones-lotes-01/rollout-g3/A-preflight-producao-somente-leitura.txt`.
+
+| Fase | Estado |
+|---|---|
+| **A — preflight só leitura** | **PASS** (o diagnóstico foi feito) |
+| B — migrations | **NOT_RUN**, aguardando autorização escrita |
+| C — promoção | **NOT_RUN** |
+| D — pós-merge | **NOT_RUN** |
+
+**Resultado da Fase A:**
+
+- **#145:** sem avanço (`1cf1b9e9`), CI verde.
+- **#146:** avançou (`49f1d274`), mas segue com interseção vazia e sem migrations.
+- **Migrations:** produção tem 18/25. As 7 pendentes são exatamente as esperadas. Nenhuma falhou, nenhuma é desconhecida, e os checksums conferem.
+- **Preflight:** exit 1, como esperado. Foi calculado pela função do repositório sobre leituras SELECT, porque esta sessão não tem conexão direta segura.
+- **Produção:** roda a `main`, sem as rotas do admin.
+- **RLS e grants:** RLS em todas as 40 tabelas `public` e nenhum grant para `anon`/`authenticated`.
+
+**Bloqueios para a Fase B:**
+
+1. Autorização escrita e específica do proprietário.
+2. Backup ou PITR confirmado no painel. O conector não lista backups.
+3. Confirmação de que o projeto Supabase "MAIKE" é o banco do `DATABASE_URL` de produção. Não foi provado por valor.
+
+**Risco novo:** os previews compartilham com produção o banco, o segredo de JWT, a API e a `MIGRATION_DATABASE_URL`. A proposta de isolamento está no runbook §0b; nada foi alterado.

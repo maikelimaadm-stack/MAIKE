@@ -78,6 +78,38 @@ A ação mais curta para destravar é sempre o primeiro passo pendente da tabela
 
 Não use preview para testar escrita.
 
+**Preview × produção — achado de 30/10/2026 (G3, só leitura).** Os previews recebem os mesmos valores de produção:
+
+- `DATABASE_URL` e `MIGRATION_DATABASE_URL`;
+- `AUTH_SECRET`;
+- `VITE_MAIKE_API_URL`, que aponta para a API de **produção**.
+
+Consequências:
+
+- **Testar escrita num preview é escrever em produção.** A SPA do preview grava pela API real.
+- **Um JWT emitido por um preview vale em produção.** Os dois usam o mesmo segredo.
+- **Uma PR poderia migrar produção antes do merge.** Basta mudar o `buildCommand`, já que o preview tem `MIGRATION_DATABASE_URL`.
+
+A única mitigação hoje é o SSO da Vercel nos previews.
+
+**Proposta**, para executar só com aprovação específica:
+
+1. Retirar `MIGRATION_DATABASE_URL` do alvo `preview`.
+2. Apontar o `DATABASE_URL` de `preview` para um banco de staging ou descartável, por exemplo um branch do Supabase.
+3. Dar ao `preview` um `AUTH_SECRET` próprio.
+4. Dar ao `preview` um `VITE_MAIKE_API_URL` que aponte para a API do próprio preview, ou para staging.
+
+Até lá vale: **nenhum E2E de escrita em preview**.
+
+**Gate de backup (A6).** O plano Pro inclui backups diários; o PITR é um add-on. O conector usado pelo agente não lista backups. Antes da etapa 4, o proprietário confirma no painel (Database → Backups):
+
+- o horário do último backup diário;
+- se o PITR está ativo.
+
+Sem essa confirmação: **NO-GO**. Para provar que o backup restaura de fato, a opção é o "restore to new project", que só roda com aprovação própria e não toca no projeto de produção.
+
+**Checksums (A2).** As 14 migrations aplicadas com checksum são idênticas aos arquivos do repositório. Quatro constam como `manual`, aplicadas à mão no histórico: `p3_foundation`, `p4_1_setor_native`, `p4_1_r2_setor_tipo_default` e `p4_marcas_native`. O `migrate deploy` não as reaplica.
+
 ## 1. Migrations, grants e RLS (antes de tudo)
 
 **Ordem obrigatória:**
