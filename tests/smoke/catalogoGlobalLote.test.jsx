@@ -251,7 +251,8 @@ describe("FormularioLote mostra o ícone da categoria de manejo escolhida", () =
     fireEvent.submit(document.getElementById("formulario-lote-base1"));
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
     const payload = onSubmit.mock.calls[0][0];
-    expect(payload.categoria_manejo_id).toBe("cm-bez");
+    // Edição de lote já lançado não reenvia a categoria (é a da entrada, D-PROD-85).
+    expect(payload).not.toHaveProperty("categoria_manejo_id");
     expect(Object.keys(payload).filter((k) => /icone|catalogo/i.test(k))).toEqual([]);
   });
 });

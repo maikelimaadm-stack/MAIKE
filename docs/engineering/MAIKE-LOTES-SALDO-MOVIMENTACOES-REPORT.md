@@ -13,6 +13,57 @@
   - A decisão abaixo fica registrada aqui. Ela entra em `DECISIONS.md` depois
     do merge da #149, para não colidir.
 
+## Cadastro = entrada (slice corretivo pós-#151, D-PROD-85)
+
+**Pedido do proprietário:** o Cadastro de Lotes é o lançamento da entrada do
+rebanho. "Se eu lançar 500 animais e fizer depois movimentações, entradas,
+saídas etc., nada muda no meu cadastro de lotes."
+
+**Auditoria do caminho de escrita**
+(`CadastroLotes` → `loteCadastroService` → `lotesApi`/`loteNativePort` → `POST/PATCH/DELETE /lotes` → `loteService`):
+- O CRUD do Cadastro só grava `Lote`.
+- Nenhum ponto cria `MovimentacaoMapa`, `MovimentacaoPecuaria` ou lote derivado.
+- Os manejos vivem em `DetalhesLote`/`loteManejoService`/`HistoricoMovimentacoes` (mapa).
+- Provado no backend com PostgreSQL real; já valia antes desta correção.
+
+**Campos que os manejos do mapa reescrevem no `Lote`:**
+
+| Manejo | Campos |
+|---|---|
+| movimentação, morte, abate | `quantidade_cabecas`, `status`, `area_atual_*` |
+| mudança de categoria | `categoria`, `categoria_manejo_*`, `sexo` |
+| pesagem | `peso_medio_kg` |
+| renomear | `nome` |
+
+**Campos da entrada, que nenhum manejo toca:** `quantidade_entrada`,
+`categoria_entrada`, `categoria_manejo_entrada_*`, `peso_entrada_kg`,
+`area_entrada_*`, data, motivo e origem.
+
+| Achado (no `main` `46664043`) | Arquivo | Gravidade | Correção | Teste depois |
+|---|---|---|---|---|
+| Saldo atual e "Movimentações (±)" no Cadastro: o lote 1 mudava de 500 para 450 depois da transferência | `TabelaLotes.jsx`, `campoEngine.js`, `saldoLote.js` | P1 | Uma só coluna de quantidade, "Qtd. entrada" (`quantidade_entrada`); saldo, variação, exportações e fórmulas removidos; domínio sem `saldoAtualDoLote`/`movimentacaoLiquidaDoLote`/`resumoDeCabecas` | grade mostra 500 (não 450); nenhuma coluna ou texto de saldo ou movimentação |
+| Lotes gerados por manejo listados no Cadastro | `CadastroLotes.jsx` (`incluirSistema: true`) | P1 | A lista traz só entradas no rebanho (nascimento incluso) | lista = lote 1; lote 2 ausente |
+| Formulário de edição mostrava categoria, sexo e peso ATUAIS (mudados pelo mapa) e os reenviava no PATCH, podendo desfazer mudança de categoria ou pesagem | `FormularioLote.jsx` | P1 | Na edição, mostra os valores da entrada, só leitura, e não os envia; leitura "Qtd. entrada" sem saldo | peso da entrada 180 (não 260), campos só leitura, payload sem categoria/sexo/peso |
+| Migração de layout das colunas "Entrada/Movimentações" (#151) | `TabelaLotes.jsx` | P3 | Removida; ids antigos são descartados na leitura do layout | layout com ids antigos lido só com `cabecas` |
+
+**Testes:**
+- smoke: 135/135 nos 7 arquivos de lote (`lotesSaldoMovimentacoes` 30, `cadastroLotesEntrada` 5, catálogo, formulário, rollout, manejo).
+  - O teste de catálogo agora espera que a edição não reenvie `categoria_manejo_id`.
+- backend: 19/19 (invariantes novos: POST e PATCH sem manejo).
+
+**Mantido da #151:**
+- bloqueio de exclusão de lote derivado no servidor;
+- classe da origem imutável;
+- setor, áreas e quantidades fora do PATCH do cadastro;
+- nome da área pelo id.
+
+**Pontos para o proprietário:**
+- O status Ativo/Inativo é o do registro: o mapa ainda inativa o lote que zerou.
+- Nome e identificação seguem o valor atual (renomear no mapa muda o nome).
+
+**Risco residual:** manejo parcial não atômico, sem mudança. A correção é o L2
+do ledger, em slice próprio.
+
 ## R3 — finalização (sobre `2bf908f4`)
 
 `origin/main` `f6592e2a` (#150, contagem de cabeças no mapa) foi trazido por

@@ -16,6 +16,7 @@ import {
   excluirLotes,
 } from "@/services/loteCadastroService";
 import { persistirAnexosPendentes } from "@/services/anexoService";
+import { ehEntradaNoRebanho } from "@/domain/lotes/saldoLote";
 import { getApiErrorMessage, hasApiErrorCode, API_ERROR_CODES } from "@/apis/_core/ApiError";
 import {
   notifyError,
@@ -37,14 +38,14 @@ export default function CadastroLotes() {
   const [newRecordAttachmentsOpen, setNewRecordAttachmentsOpen] = useState(false);
   const [pendingAttachments, setPendingAttachments] = useState([]);
 
-  // Todos os lotes da empresa, inclusive os gerados por manejo: sem eles o
-  // destino de uma movimentação parcial (+50) sumia do cadastro e o saldo do
-  // rebanho fechava em 450 em vez de 500. A entrada histórica não duplica:
-  // lote gerado por manejo não conta como entrada (domain/lotes/saldoLote).
-  const fetchAll = useCallback(
-    () => listarLotes({ empresaId: empresaSelecionadaId, incluirSistema: true }),
-    [empresaSelecionadaId],
-  );
+  // Cadastro = lançamento da ENTRADA no rebanho (D-PROD-85): só lotes que são
+  // entrada (compra, ajuste, inventário, nascimento), com os dados lançados.
+  // Lotes gerados por manejo no mapa (destino de movimentação, mudança de
+  // categoria…) não são entrada e não aparecem aqui; continuam no mapa.
+  const fetchAll = useCallback(async () => {
+    const todos = await listarLotes({ empresaId: empresaSelecionadaId, incluirSistema: true });
+    return todos.filter(ehEntradaNoRebanho);
+  }, [empresaSelecionadaId]);
 
   const controller = useCadastroBase1FullListController({
     storageKey: STORAGE_KEY,
