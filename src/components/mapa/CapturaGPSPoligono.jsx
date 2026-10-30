@@ -40,6 +40,7 @@ import {
   parseGeolocationPosition,
   precisaoRuim,
 } from "@/lib/maplibre/gpsCapture.js";
+import { mensagemFalhaMapa } from "@/lib/maplibre/falhaWebGL";
 
 const COR_AREA = "#10b981";
 const COR_LINHA = "#f59e0b";
@@ -286,7 +287,7 @@ export default function CapturaGPSPoligono({ tipo = "area", onSalvar, onCancelar
       });
     } catch (err) {
       if (mountedRef.current) {
-        setMapError(err?.message || "Falha ao criar mapa (WebGL?)");
+        setMapError(mensagemFalhaMapa(err, "Falha ao criar o mapa."));
       }
       return undefined;
     }

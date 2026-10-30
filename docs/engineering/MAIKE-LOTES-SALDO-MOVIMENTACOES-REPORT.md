@@ -13,6 +13,35 @@
   - A decisão abaixo fica registrada aqui. Ela entra em `DECISIONS.md` depois
     do merge da #149, para não colidir.
 
+## Mapa sem WebGL: mensagem legível (incluído na PR #154 a pedido do proprietário)
+
+**Sintoma relatado:** o mapa mostrava sempre um JSON técnico:
+`{"type":"webglcontextcreationerror","message":"Failed to initialize WebGL", "statusMessage":"Could not create a WebGL context, ... GL_VENDOR = Disabled ..."}`.
+
+**Causa:** o navegador do computador está com o WebGL desligado
+(`GL_VENDOR = Disabled`). Isso acontece com a aceleração gráfica desligada,
+GPU bloqueada ou o Chrome desativando o WebGL depois de travas do processo de
+vídeo.
+- Não é defeito do app.
+- Conferido: cada mapa é liberado ao fechar (`map.remove()` em
+  `src/lib/maplibre/lifecycle.js` e nos diálogos), sem vazamento de contexto.
+
+**Mudança:** `src/lib/maplibre/falhaWebGL.js`.
+- `navegadorTemWebGL()` testa o WebGL antes de abrir o Mapa Geral; o contexto
+  de teste é liberado em seguida.
+- `mensagemFalhaMapa()` troca a falha de WebGL por uma explicação em
+  português com o que fazer: ativar "Usar aceleração gráfica quando
+  disponível", reiniciar o navegador, atualizar o driver ou testar outro
+  navegador.
+- Aplicado no Mapa Geral e nos 5 mapas de diálogo (desenho, seleção de áreas,
+  depósito, local de tarefa, captura GPS).
+- O botão "Tentar novamente" segue igual.
+
+**Testes:**
+- `maplibreFalhaWebGL.test.js` 4/4, com o JSON real do proprietário;
+- os testes de mapa existentes passam;
+- `maplibreSelecaoDepositoMapa` passou a esperar a mensagem explicativa.
+
 ## Editar/excluir só sem histórico (D-PROD-86)
 
 **Pedido do proprietário:** edição e exclusão do lançamento só se não houver

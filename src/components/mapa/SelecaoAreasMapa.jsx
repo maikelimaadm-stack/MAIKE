@@ -27,6 +27,7 @@ import {
   summarizeBatchResults,
   syncSelectedIds,
 } from "@/lib/maplibre/selecaoAreasMapa.js";
+import { mensagemFalhaMapa } from "@/lib/maplibre/falhaWebGL";
 
 const CORES_DISPONIVEIS = [
   { nome: "Branco", cor: "#f8f9fa" },
@@ -173,7 +174,7 @@ export default function SelecaoAreasMapa({
         });
       } catch (err) {
         if (mountedRef.current) {
-          setMapError(err?.message || "Falha ao criar mapa (WebGL?)");
+          setMapError(mensagemFalhaMapa(err, "Falha ao criar o mapa."));
         }
         return;
       }
