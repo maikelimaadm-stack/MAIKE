@@ -5,6 +5,7 @@
  * Uso (conexão direta ou de sessão do ambiente; nada é gravado):
  *   DATABASE_URL=… node scripts/deploy/preflight-schema.mjs
  *   DATABASE_URL=… node scripts/deploy/preflight-schema.mjs --exigir-admin-por-cliente
+ *   DATABASE_URL=… node scripts/deploy/preflight-schema.mjs --sistema <id>   (recusa banco diferente)
  *
  * Saída: 0 = schema pronto para o código desta branch; 1 = NÃO publique;
  * 2 = não foi possível consultar. Nunca imprime URL, host, login ou e-mail.
@@ -31,6 +32,19 @@ const db = getPrismaClient();
 
 let codigo = 2;
 try {
+  // `--sistema <id>`: prova que esta conexão é o banco esperado (PR145-G4),
+  // sem URL nem segredo — o identificador do cluster PostgreSQL tem de conferir.
+  const iSistema = process.argv.indexOf('--sistema');
+  if (iSistema >= 0) {
+    const esperado = (process.argv[iSistema + 1] ?? '').trim();
+    const [{ sid }] = /** @type {any[]} */ (await db.$queryRawUnsafe(`SELECT system_identifier::text AS sid FROM pg_control_system()`));
+    if (!esperado || sid !== esperado) {
+      console.log('PREFLIGHT FALHOU: o banco conectado NÃO é o alvo informado em --sistema.');
+      codigo = 1;
+      throw Object.assign(new Error('alvo'), { code: 'ALVO' });
+    }
+    console.log('alvo: system_identifier confere');
+  }
   const migrations = await db.$queryRawUnsafe(CONSULTAS.migrations);
   const colunas = await db.$queryRawUnsafe(CONSULTAS.colunas);
   const tabelas = await db.$queryRawUnsafe(CONSULTAS.tabelas, TABELAS_PROTEGIDAS);
@@ -58,7 +72,9 @@ try {
   console.log(r.ok ? 'PREFLIGHT OK: o schema atende o código desta branch.' : 'PREFLIGHT FALHOU: NÃO publique este código neste banco.');
   codigo = r.ok ? 0 : 1;
 } catch (erro) {
-  console.error(`preflight-schema: consulta falhou (${/** @type {any} */ (erro)?.code ?? 'erro'})`);
+  if (/** @type {any} */ (erro)?.code !== 'ALVO') {
+    console.error(`preflight-schema: consulta falhou (${/** @type {any} */ (erro)?.code ?? 'erro'})`);
+  }
 } finally {
   await closePrismaClient();
 }

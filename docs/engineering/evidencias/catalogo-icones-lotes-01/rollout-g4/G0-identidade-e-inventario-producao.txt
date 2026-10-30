@@ -1,0 +1,35 @@
+MAIKE-PR145-G4 — G0 em PRODUÇÃO (somente leitura), 30/10/2026 ~01:20–01:35 UTC
+Nenhuma escrita. Nenhum valor de variável, URL, host, login, nome ou senha lido ou registrado.
+
+== Identidade: runtime da API de produção ↔ Supabase "MAIKE" (uuemcasqcdjucflulkne)
+O backend lê POSTGRES_PRISMA_URL > DATABASE_URL > POSTGRES_URL (backend/src/config/env.js);
+a integração Supabase↔Vercel (icfg_UsO8…) injeta POSTGRES_PRISMA_URL em production.
+Prova sem segredo: a rota /health da produção executa exatamente "SELECT 1". Medido em
+pg_stat_statements do projeto uuemcasqcdjucflulkne (query normalizada "SELECT $1", role postgres):
+  rodada 1: 17 chamadas a https://maike-five.vercel.app/api/native/health → 576 → 593 (+17)
+  rodada 2: 11 chamadas → 593 → 605 (+12)
+  controle: ~7 min sem chamadas → 605 → 605 (+0)
+  rodada 3: 23 chamadas → 605 → 629 (+24)
+  → o runtime de produção usa ESTE banco (a sobra de +1 é compatível com início a frio).
+Guarda para o terminal do operador (MIGRATION_DATABASE_URL não é verificável daqui):
+  system_identifier do PostgreSQL deste projeto = 7692130048193495360 (não é segredo);
+  scripts/ops/inicializar-tenant-maike.mjs exige --sistema e recusa banco diferente.
+  Antes de deploy:migrate, o operador confere o mesmo identificador na SUA conexão
+  (SELECT system_identifier FROM pg_control_system();).
+
+== Estado (SELECT agregado)
+_prisma_migrations: 18 concluídas, 0 com falha, 0 revertidas; checksums dos 14 gravados =
+  arquivos do repositório (4 "manual" históricos). Pendentes = as 7 esperadas.
+public: 40 tabelas (38 com cliente_id + Cliente + _prisma_migrations); RLS 40/40; grants anon/authenticated 0.
+Clientes: 1 · clientes distintos em todas as tabelas com dados: 1 · órfãos: 0
+Linhas por tabela (não nulas): AuditLog 79, AreaPastagem 5, CategoriaManejo 5, Marca 7,
+  EntidadeCodigoSequencia 8, Lote 4, MovimentacaoMapa 3, Categoria 2, Empresa 2, Setor 2,
+  GrupoAtividade 1, LancamentoTarefa 1, LocalEstoque 1, Permissao 1, Produto 1, TipoTarefa 1,
+  UnidadeMedida 1, Usuario 1, Cliente 1; todas as demais 0 (inclui RegistroAnexo).
+storage.objects: 0 · buckets: 0 · auth.users: 0
+FKs: todas ON DELETE RESTRICT, exceto HistoricoLancamentoTarefa → LancamentoTarefa (CASCADE);
+  auto-referência Categoria (categoria_pai_id, anulável); AuditLog → Usuario (FK composta).
+
+== Banco/backup
+Plano Pro (backups diários incluídos; PITR é add-on). O conector não lista backups: NÃO comprovado.
+O proprietário aceitou a perda definitiva dos dados de teste; rollback de aplicação NÃO restaura dados.

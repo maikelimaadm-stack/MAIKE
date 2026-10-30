@@ -2932,4 +2932,29 @@ Merge só pelo proprietário após auditoria.
 
 ---
 
-<!-- Próxima decisão: D-PROD-73 -->
+## D-PROD-73 — Inicialização única do MAIKE e sessão de tenant revalidada no banco
+
+**Missão:** `MAIKE-PR145-G4-RESET-DADOS-TESTE-MIGRATIONS-E-ADMIN-TENANT-01` (PR #145)\
+**Runbook:** `docs/engineering/MAIKE-CATALOGO-OPERACAO-SUPABASE.md` (§0c)\
+**Evidência:** `docs/engineering/evidencias/catalogo-icones-lotes-01/rollout-g4/`\
+**Autoridade:** o proprietário declarou que o banco MAIKE só tem dados de teste, aceitou perdê-los e autorizou, nesta conversa, três coisas: as 7 migrations, a limpeza desses dados e a conta inicial `maike` como administrador da fazenda.
+
+**Decisão:**
+
+1. **Sessão revalidada.** `app.autenticar` relê a conta no banco a cada requisição: precisa existir, estar ativa e pertencer ao `cliente_id` do token. Conta apagada ou desativada perde o acesso na hora (401), não quando o JWT expira. O defeito foi reproduzido (SR-02..04 davam 200).
+2. **Inicialização única** (`scripts/ops/inicializar-tenant-maike.mjs`). Não é um endpoint. O padrão é dry-run.
+   - **Travas:**
+     - o `system_identifier` precisa conferir com o banco esperado;
+     - o schema precisa estar completo, ou seja, as migrations vêm primeiro;
+     - nenhuma tabela pode estar fora do schema versionado;
+     - banco remoto exige liberação explícita;
+     - a execução exige terminal interativo e a frase digitada com o inventário exato.
+   - **O que faz:** apaga só as linhas de tenant (DELETE por `cliente_id`, na ordem das FKs, auto-referência anulada antes), numa única transação com tabelas travadas, inventário recontado e estado final conferido.
+   - **O que nunca toca:** `_prisma_migrations`, catálogo global, identidade do proprietário, `auth` e `storage`.
+   - **O que cria:** o cliente técnico `maike` e a conta `maike` (nome Maike) com papel `usuario`. A senha é digitada duas vezes com eco desligado, passa por uma política e é gravada só como hash bcrypt.
+3. **Elevação separada:** `papel-tenant.mjs` (D-PROD-71). A conta `maike` é **administrador da fazenda**, não o proprietário do produto (`AdminPrincipalMaike`, MAIKE Admin).
+4. **Prova de alvo sem segredo.** O runtime de produção comprovadamente usa o projeto `uuemcasqcdjucflulkne`: o delta de `pg_stat_statements` de `SELECT 1` bateu com as chamadas a `/health`. O terminal do operador prova o mesmo com `preflight-schema.mjs --sistema <id>`.
+
+---
+
+<!-- Próxima decisão: D-PROD-74 -->

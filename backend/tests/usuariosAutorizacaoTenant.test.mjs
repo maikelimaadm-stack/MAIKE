@@ -139,10 +139,11 @@ describe('administrador da fazenda (provisionado pelo caminho confiável)', () =
     assert.equal((await req('POST', '/usuarios', f.tokAdm, { nome: 'X', login: 'x-w', senha: 'senha-nova-123' })).statusCode, 403);
     assert.equal((await req('PATCH', `/usuarios/${f.comum.id}`, f.tokAdm, { nova_senha: 'nova-senha-123' })).statusCode, 403);
     await prisma().usuario.update({ where: { id: f.adm.usuario.id }, data: { papel_tenant: 'administrador', ativo: false } });
-    assert.equal((await req('POST', '/permissoes', f.tokAdm, { user_email: 'z@z' })).statusCode, 403);
+    // Conta desativada: desde a PR145-G4 a sessão inteira cai (401), não só o poder.
+    assert.equal((await req('POST', '/permissoes', f.tokAdm, { user_email: 'z@z' })).statusCode, 401);
     const propria = await req('PATCH', `/usuarios/${f.adm.usuario.id}`, f.tokAdm, { nova_senha: 'nova-senha-123', senha_atual: f.adm.credenciais.senha });
-    assert.equal(propria.statusCode, 403);
-    assert.equal(propria.json().code, 'USUARIO_INATIVO');
+    assert.equal(propria.statusCode, 401);
+    assert.equal(propria.json().code, 'TENANT_CONTEXT_REQUIRED');
   });
 });
 

@@ -566,12 +566,18 @@ describe('P4.1 — auditoria na mesma transação', () => {
     const { cliente, token } = await tenantAutenticado();
     const prisma = getPrismaClient();
 
-    // A FK composta de AuditLog exige [cliente_id, usuario_id] existentes.
-    // Apagar o usuário derruba a escrita de auditoria — e é isso que se quer
-    // observar: a transação inteira volta atrás.
-    await prisma.usuario.deleteMany({ where: { cliente_id: cliente.id } });
-
-    const r = await criarSetor(token);
+    // Derruba SÓ a escrita de auditoria e observa a transação inteira voltar
+    // atrás. (Antes apagava o usuário; desde a PR145-G4 a sessão de conta
+    // apagada nem passa da autenticação, então a falha é provocada no AuditLog.)
+    await prisma.$executeRawUnsafe(
+      `ALTER TABLE "AuditLog" ADD CONSTRAINT "teste_auditoria_falha" CHECK (false) NOT VALID`
+    );
+    let r;
+    try {
+      r = await criarSetor(token);
+    } finally {
+      await prisma.$executeRawUnsafe(`ALTER TABLE "AuditLog" DROP CONSTRAINT "teste_auditoria_falha"`);
+    }
 
     assert.equal(r.statusCode, 500);
     assert.equal(r.json().code, 'AUDIT_WRITE_FAILED');

@@ -10,6 +10,7 @@
 | R4 | `MAIKE-PR145-R4-SEGURANCA-USUARIOS-PERMISSOES-01` | administrador da fazenda server-owned, Permissões, endurecimento do admin, D-PROD-71 (§9) |
 | R5 | `MAIKE-PR145-R5-PRE-MERGE-ROLLOUT-SEGURO` | preflight de schema, ordem pré-merge, alvo protegido nos scripts, D-PROD-72 (§10) |
 | G3 | `MAIKE-PR145-G3-ROLLOUT-OPERACIONAL-CONTROLADO-01` | Fase A (preflight só leitura) concluída; parada aguardando autorização (§11) |
+| G4 | `MAIKE-PR145-G4-RESET-DADOS-TESTE-MIGRATIONS-E-ADMIN-TENANT-01` | sessão revalidada no banco, script de inicialização, prova de alvo, ensaio completo (§12) |
 
 **Base:** `main` `1344ffe2` · **Branch:** `claude/catalogo-global-icones-lotes-01` · **Merge:** exclusivo do proprietário.
 **Runbook:** `docs/engineering/MAIKE-CATALOGO-OPERACAO-SUPABASE.md`
@@ -363,3 +364,85 @@ Missão de **operação**, não de código. Não houve R6. Evidência em `eviden
 3. Confirmação de que o projeto Supabase "MAIKE" é o banco do `DATABASE_URL` de produção. Não foi provado por valor.
 
 **Risco novo:** os previews compartilham com produção o banco, o segredo de JWT, a API e a `MIGRATION_DATABASE_URL`. A proposta de isolamento está no runbook §0b; nada foi alterado.
+
+## 12. G4 — inicialização do MAIKE: limpeza de teste, migrations e conta `maike` (D-PROD-73)
+
+### 12.1 Prova de alvo, sem segredo
+
+O runtime de produção usa `POSTGRES_PRISMA_URL`, vinda da integração. A ligação dele com o projeto `uuemcasqcdjucflulkne` foi provada medindo `pg_stat_statements`: o contador de `SELECT 1` (a rota `/health`) acompanhou as chamadas feitas.
+
+| Rodada | Chamadas a `/health` | Delta medido |
+|---|---|---|
+| 1 | 17 | +17 |
+| 2 | 11 | +12 |
+| controle | 0 | +0 |
+| 3 | 23 | +24 |
+
+O `system_identifier` `7692130048193495360` amarra o terminal do operador ao mesmo banco.
+
+### 12.2 Inventário de produção (só leitura)
+
+- 1 cliente, ao qual pertencem todos os dados.
+- 126 linhas de teste em 19 tabelas.
+- 0 órfãos, 0 objetos no Storage, 0 em `auth.users`.
+- FKs: `RESTRICT`, com uma exceção em CASCADE e uma auto-referência anulável.
+
+### 12.3 Defeito bloqueante corrigido
+
+O JWT de uma conta apagada ou desativada continuava aceito (SR-02..04 davam 200). Agora `app.autenticar` relê a conta no banco.
+
+Duas suítes antigas foram ajustadas ao contrato novo, sem afrouxar nenhuma asserção:
+
+- **BE-P41-30:** a falha de auditoria passa a ser provocada por uma constraint temporária.
+- **U-07:** a conta desativada agora recebe 401.
+
+### 12.4 Script e testes
+
+`scripts/ops/inicializar-tenant-maike.mjs` (com lib) e `preflight-schema.mjs --sistema`.
+
+| Suíte | Resultado |
+|---|---|
+| `sessaoTenantRevalidada.test.mjs` | 4/4 |
+| `inicializarTenantMaikeCli.test.mjs` | 8/8 |
+
+Os casos de `inicializarTenantMaikeCli` cobrem:
+
+- dry-run;
+- alvo errado, sem TTY e banco remoto sem liberação;
+- schema incompleto e tabela inesperada;
+- frase errada, senhas diferentes e senhas fracas, sem eco;
+- falha no meio da transação desfazendo tudo;
+- sucesso com catálogo global e migrations intactos;
+- recusa do JWT antigo;
+- idempotência;
+- preflight `--sistema`.
+
+### 12.5 Ensaio completo (local)
+
+O ensaio partiu de um banco no estado de produção (18 migrations) com dados sintéticos no mesmo formato: 105 linhas, AuditLog com FK composta e Categoria pai/filha. Evidência em `rollout-g4/ensaio-local-sequencia-completa.txt`.
+
+**Migrations e limpeza:**
+
+1. preflight: exit 1;
+2. `deploy:migrate`: 7 aplicadas; na segunda vez, nenhuma pendente;
+3. preflight: exit 0;
+4. o JWT do usuário legado foi guardado;
+5. dry-run e execução;
+6. preflight `--exigir-admin-por-cliente`: exit 1 antes da elevação;
+7. `papel-tenant.mjs`;
+8. preflight `--exigir-admin-por-cliente`: exit 0.
+
+**Smoke da API depois:**
+
+- **sessão antiga:** JWT antigo 401 em tudo; login do usuário apagado 401;
+- **conta nova:** login `maike` 200; listas vazias 200; `/usuarios` com 1 conta `administrador`;
+- **poderes:** o administrador cria conta (201); a conta criada não cria (403);
+- **não tocados:** `AdminPrincipalMaike` = 0, catálogo intacto, 25 migrations.
+
+### 12.6 Produção
+
+**NÃO EXECUTADO.** Esta sessão não tem a conexão de migração nem um terminal interativo para a senha. Pela própria missão, isso é um STOP antes de migrar, apagar ou criar conta.
+
+A sequência exata do operador está no runbook §0c e já foi autorizada; não é preciso pedir autorização de novo.
+
+Merge: **NO-GO**, até a auditoria do arquiteto e a liberação manual.
