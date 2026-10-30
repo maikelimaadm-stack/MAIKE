@@ -3032,6 +3032,7 @@ Merge só pelo proprietário após auditoria.
    - Rerun no estado final: `JA_INICIALIZADO`; já inicializado com dados novos: ANOMALIA.
 3. **03:** deixa de exigir o nome de exibição `Maike` (a conta preservada mantém o nome que tinha).
 4. **Execução em produção** só com a frase do proprietário "pode manter a conta maike" nesta sessão; sem backup restaurável comprovado, a perda das linhas de teste é definitiva.
+5. **Resultado (30/10).** A frase foi dada, mas as 3 execuções pelo conector Supabase pararam no pedido de confirmação do próprio conector, que não chegou à tela do proprietário; nenhuma alcançou o banco (conferido por SELECT: impressão e conta inalteradas). O proprietário decidiu fazer por conta própria a promoção (`papel_tenant = 'administrador'` pelo Table Editor, sem AuditLog) e, se quiser, a limpeza pelo app. O 04 fica versionado e testado para uso futuro. O merge continua manual e do proprietário.
 
 ---
 

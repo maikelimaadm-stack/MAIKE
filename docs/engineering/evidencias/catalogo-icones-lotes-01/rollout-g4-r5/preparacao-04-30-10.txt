@@ -36,3 +36,17 @@ TESTES DIRECIONADOS (PostgreSQL 16 local descartável, 25 migrations, arquivos r
   backend/tests/sqlEditorBootstrap.test.mjs SE-01..10 10/10 (SE-10 agora espera "INICIALIZADO")
 
 EXECUÇÃO EM PRODUÇÃO DO 04: NÃO EXECUTADA — aguarda a frase do proprietário "pode manter a conta maike".
+
+TENTATIVAS DE EXECUÇÃO DO 04 (30/10, depois da autorização "pode manter a conta maike"):
+  3 tentativas pelo conector Supabase; nas 3, o conector pediu confirmação ao proprietário e o pedido
+  expirou (230 s) sem chegar à tela dele. Nenhuma alcançou o banco.
+  Conferência por SELECT depois das 3: impressão 48fb2392f0ff (inalterada), 126 linhas de tenant,
+  papel 'usuario', digital da conta 9387d55409 (inalterada), 25/25, 0 sem RLS, 0 grants.
+
+DECISÃO DO PROPRIETÁRIO (30/10): não rodar o 04. Ele mesmo fará, por conta própria:
+  1. promoção (obrigatória para gerenciar usuários e permissões): Supabase → Table Editor → Usuario →
+     linha do login maike → papel_tenant = 'administrador' (só essa coluna; id, login e senha_hash intactos).
+     Sem registro de AuditLog (diferença aceita em relação ao 04).
+  2. dados de teste: opcional; apagar depois pelo próprio MAIKE ou deixar.
+  3. merge da PR #145: decisão dele, possível antes da promoção. Com o banco em 25/25 o app novo não dá 500;
+     até a promoção, Usuários e Permissões respondem 403 para escrita. Recomendado: promover antes do merge.
