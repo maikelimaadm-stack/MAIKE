@@ -7,6 +7,7 @@ import {
   desativarIcone,
 } from "@/services/configuracaoIconeService";
 import { enviarArquivo } from "@/services/arquivoService";
+import { redimensionarParaIcone } from "@/lib/imagens/redimensionarIcone";
 import { getApiErrorMessage } from "@/apis/_core/ApiError";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -122,7 +123,7 @@ export default function GerenciadorIcones() {
 
     setUploadingFile(true);
     try {
-      const file_url = await enviarArquivo(file);
+      const file_url = await enviarArquivo(await redimensionarParaIcone(file));
       setFormData({ ...formData, icone_url: file_url });
       toast.success('✅ Imagem carregada!');
     } catch (error) {
@@ -367,7 +368,7 @@ export default function GerenciadorIcones() {
                       if (!file) return;
                       setUploadingFile(true);
                       try {
-                        const file_url = await enviarArquivo(file);
+                        const file_url = await enviarArquivo(await redimensionarParaIcone(file));
                         setFormData({ ...formData, sub_icone_url: file_url });
                         toast.success('✅ Sub ícone carregado!');
                       } catch (error) {

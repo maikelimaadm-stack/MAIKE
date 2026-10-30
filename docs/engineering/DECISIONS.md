@@ -3103,4 +3103,21 @@ Merge só pelo proprietário após auditoria.
 
 ---
 
-<!-- Próxima decisão: D-PROD-81 -->
+## D-PROD-81 — Ícones se ajustam sozinhos no envio
+
+**Contexto:** o proprietário pediu que qualquer imagem escolhida se ajuste sozinha ao espaço do ícone. A exibição já usava `object-fit: contain` (sem cortar). Mas o arquivo era guardado inteiro: o primeiro ícone de produção tinha 1000 px, para um marcador de dezenas de pixels.
+
+**Decisão:** em Configurações Gerais → Ícones, o ícone principal e o subícone são reduzidos no navegador antes do envio (`src/lib/imagens/redimensionarIcone.js`):
+- cabem em 256×256, mantendo a proporção, sem ampliar e sem cortar;
+- saem em PNG com transparência;
+- SVG, não-imagem ou falha do navegador seguem com o arquivo original.
+
+Provas:
+- ICO-01..04 (smoke);
+- ensaio no Chromium: 1000×500 → 256×128, 11,8 KB → 1,2 KB.
+
+Ícones já cadastrados só mudam se forem reenviados.
+
+---
+
+<!-- Próxima decisão: D-PROD-82 -->
