@@ -50,7 +50,7 @@ const ehObjeto = (valor) => Boolean(valor) && typeof valor === 'object' && !Arra
 
 /**
  * @typedef {{token: string, usuario: {id: string, login?: string, nome?: string}, cliente_id: string}} RespostaDeLogin
- * @typedef {{cliente_id: string, usuario_id: string, login: string, request_id?: string}} ContextoDeSessao
+ * @typedef {{cliente_id: string, usuario_id: string, login: string, administrador_fazenda?: boolean, request_id?: string}} ContextoDeSessao
  */
 
 /**
@@ -195,6 +195,9 @@ export const obterUsuarioAtualLegado = async () => {
     id: contexto.usuario_id,
     login,
     email: login,
+    // Papel da conta na fazenda, relido do banco pelo servidor (D-PROD-77).
+    // Decide só o menu; cada ação administrativa é reautorizada no backend.
+    administrador_fazenda: contexto.administrador_fazenda === true,
   };
 };
 

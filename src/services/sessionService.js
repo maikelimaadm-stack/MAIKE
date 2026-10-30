@@ -201,13 +201,15 @@ export const permissaoMinimaNativa = (usuario) => {
 };
 
 /**
- * O usuário é administrador?
+ * O usuário é administrador da fazenda?
  *
- * Mesma regra em `Layout` e `ConfiguracoesGerais`: papel `admin` no provider
- * **ou** `is_admin` na permissão. Estava duplicada nas duas telas.
+ * Mesma regra em `Layout` e `ConfiguracoesGerais`. Desde a D-PROD-77 vale SÓ o
+ * papel lido do banco pelo servidor (`Usuario.papel_tenant`): `Permissao.is_admin`
+ * é preferência de menu editável e deixou de ser autoridade (D-PROD-71) — e a
+ * permissão mínima nativa o marca como `true` para quem não tem registro, o que
+ * abria Usuários/Permissões no menu de qualquer conta.
  */
-export const ehAdministrador = (usuario, permissao) =>
-  usuario?.role === 'admin' || permissao?.is_admin === true;
+export const ehAdministrador = (usuario) => usuario?.administrador_fazenda === true;
 
 /**
  * Grava a permissão de um usuário, criando ou atualizando.

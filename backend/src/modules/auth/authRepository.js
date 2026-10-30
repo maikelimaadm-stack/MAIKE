@@ -89,3 +89,21 @@ export const buscarUsuarioAtivoPorId = async (clienteId, usuarioId) => {
     select: { id: true, cliente_id: true, nome: true, login: true, ativo: true },
   });
 };
+
+/**
+ * Papel da conta NA FAZENDA, lido do registro atual (PR147, D-PROD-77).
+ *
+ * Só informa a interface (menu); quem autoriza continua sendo o backend, a
+ * cada ação, em `exigirAdminTenant`.
+ *
+ * @param {string} clienteId
+ * @param {string} usuarioId
+ */
+export const buscarPapelTenant = async (clienteId, usuarioId) => {
+  const prisma = getPrismaClient();
+  const usuario = await prisma.usuario.findFirst({
+    where: { id: usuarioId, cliente_id: clienteId, ativo: true },
+    select: { papel_tenant: true },
+  });
+  return usuario?.papel_tenant ?? null;
+};
