@@ -33,7 +33,7 @@ export default function ConfiguracoesGerais() {
     [permissoes, currentUser?.email]
   );
 
-  const isAdmin = ehAdministrador(currentUser, permissaoAtual);
+  const isAdmin = ehAdministrador(currentUser);
 
   if (!isAdmin) {
     return (

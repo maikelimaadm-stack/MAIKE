@@ -10,7 +10,7 @@
  */
 
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
-import { autenticar, montarPayloadDeSessao, ttlDaSessao } from './authService.js';
+import { autenticar, ehAdministradorDaFazenda, montarPayloadDeSessao, ttlDaSessao } from './authService.js';
 
 const LOGIN_SCHEMA = {
   body: {
@@ -52,6 +52,8 @@ export const registrarAuthRoutes = async (app) => {
       cliente_id: auth.clienteId,
       usuario_id: auth.usuarioId,
       login: auth.login,
+      // Só para o menu: relido do banco a cada chamada, nunca do token.
+      administrador_fazenda: await ehAdministradorDaFazenda(auth),
       request_id: request.contexto.requestId,
     };
   });

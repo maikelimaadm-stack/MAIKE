@@ -3036,4 +3036,21 @@ Merge só pelo proprietário após auditoria.
 
 ---
 
-<!-- Próxima decisão: D-PROD-77 -->
+## D-PROD-77 — Menu administrativo pelo papel real da fazenda
+
+**Missão:** `MAIKE-MENU-ADMIN-PAPEL-SERVIDOR-01`\
+**Relatório:** `docs/engineering/MAIKE-MENU-ADMIN-PAPEL-SERVIDOR-REPORT.md`
+
+**Contexto:** o menu decidia quem é administrador por `Permissao.is_admin` (ou `role === 'admin'`). A permissão mínima nativa marca `is_admin: true` para quem não tem registro, e por isso Usuários, Permissões e Configurações Gerais apareciam para qualquer conta. O backend já recusava as ações (403, D-PROD-71); o menu é que mentia.
+
+**Decisão:**
+
+1. `GET /auth/contexto` devolve `administrador_fazenda`, relido de `Usuario.papel_tenant` no banco a cada chamada (nunca do token). Serve só para a interface.
+2. Na SPA, `ehAdministrador(usuario)` passa a valer SÓ `administrador_fazenda`. `is_admin` continua como preferência de menu das demais telas, mas não decide mais quem é administrador.
+3. `PAGINAS_SO_ADMINISTRADOR` (Usuários, Permissões, Configurações Gerais) some do menu para quem não é administrador, e a URL direta mostra "Tela bloqueada".
+4. A autorização real continua em cada rota (`exigirAdminTenant`); este ajuste não a substitui.
+5. **Fora do escopo:** o catálogo de ícones do mapa é administrado no MAIKE Admin (`apps/admin`, D-PROD-70), um app separado com login próprio do proprietário do produto. Ele ainda não está no ar (a API responde `ADMIN_INDISPONIVEL`); colocá-lo no ar é a próxima missão.
+
+---
+
+<!-- Próxima decisão: D-PROD-78 -->

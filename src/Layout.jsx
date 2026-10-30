@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { listEmpresas } from "@/services/empresaService";
-import { getCurrentUser, getCachedUser, listarPermissoes, permissaoDoUsuario, permissaoMinimaNativa } from "@/services/sessionService";
+import { ehAdministrador, getCurrentUser, getCachedUser, listarPermissoes, permissaoDoUsuario, permissaoMinimaNativa } from "@/services/sessionService";
 import { useAuth } from "@/lib/AuthContext";
 import { useBootSplash } from "@/lib/bootSplashContext";
 import {
@@ -47,7 +47,7 @@ import {
 
 import BackButton from "@/components/common/BackButton";
 import PermissionAlertDialog from "@/components/common/PermissionAlertDialog";
-import { DEFAULT_MENU, flattenMenuPages, findMenuItemByUrl, getAllPages } from "@/lib/menuConfig";
+import { DEFAULT_MENU, PAGINAS_SO_ADMINISTRADOR, flattenMenuPages, findMenuItemByUrl, getAllPages } from "@/lib/menuConfig";
 import { ACTION_LABELS, canAccessModule, canAccessPage, canPerformAction, detectPermissionAction, normalizePermissionRecord } from "@/lib/permissions";
 import { deveBloquearCliqueMenu } from "@/lib/menuNavigation";
 
@@ -204,7 +204,13 @@ export default function Layout({ children, currentPageName }) {
   const { logout: handleLogout } = useAuth();
 
   const normalizedPermissions = React.useMemo(() => normalizePermissionRecord(userPermissions), [userPermissions]);
-  const isAdminUser = React.useMemo(() => Boolean(user?.role === 'admin' || normalizedPermissions?.is_admin), [user?.role, normalizedPermissions]);
+  // Papel real da conta na fazenda, vindo do servidor (D-PROD-77) — nunca `is_admin`.
+  const isAdminUser = React.useMemo(() => ehAdministrador(user), [user]);
+  const podeVerPagina = React.useCallback(
+    (pageId, moduleId) =>
+      (!PAGINAS_SO_ADMINISTRADOR.includes(pageId) || isAdminUser) && canAccessPage(normalizedPermissions, pageId, moduleId),
+    [isAdminUser, normalizedPermissions]
+  );
 
   const openPermissionDialog = (title, description, redirectTo = null) => {
     permissionRedirectRef.current = redirectTo;
@@ -230,7 +236,7 @@ export default function Layout({ children, currentPageName }) {
         return { ...item, submenu: filteredSubmenu };
       }
 
-      if (!canAccessPage(normalizedPermissions, item.id, moduleId)) return null;
+      if (!podeVerPagina(item.id, moduleId)) return null;
       return item;
     }).
     filter(Boolean);
@@ -238,7 +244,7 @@ export default function Layout({ children, currentPageName }) {
 
   const menuItemsFiltered = React.useMemo(
     () => filterMenuByPermissions(menuItems),
-    [menuItems, normalizedPermissions]
+    [menuItems, normalizedPermissions, podeVerPagina]
   );
 
   const currentMenuPage = React.useMemo(() => findMenuItemByUrl(menuItems, currentPageName), [menuItems, currentPageName]);
@@ -256,7 +262,7 @@ export default function Layout({ children, currentPageName }) {
   useEffect(() => {
     if (!currentMenuPage || userPermissions === null) return;
     const gateKey = `${location.pathname}:${currentMenuPage.id}`;
-    if (canAccessPage(normalizedPermissions, currentMenuPage.id, currentMenuPage.moduleId)) {
+    if (podeVerPagina(currentMenuPage.id, currentMenuPage.moduleId)) {
       permissionGateRef.current = null;
       setPermissionDialog((prev) => (prev.open ? { ...prev, open: false } : prev));
       return;
@@ -269,7 +275,7 @@ export default function Layout({ children, currentPageName }) {
       "Você não tem permissão para visualizar esta tela.",
       createPageUrl(firstAllowedPage?.url || PRIMARY_PAGE)
     );
-  }, [currentMenuPage, normalizedPermissions, firstAllowedPage, userPermissions, location.pathname]);
+  }, [currentMenuPage, normalizedPermissions, podeVerPagina, firstAllowedPage, userPermissions, location.pathname]);
 
   useEffect(() => {
     if (!currentMenuPage || currentMenuPage.id === 'pec-mapa-geral') return;

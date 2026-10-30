@@ -52,6 +52,12 @@ export const DEFAULT_MENU = [
   },
 ];
 
+/**
+ * Telas que só o administrador da fazenda vê no menu e abre (D-PROD-77). O
+ * backend já recusa as ações (403); aqui elas nem aparecem para os demais.
+ */
+export const PAGINAS_SO_ADMINISTRADOR = Object.freeze(['adm-usuarios', 'adm-permissoes', 'adm-configuracoes']);
+
 export const flattenMenuPages = (menuItems = DEFAULT_MENU) => {
   const pages = [];
 

@@ -606,10 +606,11 @@ describe('SE — sessão e permissões', () => {
     expect(localStorage.getItem('offline_current_user')).toBe(null);
   });
 
-  it('SE6 — admin por papel ou por permissão', () => {
-    expect(sessionSvc.ehAdministrador({ role: 'admin' }, null)).toBe(true);
-    expect(sessionSvc.ehAdministrador({ role: 'user' }, { is_admin: true })).toBe(true);
-    expect(sessionSvc.ehAdministrador({ role: 'user' }, { is_admin: false })).toBe(false);
+  it('SE6 — admin só pelo papel da fazenda vindo do servidor; is_admin não é autoridade (D-PROD-77)', () => {
+    expect(sessionSvc.ehAdministrador({ administrador_fazenda: true })).toBe(true);
+    expect(sessionSvc.ehAdministrador({ administrador_fazenda: false }, { is_admin: true })).toBe(false);
+    expect(sessionSvc.ehAdministrador({ role: 'admin' })).toBe(false);
+    expect(sessionSvc.ehAdministrador(null)).toBe(false);
   });
 
   it('SE7 — permissão nova carrega os cinco campos e o nome do usuário', async () => {

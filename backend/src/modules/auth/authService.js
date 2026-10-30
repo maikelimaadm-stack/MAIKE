@@ -18,7 +18,8 @@ import bcrypt from 'bcryptjs';
 
 import { env } from '../../config/env.js';
 import { AppError } from '../../shared/errors/AppError.js';
-import { buscarUsuarioAtivoPorLogin } from './authRepository.js';
+import { PAPEL_ADMIN_TENANT } from '../../shared/auth/exigirAdminTenant.js';
+import { buscarPapelTenant, buscarUsuarioAtivoPorLogin } from './authRepository.js';
 
 /** Custo do bcrypt. 10 é o equilíbrio usual entre segurança e latência. */
 const BCRYPT_ROUNDS = 10;
@@ -91,3 +92,12 @@ export const montarPayloadDeSessao = ({ clienteId, usuarioId, login }) => ({
 });
 
 export const ttlDaSessao = () => env.authTokenTtl;
+
+/**
+ * A conta é administradora da fazenda? Só para a interface decidir o menu;
+ * a autorização real continua em cada rota (`exigirAdminTenant`).
+ *
+ * @param {{clienteId: string, usuarioId: string}} auth
+ */
+export const ehAdministradorDaFazenda = async ({ clienteId, usuarioId }) =>
+  (await buscarPapelTenant(clienteId, usuarioId)) === PAPEL_ADMIN_TENANT;
