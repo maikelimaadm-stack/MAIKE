@@ -13,6 +13,37 @@
   - A decisão abaixo fica registrada aqui. Ela entra em `DECISIONS.md` depois
     do merge da #149, para não colidir.
 
+## Editar/excluir só sem histórico (D-PROD-86)
+
+**Pedido do proprietário:** edição e exclusão do lançamento só se não houver
+nada depois da entrada (movimento, manejo ou registro). Com histórico, "não
+fica nem liberado".
+
+**Histórico = qualquer uma destas condições:**
+- lote gerado por manejo;
+- registro que cita o lote (mapa, pecuária, suplementação, tarefa, manejo técnico);
+- estado divergente da entrada (saldo, área ou categoria).
+
+| Cenário | BEFORE (`main` `46664043`, medido) | AFTER |
+|---|---|---|
+| Lote 1 com transferência: PATCH de observações, raça, origem, motivo, data, GTA, idade ou sistema | 200 (o lançamento mudava depois da movimentação) | 409 `LOTE_UPDATE_BLOCKED` (`vinculo: movimentacoes_mapa`), registro intacto |
+| Lote 2 (gerado por manejo): PATCH de origem | 400 (só a classe da origem era checada) | 409 `LOTE_UPDATE_BLOCKED` (`lote_gerado_por_manejo`) |
+| Destino de unificação (recebeu cabeças, sem registro próprio): editar | 200 | 409 (`lote_com_manejo`) |
+| Destino de unificação: excluir | — | 409 `LOTE_DELETE_BLOCKED` (`lote_com_manejo`) |
+| Lote sem nada depois da entrada | 200 / 204 | 200 / 204 (inalterado) |
+| Manejo do mapa no lote com histórico (saldo, status, nome) | 200 | 200 (inalterado) |
+| Tela: Editar/Excluir em lote com histórico | abria a edição / pedia confirmação | aviso "Lote com histórico", nada abre; formulário só leitura |
+
+**Testes:**
+- backend (PostgreSQL 16): `loteDerivadoIntegridade` 23/23 com os arquivos vizinhos;
+  - contra `main`: 3 falham (200, 400, 200);
+  - controles livre e mapa passam nos dois.
+- smoke: `cadastroLotesEntrada` 8/8 e `lotesSaldoMovimentacoes` 33/33.
+
+**Limite conhecido:** nome, status e identificador são escritos também pelo
+mapa (renomear, inativar). O servidor não os bloqueia, para não quebrar os
+manejos; a trava deles é na tela do Cadastro.
+
 ## Cadastro = entrada (slice corretivo pós-#151, D-PROD-85)
 
 **Pedido do proprietário:** o Cadastro de Lotes é o lançamento da entrada do

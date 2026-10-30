@@ -9,7 +9,7 @@ import { getPrismaClient } from '../../database/prismaClient.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { registrarEvento } from '../auditoria/auditService.js';
 import { reservarNumero, ESCOPO_TENANT } from '../sequencias/entidadeCodigoService.js';
-import { AppError, loteNotFound, loteDeleteBlocked, setorNotFound, areaNotFound } from '../../shared/errors/AppError.js';
+import { AppError, loteNotFound, loteDeleteBlocked, loteUpdateBlocked, setorNotFound, areaNotFound } from '../../shared/errors/AppError.js';
 import { origemDerivadaDeManejo } from './loteOrigem.js';
 import { buscarSetor } from '../setores/setorRepository.js';
 import { buscarArea } from '../areas/areaPastagemRepository.js';
@@ -186,6 +186,42 @@ const resolverArea = async (tx, clienteId, areaId) => {
   return { id: areaId, nome: area.nome };
 };
 
+/**
+ * Campos que só o Cadastro de Lotes escreve (lançamento da entrada). Os manejos
+ * do mapa nunca os enviam: escrevem saldo, status, área atual, categoria
+ * atual, sexo, peso atual, nome e identificador.
+ */
+const CAMPOS_SO_DO_CADASTRO = Object.freeze(new Set([
+  'idade_media_meses', 'setor_id', 'raca_predominante', 'sistema_produtivo', 'data_entrada',
+  'motivo_entrada', 'motivo_ajuste', 'motivo_outros', 'origem', 'fornecedor_id', 'fornecedor_nome',
+  'nota_fiscal', 'chave_nfe', 'numero_gta', 'cidade_origem', 'estado_origem',
+  'valor_total_compra', 'valor_por_cabeca', 'valor_frete', 'observacoes', 'campos_personalizados',
+]));
+
+/**
+ * O lote já tem algo depois da entrada? (D-PROD-86). Devolve o motivo
+ * estável ou `null`. Vale para editar o lançamento e para excluir:
+ * - gerado por manejo: as cabeças vieram de outro lote;
+ * - registro vinculado (movimentação, suplementação, tarefa, manejo técnico);
+ * - estado divergente da entrada: o lote recebeu ou perdeu cabeças, mudou de
+ *   área ou de categoria. Cobre o destino de uma unificação, que não tem
+ *   registro próprio que o cite.
+ * @param {import('@prisma/client').Prisma.TransactionClient} tx
+ * @param {string} clienteId
+ * @param {Record<string, any>} lote
+ * @returns {Promise<string | null>}
+ */
+const motivoDeHistoricoDoLote = async (tx, clienteId, lote) => {
+  if (origemDerivadaDeManejo(lote.origem)) return 'lote_gerado_por_manejo';
+  const vinculo = await motivoBloqueioExclusaoLote(tx, clienteId, lote.id);
+  if (vinculo) return vinculo;
+  const divergiu =
+    lote.quantidade_cabecas !== lote.quantidade_entrada ||
+    (lote.area_atual_id ?? null) !== (lote.area_entrada_id ?? null) ||
+    (Boolean(lote.categoria_manejo_entrada_id) && lote.categoria_manejo_id !== lote.categoria_manejo_entrada_id);
+  return divergiu ? 'lote_com_manejo' : null;
+};
+
 /** @param {{auth: import('../../shared/auth/authContext.js').AuthContext}} contexto */
 export const listar = async (contexto) => {
   const auth = exigirAuthContext(contexto?.auth);
@@ -313,6 +349,17 @@ export const atualizar = async (contexto, id, entrada) => {
     /** @type {Record<string, unknown>} */
     const patch = { ...campos };
 
+    // Editar o lançamento da entrada só antes de qualquer movimentação, manejo
+    // ou registro (D-PROD-86). Escritas dos manejos do mapa não tocam nestes
+    // campos e seguem livres.
+    const camposDoCadastro = Object.keys(patch).filter((campo) => CAMPOS_SO_DO_CADASTRO.has(campo));
+    if (camposDoCadastro.length) {
+      const motivoHistorico = await motivoDeHistoricoDoLote(tx, auth.clienteId, anterior);
+      if (motivoHistorico) {
+        throw loteUpdateBlocked(motivoHistorico, { details: { id, campos: camposDoCadastro } });
+      }
+    }
+
     // A origem decide se o lote é entrada no rebanho ou cabeças vindas de
     // outro lote. Trocá-la de um lado para o outro mudaria a conta histórica
     // em silêncio (500 + 50 = 550). Troca dentro da mesma classe segue livre
@@ -377,14 +424,11 @@ export const excluir = async (contexto, id) => {
     const anterior = await buscarLote(auth.clienteId, id, tx);
     if (!anterior) throw loteNotFound();
 
-    // Lote gerado por manejo: a transferência que o criou referencia só o lote
-    // de origem, então não há vínculo próprio a encontrar — e apagá-lo sumiria
-    // com cabeças sem estornar a origem. Desfaz-se pelo histórico do mapa.
-    if (origemDerivadaDeManejo(anterior.origem)) {
-      throw loteDeleteBlocked('lote_gerado_por_manejo', { details: { id } });
-    }
-
-    const motivo = await motivoBloqueioExclusaoLote(tx, auth.clienteId, id);
+    // Excluir só o lançamento que não teve nada depois (D-PROD-86). Lote gerado
+    // por manejo: a transferência que o criou cita só a origem e apagá-lo
+    // sumiria com cabeças. Estado divergente da entrada: houve manejo, mesmo
+    // sem registro que cite este lote (ex.: destino de unificação).
+    const motivo = await motivoDeHistoricoDoLote(tx, auth.clienteId, anterior);
     if (motivo) {
       throw loteDeleteBlocked(motivo, { details: { id } });
     }

@@ -19,6 +19,7 @@ import {
   ehEntradaNoRebanho,
   ehLoteDerivadoDeManejo,
   entradaHistoricaDoLote,
+  motivoDeHistoricoDoLote,
   quantidadeDeCabecas,
 } from "@/domain/lotes/saldoLote";
 import * as saldoLote from "@/domain/lotes/saldoLote";
@@ -108,6 +109,25 @@ describe("domain/lotes/saldoLote — só a entrada (caso real: lançou 500, depo
       expect(ehLoteDerivadoDeManejo({ origem }), String(origem)).toBe(false);
     }
     expect(entradaHistoricaDoLote({ origem: "Nascimento", quantidade_entrada: 3, quantidade_cabecas: 3 })).toBe(3);
+  });
+});
+
+describe("motivoDeHistoricoDoLote — editar/excluir só sem nada depois da entrada (D-PROD-86)", () => {
+  const livre = { id: "x", origem: "COMPRA", quantidade_entrada: 40, quantidade_cabecas: 40, area_entrada_id: "a", area_atual_id: "a", categoria_manejo_entrada_id: "c", categoria_manejo_id: "c" };
+  it("sem nada depois: null (editável e excluível)", () => {
+    expect(motivoDeHistoricoDoLote(livre, new Set())).toBeNull();
+    expect(motivoDeHistoricoDoLote({ ...livre, quantidade_cabecas: "40" }, new Set())).toBeNull();
+  });
+  it("registro vinculado, gerado por manejo, ou estado divergente: bloqueia com motivo estável", () => {
+    expect(motivoDeHistoricoDoLote(livre, new Set(["x"]))).toBe("registros_vinculados");
+    expect(motivoDeHistoricoDoLote({ ...livre, origem: "MOVIMENTAÇÃO" }, new Set())).toBe("lote_gerado_por_manejo");
+    expect(motivoDeHistoricoDoLote({ ...livre, quantidade_cabecas: 30 }, new Set())).toBe("lote_com_manejo"); // saída
+    expect(motivoDeHistoricoDoLote({ ...livre, quantidade_cabecas: 80 }, new Set())).toBe("lote_com_manejo"); // recebeu (unificação)
+    expect(motivoDeHistoricoDoLote({ ...livre, area_atual_id: "b" }, new Set())).toBe("lote_com_manejo"); // mudou de área
+    expect(motivoDeHistoricoDoLote({ ...livre, categoria_manejo_id: "d" }, new Set())).toBe("lote_com_manejo"); // mudou de categoria
+  });
+  it("caso real: lote 1 (500 → 450) bloqueado mesmo sem a lista de registros", () => {
+    expect(motivoDeHistoricoDoLote(LOTE_1, new Set())).toBe("lote_com_manejo");
   });
 });
 

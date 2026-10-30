@@ -143,6 +143,10 @@ export const BACKEND_ONLY_CODES = Object.freeze({
     http: 409,
     meaning: 'lote possui registros vinculados e não pode ser excluído',
   },
+  LOTE_UPDATE_BLOCKED: {
+    http: 409,
+    meaning: 'lote já tem movimentação, manejo ou registro depois da entrada e não pode ser editado pelo cadastro',
+  },
   CATEGORIA_NOT_FOUND: { http: 404, meaning: 'id não identifica categoria deste tenant' },
   CATEGORIA_PAI_NOT_FOUND: { http: 404, meaning: 'categoria pai não pertence a este tenant' },
   CATEGORIA_DELETE_BLOCKED: {

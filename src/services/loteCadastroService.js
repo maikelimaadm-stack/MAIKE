@@ -29,7 +29,7 @@ import { listLancamentos } from '@/apis/tarefas';
 import { listManejosTecnicos } from '@/apis/rebanho';
 import { API_ERROR_CODES } from '@/apis/_core/ApiError';
 import { assertExclusaoPermitida } from './deleteGuardService';
-import { ehLoteDerivadoDeManejo } from '@/domain/lotes/saldoLote';
+import { ehLoteDerivadoDeManejo, motivoDeHistoricoDoLote } from '@/domain/lotes/saldoLote';
 
 /**
  * Origens geradas pelo próprio sistema.
@@ -121,6 +121,23 @@ export const listarIdsDeLotesComMovimentacao = async (empresaId) => {
     .filter((mov) => mov.lote_id)
     .map((mov) => mov.lote_id);
   return [...new Set(ids)];
+};
+
+/**
+ * Ids de lotes da empresa citados por QUALQUER registro que bloqueia excluir
+ * (movimentação do mapa, movimentação pecuária, suplementação, tarefa, manejo
+ * técnico). Usado para travar editar/excluir no Cadastro (D-PROD-86).
+ * @param {string} [empresaId]
+ * @returns {Promise<Set<string>>}
+ */
+export const listarIdsDeLotesComRegistros = async (empresaId) => {
+  const listas = await Promise.all(Object.values(CARREGADORES_DE_DEPENDENCIA).map((carregar) => carregar()));
+  const ids = listas
+    .flatMap((lista) => daEmpresa(Array.isArray(lista) ? lista : [], empresaId))
+    .map((registro) => registro?.lote_id)
+    .filter(Boolean)
+    .map(String);
+  return new Set(ids);
 };
 
 /** @returns {Promise<any[]>} */
@@ -219,7 +236,9 @@ export const excluirLotes = async (ids, { lotes = [] } = {}) => {
     // Lote gerado por manejo carrega cabeças que saíram de outro lote: apagá-lo
     // pelo cadastro sumiria com elas sem estornar a origem. Desfaz-se pelo
     // histórico de movimentações do mapa.
-    if (ehLoteDerivadoDeManejo(atual)) {
+    // Lote gerado por manejo, ou que já mudou desde a entrada (D-PROD-86):
+    // o servidor também recusa; aqui evita a chamada.
+    if (ehLoteDerivadoDeManejo(atual) || (atual && motivoDeHistoricoDoLote(atual))) {
       bloqueados.push({ id, code: API_ERROR_CODES.LOTE_DELETE_BLOCKED });
       continue;
     }

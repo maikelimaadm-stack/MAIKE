@@ -8,11 +8,12 @@
  */
 import React from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, waitFor, cleanup } from "@testing-library/react";
+import { render, screen, waitFor, cleanup, fireEvent, act } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 const serviceMock = {
   listarLotes: vi.fn(),
+  listarIdsDeLotesComRegistros: vi.fn(),
   criarLote: vi.fn(),
   atualizarLote: vi.fn(),
   excluirLotes: vi.fn(),
@@ -23,6 +24,7 @@ vi.mock("@/services/loteCadastroService", async (importOriginal) => {
   return {
     ...actual,
     listarLotes: (...a) => serviceMock.listarLotes(...a),
+    listarIdsDeLotesComRegistros: (...a) => serviceMock.listarIdsDeLotesComRegistros(...a),
     criarLote: (...a) => serviceMock.criarLote(...a),
     atualizarLote: (...a) => serviceMock.atualizarLote(...a),
     excluirLotes: (...a) => serviceMock.excluirLotes(...a),
@@ -35,9 +37,10 @@ vi.mock("@/services/loteManejoService", () => new Proxy({}, { get: () => manejoM
 
 vi.mock("@/hooks/useEmpresaSelecionadaId", () => ({ useEmpresaSelecionadaId: () => "emp-1" }));
 vi.mock("@/services/mapaCacheService", () => ({ refreshMapaCacheEntry: vi.fn().mockResolvedValue(undefined) }));
+const notifyWarning = vi.fn();
 vi.mock("@/lib/maikeNotify", () => ({
   notifySuccess: vi.fn(),
-  notifyWarning: vi.fn(),
+  notifyWarning: (...a) => notifyWarning(...a),
   notifyError: vi.fn(),
   notifyExclusoesEmpilhadas: vi.fn(),
 }));
@@ -68,6 +71,8 @@ const renderPagina = async () => {
 beforeEach(() => {
   for (const fn of Object.values(serviceMock)) fn.mockReset();
   manejoMock.mockReset();
+  notifyWarning.mockReset();
+  serviceMock.listarIdsDeLotesComRegistros.mockResolvedValue(new Set());
   gradePropsSpy.mockClear();
   serviceMock.listarLotes.mockResolvedValue([LOTE_1, LOTE_2]);
 });
@@ -113,5 +118,47 @@ describe("Cadastro de Lotes — só entradas, nada do que acontece depois", () =
     const colunas = gradePropsSpy.mock.calls.at(-1)[0].columns;
     expect(colunas.map((c) => c.label).join("|")).not.toMatch(/moviment|saldo/i);
     expect(colunas.find((c) => c.id === "cabecas").label).toBe("Qtd. entrada");
+  });
+});
+
+describe("Editar/excluir só sem nada depois da entrada (D-PROD-86)", () => {
+  const LIVRE = { id: "l9", numero_lote: "9", nome: "NOVO", origem: "COMPRA", empresa_id: "emp-1", status: "Ativo", quantidade_entrada: 40, quantidade_cabecas: 40, area_entrada_id: "a1", area_atual_id: "a1" };
+  const selecionar = async (id) => {
+    await waitFor(() => expect(gradePropsSpy).toHaveBeenCalled());
+    await act(async () => gradePropsSpy.mock.calls.at(-1)[0].onSelectionChange([id]));
+  };
+
+  it("lote 1 (com movimentação registrada): Editar e Excluir não liberam; aviso explica", async () => {
+    serviceMock.listarLotes.mockResolvedValue([{ ...LOTE_1, area_entrada_id: "a1", area_atual_id: "a1" }, LIVRE]);
+    serviceMock.listarIdsDeLotesComRegistros.mockResolvedValue(new Set(["l1"]));
+    await renderPagina();
+    await waitFor(() => expect(serviceMock.listarIdsDeLotesComRegistros).toHaveBeenCalled());
+    await selecionar("l1");
+    fireEvent.click(screen.getByRole("button", { name: /Editar/ }));
+    expect(notifyWarning).toHaveBeenCalledWith("Lote com histórico", expect.stringMatching(/não pode ser editado/));
+    expect(screen.queryByText("EDIÇÃO DE REGISTRO")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /Excluir/ }));
+    expect(notifyWarning).toHaveBeenLastCalledWith("Lote com histórico", expect.stringMatching(/não pode ser excluído/));
+    expect(screen.queryByText("Confirmar exclusão")).toBeNull();
+    expect(serviceMock.excluirLotes).not.toHaveBeenCalled();
+  });
+
+  it("lote que mudou desde a entrada sem registro que o cite (destino de unificação): também travado", async () => {
+    serviceMock.listarLotes.mockResolvedValue([{ ...LIVRE, quantidade_cabecas: 80 }]);
+    await renderPagina();
+    await waitFor(() => expect(serviceMock.listarIdsDeLotesComRegistros).toHaveBeenCalled());
+    await selecionar("l9");
+    fireEvent.click(screen.getByRole("button", { name: /Editar/ }));
+    expect(notifyWarning).toHaveBeenCalledWith("Lote com histórico", expect.stringMatching(/não pode ser editado/));
+  });
+
+  it("lote sem nada depois da entrada: Editar abre a edição e Excluir pede confirmação", async () => {
+    serviceMock.listarLotes.mockResolvedValue([LIVRE]);
+    await renderPagina();
+    await waitFor(() => expect(serviceMock.listarIdsDeLotesComRegistros).toHaveBeenCalled());
+    await selecionar("l9");
+    fireEvent.click(screen.getByRole("button", { name: /Excluir/ }));
+    expect(notifyWarning).not.toHaveBeenCalled();
+    expect((await screen.findAllByText("Confirmar exclusão")).length).toBeGreaterThan(0);
   });
 });
