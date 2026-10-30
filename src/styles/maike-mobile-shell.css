@@ -918,3 +918,250 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* ── Seletor (MgSelect) na folha de baixo ──────────────────────────────── */
+.mgs__busca {
+  flex-shrink: 0;
+  margin: 0 12px 8px;
+}
+
+.mgs__count {
+  flex-shrink: 0;
+  padding: 0 14px 4px;
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.mgs__lista {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  overflow-y: auto;
+  padding: 4px 8px 8px;
+}
+
+.mgs__op {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 46px;
+  margin: 1px 0;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #334155;
+  font-size: 16px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+}
+
+.mgs__op.is-on {
+  background: rgba(64, 222, 99, 0.12);
+  color: #15803d;
+  font-weight: 600;
+}
+
+.mgs__code {
+  flex-shrink: 0;
+  min-width: 44px;
+  color: #9ca3af;
+  font-weight: 500;
+}
+
+.mgs__label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mgs__vazio {
+  padding: 14px 10px;
+  color: #6b7280;
+  font-size: 13px;
+  text-align: center;
+}
+
+.mgs__mais {
+  flex: 1;
+  color: #6b7280;
+  font-size: 11.5px;
+  text-align: center;
+}
+
+/* ── Chave Sim/Não maior no toque (celular e tablet) ───────────────────── */
+@media (max-width: 1023px) {
+  .cadastro-b1 .b1-switch {
+    --sw-w: 52px;
+    --sw-h: 30px;
+    --sw-b: 1;
+  }
+
+  .cadastro-b1 .b1-chave-row {
+    min-height: 48px;
+    gap: 12px;
+  }
+
+  .cadastro-b1 .b1-chave-row__label {
+    font-size: 14px;
+  }
+
+  .cadastro-b1 .b1-switch__text {
+    font-size: 15px;
+  }
+}
+
+/* ── Campos do registro no celular: 48px, texto 16px (sem zoom do iPhone) ── */
+@media (max-width: 639px) {
+  .cadastro-b1.cadastro-b1--full-page {
+    --mg-field-h: 48px;
+  }
+
+  .cadastro-b1--full-page .mg-field__label {
+    font-size: 14px;
+  }
+
+  .cadastro-b1--full-page .mg-field.mg-has-value .mg-field__label,
+  .cadastro-b1--full-page .mg-field:focus-within .mg-field__label,
+  .cadastro-b1--full-page .mg-field.is-open .mg-field__label,
+  .cadastro-b1--full-page .mg-field--multiline .mg-field__label {
+    font-size: 10.5px;
+  }
+
+  .cadastro-b1--full-page .mg-field__control :is(input, select, textarea, .cmd-display, .mg-dp-field, .mg-input) {
+    font-size: 16px !important;
+  }
+
+  .cadastro-b1--full-page .mg-field--switch .mg-field__label {
+    font-size: 14px;
+  }
+}
+
+/* ── Mais opções (raio) no celular: lista branca sólida, itens de toque ─── */
+.mg-mais-opcoes-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 49;
+  background: rgba(15, 23, 42, 0.16);
+  pointer-events: none;
+}
+
+@media (max-width: 639px) {
+  .mg-b1-glass-pop.mg-mais-opcoes {
+    width: auto !important;
+    min-width: 236px;
+    max-width: calc(100vw - 24px);
+    padding: 6px !important;
+    border: 1px solid #e7eaee !important;
+    border-radius: 18px !important;
+    background: #fff !important;
+    box-shadow: 0 18px 44px rgba(15, 23, 42, 0.24) !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+
+  .mg-mais-opcoes .mg-b1-menuitem {
+    gap: 12px;
+    min-height: 48px;
+    padding: 0 10px;
+    border-radius: 12px;
+    color: #334155;
+    font-size: 16px;
+    font-weight: 500;
+  }
+
+  .mg-mais-opcoes .mg-b1-menuitem svg {
+    width: 16px;
+    height: 16px;
+    color: #5b6b80 !important;
+  }
+
+  /* Diálogos dos cards: cabeçalho que comporta botões de 44px, checks maiores */
+  .b1-portal-compras .mdl-h,
+  .b1ref .mdl-h {
+    min-height: 60px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+
+  .b1-portal-compras .mdl-h .tb-btn-icon,
+  .b1ref .mdl-h .tb-btn-icon {
+    width: 44px !important;
+    min-width: 44px !important;
+    height: 44px !important;
+    min-height: 44px !important;
+  }
+
+  .b1ref .mdl .mg-b1-row {
+    min-height: 44px;
+    padding: 11px 6px;
+    font-size: 14px;
+  }
+
+  .b1ref .mdl .mg-b1-check {
+    width: 22px;
+    height: 22px;
+  }
+
+  .b1ref .mdl .mg-b1-check__icon {
+    width: 14px;
+    height: 14px;
+  }
+}
+
+/* Cards se alinham sozinhos abaixo do desktop */
+@media (max-width: 1023px) {
+  .cadastro-b1 .mg-b1-cards-grid {
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)) !important;
+  }
+
+  .cadastro-b1 .mg-b1-card__fields {
+    grid-template-columns: auto minmax(0, 1fr) !important;
+  }
+}
+
+@media (max-width: 639px) {
+  .cadastro-b1 .mg-b1-cards-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
+
+/* Menu da coluna na folha de baixo */
+.mg-col-menu-sheet .mk-sheet__body {
+  padding: 0 8px 10px;
+}
+
+.mg-col-menu-sheet .mg-b1-menuitem {
+  gap: 10px;
+  min-height: 48px;
+  padding: 0 8px;
+  border-radius: 8px;
+  color: #334155;
+  font-size: 16px;
+}
+
+/* Editar/Duplicar/Excluir ficam na faixa de ações (antes iam para o menu ⋮ abaixo de 1024px). */
+@media (max-width: 1023px) {
+  .cadastro-b1--full-page .mg-toolbar--responsive .mg-toolbar__action--wide {
+    display: inline-flex;
+  }
+
+  .cadastro-b1--full-page .mg-toolbar--responsive .mg-toolbar__action--wide:disabled {
+    display: none;
+  }
+}
+
+.b1ref .fpop--sheet .fvr {
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+}
+
+.b1ref .fpop--sheet .pr .r {
+  padding-right: 12px;
+  white-space: nowrap;
+}

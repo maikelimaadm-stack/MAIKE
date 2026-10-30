@@ -102,7 +102,7 @@ export function Base1Cards({
   return (
     <div
       ref={listRef}
-      className={cn("grid grid-cols-1 gap-3", gridCls[perRow] || gridCls[4])}
+      className={cn("mg-b1-cards-grid grid grid-cols-1 gap-3", gridCls[perRow] || gridCls[4])}
       role="listbox"
       aria-multiselectable
     >

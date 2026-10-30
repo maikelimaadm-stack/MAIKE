@@ -6,7 +6,7 @@ export default function MaikeSonnerToaster() {
   return (
     <Toaster
       theme="light"
-      position="top-right"
+      position="top-center"
       visibleToasts={8}
       expand
       gap={10}

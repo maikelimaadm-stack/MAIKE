@@ -71,7 +71,7 @@ export default function MobileModulesView({ menuItems, moduloId, onModulo, modul
       menuItems.map((item) => ({
         id: item.id,
         title: item.title,
-        pages: flattenMenuPages(item.submenu?.length ? item.submenu : [item]),
+        pages: flattenMenuPages(/** @type {any} */ (item.submenu?.length ? item.submenu : [item])),
       })),
     [menuItems],
   );

@@ -16,10 +16,12 @@ import {
   ChevronRight,
   Search,
   Filter,
+  Download,
+  Printer,
   ChevronsLeft,
   ChevronsRight,
 } from "lucide-react";
-import { useCelular } from "@/components/common/MobileSheet";
+import { useCelular, useMediaQuery } from "@/components/common/MobileSheet";
 import { usePublishMobileShell } from "@/lib/mobileShellContext";
 import { pedirFiltroPorCampo } from "./filtroPorCampoBus";
 import CadastroSearchPill from "./CadastroSearchPill";
@@ -149,6 +151,8 @@ export default function CadastroListaChrome({
   fieldFilterAvailable = joinTableToolbar,
 }) {
   const celular = useCelular();
+  // Abaixo do desktop os cards se alinham sozinhos — sem "Layout dos cards".
+  const desktop = useMediaQuery("(min-width: 1024px)");
   const oneSelected = selectedCount === 1;
   const anySelected = selectedCount > 0;
   const [showChips, setShowChips] = useState(true);
@@ -229,9 +233,10 @@ export default function CadastroListaChrome({
       {
         key: "export",
         label: exportCsvLabel,
+        icon: <Download className="h-4 w-4" />,
         disabled: !onExportCsv,
       },
-      { key: "print", label: "Imprimir", disabled: !onPrint },
+      { key: "print", label: "Imprimir", icon: <Printer className="h-4 w-4" />, disabled: !onPrint },
       {
         key: "cfg",
         label: "Configurar colunas",
@@ -243,6 +248,7 @@ export default function CadastroListaChrome({
         label: "Layout dos cards",
         icon: <LayoutGrid className="h-4 w-4" />,
         disabled: !cardsToolsInMenu || viewMode !== "cards",
+        hidden: !desktop,
       },
       {
         key: "card-fields",
@@ -255,6 +261,7 @@ export default function CadastroListaChrome({
       extraMenuItems,
       exportCsvLabel,
       celular,
+      desktop,
       onClearFilters,
       filtersActive,
       recordMode,
@@ -312,7 +319,7 @@ export default function CadastroListaChrome({
       ? {
           editing: Boolean(recordEditing),
           title: recordInfo?.title ?? "",
-          subtitle: [recordInfo?.code, recordEditing ? (recordInfo?.code ? "Edição" : "Novo") : "Visualização"]
+          subtitle: [recordInfo?.code, recordEditing ? (recordInfo?.onGo ? "Edição" : "Novo") : "Visualização"]
             .filter(Boolean)
             .join(" • "),
           onBack: onRecordBack ?? (() => onViewModeChange?.("table")),
@@ -334,7 +341,7 @@ export default function CadastroListaChrome({
         open={maisOpcoesOpen}
         onOpenChange={setMaisOpcoesOpen}
         className={cn(
-          "flex w-64 min-w-[12rem] flex-col p-1.5",
+          "mg-mais-opcoes flex w-64 min-w-[12rem] flex-col p-1.5",
           skinAtivo && "b1-portal-compras",
         )}
         trigger={
@@ -351,6 +358,7 @@ export default function CadastroListaChrome({
           }}
         />
       </B1Popover>
+      {celular && maisOpcoesOpen ? <div className="mg-mais-opcoes-scrim" aria-hidden /> : null}
     </div>
   ) : null;
 

@@ -147,18 +147,22 @@ export default function MobileSheet({ open, onClose, label, title = null, aside 
   );
 }
 
-/** `true` abaixo de 640px (breakpoint `639px` do Base1). Atualiza ao girar/redimensionar. */
-export function useCelular() {
-  const consulta = "(max-width: 639px)";
+/** Acompanha uma media query (atualiza ao girar/redimensionar). */
+export function useMediaQuery(consulta) {
   const ler = () => typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia(consulta).matches;
-  const [celular, setCelular] = React.useState(ler);
+  const [casa, setCasa] = React.useState(ler);
   React.useEffect(() => {
     if (typeof window === "undefined" || typeof window.matchMedia !== "function") return undefined;
     const mq = window.matchMedia(consulta);
-    const onChange = () => setCelular(mq.matches);
+    const onChange = () => setCasa(mq.matches);
     onChange();
     mq.addEventListener?.("change", onChange);
     return () => mq.removeEventListener?.("change", onChange);
-  }, []);
-  return celular;
+  }, [consulta]);
+  return casa;
+}
+
+/** `true` abaixo de 640px (breakpoint `639px` do Base1). */
+export function useCelular() {
+  return useMediaQuery("(max-width: 639px)");
 }
