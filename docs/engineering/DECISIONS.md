@@ -3128,7 +3128,20 @@ Provas:
 
 ---
 
-## D-PROD-83 — Lote: entrada, movimentações e saldo atual; lote gerado por manejo e áreas protegidos
+## D-PROD-83 — Quantidade de cabeças: um pouco mais abaixo, maior, e encolhe para caber
+
+**Pedido do proprietário:** o número fica mais baixo e um pouco maior, e a fonte se reduz para caber no ícone (as imagens não têm fundo). Na primeira versão (regra por quantidade de caracteres), "5000" e "1250000" ainda passavam da borda da figura; o proprietário apontou e a regra passou a usar a largura medida.
+
+**Decisão:**
+- `.mg-lote-count` a 72% da altura;
+- fonte base de 11 px;
+- a largura do texto é medida com OffscreenCanvas (`700 11px Inter,Arial,sans-serif`); se passar de 22 px, a fonte vira `11 × 22 / largura`, com mínimo de 5 px (`src/lib/maplibre/contagemLote.js`). Sem OffscreenCanvas (ex.: jsdom), usa a estimativa de 0,6 em por dígito.
+
+Exemplos no Chromium: "500" fica em 11 px, "5000" em 8 px, "12500" em 7 px, "125000" em 5 px, "1250000" em 5 px. Testes CNT-01..04.
+
+---
+
+## D-PROD-84 — Lote: entrada, movimentações e saldo atual; lote gerado por manejo e áreas protegidos
 
 **Contexto:** caso real de produção (30/10/2026, só leitura).
 - Lote 1 entrou com 500 cabeças.
@@ -3160,4 +3173,4 @@ Relatório: `docs/engineering/MAIKE-LOTES-SALDO-MOVIMENTACOES-REPORT.md`.
 
 ---
 
-<!-- Próxima decisão: D-PROD-84 -->
+<!-- Próxima decisão: D-PROD-85 -->

@@ -16,7 +16,7 @@
 ## R2 — bloqueios de integridade (auditoria do arquiteto sobre `34ceaa6a`)
 
 `origin/main` (`af099211`, #149 mergeada) foi trazido por merge, sem
-conflito e sem force. Decisão registrada como **D-PROD-83**.
+conflito e sem force. Decisão registrada como **D-PROD-84** (o D-PROD-83 ficou com a contagem do mapa, mergeada antes no `main`).
 
 | Falha | BEFORE (`34ceaa6a`, medido) | Correção | AFTER |
 |---|---|---|---|
