@@ -2971,4 +2971,29 @@ Merge só pelo proprietário após auditoria.
 
 ---
 
-<!-- Próxima decisão: D-PROD-74 -->
+## D-PROD-74 — Inicialização pelo SQL Editor do Supabase; migrations só pelo runner oficial
+
+**Missão:** `MAIKE-PR145-G4-R2-ALTERNATIVA-SQL-EDITOR-SEGURA-01` (PR #145)\
+**Guia do proprietário:** `docs/engineering/MAIKE-SQL-EDITOR-OPERACAO-PR145.md`\
+**Evidência:** `docs/engineering/evidencias/catalogo-icones-lotes-01/rollout-sql-editor/`\
+**Autoridade:** o proprietário opera pelo Claude Code remoto e pelo painel do Supabase, sem terminal local.
+
+**Decisão:**
+
+1. **Migrations só pelo runner oficial.** As 7 migrations NÃO passam pelo SQL Editor: rodam só pelo runner oficial (`npm run deploy:migrate`), com a barreira de dupla conexão. É proibido aplicar o SQL das migrations à mão e "marcar" `_prisma_migrations`.
+   - **Ambiente:** este ambiente remoto não alcança o Postgres do Supabase (porta 5432 fechada). O caminho recomendado é o próprio ambiente do Claude Code, com rede liberada para o Session pooler e `MIGRATION_DATABASE_URL` nas configurações do ambiente.
+   - **Alternativa:** GitHub Actions `workflow_dispatch` com ambiente protegido. Exige o workflow na `main`, portanto autorização própria; fica só como rascunho no guia.
+2. **Três scripts para o SQL Editor**, em `scripts/ops/sql-editor/`:
+   - **01 (precheck):** só leitura, com veredito, contagens e impressão do inventário.
+   - **02 (reset + bootstrap):** um DO atômico. Só roda se o arquivo inteiro for uma transação: a tabela temporária `ON COMMIT DROP` e o `SET LOCAL` somem se o editor separar as instruções.
+     - **Antes de apagar, confere:** alvo, 25/25, as 53 tabelas exatas, `cliente_id`, ordem de FK, preservadas sem vínculo e a impressão do inventário, com as tabelas travadas.
+     - **O que apaga:** só as 38 tabelas de tenant, por `cliente_id`.
+     - **O que cria:** o cliente `maike` e a conta `maike` com `papel_tenant = 'administrador'`, mais 2 registros de AuditLog (inicialização e concessão do papel).
+     - **Senha:** 24 caracteres de `extensions.gen_random_bytes`, com hash `extensions.crypt`/`gen_salt('bf', 10)`, compatível com bcryptjs. Mostrada uma única vez no resultado, sem persistir em texto.
+     - **Idempotência:** reexecução no estado inicial não altera nada nem mostra senha; `maike` junto com outros dados é ANOMALIA.
+   - **03 (postcheck):** só leitura.
+3. **Bootstrap excepcional do papel.** A concessão de `administrador` no 02 é um bootstrap excepcional, auditado e autorizado pelo proprietário. A regra continua server-owned: nenhum endpoint concede papel, e `Permissao.is_admin` não é usado.
+
+---
+
+<!-- Próxima decisão: D-PROD-75 -->

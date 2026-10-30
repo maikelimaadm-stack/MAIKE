@@ -11,6 +11,7 @@
 | R5 | `MAIKE-PR145-R5-PRE-MERGE-ROLLOUT-SEGURO` | preflight de schema, ordem pré-merge, alvo protegido nos scripts, D-PROD-72 (§10) |
 | G3 | `MAIKE-PR145-G3-ROLLOUT-OPERACIONAL-CONTROLADO-01` | Fase A (preflight só leitura) concluída; parada aguardando autorização (§11) |
 | G4 | `MAIKE-PR145-G4-RESET-DADOS-TESTE-MIGRATIONS-E-ADMIN-TENANT-01` | sessão revalidada no banco, script de inicialização, prova de alvo, ensaio completo (§12) |
+| G4-R2 | `MAIKE-PR145-G4-R2-ALTERNATIVA-SQL-EDITOR-SEGURA-01` | scripts do SQL Editor (01/02/03), caminho das migrations sem terminal local (§13) |
 
 **Base:** `main` `1344ffe2` · **Branch:** `claude/catalogo-global-icones-lotes-01` · **Merge:** exclusivo do proprietário.
 **Runbook:** `docs/engineering/MAIKE-CATALOGO-OPERACAO-SUPABASE.md`
@@ -488,3 +489,53 @@ Merge: **NO-GO**, até a auditoria do arquiteto e a liberação manual.
   - não tocados: `AdminPrincipalMaike` = 0; 25 migrations.
 
 **Produção:** NOT_RUN. A sessão não tem a conexão de migração nem um terminal interativo do proprietário. O passo a passo para leigos está no runbook §0c.
+
+## 13. G4-R2 — caminho pelo painel do Supabase (D-PROD-74)
+
+**Scripts.** `scripts/ops/sql-editor/` contém três arquivos:
+
+- `01-precheck-somente-leitura.sql`;
+- `02-reset-e-bootstrap-maike-POS-25-MIGRATIONS.sql`;
+- `03-postcheck-somente-leitura.sql`.
+
+O guia do proprietário está em `MAIKE-SQL-EDITOR-OPERACAO-PR145.md`.
+
+**Migrations.** Continuam só pelo runner oficial. Fato verificado: o container do Claude Code não alcança o Postgres do Supabase (porta 5432 fechada).
+
+| Opção | Como funciona | Situação |
+|---|---|---|
+| Recomendada | Rede liberada + `MIGRATION_DATABASE_URL` nas configurações do ambiente + sessão nova | Exige ação do proprietário nas configurações |
+| Alternativa | `workflow_dispatch` com ambiente protegido | Exige o workflow na `main`, portanto autorização própria; documentado como rascunho |
+
+**Prova.** `backend/tests/sqlEditorBootstrap.test.mjs`, 10/10. Os arquivos reais rodam com `psql -c`, uma transação como no SQL Editor, e com `psql -f`, instrução por instrução, para provar a falha fechada.
+
+| Teste | O que prova |
+|---|---|
+| SE-01 | Precheck só leitura; a impressão muda com o mesmo total; banco errado → PARAR |
+| SE-02 | Impressão ausente, banco ou identificador errado, número de clientes divergente → recusa |
+| SE-03 | Execução por instrução para antes de alterar |
+| SE-04 | Migration incompleta, tabela intrusa ou view → recusa |
+| SE-05 | Mudança entre o precheck e a execução → recusa |
+| SE-06 | Preservada com vínculo ao tenant → recusa |
+| SE-07 | Falha no meio → tudo desfeito |
+| SE-08 | Login `maike` existente → ANOMALIA |
+| SE-09 | Sucesso, verificado em quatro frentes (abaixo) |
+| SE-10 | Reexecução → JA_INICIALIZADO sem senha; dado extra → ANOMALIA |
+
+O SE-09 verifica:
+
+- **Senha:** hash `$2a$10$` compatível com bcryptjs; auditoria sem senha nem hash.
+- **Estado do banco:** 2 AuditLogs; RLS, catálogo global e migrations intactos; postcheck INICIALIZADO.
+- **Login:** API real com login maike 200; JWT antigo 401.
+- **Poderes e desativação:** o administrador cria conta (201); a conta comum não cria (403); conta desativada 401; cliente desativado 401.
+
+**Ensaio** (`rollout-sql-editor/ensaio-local-sql-editor.txt`). Partiu do estado de produção, com 18 migrations e 105 linhas sintéticas.
+
+- **Precheck:** MIGRAR PRIMEIRO.
+- **Runner com barreira:** 7 aplicadas.
+- **Precheck:** PRONTO, com a impressão.
+- **02:** CONCLUIDO, 105 linhas apagadas, senha omitida do registro; reexecução JA_INICIALIZADO.
+- **Postcheck:** INICIALIZADO.
+- **API:** login maike 200; JWT antigo 401; 201 do administrador e 403 da conta comum; desativados 401.
+
+**Produção:** NADA executado nesta missão.

@@ -112,6 +112,8 @@ Sem essa confirmação: **NO-GO**. Para provar que o backup restaura de fato, a 
 
 ## 0c. Inicialização do MAIKE de produção (G4 / G4-R1, D-PROD-73) — passo a passo do operador
 
+> **Sem terminal local?** Use o caminho pelo painel do Supabase (D-PROD-74): `docs/engineering/MAIKE-SQL-EDITOR-OPERACAO-PR145.md`. As migrations continuam exigindo o runner oficial; a limpeza e a conta podem ser feitas pelo SQL Editor.
+
 **Autorizado pelo proprietário:**
 
 - as 7 migrations aditivas;
