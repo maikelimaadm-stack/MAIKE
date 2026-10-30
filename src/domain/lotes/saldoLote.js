@@ -24,17 +24,20 @@
 const semAcento = (valor) =>
   String(valor ?? '')
     .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
+    .replace(/[\u0300-\u036f]/g, '')
     .trim()
     .toUpperCase();
 
 /**
  * Origens de lote gerado por manejo a partir de cabeças que já estavam no
- * rebanho (comparadas sem acento e sem caixa). Nascimento NÃO entra: são
- * cabeças novas, uma entrada de verdade.
+ * rebanho (comparadas sem acento e sem caixa). "EDIÇÃO MOVIMENTAÇÃO" é a
+ * recomposição criada ao editar/desfazer uma movimentação
+ * (`movimentacaoReconciliation`). Nascimento NÃO entra: são cabeças novas,
+ * uma entrada de verdade. Mesma lista do servidor
+ * (`backend/src/modules/lotes/loteOrigem.js`).
  */
 const ORIGENS_DERIVADAS_DE_MANEJO = Object.freeze(
-  new Set(['MOVIMENTACAO', 'REVERSAO MOVIMENTACAO', 'MUDANCA DE CATEGORIA'])
+  new Set(['MOVIMENTACAO', 'REVERSAO MOVIMENTACAO', 'MUDANCA DE CATEGORIA', 'EDICAO MOVIMENTACAO'])
 );
 
 /**

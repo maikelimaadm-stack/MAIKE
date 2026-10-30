@@ -9,7 +9,8 @@ import { getPrismaClient } from '../../database/prismaClient.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { registrarEvento } from '../auditoria/auditService.js';
 import { reservarNumero, ESCOPO_TENANT } from '../sequencias/entidadeCodigoService.js';
-import { loteNotFound, loteDeleteBlocked, setorNotFound, areaNotFound } from '../../shared/errors/AppError.js';
+import { AppError, loteNotFound, loteDeleteBlocked, setorNotFound, areaNotFound } from '../../shared/errors/AppError.js';
+import { origemDerivadaDeManejo } from './loteOrigem.js';
 import { buscarSetor } from '../setores/setorRepository.js';
 import { buscarArea } from '../areas/areaPastagemRepository.js';
 import {
@@ -312,6 +313,19 @@ export const atualizar = async (contexto, id, entrada) => {
     /** @type {Record<string, unknown>} */
     const patch = { ...campos };
 
+    // A origem decide se o lote é entrada no rebanho ou cabeças vindas de
+    // outro lote. Trocá-la de um lado para o outro mudaria a conta histórica
+    // em silêncio (500 + 50 = 550). Troca dentro da mesma classe segue livre
+    // (ex.: motivo COMPRA → AJUSTE pelo cadastro).
+    if (
+      Object.prototype.hasOwnProperty.call(patch, 'origem') &&
+      origemDerivadaDeManejo(patch.origem) !== origemDerivadaDeManejo(anterior.origem)
+    ) {
+      throw new AppError('REQUEST_VALIDATION_FAILED', 'origem do lote não pode trocar entre entrada e gerado por manejo', {
+        details: { field: 'origem', reason: 'classe_de_origem_imutavel' },
+      });
+    }
+
     if (Object.prototype.hasOwnProperty.call(patch, 'setor_id')) {
       const setorId =
         patch.setor_id === undefined || patch.setor_id === null
@@ -362,6 +376,13 @@ export const excluir = async (contexto, id) => {
   await prisma.$transaction(async (tx) => {
     const anterior = await buscarLote(auth.clienteId, id, tx);
     if (!anterior) throw loteNotFound();
+
+    // Lote gerado por manejo: a transferência que o criou referencia só o lote
+    // de origem, então não há vínculo próprio a encontrar — e apagá-lo sumiria
+    // com cabeças sem estornar a origem. Desfaz-se pelo histórico do mapa.
+    if (origemDerivadaDeManejo(anterior.origem)) {
+      throw loteDeleteBlocked('lote_gerado_por_manejo', { details: { id } });
+    }
 
     const motivo = await motivoBloqueioExclusaoLote(tx, auth.clienteId, id);
     if (motivo) {

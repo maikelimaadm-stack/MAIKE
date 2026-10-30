@@ -106,7 +106,7 @@ describe("domain/lotes/saldoLote — caso real 500 → 450 + 50", () => {
   });
 
   it("origem comparada sem acento/caixa; nascimento é entrada de verdade", () => {
-    for (const origem of ["MOVIMENTAÇÃO", "Movimentacao", " movimentação ", "REVERSÃO MOVIMENTAÇÃO", "Mudança de Categoria", "MUDANCA DE CATEGORIA"]) {
+    for (const origem of ["MOVIMENTAÇÃO", "Movimentacao", " movimentação ", "REVERSÃO MOVIMENTAÇÃO", "Mudança de Categoria", "MUDANCA DE CATEGORIA", "EDIÇÃO MOVIMENTAÇÃO"]) {
       expect(ehLoteDerivadoDeManejo({ origem }), origem).toBe(true);
     }
     for (const origem of ["COMPRA", "AJUSTE", "INVENTÁRIO", "Nascimento", "NASCIMENTO", "", null, undefined]) {
@@ -314,12 +314,40 @@ describe("FormularioLote — edição não regrava quantidade nem desfaz movimen
     expect(payload.nome).toBe("TESTE");
   });
 
-  it("lote que nunca movimentou: corrigir a área de entrada leva a área atual junto (comportamento mantido)", async () => {
-    const intacto = { ...LOTE_1, quantidade_cabecas: 500 };
-    const { onSubmit } = await renderForm({ initialData: intacto, isEditing: true });
+  it("R2 — lote que SAIU E VOLTOU (mesma área, mesmo saldo): edição não move a área atual", async () => {
+    // Saldo líquido zero e área igual não provam que o lote nunca movimentou.
+    // Antes (R1) este caso reenviava area_atual_id = área de entrada do form,
+    // e o port nativo descarta area_entrada_id no PATCH: "editar a área de
+    // entrada" só movia o lote fisicamente, sem movimentação.
+    const saiuEVoltou = { ...LOTE_1, quantidade_cabecas: 500 };
+    const { onSubmit } = await renderForm({ initialData: saiuEVoltou, isEditing: true });
     const payload = await submeter(onSubmit);
-    expect(payload.area_atual_id).toBe("area-teste");
+    expect(payload).not.toHaveProperty("area_atual_id");
+    expect(payload).not.toHaveProperty("area_atual_nome");
     expect(payload).not.toHaveProperty("quantidade_cabecas");
+  });
+
+  it("R2 — área de entrada fica só leitura na edição (registro histórico); em lote novo é editável", async () => {
+    await renderForm({ initialData: LOTE_1, isEditing: true });
+    const campoDe = () => screen.getByText("Área de Entrada").closest(".mg-field");
+    const campo = campoDe();
+    expect(campo).toBeTruthy();
+    const controles = [...campo.querySelectorAll("input, button")];
+    expect(controles.length).toBeGreaterThan(0);
+    expect(controles.every((el) => el.disabled || el.readOnly)).toBe(true);
+    cleanup();
+    await renderForm({ initialData: null, isEditing: false });
+    const novo = campoDe();
+    expect([...novo.querySelectorAll("input")].some((el) => !el.disabled && !el.readOnly)).toBe(true);
+  });
+
+  it("R2 — lote derivado e lote zerado: edição nunca leva área atual", async () => {
+    for (const initialData of [LOTE_2, { ...LOTE_1, quantidade_cabecas: 0, status: "Inativo" }]) {
+      const { onSubmit } = await renderForm({ initialData, isEditing: true });
+      const payload = await submeter(onSubmit);
+      expect(payload).not.toHaveProperty("area_atual_id");
+      cleanup();
+    }
   });
 
   it("novo lote: um campo de quantidade que vale para entrada e saldo", async () => {

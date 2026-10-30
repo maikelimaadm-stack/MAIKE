@@ -384,18 +384,15 @@ export default function FormularioLote({
     if (!shouldPersistEntrySnapshot) {
       // Edição não regrava quantidade (saldo muda só por manejo; entrada é
       // imutável no servidor), não troca a origem de lote gerado por manejo e
-      // só leva a área atual junto com a de entrada se o lote nunca saiu dela.
+      // NUNCA move o lote: a área de entrada é registro histórico; a área atual
+      // (posição física) só muda por manejo no mapa, que deixa movimentação.
+      // "Saldo igual e mesma área" não prova que o lote nunca saiu (pode ter
+      // saído e voltado), então não há exceção.
       delete dataToSave.quantidade_cabecas;
       delete dataToSave.quantidade_entrada;
       if (ehLoteDerivadoDeManejo(initialData)) delete dataToSave.origem;
-      const nuncaMovido =
-        !ehLoteDerivadoDeManejo(initialData) &&
-        (initialData?.area_atual_id ?? null) === (initialData?.area_entrada_id ?? null) &&
-        movimentacaoLiquidaDoLote(initialData) === 0;
-      if (!nuncaMovido) {
-        delete dataToSave.area_atual_id;
-        delete dataToSave.area_atual_nome;
-      }
+      delete dataToSave.area_atual_id;
+      delete dataToSave.area_atual_nome;
       dataToSave.peso_entrada_kg = initialData?.peso_entrada_kg ?? dataToSave.peso_entrada_kg;
       dataToSave.categoria_entrada = initialData?.categoria_entrada ?? dataToSave.categoria_entrada;
       dataToSave.categoria_manejo_entrada_id = initialData?.categoria_manejo_entrada_id ?? dataToSave.categoria_manejo_entrada_id;
@@ -428,7 +425,9 @@ export default function FormularioLote({
   { id: "numero_lote", name: "numero_lote", label: "Código", type: "text", compact: true, readOnly: true, render: () => <Input value={formData.numero_lote || ""} readOnly className="h-[22px] text-xs text-left border-0 rounded-none shadow-none focus-visible:ring-0 bg-slate-50 px-1" /> },
   { id: "data_entrada", name: "data_entrada", label: "Data de Entrada", type: "date", required: true, compact: true, errorKey: "data_entrada" },
   { id: "setor_id", name: "setor_id", label: "Setor", type: "autocomplete", required: true, errorKey: "setor_id", options: setores, placeholder: "BUSCAR SETOR...", displayField: "nome", searchFields: ["nome", "numero_setor"], render: ({ value }) => <AutocompleteGenerico items={setores} value={value} onChange={(nextValue) => {if (isReadOnly) return;setIsDirty(true);setFormData((prev) => ({ ...prev, setor_id: nextValue || "", area_entrada_id: "" }));setErrors((prev) => ({ ...prev, setor_id: false, area_entrada_id: false }));}} placeholder="BUSCAR SETOR..." displayField="nome" searchFields={["nome", "numero_setor"]} className="w-full" inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[22px] text-xs px-1" /> },
-  { id: "area_entrada_id", name: "area_entrada_id", label: "Área de Entrada", type: "autocomplete", required: true, errorKey: "area_entrada_id", options: areasDoSetor, placeholder: formData.setor_id ? "BUSCAR ÁREA..." : "SELECIONE O SETOR PRIMEIRO", displayField: "nome", searchFields: ["nome", "numero_area"] },
+  // Em edição, a área de entrada é registro histórico (o servidor não a aceita
+  // em PATCH); a posição física muda só por manejo no mapa.
+  { id: "area_entrada_id", name: "area_entrada_id", label: "Área de Entrada", type: "autocomplete", required: true, readOnly: quantidadesSomenteLeitura, errorKey: "area_entrada_id", options: areasDoSetor, placeholder: formData.setor_id ? "BUSCAR ÁREA..." : "SELECIONE O SETOR PRIMEIRO", displayField: "nome", searchFields: ["nome", "numero_area"] },
   quantidadesSomenteLeitura
     ? {
         id: "quantidade_cabecas",

@@ -13,6 +13,41 @@
   - A decisão abaixo fica registrada aqui. Ela entra em `DECISIONS.md` depois
     do merge da #149, para não colidir.
 
+## R2 — bloqueios de integridade (auditoria do arquiteto sobre `34ceaa6a`)
+
+`origin/main` (`af099211`, #149 mergeada) foi trazido por merge, sem
+conflito e sem force. Decisão registrada como **D-PROD-83**.
+
+| Falha | BEFORE (`34ceaa6a`, medido) | Correção | AFTER |
+|---|---|---|---|
+| **A — P1** DELETE de lote derivado sem vínculo próprio | `DELETE /lotes/<lote 2>` → **204**: 50 cabeças somem (a transferência cita só o lote 1) | `loteService.excluir`: dentro da transação, depois de carregar o lote do tenant, recusa origem derivada (`backend/src/modules/lotes/loteOrigem.js`) | **409** `LOTE_DELETE_BLOCKED` (`vinculo: lote_gerado_por_manejo`); 500 cabeças, 2 lotes e 1 movimentação preservados |
+| **A — P1** PATCH trocando a classe da origem | `PATCH {origem: 'OUTROS'}` no derivado → **200** (a conta histórica mudaria em silêncio) | `loteService.atualizar` recusa troca entre entrada e gerado por manejo | **400** `REQUEST_VALIDATION_FAILED` (`field: origem`); COMPRA → AJUSTE segue 200; o PATCH de saldo do mapa segue 200 |
+| **B — P1** editar a área de entrada movia o lote | lote que saiu e voltou (mesma área, mesmo saldo) → payload com `area_atual_id`; campo de área de entrada editável. O port nativo descarta `area_entrada_id` no PATCH, então a "edição da entrada" só movia o lote | O formulário nunca envia área atual na edição; área de entrada só leitura na edição; sem a inferência "saldo igual = nunca movimentou" | payload sem `area_atual_*` para lote intacto, que saiu e voltou, derivado ou zerado; lote novo continua definindo as duas áreas |
+
+**Já protegido antes da R2 (provado):** `quantidade_entrada` e
+`area_entrada_id` não fazem parte do schema de PATCH (400).
+
+**Achado extra:** "EDIÇÃO MOVIMENTAÇÃO" é a recomposição criada ao
+editar/desfazer uma movimentação (`movimentacaoReconciliation`). São cabeças
+que já existiam, e a origem entra na mesma regra.
+
+O classificador do ledger L1 (`classificarOrigemLote`) não foi alterado: é
+módulo isolado e vai ser alinhado no L2.
+
+**Como corrigir:**
+- onde o lote está: "Movimentar" no mapa (grava movimentação);
+- uma entrada lançada errada: excluir o lote (se não tiver vínculos) e cadastrar de novo.
+
+**Testes R2:**
+- `backend/tests/loteDerivadoIntegridade.test.mjs` (PostgreSQL 16):
+  - 7/7 depois;
+  - contra `loteService` de `34ceaa6a`: 3 falham (204, 204, 200);
+  - os controles passam nos dois: lote manual e Nascimento excluíveis, tenant 404, entrada imutável, paridade frontend × servidor.
+- `tests/smoke/lotesSaldoMovimentacoes.test.jsx`:
+  - 27/27;
+  - os testes R2 do formulário contra `34ceaa6a`: 2 falham (saiu e voltou; área de entrada editável).
+- O teste da R1 que esperava "nunca movimentado leva a área atual" mudou de expectativa: a política agora é nunca mover pela edição.
+
 ## Problema relatado
 
 O Cadastro de Lotes não mostrava a saída de cabeças. O proprietário fez uma
