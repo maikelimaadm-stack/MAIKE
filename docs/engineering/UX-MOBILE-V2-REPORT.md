@@ -1,6 +1,6 @@
 # UX-MOBILE-V2 — celular e chrome Base1 conforme o protótipo "MAIKE App v2"
 
-**Decisão:** D-PROD-85 · **Branch:** `claude/mobile-shell-base1-v2`
+**Decisão:** D-PROD-86 · **Branch:** `claude/mobile-shell-base1-v2`
 **Fonte:** handoff do Claude Design (`MAIKE App v2.dc.html` + conversa de 29–30/10/2026).
 
 ## O que mudou

@@ -3173,7 +3173,38 @@ Relatório: `docs/engineering/MAIKE-LOTES-SALDO-MOVIMENTACOES-REPORT.md`.
 
 ---
 
-## D-PROD-85 — Celular e chrome Base1 conforme o protótipo "MAIKE App v2"
+## D-PROD-85 — Cadastro de Lotes mostra só a entrada; o que vem depois é do Mapa
+
+**Contexto:** o proprietário definiu o Cadastro de Lotes como o lançamento da ENTRADA do rebanho, como o recebimento de um estoque. Nas palavras dele: "se eu lançar 500 animais e fizer depois movimentações, entradas, saídas etc., nada muda no meu cadastro de lotes".
+
+Movimentações, saídas, mudanças de categoria e pesagens são operações do Mapa Geral, com persistência e histórico próprios.
+
+A D-PROD-84 tinha posto no Cadastro:
+- saldo atual;
+- "Movimentações (±)";
+- os lotes gerados por manejo.
+
+**Decisão (substitui o item 1 e a listagem da D-PROD-84; os bloqueios de servidor e de edição continuam):**
+1. **O Cadastro lista só lotes que são entrada no rebanho:** compra, ajuste, inventário e nascimento.
+   - Lote gerado por manejo (MOVIMENTAÇÃO, REVERSÃO MOVIMENTAÇÃO, MUDANÇA DE CATEGORIA, EDIÇÃO MOVIMENTAÇÃO) não aparece e não soma como entrada.
+   - Ele continua no mapa e em todos os outros consumidores.
+2. **Grade e exportação mostram os dados lançados na entrada:**
+   - "Qtd. entrada" (`quantidade_entrada`, id de coluna `cabecas`), somada no rodapé;
+   - categoria, categoria de manejo, peso e área de entrada.
+   - Sem saldo atual, sem movimentações e sem resumo de rebanho.
+   - No caso real, o lote 1 mostra 500 para sempre, mesmo com 450 no mapa.
+3. **Formulário de edição de lote já lançado:**
+   - mostra quantidade, categoria de manejo, sexo, peso, setor e área da entrada, só leitura;
+   - o PATCH não leva esses campos, para não desfazer mudança de categoria ou pesagem feitas no mapa;
+   - nome, identificação, raça, idade, sistema produtivo, motivo e observações continuam editáveis.
+4. **O CRUD do Cadastro não cria, edita, reverte nem exclui movimentação.** Isso já valia e agora está provado em PostgreSQL: o POST cria um lote e nenhuma movimentação; o PATCH de metadado não altera quantidades, áreas, origem nem movimentos.
+5. **Fica igual:** o status (Ativo/Inativo) continua o do registro. O mapa ainda inativa o lote zerado.
+
+Relatório: `docs/engineering/MAIKE-LOTES-SALDO-MOVIMENTACOES-REPORT.md` (seção "Cadastro = entrada").
+
+---
+
+## D-PROD-86 — Celular e chrome Base1 conforme o protótipo "MAIKE App v2"
 
 **Contexto:** o proprietário iterou o celular no Claude Design (protótipo "MAIKE App v2", 29–30/10/2026) e aprovou o resultado. O desktop do protótipo já copiava o sistema atual; a diferença está no celular e no chrome Base1.
 
@@ -3210,4 +3241,4 @@ Relatório: `docs/engineering/UX-MOBILE-V2-REPORT.md`.
 
 ---
 
-<!-- Próxima decisão: D-PROD-86 -->
+<!-- Próxima decisão: D-PROD-87 -->
