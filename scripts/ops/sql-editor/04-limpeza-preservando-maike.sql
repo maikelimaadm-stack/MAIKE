@@ -105,12 +105,12 @@ BEGIN
     END IF;
 
     -- 2. 25/25, nenhuma com falha, as 7 da PR com o checksum do repositório.
-    IF (SELECT count(*) FROM "_prisma_migrations" WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL) <> 25
+    IF (SELECT count(*) FROM "_prisma_migrations" WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL) < 25
        OR EXISTS (SELECT 1 FROM "_prisma_migrations" WHERE finished_at IS NULL AND rolled_back_at IS NULL)
        OR (SELECT count(*) FROM unnest(c_novas) n
             WHERE EXISTS (SELECT 1 FROM "_prisma_migrations" m
                            WHERE m.migration_name || '=' || m.checksum = n AND m.finished_at IS NOT NULL AND m.rolled_back_at IS NULL)) <> 7 THEN
-      RAISE EXCEPTION 'MAIKE-04: migrations fora do esperado (precisa 25/25 e as 7 da PR com o checksum do repositório). Nada foi alterado.';
+      RAISE EXCEPTION 'MAIKE-04: migrations fora do esperado (precisa das 25 migrations até a PR #145 e as 7 da PR com o checksum do repositório). Nada foi alterado.';
     END IF;
 
     -- 3. Conjunto EXATO de tabelas, só tabelas comuns, RLS em todas e nenhum grant público.

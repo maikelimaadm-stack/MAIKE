@@ -34,8 +34,8 @@ conta AS (
 ),
 linhas(ordem, item, valor, esperado, status) AS (
   SELECT 1, 'migrations concluídas',
-         (SELECT count(*)::text FROM "_prisma_migrations" WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL), '25',
-         CASE WHEN (SELECT count(*) FROM "_prisma_migrations" WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL) = 25
+         (SELECT count(*)::text FROM "_prisma_migrations" WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL), '25 ou mais',
+         CASE WHEN (SELECT count(*) FROM "_prisma_migrations" WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL) >= 25
                AND NOT EXISTS (SELECT 1 FROM "_prisma_migrations" WHERE finished_at IS NULL AND rolled_back_at IS NULL) THEN 'OK' ELSE 'PARAR' END
   UNION ALL
   SELECT 2, 'clientes (todos) / com código maike',
@@ -73,7 +73,7 @@ linhas(ordem, item, valor, esperado, status) AS (
          CASE WHEN (SELECT count(*) FROM information_schema.role_table_grants WHERE table_schema = 'public' AND grantee IN ('anon','authenticated')) = 0 THEN 'OK' ELSE 'PARAR' END
   UNION ALL
   SELECT 999, 'VEREDITO',
-         CASE WHEN (SELECT count(*) FROM "_prisma_migrations" WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL) = 25
+         CASE WHEN (SELECT count(*) FROM "_prisma_migrations" WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL) >= 25
                AND (SELECT count(*) = 1 AND count(*) FILTER (WHERE codigo = 'maike' AND ativo) = 1 FROM "Cliente")
                AND (SELECT n = 1 AND certas = 1 FROM conta)
                AND (SELECT sum(n) FROM contagem WHERE nome NOT IN ('Usuario', 'AuditLog')) = 0

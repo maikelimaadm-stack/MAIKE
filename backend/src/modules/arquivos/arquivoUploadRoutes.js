@@ -6,6 +6,12 @@ import { attachmentInvalid } from '../../shared/errors/AppError.js';
 import { validarMimeType, validarTamanhoBytes } from '../anexos/attachmentValidation.js';
 
 const LIMITE_DATA_URL = 5 * 1024 * 1024;
+/**
+ * O corpo carrega o arquivo em base64 (+33%). O padrão do Fastify (1 MB)
+ * recusava imagens a partir de ~750 KB. 4 MB fica abaixo do teto da função
+ * serverless (4,5 MB) (D-PROD-79).
+ */
+const LIMITE_CORPO_UPLOAD = 4 * 1024 * 1024;
 
 const UPLOAD_SCHEMA = {
   body: {
@@ -21,7 +27,7 @@ const UPLOAD_SCHEMA = {
 
 /** @param {import('fastify').FastifyInstance} app */
 export const registrarArquivoUploadRoutes = async (app) => {
-  app.post('/arquivos/upload', { onRequest: [app.autenticar], schema: UPLOAD_SCHEMA }, async (request, reply) => {
+  app.post('/arquivos/upload', { onRequest: [app.autenticar], bodyLimit: LIMITE_CORPO_UPLOAD, schema: UPLOAD_SCHEMA }, async (request, reply) => {
     exigirAuthContext(request.contexto.auth);
     const { conteudo_base64, mime_type } = /** @type {{conteudo_base64: string, mime_type: string}} */ (
       request.body

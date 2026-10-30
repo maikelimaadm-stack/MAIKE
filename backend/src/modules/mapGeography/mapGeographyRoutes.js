@@ -42,12 +42,21 @@ const PARAM_ID = {
 /** @param {unknown} corpo @returns {Record<string, unknown>} */
 const corpoValidado = (corpo) => /** @type {Record<string, unknown>} */ (corpo);
 
+/**
+ * A imagem do ícone chega como data URL (`/arquivos/upload`, base64): um PNG de
+ * 512 KB vira ~700 mil caracteres. Antes era 1024 e o cadastro com imagem era
+ * recusado (D-PROD-79). Colunas em TEXT desde a migration 20261030100000.
+ */
+const TAMANHO_MAX_URL_ICONE = 1_000_000;
+/** Corpo das rotas de ícone/ponto: até duas imagens (principal + subícone). */
+const LIMITE_CORPO_ICONE = 3 * 1024 * 1024;
+
 const CAMPOS_ICONE = Object.freeze({
   empresa_id: { type: ['string', 'null'], maxLength: 64 },
   tipo_entidade: { type: 'string', enum: TIPOS_ENTIDADE_ICONE },
   categoria: { type: 'string', minLength: 1, maxLength: 255, pattern: '\\S' },
-  icone_url: { type: ['string', 'null'], maxLength: 1024 },
-  sub_icone_url: { type: ['string', 'null'], maxLength: 1024 },
+  icone_url: { type: ['string', 'null'], maxLength: TAMANHO_MAX_URL_ICONE },
+  sub_icone_url: { type: ['string', 'null'], maxLength: TAMANHO_MAX_URL_ICONE },
   cor_padrao: { type: ['string', 'null'], maxLength: 32 },
   descricao: { type: ['string', 'null'], maxLength: 2000 },
   categorias_misto: { type: ['array', 'null'], items: { type: 'string' } },
@@ -79,8 +88,8 @@ const CAMPOS_PONTO = Object.freeze({
   sigla: { type: ['string', 'null'], maxLength: 32 },
   tipo: { type: 'string', minLength: 1, maxLength: 128, pattern: '\\S' },
   configuracao_icone_id: { type: ['string', 'null'], maxLength: 64 },
-  icone_url: { type: ['string', 'null'], maxLength: 1024 },
-  sub_icone_url: { type: ['string', 'null'], maxLength: 1024 },
+  icone_url: { type: ['string', 'null'], maxLength: TAMANHO_MAX_URL_ICONE },
+  sub_icone_url: { type: ['string', 'null'], maxLength: TAMANHO_MAX_URL_ICONE },
   coordenadas: { type: ['object', 'null'] },
   cor: { type: ['string', 'null'], maxLength: 32 },
   observacoes: { type: ['string', 'null'], maxLength: 2000 },
@@ -154,7 +163,7 @@ export const registrarMapGeographyRoutes = async (app) => {
 
   app.post(
     '/configuracao-icones',
-    { onRequest: [app.autenticar], schema: CRIAR_ICONE_SCHEMA },
+    { onRequest: [app.autenticar], bodyLimit: LIMITE_CORPO_ICONE, schema: CRIAR_ICONE_SCHEMA },
     async (request, reply) => {
       exigirAuthContext(request.contexto.auth);
       const icone = await criarIcone(request.contexto, corpoValidado(request.body));
@@ -164,7 +173,7 @@ export const registrarMapGeographyRoutes = async (app) => {
 
   app.patch(
     '/configuracao-icones/:id',
-    { onRequest: [app.autenticar], schema: ATUALIZAR_ICONE_SCHEMA },
+    { onRequest: [app.autenticar], bodyLimit: LIMITE_CORPO_ICONE, schema: ATUALIZAR_ICONE_SCHEMA },
     async (request) => {
       exigirAuthContext(request.contexto.auth);
       const { id } = /** @type {{id: string}} */ (request.params);
@@ -179,7 +188,7 @@ export const registrarMapGeographyRoutes = async (app) => {
 
   app.post(
     '/pontos-referencia',
-    { onRequest: [app.autenticar], schema: CRIAR_PONTO_SCHEMA },
+    { onRequest: [app.autenticar], bodyLimit: LIMITE_CORPO_ICONE, schema: CRIAR_PONTO_SCHEMA },
     async (request, reply) => {
       exigirAuthContext(request.contexto.auth);
       const ponto = await criarPonto(request.contexto, corpoValidado(request.body));
@@ -189,7 +198,7 @@ export const registrarMapGeographyRoutes = async (app) => {
 
   app.patch(
     '/pontos-referencia/:id',
-    { onRequest: [app.autenticar], schema: ATUALIZAR_PONTO_SCHEMA },
+    { onRequest: [app.autenticar], bodyLimit: LIMITE_CORPO_ICONE, schema: ATUALIZAR_PONTO_SCHEMA },
     async (request) => {
       exigirAuthContext(request.contexto.auth);
       const { id } = /** @type {{id: string}} */ (request.params);

@@ -12,6 +12,7 @@
 import { getPrismaClient } from '../../database/prismaClient.js';
 import { adminError } from '../../shared/errors/AppError.js';
 import {
+  chaveDePrimeiroAcessoConfere,
   cifrar,
   decifrar,
   gerarHashSenhaAdmin,
@@ -90,9 +91,9 @@ export const etapaDaSessao = (sessao, admin) =>
  * `chave_proprietario`, à prova de corrida). Não define MFA: o primeiro login
  * obriga a inscrição antes de qualquer operação.
  *
- * @param {{ login: unknown, senha: unknown }} entrada
+ * @param {{ login: unknown, senha: unknown, requestId?: string }} entrada
  */
-export const criarProprietarioInicial = async ({ login, senha }) => {
+export const criarProprietarioInicial = async ({ login, senha, requestId = 'bootstrap-cli' }) => {
   const l = exigirLoginValido(login);
   const s = exigirSenhaForte(senha);
   const senha_hash = await gerarHashSenhaAdmin(s);
@@ -100,7 +101,7 @@ export const criarProprietarioInicial = async ({ login, senha }) => {
     const admin = await prisma().adminPrincipalMaike.create({
       data: { login: l, senha_hash, papel: 'proprietario', chave_proprietario: 'proprietario' },
     });
-    await registrarEventoSeguranca({ adminId: admin.id, acao: 'bootstrap', sucesso: true, requestId: 'bootstrap-cli' });
+    await registrarEventoSeguranca({ adminId: admin.id, acao: 'bootstrap', sucesso: true, requestId });
     return comoAdminPublico(admin);
   } catch (erro) {
     if (/** @type {any} */ (erro)?.code === 'P2002') {
@@ -108,6 +109,30 @@ export const criarProprietarioInicial = async ({ login, senha }) => {
     }
     throw erro;
   }
+};
+
+/** O primeiro acesso pela web só existe enquanto não há proprietário (D-PROD-78). */
+export const primeiroAcessoDisponivel = async () => (await prisma().adminPrincipalMaike.count()) === 0;
+
+/**
+ * Primeiro acesso pela web (D-PROD-78): cria o proprietário sem terminal.
+ *
+ * - Só enquanto não existe proprietário; depois, 409 para sempre.
+ * - Exige a prova de posse da `ADMIN_MAIKE_CHAVE` (quem a colocou no servidor).
+ * - Mesmas regras do bootstrap: login válido, senha forte, sem MFA aqui — o
+ *   primeiro login obriga a inscrição antes de qualquer operação.
+ *
+ * @param {{ chave: unknown, login: unknown, senha: unknown, ip?: string, requestId: string }} p
+ */
+export const primeiroAcessoProprietario = async ({ chave, login, senha, ip, requestId }) => {
+  if (!(await primeiroAcessoDisponivel())) {
+    throw adminError('ADMIN_JA_CONFIGURADO', 'o proprietário do MAIKE já foi criado; entre pelo login');
+  }
+  if (!chaveDePrimeiroAcessoConfere(chave)) {
+    await registrarEventoSeguranca({ adminId: null, acao: 'primeiro_acesso', sucesso: false, ip, requestId });
+    throw adminError('ADMIN_CREDENCIAIS_INVALIDAS', 'chave de primeiro acesso inválida');
+  }
+  return criarProprietarioInicial({ login, senha, requestId });
 };
 
 // ─── Login e MFA ───────────────────────────────────────────────────────────

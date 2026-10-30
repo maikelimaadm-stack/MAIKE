@@ -302,6 +302,8 @@ As variáveis abaixo são só do servidor, nunca `VITE_`, e não aparecem em nen
 
 ## 4. Criar o proprietário (uma única vez por ambiente)
 
+> **Sem terminal (D-PROD-78):** o primeiro acesso pode ser feito pela web, no próprio MAIKE Admin, com a `ADMIN_MAIKE_CHAVE`. Guia: `MAIKE-ADMIN-COLOCAR-NO-AR.md`. O comando abaixo continua válido.
+
 ```bash
 DATABASE_URL=… npm run admin:bootstrap
 ```

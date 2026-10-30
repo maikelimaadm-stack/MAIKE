@@ -75,7 +75,7 @@ describe('inicializar-tenant-maike (operação única)', () => {
     const r = rodar(['--sistema', SID]);
     assert.equal(r.status, 0, r.stderr);
     assert.match(r.stdout, /alvo: system_identifier confere/);
-    assert.match(r.stdout, /schema: 25\/25 migrations/);
+    assert.match(r.stdout, /schema: (\d+)\/\1 migrations/);
     assert.match(r.stdout, /DRY-RUN: nada foi alterado/);
     assert.match(r.stdout, /APAGAR \d+ LINHAS DE 2 CLIENTE\(S\) #[0-9a-f]{8}/);
     assert.match(r.stdout, /preservadas \(não tocadas\): 14 tabela/);
@@ -192,7 +192,7 @@ describe('inicializar-tenant-maike (operação única)', () => {
     assert.doesNotMatch(errado.stdout, /migrations:/, 'para antes de qualquer outra leitura');
     const certo = run(['--sistema', SID]);
     assert.match(certo.stdout, /alvo: system_identifier confere/);
-    assert.match(certo.stdout, /migrations: 25\/25/);
+    assert.match(certo.stdout, /migrations: (\d+)\/\1/);
   });
 
   test('IT-07 idempotente (também após a elevação): rodar de novo não apaga a conta nova', async () => {

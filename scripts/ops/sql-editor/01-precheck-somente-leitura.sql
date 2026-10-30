@@ -109,17 +109,17 @@ base(ordem, item, valor, esperado, status) AS (
   SELECT 2, 'alvo: banco lógico', current_database(), (SELECT banco FROM esperado),
          CASE WHEN current_database() = (SELECT banco FROM esperado) THEN 'OK' ELSE 'PARAR' END
   UNION ALL
-  SELECT 3, 'migrations concluídas', (SELECT concluidas::text FROM mig), '18 antes / 25 depois',
-         CASE WHEN (SELECT concluidas FROM mig) IN (18, 25) THEN 'OK' ELSE 'PARAR' END
+  SELECT 3, 'migrations concluídas', (SELECT concluidas::text FROM mig), '18 antes / 25+ depois',
+         CASE WHEN (SELECT concluidas FROM mig) = 18 OR (SELECT concluidas FROM mig) >= 25 THEN 'OK' ELSE 'PARAR' END
   UNION ALL
   SELECT 4, 'migrations com falha', (SELECT com_falha::text FROM mig), '0',
          CASE WHEN (SELECT com_falha FROM mig) = 0 THEN 'OK' ELSE 'PARAR' END
   UNION ALL
   SELECT 5, 'das 7 migrations da PR, pendentes', (SELECT novas_pendentes::text FROM mig), '7 antes / 0 depois',
-         CASE WHEN ((SELECT concluidas FROM mig), (SELECT novas_pendentes FROM mig)) IN ((18, 7), (25, 0)) THEN 'OK' ELSE 'PARAR' END
+         CASE WHEN ((SELECT concluidas FROM mig) = 18 AND (SELECT novas_pendentes FROM mig) = 7) OR ((SELECT concluidas FROM mig) >= 25 AND (SELECT novas_pendentes FROM mig) = 0) THEN 'OK' ELSE 'PARAR' END
   UNION ALL
   SELECT 6, 'tabelas em public', (SELECT count(*)::text FROM tabelas), '40 antes / 53 depois',
-         CASE WHEN (SELECT count(*) FROM tabelas) = CASE WHEN (SELECT concluidas FROM mig) = 25 THEN 53 ELSE 40 END THEN 'OK' ELSE 'PARAR' END
+         CASE WHEN (SELECT count(*) FROM tabelas) = CASE WHEN (SELECT concluidas FROM mig) >= 25 THEN 53 ELSE 40 END THEN 'OK' ELSE 'PARAR' END
   UNION ALL
   SELECT 7, 'views/partições/estrangeiras em public', (SELECT count(*)::text FROM tabelas WHERE tipo <> 'r'), '0',
          CASE WHEN (SELECT count(*) FROM tabelas WHERE tipo <> 'r') = 0 THEN 'OK' ELSE 'PARAR' END
@@ -173,10 +173,10 @@ base(ordem, item, valor, esperado, status) AS (
   SELECT 100 + ord, '  linhas em ' || nome, n::text, '-', CASE WHEN n < 0 THEN 'ausente' ELSE 'CONFIRA' END FROM contagem WHERE n <> 0
   UNION ALL
   SELECT 900, 'impressao_inventario (copie para o 02 depois das migrations)', (SELECT codigo FROM impressao), '-',
-         CASE WHEN (SELECT concluidas FROM mig) = 25 THEN 'USE NO 02 OU NO 04' ELSE 'ainda não (migrações pendentes)' END
+         CASE WHEN (SELECT concluidas FROM mig) >= 25 THEN 'USE NO 02 OU NO 04' ELSE 'ainda não (migrações pendentes)' END
 ),
 contrato AS (
-  SELECT (SELECT concluidas FROM mig) = 25 AND (SELECT novas_pendentes FROM mig) = 0
+  SELECT (SELECT concluidas FROM mig) >= 25 AND (SELECT novas_pendentes FROM mig) = 0
          AND (SELECT count(*) FROM tabelas) = 53
          AND (SELECT count(*) FROM tabelas WHERE tipo <> 'r') = 0
          AND NOT EXISTS (SELECT 1 FROM tabelas WHERE nome NOT IN (SELECT nome FROM tenant UNION SELECT nome FROM preservada UNION SELECT '_prisma_migrations'))

@@ -154,3 +154,52 @@ describe('P4.3 — ícone sem numero', () => {
     assert.equal('numero_icone' in icone, false);
   });
 });
+
+describe('D-PROD-79 — ícone com imagem enviada pela tela (data URL)', () => {
+  // PNG de ~200 KB em base64, como o `/arquivos/upload` devolve: muito acima
+  // dos 1024 caracteres do contrato antigo, que recusava o cadastro.
+  const imagem = `data:image/png;base64,${Buffer.alloc(200 * 1024, 7).toString('base64')}`;
+
+  test('BE-P79-01 cria e edita ícone com imagem e subícone; o ponto copia a imagem', async () => {
+    const { token } = await tenantAutenticado();
+    const r = await app.inject({
+      method: 'POST',
+      url: '/configuracao-icones',
+      headers: auth(token),
+      payload: { tipo_entidade: 'Ponto', categoria: 'COCHO', icone_url: imagem, sub_icone_url: imagem, cor_padrao: '#10b981' },
+    });
+    assert.equal(r.statusCode, 201, r.body);
+    assert.equal(r.json().icone_url, imagem);
+    const e = await app.inject({
+      method: 'PATCH',
+      url: `/configuracao-icones/${r.json().id}`,
+      headers: auth(token),
+      payload: { icone_url: `${imagem}A` },
+    });
+    assert.equal(e.statusCode, 200, e.body);
+    assert.equal(e.json().icone_url.length, imagem.length + 1);
+  });
+
+  test('BE-P79-02 acima do limite ainda é recusado (sem quebrar o servidor)', async () => {
+    const { token } = await tenantAutenticado();
+    const r = await app.inject({
+      method: 'POST',
+      url: '/configuracao-icones',
+      headers: auth(token),
+      payload: { tipo_entidade: 'Ponto', categoria: 'COCHO', icone_url: `data:image/png;base64,${'A'.repeat(1_000_001)}` },
+    });
+    assert.equal(r.statusCode, 400);
+  });
+
+  test('BE-P79-03 upload de imagem de ~900 KB passa (antes o corpo de 1 MB recusava)', async () => {
+    const { token } = await tenantAutenticado();
+    const r = await app.inject({
+      method: 'POST',
+      url: '/arquivos/upload',
+      headers: auth(token),
+      payload: { conteudo_base64: Buffer.alloc(900 * 1024, 1).toString('base64'), mime_type: 'image/png' },
+    });
+    assert.equal(r.statusCode, 200, r.body);
+    assert.match(r.json().file_url, /^data:image\/png;base64,/);
+  });
+});

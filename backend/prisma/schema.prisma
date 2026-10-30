@@ -549,8 +549,8 @@ model ConfiguracaoIcone {
   empresa_id       String?  @db.VarChar(64)
   tipo_entidade    String   @db.VarChar(64)
   categoria        String   @db.VarChar(255)
-  icone_url        String?  @db.VarChar(1024)
-  sub_icone_url    String?  @db.VarChar(1024)
+  icone_url        String?  @db.Text
+  sub_icone_url    String?  @db.Text
   cor_padrao       String?  @db.VarChar(32)
   descricao        String?  @db.VarChar(2000)
   categorias_misto Json?
@@ -582,8 +582,8 @@ model PontoReferencia {
   sigla                 String?  @db.VarChar(32)
   tipo                  String   @db.VarChar(128)
   configuracao_icone_id String?  @db.VarChar(64)
-  icone_url             String?  @db.VarChar(1024)
-  sub_icone_url         String?  @db.VarChar(1024)
+  icone_url             String?  @db.Text
+  sub_icone_url         String?  @db.Text
   coordenadas           Json?
   cor                   String?  @db.VarChar(32)
   observacoes           String?  @db.VarChar(2000)
