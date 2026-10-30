@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from "react";
 import { Check, LayoutGrid, ListChecks } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { IconBtn, MgCheck } from "./Base1Ui";
-import { selectClickOf, useBlockNativeTextSelection } from "./selectClick";
+import { selectClickOf, ehToqueDuplo, useBlockNativeTextSelection } from "./selectClick";
 import {
   ConfiguracaoCamposCardsB1Dialog,
   ConfiguracaoLayoutCardsB1Dialog,
@@ -102,7 +102,7 @@ export function Base1Cards({
   return (
     <div
       ref={listRef}
-      className={cn("grid grid-cols-1 gap-3", gridCls[perRow] || gridCls[4])}
+      className={cn("mg-b1-cards-grid grid grid-cols-1 gap-3", gridCls[perRow] || gridCls[4])}
       role="listbox"
       aria-multiselectable
     >
@@ -125,7 +125,13 @@ export function Base1Cards({
               "mg-card b1-card group relative cursor-pointer select-none p-4",
               on && "is-selected",
             )}
-            onClick={(e) => onSelectClick(id, selectClickOf(e))}
+            onClick={(e) => {
+          if (ehToqueDuplo(e, id)) {
+            onOpen?.(r);
+            return;
+          }
+          onSelectClick(id, selectClickOf(e));
+        }}
             onDoubleClick={() => onOpen?.(r)}
             onKeyDown={(e) => {
               if (e.target instanceof HTMLInputElement) return;

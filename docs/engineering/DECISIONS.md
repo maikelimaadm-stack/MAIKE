@@ -3204,7 +3204,44 @@ Relatório: `docs/engineering/MAIKE-LOTES-SALDO-MOVIMENTACOES-REPORT.md` (seçã
 
 ---
 
-## D-PROD-86 — Lançamento de entrada só se edita ou exclui antes de qualquer histórico
+## D-PROD-86 — Celular e chrome Base1 conforme o protótipo "MAIKE App v2"
+
+**Contexto:** o proprietário iterou o celular no Claude Design (protótipo "MAIKE App v2", 29–30/10/2026) e aprovou o resultado. O desktop do protótipo já copiava o sistema atual; a diferença está no celular e no chrome Base1.
+
+**Decisão:**
+1. **Shell do celular (abaixo de 768px, `Layout.jsx`):**
+   - cabeçalho com voltar, nome da tela e a empresa embaixo (toque abre "Trocar empresa" na folha de baixo);
+   - barra inferior de vidro com Mapa · Módulos · Lotes · Bebedouros; o Cadastro do Mapa fica em Módulos › Mapa;
+   - "Módulos" abre a tela de módulos (grade → telas do módulo, com busca);
+   - voltar: registro → lista; tela → telas do módulo dela; módulo → todos os módulos.
+   O `Sheet` lateral do menu e o `BackButton` saíram. A ponte com a tela aberta é `src/lib/mobileShellContext.jsx`.
+2. **Ações só com ícone** (Novo, Editar, Duplicar, Excluir, Salvar, Cancelar), com `aria-label`/`title`, em todos os tamanhos. No celular ficam numa faixa com o raio (Mais opções) à direita. A segunda linha tem pesquisa (recolhida, à esquerda), Filtros e o alternador.
+3. **Botão Filtros → "Filtrar por campo":** lista as colunas visíveis na ordem da tabela; tocar abre o filtro da coluna. O pedido vai do chrome à grade por evento de documento (`filtroPorCampoBus.js`).
+4. **Filtro de coluna:**
+   - a lista de valores já obedece à condição;
+   - o ✓ fica bloqueado quando o resultado seria zero;
+   - a pesquisa usa a mesma pílula das outras pesquisas;
+   - os checks são de 20px.
+5. **Registro no celular:** a navegação ≪ ‹ n/N › ≫ fica centralizada no rodapé. A barra inferior some com registro aberto. Na edição o cabeçalho mostra o registro e o modo, e o resumo (Listados/Filtrados…) some.
+6. **Folha de baixo única** (`MobileSheet`) em seletores, filtro de coluna, menu da coluna, Filtrar por campo e Trocar empresa:
+   - fundo preto 45%;
+   - alça para puxar, alturas 62% e 92%;
+   - fecha tocando fora.
+   No seletor de cadastros: pesquisa e teto de 100 opções desenhadas.
+7. **Toque:** um toque marca/desmarca (multisseleção); toque duplo abre. Celular carrega 200 por vez ao rolar, sem "Carregar mais".
+8. **Celular/tablet:**
+   - chave Sim/Não 52×30;
+   - campos de 48px com texto de 16px (sem zoom do iPhone);
+   - "Layout dos cards" só no desktop, com os cards se alinhando sozinhos abaixo dele.
+9. **Avisos** (Sonner) no topo, centralizados.
+
+**Fora:** rail do tablet, Mapa Geral e Cadastro do Mapa do protótipo. Os mapas reais (MapLibre) não foram tocados.
+
+Relatório: `docs/engineering/UX-MOBILE-V2-REPORT.md`.
+
+---
+
+## D-PROD-87 — Lançamento de entrada só se edita ou exclui antes de qualquer histórico
 
 **Contexto (pedido do proprietário):** "a edição do cadastro de lote só pode ser feita se não houver nenhuma movimentação depois da entrada, movimento, manejo ou registro; para excluir, a mesma coisa, não fica nem liberado".
 
@@ -3227,4 +3264,4 @@ Relatório: `docs/engineering/MAIKE-LOTES-SALDO-MOVIMENTACOES-REPORT.md` (seçã
 
 ---
 
-<!-- Próxima decisão: D-PROD-87 -->
+<!-- Próxima decisão: D-PROD-88 -->

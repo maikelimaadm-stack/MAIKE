@@ -150,7 +150,7 @@ describe('PATCH /lotes — classe da origem e entrada histórica imutáveis', ()
   });
 });
 
-describe('Editar/excluir o lançamento só sem nada depois da entrada (D-PROD-86)', () => {
+describe('Editar/excluir o lançamento só sem nada depois da entrada (D-PROD-87)', () => {
   const CAMPOS_CADASTRO = [
     { observacoes: 'NOTA' }, { raca_predominante: 'NELORE' }, { origem: 'COMPRA' }, { motivo_entrada: 'Compra' },
     { data_entrada: '2026-10-01T12:00:00' }, { numero_gta: '123' }, { idade_media_meses: 12 }, { sistema_produtivo: 'Cria' },

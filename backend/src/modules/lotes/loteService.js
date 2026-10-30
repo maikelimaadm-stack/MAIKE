@@ -199,7 +199,7 @@ const CAMPOS_SO_DO_CADASTRO = Object.freeze(new Set([
 ]));
 
 /**
- * O lote já tem algo depois da entrada? (D-PROD-86). Devolve o motivo
+ * O lote já tem algo depois da entrada? (D-PROD-87). Devolve o motivo
  * estável ou `null`. Vale para editar o lançamento e para excluir:
  * - gerado por manejo: as cabeças vieram de outro lote;
  * - registro vinculado (movimentação, suplementação, tarefa, manejo técnico);
@@ -350,7 +350,7 @@ export const atualizar = async (contexto, id, entrada) => {
     const patch = { ...campos };
 
     // Editar o lançamento da entrada só antes de qualquer movimentação, manejo
-    // ou registro (D-PROD-86). Escritas dos manejos do mapa não tocam nestes
+    // ou registro (D-PROD-87). Escritas dos manejos do mapa não tocam nestes
     // campos e seguem livres.
     const camposDoCadastro = Object.keys(patch).filter((campo) => CAMPOS_SO_DO_CADASTRO.has(campo));
     if (camposDoCadastro.length) {
@@ -424,7 +424,7 @@ export const excluir = async (contexto, id) => {
     const anterior = await buscarLote(auth.clienteId, id, tx);
     if (!anterior) throw loteNotFound();
 
-    // Excluir só o lançamento que não teve nada depois (D-PROD-86). Lote gerado
+    // Excluir só o lançamento que não teve nada depois (D-PROD-87). Lote gerado
     // por manejo: a transferência que o criou cita só a origem e apagá-lo
     // sumiria com cabeças. Estado divergente da entrada: houve manejo, mesmo
     // sem registro que cite este lote (ex.: destino de unificação).

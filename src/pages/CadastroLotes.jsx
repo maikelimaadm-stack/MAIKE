@@ -49,7 +49,7 @@ export default function CadastroLotes() {
   }, [empresaSelecionadaId]);
 
   // Lote com qualquer registro depois da entrada não é editado nem excluído
-  // pelo Cadastro (D-PROD-86). O servidor também recusa; a tela nem libera.
+  // pelo Cadastro (D-PROD-87). O servidor também recusa; a tela nem libera.
   const { data: idsComRegistro } = useQuery({
     queryKey: ["lotes-cadastro", empresaSelecionadaId, "com-registros"],
     queryFn: () => listarIdsDeLotesComRegistros(empresaSelecionadaId),

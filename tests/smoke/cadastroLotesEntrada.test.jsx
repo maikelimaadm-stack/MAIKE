@@ -121,7 +121,7 @@ describe("Cadastro de Lotes — só entradas, nada do que acontece depois", () =
   });
 });
 
-describe("Editar/excluir só sem nada depois da entrada (D-PROD-86)", () => {
+describe("Editar/excluir só sem nada depois da entrada (D-PROD-87)", () => {
   const LIVRE = { id: "l9", numero_lote: "9", nome: "NOVO", origem: "COMPRA", empresa_id: "emp-1", status: "Ativo", quantidade_entrada: 40, quantidade_cabecas: 40, area_entrada_id: "a1", area_atual_id: "a1" };
   const selecionar = async (id) => {
     await waitFor(() => expect(gradePropsSpy).toHaveBeenCalled());

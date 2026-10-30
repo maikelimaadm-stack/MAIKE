@@ -112,7 +112,7 @@ describe("domain/lotes/saldoLote — só a entrada (caso real: lançou 500, depo
   });
 });
 
-describe("motivoDeHistoricoDoLote — editar/excluir só sem nada depois da entrada (D-PROD-86)", () => {
+describe("motivoDeHistoricoDoLote — editar/excluir só sem nada depois da entrada (D-PROD-87)", () => {
   const livre = { id: "x", origem: "COMPRA", quantidade_entrada: 40, quantidade_cabecas: 40, area_entrada_id: "a", area_atual_id: "a", categoria_manejo_entrada_id: "c", categoria_manejo_id: "c" };
   it("sem nada depois: null (editável e excluível)", () => {
     expect(motivoDeHistoricoDoLote(livre, new Set())).toBeNull();

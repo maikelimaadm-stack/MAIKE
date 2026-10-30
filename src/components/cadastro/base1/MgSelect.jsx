@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import * as Popover from "@radix-ui/react-popover";
-import { ChevronDown, X } from "lucide-react";
+import { Check, ChevronDown, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import MobileSheet, { useCelular } from "@/components/common/MobileSheet";
 import { usePortalComprasSkin } from "./portalComprasSkinContext";
 
 /**
@@ -129,6 +130,95 @@ const CmdDisplayRender = (
 const CmdDisplay = React.forwardRef(CmdDisplayRender);
 CmdDisplay.displayName = "CmdDisplay";
 
+/** Teto de opções desenhadas no celular — listas de cadastro podem ter milhares. */
+const LIMITE_CELULAR = 100;
+
+/**
+ * Lista do seletor no celular, dentro da folha de baixo. Com mais de 8 opções
+ * aparece a pesquisa (mesma pílula das outras pesquisas) e o total.
+ * @param {{ label: string, options: Array<{ value: string, label: string, code?: string | null }>, value?: string, onPick: (o: { value: string, label: string }) => void, onClose: () => void }} props
+ */
+function MgSelectSheet({ label, options, value, onPick, onClose }) {
+  const [busca, setBusca] = useState("");
+  const pesquisavel = options.length > 8;
+  const termo = busca.trim().toLowerCase();
+  const encontradas = termo
+    ? options.filter((o) => `${o.label} ${o.code ?? ""}`.toLowerCase().includes(termo))
+    : options;
+  const vistas = encontradas.slice(0, LIMITE_CELULAR);
+  const fmt = (n) => n.toLocaleString("pt-BR");
+  return (
+    <MobileSheet
+      open
+      onClose={onClose}
+      label={label}
+      title={label}
+      aside={pesquisavel ? `${fmt(options.length)} registros` : null}
+      footer={
+        encontradas.length > LIMITE_CELULAR ? (
+          <span className="mgs__mais">
+            Mostrando {LIMITE_CELULAR} de {fmt(encontradas.length)} · refine a pesquisa
+          </span>
+        ) : null
+      }
+    >
+      {pesquisavel ? (
+        <>
+          <div className="mk-pill mgs__busca">
+            {busca ? (
+              <button type="button" className="mk-pill__clear" aria-label="Limpar pesquisa" onClick={() => setBusca("")}>
+                <X size={14} />
+              </button>
+            ) : (
+              <span className="mk-pill__icon" aria-hidden>
+                <Search size={14} />
+              </span>
+            )}
+            <input
+              autoFocus
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              placeholder={`Pesquisar ${label}…`}
+              aria-label={`Pesquisar ${label}`}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && vistas[0]) {
+                  e.preventDefault();
+                  onPick(vistas[0]);
+                }
+              }}
+            />
+          </div>
+          {termo ? (
+            <div className="mgs__count">
+              {fmt(encontradas.length)} encontrado{encontradas.length === 1 ? "" : "s"}
+            </div>
+          ) : null}
+        </>
+      ) : null}
+      <div className="mgs__lista" role="listbox" aria-label={label}>
+        {!vistas.length ? <div className="mgs__vazio">Nenhum registro encontrado</div> : null}
+        {vistas.map((o) => {
+          const on = o.value === value;
+          return (
+            <button
+              key={o.value}
+              type="button"
+              role="option"
+              aria-selected={on}
+              className={cn("mgs__op", on && "is-on")}
+              onClick={() => onPick(o)}
+            >
+              {o.code ? <span className="mgs__code">{o.code}</span> : null}
+              <span className="mgs__label">{o.label}</span>
+              {on ? <Check size={14} aria-hidden /> : null}
+            </button>
+          );
+        })}
+      </div>
+    </MobileSheet>
+  );
+}
+
 /**
  * Seletor Base1 com painel vidro (port `MgSelect` / cmd-display — CONTROLE-DE-ESTOQUE).
  *
@@ -163,6 +253,7 @@ export function MgSelect({
   ariaLabel,
 }) {
   const portalSkin = usePortalComprasSkin();
+  const celular = useCelular();
   const isPillPanel = Boolean(contentClassName?.includes("mg-pill-select-panel"));
   const [open, setOpenState] = useState(false);
   const [search, setSearch] = useState("");
@@ -176,6 +267,44 @@ export function MgSelect({
   const filtered = search
     ? options.filter((o) => o.label.toLowerCase().includes(search.toLowerCase()))
     : options;
+
+  if (celular) {
+    const rotulo =
+      ariaLabel ||
+      (id && typeof document !== "undefined" ? document.querySelector(`label[for="${id}"]`)?.textContent?.replace(/\s*\*\s*$/, "") : "") ||
+      placeholder;
+    return (
+      <>
+        <CmdDisplay
+          id={id}
+          aria-expanded={open}
+          aria-haspopup="listbox"
+          aria-label={ariaLabel}
+          disabled={disabled}
+          empty={!cur}
+          placeholder={placeholder}
+          onClear={allowEmpty ? () => onChange("") : undefined}
+          className={className}
+          wrapClassName={cn(wrapClassName, open && "is-open")}
+          onClick={() => setOpen(true)}
+        >
+          {cur?.label}
+        </CmdDisplay>
+        {open ? (
+          <MgSelectSheet
+            label={rotulo || "Selecione"}
+            options={options}
+            value={value}
+            onClose={() => setOpen(false)}
+            onPick={(o) => {
+              onChange(o.value);
+              setOpen(false);
+            }}
+          />
+        ) : null}
+      </>
+    );
+  }
 
   return (
     <Popover.Root open={open} onOpenChange={setOpen}>

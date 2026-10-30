@@ -34,6 +34,21 @@ const OPS = {
   ],
 };
 
+/** Símbolo curto do operador, usado nos resumos ("> 100", "entre 1 e 3"). */
+export const ROTULO_OPERADOR = Object.freeze({
+  ig: "=",
+  dif: "≠",
+  mai: ">",
+  maie: "≥",
+  men: "<",
+  mene: "≤",
+  entre: "entre",
+  com: "começa com",
+  ter: "termina com",
+  cont: "contém",
+  ncont: "não contém",
+});
+
 export function operadoresParaTipo(tipo) {
   return OPS[tipo] ?? OPS.texto;
 }

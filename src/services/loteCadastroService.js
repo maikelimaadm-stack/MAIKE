@@ -126,7 +126,7 @@ export const listarIdsDeLotesComMovimentacao = async (empresaId) => {
 /**
  * Ids de lotes da empresa citados por QUALQUER registro que bloqueia excluir
  * (movimentação do mapa, movimentação pecuária, suplementação, tarefa, manejo
- * técnico). Usado para travar editar/excluir no Cadastro (D-PROD-86).
+ * técnico). Usado para travar editar/excluir no Cadastro (D-PROD-87).
  * @param {string} [empresaId]
  * @returns {Promise<Set<string>>}
  */
@@ -236,7 +236,7 @@ export const excluirLotes = async (ids, { lotes = [] } = {}) => {
     // Lote gerado por manejo carrega cabeças que saíram de outro lote: apagá-lo
     // pelo cadastro sumiria com elas sem estornar a origem. Desfaz-se pelo
     // histórico de movimentações do mapa.
-    // Lote gerado por manejo, ou que já mudou desde a entrada (D-PROD-86):
+    // Lote gerado por manejo, ou que já mudou desde a entrada (D-PROD-87):
     // o servidor também recusa; aqui evita a chamada.
     if (ehLoteDerivadoDeManejo(atual) || (atual && motivoDeHistoricoDoLote(atual))) {
       bloqueados.push({ id, code: API_ERROR_CODES.LOTE_DELETE_BLOCKED });

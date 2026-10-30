@@ -42,7 +42,7 @@ vídeo.
 - os testes de mapa existentes passam;
 - `maplibreSelecaoDepositoMapa` passou a esperar a mensagem explicativa.
 
-## Editar/excluir só sem histórico (D-PROD-86)
+## Editar/excluir só sem histórico (D-PROD-87)
 
 **Pedido do proprietário:** edição e exclusão do lançamento só se não houver
 nada depois da entrada (movimento, manejo ou registro). Com histórico, "não

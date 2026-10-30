@@ -69,7 +69,7 @@ export const entradaHistoricaDoLote = (lote) =>
 export const ehEntradaNoRebanho = (lote) => !ehLoteDerivadoDeManejo(lote);
 
 /**
- * O lote já tem algo depois da entrada? (D-PROD-86). Devolve o motivo estável
+ * O lote já tem algo depois da entrada? (D-PROD-87). Devolve o motivo estável
  * ou `null`. Com histórico, o Cadastro não edita nem exclui o lançamento —
  * mesma regra do servidor (`loteService`):
  * - gerado por manejo (as cabeças vieram de outro lote);

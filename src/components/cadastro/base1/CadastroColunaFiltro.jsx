@@ -2,7 +2,8 @@ import React from "react";
 import { createPortal } from "react-dom";
 import { Check, FilterX, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { operadoresParaTipo } from "./cadastroColunaFiltroLogic";
+import { casaNoFiltroColuna, operadoresParaTipo } from "./cadastroColunaFiltroLogic";
+import MobileSheet, { useCelular } from "@/components/common/MobileSheet";
 import { MgDatePicker, brToISO, isoToBR } from "./MgDatePicker";
 import SeletorDeOperador from "./SeletorDeOperador";
 import { usePortalComprasSkin } from "./portalComprasSkinContext";
@@ -21,6 +22,9 @@ function Chk({ on, parte = false }) {
 
 /**
  * Popover de filtro de cabeçalho (`fpop` — paridade frota/equipamentos / portal compras).
+ * No celular abre na folha de baixo (`MobileSheet`). A lista de valores já
+ * mostra só o que atende à condição, e o ✓ fica bloqueado quando o filtro
+ * deixaria a coluna sem nenhum registro.
  */
 export default function CadastroColunaFiltro({
   rotulo,
@@ -28,10 +32,12 @@ export default function CadastroColunaFiltro({
   ancora,
   valores,
   atual,
+  ancoraReserva = null,
   onAplicar,
   onFechar,
 }) {
   const portalSkin = usePortalComprasSkin();
+  const celular = useCelular();
   const contagem = React.useMemo(() => {
     const m = new Map();
     for (const v of valores) m.set(v, (m.get(v) ?? 0) + 1);
@@ -51,9 +57,10 @@ export default function CadastroColunaFiltro({
   fechar.current = onFechar;
 
   const reposicionar = React.useCallback(() => {
+    // Sem cabeçalho visível (cards, coluna fora da tela): usa o botão Filtros.
     const el = document.querySelector(ancora)?.closest("th");
-    if (!el) return;
-    const b = el.getBoundingClientRect();
+    const b = el?.getBoundingClientRect() ?? ancoraReserva;
+    if (!b) return;
     const left = Math.max(8, Math.min(b.left, window.innerWidth - 262));
     const abaixo = window.innerHeight - b.bottom - 12;
     const acima = b.top - 12;
@@ -67,11 +74,11 @@ export default function CadastroColunaFiltro({
             visibility: "visible",
           },
     );
-  }, [ancora]);
+  }, [ancora, ancoraReserva]);
 
   React.useLayoutEffect(() => {
-    reposicionar();
-  }, [reposicionar]);
+    if (!celular) reposicionar();
+  }, [reposicionar, celular]);
 
   React.useEffect(() => {
     const teclado = (e) => {
@@ -81,6 +88,7 @@ export default function CadastroColunaFiltro({
       fechar.current();
     };
     const fora = (e) => {
+      if (celular) return;
       const th = document.querySelector(ancora)?.closest("th") ?? null;
       const shell = painel.current?.querySelector?.(".fpop") ?? painel.current;
       if (
@@ -108,14 +116,19 @@ export default function CadastroColunaFiltro({
       window.removeEventListener("resize", scroll);
       window.removeEventListener("scroll", scroll, true);
     };
-  }, [ancora, reposicionar]);
+  }, [ancora, reposicionar, celular]);
 
   const ops = operadoresParaTipo(tipo);
-  const vistos = contagem.filter(([v]) => v.toLowerCase().includes(busca.toLowerCase()));
+  const condicao = { op, v1, v2, valores: null };
+  const atende = (v) => casaNoFiltroColuna(condicao, tipo, v);
+  const vistos = contagem.filter(([v]) => v.toLowerCase().includes(busca.toLowerCase()) && atende(v));
   const todos = vistos.length > 0 && vistos.every(([v]) => sel.has(v));
   const algum = vistos.some(([v]) => sel.has(v));
 
+  const semResultado = !contagem.some(([v]) => sel.has(v) && atende(v));
+
   const aplicar = () => {
+    if (semResultado) return;
     const valoresFiltrados = sel.size === contagem.length ? null : sel;
     onAplicar(!op && !valoresFiltrados ? null : { op, v1, v2, valores: valoresFiltrados });
   };
@@ -129,18 +142,17 @@ export default function CadastroColunaFiltro({
 
   const shellClass = cn("b1ref cadastro-b1", portalSkin && "b1-portal-compras");
 
-  return createPortal(
-    <div className={shellClass} ref={painel}>
+  const formulario = (
       <form
-        className={cn("pop fpop", portalSkin && "b1-portal-compras")}
+        className={cn("pop fpop", portalSkin && "b1-portal-compras", celular && "fpop--sheet")}
         role="menu"
         aria-label={`Filtrar coluna ${rotulo}`}
-        style={pos}
+        style={celular ? undefined : pos}
         onSubmit={aoEnviar}
       >
         <button
           type="button"
-          className="fmi"
+          className={cn("fmi fmi-limpar", atual && "is-on")}
           disabled={!atual}
           onClick={() => onAplicar(null)}
         >
@@ -201,15 +213,23 @@ export default function CadastroColunaFiltro({
           </div>
         ) : null}
         <span className="opt-sep" aria-hidden="true" />
-        <label className="cfgb" style={{ margin: "0 8px 6px", height: 28 }}>
-          <Search size={14} />
+        <div className="mk-pill fpop-busca">
+          {busca ? (
+            <button type="button" className="mk-pill__clear" aria-label="Limpar" onClick={() => setBusca("")}>
+              <X size={13} />
+            </button>
+          ) : (
+            <span className="mk-pill__icon" aria-hidden>
+              <Search size={13} />
+            </span>
+          )}
           <input
             value={busca}
             onChange={(e) => setBusca(e.target.value)}
             placeholder="Procurar valor…"
             aria-label="Procurar valor"
           />
-        </label>
+        </div>
         <button
           type="button"
           className="pr fvr ftodos"
@@ -256,10 +276,14 @@ export default function CadastroColunaFiltro({
               <span className="r">{n}</span>
             </button>
           ))}
-          {vistos.length === 0 ? <span className="dvaz">Nenhum valor com esse texto.</span> : null}
+          {vistos.length === 0 ? (
+            <span className="dvaz">{op ? "Nenhum valor atende à condição." : "Nenhum valor com esse texto."}</span>
+          ) : null}
         </div>
         <div className="fpop-f">
-          <span style={{ flexGrow: 1 }} />
+          <span className="fpop-zero" role={semResultado ? "status" : undefined}>
+            {semResultado ? "Nenhum registro atende a este filtro." : ""}
+          </span>
           <button type="button" className="tb-btn tb-btn-icon tb-btn-sm shrink-0" title="Cancelar" aria-label="Cancelar" onClick={onFechar}>
             <X className="h-4 w-4" />
           </button>
@@ -268,11 +292,27 @@ export default function CadastroColunaFiltro({
             className="tb-btn tb-btn-icon tb-btn-green tb-btn-sm shrink-0"
             title="Aplicar"
             aria-label="Aplicar"
+            disabled={semResultado}
           >
             <Check className="h-4 w-4" />
           </button>
         </div>
       </form>
+  );
+
+  if (celular) {
+    return (
+      <MobileSheet open onClose={() => fechar.current()} label={`Filtrar coluna ${rotulo}`} title={rotulo}>
+        <div className={shellClass} ref={painel}>
+          {formulario}
+        </div>
+      </MobileSheet>
+    );
+  }
+
+  return createPortal(
+    <div className={shellClass} ref={painel}>
+      {formulario}
     </div>,
     document.body,
   );

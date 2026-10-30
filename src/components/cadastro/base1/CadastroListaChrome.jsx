@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Plus,
   Pencil,
@@ -15,7 +15,15 @@ import {
   ChevronLeft,
   ChevronRight,
   Search,
+  Filter,
+  Download,
+  Printer,
+  ChevronsLeft,
+  ChevronsRight,
 } from "lucide-react";
+import { useCelular, useMediaQuery } from "@/components/common/MobileSheet";
+import { usePublishMobileShell } from "@/lib/mobileShellContext";
+import { pedirFiltroPorCampo } from "./filtroPorCampoBus";
 import CadastroSearchPill from "./CadastroSearchPill";
 import {
   B1Popover,
@@ -85,6 +93,8 @@ import { cn } from "@/lib/utils";
  * @param {boolean} [props.showFilterRail] faixa `mg-pills-rail` (chips); false no piloto Marcas (limpar filtros só no menu ⋮)
  * @param {boolean} [props.joinTableToolbar] toolbar + grade no mesmo `mg-shell` (Portal de Compras / itpan)
  * @param {boolean} [props.portalComprasSkin] régua visual portal compras (toolbar 25px, fpop/mdl marcados)
+ * @param {() => void} [props.onRecordBack] voltar do registro para a lista (botão voltar do celular)
+ * @param {boolean} [props.fieldFilterAvailable] botão Filtros → "Filtrar por campo" (grade Base1 com cabeçalhos de referência)
  */
 export default function CadastroListaChrome({
   children,
@@ -137,7 +147,12 @@ export default function CadastroListaChrome({
   showFilterRail = true,
   joinTableToolbar = false,
   portalComprasSkin = false,
+  onRecordBack,
+  fieldFilterAvailable = joinTableToolbar,
 }) {
+  const celular = useCelular();
+  // Abaixo do desktop os cards se alinham sozinhos — sem "Layout dos cards".
+  const desktop = useMediaQuery("(min-width: 1024px)");
   const oneSelected = selectedCount === 1;
   const anySelected = selectedCount > 0;
   const [showChips, setShowChips] = useState(true);
@@ -148,6 +163,30 @@ export default function CadastroListaChrome({
     return Boolean(searchValue);
   });
   const stripRef = useRef(null);
+  const searchRowRef = useRef(/** @type {HTMLDivElement | null} */ (null));
+
+  // Celular: sem "Carregar mais" — carrega 200 por vez ao chegar perto do fim.
+  useEffect(() => {
+    if (celular && onPageSizeChange && pageSize < 200) onPageSizeChange(200);
+  }, [celular, onPageSizeChange, pageSize]);
+
+  const carregarAoRolar = (event) => {
+    if (!celular || !hasMore || loadingMore || !onLoadMore) return;
+    const el = /** @type {HTMLElement} */ (event.target);
+    if (el.scrollHeight - el.scrollTop - el.clientHeight < 160) onLoadMore();
+  };
+
+  useEffect(() => {
+    if (!searchExpanded || !joinTableToolbar) return undefined;
+    const fora = (event) => {
+      const alvo = /** @type {Element | null} */ (event.target);
+      if (searchRowRef.current?.contains(alvo)) return;
+      if (alvo?.closest?.(".mg-search-suggest")) return;
+      setSearchExpanded(false);
+    };
+    document.addEventListener("pointerdown", fora, true);
+    return () => document.removeEventListener("pointerdown", fora, true);
+  }, [searchExpanded, joinTableToolbar]);
   const railEnabled = showFilterRail && !recordMode;
   const skinAtivo = portalComprasSkin && joinTableToolbar;
 
@@ -186,11 +225,18 @@ export default function CadastroListaChrome({
       },
       ...extraMenuItems,
       {
+        key: "clear-filters",
+        label: "Limpar filtros",
+        icon: <FilterX className="h-4 w-4" />,
+        hidden: !celular || !onClearFilters || !filtersActive || recordMode,
+      },
+      {
         key: "export",
         label: exportCsvLabel,
+        icon: <Download className="h-4 w-4" />,
         disabled: !onExportCsv,
       },
-      { key: "print", label: "Imprimir", disabled: !onPrint },
+      { key: "print", label: "Imprimir", icon: <Printer className="h-4 w-4" />, disabled: !onPrint },
       {
         key: "cfg",
         label: "Configurar colunas",
@@ -202,6 +248,7 @@ export default function CadastroListaChrome({
         label: "Layout dos cards",
         icon: <LayoutGrid className="h-4 w-4" />,
         disabled: !cardsToolsInMenu || viewMode !== "cards",
+        hidden: !desktop,
       },
       {
         key: "card-fields",
@@ -213,6 +260,11 @@ export default function CadastroListaChrome({
     [
       extraMenuItems,
       exportCsvLabel,
+      celular,
+      desktop,
+      onClearFilters,
+      filtersActive,
+      recordMode,
       showAttachControl,
       attachDisabledReason,
       attachTitle,
@@ -230,6 +282,7 @@ export default function CadastroListaChrome({
       extra.onSelect();
       return;
     }
+    if (k === "clear-filters") onClearFilters?.();
     if (k === "export") onExportCsv?.();
     if (k === "print") (onPrint ?? (() => window.print()))();
     if (k === "cfg") {
@@ -259,6 +312,21 @@ export default function CadastroListaChrome({
   const recordViewing = recordMode && !recordEditing;
   const showListPrimaryToolbar = !recordMode || recordViewing;
 
+  /** Props do `CadastroRecordHeader` — o celular usa título e navegação fora do cabeçalho. */
+  const recordInfo = recordMode && React.isValidElement(recordHeader) ? /** @type {any} */ (recordHeader.props) : null;
+  usePublishMobileShell(
+    recordMode
+      ? {
+          editing: Boolean(recordEditing),
+          title: recordInfo?.title ?? "",
+          subtitle: [recordInfo?.code, recordEditing ? (recordInfo?.onGo ? "Edição" : "Novo") : "Visualização"]
+            .filter(Boolean)
+            .join(" • "),
+          onBack: onRecordBack ?? (() => onViewModeChange?.("table")),
+        }
+      : null,
+  );
+
   const maisOpcoesPopover = !secondaryToolsLocked ? (
     <div className="relative mg-toolbar__more">
       {onConfigureColumns ? (
@@ -273,7 +341,7 @@ export default function CadastroListaChrome({
         open={maisOpcoesOpen}
         onOpenChange={setMaisOpcoesOpen}
         className={cn(
-          "flex w-64 min-w-[12rem] flex-col p-1.5",
+          "mg-mais-opcoes flex w-64 min-w-[12rem] flex-col p-1.5",
           skinAtivo && "b1-portal-compras",
         )}
         trigger={
@@ -290,6 +358,7 @@ export default function CadastroListaChrome({
           }}
         />
       </B1Popover>
+      {celular && maisOpcoesOpen ? <div className="mg-mais-opcoes-scrim" aria-hidden /> : null}
     </div>
   ) : null;
 
@@ -315,6 +384,47 @@ export default function CadastroListaChrome({
     <div className={listBodyClass}>{children}</div>
   );
 
+  // Blur sem destino (o navegador tira o foco sozinho) não fecha a pesquisa;
+  // ela fecha ao tocar fora, ao focar outro controle fora dela ou com Esc.
+  const searchRow = onSearchChange ? (
+    <div
+      ref={searchRowRef}
+      className="mg-toolbar__row mg-toolbar__row--search"
+      onBlur={(event) => {
+        const destino = event.relatedTarget;
+        if (destino && !event.currentTarget.contains(destino) && !destino.closest?.(".mg-search-suggest")) {
+          setSearchExpanded(false);
+        }
+      }}
+      onKeyDown={(event) => {
+        if (event.key === "Escape") setSearchExpanded(false);
+      }}
+    >
+      {searchExpanded ? (
+        <CadastroSearchPill
+          value={searchValue}
+          onChange={onSearchChange}
+          onApply={onSearchApply}
+          committedValue={searchCommittedValue}
+          active={searchActive}
+          placeholder={searchPlaceholder}
+          autoFocus
+          suggestions={searchSuggestions}
+          onPickSuggestion={onSearchSuggestionPick}
+        />
+      ) : (
+        <IconBtn
+          aria-label="Abrir pesquisa"
+          title="Pesquisar"
+          className={searchActive ? "is-filter-on" : undefined}
+          onClick={() => setSearchExpanded(true)}
+        >
+          <Search className="h-4 w-4" aria-hidden />
+        </IconBtn>
+      )}
+    </div>
+  ) : null;
+
   const toolbarRow = (
     <div
       data-testid="b1-toolbar"
@@ -329,9 +439,15 @@ export default function CadastroListaChrome({
         <FluidSlot open={showListPrimaryToolbar} className="mg-fluid-slot--primary">
           <div className="mg-fluid-slot__cluster">
             {onNew ? (
-              <PillBtn type="button" onClick={onNew} tabIndex={showListPrimaryToolbar ? undefined : -1}>
+              <PillBtn
+                type="button"
+                onClick={onNew}
+                tabIndex={showListPrimaryToolbar ? undefined : -1}
+                aria-label={createLabel}
+                title={createLabel}
+                className="mg-act-ic"
+              >
                 <Plus className="h-4 w-4" aria-hidden />
-                {createLabel}
               </PillBtn>
             ) : null}
             {extraToolbar}
@@ -345,10 +461,11 @@ export default function CadastroListaChrome({
                       onClick={onEdit}
                       disabled={!oneSelected}
                       tabIndex={showListPrimaryToolbar && oneSelected ? undefined : -1}
-                      className={cn("mg-toolbar__action--wide", !oneSelected && "mg-fluid-slot__ghost")}
+                      aria-label="Editar"
+                      title="Editar"
+                      className={cn("mg-act-ic mg-toolbar__action--wide", !oneSelected && "mg-fluid-slot__ghost")}
                     >
                       <Pencil className="h-3.5 w-3.5" aria-hidden />
-                      Editar
                     </PillBtn>
                   ) : null}
                   {onDuplicate ? (
@@ -358,10 +475,11 @@ export default function CadastroListaChrome({
                       onClick={onDuplicate}
                       disabled={!oneSelected}
                       tabIndex={showListPrimaryToolbar && oneSelected ? undefined : -1}
-                      className={cn("mg-toolbar__action--wide", !oneSelected && "mg-fluid-slot__ghost")}
+                      aria-label="Duplicar"
+                      title="Duplicar"
+                      className={cn("mg-act-ic mg-toolbar__action--wide", !oneSelected && "mg-fluid-slot__ghost")}
                     >
                       <Copy className="h-3.5 w-3.5" aria-hidden />
-                      Duplicar
                     </PillBtn>
                   ) : null}
                   {onDelete ? (
@@ -370,11 +488,11 @@ export default function CadastroListaChrome({
                       tone="red"
                       onClick={onDelete}
                       tabIndex={showListPrimaryToolbar && anySelected ? undefined : -1}
-                      className="mg-toolbar__action--wide"
+                      aria-label={selectedCount > 1 ? `Excluir (${selectedCount})` : "Excluir"}
+                      title={selectedCount > 1 ? `Excluir (${selectedCount})` : "Excluir"}
+                      className="mg-act-ic mg-toolbar__action--wide"
                     >
                       <Trash2 className="h-4 w-4" aria-hidden />
-                      Excluir
-                      {selectedCount > 1 ? ` (${selectedCount})` : ""}
                     </PillBtn>
                   ) : null}
                 </div>
@@ -385,10 +503,23 @@ export default function CadastroListaChrome({
         <FluidSlot open={Boolean(recordMode && recordEditing && recordToolbar)}>
           <div className="mg-fluid-slot__cluster">{recordToolbar}</div>
         </FluidSlot>
+        {celular ? maisOpcoesPopover : null}
       </div>
       {!secondaryToolsLocked && joinedShell ? (
         <div className="mg-toolbar__btns ml-auto flex items-center justify-end">
-          {onClearFilters ? (
+          {celular ? searchRow : null}
+          {fieldFilterAvailable && !recordMode ? (
+            <IconBtn
+              aria-label="Filtros"
+              title="Filtros"
+              className={cn("mg-filtros-btn", filtersActive && "is-filter-on")}
+              onClick={(event) => pedirFiltroPorCampo(event.currentTarget.getBoundingClientRect())}
+              data-testid="b1-field-filter"
+            >
+              <Filter className="h-4 w-4" aria-hidden />
+            </IconBtn>
+          ) : null}
+          {onClearFilters && !celular ? (
             <FluidSlot open={filtersActive}>
               <IconBtn
                 aria-label="Limpar filtros"
@@ -402,38 +533,7 @@ export default function CadastroListaChrome({
               </IconBtn>
             </FluidSlot>
           ) : null}
-          {onSearchChange ? (
-            <div
-              className="mg-toolbar__row mg-toolbar__row--search"
-              onBlur={(event) => {
-                if (!event.currentTarget.contains(event.relatedTarget)) {
-                  setSearchExpanded(false);
-                }
-              }}
-            >
-              {searchExpanded ? (
-                <CadastroSearchPill
-                  value={searchValue}
-                  onChange={onSearchChange}
-                  onApply={onSearchApply}
-                  committedValue={searchCommittedValue}
-                  active={searchActive}
-                  placeholder={searchPlaceholder}
-                  autoFocus
-                  suggestions={searchSuggestions}
-                  onPickSuggestion={onSearchSuggestionPick}
-                />
-              ) : (
-                <IconBtn
-                  aria-label="Abrir pesquisa"
-                  title="Pesquisar"
-                  onClick={() => setSearchExpanded(true)}
-                >
-                  <Search className="h-4 w-4" aria-hidden />
-                </IconBtn>
-              )}
-            </div>
-          ) : null}
+          {!celular ? searchRow : null}
           {showAttachControl ? (
             <IconBtn
               aria-label="Anexos"
@@ -455,7 +555,7 @@ export default function CadastroListaChrome({
               />
             </div>
           ) : null}
-          {maisOpcoesPopover}
+          {!celular ? maisOpcoesPopover : null}
         </div>
       ) : (
         <div className="mg-toolbar__btns ml-auto flex items-center flex-wrap">
@@ -562,7 +662,30 @@ export default function CadastroListaChrome({
     </div>
   ) : null;
 
-  const listSummary = (
+  const showRecordPager = celular && recordViewing && recordInfo && recordInfo.onGo && recordInfo.total > 0;
+  const pagerIndex = recordInfo?.index ?? 0;
+  const pagerTotal = recordInfo?.total ?? 0;
+  const recordPager = showRecordPager ? (
+    <nav className="mg-rec-pager no-print" aria-label="Navegação entre registros">
+      <button type="button" className="mg-rec-pager__btn" aria-label="Primeiro registro" title="Primeiro registro" disabled={pagerIndex <= 0} onClick={() => recordInfo.onGo(0)}>
+        <ChevronsLeft size={18} aria-hidden />
+      </button>
+      <button type="button" className="mg-rec-pager__btn" aria-label="Registro anterior" title="Registro anterior" disabled={pagerIndex <= 0} onClick={() => recordInfo.onGo(pagerIndex - 1)}>
+        <ChevronLeft size={20} aria-hidden />
+      </button>
+      <span className="mg-rec-pager__pos">
+        {pagerIndex + 1}/{pagerTotal}
+      </span>
+      <button type="button" className="mg-rec-pager__btn" aria-label="Próximo registro" title="Próximo registro" disabled={pagerIndex >= pagerTotal - 1} onClick={() => recordInfo.onGo(pagerIndex + 1)}>
+        <ChevronRight size={20} aria-hidden />
+      </button>
+      <button type="button" className="mg-rec-pager__btn" aria-label="Último registro" title="Último registro" disabled={pagerIndex >= pagerTotal - 1} onClick={() => recordInfo.onGo(pagerTotal - 1)}>
+        <ChevronsRight size={18} aria-hidden />
+      </button>
+    </nav>
+  ) : null;
+
+  const listSummary = recordMode && recordEditing ? null : (
     <div className="mg-summary no-print">
       <div className="mg-summary__counts">
         <span className="mg-summary__item">Selecionados: {selectedCount}</span>
@@ -570,7 +693,8 @@ export default function CadastroListaChrome({
         <span className="mg-summary__item">Filtrados: {filtrados}</span>
         <span className="mg-summary__item">Totais: {totais}</span>
       </div>
-      {onPageSizeChange || onLoadMore ? (
+      {loadingMore && celular ? <span className="mg-summary__loading">Carregando…</span> : null}
+      {!celular && (onPageSizeChange || onLoadMore) ? (
         <span className="mg-summary__footer-actions">
           {onPageSizeChange ? (
             <MgSelect
@@ -618,6 +742,7 @@ export default function CadastroListaChrome({
             "mg-shell mg-shell--fill min-h-0 min-w-0 flex-1",
             joinedShell && "mg-shell--join-table",
           )}
+          onScrollCapture={carregarAoRolar}
         >
           {joinedShell ? toolbarRow : null}
           {joinedShell ? pillsRail : null}
@@ -625,6 +750,7 @@ export default function CadastroListaChrome({
           {listSummary}
         </div>
       </div>
+      {recordPager}
 
       {cardsToolbarHosted ? (
         <div className="sr-only" aria-hidden="true">{cardsToolbarHosted}</div>
