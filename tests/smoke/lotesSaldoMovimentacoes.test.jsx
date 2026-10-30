@@ -1,15 +1,14 @@
 /**
- * Lotes: Cadastro = lançamento da ENTRADA; saldo atual só informativo;
- * movimentações ficam no Mapa Geral (D-PROD-84, D-PROD-85).
+ * Lotes: o Cadastro é o lançamento da ENTRADA e não muda com o que acontece
+ * depois no Mapa Geral (D-PROD-84, D-PROD-85).
  *
  * Caso real de produção (30/10/2026, só leitura): lote 1 entrou com 500 em
  * TESTE; uma transferência parcial levou 50 para TET, criando o lote 2 (origem
  * MOVIMENTAÇÃO). Banco: lote 1 entrada 500 / cabeças 450; lote 2 cabeças 50.
  *
- * Aceite: Cadastro lista o lote 1 (Qtd. entrada 500, saldo 450); o lote 2 só
- * aparece como consulta, sem contar como entrada; entradas = 500 e rebanho
- * atual = 500 (nunca 550 nem 450). Nenhuma coluna ou texto de "movimentações"
- * no Cadastro.
+ * Aceite: o Cadastro mostra o lote 1 com Qtd. entrada 500 (não 450); o lote 2
+ * não aparece e não soma como entrada (500, não 550); nenhuma coluna ou texto
+ * de saldo ou movimentação; editar o lote não desfaz nada do mapa.
  */
 import React from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
@@ -21,8 +20,6 @@ import {
   ehLoteDerivadoDeManejo,
   entradaHistoricaDoLote,
   quantidadeDeCabecas,
-  resumoDeCabecas,
-  saldoAtualDoLote,
 } from "@/domain/lotes/saldoLote";
 import * as saldoLote from "@/domain/lotes/saldoLote";
 import { nomeDaAreaDoMovimento, areaPorId } from "@/domain/lotes/movimentacaoLote";
@@ -67,44 +64,29 @@ const LOTE_2 = Object.freeze({
 
 afterEach(() => cleanup());
 
-describe("domain/lotes/saldoLote — entrada × saldo atual (caso real 500 → 450 + 50)", () => {
-  it("lote 1: entrada 500, saldo atual 450; é entrada no rebanho", () => {
+describe("domain/lotes/saldoLote — só a entrada (caso real: lançou 500, depois saíram 50)", () => {
+  it("lote 1: entrada 500 mesmo com saldo 450; é entrada no rebanho", () => {
     expect(entradaHistoricaDoLote(LOTE_1)).toBe(500);
-    expect(saldoAtualDoLote(LOTE_1)).toBe(450);
     expect(ehEntradaNoRebanho(LOTE_1)).toBe(true);
   });
 
-  it("lote 2 (gerado por movimentação): não é entrada; saldo 50", () => {
+  it("lote 2 (gerado por movimentação): não é entrada; não soma (500, não 550)", () => {
     expect(ehLoteDerivadoDeManejo(LOTE_2)).toBe(true);
     expect(ehEntradaNoRebanho(LOTE_2)).toBe(false);
     expect(entradaHistoricaDoLote(LOTE_2)).toBe(0);
-    expect(saldoAtualDoLote(LOTE_2)).toBe(50);
+    expect([LOTE_1, LOTE_2].reduce((t, l) => t + entradaHistoricaDoLote(l), 0)).toBe(500);
   });
 
-  it("entradas 500 e rebanho atual 500 (nem 550, nem 450)", () => {
-    const r = resumoDeCabecas([LOTE_1, LOTE_2]);
-    expect(r).toEqual({ lotes: 2, entradas: 500, saldoAtual: 500 });
-    expect(LOTE_1.quantidade_entrada + LOTE_2.quantidade_entrada).toBe(550); // a soma ingênua
-    expect(resumoDeCabecas([LOTE_1])).toEqual({ lotes: 1, entradas: 500, saldoAtual: 450 }); // só entradas: saldo parcial
+  it("entrada não muda com o que acontece depois (saídas, entradas no lote, zerado)", () => {
+    for (const quantidade_cabecas of [450, 0, 520, "300"]) {
+      expect(entradaHistoricaDoLote({ ...LOTE_1, quantidade_cabecas }), String(quantidade_cabecas)).toBe(500);
+    }
   });
 
-  it("o domínio não expõe mais 'movimentação líquida' (saldo − entrada não é evento)", () => {
-    expect(saldoLote).not.toHaveProperty("movimentacaoLiquidaDoLote");
-    expect(saldoLote).not.toHaveProperty("formatarVariacao");
-  });
-
-  it("nascimento soma ao rebanho; transferência e mudança de categoria não; saída definitiva reduz", () => {
-    const compra = { origem: "COMPRA", quantidade_entrada: 100, quantidade_cabecas: 100 };
-    const nasc = { origem: "Nascimento", quantidade_entrada: 3, quantidade_cabecas: 3 };
-    expect(resumoDeCabecas([compra, nasc])).toEqual({ lotes: 2, entradas: 103, saldoAtual: 103 });
-    // transferência parcial de 30: origem 70 + lote derivado 30
-    const transf = [{ ...compra, quantidade_cabecas: 70 }, { origem: "MOVIMENTAÇÃO", quantidade_entrada: 30, quantidade_cabecas: 30 }];
-    expect(resumoDeCabecas(transf)).toEqual({ lotes: 2, entradas: 100, saldoAtual: 100 });
-    // mudança de categoria de 10: origem 90 + lote derivado 10
-    const cat = [{ ...compra, quantidade_cabecas: 90 }, { origem: "Mudança de Categoria", quantidade_entrada: 10, quantidade_cabecas: 10 }];
-    expect(resumoDeCabecas(cat)).toEqual({ lotes: 2, entradas: 100, saldoAtual: 100 });
-    // abate/morte de 5: só o saldo cai
-    expect(resumoDeCabecas([{ ...compra, quantidade_cabecas: 95 }])).toEqual({ lotes: 1, entradas: 100, saldoAtual: 95 });
+  it("o domínio não expõe saldo nem 'movimentação líquida'", () => {
+    for (const nome of ["movimentacaoLiquidaDoLote", "formatarVariacao", "saldoAtualDoLote", "resumoDeCabecas"]) {
+      expect(saldoLote, nome).not.toHaveProperty(nome);
+    }
   });
 
   it("strings, zeros e vazios: legado importado não quebra a conta", () => {
@@ -115,8 +97,7 @@ describe("domain/lotes/saldoLote — entrada × saldo atual (caso real 500 → 4
     expect(quantidadeDeCabecas(null)).toBe(0);
     expect(quantidadeDeCabecas(undefined)).toBe(0);
     expect(quantidadeDeCabecas("abc")).toBe(0);
-    const zerado = { ...LOTE_1, quantidade_entrada: "500", quantidade_cabecas: "0", status: "Inativo" };
-    expect([entradaHistoricaDoLote(zerado), saldoAtualDoLote(zerado)]).toEqual([500, 0]);
+    expect(entradaHistoricaDoLote({ ...LOTE_1, quantidade_entrada: "500" })).toBe(500);
   });
 
   it("origem comparada sem acento/caixa; nascimento é entrada de verdade", () => {
@@ -126,22 +107,22 @@ describe("domain/lotes/saldoLote — entrada × saldo atual (caso real 500 → 4
     for (const origem of ["COMPRA", "AJUSTE", "INVENTÁRIO", "Nascimento", "NASCIMENTO", "", null, undefined]) {
       expect(ehLoteDerivadoDeManejo({ origem }), String(origem)).toBe(false);
     }
+    expect(entradaHistoricaDoLote({ origem: "Nascimento", quantidade_entrada: 3, quantidade_cabecas: 3 })).toBe(3);
   });
 });
 
-describe("campoEngine — 'entrada' e 'cabecas' (saldo); sem campo de movimentação", () => {
+describe("campoEngine — 'cabecas' é a quantidade de entrada; nada de saldo ou movimentação", () => {
   it("valores brutos e agregação", () => {
-    expect(campoEngine.getValorBruto(LOTE_1, { id: "cabecas" })).toBe(450);
-    expect(campoEngine.getValorBruto(LOTE_1, { id: "entrada" })).toBe(500);
-    expect(campoEngine.getValorBruto(LOTE_2, { id: "entrada" })).toBe(0);
-    expect(campoEngine.getValorBruto(LOTE_1, { id: "movimentacoes" })).toBe(""); // não existe mais
-    expect(campoEngine.calcularAgregacoes([LOTE_1, LOTE_2], [{ id: "entrada", agregacao_tipo: "sum" }])).toEqual({ entrada: 500 });
+    expect(campoEngine.getValorBruto(LOTE_1, { id: "cabecas" })).toBe(500);
+    expect(campoEngine.getValorBruto(LOTE_2, { id: "cabecas" })).toBe(0);
+    expect(campoEngine.getValorBruto(LOTE_1, { id: "movimentacoes" })).toBe("");
+    expect(campoEngine.calcularAgregacoes([LOTE_1, LOTE_2], [{ id: "cabecas", agregacao_tipo: "sum" }])).toEqual({ cabecas: 500 });
   });
 
-  it("fórmula: cabecas/saldo_atual = saldo; entrada separada; 'movimentacoes' não existe", () => {
-    expect(campoEngine.calcularCampo(LOTE_1, { formula: "cabecas" })).toBe(450);
-    expect(campoEngine.calcularCampo(LOTE_1, { formula: "saldo_atual" })).toBe(450);
-    expect(campoEngine.calcularCampo(LOTE_1, { formula: "entrada" })).toBe(500);
+  it("fórmulas usam a entrada", () => {
+    expect(campoEngine.calcularCampo(LOTE_1, { formula: "cabecas" })).toBe(500);
+    expect(campoEngine.calcularCampo(LOTE_1, { formula: "quantidade" })).toBe(500);
+    expect(campoEngine.calcularCampo(LOTE_1, { formula: "saldo_atual" })).toBe(0);
     expect(campoEngine.calcularCampo(LOTE_1, { formula: "movimentacoes" })).toBe(0);
   });
 });
@@ -152,27 +133,25 @@ describe("TabelaLotes — grade e exportação do Cadastro", () => {
     vi.resetModules();
   });
 
-  it("colunas: Qtd. entrada e Saldo atual (informativo); nenhuma coluna de movimentação", async () => {
+  it("uma coluna de quantidade: 'Qtd. entrada'; nenhuma de saldo ou movimentação", async () => {
     const { COLUNAS_DISPONIVEIS } = await import("@/components/lotes/TabelaLotes");
     const ids = COLUNAS_DISPONIVEIS.map((c) => c.id);
     expect(ids).not.toContain("movimentacoes");
-    expect(COLUNAS_DISPONIVEIS.some((c) => /moviment/i.test(c.label))).toBe(false);
-    const rotulo = (id) => COLUNAS_DISPONIVEIS.find((c) => c.id === id).label;
-    expect([rotulo("entrada"), rotulo("cabecas")]).toEqual(["Qtd. entrada", "Saldo atual (informativo)"]);
-    expect(ids.indexOf("entrada")).toBeLessThan(ids.indexOf("cabecas"));
+    expect(ids).not.toContain("entrada");
+    expect(COLUNAS_DISPONIVEIS.some((c) => /moviment|saldo/i.test(c.label))).toBe(false);
+    expect(COLUNAS_DISPONIVEIS.find((c) => c.id === "cabecas").label).toBe("Qtd. entrada");
   });
 
-  it("exportação: números crus de entrada e saldo", async () => {
+  it("exportação: número cru da entrada", async () => {
     const { getLoteFieldValue } = await import("@/components/lotes/TabelaLotes");
-    expect(["entrada", "cabecas"].map((c) => getLoteFieldValue(LOTE_1, c))).toEqual(["500", "450"]);
-    expect(["entrada", "cabecas"].map((c) => getLoteFieldValue(LOTE_2, c))).toEqual(["0", "50"]);
+    expect(getLoteFieldValue(LOTE_1, "cabecas")).toBe("500");
   });
 
-  it("grade real: Totais só da Qtd. entrada (500); saldo sem total; sem '-50'/'+50'; derivado com '—'", async () => {
+  it("grade real: lote 1 mostra 500 (não 450); Totais 500; sem saldo nem movimentação", async () => {
     const { default: TabelaLotes } = await import("@/components/lotes/TabelaLotes");
     render(
       <TabelaLotes
-        lotes={[LOTE_1, LOTE_2]}
+        lotes={[LOTE_1]}
         searchQuery=""
         resetFiltersKey={0}
         onSelectionChange={() => {}}
@@ -183,42 +162,20 @@ describe("TabelaLotes — grade e exportação do Cadastro", () => {
       />,
     );
     const totais = (await screen.findByText("Totais")).closest("tr");
-    const celulas = within(totais).getAllByRole("cell").map((td) => td.textContent);
-    expect(celulas).toContain("500");
-    expect(celulas).not.toContain("550");
-    expect(celulas.filter((t) => t === "500")).toHaveLength(1); // só a coluna de entrada é somada
-    expect(screen.queryByText("-50")).toBeNull();
-    expect(screen.queryByText("+50")).toBeNull();
-    expect(screen.queryByText(/Movimenta/)).toBeNull();
-    expect(screen.getAllByTitle("Gerado por manejo: as cabeças já existiam no lote de origem").length).toBeGreaterThan(0);
+    expect(within(totais).getAllByRole("cell").map((td) => td.textContent)).toContain("500");
+    expect(screen.queryByText("450")).toBeNull();
+    expect(screen.queryByText(/-50|\+50|Moviment|Saldo/)).toBeNull();
   });
 
-  it("layout salvo antigo: 'Qtd. entrada' entra antes do saldo uma vez; id antigo 'movimentacoes' é descartado na leitura", async () => {
-    const { migrarColunasSaldoLotes } = await import("@/components/lotes/TabelaLotes");
+  it("layout salvo com ids antigos ('entrada', 'movimentacoes') é lido sem eles; 'cabecas' segue visível", async () => {
     const { loadCadastroBase1ColumnPrefs } = await import("@/lib/cadastroBase1ColumnPrefs");
     const { COLUNAS_DISPONIVEIS } = await import("@/components/lotes/TabelaLotes");
-    localStorage.setItem(
-      "colunas_cadastro_lotes_prefs",
-      JSON.stringify({ version: 1, columns: { order: ["codigo", "nome", "cabecas", "status"], visible: ["nome", "cabecas"], widths: {}, frozen: 0, autoFit: [] } }),
-    );
-    migrarColunasSaldoLotes(localStorage);
-    const prefs = JSON.parse(localStorage.getItem("colunas_cadastro_lotes_prefs"));
-    expect(prefs.columns.order).toEqual(["codigo", "nome", "entrada", "cabecas", "status"]);
-    expect(prefs.columns.visible).toEqual(["nome", "entrada", "cabecas"]);
-    // Layout de quem já tinha a coluna antiga de movimentações.
     localStorage.setItem(
       "colunas_cadastro_lotes_prefs",
       JSON.stringify({ version: 1, columns: { order: ["nome", "entrada", "movimentacoes", "cabecas"], visible: ["nome", "entrada", "movimentacoes", "cabecas"], widths: {}, frozen: 0, autoFit: [] } }),
     );
     const lidas = loadCadastroBase1ColumnPrefs("colunas_cadastro_lotes", COLUNAS_DISPONIVEIS);
-    expect(lidas.colunasVisiveis).toEqual(["nome", "entrada", "cabecas"]);
-    expect(lidas.colunasOrdem).not.toContain("movimentacoes");
-  });
-
-  it("storage quebrado não derruba a tela", async () => {
-    const { migrarColunasSaldoLotes } = await import("@/components/lotes/TabelaLotes");
-    const quebrado = { getItem: () => { throw new Error("bloqueado"); }, setItem: () => { throw new Error("bloqueado"); } };
-    expect(() => migrarColunasSaldoLotes(/** @type {any} */ (quebrado))).not.toThrow();
+    expect(lidas.colunasVisiveis).toEqual(["nome", "cabecas"]);
   });
 });
 
@@ -287,13 +244,26 @@ describe("FormularioLote — edição não regrava quantidade nem desfaz movimen
     return onSubmit.mock.calls[0][0];
   };
 
-  it("lote 1: mostra Qtd. entrada 500 e Saldo atual (informativo) 450, sem campo editável e sem movimentações", async () => {
+  it("lote 1: mostra só Qtd. entrada 500 (não 450), sem campo editável, saldo ou movimentações", async () => {
     await renderForm({ initialData: LOTE_1, isEditing: true });
     const caixa = screen.getByTestId("lote-quantidades");
     expect(caixa.textContent).toContain("Qtd. entrada: 500");
-    expect(caixa.textContent).toContain("Saldo atual (informativo): 450");
-    expect(caixa.textContent).not.toMatch(/Moviment|-50/);
+    expect(caixa.textContent).not.toMatch(/Moviment|Saldo|450|-50/);
     expect(caixa.querySelector("input")).toBeNull();
+  });
+
+  it("edição mostra a categoria e o peso da ENTRADA (só leitura) e não os reenvia: não desfaz mudança de categoria nem pesagem", async () => {
+    const mudou = { ...LOTE_1, categoria_manejo_entrada_id: "cm-bez", categoria_manejo_id: "cm-gar", categoria_entrada: "BEZERRO", categoria: "GARROTE", peso_entrada_kg: 180, peso_medio_kg: 260, sexo: "Macho" };
+    const { onSubmit } = await renderForm({ initialData: mudou, isEditing: true });
+    const peso = screen.getByText("Peso Médio na Entrada (kg)").closest(".mg-field").querySelector("input");
+    expect(peso.value).toBe("180");
+    expect(peso.readOnly || peso.disabled).toBe(true);
+    const cat = screen.getByText("Categoria de Manejo").closest(".mg-field").querySelector("input");
+    expect(cat.readOnly || cat.disabled).toBe(true);
+    const payload = await submeter(onSubmit);
+    for (const campo of ["categoria", "categoria_manejo_id", "categoria_manejo_nome", "sexo", "peso_medio_kg", "peso_entrada_kg", "categoria_entrada", "categoria_manejo_entrada_id"]) {
+      expect(payload, campo).not.toHaveProperty(campo);
+    }
   });
 
   it("salvar edição do lote 1 não reenvia quantidade (as 50 cabeças que saíram não voltam)", async () => {
@@ -305,12 +275,11 @@ describe("FormularioLote — edição não regrava quantidade nem desfaz movimen
     expect(payload).not.toHaveProperty("area_atual_id");
   });
 
-  it("lote 2 gerado por manejo: Qtd. entrada '—' (não é entrada), saldo 50; salvar não troca a origem", async () => {
+  it("lote 2 gerado por manejo: Qtd. entrada '—' (não é entrada); salvar não troca a origem", async () => {
     const { onSubmit } = await renderForm({ initialData: LOTE_2, isEditing: true });
     const caixa = screen.getByTestId("lote-quantidades");
     expect(caixa.textContent).toContain("Qtd. entrada: — (gerado por manejo, não é entrada)");
-    expect(caixa.textContent).toContain("Saldo atual (informativo): 50");
-    expect(caixa.textContent).not.toMatch(/Moviment|\+50/);
+    expect(caixa.textContent).not.toMatch(/Moviment|Saldo|\+50/);
     const payload = await submeter(onSubmit);
     expect(payload).not.toHaveProperty("origem");
     expect(payload).not.toHaveProperty("quantidade_cabecas");

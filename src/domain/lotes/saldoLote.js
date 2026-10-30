@@ -1,22 +1,16 @@
 /**
- * Entrada no rebanho × saldo atual de um lote — regra pura (D-PROD-85).
+ * Entrada no rebanho — regra pura (D-PROD-85).
  *
- * O Cadastro de Lotes é o lançamento da ENTRADA (como o recebimento de um
- * estoque). Movimentações são operações do Mapa Geral, com histórico próprio,
- * e não aparecem nem se fazem aqui.
+ * O Cadastro de Lotes é o lançamento da ENTRADA, como o recebimento de um
+ * estoque: mostra o que foi lançado e nada que aconteça depois. Saldo,
+ * movimentações, saídas, mudanças de categoria e pesagens são do Mapa Geral.
  *
  * - **Quantidade de entrada:** `quantidade_entrada`, o retrato imutável do dia
  *   em que as cabeças ENTRARAM no rebanho (compra, ajuste, inventário,
- *   nascimento).
+ *   nascimento). Lançar 500 e depois movimentar: o Cadastro continua 500.
  * - **Lote gerado por manejo** (parte de uma movimentação, reversão, mudança de
- *   categoria ou recomposição) não é entrada: as cabeças já existiam no lote
- *   de origem. Contá-lo de novo somaria a mesma cabeça duas vezes (500 + 50).
- * - **Saldo atual:** `quantidade_cabecas`, as cabeças que o lote tem hoje.
- *   Dado informativo de leitura; muda só pelos manejos do mapa.
- *
- * Caso real: lote 1 entrou com 500 e tem 450; lote 2 (gerado pela
- * transferência) tem 50. Entradas no rebanho = 500; rebanho atual = 500.
- * A diferença saldo − entrada NÃO é um evento e não é exibida como tal.
+ *   categoria ou recomposição) não é entrada: as cabeças já existiam no lote de
+ *   origem. Não aparece no Cadastro e não soma como entrada (500, não 550).
  *
  * Nada aqui conhece React, rede ou storage.
  */
@@ -69,28 +63,7 @@ export const entradaHistoricaDoLote = (lote) =>
   ehLoteDerivadoDeManejo(lote) ? 0 : quantidadeDeCabecas(/** @type {any} */ (lote)?.quantidade_entrada);
 
 /**
- * Cabeças que o lote tem hoje.
- * @param {object | null | undefined} lote
- */
-export const saldoAtualDoLote = (lote) => quantidadeDeCabecas(/** @type {any} */ (lote)?.quantidade_cabecas);
-
-/**
  * O lote é uma entrada no rebanho (pertence ao Cadastro de Lotes)?
  * @param {object | null | undefined} lote
  */
 export const ehEntradaNoRebanho = (lote) => !ehLoteDerivadoDeManejo(lote);
-
-/**
- * Totais de um conjunto de lotes. Soma cada cabeça física uma vez.
- * @param {Array<object | null | undefined>} lotes
- * @returns {{ lotes: number, entradas: number, saldoAtual: number }}
- */
-export const resumoDeCabecas = (lotes) =>
-  (Array.isArray(lotes) ? lotes : []).reduce(
-    (acc, lote) => ({
-      lotes: acc.lotes + 1,
-      entradas: acc.entradas + entradaHistoricaDoLote(lote),
-      saldoAtual: acc.saldoAtual + saldoAtualDoLote(lote),
-    }),
-    { lotes: 0, entradas: 0, saldoAtual: 0 }
-  );

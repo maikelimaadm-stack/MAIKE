@@ -2,11 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import CadastroBase1Grade from "@/components/cadastro/base1/CadastroBase1Grade";
 import { BASE1_LISTA_INTEGRADA_VISUAL } from "@/components/cadastro/base1/base1VisualPreset";
 import campoEngine from "@/services/campoEngine";
-import {
-  ehLoteDerivadoDeManejo,
-  entradaHistoricaDoLote,
-  saldoAtualDoLote,
-} from "@/domain/lotes/saldoLote";
+import { ehLoteDerivadoDeManejo, entradaHistoricaDoLote } from "@/domain/lotes/saldoLote";
 
 export const COLUNAS_DISPONIVEIS = [
   { id: "codigo", label: "Código", default: true, sortable: true, align: "left", width: 100 },
@@ -14,11 +10,9 @@ export const COLUNAS_DISPONIVEIS = [
   { id: "identificador", label: "Identificador", default: true, sortable: true, align: "left", width: 180 },
   { id: "sigla", label: "Sigla", default: true, sortable: true, align: "left", width: 90 },
   { id: "cor", label: "Cor", default: true, sortable: true, align: "left", width: 100 },
-  // Cadastro = lançamento da entrada (D-PROD-85). Movimentações são do Mapa
-  // Geral e não aparecem aqui. O id "cabecas" é mantido para preservar o
-  // layout salvo; é o saldo atual, só informativo.
-  { id: "entrada", label: "Qtd. entrada", default: true, sortable: true, align: "right", width: 110 },
-  { id: "cabecas", label: "Saldo atual (informativo)", default: true, sortable: true, align: "right", width: 170 },
+  // Cadastro = lançamento da entrada (D-PROD-85): a quantidade lançada, que
+  // nenhuma movimentação/saída do mapa altera. O id "cabecas" é o do layout salvo.
+  { id: "cabecas", label: "Qtd. entrada", default: true, sortable: true, align: "right", width: 110 },
   { id: "categoria", label: "Categoria", default: true, sortable: true, align: "left", width: 160 },
   { id: "categoria_manejo", label: "Categoria Manejo", default: true, sortable: true, align: "left", width: 180 },
   { id: "sexo", label: "Sexo", default: true, sortable: true, align: "left", width: 100 },
@@ -42,68 +36,20 @@ export const COLUNAS_DISPONIVEIS = [
   { id: "observacoes", label: "Observações", default: true, sortable: false, align: "left", width: 220 },
 ];
 
-/**
- * Soma no rodapé só da quantidade de entrada: cada cabeça entra uma vez. O
- * saldo atual não é totalizado aqui, porque a lista padrão traz só entradas e
- * o lote gerado por manejo guarda o resto do saldo. O rebanho atual aparece no
- * resumo da tela (`resumoDeCabecas` de todos os lotes).
- */
-export const COLUNAS_TOTALIZADAS = Object.freeze(["entrada"]);
-const COLUNAS_SEM_TOTAL = Object.freeze(["cabecas"]);
+/** Soma no rodapé: a quantidade lançada na entrada (cada cabeça entra uma vez). */
+export const COLUNAS_TOTALIZADAS = Object.freeze(["cabecas"]);
 
 /**
- * Valor exportado (CSV): números crus.
+ * Valor exportado (CSV): número cru da quantidade de entrada.
  * @param {object} lote @param {string} colId
  */
 export const getLoteFieldValue = (lote, colId) => {
   const coluna = COLUNAS_DISPONIVEIS.find((item) => item.id === colId);
-  if (colId === "entrada") return String(entradaHistoricaDoLote(lote));
-  if (colId === "cabecas") return String(saldoAtualDoLote(lote));
+  if (colId === "cabecas") return String(entradaHistoricaDoLote(lote));
   return String(campoEngine.getValorCampo(lote, coluna || { id: colId }, {}) ?? "");
 };
 
 const STORAGE_KEY = "colunas_cadastro_lotes";
-const MIGRACAO_COLUNAS_SALDO = `${STORAGE_KEY}_saldo_v1`;
-
-/**
- * Layout salvo antes desta coluna existir só conhece "cabecas": sem migração,
- * "Qtd. entrada" ficaria oculta para sempre (a lista de visíveis salva não a
- * contém). Uma única vez por navegador, insere-a antes de "cabecas" na ordem e
- * nas visíveis, nas chaves unificada e legadas. Preferência que o usuário mudar
- * depois disso é respeitada. Um id antigo que não existe mais (ex.:
- * "movimentacoes") é descartado ao ler o layout.
- *
- * @param {Storage} [storage]
- */
-export function migrarColunasSaldoLotes(storage = globalThis.localStorage) {
-  try {
-    if (!storage || storage.getItem(MIGRACAO_COLUNAS_SALDO)) return;
-    const novas = ["entrada"];
-    const inserir = (lista) => {
-      if (!Array.isArray(lista)) return lista;
-      const base = lista.filter((id) => !novas.includes(id));
-      const i = base.indexOf("cabecas");
-      return i >= 0 ? [...base.slice(0, i), ...novas, ...base.slice(i)] : [...base, ...novas];
-    };
-    const ler = (chave) => {
-      const bruto = storage.getItem(chave);
-      return bruto ? JSON.parse(bruto) : null;
-    };
-    const unificado = ler(`${STORAGE_KEY}_prefs`);
-    if (unificado?.columns) {
-      unificado.columns.order = inserir(unificado.columns.order);
-      unificado.columns.visible = inserir(unificado.columns.visible);
-      storage.setItem(`${STORAGE_KEY}_prefs`, JSON.stringify(unificado));
-    }
-    for (const sufixo of ["_ordem", "_visiveis"]) {
-      const lista = ler(`${STORAGE_KEY}${sufixo}`);
-      if (Array.isArray(lista)) storage.setItem(`${STORAGE_KEY}${sufixo}`, JSON.stringify(inserir(lista)));
-    }
-    storage.setItem(MIGRACAO_COLUNAS_SALDO, "1");
-  } catch {
-    /* layout best-effort: sem storage, valem os defaults (colunas visíveis) */
-  }
-}
 
 /** Referência estável quando a prop `lotes` é omitida (evita ciclo via matchesSearch). */
 const EMPTY_LOTES = [];
@@ -150,7 +96,7 @@ function displayPayloadEquivalent(prev, next) {
  */
 const formatTotalValue = (valor, coluna) => {
   const tipo = String(coluna.tipo || coluna.field_type || "").toLowerCase();
-  const integerColumns = ["cabecas", "entrada", "quantidade_cabecas", "quantidade_entrada"];
+  const integerColumns = ["cabecas", "quantidade_cabecas", "quantidade_entrada"];
   const isInteger = integerColumns.includes(coluna.id) || integerColumns.includes(coluna.field_name);
   const decimalPlaces = Math.min(6, Math.max(0, Number(coluna.decimal_places ?? coluna.casas_decimais ?? 2)));
   const isDecimal =
@@ -222,11 +168,6 @@ export default function TabelaLotes({
   configureColumnsAnchorRef,
 }) {
   const globalSearch = searchQuery || searchTerm;
-  // Antes de a grade ler o layout salvo (primeiro render dos filhos).
-  useState(() => {
-    migrarColunasSaldoLotes();
-    return true;
-  });
 
   const [layoutAggregationConfig, setLayoutAggregationConfig] = useState(() => {
     const saved = localStorage.getItem("cadastro_lotes_table_aggregation_config");
@@ -274,9 +215,6 @@ export default function TabelaLotes({
       if (COLUNAS_TOTALIZADAS.includes(coluna.id)) {
         return { ...base, agregacao_tipo: "sum", agregacao: "sum" };
       }
-      if (COLUNAS_SEM_TOTAL.includes(coluna.id)) {
-        return { ...base, agregacao_tipo: "", agregacao: "" };
-      }
       if (coluna.tipo === "number" && coluna.usar_mascara) {
         return { ...base, agregacao_tipo: "", agregacao: "", align: "left" };
       }
@@ -296,16 +234,13 @@ export default function TabelaLotes({
 
   const renderCell = useCallback(
     (lote, colunaId) => {
-      if (colunaId === "entrada") {
-        // Lote gerado por manejo não é entrada no rebanho: as cabeças vieram de outro lote.
+      if (colunaId === "cabecas") {
+        // Lote gerado por manejo não é entrada (não aparece na lista do Cadastro).
         return ehLoteDerivadoDeManejo(lote) ? (
           <span title="Gerado por manejo: as cabeças já existiam no lote de origem">—</span>
         ) : (
           entradaHistoricaDoLote(lote).toLocaleString("pt-BR", { maximumFractionDigits: 0 })
         );
-      }
-      if (colunaId === "cabecas") {
-        return saldoAtualDoLote(lote).toLocaleString("pt-BR", { maximumFractionDigits: 0 });
       }
       const coluna = colunasDisponiveis.find((item) => item.id === colunaId);
       return campoEngine.getValorCampo(lote, coluna || { id: colunaId }, {});

@@ -3173,25 +3173,32 @@ Relatório: `docs/engineering/MAIKE-LOTES-SALDO-MOVIMENTACOES-REPORT.md`.
 
 ---
 
-## D-PROD-85 — Cadastro de Lotes é lançamento de entrada; movimentações ficam no Mapa
+## D-PROD-85 — Cadastro de Lotes mostra só a entrada; o que vem depois é do Mapa
 
-**Contexto:** o proprietário definiu o Cadastro de Lotes como o lançamento da ENTRADA do rebanho, como o recebimento de um estoque. Movimentações (transferência, mudança de categoria, morte, abate) são operações do Mapa Geral, com persistência e histórico próprios.
+**Contexto:** o proprietário definiu o Cadastro de Lotes como o lançamento da ENTRADA do rebanho, como o recebimento de um estoque. Nas palavras dele: "se eu lançar 500 animais e fizer depois movimentações, entradas, saídas etc., nada muda no meu cadastro de lotes".
+
+Movimentações, saídas, mudanças de categoria e pesagens são operações do Mapa Geral, com persistência e histórico próprios.
 
 A D-PROD-84 tinha posto no Cadastro:
-- a coluna "Movimentações (±)" (saldo − entrada);
-- os lotes gerados por manejo, misturados às entradas.
-
-Saldo − entrada é uma conta, não um evento, e não deve aparecer como movimentação.
+- saldo atual;
+- "Movimentações (±)";
+- os lotes gerados por manejo.
 
 **Decisão (substitui o item 1 e a listagem da D-PROD-84; os bloqueios de servidor e de edição continuam):**
-1. **Lista padrão = entradas no rebanho:** compra, ajuste, inventário e nascimento. Lote gerado por manejo (MOVIMENTAÇÃO, REVERSÃO MOVIMENTAÇÃO, MUDANÇA DE CATEGORIA, EDIÇÃO MOVIMENTAÇÃO) só aparece pelo botão de consulta "Mostrar lotes gerados por manejo", com "—" na quantidade de entrada.
-2. **Colunas:**
-   - "Qtd. entrada" (`quantidade_entrada`), somada no rodapé;
-   - "Saldo atual (informativo)" (`quantidade_cabecas`), sem total no rodapé.
-   - Nenhuma coluna, campo de exportação, fórmula (`campoEngine`) ou texto de movimentação no Cadastro.
-3. **Resumo de leitura na barra:** "Entradas: N cab. · Rebanho atual: M cab.", calculado sobre todos os lotes. O saldo que está num lote gerado por manejo nunca some da conta. Caso real: entradas 500, rebanho 500.
-4. **Formulário em edição:** mostra "Qtd. entrada" e "Saldo atual (informativo)", só leitura; nada de movimentação.
-5. **O CRUD do Cadastro não cria, edita, reverte nem exclui movimentação.** Isso já valia e agora está provado em PostgreSQL: o POST cria um lote e nenhuma movimentação; o PATCH de metadado não altera quantidades, áreas, origem nem movimentos.
+1. **O Cadastro lista só lotes que são entrada no rebanho:** compra, ajuste, inventário e nascimento.
+   - Lote gerado por manejo (MOVIMENTAÇÃO, REVERSÃO MOVIMENTAÇÃO, MUDANÇA DE CATEGORIA, EDIÇÃO MOVIMENTAÇÃO) não aparece e não soma como entrada.
+   - Ele continua no mapa e em todos os outros consumidores.
+2. **Grade e exportação mostram os dados lançados na entrada:**
+   - "Qtd. entrada" (`quantidade_entrada`, id de coluna `cabecas`), somada no rodapé;
+   - categoria, categoria de manejo, peso e área de entrada.
+   - Sem saldo atual, sem movimentações e sem resumo de rebanho.
+   - No caso real, o lote 1 mostra 500 para sempre, mesmo com 450 no mapa.
+3. **Formulário de edição de lote já lançado:**
+   - mostra quantidade, categoria de manejo, sexo, peso, setor e área da entrada, só leitura;
+   - o PATCH não leva esses campos, para não desfazer mudança de categoria ou pesagem feitas no mapa;
+   - nome, identificação, raça, idade, sistema produtivo, motivo e observações continuam editáveis.
+4. **O CRUD do Cadastro não cria, edita, reverte nem exclui movimentação.** Isso já valia e agora está provado em PostgreSQL: o POST cria um lote e nenhuma movimentação; o PATCH de metadado não altera quantidades, áreas, origem nem movimentos.
+5. **Fica igual:** o status (Ativo/Inativo) continua o do registro. O mapa ainda inativa o lote zerado.
 
 Relatório: `docs/engineering/MAIKE-LOTES-SALDO-MOVIMENTACOES-REPORT.md` (seção "Cadastro = entrada").
 

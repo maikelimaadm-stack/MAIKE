@@ -1,14 +1,14 @@
 /**
  * Cadastro de Lotes = lançamento da ENTRADA no rebanho (D-PROD-85).
  *
- * Caso real: lote 1 (AJUSTE) entrou com 500 e tem 450; o lote 2 foi gerado
- * pela transferência de 50 no mapa (origem MOVIMENTAÇÃO). A lista padrão traz
- * só a entrada; o lote 2 aparece apenas como consulta. O resumo mostra
- * entradas 500 e rebanho atual 500. Abrir e alternar a lista não escreve nada.
+ * Caso real: lote 1 (AJUSTE) entrou com 500 e hoje tem 450; o lote 2 foi
+ * gerado pela transferência de 50 no mapa (origem MOVIMENTAÇÃO). O Cadastro
+ * lista só a entrada (lote 1) e nada do que veio depois: sem lote 2, sem
+ * saldo, sem resumo de rebanho. Abrir a tela não escreve nada.
  */
 import React from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, waitFor, cleanup, fireEvent } from "@testing-library/react";
+import { render, screen, waitFor, cleanup } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 const serviceMock = {
@@ -77,55 +77,41 @@ afterEach(() => {
   vi.resetModules();
 });
 
-describe("Cadastro de Lotes — entradas, consulta e resumo", () => {
-  it("lista padrão: só entradas no rebanho (lote 1); lote gerado por manejo fica de fora", async () => {
+describe("Cadastro de Lotes — só entradas, nada do que acontece depois", () => {
+  it("lista só entradas no rebanho (lote 1); lote gerado por manejo não aparece", async () => {
     await renderPagina();
     await waitFor(() => expect(screen.getByTestId("grade-lotes").textContent).toBe("1"));
     expect(serviceMock.listarLotes.mock.calls[0][0]).toEqual(expect.objectContaining({ empresaId: "emp-1", incluirSistema: true }));
   });
 
-  it("nascimento é entrada e aparece na lista padrão", async () => {
+  it("nascimento é entrada e aparece", async () => {
     serviceMock.listarLotes.mockResolvedValue([LOTE_1, LOTE_2, NASC]);
     await renderPagina();
     await waitFor(() => expect(screen.getByTestId("grade-lotes").textContent.split(",").sort()).toEqual(["1", "3"]));
-    expect(screen.getByTestId("resumo-rebanho").textContent).toMatch(/Entradas: 503 cab\..*Rebanho atual: 503 cab\./);
   });
 
-  it("resumo de leitura: Entradas 500 · Rebanho atual 500 (o saldo do lote derivado não some)", async () => {
+  it("sem botão de lotes gerados por manejo e sem resumo de saldo/rebanho", async () => {
     await renderPagina();
-    await waitFor(() => expect(screen.getByTestId("resumo-rebanho").textContent).toMatch(/Entradas: 500 cab\..*Rebanho atual: 500 cab\./));
-    expect(screen.getByTestId("resumo-rebanho").textContent).not.toMatch(/550|450/);
+    await waitFor(() => expect(screen.getByTestId("grade-lotes").textContent).toBe("1"));
+    expect(screen.queryByRole("button", { name: /gerados por manejo/i })).toBeNull();
+    expect(screen.queryByTestId("resumo-rebanho")).toBeNull();
+    expect(screen.queryByText(/Rebanho atual|Saldo/)).toBeNull();
   });
 
-  it("consulta: o botão mostra/oculta os lotes gerados por manejo, sem mudar o resumo", async () => {
+  it("abrir a tela não escreve nada: sem criar/editar/excluir lote nem manejo", async () => {
     await renderPagina();
     await waitFor(() => expect(screen.getByTestId("grade-lotes").textContent).toBe("1"));
-    const botao = screen.getByRole("button", { name: "Mostrar lotes gerados por manejo" });
-    expect(botao.getAttribute("aria-pressed")).toBe("false");
-    fireEvent.click(botao);
-    await waitFor(() => expect(screen.getByTestId("grade-lotes").textContent).toBe("1,2"));
-    expect(screen.getByRole("button", { name: "Ocultar lotes gerados por manejo" }).getAttribute("aria-pressed")).toBe("true");
-    expect(screen.getByTestId("resumo-rebanho").textContent).toMatch(/Entradas: 500 cab\..*Rebanho atual: 500 cab\./);
-    fireEvent.click(screen.getByRole("button", { name: "Ocultar lotes gerados por manejo" }));
-    await waitFor(() => expect(screen.getByTestId("grade-lotes").textContent).toBe("1"));
-  });
-
-  it("abrir e alternar a lista não escreve nada: sem criar/editar/excluir lote nem manejo", async () => {
-    await renderPagina();
-    await waitFor(() => expect(screen.getByTestId("grade-lotes").textContent).toBe("1"));
-    fireEvent.click(screen.getByRole("button", { name: "Mostrar lotes gerados por manejo" }));
-    await waitFor(() => expect(screen.getByTestId("grade-lotes").textContent).toBe("1,2"));
     expect(serviceMock.criarLote).not.toHaveBeenCalled();
     expect(serviceMock.atualizarLote).not.toHaveBeenCalled();
     expect(serviceMock.excluirLotes).not.toHaveBeenCalled();
     expect(manejoMock).not.toHaveBeenCalled();
   });
 
-  it("a tela de Cadastro não mostra coluna nem texto de movimentações", async () => {
+  it("colunas da tela: nenhuma de saldo ou movimentação; 'Qtd. entrada' presente", async () => {
     await renderPagina();
     await waitFor(() => expect(gradePropsSpy).toHaveBeenCalled());
-    const colunas = gradePropsSpy.mock.calls.at(-1)[0].columns.map((c) => `${c.id}:${c.label}`);
-    expect(colunas.join("|")).not.toMatch(/moviment/i);
-    expect(screen.queryByText(/Movimentações \(±\)/)).toBeNull();
+    const colunas = gradePropsSpy.mock.calls.at(-1)[0].columns;
+    expect(colunas.map((c) => c.label).join("|")).not.toMatch(/moviment|saldo/i);
+    expect(colunas.find((c) => c.id === "cabecas").label).toBe("Qtd. entrada");
   });
 });

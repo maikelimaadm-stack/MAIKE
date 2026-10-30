@@ -19,7 +19,7 @@ import LegacyTabs from "./LegacyTabs.jsx";
 import Base1PanelTabs from "@/components/cadastro/base1/Base1PanelTabs.jsx";
 import DynamicFormRenderer from "@/components/dynamic/DynamicFormRenderer";
 import IconeOficialLotePreview from "@/components/catalogoGlobal/IconeOficialLotePreview";
-import { ehLoteDerivadoDeManejo, entradaHistoricaDoLote, saldoAtualDoLote } from "@/domain/lotes/saldoLote";
+import { ehLoteDerivadoDeManejo, entradaHistoricaDoLote } from "@/domain/lotes/saldoLote";
 import LayoutConfiguratorDialog from "@/components/dynamic/LayoutConfiguratorDialog";
 export const FORMULARIO_LOTE_ID = "formulario-lote-base1";
 
@@ -68,6 +68,9 @@ const CORES_DISPONIVEIS = [
 { nome: "Laranja", cor: "#f5a01b" },
 { nome: "Roxo", cor: "#966fe1" }];
 
+
+/** Campos da entrada: só leitura na edição e fora do PATCH do cadastro (D-PROD-85). */
+const CAMPOS_DA_ENTRADA_EM_EDICAO = Object.freeze(["setor_id", "area_entrada_id", "categoria_manejo_id", "sexo", "peso_medio_kg"]);
 
 const parseSistemasProdutivos = (valor) => {
   if (Array.isArray(valor)) return valor;
@@ -135,8 +138,17 @@ export default function FormularioLote({
     return data.split("T")[0]; // Remove horas se vier do banco como DateTime
   };
 
+  // Registro já lançado: o formulário mostra a ENTRADA (D-PROD-85). Categoria,
+  // sexo e peso atuais mudam pelos manejos do mapa e não aparecem aqui.
   const buildFormData = (data) => data ? {
     ...data,
+    ...(quantidadesSomenteLeitura
+      ? {
+          categoria_manejo_id: data.categoria_manejo_entrada_id ?? data.categoria_manejo_id,
+          categoria: data.categoria_entrada ?? data.categoria,
+          peso_medio_kg: data.peso_entrada_kg ?? data.peso_medio_kg,
+        }
+      : {}),
     sistema_produtivo: parseSistemasProdutivos(data.sistema_produtivo),
     data_entrada: carregarDataEntrada(data.data_entrada)
   } : {
@@ -256,7 +268,7 @@ export default function FormularioLote({
 
   const handleChange = (field, value) => {
     if (isReadOnly) return;
-    if (quantidadesSomenteLeitura && (field === "setor_id" || field === "area_entrada_id")) return;
+    if (quantidadesSomenteLeitura && CAMPOS_DA_ENTRADA_EM_EDICAO.includes(field)) return;
     setIsDirty(true);
     const normalizedValue = UPPERCASE_FIELDS.includes(field) && typeof value === "string" ? value.toUpperCase() : value;
     const newData = { ...formData, [field]: normalizedValue };
@@ -394,10 +406,14 @@ export default function FormularioLote({
       delete dataToSave.setor_nome;
       delete dataToSave.area_entrada_id;
       delete dataToSave.area_entrada_nome;
-      dataToSave.peso_entrada_kg = initialData?.peso_entrada_kg ?? dataToSave.peso_entrada_kg;
-      dataToSave.categoria_entrada = initialData?.categoria_entrada ?? dataToSave.categoria_entrada;
-      dataToSave.categoria_manejo_entrada_id = initialData?.categoria_manejo_entrada_id ?? dataToSave.categoria_manejo_entrada_id;
-      dataToSave.categoria_manejo_entrada_nome = initialData?.categoria_manejo_entrada_nome ?? dataToSave.categoria_manejo_entrada_nome;
+      // Categoria, sexo e peso exibidos são os da entrada: reenviá-los
+      // desfaria mudança de categoria e pesagem feitas no mapa.
+      for (const campo of [
+        "categoria", "categoria_manejo_id", "categoria_manejo_nome", "sexo", "peso_medio_kg",
+        "categoria_entrada", "categoria_manejo_entrada_id", "categoria_manejo_entrada_nome", "peso_entrada_kg",
+      ]) {
+        delete dataToSave[campo];
+      }
     }
 
 
@@ -440,20 +456,17 @@ export default function FormularioLote({
         readOnly: true,
         render: () => (
           <div className="flex h-[22px] items-center gap-3 bg-slate-50 px-1 text-xs tabular-nums" data-testid="lote-quantidades">
-            <span title="Cabeças que entraram no rebanho por este lançamento (retrato imutável da entrada)">
+            <span title="Cabeças lançadas na entrada. Movimentações e saídas do mapa não mudam este número.">
               Qtd. entrada: {ehLoteDerivadoDeManejo(initialData) ? "— (gerado por manejo, não é entrada)" : entradaHistoricaDoLote(initialData).toLocaleString("pt-BR")}
-            </span>
-            <span title="Cabeças que o lote tem hoje. Muda só pelos manejos do Mapa Geral.">
-              Saldo atual (informativo): {saldoAtualDoLote(initialData).toLocaleString("pt-BR")}
             </span>
           </div>
         ),
       }
     : { id: "quantidade_cabecas", name: "quantidade_cabecas", label: "Qtd. Cabeças (entrada)", type: "number", required: true, compact: true, errorKey: "quantidade_cabecas", totalizable: true },
-  { id: "categoria_manejo_id", name: "categoria_manejo_id", label: "Categoria de Manejo", type: "autocomplete", required: true, errorKey: "categoria_manejo_id", options: categoriasManejo, placeholder: "BUSCAR CATEGORIA...", displayField: "nome", searchFields: ["nome", "categoria_oficial", "sexo", "raca"], render: ({ value }) => <AutocompleteGenerico items={categoriasManejo} value={value} onChange={(nextValue) => handleChange("categoria_manejo_id", nextValue)} placeholder="BUSCAR CATEGORIA..." displayField="nome" searchFields={["nome", "categoria_oficial", "sexo", "raca"]} className="w-full" inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[22px] text-xs px-1" renderItem={(item) => <div className="text-xs font-medium text-slate-900">{(item.nome || "").toUpperCase()} {item.categoria_oficial ? `(${item.categoria_oficial})` : ""}</div>} /> },
-  { id: "sexo", name: "sexo", label: "Sexo", type: "autocomplete", required: true, errorKey: "sexo", options: opcoesSexo, placeholder: "BUSCAR SEXO...", displayField: "nome", searchFields: ["nome"] },
+  { id: "categoria_manejo_id", name: "categoria_manejo_id", label: "Categoria de Manejo", type: "autocomplete", required: true, readOnly: quantidadesSomenteLeitura, errorKey: "categoria_manejo_id", options: categoriasManejo, placeholder: "BUSCAR CATEGORIA...", displayField: "nome", searchFields: ["nome", "categoria_oficial", "sexo", "raca"], render: ({ value }) => <AutocompleteGenerico items={categoriasManejo} value={value} disabled={quantidadesSomenteLeitura} readOnly={quantidadesSomenteLeitura || isReadOnly} onChange={(nextValue) => handleChange("categoria_manejo_id", nextValue)} placeholder="BUSCAR CATEGORIA..." displayField="nome" searchFields={["nome", "categoria_oficial", "sexo", "raca"]} className="w-full" inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[22px] text-xs px-1" renderItem={(item) => <div className="text-xs font-medium text-slate-900">{(item.nome || "").toUpperCase()} {item.categoria_oficial ? `(${item.categoria_oficial})` : ""}</div>} /> },
+  { id: "sexo", name: "sexo", label: "Sexo", type: "autocomplete", required: true, readOnly: quantidadesSomenteLeitura, errorKey: "sexo", options: opcoesSexo, placeholder: "BUSCAR SEXO...", displayField: "nome", searchFields: ["nome"] },
   { id: "raca_predominante", name: "raca_predominante", label: "Raça Predominante", type: "text", required: true, errorKey: "raca_predominante", uppercase: true, placeholder: "RAÇA" },
-  { id: "peso_medio_kg", name: "peso_medio_kg", label: "Peso Médio (kg)", type: "number", required: true, compact: true, errorKey: "peso_medio_kg", totalizable: true },
+  { id: "peso_medio_kg", name: "peso_medio_kg", label: quantidadesSomenteLeitura ? "Peso Médio na Entrada (kg)" : "Peso Médio (kg)", type: "number", required: true, readOnly: quantidadesSomenteLeitura, compact: true, errorKey: "peso_medio_kg", totalizable: true },
   { id: "idade_media_meses", name: "idade_media_meses", label: "Idade Média (meses)", type: "number", required: true, compact: true, errorKey: "idade_media_meses", totalizable: true },
   { id: "sistema_produtivo", name: "sistema_produtivo", label: "Sistema Produtivo", type: "checkbox", required: true, wide: true, errorKey: "sistema_produtivo", render: () => <div className="px-1 py-1 space-y-1 bg-transparent"><div className="text-[11px] leading-none text-slate-500">{parseSistemasProdutivos(formData.sistema_produtivo).length > 0 ? parseSistemasProdutivos(formData.sistema_produtivo).join(", ") : "SELECIONE UM OU MAIS TIPOS"}</div><div className="border border-slate-300 bg-white rounded-[1.5px] p-1 space-y-1">{SISTEMAS.map((item) => {const checked = parseSistemasProdutivos(formData.sistema_produtivo).includes(item);return <label key={item} className="flex h-[22px] w-full items-center gap-1 text-xs text-slate-700 uppercase text-left bg-white hover:bg-slate-50 px-1 cursor-pointer"><input type="checkbox" checked={checked} onChange={() => toggleSistemaProdutivo(item)} disabled={isReadOnly} className="h-3 w-3 rounded-none border-slate-400 accent-green-500 focus:ring-0" /><span>{item}</span></label>;})}</div></div> },
   { id: "motivo_entrada", name: "motivo_entrada", label: "Motivo da Entrada", type: "select", optionsMode: "native", options: opcoesMotivoEntrada, placeholder: "BUSCAR MOTIVO...", displayField: "nome", searchFields: ["nome"] },
