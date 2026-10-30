@@ -29,6 +29,7 @@ import { listLancamentos } from '@/apis/tarefas';
 import { listManejosTecnicos } from '@/apis/rebanho';
 import { API_ERROR_CODES } from '@/apis/_core/ApiError';
 import { assertExclusaoPermitida } from './deleteGuardService';
+import { ehLoteDerivadoDeManejo } from '@/domain/lotes/saldoLote';
 
 /**
  * Origens geradas pelo próprio sistema.
@@ -215,6 +216,13 @@ export const excluirLotes = async (ids, { lotes = [] } = {}) => {
 
   for (const id of listaIds) {
     const atual = (lotes || []).find((item) => item.id === id) || null;
+    // Lote gerado por manejo carrega cabeças que saíram de outro lote: apagá-lo
+    // pelo cadastro sumiria com elas sem estornar a origem. Desfaz-se pelo
+    // histórico de movimentações do mapa.
+    if (ehLoteDerivadoDeManejo(atual)) {
+      bloqueados.push({ id, code: API_ERROR_CODES.LOTE_DELETE_BLOCKED });
+      continue;
+    }
     try {
       await assertExclusaoPermitida({
         entityName: 'Lote',

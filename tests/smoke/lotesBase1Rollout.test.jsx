@@ -96,7 +96,9 @@ describe("CadastroLotes — rollout MotorBase1", () => {
       expect(serviceMock.listarLotes).toHaveBeenCalled();
     });
     expect(serviceMock.listarLotes.mock.calls[0][0]).toEqual(
-      expect.objectContaining({ empresaId: "emp-1", incluirSistema: false }),
+      // Lotes gerados por manejo (ex.: destino de movimentação parcial) entram na
+      // lista: sem eles o saldo do rebanho some do cadastro (lotesSaldoMovimentacoes).
+      expect.objectContaining({ empresaId: "emp-1", incluirSistema: true }),
     );
   });
 

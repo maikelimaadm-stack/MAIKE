@@ -37,8 +37,12 @@ export default function CadastroLotes() {
   const [newRecordAttachmentsOpen, setNewRecordAttachmentsOpen] = useState(false);
   const [pendingAttachments, setPendingAttachments] = useState([]);
 
+  // Todos os lotes da empresa, inclusive os gerados por manejo: sem eles o
+  // destino de uma movimentação parcial (+50) sumia do cadastro e o saldo do
+  // rebanho fechava em 450 em vez de 500. A entrada histórica não duplica:
+  // lote gerado por manejo não conta como entrada (domain/lotes/saldoLote).
   const fetchAll = useCallback(
-    () => listarLotes({ empresaId: empresaSelecionadaId, incluirSistema: false }),
+    () => listarLotes({ empresaId: empresaSelecionadaId, incluirSistema: true }),
     [empresaSelecionadaId],
   );
 
@@ -171,8 +175,10 @@ export default function CadastroLotes() {
         notifyExclusoesEmpilhadas(excluidos.length, { singular: "Lote excluído" });
       }
       if (bloqueados.length) {
-        const soBloqueio = bloqueados.every((b) =>
-          hasApiErrorCode(b.erro, API_ERROR_CODES.LOTE_DELETE_BLOCKED),
+        const soBloqueio = bloqueados.every(
+          (b) =>
+            b.code === API_ERROR_CODES.LOTE_DELETE_BLOCKED ||
+            hasApiErrorCode(b.erro, API_ERROR_CODES.LOTE_DELETE_BLOCKED),
         );
         notifyError(
           "Atenção",

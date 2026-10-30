@@ -1,0 +1,432 @@
+/**
+ * Lotes: entrada (histórico) × movimentações (±) × saldo atual.
+ *
+ * Reproduz o caso real de produção (30/10/2026, só leitura): lote 1 entrou com
+ * 500 em TESTE; uma transferência parcial levou 50 para TET, criando o lote 2
+ * (origem MOVIMENTAÇÃO). Banco: lote 1 entrada 500 / cabeças 450; lote 2
+ * entrada 50 / cabeças 50; a movimentação gravou `area_destino_nome: ""`.
+ *
+ * Antes desta correção o cadastro mostrava "Cabeças 500" no lote 1, escondia o
+ * lote 2 e não havia como ver a saída. Aceite: lote 1 = 500 / -50 / 450,
+ * lote 2 = — / +50 / 50, rebanho = 500 (nunca 550, 450 nem -50).
+ */
+import React from "react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { render, screen, cleanup, fireEvent, waitFor, within } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+
+import {
+  ehLoteDerivadoDeManejo,
+  entradaHistoricaDoLote,
+  formatarVariacao,
+  movimentacaoLiquidaDoLote,
+  quantidadeDeCabecas,
+  resumoDeCabecas,
+  saldoAtualDoLote,
+} from "@/domain/lotes/saldoLote";
+import { nomeDaAreaDoMovimento, areaPorId } from "@/domain/lotes/movimentacaoLote";
+import campoEngine from "@/services/campoEngine";
+
+const LOTE_1 = Object.freeze({
+  id: "cmvve89ny0002l808lh34ice3",
+  empresa_id: "emp-1",
+  numero_lote: "1",
+  nome: "TESTE",
+  origem: "AJUSTE",
+  motivo_entrada: "Ajuste",
+  motivo_ajuste: "TESTE",
+  status: "Ativo",
+  quantidade_entrada: 500,
+  quantidade_cabecas: 450,
+  area_entrada_id: "area-teste",
+  setor_id: "s1",
+  setor_nome: "SETOR 1",
+  area_entrada_nome: "TESTE",
+  area_atual_id: "area-teste",
+  area_atual_nome: "TESTE",
+});
+const LOTE_2 = Object.freeze({
+  id: "cmvved55m0002ju08dyje7kkd",
+  empresa_id: "emp-1",
+  numero_lote: "2",
+  nome: "TESTE",
+  origem: "MOVIMENTAÇÃO",
+  motivo_entrada: "Outros",
+  motivo_outros: "Movimentação parcial",
+  status: "Ativo",
+  quantidade_entrada: 50,
+  quantidade_cabecas: 50,
+  area_entrada_id: "area-tet",
+  setor_id: "s1",
+  setor_nome: "SETOR 1",
+  area_entrada_nome: "TET",
+  area_atual_id: "area-tet",
+  area_atual_nome: "TET",
+});
+
+afterEach(() => cleanup());
+
+describe("domain/lotes/saldoLote — caso real 500 → 450 + 50", () => {
+  it("lote 1: entrada 500, movimentações -50, saldo 450", () => {
+    expect(entradaHistoricaDoLote(LOTE_1)).toBe(500);
+    expect(movimentacaoLiquidaDoLote(LOTE_1)).toBe(-50);
+    expect(saldoAtualDoLote(LOTE_1)).toBe(450);
+  });
+
+  it("lote 2 (gerado por movimentação): não é entrada no rebanho; +50; saldo 50", () => {
+    expect(ehLoteDerivadoDeManejo(LOTE_2)).toBe(true);
+    expect(entradaHistoricaDoLote(LOTE_2)).toBe(0);
+    expect(movimentacaoLiquidaDoLote(LOTE_2)).toBe(50);
+    expect(saldoAtualDoLote(LOTE_2)).toBe(50);
+  });
+
+  it("rebanho consolidado = 500: entradas 500, movimentações 0, saldo 500 (nem 550, nem 450, nem -50)", () => {
+    const r = resumoDeCabecas([LOTE_1, LOTE_2]);
+    expect(r).toEqual({ lotes: 2, entradas: 500, movimentacoes: 0, saldoAtual: 500 });
+    expect(r.entradas + r.movimentacoes).toBe(r.saldoAtual);
+    // As somas ingênuas que o cadastro produzia/permitiria:
+    expect(LOTE_1.quantidade_entrada + LOTE_2.quantidade_entrada).toBe(550);
+    expect(r.saldoAtual).not.toBe(550);
+  });
+
+  it("débito -50 na origem é sinal do fluxo, não saldo negativo", () => {
+    expect(movimentacaoLiquidaDoLote(LOTE_1)).toBeLessThan(0);
+    expect(saldoAtualDoLote(LOTE_1)).toBeGreaterThan(0);
+  });
+
+  it("strings, zeros e vazios: legado importado não quebra a conta", () => {
+    expect(quantidadeDeCabecas("450")).toBe(450);
+    expect(quantidadeDeCabecas(" 50 ")).toBe(50);
+    expect(quantidadeDeCabecas(0)).toBe(0);
+    expect(quantidadeDeCabecas("")).toBe(0);
+    expect(quantidadeDeCabecas(null)).toBe(0);
+    expect(quantidadeDeCabecas(undefined)).toBe(0);
+    expect(quantidadeDeCabecas("abc")).toBe(0);
+    const comString = { ...LOTE_1, quantidade_entrada: "500", quantidade_cabecas: "450" };
+    expect(movimentacaoLiquidaDoLote(comString)).toBe(-50);
+    // Lote que saiu inteiro: saldo 0, variação = -entrada.
+    const zerado = { ...LOTE_1, quantidade_cabecas: 0, status: "Inativo" };
+    expect([entradaHistoricaDoLote(zerado), movimentacaoLiquidaDoLote(zerado), saldoAtualDoLote(zerado)]).toEqual([500, -500, 0]);
+  });
+
+  it("origem comparada sem acento/caixa; nascimento é entrada de verdade", () => {
+    for (const origem of ["MOVIMENTAÇÃO", "Movimentacao", " movimentação ", "REVERSÃO MOVIMENTAÇÃO", "Mudança de Categoria", "MUDANCA DE CATEGORIA", "EDIÇÃO MOVIMENTAÇÃO"]) {
+      expect(ehLoteDerivadoDeManejo({ origem }), origem).toBe(true);
+    }
+    for (const origem of ["COMPRA", "AJUSTE", "INVENTÁRIO", "Nascimento", "NASCIMENTO", "", null, undefined]) {
+      expect(ehLoteDerivadoDeManejo({ origem }), String(origem)).toBe(false);
+    }
+    expect(entradaHistoricaDoLote({ origem: "Nascimento", quantidade_entrada: 3, quantidade_cabecas: 3 })).toBe(3);
+  });
+
+  it("duas áreas, movimentação total que unificou no destino: total preservado", () => {
+    const origem = { origem: "COMPRA", quantidade_entrada: 100, quantidade_cabecas: 0, status: "Inativo" };
+    const destino = { origem: "COMPRA", quantidade_entrada: 30, quantidade_cabecas: 130 };
+    expect(resumoDeCabecas([origem, destino])).toEqual({ lotes: 2, entradas: 130, movimentacoes: 0, saldoAtual: 130 });
+  });
+
+  it("formatarVariacao mostra o sinal", () => {
+    expect(formatarVariacao(-50)).toBe("-50");
+    expect(formatarVariacao(50)).toBe("+50");
+    expect(formatarVariacao(0)).toBe("0");
+    expect(formatarVariacao(-1500)).toBe("-1.500");
+  });
+});
+
+describe("campoEngine — coluna 'cabecas' é saldo atual, totais por coluna", () => {
+  it("valores brutos e agregação soma cada cabeça uma vez", () => {
+    expect(campoEngine.getValorBruto(LOTE_1, { id: "cabecas" })).toBe(450);
+    expect(campoEngine.getValorBruto(LOTE_1, { id: "entrada" })).toBe(500);
+    expect(campoEngine.getValorBruto(LOTE_1, { id: "movimentacoes" })).toBe(-50);
+    expect(campoEngine.getValorBruto(LOTE_2, { id: "entrada" })).toBe(0);
+    const colunas = ["entrada", "movimentacoes", "cabecas"].map((id) => ({ id, agregacao_tipo: "sum" }));
+    expect(campoEngine.calcularAgregacoes([LOTE_1, LOTE_2], colunas)).toEqual({ entrada: 500, movimentacoes: 0, cabecas: 500 });
+  });
+
+  it("fórmula: cabecas/saldo_atual = saldo; entrada separada", () => {
+    expect(campoEngine.calcularCampo(LOTE_1, { formula: "cabecas" })).toBe(450);
+    expect(campoEngine.calcularCampo(LOTE_1, { formula: "saldo_atual" })).toBe(450);
+    expect(campoEngine.calcularCampo(LOTE_1, { formula: "entrada - saldo_atual" })).toBe(50);
+  });
+});
+
+describe("TabelaLotes — grade, exportação e totais", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    vi.resetModules();
+  });
+
+  it("exportação: números crus e variação com sinal", async () => {
+    const { getLoteFieldValue } = await import("@/components/lotes/TabelaLotes");
+    expect(["entrada", "movimentacoes", "cabecas"].map((c) => getLoteFieldValue(LOTE_1, c))).toEqual(["500", "-50", "450"]);
+    expect(["entrada", "movimentacoes", "cabecas"].map((c) => getLoteFieldValue(LOTE_2, c))).toEqual(["0", "+50", "50"]);
+  });
+
+  it("colunas novas, com rótulos explícitos, antes do saldo", async () => {
+    const { COLUNAS_DISPONIVEIS } = await import("@/components/lotes/TabelaLotes");
+    const ids = COLUNAS_DISPONIVEIS.map((c) => c.id);
+    expect(ids.indexOf("entrada")).toBeLessThan(ids.indexOf("movimentacoes"));
+    expect(ids.indexOf("movimentacoes")).toBeLessThan(ids.indexOf("cabecas"));
+    const rotulo = (id) => COLUNAS_DISPONIVEIS.find((c) => c.id === id).label;
+    expect([rotulo("entrada"), rotulo("movimentacoes"), rotulo("cabecas")]).toEqual(["Entrada (histórico)", "Movimentações (±)", "Saldo atual"]);
+  });
+
+  it("grade real: células e linha de Totais 500 / 0 / 500", async () => {
+    const { default: TabelaLotes } = await import("@/components/lotes/TabelaLotes");
+    render(
+      <TabelaLotes
+        lotes={[LOTE_1, LOTE_2]}
+        searchQuery=""
+        resetFiltersKey={0}
+        onSelectionChange={() => {}}
+        onFiltersActiveChange={() => {}}
+        viewMode="table"
+        showConfigColunas={false}
+        setShowConfigColunas={() => {}}
+      />,
+    );
+    const totais = (await screen.findByText("Totais")).closest("tr");
+    const celulas = within(totais).getAllByRole("cell").map((td) => td.textContent);
+    expect(celulas).toEqual(expect.arrayContaining(["500", "0", "500"]));
+    expect(celulas).not.toContain("550");
+    expect(screen.getAllByText("-50").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("+50").length).toBeGreaterThan(0);
+    expect(screen.getAllByTitle("Gerado por manejo: as cabeças já existiam no lote de origem").length).toBeGreaterThan(0);
+  });
+
+  it("layout salvo antigo: Entrada/Movimentações entram antes do saldo uma vez; preferência posterior é respeitada", async () => {
+    const { migrarColunasSaldoLotes } = await import("@/components/lotes/TabelaLotes");
+    localStorage.setItem(
+      "colunas_cadastro_lotes_prefs",
+      JSON.stringify({ version: 1, columns: { order: ["codigo", "nome", "cabecas", "status"], visible: ["nome", "cabecas"], widths: {}, frozen: 0, autoFit: [] } }),
+    );
+    localStorage.setItem("colunas_cadastro_lotes_visiveis", JSON.stringify(["nome", "cabecas"]));
+    migrarColunasSaldoLotes(localStorage);
+    const prefs = JSON.parse(localStorage.getItem("colunas_cadastro_lotes_prefs"));
+    expect(prefs.columns.order).toEqual(["codigo", "nome", "entrada", "movimentacoes", "cabecas", "status"]);
+    expect(prefs.columns.visible).toEqual(["nome", "entrada", "movimentacoes", "cabecas"]);
+    expect(JSON.parse(localStorage.getItem("colunas_cadastro_lotes_visiveis"))).toEqual(["nome", "entrada", "movimentacoes", "cabecas"]);
+    // Usuário oculta "movimentacoes" depois; reabrir a tela não a traz de volta.
+    prefs.columns.visible = ["nome", "entrada", "cabecas"];
+    localStorage.setItem("colunas_cadastro_lotes_prefs", JSON.stringify(prefs));
+    migrarColunasSaldoLotes(localStorage);
+    expect(JSON.parse(localStorage.getItem("colunas_cadastro_lotes_prefs")).columns.visible).toEqual(["nome", "entrada", "cabecas"]);
+  });
+
+  it("storage quebrado não derruba a tela", async () => {
+    const { migrarColunasSaldoLotes } = await import("@/components/lotes/TabelaLotes");
+    const quebrado = { getItem: () => { throw new Error("bloqueado"); }, setItem: () => { throw new Error("bloqueado"); } };
+    expect(() => migrarColunasSaldoLotes(/** @type {any} */ (quebrado))).not.toThrow();
+  });
+});
+
+describe("loteCadastroService — lote gerado por manejo não é apagado pelo cadastro", () => {
+  it("bloqueia sem chamar a API de exclusão", async () => {
+    vi.resetModules();
+    const deleteLote = vi.fn();
+    vi.doMock("@/apis/lotes", () => ({
+      listLotes: vi.fn(), createLote: vi.fn(), updateLote: vi.fn(), deleteLote,
+      listMovimentacoes: vi.fn(async () => []), listMovimentacoesPecuarias: vi.fn(async () => []),
+      listTodasMovimentacoes: vi.fn(async () => []), listFornecedores: vi.fn(), listCategoriasManejo: vi.fn(),
+      sincronizarReferenciasLote: vi.fn(), listSuplementacaoLotes: vi.fn(async () => []),
+    }));
+    const { excluirLotes } = await import("@/services/loteCadastroService");
+    const { API_ERROR_CODES } = await import("@/apis/_core/ApiError");
+    const r = await excluirLotes([LOTE_2.id], { lotes: [LOTE_2] });
+    expect(r.excluidos).toEqual([]);
+    expect(r.bloqueados).toEqual([{ id: LOTE_2.id, code: API_ERROR_CODES.LOTE_DELETE_BLOCKED }]);
+    expect(deleteLote).not.toHaveBeenCalled();
+    vi.doUnmock("@/apis/lotes");
+  });
+});
+
+describe("FormularioLote — edição não regrava quantidade nem desfaz movimentação", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.doMock("@/hooks/useEmpresaSelecionadaId", () => ({ useEmpresaSelecionadaId: () => "emp-1" }));
+    vi.doMock("@/hooks/useSetorAreas", () => ({
+      default: () => ({
+        setores: [{ id: "s1", nome: "SETOR 1" }, { id: "s2", nome: "SETOR 2" }],
+        areas: [
+          { id: "area-teste", nome: "TESTE", setor_id: "s1" },
+          { id: "area-tet", nome: "TET", setor_id: "s1" },
+          { id: "area-outra", nome: "OUTRA", setor_id: "s2" },
+        ],
+        getAreasBySetor: (setorId) =>
+          [
+            { id: "area-teste", nome: "TESTE", setor_id: "s1" },
+            { id: "area-tet", nome: "TET", setor_id: "s1" },
+            { id: "area-outra", nome: "OUTRA", setor_id: "s2" },
+          ].filter((a) => a.setor_id === setorId),
+      }),
+    }));
+    vi.doMock("@/services/loteCadastroService", async (importOriginal) => ({
+      ...(await importOriginal()),
+      listarCategoriasManejoAtivas: vi.fn(async () => []),
+      listarFornecedores: vi.fn(async () => []),
+    }));
+    localStorage.removeItem("cadastro_lotes_form_layout_config");
+  });
+
+  const renderForm = async (props) => {
+    const { default: FormularioLote } = await import("@/components/lotes/FormularioLote.jsx");
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const onSubmit = vi.fn();
+    render(
+      <QueryClientProvider client={qc}>
+        <FormularioLote visualVariant="base1" variant="embedded" toolbarActions readOnly={false} onSubmit={onSubmit} onCancel={() => {}} {...props} />
+      </QueryClientProvider>,
+    );
+    return { onSubmit };
+  };
+  const submeter = async (onSubmit) => {
+    fireEvent.submit(document.getElementById("formulario-lote-base1"));
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    return onSubmit.mock.calls[0][0];
+  };
+
+  it("lote 1: mostra Entrada 500 / Movimentações -50 / Saldo atual 450, sem campo editável", async () => {
+    await renderForm({ initialData: LOTE_1, isEditing: true });
+    const caixa = screen.getByTestId("lote-quantidades");
+    expect(caixa.textContent).toContain("Entrada: 500");
+    expect(caixa.textContent).toContain("Movimentações: -50");
+    expect(caixa.textContent).toContain("Saldo atual: 450");
+    expect(caixa.querySelector("input")).toBeNull();
+  });
+
+  it("salvar edição do lote 1 não reenvia quantidade (as 50 cabeças que saíram não voltam)", async () => {
+    const { onSubmit } = await renderForm({ initialData: LOTE_1, isEditing: true });
+    const payload = await submeter(onSubmit);
+    expect(payload).not.toHaveProperty("quantidade_cabecas");
+    expect(payload).not.toHaveProperty("quantidade_entrada");
+    // Já movimentou (saldo ≠ entrada): a área atual não é reescrita pela de entrada.
+    expect(payload).not.toHaveProperty("area_atual_id");
+  });
+
+  it("lote 2 gerado por manejo: Entrada '—', +50, saldo 50; salvar não troca a origem", async () => {
+    const { onSubmit } = await renderForm({ initialData: LOTE_2, isEditing: true });
+    const caixa = screen.getByTestId("lote-quantidades");
+    expect(caixa.textContent).toContain("Entrada: — (gerado por manejo)");
+    expect(caixa.textContent).toContain("Movimentações: +50");
+    expect(caixa.textContent).toContain("Saldo atual: 50");
+    const payload = await submeter(onSubmit);
+    expect(payload).not.toHaveProperty("origem");
+    expect(payload).not.toHaveProperty("quantidade_cabecas");
+    expect(payload).not.toHaveProperty("area_atual_id");
+  });
+
+  it("lote zerado (saiu inteiro) pode ser editado: quantidade 0 não bloqueia o salvar", async () => {
+    const { onSubmit } = await renderForm({ initialData: { ...LOTE_1, quantidade_cabecas: 0, status: "Inativo" }, isEditing: true });
+    const payload = await submeter(onSubmit);
+    expect(payload.nome).toBe("TESTE");
+  });
+
+  it("R2 — lote que SAIU E VOLTOU (mesma área, mesmo saldo): edição não move a área atual", async () => {
+    // Saldo líquido zero e área igual não provam que o lote nunca movimentou.
+    // Antes (R1) este caso reenviava area_atual_id = área de entrada do form,
+    // e o port nativo descarta area_entrada_id no PATCH: "editar a área de
+    // entrada" só movia o lote fisicamente, sem movimentação.
+    const saiuEVoltou = { ...LOTE_1, quantidade_cabecas: 500 };
+    const { onSubmit } = await renderForm({ initialData: saiuEVoltou, isEditing: true });
+    const payload = await submeter(onSubmit);
+    expect(payload).not.toHaveProperty("area_atual_id");
+    expect(payload).not.toHaveProperty("area_atual_nome");
+    expect(payload).not.toHaveProperty("quantidade_cabecas");
+  });
+
+  it("R2 — área de entrada fica só leitura na edição (registro histórico); em lote novo é editável", async () => {
+    await renderForm({ initialData: LOTE_1, isEditing: true });
+    const campoDe = () => screen.getByText("Área de Entrada").closest(".mg-field");
+    const campo = campoDe();
+    expect(campo).toBeTruthy();
+    const controles = [...campo.querySelectorAll("input, button")];
+    expect(controles.length).toBeGreaterThan(0);
+    expect(controles.every((el) => el.disabled || el.readOnly)).toBe(true);
+    cleanup();
+    await renderForm({ initialData: null, isEditing: false });
+    const novo = campoDe();
+    expect([...novo.querySelectorAll("input")].some((el) => !el.disabled && !el.readOnly)).toBe(true);
+  });
+
+  it("R2 — lote derivado e lote zerado: edição nunca leva área atual", async () => {
+    for (const initialData of [LOTE_2, { ...LOTE_1, quantidade_cabecas: 0, status: "Inativo" }]) {
+      const { onSubmit } = await renderForm({ initialData, isEditing: true });
+      const payload = await submeter(onSubmit);
+      expect(payload).not.toHaveProperty("area_atual_id");
+      cleanup();
+    }
+  });
+
+  // R3 — Setor também é histórico na edição. Interação pelo AutocompleteGenerico
+  // real (foco, seta para baixo, Enter), sem mock do componente.
+  const campoSetor = () => screen.getByText("Setor").closest(".mg-field");
+  const tentarTrocarSetor = () => {
+    const input = campoSetor().querySelector("input");
+    fireEvent.focus(input);
+    fireEvent.keyDown(input, { key: "ArrowDown" });
+    fireEvent.keyDown(input, { key: "Enter" });
+    return input;
+  };
+  const CAMPOS_HISTORICOS = ["setor_id", "setor_nome", "area_entrada_id", "area_entrada_nome", "area_atual_id", "area_atual_nome", "quantidade_cabecas", "quantidade_entrada"];
+
+  for (const [rotulo, lote] of [
+    ["manual", LOTE_1],
+    ["derivado", LOTE_2],
+    ["que saiu e voltou", { ...LOTE_1, quantidade_cabecas: 500 }],
+  ]) {
+    it(`R3 — lote ${rotulo}: Setor travado; tentar trocar não zera a Área de Entrada; payload sem campos históricos; outros metadados salvam`, async () => {
+      const { onSubmit } = await renderForm({ initialData: lote, isEditing: true });
+      const input = tentarTrocarSetor();
+      expect(input.disabled || input.readOnly).toBe(true);
+      expect(campoSetor().querySelector("button")).toBeNull(); // sem o "x" de limpar
+      // Área de Entrada continua preenchida (o valor exibido é o nome da área).
+      const area = screen.getByText("Área de Entrada").closest(".mg-field").querySelector("input");
+      expect(area.value).toBe(lote.area_entrada_nome);
+      fireEvent.change(screen.getByPlaceholderText("NOME DO LOTE"), { target: { value: "TESTE RENOMEADO" } });
+      const payload = await submeter(onSubmit);
+      expect(payload.nome).toBe("TESTE RENOMEADO");
+      for (const campo of CAMPOS_HISTORICOS) expect(payload, campo).not.toHaveProperty(campo);
+    });
+  }
+
+  it("R3 — lote novo (duplicado = POST): Setor editável e payload leva setor, áreas e quantidade", async () => {
+    const { onSubmit } = await renderForm({ initialData: { ...LOTE_1, id: undefined, _isDuplicate: true }, isEditing: true });
+    const input = campoSetor().querySelector("input");
+    expect(input.disabled).toBe(false);
+    expect(input.readOnly).toBe(false);
+    const payload = await submeter(onSubmit);
+    expect(payload.setor_id).toBe("s1");
+    expect(payload.area_entrada_id).toBe("area-teste");
+    expect(payload.area_atual_id).toBe("area-teste");
+    expect(payload.quantidade_cabecas).toBe(450);
+  });
+
+  it("R3 — lote novo: trocar o Setor pelo Autocomplete funciona e limpa a área (regra de cadastro mantida)", async () => {
+    await renderForm({ initialData: null, isEditing: false });
+    const input = tentarTrocarSetor();
+    expect(input.disabled).toBe(false);
+    await waitFor(() => expect(input.value).not.toBe(""));
+  });
+
+  it("novo lote: um campo de quantidade que vale para entrada e saldo", async () => {
+    await renderForm({ initialData: null, isEditing: false });
+    expect(screen.queryByTestId("lote-quantidades")).toBeNull();
+    expect(screen.getByText("Qtd. Cabeças (entrada)")).toBeTruthy();
+  });
+});
+
+describe("área da movimentação pelo ID (destino com nome vazio)", () => {
+  const areas = [{ id: "cmvvecagl000hk107i2c853nu", nome: "TET" }];
+  it("nome vazio gravado → nome da área pelo id", () => {
+    expect(nomeDaAreaDoMovimento("", "cmvvecagl000hk107i2c853nu", areas)).toBe("TET");
+    expect(nomeDaAreaDoMovimento("   ", "cmvvecagl000hk107i2c853nu", areas)).toBe("TET");
+  });
+  it("nome gravado prevalece (retrato histórico)", () => {
+    expect(nomeDaAreaDoMovimento("TESTE", "cmvvecagl000hk107i2c853nu", areas)).toBe("TESTE");
+  });
+  it("área fora do cache → rótulo curto pelo id, nunca '-' mudo", () => {
+    expect(nomeDaAreaDoMovimento("", "cmvvecagl000hk107i2c853nu", [])).toBe("Área …c853nu");
+    expect(nomeDaAreaDoMovimento("", null, areas)).toBe("");
+    expect(areaPorId(areas, "nao-existe")).toBeNull();
+  });
+});

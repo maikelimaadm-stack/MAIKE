@@ -3141,4 +3141,36 @@ Exemplos no Chromium: "500" fica em 11 px, "5000" em 8 px, "12500" em 7 px, "125
 
 ---
 
-<!-- Próxima decisão: D-PROD-84 -->
+## D-PROD-84 — Lote: entrada, movimentações e saldo atual; lote gerado por manejo e áreas protegidos
+
+**Contexto:** caso real de produção (30/10/2026, só leitura).
+- Lote 1 entrou com 500 cabeças.
+- Uma transferência parcial levou 50 cabeças e criou o lote 2 (origem MOVIMENTAÇÃO). A movimentação referencia só o lote 1.
+- O Cadastro de Lotes escondia o lote 2 e mostrava "Cabeças" = entrada (500).
+- O servidor deixava excluir o lote 2: ele não tem vínculo próprio, e as 50 cabeças sumiriam.
+- Editar a "área de entrada" no cadastro movia o lote fisicamente. O PATCH nunca aceitou `area_entrada_id`: só a área atual ia para o servidor.
+
+**Decisão:**
+1. **Três grandezas por lote** (`src/domain/lotes/saldoLote.js`):
+   - Entrada (histórico) = `quantidade_entrada`;
+   - Saldo atual = `quantidade_cabecas`;
+   - Movimentações (±) = saldo − entrada. É a variação líquida aritmética, não um livro de eventos (isso é o L2 do ledger).
+2. **Lote gerado por manejo** (origem MOVIMENTAÇÃO, REVERSÃO MOVIMENTAÇÃO, MUDANÇA DE CATEGORIA ou EDIÇÃO MOVIMENTAÇÃO, comparadas sem acento e sem caixa):
+   - não é entrada no rebanho;
+   - não pode ser excluído: o servidor recusa com `LOTE_DELETE_BLOCKED` (`vinculo: lote_gerado_por_manejo`); desfaz-se pelo histórico do mapa;
+   - nascimento é entrada e continua excluível.
+   A lista é a mesma no frontend e no servidor (`backend/src/modules/lotes/loteOrigem.js`), com teste de paridade.
+3. **Classe da origem imutável:** `PATCH /lotes/:id` recusa trocar `origem` entre "entrada" e "gerado por manejo" (`REQUEST_VALIDATION_FAILED`, `field: origem`). A troca dentro da mesma classe (COMPRA → AJUSTE) segue livre.
+4. **Edição do cadastro não move o lote:**
+   - setor e área de entrada são registro histórico: só leitura na edição e fora do payload de PATCH do cadastro (o servidor já recusa `area_entrada_id` em PATCH);
+   - a área atual só muda por manejo no mapa, que grava movimentação.
+   - Para corrigir onde o lote está, use "Movimentar" no mapa. Para corrigir uma entrada lançada errada, exclua o lote (se não tiver vínculos) e cadastre de novo.
+5. **Nome da área em `MovimentacaoMapa`** é resolvido pelo id no servidor (mesmo tenant e empresa). Id que não resolve é aceito, sem inventar nome.
+
+Aceite: lote 1 = 500 / -50 / 450, lote 2 = — / +50 / 50, rebanho = 500 / 0 / 500.
+
+Relatório: `docs/engineering/MAIKE-LOTES-SALDO-MOVIMENTACOES-REPORT.md`.
+
+---
+
+<!-- Próxima decisão: D-PROD-85 -->
