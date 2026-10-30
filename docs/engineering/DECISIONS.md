@@ -3120,4 +3120,12 @@ Provas:
 
 ---
 
-<!-- Próxima decisão: D-PROD-82 -->
+## D-PROD-82 — Quantidade de cabeças no marcador do lote: discreta e abaixo da figura
+
+**Contexto:** o número de cabeças sobre o ícone do lote era branco, 11 px, com sombra escura, a 34% da altura. Ficava em cima da figura e competia com ela.
+
+**Decisão (pedido do proprietário):** `.mg-lote-count` passa a cinza escuro (`#374151`), 9 px em negrito, com halo claro para leitura, a 64% da altura: abaixo da figura, dentro do marcador. Só muda o estilo; o conteúdo e o comportamento continuam os mesmos.
+
+---
+
+<!-- Próxima decisão: D-PROD-83 -->
