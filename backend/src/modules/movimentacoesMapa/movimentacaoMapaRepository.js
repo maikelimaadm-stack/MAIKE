@@ -37,3 +37,20 @@ export const excluirRegistroPorId = async (tx, clienteId, id) =>
   tx.movimentacaoMapa.delete({
     where: { cliente_id_id: { cliente_id: clienteId, id } },
   });
+
+/**
+ * Nomes das áreas do tenant e da empresa, por id (fonte de verdade do nome).
+ * @param {import('@prisma/client').Prisma.TransactionClient} tx
+ * @param {string} clienteId
+ * @param {string} empresaId
+ * @param {string[]} ids
+ * @returns {Promise<Map<string, string>>}
+ */
+export const buscarNomesDeAreas = async (tx, clienteId, empresaId, ids) => {
+  if (!ids.length) return new Map();
+  const areas = await tx.areaPastagem.findMany({
+    where: { cliente_id: clienteId, empresa_id: empresaId, id: { in: ids } },
+    select: { id: true, nome: true },
+  });
+  return new Map(areas.map((area) => [area.id, area.nome]));
+};

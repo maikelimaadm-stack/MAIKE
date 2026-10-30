@@ -1,4 +1,9 @@
 import { z } from "zod";
+import {
+  entradaHistoricaDoLote,
+  movimentacaoLiquidaDoLote,
+  saldoAtualDoLote,
+} from "@/domain/lotes/saldoLote";
 
 const FIXED_LOTE_FIELDS = {
   codigo: "numero_lote",
@@ -6,7 +11,8 @@ const FIXED_LOTE_FIELDS = {
   identificador: "identificador_nome",
   sigla: "identificador_sigla",
   cor: "identificador_cor",
-  cabecas: "quantidade_entrada",
+  cabecas: "quantidade_cabecas",
+  entrada: "quantidade_entrada",
   categoria: "categoria_entrada",
   categoria_manejo: "categoria_manejo_entrada_nome",
   sexo: "sexo",
@@ -50,7 +56,11 @@ const getRawValue = (registro, campo) => {
   }
 
   const fieldName = campo.field_name || FIXED_LOTE_FIELDS[campo.id] || campo.id;
-  if (campo.id === "cabecas") return registro.quantidade_entrada ?? registro.quantidade_cabecas ?? "";
+  // Três quantidades distintas (domain/lotes/saldoLote): "cabecas" é o saldo
+  // atual; a entrada histórica e a variação têm coluna própria.
+  if (campo.id === "cabecas") return saldoAtualDoLote(registro);
+  if (campo.id === "entrada") return entradaHistoricaDoLote(registro);
+  if (campo.id === "movimentacoes") return movimentacaoLiquidaDoLote(registro);
   if (campo.id === "categoria") return registro.categoria_entrada || registro.categoria || "";
   if (campo.id === "categoria_manejo") return registro.categoria_manejo_entrada_nome || registro.categoria_manejo_nome || "";
   if (campo.id === "peso") return registro.peso_entrada_kg ?? registro.peso_medio_kg ?? "";
@@ -61,8 +71,13 @@ const getRawValue = (registro, campo) => {
 const getFormulaScope = (registro) => ({
   ...(registro || {}),
   ...(registro?.campos_personalizados || {}),
+  // `quantidade` acompanha a compra (valor ÷ quantidade de entrada);
+  // `cabecas`/`saldo_atual` é o que o lote tem hoje.
   quantidade: registro?.quantidade_entrada ?? registro?.quantidade_cabecas ?? 0,
-  cabecas: registro?.quantidade_entrada ?? registro?.quantidade_cabecas ?? 0,
+  entrada: entradaHistoricaDoLote(registro),
+  movimentacoes: movimentacaoLiquidaDoLote(registro),
+  saldo_atual: saldoAtualDoLote(registro),
+  cabecas: saldoAtualDoLote(registro),
   peso: registro?.peso_entrada_kg ?? registro?.peso_medio_kg ?? 0,
   peso_medio: registro?.peso_entrada_kg ?? registro?.peso_medio_kg ?? 0,
   valor: registro?.valor_total_compra ?? 0

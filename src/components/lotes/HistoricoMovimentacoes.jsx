@@ -23,6 +23,7 @@ import {
 import { validarSemRegistrosPosteriores } from "./manejoValidations.jsx";
 import { reverseMovementOnDelete } from "./movimentacaoReconciliation";
 import { getMapaCachedData, refreshMapaCacheEntry } from "@/services/mapaCacheService";
+import { nomeDaAreaDoMovimento } from "@/domain/lotes/movimentacaoLote";
 
 const CORES_TIPO = {
   "Transferência de Área": "bg-slate-100 text-slate-800 border-slate-300",
@@ -128,13 +129,14 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
         return [];
       };
 
-      const [movimentacoesRaw, suplementacoesRaw, eventosSuplementacaoRaw, medicamentosRaw, sanidadesRaw, manejosTecnicosRaw] = await Promise.all([
+      const [movimentacoesRaw, suplementacoesRaw, eventosSuplementacaoRaw, medicamentosRaw, sanidadesRaw, manejosTecnicosRaw, areasRaw] = await Promise.all([
         fetchWithCache('movimentacoes'),
         fetchWithCache('suplementacaoLote'),
         fetchWithCache('eventosSuplementacao'),
         fetchWithCache('aplicacaoMedicamento'),
         fetchWithCache('eventoSanitario'),
-        fetchWithCache('manejoTecnico')
+        fetchWithCache('manejoTecnico'),
+        fetchWithCache('areas')
       ]);
 
       if (navigator.onLine) {
@@ -216,8 +218,8 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
           quantidade: mov.quantidade_animais,
           peso_medio: mov.peso_medio,
           observacoes: mov.observacoes,
-          area_origem_nome: mov.area_origem_nome,
-          area_destino_nome: mov.area_destino_nome,
+          area_origem_nome: nomeDaAreaDoMovimento(mov.area_origem_nome, mov.area_origem_id, areasRaw),
+          area_destino_nome: nomeDaAreaDoMovimento(mov.area_destino_nome, mov.area_destino_id, areasRaw),
           area_destino_id: mov.area_destino_id,
           linked_movement_ids: getLinkedMovementIds(mov.observacoes),
           canDelete: (

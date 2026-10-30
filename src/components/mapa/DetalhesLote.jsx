@@ -22,6 +22,7 @@ import {
   quantidadeAplicavel,
   pesoAplicavel,
   ganhoDePeso,
+  areaPorId,
 } from "@/domain/lotes/movimentacaoLote";
 import { listarIconesPorTipoEntidade } from "@/services/mapaService";
 import { getCurrentUser } from "@/services/sessionService";
@@ -184,8 +185,21 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
   const movimentacaoMutation = useMutation({
     mutationFn: async (formData) => {
       console.log('🔄 INICIANDO MOVIMENTAÇÃO');
-      const areaSaida = areas.find((a) => a.id === formData.area_saida_id);
-      const areaEntrada = areas.find((a) => a.id === formData.area_entrada_id);
+      // O cache de áreas pode não ter a área criada há pouco (caso real: destino
+      // gravado com id certo e nome vazio). Faltando alguma, relê as áreas.
+      let areasConhecidas = areas;
+      const faltaArea = [formData.area_saida_id, formData.area_entrada_id].some(
+        (id) => id && !areaPorId(areasConhecidas, id)
+      );
+      if (faltaArea && navigator.onLine) {
+        const frescas = await refreshMapaCacheEntry('areas', empresaSelecionadaId, { force: true });
+        if (frescas?.length) {
+          areasConhecidas = frescas;
+          queryClient.setQueryData(['mapa-areas', empresaSelecionadaId], frescas);
+        }
+      }
+      const areaSaida = areaPorId(areasConhecidas, formData.area_saida_id);
+      const areaEntrada = areaPorId(areasConhecidas, formData.area_entrada_id);
       const movimentacoesCriadas = [];
       const todosLotesSistema = await listarLotesDaEmpresa(empresaSelecionadaId);
       const lotesDestinoAtivos = todosLotesSistema.filter((l) =>

@@ -129,3 +129,34 @@ export const proximoNumeroLote = (lotes) => {
   );
   return String(maior + 1);
 };
+
+/**
+ * Área de um registro de movimentação pelo ID, que é a fonte de verdade.
+ *
+ * O nome gravado é cópia de leitura e pode ter ficado vazio: o cliente o
+ * tirava de um cache local de áreas que ainda não tinha a área recém-criada
+ * (caso real: destino com id certo e `area_destino_nome: ""`).
+ *
+ * @param {any[]} areas áreas já carregadas
+ * @param {string|null|undefined} areaId
+ * @returns {object|null}
+ */
+export const areaPorId = (areas, areaId) =>
+  (areaId && (areas || []).find((area) => area?.id === areaId)) || null;
+
+/**
+ * Nome legível da área de um movimento: o gravado; senão o da área pelo ID;
+ * senão um rótulo curto com o fim do ID (nunca "-" mudo).
+ *
+ * @param {unknown} nomeGravado
+ * @param {string|null|undefined} areaId
+ * @param {any[]} areas
+ * @returns {string}
+ */
+export const nomeDaAreaDoMovimento = (nomeGravado, areaId, areas) => {
+  const gravado = String(nomeGravado ?? '').trim();
+  if (gravado) return gravado;
+  if (!areaId) return '';
+  const nome = String(areaPorId(areas, areaId)?.nome ?? '').trim();
+  return nome || `Área …${String(areaId).slice(-6)}`;
+};

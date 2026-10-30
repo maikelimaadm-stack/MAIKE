@@ -19,6 +19,13 @@ import LegacyTabs from "./LegacyTabs.jsx";
 import Base1PanelTabs from "@/components/cadastro/base1/Base1PanelTabs.jsx";
 import DynamicFormRenderer from "@/components/dynamic/DynamicFormRenderer";
 import IconeOficialLotePreview from "@/components/catalogoGlobal/IconeOficialLotePreview";
+import {
+  ehLoteDerivadoDeManejo,
+  entradaHistoricaDoLote,
+  formatarVariacao,
+  movimentacaoLiquidaDoLote,
+  saldoAtualDoLote,
+} from "@/domain/lotes/saldoLote";
 import LayoutConfiguratorDialog from "@/components/dynamic/LayoutConfiguratorDialog";
 export const FORMULARIO_LOTE_ID = "formulario-lote-base1";
 
@@ -109,6 +116,9 @@ export default function FormularioLote({
   const embedded = variant === "embedded";
   const isDuplicating = !!initialData?._isDuplicate;
   const shouldPersistEntrySnapshot = !isEditing || isDuplicating;
+  // Registro já gravado: a quantidade só muda por manejo (movimentação, morte,
+  // abate…), que deixa rastro. Editar aqui reescreveria o saldo sem histórico.
+  const quantidadesSomenteLeitura = !shouldPersistEntrySnapshot;
   const empresaSelecionadaId = useEmpresaSelecionadaId();
   const [errors, setErrors] = useState({});
   const [activeTab, setActiveTab] = useState("geral");
@@ -296,7 +306,7 @@ export default function FormularioLote({
     });
 
     const qtd = parseInt(String(formData?.quantidade_cabecas ?? "").trim(), 10);
-    if (!Number.isFinite(qtd) || qtd <= 0) {
+    if (!quantidadesSomenteLeitura && (!Number.isFinite(qtd) || qtd <= 0)) {
       nextErrors.quantidade_cabecas = true;
     }
 
@@ -372,7 +382,20 @@ export default function FormularioLote({
     };
 
     if (!shouldPersistEntrySnapshot) {
-      dataToSave.quantidade_entrada = initialData?.quantidade_entrada ?? dataToSave.quantidade_entrada;
+      // Edição não regrava quantidade (saldo muda só por manejo; entrada é
+      // imutável no servidor), não troca a origem de lote gerado por manejo e
+      // só leva a área atual junto com a de entrada se o lote nunca saiu dela.
+      delete dataToSave.quantidade_cabecas;
+      delete dataToSave.quantidade_entrada;
+      if (ehLoteDerivadoDeManejo(initialData)) delete dataToSave.origem;
+      const nuncaMovido =
+        !ehLoteDerivadoDeManejo(initialData) &&
+        (initialData?.area_atual_id ?? null) === (initialData?.area_entrada_id ?? null) &&
+        movimentacaoLiquidaDoLote(initialData) === 0;
+      if (!nuncaMovido) {
+        delete dataToSave.area_atual_id;
+        delete dataToSave.area_atual_nome;
+      }
       dataToSave.peso_entrada_kg = initialData?.peso_entrada_kg ?? dataToSave.peso_entrada_kg;
       dataToSave.categoria_entrada = initialData?.categoria_entrada ?? dataToSave.categoria_entrada;
       dataToSave.categoria_manejo_entrada_id = initialData?.categoria_manejo_entrada_id ?? dataToSave.categoria_manejo_entrada_id;
@@ -406,7 +429,28 @@ export default function FormularioLote({
   { id: "data_entrada", name: "data_entrada", label: "Data de Entrada", type: "date", required: true, compact: true, errorKey: "data_entrada" },
   { id: "setor_id", name: "setor_id", label: "Setor", type: "autocomplete", required: true, errorKey: "setor_id", options: setores, placeholder: "BUSCAR SETOR...", displayField: "nome", searchFields: ["nome", "numero_setor"], render: ({ value }) => <AutocompleteGenerico items={setores} value={value} onChange={(nextValue) => {if (isReadOnly) return;setIsDirty(true);setFormData((prev) => ({ ...prev, setor_id: nextValue || "", area_entrada_id: "" }));setErrors((prev) => ({ ...prev, setor_id: false, area_entrada_id: false }));}} placeholder="BUSCAR SETOR..." displayField="nome" searchFields={["nome", "numero_setor"]} className="w-full" inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[22px] text-xs px-1" /> },
   { id: "area_entrada_id", name: "area_entrada_id", label: "Área de Entrada", type: "autocomplete", required: true, errorKey: "area_entrada_id", options: areasDoSetor, placeholder: formData.setor_id ? "BUSCAR ÁREA..." : "SELECIONE O SETOR PRIMEIRO", displayField: "nome", searchFields: ["nome", "numero_area"] },
-  { id: "quantidade_cabecas", name: "quantidade_cabecas", label: "Qtd. Cabeças", type: "number", required: true, compact: true, errorKey: "quantidade_cabecas", totalizable: true },
+  quantidadesSomenteLeitura
+    ? {
+        id: "quantidade_cabecas",
+        name: "quantidade_cabecas",
+        label: "Cabeças",
+        type: "text",
+        readOnly: true,
+        render: () => (
+          <div className="flex h-[22px] items-center gap-3 bg-slate-50 px-1 text-xs tabular-nums" data-testid="lote-quantidades">
+            <span title="Cabeças que entraram no rebanho por este lote (retrato imutável da entrada)">
+              Entrada: {ehLoteDerivadoDeManejo(initialData) ? "— (gerado por manejo)" : entradaHistoricaDoLote(initialData).toLocaleString("pt-BR")}
+            </span>
+            <span title="Saídas negativas e chegadas positivas desde a entrada">
+              Movimentações: {formatarVariacao(movimentacaoLiquidaDoLote(initialData))}
+            </span>
+            <span className="font-semibold" title="Cabeças que o lote tem hoje">
+              Saldo atual: {saldoAtualDoLote(initialData).toLocaleString("pt-BR")}
+            </span>
+          </div>
+        ),
+      }
+    : { id: "quantidade_cabecas", name: "quantidade_cabecas", label: "Qtd. Cabeças (entrada)", type: "number", required: true, compact: true, errorKey: "quantidade_cabecas", totalizable: true },
   { id: "categoria_manejo_id", name: "categoria_manejo_id", label: "Categoria de Manejo", type: "autocomplete", required: true, errorKey: "categoria_manejo_id", options: categoriasManejo, placeholder: "BUSCAR CATEGORIA...", displayField: "nome", searchFields: ["nome", "categoria_oficial", "sexo", "raca"], render: ({ value }) => <AutocompleteGenerico items={categoriasManejo} value={value} onChange={(nextValue) => handleChange("categoria_manejo_id", nextValue)} placeholder="BUSCAR CATEGORIA..." displayField="nome" searchFields={["nome", "categoria_oficial", "sexo", "raca"]} className="w-full" inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[22px] text-xs px-1" renderItem={(item) => <div className="text-xs font-medium text-slate-900">{(item.nome || "").toUpperCase()} {item.categoria_oficial ? `(${item.categoria_oficial})` : ""}</div>} /> },
   { id: "sexo", name: "sexo", label: "Sexo", type: "autocomplete", required: true, errorKey: "sexo", options: opcoesSexo, placeholder: "BUSCAR SEXO...", displayField: "nome", searchFields: ["nome"] },
   { id: "raca_predominante", name: "raca_predominante", label: "Raça Predominante", type: "text", required: true, errorKey: "raca_predominante", uppercase: true, placeholder: "RAÇA" },
@@ -429,7 +473,7 @@ export default function FormularioLote({
   { id: "identificador_sigla", name: "identificador_sigla", label: "Identificador (Sigla)", type: "text", uppercase: true, placeholder: "EX: CF" },
   { id: "identificador_cor", name: "identificador_cor", label: "Identificador (Cor)", type: "autocomplete", options: opcoesCores, placeholder: "BUSCAR COR...", displayField: "nome", searchFields: ["nome"], render: ({ value }) => <AutocompleteGenerico items={opcoesCores} value={value} onChange={(nextValue) => handleChange("identificador_cor", nextValue)} placeholder="BUSCAR COR..." displayField="nome" searchFields={["nome"]} className="w-full" inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[22px] text-xs px-1" renderItem={(item) => <div className="flex items-center gap-2 text-xs font-medium text-slate-900"><span className="w-3 h-3 rounded-full border border-slate-300" style={{ backgroundColor: item.cor }} />{item.nome}</div>} /> },
   { id: "observacoes", name: "observacoes", label: "Observações", type: "textarea", wide: true, uppercase: true, placeholder: "OBSERVAÇÕES GERAIS..." }],
-  [setores, areasDoSetor, categoriasManejo, opcoesSexo, fornecedores, opcoesMotivoEntrada, opcoesCores, formData, errors, isReadOnly]);
+  [setores, areasDoSetor, categoriasManejo, opcoesSexo, fornecedores, opcoesMotivoEntrada, opcoesCores, formData, errors, isReadOnly, quantidadesSomenteLeitura, initialData]);
 
   const defaultLayout = {
     principal: ["nome", "status", "numero_lote"],
