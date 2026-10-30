@@ -13,7 +13,28 @@
   - A decisão abaixo fica registrada aqui. Ela entra em `DECISIONS.md` depois
     do merge da #149, para não colidir.
 
-## R2 — bloqueios de integridade (auditoria do arquiteto sobre `34ceaa6a`)
+## R3 — finalização (sobre `2bf908f4`)
+
+`origin/main` `f6592e2a` (#150, contagem de cabeças no mapa) foi trazido por
+merge, sem force.
+
+**Conflito em `DECISIONS.md`:** o `main` já usava D-PROD-83 (contagem no
+mapa, citado em `useMapRenderer.jsx` e `contagemLote.js`). A decisão desta PR
+foi renumerada para **D-PROD-84**, depois da do `main`. Próxima: D-PROD-85.
+Os arquivos do mapa ficaram idênticos ao `main`.
+
+| Falha | BEFORE (`2bf908f4`, medido) | Correção | AFTER |
+|---|---|---|---|
+| Setor editável na edição | trocar o Setor pelo Autocomplete zera a Área de Entrada (só leitura) e o salvar trava em "Campos obrigatórios" | Setor `readOnly`/`disabled` no próprio `AutocompleteGenerico`, guarda no `onChange` e no `handleChange`; o PATCH do cadastro não leva `setor_*` nem `area_entrada_*` (sem depender do filtro do port nativo) | Setor e área intactos; salvar passa; payload sem campos históricos; renomear e outros metadados salvam |
+
+**Lote novo e duplicado (POST):** sem mudança. Setor editável, e o payload
+leva setor, áreas e quantidade.
+
+**Testes R3** (`lotesSaldoMovimentacoes.test.jsx`, 32/32):
+- edição de lote manual, derivado e que saiu e voltou: contra `2bf908f4`, os 3 falham;
+- lote duplicado (POST) e lote novo: controles que passam antes e depois.
+
+ (auditoria do arquiteto sobre `34ceaa6a`)
 
 `origin/main` (`af099211`, #149 mergeada) foi trazido por merge, sem
 conflito e sem force. Decisão registrada como **D-PROD-84** (o D-PROD-83 ficou com a contagem do mapa, mergeada antes no `main`).

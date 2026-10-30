@@ -3162,7 +3162,7 @@ Exemplos no Chromium: "500" fica em 11 px, "5000" em 8 px, "12500" em 7 px, "125
    A lista é a mesma no frontend e no servidor (`backend/src/modules/lotes/loteOrigem.js`), com teste de paridade.
 3. **Classe da origem imutável:** `PATCH /lotes/:id` recusa trocar `origem` entre "entrada" e "gerado por manejo" (`REQUEST_VALIDATION_FAILED`, `field: origem`). A troca dentro da mesma classe (COMPRA → AJUSTE) segue livre.
 4. **Edição do cadastro não move o lote:**
-   - a área de entrada é registro histórico (só leitura na edição; o servidor não a aceita em PATCH);
+   - setor e área de entrada são registro histórico: só leitura na edição e fora do payload de PATCH do cadastro (o servidor já recusa `area_entrada_id` em PATCH);
    - a área atual só muda por manejo no mapa, que grava movimentação.
    - Para corrigir onde o lote está, use "Movimentar" no mapa. Para corrigir uma entrada lançada errada, exclua o lote (se não tiver vínculos) e cadastre de novo.
 5. **Nome da área em `MovimentacaoMapa`** é resolvido pelo id no servidor (mesmo tenant e empresa). Id que não resolve é aceito, sem inventar nome.

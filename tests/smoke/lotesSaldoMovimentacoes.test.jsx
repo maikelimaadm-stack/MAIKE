@@ -39,6 +39,8 @@ const LOTE_1 = Object.freeze({
   quantidade_entrada: 500,
   quantidade_cabecas: 450,
   area_entrada_id: "area-teste",
+  setor_id: "s1",
+  setor_nome: "SETOR 1",
   area_entrada_nome: "TESTE",
   area_atual_id: "area-teste",
   area_atual_nome: "TESTE",
@@ -55,6 +57,8 @@ const LOTE_2 = Object.freeze({
   quantidade_entrada: 50,
   quantidade_cabecas: 50,
   area_entrada_id: "area-tet",
+  setor_id: "s1",
+  setor_nome: "SETOR 1",
   area_entrada_nome: "TET",
   area_atual_id: "area-tet",
   area_atual_nome: "TET",
@@ -242,15 +246,18 @@ describe("FormularioLote — edição não regrava quantidade nem desfaz movimen
     vi.doMock("@/hooks/useEmpresaSelecionadaId", () => ({ useEmpresaSelecionadaId: () => "emp-1" }));
     vi.doMock("@/hooks/useSetorAreas", () => ({
       default: () => ({
-        setores: [{ id: "s1", nome: "SETOR 1" }],
+        setores: [{ id: "s1", nome: "SETOR 1" }, { id: "s2", nome: "SETOR 2" }],
         areas: [
           { id: "area-teste", nome: "TESTE", setor_id: "s1" },
           { id: "area-tet", nome: "TET", setor_id: "s1" },
+          { id: "area-outra", nome: "OUTRA", setor_id: "s2" },
         ],
-        getAreasBySetor: () => [
-          { id: "area-teste", nome: "TESTE", setor_id: "s1" },
-          { id: "area-tet", nome: "TET", setor_id: "s1" },
-        ],
+        getAreasBySetor: (setorId) =>
+          [
+            { id: "area-teste", nome: "TESTE", setor_id: "s1" },
+            { id: "area-tet", nome: "TET", setor_id: "s1" },
+            { id: "area-outra", nome: "OUTRA", setor_id: "s2" },
+          ].filter((a) => a.setor_id === setorId),
       }),
     }));
     vi.doMock("@/services/loteCadastroService", async (importOriginal) => ({
@@ -348,6 +355,57 @@ describe("FormularioLote — edição não regrava quantidade nem desfaz movimen
       expect(payload).not.toHaveProperty("area_atual_id");
       cleanup();
     }
+  });
+
+  // R3 — Setor também é histórico na edição. Interação pelo AutocompleteGenerico
+  // real (foco, seta para baixo, Enter), sem mock do componente.
+  const campoSetor = () => screen.getByText("Setor").closest(".mg-field");
+  const tentarTrocarSetor = () => {
+    const input = campoSetor().querySelector("input");
+    fireEvent.focus(input);
+    fireEvent.keyDown(input, { key: "ArrowDown" });
+    fireEvent.keyDown(input, { key: "Enter" });
+    return input;
+  };
+  const CAMPOS_HISTORICOS = ["setor_id", "setor_nome", "area_entrada_id", "area_entrada_nome", "area_atual_id", "area_atual_nome", "quantidade_cabecas", "quantidade_entrada"];
+
+  for (const [rotulo, lote] of [
+    ["manual", LOTE_1],
+    ["derivado", LOTE_2],
+    ["que saiu e voltou", { ...LOTE_1, quantidade_cabecas: 500 }],
+  ]) {
+    it(`R3 — lote ${rotulo}: Setor travado; tentar trocar não zera a Área de Entrada; payload sem campos históricos; outros metadados salvam`, async () => {
+      const { onSubmit } = await renderForm({ initialData: lote, isEditing: true });
+      const input = tentarTrocarSetor();
+      expect(input.disabled || input.readOnly).toBe(true);
+      expect(campoSetor().querySelector("button")).toBeNull(); // sem o "x" de limpar
+      // Área de Entrada continua preenchida (o valor exibido é o nome da área).
+      const area = screen.getByText("Área de Entrada").closest(".mg-field").querySelector("input");
+      expect(area.value).toBe(lote.area_entrada_nome);
+      fireEvent.change(screen.getByPlaceholderText("NOME DO LOTE"), { target: { value: "TESTE RENOMEADO" } });
+      const payload = await submeter(onSubmit);
+      expect(payload.nome).toBe("TESTE RENOMEADO");
+      for (const campo of CAMPOS_HISTORICOS) expect(payload, campo).not.toHaveProperty(campo);
+    });
+  }
+
+  it("R3 — lote novo (duplicado = POST): Setor editável e payload leva setor, áreas e quantidade", async () => {
+    const { onSubmit } = await renderForm({ initialData: { ...LOTE_1, id: undefined, _isDuplicate: true }, isEditing: true });
+    const input = campoSetor().querySelector("input");
+    expect(input.disabled).toBe(false);
+    expect(input.readOnly).toBe(false);
+    const payload = await submeter(onSubmit);
+    expect(payload.setor_id).toBe("s1");
+    expect(payload.area_entrada_id).toBe("area-teste");
+    expect(payload.area_atual_id).toBe("area-teste");
+    expect(payload.quantidade_cabecas).toBe(450);
+  });
+
+  it("R3 — lote novo: trocar o Setor pelo Autocomplete funciona e limpa a área (regra de cadastro mantida)", async () => {
+    await renderForm({ initialData: null, isEditing: false });
+    const input = tentarTrocarSetor();
+    expect(input.disabled).toBe(false);
+    await waitFor(() => expect(input.value).not.toBe(""));
   });
 
   it("novo lote: um campo de quantidade que vale para entrada e saldo", async () => {

@@ -262,6 +262,7 @@ export default function FormularioLote({
 
   const handleChange = (field, value) => {
     if (isReadOnly) return;
+    if (quantidadesSomenteLeitura && (field === "setor_id" || field === "area_entrada_id")) return;
     setIsDirty(true);
     const normalizedValue = UPPERCASE_FIELDS.includes(field) && typeof value === "string" ? value.toUpperCase() : value;
     const newData = { ...formData, [field]: normalizedValue };
@@ -393,6 +394,12 @@ export default function FormularioLote({
       if (ehLoteDerivadoDeManejo(initialData)) delete dataToSave.origem;
       delete dataToSave.area_atual_id;
       delete dataToSave.area_atual_nome;
+      // Setor e área de entrada: retrato histórico. Não depender do filtro do
+      // port nativo (que hoje descarta area_entrada_id, mas aceita setor_id).
+      delete dataToSave.setor_id;
+      delete dataToSave.setor_nome;
+      delete dataToSave.area_entrada_id;
+      delete dataToSave.area_entrada_nome;
       dataToSave.peso_entrada_kg = initialData?.peso_entrada_kg ?? dataToSave.peso_entrada_kg;
       dataToSave.categoria_entrada = initialData?.categoria_entrada ?? dataToSave.categoria_entrada;
       dataToSave.categoria_manejo_entrada_id = initialData?.categoria_manejo_entrada_id ?? dataToSave.categoria_manejo_entrada_id;
@@ -424,7 +431,9 @@ export default function FormularioLote({
   },
   { id: "numero_lote", name: "numero_lote", label: "Código", type: "text", compact: true, readOnly: true, render: () => <Input value={formData.numero_lote || ""} readOnly className="h-[22px] text-xs text-left border-0 rounded-none shadow-none focus-visible:ring-0 bg-slate-50 px-1" /> },
   { id: "data_entrada", name: "data_entrada", label: "Data de Entrada", type: "date", required: true, compact: true, errorKey: "data_entrada" },
-  { id: "setor_id", name: "setor_id", label: "Setor", type: "autocomplete", required: true, errorKey: "setor_id", options: setores, placeholder: "BUSCAR SETOR...", displayField: "nome", searchFields: ["nome", "numero_setor"], render: ({ value }) => <AutocompleteGenerico items={setores} value={value} onChange={(nextValue) => {if (isReadOnly) return;setIsDirty(true);setFormData((prev) => ({ ...prev, setor_id: nextValue || "", area_entrada_id: "" }));setErrors((prev) => ({ ...prev, setor_id: false, area_entrada_id: false }));}} placeholder="BUSCAR SETOR..." displayField="nome" searchFields={["nome", "numero_setor"]} className="w-full" inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[22px] text-xs px-1" /> },
+  // Em edição, setor e área de entrada são registro histórico: trocar o setor
+  // apagaria a área de entrada (só leitura) e travaria o salvar.
+  { id: "setor_id", name: "setor_id", label: "Setor", type: "autocomplete", required: true, readOnly: quantidadesSomenteLeitura, errorKey: "setor_id", options: setores, placeholder: "BUSCAR SETOR...", displayField: "nome", searchFields: ["nome", "numero_setor"], render: ({ value }) => <AutocompleteGenerico items={setores} value={value} disabled={quantidadesSomenteLeitura} readOnly={quantidadesSomenteLeitura || isReadOnly} onChange={(nextValue) => {if (isReadOnly || quantidadesSomenteLeitura) return;setIsDirty(true);setFormData((prev) => ({ ...prev, setor_id: nextValue || "", area_entrada_id: "" }));setErrors((prev) => ({ ...prev, setor_id: false, area_entrada_id: false }));}} placeholder="BUSCAR SETOR..." displayField="nome" searchFields={["nome", "numero_setor"]} className="w-full" inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[22px] text-xs px-1" /> },
   // Em edição, a área de entrada é registro histórico (o servidor não a aceita
   // em PATCH); a posição física muda só por manejo no mapa.
   { id: "area_entrada_id", name: "area_entrada_id", label: "Área de Entrada", type: "autocomplete", required: true, readOnly: quantidadesSomenteLeitura, errorKey: "area_entrada_id", options: areasDoSetor, placeholder: formData.setor_id ? "BUSCAR ÁREA..." : "SELECIONE O SETOR PRIMEIRO", displayField: "nome", searchFields: ["nome", "numero_area"] },
