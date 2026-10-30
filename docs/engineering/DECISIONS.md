@@ -2996,4 +2996,18 @@ Merge só pelo proprietário após auditoria.
 
 ---
 
-<!-- Próxima decisão: D-PROD-75 -->
+## D-PROD-75 — As 7 migrations da PR #145 aplicadas em produção pelo conector Supabase, equivalentes ao Prisma
+
+**Missão:** `MAIKE-PR145-G4-R4-EXECUCAO-REAL-MINIMA-INTERVENCAO-DO-PROPRIETARIO` (PR #145)\
+**Evidência:** `docs/engineering/evidencias/catalogo-icones-lotes-01/rollout-g4-r4/migrations-producao-30-10.txt`\
+**Autoridade:** ordem expressa do proprietário em 30/10, depois de três tentativas pelo runner oficial no GitHub Actions pararem sem escrita (host só IPv6, depois senha recusada) e de ele recusar novas intervenções.
+
+**Decisão:**
+
+1. **Exceção pontual à D-PROD-74 item 1.** As 7 migrations foram aplicadas pelo conector Supabase, uma transação por migration, com a mesma trava do Prisma (`pg_advisory_xact_lock(72707369)`). Cada transação conferiu o alvo e o histórico, executou o `migration.sql` do repositório sem alteração e registrou `_prisma_migrations` com o checksum sha256 do arquivo. O resultado foi provado igual ao do `prisma migrate deploy`: colunas, índices, constraints e RLS idênticos a um banco migrado pelo Prisma; 25/25, 0 falhas. Não é precedente: a regra da D-PROD-74 continua valendo.
+2. **Workflow temporário removido.** `.github/workflows/maike-pr145-migrar-uma-vez.yml` saiu da PR antes do merge; o environment `maike-migrations-pr145` e o segredo ficam para o proprietário apagar.
+3. **Bootstrap bloqueado por fato novo.** O tenant de teste de produção já se chama `maike` (cliente e login). O 02 responderia ANOMALIA; o VEREDITO "JÁ INICIALIZADO" do 01 é falso positivo nesse estado (não confere as demais linhas). O 02 não foi executado, e o 01 precisa de correção antes de qualquer nova rodada.
+
+---
+
+<!-- Próxima decisão: D-PROD-76 -->
