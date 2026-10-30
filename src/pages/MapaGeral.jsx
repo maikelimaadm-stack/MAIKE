@@ -1006,7 +1006,9 @@ export default function MapaGeral() {
   return (
     <div className="relative h-full min-h-0 w-full overflow-hidden bg-white" translate="no">
       <div className="w-full h-full relative">
-        <div ref={mapRef} data-testid="mapa-geral-maplibre" style={{ height: '100%', width: '100%', backgroundColor: '#e5e7eb', touchAction: 'none' }} />
+        {/* `isolation: isolate` confina o z-index dos marcadores (até 10000) ao
+            mapa: sem isso eles atravessavam janelas e pop-ups abertos por cima. */}
+        <div ref={mapRef} data-testid="mapa-geral-maplibre" style={{ height: '100%', width: '100%', backgroundColor: '#e5e7eb', touchAction: 'none', isolation: 'isolate' }} />
 
         <BasemapAtribuicao atribuicao={basemap.atribuicao} status={basemap.status} mensagem={basemap.mensagem} onRetry={basemap.retry} />
 

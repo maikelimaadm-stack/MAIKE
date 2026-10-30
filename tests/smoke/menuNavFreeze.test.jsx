@@ -95,3 +95,10 @@ describe('NAV — dedupe de clique no menu', () => {
     ).toBe(false);
   });
 });
+
+describe('NAV — marcadores do mapa não atravessam janelas (D-PROD-80)', () => {
+  it('o contêiner do MapLibre isola o z-index dos marcadores', () => {
+    const fonte = codigoDe('src/pages/MapaGeral.jsx');
+    expect(fonte).toMatch(/data-testid="mapa-geral-maplibre"[^>]*isolation: 'isolate'/);
+  });
+});
