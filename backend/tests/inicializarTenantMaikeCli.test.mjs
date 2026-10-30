@@ -5,7 +5,7 @@
 
 import { describe, test, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import bcrypt from 'bcryptjs';
 
@@ -77,7 +77,7 @@ describe('inicializar-tenant-maike (operação única)', () => {
     assert.match(r.stdout, /alvo: system_identifier confere/);
     assert.match(r.stdout, /schema: 25\/25 migrations/);
     assert.match(r.stdout, /DRY-RUN: nada foi alterado/);
-    assert.match(r.stdout, /APAGAR \d+ LINHAS DE 2 CLIENTE\(S\)/);
+    assert.match(r.stdout, /APAGAR \d+ LINHAS DE 2 CLIENTE\(S\) #[0-9a-f]{8}/);
     assert.match(r.stdout, /preservadas \(não tocadas\): 14 tabela/);
     assert.deepEqual(await contar(), antes);
   });
@@ -195,14 +195,107 @@ describe('inicializar-tenant-maike (operação única)', () => {
     assert.match(certo.stdout, /migrations: 25\/25/);
   });
 
-  test('IT-07 idempotente: rodar de novo não apaga a conta nova', async () => {
+  test('IT-07 idempotente (também após a elevação): rodar de novo não apaga a conta nova', async () => {
     await semear();
     const frase = rodar(['--sistema', SID]).stdout.match(/"(APAGAR [^"]+)"/)[1];
     assert.equal(rodar(['--sistema', SID, '--executar'], [frase, SENHA, SENHA]).status, 0);
     const id = (await prisma().usuario.findFirst()).id;
+    const papel = fileURLToPath(new URL('../../scripts/auth/papel-tenant.mjs', import.meta.url));
+    const elevar = spawnSync(process.execPath, [papel, '--cliente', 'maike', '--login', 'maike', '--papel', 'administrador'], {
+      input: 'CONFIRMAR\n', encoding: 'utf8', env: { ...process.env, PAPEL_TENANT_STDIN: 'sim', NODE_ENV: 'test' },
+    });
+    assert.equal(elevar.status, 0, elevar.stderr);
     const r = rodar(['--sistema', SID, '--executar'], ['x', SENHA, SENHA]);
     assert.equal(r.status, 0);
     assert.match(r.stdout, /já inicializado/);
     assert.equal((await prisma().usuario.findFirst()).id, id);
+    assert.equal((await prisma().usuario.findFirst()).papel_tenant, 'administrador');
+  });
+
+  test('IT-09 (G4-R1) mesmo total, outra distribuição: a frase do dry-run deixa de valer e a transação aborta', async () => {
+    const { a } = await semear();
+    const p = prisma();
+    const fraseAntes = rodar(['--sistema', SID]).stdout.match(/"(APAGAR [^"]+)"/)[1];
+    // Troca uma linha de tabela (mesmo total): a frase antiga não serve mais.
+    await p.movimentacaoMapa.deleteMany({ where: { cliente_id: a.cliente.id } });
+    await p.permissao.create({ data: { cliente_id: a.cliente.id, user_email: 'troca@x', is_admin: false } });
+    const fraseDepois = rodar(['--sistema', SID]).stdout.match(/"(APAGAR [^"]+)"/)[1];
+    assert.equal(fraseAntes.split(' #')[0], fraseDepois.split(' #')[0], 'mesmo total e clientes');
+    assert.notEqual(fraseAntes, fraseDepois, 'impressão diferente');
+    const antes = await contar();
+    assert.match(rodar(['--sistema', SID, '--executar'], [fraseAntes, SENHA, SENHA]).stderr, /confirmação não confere/);
+    assert.deepEqual(await contar(), antes);
+
+    // Mudança DURANTE o prompt (entre a conferência e o COMMIT): a transação reconta e aborta.
+    const filho = spawn(process.execPath, [SCRIPT, '--sistema', SID, '--executar'], {
+      env: { ...process.env, INICIALIZAR_STDIN: 'sim', NODE_ENV: 'test' },
+    });
+    let saida = '';
+    let erro = '';
+    let esperar = null;
+    filho.stderr.on('data', (d) => (erro += d));
+    filho.stdout.on('data', (d) => {
+      saida += d;
+      if (esperar && esperar.re.test(saida)) esperar.ok();
+    });
+    const aguardar = (re) => new Promise((ok) => ((esperar = { re, ok }), re.test(saida) && ok()));
+    const fechou = new Promise((ok) => filho.on('close', ok));
+    let status;
+    try {
+      await aguardar(/para confirmar: $/);
+      const frase = saida.match(/"(APAGAR [^"]+)"/)[1];
+      filho.stdin.write(`${frase}\n`);
+      await aguardar(/não aparece na tela\): $/);
+      // Mesmo total, outra distribuição, enquanto o operador digita.
+      await p.permissao.deleteMany({ where: { cliente_id: a.cliente.id, user_email: 'troca@x' } });
+      const emp = await p.empresa.findFirst({ where: { cliente_id: a.cliente.id } });
+      await p.movimentacaoMapa.create({ data: { cliente_id: a.cliente.id, empresa_id: emp.id } });
+      filho.stdin.write(`${SENHA}\n${SENHA}\n`);
+      filho.stdin.end();
+      status = await fechou;
+    } finally {
+      if (status === undefined) filho.kill();
+    }
+    assert.equal(status, 1);
+    assert.match(erro, /inventário mudou/);
+    assert.equal(await p.cliente.count(), 2, 'nada apagado');
+    assert.equal(await p.usuario.count({ where: { login: 'maike' } }), 0);
+  });
+
+  test('IT-10 (G4-R1) reexecução com dado extra após a inicialização: ANOMALIA, nada é apagado', async () => {
+    await semear();
+    const frase = rodar(['--sistema', SID]).stdout.match(/"(APAGAR [^"]+)"/)[1];
+    assert.equal(rodar(['--sistema', SID, '--executar'], [frase, SENHA, SENHA]).status, 0);
+    const p = prisma();
+    const cli = await p.cliente.findFirst();
+    await p.empresa.create({ data: { cliente_id: cli.id, numero_empresa: 1, apelido: 'REAL', nome: 'EMPRESA REAL' } });
+    for (const argv of [['--sistema', SID], ['--sistema', SID, '--executar']]) {
+      const r = rodar(argv, ['x', SENHA, SENHA]);
+      assert.equal(r.status, 1);
+      assert.match(r.stderr, /ANOMALIA: o tenant "maike" já existe, mas há outros dados .*Empresa=1/);
+      assert.match(r.stderr, /Nada foi apagado/);
+    }
+    assert.equal(await p.empresa.count(), 1);
+    assert.equal(await p.usuario.count(), 1);
+  });
+
+  test('IT-11 (G4-R1) alvo remoto/exigido: a conexão de limpeza tem de ser o mesmo banco da migration', async () => {
+    await semear();
+    const antes = await contar();
+    const p = prisma();
+    await p.$executeRawUnsafe('DROP DATABASE IF EXISTS maike_it11_outro');
+    await p.$executeRawUnsafe('CREATE DATABASE maike_it11_outro');
+    try {
+      const outro = Object.assign(new URL(process.env.DATABASE_URL), { pathname: '/maike_it11_outro' }).toString();
+      const recusa = rodar(['--sistema', SID], [], { MIGRATION_EXIGIR_CONFERENCIA: 'sim', MIGRATION_DATABASE_URL: outro });
+      assert.equal(recusa.status, 1);
+      assert.match(recusa.stderr, /alvo NÃO confere nas duas conexões/);
+      const aceita = rodar(['--sistema', SID], [], { MIGRATION_EXIGIR_CONFERENCIA: 'sim', MIGRATION_DATABASE_URL: process.env.DATABASE_URL });
+      assert.equal(aceita.status, 0, aceita.stderr);
+      assert.match(aceita.stdout, /runtime e migration são o mesmo banco esperado/);
+    } finally {
+      await p.$executeRawUnsafe('DROP DATABASE IF EXISTS maike_it11_outro');
+    }
+    assert.deepEqual(await contar(), antes);
   });
 });

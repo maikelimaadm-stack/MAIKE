@@ -42,12 +42,14 @@ import { dirname, join } from 'node:path';
 import { motivoAlvoProtegido } from '../auth/alvoProtegido.mjs';
 import { CONSULTAS, TABELAS_PROTEGIDAS, avaliarPreflight } from '../deploy/preflightSchemaLib.mjs';
 import {
+  AUDITORIA_DO_ESTADO_INICIAL,
   CLIENTE_INICIAL,
   CONTA_INICIAL,
   avaliarSenha,
   classificarTabelas,
+  estadoInicializacao,
   fraseDeConfirmacao,
-  jaInicializado,
+  impressaoInventario,
   planejarOrdem,
   q,
 } from './inicializarTenantLib.mjs';
@@ -109,9 +111,23 @@ const lerInventario = async (cx) => {
   }
   const clientes = await cx.$queryRawUnsafe(`SELECT id, codigo FROM public."Cliente" ORDER BY id`);
   const usuarios = await cx.$queryRawUnsafe(`SELECT login FROM public."Usuario"`);
+  const auditoriaForaDoPermitido = Number(
+    (await cx.$queryRawUnsafe(`SELECT count(*)::int AS n FROM public."AuditLog" WHERE NOT (acao = ANY($1::text[]))`, [...AUDITORIA_DO_ESTADO_INICIAL]))[0].n
+  );
   const linhas = Object.values(contagens).reduce((a, b) => a + b, 0);
-  return { ...cls, contagens, clientes, usuarios, linhas };
+  const estado = estadoInicializacao({ clientes, usuarios, contagens, auditoriaForaDoPermitido });
+  return { ...cls, contagens, clientes, usuarios, linhas, estado };
 };
+
+/** Impressão digital do inventário + plano (ordem de FK). */
+const impressaoDe = (inv, plano) =>
+  impressaoInventario({
+    contagens: inv.contagens,
+    clienteIds: inv.clientes.map((c) => c.id),
+    tenant: inv.tenant,
+    preservadas: inv.preservadas,
+    ordem: [...plano.ordem, ...plano.anular.map((a) => `anular:${a.tabela}`)],
+  });
 
 const lerFks = async (cx) =>
   (
@@ -128,6 +144,14 @@ const lerFks = async (cx) =>
 
 let codigo = 1;
 try {
+  // 0. Alvo remoto: a conexão que vai apagar tem de ser o MESMO banco lógico
+  // que foi migrado (MIGRATION_DATABASE_URL), no cluster esperado (G4-R1).
+  if (motivo || process.env.MIGRATION_EXIGIR_CONFERENCIA === 'sim') {
+    const { conferirAlvos } = await import('../deploy/alvoBancoLib.mjs');
+    const v = await conferirAlvos({ esperadoSid: sistemaEsperado, urlRuntime: env.databaseUrl, urlMigracao: process.env.MIGRATION_DATABASE_URL });
+    if (!v.ok) sair(`alvo NÃO confere nas duas conexões; nada foi feito:\n  ${v.falhas.join('\n  ')}`);
+    console.log('alvo: runtime e migration são o mesmo banco esperado');
+  }
   // 1. Alvo certo (sem URL): identificador do cluster PostgreSQL.
   const [{ sid }] = await db.$queryRawUnsafe(`SELECT system_identifier::text AS sid FROM pg_control_system()`);
   if (sid !== sistemaEsperado) sair('o banco conectado NÃO é o alvo informado em --sistema; nada foi feito');
@@ -149,16 +173,26 @@ try {
   const inv = await lerInventario(db);
   if (inv.inesperadas.length) sair(`tabela(s) fora do schema versionado: ${inv.inesperadas.join(', ')} — revise antes`);
   if (inv.ausentes.length) sair(`tabela(s) do schema ausentes no banco: ${inv.ausentes.join(', ')}`);
-  if (jaInicializado(inv)) {
-    console.log('já inicializado: 1 cliente técnico e 1 conta; nada a fazer');
+  if (inv.estado === 'inicial') {
+    console.log('já inicializado: 1 cliente técnico, 1 conta e nenhum outro dado; nada a fazer');
     codigo = 0;
+  } else if (inv.estado === 'anomalia') {
+    const extras = Object.entries(inv.contagens).filter(([t, n]) => n && !['Cliente', 'Usuario', 'AuditLog'].includes(t));
+    sair(
+      'ANOMALIA: o tenant "maike" já existe, mas há outros dados ' +
+        `(clientes=${inv.clientes.length}, contas=${inv.usuarios.length}` +
+        `${extras.length ? `, ${extras.map(([t, n]) => `${t}=${n}`).join(', ')}` : ''}). ` +
+        'Nada foi apagado: revisão humana antes de qualquer nova limpeza.'
+    );
   } else {
     const plano = planejarOrdem(inv.tenant, await lerFks(db));
     console.log(`preservadas (não tocadas): ${inv.preservadas.length} tabela(s) — ${inv.preservadas.join(', ')}`);
     console.log(`a apagar: ${inv.linhas} linha(s) de ${inv.clientes.length} cliente(s), em ${plano.ordem.length} tabela(s):`);
     for (const t of plano.ordem) if (inv.contagens[t]) console.log(`  ${t}: ${inv.contagens[t]}`);
     console.log(`depois: cliente "${CLIENTE_INICIAL.codigo}" + conta "${CONTA_INICIAL.login}" (papel usuario; elevar com papel-tenant.mjs)`);
-    const frase = fraseDeConfirmacao({ clientes: inv.clientes.length, linhas: inv.linhas });
+    const impressao = impressaoDe(inv, plano);
+    console.log(`impressão do inventário: #${impressao} (contagem por tabela + clientes + classes + ordem de FK)`);
+    const frase = fraseDeConfirmacao({ clientes: inv.clientes.length, linhas: inv.linhas, impressao });
 
     if (!executar) {
       console.log(`DRY-RUN: nada foi alterado. Para executar: --executar e digitar "${frase}"`);
@@ -196,8 +230,9 @@ try {
         async (tx) => {
           await tx.$executeRawUnsafe(`LOCK TABLE ${plano.ordem.map((t) => `public.${q(t)}`).join(', ')} IN EXCLUSIVE MODE NOWAIT`);
           const agora = await lerInventario(tx);
-          if (agora.linhas !== inv.linhas || agora.clientes.length !== inv.clientes.length) {
-            throw new Error('o inventário mudou desde a conferência (uso concorrente?); nada foi alterado');
+          const planoAgora = planejarOrdem(agora.tenant, await lerFks(tx));
+          if (agora.inesperadas.length || impressaoDe(agora, planoAgora) !== impressao) {
+            throw new Error('o inventário mudou desde a conferência (por tabela, clientes, classes ou FKs); nada foi alterado');
           }
           const ids = agora.clientes.map((c) => c.id);
           for (const a of plano.anular) {
@@ -230,7 +265,7 @@ try {
           });
           const final = await lerInventario(tx);
           const sobras = Object.entries(final.contagens).filter(([t, n]) => n !== ({ Cliente: 1, Usuario: 1, AuditLog: 1 }[t] ?? 0));
-          if (sobras.length || !jaInicializado(final)) {
+          if (sobras.length || final.estado !== 'inicial') {
             throw new Error(`estado final inesperado (${sobras.map(([t, n]) => `${t}=${n}`).join(', ')}); desfeito`);
           }
           return feito;

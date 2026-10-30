@@ -129,8 +129,9 @@ export const construirApp = async (opcoes = {}) => {
    * Falha vira `TENANT_CONTEXT_REQUIRED` — 401 do contrato.
    *
    * A assinatura não basta (PR145-G4): a conta é relida no banco a cada
-   * requisição — existe, está ativa e é do mesmo cliente do token. Conta
-   * apagada ou desativada perde o acesso na hora, não quando o JWT expira.
+   * requisição — existe, está ativa, é do mesmo cliente do token e esse
+   * cliente está ativo. Conta ou cliente apagado/desativado perde o acesso na
+   * hora, não quando o JWT expira. Uma única consulta (filtro relacional).
    */
   app.decorate('autenticar', async (request) => {
     try {
@@ -140,7 +141,7 @@ export const construirApp = async (opcoes = {}) => {
     }
     const auth = construirAuthContext(request.user);
     const conta = await getPrismaClient().usuario.findFirst({
-      where: { id: auth.usuarioId, cliente_id: auth.clienteId, ativo: true },
+      where: { id: auth.usuarioId, cliente_id: auth.clienteId, ativo: true, cliente: { ativo: true } },
       select: { id: true },
     });
     if (!conta) throw tenantContextRequired('sessão ausente ou inválida');

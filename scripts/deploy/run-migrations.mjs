@@ -55,11 +55,15 @@
 
 import { spawnSync } from 'node:child_process';
 
+import { motivoAlvoProtegido } from '../auth/alvoProtegido.mjs';
+import { conferirAlvos } from './alvoBancoLib.mjs';
+
 /** Códigos estáveis. Fazem parte do contrato — não renomear sem migrar o gate. */
 export const CODIGOS_DEPLOY_MIGRATION = Object.freeze({
   URL_REQUERIDA: 'DEPLOY-MIGRATION-URL-REQUIRED',
   URL_INVALIDA: 'DEPLOY-MIGRATION-URL-INVALID',
   POOLER_INSEGURO: 'DEPLOY-MIGRATION-UNSAFE-POOLER',
+  ALVO_NAO_CONFERIDO: 'DEPLOY-MIGRATION-TARGET-UNVERIFIED',
 });
 
 /** Nome da variável. Server-only: nunca com prefixo `VITE_`. */
@@ -191,11 +195,53 @@ export const executarMigrationsDeDeploy = ({
   return 0;
 };
 
+/** Variável com o `system_identifier` esperado do alvo remoto (não é segredo). */
+export const VARIAVEL_DE_ALVO_ESPERADO = 'MIGRATION_EXPECTED_SYSTEM_IDENTIFIER';
+
+/** Conexão do runtime exatamente como o backend a resolve (dotenv + prioridade). */
+const resolverRuntimeDoBackend = async () => (await import('../../backend/src/config/env.js')).env.databaseUrl;
+
+/**
+ * Barreira de ALVO, antes de qualquer DDL (PR145-G4-R1).
+ *
+ * Banco remoto (ou `MIGRATION_EXIGIR_CONFERENCIA=sim`) só migra se a conexão de
+ * migration e a do runtime forem o MESMO banco lógico e o cluster for o
+ * esperado em `MIGRATION_EXPECTED_SYSTEM_IDENTIFIER`. Local segue como antes.
+ *
+ * @param {{env?: NodeJS.ProcessEnv, conferir?: typeof conferirAlvos,
+ *          resolverRuntime?: () => Promise<string|null|undefined>,
+ *          log?: (m: string) => void, erro?: (m: string) => void}} [opcoes]
+ * @returns {Promise<boolean>} pode migrar?
+ */
+export const exigirAlvoConferido = async ({
+  env = process.env,
+  conferir = conferirAlvos,
+  resolverRuntime = resolverRuntimeDoBackend,
+  log = console.log,
+  erro = console.error,
+} = {}) => {
+  const urlMigracao = env[VARIAVEL_DE_MIGRATION];
+  if (!validarUrlDeMigration(urlMigracao).ok) return true; // o runner recusa com o código próprio
+  const remoto = motivoAlvoProtegido({}, urlMigracao) !== null;
+  if (!remoto && env.MIGRATION_EXIGIR_CONFERENCIA !== 'sim') return true;
+  const falhar = (motivo) => {
+    erro(`deploy:migrate — FALHOU [${CODIGOS_DEPLOY_MIGRATION.ALVO_NAO_CONFERIDO}]\n\n  ${motivo}\n  Nenhuma migration foi executada.\n`);
+    return false;
+  };
+  const esperadoSid = (env[VARIAVEL_DE_ALVO_ESPERADO] ?? '').trim();
+  if (!esperadoSid) return falhar(`${VARIAVEL_DE_ALVO_ESPERADO} ausente: alvo remoto exige o identificador esperado.`);
+  const urlRuntime = await resolverRuntime();
+  const v = await conferir({ esperadoSid, urlRuntime, urlMigracao });
+  if (!v.ok) return falhar(v.falhas.join('\n  '));
+  log(`deploy:migrate — alvo conferido nas duas conexões (${v.resumo}).`);
+  return true;
+};
+
 /* c8 ignore start — entrada de CLI, exercitada pelos testes via a função exportada */
 const ehEntradaDireta = () =>
   process.argv[1] !== undefined && import.meta.url === `file://${process.argv[1]}`;
 
 if (ehEntradaDireta()) {
-  process.exit(executarMigrationsDeDeploy());
+  process.exit((await exigirAlvoConferido()) ? executarMigrationsDeDeploy() : 1);
 }
 /* c8 ignore stop */

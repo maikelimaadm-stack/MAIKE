@@ -11,6 +11,8 @@
  * nada fora do schema `public`.
  */
 
+import { createHash } from 'node:crypto';
+
 export const CLIENTE_INICIAL = Object.freeze({ codigo: 'maike', nome: 'MAIKE' });
 export const CONTA_INICIAL = Object.freeze({ login: 'maike', nome: 'Maike' });
 
@@ -91,15 +93,52 @@ export const avaliarSenha = (senha, { login, nome }) => {
   return null;
 };
 
-/** Frase que o operador digita: amarra a execução ao inventário exibido. */
-export const fraseDeConfirmacao = ({ clientes, linhas }) => `APAGAR ${linhas} LINHAS DE ${clientes} CLIENTE(S)`;
+/** Ações de AuditLog aceitas no estado inicial: a própria inicialização e a elevação. */
+export const AUDITORIA_DO_ESTADO_INICIAL = Object.freeze(['ops_inicializacao', 'papel_tenant']);
 
 /**
- * Já está no estado final? (idempotência: rodar de novo não apaga a conta nova)
- * @param {{clientes: Array<{codigo: string}>, usuarios: Array<{login: string}>}} e
+ * Impressão digital do inventário (G4-R1): contagem POR TABELA, conjunto de
+ * clientes, classes (apagáveis/preservadas) e a ordem de FK. O mesmo total
+ * com outra distribuição dá outra impressão. Só o hash sai; ids não são impressos.
  */
-export const jaInicializado = ({ clientes, usuarios }) =>
-  clientes.length === 1 &&
-  clientes[0].codigo === CLIENTE_INICIAL.codigo &&
-  usuarios.length === 1 &&
-  usuarios[0].login === CONTA_INICIAL.login;
+export const impressaoInventario = ({ contagens, clienteIds, tenant, preservadas, ordem }) =>
+  createHash('sha256')
+    .update(
+      JSON.stringify({
+        contagens: Object.entries(contagens).sort(([a], [b]) => (a < b ? -1 : 1)),
+        clientes: [...clienteIds].sort(),
+        tenant: [...tenant].sort(),
+        preservadas: [...preservadas].sort(),
+        ordem,
+      })
+    )
+    .digest('hex')
+    .slice(0, 8);
+
+/** Frase que o operador digita: amarra a execução ao inventário EXATO exibido no dry-run. */
+export const fraseDeConfirmacao = ({ clientes, linhas, impressao }) =>
+  `APAGAR ${linhas} LINHAS DE ${clientes} CLIENTE(S) #${impressao}`;
+
+/**
+ * Estado do banco em relação à inicialização (G4-R1):
+ * - 'nao_inicializado': não há cliente nem conta "maike" → a limpeza pode seguir;
+ * - 'inicial': só o cliente técnico, só a conta "maike", nenhuma outra linha de
+ *   tenant e só a auditoria da inicialização/elevação → nada a fazer (idempotente);
+ * - 'anomalia': há "maike" E qualquer outro dado → NUNCA apagar sozinho; revisão humana.
+ *
+ * @param {{clientes: Array<{codigo: string}>, usuarios: Array<{login: string}>,
+ *          contagens: Record<string, number>, auditoriaForaDoPermitido: number}} e
+ */
+export const estadoInicializacao = ({ clientes, usuarios, contagens, auditoriaForaDoPermitido }) => {
+  const temMaike = clientes.some((c) => c.codigo === CLIENTE_INICIAL.codigo) || usuarios.some((u) => u.login === CONTA_INICIAL.login);
+  if (!temMaike) return 'nao_inicializado';
+  const permitido = { Cliente: 1, Usuario: 1 };
+  const limpo =
+    clientes.length === 1 &&
+    clientes[0].codigo === CLIENTE_INICIAL.codigo &&
+    usuarios.length === 1 &&
+    usuarios[0].login === CONTA_INICIAL.login &&
+    auditoriaForaDoPermitido === 0 &&
+    Object.entries(contagens).every(([t, n]) => t === 'AuditLog' || n === (permitido[t] ?? 0));
+  return limpo ? 'inicial' : 'anomalia';
+};

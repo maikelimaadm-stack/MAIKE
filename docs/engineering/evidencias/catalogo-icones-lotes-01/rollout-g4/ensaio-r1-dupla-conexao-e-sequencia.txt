@@ -1,0 +1,124 @@
+ENSAIO LOCAL G4-R1 (PostgreSQL 16 descartável, dados sintéticos; sequência do runbook §0c)
+Barreira de alvo forçada localmente (MIGRATION_EXIGIR_CONFERENCIA=sim); em produção ela é automática (host remoto).
+Senhas: aleatórias, só via stdin de teste; ocorrências de senha ou URL neste arquivo: 0.
+
+== N1. NEGATIVO: runtime no banco A, migration no banco B (mesmo cluster, outro banco lógico)
+ALVO NÃO CONFERE — NÃO prossiga:
+  migration: public._prisma_migrations ausente (banco errado ou vazio)
+  runtime e migration: current_database difere
+  runtime e migration: OID do banco difere (outro banco lógico)
+  runtime e migration: histórico de migrations difere
+exit=1
+deploy:migrate — FALHOU [DEPLOY-MIGRATION-TARGET-UNVERIFIED]
+  migration: public._prisma_migrations ausente (banco errado ou vazio)
+  runtime e migration: current_database difere
+  runtime e migration: OID do banco difere (outro banco lógico)
+  runtime e migration: histórico de migrations difere
+  Nenhuma migration foi executada.
+exit=1
+banco B com histórico de migrations? f
+== N2. NEGATIVO: POSTGRES_PRISMA_URL herdada aponta para o banco B (DATABASE_URL e migration no A)
+ALVO NÃO CONFERE — NÃO prossiga:
+  runtime: public._prisma_migrations ausente (banco errado ou vazio)
+  runtime e migration: current_database difere
+  runtime e migration: OID do banco difere (outro banco lógico)
+  runtime e migration: histórico de migrations difere
+exit=1
+== 1. conferir-alvo-banco (runtime e migration por URLs diferentes, mesmo banco)
+ALVO CONFERE: runtime e migration são o mesmo banco esperado (banco=maike_g4 migrations=18 historico=98910c1b8b40fa2b).
+exit=0
+== 2. preflight --sistema (antes)
+alvo: system_identifier confere
+migrations: 18/25 aplicadas
+FALHA migrations pendentes (7): 20261028250000_catalogo_global_slice1, 20261028250100_catalogo_global_slice1_schema_fix, 20261028250200_catalogo_global_slice1_r1_assets, 20261029100000_scale01_usuario_keyset_index, 20261029200000_categoria_manejo_vinculo_catalogo, 20261029300000_admin_principal_maike, 20261029400000_usuario_papel_tenant
+exit=1
+== 3. npm run deploy:migrate (barreira de alvo + 7 migrations) e de novo
+deploy:migrate — alvo conferido nas duas conexões (banco=maike_g4 migrations=18 historico=98910c1b8b40fa2b).
+Applying migration `20261028250000_catalogo_global_slice1`
+Applying migration `20261028250100_catalogo_global_slice1_schema_fix`
+Applying migration `20261028250200_catalogo_global_slice1_r1_assets`
+Applying migration `20261029100000_scale01_usuario_keyset_index`
+Applying migration `20261029200000_categoria_manejo_vinculo_catalogo`
+Applying migration `20261029300000_admin_principal_maike`
+Applying migration `20261029400000_usuario_papel_tenant`
+deploy:migrate — migrations aplicadas.
+deploy:migrate — alvo conferido nas duas conexões (banco=maike_g4 migrations=25 historico=d9b9d4b7dcb6ef1b).
+No pending migrations to apply.
+== 4. conferir de novo + preflight --sistema
+ALVO CONFERE: runtime e migration são o mesmo banco esperado (banco=maike_g4 migrations=25 historico=d9b9d4b7dcb6ef1b).
+alvo: system_identifier confere
+migrations: 25/25 aplicadas
+papéis: 1 cliente(s) com usuário ativo, 0 administrador(es) da fazenda, 1 cliente(s) sem administrador
+AVISO 1 cliente(s) com usuário ativo e sem administrador da fazenda: ninguém cria contas lá até papel-tenant.mjs
+PREFLIGHT OK: o schema atende o código desta branch.
+exit=0
+== 5. login do usuário legado antes da limpeza: 200 (token guardado, não impresso)
+== 6. inicializar (dry-run)
+alvo: runtime e migration são o mesmo banco esperado
+alvo: system_identifier confere
+schema: 25/25 migrations, RLS e grants conferem
+preservadas (não tocadas): 14 tabela(s) — AdminPrincipalMaike, AuditoriaCatalogoGlobal, CatalogoAsset, CatalogoCategoriaVisual, CatalogoIcone, CatalogoMeta, CatalogoRegraMisto, CatalogoRegraMistoCategoria, CatalogoTipoEntidade, CodigoRecuperacaoAdminMaike, EventoSegurancaAdminMaike, OperadorProdutoMaike, SessaoAdminMaike, _prisma_migrations
+a apagar: 105 linha(s) de 1 cliente(s), em 39 tabela(s):
+  AuditLog: 79
+  Categoria: 2
+  CategoriaManejo: 5
+  Empresa: 2
+  MovimentacaoMapa: 3
+  Permissao: 1
+  Usuario: 1
+  Lote: 4
+  AreaPastagem: 5
+  Setor: 2
+  Cliente: 1
+depois: cliente "maike" + conta "maike" (papel usuario; elevar com papel-tenant.mjs)
+impressão do inventário: #8aa714cb (contagem por tabela + clientes + classes + ordem de FK)
+DRY-RUN: nada foi alterado. Para executar: --executar e digitar "APAGAR 105 LINHAS DE 1 CLIENTE(S) #8aa714cb"
+exit=0
+== 7. inicializar --executar (frase + senha nova 2×; stdin de teste)
+alvo: runtime e migration são o mesmo banco esperado
+alvo: system_identifier confere
+schema: 25/25 migrations, RLS e grants conferem
+a apagar: 105 linha(s) de 1 cliente(s), em 39 tabela(s):
+depois: cliente "maike" + conta "maike" (papel usuario; elevar com papel-tenant.mjs)
+impressão do inventário: #8aa714cb (contagem por tabela + clientes + classes + ordem de FK)
+Digite "APAGAR 105 LINHAS DE 1 CLIENTE(S) #8aa714cb" para confirmar: Nova senha da conta "maike" (não aparece na tela):
+Repita a senha:
+aplicado: 105 linha(s) apagada(s); cliente "maike" e conta "maike" criados (auditoria ops-…-<uuid>)
+Próximo passo: papel-tenant.mjs --cliente maike --login maike --papel administrador
+exit=0
+== 8. preflight --exigir-admin-por-cliente → papel-tenant → preflight
+PREFLIGHT FALHOU: NÃO publique este código neste banco.
+exit=1
+Fazenda: MAIKE (maike)
+Usuário: <nome> <login>
+Papel:   usuario → administrador
+Digite CONFIRMAR para aplicar: aplicado: maike agora é "administrador" (auditoria ops-…-<uuid>)
+Vale na próxima ação privilegiada (o servidor relê o papel no banco); não precisa novo login.
+exit=0
+alvo: system_identifier confere
+migrations: 25/25 aplicadas
+papéis: 1 cliente(s) com usuário ativo, 1 administrador(es) da fazenda, 0 cliente(s) sem administrador
+PREFLIGHT OK: o schema atende o código desta branch.
+exit=0
+== 9. reexecução: idempotente; com dado extra: ANOMALIA sem apagar
+já inicializado: 1 cliente técnico, 1 conta e nenhum outro dado; nada a fazer
+inicializar-tenant-maike: ANOMALIA: o tenant "maike" já existe, mas há outros dados (clientes=1, contas=1, Empresa=1). Nada foi apagado: revisão humana antes de qualquer nova limpeza.
+exit=1
+Empresa após a tentativa: 1
+== 10. smoke da API (backend desta branch)
+JWT antigo (conta apagada) GET /lotes: 401
+JWT antigo (conta apagada) GET /usuarios: 401
+JWT antigo (conta apagada) GET /auth/contexto: 401
+login da conta apagada: 401
+login maike: 200
+GET /lotes: 200 (0 itens)
+GET /permissoes: 200 (0 itens)
+GET /categorias-manejo: 200 (0 itens)
+GET /empresas: 200 (0 itens)
+GET /usuarios: 200 (1 conta, papel administrador)
+administrador POST /usuarios: 201
+conta comum POST /usuarios: 403
+Permissao.is_admin=true NÃO promove: 403
+cliente desativado → token do maike GET /lotes: 401
+cliente reativado → GET /lotes: 200
+AdminPrincipalMaike=0 · migrations=25 · Cliente=1

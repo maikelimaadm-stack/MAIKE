@@ -62,4 +62,20 @@ describe('sessão de tenant revalidada no banco', () => {
     assert.equal(r.statusCode, 401);
     assert.equal(r.json().message.includes(b.cliente.id), false, 'não ecoa ids');
   });
+
+  test('SR-05 (G4-R1) cliente desativado depois do login: o token vira 401 na hora; reativado, volta', async () => {
+    const t = await criarTenant();
+    const outro = await criarTenant();
+    const token = (await autenticarNoApp(app, t.credenciais)).corpo.token;
+    const tokenOutro = (await autenticarNoApp(app, outro.credenciais)).corpo.token;
+    assert.equal((await get('/lotes', token)).statusCode, 200);
+    const db = getPrismaClient();
+    await db.cliente.update({ where: { id: t.cliente.id }, data: { ativo: false } });
+    const r = await get('/lotes', token);
+    assert.equal(r.statusCode, 401);
+    assert.equal(r.json().code, 'TENANT_CONTEXT_REQUIRED');
+    assert.equal((await get('/lotes', tokenOutro)).statusCode, 200, 'cliente ativo não é afetado');
+    await db.cliente.update({ where: { id: t.cliente.id }, data: { ativo: true } });
+    assert.equal((await get('/lotes', token)).statusCode, 200);
+  });
 });

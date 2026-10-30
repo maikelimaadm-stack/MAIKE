@@ -446,3 +446,45 @@ O ensaio partiu de um banco no estado de produção (18 migrations) com dados si
 A sequência exata do operador está no runbook §0c e já foi autorizada; não é preciso pedir autorização de novo.
 
 Merge: **NO-GO**, até a auditoria do arquiteto e a liberação manual.
+
+### 12.7 G4-R1 — guarda de dupla conexão e fechamento operacional
+
+**P0, alvo de migration ≠ alvo conferido.** Antes, o runbook conferia o runtime e migrava com outra variável. Agora:
+
+- **Barreira obrigatória:** `run-migrations.mjs` só migra em alvo remoto se as duas conexões forem o mesmo banco lógico do cluster esperado.
+- **CLI:** `conferir-alvo-banco.mjs` faz a mesma checagem sob demanda.
+- **Reset:** a limpeza também exige essa checagem em alvo remoto.
+- **Provas:**
+  - testes sem banco: `alvo-banco` 6/6;
+  - PostgreSQL real: `alvoMigrationDuplaConexao` 4/4 (outro banco lógico, `POSTGRES_PRISMA_URL` herdada, cluster inesperado, URLs diferentes para o mesmo banco);
+  - nos casos negativos, o banco B fica sem nenhuma migration.
+
+**P1, sessão.** `Cliente.ativo` agora é revalidado. SR-05 dava 200 com o cliente desativado; agora dá 401 e volta a 200 ao reativar.
+
+**P1, inventário.** O inventário passou a ter impressão digital, e o estado inicial passou a ter três valores.
+
+| Teste | O que prova |
+|---|---|
+| IT-09 | Mesmo total com distribuição diferente: a frase antiga não vale, e uma mudança durante o prompt aborta a transação |
+| IT-10 | Dado extra depois da inicialização: ANOMALIA, nada é apagado |
+| IT-11 | O reset exige que a migration e a limpeza estejam no mesmo banco |
+| IT-07 | Continua idempotente depois da elevação |
+
+**Ensaio R1** (`rollout-g4/ensaio-r1-dupla-conexao-e-sequencia.txt`). Seguiu a sequência do §0c.
+
+- **Negativos:**
+  - N1: migration em outro banco → NO-GO, nada aplicado;
+  - N2: `POSTGRES_PRISMA_URL` herdada → NO-GO.
+- **Sequência:**
+  - conferência: confere;
+  - preflight 18/25, `deploy:migrate` (7, depois idempotente), preflight 25/25;
+  - dry-run com impressão, execução, elevação, preflight `--exigir` 0;
+  - reexecução idempotente; com dado extra, ANOMALIA.
+- **Smoke:**
+  - sessão antiga: JWT antigo 401; login da conta apagada 401;
+  - conta nova: maike 200; listas vazias;
+  - poderes: o administrador cria conta (201); a conta comum não cria (403); `Permissao.is_admin` não promove (403);
+  - cliente desativado → 401; reativado → 200;
+  - não tocados: `AdminPrincipalMaike` = 0; 25 migrations.
+
+**Produção:** NOT_RUN. A sessão não tem a conexão de migração nem um terminal interativo do proprietário. O passo a passo para leigos está no runbook §0c.

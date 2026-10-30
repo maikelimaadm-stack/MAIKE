@@ -2955,6 +2955,20 @@ Merge só pelo proprietário após auditoria.
 3. **Elevação separada:** `papel-tenant.mjs` (D-PROD-71). A conta `maike` é **administrador da fazenda**, não o proprietário do produto (`AdminPrincipalMaike`, MAIKE Admin).
 4. **Prova de alvo sem segredo.** O runtime de produção comprovadamente usa o projeto `uuemcasqcdjucflulkne`: o delta de `pg_stat_statements` de `SELECT 1` bateu com as chamadas a `/health`. O terminal do operador prova o mesmo com `preflight-schema.mjs --sistema <id>`.
 
+**Adendo G4-R1** (`MAIKE-PR145-G4-R1-GUARD-DUPLA-CONEXAO-E-FECHAMENTO-OPERACIONAL`):
+
+5. **Alvo conferido nas duas conexões.** O runtime resolve a conexão por `POSTGRES_PRISMA_URL > DATABASE_URL > POSTGRES_URL`; o `deploy:migrate` usa só `MIGRATION_DATABASE_URL`. Para alvo remoto, `run-migrations.mjs` exige `MIGRATION_EXPECTED_SYSTEM_IDENTIFIER` e, **antes** do subprocesso, lê as duas conexões. Só aceita se tudo bater:
+   - o mesmo `system_identifier`, igual ao esperado;
+   - o mesmo `current_database()`;
+   - o mesmo OID de banco;
+   - `public._prisma_migrations` presente nas duas;
+   - a mesma assinatura do histórico.
+
+   URLs não são comparadas como texto nem impressas. Os erros do driver saem só como código. A mesma barreira vale para `inicializar-tenant-maike.mjs` em alvo remoto e para o CLI `conferir-alvo-banco.mjs`. Localmente, nada muda, salvo com `MIGRATION_EXIGIR_CONFERENCIA=sim`.
+6. **Cliente desativado perde a sessão.** `app.autenticar` também exige `Cliente.ativo`, na mesma consulta, por filtro relacional.
+7. **Inventário exato.** A frase de confirmação carrega a impressão digital do inventário: contagem por tabela, conjunto de clientes, classes e ordem de FK. A transação recalcula a impressão sob trava e aborta se mudou, mesmo com o total igual.
+8. **Estado inicial certificado.** O estado conta como "já inicializado" só com o cliente `maike`, a conta `maike`, nenhuma outra linha de tenant e auditoria apenas de inicialização/elevação. Com qualquer dado a mais o script responde ANOMALIA e não apaga nada.
+
 ---
 
 <!-- Próxima decisão: D-PROD-74 -->

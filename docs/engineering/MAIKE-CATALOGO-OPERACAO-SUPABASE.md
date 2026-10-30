@@ -110,65 +110,131 @@ Sem essa confirmação: **NO-GO**. Para provar que o backup restaura de fato, a 
 
 **Checksums (A2).** As 14 migrations aplicadas com checksum são idênticas aos arquivos do repositório. Quatro constam como `manual`, aplicadas à mão no histórico: `p3_foundation`, `p4_1_setor_native`, `p4_1_r2_setor_tipo_default` e `p4_marcas_native`. O `migrate deploy` não as reaplica.
 
-## 0c. Inicialização do MAIKE de produção (G4, D-PROD-73) — sequência do operador
+## 0c. Inicialização do MAIKE de produção (G4 / G4-R1, D-PROD-73) — passo a passo do operador
 
-**Autorizado pelo proprietário** nesta missão:
+**Autorizado pelo proprietário:**
 
-- as 7 migrations;
-- a eliminação **definitiva** dos dados de teste;
-- a conta `maike` (nome Maike) como administrador da fazenda.
+- as 7 migrations aditivas;
+- a eliminação **definitiva** dos dados de TESTE inventariados;
+- um cliente técnico `maike` com uma conta `maike` (nome Maike) como **administrador da fazenda**.
 
-**NÃO autorizado:** merge, Vercel, preview, Storage, bucket, segredos e o proprietário do produto (MAIKE Admin).
+**NÃO autorizado:**
 
-**Backup:** não comprovado. O proprietário aceitou perder os dados de teste, e o rollback de aplicação **não** restaura dados.
+- merge e deploy;
+- Vercel, preview, variáveis e segredos;
+- Storage e bucket;
+- ícones;
+- o proprietário do produto (MAIKE Admin);
+- qualquer DROP, TRUNCATE, `migrate reset` ou `db push`.
 
-**Alvo:** projeto Supabase `uuemcasqcdjucflulkne`, `system_identifier` = `7692130048193495360`. Que o runtime de produção usa este banco foi provado em `rollout-g4/G0-…`.
+**Backup:** não comprovado. A perda dos dados de teste foi aceita, e voltar a versão do app **não** traz dados de volta.
 
-Rode num terminal seguro, na raiz do repositório, no head da PR #145, depois de `npm ci`. Use a conexão **direta ou de sessão, na porta 5432** (nunca a 6543) do projeto acima. A conexão é colada sem eco, fica fora do histórico e não vai para nenhum arquivo:
+**Alvo:** projeto Supabase `uuemcasqcdjucflulkne`, identificador do cluster `7692130048193495360`. Que o runtime de produção usa esse banco está provado em `rollout-g4/G0-…`.
 
+### Antes de começar
+
+1. Um computador com o repositório na branch da PR #145, atualizada, e um terminal (Terminal, Cursor ou Claude Code). Na pasta do repositório:
+   ```bash
+   git fetch origin claude/catalogo-global-icones-lotes-01 && git checkout claude/catalogo-global-icones-lotes-01 && git pull --ff-only && npm ci
+   ```
+2. A conexão do banco, que você copia na hora e **não** cola em chat, arquivo ou mensagem.
+   - Caminho: Supabase → projeto MAIKE → **Connect** → **Session pooler** (porta **5432**) ou **Direct connection**.
+   - **Nunca** use a porta 6543.
+   - Substitua `[YOUR-PASSWORD]` pela senha do banco.
+
+### Passo a passo (cole um bloco por vez e confira a saída antes do próximo)
+
+**1. Preparar a sessão.** A conexão é colada sem aparecer na tela e não fica no histórico. As duas variáveis recebem a **mesma** conexão.
 ```bash
-read -rs DATABASE_URL && export DATABASE_URL && export MIGRATION_DATABASE_URL="$DATABASE_URL"
+unset POSTGRES_PRISMA_URL POSTGRES_URL DATABASE_URL MIGRATION_DATABASE_URL
+printf 'Cole a conexão do banco (não aparece) e tecle Enter: '; read -rs DATABASE_URL; echo
+export DATABASE_URL MIGRATION_DATABASE_URL="$DATABASE_URL"
+export MIGRATION_EXPECTED_SYSTEM_IDENTIFIER=7692130048193495360
 export INICIALIZAR_ALLOW_PRODUCTION=sim PAPEL_TENANT_ALLOW_PRODUCTION=sim
 SID=7692130048193495360
-
-node scripts/deploy/preflight-schema.mjs --sistema $SID        # "alvo confere"; exit 1; 7 pendentes
-npm run deploy:migrate                                          # 7 × "Applying migration"
-npm run deploy:migrate                                          # "No pending migrations"
-node scripts/deploy/preflight-schema.mjs --sistema $SID        # exit 0 (aviso: cliente sem administrador)
 ```
 
-Depois das migrations, e antes de apagar qualquer coisa, entre no MAIKE atual em produção, que ainda roda a `main`, e confira a compatibilidade:
-
-- login;
-- telas Usuários, Permissões, Categoria de Manejo e Lotes;
-- nenhuma gravação.
-
-Se algo falhar: **PARE**. Não apague nada, não marque migration à mão, não improvise SQL.
-
+**2. Conferir o alvo nas duas conexões** (só leitura).
 ```bash
-node scripts/ops/inicializar-tenant-maike.mjs --sistema $SID              # DRY-RUN: confira tabelas e total
-node scripts/ops/inicializar-tenant-maike.mjs --sistema $SID --executar   # frase exata + senha nova 2× (oculta)
-node scripts/auth/papel-tenant.mjs --cliente maike --login maike --papel administrador   # digite CONFIRMAR
-node scripts/deploy/preflight-schema.mjs --sistema $SID --exigir-admin-por-cliente      # exit 0
-unset DATABASE_URL MIGRATION_DATABASE_URL INICIALIZAR_ALLOW_PRODUCTION PAPEL_TENANT_ALLOW_PRODUCTION
+node scripts/deploy/conferir-alvo-banco.mjs
+```
+Esperado: `ALVO CONFERE … migrations=18`. Qualquer outra resposta: **PARE**. A conexão é de outro banco, ou sobrou uma variável antiga.
+
+**3. Preflight** (só leitura).
+```bash
+node scripts/deploy/preflight-schema.mjs --sistema $SID
+```
+Esperado:
+
+- `alvo: system_identifier confere`;
+- `migrations: 18/25 aplicadas`;
+- `FALHA migrations pendentes (7): 20261028250000…20261029400000`.
+
+Outra lista: **PARE**.
+
+**4. Aplicar as 7 migrations e repetir.** O próprio comando confere o alvo de novo antes de executar.
+```bash
+npm run deploy:migrate
+npm run deploy:migrate
+```
+Esperado:
+
+- na primeira vez: `alvo conferido nas duas conexões` e 7 linhas `Applying migration`;
+- na segunda: `No pending migrations to apply`.
+
+Se der erro: **PARE**. Não apague nada, não marque migration à mão, não tente "consertar" com SQL.
+
+**5. Preflight depois.**
+```bash
+node scripts/deploy/preflight-schema.mjs --sistema $SID
+```
+Esperado: `migrations: 25/25` e `PREFLIGHT OK`. O aviso de cliente sem administrador é normal neste ponto.
+
+**6. Conferir o MAIKE atual, só olhando.** No navegador, entre no MAIKE de produção, que ainda roda a versão anterior. Faça login e abra Usuários, Permissões, Categoria de Manejo e Lotes, **sem salvar nada**. Se alguma tela der erro: **PARE**.
+
+**7. Ver o que será apagado** (dry-run, nada muda).
+```bash
+node scripts/ops/inicializar-tenant-maike.mjs --sistema $SID
+```
+O script mostra:
+
+- as tabelas preservadas;
+- as linhas por tabela;
+- a impressão do inventário;
+- a frase exata `APAGAR <n> LINHAS DE <c> CLIENTE(S) #<código>`.
+
+O retrato de 30/10 era de ~126 linhas de 1 cliente. Divergência grande: **PARE** e revise.
+
+**8. Executar** (você digita a frase e a senha).
+```bash
+node scripts/ops/inicializar-tenant-maike.mjs --sistema $SID --executar
+```
+- Digite a frase **exatamente** como apareceu no passo 7. Se os dados mudaram desde então, a frase não confere e nada é apagado.
+- Depois digite a **senha nova** da conta `maike`, duas vezes. Ela não aparece na tela.
+  - mínimo de 12 caracteres, recomendado 16 ou mais;
+  - nada de senha comum, nem com o login ou o nome;
+  - **nunca** a senha que já apareceu em conversa.
+
+Esperado: `aplicado: … cliente "maike" e conta "maike" criados`.
+
+**9. Tornar a conta administrador da fazenda** (digite `CONFIRMAR` quando pedir).
+```bash
+node scripts/auth/papel-tenant.mjs --cliente maike --login maike --papel administrador
+node scripts/deploy/preflight-schema.mjs --sistema $SID --exigir-admin-por-cliente
+```
+Esperado: `aplicado: maike agora é "administrador"` e `PREFLIGHT OK`, com 1 administrador e 0 clientes sem administrador.
+
+**10. Encerrar a sessão.**
+```bash
+unset DATABASE_URL MIGRATION_DATABASE_URL MIGRATION_EXPECTED_SYSTEM_IDENTIFIER INICIALIZAR_ALLOW_PRODUCTION PAPEL_TENANT_ALLOW_PRODUCTION SID
 ```
 
-**O dry-run.** O retrato de 30/10 indica `APAGAR 126 LINHAS DE 1 CLIENTE(S)`. Se o número divergir, entenda a diferença antes de executar: o próprio script recusa um inventário que mudar entre o dry-run e o COMMIT.
+### Se algo parecer errado
 
-**A senha** é nova, forte e tem pelo menos 12 caracteres; recomenda-se 16 ou mais. O script recusa:
-
-- senha curta;
-- só números;
-- senha comum;
-- senha que contenha o login ou o nome.
-
-Ela nunca vai para argumento, variável, arquivo ou chat. A senha que já apareceu em conversa **não** deve ser usada.
-
-**Depois:**
-
-- **Até o merge,** produção continua na `main`. Ali o JWT antigo do usuário apagado ainda passa pela assinatura, mas só enxerga um tenant que não existe mais e não consegue gravar, porque a FK para o cliente apagado barra.
-- **Depois do merge,** a sessão passa a ser revalidada no banco: o token antigo vira 401 (D-PROD-73).
-- **O merge continua NO-GO** até a auditoria do arquiteto e a liberação manual pelo proprietário (§0b).
+- **Rodar o passo 8 de novo é seguro.** No estado inicial, ele diz `já inicializado` e não faz nada.
+- **ANOMALIA no passo 8:** já existe o tenant `maike` e também outros dados. **Nada é apagado.** Peça revisão.
+- **Até o merge,** produção continua na versão anterior. Depois do merge, a sessão passa a ser revalidada no banco: conta apagada, desativada ou de cliente desativado recebe 401 na hora.
+- **O merge** continua NO-GO até a auditoria do arquiteto e a sua liberação manual (§0b).
 
 ## 1. Migrations, grants e RLS (antes de tudo)
 
