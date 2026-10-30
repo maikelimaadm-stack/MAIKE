@@ -9,7 +9,7 @@
 
 export const FONTE_CONTAGEM_BASE = 11;
 export const FONTE_CONTAGEM_MINIMA = 5;
-export const LARGURA_MAXIMA_CONTAGEM = 24;
+export const LARGURA_MAXIMA_CONTAGEM = 22;
 export const FONTE_CONTAGEM_FAMILIA = 'Inter,Arial,sans-serif';
 
 /** Estimativa sem DOM: dígitos em negrito ocupam ~0,6 em. */
