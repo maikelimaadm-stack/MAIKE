@@ -3095,4 +3095,37 @@ Merge só pelo proprietário após auditoria.
 
 ---
 
-<!-- Próxima decisão: D-PROD-80 -->
+## D-PROD-80 — Marcadores do mapa não atravessam janelas abertas
+
+**Contexto:** os marcadores HTML do MapLibre recebem z-index 500 a 10000 (lotes, tarefas, arrasto). Sem contexto de empilhamento no contêiner do mapa, esses valores competiam com as janelas (z-50) e o ícone do lote aparecia por cima de "Detalhes do Lote" e de outros pop-ups.
+
+**Decisão:** o contêiner `mapa-geral-maplibre` recebe `isolation: isolate`. A ordem entre os marcadores continua a mesma, mas fica restrita ao mapa, e qualquer janela aberta por cima dele vence. Teste de contrato em `tests/smoke/menuNavFreeze.test.jsx`.
+
+---
+
+## D-PROD-81 — Ícones se ajustam sozinhos no envio
+
+**Contexto:** o proprietário pediu que qualquer imagem escolhida se ajuste sozinha ao espaço do ícone. A exibição já usava `object-fit: contain` (sem cortar). Mas o arquivo era guardado inteiro: o primeiro ícone de produção tinha 1000 px, para um marcador de dezenas de pixels.
+
+**Decisão:** em Configurações Gerais → Ícones, o ícone principal e o subícone são reduzidos no navegador antes do envio (`src/lib/imagens/redimensionarIcone.js`):
+- cabem em 256×256, mantendo a proporção, sem ampliar e sem cortar;
+- saem em PNG com transparência;
+- SVG, não-imagem ou falha do navegador seguem com o arquivo original.
+
+Provas:
+- ICO-01..04 (smoke);
+- ensaio no Chromium: 1000×500 → 256×128, 11,8 KB → 1,2 KB.
+
+Ícones já cadastrados só mudam se forem reenviados.
+
+---
+
+## D-PROD-82 — Quantidade de cabeças no marcador do lote: discreta e abaixo da figura
+
+**Contexto:** o número de cabeças sobre o ícone do lote era branco, 11 px, com sombra escura, a 34% da altura. Ficava em cima da figura e competia com ela.
+
+**Decisão (pedido do proprietário):** `.mg-lote-count` passa a cinza escuro (`#374151`), 9 px em negrito, com halo claro para leitura, a 64% da altura: abaixo da figura, dentro do marcador. Só muda o estilo; o conteúdo e o comportamento continuam os mesmos.
+
+---
+
+<!-- Próxima decisão: D-PROD-83 -->

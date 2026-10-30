@@ -498,7 +498,9 @@ export default function useMapRenderer(mapInstanceRef) {
           const badge = document.createElement("div");
           badge.className = "mg-lote-count";
           badge.style.cssText =
-            "position:absolute;left:50%;top:34%;transform:translate(-50%,-50%);color:#fff;font:700 11px Inter,Arial,sans-serif;text-shadow:0 1px 2px rgba(0,0,0,.85);pointer-events:none;";
+            // Quantidade de cabeças: cinza escuro, fonte menor e abaixo da figura,
+            // com halo claro para ler sobre o ícone (pedido do proprietário, D-PROD-82).
+            "position:absolute;left:50%;top:64%;transform:translate(-50%,-50%);color:#374151;font:700 9px Inter,Arial,sans-serif;text-shadow:0 0 2px rgba(255,255,255,.95),0 0 3px rgba(255,255,255,.8);pointer-events:none;";
           const ind = document.createElement("div");
           ind.className = "mg-lote-ident";
           ind.style.cssText = "position:absolute;left:calc(50% + 20px);top:calc(50% - 25px);transform:translate(-50%,-50%);display:flex;pointer-events:none;";
