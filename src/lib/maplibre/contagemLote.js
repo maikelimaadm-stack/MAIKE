@@ -1,18 +1,41 @@
 /**
  * Tamanho da fonte da quantidade de cabeças no marcador do lote (D-PROD-83).
  *
- * Até 4 caracteres cabem no tamanho base, abaixo da figura. Com mais
- * caracteres (ex.: "12500"), a fonte encolhe na mesma proporção para o número
- * continuar dentro do espaço do ícone, nunca abaixo do mínimo legível.
+ * O número fica abaixo da figura, numa faixa de LARGURA_MAXIMA_CONTAGEM px que
+ * cabe dentro do ícone. Se o texto no tamanho base for mais largo que a faixa
+ * (ex.: "5000" numa fonte larga, "12500"), a fonte encolhe na mesma proporção
+ * da largura medida, nunca abaixo do mínimo legível.
  */
 
 export const FONTE_CONTAGEM_BASE = 11;
-export const CARACTERES_NO_TAMANHO_BASE = 4;
-export const FONTE_CONTAGEM_MINIMA = 6;
+export const FONTE_CONTAGEM_MINIMA = 5;
+export const LARGURA_MAXIMA_CONTAGEM = 24;
+export const FONTE_CONTAGEM_FAMILIA = 'Inter,Arial,sans-serif';
 
-/** @param {string|number} texto @returns {number} tamanho em px */
-export const tamanhoFonteContagem = (texto) => {
-  const n = String(texto ?? '').length;
-  if (n <= CARACTERES_NO_TAMANHO_BASE) return FONTE_CONTAGEM_BASE;
-  return Math.max(FONTE_CONTAGEM_MINIMA, Math.floor((FONTE_CONTAGEM_BASE * CARACTERES_NO_TAMANHO_BASE) / n));
+/** Estimativa sem DOM: dígitos em negrito ocupam ~0,6 em. */
+export const larguraEstimada = (texto, px) => String(texto).length * 0.6 * px;
+
+/**
+ * Mede a largura real do texto com canvas; sem canvas, usa a estimativa.
+ * @returns {(texto: string, px: number) => number}
+ */
+export const criarMedidorDeTexto = () => {
+  const ctx = typeof document !== 'undefined' ? document.createElement('canvas').getContext?.('2d') : null;
+  if (!ctx) return larguraEstimada;
+  return (texto, px) => {
+    ctx.font = `700 ${px}px ${FONTE_CONTAGEM_FAMILIA}`;
+    const largura = ctx.measureText(String(texto)).width;
+    return largura > 0 ? largura : larguraEstimada(texto, px);
+  };
+};
+
+/**
+ * @param {string|number} texto
+ * @param {(texto: string, px: number) => number} [medir]
+ * @returns {number} tamanho em px
+ */
+export const tamanhoFonteContagem = (texto, medir = larguraEstimada) => {
+  const largura = medir(String(texto ?? ''), FONTE_CONTAGEM_BASE);
+  if (largura <= LARGURA_MAXIMA_CONTAGEM) return FONTE_CONTAGEM_BASE;
+  return Math.max(FONTE_CONTAGEM_MINIMA, Math.floor((FONTE_CONTAGEM_BASE * LARGURA_MAXIMA_CONTAGEM) / largura));
 };

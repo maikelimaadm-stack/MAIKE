@@ -3130,14 +3130,14 @@ Provas:
 
 ## D-PROD-83 — Quantidade de cabeças: um pouco mais abaixo, maior, e encolhe para caber
 
-**Pedido do proprietário:** o número fica mais baixo e um pouco maior. Até 4 caracteres cabem no tamanho base; com mais caracteres, a fonte se reduz para caber no ícone (as imagens não têm fundo).
+**Pedido do proprietário:** o número fica mais baixo e um pouco maior, e a fonte se reduz para caber no ícone (as imagens não têm fundo). Na primeira versão (regra por quantidade de caracteres), "5000" e "1250000" ainda passavam da borda da figura; o proprietário apontou e a regra passou a usar a largura medida.
 
 **Decisão:**
 - `.mg-lote-count` a 72% da altura;
-- fonte base de 11 px para até 4 caracteres;
-- acima disso, `11 × 4 / caracteres`, com mínimo de 6 px (`src/lib/maplibre/contagemLote.js`).
+- fonte base de 11 px;
+- a largura do texto é medida com canvas (`700 11px Inter,Arial,sans-serif`); se passar de 24 px, a fonte vira `11 × 24 / largura`, com mínimo de 5 px (`src/lib/maplibre/contagemLote.js`). Sem canvas, usa a estimativa de 0,6 em por dígito.
 
-Exemplos: "12500" usa 8 px e "125000" usa 7 px. Testes CNT-01..03.
+Exemplos no Chromium: "500" fica em 11 px, "5000" em 9 px, "12500" em 7 px, "125000" em 6 px, "1250000" em 5 px. Testes CNT-01..04.
 
 ---
 
