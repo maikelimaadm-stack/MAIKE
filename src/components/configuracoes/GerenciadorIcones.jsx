@@ -76,7 +76,9 @@ export default function GerenciadorIcones() {
       queryClient.invalidateQueries({ queryKey: ICONES_QUERY_KEY });
       resetForm();
       toast.success('✅ Ícone cadastrado!');
-    }
+    },
+    // Sem isto a falha era silenciosa e o cadastro parecia "não salvar" (D-PROD-79).
+    onError: (error) => toast.error(getApiErrorMessage(error, 'Não foi possível cadastrar o ícone.'))
   });
 
   const updateIconeMutation = useMutation({
@@ -85,7 +87,9 @@ export default function GerenciadorIcones() {
       queryClient.invalidateQueries({ queryKey: ICONES_QUERY_KEY });
       resetForm();
       toast.success('✅ Ícone atualizado!');
-    }
+    },
+    // Sem isto a falha era silenciosa e o cadastro parecia "não salvar" (D-PROD-79).
+    onError: (error) => toast.error(getApiErrorMessage(error, 'Não foi possível atualizar o ícone.'))
   });
 
   const deleteIconeMutation = useMutation({
@@ -93,7 +97,9 @@ export default function GerenciadorIcones() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ICONES_QUERY_KEY });
       toast.success('✅ Ícone removido!');
-    }
+    },
+    // Sem isto a falha era silenciosa e o cadastro parecia "não salvar" (D-PROD-79).
+    onError: (error) => toast.error(getApiErrorMessage(error, 'Não foi possível remover o ícone.'))
   });
 
   const resetForm = () => {

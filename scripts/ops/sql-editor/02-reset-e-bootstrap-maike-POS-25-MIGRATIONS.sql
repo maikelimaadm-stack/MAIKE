@@ -103,11 +103,11 @@ BEGIN
 
   -- 2. Schema: as 25 migrations concluídas, nenhuma com falha, as 7 da PR presentes.
   SELECT count(*) INTO v_mig_antes FROM "_prisma_migrations" WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL;
-  IF v_mig_antes <> 25
+  IF v_mig_antes < 25
      OR EXISTS (SELECT 1 FROM "_prisma_migrations" WHERE finished_at IS NULL AND rolled_back_at IS NULL)
      OR (SELECT count(*) FROM unnest(c_novas) n
           WHERE EXISTS (SELECT 1 FROM "_prisma_migrations" m WHERE m.migration_name = n AND m.finished_at IS NOT NULL AND m.rolled_back_at IS NULL)) <> 7 THEN
-    RAISE EXCEPTION 'MAIKE-02: as 7 migrations ainda não foram aplicadas pelo runner oficial (precisa 25/25). Nada foi alterado.';
+    RAISE EXCEPTION 'MAIKE-02: as 7 migrations ainda não foram aplicadas pelo runner oficial (precisa das 25 migrations até a PR #145). Nada foi alterado.';
   END IF;
 
   -- 3. Conjunto EXATO de tabelas; nada além de tabelas comuns em public.

@@ -20,5 +20,8 @@
       ]
     }
   ],
-  "rewrites": [{ "source": "/((?!api/native).*)", "destination": "/index.html" }]
+  "rewrites": [
+    { "source": "/api/native/:path*", "destination": "https://maike-five.vercel.app/api/native/:path*" },
+    { "source": "/((?!api/native).*)", "destination": "/index.html" }
+  ]
 }

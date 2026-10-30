@@ -131,7 +131,9 @@ describe('SQL Editor — 01 precheck', () => {
     assert.equal(r.status, 0, r.stderr);
     const l = linhasDe(r);
     assert.equal(l['alvo: system_identifier'].status, 'OK');
-    assert.equal(l['migrations concluídas'].valor, '25');
+    // Todas as do repositório (25 até a PR #145; a D-PROD-79 acrescentou mais).
+    assert.ok(Number(l['migrations concluídas'].valor) >= 25);
+    assert.equal(l['migrations concluídas'].status, 'OK');
     assert.equal(l['tabelas em public'].valor, '53');
     assert.match(l.VEREDITO.valor, /PRONTO PARA O 02/);
     assert.deepEqual(await contar(), antes, 'precheck não altera nada');
@@ -185,7 +187,7 @@ describe('SQL Editor — 02 reset + bootstrap (falha fechada)', () => {
     await p.$executeRawUnsafe(`UPDATE "_prisma_migrations" SET finished_at = NULL WHERE migration_name = $1`, ultima);
     try {
       const r = psql(reset({ impressao: imp }));
-      assert.match(r.stderr, /precisa 25\/25/);
+      assert.match(r.stderr, /precisa das 25 migrations/);
     } finally {
       await p.$executeRawUnsafe(`UPDATE "_prisma_migrations" SET finished_at = now() WHERE migration_name = $1`, ultima);
     }

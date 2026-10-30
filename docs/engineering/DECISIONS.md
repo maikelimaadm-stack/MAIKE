@@ -3053,4 +3053,46 @@ Merge só pelo proprietário após auditoria.
 
 ---
 
-<!-- Próxima decisão: D-PROD-78 -->
+## D-PROD-78 — MAIKE Admin no ar sem terminal: primeiro acesso pela web e chave em texto
+
+**Missão:** `MAIKE-ADMIN-NO-AR-01`\
+**Guia do proprietário:** `docs/engineering/MAIKE-ADMIN-COLOCAR-NO-AR.md`
+
+**Contexto:** o catálogo de ícones do mapa é administrado no MAIKE Admin (`apps/admin`, D-PROD-70). Em produção ele nunca entrou no ar: a API respondia `503 ADMIN_INDISPONIVEL`, não havia projeto Vercel do admin nem bucket, e a criação do proprietário (`npm run admin:bootstrap`) exige terminal interativo com acesso ao banco, que o proprietário não tem.
+
+**Decisão:**
+
+1. **Primeiro acesso pela web.** `GET/POST /admin-maike/primeiro-acesso` cria o proprietário, com estas travas:
+   - só enquanto não existe proprietário; depois, `409` para sempre;
+   - com a prova de posse da `ADMIN_MAIKE_CHAVE`, a mesma variável que o proprietário coloca no servidor, comparada em tempo constante;
+   - com Origin do admin e limite de 5 tentativas por IP a cada 15 min;
+   - tentativa com chave errada vira evento de segurança;
+   - mesmas regras de login e senha do bootstrap, e o MFA continua obrigatório no primeiro login.
+
+   O comando de terminal continua valendo.
+2. **Chave em texto.** `ADMIN_MAIKE_CHAVE` aceita base64 de ≥ 32 bytes (como antes) ou um texto aleatório de ≥ 32 caracteres sem espaços, gerado num gerenciador de senhas. Entra no HKDF como bytes UTF-8. Chave curta ou com espaço continua inválida (503).
+3. **Endereço próprio.** O admin continua num projeto Vercel separado (Root Directory `apps/admin`), fora do menu do MAIKE. `apps/admin/vercel.json` passa a encaminhar `/api/native/*` ao backend de produção (`maike-five.vercel.app`), mantendo o cookie first-party no domínio do admin.
+4. **Bucket.** `maike-catalogo-global` criado em produção (30/10): público para leitura, 512 KB, PNG/JPEG/WebP/GIF, iguais à validação do backend.
+5. **Continua com o proprietário**, por envolver segredos ou o painel do Vercel:
+   - criar o projeto do admin;
+   - definir `ADMIN_MAIKE_CHAVE`, `ADMIN_ORIGINS`, `SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY` no projeto `maike`;
+   - fazer o primeiro acesso.
+
+---
+
+## D-PROD-79 — Ícones da fazenda com imagem voltam a salvar
+
+**Missão:** `MAIKE-ICONES-SALVAR-01` (mesma PR da D-PROD-77/78)
+
+**Contexto:** em Configurações Gerais → Ícones, a imagem escolhida vira data URL (`/arquivos/upload`, base64). Um PNG pequeno já passa de 1024 caracteres, mas `ConfiguracaoIcone.icone_url`/`sub_icone_url` e a rota aceitavam só 1024. O servidor recusava o cadastro (400) e a tela não mostrava erro: parecia que "não salva". Em produção, 0 ícones gravados depois da limpeza.
+
+**Decisão:**
+
+1. Migration `20261030100000_icone_url_text`: `icone_url` e `sub_icone_url` de `ConfiguracaoIcone` e `PontoReferencia` (que copia a imagem do ícone) passam de VARCHAR(1024) para TEXT. Só alarga o tipo, sem mudar dado, e o código atual da `main` continua compatível.
+2. Rotas de ícone e ponto aceitam até 1.000.000 caracteres por imagem, com corpo de até 3 MB. O upload aceita corpo de 4 MB (antes: 1 MB, recusava imagens a partir de ~750 KB).
+3. `GerenciadorIcones`: criar, editar e remover mostram o erro (`onError`).
+4. Fica de fora: guardar a imagem no Storage em vez de data URL; a logomarca da empresa (`logotipo_url`, 2000) tem o mesmo limite.
+
+---
+
+<!-- Próxima decisão: D-PROD-80 -->

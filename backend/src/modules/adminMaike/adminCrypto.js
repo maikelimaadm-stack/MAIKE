@@ -96,20 +96,36 @@ export const iguaisTempoConstante = (a, b) => {
   return ba.length === bb.length && timingSafeEqual(ba, bb);
 };
 
+/** Mínimo de caracteres de uma chave em texto (gerada por gerenciador de senhas). */
+export const CHAVE_TEXTO_MINIMA = 32;
+
 /**
- * Chave-mestra. Em produção `ADMIN_MAIKE_CHAVE` (base64, ≥ 32 bytes) é
- * obrigatória; fora de produção, sem a variável, deriva-se de `AUTH_SECRET`
- * para o ambiente local e de teste funcionar. Valor inválido → null.
+ * Chave-mestra. Em produção `ADMIN_MAIKE_CHAVE` é obrigatória: base64 de
+ * ≥ 32 bytes (`openssl rand -base64 32`) ou, desde a D-PROD-78, um texto
+ * aleatório de ≥ 32 caracteres gerado num gerenciador de senhas — para o
+ * proprietário que não tem terminal. O texto entra no HKDF como bytes UTF-8.
+ * Fora de produção, sem a variável, deriva-se de `AUTH_SECRET` para o ambiente
+ * local e de teste funcionar. Valor inválido → null.
  * @returns {Buffer|null}
  */
 const chaveMestra = () => {
   if (env.adminMaikeChave) {
     const bruto = env.adminMaikeChave;
     const b = /^[A-Za-z0-9+/]+={0,2}$/.test(bruto) ? Buffer.from(bruto, 'base64') : Buffer.alloc(0);
-    return b.length >= 32 ? b : null;
+    if (b.length >= 32) return b;
+    return bruto.length >= CHAVE_TEXTO_MINIMA && !/\s/.test(bruto) ? Buffer.from(bruto, 'utf8') : null;
   }
   return ehProducao() ? null : Buffer.from(`dev-only:${env.authSecret ?? ''}`, 'utf8');
 };
+
+/**
+ * Prova de posse da chave-mestra no primeiro acesso (D-PROD-78): quem colocou
+ * `ADMIN_MAIKE_CHAVE` no servidor é o proprietário. Comparação em tempo
+ * constante; sem variável configurada, nada confere.
+ * @param {unknown} valor
+ */
+export const chaveDePrimeiroAcessoConfere = (valor) =>
+  Boolean(env.adminMaikeChave) && typeof valor === 'string' && iguaisTempoConstante(valor.trim(), env.adminMaikeChave);
 
 /**
  * Falha FECHADA: sem chave válida o MAIKE Admin responde 503 genérico, sem

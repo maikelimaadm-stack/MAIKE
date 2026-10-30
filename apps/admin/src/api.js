@@ -45,6 +45,8 @@ export const mensagemDeErro = (erro) => {
         : 'O catálogo foi alterado em outra sessão. Recarregamos os dados: revise e tente de novo.';
     case 'ADMIN_CREDENCIAIS_INVALIDAS':
       return 'Login, senha ou código inválido. Depois de várias tentativas o acesso fica bloqueado por alguns minutos.';
+    case 'ADMIN_JA_CONFIGURADO':
+      return e.message;
     case 'ADMIN_RATE_LIMITED':
       return 'Muitas tentativas seguidas. Aguarde alguns minutos.';
     case 'ADMIN_SESSAO_REQUIRED':
@@ -96,6 +98,9 @@ export const chamar = async (caminho, { method = 'GET', body } = {}) => {
 // ─── Sessão e conta ────────────────────────────────────────────────────────
 export const api = {
   sessao: () => chamar('/admin-maike/sessao'),
+  // Primeiro acesso (D-PROD-78): só existe enquanto não há proprietário.
+  primeiroAcesso: () => chamar('/admin-maike/primeiro-acesso'),
+  criarProprietario: (dados) => chamar('/admin-maike/primeiro-acesso', { method: 'POST', body: dados }),
   entrar: (login, senha) => chamar('/admin-maike/auth/login', { method: 'POST', body: { login, senha } }),
   confirmarMfa: (codigo) => chamar('/admin-maike/auth/mfa', { method: 'POST', body: { codigo } }),
   usarRecuperacao: (codigo_recuperacao) => chamar('/admin-maike/auth/mfa', { method: 'POST', body: { codigo_recuperacao } }),

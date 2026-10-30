@@ -16,6 +16,8 @@ import {
   iniciarInscricaoMfa,
   listarSessoesAdmin,
   loginAdmin,
+  primeiroAcessoDisponivel,
+  primeiroAcessoProprietario,
   regenerarCodigosAdmin,
   revogarOutrasSessoesAdmin,
   verificarMfaAdmin,
@@ -27,7 +29,7 @@ import {
   exigirSessaoAdmin,
   limparCookieAdmin,
 } from './adminSessao.js';
-import { csrfDaSessao } from './adminCrypto.js';
+import { csrfDaSessao, exigirChaveAdminConfigurada } from './adminCrypto.js';
 import { obterVisaoAdminCatalogo, validarCatalogoAdmin } from '../catalogoGlobal/catalogoAdminVisao.js';
 import { obterManifesto } from '../catalogoGlobal/catalogoGlobalService.js';
 
@@ -42,6 +44,7 @@ const CODIGO_MFA = { type: 'string', minLength: 6, maxLength: 12 };
 const LIMITE_LOGIN = { limite: 10, janelaMs: 15 * 60_000 };
 const LIMITE_MFA = { limite: 20, janelaMs: 15 * 60_000 };
 const LIMITE_CONTA = { limite: 10, janelaMs: 15 * 60_000 };
+const LIMITE_PRIMEIRO_ACESSO = { limite: 5, janelaMs: 15 * 60_000 };
 
 const ctx = (request) => ({
   ip: request.ip,
@@ -66,6 +69,33 @@ const respostaSessao = (reply, { token, sessao, csrf }, admin, extra = {}) => {
 export const registrarAdminMaikeRoutes = async (app) => {
   const preMfa = [exigirSessaoAdmin({ permitirSemMfa: true })];
   const verificada = [exigirSessaoAdmin()];
+
+  // Primeiro acesso pela web (D-PROD-78): só enquanto não há proprietário, e só
+  // com a prova de posse da ADMIN_MAIKE_CHAVE. Depois, 409 para sempre.
+  app.get(`${PREFIX}/primeiro-acesso`, async () => {
+    exigirChaveAdminConfigurada();
+    return { disponivel: await primeiroAcessoDisponivel() };
+  });
+
+  app.post(
+    `${PREFIX}/primeiro-acesso`,
+    { schema: corpo({ chave: TEXTO(512), login: TEXTO(120), senha: TEXTO(256) }, ['chave', 'login', 'senha']) },
+    async (request, reply) => {
+      exigirOrigemAdmin(request);
+      consumirTentativa(`primeiro:${request.ip}`, LIMITE_PRIMEIRO_ACESSO);
+      exigirChaveAdminConfigurada();
+      const body = /** @type {{chave: string, login: string, senha: string}} */ (request.body);
+      const admin = await primeiroAcessoProprietario({
+        chave: body.chave,
+        login: body.login,
+        senha: body.senha,
+        ip: request.ip,
+        requestId: request.contexto.requestId,
+      });
+      reply.code(201);
+      return { criado: true, admin };
+    }
+  );
 
   app.post(
     `${PREFIX}/auth/login`,
