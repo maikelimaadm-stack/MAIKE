@@ -3095,4 +3095,12 @@ Merge só pelo proprietário após auditoria.
 
 ---
 
-<!-- Próxima decisão: D-PROD-80 -->
+## D-PROD-80 — Marcadores do mapa não atravessam janelas abertas
+
+**Contexto:** os marcadores HTML do MapLibre recebem z-index 500 a 10000 (lotes, tarefas, arrasto). Sem contexto de empilhamento no contêiner do mapa, esses valores competiam com as janelas (z-50) e o ícone do lote aparecia por cima de "Detalhes do Lote" e de outros pop-ups.
+
+**Decisão:** o contêiner `mapa-geral-maplibre` recebe `isolation: isolate`. A ordem entre os marcadores continua a mesma, mas fica restrita ao mapa, e qualquer janela aberta por cima dele vence. Teste de contrato em `tests/smoke/menuNavFreeze.test.jsx`.
+
+---
+
+<!-- Próxima decisão: D-PROD-81 -->
