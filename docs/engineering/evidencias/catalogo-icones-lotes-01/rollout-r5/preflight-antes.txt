@@ -1,0 +1,7 @@
+$ DATABASE_URL=<banco local no estado de produção> node scripts/deploy/preflight-schema.mjs
+migrations: 18/25 aplicadas
+FALHA migrations pendentes (7): 20261028250000_catalogo_global_slice1, 20261028250100_catalogo_global_slice1_schema_fix, 20261028250200_catalogo_global_slice1_r1_assets, 20261029100000_scale01_usuario_keyset_index, 20261029200000_categoria_manejo_vinculo_catalogo, 20261029300000_admin_principal_maike, 20261029400000_usuario_papel_tenant
+FALHA colunas ausentes: Usuario.papel_tenant, CategoriaManejo.catalogo_categoria_visual_id (backend desta PR responde 500)
+FALHA tabelas ausentes: CatalogoMeta, CatalogoTipoEntidade, CatalogoCategoriaVisual, CatalogoAsset, CatalogoIcone, CatalogoRegraMisto, CatalogoRegraMistoCategoria, OperadorProdutoMaike, AuditoriaCatalogoGlobal, AdminPrincipalMaike, SessaoAdminMaike, CodigoRecuperacaoAdminMaike, EventoSegurancaAdminMaike
+PREFLIGHT FALHOU: NÃO publique este código neste banco.
+exit=1

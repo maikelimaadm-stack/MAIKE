@@ -78,6 +78,9 @@ export const areaNotFound = (message, options) =>
 export const usuarioNotFound = (message, options) =>
   new AppError('USUARIO_NOT_FOUND', message || 'usuário não encontrado', options);
 
+/** @param {string} code @param {string} [message] @param {{details?: Record<string, unknown>}} [options] */
+export const adminError = (code, message, options) => new AppError(code, message, options);
+
 export const productOperatorRequired = (message, options) =>
   new AppError(
     'PRODUCT_OPERATOR_REQUIRED',

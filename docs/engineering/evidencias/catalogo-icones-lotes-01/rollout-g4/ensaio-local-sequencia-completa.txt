@@ -1,0 +1,103 @@
+ENSAIO LOCAL (PostgreSQL 16 descartável, dados sintéticos) — PR145-G4, sequência idêntica à de produção
+Senha da conta: aleatória, digitada pelo stdin de teste, nunca impressa (ocorrências da senha neste arquivo: 0).
+
+== 0. banco local no estado de produção (18 migrations) + dados sintéticos
+$ preflight-schema (antes)
+migrations: 18/25 aplicadas
+FALHA migrations pendentes (7): 20261028250000_catalogo_global_slice1, 20261028250100_catalogo_global_slice1_schema_fix, 20261028250200_catalogo_global_slice1_r1_assets, 20261029100000_scale01_usuario_keyset_index, 20261029200000_categoria_manejo_vinculo_catalogo, 20261029300000_admin_principal_maike, 20261029400000_usuario_papel_tenant
+exit=1
+== 1. npm run deploy:migrate (MIGRATION_DATABASE_URL local)
+deploy:migrate — aplicando migrations versionadas...
+Applying migration `20261028250000_catalogo_global_slice1`
+Applying migration `20261028250100_catalogo_global_slice1_schema_fix`
+Applying migration `20261028250200_catalogo_global_slice1_r1_assets`
+Applying migration `20261029100000_scale01_usuario_keyset_index`
+Applying migration `20261029200000_categoria_manejo_vinculo_catalogo`
+Applying migration `20261029300000_admin_principal_maike`
+Applying migration `20261029400000_usuario_papel_tenant`
+deploy:migrate — migrations aplicadas.
+$ de novo
+deploy:migrate — aplicando migrations versionadas...
+No pending migrations to apply.
+deploy:migrate — migrations aplicadas.
+$ preflight-schema
+migrations: 25/25 aplicadas
+papéis: 1 cliente(s) com usuário ativo, 0 administrador(es) da fazenda, 1 cliente(s) sem administrador
+AVISO 1 cliente(s) com usuário ativo e sem administrador da fazenda: ninguém cria contas lá até papel-tenant.mjs
+PREFLIGHT OK: o schema atende o código desta branch.
+exit=0
+== 2. JWT do usuário legado ANTES da limpeza (backend desta branch)
+login legado: 200 (token guardado, não impresso)
+== 3. inicializar-tenant-maike (dry-run)
+alvo: system_identifier confere
+schema: 25/25 migrations, RLS e grants conferem
+preservadas (não tocadas): 14 tabela(s) — AdminPrincipalMaike, AuditoriaCatalogoGlobal, CatalogoAsset, CatalogoCategoriaVisual, CatalogoIcone, CatalogoMeta, CatalogoRegraMisto, CatalogoRegraMistoCategoria, CatalogoTipoEntidade, CodigoRecuperacaoAdminMaike, EventoSegurancaAdminMaike, OperadorProdutoMaike, SessaoAdminMaike, _prisma_migrations
+a apagar: 105 linha(s) de 1 cliente(s), em 39 tabela(s):
+  AuditLog: 79
+  Categoria: 2
+  CategoriaManejo: 5
+  Empresa: 2
+  MovimentacaoMapa: 3
+  Permissao: 1
+  Usuario: 1
+  Lote: 4
+  AreaPastagem: 5
+  Setor: 2
+  Cliente: 1
+depois: cliente "maike" + conta "maike" (papel usuario; elevar com papel-tenant.mjs)
+DRY-RUN: nada foi alterado. Para executar: --executar e digitar "APAGAR 105 LINHAS DE 1 CLIENTE(S)"
+exit=0
+== 4. inicializar-tenant-maike --executar (frase + senha forte digitada 2x; entrada de teste via stdin)
+alvo: system_identifier confere
+schema: 25/25 migrations, RLS e grants conferem
+preservadas (não tocadas): 14 tabela(s) — AdminPrincipalMaike, AuditoriaCatalogoGlobal, CatalogoAsset, CatalogoCategoriaVisual, CatalogoIcone, CatalogoMeta, CatalogoRegraMisto, CatalogoRegraMistoCategoria, CatalogoTipoEntidade, CodigoRecuperacaoAdminMaike, EventoSegurancaAdminMaike, OperadorProdutoMaike, SessaoAdminMaike, _prisma_migrations
+a apagar: 105 linha(s) de 1 cliente(s), em 39 tabela(s):
+  AuditLog: 79
+  Categoria: 2
+  CategoriaManejo: 5
+  Empresa: 2
+  MovimentacaoMapa: 3
+  Permissao: 1
+  Usuario: 1
+  Lote: 4
+  AreaPastagem: 5
+  Setor: 2
+  Cliente: 1
+depois: cliente "maike" + conta "maike" (papel usuario; elevar com papel-tenant.mjs)
+Digite "APAGAR 105 LINHAS DE 1 CLIENTE(S)" para confirmar: Nova senha da conta "maike" (não aparece na tela):
+Repita a senha:
+aplicado: 105 linha(s) apagada(s); cliente "maike" e conta "maike" criados (auditoria ops-inicializacao-<uuid>)
+Próximo passo: papel-tenant.mjs --cliente maike --login maike --papel administrador
+exit=0
+== 5. preflight --exigir-admin-por-cliente (antes da elevação)
+FALHA 1 cliente(s) com usuário ativo e sem administrador da fazenda: ninguém cria contas lá até papel-tenant.mjs
+PREFLIGHT FALHOU: NÃO publique este código neste banco.
+exit=1
+== 6. papel-tenant.mjs (elevação nominal, CONFIRMAR)
+Fazenda: MAIKE (maike)
+Usuário: <nome> <login>
+Papel:   usuario → administrador
+Digite CONFIRMAR para aplicar: aplicado: maike agora é "administrador" (auditoria ops-papel-tenant-<uuid>)
+Vale na próxima ação privilegiada (o servidor relê o papel no banco); não precisa novo login.
+exit=0
+== 7. preflight --exigir-admin-por-cliente
+migrations: 25/25 aplicadas
+papéis: 1 cliente(s) com usuário ativo, 1 administrador(es) da fazenda, 0 cliente(s) sem administrador
+PREFLIGHT OK: o schema atende o código desta branch.
+exit=0
+== 8. smoke da API (backend desta branch, banco do ensaio)
+JWT antigo do usuário apagado GET /lotes: 401 TENANT_CONTEXT_REQUIRED
+JWT antigo do usuário apagado GET /usuarios: 401 TENANT_CONTEXT_REQUIRED
+JWT antigo do usuário apagado GET /auth/contexto: 401 TENANT_CONTEXT_REQUIRED
+login do usuário apagado: 401
+login maike: 200
+GET /lotes: 200 (0 itens)
+GET /permissoes: 200 (0 itens)
+GET /categorias-manejo: 200 (0 itens)
+GET /setores: 200 (0 itens)
+GET /empresas: 200 (0 itens)
+GET /usuarios: 200 (1 conta; papel administrador)
+administrador da fazenda POST /usuarios: 201
+conta criada (papel usuario) POST /usuarios: 403
+proprietário do produto: /admin-maike/sessao sem cookie: 401
+AdminPrincipalMaike=0 Catalogo*=0 migrations=25

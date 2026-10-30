@@ -15,6 +15,7 @@ export default function FormularioContaAcesso({
   toolbarActions = false,
   isSubmitting = false,
   readOnly = false,
+  ehPropriaConta = false,
 }) {
   const embedded = variant === "embedded";
   const isEditing = Boolean(initialData?.id);
@@ -23,6 +24,7 @@ export default function FormularioContaAcesso({
     login: initialData?.login || initialData?.email || "",
     senha: "",
     nova_senha: "",
+    senha_atual: "",
     ativo: initialData?.ativo !== false,
   }));
   const [invalidFields, setInvalidFields] = useState([]);
@@ -43,6 +45,9 @@ export default function FormularioContaAcesso({
       if (!form.senha || form.senha.length < 8) invalid.push("senha");
     } else if (form.nova_senha && form.nova_senha.length < 8) {
       invalid.push("nova_senha");
+    } else if (form.nova_senha && ehPropriaConta && !form.senha_atual) {
+      // PR145-R4: o servidor exige a senha atual para trocar a PRÓPRIA senha.
+      invalid.push("senha_atual");
     }
     if (invalid.length) {
       setInvalidFields(invalid);
@@ -53,8 +58,9 @@ export default function FormularioContaAcesso({
     if (isEditing) {
       const patch = { nome: form.nome.trim(), ativo: form.ativo };
       if (form.nova_senha) patch.nova_senha = form.nova_senha;
+      if (form.nova_senha && ehPropriaConta) patch.senha_atual = form.senha_atual;
       onSubmit(patch);
-      setForm((prev) => ({ ...prev, senha: "", nova_senha: "" }));
+      setForm((prev) => ({ ...prev, senha: "", nova_senha: "", senha_atual: "" }));
       return;
     }
 
@@ -139,6 +145,20 @@ export default function FormularioContaAcesso({
             />
           </B1Field>
         )}
+        {isEditing && ehPropriaConta && form.nova_senha ? (
+          <B1Field label="Senha atual" required error={fieldError("senha_atual")} disabled={readOnly}>
+            <input
+              type="password"
+              value={form.senha_atual}
+              onChange={(e) => handleChange("senha_atual", e.target.value)}
+              placeholder="Necessária para trocar a sua senha"
+              className={B1_FIELD_CTL_CLS}
+              autoComplete="current-password"
+              readOnly={readOnly}
+              disabled={readOnly}
+            />
+          </B1Field>
+        ) : null}
         {isEditing ? (
           <B1ChaveRow
             label="Conta ativa"

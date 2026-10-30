@@ -1,0 +1,10 @@
+[B R4×banco-prod (sem migration)] /health: 200 status=ok banco=up
+[B R4×banco-prod (sem migration)] login usuário legado (is_admin=true): 200
+[B R4×banco-prod (sem migration)] GET /auth/contexto: 200
+[B R4×banco-prod (sem migration)] GET /usuarios: 500 INTERNAL_ERROR (0 contas)
+[B R4×banco-prod (sem migration)] GET /permissoes: 500 INTERNAL_ERROR
+[B R4×banco-prod (sem migration)] GET /categorias-manejo: 500 INTERNAL_ERROR
+[B R4×banco-prod (sem migration)] GET /lotes: 200
+[B R4×banco-prod (sem migration)] POST /lotes: 201
+[B R4×banco-prod (sem migration)] PATCH /lotes/:id: 200
+[B R4×banco-prod (sem migration)] legado POST /usuarios (criar conta): 500 INTERNAL_ERROR

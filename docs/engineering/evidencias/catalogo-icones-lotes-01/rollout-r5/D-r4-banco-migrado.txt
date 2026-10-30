@@ -1,0 +1,11 @@
+[D R4×banco-migrado] /health: 200 status=ok banco=up
+[D R4×banco-migrado] login usuário legado (is_admin=true): 200
+[D R4×banco-migrado] GET /auth/contexto: 200
+[D R4×banco-migrado] GET /usuarios: 200 (4 contas)
+[D R4×banco-migrado] GET /permissoes: 200
+[D R4×banco-migrado] GET /categorias-manejo: 200
+[D R4×banco-migrado] GET /lotes: 200
+[D R4×banco-migrado] POST /lotes: 201
+[D R4×banco-migrado] PATCH /lotes/:id: 200
+[D R4×banco-migrado] legado POST /usuarios (criar conta): 403 TENANT_ADMIN_REQUIRED
+[D R4×banco-migrado] legado PATCH própria conta (nome): 200

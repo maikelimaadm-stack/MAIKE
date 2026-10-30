@@ -6,6 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "dev:admin": "vite --config apps/admin/vite.config.js",
+    "build:admin": "vite build --config apps/admin/vite.config.js",
+    "admin:bootstrap": "node scripts/admin/bootstrap-admin-principal.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
     "typecheck:raw": "tsc -p ./jsconfig.typecheck.json --pretty false",
@@ -55,6 +58,7 @@
     "gate:tenancy": "node scripts/gates/gate-tenancy.mjs",
     "gate:indices": "node scripts/gates/gate-indices.mjs",
     "gate:types": "node scripts/gates/gate-typecheck-ratchet.mjs",
+    "gate:admin-isolation": "node scripts/gates/gate-admin-isolation.mjs",
     "verify:all": "node scripts/gates/verify-all.mjs"
   },
   "dependencies": {

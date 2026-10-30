@@ -48,6 +48,8 @@ const ETAPAS = [
   ['usuario-admin', npm('gate:usuario-admin')],
   ['source-closure', npm('gate:source-closure')],
   ['import-integrity', npm('gate:import-integrity')],
+  // D-PROD-70: MAIKE Admin e SPA dos clientes sem ponte de código, API ou credencial.
+  ['admin-isolation', npm('gate:admin-isolation')],
   ['no-secrets', npm('gate:no-secrets')],
   ['base44', npm('gate:base44')],
   ['modelobase1-pecuario', npm('gate:modelobase1-pecuario')],
@@ -76,6 +78,10 @@ const ETAPAS = [
   // mudado. Foi exatamente o que aconteceu na primeira versão da P3, quando o
   // workflow passou a definir `NODE_ENV: test` no nível do job.
   ['build', npm('build', { NODE_ENV: 'production' })],
+  // Build separado do MAIKE Admin (D-PROD-70); o gate de isolamento roda de novo
+  // para inspecionar os dois bundles recém-gerados.
+  ['build:admin', npm('build:admin', { NODE_ENV: 'production' })],
+  ['admin-isolation:bundles', npm('gate:admin-isolation')],
 ];
 
 const resultado = [];

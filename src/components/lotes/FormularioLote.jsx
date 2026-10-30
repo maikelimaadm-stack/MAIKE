@@ -18,6 +18,7 @@ import LegacyRecordToolbar from "./LegacyRecordToolbar.jsx";
 import LegacyTabs from "./LegacyTabs.jsx";
 import Base1PanelTabs from "@/components/cadastro/base1/Base1PanelTabs.jsx";
 import DynamicFormRenderer from "@/components/dynamic/DynamicFormRenderer";
+import IconeOficialLotePreview from "@/components/catalogoGlobal/IconeOficialLotePreview";
 import LayoutConfiguratorDialog from "@/components/dynamic/LayoutConfiguratorDialog";
 export const FORMULARIO_LOTE_ID = "formulario-lote-base1";
 
@@ -184,6 +185,13 @@ export default function FormularioLote({
     queryFn: () => listarCategoriasManejoAtivas(empresaSelecionadaId),
     enabled: !!empresaSelecionadaId
   });
+
+  // Vínculo explícito categoria de manejo → categoria visual global; o lote não guarda ícone.
+  const categoriaVisualIdDoLote = useMemo(
+    () =>
+      categoriasManejo.find((item) => item.id === formData.categoria_manejo_id)?.catalogo_categoria_visual_id ?? null,
+    [categoriasManejo, formData.categoria_manejo_id]
+  );
 
   const { data: fornecedores = [] } = useQuery({
     queryKey: ["fornecedores", empresaSelecionadaId],
@@ -558,6 +566,11 @@ export default function FormularioLote({
                 readOnly={isReadOnly}
                 visualVariant={useBase1Visual ? "base1" : "legacy"}
                 />
+              {/* Catálogo global (somente leitura): ícone derivado do vínculo da categoria de manejo (D-PROD-69). */}
+              <IconeOficialLotePreview
+                categoriaVisualId={categoriaVisualIdDoLote}
+                categoriaManejoSelecionada={Boolean(formData.categoria_manejo_id)}
+              />
             </div>
           </fieldset>
 

@@ -1,0 +1,28 @@
+== ANTES (main/R3): usuário comum trocava a senha do admin da fazenda → 200. DEPOIS (R4):
+comum PATCH /usuarios/<admin> nova_senha: 403
+hash do admin inalterado: sim
+admin entra com a senha original: 200
+senha injetada recusada: 401
+comum POST /usuarios: 403
+comum POST /permissoes (a própria, is_admin=true): 403
+comum PATCH /permissoes/<id> is_admin: 403
+comum DELETE /permissoes/<id>: 403
+comum PATCH própria conta com papel_tenant: 400
+admin PATCH /permissoes com cliente_id de outro tenant: 400
+permissão continua no tenant original: fazenda-teste
+comum GET /permissoes — chaves da linha do admin: ["id","user_email","user_nome"]
+
+== POSITIVAS (admin da fazenda via papel-tenant)
+admin PATCH /usuarios/<vaqueiro> nova_senha: 200
+vaqueiro entra com a nova senha: 200
+admin PATCH /permissoes/<id>: 200
+admin da fazenda em /admin-maike/catalogo: 403
+admin da fazenda em POST /catalogo-global/admin/tipos: 403
+
+== REVOGAÇÃO com JWT antigo
+aplicado: ui.cli agora é "usuario"
+JWT antigo do ex-admin POST /usuarios: 403
+aplicado: ui.cli agora é "administrador"
+
+== PROPRIETÁRIO (sessão do produto) não é tenant
+proprietário sem sessão em /usuarios (cookie admin não vale): 401

@@ -101,7 +101,8 @@ export const criarTipo = async ({ dados, revisaoEsperada, operador, requestId })
     await avancarRevisaoCatalogo(tx, revisaoEsperada);
     await registrarAuditoriaCatalogo(
       {
-      operadorId: operador.id,
+      operadorId: operador.id ?? null,
+      adminId: operador.admin_id ?? null,
       acao: 'criar',
       entidade: 'CatalogoTipoEntidade',
       entidadeId: tipo.id,
@@ -129,7 +130,8 @@ export const atualizarTipo = async ({ id, dados, revisaoEsperada, operador, requ
     await avancarRevisaoCatalogo(tx, revisaoEsperada);
     await registrarAuditoriaCatalogo(
       {
-      operadorId: operador.id,
+      operadorId: operador.id ?? null,
+      adminId: operador.admin_id ?? null,
       acao: 'atualizar',
       entidade: 'CatalogoTipoEntidade',
       entidadeId: id,
@@ -160,7 +162,8 @@ export const criarCategoria = async ({ dados, revisaoEsperada, operador, request
     await avancarRevisaoCatalogo(tx, revisaoEsperada);
     await registrarAuditoriaCatalogo(
       {
-      operadorId: operador.id,
+      operadorId: operador.id ?? null,
+      adminId: operador.admin_id ?? null,
       acao: 'criar',
       entidade: 'CatalogoCategoriaVisual',
       entidadeId: cat.id,
@@ -173,6 +176,36 @@ export const criarCategoria = async ({ dados, revisaoEsperada, operador, request
   });
   return criada;
 };
+
+/** Edita rótulo, ordem e estado. O `codigo` e o tipo são a identidade lógica: não mudam. */
+export const atualizarCategoria = async ({ id, dados, revisaoEsperada, operador, requestId }) =>
+  prisma().$transaction(async (tx) => {
+    await assertRevisaoCatalogo(tx, revisaoEsperada);
+    const atual = await tx.catalogoCategoriaVisual.findUnique({ where: { id } });
+    if (!atual) throw catalogoGlobalNotFound('categoria não encontrada');
+    const cat = await tx.catalogoCategoriaVisual.update({
+      where: { id },
+      data: {
+        ...(dados.nome !== undefined ? { nome: dados.nome.trim() } : {}),
+        ...(dados.ordem !== undefined ? { ordem: dados.ordem } : {}),
+        ...(dados.ativo !== undefined ? { ativo: dados.ativo } : {}),
+      },
+    });
+    await avancarRevisaoCatalogo(tx, revisaoEsperada);
+    await registrarAuditoriaCatalogo(
+      {
+        operadorId: operador.id ?? null,
+        adminId: operador.admin_id ?? null,
+        acao: 'atualizar',
+        entidade: 'CatalogoCategoriaVisual',
+        entidadeId: id,
+        dados,
+        requestId,
+      },
+      tx
+    );
+    return cat;
+  });
 
 /**
  * Fases de `registrarAsset`, registradas só no servidor (R3). Decidem o que a
@@ -355,7 +388,8 @@ export const registrarAsset = async ({ buffer, mimeDeclarado, revisaoEsperada, o
       });
       await registrarAuditoriaCatalogo(
         {
-          operadorId: operador.id,
+          operadorId: operador.id ?? null,
+      adminId: operador.admin_id ?? null,
           acao: 'registrar_asset',
           entidade: 'CatalogoAsset',
           entidadeId: asset.id,
@@ -402,7 +436,8 @@ export const criarIcone = async ({ dados, revisaoEsperada, operador, requestId }
     await avancarRevisaoCatalogo(tx, revisaoEsperada);
     await registrarAuditoriaCatalogo(
       {
-      operadorId: operador.id,
+      operadorId: operador.id ?? null,
+      adminId: operador.admin_id ?? null,
       acao: 'criar',
       entidade: 'CatalogoIcone',
       entidadeId: icone.id,
@@ -453,7 +488,8 @@ export const atualizarIcone = async ({ id, dados, revisaoEsperada, operador, req
     await avancarRevisaoCatalogo(tx, revisaoEsperada);
     await registrarAuditoriaCatalogo(
       {
-      operadorId: operador.id,
+      operadorId: operador.id ?? null,
+      adminId: operador.admin_id ?? null,
       acao: 'atualizar',
       entidade: 'CatalogoIcone',
       entidadeId: id,
@@ -493,12 +529,14 @@ export const publicarIcone = async ({ id, revisaoEsperada, operador, requestId }
     await validarIconePublicavel(id, tx);
     const icone = await tx.catalogoIcone.update({
       where: { id },
-      data: { estado: 'publicado', revisao: { increment: 1 } },
+      // Republicar um ícone desativado o reativa (mesmo id lógico).
+      data: { estado: 'publicado', ativo: true, revisao: { increment: 1 } },
     });
     await avancarRevisaoCatalogo(tx, revisaoEsperada);
     await registrarAuditoriaCatalogo(
       {
-      operadorId: operador.id,
+      operadorId: operador.id ?? null,
+      adminId: operador.admin_id ?? null,
       acao: 'publicar',
       entidade: 'CatalogoIcone',
       entidadeId: id,
@@ -515,6 +553,7 @@ export const publicarIcone = async ({ id, revisaoEsperada, operador, requestId }
 export const desativarIcone = async ({ id, revisaoEsperada, operador, requestId }) => {
   const atualizado = await prisma().$transaction(async (tx) => {
     await assertRevisaoCatalogo(tx, revisaoEsperada);
+    if (!(await tx.catalogoIcone.findUnique({ where: { id } }))) throw catalogoGlobalNotFound('ícone não encontrado');
     const icone = await tx.catalogoIcone.update({
       where: { id },
       data: { ativo: false, estado: 'inativo' },
@@ -522,7 +561,8 @@ export const desativarIcone = async ({ id, revisaoEsperada, operador, requestId 
     await avancarRevisaoCatalogo(tx, revisaoEsperada);
     await registrarAuditoriaCatalogo(
       {
-      operadorId: operador.id,
+      operadorId: operador.id ?? null,
+      adminId: operador.admin_id ?? null,
       acao: 'desativar',
       entidade: 'CatalogoIcone',
       entidadeId: id,
@@ -538,19 +578,43 @@ export const desativarIcone = async ({ id, revisaoEsperada, operador, requestId 
 
 const normalizarCategoriaIdsMisto = (ids) => [...new Set(ids)].sort();
 
+/**
+ * Duas regras vivas (rascunho/publicada) do mesmo tipo com o MESMO conjunto
+ * de categorias são ambíguas: recusa (D-PROD-70). Empates por sobreposição
+ * são apontados em `/admin-maike/catalogo/validacao`, não bloqueiam.
+ */
+const exigirConjuntoMistoUnico = async (tx, tipoId, ids, excetoId) => {
+  const vivas = await tx.catalogoRegraMisto.findMany({
+    where: { tipo_id: tipoId, ativo: true, estado: { not: 'inativo' }, ...(excetoId ? { id: { not: excetoId } } : {}) },
+    include: { categorias: true },
+  });
+  const chave = ids.join(',');
+  const dup = vivas.find((r) => normalizarCategoriaIdsMisto(r.categorias.map((c) => c.categoria_id)).join(',') === chave);
+  if (dup) throw catalogoGlobalInvalid('já existe regra MISTO para este mesmo conjunto de categorias', { regra_id: dup.id });
+};
+
+/** Categorias existentes, ativas e do tipo da regra. */
+const exigirCategoriasMisto = async (db, tipoId, ids) => {
+  if (ids.length < 2) throw catalogoGlobalInvalid('regra MISTO exige ao menos duas categorias');
+  const categorias = await db.catalogoCategoriaVisual.findMany({ where: { id: { in: ids } } });
+  if (categorias.length !== ids.length) throw catalogoGlobalInvalid('categoria inexistente');
+  if (categorias.some((c) => c.tipo_id !== tipoId)) throw catalogoGlobalInvalid('categoria incompatível com o tipo da regra');
+  if (categorias.some((c) => !c.ativo)) throw catalogoGlobalInvalid('categoria inativa não entra em regra MISTO');
+};
+
+/** O ícone resultado de uma regra publicada precisa estar publicado e ativo. */
+const exigirIconeResultadoPublicado = (icone) => {
+  if (!icone?.ativo || icone.estado !== 'publicado') {
+    throw catalogoGlobalInvalid('o ícone resultado da regra MISTO precisa estar publicado');
+  }
+};
+
 export const criarRegraMisto = async ({ dados, revisaoEsperada, operador, requestId }) => {
   const ids = normalizarCategoriaIdsMisto(dados.categoria_ids ?? []);
   if (ids.length < 2) throw catalogoGlobalInvalid('regra MISTO exige ao menos duas categorias');
 
   await exigirTipoAtivo(prisma(), dados.tipo_id);
-
-  const categorias = await prisma().catalogoCategoriaVisual.findMany({
-    where: { id: { in: ids } },
-  });
-  if (categorias.length !== ids.length) throw catalogoGlobalInvalid('categoria inexistente');
-  if (categorias.some((c) => c.tipo_id !== dados.tipo_id)) {
-    throw catalogoGlobalInvalid('categoria incompatível com o tipo da regra');
-  }
+  await exigirCategoriasMisto(prisma(), dados.tipo_id, ids);
 
   const icone = await prisma().catalogoIcone.findUnique({ where: { id: dados.icone_id } });
   if (!icone) throw catalogoGlobalNotFound('ícone não encontrado');
@@ -560,6 +624,7 @@ export const criarRegraMisto = async ({ dados, revisaoEsperada, operador, reques
 
   const criada = await prisma().$transaction(async (tx) => {
     await assertRevisaoCatalogo(tx, revisaoEsperada);
+    await exigirConjuntoMistoUnico(tx, dados.tipo_id, ids);
     const regra = await tx.catalogoRegraMisto.create({
       data: {
         tipo_id: dados.tipo_id,
@@ -577,7 +642,8 @@ export const criarRegraMisto = async ({ dados, revisaoEsperada, operador, reques
     await avancarRevisaoCatalogo(tx, revisaoEsperada);
     await registrarAuditoriaCatalogo(
       {
-      operadorId: operador.id,
+      operadorId: operador.id ?? null,
+      adminId: operador.admin_id ?? null,
       acao: 'criar',
       entidade: 'CatalogoRegraMisto',
       entidadeId: regra.id,
@@ -603,7 +669,15 @@ export const publicarRegraMisto = async ({ id, revisaoEsperada, operador, reques
     if (regra.icone.tipo_id !== regra.tipo_id) {
       throw catalogoGlobalInvalid('ícone incompatível com o tipo da regra MISTO');
     }
+    if (!regra.ativo || regra.estado === 'inativo') throw catalogoGlobalInvalid('regra MISTO desativada');
+    exigirIconeResultadoPublicado(regra.icone);
     await validarIconePublicavel(regra.icone_id, tx);
+    await exigirConjuntoMistoUnico(
+      tx,
+      regra.tipo_id,
+      normalizarCategoriaIdsMisto(regra.categorias.map((c) => c.categoria_id)),
+      regra.id
+    );
     const atualizada = await tx.catalogoRegraMisto.update({
       where: { id },
       data: { estado: 'publicado' },
@@ -611,7 +685,8 @@ export const publicarRegraMisto = async ({ id, revisaoEsperada, operador, reques
     await avancarRevisaoCatalogo(tx, revisaoEsperada);
     await registrarAuditoriaCatalogo(
       {
-      operadorId: operador.id,
+      operadorId: operador.id ?? null,
+      adminId: operador.admin_id ?? null,
       acao: 'publicar',
       entidade: 'CatalogoRegraMisto',
       entidadeId: id,
@@ -624,3 +699,82 @@ export const publicarRegraMisto = async ({ id, revisaoEsperada, operador, reques
   });
   return publicada;
 };
+
+/**
+ * Edita ícone resultado, prioridade e/ou conjunto de categorias de uma regra
+ * MISTO. O id da regra é estável. Se estiver publicada, continua publicada e
+ * precisa seguir válida (ícone publicado, sem duplicata).
+ */
+export const atualizarRegraMisto = async ({ id, dados, revisaoEsperada, operador, requestId }) =>
+  prisma().$transaction(async (tx) => {
+    await assertRevisaoCatalogo(tx, revisaoEsperada);
+    const regra = await tx.catalogoRegraMisto.findUnique({ where: { id }, include: { categorias: true } });
+    if (!regra) throw catalogoGlobalNotFound('regra MISTO não encontrada');
+    if (!regra.ativo || regra.estado === 'inativo') throw catalogoGlobalInvalid('regra MISTO desativada não é editável');
+
+    const ids =
+      dados.categoria_ids !== undefined
+        ? normalizarCategoriaIdsMisto(dados.categoria_ids)
+        : normalizarCategoriaIdsMisto(regra.categorias.map((c) => c.categoria_id));
+    await exigirCategoriasMisto(tx, regra.tipo_id, ids);
+    await exigirConjuntoMistoUnico(tx, regra.tipo_id, ids, regra.id);
+
+    const iconeId = dados.icone_id ?? regra.icone_id;
+    const icone = await tx.catalogoIcone.findUnique({ where: { id: iconeId } });
+    if (!icone) throw catalogoGlobalNotFound('ícone não encontrado');
+    if (icone.tipo_id !== regra.tipo_id) throw catalogoGlobalInvalid('ícone incompatível com o tipo da regra MISTO');
+    if (regra.estado === 'publicado') exigirIconeResultadoPublicado(icone);
+
+    if (dados.categoria_ids !== undefined) {
+      await tx.catalogoRegraMistoCategoria.deleteMany({ where: { regra_id: id } });
+      await tx.catalogoRegraMistoCategoria.createMany({
+        data: ids.map((categoria_id, ordem) => ({ regra_id: id, categoria_id, ordem })),
+      });
+    }
+    const atualizada = await tx.catalogoRegraMisto.update({
+      where: { id },
+      data: {
+        icone_id: iconeId,
+        especificidade: ids.length,
+        ...(dados.prioridade !== undefined ? { prioridade: dados.prioridade } : {}),
+      },
+      include: { categorias: true },
+    });
+    await avancarRevisaoCatalogo(tx, revisaoEsperada);
+    await registrarAuditoriaCatalogo(
+      {
+        operadorId: operador.id ?? null,
+        adminId: operador.admin_id ?? null,
+        acao: 'atualizar',
+        entidade: 'CatalogoRegraMisto',
+        entidadeId: id,
+        dados: { ...dados, categoria_ids: ids },
+        requestId,
+      },
+      tx
+    );
+    return atualizada;
+  });
+
+/** Soft delete: a regra some da leitura publicada; registro e auditoria ficam. */
+export const desativarRegraMisto = async ({ id, revisaoEsperada, operador, requestId }) =>
+  prisma().$transaction(async (tx) => {
+    await assertRevisaoCatalogo(tx, revisaoEsperada);
+    const regra = await tx.catalogoRegraMisto.findUnique({ where: { id } });
+    if (!regra) throw catalogoGlobalNotFound('regra MISTO não encontrada');
+    const atualizada = await tx.catalogoRegraMisto.update({ where: { id }, data: { ativo: false, estado: 'inativo' } });
+    await avancarRevisaoCatalogo(tx, revisaoEsperada);
+    await registrarAuditoriaCatalogo(
+      {
+        operadorId: operador.id ?? null,
+        adminId: operador.admin_id ?? null,
+        acao: 'desativar',
+        entidade: 'CatalogoRegraMisto',
+        entidadeId: id,
+        dados: null,
+        requestId,
+      },
+      tx
+    );
+    return atualizada;
+  });

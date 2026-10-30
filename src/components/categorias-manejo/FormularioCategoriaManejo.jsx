@@ -3,6 +3,7 @@ import B1Field, { B1_FIELD_CTL_CLS } from "@/components/cadastro/base1/B1Field";
 import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
 import CadastroFormActions from "@/components/cadastro/base1/CadastroFormActions";
 import { notifyWarning } from "@/lib/maikeNotify";
+import CategoriaOficialCatalogoSelect from "@/components/catalogoGlobal/CategoriaOficialCatalogoSelect";
 
 export const FORMULARIO_CATEGORIA_MANEJO_ID = "formulario-categoria-manejo-base1";
 
@@ -34,6 +35,7 @@ export const getInitialFormData = () => ({
   idade_minima_meses: "",
   idade_maxima_meses: "",
   categoria_oficial: "",
+  catalogo_categoria_visual_id: "",
   ganho_peso_anual_kg: "",
   gmd_janeiro: "",
   gmd_fevereiro: "",
@@ -53,6 +55,7 @@ export function buildFormInitialFromRecord(editando) {
   return {
     ...getInitialFormData(),
     ...editando,
+    catalogo_categoria_visual_id: editando.catalogo_categoria_visual_id ?? "",
     idade_minima_meses: editando.idade_minima_meses ?? "",
     idade_maxima_meses: editando.idade_maxima_meses ?? "",
     ganho_peso_anual_kg: editando.ganho_peso_anual_kg ?? "",
@@ -254,6 +257,22 @@ export default function FormularioCategoriaManejo({
             ))}
           </select>
         )}
+      </B1Field>
+
+      <B1Field
+        label="Ícone oficial (catálogo MAIKE)"
+        span={4}
+        // Sempre mostra um texto ("SEM VÍNCULO" ou o nome): o rótulo fica no alto.
+        hasValue
+        locked={readOnly}
+        disabled={locked}
+      >
+        <CategoriaOficialCatalogoSelect
+          value={formData.catalogo_categoria_visual_id || ""}
+          onChange={(id) => handleChange("catalogo_categoria_visual_id", id)}
+          className={B1_FIELD_CTL_CLS}
+          readOnly={readOnly}
+        />
       </B1Field>
 
       <B1Field label="Idade Mínima (meses)" span={4} hasValue={formData.idade_minima_meses !== ""} locked={readOnly} disabled={locked}>

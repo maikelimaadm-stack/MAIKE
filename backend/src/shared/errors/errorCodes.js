@@ -97,6 +97,7 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   },
   USUARIO_NOT_FOUND: { http: 404, meaning: 'id não identifica usuário deste tenant' },
   USUARIO_LOGIN_DUPLICADO: { http: 409, meaning: 'login já cadastrado neste cliente' },
+  PERMISSAO_NOT_FOUND: { http: 404, meaning: 'id não identifica permissão deste tenant' },
   USUARIO_SELF_DEACTIVATE: { http: 400, meaning: 'conta autenticada não pode se desativar' },
   EMPRESA_NOT_FOUND: { http: 404, meaning: 'id não identifica empresa deste tenant' },
   EMPRESA_NAME_CONFLICT: {
@@ -137,6 +138,7 @@ export const BACKEND_ONLY_CODES = Object.freeze({
     meaning: 'já existe tipo de tarefa com este nome no grupo',
   },
   LOTE_NOT_FOUND: { http: 404, meaning: 'id não identifica lote deste tenant' },
+  CATEGORIA_MANEJO_NOT_FOUND: { http: 404, meaning: 'id não identifica categoria de manejo deste tenant' },
   LOTE_DELETE_BLOCKED: {
     http: 409,
     meaning: 'lote possui registros vinculados e não pode ser excluído',
@@ -200,6 +202,24 @@ export const BACKEND_ONLY_CODES = Object.freeze({
     http: 404,
     meaning: 'recurso do catálogo global não encontrado',
   },
+  TENANT_ADMIN_REQUIRED: {
+    http: 403,
+    meaning: 'ação restrita ao administrador da fazenda (Usuario.papel_tenant server-owned, ativo)',
+  },
+  USUARIO_INATIVO: { http: 403, meaning: 'conta desativada não altera dados (JWT antigo não basta)' },
+  USUARIO_SENHA_ATUAL_INVALIDA: { http: 403, meaning: 'senha atual ausente ou incorreta para trocar a própria senha' },
+  ADMIN_INDISPONIVEL: { http: 503, meaning: 'MAIKE Admin indisponível: configuração do servidor incompleta' },
+  ADMIN_SESSAO_REQUIRED: { http: 401, meaning: 'sessão do MAIKE Admin ausente, expirada ou revogada' },
+  ADMIN_PRINCIPAL_REQUIRED: {
+    http: 403,
+    meaning: 'credencial não é de administrador principal do produto (tenant, admin de tenant ou operador legado)',
+  },
+  ADMIN_MFA_REQUIRED: { http: 403, meaning: 'sessão do MAIKE Admin sem segundo fator verificado' },
+  ADMIN_CREDENCIAIS_INVALIDAS: { http: 401, meaning: 'credenciais do MAIKE Admin inválidas (mensagem genérica)' },
+  ADMIN_ORIGEM_RECUSADA: { http: 403, meaning: 'mutação admin sem Origin permitido ou sem token CSRF da sessão' },
+  ADMIN_RATE_LIMITED: { http: 429, meaning: 'tentativas demais; aguarde antes de tentar de novo' },
+  ADMIN_ENTRADA_INVALIDA: { http: 422, meaning: 'dados do MAIKE Admin inválidos' },
+  ADMIN_JA_CONFIGURADO: { http: 409, meaning: 'proprietário ou MFA já configurado' },
   CATALOGO_ASSET_INVALID: {
     http: 400,
     meaning: 'asset visual reprovado (mime, tamanho ou conteúdo)',

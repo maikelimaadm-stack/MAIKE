@@ -80,6 +80,20 @@ export const env = {
   supabaseServiceRoleKey: texto('SUPABASE_SERVICE_ROLE_KEY'),
   catalogoStorageBucket: texto('CATALOGO_STORAGE_BUCKET') || 'maike-catalogo-global',
   catalogoAssetMaxBytes: inteiro('CATALOGO_ASSET_MAX_BYTES', 512 * 1024),
+  /**
+   * MAIKE Admin (D-PROD-70). Chave-mestra server-only (base64, ≥ 32 bytes) do
+   * segredo MFA e do CSRF; obrigatória em produção, sem valor padrão.
+   */
+  adminMaikeChave: texto('ADMIN_MAIKE_CHAVE'),
+  /**
+   * Origins do app MAIKE Admin aceitas em mutações administrativas. Vazio em
+   * produção = nenhuma mutação admin (porta fechada). Fora de produção, sem a
+   * variável, vale só o Vite local do admin.
+   */
+  adminOrigins: listaDeOrigins('ADMIN_ORIGINS'),
+  /** Validade absoluta da sessão admin verificada (horas) e ociosidade (minutos). */
+  adminSessaoHoras: inteiro('ADMIN_SESSAO_HORAS', 8),
+  adminSessaoOciosaMinutos: inteiro('ADMIN_SESSAO_OCIOSA_MINUTOS', 30),
 };
 
 export const ehProducao = () => env.nodeEnv === 'production';

@@ -75,12 +75,18 @@ describe('ambiente do build de produção', () => {
 
   test('ENV-B5 nenhuma outra etapa do verify:all sobrescreve NODE_ENV', () => {
     const verifyAll = ler('scripts/gates/verify-all.mjs');
-    const ocorrencias = [...verifyAll.matchAll(/NODE_ENV:\s*'([^']+)'/g)].map((m) => m[1]);
+    // Só as etapas de build (SPA dos clientes e, desde a D-PROD-70, o MAIKE
+    // Admin) fixam NODE_ENV — e sempre como production.
+    const ocorrencias = [...verifyAll.matchAll(/\['([^']+)',\s*npm\('[^']+',\s*\{\s*NODE_ENV:\s*'([^']+)'/g)].map(
+      (m) => `${m[1]}=${m[2]}`
+    );
+    const total = [...verifyAll.matchAll(/NODE_ENV:\s*'/g)].length;
 
     assert.deepEqual(
       ocorrencias,
-      ['production'],
-      `apenas o build fixa NODE_ENV, e como production — encontrado: ${ocorrencias.join(', ')}`
+      ['build=production', 'build:admin=production'],
+      `apenas os builds fixam NODE_ENV, e como production — encontrado: ${ocorrencias.join(', ')}`
     );
+    assert.equal(total, 2, 'nenhuma outra etapa pode fixar NODE_ENV');
   });
 });

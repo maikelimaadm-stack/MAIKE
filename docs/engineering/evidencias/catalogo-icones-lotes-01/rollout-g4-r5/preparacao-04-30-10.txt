@@ -1,0 +1,52 @@
+MAIKE · PR #145 · G4-R5 — 01 corrigido e 04 (limpeza preservando a conta maike)
+Sanitizado: sem URL, senha, hash, ids ou dado pessoal.
+
+PRODUÇÃO (somente SELECT, antes de qualquer escrita):
+  alvo: system_identifier 7692130048193495360 · banco postgres
+  migrations: 25/25 concluídas, 0 com falha, 0 extras; as 7 da PR com checksum igual ao repositório
+  tabelas: 53 · 0 sem RLS · 0 grants anon/authenticated · 0 triggers de usuário em public
+  tenant (38 tabelas + Cliente): 126 linhas, TODAS do cliente "maike" (0 de outro cliente)
+    AuditLog 79 (create 50, update 5, delete 24) · Categoria 2 · CategoriaManejo 5 · Empresa 2 ·
+    EntidadeCodigoSequencia 8 · LocalEstoque 1 · Marca 7 · MovimentacaoMapa 3 · Permissao 1 · Produto 1 ·
+    UnidadeMedida 1 · LancamentoTarefa 1 · Usuario 1 · Lote 4 · TipoTarefa 1 · AreaPastagem 5 ·
+    GrupoAtividade 1 · Setor 2 · Cliente 1
+  a apagar: 124 (tudo menos Cliente e a conta)
+  conta "maike": 1, ativa, no cliente "maike" (ativo), papel 'usuario', hash bcrypt; nome de exibição ≠ 'Maike'
+  FKs de fora do tenant para o tenant: só OperadorProdutoMaike → Usuario, com 0 linhas
+  Usuario referencia só Cliente
+  preservadas: 0 linhas (fora CatalogoMeta 1, seed da migration) · AdminPrincipalMaike 0
+
+FALSO POSITIVO DO 01:
+  01 antigo (G4-R4, produção): VEREDITO "JÁ INICIALIZADO: não rode o 02", com item 13 = PARAR e 124 linhas de teste.
+  01 corrigido (G4-R5, produção, mesmo estado): item 13 "MAIKE EXISTENTE (caminho 04)", papel "AINDA NÃO",
+  linhas extra 45, auditoria fora 79, VEREDITO "MAIKE EXISTENTE — LIMPEZA CONTROLADA NECESSÁRIA";
+  impressao_inventario 48fb2392f0ff (igual à do G4-R4: nada mudou desde então).
+
+TESTES DIRECIONADOS (PostgreSQL 16 local descartável, 25 migrations, arquivos reais via psql):
+  backend/tests/sqlEditorPreservaMaike.test.mjs  PM-01..07  7/7
+    PM-01 maike existente + 124 linhas: 01 = MAIKE EXISTENTE, nenhuma linha PARAR; 02 = ANOMALIA; nada muda
+    PM-02 papel administrador com teste restante → nunca INICIALIZADO; cliente extra → PARAR
+    PM-03 parâmetro vazio, sid/banco errados, psql -f (fora de transação), inventário mudado, cliente extra → recusa, nada muda
+    PM-04 linha em OperadorProdutoMaike; checksum adulterado de migration da PR → recusa, nada muda
+    PM-05 falha forçada depois dos DELETEs (na promoção) → rollback total
+    PM-06 sucesso: 124 apagadas; Usuario id/cliente/login/nome/ativo/senha_hash/createdAt idênticos; só papel → administrador;
+          Cliente idêntico; AuditLog = ops_inicializacao + papel_tenant, sem hash; preservadas, migrations, RLS iguais;
+          01 = INICIALIZADO; 03 = INICIALIZADO sem PARAR; API: sessão antiga 200, login com a senha EXISTENTE 200, cria conta 201
+    PM-07 rerun = JA_INICIALIZADO sem mudança; dado novo após inicialização → 04 ANOMALIA, 01 PARAR, nada apagado
+  backend/tests/sqlEditorBootstrap.test.mjs SE-01..10 10/10 (SE-10 agora espera "INICIALIZADO")
+
+EXECUÇÃO EM PRODUÇÃO DO 04: NÃO EXECUTADA — aguarda a frase do proprietário "pode manter a conta maike".
+
+TENTATIVAS DE EXECUÇÃO DO 04 (30/10, depois da autorização "pode manter a conta maike"):
+  3 tentativas pelo conector Supabase; nas 3, o conector pediu confirmação ao proprietário e o pedido
+  expirou (230 s) sem chegar à tela dele. Nenhuma alcançou o banco.
+  Conferência por SELECT depois das 3: impressão 48fb2392f0ff (inalterada), 126 linhas de tenant,
+  papel 'usuario', digital da conta 9387d55409 (inalterada), 25/25, 0 sem RLS, 0 grants.
+
+DECISÃO DO PROPRIETÁRIO (30/10): não rodar o 04. Ele mesmo fará, por conta própria:
+  1. promoção (obrigatória para gerenciar usuários e permissões): Supabase → Table Editor → Usuario →
+     linha do login maike → papel_tenant = 'administrador' (só essa coluna; id, login e senha_hash intactos).
+     Sem registro de AuditLog (diferença aceita em relação ao 04).
+  2. dados de teste: opcional; apagar depois pelo próprio MAIKE ou deixar.
+  3. merge da PR #145: decisão dele, possível antes da promoção. Com o banco em 25/25 o app novo não dá 500;
+     até a promoção, Usuários e Permissões respondem 403 para escrita. Recomendado: promover antes do merge.

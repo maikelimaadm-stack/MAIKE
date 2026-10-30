@@ -63,6 +63,29 @@ export default [
     rules: REGRAS_REACT,
   },
   {
+    // MAIKE Admin (D-PROD-70): app separado, roda no navegador.
+    files: ["apps/admin/src/**/*.{js,jsx}"],
+    languageOptions: {
+      globals: globals.browser,
+      sourceType: "module",
+      ecmaVersion: "latest",
+      parserOptions: { ecmaFeatures: { jsx: true } },
+    },
+    ...pluginJs.configs.recommended,
+  },
+  {
+    files: ["apps/admin/src/**/*.{js,jsx}"],
+    ...pluginReact.configs.flat.recommended,
+    settings: { react: { version: "detect" } },
+    plugins: { react: pluginReact, "react-hooks": pluginReactHooks },
+    rules: REGRAS_REACT,
+  },
+  {
+    files: ["apps/admin/vite.config.js"],
+    languageOptions: { globals: globals.node, sourceType: "module", ecmaVersion: "latest" },
+    ...pluginJs.configs.recommended,
+  },
+  {
     // Gates e utilitários de build rodam em Node.
     files: ["scripts/**/*.{js,mjs,cjs}"],
     languageOptions: {

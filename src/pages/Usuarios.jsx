@@ -154,6 +154,10 @@ export default function Usuarios() {
           readOnly={!controller.isEditing}
           isSubmitting={saving}
           initialData={controller.editingItem}
+          ehPropriaConta={
+            Boolean(controller.editingItem) &&
+            (currentUser?.login || currentUser?.email || "") === (controller.editingItem?.login || controller.editingItem?.email || "")
+          }
           onSubmit={controller.handleSubmit}
           onCancel={controller.cancelForm}
         />

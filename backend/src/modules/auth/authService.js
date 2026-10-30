@@ -34,6 +34,10 @@ const FALHA_DE_CREDENCIAL = 'credenciais inválidas';
 
 export const gerarSenhaHash = async (senha) => bcrypt.hash(senha, BCRYPT_ROUNDS);
 
+/** Confere uma senha contra o hash gravado (troca da própria senha, PR145-R4). */
+export const senhaConfereComHash = async (senha, hash) =>
+  typeof senha === 'string' && typeof hash === 'string' && hash ? bcrypt.compare(senha, hash) : false;
+
 /**
  * @param {{login?: unknown, senha?: unknown}} entrada
  */

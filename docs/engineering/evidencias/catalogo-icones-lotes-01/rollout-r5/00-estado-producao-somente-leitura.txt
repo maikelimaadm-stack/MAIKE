@@ -1,0 +1,38 @@
+Estado de produção — SOMENTE LEITURA (29/10/2026, PR145-R5)
+Retrato do instante da consulta: REVALIDAR imediatamente antes do rollout.
+Nenhuma escrita, migration, promoção, env, bucket ou deploy foi feito.
+
+== Supabase (projeto MAIKE, PostgreSQL 17) — só SELECT agregado, sem dado pessoal
+_prisma_migrations: 18 aplicadas, 0 com falha; última = 20261028240000_p8_supabase_public_revoke_rls
+Faltam 7 (presentes no repositório):
+  já na main:  20261028250000_catalogo_global_slice1
+               20261028250100_catalogo_global_slice1_schema_fix
+               20261028250200_catalogo_global_slice1_r1_assets
+               20261029100000_scale01_usuario_keyset_index
+  desta PR:    20261029200000_categoria_manejo_vinculo_catalogo
+               20261029300000_admin_principal_maike
+               20261029400000_usuario_papel_tenant
+Usuario.papel_tenant: NÃO existe · CategoriaManejo.catalogo_categoria_visual_id: NÃO existe
+Tabelas AdminPrincipalMaike / CatalogoIcone: NÃO existem
+Contagens: 1 usuário, 1 cliente com usuário, 1 Permissao com is_admin=true
+Tabelas public sem RLS: 0 · grants para anon/authenticated em public: 0
+Storage: 0 buckets (o bucket maike-catalogo-global NÃO existe)
+
+== Vercel (projeto "maike", prj_jbLc…) — só leitura, valores de env NÃO lidos
+Produção = branch main, commit 1344ffe2 (deploy READY; publicação automática a cada merge na main).
+Builds da PR #145 = previews (target null), não o MAIKE Admin.
+buildCommand = "npm run prisma:generate && npm run build": NÃO roda migrations.
+SPA e API no MESMO projeto (rewrite /api/native → /api/fastify): merge na main publica o backend novo.
+Variáveis (só nomes/alvos):
+  DATABASE_URL, MIGRATION_DATABASE_URL → production E preview (os previews da PR usam o banco de produção;
+    estão atrás da proteção SSO da Vercel e não migram nada)
+  SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY → production
+  ADMIN_MAIKE_CHAVE, ADMIN_ORIGINS, CATALOGO_STORAGE_BUCKET → AUSENTES
+  AUTH_SECRET → alerta da Vercel "readable-secret" (tipo encrypted, não sensitive)
+  FRONTEND_ORIGINS → inclui http://localhost:5173 também em produção (pré-existente)
+Projeto Vercel separado do MAIKE Admin: o comentário da Vercel na PR lista só o projeto "maike";
+  a listagem direta de projetos do time foi recusada (403, escopo) — evidência indireta.
+
+== PR #146 (ledger pecuário) — só leitura
+11 arquivos; interseção com os 125 arquivos da #145 = VAZIA; sem rotas HTTP (o hook global
+de cliente_id da R4 não a alcança).

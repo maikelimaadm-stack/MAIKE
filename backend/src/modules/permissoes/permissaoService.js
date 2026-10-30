@@ -5,6 +5,7 @@ import { getPrismaClient } from '../../database/prismaClient.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { AppError } from '../../shared/errors/AppError.js';
 import { registrarEvento } from '../auditoria/auditService.js';
+import { atorDoTenant, ehAdminTenantAtivo, exigirAdminTenant } from '../../shared/auth/exigirAdminTenant.js';
 import {
   listarRegistros,
   buscarRegistro,
@@ -32,17 +33,35 @@ export const comoPublico = (registro) => {
 export const listar = async (contexto, filtros = {}) => {
   const auth = exigirAuthContext(contexto?.auth);
   void filtros;
-  const registros = await listarRegistros(auth.clienteId);
-  return registros.map(comoPublico);
+  const [registros, ator] = await Promise.all([listarRegistros(auth.clienteId), atorDoTenant(contexto)]);
+  if (ehAdminTenantAtivo(ator)) return registros.map(comoPublico);
+  // PR145-R4: quem não é administrador da fazenda vê a PRÓPRIA linha inteira
+  // (menu/mapa) e, das outras, só o nome de exibição (responsáveis de tarefa) —
+  // nunca a matriz de privilégios alheia.
+  return registros.map((r) =>
+    r.user_email === auth.login ? comoPublico(r) : { id: r.id, user_email: r.user_email, user_nome: r.user_nome }
+  );
+};
+
+/**
+ * Campos que o corpo nunca define: identidade e tenant são do servidor.
+ * @param {Record<string, unknown>} entrada
+ */
+const semCamposDoServidor = (entrada) => {
+  // eslint-disable-next-line no-unused-vars -- descartados de propósito
+  const { id, cliente_id, createdAt, updatedAt, ...resto } = entrada ?? {};
+  return resto;
 };
 
 /** @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto */
 export const criar = async (contexto, entrada) => {
   const auth = exigirAuthContext(contexto?.auth);
   const prisma = getPrismaClient();
+  await exigirAdminTenant(contexto);
   const criado = await prisma.$transaction(async (tx) => {
+    await exigirAdminTenant(contexto, tx);
     /** @type {Record<string, unknown>} */
-    const dados = { ...entrada, cliente_id: auth.clienteId };
+    const dados = { ...semCamposDoServidor(entrada), cliente_id: auth.clienteId };
 
     const registro = await inserirRegistro(tx, dados);
     await registrarEvento(
@@ -58,10 +77,12 @@ export const criar = async (contexto, entrada) => {
 export const atualizar = async (contexto, id, entrada) => {
   const auth = exigirAuthContext(contexto?.auth);
   const prisma = getPrismaClient();
+  await exigirAdminTenant(contexto);
   const atualizado = await prisma.$transaction(async (tx) => {
+    await exigirAdminTenant(contexto, tx);
     const existente = await buscarRegistro(auth.clienteId, id, tx);
     if (!existente) throw erroNaoEncontrado();
-    const registro = await atualizarRegistroPorId(tx, auth.clienteId, id, { ...entrada });
+    const registro = await atualizarRegistroPorId(tx, auth.clienteId, id, semCamposDoServidor(entrada));
     await registrarEvento(
       contexto,
       {
@@ -81,7 +102,9 @@ export const atualizar = async (contexto, id, entrada) => {
 export const excluir = async (contexto, id) => {
   const auth = exigirAuthContext(contexto?.auth);
   const prisma = getPrismaClient();
+  await exigirAdminTenant(contexto);
   await prisma.$transaction(async (tx) => {
+    await exigirAdminTenant(contexto, tx);
     const existente = await buscarRegistro(auth.clienteId, id, tx);
     if (!existente) throw erroNaoEncontrado();
     await excluirRegistroPorId(tx, auth.clienteId, id);

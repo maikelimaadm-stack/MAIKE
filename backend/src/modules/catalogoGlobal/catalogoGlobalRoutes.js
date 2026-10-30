@@ -1,12 +1,15 @@
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
-import { exigirOperadorProduto } from '../../shared/auth/exigirOperadorProduto.js';
+import { exigirSessaoAdmin } from '../adminMaike/adminSessao.js';
 import {
   criarCategoria,
   criarIcone,
   criarRegraMisto,
   criarTipo,
   atualizarTipo,
+  atualizarCategoria,
   atualizarIcone,
+  atualizarRegraMisto,
+  desativarRegraMisto,
   desativarIcone,
   listarCategoriasPublicadas,
   listarIconesPublicados,
@@ -19,6 +22,9 @@ import {
 } from './catalogoGlobalService.js';
 
 const PREFIX = '/catalogo-global';
+
+/** Ator da auditoria: o administrador principal da sessão (nunca indefinido). */
+const atorAdmin = (request) => ({ id: null, admin_id: request.contexto.adminPrincipal.id });
 
 const REVISAO_OPCIONAL = { revisao_esperada: { type: 'integer', minimum: 0 } };
 
@@ -134,6 +140,39 @@ const PUBLICAR = {
   },
 };
 
+const ATUALIZAR_CATEGORIA = {
+  params: ATUALIZAR_TIPO.params,
+  body: {
+    type: 'object',
+    additionalProperties: false,
+    properties: {
+      nome: { type: 'string', minLength: 1, maxLength: 255 },
+      ordem: { type: 'integer', minimum: 0, maximum: 999999 },
+      ativo: { type: 'boolean' },
+      revisao_esperada: { type: 'integer', minimum: 0 },
+    },
+  },
+};
+
+const ATUALIZAR_REGRA = {
+  params: ATUALIZAR_TIPO.params,
+  body: {
+    type: 'object',
+    additionalProperties: false,
+    properties: {
+      icone_id: { type: 'string', minLength: 1, maxLength: 64 },
+      categoria_ids: {
+        type: 'array',
+        minItems: 2,
+        maxItems: 32,
+        items: { type: 'string', minLength: 1, maxLength: 64 },
+      },
+      prioridade: { type: 'integer', minimum: 0, maximum: 999999 },
+      revisao_esperada: { type: 'integer', minimum: 0 },
+    },
+  },
+};
+
 const CRIAR_REGRA = {
   body: {
     type: 'object',
@@ -185,10 +224,13 @@ export const registrarCatalogoGlobalRoutes = async (app) => {
     return listarRegrasMistoPublicadas();
   });
 
-  const adminGuard = [app.autenticar, exigirOperadorProduto];
+  // D-PROD-70: escrita do catálogo só pela sessão do Administrador Principal
+  // (MAIKE Admin, MFA verificado, Origin + CSRF). JWT de tenant, admin de
+  // tenant e o antigo OperadorProdutoMaike recebem 403/401.
+  const adminGuard = [exigirSessaoAdmin()];
 
   app.post(`${PREFIX}/admin/tipos`, { onRequest: adminGuard, schema: CRIAR_TIPO }, async (request, reply) => {
-    const operador = request.contexto.operadorProduto;
+    const operador = atorAdmin(request);
     const body = /** @type {any} */ (request.body);
     const criado = await criarTipo({
       dados: body,
@@ -203,7 +245,7 @@ export const registrarCatalogoGlobalRoutes = async (app) => {
     `${PREFIX}/admin/tipos/:id`,
     { onRequest: adminGuard, schema: ATUALIZAR_TIPO },
     async (request) => {
-      const operador = request.contexto.operadorProduto;
+      const operador = atorAdmin(request);
       const { id } = /** @type {{id: string}} */ (request.params);
       const body = /** @type {any} */ (request.body);
       return atualizarTipo({
@@ -220,7 +262,7 @@ export const registrarCatalogoGlobalRoutes = async (app) => {
     `${PREFIX}/admin/categorias`,
     { onRequest: adminGuard, schema: CRIAR_CATEGORIA },
     async (request, reply) => {
-      const operador = request.contexto.operadorProduto;
+      const operador = atorAdmin(request);
       const body = /** @type {any} */ (request.body);
       const criada = await criarCategoria({
         dados: body,
@@ -236,7 +278,7 @@ export const registrarCatalogoGlobalRoutes = async (app) => {
     `${PREFIX}/admin/assets`,
     { onRequest: adminGuard, schema: ASSET_UPLOAD },
     async (request, reply) => {
-      const operador = request.contexto.operadorProduto;
+      const operador = atorAdmin(request);
       const { conteudo_base64, mime_type } = /** @type {{conteudo_base64: string, mime_type: string}} */ (
         request.body
       );
@@ -254,7 +296,7 @@ export const registrarCatalogoGlobalRoutes = async (app) => {
   );
 
   app.post(`${PREFIX}/admin/icones`, { onRequest: adminGuard, schema: CRIAR_ICONE }, async (request, reply) => {
-    const operador = request.contexto.operadorProduto;
+    const operador = atorAdmin(request);
     const body = /** @type {any} */ (request.body);
     const criado = await criarIcone({
       dados: body,
@@ -269,7 +311,7 @@ export const registrarCatalogoGlobalRoutes = async (app) => {
     `${PREFIX}/admin/icones/:id`,
     { onRequest: adminGuard, schema: ATUALIZAR_ICONE },
     async (request) => {
-      const operador = request.contexto.operadorProduto;
+      const operador = atorAdmin(request);
       const { id } = /** @type {{id: string}} */ (request.params);
       const body = /** @type {any} */ (request.body);
       return atualizarIcone({
@@ -286,7 +328,7 @@ export const registrarCatalogoGlobalRoutes = async (app) => {
     `${PREFIX}/admin/icones/:id/publicar`,
     { onRequest: adminGuard, schema: PUBLICAR },
     async (request) => {
-      const operador = request.contexto.operadorProduto;
+      const operador = atorAdmin(request);
       const { id } = /** @type {{id: string}} */ (request.params);
       const body = /** @type {any} */ (request.body) ?? {};
       return publicarIcone({
@@ -302,7 +344,7 @@ export const registrarCatalogoGlobalRoutes = async (app) => {
     `${PREFIX}/admin/icones/:id/desativar`,
     { onRequest: adminGuard, schema: PUBLICAR },
     async (request) => {
-      const operador = request.contexto.operadorProduto;
+      const operador = atorAdmin(request);
       const { id } = /** @type {{id: string}} */ (request.params);
       const body = /** @type {any} */ (request.body) ?? {};
       return desativarIcone({
@@ -318,7 +360,7 @@ export const registrarCatalogoGlobalRoutes = async (app) => {
     `${PREFIX}/admin/regras-misto`,
     { onRequest: adminGuard, schema: CRIAR_REGRA },
     async (request, reply) => {
-      const operador = request.contexto.operadorProduto;
+      const operador = atorAdmin(request);
       const body = /** @type {any} */ (request.body);
       const criada = await criarRegraMisto({
         dados: body,
@@ -334,13 +376,39 @@ export const registrarCatalogoGlobalRoutes = async (app) => {
     `${PREFIX}/admin/regras-misto/:id/publicar`,
     { onRequest: adminGuard, schema: PUBLICAR },
     async (request) => {
-      const operador = request.contexto.operadorProduto;
+      const operador = atorAdmin(request);
       const { id } = /** @type {{id: string}} */ (request.params);
       const body = /** @type {any} */ (request.body) ?? {};
       return publicarRegraMisto({
         id,
         revisaoEsperada: body.revisao_esperada,
         operador,
+        requestId: request.contexto.requestId,
+      });
+    }
+  );
+
+  /** PATCH genérico: id estável, corpo validado, CAS opcional como nas demais escritas. */
+  const patchAdmin = (caminho, schema, fn) =>
+    app.patch(caminho, { onRequest: adminGuard, schema }, async (request) => {
+      const { id } = /** @type {{id: string}} */ (request.params);
+      const { revisao_esperada, ...dados } = /** @type {any} */ (request.body) ?? {};
+      return fn({ id, dados, revisaoEsperada: revisao_esperada, operador: atorAdmin(request), requestId: request.contexto.requestId });
+    });
+
+  patchAdmin(`${PREFIX}/admin/categorias/:id`, ATUALIZAR_CATEGORIA, atualizarCategoria);
+  patchAdmin(`${PREFIX}/admin/regras-misto/:id`, ATUALIZAR_REGRA, atualizarRegraMisto);
+
+  app.post(
+    `${PREFIX}/admin/regras-misto/:id/desativar`,
+    { onRequest: adminGuard, schema: PUBLICAR },
+    async (request) => {
+      const { id } = /** @type {{id: string}} */ (request.params);
+      const body = /** @type {any} */ (request.body) ?? {};
+      return desativarRegraMisto({
+        id,
+        revisaoEsperada: body.revisao_esperada,
+        operador: atorAdmin(request),
         requestId: request.contexto.requestId,
       });
     }

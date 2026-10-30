@@ -19,7 +19,8 @@ import { opcoesDeCors } from './shared/http/corsPolicy.js';
 import { errorHandler } from './shared/errors/errorHandler.js';
 import { registrarRequestContext } from './shared/request/requestContext.js';
 import { construirAuthContext } from './shared/auth/authContext.js';
-import { tenantContextRequired } from './shared/errors/AppError.js';
+import { getPrismaClient } from './database/prismaClient.js';
+import { AppError, tenantContextRequired } from './shared/errors/AppError.js';
 import { registrarHealthRoutes } from './modules/health/healthRoutes.js';
 import { registrarAuthRoutes } from './modules/auth/authRoutes.js';
 import { registrarSetorRoutes } from './modules/setores/setorRoutes.js';
@@ -57,6 +58,7 @@ import { registrarRegistroAnexoRoutes } from './modules/registrosAnexo/registroA
 import { registrarArquivoUploadRoutes } from './modules/arquivos/arquivoUploadRoutes.js';
 import { registrarReferenciasRoutes } from './modules/referencias/referenciasRoutes.js';
 import { registrarCatalogoGlobalRoutes } from './modules/catalogoGlobal/catalogoGlobalRoutes.js';
+import { registrarAdminMaikeRoutes } from './modules/adminMaike/adminRoutes.js';
 import { reescreverUrlApiNativa } from '../../config/nativeApiPath.js';
 
 /**
@@ -106,8 +108,30 @@ export const construirApp = async (opcoes = {}) => {
   registrarRequestContext(app);
 
   /**
+   * PR145-R4: o tenant vem SÓ do auth_context. Vários services fazem
+   * `update({ ...entrada })`; um `cliente_id` no corpo moveria o registro para
+   * outro tenant. Barreira única, antes de qualquer rota: corpo com
+   * `cliente_id` (no topo ou em item de lista) é recusado com 400
+   * REQUEST_VALIDATION_FAILED — o mesmo contrato das rotas com schema fechado.
+   */
+  app.addHook('preValidation', async (request) => {
+    const corpo = request.body;
+    const itens = Array.isArray(corpo) ? corpo : [corpo];
+    for (const item of itens) {
+      if (item && typeof item === 'object' && Object.prototype.hasOwnProperty.call(item, 'cliente_id')) {
+        throw new AppError('REQUEST_VALIDATION_FAILED', 'cliente_id não é aceito no corpo; o tenant vem da sessão');
+      }
+    }
+  });
+
+  /**
    * Verifica o token e instala o `auth_context`.
    * Falha vira `TENANT_CONTEXT_REQUIRED` — 401 do contrato.
+   *
+   * A assinatura não basta (PR145-G4): a conta é relida no banco a cada
+   * requisição — existe, está ativa, é do mesmo cliente do token e esse
+   * cliente está ativo. Conta ou cliente apagado/desativado perde o acesso na
+   * hora, não quando o JWT expira. Uma única consulta (filtro relacional).
    */
   app.decorate('autenticar', async (request) => {
     try {
@@ -115,7 +139,13 @@ export const construirApp = async (opcoes = {}) => {
     } catch (erro) {
       throw tenantContextRequired('sessão ausente ou inválida', { cause: erro });
     }
-    request.contexto.auth = construirAuthContext(request.user);
+    const auth = construirAuthContext(request.user);
+    const conta = await getPrismaClient().usuario.findFirst({
+      where: { id: auth.usuarioId, cliente_id: auth.clienteId, ativo: true, cliente: { ativo: true } },
+      select: { id: true },
+    });
+    if (!conta) throw tenantContextRequired('sessão ausente ou inválida');
+    request.contexto.auth = auth;
   });
 
   await app.register(registrarHealthRoutes);
@@ -155,6 +185,7 @@ export const construirApp = async (opcoes = {}) => {
   await app.register(registrarArquivoUploadRoutes);
   await app.register(registrarReferenciasRoutes);
   await app.register(registrarCatalogoGlobalRoutes);
+  await app.register(registrarAdminMaikeRoutes);
 
   return app;
 };

@@ -1,0 +1,47 @@
+== usuário legado com Permissao.is_admin=true e papel_tenant=usuario (estado logo após a migration)
+login: 200
+GET /usuarios: 200
+POST /usuarios (criar conta): 403 TENANT_ADMIN_REQUIRED
+PATCH /usuarios/<outro> nova_senha: 403 TENANT_ADMIN_REQUIRED
+POST /permissoes: 403 TENANT_ADMIN_REQUIRED
+PATCH /permissoes/<outro>: 403 TENANT_ADMIN_REQUIRED
+DELETE /permissoes/<outro>: 403 TENANT_ADMIN_REQUIRED
+PATCH própria conta (nome) com senha_atual: 200
+PATCH própria senha com senha_atual: 200
+PATCH própria senha SEM senha_atual: 403 USUARIO_SENHA_ATUAL_INVALIDA
+PATCH própria conta com papel_tenant (auto-promoção): 400 REQUEST_VALIDATION_FAILED
+POST /usuarios com papel_tenant no corpo: 400 REQUEST_VALIDATION_FAILED
+JWT_ANTIGO=guardado em memória (não impresso)
+administradores no banco: 0 · usuários: 4
+
+== sem identificar o usuário, o script recusa (não existe promoção em lote)
+papel-tenant: uso: --cliente <codigo> --login <login> --papel administrador|usuario
+exit=1
+== sem digitar CONFIRMAR, nada muda
+Digite CONFIRMAR para aplicar: papel-tenant: confirmação não digitada; nada foi alterado
+administradores no banco: 0
+
+== promoção nominal, confirmada
+Fazenda: Fazenda R5 (sintética) (fazenda-r5)
+Usuário: <nome> <login>
+Papel:   usuario → administrador
+Digite CONFIRMAR para aplicar: aplicado: <login> agora é "administrador" (auditoria ops-papel-tenant-<uuid>)
+Vale na próxima ação privilegiada (o servidor relê o papel no banco); não precisa novo login.
+administradores no banco: 1 (só o nominal; o comum segue: usuario)
+AuditLog papel_tenant: 1 linha(s), ator nulo: t, dados sem senha/hash: t
+== com o JWT emitido antes da mudança (promovido)
+POST /usuarios (criar conta): 201
+PATCH /permissoes/<outro>: 200
+PATCH /usuarios/<outro> nome: 200
+
+== revogação
+Digite CONFIRMAR para aplicar: aplicado: <login> agora é "usuario" (auditoria ops-papel-tenant-<uuid>)
+== com o JWT emitido antes da mudança (revogado)
+POST /usuarios (criar conta): 403 TENANT_ADMIN_REQUIRED
+PATCH /permissoes/<outro>: 403 TENANT_ADMIN_REQUIRED
+PATCH /usuarios/<outro> nome: 403 TENANT_ADMIN_REQUIRED
+AuditLog papel_tenant: 2 linha(s)
+
+== produção sem aprovação explícita
+papel-tenant: recusado em NODE_ENV=production (exige PAPEL_TENANT_ALLOW_PRODUCTION=sim e aprovação separada)
+administradores no banco: 0

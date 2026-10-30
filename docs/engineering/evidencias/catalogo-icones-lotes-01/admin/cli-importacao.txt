@@ -1,0 +1,47 @@
+### dry-run local
+manifesto: tipo "lote", 2 item(ns)
+  - bezerro_fixture: ./bezerro.png (image/png, 79 B, sha256 19b6583253aeaae5…)
+  - novilha_fixture: ./novilha.png (image/png, 79 B, sha256 dec64029d5943449…)
+
+plano contra 127.0.0.1:
+  bezerro_fixture: nada (ícone cmvty5240005z7dgl9ivkrkl1)
+  novilha_fixture: criar_e_publicar + criar categoria
+
+DRY-RUN: nada foi gravado. Para aplicar: --apply --confirmar=<host da API>.
+exit=0
+
+### --apply contra host remoto (recusado antes de qualquer rede)
+importar-icones: --apply só contra API local; em backend-staging.exemplo use o MAIKE Admin (este comando fica em dry-run)
+
+### --apply local
+manifesto: tipo "lote", 2 item(ns)
+  - bezerro_fixture: ./bezerro.png (image/png, 79 B, sha256 19b6583253aeaae5…)
+  - novilha_fixture: ./novilha.png (image/png, 79 B, sha256 dec64029d5943449…)
+
+plano contra 127.0.0.1:
+  bezerro_fixture: nada (ícone cmvty5240005z7dgl9ivkrkl1)
+  novilha_fixture: criar_e_publicar + criar categoria
+  bezerro_fixture: já publicado com a mesma imagem — nada a fazer
+  novilha_fixture: categoria criada (cmvtyaymy000v7dccge4h2g79)
+  novilha_fixture: ícone cmvtyayps00137dccv9m84zex criado e publicado
+
+aplicado. tipo_id=cmvty5048005c7dglbsc3pmml
+  bezerro_fixture: nada — categoria_visual_id=cmvty509q005h7dglqtxowvoo icone_id=cmvty5240005z7dgl9ivkrkl1
+  novilha_fixture: criar_e_publicar — categoria_visual_id=cmvtyaymy000v7dccge4h2g79 icone_id=cmvtyayps00137dccv9m84zex
+exit=0
+
+### reaplicar (idempotente)
+manifesto: tipo "lote", 2 item(ns)
+  - bezerro_fixture: ./bezerro.png (image/png, 79 B, sha256 19b6583253aeaae5…)
+  - novilha_fixture: ./novilha.png (image/png, 79 B, sha256 dec64029d5943449…)
+
+plano contra 127.0.0.1:
+  bezerro_fixture: nada (ícone cmvty5240005z7dgl9ivkrkl1)
+  novilha_fixture: nada (ícone cmvtyayps00137dccv9m84zex)
+  bezerro_fixture: já publicado com a mesma imagem — nada a fazer
+  novilha_fixture: já publicado com a mesma imagem — nada a fazer
+
+aplicado. tipo_id=cmvty5048005c7dglbsc3pmml
+  bezerro_fixture: nada — categoria_visual_id=cmvty509q005h7dglqtxowvoo icone_id=cmvty5240005z7dgl9ivkrkl1
+  novilha_fixture: nada — categoria_visual_id=cmvtyaymy000v7dccge4h2g79 icone_id=cmvtyayps00137dccv9m84zex
+exit=0

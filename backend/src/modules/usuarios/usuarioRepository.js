@@ -12,6 +12,7 @@ const SELECAO_PUBLICA = Object.freeze({
   nome: true,
   login: true,
   ativo: true,
+  papel_tenant: true,
   createdAt: true,
   updatedAt: true,
 });

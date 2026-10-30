@@ -1,0 +1,78 @@
+ENSAIO LOCAL — scripts do SQL Editor (PR145-G4-R2), PostgreSQL 16 descartável, dados sintéticos
+Banco no estado de produção (18 migrations), pgcrypto em "extensions" como no Supabase. Os arquivos .sql foram
+executados como estão; só os valores de alvo (identificador e nome do banco local) e a impressão foram trocados.
+Senhas: geradas no banco e nunca gravadas aqui (ocorrências neste arquivo: 0).
+
+== 1. 01-precheck (banco local no estado de produção: 18 migrations + dados sintéticos)
+migrations concluídas | 18 | 18 antes / 25 depois | OK
+migrations com falha | 0 | 0 | OK
+das 7 migrations da PR, pendentes | 7 | 7 antes / 0 depois | OK
+tabelas em public | 40 | 40 antes / 53 depois | OK
+clientes (tenants) | 1 | 1 (retrato 30/10) | OK
+cliente "maike" / login "maike" já existem | 0 / 0 | 0 / 0 | OK
+linhas de teste (todas as tabelas de tenant) | 105 | ~126 (retrato 30/10) | CONFIRA
+linhas nas tabelas preservadas | 0 | 0 | OK
+impressao_inventario (copie para o 02 depois das migrations) | 933c2bc1080a | - | ainda não (migrações pendentes)
+VEREDITO | MIGRAR PRIMEIRO (npm run deploy:migrate); depois rode este 01 de novo | - | -
+== 2. runner oficial: npm run deploy:migrate (barreira de dupla conexão forçada como em alvo remoto)
+deploy:migrate — alvo conferido nas duas conexões (banco=<local> migrations=18 historico=2d6b22b430529088).
+Applying migration `20261028250000_catalogo_global_slice1`
+Applying migration `20261028250100_catalogo_global_slice1_schema_fix`
+Applying migration `20261028250200_catalogo_global_slice1_r1_assets`
+Applying migration `20261029100000_scale01_usuario_keyset_index`
+Applying migration `20261029200000_categoria_manejo_vinculo_catalogo`
+Applying migration `20261029300000_admin_principal_maike`
+Applying migration `20261029400000_usuario_papel_tenant`
+deploy:migrate — migrations aplicadas.
+== 3. 01-precheck de novo (depois das migrations)
+migrations concluídas | 25 | 18 antes / 25 depois | OK
+migrations com falha | 0 | 0 | OK
+das 7 migrations da PR, pendentes | 0 | 7 antes / 0 depois | OK
+tabelas em public | 53 | 40 antes / 53 depois | OK
+views/partições/estrangeiras em public | 0 | 0 | OK
+tabelas fora do schema conhecido | - | - | OK
+tabelas sem RLS | 0 | 0 | OK
+grants para anon/authenticated em public | 0 | 0 | OK
+pgcrypto (crypt/gen_salt/gen_random_bytes) em extensions | presente | presente | OK
+clientes (tenants) | 1 | 1 (retrato 30/10) | OK
+cliente "maike" / login "maike" já existem | 0 / 0 | 0 / 0 | OK
+linhas de teste (todas as tabelas de tenant) | 105 | ~126 (retrato 30/10) | CONFIRA
+linhas nas tabelas preservadas | 1 | 0 | ATENÇÃO: serão preservadas; revise
+impressao_inventario (copie para o 02 depois das migrations) | c0efe625ad1c | - | USE NO 02
+VEREDITO | PRONTO PARA O 02 (confira as contagens e use a impressão acima) | - | -
+== 4. login do usuário de teste antes do reset: 200 (token guardado)
+== 5. 02-reset-e-bootstrap (arquivo inteiro numa consulta, como o SQL Editor; impressão colada do passo 3)
+CONCLUIDO | maike | <senha de 24 caracteres mostrada uma única vez — omitida aqui> | 105 | Copie a senha AGORA para o seu gerenciador de senhas: ela não fica gravada e não aparece de novo. Depois rode o 03-postcheck.
+== 6. 02 de novo (reexecução)
+JA_INICIALIZADO | maike |  | 0 | Nada foi alterado. A senha NÃO é mostrada de novo (use a que você guardou ou troque-a no MAIKE).
+== 7. 03-postcheck
+migrations concluídas | 25 | 25 | OK
+clientes (todos) / com código maike | 1 / 1 | 1 / 1 | OK
+contas (todas) / maike ativa administradora com hash bcrypt | 1 / 1 | 1 / 1 | OK
+linhas de tenant além da conta e da auditoria | 0 | 0 | OK
+AuditLog (só inicialização e concessão do papel) | 2 (ops_inicializacao, papel_tenant) | 2 (ops_inicializacao, papel_tenant) | OK
+Lote / MovimentacaoMapa / AreaPastagem | 0 / 0 / 0 | 0 / 0 / 0 | OK
+Permissao.is_admin (não é autoridade) | 0 | 0 | OK
+proprietário do produto (MAIKE Admin) não criado | 0 | 0 | OK
+tabelas sem RLS em public | 0 | 0 | OK
+grants para anon/authenticated em public | 0 | 0 | OK
+VEREDITO | INICIALIZADO: 1 cliente "maike", 1 conta "maike" administradora, sem dados de teste | - | -
+(11 rows)
+== 8. API real do MAIKE (backend desta PR) contra o banco do ensaio
+JWT antigo (conta de teste apagada) GET /lotes: 401
+JWT antigo (conta de teste apagada) GET /usuarios: 401
+login maike (senha gerada no banco, hash pgcrypto): 200
+GET /lotes: 200 (0 itens)
+GET /categorias-manejo: 200 (0 itens)
+GET /permissoes: 200 (0 itens)
+GET /usuarios: 200 (1 conta, papel administrador)
+administrador POST /usuarios: 201
+conta comum POST /usuarios: 403
+conta desativada GET /lotes: 401
+cliente desativado GET /lotes (token maike): 401
+cliente reativado GET /lotes: 200
+== 9. 01-precheck depois de inicializado (com o ajuste da linha CatalogoMeta)
+cliente "maike" / login "maike" já existem | 1 / 1 | 0 / 0 | PARAR (estado já inicializado ou anômalo)
+linhas nas tabelas preservadas (fora a CatalogoMeta criada pela migration) | 0 | 0 | OK
+VEREDITO | PARAR: estado inesperado; revise as linhas acima | - | -
+VEREDITO | PARAR: estado inesperado; revise as linhas acima | - | -

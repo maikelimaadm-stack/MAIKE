@@ -44,8 +44,13 @@ declare module 'fastify' {
     requestId: string;
     /** Nulo até a rota exigir autenticação. */
     auth: AuthContext | null;
-    /** Operador de produto MAIKE — só após `exigirOperadorProduto`. */
-    operadorProduto?: { id: string; papel: string; ativo: boolean };
+    /**
+     * Administrador principal do PRODUTO (D-PROD-70) — só após `exigirSessaoAdmin`.
+     * Identidade sem tenant: nunca coexiste com `auth` na mesma rota admin.
+     */
+    adminPrincipal?: import('@prisma/client').AdminPrincipalMaike;
+    /** Sessão do MAIKE Admin (sem o token, que só existe no cookie). */
+    sessaoAdmin?: Omit<import('@prisma/client').SessaoAdminMaike, never>;
   }
 
   interface FastifyRequest {
