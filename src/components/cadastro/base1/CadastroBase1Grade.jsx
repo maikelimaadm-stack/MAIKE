@@ -5,6 +5,8 @@ import ConfiguracaoColunasB1Dialog from "@/components/cadastro/base1/Configuraca
 import Base1Grid from "@/components/cadastro/base1/Base1Grid";
 import { Base1Cards } from "@/components/cadastro/base1/Base1Cards";
 import CadastroColunaFiltro from "@/components/cadastro/base1/CadastroColunaFiltro";
+import FiltroPorCampo from "@/components/cadastro/base1/FiltroPorCampo";
+import { EVENTO_FILTRAR_POR_CAMPO } from "@/components/cadastro/base1/filtroPorCampoBus";
 import { casaNoFiltroColuna, tipoFiltroDaColuna } from "@/components/cadastro/base1/cadastroColunaFiltroLogic";
 import { MgCheck } from "@/components/cadastro/base1/Base1Ui";
 import {
@@ -110,6 +112,15 @@ export default function CadastroBase1Grade({
   const [filtroTemp, setFiltroTemp] = useState({ colunaId: null, valores: [] });
   const [filtrosColunas, setFiltrosColunas] = useState({});
   const [headerFilters, setHeaderFilters] = useState({});
+  /** Painel "Filtrar por campo" (botão Filtros do chrome); `ancora` também posiciona o filtro escolhido. */
+  const [filtroPorCampo, setFiltroPorCampo] = useState(/** @type {{ aberto: boolean, ancora: DOMRect | null } | null} */ (null));
+
+  useEffect(() => {
+    if (!referenceHeaders) return undefined;
+    const abrir = (event) => setFiltroPorCampo({ aberto: true, ancora: event.detail?.ancora ?? null });
+    document.addEventListener(EVENTO_FILTRAR_POR_CAMPO, abrir);
+    return () => document.removeEventListener(EVENTO_FILTRAR_POR_CAMPO, abrir);
+  }, [referenceHeaders]);
   const prefsOnce = useRef(null);
   if (!prefsOnce.current) {
     prefsOnce.current = loadCadastroBase1ColumnPrefs(storageKey, dataCols);
@@ -300,6 +311,7 @@ export default function CadastroBase1Grade({
         ancora={ancora}
         valores={valores}
         atual={headerFilters[colunaId] ?? null}
+        ancoraReserva={filtroPorCampo?.ancora ?? null}
         onAplicar={(f) => {
           setHeaderFilters((p) => {
             const n = { ...p };
@@ -308,11 +320,29 @@ export default function CadastroBase1Grade({
             return n;
           });
           setMenuFiltroAberto(null);
+          setFiltroPorCampo(null);
         }}
-        onFechar={() => setMenuFiltroAberto(null)}
+        onFechar={() => {
+          setMenuFiltroAberto(null);
+          setFiltroPorCampo(null);
+        }}
       />
     );
   };
+
+  const painelFiltroPorCampo =
+    referenceHeaders && filtroPorCampo?.aberto ? (
+      <FiltroPorCampo
+        colunas={colunasOrdenadas}
+        filtros={headerFilters}
+        ancora={filtroPorCampo.ancora}
+        onEscolher={(colunaId) => {
+          setFiltroPorCampo((p) => ({ aberto: false, ancora: p?.ancora ?? null }));
+          setMenuFiltroAberto(colunaId);
+        }}
+        onFechar={() => setFiltroPorCampo(null)}
+      />
+    ) : null;
 
   const onSelectClick = (id, mod) => {
     setSelectedItems((prev) => {
@@ -607,6 +637,7 @@ export default function CadastroBase1Grade({
         {referenceHeaders
           ? dataCols.map((c) => renderReferenceFilter(c.id))
           : dataCols.map((c) => renderFilterPopover(c.id))}
+        {painelFiltroPorCampo}
       </>
     );
   }
@@ -660,6 +691,7 @@ export default function CadastroBase1Grade({
       {referenceHeaders
         ? dataCols.map((c) => renderReferenceFilter(c.id))
         : dataCols.map((c) => renderFilterPopover(c.id))}
+      {painelFiltroPorCampo}
       {setShowConfigColunas && referenceHeaders ? (
         <ConfiguracaoColunasB1Dialog
           open={showConfigColunas}

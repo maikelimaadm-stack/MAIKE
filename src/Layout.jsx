@@ -11,7 +11,8 @@ import {
   persistirEmpresaSelecionada as gravarEmpresaSelecionada,
 } from "@/hooks/useEmpresaSelecionadaId";
 import {
-  Users, LogOut, Package, Shield, FolderOpen, Map, ChevronDown, Menu, Search, X, EyeOff, Eye } from
+  LogOut, Map, ChevronDown, ChevronLeft, Search, X, EyeOff, Eye,
+  Building2, Check, Droplet, Folder, LayoutGrid } from
 "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 
@@ -33,36 +34,42 @@ import {
   SelectValue } from
 "@/components/ui/select";
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle } from
-"@/components/ui/sheet";
-import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle } from
 "@/components/ui/dialog";
 
-import BackButton from "@/components/common/BackButton";
+import MobileSheet from "@/components/common/MobileSheet";
+import MobileModulesView from "@/components/navigation/MobileModulesView";
+import { MobileShellProvider, useMobileShellState } from "@/lib/mobileShellContext";
 import PermissionAlertDialog from "@/components/common/PermissionAlertDialog";
 import { DEFAULT_MENU, PAGINAS_SO_ADMINISTRADOR, flattenMenuPages, findMenuItemByUrl, getAllPages } from "@/lib/menuConfig";
 import { ACTION_LABELS, canAccessModule, canAccessPage, canPerformAction, detectPermissionAction, normalizePermissionRecord } from "@/lib/permissions";
 import { deveBloquearCliqueMenu } from "@/lib/menuNavigation";
 
-const iconsMap = { Map, Package, FolderOpen, Shield, Users };
-
 const PRIMARY_PAGE = "MapaGeral";
 
+/**
+ * Barra inferior do celular: Mapa · Módulos · Lotes · Bebedouros. "Módulos"
+ * (sem url) abre a tela de módulos; o Cadastro do Mapa fica em Módulos › Mapa.
+ */
 const FIXED_MOBILE_NAV_ITEMS = [
-{ id: "pec-mapa-geral", url: "MapaGeral", label: "Mapa Geral", Icon: Map },
-{ id: "pec-mapa-cadastro", url: "MapaCadastro", label: "Cadastro do Mapa", Icon: FolderOpen },
-{ id: "pec-lotes", url: "CadastroLotes", label: "Lotes", Icon: Package },
-{ id: "pec-bebedouros", url: "Bebedouros", label: "Bebedouros", Icon: Shield }];
+{ id: "pec-mapa-geral", url: "MapaGeral", label: "Mapa", full: "Mapa Geral", Icon: Map },
+{ id: "__modulos", url: null, label: "Módulos", full: "Módulos", Icon: Folder },
+{ id: "pec-lotes", url: "CadastroLotes", label: "Lotes", full: "Lotes", Icon: LayoutGrid },
+{ id: "pec-bebedouros", url: "Bebedouros", label: "Bebedouros", full: "Bebedouros", Icon: Droplet }];
 
 
-export default function Layout({ children, currentPageName }) {
+export default function Layout(props) {
+  return (
+    <MobileShellProvider>
+      <LayoutShell {...props} />
+    </MobileShellProvider>);
+
+}
+
+function LayoutShell({ children, currentPageName }) {
   const { clienteId } = useAuth();
   const { markLayoutBootReady } = useBootSplash();
   const location = useLocation();
@@ -70,6 +77,9 @@ export default function Layout({ children, currentPageName }) {
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mobileModuloId, setMobileModuloId] = useState(null);
+  const [empresaSheetOpen, setEmpresaSheetOpen] = useState(false);
+  const shellMobile = useMobileShellState();
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [userPermissions, setUserPermissions] = useState(null);
@@ -326,6 +336,79 @@ export default function Layout({ children, currentPageName }) {
 
   const appContentOffset = menuOculto ? "51px" : "91px";
 
+  // ── Shell do celular (abaixo de md) ──────────────────────────────────────
+  const mobileRecord = shellMobile.record;
+  const empresaNome = empresaAtual?.apelido || empresaAtual?.nome || 'MakGestão';
+  const moduloDaPagina = currentMenuPage?.moduleId || null;
+  const moduloAberto = mobileMenuOpen && mobileModuloId ?
+  menuItemsFiltered.find((item) => item.id === mobileModuloId) || null :
+  null;
+  const abrirModulos = (moduloId = null) => {
+    setMobileModuloId(moduloId);
+    setMobileMenuOpen(true);
+  };
+  const fecharModulos = () => {
+    setMobileMenuOpen(false);
+    setMobileModuloId(null);
+  };
+
+  let mobileTitle = currentMenuPage?.title || 'Mapa Geral';
+  let mobileSubtitle = empresaNome;
+  if (mobileMenuOpen) {
+    mobileTitle = moduloAberto?.title || 'Módulos';
+  } else if (mobileRecord?.editing) {
+    mobileTitle = mobileRecord.title || mobileTitle;
+    mobileSubtitle = mobileRecord.subtitle || '';
+  }
+
+  // Voltar: registro → lista; módulo → todos os módulos; tela → telas do módulo dela.
+  let mobileBack = null;
+  if (mobileMenuOpen && mobileModuloId) {
+    mobileBack = { label: 'Todos os módulos', run: () => setMobileModuloId(null) };
+  } else if (mobileMenuOpen) {
+    mobileBack = null;
+  } else if (mobileRecord) {
+    mobileBack = { label: 'Voltar para a lista', run: () => mobileRecord.onBack?.() };
+  } else if (!isRoot) {
+    mobileBack = { label: 'Voltar', run: () => abrirModulos(moduloDaPagina) };
+  }
+
+  const mobileHeaderBorder = mobileMenuOpen || !shellMobile.listChrome || Boolean(mobileRecord?.editing);
+  const mostrarNavInferior = !mobileRecord;
+
+  const userMenu =
+  <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="sm" className="h-8 gap-2 px-2 max-md:h-11 max-md:px-1.5">
+          <div className="w-6 h-6 max-md:w-8 max-md:h-8 bg-slate-200 rounded-full flex items-center justify-center">
+            <span className="text-slate-700 font-semibold text-xs">
+              {user?.full_name?.charAt(0).toUpperCase() || 'U'}
+            </span>
+          </div>
+          <span className="text-xs font-medium text-slate-700 hidden lg:block">
+            {user?.full_name?.split(' ')[0] || 'Usuario'}
+          </span>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-48">
+        <DropdownMenuLabel className="text-xs">
+          <div className="font-semibold">{user?.full_name}</div>
+          <div className="text-slate-500 font-normal">{user?.email}</div>
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        {isAdminUser &&
+      <DropdownMenuItem asChild className="text-xs">
+          <Link to={createPageUrl("ConfiguracoesGerais")}>Configurações Gerais</Link>
+        </DropdownMenuItem>
+      }
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={handleLogout} className="text-xs text-red-600">
+          <LogOut className="w-3 h-3 mr-2" />
+          Sair
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>;
+
   return (
     <div className="h-[100dvh] overflow-hidden bg-slate-50 safe-area-top flex flex-col" translate="no" style={{ "--app-content-offset": appContentOffset }}>
       <style>{`
@@ -334,12 +417,29 @@ export default function Layout({ children, currentPageName }) {
         .safe-area-top { padding-top: env(safe-area-inset-top); }
         .safe-area-bottom { padding-bottom: env(safe-area-inset-bottom); }
       `}</style>
-      <header className="bg-white border-b border-slate-200 flex-none">
-        <div className="max-w-[1600px] mx-auto px-4 py-2">
+      <header className={`bg-white flex-none relative z-30 ${mobileHeaderBorder ? "border-b border-slate-200" : "border-b border-slate-200 max-md:border-b-0"}`}>
+        <div className="mk-mhdr md:hidden">
+          {mobileBack ?
+          <button type="button" className="mk-mhdr__back" onClick={mobileBack.run} aria-label={mobileBack.label} title={mobileBack.label}>
+              <span><ChevronLeft size={18} /></span>
+            </button> :
+          <span className="mk-mhdr__gap" />}
+          <button
+            type="button"
+            className="mk-mhdr__main"
+            onClick={() => !mobileRecord?.editing && empresas.length > 0 && setEmpresaSheetOpen(true)}
+            aria-label={mobileRecord?.editing ? mobileTitle : "Trocar empresa"}>
+            <span className="mk-mhdr__title">{mobileTitle}</span>
+            <span className="mk-mhdr__sub">
+              <span>{mobileSubtitle}</span>
+              {!mobileRecord?.editing && empresas.length > 0 ? <ChevronDown size={12} aria-hidden /> : null}
+            </span>
+          </button>
+          {userMenu}
+        </div>
+        <div className="max-w-[1600px] mx-auto px-4 py-2 hidden md:block">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              {/* Mobile Back Button replaces logo on child routes */}
-              {!isRoot && <BackButton className="mr-1" />}
               <div>
                 <h1 className="font-bold text-slate-900 text-base leading-tight">
                   {empresaAtual?.apelido || empresaAtual?.nome || 'MakGestão'}
@@ -387,120 +487,7 @@ export default function Layout({ children, currentPageName }) {
                 <Search className="w-4 h-4 text-slate-600" />
               </Button>
 
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="h-8 gap-2 px-2">
-                    <div className="w-6 h-6 bg-slate-200 rounded-full flex items-center justify-center">
-                      <span className="text-slate-700 font-semibold text-xs">
-                        {user?.full_name?.charAt(0).toUpperCase() || 'U'}
-                      </span>
-                    </div>
-                    <span className="text-xs font-medium text-slate-700 hidden lg:block">
-                      {user?.full_name?.split(' ')[0] || 'Usuario'}
-                    </span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuLabel className="text-xs">
-                    <div className="font-semibold">{user?.full_name}</div>
-                    <div className="text-slate-500 font-normal">{user?.email}</div>
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  {isAdminUser &&
-                  <DropdownMenuItem asChild className="text-xs">
-                    <Link to={createPageUrl("ConfiguracoesGerais")}>Configurações Gerais</Link>
-                  </DropdownMenuItem>
-                  }
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleLogout} className="text-xs text-red-600">
-                    <LogOut className="w-3 h-3 mr-2" />
-                    Sair
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-
-              <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-                <SheetContent side="right" className="w-72 flex flex-col">
-                  <SheetHeader>
-                    <SheetTitle className="text-left text-sm">Menu</SheetTitle>
-                  </SheetHeader>
-
-                  {/* Seletor de Empresa no Mobile */}
-                  {empresas.length > 0 &&
-                  <div className="mt-4 px-2">
-                      <label className="text-xs text-slate-500 mb-1 block">Empresa</label>
-                      <Select value={empresaSelecionada || ''} onValueChange={handleEmpresaChange}>
-                        <SelectTrigger className="h-9 text-xs w-full border-slate-300">
-                          <SelectValue placeholder="Selecione a empresa" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {empresas.map((empresa) =>
-                        <SelectItem key={empresa.id} value={empresa.id} className="text-xs">
-                              {empresa.apelido || empresa.nome}
-                            </SelectItem>
-                        )}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  }
-
-                  <div className="mt-4 space-y-1 flex-1 overflow-y-auto">
-                    {menuItemsFiltered.map((item) => {
-                      const Icon = iconsMap[item.icon] || Map;
-
-                      if (item.submenu) {
-                        return (
-                          <div key={item.id} className="space-y-1">
-                            <div className="flex items-center gap-2 px-2 py-1.5 text-xs font-semibold text-slate-700">
-                              <Icon className="w-3.5 h-3.5" />
-                              {item.title}
-                            </div>
-                            <div className="ml-3 space-y-0.5">
-                              {item.submenu.map((sub) => {
-                                if (!sub.url) return null;
-                                return (
-                                  <Link
-                                    key={sub.id}
-                                    to={createPageUrl(sub.url)}
-                                    onClick={(e) =>
-                                      aoClicarMenu(e, createPageUrl(sub.url), () => setMobileMenuOpen(false))
-                                    }
-                                    className={`block px-2 py-1.5 text-xs rounded ${
-                                    location.pathname === createPageUrl(sub.url) ?
-                                    'bg-emerald-100 text-emerald-800 font-medium' :
-                                    'text-slate-600 hover:bg-slate-50'}`
-                                    }>
-
-                                    {sub.title}
-                                  </Link>);
-
-                              })}
-                            </div>
-                          </div>);
-
-                      }
-
-                      return (
-                        <Link
-                          key={item.id}
-                          to={createPageUrl(item.url)}
-                          onClick={(e) =>
-                            aoClicarMenu(e, createPageUrl(item.url), () => setMobileMenuOpen(false))
-                          }
-                          className={`flex items-center gap-2 px-2 py-1.5 text-xs rounded ${
-                          location.pathname === createPageUrl(item.url) ?
-                          'bg-emerald-100 text-emerald-800 font-medium' :
-                          'text-slate-600 hover:bg-slate-50'}`
-                          }>
-
-                          <Icon className="w-3.5 h-3.5" />
-                          {item.title}
-                        </Link>);
-
-                    })}
-                  </div>
-                </SheetContent>
-              </Sheet>
+              {userMenu}
             </div>
           </div>
         </div>
@@ -657,55 +644,105 @@ export default function Layout({ children, currentPageName }) {
       </Dialog>
 
 
-      <main className="max-w-[1600px] mx-auto flex-1 min-h-0 w-full overflow-hidden pb-16 md:pb-0">
+      <main className={`max-w-[1600px] mx-auto flex-1 min-h-0 w-full overflow-hidden md:pb-0 ${mostrarNavInferior ? "pb-[calc(66px+env(safe-area-inset-bottom))]" : "pb-0"}`}>
         <div className="relative h-full min-h-0 overflow-hidden">
           {children}
+          {mobileMenuOpen ?
+          <MobileModulesView
+            menuItems={menuItemsFiltered}
+            moduloId={mobileModuloId}
+            onModulo={setMobileModuloId}
+            moduloAtualId={moduloDaPagina}
+            paginaAtualUrl={currentMenuPage?.url || null}
+            onAbrirTela={(e, url) => {
+              aoClicarMenu(e, createPageUrl(url));
+              fecharModulos();
+            }} /> :
+          null}
         </div>
       </main>
 
-      {/* Mobile bottom navigation */}
-      <nav
-        aria-label="Navegação inferior"
-        className="fixed bottom-0 inset-x-0 md:hidden bg-white border-t border-slate-200 shadow-lg safe-area-bottom">
-          <div className="max-w-[1600px] mx-auto px-4 py-2 grid grid-cols-5 gap-3">
-            {FIXED_MOBILE_NAV_ITEMS.map((page) => {
-            const isCurrent = location.pathname === createPageUrl(page.url);
-            const hasAccess = allowedMobilePageUrls.has(page.url);
-            const Icon = page.Icon;
-
-            return hasAccess ?
-            <Link
-              key={page.id}
-              to={createPageUrl(page.url)}
-              aria-label={page.label}
-              onClick={(e) => aoClicarMenu(e, createPageUrl(page.url))}
-              className={`flex items-center justify-center h-12 rounded-xl border transition-colors ${isCurrent ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-white border-slate-200 text-slate-600'}`}>
-                <Icon className="w-6 h-6" />
-                </Link> :
-
-            <button
-              key={page.id}
-              type="button"
-              aria-label={page.label}
-              onClick={() => openPermissionDialog("Tela bloqueada", "Você não tem permissão para visualizar esta tela.")}
-              className="flex items-center justify-center h-12 rounded-xl border bg-white border-slate-200 text-slate-300">
-                <Icon className="w-6 h-6" />
-              </button>;
-
+      <MobileSheet open={empresaSheetOpen} onClose={() => setEmpresaSheetOpen(false)} label="Trocar empresa" title="Trocar empresa">
+        <p className="mk-co__desc">A troca recarrega os registros da empresa escolhida e limpa a seleção atual.</p>
+        <div className="mk-co__list">
+          {empresas.map((empresa) => {
+            const ativa = empresa.id === empresaSelecionada;
+            const detalhes = [empresa.cidade, empresa.uf || empresa.estado, empresa.cnpj || empresa.cpf_cnpj].filter(Boolean).join(' · ');
+            return (
+              <button
+                key={empresa.id}
+                type="button"
+                aria-pressed={ativa}
+                className={`mk-co__item${ativa ? ' is-on' : ''}`}
+                onClick={() => {
+                  handleEmpresaChange(empresa.id);
+                  setEmpresaSheetOpen(false);
+                }}>
+                <Building2 size={20} aria-hidden />
+                <span className="min-w-0 flex-1">
+                  <span className="mk-co__name">{empresa.apelido || empresa.nome}</span>
+                  {detalhes ? <span className="mk-co__sub">{detalhes}</span> : null}
+                </span>
+                {ativa ? <Check size={18} className="text-[#15803d]" aria-hidden /> : null}
+              </button>);
 
           })}
-            <button
+        </div>
+      </MobileSheet>
+
+      {/* Navegação inferior do celular — vidro, some com registro aberto */}
+      {mostrarNavInferior ?
+      <nav
+        aria-label="Navegação inferior"
+        className="fixed bottom-0 inset-x-0 md:hidden z-[45] mk-tabbar">
+          {FIXED_MOBILE_NAV_ITEMS.map((page) => {
+          const Icon = page.Icon;
+          if (!page.url) {
+            return (
+              <button
+                key={page.id}
+                type="button"
+                onClick={() => mobileMenuOpen && !mobileModuloId ? fecharModulos() : abrirModulos(null)}
+                aria-haspopup="dialog"
+                aria-expanded={mobileMenuOpen}
+                className={`mk-tabbar__item${mobileMenuOpen ? ' is-active' : ''}`}>
+                  <Icon size={21} aria-hidden />
+                  <span>{page.label}</span>
+                </button>);
+
+          }
+          const isCurrent = !mobileMenuOpen && location.pathname === createPageUrl(page.url);
+          const hasAccess = allowedMobilePageUrls.has(page.url);
+
+          return hasAccess ?
+          <Link
+            key={page.id}
+            to={createPageUrl(page.url)}
+            aria-label={page.full}
+            aria-current={isCurrent ? 'page' : undefined}
+            onClick={(e) => {
+              setMobileMenuOpen(false);
+              setMobileModuloId(null);
+              aoClicarMenu(e, createPageUrl(page.url));
+            }}
+            className={`mk-tabbar__item${isCurrent ? ' is-active' : ''}`}>
+                <Icon size={21} aria-hidden />
+                <span>{page.label}</span>
+              </Link> :
+
+          <button
+            key={page.id}
             type="button"
-            onClick={() => setMobileMenuOpen(true)}
-            aria-label="Abrir menu principal"
-            aria-haspopup="dialog"
-            aria-expanded={mobileMenuOpen}
-            className={`flex flex-col items-center justify-center h-12 rounded-xl border transition-colors ${mobileMenuOpen ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-white border-slate-200 text-slate-600'}`}>
-              <Menu className="w-5 h-5" />
-              <span className="text-[10px] leading-none mt-0.5">Menu</span>
-            </button>
-          </div>
-        </nav>
+            aria-label={page.full}
+            onClick={() => openPermissionDialog("Tela bloqueada", "Você não tem permissão para visualizar esta tela.")}
+            className="mk-tabbar__item is-locked">
+                <Icon size={21} aria-hidden />
+                <span>{page.label}</span>
+              </button>;
+
+        })}
+        </nav> :
+      null}
 
       </div>);
 

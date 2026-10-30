@@ -72,13 +72,26 @@ export default function CadastroBase1Screen({
           recordToolbar={
             c.showForm && c.isEditing && formId ? (
               <>
-                <PillBtn type="submit" form={formId} disabled={c.saving}>
+                <PillBtn
+                  type="submit"
+                  form={formId}
+                  disabled={c.saving}
+                  className="mg-act-ic"
+                  aria-label={c.saving ? "Salvando…" : "Salvar"}
+                  title={c.saving ? "Salvando…" : "Salvar"}
+                >
                   <Check className="h-4 w-4" aria-hidden />
-                  {c.saving ? "Salvando…" : "Salvar"}
                 </PillBtn>
-                <PillBtn type="button" tone="gray" onClick={c.cancelForm} disabled={c.saving}>
+                <PillBtn
+                  type="button"
+                  tone="gray"
+                  onClick={c.cancelForm}
+                  disabled={c.saving}
+                  className="mg-act-ic"
+                  aria-label="Cancelar"
+                  title="Cancelar"
+                >
                   <X className="h-4 w-4" aria-hidden />
-                  Cancelar
                 </PillBtn>
               </>
             ) : null
@@ -100,6 +113,7 @@ export default function CadastroBase1Screen({
             ) : null
           }
           recordBody={c.showForm ? recordForm : null}
+          onRecordBack={c.isEditing ? c.cancelForm : () => c.onViewModeChange("table")}
           attachDisabledReason={attachDisabledReason}
           selectedCount={c.chrome.selectedIds.length}
           {...c.chromeFooter}

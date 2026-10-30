@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
 import { MIN_COL_WIDTH } from "@/lib/cadastroBase1ColumnPrefs";
 import { fonteDaCelula, medirLarguraColuna } from "@/lib/larguraColuna";
 import { B1Popover, MenuList, MgCheck } from "./Base1Ui";
-import { selectClickOf, useBlockNativeTextSelection } from "./selectClick";
+import { selectClickOf, ehToqueDuplo, useBlockNativeTextSelection } from "./selectClick";
 import { usePortalComprasSkin } from "./portalComprasSkinContext";
 
 const ROW_ESTIMATE_PX = 32;
@@ -264,7 +264,13 @@ export default function Base1Grid({
         data-testid="b1-row"
         aria-selected={on}
         className={cn(on && "selected", ri % 2 === 1 ? "odd" : "even")}
-        onClick={(e) => onSelectClick(id, selectClickOf(e))}
+        onClick={(e) => {
+          if (ehToqueDuplo(e, id)) {
+            onOpen?.(r);
+            return;
+          }
+          onSelectClick(id, selectClickOf(e));
+        }}
         onDoubleClick={() => onOpen?.(r)}
       >
         {colunaSelecao ? (
