@@ -19,13 +19,7 @@ import LegacyTabs from "./LegacyTabs.jsx";
 import Base1PanelTabs from "@/components/cadastro/base1/Base1PanelTabs.jsx";
 import DynamicFormRenderer from "@/components/dynamic/DynamicFormRenderer";
 import IconeOficialLotePreview from "@/components/catalogoGlobal/IconeOficialLotePreview";
-import {
-  ehLoteDerivadoDeManejo,
-  entradaHistoricaDoLote,
-  formatarVariacao,
-  movimentacaoLiquidaDoLote,
-  saldoAtualDoLote,
-} from "@/domain/lotes/saldoLote";
+import { ehLoteDerivadoDeManejo, entradaHistoricaDoLote, saldoAtualDoLote } from "@/domain/lotes/saldoLote";
 import LayoutConfiguratorDialog from "@/components/dynamic/LayoutConfiguratorDialog";
 export const FORMULARIO_LOTE_ID = "formulario-lote-base1";
 
@@ -446,14 +440,11 @@ export default function FormularioLote({
         readOnly: true,
         render: () => (
           <div className="flex h-[22px] items-center gap-3 bg-slate-50 px-1 text-xs tabular-nums" data-testid="lote-quantidades">
-            <span title="Cabeças que entraram no rebanho por este lote (retrato imutável da entrada)">
-              Entrada: {ehLoteDerivadoDeManejo(initialData) ? "— (gerado por manejo)" : entradaHistoricaDoLote(initialData).toLocaleString("pt-BR")}
+            <span title="Cabeças que entraram no rebanho por este lançamento (retrato imutável da entrada)">
+              Qtd. entrada: {ehLoteDerivadoDeManejo(initialData) ? "— (gerado por manejo, não é entrada)" : entradaHistoricaDoLote(initialData).toLocaleString("pt-BR")}
             </span>
-            <span title="Saídas negativas e chegadas positivas desde a entrada">
-              Movimentações: {formatarVariacao(movimentacaoLiquidaDoLote(initialData))}
-            </span>
-            <span className="font-semibold" title="Cabeças que o lote tem hoje">
-              Saldo atual: {saldoAtualDoLote(initialData).toLocaleString("pt-BR")}
+            <span title="Cabeças que o lote tem hoje. Muda só pelos manejos do Mapa Geral.">
+              Saldo atual (informativo): {saldoAtualDoLote(initialData).toLocaleString("pt-BR")}
             </span>
           </div>
         ),

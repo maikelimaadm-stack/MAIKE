@@ -1,9 +1,5 @@
 import { z } from "zod";
-import {
-  entradaHistoricaDoLote,
-  movimentacaoLiquidaDoLote,
-  saldoAtualDoLote,
-} from "@/domain/lotes/saldoLote";
+import { entradaHistoricaDoLote, saldoAtualDoLote } from "@/domain/lotes/saldoLote";
 
 const FIXED_LOTE_FIELDS = {
   codigo: "numero_lote",
@@ -56,11 +52,10 @@ const getRawValue = (registro, campo) => {
   }
 
   const fieldName = campo.field_name || FIXED_LOTE_FIELDS[campo.id] || campo.id;
-  // Três quantidades distintas (domain/lotes/saldoLote): "cabecas" é o saldo
-  // atual; a entrada histórica e a variação têm coluna própria.
+  // Quantidades distintas (domain/lotes/saldoLote): "entrada" é a quantidade
+  // de entrada no rebanho; "cabecas" é o saldo atual (informativo).
   if (campo.id === "cabecas") return saldoAtualDoLote(registro);
   if (campo.id === "entrada") return entradaHistoricaDoLote(registro);
-  if (campo.id === "movimentacoes") return movimentacaoLiquidaDoLote(registro);
   if (campo.id === "categoria") return registro.categoria_entrada || registro.categoria || "";
   if (campo.id === "categoria_manejo") return registro.categoria_manejo_entrada_nome || registro.categoria_manejo_nome || "";
   if (campo.id === "peso") return registro.peso_entrada_kg ?? registro.peso_medio_kg ?? "";
@@ -75,7 +70,6 @@ const getFormulaScope = (registro) => ({
   // `cabecas`/`saldo_atual` é o que o lote tem hoje.
   quantidade: registro?.quantidade_entrada ?? registro?.quantidade_cabecas ?? 0,
   entrada: entradaHistoricaDoLote(registro),
-  movimentacoes: movimentacaoLiquidaDoLote(registro),
   saldo_atual: saldoAtualDoLote(registro),
   cabecas: saldoAtualDoLote(registro),
   peso: registro?.peso_entrada_kg ?? registro?.peso_medio_kg ?? 0,

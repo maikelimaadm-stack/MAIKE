@@ -13,6 +13,44 @@
   - A decisão abaixo fica registrada aqui. Ela entra em `DECISIONS.md` depois
     do merge da #149, para não colidir.
 
+## Cadastro = entrada (slice corretivo pós-#151, D-PROD-85)
+
+**Pedido do proprietário:** o Cadastro de Lotes é o lançamento da entrada do
+rebanho. Movimentações são do Mapa Geral e não aparecem nem se fazem aqui.
+
+**Auditoria do caminho de escrita**
+(`CadastroLotes` → `loteCadastroService` → `lotesApi`/`loteNativePort` → `POST/PATCH/DELETE /lotes` → `loteService`):
+- O CRUD do Cadastro só grava `Lote`.
+- Nenhum ponto cria `MovimentacaoMapa`, `MovimentacaoPecuaria` ou lote derivado.
+- Os manejos vivem em `DetalhesLote`/`loteManejoService` (mapa), independentes.
+- Provado no backend com PostgreSQL real; já valia antes desta correção.
+
+| Achado (no `main` `46664043`) | Arquivo | Gravidade | Correção | Teste depois |
+|---|---|---|---|---|
+| Coluna "Movimentações (±)" (saldo − entrada) no Cadastro, apresentada como movimento | `TabelaLotes.jsx` (colunas, célula, exportação), `campoEngine.js` (`movimentacoes`), `saldoLote.js` | P1 (semântica) | Coluna, exportação, campo e fórmula removidos; funções `movimentacaoLiquidaDoLote`/`formatarVariacao` removidas do domínio | grade e página sem "Moviment"; domínio sem essas exportações |
+| Lotes gerados por manejo listados como se fossem entradas | `CadastroLotes.jsx` (`incluirSistema: true`) | P1 | Lista padrão só com entradas no rebanho (nascimento incluso); derivados só no botão de consulta | lista padrão = lote 1; o botão mostra o lote 2 |
+| Rodapé somava o saldo (500 com o derivado visível, 450 sem ele) | `TabelaLotes.jsx` | P2 | Rodapé soma só a "Qtd. entrada"; rebanho atual vai no resumo de leitura (todos os lotes) | Totais = 500 numa coluna só; resumo "Entradas 500 · Rebanho atual 500" |
+| Formulário mostrava "Movimentações: -50" | `FormularioLote.jsx` | P2 | Mostra "Qtd. entrada" e "Saldo atual (informativo)" | lote 1 e lote 2 sem texto de movimentação |
+
+**Antes:** os testes novos contra o `src` de `46664043` dão 18 falhas em 37. Parte
+delas é só ausência de exportação ou do botão novo. As de comportamento são:
+- a coluna e o texto de movimentações;
+- o lote derivado na lista padrão;
+- o total da grade somando o saldo.
+
+**Depois:**
+- smoke: 37/37 (`lotesSaldoMovimentacoes` 31 + `cadastroLotesEntrada` 6);
+- backend: 19/19 (dois invariantes novos de POST/PATCH sem manejo).
+
+**Mantido da #151:**
+- bloqueio de exclusão de lote derivado no servidor;
+- classe da origem imutável;
+- setor, áreas e quantidades fora do PATCH do cadastro;
+- nome da área pelo id.
+
+**Risco residual:** manejo parcial não atômico, sem mudança. A correção é o L2
+do ledger, em slice próprio.
+
 ## R3 — finalização (sobre `2bf908f4`)
 
 `origin/main` `f6592e2a` (#150, contagem de cabeças no mapa) foi trazido por

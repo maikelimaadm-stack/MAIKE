@@ -168,6 +168,43 @@ describe('PATCH /lotes — classe da origem e entrada histórica imutáveis', ()
   });
 });
 
+describe('Cadastro = entrada (D-PROD-85): POST/PATCH não geram nem alteram manejo', () => {
+  test('POST de entrada cria exatamente um lote e nenhuma movimentação, transferência ou lote derivado', async () => {
+    const { cliente, token } = await tenant();
+    const prisma = getPrismaClient();
+    const antes = {
+      lotes: await prisma.lote.count({ where: { cliente_id: cliente.id } }),
+      mapa: await prisma.movimentacaoMapa.count({ where: { cliente_id: cliente.id } }),
+      pecuaria: await prisma.movimentacaoPecuaria.count({ where: { cliente_id: cliente.id } }),
+    };
+    const lote = await criarLote(token, { quantidade_cabecas: 500, origem: 'COMPRA', motivo_entrada: 'Compra' });
+    assert.equal(lote.quantidade_entrada, 500);
+    assert.equal(lote.quantidade_cabecas, 500);
+    assert.equal(await prisma.lote.count({ where: { cliente_id: cliente.id } }), antes.lotes + 1);
+    assert.equal(await prisma.movimentacaoMapa.count({ where: { cliente_id: cliente.id } }), antes.mapa);
+    assert.equal(await prisma.movimentacaoPecuaria.count({ where: { cliente_id: cliente.id } }), antes.pecuaria);
+  });
+
+  test('PATCH de metadado (nome, observações) depois da movimentação não altera quantidades, áreas, origem nem movimentos', async () => {
+    const { cliente, token } = await tenant();
+    const { lote1 } = await casoReal(token, cliente.id);
+    const prisma = getPrismaClient();
+    const antes = await prisma.lote.findFirst({ where: { id: lote1.id } });
+    const movAntes = await prisma.movimentacaoMapa.findMany({ where: { cliente_id: cliente.id }, orderBy: { id: 'asc' } });
+
+    const r = await app.inject({ method: 'PATCH', url: `/lotes/${lote1.id}`, headers: auth(token), payload: { nome: 'TESTE RENOMEADO', observacoes: 'NOTA' } });
+    assert.equal(r.statusCode, 200);
+
+    const depois = await prisma.lote.findFirst({ where: { id: lote1.id } });
+    assert.equal(depois.nome, 'TESTE RENOMEADO');
+    for (const campo of ['quantidade_entrada', 'quantidade_cabecas', 'origem', 'area_entrada_id', 'area_atual_id', 'setor_id', 'status']) {
+      assert.deepEqual(depois[campo], antes[campo], campo);
+    }
+    assert.deepEqual(await prisma.movimentacaoMapa.findMany({ where: { cliente_id: cliente.id }, orderBy: { id: 'asc' } }), movAntes);
+    assert.equal(await cabecasDoTenant(cliente.id), 500);
+  });
+});
+
 describe('paridade da regra de origem: servidor × frontend', () => {
   test('mesma classificação para a tabela de origens', () => {
     const origens = [

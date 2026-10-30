@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Paperclip } from "lucide-react";
 import CadastroBase1Screen from "@/components/cadastro/base1/CadastroBase1Screen";
 import FormularioLote, { FORMULARIO_LOTE_ID } from "@/components/lotes/FormularioLote";
@@ -16,6 +16,7 @@ import {
   excluirLotes,
 } from "@/services/loteCadastroService";
 import { persistirAnexosPendentes } from "@/services/anexoService";
+import { ehEntradaNoRebanho, resumoDeCabecas } from "@/domain/lotes/saldoLote";
 import { getApiErrorMessage, hasApiErrorCode, API_ERROR_CODES } from "@/apis/_core/ApiError";
 import {
   notifyError,
@@ -37,20 +38,34 @@ export default function CadastroLotes() {
   const [newRecordAttachmentsOpen, setNewRecordAttachmentsOpen] = useState(false);
   const [pendingAttachments, setPendingAttachments] = useState([]);
 
-  // Todos os lotes da empresa, inclusive os gerados por manejo: sem eles o
-  // destino de uma movimentação parcial (+50) sumia do cadastro e o saldo do
-  // rebanho fechava em 450 em vez de 500. A entrada histórica não duplica:
-  // lote gerado por manejo não conta como entrada (domain/lotes/saldoLote).
-  const fetchAll = useCallback(
+  // Cadastro = lançamento da ENTRADA no rebanho (D-PROD-85). A lista padrão
+  // traz só entradas; lotes gerados por manejo (destino de movimentação,
+  // mudança de categoria…) aparecem apenas como consulta, sob demanda. O
+  // resumo do rebanho é calculado sobre TODOS os lotes, então o saldo que está
+  // num lote gerado por manejo nunca some da conta (500, não 450).
+  const [mostrarGeradosPorManejo, setMostrarGeradosPorManejo] = useState(false);
+  // Uma só leitura de todos os lotes, compartilhada pela lista e pelo resumo.
+  const chaveTodos = useMemo(() => ["lotes-cadastro", empresaSelecionadaId, "todos"], [empresaSelecionadaId]);
+  const carregarTodos = useCallback(
     () => listarLotes({ empresaId: empresaSelecionadaId, incluirSistema: true }),
     [empresaSelecionadaId],
   );
+  const { data: todosLotes } = useQuery({
+    queryKey: chaveTodos,
+    queryFn: carregarTodos,
+    enabled: Boolean(empresaSelecionadaId),
+  });
+  const resumoRebanho = useMemo(() => resumoDeCabecas(todosLotes ?? []), [todosLotes]);
+  const fetchAll = useCallback(async () => {
+    const todos = await queryClient.fetchQuery({ queryKey: chaveTodos, queryFn: carregarTodos });
+    return mostrarGeradosPorManejo ? todos : todos.filter(ehEntradaNoRebanho);
+  }, [queryClient, chaveTodos, carregarTodos, mostrarGeradosPorManejo]);
 
   const controller = useCadastroBase1FullListController({
     storageKey: STORAGE_KEY,
     columnIds: COLUNAS_DISPONIVEIS.map((c) => c.id),
     listEnabled: Boolean(empresaSelecionadaId),
-    queryKey: ["lotes-cadastro", empresaSelecionadaId],
+    queryKey: ["lotes-cadastro", empresaSelecionadaId, mostrarGeradosPorManejo ? "com-gerados-por-manejo" : "entradas"],
     fetchAll,
     duplicateLabelField: "nome",
     exportFileName: "lotes.csv",
@@ -248,12 +263,31 @@ export default function CadastroLotes() {
         listErrorMessage={listErrorMessage}
         recordCode={recordCode}
         extraToolbar={
-          controller.showForm ? (
-            <PillBtn type="button" tone="gray" onClick={openAttachments}>
-              <Paperclip className="h-4 w-4" aria-hidden />
-              Anexos
+          <>
+            <span
+              className="whitespace-nowrap text-xs text-slate-600 tabular-nums"
+              data-testid="resumo-rebanho"
+              title="Somente leitura. Entradas: cabeças lançadas neste cadastro. Rebanho atual: saldo de todos os lotes, inclusive os gerados por manejo no mapa."
+            >
+              Entradas: {resumoRebanho.entradas.toLocaleString("pt-BR")} cab. · Rebanho atual:{" "}
+              {resumoRebanho.saldoAtual.toLocaleString("pt-BR")} cab.
+            </span>
+            <PillBtn
+              type="button"
+              tone="gray"
+              aria-pressed={mostrarGeradosPorManejo}
+              title="Consulta: lotes criados por movimentação ou mudança de categoria no mapa. Não são entradas."
+              onClick={() => setMostrarGeradosPorManejo((v) => !v)}
+            >
+              {mostrarGeradosPorManejo ? "Ocultar lotes gerados por manejo" : "Mostrar lotes gerados por manejo"}
             </PillBtn>
-          ) : null
+            {controller.showForm ? (
+              <PillBtn type="button" tone="gray" onClick={openAttachments}>
+                <Paperclip className="h-4 w-4" aria-hidden />
+                Anexos
+              </PillBtn>
+            ) : null}
+          </>
         }
         deleteDialog={{
           title: "Confirmar exclusão",
