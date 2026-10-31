@@ -1,5 +1,6 @@
 /**
- * Tamanho da fonte da quantidade de cabeças no marcador do lote (D-PROD-83).
+ * Tamanho da fonte da quantidade de cabeças no marcador do lote (D-PROD-83;
+ * menor e mais alto com o ícone de 44 px, D-PROD-89).
  *
  * O número fica abaixo da figura, numa faixa de LARGURA_MAXIMA_CONTAGEM px que
  * cabe dentro do ícone. Se o texto no tamanho base for mais largo que a faixa
@@ -7,7 +8,7 @@
  * da largura medida, nunca abaixo do mínimo legível.
  */
 
-export const FONTE_CONTAGEM_BASE = 11;
+export const FONTE_CONTAGEM_BASE = 10;
 export const FONTE_CONTAGEM_MINIMA = 5;
 export const LARGURA_MAXIMA_CONTAGEM = 22;
 export const FONTE_CONTAGEM_FAMILIA = 'Inter,Arial,sans-serif';

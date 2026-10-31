@@ -3304,4 +3304,22 @@ Relatório: `docs/engineering/UX-MOBILE-V2-REPORT.md` (seção "Paridade 2").
 
 ---
 
-<!-- Próxima decisão: D-PROD-89 -->
+## D-PROD-89 — Ícone do lote um pouco menor; quantidade menor e mais acima
+
+**Pedido do proprietário:** diminuir um pouco o ícone do lote no mapa. Diminuir só um pouco a quantidade de cabeças e subi-la um pouco.
+
+**Decisão** (`src/components/mapa/useMapRenderer.jsx`, `src/lib/maplibre/contagemLote.js`):
+- **Ícone do lote:** 50 → 44 px. Raio do círculo 22 → 19. Deslocamento do marcador −30 → −26, para a ponta ficar no mesmo lugar.
+- **Quantidade de cabeças:**
+  - fonte base 11 → 10 px;
+  - posição 72% → 66% da altura (um pouco mais acima);
+  - continua cinza escuro, com halo claro, e encolhe pela largura medida dentro da faixa de 22 px (D-PROD-83).
+  - Exemplos: "500" fica em 10 px, "5000" em 8 px, "12500" em 7 px.
+- **Selo do identificador:** acompanha o tamanho novo (+18 px / −22 px).
+- **Fora desta mudança:** ícones de ponto e de bebedouro.
+
+Teste: `tests/smoke/contagemLote.test.js` (CNT-01..04).
+
+---
+
+<!-- Próxima decisão: D-PROD-90 -->
