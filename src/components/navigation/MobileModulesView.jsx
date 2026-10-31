@@ -110,7 +110,7 @@ export default function MobileModulesView({ menuItems, moduloId, onModulo, modul
   };
 
   return (
-    <div className="mk-mods md:hidden" role="dialog" aria-label="Módulos">
+    <div className="mk-mods lg:hidden" role="dialog" aria-label="Módulos">
       <div className="mk-mods__inner">
         <div className="mk-pill" role="search">
           {busca ? (

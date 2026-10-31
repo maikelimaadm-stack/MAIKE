@@ -310,7 +310,7 @@ Reverter os commits R1 da PR. O helper de idempotência volta ao `create` + `P20
 
 ---
 
-## 14. R2 — "importar tudo" e "imediata" (D-PROD-91, 2026-10-31)
+## 14. R2 — "importar tudo" e "imediata" (D-PROD-92, 2026-10-31)
 
 ### 14.1 Contorno que se cruza
 

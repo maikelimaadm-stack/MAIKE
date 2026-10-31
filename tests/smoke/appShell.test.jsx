@@ -59,6 +59,10 @@ const SondaDeRota = () => {
   return null;
 };
 
+/** Botão "Módulos" da barra inferior do celular (o tablet tem outro na barra lateral). */
+const gatilhoModulos = async () =>
+  within(await screen.findByRole('navigation', { name: /navegação inferior/i })).getByRole('button', { name: /^módulos$/i });
+
 const PaginaFalsa = ({ nome }) => <div data-testid={`pagina-${nome}`}>{nome}</div>;
 
 /** Clique real no DOM. Sem `user-event`: não é dependência do projeto. */
@@ -192,14 +196,14 @@ describe('MOBILE — a tela de Módulos (menu completo do celular) é alcançáv
 
   it('MOBILE3 — o gatilho tem accessible name', async () => {
     await renderShell();
-    const botao = await screen.findByRole('button', { name: /^módulos$/i });
+    const botao = await gatilhoModulos();
     expect(botao).toBeInTheDocument();
   });
 
   it('MOBILE2 — clicar no gatilho abre o Sheet', async () => {
     await renderShell();
 
-    const botao = await screen.findByRole('button', { name: /^módulos$/i });
+    const botao = await gatilhoModulos();
     expect(screen.queryByRole('dialog')).toBeNull();
 
     await clicar(botao);
@@ -208,7 +212,7 @@ describe('MOBILE — a tela de Módulos (menu completo do celular) é alcançáv
 
   it('MOBILE3b — o gatilho reflete o estado aberto', async () => {
     await renderShell();
-    const botao = await screen.findByRole('button', { name: /^módulos$/i });
+    const botao = await gatilhoModulos();
 
     expect(botao).toHaveAttribute('aria-expanded', 'false');
     await clicar(botao);
@@ -219,7 +223,7 @@ describe('MOBILE — a tela de Módulos (menu completo do celular) é alcançáv
   it('MOBILE4/MOBILE5 — clicar em MapaCadastro navega e fecha o Sheet', async () => {
     await renderShell();
 
-    await clicar(await screen.findByRole('button', { name: /^módulos$/i }));
+    await clicar(await gatilhoModulos());
     const painel = await screen.findByRole('dialog', { name: /módulos/i });
     await clicar(within(painel).getByRole('button', { name: /^mapa/i }));
 
@@ -251,7 +255,7 @@ describe('MOBILE — a tela de Módulos (menu completo do celular) é alcançáv
 describe('NAV — sair do mapa e voltar', () => {
   it('NAV1 — o cabeçalho continua clicável com o mapa montado', async () => {
     await renderShell();
-    const botao = await screen.findByRole('button', { name: /^módulos$/i });
+    const botao = await gatilhoModulos();
     // Se algo cobrisse o shell, o clique não chegaria ao gatilho.
     await clicar(botao);
     expect(await screen.findByRole('dialog')).toBeInTheDocument();
@@ -261,7 +265,7 @@ describe('NAV — sair do mapa e voltar', () => {
     await renderShell();
     expect(await screen.findByTestId('pagina-mapa')).toBeInTheDocument();
 
-    await clicar(await screen.findByRole('button', { name: /^módulos$/i }));
+    await clicar(await gatilhoModulos());
     const painel = await screen.findByRole('dialog');
     await clicar(within(painel).getByRole('button', { name: /^mapa/i }));
     await clicar(within(painel).getByRole('link', { name: /cadastro do mapa|mapa cadastro|cadastro/i }));
@@ -269,7 +273,7 @@ describe('NAV — sair do mapa e voltar', () => {
     await waitFor(() => expect(screen.queryByTestId('pagina-mapa')).toBeNull());
     expect(await screen.findByTestId('pagina-cadastro')).toBeInTheDocument();
 
-    await clicar(await screen.findByRole('button', { name: /^módulos$/i }));
+    await clicar(await gatilhoModulos());
     const painel2 = await screen.findByRole('dialog');
     await clicar(within(painel2).getByRole('button', { name: /^mapa/i }));
     await clicar(within(painel2).getByRole('link', { name: /mapa geral/i }));

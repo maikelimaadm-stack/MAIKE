@@ -437,7 +437,24 @@ function LayoutShell({ children, currentPageName }) {
           </button>
           {userMenu}
         </div>
-        <div className="max-w-[1600px] mx-auto px-4 py-2 hidden md:block">
+        <div className="mk-thdr hidden md:flex lg:hidden">
+          <div className="mk-thdr__titulo">
+            <span className="mk-thdr__grupo">{mobileMenuOpen ? 'Menu' : currentMenuPage?.moduleTitle || 'Mapa'}</span>
+            <span className="mk-thdr__tela">{mobileMenuOpen ? moduloAberto?.title || 'Módulos' : currentMenuPage?.title || 'Mapa Geral'}</span>
+          </div>
+          <button type="button" className="mk-thdr__icone" onClick={() => setSearchOpen(true)} aria-label="Buscar telas" title="Buscar telas">
+            <Search size={18} />
+          </button>
+          {empresas.length > 0 ?
+          <button type="button" className="mk-thdr__empresa" onClick={() => setEmpresaSheetOpen(true)} aria-label="Trocar empresa">
+              <Building2 size={16} aria-hidden />
+              <span>{empresaNome}</span>
+              <ChevronDown size={14} aria-hidden />
+            </button> :
+          null}
+          {userMenu}
+        </div>
+        <div className="max-w-[1600px] mx-auto px-4 py-2 hidden lg:block">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div>
@@ -467,7 +484,7 @@ function LayoutShell({ children, currentPageName }) {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 hidden md:inline-flex"
+                className="h-8 w-8 hidden lg:inline-flex"
                 onClick={() => {
                   const novoEstado = !menuOculto;
                   setMenuOculto(novoEstado);
@@ -495,10 +512,10 @@ function LayoutShell({ children, currentPageName }) {
 
       <nav
         aria-label="Módulos"
-        className={`flex-none bg-white border-b border-slate-200 shadow-sm transition-all duration-300 hidden md:block ${menuOculto ? 'md:h-0 md:overflow-hidden md:border-0 md:py-0' : ''}`}>
+        className={`flex-none bg-white border-b border-slate-200 shadow-sm transition-all duration-300 hidden lg:block ${menuOculto ? 'lg:h-0 lg:overflow-hidden lg:border-0 lg:py-0' : ''}`}>
         <div className="max-w-[1600px] mx-auto px-4">
           <div className="flex items-center gap-0.5 h-10">
-            <div className="hidden md:flex items-center gap-0.5">
+            <div className="hidden lg:flex items-center gap-0.5">
               {menuItemsFiltered.map((item) => {
                 const active = isActive(item);
 
@@ -644,7 +661,50 @@ function LayoutShell({ children, currentPageName }) {
       </Dialog>
 
 
-      <main className={`max-w-[1600px] mx-auto flex-1 min-h-0 w-full overflow-hidden md:pb-0 ${mostrarNavInferior ? "pb-[calc(66px+env(safe-area-inset-bottom))]" : "pb-0"}`}>
+      <div className="flex flex-1 min-h-0 min-w-0">
+      {/* Tablet: barra lateral com os mesmos destinos da barra inferior do celular */}
+      <nav aria-label="Navegação lateral" className="mk-rail hidden md:flex lg:hidden">
+        {FIXED_MOBILE_NAV_ITEMS.map((page) => {
+          const Icon = page.Icon;
+          if (!page.url) {
+            return (
+              <button
+                key={page.id}
+                type="button"
+                onClick={() => mobileMenuOpen && !mobileModuloId ? fecharModulos() : abrirModulos(null)}
+                aria-expanded={mobileMenuOpen}
+                className={`mk-rail__item${mobileMenuOpen ? ' is-active' : ''}`}>
+                <span className="mk-rail__ind"><Icon size={20} aria-hidden /></span>
+                {page.label}
+              </button>);
+          }
+          const ativo = !mobileMenuOpen && location.pathname === createPageUrl(page.url);
+          return allowedMobilePageUrls.has(page.url) ?
+          <Link
+            key={page.id}
+            to={createPageUrl(page.url)}
+            aria-label={page.full}
+            aria-current={ativo ? 'page' : undefined}
+            onClick={(e) => {
+              fecharModulos();
+              aoClicarMenu(e, createPageUrl(page.url));
+            }}
+            className={`mk-rail__item${ativo ? ' is-active' : ''}`}>
+              <span className="mk-rail__ind"><Icon size={20} aria-hidden /></span>
+              {page.label}
+            </Link> :
+          <button
+            key={page.id}
+            type="button"
+            aria-label={page.full}
+            onClick={() => openPermissionDialog("Tela bloqueada", "Você não tem permissão para visualizar esta tela.")}
+            className="mk-rail__item is-locked">
+              <span className="mk-rail__ind"><Icon size={20} aria-hidden /></span>
+              {page.label}
+            </button>;
+        })}
+      </nav>
+      <main className={`max-w-[1600px] mx-auto flex-1 min-h-0 w-full min-w-0 overflow-hidden md:pb-0 ${mostrarNavInferior ? "pb-[calc(66px+env(safe-area-inset-bottom))]" : "pb-0"}`}>
         <div className="relative h-full min-h-0 overflow-hidden">
           {children}
           {mobileMenuOpen ?
@@ -661,6 +721,7 @@ function LayoutShell({ children, currentPageName }) {
           null}
         </div>
       </main>
+      </div>
 
       <MobileSheet open={empresaSheetOpen} onClose={() => setEmpresaSheetOpen(false)} label="Trocar empresa" title="Trocar empresa">
         <p className="mk-co__desc">A troca recarrega os registros da empresa escolhida e limpa a seleção atual.</p>

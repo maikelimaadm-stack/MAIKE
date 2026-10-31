@@ -624,7 +624,7 @@
 }
 
 /* Título da tela já está no cabeçalho do celular. */
-@media (max-width: 767px) {
+@media (max-width: 1023px) {
   .cadastro-b1__page-title {
     display: none;
   }
@@ -1019,7 +1019,8 @@
 
 /* ── Campos do registro no celular: 48px, texto 16px (sem zoom do iPhone) ── */
 @media (max-width: 639px) {
-  .cadastro-b1.cadastro-b1--full-page {
+  .cadastro-b1.cadastro-b1--full-page,
+  .cadastro-b1--full-page .cadastro-b1 {
     --mg-field-h: 48px;
   }
 
@@ -1480,5 +1481,368 @@ form:has(.mk-lanc) button[class*="border-dashed"] {
   form:has(.mk-lanc) button[class*="bg-green-6"],
   form:has(.mk-lanc) button[class*="border-input"]:not([role="combobox"]) {
     font-size: 14px !important;
+  }
+}
+
+/* ── Campo de altura livre com conteúdo próprio (ex.: Sistema Produtivo) ── */
+.cadastro-b1 .mg-field--multiline .mg-field__control > div:not(:has(textarea)) {
+  height: auto;
+  padding: 18px 8px 8px;
+}
+
+/* Marcar vários (Sistema Produtivo): pílulas Base1 no lugar de caixinhas */
+.cadastro-b1 .b1-multi {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.cadastro-b1 .b1-multi__op {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 12px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: #f1f3f4;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.cadastro-b1 .b1-multi__op.is-on {
+  border-color: rgba(64, 222, 99, 0.35);
+  background: rgba(64, 222, 99, 0.12);
+  color: #15803d;
+}
+
+.cadastro-b1 .b1-multi__op:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+@media (max-width: 1023px) {
+  .cadastro-b1 .b1-multi__op {
+    height: 40px;
+    padding: 0 16px;
+    font-size: 14px;
+  }
+}
+
+/*
+ * Datas e horas nativas: o Safari do iPhone centraliza o valor e ignora o
+ * espaçamento do campo, então a data "sai do lugar". Força alinhamento à
+ * esquerda e altura do campo.
+ */
+.cadastro-b1 .mg-field__control input:is([type="date"], [type="time"], [type="datetime-local"], [type="month"]) {
+  display: flex;
+  min-width: 0;
+  -webkit-appearance: none;
+  appearance: none;
+  text-align: left;
+}
+
+.cadastro-b1 .mg-field__control input:is([type="date"], [type="time"], [type="datetime-local"], [type="month"])::-webkit-date-and-time-value {
+  margin: 0;
+  text-align: left;
+}
+
+.cadastro-b1 .mg-field__control input:is([type="date"], [type="time"], [type="datetime-local"], [type="month"])::-webkit-datetime-edit {
+  padding: 0;
+}
+
+.cadastro-b1 .mg-field__control input:is([type="date"], [type="time"], [type="datetime-local"])::-webkit-calendar-picker-indicator {
+  margin-left: auto;
+  opacity: 0.55;
+}
+
+/* Painel do AutocompleteGenerico no desktop — mesmo vidro do MgSelect */
+.mk-ac-pop {
+  box-sizing: border-box;
+  padding: 4px;
+  border: 1px solid #e7eaee;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.18), 0 2px 8px rgba(15, 23, 42, 0.08);
+  color: #334155;
+}
+
+.mk-ac-op {
+  margin: 1px 0;
+  padding: 7px 10px;
+  border-radius: 6px;
+  color: #334155;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.mk-ac-op.is-hi {
+  background: rgba(64, 222, 99, 0.13);
+}
+
+.mk-ac-op.is-on {
+  color: #15803d;
+  font-weight: 600;
+}
+
+.mk-ac-op > div {
+  color: inherit !important;
+}
+
+.mk-ac-vazio {
+  padding: 14px 10px;
+  color: #6b7280;
+  font-size: 12px;
+  text-align: center;
+}
+
+/*
+ * Botões Base1 iguais em todos os tamanhos (D-PROD-91): as ações só com ícone
+ * são círculos (o tema do portal dava 72px de largura mínima ao verde), e os
+ * botões genéricos dentro das telas Base1 seguem a mesma pílula com sombra.
+ */
+.cadastro-b1 .tb-btn.mg-act-ic {
+  width: auto !important;
+  min-width: 0 !important;
+  aspect-ratio: 1 / 1;
+  padding: 0 !important;
+}
+
+.cadastro-b1 .tb-btn.mg-act-ic.mg-fluid-slot__ghost {
+  width: 0 !important;
+  min-width: 0 !important;
+  box-shadow: none !important;
+}
+
+.cadastro-b1 .mg-toolbar .tb-btn:not(.mg-fluid-slot__ghost),
+.cadastro-b1 .mg-toolbar .view-seg,
+.cadastro-b1 [data-testid="cadastro-record-header"] .tb-btn:not(:disabled) {
+  box-shadow: 0 2px 6px rgba(34, 197, 94, 0.3) !important;
+  transition: background 0.13s, color 0.13s, box-shadow 0.13s;
+}
+
+.cadastro-b1 button[class*="bg-emerald-6"],
+.cadastro-b1 button[class*="bg-green-6"] {
+  border: 1px solid transparent !important;
+  border-radius: 999px !important;
+  background: #40de63 !important;
+  color: #fff !important;
+  font-weight: 600 !important;
+  box-shadow: 0 2px 6px rgba(34, 197, 94, 0.3) !important;
+}
+
+.cadastro-b1 button[class*="bg-emerald-6"]:hover:not(:disabled),
+.cadastro-b1 button[class*="bg-green-6"]:hover:not(:disabled) {
+  background: #36c956 !important;
+}
+
+.cadastro-b1 button[class*="border-input"][class*="bg-background"]:not([role="combobox"]) {
+  border: 1px solid transparent !important;
+  border-radius: 999px !important;
+  background: #f1f3f4 !important;
+  color: #334155 !important;
+  font-weight: 600 !important;
+  box-shadow: 0 2px 6px rgba(34, 197, 94, 0.3) !important;
+}
+
+/* ══ Tablet (768–1023px): cabeçalho + barra lateral do protótipo v2 ══════ */
+.mk-thdr {
+  align-items: center;
+  gap: 12px;
+  height: 60px;
+  padding: 0 16px 0 20px;
+  background: #fff;
+}
+
+.mk-thdr__titulo {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
+.mk-thdr__grupo {
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.mk-thdr__tela {
+  overflow: hidden;
+  color: #1e293b;
+  font-size: 18px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mk-thdr__icone {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 999px;
+  background: #f1f3f4;
+  color: #5b6b80;
+  box-shadow: 0 2px 6px rgba(34, 197, 94, 0.3);
+  cursor: pointer;
+}
+
+.mk-thdr__empresa {
+  display: flex;
+  max-width: 300px;
+  align-items: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 999px;
+  background: #fff;
+  color: #334155;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.mk-thdr__empresa > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mk-rail {
+  z-index: 10;
+  flex: 0 0 84px;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 4px;
+  border-right: 1px solid #e7eaee;
+  background: #fff;
+}
+
+.mk-rail__item {
+  display: flex;
+  width: 100%;
+  min-height: 64px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 4px 2px;
+  border: 0;
+  background: transparent;
+  color: #6b7280;
+  font-size: 11px;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.mk-rail__item.is-active {
+  color: #15803d;
+  font-weight: 700;
+}
+
+.mk-rail__item.is-locked {
+  color: #d1d5db;
+}
+
+.mk-rail__ind {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 30px;
+  border-radius: 999px;
+}
+
+.mk-rail__item.is-active .mk-rail__ind {
+  background: #dcfce4;
+}
+
+/* Fora do celular a folha vira diálogo centralizado (ex.: Trocar empresa no tablet). */
+@media (min-width: 640px) {
+  .mk-sheet {
+    top: 50%;
+    right: auto;
+    bottom: auto;
+    left: 50%;
+    width: min(460px, calc(100% - 32px));
+    height: auto !important;
+    max-height: 82dvh !important;
+    padding-bottom: 8px;
+    border-radius: 14px;
+    box-shadow: 0 24px 60px rgba(15, 23, 42, 0.25);
+    transform: translate(-50%, -50%);
+  }
+
+  .mk-sheet__handle {
+    display: none;
+  }
+
+  .mk-sheet__head {
+    padding-top: 14px;
+  }
+}
+
+/* Barra de ações Base1 no tablet: uma linha como no desktop, botões de 36px */
+@media (min-width: 640px) and (max-width: 1023px) {
+  .cadastro-b1--full-page .cadastro-b1--portal-compras {
+    --mg-btn-h: 36px;
+  }
+
+  .cadastro-b1--full-page .mg-toolbar--responsive {
+    flex-flow: row wrap !important;
+    align-items: center !important;
+    gap: 8px !important;
+    padding: 6px 10px !important;
+  }
+
+  .cadastro-b1--full-page .mg-toolbar--responsive .mg-toolbar__row {
+    display: contents !important;
+  }
+
+  .cadastro-b1--full-page .mg-toolbar--responsive > .ml-auto {
+    width: auto !important;
+    margin-left: auto !important;
+    flex-wrap: nowrap !important;
+    justify-content: flex-end !important;
+  }
+
+  .cadastro-b1--full-page .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn-icon,
+  .cadastro-b1--full-page .cadastro-b1--portal-compras .mg-nav-btn {
+    width: 36px !important;
+    min-width: 36px !important;
+    height: 36px !important;
+    min-height: 36px !important;
+  }
+
+  .cadastro-b1--full-page .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn:not(.tb-btn-icon) {
+    min-height: 36px !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+  }
+
+  .cadastro-b1--full-page .cadastro-b1--portal-compras .view-seg {
+    min-height: 36px !important;
+    padding: 3px !important;
+  }
+
+  .cadastro-b1--full-page .cadastro-b1--portal-compras .view-seg button {
+    width: 30px !important;
+    min-width: 30px !important;
+    height: 30px !important;
+    min-height: 30px !important;
+  }
+
+  .cadastro-b1--full-page .mg-toolbar--responsive .mg-search-pill-wrap {
+    width: 220px !important;
   }
 }

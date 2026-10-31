@@ -133,7 +133,7 @@ function Base1FieldFrame({ field, error, value, values, readOnly, children }) {
       hasValue={hasFieldValue(field, value, values)}
       locked={readOnly}
       disabled={readOnly}
-      multiline={field.type === "textarea"}
+      multiline={field.type === "textarea" || (field.type === "checkbox" && typeof field.render === "function")}
       variant={field.type === "switch" ? "switch" : "default"}
     >
       {children}

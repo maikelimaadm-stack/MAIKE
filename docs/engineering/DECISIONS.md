@@ -3388,7 +3388,41 @@ Testes:
 
 ---
 
-## D-PROD-91 — Importação de áreas: contorno que se cruza entra com aviso; gravação em bloco
+## D-PROD-91 — Tablet, seleções que não abriam, Sistema Produtivo sobreposto, datas no iPhone e botões Base1 iguais
+
+**Contexto:** depois da D-PROD-88 o proprietário relatou:
+- datas fora do lugar no celular e elementos sobrepostos;
+- no desktop, seleções que "às vezes aparecem, às vezes não";
+- Cadastro de Lotes "travado";
+- botões sem o mesmo estilo entre desktop e celular;
+- pediu também o tablet.
+
+**Causas encontradas (reproduzidas no Chromium a 1366px e 390px):**
+1. `AutocompleteGenerico` não abria o painel quando a lista estava vazia ou ainda carregando: parecia campo travado (Setor, Área…).
+2. Depois de escolher um item o campo continuava focado; um novo clique não disparava `focus` e a lista não abria.
+3. "Sistema Produtivo" (Lotes) ficava dentro de um `.mg-field` de altura fixa: o texto e as caixinhas transbordavam por cima do rótulo e dos campos vizinhos.
+4. Os campos de Lotes no celular ficaram com 38px: uma `.cadastro-b1` interna redefinia `--mg-field-h`.
+5. Datas nativas: o Safari do iPhone centraliza o valor e ignora o espaçamento, e a data sai do lugar do campo.
+6. No desktop, o tema do portal dava 72px de largura mínima ao botão verde: o Novo/Salvar só com ícone virava uma pílula larga.
+
+**Decisão:**
+- **Seleções:** o `AutocompleteGenerico` abre também no clique e mostra "Nenhuma opção disponível" / "Nenhum item encontrado". O painel do desktop segue o vidro Base1.
+- **Sistema Produtivo:** campo de altura livre (`multiline` no `DynamicFormRenderer` para checkbox com `render`), com pílulas de marcar Base1 no lugar das caixinhas.
+- **Celular:** `--mg-field-h: 48px` também nas `.cadastro-b1` internas; datas e horas nativas alinhadas à esquerda dentro do campo.
+- **Botões Base1:** ações só com ícone são círculos em todos os tamanhos (`aspect-ratio`). Sombra verde em toda a barra e no cabeçalho do registro. Os botões genéricos verdes e de contorno dentro das telas Base1 viram pílula.
+- **Tablet (768–1023px), como no protótipo v2:**
+  - cabeçalho com módulo e tela, busca, empresa e avatar;
+  - barra lateral de 84px com Mapa · Módulos · Lotes · Bebedouros;
+  - Módulos abre a mesma tela de módulos do celular;
+  - barra de ações do Base1 numa linha, com botões de 36px;
+  - "Trocar empresa" como diálogo centralizado.
+- **Desktop:** o shell desktop passa a valer a partir de 1024px.
+
+Relatório: `docs/engineering/UX-MOBILE-V2-REPORT.md` (seção "V3").
+
+---
+
+## D-PROD-92 — Importação de áreas: contorno que se cruza entra com aviso; gravação em bloco
 
 **Pedido do proprietário:**
 - "Tem que importar tudo": 10 Placemarks de um KML real eram recusados com "O contorno cruza a si mesmo".
@@ -3419,4 +3453,4 @@ Testes:
 
 ---
 
-<!-- Próxima decisão: D-PROD-92 -->
+<!-- Próxima decisão: D-PROD-93 -->
