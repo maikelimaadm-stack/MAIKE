@@ -3525,4 +3525,42 @@ Testes:
 
 ---
 
+## D-PROD-94a — R1.1: cancelamentos não atômicos suspensos no cocho e no depósito; Histórico da Área pelo contorno
+
+**Missão:** MAIKE-MAPA-HISTORICO-MOVIMENTACOES-R1.1-SEGURANCA-E-ACESSO-AREAS. Mesma PR da R1 (maikelimaadm-stack/MAIKE#161). Subdecisão da D-PROD-94; nenhuma decisão foi renumerada.
+
+**Decisão do proprietário:** suspender, na interface, os cancelamentos que revertem várias entidades em chamadas independentes do navegador, até existir estorno transacional no servidor (R2).
+
+**Decisão:**
+1. **Política fail-closed** em `src/domain/estornos/politicaEstorno.js`:
+   - `CANCELAMENTO_COCHO_HABILITADO = false`;
+   - `CANCELAMENTO_TRANSFERENCIA_DEPOSITO_HABILITADO = false`;
+   - mensagem única: "Cancelamentos temporariamente indisponíveis até a implementação de estorno seguro."
+2. **Histórico do cocho** (`HistoricoSuplementacaoPonto.jsx`):
+   - o "Excluir" não é renderizado; aparece o aviso;
+   - o `handleDelete` recusa na primeira linha, antes de `confirm` e de `excluirEventoSuplementacaoComReversao`;
+   - a listagem continua igual.
+3. **Histórico do depósito** (`HistoricoDepositoSuplementacao.jsx`):
+   - mesma política, com recusa antes de `excluirTransferenciaDeposito`;
+   - o texto falso "Nutrição só pode ser excluída no histórico do cocho" foi trocado por "consulta apenas; o cancelamento está temporariamente suspenso". O mesmo texto foi corrigido em `HistoricoMovimentacoes`.
+4. **Inalterados:**
+   - "Lançar" no cocho e "Entrada"/"Saída" (transferência) no depósito;
+   - o serviço `suplementacaoHistoricoService.js`, cujos únicos consumidores são os dois históricos suspensos (teste verifica);
+   - `EXCLUSAO_NO_HISTORICO_HABILITADA = false` em `HistoricoMovimentacoes`, sem mudança.
+5. **Histórico da Área pelo contorno** (`MapaGeral.handleClickArea` + `src/domain/mapa/cliqueArea.js`). Precedência do clique:
+   1. seleção de local de tarefa (seleciona; nunca abre detalhes);
+   2. clique que encerra um toque longo, que já abriu o lançamento de tarefa (ignora);
+   3. curral (abre, como antes);
+   4. qualquer outra área, com ou sem lote: abre se `visualizar_historico_movimentacoes_lote` não for `false` (a mesma permissão que já abre o histórico pelo lote; nenhum grant novo).
+6. **`DetalhesArea`:**
+   - área comum renderiza `HistoricoMovimentacoes` com `lotes=[]` e `areaId`. O servidor filtra por área; área vazia não perde histórico;
+   - curral abre na aba "Abate" (`HistoricoAbateCurral`, intacto) com a aba "Histórico da Área" ao lado;
+   - sem a permissão, curral mostra só o abate (como antes) e área comum não abre nada.
+
+**Não é barreira de backend:** `DELETE`/`PATCH` genéricos de `/movimentacoes-mapa/:id`, `/movimentacoes-estoque/:id`, `/suplementacao-eventos/:id` e `/suplementacao-lotes/:id` continuam expostos a qualquer usuário autenticado do tenant. A leitura do histórico também não checa a permissão de mapa no servidor (`Permissao.mapa_geral_permissoes` é preferência de interface, D-PROD-71). Isso é pré-existente: `GET /movimentacoes-mapa` já devolvia os mesmos dados. Fechamento e estorno ficam para a R2.
+
+Relatório: `docs/engineering/MAIKE-MAPA-HISTORICO-MOVIMENTACOES-R1-REPORT.md` (seção 11). Testes: `tests/smoke/historicoEstornoSuspenso.test.jsx`, `tests/smoke/detalhesAreaHistorico.test.jsx`.
+
+---
+
 <!-- Próxima decisão: D-PROD-95 -->

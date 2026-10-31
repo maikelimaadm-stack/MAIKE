@@ -16,6 +16,7 @@ import {
 "@/components/ui/sheet";
 import DetalhesLote from "../components/mapa/DetalhesLote";
 import DetalhesArea from "../components/mapa/DetalhesArea";
+import { acaoDoCliqueNaArea } from "@/domain/mapa/cliqueArea";
 import DetalhesPontoSuplementacao from "../components/mapa/DetalhesPontoSuplementacao";
 import DetalhesBebedouro from "../components/bebedouros/DetalhesBebedouro";
 import TarefasMapaPanel from "../components/mapa/TarefasMapaPanel";
@@ -646,17 +647,23 @@ export default function MapaGeral() {
   }, [rascunhoTarefa, abrirLancamentoTarefa]);
 
   const handleClickArea = useCallback((area, coords) => {
-    if (selecionandoLocalTarefa) {
+    // D-PROD-94a: qualquer área (com ou sem lote) abre detalhes com o Histórico
+    // da Área; seleção de local de tarefa e toque longo têm precedência.
+    const acao = acaoDoCliqueNaArea({
+      area,
+      selecionandoLocalTarefa,
+      toqueLongoAcabouDeDisparar: longPressTriggeredRef.current,
+      permissoes: mapaGeralPermissions,
+    });
+    if (acao === 'selecionar-local') {
       handleSelectTaskLocation(coords, area);
       return;
     }
-
-    const isCurral = area?.tipo_cultura === 'Infraestrutura' && String(area?.tipo_infraestrutura || area?.tipo_pastagem || '').trim().toLowerCase() === 'curral';
-    if (!isCurral) return;
+    if (acao !== 'abrir-detalhes') return;
 
     setSelectedArea(area);
     setShowDetalhesArea(true);
-  }, [selecionandoLocalTarefa, handleSelectTaskLocation]);
+  }, [selecionandoLocalTarefa, handleSelectTaskLocation, mapaGeralPermissions]);
 
   const handleRightClickArea = useCallback((area, coords) => {
     if (selecionandoLocalTarefa) {
@@ -1124,7 +1131,7 @@ export default function MapaGeral() {
       <Dialog open={showDetalhesArea} onOpenChange={setShowDetalhesArea}>
         <DialogContent className="bg-background px-2 py-2 overflow-x-hidden sm:w-full sm:p-1 fixed left-[50%] top-[50%] z-50 grid w-full translate-x-[-50%] translate-y-[-50%] gap-2 border shadow-lg duration-200 sm:rounded-lg max-w-[95vw] md:max-w-[75vw] xl:max-w-[65vw] max-h-[95vh] overflow-y-auto">
           <DialogHeader></DialogHeader>
-          {selectedArea && <DetalhesArea area={selectedArea} onClose={() => setShowDetalhesArea(false)} />}
+          {selectedArea && <DetalhesArea area={selectedArea} permissions={mapaGeralPermissions} />}
         </DialogContent>
       </Dialog>
 

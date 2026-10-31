@@ -926,7 +926,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
                         <div><strong>Origem:</strong> {item.sourceLabel}</div>
                         {!!item.observacoes && <div className="break-words"><strong>Detalhes:</strong> {formatHistoricoObservacoes(item)}</div>}
                         {item.source === 'suplementacao' && (
-                          <div className="text-[10px] text-slate-400">Nutrição só pode ser excluída no histórico do cocho.</div>
+                          <div className="text-[10px] text-slate-400">Nutrição: consulta apenas; o cancelamento está temporariamente suspenso.</div>
                         )}
 
                         {isBloqueado && item.canDelete && (
