@@ -1,9 +1,15 @@
 import { getApiErrorMessage } from "@/apis/_core/ApiError";
 import React from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
+  Card as CardUi,
+  CardContent as CardContentUi,
+  CardHeader as CardHeaderUi,
+  CardTitle as CardTitleUi,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { useQuery, useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  listarHistoricoMovimentacoesPagina,
   listarTodasMovimentacoes,
   listarLotesDaEmpresa,
   atualizarLote,
@@ -22,8 +28,24 @@ import {
 } from "../utils/pecuariaUtils";
 import { validarSemRegistrosPosteriores } from "./manejoValidations.jsx";
 import { reverseMovementOnDelete } from "./movimentacaoReconciliation";
-import { getMapaCachedData, refreshMapaCacheEntry } from "@/services/mapaCacheService";
+import { getMapaCachedData, getMapaCacheSnapshot, refreshMapaCacheEntry } from "@/services/mapaCacheService";
 import { nomeDaAreaDoMovimento } from "@/domain/lotes/movimentacaoLote";
+import {
+  ESCOPO_AREA,
+  ESCOPO_LOTES,
+  entradasNaArea,
+  filtrarMovimentacoes,
+  filtrarRegistrosDeLote,
+  fluxoNaArea,
+  ordenarItensDoHistorico,
+} from "@/domain/lotes/historicoMovimentacoes";
+import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
+
+// `ui/card` é forwardRef sem tipos de props: o checkJs não enxerga `children`.
+/** @type {React.ComponentType<any>} */ const Card = CardUi;
+/** @type {React.ComponentType<any>} */ const CardContent = CardContentUi;
+/** @type {React.ComponentType<any>} */ const CardHeader = CardHeaderUi;
+/** @type {React.ComponentType<any>} */ const CardTitle = CardTitleUi;
 
 const CORES_TIPO = {
   "Transferência de Área": "bg-slate-100 text-slate-800 border-slate-300",
@@ -93,272 +115,315 @@ const formatHistoricoObservacoes = (item) => {
   });
 };
 
-const getTipoFluxo = (item, areaId) => {
-  if (item?.source !== 'movimentacao') return item?.sourceLabel || 'Registro';
-  if (item?.tipo === 'Transferência de Área') {
-    if (areaId && item?.raw?.area_origem_id === areaId) return 'Saída';
-    if (areaId && item?.raw?.area_destino_id === areaId) return 'Entrada';
-    return 'Transferência';
-  }
-  if (item?.tipo === 'Nascimento') return 'Entrada';
-  if (item?.tipo === 'Morte' || item?.tipo === 'Abate') return 'Saída';
-  return 'Manejo';
+/**
+ * Exclusão de lançamento pelo histórico — SUSPENSA (D-PROD-94).
+ *
+ * O histórico ficou vazio desde a P5.5 (o `empresa_id` não voltava na leitura),
+ * então ninguém excluía por aqui. Restaurar a leitura reabriria uma exclusão
+ * que reverte saldo no navegador, em várias chamadas, sem transação nem
+ * idempotência. Isso é escopo da R2 (estorno seguro no servidor). Até lá a
+ * leitura volta e a exclusão não. Para reabrir: `true` aqui, com aprovação.
+ */
+const EXCLUSAO_NO_HISTORICO_HABILITADA = false;
+
+/** Página do servidor; "Carregar mais" busca a próxima. */
+const TAMANHO_PAGINA = 100;
+
+/** Teto do cache do mapa para movimentações (`listMovimentacoes`). */
+const LIMITE_CACHE_MOVIMENTACOES = 500;
+
+const estaOnline = () => (typeof navigator === 'undefined' ? true : navigator.onLine !== false);
+
+const formatDateTime = (iso) => {
+  const d = new Date(iso || '');
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 };
 
+const movimentoComoItem = (mov, areasRaw) => ({
+  uniqueId: `mov-${mov.id}`,
+  source: 'movimentacao',
+  sourceLabel: 'Movimentação',
+  id: mov.id,
+  lote: mov.lote,
+  lote_key: mov.lote_id || normalize(mov.lote),
+  legado: !mov.lote_id,
+  data_evento: mov.data_movimentacao,
+  created_at: mov.created_date || mov.data_movimentacao,
+  tipo: mov.tipo,
+  tipo_exibicao: mov.motivo || mov.tipo,
+  quantidade: mov.quantidade_animais,
+  peso_medio: mov.peso_medio,
+  observacoes: mov.observacoes,
+  area_origem_nome: nomeDaAreaDoMovimento(mov.area_origem_nome, mov.area_origem_id, areasRaw),
+  area_destino_nome: nomeDaAreaDoMovimento(mov.area_destino_nome, mov.area_destino_id, areasRaw),
+  area_destino_id: mov.area_destino_id,
+  linked_movement_ids: getLinkedMovementIds(mov.observacoes),
+  canDelete:
+    EXCLUSAO_NO_HISTORICO_HABILITADA &&
+    ((mov.tipo === 'Transferência de Área' && !mov.motivo) ||
+      (mov.tipo !== 'Transferência de Área' && TIPOS_EDITAVEIS.has(mov.tipo) && !mov.motivo) ||
+      mov.motivo === 'Junção de Lotes' ||
+      mov.motivo === 'Renomear Lote'),
+  hasPesagensFilhas: mov.tipo === 'Transferência de Área',
+  raw: mov,
+});
+
 export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], areaId }) {
-  const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
+  // Tenant-aware (D-PROD-25): descarta seleção salva de outro tenant.
+  const empresaSelecionadaId = useEmpresaSelecionadaId();
   const queryClient = useQueryClient();
+  const [escopo, setEscopo] = React.useState(areaId ? ESCOPO_AREA : ESCOPO_LOTES);
   const [deletingId, setDeletingId] = React.useState(null);
   const [hiddenMovementIds, setHiddenMovementIds] = React.useState([]);
   const deleteLockRef = React.useRef(false);
-  const loteIds = React.useMemo(() => lotes.map((item) => item?.id).filter(Boolean), [lotes]);
-  const loteNomes = React.useMemo(() => {
-    const nomesDosLotes = lotes.map((item) => item?.nome).filter(Boolean);
-    return nomesDosLotes.length > 0 ? nomesDosLotes : lotesIds.filter(Boolean);
+
+  // Lotes em foco: os registros; ou só nomes, para quem chama sem os objetos.
+  const lotesEmFoco = React.useMemo(() => {
+    const comObjeto = lotes.filter((item) => item && (item.id || item.nome));
+    return comObjeto.length > 0 ? comObjeto : lotesIds.filter(Boolean).map((nome) => ({ nome }));
   }, [lotes, lotesIds]);
+  const loteIds = React.useMemo(() => lotesEmFoco.map((l) => l.id).filter(Boolean), [lotesEmFoco]);
+  const loteNomes = React.useMemo(() => [...new Set(lotesEmFoco.map((l) => l.nome).filter(Boolean))], [lotesEmFoco]);
+  const escopoEfetivo = escopo === ESCOPO_AREA && areaId ? ESCOPO_AREA : ESCOPO_LOTES;
+  const chaveLotes = `${loteIds.join('|')}#${loteNomes.join('|')}`;
 
-  const { data: historico = [], isLoading } = useQuery({
-    queryKey: ['historico-movimentacoes', loteIds, loteNomes, areaId],
-    queryFn: async () => {
-      const fetchWithCache = async (cacheKey) => {
-        const cached = await getMapaCachedData(cacheKey, empresaSelecionadaId);
-        if (cached?.length) return cached;
-        if (navigator.onLine) {
-          return await refreshMapaCacheEntry(cacheKey, empresaSelecionadaId) || [];
-        }
-        return [];
+  const contexto = React.useMemo(
+    () => ({ empresaId: empresaSelecionadaId, escopo: escopoEfetivo, areaId: areaId ?? null, lotes: lotesEmFoco }),
+    [empresaSelecionadaId, escopoEfetivo, areaId, lotesEmFoco]
+  );
+  const consultaHabilitada =
+    !!empresaSelecionadaId && (escopoEfetivo === ESCOPO_AREA ? !!areaId : loteIds.length > 0 || loteNomes.length > 0);
+
+  // Movimentações: servidor paginado; offline (ou servidor fora com cache) → cache, dito como cache.
+  const movimentacoesQuery = useInfiniteQuery({
+    queryKey: [
+      'historico-movimentacoes',
+      empresaSelecionadaId,
+      escopoEfetivo,
+      escopoEfetivo === ESCOPO_AREA ? areaId : null,
+      escopoEfetivo === ESCOPO_LOTES ? chaveLotes : null,
+    ],
+    networkMode: 'always',
+    initialPageParam: null,
+    queryFn: async ({ pageParam }) => {
+      const doCache = async (falha) => {
+        const snapshot = await getMapaCacheSnapshot('movimentacoes', empresaSelecionadaId);
+        return {
+          origem: 'cache',
+          items: filtrarMovimentacoes(snapshot.items, contexto),
+          brutos: snapshot.items.length,
+          next_cursor: null,
+          has_more: false,
+          total: null,
+          atualizadoEm: snapshot.atualizadoEm,
+          falha,
+        };
       };
-
-      const [movimentacoesRaw, suplementacoesRaw, eventosSuplementacaoRaw, medicamentosRaw, sanidadesRaw, manejosTecnicosRaw, areasRaw] = await Promise.all([
-        fetchWithCache('movimentacoes'),
-        fetchWithCache('suplementacaoLote'),
-        fetchWithCache('eventosSuplementacao'),
-        fetchWithCache('aplicacaoMedicamento'),
-        fetchWithCache('eventoSanitario'),
-        fetchWithCache('manejoTecnico'),
-        fetchWithCache('areas')
-      ]);
-
-      if (navigator.onLine) {
-        refreshMapaCacheEntry('movimentacoes', empresaSelecionadaId).then(() => queryClient.invalidateQueries({ queryKey: ['historico-movimentacoes', loteIds, loteNomes, areaId] }));
-      }
-
-      const matchLote = (nome, id) => {
-        // Se temos IDs de lote, PRIORIZAR match por ID para evitar mistura entre lotes de mesmo nome
-        if (loteIds.length > 0) {
-          // Se a movimentação tem lote_id, comparar direto com os IDs dos lotes selecionados
-          if (id) return loteIds.includes(id);
-          // Se a movimentação NÃO tem lote_id (legado), usar fallback por nome
-          return loteNomes.some((item) => normalize(item) === normalize(nome));
-        }
-        // Se não temos IDs (chamado apenas com nomes), usar match por nome
-        return loteNomes.some((item) => normalize(item) === normalize(nome));
-      };
-      const matchAreaMov = (mov) => !areaId || mov.area_origem_id === areaId || mov.area_destino_id === areaId;
-      const matchLoteFlex = (nome, id) => {
-        const byId = !!id && loteIds.includes(id);
-        const byNome = loteNomes.some((item) => normalize(item) === normalize(nome));
-        return byId || byNome;
-      };
-      const eventosSuplementacaoById = eventosSuplementacaoRaw.reduce((acc, evento) => {
-        acc[evento.id] = evento;
-        return acc;
-      }, {});
-      const matchEventoArea = (evento) => {
-        if (!areaId) return true;
-        return evento?.area_id === areaId || (Array.isArray(evento?.area_ids) && evento.area_ids.includes(areaId));
-      };
-
-      const transferenciasParaAreaAtual = movimentacoesRaw
-        .filter((mov) => mov.empresa_id === empresaSelecionadaId)
-        .filter((mov) => mov.tipo === 'Transferência de Área')
-        .filter((mov) => mov.area_destino_id === areaId)
-        .filter((mov) => matchLote(mov.lote, mov.lote_id));
-
-      const inicioNovoHistorico = transferenciasParaAreaAtual.length > 0
-        ? Math.max(...transferenciasParaAreaAtual.map((mov) => getTime(mov.created_date || mov.data_movimentacao)))
-        : null;
-
-      const dentroDoHistoricoAtual = (createdAt, dataEvento) => {
-        const referencia = createdAt || dataEvento;
-        return !inicioNovoHistorico || getTime(referencia) >= inicioNovoHistorico;
-      };
-
-      const movimentacoes = movimentacoesRaw
-        .filter((mov) => mov.empresa_id === empresaSelecionadaId)
-        .filter((mov) => {
-          // Transferências devem aparecer na área de ORIGEM (para exclusão) e na de destino (para consulta)
-          // Na área de origem, o lote pode não estar mais lá, então precisamos match especial
-          if (mov.tipo === 'Transferência de Área' && areaId) {
-            const isOrigem = mov.area_origem_id === areaId;
-            const isDestino = mov.area_destino_id === areaId;
-            if (isOrigem || isDestino) {
-              // Verificar se o nome/id do lote bate com os lotes que estamos visualizando
-              const nomeMatch = loteNomes.some((item) => normalize(item) === normalize(mov.lote));
-              const idMatch = loteIds.length > 0 && !!mov.lote_id && loteIds.includes(mov.lote_id);
-              if (nomeMatch || idMatch) return true;
-            }
-          }
-          if (loteIds.length > 0 || loteNomes.length > 0) {
-            return matchLote(mov.lote, mov.lote_id) && dentroDoHistoricoAtual(mov.created_date, mov.data_movimentacao);
-          }
-          return matchAreaMov(mov) && dentroDoHistoricoAtual(mov.created_date, mov.data_movimentacao);
-        })
-        .map((mov) => ({
-          uniqueId: `mov-${mov.id}`,
-          source: 'movimentacao',
-          sourceLabel: 'Movimentação',
-          id: mov.id,
-          lote: mov.lote,
-          lote_key: mov.lote_id || normalize(mov.lote),
-          data_evento: mov.data_movimentacao,
-          created_at: mov.created_date || mov.data_movimentacao,
-          tipo: mov.tipo,
-          tipo_exibicao: mov.motivo || mov.tipo,
-          quantidade: mov.quantidade_animais,
-          peso_medio: mov.peso_medio,
-          observacoes: mov.observacoes,
-          area_origem_nome: nomeDaAreaDoMovimento(mov.area_origem_nome, mov.area_origem_id, areasRaw),
-          area_destino_nome: nomeDaAreaDoMovimento(mov.area_destino_nome, mov.area_destino_id, areasRaw),
-          area_destino_id: mov.area_destino_id,
-          linked_movement_ids: getLinkedMovementIds(mov.observacoes),
-          canDelete: (
-            // Transferência: exclusão apenas no histórico da área de destino
-            (mov.tipo === 'Transferência de Área' && !mov.motivo && (!areaId || mov.area_destino_id === areaId)) ||
-            // Outros tipos do histórico
-            (mov.tipo !== 'Transferência de Área' && TIPOS_EDITAVEIS.has(mov.tipo) && !mov.motivo) ||
-            // Junção de lotes pode ser desfeita
-            mov.motivo === 'Junção de Lotes' ||
-            // Renomear lote pode ser desfeito
-            mov.motivo === 'Renomear Lote'
-          ),
-          // Flag para indicar que tem pesagens filhas (usada no hasLaterRelatedRecord)
-          hasPesagensFilhas: mov.tipo === 'Transferência de Área',
-          raw: mov,
-        }));
-
-      const suplementacoes = suplementacoesRaw
-        .filter((item) => item.empresa_id === empresaSelecionadaId)
-        .filter((item) => {
-          if (loteIds.length > 0) {
-            if (item.lote_id) return loteIds.includes(item.lote_id);
-            return loteNomes.some((nome) => normalize(nome) === normalize(item.lote_nome));
-          }
-          return matchLoteFlex(item.lote_nome, item.lote_id);
-        })
-        .filter((item) => matchEventoArea(eventosSuplementacaoById[item.suplementacao_evento_id]))
-        .filter((item) => dentroDoHistoricoAtual(item.created_date, item.data_lancamento))
-        .map((item) => ({
-          uniqueId: `supl-${item.id}`,
-          source: 'suplementacao',
-          sourceLabel: 'Nutrição',
-          lote: item.lote_nome,
-          lote_key: item.lote_id || normalize(item.lote_nome),
-          data_evento: item.data_lancamento,
-          created_at: item.created_date || item.data_lancamento,
-          tipo: 'Nutrição',
-          tipo_exibicao: 'Nutrição',
-          quantidade: item.cabecas_na_area,
-          observacoes: `${item.produto || 'Produto'} • Consumo período: ${(item.consumo_total_lote_periodo_kg || 0).toFixed(1)} kg • ${(item.consumo_por_cabeca_dia_kg || 0).toFixed(3)} kg/cab/dia${item.dias_periodo ? ` • ${item.dias_periodo} dia(s)` : ' • Em aberto'}`,
-          canEdit: false,
-          canDelete: false,
-        }));
-
-      const medicamentos = medicamentosRaw
-        .filter((item) => item.empresa_id === empresaSelecionadaId)
-        .filter((item) => matchLoteFlex(item.lote_nome, item.lote_id))
-        .filter((item) => dentroDoHistoricoAtual(item.created_date, item.data_aplicacao))
-        .map((item) => ({
-          uniqueId: `med-${item.id}`,
-          source: 'medicamento',
-          sourceLabel: 'Medicamento',
-          lote: item.lote_nome,
-          lote_key: item.lote_id || normalize(item.lote_nome),
-          data_evento: item.data_aplicacao,
-          created_at: item.created_date || item.data_aplicacao,
-          tipo: 'Medicamento',
-          tipo_exibicao: 'Medicamento',
-          quantidade: item.quantidade_animais,
-          observacoes: `${item.produto_nome || 'Medicamento'} • ${item.quantidade_aplicada || 0} ${item.unidade_medida || ''} por animal • Custo total R$ ${(item.custo_total || 0).toFixed(2)}`,
-          canEdit: false,
-          canDelete: false,
-        }));
-
-      const sanidades = sanidadesRaw
-        .filter((item) => item.empresa_id === empresaSelecionadaId)
-        .filter((item) => matchLote(item.lote))
-        .filter((item) => dentroDoHistoricoAtual(item.created_date, item.data_evento))
-        .map((item) => ({
-          uniqueId: `san-${item.id}`,
-          source: 'sanidade',
-          sourceLabel: 'Sanidade',
-          lote: item.lote,
-          lote_key: normalize(item.lote),
-          data_evento: item.data_evento,
-          created_at: item.created_date || item.data_evento,
-          tipo: 'Sanidade',
-          tipo_exibicao: item.tipo_evento || 'Sanidade',
-          observacoes: `${item.produto_usado || 'Sem produto'}${item.dosagem ? ` • ${item.dosagem}` : ''}${item.observacoes ? ` • ${item.observacoes}` : ''}`,
-          canEdit: false,
-          canDelete: false,
-        }));
-
-      const manejosTecnicos = manejosTecnicosRaw
-        .filter((item) => item.empresa_id === empresaSelecionadaId)
-        .filter((item) => matchLoteFlex(item.nome_lote, item.lote_id))
-        .filter((item) => dentroDoHistoricoAtual(item.created_date, item.data_evento))
-        .map((item) => ({
-          uniqueId: `mt-${item.id}`,
-          source: 'manejo_tecnico',
-          sourceLabel: 'Manejo Técnico',
-          lote: item.nome_lote,
-          lote_key: item.lote_id || normalize(item.nome_lote),
-          data_evento: item.data_evento,
-          created_at: item.created_date || item.data_evento,
-          tipo: item.tipo_evento,
-          tipo_exibicao: item.subtipo_manejo || item.tipo_evento,
-          quantidade: item.quantidade_animais,
-          observacoes: item.observacoes,
-          canEdit: false,
-          canDelete: false,
-        }));
-
-      return [...movimentacoes, ...suplementacoes, ...medicamentos, ...sanidades, ...manejosTecnicos]
-        .sort((a, b) => {
-          const createdDiff = getTime(b.created_at) - getTime(a.created_at);
-          if (createdDiff !== 0) return createdDiff;
-          return getTime(b.data_evento) - getTime(a.data_evento);
+      if (!estaOnline()) return doCache(null);
+      try {
+        const pagina = await listarHistoricoMovimentacoesPagina({
+          empresaId: empresaSelecionadaId,
+          ...(escopoEfetivo === ESCOPO_AREA ? { areaId } : { loteIds, loteNomes }),
+          cursor: pageParam,
+          limit: TAMANHO_PAGINA,
         });
+        // Guarda cópia para consulta offline (política do cache: intervalo
+        // mínimo e cooldown). Sem await e sem invalidar esta query.
+        if (!pageParam) refreshMapaCacheEntry('movimentacoes', empresaSelecionadaId).catch(() => {});
+        return { origem: 'servidor', ...pagina };
+      } catch (erro) {
+        if (pageParam) throw erro;
+        const cache = await doCache(getApiErrorMessage(erro, 'Servidor indisponível'));
+        if (cache.items.length > 0) return cache;
+        throw erro;
+      }
     },
-    enabled: !!empresaSelecionadaId && (loteIds.length > 0 || loteNomes.length > 0 || !!areaId),
+    getNextPageParam: (ultima) => (ultima?.origem === 'servidor' && ultima.has_more ? ultima.next_cursor : undefined),
+    enabled: consultaHabilitada,
   });
 
-  // Buscar TODAS as movimentações do sistema para verificar registros posteriores de lotes derivados
+  // Demais fontes do histórico: cache do mapa, atualizado sob a política dele
+  // (intervalo mínimo e cooldown). Sem invalidar a própria query — era o loop.
+  const registrosQuery = useQuery({
+    queryKey: ['historico-registros-lote', empresaSelecionadaId],
+    networkMode: 'always',
+    queryFn: async () => {
+      const ler = (chave) =>
+        estaOnline() ? refreshMapaCacheEntry(chave, empresaSelecionadaId) : getMapaCachedData(chave, empresaSelecionadaId);
+      const [suplementacoes, eventosSuplementacao, medicamentos, sanidades, manejosTecnicos, areas] = await Promise.all(
+        ['suplementacaoLote', 'eventosSuplementacao', 'aplicacaoMedicamento', 'eventoSanitario', 'manejoTecnico', 'areas'].map(
+          async (chave) => (await ler(chave)) || []
+        )
+      );
+      return { suplementacoes, eventosSuplementacao, medicamentos, sanidades, manejosTecnicos, areas };
+    },
+    enabled: !!empresaSelecionadaId,
+  });
+
+  // Operação do mapa (movimentação, pesagem, morte…) avisa por evento: refaz o histórico.
+  React.useEffect(() => {
+    const aoAtualizarMapa = () => {
+      queryClient.invalidateQueries({ queryKey: ['historico-movimentacoes'] });
+      queryClient.invalidateQueries({ queryKey: ['historico-registros-lote'] });
+    };
+    window.addEventListener('atualizar-mapa', aoAtualizarMapa);
+    return () => window.removeEventListener('atualizar-mapa', aoAtualizarMapa);
+  }, [queryClient]);
+
+  /** @type {any[]} */
+  const paginas = movimentacoesQuery.data?.pages ?? [];
+  /** @type {any} */
+  const primeiraPagina = paginas[0] ?? null;
+  const origem = primeiraPagina?.origem ?? null;
+  const movimentacoesCarregadas = React.useMemo(() => {
+    const vistos = new Set();
+    const saida = [];
+    for (const pagina of paginas) {
+      for (const mov of pagina.items ?? []) {
+        if (!mov?.id || vistos.has(mov.id)) continue;
+        vistos.add(mov.id);
+        saida.push(mov);
+      }
+    }
+    return saida;
+  }, [paginas]);
+
+  const registros = registrosQuery.data;
+  const areasRaw = registros?.areas ?? [];
+  const areaNome = areaId ? areasRaw.find((a) => a.id === areaId)?.nome || lotesEmFoco[0]?.area_atual_nome || '' : '';
+
+  const historico = React.useMemo(() => {
+    const movimentacoes = movimentacoesCarregadas.map((mov) => movimentoComoItem(mov, areasRaw));
+    if (!registros) return ordenarItensDoHistorico(movimentacoes);
+
+    const entradas = escopoEfetivo === ESCOPO_AREA ? entradasNaArea(movimentacoesCarregadas, contexto) : undefined;
+    const eventosPorId = new Map((registros.eventosSuplementacao || []).map((e) => [e.id, e]));
+    const eventoTocaArea = (item) => {
+      const evento = eventosPorId.get(item.suplementacao_evento_id);
+      if (!evento || (!evento.area_id && !Array.isArray(evento.area_ids))) return null;
+      return evento.area_id === areaId || (Array.isArray(evento.area_ids) && evento.area_ids.includes(areaId));
+    };
+    const comoLegado = (vinculo) => vinculo === 'nome';
+
+    const suplementacoes = filtrarRegistrosDeLote({
+      registros: registros.suplementacoes,
+      loteId: (r) => r.lote_id,
+      loteNome: (r) => r.lote_nome,
+      criadoEm: (r) => r.created_date || r.data_lancamento,
+      tocaArea: eventoTocaArea,
+      contexto,
+      entradas,
+    }).map(({ registro: item, vinculo }) => ({
+      uniqueId: `supl-${item.id}`,
+      source: 'suplementacao',
+      sourceLabel: 'Nutrição',
+      lote: item.lote_nome,
+      lote_key: item.lote_id || normalize(item.lote_nome),
+      legado: comoLegado(vinculo),
+      data_evento: item.data_lancamento,
+      created_at: item.created_date || item.data_lancamento,
+      tipo: 'Nutrição',
+      tipo_exibicao: 'Nutrição',
+      quantidade: item.cabecas_na_area,
+      observacoes: `${item.produto || 'Produto'} • Consumo período: ${(item.consumo_total_lote_periodo_kg || 0).toFixed(1)} kg • ${(item.consumo_por_cabeca_dia_kg || 0).toFixed(3)} kg/cab/dia${item.dias_periodo ? ` • ${item.dias_periodo} dia(s)` : ' • Em aberto'}`,
+      canEdit: false,
+      canDelete: false,
+    }));
+
+    const medicamentos = filtrarRegistrosDeLote({
+      registros: registros.medicamentos,
+      loteId: (r) => r.lote_id,
+      loteNome: (r) => r.lote_nome,
+      criadoEm: (r) => r.created_date || r.data_aplicacao,
+      contexto,
+      entradas,
+    }).map(({ registro: item, vinculo }) => ({
+      uniqueId: `med-${item.id}`,
+      source: 'medicamento',
+      sourceLabel: 'Medicamento',
+      lote: item.lote_nome,
+      lote_key: item.lote_id || normalize(item.lote_nome),
+      legado: comoLegado(vinculo),
+      data_evento: item.data_aplicacao,
+      created_at: item.created_date || item.data_aplicacao,
+      tipo: 'Medicamento',
+      tipo_exibicao: 'Medicamento',
+      quantidade: item.quantidade_animais,
+      observacoes: `${item.produto_nome || 'Medicamento'} • ${item.quantidade_aplicada || 0} ${item.unidade_medida || ''} por animal • Custo total R$ ${(item.custo_total || 0).toFixed(2)}`,
+      canEdit: false,
+      canDelete: false,
+    }));
+
+    const sanidades = filtrarRegistrosDeLote({
+      registros: registros.sanidades,
+      loteId: (r) => r.lote_id,
+      loteNome: (r) => r.lote,
+      criadoEm: (r) => r.created_date || r.data_evento,
+      contexto,
+      entradas,
+    }).map(({ registro: item, vinculo }) => ({
+      uniqueId: `san-${item.id}`,
+      source: 'sanidade',
+      sourceLabel: 'Sanidade',
+      lote: item.lote,
+      lote_key: item.lote_id || normalize(item.lote),
+      legado: comoLegado(vinculo),
+      data_evento: item.data_evento,
+      created_at: item.created_date || item.data_evento,
+      tipo: 'Sanidade',
+      tipo_exibicao: item.tipo_evento || 'Sanidade',
+      observacoes: `${item.produto_usado || 'Sem produto'}${item.dosagem ? ` • ${item.dosagem}` : ''}${item.observacoes ? ` • ${item.observacoes}` : ''}`,
+      canEdit: false,
+      canDelete: false,
+    }));
+
+    const manejosTecnicos = filtrarRegistrosDeLote({
+      registros: registros.manejosTecnicos,
+      loteId: (r) => r.lote_id,
+      loteNome: (r) => r.nome_lote,
+      criadoEm: (r) => r.created_date || r.data_evento,
+      contexto,
+      entradas,
+    }).map(({ registro: item, vinculo }) => ({
+      uniqueId: `mt-${item.id}`,
+      source: 'manejo_tecnico',
+      sourceLabel: 'Manejo Técnico',
+      lote: item.nome_lote,
+      lote_key: item.lote_id || normalize(item.nome_lote),
+      legado: comoLegado(vinculo),
+      data_evento: item.data_evento,
+      created_at: item.created_date || item.data_evento,
+      tipo: item.tipo_evento,
+      tipo_exibicao: item.subtipo_manejo || item.tipo_evento,
+      quantidade: item.quantidade_animais,
+      observacoes: item.observacoes,
+      canEdit: false,
+      canDelete: false,
+    }));
+
+    return ordenarItensDoHistorico([...movimentacoes, ...suplementacoes, ...medicamentos, ...sanidades, ...manejosTecnicos]);
+  }, [movimentacoesCarregadas, registros, areasRaw, contexto, escopoEfetivo, areaId]);
+
+  // Só a exclusão (suspensa) precisa da visão global de movimentações e lotes.
   const { data: todasMovimentacoesGlobal = [] } = useQuery({
     queryKey: ['todas-movimentacoes-global', empresaSelecionadaId],
     queryFn: async () => {
       const cached = await getMapaCachedData('movimentacoes', empresaSelecionadaId);
       if (cached?.length) return cached;
-      if (navigator.onLine) {
-        return await refreshMapaCacheEntry('movimentacoes', empresaSelecionadaId);
-      }
-      return [];
+      return estaOnline() ? refreshMapaCacheEntry('movimentacoes', empresaSelecionadaId) : [];
     },
-    enabled: !!empresaSelecionadaId,
+    enabled: EXCLUSAO_NO_HISTORICO_HABILITADA && !!empresaSelecionadaId,
   });
 
-  // Buscar todos os lotes para resolver IDs derivados (parciais, renomeados)
   const { data: todosLotesGlobal = [] } = useQuery({
     queryKey: ['todos-lotes-global', empresaSelecionadaId],
     queryFn: async () => {
       const cached = await getMapaCachedData('lotes', empresaSelecionadaId);
       if (cached?.length) return cached;
-      if (navigator.onLine) {
-        return await refreshMapaCacheEntry('lotes', empresaSelecionadaId);
-      }
-      return [];
+      return estaOnline() ? refreshMapaCacheEntry('lotes', empresaSelecionadaId) : [];
     },
-    enabled: !!empresaSelecionadaId,
+    enabled: EXCLUSAO_NO_HISTORICO_HABILITADA && !!empresaSelecionadaId,
   });
 
   const hasLaterRelatedRecord = React.useCallback((entry) => {
@@ -709,24 +774,106 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
     }
   };
 
-  if (isLoading) {
+  const totalServidor = origem === 'servidor' ? primeiraPagina?.total ?? null : null;
+  const carregando = consultaHabilitada && (movimentacoesQuery.isPending || (registrosQuery.isPending && !!empresaSelecionadaId));
+  const titulo =
+    escopoEfetivo === ESCOPO_AREA
+      ? `Histórico da Área${areaNome ? ` ${areaNome}` : ''}`
+      : `Histórico do${loteNomes.length > 1 ? 's' : ''} Lote${loteNomes.length > 1 ? 's' : ''}`;
+
+  const seletorDeEscopo = areaId && lotesEmFoco.length > 0 && (
+    <div className="flex gap-1" role="group" aria-label="Escopo do histórico">
+      {[
+        [ESCOPO_AREA, 'Área'],
+        [ESCOPO_LOTES, 'Lotes atuais'],
+      ].map(([valor, rotulo]) => (
+        <Button
+          key={valor}
+          type="button"
+          size="sm"
+          variant={escopoEfetivo === valor ? 'default' : 'outline'}
+          className="h-7 px-2.5 text-[11px]"
+          aria-pressed={escopoEfetivo === valor}
+          onClick={() => setEscopo(valor)}
+        >
+          {rotulo}
+        </Button>
+      ))}
+    </div>
+  );
+
+  const cabecalho = (contagem) => (
+    <CardHeader className="bg-slate-50 border-b py-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <CardTitle className="text-sm font-semibold">
+          {titulo}
+          {contagem !== null ? ` (${contagem})` : ''}
+        </CardTitle>
+        {seletorDeEscopo}
+      </div>
+      <p className="text-[11px] text-slate-500">
+        {escopoEfetivo === ESCOPO_AREA
+          ? 'Entradas, saídas e manejos registrados nesta área, inclusive de lotes que já saíram.'
+          : 'Registros dos lotes desta área pelo identificador, em qualquer área por onde passaram.'}
+      </p>
+    </CardHeader>
+  );
+
+  const avisoDeOrigem = origem === 'cache' && (
+    <div role="status" className="mx-2 mt-2 rounded-md border border-amber-200 bg-amber-50 px-2 py-1.5 text-[11px] text-amber-900">
+      {primeiraPagina?.falha
+        ? `Não foi possível consultar o servidor (${primeiraPagina.falha}). `
+        : 'Sem conexão. '}
+      Exibindo movimentações salvas neste aparelho
+      {formatDateTime(primeiraPagina?.atualizadoEm) ? ` em ${formatDateTime(primeiraPagina.atualizadoEm)}` : ''}; podem estar
+      desatualizadas
+      {primeiraPagina?.brutos >= LIMITE_CACHE_MOVIMENTACOES
+        ? ` e limitadas às ${LIMITE_CACHE_MOVIMENTACOES} mais recentes da conta`
+        : ''}
+      . A lista será atualizada quando a conexão voltar.
+    </div>
+  );
+
+  if (carregando) {
     return (
       <Card>
+        {cabecalho(null)}
         <CardContent className="p-4">
-          <div className="text-center text-sm text-slate-500">Carregando histórico...</div>
+          <div role="status" className="text-center text-sm text-slate-500">Carregando histórico...</div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (movimentacoesQuery.isError && movimentacoesCarregadas.length === 0) {
+    return (
+      <Card>
+        {cabecalho(null)}
+        <CardContent className="p-4">
+          <div role="alert" className="space-y-2 py-6 text-center text-sm text-slate-600">
+            <div>Não foi possível carregar o histórico.</div>
+            <div className="text-[11px] text-slate-500">{getApiErrorMessage(movimentacoesQuery.error, 'Tente novamente em instantes.')}</div>
+            <Button type="button" size="sm" variant="outline" className="h-8 text-xs" onClick={() => movimentacoesQuery.refetch()}>
+              Tentar novamente
+            </Button>
+          </div>
         </CardContent>
       </Card>
     );
   }
 
   if (historicoVisivel.length === 0) {
+    const semCacheNoAparelho = origem === 'cache' && !primeiraPagina?.atualizadoEm;
     return (
       <Card>
-        <CardHeader className="bg-slate-50 border-b py-3">
-          <CardTitle className="text-sm font-semibold">Histórico do Lote</CardTitle>
-        </CardHeader>
+        {cabecalho(null)}
+        {avisoDeOrigem}
         <CardContent className="p-4">
-          <div className="text-center py-8 text-slate-500 text-sm">Nenhum lançamento encontrado</div>
+          <div className="text-center py-8 text-slate-500 text-sm">
+            {semCacheNoAparelho
+              ? 'Este aparelho ainda não tem movimentações salvas para consulta sem conexão.'
+              : 'Nenhum lançamento encontrado'}
+          </div>
         </CardContent>
       </Card>
     );
@@ -735,17 +882,16 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
   return (
     <>
       <Card>
-        <CardHeader className="bg-slate-50 border-b py-3">
-          <CardTitle className="text-sm font-semibold">Histórico do Lote ({historicoVisivel.length})</CardTitle>
-        </CardHeader>
+        {cabecalho(historicoVisivel.length)}
+        {avisoDeOrigem}
         <CardContent className="p-2">
           <div className="max-h-[500px] overflow-y-auto space-y-2">
             {historicoVisivel.map((item) => {
-              const motivoBloqueio = item.source === 'movimentacao' ? getDeleteBlockReason(item) : '';
+              const motivoBloqueio = item.source === 'movimentacao' && item.canDelete ? getDeleteBlockReason(item) : '';
               const isBloqueado = !!motivoBloqueio;
               const tipoExibicao = item.tipo_exibicao || item.tipo;
 
-              const tipoFluxo = getTipoFluxo(item, areaId);
+              const tipoFluxo = item.source === 'movimentacao' ? fluxoNaArea(item.raw, escopoEfetivo === ESCOPO_AREA ? areaId : null) : item.sourceLabel;
 
               return (
                 <div key={item.uniqueId} className="border border-slate-200 rounded-lg p-2.5 hover:bg-gray-50 space-y-1">
@@ -761,6 +907,11 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
                         <Badge variant="outline" className="text-[10px] text-slate-700 border-slate-300 bg-white">
                           {tipoFluxo}
                         </Badge>
+                        {item.legado && (
+                          <Badge variant="outline" className="text-[10px] text-amber-800 border-amber-300 bg-amber-50" title="Registro antigo sem identificador de lote: vínculo feito pelo nome.">
+                            Vínculo pelo nome
+                          </Badge>
+                        )}
                       </div>
 
                       <div className="text-xs font-semibold text-slate-900">{item.lote || 'Sem lote'}</div>
@@ -775,7 +926,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
                         <div><strong>Origem:</strong> {item.sourceLabel}</div>
                         {!!item.observacoes && <div className="break-words"><strong>Detalhes:</strong> {formatHistoricoObservacoes(item)}</div>}
                         {item.source === 'suplementacao' && (
-                          <div className="text-[10px] text-slate-400">Nutrição só pode ser excluída no histórico do cocho.</div>
+                          <div className="text-[10px] text-slate-400">Nutrição: consulta apenas; o cancelamento está temporariamente suspenso.</div>
                         )}
 
                         {isBloqueado && item.canDelete && (
@@ -809,9 +960,37 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
               );
             })}
           </div>
+          <div className="flex flex-wrap items-center justify-between gap-2 px-1 pt-2 text-[11px] text-slate-500">
+            <span>
+              {origem === 'servidor' && totalServidor !== null
+                ? `Movimentações: ${movimentacoesCarregadas.length} de ${totalServidor}`
+                : `Movimentações em cache: ${movimentacoesCarregadas.length}`}
+            </span>
+            {movimentacoesQuery.hasNextPage && (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-8 text-xs"
+                disabled={movimentacoesQuery.isFetchingNextPage}
+                onClick={() => movimentacoesQuery.fetchNextPage()}
+              >
+                {movimentacoesQuery.isFetchingNextPage ? 'Carregando...' : 'Carregar mais'}
+              </Button>
+            )}
+          </div>
+          {movimentacoesQuery.isFetchNextPageError && (
+            <div role="alert" className="px-1 pt-1 text-[11px] text-red-700">
+              Não foi possível carregar a próxima página. {getApiErrorMessage(movimentacoesQuery.error, '')}
+            </div>
+          )}
+          {!EXCLUSAO_NO_HISTORICO_HABILITADA && (
+            <p className="px-1 pt-1 text-[10px] text-slate-400">
+              Exclusão de lançamentos pelo histórico está suspensa até o estorno seguro.
+            </p>
+          )}
         </CardContent>
       </Card>
-
     </>
   );
 }

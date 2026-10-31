@@ -48,6 +48,26 @@ const operacoesNativas = Object.freeze({
 
 });
 
+/**
+ * Histórico paginado (só leitura, D-PROD-94) — `GET /movimentacoes-mapa/historico`.
+ * Resposta `{ items, next_cursor, has_more, total, limit }`. Fica FORA do
+ * adaptador offline de propósito: é consulta online; o modo offline do
+ * histórico lê o cache do mapa e diz que é cache.
+ *
+ * @param {{ empresaId: string, areaId?: string|null, loteIds?: string[], loteNomes?: string[],
+ *   cursor?: string|null, limit?: number }} filtros
+ */
+export const listarHistoricoMovimentacoesMapaPagina = (filtros) => {
+  const params = new URLSearchParams();
+  params.set('empresa_id', filtros.empresaId);
+  if (filtros.areaId) params.set('area_id', filtros.areaId);
+  for (const id of filtros.loteIds ?? []) if (id) params.append('lote_ids', id);
+  for (const nome of filtros.loteNomes ?? []) if (nome) params.append('lote_nomes', nome);
+  if (Number.isInteger(filtros.limit) && filtros.limit > 0) params.set('limit', String(filtros.limit));
+  if (typeof filtros.cursor === 'string' && filtros.cursor) params.set('cursor', filtros.cursor);
+  return nativeRequest(`${CAMINHO}/historico?${params}`, { autenticado: true }, ctx('listarHistoricoMovimentacaoMapa'));
+};
+
 export const movimentacaoMapaPort = offlineStorageDisponivel()
   ? createOfflineEntityAdapter({
       entityName: ENTIDADE_OFFLINE,

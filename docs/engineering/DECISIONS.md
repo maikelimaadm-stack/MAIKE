@@ -3475,4 +3475,92 @@ Teste: `tests/smoke/mobileSelecaoToque.test.jsx`.
 
 ---
 
-<!-- Próxima decisão: D-PROD-94 -->
+## D-PROD-94 — Histórico de Movimentações: leitura restaurada, paginada e com exclusão suspensa
+
+**Missão:** MAIKE-MAPA-HISTORICO-MOVIMENTACOES-R1-RESTAURAR-LEITURA. Só leitura: nenhum saldo, movimento, ledger, migration ou auth alterado.
+
+**Contexto:** o "Histórico de Movimentação" do mapa mostrava "Nenhum lançamento encontrado" para qualquer área. Leitura agregada e só leitura do banco MAIKE (31/10/2026): três movimentações, todas transferências com `lote_id`, origem, destino, data e `empresa_id` na coluna. Nenhuma com `empresa_id` dentro de `dados`.
+
+**Causa raiz:**
+- `montarDocumento` tira `empresa_id` do corpo e grava só na coluna. `documentoComoPublico` devolvia apenas `dados`, então nenhum dos dez recursos JSON (movimentações do mapa e pecuárias, suplementação, medicamentos, sanidade, manejo técnico, bebedouros) trazia `empresa_id` na leitura.
+- O histórico e o cache do mapa (`daEmpresa`) filtram por `item.empresa_id === empresa` e descartavam 100%.
+- Efeito colateral: `PATCH` sem `empresa_id` no corpo respondia 400.
+
+**Decisão:**
+1. **`empresa_id` público = coluna.** `documentoComoPublico` recompõe o campo da coluna autoritativa; `empresa_id` ou `cliente_id` dentro de `dados` (legado, importação) nunca vencem a coluna nem vazam. Vale para todas as rotas que usam o serializador. O PATCH sem `empresa_id` passa a preservar a coluna.
+2. **Histórico paginado no servidor:** `GET /movimentacoes-mapa/historico`.
+   - Só leitura.
+   - O tenant vem do token; `empresa_id` é escopo dentro do tenant (R11 intacta).
+   - Filtros por área (origem, destino ou local) ou por lotes (`lote_ids`; `lote_nomes` só para registro legado sem `lote_id`).
+   - Keyset `createdAt DESC, id DESC`, página padrão 100 e teto 200.
+   - Envelope com `total`: a tela mostra "N de T" e "Carregar mais", e não trunca em silêncio.
+   - SQL parametrizado (`Prisma.sql`), sem migration nova; usa o índice `(cliente_id, empresa_id)`.
+3. **Dois escopos no diálogo existente** (`src/domain/lotes/historicoMovimentacoes.js`):
+   - **Área:** todo fato com a área como origem, destino ou local, inclusive de lote que já saiu. Área vazia não perde histórico. O corte temporal global (que escondia fatos anteriores à última entrada) deixa de valer para registros com área. Registro sem área entra só se for de lote presente e depois que ESSE lote entrou na área.
+   - **Lotes atuais:** trajetória pelo id do lote, em qualquer área.
+   - Registro com `lote_id` casa só pelo id, então homônimo não mistura. Registro sem `lote_id` casa pelo nome e aparece marcado "Vínculo pelo nome".
+4. **Cache e estado na tela:**
+   - empresa pelo hook tenant-aware `useEmpresaSelecionadaId` e `queryKey` com empresa, escopo e área ou lotes;
+   - fim do ciclo `refresh → invalidate` que reexecutava a própria consulta;
+   - vazio legítimo × erro (com "Tentar novamente") × offline. O offline lê o cache do mapa e diz "salvo neste aparelho em …", com o limite de 500 quando for o caso;
+   - o evento `atualizar-mapa` (nova movimentação) refaz a consulta.
+5. **Exclusão pelo histórico SUSPENSA** (`EXCLUSAO_NO_HISTORICO_HABILITADA = false`).
+   - Ninguém excluía por ali desde a P5.5, porque a lista vinha vazia.
+   - Restaurar a leitura reabriria uma exclusão que reverte saldo no navegador, em várias chamadas, sem transação nem idempotência.
+   - Fica para a R2 (estorno seguro no servidor). O código foi preservado; reabrir é trocar a constante, com aprovação.
+
+**Comportamentos que voltam a valer com a correção:** a validação de ordem temporal do lote (`validarOrdemTemporalLote`), que não tinha efeito desde a P5.5, volta a bloquear manejo com evento posterior. Os históricos de suplementação e do cocho voltam a listar. O "Excluir" do cocho (reversão de estoque no navegador) volta a ser alcançável; suspendê-lo também é decisão pendente do proprietário (relatório, seção 7.1).
+
+**Fora desta decisão (próximos slices):**
+- as demais fontes do histórico (nutrição, medicamento, sanidade, manejo técnico) seguem pelo cache do mapa, que lista os 500 mais recentes da CONTA e filtra a empresa no cliente. A paginação delas fica para um slice próprio;
+- `listTodasMovimentacoes` e `filterMovimentacoes` continuam lendo a lista geral;
+- a exclusão segura é a R2.
+
+Relatório: `docs/engineering/MAIKE-MAPA-HISTORICO-MOVIMENTACOES-R1-REPORT.md`.
+
+Testes:
+- `backend/tests/documentoJsonEmpresaContrato.test.mjs`: 15, cobrindo as 10 rotas JSON;
+- `backend/tests/movimentacaoMapaHistoricoPaginado.test.mjs`: 7;
+- `tests/smoke/historicoMovimentacoes.test.jsx`: 15.
+
+---
+
+## D-PROD-94a — R1.1: cancelamentos não atômicos suspensos no cocho e no depósito; Histórico da Área pelo contorno
+
+**Missão:** MAIKE-MAPA-HISTORICO-MOVIMENTACOES-R1.1-SEGURANCA-E-ACESSO-AREAS. Mesma PR da R1 (maikelimaadm-stack/MAIKE#161). Subdecisão da D-PROD-94; nenhuma decisão foi renumerada.
+
+**Decisão do proprietário:** suspender, na interface, os cancelamentos que revertem várias entidades em chamadas independentes do navegador, até existir estorno transacional no servidor (R2).
+
+**Decisão:**
+1. **Política fail-closed** em `src/domain/estornos/politicaEstorno.js`:
+   - `CANCELAMENTO_COCHO_HABILITADO = false`;
+   - `CANCELAMENTO_TRANSFERENCIA_DEPOSITO_HABILITADO = false`;
+   - mensagem única: "Cancelamentos temporariamente indisponíveis até a implementação de estorno seguro."
+2. **Histórico do cocho** (`HistoricoSuplementacaoPonto.jsx`):
+   - o "Excluir" não é renderizado; aparece o aviso;
+   - o `handleDelete` recusa na primeira linha, antes de `confirm` e de `excluirEventoSuplementacaoComReversao`;
+   - a listagem continua igual.
+3. **Histórico do depósito** (`HistoricoDepositoSuplementacao.jsx`):
+   - mesma política, com recusa antes de `excluirTransferenciaDeposito`;
+   - o texto falso "Nutrição só pode ser excluída no histórico do cocho" foi trocado por "consulta apenas; o cancelamento está temporariamente suspenso". O mesmo texto foi corrigido em `HistoricoMovimentacoes`.
+4. **Inalterados:**
+   - "Lançar" no cocho e "Entrada"/"Saída" (transferência) no depósito;
+   - o serviço `suplementacaoHistoricoService.js`, cujos únicos consumidores são os dois históricos suspensos (teste verifica);
+   - `EXCLUSAO_NO_HISTORICO_HABILITADA = false` em `HistoricoMovimentacoes`, sem mudança.
+5. **Histórico da Área pelo contorno** (`MapaGeral.handleClickArea` + `src/domain/mapa/cliqueArea.js`). Precedência do clique:
+   1. seleção de local de tarefa (seleciona; nunca abre detalhes);
+   2. clique que encerra um toque longo, que já abriu o lançamento de tarefa (ignora);
+   3. curral (abre, como antes);
+   4. qualquer outra área, com ou sem lote: abre se `visualizar_historico_movimentacoes_lote` não for `false` (a mesma permissão que já abre o histórico pelo lote; nenhum grant novo).
+6. **`DetalhesArea`:**
+   - área comum renderiza `HistoricoMovimentacoes` com `lotes=[]` e `areaId`. O servidor filtra por área; área vazia não perde histórico;
+   - curral abre na aba "Abate" (`HistoricoAbateCurral`, intacto) com a aba "Histórico da Área" ao lado;
+   - sem a permissão, curral mostra só o abate (como antes) e área comum não abre nada.
+
+**Não é barreira de backend:** `DELETE`/`PATCH` genéricos de `/movimentacoes-mapa/:id`, `/movimentacoes-estoque/:id`, `/suplementacao-eventos/:id` e `/suplementacao-lotes/:id` continuam expostos a qualquer usuário autenticado do tenant. A leitura do histórico também não checa a permissão de mapa no servidor (`Permissao.mapa_geral_permissoes` é preferência de interface, D-PROD-71). Isso é pré-existente: `GET /movimentacoes-mapa` já devolvia os mesmos dados. Fechamento e estorno ficam para a R2.
+
+Relatório: `docs/engineering/MAIKE-MAPA-HISTORICO-MOVIMENTACOES-R1-REPORT.md` (seção 11). Testes: `tests/smoke/historicoEstornoSuspenso.test.jsx`, `tests/smoke/detalhesAreaHistorico.test.jsx`.
+
+---
+
+<!-- Próxima decisão: D-PROD-95 -->

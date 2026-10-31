@@ -3,7 +3,7 @@
  */
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { querystringListagemEmpresa } from '../../shared/http/listQueryLimit.js';
-import { listar, criar, atualizar, excluir } from './movimentacaoMapaService.js';
+import { listar, listarHistorico, criar, atualizar, excluir, HISTORICO_LIMITE_MAXIMO } from './movimentacaoMapaService.js';
 
 const ID_SCHEMA = {
   params: {
@@ -27,6 +27,25 @@ const LISTAR_SCHEMA = {
   querystring: querystringListagemEmpresa(),
 };
 
+/**
+ * Histórico paginado (D-PROD-94): só leitura, tenant do token, empresa como
+ * escopo. `additionalProperties: false` — `cliente_id` na query vira 400.
+ */
+const HISTORICO_SCHEMA = {
+  querystring: {
+    type: 'object',
+    required: ['empresa_id'],
+    additionalProperties: false,
+    properties: {
+      empresa_id: { type: 'string', minLength: 1, maxLength: 64 },
+      area_id: { type: 'string', minLength: 1, maxLength: 64 },
+      lote_ids: { type: 'array', maxItems: 50, items: { type: 'string', minLength: 1, maxLength: 64 } },
+      lote_nomes: { type: 'array', maxItems: 50, items: { type: 'string', minLength: 1, maxLength: 255 } },
+      limit: { type: 'integer', minimum: 1, maximum: HISTORICO_LIMITE_MAXIMO },
+      cursor: { type: 'string', minLength: 1, maxLength: 512 },
+    },
+  },
+};
 
 /** @param {import('fastify').FastifyInstance} app */
 export const registrarMovimentacaoMapaRoutes = async (app) => {
@@ -34,6 +53,11 @@ export const registrarMovimentacaoMapaRoutes = async (app) => {
     exigirAuthContext(request.contexto.auth);
     const query = /** @type {Record<string, string>} */ (request.query ?? {});
     return listar(request.contexto, query);
+  });
+
+  app.get('/movimentacoes-mapa/historico', { onRequest: [app.autenticar], schema: HISTORICO_SCHEMA }, async (request) => {
+    exigirAuthContext(request.contexto.auth);
+    return listarHistorico(request.contexto, /** @type {Record<string, unknown>} */ (request.query ?? {}));
   });
 
   app.post('/movimentacoes-mapa', { onRequest: [app.autenticar], schema: CRIAR_SCHEMA }, async (request, reply) => {

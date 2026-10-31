@@ -23,6 +23,7 @@ import {
   updateMovimentacao,
   listMovimentacoes,
   listTodasMovimentacoes,
+  listHistoricoMovimentacoesPagina,
   filterMovimentacoes,
   filterSuplementacaoLotes,
   createSuplementacaoEvento,
@@ -127,6 +128,8 @@ export const listarProdutosDaEmpresa = (empresaId) => filterProdutos({ empresa_i
 export const listarMovimentacoes = (opcoes) => listMovimentacoes(opcoes);
 /** Sem teto — usada onde o legado listava tudo para localizar um registro. */
 export const listarTodasMovimentacoes = () => listTodasMovimentacoes();
+/** Página do histórico filtrada no servidor (D-PROD-94); `total` diz quanto existe. */
+export const listarHistoricoMovimentacoesPagina = (filtros) => listHistoricoMovimentacoesPagina(filtros);
 /** Eventos de suplementação, usados pela conferência de sobras na movimentação. */
 export const listarEventosSuplementacao = () => listSuplementacaoEventos();
 

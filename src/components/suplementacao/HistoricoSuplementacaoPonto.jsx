@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card as CardUi, CardContent as CardContentUi, CardHeader as CardHeaderUi, CardTitle as CardTitleUi } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -11,6 +11,13 @@ import { getMapaCachedData, refreshMapaCacheEntry, updateMapaCachedData } from "
 import { safeDivide } from "../utils/pecuariaUtils";
 import CardMetricaEvento from "./CardMetricaEvento";
 import DesvioConsumoTag from "./DesvioConsumoTag";
+import { CANCELAMENTO_COCHO_HABILITADO, MENSAGEM_ESTORNO_SUSPENSO } from "@/domain/estornos/politicaEstorno";
+
+// `ui/card` é forwardRef sem tipos de props: o checkJs não enxerga `children`.
+/** @type {React.ComponentType<any>} */ const Card = CardUi;
+/** @type {React.ComponentType<any>} */ const CardContent = CardContentUi;
+/** @type {React.ComponentType<any>} */ const CardHeader = CardHeaderUi;
+/** @type {React.ComponentType<any>} */ const CardTitle = CardTitleUi;
 
 export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto }) {
   const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
@@ -82,6 +89,9 @@ export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto 
   }, [eventos, movimentacoes]);
 
   const handleDelete = async (evento, index) => {
+    // Fail-closed (D-PROD-94a): reversão em várias chamadas do navegador, sem
+    // transação. Nenhuma chamada sai daqui enquanto a política estiver desligada.
+    if (!CANCELAMENTO_COCHO_HABILITADO) return toast.info(MENSAGEM_ESTORNO_SUSPENSO);
     if (index !== 0) return toast.error("Exclua primeiro o último lançamento.");
     if (bloqueiosPorEvento[evento.id]) return toast.error("Este lançamento do cocho não pode ser excluído porque existem registros criados depois dele na mesma área.");
     if (!confirm("Excluir este lançamento e reverter o estoque do depósito?")) return;
@@ -117,6 +127,9 @@ export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto 
           <CardTitle className="text-sm font-semibold">Histórico do Cocho ({eventos.length})</CardTitle>
         </CardHeader>
         <CardContent className="p-2">
+          {!CANCELAMENTO_COCHO_HABILITADO && eventos.length > 0 &&
+          <div role="note" className="mb-2 rounded-md border border-amber-200 bg-amber-50 px-2 py-1.5 text-[11px] text-amber-900">{MENSAGEM_ESTORNO_SUSPENSO}</div>
+          }
           {eventos.length === 0 ?
           <div className="text-center py-8 text-xs text-slate-500">Nenhum lançamento encontrado.</div> :
           <div className="max-h-[60vh] overflow-y-auto space-y-1">
@@ -145,9 +158,11 @@ export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto 
                         <DesvioConsumoTag real={consumoCabDia} esperado={consumoEsperadoCabDia} />
                       }
                     </div>
+                    {CANCELAMENTO_COCHO_HABILITADO &&
                     <div className="flex gap-1 shrink-0">
                       <Button variant="destructive" size="sm" className="h-7 text-[10px] px-2" disabled={index !== 0 || deletingId === evento.id || bloqueiosPorEvento[evento.id]} onClick={() => handleDelete(evento, index)}>Excluir</Button>
                     </div>
+                    }
                   </div>
 
                   {/* Produto */}
@@ -164,8 +179,8 @@ export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto 
                   <CardMetricaEvento evento={evento} showProjecao={true} />
 
                   {evento.observacoes && <div className="text-[10px] text-slate-500 break-words">Obs: {evento.observacoes}</div>}
-                  {bloqueiosPorEvento[evento.id] && <div className="text-[10px] text-slate-400">Existem registros criados depois deste lançamento na mesma área.</div>}
-                  {index !== 0 && <div className="text-[10px] text-slate-400">Somente o último lançamento pode ser excluído.</div>}
+                  {CANCELAMENTO_COCHO_HABILITADO && bloqueiosPorEvento[evento.id] && <div className="text-[10px] text-slate-400">Existem registros criados depois deste lançamento na mesma área.</div>}
+                  {CANCELAMENTO_COCHO_HABILITADO && index !== 0 && <div className="text-[10px] text-slate-400">Somente o último lançamento pode ser excluído.</div>}
                 </div>
               );
             })}

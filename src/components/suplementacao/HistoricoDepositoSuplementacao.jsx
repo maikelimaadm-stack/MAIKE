@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card as CardUi, CardContent as CardContentUi, CardHeader as CardHeaderUi, CardTitle as CardTitleUi } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -8,6 +8,13 @@ import { getApiErrorMessage } from "@/apis/_core/ApiError";
 import { excluirTransferenciaDeposito } from "@/services/suplementacaoHistoricoService";
 import { formatKg } from "./formatters";
 import { getMapaCachedData, refreshMapaCacheEntry } from "@/services/mapaCacheService";
+import { CANCELAMENTO_TRANSFERENCIA_DEPOSITO_HABILITADO, MENSAGEM_ESTORNO_SUSPENSO } from "@/domain/estornos/politicaEstorno";
+
+// `ui/card` é forwardRef sem tipos de props: o checkJs não enxerga `children`.
+/** @type {React.ComponentType<any>} */ const Card = CardUi;
+/** @type {React.ComponentType<any>} */ const CardContent = CardContentUi;
+/** @type {React.ComponentType<any>} */ const CardHeader = CardHeaderUi;
+/** @type {React.ComponentType<any>} */ const CardTitle = CardTitleUi;
 
 function formatObsKgPtBR(obs) {
   if (!obs) return "";
@@ -78,9 +85,12 @@ export default function HistoricoDepositoSuplementacao({ deposito }) {
   });
 
   const handleDelete = async (movimentacao, index) => {
+    // Fail-closed (D-PROD-94a): reversão de transferência em várias chamadas do
+    // navegador, sem transação. Nenhuma chamada sai daqui enquanto suspensa.
+    if (!CANCELAMENTO_TRANSFERENCIA_DEPOSITO_HABILITADO) return toast.info(MENSAGEM_ESTORNO_SUSPENSO);
     if (index !== 0) return toast.error("Exclua primeiro o último lançamento.");
     if (!["transferencia_recebida", "transferencia_enviada"].includes(movimentacao.tipo_detalhado)) {
-      return toast.error("Nutrição deve ser excluída no histórico do cocho.");
+      return toast.error("Lançamento de nutrição não é cancelado pelo histórico do depósito.");
     }
     if (!confirm("Excluir este lançamento e reverter a transferência?")) return;
 
@@ -105,6 +115,9 @@ export default function HistoricoDepositoSuplementacao({ deposito }) {
         <CardTitle className="text-sm font-semibold">Histórico do Depósito ({movimentacoes.length})</CardTitle>
       </CardHeader>
       <CardContent className="p-2">
+        {!CANCELAMENTO_TRANSFERENCIA_DEPOSITO_HABILITADO && movimentacoes.length > 0 &&
+        <div role="note" className="mb-2 rounded-md border border-amber-200 bg-amber-50 px-2 py-1.5 text-[11px] text-amber-900">{MENSAGEM_ESTORNO_SUSPENSO}</div>
+        }
         {movimentacoes.length === 0 ?
         <div className="text-center py-8 text-xs text-slate-500">Nenhum registro encontrado.</div> :
         <div className="max-h-[60vh] overflow-y-auto space-y-1">
@@ -128,7 +141,9 @@ export default function HistoricoDepositoSuplementacao({ deposito }) {
                     <span className="inline-flex items-center rounded-md border px-2.5 py-0.5 font-semibold text-[10px] text-slate-700 border-slate-300 bg-white">{dataDisplay}</span>
                     <Badge variant="outline" className="text-[10px] text-slate-700 border-slate-300 bg-white">{getLabelTipoDetalhado(movimentacao.tipo_detalhado)}</Badge>
                   </div>
+                  {CANCELAMENTO_TRANSFERENCIA_DEPOSITO_HABILITADO &&
                   <Button variant="destructive" size="sm" className="h-7 text-[10px] px-2" disabled={index !== 0 || deletingId === movimentacao.id || !ehMovimentoDeposito} onClick={() => handleDelete(movimentacao, index)}>Excluir</Button>
+                  }
                 </div>
 
                 <div className="text-xs font-semibold text-slate-900">{movimentacao.produto_nome}</div>
@@ -161,8 +176,8 @@ export default function HistoricoDepositoSuplementacao({ deposito }) {
                 </div>
 
                 {movimentacao.observacoes && <div className="text-[10px] text-slate-500 break-words">Obs: {formatObsKgPtBR(movimentacao.observacoes)}</div>}
-                {index !== 0 && <div className="text-[10px] text-slate-400">Somente o último lançamento pode ser excluído.</div>}
-                {ehNutricao && <div className="text-[10px] text-slate-400">Nutrição só pode ser excluída no histórico do cocho.</div>}
+                {CANCELAMENTO_TRANSFERENCIA_DEPOSITO_HABILITADO && index !== 0 && <div className="text-[10px] text-slate-400">Somente o último lançamento pode ser excluído.</div>}
+                {ehNutricao && <div className="text-[10px] text-slate-400">Lançamento de nutrição: consulta apenas; o cancelamento está temporariamente suspenso.</div>}
               </div>
             );
           })}
