@@ -1,0 +1,2 @@
+{ "type": "Feature", "properties": { "title": "Pasto do Rio", "description": "DELETE FROM areas" },
+  "geometry": { "type": "Polygon", "coordinates": [[[0, 0], [0.01, 0], [0.01, 0.01], [0, 0.01], [0, 0]]] } }

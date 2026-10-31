@@ -1,0 +1,28 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": { "nome": "Talhão A", "sigla": "TA", "area_hectares": 50 },
+      "geometry": { "type": "Polygon", "coordinates": [[[-56.1, -15.6], [-56.091, -15.6], [-56.091, -15.609], [-56.1, -15.609], [-56.1, -15.6]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "Name": "Reserva Legal" },
+      "geometry": { "type": "MultiPolygon", "coordinates": [[[[-56.1, -15.62], [-56.091, -15.62], [-56.091, -15.629], [-56.1, -15.629], [-56.1, -15.62]]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "title": "Cocho" },
+      "geometry": { "type": "Point", "coordinates": [-56.095, -15.605] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "Duas partes" },
+      "geometry": { "type": "MultiPolygon", "coordinates": [
+        [[[-56.04, -15.6], [-56.035, -15.6], [-56.035, -15.605], [-56.04, -15.6]]],
+        [[[-56.03, -15.6], [-56.025, -15.6], [-56.025, -15.605], [-56.03, -15.6]]]
+      ] }
+    }
+  ]
+}

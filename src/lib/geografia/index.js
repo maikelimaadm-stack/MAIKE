@@ -28,3 +28,5 @@ export {
   validateLineForSave,
   AREA_MINIMA_M2,
 } from "./medidas.js";
+
+export { anelSeAutoIntersecta } from "./topologia.js";

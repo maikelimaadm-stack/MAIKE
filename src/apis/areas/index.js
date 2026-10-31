@@ -8,4 +8,11 @@
  * `deleteArea` não existe. A baixa de área é lógica (`ativo: false`) e passa
  * pelo `updateArea` — como sempre passou. Ver `areaPastagemRoutes.js`.
  */
-export { listAreas, filterAreas, createArea, updateArea } from './areasApi.js';
+export {
+  listAreas,
+  filterAreas,
+  createArea,
+  updateArea,
+  conferirImportacaoAreas,
+  importarAreas,
+} from './areasApi.js';

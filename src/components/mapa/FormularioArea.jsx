@@ -26,27 +26,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import CapturaGPSPoligono from "./CapturaGPSPoligono";
+import {
+  APROVEITAMENTO,
+  CORES_DISPONIVEIS as CORES_CADASTRO,
+  TIPOS_CULTURAS,
+  TIPOS_INFRAESTRUTURA,
+  TIPOS_USO,
+  pendenciasDaArea,
+  usoExploraArea,
+} from "@/domain/areas/regrasCadastroArea";
 import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 
-const APROVEITAMENTO = ["Alta", "Média", "Baixa"];
-const TIPOS_USO = ["Pastagem", "Agricultura", "Reserva", "APP", "Infraestrutura"];
-const TIPOS_CULTURAS = [
-  "Brachiaria", "Mombaça", "Tanzânia", "Tifton", "Piatã", "Marandu", "Panicum", "Elefante",
-  "Milho", "Soja", "Sorgo", "Arroz", "Trigo", "Cevada", "Cana-de-açúcar", "Algodão",
-  "Feijão", "Girassol", "Aveia", "Café", "Eucalipto", "Floresta", "Outros",
-];
-const TIPOS_INFRAESTRUTURA = ["Curral", "Oficina", "Casa", "Barracão", "Galpão", "Depósito", "Embarcador", "Brete", "Outro"];
-const CORES_DISPONIVEIS = [
-  { nome: "Branco", cor: "#f8f9fa" },
-  { nome: "Cinza claro", cor: "#d8dee2" },
-  { nome: "Preto", cor: "#2c303e" },
-  { nome: "Azul escuro", cor: "#0d67ad" },
-  { nome: "Azul celeste", cor: "#61aad9" },
-  { nome: "Amarelo", cor: "#efcb19" },
-  { nome: "Verde claro", cor: "#92ca25" },
-  { nome: "Laranja", cor: "#f5a01b" },
-  { nome: "Roxo", cor: "#966fe1" },
-];
+// Listas e regras compartilhadas com a importação por arquivo (D-PROD-90).
+const CORES_DISPONIVEIS = CORES_CADASTRO;
 
 export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS = false, item, onCorChange = null }) {
   const empresaSelecionadaId = useEmpresaSelecionadaId();
@@ -141,14 +133,29 @@ export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS 
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    const missing = [];
-    if (!formData.nome?.trim()) missing.push("nome");
-    if (!formData.setor_id) missing.push("setor_id");
-    if (formData.tipo_cultura !== 'Infraestrutura' && !formData.area_total) missing.push("area_total");
-    if (formData.tipo_cultura !== 'Infraestrutura' && !formData.area_pastejada) missing.push("area_pastejada");
-    if (formData.tipo_cultura === 'Infraestrutura' && !formData.tipo_infraestrutura) missing.push("tipo_infraestrutura");
-    if (formData.tipo_cultura !== 'Infraestrutura' && !formData.tipo_pastagem) missing.push("tipo_pastagem");
-    if (missing.length) { setInvalidFields(missing); toast.error("Preencha os campos obrigatórios."); return; }
+    const infraestrutura = formData.tipo_cultura === 'Infraestrutura';
+    const haDigitado = (valor) => {
+      const texto = String(valor ?? '').trim();
+      return texto === '' ? null : parseFloat(parseHa(texto));
+    };
+    // Mesma regra da importação por arquivo (D-PROD-90): Reserva/APP não exigem
+    // cultura e aceitam 0 de pastejada; pastejada nunca passa da área total.
+    const pendencias = pendenciasDaArea({
+      nome: formData.nome,
+      setor_id: formData.setor_id,
+      tipo_cultura: formData.tipo_cultura,
+      tipo_pastagem: infraestrutura ? formData.tipo_infraestrutura : formData.tipo_pastagem,
+      area_pastejada: infraestrutura ? null : haDigitado(formData.area_pastejada),
+      total_ha: infraestrutura ? null : haDigitado(formData.area_total),
+    });
+    const missing = pendencias.map((p) => p.campo);
+    if (!infraestrutura && !formData.area_total) missing.push("area_total");
+    if (missing.length) {
+      setInvalidFields(missing);
+      const outra = pendencias.find((p) => !/^(Informe|Escolha)/.test(p.mensagem));
+      toast.error(outra ? outra.mensagem : "Preencha os campos obrigatórios.");
+      return;
+    }
 
     const rawCoords = coordenadasGPS || coordenadas || item?.coordenadas?.coords;
     const inspected = inspectVertices(rawCoords);
@@ -270,7 +277,7 @@ export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS 
           </FloatingField>
         ) : (
           <>
-            <FloatingField label="Tipo de cultura" required error={invalidFields.includes('tipo_pastagem')}>
+            <FloatingField label="Tipo de cultura" required={usoExploraArea(formData.tipo_cultura)} error={invalidFields.includes('tipo_pastagem')}>
               <Select value={formData.tipo_pastagem || '__none__'} onValueChange={(v) => handleChange('tipo_pastagem', v === '__none__' ? '' : v)}>
                 <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent">
                   <SelectValue placeholder="Selecione" />

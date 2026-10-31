@@ -124,6 +124,16 @@ export const API_ERROR_CODES = Object.freeze({
   TENANT_ADMIN_REQUIRED: 'TENANT_ADMIN_REQUIRED',
   USUARIO_SENHA_ATUAL_INVALIDA: 'USUARIO_SENHA_ATUAL_INVALIDA',
   USUARIO_INATIVO: 'USUARIO_INATIVO',
+
+  // D-PROD-90 — importação de áreas por arquivo. A tela age sobre cada um:
+  // pendência por item (nada gravado), limite do lote, chave de retentativa
+  // reaproveitada com outro conteúdo ou ainda em processamento, empresa que
+  // deixou de existir neste tenant.
+  AREA_IMPORT_VALIDATION_FAILED: 'AREA_IMPORT_VALIDATION_FAILED',
+  AREA_IMPORT_LIMIT_EXCEEDED: 'AREA_IMPORT_LIMIT_EXCEEDED',
+  IDEMPOTENCY_CONFLICT: 'IDEMPOTENCY_CONFLICT',
+  IDEMPOTENCY_IN_PROGRESS: 'IDEMPOTENCY_IN_PROGRESS',
+  EMPRESA_NOT_FOUND: 'EMPRESA_NOT_FOUND',
 });
 
 /** Mensagem pública por código. Nunca inclui dado do provider. */
@@ -194,6 +204,11 @@ const MENSAGENS = Object.freeze({
     'Somente o administrador da fazenda pode fazer isso. Peça ao administrador da sua fazenda.',
   [API_ERROR_CODES.USUARIO_SENHA_ATUAL_INVALIDA]: 'Para trocar a sua senha, informe a senha atual correta.',
   [API_ERROR_CODES.USUARIO_INATIVO]: 'Esta conta está desativada.',
+  [API_ERROR_CODES.AREA_IMPORT_VALIDATION_FAILED]: 'Há áreas com pendência. Nenhuma área foi gravada.',
+  [API_ERROR_CODES.AREA_IMPORT_LIMIT_EXCEEDED]: 'Importação acima do limite. Divida o arquivo em partes menores.',
+  [API_ERROR_CODES.IDEMPOTENCY_CONFLICT]: 'Esta confirmação já foi usada com outro conteúdo. Confira a lista de áreas.',
+  [API_ERROR_CODES.IDEMPOTENCY_IN_PROGRESS]: 'A importação ainda está sendo processada. Aguarde e confira a lista de áreas.',
+  [API_ERROR_CODES.EMPRESA_NOT_FOUND]: 'Empresa não encontrada. Selecione a empresa novamente.',
 });
 
 /** Falha transitória vale retentativa; erro de argumento e conflito, não. */

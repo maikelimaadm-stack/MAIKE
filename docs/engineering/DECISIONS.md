@@ -3322,4 +3322,60 @@ Teste: `tests/smoke/contagemLote.test.js` (CNT-01..04).
 
 ---
 
-<!-- Próxima decisão: D-PROD-90 -->
+## D-PROD-90 — Importação de áreas por arquivo KML/GeoJSON, conferida e tudo-ou-nada
+
+**Pedido do proprietário:** importar áreas a partir de arquivos de contorno (KML do Google Earth, `.geojson` e `.json` com GeoJSON) dentro de Cadastro do Mapa → Áreas. O usuário deve ver a prévia, definir setor, tipo de uso e demais dados, e só gravar quando confirmar.
+
+**Decisão:**
+- **Onde fica:** botão **"Importar áreas"** na aba Áreas de `src/pages/MapaCadastro.jsx`. Não há página, rota de tela ou menu novos.
+- **Importador antigo removido:** `src/components/mapa/ImportarGeoJSON.jsx` não estava ligado a nenhum botão. Ele tinha quatro defeitos:
+  - gravava área por área, sem prévia;
+  - deixava a área sem setor;
+  - calculava `numero_area` como MAX + 1 no navegador e a área em hectares com Web Mercator plano;
+  - criava pontos e linhas.
+- **O navegador lê o arquivo** (`src/lib/geografia/importacaoAreas.js`, regra pura):
+  - formato confirmado pela extensão **e** pelo conteúdo; um `.json` que não é GeoJSON é recusado;
+  - KML com `DOCTYPE`/`ENTITY` é recusado; `NetworkLink` não é seguido;
+  - CRS diferente de WGS84 é recusado;
+  - coordenadas lidas como `lng,lat`, guardadas como `[[lat, lng]]` (contrato do editor). 0 é coordenada válida;
+  - só um **Polygon de anel único** vira área. MultiPolygon ou MultiGeometry com uma parte só é aceito, porque não perde nada;
+  - buraco interno, mais de uma parte, contorno que se cruza, vértice fora de WGS84 e contorno degenerado ficam **inválidos, com a causa**. O sistema nunca usa "só o primeiro anel";
+  - pontos e linhas ficam como "ignorado: não é área".
+- **Hectares:** cálculo geodésico com `@turf/area`, o mesmo do editor. A área informada no arquivo só gera aviso de divergência; nunca substitui o cálculo.
+- **Duas rotas nativas** em `backend/src/modules/areas/areaImportacaoRoutes.js`:
+  - `POST /areas-pastagem/importacao/conferir` valida contra o banco e **não grava nada**: nenhuma área, número ou auditoria;
+  - `POST /areas-pastagem/importacao` grava **todas as áreas do pedido ou nenhuma**:
+    - tudo numa transação: trava `pg_advisory_xact_lock` por empresa, reconferência completa, depois `reservarNumero`, inserção e auditoria de cada área;
+    - qualquer pendência devolve **422** com o motivo de cada item;
+    - no máximo **100 áreas** e **50 000 vértices** por pedido (5 000 por área). Arquivos maiores são importados em confirmações separadas; cada confirmação é atômica em si.
+- **Tenant e empresa:** o tenant vem do `auth_context`. A empresa precisa existir no tenant (senão 404). O setor precisa ser do tenant, da mesma empresa e estar ativo. Os itens não aceitam `numero_area`, `setor_nome`, `cliente_id`, `empresa_id` nem `tamanho_hectares` (400). O servidor recalcula hectares e revalida o contorno.
+- **Duplicidade, sem sobrescrever nada:**
+  - contorno idêntico (chave canônica, independe do vértice inicial e do sentido) a uma área ativa da empresa, ou a outro item do arquivo, é pendência;
+  - o mesmo vale para nome repetido no mesmo setor;
+  - áreas com o mesmo nome em setores diferentes são aceitas.
+- **Retentativa:** a gravação usa `operation_id` com `OperacaoIdempotente`, infraestrutura que já existia; nenhuma migration nova.
+  - Reenviar o mesmo pedido devolve o resultado já gravado (`replay`), sem duplicar.
+  - A mesma chave com outro conteúdo devolve `IDEMPOTENCY_CONFLICT`.
+  - Se a rede cair, a tela entra em "resultado desconhecido", trava a edição e só oferece reenviar com a mesma chave.
+- **Regra de campos compartilhada** com o formulário manual (`src/domain/areas/regrasCadastroArea.js`):
+  - Setor e Tipo de uso são obrigatórios;
+  - Pastagem e Agricultura exigem cultura e área pastejada/arável;
+  - Reserva e APP têm cultura opcional e pastejada obrigatória, podendo ser 0. Isso afrouxa a exigência antiga de cultura no formulário manual;
+  - Infraestrutura exige o tipo (gravado em `tipo_pastagem`, como no formulário) e grava 0 ha cadastrais. O contorno fica preservado;
+  - a pastejada nunca pode passar da área total.
+- **Online sempre:** a importação não passa pela fila offline. Sem rede, o rascunho fica na tela, e conferir e importar ficam bloqueados.
+- **Empresa trocada** com o assistente aberto: a conferência deixa de valer e a gravação trava até recomeçar.
+- **Novos códigos de erro:** `AREA_IMPORT_VALIDATION_FAILED` (422) e `AREA_IMPORT_LIMIT_EXCEEDED` (413). Os existentes `IDEMPOTENCY_*` e `EMPRESA_NOT_FOUND` agora chegam à tela.
+- **Fora desta decisão:** atualizar áreas existentes por arquivo; aviso de sobreposição espacial parcial; importar pontos e linhas; lotes, movimentações e saldos.
+
+Relatório: `docs/engineering/MAIKE-IMPORTACAO-AREAS-KML-GEOJSON-01-REPORT.md`.
+
+Testes:
+- `backend/tests/areaImportacaoNativa.test.mjs` (IMP-01..14, PostgreSQL real);
+- `tests/smoke/importacaoAreasParser.test.js`;
+- `tests/smoke/importacaoAreasParidade.test.js`;
+- `tests/smoke/importarAreasDialog.test.jsx`.
+
+---
+
+<!-- Próxima decisão: D-PROD-91 -->

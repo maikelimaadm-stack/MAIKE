@@ -182,6 +182,16 @@ export const BACKEND_ONLY_CODES = Object.freeze({
     http: 422,
     meaning: 'saldo ou FIFO insuficiente para a operação',
   },
+  // D-PROD-90 — importação de áreas por arquivo. 422: o pedido é bem formado,
+  // mas ao menos uma área tem pendência; NADA foi gravado (details.itens).
+  AREA_IMPORT_VALIDATION_FAILED: {
+    http: 422,
+    meaning: 'importação de áreas recusada por pendência em ao menos um item; nada gravado',
+  },
+  AREA_IMPORT_LIMIT_EXCEEDED: {
+    http: 413,
+    meaning: 'importação de áreas acima do limite de itens ou vértices por pedido',
+  },
   IDEMPOTENCY_CONFLICT: {
     http: 409,
     meaning: 'operation_id reutilizado com intenção diferente',
