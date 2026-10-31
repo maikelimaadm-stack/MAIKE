@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2">
+  <Document>
+    <name>Fazenda Exemplo (sintética)</name>
+    <Folder>
+      <name>Pastos</name>
+      <Placemark>
+        <name>Pasto Sede</name>
+        <Polygon>
+          <outerBoundaryIs>
+            <LinearRing>
+              <coordinates>
+                -56.1,-15.6,0 -56.091,-15.6,0 -56.091,-15.609,0 -56.1,-15.609,0 -56.1,-15.6,0
+              </coordinates>
+            </LinearRing>
+          </outerBoundaryIs>
+        </Polygon>
+      </Placemark>
+      <Placemark>
+        <name>Piquete 2</name>
+        <Polygon><outerBoundaryIs><LinearRing><coordinates>-56.1,-15.62 -56.091,-15.62 -56.091,-15.629 -56.1,-15.629</coordinates></LinearRing></outerBoundaryIs></Polygon>
+      </Placemark>
+      <Placemark>
+        <Polygon><outerBoundaryIs><LinearRing><coordinates>-56.08,-15.6,12 -56.071,-15.6,12 -56.071,-15.609,12 -56.08,-15.6,12</coordinates></LinearRing></outerBoundaryIs></Polygon>
+      </Placemark>
+      <Placemark>
+        <name>Curral</name>
+        <Point><coordinates>-56.095,-15.605,0</coordinates></Point>
+      </Placemark>
+      <Placemark>
+        <name>Estrada</name>
+        <LineString><coordinates>-56.1,-15.6 -56.08,-15.62</coordinates></LineString>
+      </Placemark>
+      <Placemark>
+        <name>Lago com ilha</name>
+        <Polygon>
+          <outerBoundaryIs><LinearRing><coordinates>-56.06,-15.6 -56.05,-15.6 -56.05,-15.61 -56.06,-15.61 -56.06,-15.6</coordinates></LinearRing></outerBoundaryIs>
+          <innerBoundaryIs><LinearRing><coordinates>-56.056,-15.604 -56.054,-15.604 -56.054,-15.606 -56.056,-15.604</coordinates></LinearRing></innerBoundaryIs>
+        </Polygon>
+      </Placemark>
+      <Placemark>
+        <name>Duas glebas</name>
+        <MultiGeometry>
+          <Polygon><outerBoundaryIs><LinearRing><coordinates>-56.04,-15.6 -56.035,-15.6 -56.035,-15.605 -56.04,-15.6</coordinates></LinearRing></outerBoundaryIs></Polygon>
+          <Polygon><outerBoundaryIs><LinearRing><coordinates>-56.03,-15.6 -56.025,-15.6 -56.025,-15.605 -56.03,-15.6</coordinates></LinearRing></outerBoundaryIs></Polygon>
+        </MultiGeometry>
+      </Placemark>
+    </Folder>
+  </Document>
+</kml>

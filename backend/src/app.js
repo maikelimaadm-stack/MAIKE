@@ -25,6 +25,7 @@ import { registrarHealthRoutes } from './modules/health/healthRoutes.js';
 import { registrarAuthRoutes } from './modules/auth/authRoutes.js';
 import { registrarSetorRoutes } from './modules/setores/setorRoutes.js';
 import { registrarAreaPastagemRoutes } from './modules/areas/areaPastagemRoutes.js';
+import { registrarAreaImportacaoRoutes } from './modules/areas/areaImportacaoRoutes.js';
 import { registrarMapGeographyRoutes } from './modules/mapGeography/mapGeographyRoutes.js';
 import { registrarUsuarioRoutes } from './modules/usuarios/usuarioRoutes.js';
 import { registrarMarcaRoutes } from './modules/marcas/marcaRoutes.js';
@@ -152,6 +153,7 @@ export const construirApp = async (opcoes = {}) => {
   await app.register(registrarAuthRoutes);
   await app.register(registrarSetorRoutes);
   await app.register(registrarAreaPastagemRoutes);
+  await app.register(registrarAreaImportacaoRoutes);
   await app.register(registrarMapGeographyRoutes);
   await app.register(registrarUsuarioRoutes);
   await app.register(registrarMarcaRoutes);

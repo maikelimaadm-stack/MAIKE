@@ -188,6 +188,39 @@ describe('ESTAB-P0 — comando saída suplementação', () => {
     assert.equal(totalMov, 1);
   });
 
+  test('R1 D-PROD-90: corrida com a mesma operation_id não vira 500 nem baixa estoque duas vezes', async () => {
+    const { token, clienteId } = await tenantAutenticado();
+    const base = await seedMinimoEstoque(token);
+    const payload = {
+      operation_id: randomUUID(),
+      empresa_id: base.empresaId,
+      produto_id: base.produtoId,
+      local_origem_id: base.localId,
+      local_origem_nome: 'DEPOSITO A',
+      quantidade: 10,
+    };
+    const enviar = () =>
+      app.inject({
+        method: 'POST',
+        url: '/movimentacoes-estoque/comandos/saida-suplementacao',
+        headers: auth(token),
+        payload,
+      });
+    const respostas = await Promise.all([enviar(), enviar(), enviar()]);
+    for (const r of respostas) {
+      assert.ok(
+        [200, 201].includes(r.statusCode) || (r.statusCode === 409 && r.json().code === 'IDEMPOTENCY_IN_PROGRESS'),
+        `resposta não tipada: ${r.statusCode} ${r.body}`
+      );
+    }
+    const prisma = getPrismaClient();
+    assert.equal(await prisma.movimentacaoEstoque.count(), 1);
+    const lote = await prisma.estoqueLoteNota.findUnique({
+      where: { cliente_id_id: { cliente_id: clienteId, id: base.loteId } },
+    });
+    assert.equal(Number(lote.quantidade_disponivel), 90);
+  });
+
   test('numero_movimentacao do cliente é ignorado no POST legado', async () => {
     const { token } = await tenantAutenticado();
     const base = await seedMinimoEstoque(token);

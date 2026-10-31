@@ -20,6 +20,7 @@
 
 import { runProviderCall, assertArgument } from '../_core/normalizeApiError.js';
 import { areaPastagemPort, filtrarEmMemoria } from './areaPastagemNativePort.js';
+import { conferirImportacaoNativa, importarAreasNativa } from './areaImportacaoNativePort.js';
 
 const RESOURCE = 'AreaPastagem';
 
@@ -64,4 +65,28 @@ export const updateArea = async (id, dados) => {
   assertArgument(isId(id), 'id', contexto);
   assertArgument(isObjeto(dados), 'dados', contexto);
   return runProviderCall(() => areaPastagemPort.update(id, dados), { ...contexto, details: { id } });
+};
+
+/**
+ * Importação de áreas por arquivo (D-PROD-90): conferência sem gravação e
+ * gravação tudo-ou-nada. Online sempre — ver `areaImportacaoNativePort.js`.
+ *
+ * @param {{ empresaId: string, itens: Record<string, unknown>[] }} pedido
+ */
+export const conferirImportacaoAreas = async (pedido) => {
+  const contexto = ctx('conferirImportacaoAreas');
+  assertArgument(isId(pedido?.empresaId), 'empresaId', contexto);
+  assertArgument(Array.isArray(pedido?.itens) && pedido.itens.length > 0, 'itens', contexto);
+  return runProviderCall(() => conferirImportacaoNativa(pedido), contexto);
+};
+
+/**
+ * @param {{ operationId: string, empresaId: string, itens: Record<string, unknown>[] }} pedido
+ */
+export const importarAreas = async (pedido) => {
+  const contexto = ctx('importarAreas');
+  assertArgument(isId(pedido?.operationId), 'operationId', contexto);
+  assertArgument(isId(pedido?.empresaId), 'empresaId', contexto);
+  assertArgument(Array.isArray(pedido?.itens) && pedido.itens.length > 0, 'itens', contexto);
+  return runProviderCall(() => importarAreasNativa(pedido), contexto);
 };

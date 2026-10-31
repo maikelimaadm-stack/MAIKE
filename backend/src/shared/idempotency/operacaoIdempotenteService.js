@@ -50,37 +50,41 @@ export const executarComIdempotencia = async (tx, opcoes) => {
     }
   }
 
-  try {
-    await tx.operacaoIdempotente.create({
-      data: {
+  // Reserva da chave com `INSERT ... ON CONFLICT DO NOTHING` (createMany com
+  // skipDuplicates), não `create` + captura de P2002: no PostgreSQL, um erro de
+  // unique dentro da transação a deixa abortada, e a releitura no `catch` falhava
+  // com 500 quando dois pedidos com a mesma chave chegavam juntos (D-PROD-90 R1).
+  // Com ON CONFLICT, o segundo pedido espera o primeiro terminar e, sem erro,
+  // relê a linha já confirmada: replay (mesmo conteúdo) ou conflito (outro).
+  const { count } = await tx.operacaoIdempotente.createMany({
+    data: [
+      {
         cliente_id: clienteId,
         operation_key: operationKey,
         tipo_operacao: tipoOperacao,
         fingerprint,
         status: 'processing',
       },
-    });
-  } catch (erro) {
-    const codigo = /** @type {{ code?: string }} */ (erro)?.code;
-    if (codigo === 'P2002') {
-      const concorrente = await tx.operacaoIdempotente.findUnique({ where: chave });
-      if (concorrente?.fingerprint !== fingerprint) {
-        throw new AppError('IDEMPOTENCY_CONFLICT', 'operation_id reutilizado com payload diferente', {
-          details: { operation_id: operationKey },
-        });
-      }
-      if (concorrente?.status === 'committed' && concorrente.response_json) {
-        return {
-          replay: true,
-          httpStatus: concorrente.http_status ?? 200,
-          body: /** @type {Record<string, unknown>} */ (concorrente.response_json),
-        };
-      }
-      throw new AppError('IDEMPOTENCY_IN_PROGRESS', 'Operação com a mesma chave ainda em processamento', {
+    ],
+    skipDuplicates: true,
+  });
+  if (count === 0) {
+    const concorrente = await tx.operacaoIdempotente.findUnique({ where: chave });
+    if (!concorrente || concorrente.fingerprint !== fingerprint) {
+      throw new AppError('IDEMPOTENCY_CONFLICT', 'operation_id reutilizado com payload diferente', {
         details: { operation_id: operationKey },
       });
     }
-    throw erro;
+    if (concorrente.status === 'committed' && concorrente.response_json) {
+      return {
+        replay: true,
+        httpStatus: concorrente.http_status ?? 200,
+        body: /** @type {Record<string, unknown>} */ (concorrente.response_json),
+      };
+    }
+    throw new AppError('IDEMPOTENCY_IN_PROGRESS', 'Operação com a mesma chave ainda em processamento', {
+      details: { operation_id: operationKey },
+    });
   }
 
   const { httpStatus, body } = await executar();

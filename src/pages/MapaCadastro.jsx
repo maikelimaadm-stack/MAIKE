@@ -28,7 +28,7 @@ import FormularioArea from "../components/mapa/FormularioArea";
 import FormularioPonto from "../components/mapa/FormularioPonto";
 import FormularioLinha from "../components/mapa/FormularioLinha";
 import MapaDesenho from "../components/mapa/MapaDesenho";
-import ImportarGeoJSON from "../components/mapa/ImportarGeoJSON";
+import ImportarAreasDialog from "../components/mapa/importacaoAreas/ImportarAreasDialog";
 import SelecaoAreasMapa from "../components/mapa/SelecaoAreasMapa";
 import ModalCadastroLotePontos from "../components/mapa/ModalCadastroLotePontos";
 import * as mapaService from "@/services/mapaService";
@@ -41,7 +41,7 @@ export default function MapaCadastro() {
   const [usarGPS, setUsarGPS] = useState(false);
   const [itemEditando, setItemEditando] = useState(null);
   const [itemExcluir, setItemExcluir] = useState(null);
-  const [showImportarGeoJSON, setShowImportarGeoJSON] = useState(false);
+  const [showImportarAreas, setShowImportarAreas] = useState(false);
   const [showEditarDetalhesArea, setShowEditarDetalhesArea] = useState(false);
   const [showEditarDetalhesPonto, setShowEditarDetalhesPonto] = useState(false);
   const [showEditarDetalhesLinha, setShowEditarDetalhesLinha] = useState(false);
@@ -213,6 +213,7 @@ export default function MapaCadastro() {
               <Button onClick={() => handleNovoItem('area', false)} variant="outline" size="sm" className="h-7 text-xs">Desenhar no Mapa</Button>
               <Button onClick={() => setShowSelecaoMapa(true)} variant="outline" size="sm" className="h-7 text-xs">Selecionar no Mapa</Button>
               <Button onClick={() => handleNovoItem('area', true)} size="sm" className="bg-background text-[hsl(var(--foreground))] px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input shadow-sm hover:bg-accent hover:text-accent-foreground h-7">Usar GPS</Button>
+              <Button onClick={() => setShowImportarAreas(true)} variant="outline" size="sm" className="h-7 text-xs"><Upload className="w-3 h-3 mr-1" />Importar áreas</Button>
             </>
           }
           {abaAtiva === "pontos" &&
@@ -271,7 +272,7 @@ export default function MapaCadastro() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <ImportarGeoJSON open={showImportarGeoJSON} onOpenChange={setShowImportarGeoJSON} />
+      {showImportarAreas && <ImportarAreasDialog open={showImportarAreas} onOpenChange={setShowImportarAreas} />}
       <ModalCadastroLotePontos open={showCadastroLotePontos} onOpenChange={setShowCadastroLotePontos} />
 
       {showSelecaoMapa && <SelecaoAreasMapa onClose={() => {setShowSelecaoMapa(false);queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'areas' });}} />}

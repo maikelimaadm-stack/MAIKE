@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { listarSetoresAtivos, listarTodasAreas, criarArea, atualizarArea } from "@/services/mapaService";
+import { listarSetoresAtivos, criarArea, atualizarArea } from "@/services/mapaService";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,27 +26,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import CapturaGPSPoligono from "./CapturaGPSPoligono";
+import {
+  APROVEITAMENTO,
+  CORES_DISPONIVEIS as CORES_CADASTRO,
+  TIPOS_CULTURAS,
+  TIPOS_INFRAESTRUTURA,
+  TIPOS_USO,
+  pendenciasDaArea,
+  usoExploraArea,
+} from "@/domain/areas/regrasCadastroArea";
 import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 
-const APROVEITAMENTO = ["Alta", "Média", "Baixa"];
-const TIPOS_USO = ["Pastagem", "Agricultura", "Reserva", "APP", "Infraestrutura"];
-const TIPOS_CULTURAS = [
-  "Brachiaria", "Mombaça", "Tanzânia", "Tifton", "Piatã", "Marandu", "Panicum", "Elefante",
-  "Milho", "Soja", "Sorgo", "Arroz", "Trigo", "Cevada", "Cana-de-açúcar", "Algodão",
-  "Feijão", "Girassol", "Aveia", "Café", "Eucalipto", "Floresta", "Outros",
-];
-const TIPOS_INFRAESTRUTURA = ["Curral", "Oficina", "Casa", "Barracão", "Galpão", "Depósito", "Embarcador", "Brete", "Outro"];
-const CORES_DISPONIVEIS = [
-  { nome: "Branco", cor: "#f8f9fa" },
-  { nome: "Cinza claro", cor: "#d8dee2" },
-  { nome: "Preto", cor: "#2c303e" },
-  { nome: "Azul escuro", cor: "#0d67ad" },
-  { nome: "Azul celeste", cor: "#61aad9" },
-  { nome: "Amarelo", cor: "#efcb19" },
-  { nome: "Verde claro", cor: "#92ca25" },
-  { nome: "Laranja", cor: "#f5a01b" },
-  { nome: "Roxo", cor: "#966fe1" },
-];
+// Listas e regras compartilhadas com a importação por arquivo (D-PROD-90).
+const CORES_DISPONIVEIS = CORES_CADASTRO;
 
 export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS = false, item, onCorChange = null }) {
   const empresaSelecionadaId = useEmpresaSelecionadaId();
@@ -88,25 +80,22 @@ export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS 
   const handleChange = (field, value) => { setFormData((prev) => ({ ...prev, [field]: value })); setInvalidFields((prev) => prev.filter((item) => item !== field)); };
 
   const createAreaMutation = useMutation({
+    /** @param {Record<string, any>} data */
     mutationFn: async (data) => {
       if (item) {
         return atualizarArea(item.id, {
           ...data,
-          numero_area: data.numero_area || item.numero_area,
           coordenadas: {
             coords: toPersistedCoords(coordenadasGPS || coordenadas || item.coordenadas?.coords),
             cor: data.cor,
           },
         });
       }
-      // Numeração sobre todas as áreas, como antes da P1.2.
-      const allAreas = await listarTodasAreas();
-      const maxNum = allAreas.reduce((max, a) => Math.max(max, parseInt(a.numero_area) || 0), 0);
-      const proximo = String(maxNum + 1);
+      // `numero_area` e `setor_nome` são do servidor (sequência e linha do
+      // setor); o cliente não calcula nem envia (D-PROD-31, D-PROD-90 R1).
       return criarArea({
         ...data,
         empresa_id: empresaSelecionadaId,
-        numero_area: (data.numero_area && String(data.numero_area)) || proximo,
         quantidade_atual: 0,
         status_ocupacao: 'Disponível',
         ativo: true,
@@ -141,14 +130,29 @@ export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS 
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    const missing = [];
-    if (!formData.nome?.trim()) missing.push("nome");
-    if (!formData.setor_id) missing.push("setor_id");
-    if (formData.tipo_cultura !== 'Infraestrutura' && !formData.area_total) missing.push("area_total");
-    if (formData.tipo_cultura !== 'Infraestrutura' && !formData.area_pastejada) missing.push("area_pastejada");
-    if (formData.tipo_cultura === 'Infraestrutura' && !formData.tipo_infraestrutura) missing.push("tipo_infraestrutura");
-    if (formData.tipo_cultura !== 'Infraestrutura' && !formData.tipo_pastagem) missing.push("tipo_pastagem");
-    if (missing.length) { setInvalidFields(missing); toast.error("Preencha os campos obrigatórios."); return; }
+    const infraestrutura = formData.tipo_cultura === 'Infraestrutura';
+    const haDigitado = (valor) => {
+      const texto = String(valor ?? '').trim();
+      return texto === '' ? null : parseFloat(parseHa(texto));
+    };
+    // Mesma regra da importação por arquivo (D-PROD-90): Reserva/APP não exigem
+    // cultura e aceitam 0 de pastejada; pastejada nunca passa da área total.
+    const pendencias = pendenciasDaArea({
+      nome: formData.nome,
+      setor_id: formData.setor_id,
+      tipo_cultura: formData.tipo_cultura,
+      tipo_pastagem: infraestrutura ? formData.tipo_infraestrutura : formData.tipo_pastagem,
+      area_pastejada: infraestrutura ? null : haDigitado(formData.area_pastejada),
+      total_ha: infraestrutura ? null : haDigitado(formData.area_total),
+    });
+    const missing = pendencias.map((p) => p.campo);
+    if (!infraestrutura && !formData.area_total) missing.push("area_total");
+    if (missing.length) {
+      setInvalidFields(missing);
+      const outra = pendencias.find((p) => !/^(Informe|Escolha)/.test(p.mensagem));
+      toast.error(outra ? outra.mensagem : "Preencha os campos obrigatórios.");
+      return;
+    }
 
     const rawCoords = coordenadasGPS || coordenadas || item?.coordenadas?.coords;
     const inspected = inspectVertices(rawCoords);
@@ -172,9 +176,7 @@ export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS 
     createAreaMutation.mutate({
       nome: formData.nome.toUpperCase(),
       sigla: formData.sigla?.toUpperCase(),
-      numero_area: formData.numero_area?.toString().trim() || undefined,
       setor_id: formData.setor_id,
-      setor_nome: formData.setor_nome,
       aproveitamento_classificacao: formData.aproveitamento,
       tipo_cultura: formData.tipo_cultura,
       tipo_pastagem: formData.tipo_cultura === 'Infraestrutura' ? formData.tipo_infraestrutura : formData.tipo_pastagem,
@@ -270,7 +272,7 @@ export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS 
           </FloatingField>
         ) : (
           <>
-            <FloatingField label="Tipo de cultura" required error={invalidFields.includes('tipo_pastagem')}>
+            <FloatingField label="Tipo de cultura" required={usoExploraArea(formData.tipo_cultura)} error={invalidFields.includes('tipo_pastagem')}>
               <Select value={formData.tipo_pastagem || '__none__'} onValueChange={(v) => handleChange('tipo_pastagem', v === '__none__' ? '' : v)}>
                 <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent">
                   <SelectValue placeholder="Selecione" />
