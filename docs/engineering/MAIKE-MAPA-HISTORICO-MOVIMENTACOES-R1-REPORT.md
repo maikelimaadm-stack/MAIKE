@@ -124,8 +124,14 @@ O mapa mostra 400 + 100 = **500** cabeças: nada foi duplicado.
 | `node --test backend/tests/documentoJsonEmpresaContrato.test.mjs` | 15/15 (antes do patch: 1/15) |
 | `node --test backend/tests/movimentacaoMapaHistoricoPaginado.test.mjs` | 7/7 |
 | `vitest tests/smoke/historicoMovimentacoes.test.jsx` | 17/17 |
-| `vitest` (suíte smoke completa) | ver `verify:all` |
-| `npm run verify:all` | ver resposta da PR (saída colada no relatório final ao proprietário) |
+| `npm run typecheck:backend` | passou depois de tipar o resultado do `$queryRaw` |
+| `npm run gate:types` | passou (1253 diagnósticos, teto 1746; nenhum novo) |
+| `npm run verify:all` com `DATABASE_URL` local, `AUTH_SECRET` de teste e `FRONTEND_ORIGINS=http://localhost:5173` (igual à CI) | **TODAS AS ETAPAS PASSARAM**: 38 etapas, 502,7 s. Gates: 646/646. test:backend: 547 testes, 542 aprovados, 0 falhas, 5 marcados como todo (pré-existentes). test:smoke: 95 arquivos e 1108 testes. build e build:admin ok |
+
+Primeira rodada do `verify:all`, antes dos ajustes:
+- `types` e `typecheck:backend` reprovaram por tipagem do código novo; ambos foram corrigidos;
+- `governance-paths` reprovou porque o relatório ainda não existia;
+- `test:backend` reprovou em P4B CORS (2 subtestes) porque `FRONTEND_ORIGINS` não estava definida localmente. A falha se repete em `origin/main` sem as mudanças desta PR; a CI define a variável.
 
 ## 7. Regressões avaliadas (mudança do serializador comum)
 
