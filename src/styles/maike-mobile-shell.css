@@ -1846,3 +1846,290 @@ form:has(.mk-lanc) button[class*="border-dashed"] {
     width: 220px !important;
   }
 }
+
+/*
+ * ══ Folhas no estilo do app do Claude (D-PROD-93) ══════════════════════════
+ * Fundo off-white quente, cantos de 36px, alça no topo, ✕ redondo branco à
+ * esquerda com título centralizado e cada opção num cartão branco arredondado.
+ */
+.mk-sheet {
+  border-radius: 36px 36px 0 0;
+  background: #f8f8f6;
+  color: #1f1f1f;
+}
+
+.mk-sheet__handle {
+  height: 22px;
+}
+
+.mk-sheet__handle > span {
+  width: 42px;
+  height: 5px;
+  background: #c8c8c4;
+}
+
+.mk-sheet__head {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) 52px;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 18px 14px;
+}
+
+.mk-sheet__close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: #fff;
+  color: #1f1f1f;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+  cursor: pointer;
+}
+
+.mk-sheet__title {
+  overflow: hidden;
+  color: #1f1f1f;
+  font-size: 18px;
+  font-weight: 600;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mk-sheet__aside {
+  flex-shrink: 0;
+  margin-top: -8px;
+  padding: 0 20px 10px;
+  color: #8a8a86;
+  font-size: 13px;
+  text-align: center;
+}
+
+.mk-sheet__body {
+  padding-bottom: 12px;
+}
+
+.mk-sheet__footer {
+  border-top: 0;
+  background: transparent;
+  color: #8a8a86;
+}
+
+/* Pesquisa: pílula branca */
+.mk-sheet .mk-pill {
+  height: 52px;
+  margin-right: 20px;
+  margin-left: 20px;
+  padding: 0 18px;
+  border: 1px solid transparent;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.mk-sheet .mk-pill:focus-within {
+  border-color: rgba(64, 222, 99, 0.45);
+  box-shadow: 0 0 0 3px rgba(64, 222, 99, 0.14);
+}
+
+.mk-sheet .mk-pill input {
+  font-size: 17px;
+}
+
+.mk-sheet .mgs__count {
+  padding: 2px 24px 8px;
+  color: #8a8a86;
+}
+
+/* Opções como cartões brancos arredondados */
+.mk-sheet .mgs__lista,
+.mk-sheet .fpc__lista {
+  gap: 10px;
+  padding: 4px 20px 12px;
+}
+
+.mk-sheet .mgs__op,
+.mk-sheet .fpc__item,
+.mk-sheet .mg-b1-menuitem,
+.mk-sheet .mk-co__item {
+  min-height: 60px;
+  height: auto;
+  margin: 0;
+  padding: 0 22px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: #fff;
+  color: #1f1f1f;
+  font-size: 17px;
+  font-weight: 400;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.mk-sheet .mgs__op.is-on,
+.mk-sheet .mk-co__item.is-on {
+  border-color: rgba(64, 222, 99, 0.45);
+  background: #fff;
+  color: #15803d;
+  font-weight: 500;
+}
+
+.mk-sheet .mgs__op svg,
+.mk-sheet .fpc__chev,
+.mk-sheet .fpc__ic {
+  color: #8a8a86;
+}
+
+.mk-sheet .mgs__op.is-on svg {
+  color: #15803d;
+}
+
+.mk-sheet .mgs__code {
+  color: #8a8a86;
+}
+
+.mk-sheet .fpc__resumo {
+  color: #15803d;
+  font-size: 15px;
+}
+
+.mk-sheet .fpc--sheet {
+  padding: 0;
+}
+
+.mk-sheet .fpc__busca {
+  margin-bottom: 10px;
+}
+
+.mk-sheet .mgs__vazio,
+.mk-sheet .fpc__vazio {
+  color: #8a8a86;
+  font-size: 15px;
+}
+
+/* Menu da coluna: mesmos cartões */
+.mg-col-menu-sheet .mk-sheet__body {
+  gap: 10px;
+  padding: 4px 20px 16px;
+}
+
+.mg-col-menu-sheet .mk-sheet__body > [role="menu"] {
+  gap: 10px;
+}
+
+.mk-sheet .mg-b1-menuitem {
+  gap: 14px;
+}
+
+.mk-sheet .mg-b1-menuitem svg {
+  color: #4a4a46;
+}
+
+/* Trocar empresa */
+.mk-sheet .mk-co__desc {
+  padding: 0 24px 12px;
+  color: #8a8a86;
+  text-align: center;
+}
+
+.mk-sheet .mk-co__list {
+  gap: 10px;
+  padding: 0 20px 18px;
+}
+
+.mk-sheet .mk-co__item {
+  min-height: 72px;
+  border-radius: 28px;
+}
+
+/* Filtro de coluna dentro da folha: blocos brancos agrupados */
+.mk-sheet .b1ref .fpop.fpop--sheet {
+  background: transparent;
+}
+
+.mk-sheet .fpop--sheet .fpop-busca {
+  height: 52px;
+  margin: 6px 20px 10px;
+}
+
+.mk-sheet .fpop--sheet .fmi-limpar,
+.mk-sheet .fpop--sheet .fcond {
+  margin: 0 20px;
+}
+
+.mk-sheet .fpop--sheet .fpop-l {
+  margin: 0 20px;
+  padding: 4px 6px;
+  border-radius: 24px;
+  background: #fff;
+}
+
+.mk-sheet .fpop--sheet .ftodos {
+  width: auto;
+  margin: 0 20px 8px;
+  border: 0;
+  border-radius: 999px;
+  background: #fff;
+}
+
+.mk-sheet .fpop--sheet .fpop-f {
+  margin-top: 8px;
+  border-top: 0;
+  background: transparent;
+}
+
+/* Fora do celular: diálogo centralizado com o mesmo visual */
+@media (min-width: 640px) {
+  .mk-sheet {
+    border-radius: 28px;
+  }
+}
+
+/* Select genérico (Radix) na folha: mesmo fundo e cartões */
+@media (max-width: 639px) {
+  .mk-select {
+    border-radius: 36px 36px 0 0 !important;
+    background: #f8f8f6 !important;
+  }
+
+  .mk-select::before {
+    background: #c8c8c4;
+  }
+
+  .mk-select [data-radix-select-viewport] {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 8px 20px 16px !important;
+  }
+
+  .mk-select .mk-select-item {
+    min-height: 60px;
+    margin: 0;
+    padding: 0 48px 0 22px;
+    border-radius: 999px;
+    background: #fff;
+    color: #1f1f1f;
+    font-size: 17px !important;
+    font-weight: 400;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  }
+
+  .mk-select .mk-select-item[data-state="checked"] {
+    border: 1px solid rgba(64, 222, 99, 0.45);
+    background: #fff;
+    color: #15803d;
+    font-weight: 500;
+  }
+
+  .mk-select .mk-select-item[data-highlighted] {
+    background: #f1f1ee;
+  }
+
+  .mk-select .mk-select-item > span:first-child {
+    right: 22px;
+  }
+}

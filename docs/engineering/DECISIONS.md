@@ -3453,4 +3453,26 @@ Testes:
 
 ---
 
-<!-- Próxima decisão: D-PROD-93 -->
+## D-PROD-93 — Seleção no celular aceita o toque; folhas no estilo do app do Claude
+
+**Contexto:** o proprietário relatou que no celular, ao tocar numa opção de seleção, "não aceita e fica saindo". Pediu também que as aberturas de seleção sigam o app do Claude (print enviado: "Adicionar contexto").
+
+**Causa:** o `AutocompleteGenerico` (Setor, Categoria, Marca, Sexo, Área…) mantinha o ouvinte de "toque fora" também no celular. Lá a lista vive na folha de baixo, num portal fora do campo, então o `pointerdown` na opção contava como "fora". A folha fechava e redesenhava antes do `click`, e a escolha se perdia.
+
+Reproduzido no Chromium com toque (antes: valor vazio e folha aberta; depois: valor escolhido e folha fechada) e em teste com cada evento num `act` próprio. `MgSelect`, `B1Select` e o `Select` Radix já aceitavam o toque.
+
+**Decisão:**
+1. No celular, quem fecha a lista do `AutocompleteGenerico` é a própria folha (fundo, alça, ✕, Esc).
+2. **Folhas no estilo do app do Claude:**
+   - fundo off-white #f8f8f6 e cantos de 36px;
+   - alça no topo e ✕ redondo branco à esquerda, com título centralizado;
+   - cada opção num cartão branco arredondado de 60px, com ✓ verde na escolhida;
+   - pesquisa em pílula branca.
+   Vale para todas as folhas: seletores, Filtrar por campo, filtro e menu da coluna, Trocar empresa e o `Select` genérico.
+3. A pesquisa só aparece em listas com mais de 8 itens e não abre o teclado sozinha: o teclado cobria as opções.
+
+Teste: `tests/smoke/mobileSelecaoToque.test.jsx`.
+
+---
+
+<!-- Próxima decisão: D-PROD-94 -->

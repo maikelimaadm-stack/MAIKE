@@ -1,5 +1,6 @@
 import React from "react";
 import { createPortal } from "react-dom";
+import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /** Alturas da folha: média ao abrir, grande ao puxar a alça para cima. */
@@ -133,12 +134,15 @@ export default function MobileSheet({ open, onClose, label, title = null, aside 
         >
           <span aria-hidden />
         </div>
-        {title ? (
-          <div className="mk-sheet__head">
-            <span className="mk-sheet__title">{title}</span>
-            {aside ? <span className="mk-sheet__aside">{aside}</span> : null}
-          </div>
-        ) : null}
+        {/* Cabeçalho no estilo do app do Claude: ✕ redondo à esquerda, título ao centro. */}
+        <div className="mk-sheet__head">
+          <button type="button" className="mk-sheet__close" onClick={() => onClose()} aria-label="Fechar" title="Fechar">
+            <X size={20} aria-hidden />
+          </button>
+          <span className="mk-sheet__title">{title || label}</span>
+          <span className="mk-sheet__close-gap" aria-hidden />
+        </div>
+        {aside ? <div className="mk-sheet__aside">{aside}</div> : null}
         <div className="mk-sheet__body">{children}</div>
         {footer ? <div className="mk-sheet__footer">{footer}</div> : null}
       </div>

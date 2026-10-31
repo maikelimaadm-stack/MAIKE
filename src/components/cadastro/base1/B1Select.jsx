@@ -93,7 +93,7 @@ export default function B1Select(props) {
                   <Search size={14} />
                 </span>
               )}
-              <input autoFocus value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Pesquisar…" aria-label={`Pesquisar ${rotulo}`} />
+              <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Pesquisar…" aria-label={`Pesquisar ${rotulo}`} />
             </div>
           ) : null}
           <div className="mgs__lista" role="listbox" aria-label={rotulo}>

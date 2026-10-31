@@ -89,9 +89,12 @@ export default function AutocompleteGenerico({
     };
   }, [open, calcPosition]);
 
-  // Fechar ao clicar fora
+  // Fechar ao clicar fora. No celular a lista vive na folha de baixo (portal
+  // fora do campo): quem fecha é a própria folha (fundo, alça, Esc). Se este
+  // ouvinte valesse ali, o toque na opção fecharia a folha no pointerdown e a
+  // escolha se perderia antes do click.
   useEffect(() => {
-    if (!open) return;
+    if (!open || celular) return;
     function handleClickOutside(event) {
       const isInsideWrapper = wrapperRef.current && wrapperRef.current.contains(event.target);
       const isInsideDropdown = dropdownRef.current && dropdownRef.current.contains(event.target);
@@ -107,7 +110,7 @@ export default function AutocompleteGenerico({
     }
     document.addEventListener("pointerdown", handleClickOutside);
     return () => document.removeEventListener("pointerdown", handleClickOutside);
-  }, [open, itemSelecionado, displayField]);
+  }, [open, celular, itemSelecionado, displayField]);
 
   const itensFiltrados = [...items].
   sort((a, b) => String(a?.[displayField] || "").localeCompare(String(b?.[displayField] || ""), "pt-BR", { numeric: true, sensitivity: "base" })).
@@ -299,10 +302,10 @@ export default function AutocompleteGenerico({
           onClose={() => setOpen(false)}
           label={titulo}
           title={titulo}
-          aside={`${fmt(items.length)} registros`}
+          aside={items.length > 8 ? `${fmt(items.length)} registros` : null}
           footer={encontrados.length > LIMITE_CELULAR ? <span className="mgs__mais">Mostrando {LIMITE_CELULAR} de {fmt(encontrados.length)} · refine a pesquisa</span> : null}
         >
-          <div className="mk-pill mgs__busca">
+          {items.length > 8 ? <div className="mk-pill mgs__busca">
             {buscaCelular ? (
               <button type="button" className="mk-pill__clear" aria-label="Limpar pesquisa" onClick={() => setBuscaCelular("")}>
                 <X size={14} />
@@ -313,7 +316,6 @@ export default function AutocompleteGenerico({
               </span>
             )}
             <input
-              autoFocus
               value={buscaCelular}
               onChange={(e) => setBuscaCelular(e.target.value)}
               placeholder={`Pesquisar ${titulo}…`}
@@ -324,7 +326,7 @@ export default function AutocompleteGenerico({
                   handleSelect(vistos[0]);
                 }
               }} />
-          </div>
+          </div> : null}
           {termo ? <div className="mgs__count">{fmt(encontrados.length)} encontrado{encontrados.length === 1 ? "" : "s"}</div> : null}
           <div className="mgs__lista" role="listbox" aria-label={titulo}>
             {!vistos.length ? <div className="mgs__vazio">Nenhum registro encontrado</div> : null}
