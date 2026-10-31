@@ -175,7 +175,6 @@ function MgSelectSheet({ label, options, value, onPick, onClose }) {
               </span>
             )}
             <input
-              autoFocus
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
               placeholder={`Pesquisar ${label}…`}
