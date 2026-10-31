@@ -32,7 +32,8 @@ import { criarMedidorDeTexto, tamanhoFonteContagem } from "@/lib/maplibre/contag
 
 const blinkIntervals = new Map();
 /** Ícone de lotes acima do centroide (px, independe do zoom). */
-const OFFSET_LOTE_PX = /** @type {[number, number]} */ ([0, -30]);
+// Ícone do lote 44 px (D-PROD-88): deslocamento proporcional, a ponta fica no mesmo lugar.
+const OFFSET_LOTE_PX = /** @type {[number, number]} */ ([0, -26]);
 
 const setBlink = (key, el, shouldBlink, dim = 0.35) => {
   const existing = blinkIntervals.get(key);
@@ -492,7 +493,7 @@ export default function useMapRenderer(mapInstanceRef) {
         estado,
         ref,
         criar: () => {
-          const entry = criarMarcadorClicavel({ iconUrl, baseSize: 50, cor: "#10b981", titulo: area.nome, raio: 22 }, () => {
+          const entry = criarMarcadorClicavel({ iconUrl, baseSize: 44, cor: "#10b981", titulo: area.nome, raio: 19 }, () => {
             if (entry.arrastou) return;
             onClickLotes?.(markersRef.current.get(key)?.ultimo?.ref?.lotesNaArea || lotesNaArea);
           }, { draggable: !!canDragLotes, offset: OFFSET_LOTE_PX });
@@ -501,11 +502,12 @@ export default function useMapRenderer(mapInstanceRef) {
           badge.style.cssText =
             // Quantidade de cabeças: cinza escuro, abaixo da figura, com halo claro
             // para ler sobre o ícone (D-PROD-82). O tamanho da fonte se ajusta ao
-            // largura medida do número em `preencherLote` (D-PROD-83).
-            "position:absolute;left:50%;top:72%;transform:translate(-50%,-50%);color:#374151;font-weight:700;font-family:Inter,Arial,sans-serif;line-height:1;white-space:nowrap;text-shadow:0 0 2px rgba(255,255,255,.95),0 0 3px rgba(255,255,255,.8);pointer-events:none;";
+            // largura medida do número em `preencherLote` (D-PROD-83). Um pouco
+            // mais acima e menor, acompanhando o ícone de 44 px (D-PROD-88).
+            "position:absolute;left:50%;top:66%;transform:translate(-50%,-50%);color:#374151;font-weight:700;font-family:Inter,Arial,sans-serif;line-height:1;white-space:nowrap;text-shadow:0 0 2px rgba(255,255,255,.95),0 0 3px rgba(255,255,255,.8);pointer-events:none;";
           const ind = document.createElement("div");
           ind.className = "mg-lote-ident";
-          ind.style.cssText = "position:absolute;left:calc(50% + 20px);top:calc(50% - 25px);transform:translate(-50%,-50%);display:flex;pointer-events:none;";
+          ind.style.cssText = "position:absolute;left:calc(50% + 18px);top:calc(50% - 22px);transform:translate(-50%,-50%);display:flex;pointer-events:none;";
           entry.el.append(badge, ind);
           entry.badge = badge;
           entry.ind = ind;
@@ -528,7 +530,7 @@ export default function useMapRenderer(mapInstanceRef) {
         },
         atualizar: (entry) => {
           entry.el.title = String(area.nome || "");
-          aplicarCorpo(entry.el, { iconUrl, baseSize: 50, cor: "#10b981", raio: 22 });
+          aplicarCorpo(entry.el, { iconUrl, baseSize: 44, cor: "#10b981", raio: 19 });
           preencherLote(entry, { totalCabecas, identificadores, totalAlertas, blinkAlerts, key, canDragLotes });
         },
       });
