@@ -3443,7 +3443,7 @@ Relatório: `docs/engineering/UX-MOBILE-V2-REPORT.md` (seção "V3").
   - auditoria em lote (`registrarEventosEmLote`), um evento por área como antes.
   - Medido com 120 ms de latência simulada: **100 áreas em 2,1 s** (antes, 50,8 s).
 - **Inalterados:** atomicidade por lote, idempotência, tenant, empresa e setor, numeração do servidor e o contrato HTTP.
-- **Não feito (fica para decisão do proprietário):** fixar a região das funções da Vercel em São Paulo (`gru1`). Isso deixaria todo o sistema mais rápido, mas muda a configuração de deploy e depende do plano.
+- **Região da API (autorizado pelo proprietário):** `vercel.json` passa a ter `"regions": ["gru1"]`. As funções rodam em São Paulo, junto do banco (`sa-east-1`), e cada ida ao banco cai de cerca de 120 ms para poucos milissegundos. Vale para o sistema inteiro, não só para a importação. Para reverter, basta remover a linha.
 
 Relatório: `docs/engineering/MAIKE-IMPORTACAO-AREAS-KML-GEOJSON-01-REPORT.md` (seção 14).
 

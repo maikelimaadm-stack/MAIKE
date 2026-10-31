@@ -348,4 +348,8 @@ Continuam recusados, porque importar perderia ou inventaria dado:
 
 **Gates:** `verify:all` local 32/32 PASS (backend 519/524 com 0 falhas, smoke 1081/1081).
 
-**Recomendação não aplicada:** fixar `"regions": ["gru1"]` no `vercel.json` aproxima todas as funções do banco e acelera o sistema inteiro. Muda a configuração de deploy, então fica para decisão do proprietário.
+**Região da API (aplicado com autorização do proprietário):**
+- `vercel.json` ganha `"regions": ["gru1"]`: as funções rodam em São Paulo, a mesma região do Supabase;
+- a latência por ida ao banco cai de cerca de 120 ms para poucos milissegundos, e isso vale para todas as telas;
+- rollback: remover a linha e fazer novo deploy;
+- o efeito só existe depois do deploy em produção, feito pelo merge do proprietário.
