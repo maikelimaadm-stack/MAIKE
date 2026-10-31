@@ -45,6 +45,16 @@ describe("paridade de geometria", () => {
     }
   });
 
+  it("chave canônica com vértice repetido (contorno que volta ao menor ponto): toda rotação dá a mesma chave", () => {
+    const anel = [[0, 0], [0, 0.02], [0.02, 0.02], [0, 0], [0.03, 0], [0.03, 0.03]];
+    const chave = chaveCanonicaDoContorno(anel);
+    for (let k = 1; k < anel.length; k += 1) {
+      const rot = [...anel.slice(k), ...anel.slice(0, k)];
+      expect(chaveCanonicaDoContorno(rot), `rotação ${k}`).toBe(chave);
+      expect(chaveCanonicaDoContorno([...rot].reverse()), `rotação ${k} invertida`).toBe(chave);
+    }
+  });
+
   it("chave canônica: mesmo contorno em outro sentido/início dá a mesma chave", () => {
     const a = [[0, 0], [0, 1], [1, 1], [1, 0]];
     const b = [[1, 1], [0, 1], [0, 0], [1, 0], [1, 1]];

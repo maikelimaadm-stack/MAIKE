@@ -72,6 +72,31 @@ export const reservarProximoValor = async (tx, { clienteId, entidade, escopoTipo
 };
 
 /**
+ * Reserva `quantidade` números consecutivos numa única ida ao banco (D-PROD-90
+ * R2 — importação em bloco). Mesma linha e mesmo UPDATE atômico do
+ * `reservarProximoValor`; devolve o PRIMEIRO número da faixa.
+ *
+ * @param {import('@prisma/client').Prisma.TransactionClient} tx
+ * @param {{clienteId: string, entidade: string, escopoTipo: string, escopoId: string}} chave
+ * @param {number} quantidade
+ * @returns {Promise<number | null>}
+ */
+export const reservarFaixaDeValores = async (tx, { clienteId, entidade, escopoTipo, escopoId }, quantidade) => {
+  const linhas = await tx.$queryRaw`
+    UPDATE "EntidadeCodigoSequencia"
+       SET "proximo_valor" = "proximo_valor" + ${quantidade}::int,
+           "updatedAt" = NOW()
+     WHERE "cliente_id" = ${clienteId}
+       AND "entidade" = ${entidade}
+       AND "escopo_tipo" = ${escopoTipo}
+       AND "escopo_id" = ${escopoId}
+    RETURNING ("proximo_valor" - ${quantidade}::int) AS primeiro
+  `;
+  const primeiro = Number(linhas?.[0]?.primeiro);
+  return Number.isFinite(primeiro) && primeiro > 0 ? primeiro : null;
+};
+
+/**
  * Leitura da sequência, para inspeção e teste. Tenant-scoped.
  * @param {{clienteId: string, entidade: string, escopoTipo: string, escopoId: string}} chave
  */

@@ -26,7 +26,7 @@
 import { sequenceConflict, sequenceScopeInvalid } from '../../shared/errors/AppError.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { getPrismaClient } from '../../database/prismaClient.js';
-import { garantirLinhaDaSequencia, reservarProximoValor } from './entidadeCodigoRepository.js';
+import { garantirLinhaDaSequencia, reservarFaixaDeValores, reservarProximoValor } from './entidadeCodigoRepository.js';
 
 /** Escopos suportados pela fundação. Vem de `numbering.scopeTypes`. */
 export const ESCOPO_TENANT = 'tenant';
@@ -99,6 +99,36 @@ export const reservarNumero = async (tx, pedido) => {
   }
 
   return atribuido;
+};
+
+/**
+ * Reserva `quantidade` números consecutivos da mesma sequência, na transação de
+ * quem chama, com duas idas ao banco no total (garantia da linha + UPDATE).
+ * Devolve a lista de números, em ordem. Mesmas regras de escopo do
+ * `reservarNumero`.
+ *
+ * @param {import('@prisma/client').Prisma.TransactionClient} tx
+ * @param {{clienteId: string, entidade: string, escopoTipo?: string, escopoId?: string}} pedido
+ * @param {number} quantidade
+ * @returns {Promise<number[]>}
+ */
+export const reservarNumeros = async (tx, pedido, quantidade) => {
+  if (!Number.isInteger(quantidade) || quantidade < 1) {
+    throw sequenceScopeInvalid('quantidade de números deve ser inteiro positivo');
+  }
+  const escopoTipo = pedido.escopoTipo || ESCOPO_TENANT;
+  const entidade = String(pedido.entidade || '').trim();
+  if (!entidade) throw sequenceScopeInvalid('entidade da sequência é obrigatória');
+  const chave = {
+    clienteId: pedido.clienteId,
+    entidade,
+    escopoTipo,
+    escopoId: resolverEscopoId({ clienteId: pedido.clienteId, escopoTipo, escopoId: pedido.escopoId }),
+  };
+  await garantirLinhaDaSequencia(tx, chave);
+  const primeiro = await reservarFaixaDeValores(tx, chave, quantidade);
+  if (primeiro === null) throw sequenceConflict('não foi possível reservar os números da sequência');
+  return Array.from({ length: quantidade }, (_, i) => primeiro + i);
 };
 
 /**

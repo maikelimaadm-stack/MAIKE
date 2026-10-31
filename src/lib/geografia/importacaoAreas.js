@@ -144,10 +144,10 @@ export function normalizarAnel(brutos) {
   if (vertices.length > LIMITES_ARQUIVO.maxVerticesPorArea) {
     return { ok: false, motivo: `Contorno com mais de ${LIMITES_ARQUIVO.maxVerticesPorArea} vértices.` };
   }
-  // Mesma ordem do servidor: cruzamento antes da área (uma "gravata" tem área
-  // líquida zero e seria descrita como degenerada, escondendo a causa real).
-  if (vertices.length >= 4 && anelSeAutoIntersecta(vertices)) {
-    return { ok: false, motivo: "O contorno cruza a si mesmo." };
+  // Contorno que se cruza é importado como está, com aviso (D-PROD-90 R2):
+  // é o desenho do arquivo, e o proprietário decidiu não travar por isso.
+  if (anelSeAutoIntersecta(vertices)) {
+    avisos.push("O contorno se cruza ou passa duas vezes pelo mesmo ponto; será importado como está no arquivo.");
   }
   const check = validatePolygonForSave(vertices);
   if (!check.ok) return { ok: false, motivo: check.reason || "Contorno inválido." };

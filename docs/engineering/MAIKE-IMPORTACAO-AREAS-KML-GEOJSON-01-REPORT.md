@@ -307,3 +307,49 @@ Fixture de validação manual: `tests/smoke/fixtures/importacaoAreas/lote-205-ar
 ### 13.8 Rollback
 
 Reverter os commits R1 da PR. O helper de idempotência volta ao `create` + `P2002`, e com ele o 500 em corrida. Não há migration.
+
+---
+
+## 14. R2 — "importar tudo" e "imediata" (D-PROD-92, 2026-10-31)
+
+### 14.1 Contorno que se cruza
+
+| Antes | Depois |
+|---|---|
+| Contorno que se cruza ou passa duas vezes pelo mesmo ponto → item inválido, não importa (10 Placemarks do arquivo real do proprietário) | O item é importado como está no arquivo, com aviso na linha ("…será importado como está no arquivo"). O servidor marca `avisos: [{codigo: 'CONTORNO_SE_CRUZA'}]` e grava as coordenadas sem alteração (IMP-20) |
+
+Continuam recusados, porque importar perderia ou inventaria dado:
+- coordenada fora de WGS84;
+- menos de 3 pontos distintos ou área nula;
+- buraco interno;
+- várias partes (MultiPolygon ou MultiGeometry com mais de um polígono).
+
+### 14.2 Lentidão: "fica Gravando…"
+
+**Causa:**
+- Supabase em `sa-east-1` (consultado: projeto MAIKE, `region: sa-east-1`). O `vercel.json` não fixa região, então as funções rodam na região padrão da Vercel, a cerca de 120 ms de São Paulo por ida e volta;
+- o código fazia cerca de 4 idas ao banco por área, dentro da transação.
+
+**Prova:** proxy TCP local com 60 ms por sentido entre a API e o PostgreSQL (`/tmp`, fora do repositório). Mesmo código e mesmo banco, antes e depois:
+
+| Áreas | Antes (main `465e72b9`) | Depois |
+|---|---|---|
+| 10 | 6,8 s | 3,1 s |
+| 50 | 26,0 s | 2,1 s |
+| 100 | **50,8 s** (limite da transação: 60 s) | **2,1 s** |
+
+**Correção (número fixo de idas ao banco):**
+- `setor.findMany` por lista de ids;
+- `reservarNumeros(tx, …, N)`: garante a linha da sequência e faz um `UPDATE … + N RETURNING`;
+- `inserirAreasEmLote` com `createManyAndReturn`. Cada área é associada à sua `ref` pelo número reservado, sem depender da ordem do retorno;
+- `registrarEventosEmLote`: `createMany` da auditoria, um evento por área, com o mesmo conteúdo de antes.
+
+**Provas (IMP-21):** 100 áreas com números consecutivos depois de uma já existente, refs na ordem e apontando para a área certa, 101 auditorias e a sequência avançando exatamente 100.
+
+**Gates:** `verify:all` local 32/32 PASS (backend 519/524 com 0 falhas, smoke 1081/1081).
+
+**Região da API (aplicado com autorização do proprietário):**
+- `vercel.json` ganha `"regions": ["gru1"]`: as funções rodam em São Paulo, a mesma região do Supabase;
+- a latência por ida ao banco cai de cerca de 120 ms para poucos milissegundos, e isso vale para todas as telas;
+- rollback: remover a linha e fazer novo deploy;
+- o efeito só existe depois do deploy em produção, feito pelo merge do proprietário.
