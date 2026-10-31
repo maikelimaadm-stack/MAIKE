@@ -4,6 +4,7 @@ import { B1ChaveRow } from "@/components/cadastro/base1/Base1Ui";
 import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
 import CadastroFormActions from "@/components/cadastro/base1/CadastroFormActions";
 import { notifyWarning } from "@/lib/maikeNotify";
+import B1Select from "@/components/cadastro/base1/B1Select";
 
 export const FORMULARIO_TIPO_TAREFA_ID = "formulario-tipo-tarefa-base1";
 
@@ -107,7 +108,7 @@ export default function FormularioTipoTarefa({
         {readOnly ? (
           <input type="text" readOnly value={grupoLabel.toUpperCase()} className={B1_FIELD_CTL_CLS} />
         ) : (
-          <select
+          <B1Select
             value={formData.grupo_atividade_id || SELECT_EMPTY}
             onChange={(e) =>
               handleChange("grupo_atividade_id", e.target.value === SELECT_EMPTY ? "" : e.target.value)
@@ -121,7 +122,7 @@ export default function FormularioTipoTarefa({
                 {grupo.ativo === false ? " (INATIVO)" : ""}
               </option>
             ))}
-          </select>
+          </B1Select>
         )}
       </B1Field>
 

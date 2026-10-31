@@ -9,17 +9,10 @@ import { X, Plus } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { listarIconesDaEmpresa } from "@/services/mapaService";
 import { getTodayLocalDate } from "../utils/pecuariaUtils";
+import LancField from "@/components/cadastro/base1/LancField";
 
-const FL = ({ label, required, children }) => (
-  <div>
-    <label className="text-[12px] text-slate-500 pl-1 leading-none">
-      {label}{required && <span className="text-red-500 ml-0.5">*</span>}
-    </label>
-    <div className="rounded-md border border-slate-300 focus-within:border-emerald-500 transition-colors">
-      {children}
-    </div>
-  </div>
-);
+/** Campo flutuante Base1 (rótulo dentro) — D-PROD-88. */
+const FL = LancField;
 
 export default function FormularioAbate({ lote, onSubmit, onCancel }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');

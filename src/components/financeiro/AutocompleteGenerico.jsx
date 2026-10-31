@@ -1,7 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import ReactDOM from "react-dom";
-import { X } from "lucide-react";
+import { Check, Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import MobileSheet, { useCelular } from "@/components/common/MobileSheet";
+
+/** Teto de itens desenhados na folha do celular — cadastros podem ter milhares. */
+const LIMITE_CELULAR = 100;
 
 export default function AutocompleteGenerico({
   items,
@@ -30,6 +34,9 @@ export default function AutocompleteGenerico({
   const dropdownRef = useRef(null);
   const interactingWithDropdownRef = useRef(false);
   const portalContainerRef = useRef(null);
+  const celular = useCelular();
+  const [buscaCelular, setBuscaCelular] = useState("");
+  const [rotuloCelular, setRotuloCelular] = useState("");
 
   const itemSelecionado = items.find((item) => item.id === value);
 
@@ -249,6 +256,93 @@ export default function AutocompleteGenerico({
     return ReactDOM.createPortal(content, portalContainerRef.current || document.body);
   };
 
+  // Celular: o campo vira um botão de leitura e a escolha acontece na folha
+  // de baixo, com a mesma pesquisa das outras aberturas (D-PROD-88).
+  if (celular) {
+    const termo = buscaCelular.trim().toLowerCase();
+    const encontrados = termo
+      ? itensFiltradosCelular(items, displayField, searchFields, termo)
+      : [...items].sort((a, b) => String(a?.[displayField] || "").localeCompare(String(b?.[displayField] || ""), "pt-BR", { numeric: true, sensitivity: "base" }));
+    const vistos = encontrados.slice(0, LIMITE_CELULAR);
+    const fmt = (n) => n.toLocaleString("pt-BR");
+    const abrir = () => {
+      if (disabled || readOnly) return;
+      const rotulo = wrapperRef.current?.closest(".mg-field, .cadastro-b1-form-field")?.querySelector("label")?.textContent || "";
+      setRotuloCelular(rotulo.replace(/\s*\*\s*$/, "").trim() || placeholder.replace(/^buscar\s*/i, "").replace(/\.+$/, ""));
+      setBuscaCelular("");
+      setOpen(true);
+    };
+    const titulo = rotuloCelular || "Selecione";
+    return (
+      <div ref={wrapperRef} className={`relative ${className || ''}`}>
+        <input
+          ref={inputRef}
+          value={itemSelecionado ? itemSelecionado[displayField] || "" : ""}
+          readOnly
+          onClick={abrir}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              abrir();
+            }
+          }}
+          disabled={disabled}
+          placeholder={placeholder}
+          aria-haspopup="dialog"
+          aria-expanded={open}
+          className={`flex w-full bg-transparent pr-8 h-8 text-xs rounded-none cursor-pointer outline-none ${uppercaseDisplay ? 'uppercase' : ''} ${inputClassName}`}
+          style={uppercaseDisplay ? { textTransform: 'uppercase', caretColor: 'transparent' } : { caretColor: 'transparent' }} />
+        <MobileSheet
+          open={open}
+          onClose={() => setOpen(false)}
+          label={titulo}
+          title={titulo}
+          aside={`${fmt(items.length)} registros`}
+          footer={encontrados.length > LIMITE_CELULAR ? <span className="mgs__mais">Mostrando {LIMITE_CELULAR} de {fmt(encontrados.length)} · refine a pesquisa</span> : null}
+        >
+          <div className="mk-pill mgs__busca">
+            {buscaCelular ? (
+              <button type="button" className="mk-pill__clear" aria-label="Limpar pesquisa" onClick={() => setBuscaCelular("")}>
+                <X size={14} />
+              </button>
+            ) : (
+              <span className="mk-pill__icon" aria-hidden>
+                <Search size={14} />
+              </span>
+            )}
+            <input
+              autoFocus
+              value={buscaCelular}
+              onChange={(e) => setBuscaCelular(e.target.value)}
+              placeholder={`Pesquisar ${titulo}…`}
+              aria-label={`Pesquisar ${titulo}`}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && vistos[0]) {
+                  e.preventDefault();
+                  handleSelect(vistos[0]);
+                }
+              }} />
+          </div>
+          {termo ? <div className="mgs__count">{fmt(encontrados.length)} encontrado{encontrados.length === 1 ? "" : "s"}</div> : null}
+          <div className="mgs__lista" role="listbox" aria-label={titulo}>
+            {!vistos.length ? <div className="mgs__vazio">Nenhum registro encontrado</div> : null}
+            {vistos.map((item) => {
+              const on = item.id === value;
+              return (
+                <button key={item.id} type="button" role="option" aria-selected={on} className={`mgs__op${on ? ' is-on' : ''}`} onClick={() => handleSelect(item)}>
+                  <span className="mgs__label">
+                    {renderItem ? renderItem(item) : item[displayField]}
+                    {renderSubtext ? <span className="mgs__sec">{renderSubtext(item)}</span> : null}
+                  </span>
+                  {on ? <Check size={14} aria-hidden /> : null}
+                </button>
+              );
+            })}
+          </div>
+        </MobileSheet>
+      </div>);
+  }
+
   return (
     <div ref={wrapperRef} className={`relative ${className || ''}`}>
       <div className="relative">
@@ -286,4 +380,10 @@ export default function AutocompleteGenerico({
       {renderDropdown()}
     </div>);
 
+}
+/** Filtro da folha do celular: mesmos campos de busca do desktop. */
+function itensFiltradosCelular(items, displayField, searchFields, termo) {
+  return [...items]
+    .filter((item) => searchFields.some((f) => item?.[f] != null && String(item[f]).toLowerCase().includes(termo)))
+    .sort((a, b) => String(a?.[displayField] || "").localeCompare(String(b?.[displayField] || ""), "pt-BR", { numeric: true, sensitivity: "base" }));
 }

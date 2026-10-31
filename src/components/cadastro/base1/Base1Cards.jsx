@@ -164,9 +164,9 @@ export function Base1Cards({
               <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--mg-accent)] text-[11px] font-bold text-white">
                 {initials(typeof t === "string" ? t : getFieldValue(r, titleCol?.id))}
               </span>
-              <span className="mg-b1-card__title">
-                {code ? <span className="mg-b1-card__code">{code} • </span> : null}
-                {t}
+              <span className="mg-b1-card__head">
+                <span className="mg-b1-card__title">{t}</span>
+                {code ? <span className="mg-b1-card__sub">{code}</span> : null}
               </span>
             </div>
             <dl className="mg-b1-card__fields">

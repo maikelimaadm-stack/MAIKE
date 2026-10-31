@@ -1,6 +1,6 @@
 /**
  * Tamanho da fonte da quantidade de cabeças no marcador do lote (D-PROD-83;
- * menor e mais alto com o ícone de 44 px, D-PROD-88).
+ * menor e mais alto com o ícone de 44 px, D-PROD-89).
  *
  * O número fica abaixo da figura, numa faixa de LARGURA_MAXIMA_CONTAGEM px que
  * cabe dentro do ícone. Se o texto no tamanho base for mais largo que a faixa

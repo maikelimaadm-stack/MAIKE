@@ -4,6 +4,7 @@ import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
 import CadastroFormActions from "@/components/cadastro/base1/CadastroFormActions";
 import { notifyWarning } from "@/lib/maikeNotify";
 import CategoriaOficialCatalogoSelect from "@/components/catalogoGlobal/CategoriaOficialCatalogoSelect";
+import B1Select from "@/components/cadastro/base1/B1Select";
 
 export const FORMULARIO_CATEGORIA_MANEJO_ID = "formulario-categoria-manejo-base1";
 
@@ -175,7 +176,7 @@ export default function FormularioCategoriaManejo({
         {readOnly ? (
           <input type="text" readOnly value={formData.especie || ""} className={B1_FIELD_CTL_CLS} />
         ) : (
-          <select
+          <B1Select
             value={formData.especie || "Bovinos"}
             onChange={(e) => handleChange("especie", e.target.value)}
             className={B1_FIELD_CTL_CLS}
@@ -183,7 +184,7 @@ export default function FormularioCategoriaManejo({
             <option value="Bovinos">Bovinos</option>
             <option value="Ovinos">Ovinos</option>
             <option value="Suínos">Suínos</option>
-          </select>
+          </B1Select>
         )}
       </B1Field>
 
@@ -199,7 +200,7 @@ export default function FormularioCategoriaManejo({
         {readOnly ? (
           <input type="text" readOnly value={formData.sexo || ""} className={B1_FIELD_CTL_CLS} />
         ) : (
-          <select
+          <B1Select
             value={formData.sexo || SELECT_EMPTY}
             onChange={(e) => handleChange("sexo", e.target.value === SELECT_EMPTY ? "" : e.target.value)}
             className={B1_FIELD_CTL_CLS}
@@ -207,7 +208,7 @@ export default function FormularioCategoriaManejo({
             <option value={SELECT_EMPTY}>SELECIONE</option>
             <option value="Macho">Macho</option>
             <option value="Fêmea">Fêmea</option>
-          </select>
+          </B1Select>
         )}
       </B1Field>
 
@@ -242,7 +243,7 @@ export default function FormularioCategoriaManejo({
         {readOnly ? (
           <input type="text" readOnly value={formData.categoria_oficial || ""} className={B1_FIELD_CTL_CLS} />
         ) : (
-          <select
+          <B1Select
             value={formData.categoria_oficial || SELECT_EMPTY}
             onChange={(e) =>
               handleChange("categoria_oficial", e.target.value === SELECT_EMPTY ? "" : e.target.value)
@@ -255,7 +256,7 @@ export default function FormularioCategoriaManejo({
                 {cat}
               </option>
             ))}
-          </select>
+          </B1Select>
         )}
       </B1Field>
 

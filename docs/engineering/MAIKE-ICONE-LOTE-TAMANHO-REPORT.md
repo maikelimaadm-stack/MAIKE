@@ -1,4 +1,4 @@
-# MAIKE — ícone do lote no mapa: tamanho e quantidade (D-PROD-88)
+# MAIKE — ícone do lote no mapa: tamanho e quantidade (D-PROD-89)
 
 **Pedido:** ícone do lote um pouco menor; número de cabeças um pouco menor e
 um pouco mais acima.

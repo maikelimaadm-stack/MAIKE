@@ -4,6 +4,7 @@ import { B1ChaveRow } from "@/components/cadastro/base1/Base1Ui";
 import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
 import CadastroFormActions from "@/components/cadastro/base1/CadastroFormActions";
 import { notifyWarning } from "@/lib/maikeNotify";
+import B1Select from "@/components/cadastro/base1/B1Select";
 
 export const FORMULARIO_SETOR_ID = "formulario-setor-base1";
 
@@ -125,7 +126,7 @@ export default function FormularioSetor({
         {readOnly ? (
           <input type="text" value={form.tipo} className={B1_FIELD_CTL_CLS} readOnly tabIndex={-1} />
         ) : (
-          <select
+          <B1Select
             value={form.tipo}
             onChange={(e) => handleChange("tipo", e.target.value)}
             className={selectClass}
@@ -135,7 +136,7 @@ export default function FormularioSetor({
                 {tipo}
               </option>
             ))}
-          </select>
+          </B1Select>
         )}
       </B1Field>
       <B1Field label="Responsável" span={4} hasValue={Boolean(form.responsavel?.trim())} locked={readOnly} disabled={readOnly}>
@@ -246,7 +247,7 @@ export default function FormularioSetor({
         {readOnly ? (
           <input type="text" value={form.estado} className={B1_FIELD_CTL_CLS} readOnly tabIndex={-1} />
         ) : (
-          <select
+          <B1Select
             value={form.estado || ""}
             onChange={(e) => handleChange("estado", e.target.value)}
             className={selectClass}
@@ -257,7 +258,7 @@ export default function FormularioSetor({
                 {uf}
               </option>
             ))}
-          </select>
+          </B1Select>
         )}
       </B1Field>
       <B1ChaveRow

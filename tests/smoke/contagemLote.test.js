@@ -14,7 +14,7 @@ import {
 } from '../../src/lib/maplibre/contagemLote.js';
 
 // Larguras reais medidas no Chromium (700 11px Inter/Arial), proporcionais ao px.
-// Fonte base 10 px com o ícone de 44 px (D-PROD-88); a faixa de 22 px segue dentro dele.
+// Fonte base 10 px com o ícone de 44 px (D-PROD-89); a faixa de 22 px segue dentro dele.
 const MEDIDAS_11PX = { 5: 7.0, 50: 14.4, 500: 21.9, 5000: 29.3, 12500: 33.5, 125000: 41.0, 1250000: 48.4 };
 const medidor = (t, px) => (MEDIDAS_11PX[t] * px) / 11;
 
@@ -44,7 +44,7 @@ describe('CNT — fonte da quantidade de cabeças', () => {
     expect(fonte).toMatch(/medirContagem \|\|= criarMedidorDeTexto\(\)/);
     expect(fonte).toMatch(/entry\.badge\.style\.fontSize = `\$\{tamanhoFonteContagem\(textoCabecas, medirContagem\)\}px`/);
     expect(fonte).toMatch(/top:66%[^"]*color:#374151/);
-    // Ícone do lote 44 px, raio e deslocamento proporcionais (D-PROD-88).
+    // Ícone do lote 44 px, raio e deslocamento proporcionais (D-PROD-89).
     expect(fonte).toMatch(/baseSize: 44, cor: "#10b981", titulo: area\.nome, raio: 19/);
     expect(fonte).toMatch(/OFFSET_LOTE_PX = .*\[0, -26\]/);
   });

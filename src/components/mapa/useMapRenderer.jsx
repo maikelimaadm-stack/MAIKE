@@ -32,7 +32,7 @@ import { criarMedidorDeTexto, tamanhoFonteContagem } from "@/lib/maplibre/contag
 
 const blinkIntervals = new Map();
 /** Ícone de lotes acima do centroide (px, independe do zoom). */
-// Ícone do lote 44 px (D-PROD-88): deslocamento proporcional, a ponta fica no mesmo lugar.
+// Ícone do lote 44 px (D-PROD-89): deslocamento proporcional, a ponta fica no mesmo lugar.
 const OFFSET_LOTE_PX = /** @type {[number, number]} */ ([0, -26]);
 
 const setBlink = (key, el, shouldBlink, dim = 0.35) => {
@@ -503,7 +503,7 @@ export default function useMapRenderer(mapInstanceRef) {
             // Quantidade de cabeças: cinza escuro, abaixo da figura, com halo claro
             // para ler sobre o ícone (D-PROD-82). O tamanho da fonte se ajusta ao
             // largura medida do número em `preencherLote` (D-PROD-83). Um pouco
-            // mais acima e menor, acompanhando o ícone de 44 px (D-PROD-88).
+            // mais acima e menor, acompanhando o ícone de 44 px (D-PROD-89).
             "position:absolute;left:50%;top:66%;transform:translate(-50%,-50%);color:#374151;font-weight:700;font-family:Inter,Arial,sans-serif;line-height:1;white-space:nowrap;text-shadow:0 0 2px rgba(255,255,255,.95),0 0 3px rgba(255,255,255,.8);pointer-events:none;";
           const ind = document.createElement("div");
           ind.className = "mg-lote-ident";
