@@ -13,6 +13,7 @@ import {
   createMovimentacaoMapaNativa,
   updateMovimentacaoMapaNativa,
   deleteMovimentacaoMapaNativa,
+  listHistoricoMovimentacoesMapaNativo,
 } from '@/apis/movimentacoes-mapa';
 import { listMovimentacoesPecuariaNativas } from '@/apis/movimentacoes-pecuaria';
 import {
@@ -81,6 +82,23 @@ export const listTodasMovimentacoes = async (opcoes = {}) =>
       ctx('listTodasMovimentacoes')
     )
   );
+
+/**
+ * Uma página do histórico (D-PROD-94): filtrada no servidor por empresa, área
+ * e lotes, com `total` — a tela sabe quanto falta e nunca afirma completude.
+ */
+export const listHistoricoMovimentacoesPagina = async (filtros) => {
+  const contexto = ctx('listHistoricoMovimentacoesPagina');
+  assertArgument(isObjeto(filtros) && isId(filtros.empresaId), 'filtros.empresaId', contexto);
+  const pagina = /** @type {any} */ (await runProviderCall(() => listHistoricoMovimentacoesMapaNativo(filtros), contexto));
+  return {
+    items: comoLista(pagina?.items),
+    next_cursor: typeof pagina?.next_cursor === 'string' ? pagina.next_cursor : null,
+    has_more: pagina?.has_more === true,
+    total: Number.isFinite(pagina?.total) ? pagina.total : null,
+    limit: pagina?.limit ?? null,
+  };
+};
 
 export const filterMovimentacoes = async (criterio, opcoes = {}) => {
   const contexto = ctx('filterMovimentacoes');

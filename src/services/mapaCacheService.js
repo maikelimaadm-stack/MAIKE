@@ -19,7 +19,7 @@
  * `force: true`, limpeza do mapa de promises em `finally`.
  */
 
-import { getEntityCacheItems, setEntityCacheItems } from '@/components/offline/IndexedDBManager';
+import { getEntityCacheItems, getEntityCacheRecord, setEntityCacheItems } from '@/components/offline/IndexedDBManager';
 import { hasApiErrorCode, isApiError, API_ERROR_CODES } from '@/apis/_core/ApiError';
 import {
   listAreas,
@@ -106,6 +106,20 @@ const chaveDeArmazenamento = (cacheKey) => `mapa_${cacheKey}`;
 /** Leitura pura do cache, sem rede. */
 export const getMapaCachedData = async (cacheKey, empresaId) =>
   getEntityCacheItems(chaveDeArmazenamento(cacheKey), normalizarEmpresa(empresaId));
+
+/**
+ * Cache + quando foi gravado. Para a tela dizer "dados salvos em …" em vez de
+ * apresentar cache como se fosse a resposta do servidor (D-PROD-94).
+ *
+ * @returns {Promise<{ items: any[], atualizadoEm: string|null }>}
+ */
+export const getMapaCacheSnapshot = async (cacheKey, empresaId) => {
+  const registro = await getEntityCacheRecord(chaveDeArmazenamento(cacheKey), normalizarEmpresa(empresaId));
+  return {
+    items: Array.isArray(registro?.items) ? registro.items : [],
+    atualizadoEm: typeof registro?.updated_at === 'string' ? registro.updated_at : null,
+  };
+};
 
 /**
  * O erro merece cooldown?

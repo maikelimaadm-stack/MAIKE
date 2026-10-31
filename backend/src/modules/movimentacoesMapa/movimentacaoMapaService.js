@@ -13,7 +13,10 @@ import {
   atualizarRegistroPorId,
   excluirRegistroPorId,
   buscarNomesDeAreas,
+  listarHistoricoPagina,
+  contarHistorico,
 } from './movimentacaoMapaRepository.js';
+import { decodificarCursor, montarEnvelopeKeyset, normalizarLimite } from '../../shared/pagination/keysetCursor.js';
 
 const ENTIDADE = 'MovimentacaoMapa';
 const erroNaoEncontrado = () => new AppError('MOVIMENTACAOMAPA_NOT_FOUND', 'MovimentacaoMapa não encontrado');
@@ -57,6 +60,46 @@ export const listar = async (contexto, filtros = {}) => {
   const auth = exigirAuthContext(contexto?.auth);
   const registros = await listarRegistros(auth.clienteId, filtros);
   return registros.map(documentoComoPublico);
+};
+
+/** Página do histórico: padrão 100, teto 200 por requisição. */
+export const HISTORICO_LIMITE_PADRAO = 100;
+export const HISTORICO_LIMITE_MAXIMO = 200;
+
+const textoOuNulo = (valor) => (typeof valor === 'string' && valor.trim() ? valor.trim() : null);
+const listaDeTextos = (valor) =>
+  [...new Set((Array.isArray(valor) ? valor : valor == null ? [] : [valor]).map(textoOuNulo).filter(Boolean))];
+
+/**
+ * Histórico paginado (só leitura) — D-PROD-94.
+ *
+ * O tenant é o do token; `empresa_id` é filtro de escopo DENTRO do tenant,
+ * nunca autoridade (empresa de outro tenant devolve conjunto vazio). Envelope
+ * keyset com `total`, para a tela nunca afirmar completude que não tem.
+ *
+ * @param {{auth: import('../../shared/auth/authContext.js').AuthContext}} contexto
+ * @param {Record<string, unknown>} query
+ */
+export const listarHistorico = async (contexto, query = {}) => {
+  const auth = exigirAuthContext(contexto?.auth);
+  const empresaId = textoOuNulo(query.empresa_id);
+  if (!empresaId) {
+    throw new AppError('REQUEST_VALIDATION_FAILED', 'empresa_id é obrigatório', { details: { field: 'empresa_id', reason: 'required' } });
+  }
+  const cursorBruto = textoOuNulo(query.cursor);
+  const cursor = cursorBruto ? decodificarCursor(cursorBruto) : null;
+  if (cursorBruto && !cursor) throw new AppError('REQUEST_VALIDATION_FAILED', 'cursor inválido');
+
+  const filtro = {
+    empresaId,
+    areaId: textoOuNulo(query.area_id),
+    loteIds: listaDeTextos(query.lote_ids),
+    lotesNomesLegado: listaDeTextos(query.lote_nomes).map((nome) => nome.toLowerCase()),
+    cursor,
+    limit: normalizarLimite(query.limit, { padrao: HISTORICO_LIMITE_PADRAO, maximo: HISTORICO_LIMITE_MAXIMO }),
+  };
+  const [registros, total] = await Promise.all([listarHistoricoPagina(auth.clienteId, filtro), contarHistorico(auth.clienteId, filtro)]);
+  return montarEnvelopeKeyset({ registros, limit: filtro.limit, total, mapItem: documentoComoPublico });
 };
 
 export const criar = async (contexto, entrada) => {

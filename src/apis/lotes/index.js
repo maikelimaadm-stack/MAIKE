@@ -7,6 +7,7 @@ export {
   updateLote,
   listMovimentacoes,
   listTodasMovimentacoes,
+  listHistoricoMovimentacoesPagina,
   filterMovimentacoes,
   createMovimentacao,
   deleteMovimentacao,

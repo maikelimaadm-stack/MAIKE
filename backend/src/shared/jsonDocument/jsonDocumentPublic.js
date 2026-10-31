@@ -7,16 +7,26 @@ import { AppError } from '../errors/AppError.js';
 const RESERVADOS = new Set(['id', 'cliente_id', 'createdAt', 'updatedAt', 'created_date', 'updated_date']);
 
 /**
+ * Documento público = `dados` + campos de servidor.
+ *
+ * `empresa_id` vem da COLUNA (D-PROD-94). `montarDocumento` tira o campo do
+ * corpo e grava só na coluna; devolver apenas `dados` fazia todo documento
+ * lido sair sem `empresa_id`, e quem filtra por empresa (histórico do lote,
+ * cache do mapa) descartava tudo. Um `empresa_id` ou `cliente_id` que esteja
+ * dentro de `dados` (legado, importação) nunca vence a coluna nem vaza.
+ *
  * @param {Record<string, unknown>} registro
  */
 export const documentoComoPublico = (registro) => {
   if (!registro || typeof registro !== 'object') return registro;
-  const { id, dados, createdAt, updatedAt } = /** @type {{id: string, dados: object, createdAt: Date, updatedAt: Date}} */ (
-    registro
-  );
+  const { id, dados, empresa_id, createdAt, updatedAt } =
+    /** @type {{id: string, dados: object, empresa_id?: string, createdAt: Date, updatedAt: Date}} */ (registro);
   const base = dados && typeof dados === 'object' && !Array.isArray(dados) ? { ...dados } : {};
+  for (const chave of RESERVADOS) delete base[chave];
+  delete base.empresa_id;
   return {
     ...base,
+    ...(typeof empresa_id === 'string' && empresa_id ? { empresa_id } : {}),
     id,
     created_date: createdAt instanceof Date ? createdAt.toISOString() : createdAt,
     updated_date: updatedAt instanceof Date ? updatedAt.toISOString() : updatedAt,
