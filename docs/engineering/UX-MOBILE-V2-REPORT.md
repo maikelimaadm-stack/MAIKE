@@ -48,3 +48,29 @@ Removido: `src/components/common/BackButton.jsx` (só o Layout usava).
 - [ ] Toque duplo abre o registro; toque simples marca vários.
 - [ ] Rolar até o fim carrega mais 200 (lista grande).
 - [ ] Campos de 16px não dão zoom no iPhone.
+
+## Paridade 2 (D-PROD-88)
+
+Feita depois de o proprietário apontar diferenças em "campos de lançamento, cabeçalhos de filtros e mais algumas coisas".
+
+**Método:**
+- protótipo `MAIKE App v2.dc.html` aberto no Chromium a 390×844, lado a lado com o sistema, nas mesmas telas: Produtos em lista, tabela, registro, edição, Filtrar por campo e filtro de coluna;
+- formulários de lançamento renderizados direto com dados sintéticos.
+
+| Diferença encontrada | Correção |
+|---|---|
+| Lançamentos (pesagem, morte, nascimento, abate, movimentação, tarefa, ponto, linha, bebedouro…) com rótulo em cima e borda slate | `LancField` (`.mg-field` Base1) no lugar dos 12 `FL` locais; botões em pílula Base1 |
+| `Select` shadcn abria lista flutuante no celular | Folha de baixo (CSS sobre o wrapper do Radix, `ui/select.jsx`) |
+| Campos ligados a cadastro (`AutocompleteGenerico`) com lista flutuante | Folha de baixo com pesquisa, total e teto de 100 |
+| `<select>` nativo (Tipo de Uso, Tipo, Status…) abria o seletor do sistema | `B1Select`: nativo no desktop, folha no celular |
+| Cards com todos os campos, código ao lado do nome e bolinha de marcar | 3 campos no celular, código embaixo do título, seleção por toque e selo ✓ |
+| Grade com linhas de 26px no toque | 40px (linhas e cabeçalho) e texto de 13px até 1023px |
+| Resumo começando por Selecionados | Listados · Filtrados · Totais · Selecionados |
+| Filtro de coluna com título repetido na folha | Título removido |
+
+**Não alterado (fora desta rodada):**
+- o formulário de Lotes, que usa o `DynamicFormRenderer` com layout próprio configurável;
+- as seções recolhíveis "Dados gerais / Estoque e preço", que o protótipo inventou a partir de dados fictícios e não existem nos formulários reais;
+- os números alinhados à direita nos campos de preço (padrão atual do sistema).
+
+**Testes:** `tests/smoke/mobileParidadeV2.test.jsx` (PAR1–PAR6).

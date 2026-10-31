@@ -688,10 +688,10 @@ export default function CadastroListaChrome({
   const listSummary = recordMode && recordEditing ? null : (
     <div className="mg-summary no-print">
       <div className="mg-summary__counts">
-        <span className="mg-summary__item">Selecionados: {selectedCount}</span>
         <span className="mg-summary__item">Listados: {listados}</span>
         <span className="mg-summary__item">Filtrados: {filtrados}</span>
         <span className="mg-summary__item">Totais: {totais}</span>
+        <span className="mg-summary__item">Selecionados: {selectedCount}</span>
       </div>
       {loadingMore && celular ? <span className="mg-summary__loading">Carregando…</span> : null}
       {!celular && (onPageSizeChange || onLoadMore) ? (

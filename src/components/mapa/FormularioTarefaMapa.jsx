@@ -16,17 +16,10 @@ import useSetorAreas from "@/hooks/useSetorAreas";
 import { getPermissionDisplayName, getUserDisplayName, isExcludedSystemUser } from "@/lib/userDisplayName";
 import { canAccessPage, normalizePermissionRecord } from "@/lib/permissions";
 import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
+import LancField from "@/components/cadastro/base1/LancField";
 
-const FL = ({ label, required, error, children, dataField }) => (
-  <div data-field={dataField}>
-    <label className="text-[12px] text-slate-500 pl-1 leading-none">
-      {label}{required && <span className="text-red-500 ml-0.5">*</span>}
-    </label>
-    <div className={`rounded-md border ${error ? 'border-red-500 bg-red-50' : 'border-slate-300'} focus-within:border-emerald-500 transition-colors`}>
-      {children}
-    </div>
-  </div>
-);
+/** Campo flutuante Base1 (rótulo dentro) — D-PROD-88. */
+const FL = LancField;
 
 export const normalizeTaskPriority = (value) => {
   const normalized = (value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();

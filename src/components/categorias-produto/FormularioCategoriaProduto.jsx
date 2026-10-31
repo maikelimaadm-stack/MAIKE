@@ -4,6 +4,7 @@ import { B1ChaveRow } from "@/components/cadastro/base1/Base1Ui";
 import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
 import CadastroFormActions from "@/components/cadastro/base1/CadastroFormActions";
 import { notifyWarning } from "@/lib/maikeNotify";
+import B1Select from "@/components/cadastro/base1/B1Select";
 
 export const FORMULARIO_CATEGORIA_ID = "formulario-categoria-produto-base1";
 
@@ -148,7 +149,7 @@ export default function FormularioCategoriaProduto({
             className={B1_FIELD_CTL_CLS}
           />
         ) : (
-          <select
+          <B1Select
             value={formData.categoria_pai_id || SELECT_EMPTY}
             onChange={(e) =>
               handleChange("categoria_pai_id", e.target.value === SELECT_EMPTY ? "" : e.target.value)
@@ -161,7 +162,7 @@ export default function FormularioCategoriaProduto({
                 {(c.nome || "").toUpperCase()}
               </option>
             ))}
-          </select>
+          </B1Select>
         )}
       </B1Field>
       <B1Field

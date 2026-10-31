@@ -253,7 +253,9 @@ export default function Base1Grid({
   const rowVirtualizer = useVirtualizer({
     count: virtualizar ? rows.length : 0,
     getScrollElement: () => scrollRef.current,
-    estimateSize: () => ROW_ESTIMATE_PX,
+    // Celular e tablet usam linhas de 40px (toque) — ver maike-mobile-shell.css.
+    estimateSize: () =>
+      typeof window !== "undefined" && window.matchMedia?.("(max-width: 1023px)").matches ? 41 : ROW_ESTIMATE_PX,
     overscan: 16,
   });
   const virtualRows = virtualizar ? rowVirtualizer.getVirtualItems() : null;

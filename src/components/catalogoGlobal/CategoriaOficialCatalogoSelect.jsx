@@ -10,6 +10,7 @@
 import React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { carregarCategoriasOficiaisLote } from "@/services/catalogoGlobalService";
+import B1Select from "@/components/cadastro/base1/B1Select";
 
 export const CHAVE_CATEGORIAS_OFICIAIS_LOTE = ["catalogo-global", "lote", "categorias-publicadas"];
 const NENHUMA = "__SEM_VINCULO__";
@@ -33,7 +34,7 @@ export default function CategoriaOficialCatalogoSelect({ value = "", onChange, c
   }
 
   return (
-    <select
+    <B1Select
       aria-label="Ícone oficial (catálogo MAIKE)"
       data-testid="categoria-oficial-catalogo"
       data-status={isError ? "erro" : isLoading ? "carregando" : "ok"}
@@ -49,6 +50,6 @@ export default function CategoriaOficialCatalogoSelect({ value = "", onChange, c
         </option>
       ))}
       {value && !atual && !isLoading ? <option value={value}>CATEGORIA OFICIAL INDISPONÍVEL</option> : null}
-    </select>
+    </B1Select>
   );
 }
