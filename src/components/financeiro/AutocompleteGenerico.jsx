@@ -4,6 +4,9 @@ import { Check, Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import MobileSheet, { useCelular } from "@/components/common/MobileSheet";
 
+/** O `Input` do shadcn não declara props; o cast evita o falso TS2322 em cada uso. */
+const CampoTexto = /** @type {any} */ (Input);
+
 /** Teto de itens desenhados na folha do celular — cadastros podem ter milhares. */
 const LIMITE_CELULAR = 100;
 
@@ -171,7 +174,9 @@ export default function AutocompleteGenerico({
   };
 
   const hasResults = itensFiltrados.length > 0;
-  const showEmpty = open && searchTerm && !hasResults;
+  // Sem resultado também avisa sem pesquisa (lista vazia ou ainda carregando):
+  // antes o painel simplesmente não abria e parecia que o campo travou.
+  const showEmpty = open && !hasResults;
 
   const renderDropdownContent = () => {
     if (!open || !dropdownPos) return null;
@@ -197,7 +202,7 @@ export default function AutocompleteGenerico({
         }}
         onMouseLeave={() => {}}
         onWheel={(e) => e.stopPropagation()}
-        className="bg-white border border-slate-200 rounded-none shadow-lg max-h-60 overflow-auto overscroll-contain">
+        className="mk-ac-pop max-h-60 overflow-auto overscroll-contain">
         
           {itensFiltrados.map((item, index) =>
         <div
@@ -214,9 +219,7 @@ export default function AutocompleteGenerico({
           }}
           onWheel={(e) => e.stopPropagation()}
           onMouseEnter={() => setActiveIndex(index)}
-          className={`px-3 py-2 cursor-pointer hover:bg-slate-100 border-b border-slate-100 last:border-b-0 ${
-          activeIndex === index ? 'bg-slate-100' : value === item.id ? 'bg-emerald-50' : ''}`
-          }>
+          className={`mk-ac-op${activeIndex === index ? ' is-hi' : ''}${value === item.id ? ' is-on' : ''}`}>
           
               {renderItem ? renderItem(item) :
           <>
@@ -237,10 +240,9 @@ export default function AutocompleteGenerico({
       <div
         ref={dropdownRef}
         style={style}
-        className="bg-white border border-slate-200 rounded-none shadow-lg">
-        
-          <div className="px-3 py-6 text-center text-xs text-slate-500">
-            Nenhum item encontrado
+        className="mk-ac-pop">
+          <div className="mk-ac-vazio">
+            {searchTerm ? "Nenhum item encontrado" : items.length ? "Nenhum item" : "Nenhuma opção disponível"}
           </div>
         </div>;
 
@@ -346,7 +348,7 @@ export default function AutocompleteGenerico({
   return (
     <div ref={wrapperRef} className={`relative ${className || ''}`}>
       <div className="relative">
-        <Input
+        <CampoTexto
           ref={inputRef}
           value={searchTerm}
           onChange={(e) => {
@@ -356,6 +358,12 @@ export default function AutocompleteGenerico({
           }}
           onFocus={() => {
             if (disabled || readOnly) return;
+            calcPosition();
+            setOpen(true);
+          }}
+          onClick={() => {
+            // Já focado (ex.: logo após escolher um item) o foco não dispara de novo.
+            if (disabled || readOnly || open) return;
             calcPosition();
             setOpen(true);
           }}

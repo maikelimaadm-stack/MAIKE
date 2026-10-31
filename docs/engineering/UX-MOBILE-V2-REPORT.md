@@ -74,3 +74,22 @@ Feita depois de o proprietário apontar diferenças em "campos de lançamento, c
 - os números alinhados à direita nos campos de preço (padrão atual do sistema).
 
 **Testes:** `tests/smoke/mobileParidadeV2.test.jsx` (PAR1–PAR6).
+
+## V3 — tablet e correções relatadas (D-PROD-91)
+
+| Relato | Causa | Correção |
+|---|---|---|
+| Seleções do desktop "às vezes aparecem, às vezes não" | `AutocompleteGenerico` sem painel com a lista vazia ou carregando, e sem reabrir no clique depois de uma escolha (o campo continuava focado) | Painel com aviso; abre no clique; visual Base1 |
+| Cadastro de Lotes "travado" / sobreposição | "Sistema Produtivo" num `.mg-field` de altura fixa, transbordando sobre os vizinhos | Campo de altura livre e pílulas de marcar |
+| Datas fora do campo no celular | Safari do iPhone centraliza a data nativa e ignora o espaçamento | Alinhamento à esquerda via `::-webkit-date-and-time-value` |
+| Campos de Lotes menores no celular | `.cadastro-b1` interna redefinia `--mg-field-h` para 38px | 48px também nas `.cadastro-b1` internas |
+| Botões diferentes no desktop | O tema do portal impunha 72px de largura ao verde | Círculos em todos os tamanhos; sombra verde em toda a barra; pílulas nos botões genéricos |
+| Tablet | — | Cabeçalho, barra lateral de 84px, toolbar em uma linha com 36px, Trocar empresa centralizado |
+
+Medição no harness (Cadastro de Lotes, desktop): digitar 28 caracteres levou cerca de 300ms, sem mutações em repouso. Não houve travamento de render; o "travado" vinha do campo sobreposto e da seleção que não abria.
+
+**Não conferido:**
+- aparelho real: a correção das datas é específica do Safari do iPhone e não aparece no Chromium;
+- Lotes com dados reais de setores e áreas.
+
+**Testes:** `tests/smoke/mobileV3TabletBugs.test.jsx` (V3-1 a V3-6).
