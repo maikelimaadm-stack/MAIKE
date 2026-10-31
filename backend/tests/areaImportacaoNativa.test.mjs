@@ -361,6 +361,25 @@ describe('D-PROD-90 — importação de áreas', () => {
     assert.deepEqual(/** @type {any} */ (area.coordenadas).coords, cruzado);
   });
 
+  test('IMP-22 R2 contorno que volta ao mesmo ponto, começando em outro vértice, é duplicata (no arquivo e contra o banco)', async () => {
+    const { cliente, token } = await tenantAutenticado();
+    const empresa = await criarEmpresa(token);
+    const setor = await criarSetor(token, empresa.id);
+    const anel = [[-15.6, -56.1], [-15.6, -56.08], [-15.58, -56.08], [-15.6, -56.1], [-15.6, -56.07], [-15.57, -56.07]];
+    const girado = [...anel.slice(3), ...anel.slice(0, 3)];
+    const noArquivo = await conferir(token, empresa.id, [
+      item(setor.id, 0, { nome: 'A', coords: anel, area_pastejada: 0 }),
+      item(setor.id, 1, { nome: 'B', coords: girado, area_pastejada: 0 }),
+    ]);
+    assert.equal(noArquivo.json().itens[1].pendencias[0]?.codigo, 'AREA_DUPLICADA_NO_ARQUIVO', noArquivo.body);
+    const gravou = await importar(token, empresa.id, [item(setor.id, 0, { nome: 'A', coords: anel, area_pastejada: 0 })]);
+    assert.equal(gravou.statusCode, 201, gravou.body);
+    const deNovo = await importar(token, empresa.id, [item(setor.id, 1, { nome: 'B', coords: girado, area_pastejada: 0 })]);
+    assert.equal(deNovo.statusCode, 422, deNovo.body);
+    assert.equal(deNovo.json().details.itens[0].pendencias[0].codigo, 'AREA_DUPLICADA');
+    assert.equal(await contarAreas(cliente.id), 1);
+  });
+
   test('IMP-21 R2 gravação em bloco: 100 áreas com números consecutivos, uma auditoria por área, refs na ordem', async () => {
     const { cliente, token } = await tenantAutenticado();
     const empresa = await criarEmpresa(token);

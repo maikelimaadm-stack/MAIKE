@@ -187,10 +187,18 @@ export const chaveCanonicaDoContorno = (coords) => {
   if (anel.length >= 2 && mesmoVertice(anel[0], anel[anel.length - 1])) anel.pop();
   if (anel.length < 3) return null;
   const tokens = anel.map((v) => `${v.lat.toFixed(PRECISAO_CHAVE)},${v.lng.toFixed(PRECISAO_CHAVE)}`);
+  // Menor rotação lexicográfica. O menor vértice pode aparecer mais de uma vez
+  // (contorno que passa duas vezes pelo mesmo ponto é aceito desde a R2), então
+  // compara as rotações de TODAS as ocorrências — não só a primeira.
   const rotacionar = (lista) => {
-    let menor = 0;
-    for (let i = 1; i < lista.length; i += 1) if (lista[i] < lista[menor]) menor = i;
-    return [...lista.slice(menor), ...lista.slice(0, menor)].join(';');
+    const minimo = lista.reduce((m, t) => (t < m ? t : m), lista[0]);
+    let melhor = null;
+    for (let i = 0; i < lista.length; i += 1) {
+      if (lista[i] !== minimo) continue;
+      const candidato = [...lista.slice(i), ...lista.slice(0, i)].join(';');
+      if (melhor === null || candidato < melhor) melhor = candidato;
+    }
+    return /** @type {string} */ (melhor);
   };
   const direto = rotacionar(tokens);
   const inverso = rotacionar([...tokens].reverse());
