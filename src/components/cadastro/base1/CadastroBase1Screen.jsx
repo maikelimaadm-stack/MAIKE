@@ -26,7 +26,7 @@ import { BASE1_LISTA_INTEGRADA_VISUAL } from "@/components/cadastro/base1/base1V
  *   deleteDialog: { title: string, descriptionOne: string, descriptionMany: (n: number) => string },
  *   recordCode?: string,
  *   extraToolbar?: React.ReactNode,
- *   additionalMoreActions?: Array<{ key: string, label: string, icon?: React.ReactNode, disabled?: boolean, hidden?: boolean, onSelect: () => void }>,
+ *   additionalMoreActions?: Array<{ key: string, label: string, icon?: React.ReactNode, disabled?: boolean, hidden?: boolean, whileEditing?: boolean, onSelect: () => void }>,
  *   exportCsvLabel?: string,
  *   onExportCsv?: () => void,
  *   onPrint?: () => void,
@@ -72,26 +72,27 @@ export default function CadastroBase1Screen({
           recordToolbar={
             c.showForm && c.isEditing && formId ? (
               <>
-                <PillBtn
-                  type="submit"
-                  form={formId}
-                  disabled={c.saving}
-                  className="mg-act-ic"
-                  aria-label={c.saving ? "Salvando…" : "Salvar"}
-                  title={c.saving ? "Salvando…" : "Salvar"}
-                >
-                  <Check className="h-4 w-4" aria-hidden />
-                </PillBtn>
+                {/* Descartar à esquerda, Salvar à direita (como ✕ e ✓ das folhas — D-PROD-95). */}
                 <PillBtn
                   type="button"
                   tone="gray"
                   onClick={c.cancelForm}
                   disabled={c.saving}
-                  className="mg-act-ic"
+                  className="mg-act-ic mg-act-cancelar"
                   aria-label="Cancelar"
                   title="Cancelar"
                 >
                   <X className="h-4 w-4" aria-hidden />
+                </PillBtn>
+                <PillBtn
+                  type="submit"
+                  form={formId}
+                  disabled={c.saving}
+                  className="mg-act-ic mg-act-novo mg-act-salvar"
+                  aria-label={c.saving ? "Salvando…" : "Salvar"}
+                  title={c.saving ? "Salvando…" : "Salvar"}
+                >
+                  <Check className="h-4 w-4" aria-hidden />
                 </PillBtn>
               </>
             ) : null
@@ -113,6 +114,8 @@ export default function CadastroBase1Screen({
             ) : null
           }
           recordBody={c.showForm ? recordForm : null}
+          recordFormId={formId}
+          recordSaving={c.saving}
           onRecordBack={c.isEditing ? c.cancelForm : () => c.onViewModeChange("table")}
           attachDisabledReason={attachDisabledReason}
           selectedCount={c.chrome.selectedIds.length}

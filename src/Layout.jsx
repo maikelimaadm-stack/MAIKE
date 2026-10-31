@@ -12,7 +12,7 @@ import {
 } from "@/hooks/useEmpresaSelecionadaId";
 import {
   LogOut, Map, ChevronDown, ChevronLeft, Search, X, EyeOff, Eye,
-  Building2, Check, Droplet, Folder, LayoutGrid } from
+  Building2, Check, Droplet, Folder, LayoutGrid, Loader2 } from
 "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 
@@ -43,6 +43,8 @@ import {
 import MobileSheet from "@/components/common/MobileSheet";
 import MobileModulesView from "@/components/navigation/MobileModulesView";
 import { MobileShellProvider, useMobileShellState } from "@/lib/mobileShellContext";
+import { instalarTecladoDoFormulario } from "@/lib/tecladoFormulario";
+import useDeslizarParaVoltar from "@/hooks/useDeslizarParaVoltar";
 import PermissionAlertDialog from "@/components/common/PermissionAlertDialog";
 import { DEFAULT_MENU, PAGINAS_SO_ADMINISTRADOR, flattenMenuPages, findMenuItemByUrl, getAllPages } from "@/lib/menuConfig";
 import { ACTION_LABELS, canAccessModule, canAccessPage, canPerformAction, detectPermissionAction, normalizePermissionRecord } from "@/lib/permissions";
@@ -105,6 +107,10 @@ function LayoutShell({ children, currentPageName }) {
   const [menuOculto, setMenuOculto] = useState(() => {
     return localStorage.getItem('menu_oculto') === 'true';
   });
+
+  // Enter = Tab nos formulários, teclado numérico nos campos de número (D-PROD-95).
+  React.useEffect(() => instalarTecladoDoFormulario(), []);
+  const mainRef = React.useRef(/** @type {HTMLElement | null} */ (null));
 
   // Prevenir tradução automática do navegador
   React.useEffect(() => {
@@ -375,6 +381,8 @@ function LayoutShell({ children, currentPageName }) {
 
   const mobileHeaderBorder = mobileMenuOpen || !shellMobile.listChrome || Boolean(mobileRecord?.editing);
   const mostrarNavInferior = !mobileRecord;
+  // Deslizar da borda esquerda = o mesmo voltar do cabeçalho (registro → lista, tela → módulo).
+  useDeslizarParaVoltar({ ativo: Boolean(mobileBack), onVoltar: mobileBack?.run, alvoRef: mainRef });
 
   const userMenu =
   <DropdownMenu>
@@ -418,6 +426,28 @@ function LayoutShell({ children, currentPageName }) {
         .safe-area-bottom { padding-bottom: env(safe-area-inset-bottom); }
       `}</style>
       <header className={`bg-white flex-none relative z-30 ${mobileHeaderBorder ? "border-b border-slate-200" : "border-b border-slate-200 max-md:border-b-0"}`}>
+        {mobileRecord?.editing ?
+        // Registro em edição/novo: cabeçalho como as folhas — ✕ descartar, título, ✓ salvar (D-PROD-95).
+        <div className="mk-mhdr mk-mhdr--edit md:hidden">
+            <button type="button" className="mk-mhdr__round" onClick={() => mobileRecord.onBack?.()} aria-label="Descartar" title="Descartar">
+              <X size={20} aria-hidden />
+            </button>
+            <div className="mk-mhdr__center">
+              <span className="mk-mhdr__title">{mobileTitle}</span>
+              {mobileSubtitle ? <span className="mk-mhdr__sub"><span>{mobileSubtitle}</span></span> : null}
+            </div>
+            {mobileRecord.formId ?
+          <button
+            type="submit"
+            form={mobileRecord.formId}
+            className="mk-mhdr__round mk-mhdr__round--salvar"
+            disabled={mobileRecord.saving}
+            aria-label={mobileRecord.saving ? "Salvando…" : "Salvar"}
+            title="Salvar">
+                {mobileRecord.saving ? <Loader2 size={20} className="animate-spin" aria-hidden /> : <Check size={22} aria-hidden />}
+              </button> :
+          <span className="mk-mhdr__round-gap" aria-hidden />}
+          </div> :
         <div className="mk-mhdr md:hidden">
           {mobileBack ?
           <button type="button" className="mk-mhdr__back" onClick={mobileBack.run} aria-label={mobileBack.label} title={mobileBack.label}>
@@ -436,7 +466,7 @@ function LayoutShell({ children, currentPageName }) {
             </span>
           </button>
           {userMenu}
-        </div>
+        </div>}
         <div className="mk-thdr hidden md:flex lg:hidden">
           <div className="mk-thdr__titulo">
             <span className="mk-thdr__grupo">{mobileMenuOpen ? 'Menu' : currentMenuPage?.moduleTitle || 'Mapa'}</span>
@@ -704,7 +734,7 @@ function LayoutShell({ children, currentPageName }) {
             </button>;
         })}
       </nav>
-      <main className={`max-w-[1600px] mx-auto flex-1 min-h-0 w-full min-w-0 overflow-hidden md:pb-0 ${mostrarNavInferior ? "pb-[calc(66px+env(safe-area-inset-bottom))]" : "pb-0"}`}>
+      <main ref={mainRef} className={`max-w-[1600px] mx-auto flex-1 min-h-0 w-full min-w-0 overflow-hidden md:pb-0 ${mostrarNavInferior ? "pb-[calc(66px+env(safe-area-inset-bottom))]" : "pb-0"}`}>
         <div className="relative h-full min-h-0 overflow-hidden">
           {children}
           {mobileMenuOpen ?

@@ -71,7 +71,8 @@ import { cn } from "@/lib/utils";
  * @param {string} [props.filterRailHint]
  * @param {import('react').ReactNode} [props.filterChips]
  * @param {import('react').ReactNode} [props.extraToolbar]
- * @param {Array<{ key: string, label: string, icon?: import('react').ReactNode, disabled?: boolean, hidden?: boolean, onSelect: () => void }>} [props.additionalMoreActions]
+ * @param {Array<{ key: string, label: string, icon?: import('react').ReactNode, disabled?: boolean, hidden?: boolean, whileEditing?: boolean, onSelect: () => void }>} [props.additionalMoreActions]
+ *   `whileEditing`: o item continua no menu Mais opções durante a edição (ex.: Anexos dos Lotes).
  * @param {string} [props.exportCsvLabel]
  * @param {() => void} [props.onExportCsv]
  * @param {() => void} [props.onPrint]
@@ -93,6 +94,8 @@ import { cn } from "@/lib/utils";
  * @param {boolean} [props.showFilterRail] faixa `mg-pills-rail` (chips); false no piloto Marcas (limpar filtros só no menu ⋮)
  * @param {boolean} [props.joinTableToolbar] toolbar + grade no mesmo `mg-shell` (Portal de Compras / itpan)
  * @param {boolean} [props.portalComprasSkin] régua visual portal compras (toolbar 25px, fpop/mdl marcados)
+ * @param {string} [props.recordFormId] id do `<form>` do registro (✓ do cabeçalho do celular envia)
+ * @param {boolean} [props.recordSaving]
  * @param {() => void} [props.onRecordBack] voltar do registro para a lista (botão voltar do celular)
  * @param {boolean} [props.fieldFilterAvailable] botão Filtros → "Filtrar por campo" (grade Base1 com cabeçalhos de referência)
  */
@@ -148,6 +151,8 @@ export default function CadastroListaChrome({
   joinTableToolbar = false,
   portalComprasSkin = false,
   onRecordBack,
+  recordFormId,
+  recordSaving = false,
   fieldFilterAvailable = joinTableToolbar,
 }) {
   const celular = useCelular();
@@ -209,6 +214,7 @@ export default function CadastroListaChrome({
           label: item.label,
           icon: item.icon,
           disabled: item.disabled,
+          whileEditing: Boolean(item.whileEditing),
         })),
     [additionalMoreActions],
   );
@@ -276,6 +282,10 @@ export default function CadastroListaChrome({
     ],
   );
 
+  // Na edição o menu só mostra o que a tela marcou como `whileEditing`.
+  const itensMenu = secondaryToolsLocked ? extraMenuItems.filter((item) => item.whileEditing) : menuItems;
+  const menuDisponivel = !secondaryToolsLocked || itensMenu.length > 0;
+
   const onMenu = (k) => {
     const extra = additionalMoreActions?.find((item) => item.key === k);
     if (extra?.onSelect) {
@@ -323,11 +333,13 @@ export default function CadastroListaChrome({
             .filter(Boolean)
             .join(" • "),
           onBack: onRecordBack ?? (() => onViewModeChange?.("table")),
+          formId: recordEditing ? recordFormId : undefined,
+          saving: Boolean(recordSaving),
         }
       : null,
   );
 
-  const maisOpcoesPopover = !secondaryToolsLocked ? (
+  const maisOpcoesPopover = menuDisponivel ? (
     <div className="relative mg-toolbar__more">
       {onConfigureColumns ? (
         <span
@@ -351,7 +363,7 @@ export default function CadastroListaChrome({
         }
       >
         <MenuList
-          items={menuItems}
+          items={itensMenu}
           onPick={(k) => {
             setMaisOpcoesOpen(false);
             onMenu(k);
@@ -445,7 +457,7 @@ export default function CadastroListaChrome({
                 tabIndex={showListPrimaryToolbar ? undefined : -1}
                 aria-label={createLabel}
                 title={createLabel}
-                className="mg-act-ic"
+                className="mg-act-ic mg-act-novo"
               >
                 <Plus className="h-4 w-4" aria-hidden />
               </PillBtn>
@@ -503,6 +515,7 @@ export default function CadastroListaChrome({
         <FluidSlot open={Boolean(recordMode && recordEditing && recordToolbar)}>
           <div className="mg-fluid-slot__cluster">{recordToolbar}</div>
         </FluidSlot>
+        {!celular && secondaryToolsLocked && menuDisponivel ? maisOpcoesPopover : null}
         {celular ? maisOpcoesPopover : null}
       </div>
       {!secondaryToolsLocked && joinedShell ? (
@@ -604,7 +617,7 @@ export default function CadastroListaChrome({
               onChange={onViewModeChange}
             />
           ) : null}
-          {maisOpcoesPopover}
+          {secondaryToolsLocked ? null : maisOpcoesPopover}
         </div>
       )}
     </div>

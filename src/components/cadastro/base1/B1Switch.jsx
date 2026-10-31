@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
  * @param {string} [props.id]
  * @param {string} [props.className]
  * @param {string} [props.ariaLabel]
- * @param {boolean} [props.showText] exibe "Sim"/"Não" ao lado (padrão true)
+ * @param {boolean} [props.showText] exibe "Sim"/"Não" ao lado (padrão false: a chave já diz — D-PROD-95)
  */
 export default function B1Switch({
   checked,
@@ -20,7 +20,7 @@ export default function B1Switch({
   id,
   className,
   ariaLabel,
-  showText = true,
+  showText = false,
 }) {
   const readOnly = !onChange;
   return (
