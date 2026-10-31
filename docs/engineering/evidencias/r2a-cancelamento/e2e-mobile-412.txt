@@ -1,0 +1,11 @@
+PASS mobile-412 histórico da área lista a morte ativa com ação de cancelar — Histórico da Área PASTO 14 (1) | Entradas, saídas e manejos registrados nesta área, inclusive de lotes que já saíram. | 
+PASS mobile-412 diálogo mostra o efeito calculado no servidor (450 → 500)
+PASS mobile-412 após cancelar: original continua no histórico, marcado Cancelado com ator e motivo
+PASS mobile-412 sem rolagem horizontal
+PASS mobile-412 saldo do lote voltou a 500 no servidor — {"id":"cmvx0a0dv00667dee1t05mp92","q":500,"s":"Ativo"}
+PASS mobile-412 legado ambíguo: explica o bloqueio e não oferece confirmação — do como cancelado. | Registro sem vínculo comprovado do lote (registro antigo ou unificação sem destino gravado). Não é possível cancelar com segurança. | Close
+PASS mobile-412 curral: sem botão Excluir; abate com "Cancelar movimentação" — Abate | Histórico da Área | Histórico de Abate (8) | 31/10/2026 | Abate | ABATE mobile-412 | Quantidade: 30 cab | Data: 31/10/2026 | Detalhe
+PASS mobile-412 curral: abate aparece Cancelado com motivo — Abate | Histórico da Área | Histórico de Abate (8) | 31/10/2026 | Abate | Cancelado | ABATE mobile-412 | Quantidade: 30 cab | Data: 31/10/2026 | Detalhes: Desti
+PASS mobile-412 nenhum DELETE/PATCH de movimento/suplementação no navegador
+PASS mobile-412 cancelamentos foram POST no comando do servidor (2) — 2
+PASS mobile-412 sem erro de página

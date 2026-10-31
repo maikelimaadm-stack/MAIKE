@@ -350,6 +350,35 @@ describe('P1 — Transferência de Área', () => {
     assert.deepEqual([(await lote(l.id)).quantidade_cabecas, (await lote(dest.id)).quantidade_cabecas], [500, 100]);
   });
 
+  test('total unificada (novo formato): 500 em A + 100 em B → 0 Inativo / 600 → cancelar → 500 Ativo / 100', async () => {
+    const c = await cenario();
+    const l = await criarLote(c, { area: c.A });
+    const dest = await criarLote(c, { qtd: 100, area: c.B });
+    await patchLote(c, dest.id, { quantidade_cabecas: 600 });
+    await patchLote(c, l.id, { status: 'Inativo', quantidade_cabecas: 0 });
+    const m = await criarMov(c, {
+      tipo: 'Transferência de Área', lote: l.nome, lote_id: l.id, quantidade_animais: 500, area_origem_id: c.A.id, area_destino_id: c.B.id,
+      modo_transferencia: 'total_unificado', lote_destino_id: dest.id,
+    });
+    const r = await cancelar(c, m.id);
+    assert.equal(r.statusCode, 200, r.body);
+    const o = await lote(l.id);
+    assert.deepEqual([o.quantidade_cabecas, o.status, o.area_atual_id], [500, 'Ativo', c.A.id]);
+    assert.equal((await lote(dest.id)).quantidade_cabecas, 100);
+  });
+
+  test('total no lugar (novo formato, lote_destino_id = o próprio lote)', async () => {
+    const c = await cenario();
+    const l = await criarLote(c, { area: c.A });
+    await patchLote(c, l.id, { area_atual_id: c.B.id });
+    const m = await criarMov(c, {
+      tipo: 'Transferência de Área', lote: l.nome, lote_id: l.id, quantidade_animais: 500, area_origem_id: c.A.id, area_destino_id: c.B.id,
+      modo_transferencia: 'total_no_lugar', lote_destino_id: l.id,
+    });
+    assert.equal((await cancelar(c, m.id)).statusCode, 200);
+    assert.equal((await lote(l.id)).area_atual_id, c.A.id);
+  });
+
   test('parcial legado (sem lote de destino gravado) → CANCELAMENTO_VINCULO_AMBIGUO, nada muda', async () => {
     const c = await cenario();
     const l = await criarLote(c, { area: c.A });

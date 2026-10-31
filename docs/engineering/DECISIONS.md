@@ -3563,4 +3563,52 @@ Relatório: `docs/engineering/MAIKE-MAPA-HISTORICO-MOVIMENTACOES-R1-REPORT.md` (
 
 ---
 
-<!-- Próxima decisão: D-PROD-95 -->
+## D-PROD-95 — R2A: registros operacionais fechados no servidor; cancelamento transacional de movimentação do mapa
+
+**Missão:** MAIKE-R2A-MAPA-CANCELAMENTO-ESTORNO-SEGURO-BACKEND-01. Base: `main` d2cba91 (merge da #161). Sem migration, sem escrita em produção, sem ledger.
+
+**Contexto:** a R1.1 suspendeu exclusões só na interface. O backend ainda apagava e reescrevia movimentos por `DELETE`/`PATCH` genéricos. O Histórico de Abate do Curral e o "Reverter nome" do lote faziam reversões em várias chamadas do navegador.
+
+**Decisão:**
+
+1. **Fechamento no SERVICE (vale para API direta, replay offline e frontend antigo):**
+   - `MovimentacaoMapa` e `MovimentacaoPecuaria`: `PATCH`/`DELETE` → 409 `MOVIMENTO_CANCELAMENTO_OBRIGATORIO`. `POST`/bulk recusam campos reservados (`situacao`, `cancelamento`, `cancelado`, `estorno`, …) com 400 `CAMPO_RESERVADO_CANCELAMENTO`.
+   - `SuplementacaoEvento`/`SuplementacaoLote`: `PATCH` só com as métricas de fechamento ou reabertura de período, que não mexem em saldo; outro campo dá 409 `REGISTRO_OPERACIONAL_IMUTAVEL`. `DELETE` → 409.
+   - `MovimentacaoEstoque`: `PATCH` só `local_origem`/`local_destino`, conferidos contra o nome do `LocalEstoque` vinculado ao movimento (renomeação de depósito); senão 422 `NOME_LOCAL_DIVERGENTE`. `DELETE` → 409.
+   - Outro tenant recebe 404. `MOVIMENTACAOMAPA_NOT_FOUND`, `MOVIMENTACAOPECUARIA_NOT_FOUND` e `SUPLEMENTACAOLOTE_NOT_FOUND` foram declarados, porque antes viravam 500.
+2. **Comando de cancelamento** `POST /movimentacoes-mapa/:id/cancelamento` `{operation_id, motivo}`, numa transação:
+   - administrador ativo via `exigirAdminTenant`;
+   - `executarComIdempotencia` (cliente, operation_id, `cancelamento_movimentacao_mapa`) com fingerprint `{movimentacao_id, motivo}`;
+   - `FOR UPDATE` no movimento e nos lotes, em ordem de id;
+   - **prova do efeito original no AuditLog do lote** (±15 min da criação, delta ou troca de área exatos; o fluxo legado grava movimento e lote em chamadas separadas);
+   - dependências posteriores no banco, sem teto, contando cancelados como inexistentes:
+     - movimentos do mapa por `lote_id`, `lote_destino_id`, id em `observacoes`, nome só para legado sem id, e áreas em transferência;
+     - mov. pecuária, suplementação por lote, medicamento, sanidade, manejo técnico e tarefas;
+   - delta e conservação de cabeças;
+   - original preservado com `situacao: 'cancelado'` e `cancelamento: {em, por_usuario_id, por_login, motivo, operation_id, modo, efeitos}`; data operacional intacta;
+   - AuditLog `cancelamento` (movimento) e `update` (lotes).
+   - `GET /movimentacoes-mapa/:id/elegibilidade-cancelamento` é só informativo: o POST revalida tudo.
+3. **Matriz de tipos:**
+   - SUPORTADO_COM_PROVA:
+     - Morte;
+     - Abate;
+     - Transferência total no lugar (legado e novo);
+     - Transferência total unificada, parcial unificada e parcial com lote novo, quando gravadas com `modo_transferencia` + `lote_destino_id` (o `DetalhesLote` passa a gravar).
+   - BLOQUEADO_POR_AMBIGUIDADE: transferência parcial/unificada legada (sem lote de destino gravado), movimento sem `lote_id`, efeito não comprovado.
+   - ADIADO: Nascimento, Pesagem, Mudança de Categoria, Junção, Renomear Lote, Entrada/Saída genéricas.
+4. **Interface:**
+   - histórico (área/lote) e curral mostram Ativo/Cancelado (motivo, ator, horário);
+   - "Cancelar movimentação" só para administrador, online, em tipo certificado; a elegibilidade é conferida ao abrir;
+   - a `operation_id` é mantida enquanto o resultado é desconhecido;
+   - o código antigo de reversão no navegador (`movimentacaoReconciliation`, exclusão do histórico e do curral) foi removido;
+   - "Reverter para nome original" virou "Usar nome original", uma renomeação nova sem apagar as anteriores;
+   - cocho e depósito continuam suspensos (D-PROD-94a).
+   - Cancelado sai do cache de efeito atual do mapa e da ordem temporal do lote, e permanece nas listas de histórico e de referência.
+
+**Limites declarados:** a criação de manejo continua no navegador, em várias chamadas sem transação. O cancelamento não serializa com `PATCH /lotes` concorrente fora da trava: o PATCH espera o `FOR UPDATE` e depois grava o valor absoluto que calculou antes. Isso é documentado no relatório e não está coberto por este slice.
+
+Relatório: `docs/engineering/MAIKE-R2A-MAPA-CANCELAMENTO-ESTORNO-SEGURO-REPORT.md`.
+
+---
+
+<!-- Próxima decisão: D-PROD-96 -->

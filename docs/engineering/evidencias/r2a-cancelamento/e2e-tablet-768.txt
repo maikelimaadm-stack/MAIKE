@@ -1,0 +1,11 @@
+PASS tablet-768 histórico da área lista a morte ativa com ação de cancelar — Histórico da Área PASTO 13 (1) | Entradas, saídas e manejos registrados nesta área, inclusive de lotes que já saíram. | 
+PASS tablet-768 diálogo mostra o efeito calculado no servidor (450 → 500)
+PASS tablet-768 após cancelar: original continua no histórico, marcado Cancelado com ator e motivo
+PASS tablet-768 sem rolagem horizontal
+PASS tablet-768 saldo do lote voltou a 500 no servidor — {"id":"cmvx09dwl005a7deej845u97n","q":500,"s":"Ativo"}
+PASS tablet-768 legado ambíguo: explica o bloqueio e não oferece confirmação — do como cancelado. | Registro sem vínculo comprovado do lote (registro antigo ou unificação sem destino gravado). Não é possível cancelar com segurança. | Close
+PASS tablet-768 curral: sem botão Excluir; abate com "Cancelar movimentação" — Abate | Histórico da Área | Histórico de Abate (7) | 31/10/2026 | Abate | ABATE tablet-768 | Quantidade: 30 cab | Data: 31/10/2026 | Detalhe
+PASS tablet-768 curral: abate aparece Cancelado com motivo — Abate | Histórico da Área | Histórico de Abate (7) | 31/10/2026 | Abate | Cancelado | ABATE tablet-768 | Quantidade: 30 cab | Data: 31/10/2026 | Detalhes: Desti
+PASS tablet-768 nenhum DELETE/PATCH de movimento/suplementação no navegador
+PASS tablet-768 cancelamentos foram POST no comando do servidor (2) — 2
+PASS tablet-768 sem erro de página
