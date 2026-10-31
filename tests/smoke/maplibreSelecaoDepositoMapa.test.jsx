@@ -369,7 +369,8 @@ describe("M2-B3 — SelecaoDepositoMapa (DOM, MapLibre mockado)", () => {
   it("erro de WebGL mostra estado honesto e retry recria", async () => {
     h.createFail = new Error("WebGL indisponível");
     montar();
-    await waitFor(() => expect(screen.getByText("WebGL indisponível")).toBeTruthy());
+    // Falha de WebGL vira a explicação do que fazer (falhaWebGL), não o texto cru.
+    await waitFor(() => expect(screen.getByText(/WebGL \(aceleração gráfica\) desligado/)).toBeTruthy());
     h.createFail = null;
     fireEvent.click(screen.getByText("Tentar novamente"));
     await waitFor(() => expect(h.maps.length).toBe(1));

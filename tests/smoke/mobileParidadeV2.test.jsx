@@ -1,5 +1,5 @@
 /**
- * UX-MOBILE-V2 paridade 2 (D-PROD-87): campos de lançamento e seletores no
+ * UX-MOBILE-V2 paridade 2 (D-PROD-88): campos de lançamento e seletores no
  * padrão Base1. JSDOM não aplica media query: prova estrutura e comportamento.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';

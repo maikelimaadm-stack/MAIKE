@@ -257,7 +257,7 @@ export default function AutocompleteGenerico({
   };
 
   // Celular: o campo vira um botão de leitura e a escolha acontece na folha
-  // de baixo, com a mesma pesquisa das outras aberturas (D-PROD-87).
+  // de baixo, com a mesma pesquisa das outras aberturas (D-PROD-88).
   if (celular) {
     const termo = buscaCelular.trim().toLowerCase();
     const encontrados = termo

@@ -18,7 +18,7 @@ import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
 import CadastroFormActions from "@/components/cadastro/base1/CadastroFormActions";
 import LancField from "@/components/cadastro/base1/LancField";
 
-/** Campo flutuante Base1 (rótulo dentro) — D-PROD-87. */
+/** Campo flutuante Base1 (rótulo dentro) — D-PROD-88. */
 const FL = LancField;
 const INPUT_CLS = CADASTRO_INPUT_CLS;
 const SELECT_CLS = CADASTRO_SELECT_CLS;

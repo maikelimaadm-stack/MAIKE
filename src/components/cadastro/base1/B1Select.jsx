@@ -30,7 +30,7 @@ function opcoesDe(children) {
 /**
  * `<select>` dos formulários Base1. Desktop: o select nativo de sempre. Celular:
  * o campo abre a folha de baixo com as opções (e pesquisa acima de 8), como os
- * demais seletores (D-PROD-87). Mesma API do `<select>`: `value`, `onChange(e)`.
+ * demais seletores (D-PROD-88). Mesma API do `<select>`: `value`, `onChange(e)`.
  *
  * @param {React.SelectHTMLAttributes<HTMLSelectElement> & { children?: React.ReactNode }} props
  */

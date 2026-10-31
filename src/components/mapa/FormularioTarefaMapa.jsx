@@ -18,7 +18,7 @@ import { canAccessPage, normalizePermissionRecord } from "@/lib/permissions";
 import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 import LancField from "@/components/cadastro/base1/LancField";
 
-/** Campo flutuante Base1 (rótulo dentro) — D-PROD-87. */
+/** Campo flutuante Base1 (rótulo dentro) — D-PROD-88. */
 const FL = LancField;
 
 export const normalizeTaskPriority = (value) => {

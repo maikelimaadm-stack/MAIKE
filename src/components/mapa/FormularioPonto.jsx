@@ -40,7 +40,7 @@ import { BEBEDOURO_ORIGENS_AGUA, BEBEDOURO_TIPOS } from "@/services/bebedouroSer
 import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 import LancField from "@/components/cadastro/base1/LancField";
 
-/** Campo flutuante Base1 (rótulo dentro) — D-PROD-87. */
+/** Campo flutuante Base1 (rótulo dentro) — D-PROD-88. */
 const FL = LancField;
 
 

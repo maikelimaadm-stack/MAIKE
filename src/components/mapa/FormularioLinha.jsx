@@ -12,7 +12,7 @@ import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 import { comprimentoMetros, toPersistedCoords, parseVertices } from "@/lib/geografia";
 import LancField from "@/components/cadastro/base1/LancField";
 
-/** Campo flutuante Base1 (rótulo dentro) — D-PROD-87. */
+/** Campo flutuante Base1 (rótulo dentro) — D-PROD-88. */
 const FL = LancField;
 
 const TIPOS_LINHA = ["Estrada", "Cerca", "Cerca Elétrica", "Rio", "Córrego", "Outro"];

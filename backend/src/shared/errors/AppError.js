@@ -157,6 +157,13 @@ export const loteDeleteBlocked = (vinculo, options) =>
     { ...options, details: { ...(options?.details ?? {}), vinculo } }
   );
 
+export const loteUpdateBlocked = (vinculo, options) =>
+  new AppError(
+    'LOTE_UPDATE_BLOCKED',
+    'não é possível editar o lançamento de entrada de um lote que já tem movimentação, manejo ou registro',
+    { ...options, details: { ...(options?.details ?? {}), vinculo } }
+  );
+
 export const categoriaNotFound = (message, options) =>
   new AppError('CATEGORIA_NOT_FOUND', message || 'categoria não encontrada', options);
 

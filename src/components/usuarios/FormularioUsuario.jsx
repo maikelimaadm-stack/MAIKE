@@ -6,7 +6,7 @@ import CadastroFormActions from "@/components/cadastro/base1/CadastroFormActions
 
 const NOME_INPUT_CLS = `${CADASTRO_INPUT_CLS} w-full px-2 uppercase`;
 
-/** Campo flutuante Base1 (rótulo dentro) — D-PROD-87. */
+/** Campo flutuante Base1 (rótulo dentro) — D-PROD-88. */
 const FL = LancField;
 const SELECT_CLS = CADASTRO_SELECT_CLS;
 import { Checkbox } from "@/components/ui/checkbox";

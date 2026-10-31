@@ -3241,7 +3241,30 @@ Relatório: `docs/engineering/UX-MOBILE-V2-REPORT.md`.
 
 ---
 
-## D-PROD-87 — Paridade com o protótipo v2: campos de lançamento, seletores, cards e grade
+## D-PROD-87 — Lançamento de entrada só se edita ou exclui antes de qualquer histórico
+
+**Contexto (pedido do proprietário):** "a edição do cadastro de lote só pode ser feita se não houver nenhuma movimentação depois da entrada, movimento, manejo ou registro; para excluir, a mesma coisa, não fica nem liberado".
+
+**Decisão:**
+1. **"Histórico" é qualquer uma destas condições** (servidor em `loteService`, tela em `motivoDeHistoricoDoLote`):
+   - **lote gerado por manejo** (`lote_gerado_por_manejo`);
+   - **registro que cita o lote** (movimentação do mapa, movimentação pecuária, suplementação, tarefa ou manejo técnico): motivo `movimentacoes_mapa`, `suplementacao_lote` etc.;
+   - **estado divergente da entrada** (`lote_com_manejo`): saldo ≠ quantidade de entrada, área atual ≠ área de entrada, ou categoria atual ≠ categoria de entrada. Cobre o destino de uma unificação, que recebe cabeças sem registro que o cite.
+2. **Servidor:**
+   - `DELETE /lotes/:id` com histórico → 409 `LOTE_DELETE_BLOCKED`;
+   - `PATCH /lotes/:id` com campo que só o Cadastro escreve → 409 `LOTE_UPDATE_BLOCKED` (código novo, catalogado no backend e no frontend). São os campos de entrada, compra e metadados: data, motivo, origem, fornecedor, NF, GTA, valores, raça, idade, sistema produtivo, setor, observações e campos personalizados.
+   - Os campos que os manejos do mapa escrevem (saldo, status, área atual, categoria atual, sexo, peso, nome, identificador) continuam aceitos: o mapa segue funcionando.
+3. **Tela:**
+   - com histórico, "Editar" e "Excluir" não liberam: aviso "Lote com histórico" e nada abre;
+   - o formulário fica só leitura;
+   - "Duplicar" (novo lançamento) continua livre.
+4. **Sem histórico,** o lançamento é editável e excluível normalmente (correção de digitação antes de qualquer manejo).
+
+Relatório: `docs/engineering/MAIKE-LOTES-SALDO-MOVIMENTACOES-REPORT.md` (seção "Editar/excluir só sem histórico").
+
+---
+
+## D-PROD-88 — Paridade com o protótipo v2: campos de lançamento, seletores, cards e grade
 
 **Contexto:** depois da D-PROD-86 o proprietário viu diferenças entre o celular e o protótipo "MAIKE App v2":
 - campos de lançamento;
@@ -3281,4 +3304,4 @@ Relatório: `docs/engineering/UX-MOBILE-V2-REPORT.md` (seção "Paridade 2").
 
 ---
 
-<!-- Próxima decisão: D-PROD-88 -->
+<!-- Próxima decisão: D-PROD-89 -->

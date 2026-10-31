@@ -49,7 +49,7 @@ Removido: `src/components/common/BackButton.jsx` (só o Layout usava).
 - [ ] Rolar até o fim carrega mais 200 (lista grande).
 - [ ] Campos de 16px não dão zoom no iPhone.
 
-## Paridade 2 (D-PROD-87)
+## Paridade 2 (D-PROD-88)
 
 Feita depois de o proprietário apontar diferenças em "campos de lançamento, cabeçalhos de filtros e mais algumas coisas".
 
