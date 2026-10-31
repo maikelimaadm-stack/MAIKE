@@ -37,6 +37,7 @@ import { buscarSetor } from '../setores/setorRepository.js';
 import { inserirArea } from './areaPastagemRepository.js';
 import { comoAreaPublica, ENTIDADE_SEQUENCIA, escopoDaNumeracao } from './areaPastagemService.js';
 import { chaveCanonicaDoContorno, nomeComparavel, validarAnel } from './areaImportacaoGeometria.js';
+import { pendenciasDeCampos, textoLimpo } from './areaImportacaoRegras.js';
 
 /** Limites do lote. Ver D-PROD-90: atomicidade real só dentro deles. */
 export const LIMITES_IMPORTACAO = Object.freeze({
@@ -45,30 +46,14 @@ export const LIMITES_IMPORTACAO = Object.freeze({
   maxVerticesTotal: 50000,
 });
 
-export const TIPOS_USO = Object.freeze(['Pastagem', 'Agricultura', 'Reserva', 'APP', 'Infraestrutura']);
-export const TIPOS_CULTURA = Object.freeze([
-  'Brachiaria', 'Mombaça', 'Tanzânia', 'Tifton', 'Piatã', 'Marandu', 'Panicum', 'Elefante',
-  'Milho', 'Soja', 'Sorgo', 'Arroz', 'Trigo', 'Cevada', 'Cana-de-açúcar', 'Algodão',
-  'Feijão', 'Girassol', 'Aveia', 'Café', 'Eucalipto', 'Floresta', 'Outros',
-]);
-export const TIPOS_INFRAESTRUTURA = Object.freeze([
-  'Curral', 'Oficina', 'Casa', 'Barracão', 'Galpão', 'Depósito', 'Embarcador', 'Brete', 'Outro',
-]);
-export const CORES_DA_PALETA = Object.freeze([
-  '#f8f9fa', '#d8dee2', '#2c303e', '#0d67ad', '#61aad9', '#efcb19', '#92ca25', '#f5a01b', '#966fe1',
-]);
-export const COR_PADRAO = '#f8f9fa';
+export { TIPOS_USO, TIPOS_CULTURA, TIPOS_INFRAESTRUTURA, CORES_DA_PALETA, COR_PADRAO } from './areaImportacaoRegras.js';
 
 const TIPO_OPERACAO = 'importacao_areas';
-const USOS_COM_EXPLORACAO = new Set(['Pastagem', 'Agricultura']);
-/** Tolerância da comparação pastejada ≤ total, em ha (arredondamento a 2 casas). */
-const TOLERANCIA_HA = 0.005;
 /** A importação grava até 100 áreas; o padrão de 5 s do Prisma não basta. */
 const OPCOES_TRANSACAO = Object.freeze({ maxWait: 10000, timeout: 60000 });
 
 const arredondar2 = (valor) => Math.round(valor * 100) / 100;
 
-const textoLimpo = (valor) => (typeof valor === 'string' ? valor.replace(/\s+/g, ' ').trim() : '');
 
 /**
  * @typedef {{campo: string, codigo: string, mensagem: string}} Pendencia
@@ -144,65 +129,21 @@ const carregarReferencias = async (db, clienteId, empresaId, itens) => {
  * Devolve as pendências e, quando não há nenhuma, o registro pronto.
  */
 const validarItem = (item, empresaId, refs, vistosNoPedido) => {
-  /** @type {Pendencia[]} */
-  const pendencias = [];
-  const falta = (campo, mensagem) => pendencias.push({ campo, codigo: 'CAMPO_OBRIGATORIO', mensagem });
-
-  const nome = textoLimpo(item.nome).toUpperCase();
-  if (!nome) falta('nome', 'Informe o nome da área.');
-  else if (nome.length > 255) pendencias.push({ campo: 'nome', codigo: 'CAMPO_INVALIDO', mensagem: 'Nome com mais de 255 caracteres.' });
-
-  const sigla = textoLimpo(item.sigla).toUpperCase();
-  if (sigla.length > 10) pendencias.push({ campo: 'sigla', codigo: 'CAMPO_INVALIDO', mensagem: 'Sigla com mais de 10 caracteres.' });
+  const geometria = validarAnel(item.coords);
+  const totalHa = geometria.ok ? arredondar2(geometria.hectares) : null;
+  const { pendencias, valores } = pendenciasDeCampos(item, totalHa);
+  const { nome, sigla, uso, tipo, pastejada, aproveitamento, cor } = valores;
 
   const setorId = textoLimpo(item.setor_id);
   const setor = setorId ? refs.setores.get(setorId) : null;
-  if (!setorId) falta('setor_id', 'Escolha o setor.');
-  else if (!setor) pendencias.push({ campo: 'setor_id', codigo: 'SETOR_INVALIDO', mensagem: 'Setor não encontrado.' });
-  else if (setor.empresa_id !== empresaId) {
+  if (setorId && !setor) pendencias.push({ campo: 'setor_id', codigo: 'SETOR_INVALIDO', mensagem: 'Setor não encontrado.' });
+  else if (setor && setor.empresa_id !== empresaId) {
     pendencias.push({ campo: 'setor_id', codigo: 'SETOR_DE_OUTRA_EMPRESA', mensagem: 'O setor não pertence a esta empresa.' });
-  } else if (setor.ativo === false) {
+  } else if (setor && setor.ativo === false) {
     pendencias.push({ campo: 'setor_id', codigo: 'SETOR_INATIVO', mensagem: 'O setor está inativo.' });
   }
 
-  const uso = textoLimpo(item.tipo_cultura);
-  if (!uso) falta('tipo_cultura', 'Escolha o tipo de uso.');
-  else if (!TIPOS_USO.includes(uso)) pendencias.push({ campo: 'tipo_cultura', codigo: 'CAMPO_INVALIDO', mensagem: 'Tipo de uso desconhecido.' });
-
-  const geometria = validarAnel(item.coords);
   if ('codigo' in geometria) pendencias.push({ campo: 'coords', codigo: geometria.codigo, mensagem: geometria.mensagem });
-  const totalHa = geometria.ok ? arredondar2(geometria.hectares) : null;
-
-  const tipo = textoLimpo(item.tipo_pastagem);
-  const pastejada = item.area_pastejada;
-  const temPastejada = typeof pastejada === 'number' && Number.isFinite(pastejada);
-  if (uso === 'Infraestrutura') {
-    if (!tipo) falta('tipo_pastagem', 'Escolha o tipo de infraestrutura.');
-    else if (!TIPOS_INFRAESTRUTURA.includes(tipo)) {
-      pendencias.push({ campo: 'tipo_pastagem', codigo: 'CAMPO_INVALIDO', mensagem: 'Tipo de infraestrutura desconhecido.' });
-    }
-    if (temPastejada && pastejada !== 0) {
-      pendencias.push({ campo: 'area_pastejada', codigo: 'CAMPO_INVALIDO', mensagem: 'Infraestrutura não tem área pastejada.' });
-    }
-  } else if (uso) {
-    if (USOS_COM_EXPLORACAO.has(uso) && !tipo) falta('tipo_pastagem', 'Escolha o tipo de cultura ou pastagem.');
-    if (tipo && !TIPOS_CULTURA.includes(tipo)) {
-      pendencias.push({ campo: 'tipo_pastagem', codigo: 'CAMPO_INVALIDO', mensagem: 'Tipo de cultura desconhecido.' });
-    }
-    if (!temPastejada) falta('area_pastejada', 'Informe a área pastejada ou arável (0 é aceito).');
-    else if (pastejada < 0) {
-      pendencias.push({ campo: 'area_pastejada', codigo: 'CAMPO_INVALIDO', mensagem: 'Área pastejada não pode ser negativa.' });
-    } else if (totalHa !== null && pastejada > totalHa + TOLERANCIA_HA) {
-      pendencias.push({ campo: 'area_pastejada', codigo: 'PASTEJADA_MAIOR_QUE_TOTAL', mensagem: 'Área pastejada maior que a área total.' });
-    }
-  }
-
-  const aproveitamento = textoLimpo(item.aproveitamento_classificacao) || 'Média';
-  if (!['Alta', 'Média', 'Baixa'].includes(aproveitamento)) {
-    pendencias.push({ campo: 'aproveitamento_classificacao', codigo: 'CAMPO_INVALIDO', mensagem: 'Aproveitamento desconhecido.' });
-  }
-  const cor = textoLimpo(item.cor).toLowerCase() || COR_PADRAO;
-  if (!CORES_DA_PALETA.includes(cor)) pendencias.push({ campo: 'cor', codigo: 'CAMPO_INVALIDO', mensagem: 'Cor fora da paleta do mapa.' });
 
   // Duplicidade: contra o banco (só áreas ativas desta empresa) e dentro do pedido.
   if (geometria.ok) {

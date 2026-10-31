@@ -31,6 +31,9 @@ export const CORES_DISPONIVEIS = Object.freeze([
   { nome: "Laranja", cor: "#f5a01b" },
   { nome: "Roxo", cor: "#966fe1" },
 ]);
+export const MAX_NOME = 255;
+export const MAX_SIGLA = 10;
+
 /** Cor neutra das áreas importadas (editável antes de gravar). */
 export const COR_PADRAO_IMPORTACAO = "#f8f9fa";
 
@@ -62,7 +65,7 @@ export const lerHectares = (valor) => {
  * Pendências de uma área, na ordem da tela. Vazio = pode gravar.
  *
  * @param {{
- *   nome?: string, setor_id?: string, tipo_cultura?: string, tipo_pastagem?: string,
+ *   nome?: string, sigla?: string, setor_id?: string, tipo_cultura?: string, tipo_pastagem?: string,
  *   area_pastejada?: unknown, total_ha?: number | null
  * }} campos `total_ha` é a área total geodésica (ou `null` se ainda não há contorno)
  * @returns {{ campo: string, mensagem: string }[]}
@@ -73,13 +76,21 @@ export const pendenciasDaArea = (campos) => {
   const uso = String(campos.tipo_cultura ?? "").trim();
   const tipo = String(campos.tipo_pastagem ?? "").trim();
 
-  if (!String(campos.nome ?? "").trim()) pend.push({ campo: "nome", mensagem: "Informe o nome." });
+  const nome = String(campos.nome ?? "").replace(/\s+/g, " ").trim();
+  if (!nome) pend.push({ campo: "nome", mensagem: "Informe o nome." });
+  else if (nome.length > MAX_NOME) pend.push({ campo: "nome", mensagem: `Nome com mais de ${MAX_NOME} caracteres.` });
+  if (String(campos.sigla ?? "").trim().length > MAX_SIGLA) {
+    pend.push({ campo: "sigla", mensagem: `Sigla com mais de ${MAX_SIGLA} caracteres.` });
+  }
   if (!String(campos.setor_id ?? "").trim()) pend.push({ campo: "setor_id", mensagem: "Escolha o setor." });
   if (!uso) {
     pend.push({ campo: "tipo_cultura", mensagem: "Escolha o tipo de uso." });
     return pend;
   }
-  if (!TIPOS_USO.includes(uso)) pend.push({ campo: "tipo_cultura", mensagem: "Tipo de uso desconhecido." });
+  if (!TIPOS_USO.includes(uso)) {
+    pend.push({ campo: "tipo_cultura", mensagem: "Tipo de uso desconhecido." });
+    return pend;
+  }
 
   if (uso === "Infraestrutura") {
     if (!tipo) pend.push({ campo: "tipo_infraestrutura", mensagem: "Escolha o tipo de infraestrutura." });

@@ -16,6 +16,15 @@ const RESOURCE = 'AreaPastagem';
 const CAMINHO_CONFERIR = '/areas-pastagem/importacao/conferir';
 const CAMINHO_IMPORTAR = '/areas-pastagem/importacao';
 
+/**
+ * Tempo de espera da GRAVAÇÃO (D-PROD-90 R1). O servidor dá até 60 s à
+ * transação; o cliente espera um pouco mais para receber a resposta em vez de
+ * desistir no meio. Passou disso, ou a borda (Vercel/proxy) cortou antes, a tela
+ * trata como "resultado desconhecido" e só reenvia com a MESMA chave — nunca
+ * afirma que nada foi gravado. A conferência usa o padrão global (só lê).
+ */
+export const TIMEOUT_GRAVACAO_MS = 75000;
+
 const CAMPOS_DO_ITEM = Object.freeze([
   'ref',
   'nome',
@@ -65,6 +74,7 @@ export const importarAreasNativa = ({ operationId, empresaId, itens }) =>
       method: 'POST',
       body: { operation_id: operationId, empresa_id: empresaId, itens: itens.map(corpoDoItem) },
       autenticado: true,
+      timeoutMs: TIMEOUT_GRAVACAO_MS,
     },
     { operation: 'importarAreas', resource: RESOURCE }
   );

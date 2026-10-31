@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { listarSetoresAtivos, listarTodasAreas, criarArea, atualizarArea } from "@/services/mapaService";
+import { listarSetoresAtivos, criarArea, atualizarArea } from "@/services/mapaService";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import {
@@ -80,25 +80,22 @@ export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS 
   const handleChange = (field, value) => { setFormData((prev) => ({ ...prev, [field]: value })); setInvalidFields((prev) => prev.filter((item) => item !== field)); };
 
   const createAreaMutation = useMutation({
+    /** @param {Record<string, any>} data */
     mutationFn: async (data) => {
       if (item) {
         return atualizarArea(item.id, {
           ...data,
-          numero_area: data.numero_area || item.numero_area,
           coordenadas: {
             coords: toPersistedCoords(coordenadasGPS || coordenadas || item.coordenadas?.coords),
             cor: data.cor,
           },
         });
       }
-      // Numeração sobre todas as áreas, como antes da P1.2.
-      const allAreas = await listarTodasAreas();
-      const maxNum = allAreas.reduce((max, a) => Math.max(max, parseInt(a.numero_area) || 0), 0);
-      const proximo = String(maxNum + 1);
+      // `numero_area` e `setor_nome` são do servidor (sequência e linha do
+      // setor); o cliente não calcula nem envia (D-PROD-31, D-PROD-90 R1).
       return criarArea({
         ...data,
         empresa_id: empresaSelecionadaId,
-        numero_area: (data.numero_area && String(data.numero_area)) || proximo,
         quantidade_atual: 0,
         status_ocupacao: 'Disponível',
         ativo: true,
@@ -179,9 +176,7 @@ export default function FormularioArea({ coordenadas, onSave, onCancel, usarGPS 
     createAreaMutation.mutate({
       nome: formData.nome.toUpperCase(),
       sigla: formData.sigla?.toUpperCase(),
-      numero_area: formData.numero_area?.toString().trim() || undefined,
       setor_id: formData.setor_id,
-      setor_nome: formData.setor_nome,
       aproveitamento_classificacao: formData.aproveitamento,
       tipo_cultura: formData.tipo_cultura,
       tipo_pastagem: formData.tipo_cultura === 'Infraestrutura' ? formData.tipo_infraestrutura : formData.tipo_pastagem,

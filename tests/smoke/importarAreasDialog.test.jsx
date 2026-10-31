@@ -51,13 +51,13 @@ const { default: ImportarAreasDialog } = await import("@/components/mapa/importa
 const KML = readFileSync(resolve(process.cwd(), "tests/smoke/fixtures/importacaoAreas/fazenda-google-earth.kml"), "utf8");
 
 let queryClient;
-const renderDialog = () => {
+const renderDialog = (props = {}) => {
   queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   vi.spyOn(queryClient, "invalidateQueries");
   const onOpenChange = vi.fn();
   const utils = render(
     <QueryClientProvider client={queryClient}>
-      <ImportarAreasDialog open onOpenChange={onOpenChange} />
+      <ImportarAreasDialog open onOpenChange={onOpenChange} {...props} />
     </QueryClientProvider>
   );
   return { ...utils, onOpenChange };
@@ -84,21 +84,38 @@ const linha = (ref) => screen.getByTestId(`linha-${ref}`);
 const select = (ref, rotulo) => within(linha(ref)).getByRole("combobox", { name: new RegExp(`^${rotulo}`) });
 
 /** Abre o Select (Radix) e escolhe a opção pelo texto. */
-const escolher = (trigger, opcao) => {
-  // jsdom não tem PointerEvent: o clique cai no caminho "toque" do Radix.
-  fireEvent.click(trigger);
-  fireEvent.click(screen.getByRole("option", { name: opcao }));
+const escolher = async (trigger, opcao) => {
+  // jsdom não tem PointerEvent: o clique cai no caminho "toque" do Radix. Dentro
+  // de act assíncrono para o Radix assentar abertura/fechamento antes do passo seguinte.
+  await act(async () => {
+    fireEvent.click(trigger);
+  });
+  // Busca só dentro da lista aberta: getByRole no documento inteiro é lento com centenas de linhas.
+  const lista = /** @type {HTMLElement} */ (document.querySelector('[role="listbox"]'));
+  await act(async () => {
+    fireEvent.click(within(lista).getByRole("option", { name: opcao }));
+  });
 };
+const painelMassa = () => within(screen.getByTestId("importacao-massa"));
+const acoes = () => within(screen.getByTestId("importacao-acoes"));
+const gravarNaConfirmacao = async () => {
+  await waitFor(() => expect(document.querySelector('[role="alertdialog"]')).not.toBeNull());
+  // A gravação termina de forma assíncrona: deixa resolver dentro de act.
+  await act(async () => {
+    fireEvent.click(within(/** @type {HTMLElement} */ (document.querySelector('[role="alertdialog"]'))).getByRole("button", { name: "Gravar áreas" }));
+  });
+};
+const mensagem = () => screen.getByTestId("importacao-mensagem");
 
-const preencherEmMassa = (campos) => {
+const preencherEmMassa = async (campos) => {
   for (const [rotulo, opcao] of Object.entries(campos)) {
-    escolher(screen.getByRole("combobox", { name: rotulo }), opcao);
+    await escolher(painelMassa().getByRole("combobox", { name: rotulo }), opcao);
   }
-  fireEvent.click(screen.getByRole("button", { name: "Aplicar à seleção" }));
+  fireEvent.click(painelMassa().getByRole("button", { name: "Aplicar à seleção" }));
 };
 
-const completarTudo = () => {
-  preencherEmMassa({
+const completarTudo = async () => {
+  await preencherEmMassa({
     "Setor em massa": "NORTE",
     "Tipo de uso em massa": "Pastagem",
     "Tipo de cultura em massa": "Marandu",
@@ -106,6 +123,13 @@ const completarTudo = () => {
   });
   fireEvent.change(within(linha("f3")).getByLabelText(/^Nome/), { target: { value: "Pasto sem nome" } });
 };
+
+const respostaGravacao = (refs, { replay = false, base = 0 } = {}) => ({
+  operation_id: "x",
+  gravadas: refs.length,
+  replay,
+  importadas: refs.map((ref, i) => ({ ref, id: `a-${ref}`, numero_area: String(base + i + 1), nome: ref, setor_nome: "NORTE", tamanho_hectares: 96 })),
+});
 
 const respostaConferencia = (refs, pendentes = {}) => ({
   empresa_id: "emp-1",
@@ -176,7 +200,7 @@ describe("Importar áreas — etapa 2 (conferência)", () => {
     renderDialog();
     await irParaConferencia();
     fireEvent.click(within(linha("f2")).getByRole("checkbox"));
-    preencherEmMassa({ "Setor em massa": "SUL", "Tipo de uso em massa": "Agricultura" });
+    await preencherEmMassa({ "Setor em massa": "SUL", "Tipo de uso em massa": "Agricultura" });
     expect(select("f1", "Setor")).toHaveTextContent("SUL");
     expect(select("f3", "Setor")).toHaveTextContent("SUL");
     expect(select("f2", "Setor")).toHaveTextContent("Selecione");
@@ -187,8 +211,8 @@ describe("Importar áreas — etapa 2 (conferência)", () => {
   it("valor personalizado na linha não é sobrescrito sem confirmação", async () => {
     renderDialog();
     await irParaConferencia();
-    escolher(select("f1", "Setor"), "NORTE");
-    preencherEmMassa({ "Setor em massa": "SUL" });
+    await escolher(select("f1", "Setor"), "NORTE");
+    await preencherEmMassa({ "Setor em massa": "SUL" });
     expect(screen.getByRole("alert")).toHaveTextContent(/1 área\(s\) selecionada\(s\) já têm valor próprio em Setor/);
     fireEvent.click(screen.getByRole("button", { name: "Manter valores próprios" }));
     expect(select("f1", "Setor")).toHaveTextContent("NORTE");
@@ -198,7 +222,7 @@ describe("Importar áreas — etapa 2 (conferência)", () => {
   it("Reserva aceita 0 sem cultura; pastejada maior que o total é pendência", async () => {
     renderDialog();
     await irParaConferencia();
-    preencherEmMassa({ "Setor em massa": "NORTE", "Tipo de uso em massa": "Reserva" });
+    await preencherEmMassa({ "Setor em massa": "NORTE", "Tipo de uso em massa": "Reserva" });
     fireEvent.change(within(linha("f1")).getByLabelText(/^Área pastejada/), { target: { value: "0" } });
     expect(screen.getByTestId("estado-f1").textContent).toMatch(/Sem pendência/);
     expect(screen.queryByTestId("situacao-f1")).toBeNull();
@@ -213,7 +237,7 @@ describe("Importar áreas — etapa 3 (gravação)", () => {
     window.addEventListener("atualizar-mapa", eventos);
     const { onOpenChange } = renderDialog();
     await irParaConferencia();
-    completarTudo();
+    await completarTudo();
     apis.conferirImportacaoAreas.mockResolvedValue(respostaConferencia(["f1", "f2", "f3"]));
     fireEvent.click(screen.getByRole("button", { name: "Conferir seleção (3)" }));
     await screen.findByText(/3 área\(s\) prontas para importar. Nada foi gravado ainda/);
@@ -255,7 +279,7 @@ describe("Importar áreas — etapa 3 (gravação)", () => {
   it("422 do servidor: nenhuma área gravada e a pendência aparece na linha", async () => {
     renderDialog();
     await irParaConferencia();
-    completarTudo();
+    await completarTudo();
     apis.conferirImportacaoAreas.mockResolvedValue(respostaConferencia(["f1", "f2", "f3"]));
     fireEvent.click(screen.getByRole("button", { name: "Conferir seleção (3)" }));
     await screen.findByText(/prontas para importar/);
@@ -277,7 +301,7 @@ describe("Importar áreas — etapa 3 (gravação)", () => {
   it("rede caiu na gravação: resultado desconhecido, edição travada e reenvio com a MESMA chave", async () => {
     renderDialog();
     await irParaConferencia();
-    completarTudo();
+    await completarTudo();
     apis.conferirImportacaoAreas.mockResolvedValue(respostaConferencia(["f1", "f2", "f3"]));
     fireEvent.click(screen.getByRole("button", { name: "Conferir seleção (3)" }));
     await screen.findByText(/prontas para importar/);
@@ -287,7 +311,7 @@ describe("Importar áreas — etapa 3 (gravação)", () => {
     expect(await screen.findByTestId("importacao-mensagem")).toHaveTextContent(/Resultado desconhecido/);
     expect(within(linha("f1")).getByLabelText(/^Nome/)).toBeDisabled();
 
-    apis.importarAreas.mockResolvedValueOnce({ gravadas: 3, replay: true, importadas: [] });
+    apis.importarAreas.mockResolvedValueOnce(respostaGravacao(["f1", "f2", "f3"], { replay: true }));
     fireEvent.click(screen.getByRole("button", { name: "Verificar e concluir" }));
     await screen.findByTestId("importacao-resultado");
     expect(apis.importarAreas).toHaveBeenCalledTimes(2);
@@ -298,7 +322,7 @@ describe("Importar áreas — etapa 3 (gravação)", () => {
   it("editar depois de conferir invalida a conferência", async () => {
     renderDialog();
     await irParaConferencia();
-    completarTudo();
+    await completarTudo();
     apis.conferirImportacaoAreas.mockResolvedValue(respostaConferencia(["f1", "f2", "f3"]));
     fireEvent.click(screen.getByRole("button", { name: "Conferir seleção (3)" }));
     await screen.findByText(/prontas para importar/);
@@ -311,7 +335,7 @@ describe("Importar áreas — etapa 3 (gravação)", () => {
   it("troca de empresa com o assistente aberto invalida e bloqueia a gravação", async () => {
     const { rerender } = renderDialog();
     await irParaConferencia();
-    completarTudo();
+    await completarTudo();
     empresaAtual = "emp-2";
     rerender(
       <QueryClientProvider client={queryClient}>
@@ -326,7 +350,7 @@ describe("Importar áreas — etapa 3 (gravação)", () => {
   it("sem conexão: rascunho continua editável, mas conferir e importar ficam bloqueados", async () => {
     renderDialog();
     await irParaConferencia();
-    completarTudo();
+    await completarTudo();
     await act(async () => {
       Object.defineProperty(window.navigator, "onLine", { value: false, configurable: true });
       window.dispatchEvent(new Event("offline"));
@@ -340,7 +364,7 @@ describe("Importar áreas — etapa 3 (gravação)", () => {
   it("cancelar fecha sem gravar nada", async () => {
     const { onOpenChange } = renderDialog();
     await irParaConferencia();
-    completarTudo();
+    await completarTudo();
     fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
     expect(onOpenChange).toHaveBeenCalledWith(false);
     expect(apis.importarAreas).not.toHaveBeenCalled();
@@ -374,4 +398,300 @@ describe("Cadastro do Mapa — botão na aba Áreas", () => {
     expect(apis.importarAreas).not.toHaveBeenCalled();
     vi.doUnmock("@/services/mapaService");
   });
+});
+
+
+// ─── R1 (D-PROD-90): resultado desconhecido, classificação e lotes ─────────
+
+const prepararDesconhecido = async (erro = new ApiError(API_ERROR_CODES.PROVIDER_UNAVAILABLE)) => {
+  const utils = renderDialog();
+  await irParaConferencia();
+  await completarTudo();
+  apis.conferirImportacaoAreas.mockResolvedValue(respostaConferencia(["f1", "f2", "f3"]));
+  fireEvent.click(screen.getByRole("button", { name: "Conferir seleção (3)" }));
+  await screen.findByText(/prontas para importar/);
+  apis.importarAreas.mockRejectedValueOnce(erro);
+  fireEvent.click(screen.getByRole("button", { name: "Importar 3 área(s)" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Gravar áreas" }));
+  await screen.findByRole("button", { name: "Verificar e concluir" });
+  return utils;
+};
+
+describe("R1 — resultado desconhecido não pode ser descartado sem querer", () => {
+  it("Esc, Cancelar e 'Outro arquivo' não descartam a operação; tudo fica travado", async () => {
+    const { onOpenChange } = await prepararDesconhecido();
+    expect(screen.getByTestId("importacao-mensagem")).toHaveTextContent(/podem já ter sido criadas/);
+    expect(screen.getByTestId("importacao-mensagem").textContent).not.toMatch(/Nenhuma área/);
+
+    // Esc
+    fireEvent.keyDown(document.activeElement || document.body, { key: "Escape" });
+    expect(await screen.findByTestId("importacao-confirmar-saida")).toHaveTextContent(/áreas podem já ter sido criadas/);
+    fireEvent.click(screen.getByRole("button", { name: "Continuar verificando" }));
+    await waitFor(() => expect(screen.queryByTestId("importacao-confirmar-saida")).toBeNull());
+    expect(onOpenChange).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Verificar e concluir" })).toBeEnabled();
+
+    // Cancelar
+    fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+    expect(await screen.findByTestId("importacao-confirmar-saida")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Continuar verificando" }));
+    await waitFor(() => expect(screen.queryByTestId("importacao-confirmar-saida")).toBeNull());
+
+    // Outro arquivo, edição e seleção travados
+    expect(screen.getByRole("button", { name: /Outro arquivo/ })).toBeDisabled();
+    expect(within(linha("f1")).getByLabelText(/^Nome/)).toBeDisabled();
+    expect(within(linha("f1")).getByRole("checkbox")).toBeDisabled();
+    expect(select("f1", "Setor")).toBeDisabled();
+    expect(onOpenChange).not.toHaveBeenCalled();
+  });
+
+  it("clique fora (overlay) também pede confirmação; 'Sair sem confirmar' fecha sem afirmar que nada foi gravado", async () => {
+    const { onOpenChange } = await prepararDesconhecido();
+    const overlay = document.querySelector("[data-state='open'].fixed.inset-0");
+    expect(overlay).not.toBeNull();
+    fireEvent.pointerDown(/** @type {Element} */ (overlay));
+    expect(await screen.findByTestId("importacao-confirmar-saida")).toBeInTheDocument();
+    expect(onOpenChange).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Sair sem confirmar" }));
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+    expect(queryClient.invalidateQueries).toHaveBeenCalled();
+  });
+
+  it("troca de empresa durante o desconhecido: a verificação continua com a empresa e o conteúdo originais; resposta tardia conclui uma vez só", async () => {
+    const { rerender } = await prepararDesconhecido();
+    const primeiro = apis.importarAreas.mock.calls[0][0];
+    empresaAtual = "emp-2";
+    rerender(
+      <QueryClientProvider client={queryClient}>
+        <ImportarAreasDialog open onOpenChange={() => {}} />
+      </QueryClientProvider>
+    );
+    expect(screen.getAllByRole("alert")[0]).toHaveTextContent(/verificação pendente continua na empresa do arquivo/);
+    expect(screen.queryByRole("button", { name: "Recomeçar" })).toBeNull();
+    refreshCache.mockClear();
+    apis.importarAreas.mockResolvedValueOnce(respostaGravacao(["f1", "f2", "f3"], { replay: true }));
+    fireEvent.click(screen.getByRole("button", { name: "Verificar e concluir" }));
+    await screen.findByTestId("importacao-resultado");
+    const segundo = apis.importarAreas.mock.calls[1][0];
+    expect(segundo.operationId).toBe(primeiro.operationId);
+    expect(segundo.empresaId).toBe("emp-1");
+    expect(JSON.stringify(segundo.itens)).toBe(JSON.stringify(primeiro.itens));
+    expect(refreshCache).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId("importacao-resultado").textContent).toMatch(/nada foi duplicado/);
+  });
+
+  it.each([
+    ["500 interno", new ApiError(API_ERROR_CODES.OPERATION_FAILED)],
+    ["gateway 502/504", new ApiError(API_ERROR_CODES.PROVIDER_UNAVAILABLE)],
+    ["ainda em processamento", new ApiError(API_ERROR_CODES.IDEMPOTENCY_IN_PROGRESS)],
+    ["erro sem código (corpo ilegível)", new TypeError("body stream already read")],
+  ])("%s depois do envio → resultado desconhecido, nunca 'nenhuma gravada'", async (_nome, erro) => {
+    await prepararDesconhecido(erro);
+    expect(screen.getByTestId("importacao-mensagem")).toHaveTextContent(/podem já ter sido criadas/);
+  });
+
+  it("201 com corpo inesperado não é sucesso: vira resultado desconhecido", async () => {
+    renderDialog();
+    await irParaConferencia();
+    await completarTudo();
+    apis.conferirImportacaoAreas.mockResolvedValue(respostaConferencia(["f1", "f2", "f3"]));
+    fireEvent.click(screen.getByRole("button", { name: "Conferir seleção (3)" }));
+    await screen.findByText(/prontas para importar/);
+    apis.importarAreas.mockResolvedValueOnce({ ok: true });
+    fireEvent.click(screen.getByRole("button", { name: "Importar 3 área(s)" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Gravar áreas" }));
+    expect(await screen.findByRole("button", { name: "Verificar e concluir" })).toBeInTheDocument();
+    expect(screen.queryByTestId("importacao-resultado")).toBeNull();
+    expect(refreshCache).not.toHaveBeenCalled();
+  });
+
+  it("sessão expirada no reenvio mantém o estado desconhecido (não prova nada sobre o 1º envio)", async () => {
+    await prepararDesconhecido();
+    apis.importarAreas.mockRejectedValueOnce(new ApiError(API_ERROR_CODES.TENANT_CONTEXT_REQUIRED));
+    fireEvent.click(screen.getByRole("button", { name: "Verificar e concluir" }));
+    expect(await screen.findByText(/A sessão expirou antes de confirmar/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Verificar e concluir" })).toBeInTheDocument();
+  });
+
+  it("422 no reenvio é conclusivo: libera a correção; conteúdo novo usa chave NOVA", async () => {
+    await prepararDesconhecido();
+    const chave1 = apis.importarAreas.mock.calls[0][0].operationId;
+    apis.importarAreas.mockRejectedValueOnce(
+      new ApiError(API_ERROR_CODES.AREA_IMPORT_VALIDATION_FAILED, {
+        details: respostaConferencia(["f1", "f2", "f3"], {
+          f3: [{ campo: "nome", codigo: "NOME_DUPLICADO_NO_SETOR", mensagem: "Já existe a área 9 com este nome neste setor." }],
+        }),
+      })
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Verificar e concluir" }));
+    expect(await screen.findByTestId("importacao-mensagem")).toHaveTextContent(/Nenhuma área deste lote foi gravada/);
+    expect(within(linha("f3")).getByLabelText(/^Nome/)).toBeEnabled();
+    fireEvent.change(within(linha("f3")).getByLabelText(/^Nome/), { target: { value: "Outro pasto" } });
+    apis.conferirImportacaoAreas.mockResolvedValue(respostaConferencia(["f1", "f2", "f3"]));
+    fireEvent.click(screen.getByRole("button", { name: "Conferir seleção (3)" }));
+    await screen.findByText(/prontas para importar/);
+    apis.importarAreas.mockResolvedValueOnce(respostaGravacao(["f1", "f2", "f3"]));
+    fireEvent.click(screen.getByRole("button", { name: "Importar 3 área(s)" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Gravar áreas" }));
+    await screen.findByTestId("importacao-resultado");
+    const chave3 = apis.importarAreas.mock.calls[2][0].operationId;
+    expect(chave3).not.toBe(chave1);
+  });
+
+  it("IDEMPOTENCY_CONFLICT é recusa conclusiva: libera e troca de chave", async () => {
+    await prepararDesconhecido();
+    const chave1 = apis.importarAreas.mock.calls[0][0].operationId;
+    apis.importarAreas.mockRejectedValueOnce(new ApiError(API_ERROR_CODES.IDEMPOTENCY_CONFLICT));
+    fireEvent.click(screen.getByRole("button", { name: "Verificar e concluir" }));
+    expect(await screen.findByTestId("importacao-mensagem")).toHaveTextContent(/Nenhuma área deste lote foi gravada/);
+    apis.importarAreas.mockResolvedValueOnce(respostaGravacao(["f1", "f2", "f3"]));
+    fireEvent.click(screen.getByRole("button", { name: "Importar 3 área(s)" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Gravar áreas" }));
+    await screen.findByTestId("importacao-resultado");
+    expect(apis.importarAreas.mock.calls[2][0].operationId).not.toBe(chave1);
+  });
+});
+
+/** FeatureCollection sintética com N quadrados nomeados. */
+const geojsonComAreas = (n) =>
+  JSON.stringify({
+    type: "FeatureCollection",
+    features: Array.from({ length: n }, (_, i) => {
+      const lat = -15.6 - Math.floor(i / 20) * 0.02;
+      const lng = -56.1 + (i % 20) * 0.02;
+      const d = 0.009;
+      return {
+        type: "Feature",
+        properties: { name: `Pasto ${i + 1}` },
+        geometry: { type: "Polygon", coordinates: [[[lng, lat], [lng + d, lat], [lng + d, lat - d], [lng, lat - d], [lng, lat]]] },
+      };
+    }),
+  });
+
+// O servidor limita 100 por confirmação (IMP-19 prova 205 = 100+100+5 em PostgreSQL).
+// Na UI, 205 linhas estouram a memória do jsdom; a MESMA lógica é exercida com
+// lote de 10 e 25 linhas (10 + falha + 10 + 5). A carga de 205 linhas foi medida
+// no Chromium real (relatório R1, benchmark).
+describe("R1 — arquivo maior que o lote continua em lotes no mesmo assistente", () => {
+  it("25 áreas com lote de 10: 10 + (falha) + 10 + 5, preservando edições e marcando as já gravadas", async () => {
+    const { onOpenChange } = renderDialog({ maxPorLote: 10 });
+    await enviarArquivo("lote.geojson", geojsonComAreas(25));
+    fireEvent.click(screen.getByRole("button", { name: "Conferir áreas" }));
+    await screen.findByTestId("importacao-tabela");
+    await waitFor(() => expect(setoresCarregados).toHaveBeenCalled());
+    await act(async () => {});
+    expect(contador("Áreas")).toBe("25");
+    expect(contador("Selecionadas")).toBe("10");
+
+    // Edição numa linha do 2º lote, antes de qualquer gravação.
+    fireEvent.change(within(linha("f15")).getByLabelText(/^Nome/), { target: { value: "Editado na conferência" } });
+
+    apis.conferirImportacaoAreas.mockImplementation(async ({ itens }) => respostaConferencia(itens.map((i) => i.ref)));
+    let base = 0;
+    apis.importarAreas.mockImplementation(async ({ itens }) => {
+      const r = respostaGravacao(itens.map((i) => i.ref), { base });
+      base += itens.length;
+      return r;
+    });
+
+    const rodada = async (esperadas) => {
+      await preencherEmMassa({
+        "Setor em massa": "NORTE",
+        "Tipo de uso em massa": "Pastagem",
+        "Tipo de cultura em massa": "Marandu",
+        "Modo da área pastejada em massa": "Igual à área total de cada uma",
+      });
+      await act(async () => {
+        fireEvent.click(acoes().getByRole("button", { name: `Conferir seleção (${esperadas})` }));
+      });
+      await waitFor(() => expect(mensagem()).toHaveTextContent(/prontas para importar/));
+      fireEvent.click(acoes().getByRole("button", { name: `Importar ${esperadas} área(s)` }));
+      await gravarNaConfirmacao();
+    };
+
+    // Lote 1
+    await rodada(10);
+    await screen.findByTestId("importacao-resultado");
+    expect(screen.getByTestId("acumulado-gravadas")).toHaveTextContent("10");
+    expect(screen.getByTestId("acumulado-restantes")).toHaveTextContent("15");
+    fireEvent.click(within(screen.getByTestId("importacao-resultado")).getByRole("button", { name: "Continuar com áreas restantes (15)" }));
+    await screen.findByTestId("importacao-tabela");
+    await act(async () => {});
+    expect(contador("Selecionadas")).toBe("10");
+    expect(contador("Gravadas")).toBe("10");
+    expect(within(linha("f1")).getByRole("checkbox")).toBeDisabled();
+    expect(screen.getByTestId("estado-f1")).toHaveTextContent(/Gravada · nº 1 \(lote 1\)/);
+    expect(within(linha("f15")).getByLabelText(/^Nome/)).toHaveValue("Editado na conferência");
+
+    // Lote 2 falha no servidor (422): o lote 1 continua gravado.
+    apis.importarAreas.mockImplementationOnce(async () => {
+      throw new ApiError(API_ERROR_CODES.AREA_IMPORT_VALIDATION_FAILED, {
+        details: respostaConferencia(["f11"], { f11: [{ campo: "setor_id", codigo: "SETOR_INATIVO", mensagem: "O setor está inativo." }] }),
+      });
+    });
+    await rodada(10);
+    await waitFor(() => expect(mensagem()).toHaveTextContent(/Nenhuma área deste lote foi gravada/));
+    expect(contador("Gravadas")).toBe("10");
+    expect(screen.getByTestId("estado-f1")).toHaveTextContent(/Gravada/);
+
+    // Reconferir e gravar o lote 2.
+    fireEvent.click(acoes().getByRole("button", { name: "Conferir seleção (10)" }));
+    await waitFor(() => expect(mensagem()).toHaveTextContent(/prontas para importar/));
+    fireEvent.click(acoes().getByRole("button", { name: "Importar 10 área(s)" }));
+    await gravarNaConfirmacao();
+    await screen.findByTestId("importacao-resultado");
+    expect(screen.getByTestId("acumulado-gravadas")).toHaveTextContent("20");
+    fireEvent.click(within(screen.getByTestId("importacao-resultado")).getByRole("button", { name: "Continuar com áreas restantes (5)" }));
+    await screen.findByTestId("importacao-tabela");
+    await act(async () => {});
+
+    // Lote 3
+    await rodada(5);
+    await screen.findByTestId("importacao-resultado");
+    expect(screen.getByTestId("acumulado-gravadas")).toHaveTextContent("25");
+    expect(screen.getByTestId("acumulado-restantes")).toHaveTextContent("0");
+    expect(within(screen.getByTestId("importacao-resultado")).queryByRole("button", { name: /Continuar com áreas restantes/ })).toBeNull();
+
+    // Pedidos: lotes disjuntos, chaves diferentes por lote gravado, edição preservada.
+    const chamadas = apis.importarAreas.mock.calls.map((c) => c[0]);
+    expect(chamadas.map((c) => c.itens.length)).toEqual([10, 10, 10, 5]);
+    const gravados = [chamadas[0], chamadas[2], chamadas[3]];
+    const refs = gravados.flatMap((c) => c.itens.map((i) => i.ref));
+    expect(new Set(refs).size).toBe(25);
+    expect(new Set(gravados.map((c) => c.operationId)).size).toBe(3);
+    expect(chamadas[2].itens.find((i) => i.ref === "f15").nome).toBe("EDITADO NA CONFERÊNCIA");
+    expect(refreshCache).toHaveBeenCalledTimes(3);
+
+    fireEvent.click(within(screen.getByTestId("importacao-resultado")).getByRole("button", { name: "Ver áreas cadastradas" }));
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  }, 60000);
+
+  it("sair no meio avisa que lotes anteriores ficam gravados e os restantes não", async () => {
+    const { onOpenChange } = renderDialog({ maxPorLote: 10 });
+    await enviarArquivo("lote.geojson", geojsonComAreas(15));
+    fireEvent.click(screen.getByRole("button", { name: "Conferir áreas" }));
+    await screen.findByTestId("importacao-tabela");
+    await waitFor(() => expect(setoresCarregados).toHaveBeenCalled());
+    await act(async () => {});
+    apis.conferirImportacaoAreas.mockImplementation(async ({ itens }) => respostaConferencia(itens.map((i) => i.ref)));
+    apis.importarAreas.mockImplementation(async ({ itens }) => respostaGravacao(itens.map((i) => i.ref)));
+    await preencherEmMassa({
+      "Setor em massa": "NORTE",
+      "Tipo de uso em massa": "Pastagem",
+      "Tipo de cultura em massa": "Marandu",
+      "Modo da área pastejada em massa": "Igual à área total de cada uma",
+    });
+    fireEvent.click(acoes().getByRole("button", { name: "Conferir seleção (10)" }));
+    await waitFor(() => expect(mensagem()).toHaveTextContent(/prontas para importar/));
+    fireEvent.click(acoes().getByRole("button", { name: "Importar 10 área(s)" }));
+    await gravarNaConfirmacao();
+    await screen.findByTestId("importacao-resultado");
+    fireEvent.click(screen.getByRole("button", { name: "Ver áreas cadastradas" }));
+    expect(await screen.findByTestId("importacao-confirmar-saida")).toHaveTextContent(
+      /10 área\(s\) de lotes anteriores já foram gravadas e continuam gravadas. 5 área\(s\) restantes ainda não foram gravadas/
+    );
+    expect(onOpenChange).not.toHaveBeenCalled();
+    fireEvent.click(within(/** @type {HTMLElement} */ (document.querySelector('[role="alertdialog"]'))).getByRole("button", { name: "Sair mesmo assim" }));
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  }, 60000);
 });

@@ -3368,13 +3368,23 @@ Teste: `tests/smoke/contagemLote.test.js` (CNT-01..04).
 - **Novos códigos de erro:** `AREA_IMPORT_VALIDATION_FAILED` (422) e `AREA_IMPORT_LIMIT_EXCEEDED` (413). Os existentes `IDEMPOTENCY_*` e `EMPRESA_NOT_FOUND` agora chegam à tela.
 - **Fora desta decisão:** atualizar áreas existentes por arquivo; aviso de sobreposição espacial parcial; importar pontos e linhas; lotes, movimentações e saldos.
 
-Relatório: `docs/engineering/MAIKE-IMPORTACAO-AREAS-KML-GEOJSON-01-REPORT.md`.
+**R1 (mesma decisão, correção do arquiteto):**
+- **Lotes:** cada confirmação continua tudo-ou-nada até 100 áreas. Arquivos maiores seguem em lotes no mesmo assistente ("Continuar com áreas restantes"), com chave nova por conteúdo novo; lotes gravados não são desfeitos.
+- **"Resultado desconhecido":** o pedido fica congelado e só se resolve por resposta conclusiva do servidor. Fechar exige confirmação; o assistente nunca diz "nada gravado" sem prova.
+- **Timeout:** gravação com timeout próprio de 75 s, por pedido; o padrão global de 20 s não muda.
+- **Idempotência compartilhada:** a reserva da chave passa a usar `INSERT … ON CONFLICT DO NOTHING`. Com `create` + `P2002`, a transação abortada (25P02) devolvia 500 em corrida com a mesma chave.
+- **Paridade:** as regras de campo do servidor ficam em `areaImportacaoRegras.js`, com paridade testada caso a caso.
+- **Formulário manual:** não numera mais no cliente.
+
+Relatório: `docs/engineering/MAIKE-IMPORTACAO-AREAS-KML-GEOJSON-01-REPORT.md` (seção 13 para a R1).
 
 Testes:
-- `backend/tests/areaImportacaoNativa.test.mjs` (IMP-01..14, PostgreSQL real);
+- `backend/tests/areaImportacaoNativa.test.mjs` (IMP-01..19, PostgreSQL real);
 - `tests/smoke/importacaoAreasParser.test.js`;
 - `tests/smoke/importacaoAreasParidade.test.js`;
-- `tests/smoke/importarAreasDialog.test.jsx`.
+- `tests/smoke/importarAreasDialog.test.jsx`;
+- `tests/smoke/importacaoAreasGravacao.test.js`;
+- `tests/smoke/formularioAreaCriacaoManual.test.jsx`.
 
 ---
 

@@ -12,10 +12,12 @@ import { refreshMapaCacheEntry } from "@/services/mapaCacheService";
 import {
   MAX_AREAS_POR_IMPORTACAO,
   assinaturaDoEnvio,
+  classificarFalhaDeGravacao,
   conferirNoServidor,
   gravarImportacao,
   itemDeEnvio,
   novaChaveDeImportacao,
+  respostaDeGravacaoValida,
 } from "@/services/areaImportacaoService";
 import { LIMITES_ARQUIVO, lerArquivoDeAreas } from "@/lib/geografia/importacaoAreas";
 import { formatHectaresPt } from "@/lib/geografia";
@@ -26,10 +28,10 @@ import {
   TIPOS_CULTURAS,
   TIPOS_INFRAESTRUTURA,
   TIPOS_USO,
-  pendenciasDaArea,
 } from "@/domain/areas/regrasCadastroArea";
 import { API_ERROR_CODES, getApiErrorMessage, hasApiErrorCode } from "@/apis/_core/ApiError";
 import PreviaImportacaoMapa from "./PreviaImportacaoMapa";
+import LinhaImportacao, { ROTULOS, SEM_PENDENCIAS, pendenciasDaLinha } from "./LinhaImportacao";
 import SeletorImportacao from "./SeletorImportacao";
 
 // Componentes shadcn (forwardRef sem tipos de props no checkJs legado): o
@@ -69,19 +71,6 @@ const {
  */
 
 const CAMPOS_EM_MASSA = ["setor_id", "tipo_cultura", "tipo_pastagem", "tipo_infraestrutura", "aproveitamento", "cor", "area_pastejada"];
-const ROTULOS = {
-  nome: "Nome",
-  setor_id: "Setor",
-  tipo_cultura: "Tipo de uso",
-  tipo_pastagem: "Tipo de cultura",
-  tipo_infraestrutura: "Tipo de infraestrutura",
-  area_pastejada: "Área pastejada/arável",
-  aproveitamento: "Aproveitamento",
-  cor: "Cor",
-  coords: "Contorno",
-  sigla: "Sigla",
-  aproveitamento_classificacao: "Aproveitamento",
-};
 const CODIGOS_DUPLICIDADE = new Set(["AREA_DUPLICADA", "AREA_DUPLICADA_NO_ARQUIVO", "NOME_DUPLICADO_NO_SETOR", "NOME_DUPLICADO_NO_ARQUIVO"]);
 
 const arredondar2 = (n) => Math.round(n * 100) / 100;
@@ -89,7 +78,6 @@ const formatarBytes = (n) => (n >= 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)
 
 const selectClass =
   "h-7 w-full min-w-[110px] rounded border border-slate-300 bg-white px-1 text-xs focus:border-emerald-500 focus:outline-none";
-const invalidoClass = "border-red-500 bg-red-50";
 
 /** Linha editável a partir do item lido do arquivo. */
 const linhaDoItem = (item) => ({
@@ -114,7 +102,12 @@ const linhaDoItem = (item) => ({
 
 const usoDoNavegadorOnline = () => (typeof navigator === "undefined" ? true : navigator.onLine !== false);
 
-export default function ImportarAreasDialog({ open, onOpenChange }) {
+/**
+ * @param {{ open: boolean, onOpenChange: (aberto: boolean) => void, maxPorLote?: number }} props
+ * `maxPorLote` só existe para teste da continuação em lotes com arquivo pequeno;
+ * o padrão é o limite do servidor (100), que continua valendo de qualquer forma.
+ */
+export default function ImportarAreasDialog({ open, onOpenChange, maxPorLote = MAX_AREAS_POR_IMPORTACAO }) {
   const empresaAtual = useEmpresaSelecionadaId();
   const queryClient = useQueryClient();
   const inputRef = useRef(/** @type {HTMLInputElement | null} */ (null));
@@ -140,6 +133,18 @@ export default function ImportarAreasDialog({ open, onOpenChange }) {
   const [confirmando, setConfirmando] = useState(false);
   const [resultado, setResultado] = useState(/** @type {any} */ (null));
   const [online, setOnline] = useState(usoDoNavegadorOnline);
+  // Pedido de gravação congelado (chave + empresa + itens exatos). Existe de
+  // "gravando" até uma resposta conclusiva; em "desconhecido" é o único que
+  // pode ser reenviado — com a mesma chave e o mesmo conteúdo (D-PROD-90 R1).
+  const [pendente, setPendente] = useState(
+    /** @type {null | {id: string, empresaId: string, itens: any[], assinatura: string}} */ (null)
+  );
+  // Linhas já gravadas em lotes anteriores deste arquivo: ref → área criada.
+  const [gravadas, setGravadas] = useState(() => /** @type {Map<string, any>} */ (new Map()));
+  const [lotes, setLotes] = useState(/** @type {{numero: number, gravadas: number, replay: boolean}[]} */ ([]));
+  const [confirmarSaida, setConfirmarSaida] = useState(
+    /** @type {null | {tipo: 'desconhecido' | 'parcial', acao: 'fechar' | 'reiniciar'}} */ (null)
+  );
 
   useEffect(() => {
     const on = () => setOnline(true);
@@ -183,14 +188,49 @@ export default function ImportarAreasDialog({ open, onOpenChange }) {
     setMensagem(null);
     setConfirmando(false);
     setResultado(null);
+    setPendente(null);
+    setGravadas(new Map());
+    setLotes([]);
+    setConfirmarSaida(null);
     if (inputRef.current) inputRef.current.value = "";
   }, []);
 
+  const restantesImportaveis = linhas.filter((l) => !gravadas.has(l.ref)).length;
+  const operacaoEmAberto = estado === "gravando" || estado === "desconhecido";
+
+  /** Fecha sem perguntar. Só chamado quando não há nada em aberto ou após confirmação explícita. */
+  const sair = () => {
+    if (estado === "desconhecido" || lotes.length > 0) {
+      // Pode haver áreas novas (lotes gravados, ou o pedido de resultado desconhecido).
+      queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === "areas" });
+    }
+    reiniciar();
+    onOpenChange(false);
+  };
+
+  /** Esc, clique fora, X e Cancelar passam por aqui. */
   const fechar = (aberto) => {
     if (aberto) return;
     if (estado === "gravando") return;
+    if (estado === "desconhecido") {
+      setConfirmarSaida({ tipo: "desconhecido", acao: "fechar" });
+      return;
+    }
+    if (lotes.length > 0 && restantesImportaveis > 0) {
+      setConfirmarSaida({ tipo: "parcial", acao: "fechar" });
+      return;
+    }
+    sair();
+  };
+
+  /** Trocar de arquivo também não pode descartar uma operação em aberto. */
+  const reiniciarSeguro = () => {
+    if (operacaoEmAberto) return;
+    if (lotes.length > 0 && restantesImportaveis > 0) {
+      setConfirmarSaida({ tipo: "parcial", acao: "reiniciar" });
+      return;
+    }
     reiniciar();
-    onOpenChange(false);
   };
 
   // ── Etapa 1: leitura ──────────────────────────────────────────────────────
@@ -213,7 +253,7 @@ export default function ImportarAreasDialog({ open, onOpenChange }) {
     setLeitura(lido);
     setEmpresaDoArquivo(empresaAtual);
     setLinhas(novas);
-    setSelecionadas(new Set(novas.slice(0, MAX_AREAS_POR_IMPORTACAO).map((l) => l.ref)));
+    setSelecionadas(new Set(novas.slice(0, maxPorLote).map((l) => l.ref)));
     setFoco(null);
     setConferencia(null);
     setOperacao(null);
@@ -236,23 +276,9 @@ export default function ImportarAreasDialog({ open, onOpenChange }) {
   const pendenciasLocais = useMemo(() => {
     /** @type {Record<string, {campo: string, mensagem: string}[]>} */
     const mapa = {};
-    for (const l of linhas) {
-      const pend = pendenciasDaArea({
-        nome: l.nome,
-        setor_id: l.setor_id,
-        tipo_cultura: l.tipo_cultura,
-        tipo_pastagem: l.tipo_cultura === "Infraestrutura" ? l.tipo_infraestrutura : l.tipo_pastagem,
-        area_pastejada: l.area_pastejada,
-        total_ha: arredondar2(l.hectares),
-      });
-      if (l.setor_id && !setoresPorId.has(l.setor_id)) {
-        pend.push({ campo: "setor_id", mensagem: "Setor não está entre os setores ativos desta empresa." });
-      }
-      if (String(l.sigla ?? "").trim().length > 10) pend.push({ campo: "sigla", mensagem: "Sigla com mais de 10 caracteres." });
-      mapa[l.ref] = pend;
-    }
+    for (const l of linhas) mapa[l.ref] = gravadas.has(l.ref) ? [] : pendenciasDaLinha(l, setoresPorId);
     return mapa;
-  }, [linhas, setoresPorId]);
+  }, [linhas, setoresPorId, gravadas]);
 
   const linhasSelecionadas = useMemo(() => linhas.filter((l) => selecionadas.has(l.ref)), [linhas, selecionadas]);
   const itensDaSelecao = useMemo(() => linhasSelecionadas.map(itemDeEnvio), [linhasSelecionadas]);
@@ -264,8 +290,14 @@ export default function ImportarAreasDialog({ open, onOpenChange }) {
 
   const pendenciasServidor = (ref) => conferenciaAtual?.porRef?.[ref]?.pendencias ?? [];
 
-  const alterarLinha = (ref, campo, valor, { personalizar = true } = {}) => {
-    if (estado === "desconhecido" || estado === "gravando") return;
+  // Estado mais recente para callbacks estáveis (as linhas são memorizadas).
+  const atualRef = useRef({ operacaoEmAberto: false, gravadas: new Map() });
+  atualRef.current = { operacaoEmAberto, gravadas };
+
+  const alterarLinha = useCallback((ref, campo, valor) => {
+    const atual = atualRef.current;
+    if (atual.operacaoEmAberto || atual.gravadas.has(ref)) return;
+    const personalizar = true;
     setLinhas((prev) =>
       prev.map((l) => {
         if (l.ref !== ref) return l;
@@ -275,28 +307,30 @@ export default function ImportarAreasDialog({ open, onOpenChange }) {
         return nova;
       })
     );
-  };
+  }, []);
 
-  const alternarSelecao = (ref) => {
-    if (estado === "desconhecido" || estado === "gravando") return;
+  const alternarSelecao = useCallback((ref) => {
+    const atual = atualRef.current;
+    if (atual.operacaoEmAberto || atual.gravadas.has(ref)) return;
     setSelecionadas((prev) => {
       const next = new Set(prev);
       if (next.has(ref)) next.delete(ref);
       else next.add(ref);
       return next;
     });
-  };
+  }, []);
 
   const selecionarTodas = (marcar) => {
-    if (estado === "desconhecido" || estado === "gravando") return;
-    setSelecionadas(marcar ? new Set(linhas.map((l) => l.ref)) : new Set());
+    if (operacaoEmAberto) return;
+    setSelecionadas(marcar ? new Set(linhas.filter((l) => !gravadas.has(l.ref)).map((l) => l.ref)) : new Set());
   };
 
   const selecionarSoValidas = () => {
-    if (estado === "desconhecido" || estado === "gravando") return;
+    if (operacaoEmAberto) return;
     setSelecionadas(
       new Set(
         linhas
+          .filter((l) => !gravadas.has(l.ref))
           .filter((l) => (pendenciasLocais[l.ref] ?? []).length === 0 && pendenciasServidor(l.ref).length === 0)
           .map((l) => l.ref)
       )
@@ -334,7 +368,7 @@ export default function ImportarAreasDialog({ open, onOpenChange }) {
   };
 
   const pedirAplicacaoEmMassa = () => {
-    if (estado === "desconhecido" || estado === "gravando") return;
+    if (operacaoEmAberto) return;
     const campos = camposEmMassaPreenchidos();
     if (campos.length === 0 || selecionadas.size === 0) return;
     const personalizadas = linhas.filter((l) => selecionadas.has(l.ref) && campos.some((c) => l.editados[c])).length;
@@ -346,7 +380,7 @@ export default function ImportarAreasDialog({ open, onOpenChange }) {
   };
 
   const numerarNomesVazios = () => {
-    if (estado === "desconhecido" || estado === "gravando") return;
+    if (operacaoEmAberto) return;
     const prefixo = prefixoNome.trim().toUpperCase();
     if (!prefixo) return;
     let n = 0;
@@ -362,17 +396,19 @@ export default function ImportarAreasDialog({ open, onOpenChange }) {
   // ── Contadores ───────────────────────────────────────────────────────────
   const contadores = useMemo(() => {
     const com = (ref) => (pendenciasLocais[ref] ?? []).length + pendenciasServidor(ref).length;
-    const duplicados = linhas.filter((l) => pendenciasServidor(l.ref).some((p) => CODIGOS_DUPLICIDADE.has(p.codigo))).length;
+    const abertas = linhas.filter((l) => !gravadas.has(l.ref));
+    const duplicados = abertas.filter((l) => pendenciasServidor(l.ref).some((p) => CODIGOS_DUPLICIDADE.has(p.codigo))).length;
     return {
       identificados: leitura?.contagem?.elementos ?? 0,
       areas: linhas.length,
-      validas: linhas.filter((l) => com(l.ref) === 0).length,
-      pendentes: linhas.filter((l) => com(l.ref) > 0).length,
+      gravadas: gravadas.size,
+      validas: abertas.filter((l) => com(l.ref) === 0).length,
+      pendentes: abertas.filter((l) => com(l.ref) > 0).length,
       invalidos: leitura?.contagem?.invalidos ?? 0,
       ignorados: leitura?.contagem?.ignorados ?? 0,
       duplicados,
     };
-  }, [linhas, pendenciasLocais, conferenciaAtual, leitura]);
+  }, [linhas, pendenciasLocais, conferenciaAtual, leitura, gravadas]);
 
   // ── Bloqueios da gravação ────────────────────────────────────────────────
   const pendentesNaSelecao = linhasSelecionadas.filter((l) => (pendenciasLocais[l.ref] ?? []).length > 0).length;
@@ -383,8 +419,8 @@ export default function ImportarAreasDialog({ open, onOpenChange }) {
   if (!online) bloqueios.push("Sem conexão: a importação precisa do servidor. O rascunho fica nesta tela enquanto ela estiver aberta.");
   if (empresaMudou) bloqueios.push("A empresa selecionada mudou depois que o arquivo foi lido. Recomece a importação.");
   if (selecionadas.size === 0) bloqueios.push("Selecione ao menos uma área.");
-  if (selecionadas.size > MAX_AREAS_POR_IMPORTACAO) {
-    bloqueios.push(`Selecione no máximo ${MAX_AREAS_POR_IMPORTACAO} áreas por importação (há ${selecionadas.size}). Importe o restante em seguida.`);
+  if (selecionadas.size > maxPorLote) {
+    bloqueios.push(`Selecione no máximo ${maxPorLote} áreas por importação (há ${selecionadas.size}). Importe o restante em seguida.`);
   }
   if (pendentesNaSelecao > 0) bloqueios.push(`${pendentesNaSelecao} área(s) selecionada(s) com pendência. Corrija ou desmarque.`);
   if (!conferenciaAtual && pendentesNaSelecao === 0 && selecionadas.size > 0) {
@@ -392,7 +428,7 @@ export default function ImportarAreasDialog({ open, onOpenChange }) {
   }
   if (reprovadosNoServidor > 0) bloqueios.push(`${reprovadosNoServidor} área(s) reprovada(s) na conferência do servidor.`);
   const podeConferir =
-    online && !empresaMudou && selecionadas.size > 0 && selecionadas.size <= MAX_AREAS_POR_IMPORTACAO && pendentesNaSelecao === 0 && estado === "livre";
+    online && !empresaMudou && selecionadas.size > 0 && selecionadas.size <= maxPorLote && pendentesNaSelecao === 0 && estado === "livre";
   const podeImportar = bloqueios.length === 0 && estado === "livre";
 
   // ── Servidor ─────────────────────────────────────────────────────────────
@@ -418,54 +454,112 @@ export default function ImportarAreasDialog({ open, onOpenChange }) {
     }
   };
 
-  const concluirSucesso = async (r) => {
-    setResultado(r);
+  const concluirSucesso = async (r, pedido) => {
+    const porRef = new Map((r.importadas ?? []).map((a) => [a.ref, a]));
+    const numeroDoLote = lotes.length + 1;
+    setGravadas((prev) => {
+      const next = new Map(prev);
+      for (const item of pedido.itens) next.set(item.ref, { ...porRef.get(item.ref), lote: numeroDoLote });
+      return next;
+    });
+    setLotes((prev) => [...prev, { numero: numeroDoLote, gravadas: pedido.itens.length, replay: Boolean(r.replay) }]);
+    setResultado({ ...r, lote: numeroDoLote });
+    setSelecionadas(new Set());
+    setConferencia(null);
+    setOperacao(null);
+    setPendente(null);
+    setMensagem(null);
     setEtapa("resultado");
     setEstado("livre");
+    // Uma vez por lote confirmado — inclusive quando a confirmação veio por replay.
     queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === "areas" });
     try {
-      await refreshMapaCacheEntry("areas", empresaDoArquivo, { force: true });
+      await refreshMapaCacheEntry("areas", pedido.empresaId, { force: true });
     } catch {
       /* o Mapa Geral recarrega ao abrir */
     }
     window.dispatchEvent(new CustomEvent("atualizar-mapa", { detail: { cacheKeys: ["areas"] } }));
   };
 
-  const enviarImportacao = async () => {
-    setConfirmando(false);
-    if (!(podeImportar || estado === "desconhecido")) return;
-    // A chave só muda quando o conteúdo muda: reenviar o mesmo pedido reaproveita
-    // a chave e o servidor devolve o resultado gravado, sem duplicar.
-    const op = operacao && operacao.assinatura === assinaturaAtual ? operacao : { id: novaChaveDeImportacao(), assinatura: assinaturaAtual };
-    setOperacao(op);
+  const MENSAGEM_DESCONHECIDO =
+    "Resultado desconhecido: não houve resposta confirmando a gravação. As áreas deste lote podem já ter sido criadas. Use “Verificar e concluir”: o reenvio usa a mesma chave e o mesmo conteúdo — se já foi gravado, o servidor devolve o resultado sem duplicar.";
+
+  /** Envia (ou reenvia) exatamente o pedido congelado. */
+  const executarGravacao = async (pedido, eraDesconhecido) => {
     setEstado("gravando");
     setMensagem(null);
+    let resposta;
     try {
-      const r = await gravarImportacao(op.id, empresaDoArquivo, itensDaSelecao);
-      await concluirSucesso(r);
+      resposta = await gravarImportacao(pedido.id, pedido.empresaId, pedido.itens);
     } catch (erro) {
-      if (hasApiErrorCode(erro, API_ERROR_CODES.AREA_IMPORT_VALIDATION_FAILED)) {
-        const itens = /** @type {any} */ (erro)?.details?.itens ?? [];
-        setConferencia({ assinatura: op.assinatura, porRef: Object.fromEntries(itens.map((i) => [i.ref, i])) });
-        setMensagem({ tipo: "erro", texto: "Nenhuma área foi gravada: há pendências apontadas pelo servidor (veja as linhas em vermelho)." });
+      const tipo = classificarFalhaDeGravacao(erro);
+      if (tipo === "recusada") {
+        // O servidor avaliou o pedido com esta chave e recusou antes de gravar.
+        if (hasApiErrorCode(erro, API_ERROR_CODES.AREA_IMPORT_VALIDATION_FAILED)) {
+          const itens = /** @type {any} */ (erro)?.details?.itens ?? [];
+          setConferencia({ assinatura: pedido.assinatura, porRef: Object.fromEntries(itens.map((i) => [i.ref, i])) });
+        }
+        if (hasApiErrorCode(erro, API_ERROR_CODES.IDEMPOTENCY_CONFLICT)) setOperacao(null);
+        setPendente(null);
         setEstado("livre");
-        return;
-      }
-      if (
-        hasApiErrorCode(erro, API_ERROR_CODES.PROVIDER_UNAVAILABLE) ||
-        hasApiErrorCode(erro, API_ERROR_CODES.IDEMPOTENCY_IN_PROGRESS)
-      ) {
-        setEstado("desconhecido");
         setMensagem({
-          tipo: "aviso",
-          texto:
-            "Resultado desconhecido: a conexão falhou durante a gravação. Use “Verificar e concluir” — o reenvio usa a mesma chave e, se já foi gravado, o servidor devolve o resultado sem duplicar.",
+          tipo: "erro",
+          texto: `Nenhuma área deste lote foi gravada: o servidor recusou o lote antes de gravar. ${getApiErrorMessage(erro, "")}`.trim(),
         });
         return;
       }
-      setMensagem({ tipo: "erro", texto: `${getApiErrorMessage(erro, "Não foi possível importar.")} Nenhuma área foi gravada.` });
-      setEstado("livre");
+      if (tipo === "nao_processada" && !eraDesconhecido) {
+        setPendente(null);
+        setEstado("livre");
+        setMensagem({ tipo: "erro", texto: `${getApiErrorMessage(erro, "Sessão inválida.")} O lote não foi enviado.` });
+        return;
+      }
+      setEstado("desconhecido");
+      setMensagem({
+        tipo: "aviso",
+        texto:
+          tipo === "nao_processada"
+            ? "A sessão expirou antes de confirmar. Entre de novo e use “Verificar e concluir”. As áreas deste lote podem já ter sido criadas."
+            : MENSAGEM_DESCONHECIDO,
+      });
+      return;
     }
+    if (!respostaDeGravacaoValida(resposta, pedido.itens)) {
+      setEstado("desconhecido");
+      setMensagem({ tipo: "aviso", texto: MENSAGEM_DESCONHECIDO });
+      return;
+    }
+    await concluirSucesso(resposta, pedido);
+  };
+
+  const enviarImportacao = async () => {
+    setConfirmando(false);
+    if (!podeImportar) return;
+    // A chave só muda quando o conteúdo muda: o mesmo conteúdo reaproveita a
+    // chave (o servidor devolve o que já gravou); conteúdo novo, chave nova.
+    const op = operacao && operacao.assinatura === assinaturaAtual ? operacao : { id: novaChaveDeImportacao(), assinatura: assinaturaAtual };
+    setOperacao(op);
+    const pedido = { id: op.id, empresaId: /** @type {string} */ (empresaDoArquivo), itens: itensDaSelecao, assinatura: assinaturaAtual };
+    setPendente(pedido);
+    await executarGravacao(pedido, false);
+  };
+
+  const verificarEConcluir = async () => {
+    if (estado !== "desconhecido" || !pendente || !online) return;
+    await executarGravacao(pendente, true);
+  };
+
+  /** Próxima rodada do mesmo arquivo: até 100 linhas ainda não gravadas. */
+  const continuarComRestantes = () => {
+    const abertas = linhas.filter((l) => !gravadas.has(l.ref));
+    setSelecionadas(new Set(abertas.slice(0, maxPorLote).map((l) => l.ref)));
+    setConferencia(null);
+    setOperacao(null);
+    setMensagem(null);
+    setResultado(null);
+    setEtapa("conferencia");
+    // Setores podem ter mudado entre os lotes: relê antes da próxima conferência.
+    queryClient.invalidateQueries({ queryKey: ["setores-importacao-areas", empresaDoArquivo] });
   };
 
   // ── Render ───────────────────────────────────────────────────────────────
@@ -474,10 +568,7 @@ export default function ImportarAreasDialog({ open, onOpenChange }) {
     () => linhas.map((l) => ({ ref: l.ref, nome: l.nome, cor: l.cor, vertices: l.vertices, selecionada: selecionadas.has(l.ref) })),
     [linhas, selecionadas]
   );
-  const travado = estado === "gravando" || estado === "desconhecido" || empresaMudou;
-
-  const celulaInvalida = (ref, campo) =>
-    (pendenciasLocais[ref] ?? []).some((p) => p.campo === campo) || pendenciasServidor(ref).some((p) => p.campo === campo);
+  const travado = operacaoEmAberto || empresaMudou;
 
   return (
     <>
@@ -573,7 +664,7 @@ export default function ImportarAreasDialog({ open, onOpenChange }) {
                     <div key={a} className="text-amber-700">{a}</div>
                   ))}
                   <div className="mt-2 flex justify-end gap-2">
-                    <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={reiniciar}>
+                    <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={reiniciarSeguro}>
                       Trocar arquivo
                     </Button>
                     <Button type="button" size="sm" className="h-7 bg-emerald-600 text-xs hover:bg-emerald-700" onClick={() => setEtapa("conferencia")}>
@@ -589,10 +680,15 @@ export default function ImportarAreasDialog({ open, onOpenChange }) {
             <div className="min-w-0 space-y-2">
               {empresaMudou && (
                 <div role="alert" className="flex flex-wrap items-center gap-2 rounded border border-red-300 bg-red-50 p-2 text-xs text-red-800">
-                  <AlertTriangle className="h-4 w-4" /> A empresa selecionada mudou. Esta conferência não vale mais e a gravação está bloqueada.
-                  <Button type="button" size="sm" variant="outline" className="h-6 text-xs" onClick={reiniciar}>
-                    Recomeçar
-                  </Button>
+                  <AlertTriangle className="h-4 w-4" />
+                  {estado === "desconhecido"
+                    ? "A empresa selecionada mudou, mas a verificação pendente continua na empresa do arquivo. Conclua a verificação antes de recomeçar."
+                    : "A empresa selecionada mudou. Esta conferência não vale mais e a gravação está bloqueada."}
+                  {!operacaoEmAberto && (
+                    <Button type="button" size="sm" variant="outline" className="h-6 text-xs" onClick={reiniciarSeguro}>
+                      Recomeçar
+                    </Button>
+                  )}
                 </div>
               )}
               {!online && (
@@ -605,6 +701,7 @@ export default function ImportarAreasDialog({ open, onOpenChange }) {
                 {[
                   ["Identificados", contadores.identificados, "bg-slate-100 text-slate-700"],
                   ["Áreas", contadores.areas, "bg-slate-100 text-slate-700"],
+                  ["Gravadas", contadores.gravadas, "bg-emerald-200 text-emerald-900"],
                   ["Válidas", contadores.validas, "bg-emerald-100 text-emerald-800"],
                   ["Pendentes", contadores.pendentes, "bg-amber-100 text-amber-800"],
                   ["Possíveis duplicadas", contadores.duplicados, "bg-orange-100 text-orange-800"],
@@ -756,132 +853,23 @@ export default function ImportarAreasDialog({ open, onOpenChange }) {
                     </tr>
                   </thead>
                   <tbody>
-                    {linhas.map((l) => {
-                      const pend = [...(pendenciasLocais[l.ref] ?? []), ...pendenciasServidor(l.ref)];
-                      const infra = l.tipo_cultura === "Infraestrutura";
-                      return (
-                        <React.Fragment key={l.ref}>
-                        <tr
-                          data-testid={`linha-${l.ref}`}
-                          className={`border-t border-slate-100 align-top ${foco === l.ref ? "bg-orange-50" : ""}`}
-                          onClick={() => setFoco(l.ref)}
-                        >
-                          <td className="p-1">
-                            <input type="checkbox" aria-label={`Selecionar ${l.origem}`} checked={selecionadas.has(l.ref)} disabled={travado} onChange={() => alternarSelecao(l.ref)} />
-                          </td>
-                          <td className="whitespace-nowrap p-1 text-slate-500">{l.origem}</td>
-                          <td className="p-1">
-                            <Input
-                              aria-label={`Nome ${l.origem}`}
-                              value={l.nome}
-                              disabled={travado}
-                              onChange={(e) => alterarLinha(l.ref, "nome", e.target.value)}
-                              className={`h-7 min-w-[140px] text-xs uppercase ${celulaInvalida(l.ref, "nome") ? invalidoClass : ""}`}
-                            />
-                            {l.nomeOrigem === "sugerido" && <div className="text-[10px] text-amber-700">Nome sugerido — confira</div>}
-                          </td>
-                          <td className="p-1">
-                            <SeletorImportacao aria-label={`Setor ${l.origem}`} disabled={travado} className={`${selectClass} ${celulaInvalida(l.ref, "setor_id") ? invalidoClass : ""}`} value={l.setor_id} onChange={(e) => alterarLinha(l.ref, "setor_id", e.target.value)}>
-                              <option value="">Selecione</option>
-                              {setores.map((s) => (
-                                <option key={s.id} value={s.id}>{s.nome}</option>
-                              ))}
-                            </SeletorImportacao>
-                          </td>
-                          <td className="p-1">
-                            <SeletorImportacao aria-label={`Tipo de uso ${l.origem}`} disabled={travado} className={`${selectClass} ${celulaInvalida(l.ref, "tipo_cultura") ? invalidoClass : ""}`} value={l.tipo_cultura} onChange={(e) => alterarLinha(l.ref, "tipo_cultura", e.target.value)}>
-                              <option value="">Selecione</option>
-                              {TIPOS_USO.map((t) => (
-                                <option key={t} value={t}>{t}</option>
-                              ))}
-                            </SeletorImportacao>
-                          </td>
-                          <td className="whitespace-nowrap p-1 text-right tabular-nums" data-testid={`hectares-${l.ref}`}>
-                            {formatHectaresPt(l.hectares)}
-                            {infra && <div className="text-[10px] text-slate-500">grava 0 ha (infraestrutura)</div>}
-                          </td>
-                          <td className="p-1">
-                            {infra ? (
-                              <span className="text-slate-400">—</span>
-                            ) : (
-                              <Input
-                                aria-label={`Área pastejada ${l.origem}`}
-                                value={l.area_pastejada}
-                                disabled={travado}
-                                placeholder={l.tipo_cultura === "Reserva" || l.tipo_cultura === "APP" ? "0 se não houver" : "ha"}
-                                onChange={(e) => alterarLinha(l.ref, "area_pastejada", e.target.value)}
-                                className={`h-7 w-24 text-xs ${celulaInvalida(l.ref, "area_pastejada") ? invalidoClass : ""}`}
-                              />
-                            )}
-                          </td>
-                          <td className="p-1">
-                            {infra ? (
-                              <SeletorImportacao aria-label={`Infraestrutura ${l.origem}`} disabled={travado} className={`${selectClass} ${celulaInvalida(l.ref, "tipo_infraestrutura") || celulaInvalida(l.ref, "tipo_pastagem") ? invalidoClass : ""}`} value={l.tipo_infraestrutura} onChange={(e) => alterarLinha(l.ref, "tipo_infraestrutura", e.target.value)}>
-                                <option value="">Selecione</option>
-                                {TIPOS_INFRAESTRUTURA.map((t) => (
-                                  <option key={t} value={t}>{t}</option>
-                                ))}
-                              </SeletorImportacao>
-                            ) : (
-                              <SeletorImportacao aria-label={`Tipo de cultura ${l.origem}`} disabled={travado} className={`${selectClass} ${celulaInvalida(l.ref, "tipo_pastagem") ? invalidoClass : ""}`} value={l.tipo_pastagem} onChange={(e) => alterarLinha(l.ref, "tipo_pastagem", e.target.value)}>
-                                <option value="">{l.tipo_cultura === "Reserva" || l.tipo_cultura === "APP" ? "Opcional" : "Selecione"}</option>
-                                {TIPOS_CULTURAS.map((t) => (
-                                  <option key={t} value={t}>{t}</option>
-                                ))}
-                              </SeletorImportacao>
-                            )}
-                          </td>
-                          <td className="p-1">
-                            <SeletorImportacao aria-label={`Aproveitamento ${l.origem}`} disabled={travado} className={selectClass} value={l.aproveitamento} onChange={(e) => alterarLinha(l.ref, "aproveitamento", e.target.value)}>
-                              {APROVEITAMENTO.map((t) => (
-                                <option key={t} value={t}>{t}</option>
-                              ))}
-                            </SeletorImportacao>
-                          </td>
-                          <td className="p-1">
-                            <div className="flex items-center gap-1">
-                              <span className="inline-block h-3 w-3 shrink-0 rounded-full border border-slate-300" style={{ backgroundColor: l.cor }} />
-                              <SeletorImportacao aria-label={`Cor ${l.origem}`} disabled={travado} className={selectClass} value={l.cor} onChange={(e) => alterarLinha(l.ref, "cor", e.target.value)}>
-                                {CORES_DISPONIVEIS.map((c) => (
-                                  <option key={c.cor} value={c.cor}>{c.nome}</option>
-                                ))}
-                              </SeletorImportacao>
-                            </div>
-                          </td>
-                          <td className="whitespace-nowrap p-1" data-testid={`estado-${l.ref}`}>
-                            {pend.length === 0 ? (
-                              <span className="inline-flex items-center gap-1 text-emerald-700">
-                                <CheckCircle2 className="h-3 w-3" /> {conferenciaAtual?.porRef?.[l.ref]?.ok ? "Conferida" : "Sem pendência"}
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 text-red-700">
-                                <XCircle className="h-3 w-3" /> {pend.length} pendência(s)
-                              </span>
-                            )}
-                          </td>
-                        </tr>
-                        {(pend.length > 0 || l.avisos.length > 0) && (
-                          <tr className={foco === l.ref ? "bg-orange-50" : ""}>
-                            <td />
-                            <td colSpan={10} className="px-1 pb-1" data-testid={`situacao-${l.ref}`}>
-                              {pend.length > 0 && (
-                                <ul className="flex flex-wrap gap-x-3 gap-y-0.5 text-red-700">
-                                  {pend.map((p, i) => (
-                                    <li key={`${p.campo}-${i}`}>
-                                      <strong>{ROTULOS[p.campo] ?? p.campo}:</strong> {p.mensagem}
-                                    </li>
-                                  ))}
-                                </ul>
-                              )}
-                              {l.avisos.map((a) => (
-                                <div key={a} className="text-[10px] text-amber-700">{a}</div>
-                              ))}
-                            </td>
-                          </tr>
-                        )}
-                      </React.Fragment>
-                      );
-                    })}
+                    {linhas.map((l) => (
+                      <LinhaImportacao
+                        key={l.ref}
+                        l={l}
+                        setores={setores}
+                        setoresPorId={setoresPorId}
+                        pendServidor={conferenciaAtual?.porRef?.[l.ref]?.pendencias ?? SEM_PENDENCIAS}
+                        conferida={Boolean(conferenciaAtual?.porRef?.[l.ref]?.ok)}
+                        selecionada={selecionadas.has(l.ref)}
+                        bloqueada={travado || gravadas.has(l.ref)}
+                        gravada={gravadas.get(l.ref)}
+                        emFoco={foco === l.ref}
+                        onAlterar={alterarLinha}
+                        onAlternar={alternarSelecao}
+                        onFocar={setFoco}
+                      />
+                    ))}
                   </tbody>
                 </table>
               </div>
@@ -927,15 +915,15 @@ export default function ImportarAreasDialog({ open, onOpenChange }) {
                 </ul>
               )}
 
-              <div className="sticky bottom-0 flex flex-wrap justify-end gap-2 border-t bg-white pt-2">
+              <div data-testid="importacao-acoes" className="sticky bottom-0 flex flex-wrap justify-end gap-2 border-t bg-white pt-2">
                 <Button type="button" variant="outline" size="sm" className="h-8 text-xs" disabled={estado === "gravando"} onClick={() => fechar(false)}>
                   Cancelar
                 </Button>
-                <Button type="button" variant="outline" size="sm" className="h-8 text-xs" disabled={estado !== "livre"} onClick={reiniciar}>
+                <Button type="button" variant="outline" size="sm" className="h-8 text-xs" disabled={estado !== "livre"} onClick={reiniciarSeguro}>
                   <RotateCcw className="mr-1 h-3 w-3" /> Outro arquivo
                 </Button>
                 {estado === "desconhecido" ? (
-                  <Button type="button" size="sm" className="h-8 bg-amber-600 text-xs hover:bg-amber-700" disabled={!online || empresaMudou} onClick={enviarImportacao}>
+                  <Button type="button" size="sm" className="h-8 bg-amber-600 text-xs hover:bg-amber-700" disabled={!online} onClick={verificarEConcluir}>
                     Verificar e concluir
                   </Button>
                 ) : (
@@ -961,16 +949,29 @@ export default function ImportarAreasDialog({ open, onOpenChange }) {
 
           {etapa === "resultado" && resultado && (
             <div className="min-w-0 space-y-2 text-xs" data-testid="importacao-resultado">
-              <div className="flex items-center gap-2 rounded border border-emerald-300 bg-emerald-50 p-2 text-emerald-800">
-                <CheckCircle2 className="h-4 w-4" /> {resultado.gravadas} área(s) gravada(s) de uma vez.
-                {resultado.replay ? " (a gravação já tinha sido concluída; nada foi duplicado)" : ""}
+              <div role="status" className="flex items-center gap-2 rounded border border-emerald-300 bg-emerald-50 p-2 text-emerald-800">
+                <CheckCircle2 className="h-4 w-4 shrink-0" />
+                <span>
+                  Lote {resultado.lote}: {resultado.gravadas} área(s) gravada(s) de uma vez.
+                  {resultado.replay ? " A gravação já tinha sido concluída antes; nada foi duplicado." : ""}
+                </span>
               </div>
-              <div className="text-slate-600">
-                Não importados: {linhas.length - resultado.gravadas} área(s) não selecionada(s), {leitura?.contagem?.ignorados ?? 0} ponto(s)/linha(s) ignorado(s),{" "}
-                {leitura?.contagem?.invalidos ?? 0} elemento(s) inválido(s).
+              <div data-testid="importacao-acumulado" className="rounded border border-slate-200 p-2 text-slate-700">
+                <div>
+                  Arquivo: <strong>{leitura?.contagem?.elementos ?? 0}</strong> elemento(s) · áreas importáveis: <strong>{linhas.length}</strong>
+                </div>
+                <div>
+                  Já gravadas: <strong data-testid="acumulado-gravadas">{gravadas.size}</strong> em {lotes.length} lote(s) ·
+                  restantes: <strong data-testid="acumulado-restantes">{restantesImportaveis}</strong> · inválidos:{" "}
+                  {leitura?.contagem?.invalidos ?? 0} · ignorados (ponto/linha): {leitura?.contagem?.ignorados ?? 0}
+                </div>
+                <div className="text-[11px] text-slate-500">
+                  Cada confirmação grava até {maxPorLote} áreas e é tudo-ou-nada só dentro dela. Lotes já gravados não são
+                  desfeitos por uma confirmação seguinte.
+                </div>
               </div>
               <div className="max-h-[40vh] overflow-auto rounded border border-slate-200">
-                <table className="w-full text-xs">
+                <table className="w-full min-w-[420px] text-xs">
                   <thead className="bg-slate-100 text-left text-[11px] text-slate-600">
                     <tr>
                       <th className="p-1">Nº</th>
@@ -994,12 +995,17 @@ export default function ImportarAreasDialog({ open, onOpenChange }) {
                 </table>
               </div>
               <div className="flex flex-wrap justify-end gap-2 border-t pt-2">
-                <Button type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={reiniciar}>
+                <Button type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={reiniciarSeguro}>
                   Importar outro arquivo
                 </Button>
-                <Button type="button" size="sm" className="h-8 bg-emerald-600 text-xs hover:bg-emerald-700" onClick={() => fechar(false)}>
+                <Button type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={() => fechar(false)}>
                   Ver áreas cadastradas
                 </Button>
+                {restantesImportaveis > 0 && (
+                  <Button type="button" size="sm" className="h-8 bg-emerald-600 text-xs hover:bg-emerald-700" onClick={continuarComRestantes}>
+                    Continuar com áreas restantes ({restantesImportaveis})
+                  </Button>
+                )}
               </div>
             </div>
           )}
@@ -1019,6 +1025,36 @@ export default function ImportarAreasDialog({ open, onOpenChange }) {
             <AlertDialogCancel>Voltar</AlertDialogCancel>
             <AlertDialogAction className="bg-emerald-600 hover:bg-emerald-700" onClick={enviarImportacao}>
               Gravar áreas
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog open={confirmarSaida !== null} onOpenChange={(v) => !v && setConfirmarSaida(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {confirmarSaida?.tipo === "desconhecido" ? "O resultado ainda é desconhecido" : "Há áreas que ainda não foram importadas"}
+            </AlertDialogTitle>
+            <AlertDialogDescription data-testid="importacao-confirmar-saida">
+              {confirmarSaida?.tipo === "desconhecido"
+                ? "O resultado ainda é desconhecido; áreas podem já ter sido criadas. Se sair agora, a verificação com a mesma chave se perde e esta tela não poderá confirmar o que aconteceu — confira a lista de áreas antes de importar de novo."
+                : `${gravadas.size} área(s) de lotes anteriores já foram gravadas e continuam gravadas. ${restantesImportaveis} área(s) restantes ainda não foram gravadas e as edições delas serão perdidas.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{confirmarSaida?.tipo === "desconhecido" ? "Continuar verificando" : "Voltar"}</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700"
+              onClick={() => {
+                const acao = confirmarSaida?.acao;
+                setConfirmarSaida(null);
+                if (acao === "reiniciar") {
+                  queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === "areas" });
+                  reiniciar();
+                } else sair();
+              }}
+            >
+              {confirmarSaida?.tipo === "desconhecido" ? "Sair sem confirmar" : "Sair mesmo assim"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

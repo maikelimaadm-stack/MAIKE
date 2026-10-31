@@ -169,12 +169,20 @@ const lerCorpo = async (resposta) => {
  * Executa uma requisição contra o backend nativo.
  *
  * @param {string} caminho caminho literal, ex.: `/auth/login`
- * @param {{method?: 'GET'|'POST'|'PATCH'|'DELETE', body?: object|null, autenticado?: boolean}} opcoes
+ * `timeoutMs` é exceção por pedido, nunca padrão: hoje só a importação de áreas
+ * (D-PROD-90 R1) usa, porque a gravação dela é uma transação de até 60 s no
+ * servidor e cortá-la aos 20 s criaria "resultado desconhecido" sem motivo.
+ *
+ * @param {{method?: 'GET'|'POST'|'PATCH'|'DELETE', body?: object|null, autenticado?: boolean, timeoutMs?: number}} opcoes
  * @param {{operation: string, resource: string, details?: object}} contexto
  * @returns {Promise<unknown>}
  */
 export const nativeRequest = async (caminho, opcoes, contexto) => {
   const { method = 'GET', body = null, autenticado = false } = opcoes;
+  const limiteMs =
+    Number.isFinite(opcoes.timeoutMs) && /** @type {number} */ (opcoes.timeoutMs) > 0
+      ? /** @type {number} */ (opcoes.timeoutMs)
+      : TIMEOUT_MS;
   const base = getNativeApiUrl();
 
   // Sem URL configurada não existe "tentar assim mesmo": chamar caminho
@@ -206,7 +214,7 @@ export const nativeRequest = async (caminho, opcoes, contexto) => {
   // Node 17.3+/navegadores recentes, e o `clearTimeout` evita segurar o
   // processo vivo em teste.
   const controlador = new AbortController();
-  const timer = setTimeout(() => controlador.abort(), TIMEOUT_MS);
+  const timer = setTimeout(() => controlador.abort(), limiteMs);
 
   let resposta;
   try {

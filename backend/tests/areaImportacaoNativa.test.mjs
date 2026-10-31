@@ -397,4 +397,133 @@ describe('D-PROD-90 — importação de áreas', () => {
     assert.deepEqual(status, [201, 422], `${r1.body} | ${r2.body}`);
     assert.equal(await contarAreas(cliente.id), 3);
   });
+
+  // ─── R1 ────────────────────────────────────────────────────────────────────
+
+  test('IMP-15 R1 corrida com a MESMA chave e o mesmo conteúdo: grava uma vez; o outro recebe replay ou conflito tipado', async () => {
+    const { cliente, token } = await tenantAutenticado();
+    const empresa = await criarEmpresa(token);
+    const setor = await criarSetor(token, empresa.id);
+    const itens = [item(setor.id, 0), item(setor.id, 1), item(setor.id, 2)];
+    const op = `op-${randomUUID()}`;
+    const respostas = await Promise.all([
+      importar(token, empresa.id, itens, op),
+      importar(token, empresa.id, itens, op),
+      importar(token, empresa.id, itens, op),
+    ]);
+    const corpos = respostas.map((r) => ({ status: r.statusCode, corpo: r.json() }));
+    for (const { status, corpo } of corpos) {
+      assert.ok(
+        status === 201 || (status === 409 && corpo.code === 'IDEMPOTENCY_IN_PROGRESS'),
+        `resposta não tipada: ${status} ${JSON.stringify(corpo)}`
+      );
+    }
+    const criadas = corpos.filter((c) => c.status === 201 && c.corpo.replay === false);
+    assert.equal(criadas.length, 1, 'exatamente uma execução real');
+    const ids = criadas[0].corpo.importadas.map((a) => a.id).sort();
+    for (const c of corpos.filter((x) => x.status === 201)) {
+      assert.deepEqual(c.corpo.importadas.map((a) => a.id).sort(), ids, 'replay devolve as mesmas áreas');
+    }
+    assert.equal(await contarAreas(cliente.id), 3);
+    assert.equal(await contarAuditoria(cliente.id), 3);
+    assert.equal(await getPrismaClient().operacaoIdempotente.count({ where: { cliente_id: cliente.id } }), 1);
+  });
+
+  test('IMP-16 R1 corrida com a MESMA chave e conteúdo DIFERENTE: um grava, o outro recebe IDEMPOTENCY_CONFLICT', async () => {
+    const { cliente, token } = await tenantAutenticado();
+    const empresa = await criarEmpresa(token);
+    const setor = await criarSetor(token, empresa.id);
+    const op = `op-${randomUUID()}`;
+    const a = [item(setor.id, 0), item(setor.id, 1)];
+    const b = [item(setor.id, 5), item(setor.id, 6), item(setor.id, 7)];
+    const [r1, r2] = await Promise.all([importar(token, empresa.id, a, op), importar(token, empresa.id, b, op)]);
+    const status = [r1.statusCode, r2.statusCode].sort();
+    assert.deepEqual(status, [201, 409], `${r1.body} | ${r2.body}`);
+    const perdedor = r1.statusCode === 409 ? r1 : r2;
+    assert.ok(['IDEMPOTENCY_CONFLICT', 'IDEMPOTENCY_IN_PROGRESS'].includes(perdedor.json().code), perdedor.body);
+    const vencedor = r1.statusCode === 201 ? r1 : r2;
+    const n = vencedor.json().gravadas;
+    assert.equal(await contarAreas(cliente.id), n);
+    assert.equal(await contarAuditoria(cliente.id), n);
+  });
+
+  test('IMP-17 R1 commit feito e resposta perdida: reenviar a mesma chave devolve replay, sem área, número ou auditoria novos', async () => {
+    const { cliente, token } = await tenantAutenticado();
+    const empresa = await criarEmpresa(token);
+    const setor = await criarSetor(token, empresa.id);
+    const itens = [item(setor.id, 0), item(setor.id, 1)];
+    const op = `op-${randomUUID()}`;
+    const primeira = await importar(token, empresa.id, itens, op); // "resposta perdida" pelo cliente
+    assert.equal(primeira.statusCode, 201);
+    const antes = {
+      areas: await contarAreas(cliente.id),
+      auditoria: await contarAuditoria(cliente.id),
+      seq: JSON.stringify(await getPrismaClient().entidadeCodigoSequencia.findMany({ where: { cliente_id: cliente.id } })),
+    };
+    const retentativa = await importar(token, empresa.id, itens, op);
+    assert.equal(retentativa.statusCode, 201);
+    assert.equal(retentativa.json().replay, true);
+    assert.deepEqual(retentativa.json().importadas, primeira.json().importadas);
+    assert.equal(await contarAreas(cliente.id), antes.areas);
+    assert.equal(await contarAuditoria(cliente.id), antes.auditoria);
+    assert.equal(
+      JSON.stringify(await getPrismaClient().entidadeCodigoSequencia.findMany({ where: { cliente_id: cliente.id } })),
+      antes.seq,
+      'a sequência não avança no replay'
+    );
+  });
+
+  test('IMP-18 R1 422 não deixa chave presa: corrigir e reenviar (mesma ou nova chave) grava', async () => {
+    const { cliente, token } = await tenantAutenticado();
+    const empresa = await criarEmpresa(token);
+    const setor = await criarSetor(token, empresa.id);
+    const op = `op-${randomUUID()}`;
+    const ruim = [item(setor.id, 0), item(setor.id, 1, { area_pastejada: 99999 })];
+    const r1 = await importar(token, empresa.id, ruim, op);
+    assert.equal(r1.statusCode, 422);
+    assert.equal(await contarAreas(cliente.id), 0);
+    const bom = [item(setor.id, 0), item(setor.id, 1)];
+    const r2 = await importar(token, empresa.id, bom, op);
+    assert.equal(r2.statusCode, 201, r2.body);
+    assert.equal(await contarAreas(cliente.id), 2);
+  });
+
+  test('IMP-19 R1 arquivo de 205 áreas em lotes 100 + 100 + 5: cada lote atômico, falha no 2º não desfaz o 1º', async () => {
+    const { cliente, token } = await tenantAutenticado();
+    const empresa = await criarEmpresa(token);
+    const setor = await criarSetor(token, empresa.id);
+    const todos = Array.from({ length: 205 }, (_, i) => item(setor.id, i));
+    const lote1 = todos.slice(0, 100);
+    const lote2 = todos.slice(100, 200);
+    const lote3 = todos.slice(200);
+
+    const r1 = await importar(token, empresa.id, lote1);
+    assert.equal(r1.statusCode, 201, r1.body);
+    assert.equal(r1.json().gravadas, 100);
+
+    // 2º lote com um item ruim no fim: nada dele é gravado; o 1º continua.
+    const lote2Ruim = [...lote2.slice(0, 99), { ...lote2[99], area_pastejada: 99999 }];
+    const r2Ruim = await importar(token, empresa.id, lote2Ruim);
+    assert.equal(r2Ruim.statusCode, 422);
+    assert.equal(await contarAreas(cliente.id), 100);
+
+    // Corrigido, com chave nova (conteúdo novo): grava.
+    const r2 = await importar(token, empresa.id, lote2);
+    assert.equal(r2.statusCode, 201, r2.body);
+    const r3 = await importar(token, empresa.id, lote3);
+    assert.equal(r3.statusCode, 201, r3.body);
+
+    assert.equal(await contarAreas(cliente.id), 205);
+    assert.equal(await contarAuditoria(cliente.id), 205);
+    const numeros = (await getPrismaClient().areaPastagem.findMany({ where: { cliente_id: cliente.id }, select: { numero_area: true } }))
+      .map((a) => Number(a.numero_area))
+      .sort((x, y) => x - y);
+    assert.equal(new Set(numeros).size, 205, 'números sem repetição');
+    assert.deepEqual([numeros[0], numeros[204]], [1, 205]);
+
+    // Reenviar um lote já gravado com chave nova: tudo duplicado, nada gravado.
+    const r1Denovo = await importar(token, empresa.id, lote1);
+    assert.equal(r1Denovo.statusCode, 422);
+    assert.equal(await contarAreas(cliente.id), 205);
+  });
 });

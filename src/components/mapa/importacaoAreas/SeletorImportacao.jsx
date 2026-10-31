@@ -51,13 +51,43 @@ const opcoesDe = (children) => {
  * }} props
  */
 export default function SeletorImportacao({ value, onChange, children, className, disabled, "aria-label": rotulo }) {
+  // Montagem preguiçosa (D-PROD-90 R1): o Select do Radix mantém todas as opções
+  // renderizadas mesmo fechado; com centenas de linhas × 6 seletores isso levava
+  // ~12 s para abrir a conferência de 205 áreas. Fechado, é só um botão com o
+  // texto atual; o Select real só existe enquanto está aberto.
+  const [aberto, setAberto] = React.useState(false);
   const opcoes = opcoesDe(children);
   const atual = String(value ?? "");
+  const rotuloAtual = opcoes.find((o) => o.value === atual)?.label ?? "";
+
+  if (!aberto) {
+    return (
+      <button
+        type="button"
+        role="combobox"
+        aria-expanded={false}
+        aria-haspopup="listbox"
+        aria-label={rotulo}
+        disabled={disabled}
+        onClick={() => setAberto(true)}
+        className={`flex h-7 items-center justify-between gap-1 whitespace-nowrap px-2 text-left text-xs disabled:cursor-not-allowed disabled:opacity-50 ${className ?? ""}`}
+      >
+        <span className="truncate">{rotuloAtual}</span>
+        <span aria-hidden className="text-[10px] opacity-60">▾</span>
+      </button>
+    );
+  }
+
   return (
     <Select
+      open
+      onOpenChange={(v) => !v && setAberto(false)}
       value={atual === "" ? VAZIO : atual}
       disabled={disabled}
-      onValueChange={(v) => onChange?.({ target: { value: v === VAZIO ? "" : v } })}
+      onValueChange={(v) => {
+        setAberto(false);
+        onChange?.({ target: { value: v === VAZIO ? "" : v } });
+      }}
     >
       <SelectTrigger aria-label={rotulo} className={`h-7 px-2 text-xs ${className ?? ""}`}>
         <SelectValue />

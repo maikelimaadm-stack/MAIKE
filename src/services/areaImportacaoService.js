@@ -10,6 +10,7 @@
 import { conferirImportacaoAreas, importarAreas } from "@/apis/areas";
 import { toPersistedCoords } from "@/lib/geografia";
 import { lerHectares } from "@/domain/areas/regrasCadastroArea";
+import { API_ERROR_CODES } from "@/apis/_core/ApiError";
 
 /** No máximo 100 áreas por confirmação: a gravação é atômica dentro disso. */
 export const MAX_AREAS_POR_IMPORTACAO = 100;
@@ -69,3 +70,51 @@ export const conferirNoServidor = (empresaId, itens) => conferirImportacaoAreas(
  */
 export const gravarImportacao = (operationId, empresaId, itens) =>
   importarAreas({ operationId, empresaId, itens });
+
+/**
+ * O que uma falha da GRAVAÇÃO prova (D-PROD-90 R1):
+ *
+ *   recusada        o servidor avaliou ESTE pedido e recusou antes de gravar —
+ *                   pendência (422), limite (413), schema (400), empresa fora do
+ *                   tenant (404) ou chave já usada com outro conteúdo (409).
+ *                   Nada deste lote foi gravado por esta chave;
+ *   nao_processada  a sessão foi recusada antes da rota (401): este pedido não
+ *                   gravou, mas isso não diz nada sobre um envio anterior;
+ *   ambigua         qualquer outra coisa — rede, timeout, 5xx, gateway, corpo
+ *                   ilegível, código desconhecido, "ainda em processamento". O
+ *                   lote PODE ter sido gravado: só reenviar com a mesma chave.
+ *
+ * @param {unknown} erro
+ * @returns {'recusada' | 'nao_processada' | 'ambigua'}
+ */
+export const classificarFalhaDeGravacao = (erro) => {
+  const codigo = /** @type {any} */ (erro)?.code;
+  if (
+    [
+      API_ERROR_CODES.AREA_IMPORT_VALIDATION_FAILED,
+      API_ERROR_CODES.AREA_IMPORT_LIMIT_EXCEEDED,
+      API_ERROR_CODES.INVALID_ARGUMENT,
+      API_ERROR_CODES.IDEMPOTENCY_CONFLICT,
+      API_ERROR_CODES.EMPRESA_NOT_FOUND,
+    ].includes(codigo)
+  ) {
+    return "recusada";
+  }
+  if (codigo === API_ERROR_CODES.TENANT_CONTEXT_REQUIRED) return "nao_processada";
+  return "ambigua";
+};
+
+/**
+ * Resposta 201 só conta como sucesso se trouxer uma área para cada item
+ * enviado. Corpo vazio ou de outro formato é tratado como resultado
+ * desconhecido, nunca como sucesso inventado.
+ *
+ * @param {unknown} resposta
+ * @param {{ ref: string }[]} itens
+ */
+export const respostaDeGravacaoValida = (resposta, itens) => {
+  const r = /** @type {any} */ (resposta);
+  if (!r || !Array.isArray(r.importadas) || r.importadas.length !== itens.length) return false;
+  const refs = new Set(itens.map((i) => i.ref));
+  return r.importadas.every((a) => a && typeof a.id === "string" && refs.has(a.ref));
+};
