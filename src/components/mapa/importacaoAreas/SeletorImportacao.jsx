@@ -38,7 +38,7 @@ const opcoesDe = (children) => {
 /**
  * Seletor do assistente de importação de áreas (D-PROD-90).
  *
- * Mesma API do `<select>`/`B1Select` — `value`, `onChange(e)` e `<option>` como
+ * Mesma API do select nativo e do `B1Select` — `value`, `onChange(e)` e `<option>` como
  * filhos —, mas sobre o Select do Radix. Motivo: o assistente é um Dialog
  * modal do Radix, que tira o clique de tudo fora dele; a folha do `B1Select`
  * (portal no `body`) ficava sem resposta ao toque no celular. O Select do
