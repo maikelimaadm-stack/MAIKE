@@ -3388,4 +3388,35 @@ Testes:
 
 ---
 
-<!-- Próxima decisão: D-PROD-91 -->
+## D-PROD-91 — Importação de áreas: contorno que se cruza entra com aviso; gravação em bloco
+
+**Pedido do proprietário:**
+- "Tem que importar tudo": 10 Placemarks de um KML real eram recusados com "O contorno cruza a si mesmo".
+- "A importação tem que ser imediata": a gravação ficava em "Gravando…" e não gravava.
+
+**Decisão:**
+- **Contorno que se cruza ou passa duas vezes pelo mesmo ponto** deixa de ser pendência.
+  - A área é importada **exatamente como está no arquivo**, sem correção automática.
+  - A conferência mostra um aviso (`CONTORNO_SE_CRUZA` no servidor e texto na linha da tabela).
+  - Continuam recusados: coordenada fora de WGS84, menos de 3 pontos distintos ou área nula, buraco interno e várias partes. Nesses casos importar perderia ou inventaria dado.
+- **Causa da lentidão:**
+  - o banco (Supabase) fica em `sa-east-1` e a função da API roda na região padrão da Vercel (o `vercel.json` não define região), a cerca de 120 ms por ida ao banco;
+  - a gravação fazia cerca de 4 idas por área: 100 áreas levavam aproximadamente **50 s**, no limite da transação (60 s) e da função, que é desfeita no fim.
+- **Correção — gravação em bloco, com número de idas fixo, sem depender da quantidade de áreas:**
+  - setores numa só consulta;
+  - faixa de N números da sequência (`reservarNumeros`);
+  - um INSERT de todas as áreas com retorno (`createManyAndReturn`);
+  - auditoria em lote (`registrarEventosEmLote`), um evento por área como antes.
+  - Medido com 120 ms de latência simulada: **100 áreas em 2,1 s** (antes, 50,8 s).
+- **Inalterados:** atomicidade por lote, idempotência, tenant, empresa e setor, numeração do servidor e o contrato HTTP.
+- **Não feito (fica para decisão do proprietário):** fixar a região das funções da Vercel em São Paulo (`gru1`). Isso deixaria todo o sistema mais rápido, mas muda a configuração de deploy e depende do plano.
+
+Relatório: `docs/engineering/MAIKE-IMPORTACAO-AREAS-KML-GEOJSON-01-REPORT.md` (seção 14).
+
+Testes:
+- `backend/tests/areaImportacaoNativa.test.mjs`: IMP-11 (cruzado com aviso), IMP-20 (gravado como veio) e IMP-21 (bloco de 100: números consecutivos, refs na ordem, uma auditoria por área);
+- `tests/smoke/importacaoAreasParser.test.js`.
+
+---
+
+<!-- Próxima decisão: D-PROD-92 -->

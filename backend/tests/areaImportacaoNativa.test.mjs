@@ -330,22 +330,55 @@ describe('D-PROD-90 — importação de áreas', () => {
     assert.equal(await contarAreas(cliente.id), 2);
   });
 
-  test('IMP-11 geometria inválida: autointerseção, faixa, degenerado → pendência', async () => {
+  test('IMP-11 geometria: faixa e degenerado → pendência; contorno que se cruza → aviso, não bloqueia (R2)', async () => {
     const { token } = await tenantAutenticado();
     const empresa = await criarEmpresa(token);
     const setor = await criarSetor(token, empresa.id);
-    const gravata = [[-15.6, -56.1], [-15.6, -56.09], [-15.61, -56.1], [-15.61, -56.09]];
+    // Cruza a si mesmo, mas com área líquida (laço assimétrico).
+    const cruzado = [[-15.6, -56.1], [-15.6, -56.08], [-15.62, -56.1], [-15.615, -56.09]];
     const r = await conferir(token, empresa.id, [
-      item(setor.id, 0, { coords: gravata }),
+      item(setor.id, 0, { coords: cruzado }),
       item(setor.id, 1, { coords: [[95, -56.1], [-15.6, -56.09], [-15.61, -56.1]] }),
       item(setor.id, 2, { coords: [[-15.6, -56.1], [-15.6, -56.09], [-15.6, -56.08]] }),
       item(setor.id, 3, { coords: [[0, 0], [0, 0.01], [0.01, 0.01], [0.01, 0]], area_pastejada: 0 }),
     ]);
-    const codigos = r.json().itens.map((i) => i.pendencias.map((p) => p.codigo).join(','));
-    assert.equal(codigos[0], 'POLIGONO_AUTOINTERSECAO');
-    assert.equal(codigos[1], 'VERTICE_FORA_DA_FAIXA');
-    assert.equal(codigos[2], 'POLIGONO_DEGENERADO');
-    assert.equal(codigos[3], '', 'lat/lng 0 é coordenada válida');
+    const itens = r.json().itens;
+    assert.equal(itens[0].ok, true, JSON.stringify(itens[0]));
+    assert.deepEqual(itens[0].avisos.map((a) => a.codigo), ['CONTORNO_SE_CRUZA']);
+    assert.equal(itens[1].pendencias[0].codigo, 'VERTICE_FORA_DA_FAIXA');
+    assert.equal(itens[2].pendencias[0].codigo, 'POLIGONO_DEGENERADO');
+    assert.equal(itens[3].ok, true, 'lat/lng 0 é coordenada válida');
+  });
+
+  test('IMP-20 R2 contorno que se cruza é gravado exatamente como veio no arquivo', async () => {
+    const { cliente, token } = await tenantAutenticado();
+    const empresa = await criarEmpresa(token);
+    const setor = await criarSetor(token, empresa.id);
+    const cruzado = [[-15.6, -56.1], [-15.6, -56.08], [-15.62, -56.1], [-15.615, -56.09]];
+    const r = await importar(token, empresa.id, [item(setor.id, 0, { coords: cruzado, area_pastejada: 0 })]);
+    assert.equal(r.statusCode, 201, r.body);
+    const area = await getPrismaClient().areaPastagem.findFirst({ where: { cliente_id: cliente.id } });
+    assert.deepEqual(/** @type {any} */ (area.coordenadas).coords, cruzado);
+  });
+
+  test('IMP-21 R2 gravação em bloco: 100 áreas com números consecutivos, uma auditoria por área, refs na ordem', async () => {
+    const { cliente, token } = await tenantAutenticado();
+    const empresa = await criarEmpresa(token);
+    const setor = await criarSetor(token, empresa.id);
+    await importar(token, empresa.id, [item(setor.id, 150)]); // número 1 já usado
+    const itens = Array.from({ length: 100 }, (_, i) => item(setor.id, i));
+    const r = await importar(token, empresa.id, itens);
+    assert.equal(r.statusCode, 201, r.body);
+    const corpo = r.json();
+    assert.deepEqual(corpo.importadas.map((a) => a.ref), itens.map((i) => i.ref));
+    assert.deepEqual(corpo.importadas.map((a) => Number(a.numero_area)), Array.from({ length: 100 }, (_, i) => i + 2));
+    const porId = new Map((await getPrismaClient().areaPastagem.findMany({ where: { cliente_id: cliente.id } })).map((a) => [a.id, a]));
+    for (const [i, a] of corpo.importadas.entries()) {
+      assert.equal(porId.get(a.id).nome, itens[i].nome.toUpperCase(), 'ref aponta para a área certa');
+    }
+    assert.equal(await contarAuditoria(cliente.id), 101);
+    const seq = await getPrismaClient().entidadeCodigoSequencia.findFirst({ where: { cliente_id: cliente.id, entidade: 'AreaPastagem' } });
+    assert.equal(Number(seq.proximo_valor), 102, 'a sequência avança exatamente 100');
   });
 
   test('IMP-12 regras por uso: Reserva aceita 0 sem cultura; Infraestrutura exige tipo e grava 0 ha', async () => {

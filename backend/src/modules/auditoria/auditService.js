@@ -16,7 +16,7 @@
 
 import { auditWriteFailed } from '../../shared/errors/AppError.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
-import { inserirAuditLog, listarAuditLogs } from './auditRepository.js';
+import { inserirAuditLog, inserirAuditLogsEmLote, listarAuditLogs } from './auditRepository.js';
 
 /**
  * Chaves cujo valor nunca é persistido, em qualquer profundidade.
@@ -128,6 +128,34 @@ export const registrarEvento = async (contexto, evento, tx) => {
     return await inserirAuditLog(registro, tx);
   } catch (erro) {
     // Observável, nunca silenciosa.
+    throw auditWriteFailed('falha ao registrar auditoria', { cause: erro });
+  }
+};
+
+/**
+ * Mesmo contrato de `registrarEvento`, para N eventos do mesmo ator numa única
+ * ida ao banco (D-PROD-90 R2). Falha de qualquer um derruba a transação.
+ *
+ * @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto
+ * @param {{acao: string, entidade: string, entidadeId?: string|null, dadosAnteriores?: unknown, dadosNovos?: unknown}[]} eventos
+ * @param {import('@prisma/client').Prisma.TransactionClient} tx
+ */
+export const registrarEventosEmLote = async (contexto, eventos, tx) => {
+  const auth = exigirAuthContext(contexto?.auth);
+  if (eventos.length === 0) return { count: 0 };
+  const registros = eventos.map((evento) => ({
+    cliente_id: auth.clienteId,
+    usuario_id: auth.usuarioId,
+    acao: String(evento.acao),
+    entidade: String(evento.entidade),
+    entidade_id: evento.entidadeId ? String(evento.entidadeId) : null,
+    dados_anteriores: evento.dadosAnteriores === undefined ? null : sanitizarPayload(evento.dadosAnteriores),
+    dados_novos: evento.dadosNovos === undefined ? null : sanitizarPayload(evento.dadosNovos),
+    request_id: contexto.requestId,
+  }));
+  try {
+    return await inserirAuditLogsEmLote(registros, tx);
+  } catch (erro) {
     throw auditWriteFailed('falha ao registrar auditoria', { cause: erro });
   }
 };

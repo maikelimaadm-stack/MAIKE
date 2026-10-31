@@ -19,6 +19,13 @@ export const inserirAuditLog = async (registro, tx) => {
 };
 
 /**
+ * Vários registros numa única ida ao banco (importação em bloco, D-PROD-90 R2).
+ * @param {object[]} registros
+ * @param {import('@prisma/client').Prisma.TransactionClient} tx
+ */
+export const inserirAuditLogsEmLote = async (registros, tx) => tx.auditLog.createMany({ data: registros });
+
+/**
  * @param {string} clienteId tenant já resolvido pelo contexto
  * @param {{entidade?: string, entidadeId?: string, limite?: number}} filtro
  */

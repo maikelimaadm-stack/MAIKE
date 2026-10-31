@@ -95,6 +95,16 @@ export const inserirArea = async (tx, dados) =>
   tx.areaPastagem.create({ data: dados, select: SELECAO });
 
 /**
+ * Insere várias áreas numa única ida ao banco e devolve as linhas criadas
+ * (importação em bloco, D-PROD-90 R2). Mesmo SELECAO da inserção unitária.
+ *
+ * @param {import('@prisma/client').Prisma.TransactionClient} tx
+ * @param {object[]} lista
+ */
+export const inserirAreasEmLote = async (tx, lista) =>
+  tx.areaPastagem.createManyAndReturn({ data: lista, select: SELECAO });
+
+/**
  * Atualiza a área pelo unique composto.
  *
  * @param {import('@prisma/client').Prisma.TransactionClient} tx

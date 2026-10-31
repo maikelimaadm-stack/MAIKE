@@ -119,12 +119,13 @@ export const areaM2DoAnel = (anel) => {
  * Valida o anel recebido no formato persistido `[[lat, lng], ...]`.
  *
  * Recusa em vez de "consertar": vértice fora de faixa, repetido em sequência,
- * menos de 3 vértices distintos, cruzamento de arestas e área degenerada. O
+ * menos de 3 vértices distintos e área degenerada. Cruzamento de arestas NÃO
+ * recusa: volta `seCruza: true` para virar aviso (D-PROD-90 R2). O
  * único ajuste é tirar o vértice de fechamento quando ele repete o primeiro —
  * o mesmo que o adapter do editor faz, sem perder vértice real.
  *
  * @param {unknown} coords
- * @returns {{ ok: true, anel: {lat: number, lng: number}[], areaM2: number, hectares: number }
+ * @returns {{ ok: true, anel: {lat: number, lng: number}[], areaM2: number, hectares: number, seCruza: boolean }
  *   | { ok: false, codigo: string, mensagem: string }}
  */
 export const validarAnel = (coords) => {
@@ -160,17 +161,15 @@ export const validarAnel = (coords) => {
   if (anel.length < 3 || distintos.size < 3) {
     return { ok: false, codigo: 'POLIGONO_DEGENERADO', mensagem: 'O contorno precisa de pelo menos 3 vértices distintos.' };
   }
-  if (distintos.size !== anel.length) {
-    return { ok: false, codigo: 'POLIGONO_AUTOINTERSECAO', mensagem: 'O contorno passa duas vezes pelo mesmo vértice.' };
-  }
-  if (anelSeAutoIntersecta(anel)) {
-    return { ok: false, codigo: 'POLIGONO_AUTOINTERSECAO', mensagem: 'O contorno cruza a si mesmo.' };
-  }
+  // Contorno que se cruza ou passa duas vezes pelo mesmo ponto é IMPORTADO como
+  // está, com aviso (decisão do proprietário, D-PROD-90 R2): é o desenho do
+  // arquivo, e recusar travava a importação. Nada é "consertado".
+  const seCruza = distintos.size !== anel.length || anelSeAutoIntersecta(anel);
   const areaM2 = areaM2DoAnel(anel);
   if (!(areaM2 > AREA_MINIMA_M2)) {
     return { ok: false, codigo: 'POLIGONO_DEGENERADO', mensagem: 'Área nula: vértices colineares ou degenerados.' };
   }
-  return { ok: true, anel, areaM2, hectares: areaM2 / 10000 };
+  return { ok: true, anel, areaM2, hectares: areaM2 / 10000, seCruza };
 };
 
 /**
