@@ -1,0 +1,14 @@
+PASS mobile-412 T04 área vazia abre histórico e mostra a saída de 120 — Histórico da Área PASTO 5 (1) | Entradas, saídas e manejos registrados nesta área, inclusive de lotes que já saíram. | 01/09/2026 | Transferência de Área | Saíd
+PASS mobile-412 T04 sem rolagem horizontal
+PASS mobile-412 T06 área sem movimento mostra vazio verdadeiro — Histórico da Área PASTO 10 | Entradas, saídas e manejos registrados nesta área, inclusive de lotes que já saíram. | Nenh
+PASS mobile-412 T07 curral abre no abate com aba Histórico da Área — Abate | Histórico da Área | Histórico de Abate | Nenhum abate encontrado | Close
+PASS mobile-412 T07 aba Histórico da Área do curral consulta a área — Abate | Histórico da Área | Histórico da Área CURRAL 1 | Entradas, saídas e manejos registrados nesta área, inclusive de lotes que já saíram. | Nenhum lançament
+PASS mobile-412 T09 marcador de lote abre Detalhes do Lote, não Detalhes da Área — dialogos=1
+PASS mobile-412 T05 lote: histórico com "Área" e "Lotes atuais" — Histórico da Área PASTO 1 (3) | Área | Lotes atuais | Entradas, saídas e manejos registrados nesta área, inclusive de lo
+PASS mobile-412 T05 pasto com lote abre Histórico da Área pelo contorno — Histórico da Área PASTO 1 (3) | Entradas, saídas e manejos registrados nesta área, inclusive de lotes que já saíram. | 3
+PASS mobile-412 T03 cocho mantém "Lançar" — Ponto de Suplementação | Local: COCHO 1 | Lançar | Histórico | Saldo estimado no cocho | 0% | Saldo 
+PASS mobile-412 T01 cocho: histórico visível, aviso, sem Excluir — Histórico do Cocho (2) | Cancelamentos temporariamente indisponíveis até a implementação de estorno seguro. | 30/10/2026 | Em aberto | SAL MINERAL 80 | Áreas | 
+PASS mobile-412 T03 depósito mantém "Entrada" e "Saída" (transferência)
+PASS mobile-412 T02 depósito: histórico visível, aviso, sem Excluir — Histórico do Depósito (1) | Cancelamentos temporariamente indisponíveis até a implementação de estorno seguro. | 30/10/2026 | Saída (transferência) | SAL MINERA
+PASS mobile-412 nenhum DELETE/PATCH disparado na sessão
+PASS mobile-412 sem erro de página

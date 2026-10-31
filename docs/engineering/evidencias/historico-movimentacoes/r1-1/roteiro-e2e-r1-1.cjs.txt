@@ -1,0 +1,132 @@
+const { chromium } = require('playwright');
+const W = Number(process.argv[2]), H = Number(process.argv[3]), TAG = process.argv[4], FULL = process.argv[5] === 'full';
+const OUT = '/tmp/claude-0/r11b';
+const resultados = [];
+const ok = (nome, cond, extra = '') => { resultados.push(`${cond ? 'PASS' : 'FAIL'} ${TAG} ${nome}${extra ? ' — ' + extra : ''}`); };
+(async () => {
+  const browser = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader'] });
+  const mobile = W < 800;
+  const ctx = await browser.newContext({ viewport: { width: W, height: H }, isMobile: mobile, hasTouch: mobile });
+  const page = await ctx.newPage();
+  const erros = [];
+  page.on('pageerror', (e) => erros.push(e.message.slice(0, 160)));
+  const pedidosReversao = [];
+  page.on('request', (r) => { if (['DELETE', 'PATCH'].includes(r.method())) pedidosReversao.push(`${r.method()} ${r.url()}`); });
+  await page.goto('http://127.0.0.1:5180/', { waitUntil: 'networkidle' });
+  await page.locator('input').nth(0).fill('demo.operador');
+  await page.locator('input[type=password]').fill('senha-demo-local-123');
+  await page.keyboard.press('Enter');
+  await page.waitForURL(/mapageral/i, { timeout: 20000 });
+  await page.waitForTimeout(6000);
+  const tocar = async (loc) => { if (mobile) await loc.tap({ force: true }); else await loc.click({ force: true }); };
+  const fechar = async () => { for (let i = 0; i < 3; i++) { await page.keyboard.press('Escape'); await page.waitForTimeout(250); } await page.waitForTimeout(400); };
+  const dialogo = () => page.getByRole('dialog').last();
+  // O rótulo é ancorado no centro da área (anchor "top"): toca na borda de cima
+  // do rótulo, que é o centro do polígono, e não no meio do texto.
+  const abrirArea = async (nome) => {
+    const box = await page.getByText(nome, { exact: true }).first().boundingBox();
+    const x = box.x + box.width / 2, y = box.y + 1;
+    if (mobile) await page.touchscreen.tap(x, y); else await page.mouse.click(x, y);
+    await page.waitForTimeout(2500);
+  };
+  const temHorizontalScroll = async () => page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
+
+  // T04 — área vazia com saída antiga
+  await abrirArea('PASTO 5');
+  let txt = (await dialogo().innerText().catch(() => '')).replace(/\n+/g, ' | ');
+  ok('T04 área vazia abre histórico e mostra a saída de 120', /Histórico da Área PASTO 5/.test(txt) && /Saída/.test(txt) && /120 cab/.test(txt) && /Movimentações: 1 de 1/.test(txt), txt.slice(0, 160));
+  ok('T04 sem rolagem horizontal', !(await temHorizontalScroll()));
+  await page.screenshot({ path: `${OUT}/${TAG}-01-area-vazia-saida-antiga.png` });
+  await fechar();
+
+  // T06 — área sem movimento
+  await abrirArea('PASTO 10');
+  txt = (await dialogo().innerText().catch(() => '')).replace(/\n+/g, ' | ');
+  ok('T06 área sem movimento mostra vazio verdadeiro', /Nenhum lançamento encontrado/.test(txt) && !/Não foi possível/.test(txt), txt.slice(0, 120));
+  await page.screenshot({ path: `${OUT}/${TAG}-02-area-sem-movimento.png` });
+  await fechar();
+
+  // T07 — curral: abate + histórico da área
+  await abrirArea('CURRAL 1');
+  txt = (await dialogo().innerText().catch(() => '')).replace(/\n+/g, ' | ');
+  ok('T07 curral abre no abate com aba Histórico da Área', /Histórico de Abate/.test(txt) && /Histórico da Área/.test(txt), txt.slice(0, 160));
+  await page.screenshot({ path: `${OUT}/${TAG}-03-curral-abate.png` });
+  await tocar(page.getByRole('tab', { name: 'Histórico da Área' }));
+  await page.waitForTimeout(2000);
+  txt = (await dialogo().innerText().catch(() => '')).replace(/\n+/g, ' | ');
+  ok('T07 aba Histórico da Área do curral consulta a área', /Histórico da Área CURRAL 1/.test(txt) && /Nenhum lançamento encontrado|Movimentações:/.test(txt), txt.slice(0, 160));
+  await page.screenshot({ path: `${OUT}/${TAG}-04-curral-historico-area.png` });
+  await fechar();
+
+  if (FULL) {
+    // T05/T09 — lote: marcador do lote abre o lote, não a área
+    await tocar(page.getByText('400', { exact: true }).first());
+    await page.waitForTimeout(2000);
+    txt = (await dialogo().innerText().catch(() => '')).replace(/\n+/g, ' | ');
+    const dialogos = await page.getByRole('dialog').count();
+    ok('T09 marcador de lote abre Detalhes do Lote, não Detalhes da Área', /Detalhes do Lote/.test(txt) && !/Histórico da Área PASTO 1/.test(txt) && dialogos === 1, `dialogos=${dialogos}`);
+    await tocar(page.getByRole('button', { name: /Históricos/ }).first());
+    await page.waitForTimeout(500);
+    await tocar(page.getByText('Histórico de Movimentação', { exact: true }).first());
+    await page.waitForTimeout(2500);
+    txt = (await dialogo().innerText().catch(() => '')).replace(/\n+/g, ' | ');
+    ok('T05 lote: histórico com "Área" e "Lotes atuais"', /Lotes atuais/.test(txt) && /Histórico da Área PASTO 1/.test(txt), txt.slice(0, 120));
+    await fechar();
+    // T05 — mesmo pasto com lote, pelo contorno
+    await abrirArea('PASTO 1');
+    txt = (await dialogo().innerText().catch(() => '')).replace(/\n+/g, ' | ');
+    ok('T05 pasto com lote abre Histórico da Área pelo contorno', /Histórico da Área PASTO 1/.test(txt) && /Movimentações: 3 de 3/.test(txt), txt.slice(0, 120));
+    await fechar();
+
+    // T01 — cocho
+    await tocar(page.locator('[title*="COCHO 1"], [aria-label*="COCHO 1"]').first().or(page.getByText('COCHO 1', { exact: true }).first()));
+    await page.waitForTimeout(2000);
+    txt = (await dialogo().innerText().catch(() => '')).replace(/\n+/g, ' | ');
+    const temLancar = await page.getByRole('button', { name: 'Lançar' }).count();
+    ok('T03 cocho mantém "Lançar"', temLancar > 0, txt.slice(0, 100));
+    await tocar(page.getByRole('button', { name: 'Histórico' }).first());
+    await page.waitForTimeout(2500);
+    txt = (await dialogo().innerText().catch(() => '')).replace(/\n+/g, ' | ');
+    const excluirCocho = await dialogo().getByRole('button', { name: /Excluir/ }).count();
+    ok('T01 cocho: histórico visível, aviso, sem Excluir', /Histórico do Cocho \(2\)/.test(txt) && /Cancelamentos temporariamente indisponíveis/.test(txt) && excluirCocho === 0, txt.slice(0, 160));
+    await page.screenshot({ path: `${OUT}/${TAG}-05-cocho-cancelamento-suspenso.png` });
+    await fechar();
+
+    // T02 — depósito
+    await tocar(page.locator('[title*="DEPÓSITO CENTRAL"], [aria-label*="DEPÓSITO CENTRAL"]').first().or(page.getByText('DEPÓSITO CENTRAL', { exact: true }).first()));
+    await page.waitForTimeout(2000);
+    const temEntrada = await page.getByRole('button', { name: 'Entrada' }).count();
+    const temSaida = await page.getByRole('button', { name: 'Saída' }).count();
+    ok('T03 depósito mantém "Entrada" e "Saída" (transferência)', temEntrada > 0 && temSaida > 0);
+    await tocar(page.getByRole('button', { name: 'Histórico' }).first());
+    await page.waitForTimeout(2500);
+    txt = (await dialogo().innerText().catch(() => '')).replace(/\n+/g, ' | ');
+    const excluirDep = await dialogo().getByRole('button', { name: /Excluir/ }).count();
+    ok('T02 depósito: histórico visível, aviso, sem Excluir', /Histórico do Depósito \(1\)/.test(txt) && /Cancelamentos temporariamente indisponíveis/.test(txt) && excluirDep === 0, txt.slice(0, 160));
+    await page.screenshot({ path: `${OUT}/${TAG}-06-deposito-cancelamento-suspenso.png` });
+    await fechar();
+
+    // T08 — seleção de local de tarefa: clique na área NÃO abre histórico
+    if (!mobile) {
+      await page.mouse.click(W - 200, H - 120, { button: 'right' });
+      await page.waitForTimeout(2000);
+      const marcar = page.getByRole('button', { name: /Marcar ponto no mapa|Alterar ponto no mapa/ }).first();
+      if (await marcar.count()) {
+        await marcar.click();
+        await page.waitForTimeout(1200);
+        await page.getByText('PASTO 10', { exact: true }).first().click({ force: true });
+        await page.waitForTimeout(2000);
+        const corpo = (await page.locator('body').innerText()).replace(/\n+/g, ' | ');
+        ok('T08 seleção de tarefa: clique na área vincula o local e não abre Histórico da Área', !/Histórico da Área PASTO 10/.test(corpo) && /VINCULADO A: PASTO 10/.test(corpo), (corpo.match(/VINCULADO A:[^|]*/) || [''])[0]);
+        await page.screenshot({ path: `${OUT}/${TAG}-07-selecao-local-tarefa.png` });
+        await fechar();
+      } else {
+        ok('T08 botão "Marcar ponto no mapa" encontrado', false);
+      }
+    }
+  }
+  ok('nenhum DELETE/PATCH disparado na sessão', pedidosReversao.length === 0, pedidosReversao.join(', '));
+  ok('sem erro de página', erros.length === 0, erros.join(' ; '));
+  console.log(resultados.join('\n'));
+  await browser.close();
+})();
