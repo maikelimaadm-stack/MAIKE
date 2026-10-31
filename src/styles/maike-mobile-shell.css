@@ -1165,3 +1165,320 @@
   padding-right: 12px;
   white-space: nowrap;
 }
+
+/* ── Campo de lançamento (LancField) — mesmo padrão .mg-field dos cadastros ── */
+.mk-lanc {
+  min-width: 0;
+  background: transparent;
+}
+
+.mk-lanc + .mk-lanc {
+  margin-top: 6px;
+}
+
+.mk-lanc .mg-field__control :is(input, textarea, button[role="combobox"]) {
+  width: 100%;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--mg-text-1, #334155) !important;
+  font-size: 13px !important;
+  font-weight: 500;
+  text-transform: uppercase;
+  line-height: 1.2;
+  outline: none;
+}
+
+.mk-lanc .mg-field__control button[role="combobox"] {
+  box-sizing: border-box;
+  height: 100% !important;
+  min-height: 0;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 0 10px !important;
+  text-align: left;
+}
+
+.mk-lanc .mg-field.mg-has-value .mg-field__control button[role="combobox"],
+.mk-lanc .mg-field:focus-within .mg-field__control button[role="combobox"] {
+  align-items: flex-end;
+  padding-top: 17px !important;
+  padding-bottom: 5px !important;
+}
+
+/* Sem valor o texto do placeholder some: o rótulo centralizado faz esse papel. */
+.mk-lanc .mg-field:not(.mg-has-value):not(:focus-within) .mg-field__control button[role="combobox"] > span,
+.mk-lanc .mg-field:not(.mg-has-value):not(:focus-within) .mg-field__control input::placeholder {
+  color: transparent !important;
+}
+
+.mk-lanc .mg-field__control button[role="combobox"] > svg {
+  align-self: center;
+  width: 12px;
+  height: 12px;
+  color: #9ca3af;
+  opacity: 1;
+}
+
+.mk-lanc .mg-field__control > div {
+  width: 100%;
+  min-width: 0;
+}
+
+.mk-lanc .mg-field--multiline .mg-field__control {
+  height: auto;
+}
+
+.mk-lanc .mg-field--multiline .mg-field__control textarea {
+  min-height: 64px;
+  padding-top: 17px !important;
+}
+
+.mk-lanc .mg-field.is-invalid {
+  border-color: rgba(239, 68, 68, 0.35);
+  background: #fff;
+  box-shadow: inset 0 0 0 1px rgba(239, 68, 68, 0.12);
+}
+
+@media (max-width: 639px) {
+  .mk-lanc {
+    --mg-field-h: 48px;
+  }
+
+  .mk-lanc .mg-field__label {
+    font-size: 14px;
+  }
+
+  .mk-lanc .mg-field.mg-has-value .mg-field__label,
+  .mk-lanc .mg-field:focus-within .mg-field__label,
+  .mk-lanc .mg-field--multiline .mg-field__label {
+    font-size: 10.5px;
+  }
+
+  .mk-lanc .mg-field__control :is(input, textarea, button[role="combobox"]) {
+    font-size: 16px !important;
+  }
+}
+
+/*
+ * Select genérico (shadcn/Radix) no celular: vira folha de baixo, igual às
+ * outras aberturas. O wrapper do Radix é posicionado por estilo inline; aqui
+ * ele é preso ao rodapé. A sombra gigante faz o fundo escuro (toque fora fecha).
+ */
+@media (max-width: 639px) {
+  [data-radix-popper-content-wrapper]:has(> .mk-select) {
+    position: fixed !important;
+    top: auto !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    transform: none !important;
+    z-index: 95 !important;
+  }
+
+  .mk-select {
+    width: 100% !important;
+    max-height: 62dvh !important;
+    padding: 26px 0 env(safe-area-inset-bottom, 0px);
+    border: 0 !important;
+    border-radius: 18px 18px 0 0 !important;
+    background: #fff !important;
+    box-shadow: 0 0 0 100vmax rgba(0, 0, 0, 0.45), 0 -8px 30px rgba(15, 23, 42, 0.18) !important;
+    transform: none !important;
+    animation: none !important;
+  }
+
+  .mk-select::before {
+    content: "";
+    position: absolute;
+    top: 10px;
+    left: 50%;
+    width: 40px;
+    height: 5px;
+    margin-left: -20px;
+    border-radius: 999px;
+    background: #d1d5db;
+  }
+
+  .mk-select > :not([data-radix-select-viewport]) {
+    display: none;
+  }
+
+  .mk-select [data-radix-select-viewport] {
+    height: auto !important;
+    min-width: 0 !important;
+    max-height: calc(62dvh - 26px);
+    padding: 4px 8px 8px !important;
+  }
+
+  .mk-select .mk-select-item {
+    min-height: 46px;
+    margin: 1px 0;
+    padding: 0 36px 0 12px;
+    border-radius: 10px;
+    color: #334155;
+    font-size: 16px !important;
+    font-weight: 500;
+  }
+
+  .mk-select .mk-select-item[data-state="checked"] {
+    background: rgba(64, 222, 99, 0.12);
+    color: #15803d;
+    font-weight: 600;
+  }
+
+  .mk-select .mk-select-item[data-highlighted] {
+    background: #f1f3f4;
+  }
+
+  .mk-select .mk-select-item > span:first-child {
+    right: 12px;
+    color: #15803d;
+  }
+}
+
+.mgs__sec {
+  display: block;
+  overflow: hidden;
+  color: #6b7280;
+  font-size: 13px;
+  font-weight: 400;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mgs__op .mgs__label > div {
+  color: inherit !important;
+  font-size: 16px !important;
+}
+
+/* B1Select no celular: botão no lugar do select nativo, dentro do .mg-field */
+.cadastro-b1 .mg-field__control .b1-select-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.b1-select-btn__v {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.b1-select-btn__c {
+  flex-shrink: 0;
+  width: 12px;
+  height: 12px;
+  color: #9ca3af;
+}
+
+/* ── Cards: título com o código embaixo (protótipo v2) ─────────────────── */
+.cadastro-b1 .mg-b1-card__head {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cadastro-b1 .mg-b1-card__head .mg-b1-card__title {
+  white-space: nowrap;
+}
+
+.cadastro-b1 .mg-b1-card__sub {
+  color: #6b7280;
+  font-size: 12px;
+}
+
+@media (max-width: 639px) {
+  /* Seleção pelo toque e pelo selo ✓ — sem a bolinha de marcar no canto */
+  .cadastro-b1--full-page .b1-card__select {
+    display: none;
+  }
+
+  .cadastro-b1--full-page .b1-card .pl-7 {
+    padding-left: 0;
+  }
+
+  .cadastro-b1--full-page .mg-b1-card__title {
+    font-size: 14px;
+  }
+
+  .cadastro-b1--full-page .mg-b1-card__fields {
+    font-size: 13px;
+    gap: 6px 14px;
+  }
+}
+
+/* ── Tabela no toque: linhas e cabeçalho de 40px, texto 13px ───────────── */
+@media (max-width: 1023px) {
+  .cadastro-b1 .mg-grid thead th {
+    height: 40px;
+  }
+
+  .cadastro-b1 .mg-grid tbody td {
+    height: 40px;
+    font-size: 13px;
+  }
+}
+
+/*
+ * Botões dos formulários de lançamento no padrão Base1 (pílula): o principal
+ * verde #40de63 com texto branco, os secundários cinza #f1f3f4.
+ */
+form:has(.mk-lanc) button[class*="bg-emerald-6"],
+form:has(.mk-lanc) button[class*="bg-green-6"] {
+  height: var(--mg-btn-h, 28px) !important;
+  padding: 0 14px !important;
+  border: 1px solid transparent !important;
+  border-radius: 999px !important;
+  background: #40de63 !important;
+  color: #fff !important;
+  font-size: 12.5px !important;
+  font-weight: 600 !important;
+  box-shadow: 0 2px 6px rgba(34, 197, 94, 0.3) !important;
+}
+
+form:has(.mk-lanc) button[class*="bg-emerald-6"]:hover:not(:disabled),
+form:has(.mk-lanc) button[class*="bg-green-6"]:hover:not(:disabled) {
+  background: #36c956 !important;
+}
+
+form:has(.mk-lanc) button[class*="border-input"]:not([role="combobox"]):not([class*="border-dashed"]) {
+  height: var(--mg-btn-h, 28px) !important;
+  padding: 0 14px !important;
+  border: 1px solid transparent !important;
+  border-radius: 999px !important;
+  background: #f1f3f4 !important;
+  color: #334155 !important;
+  font-size: 12.5px !important;
+  font-weight: 600 !important;
+  box-shadow: 0 2px 6px rgba(34, 197, 94, 0.3) !important;
+}
+
+form:has(.mk-lanc) button[class*="border-dashed"] {
+  border-radius: 999px !important;
+}
+
+@media (max-width: 639px) {
+  form:has(.mk-lanc) {
+    --mg-btn-h: 44px;
+  }
+
+  form:has(.mk-lanc) button[class*="bg-emerald-6"],
+  form:has(.mk-lanc) button[class*="bg-green-6"],
+  form:has(.mk-lanc) button[class*="border-input"]:not([role="combobox"]) {
+    font-size: 14px !important;
+  }
+}

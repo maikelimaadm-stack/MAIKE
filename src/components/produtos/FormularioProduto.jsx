@@ -11,6 +11,7 @@ import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
 import CadastroFormActions from "@/components/cadastro/base1/CadastroFormActions";
 import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 import { notifyWarning } from "@/lib/maikeNotify";
+import B1Select from "@/components/cadastro/base1/B1Select";
 
 export const FORMULARIO_PRODUTO_ID = "formulario-produto-base1";
 
@@ -215,7 +216,7 @@ export default function FormularioProduto({
         {readOnly ? (
           <input type="text" readOnly value={formData.tipo_uso || "—"} className={B1_FIELD_CTL_CLS} />
         ) : (
-          <select
+          <B1Select
             value={formData.tipo_uso || ""}
             onChange={(e) => handleChange("tipo_uso", e.target.value)}
             className={B1_FIELD_CTL_CLS}
@@ -226,7 +227,7 @@ export default function FormularioProduto({
                 {t.toUpperCase()}
               </option>
             ))}
-          </select>
+          </B1Select>
         )}
       </B1Field>
 
@@ -432,7 +433,7 @@ export default function FormularioProduto({
             {readOnly ? (
               <input type="text" readOnly value={formData.tipo_consumo || "—"} className={B1_FIELD_CTL_CLS} />
             ) : (
-              <select
+              <B1Select
                 value={formData.tipo_consumo || ""}
                 onChange={(e) => handleChange("tipo_consumo", e.target.value)}
                 className={B1_FIELD_CTL_CLS}
@@ -440,7 +441,7 @@ export default function FormularioProduto({
                 <option value="">SELECIONE</option>
                 <option value="CONSUMO_DIARIO">CONSUMO DIÁRIO</option>
                 <option value="CONSUMO_LIVRE">CONSUMO LIVRE</option>
-              </select>
+              </B1Select>
             )}
           </B1Field>
 
@@ -500,14 +501,14 @@ export default function FormularioProduto({
             className={B1_FIELD_CTL_CLS}
           />
         ) : (
-          <select
+          <B1Select
             value={formData.unidade_principal_estoque || "KG"}
             onChange={(e) => handleChange("unidade_principal_estoque", e.target.value)}
             className={B1_FIELD_CTL_CLS}
           >
             <option value="KG">QUILOGRAMAS (KG)</option>
             <option value="SACO">SACOS</option>
-          </select>
+          </B1Select>
         )}
       </B1Field>
 

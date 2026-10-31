@@ -10,17 +10,10 @@ import { toast } from "sonner";
 import CapturaGPSPoligono from "./CapturaGPSPoligono";
 import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 import { comprimentoMetros, toPersistedCoords, parseVertices } from "@/lib/geografia";
+import LancField from "@/components/cadastro/base1/LancField";
 
-const FL = ({ label, required, error, children }) => (
-  <div>
-    <label className="text-[12px] text-slate-500 pl-1 leading-none">
-      {label}{required && <span className="text-red-500 ml-0.5">*</span>}
-    </label>
-    <div className={`rounded-md border ${error ? 'border-red-500 bg-red-50' : 'border-slate-300'} focus-within:border-emerald-500 transition-colors`}>
-      {children}
-    </div>
-  </div>
-);
+/** Campo flutuante Base1 (rótulo dentro) — D-PROD-87. */
+const FL = LancField;
 
 const TIPOS_LINHA = ["Estrada", "Cerca", "Cerca Elétrica", "Rio", "Córrego", "Outro"];
 const CORES_DISPONIVEIS = ["#f59e0b", "#ef4444", "#10b981", "#3b82f6", "#8b5cf6", "#ec4899", "#06b6d4", "#84cc16", "#f97316", "#6366f1"];

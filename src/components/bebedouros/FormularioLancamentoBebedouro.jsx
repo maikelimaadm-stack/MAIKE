@@ -9,19 +9,17 @@ import { getCurrentUser } from "@/services/sessionService";
 import { BEBEDOURO_HISTORICO_STATUS, BEBEDOURO_HISTORICO_TIPOS } from "@/services/bebedouroService";
 import { toast } from "sonner";
 
-import CadastroFormField, {
+import {
   CADASTRO_INPUT_CLS,
   CADASTRO_SELECT_CLS,
   CADASTRO_TEXTAREA_CLS,
 } from "@/components/cadastro/base1/CadastroFormField";
 import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
 import CadastroFormActions from "@/components/cadastro/base1/CadastroFormActions";
+import LancField from "@/components/cadastro/base1/LancField";
 
-const FL = ({ label, required = false, error = false, children }) => (
-  <CadastroFormField label={label} required={required} error={error}>
-    {children}
-  </CadastroFormField>
-);
+/** Campo flutuante Base1 (rótulo dentro) — D-PROD-87. */
+const FL = LancField;
 const INPUT_CLS = CADASTRO_INPUT_CLS;
 const SELECT_CLS = CADASTRO_SELECT_CLS;
 const TEXTAREA_CLS = CADASTRO_TEXTAREA_CLS;

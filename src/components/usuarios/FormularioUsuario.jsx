@@ -1,16 +1,13 @@
 import React, { useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import CadastroFormField, { CADASTRO_INPUT_CLS, CADASTRO_SELECT_CLS } from "@/components/cadastro/base1/CadastroFormField";
+import { CADASTRO_INPUT_CLS, CADASTRO_SELECT_CLS } from "@/components/cadastro/base1/CadastroFormField";
 import CadastroFormShell from "@/components/cadastro/base1/CadastroFormShell";
 import CadastroFormActions from "@/components/cadastro/base1/CadastroFormActions";
 
 const NOME_INPUT_CLS = `${CADASTRO_INPUT_CLS} w-full px-2 uppercase`;
 
-const FL = ({ label, required = false, error = false, children }) => (
-  <CadastroFormField label={label} required={required} error={error}>
-    {children}
-  </CadastroFormField>
-);
+/** Campo flutuante Base1 (rótulo dentro) — D-PROD-87. */
+const FL = LancField;
 const SELECT_CLS = CADASTRO_SELECT_CLS;
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -22,6 +19,7 @@ import { DEFAULT_MENU, getMenuModules } from "@/lib/menuConfig";
 import { DEFAULT_MAPA_GERAL_PERMISSIONS } from "@/lib/mapaGeralPermissions";
 import { createRestrictedPagePermission } from "@/lib/permissions";
 import { getUserDisplayName, isExcludedSystemUser } from "@/lib/userDisplayName";
+import LancField from "@/components/cadastro/base1/LancField";
 
 const MENU_MODULES = getMenuModules(DEFAULT_MENU);
 const RESTRICTED_MAPA_GERAL_PERMISSIONS = Object.fromEntries(

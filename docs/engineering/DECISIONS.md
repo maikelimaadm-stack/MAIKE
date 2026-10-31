@@ -3241,4 +3241,44 @@ Relatório: `docs/engineering/UX-MOBILE-V2-REPORT.md`.
 
 ---
 
-<!-- Próxima decisão: D-PROD-87 -->
+## D-PROD-87 — Paridade com o protótipo v2: campos de lançamento, seletores, cards e grade
+
+**Contexto:** depois da D-PROD-86 o proprietário viu diferenças entre o celular e o protótipo "MAIKE App v2":
+- campos de lançamento;
+- cabeçalhos de filtro;
+- outros detalhes.
+
+A conferência lado a lado (protótipo e sistema, 390px) confirmou as diferenças e as causas:
+- os formulários de lançamento tinham, cada um, um `FL` local com rótulo em cima e borda slate, fora do `.mg-field` Base1;
+- os seletores genéricos (`Select` shadcn, `AutocompleteGenerico` e `<select>` nativo) não abriam na folha de baixo;
+- os cards mostravam todos os campos;
+- a tabela tinha linhas de 26px no toque.
+
+**Decisão:**
+1. **`LancField`:** campo flutuante no padrão `.mg-field` (rótulo dentro, sobe ao focar ou com valor; cinza vazio, branco preenchido; 48px/16px no celular). Os 12 `FL` locais passam a ser `const FL = LancField`:
+   - pesagem, nascimento, morte, abate, mudança de categoria, movimentação e renomear lote;
+   - ponto, linha e tarefa do mapa;
+   - lançamento de bebedouro;
+   - usuário.
+
+   Os botões desses formulários seguem a pílula Base1: principal #40de63, secundário #f1f3f4.
+2. **Seletores no celular, sempre na folha de baixo** (`MobileSheet`/fundo preto):
+   - `Select` shadcn, via CSS sobre o wrapper do Radix;
+   - `AutocompleteGenerico`, com pesquisa, total e teto de 100;
+   - `<select>` nativo, trocado por `B1Select`, que no desktop continua nativo.
+3. **Cards:** código embaixo do título. No celular:
+   - sem a bolinha de marcar (seleção por toque e selo ✓);
+   - 3 campos além de nome e código, por padrão. A escolha salva vale sempre.
+4. **Grade no toque (≤1023px):** linhas e cabeçalho de 40px, texto 13px.
+5. **Resumo:** Listados · Filtrados · Totais · Selecionados.
+6. **Filtro de coluna na folha:** sem título duplicado, como no protótipo.
+
+**Fora:**
+- o formulário de Lotes (motor `DynamicFormRenderer`, com abas e layout configurável próprios);
+- as seções recolhíveis do protótipo, que não existem nos formulários reais.
+
+Relatório: `docs/engineering/UX-MOBILE-V2-REPORT.md` (seção "Paridade 2").
+
+---
+
+<!-- Próxima decisão: D-PROD-88 -->
