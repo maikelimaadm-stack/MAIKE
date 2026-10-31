@@ -183,3 +183,87 @@ Para reverter só a suspensão da exclusão: `EXCLUSAO_NO_HISTORICO_HABILITADA =
   - política com o ledger L1/L2.
 - **R1.1 — demais fontes paginadas por empresa:** suplementação, medicamento, sanidade e manejo técnico com envelope keyset e `total`, substituindo o cache de 500 da conta.
 - **R1.2:** normalização de acento no vínculo legado pelo nome (servidor), se aparecer legado real.
+
+---
+
+## 11. R1.1 — cancelamentos suspensos e Histórico da Área pelo contorno (D-PROD-94a)
+
+**Missão:** MAIKE-MAPA-HISTORICO-MOVIMENTACOES-R1.1-SEGURANCA-E-ACESSO-AREAS.
+- Mesma PR: maikelimaadm-stack/MAIKE#161 (DRAFT).
+- Base: `main` a312f2d1. HEAD auditado: c1e13077 (CI quality SUCCESS, run 41241994010).
+
+### 11.1 Achados confirmados
+
+| # | Achado | Onde |
+|---|---|---|
+| 1 | "Excluir" do cocho chama `excluirEventoSuplementacaoComReversao`. São 5 etapas HTTP independentes (lotes de suplementação, reabrir período, devolver estoque, apagar movimento de estoque, apagar evento), sem transação | `HistoricoSuplementacaoPonto.jsx`, `suplementacaoHistoricoService.js:128-177` |
+| 2 | "Excluir" do depósito chama `excluirTransferenciaDeposito`. Lotes de estoque, saldo da origem e par de movimentos são tratados em etapas independentes | `HistoricoDepositoSuplementacao.jsx`, `suplementacaoHistoricoService.js:180-277` |
+| 3 | `handleClickArea` fazia `if (!isCurral) return;`. `DetalhesArea` retornava `null` fora do curral. Na tela, o histórico de área vazia **não era alcançável**, embora a API suportasse a consulta | `MapaGeral.jsx`, `DetalhesArea.jsx` |
+| 4 | Consumidores das duas rotinas de reversão: **só** os dois históricos (teste por varredura) | — |
+
+### 11.2 Mudanças
+
+- `src/domain/estornos/politicaEstorno.js` (novo):
+  - `CANCELAMENTO_COCHO_HABILITADO = false`;
+  - `CANCELAMENTO_TRANSFERENCIA_DEPOSITO_HABILITADO = false`;
+  - `MENSAGEM_ESTORNO_SUSPENSO`.
+- `HistoricoSuplementacaoPonto.jsx` e `HistoricoDepositoSuplementacao.jsx`:
+  - sem botão "Excluir"; aviso com `role="note"`;
+  - `handleDelete` recusa na primeira linha, antes de `confirm` e da rotina de reversão;
+  - textos verdadeiros: nutrição é consulta, cancelamento suspenso;
+  - listagens, filtros e saldos inalterados.
+- `HistoricoMovimentacoes.jsx`: só o texto da nutrição. `EXCLUSAO_NO_HISTORICO_HABILITADA = false` continua intacto.
+- `src/domain/mapa/cliqueArea.js` (novo): `acaoDoCliqueNaArea`. A precedência é:
+  1. seleção de local de tarefa;
+  2. clique que encerra o toque longo;
+  3. curral;
+  4. área comum, se tiver a permissão.
+- `MapaGeral.jsx`: `handleClickArea` usa a política acima. Passa `permissions` para `DetalhesArea` e remove o `onClose` que `DetalhesArea` nunca usou.
+- `DetalhesArea.jsx`:
+  - área comum → `HistoricoMovimentacoes lotes={[]} areaId`;
+  - curral → abas "Abate" (padrão, `HistoricoAbateCurral` intacto) e "Histórico da Área";
+  - sem a permissão: curral só com abate, área comum sem diálogo.
+- **Sem mudança de backend, schema, migration, saldo ou dados.**
+
+### 11.3 Autorização (contrato registrado)
+
+- Permissão reutilizada: `visualizar_historico_movimentacoes_lote` ("Ver histórico de movimentações"), a mesma que já abre o histórico pelo lote. Nenhum grant novo.
+- **Lacuna de backend, pré-existente e registrada:**
+  - o servidor não aplica as permissões do Mapa Geral (`Permissao.mapa_geral_permissoes` é preferência de interface, D-PROD-71);
+  - `GET /movimentacoes-mapa` já devolvia as mesmas movimentações a qualquer usuário autenticado do tenant, e `GET /movimentacoes-mapa/historico` (R1) não amplia essa exposição;
+  - tenant sempre do token (R11); empresa como escopo dentro do tenant; `cliente_id` na query dá 400 (teste R1).
+- Fechar leitura por permissão no servidor é trabalho de autorização de backend, fora desta PR.
+
+### 11.4 Testes reais
+
+| Comando | Resultado |
+|---|---|
+| `npx vitest run tests/smoke/historicoEstornoSuspenso.test.jsx` | **7/7**. T01 e T02: listagem, aviso, nenhum "Excluir", clique em todos os botões → **0** chamadas a `excluirEventoSuplementacaoComReversao` e `excluirTransferenciaDeposito`; guarda antes de `confirm` e da reversão. T03: só os dois históricos importam a política; consumidores das rotinas = os dois históricos + o serviço |
+| `npx vitest run tests/smoke/detalhesAreaHistorico.test.jsx` | **9/9**. Política do clique (T08, toque longo, T04/T05, T10); pasto vazio com saída antiga consultando por `areaId` sem `loteIds` (T04); vazio verdadeiro (T06); erro + "Tentar novamente"; curral com aba Abate padrão e Histórico da Área sob demanda (T07); sem permissão (T10) |
+| `npx vitest run` (smoke completo) | 97 arquivos, **1124** testes, 0 falhas |
+| `npm run gate:types` | PASSOU, 1243 diagnósticos (antes 1253; teto 1746; nenhum novo) |
+| **E2E real no Chromium** (Vite + backend local + banco `maike_demo` sintético; roteiro `evidencias/historico-movimentacoes/r1-1/roteiro-e2e-r1-1.cjs.txt`) | **57 PASS, 0 FAIL**: 1440 (15), 768 (14), 412 (14), 390 (14). Logs em `r1-1/e2e-*.txt`. T08 roda só no desktop, porque o fluxo depende de clique direito para abrir a tarefa; no toque, a precedência é coberta pelo teste de unidade. Em toda sessão: **nenhum `DELETE`/`PATCH`** disparado e nenhum erro de página |
+| `npm run verify:all` | ver 11.6 |
+
+**Achado durante o E2E:** em 412 e 390, com o mapa afastado, o marcador do depósito ficava sobre o PASTO 5. O toque abriu **só** o depósito: o marcador tem precedência e não abre dois diálogos (T09). O dado sintético foi movido para o roteiro testar a área. A captura do caso ficou em `r1-1/evid-mobile-412-marcador-sobre-area-abre-so-o-deposito.png`.
+
+### 11.5 Capturas (`docs/engineering/evidencias/historico-movimentacoes/r1-1/`, larguras 1440, 768, 412 e 390)
+
+- `01-area-vazia-saida-antiga`: PASTO 5 sem lote, saída de 120 cabeças;
+- `02-area-sem-movimento`: PASTO 10 com vazio verdadeiro;
+- `03-curral-abate` e `04-curral-historico-area`;
+- `05-cocho-cancelamento-suspenso`;
+- `06-deposito-cancelamento-suspenso`;
+- `07-selecao-local-tarefa` (1440): o clique vincula "PASTO 10" à tarefa e não abre histórico.
+
+### 11.6 Gates
+
+`verify:all` local com as variáveis da CI: resultado colado na resposta ao proprietário. CI do HEAD final: link na PR.
+
+### 11.7 O que NÃO foi alterado e riscos abertos
+
+- **Backend continua aceitando `DELETE`/`PATCH` genéricos** para qualquer usuário autenticado do tenant, em `/movimentacoes-mapa/:id`, `/movimentacoes-estoque/:id`, `/suplementacao-eventos/:id`, `/suplementacao-lotes/:id` e demais rotas JSON. A suspensão é **só de interface**; não há estorno seguro implementado nem integridade certificada.
+- O serviço legado `suplementacaoHistoricoService.js` foi mantido sem alteração e sem chamadores ativos.
+- A leitura de histórico não é autorizada por permissão no servidor (lacuna pré-existente, 11.3).
+- Limitações da R1 seguem valendo (seção 8).
+- **Próximo:** R2-ESTORNO-SEGURO, em nova PR, depois do merge manual da #161. Não foi iniciada.
