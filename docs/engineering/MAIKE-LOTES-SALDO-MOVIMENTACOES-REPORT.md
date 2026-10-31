@@ -13,6 +13,66 @@
   - A decisão abaixo fica registrada aqui. Ela entra em `DECISIONS.md` depois
     do merge da #149, para não colidir.
 
+## Mapa sem WebGL: mensagem legível (incluído na PR #154 a pedido do proprietário)
+
+**Sintoma relatado:** o mapa mostrava sempre um JSON técnico:
+`{"type":"webglcontextcreationerror","message":"Failed to initialize WebGL", "statusMessage":"Could not create a WebGL context, ... GL_VENDOR = Disabled ..."}`.
+
+**Causa:** o navegador do computador está com o WebGL desligado
+(`GL_VENDOR = Disabled`). Isso acontece com a aceleração gráfica desligada,
+GPU bloqueada ou o Chrome desativando o WebGL depois de travas do processo de
+vídeo.
+- Não é defeito do app.
+- Conferido: cada mapa é liberado ao fechar (`map.remove()` em
+  `src/lib/maplibre/lifecycle.js` e nos diálogos), sem vazamento de contexto.
+
+**Mudança:** `src/lib/maplibre/falhaWebGL.js`.
+- `navegadorTemWebGL()` testa o WebGL antes de abrir o Mapa Geral; o contexto
+  de teste é liberado em seguida.
+- `mensagemFalhaMapa()` troca a falha de WebGL por uma explicação em
+  português com o que fazer: ativar "Usar aceleração gráfica quando
+  disponível", reiniciar o navegador, atualizar o driver ou testar outro
+  navegador.
+- Aplicado no Mapa Geral e nos 5 mapas de diálogo (desenho, seleção de áreas,
+  depósito, local de tarefa, captura GPS).
+- O botão "Tentar novamente" segue igual.
+
+**Testes:**
+- `maplibreFalhaWebGL.test.js` 4/4, com o JSON real do proprietário;
+- os testes de mapa existentes passam;
+- `maplibreSelecaoDepositoMapa` passou a esperar a mensagem explicativa.
+
+## Editar/excluir só sem histórico (D-PROD-87)
+
+**Pedido do proprietário:** edição e exclusão do lançamento só se não houver
+nada depois da entrada (movimento, manejo ou registro). Com histórico, "não
+fica nem liberado".
+
+**Histórico = qualquer uma destas condições:**
+- lote gerado por manejo;
+- registro que cita o lote (mapa, pecuária, suplementação, tarefa, manejo técnico);
+- estado divergente da entrada (saldo, área ou categoria).
+
+| Cenário | BEFORE (`main` `46664043`, medido) | AFTER |
+|---|---|---|
+| Lote 1 com transferência: PATCH de observações, raça, origem, motivo, data, GTA, idade ou sistema | 200 (o lançamento mudava depois da movimentação) | 409 `LOTE_UPDATE_BLOCKED` (`vinculo: movimentacoes_mapa`), registro intacto |
+| Lote 2 (gerado por manejo): PATCH de origem | 400 (só a classe da origem era checada) | 409 `LOTE_UPDATE_BLOCKED` (`lote_gerado_por_manejo`) |
+| Destino de unificação (recebeu cabeças, sem registro próprio): editar | 200 | 409 (`lote_com_manejo`) |
+| Destino de unificação: excluir | — | 409 `LOTE_DELETE_BLOCKED` (`lote_com_manejo`) |
+| Lote sem nada depois da entrada | 200 / 204 | 200 / 204 (inalterado) |
+| Manejo do mapa no lote com histórico (saldo, status, nome) | 200 | 200 (inalterado) |
+| Tela: Editar/Excluir em lote com histórico | abria a edição / pedia confirmação | aviso "Lote com histórico", nada abre; formulário só leitura |
+
+**Testes:**
+- backend (PostgreSQL 16): `loteDerivadoIntegridade` 23/23 com os arquivos vizinhos;
+  - contra `main`: 3 falham (200, 400, 200);
+  - controles livre e mapa passam nos dois.
+- smoke: `cadastroLotesEntrada` 8/8 e `lotesSaldoMovimentacoes` 33/33.
+
+**Limite conhecido:** nome, status e identificador são escritos também pelo
+mapa (renomear, inativar). O servidor não os bloqueia, para não quebrar os
+manejos; a trava deles é na tela do Cadastro.
+
 ## Cadastro = entrada (slice corretivo pós-#151, D-PROD-85)
 
 **Pedido do proprietário:** o Cadastro de Lotes é o lançamento da entrada do

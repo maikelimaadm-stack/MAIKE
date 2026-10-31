@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Paperclip } from "lucide-react";
 import CadastroBase1Screen from "@/components/cadastro/base1/CadastroBase1Screen";
 import FormularioLote, { FORMULARIO_LOTE_ID } from "@/components/lotes/FormularioLote";
@@ -14,9 +14,10 @@ import {
   criarLote,
   atualizarLote,
   excluirLotes,
+  listarIdsDeLotesComRegistros,
 } from "@/services/loteCadastroService";
 import { persistirAnexosPendentes } from "@/services/anexoService";
-import { ehEntradaNoRebanho } from "@/domain/lotes/saldoLote";
+import { ehEntradaNoRebanho, motivoDeHistoricoDoLote } from "@/domain/lotes/saldoLote";
 import { getApiErrorMessage, hasApiErrorCode, API_ERROR_CODES } from "@/apis/_core/ApiError";
 import {
   notifyError,
@@ -46,6 +47,18 @@ export default function CadastroLotes() {
     const todos = await listarLotes({ empresaId: empresaSelecionadaId, incluirSistema: true });
     return todos.filter(ehEntradaNoRebanho);
   }, [empresaSelecionadaId]);
+
+  // Lote com qualquer registro depois da entrada não é editado nem excluído
+  // pelo Cadastro (D-PROD-87). O servidor também recusa; a tela nem libera.
+  const { data: idsComRegistro } = useQuery({
+    queryKey: ["lotes-cadastro", empresaSelecionadaId, "com-registros"],
+    queryFn: () => listarIdsDeLotesComRegistros(empresaSelecionadaId),
+    enabled: Boolean(empresaSelecionadaId),
+  });
+  const temHistorico = useCallback(
+    (lote) => Boolean(motivoDeHistoricoDoLote(lote, idsComRegistro ?? new Set())),
+    [idsComRegistro],
+  );
 
   const controller = useCadastroBase1FullListController({
     storageKey: STORAGE_KEY,
@@ -235,7 +248,45 @@ export default function CadastroLotes() {
 
   const recordCode = editingRecord?.numero_lote ? String(editingRecord.numero_lote) : undefined;
 
-  const screenController = { ...controller, saving };
+  const avisarHistorico = useCallback((acao) => {
+    notifyWarning(
+      "Lote com histórico",
+      `Este lote já tem movimentação, manejo ou registro depois da entrada: não pode ser ${acao} pelo Cadastro.`,
+    );
+  }, []);
+
+  /** Lote que "Editar" abriria (mesma escolha do controller). */
+  const loteAlvoDaEdicao = () => {
+    if (controller.showForm && controller.editingItem?.id) return controller.editingItem;
+    const id = controller.chrome.selectedIds[0];
+    if (id) return controller.allItems.find((l) => String(l.id) === String(id)) ?? null;
+    return controller.recordNavRows?.[0] ?? null;
+  };
+
+  const editingBloqueado = Boolean(editingRecord?.id && !editingRecord?._isDuplicate && temHistorico(editingRecord));
+
+  const screenController = {
+    ...controller,
+    saving,
+    handleEditSelected: () => {
+      const alvo = loteAlvoDaEdicao();
+      if (alvo?.id && temHistorico(alvo)) {
+        avisarHistorico("editado");
+        return false;
+      }
+      return controller.handleEditSelected();
+    },
+    handleDeleteSelected: () => {
+      const selecionados = controller.allItems.filter((l) =>
+        controller.chrome.selectedIds.some((id) => String(id) === String(l.id)),
+      );
+      if (selecionados.some(temHistorico)) {
+        avisarHistorico("excluído");
+        return;
+      }
+      controller.handleDeleteSelected();
+    },
+  };
 
   return (
     <>
@@ -267,7 +318,7 @@ export default function CadastroLotes() {
             variant="embedded"
             visualVariant="base1"
             toolbarActions
-            readOnly={!controller.isEditing}
+            readOnly={!controller.isEditing || editingBloqueado}
             isSubmitting={saving}
             initialData={controller.editingItem}
             isEditing={!!editingRecord?.id && !editingRecord?._isDuplicate}

@@ -28,6 +28,7 @@ import {
   mesmoId,
   resolverDepositoSelecionado,
 } from "@/lib/maplibre/selecaoDepositoMapa.js";
+import { mensagemFalhaMapa } from "@/lib/maplibre/falhaWebGL";
 
 const CORES_ESTADO = {
   selecionado: DEPOSITO_CORES.SELECIONADO,
@@ -200,7 +201,7 @@ export default function SelecaoDepositoMapa({ cochoCoords, depositoSelecionadoId
           zoom: 17,
         });
       } catch (err) {
-        if (mountedRef.current) setMapError(err?.message || "Falha ao criar mapa (WebGL?)");
+        if (mountedRef.current) setMapError(mensagemFalhaMapa(err, "Falha ao criar o mapa."));
         return;
       }
       const map = created.map;

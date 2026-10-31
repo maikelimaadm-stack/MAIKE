@@ -25,6 +25,7 @@ import {
   parsePickerCoordinate,
   safeCentroid,
 } from "@/lib/maplibre/taskLocationPicker.js";
+import { mensagemFalhaMapa } from "@/lib/maplibre/falhaWebGL";
 
 /**
  * Seletor de local da tarefa — MapLibre M2-B1 (sem Maps JS de terceiros).
@@ -193,7 +194,7 @@ export default function TaskLocationPickerDialog({
         });
       } catch (err) {
         if (mountedRef.current) {
-          setMapError(err?.message || "Falha ao criar mapa (WebGL?)");
+          setMapError(mensagemFalhaMapa(err, "Falha ao criar o mapa."));
         }
         return;
       }

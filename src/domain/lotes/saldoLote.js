@@ -67,3 +67,27 @@ export const entradaHistoricaDoLote = (lote) =>
  * @param {object | null | undefined} lote
  */
 export const ehEntradaNoRebanho = (lote) => !ehLoteDerivadoDeManejo(lote);
+
+/**
+ * O lote já tem algo depois da entrada? (D-PROD-87). Devolve o motivo estável
+ * ou `null`. Com histórico, o Cadastro não edita nem exclui o lançamento —
+ * mesma regra do servidor (`loteService`):
+ * - gerado por manejo (as cabeças vieram de outro lote);
+ * - registro vinculado (movimentação, suplementação, tarefa, manejo técnico);
+ * - estado divergente da entrada (recebeu/perdeu cabeças, mudou de área ou de
+ *   categoria) — pega o destino de uma unificação, que não tem registro próprio.
+ *
+ * @param {Record<string, any> | null | undefined} lote
+ * @param {{ has: (id: string) => boolean }} [idsComRegistro]
+ * @returns {null | 'lote_gerado_por_manejo' | 'registros_vinculados' | 'lote_com_manejo'}
+ */
+export const motivoDeHistoricoDoLote = (lote, idsComRegistro) => {
+  if (!lote) return null;
+  if (ehLoteDerivadoDeManejo(lote)) return 'lote_gerado_por_manejo';
+  if (lote.id && idsComRegistro?.has(String(lote.id))) return 'registros_vinculados';
+  const divergiu =
+    quantidadeDeCabecas(lote.quantidade_cabecas) !== quantidadeDeCabecas(lote.quantidade_entrada) ||
+    (lote.area_atual_id ?? null) !== (lote.area_entrada_id ?? null) ||
+    (Boolean(lote.categoria_manejo_entrada_id) && lote.categoria_manejo_id !== lote.categoria_manejo_entrada_id);
+  return divergiu ? 'lote_com_manejo' : null;
+};

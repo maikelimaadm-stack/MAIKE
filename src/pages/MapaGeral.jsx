@@ -41,6 +41,7 @@ import useBasemap from "../components/mapa/useBasemap";
 import BasemapAtribuicao from "../components/mapa/BasemapAtribuicao";
 import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 import { lerFiltrosMapaGeral, salvarFiltrosMapaGeral } from "@/lib/mapaGeralFiltrosStorage";
+import { mensagemFalhaMapa, navegadorTemWebGL, MENSAGEM_WEBGL_DESLIGADO } from "@/lib/maplibre/falhaWebGL";
 
 export default function MapaGeral() {
   const queryClient = useQueryClient();
@@ -505,15 +506,17 @@ export default function MapaGeral() {
     setMapLoadError(null);
     const t = window.setTimeout(() => {
       if (cancelled || !mapRef.current || mapInstanceRef.current) return;
-      if (typeof window.WebGLRenderingContext === 'undefined') {
-        setMapLoadError('Este navegador não oferece WebGL — o mapa não pode ser exibido aqui.');
+      // Sem WebGL (aceleração gráfica desligada no navegador) o MapLibre falha
+      // com um JSON técnico: explica o que fazer em vez de mostrá-lo.
+      if (!navegadorTemWebGL()) {
+        setMapLoadError(MENSAGEM_WEBGL_DESLIGADO);
         return;
       }
       let created;
       try {
         created = createEditorMap(mapRef.current, { center: CENTRO_PADRAO, zoom: 15 });
       } catch (error) {
-        setMapLoadError(error?.message || 'Não foi possível iniciar o mapa (WebGL indisponível?).');
+        setMapLoadError(mensagemFalhaMapa(error));
         return;
       }
       const map = created.map;

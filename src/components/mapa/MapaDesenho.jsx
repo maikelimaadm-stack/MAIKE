@@ -63,6 +63,7 @@ import {
   resolvePontoIconUrl,
   hitEditLayers,
 } from "@/lib/maplibre/editorInteraction.js";
+import { mensagemFalhaMapa } from "@/lib/maplibre/falhaWebGL";
 
 /**
  * Ponto médio exato da aresta i→i+1 (fecho incluso por módulo).
@@ -400,7 +401,7 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
       });
     } catch (err) {
       if (mountedRef.current) {
-        setMapError(err?.message || "Falha ao criar mapa (WebGL?)");
+        setMapError(mensagemFalhaMapa(err, "Falha ao criar o mapa."));
         toast.error("Erro ao carregar mapa.");
       }
       return undefined;
