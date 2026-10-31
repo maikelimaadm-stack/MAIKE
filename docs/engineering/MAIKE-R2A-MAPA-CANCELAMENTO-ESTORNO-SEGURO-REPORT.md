@@ -46,7 +46,7 @@
 | Transferência total no lugar (legado e novo) | **SUPORTADO_COM_PROVA** | área volta à origem; cabeças e entrada histórica intactas |
 | Transferência parcial com lote novo (`parcial_novo_lote` + `lote_destino_id`) | **SUPORTADO_COM_PROVA** | 500 → 450+50 → 500+0; derivado Inativo, não apagado, `quantidade_entrada` 50 intacta |
 | Transferência parcial unificada (`parcial_unificado`) | **SUPORTADO_COM_PROVA** | 500/100 → 450/150 → 500/100 |
-| Transferência total unificada (`total_unificado`) | **SUPORTADO_COM_PROVA** (mesmo motor da parcial unificada, com a checagem extra de origem 0/Inativo) | ver o teste da parcial unificada; o caminho total tem guarda própria |
+| Transferência total unificada (`total_unificado`) | **SUPORTADO_COM_PROVA** | 500+100 → 0 Inativo/600 → 500 Ativo/100 (teste próprio) |
 | Transferência parcial ou unificada **legada** (sem lote de destino gravado) | **BLOQUEADO_POR_AMBIGUIDADE** | `CANCELAMENTO_VINCULO_AMBIGUO`, nada muda (backend e E2E) |
 | Movimento sem `lote_id` (vínculo só por nome) | **BLOQUEADO_POR_AMBIGUIDADE** | `CANCELAMENTO_VINCULO_AMBIGUO` |
 | Movimento sem prova do efeito no AuditLog (falha no meio do fluxo legado) | **BLOQUEADO_POR_AMBIGUIDADE** | `CANCELAMENTO_EFEITO_NAO_COMPROVADO`: não devolve cabeças que nunca saíram |
@@ -97,7 +97,7 @@
 
 | Comando | Resultado |
 |---|---|
-| `node --test backend/tests/movimentacaoCancelamentoR2A.test.mjs` (PostgreSQL 16 local) | **22/22**. P0 nas 5 rotas, com spoof, outro tenant (404), sem token (401), estoque com nome válido e inválido. P1: Morte, Abate, replay, conflito, recancelamento, comum 403, dependências (mapa e sanidade), efeito não comprovado, legado sem id, tipo sem suporte, transferências (no lugar, parcial nova, parcial unificada, legado ambíguo, saldo insuficiente), concorrência (3 paralelas, mesma chave), rollback por trigger + retry, cancelamento × PATCH de lote, dois tenants com o mesmo nome |
+| `node --test backend/tests/movimentacaoCancelamentoR2A.test.mjs` (PostgreSQL 16 local) | **24/24**. P0 nas 5 rotas, com spoof, outro tenant (404), sem token (401), estoque com nome válido e inválido. P1: Morte, Abate, replay, conflito, recancelamento, comum 403, dependências (mapa e sanidade), efeito não comprovado, legado sem id, tipo sem suporte, transferências (no lugar, parcial nova, parcial unificada, legado ambíguo, saldo insuficiente), concorrência (3 paralelas, mesma chave), rollback por trigger + retry, cancelamento × PATCH de lote, dois tenants com o mesmo nome |
 | `node --test …documentoJsonEmpresaContrato… …movimentacaoMapaNomesArea… …movimentacaoMapaHistoricoPaginado…` | 27/27 (testes da R1 ajustados ao PATCH fechado) |
 | `vitest tests/smoke/cancelamentoMovimentacao.test.jsx` | **8/8**. Admin envia só `operation_id`+`motivo`; resultado desconhecido reenvia a **mesma** chave; recusa definitiva usa chave nova; não elegível não confirma; comum/offline/tipo sem suporte; curral sem Excluir; renomear seguro; varredura sem `DELETE`/`PATCH` de movimento fora da camada de API |
 | `vitest` (smoke completo) | 98 arquivos, **1132** testes |
