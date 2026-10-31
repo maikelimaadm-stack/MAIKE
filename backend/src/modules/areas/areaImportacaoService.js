@@ -30,11 +30,10 @@ import { getPrismaClient } from '../../database/prismaClient.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { AppError } from '../../shared/errors/AppError.js';
 import { executarComIdempotencia, fingerprintDePayload } from '../../shared/idempotency/operacaoIdempotenteService.js';
-import { registrarEvento } from '../auditoria/auditService.js';
+import { registrarEventosEmLote } from '../auditoria/auditService.js';
 import { buscarRegistro as buscarEmpresa } from '../empresas/empresaRepository.js';
-import { reservarNumero } from '../sequencias/entidadeCodigoService.js';
-import { buscarSetor } from '../setores/setorRepository.js';
-import { inserirArea } from './areaPastagemRepository.js';
+import { reservarNumeros } from '../sequencias/entidadeCodigoService.js';
+import { inserirAreasEmLote } from './areaPastagemRepository.js';
 import { comoAreaPublica, ENTIDADE_SEQUENCIA, escopoDaNumeracao } from './areaPastagemService.js';
 import { chaveCanonicaDoContorno, nomeComparavel, validarAnel } from './areaImportacaoGeometria.js';
 import { pendenciasDeCampos, textoLimpo } from './areaImportacaoRegras.js';
@@ -101,12 +100,16 @@ const carregarReferencias = async (db, clienteId, empresaId, itens) => {
     });
   }
   const idsDeSetor = [...new Set(itens.map((i) => textoLimpo(i.setor_id)).filter(Boolean))];
+  // Uma ida ao banco para todos os setores citados (D-PROD-90 R2): com o banco
+  // longe da função, cada consulta custa ~100 ms.
+  const linhasDeSetor = idsDeSetor.length
+    ? await db.setor.findMany({
+        where: { cliente_id: clienteId, id: { in: idsDeSetor } },
+        select: { id: true, nome: true, empresa_id: true, ativo: true },
+      })
+    : [];
   /** @type {Map<string, any>} */
-  const setores = new Map();
-  for (const id of idsDeSetor) {
-    const setor = await buscarSetor(clienteId, id, /** @type {any} */ (db));
-    if (setor) setores.set(id, setor);
-  }
+  const setores = new Map(linhasDeSetor.map((setor) => [setor.id, setor]));
   const existentes = await db.areaPastagem.findMany({
     where: { cliente_id: clienteId, empresa_id: empresaId, ativo: true },
     select: { id: true, nome: true, setor_id: true, numero_area: true, coordenadas: true },
@@ -144,6 +147,17 @@ const validarItem = (item, empresaId, refs, vistosNoPedido) => {
   }
 
   if ('codigo' in geometria) pendencias.push({ campo: 'coords', codigo: geometria.codigo, mensagem: geometria.mensagem });
+  /** @type {Pendencia[]} */
+  const avisos =
+    geometria.ok && geometria.seCruza
+      ? [
+          {
+            campo: 'coords',
+            codigo: 'CONTORNO_SE_CRUZA',
+            mensagem: 'O contorno se cruza ou passa duas vezes pelo mesmo ponto; importado como está no arquivo.',
+          },
+        ]
+      : [];
 
   // Duplicidade: contra o banco (só áreas ativas desta empresa) e dentro do pedido.
   if (geometria.ok) {
@@ -186,7 +200,7 @@ const validarItem = (item, empresaId, refs, vistosNoPedido) => {
   }
 
   if (pendencias.length > 0 || !geometria.ok || !setor) {
-    return { ref: item.ref, ok: false, tamanho_hectares_geodesico: totalHa, pendencias };
+    return { ref: item.ref, ok: false, tamanho_hectares_geodesico: totalHa, pendencias, avisos };
   }
 
   const infraestrutura = uso === 'Infraestrutura';
@@ -195,6 +209,7 @@ const validarItem = (item, empresaId, refs, vistosNoPedido) => {
     ok: true,
     tamanho_hectares_geodesico: totalHa,
     pendencias,
+    avisos,
     registro: {
       empresa_id: empresaId,
       setor_id: setor.id,
@@ -228,11 +243,12 @@ const resumoPublico = (resultados) => ({
   total: resultados.length,
   validas: resultados.filter((r) => r.ok).length,
   com_pendencia: resultados.filter((r) => !r.ok).length,
-  itens: resultados.map(({ ref, ok, tamanho_hectares_geodesico, pendencias }) => ({
+  itens: resultados.map(({ ref, ok, tamanho_hectares_geodesico, pendencias, avisos }) => ({
     ref,
     ok,
     tamanho_hectares_geodesico,
     pendencias,
+    avisos,
   })),
 });
 
@@ -284,41 +300,53 @@ export const importarAreas = async (contexto, entrada) => {
           });
         }
 
-        const importadas = [];
-        for (const r of resultados) {
-          const setor = refs.setores.get(r.registro.setor_id);
-          const numero = await reservarNumero(tx, {
-            clienteId: auth.clienteId,
-            entidade: ENTIDADE_SEQUENCIA,
-            escopoTipo: escopoDaNumeracao(),
-          });
-          const criado = await inserirArea(tx, {
+        // Gravação em bloco (D-PROD-90 R2): número de idas ao banco fixo,
+        // não proporcional às áreas — faixa de números, um INSERT com
+        // RETURNING e uma auditoria em lote. Antes eram ~4 idas por área, e
+        // com o banco a ~120 ms da função 100 áreas levavam ~50 s.
+        const numeros = await reservarNumeros(
+          tx,
+          { clienteId: auth.clienteId, entidade: ENTIDADE_SEQUENCIA, escopoTipo: escopoDaNumeracao() },
+          resultados.length
+        );
+        const refPorNumero = new Map();
+        const linhas = resultados.map((r, i) => {
+          const numero = String(numeros[i]);
+          refPorNumero.set(numero, r.ref);
+          return {
             ...r.registro,
             cliente_id: auth.clienteId,
-            numero_area: String(numero),
-            setor_nome: setor.nome,
-          });
-          const publico = comoAreaPublica(criado);
-          await registrarEvento(
-            contexto,
-            {
-              acao: 'create',
-              entidade: 'AreaPastagem',
-              entidadeId: criado.id,
-              dadosNovos: { ...publico, origem: 'importacao_arquivo', operation_id: operationKey },
-            },
-            tx
-          );
-          importadas.push({
-            ref: r.ref,
+            numero_area: numero,
+            setor_nome: refs.setores.get(r.registro.setor_id).nome,
+          };
+        });
+        const criadas = await inserirAreasEmLote(tx, linhas);
+        if (criadas.length !== linhas.length) {
+          throw new AppError('INTERNAL_ERROR', 'inserção em lote incompleta');
+        }
+        const publicas = criadas.map(comoAreaPublica);
+        await registrarEventosEmLote(
+          contexto,
+          publicas.map((publico) => ({
+            acao: 'create',
+            entidade: 'AreaPastagem',
+            entidadeId: publico.id,
+            dadosNovos: { ...publico, origem: 'importacao_arquivo', operation_id: operationKey },
+          })),
+          tx
+        );
+        const ordem = new Map(resultados.map((r, i) => [r.ref, i]));
+        const importadas = publicas
+          .map((publico) => ({
+            ref: refPorNumero.get(publico.numero_area),
             id: publico.id,
             numero_area: publico.numero_area,
             nome: publico.nome,
             setor_id: publico.setor_id,
             setor_nome: publico.setor_nome,
             tamanho_hectares: publico.tamanho_hectares,
-          });
-        }
+          }))
+          .sort((a, b) => ordem.get(a.ref) - ordem.get(b.ref));
 
         return {
           httpStatus: 201,

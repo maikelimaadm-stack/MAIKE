@@ -119,12 +119,13 @@ export const areaM2DoAnel = (anel) => {
  * Valida o anel recebido no formato persistido `[[lat, lng], ...]`.
  *
  * Recusa em vez de "consertar": vértice fora de faixa, repetido em sequência,
- * menos de 3 vértices distintos, cruzamento de arestas e área degenerada. O
+ * menos de 3 vértices distintos e área degenerada. Cruzamento de arestas NÃO
+ * recusa: volta `seCruza: true` para virar aviso (D-PROD-90 R2). O
  * único ajuste é tirar o vértice de fechamento quando ele repete o primeiro —
  * o mesmo que o adapter do editor faz, sem perder vértice real.
  *
  * @param {unknown} coords
- * @returns {{ ok: true, anel: {lat: number, lng: number}[], areaM2: number, hectares: number }
+ * @returns {{ ok: true, anel: {lat: number, lng: number}[], areaM2: number, hectares: number, seCruza: boolean }
  *   | { ok: false, codigo: string, mensagem: string }}
  */
 export const validarAnel = (coords) => {
@@ -160,17 +161,15 @@ export const validarAnel = (coords) => {
   if (anel.length < 3 || distintos.size < 3) {
     return { ok: false, codigo: 'POLIGONO_DEGENERADO', mensagem: 'O contorno precisa de pelo menos 3 vértices distintos.' };
   }
-  if (distintos.size !== anel.length) {
-    return { ok: false, codigo: 'POLIGONO_AUTOINTERSECAO', mensagem: 'O contorno passa duas vezes pelo mesmo vértice.' };
-  }
-  if (anelSeAutoIntersecta(anel)) {
-    return { ok: false, codigo: 'POLIGONO_AUTOINTERSECAO', mensagem: 'O contorno cruza a si mesmo.' };
-  }
+  // Contorno que se cruza ou passa duas vezes pelo mesmo ponto é IMPORTADO como
+  // está, com aviso (decisão do proprietário, D-PROD-90 R2): é o desenho do
+  // arquivo, e recusar travava a importação. Nada é "consertado".
+  const seCruza = distintos.size !== anel.length || anelSeAutoIntersecta(anel);
   const areaM2 = areaM2DoAnel(anel);
   if (!(areaM2 > AREA_MINIMA_M2)) {
     return { ok: false, codigo: 'POLIGONO_DEGENERADO', mensagem: 'Área nula: vértices colineares ou degenerados.' };
   }
-  return { ok: true, anel, areaM2, hectares: areaM2 / 10000 };
+  return { ok: true, anel, areaM2, hectares: areaM2 / 10000, seCruza };
 };
 
 /**
@@ -188,10 +187,18 @@ export const chaveCanonicaDoContorno = (coords) => {
   if (anel.length >= 2 && mesmoVertice(anel[0], anel[anel.length - 1])) anel.pop();
   if (anel.length < 3) return null;
   const tokens = anel.map((v) => `${v.lat.toFixed(PRECISAO_CHAVE)},${v.lng.toFixed(PRECISAO_CHAVE)}`);
+  // Menor rotação lexicográfica. O menor vértice pode aparecer mais de uma vez
+  // (contorno que passa duas vezes pelo mesmo ponto é aceito desde a R2), então
+  // compara as rotações de TODAS as ocorrências — não só a primeira.
   const rotacionar = (lista) => {
-    let menor = 0;
-    for (let i = 1; i < lista.length; i += 1) if (lista[i] < lista[menor]) menor = i;
-    return [...lista.slice(menor), ...lista.slice(0, menor)].join(';');
+    const minimo = lista.reduce((m, t) => (t < m ? t : m), lista[0]);
+    let melhor = null;
+    for (let i = 0; i < lista.length; i += 1) {
+      if (lista[i] !== minimo) continue;
+      const candidato = [...lista.slice(i), ...lista.slice(0, i)].join(';');
+      if (melhor === null || candidato < melhor) melhor = candidato;
+    }
+    return /** @type {string} */ (melhor);
   };
   const direto = rotacionar(tokens);
   const inverso = rotacionar([...tokens].reverse());

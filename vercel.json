@@ -3,6 +3,7 @@
   "buildCommand": "npm run prisma:generate && npm run build",
   "installCommand": "npm ci",
   "framework": "vite",
+  "regions": ["gru1"],
   "rewrites": [
     {
       "source": "/api/native",

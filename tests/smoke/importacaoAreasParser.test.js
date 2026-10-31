@@ -183,10 +183,15 @@ describe("formato, limites e geometria", () => {
     expect(r).toMatchObject({ ok: false, erro: expect.stringMatching(/maior que/) });
   });
 
-  it("autointerseção, degenerado e fora de faixa são inválidos; repetição em sequência vira aviso", () => {
+  it("degenerado e fora de faixa são inválidos; contorno que se cruza vira aviso (R2); repetição em sequência vira aviso", () => {
     const gravata = [{ lat: 0, lng: 0 }, { lat: 0, lng: 1 }, { lat: 1, lng: 0 }, { lat: 1, lng: 1 }];
     expect(anelSeAutoIntersecta(gravata)).toBe(true);
-    expect(normalizarAnel(gravata)).toMatchObject({ ok: false, motivo: expect.stringMatching(/cruza/) });
+    // Laço assimétrico (tem área): importado com aviso, nada é "consertado".
+    const laco = [{ lat: 0, lng: 0 }, { lat: 0, lng: 0.02 }, { lat: 0.02, lng: 0 }, { lat: 0.015, lng: 0.01 }];
+    const lido = normalizarAnel(laco);
+    expect(lido.ok).toBe(true);
+    expect(lido.vertices).toEqual(laco);
+    expect(lido.avisos.join(" ")).toMatch(/se cruza/);
     expect(normalizarAnel([{ lat: 0, lng: 0 }, { lat: 0, lng: 1 }, { lat: 0, lng: 2 }])).toMatchObject({ ok: false });
     expect(normalizarAnel([{ lat: 91, lng: 0 }, { lat: 0, lng: 1 }, { lat: 1, lng: 1 }])).toMatchObject({
       ok: false,
