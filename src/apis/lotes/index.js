@@ -9,6 +9,8 @@ export {
   listTodasMovimentacoes,
   listHistoricoMovimentacoesPagina,
   filterMovimentacoes,
+  cancelarMovimentacao,
+  consultarElegibilidadeCancelamento,
   createMovimentacao,
   deleteMovimentacao,
   listMovimentacoesPecuarias,

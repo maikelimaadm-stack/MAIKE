@@ -4,6 +4,7 @@
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { querystringListagemEmpresa } from '../../shared/http/listQueryLimit.js';
 import { listar, listarHistorico, criar, atualizar, excluir, HISTORICO_LIMITE_MAXIMO } from './movimentacaoMapaService.js';
+import { cancelar, elegibilidade } from './movimentacaoMapaCancelamentoService.js';
 
 const ID_SCHEMA = {
   params: {
@@ -47,6 +48,23 @@ const HISTORICO_SCHEMA = {
   },
 };
 
+/**
+ * Cancelamento (R2A, D-PROD-95): o corpo só traz a chave idempotente e o motivo;
+ * movimento, lotes, empresa e quantidades são lidos do servidor.
+ */
+const CANCELAMENTO_SCHEMA = {
+  ...ID_SCHEMA,
+  body: {
+    type: 'object',
+    required: ['operation_id', 'motivo'],
+    additionalProperties: false,
+    properties: {
+      operation_id: { type: 'string', minLength: 8, maxLength: 128, pattern: '^[A-Za-z0-9_.:-]+$' },
+      motivo: { type: 'string', minLength: 3, maxLength: 500, pattern: '\\S' },
+    },
+  },
+};
+
 /** @param {import('fastify').FastifyInstance} app */
 export const registrarMovimentacaoMapaRoutes = async (app) => {
   app.get('/movimentacoes-mapa', { onRequest: [app.autenticar], schema: LISTAR_SCHEMA }, async (request) => {
@@ -58,6 +76,19 @@ export const registrarMovimentacaoMapaRoutes = async (app) => {
   app.get('/movimentacoes-mapa/historico', { onRequest: [app.autenticar], schema: HISTORICO_SCHEMA }, async (request) => {
     exigirAuthContext(request.contexto.auth);
     return listarHistorico(request.contexto, /** @type {Record<string, unknown>} */ (request.query ?? {}));
+  });
+
+  app.get('/movimentacoes-mapa/:id/elegibilidade-cancelamento', { onRequest: [app.autenticar], schema: ID_SCHEMA }, async (request) => {
+    exigirAuthContext(request.contexto.auth);
+    const { id } = /** @type {{id: string}} */ (request.params);
+    return elegibilidade(request.contexto, id);
+  });
+
+  app.post('/movimentacoes-mapa/:id/cancelamento', { onRequest: [app.autenticar], schema: CANCELAMENTO_SCHEMA }, async (request, reply) => {
+    exigirAuthContext(request.contexto.auth);
+    const { id } = /** @type {{id: string}} */ (request.params);
+    const { status, body } = await cancelar(request.contexto, id, /** @type {{operation_id: string, motivo: string}} */ (request.body));
+    return reply.status(status).send(body);
   });
 
   app.post('/movimentacoes-mapa', { onRequest: [app.autenticar], schema: CRIAR_SCHEMA }, async (request, reply) => {

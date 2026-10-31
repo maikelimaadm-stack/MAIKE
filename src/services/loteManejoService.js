@@ -19,12 +19,12 @@ import {
   createLote,
   updateLote,
   createMovimentacao,
-  deleteMovimentacao,
-  updateMovimentacao,
   listMovimentacoes,
   listTodasMovimentacoes,
   listHistoricoMovimentacoesPagina,
   filterMovimentacoes,
+  cancelarMovimentacao,
+  consultarElegibilidadeCancelamento,
   filterSuplementacaoLotes,
   createSuplementacaoEvento,
   listSuplementacaoEventos,
@@ -138,8 +138,12 @@ export const listarEventosSuplementacao = () => listSuplementacaoEventos();
 export const criarLote = (dados) => createLote(dados);
 export const atualizarLote = (id, dados) => updateLote(id, dados);
 export const criarMovimentacao = (dados) => createMovimentacao(dados);
-export const excluirMovimentacao = (id) => deleteMovimentacao(id);
-export const atualizarMovimentacao = (id, dados) => updateMovimentacao(id, dados);
+/**
+ * R2A (D-PROD-95): movimento do mapa não se apaga nem se reescreve — o servidor
+ * recusa com MOVIMENTO_CANCELAMENTO_OBRIGATORIO. O caminho é o cancelamento.
+ */
+export const cancelarMovimentacaoMapa = (id, corpo) => cancelarMovimentacao(id, corpo);
+export const consultarCancelamentoMovimentacao = (id) => consultarElegibilidadeCancelamento(id);
 export const criarEventoSuplementacao = (dados) => createSuplementacaoEvento(dados);
 export const registrarSuplementacaoEmLote = (registros) => bulkCreateSuplementacaoLote(registros);
 

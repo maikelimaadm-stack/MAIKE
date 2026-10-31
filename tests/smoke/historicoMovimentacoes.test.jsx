@@ -114,10 +114,8 @@ describe("domínio — escopo da área × escopo do lote", () => {
 
 const servico = vi.hoisted(() => ({
   listarHistoricoMovimentacoesPagina: vi.fn(),
-  listarTodasMovimentacoes: vi.fn(),
-  listarLotesDaEmpresa: vi.fn(),
-  atualizarLote: vi.fn(),
-  excluirMovimentacao: vi.fn(),
+  cancelarMovimentacaoMapa: vi.fn(),
+  consultarCancelamentoMovimentacao: vi.fn(),
 }));
 const cache = vi.hoisted(() => ({
   getMapaCachedData: vi.fn(),
@@ -128,9 +126,8 @@ const empresa = vi.hoisted(() => ({ atual: "emp-1" }));
 
 vi.mock("@/services/loteManejoService", () => servico);
 vi.mock("@/services/mapaCacheService", () => cache);
+vi.mock("@/services/sessionService", () => ({ getCurrentUser: async () => ({ administrador_fazenda: false }), ehAdministrador: (u) => u?.administrador_fazenda === true }));
 vi.mock("@/hooks/useEmpresaSelecionadaId", () => ({ useEmpresaSelecionadaId: () => empresa.atual }));
-vi.mock("@/components/lotes/manejoValidations.jsx", () => ({ validarSemRegistrosPosteriores: vi.fn() }));
-vi.mock("@/components/lotes/movimentacaoReconciliation", () => ({ reverseMovementOnDelete: vi.fn() }));
 
 const { default: HistoricoMovimentacoes } = await import("@/components/lotes/HistoricoMovimentacoes");
 
@@ -178,7 +175,8 @@ describe("HistoricoMovimentacoes — leitura online", () => {
     expect(screen.getAllByText("Saída")).toHaveLength(2);
     expect(screen.getAllByText("Entrada")).toHaveLength(1);
     expect(screen.queryByRole("button", { name: "Excluir" })).toBeNull();
-    expect(screen.getByText(/Exclusão de lançamentos pelo histórico está suspensa/)).toBeTruthy();
+    expect(screen.getAllByText("Ativo")).toHaveLength(3);
+    expect(screen.queryByRole("button", { name: "Cancelar movimentação" })).toBeNull(); // usuário comum
     expect(servico.listarHistoricoMovimentacoesPagina).toHaveBeenCalledWith(
       expect.objectContaining({ empresaId: EMP, areaId: "area-A", cursor: null, limit: 100 })
     );
@@ -232,7 +230,7 @@ describe("HistoricoMovimentacoes — leitura online", () => {
     renderizar();
     await screen.findByText("Movimentações: 3 de 3");
     const chamadas = servico.listarHistoricoMovimentacoesPagina.mock.calls.length;
-    await new Promise((r) => setTimeout(r, 50));
+    await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
     expect(servico.listarHistoricoMovimentacoesPagina.mock.calls.length).toBe(chamadas);
     act(() => {
       window.dispatchEvent(new CustomEvent("atualizar-mapa"));

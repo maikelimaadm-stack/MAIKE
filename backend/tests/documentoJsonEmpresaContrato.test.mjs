@@ -127,20 +127,22 @@ describe('MovimentacaoMapa — registros reais sem empresa_id em dados', () => {
     assert.equal(r.json()[0].cliente_id, undefined);
   });
 
+  // R2A (D-PROD-95): MovimentacaoMapa não aceita mais PATCH (cancelamento). O
+  // contrato do serializador no update segue provado numa rota JSON sem saldo.
   test('PATCH sem empresa_id no corpo preserva a coluna (antes: 400 empresa_id é obrigatório)', async () => {
     const { token, empresa } = await cenario();
     const criado = await app.inject({
       method: 'POST',
-      url: '/movimentacoes-mapa',
+      url: '/eventos-sanitarios',
       headers: auth(token),
-      payload: { empresa_id: empresa.id, tipo: 'Pesagem', lote: 'L1', observacoes: 'antes' },
+      payload: { empresa_id: empresa.id, tipo_evento: 'Vacinação', lote: 'L1', observacoes: 'antes' },
     });
     const id = criado.json().id;
-    const r = await app.inject({ method: 'PATCH', url: `/movimentacoes-mapa/${id}`, headers: auth(token), payload: { observacoes: 'depois' } });
+    const r = await app.inject({ method: 'PATCH', url: `/eventos-sanitarios/${id}`, headers: auth(token), payload: { observacoes: 'depois' } });
     assert.equal(r.statusCode, 200, r.body);
     assert.equal(r.json().empresa_id, empresa.id);
     assert.equal(r.json().observacoes, 'depois');
-    const linha = await getPrismaClient().movimentacaoMapa.findFirst({ where: { id } });
+    const linha = await getPrismaClient().eventoSanitario.findFirst({ where: { id } });
     assert.equal(linha.empresa_id, empresa.id);
     assert.equal(/** @type {any} */ (linha.dados).empresa_id, undefined, 'empresa_id continua só na coluna');
   });

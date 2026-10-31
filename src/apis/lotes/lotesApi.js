@@ -14,7 +14,10 @@ import {
   updateMovimentacaoMapaNativa,
   deleteMovimentacaoMapaNativa,
   listHistoricoMovimentacoesMapaNativo,
+  cancelarMovimentacaoMapa,
+  elegibilidadeCancelamentoMovimentacaoMapa,
 } from '@/apis/movimentacoes-mapa';
+import { ehMovimentoAtivo } from '@/domain/lotes/situacaoMovimento';
 import { listMovimentacoesPecuariaNativas } from '@/apis/movimentacoes-pecuaria';
 import {
   listSuplementacaoEventosNativos,
@@ -105,7 +108,25 @@ export const filterMovimentacoes = async (criterio, opcoes = {}) => {
   assertArgument(isObjeto(criterio), 'criterio', contexto);
   const ordem = opcoes.order ?? MOVIMENTACAO_DEFAULT_ORDER;
   const limite = opcoes.limit ?? 200;
-  return comoLista(await runProviderCall(() => filterMovimentacoesMapaNativas(criterio, ordem, limite), contexto));
+  // Cancelado não tem efeito atual: fica fora da ordem temporal do lote (R2A).
+  return comoLista(await runProviderCall(() => filterMovimentacoesMapaNativas(criterio, ordem, limite), contexto)).filter(ehMovimentoAtivo);
+};
+
+/**
+ * Cancelamento server-side (R2A, D-PROD-95). Só `operation_id` e `motivo` vão no
+ * corpo; o servidor lê movimento, lotes e quantidades. Sem fila offline.
+ */
+export const cancelarMovimentacao = async (id, { operation_id, motivo }) => {
+  const contexto = ctx('cancelarMovimentacao');
+  assertArgument(isId(id), 'id', contexto);
+  assertArgument(isId(operation_id) && isId(motivo), 'corpo', contexto);
+  return runProviderCall(() => cancelarMovimentacaoMapa(id, { operation_id, motivo }), { ...contexto, details: { id } });
+};
+
+export const consultarElegibilidadeCancelamento = async (id) => {
+  const contexto = ctx('consultarElegibilidadeCancelamento');
+  assertArgument(isId(id), 'id', contexto);
+  return runProviderCall(() => elegibilidadeCancelamentoMovimentacaoMapa(id), { ...contexto, details: { id } });
 };
 
 export const createMovimentacao = async (dados) => {

@@ -6,12 +6,12 @@ import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { AppError } from '../../shared/errors/AppError.js';
 import { registrarEvento } from '../auditoria/auditService.js';
 import { documentoComoPublico, montarDocumento } from '../../shared/jsonDocument/jsonDocumentPublic.js';
+import { exigirNumerosOuNulo, exigirSomenteCamposPermitidos, movimentoExigeCancelamento } from '../../shared/operacional/protecaoOperacional.js';
 import {
   listarRegistros,
   buscarRegistro,
   inserirRegistro,
   atualizarRegistroPorId,
-  excluirRegistroPorId,
 } from './suplementacaoEventoRepository.js';
 
 const ENTIDADE = 'SuplementacaoEvento';
@@ -57,12 +57,21 @@ export const criarEmLote = async (contexto, registros) => {
   return criados.map(documentoComoPublico);
 };
 
+/**
+ * R2A (D-PROD-95): o evento compõe saída de estoque e rateio por lote. PATCH só
+ * aceita as métricas de fechamento/reabertura de período (sobra, dias, consumo diário do grupo), que não mexem
+ * em saldo; qualquer outro campo → REGISTRO_OPERACIONAL_IMUTAVEL, nada gravado.
+ */
+export const CAMPOS_PATCH_PERMITIDOS = Object.freeze(['sobra_kg', 'dias_periodo', 'consumo_diario_grupo_kg']);
+
 export const atualizar = async (contexto, id, entrada) => {
   const auth = exigirAuthContext(contexto?.auth);
   const prisma = getPrismaClient();
   const atualizado = await prisma.$transaction(async (tx) => {
     const existente = await buscarRegistro(auth.clienteId, id, tx);
     if (!existente) throw erroNaoEncontrado();
+    exigirSomenteCamposPermitidos(entrada, CAMPOS_PATCH_PERMITIDOS, { entidade: ENTIDADE, empresaAtual: existente.empresa_id });
+    exigirNumerosOuNulo(entrada, ENTIDADE);
     const patch = montarDocumento(auth.clienteId, { ...documentoComoPublico(existente), ...entrada }, { atualizacao: true, id, dadosAnteriores: existente.dados });
     const registro = await atualizarRegistroPorId(tx, auth.clienteId, id, patch);
     await registrarEvento(
@@ -81,17 +90,11 @@ export const atualizar = async (contexto, id, entrada) => {
   return documentoComoPublico(atualizado);
 };
 
+/** R2A (D-PROD-95): DELETE desmontaria o evento sem devolver estoque — nada é removido. */
 export const excluir = async (contexto, id) => {
   const auth = exigirAuthContext(contexto?.auth);
-  const prisma = getPrismaClient();
-  await prisma.$transaction(async (tx) => {
-    const existente = await buscarRegistro(auth.clienteId, id, tx);
-    if (!existente) throw erroNaoEncontrado();
-    await excluirRegistroPorId(tx, auth.clienteId, id);
-    await registrarEvento(
-      contexto,
-      { acao: 'delete', entidade: ENTIDADE, entidadeId: id, dadosAnteriores: documentoComoPublico(existente) },
-      tx
-    );
-  });
+  const existente = await buscarRegistro(auth.clienteId, id);
+  if (!existente) throw erroNaoEncontrado();
+  throw movimentoExigeCancelamento(ENTIDADE);
 };
+

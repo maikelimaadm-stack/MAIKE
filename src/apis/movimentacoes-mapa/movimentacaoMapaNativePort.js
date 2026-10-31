@@ -68,6 +68,20 @@ export const listarHistoricoMovimentacoesMapaPagina = (filtros) => {
   return nativeRequest(`${CAMINHO}/historico?${params}`, { autenticado: true }, ctx('listarHistoricoMovimentacaoMapa'));
 };
 
+/**
+ * Cancelamento e elegibilidade (R2A, D-PROD-95) — só online, fora da fila
+ * offline: um cancelamento nunca é enfileirado para replay.
+ */
+export const cancelarMovimentacaoMapaNativa = (id, corpo) =>
+  nativeRequest(
+    `${CAMINHO}/${encodeURIComponent(id)}/cancelamento`,
+    { method: 'POST', body: corpo, autenticado: true },
+    ctx('cancelarMovimentacaoMapa')
+  );
+
+export const elegibilidadeCancelamentoMovimentacaoMapaNativa = (id) =>
+  nativeRequest(`${CAMINHO}/${encodeURIComponent(id)}/elegibilidade-cancelamento`, { autenticado: true }, ctx('elegibilidadeCancelamentoMovimentacaoMapa'));
+
 export const movimentacaoMapaPort = offlineStorageDisponivel()
   ? createOfflineEntityAdapter({
       entityName: ENTIDADE_OFFLINE,

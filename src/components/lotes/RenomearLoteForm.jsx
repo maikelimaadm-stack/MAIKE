@@ -3,7 +3,6 @@ import {
   listarTodasMovimentacoes,
   atualizarLote,
   criarMovimentacao,
-  excluirMovimentacao,
 } from "@/services/loteManejoService";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -29,7 +28,8 @@ export default function RenomearLoteForm({ lote, novoNome, onNovoNomeChange, emp
       return all.filter(m =>
         m.empresa_id === empresaSelecionadaId &&
         m.lote_id === lote.id &&
-        m.motivo === 'Renomear Lote'
+        m.motivo === 'Renomear Lote' &&
+        m.situacao !== 'cancelado'
       ).sort((a, b) => new Date(b.data_movimentacao) - new Date(a.data_movimentacao));
     },
     enabled: !!lote.id,
@@ -69,22 +69,11 @@ export default function RenomearLoteForm({ lote, novoNome, onNovoNomeChange, emp
     onClose();
   };
 
-  const handleReverter = async () => {
-    if (!nomeOriginal) return;
-    if (!confirm(`Reverter o nome do lote para "${nomeOriginal}"? Todas as renomeações serão excluídas.`)) return;
-    
-    setLoading(true);
-    // Voltar ao nome original
-    await atualizarLote(lote.id, { nome: nomeOriginal });
-    
-    // Excluir todas as movimentações de renomear deste lote
-    for (const ren of renomeacoes) {
-      await excluirMovimentacao(ren.id);
-    }
-    
-    toast.success(`Nome revertido para "${nomeOriginal}"`);
-    setLoading(false);
-    onClose();
+  // R2A (D-PROD-95): "reverter" apagava TODAS as renomeações em laço, sem
+  // transação. Agora volta ao nome original por uma renomeação NORMAL nova
+  // (registro novo, histórico preservado): o botão só preenche o campo.
+  const usarNomeOriginal = () => {
+    if (nomeOriginal) onNovoNomeChange(nomeOriginal);
   };
 
   return (
@@ -93,19 +82,22 @@ export default function RenomearLoteForm({ lote, novoNome, onNovoNomeChange, emp
 
       {nomeOriginal && nomeOriginal !== lote.nome && (
         <div className="p-2 bg-amber-50 border border-amber-200 rounded-md">
-          <p className="text-xs text-amber-800 mb-2">
+          <div className="text-xs text-amber-800 mb-2">
             Nome original: <Badge variant="outline" className="ml-1 text-xs">{nomeOriginal}</Badge>
-          </p>
+          </div>
           <Button 
             variant="outline" 
             size="sm" 
             className="h-7 text-xs gap-1 border-amber-300 text-amber-700 hover:bg-amber-100"
-            onClick={handleReverter}
+            onClick={usarNomeOriginal}
             disabled={loading}
           >
             <Undo2 className="w-3 h-3" />
-            Reverter para nome original
+            Usar nome original
           </Button>
+          <p className="mt-1 text-[10px] text-amber-700">
+            Salvar cria uma nova renomeação; as anteriores continuam no histórico.
+          </p>
         </div>
       )}
 

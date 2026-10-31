@@ -238,6 +238,11 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
             identificador_cor: lote.identificador_cor || null,
           };
 
+          // R2A (D-PROD-95): o movimento grava o modo e o lote de destino reais,
+          // para o cancelamento server-side provar o vínculo sem adivinhar por nome.
+          const vinculoDestino = loteExistente
+            ? { modo_transferencia: 'total_unificado', lote_destino_id: loteExistente.id }
+            : { modo_transferencia: 'total_no_lugar', lote_destino_id: lote.id };
           if (loteExistente) {
             const loteDestinoAtualizado = await atualizarLote(loteExistente.id, {
               quantidade_cabecas: (loteExistente.quantidade_cabecas || 0) + (lote.quantidade_cabecas || 0),
@@ -265,7 +270,8 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
             area_destino_id: formData.area_entrada_id,
             area_destino_nome: areaEntrada?.nome || '',
             usuario_responsavel: user?.email || null,
-            observacoes: `Movimentação completa do lote - ${lote.quantidade_cabecas} cabeças`
+            observacoes: `Movimentação completa do lote - ${lote.quantidade_cabecas} cabeças`,
+            ...vinculoDestino
           });
           movimentacoesCriadas.push(movimentacaoCriada);
         }
@@ -295,7 +301,12 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
               identificador_cor: lote.identificador_cor || null,
             };
 
+            /** R2A: modo e lote de destino reais, gravados no movimento. */
+            let vinculoDestino = null;
             if (modoDaMovimentacao(quantidadeMover, lote.quantidade_cabecas) === 'total') {
+              vinculoDestino = loteExistente
+                ? { modo_transferencia: 'total_unificado', lote_destino_id: loteExistente.id }
+                : { modo_transferencia: 'total_no_lugar', lote_destino_id: lote.id };
               if (loteExistente) {
                 // Unificar automaticamente com lote existente de mesmo nome+categoria
                 const loteDestinoAtualizado = await atualizarLote(loteExistente.id, {
@@ -317,6 +328,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
               }
             } else {
               if (loteExistente) {
+                vinculoDestino = { modo_transferencia: 'parcial_unificado', lote_destino_id: loteExistente.id };
                 const loteDestinoAtualizado = await atualizarLote(loteExistente.id, {
                   quantidade_cabecas: (loteExistente.quantidade_cabecas || 0) + quantidadeMover,
                   ...identificadorPayload
@@ -354,6 +366,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
                   status: 'Ativo'
                 });
                 lotesDestinoAtivos.push(novoLote);
+                vinculoDestino = novoLote?.id ? { modo_transferencia: 'parcial_novo_lote', lote_destino_id: novoLote.id } : null;
               }
 
               const saldoOrigem = saldoEStatusDaOrigem(lote, quantidadeMover);
@@ -374,7 +387,8 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
               area_destino_id: formData.area_entrada_id,
               area_destino_nome: areaEntrada?.nome || '',
               usuario_responsavel: user?.email || null,
-              observacoes: `Movimentação parcial - ${quantidadeMover} cabeças de ${mov.categoria}`
+              observacoes: `Movimentação parcial - ${quantidadeMover} cabeças de ${mov.categoria}`,
+              ...(vinculoDestino || {})
             });
             movimentacoesCriadas.push(movimentacaoCriada);
 

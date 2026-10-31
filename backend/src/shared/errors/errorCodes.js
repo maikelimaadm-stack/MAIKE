@@ -170,6 +170,10 @@ export const BACKEND_ONLY_CODES = Object.freeze({
     http: 409,
     meaning: 'produto possui movimentações de estoque e não pode ser excluído',
   },
+  // R2A (D-PROD-95): declarados para o 404 entre tenants não virar 500.
+  MOVIMENTACAOMAPA_NOT_FOUND: { http: 404, meaning: 'id não identifica movimentação do mapa deste tenant' },
+  MOVIMENTACAOPECUARIA_NOT_FOUND: { http: 404, meaning: 'id não identifica movimentação pecuária deste tenant' },
+  SUPLEMENTACAOLOTE_NOT_FOUND: { http: 404, meaning: 'id não identifica lote de suplementação deste tenant' },
   MOVIMENTACAO_ESTOQUE_NOT_FOUND: {
     http: 404,
     meaning: 'id não identifica movimentação de estoque deste tenant',
@@ -191,6 +195,52 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   AREA_IMPORT_LIMIT_EXCEEDED: {
     http: 413,
     meaning: 'importação de áreas acima do limite de itens ou vértices por pedido',
+  },
+  // R2A (D-PROD-95) — registros operacionais não se apagam nem se reescrevem
+  // por rota genérica; o caminho é o cancelamento server-side.
+  MOVIMENTO_CANCELAMENTO_OBRIGATORIO: {
+    http: 409,
+    meaning: 'movimento operacional não é excluído nem alterado diretamente; use o cancelamento',
+  },
+  REGISTRO_OPERACIONAL_IMUTAVEL: {
+    http: 409,
+    meaning: 'campo operacional (quantidade, tipo, vínculo, data, custo, saldo) não é alterável por PATCH genérico',
+  },
+  CAMPO_RESERVADO_CANCELAMENTO: {
+    http: 400,
+    meaning: 'campos de situação/cancelamento são do servidor e não aceitos no corpo',
+  },
+  NOME_LOCAL_DIVERGENTE: {
+    http: 422,
+    meaning: 'nome de local informado não corresponde ao local de estoque vinculado ao movimento',
+  },
+  CANCELAMENTO_TIPO_NAO_SUPORTADO: {
+    http: 409,
+    meaning: 'tipo de movimentação ainda sem cancelamento seguro; nada foi alterado',
+  },
+  CANCELAMENTO_VINCULO_AMBIGUO: {
+    http: 409,
+    meaning: 'não há prova do lote de destino/origem do movimento; nada foi alterado',
+  },
+  CANCELAMENTO_DEPENDENCIA_POSTERIOR: {
+    http: 409,
+    meaning: 'há registro posterior ligado ao lote ou à área; cancele-o antes; nada foi alterado',
+  },
+  CANCELAMENTO_JA_REALIZADO: {
+    http: 409,
+    meaning: 'a movimentação já está cancelada',
+  },
+  CANCELAMENTO_ESTADO_DIVERGENTE: {
+    http: 409,
+    meaning: 'o estado atual dos lotes não corresponde ao efeito do movimento; nada foi alterado',
+  },
+  CANCELAMENTO_EFEITO_NAO_COMPROVADO: {
+    http: 409,
+    meaning: 'não há registro de auditoria provando que o movimento alterou os lotes; nada foi alterado',
+  },
+  CANCELAMENTO_SALDO_INSUFICIENTE: {
+    http: 409,
+    meaning: 'o lote não tem saldo para devolver as cabeças; nada foi alterado',
   },
   IDEMPOTENCY_CONFLICT: {
     http: 409,

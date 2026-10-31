@@ -5,4 +5,6 @@ export {
   updateMovimentacaoMapaNativa,
   deleteMovimentacaoMapaNativa,
   listHistoricoMovimentacoesMapaNativo,
+  cancelarMovimentacaoMapa,
+  elegibilidadeCancelamentoMovimentacaoMapa,
 } from './movimentacoesMapaApi.js';

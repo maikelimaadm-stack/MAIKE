@@ -27,7 +27,8 @@ const semAcento = (valor) =>
  * Origens de lote gerado por manejo a partir de cabeças que já estavam no
  * rebanho (comparadas sem acento e sem caixa). "EDIÇÃO MOVIMENTAÇÃO" é a
  * recomposição criada ao editar/desfazer uma movimentação
- * (`movimentacaoReconciliation`). Nascimento NÃO entra: são cabeças novas,
+ * (o antigo `movimentacaoReconciliation`, removido na R2A; lotes legados com
+ * essa origem continuam). Nascimento NÃO entra: são cabeças novas,
  * uma entrada de verdade. Mesma lista do servidor
  * (`backend/src/modules/lotes/loteOrigem.js`).
  */
