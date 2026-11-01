@@ -3563,7 +3563,61 @@ Relatório: `docs/engineering/MAIKE-MAPA-HISTORICO-MOVIMENTACOES-R1-REPORT.md` (
 
 ---
 
-## D-PROD-95 — R2A: registros operacionais fechados no servidor; cancelamento transacional de movimentação do mapa
+## D-PROD-95 — Celular no padrão iOS / app do Claude: folha com dois tamanhos, + que cadastra, Enter = Tab e chave do iOS
+
+**Missão:** UX-MOBILE-V4. Pedidos do proprietário, com prints do app do Claude no iPhone (Uso, Adicionar contexto, menu ⋯, Compartilhar sessão).
+
+**Decisão:**
+1. **Folha de baixo (`MobileSheet`)**:
+   - **média** (62%): cartão flutuante, 8 px de margem e os quatro cantos redondos;
+   - **grande**: sobe até perto do topo e encosta nas bordas, com os cantos de cima redondos;
+   - arrasta-se pela alça, pelo cabeçalho ou pela própria lista quando ela está no topo. Para cima expande; para baixo reduz ou fecha. Velocidade também conta;
+   - entra e sai com a curva do iOS;
+   - o cabeçalho aceita `headerAction` à direita (o + ou o ✓);
+   - `initialLarge` abre direto grande.
+2. **Listas de opções agrupadas:** um cartão branco com linhas divisórias e ✓ verde na escolhida, em vez de um cartão por opção. Vale para MgSelect, B1Select, AutocompleteGenerico, select do Radix, filtro por campo, menu da coluna e Trocar empresa.
+3. **Menus** (Mais opções ⚡ e menu do usuário): vidro claro com desfoque, cantos de 26 px, itens de 50 px e entrada com escala. O ⚡ **continua no lugar** (o proprietário corrigiu a primeira tentativa, que o tinha levado ao cabeçalho).
+4. **+ da lista cadastra um novo** (`AutocompleteGenerico.onCreateNew`):
+   - no celular, o + fica à direita do título da folha; no desktop, "+ Novo …" aparece no fim da lista;
+   - abre o formulário da própria entidade em folha grande (`CadastroRapidoSheet`). O formulário atual não é perdido;
+   - ao salvar, o item novo já fica escolhido;
+   - ligado no Lote: Setor (`CadastroRapidoSetor`) e Categoria de Manejo (`CadastroRapidoCategoriaManejo`);
+   - a lista de categorias oficiais saiu da página para `useCategoriasOficiaisDisponiveis`, usado pela página e pelo cadastro rápido.
+5. **Botões:**
+   - Novo (+) e Salvar (✓): ícone verde sobre o fundo cinza das ações, em todos os tamanhos;
+   - na barra do celular, os botões passam de 44 para 38 px;
+   - ✕ Descartar à esquerda e ✓ Salvar na ponta direita;
+   - no celular, o registro em edição/novo leva ✕ e ✓ para o cabeçalho do app (título ao centro), e o formulário entra de baixo, como uma folha;
+   - todos os botões encolhem ao toque.
+6. **Teclado** (`src/lib/tecladoFormulario.js`, instalado no `Layout`):
+   - Enter num campo de formulário vai para o próximo campo, e no último chama `requestSubmit`. Quem já trata o Enter (autocomplete, pesquisa) fica de fora; textarea mantém a quebra de linha;
+   - `type="number"` ganha `inputmode="decimal"`;
+   - a tecla do teclado mostra Próximo ou OK (`enterkeyhint`).
+7. **Deslizar da borda esquerda volta** (`useDeslizarParaVoltar`): só no celular. Faz o mesmo que o voltar do cabeçalho (registro → lista, tela → módulo) e a tela acompanha o dedo. Fica desligado com folha aberta e no mapa.
+8. **Chave Ativo do iOS** (print dos Ajustes do iPhone, "Modo Avião"):
+   - trilho largo (64×30 no toque, 50×24 no desktop), bolinha em cápsula com sombra, cinza claro desligada e verde ligada;
+   - a cápsula estica ao pressionar;
+   - no celular a linha fica como nos Ajustes: rótulo à esquerda e chave na ponta direita;
+   - sem o texto "Sim/Não" (`B1Switch`/`B1ChaveRow` agora têm `showText=false` por padrão);
+   - `ToggleSwitch` (formulário dinâmico) segue o mesmo desenho.
+9. **Campos:**
+   - ícone do tipo à direita só onde o campo abre algo: seleção e lista ▾, data e hora (calendário e relógio). Campo de digitação (texto, número) fica sem ícone, como pedido;
+   - o valor do B1Select segue o recuo do rótulo flutuante;
+   - data e hora ocupam a largura toda, com o indicador nativo invisível sobre o ícone;
+   - número sem as setinhas.
+10. **Anexos:**
+    - a janela virou a folha padrão: ✕, título, + verde, nome do anexo numa pílula e a lista agrupada com o selo "Pendente";
+    - nos Lotes, Anexos saiu da barra e foi para **Mais opções**. Um item com `whileEditing` continua no menu durante a edição, o que permite anexar ao lote novo.
+
+**Fora do escopo:** cadastro rápido para outras listas (Raça, Fornecedor, Marca…). A infraestrutura (`onCreateNew` + `CadastroRapidoSheet`) está pronta; cada uma é ligada quando houver formulário reaproveitável.
+
+Relatório: `docs/engineering/UX-MOBILE-V2-REPORT.md` (seção V4). Teste: `tests/smoke/mobileV4Ios.test.jsx`.
+
+---
+
+> **Colisão de numeração (registrada, não resolvida aqui):** a maikelimaadm-stack/MAIKE#163 (UX-MOBILE-V4) entrou em `main` com o mesmo identificador **D-PROD-95**, enquanto esta R2A estava em revisão na #162. Renumerar exige decisão do proprietário. Até lá, nesta PR, "D-PROD-95 (R2A)" e "D-PROD-95a" referem-se às duas seções abaixo, e "D-PROD-95 (UX-MOBILE-V4)" à seção acima. D-PROD-96 continua livre.
+
+## D-PROD-95 (R2A) — R2A: registros operacionais fechados no servidor; cancelamento transacional de movimentação do mapa
 
 **Missão:** MAIKE-R2A-MAPA-CANCELAMENTO-ESTORNO-SEGURO-BACKEND-01. Base: `main` d2cba91 (merge da #161). Sem migration, sem escrita em produção, sem ledger.
 

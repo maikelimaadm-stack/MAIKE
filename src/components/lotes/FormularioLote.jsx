@@ -13,6 +13,8 @@ import {
 } from "@/services/loteCadastroService";
 import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 import AutocompleteGenerico from "@/components/financeiro/AutocompleteGenerico";
+import CadastroRapidoSetor from "@/components/setores/CadastroRapidoSetor";
+import CadastroRapidoCategoriaManejo from "@/components/categorias-manejo/CadastroRapidoCategoriaManejo";
 import TopNoticeDialog from "@/components/common/TopNoticeDialog";
 import LegacyRecordToolbar from "./LegacyRecordToolbar.jsx";
 import LegacyTabs from "./LegacyTabs.jsx";
@@ -127,6 +129,8 @@ export default function FormularioLote({
     try {return JSON.parse(saved);} catch {return null;}
   });
   const [isDirty, setIsDirty] = useState(!isEditing || isDuplicating);
+  // + das listas de Setor e Categoria de Manejo: cadastro rápido sem sair do lote (D-PROD-95).
+  const [cadastroRapido, setCadastroRapido] = useState(/** @type {null | { tipo: "setor" | "categoria", nome: string }} */ (null));
   const [editMode, setEditMode] = useState(!isEditing || isDuplicating || embedded);
   // Função rápida para garantir que a data de edição vá para o formato AAAA-MM-DD
   const carregarDataEntrada = (data) => {
@@ -443,7 +447,7 @@ export default function FormularioLote({
   { id: "data_entrada", name: "data_entrada", label: "Data de Entrada", type: "date", required: true, compact: true, errorKey: "data_entrada" },
   // Em edição, setor e área de entrada são registro histórico: trocar o setor
   // apagaria a área de entrada (só leitura) e travaria o salvar.
-  { id: "setor_id", name: "setor_id", label: "Setor", type: "autocomplete", required: true, readOnly: quantidadesSomenteLeitura, errorKey: "setor_id", options: setores, placeholder: "BUSCAR SETOR...", displayField: "nome", searchFields: ["nome", "numero_setor"], render: ({ value }) => <AutocompleteGenerico items={setores} value={value} disabled={quantidadesSomenteLeitura} readOnly={quantidadesSomenteLeitura || isReadOnly} onChange={(nextValue) => {if (isReadOnly || quantidadesSomenteLeitura) return;setIsDirty(true);setFormData((prev) => ({ ...prev, setor_id: nextValue || "", area_entrada_id: "" }));setErrors((prev) => ({ ...prev, setor_id: false, area_entrada_id: false }));}} placeholder="BUSCAR SETOR..." displayField="nome" searchFields={["nome", "numero_setor"]} className="w-full" inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[22px] text-xs px-1" /> },
+  { id: "setor_id", name: "setor_id", label: "Setor", type: "autocomplete", required: true, readOnly: quantidadesSomenteLeitura, errorKey: "setor_id", options: setores, placeholder: "BUSCAR SETOR...", displayField: "nome", searchFields: ["nome", "numero_setor"], render: ({ value }) => <AutocompleteGenerico items={setores} value={value} disabled={quantidadesSomenteLeitura} readOnly={quantidadesSomenteLeitura || isReadOnly} onChange={(nextValue) => {if (isReadOnly || quantidadesSomenteLeitura) return;setIsDirty(true);setFormData((prev) => ({ ...prev, setor_id: nextValue || "", area_entrada_id: "" }));setErrors((prev) => ({ ...prev, setor_id: false, area_entrada_id: false }));}} onCreateNew={quantidadesSomenteLeitura || isReadOnly ? undefined : (nome) => setCadastroRapido({ tipo: "setor", nome })} createNewLabel="Novo setor" placeholder="BUSCAR SETOR..." displayField="nome" searchFields={["nome", "numero_setor"]} className="w-full" inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[22px] text-xs px-1" /> },
   // Em edição, a área de entrada é registro histórico (o servidor não a aceita
   // em PATCH); a posição física muda só por manejo no mapa.
   { id: "area_entrada_id", name: "area_entrada_id", label: "Área de Entrada", type: "autocomplete", required: true, readOnly: quantidadesSomenteLeitura, errorKey: "area_entrada_id", options: areasDoSetor, placeholder: formData.setor_id ? "BUSCAR ÁREA..." : "SELECIONE O SETOR PRIMEIRO", displayField: "nome", searchFields: ["nome", "numero_area"] },
@@ -463,7 +467,7 @@ export default function FormularioLote({
         ),
       }
     : { id: "quantidade_cabecas", name: "quantidade_cabecas", label: "Qtd. Cabeças (entrada)", type: "number", required: true, compact: true, errorKey: "quantidade_cabecas", totalizable: true },
-  { id: "categoria_manejo_id", name: "categoria_manejo_id", label: "Categoria de Manejo", type: "autocomplete", required: true, readOnly: quantidadesSomenteLeitura, errorKey: "categoria_manejo_id", options: categoriasManejo, placeholder: "BUSCAR CATEGORIA...", displayField: "nome", searchFields: ["nome", "categoria_oficial", "sexo", "raca"], render: ({ value }) => <AutocompleteGenerico items={categoriasManejo} value={value} disabled={quantidadesSomenteLeitura} readOnly={quantidadesSomenteLeitura || isReadOnly} onChange={(nextValue) => handleChange("categoria_manejo_id", nextValue)} placeholder="BUSCAR CATEGORIA..." displayField="nome" searchFields={["nome", "categoria_oficial", "sexo", "raca"]} className="w-full" inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[22px] text-xs px-1" renderItem={(item) => <div className="text-xs font-medium text-slate-900">{(item.nome || "").toUpperCase()} {item.categoria_oficial ? `(${item.categoria_oficial})` : ""}</div>} /> },
+  { id: "categoria_manejo_id", name: "categoria_manejo_id", label: "Categoria de Manejo", type: "autocomplete", required: true, readOnly: quantidadesSomenteLeitura, errorKey: "categoria_manejo_id", options: categoriasManejo, placeholder: "BUSCAR CATEGORIA...", displayField: "nome", searchFields: ["nome", "categoria_oficial", "sexo", "raca"], render: ({ value }) => <AutocompleteGenerico items={categoriasManejo} value={value} disabled={quantidadesSomenteLeitura} readOnly={quantidadesSomenteLeitura || isReadOnly} onChange={(nextValue) => handleChange("categoria_manejo_id", nextValue)} onCreateNew={quantidadesSomenteLeitura || isReadOnly ? undefined : (nome) => setCadastroRapido({ tipo: "categoria", nome })} createNewLabel="Nova categoria de manejo" placeholder="BUSCAR CATEGORIA..." displayField="nome" searchFields={["nome", "categoria_oficial", "sexo", "raca"]} className="w-full" inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[22px] text-xs px-1" renderItem={(item) => <div className="text-xs font-medium text-slate-900">{(item.nome || "").toUpperCase()} {item.categoria_oficial ? `(${item.categoria_oficial})` : ""}</div>} /> },
   { id: "sexo", name: "sexo", label: "Sexo", type: "autocomplete", required: true, readOnly: quantidadesSomenteLeitura, errorKey: "sexo", options: opcoesSexo, placeholder: "BUSCAR SEXO...", displayField: "nome", searchFields: ["nome"] },
   { id: "raca_predominante", name: "raca_predominante", label: "Raça Predominante", type: "text", required: true, errorKey: "raca_predominante", uppercase: true, placeholder: "RAÇA" },
   { id: "peso_medio_kg", name: "peso_medio_kg", label: quantidadesSomenteLeitura ? "Peso Médio na Entrada (kg)" : "Peso Médio (kg)", type: "number", required: true, readOnly: quantidadesSomenteLeitura, compact: true, errorKey: "peso_medio_kg", totalizable: true },
@@ -734,10 +738,37 @@ export default function FormularioLote({
     </>
   );
 
+  const cadastrosRapidos = (
+    <>
+      <CadastroRapidoSetor
+        open={cadastroRapido?.tipo === "setor"}
+        onClose={() => setCadastroRapido(null)}
+        empresaId={empresaSelecionadaId}
+        nomeInicial={cadastroRapido?.nome ?? ""}
+        onCreated={(setor) => {
+          if (!setor?.id) return;
+          setIsDirty(true);
+          setFormData((prev) => ({ ...prev, setor_id: setor.id, area_entrada_id: "" }));
+          setErrors((prev) => ({ ...prev, setor_id: false, area_entrada_id: false }));
+        }}
+      />
+      <CadastroRapidoCategoriaManejo
+        open={cadastroRapido?.tipo === "categoria"}
+        onClose={() => setCadastroRapido(null)}
+        empresaId={empresaSelecionadaId}
+        nomeInicial={cadastroRapido?.nome ?? ""}
+        onCreated={(categoria) => {
+          if (categoria?.id) handleChange("categoria_manejo_id", categoria.id);
+        }}
+      />
+    </>
+  );
+
   if (useBase1Visual) {
     return (
       <CadastroFormShell embedded={embedded} className="h-full min-h-0 overflow-hidden">
         {formInner}
+        {cadastrosRapidos}
       </CadastroFormShell>
     );
   }
@@ -745,6 +776,7 @@ export default function FormularioLote({
   return (
     <div className={`h-full min-h-0 overflow-hidden ${embedded ? "rounded-md border border-slate-300 shadow-sm bg-white" : "bg-white"}`}>
       {formInner}
+      {cadastrosRapidos}
     </div>
   );
 }

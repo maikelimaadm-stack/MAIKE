@@ -1,0 +1,10 @@
+REQS POST /native/auth/login, POST /native/movimentacoes-mapa/comandos/manejo-lote
+PASS tablet-768 abriu o lote certo
+PASS tablet-768 saldo no servidor: QTD → QTD-7 — 779 → 772
+PASS tablet-768 morte foi pelo comando do servidor (1 POST) — 1 POST; corpo: {"operation_id":"manejo-0ed444ea-af2c-4436-9456-1723438d4ba4-morte-cmvx435qd00ph7d0isnt3zfc9","tipo":"Morte","lote_id":"cmvx435qd00ph7d0isnt3zfc9","qu
+PASS tablet-768 sem POST legado /movimentacoes-mapa
+PASS tablet-768 nenhum PATCH /lotes operacional sem estado_esperado — 0 PATCH operacionais
+PASS tablet-768 nenhum DELETE/PATCH de movimento no navegador
+PASS tablet-768 movimento tem proveniência do servidor
+PASS tablet-768 movimento criado pela UI é elegível ao cancelamento seguro — [[772,779]]
+PASS tablet-768 sem erro de página

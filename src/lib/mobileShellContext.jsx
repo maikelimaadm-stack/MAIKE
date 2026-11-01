@@ -9,7 +9,7 @@ import React from "react";
  * registro usa o rodapé para a navegação ‹ n/N ›. Quem sabe disso é o chrome;
  * quem desenha é o `Layout`.
  *
- * @typedef {{ editing: boolean, title?: string, subtitle?: string, onBack?: () => void }} MobileShellRecord
+ * @typedef {{ editing: boolean, title?: string, subtitle?: string, onBack?: () => void, formId?: string, saving?: boolean }} MobileShellRecord
  * @typedef {{ listChrome: boolean, record: MobileShellRecord | null }} MobileShellState
  */
 
@@ -45,7 +45,7 @@ export function useMobileShellState() {
  * Publicado pelo `CadastroListaChrome`. `record` nulo = lista (tabela/cards).
  * `onBack` vai por ref para não republicar a cada render.
  *
- * @param {{ editing: boolean, title?: string, subtitle?: string, onBack?: () => void } | null} record
+ * @param {{ editing: boolean, title?: string, subtitle?: string, onBack?: () => void, formId?: string, saving?: boolean } | null} record
  */
 export function usePublishMobileShell(record) {
   const { publish } = React.useContext(MobileShellContext);
@@ -56,6 +56,8 @@ export function usePublishMobileShell(record) {
   const editing = Boolean(record?.editing);
   const title = record?.title ?? "";
   const subtitle = record?.subtitle ?? "";
+  const formId = record?.formId ?? "";
+  const saving = Boolean(record?.saving);
 
   React.useEffect(() => {
     publish({ listChrome: true });
@@ -64,7 +66,7 @@ export function usePublishMobileShell(record) {
 
   React.useEffect(() => {
     publish({
-      record: open ? { editing, title, subtitle, onBack: () => backRef.current?.() } : null,
+      record: open ? { editing, title, subtitle, formId, saving, onBack: () => backRef.current?.() } : null,
     });
-  }, [publish, open, editing, title, subtitle]);
+  }, [publish, open, editing, title, subtitle, formId, saving]);
 }

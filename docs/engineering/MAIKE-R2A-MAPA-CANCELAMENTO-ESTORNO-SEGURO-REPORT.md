@@ -117,6 +117,15 @@ Evidências: `docs/engineering/evidencias/r2a-r1/`
 - capturas `01`–`08` por largura;
 - roteiros e semente.
 
+### R1.7a Merge de `main` (#163) e colisão de numeração
+
+- `main` avançou com a maikelimaadm-stack/MAIKE#163 (UX-MOBILE-V4), que também usa **D-PROD-95**. O único conflito foi `DECISIONS.md`: as duas seções foram mantidas (V4 primeiro, depois R2A e D-PROD-95a), com nota explícita da colisão. **Renumerar é decisão do proprietário**; D-PROD-96 segue livre.
+- Depois do merge:
+  - `verify:all` com as variáveis da CI: exit 0 (smoke 99 arquivos, 1149/1149; backend 0 falhas);
+  - E2E repetido nas 4 larguras: cancelamento, legado e offline **64/64**; manejo pela UI **36/36**.
+  - Evidências em `evidencias/r2a-r1/pos-merge-main/`.
+  - No celular, os marcadores se sobrepõem no zoom inicial. Os lotes sintéticos "UI …" do E2E de manejo foram inativados no banco local de demonstração, porque cobriam o rótulo do pasto testado. Não é regressão do produto.
+
 ### R1.8 Riscos abertos (substitui os itens 1, 2 e 5 da seção 6)
 
 1. **Offline continua no fluxo legado:** Morte, Abate e Transferência feitas sem conexão geram registro sem proveniência, não cancelável. O PATCH leva `estado_esperado`, então estado divergente dá 409 em vez de sobrescrever.

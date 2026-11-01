@@ -2,10 +2,8 @@ import React, { useRef, useState } from "react";
 import { listarAnexos, anexarArquivo, excluirAnexo } from "@/services/anexoService";
 import { getApiErrorMessage } from "@/apis/_core/ApiError";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Plus, X, ExternalLink, Loader2 } from "lucide-react";
+import MobileSheet from "@/components/common/MobileSheet";
+import { ExternalLink, FileText, Loader2, Paperclip, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 const formatSize = (bytes = 0) => {
@@ -97,80 +95,95 @@ export default function RegistroAnexosDialog({ open, onOpenChange, entityName, r
     toast.success(files.length === 1 ? "Arquivo anexado." : "Arquivos anexados.");
   };
 
+  const escolherArquivo = () => inputRef.current?.click();
+  const podeAnexar = !uploading && Boolean(attachmentName.trim());
+
+  // Folha padrão do sistema (D-PROD-95): ✕ à esquerda, título, + verde à
+  // direita; nome do anexo numa pílula e a lista agrupada com divisórias.
+  // No tablet/desktop a mesma folha vira diálogo centralizado.
   return (
-    <Dialog open={open} onOpenChange={(nextOpen) => nextOpen && onOpenChange(nextOpen)}>
-      <DialogContent onInteractOutside={(event) => event.preventDefault()} onEscapeKeyDown={(event) => event.preventDefault()} className="bg-background fixed left-[50%] top-[50%] z-50 grid w-[calc(100%-1rem)] max-h-[90vh] translate-x-[-50%] translate-y-[-50%] gap-1 overflow-x-hidden overflow-y-auto border-[1px] border-slate-200 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:w-full rounded-none sm:rounded-none sm:p-1 max-w-[760px]">
-        <div className="space-y-1">
-          <input ref={inputRef} type="file" multiple className="hidden" onChange={handleFiles} />
-          <div className="border border-slate-200 bg-white">
-            <div className="h-8 flex items-center gap-2 border-b border-slate-200 px-2">
-              <span className="px-1.5 py-0.5 rounded-sm bg-slate-500 text-white text-[11px] font-bold">ANEXOS</span>
-              <span className="text-xs font-semibold text-slate-700 truncate flex-1">{title || "Lote"}</span>
-              <Button type="button" onClick={() => onOpenChange(false)} title="Fechar" className="rounded-none border-0 bg-white hover:bg-slate-50 text-slate-700 shadow-none h-7 w-7">
-                <X className="w-4 h-4" />
-              </Button>
-            </div>
-            <div className="px-4 md:px-8 py-1 w-full space-y-1">
-              <div className="grid items-center gap-1 grid-cols-[210px_minmax(0,1fr)]">
-                <label className="text-[12px] text-slate-600 text-right leading-none">
-                  Nome do arquivo:<span className="text-red-500 ml-0.5">*</span>
-                </label>
-                <div className="grid grid-cols-[minmax(0,1fr)_32px] border border-slate-300 bg-white focus-within:border-green-500 transition-colors overflow-hidden">
-                  <Input
-                    value={attachmentName}
-                    onChange={(e) => setAttachmentName(e.target.value)}
-                    placeholder="EX: CONTRATO, NOTA FISCAL, GTA..."
-                    className="h-[22px] text-xs uppercase border-0 rounded-none shadow-none focus-visible:ring-0 bg-transparent px-1"
-                    style={{ textTransform: "uppercase" }} />
-                  
-                  <Button type="button" variant="outline" size="icon" onClick={() => inputRef.current?.click()} disabled={uploading || !attachmentName.trim()} className="h-[22px] w-8 rounded-none border-y-0 border-r-0 border-l border-slate-300 bg-green-500 hover:bg-green-600 text-white shadow-none" title="Anexar arquivo">
-                    {uploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-4 h-4" />}
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </div>
+    <MobileSheet
+      open={open}
+      onClose={() => onOpenChange(false)}
+      label="Anexos"
+      title="Anexos"
+      aside={title || entityName || null}
+      className="mk-anexos"
+      headerAction={
+        <button
+          type="button"
+          className="mk-sheet__new"
+          onClick={escolherArquivo}
+          disabled={!podeAnexar}
+          aria-label="Anexar arquivo"
+          title={attachmentName.trim() ? "Anexar arquivo" : "Informe o nome do arquivo"}
+        >
+          {uploading ? <Loader2 size={20} className="animate-spin" aria-hidden /> : <Plus size={22} aria-hidden />}
+        </button>
+      }
+    >
+      <input ref={inputRef} type="file" multiple className="hidden" onChange={handleFiles} />
+      <div className="mk-pill mk-anexos__nome">
+        <span className="mk-pill__icon" aria-hidden>
+          <Paperclip size={16} />
+        </span>
+        <input
+          value={attachmentName}
+          onChange={(e) => setAttachmentName(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && podeAnexar) {
+              e.preventDefault();
+              escolherArquivo();
+            }
+          }}
+          placeholder="EX: CONTRATO, NOTA FISCAL, GTA..."
+          aria-label="Nome do arquivo"
+          style={{ textTransform: "uppercase" }}
+        />
+      </div>
+      <div className="mk-anexos__dica">Dê um nome e toque em + para escolher o arquivo.</div>
 
-          <div>
-            <div className="border border-slate-200 rounded-none max-h-80 overflow-auto">
-            <div className="grid grid-cols-[1fr_1.4fr_40px] bg-slate-100 border-b border-slate-200 text-[11px] font-semibold text-slate-700">
-              <div className="px-2 py-1 border-r border-slate-200">Nome do arquivo:</div>
-              <div className="px-2 py-1 border-r border-slate-200">Arquivo</div>
-              <div className="px-2 py-1 text-center"></div>
+      {anexos.length === 0 ? (
+        <div className="mk-anexos__vazio">Nenhum arquivo anexado.</div>
+      ) : (
+        <div className="mgs__lista mk-anexos__lista" role="list" aria-label="Arquivos anexados">
+          {anexos.map((anexo) => (
+            <div key={anexo.id} role="listitem" className="mgs__op mk-anexos__item">
+              <span className="mk-anexos__ic" aria-hidden>
+                <FileText size={18} />
+              </span>
+              <span className="mk-anexos__txt">
+                <span className="mk-anexos__titulo">{anexo.attachment_name || anexo.file_name}</span>
+                {/* Pendente ainda não foi enviado: sem `file_url` não há link (evita <a href={undefined}>). */}
+                {anexo.file_url ? (
+                  <a href={anexo.file_url} target="_blank" rel="noreferrer" className="mk-anexos__arquivo">
+                    <span className="truncate">{anexo.file_name}</span>
+                    <span className="shrink-0">{formatSize(anexo.file_size)}</span>
+                    <ExternalLink className="h-3 w-3 shrink-0" aria-hidden />
+                  </a>
+                ) : (
+                  <span className="mk-anexos__arquivo">
+                    <span className="truncate">{anexo.file_name}</span>
+                    <span className="shrink-0">{formatSize(anexo.file_size)}</span>
+                    <span className="mk-anexos__pendente">Pendente</span>
+                  </span>
+                )}
+              </span>
+              <button
+                type="button"
+                className="mk-anexos__remover"
+                aria-label={`Remover anexo ${anexo.attachment_name || anexo.file_name}`}
+                title="Remover"
+                onClick={() =>
+                  recordId ? deleteMutation.mutate(anexo.id) : onPendingChange?.(pendingAnexos.filter((item) => item.id !== anexo.id))
+                }
+              >
+                <Trash2 size={17} aria-hidden />
+              </button>
             </div>
-            {anexos.length === 0 ?
-              <div className="p-6 text-center text-xs text-slate-500">Nenhum arquivo anexado.</div> :
-              anexos.map((anexo) =>
-              <div key={anexo.id} className="grid grid-cols-[1fr_1.4fr_40px] items-center border-b last:border-b-0 border-slate-200 text-xs">
-              <div className="h-7 px-2 flex items-center border-r border-slate-200 overflow-hidden">
-                <span className="truncate font-medium text-slate-700">{anexo.attachment_name || anexo.file_name}</span>
-              </div>
-              {/* Anexo pendente ainda não foi enviado: não tem `file_url`, e
-                  `<a href={undefined}>` viraria link para a própria página.
-                  Sem upload antecipado só para preview e sem object URL, que
-                  exigiria cleanup. */}
-              {anexo.file_url ?
-              <a href={anexo.file_url} target="_blank" rel="noreferrer" className="h-7 min-w-0 flex items-center gap-1.5 text-slate-600 hover:text-emerald-700 px-2 border-r border-slate-200 overflow-hidden">
-                <span className="truncate">{anexo.file_name}</span>
-                <span className="shrink-0 text-slate-400">{formatSize(anexo.file_size)}</span>
-                <ExternalLink className="w-3 h-3 shrink-0" />
-              </a> :
-              <div className="h-7 min-w-0 flex items-center gap-1.5 text-slate-500 px-2 border-r border-slate-200 overflow-hidden">
-                <span className="truncate">{anexo.file_name}</span>
-                <span className="shrink-0 text-slate-400">{formatSize(anexo.file_size)}</span>
-                <span className="shrink-0 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-600">Pendente</span>
-              </div>}
-              <div className="h-7 flex items-center justify-center">
-                <Button type="button" variant="ghost" size="icon" className="h-7 w-7 rounded-none text-red-600 hover:bg-red-50" onClick={() => recordId ? deleteMutation.mutate(anexo.id) : onPendingChange?.(pendingAnexos.filter((item) => item.id !== anexo.id))}>
-                  <X className="w-3.5 h-3.5" />
-                </Button>
-              </div>
-            </div>
-              )}
-            </div>
-          </div>
+          ))}
         </div>
-      </DialogContent>
-    </Dialog>);
-
+      )}
+    </MobileSheet>
+  );
 }

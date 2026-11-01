@@ -1,0 +1,16 @@
+PASS desktop-1440-zf5g histórico da área lista a morte ativa com ação de cancelar — Histórico da Área PASTO 7 (32) | Entradas, saídas e manejos registrados nesta área, inclusive de lotes que já saíram. | 
+PASS desktop-1440-zf5g diálogo mostra o efeito calculado no servidor (450 → 500)
+PASS desktop-1440-zf5g após cancelar: original continua no histórico, marcado Cancelado com ator e motivo — 31/10/2026 | Morte | Saída | Cancelado | MORTE desktop-1440-zf5g | Quantidade: 50 cab | Data: 31/10/2026 | Origem: Movimentação | Detalhes: Categoria: BOI. Causa: sintéti
+PASS desktop-1440-zf5g sem rolagem horizontal
+PASS desktop-1440-zf5g saldo do lote voltou a 500 no servidor — {"id":"cmvx3zfc000kz7d0iwwevs9xp","q":500,"s":"Ativo"}
+PASS desktop-1440-zf5g legado: mensagem "Registro antigo sem comprovação individual de efeito — cancelamento temporariamente indisponível" — 26 | Origem: Movimentação | Detalhes: Categoria: BOI. Legado sintético. | Registro antigo sem comprovação individual de efeito — cancelamento temporariamente indisponível
+PASS desktop-1440-zf5g legado: sem botão Cancelar movimentação
+PASS desktop-1440-zf5g curral: sem botão Excluir; abate com "Cancelar movimentação" — Abate | Histórico da Área | Histórico de Abate (24) | 31/10/2026 | Abate | ABATE desktop-1440-zf5g | Quantidade: 30 cab | Data: 31/10/2026 |
+PASS desktop-1440-zf5g curral: abate aparece Cancelado com motivo — Abate | Histórico da Área | Histórico de Abate (24) | 31/10/2026 | Abate | Cancelado | ABATE desktop-1440-zf5g | Quantidade: 30 cab | Data: 31/10/2026 | Detalhe
+PASS desktop-1440-zf5g offline: histórico vem do cache e avisa — Histórico da Área PASTO 7 (32) | Entradas, saídas e manejos registrados nesta área, inclusive de lotes que já saíram. | Sem conexão. Exibindo movimentações salv
+PASS desktop-1440-zf5g offline: morte cancelada continua visível com motivo e autor — 31/10/2026 | Morte | Saída | Cancelado | MORTE desktop-1440-zf5g | Quantidade: 50 cab | Data: 31/10/2026 | Origem: Movimentação | Detalhes: Categoria: BOI. Causa: sintéti
+PASS desktop-1440-zf5g offline: nenhuma ação de cancelar oferecida
+PASS desktop-1440-zf5g PATCH /lotes do navegador: campo operacional sempre com estado_esperado — 0 PATCH; sem estado: 0
+PASS desktop-1440-zf5g nenhum DELETE/PATCH de movimento/suplementação no navegador
+PASS desktop-1440-zf5g cancelamentos foram POST no comando do servidor (2) — 2
+PASS desktop-1440-zf5g sem erro de página

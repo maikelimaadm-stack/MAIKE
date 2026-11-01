@@ -1,14 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useRef } from "react";
 import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
+import { useCategoriasOficiaisDisponiveis } from "@/hooks/useCategoriasOficiaisDisponiveis";
 import {
   listarCategoriasManejoDaEmpresa,
-  listarIconesDeLoteDaEmpresa,
   criarCategoriaManejo,
   atualizarCategoriaManejo,
   excluirCategoriaManejo,
 } from "@/services/categoriaManejoService";
 import { getApiErrorMessage, hasApiErrorCode, API_ERROR_CODES } from "@/apis/_core/ApiError";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   notifyError,
   notifySuccess,
@@ -26,7 +26,6 @@ import FormularioCategoriaManejo, {
 } from "@/components/categorias-manejo/FormularioCategoriaManejo";
 import { useCadastroBase1FullListController } from "@/hooks/useCadastroBase1FullListController";
 
-const EMPTY_ICONES_CONFIG = [];
 
 export default function CategoriasManejo() {
   const empresaSelecionadaId = useEmpresaSelecionadaId();
@@ -76,30 +75,7 @@ export default function CategoriasManejo() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- troca de empresa
   }, [empresaSelecionadaId]);
 
-  const { data: iconesConfigData } = useQuery({
-    queryKey: ["configuracao-icones", empresaSelecionadaId],
-    queryFn: async () => listarIconesDeLoteDaEmpresa(empresaSelecionadaId),
-    enabled: !!empresaSelecionadaId,
-  });
-  const iconesConfig = iconesConfigData ?? EMPTY_ICONES_CONFIG;
-
-  const categoriasOficiaisDisponiveis = useMemo(() => {
-    const categoriasPadrao = [
-      "Bezerro 0 a 12 meses",
-      "Bezerra 0 a 12 meses",
-      "Garrote 13 a 24 meses",
-      "Novilha 13 a 24 meses",
-      "Boi 25 a 36 meses",
-      "Vaca 25 a 36 meses",
-      "Touro + 36 meses",
-      "Vaca + 36 meses",
-    ];
-    const categoriasIcones = iconesConfig
-      .filter((ic) => ic.tipo_entidade === "Lote")
-      .map((ic) => ic.categoria)
-      .filter((cat) => cat && cat.toUpperCase() !== "MISTO");
-    return [...new Set([...categoriasPadrao, ...categoriasIcones])].sort();
-  }, [iconesConfig]);
+  const categoriasOficiaisDisponiveis = useCategoriasOficiaisDisponiveis(empresaSelecionadaId);
 
   const createMutation = useMutation({
     /** @param {object} formData */

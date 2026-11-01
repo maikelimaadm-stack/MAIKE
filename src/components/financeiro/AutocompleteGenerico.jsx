@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import ReactDOM from "react-dom";
-import { Check, Search, X } from "lucide-react";
+import { Check, ChevronDown, Plus, Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import MobileSheet, { useCelular } from "@/components/common/MobileSheet";
 
@@ -26,7 +26,11 @@ export default function AutocompleteGenerico({
   inputClassName = "",
   disabled = false,
   readOnly = false,
-  uppercaseDisplay = true
+  uppercaseDisplay = true,
+  // Botão + para cadastrar um item novo sem sair do formulário (D-PROD-95).
+  // Recebe o texto pesquisado, para já sugerir o nome.
+  onCreateNew = undefined,
+  createNewLabel = "Cadastrar novo"
 }) {
   const [open, setOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -177,6 +181,21 @@ export default function AutocompleteGenerico({
   };
 
   const hasResults = itensFiltrados.length > 0;
+  const criarNovo = (termo) => {
+    setOpen(false);
+    onCreateNew?.(String(termo || "").trim());
+  };
+  const linhaCriarNovo = onCreateNew && !readOnly && !disabled ?
+  <button
+    type="button"
+    className="mk-ac-novo"
+    onPointerDown={(e) => e.stopPropagation()}
+    onMouseDown={(e) => {e.preventDefault();e.stopPropagation();}}
+    onClick={(e) => {e.stopPropagation();criarNovo(itemSelecionado && searchTerm === itemSelecionado[displayField] ? "" : searchTerm);}}>
+      <Plus className="h-3.5 w-3.5" aria-hidden />
+      {createNewLabel}
+    </button> :
+  null;
   // Sem resultado também avisa sem pesquisa (lista vazia ou ainda carregando):
   // antes o painel simplesmente não abria e parecia que o campo travou.
   const showEmpty = open && !hasResults;
@@ -236,6 +255,7 @@ export default function AutocompleteGenerico({
           }
             </div>
         )}
+          {linhaCriarNovo}
         </div>;
 
     } else if (showEmpty) {
@@ -247,6 +267,7 @@ export default function AutocompleteGenerico({
           <div className="mk-ac-vazio">
             {searchTerm ? "Nenhum item encontrado" : items.length ? "Nenhum item" : "Nenhuma opção disponível"}
           </div>
+          {linhaCriarNovo}
         </div>;
 
     }
@@ -297,11 +318,17 @@ export default function AutocompleteGenerico({
           aria-expanded={open}
           className={`flex w-full bg-transparent pr-8 h-8 text-xs rounded-none cursor-pointer outline-none ${uppercaseDisplay ? 'uppercase' : ''} ${inputClassName}`}
           style={uppercaseDisplay ? { textTransform: 'uppercase', caretColor: 'transparent' } : { caretColor: 'transparent' }} />
+        <ChevronDown className="mk-ac-chev" aria-hidden />
         <MobileSheet
           open={open}
           onClose={() => setOpen(false)}
           label={titulo}
           title={titulo}
+          headerAction={onCreateNew ?
+          <button type="button" className="mk-sheet__new" aria-label={createNewLabel} title={createNewLabel} onClick={() => criarNovo(buscaCelular)}>
+              <Plus size={22} aria-hidden />
+            </button> :
+          null}
           aside={items.length > 8 ? `${fmt(items.length)} registros` : null}
           footer={encontrados.length > LIMITE_CELULAR ? <span className="mgs__mais">Mostrando {LIMITE_CELULAR} de {fmt(encontrados.length)} · refine a pesquisa</span> : null}
         >
@@ -386,7 +413,9 @@ export default function AutocompleteGenerico({
             <X className="w-3.5 h-3.5" />
           </button>
         }
+
       </div>
+      {!(searchTerm && !disabled && !readOnly) ? <ChevronDown className="mk-ac-chev" aria-hidden /> : null}
       {renderDropdown()}
     </div>);
 
