@@ -5,6 +5,8 @@
 - Antes de começar: nenhuma PR aberta e nenhuma branch com trabalho de R2B em andamento. Não havia trabalho paralelo para colidir.
 - Uma migration expand-only. Nenhuma escrita em produção.
 
+> **Complemento PR167-R1 (cache offline + gate de release):** ver a seção 10. Estado de deploy: **`DEPLOY_BLOCKED`** até a migration ser aplicada e verificada no banco real, conforme `MAIKE-LOTES-EXCLUSAO-CANCELADOS-RELEASE.md`.
+
 ## 1. Diagnóstico
 
 | Ponto | O que acontecia |
@@ -168,3 +170,51 @@ Ver a resposta final da missão. `verify:all` e a CI `quality` são rodados no H
 
 - R2B: nascimento, pesagem e mudança de categoria, já planejada em outra missão.
 - "Restaurar lote excluído" e conciliação assistida, se o proprietário quiser.
+
+## 10. PR167-R1 — cache offline da entidade Lote e gate de release
+
+**Missão:** MAIKE-LOTES-PR167-R1-CACHE-OFFLINE-E-RELEASE-GATE-SEGURO, na mesma PR #167 (HEAD de entrada 75946e5). Sem nova migration e sem acesso a produção.
+
+### 10.1 P0-A — cache offline
+
+| Item | Conteúdo |
+|---|---|
+| Bug | A exclusão vai direto ao servidor (fora da fila). O cache offline da entidade Lote (IndexedDB, chave `Lote::tenant::fazenda`, uma cópia com TODOS os lotes do tenant por fazenda já aberta) não era tocado. Um lote excluído voltava em qualquer leitura offline |
+| RED (unitário, runtime real + porta em memória com o contrato do IndexedDB) | 5 de 10 vermelhos no HEAD 75946e5: o lote reaparece offline em todas as fazendas, também depois de recarregar; o mapa não é atualizado; com edição offline pendente, a exclusão é enviada assim mesmo (`evidencias/lotes-r1-exclusao/r1-cache-release/red-cache-offline-antes.txt`) |
+| RED (E2E, Chromium com IndexedDB real, frontend 75946e5) | depois do 204, as duas entradas de cache do tenant (`__GLOBAL__` e a da fazenda) **continuam com os lotes excluídos**, também depois de recarregar (`e2e-red-frontend-75946e5/`) |
+| Correção | Runtime offline (sem segundo motor): `removerRegistroDosCachesOffline` varre todas as entradas de cache da entidade do **tenant da sessão** (porta IndexedDB ganha `listarCaches`); `temPendenciaOfflineDoRegistro` olha a fila. Exposto em `apis/lotes`. Em `excluirLotes`: pendência offline → recusa `pendencia_offline`; só depois de 204, tira o lote dos caches offline e do cache do mapa (`lotes`) da fazenda dele |
+| GREEN | unitário 10/10; E2E 64/64 (16 por largura, 1440/768/412/390) |
+
+No E2E com IndexedDB real, por largura:
+- cache limpo logo após o 204 nas duas chaves do tenant;
+- fila sem DELETE;
+- offline na sessão (sai do Cadastro e volta, sem leitura online): excluídos não aparecem e o lote restante continua;
+- excluir offline avisa, sem DELETE e sem fila;
+- recarga com a API inacessível: o IndexedDB persistido continua sem os excluídos;
+- online de novo: lista correta e movimento cancelado intacto;
+- sem DELETE/PATCH de movimento, sem erro, sem overflow.
+
+**Observado:** recarregado sem servidor, o app não abre dado nenhum ("Não foi possível validar sua sessão"). Por esse caminho não há ressurreição; o risco era a leitura offline dentro da sessão, agora coberta.
+
+**Regressão do fluxo da #167** (bloqueio ativo, lógica, física, offline, histórico com indicador): 1440 14/14 e 390 14/14.
+
+### 10.2 P0-B — migration e deploy
+
+- **Validado localmente** (bancos descartáveis, `migration-preflight-local.txt`):
+  - preflight real em banco sem a migration: exit 1, nomeando a migration pendente e as duas colunas ausentes;
+  - preflight em banco migrado: exit 0;
+  - a consulta do `GET /lotes` novo dá P2022 sem a coluna;
+  - a suíte de lotes da `main` 60667be passa 53/53 sobre banco migrado (expand-only: migrar antes do merge não quebra a produção atual);
+  - o preflight exige `Lote.excluido_em` **e** `Lote.excluido_por_usuario_id` (teste de contrato).
+- **Não validado (fora do alcance desta PR):**
+  - o schema do banco real;
+  - nenhum pipeline versionado aplica migration no banco real (só `quality.yml`, CI);
+  - o build do Vercel não migra.
+- **`DEPLOY_BLOCKED`** até o operador seguir `MAIKE-LOTES-EXCLUSAO-CANCELADOS-RELEASE.md`. Ordem: congelar, backup, conferir o alvo, `deploy:migrate` com aprovação explícita, SELECTs, preflight OK, só então merge, smoke.
+
+### 10.3 Riscos residuais (acrescentados)
+
+1. Cache offline de **outro aparelho** do mesmo tenant continua com o lote até a próxima leitura online naquele aparelho. A remoção vale para o aparelho que excluiu. Não há canal de invalidação entre aparelhos. É o mesmo limite de qualquer cache offline do produto.
+2. Se a remoção do cache falhar (erro do IndexedDB) depois do 204, a exclusão vale e a próxima leitura online corrige. A falha é engolida de propósito.
+3. Uma pendência offline do lote bloqueia a exclusão até ser sincronizada. É o comportamento desejado (sem descarte silencioso).
+

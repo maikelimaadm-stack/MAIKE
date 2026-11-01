@@ -1,0 +1,14 @@
+PASS desktop-1440 ativo: aviso com o motivo, sem diálogo de confirmação
+PASS desktop-1440 ativo: continua na API, nenhum DELETE
+PASS desktop-1440 só cancelado: confirmação explica a exclusão lógica
+PASS desktop-1440 sem rolagem horizontal
+PASS desktop-1440 só cancelado: sai da lista e dos saldos (GET /lotes), identidade preservada por id com excluido_em — {"excluido_em":"2026-11-01T11:59:15.970Z"}
+PASS desktop-1440 só cancelado: movimento continua cancelado com motivo e autor
+PASS desktop-1440 sem histórico: confirmação padrão (sem texto de exclusão lógica) — Confirmar exclusão Deseja realmente excluir este lote? Cancelar Excluir
+PASS desktop-1440 sem histórico: exclusão física (GET /lotes/:id → 404)
+PASS desktop-1440 offline: avisa, sem DELETE e sem confirmação
+PASS desktop-1440 offline: lote continua na API
+PASS desktop-1440 mapa: histórico da área mostra o cancelado com motivo e o indicador de lote excluído — 31/10/2026 | Morte | Saída | Cancelado | EXCL desktop-1440-1g13 | Quantidade: 50 cab | Data: 31/10/2026 | Origem: Movimentação | Cancelado em 01/11/2026, 11:59 por demo.o
+PASS desktop-1440 DELETE /lotes só dos lotes confirmados (EXCL e LIVRE) — ["cmvxs1g5g00du7df4btx5e3dn","cmvxs1g9p00en7df46fe26cz0"]
+PASS desktop-1440 nenhum DELETE/PATCH de movimento no navegador
+PASS desktop-1440 sem erro de página

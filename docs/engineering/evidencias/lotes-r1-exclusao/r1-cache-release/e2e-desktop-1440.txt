@@ -1,0 +1,16 @@
+PASS desktop-1440 IndexedDB: antes da exclusão, os lotes estão no cache da entidade — [250,250]
+PASS desktop-1440 servidor: lógica (excluido_em) e física (404) confirmadas
+PASS desktop-1440 IndexedDB: logo após o 204, nenhum cache do tenant traz os excluídos; FICA continua — ["Lote::T:cmvwd630400007dw7n37beyp6::__GLOBAL__","Lote::T:cmvwd630400007dw7n37beyp6::cmvwd6au200037d5t9qk00js3"]
+PASS desktop-1440 fila offline sem DELETE de lote — []
+PASS desktop-1440 offline na sessão: EXCL não reaparece no Cadastro
+PASS desktop-1440 offline na sessão: LIVRE não reaparece no Cadastro
+PASS desktop-1440 offline na sessão: FICA continua (cache não foi esvaziado)
+PASS desktop-1440 sem rolagem horizontal
+PASS desktop-1440 offline: excluir avisa, sem DELETE e sem entrada na fila
+PASS desktop-1440 reload (API inacessível): IndexedDB persistido sem os excluídos; FICA presente
+PASS desktop-1440 reload sem servidor: o app não mostra dado nenhum sem validar a sessão (sem caminho de ressurreição) — Não foi possível validar sua sessão. | Serviço de dados indisponível no momento. | Tentar novamenteEntrar com usuário e 
+PASS desktop-1440 online de novo: EXCL e LIVRE fora, FICA presente
+PASS desktop-1440 histórico: movimento cancelado intacto (motivo e autor)
+PASS desktop-1440 DELETE /lotes só dos dois confirmados — ["cmvxrx95u00ae7df4tymjirwg","cmvxrx98q00av7df49hk4oh5n"]
+PASS desktop-1440 nenhum DELETE/PATCH de movimento
+PASS desktop-1440 sem erro de página

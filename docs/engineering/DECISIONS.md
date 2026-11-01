@@ -3889,6 +3889,12 @@ RED reproduzido no HEAD de partida:
 
 **Migration:** `20261101100000_lote_exclusao_logica`. Duas colunas NULL, sem default, sem backfill, sem índice. Rollback documentado: só se nenhum lote estiver excluído. O preflight de deploy passa a exigir `Lote.excluido_em`.
 
+**Complemento R1 (mesma decisão, PR #167):**
+- **Cache offline:** a exclusão confirmada (204) também tira o lote do cache offline da entidade Lote. Esse cache tem uma cópia por fazenda do tenant, e todas são varridas; outro tenant fica intocado. O lote também sai do cache do mapa da fazenda dele, pelo runtime offline existente (`removerRegistroDosCachesOffline`).
+- **Sem resposta definitiva** (5xx, 409, timeout, queda de rede), cache e fila não são tocados.
+- **Pendência offline do lote** recusa a exclusão com o motivo `pendencia_offline`: nada é enviado e a fila não é alterada.
+- **Release:** a migration precisa estar aplicada **e** verificada no banco real antes do merge. O preflight exige as duas colunas. O runbook está em `docs/engineering/MAIKE-LOTES-EXCLUSAO-CANCELADOS-RELEASE.md`. Estado: `DEPLOY_BLOCKED` até o operador provar o schema.
+
 Relatório: `docs/engineering/MAIKE-LOTES-EXCLUSAO-CANCELADOS-REPORT.md`.
 
 ---
