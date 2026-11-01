@@ -200,22 +200,48 @@ describe("TabelaLotes — grade e exportação do Cadastro", () => {
 });
 
 describe("loteCadastroService — lote gerado por manejo não é apagado pelo cadastro", () => {
-  it("bloqueia sem chamar a API de exclusão", async () => {
+  const montar = async ({ excluirLoteOnline }) => {
     vi.resetModules();
     const deleteLote = vi.fn();
     vi.doMock("@/apis/lotes", () => ({
-      listLotes: vi.fn(), createLote: vi.fn(), updateLote: vi.fn(), deleteLote,
+      listLotes: vi.fn(), createLote: vi.fn(), updateLote: vi.fn(), deleteLote, excluirLoteOnline,
+      consultarElegibilidadeExclusaoLote: vi.fn(),
+      temPendenciaOfflineLote: vi.fn(async () => false), pendenciasOfflineLote: vi.fn(async () => []), removerLoteDosCachesOffline: vi.fn(async () => 0),
       listMovimentacoes: vi.fn(async () => []), listMovimentacoesPecuarias: vi.fn(async () => []),
       listTodasMovimentacoes: vi.fn(async () => []), listFornecedores: vi.fn(), listCategoriasManejo: vi.fn(),
       sincronizarReferenciasLote: vi.fn(), listSuplementacaoLotes: vi.fn(async () => []),
     }));
-    const { excluirLotes } = await import("@/services/loteCadastroService");
+    const mod = await import("@/services/loteCadastroService");
     const { API_ERROR_CODES } = await import("@/apis/_core/ApiError");
+    return { ...mod, API_ERROR_CODES, deleteLote };
+  };
+
+  it("o SERVIDOR recusa (lote_gerado_por_manejo): fica bloqueado com o motivo; a fila offline nunca é usada", async () => {
+    const recusa = Object.assign(new Error("x"), { code: "API_OPERATION_FAILED", cause: { code: "LOTE_DELETE_BLOCKED", details: { motivo: "lote_gerado_por_manejo" } } });
+    const excluirLoteOnline = vi.fn(async () => { throw recusa; });
+    const { excluirLotes, API_ERROR_CODES, deleteLote } = await montar({ excluirLoteOnline });
     const r = await excluirLotes([LOTE_2.id], { lotes: [LOTE_2] });
     expect(r.excluidos).toEqual([]);
-    expect(r.bloqueados).toEqual([{ id: LOTE_2.id, code: API_ERROR_CODES.LOTE_DELETE_BLOCKED }]);
+    expect(r.bloqueados).toMatchObject([{ id: LOTE_2.id, code: API_ERROR_CODES.LOTE_DELETE_BLOCKED, motivo: "lote_gerado_por_manejo" }]);
+    expect(excluirLoteOnline).toHaveBeenCalledWith(LOTE_2.id);
     expect(deleteLote).not.toHaveBeenCalled();
     vi.doUnmock("@/apis/lotes");
+  });
+
+  it("offline: nada é enviado nem enfileirado", async () => {
+    const excluirLoteOnline = vi.fn();
+    const { excluirLotes, deleteLote } = await montar({ excluirLoteOnline });
+    Object.defineProperty(window.navigator, "onLine", { value: false, configurable: true });
+    try {
+      const r = await excluirLotes(["a", "b"]);
+      expect(r.excluidos).toEqual([]);
+      expect(r.bloqueados.map((b) => b.motivo)).toEqual(["offline", "offline"]);
+      expect(excluirLoteOnline).not.toHaveBeenCalled();
+      expect(deleteLote).not.toHaveBeenCalled();
+    } finally {
+      Object.defineProperty(window.navigator, "onLine", { value: true, configurable: true });
+      vi.doUnmock("@/apis/lotes");
+    }
   });
 });
 

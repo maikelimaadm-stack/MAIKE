@@ -1,0 +1,14 @@
+PR167-R1 P0-A — RED no HEAD de entrada 75946e5a86a4528dbe93b4c6f0245e1726cbc815 (vitest, runtime offline real + porta de armazenamento em memória com o contrato do IndexedDB)
+Data: 2026-11-01T11:30:18Z
+
+× PR167-R1 P0-A — exclusão confirmada some do cache offline da entidade Lote > 204: offline logo em seguida (sem nova leitura online), o lote NÃO reaparece — em nenhuma fazenda do tenant 29ms
+× PR167-R1 P0-A — exclusão confirmada some do cache offline da entidade Lote > o mesmo vale depois de "recarregar" (runtime novo lendo o mesmo armazenamento) 6ms
+× PR167-R1 P0-A — exclusão confirmada some do cache offline da entidade Lote > cache do mapa (lotes) também perde o lote, na fazenda dele 10ms
+× PR167-R1 P0-A — sem resposta definitiva, o cache NÃO é tocado; nada vai para a fila > exclusão em massa: o que falhou fica no cache, o que saiu some 4ms
+× PR167-R1 P0-A — pendência offline do lote: sem ressurreição e sem descarte silencioso > alteração offline pendente do lote → exclusão recusada com motivo explícito; nada é enviado; fila intacta 5ms
+AssertionError: expected [ 'lote-x', 'lote-y', 'lote-z' ] to deeply equal [ 'lote-y', 'lote-z' ]
+AssertionError: expected [ 'lote-x', 'lote-y', 'lote-z' ] to deeply equal [ 'lote-y', 'lote-z' ]
+AssertionError: expected "spy" to be called with arguments: [ 'lotes', 'emp-1', Any<Function> ]
+AssertionError: expected [ 'lote-x', 'lote-y', 'lote-z' ] to deeply equal [ 'lote-y', 'lote-z' ]
+AssertionError: expected "spy" to not be called at all, but actually been called 1 times
+Tests  5 failed | 5 passed (10)

@@ -114,6 +114,7 @@ describe("domínio — escopo da área × escopo do lote", () => {
 
 const servico = vi.hoisted(() => ({
   listarHistoricoMovimentacoesPagina: vi.fn(),
+  buscarLoteDoHistorico: vi.fn(async () => null),
   cancelarMovimentacaoMapa: vi.fn(),
   consultarCancelamentoMovimentacao: vi.fn(),
 }));
@@ -289,6 +290,22 @@ describe("HistoricoMovimentacoes — troca de empresa e offline", () => {
     expect(screen.getAllByText("Cancelado").length).toBeGreaterThan(0);
     expect(screen.getByText(/por admin\.teste — Motivo: lançado em duplicidade/)).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Cancelar movimentação" })).toBeNull();
+  });
+
+  it("MAIKE-LOTES-R1: movimento cancelado de lote excluído do cadastro mostra o indicador (sem erro de lote não encontrado)", async () => {
+    const cancelado = transf("mv-x", {
+      quantidade_animais: 10,
+      lote_id: "lote-excluido",
+      situacao: "cancelado",
+      cancelamento: { em: "2026-11-01T10:00:00.000Z", por_login: "admin.teste", motivo: "engano" },
+    });
+    servico.listarHistoricoMovimentacoesPagina.mockImplementation(async () => pagina([cancelado]));
+    servico.buscarLoteDoHistorico.mockImplementation(async (id) => (id === "lote-excluido" ? { id, excluido_em: "2026-11-01T11:00:00.000Z" } : null));
+    renderizar();
+    expect(await screen.findByText(/Lote excluído do Cadastro — registro mantido para auditoria/)).toBeTruthy();
+    expect(screen.getByText(/Motivo: engano/)).toBeTruthy();
+    expect(screen.queryByText(/não encontrado/i)).toBeNull();
+    expect(servico.buscarLoteDoHistorico).toHaveBeenCalledWith("lote-excluido");
   });
 
   it("offline sem nada salvo no aparelho: diz isso, em vez de 'Nenhum lançamento encontrado'", async () => {

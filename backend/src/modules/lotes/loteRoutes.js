@@ -3,7 +3,7 @@
  */
 
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
-import { listar, criar, atualizar, excluir } from './loteService.js';
+import { listar, criar, atualizar, excluir, buscarPorId, elegibilidadeExclusao } from './loteService.js';
 
 const MOTIVOS = ['Compra', 'Ajuste', 'Inventário', 'Outros'];
 const STATUS = ['Ativo', 'Inativo', 'Vendido', 'Abatido', 'Transferido'];
@@ -107,6 +107,19 @@ export const registrarLoteRoutes = async (app) => {
   app.get('/lotes', { onRequest: [app.autenticar] }, async (request) => {
     exigirAuthContext(request.contexto.auth);
     return listar(request.contexto);
+  });
+
+  // MAIKE-LOTES-R1: leitura por id (inclui excluído logicamente) e elegibilidade de exclusão.
+  app.get('/lotes/:id', { onRequest: [app.autenticar], schema: EXCLUIR_SCHEMA }, async (request) => {
+    exigirAuthContext(request.contexto.auth);
+    const { id } = /** @type {{id: string}} */ (request.params);
+    return buscarPorId(request.contexto, id);
+  });
+
+  app.get('/lotes/:id/elegibilidade-exclusao', { onRequest: [app.autenticar], schema: EXCLUIR_SCHEMA }, async (request) => {
+    exigirAuthContext(request.contexto.auth);
+    const { id } = /** @type {{id: string}} */ (request.params);
+    return elegibilidadeExclusao(request.contexto, id);
   });
 
   app.post('/lotes', { onRequest: [app.autenticar], schema: CRIAR_SCHEMA }, async (request, reply) => {

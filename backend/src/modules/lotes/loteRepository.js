@@ -51,6 +51,8 @@ const SELECAO = Object.freeze({
   observacoes: true,
   status: true,
   campos_personalizados: true,
+  excluido_em: true,
+  excluido_por_usuario_id: true,
   createdAt: true,
   updatedAt: true,
 });
@@ -58,8 +60,9 @@ const SELECAO = Object.freeze({
 /** @param {string} clienteId */
 export const listarLotes = async (clienteId) => {
   const prisma = getPrismaClient();
+  // Leitura operacional: lote excluído logicamente (MAIKE-LOTES-R1) fica de fora.
   return prisma.lote.findMany({
-    where: { cliente_id: clienteId },
+    where: { cliente_id: clienteId, excluido_em: null },
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     select: SELECAO,
   });
@@ -86,6 +89,17 @@ export const atualizarLotePorId = async (tx, clienteId, id, dados) =>
   tx.lote.update({
     where: { cliente_id_id: { cliente_id: clienteId, id } },
     data: dados,
+    select: SELECAO,
+  });
+
+/**
+ * Exclusão LÓGICA (tombstone): a linha fica; só marca quando e por quem.
+ * @param {import('@prisma/client').Prisma.TransactionClient} tx
+ */
+export const marcarLoteExcluido = async (tx, clienteId, id, usuarioId) =>
+  tx.lote.update({
+    where: { cliente_id_id: { cliente_id: clienteId, id } },
+    data: { excluido_em: new Date(), excluido_por_usuario_id: usuarioId ?? null },
     select: SELECAO,
   });
 

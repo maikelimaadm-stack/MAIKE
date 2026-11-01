@@ -1,0 +1,156 @@
+// PR167-R1 E2E: exclusão (lógica e física) → offline IMEDIATO → Cadastro lido do IndexedDB não traz os lotes;
+// reload sem nova leitura online de /lotes → IndexedDB sem os lotes; fila sem DELETE; bloqueios e retorno online.
+const { chromium } = require('playwright');
+const W = Number(process.argv[2]), H = Number(process.argv[3]), BASE = process.argv[4], PASTO = process.argv[5];
+const TAG = `${BASE}-${Date.now().toString(36).slice(-4)}`;
+const OUT = '/tmp/claude-0/r1c';
+const API = 'http://127.0.0.1:3334';
+const E = 'cmvwd6au200037d5t9qk00js3', S = 'cmvwd6auy00087d5tqtm2rk09';
+const res = [];
+const ok = (nome, cond, extra = '') => res.push(`${cond ? 'PASS' : 'FAIL'} ${BASE} ${nome}${extra ? ' — ' + String(extra).slice(0, 170) : ''}`);
+(async () => {
+  const { token } = await (await fetch(`${API}/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ login: 'demo.operador', senha: 'senha-demo-local-123' }) })).json();
+  const raw = (m, u, b) => fetch(`${API}${u}`, { method: m, headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' }, body: b ? JSON.stringify(b) : undefined });
+  const call = async (m, u, b) => { const r = await raw(m, u, b); const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(`${m} ${u} ${r.status} ${j.code || ''}`); return j; };
+  const areas = await call('GET', '/areas-pastagem?limit=500').then((a) => (Array.isArray(a) ? a : a.items));
+  const A = areas.find((a) => a.nome === PASTO);
+  const novo = (nome, qtd) => call('POST', '/lotes', { empresa_id: E, nome, quantidade_cabecas: qtd, categoria: 'BOI', sexo: 'Macho', setor_id: S, area_entrada_id: A.id, area_atual_id: A.id, data_entrada: '2026-10-01', motivo_entrada: 'Compra', status: 'Ativo' });
+  const excl = await novo(`EXCL ${TAG}`, 500);
+  const m = await call('POST', '/movimentacoes-mapa/comandos/manejo-lote', { operation_id: `r1c-${excl.id}`, empresa_id: E, tipo: 'Morte', lote_id: excl.id, quantidade_animais: 50, data_movimentacao: '2026-10-31T12:00:00.000Z' });
+  await call('POST', `/movimentacoes-mapa/${m.movimentacao.id}/cancelamento`, { operation_id: `r1c-c-${excl.id}`, motivo: 'Morte sintética lançada por engano' });
+  const livre = await novo(`LIVRE ${TAG}`, 120);
+  const fica = await novo(`FICA ${TAG}`, 70);
+
+  const browser = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader'] });
+  const mobile = W < 800;
+  const ctx = await browser.newContext({ viewport: { width: W, height: H }, isMobile: mobile, hasTouch: mobile });
+  const page = await ctx.newPage();
+  const erros = []; page.on('pageerror', (e) => erros.push(e.message.slice(0, 160)));
+  const deletes = [], perigosos = [];
+  page.on('request', (r) => {
+    const u = new URL(r.url()).pathname;
+    if (r.method() === 'DELETE' && /\/lotes\//.test(u)) deletes.push(u.split('/').pop());
+    if (['DELETE', 'PATCH'].includes(r.method()) && /movimentacoes-/.test(u)) perigosos.push(`${r.method()} ${u}`);
+  });
+  await page.goto('http://127.0.0.1:5180/', { waitUntil: 'networkidle' });
+  await page.locator('input').nth(0).fill('demo.operador');
+  await page.locator('input[type=password]').fill('senha-demo-local-123');
+  await page.keyboard.press('Enter');
+  await page.waitForURL(/mapageral/i, { timeout: 20000 });
+  await page.goto('http://127.0.0.1:5180/CadastroLotes', { waitUntil: 'networkidle' });
+  await page.waitForTimeout(3000);
+
+  /** Conteúdo do cache da ENTIDADE Lote no IndexedDB real (todas as chaves do tenant). */
+  const cacheIdb = () => page.evaluate(() => new Promise((resolve, reject) => {
+    const req = indexedDB.open('pesagens_offline_db');
+    req.onerror = () => reject(req.error);
+    req.onsuccess = () => {
+      const db = req.result;
+      const tx = db.transaction(['entity_cache', 'entity_queue'], 'readonly');
+      const a = tx.objectStore('entity_cache').getAll();
+      const b = tx.objectStore('entity_queue').getAll();
+      tx.oncomplete = () => resolve({
+        lote: a.result.filter((r) => r.entity_name === 'Lote').map((r) => ({ chave: r.cache_key, ids: (r.items || []).map((i) => i.id) })),
+        fila: b.result.map((f) => ({ entity: f.entity_name, op: f.operation, id: f.record_id })),
+      });
+    };
+  }));
+  const buscar = async (termo) => {
+    const campo = page.getByPlaceholder('Buscar lotes…');
+    if (!(await campo.count()) || !(await campo.first().isVisible())) await page.getByRole('button', { name: 'Abrir pesquisa' }).first().click();
+    await page.getByPlaceholder('Buscar lotes…').fill(termo);
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(1200);
+  };
+  // Conta o lote em qualquer visão (tabela ou cards); o valor do campo de busca não é texto da página.
+  const linhas = async (termo) => { await buscar(termo); return page.getByText(termo, { exact: true }).count(); };
+  const visaoTabela = async () => {
+    const b = page.getByRole('button', { name: 'Tabela' }).first();
+    if ((await b.count()) && (await b.isVisible())) { await b.click(); await page.waitForTimeout(500); }
+  };
+  const excluirNaUI = async (termo) => {
+    await buscar(termo);
+    await page.locator('tr', { hasText: termo }).first().getByRole('checkbox').first().dispatchEvent('click');
+    await page.waitForTimeout(500);
+    await page.getByRole('button', { name: /^Excluir/ }).first().click();
+    await page.getByRole('alertdialog').waitFor({ timeout: 15000 });
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Excluir' }).click();
+    await page.waitForTimeout(2500);
+  };
+
+  const antes = await cacheIdb();
+  ok('IndexedDB: antes da exclusão, os lotes estão no cache da entidade', antes.lote.some((c) => c.ids.includes(excl.id) && c.ids.includes(livre.id)), JSON.stringify(antes.lote.map((c) => c.ids.length)));
+
+  await excluirNaUI(`EXCL ${TAG}`);
+  await excluirNaUI(`LIVRE ${TAG}`);
+  ok('servidor: lógica (excluido_em) e física (404) confirmadas', !!(await call('GET', `/lotes/${excl.id}`)).excluido_em && (await raw('GET', `/lotes/${livre.id}`)).status === 404);
+  const depois = await cacheIdb();
+  ok('IndexedDB: logo após o 204, nenhum cache do tenant traz os excluídos; FICA continua', depois.lote.every((c) => !c.ids.includes(excl.id) && !c.ids.includes(livre.id)) && depois.lote.some((c) => c.ids.includes(fica.id)), JSON.stringify(depois.lote.map((c) => c.chave.replace(/cli[^:]*/, 'T'))));
+  ok('fila offline sem DELETE de lote', !depois.fila.some((f) => f.entity === 'Lote' && f.op === 'delete'), JSON.stringify(depois.fila));
+
+  // Offline IMEDIATO na sessão, sem nova leitura online: sai do Cadastro e volta (navegação SPA).
+  await ctx.setOffline(true);
+  await page.waitForTimeout(500);
+  const navegar = (rota) => page.evaluate((r) => { window.history.pushState({}, '', r); window.dispatchEvent(new PopStateEvent('popstate')); }, rota);
+  await navegar('/MapaGeral');
+  await page.waitForTimeout(2000);
+  await navegar('/CadastroLotes');
+  await page.waitForTimeout(3000);
+  ok('offline na sessão: EXCL não reaparece no Cadastro', (await linhas(`EXCL ${TAG}`)) === 0);
+  ok('offline na sessão: LIVRE não reaparece no Cadastro', (await linhas(`LIVRE ${TAG}`)) === 0);
+  ok('offline na sessão: FICA continua (cache não foi esvaziado)', (await linhas(`FICA ${TAG}`)) === 1);
+  ok('sem rolagem horizontal', !(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)));
+  await page.screenshot({ path: `${OUT}/${BASE}-01-offline-cadastro-sem-excluidos.png` });
+
+  // Bloqueio offline: excluir não envia nada nem enfileira.
+  await buscar(`FICA ${TAG}`);
+  if (await page.locator('tr', { hasText: `FICA ${TAG}` }).count()) {
+    await page.locator('tr', { hasText: `FICA ${TAG}` }).first().getByRole('checkbox').first().dispatchEvent('click');
+  } else {
+    // Visão de cards (mobile offline): abre o registro pelo card.
+    await page.getByText(`FICA ${TAG}`, { exact: true }).first().dispatchEvent('click');
+  }
+  await page.waitForTimeout(800);
+  const nDel = deletes.length;
+  await page.getByRole('button', { name: /^Excluir/ }).first().click();
+  await page.getByText(/Exclusão de lote só com conexão/).first().waitFor({ timeout: 15000 });
+  const filaOff = await cacheIdb();
+  ok('offline: excluir avisa, sem DELETE e sem entrada na fila', deletes.length === nDel && !filaOff.fila.some((f) => f.op === 'delete'));
+
+  // Reload sem nenhuma leitura online da API: o IndexedDB persistido segue sem os excluídos.
+  await ctx.setOffline(false);
+  const abortadas = [];
+  await page.route('http://127.0.0.1:3334/**', (route) => { abortadas.push(route.request().method()); return route.abort(); });
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.waitForTimeout(3000);
+  const aposReload = await cacheIdb();
+  ok('reload (API inacessível): IndexedDB persistido sem os excluídos; FICA presente',
+    aposReload.lote.every((c) => !c.ids.includes(excl.id) && !c.ids.includes(livre.id)) && aposReload.lote.some((c) => c.ids.includes(fica.id)));
+  const telaReload = (await page.locator('body').innerText()).replace(/\n+/g, ' | ');
+  ok('reload sem servidor: o app não mostra dado nenhum sem validar a sessão (sem caminho de ressurreição)',
+    /validar sua sessão|Entrar/i.test(telaReload) && !telaReload.includes(`EXCL ${TAG}`), telaReload.slice(0, 120));
+  await page.screenshot({ path: `${OUT}/${BASE}-02-reload-sem-servidor.png` });
+  await page.unroute('http://127.0.0.1:3334/**');
+
+  // Retorno online normal: lista do servidor sem os excluídos, histórico mantém o cancelado.
+  await page.goto('http://127.0.0.1:5180/', { waitUntil: 'networkidle' });
+  if (await page.locator('input[type=password]').count()) {
+    await page.locator('input').nth(0).fill('demo.operador');
+    await page.locator('input[type=password]').fill('senha-demo-local-123');
+    await page.keyboard.press('Enter');
+    await page.waitForURL(/mapageral/i, { timeout: 20000 });
+  }
+  await page.goto('http://127.0.0.1:5180/CadastroLotes', { waitUntil: 'networkidle' });
+  await page.waitForTimeout(2500);
+  ok('online de novo: EXCL e LIVRE fora, FICA presente', (await linhas(`EXCL ${TAG}`)) === 0 && (await linhas(`LIVRE ${TAG}`)) === 0 && (await linhas(`FICA ${TAG}`)) === 1);
+  const movs = await call('GET', '/movimentacoes-mapa?limit=500');
+  const mv = (Array.isArray(movs) ? movs : movs.items).find((x) => x.id === m.movimentacao.id);
+  ok('histórico: movimento cancelado intacto (motivo e autor)', mv?.situacao === 'cancelado' && /engano/.test(mv?.cancelamento?.motivo || ''));
+  await page.screenshot({ path: `${OUT}/${BASE}-02-online-de-novo.png` });
+
+  ok('DELETE /lotes só dos dois confirmados', JSON.stringify([...deletes].sort()) === JSON.stringify([excl.id, livre.id].sort()), JSON.stringify(deletes));
+  ok('nenhum DELETE/PATCH de movimento', perigosos.length === 0);
+  ok('sem erro de página', erros.length === 0, erros.join(' ; '));
+  console.log(res.join('\n'));
+  await browser.close();
+})().catch((e) => { console.log(res.join('\n')); console.log('ERRO', e.message.slice(0, 300)); process.exit(1); });

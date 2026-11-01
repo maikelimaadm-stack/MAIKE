@@ -20,6 +20,8 @@ const aplicadas = (nomes) => nomes.map((migration_name) => ({ migration_name, co
 const COLUNAS_OK = [
   { table_name: 'Usuario', column_name: 'papel_tenant' },
   { table_name: 'CategoriaManejo', column_name: 'catalogo_categoria_visual_id' },
+  { table_name: 'Lote', column_name: 'excluido_em' },
+  { table_name: 'Lote', column_name: 'excluido_por_usuario_id' },
 ];
 const TABELAS_OK = TABELAS_PROTEGIDAS.map((tabela) => ({ tabela, rls: true }));
 const PAPEIS_OK = { clientes_com_usuario_ativo: 1, administradores_ativos: 1, clientes_sem_administrador: 0 };
@@ -82,4 +84,12 @@ test('PF-06 só leitura e sem dado pessoal: todas as consultas são SELECT; a CL
   const cli = readFileSync(join(raiz, 'scripts', 'deploy', 'preflight-schema.mjs'), 'utf8');
   assert.doesNotMatch(cli, /console\.(log|error)\([^)]*(databaseUrl|DATABASE_URL\b[^ ])/);
   assert.doesNotMatch(cli, /\$executeRaw|\.create\(|\.update\(|\.delete\(/);
+});
+
+test('PR167-R1: falta qualquer coluna da exclusão lógica do Lote → reprovado, nomeando a coluna', () => {
+  for (const ausente of ['excluido_em', 'excluido_por_usuario_id']) {
+    const r = avaliarPreflight(pronto({ colunas: COLUNAS_OK.filter((c) => !(c.table_name === 'Lote' && c.column_name === ausente)) }));
+    assert.equal(r.ok, false, ausente);
+    assert.match(r.falhas.join('\n'), new RegExp(`Lote\\.${ausente}`));
+  }
 });

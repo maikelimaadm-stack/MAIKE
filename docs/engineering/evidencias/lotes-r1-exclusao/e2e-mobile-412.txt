@@ -1,0 +1,14 @@
+PASS mobile-412 ativo: aviso com o motivo, sem diálogo de confirmação
+PASS mobile-412 ativo: continua na API, nenhum DELETE
+PASS mobile-412 só cancelado: confirmação explica a exclusão lógica
+PASS mobile-412 sem rolagem horizontal
+PASS mobile-412 só cancelado: sai da lista e dos saldos (GET /lotes), identidade preservada por id com excluido_em — {"excluido_em":"2026-11-01T10:49:10.447Z"}
+PASS mobile-412 só cancelado: movimento continua cancelado com motivo e autor
+PASS mobile-412 sem histórico: confirmação padrão (sem texto de exclusão lógica) — Confirmar exclusão Deseja realmente excluir este lote? Cancelar Excluir
+PASS mobile-412 sem histórico: exclusão física (GET /lotes/:id → 404)
+PASS mobile-412 offline: avisa, sem DELETE e sem confirmação
+PASS mobile-412 offline: lote continua na API
+PASS mobile-412 mapa: histórico da área mostra o cancelado com motivo e o indicador de lote excluído — 31/10/2026 | Morte | Saída | Cancelado | EXCL mobile-412-j8e3 | Quantidade: 50 cab | Data: 31/10/2026 | Origem: Movimentação | Cancelado em 01/11/2026, 10:48 por demo.ope
+PASS mobile-412 DELETE /lotes só dos lotes confirmados (EXCL e LIVRE) — ["cmvxpj8il00477d347b2vjrhg","cmvxpj8n200507d34ol90p663"]
+PASS mobile-412 nenhum DELETE/PATCH de movimento no navegador
+PASS mobile-412 sem erro de página

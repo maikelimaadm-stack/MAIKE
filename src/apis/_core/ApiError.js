@@ -29,6 +29,7 @@ export const API_ERROR_CODES = Object.freeze({
 
   // P1.3 — Manejo. Só entram códigos com uso real e teste.
   LOTE_DELETE_BLOCKED: 'LOTE_DELETE_BLOCKED',
+  LOTE_EXCLUIDO: 'LOTE_EXCLUIDO',
   LOTE_UPDATE_BLOCKED: 'LOTE_UPDATE_BLOCKED',
   LOTE_NATIVE_FIELD_PROTECTED: 'LOTE_NATIVE_FIELD_PROTECTED',
   LOTE_FIELD_HAS_DATA: 'LOTE_FIELD_HAS_DATA',
@@ -60,6 +61,8 @@ export const API_ERROR_CODES = Object.freeze({
   PERMISSAO_SELF_DELETE_BLOCKED: 'PERMISSAO_SELF_DELETE_BLOCKED',
   SUPLEMENTACAO_PARTIAL_OPERATION: 'SUPLEMENTACAO_PARTIAL_OPERATION',
   OFFLINE_ENTITY_UNSUPPORTED: 'OFFLINE_ENTITY_UNSUPPORTED',
+  OFFLINE_DELETE_FORBIDDEN: 'OFFLINE_DELETE_FORBIDDEN',
+  OFFLINE_DELETE_QUARANTINED: 'OFFLINE_DELETE_QUARANTINED',
 
   // P4.0 — os oito códigos do contrato ModeloBase1 Pecuário.
   //
@@ -145,6 +148,7 @@ const MENSAGENS = Object.freeze({
   [API_ERROR_CODES.MAPA_DELETE_BLOCKED]: 'Não é possível excluir: existem registros vinculados.',
   [API_ERROR_CODES.MAPA_PARTIAL_OPERATION]: 'A operação foi concluída apenas em parte. Confira os dados antes de repetir.',
   [API_ERROR_CODES.LOTE_DELETE_BLOCKED]: 'Não é possível excluir o lote: existem registros vinculados.',
+  [API_ERROR_CODES.LOTE_EXCLUIDO]: 'Este lote foi excluído do cadastro e não recebe novos registros.',
   [API_ERROR_CODES.LOTE_UPDATE_BLOCKED]: 'Não é possível editar o lote: ele já tem movimentação, manejo ou registro depois da entrada.',
   [API_ERROR_CODES.LOTE_NATIVE_FIELD_PROTECTED]: 'Esta lista é nativa do sistema e não pode ser excluída.',
   [API_ERROR_CODES.LOTE_FIELD_HAS_DATA]: 'Este campo já possui dados em lotes cadastrados e não pode ser excluído com segurança.',
@@ -164,6 +168,8 @@ const MENSAGENS = Object.freeze({
   [API_ERROR_CODES.PERMISSAO_SELF_DELETE_BLOCKED]: 'Você não pode remover as suas próprias permissões.',
   [API_ERROR_CODES.SUPLEMENTACAO_PARTIAL_OPERATION]: 'A operação foi concluída apenas em parte. Confira os dados antes de repetir.',
   [API_ERROR_CODES.OFFLINE_ENTITY_UNSUPPORTED]: 'Há registros offline de um cadastro que o aplicativo não sabe sincronizar.',
+  [API_ERROR_CODES.OFFLINE_DELETE_FORBIDDEN]: 'Exclusão só com conexão: nada foi enviado nem guardado para depois.',
+  [API_ERROR_CODES.OFFLINE_DELETE_QUARANTINED]: 'Há exclusão feita sem conexão por versão anterior do aplicativo, retida por segurança: ela não foi enviada.',
 
   // P4.0 — mensagens públicas dos códigos do contrato.
   //

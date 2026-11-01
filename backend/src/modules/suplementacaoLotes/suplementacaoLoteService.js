@@ -1,6 +1,7 @@
 /**
  * Serviço de SuplementacaoLote (P5.5).
  */
+import { exigirLotesDosDocumentos } from '../../shared/lotes/loteVivo.js';
 import { getPrismaClient } from '../../database/prismaClient.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { AppError } from '../../shared/errors/AppError.js';
@@ -28,6 +29,8 @@ export const criar = async (contexto, entrada) => {
   const prisma = getPrismaClient();
   const criado = await prisma.$transaction(async (tx) => {
     const dados = montarDocumento(auth.clienteId, entrada);
+    // Lote excluído do cadastro não recebe registro novo (MAIKE-LOTES-R1).
+    await exigirLotesDosDocumentos(tx, auth.clienteId, [dados.dados]);
     const registro = await inserirRegistro(tx, dados);
     await registrarEvento(
       contexto,
@@ -49,6 +52,8 @@ export const criarEmLote = async (contexto, registros) => {
     const saida = [];
     for (const entrada of registros) {
       const dados = montarDocumento(auth.clienteId, entrada);
+      // Lote excluído do cadastro não recebe registro novo (MAIKE-LOTES-R1).
+      await exigirLotesDosDocumentos(tx, auth.clienteId, [dados.dados]);
       const registro = await inserirRegistro(tx, dados);
       saida.push(registro);
     }
@@ -81,6 +86,7 @@ export const atualizar = async (contexto, id, entrada) => {
     exigirSomenteCamposPermitidos(entrada, CAMPOS_PATCH_PERMITIDOS, { entidade: ENTIDADE, empresaAtual: existente.empresa_id });
     exigirNumerosOuNulo(entrada, ENTIDADE);
     const patch = montarDocumento(auth.clienteId, { ...documentoComoPublico(existente), ...entrada }, { atualizacao: true, id, dadosAnteriores: existente.dados });
+    await exigirLotesDosDocumentos(tx, auth.clienteId, [patch.dados]);
     const registro = await atualizarRegistroPorId(tx, auth.clienteId, id, patch);
     await registrarEvento(
       contexto,

@@ -1,0 +1,16 @@
+PASS mobile-412 IndexedDB: antes da exclusão, os lotes estão no cache da entidade — [252,252]
+PASS mobile-412 servidor: lógica (excluido_em) e física (404) confirmadas
+PASS mobile-412 IndexedDB: logo após o 204, nenhum cache do tenant traz os excluídos; FICA continua — ["Lote::T:cmvwd630400007dw7n37beyp6::__GLOBAL__","Lote::T:cmvwd630400007dw7n37beyp6::cmvwd6au200037d5t9qk00js3"]
+PASS mobile-412 fila offline sem DELETE de lote — []
+PASS mobile-412 offline na sessão: EXCL não reaparece no Cadastro
+PASS mobile-412 offline na sessão: LIVRE não reaparece no Cadastro
+PASS mobile-412 offline na sessão: FICA continua (cache não foi esvaziado)
+PASS mobile-412 sem rolagem horizontal
+PASS mobile-412 offline: excluir avisa, sem DELETE e sem entrada na fila
+PASS mobile-412 reload (API inacessível): IndexedDB persistido sem os excluídos; FICA presente
+PASS mobile-412 reload sem servidor: o app não mostra dado nenhum sem validar a sessão (sem caminho de ressurreição) — Não foi possível validar sua sessão. | Serviço de dados indisponível no momento. | Tentar novamenteEntrar com usuário e 
+PASS mobile-412 online de novo: EXCL e LIVRE fora, FICA presente
+PASS mobile-412 histórico: movimento cancelado intacto (motivo e autor)
+PASS mobile-412 DELETE /lotes só dos dois confirmados — ["cmvxrzbay00c47df4bwo5s9l7","cmvxrzbea00cl7df4tfpq8rcq"]
+PASS mobile-412 nenhum DELETE/PATCH de movimento
+PASS mobile-412 sem erro de página

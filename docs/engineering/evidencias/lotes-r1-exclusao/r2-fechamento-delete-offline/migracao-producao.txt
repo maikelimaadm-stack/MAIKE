@@ -1,0 +1,26 @@
+MIGRAÇÃO EM PRODUÇÃO — 20261101100000_lote_exclusao_logica (PR #167, D-PROD-100)
+Data: 2026-11-01. Autorização: proprietário, por escrito na sessão
+("pode fazer a migração"). Sem host, URL nem credencial registrados aqui.
+
+Alvo
+- Banco de runtime da main (Supabase), o mesmo usado nas leituras das missões anteriores.
+- Antes: 26 migrations concluídas, 0 com falha ou revertidas;
+  última = 20261030100000_icone_url_text; colunas novas = 0; Lote = 6 linhas.
+
+Aplicação (equivalente a `prisma migrate deploy`, numa única transação)
+- SQL idêntico ao do arquivo migration.sql (ALTER TABLE "Lote" ADD COLUMN x2).
+- Registro em "_prisma_migrations" com checksum = sha256 do arquivo:
+  32ea3ae9055d98d440fd499a89dac90f6f7f56eeb63f14d0d66881dc131456f5
+  (a convenção foi conferida: o checksum gravado da migration anterior é igual ao sha256 local do arquivo dela).
+- Por que não usei `npm run deploy:migrate`: a sessão não tem MIGRATION_DATABASE_URL e não pede credenciais.
+  O efeito no banco é o mesmo, e o próximo `prisma migrate deploy` encontra a migration já aplicada, com checksum igual.
+
+Verificação (passo 5 do runbook)
+- _prisma_migrations: 20261101100000_lote_exclusao_logica concluida=true revertida=false
+- excluido_em              is_nullable=YES  timestamp without time zone
+- excluido_por_usuario_id  is_nullable=YES  character varying
+- Total: 27 migrations (igual às 27 pastas do repositório), 0 pendentes, falhas ou revertidas → equivale ao PREFLIGHT OK
+- Lote: 6 linhas, 0 com excluido_em (expand-only, nenhum dado alterado)
+
+Dados: nenhum dado foi apagado. A migration só adiciona colunas e não exigiu limpeza.
+Rollback do schema (só se count(excluido_em)=0): ver MAIKE-LOTES-EXCLUSAO-CANCELADOS-RELEASE.md, passo 2.

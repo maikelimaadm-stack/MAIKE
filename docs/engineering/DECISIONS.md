@@ -3839,4 +3839,65 @@ Relatório: seção R2A-R3 de `docs/engineering/MAIKE-R2A-MAPA-CANCELAMENTO-ESTO
 
 ---
 
-<!-- Próxima decisão: D-PROD-100 -->
+## D-PROD-100 — Cadastro de Lotes: exclusão LÓGICA de entrada cujo histórico é só de movimentos cancelados com prova
+
+**Missão:** MAIKE-LOTES-R1-EXCLUSAO-APOS-CANCELAMENTO-SEGURO-2026-11-01. Base `main` 60667be (merge da #162). Uma migration expand-only; nenhuma escrita em produção.
+
+**Contexto:** depois da R2A (D-PROD-99), um movimento cancelado continua gravado, por desenho, com motivo, autor, efeitos e AuditLog. A guarda de exclusão do lote (D-PROD-87) contava qualquer `MovimentacaoMapa` com `lote_id`, cancelada ou não. O frontend pré-bloqueava por listas limitadas.
+
+RED reproduzido no HEAD de partida:
+- compra 500 → morte 50 → cancelamento (saldo 500) → `DELETE /lotes` dava 409 `movimentacoes_mapa`;
+- e um furo: lote com PATCH manual 500→450→500, sem movimento, era **apagado fisicamente**.
+
+**Decisão:**
+
+1. `DELETE /lotes/:id`, numa transação com o lote travado (`FOR UPDATE`) e tudo relido do banco, classifica:
+   - **exclusão física:** sem vínculo, sem alteração operacional e sem anexo (comportamento anterior);
+   - **exclusão lógica:** grava `Lote.excluido_em` e `excluido_por_usuario_id` (vem de `auth_context`) e audita `exclusao_logica`, sem mexer em saldo, situação ou histórico. Vale quando:
+     - os únicos vínculos são `MovimentacaoMapa` canceladas **com prova** (comando de manejo + `OperacaoIdempotente` de cancelamento committed apontando para o movimento), buscadas por `lote_id`, `lote_destino_id`, `efeito_servidor.efeitos[].lote_id` ou id em `observacoes`;
+     - o lote está **exatamente no estado de entrada** (saldo = entrada, área atual = de entrada, categoria e categoria de manejo da entrada, Ativo);
+     - toda linha de AuditLog do lote se explica: criação, edição que manteve o estado de entrada, ou efeito/reversão daqueles comandos;
+     - também vale para lote sem histórico que tem **anexo**, para o anexo não ficar órfão;
+   - **bloqueado:** 409 `LOTE_DELETE_BLOCKED`, com `details.motivo` estável. `details.vinculo` mantém os nomes do contrato anterior. Motivos:
+     - `movimentacao_ativa`;
+     - pecuária, suplementação, sanidade, medicamento, manejo técnico ou tarefa;
+     - `vinculo_legado_por_nome` (registro sem id com o mesmo nome; fail-closed);
+     - `cancelamento_nao_comprovado`;
+     - `estado_divergente_da_entrada`;
+     - `alteracao_sem_comprovacao`;
+     - `lote_gerado_por_manejo`.
+   - Lote já excluído logicamente: 204 sem novo efeito (idempotente).
+2. `GET /lotes/:id/elegibilidade-exclusao` só lê; o DELETE revalida. `GET /lotes/:id` resolve a identidade inclusive de lote excluído. Outro tenant recebe 404 e quem não está autenticado, 401.
+3. **Leituras operacionais** (`GET /lotes`, e por consequência mapa, saldos, cache offline e Cadastro) filtram `excluido_em IS NULL`. Manejo pelo comando trata lote excluído como inexistente. `PATCH /lotes` dá 404.
+4. **Escritores que citam lote** tomam `FOR SHARE` nos lotes citados e recusam lote excluído com 409 `LOTE_EXCLUIDO`. São eles: mapa, pecuária, suplementação (avulsa e comando), sanidade, medicamento, manejo técnico, tarefa e anexo. Como a exclusão usa `FOR UPDATE`, as duas operações se serializam:
+   - quem chega primeiro vence;
+   - a exclusão nunca ignora um vínculo já commitado;
+   - nenhum registro novo entra num lote excluído.
+5. **Frontend:**
+   - Excluir não pré-bloqueia por "tem histórico"; consulta o servidor, e listas da tela não autorizam nada;
+   - a confirmação explica a exclusão lógica;
+   - offline avisa e não envia nem enfileira; a exclusão vai direto ao servidor, fora da fila offline;
+   - falhas continuam selecionadas;
+   - editar a entrada continua travado quando há histórico;
+   - o histórico mostra "Lote excluído do Cadastro — registro mantido para auditoria" no movimento cancelado;
+   - `deleteRules` global fica intocado.
+
+**Limites declarados:**
+- Lote excluído não volta pelo app; não há "restaurar".
+- O ledger L1 (desativado) não foi alterado.
+- Escritor que cita lote **inexistente** segue o contrato anterior (não é validado).
+
+**Migration:** `20261101100000_lote_exclusao_logica`. Duas colunas NULL, sem default, sem backfill, sem índice. Rollback documentado: só se nenhum lote estiver excluído. O preflight de deploy passa a exigir `Lote.excluido_em`.
+
+**Complemento R1 (mesma decisão, PR #167):**
+- **Cache offline:** a exclusão confirmada (204) também tira o lote do cache offline da entidade Lote. Esse cache tem uma cópia por fazenda do tenant, e todas são varridas; outro tenant fica intocado. O lote também sai do cache do mapa da fazenda dele, pelo runtime offline existente (`removerRegistroDosCachesOffline`).
+- **Sem resposta definitiva** (5xx, 409, timeout, queda de rede), cache e fila não são tocados.
+- **Pendência offline do lote** recusa a exclusão com o motivo `pendencia_offline`: nada é enviado e a fila não é alterada.
+- **Exclusão de Lote nunca passa pela fila offline (R2):** vale para qualquer export (`deleteLote`, `excluirLote`, tela). Sem conexão, a recusa é tipada (`OFFLINE_DELETE_FORBIDDEN`) e cache e fila ficam intactos. Um `delete` legado na fila fica **retido** (quarentena): não é enviado no replay, não esconde o lote e só sai por liberação manual explícita. A opção do runtime é `exclusao: 'somente_online'`; as outras entidades ficam inalteradas.
+- **Release:** a migration precisa estar aplicada **e** verificada no banco real antes do merge. O preflight exige as duas colunas. O runbook está em `docs/engineering/MAIKE-LOTES-EXCLUSAO-CANCELADOS-RELEASE.md`. Estado: migration aplicada e verificada no banco de runtime em 2026-11-01, com autorização do proprietário. Evidência em `evidencias/lotes-r1-exclusao/r2-fechamento-delete-offline/migracao-producao.txt`.
+
+Relatório: `docs/engineering/MAIKE-LOTES-EXCLUSAO-CANCELADOS-REPORT.md`.
+
+---
+
+<!-- Próxima decisão: D-PROD-101 -->

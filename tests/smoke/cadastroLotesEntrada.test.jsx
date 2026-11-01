@@ -17,6 +17,7 @@ const serviceMock = {
   criarLote: vi.fn(),
   atualizarLote: vi.fn(),
   excluirLotes: vi.fn(),
+  consultarExclusaoDeLotes: vi.fn(),
 };
 
 vi.mock("@/services/loteCadastroService", async (importOriginal) => {
@@ -28,6 +29,7 @@ vi.mock("@/services/loteCadastroService", async (importOriginal) => {
     criarLote: (...a) => serviceMock.criarLote(...a),
     atualizarLote: (...a) => serviceMock.atualizarLote(...a),
     excluirLotes: (...a) => serviceMock.excluirLotes(...a),
+    consultarExclusaoDeLotes: (...a) => serviceMock.consultarExclusaoDeLotes(...a),
     listarAreasAtivas: vi.fn().mockResolvedValue([]),
   };
 });
@@ -128,9 +130,10 @@ describe("Editar/excluir só sem nada depois da entrada (D-PROD-87)", () => {
     await act(async () => gradePropsSpy.mock.calls.at(-1)[0].onSelectionChange([id]));
   };
 
-  it("lote 1 (com movimentação registrada): Editar e Excluir não liberam; aviso explica", async () => {
+  it("lote 1 (com movimentação ATIVA): Editar não libera; Excluir consulta o servidor, explica o motivo e não confirma", async () => {
     serviceMock.listarLotes.mockResolvedValue([{ ...LOTE_1, area_entrada_id: "a1", area_atual_id: "a1" }, LIVRE]);
     serviceMock.listarIdsDeLotesComRegistros.mockResolvedValue(new Set(["l1"]));
+    serviceMock.consultarExclusaoDeLotes.mockResolvedValue([{ id: "l1", tipo: "bloqueado", motivo: "movimentacao_ativa" }]);
     await renderPagina();
     await waitFor(() => expect(serviceMock.listarIdsDeLotesComRegistros).toHaveBeenCalled());
     await selecionar("l1");
@@ -138,9 +141,40 @@ describe("Editar/excluir só sem nada depois da entrada (D-PROD-87)", () => {
     expect(notifyWarning).toHaveBeenCalledWith("Lote com histórico", expect.stringMatching(/não pode ser editado/));
     expect(screen.queryByText("EDIÇÃO DE REGISTRO")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: /Excluir/ }));
-    expect(notifyWarning).toHaveBeenLastCalledWith("Lote com histórico", expect.stringMatching(/não pode ser excluído/));
+    await waitFor(() =>
+      expect(notifyWarning).toHaveBeenLastCalledWith("Lote não pode ser excluído", expect.stringMatching(/movimentação ativa/))
+    );
+    expect(serviceMock.consultarExclusaoDeLotes).toHaveBeenCalledWith(["l1"]);
     expect(screen.queryByText("Confirmar exclusão")).toBeNull();
     expect(serviceMock.excluirLotes).not.toHaveBeenCalled();
+  });
+
+  it("MAIKE-LOTES-R1: lote com histórico SÓ cancelado — Excluir pede confirmação explicando que os cancelados ficam para auditoria", async () => {
+    serviceMock.listarLotes.mockResolvedValue([{ ...LOTE_1, area_entrada_id: "a1", area_atual_id: "a1" }]);
+    serviceMock.listarIdsDeLotesComRegistros.mockResolvedValue(new Set(["l1"]));
+    serviceMock.consultarExclusaoDeLotes.mockResolvedValue([{ id: "l1", tipo: "exclusao_logica", motivo: "historico_somente_cancelado" }]);
+    await renderPagina();
+    await waitFor(() => expect(serviceMock.listarIdsDeLotesComRegistros).toHaveBeenCalled());
+    await selecionar("l1");
+    fireEvent.click(screen.getByRole("button", { name: /Excluir/ }));
+    expect((await screen.findAllByText(/movimentos cancelados ficarão preservados para auditoria/)).length).toBeGreaterThan(0);
+    expect(notifyWarning).not.toHaveBeenCalled();
+  });
+
+  it("MAIKE-LOTES-R1: offline — Excluir avisa e não consulta nem envia nada", async () => {
+    serviceMock.listarLotes.mockResolvedValue([LIVRE]);
+    await renderPagina();
+    await waitFor(() => expect(serviceMock.listarIdsDeLotesComRegistros).toHaveBeenCalled());
+    await selecionar("l9");
+    Object.defineProperty(window.navigator, "onLine", { value: false, configurable: true });
+    try {
+      fireEvent.click(screen.getByRole("button", { name: /Excluir/ }));
+      await waitFor(() => expect(notifyWarning).toHaveBeenLastCalledWith("Sem conexão", expect.stringMatching(/nada foi enviado/)));
+      expect(serviceMock.consultarExclusaoDeLotes).not.toHaveBeenCalled();
+      expect(serviceMock.excluirLotes).not.toHaveBeenCalled();
+    } finally {
+      Object.defineProperty(window.navigator, "onLine", { value: true, configurable: true });
+    }
   });
 
   it("lote que mudou desde a entrada sem registro que o cite (destino de unificação): também travado", async () => {
@@ -154,6 +188,7 @@ describe("Editar/excluir só sem nada depois da entrada (D-PROD-87)", () => {
 
   it("lote sem nada depois da entrada: Editar abre a edição e Excluir pede confirmação", async () => {
     serviceMock.listarLotes.mockResolvedValue([LIVRE]);
+    serviceMock.consultarExclusaoDeLotes.mockResolvedValue([{ id: "l9", tipo: "exclusao_fisica", motivo: null }]);
     await renderPagina();
     await waitFor(() => expect(serviceMock.listarIdsDeLotesComRegistros).toHaveBeenCalled());
     await selecionar("l9");

@@ -1,0 +1,14 @@
+PASS tablet-768 ativo: aviso com o motivo, sem diálogo de confirmação
+PASS tablet-768 ativo: continua na API, nenhum DELETE
+PASS tablet-768 só cancelado: confirmação explica a exclusão lógica
+PASS tablet-768 sem rolagem horizontal
+PASS tablet-768 só cancelado: sai da lista e dos saldos (GET /lotes), identidade preservada por id com excluido_em — {"excluido_em":"2026-11-01T10:48:27.795Z"}
+PASS tablet-768 só cancelado: movimento continua cancelado com motivo e autor
+PASS tablet-768 sem histórico: confirmação padrão (sem texto de exclusão lógica) — Confirmar exclusão Deseja realmente excluir este lote? Cancelar Excluir
+PASS tablet-768 sem histórico: exclusão física (GET /lotes/:id → 404)
+PASS tablet-768 offline: avisa, sem DELETE e sem confirmação
+PASS tablet-768 offline: lote continua na API
+PASS tablet-768 mapa: histórico da área mostra o cancelado com motivo e o indicador de lote excluído — 31/10/2026 | Morte | Saída | Cancelado | EXCL tablet-768-ie6u | Quantidade: 50 cab | Data: 31/10/2026 | Origem: Movimentação | Cancelado em 01/11/2026, 10:48 por demo.ope
+PASS tablet-768 DELETE /lotes só dos lotes confirmados (EXCL e LIVRE) — ["cmvxpiebf002w7d34d8wlqm4b","cmvxpieh0003p7d34snez7tc0"]
+PASS tablet-768 nenhum DELETE/PATCH de movimento no navegador
+PASS tablet-768 sem erro de página

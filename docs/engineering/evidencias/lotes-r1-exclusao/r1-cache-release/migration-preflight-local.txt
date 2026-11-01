@@ -1,0 +1,31 @@
+PR167-R1 P0-B — migration e preflight em bancos LOCAIS descartáveis (PostgreSQL 16; nenhum banco remoto, nenhuma URL real)
+Data: 2026-11-01T11:37:07Z
+
+1) Preflight real (scripts/deploy/preflight-schema.mjs), só leitura:
+   banco 'pre' (todas as migrations menos 20261101100000_lote_exclusao_logica; colunas removidas e linha apagada de _prisma_migrations):
+     migrations: 26/27 aplicadas
+     papéis: 0 cliente(s) com usuário ativo, 0 administrador(es) da fazenda, 0 cliente(s) sem administrador
+     FALHA migrations pendentes (1): 20261101100000_lote_exclusao_logica
+     FALHA colunas ausentes: Lote.excluido_em, Lote.excluido_por_usuario_id (backend desta PR responde 500)
+     PREFLIGHT FALHOU: NÃO publique este código neste banco.
+     exit=1
+   banco 'pos' (todas as migrations):
+     migrations: 27/27 aplicadas
+     papéis: 0 cliente(s) com usuário ativo, 0 administrador(es) da fazenda, 0 cliente(s) sem administrador
+     PREFLIGHT OK: o schema atende o código desta branch.
+     exit=0
+
+2) Consulta do GET /lotes NOVO (filtro excluido_em IS NULL), Prisma:
+   maike_pf_pre: FALHA — P2022 The column `Lote.excluido_em` does not exist in the current database.  (é o 500 que a produção daria sem a migration)
+   maike_pf_pos: OK
+
+3) Expand-only — código da main 60667be (cliente Prisma da main) sobre banco JÁ migrado:
+   node --test loteNativo + loteDerivadoIntegridade + movimentacaoCancelamentoR2A (worktree da main):
+     # tests 53
+     # pass 53
+     # fail 0
+   → migration aplicada ANTES do merge não quebra a versão em produção.
+
+4) Contrato do preflight (scripts/tests/deploy/preflight-schema.test.mjs): exige Lote.excluido_em E Lote.excluido_por_usuario_id; falta de qualquer uma → reprovado nomeando a coluna (7/7).
+
+5) Mecanismo de release versionado: .github/workflows/ só tem quality.yml (CI, banco do job). Vercel buildCommand = 'npm run prisma:generate && npm run build' (não migra). Nenhum pipeline versionado aplica a migration no banco real → passo MANUAL do operador, com aprovação.

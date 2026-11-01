@@ -30,6 +30,7 @@ import {
   createSuplementacaoEvento,
   listSuplementacaoEventos,
   bulkCreateSuplementacaoLote,
+  buscarLotePorIdServidor,
 } from '@/apis/lotes';
 import { filterProdutos } from '@/apis/estoque';
 import { ApiError, API_ERROR_CODES } from '@/apis/_core/ApiError';
@@ -131,6 +132,8 @@ export const listarMovimentacoes = (opcoes) => listMovimentacoes(opcoes);
 export const listarTodasMovimentacoes = () => listTodasMovimentacoes();
 /** Página do histórico filtrada no servidor (D-PROD-94); `total` diz quanto existe. */
 export const listarHistoricoMovimentacoesPagina = (filtros) => listHistoricoMovimentacoesPagina(filtros);
+/** Lote por id no servidor, inclusive excluído do cadastro (histórico). MAIKE-LOTES-R1. */
+export const buscarLoteDoHistorico = (id) => buscarLotePorIdServidor(id);
 /** Eventos de suplementação, usados pela conferência de sobras na movimentação. */
 export const listarEventosSuplementacao = () => listSuplementacaoEventos();
 

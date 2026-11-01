@@ -1,0 +1,21 @@
+PASS desktop-1440 IndexedDB: antes da exclusão, os lotes estão no cache da entidade — [271,271]
+PASS desktop-1440 legado: DELETE gravado na fila do navegador (como versão anterior) — 1
+PASS desktop-1440 servidor: lógica (excluido_em) e física (404) confirmadas
+PASS desktop-1440 IndexedDB: logo após o 204, nenhum cache do tenant traz os excluídos; FICA continua — ["Lote::T:cmvwd630400007dw7n37beyp6::__GLOBAL__","Lote::T:cmvwd630400007dw7n37beyp6::cmvwd6au200037d5t9qk00js3"]
+PASS desktop-1440 fila offline sem NOVO DELETE de lote (só o legado injetado em RET) — [{"entity":"Lote","op":"delete","id":"cmvxv0qww008p7df464fa4du1"}]
+PASS desktop-1440 offline na sessão: EXCL não reaparece no Cadastro
+PASS desktop-1440 offline na sessão: LIVRE não reaparece no Cadastro
+PASS desktop-1440 offline na sessão: FICA continua (cache não foi esvaziado)
+PASS desktop-1440 offline: DELETE legado retido NÃO esconde o lote RET (não foi excluído no servidor)
+PASS desktop-1440 sem rolagem horizontal
+PASS desktop-1440 offline: excluir avisa, sem DELETE e sem NOVA entrada na fila
+PASS desktop-1440 offline: nenhuma requisição DELETE saiu do navegador
+PASS desktop-1440 reload (API inacessível): IndexedDB persistido sem os excluídos; FICA presente
+PASS desktop-1440 reload sem servidor: o app não mostra dado nenhum sem validar a sessão (sem caminho de ressurreição) — Não foi possível validar sua sessão. | Serviço de dados indisponível no momento. | Tentar novamenteEntrar com usuário e 
+PASS desktop-1440 online de novo: EXCL e LIVRE fora, FICA presente
+PASS desktop-1440 online: RET bloqueado antes da confirmação (sem diálogo)
+PASS desktop-1440 online: RET recusado (retida por segurança), sem DELETE, delete legado continua na fila
+PASS desktop-1440 histórico: movimento cancelado intacto (motivo e autor)
+PASS desktop-1440 DELETE /lotes só dos dois confirmados — ["cmvxv0qtk007y7df4kzzylycj","cmvxv0qvz008f7df4oytw4h0v"]
+PASS desktop-1440 nenhum DELETE/PATCH de movimento
+PASS desktop-1440 sem erro de página

@@ -1,0 +1,34 @@
+MAIKE-LOTES-R1 — GREEN (branch claude/new-session-26kpxu sobre main 60667be; PostgreSQL 16 local, maike_ci sintético)
+Data: 2026-11-01T10:54:14Z
+
+node --test backend/tests/loteExclusaoCancelados.test.mjs:
+    ok 1 - compra 500 → morte 50 → cancelada → excluir = tombstone; some da lista; histórico, cancelamento e AuditLog intactos; repetição idempotente
+    ok 2 - duas mortes canceladas (mais recente primeiro) → exclusão lógica; com uma ativa → bloqueado
+    ok 3 - transferência total (no lugar) cancelada → exclusão lógica
+    ok 4 - parcial com lote novo cancelada: entrada original sai por exclusão lógica; o derivado fica (0/Inativo) e nunca é entrada excluível
+    ok 5 - unificação: destino citado só por lote_destino_id/efeitos — ativa bloqueia; cancelada libera os dois
+    ok 6 - homônimo: movimento ativo de OUTRO lote com o mesmo nome (com id) não bloqueia; registro legado só por nome bloqueia (fail-closed)
+    ok 1 - movimentacoes-pecuaria ativo (lote já com histórico cancelado) → bloqueado (movimentacoes_pecuarias)
+    ok 2 - suplementacao-lotes ativo (lote já com histórico cancelado) → bloqueado (suplementacao_lote)
+    ok 3 - eventos-sanitarios ativo (lote já com histórico cancelado) → bloqueado (eventos_sanitarios)
+    ok 4 - aplicacoes-medicamento ativo (lote já com histórico cancelado) → bloqueado (aplicacoes_medicamento)
+    ok 5 - manejos-tecnico-rebanho ativo (lote já com histórico cancelado) → bloqueado (manejos_tecnicos)
+    ok 6 - tarefa ligada ao lote → bloqueado
+    ok 7 - movimento ATIVO antigo do lote atrás de 600 registros de outros lotes → bloqueado (sem limite silencioso)
+    ok 8 - saldo voltou a 500 por PATCH manual (sem cancelamento) → bloqueado
+    ok 9 - legado (POST genérico + PATCH, sem proveniência) → bloqueado
+    ok 10 - movimento marcado cancelado SEM prova (escrita direta, sem operação idempotente) → bloqueado
+    ok 1 - lote recém-lançado (com correção do lançamento pelo cadastro: nota fiscal e peso) → exclusão física; linha some; auditoria delete
+    ok 2 - lote sem histórico mas com anexo → exclusão LÓGICA (o anexo não fica órfão); anexar a lote excluído → 409
+    ok 1 - depois do tombstone: PATCH 404; manejo pelo comando recusado; registro novo citando o lote → 409 LOTE_EXCLUIDO
+    ok 2 - outro tenant: elegibilidade, GET e DELETE → 404; nada muda
+    ok 1 - exclusão primeiro, manejo depois: tombstone vence; o manejo é recusado; nenhum movimento ativo novo
+    ok 2 - manejo primeiro, exclusão depois: o manejo vale e a exclusão é bloqueada
+    ok 3 - registro genérico (sanidade) primeiro, exclusão depois: bloqueada; exclusão primeiro: registro recusado
+# tests 23
+# pass 23
+# fail 0
+
+Concorrência (3 ordens com trava segurada) repetida 3x: 4/4 em cada rodada
+
+Migration 20261101100000_lote_exclusao_logica em banco descartável: UP ok (2 colunas NULL), rollback documentado ok (0 colunas), re-UP ok (2 colunas); prisma migrate diff = 0

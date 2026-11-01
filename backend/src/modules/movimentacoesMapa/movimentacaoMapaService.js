@@ -1,6 +1,7 @@
 /**
  * Serviço de MovimentacaoMapa (P5.5).
  */
+import { exigirLotesDosDocumentos } from '../../shared/lotes/loteVivo.js';
 import { getPrismaClient } from '../../database/prismaClient.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { AppError } from '../../shared/errors/AppError.js';
@@ -107,6 +108,8 @@ export const criar = async (contexto, entrada) => {
   const prisma = getPrismaClient();
   const criado = await prisma.$transaction(async (tx) => {
     const dados = await comNomesDeAreaResolvidos(tx, auth.clienteId, montarDocumento(auth.clienteId, entrada));
+    // Lote excluído do cadastro não recebe registro novo (MAIKE-LOTES-R1).
+    await exigirLotesDosDocumentos(tx, auth.clienteId, [dados.dados]);
     const registro = await inserirRegistro(tx, dados);
     await registrarEvento(
       contexto,
@@ -129,6 +132,8 @@ export const criarEmLote = async (contexto, registros) => {
     const saida = [];
     for (const entrada of registros) {
       const dados = await comNomesDeAreaResolvidos(tx, auth.clienteId, montarDocumento(auth.clienteId, entrada));
+      // Lote excluído do cadastro não recebe registro novo (MAIKE-LOTES-R1).
+      await exigirLotesDosDocumentos(tx, auth.clienteId, [dados.dados]);
       const registro = await inserirRegistro(tx, dados);
       saida.push(registro);
     }
