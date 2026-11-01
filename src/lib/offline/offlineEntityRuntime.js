@@ -284,11 +284,15 @@ const listarLocal = async (storage, entityName, { order, limit, filters = {}, em
   // A fila é global, e desde a P4.1-R1 uma entrada tenant-scoped só conta para o
   // dono dela: sem isso, a tela do cliente B mostraria a criação pendente do
   // cliente A como se fosse dele.
+  // Entidade com exclusão só online: um `delete` na fila (legado) está RETIDO
+  // e não esconde o registro — ele não foi excluído no servidor.
+  const exclusaoRetida = CATALOGO.get(entityName)?.exclusaoSomenteOnline === true;
   const daEntidade = fila.filter(
     (item) =>
       item.entity_name === entityName &&
       chaveEmpresa(item.empresa_id) === chaveEmpresa(empresaId) &&
-      (tenantId === undefined || (item.cliente_id ?? null) === tenantId)
+      (tenantId === undefined || (item.cliente_id ?? null) === tenantId) &&
+      !(exclusaoRetida && item.operation === "delete")
   );
 
   let items = aplicarPendentes(emCache, daEntidade);
@@ -356,17 +360,48 @@ export const removerRegistroDosCachesOffline = async (entityName, recordId) => {
  * @param {string} entityName
  * @param {string} recordId
  */
-export const temPendenciaOfflineDoRegistro = async (entityName, recordId) => {
+export const temPendenciaOfflineDoRegistro = async (entityName, recordId) =>
+  (await pendenciasOfflineDoRegistro(entityName, recordId)).length > 0;
+
+/**
+ * Operações na fila (do tenant da sessão) para este registro, ex. ['update'].
+ * @param {string} entityName
+ * @param {string} recordId
+ * @returns {Promise<string[]>}
+ */
+export const pendenciasOfflineDoRegistro = async (entityName, recordId) => {
   const entrada = CATALOGO.get(entityName);
-  if (!entrada || !recordId) return false;
+  if (!entrada || !recordId) return [];
   const tenantId = tenantDe(entrada.tenantScoped);
   const fila = await entrada.storage.listarFila();
-  return fila.some(
-    (item) =>
-      item.entity_name === entityName &&
-      (item.record_id === recordId || item.data?.id === recordId) &&
-      (!entrada.tenantScoped || (item.cliente_id ?? null) === (tenantId ?? null))
-  );
+  return fila
+    .filter(
+      (item) =>
+        item.entity_name === entityName &&
+        (item.record_id === recordId || item.data?.id === recordId) &&
+        (!entrada.tenantScoped || (item.cliente_id ?? null) === (tenantId ?? null))
+    )
+    .map((item) => item.operation);
+};
+
+/**
+ * Liberação MANUAL de um `delete` retido (PR167-R2): tira da fila SÓ esse item,
+ * se ele for exclusão de entidade "somente_online" do tenant da sessão. Não
+ * chama o servidor nem mexe em cache: o registro continua existindo; para
+ * excluí-lo de fato, use a exclusão online (elegibilidade + confirmação).
+ * @param {number|string} filaId
+ * @returns {Promise<boolean>} true se removeu
+ */
+export const liberarExclusaoOfflineRetida = async (filaId) => {
+  if (CATALOGO.size === 0) return false;
+  const porta = [...CATALOGO.values()][0].storage;
+  const item = (await porta.listarFila()).find((f) => f.id === filaId);
+  const entrada = item ? CATALOGO.get(item.entity_name) : null;
+  if (!item || !entrada?.exclusaoSomenteOnline || item.operation !== "delete") return false;
+  if (entrada.tenantScoped && (item.cliente_id ?? null) !== (tenantDe(true) ?? null)) return false;
+  await entrada.storage.removerDaFila(item.id);
+  emitirMudancaDeFila();
+  return true;
 };
 
 /**
@@ -385,6 +420,12 @@ export const temPendenciaOfflineDoRegistro = async (entityName, recordId) => {
  * @param {boolean} [p.tenantCatalog] catálogo global do tenant (não filtrado pela
  *        empresa selecionada): cache e fila usam `__GLOBAL__` em vez do id da
  *        fazenda ativa.
+ * @param {"fila"|"somente_online"} [p.exclusao] política de exclusão (PR167-R2). "fila"
+ *        (padrão, comportamento de sempre): offline tira do cache e enfileira.
+ *        "somente_online": a exclusão NUNCA passa pela fila nem é otimista — vai
+ *        direto a `operations.delete` (que recusa sem conexão) e só depois de
+ *        sucesso tira o registro dos caches do tenant; delete legado na fila
+ *        fica retido (quarentena) no replay em vez de ser enviado.
  * @param {OfflineEntityStorage} [p.storage]
  * @returns {object} objeto com as mesmas chaves de `operations`
  */
@@ -394,6 +435,7 @@ export const createOfflineEntityAdapter = ({
   enabled = true,
   tenantScoped = false,
   tenantCatalog = false,
+  exclusao = "fila",
   storage,
 }) => {
   if (typeof entityName !== "string" || !entityName) {
@@ -406,11 +448,13 @@ export const createOfflineEntityAdapter = ({
 
   const porta = storage || criarArmazenamentoIndexedDB();
   const catalogoTenant = Boolean(tenantCatalog);
+  const exclusaoSomenteOnline = exclusao === "somente_online";
   CATALOGO.set(entityName, {
     operations,
     storage: porta,
     tenantScoped: Boolean(tenantScoped),
     tenantCatalog: catalogoTenant,
+    exclusaoSomenteOnline,
   });
 
   const adapter = { ...operations };
@@ -564,7 +608,18 @@ export const createOfflineEntityAdapter = ({
     };
   }
 
-  if (typeof operations.delete === "function") {
+  if (typeof operations.delete === "function" && exclusaoSomenteOnline) {
+    // Sem fila e sem remoção otimista: falha (offline, timeout, 4xx, 5xx)
+    // propaga com cache e fila intactos; só o sucesso definitivo limpa o cache.
+    adapter.delete = async (recordId) => {
+      await operations.delete(recordId);
+      try {
+        await removerRegistroDosCachesOffline(entityName, recordId);
+      } catch {
+        // Cache é conveniência: a exclusão já foi confirmada pelo servidor.
+      }
+    };
+  } else if (typeof operations.delete === "function") {
     adapter.delete = async (recordId) => {
       const empresaId = empresaIdParaEntidade(catalogoTenant);
       const tenantId = tenantDe(tenantScoped);
@@ -666,8 +721,12 @@ const destinoDaEntrada = (entrada, item, tenantAtual) => {
  * vazia, mas nada dela é desta sessão.
  *
  * @param {(p: {current: number, total: number, item: object}) => void} [onProgress]
+ * Entidade com exclusão só online: `delete` na fila não é enviado; fica retido
+ * (quarentena) e o replay SEGUE com o resto da fila; o retorno avisa com
+ * `OFFLINE_DELETE_QUARANTINED` e `quarentenados`.
+ *
  * @returns {Promise<{success: boolean, code?: string, error?: unknown, pendentes?: number,
- *                    pulados?: number, descartados?: number}>}
+ *                    pulados?: number, descartados?: number, quarentenados?: number}>}
  */
 export const syncOfflineEntityQueue = async (onProgress) => {
   if (!estaOnline()) return { success: false, code: "OFFLINE" };
@@ -680,6 +739,7 @@ export const syncOfflineEntityQueue = async (onProgress) => {
   const tenantAtual = getOfflineTenant();
   let pulados = 0;
   let descartados = 0;
+  let quarentenados = 0;
 
   for (let i = 0; i < emOrdem.length; i += 1) {
     const item = emOrdem[i];
@@ -711,6 +771,20 @@ export const syncOfflineEntityQueue = async (onProgress) => {
       await storage.removerDaFila(item.id);
       descartados += 1;
       emitirMudancaDeFila();
+      continue;
+    }
+
+    if (item.operation === "delete" && entrada.exclusaoSomenteOnline) {
+      // Delete gravado por versão anterior: NÃO é enviado (a exclusão dessa
+      // entidade exige elegibilidade e confirmação online). Fica na fila,
+      // marcado, até liberação manual explícita — nada é apagado por heurística.
+      if (!item.quarentena) {
+        await storage.atualizarNaFila(item.id, {
+          quarentena: { codigo: API_ERROR_CODES.OFFLINE_DELETE_QUARANTINED, em: new Date().toISOString() },
+        });
+        emitirMudancaDeFila();
+      }
+      quarentenados += 1;
       continue;
     }
 
@@ -763,7 +837,17 @@ export const syncOfflineEntityQueue = async (onProgress) => {
     }
   }
 
-  return { success: true, pendentes: pulados, pulados, descartados };
+  if (quarentenados) {
+    return {
+      success: false,
+      code: API_ERROR_CODES.OFFLINE_DELETE_QUARANTINED,
+      pendentes: pulados + quarentenados,
+      pulados,
+      descartados,
+      quarentenados,
+    };
+  }
+  return { success: true, pendentes: pulados, pulados, descartados, quarentenados };
 };
 
 let listenerInstalado = false;

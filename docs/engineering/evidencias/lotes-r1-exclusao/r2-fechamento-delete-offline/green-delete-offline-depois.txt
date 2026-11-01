@@ -1,0 +1,18 @@
+PR167-R2 — GREEN (vitest; lotePort REAL; IndexedDBManager em memória; só nativeRequest falso)
+Data: 2026-11-01T13:14:28Z
+
+✓ PR167-R2 — deleteLote / excluirLote offline: falha fechada > deleteLote (@/apis/lotes): ZERO HTTP, ZERO delete na fila, cache intacto, erro tipado
+✓ PR167-R2 — deleteLote / excluirLote offline: falha fechada > excluirLote (loteCadastroService): ZERO HTTP, ZERO delete na fila, cache intacto, erro tipado
+✓ PR167-R2 — online: só 204 definitivo mexe no cache > 204: DELETE chega ao servidor e o lote sai do cache do tenant
+✓ PR167-R2 — online: só 204 definitivo mexe no cache > 409: erro propagado, nenhuma remoção otimista, nada na fila
+✓ PR167-R2 — online: só 204 definitivo mexe no cache > 404: erro propagado, nenhuma remoção otimista, nada na fila
+✓ PR167-R2 — online: só 204 definitivo mexe no cache > timeout: erro propagado, nenhuma remoção otimista, nada na fila
+✓ PR167-R2 — online: só 204 definitivo mexe no cache > conexão caiu antes do HTTP: erro propagado, nenhuma remoção otimista, nada na fila
+✓ PR167-R2 — delete LEGADO já gravado na fila por versão anterior > replay: nenhum DELETE enviado; item fica na fila em QUARENTENA; o resto da fila segue
+✓ PR167-R2 — delete LEGADO já gravado na fila por versão anterior > offline, o delete legado não esconde o lote (ele não foi excluído no servidor)
+✓ PR167-R2 — delete LEGADO já gravado na fila por versão anterior > pendência retida bloqueia a exclusão pela tela com motivo explícito; liberar é ação manual e só tira a retenção
+✓ PR167-R2 — delete LEGADO já gravado na fila por versão anterior > item de OUTRO tenant: nem quarentena, nem envio, nem liberação
+✓ PR167-R2 — sem regressão: criar e editar Lote offline continuam na fila > update offline enfileira e aparece no cache; delete continua proibido
+Tests  12 passed (12)
+
+Smoke completo: 104 arquivos, 1195/1195. lint 0 erros; gate:types sem regressão; gate:native-api PASSOU.

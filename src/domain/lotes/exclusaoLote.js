@@ -32,6 +32,8 @@ export const MENSAGENS_MOTIVO_EXCLUSAO = Object.freeze({
   estado_divergente_da_entrada: 'O lote não está como na entrada (saldo, área, categoria ou situação mudaram).',
   alteracao_sem_comprovacao: 'O lote teve alteração de saldo, área ou situação sem manejo comprovado.',
   pendencia_offline: 'Há alteração deste lote feita sem conexão aguardando sincronização. Sincronize antes de excluir.',
+  exclusao_offline_retida:
+    'Há uma exclusão deste lote feita sem conexão por versão anterior do aplicativo, retida por segurança (não foi enviada). Ela precisa ser liberada antes de excluir pelo Cadastro.',
 });
 
 export const mensagemDoMotivoExclusao = (motivo) =>

@@ -222,6 +222,9 @@ export const removerLoteDosCachesOffline = async (id) => operacoesDeExclusao.rem
 /** Há alteração offline deste lote na fila (tenant da sessão)? PR167-R1. */
 export const temPendenciaOfflineLote = async (id) => operacoesDeExclusao.temPendenciaOffline(id);
 
+/** Operações deste lote na fila offline do tenant (ex. ['update'], ['delete']). PR167-R2. */
+export const pendenciasOfflineLote = async (id) => operacoesDeExclusao.pendenciasOffline(id);
+
 /** Exclusão definitiva, só online (sem fila offline). MAIKE-LOTES-R1. */
 export const excluirLoteOnline = async (id) => {
   const contexto = ctx('excluirLoteOnline');

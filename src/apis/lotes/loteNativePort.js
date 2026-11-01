@@ -8,7 +8,9 @@ import {
   offlineStorageDisponivel,
   removerRegistroDosCachesOffline,
   temPendenciaOfflineDoRegistro,
+  pendenciasOfflineDoRegistro,
 } from '@/lib/offline/offlineEntityRuntime';
+import { ApiError, API_ERROR_CODES } from '../_core/ApiError.js';
 
 const RESOURCE = 'Lote';
 const CAMINHO = '/lotes';
@@ -94,12 +96,18 @@ export const operacoesNativas = Object.freeze({
       ctx('updateLote')
     ),
 
-  delete: (id) =>
-    nativeRequest(
+  // Exclusão de Lote é definitiva e decidida pelo servidor (D-PROD-100): sem
+  // conexão, recusa tipada ANTES de qualquer HTTP — nunca vira fila (PR167-R2).
+  delete: (id) => {
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      return Promise.reject(new ApiError(API_ERROR_CODES.OFFLINE_DELETE_FORBIDDEN, { ...ctx('deleteLote'), details: { id } }));
+    }
+    return nativeRequest(
       `${CAMINHO}/${encodeURIComponent(id)}`,
       { method: 'DELETE', autenticado: true },
       ctx('deleteLote')
-    ),
+    );
+  },
 });
 
 /**
@@ -109,11 +117,14 @@ export const operacoesNativas = Object.freeze({
 export const operacoesDeExclusao = Object.freeze({
   elegibilidade: (id) =>
     nativeRequest(`${CAMINHO}/${encodeURIComponent(id)}/elegibilidade-exclusao`, { autenticado: true }, ctx('elegibilidadeExclusaoLote')),
-  excluirOnline: (id) => operacoesNativas.delete(id),
+  // Mesmo caminho de qualquer export (deleteLote): a política está no adaptador.
+  excluirOnline: (id) => lotePort.delete(id),
   /** Depois de 204 do servidor: tira o lote de todos os caches offline do tenant. */
   removerDosCachesOffline: (id) => removerRegistroDosCachesOffline(ENTIDADE_OFFLINE, id),
   /** Edição/criação offline deste lote ainda na fila? */
   temPendenciaOffline: (id) => temPendenciaOfflineDoRegistro(ENTIDADE_OFFLINE, id),
+  /** Operações deste lote na fila (ex. ['update'], ['delete'] retido). */
+  pendenciasOffline: (id) => pendenciasOfflineDoRegistro(ENTIDADE_OFFLINE, id),
   /** Leitura por id, inclusive lote excluído logicamente (histórico/auditoria). */
   buscarPorId: (id) => nativeRequest(`${CAMINHO}/${encodeURIComponent(id)}`, { autenticado: true }, ctx('buscarLotePorIdServidor')),
 });
@@ -123,4 +134,6 @@ export const lotePort = createOfflineEntityAdapter({
   operations: operacoesNativas,
   enabled: offlineStorageDisponivel(),
   tenantScoped: true,
+  // PR167-R2: exclusão de Lote nunca passa pela fila offline.
+  exclusao: 'somente_online',
 });

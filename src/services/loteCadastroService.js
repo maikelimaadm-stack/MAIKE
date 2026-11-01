@@ -20,7 +20,7 @@ import {
   consultarElegibilidadeExclusaoLote,
   excluirLoteOnline,
   removerLoteDosCachesOffline,
-  temPendenciaOfflineLote,
+  pendenciasOfflineLote,
   listMovimentacoes,
   listMovimentacoesPecuarias,
   listTodasMovimentacoes,
@@ -279,8 +279,14 @@ export const excluirLotes = async (ids, { lotes = [] } = {}) => {
     // Alteração deste lote feita sem conexão ainda na fila: excluir agora
     // faria o replay bater num lote que não existe mais (ou a descartaria em
     // silêncio). Recusa explícita; nada é enviado (PR167-R1).
-    if (await temPendenciaOfflineLote(id).catch(() => true)) {
-      bloqueados.push({ id, code: API_ERROR_CODES.LOTE_DELETE_BLOCKED, motivo: 'pendencia_offline' });
+    // PR167-R2: `delete` retido (gravado offline por versão anterior) tem motivo próprio.
+    const pendencias = await pendenciasOfflineLote(id).catch(() => ['desconhecida']);
+    if (pendencias.length) {
+      bloqueados.push({
+        id,
+        code: API_ERROR_CODES.LOTE_DELETE_BLOCKED,
+        motivo: pendencias.includes('delete') ? 'exclusao_offline_retida' : 'pendencia_offline',
+      });
       continue;
     }
     try {

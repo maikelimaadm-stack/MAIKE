@@ -25,6 +25,7 @@ export {
   excluirLoteOnline,
   removerLoteDosCachesOffline,
   temPendenciaOfflineLote,
+  pendenciasOfflineLote,
   buscarLotePorIdServidor,
   updateMovimentacao,
   listFornecedores,
