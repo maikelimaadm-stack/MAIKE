@@ -3648,6 +3648,25 @@ Relatório: `docs/engineering/UX-MOBILE-V2-REPORT.md` (seção V5). Teste: `test
 
 ---
 
+## D-PROD-97 — Folha lisa no iPhone e cards sem fundo branco
+
+**Missão:** UX-MOBILE-V6. O proprietário relatou que, no aparelho, subir e descer a folha ainda travava e que atrás dos cards ainda aparecia fundo branco.
+
+**Decisão:**
+1. **Folha lisa** (`MobileSheet`):
+   - o primeiro `touchmove` é cancelado já no primeiro milímetro quando o gesto só pode ser da folha: cabeçalho ou alça; lista no topo puxando para baixo; média puxando para cima. Sem isso o iOS começava a rolar a lista e o arraste engasgava;
+   - a altura fica fixa na da grande durante todo o arraste (vale também quando começa na grande);
+   - ao soltar, a classe média/grande troca antes da animação final, e margens e cantos animam junto com o deslizamento, na mesma curva: nada salta no fim;
+   - sem sombra durante o arraste; a lista não passa o rolar para a página (`overscroll-behavior: contain`).
+   - Medido no Chromium: o topo da folha muda de forma monotônica do toque até o repouso (sobe 63→10, desce 220→313, fecha 743→fora), sem saltos.
+2. **Cards sem fundo branco:**
+   - o contêiner da tela que envolve a grade (`bg-white` nos Lotes) fica transparente quando dentro dele há cards;
+   - só os cards são brancos, sobre o fundo da página. A regra vale para qualquer tela com cards Base1.
+
+Relatório: `docs/engineering/UX-MOBILE-V2-REPORT.md` (seção V6). Teste: `tests/smoke/mobileV6Folha.test.jsx`.
+
+---
+
 ## D-PROD-98 — Chave do iOS: tamanho único, pulinho e ao lado do rótulo
 
 **Missão:** UX-MOBILE-V7. O proprietário pediu que todas as chaves (Ativo etc.) tenham o mesmo tamanho da chave de Configurar colunas, um pouco mais compridas, com o "pulinho" do iPhone, e que nos formulários ela fique ao lado do rótulo.

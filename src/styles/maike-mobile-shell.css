@@ -3346,3 +3346,29 @@ button.mk-switch[data-state="checked"]:not(#mk-padrao) .mk-switch__thumb {
   border-color: transparent !important;
   background: var(--portal-acao-bg, #f1f3f4) !important;
 }
+
+/*
+ * ══ v6 (D-PROD-97) ════════════════════════════════════════════════════════
+ */
+
+/* Folha: durante o arraste nada de sombra (pintura cara no iOS a cada quadro) */
+.mk-sheet.is-dragging {
+  box-shadow: none !important;
+  will-change: transform;
+}
+
+/* A lista dentro da folha não "quica" nem passa o rolar para a folha/página */
+.mk-sheet__body {
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.mk-sheet__handle,
+.mk-sheet__head {
+  touch-action: none;
+}
+
+/* Cards: o contêiner da tela (ex.: bg-white dos Lotes) não pinta branco atrás dos cards */
+.cadastro-b1 .mg-shell__scroll :is(.bg-white, [class*="bg-white"]):has(.mg-b1-cards-grid):not(#mk-padrao) {
+  background: transparent !important;
+}
