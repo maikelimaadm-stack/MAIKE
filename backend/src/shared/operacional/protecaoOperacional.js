@@ -21,6 +21,11 @@ export const CAMPOS_RESERVADOS_CANCELAMENTO = Object.freeze([
   'cancelamento_operation_id',
   'estorno',
   'estornado',
+  // R2A-R1: proveniência e vínculo de destino são escritos só pelo comando
+  // atômico de manejo (`/movimentacoes-mapa/comandos/manejo-lote`).
+  'efeito_servidor',
+  'modo_transferencia',
+  'lote_destino_id',
 ]);
 
 /** @param {unknown} entrada */

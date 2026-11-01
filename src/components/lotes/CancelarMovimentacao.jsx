@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { getCurrentUser, ehAdministrador } from "@/services/sessionService";
 import { cancelarMovimentacaoMapa, consultarCancelamentoMovimentacao } from "@/services/loteManejoService";
+import { refreshMapaCacheEntry } from "@/services/mapaCacheService";
 import { tipoTemCancelamento } from "@/domain/lotes/situacaoMovimento";
 
 // Componentes de `ui/*` são forwardRef sem tipos de props: o checkJs não enxerga `children`.
@@ -55,6 +56,37 @@ const novaChave = () =>
   `cancel-${typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`}`;
 
 const estaOnline = () => (typeof navigator === "undefined" ? true : navigator.onLine !== false);
+
+/**
+ * Operação pendente (R2A-R1, D-PROD-95a): chave + motivo gravados ANTES do
+ * envio e mantidos enquanto o resultado for desconhecido — sobrevive a fechar,
+ * reabrir, trocar de tela e recarregar. Só sai com resposta definitiva do
+ * servidor (sucesso ou recusa 4xx estável).
+ */
+const chavePendente = (id) => `maike_cancelamento_pendente:${id}`;
+export const lerPendente = (id) => {
+  try {
+    const bruto = window.localStorage.getItem(chavePendente(id));
+    const dados = bruto ? JSON.parse(bruto) : null;
+    return dados && typeof dados.operation_id === "string" && typeof dados.motivo === "string" ? dados : null;
+  } catch {
+    return null;
+  }
+};
+const gravarPendente = (id, dados) => {
+  try {
+    window.localStorage.setItem(chavePendente(id), JSON.stringify({ ...dados, em: new Date().toISOString() }));
+  } catch {
+    /* sem storage: a chave fica só na memória do diálogo */
+  }
+};
+const limparPendente = (id) => {
+  try {
+    window.localStorage.removeItem(chavePendente(id));
+  } catch {
+    /* idem */
+  }
+};
 
 const descreverEfeito = (efeito) => {
   const a = efeito?.antes || {};
@@ -100,18 +132,28 @@ export default function CancelarMovimentacao({ movimento, onCancelado }) {
   const online = estaOnline();
 
   const abrir = () => {
-    chaveRef.current = novaChave();
-    setMotivo("");
+    const pendente = lerPendente(movimento.id);
+    if (pendente) {
+      // Resultado anterior desconhecido: mesma chave e mesmo motivo, nunca outra operação.
+      chaveRef.current = pendente.operation_id;
+      setMotivo(pendente.motivo);
+      setDesconhecido(true);
+    } else {
+      chaveRef.current = novaChave();
+      setMotivo("");
+      setDesconhecido(false);
+    }
     setRecusa(null);
-    setDesconhecido(false);
     setAberto(true);
   };
 
   const fechar = (valor) => {
     if (!valor && enviando) return;
     if (!valor && desconhecido) {
-      // Resultado desconhecido: a chave fica guardada para o próximo envio deste
-      // mesmo movimento; ao reabrir, o GET de elegibilidade mostra se já cancelou.
+      const ok = window.confirm(
+        "O servidor ainda não confirmou este cancelamento. A operação fica guardada e será reenviada com a mesma chave quando você abrir de novo. Fechar mesmo assim?"
+      );
+      if (!ok) return;
       queryClient.invalidateQueries({ queryKey: ["historico-movimentacoes"] });
     }
     setAberto(valor);
@@ -121,18 +163,22 @@ export default function CancelarMovimentacao({ movimento, onCancelado }) {
     if (enviando || motivo.trim().length < 3) return;
     setEnviando(true);
     setRecusa(null);
+    gravarPendente(movimento.id, { operation_id: chaveRef.current, motivo: motivo.trim() });
     try {
       await cancelarMovimentacaoMapa(movimento.id, { operation_id: chaveRef.current, motivo: motivo.trim() });
+      limparPendente(movimento.id);
       toast.success("Movimentação cancelada.");
       setDesconhecido(false);
       setAberto(false);
+      // Cópia offline do histórico passa a mostrar o cancelado (P1-B).
+      await refreshMapaCacheEntry("movimentacoesHistorico", movimento.empresa_id, { force: true }).catch(() => {});
       await Promise.all(
         ["historico-movimentacoes", "historico-registros-lote", "historico-abate-curral", "mapa-cache", "mapa-lotes", "lotes", "elegibilidade-cancelamento"].map(
           (chave) => queryClient.invalidateQueries({ queryKey: [chave] })
         )
       );
       try {
-        window.dispatchEvent(new CustomEvent("atualizar-mapa", { detail: { cacheKeys: ["lotes", "movimentacoes"] } }));
+        window.dispatchEvent(new CustomEvent("atualizar-mapa", { detail: { cacheKeys: ["lotes", "movimentacoes", "movimentacoesHistorico"] } }));
       } catch {
         /* best-effort */
       }
@@ -140,6 +186,8 @@ export default function CancelarMovimentacao({ movimento, onCancelado }) {
     } catch (erro) {
       const codigo = codigoDoServidor(erro);
       if (ehRecusaDefinitiva(codigo)) {
+        // Resposta estável do servidor: nada foi gravado; a próxima tentativa é outra operação.
+        limparPendente(movimento.id);
         setRecusa(MENSAGENS_RECUSA[codigo] || "Não foi possível cancelar. Nada foi alterado.");
         setDesconhecido(false);
         chaveRef.current = novaChave();
@@ -185,16 +233,16 @@ export default function CancelarMovimentacao({ movimento, onCancelado }) {
           {elegibilidade.isError && (
             <div role="alert" className="text-sm text-red-700">Não foi possível conferir agora. Tente novamente.</div>
           )}
-          {e && !e.elegivel && (
+          {e && !e.elegivel && !desconhecido && (
             <div role="alert" className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1.5 text-xs text-amber-900">
               {MENSAGENS_RECUSA[e.codigo] || e.motivo || "Cancelamento indisponível."}
             </div>
           )}
-          {e?.elegivel && (
+          {(e?.elegivel || desconhecido) && (
             <div className="space-y-2">
               <div className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs text-slate-700">
                 <div className="font-semibold">Efeito ao cancelar</div>
-                {(e.efeitos || []).map((efeito) => (
+                {(e?.efeitos || []).map((efeito) => (
                   <div key={efeito.lote_id}>{descreverEfeito(efeito)}</div>
                 ))}
               </div>
@@ -211,7 +259,7 @@ export default function CancelarMovimentacao({ movimento, onCancelado }) {
               />
               {desconhecido && (
                 <div role="alert" className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1.5 text-xs text-amber-900">
-                  Sem resposta do servidor. O cancelamento pode ou não ter sido concluído. Tente de novo: a mesma operação é reenviada e nunca é aplicada duas vezes.
+                  Sem confirmação do servidor. O cancelamento pode ou não ter sido concluído. Reenvie: a MESMA operação é repetida e nunca é aplicada duas vezes.
                 </div>
               )}
               {recusa && (

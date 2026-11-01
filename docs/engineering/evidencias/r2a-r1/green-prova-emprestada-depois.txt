@@ -1,0 +1,3 @@
+ok 1 - RED: morte \#B sem efeito não pode ser cancelada com a auditoria da \#A
+# pass 1
+# fail 0

@@ -11,7 +11,7 @@ import { useQuery, useInfiniteQuery, useQueryClient } from "@tanstack/react-quer
 import { listarHistoricoMovimentacoesPagina } from "@/services/loteManejoService";
 import { Button } from "@/components/ui/button";
 import { normalizeText, getJuncaoLotesSnapshot } from "../utils/pecuariaUtils";
-import { ehMovimentoCancelado, tipoTemCancelamento } from "@/domain/lotes/situacaoMovimento";
+import { ehMovimentoCancelado, motivoSemCancelamento, tipoTemCancelamento } from "@/domain/lotes/situacaoMovimento";
 import CancelarMovimentacao from "./CancelarMovimentacao";
 import { getMapaCachedData, getMapaCacheSnapshot, refreshMapaCacheEntry } from "@/services/mapaCacheService";
 import { nomeDaAreaDoMovimento } from "@/domain/lotes/movimentacaoLote";
@@ -167,7 +167,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
     initialPageParam: null,
     queryFn: async ({ pageParam }) => {
       const doCache = async (falha) => {
-        const snapshot = await getMapaCacheSnapshot('movimentacoes', empresaSelecionadaId);
+        const snapshot = await getMapaCacheSnapshot('movimentacoesHistorico', empresaSelecionadaId);
         return {
           origem: 'cache',
           items: filtrarMovimentacoes(snapshot.items, contexto),
@@ -189,7 +189,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
         });
         // Guarda cópia para consulta offline (política do cache: intervalo
         // mínimo e cooldown). Sem await e sem invalidar esta query.
-        if (!pageParam) refreshMapaCacheEntry('movimentacoes', empresaSelecionadaId).catch(() => {});
+        if (!pageParam) refreshMapaCacheEntry('movimentacoesHistorico', empresaSelecionadaId).catch(() => {});
         return { origem: 'servidor', ...pagina };
       } catch (erro) {
         if (pageParam) throw erro;
@@ -528,8 +528,8 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
                             {item.cancelamento?.motivo ? ` — Motivo: ${item.cancelamento.motivo}` : ''}
                           </div>
                         )}
-                        {item.source === 'movimentacao' && !item.cancelado && !tipoTemCancelamento(item.raw) && (
-                          <div className="text-[10px] text-slate-400">Cancelamento não disponível para este tipo.</div>
+                        {item.source === 'movimentacao' && !item.cancelado && motivoSemCancelamento(item.raw) && (
+                          <div className="text-[10px] text-slate-400">{motivoSemCancelamento(item.raw)}</div>
                         )}
                       </div>
                     </div>

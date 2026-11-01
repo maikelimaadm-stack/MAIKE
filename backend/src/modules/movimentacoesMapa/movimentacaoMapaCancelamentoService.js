@@ -5,9 +5,10 @@
  *   1. administrador ativo do tenant (`exigirAdminTenant`, relido do banco);
  *   2. idempotência por (cliente, operation_id, tipo) + fingerprint;
  *   3. trava do movimento (`FOR UPDATE`) e dos lotes afetados em ordem de id;
- *   4. elegibilidade: tipo certificado, vínculo de lote provado, estado atual
- *      coerente, efeito original PROVADO no AuditLog e nenhuma dependência
- *      posterior (consulta completa no banco, sem teto);
+ *   4. elegibilidade: tipo certificado, PROVENIÊNCIA causal (o movimento nasceu
+ *      do comando atômico de manejo — `efeito_servidor` reservado + operação
+ *      idempotente confirmada apontando para ele; R2A-R1), estado atual coerente
+ *      e nenhuma dependência posterior (consulta completa no banco, sem teto);
  *   5. aplica o delta nos lotes, marca o movimento como `situacao: 'cancelado'`
  *      (o original não é apagado nem tem a data mudada) e audita.
  *
@@ -25,6 +26,7 @@ import { documentoComoPublico } from '../../shared/jsonDocument/jsonDocumentPubl
 import { executarComIdempotencia, fingerprintDePayload } from '../../shared/idempotency/operacaoIdempotenteService.js';
 import { registrarEvento } from '../auditoria/auditService.js';
 import { buscarNomesDeAreas } from './movimentacaoMapaRepository.js';
+import { COMANDO_MANEJO, TIPO_OPERACAO_MANEJO } from './manejoMapaComandoService.js';
 
 export const TIPO_OPERACAO_CANCELAMENTO = 'cancelamento_movimentacao_mapa';
 export const SITUACAO_CANCELADO = 'cancelado';
@@ -40,8 +42,6 @@ export const MODOS_TRANSFERENCIA = Object.freeze([
   'parcial_novo_lote',
 ]);
 
-/** Janela em que a atualização do lote acompanha a criação do movimento (fluxo legado em várias chamadas). */
-const JANELA_PROVA_MS = 15 * 60 * 1000;
 
 const erroNaoEncontrado = () => new AppError('MOVIMENTACAOMAPA_NOT_FOUND', 'MovimentacaoMapa não encontrado');
 const recusa = (codigo, mensagem, details = {}) => new AppError(codigo, mensagem, { details });
@@ -67,36 +67,38 @@ const buscarLotes = async (tx, clienteId, ids, travar) => {
   return new Map(lotes.map((l) => [l.id, l]));
 };
 
-// ─── Prova do efeito original (AuditLog do lote) ───────────────────────────
+// ─── Proveniência causal (R2A-R1, D-PROD-95a) ──────────────────────────────
 
 /**
- * Existe auditoria do lote, perto da criação do movimento, com a mudança
- * esperada? Sem ela não há como saber se a segunda chamada do fluxo legado
- * (atualizar o lote) aconteceu — e cancelar devolveria cabeças que nunca saíram.
- *
- * @param {'delta'|'area'|'criacao'} forma
+ * O efeito só é provado quando o movimento nasceu do comando atômico de manejo:
+ * `efeito_servidor` é campo reservado (POST/bulk/PATCH genéricos recusam) e a
+ * operação idempotente que o gerou precisa existir, confirmada, apontando
+ * para ESTE movimento. Coincidência de tempo, valor, nome, área ou AuditLog
+ * não prova nada — registro sem isso é recusado (fail-closed).
  */
-const efeitoProvado = async (tx, clienteId, mov, loteId, forma, esperado) => {
-  const inicio = new Date(mov.createdAt.getTime() - JANELA_PROVA_MS);
-  const fim = new Date(mov.createdAt.getTime() + JANELA_PROVA_MS);
-  const numero = (col) => Prisma.sql`CASE WHEN (${Prisma.raw(col)}->>'quantidade_cabecas') ~ '^-?[0-9]+(\\.[0-9]+)?$' THEN (${Prisma.raw(col)}->>'quantidade_cabecas')::numeric END`;
-  let condicao;
-  if (forma === 'delta') {
-    condicao = Prisma.sql`a.acao = 'update' AND (${numero('a.dados_novos')}) - (${numero('a.dados_anteriores')}) = ${esperado.delta}`;
-  } else if (forma === 'area') {
-    condicao = Prisma.sql`a.acao = 'update' AND a.dados_anteriores->>'area_atual_id' = ${esperado.de} AND a.dados_novos->>'area_atual_id' = ${esperado.para}`;
-  } else {
-    condicao = Prisma.sql`a.acao = 'create' AND (${numero('a.dados_novos')}) = ${esperado.quantidade} AND a.dados_novos->>'area_atual_id' = ${esperado.area}`;
+const exigirProveniencia = async (tx, clienteId, mov) => {
+  const efeito = mov.dados?.efeito_servidor;
+  const valido =
+    efeito &&
+    typeof efeito === 'object' &&
+    efeito.comando === COMANDO_MANEJO &&
+    typeof efeito.operation_id === 'string' &&
+    Array.isArray(efeito.efeitos) &&
+    efeito.efeitos.length > 0 &&
+    efeito.efeitos.every((x) => x && typeof x.lote_id === 'string' && x.antes && x.depois);
+  if (!valido) {
+    throw recusa('CANCELAMENTO_EFEITO_NAO_COMPROVADO', 'registro sem comprovação individual de efeito (anterior ao comando atômico)');
   }
-  const linhas = /** @type {Array<{n: number}>} */ (
-    await tx.$queryRaw`
-      SELECT COUNT(*)::int AS n FROM "AuditLog" a
-      WHERE a.cliente_id = ${clienteId} AND a.entidade = 'Lote' AND a.entidade_id = ${loteId}
-        AND a."createdAt" BETWEEN ${inicio} AND ${fim}
-        AND COALESCE(a.dados_anteriores->>'origem', '') <> 'cancelamento_movimentacao'
-        AND ${condicao}`
-  );
-  return Number(linhas[0]?.n ?? 0) > 0;
+  const operacao = await tx.operacaoIdempotente.findUnique({
+    where: {
+      cliente_id_operation_key_tipo_operacao: { cliente_id: clienteId, operation_key: efeito.operation_id, tipo_operacao: TIPO_OPERACAO_MANEJO },
+    },
+  });
+  const resposta = /** @type {any} */ (operacao?.response_json);
+  if (!operacao || operacao.status !== 'committed' || resposta?.movimentacao?.id !== mov.id) {
+    throw recusa('CANCELAMENTO_EFEITO_NAO_COMPROVADO', 'operação que gerou o efeito não confere com este movimento');
+  }
+  return efeito;
 };
 
 // ─── Dependências posteriores (banco, sem teto) ────────────────────────────
@@ -185,123 +187,50 @@ export const planejarCancelamento = async (tx, clienteId, id, { travar }) => {
   if (!TIPOS_CANCELAVEIS.includes(d.tipo) || texto(d.motivo)) {
     throw recusa('CANCELAMENTO_TIPO_NAO_SUPORTADO', 'cancelamento ainda não disponível para este tipo', { tipo: d.tipo ?? null, motivo: d.motivo ?? null });
   }
-  const q = Number(d.quantidade_animais);
-  if (!Number.isInteger(q) || q <= 0) {
-    throw recusa('CANCELAMENTO_ESTADO_DIVERGENTE', 'quantidade do movimento inválida');
-  }
-  const loteId = texto(d.lote_id);
-  if (!loteId) {
+  if (!texto(d.lote_id)) {
     throw recusa('CANCELAMENTO_VINCULO_AMBIGUO', 'movimento sem identificador de lote (registro legado por nome)');
   }
 
-  const areaOrigem = texto(d.area_origem_id);
-  const areaDestino = texto(d.area_destino_id);
+  const efeito = await exigirProveniencia(tx, clienteId, mov);
   const ehTransferencia = d.tipo === 'Transferência de Área';
-  const modoGravado = MODOS_TRANSFERENCIA.includes(d.modo_transferencia) ? d.modo_transferencia : null;
-  const destinoId = texto(d.lote_destino_id);
-  if (ehTransferencia && (!areaOrigem || !areaDestino)) {
-    throw recusa('CANCELAMENTO_VINCULO_AMBIGUO', 'transferência sem área de origem e destino');
-  }
-  if (ehTransferencia && modoGravado && modoGravado !== 'total_no_lugar' && (!destinoId || destinoId === loteId)) {
-    throw recusa('CANCELAMENTO_VINCULO_AMBIGUO', 'transferência sem lote de destino provado');
-  }
-
-  const ids = [loteId, ...(ehTransferencia && destinoId && destinoId !== loteId ? [destinoId] : [])];
+  const ids = efeito.efeitos.map((x) => x.lote_id);
   const lotes = await buscarLotes(tx, clienteId, ids, travar);
-  for (const idLote of ids) {
-    const lote = lotes.get(idLote);
-    if (!lote || lote.empresa_id !== mov.empresa_id) {
-      throw recusa('CANCELAMENTO_VINCULO_AMBIGUO', 'lote do movimento não encontrado nesta empresa', { lote_id: idLote });
-    }
-  }
-  const origem = lotes.get(loteId);
 
   /** @type {Array<{lote_id: string, antes: Record<string, any>, depois: Record<string, any>}>} */
   const efeitos = [];
-  let modo = null;
-
-  if (!ehTransferencia) {
-    // Morte / Abate: devolve q cabeças ao lote, na área onde o fato ocorreu.
-    if (areaOrigem && origem.area_atual_id !== areaOrigem) {
-      throw recusa('CANCELAMENTO_ESTADO_DIVERGENTE', 'o lote não está mais na área do movimento');
+  for (const registro of efeito.efeitos) {
+    const lote = lotes.get(registro.lote_id);
+    if (!lote || lote.empresa_id !== mov.empresa_id) {
+      throw recusa('CANCELAMENTO_VINCULO_AMBIGUO', 'lote do efeito não encontrado nesta empresa', { lote_id: registro.lote_id });
     }
-    if (origem.status !== 'Ativo' && origem.quantidade_cabecas !== 0) {
-      throw recusa('CANCELAMENTO_ESTADO_DIVERGENTE', 'lote inativo com saldo — estado não explicável pelo movimento');
+    // O lote tem de estar onde o efeito o deixou (não mudou de área desde então).
+    if ((lote.area_atual_id ?? null) !== (registro.depois.area_atual_id ?? null)) {
+      throw recusa('CANCELAMENTO_ESTADO_DIVERGENTE', 'o lote não está na área em que o movimento o deixou', { lote_id: lote.id });
     }
-    if (!(await efeitoProvado(tx, clienteId, mov, loteId, 'delta', { delta: -q }))) {
-      throw recusa('CANCELAMENTO_EFEITO_NAO_COMPROVADO', 'sem auditoria da baixa de cabeças no lote');
+    if (lote.status === 'Inativo' && lote.quantidade_cabecas > 0) {
+      throw recusa('CANCELAMENTO_ESTADO_DIVERGENTE', 'lote inativo com saldo — estado não explicável', { lote_id: lote.id });
     }
-    efeitos.push({
-      lote_id: loteId,
-      antes: { quantidade_cabecas: origem.quantidade_cabecas, status: origem.status },
-      depois: { quantidade_cabecas: origem.quantidade_cabecas + q, status: 'Ativo' },
-    });
-  } else {
-    // Transferência: modo gravado, ou — legado — só "total no lugar" é provável pelo estado.
-    modo = modoGravado;
-    if (!modo) {
-      if (origem.area_atual_id === areaDestino && origem.status === 'Ativo' && origem.quantidade_cabecas === q) {
-        modo = 'total_no_lugar';
-      } else {
-        throw recusa('CANCELAMENTO_VINCULO_AMBIGUO', 'registro legado sem lote de destino: parcial ou unificada não é cancelável com segurança');
-      }
+    const delta = Number(registro.antes.quantidade_cabecas) - Number(registro.depois.quantidade_cabecas);
+    const nova = lote.quantidade_cabecas + delta;
+    if (!Number.isInteger(nova) || nova < 0) {
+      throw recusa('CANCELAMENTO_SALDO_INSUFICIENTE', 'o lote não tem saldo para desfazer o movimento', { lote_id: lote.id, disponivel: lote.quantidade_cabecas, necessario: -delta });
     }
-    if (modo === 'total_no_lugar') {
-      if (origem.area_atual_id !== areaDestino || origem.status !== 'Ativo' || origem.quantidade_cabecas !== q) {
-        throw recusa('CANCELAMENTO_ESTADO_DIVERGENTE', 'o lote não está no destino com a mesma quantidade');
-      }
-      if (!(await efeitoProvado(tx, clienteId, mov, loteId, 'area', { de: areaOrigem, para: areaDestino }))) {
-        throw recusa('CANCELAMENTO_EFEITO_NAO_COMPROVADO', 'sem auditoria da troca de área do lote');
-      }
-      const nomes = await buscarNomesDeAreas(tx, clienteId, mov.empresa_id, [areaOrigem]);
-      efeitos.push({
-        lote_id: loteId,
-        antes: { area_atual_id: origem.area_atual_id, area_atual_nome: origem.area_atual_nome },
-        depois: { area_atual_id: areaOrigem, area_atual_nome: nomes.get(areaOrigem) || d.area_origem_nome || null },
-      });
-    } else {
-      const destino = lotes.get(destinoId);
-      if (destino.area_atual_id !== areaDestino || destino.status !== 'Ativo') {
-        throw recusa('CANCELAMENTO_ESTADO_DIVERGENTE', 'o lote de destino não está ativo na área de destino');
-      }
-      if (origem.area_atual_id !== areaOrigem) {
-        throw recusa('CANCELAMENTO_ESTADO_DIVERGENTE', 'o lote de origem não está na área de origem');
-      }
-      if (destino.quantidade_cabecas < q) {
-        throw recusa('CANCELAMENTO_SALDO_INSUFICIENTE', 'o lote de destino não tem as cabeças para devolver', { disponivel: destino.quantidade_cabecas, necessario: q });
-      }
-      if (modo === 'total_unificado' && (origem.status !== 'Inativo' || origem.quantidade_cabecas !== 0)) {
-        throw recusa('CANCELAMENTO_ESTADO_DIVERGENTE', 'o lote de origem não está zerado como a unificação total deixou');
-      }
-      if (modo === 'parcial_novo_lote' && destino.area_entrada_id !== areaDestino) {
-        throw recusa('CANCELAMENTO_ESTADO_DIVERGENTE', 'o lote derivado não entrou pela área de destino');
-      }
-      const provaOrigem = await efeitoProvado(tx, clienteId, mov, loteId, 'delta', { delta: -q });
-      const provaDestino =
-        modo === 'parcial_novo_lote'
-          ? await efeitoProvado(tx, clienteId, mov, destinoId, 'criacao', { quantidade: q, area: areaDestino })
-          : await efeitoProvado(tx, clienteId, mov, destinoId, 'delta', { delta: q });
-      if (!provaOrigem || !provaDestino) {
-        throw recusa('CANCELAMENTO_EFEITO_NAO_COMPROVADO', 'sem auditoria da saída na origem e da entrada no destino');
-      }
-      const destinoDepois = destino.quantidade_cabecas - q;
-      efeitos.push({
-        lote_id: loteId,
-        antes: { quantidade_cabecas: origem.quantidade_cabecas, status: origem.status },
-        depois: { quantidade_cabecas: origem.quantidade_cabecas + q, status: 'Ativo' },
-      });
-      efeitos.push({
-        lote_id: destinoId,
-        antes: { quantidade_cabecas: destino.quantidade_cabecas, status: destino.status },
-        depois: { quantidade_cabecas: destinoDepois, status: destinoDepois > 0 ? destino.status : 'Inativo' },
-      });
+    /** @type {Record<string, any>} */
+    const depois = { quantidade_cabecas: nova, status: nova === 0 ? 'Inativo' : lote.status === 'Inativo' ? 'Ativo' : lote.status };
+    if ((registro.antes.area_atual_id ?? null) !== (registro.depois.area_atual_id ?? null) && registro.antes.area_atual_id) {
+      const nomes = await buscarNomesDeAreas(tx, clienteId, mov.empresa_id, [registro.antes.area_atual_id]);
+      depois.area_atual_id = registro.antes.area_atual_id;
+      depois.area_atual_nome = nomes.get(registro.antes.area_atual_id) || d.area_origem_nome || null;
     }
+    const antes = { quantidade_cabecas: lote.quantidade_cabecas, status: lote.status };
+    if (depois.area_atual_id) Object.assign(antes, { area_atual_id: lote.area_atual_id, area_atual_nome: lote.area_atual_nome });
+    efeitos.push({ lote_id: lote.id, antes, depois });
   }
 
   const dependencias = await dependenciasPosteriores(tx, clienteId, mov, {
     loteIds: ids,
     nomes: [d.lote, ...ids.map((i) => lotes.get(i)?.nome)],
-    areaIds: ehTransferencia ? [areaOrigem, areaDestino] : [],
+    areaIds: ehTransferencia ? [texto(d.area_origem_id), texto(d.area_destino_id)].filter(Boolean) : [],
   });
   if (dependencias.length) {
     throw recusa('CANCELAMENTO_DEPENDENCIA_POSTERIOR', 'há registro posterior ligado ao lote ou à área', { dependencias });
@@ -309,12 +238,12 @@ export const planejarCancelamento = async (tx, clienteId, id, { travar }) => {
 
   // Conservação: transferência não cria nem some com cabeças.
   if (ehTransferencia) {
-    const soma = (k) => efeitos.reduce((t, e) => t + (typeof e[k].quantidade_cabecas === 'number' ? e[k].quantidade_cabecas : 0), 0);
+    const soma = (k) => efeitos.reduce((t, x) => t + x[k].quantidade_cabecas, 0);
     if (soma('antes') !== soma('depois')) {
       throw recusa('CANCELAMENTO_ESTADO_DIVERGENTE', 'o cancelamento não conservaria as cabeças');
     }
   }
-  return { mov, tipo: d.tipo, modo, quantidade: q, efeitos };
+  return { mov, tipo: d.tipo, modo: efeito.modo ?? null, quantidade: Number(d.quantidade_animais), efeitos };
 };
 
 // ─── Comando ───────────────────────────────────────────────────────────────

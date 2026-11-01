@@ -80,6 +80,9 @@ const CAPACIDADES = {
     ),
   // Cancelado (R2A) não tem efeito atual: fora do cache que alimenta mapa e lotes.
   movimentacoes: async (empresaId) => daEmpresa(await listMovimentacoes(), empresaId).filter(ehMovimentoAtivo),
+  // Histórico (R2A-R1, P1-B): ativos E cancelados, com situação, motivo e autor.
+  // É cópia parcial do que o servidor tinha no último refresh — não é histórico completo.
+  movimentacoesHistorico: async (empresaId) => daEmpresa(await listMovimentacoes(), empresaId),
   permissoes: async () => listPermissoes(),
   historicoTarefa: async (empresaId) => daEmpresa(await listHistorico(), empresaId),
   suplementacaoLote: async (empresaId) => daEmpresa(await listSuplementacaoLotes(), empresaId),

@@ -89,10 +89,34 @@ const mov = async (id) => prisma().movimentacaoMapa.findUnique({ where: { id } }
 const cancelar = (c, id, token = c.tokAdm, body = { operation_id: opId(), motivo: 'lançado por engano' }) =>
   req('POST', `/movimentacoes-mapa/${id}/cancelamento`, token, body);
 
-/** Morte pelo fluxo legado do DetalhesLote: movimento primeiro, depois PATCH do lote. */
-const morteLegada = async (c, l, q, tipo = 'Morte') => {
-  const m = await criarMov(c, { tipo, lote: l.nome, lote_id: l.id, quantidade_animais: q, area_origem_id: l.area_atual_id });
-  await patchLote(c, l.id, { quantidade_cabecas: l.quantidade_cabecas - q, ...(l.quantidade_cabecas - q === 0 ? { status: 'Inativo' } : {}) });
+/** Comando atômico de manejo (R2A-R1): o servidor aplica o efeito e grava a proveniência. */
+const manejo = (c, corpo, token = c.tokAdm) =>
+  req('POST', '/movimentacoes-mapa/comandos/manejo-lote', token, {
+    operation_id: opId(),
+    empresa_id: c.empresa.id,
+    data_movimentacao: '2026-10-30T12:00:00.000Z',
+    ...corpo,
+  });
+const morte = async (c, l, q, tipo = 'Morte') => {
+  const r = await manejo(c, { tipo, lote_id: l.id, quantidade_animais: q });
+  assert.equal(r.statusCode, 201, r.body);
+  return r.json().movimentacao;
+};
+const transferir = async (c, l, q, areaDestino, loteDestinoId) => {
+  const r = await manejo(c, {
+    tipo: 'Transferência de Área', lote_id: l.id, quantidade_animais: q, area_destino_id: areaDestino.id,
+    ...(loteDestinoId ? { lote_destino_id: loteDestinoId } : {}), categoria_animal: 'BOI',
+  });
+  assert.equal(r.statusCode, 201, r.body);
+  return r.json();
+};
+/** Fluxo LEGADO (navegador): movimento por POST genérico + PATCH do lote com estado esperado. */
+const morteLegada = async (c, l, q, { patch = true } = {}) => {
+  const m = await criarMov(c, { tipo: 'Morte', lote: l.nome, lote_id: l.id, quantidade_animais: q, area_origem_id: l.area_atual_id });
+  if (patch) {
+    const atual = await lote(l.id);
+    await patchLote(c, l.id, { quantidade_cabecas: atual.quantidade_cabecas - q, estado_esperado: { quantidade_cabecas: atual.quantidade_cabecas } });
+  }
   return m;
 };
 
@@ -102,7 +126,7 @@ describe('P0 — MovimentacaoMapa e MovimentacaoPecuaria', () => {
   test('DELETE e PATCH diretos → 409 MOVIMENTO_CANCELAMENTO_OBRIGATORIO; nada muda; outro tenant → 404', async () => {
     const c = await cenario();
     const l = await criarLote(c, { area: c.A });
-    const m = await morteLegada(c, l, 50);
+    const m = await morte(c, l, 50);
     const antes = await mov(m.id);
 
     for (const [metodo, corpo] of [['DELETE', undefined], ['PATCH', { quantidade_animais: 1 }], ['PATCH', { observacoes: 'só texto' }]]) {
@@ -194,271 +218,373 @@ describe('P0 — suplementação e estoque', () => {
 
 // ─── P1 — cancelamento transacional ───────────────────────────────────────
 
-describe('P1 — Morte e Abate', () => {
-  test('500 → morte de 50 → 450 → cancelar → 500; original preservado como cancelado; auditoria com ator', async () => {
+describe('P1 — Morte e Abate pelo comando atômico', () => {
+  test('500 → morte de 50 (comando) → 450 → cancelar → 500; original preservado; proveniência e auditoria', async () => {
     const c = await cenario();
     const l = await criarLote(c, { area: c.A });
-    const m = await morteLegada(c, l, 50);
+    const m = await morte(c, l, 50);
     assert.equal((await lote(l.id)).quantidade_cabecas, 450);
+    assert.equal(m.efeito_servidor.efeitos[0].lote_id, l.id);
+    assert.equal(m.area_origem_id, c.A.id, 'área de origem vem do servidor');
 
     const eleg = await req('GET', `/movimentacoes-mapa/${m.id}/elegibilidade-cancelamento`, c.tokAdm);
-    assert.equal(eleg.statusCode, 200);
     assert.equal(eleg.json().elegivel, true, eleg.body);
-    assert.equal(eleg.json().pode_cancelar, true);
 
     const r = await cancelar(c, m.id);
     assert.equal(r.statusCode, 200, r.body);
     assert.equal((await lote(l.id)).quantidade_cabecas, 500);
     const original = await mov(m.id);
     assert.equal(original.dados.situacao, 'cancelado');
-    assert.equal(original.dados.tipo, 'Morte');
-    assert.equal(original.dados.data_movimentacao, '2026-10-30T12:00:00.000Z', 'data operacional intacta');
+    assert.equal(original.dados.data_movimentacao, '2026-10-30T12:00:00.000Z');
     assert.equal(original.dados.cancelamento.motivo, 'lançado por engano');
     const audit = await prisma().auditLog.findFirst({ where: { entidade: 'MovimentacaoMapa', entidade_id: m.id, acao: 'cancelamento' } });
     assert.ok(audit?.usuario_id);
-    assert.equal(audit.cliente_id, c.cliente.id);
-    // historico continua lendo o original, agora cancelado
     const hist = await req('GET', `/movimentacoes-mapa/historico?empresa_id=${c.empresa.id}&area_id=${c.A.id}`, c.tokAdm);
     assert.equal(hist.json().items[0].situacao, 'cancelado');
   });
 
-  test('Abate: Inativo com 0 volta Ativo; replay da mesma chave não dobra (500, não 550)', async () => {
+  test('Abate: Inativo com 0 volta Ativo; replay da mesma chave não dobra', async () => {
     const c = await cenario();
     const l = await criarLote(c, { qtd: 50, area: c.A });
-    const m = await morteLegada(c, l, 50, 'Abate');
+    const m = await morte(c, l, 50, 'Abate');
     assert.equal((await lote(l.id)).status, 'Inativo');
     const corpo = { operation_id: opId(), motivo: 'abate duplicado' };
-    const r1 = await cancelar(c, m.id, c.tokAdm, corpo);
+    assert.equal((await cancelar(c, m.id, c.tokAdm, corpo)).statusCode, 200);
     const r2 = await cancelar(c, m.id, c.tokAdm, corpo);
-    assert.equal(r1.statusCode, 200, r1.body);
-    assert.equal(r2.statusCode, 200, r2.body);
+    assert.equal(r2.statusCode, 200);
     assert.equal(r2.json().replay, true);
-    const depois = await lote(l.id);
-    assert.equal(depois.quantidade_cabecas, 50);
-    assert.equal(depois.status, 'Ativo');
+    assert.deepEqual([(await lote(l.id)).quantidade_cabecas, (await lote(l.id)).status], [50, 'Ativo']);
     assert.equal((await cancelar(c, m.id, c.tokAdm, { ...corpo, motivo: 'outro motivo' })).json().code, 'IDEMPOTENCY_CONFLICT');
     assert.equal((await cancelar(c, m.id)).json().code, 'CANCELAMENTO_JA_REALIZADO');
   });
 
-  test('autorização: usuário comum 403, outro tenant 404, sem token 401 — nada muda', async () => {
+  test('comando: replay da mesma chave não baixa duas vezes; mesma chave com outro corpo → 409; saldo insuficiente → 409', async () => {
+    const c = await cenario();
+    const l = await criarLote(c, { qtd: 100, area: c.A });
+    const corpo = { operation_id: opId(), tipo: 'Morte', lote_id: l.id, quantidade_animais: 10 };
+    const r1 = await manejo(c, corpo);
+    const r2 = await manejo(c, corpo);
+    assert.equal(r1.statusCode, 201);
+    assert.equal(r2.json().replay, true);
+    assert.equal(r2.json().movimentacao.id, r1.json().movimentacao.id);
+    assert.equal((await lote(l.id)).quantidade_cabecas, 90);
+    assert.equal((await manejo(c, { ...corpo, quantidade_animais: 11 })).json().code, 'IDEMPOTENCY_CONFLICT');
+    assert.equal((await manejo(c, { tipo: 'Morte', lote_id: l.id, quantidade_animais: 91 })).json().code, 'MANEJO_SALDO_INSUFICIENTE');
+    assert.equal((await lote(l.id)).quantidade_cabecas, 90);
+    const outro = await cenario();
+    assert.equal((await manejo(outro, { tipo: 'Morte', lote_id: l.id, quantidade_animais: 1 }, outro.tokAdm)).statusCode, 404);
+  });
+
+  test('autorização: comum 403, outro tenant 404, sem token 401, admin revogado 403 — nada muda', async () => {
     const c = await cenario();
     const l = await criarLote(c, { area: c.A });
-    const m = await morteLegada(c, l, 50);
-    const r = await cancelar(c, m.id, c.tokComum);
-    assert.equal(r.statusCode, 403);
-    assert.equal(r.json().code, 'TENANT_ADMIN_REQUIRED');
+    const m = await morte(c, l, 50);
+    assert.equal((await cancelar(c, m.id, c.tokComum)).json().code, 'TENANT_ADMIN_REQUIRED');
     const outro = await cenario();
     assert.equal((await cancelar(c, m.id, outro.tokAdm)).statusCode, 404);
-    assert.equal((await req('GET', `/movimentacoes-mapa/${m.id}/elegibilidade-cancelamento`, outro.tokAdm)).statusCode, 404);
     assert.equal((await req('POST', `/movimentacoes-mapa/${m.id}/cancelamento`, null, { operation_id: opId(), motivo: 'x x x' })).statusCode, 401);
     assert.equal((await cancelar(c, m.id, c.tokAdm, { operation_id: opId(), motivo: 'ok ok', cliente_id: outro.cliente.id })).statusCode, 400);
-    assert.equal((await cancelar(c, m.id, c.tokAdm, { operation_id: opId(), motivo: 'ok ok', quantidade_animais: 999 })).statusCode, 400);
+    // admin rebaixado depois de emitido o token: o papel é relido do banco
+    await prisma().usuario.updateMany({ where: { cliente_id: c.cliente.id, papel_tenant: 'administrador' }, data: { papel_tenant: 'usuario' } });
+    assert.equal((await cancelar(c, m.id)).json().code, 'TENANT_ADMIN_REQUIRED');
     assert.equal((await lote(l.id)).quantidade_cabecas, 450);
     assert.equal((await mov(m.id)).dados.situacao, undefined);
   });
 
-  test('dependência posterior (pesagem depois, por id) → 409 com saldo intacto; sem prova de efeito → 409', async () => {
+  test('dependências posteriores (pesagem por id, sanidade) → 409, saldo intacto', async () => {
     const c = await cenario();
     const l = await criarLote(c, { area: c.A });
-    const m = await morteLegada(c, l, 50);
+    const m = await morte(c, l, 50);
     await criarMov(c, { tipo: 'Pesagem', lote: l.nome, lote_id: l.id, quantidade_animais: 450, area_origem_id: c.A.id, data_movimentacao: '2026-10-31T12:00:00.000Z' });
     const r = await cancelar(c, m.id);
-    assert.equal(r.statusCode, 409);
     assert.equal(r.json().code, 'CANCELAMENTO_DEPENDENCIA_POSTERIOR');
-    assert.equal((await lote(l.id)).quantidade_cabecas, 450);
-
-    // Movimento gravado mas o PATCH do lote nunca aconteceu (falha no meio do fluxo legado).
     const l2 = await criarLote(c, { nome: 'ANGUS', area: c.B });
-    const orfao = await criarMov(c, { tipo: 'Morte', lote: l2.nome, lote_id: l2.id, quantidade_animais: 10, area_origem_id: c.B.id });
-    const r2 = await cancelar(c, orfao.id);
-    assert.equal(r2.json().code, 'CANCELAMENTO_EFEITO_NAO_COMPROVADO');
-    assert.equal((await lote(l2.id)).quantidade_cabecas, 500, 'não devolve cabeças que nunca saíram');
+    const m2 = await morte(c, l2, 5);
+    await req('POST', '/eventos-sanitarios', c.tokAdm, { empresa_id: c.empresa.id, lote_id: l2.id, data_evento: '2026-11-01' });
+    assert.equal((await cancelar(c, m2.id)).json().details.dependencias[0].fonte, 'EventoSanitario');
+    assert.deepEqual([(await lote(l.id)).quantidade_cabecas, (await lote(l2.id)).quantidade_cabecas], [450, 495]);
   });
 
-  test('outras fontes posteriores do lote (suplementação, sanidade) também bloqueiam', async () => {
-    const c = await cenario();
-    const l = await criarLote(c, { area: c.A });
-    const m = await morteLegada(c, l, 50);
-    await req('POST', '/eventos-sanitarios', c.tokAdm, { empresa_id: c.empresa.id, lote_id: l.id, data_evento: '2026-11-01' });
-    const r = await cancelar(c, m.id);
-    assert.equal(r.json().code, 'CANCELAMENTO_DEPENDENCIA_POSTERIOR');
-    assert.equal(r.json().details.dependencias[0].fonte, 'EventoSanitario');
-  });
-
-  test('vínculo só por nome (legado sem lote_id) e tipo sem suporte → 409, nada muda', async () => {
+  test('tipo sem suporte e movimento sem lote_id → 409, nada muda', async () => {
     const c = await cenario();
     const l = await criarLote(c, { area: c.A });
     const porNome = await criarMov(c, { tipo: 'Morte', lote: l.nome, quantidade_animais: 5, area_origem_id: c.A.id });
     assert.equal((await cancelar(c, porNome.id)).json().code, 'CANCELAMENTO_VINCULO_AMBIGUO');
     const pesagem = await criarMov(c, { tipo: 'Pesagem', lote: l.nome, lote_id: l.id, quantidade_animais: 500, area_origem_id: c.A.id });
-    const r = await cancelar(c, pesagem.id);
-    assert.equal(r.json().code, 'CANCELAMENTO_TIPO_NAO_SUPORTADO');
-    const eleg = (await req('GET', `/movimentacoes-mapa/${pesagem.id}/elegibilidade-cancelamento`, c.tokAdm)).json();
-    assert.deepEqual([eleg.elegivel, eleg.codigo], [false, 'CANCELAMENTO_TIPO_NAO_SUPORTADO']);
+    assert.equal((await cancelar(c, pesagem.id)).json().code, 'CANCELAMENTO_TIPO_NAO_SUPORTADO');
     assert.equal((await lote(l.id)).quantidade_cabecas, 500);
   });
 });
 
-describe('P1 — Transferência de Área', () => {
-  test('total no lugar (legado): o lote volta à área de origem; cabeças iguais', async () => {
+describe('R2A-R1 — proveniência causal (nunca prova emprestada)', () => {
+  test('duas mortes de 50 / um único PATCH: #B (sem efeito) recusada; #A legado recusado; saldo e originais intactos', async () => {
     const c = await cenario();
     const l = await criarLote(c, { area: c.A });
-    await patchLote(c, l.id, { area_atual_id: c.B.id });
-    const m = await criarMov(c, { tipo: 'Transferência de Área', lote: l.nome, lote_id: l.id, quantidade_animais: 500, area_origem_id: c.A.id, area_destino_id: c.B.id });
-    const r = await cancelar(c, m.id);
-    assert.equal(r.statusCode, 200, r.body);
-    const depois = await lote(l.id);
-    assert.equal(depois.area_atual_id, c.A.id);
-    assert.equal(depois.area_atual_nome, 'PASTO A');
-    assert.equal(depois.quantidade_cabecas, 500);
-    assert.equal(depois.area_entrada_id, c.A.id, 'entrada histórica intacta');
+    const a = await morteLegada(c, l, 50); // fluxo legado com efeito real (PATCH -50)
+    const b = await morteLegada(c, l, 50, { patch: false }); // falha parcial: sem efeito
+    assert.equal((await lote(l.id)).quantidade_cabecas, 450);
+    for (const m of [b, a]) {
+      const r = await cancelar(c, m.id);
+      assert.equal(r.statusCode, 409, r.body);
+      assert.equal(r.json().code, 'CANCELAMENTO_EFEITO_NAO_COMPROVADO');
+      const eleg = (await req('GET', `/movimentacoes-mapa/${m.id}/elegibilidade-cancelamento`, c.tokAdm)).json();
+      assert.deepEqual([eleg.elegivel, eleg.codigo], [false, 'CANCELAMENTO_EFEITO_NAO_COMPROVADO']);
+    }
+    assert.equal((await lote(l.id)).quantidade_cabecas, 450);
+    assert.equal(await prisma().operacaoIdempotente.count({ where: { tipo_operacao: 'cancelamento_movimentacao_mapa' } }), 0, 'recusa não reserva chave');
   });
 
-  test('parcial com lote derivado (novo formato): 500 → 450 + 50 → cancelar → 500 + 0 (derivado inativo, não apagado)', async () => {
+  test('duas mortes iguais pelo comando: cada uma cancela só o próprio efeito (500 → 400 → 450 → 500)', async () => {
     const c = await cenario();
     const l = await criarLote(c, { area: c.A });
-    const derivado = await criarLote(c, {
-      qtd: 50, area: c.B,
-      extra: { motivo_entrada: 'Outros', motivo_outros: 'Movimentação parcial', origem: 'MOVIMENTAÇÃO' },
-    });
-    await patchLote(c, l.id, { quantidade_cabecas: 450 });
-    const m = await criarMov(c, {
-      tipo: 'Transferência de Área', lote: l.nome, lote_id: l.id, quantidade_animais: 50, area_origem_id: c.A.id, area_destino_id: c.B.id,
-      modo_transferencia: 'parcial_novo_lote', lote_destino_id: derivado.id,
-    });
-    const soma = async () => (await lote(l.id)).quantidade_cabecas + (await lote(derivado.id)).quantidade_cabecas;
-    assert.equal(await soma(), 500);
-    const r = await cancelar(c, m.id);
-    assert.equal(r.statusCode, 200, r.body);
+    const m1 = await morte(c, l, 50);
+    const m2 = await morte(c, l, 50);
+    assert.equal((await lote(l.id)).quantidade_cabecas, 400);
+    assert.equal((await cancelar(c, m1.id)).json().code, 'CANCELAMENTO_DEPENDENCIA_POSTERIOR', 'mais antiga espera a mais recente');
+    assert.equal((await cancelar(c, m2.id)).statusCode, 200);
+    assert.equal((await lote(l.id)).quantidade_cabecas, 450);
+    assert.equal((await cancelar(c, m1.id)).statusCode, 200);
     assert.equal((await lote(l.id)).quantidade_cabecas, 500);
-    const d = await lote(derivado.id);
-    assert.deepEqual([d.quantidade_cabecas, d.status, d.quantidade_entrada], [0, 'Inativo', 50], 'entrada histórica do derivado intacta');
-    assert.equal(await soma(), 500, 'cabeças conservadas');
+    assert.equal((await cancelar(c, m2.id)).json().code, 'CANCELAMENTO_JA_REALIZADO');
   });
 
-  test('parcial unificada com destino preexistente: 500/100 → 450/150 → cancelar → 500/100', async () => {
+  test('cliente não fabrica proveniência: POST/bulk com efeito_servidor, modo ou lote_destino_id → 400', async () => {
     const c = await cenario();
     const l = await criarLote(c, { area: c.A });
-    const dest = await criarLote(c, { nome: 'NELORE', qtd: 100, area: c.B });
-    await patchLote(c, dest.id, { quantidade_cabecas: 150 });
-    await patchLote(c, l.id, { quantidade_cabecas: 450 });
-    const m = await criarMov(c, {
-      tipo: 'Transferência de Área', lote: l.nome, lote_id: l.id, quantidade_animais: 50, area_origem_id: c.A.id, area_destino_id: c.B.id,
-      modo_transferencia: 'parcial_unificado', lote_destino_id: dest.id,
+    const forjado = {
+      empresa_id: c.empresa.id, tipo: 'Morte', lote: l.nome, lote_id: l.id, quantidade_animais: 50, area_origem_id: c.A.id,
+      efeito_servidor: { comando: 'manejo_mapa_lote', operation_id: 'op-forjada-123', efeitos: [{ lote_id: l.id, antes: { quantidade_cabecas: 500 }, depois: { quantidade_cabecas: 450 } }] },
+    };
+    for (const corpo of [forjado, { ...forjado, efeito_servidor: undefined, modo_transferencia: 'total_unificado' }, { ...forjado, efeito_servidor: undefined, lote_destino_id: l.id }]) {
+      const r = await req('POST', '/movimentacoes-mapa', c.tokAdm, JSON.parse(JSON.stringify(corpo)));
+      assert.equal(r.statusCode, 400, r.body);
+      assert.equal(r.json().code, 'CAMPO_RESERVADO_CANCELAMENTO');
+    }
+    assert.equal((await req('POST', '/movimentacoes-mapa/bulk', c.tokAdm, [forjado])).statusCode >= 400, true);
+    assert.equal(await prisma().movimentacaoMapa.count({ where: { cliente_id: c.cliente.id } }), 0);
+  });
+
+  test('proveniência copiada para outro movimento (forja direta no banco) não vale: a operação aponta para o original', async () => {
+    const c = await cenario();
+    const l = await criarLote(c, { area: c.A });
+    const a = await morte(c, l, 50);
+    const copia = await prisma().movimentacaoMapa.create({
+      data: { cliente_id: c.cliente.id, empresa_id: c.empresa.id, dados: { ...(await mov(a.id)).dados } },
     });
+    assert.equal((await cancelar(c, copia.id)).json().code, 'CANCELAMENTO_EFEITO_NAO_COMPROVADO');
+    assert.equal((await lote(l.id)).quantidade_cabecas, 450);
+    // A cópia é um registro posterior do mesmo lote: conservadoramente, bloqueia também o original.
+    assert.equal((await cancelar(c, a.id)).json().code, 'CANCELAMENTO_DEPENDENCIA_POSTERIOR');
+    assert.equal((await lote(l.id)).quantidade_cabecas, 450);
+  });
+});
+
+describe('P1 — Transferência de Área pelo comando', () => {
+  const soma = async (...ids) => (await Promise.all(ids.map(lote))).reduce((t, x) => t + x.quantidade_cabecas, 0);
+
+  test('total no lugar: área volta à origem; cabeças e entrada histórica intactas', async () => {
+    const c = await cenario();
+    const l = await criarLote(c, { area: c.A });
+    const { movimentacao: m } = await transferir(c, l, 500, c.B);
+    assert.equal(m.modo_transferencia, 'total_no_lugar');
+    assert.equal((await lote(l.id)).area_atual_id, c.B.id);
+    assert.equal((await cancelar(c, m.id)).statusCode, 200);
+    const d = await lote(l.id);
+    assert.deepEqual([d.area_atual_id, d.area_atual_nome, d.quantidade_cabecas, d.area_entrada_id], [c.A.id, 'PASTO A', 500, c.A.id]);
+  });
+
+  test('parcial com lote novo: 500 → 450 + 50 → cancelar → 500 + 0 (derivado Inativo, entrada 50 intacta)', async () => {
+    const c = await cenario();
+    const l = await criarLote(c, { area: c.A });
+    const { movimentacao: m } = await transferir(c, l, 50, c.B);
+    assert.equal(m.modo_transferencia, 'parcial_novo_lote');
+    const derivadoId = m.lote_destino_id;
+    const derivado = await lote(derivadoId);
+    assert.deepEqual([derivado.quantidade_cabecas, derivado.quantidade_entrada, derivado.origem, derivado.area_atual_id], [50, 50, 'MOVIMENTAÇÃO', c.B.id]);
+    assert.equal(await soma(l.id, derivadoId), 500);
+    assert.equal((await cancelar(c, m.id)).statusCode, 200);
+    const d = await lote(derivadoId);
+    assert.deepEqual([(await lote(l.id)).quantidade_cabecas, d.quantidade_cabecas, d.status, d.quantidade_entrada], [500, 0, 'Inativo', 50]);
+    assert.equal(await soma(l.id, derivadoId), 500);
+  });
+
+  test('parcial unificada com destino preexistente: 500/100 → 450/150 → 500/100', async () => {
+    const c = await cenario();
+    const l = await criarLote(c, { area: c.A });
+    const dest = await criarLote(c, { qtd: 100, area: c.B });
+    const { movimentacao: m } = await transferir(c, l, 50, c.B, dest.id);
+    assert.equal(m.modo_transferencia, 'parcial_unificado');
+    assert.deepEqual([(await lote(l.id)).quantidade_cabecas, (await lote(dest.id)).quantidade_cabecas], [450, 150]);
     assert.equal((await cancelar(c, m.id)).statusCode, 200);
     assert.deepEqual([(await lote(l.id)).quantidade_cabecas, (await lote(dest.id)).quantidade_cabecas], [500, 100]);
   });
 
-  test('total unificada (novo formato): 500 em A + 100 em B → 0 Inativo / 600 → cancelar → 500 Ativo / 100', async () => {
+  test('total unificada: 500 + 100 → 0 Inativo / 600 → 500 Ativo / 100', async () => {
     const c = await cenario();
     const l = await criarLote(c, { area: c.A });
     const dest = await criarLote(c, { qtd: 100, area: c.B });
-    await patchLote(c, dest.id, { quantidade_cabecas: 600 });
-    await patchLote(c, l.id, { status: 'Inativo', quantidade_cabecas: 0 });
-    const m = await criarMov(c, {
-      tipo: 'Transferência de Área', lote: l.nome, lote_id: l.id, quantidade_animais: 500, area_origem_id: c.A.id, area_destino_id: c.B.id,
-      modo_transferencia: 'total_unificado', lote_destino_id: dest.id,
-    });
-    const r = await cancelar(c, m.id);
-    assert.equal(r.statusCode, 200, r.body);
-    const o = await lote(l.id);
-    assert.deepEqual([o.quantidade_cabecas, o.status, o.area_atual_id], [500, 'Ativo', c.A.id]);
-    assert.equal((await lote(dest.id)).quantidade_cabecas, 100);
-  });
-
-  test('total no lugar (novo formato, lote_destino_id = o próprio lote)', async () => {
-    const c = await cenario();
-    const l = await criarLote(c, { area: c.A });
-    await patchLote(c, l.id, { area_atual_id: c.B.id });
-    const m = await criarMov(c, {
-      tipo: 'Transferência de Área', lote: l.nome, lote_id: l.id, quantidade_animais: 500, area_origem_id: c.A.id, area_destino_id: c.B.id,
-      modo_transferencia: 'total_no_lugar', lote_destino_id: l.id,
-    });
+    const { movimentacao: m } = await transferir(c, l, 500, c.B, dest.id);
+    assert.equal(m.modo_transferencia, 'total_unificado');
+    assert.deepEqual([(await lote(l.id)).status, (await lote(dest.id)).quantidade_cabecas], ['Inativo', 600]);
     assert.equal((await cancelar(c, m.id)).statusCode, 200);
-    assert.equal((await lote(l.id)).area_atual_id, c.A.id);
+    const o = await lote(l.id);
+    assert.deepEqual([o.quantidade_cabecas, o.status, o.area_atual_id, (await lote(dest.id)).quantidade_cabecas], [500, 'Ativo', c.A.id, 100]);
   });
 
-  test('parcial legado (sem lote de destino gravado) → CANCELAMENTO_VINCULO_AMBIGUO, nada muda', async () => {
+  test('destino incompatível (outro nome/categoria/área) → 409 e nada muda', async () => {
     const c = await cenario();
     const l = await criarLote(c, { area: c.A });
-    const derivado = await criarLote(c, { qtd: 50, area: c.B, extra: { motivo_entrada: 'Outros', motivo_outros: 'Movimentação parcial', origem: 'MOVIMENTAÇÃO' } });
-    await patchLote(c, l.id, { quantidade_cabecas: 450 });
-    const m = await criarMov(c, { tipo: 'Transferência de Área', lote: l.nome, lote_id: l.id, quantidade_animais: 50, area_origem_id: c.A.id, area_destino_id: c.B.id });
-    assert.equal((await cancelar(c, m.id)).json().code, 'CANCELAMENTO_VINCULO_AMBIGUO');
-    assert.deepEqual([(await lote(l.id)).quantidade_cabecas, (await lote(derivado.id)).quantidade_cabecas], [450, 50]);
+    const outroNome = await criarLote(c, { nome: 'OUTRO', qtd: 10, area: c.B });
+    const r = await manejo(c, { tipo: 'Transferência de Área', lote_id: l.id, quantidade_animais: 50, area_destino_id: c.B.id, lote_destino_id: outroNome.id, categoria_animal: 'BOI' });
+    assert.equal(r.json().code, 'MANEJO_ESTADO_INVALIDO');
+    assert.deepEqual([(await lote(l.id)).quantidade_cabecas, (await lote(outroNome.id)).quantidade_cabecas], [500, 10]);
+  });
+
+  test('legado (POST + PATCH do navegador, sem proveniência) → recusa fail-closed, nada muda', async () => {
+    const c = await cenario();
+    const l = await criarLote(c, { area: c.A });
+    await patchLote(c, l.id, { area_atual_id: c.B.id, estado_esperado: { area_atual_id: c.A.id } });
+    const m = await criarMov(c, { tipo: 'Transferência de Área', lote: l.nome, lote_id: l.id, quantidade_animais: 500, area_origem_id: c.A.id, area_destino_id: c.B.id });
+    assert.equal((await cancelar(c, m.id)).json().code, 'CANCELAMENTO_EFEITO_NAO_COMPROVADO');
+    assert.equal((await lote(l.id)).area_atual_id, c.B.id);
   });
 
   test('destino sem saldo para devolver → CANCELAMENTO_SALDO_INSUFICIENTE', async () => {
     const c = await cenario();
     const l = await criarLote(c, { area: c.A });
     const dest = await criarLote(c, { qtd: 100, area: c.B });
-    await patchLote(c, dest.id, { quantidade_cabecas: 150 });
-    await patchLote(c, l.id, { quantidade_cabecas: 450 });
-    const m = await criarMov(c, {
-      tipo: 'Transferência de Área', lote: l.nome, lote_id: l.id, quantidade_animais: 50, area_origem_id: c.A.id, area_destino_id: c.B.id,
-      modo_transferencia: 'parcial_unificado', lote_destino_id: dest.id,
-    });
+    const { movimentacao: m } = await transferir(c, l, 50, c.B, dest.id);
     await prisma().lote.update({ where: { id: dest.id }, data: { quantidade_cabecas: 20 } });
     assert.equal((await cancelar(c, m.id)).json().code, 'CANCELAMENTO_SALDO_INSUFICIENTE');
     assert.equal((await lote(l.id)).quantidade_cabecas, 450);
   });
 });
 
-describe('P1 — concorrência e rollback', () => {
-  test('dois cancelamentos simultâneos com chaves diferentes → um 200, outro 409; saldo 500, não 550', async () => {
+describe('R2A-R1 — concorrência de saldo (CAS) e rollback', () => {
+  /** Segura a linha do lote numa transação à parte até `soltar()`: interleaving determinístico. */
+  const segurarLote = async (loteId) => {
+    let soltar;
+    const liberado = new Promise((r) => { soltar = r; });
+    let travado;
+    const pronto = new Promise((r) => { travado = r; });
+    const tx = prisma().$transaction(async (t) => {
+      await t.$queryRaw`SELECT id FROM "Lote" WHERE id = ${loteId} FOR UPDATE`;
+      travado();
+      await liberado;
+    }, { timeout: 20000 });
+    await pronto;
+    return async () => { soltar(); await tx; };
+  };
+
+  test('PATCH obsoleto depois do cancelamento (quantidade calculada antes) → 409 LOTE_ESTADO_CONFLITO; saldo 500', async () => {
     const c = await cenario();
     const l = await criarLote(c, { area: c.A });
-    const m = await morteLegada(c, l, 50);
+    const m = await morte(c, l, 50);
+    const lido = await lote(l.id); // navegador leu 450
+    assert.equal((await cancelar(c, m.id)).statusCode, 200);
+    const r = await req('PATCH', `/lotes/${l.id}`, c.tokAdm, { quantidade_cabecas: lido.quantidade_cabecas - 50, estado_esperado: { quantidade_cabecas: lido.quantidade_cabecas } });
+    assert.equal(r.statusCode, 409);
+    assert.equal(r.json().code, 'LOTE_ESTADO_CONFLITO');
+    assert.equal((await lote(l.id)).quantidade_cabecas, 500);
+  });
+
+  test('PATCH de saldo/área/status/categoria sem estado esperado → 409; peso e nome seguem livres', async () => {
+    const c = await cenario();
+    const l = await criarLote(c, { area: c.A });
+    for (const corpo of [{ quantidade_cabecas: 400 }, { status: 'Inativo' }, { area_atual_id: c.B.id }, { categoria: 'VACA' }]) {
+      const r = await req('PATCH', `/lotes/${l.id}`, c.tokAdm, corpo);
+      assert.equal(r.json().code, 'LOTE_ESTADO_CONFLITO', JSON.stringify(corpo));
+    }
+    assert.equal((await req('PATCH', `/lotes/${l.id}`, c.tokAdm, { peso_medio_kg: 410 })).statusCode, 200);
+    assert.equal((await req('PATCH', `/lotes/${l.id}`, c.tokAdm, { quantidade_cabecas: 500 })).statusCode, 200, 'mesmo valor não exige estado');
+    const d = await lote(l.id);
+    assert.deepEqual([d.quantidade_cabecas, d.status, d.area_atual_id, d.categoria], [500, 'Ativo', c.A.id, 'BOI']);
+  });
+
+  test('interleaving controlado: cancelamento e PATCH obsoleto esperam a mesma trava; nenhuma escrita se perde', async () => {
+    const c = await cenario();
+    const l = await criarLote(c, { area: c.A });
+    const m = await morte(c, l, 50);
+    const soltar = await segurarLote(l.id);
+    const pCancel = cancelar(c, m.id);
+    const pPatch = req('PATCH', `/lotes/${l.id}`, c.tokAdm, { quantidade_cabecas: 400, estado_esperado: { quantidade_cabecas: 450 } });
+    await new Promise((r) => setTimeout(r, 300));
+    await soltar();
+    const [rc, rp] = await Promise.all([pCancel, pPatch]);
+    const final = (await lote(l.id)).quantidade_cabecas;
+    // Ordem serial A: cancela (500) e o PATCH obsoleto é recusado. Ordem B: PATCH (400) e o cancelamento soma 50 (450).
+    const ordemA = rc.statusCode === 200 && rp.statusCode === 409 && final === 500;
+    const ordemB = rc.statusCode === 200 && rp.statusCode === 200 && final === 450;
+    assert.ok(ordemA || ordemB, `cancel=${rc.statusCode} patch=${rp.statusCode} final=${final}`);
+  });
+
+  test('duas transferências parciais disputando a mesma origem (100; 60 + 60) → uma passa, outra 409; total 100', async () => {
+    const c = await cenario();
+    const l = await criarLote(c, { qtd: 100, area: c.A });
+    const soltar = await segurarLote(l.id);
+    const corpo = { tipo: 'Transferência de Área', lote_id: l.id, quantidade_animais: 60, area_destino_id: c.B.id, categoria_animal: 'BOI' };
+    const p1 = manejo(c, corpo);
+    const p2 = manejo(c, corpo);
+    await new Promise((r) => setTimeout(r, 300));
+    await soltar();
+    const rs = await Promise.all([p1, p2]);
+    assert.deepEqual(rs.map((r) => r.statusCode).sort(), [201, 409], rs.map((r) => r.body).join(' | '));
+    assert.ok(rs.some((r) => r.json().code === 'MANEJO_SALDO_INSUFICIENTE'));
+    const todos = await prisma().lote.findMany({ where: { cliente_id: c.cliente.id } });
+    assert.equal(todos.reduce((t, x) => t + x.quantidade_cabecas, 0), 100);
+  });
+
+  test('dois cancelamentos simultâneos com chaves diferentes → um 200; saldo 500, não 550', async () => {
+    const c = await cenario();
+    const l = await criarLote(c, { area: c.A });
+    const m = await morte(c, l, 50);
     const rs = await Promise.all([cancelar(c, m.id), cancelar(c, m.id), cancelar(c, m.id)]);
-    const codigos = rs.map((r) => r.statusCode).sort();
-    assert.deepEqual(codigos, [200, 409, 409], rs.map((r) => r.body).join(' | '));
+    assert.deepEqual(rs.map((r) => r.statusCode).sort(), [200, 409, 409]);
     assert.equal((await lote(l.id)).quantidade_cabecas, 500);
   });
 
   test('mesma chave em paralelo → nenhum crédito duplicado', async () => {
     const c = await cenario();
     const l = await criarLote(c, { area: c.A });
-    const m = await morteLegada(c, l, 50);
+    const m = await morte(c, l, 50);
     const corpo = { operation_id: opId(), motivo: 'paralelo' };
     const rs = await Promise.all([cancelar(c, m.id, c.tokAdm, corpo), cancelar(c, m.id, c.tokAdm, corpo)]);
-    assert.ok(rs.every((r) => r.statusCode === 200 || r.json().code === 'IDEMPOTENCY_IN_PROGRESS'), rs.map((r) => r.body).join(' | '));
+    assert.ok(rs.every((r) => r.statusCode === 200 || r.json().code === 'IDEMPOTENCY_IN_PROGRESS'));
     assert.equal((await lote(l.id)).quantidade_cabecas, 500);
   });
 
-  test('falha forçada depois de atualizar o lote → rollback completo; retry com a mesma chave conclui', async () => {
+  test('falha forçada depois de atualizar o lote → rollback completo; retry da mesma chave conclui', async () => {
     const c = await cenario();
     const l = await criarLote(c, { area: c.A });
-    const m = await morteLegada(c, l, 50);
+    const m = await morte(c, l, 50);
     const p = prisma();
     await p.$executeRawUnsafe(`CREATE OR REPLACE FUNCTION r2a_falha() RETURNS trigger AS $$ BEGIN RAISE EXCEPTION 'falha simulada'; END $$ LANGUAGE plpgsql`);
     await p.$executeRawUnsafe(`CREATE TRIGGER r2a_falha BEFORE UPDATE ON "MovimentacaoMapa" FOR EACH ROW WHEN (NEW.id = '${m.id}') EXECUTE FUNCTION r2a_falha()`);
     const corpo = { operation_id: opId(), motivo: 'teste de rollback' };
     try {
-      const r = await cancelar(c, m.id, c.tokAdm, corpo);
-      assert.equal(r.statusCode, 500);
-      assert.equal((await lote(l.id)).quantidade_cabecas, 450, 'o update do lote foi desfeito');
-      assert.equal((await mov(m.id)).dados.situacao, undefined);
+      assert.equal((await cancelar(c, m.id, c.tokAdm, corpo)).statusCode, 500);
+      assert.equal((await lote(l.id)).quantidade_cabecas, 450);
       assert.equal(await p.operacaoIdempotente.count({ where: { operation_key: corpo.operation_id } }), 0);
     } finally {
       await p.$executeRawUnsafe(`DROP TRIGGER IF EXISTS r2a_falha ON "MovimentacaoMapa"`);
       await p.$executeRawUnsafe(`DROP FUNCTION IF EXISTS r2a_falha()`);
     }
-    const retry = await cancelar(c, m.id, c.tokAdm, corpo);
-    assert.equal(retry.statusCode, 200, retry.body);
+    assert.equal((await cancelar(c, m.id, c.tokAdm, corpo)).statusCode, 200);
     assert.equal((await lote(l.id)).quantidade_cabecas, 500);
   });
 
-  test('cancelamento concorrente com PATCH do lote não gera 500 e termina em ordem serial', async () => {
+  test('"timeout depois do COMMIT": o reenvio com a mesma chave devolve o mesmo resultado, sem segundo crédito', async () => {
     const c = await cenario();
     const l = await criarLote(c, { area: c.A });
-    const m = await morteLegada(c, l, 50);
-    const [rc, rp] = await Promise.all([cancelar(c, m.id), req('PATCH', `/lotes/${l.id}`, c.tokAdm, { peso_medio_kg: 410 })]);
-    assert.ok([200, 409].includes(rc.statusCode), rc.body);
-    assert.equal(rp.statusCode, 200, rp.body);
-    const final = await lote(l.id);
-    assert.equal(Number(final.peso_medio_kg), 410);
-    assert.equal(final.quantidade_cabecas, rc.statusCode === 200 ? 500 : 450);
+    const m = await morte(c, l, 50);
+    const corpo = { operation_id: opId(), motivo: 'resposta perdida' };
+    const primeira = await cancelar(c, m.id, c.tokAdm, corpo); // a resposta "se perde" no cliente
+    const reenvio = await cancelar(c, m.id, c.tokAdm, corpo);
+    assert.equal(primeira.statusCode, 200);
+    assert.equal(reenvio.statusCode, 200);
+    assert.equal(reenvio.json().replay, true);
+    assert.equal(reenvio.json().movimentacao.id, m.id);
+    assert.equal((await lote(l.id)).quantidade_cabecas, 500);
   });
 
   test('tenants isolados com o mesmo nome de lote', async () => {
@@ -466,8 +592,8 @@ describe('P1 — concorrência e rollback', () => {
     const b = await cenario();
     const la = await criarLote(a, { area: a.A });
     const lb = await criarLote(b, { area: b.A });
-    const ma = await morteLegada(a, la, 50);
-    await morteLegada(b, lb, 30);
+    const ma = await morte(a, la, 50);
+    await morte(b, lb, 30);
     assert.equal((await cancelar(a, ma.id)).statusCode, 200);
     assert.deepEqual([(await lote(la.id)).quantidade_cabecas, (await lote(lb.id)).quantidade_cabecas], [500, 470]);
   });

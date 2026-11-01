@@ -160,3 +160,24 @@ export const nomeDaAreaDoMovimento = (nomeGravado, areaId, areas) => {
   const nome = String(areaPorId(areas, areaId)?.nome ?? '').trim();
   return nome || `Área …${String(areaId).slice(-6)}`;
 };
+
+/**
+ * Campos de saldo/posição exigem o valor lido antes no PATCH /lotes (R2A-R1,
+ * D-PROD-95a): o servidor recusa com LOTE_ESTADO_CONFLITO se o lote mudou
+ * desde a leitura, em vez de gravar um valor absoluto obsoleto.
+ */
+export const CAMPOS_COM_ESTADO_ESPERADO = Object.freeze(['quantidade_cabecas', 'status', 'area_atual_id', 'categoria']);
+
+/**
+ * @param {object} loteLido o lote como foi lido (base do cálculo)
+ * @param {Record<string, unknown>} patch
+ */
+export const comEstadoEsperado = (loteLido, patch) => {
+  const esperado = {};
+  for (const campo of CAMPOS_COM_ESTADO_ESPERADO) {
+    if (patch && Object.prototype.hasOwnProperty.call(patch, campo)) {
+      esperado[campo] = loteLido?.[campo] ?? null;
+    }
+  }
+  return Object.keys(esperado).length ? { ...patch, estado_esperado: esperado } : patch;
+};

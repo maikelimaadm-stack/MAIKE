@@ -25,6 +25,7 @@ import {
   filterMovimentacoes,
   cancelarMovimentacao,
   consultarElegibilidadeCancelamento,
+  registrarManejoLoteServidor,
   filterSuplementacaoLotes,
   createSuplementacaoEvento,
   listSuplementacaoEventos,
@@ -144,6 +145,8 @@ export const criarMovimentacao = (dados) => createMovimentacao(dados);
  */
 export const cancelarMovimentacaoMapa = (id, corpo) => cancelarMovimentacao(id, corpo);
 export const consultarCancelamentoMovimentacao = (id) => consultarElegibilidadeCancelamento(id);
+/** Manejo atômico no servidor (R2A-R1): efeito e movimento numa transação. */
+export const registrarManejoLote = (corpo) => registrarManejoLoteServidor(corpo);
 export const criarEventoSuplementacao = (dados) => createSuplementacaoEvento(dados);
 export const registrarSuplementacaoEmLote = (registros) => bulkCreateSuplementacaoLote(registros);
 

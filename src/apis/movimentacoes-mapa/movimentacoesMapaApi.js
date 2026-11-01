@@ -4,6 +4,7 @@ import {
   listarHistoricoMovimentacoesMapaPagina,
   cancelarMovimentacaoMapaNativa,
   elegibilidadeCancelamentoMovimentacaoMapaNativa,
+  executarManejoLoteNativo,
 } from './movimentacaoMapaNativePort.js';
 
 export const listMovimentacoesMapaNativas = (...args) => movimentacaoMapaPort.list(...args);
@@ -14,3 +15,4 @@ export const deleteMovimentacaoMapaNativa = (...args) => movimentacaoMapaPort.de
 export const listHistoricoMovimentacoesMapaNativo = (filtros) => listarHistoricoMovimentacoesMapaPagina(filtros);
 export const cancelarMovimentacaoMapa = (id, corpo) => cancelarMovimentacaoMapaNativa(id, corpo);
 export const elegibilidadeCancelamentoMovimentacaoMapa = (id) => elegibilidadeCancelamentoMovimentacaoMapaNativa(id);
+export const executarManejoLote = (corpo) => executarManejoLoteNativo(corpo);

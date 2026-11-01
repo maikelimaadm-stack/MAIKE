@@ -20,7 +20,9 @@ const servico = vi.hoisted(() => ({
 }));
 const sessao = vi.hoisted(() => ({ usuario: { administrador_fazenda: true } }));
 
+const cache = vi.hoisted(() => ({ refreshMapaCacheEntry: vi.fn(async () => []) }));
 vi.mock("@/services/loteManejoService", () => servico);
+vi.mock("@/services/mapaCacheService", () => cache);
 vi.mock("@/services/sessionService", () => ({
   getCurrentUser: async () => sessao.usuario,
   ehAdministrador: (u) => u?.administrador_fazenda === true,
@@ -31,7 +33,10 @@ const { default: CancelarMovimentacao } = await import("@/components/lotes/Cance
 const { default: HistoricoAbateCurral } = await import("@/components/mapa/HistoricoAbateCurral");
 const { default: RenomearLoteForm } = await import("@/components/lotes/RenomearLoteForm");
 
-const MORTE = { id: "mv-1", empresa_id: "emp-1", tipo: "Morte", lote: "NELORE", lote_id: "l1", quantidade_animais: 50, area_origem_id: "a1" };
+// Criado pelo comando do servidor (R2A-R1): carrega a proveniência causal.
+const EFEITO_SERVIDOR = { comando: "manejo_mapa_lote", operation_id: "manejo-x", efeitos: [{ lote_id: "l1" }] };
+const MORTE = { id: "mv-1", empresa_id: "emp-1", tipo: "Morte", lote: "NELORE", lote_id: "l1", quantidade_animais: 50, area_origem_id: "a1", efeito_servidor: EFEITO_SERVIDOR };
+const LEGADO = { ...MORTE, id: "mv-legado", efeito_servidor: undefined };
 const ELEGIVEL = {
   elegivel: true,
   codigo: null,
@@ -51,6 +56,8 @@ const online = (v) => Object.defineProperty(window.navigator, "onLine", { value:
 
 beforeEach(() => {
   online(true);
+  window.localStorage.clear();
+  servico.cancelarMovimentacaoMapa.mockReset();
   sessao.usuario = { administrador_fazenda: true };
   servico.consultarCancelamentoMovimentacao.mockImplementation(async () => ELEGIVEL);
   servico.cancelarMovimentacaoMapa.mockImplementation(async () => ({ movimentacao: { ...MORTE, situacao: "cancelado" } }));
@@ -131,6 +138,84 @@ describe("CancelarMovimentacao", () => {
     online(true);
 
     await renderizar(<CancelarMovimentacao movimento={{ ...MORTE, tipo: "Pesagem" }} />);
+    await assentar();
+    expect(screen.queryByRole("button", { name: "Cancelar movimentação" })).toBeNull();
+  });
+});
+
+describe("CancelarMovimentacao — chave pendente (R2A-R1 P1-A)", () => {
+  const falhaDeRede = () => Object.assign(new Error("rede"), { code: "API_PROVIDER_UNAVAILABLE" });
+
+  it("timeout depois do commit: fechar pede confirmação; reabrir reusa a MESMA chave e o MESMO motivo", async () => {
+    servico.cancelarMovimentacaoMapa.mockImplementationOnce(async () => { throw falhaDeRede(); });
+    const confirmSpy = vi.spyOn(window, "confirm");
+    await renderizar(<CancelarMovimentacao movimento={MORTE} />);
+    await abrirEConfirmar("lançado em duplicidade");
+    expect(await screen.findByText(/pode ou não ter sido concluído/)).toBeTruthy();
+    const c1 = servico.cancelarMovimentacaoMapa.mock.calls[0][1];
+
+    // Recusa o abandono: o diálogo continua aberto.
+    confirmSpy.mockReturnValueOnce(false);
+    await act(async () => { fireEvent.keyDown(document.activeElement || document.body, { key: "Escape" }); await new Promise((r) => setTimeout(r, 30)); });
+    expect(confirmSpy).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("button", { name: "Tentar de novo" })).toBeTruthy();
+
+    // Aceita fechar: a operação continua guardada.
+    confirmSpy.mockReturnValueOnce(true);
+    await act(async () => { fireEvent.keyDown(document.activeElement || document.body, { key: "Escape" }); await new Promise((r) => setTimeout(r, 30)); });
+    expect(confirmSpy).toHaveBeenCalledTimes(2);
+    expect(screen.queryByRole("button", { name: "Tentar de novo" })).toBeNull();
+
+    // Reabre: mesma chave e motivo, sem gerar outra.
+    await clicar(await screen.findByRole("button", { name: "Cancelar movimentação" }));
+    expect(screen.getByLabelText("Motivo do cancelamento").value).toBe("lançado em duplicidade");
+    await clicar(screen.getByRole("button", { name: "Tentar de novo" }));
+    await waitFor(() => expect(servico.cancelarMovimentacaoMapa).toHaveBeenCalledTimes(2));
+    const c2 = servico.cancelarMovimentacaoMapa.mock.calls[1][1];
+    expect(c2).toEqual(c1);
+    // Resposta definitiva (replay 200): a pendência sai.
+    expect(window.localStorage.getItem("maike_cancelamento_pendente:mv-1")).toBeNull();
+    confirmSpy.mockRestore();
+  });
+
+  it("refresh/remount: a pendência do localStorage volta com a mesma chave", async () => {
+    servico.cancelarMovimentacaoMapa.mockImplementationOnce(async () => { throw falhaDeRede(); });
+    const { unmount } = await renderizar(<CancelarMovimentacao movimento={MORTE} />);
+    await abrirEConfirmar("erro de digitação");
+    await screen.findByText(/pode ou não ter sido concluído/);
+    const c1 = servico.cancelarMovimentacaoMapa.mock.calls[0][1];
+    unmount(); // simula recarregar a página
+
+    await renderizar(<CancelarMovimentacao movimento={MORTE} />);
+    await clicar(await screen.findByRole("button", { name: "Cancelar movimentação" }));
+    expect(screen.getByLabelText("Motivo do cancelamento").value).toBe("erro de digitação");
+    await clicar(screen.getByRole("button", { name: "Tentar de novo" }));
+    await waitFor(() => expect(servico.cancelarMovimentacaoMapa).toHaveBeenCalledTimes(2));
+    expect(servico.cancelarMovimentacaoMapa.mock.calls[1][1]).toEqual(c1);
+  });
+
+  it("sucesso atualiza a cópia offline do histórico (força refresh de movimentacoesHistorico)", async () => {
+    cache.refreshMapaCacheEntry.mockClear();
+    await renderizar(<CancelarMovimentacao movimento={MORTE} />);
+    await abrirEConfirmar();
+    await waitFor(() => expect(cache.refreshMapaCacheEntry).toHaveBeenCalledWith("movimentacoesHistorico", "emp-1", { force: true }));
+  });
+
+  it("domínio: legado mostra a mensagem exata; comando do servidor libera; tipos diferidos seguem bloqueados", async () => {
+    const dom = await import("@/domain/lotes/situacaoMovimento");
+    expect(dom.motivoSemCancelamento(LEGADO)).toBe(
+      "Registro antigo sem comprovação individual de efeito — cancelamento temporariamente indisponível"
+    );
+    expect(dom.tipoTemCancelamento(LEGADO)).toBe(false);
+    expect(dom.tipoTemCancelamento(MORTE)).toBe(true);
+    for (const tipo of ["Pesagem", "Nascimento", "Desmama", "Compra", "Venda", "Entrada"]) {
+      expect(dom.tipoTemCancelamento({ ...MORTE, tipo }), tipo).toBe(false);
+    }
+    expect(dom.tipoTemCancelamento({ ...MORTE, motivo: "Renomear Lote" })).toBe(false);
+  });
+
+  it("registro antigo sem comprovação: nenhuma ação de cancelar", async () => {
+    await renderizar(<CancelarMovimentacao movimento={LEGADO} />);
     await assentar();
     expect(screen.queryByRole("button", { name: "Cancelar movimentação" })).toBeNull();
   });

@@ -270,6 +270,27 @@ describe("HistoricoMovimentacoes — troca de empresa e offline", () => {
     expect(screen.queryByRole("button", { name: "Carregar mais" })).toBeNull();
   });
 
+  it("R2A-R1 P1-B: online ativo → cancelado → offline o histórico ainda mostra o cancelado com motivo e autor", async () => {
+    const ativo = transf("mv-c", { quantidade_animais: 40, created_date: "2026-10-31T11:00:00.000Z" });
+    servico.listarHistoricoMovimentacoesPagina.mockImplementation(async () => pagina([ativo]));
+    const { unmount } = renderizar();
+    await screen.findByText("Movimentações: 1 de 1");
+    expect(screen.getByText("Ativo")).toBeTruthy();
+    unmount();
+
+    ficarOffline();
+    const cancelado = { ...ativo, situacao: "cancelado", cancelamento: { em: "2026-10-31T12:00:00.000Z", por_login: "admin.teste", motivo: "lançado em duplicidade" } };
+    cache.getMapaCacheSnapshot.mockImplementation(async (chave) =>
+      chave === "movimentacoesHistorico" ? { items: [cancelado], atualizadoEm: "2026-10-31T12:01:00.000Z" } : { items: [], atualizadoEm: null }
+    );
+    renderizar();
+    expect(await screen.findByText("Movimentações em cache: 1")).toBeTruthy();
+    expect(cache.getMapaCacheSnapshot).toHaveBeenCalledWith("movimentacoesHistorico", EMP);
+    expect(screen.getAllByText("Cancelado").length).toBeGreaterThan(0);
+    expect(screen.getByText(/por admin\.teste — Motivo: lançado em duplicidade/)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Cancelar movimentação" })).toBeNull();
+  });
+
   it("offline sem nada salvo no aparelho: diz isso, em vez de 'Nenhum lançamento encontrado'", async () => {
     ficarOffline();
     renderizar();
@@ -280,7 +301,8 @@ describe("HistoricoMovimentacoes — troca de empresa e offline", () => {
   it("online com sucesso guarda cópia do cache para offline (sem await, sem reinvalidar)", async () => {
     renderizar();
     await screen.findByText("Movimentações: 3 de 3");
-    expect(cache.refreshMapaCacheEntry).toHaveBeenCalledWith("movimentacoes", EMP);
+    expect(cache.refreshMapaCacheEntry).toHaveBeenCalledWith("movimentacoesHistorico", EMP);
+    expect(cache.refreshMapaCacheEntry).not.toHaveBeenCalledWith("movimentacoes", EMP);
   });
 
   it("servidor fora com cache disponível: mostra o cache e diz que o servidor falhou", async () => {

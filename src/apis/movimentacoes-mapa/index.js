@@ -7,4 +7,5 @@ export {
   listHistoricoMovimentacoesMapaNativo,
   cancelarMovimentacaoMapa,
   elegibilidadeCancelamentoMovimentacaoMapa,
+  executarManejoLote,
 } from './movimentacoesMapaApi.js';

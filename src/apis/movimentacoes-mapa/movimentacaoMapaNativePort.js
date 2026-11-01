@@ -79,6 +79,10 @@ export const cancelarMovimentacaoMapaNativa = (id, corpo) =>
     ctx('cancelarMovimentacaoMapa')
   );
 
+/** Comando atômico de manejo (R2A-R1): só online, fora da fila offline. */
+export const executarManejoLoteNativo = (corpo) =>
+  nativeRequest(`${CAMINHO}/comandos/manejo-lote`, { method: 'POST', body: corpo, autenticado: true }, ctx('executarManejoLote'));
+
 export const elegibilidadeCancelamentoMovimentacaoMapaNativa = (id) =>
   nativeRequest(`${CAMINHO}/${encodeURIComponent(id)}/elegibilidade-cancelamento`, { autenticado: true }, ctx('elegibilidadeCancelamentoMovimentacaoMapa'));
 

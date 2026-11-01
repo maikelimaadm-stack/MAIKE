@@ -238,6 +238,19 @@ export const BACKEND_ONLY_CODES = Object.freeze({
     http: 409,
     meaning: 'não há registro de auditoria provando que o movimento alterou os lotes; nada foi alterado',
   },
+  // R2A-R1 (D-PROD-95a) — comando atômico de manejo e escrita de lote com estado esperado.
+  MANEJO_SALDO_INSUFICIENTE: {
+    http: 409,
+    meaning: 'o lote não tem cabeças suficientes no servidor para o manejo; nada foi gravado',
+  },
+  MANEJO_ESTADO_INVALIDO: {
+    http: 409,
+    meaning: 'lote, área ou destino em estado que não permite o manejo; nada foi gravado',
+  },
+  LOTE_ESTADO_CONFLITO: {
+    http: 409,
+    meaning: 'o lote mudou desde a leitura (estado esperado divergente); recarregue e refaça; nada foi gravado',
+  },
   CANCELAMENTO_SALDO_INSUFICIENTE: {
     http: 409,
     meaning: 'o lote não tem saldo para devolver as cabeças; nada foi alterado',
