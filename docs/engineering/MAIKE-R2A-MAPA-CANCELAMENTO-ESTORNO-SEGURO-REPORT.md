@@ -67,6 +67,44 @@ O diálogo de cancelamento mostra o que acontece com a identificação:
 
 Teste smoke 17/17.
 
+### R3.5 Testes, gates e declaração
+
+| Comando | Resultado |
+|---|---|
+| `node --test backend/tests/r2aR3Identificadores.test.mjs` | RED 6/7 falhando no HEAD f048615 → GREEN **13/13** |
+| `npm run test:backend` (PostgreSQL 16 local) | **618 testes, 0 falhas** (5 `todo`), com R2A, R1, R2 e `loteDerivadoIntegridade` |
+| `vitest` smoke completo (árvore mesclada com a #164) | 100 arquivos, **1161/1161** |
+| `npm run verify:all` com o ambiente da CI, na árvore mesclada | **TODAS AS ETAPAS PASSARAM** |
+| E2E R3 (Chromium; backend e Vite locais; `maike_demo` sintético) em 1440, 768, 412 e 390 | **36/36** |
+| E2E de regressão R2 (cancelamento, recusa após correção direta, legado, transferência, curral, offline) em 1440 e 390 | **32/32** |
+
+Os 36 testes da R3 cobrem, em cada largura:
+- a unificação aplicou a identificação da origem;
+- o diálogo mostra "identificação volta a DESTINO";
+- pela API, a origem volta a 500 e o destino volta ao saldo e a DESTINO/DST/#112233, com `quantidade_entrada` intacta;
+- o Detalhes do Lote do destino exibe DESTINO;
+- com edição posterior, o diálogo mostra "editada… mantida", e pela API o destino volta a 100 e continua EDITADO;
+- nenhum `DELETE`/`PATCH` de movimento sai do navegador;
+- sem erro de página e sem rolagem horizontal.
+
+Na primeira execução em 412, o toque no rótulo do pasto caiu sobre o marcador de outro lote sintético. Repetida com outro conjunto de pastos, passou 9/9. É a mesma sobreposição de dados de teste já registrada na R2, não uma regressão.
+
+**Declaração:**
+- migrations = 0; produção = 0 (nenhuma leitura ou escrita; só `maike_ci` e `maike_demo` locais e sintéticos); backfill = 0; ledger = 0;
+- auth e licenciamento intactos;
+- concorrência com outras PRs: `main` avançou para 2fcc769 (#164) durante a missão e foi integrada por merge; o único conflito foi `DECISIONS.md`, resolvido com a renumeração decidida pelo proprietário.
+
+**Riscos residuais:**
+1. A identificação editada depois da unificação fica com o valor do usuário. Se a edição foi parcial (só o nome, por exemplo), sigla e cor continuam as da origem. O resultado é deliberado e auditado; não há reconciliação campo a campo.
+2. Edição de identificação gravada sem auditoria (escrita direta no banco) é tratada como edição e preservada.
+3. Os riscos das seções R2 e R1.8 continuam valendo.
+
+**Evidências:** `docs/engineering/evidencias/r2a-r3/`
+- RED e GREEN;
+- logs E2E das 4 larguras e da regressão R2;
+- capturas 1440 e 390 do diálogo restaurado, do diálogo preservado e dos detalhes do destino;
+- roteiro e script de limpeza da demonstração.
+
 ## R2A-R2 — Estado causal completo, fail-closed e numeração (D-PROD-97b)
 
 **Missão:** MAIKE-R2A-PR162-R2-HARDENING-ESTADO-CAUSAL-CANCELAMENTO-E-GOVERNANCA, na mesma PR #162 (DRAFT). HEAD de entrada 1fbfef6; base `main` 505acd6. Sem migration, sem backfill, sem ledger, sem escrita em produção.

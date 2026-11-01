@@ -1,0 +1,9 @@
+PASS tablet-768 unificação aplicou a identificação da origem no destino (semântica mantida)
+PASS tablet-768 diálogo: "identificação volta a DESTINO"
+PASS tablet-768 sem rolagem horizontal
+PASS tablet-768 API: origem 500, destino volta ao saldo e a DESTINO/DST/#112233 — [500,139,"DESTINO","DST","#112233"]
+PASS tablet-768 Detalhes do Lote do destino mostra o identificador DESTINO — Detalhes do Lote | Informações da Área: PASTO 93 | Hectares | 96,42 ha | UA/ha | 0,00 | UA total | 0,00 | Pastagem | Marandu | Qtd. Lotes | 1 | Qtd. Cabeças | 1
+PASS tablet-768 diálogo: "identificação editada depois: mantida"
+PASS tablet-768 API: destino volta a 100 e mantém a edição EDITADO — [100,"EDITADO","ORG"]
+PASS tablet-768 nenhum DELETE/PATCH de movimento no navegador
+PASS tablet-768 sem erro de página
