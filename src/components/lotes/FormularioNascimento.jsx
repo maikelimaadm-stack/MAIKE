@@ -10,6 +10,7 @@ import { useQuery } from "@tanstack/react-query";
 import { listarIconesDaEmpresa } from "@/services/mapaService";
 import { getTodayLocalDate } from "../utils/pecuariaUtils";
 import LancField from "@/components/cadastro/base1/LancField";
+import { ehLoteDeMatriz } from "@/domain/lotes/manejoRebanho";
 
 /** Campo flutuante Base1 (rótulo dentro) — D-PROD-88. */
 const FL = LancField;
@@ -27,10 +28,11 @@ export default function FormularioNascimento({ lote, onSubmit, onCancel }) {
     enabled: !!empresaSelecionadaId,
   });
 
+  // PR168-R2 (D-PROD-101): mesma política do servidor — só lotes FÊMEA de
+  // categoria oficial de matriz (Vaca 25-36, Vaca +36, Novilha 13-24).
   const lotesPorCategoria = lotesArray.reduce((acc, l) => {
     const cat = l.categoria || 'SEM CATEGORIA';
-    const sexo = l.sexo || 'Indefinido';
-    if (sexo === 'Fêmea' || cat.toLowerCase().includes('vaca') || cat.toLowerCase().includes('bezerra') || cat.toLowerCase().includes('novilha')) {
+    if (ehLoteDeMatriz(l)) {
       if (!acc[cat]) {
         acc[cat] = { categoria: cat, lotes: [], totalCabecas: 0 };
       }

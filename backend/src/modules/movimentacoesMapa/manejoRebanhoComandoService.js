@@ -60,6 +60,14 @@ export const CATEGORIAS_OFICIAIS = Object.freeze({
 });
 export const SEXOS = Object.freeze(['Macho', 'Fêmea']);
 
+/**
+ * Política materna (PR168-R2, D-PROD-101): só lotes FÊMEA de categoria oficial
+ * de matriz podem ser "categoria da mãe". Novilha 13-24 entra porque o
+ * produto já a oferece como mãe no formulário e é a novilha de primeira cria.
+ * Bezerra e qualquer categoria masculina, nunca. Nome livre não vale.
+ */
+export const CATEGORIAS_MATERNAS = Object.freeze(['Vaca 25 a 36 meses', 'Vaca + 36 meses', 'Novilha 13 a 24 meses']);
+
 /** Regra existente do frontend (`categoriaDoFilhote`), agora no servidor. */
 export const categoriaDoFilhote = (sexo) => (sexo === 'Macho' ? 'Bezerro 0 a 12 meses' : 'Bezerra 0 a 12 meses');
 
@@ -267,11 +275,16 @@ const planejarNascimento = async (tx, clienteId, e, area, plano) => {
   const vivos = [...plano.porId.values()].map((x) => x.original).filter((l) => operavel(l, e.empresaId, area.id));
   const linhas = [];
   for (const [i, l] of e.linhas.entries()) {
-    const maes = vivos.filter((m) => normal(m.categoria) === normal(l.categoria_mae));
-    if (!maes.length) {
-      throw recusa('MANEJO_CATEGORIA_MAE_INVALIDA', 'não há lote ativo desta categoria de mãe nesta área', { linha: i, categoria_mae: l.categoria_mae });
+    const oficial = CATEGORIAS_MATERNAS.find((cat) => normal(cat) === normal(l.categoria_mae));
+    if (!oficial) {
+      throw recusa('MANEJO_CATEGORIA_MAE_INVALIDA', 'categoria da mãe não é categoria oficial de matriz', { linha: i, categoria_mae: l.categoria_mae, aceitas: CATEGORIAS_MATERNAS });
     }
-    linhas.push({ ...l, categoria_filhote: categoriaDoFilhote(l.sexo), maes });
+    // Lotes de matrizes: mesma categoria oficial E sexo Fêmea (lote sem sexo ou Macho não é mãe).
+    const maes = vivos.filter((m) => normal(m.categoria) === normal(oficial) && normal(m.sexo) === normal('Fêmea'));
+    if (!maes.length) {
+      throw recusa('MANEJO_CATEGORIA_MAE_INVALIDA', 'não há lote ativo de fêmeas desta categoria de matriz nesta área', { linha: i, categoria_mae: oficial });
+    }
+    linhas.push({ ...l, categoria_mae: oficial, categoria_filhote: categoriaDoFilhote(l.sexo), maes });
   }
   // Agrupa por sexo: duas linhas do mesmo sexo vão para o MESMO lote de filhotes.
   for (const sexo of SEXOS) {
@@ -283,7 +296,18 @@ const planejarNascimento = async (tx, clienteId, e, area, plano) => {
       ? Number((grupo.reduce((t, l) => t + l.quantidade * l.peso_medio_kg, 0) / quantidade).toFixed(4))
       : null;
     const categoria = categoriaDoFilhote(sexo);
-    const alvo = vivos.find((l) => l.categoria === categoria);
+    // Destino (PR168-R2): mesma categoria E mesmo sexo; lote sem sexo ou do
+    // sexo oposto nunca recebe (fica intacto). Dois compatíveis = ambíguo: não
+    // se unifica implicitamente. Nenhum compatível = lote novo coerente.
+    const compativeis = vivos.filter((l) => normal(l.categoria) === normal(categoria) && normal(l.sexo) === normal(sexo));
+    if (compativeis.length > 1) {
+      throw recusa('MANEJO_DESTINO_AMBIGUO', 'há mais de um lote de filhotes compatível nesta área; não há unificação implícita', {
+        sexo,
+        categoria,
+        lote_ids: compativeis.map((l) => l.id),
+      });
+    }
+    const alvo = compativeis[0] ?? null;
     if (alvo) {
       const x = plano.porId.get(alvo.id);
       const pesoAnterior = pesoNormal(x.atual.peso_medio_kg);

@@ -1,0 +1,128 @@
+RED — HEAD 5ba86b96fee60971f57e917e63cb0b871409746d (código da PR #168 antes da R2), PostgreSQL local descartável, HTTP autenticado
+# Subtest: PR168-R2 P0-A — validação materna no servidor
+    not ok 1 - A1: lote de BOIS machos como "categoria mãe" → 409 e nada gravado
+      error: |-
+        201 !== 409
+        exigirNadaGravado (file:///home/user/MAIKE/backend/tests/r2bP1R2IntegridadeNascimento.test.mjs:105:10)
+        process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+        async TestContext.<anonymous> (file:///home/user/MAIKE/backend/tests/r2bP1R2IntegridadeNascimento.test.mjs:117:5)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async Promise.all (index 0)
+        async Suite.run (node:internal/test_runner/test:1442:7)
+        async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+    not ok 2 - A2: lote de categoria Vaca cadastrado com sexo Macho não é mãe → 409
+      error: |-
+        201 !== 409
+        exigirNadaGravado (file:///home/user/MAIKE/backend/tests/r2bP1R2IntegridadeNascimento.test.mjs:105:10)
+        process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+        async TestContext.<anonymous> (file:///home/user/MAIKE/backend/tests/r2bP1R2IntegridadeNascimento.test.mjs:123:5)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async Suite.processPendingSubtests (node:internal/test_runner/test:744:7)
+    not ok 3 - A3: categoria não materna (Bezerra) ou inexistente → recusa sem gravar
+      error: |-
+        201 !== 409
+        exigirNadaGravado (file:///home/user/MAIKE/backend/tests/r2bP1R2IntegridadeNascimento.test.mjs:105:10)
+        process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+        async TestContext.<anonymous> (file:///home/user/MAIKE/backend/tests/r2bP1R2IntegridadeNascimento.test.mjs:130:5)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async Suite.processPendingSubtests (node:internal/test_runner/test:744:7)
+    ok 4 - A4: matriz excluída do Cadastro, em outra área, de outra empresa ou de outro tenant não vale
+    ok 5 - A5: Vaca 25-36, Vaca +36 e Novilha 13-24 (fêmeas) são mães válidas; mães intactas
+    not ok 6 - A6: confirmação com linha válida + linha de mãe masculina → NADA gravado
+      error: |-
+        201 !== 409
+        exigirNadaGravado (file:///home/user/MAIKE/backend/tests/r2bP1R2IntegridadeNascimento.test.mjs:105:10)
+        process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+        async TestContext.<anonymous> (file:///home/user/MAIKE/backend/tests/r2bP1R2IntegridadeNascimento.test.mjs:166:5)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async Suite.processPendingSubtests (node:internal/test_runner/test:744:7)
+# Subtest: PR168-R2 P0-B — seleção segura do lote de filhotes
+    not ok 1 - B1: lote "Bezerro" marcado Fêmea NÃO recebe machos; cria lote coerente e não toca o incompatível
+      error: |-
+        Expected values to be strictly equal:
+        false !== true
+        TestContext.<anonymous> (file:///home/user/MAIKE/backend/tests/r2bP1R2IntegridadeNascimento.test.mjs:183:12)
+        process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async Promise.all (index 0)
+        async Suite.run (node:internal/test_runner/test:1442:7)
+        async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+    not ok 2 - B2: compatível e incompatível na mesma área → usa só o compatível (saldo, peso ponderado, entrada e identificação preservadas)
+      error: |-
+        Expected values to be strictly equal:
+        TestContext.<anonymous> (file:///home/user/MAIKE/backend/tests/r2bP1R2IntegridadeNascimento.test.mjs:197:12)
+        process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async Suite.processPendingSubtests (node:internal/test_runner/test:744:7)
+    not ok 3 - B3: dois lotes compatíveis → 409 MANEJO_DESTINO_AMBIGUO, sem unificação implícita, nada gravado
+      error: |-
+        201 !== 409
+        exigirNadaGravado (file:///home/user/MAIKE/backend/tests/r2bP1R2IntegridadeNascimento.test.mjs:105:10)
+        process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+        async TestContext.<anonymous> (file:///home/user/MAIKE/backend/tests/r2bP1R2IntegridadeNascimento.test.mjs:212:5)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async Suite.processPendingSubtests (node:internal/test_runner/test:744:7)
+    not ok 4 - B4: lote de filhotes sem sexo cadastrado não é destino (não se adivinha); cria lote coerente
+      error: |-
+        Expected "actual" to be strictly unequal to:
+        TestContext.<anonymous> (file:///home/user/MAIKE/backend/tests/r2bP1R2IntegridadeNascimento.test.mjs:220:12)
+        process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async Suite.processPendingSubtests (node:internal/test_runner/test:744:7)
+# Subtest: PR168-R2 P0-C — histórico, dependências e exclusão pelos lotes de matrizes
+    not ok 1 - C1: nascimento ATIVO que cita a matriz bloqueia a exclusão (movimentacao_ativa); lote não some
+      error: |-
+        0: 'bloqueado'
+        1: 'movimentacao_ativa'
+        0: 'exclusao_fisica'
+        1: ~
+        TestContext.<anonymous> (file:///home/user/MAIKE/backend/tests/r2bP1R2IntegridadeNascimento.test.mjs:233:12)
+        process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async Promise.all (index 0)
+        async Suite.run (node:internal/test_runner/test:1442:7)
+        async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+    not ok 2 - C2: nascimento cancelado com prova → exclusão LÓGICA da matriz (linha preservada)
+      error: |-
+        Expected values to be strictly equal:
+        TestContext.<anonymous> (file:///home/user/MAIKE/backend/tests/r2bP1R2IntegridadeNascimento.test.mjs:245:12)
+        process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async Suite.processPendingSubtests (node:internal/test_runner/test:744:7)
+    not ok 3 - C3: histórico pela matriz acha o nascimento; homônimo (outro id), outra empresa e outro tenant não
+      error: |-
+        Expected values to be strictly deep-equal:
+        0: 'cmvy3tldf00di7da98nlzvsx8'
+        TestContext.<anonymous> (file:///home/user/MAIKE/backend/tests/r2bP1R2IntegridadeNascimento.test.mjs:260:12)
+        process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async Suite.processPendingSubtests (node:internal/test_runner/test:744:7)
+    not ok 4 - C4: mais de 600 eventos citando a matriz → paginação completa, sem duplicar, total correto
+      error: |-
+        Expected values to be strictly equal:
+        0 !== 611
+        TestContext.<anonymous> (file:///home/user/MAIKE/backend/tests/r2bP1R2IntegridadeNascimento.test.mjs:291:12)
+        process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async Suite.processPendingSubtests (node:internal/test_runner/test:744:7)
+    ok 5 - C5: nascimento ATIVO posterior que cita a matriz bloqueia cancelar a transferência anterior dela; cancelado não bloqueia
+# Subtest: PR168-R2 P0-C — dependência só pelo vínculo materno
+    not ok 1 - C6: mudança Novilha→Vaca, depois nascimento usando a vaca → cancelar a mudança é BLOQUEADO (só o elo materno liga os dois)
+      error: |-
+        200 !== 409
+        TestContext.<anonymous> (file:///home/user/MAIKE/backend/tests/r2bP1R2IntegridadeNascimento.test.mjs:326:12)
+        process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async Promise.all (index 0)
+        async Suite.run (node:internal/test_runner/test:1442:7)
+        async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+# Subtest: PR168-R2 concorrência — quem trava primeiro decide; nunca órfão nem 500
+    ok 1 - K1.1: DELETE da matriz × nascimento
+    ok 2 - K2.1: cancelar a transferência da matriz × nascimento nela
+    ok 3 - K1.2: DELETE da matriz × nascimento
+    ok 4 - K2.2: cancelar a transferência da matriz × nascimento nela
+    ok 5 - K1.3: DELETE da matriz × nascimento
+    ok 6 - K2.3: cancelar a transferência da matriz × nascimento nela
+# tests 22
+# pass 9
+# fail 13

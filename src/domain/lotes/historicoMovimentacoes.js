@@ -16,7 +16,7 @@
  * marcado `vinculo: 'nome'` para a tela dizer que o vínculo é inferido.
  */
 
-import { idsDeLotesDoMovimento } from './manejoRebanho.js';
+import { idsDeLotesDoMovimento, idsDeMatrizesDoMovimento } from './manejoRebanho.js';
 
 export const ESCOPO_AREA = 'area';
 export const ESCOPO_LOTES = 'lotes';
@@ -61,8 +61,9 @@ export const vinculoComLotes = (loteId, loteNome, lotes = []) => {
  * casa por QUALQUER participante (`lote_ids`, efeitos), não só pelo primário.
  */
 export const vinculoDoMovimento = (mov, lotes = []) => {
-  const ids = idsDeLotesDoMovimento(mov);
-  if (ids.length > 1) return ids.some((id) => idsDosLotes(lotes).includes(id)) ? 'id' : null;
+  // Paridade com o servidor (`movimentoCitaLotes`): participantes + lotes de matrizes.
+  const ids = [...new Set([...idsDeLotesDoMovimento(mov), ...idsDeMatrizesDoMovimento(mov)])];
+  if (ids.length > 1 || idsDeMatrizesDoMovimento(mov).length) return ids.some((id) => idsDosLotes(lotes).includes(id)) ? 'id' : null;
   return vinculoComLotes(mov?.lote_id, mov?.lote, lotes);
 };
 

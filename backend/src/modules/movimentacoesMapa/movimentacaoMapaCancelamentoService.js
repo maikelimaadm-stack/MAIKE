@@ -26,6 +26,7 @@ import { documentoComoPublico } from '../../shared/jsonDocument/jsonDocumentPubl
 import { executarComIdempotencia, fingerprintDePayload } from '../../shared/idempotency/operacaoIdempotenteService.js';
 import { registrarEvento } from '../auditoria/auditService.js';
 import { buscarNomesDeAreas } from './movimentacaoMapaRepository.js';
+import { movimentoCitaLotes } from './movimentacaoVinculoLote.js';
 import { CAMPOS_IDENTIFICACAO_LOTE, CAMPOS_MATERIAIS_LOTE, COMANDO_MANEJO, TIPO_OPERACAO_MANEJO, estadoDe, identificacaoDe } from './manejoMapaComandoService.js';
 import { comoLotePublico } from '../lotes/loteService.js';
 import {
@@ -292,18 +293,7 @@ const dependenciasPosteriores = async (tx, clienteId, mov, { loteIds, nomes, are
       WHERE m.cliente_id = ${clienteId} AND m.empresa_id = ${mov.empresa_id} AND m.id <> ${mov.id}
         AND COALESCE(m.dados->>'situacao', '') <> ${SITUACAO_CANCELADO}
         AND (
-          m.dados->>'lote_id' = ANY(${lotes}::text[])
-          OR m.dados->>'lote_destino_id' = ANY(${lotes}::text[])
-          OR EXISTS (
-            SELECT 1 FROM jsonb_array_elements_text(
-              CASE WHEN jsonb_typeof(m.dados->'lote_ids') = 'array' THEN m.dados->'lote_ids' ELSE '[]'::jsonb END
-            ) AS li(id) WHERE li.id = ANY(${lotes}::text[])
-          )
-          OR EXISTS (
-            SELECT 1 FROM jsonb_array_elements(
-              CASE WHEN jsonb_typeof(m.dados->'efeito_servidor'->'efeitos') = 'array' THEN m.dados->'efeito_servidor'->'efeitos' ELSE '[]'::jsonb END
-            ) AS ef(val) WHERE ef.val->>'lote_id' = ANY(${lotes}::text[])
-          )
+          ${movimentoCitaLotes('m', lotes)}
           OR EXISTS (SELECT 1 FROM unnest(${lotes}::text[]) AS l(id) WHERE position(l.id IN COALESCE(m.dados->>'observacoes', '')) > 0)
           OR (COALESCE(m.dados->>'lote_id', '') = '' AND upper(btrim(COALESCE(m.dados->>'lote', ''))) = ANY(${nomesUp}::text[]))
           ${porArea}

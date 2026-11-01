@@ -14,6 +14,13 @@ export const TIPOS_MANEJO_REBANHO = Object.freeze([NASCIMENTO, PESAGEM, MUDANCA_
 
 const SEM_CATEGORIA = 'SEM CATEGORIA';
 
+/** Política materna (PR168-R2) — espelho de `CATEGORIAS_MATERNAS` do servidor. */
+export const CATEGORIAS_MATERNAS = Object.freeze(['Vaca 25 a 36 meses', 'Vaca + 36 meses', 'Novilha 13 a 24 meses']);
+const semAcento = (v) => String(v ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toUpperCase();
+/** Lote pode ser "categoria da mãe"? Categoria oficial de matriz E sexo Fêmea. */
+export const ehLoteDeMatriz = (lote) =>
+  CATEGORIAS_MATERNAS.some((c) => semAcento(c) === semAcento(lote?.categoria)) && semAcento(lote?.sexo) === 'FEMEA';
+
 const numeroPositivo = (valor) => {
   const n = typeof valor === 'number' ? valor : parseFloat(String(valor ?? ''));
   return Number.isFinite(n) && n > 0 ? n : null;
@@ -91,6 +98,11 @@ export const corpoMudancaCategoria = ({ empresaId, areaId, formData }) => ({
     peso_medio_kg: numeroPositivo(m.peso_medio),
   })),
 });
+
+/** Lotes de matrizes considerados no nascimento (categoria/área; não é a mãe individual). */
+export const idsDeMatrizesDoMovimento = (mov) => [
+  ...new Set((Array.isArray(mov?.linhas) ? mov.linhas : []).flatMap((l) => (Array.isArray(l?.maes_lote_ids) ? l.maes_lote_ids : [])).filter((id) => typeof id === 'string' && id)),
+];
 
 /** Participantes de um movimento (agregado R2B ou simples): primário + `lote_ids` + efeitos. */
 export const idsDeLotesDoMovimento = (mov) => {

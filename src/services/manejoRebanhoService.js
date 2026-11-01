@@ -30,6 +30,7 @@ const RECUSAS_DEFINITIVAS = new Set([
   'MANEJO_CATEGORIA_INVALIDA',
   'MANEJO_CATEGORIA_AMBIGUA',
   'MANEJO_CATEGORIA_INCOMPATIVEL',
+  'MANEJO_DESTINO_AMBIGUO',
 ]);
 
 export const MENSAGENS_MANEJO_REBANHO = Object.freeze({
@@ -37,10 +38,11 @@ export const MENSAGENS_MANEJO_REBANHO = Object.freeze({
   [CODIGO_PENDENTE]: 'Há um envio anterior sem confirmação. Reenvie o mesmo registro para concluir, ou confira o histórico antes de registrar outro.',
   MANEJO_SALDO_INSUFICIENTE: 'Saldo insuficiente na categoria. Nada foi gravado.',
   MANEJO_ESTADO_INVALIDO: 'Um lote não está mais como na tela (categoria, situação ou área mudaram). Recarregue o mapa. Nada foi gravado.',
-  MANEJO_CATEGORIA_MAE_INVALIDA: 'Não há lote ativo da categoria da mãe nesta área. Nada foi gravado.',
+  MANEJO_CATEGORIA_MAE_INVALIDA: 'Categoria da mãe inválida: é preciso lote ativo de FÊMEAS de categoria de matriz (Vaca ou Novilha) nesta área. Nada foi gravado.',
   MANEJO_CATEGORIA_INVALIDA: 'Categoria de manejo inválida para a categoria escolhida. Nada foi gravado.',
   MANEJO_CATEGORIA_AMBIGUA: 'Há mais de uma categoria de manejo para esta categoria. Escolha uma no cadastro. Nada foi gravado.',
   MANEJO_CATEGORIA_INCOMPATIVEL: 'A categoria nova não combina com o sexo do lote. Nada foi gravado.',
+  MANEJO_DESTINO_AMBIGUO: 'Há mais de um lote de bezerros do mesmo sexo nesta área; não há junção automática. Ajuste os lotes antes. Nada foi gravado.',
   LOTE_NOT_FOUND: 'Um lote não está mais ativo nesta área. Recarregue o mapa. Nada foi gravado.',
   AREA_NOT_FOUND: 'Área não encontrada nesta fazenda. Nada foi gravado.',
   REQUEST_VALIDATION_FAILED: 'Dados inválidos (quantidade, peso ou data). Nada foi gravado.',

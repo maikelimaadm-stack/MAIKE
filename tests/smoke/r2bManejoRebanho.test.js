@@ -148,3 +148,27 @@ describe('R2B cancelamento e histórico na tela', () => {
     expect(descreverLinhasDoMovimento({ tipo: 'Mudança de Categoria', linhas: [{ quantidade: 50, categoria_atual: 'G', categoria_nova: 'B', partes: [{ modo: 'total', quantidade: 30 }, { modo: 'parcial', quantidade: 20 }] }] })[0]).toBe('50 de G → B · 30 no mesmo lote, 20 para lote novo');
   });
 });
+
+describe('PR168-R2 paridade frontend × servidor (nascimento)', () => {
+  it('lote de matriz = categoria oficial materna E sexo Fêmea', async () => {
+    const { ehLoteDeMatriz } = await import('@/domain/lotes/manejoRebanho');
+    expect(ehLoteDeMatriz({ categoria: 'Vaca + 36 meses', sexo: 'Fêmea' })).toBe(true);
+    expect(ehLoteDeMatriz({ categoria: 'vaca 25 a 36 MESES', sexo: 'FEMEA' })).toBe(true);
+    expect(ehLoteDeMatriz({ categoria: 'Novilha 13 a 24 meses', sexo: 'Fêmea' })).toBe(true);
+    expect(ehLoteDeMatriz({ categoria: 'Vaca + 36 meses', sexo: 'Macho' })).toBe(false);
+    expect(ehLoteDeMatriz({ categoria: 'Vaca + 36 meses' })).toBe(false);
+    expect(ehLoteDeMatriz({ categoria: 'Boi 25 a 36 meses', sexo: 'Macho' })).toBe(false);
+    expect(ehLoteDeMatriz({ categoria: 'Bezerra 0 a 12 meses', sexo: 'Fêmea' })).toBe(false);
+    expect(ehLoteDeMatriz({ categoria: 'VACAS DO JOÃO', sexo: 'Fêmea' })).toBe(false);
+  });
+  it('histórico offline por lote acha o nascimento pela matriz (maes_lote_ids), não por homônimo', () => {
+    const mov = { id: 'n1', empresa_id: 'e', tipo: 'Nascimento', lote_id: 'bz', lote_ids: ['bz'], linhas: [{ maes_lote_ids: ['vacas'] }], efeito_servidor: { efeitos: [{ lote_id: 'bz' }] }, created_date: '2026-10-30' };
+    expect(filtrarMovimentacoes([mov], { empresaId: 'e', escopo: ESCOPO_LOTES, lotes: [{ id: 'vacas', nome: 'VACAS' }] }).map((m) => m.id)).toEqual(['n1']);
+    expect(filtrarMovimentacoes([mov], { empresaId: 'e', escopo: ESCOPO_LOTES, lotes: [{ id: 'outra', nome: 'VACAS' }] })).toEqual([]);
+    expect(filtrarMovimentacoes([mov], { empresaId: 'e', escopo: ESCOPO_LOTES, lotes: [{ id: 'bz', nome: 'BZ' }] }).map((m) => m.id)).toEqual(['n1']);
+  });
+  it('mensagem estável para destino ambíguo e mãe inválida', () => {
+    expect(mensagemDoErro(erroServidor('MANEJO_DESTINO_AMBIGUO'))).toMatch(/mais de um lote de bezerros.*Nada foi gravado/);
+    expect(mensagemDoErro(erroServidor('MANEJO_CATEGORIA_MAE_INVALIDA'))).toMatch(/FÊMEAS.*matriz/);
+  });
+});

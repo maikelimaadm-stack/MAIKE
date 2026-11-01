@@ -268,6 +268,10 @@ export const BACKEND_ONLY_CODES = Object.freeze({
     http: 409,
     meaning: 'mais de uma categoria de manejo ativa corresponde à categoria oficial; o formulário precisa escolher; nada foi gravado',
   },
+  MANEJO_DESTINO_AMBIGUO: {
+    http: 409,
+    meaning: 'há mais de um lote de filhotes compatível (categoria e sexo) na área; sem unificação implícita; nada foi gravado',
+  },
   MANEJO_CATEGORIA_INCOMPATIVEL: {
     http: 409,
     meaning: 'a categoria nova não é compatível com o sexo do lote; nada foi gravado',

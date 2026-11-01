@@ -1,5 +1,5 @@
 import { getApiErrorMessage } from "@/apis/_core/ApiError";
-import { descreverLinhasDoMovimento, idsDeLotesDoMovimento } from "@/domain/lotes/manejoRebanho";
+import { descreverLinhasDoMovimento, idsDeLotesDoMovimento, idsDeMatrizesDoMovimento } from "@/domain/lotes/manejoRebanho";
 import React from "react";
 import {
   Card as CardUi,
@@ -132,6 +132,7 @@ const movimentoComoItem = (mov, areasRaw) => ({
   // R2B-P1 (D-PROD-101): movimento agregado mostra cada linha (quantidade, categorias, pesos).
   linhas_descritas: descreverLinhasDoMovimento(mov),
   participantes: idsDeLotesDoMovimento(mov),
+  matrizes: idsDeMatrizesDoMovimento(mov),
   raw: mov,
 });
 
@@ -549,6 +550,9 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
                           </ul>
                         )}
                         {item.participantes?.length > 1 && <div><strong>Lotes envolvidos:</strong> {item.participantes.length}</div>}
+                        {item.matrizes?.length > 0 && (
+                          <div data-testid="matrizes-do-nascimento"><strong>Lotes de matrizes da categoria na área:</strong> {item.matrizes.length} (referência da categoria; não identifica a mãe individual)</div>
+                        )}
                         <div><strong>Origem:</strong> {item.sourceLabel}</div>
                         {!!item.observacoes && <div className="break-words"><strong>Detalhes:</strong> {formatHistoricoObservacoes(item)}</div>}
                         {item.source === 'suplementacao' && (
