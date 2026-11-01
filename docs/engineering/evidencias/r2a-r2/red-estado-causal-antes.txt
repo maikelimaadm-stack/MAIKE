@@ -1,0 +1,40 @@
+R2A-R2 — RED no HEAD de entrada 1fbfef64c88f669876cc89b2832050f96a231113 (PostgreSQL 16 local, banco maike_ci sintético)
+Data: 2026-11-01T01:29:45Z
+
+Sonda (mesmo cenário dos testes, executada até o fim):
+  a1 morte 50 (500→450) + PATCH válido 450→400: elegivel=true POST=200 saldo 400 -> 450 situacao=cancelado  (credita 50 sem prova)
+  a2 morte 50 + PATCH válido 450→550:           elegivel=true POST=200 saldo 550 -> 600 situacao=cancelado  (credita 50 sobre correção)
+  a5 morte 50 + PATCH 450→400→450 (compensação): elegivel=true POST=200 saldo 450 -> 500 situacao=cancelado
+
+node --test backend/tests/r2aR2EstadoCausal.test.mjs:
+    not ok 1 - a1: 500 → morte 50 → 450 → PATCH 400 (CAS ok) → cancelar é 409 e o saldo continua 400
+    not ok 2 - a2: 500 → morte 50 → 450 → PATCH 550 → cancelar NÃO credita (600 seria crédito sem prova); continua 550
+not ok 1 - R2A-R2 a1/a2 — PATCH material válido depois do movimento bloqueia o cancelamento
+    ok 1 - a3 status: PATCH válido depois da morte → cancelamento recusado sem efeito
+    ok 2 - a3 área: PATCH válido depois da morte → cancelamento recusado sem efeito
+    not ok 3 - a3 categoria: PATCH válido depois da morte → cancelamento recusado sem efeito
+not ok 2 - R2A-R2 a3 — status, área ou categoria mudados depois do movimento
+    not ok 1 - parcial unificada: PATCH no destino (150 → 140) → 409; origem e destino intactos
+    ok 2 - parcial unificada: PATCH na origem (área A → C) → 409
+    not ok 3 - parcial com lote novo: categoria do derivado mudada → 409; derivado continua Ativo com 50
+    ok 4 - total unificada: status do destino mudado → 409
+not ok 3 - R2A-R2 a4 — transferência: mudança posterior na ORIGEM ou no DESTINO bloqueia os dois
+    not ok 1 - o saldo volta ao número do pós-estado, mas a auditoria prova intervenção não comprovada → 409
+    not ok 2 - status ida e volta (Ativo → Inativo → Ativo) também é intervenção
+not ok 4 - R2A-R2 a5 — alteração compensatória (450 → 400 → 450) também bloqueia
+    ok 1 - edição sem saldo (peso, nome) não é intervenção material: morte cancela 450 → 500
+    ok 2 - morte, abate, transferência (no lugar, parcial novo, parcial unificada, total unificada) cancelam; replay não credita duas vezes
+    ok 3 - manejo posterior comprovado e já cancelado não bloqueia o anterior (500 → 450 → 400 → 450 → 500)
+ok 5 - R2A-R2 a6 — sem intervenção material: tudo continua cancelável, sem crédito duplo
+    not ok 1 - categoria_animal divergente da categoria real da origem → recusada; nada muda
+    not ok 2 - categoria_animal ausente: o movimento grava a categoria AUTORITATIVA do lote
+    ok 3 - data_movimentacao inválida ("ontem") → 400 e nada é criado
+    not ok 4 - data_movimentacao inválida ("2026-13-45") → 400 e nada é criado
+    not ok 5 - data_movimentacao inválida ("2026-02-30T12:00:00.000Z") → 400 e nada é criado
+    ok 6 - data_movimentacao inválida ("") → 400 e nada é criado
+    ok 7 - área de destino de OUTRA empresa do mesmo tenant → 404; lote intacto
+    ok 8 - POST genérico não injeta efeito_servidor, modo_transferencia, lote_destino_id nem estado de cancelamento
+not ok 6 - R2A-R2 P0-C — o comando não confia no formulário
+# tests 22
+# pass 11
+# fail 11

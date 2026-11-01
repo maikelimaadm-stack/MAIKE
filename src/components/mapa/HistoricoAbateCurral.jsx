@@ -1,10 +1,10 @@
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { listarTodasMovimentacoes, listarTodosLotes, atualizarLote, excluirMovimentacao } from "@/services/loteManejoService";
-import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
+import { listarTodasMovimentacoes } from "@/services/loteManejoService";
+import CancelarMovimentacao from "@/components/lotes/CancelarMovimentacao";
+import { ehMovimentoCancelado } from "@/domain/lotes/situacaoMovimento";
 import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 
 function formatDateOnly(value) {
@@ -18,36 +18,8 @@ function formatDateOnly(value) {
 
 export default function HistoricoAbateCurral({ areaId }) {
   const empresaSelecionadaId = useEmpresaSelecionadaId();
-  const queryClient = useQueryClient();
-
-  const deleteMutation = useMutation({
-    mutationFn: async (item) => {
-      const mov = await listarTodasMovimentacoes();
-      const registro = mov.find((m) => m.id === item.id);
-      if (!registro) return;
-
-      if (registro.lote_id) {
-        const lotes = await listarTodosLotes();
-        const lote = lotes.find((l) => l.id === registro.lote_id);
-        if (lote) {
-          await atualizarLote(lote.id, {
-            quantidade_cabecas: (lote.quantidade_cabecas || 0) + (registro.quantidade_animais || 0),
-            status: "Ativo"
-          });
-        }
-      }
-
-      await excluirMovimentacao(item.id);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["historico-abate-curral"] });
-      queryClient.invalidateQueries({ queryKey: ["mapa-lotes"] });
-      queryClient.invalidateQueries({ queryKey: ["lotes"] });
-      try { window.dispatchEvent(new CustomEvent('atualizar-mapa')); } catch { /* falha ignorada intencionalmente: operação best-effort */ }
-      toast.success("Abate excluído");
-    },
-  });
-
+  // R2A (D-PROD-99): a exclusão antiga (somar no lote e apagar o movimento em
+  // duas chamadas) saiu. Cancelar abate é o comando do servidor.
   const { data: historico = [], isLoading } = useQuery({
     queryKey: ["historico-abate-curral", areaId, empresaSelecionadaId],
     queryFn: async () => {
@@ -64,6 +36,9 @@ export default function HistoricoAbateCurral({ areaId }) {
           peso_medio: mov.peso_medio,
           destino: mov.destino_venda,
           observacoes: mov.observacoes,
+          cancelado: ehMovimentoCancelado(mov),
+          cancelamento: mov.cancelamento || null,
+          raw: mov,
         }));
     },
     enabled: !!areaId && !!empresaSelecionadaId,
@@ -110,6 +85,11 @@ export default function HistoricoAbateCurral({ areaId }) {
                     <Badge variant="outline" className="text-[10px] text-slate-700 border-slate-300 bg-white">
                       Abate
                     </Badge>
+                    {item.cancelado && (
+                      <Badge variant="outline" className="text-[10px] text-red-800 border-red-300 bg-red-50">
+                        Cancelado
+                      </Badge>
+                    )}
                   </div>
 
                   <div className="text-xs font-semibold text-slate-900">{item.lote || "Sem lote"}</div>
@@ -120,23 +100,19 @@ export default function HistoricoAbateCurral({ areaId }) {
                     {!!item.peso_medio && <div><strong>Peso médio:</strong> {item.peso_medio} kg</div>}
                     {!!item.destino && <div><strong>Destino:</strong> {item.destino}</div>}
                     {!!item.observacoes && <div className="break-words"><strong>Detalhes:</strong> {item.observacoes}</div>}
+                    {item.cancelado && (
+                      <div className="text-red-800">
+                        Cancelado{item.cancelamento?.por_login ? ` por ${item.cancelamento.por_login}` : ""}
+                        {item.cancelamento?.motivo ? ` — Motivo: ${item.cancelamento.motivo}` : ""}
+                      </div>
+                    )}
                   </div>
                 </div>
-                <div className="shrink-0">
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="sm"
-                    className="h-8 text-xs"
-                    disabled={deleteMutation.isPending}
-                    onClick={() => {
-                      if (!confirm('Excluir este abate?')) return;
-                      deleteMutation.mutate(item);
-                    }}
-                  >
-                    Excluir
-                  </Button>
-                </div>
+                {!item.cancelado && (
+                  <div className="shrink-0">
+                    <CancelarMovimentacao movimento={item.raw} />
+                  </div>
+                )}
               </div>
             </div>
           ))}

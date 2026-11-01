@@ -19,6 +19,7 @@
  * `force: true`, limpeza do mapa de promises em `finally`.
  */
 
+import { ehMovimentoAtivo } from '@/domain/lotes/situacaoMovimento';
 import { getEntityCacheItems, getEntityCacheRecord, setEntityCacheItems } from '@/components/offline/IndexedDBManager';
 import { hasApiErrorCode, isApiError, API_ERROR_CODES } from '@/apis/_core/ApiError';
 import {
@@ -77,7 +78,11 @@ const CAPACIDADES = {
     daEmpresa(await listLancamentos(), empresaId).filter(
       (t) => t.coordenadas && (t.status === 'Pendente' || t.status === 'Em Andamento')
     ),
-  movimentacoes: async (empresaId) => daEmpresa(await listMovimentacoes(), empresaId),
+  // Cancelado (R2A) não tem efeito atual: fora do cache que alimenta mapa e lotes.
+  movimentacoes: async (empresaId) => daEmpresa(await listMovimentacoes(), empresaId).filter(ehMovimentoAtivo),
+  // Histórico (R2A-R1, P1-B): ativos E cancelados, com situação, motivo e autor.
+  // É cópia parcial do que o servidor tinha no último refresh — não é histórico completo.
+  movimentacoesHistorico: async (empresaId) => daEmpresa(await listMovimentacoes(), empresaId),
   permissoes: async () => listPermissoes(),
   historicoTarefa: async (empresaId) => daEmpresa(await listHistorico(), empresaId),
   suplementacaoLote: async (empresaId) => daEmpresa(await listSuplementacaoLotes(), empresaId),

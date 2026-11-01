@@ -1,0 +1,10 @@
+REQS POST /native/auth/login, POST /native/movimentacoes-mapa/comandos/manejo-lote
+PASS desktop-1440 abriu o lote certo
+PASS desktop-1440 saldo no servidor: QTD → QTD-7 — 684 → 677
+PASS desktop-1440 morte foi pelo comando do servidor (1 POST) — 1 POST; corpo: {"operation_id":"manejo-94db7d3b-cae9-4ad4-8e48-0dafbbd0178e-morte-cmvx3a4r600kb7d0i1y724kma","tipo":"Morte","lote_id":"cmvx3a4r600kb7d0i1y724kma","qu
+PASS desktop-1440 sem POST legado /movimentacoes-mapa
+PASS desktop-1440 nenhum PATCH /lotes operacional sem estado_esperado — 0 PATCH operacionais
+PASS desktop-1440 nenhum DELETE/PATCH de movimento no navegador
+PASS desktop-1440 movimento tem proveniência do servidor
+PASS desktop-1440 movimento criado pela UI é elegível ao cancelamento seguro — [[677,684]]
+PASS desktop-1440 sem erro de página

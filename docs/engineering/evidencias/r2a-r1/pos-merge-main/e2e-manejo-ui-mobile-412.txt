@@ -1,0 +1,10 @@
+REQS POST /native/auth/login, POST /native/movimentacoes-mapa/comandos/manejo-lote
+PASS mobile-412 abriu o lote certo
+PASS mobile-412 saldo no servidor: QTD → QTD-7 — 821 → 814
+PASS mobile-412 morte foi pelo comando do servidor (1 POST) — 1 POST; corpo: {"operation_id":"manejo-764d7f8b-1ccc-4cae-b9a4-91245bf1f5b9-morte-cmvx43gw900pt7d0i2ik4h7ld","tipo":"Morte","lote_id":"cmvx43gw900pt7d0i2ik4h7ld","qu
+PASS mobile-412 sem POST legado /movimentacoes-mapa
+PASS mobile-412 nenhum PATCH /lotes operacional sem estado_esperado — 0 PATCH operacionais
+PASS mobile-412 nenhum DELETE/PATCH de movimento no navegador
+PASS mobile-412 movimento tem proveniência do servidor
+PASS mobile-412 movimento criado pela UI é elegível ao cancelamento seguro — [[814,821]]
+PASS mobile-412 sem erro de página

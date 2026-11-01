@@ -1,0 +1,23 @@
+const { chromium } = require('playwright');
+(async () => {
+  const API = 'http://127.0.0.1:3334';
+  const tok = (await (await fetch(`${API}/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ login: 'demo.operador', senha: 'senha-demo-local-123' }) })).json()).token;
+  const r = await fetch(`${API}/usuarios`, { method: 'POST', headers: { authorization: `Bearer ${tok}`, 'content-type': 'application/json' }, body: JSON.stringify({ nome: 'Operador Comum Sintético', login: 'comum.sintetico', senha: 'senha-comum-123' }) });
+  console.log('criar usuario', r.status);
+  const browser = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader'] });
+  const page = await (await browser.newContext({ viewport: { width: 1440, height: 900 } })).newPage();
+  await page.goto('http://127.0.0.1:5180/', { waitUntil: 'networkidle' });
+  await page.locator('input').nth(0).fill('comum.sintetico');
+  await page.locator('input[type=password]').fill('senha-comum-123');
+  await page.keyboard.press('Enter');
+  await page.waitForURL(/mapageral/i, { timeout: 20000 });
+  await page.waitForTimeout(6000);
+  const box = await page.getByText('PASTO 1', { exact: true }).first().boundingBox();
+  await page.mouse.click(box.x + box.width / 2, box.y + 1);
+  await page.waitForTimeout(3000);
+  const t = (await page.getByRole('dialog').last().innerText().catch(() => '')).replace(/\n+/g, ' | ');
+  const n = await page.getByRole('button', { name: 'Cancelar movimentação' }).count();
+  console.log(`${/Histórico da Área PASTO 1/.test(t) && n === 0 ? 'PASS' : 'FAIL'} comum-1440 usuário comum lê o histórico e não vê "Cancelar movimentação" (botões=${n})`);
+  await page.screenshot({ path: '/tmp/claude-0/r2a/desktop-1440-06-usuario-comum-sem-cancelar.png' });
+  await browser.close();
+})();

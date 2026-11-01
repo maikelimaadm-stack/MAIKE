@@ -126,7 +126,7 @@ describe('MovimentacaoMapa — nome de área pelo ID', () => {
     assert.equal(r.json().area_destino_nome, '', 'nome do tenant A não vaza para o B');
   });
 
-  test('PATCH também resolve; movimento sem área segue intacto', async () => {
+  test('PATCH é recusado (R2A): movimento não se reescreve, nada muda', async () => {
     const { token, empresa, areas } = await cenario();
     const [teste, tet] = areas;
     const criado = await app.inject({
@@ -137,15 +137,16 @@ describe('MovimentacaoMapa — nome de área pelo ID', () => {
     });
     assert.equal(criado.statusCode, 201);
     assert.equal(criado.json().area_destino_nome, undefined);
+    // R2A (D-PROD-99): movimento do mapa não se reescreve por PATCH; nada muda.
     const patch = await app.inject({
       method: 'PATCH',
       url: `/movimentacoes-mapa/${criado.json().id}`,
       headers: auth(token),
       payload: { empresa_id: empresa.id, area_origem_id: teste.id, area_destino_id: tet.id, area_destino_nome: '' },
     });
-    assert.equal(patch.statusCode, 200);
-    assert.equal(patch.json().area_destino_nome, 'TET');
-    assert.equal(patch.json().area_origem_nome, 'TESTE');
-    assert.equal(patch.json().peso_medio, 300);
+    assert.equal(patch.statusCode, 409);
+    assert.equal(patch.json().code, 'MOVIMENTO_CANCELAMENTO_OBRIGATORIO');
+    const gravado = await getPrismaClient().movimentacaoMapa.findFirst({ where: { id: criado.json().id } });
+    assert.equal(/** @type {any} */ (gravado.dados).area_origem_id, undefined);
   });
 });

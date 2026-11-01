@@ -12,6 +12,7 @@ import {
   criarMovimentacao,
   criarEventoSuplementacao,
   registrarSuplementacaoEmLote,
+  registrarManejoLote,
 } from "@/services/loteManejoService";
 import {
   encontrarLoteDestinoCompativel,
@@ -23,6 +24,7 @@ import {
   pesoAplicavel,
   ganhoDePeso,
   areaPorId,
+  comEstadoEsperado,
 } from "@/domain/lotes/movimentacaoLote";
 import { listarIconesPorTipoEntidade } from "@/services/mapaService";
 import { getCurrentUser } from "@/services/sessionService";
@@ -59,6 +61,27 @@ import { Progress } from "@/components/ui/progress";
 import { AlertTriangle } from "lucide-react";
 import { validarOrdemTemporalLote, validarOrdemTemporalLotes } from "../lotes/manejoValidations.jsx";
 import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
+
+/**
+ * R2A-R1 (D-PROD-99a): online, Morte/Abate/Transferência vão pelo comando
+ * atômico do servidor (efeito calculado e gravado numa transação, com
+ * proveniência para o cancelamento). Offline segue o fluxo legado — sem
+ * proveniência, portanto sem cancelamento — e todo PATCH de saldo/posição leva
+ * o estado lido (`comEstadoEsperado`).
+ */
+const usarComandoDoServidor = () => typeof navigator === "undefined" || navigator.onLine !== false;
+
+/** Chave idempotente estável por envio do formulário + tipo + lote (reenvio do mesmo envio não duplica). */
+const chaveDeManejo = (formData, tipo, loteId, extra = "") => {
+  if (!formData.__chaveManejo) {
+    formData.__chaveManejo =
+      typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  }
+  return `manejo-${formData.__chaveManejo}-${tipo}-${loteId}${extra ? `-${String(extra).replace(/[^A-Za-z0-9_.:-]/g, "")}` : ""}`;
+};
+
+/** PATCH de lote com o estado lido (compare-and-swap no servidor). */
+const atualizarLoteSeguro = (loteLido, patch) => atualizarLote(loteLido.id, comEstadoEsperado(loteLido, patch));
 
 export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
   const empresaSelecionadaId = useEmpresaSelecionadaId();
@@ -214,6 +237,30 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
           lotesOrigemLocais[index] = { ...lotesOrigemLocais[index], ...changes };
         }
       };
+      /** R2A-R1: transferência num comando atômico; o servidor decide o modo e grava a proveniência. */
+      const transferirPeloServidor = async (lote, quantidade, loteExistente, categoria, observacoes, extraChave) => {
+        const dadosForm = /** @type {any} */ (formData);
+        const resposta = /** @type {any} */ (await registrarManejoLote({
+          operation_id: chaveDeManejo(dadosForm, 'transferencia', lote.id, extraChave),
+          tipo: 'Transferência de Área',
+          empresa_id: empresaSelecionadaId,
+          lote_id: lote.id,
+          quantidade_animais: Number(quantidade),
+          data_movimentacao: toNoonUtcISOString(dadosForm.data_movimentacao),
+          area_destino_id: dadosForm.area_entrada_id,
+          ...(loteExistente ? { lote_destino_id: loteExistente.id } : {}),
+          ...(categoria ? { categoria_animal: categoria } : {}),
+          observacoes,
+          ...(user?.email ? { usuario_responsavel: user.email } : {}),
+        }));
+        for (const atualizado of resposta?.lotes || []) {
+          if (atualizado.id === lote.id) atualizarLoteOrigemLocal(atualizado.id, atualizado);
+          if (atualizado.area_atual_id === dadosForm.area_entrada_id && atualizado.status === 'Ativo') {
+            atualizarLoteDestinoLocal(lotesDestinoAtivos, atualizado);
+          }
+        }
+        if (resposta?.movimentacao) movimentacoesCriadas.push(resposta.movimentacao);
+      };
       const localizarDestinoCompativel = (loteOrigem, categoriaMovimento) =>
         encontrarLoteDestinoCompativel(lotesDestinoAtivos, {
           loteOrigem,
@@ -238,15 +285,19 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
             identificador_cor: lote.identificador_cor || null,
           };
 
+          if (usarComandoDoServidor()) {
+            await transferirPeloServidor(lote, lote.quantidade_cabecas, loteExistente, lote.categoria, `Movimentação completa do lote - ${lote.quantidade_cabecas} cabeças`, 'todos');
+            continue;
+          }
           if (loteExistente) {
-            const loteDestinoAtualizado = await atualizarLote(loteExistente.id, {
+            const loteDestinoAtualizado = await atualizarLoteSeguro(loteExistente, {
               quantidade_cabecas: (loteExistente.quantidade_cabecas || 0) + (lote.quantidade_cabecas || 0),
               ...identificadorPayload
             });
             atualizarLoteDestinoLocal(lotesDestinoAtivos, loteDestinoAtualizado);
-            await atualizarLote(lote.id, { status: 'Inativo', quantidade_cabecas: 0 });
+            await atualizarLoteSeguro(lote, { status: 'Inativo', quantidade_cabecas: 0 });
           } else {
-            await atualizarLote(lote.id, {
+            await atualizarLoteSeguro(lote, {
               area_atual_id: formData.area_entrada_id,
               area_atual_nome: areaEntrada?.nome || ''
             });
@@ -295,18 +346,23 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
               identificador_cor: lote.identificador_cor || null,
             };
 
+            if (usarComandoDoServidor()) {
+              await transferirPeloServidor(lote, quantidadeMover, loteExistente, mov.categoria, `Movimentação parcial - ${quantidadeMover} cabeças de ${mov.categoria}`, mov.categoria);
+              quantidadeRestante -= quantidadeMover;
+              continue;
+            }
             if (modoDaMovimentacao(quantidadeMover, lote.quantidade_cabecas) === 'total') {
               if (loteExistente) {
                 // Unificar automaticamente com lote existente de mesmo nome+categoria
-                const loteDestinoAtualizado = await atualizarLote(loteExistente.id, {
+                const loteDestinoAtualizado = await atualizarLoteSeguro(loteExistente, {
                   quantidade_cabecas: (loteExistente.quantidade_cabecas || 0) + quantidadeMover,
                   ...identificadorPayload
                 });
                 atualizarLoteDestinoLocal(lotesDestinoAtivos, loteDestinoAtualizado);
-                await atualizarLote(lote.id, { status: 'Inativo', quantidade_cabecas: 0 });
+                await atualizarLoteSeguro(lote, { status: 'Inativo', quantidade_cabecas: 0 });
                 atualizarLoteOrigemLocal(lote.id, { status: 'Inativo', quantidade_cabecas: 0 });
               } else {
-                await atualizarLote(lote.id, {
+                await atualizarLoteSeguro(lote, {
                   area_atual_id: formData.area_entrada_id,
                   area_atual_nome: areaEntrada?.nome || ''
                 });
@@ -317,7 +373,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
               }
             } else {
               if (loteExistente) {
-                const loteDestinoAtualizado = await atualizarLote(loteExistente.id, {
+                const loteDestinoAtualizado = await atualizarLoteSeguro(loteExistente, {
                   quantidade_cabecas: (loteExistente.quantidade_cabecas || 0) + quantidadeMover,
                   ...identificadorPayload
                 });
@@ -357,7 +413,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
               }
 
               const saldoOrigem = saldoEStatusDaOrigem(lote, quantidadeMover);
-              await atualizarLote(lote.id, saldoOrigem);
+              await atualizarLoteSeguro(lote, saldoOrigem);
               atualizarLoteOrigemLocal(lote.id, saldoOrigem);
             }
 
@@ -466,7 +522,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
       toast.success('Gado movido com sucesso!');
       setAreaDestinoPreSelecionada(null);
       setShowMovimentacao(false);
-      window.dispatchEvent(new CustomEvent('atualizar-mapa', { detail: { cacheKeys: ['lotes', 'movimentacoes'] } }));
+      window.dispatchEvent(new CustomEvent('atualizar-mapa', { detail: { cacheKeys: ['lotes', 'movimentacoes', 'movimentacoesHistorico'] } }));
       queryClient.invalidateQueries({ queryKey: ['lotes'] });
       queryClient.invalidateQueries({ queryKey: ['mapa-lotes'] });
       queryClient.invalidateQueries({ queryKey: ['mapa-cache', 'lotes'] });
@@ -523,19 +579,32 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
       const qtdRemover = quantidadeAplicavel(quantidadeRestante, lote);
       if (qtdRemover <= 0) continue;
 
-      await criarMovimentacao({
-        empresa_id: empresaSelecionadaId,
-        data_movimentacao: toNoonUtcISOString(formData.data_ocorrencia),
-        tipo: 'Morte',
-        lote: lote.nome,
-        lote_id: lote.id,
-        quantidade_animais: qtdRemover,
-        area_origem_id: areaAtualId,
-        area_origem_nome: areaMorte?.nome || '',
-        observacoes: `Categoria: ${formData.categoria}. Sexo: ${lote.sexo}. Causa: ${formData.causa_morte}. ${formData.observacoes}`
-      });
+      if (usarComandoDoServidor()) {
+        // R2A-R1: baixa e movimento numa transação no servidor (com proveniência).
+        await registrarManejoLote({
+          operation_id: chaveDeManejo(formData, 'morte', lote.id),
+          tipo: 'Morte',
+          empresa_id: empresaSelecionadaId,
+          lote_id: lote.id,
+          quantidade_animais: Number(qtdRemover),
+          data_movimentacao: toNoonUtcISOString(formData.data_ocorrencia),
+          observacoes: `Categoria: ${formData.categoria}. Sexo: ${lote.sexo}. Causa: ${formData.causa_morte}. ${formData.observacoes}`,
+        });
+      } else {
+        await criarMovimentacao({
+          empresa_id: empresaSelecionadaId,
+          data_movimentacao: toNoonUtcISOString(formData.data_ocorrencia),
+          tipo: 'Morte',
+          lote: lote.nome,
+          lote_id: lote.id,
+          quantidade_animais: qtdRemover,
+          area_origem_id: areaAtualId,
+          area_origem_nome: areaMorte?.nome || '',
+          observacoes: `Categoria: ${formData.categoria}. Sexo: ${lote.sexo}. Causa: ${formData.causa_morte}. ${formData.observacoes}`
+        });
 
-      await atualizarLote(lote.id, saldoEStatusDaOrigem(lote, qtdRemover));
+        await atualizarLoteSeguro(lote, saldoEStatusDaOrigem(lote, qtdRemover));
+      }
 
       quantidadeRestante -= qtdRemover;
       if (quantidadeRestante <= 0) break;
@@ -562,7 +631,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
 
     if (loteFilhote) {
       // Adicionar ao lote existente
-      await atualizarLote(loteFilhote.id, {
+      await atualizarLoteSeguro(loteFilhote, {
         quantidade_cabecas: loteFilhote.quantidade_cabecas + formData.quantidade,
         peso_medio_kg: formData.peso_medio ? parseFloat(formData.peso_medio) : loteFilhote.peso_medio_kg
       });
@@ -629,19 +698,32 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
       const qtdRemover = quantidadeAplicavel(quantidadeRestante, lote);
       if (qtdRemover <= 0) continue;
 
-      await criarMovimentacao({
-        empresa_id: empresaSelecionadaId,
-        data_movimentacao: toNoonUtcISOString(formData.data_abate),
-        tipo: 'Abate',
-        lote: lote.nome,
-        lote_id: lote.id,
-        quantidade_animais: qtdRemover,
-        area_origem_id: areaAtualId,
-        area_origem_nome: areaAbate?.nome || '',
-        observacoes: `Categoria: ${formData.categoria}. Sexo: ${lote.sexo}. Peso vivo: ${formData.peso_vivo_total}kg. Peso carcaça: ${formData.peso_carcaca_total}kg. Destino: ${formData.destino}. ${formData.observacoes}`
-      });
+      if (usarComandoDoServidor()) {
+        // R2A-R1: baixa e movimento numa transação no servidor (com proveniência).
+        await registrarManejoLote({
+          operation_id: chaveDeManejo(formData, 'abate', lote.id),
+          tipo: 'Abate',
+          empresa_id: empresaSelecionadaId,
+          lote_id: lote.id,
+          quantidade_animais: Number(qtdRemover),
+          data_movimentacao: toNoonUtcISOString(formData.data_abate),
+          observacoes: `Categoria: ${formData.categoria}. Sexo: ${lote.sexo}. Peso vivo: ${formData.peso_vivo_total}kg. Peso carcaça: ${formData.peso_carcaca_total}kg. Destino: ${formData.destino}. ${formData.observacoes}`,
+        });
+      } else {
+        await criarMovimentacao({
+          empresa_id: empresaSelecionadaId,
+          data_movimentacao: toNoonUtcISOString(formData.data_abate),
+          tipo: 'Abate',
+          lote: lote.nome,
+          lote_id: lote.id,
+          quantidade_animais: qtdRemover,
+          area_origem_id: areaAtualId,
+          area_origem_nome: areaAbate?.nome || '',
+          observacoes: `Categoria: ${formData.categoria}. Sexo: ${lote.sexo}. Peso vivo: ${formData.peso_vivo_total}kg. Peso carcaça: ${formData.peso_carcaca_total}kg. Destino: ${formData.destino}. ${formData.observacoes}`
+        });
 
-      await atualizarLote(lote.id, saldoEStatusDaOrigem(lote, qtdRemover));
+        await atualizarLoteSeguro(lote, saldoEStatusDaOrigem(lote, qtdRemover));
+      }
 
       quantidadeRestante -= qtdRemover;
       if (quantidadeRestante <= 0) break;
@@ -679,7 +761,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
           const modoMudanca = modoDaMovimentacao(qtdMudar, lote.quantidade_cabecas);
 
           if (modoMudanca === 'total') {
-            await atualizarLote(lote.id, {
+            await atualizarLoteSeguro(lote, {
               categoria: mudanca.categoria_nova,
               sexo: sexoNovo,
               categoria_manejo_id: catManejoIdNovo,
@@ -716,7 +798,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
             });
             loteDestinoId = loteNovoCategoria.id;
 
-            await atualizarLote(lote.id, {
+            await atualizarLoteSeguro(lote, {
               quantidade_cabecas: saldoEStatusDaOrigem(lote, qtdMudar).quantidade_cabecas
             });
           }
@@ -753,7 +835,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
       toast.success('Categorias atualizadas');
       setShowMudancaCategoria(false);
       onClose();
-      window.dispatchEvent(new CustomEvent('atualizar-mapa', { detail: { cacheKeys: ['lotes', 'movimentacoes'] } }));
+      window.dispatchEvent(new CustomEvent('atualizar-mapa', { detail: { cacheKeys: ['lotes', 'movimentacoes', 'movimentacoesHistorico'] } }));
     } catch (error) {
       toast.error(error?.message || 'Erro ao salvar mudança de categoria');
     }
@@ -798,7 +880,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
           observacoes: `Categoria: ${categoria}. Sexo: ${lote.sexo}. Peso anterior: ${pesoAnterior}kg. Ganho: ${ganho.toFixed(1)}kg. ${formData.observacoes}`
         });
 
-        await atualizarLote(lote.id, {
+        await atualizarLoteSeguro(lote, {
           peso_medio_kg: pesoNovo
         });
       }
@@ -1073,9 +1155,9 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
                         }));
                         const nomesLotes = lotesParaJuntar.map((l) => l.nome).join(', ');
                         for (const l of outrosLotes) {
-                          await atualizarLote(l.id, { status: 'Inativo', quantidade_cabecas: 0 });
+                          await atualizarLoteSeguro(l, { status: 'Inativo', quantidade_cabecas: 0 });
                         }
-                        await atualizarLote(principal.id, {
+                        await atualizarLoteSeguro(principal, {
                           quantidade_cabecas: totalCab,
                           peso_medio_kg: pesoMedio > 0 ? Math.round(pesoMedio * 10) / 10 : principal.peso_medio_kg
                         });

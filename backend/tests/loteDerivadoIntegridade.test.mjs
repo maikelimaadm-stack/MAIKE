@@ -56,7 +56,7 @@ const casoReal = async (token, clienteId, origemDerivado = 'MOVIMENTAÇÃO') => 
   const lote1 = await criarLote(token, { quantidade_cabecas: 500, origem: 'AJUSTE' });
   const lote2 = await criarLote(token, { quantidade_cabecas: 50, origem: origemDerivado, motivo_entrada: 'Outros' });
   // Escrita real do mapa: debita a origem com PATCH de quantidade_cabecas.
-  const debito = await app.inject({ method: 'PATCH', url: `/lotes/${lote1.id}`, headers: auth(token), payload: { quantidade_cabecas: 450 } });
+  const debito = await app.inject({ method: 'PATCH', url: `/lotes/${lote1.id}`, headers: auth(token), payload: { quantidade_cabecas: 450, estado_esperado: { quantidade_cabecas: 500 } } });
   assert.equal(debito.statusCode, 200, 'PATCH de saldo do mapa continua permitido');
   await getPrismaClient().movimentacaoMapa.create({
     data: {
@@ -184,7 +184,7 @@ describe('Editar/excluir o lançamento só sem nada depois da entrada (D-PROD-87
     const { token } = await tenant();
     const destino = await criarLote(token, { quantidade_cabecas: 30, origem: 'COMPRA', motivo_entrada: 'Compra' });
     // Escrita real do mapa ao unificar: só soma o saldo do destino.
-    const soma = await app.inject({ method: 'PATCH', url: `/lotes/${destino.id}`, headers: auth(token), payload: { quantidade_cabecas: 80 } });
+    const soma = await app.inject({ method: 'PATCH', url: `/lotes/${destino.id}`, headers: auth(token), payload: { quantidade_cabecas: 80, estado_esperado: { quantidade_cabecas: 30 } } });
     assert.equal(soma.statusCode, 200);
     const ed = await app.inject({ method: 'PATCH', url: `/lotes/${destino.id}`, headers: auth(token), payload: { observacoes: 'X' } });
     assert.equal(ed.statusCode, 409);
@@ -211,9 +211,9 @@ describe('Editar/excluir o lançamento só sem nada depois da entrada (D-PROD-87
     const { lote1, lote2 } = await casoReal(token, cliente.id);
     const prisma = getPrismaClient();
     const movAntes = await prisma.movimentacaoMapa.count({ where: { cliente_id: cliente.id } });
-    const r1 = await app.inject({ method: 'PATCH', url: `/lotes/${lote2.id}`, headers: auth(token), payload: { quantidade_cabecas: 0, status: 'Inativo' } });
+    const r1 = await app.inject({ method: 'PATCH', url: `/lotes/${lote2.id}`, headers: auth(token), payload: { quantidade_cabecas: 0, status: 'Inativo', estado_esperado: { quantidade_cabecas: 50, status: 'Ativo' } } });
     assert.equal(r1.statusCode, 200);
-    const r2 = await app.inject({ method: 'PATCH', url: `/lotes/${lote1.id}`, headers: auth(token), payload: { quantidade_cabecas: 500, nome: 'TESTE RENOMEADO' } });
+    const r2 = await app.inject({ method: 'PATCH', url: `/lotes/${lote1.id}`, headers: auth(token), payload: { quantidade_cabecas: 500, nome: 'TESTE RENOMEADO', estado_esperado: { quantidade_cabecas: 450 } } });
     assert.equal(r2.statusCode, 200);
     assert.equal(r2.json().quantidade_entrada, 500);
     assert.equal(await prisma.movimentacaoMapa.count({ where: { cliente_id: cliente.id } }), movAntes);

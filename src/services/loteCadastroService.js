@@ -11,6 +11,7 @@
  * `loteManejoService`, criado na P1.2, e é reutilizado (QLT-P13-03).
  */
 
+import { comEstadoEsperado } from '@/domain/lotes/movimentacaoLote';
 import {
   listLotes,
   createLote,
@@ -182,8 +183,10 @@ export const criarLote = async (dados, { empresaId } = {}) => {
  * @param {{registroAnterior?: object}} [opcoes]
  */
 export const atualizarLote = async (id, dados, { registroAnterior } = {}) => {
+  // R2A-R1 (D-PROD-99a): saldo/posição vão com o estado lido no formulário.
+  const corpo = registroAnterior ? comEstadoEsperado(registroAnterior, dados) : dados;
   const atualizado = await updateLote(id, {
-    ...dados,
+    ...corpo,
     campos_personalizados: dados.campos_personalizados || {},
   });
   await sincronizarReferenciasLote({ registro: atualizado, registroAnterior });

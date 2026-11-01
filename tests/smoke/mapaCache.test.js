@@ -26,9 +26,10 @@ vi.mock('@/apis/mapa', () => ({
   listLinhas: async () => [],
   listIcones: (...a) => listIcones(...a),
 }));
+const listMovimentacoesLote = vi.fn(async () => []);
 vi.mock('@/apis/lotes', () => ({
   listLotes: async () => [],
-  listMovimentacoes: async () => [],
+  listMovimentacoes: (...a) => listMovimentacoesLote(...a),
   listSuplementacaoEventos: async () => [],
   listSuplementacaoLotes: async () => [],
 }));
@@ -212,5 +213,19 @@ describe('cache do mapa — leitura e escrita', () => {
 
   it('capacidade inexistente devolve lista vazia sem quebrar', async () => {
     expect(await refreshMapaCacheEntry('nao-existe', EMPRESA)).toEqual([]);
+  });
+  it('R2A-R1 P1-B — cache de histórico guarda ativos E cancelados; o operacional só ativos', async () => {
+    const cancelado = { id: 'm2', empresa_id: EMPRESA, tipo: 'Morte', situacao: 'cancelado', cancelamento: { motivo: 'duplicado', por_login: 'admin' } };
+    listMovimentacoesLote.mockResolvedValue([
+      { id: 'm1', empresa_id: EMPRESA, tipo: 'Morte' },
+      cancelado,
+      { id: 'm3', empresa_id: 'outra', tipo: 'Morte', situacao: 'cancelado' },
+    ]);
+    expect(CACHE_KEYS).toContain('movimentacoesHistorico');
+    const operacional = await refreshMapaCacheEntry('movimentacoes', EMPRESA);
+    const historico = await refreshMapaCacheEntry('movimentacoesHistorico', EMPRESA);
+    expect(operacional.map((m) => m.id)).toEqual(['m1']);
+    expect(historico.map((m) => m.id)).toEqual(['m1', 'm2']);
+    expect(historico[1]).toEqual(cancelado);
   });
 });

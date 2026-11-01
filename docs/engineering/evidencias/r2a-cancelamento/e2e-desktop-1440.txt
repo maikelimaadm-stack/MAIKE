@@ -1,0 +1,11 @@
+PASS desktop-1440 histórico da área lista a morte ativa com ação de cancelar — Histórico da Área PASTO 12 (1) | Entradas, saídas e manejos registrados nesta área, inclusive de lotes que já saíram. | 
+PASS desktop-1440 diálogo mostra o efeito calculado no servidor (450 → 500)
+PASS desktop-1440 após cancelar: original continua no histórico, marcado Cancelado com ator e motivo
+PASS desktop-1440 sem rolagem horizontal
+PASS desktop-1440 saldo do lote voltou a 500 no servidor — {"id":"cmvx08rek004e7deebms7fta2","q":500,"s":"Ativo"}
+PASS desktop-1440 legado ambíguo: explica o bloqueio e não oferece confirmação — do como cancelado. | Registro sem vínculo comprovado do lote (registro antigo ou unificação sem destino gravado). Não é possível cancelar com segurança. | Close
+PASS desktop-1440 curral: sem botão Excluir; abate com "Cancelar movimentação" — Abate | Histórico da Área | Histórico de Abate (6) | 31/10/2026 | Abate | ABATE desktop-1440 | Quantidade: 30 cab | Data: 31/10/2026 | Detal
+PASS desktop-1440 curral: abate aparece Cancelado com motivo — Abate | Histórico da Área | Histórico de Abate (6) | 31/10/2026 | Abate | Cancelado | ABATE desktop-1440 | Quantidade: 30 cab | Data: 31/10/2026 | Detalhes: Des
+PASS desktop-1440 nenhum DELETE/PATCH de movimento/suplementação no navegador
+PASS desktop-1440 cancelamentos foram POST no comando do servidor (2) — 2
+PASS desktop-1440 sem erro de página

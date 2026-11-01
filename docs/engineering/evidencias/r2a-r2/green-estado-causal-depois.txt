@@ -1,0 +1,94 @@
+R2A-R2 — GREEN (working tree sobre 1fbfef64; PostgreSQL 16 local, maike_ci sintético)
+Data: 2026-11-01T01:44:47Z
+
+node --test backend/tests/r2aR2EstadoCausal.test.mjs:
+    ok 1 - a1: 500 → morte 50 → 450 → PATCH 400 (CAS ok) → cancelar é 409 e o saldo continua 400
+    ok 2 - a2: 500 → morte 50 → 450 → PATCH 550 → cancelar NÃO credita (600 seria crédito sem prova); continua 550
+ok 1 - R2A-R2 a1/a2 — PATCH material válido depois do movimento bloqueia o cancelamento
+    ok 1 - a3 status: PATCH válido depois da morte → cancelamento recusado sem efeito
+    ok 2 - a3 área: PATCH válido depois da morte → cancelamento recusado sem efeito
+    ok 3 - a3 categoria: PATCH válido depois da morte → cancelamento recusado sem efeito
+ok 2 - R2A-R2 a3 — status, área ou categoria mudados depois do movimento
+    ok 1 - parcial unificada: PATCH no destino (150 → 140) → 409; origem e destino intactos
+    ok 2 - parcial unificada: PATCH na origem (área A → C) → 409
+    ok 3 - parcial com lote novo: categoria do derivado mudada → 409; derivado continua Ativo com 50
+    ok 4 - total unificada: status do destino mudado → 409
+ok 3 - R2A-R2 a4 — transferência: mudança posterior na ORIGEM ou no DESTINO bloqueia os dois
+    ok 1 - o saldo volta ao número do pós-estado, mas a auditoria prova intervenção não comprovada → 409
+    ok 2 - status ida e volta (Ativo → Inativo → Ativo) também é intervenção
+ok 4 - R2A-R2 a5 — alteração compensatória (450 → 400 → 450) também bloqueia
+    ok 1 - edição sem saldo (peso, nome) não é intervenção material: morte cancela 450 → 500
+    ok 2 - morte, abate, transferência (no lugar, parcial novo, parcial unificada, total unificada) cancelam; replay não credita duas vezes
+    ok 3 - manejo posterior comprovado e já cancelado não bloqueia o anterior (500 → 450 → 400 → 450 → 500)
+ok 5 - R2A-R2 a6 — sem intervenção material: tudo continua cancelável, sem crédito duplo
+    ok 1 - categoria_animal divergente da categoria real da origem → recusada; nada muda
+    ok 2 - categoria_animal ausente: o movimento grava a categoria AUTORITATIVA do lote
+    ok 3 - data_movimentacao inválida ("ontem") → 400 e nada é criado
+    ok 4 - data_movimentacao inválida ("2026-13-45") → 400 e nada é criado
+    ok 5 - data_movimentacao inválida ("2026-02-30T12:00:00.000Z") → 400 e nada é criado
+    ok 6 - data_movimentacao inválida ("") → 400 e nada é criado
+    ok 7 - área de destino de OUTRA empresa do mesmo tenant → 404; lote intacto
+    ok 8 - POST genérico não injeta efeito_servidor, modo_transferencia, lote_destino_id nem estado de cancelamento
+ok 6 - R2A-R2 P0-C — o comando não confia no formulário
+# tests 22
+# pass 22
+# fail 0
+
+node --test movimentacaoCancelamentoR2A + r2aR1ProvenienciaRed + loteDerivadoIntegridade:
+    ok 1 - caso real: DELETE do lote 2 (sem vínculo próprio) → 409 LOTE_DELETE_BLOCKED; 500 cabeças e registros preservados
+    ok 2 - todas as origens derivadas, com e sem acento/caixa, são bloqueadas
+    ok 3 - controles: lote manual sem vínculo e lote de Nascimento continuam excluíveis; lote manual com vínculo segue bloqueado pelo vínculo
+    ok 4 - tenant: outro cliente não exclui nem descobre o lote derivado (404, não 409)
+    ok 1 - lote sem histórico: trocar a classe da origem (entrada ↔ gerado por manejo) → 400; dentro da mesma classe → 200
+    ok 2 - entrada histórica fora do schema de PATCH (400): quantidade_entrada e area_entrada_id
+    ok 1 - lote 1 (com movimentação): PATCH de campo do cadastro → 409 LOTE_UPDATE_BLOCKED, nada muda
+    ok 2 - lote 2 (gerado por manejo): editar → 409 (lote_gerado_por_manejo); excluir → 409
+    ok 3 - destino de unificação (recebeu cabeças, nenhum registro o cita): editar e excluir → 409 lote_com_manejo
+    ok 4 - lote sem nada depois da entrada: editar o lançamento → 200; excluir → 204
+    ok 5 - manejos do mapa continuam gravando no lote com histórico (saldo, status, nome) e o histórico fica intacto
+    ok 1 - POST de entrada cria exatamente um lote e nenhuma movimentação, transferência ou lote derivado
+    ok 1 - mesma classificação para a tabela de origens
+    ok 1 - DELETE e PATCH diretos → 409 MOVIMENTO_CANCELAMENTO_OBRIGATORIO; nada muda; outro tenant → 404
+    ok 2 - POST e bulk recusam campos reservados de cancelamento (400) — nada gravado
+    ok 3 - movimentacoes-pecuaria: PATCH e DELETE bloqueados
+    ok 1 - SuplementacaoEvento: só métricas de período; DELETE 409; reservado 400
+    ok 2 - SuplementacaoLote: só métricas de consumo; vínculo e DELETE bloqueados
+    ok 3 - MovimentacaoEstoque: PATCH só o nome do local, conferido; DELETE 409
+    ok 1 - 500 → morte de 50 (comando) → 450 → cancelar → 500; original preservado; proveniência e auditoria
+    ok 2 - Abate: Inativo com 0 volta Ativo; replay da mesma chave não dobra
+    ok 3 - comando: replay da mesma chave não baixa duas vezes; mesma chave com outro corpo → 409; saldo insuficiente → 409
+    ok 4 - autorização: comum 403, outro tenant 404, sem token 401, admin revogado 403 — nada muda
+    ok 5 - dependências posteriores (pesagem por id, sanidade) → 409, saldo intacto
+    ok 6 - tipo sem suporte e movimento sem lote_id → 409, nada muda
+    ok 1 - duas mortes de 50 / um único PATCH: \#B (sem efeito) recusada; \#A legado recusado; saldo e originais intactos
+    ok 2 - duas mortes iguais pelo comando: cada uma cancela só o próprio efeito (500 → 400 → 450 → 500)
+    ok 3 - cliente não fabrica proveniência: POST/bulk com efeito_servidor, modo ou lote_destino_id → 400
+    ok 4 - proveniência copiada para outro movimento (forja direta no banco) não vale: a operação aponta para o original
+    ok 1 - total no lugar: área volta à origem; cabeças e entrada histórica intactas
+    ok 2 - parcial com lote novo: 500 → 450 + 50 → cancelar → 500 + 0 (derivado Inativo, entrada 50 intacta)
+    ok 3 - parcial unificada com destino preexistente: 500/100 → 450/150 → 500/100
+    ok 4 - total unificada: 500 + 100 → 0 Inativo / 600 → 500 Ativo / 100
+    ok 5 - destino incompatível (outro nome/categoria/área) → 409 e nada muda
+    ok 6 - legado (POST + PATCH do navegador, sem proveniência) → recusa fail-closed, nada muda
+    ok 7 - destino alterado por escrita direta (sem auditoria) → CANCELAMENTO_ESTADO_DIVERGENTE; nada muda
+    ok 1 - PATCH obsoleto depois do cancelamento (quantidade calculada antes) → 409 LOTE_ESTADO_CONFLITO; saldo 500
+    ok 2 - PATCH de saldo/área/status/categoria sem estado esperado → 409; peso e nome seguem livres
+    ok 3 - estado esperado OBSOLETO em status/área/categoria → 409; estado correto → 200
+    ok 4 - ordem A (cancelamento pega a trava primeiro): devolve 50 (500); o PATCH 450→400 perde o CAS
+    ok 5 - ordem B (PATCH válido pega a trava primeiro): 450→400; o cancelamento detecta a intervenção e recusa sem crédito
+    ok 6 - destino da transferência alterado concorrentemente: o cancelamento trava os DOIS lotes em ordem de id e recusa
+    ok 7 - duas transferências parciais disputando a mesma origem (100; 60 + 60) → uma passa, outra 409; total 100
+    ok 8 - dois cancelamentos simultâneos com chaves diferentes → um 200; saldo 500, não 550
+    ok 9 - mesma chave em paralelo → nenhum crédito duplicado
+    ok 10 - falha forçada depois de atualizar o lote → rollback completo; retry da mesma chave conclui
+    ok 11 - "timeout depois do COMMIT": o reenvio com a mesma chave devolve o mesmo resultado, sem segundo crédito
+    ok 12 - tenants isolados com o mesmo nome de lote
+# tests 49
+# pass 49
+# fail 0
+
+npm run test:backend:
+# tests 605
+# pass 600
+# fail 0
+# todo 5

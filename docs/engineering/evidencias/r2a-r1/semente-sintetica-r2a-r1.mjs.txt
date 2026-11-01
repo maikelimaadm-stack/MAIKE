@@ -1,0 +1,27 @@
+// Semente sintética no banco LOCAL de demonstração, pelo mesmo fluxo HTTP do app.
+const API = 'http://127.0.0.1:3334';
+const tag = process.argv[2];
+const login = async (l, s) => (await (await fetch(`${API}/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ login: l, senha: s }) })).json()).token;
+const T = await login('demo.operador', 'senha-demo-local-123');
+const call = async (metodo, url, corpo) => {
+  const r = await fetch(`${API}${url}`, { method: metodo, headers: { authorization: `Bearer ${T}`, 'content-type': 'application/json' }, body: corpo ? JSON.stringify(corpo) : undefined });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(`${metodo} ${url} ${r.status} ${JSON.stringify(j)}`);
+  return j;
+};
+const E = 'cmvwd6au200037d5t9qk00js3', S = 'cmvwd6auy00087d5tqtm2rk09';
+const areas = await call('GET', '/areas-pastagem?limit=500');
+const lista = Array.isArray(areas) ? areas : areas.items;
+const area = (nome) => lista.find((a) => a.nome === nome);
+const PASTO = area(process.argv[3] || 'PASTO 7'), CURRAL = area('CURRAL 1');
+const lote = (nome, qtd, a) => call('POST', '/lotes', { empresa_id: E, nome, quantidade_cabecas: qtd, categoria: 'BOI', sexo: 'Macho', setor_id: S, area_entrada_id: a.id, area_atual_id: a.id, data_entrada: '2026-10-01', motivo_entrada: 'Compra', status: 'Ativo' });
+const lm = await lote(`MORTE ${tag}`, 500, PASTO);
+// R2A-R1: manejo pelo comando do servidor (grava efeito_servidor na mesma transação).
+await call('POST', '/movimentacoes-mapa/comandos/manejo-lote', { operation_id: `seed-morte-${tag}-${lm.id}`, tipo: 'Morte', empresa_id: E, lote_id: lm.id, quantidade_animais: 50, data_movimentacao: '2026-10-31T12:00:00.000Z', observacoes: 'Categoria: BOI. Causa: sintética.' });
+const la = await lote(`ABATE ${tag}`, 30, CURRAL);
+await call('POST', '/movimentacoes-mapa/comandos/manejo-lote', { operation_id: `seed-abate-${tag}-${la.id}`, tipo: 'Abate', empresa_id: E, lote_id: la.id, quantidade_animais: 30, data_movimentacao: '2026-10-31T12:00:00.000Z', observacoes: 'Destino: frigorífico sintético.' });
+// Registro legado (antes do comando): POST + PATCH com estado_esperado — sem proveniência.
+const lg = await lote(`LEGADO ${tag}`, 200, PASTO);
+await call('POST', '/movimentacoes-mapa', { empresa_id: E, tipo: 'Morte', lote: lg.nome, lote_id: lg.id, quantidade_animais: 20, area_origem_id: PASTO.id, data_movimentacao: '2026-10-30T12:00:00.000Z', observacoes: 'Categoria: BOI. Legado sintético.' });
+await call('PATCH', `/lotes/${lg.id}`, { quantidade_cabecas: 180, estado_esperado: { quantidade_cabecas: 200 } });
+console.log(JSON.stringify({ pasto: PASTO.nome, morte: lm.id, abate: la.id, legado: lg.id }));

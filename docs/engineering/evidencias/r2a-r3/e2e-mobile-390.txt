@@ -1,0 +1,9 @@
+PASS mobile-390 unificação aplicou a identificação da origem no destino (semântica mantida)
+PASS mobile-390 diálogo: "identificação volta a DESTINO"
+PASS mobile-390 sem rolagem horizontal
+PASS mobile-390 API: origem 500, destino volta ao saldo e a DESTINO/DST/#112233 — [500,186,"DESTINO","DST","#112233"]
+PASS mobile-390 Detalhes do Lote do destino mostra o identificador DESTINO — Detalhes do Lote | Informações da Área: PASTO 41 | Hectares | 96,44 ha | UA/ha | 0,00 | UA total | 0,00 | Pastagem | Marandu | Qtd. Lotes | 1 | Qtd. Cabeças | 1
+PASS mobile-390 diálogo: "identificação editada depois: mantida"
+PASS mobile-390 API: destino volta a 100 e mantém a edição EDITADO — [100,"EDITADO","ORG"]
+PASS mobile-390 nenhum DELETE/PATCH de movimento no navegador
+PASS mobile-390 sem erro de página

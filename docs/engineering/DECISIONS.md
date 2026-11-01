@@ -3686,4 +3686,157 @@ Relatório: `docs/engineering/UX-MOBILE-V2-REPORT.md` (seção V7). Teste: `test
 
 ---
 
-<!-- Próxima decisão: D-PROD-99 -->
+## D-PROD-99 — R2A: registros operacionais fechados no servidor; cancelamento transacional de movimentação do mapa
+
+> **Numeração (decisões do proprietário, R2A-R2 e R2A-R3):** esta decisão foi redigida na PR #162 como "D-PROD-95". Enquanto a #162 estava em revisão, entraram em `main` a maikelimaadm-stack/MAIKE#163 (D-PROD-95, UX-MOBILE-V4), a #164 (D-PROD-96, celular V5), a #165 (D-PROD-97, celular V6) e a #166 (D-PROD-98, celular V7). Regra decidida pelo proprietário: as decisões já em `main` ficam preservadas, e a R2A ocupa o próximo número livre. Ela passou a ser **D-PROD-99**, com as subdecisões **D-PROD-99a** (R2A-R1), **D-PROD-99b** (R2A-R2) e **D-PROD-99c** (R2A-R3).
+
+
+**Missão:** MAIKE-R2A-MAPA-CANCELAMENTO-ESTORNO-SEGURO-BACKEND-01. Base: `main` d2cba91 (merge da #161). Sem migration, sem escrita em produção, sem ledger.
+
+**Contexto:** a R1.1 suspendeu exclusões só na interface. O backend ainda apagava e reescrevia movimentos por `DELETE`/`PATCH` genéricos. O Histórico de Abate do Curral e o "Reverter nome" do lote faziam reversões em várias chamadas do navegador.
+
+**Decisão:**
+
+1. **Fechamento no SERVICE (vale para API direta, replay offline e frontend antigo):**
+   - `MovimentacaoMapa` e `MovimentacaoPecuaria`: `PATCH`/`DELETE` → 409 `MOVIMENTO_CANCELAMENTO_OBRIGATORIO`. `POST`/bulk recusam campos reservados (`situacao`, `cancelamento`, `cancelado`, `estorno`, …) com 400 `CAMPO_RESERVADO_CANCELAMENTO`.
+   - `SuplementacaoEvento`/`SuplementacaoLote`: `PATCH` só com as métricas de fechamento ou reabertura de período, que não mexem em saldo; outro campo dá 409 `REGISTRO_OPERACIONAL_IMUTAVEL`. `DELETE` → 409.
+   - `MovimentacaoEstoque`: `PATCH` só `local_origem`/`local_destino`, conferidos contra o nome do `LocalEstoque` vinculado ao movimento (renomeação de depósito); senão 422 `NOME_LOCAL_DIVERGENTE`. `DELETE` → 409.
+   - Outro tenant recebe 404. `MOVIMENTACAOMAPA_NOT_FOUND`, `MOVIMENTACAOPECUARIA_NOT_FOUND` e `SUPLEMENTACAOLOTE_NOT_FOUND` foram declarados, porque antes viravam 500.
+2. **Comando de cancelamento** `POST /movimentacoes-mapa/:id/cancelamento` `{operation_id, motivo}`, numa transação:
+   - administrador ativo via `exigirAdminTenant`;
+   - `executarComIdempotencia` (cliente, operation_id, `cancelamento_movimentacao_mapa`) com fingerprint `{movimentacao_id, motivo}`;
+   - `FOR UPDATE` no movimento e nos lotes, em ordem de id;
+   - **prova do efeito original no AuditLog do lote** (±15 min da criação, delta ou troca de área exatos; o fluxo legado grava movimento e lote em chamadas separadas);
+   - dependências posteriores no banco, sem teto, contando cancelados como inexistentes:
+     - movimentos do mapa por `lote_id`, `lote_destino_id`, id em `observacoes`, nome só para legado sem id, e áreas em transferência;
+     - mov. pecuária, suplementação por lote, medicamento, sanidade, manejo técnico e tarefas;
+   - delta e conservação de cabeças;
+   - original preservado com `situacao: 'cancelado'` e `cancelamento: {em, por_usuario_id, por_login, motivo, operation_id, modo, efeitos}`; data operacional intacta;
+   - AuditLog `cancelamento` (movimento) e `update` (lotes).
+   - `GET /movimentacoes-mapa/:id/elegibilidade-cancelamento` é só informativo: o POST revalida tudo.
+3. **Matriz de tipos:**
+   - SUPORTADO_COM_PROVA:
+     - Morte;
+     - Abate;
+     - Transferência total no lugar (legado e novo);
+     - Transferência total unificada, parcial unificada e parcial com lote novo, quando gravadas com `modo_transferencia` + `lote_destino_id` (o `DetalhesLote` passa a gravar).
+   - BLOQUEADO_POR_AMBIGUIDADE: transferência parcial/unificada legada (sem lote de destino gravado), movimento sem `lote_id`, efeito não comprovado.
+   - ADIADO: Nascimento, Pesagem, Mudança de Categoria, Junção, Renomear Lote, Entrada/Saída genéricas.
+4. **Interface:**
+   - histórico (área/lote) e curral mostram Ativo/Cancelado (motivo, ator, horário);
+   - "Cancelar movimentação" só para administrador, online, em tipo certificado; a elegibilidade é conferida ao abrir;
+   - a `operation_id` é mantida enquanto o resultado é desconhecido;
+   - o código antigo de reversão no navegador (`movimentacaoReconciliation`, exclusão do histórico e do curral) foi removido;
+   - "Reverter para nome original" virou "Usar nome original", uma renomeação nova sem apagar as anteriores;
+   - cocho e depósito continuam suspensos (D-PROD-94a).
+   - Cancelado sai do cache de efeito atual do mapa e da ordem temporal do lote, e permanece nas listas de histórico e de referência.
+
+**Limites declarados:** a criação de manejo continua no navegador, em várias chamadas sem transação. O cancelamento não serializa com `PATCH /lotes` concorrente fora da trava: o PATCH espera o `FOR UPDATE` e depois grava o valor absoluto que calculou antes. Isso é documentado no relatório e não está coberto por este slice.
+
+Relatório: `docs/engineering/MAIKE-R2A-MAPA-CANCELAMENTO-ESTORNO-SEGURO-REPORT.md`.
+
+---
+
+## D-PROD-99a — R2A-R1: proveniência causal do efeito, CAS em `PATCH /lotes`, chave pendente e cache de histórico
+
+**Subdecisão de D-PROD-99.** Missão MAIKE-R2A-PR162-R1-HARDENING-PROVENIENCIA-CONCORRENCIA-OFFLINE, na mesma PR #162. Sem migration, sem escrita em produção, sem ledger.
+
+**Contexto:** a revisão bloqueou a D-PROD-99 (então redigida como D-PROD-95).
+- A prova do efeito por AuditLog (janela de ±15 min) podia ser "emprestada". Com duas mortes de 50 e um único PATCH, o cancelamento devolvia 50 cabeças que nunca saíram (RED reproduzido: 200, saldo 500).
+- O `PATCH /lotes` gravava valor absoluto calculado antes da trava.
+
+**Decisão:**
+
+1. **Prova temporal removida.** O efeito só é cancelável com proveniência causal gravada pelo próprio servidor na transação que o produziu:
+   - comando `POST /movimentacoes-mapa/comandos/manejo-lote` (Morte, Abate, Transferência de Área) grava `efeito_servidor` com `antes`/`depois` por lote;
+   - o cancelamento confere esse campo contra a `OperacaoIdempotente` committed (`manejo_mapa_lote`) que aponta para o mesmo movimento.
+   - `efeito_servidor`, `modo_transferencia` e `lote_destino_id` são campos reservados (400 em POST, bulk e PATCH).
+   - Legado sem proveniência: fail-closed, `CANCELAMENTO_EFEITO_NAO_COMPROVADO`.
+2. **CAS em `PATCH /lotes`:** `FOR UPDATE` e `estado_esperado` obrigatório para mudar `quantidade_cabecas`, `status`, `area_atual_id` ou `categoria`; senão 409 `LOTE_ESTADO_CONFLITO`. Os consumidores do frontend enviam o estado lido.
+3. **Chave do cancelamento** persistida no aparelho enquanto o resultado é desconhecido. Abandonar pede confirmação. Chave nova só após resposta definitiva.
+4. **Cache de histórico** (`movimentacoesHistorico`) guarda ativos e cancelados; o cache operacional segue só com ativos. Não se afirma completude offline.
+5. **Interface:** legado mostra "Registro antigo sem comprovação individual de efeito — cancelamento temporariamente indisponível". Tipos adiados, cocho e depósito continuam bloqueados.
+
+**Limites declarados:**
+- Manejo offline continua no fluxo legado e gera registro não cancelável.
+- Transferência com várias categorias é atômica por lote, não no conjunto.
+- Nascimento, Pesagem, Categoria e Junção seguem no navegador, protegidos pelo CAS.
+
+Relatório: seção R2A-R1 de `docs/engineering/MAIKE-R2A-MAPA-CANCELAMENTO-ESTORNO-SEGURO-REPORT.md`.
+
+---
+
+## D-PROD-99b — R2A-R2: estado causal completo e fail-closed no cancelamento; numeração da R2A
+
+**Subdecisão de D-PROD-99.** Missão MAIKE-R2A-PR162-R2-HARDENING-ESTADO-CAUSAL-CANCELAMENTO-E-GOVERNANCA, na mesma PR #162. Sem migration, sem backfill, sem ledger, sem escrita em produção.
+
+**Contexto:** o CAS da D-PROD-99a impede escrita obsoleta em `PATCH /lotes`, mas aceita escrita válida. Depois do movimento, um PATCH com `estado_esperado` correto podia mudar saldo, situação, área ou categoria. O cancelamento só conferia a área e "Inativo com saldo" e somava `antes − depois` sobre o saldo atual.
+- RED reproduzido no HEAD 1fbfef6:
+  - 450 → PATCH 400 → cancelamento **200, saldo 450** (crédito de 50 sem prova);
+  - 450 → PATCH 550 → **600**;
+  - ida e volta 450 → 400 → 450 → **500**.
+
+**Decisão:**
+
+1. **Âncora causal sem migration:**
+   - o comando grava, em cada efeito de `efeito_servidor` (campo reservado), o `auditoria_id` do `AuditLog` que ele mesmo escreveu para aquele lote, com o pós-estado material completo: `quantidade_cabecas`, `status`, `area_atual_id`, `categoria`, `categoria_manejo_id`, `empresa_id`;
+   - o cancelamento grava o `auditoria_id` das reversões que fizer em `cancelamento.efeitos` (também reservado).
+2. **Cancelamento só passa, na mesma transação e depois de travar movimento e lotes, se:**
+   1. a proveniência da D-PROD-99a confere (efeito + `OperacaoIdempotente` committed deste movimento);
+   2. a auditoria original existe, é do mesmo tenant e lote e registra exatamente o pós-estado do efeito;
+   3. não há dependência posterior em outras fontes;
+   4. toda alteração **material** posterior nos lotes participantes (origem, destino e derivado) é explicada por um manejo comprovado posterior **já cancelado**, ou pela reversão dele. Qualquer outra recebe 409 `CANCELAMENTO_ALTERACAO_POSTERIOR`: PATCH direto, ida e volta, fluxo legado;
+   5. o estado atual de cada participante é igual, campo a campo, ao pós-estado. Senão: 409 `CANCELAMENTO_ESTADO_DIVERGENTE`, que pega inclusive escrita sem auditoria.
+   - Atendidas as condições, o lote volta exatamente ao pré-estado gravado. Não há delta sobre saldo corrente.
+3. **Fail-closed:**
+   - efeito sem âncora (gravado na D-PROD-99a, antes desta subdecisão) → `CANCELAMENTO_EFEITO_NAO_COMPROVADO`;
+   - mesmo milissegundo da âncora, exceto o `create` do próprio lote, conta como posterior;
+   - edição sem campo material (peso, nome, identificador) não bloqueia.
+4. **Comando:**
+   - `categoria_animal` divergente da categoria do lote → 409 `MANEJO_ESTADO_INVALIDO`; o movimento grava a categoria do lote;
+   - `data_movimentacao` precisa ser data de calendário válida (400);
+   - a área atual da origem precisa ser da mesma empresa.
+5. **Numeração:** a R2A é D-PROD-99, com D-PROD-99a, D-PROD-99b e D-PROD-99c. As D-PROD-95 a D-PROD-98 de `main` (celular V4 a V7) ficam intactas.
+
+**Risco residual declarado:**
+- `PATCH /lotes` com CAS continua permitindo correção material direta. Ela não tem trilha operacional própria; a auditoria a registra.
+- O efeito disso é tornar não cancelável qualquer movimento anterior do lote, que fica para conciliação assistida (slice futuro).
+- Manejo offline legado e transferência com várias categorias (atômica por lote, não no conjunto) seguem como na D-PROD-99a.
+
+Relatório: seção R2A-R2 de `docs/engineering/MAIKE-R2A-MAPA-CANCELAMENTO-ESTORNO-SEGURO-REPORT.md`.
+
+---
+
+## D-PROD-99c — R2A-R3: cancelamento de unificação devolve a identificação do destino sem destruir edição posterior
+
+**Subdecisão de D-PROD-99.** Missão MAIKE-R2A-PR162-R3-REVERSAO-COMPLETA-IDENTIFICADORES-DE-LOTES-UNIFICADOS, na mesma PR #162. Sem migration, sem backfill, sem escrita em produção.
+
+**Contexto:**
+- A unificação (`parcial_unificado`, `total_unificado`) copia `identificador_nome`, `identificador_sigla` e `identificador_cor` da origem para o destino, inclusive nulos.
+- O efeito não guardava esses valores, e o cancelamento só devolvia saldo, situação e área.
+- RED no HEAD f048615 (6 de 7 casos): o destino ficava com ORIGEM/ORG/#445566 depois do estorno.
+
+**Decisão:**
+
+1. **A semântica da unificação continua a mesma:** o destino recebe a identificação da origem. Mudá-la seria política de negócio não pedida.
+2. O comando grava `identificacao: {antes, depois}` com os três campos em **cada** efeito de `efeito_servidor` (campo reservado, junto da âncora `auditoria_id`). Esses campos continuam **não materiais**: `CAMPOS_MATERIAIS_LOTE` não muda.
+3. **Cancelamento:**
+   - devolve a identificação anterior **somente** com prova de que ninguém mexeu nela depois:
+     - nenhuma linha de `AuditLog` posterior à âncora tocou a identificação, salvo se explicada por manejo comprovado já cancelado ou pela reversão dele;
+     - e o valor atual é exatamente o que o comando aplicou;
+   - havendo edição posterior (inclusive ida e volta) ou valor que não confere, a identificação atual é **preservada**. O saldo é revertido normalmente;
+   - o efeito do cancelamento registra `identificacao: 'restaurada' | 'preservada_edicao_posterior' | 'inalterada'`, e a auditoria do lote guarda o snapshot completo.
+4. **Fail-closed:** unificação sem snapshot de identificação (formato da R2) → 409 `CANCELAMENTO_EFEITO_NAO_COMPROVADO`. Nada muda e nada é reservado.
+5. **Modos que não unificam** (`total_no_lugar`, `parcial_novo_lote`) não escrevem identificação no cancelamento. O derivado fica 0/Inativo, nunca é apagado, e a entrada histórica fica intacta.
+
+**Por que preservar em vez de recusar:**
+- A edição de identificação é legítima e não muda saldo.
+- Recusar travaria a reversão de cabeças por um rótulo.
+- Preservar nunca destrói dado. O pior caso é o destino continuar com a identificação que o usuário mesmo confirmou depois.
+- A escolha é registrada no cancelamento e no AuditLog.
+
+Relatório: seção R2A-R3 de `docs/engineering/MAIKE-R2A-MAPA-CANCELAMENTO-ESTORNO-SEGURO-REPORT.md`.
+
+---
+
+<!-- Próxima decisão: D-PROD-100 -->

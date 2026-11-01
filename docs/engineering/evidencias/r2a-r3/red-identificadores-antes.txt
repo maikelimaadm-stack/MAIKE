@@ -1,0 +1,23 @@
+R2A-R3 — RED no HEAD de partida f048615f35f4359f010a285af18de2a92d4a7247 (PostgreSQL 16 local, maike_ci sintético)
+Data: 2026-11-01T03:07:27Z
+
+Exemplo (parcial_unificado, origem identificada) — destino depois do cancelamento:
+        +   identificador_cor: '#445566',
+        +   identificador_nome: 'ORIGEM',
+        +   identificador_sigla: 'ORG',
+        -   identificador_cor: '#112233',
+        -   identificador_nome: 'DESTINO',
+        -   identificador_sigla: 'DST',
+  (+ = valor real após cancelar; - = valor esperado do destino antes da unificação)
+
+node --test backend/tests/r2aR3Identificadores.test.mjs:
+    not ok 1 - parcial_unificado, origem identificada: destino volta a DESTINO/DST/\#112233; todos os campos iguais ao pré-movimento
+    not ok 2 - parcial_unificado, origem SEM identificador (nulos): destino volta a DESTINO/DST/\#112233; todos os campos iguais ao pré-movimento
+    not ok 3 - total_unificado, origem identificada: destino volta a DESTINO/DST/\#112233; todos os campos iguais ao pré-movimento
+    not ok 4 - total_unificado, origem SEM identificador (nulos): destino volta a DESTINO/DST/\#112233; todos os campos iguais ao pré-movimento
+    not ok 1 - usuário renomeia o identificador do destino depois da unificação: o saldo volta, a edição fica (auditada)
+    not ok 2 - ida e volta do identificador (ORIGEM → X → ORIGEM) também conta como edição: nada é sobrescrito
+    ok 1 - total no lugar e parcial com lote novo: identificação intacta; derivado 0/Inativo, entrada histórica intacta
+# tests 7
+# pass 1
+# fail 6

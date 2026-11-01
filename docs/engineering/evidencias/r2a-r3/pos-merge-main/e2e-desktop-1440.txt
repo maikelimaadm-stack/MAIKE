@@ -1,0 +1,9 @@
+PASS desktop-1440 unificação aplicou a identificação da origem no destino (semântica mantida)
+PASS desktop-1440 diálogo: "identificação volta a DESTINO"
+PASS desktop-1440 sem rolagem horizontal
+PASS desktop-1440 API: origem 500, destino volta ao saldo e a DESTINO/DST/#112233 — [500,128,"DESTINO","DST","#112233"]
+PASS desktop-1440 Detalhes do Lote do destino mostra o identificador DESTINO — Detalhes do Lote | Informações da Área: PASTO 53 | Hectares | 96,44 ha | UA/ha | 0,00 | UA total | 0,00 | Pastagem | Marandu | Qtd. Lotes | 1 | Qtd. Cabeças | 1
+PASS desktop-1440 diálogo: "identificação editada depois: mantida"
+PASS desktop-1440 API: destino volta a 100 e mantém a edição EDITADO — [100,"EDITADO","ORG"]
+PASS desktop-1440 nenhum DELETE/PATCH de movimento no navegador
+PASS desktop-1440 sem erro de página

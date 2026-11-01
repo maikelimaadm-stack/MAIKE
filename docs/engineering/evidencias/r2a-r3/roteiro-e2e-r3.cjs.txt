@@ -1,0 +1,97 @@
+// R2A-R3 E2E: unificação cancelada devolve a identificação do destino; edição posterior é preservada.
+const { chromium } = require('playwright');
+const W = Number(process.argv[2]), H = Number(process.argv[3]), BASE = process.argv[4];
+const [A1, B1, A2, B2] = process.argv.slice(5);
+const TAG = `${BASE}-${Date.now().toString(36).slice(-4)}`;
+const OUT = '/tmp/claude-0/r2a-r3';
+const API = 'http://127.0.0.1:3334';
+const E = 'cmvwd6au200037d5t9qk00js3', S = 'cmvwd6auy00087d5tqtm2rk09';
+const res = [];
+const ok = (nome, cond, extra = '') => res.push(`${cond ? 'PASS' : 'FAIL'} ${BASE} ${nome}${extra ? ' — ' + String(extra).slice(0, 170) : ''}`);
+(async () => {
+  const { token } = await (await fetch(`${API}/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ login: 'demo.operador', senha: 'senha-demo-local-123' }) })).json();
+  const call = async (m, u, b) => { const r = await fetch(`${API}${u}`, { method: m, headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }); const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(`${m} ${u} ${r.status} ${j.code || ''}`); return j; };
+  const areas = await call('GET', '/areas-pastagem?limit=500').then((a) => (Array.isArray(a) ? a : a.items));
+  const area = (n) => areas.find((a) => a.nome === n);
+  const loteApi = async (id) => { const l = await call('GET', '/lotes?limit=500'); return (Array.isArray(l) ? l : l.items).find((x) => x.id === id); };
+  const novoLote = (nome, qtd, a, ident) => call('POST', '/lotes', { empresa_id: E, nome, quantidade_cabecas: qtd, categoria: 'BOI', sexo: 'Macho', setor_id: S, area_entrada_id: a.id, area_atual_id: a.id, data_entrada: '2026-10-01', motivo_entrada: 'Compra', status: 'Ativo', ...ident });
+  const ORIG = { identificador_nome: 'ORIGEM', identificador_sigla: 'ORG', identificador_cor: '#445566' };
+  const DEST = { identificador_nome: 'DESTINO', identificador_sigla: 'DST', identificador_cor: '#112233' };
+  const QD = 100 + Math.floor(Math.random() * 300);
+  // Par 1: restaurada. Par 2: edição posterior preservada.
+  const o1 = await novoLote(`UNIF ${TAG}`, 500, area(A1), ORIG);
+  const d1 = await novoLote(`UNIF ${TAG}`, QD, area(B1), DEST);
+  await call('POST', '/movimentacoes-mapa/comandos/manejo-lote', { operation_id: `r3-a-${TAG}`, empresa_id: E, tipo: 'Transferência de Área', lote_id: o1.id, quantidade_animais: 50, area_destino_id: area(B1).id, lote_destino_id: d1.id, data_movimentacao: '2026-10-31T12:00:00.000Z' });
+  const o2 = await novoLote(`UNIF2 ${TAG}`, 500, area(A2), ORIG);
+  const d2 = await novoLote(`UNIF2 ${TAG}`, 100, area(B2), DEST);
+  await call('POST', '/movimentacoes-mapa/comandos/manejo-lote', { operation_id: `r3-b-${TAG}`, empresa_id: E, tipo: 'Transferência de Área', lote_id: o2.id, quantidade_animais: 50, area_destino_id: area(B2).id, lote_destino_id: d2.id, data_movimentacao: '2026-10-31T12:00:00.000Z' });
+  await call('PATCH', `/lotes/${d2.id}`, { identificador_nome: 'EDITADO' });
+  ok('unificação aplicou a identificação da origem no destino (semântica mantida)', (await loteApi(d1.id)).identificador_nome === 'ORIGEM');
+
+  const browser = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader'] });
+  const mobile = W < 800;
+  const ctx = await browser.newContext({ viewport: { width: W, height: H }, isMobile: mobile, hasTouch: mobile });
+  const page = await ctx.newPage();
+  const erros = []; page.on('pageerror', (e) => erros.push(e.message.slice(0, 160)));
+  const perigosos = [];
+  page.on('request', (r) => { if (['DELETE', 'PATCH'].includes(r.method()) && /movimentacoes-|suplementacao-/.test(r.url())) perigosos.push(r.method()); });
+  await page.goto('http://127.0.0.1:5180/', { waitUntil: 'networkidle' });
+  await page.locator('input').nth(0).fill('demo.operador');
+  await page.locator('input[type=password]').fill('senha-demo-local-123');
+  await page.keyboard.press('Enter');
+  await page.waitForURL(/mapageral/i, { timeout: 20000 });
+  await page.waitForTimeout(6000);
+  const tocar = async (loc) => { if (mobile) await loc.tap({ force: true }); else await loc.click({ force: true }); };
+  const fechar = async () => { for (let i = 0; i < 3; i++) { await page.keyboard.press('Escape'); await page.waitForTimeout(250); } await page.waitForTimeout(400); };
+  const abrirArea = async (nome) => {
+    const box = await page.getByText(nome, { exact: true }).first().boundingBox();
+    const x = box.x + box.width / 2, y = box.y + 1;
+    if (mobile) await page.touchscreen.tap(x, y); else await page.mouse.click(x, y);
+    await page.waitForTimeout(2500);
+  };
+  const item = (t) => page.locator('div.border.rounded-lg').filter({ hasText: t }).filter({ has: page.getByRole('button', { name: 'Cancelar movimentação' }) }).first();
+  const semOverflow = async () => !(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1));
+
+  // 1) Restaurada
+  await abrirArea(A1);
+  await tocar(item(`UNIF ${TAG}`).getByRole('button', { name: 'Cancelar movimentação' }));
+  await page.getByText(/identificação volta a DESTINO/).first().waitFor({ timeout: 15000 });
+  ok('diálogo: "identificação volta a DESTINO"', true);
+  ok('sem rolagem horizontal', await semOverflow());
+  await page.getByLabel('Motivo do cancelamento').fill('Unificação sintética lançada por engano');
+  await page.screenshot({ path: `${OUT}/${BASE}-01-dialogo-identificacao-restaurada.png` });
+  await tocar(page.getByRole('button', { name: 'Confirmar cancelamento' }));
+  await page.locator('div.border.rounded-lg').filter({ hasText: `UNIF ${TAG}` }).filter({ hasText: /Cancelado em/ }).first().waitFor({ timeout: 15000 });
+  const fo1 = await loteApi(o1.id), fd1 = await loteApi(d1.id);
+  ok('API: origem 500, destino volta ao saldo e a DESTINO/DST/#112233',
+    fo1.quantidade_cabecas === 500 && fd1.quantidade_cabecas === QD && fd1.identificador_nome === 'DESTINO' && fd1.identificador_sigla === 'DST' && fd1.identificador_cor === '#112233' && fd1.quantidade_entrada === QD,
+    JSON.stringify([fo1.quantidade_cabecas, fd1.quantidade_cabecas, fd1.identificador_nome, fd1.identificador_sigla, fd1.identificador_cor]));
+  await fechar();
+
+  // 1b) Detalhes do Lote do destino exibe a identificação devolvida
+  await page.getByText(String(QD), { exact: true }).first().dispatchEvent('click');
+  await page.getByText('Detalhes do Lote').first().waitFor({ timeout: 15000 });
+  const det = (await page.getByRole('dialog').last().innerText()).replace(/\n+/g, ' | ');
+  ok('Detalhes do Lote do destino mostra o identificador DESTINO', /Identificador \| DESTINO/.test(det) && !/ORIGEM/.test(det), det.slice(0, 160));
+  await page.screenshot({ path: `${OUT}/${BASE}-02-detalhes-destino-identificacao.png` });
+  await fechar();
+
+  // 2) Edição posterior preservada
+  await abrirArea(A2);
+  await tocar(item(`UNIF2 ${TAG}`).getByRole('button', { name: 'Cancelar movimentação' }));
+  await page.getByText(/identificação editada depois da movimentação: mantida/).first().waitFor({ timeout: 15000 });
+  ok('diálogo: "identificação editada depois: mantida"', true);
+  await page.getByLabel('Motivo do cancelamento').fill('Unificação sintética 2');
+  await page.screenshot({ path: `${OUT}/${BASE}-03-dialogo-edicao-preservada.png` });
+  await tocar(page.getByRole('button', { name: 'Confirmar cancelamento' }));
+  await page.locator('div.border.rounded-lg').filter({ hasText: `UNIF2 ${TAG}` }).filter({ hasText: /Cancelado em/ }).first().waitFor({ timeout: 15000 });
+  const fd2 = await loteApi(d2.id);
+  ok('API: destino volta a 100 e mantém a edição EDITADO', fd2.quantidade_cabecas === 100 && fd2.identificador_nome === 'EDITADO', JSON.stringify([fd2.quantidade_cabecas, fd2.identificador_nome, fd2.identificador_sigla]));
+  await page.screenshot({ path: `${OUT}/${BASE}-04-historico-cancelado.png` });
+  await fechar();
+
+  ok('nenhum DELETE/PATCH de movimento no navegador', perigosos.length === 0);
+  ok('sem erro de página', erros.length === 0, erros.join(' ; '));
+  console.log(res.join('\n'));
+  await browser.close();
+})().catch((e) => { console.log(res.join('\n')); console.log('ERRO', e.message.slice(0, 300)); process.exit(1); });

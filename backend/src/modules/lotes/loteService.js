@@ -336,18 +336,52 @@ export const criar = async (contexto, entrada) => {
   return criado;
 };
 
+/**
+ * Campos de saldo e posição: o navegador envia valor ABSOLUTO calculado a partir
+ * de uma leitura. Sem conferir essa leitura, um PATCH obsoleto desfaz um
+ * cancelamento ou manejo que acabou de acontecer (R2A-R1, D-PROD-99a).
+ */
+export const CAMPOS_COM_ESTADO_ESPERADO = Object.freeze(['quantidade_cabecas', 'status', 'area_atual_id', 'categoria']);
+
+const comparavel = (valor) => (valor === undefined || valor === null || valor === '' ? null : typeof valor === 'number' ? valor : String(valor));
+
+/**
+ * Para cada campo de saldo/posição que o PATCH MUDA, exige `estado_esperado`
+ * com o valor lido antes; diferente do atual → LOTE_ESTADO_CONFLITO (nada
+ * gravado). Campo enviado igual ao atual não exige nada.
+ */
+const exigirEstadoEsperado = (anterior, patch, esperado) => {
+  const mudados = CAMPOS_COM_ESTADO_ESPERADO.filter(
+    (campo) => Object.prototype.hasOwnProperty.call(patch, campo) && comparavel(patch[campo]) !== comparavel(anterior[campo])
+  );
+  if (!mudados.length) return;
+  const divergentes = mudados.filter(
+    (campo) =>
+      !esperado || typeof esperado !== 'object' || !Object.prototype.hasOwnProperty.call(esperado, campo) || comparavel(esperado[campo]) !== comparavel(anterior[campo])
+  );
+  if (divergentes.length) {
+    throw new AppError('LOTE_ESTADO_CONFLITO', 'o lote mudou desde a leitura; recarregue e refaça', {
+      details: { campos: divergentes, atual: Object.fromEntries(divergentes.map((c) => [c, anterior[c] ?? null])) },
+    });
+  }
+};
+
 /** @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto @param {string} id @param {Record<string, unknown>} entrada */
 export const atualizar = async (contexto, id, entrada) => {
   const auth = exigirAuthContext(contexto?.auth);
   const prisma = getPrismaClient();
 
   return prisma.$transaction(async (tx) => {
+    // R2A-R1 (D-PROD-99a): trava e relê dentro da transação, para o
+    // compare-and-swap abaixo valer contra cancelamento e manejo concorrentes.
+    await tx.$queryRaw`SELECT id FROM "Lote" WHERE cliente_id = ${auth.clienteId} AND id = ${id} FOR UPDATE`;
     const anterior = await buscarLote(auth.clienteId, id, tx);
     if (!anterior) throw loteNotFound();
 
     const campos = camposDe(entrada);
     /** @type {Record<string, unknown>} */
     const patch = { ...campos };
+    exigirEstadoEsperado(anterior, patch, entrada?.estado_esperado);
 
     // Editar o lançamento da entrada só antes de qualquer movimentação, manejo
     // ou registro (D-PROD-87). Escritas dos manejos do mapa não tocam nestes

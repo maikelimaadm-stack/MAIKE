@@ -6,12 +6,11 @@ import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { AppError } from '../../shared/errors/AppError.js';
 import { registrarEvento } from '../auditoria/auditService.js';
 import { documentoComoPublico, montarDocumento } from '../../shared/jsonDocument/jsonDocumentPublic.js';
+import { movimentoExigeCancelamento, rejeitarCamposReservados } from '../../shared/operacional/protecaoOperacional.js';
 import {
   listarRegistros,
   buscarRegistro,
   inserirRegistro,
-  atualizarRegistroPorId,
-  excluirRegistroPorId,
   buscarNomesDeAreas,
   listarHistoricoPagina,
   contarHistorico,
@@ -104,6 +103,7 @@ export const listarHistorico = async (contexto, query = {}) => {
 
 export const criar = async (contexto, entrada) => {
   const auth = exigirAuthContext(contexto?.auth);
+  rejeitarCamposReservados(entrada);
   const prisma = getPrismaClient();
   const criado = await prisma.$transaction(async (tx) => {
     const dados = await comNomesDeAreaResolvidos(tx, auth.clienteId, montarDocumento(auth.clienteId, entrada));
@@ -121,8 +121,9 @@ export const criar = async (contexto, entrada) => {
 export const criarEmLote = async (contexto, registros) => {
   const auth = exigirAuthContext(contexto?.auth);
   if (!Array.isArray(registros) || registros.length === 0) {
-    throw new AppError('VALIDATION_FAILED', 'lista vazia');
+    throw new AppError('REQUEST_VALIDATION_FAILED', 'lista vazia');
   }
+  registros.forEach(rejeitarCamposReservados);
   const prisma = getPrismaClient();
   const criados = await prisma.$transaction(async (tx) => {
     const saida = [];
@@ -136,45 +137,24 @@ export const criarEmLote = async (contexto, registros) => {
   return criados.map(documentoComoPublico);
 };
 
+/**
+ * R2A (D-PROD-99): movimento do mapa muda saldo/posição de lote. Não se reescreve
+ * por PATCH — o caminho é `POST /movimentacoes-mapa/:id/cancelamento`.
+ * Outro tenant continua recebendo 404 (sem revelar existência).
+ */
 export const atualizar = async (contexto, id, entrada) => {
   const auth = exigirAuthContext(contexto?.auth);
-  const prisma = getPrismaClient();
-  const atualizado = await prisma.$transaction(async (tx) => {
-    const existente = await buscarRegistro(auth.clienteId, id, tx);
-    if (!existente) throw erroNaoEncontrado();
-    const patch = await comNomesDeAreaResolvidos(
-      tx,
-      auth.clienteId,
-      montarDocumento(auth.clienteId, { ...documentoComoPublico(existente), ...entrada }, { atualizacao: true, id, dadosAnteriores: existente.dados })
-    );
-    const registro = await atualizarRegistroPorId(tx, auth.clienteId, id, patch);
-    await registrarEvento(
-      contexto,
-      {
-        acao: 'update',
-        entidade: ENTIDADE,
-        entidadeId: id,
-        dadosAnteriores: documentoComoPublico(existente),
-        dadosNovos: documentoComoPublico(registro),
-      },
-      tx
-    );
-    return registro;
-  });
-  return documentoComoPublico(atualizado);
+  void entrada;
+  const existente = await buscarRegistro(auth.clienteId, id);
+  if (!existente) throw erroNaoEncontrado();
+  throw movimentoExigeCancelamento(ENTIDADE);
 };
 
+/** R2A (D-PROD-99): idem para DELETE — nada é removido. */
 export const excluir = async (contexto, id) => {
   const auth = exigirAuthContext(contexto?.auth);
-  const prisma = getPrismaClient();
-  await prisma.$transaction(async (tx) => {
-    const existente = await buscarRegistro(auth.clienteId, id, tx);
-    if (!existente) throw erroNaoEncontrado();
-    await excluirRegistroPorId(tx, auth.clienteId, id);
-    await registrarEvento(
-      contexto,
-      { acao: 'delete', entidade: ENTIDADE, entidadeId: id, dadosAnteriores: documentoComoPublico(existente) },
-      tx
-    );
-  });
+  const existente = await buscarRegistro(auth.clienteId, id);
+  if (!existente) throw erroNaoEncontrado();
+  throw movimentoExigeCancelamento(ENTIDADE);
 };
+

@@ -73,7 +73,20 @@ const ATUALIZAR_SCHEMA = {
     type: 'object',
     minProperties: 1,
     additionalProperties: false,
-    properties: { ...CAMPOS_ATUALIZACAO },
+    properties: {
+      ...CAMPOS_ATUALIZACAO,
+      // R2A-R1 (D-PROD-99a): compare-and-swap dos campos de saldo/posição.
+      estado_esperado: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          quantidade_cabecas: { type: ['integer', 'null'] },
+          status: { type: ['string', 'null'], maxLength: 32 },
+          area_atual_id: { type: ['string', 'null'], maxLength: 64 },
+          categoria: { type: ['string', 'null'], maxLength: 128 },
+        },
+      },
+    },
   },
 };
 

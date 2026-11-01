@@ -1,0 +1,16 @@
+PASS mobile-390 morte: cancelada no histórico com ator e motivo
+PASS mobile-390 morte: saldo 500 na API
+PASS mobile-390 sem rolagem horizontal
+PASS mobile-390 bloqueado (tentativa 1): explica, diz que nada mudou, sem confirmar e sem sugerir exclusão — Cancelar movimentação | Morte · BLOQ mobile-390-9wfp · 50 cab. O registro original continua no histórico, marcado como cancelado. | O lote foi alterado depois desta movim
+PASS mobile-390 bloqueado (tentativa 2): explica, diz que nada mudou, sem confirmar e sem sugerir exclusão — Cancelar movimentação | Morte · BLOQ mobile-390-9wfp · 50 cab. O registro original continua no histórico, marcado como cancelado. | O lote foi alterado depois desta movim
+PASS mobile-390 bloqueado: saldo continua 400 (sem crédito de 50) e movimento segue ativo — 400 → 400
+PASS mobile-390 legado: mensagem e sem ação
+PASS mobile-390 transferência: origem 100 e derivado 0/Inativo na API — [0,"Inativo"]
+PASS mobile-390 curral: sem Excluir
+PASS mobile-390 curral: abate cancelado, lote 30 Ativo
+PASS mobile-390 offline: morte cancelada visível com motivo e autor — 31/10/2026 | Morte | Saída | Cancelado | MORTE mobile-390-9wfp | Quantidade: 50 cab | Data: 31/10/2026 | Origem: Movimentação | Detalhes: Categoria: BOI. Causa:
+PASS mobile-390 offline: nenhuma ação de cancelar habilitada
+PASS mobile-390 PATCH /lotes do navegador: nenhum operacional sem estado_esperado — 0 PATCH
+PASS mobile-390 nenhum DELETE/PATCH de movimento/suplementação no navegador
+PASS mobile-390 cancelamentos foram POST no comando do servidor (3) — 3
+PASS mobile-390 sem erro de página

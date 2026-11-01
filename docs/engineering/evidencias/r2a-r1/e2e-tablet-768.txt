@@ -1,0 +1,16 @@
+PASS tablet-768-02gn histórico da área lista a morte ativa com ação de cancelar — Histórico da Área PASTO 7 (26) | Entradas, saídas e manejos registrados nesta área, inclusive de lotes que já saíram. | 
+PASS tablet-768-02gn diálogo mostra o efeito calculado no servidor (450 → 500)
+PASS tablet-768-02gn após cancelar: original continua no histórico, marcado Cancelado com ator e motivo — 31/10/2026 | Morte | Saída | Cancelado | MORTE tablet-768-02gn | Quantidade: 50 cab | Data: 31/10/2026 | Origem: Movimentação | Detalhes: Categoria: BOI. Causa: sintética
+PASS tablet-768-02gn sem rolagem horizontal
+PASS tablet-768-02gn saldo do lote voltou a 500 no servidor — {"id":"cmvx302mw00dj7d0in1apg9i6","q":500,"s":"Ativo"}
+PASS tablet-768-02gn legado: mensagem "Registro antigo sem comprovação individual de efeito — cancelamento temporariamente indisponível" — 26 | Origem: Movimentação | Detalhes: Categoria: BOI. Legado sintético. | Registro antigo sem comprovação individual de efeito — cancelamento temporariamente indisponível
+PASS tablet-768-02gn legado: sem botão Cancelar movimentação
+PASS tablet-768-02gn curral: sem botão Excluir; abate com "Cancelar movimentação" — Abate | Histórico da Área | Histórico de Abate (21) | 31/10/2026 | Abate | ABATE tablet-768-02gn | Quantidade: 30 cab | Data: 31/10/2026 | D
+PASS tablet-768-02gn curral: abate aparece Cancelado com motivo — Abate | Histórico da Área | Histórico de Abate (21) | 31/10/2026 | Abate | Cancelado | ABATE tablet-768-02gn | Quantidade: 30 cab | Data: 31/10/2026 | Detalhes:
+PASS tablet-768-02gn offline: histórico vem do cache e avisa — Histórico da Área PASTO 7 (26) | Entradas, saídas e manejos registrados nesta área, inclusive de lotes que já saíram. | Sem conexão. Exibindo movimentações salv
+PASS tablet-768-02gn offline: morte cancelada continua visível com motivo e autor — 31/10/2026 | Morte | Saída | Cancelado | MORTE tablet-768-02gn | Quantidade: 50 cab | Data: 31/10/2026 | Origem: Movimentação | Detalhes: Categoria: BOI. Causa: sintética
+PASS tablet-768-02gn offline: nenhuma ação de cancelar oferecida
+PASS tablet-768-02gn PATCH /lotes do navegador: campo operacional sempre com estado_esperado — 0 PATCH; sem estado: 0
+PASS tablet-768-02gn nenhum DELETE/PATCH de movimento/suplementação no navegador
+PASS tablet-768-02gn cancelamentos foram POST no comando do servidor (2) — 2
+PASS tablet-768-02gn sem erro de página

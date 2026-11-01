@@ -12,10 +12,8 @@ import { acaoDoCliqueNaArea, ehCurral, podeVerHistoricoDaArea } from "@/domain/m
 
 const servico = vi.hoisted(() => ({
   listarHistoricoMovimentacoesPagina: vi.fn(),
-  listarTodasMovimentacoes: vi.fn(),
-  listarLotesDaEmpresa: vi.fn(),
-  atualizarLote: vi.fn(),
-  excluirMovimentacao: vi.fn(),
+  cancelarMovimentacaoMapa: vi.fn(),
+  consultarCancelamentoMovimentacao: vi.fn(),
 }));
 vi.mock("@/services/loteManejoService", () => servico);
 vi.mock("@/services/mapaCacheService", () => ({
@@ -23,9 +21,8 @@ vi.mock("@/services/mapaCacheService", () => ({
   getMapaCacheSnapshot: async () => ({ items: [], atualizadoEm: null }),
   refreshMapaCacheEntry: async (chave) => (chave === "areas" ? [{ id: "area-A", nome: "PASTO A", empresa_id: "emp-1" }] : []),
 }));
+vi.mock("@/services/sessionService", () => ({ getCurrentUser: async () => ({ administrador_fazenda: false }), ehAdministrador: (u) => u?.administrador_fazenda === true }));
 vi.mock("@/hooks/useEmpresaSelecionadaId", () => ({ useEmpresaSelecionadaId: () => "emp-1" }));
-vi.mock("@/components/lotes/manejoValidations.jsx", () => ({ validarSemRegistrosPosteriores: vi.fn() }));
-vi.mock("@/components/lotes/movimentacaoReconciliation", () => ({ reverseMovementOnDelete: vi.fn() }));
 vi.mock("@/components/mapa/HistoricoAbateCurral", () => ({
   default: ({ areaId }) => <div data-testid="abate-curral">Histórico de Abate {areaId}</div>,
 }));
