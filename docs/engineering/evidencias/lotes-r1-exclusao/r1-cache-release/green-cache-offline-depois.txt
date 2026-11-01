@@ -3,3 +3,15 @@ Data: 2026-11-01T11:34:38Z
 
 ✓ tests/smoke/loteExclusaoCacheOffline.test.js (10 tests) 21ms
 Tests  10 passed (10)
+
+Detalhe (--reporter=verbose):
+✓ tests/smoke/loteExclusaoCacheOffline.test.js > PR167-R1 P0-A — exclusão confirmada some do cache offline da entidade Lote > 204: offline logo em seguida (sem nova leitura online), o lote NÃO reaparece — em nenhuma fazenda do tenant
+✓ tests/smoke/loteExclusaoCacheOffline.test.js > PR167-R1 P0-A — exclusão confirmada some do cache offline da entidade Lote > o mesmo vale depois de "recarregar" (runtime novo lendo o mesmo armazenamento)
+✓ tests/smoke/loteExclusaoCacheOffline.test.js > PR167-R1 P0-A — exclusão confirmada some do cache offline da entidade Lote > cache do mapa (lotes) também perde o lote, na fazenda dele
+✓ tests/smoke/loteExclusaoCacheOffline.test.js > PR167-R1 P0-A — sem resposta definitiva, o cache NÃO é tocado; nada vai para a fila > 5xx: lote continua no cache offline e na fila não entra DELETE
+✓ tests/smoke/loteExclusaoCacheOffline.test.js > PR167-R1 P0-A — sem resposta definitiva, o cache NÃO é tocado; nada vai para a fila > 409 bloqueado: lote continua no cache offline e na fila não entra DELETE
+✓ tests/smoke/loteExclusaoCacheOffline.test.js > PR167-R1 P0-A — sem resposta definitiva, o cache NÃO é tocado; nada vai para a fila > queda de rede entre a checagem e o HTTP: lote continua no cache offline e na fila não entra DELETE
+✓ tests/smoke/loteExclusaoCacheOffline.test.js > PR167-R1 P0-A — sem resposta definitiva, o cache NÃO é tocado; nada vai para a fila > timeout: lote continua no cache offline e na fila não entra DELETE
+✓ tests/smoke/loteExclusaoCacheOffline.test.js > PR167-R1 P0-A — sem resposta definitiva, o cache NÃO é tocado; nada vai para a fila > exclusão em massa: o que falhou fica no cache, o que saiu some
+✓ tests/smoke/loteExclusaoCacheOffline.test.js > PR167-R1 P0-A — pendência offline do lote: sem ressurreição e sem descarte silencioso > alteração offline pendente do lote → exclusão recusada com motivo explícito; nada é enviado; fila intacta
+✓ tests/smoke/loteExclusaoCacheOffline.test.js > PR167-R1 P0-A — pendência offline do lote: sem ressurreição e sem descarte silencioso > pendência de OUTRO tenant com o mesmo id não bloqueia
