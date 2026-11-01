@@ -233,8 +233,10 @@ describe('LOTES-R1 2 — dependências vivas bloqueiam', () => {
   test('tarefa ligada ao lote → bloqueado', async () => {
     const c = await cenario();
     const l = await criarLote(c, { area: c.A });
+    const g = await prisma().grupoAtividade.create({ data: { cliente_id: c.cliente.id, nome_grupo: 'G' } });
+    const tt = await prisma().tipoTarefa.create({ data: { cliente_id: c.cliente.id, nome_tipo: 'T', grupo_atividade_id: g.id, grupo_atividade_nome: 'G' } });
     await prisma().lancamentoTarefa.create({
-      data: { cliente_id: c.cliente.id, empresa_id: c.empresa.id, titulo: 'T', tipo: 'Geral', tipo_tarefa_id: 'x', tipo_tarefa_nome: 'X', lote_id: l.id },
+      data: { cliente_id: c.cliente.id, empresa_id: c.empresa.id, titulo: 'T', tipo: 'Geral', tipo_tarefa_id: tt.id, tipo_tarefa_nome: 'T', lote_id: l.id },
     });
     await exigirBloqueio(c, l.id, 'lancamentos_tarefa');
   });
@@ -281,10 +283,10 @@ describe('LOTES-R1 2 — dependências vivas bloqueiam', () => {
 });
 
 describe('LOTES-R1 3 — sem histórico: exclusão física como antes', () => {
-  test('lote recém-lançado (e com correção de entrada pelo cadastro) → exclusão física; linha some; auditoria delete', async () => {
+  test('lote recém-lançado (com correção do lançamento pelo cadastro: nota fiscal e peso) → exclusão física; linha some; auditoria delete', async () => {
     const c = await cenario();
     const l = await criarLote(c, { area: c.A });
-    assert.equal((await patch(c, l.id, { quantidade_cabecas: 480, quantidade_entrada: 480, estado_esperado: { quantidade_cabecas: 500 } })).statusCode, 200);
+    assert.equal((await patch(c, l.id, { nota_fiscal: 'NF-123', peso_medio_kg: 410 })).statusCode, 200);
     await exigirTipo(c, l.id, 'exclusao_fisica');
     assert.equal((await excluir(c, l.id)).statusCode, 204);
     assert.equal(await lote(l.id), null);

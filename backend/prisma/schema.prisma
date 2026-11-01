@@ -684,6 +684,12 @@ model Lote {
   observacoes                   String?   @db.VarChar(2000)
   status                        String    @default("Ativo") @db.VarChar(32)
   campos_personalizados         Json      @default("{}")
+  // Exclusão LÓGICA (MAIKE-LOTES-R1): entrada retirada do Cadastro cujo
+  // histórico é só de movimentos cancelados com prova. A linha fica para a
+  // auditoria; leituras operacionais filtram `excluido_em IS NULL`. O ator vem
+  // sempre de auth_context (mesmo tenant), nunca do corpo.
+  excluido_em                   DateTime?
+  excluido_por_usuario_id       String?   @db.VarChar(64)
   createdAt                     DateTime  @default(now())
   updatedAt                     DateTime  @updatedAt
 

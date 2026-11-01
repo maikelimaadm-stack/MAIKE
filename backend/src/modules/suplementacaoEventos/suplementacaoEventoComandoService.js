@@ -1,6 +1,7 @@
 /**
  * Comando transacional: evento de suplementação + lotes rateados (ESTAB-P0-01).
  */
+import { exigirLotesDosDocumentos } from '../../shared/lotes/loteVivo.js';
 import { getPrismaClient } from '../../database/prismaClient.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { AppError } from '../../shared/errors/AppError.js';
@@ -66,6 +67,8 @@ export const comandoLancamentoComLotes = async (contexto, entrada) => {
             });
             return doc;
           });
+          // Lote excluído do cadastro não recebe rateio novo (MAIKE-LOTES-R1).
+          await exigirLotesDosDocumentos(tx, auth.clienteId, linhas.map((l) => l.dados));
           await inserirLotesSuplementacao(tx, linhas);
         }
 

@@ -2,6 +2,7 @@
  * Serviço de LancamentoTarefa e histórico (P5.3, D-PROD-49).
  */
 
+import { exigirLotesNaoExcluidos } from '../../shared/lotes/loteVivo.js';
 import { getPrismaClient } from '../../database/prismaClient.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { registrarEvento } from '../auditoria/auditService.js';
@@ -191,6 +192,8 @@ const resolverTipoTarefa = async (tx, clienteId, tipoId) => {
  */
 const resolverLote = async (tx, clienteId, loteId) => {
   if (!loteId) return { lote_id: null, lote_nome: null };
+  // FOR SHARE + recusa de lote excluído do cadastro (MAIKE-LOTES-R1).
+  await exigirLotesNaoExcluidos(tx, clienteId, [loteId]);
   const lote = await buscarLote(clienteId, loteId, tx);
   if (!lote) throw loteNotFound();
   return { lote_id: loteId, lote_nome: lote.nome };

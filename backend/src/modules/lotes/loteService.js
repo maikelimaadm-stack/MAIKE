@@ -10,6 +10,7 @@ import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { registrarEvento } from '../auditoria/auditService.js';
 import { reservarNumero, ESCOPO_TENANT } from '../sequencias/entidadeCodigoService.js';
 import { AppError, loteNotFound, loteDeleteBlocked, loteUpdateBlocked, setorNotFound, areaNotFound } from '../../shared/errors/AppError.js';
+import { avaliarExclusaoLote, TIPO_BLOQUEADO, TIPO_FISICA, TIPO_JA_EXCLUIDO, TIPO_LOGICA } from './loteExclusaoService.js';
 import { origemDerivadaDeManejo } from './loteOrigem.js';
 import { buscarSetor } from '../setores/setorRepository.js';
 import { buscarArea } from '../areas/areaPastagemRepository.js';
@@ -19,6 +20,7 @@ import {
   inserirLote,
   atualizarLotePorId,
   excluirLotePorId,
+  marcarLoteExcluido,
   motivoBloqueioExclusaoLote,
 } from './loteRepository.js';
 
@@ -47,6 +49,8 @@ const decimalOuNulo = (valor) => {
 };
 
 const comoNumero = (valor) => (valor === null || valor === undefined ? null : Number(valor));
+
+const comoDataHoraIso = (valor) => (valor instanceof Date ? valor.toISOString() : valor ? String(valor) : null);
 
 const comoDataIso = (valor) => {
   if (valor === null || valor === undefined) return null;
@@ -98,6 +102,7 @@ export const comoLotePublico = (registro) => ({
   valor_frete: comoNumero(registro.valor_frete),
   motivo_ajuste: registro.motivo_ajuste ?? null,
   motivo_outros: registro.motivo_outros ?? null,
+  excluido_em: comoDataHoraIso(registro.excluido_em),
   observacoes: registro.observacoes ?? null,
   status: registro.status,
   campos_personalizados: registro.campos_personalizados ?? {},
@@ -376,7 +381,8 @@ export const atualizar = async (contexto, id, entrada) => {
     // compare-and-swap abaixo valer contra cancelamento e manejo concorrentes.
     await tx.$queryRaw`SELECT id FROM "Lote" WHERE cliente_id = ${auth.clienteId} AND id = ${id} FOR UPDATE`;
     const anterior = await buscarLote(auth.clienteId, id, tx);
-    if (!anterior) throw loteNotFound();
+    // Lote excluído logicamente (MAIKE-LOTES-R1) não volta a ser editável.
+    if (!anterior || anterior.excluido_em) throw loteNotFound();
 
     const campos = camposDe(entrada);
     /** @type {Record<string, unknown>} */
@@ -449,26 +455,85 @@ export const atualizar = async (contexto, id, entrada) => {
   });
 };
 
-/** @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto @param {string} id */
+/** Compatibilidade de `details.vinculo` com o contrato de antes da MAIKE-LOTES-R1. */
+const VINCULO_DO_CONTRATO_ANTERIOR = Object.freeze({
+  movimentacao_ativa: 'movimentacoes_mapa',
+  estado_divergente_da_entrada: 'lote_com_manejo',
+});
+
+/**
+ * Lote por id, INCLUSIVE excluído logicamente: leitura administrativa e de
+ * histórico (resolve identidade e retrato sem reativar). Outro tenant: 404.
+ * @param {{auth: import('../../shared/auth/authContext.js').AuthContext}} contexto @param {string} id
+ */
+export const buscarPorId = async (contexto, id) => {
+  const auth = exigirAuthContext(contexto?.auth);
+  const registro = await buscarLote(auth.clienteId, id);
+  if (!registro) throw loteNotFound();
+  return comoLotePublico(registro);
+};
+
+/**
+ * Elegibilidade de exclusão — só leitura. O DELETE revalida tudo com o lote
+ * travado; este resultado nunca autoriza nada sozinho.
+ * @param {{auth: import('../../shared/auth/authContext.js').AuthContext}} contexto @param {string} id
+ */
+export const elegibilidadeExclusao = async (contexto, id) => {
+  const auth = exigirAuthContext(contexto?.auth);
+  const prisma = getPrismaClient();
+  return prisma.$transaction(async (tx) => {
+    const lote = await buscarLote(auth.clienteId, id, tx);
+    if (!lote) throw loteNotFound();
+    const r = await avaliarExclusaoLote(tx, auth.clienteId, lote);
+    return { lote_id: id, tipo: r.tipo, motivo: r.motivo, detalhes: r.detalhes };
+  });
+};
+
+/**
+ * Excluir do Cadastro (MAIKE-LOTES-R1, D-PROD-100): trava o lote, reavalia e
+ * decide entre exclusão FÍSICA (sem histórico), LÓGICA (histórico só
+ * cancelado com prova, ou anexo a preservar) ou recusa. Repetir sobre lote já
+ * excluído logicamente é idempotente: 204, sem novo efeito nem auditoria.
+ * @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto @param {string} id
+ * @returns {Promise<{tipo: string}>}
+ */
 export const excluir = async (contexto, id) => {
   const auth = exigirAuthContext(contexto?.auth);
   const prisma = getPrismaClient();
 
-  await prisma.$transaction(async (tx) => {
+  return prisma.$transaction(async (tx) => {
+    // Trava primeiro: escritores que citam o lote tomam FOR SHARE na mesma
+    // linha, então exclusão e novo vínculo nunca se cruzam (TOCTOU).
+    await tx.$queryRaw`SELECT id FROM "Lote" WHERE cliente_id = ${auth.clienteId} AND id = ${id} FOR UPDATE`;
     const anterior = await buscarLote(auth.clienteId, id, tx);
     if (!anterior) throw loteNotFound();
 
-    // Excluir só o lançamento que não teve nada depois (D-PROD-87). Lote gerado
-    // por manejo: a transferência que o criou cita só a origem e apagá-lo
-    // sumiria com cabeças. Estado divergente da entrada: houve manejo, mesmo
-    // sem registro que cite este lote (ex.: destino de unificação).
-    const motivo = await motivoDeHistoricoDoLote(tx, auth.clienteId, anterior);
-    if (motivo) {
-      throw loteDeleteBlocked(motivo, { details: { id } });
+    const avaliacao = await avaliarExclusaoLote(tx, auth.clienteId, anterior);
+    if (avaliacao.tipo === TIPO_JA_EXCLUIDO) return { tipo: TIPO_JA_EXCLUIDO };
+    if (avaliacao.tipo === TIPO_BLOQUEADO) {
+      // `vinculo` mantém os nomes do contrato anterior; `motivo` é o código novo, mais preciso.
+      throw loteDeleteBlocked(VINCULO_DO_CONTRATO_ANTERIOR[avaliacao.motivo] ?? avaliacao.motivo, {
+        details: { id, motivo: avaliacao.motivo, ...avaliacao.detalhes },
+      });
+    }
+
+    if (avaliacao.tipo === TIPO_LOGICA) {
+      const marcado = await marcarLoteExcluido(tx, auth.clienteId, id, auth.usuarioId);
+      await registrarEvento(
+        contexto,
+        {
+          acao: 'exclusao_logica',
+          entidade: 'Lote',
+          entidadeId: id,
+          dadosAnteriores: comoLotePublico(anterior),
+          dadosNovos: { ...comoLotePublico(marcado), motivo_exclusao: avaliacao.motivo, ...avaliacao.detalhes },
+        },
+        tx
+      );
+      return { tipo: TIPO_LOGICA };
     }
 
     await excluirLotePorId(tx, auth.clienteId, id);
-
     await registrarEvento(
       contexto,
       {
@@ -479,5 +544,6 @@ export const excluir = async (contexto, id) => {
       },
       tx
     );
+    return { tipo: TIPO_FISICA };
   });
 };

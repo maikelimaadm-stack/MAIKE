@@ -1,3 +1,4 @@
+import { exigirLotesNaoExcluidos } from '../../shared/lotes/loteVivo.js';
 import { getPrismaClient } from '../../database/prismaClient.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { AppError } from '../../shared/errors/AppError.js';
@@ -38,6 +39,8 @@ export const criar = async (contexto, entrada) => {
       tamanhoBytes: entrada.tamanho_bytes ?? entrada.tamanhoBytes,
       checksum: entrada.checksum,
     });
+    // Anexo novo em lote excluído do cadastro: recusado (MAIKE-LOTES-R1).
+    if (registro.entidade === 'Lote') await exigirLotesNaoExcluidos(tx, registro.cliente_id, [registro.entidade_id]);
     const salvo = await inserir(tx, registro);
     await registrarEvento(
       contexto,

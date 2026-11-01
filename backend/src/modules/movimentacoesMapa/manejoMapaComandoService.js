@@ -171,7 +171,8 @@ export const executarManejoLote = async (contexto, entrada) => {
 
         const lotes = await travarLotes(tx, auth.clienteId, [e.loteId, ehTransferencia ? e.loteDestinoId : null]);
         const origem = lotes.get(e.loteId);
-        if (!origem || origem.empresa_id !== e.empresaId) throw new AppError('LOTE_NOT_FOUND', 'lote não encontrado nesta empresa');
+        // Lote excluído do cadastro (MAIKE-LOTES-R1) não existe para manejo.
+        if (!origem || origem.empresa_id !== e.empresaId || origem.excluido_em) throw new AppError('LOTE_NOT_FOUND', 'lote não encontrado nesta empresa');
         if (origem.status !== 'Ativo' || !origem.area_atual_id) {
           throw recusa('MANEJO_ESTADO_INVALIDO', 'lote inativo ou sem área atual');
         }
@@ -217,6 +218,7 @@ export const executarManejoLote = async (contexto, entrada) => {
             destino = lotes.get(e.loteDestinoId);
             const compativel =
               destino &&
+              !destino.excluido_em &&
               destino.id !== origem.id &&
               destino.empresa_id === e.empresaId &&
               destino.status === 'Ativo' &&

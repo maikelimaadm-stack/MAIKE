@@ -20,6 +20,7 @@ const aplicadas = (nomes) => nomes.map((migration_name) => ({ migration_name, co
 const COLUNAS_OK = [
   { table_name: 'Usuario', column_name: 'papel_tenant' },
   { table_name: 'CategoriaManejo', column_name: 'catalogo_categoria_visual_id' },
+  { table_name: 'Lote', column_name: 'excluido_em' },
 ];
 const TABELAS_OK = TABELAS_PROTEGIDAS.map((tabela) => ({ tabela, rls: true }));
 const PAPEIS_OK = { clientes_com_usuario_ativo: 1, administradores_ativos: 1, clientes_sem_administrador: 0 };
