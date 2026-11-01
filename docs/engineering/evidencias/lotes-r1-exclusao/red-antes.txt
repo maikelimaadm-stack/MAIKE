@@ -1,0 +1,34 @@
+MAIKE-LOTES-R1 — RED no HEAD de partida 60667bed8a55e395e185e00ffd8385993db70ec6 (main, merge da #162). PostgreSQL 16 local, maike_ci sintético.
+Data: 2026-11-01T10:19:51Z
+
+Sonda (fluxo HTTP real):
+  compra 500 → morte 50 → cancelamento 200 → saldo 500; DELETE /lotes = 409 LOTE_DELETE_BLOCKED vinculo=movimentacoes_mapa  (BUG: histórico só cancelado bloqueia)
+  PATCH manual 500→450→500 sem movimento: DELETE = 204 e a linha é APAGADA  (furo: alteração operacional sem comprovação some sem trilha de identidade)
+
+node --test backend/tests/loteExclusaoCancelados.test.mjs:
+    not ok 1 - compra 500 → morte 50 → cancelada → excluir = tombstone; some da lista; histórico, cancelamento e AuditLog intactos; repetição idempotente
+    not ok 2 - duas mortes canceladas (mais recente primeiro) → exclusão lógica; com uma ativa → bloqueado
+    not ok 3 - transferência total (no lugar) cancelada → exclusão lógica
+    not ok 4 - parcial com lote novo cancelada: entrada original sai por exclusão lógica; o derivado fica (0/Inativo) e nunca é entrada excluível
+    not ok 5 - unificação: destino citado só por lote_destino_id/efeitos — ativa bloqueia; cancelada libera os dois
+    not ok 6 - homônimo: movimento ativo de OUTRO lote com o mesmo nome (com id) não bloqueia; registro legado só por nome bloqueia (fail-closed)
+    not ok 1 - movimentacoes-pecuaria ativo (lote já com histórico cancelado) → bloqueado (movimentacoes_pecuarias)
+    not ok 2 - suplementacao-lotes ativo (lote já com histórico cancelado) → bloqueado (suplementacao_lote)
+    not ok 3 - eventos-sanitarios ativo (lote já com histórico cancelado) → bloqueado (eventos_sanitarios)
+    not ok 4 - aplicacoes-medicamento ativo (lote já com histórico cancelado) → bloqueado (aplicacoes_medicamento)
+    not ok 5 - manejos-tecnico-rebanho ativo (lote já com histórico cancelado) → bloqueado (manejos_tecnicos)
+    not ok 6 - tarefa ligada ao lote → bloqueado
+    not ok 7 - movimento ATIVO antigo do lote atrás de 600 registros de outros lotes → bloqueado (sem limite silencioso)
+    not ok 8 - saldo voltou a 500 por PATCH manual (sem cancelamento) → bloqueado
+    not ok 9 - legado (POST genérico + PATCH, sem proveniência) → bloqueado
+    not ok 10 - movimento marcado cancelado SEM prova (escrita direta, sem operação idempotente) → bloqueado
+    not ok 1 - lote recém-lançado (e com correção de entrada pelo cadastro) → exclusão física; linha some; auditoria delete
+    not ok 2 - lote sem histórico mas com anexo → exclusão LÓGICA (o anexo não fica órfão); anexar a lote excluído → 409
+    not ok 1 - depois do tombstone: PATCH 404; manejo pelo comando recusado; registro novo citando o lote → 409 LOTE_EXCLUIDO
+    not ok 2 - outro tenant: elegibilidade, GET e DELETE → 404; nada muda
+    not ok 1 - exclusão primeiro, manejo depois: tombstone vence; o manejo é recusado; nenhum movimento ativo novo
+    not ok 2 - manejo primeiro, exclusão depois: o manejo vale e a exclusão é bloqueada
+    not ok 3 - registro genérico (sanidade) primeiro, exclusão depois: bloqueada; exclusão primeiro: registro recusado
+# tests 23
+# pass 0
+# fail 23
