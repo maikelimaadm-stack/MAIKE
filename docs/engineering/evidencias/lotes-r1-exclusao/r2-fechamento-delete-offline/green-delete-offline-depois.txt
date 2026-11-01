@@ -1,5 +1,5 @@
 PR167-R2 — GREEN (vitest; lotePort REAL; IndexedDBManager em memória; só nativeRequest falso)
-Data: 2026-11-01T13:14:28Z
+Data: 2026-11-01T13:26:14Z
 
 ✓ PR167-R2 — deleteLote / excluirLote offline: falha fechada > deleteLote (@/apis/lotes): ZERO HTTP, ZERO delete na fila, cache intacto, erro tipado
 ✓ PR167-R2 — deleteLote / excluirLote offline: falha fechada > excluirLote (loteCadastroService): ZERO HTTP, ZERO delete na fila, cache intacto, erro tipado
@@ -13,6 +13,6 @@ Data: 2026-11-01T13:14:28Z
 ✓ PR167-R2 — delete LEGADO já gravado na fila por versão anterior > pendência retida bloqueia a exclusão pela tela com motivo explícito; liberar é ação manual e só tira a retenção
 ✓ PR167-R2 — delete LEGADO já gravado na fila por versão anterior > item de OUTRO tenant: nem quarentena, nem envio, nem liberação
 ✓ PR167-R2 — sem regressão: criar e editar Lote offline continuam na fila > update offline enfileira e aparece no cache; delete continua proibido
-Tests  12 passed (12)
-
-Smoke completo: 104 arquivos, 1195/1195. lint 0 erros; gate:types sem regressão; gate:native-api PASSOU.
+✓ PR167-R2 F — corrida com outra aba (sem mutex entre IndexedDB e HTTP) > outra aba grava edição offline do lote DEPOIS da checagem e da exclusão: o replay falha de forma recuperável, sem perder a fila
+✓ PR167-R2 — pré-check da tela > consultarExclusaoDeLotes: delete retido → bloqueado (exclusao_offline_retida) sem nem consultar o servidor
+Tests  14 passed (14)

@@ -1,0 +1,16 @@
+PR167-R2 — preflight local repetido (bancos descartáveis; nenhum banco remoto)
+Data: 2026-11-01T13:26:14Z
+
+== maike_pf_pre
+migrations: 26/27 aplicadas
+papéis: 0 cliente(s) com usuário ativo, 0 administrador(es) da fazenda, 0 cliente(s) sem administrador
+FALHA migrations pendentes (1): 20261101100000_lote_exclusao_logica
+FALHA colunas ausentes: Lote.excluido_em, Lote.excluido_por_usuario_id (backend desta PR responde 500)
+PREFLIGHT FALHOU: NÃO publique este código neste banco.
+exit=1
+
+== maike_pf_pos
+migrations: 27/27 aplicadas
+papéis: 0 cliente(s) com usuário ativo, 0 administrador(es) da fazenda, 0 cliente(s) sem administrador
+PREFLIGHT OK: o schema atende o código desta branch.
+exit=0

@@ -3893,6 +3893,7 @@ RED reproduzido no HEAD de partida:
 - **Cache offline:** a exclusão confirmada (204) também tira o lote do cache offline da entidade Lote. Esse cache tem uma cópia por fazenda do tenant, e todas são varridas; outro tenant fica intocado. O lote também sai do cache do mapa da fazenda dele, pelo runtime offline existente (`removerRegistroDosCachesOffline`).
 - **Sem resposta definitiva** (5xx, 409, timeout, queda de rede), cache e fila não são tocados.
 - **Pendência offline do lote** recusa a exclusão com o motivo `pendencia_offline`: nada é enviado e a fila não é alterada.
+- **Exclusão de Lote nunca passa pela fila offline (R2):** vale para qualquer export (`deleteLote`, `excluirLote`, tela). Sem conexão, a recusa é tipada (`OFFLINE_DELETE_FORBIDDEN`) e cache e fila ficam intactos. Um `delete` legado na fila fica **retido** (quarentena): não é enviado no replay, não esconde o lote e só sai por liberação manual explícita. A opção do runtime é `exclusao: 'somente_online'`; as outras entidades ficam inalteradas.
 - **Release:** a migration precisa estar aplicada **e** verificada no banco real antes do merge. O preflight exige as duas colunas. O runbook está em `docs/engineering/MAIKE-LOTES-EXCLUSAO-CANCELADOS-RELEASE.md`. Estado: `DEPLOY_BLOCKED` até o operador provar o schema.
 
 Relatório: `docs/engineering/MAIKE-LOTES-EXCLUSAO-CANCELADOS-REPORT.md`.

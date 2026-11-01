@@ -181,3 +181,36 @@ describe('PR167-R2 — sem regressão: criar e editar Lote offline continuam na 
     expect(fila().map((f) => f.operation)).toEqual(['update']);
   });
 });
+
+describe('PR167-R2 F — corrida com outra aba (sem mutex entre IndexedDB e HTTP)', () => {
+  it('outra aba grava edição offline do lote DEPOIS da checagem e da exclusão: o replay falha de forma recuperável, sem perder a fila', async () => {
+    const { excluirLotes } = await import('@/services/loteCadastroService');
+    // Esta aba: checagem sem pendência → DELETE 204.
+    const r = await excluirLotes([X.id], { lotes: [X, Y] });
+    expect(r.excluidos).toEqual([X.id]);
+    // "Outra aba" (mesmo IndexedDB) tinha editado offline e grava agora na fila.
+    await banco.api.addItem('entity_queue', {
+      entity_name: 'Lote', empresa_id: 'emp-1', cliente_id: 'cli-a', operation: 'update', record_id: X.id, data: { nome: 'EDITADO' }, created_at: '2026-11-01T00:00:00.000Z',
+    });
+    // Replay: o servidor responde 404 ao PATCH do lote excluído.
+    http.respostas[`PATCH /lotes/${X.id}`] = Object.assign(new Error('x'), { code: 'API_OPERATION_FAILED', cause: { code: 'LOTE_NOT_FOUND' } });
+    const s = await runtime.syncOfflineEntityQueue();
+    expect(s.success).toBe(false);
+    expect(s.error?.cause?.code).toBe('LOTE_NOT_FOUND');
+    expect(fila().map((f) => [f.operation, f.record_id])).toEqual([['update', X.id]]); // nada descartado em silêncio
+    expect(deletesHttp()).toEqual([`DELETE /lotes/${X.id}`]); // só o DELETE online confirmado
+  });
+});
+
+describe('PR167-R2 — pré-check da tela', () => {
+  it('consultarExclusaoDeLotes: delete retido → bloqueado (exclusao_offline_retida) sem nem consultar o servidor', async () => {
+    const { consultarExclusaoDeLotes } = await import('@/services/loteCadastroService');
+    await banco.api.addItem('entity_queue', {
+      entity_name: 'Lote', empresa_id: 'emp-1', cliente_id: 'cli-a', operation: 'delete', record_id: X.id, data: { id: X.id }, created_at: '2026-10-01T00:00:00.000Z',
+    });
+    http.chamadas = [];
+    const r = await consultarExclusaoDeLotes([X.id]);
+    expect(r).toEqual([{ id: X.id, tipo: 'bloqueado', motivo: 'exclusao_offline_retida' }]);
+    expect(http.chamadas).toEqual([]);
+  });
+});

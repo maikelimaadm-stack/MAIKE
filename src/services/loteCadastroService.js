@@ -241,6 +241,13 @@ export const validarExclusaoDeLote = async (id) => {
 export const consultarExclusaoDeLotes = async (ids) => {
   const saida = [];
   for (const id of Array.isArray(ids) ? ids : []) {
+    // Pendência offline do lote (PR167-R2) bloqueia antes da confirmação; o
+    // envio (excluirLotes) checa de novo.
+    const pendencias = await pendenciasOfflineLote(id).catch(() => ['desconhecida']);
+    if (pendencias.length) {
+      saida.push({ id, tipo: TIPOS_EXCLUSAO.BLOQUEADO, motivo: pendencias.includes('delete') ? 'exclusao_offline_retida' : 'pendencia_offline' });
+      continue;
+    }
     try {
       const r = /** @type {any} */ (await consultarElegibilidadeExclusaoLote(id));
       saida.push({ id, tipo: r?.tipo ?? null, motivo: r?.motivo ?? null });

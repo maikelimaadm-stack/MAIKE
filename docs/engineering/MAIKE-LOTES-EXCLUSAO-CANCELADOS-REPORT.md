@@ -218,3 +218,92 @@ No E2E com IndexedDB real, por largura:
 2. Se a remoção do cache falhar (erro do IndexedDB) depois do 204, a exclusão vale e a próxima leitura online corrige. A falha é engolida de propósito.
 3. Uma pendência offline do lote bloqueia a exclusão até ser sincronizada. É o comportamento desejado (sem descarte silencioso).
 
+## 11. PR167-R2 — exclusão de Lote nunca passa pela fila offline (todas as portas)
+
+**Missão:** MAIKE-LOTES-PR167-R2-BLOQUEIO-DELETE-OFFLINE-LEGADO-E-RELEASE, na mesma PR #167. HEAD de entrada 961e0f1. Sem migration nova e sem produção.
+
+### 11.1 Bug e RED
+
+- **Bug:** além do caminho seguro da tela, `excluirLote` (serviço) e `deleteLote` (`@/apis/lotes`) usavam `lotePort.delete`. O adaptador offline, sem conexão, **tirava o lote do cache e enfileirava `operation:'delete'`**, e `syncOfflineEntityQueue` despacharia esse DELETE ao reconectar, sem elegibilidade nem confirmação.
+- **Sonda no HEAD 961e0f1** (exports reais, `lotePort` real, IndexedDB em memória com a mesma API):
+  - offline `deleteLote` → `http=[]`, `fila=[delete lote-x]`, cache sem o lote;
+  - replay → `DELETE /lotes/lote-x`.
+- `tests/smoke/loteDeleteOfflineBloqueado.test.js`: **7 de 12 vermelhos** (`red-delete-offline-antes.txt`).
+- **Fato verificado:** no `src/`, `syncOfflineEntityQueue` e `instalarSincronizacaoAoVoltarOnline` não são chamados por nenhum código do app; só pelos testes. O replay não está ligado hoje. O risco era o DELETE ficar gravado no IndexedDB à espera de qualquer replay futuro, e o lote sumir da lista offline.
+
+### 11.2 Correção (sem trocar o motor)
+
+**Runtime offline (`src/lib/offline/offlineEntityRuntime.js`).** Nova opção `exclusao: 'somente_online'`. O padrão `'fila'` mantém todas as outras entidades como estavam. Com a opção ligada:
+- `delete` vai direto a `operations.delete`, sem fila e sem remoção otimista. Só o sucesso tira o registro dos caches do tenant (`removerRegistroDosCachesOffline`).
+- `delete` legado na fila:
+  - não esconde o registro na leitura offline;
+  - no replay **não é enviado**: fica na fila marcado `quarentena: {codigo: OFFLINE_DELETE_QUARANTINED}`;
+  - o replay segue com o resto da fila e devolve `quarentenados` e o código.
+- `liberarExclusaoOfflineRetida(filaId)`: liberação **manual**. Remove só esse item retido, do tenant da sessão. Não chama o servidor nem mexe em cache.
+- `pendenciasOfflineDoRegistro`.
+
+**Porta de Lote (`src/apis/lotes/loteNativePort.js`):**
+- `lotePort` usa `exclusao: 'somente_online'`;
+- `operacoesNativas.delete` recusa sem conexão **antes de qualquer HTTP** (`OFFLINE_DELETE_FORBIDDEN`);
+- `operacoesDeExclusao.excluirOnline` usa o mesmo `lotePort.delete`;
+- uma política só, alcançando `deleteLote`, `excluirLote`, `excluirLoteOnline` e `excluirLotes`.
+
+**Serviço e tela:**
+- `consultarExclusaoDeLotes` (pré-check) e `excluirLotes` (envio) recusam lote com pendência offline:
+  - `exclusao_offline_retida` para delete retido;
+  - `pendencia_offline` para edição pendente;
+- a recusa aparece antes da confirmação, nada é enviado e a seleção dos bloqueados é mantida.
+
+**Códigos novos no catálogo do frontend:** `OFFLINE_DELETE_FORBIDDEN` e `OFFLINE_DELETE_QUARANTINED`.
+
+### 11.3 Liberar um delete retido com segurança (manual)
+
+1. Conferir com o proprietário se o lote deve mesmo sair do Cadastro.
+2. Chamar `liberarExclusaoOfflineRetida(filaId)` (runtime offline), que tira só o item retido. O lote continua existindo e volta a aparecer normalmente.
+3. Se for para excluir, usar **Excluir** no Cadastro, online. Passa pela elegibilidade do servidor (D-PROD-100) e pela confirmação.
+4. Nunca reenviar o DELETE retido nem apagar a fila inteira.
+
+### 11.4 Corrida com outra aba (limite real)
+
+- Não há mutex entre IndexedDB e HTTP; não foi criada transação distribuída.
+- Cenário testado: outra aba grava uma edição offline do lote **depois** da checagem e do DELETE 204. O replay do PATCH recebe 404 do servidor e falha de forma **recuperável** (`success:false`). A fila é preservada e nada é descartado em silêncio.
+
+### 11.5 Testes
+
+| Teste | Resultado |
+|---|---|
+| `loteDeleteOfflineBloqueado.test.js` | RED 7/12 → GREEN **14/14** |
+| R1 cache offline | 10/10 |
+| smoke completo | ver resposta final |
+| E2E Chromium + IndexedDB real, 1440/768/412/390 | **84/84** (21 por largura) |
+| preflight local repetido | pré-migration exit 1 (migration e duas colunas apontadas); pós-migration exit 0 (duas colunas presentes) |
+
+Os 14 testes do smoke cobrem:
+- offline: zero HTTP, zero delete na fila, cache intacto, erro tipado, para os dois exports;
+- 204 limpa o cache do tenant;
+- 409, 404, timeout e queda antes do HTTP não removem nada;
+- legado retido no replay, sem DELETE, com outra entidade seguindo;
+- legado não esconde o lote offline;
+- bloqueio e liberação manual;
+- outro tenant intocado;
+- update offline continua funcionando;
+- corrida;
+- pré-check.
+
+O E2E (84/84) cobre:
+- exclusão lógica e física;
+- cache limpo nas duas chaves do tenant;
+- DELETE legado injetado no IndexedDB real não esconde o lote offline;
+- nenhum DELETE sai do navegador offline;
+- online, o lote retido é recusado com "retida por segurança" antes da confirmação, e a fila fica intacta;
+- reload sem servidor;
+- retorno online;
+- sem overflow;
+- sem DELETE/PATCH de movimento.
+
+Evidências: `evidencias/lotes-r1-exclusao/r2-fechamento-delete-offline/`.
+
+### 11.6 Release
+
+Inalterado: **`DEPLOY_BLOCKED`** até o operador seguir `MAIKE-LOTES-EXCLUSAO-CANCELADOS-RELEASE.md`. Nenhuma migration nova e nenhuma mudança em build ou startup.
+
