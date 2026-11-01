@@ -9,8 +9,13 @@
 
 export const SITUACAO_CANCELADO = 'cancelado';
 
-/** Tipos com cancelamento certificado no servidor (espelho de `TIPOS_CANCELAVEIS`). */
-export const TIPOS_COM_CANCELAMENTO = Object.freeze(['Morte', 'Abate', 'Transferência de Área']);
+/** Tipos com cancelamento certificado no servidor (espelho de `TIPOS_CANCELAVEIS`): R2A + R2B-P1. */
+export const TIPOS_R2A = Object.freeze(['Morte', 'Abate', 'Transferência de Área']);
+export const TIPOS_R2B = Object.freeze(['Nascimento', 'Pesagem', 'Mudança de Categoria']);
+export const TIPOS_COM_CANCELAMENTO = Object.freeze([...TIPOS_R2A, ...TIPOS_R2B]);
+
+/** Comando que certifica cada grupo de tipos (o servidor confere a operação idempotente). */
+const COMANDO_DO_TIPO = (tipo) => (TIPOS_R2B.includes(tipo) ? 'manejo_mapa_rebanho' : 'manejo_mapa_lote');
 
 /** @param {any} mov */
 export const ehMovimentoCancelado = (mov) => mov?.situacao === SITUACAO_CANCELADO;
@@ -28,13 +33,16 @@ export const tipoCertificado = (mov) =>
  */
 export const temProvenienciaDoServidor = (mov) => {
   const ef = mov?.efeito_servidor;
-  // Paridade com o servidor (R2A-R2, D-PROD-99b): cada efeito precisa da âncora de auditoria.
-  return (
-    ef?.comando === 'manejo_mapa_lote' &&
+  // Paridade com o servidor (R2A-R2, D-PROD-99b): cada efeito precisa da âncora de auditoria;
+  // R2B (D-PROD-101): comando do rebanho + todos os participantes em `lote_ids`.
+  const ancorado =
+    !!mov &&
+    ef?.comando === COMANDO_DO_TIPO(mov.tipo) &&
     Array.isArray(ef.efeitos) &&
     ef.efeitos.length > 0 &&
-    ef.efeitos.every((x) => typeof x?.auditoria_id === 'string' && x.auditoria_id !== '')
-  );
+    ef.efeitos.every((x) => typeof x?.auditoria_id === 'string' && x.auditoria_id !== '');
+  if (!ancorado || !TIPOS_R2B.includes(mov.tipo)) return ancorado;
+  return Array.isArray(mov.lote_ids) && mov.lote_ids.length === ef.efeitos.length;
 };
 
 /** Pode oferecer a ação? (a decisão final é sempre do servidor) */

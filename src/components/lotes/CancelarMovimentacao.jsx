@@ -108,6 +108,12 @@ const descreverEfeito = (efeito) => {
     partes.push(`área ${a.area_atual_nome || "-"} → ${d.area_atual_nome || "-"}`);
   }
   if (a.status && d.status && a.status !== d.status) partes.push(`${a.status} → ${d.status}`);
+  // R2B-P1 (D-PROD-101): classificação e peso também voltam.
+  if (a.categoria !== undefined && d.categoria !== undefined && a.categoria !== d.categoria) partes.push(`categoria ${a.categoria || "-"} → ${d.categoria || "-"}`);
+  if (a.peso_medio_kg !== undefined && d.peso_medio_kg !== undefined && a.peso_medio_kg !== d.peso_medio_kg) {
+    partes.push(`peso ${a.peso_medio_kg ?? "-"} → ${d.peso_medio_kg ?? "-"} kg`);
+  }
+  if (efeito?.criado && d.quantidade_cabecas === 0) partes.push("lote gerado pelo manejo fica vazio e inativo (não é apagado)");
   // Unificação (R2A-R3, D-PROD-99c): o servidor diz o que acontece com a identificação do destino.
   if (efeito?.identificacao === "restaurada") {
     partes.push(`identificação volta a ${d.identificador_nome || d.identificador_sigla || "sem identificador"}`);
@@ -259,7 +265,7 @@ export default function CancelarMovimentacao({ movimento, onCancelado }) {
               <div className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs text-slate-700">
                 <div className="font-semibold">Efeito ao cancelar</div>
                 {(e?.efeitos || []).map((efeito) => (
-                  <div key={efeito.lote_id}>{descreverEfeito(efeito)}</div>
+                  <div key={efeito.lote_id}>{efeito.lote_nome ? `${efeito.lote_nome}: ` : ""}{descreverEfeito(efeito)}</div>
                 ))}
               </div>
               <label className="block text-xs font-medium text-slate-700" htmlFor={`motivo-${movimento.id}`}>

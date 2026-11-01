@@ -6,6 +6,7 @@ import { querystringListagemEmpresa } from '../../shared/http/listQueryLimit.js'
 import { listar, listarHistorico, criar, atualizar, excluir, HISTORICO_LIMITE_MAXIMO } from './movimentacaoMapaService.js';
 import { cancelar, elegibilidade } from './movimentacaoMapaCancelamentoService.js';
 import { executarManejoLote } from './manejoMapaComandoService.js';
+import { executarManejoRebanho, MAX_LINHAS, MODOS_PESAGEM, PESO_MAXIMO_KG, SEXOS, TIPOS_DO_COMANDO_REBANHO } from './manejoRebanhoComandoService.js';
 
 const ID_SCHEMA = {
   params: {
@@ -91,6 +92,56 @@ const MANEJO_SCHEMA = {
   },
 };
 
+/**
+ * Comando atômico do rebanho (R2B-P1, D-PROD-101): Nascimento, Pesagem e
+ * Mudança de Categoria com várias linhas numa transação. Schema estrito: campo
+ * desconhecido (inclusive `efeito_servidor`, `situacao`, `cancelamento`,
+ * `usuario_responsavel`) é 400. O serviço revalida a forma por tipo.
+ */
+const PESO_SCHEMA = { type: ['number', 'null'], exclusiveMinimum: 0, maximum: PESO_MAXIMO_KG };
+const QUANTIDADE_SCHEMA = { type: 'integer', minimum: 1, maximum: 1000000 };
+const TEXTO_CURTO = { type: 'string', minLength: 1, maxLength: 128 };
+const MANEJO_REBANHO_SCHEMA = {
+  body: {
+    type: 'object',
+    required: ['operation_id', 'tipo', 'empresa_id', 'area_id', 'data_movimentacao', 'linhas'],
+    additionalProperties: false,
+    properties: {
+      operation_id: { type: 'string', minLength: 8, maxLength: 160, pattern: '^[A-Za-z0-9_.:-]+$' },
+      tipo: { type: 'string', enum: [...TIPOS_DO_COMANDO_REBANHO] },
+      empresa_id: { type: 'string', minLength: 1, maxLength: 64 },
+      area_id: { type: 'string', minLength: 1, maxLength: 64 },
+      data_movimentacao: { type: 'string', minLength: 10, maxLength: 40 },
+      observacoes: { type: 'string', maxLength: 4000 },
+      modo_pesagem: { type: 'string', enum: [...MODOS_PESAGEM] },
+      linhas: {
+        type: 'array',
+        minItems: 1,
+        maxItems: MAX_LINHAS,
+        items: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            // Nascimento
+            sexo: { type: 'string', enum: [...SEXOS] },
+            categoria_mae: TEXTO_CURTO,
+            // Pesagem
+            lote_id: { type: 'string', minLength: 1, maxLength: 64 },
+            categoria: TEXTO_CURTO,
+            // Mudança de Categoria
+            categoria_atual: TEXTO_CURTO,
+            categoria_nova: TEXTO_CURTO,
+            categoria_manejo_id_novo: { type: 'string', minLength: 1, maxLength: 64 },
+            // Comuns
+            quantidade: QUANTIDADE_SCHEMA,
+            peso_medio_kg: PESO_SCHEMA,
+          },
+        },
+      },
+    },
+  },
+};
+
 /** @param {import('fastify').FastifyInstance} app */
 export const registrarMovimentacaoMapaRoutes = async (app) => {
   app.get('/movimentacoes-mapa', { onRequest: [app.autenticar], schema: LISTAR_SCHEMA }, async (request) => {
@@ -107,6 +158,12 @@ export const registrarMovimentacaoMapaRoutes = async (app) => {
   app.post('/movimentacoes-mapa/comandos/manejo-lote', { onRequest: [app.autenticar], schema: MANEJO_SCHEMA }, async (request, reply) => {
     exigirAuthContext(request.contexto.auth);
     const { status, body } = await executarManejoLote(request.contexto, /** @type {Record<string, unknown>} */ (request.body));
+    return reply.status(status).send(body);
+  });
+
+  app.post('/movimentacoes-mapa/comandos/manejo-rebanho', { onRequest: [app.autenticar], schema: MANEJO_REBANHO_SCHEMA }, async (request, reply) => {
+    exigirAuthContext(request.contexto.auth);
+    const { status, body } = await executarManejoRebanho(request.contexto, /** @type {Record<string, unknown>} */ (request.body));
     return reply.status(status).send(body);
   });
 

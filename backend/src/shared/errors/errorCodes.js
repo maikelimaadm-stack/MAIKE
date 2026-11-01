@@ -255,6 +255,23 @@ export const BACKEND_ONLY_CODES = Object.freeze({
     http: 409,
     meaning: 'lote, área ou destino em estado que não permite o manejo; nada foi gravado',
   },
+  // R2B-P1 (D-PROD-101) — comando do rebanho (Nascimento, Pesagem, Mudança de Categoria).
+  MANEJO_CATEGORIA_MAE_INVALIDA: {
+    http: 409,
+    meaning: 'não há lote ativo da categoria da mãe na área; nada foi gravado',
+  },
+  MANEJO_CATEGORIA_INVALIDA: {
+    http: 409,
+    meaning: 'categoria de manejo inexistente, inativa, de outra empresa ou de outra categoria oficial; nada foi gravado',
+  },
+  MANEJO_CATEGORIA_AMBIGUA: {
+    http: 409,
+    meaning: 'mais de uma categoria de manejo ativa corresponde à categoria oficial; o formulário precisa escolher; nada foi gravado',
+  },
+  MANEJO_CATEGORIA_INCOMPATIVEL: {
+    http: 409,
+    meaning: 'a categoria nova não é compatível com o sexo do lote; nada foi gravado',
+  },
   LOTE_ESTADO_CONFLITO: {
     http: 409,
     meaning: 'o lote mudou desde a leitura (estado esperado divergente); recarregue e refaça; nada foi gravado',

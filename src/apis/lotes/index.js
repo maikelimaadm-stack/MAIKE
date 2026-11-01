@@ -12,6 +12,7 @@ export {
   cancelarMovimentacao,
   consultarElegibilidadeCancelamento,
   registrarManejoLoteServidor,
+  registrarManejoRebanhoServidor,
   createMovimentacao,
   deleteMovimentacao,
   listMovimentacoesPecuarias,

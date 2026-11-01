@@ -23,8 +23,7 @@
 
 import { Prisma } from '@prisma/client';
 
-import { TIPO_OPERACAO_CANCELAMENTO, SITUACAO_CANCELADO } from '../movimentacoesMapa/movimentacaoMapaCancelamentoService.js';
-import { COMANDO_MANEJO } from '../movimentacoesMapa/manejoMapaComandoService.js';
+import { TIPO_OPERACAO_CANCELAMENTO, SITUACAO_CANCELADO, COMANDOS_CERTIFICADOS } from '../movimentacoesMapa/movimentacaoMapaCancelamentoService.js';
 import { origemDerivadaDeManejo } from './loteOrigem.js';
 
 export const TIPO_FISICA = 'exclusao_fisica';
@@ -149,7 +148,7 @@ const provarCancelamentos = async (tx, clienteId, cancelados) => {
   for (const m of cancelados) {
     const op = m.cancel_op ? porChave.get(m.cancel_op) : null;
     const resposta = /** @type {any} */ (op?.response_json);
-    if (m.comando !== COMANDO_MANEJO || !op || op.status !== 'committed' || resposta?.movimentacao?.id !== m.id) {
+    if (!COMANDOS_CERTIFICADOS.includes(m.comando) || !op || op.status !== 'committed' || resposta?.movimentacao?.id !== m.id) {
       return { ok: false, movimentacao_id: m.id };
     }
     for (const lista of [m.dados?.efeito_servidor?.efeitos, m.dados?.cancelamento?.efeitos]) {

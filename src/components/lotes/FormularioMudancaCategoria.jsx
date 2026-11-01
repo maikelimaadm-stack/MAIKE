@@ -71,23 +71,32 @@ export default function FormularioMudancaCategoria({ lote, onSubmit, onCancel })
     observacoes: ""
   });
 
-  const handleSubmit = (e) => {
+  const [saving, setSaving] = useState(false);
+
+  /** R2B-P1 (D-PROD-101): uma confirmação = um envio (tudo ou nada no servidor); duplo clique bloqueado. */
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    
+    if (saving) return;
+
     const mudancasValidas = formData.mudancas.filter(m => m.categoria_nova && parseInt(m.quantidade) > 0);
     if (mudancasValidas.length === 0) {
       alert("Preencha pelo menos uma mudança com quantidade e categoria nova");
       return;
     }
 
-    onSubmit({
-      ...formData,
-      mudancas: mudancasValidas.map(m => ({
-        ...m, 
-        quantidade: parseInt(m.quantidade),
-        peso_medio: m.peso_medio ? parseFloat(m.peso_medio) : null
-      }))
-    });
+    setSaving(true);
+    try {
+      await onSubmit({
+        ...formData,
+        mudancas: mudancasValidas.map(m => ({
+          ...m,
+          quantidade: parseInt(m.quantidade),
+          peso_medio: m.peso_medio ? parseFloat(m.peso_medio) : null
+        }))
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
   const adicionarCategoria = () => {
@@ -118,12 +127,11 @@ export default function FormularioMudancaCategoria({ lote, onSubmit, onCancel })
     };
     // Se mudou a nova categoria, buscar o sexo da categoria de manejo correspondente
     if (field === 'categoria_nova') {
+      // R2B-P1: a categoria de manejo acompanha a oficial escolhida (sem herdar a da categoria antiga).
       const catManejo = categoriasManejo.find(c => c.categoria_oficial === value);
-      if (catManejo?.sexo) {
-        novasMudancas[index].sexo_novo = catManejo.sexo;
-        novasMudancas[index].categoria_manejo_id_novo = catManejo.id;
-        novasMudancas[index].categoria_manejo_nome_novo = catManejo.nome;
-      }
+      novasMudancas[index].sexo_novo = catManejo?.sexo || undefined;
+      novasMudancas[index].categoria_manejo_id_novo = catManejo?.id || undefined;
+      novasMudancas[index].categoria_manejo_nome_novo = catManejo?.nome || undefined;
     }
     setFormData({ ...formData, mudancas: novasMudancas });
   };
@@ -262,8 +270,8 @@ export default function FormularioMudancaCategoria({ lote, onSubmit, onCancel })
           </div>
 
           <div className="flex justify-end gap-1 pt-1 border-t">
-            <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-7 text-xs">Cancelar</Button>
-            <Button type="submit" size="sm" className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white">Confirmar Mudanças</Button>
+            <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-7 text-xs" disabled={saving}>Cancelar</Button>
+            <Button type="submit" size="sm" className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white" disabled={saving}>{saving ? 'Salvando...' : 'Confirmar Mudanças'}</Button>
           </div>
         </form>
       </CardContent>

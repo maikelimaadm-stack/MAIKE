@@ -1,0 +1,90 @@
+/**
+ * R2B-P1 — RED contra a main MERGEADA (895b80f). Reproduz, por HTTP real e
+ * PostgreSQL real, a MESMA sequência de chamadas que os handlers da main fazem
+ * (DetalhesLote.handleNascimento/handlePesagem/handleMudancaCategoria), com a
+ * falha na 2ª/3ª chamada (sessão expirada → 401). Exige o comportamento certo
+ * — tudo ou nada — e por isso FALHA na main.
+ */
+import { test, before, after, beforeEach } from 'node:test';
+import assert from 'node:assert/strict';
+import { criarApp, criarTenant, limparBanco, encerrar, autenticarNoApp } from './helpers.mjs';
+import { getPrismaClient } from '../src/database/prismaClient.js';
+
+let app;
+const p = () => getPrismaClient();
+before(async () => { app = await criarApp(); await app.ready(); });
+after(async () => { await app.close(); await encerrar(); });
+beforeEach(async () => { await limparBanco(); });
+const req = (m, url, tok, payload) => app.inject({ method: m, url, headers: tok ? { authorization: `Bearer ${tok}` } : {}, ...(payload !== undefined ? { payload } : {}) });
+
+const cenario = async () => {
+  const adm = await criarTenant({ papelTenant: 'administrador' });
+  const tok = (await autenticarNoApp(app, adm.credenciais)).corpo.token;
+  const empresa = await p().empresa.create({ data: { cliente_id: adm.cliente.id, numero_empresa: 1, apelido: 'FAZ', nome: 'Fazenda' } });
+  const setor = await p().setor.create({ data: { cliente_id: adm.cliente.id, empresa_id: empresa.id, numero_setor: '1', nome: 'S1' } });
+  const A = await p().areaPastagem.create({ data: { cliente_id: adm.cliente.id, empresa_id: empresa.id, setor_id: setor.id, setor_nome: 'S1', numero_area: '1', nome: 'PASTO A', tamanho_hectares: 10 } });
+  const lote = async (nome, qtd, categoria, sexo, peso) => (await req('POST', '/lotes', tok, { empresa_id: empresa.id, nome, quantidade_cabecas: qtd, categoria, sexo, setor_id: setor.id, area_entrada_id: A.id, area_atual_id: A.id, data_entrada: '2026-10-01', motivo_entrada: 'Compra', status: 'Ativo', ...(peso ? { peso_medio_kg: peso } : {}) })).json();
+  return { cli: adm.cliente.id, tok, empresa, A, setor, lote };
+};
+const estado = async (cli) => ({
+  lotes: (await p().lote.findMany({ where: { cliente_id: cli }, orderBy: { createdAt: 'asc' } })).map((l) => `${l.nome}:${l.categoria}:${l.quantidade_cabecas}:${l.status}:${l.peso_medio_kg ?? '-'}`),
+  movs: (await p().movimentacaoMapa.findMany({ where: { cliente_id: cli } })).map((m) => `${m.dados.tipo}:${m.dados.lote}:${m.dados.quantidade_animais}`),
+});
+const relatar = (nome, antes, depois) => console.log(`\n### ${nome}\nANTES  ${JSON.stringify(antes)}\nDEPOIS ${JSON.stringify(depois)}`);
+
+test('RED nascimento 2 linhas: 2ª linha falha → nada deveria ficar gravado', async () => {
+  const c = await cenario();
+  await c.lote('MATRIZES', 100, 'Vaca + 36 meses', 'Fêmea');
+  const antes = await estado(c.cli);
+  // linha 1 (main: criarLote + criarMovimentacao)
+  const r1 = await req('POST', '/lotes', c.tok, { empresa_id: c.empresa.id, nome: 'BEZERRO - PASTO A', quantidade_cabecas: 10, categoria: 'Bezerro 0 a 12 meses', sexo: 'Macho', area_atual_id: c.A.id, area_entrada_id: c.A.id, setor_id: c.setor.id, data_entrada: '2026-10-30', motivo_entrada: 'Outros', origem: 'Nascimento', status: 'Ativo' });
+  assert.equal(r1.statusCode, 201, r1.body);
+  const l1 = r1.json();
+  await req('POST', '/movimentacoes-mapa', c.tok, { empresa_id: c.empresa.id, tipo: 'Nascimento', lote: l1.nome, lote_id: l1.id, quantidade_animais: 10, area_destino_id: c.A.id });
+  // linha 2: o forEach SEM await dispara; a requisição falha (sessão expirada)
+  const r2 = await req('POST', '/lotes', null, { empresa_id: c.empresa.id, nome: 'BEZERRA - PASTO A', quantidade_cabecas: 8, categoria: 'Bezerra 0 a 12 meses' });
+  const depois = await estado(c.cli);
+  relatar('nascimento 2 linhas (2ª falha 401)', antes, depois);
+  assert.equal(r2.statusCode, 401);
+  assert.deepEqual(depois, antes, 'gravação parcial: a linha 1 ficou e a linha 2 não');
+});
+
+test('RED pesagem 3 lotes: 3º lote falha → nenhum peso deveria mudar', async () => {
+  const c = await cenario();
+  const ls = [await c.lote('L1', 50, 'Boi 25 a 36 meses', 'Macho', 400), await c.lote('L2', 40, 'Boi 25 a 36 meses', 'Macho', 380), await c.lote('L3', 30, 'Garrote 13 a 24 meses', 'Macho')];
+  const antes = await estado(c.cli);
+  for (const [i, l] of ls.entries()) {
+    const tok = i === 2 ? null : c.tok; // main: criarMovimentacao + atualizarLote por lote, em série
+    await req('POST', '/movimentacoes-mapa', tok, { empresa_id: c.empresa.id, tipo: 'Pesagem', lote: l.nome, lote_id: l.id, quantidade_animais: l.quantidade_cabecas, peso_medio: 450 });
+    await req('PATCH', `/lotes/${l.id}`, tok, { peso_medio_kg: 450 });
+  }
+  const depois = await estado(c.cli);
+  relatar('pesagem 3 lotes (3º falha 401)', antes, depois);
+  assert.deepEqual(depois, antes, 'gravação parcial: 2 de 3 lotes pesados');
+});
+
+test('RED mudança parcial repetida: 2ª linha falha → origem e derivado deveriam ficar como antes', async () => {
+  const c = await cenario();
+  const g = await c.lote('G', 50, 'Garrote 13 a 24 meses', 'Macho');
+  const antes = await estado(c.cli);
+  // linha 1: 20 → Boi (main: criarLote derivado, PATCH origem, criarMovimentacao)
+  await req('POST', '/lotes', c.tok, { empresa_id: c.empresa.id, nome: 'G', quantidade_cabecas: 20, categoria: 'Boi 25 a 36 meses', sexo: 'Macho', area_atual_id: c.A.id, area_entrada_id: c.A.id, setor_id: c.setor.id, data_entrada: '2026-10-30', motivo_entrada: 'Outros', origem: 'Mudança de Categoria', status: 'Ativo' });
+  await req('PATCH', `/lotes/${g.id}`, c.tok, { quantidade_cabecas: 30, estado_esperado: { quantidade_cabecas: 50 } });
+  await req('POST', '/movimentacoes-mapa', c.tok, { empresa_id: c.empresa.id, tipo: 'Mudança de Categoria', lote: 'G', lote_id: g.id, quantidade_animais: 20 });
+  // linha 2: 20 → Touro: o derivado é criado, a baixa da origem falha
+  await req('POST', '/lotes', c.tok, { empresa_id: c.empresa.id, nome: 'G', quantidade_cabecas: 20, categoria: 'Touro + 36 meses', sexo: 'Macho', area_atual_id: c.A.id, area_entrada_id: c.A.id, setor_id: c.setor.id, data_entrada: '2026-10-30', motivo_entrada: 'Outros', origem: 'Mudança de Categoria', status: 'Ativo' });
+  const r = await req('PATCH', `/lotes/${g.id}`, null, { quantidade_cabecas: 10, estado_esperado: { quantidade_cabecas: 30 } });
+  const depois = await estado(c.cli);
+  relatar('mudança parcial repetida (2ª baixa falha 401)', antes, depois);
+  assert.equal(r.statusCode, 401);
+  const soma = (await p().lote.findMany({ where: { cliente_id: c.cli, status: 'Ativo' } })).reduce((t, l) => t + l.quantidade_cabecas, 0);
+  console.log(`cabeças ativas: antes 50, depois ${soma}`);
+  assert.deepEqual(depois, antes, 'gravação parcial e cabeças duplicadas');
+});
+
+test('RED o comando atômico R2B não existe na main', async () => {
+  const c = await cenario();
+  const r = await req('POST', '/movimentacoes-mapa/comandos/manejo-rebanho', c.tok, { operation_id: 'op-12345678', tipo: 'Pesagem', empresa_id: c.empresa.id, area_id: c.A.id, data_movimentacao: '2026-10-30', linhas: [] });
+  console.log(`POST /comandos/manejo-rebanho na main → ${r.statusCode}`);
+  assert.equal(r.statusCode, 201);
+});

@@ -48,24 +48,37 @@ export default function FormularioNascimento({ lote, onSubmit, onCancel }) {
     observacoes: ""
   });
 
-  const handleSubmit = (e) => {
+  const [saving, setSaving] = useState(false);
+
+  /**
+   * R2B-P1 (D-PROD-101): UMA confirmação = UM envio com todas as linhas (o
+   * servidor grava tudo ou nada). Antes: `forEach` sem await disparava uma
+   * gravação solta por linha. Duplo clique bloqueado enquanto envia.
+   */
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    const nascimentosValidos = formData.nascimentos.filter(n => parseInt(n.quantidade) > 0 && n.sexo);
-    if (nascimentosValidos.length === 0) {
-      alert("Preencha pelo menos um nascimento com quantidade e sexo");
+    if (saving) return;
+    const preenchidas = formData.nascimentos.filter(n => n.quantidade !== "" || n.sexo);
+    const invalida = preenchidas.find(n => !n.sexo || !n.categoria_mae || !(Number(n.quantidade) > 0) || !Number.isInteger(Number(n.quantidade)));
+    if (preenchidas.length === 0 || invalida) {
+      alert("Preencha cada linha com categoria da mãe, sexo e quantidade inteira maior que zero");
       return;
     }
-    
-    nascimentosValidos.forEach(nascimento => {
-      onSubmit({
+    setSaving(true);
+    try {
+      await onSubmit({
         data_nascimento: formData.data_nascimento,
-        categoria_mae: nascimento.categoria_mae,
-        quantidade: parseInt(nascimento.quantidade),
-        sexo: nascimento.sexo,
-        peso_medio: nascimento.peso_medio ? parseFloat(nascimento.peso_medio) : null,
-        observacoes: formData.observacoes
+        observacoes: formData.observacoes,
+        linhas: preenchidas.map(n => ({
+          categoria_mae: n.categoria_mae,
+          quantidade: parseInt(n.quantidade, 10),
+          sexo: n.sexo,
+          peso_medio: n.peso_medio ? parseFloat(n.peso_medio) : null,
+        })),
       });
-    });
+    } finally {
+      setSaving(false);
+    }
   };
 
   const adicionarCategoria = () => {
@@ -209,8 +222,8 @@ export default function FormularioNascimento({ lote, onSubmit, onCancel }) {
             <Textarea value={formData.observacoes} onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })} className="text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" rows={2} />
           </FL>
           <div className="flex justify-end gap-1 pt-1 border-t">
-            <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-7 text-xs">Cancelar</Button>
-            <Button type="submit" size="sm" className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white">Registrar Nascimentos</Button>
+            <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-7 text-xs" disabled={saving}>Cancelar</Button>
+            <Button type="submit" size="sm" className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white" disabled={saving}>{saving ? 'Salvando...' : 'Registrar Nascimentos'}</Button>
           </div>
         </form>
       </CardContent>

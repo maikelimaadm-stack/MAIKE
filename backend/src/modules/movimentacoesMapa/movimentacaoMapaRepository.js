@@ -86,7 +86,12 @@ const condicoesHistorico = (clienteId, filtro, comCursor) => {
   }
   if (loteIds.length || nomes.length) {
     partes.push(
-      Prisma.sql`(m.dados->>'lote_id' = ANY(${loteIds}::text[]) OR (COALESCE(m.dados->>'lote_id', '') = '' AND lower(btrim(m.dados->>'lote')) = ANY(${nomes}::text[])))`
+      // R2B-P1 (D-PROD-101): movimento agregado acha TODOS os participantes
+      // (`lote_ids` e `efeito_servidor.efeitos[].lote_id`), não só o primário.
+      Prisma.sql`(m.dados->>'lote_id' = ANY(${loteIds}::text[])
+        OR EXISTS (SELECT 1 FROM jsonb_array_elements_text(CASE WHEN jsonb_typeof(m.dados->'lote_ids') = 'array' THEN m.dados->'lote_ids' ELSE '[]'::jsonb END) AS li(id) WHERE li.id = ANY(${loteIds}::text[]))
+        OR EXISTS (SELECT 1 FROM jsonb_array_elements(CASE WHEN jsonb_typeof(m.dados->'efeito_servidor'->'efeitos') = 'array' THEN m.dados->'efeito_servidor'->'efeitos' ELSE '[]'::jsonb END) AS ef(val) WHERE ef.val->>'lote_id' = ANY(${loteIds}::text[]))
+        OR (COALESCE(m.dados->>'lote_id', '') = '' AND lower(btrim(m.dados->>'lote')) = ANY(${nomes}::text[])))`
     );
   }
   if (comCursor && filtro.cursor) {

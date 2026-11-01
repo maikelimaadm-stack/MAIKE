@@ -310,8 +310,12 @@ describe('P1 — Morte e Abate pelo comando atômico', () => {
     const l = await criarLote(c, { area: c.A });
     const porNome = await criarMov(c, { tipo: 'Morte', lote: l.nome, quantidade_animais: 5, area_origem_id: c.A.id });
     assert.equal((await cancelar(c, porNome.id)).json().code, 'CANCELAMENTO_VINCULO_AMBIGUO');
+    const juncao = await criarMov(c, { tipo: 'Junção de Lotes', lote: l.nome, lote_id: l.id, quantidade_animais: 500, area_origem_id: c.A.id });
+    assert.equal((await cancelar(c, juncao.id)).json().code, 'CANCELAMENTO_TIPO_NAO_SUPORTADO');
+    // R2B-P1 (D-PROD-101): Pesagem passou a ser tipo certificado; a legada (sem
+    // proveniência do comando do rebanho) segue recusada, como a Morte legada.
     const pesagem = await criarMov(c, { tipo: 'Pesagem', lote: l.nome, lote_id: l.id, quantidade_animais: 500, area_origem_id: c.A.id });
-    assert.equal((await cancelar(c, pesagem.id)).json().code, 'CANCELAMENTO_TIPO_NAO_SUPORTADO');
+    assert.equal((await cancelar(c, pesagem.id)).json().code, 'CANCELAMENTO_EFEITO_NAO_COMPROVADO');
     assert.equal((await lote(l.id)).quantidade_cabecas, 500);
   });
 });

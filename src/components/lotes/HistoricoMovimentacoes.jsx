@@ -1,4 +1,5 @@
 import { getApiErrorMessage } from "@/apis/_core/ApiError";
+import { descreverLinhasDoMovimento, idsDeLotesDoMovimento } from "@/domain/lotes/manejoRebanho";
 import React from "react";
 import {
   Card as CardUi,
@@ -128,6 +129,9 @@ const movimentoComoItem = (mov, areasRaw) => ({
   area_destino_id: mov.area_destino_id,
   cancelado: ehMovimentoCancelado(mov),
   cancelamento: mov.cancelamento || null,
+  // R2B-P1 (D-PROD-101): movimento agregado mostra cada linha (quantidade, categorias, pesos).
+  linhas_descritas: descreverLinhasDoMovimento(mov),
+  participantes: idsDeLotesDoMovimento(mov),
   raw: mov,
 });
 
@@ -251,7 +255,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
   // Lote excluído do Cadastro (MAIKE-LOTES-R1): o movimento cancelado continua
   // aqui; o servidor resolve a identidade do lote (inclusive excluído) por id.
   const idsDeLotesCancelados = React.useMemo(
-    () => [...new Set(movimentacoesCarregadas.filter(ehMovimentoCancelado).map((m) => m.lote_id).filter(Boolean))].sort(),
+    () => [...new Set(movimentacoesCarregadas.filter(ehMovimentoCancelado).flatMap(idsDeLotesDoMovimento))].sort(),
     [movimentacoesCarregadas]
   );
   const lotesExcluidosQuery = useQuery({
@@ -539,6 +543,12 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
                           <div><strong>Trajeto:</strong> {item.area_origem_nome || '-'} → {item.area_destino_nome || '-'}</div>
                         )}
                         {!!item.peso_medio && <div><strong>Peso médio:</strong> {item.peso_medio} kg</div>}
+                        {item.linhas_descritas?.length > 0 && (
+                          <ul className="list-disc pl-4 space-y-0.5 break-words" data-testid="linhas-do-manejo">
+                            {item.linhas_descritas.map((texto, i) => <li key={i}>{texto}</li>)}
+                          </ul>
+                        )}
+                        {item.participantes?.length > 1 && <div><strong>Lotes envolvidos:</strong> {item.participantes.length}</div>}
                         <div><strong>Origem:</strong> {item.sourceLabel}</div>
                         {!!item.observacoes && <div className="break-words"><strong>Detalhes:</strong> {formatHistoricoObservacoes(item)}</div>}
                         {item.source === 'suplementacao' && (
@@ -553,7 +563,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
                             {item.cancelamento?.motivo ? ` — Motivo: ${item.cancelamento.motivo}` : ''}
                           </div>
                         )}
-                        {item.cancelado && item.raw?.lote_id && lotesExcluidos.has(item.raw.lote_id) && (
+                        {item.cancelado && item.participantes?.some((id) => lotesExcluidos.has(id)) && (
                           <div className="text-[10px] text-slate-500">Lote excluído do Cadastro — registro mantido para auditoria.</div>
                         )}
                         {item.source === 'movimentacao' && !item.cancelado && motivoSemCancelamento(item.raw) && (

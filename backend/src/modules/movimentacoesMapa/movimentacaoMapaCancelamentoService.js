@@ -28,12 +28,24 @@ import { registrarEvento } from '../auditoria/auditService.js';
 import { buscarNomesDeAreas } from './movimentacaoMapaRepository.js';
 import { CAMPOS_IDENTIFICACAO_LOTE, CAMPOS_MATERIAIS_LOTE, COMANDO_MANEJO, TIPO_OPERACAO_MANEJO, estadoDe, identificacaoDe } from './manejoMapaComandoService.js';
 import { comoLotePublico } from '../lotes/loteService.js';
+import {
+  COMANDO_REBANHO,
+  TIPO_OPERACAO_REBANHO,
+  TIPOS_DO_COMANDO_REBANHO,
+  divergenciasRebanho,
+  estadoRebanhoDe,
+  pesoNormal,
+} from './manejoRebanhoComandoService.js';
 
 export const TIPO_OPERACAO_CANCELAMENTO = 'cancelamento_movimentacao_mapa';
 export const SITUACAO_CANCELADO = 'cancelado';
 
-/** Tipos com cancelamento certificado neste slice. */
-export const TIPOS_CANCELAVEIS = Object.freeze(['Morte', 'Abate', 'Transferência de Área']);
+/** Tipos com cancelamento certificado: R2A (D-PROD-99) + R2B-P1 (D-PROD-101). */
+export const TIPOS_CANCELAVEIS_R2A = Object.freeze(['Morte', 'Abate', 'Transferência de Área']);
+export const TIPOS_CANCELAVEIS = Object.freeze([...TIPOS_CANCELAVEIS_R2A, ...TIPOS_DO_COMANDO_REBANHO]);
+
+/** Comandos com proveniência certificada (efeito + operação idempotente). */
+export const COMANDOS_CERTIFICADOS = Object.freeze([COMANDO_MANEJO, COMANDO_REBANHO]);
 
 /** Modos de transferência gravados pelo `DetalhesLote` a partir da R2A. */
 export const MODOS_TRANSFERENCIA = Object.freeze([
@@ -214,7 +226,7 @@ const exigirSemAlteracaoPosterior = async (tx, clienteId, mov, efeitos, ancoras)
           CASE WHEN jsonb_typeof(m.dados->'efeito_servidor'->'efeitos') = 'array' THEN m.dados->'efeito_servidor'->'efeitos' ELSE '[]'::jsonb END
         ) AS e(val)
        WHERE m.cliente_id = ${clienteId} AND m.empresa_id = ${mov.empresa_id} AND m.id <> ${mov.id}
-         AND m.dados->'efeito_servidor'->>'comando' = ${COMANDO_MANEJO}
+         AND m.dados->'efeito_servidor'->>'comando' = ANY(${[...COMANDOS_CERTIFICADOS]}::text[])
          AND e.val->>'auditoria_id' = ANY(${ids}::text[])
       UNION ALL
       SELECT e.val->>'auditoria_id' AS aid, 'cancelamento' AS fonte, m.id AS mov_id, m.dados->>'situacao' AS situacao
@@ -282,6 +294,16 @@ const dependenciasPosteriores = async (tx, clienteId, mov, { loteIds, nomes, are
         AND (
           m.dados->>'lote_id' = ANY(${lotes}::text[])
           OR m.dados->>'lote_destino_id' = ANY(${lotes}::text[])
+          OR EXISTS (
+            SELECT 1 FROM jsonb_array_elements_text(
+              CASE WHEN jsonb_typeof(m.dados->'lote_ids') = 'array' THEN m.dados->'lote_ids' ELSE '[]'::jsonb END
+            ) AS li(id) WHERE li.id = ANY(${lotes}::text[])
+          )
+          OR EXISTS (
+            SELECT 1 FROM jsonb_array_elements(
+              CASE WHEN jsonb_typeof(m.dados->'efeito_servidor'->'efeitos') = 'array' THEN m.dados->'efeito_servidor'->'efeitos' ELSE '[]'::jsonb END
+            ) AS ef(val) WHERE ef.val->>'lote_id' = ANY(${lotes}::text[])
+          )
           OR EXISTS (SELECT 1 FROM unnest(${lotes}::text[]) AS l(id) WHERE position(l.id IN COALESCE(m.dados->>'observacoes', '')) > 0)
           OR (COALESCE(m.dados->>'lote_id', '') = '' AND upper(btrim(COALESCE(m.dados->>'lote', ''))) = ANY(${nomesUp}::text[]))
           ${porArea}
@@ -327,7 +349,8 @@ export const planejarCancelamento = async (tx, clienteId, id, { travar }) => {
   if (d.situacao === SITUACAO_CANCELADO) {
     throw recusa('CANCELAMENTO_JA_REALIZADO', 'a movimentação já está cancelada');
   }
-  if (!TIPOS_CANCELAVEIS.includes(d.tipo) || texto(d.motivo)) {
+  if (TIPOS_DO_COMANDO_REBANHO.includes(d.tipo)) return planejarCancelamentoRebanho(tx, clienteId, mov, { travar });
+  if (!TIPOS_CANCELAVEIS_R2A.includes(d.tipo) || texto(d.motivo)) {
     throw recusa('CANCELAMENTO_TIPO_NAO_SUPORTADO', 'cancelamento ainda não disponível para este tipo', { tipo: d.tipo ?? null, motivo: d.motivo ?? null });
   }
   if (!texto(d.lote_id)) {
@@ -425,6 +448,173 @@ export const planejarCancelamento = async (tx, clienteId, id, { travar }) => {
     }
   }
   return { mov, tipo: d.tipo, modo: efeito.modo ?? null, quantidade: Number(d.quantidade_animais), efeitos };
+};
+
+// ─── R2B-P1: Nascimento, Pesagem, Mudança de Categoria (D-PROD-101) ────────
+
+/** Proveniência R2B: efeito reservado + operação idempotente confirmada apontando para ESTE movimento. */
+const exigirProvenienciaRebanho = async (tx, clienteId, mov) => {
+  const d = /** @type {Record<string, any>} */ (mov.dados || {});
+  const efeito = d.efeito_servidor;
+  const completo = (x) => !!x && typeof x === 'object' && !divergenciasRebanho(x, x).length;
+  const valido =
+    efeito &&
+    typeof efeito === 'object' &&
+    efeito.comando === COMANDO_REBANHO &&
+    typeof efeito.operation_id === 'string' &&
+    Array.isArray(efeito.efeitos) &&
+    efeito.efeitos.length > 0 &&
+    efeito.efeitos.every((x) => x && typeof x.lote_id === 'string' && typeof x.auditoria_id === 'string' && completo(x.antes) && completo(x.depois)) &&
+    Array.isArray(d.lote_ids) &&
+    d.lote_ids.length === efeito.efeitos.length &&
+    efeito.efeitos.every((x, i) => d.lote_ids[i] === x.lote_id) &&
+    new Set(d.lote_ids).size === d.lote_ids.length;
+  if (!valido) {
+    throw recusa('CANCELAMENTO_EFEITO_NAO_COMPROVADO', 'registro sem comprovação individual de efeito (anterior ao comando atômico)');
+  }
+  const operacao = await tx.operacaoIdempotente.findUnique({
+    where: {
+      cliente_id_operation_key_tipo_operacao: { cliente_id: clienteId, operation_key: efeito.operation_id, tipo_operacao: TIPO_OPERACAO_REBANHO },
+    },
+  });
+  const resposta = /** @type {any} */ (operacao?.response_json);
+  if (!operacao || operacao.status !== 'committed' || resposta?.movimentacao?.id !== mov.id) {
+    throw recusa('CANCELAMENTO_EFEITO_NAO_COMPROVADO', 'operação que gerou o efeito não confere com este movimento');
+  }
+  return efeito;
+};
+
+/** Âncora: a linha de AuditLog gravada pelo comando registra exatamente o pós-estado (todos os campos R2B). */
+const exigirAuditoriaRebanho = async (tx, clienteId, efeitos) => {
+  const linhas = await tx.auditLog.findMany({
+    where: { cliente_id: clienteId, id: { in: efeitos.map((x) => x.auditoria_id) }, entidade: 'Lote' },
+    select: { id: true, entidade_id: true, acao: true, dados_novos: true, createdAt: true },
+  });
+  const porId = new Map(linhas.map((l) => [l.id, l]));
+  const ancoras = new Map();
+  for (const x of efeitos) {
+    const linha = porId.get(x.auditoria_id);
+    const acaoEsperada = x.criado ? 'create' : 'update';
+    if (!linha || linha.entidade_id !== x.lote_id || linha.acao !== acaoEsperada || divergenciasRebanho(linha.dados_novos, x.depois).length) {
+      throw recusa('CANCELAMENTO_EFEITO_NAO_COMPROVADO', 'a auditoria original do efeito não confere', { lote_id: x.lote_id });
+    }
+    ancoras.set(x.lote_id, linha);
+  }
+  return ancoras;
+};
+
+/**
+ * Toda alteração posterior de saldo, situação, área, classificação, sexo ou
+ * PESO num participante precisa ser explicada por manejo comprovado JÁ
+ * cancelado. PATCH direto (inclusive ida e volta) ou manejo posterior ativo
+ * bloqueiam: o cancelamento é da mais nova para a mais antiga.
+ */
+const exigirSemAlteracaoPosteriorRebanho = async (tx, clienteId, mov, efeitos, ancoras) => {
+  const proprios = new Set(efeitos.map((x) => x.auditoria_id));
+  const desde = new Date(Math.min(...[...ancoras.values()].map((a) => a.createdAt.getTime())));
+  const linhas = await tx.auditLog.findMany({
+    where: { cliente_id: clienteId, entidade: 'Lote', entidade_id: { in: efeitos.map((x) => x.lote_id) }, createdAt: { gte: desde } },
+    select: { id: true, entidade_id: true, acao: true, dados_anteriores: true, dados_novos: true, createdAt: true },
+  });
+  const suspeitas = linhas.filter((l) => {
+    if (proprios.has(l.id)) return false;
+    const a = ancoras.get(l.entidade_id).createdAt.getTime();
+    const t = l.createdAt.getTime();
+    if (t < a) return false;
+    if (t === a && l.acao === 'create') return false;
+    return l.acao !== 'update' || !l.dados_anteriores || !l.dados_novos || divergenciasRebanho(l.dados_anteriores, l.dados_novos).length > 0;
+  });
+  if (!suspeitas.length) return;
+  const ids = suspeitas.map((l) => l.id);
+  const explicadas = /** @type {Array<{aid: string, fonte: string, mov_id: string, situacao: string|null}>} */ (
+    await tx.$queryRaw`
+      SELECT e.val->>'auditoria_id' AS aid, 'efeito' AS fonte, m.id AS mov_id, m.dados->>'situacao' AS situacao
+        FROM "MovimentacaoMapa" m
+        CROSS JOIN LATERAL jsonb_array_elements(
+          CASE WHEN jsonb_typeof(m.dados->'efeito_servidor'->'efeitos') = 'array' THEN m.dados->'efeito_servidor'->'efeitos' ELSE '[]'::jsonb END
+        ) AS e(val)
+       WHERE m.cliente_id = ${clienteId} AND m.empresa_id = ${mov.empresa_id} AND m.id <> ${mov.id}
+         AND m.dados->'efeito_servidor'->>'comando' = ANY(${[...COMANDOS_CERTIFICADOS]}::text[])
+         AND e.val->>'auditoria_id' = ANY(${ids}::text[])
+      UNION ALL
+      SELECT e.val->>'auditoria_id' AS aid, 'cancelamento' AS fonte, m.id AS mov_id, m.dados->>'situacao' AS situacao
+        FROM "MovimentacaoMapa" m
+        CROSS JOIN LATERAL jsonb_array_elements(
+          CASE WHEN jsonb_typeof(m.dados->'cancelamento'->'efeitos') = 'array' THEN m.dados->'cancelamento'->'efeitos' ELSE '[]'::jsonb END
+        ) AS e(val)
+       WHERE m.cliente_id = ${clienteId} AND m.empresa_id = ${mov.empresa_id} AND m.id <> ${mov.id}
+         AND m.dados->>'situacao' = ${SITUACAO_CANCELADO}
+         AND e.val->>'auditoria_id' = ANY(${ids}::text[])`
+  );
+  const porAid = new Map(explicadas.map((x) => [x.aid, x]));
+  for (const l of suspeitas) {
+    const x = porAid.get(l.id);
+    if (x && x.fonte === 'efeito' && x.situacao !== SITUACAO_CANCELADO) {
+      throw recusa('CANCELAMENTO_DEPENDENCIA_POSTERIOR', 'há movimento posterior ativo sobre o lote', { lote_id: l.entidade_id, movimentacao_id: x.mov_id });
+    }
+    if (!x) {
+      throw recusa(
+        'CANCELAMENTO_ALTERACAO_POSTERIOR',
+        'o lote teve alteração de saldo, classificação ou peso depois deste movimento, fora de um manejo comprovado; a reversão não é comprovável',
+        { lote_id: l.entidade_id }
+      );
+    }
+  }
+};
+
+/** Campos que o cancelamento R2B grava (área e empresa nunca mudam neste comando). */
+const CAMPOS_REVERSAO_REBANHO = Object.freeze(['quantidade_cabecas', 'status', 'categoria', 'categoria_manejo_id', 'categoria_manejo_nome', 'sexo', 'peso_medio_kg']);
+
+const planejarCancelamentoRebanho = async (tx, clienteId, mov, { travar }) => {
+  const d = /** @type {Record<string, any>} */ (mov.dados || {});
+  if (texto(d.motivo)) {
+    throw recusa('CANCELAMENTO_TIPO_NAO_SUPORTADO', 'cancelamento ainda não disponível para este tipo', { tipo: d.tipo ?? null, motivo: d.motivo ?? null });
+  }
+  const efeito = await exigirProvenienciaRebanho(tx, clienteId, mov);
+  const ids = efeito.efeitos.map((x) => x.lote_id);
+  const lotes = await buscarLotes(tx, clienteId, ids, travar);
+  for (const x of efeito.efeitos) {
+    const lote = lotes.get(x.lote_id);
+    if (!lote || lote.empresa_id !== mov.empresa_id) {
+      throw recusa('CANCELAMENTO_VINCULO_AMBIGUO', 'lote do efeito não encontrado nesta empresa', { lote_id: x.lote_id });
+    }
+    // O comando R2B nunca muda área nem empresa: efeito que diga o contrário não é deste fluxo.
+    if ((x.antes.area_atual_id ?? null) !== (x.depois.area_atual_id ?? null) || (x.antes.empresa_id ?? null) !== (x.depois.empresa_id ?? null)) {
+      throw recusa('CANCELAMENTO_EFEITO_NAO_COMPROVADO', 'efeito com mudança de área ou empresa não suportada', { lote_id: x.lote_id });
+    }
+    if (!Number.isInteger(x.antes.quantidade_cabecas) || x.antes.quantidade_cabecas < 0) {
+      throw recusa('CANCELAMENTO_EFEITO_NAO_COMPROVADO', 'pré-estado inválido no efeito', { lote_id: x.lote_id });
+    }
+  }
+  const ancoras = await exigirAuditoriaRebanho(tx, clienteId, efeito.efeitos);
+
+  const dependencias = await dependenciasPosteriores(tx, clienteId, mov, {
+    loteIds: ids,
+    nomes: ids.map((i) => lotes.get(i)?.nome),
+    areaIds: [],
+  });
+  if (dependencias.length) {
+    throw recusa('CANCELAMENTO_DEPENDENCIA_POSTERIOR', 'há registro posterior ligado a um lote deste manejo', { dependencias });
+  }
+  await exigirSemAlteracaoPosteriorRebanho(tx, clienteId, mov, efeito.efeitos, ancoras);
+
+  const efeitos = [];
+  for (const x of efeito.efeitos) {
+    const lote = lotes.get(x.lote_id);
+    const campos = divergenciasRebanho(estadoRebanhoDe(lote), x.depois);
+    if (campos.length) {
+      throw recusa('CANCELAMENTO_ESTADO_DIVERGENTE', 'o estado atual do lote não é o que o movimento deixou', { lote_id: lote.id, campos });
+    }
+    const atual = estadoRebanhoDe(lote);
+    /** @type {Record<string, any>} */ const antes = {};
+    /** @type {Record<string, any>} */ const depois = {};
+    for (const k of CAMPOS_REVERSAO_REBANHO) {
+      antes[k] = atual[k];
+      depois[k] = k === 'peso_medio_kg' ? pesoNormal(x.antes[k]) : x.antes[k] ?? null;
+    }
+    efeitos.push({ lote_id: lote.id, lote_nome: lote.nome, criado: !!x.criado, antes, depois });
+  }
+  return { mov, tipo: d.tipo, modo: null, quantidade: Number(d.quantidade_animais), efeitos };
 };
 
 // ─── Comando ───────────────────────────────────────────────────────────────

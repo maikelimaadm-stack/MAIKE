@@ -17,6 +17,7 @@ import {
   cancelarMovimentacaoMapa,
   elegibilidadeCancelamentoMovimentacaoMapa,
   executarManejoLote,
+  executarManejoRebanho,
 } from '@/apis/movimentacoes-mapa';
 import { ehMovimentoAtivo } from '@/domain/lotes/situacaoMovimento';
 import { listMovimentacoesPecuariaNativas } from '@/apis/movimentacoes-pecuaria';
@@ -132,6 +133,17 @@ export const registrarManejoLoteServidor = async (corpo) => {
   const contexto = ctx('registrarManejoLote');
   assertArgument(isObjeto(corpo) && isId(corpo.operation_id) && isId(corpo.lote_id), 'corpo', contexto);
   return runProviderCall(() => executarManejoLote(corpo), { ...contexto, details: { lote_id: corpo.lote_id } });
+};
+
+/**
+ * Comando atômico do rebanho (R2B-P1, D-PROD-101): Nascimento, Pesagem ou
+ * Mudança de Categoria com todas as linhas numa transação no servidor.
+ * Resposta `{movimentacao, lotes, replay}`. Nunca vai para a fila offline.
+ */
+export const registrarManejoRebanhoServidor = async (corpo) => {
+  const contexto = ctx('registrarManejoRebanho');
+  assertArgument(isObjeto(corpo) && isId(corpo.operation_id) && isId(corpo.area_id) && Array.isArray(corpo.linhas), 'corpo', contexto);
+  return runProviderCall(() => executarManejoRebanho(corpo), { ...contexto, details: { area_id: corpo.area_id, tipo: corpo.tipo } });
 };
 
 export const consultarElegibilidadeCancelamento = async (id) => {

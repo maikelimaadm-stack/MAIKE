@@ -26,6 +26,11 @@ export const CAMPOS_RESERVADOS_CANCELAMENTO = Object.freeze([
   'efeito_servidor',
   'modo_transferencia',
   'lote_destino_id',
+  // R2B-P1 (D-PROD-101): participantes e linhas do movimento agregado são
+  // escritos só pelo comando `/movimentacoes-mapa/comandos/manejo-rebanho`.
+  'lote_ids',
+  'linhas',
+  'modo_pesagem',
 ]);
 
 /** @param {unknown} entrada */
