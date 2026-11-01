@@ -1,0 +1,35 @@
+// Semente sintética R2A-R2 no banco LOCAL de demonstração, pelo fluxo HTTP do app.
+const API = 'http://127.0.0.1:3334';
+const [tag, pastoNome, transfOrigem, transfDestino] = process.argv.slice(2);
+const login = async (l, s) => (await (await fetch(`${API}/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ login: l, senha: s }) })).json()).token;
+const T = await login('demo.operador', 'senha-demo-local-123');
+const call = async (metodo, url, corpo) => {
+  const r = await fetch(`${API}${url}`, { method: metodo, headers: { authorization: `Bearer ${T}`, 'content-type': 'application/json' }, body: corpo ? JSON.stringify(corpo) : undefined });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(`${metodo} ${url} ${r.status} ${j.code || ''}`);
+  return j;
+};
+const E = 'cmvwd6au200037d5t9qk00js3', S = 'cmvwd6auy00087d5tqtm2rk09';
+const lista = await call('GET', '/areas-pastagem?limit=500').then((a) => (Array.isArray(a) ? a : a.items));
+const area = (nome) => lista.find((a) => a.nome === nome);
+const PASTO = area(pastoNome), CURRAL = area('CURRAL 1'), TO = area(transfOrigem), TD = area(transfDestino);
+const lote = (nome, qtd, a) => call('POST', '/lotes', { empresa_id: E, nome, quantidade_cabecas: qtd, categoria: 'BOI', sexo: 'Macho', setor_id: S, area_entrada_id: a.id, area_atual_id: a.id, data_entrada: '2026-10-01', motivo_entrada: 'Compra', status: 'Ativo' });
+const manejo = (corpo) => call('POST', '/movimentacoes-mapa/comandos/manejo-lote', { empresa_id: E, data_movimentacao: '2026-10-31T12:00:00.000Z', ...corpo });
+// Transferência parcial para lote novo (área dedicada, sem outros registros).
+const lt = await lote(`TRANSF ${tag}`, 100, TO);
+await manejo({ operation_id: `seed-transf-${tag}-${lt.id}`, tipo: 'Transferência de Área', lote_id: lt.id, quantidade_animais: 30, area_destino_id: TD.id });
+// Morte cancelável.
+const lm = await lote(`MORTE ${tag}`, 500, PASTO);
+await manejo({ operation_id: `seed-morte-${tag}-${lm.id}`, tipo: 'Morte', lote_id: lm.id, quantidade_animais: 50, observacoes: 'Categoria: BOI. Causa: sintética.' });
+// Morte seguida de correção direta válida (CAS ok): cancelamento tem de ser recusado.
+const lb = await lote(`BLOQ ${tag}`, 500, PASTO);
+await manejo({ operation_id: `seed-bloq-${tag}-${lb.id}`, tipo: 'Morte', lote_id: lb.id, quantidade_animais: 50, observacoes: 'Categoria: BOI. Causa: sintética.' });
+await call('PATCH', `/lotes/${lb.id}`, { quantidade_cabecas: 400, estado_esperado: { quantidade_cabecas: 450 } });
+// Abate no curral.
+const la = await lote(`ABATE ${tag}`, 30, CURRAL);
+await manejo({ operation_id: `seed-abate-${tag}-${la.id}`, tipo: 'Abate', lote_id: la.id, quantidade_animais: 30, observacoes: 'Destino: frigorífico sintético.' });
+// Legado (sem proveniência).
+const lg = await lote(`LEGADO ${tag}`, 200, PASTO);
+await call('POST', '/movimentacoes-mapa', { empresa_id: E, tipo: 'Morte', lote: lg.nome, lote_id: lg.id, quantidade_animais: 20, area_origem_id: PASTO.id, data_movimentacao: '2026-10-30T12:00:00.000Z', observacoes: 'Categoria: BOI. Legado sintético.' });
+await call('PATCH', `/lotes/${lg.id}`, { quantidade_cabecas: 180, estado_esperado: { quantidade_cabecas: 200 } });
+console.log(JSON.stringify({ pasto: PASTO.nome, transfOrigem: TO.nome, morte: lm.id, bloq: lb.id, abate: la.id, legado: lg.id, transf: lt.id }));

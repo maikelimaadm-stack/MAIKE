@@ -1,0 +1,136 @@
+// R2A-R2 E2E: cancelamento comprovado, recusa por intervenção posterior (saldo intacto, retry),
+// transferência, legado, curral, histórico offline; sem DELETE/PATCH de movimento no navegador.
+const { chromium } = require('playwright');
+const { execFileSync } = require('node:child_process');
+const W = Number(process.argv[2]), H = Number(process.argv[3]), BASE = process.argv[4];
+const [PASTO, TO, TD] = process.argv.slice(5);
+const TAG = `${BASE}-${Date.now().toString(36).slice(-4)}`;
+const OUT = '/tmp/claude-0/r2a-r2';
+const API = 'http://127.0.0.1:3334';
+const res = [];
+const ok = (nome, cond, extra = '') => res.push(`${cond ? 'PASS' : 'FAIL'} ${BASE} ${nome}${extra ? ' — ' + String(extra).slice(0, 170) : ''}`);
+const seed = JSON.parse(execFileSync('node', ['/tmp/claude-0/seed-r2.mjs', TAG, PASTO, TO, TD]).toString().trim().split('\n').pop());
+(async () => {
+  const { token } = await (await fetch(`${API}/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ login: 'demo.operador', senha: 'senha-demo-local-123' }) })).json();
+  const get = async (u) => (await fetch(`${API}${u}`, { headers: { authorization: `Bearer ${token}` } })).json();
+  const loteApi = async (id) => { const l = await get('/lotes?limit=500'); return (Array.isArray(l) ? l : l.items).find((x) => x.id === id); };
+  const movDoLote = async (id) => { const m = await get('/movimentacoes-mapa?limit=500'); return (Array.isArray(m) ? m : m.items).find((x) => x.lote_id === id); };
+
+  const browser = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader'] });
+  const mobile = W < 800;
+  const ctx = await browser.newContext({ viewport: { width: W, height: H }, isMobile: mobile, hasTouch: mobile });
+  const page = await ctx.newPage();
+  const erros = []; page.on('pageerror', (e) => erros.push(e.message.slice(0, 160)));
+  const perigosos = [], cancelamentos = [], patchLotes = [];
+  page.on('request', (r) => {
+    const u = r.url();
+    if (['DELETE', 'PATCH'].includes(r.method()) && /movimentacoes-(mapa|estoque|pecuaria)|suplementacao-(eventos|lotes)/.test(u)) perigosos.push(`${r.method()} ${u}`);
+    if (r.method() === 'POST' && /\/cancelamento$/.test(u)) cancelamentos.push(u);
+    if (r.method() === 'PATCH' && /\/lotes\//.test(u)) patchLotes.push(r.postData() || '');
+  });
+  await page.goto('http://127.0.0.1:5180/', { waitUntil: 'networkidle' });
+  await page.locator('input').nth(0).fill('demo.operador');
+  await page.locator('input[type=password]').fill('senha-demo-local-123');
+  await page.keyboard.press('Enter');
+  await page.waitForURL(/mapageral/i, { timeout: 20000 });
+  await page.waitForTimeout(6000);
+  const tocar = async (loc) => { if (mobile) await loc.tap({ force: true }); else await loc.click({ force: true }); };
+  const fechar = async () => { for (let i = 0; i < 3; i++) { await page.keyboard.press('Escape'); await page.waitForTimeout(250); } await page.waitForTimeout(400); };
+  const abrirArea = async (nome) => {
+    const box = await page.getByText(nome, { exact: true }).first().boundingBox();
+    const x = box.x + box.width / 2, y = box.y + 1;
+    if (mobile) await page.touchscreen.tap(x, y); else await page.mouse.click(x, y);
+    await page.waitForTimeout(2500);
+  };
+  const dlg = () => page.getByRole('dialog').last();
+  const txt = async () => (await dlg().innerText().catch(() => '')).replace(/\n+/g, ' | ');
+  const semOverflow = async () => !(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1));
+  const item = (texto) => page.locator('div.border.rounded-lg').filter({ hasText: texto }).filter({ has: page.getByRole('button', { name: 'Cancelar movimentação' }) }).first();
+  const itemQualquer = (texto) => page.locator('div.border.rounded-lg').filter({ hasText: texto }).first();
+
+  // 1) Morte cancelável
+  await abrirArea(seed.pasto);
+  await tocar(item(`MORTE ${TAG}`).getByRole('button', { name: 'Cancelar movimentação' }));
+  await page.getByText('450 → 500 cab').first().waitFor({ timeout: 15000 });
+  await page.getByLabel('Motivo do cancelamento').fill('Lançamento sintético de teste E2E');
+  await page.screenshot({ path: `${OUT}/${BASE}-01-morte-dialogo.png` });
+  await tocar(page.getByRole('button', { name: 'Confirmar cancelamento' }));
+  await itemQualquer(`MORTE ${TAG}`).filter({ hasText: /Cancelado em .* por demo\.operador — Motivo: Lançamento sintético/ }).waitFor({ timeout: 15000 });
+  ok('morte: cancelada no histórico com ator e motivo', true);
+  ok('morte: saldo 500 na API', (await loteApi(seed.morte))?.quantidade_cabecas === 500);
+  ok('sem rolagem horizontal', await semOverflow());
+  await itemQualquer(`MORTE ${TAG}`).scrollIntoViewIfNeeded();
+  await page.screenshot({ path: `${OUT}/${BASE}-02-morte-cancelada.png` });
+
+  // 2) Morte com correção direta posterior (PATCH 450→400): recusa, nada muda, retry idem
+  const saldoAntes = (await loteApi(seed.bloq))?.quantidade_cabecas;
+  const tentar = async (n) => {
+    await tocar(item(`BLOQ ${TAG}`).getByRole('button', { name: 'Cancelar movimentação' }));
+    await page.getByText(/correção direta, sem manejo comprovado/).first().waitFor({ timeout: 15000 });
+    const t = await txt();
+    ok(`bloqueado (tentativa ${n}): explica, diz que nada mudou, sem confirmar e sem sugerir exclusão`,
+      /Nada foi alterado/.test(t) && /conciliação assistida/.test(t) && !/exclu/i.test(t) && (await page.getByRole('button', { name: 'Confirmar cancelamento' }).count()) === 0, t.slice(0, 170));
+    if (n === 1) await page.screenshot({ path: `${OUT}/${BASE}-03-bloqueado-intervencao.png` });
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(600);
+  };
+  await tentar(1);
+  await tentar(2);
+  const movBloq = await movDoLote(seed.bloq);
+  ok('bloqueado: saldo continua 400 (sem crédito de 50) e movimento segue ativo',
+    saldoAntes === 400 && (await loteApi(seed.bloq))?.quantidade_cabecas === 400 && movBloq?.situacao !== 'cancelado', `${saldoAntes} → ${(await loteApi(seed.bloq))?.quantidade_cabecas}`);
+
+  // 3) Legado: mensagem, sem botão
+  const itemLegado = itemQualquer(`LEGADO ${TAG}`);
+  const tl = (await itemLegado.innerText()).replace(/\n+/g, ' | ');
+  ok('legado: mensagem e sem ação', /Registro antigo sem comprovação individual de efeito — cancelamento temporariamente indisponível/.test(tl) && (await itemLegado.getByRole('button', { name: 'Cancelar movimentação' }).count()) === 0);
+  await fechar();
+
+  // 4) Transferência parcial (lote novo): cancela; origem 100, derivado 0 Inativo
+  await abrirArea(seed.transfOrigem);
+  await tocar(item(`TRANSF ${TAG}`).getByRole('button', { name: 'Cancelar movimentação' }));
+  await page.getByText('70 → 100 cab').first().waitFor({ timeout: 15000 });
+  await page.getByLabel('Motivo do cancelamento').fill('Transferência sintética lançada por engano');
+  await page.screenshot({ path: `${OUT}/${BASE}-04-transferencia-dialogo.png` });
+  await tocar(page.getByRole('button', { name: 'Confirmar cancelamento' }));
+  await itemQualquer(`TRANSF ${TAG}`).filter({ hasText: /Cancelado em/ }).waitFor({ timeout: 15000 });
+  const mt = await movDoLote(seed.transf);
+  const derivadoId = mt?.efeito_servidor?.efeitos?.find((e) => e.criado)?.lote_id;
+  const der = derivadoId ? await loteApi(derivadoId) : null;
+  ok('transferência: origem 100 e derivado 0/Inativo na API', (await loteApi(seed.transf))?.quantidade_cabecas === 100 && der?.quantidade_cabecas === 0 && der?.status === 'Inativo', JSON.stringify([der?.quantidade_cabecas, der?.status]));
+  await page.screenshot({ path: `${OUT}/${BASE}-05-transferencia-cancelada.png` });
+  await fechar();
+
+  // 5) Curral: abate
+  await abrirArea('CURRAL 1');
+  ok('curral: sem Excluir', (await dlg().getByRole('button', { name: 'Excluir' }).count()) === 0);
+  await tocar(item(`ABATE ${TAG}`).getByRole('button', { name: 'Cancelar movimentação' }));
+  await page.getByText('0 → 30 cab').first().waitFor({ timeout: 15000 });
+  await page.getByLabel('Motivo do cancelamento').fill('Abate sintético lançado em duplicidade');
+  await tocar(page.getByRole('button', { name: 'Confirmar cancelamento' }));
+  await page.waitForTimeout(3000);
+  const la = await loteApi(seed.abate);
+  ok('curral: abate cancelado, lote 30 Ativo', la?.quantidade_cabecas === 30 && la?.status === 'Ativo');
+  await page.screenshot({ path: `${OUT}/${BASE}-06-curral-abate-cancelado.png` });
+  await fechar();
+
+  // 6) Offline: histórico mostra o cancelado; nada de cancelar
+  await ctx.setOffline(true);
+  await page.waitForTimeout(800);
+  await abrirArea(seed.pasto);
+  await page.getByText(/Movimentações em cache/).first().waitFor({ timeout: 15000 }).catch(() => {});
+  const toff = (await itemQualquer(`MORTE ${TAG}`).innerText().catch(() => '')).replace(/\n+/g, ' | ');
+  ok('offline: morte cancelada visível com motivo e autor', /Cancelado/.test(toff) && /demo\.operador/.test(toff) && /Lançamento sintético/.test(toff), toff.slice(0, 160));
+  ok('offline: nenhuma ação de cancelar habilitada', (await dlg().getByRole('button', { name: 'Cancelar movimentação' }).count()) === 0);
+  await page.screenshot({ path: `${OUT}/${BASE}-07-offline-historico.png` });
+  await fechar();
+  await ctx.setOffline(false);
+
+  const patchSemEstado = patchLotes.filter((b) => /quantidade_cabecas|"status"|area_atual_id|categoria/.test(b) && !/estado_esperado/.test(b));
+  ok('PATCH /lotes do navegador: nenhum operacional sem estado_esperado', patchSemEstado.length === 0, `${patchLotes.length} PATCH`);
+  ok('nenhum DELETE/PATCH de movimento/suplementação no navegador', perigosos.length === 0, perigosos.join(', '));
+  ok('cancelamentos foram POST no comando do servidor (3)', cancelamentos.length === 3, cancelamentos.length);
+  ok('sem erro de página', erros.length === 0, erros.join(' ; '));
+  console.log(res.join('\n'));
+  await browser.close();
+})().catch((e) => { console.log(res.join('\n')); console.log('ERRO', e.message.slice(0, 300)); process.exit(1); });

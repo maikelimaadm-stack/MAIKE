@@ -78,6 +78,37 @@ Execução repetida três vezes: 9/9 em cada rodada.
 - Pendência de cancelamento isolada por **tenant + usuário** (`maike_cancelamento_pendente:<cliente>:<usuario>:<mov>`). O motivo fica bloqueado enquanto o resultado é desconhecido.
 - Cancelamento continua só online, sem fila.
 
+### R2.6a Testes e evidências
+
+| Comando | Resultado |
+|---|---|
+| `node --test backend/tests/r2aR2EstadoCausal.test.mjs` | RED 11/22 falhando no HEAD 1fbfef6 → GREEN **22/22** |
+| `node --test movimentacaoCancelamentoR2A + r2aR1ProvenienciaRed + loteDerivadoIntegridade` | **49/49** |
+| `npm run test:backend` (PostgreSQL 16 local) | **605 testes, 0 falhas** (5 `todo` declarados) |
+| `vitest` smoke completo | 99 arquivos, **1152/1152** |
+| E2E Chromium (backend + Vite locais, `maike_demo` sintético) em 1440, 768, 412 e 390 | **64/64** (16 por largura) |
+| E2E manejo pela UI (Morte no Detalhes do Lote) | **36/36** |
+| lint / `gate:types` / `typecheck:backend` | 0 erros / sem regressão / limpo |
+
+Os 64 testes de cancelamento cobrem, em cada largura:
+- morte cancelada (saldo 500 conferido na API);
+- **morte seguida de correção direta: recusa com a mensagem de conciliação assistida, sem botão de confirmar, duas tentativas, saldo 400 antes e depois, movimento ativo**;
+- legado com mensagem e sem ação;
+- transferência parcial cancelada (origem 100, derivado 0/Inativo);
+- abate do curral;
+- histórico offline com o cancelado;
+- nenhum `DELETE`/`PATCH` de movimento saindo do navegador;
+- PATCH de lote sempre com `estado_esperado`;
+- sem rolagem horizontal e sem erro de página.
+
+No celular, marcadores de lotes sintéticos de execuções anteriores cobriam os rótulos de pasto. Eles foram inativados no banco local de demonstração antes de cada execução (`limpar-sinteticos-demo.mjs.txt`). Não é regressão do produto.
+
+Evidências: `docs/engineering/evidencias/r2a-r2/`
+- `red-*` e `green-*`;
+- `e2e-*.txt`;
+- capturas `01`–`08` por largura;
+- roteiros e semente.
+
 ### R2.7 Riscos residuais
 
 1. `PATCH /lotes` com CAS continua permitindo correção material direta, sem trilha operacional própria; a auditoria registra. O efeito é tornar o movimento anterior **não cancelável**, nunca creditar sem prova. A conciliação assistida fica para slice futuro.

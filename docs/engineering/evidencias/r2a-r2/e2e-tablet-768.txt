@@ -1,0 +1,16 @@
+PASS tablet-768 morte: cancelada no histórico com ator e motivo
+PASS tablet-768 morte: saldo 500 na API
+PASS tablet-768 sem rolagem horizontal
+PASS tablet-768 bloqueado (tentativa 1): explica, diz que nada mudou, sem confirmar e sem sugerir exclusão — Cancelar movimentação | Morte · BLOQ tablet-768-61ai · 50 cab. O registro original continua no histórico, marcado como cancelado. | O lote foi alterado depois desta movim
+PASS tablet-768 bloqueado (tentativa 2): explica, diz que nada mudou, sem confirmar e sem sugerir exclusão — Cancelar movimentação | Morte · BLOQ tablet-768-61ai · 50 cab. O registro original continua no histórico, marcado como cancelado. | O lote foi alterado depois desta movim
+PASS tablet-768 bloqueado: saldo continua 400 (sem crédito de 50) e movimento segue ativo — 400 → 400
+PASS tablet-768 legado: mensagem e sem ação
+PASS tablet-768 transferência: origem 100 e derivado 0/Inativo na API — [0,"Inativo"]
+PASS tablet-768 curral: sem Excluir
+PASS tablet-768 curral: abate cancelado, lote 30 Ativo
+PASS tablet-768 offline: morte cancelada visível com motivo e autor — 31/10/2026 | Morte | Saída | Cancelado | MORTE tablet-768-61ai | Quantidade: 50 cab | Data: 31/10/2026 | Origem: Movimentação | Detalhes: Categoria: BOI. Causa:
+PASS tablet-768 offline: nenhuma ação de cancelar habilitada
+PASS tablet-768 PATCH /lotes do navegador: nenhum operacional sem estado_esperado — 0 PATCH
+PASS tablet-768 nenhum DELETE/PATCH de movimento/suplementação no navegador
+PASS tablet-768 cancelamentos foram POST no comando do servidor (3) — 3
+PASS tablet-768 sem erro de página

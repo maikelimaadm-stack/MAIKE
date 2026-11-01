@@ -1,0 +1,10 @@
+REQS POST /native/auth/login, POST /native/movimentacoes-mapa/comandos/manejo-lote
+PASS mobile-390 abriu o lote certo
+PASS mobile-390 saldo no servidor: QTD → QTD-7 — 874 → 867
+PASS mobile-390 morte foi pelo comando do servidor (1 POST) — 1 POST; corpo: {"operation_id":"manejo-65bc4542-1aa7-4619-b85c-237047bad578-morte-cmvx6bqia00eu7d5l8moqt68v","tipo":"Morte","lote_id":"cmvx6bqia00eu7d5l8moqt68v","qu
+PASS mobile-390 sem POST legado /movimentacoes-mapa
+PASS mobile-390 nenhum PATCH /lotes operacional sem estado_esperado — 0 PATCH operacionais
+PASS mobile-390 nenhum DELETE/PATCH de movimento no navegador
+PASS mobile-390 movimento tem proveniência do servidor
+PASS mobile-390 movimento criado pela UI é elegível ao cancelamento seguro — [[867,874]]
+PASS mobile-390 sem erro de página
