@@ -3615,4 +3615,37 @@ Relatório: `docs/engineering/UX-MOBILE-V2-REPORT.md` (seção V4). Teste: `test
 
 ---
 
-<!-- Próxima decisão: D-PROD-96 -->
+## D-PROD-96 — Ajustes do celular: Anexo ao lado do Salvar, botões cinza sem sombra, colunas e filtros no padrão das folhas, folha sem atraso
+
+**Missão:** UX-MOBILE-V5. Pedidos do proprietário depois de usar a D-PROD-95 no aparelho.
+
+**Decisão:**
+1. **Ações da edição ao lado do ✓.**
+   - Um item de Mais opções com `whileEditing` (Anexos nos Lotes) deixa de ficar no menu durante a edição e vira botão de ícone ao lado do ✓ Salvar.
+   - No celular (< 768 px) ele vai para o cabeçalho do app (`mobileShellContext.record.acoes`), e a barra de ações some inteira na edição: não sobra a linha só com o ⚡.
+   - No tablet e no desktop fica na barra, colado ao ✓.
+   - O menu ⚡ não aparece na edição (revoga o item 10 da D-PROD-95 nesse ponto).
+2. **Sem piscada.** O formulário do registro não anima mais ao montar: trocar para a visualização de registro ou trocar de registro deixou de piscar.
+3. **Folha sem atraso.**
+   - Durante o arraste só `transform` muda, desenhado por `requestAnimationFrame`. A altura não é mais recalculada a cada movimento.
+   - No início do arraste, a média ganha a altura da grande, deslocada para baixo (mesma aparência); no fim anima até o destino e só então troca a altura.
+4. **Botões padronizados** (todos os `tb-btn`, o seletor de visualização, o pager, os botões das folhas e do cabeçalho do app e do tablet):
+   - sem sombra;
+   - fundo cinza (`--portal-acao-bg`), nenhum branco;
+   - ícone na cor de sempre: verde no Novo/Salvar/Aplicar, vermelho no Excluir;
+   - o modo ativo do seletor de visualização fica num cinza mais escuro;
+   - no celular, os botões da barra e o pager têm 38 px.
+5. **Cards** sem o painel branco por trás: só os cards sobre o fundo da página.
+6. **Menus iguais:** o menu do shadcn (tabelas do mapa, tarefas, usuário) usa no desktop o mesmo vidro do Mais opções do Base1; no celular os dois já seguiam o estilo iOS.
+7. **Filtro da coluna:** ✕ Cancelar à esquerda e ✓ Aplicar à direita, com o aviso de "nenhum registro" no meio.
+8. **Configurar colunas no celular:**
+   - folha grande com uma lista só, no padrão dos Ajustes do iPhone: chave do iOS para mostrar ou ocultar, ↑ ↓ para a ordem, pesquisa e "Restaurar padrão";
+   - ✕ descarta e ✓ aplica;
+   - a última coluna visível não pode ser ocultada.
+   - O desktop mantém as duas listas.
+
+Relatório: `docs/engineering/UX-MOBILE-V2-REPORT.md` (seção V5). Teste: `tests/smoke/mobileV5Ajustes.test.jsx`.
+
+---
+
+<!-- Próxima decisão: D-PROD-97 -->

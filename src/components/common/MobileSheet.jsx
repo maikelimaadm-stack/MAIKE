@@ -86,14 +86,26 @@ export default function MobileSheet({
     return () => window.removeEventListener("keydown", onKey);
   }, [open, initialLarge]);
 
-  // Arraste por toque/caneta/mouse em qualquer ponto da folha.
+  // Arraste por toque/caneta/mouse em qualquer ponto da folha (D-PROD-96):
+  // durante o arraste só `transform` muda (sem recalcular layout a cada
+  // movimento). No início a folha média ganha a altura da grande, deslocada
+  // para baixo pelo que falta — visualmente igual; no fim anima até o destino
+  // e só então troca a altura.
   React.useEffect(() => {
     const folha = sheetRef.current;
     if (!open || !folha) return undefined;
     const celular = () => window.matchMedia?.("(max-width: 639px)").matches;
+    const CURVA = "transform 0.34s cubic-bezier(0.32, 0.72, 0, 1)";
 
-    /** @type {null | { y0: number, x0: number, h0: number, decidido: boolean, arrastando: boolean, ultimoY: number, ultimoT: number, vel: number, noCorpo: boolean }} */
+    /** @type {null | { y0: number, x0: number, h0: number, max: number, base: number, desloc: number, decidido: boolean, arrastando: boolean, ultimoY: number, ultimoT: number, vel: number, noCorpo: boolean, quadro: number }} */
     let g = null;
+
+    const pintar = () => {
+      if (!g) return;
+      g.quadro = 0;
+      const d = g.desloc < 0 ? g.desloc * 0.18 : g.desloc;
+      folha.style.transform = `translate3d(0, ${d}px, 0)`;
+    };
 
     const iniciar = (x, y, alvo) => {
       if (!celular()) return;
@@ -101,13 +113,17 @@ export default function MobileSheet({
       g = {
         y0: y,
         x0: x,
-        h0: folha.getBoundingClientRect().height,
+        h0: 0,
+        max: 0,
+        base: 0,
+        desloc: 0,
         decidido: false,
         arrastando: false,
         ultimoY: y,
         ultimoT: performance.now(),
         vel: 0,
         noCorpo: Boolean(alvo instanceof Element && bodyRef.current?.contains(alvo)),
+        quadro: 0,
       };
     };
 
@@ -130,43 +146,58 @@ export default function MobileSheet({
           g = null;
           return;
         }
-        folha.style.transition = "none";
+        g.h0 = folha.getBoundingClientRect().height;
+        g.max = alturaGrande();
         folha.classList.add("is-dragging");
+        folha.style.transition = "none";
+        if (!grandeRef.current) {
+          // Média → altura da grande, deslocada: mesma aparência, arraste só com transform.
+          folha.style.height = `${g.max}px`;
+          folha.style.maxHeight = "none";
+          g.base = g.max - g.h0;
+        }
       }
       if (ev?.cancelable) ev.preventDefault();
       const agora = performance.now();
       g.vel = (y - g.ultimoY) / Math.max(1, agora - g.ultimoT);
       g.ultimoY = y;
       g.ultimoT = agora;
-      const max = alturaGrande();
-      const h = g.h0 - dy;
-      if (h > max) {
-        folha.style.height = `${max + (h - max) * 0.15}px`;
-        folha.style.transform = "";
-      } else if (h >= g.h0 || grandeRef.current) {
-        folha.style.height = `${Math.max(h, window.innerHeight * FRACAO_MEDIA)}px`;
-        const sobra = window.innerHeight * FRACAO_MEDIA - h;
-        folha.style.transform = sobra > 0 ? `translateY(${sobra}px)` : "";
-      } else {
-        folha.style.height = `${g.h0}px`;
-        folha.style.transform = `translateY(${g.h0 - h}px)`;
-      }
+      g.desloc = g.base + dy;
+      if (!g.quadro) g.quadro = requestAnimationFrame(pintar);
+    };
+
+    /** Anima até `alvo` px e chama `depois` ao terminar. */
+    const animarAte = (alvo, depois) => {
+      folha.style.transition = CURVA;
+      folha.style.transform = `translate3d(0, ${alvo}px, 0)`;
+      let feito = false;
+      const fim = () => {
+        if (feito) return;
+        feito = true;
+        folha.removeEventListener("transitionend", fim);
+        depois();
+      };
+      folha.addEventListener("transitionend", fim);
+      window.setTimeout(fim, 380);
+    };
+
+    const limpar = () => {
+      folha.style.transition = "none";
+      folha.style.height = "";
+      folha.style.maxHeight = "";
+      folha.style.transform = "";
+      folha.classList.remove("is-dragging");
+      requestAnimationFrame(() => {
+        folha.style.transition = "";
+      });
     };
 
     const soltar = () => {
       if (!g) return;
       const estado = g;
       g = null;
+      if (estado.quadro) cancelAnimationFrame(estado.quadro);
       if (!estado.arrastando) return;
-      const dy = estado.ultimoY - estado.y0;
-      const media = window.innerHeight * FRACAO_MEDIA;
-      const alturaFinal = estado.h0 - dy;
-      folha.classList.remove("is-dragging");
-      folha.style.transition = "";
-      folha.style.height = "";
-      folha.style.transform = "";
-      const rapidoBaixo = estado.vel > 0.6;
-      const rapidoCima = estado.vel < -0.6;
       // Evita que o clique que encerra o arraste escolha uma opção.
       const engolir = (e) => {
         e.stopPropagation();
@@ -174,23 +205,29 @@ export default function MobileSheet({
       };
       folha.addEventListener("click", engolir, { capture: true, once: true });
       window.setTimeout(() => folha.removeEventListener("click", engolir, { capture: true }), 350);
-      if (rapidoCima || alturaFinal > (media + alturaGrande()) / 2) {
-        setGrande(true);
-        return;
+
+      const media = window.innerHeight * FRACAO_MEDIA;
+      const visivel = estado.max - Math.max(0, estado.desloc);
+      const rapidoBaixo = estado.vel > 0.6;
+      const rapidoCima = estado.vel < -0.6;
+      let destino = "media";
+      if (rapidoCima || visivel > (media + estado.max) / 2) destino = "grande";
+      else if (rapidoBaixo ? !grandeRef.current || visivel < media * 0.9 : visivel < media * 0.72) {
+        destino = grandeRef.current && !rapidoBaixo && visivel > media * 0.7 ? "media" : "fechar";
       }
-      if (grandeRef.current && !rapidoBaixo && alturaFinal > media * 0.7) {
-        setGrande(false);
-        return;
-      }
-      if (rapidoBaixo || alturaFinal < media * 0.72) {
-        if (grandeRef.current && alturaFinal > media * 0.7) {
+      if (destino === "grande") {
+        animarAte(0, () => {
+          setGrande(true);
+          limpar();
+        });
+      } else if (destino === "media") {
+        animarAte(estado.max - media, () => {
           setGrande(false);
-          return;
-        }
-        fecharAnimado();
-        return;
+          limpar();
+        });
+      } else {
+        animarAte(estado.max + 40, () => fecharRef.current?.());
       }
-      setGrande(false);
     };
 
     const onTouchStart = (e) => iniciar(e.touches[0].clientX, e.touches[0].clientY, e.target);

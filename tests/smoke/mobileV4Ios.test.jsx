@@ -169,9 +169,10 @@ describe('V4 — folha, menu e cabeçalho', () => {
     );
   });
 
-  it('V4-8 — item whileEditing (Anexos) continua no Mais opções durante a edição', async () => {
+  it('V4-8 — item whileEditing (Anexos) vira botão ao lado do ✓ na edição (D-PROD-96)', async () => {
     const fonte = codigo('src/components/cadastro/base1/CadastroListaChrome.jsx');
-    expect(fonte).toMatch(/secondaryToolsLocked \? extraMenuItems\.filter\(\(item\) => item\.whileEditing\)/);
+    expect(fonte).toMatch(/filter\(\(item\) => !item\.hidden && item\.whileEditing\)/);
+    expect(fonte).toMatch(/className="mg-act-extra"/);
     const lotes = codigo('src/pages/CadastroLotes.jsx');
     expect(lotes).toMatch(/key: "anexos"[\s\S]*whileEditing: true[\s\S]*onSelect: openAttachments/);
     expect(lotes).not.toMatch(/extraToolbar=/);

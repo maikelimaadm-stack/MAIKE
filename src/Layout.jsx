@@ -436,6 +436,19 @@ function LayoutShell({ children, currentPageName }) {
               <span className="mk-mhdr__title">{mobileTitle}</span>
               {mobileSubtitle ? <span className="mk-mhdr__sub"><span>{mobileSubtitle}</span></span> : null}
             </div>
+            <div className="mk-mhdr__acoes">
+            {(mobileRecord.acoes ?? []).map((acao) =>
+            <button
+              key={acao.key}
+              type="button"
+              className="mk-mhdr__round"
+              onClick={() => acao.onSelect()}
+              disabled={acao.disabled}
+              aria-label={acao.label}
+              title={acao.label}>
+                {acao.icon}
+              </button>
+            )}
             {mobileRecord.formId ?
           <button
             type="submit"
@@ -447,6 +460,7 @@ function LayoutShell({ children, currentPageName }) {
                 {mobileRecord.saving ? <Loader2 size={20} className="animate-spin" aria-hidden /> : <Check size={22} aria-hidden />}
               </button> :
           <span className="mk-mhdr__round-gap" aria-hidden />}
+            </div>
           </div> :
         <div className="mk-mhdr md:hidden">
           {mobileBack ?

@@ -123,3 +123,18 @@ Pedido do proprietário com prints do app do Claude no iPhone. Conferido no Chro
 - gesto de voltar no Safari: o iOS também tem o gesto nativo do navegador e, em aba comum, os dois podem competir. Instalado como app (tela inicial), só o nosso vale;
 - `enterkeyhint` e `inputmode` no teclado do iPhone.
 
+## V5 — ajustes depois do uso no aparelho (D-PROD-96)
+
+| Pedido | Feito | Evidência |
+|---|---|---|
+| Anexo ao lado do Salvar; remover a linha do anexo | 📎 antes do ✓ no cabeçalho (celular) e na barra (desktop); a barra some na edição do celular | v5-03, v5-04 |
+| Mais ações iguais nas telas | Menu do shadcn com o mesmo vidro do Mais opções no desktop | — |
+| Piscada ao ir para a visualização de registro | Animação de montagem removida; quadros de 0 a 500 ms estáveis | — |
+| Atrasos ao subir e descer a folha | Arraste só com `transform` + `requestAnimationFrame` | teste V5-8 |
+| Cards só com os cards | Fundo da página atrás dos cards | v5-01 |
+| Botões do mesmo tamanho, sem sombra, cinza; ícone na mesma cor | Regra única para todos os botões | v5-01, v5-04, v5-05 |
+| Configurar colunas no celular | Lista com chave do iOS, ↑↓, pesquisa e Restaurar | v5-02 |
+| Filtros: descartar à esquerda, filtrar à direita | ✕ Cancelar · aviso · ✓ Aplicar | teste V5-3 |
+
+**Verificação:** `npm run verify:all` passa em tudo menos `test:backend`, que precisa de PostgreSQL e não roda aqui.
+

@@ -3079,3 +3079,220 @@ a.mk-anexos__arquivo:hover {
 .mk-ios-switch.is-on:active:not(:disabled) .mk-ios-switch__thumb {
   transform: translateX(8px);
 }
+
+/*
+ * ══ v5 — ajustes pedidos (D-PROD-96) ══════════════════════════════════════
+ */
+
+/* Sem piscada: o formulário do registro não anima ao montar (trocar de modo ou de registro) */
+.cadastro-b1--full-page .mg-form-scroll {
+  animation: none !important;
+}
+
+/* Cabeçalho da edição no celular: ✕ · título · ações (ex.: 📎) + ✓ */
+.mk-mhdr--edit {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.mk-mhdr__acoes {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Barra (tablet/desktop): ação extra da edição colada ao ✓ Salvar */
+.mg-toolbar__row--actions:has(.mg-act-salvar) .mg-act-extra {
+  order: 2;
+  margin-left: auto;
+}
+
+.mg-toolbar__row--actions:has(.mg-act-extra) .mg-act-salvar {
+  margin-left: 0 !important;
+}
+
+/*
+ * Botões padronizados: fundo cinza, sem sombra, ícone na cor de sempre
+ * (verde no Novo/Salvar/Aplicar, vermelho no Excluir). `:not(#mk-padrao)`
+ * dá peso de id para vencer as regras antigas com !important.
+ */
+:is(.tb-btn, .view-seg, .mg-rec-pager__btn, .mk-sheet__close, .mk-sheet__new, .mk-mhdr__round, .mk-anexos__remover):not(#mk-padrao),
+.view-seg button:not(#mk-padrao),
+.mk-mhdr__back > span:not(#mk-padrao) {
+  box-shadow: none !important;
+}
+
+.tb-btn:not(.tb-btn-green):not(.tb-btn-red):not(.is-filter-on):not(.is-filter-active):not(#mk-padrao),
+.tb-btn.tb-btn-green:not(#mk-padrao),
+.tb-btn.tb-btn-red:not(#mk-padrao) {
+  border-color: transparent !important;
+  background: var(--portal-acao-bg, #f1f3f4) !important;
+}
+
+.tb-btn:not(.tb-btn-green):not(.tb-btn-red):not(.is-filter-on):not(.is-filter-active):not(#mk-padrao):hover:not(:disabled),
+.tb-btn.tb-btn-green:not(#mk-padrao):hover:not(:disabled),
+.tb-btn.tb-btn-red:not(#mk-padrao):hover:not(:disabled) {
+  background: var(--portal-acao-hover, #e8ebee) !important;
+}
+
+.tb-btn.tb-btn-green:not(#mk-padrao),
+.tb-btn.tb-btn-green:not(#mk-padrao) svg {
+  color: #16a34a !important;
+}
+
+.tb-btn.tb-btn-red:not(#mk-padrao),
+.tb-btn.tb-btn-red:not(#mk-padrao) svg {
+  color: #dc2626 !important;
+}
+
+/* Seletor de visualização: trilho cinza; o modo ativo um cinza mais escuro (não branco) */
+.view-seg:not(#mk-padrao) {
+  background: var(--portal-acao-bg, #f1f3f4) !important;
+}
+
+.view-seg button[aria-pressed="true"]:not(#mk-padrao),
+.view-seg button.is-active:not(#mk-padrao),
+.view-seg button[data-state="on"]:not(#mk-padrao) {
+  background: #dde1e6 !important;
+}
+
+/* Folhas: ✕ e +/✓ cinza (nada de branco) */
+.mk-sheet__close:not(#mk-padrao),
+.mk-sheet__new:not(#mk-padrao) {
+  background: #ebebe8;
+}
+
+.mk-sheet.mk-cr .mk-sheet__close:not(#mk-padrao),
+.mk-sheet.mk-cr .mk-sheet__new:not(#mk-padrao) {
+  background: var(--portal-acao-bg, #f1f3f4);
+}
+
+/* Mesmo tamanho para todos os botões da barra no celular (38 px, como o Novo) */
+@media (max-width: 639px) {
+  .cadastro-b1--full-page .mg-toolbar :is(.tb-btn, .mg-search-pill-wrap > button):not(#mk-padrao) {
+    min-width: 38px;
+    height: 38px !important;
+    min-height: 38px !important;
+  }
+
+  .mg-rec-pager__btn:not(#mk-padrao) {
+    width: 38px;
+    height: 38px;
+  }
+}
+
+/* Cards: só os cards, sem o painel branco por trás */
+.cadastro-b1 .mg-shell__scroll:not(#mk-padrao) {
+  background: var(--mg-page-bg, #f0f2f5) !important;
+}
+
+/* Configurar colunas no celular (lista dos Ajustes do iPhone) */
+.mk-sheet .mk-colcfg__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 56px;
+  padding: 0 14px 0 20px;
+  cursor: default;
+}
+
+.mk-colcfg__nome {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  color: #1f1f1f;
+  font-size: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mk-colcfg__nome.is-off {
+  color: #8a8a86;
+}
+
+.mk-colcfg__ordem {
+  display: flex;
+  gap: 2px;
+}
+
+.mk-colcfg__ordem button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #8a8a86;
+}
+
+.mk-colcfg__ordem button:active:not(:disabled) {
+  background: #f1f1ee;
+}
+
+.mk-colcfg__ordem button:disabled {
+  opacity: 0.3;
+}
+
+.mk-colcfg__restaurar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 4px 16px 16px;
+  min-height: 50px;
+  border: 0;
+  border-radius: 999px;
+  background: #ebebe8;
+  color: #1f1f1f;
+  font-size: 16px;
+}
+
+/*
+ * Menus iguais em todas as telas: o menu do shadcn (tabelas do mapa, tarefas,
+ * usuário) usa no desktop o mesmo vidro do Mais opções do Base1. No celular
+ * os dois já seguem o estilo iOS do bloco v4.
+ */
+@media (min-width: 768px) {
+  .mk-menu {
+    padding: 6px !important;
+    border: 1px solid rgba(255, 255, 255, 0.65) !important;
+    border-radius: 14px !important;
+    background: rgba(255, 255, 255, 0.86) !important;
+    box-shadow:
+      0 18px 40px rgba(15, 23, 42, 0.18),
+      0 2px 8px rgba(15, 23, 42, 0.08) !important;
+    -webkit-backdrop-filter: blur(22px) saturate(180%);
+    backdrop-filter: blur(22px) saturate(180%);
+  }
+
+  .mk-menu [role="menuitem"] {
+    gap: 8px;
+    min-height: 30px;
+    padding: 0 10px;
+    border-radius: 8px;
+    color: #334155;
+    font-size: 12.5px !important;
+  }
+
+  .mk-menu [role="menuitem"][data-highlighted] {
+    background: var(--mg-bg-page, #f0f2f5);
+  }
+
+  .mk-menu [role="separator"] {
+    margin: 4px 6px;
+    background: rgba(15, 23, 42, 0.08);
+  }
+}
+
+/* Cabeçalho do tablet: busca e empresa também cinza e sem sombra */
+.mk-thdr button:not(#mk-padrao) {
+  box-shadow: none !important;
+}
+
+.mk-thdr .mk-thdr__icone:not(#mk-padrao),
+.mk-thdr .mk-thdr__empresa:not(#mk-padrao) {
+  border-color: transparent !important;
+  background: var(--portal-acao-bg, #f1f3f4) !important;
+}
