@@ -1,5 +1,5 @@
 /**
- * R2A-R3 (D-PROD-97c) — reversão completa dos identificadores em transferência
+ * R2A-R3 (D-PROD-99c) — reversão completa dos identificadores em transferência
  * com UNIFICAÇÃO. A unificação copia identificador_nome/sigla/cor da origem
  * para o destino; o cancelamento tem de devolver os do destino — sem destruir
  * edição legítima feita depois. PostgreSQL real, HTTP, auth.

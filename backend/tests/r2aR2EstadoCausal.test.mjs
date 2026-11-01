@@ -1,5 +1,5 @@
 /**
- * R2A-R2 (D-PROD-97b) — estado causal completo e fail-closed no cancelamento.
+ * R2A-R2 (D-PROD-99b) — estado causal completo e fail-closed no cancelamento.
  *
  * O CAS de `PATCH /lotes` (R2A-R1) impede escrita OBSOLETA, mas permite uma
  * escrita VÁLIDA (com `estado_esperado` correto) depois do movimento. Antes

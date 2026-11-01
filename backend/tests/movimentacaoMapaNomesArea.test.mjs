@@ -137,7 +137,7 @@ describe('MovimentacaoMapa — nome de área pelo ID', () => {
     });
     assert.equal(criado.statusCode, 201);
     assert.equal(criado.json().area_destino_nome, undefined);
-    // R2A (D-PROD-97): movimento do mapa não se reescreve por PATCH; nada muda.
+    // R2A (D-PROD-99): movimento do mapa não se reescreve por PATCH; nada muda.
     const patch = await app.inject({
       method: 'PATCH',
       url: `/movimentacoes-mapa/${criado.json().id}`,

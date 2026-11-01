@@ -127,7 +127,7 @@ describe('MovimentacaoMapa — registros reais sem empresa_id em dados', () => {
     assert.equal(r.json()[0].cliente_id, undefined);
   });
 
-  // R2A (D-PROD-97): MovimentacaoMapa não aceita mais PATCH (cancelamento). O
+  // R2A (D-PROD-99): MovimentacaoMapa não aceita mais PATCH (cancelamento). O
   // contrato do serializador no update segue provado numa rota JSON sem saldo.
   test('PATCH sem empresa_id no corpo preserva a coluna (antes: 400 empresa_id é obrigatório)', async () => {
     const { token, empresa } = await cenario();

@@ -339,7 +339,7 @@ export const criar = async (contexto, entrada) => {
 /**
  * Campos de saldo e posição: o navegador envia valor ABSOLUTO calculado a partir
  * de uma leitura. Sem conferir essa leitura, um PATCH obsoleto desfaz um
- * cancelamento ou manejo que acabou de acontecer (R2A-R1, D-PROD-97a).
+ * cancelamento ou manejo que acabou de acontecer (R2A-R1, D-PROD-99a).
  */
 export const CAMPOS_COM_ESTADO_ESPERADO = Object.freeze(['quantidade_cabecas', 'status', 'area_atual_id', 'categoria']);
 
@@ -372,7 +372,7 @@ export const atualizar = async (contexto, id, entrada) => {
   const prisma = getPrismaClient();
 
   return prisma.$transaction(async (tx) => {
-    // R2A-R1 (D-PROD-97a): trava e relê dentro da transação, para o
+    // R2A-R1 (D-PROD-99a): trava e relê dentro da transação, para o
     // compare-and-swap abaixo valer contra cancelamento e manejo concorrentes.
     await tx.$queryRaw`SELECT id FROM "Lote" WHERE cliente_id = ${auth.clienteId} AND id = ${id} FOR UPDATE`;
     const anterior = await buscarLote(auth.clienteId, id, tx);

@@ -50,7 +50,7 @@ const HISTORICO_SCHEMA = {
 };
 
 /**
- * Cancelamento (R2A, D-PROD-97): o corpo só traz a chave idempotente e o motivo;
+ * Cancelamento (R2A, D-PROD-99): o corpo só traz a chave idempotente e o motivo;
  * movimento, lotes, empresa e quantidades são lidos do servidor.
  */
 const CANCELAMENTO_SCHEMA = {
@@ -67,7 +67,7 @@ const CANCELAMENTO_SCHEMA = {
 };
 
 /**
- * Comando atômico de manejo (R2A-R1, D-PROD-97a): Morte, Abate e Transferência
+ * Comando atômico de manejo (R2A-R1, D-PROD-99a): Morte, Abate e Transferência
  * numa transação, com o efeito calculado e gravado pelo servidor.
  */
 const MANEJO_SCHEMA = {

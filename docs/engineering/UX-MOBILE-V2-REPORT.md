@@ -138,3 +138,20 @@ Pedido do proprietário com prints do app do Claude no iPhone. Conferido no Chro
 
 **Verificação:** `npm run verify:all` passa em tudo menos `test:backend`, que precisa de PostgreSQL e não roda aqui.
 
+## V6 — folha lisa e cards sem fundo branco (D-PROD-97)
+
+| Pedido | Feito | Evidência |
+|---|---|---|
+| Subir e descer a folha ainda travava no iPhone | Primeiro toque já é da folha quando só pode ser dela; altura fixa no arraste; margens animam junto; sem sombra no arraste | testes V6-1 a V6-3; topo medido quadro a quadro sem saltos |
+| Cards: fundo atrás deles não pode ser branco | Contêiner da tela transparente quando há cards | v6-01 |
+
+**Não testado em aparelho real:** a fluidez no iPhone. A medição foi feita no Chromium.
+
+## V7 — chave do iOS (D-PROD-98)
+
+| Pedido | Feito | Evidência |
+|---|---|---|
+| Todas as chaves do tamanho da de Configurar colunas, um pouco mais compridas | 56×26 em todas (B1Switch, ToggleSwitch, Switch do shadcn) | teste V7-1; medido 56×26 |
+| Pulinho do iPhone | A cápsula passa ~3 px do ponto e volta; estica ao pressionar | teste V7-2; posição medida quadro a quadro |
+| Nos formulários, ao lado do rótulo | A chave fica colada ao rótulo | v7-01 |
+

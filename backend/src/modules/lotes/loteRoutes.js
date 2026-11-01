@@ -75,7 +75,7 @@ const ATUALIZAR_SCHEMA = {
     additionalProperties: false,
     properties: {
       ...CAMPOS_ATUALIZACAO,
-      // R2A-R1 (D-PROD-97a): compare-and-swap dos campos de saldo/posição.
+      // R2A-R1 (D-PROD-99a): compare-and-swap dos campos de saldo/posição.
       estado_esperado: {
         type: 'object',
         additionalProperties: false,

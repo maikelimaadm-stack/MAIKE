@@ -25,7 +25,7 @@ import { tipoTemCancelamento } from "@/domain/lotes/situacaoMovimento";
 /** @type {React.ComponentType<any>} */ const DialogTitle = DialogTitleUi;
 
 /**
- * Cancelar movimentação (R2A, D-PROD-97; estado causal D-PROD-97b).
+ * Cancelar movimentação (R2A, D-PROD-99; estado causal D-PROD-99b).
  *
  * Nenhuma reversão acontece no navegador: o botão chama o comando do servidor,
  * que revalida tudo numa transação. A `operation_id` é gerada ao abrir e
@@ -61,7 +61,7 @@ const novaChave = () =>
 const estaOnline = () => (typeof navigator === "undefined" ? true : navigator.onLine !== false);
 
 /**
- * Operação pendente (R2A-R1, D-PROD-97a): chave + motivo gravados ANTES do
+ * Operação pendente (R2A-R1, D-PROD-99a): chave + motivo gravados ANTES do
  * envio e mantidos enquanto o resultado for desconhecido — sobrevive a fechar,
  * reabrir, trocar de tela e recarregar. Só sai com resposta definitiva do
  * servidor (sucesso ou recusa 4xx estável).
@@ -108,7 +108,7 @@ const descreverEfeito = (efeito) => {
     partes.push(`área ${a.area_atual_nome || "-"} → ${d.area_atual_nome || "-"}`);
   }
   if (a.status && d.status && a.status !== d.status) partes.push(`${a.status} → ${d.status}`);
-  // Unificação (R2A-R3, D-PROD-97c): o servidor diz o que acontece com a identificação do destino.
+  // Unificação (R2A-R3, D-PROD-99c): o servidor diz o que acontece com a identificação do destino.
   if (efeito?.identificacao === "restaurada") {
     partes.push(`identificação volta a ${d.identificador_nome || d.identificador_sigla || "sem identificador"}`);
   } else if (efeito?.identificacao === "preservada_edicao_posterior") {

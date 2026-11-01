@@ -1,5 +1,5 @@
 /**
- * Cancelamento de movimentação do mapa — R2A (D-PROD-97).
+ * Cancelamento de movimentação do mapa — R2A (D-PROD-99).
  *
  * Uma transação PostgreSQL faz tudo ou nada:
  *   1. administrador ativo do tenant (`exigirAdminTenant`, relido do banco);
@@ -68,7 +68,7 @@ const buscarLotes = async (tx, clienteId, ids, travar) => {
   return new Map(lotes.map((l) => [l.id, l]));
 };
 
-// ─── Proveniência causal (R2A-R1, D-PROD-97a) ──────────────────────────────
+// ─── Proveniência causal (R2A-R1, D-PROD-99a) ──────────────────────────────
 
 /**
  * O efeito só é provado quando o movimento nasceu do comando atômico de manejo:
@@ -109,7 +109,7 @@ const exigirProveniencia = async (tx, clienteId, mov) => {
   return efeito;
 };
 
-// ─── Estado causal (R2A-R2, D-PROD-97b) ────────────────────────────────────
+// ─── Estado causal (R2A-R2, D-PROD-99b) ────────────────────────────────────
 
 /** Snapshot com TODOS os campos materiais (registro da R2A-R1 sem eles: não comprovado). */
 const snapshotCompleto = (x) =>
@@ -388,7 +388,7 @@ export const planejarCancelamento = async (tx, clienteId, id, { travar }) => {
       depois.area_atual_nome = nomes.get(alvo.area_atual_id);
       Object.assign(antes, { area_atual_id: lote.area_atual_id, area_atual_nome: lote.area_atual_nome });
     }
-    // Identificação (R2A-R3, D-PROD-97c): a unificação sobrescreve a do destino.
+    // Identificação (R2A-R3, D-PROD-99c): a unificação sobrescreve a do destino.
     // Devolve o valor anterior só com prova de que ninguém mexeu depois:
     // nenhuma linha de auditoria posterior não explicada tocou a identificação
     // E o valor atual é exatamente o que o comando aplicou. Havendo edição

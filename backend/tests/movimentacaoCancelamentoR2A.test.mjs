@@ -1,5 +1,5 @@
 /**
- * R2A (D-PROD-97) — fechamento de rotas destrutivas e cancelamento transacional
+ * R2A (D-PROD-99) — fechamento de rotas destrutivas e cancelamento transacional
  * de movimentação do mapa. PostgreSQL real, dados sintéticos.
  *
  * O "fluxo legado" abaixo reproduz o DetalhesLote: cada passo é uma chamada
@@ -533,7 +533,7 @@ describe('R2A-R1 — concorrência de saldo (CAS) e rollback', () => {
     (await prisma().auditLog.findMany({ where: { entidade: 'Lote', entidade_id: loteId, acao: 'update' }, orderBy: { createdAt: 'asc' } }))
       .map((a) => `${a.dados_anteriores?.quantidade_cabecas}->${a.dados_novos?.quantidade_cabecas}${a.dados_novos?.movimentacao_cancelada_id ? ' (cancelamento)' : ''}`);
 
-  // R2A-R2 (D-PROD-97b): a ordem é forçada pela fila da trava do PostgreSQL —
+  // R2A-R2 (D-PROD-99b): a ordem é forçada pela fila da trava do PostgreSQL —
   // quem chega primeiro na espera do FOR UPDATE do lote ganha. Cada ordem tem
   // o seu desfecho exato; "um ou outro" não basta.
   test('ordem A (cancelamento pega a trava primeiro): devolve 50 (500); o PATCH 450→400 perde o CAS', async () => {

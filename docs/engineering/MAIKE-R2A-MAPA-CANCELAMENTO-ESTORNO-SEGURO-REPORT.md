@@ -1,25 +1,25 @@
 # MAIKE-R2A — Cancelamento e estorno seguro de movimentação (backend primeiro)
 
-**Data:** 2026-10-31 · **Decisão:** D-PROD-97 (redigida como D-PROD-95, depois D-PROD-96; ver a nota de numeração em `DECISIONS.md`) · subdecisões D-PROD-97a, D-PROD-97b e D-PROD-97c · **Base:** `main` d2cba91 (merge da #161)
+**Data:** 2026-10-31 · **Decisão:** D-PROD-99 (redigida como D-PROD-95; renumerada até o próximo número livre, conforme a nota em `DECISIONS.md`) · subdecisões D-PROD-99a, D-PROD-99b e D-PROD-99c · **Base:** `main` d2cba91 (merge da #161)
 **PR:** maikelimaadm-stack/MAIKE#162 (DRAFT) · **Branch:** `claude/new-session-26kpxu`
 - É a branch designada da sessão. Foi recriada a partir de `main` depois do merge da #161; nenhum commit novo foi empilhado sobre a #161.
 - Sem migration. Sem escrita em produção. Sem ledger L1.
 
-> **Atualização R2A-R3 (D-PROD-97c):** a seção **R2A-R3** logo abaixo completa a reversão das transferências com unificação: a identificação do destino volta, e a edição posterior é preservada.
+> **Atualização R2A-R3 (D-PROD-99c):** a seção **R2A-R3** logo abaixo completa a reversão das transferências com unificação: a identificação do destino volta, e a edição posterior é preservada.
 >
-> **Atualização R2A-R2 (D-PROD-97b):** a seção **R2A-R2** logo abaixo substitui a regra de elegibilidade da R2A-R1 (estado causal completo) e resolve a numeração.
+> **Atualização R2A-R2 (D-PROD-99b):** a seção **R2A-R2** logo abaixo substitui a regra de elegibilidade da R2A-R1 (estado causal completo) e resolve a numeração.
 >
-> **Atualização R2A-R1 (D-PROD-97a):** a revisão do arquiteto bloqueou a versão
+> **Atualização R2A-R1 (D-PROD-99a):** a revisão do arquiteto bloqueou a versão
 > abaixo. A prova temporal por AuditLog (±15 min) aceitava "prova emprestada", e o
 > `PATCH /lotes` gravava valor absoluto obsoleto. A seção **R2A-R1** logo abaixo
 > substitui as seções 3, 5 e 6 onde houver conflito. As seções originais ficam como
 > histórico.
 
-## R2A-R3 — Reversão completa da identificação em unificação (D-PROD-97c)
+## R2A-R3 — Reversão completa da identificação em unificação (D-PROD-99c)
 
 **Missão:** MAIKE-R2A-PR162-R3-REVERSAO-COMPLETA-IDENTIFICADORES-DE-LOTES-UNIFICADOS, na mesma PR #162 (DRAFT).
 - HEAD de partida: f048615.
-- Base observada na auditoria: 505acd6. Durante a missão, `main` avançou para 2fcc769 (#164), que foi integrada por merge.
+- Base observada na auditoria: 505acd6. Durante a missão, `main` avançou para 2fcc769 (#164) e depois para 969917f (#165 e #166). As duas foram integradas por merge.
 - Sem migration, sem backfill, sem escrita em produção.
 
 ### R3.1 Bug → correção
@@ -92,7 +92,7 @@ Na primeira execução em 412, o toque no rótulo do pasto caiu sobre o marcador
 **Declaração:**
 - migrations = 0; produção = 0 (nenhuma leitura ou escrita; só `maike_ci` e `maike_demo` locais e sintéticos); backfill = 0; ledger = 0;
 - auth e licenciamento intactos;
-- concorrência com outras PRs: `main` avançou para 2fcc769 (#164) durante a missão e foi integrada por merge; o único conflito foi `DECISIONS.md`, resolvido com a renumeração decidida pelo proprietário.
+- concorrência com outras PRs: `main` avançou duas vezes durante a missão, para 2fcc769 (#164) e depois 969917f (#165 e #166). Os dois avanços foram integrados por merge. O único conflito, nas duas vezes, foi `DECISIONS.md`, resolvido pela regra do proprietário: preservar `main` e dar à R2A o próximo número livre (D-PROD-99).
 
 **Riscos residuais:**
 1. A identificação editada depois da unificação fica com o valor do usuário. Se a edição foi parcial (só o nome, por exemplo), sigla e cor continuam as da origem. O resultado é deliberado e auditado; não há reconciliação campo a campo.
@@ -105,7 +105,7 @@ Na primeira execução em 412, o toque no rótulo do pasto caiu sobre o marcador
 - capturas 1440 e 390 do diálogo restaurado, do diálogo preservado e dos detalhes do destino;
 - roteiro e script de limpeza da demonstração.
 
-## R2A-R2 — Estado causal completo, fail-closed e numeração (D-PROD-97b)
+## R2A-R2 — Estado causal completo, fail-closed e numeração (D-PROD-99b)
 
 **Missão:** MAIKE-R2A-PR162-R2-HARDENING-ESTADO-CAUSAL-CANCELAMENTO-E-GOVERNANCA, na mesma PR #162 (DRAFT). HEAD de entrada 1fbfef6; base `main` 505acd6. Sem migration, sem backfill, sem ledger, sem escrita em produção.
 
@@ -322,7 +322,7 @@ Evidências: `docs/engineering/evidencias/r2a-r1/`
 
 ### R1.7a Merge de `main` (#163) e colisão de numeração
 
-- `main` avançou com a maikelimaadm-stack/MAIKE#163 (UX-MOBILE-V4), que também usava **D-PROD-95**, e depois com a #164 (ajustes do celular V5), que usa **D-PROD-96**. As duas foram preservadas. Por decisão do proprietário, a R2A ficou como **D-PROD-97**, com 97a, 97b e 97c; a próxima livre é D-PROD-98.
+- `main` avançou com a maikelimaadm-stack/MAIKE#163 (D-PROD-95), a #164 (D-PROD-96), a #165 (D-PROD-97) e a #166 (D-PROD-98), todas de celular. Todas foram preservadas. Regra do proprietário: a R2A ocupa o próximo número livre e fica como **D-PROD-99**, com 99a, 99b e 99c; a próxima livre é D-PROD-100.
 - Depois do merge:
   - `verify:all` com as variáveis da CI: exit 0 (smoke 99 arquivos, 1149/1149; backend 0 falhas);
   - E2E repetido nas 4 larguras: cancelamento, legado e offline **64/64**; manejo pela UI **36/36**.

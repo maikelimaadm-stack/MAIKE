@@ -114,7 +114,7 @@ export const filterMovimentacoes = async (criterio, opcoes = {}) => {
 };
 
 /**
- * Cancelamento server-side (R2A, D-PROD-97). Só `operation_id` e `motivo` vão no
+ * Cancelamento server-side (R2A, D-PROD-99). Só `operation_id` e `motivo` vão no
  * corpo; o servidor lê movimento, lotes e quantidades. Sem fila offline.
  */
 export const cancelarMovimentacao = async (id, { operation_id, motivo }) => {
@@ -125,7 +125,7 @@ export const cancelarMovimentacao = async (id, { operation_id, motivo }) => {
 };
 
 /**
- * Comando atômico de manejo (R2A-R1, D-PROD-97a): Morte, Abate ou Transferência
+ * Comando atômico de manejo (R2A-R1, D-PROD-99a): Morte, Abate ou Transferência
  * numa transação no servidor. Resposta `{movimentacao, lotes, replay}`.
  */
 export const registrarManejoLoteServidor = async (corpo) => {

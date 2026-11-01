@@ -3648,9 +3648,47 @@ Relatório: `docs/engineering/UX-MOBILE-V2-REPORT.md` (seção V5). Teste: `test
 
 ---
 
-## D-PROD-97 — R2A: registros operacionais fechados no servidor; cancelamento transacional de movimentação do mapa
+## D-PROD-97 — Folha lisa no iPhone e cards sem fundo branco
 
-> **Numeração (decisões do proprietário, R2A-R2 e R2A-R3):** esta decisão foi redigida na PR #162 como "D-PROD-95" e depois renumerada para "D-PROD-96", porque a maikelimaadm-stack/MAIKE#163 (UX-MOBILE-V4) entrou antes em `main` com D-PROD-95. Em seguida a maikelimaadm-stack/MAIKE#164 (ajustes do celular, V5) entrou em `main` com D-PROD-96. As duas decisões de `main` ficam preservadas. A R2A passou a ser **D-PROD-97**, e as subdecisões a **D-PROD-97a** (R2A-R1), **D-PROD-97b** (R2A-R2) e **D-PROD-97c** (R2A-R3).
+**Missão:** UX-MOBILE-V6. O proprietário relatou que, no aparelho, subir e descer a folha ainda travava e que atrás dos cards ainda aparecia fundo branco.
+
+**Decisão:**
+1. **Folha lisa** (`MobileSheet`):
+   - o primeiro `touchmove` é cancelado já no primeiro milímetro quando o gesto só pode ser da folha: cabeçalho ou alça; lista no topo puxando para baixo; média puxando para cima. Sem isso o iOS começava a rolar a lista e o arraste engasgava;
+   - a altura fica fixa na da grande durante todo o arraste (vale também quando começa na grande);
+   - ao soltar, a classe média/grande troca antes da animação final, e margens e cantos animam junto com o deslizamento, na mesma curva: nada salta no fim;
+   - sem sombra durante o arraste; a lista não passa o rolar para a página (`overscroll-behavior: contain`).
+   - Medido no Chromium: o topo da folha muda de forma monotônica do toque até o repouso (sobe 63→10, desce 220→313, fecha 743→fora), sem saltos.
+2. **Cards sem fundo branco:**
+   - o contêiner da tela que envolve a grade (`bg-white` nos Lotes) fica transparente quando dentro dele há cards;
+   - só os cards são brancos, sobre o fundo da página. A regra vale para qualquer tela com cards Base1.
+
+Relatório: `docs/engineering/UX-MOBILE-V2-REPORT.md` (seção V6). Teste: `tests/smoke/mobileV6Folha.test.jsx`.
+
+---
+
+## D-PROD-98 — Chave do iOS: tamanho único, pulinho e ao lado do rótulo
+
+**Missão:** UX-MOBILE-V7. O proprietário pediu que todas as chaves (Ativo etc.) tenham o mesmo tamanho da chave de Configurar colunas, um pouco mais compridas, com o "pulinho" do iPhone, e que nos formulários ela fique ao lado do rótulo.
+
+**Decisão:**
+1. **Um tamanho para todas**, por variáveis CSS (`--mk-sw-*`): trilho 56×26 e cápsula 36×22, em todos os tamanhos de tela. Vale para:
+   - `B1Switch` (Ativo dos cadastros);
+   - `ToggleSwitch` (configurar colunas, formulário dinâmico);
+   - o `Switch` do shadcn (filtros do mapa, formulários antigos), que ganhou as classes `mk-switch`/`mk-switch__thumb`.
+2. **Pulinho:**
+   - a cápsula anda com `cubic-bezier(0.3, 1.9, 0.5, 1)` em 0,55 s: passa uns 3 px do ponto e volta;
+   - pressionada, ela estica;
+   - verde do iOS ligada, cinza claro desligada.
+3. **Ao lado do rótulo:** desfeito o "rótulo à esquerda, chave na ponta direita" que a D-PROD-95 tinha posto no celular.
+
+Relatório: `docs/engineering/UX-MOBILE-V2-REPORT.md` (seção V7). Teste: `tests/smoke/mobileV7Chave.test.jsx`.
+
+---
+
+## D-PROD-99 — R2A: registros operacionais fechados no servidor; cancelamento transacional de movimentação do mapa
+
+> **Numeração (decisões do proprietário, R2A-R2 e R2A-R3):** esta decisão foi redigida na PR #162 como "D-PROD-95". Enquanto a #162 estava em revisão, entraram em `main` a maikelimaadm-stack/MAIKE#163 (D-PROD-95, UX-MOBILE-V4), a #164 (D-PROD-96, celular V5), a #165 (D-PROD-97, celular V6) e a #166 (D-PROD-98, celular V7). Regra decidida pelo proprietário: as decisões já em `main` ficam preservadas, e a R2A ocupa o próximo número livre. Ela passou a ser **D-PROD-99**, com as subdecisões **D-PROD-99a** (R2A-R1), **D-PROD-99b** (R2A-R2) e **D-PROD-99c** (R2A-R3).
 
 
 **Missão:** MAIKE-R2A-MAPA-CANCELAMENTO-ESTORNO-SEGURO-BACKEND-01. Base: `main` d2cba91 (merge da #161). Sem migration, sem escrita em produção, sem ledger.
@@ -3699,11 +3737,11 @@ Relatório: `docs/engineering/MAIKE-R2A-MAPA-CANCELAMENTO-ESTORNO-SEGURO-REPORT.
 
 ---
 
-## D-PROD-97a — R2A-R1: proveniência causal do efeito, CAS em `PATCH /lotes`, chave pendente e cache de histórico
+## D-PROD-99a — R2A-R1: proveniência causal do efeito, CAS em `PATCH /lotes`, chave pendente e cache de histórico
 
-**Subdecisão de D-PROD-97.** Missão MAIKE-R2A-PR162-R1-HARDENING-PROVENIENCIA-CONCORRENCIA-OFFLINE, na mesma PR #162. Sem migration, sem escrita em produção, sem ledger.
+**Subdecisão de D-PROD-99.** Missão MAIKE-R2A-PR162-R1-HARDENING-PROVENIENCIA-CONCORRENCIA-OFFLINE, na mesma PR #162. Sem migration, sem escrita em produção, sem ledger.
 
-**Contexto:** a revisão bloqueou a D-PROD-97 (então redigida como D-PROD-95).
+**Contexto:** a revisão bloqueou a D-PROD-99 (então redigida como D-PROD-95).
 - A prova do efeito por AuditLog (janela de ±15 min) podia ser "emprestada". Com duas mortes de 50 e um único PATCH, o cancelamento devolvia 50 cabeças que nunca saíram (RED reproduzido: 200, saldo 500).
 - O `PATCH /lotes` gravava valor absoluto calculado antes da trava.
 
@@ -3728,11 +3766,11 @@ Relatório: seção R2A-R1 de `docs/engineering/MAIKE-R2A-MAPA-CANCELAMENTO-ESTO
 
 ---
 
-## D-PROD-97b — R2A-R2: estado causal completo e fail-closed no cancelamento; numeração da R2A
+## D-PROD-99b — R2A-R2: estado causal completo e fail-closed no cancelamento; numeração da R2A
 
-**Subdecisão de D-PROD-97.** Missão MAIKE-R2A-PR162-R2-HARDENING-ESTADO-CAUSAL-CANCELAMENTO-E-GOVERNANCA, na mesma PR #162. Sem migration, sem backfill, sem ledger, sem escrita em produção.
+**Subdecisão de D-PROD-99.** Missão MAIKE-R2A-PR162-R2-HARDENING-ESTADO-CAUSAL-CANCELAMENTO-E-GOVERNANCA, na mesma PR #162. Sem migration, sem backfill, sem ledger, sem escrita em produção.
 
-**Contexto:** o CAS da D-PROD-97a impede escrita obsoleta em `PATCH /lotes`, mas aceita escrita válida. Depois do movimento, um PATCH com `estado_esperado` correto podia mudar saldo, situação, área ou categoria. O cancelamento só conferia a área e "Inativo com saldo" e somava `antes − depois` sobre o saldo atual.
+**Contexto:** o CAS da D-PROD-99a impede escrita obsoleta em `PATCH /lotes`, mas aceita escrita válida. Depois do movimento, um PATCH com `estado_esperado` correto podia mudar saldo, situação, área ou categoria. O cancelamento só conferia a área e "Inativo com saldo" e somava `antes − depois` sobre o saldo atual.
 - RED reproduzido no HEAD 1fbfef6:
   - 450 → PATCH 400 → cancelamento **200, saldo 450** (crédito de 50 sem prova);
   - 450 → PATCH 550 → **600**;
@@ -3744,34 +3782,34 @@ Relatório: seção R2A-R1 de `docs/engineering/MAIKE-R2A-MAPA-CANCELAMENTO-ESTO
    - o comando grava, em cada efeito de `efeito_servidor` (campo reservado), o `auditoria_id` do `AuditLog` que ele mesmo escreveu para aquele lote, com o pós-estado material completo: `quantidade_cabecas`, `status`, `area_atual_id`, `categoria`, `categoria_manejo_id`, `empresa_id`;
    - o cancelamento grava o `auditoria_id` das reversões que fizer em `cancelamento.efeitos` (também reservado).
 2. **Cancelamento só passa, na mesma transação e depois de travar movimento e lotes, se:**
-   1. a proveniência da D-PROD-97a confere (efeito + `OperacaoIdempotente` committed deste movimento);
+   1. a proveniência da D-PROD-99a confere (efeito + `OperacaoIdempotente` committed deste movimento);
    2. a auditoria original existe, é do mesmo tenant e lote e registra exatamente o pós-estado do efeito;
    3. não há dependência posterior em outras fontes;
    4. toda alteração **material** posterior nos lotes participantes (origem, destino e derivado) é explicada por um manejo comprovado posterior **já cancelado**, ou pela reversão dele. Qualquer outra recebe 409 `CANCELAMENTO_ALTERACAO_POSTERIOR`: PATCH direto, ida e volta, fluxo legado;
    5. o estado atual de cada participante é igual, campo a campo, ao pós-estado. Senão: 409 `CANCELAMENTO_ESTADO_DIVERGENTE`, que pega inclusive escrita sem auditoria.
    - Atendidas as condições, o lote volta exatamente ao pré-estado gravado. Não há delta sobre saldo corrente.
 3. **Fail-closed:**
-   - efeito sem âncora (gravado na D-PROD-97a, antes desta subdecisão) → `CANCELAMENTO_EFEITO_NAO_COMPROVADO`;
+   - efeito sem âncora (gravado na D-PROD-99a, antes desta subdecisão) → `CANCELAMENTO_EFEITO_NAO_COMPROVADO`;
    - mesmo milissegundo da âncora, exceto o `create` do próprio lote, conta como posterior;
    - edição sem campo material (peso, nome, identificador) não bloqueia.
 4. **Comando:**
    - `categoria_animal` divergente da categoria do lote → 409 `MANEJO_ESTADO_INVALIDO`; o movimento grava a categoria do lote;
    - `data_movimentacao` precisa ser data de calendário válida (400);
    - a área atual da origem precisa ser da mesma empresa.
-5. **Numeração:** a R2A é D-PROD-97, com D-PROD-97a, D-PROD-97b e D-PROD-97c. As D-PROD-95 (UX-MOBILE-V4) e D-PROD-96 (ajustes do celular V5) de `main` ficam intactas.
+5. **Numeração:** a R2A é D-PROD-99, com D-PROD-99a, D-PROD-99b e D-PROD-99c. As D-PROD-95 a D-PROD-98 de `main` (celular V4 a V7) ficam intactas.
 
 **Risco residual declarado:**
 - `PATCH /lotes` com CAS continua permitindo correção material direta. Ela não tem trilha operacional própria; a auditoria a registra.
 - O efeito disso é tornar não cancelável qualquer movimento anterior do lote, que fica para conciliação assistida (slice futuro).
-- Manejo offline legado e transferência com várias categorias (atômica por lote, não no conjunto) seguem como na D-PROD-97a.
+- Manejo offline legado e transferência com várias categorias (atômica por lote, não no conjunto) seguem como na D-PROD-99a.
 
 Relatório: seção R2A-R2 de `docs/engineering/MAIKE-R2A-MAPA-CANCELAMENTO-ESTORNO-SEGURO-REPORT.md`.
 
 ---
 
-## D-PROD-97c — R2A-R3: cancelamento de unificação devolve a identificação do destino sem destruir edição posterior
+## D-PROD-99c — R2A-R3: cancelamento de unificação devolve a identificação do destino sem destruir edição posterior
 
-**Subdecisão de D-PROD-97.** Missão MAIKE-R2A-PR162-R3-REVERSAO-COMPLETA-IDENTIFICADORES-DE-LOTES-UNIFICADOS, na mesma PR #162. Sem migration, sem backfill, sem escrita em produção.
+**Subdecisão de D-PROD-99.** Missão MAIKE-R2A-PR162-R3-REVERSAO-COMPLETA-IDENTIFICADORES-DE-LOTES-UNIFICADOS, na mesma PR #162. Sem migration, sem backfill, sem escrita em produção.
 
 **Contexto:**
 - A unificação (`parcial_unificado`, `total_unificado`) copia `identificador_nome`, `identificador_sigla` e `identificador_cor` da origem para o destino, inclusive nulos.
@@ -3801,4 +3839,4 @@ Relatório: seção R2A-R3 de `docs/engineering/MAIKE-R2A-MAPA-CANCELAMENTO-ESTO
 
 ---
 
-<!-- Próxima decisão: D-PROD-98 -->
+<!-- Próxima decisão: D-PROD-100 -->
