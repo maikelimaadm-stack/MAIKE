@@ -1,0 +1,255 @@
+// R2B-P1 E2E (Chromium real): Nascimento (2 linhas), Pesagem (3 lotes), Mudança de Categoria (parcial)
+// pela UI do Mapa → UM POST do comando por confirmação; histórico agregado; cancelamento pela UI com
+// bloqueio de dependência; offline sem envio; sem overflow horizontal; sem POST/PATCH legado.
+const { chromium } = require('playwright');
+const W = Number(process.argv[2]), H = Number(process.argv[3]), BASE = process.argv[4], NOME_AREA = process.argv[5];
+const OUT = '/tmp/claude-0/r2b';
+const API = 'http://127.0.0.1:3334';
+const E = 'cmvwd6au200037d5t9qk00js3', S = 'cmvwd6auy00087d5tqtm2rk09';
+const VACA = 'Vaca + 36 meses', BOI = 'Boi 25 a 36 meses', GARROTE = 'Garrote 13 a 24 meses';
+const res = [];
+const ok = (nome, cond, extra = '') => res.push(`${cond ? 'PASS' : 'FAIL'} ${BASE} ${nome}${extra ? ' — ' + String(extra).slice(0, 200) : ''}`);
+const lista = (x) => (Array.isArray(x) ? x : x?.items || []);
+(async () => {
+  const { token } = await (await fetch(`${API}/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ login: 'demo.operador', senha: 'senha-demo-local-123' }) })).json();
+  const call = async (m, u, b) => (await fetch(`${API}${u}`, { method: m, headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' }, body: b ? JSON.stringify(b) : undefined })).json();
+  const P = lista(await call('GET', '/areas-pastagem?limit=500')).find((a) => a.nome === NOME_AREA);
+  const QV = 200 + Math.floor(Math.random() * 600);
+  const mk = (nome, qtd, categoria, sexo, peso) => call('POST', '/lotes', { empresa_id: E, nome, quantidade_cabecas: qtd, categoria, sexo, setor_id: S, area_entrada_id: P.id, area_atual_id: P.id, data_entrada: '2026-10-01', motivo_entrada: 'Compra', status: 'Ativo', ...(peso ? { peso_medio_kg: peso } : {}) });
+  const vacas = await mk(`VACAS ${BASE}`, QV, VACA, 'Fêmea', 450);
+  const b1 = await mk(`BOI1 ${BASE}`, 50, BOI, 'Macho', 400);
+  const b2 = await mk(`BOI2 ${BASE}`, 40, BOI, 'Macho', 380);
+  const g = await mk(`GAR ${BASE}`, 60, GARROTE, 'Macho');
+  let total = QV + 150;
+  const lotesDaArea = async () => lista(await call('GET', '/lotes?limit=1000')).filter((l) => l.area_atual_id === P.id);
+  const movsDaArea = async () => lista(await call('GET', `/movimentacoes-mapa/historico?empresa_id=${E}&area_id=${P.id}&limit=50`));
+
+  const browser = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader'] });
+  const mobile = W < 800;
+  const ctx = await browser.newContext({ viewport: { width: W, height: H }, isMobile: mobile, hasTouch: mobile });
+  const page = await ctx.newPage();
+  global.__page = page;
+  const erros = []; page.on('pageerror', (e) => erros.push(e.message.slice(0, 160)));
+  const reqs = [];
+  page.on('request', (r) => { if (!['GET', 'OPTIONS', 'HEAD'].includes(r.method())) reqs.push({ m: r.method(), u: new URL(r.url()).pathname.replace(/^\/(api\/)?native/, ''), b: r.postData() || '' }); });
+  page.on('dialog', (d) => d.dismiss()); // nenhum window.confirm deve aparecer; se aparecer, não descarta pendência
+  const tocar = async (loc) => { if (mobile) await loc.tap({ force: true }); else await loc.click({ force: true }); };
+  const semOverflow = async (rotulo) => {
+    const m = await page.evaluate(() => {
+      const d = [...document.querySelectorAll('[role="dialog"]')].pop();
+      const r = d ? d.getBoundingClientRect() : { left: 0, right: 0 };
+      return { sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth, l: r.left, r: r.right, vw: window.innerWidth };
+    });
+    ok(`${rotulo}: sem overflow horizontal`, m.sw <= m.cw + 1 && m.l >= -1 && m.r <= m.vw + 1, JSON.stringify(m));
+  };
+  const comandos = () => reqs.filter((r) => r.m === 'POST' && /comandos\/manejo-rebanho/.test(r.u));
+
+  await page.goto('http://127.0.0.1:5180/', { waitUntil: 'networkidle' });
+  await page.locator('input').nth(0).fill('demo.operador');
+  await page.locator('input[type=password]').fill('senha-demo-local-123');
+  await page.keyboard.press('Enter');
+  await page.waitForURL(/mapageral/i, { timeout: 20000 });
+
+  const abrirArea = async () => {
+    await page.goto('http://127.0.0.1:5180/MapaGeral', { waitUntil: 'networkidle' });
+    await page.waitForTimeout(6000);
+    await page.getByText(String(total), { exact: true }).first().dispatchEvent('click');
+    await page.getByText('Detalhes do Lote').first().waitFor({ timeout: 20000 });
+  };
+  // Toque móvel logo após fechar um diálogo às vezes não abre o menu Radix: espera e toca de novo (uma vez).
+  const evento = async (nome, menu = 'Eventos') => {
+    const item = page.getByRole('menuitem', { name: nome });
+    for (let tentativa = 0; tentativa < 2; tentativa += 1) {
+      await page.waitForTimeout(600);
+      await tocar(page.getByRole('button', { name: menu }).first());
+      if (await item.waitFor({ timeout: 5000 }).then(() => true, () => false)) break;
+      await page.keyboard.press('Escape').catch(() => {});
+    }
+    await tocar(item);
+  };
+  const linha = (dlg, i) => dlg.locator('div.border.border-slate-200.rounded-lg').nth(i);
+  const escolher = async (gatilho, opcao) => { await tocar(gatilho); await tocar(page.getByRole('option', { name: opcao }).first()); };
+
+  // ── 1. Nascimento: 2 linhas, uma confirmação ──────────────────────────
+  await abrirArea();
+  await evento('Nascimento');
+  await page.getByRole('dialog').last().getByText(/Registrar Nascimento -/).first().waitFor({ timeout: 10000 });
+  let dlg = page.getByRole('dialog').last();
+  await tocar(dlg.getByRole('button', { name: 'Adicionar Categoria' }));
+  await tocar(dlg.getByRole('button', { name: 'Adicionar Categoria' }));
+  await linha(dlg, 0).locator('input[type=number]').nth(0).fill('5');
+  await linha(dlg, 0).locator('input[type=number]').nth(1).fill('32');
+  await escolher(linha(dlg, 0).getByText('Selecione o sexo'), 'Macho');
+  await linha(dlg, 1).locator('input[type=number]').nth(0).fill('3');
+  await escolher(linha(dlg, 1).getByText('Selecione o sexo'), 'Fêmea');
+  await semOverflow('nascimento');
+  await page.screenshot({ path: `${OUT}/${BASE}-01-nascimento-2-linhas.png` });
+  const botaoNasc = dlg.getByRole('button', { name: 'Registrar Nascimentos' });
+  await tocar(botaoNasc);
+  await tocar(botaoNasc).catch(() => {}); // duplo toque
+  await page.waitForTimeout(4000);
+  ok('nascimento: 1 POST do comando para 2 linhas (duplo toque não duplica)', comandos().length === 1, `${comandos().length} POST`);
+  let corpo = JSON.parse(comandos()[0]?.b || '{}');
+  ok('nascimento: corpo com 2 linhas e sem cabeças por lote', corpo.tipo === 'Nascimento' && corpo.linhas?.length === 2 && !('lote_id' in corpo), JSON.stringify(corpo.linhas));
+  let lotes = await lotesDaArea();
+  const bz = lotes.find((l) => l.categoria === 'Bezerro 0 a 12 meses');
+  const bza = lotes.find((l) => l.categoria === 'Bezerra 0 a 12 meses');
+  ok('nascimento: lotes de filhotes 5 M (32 kg) e 3 F; mães intactas', bz?.quantidade_cabecas === 5 && bz?.peso_medio_kg === 32 && bza?.quantidade_cabecas === 3 && lotes.find((l) => l.id === vacas.id)?.quantidade_cabecas === QV,
+    `${bz?.quantidade_cabecas}/${bz?.peso_medio_kg} ${bza?.quantidade_cabecas}`);
+  let movs = await movsDaArea();
+  const mNasc = movs.find((m) => m.tipo === 'Nascimento');
+  ok('nascimento: UM movimento agregado com 2 participantes e proveniência', mNasc?.lote_ids?.length === 2 && mNasc?.efeito_servidor?.comando === 'manejo_mapa_rebanho');
+  ok('nascimento: lote de matrizes citado em linhas[].maes_lote_ids (categoria/área)', (mNasc?.linhas || []).every((l) => JSON.stringify(l.maes_lote_ids) === JSON.stringify([vacas.id])));
+  const histMatriz = lista(await call('GET', `/movimentacoes-mapa/historico?empresa_id=${E}&lote_ids=${vacas.id}`));
+  ok('histórico da MATRIZ acha o nascimento (vínculo materno)', histMatriz.some((m) => m.id === mNasc?.id), histMatriz.map((m) => m.tipo).join(','));
+  const elegMatriz = await call('GET', `/lotes/${vacas.id}/elegibilidade-exclusao`);
+  ok('matriz citada por nascimento ativo: exclusão bloqueada (movimentacao_ativa)', elegMatriz?.tipo === 'bloqueado' && elegMatriz?.motivo === 'movimentacao_ativa', JSON.stringify(elegMatriz));
+  total += 8;
+
+  // ── 2. Pesagem: 3 lotes (dois da mesma categoria), por lote ───────────
+  await abrirArea();
+  await evento('Pesar');
+  await page.getByRole('dialog').last().getByText(/Registrar Pesagem/).first().waitFor({ timeout: 10000 });
+  dlg = page.getByRole('dialog').last();
+  await tocar(dlg.getByRole('button', { name: 'Por Lote' }));
+  const pesoDe = async (nome, valor) => dlg.locator('div.border.border-slate-200.rounded-lg', { hasText: nome }).locator('input').first().fill(valor);
+  await pesoDe(`BOI1 ${BASE}`, '420');
+  await pesoDe(`BOI2 ${BASE}`, '425');
+  await pesoDe(`GAR ${BASE}`, '300');
+  await semOverflow('pesagem');
+  await page.screenshot({ path: `${OUT}/${BASE}-02-pesagem-3-lotes.png` });
+  await tocar(dlg.getByRole('button', { name: 'Registrar Pesagens' }));
+  await page.waitForTimeout(4000);
+  ok('pesagem: 1 POST do comando para 3 lotes', comandos().length === 2, `${comandos().length} POST no total`);
+  corpo = JSON.parse(comandos()[1]?.b || '{}');
+  ok('pesagem: modo por lote, só os 3 lotes digitados', corpo.modo_pesagem === 'por_lote' && corpo.linhas?.length === 3, JSON.stringify(corpo.linhas));
+  lotes = await lotesDaArea();
+  const por = (id) => lotes.find((l) => l.id === id);
+  ok('pesagem por lote: 3 pesos novos, cabeças intactas', por(b1.id)?.peso_medio_kg === 420 && por(b2.id)?.peso_medio_kg === 425 && por(g.id)?.peso_medio_kg === 300 &&
+    por(b1.id)?.quantidade_cabecas === 50 && por(b2.id)?.quantidade_cabecas === 40 && por(g.id)?.quantidade_cabecas === 60);
+
+  // ── 2b. Pesagem POR CATEGORIA: Boi (2 lotes) → 430 ────────────────────
+  await abrirArea();
+  await evento('Pesar');
+  await page.getByRole('dialog').last().getByText(/Registrar Pesagem/).first().waitFor({ timeout: 10000 });
+  dlg = page.getByRole('dialog').last();
+  await tocar(dlg.getByRole('button', { name: 'Por Categoria' }));
+  await tocar(dlg.getByRole('button', { name: 'Adicionar Categoria' }));
+  await escolher(linha(dlg, 0).getByRole('combobox').first(), new RegExp(BOI.replace('+', '\\+')));
+  await linha(dlg, 0).locator('input').last().fill('430');
+  await semOverflow('pesagem por categoria');
+  await tocar(dlg.getByRole('button', { name: 'Registrar Pesagens' }));
+  await page.waitForTimeout(4000);
+  const cmdCat = JSON.parse(comandos()[2]?.b || '{}');
+  ok('pesagem por categoria: 1 POST, 2 lotes da mesma categoria como linhas separadas', comandos().length === 3 && cmdCat.modo_pesagem === 'por_categoria' && cmdCat.linhas?.length === 2, JSON.stringify(cmdCat.linhas));
+  lotes = await lotesDaArea();
+  ok('pesagem por categoria: BOI1 e BOI2 = 430, GAR intacto (300)', lotes.find((l) => l.id === b1.id)?.peso_medio_kg === 430 && lotes.find((l) => l.id === b2.id)?.peso_medio_kg === 430 && lotes.find((l) => l.id === g.id)?.peso_medio_kg === 300);
+
+  // ── 3. Mudança de Categoria: parcial 20 de 60 Garrote → Boi ────────────
+  await abrirArea();
+  await evento('Mudar Categoria');
+  await page.getByRole('dialog').last().getByText('Mudança de categoria', { exact: true }).waitFor({ timeout: 10000 });
+  dlg = page.getByRole('dialog').last();
+  await tocar(dlg.getByRole('button', { name: 'Adicionar Categoria' }));
+  await escolher(linha(dlg, 0).getByRole('combobox').first(), new RegExp(GARROTE.replace('+', '\\+')));
+  await linha(dlg, 0).locator('input[type=number]').first().fill('20');
+  await escolher(linha(dlg, 0).getByText('Selecione a nova categoria'), BOI);
+  await semOverflow('mudança');
+  await page.screenshot({ path: `${OUT}/${BASE}-03-mudanca-parcial.png` });
+  await tocar(dlg.getByRole('button', { name: 'Confirmar Mudanças' }));
+  await page.waitForTimeout(4000);
+  ok('mudança: 1 POST do comando', comandos().length === 4, `${comandos().length} POST no total`);
+  lotes = await lotesDaArea();
+  const deriv = lotes.find((l) => l.origem === 'Mudança de Categoria' && l.status === 'Ativo');
+  ok('mudança: origem 60 → 40, derivado 20 Boi (não é compra), total conservado',
+    por(g.id) && lotes.find((l) => l.id === g.id)?.quantidade_cabecas === 40 && deriv?.quantidade_cabecas === 20 && deriv?.categoria === BOI &&
+    lotes.filter((l) => l.status === 'Ativo').reduce((t, l) => t + l.quantidade_cabecas, 0) === total,
+    `${lotes.find((l) => l.id === g.id)?.quantidade_cabecas} / ${deriv?.quantidade_cabecas} ${deriv?.categoria}`);
+
+  // ── 4. Histórico agregado + cancelamento pela UI (com bloqueio) ────────
+  await abrirArea();
+  await evento('Histórico de Movimentação', 'Históricos');
+  await page.waitForTimeout(5000);
+  await page.getByRole('dialog').last().getByText('Pesagem', { exact: true }).first().waitFor({ timeout: 15000 });
+  await page.waitForTimeout(1500);
+  const cartao = (tipo) => page.locator('div.rounded-lg, div.rounded-xl, li').filter({ has: page.getByText(tipo, { exact: true }) }).filter({ has: page.getByRole('button', { name: 'Cancelar movimentação' }) }).last();
+  const textoHist = await page.getByRole('dialog').last().innerText();
+  ok('histórico: pesagem mostra 3 lotes envolvidos e peso anterior → novo', /Lotes envolvidos:\s*3/.test(textoHist) && /400 kg → 420 kg/.test(textoHist), textoHist.slice(0, 160));
+  ok('histórico: nascimento mostra as 2 linhas', /5 macho\(s\)/.test(textoHist) && /3 fêmea\(s\)/.test(textoHist));
+  ok('histórico: nascimento informa lotes de matrizes sem afirmar mãe individual', /Lotes de matrizes da categoria na área:\s*1/.test(textoHist) && /não identifica a mãe individual/.test(textoHist));
+  await page.screenshot({ path: `${OUT}/${BASE}-04-historico-agregado.png`, fullPage: false });
+  // Pesagem tem a mudança (mais nova) sobre o lote GAR → bloqueada.
+  await tocar(cartao('Pesagem').getByRole('button', { name: 'Cancelar movimentação' }));
+  const alerta = page.getByRole('dialog').last().getByRole('alert');
+  await alerta.waitFor({ timeout: 15000 });
+  ok('cancelar pesagem com mudança posterior: recusado antes do motivo', /registros posteriores/i.test(await alerta.innerText()), await alerta.innerText());
+  await semOverflow('cancelamento bloqueado');
+  await page.screenshot({ path: `${OUT}/${BASE}-05-cancelamento-bloqueado.png` });
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(800);
+  // Mudança (mais nova) → cancela.
+  await tocar(cartao('Mudança de Categoria').getByRole('button', { name: 'Cancelar movimentação' }));
+  const dc = page.getByRole('dialog').last();
+  await dc.getByText('Efeito ao cancelar').waitFor({ timeout: 15000 });
+  await dc.locator('textarea').fill('Lançada por engano no teste E2E');
+  await semOverflow('diálogo de cancelamento');
+  await page.screenshot({ path: `${OUT}/${BASE}-06-dialogo-cancelar-mudanca.png` });
+  await tocar(dc.getByRole('button', { name: 'Confirmar cancelamento' }));
+  await page.waitForTimeout(4000);
+  lotes = await lotesDaArea();
+  const derivDepois = (await call('GET', `/lotes/${deriv?.id}`));
+  ok('cancelar mudança pela UI: origem volta a 60, derivado 0/Inativo (não apagado)', lotes.find((l) => l.id === g.id)?.quantidade_cabecas === 60 && derivDepois?.quantidade_cabecas === 0 && derivDepois?.status === 'Inativo',
+    `${lotes.find((l) => l.id === g.id)?.quantidade_cabecas} / ${derivDepois?.quantidade_cabecas} ${derivDepois?.status}`);
+  movs = await movsDaArea();
+  const pesagens = movs.filter((m) => m.tipo === 'Pesagem'); // mais nova primeiro
+  const elegAntiga = await call('GET', `/movimentacoes-mapa/${pesagens[1]?.id}/elegibilidade-cancelamento`);
+  ok('pesagem por lote ainda bloqueada pela pesagem por categoria posterior', elegAntiga?.elegivel === false && elegAntiga?.codigo === 'CANCELAMENTO_DEPENDENCIA_POSTERIOR', JSON.stringify(elegAntiga?.codigo));
+  const cCat = await call('POST', `/movimentacoes-mapa/${pesagens[0]?.id}/cancelamento`, { operation_id: `e2e-r2b-${pesagens[0]?.id}`, motivo: 'teste e2e' });
+  ok('cancelar pesagem por categoria (mais nova): volta a 420/425', cCat?.movimentacao?.situacao === 'cancelado');
+  const mPes = pesagens[1];
+  const elegPes = await call('GET', `/movimentacoes-mapa/${mPes?.id}/elegibilidade-cancelamento`);
+  ok('agora a pesagem por lote é elegível (mais nova → mais antiga)', elegPes?.elegivel === true, JSON.stringify(elegPes?.codigo));
+  const cp = await call('POST', `/movimentacoes-mapa/${mPes?.id}/cancelamento`, { operation_id: `e2e-r2b-${mPes?.id}`, motivo: 'teste e2e' });
+  lotes = await lotesDaArea();
+  ok('cancelar pesagem: os 3 pesos voltam', cp?.movimentacao?.situacao === 'cancelado' && por(b1.id) && lotes.find((l) => l.id === b1.id)?.peso_medio_kg === 400 && lotes.find((l) => l.id === b2.id)?.peso_medio_kg === 380 && lotes.find((l) => l.id === g.id)?.peso_medio_kg === null);
+
+  // ── 5. Offline: indisponível, nada enviado nem enfileirado ─────────────
+  await abrirArea();
+  await evento('Nascimento');
+  await page.getByRole('dialog').last().getByText(/Registrar Nascimento -/).first().waitFor({ timeout: 10000 });
+  dlg = page.getByRole('dialog').last();
+  await tocar(dlg.getByRole('button', { name: 'Adicionar Categoria' }));
+  await linha(dlg, 0).locator('input[type=number]').nth(0).fill('4');
+  await escolher(linha(dlg, 0).getByText('Selecione o sexo'), 'Macho');
+  const antesOff = reqs.length;
+  await ctx.setOffline(true);
+  await page.evaluate(() => window.dispatchEvent(new Event('offline')));
+  await tocar(dlg.getByRole('button', { name: 'Registrar Nascimentos' }));
+  await page.waitForTimeout(1500);
+  const toast = await page.locator('[data-sonner-toast]').allInnerTexts();
+  ok('offline: mensagem explícita de indisponibilidade', toast.some((t) => /Sem conexão/.test(t)), toast.join(' | ').slice(0, 160));
+  ok('offline: nenhuma requisição de escrita disparada', reqs.length === antesOff, reqs.slice(antesOff).map((r) => `${r.m} ${r.u}`).join(','));
+  const fila = await page.evaluate(() => new Promise((resolve) => {
+    const rq = indexedDB.open('pesagens_offline_db');
+    rq.onerror = () => resolve(['erro']);
+    rq.onsuccess = () => { const db = rq.result; if (!db.objectStoreNames.contains('entity_queue')) return resolve([]); const t = db.transaction('entity_queue', 'readonly').objectStore('entity_queue').getAll(); t.onsuccess = () => resolve(t.result.map((f) => `${f.entity_name}:${f.operation}`)); };
+  }));
+  ok('offline: fila offline sem Lote/MovimentacaoMapa', !fila.some((f) => /^(Lote|MovimentacaoMapa):/.test(f)), fila.join(','));
+  ok('offline: formulário continua aberto (nada perdido)', await dlg.getByRole('button', { name: 'Registrar Nascimentos' }).isVisible());
+  await page.screenshot({ path: `${OUT}/${BASE}-07-offline-indisponivel.png` });
+  await ctx.setOffline(false);
+  await page.evaluate(() => window.dispatchEvent(new Event('online')));
+  const bzFinal = (await lotesDaArea()).find((l) => l.categoria === 'Bezerro 0 a 12 meses');
+  ok('offline: servidor sem nascimento novo', bzFinal?.quantidade_cabecas === 5);
+
+  // ── Requisições do caminho certificado ────────────────────────────────
+  ok('sem POST/PATCH legado de movimento (/movimentacoes-mapa) pelo navegador', !reqs.some((r) => ['POST', 'PATCH', 'DELETE'].includes(r.m) && /^\/movimentacoes-mapa(\/[^/]+)?$/.test(r.u)), reqs.filter((r) => /movimentacoes-mapa/.test(r.u)).map((r) => `${r.m} ${r.u}`).join(','));
+  ok('sem POST/PATCH /lotes pelo navegador nos manejos', !reqs.some((r) => ['POST', 'PATCH'].includes(r.m) && /^\/lotes/.test(r.u)), reqs.filter((r) => /^\/lotes/.test(r.u)).map((r) => `${r.m} ${r.u}`).join(','));
+  ok('sem erro de página', erros.length === 0, erros.join(' ; '));
+  console.log('REQS ' + reqs.map((r) => `${r.m} ${r.u}`).join(', '));
+  await browser.close();
+  console.log(res.join('\n'));
+  const falhas = res.filter((r) => r.startsWith('FAIL')).length;
+  console.log(`RESUMO ${BASE}: ${res.length - falhas}/${res.length} PASS`);
+  process.exit(falhas ? 1 : 0);
+})().catch(async (e) => { try { await global.__page.screenshot({ path: `${OUT}/${BASE}-ERRO.png` }); console.log('DLGS', (await global.__page.locator('[role=dialog]').allInnerTexts()).map((t) => t.slice(0, 200)).join(' || ')); } catch {} console.log(res.join('\n')); console.error('ERRO', e.message.split('\n').slice(0, 6).join(' | ')); process.exit(2); });
