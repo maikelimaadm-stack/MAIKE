@@ -3648,4 +3648,23 @@ Relatório: `docs/engineering/UX-MOBILE-V2-REPORT.md` (seção V5). Teste: `test
 
 ---
 
-<!-- Próxima decisão: D-PROD-97 -->
+## D-PROD-98 — Chave do iOS: tamanho único, pulinho e ao lado do rótulo
+
+**Missão:** UX-MOBILE-V7. O proprietário pediu que todas as chaves (Ativo etc.) tenham o mesmo tamanho da chave de Configurar colunas, um pouco mais compridas, com o "pulinho" do iPhone, e que nos formulários ela fique ao lado do rótulo.
+
+**Decisão:**
+1. **Um tamanho para todas**, por variáveis CSS (`--mk-sw-*`): trilho 56×26 e cápsula 36×22, em todos os tamanhos de tela. Vale para:
+   - `B1Switch` (Ativo dos cadastros);
+   - `ToggleSwitch` (configurar colunas, formulário dinâmico);
+   - o `Switch` do shadcn (filtros do mapa, formulários antigos), que ganhou as classes `mk-switch`/`mk-switch__thumb`.
+2. **Pulinho:**
+   - a cápsula anda com `cubic-bezier(0.3, 1.9, 0.5, 1)` em 0,55 s: passa uns 3 px do ponto e volta;
+   - pressionada, ela estica;
+   - verde do iOS ligada, cinza claro desligada.
+3. **Ao lado do rótulo:** desfeito o "rótulo à esquerda, chave na ponta direita" que a D-PROD-95 tinha posto no celular.
+
+Relatório: `docs/engineering/UX-MOBILE-V2-REPORT.md` (seção V7). Teste: `tests/smoke/mobileV7Chave.test.jsx`.
+
+---
+
+<!-- Próxima decisão: D-PROD-99 -->
