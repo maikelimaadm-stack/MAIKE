@@ -100,6 +100,18 @@ export const operacoesNativas = Object.freeze({
     ),
 });
 
+/**
+ * Exclusão do Cadastro (MAIKE-LOTES-R1): sempre direto no servidor, nunca pela
+ * fila offline — exclusão é definitiva e o servidor decide física × lógica.
+ */
+export const operacoesDeExclusao = Object.freeze({
+  elegibilidade: (id) =>
+    nativeRequest(`${CAMINHO}/${encodeURIComponent(id)}/elegibilidade-exclusao`, { autenticado: true }, ctx('elegibilidadeExclusaoLote')),
+  excluirOnline: (id) => operacoesNativas.delete(id),
+  /** Leitura por id, inclusive lote excluído logicamente (histórico/auditoria). */
+  buscarPorId: (id) => nativeRequest(`${CAMINHO}/${encodeURIComponent(id)}`, { autenticado: true }, ctx('buscarLotePorIdServidor')),
+});
+
 export const lotePort = createOfflineEntityAdapter({
   entityName: ENTIDADE_OFFLINE,
   operations: operacoesNativas,

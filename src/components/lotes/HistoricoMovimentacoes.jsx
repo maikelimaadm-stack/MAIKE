@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useQuery, useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
-import { listarHistoricoMovimentacoesPagina } from "@/services/loteManejoService";
+import { buscarLoteDoHistorico, listarHistoricoMovimentacoesPagina } from "@/services/loteManejoService";
 import { Button } from "@/components/ui/button";
 import { normalizeText, getJuncaoLotesSnapshot } from "../utils/pecuariaUtils";
 import { ehMovimentoCancelado, motivoSemCancelamento, tipoTemCancelamento } from "@/domain/lotes/situacaoMovimento";
@@ -247,6 +247,31 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
     }
     return saida;
   }, [paginas]);
+
+  // Lote excluído do Cadastro (MAIKE-LOTES-R1): o movimento cancelado continua
+  // aqui; o servidor resolve a identidade do lote (inclusive excluído) por id.
+  const idsDeLotesCancelados = React.useMemo(
+    () => [...new Set(movimentacoesCarregadas.filter(ehMovimentoCancelado).map((m) => m.lote_id).filter(Boolean))].sort(),
+    [movimentacoesCarregadas]
+  );
+  const lotesExcluidosQuery = useQuery({
+    queryKey: ['historico-lotes-excluidos', empresaSelecionadaId, idsDeLotesCancelados.join(',')],
+    queryFn: async () => {
+      const excluidos = new Set();
+      for (const id of idsDeLotesCancelados) {
+        try {
+          const lote = /** @type {any} */ (await buscarLoteDoHistorico(id));
+          if (lote?.excluido_em) excluidos.add(id);
+        } catch {
+          /* sem resposta: não marca nada (nunca mostra "não encontrado") */
+        }
+      }
+      return excluidos;
+    },
+    enabled: idsDeLotesCancelados.length > 0 && estaOnline(),
+    staleTime: 60_000,
+  });
+  const lotesExcluidos = lotesExcluidosQuery.data ?? new Set();
 
   const registros = registrosQuery.data;
   const areasRaw = registros?.areas ?? [];
@@ -527,6 +552,9 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
                             {item.cancelamento?.por_login ? ` por ${item.cancelamento.por_login}` : ''}
                             {item.cancelamento?.motivo ? ` — Motivo: ${item.cancelamento.motivo}` : ''}
                           </div>
+                        )}
+                        {item.cancelado && item.raw?.lote_id && lotesExcluidos.has(item.raw.lote_id) && (
+                          <div className="text-[10px] text-slate-500">Lote excluído do Cadastro — registro mantido para auditoria.</div>
                         )}
                         {item.source === 'movimentacao' && !item.cancelado && motivoSemCancelamento(item.raw) && (
                           <div className="text-[10px] text-slate-400">{motivoSemCancelamento(item.raw)}</div>

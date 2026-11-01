@@ -6,7 +6,7 @@
  */
 
 import { runProviderCall, assertArgument } from '../_core/normalizeApiError.js';
-import { lotePort } from './loteNativePort.js';
+import { lotePort, operacoesDeExclusao } from './loteNativePort.js';
 import {
   listMovimentacoesMapaNativas,
   filterMovimentacoesMapaNativas,
@@ -201,6 +201,27 @@ export const bulkCreateSuplementacaoLote = async (registros) => {
 };
 
 // ── P1.3 — cadastro de lote: exclusão e cadastros auxiliares ───────────────
+
+/** Elegibilidade de exclusão (só leitura; o DELETE revalida). MAIKE-LOTES-R1. */
+export const consultarElegibilidadeExclusaoLote = async (id) => {
+  const contexto = ctx('consultarElegibilidadeExclusaoLote');
+  assertArgument(isId(id), 'id', contexto);
+  return runProviderCall(() => operacoesDeExclusao.elegibilidade(id), { ...contexto, details: { id } });
+};
+
+/** Lote por id no servidor, inclusive excluído logicamente (só leitura). MAIKE-LOTES-R1. */
+export const buscarLotePorIdServidor = async (id) => {
+  const contexto = ctx('buscarLotePorIdServidor');
+  assertArgument(isId(id), 'id', contexto);
+  return runProviderCall(() => operacoesDeExclusao.buscarPorId(id), { ...contexto, details: { id } });
+};
+
+/** Exclusão definitiva, só online (sem fila offline). MAIKE-LOTES-R1. */
+export const excluirLoteOnline = async (id) => {
+  const contexto = ctx('excluirLoteOnline');
+  assertArgument(isId(id), 'id', contexto);
+  return runProviderCall(() => operacoesDeExclusao.excluirOnline(id), { ...contexto, details: { id } });
+};
 
 export const deleteLote = async (id) => {
   const contexto = ctx('deleteLote');

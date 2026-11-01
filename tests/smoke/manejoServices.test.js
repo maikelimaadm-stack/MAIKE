@@ -13,7 +13,7 @@ const lotes = {
   listLotes: vi.fn(), filterLotes: vi.fn(), createLote: vi.fn(), updateLote: vi.fn(), deleteLote: vi.fn(),
   listMovimentacoes: vi.fn(), listTodasMovimentacoes: vi.fn(), listMovimentacoesPecuarias: vi.fn(),
   listSuplementacaoLotes: vi.fn(), listFornecedores: vi.fn(), listCategoriasManejo: vi.fn(),
-  sincronizarReferenciasLote: vi.fn(),
+  sincronizarReferenciasLote: vi.fn(), consultarElegibilidadeExclusaoLote: vi.fn(), excluirLoteOnline: vi.fn(),
 };
 const estoque = { listProdutos: vi.fn(), listLocais: vi.fn() };
 // Sem `deleteSetor`: a superfície do módulo deixou de exportá-lo na P4.1
@@ -126,17 +126,18 @@ describe('L — cadastro de lotes', () => {
     });
   });
 
-  it('L6 — delete guard bloqueia por código, não por texto', async () => {
-    lotes.listLotes.mockResolvedValue([{ id: 'l1', empresa_id: EMPRESA }]);
-    lotes.listMovimentacoes.mockResolvedValue([{ id: 'm1', lote_id: 'l1', empresa_id: EMPRESA }]);
+  // MAIKE-LOTES-R1: quem decide é o servidor (elegibilidade); listas da tela não autorizam nem bloqueiam.
+  it('L6 — delete guard bloqueia por código (servidor), não por texto', async () => {
+    lotes.consultarElegibilidadeExclusaoLote.mockResolvedValue({ lote_id: 'l1', tipo: 'bloqueado', motivo: 'movimentacao_ativa' });
     const erro = await loteCadastro.validarExclusaoDeLote('l1').catch((e) => e);
     expect(hasApiErrorCode(erro, API_ERROR_CODES.LOTE_DELETE_BLOCKED)).toBe(true);
     expect(getApiErrorMessage(erro)).not.toMatch(/undefined|\[object/);
+    expect(lotes.listMovimentacoes).not.toHaveBeenCalled();
   });
 
-  it('L6b — sem vínculo, a guarda libera', async () => {
-    lotes.listLotes.mockResolvedValue([{ id: 'l1', empresa_id: EMPRESA }]);
-    await expect(loteCadastro.validarExclusaoDeLote('l1')).resolves.toBeUndefined();
+  it('L6b — servidor libera (física ou lógica): a guarda devolve o tipo', async () => {
+    lotes.consultarElegibilidadeExclusaoLote.mockResolvedValue({ lote_id: 'l1', tipo: 'exclusao_logica', motivo: 'historico_somente_cancelado' });
+    await expect(loteCadastro.validarExclusaoDeLote('l1')).resolves.toMatchObject({ tipo: 'exclusao_logica' });
   });
 
   it('L7 — áreas ativas da empresa', async () => {

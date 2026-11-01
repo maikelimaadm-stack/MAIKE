@@ -17,6 +17,8 @@ import {
   createLote,
   updateLote,
   deleteLote,
+  consultarElegibilidadeExclusaoLote,
+  excluirLoteOnline,
   listMovimentacoes,
   listMovimentacoesPecuarias,
   listTodasMovimentacoes,
@@ -28,9 +30,10 @@ import {
 import { listAreas } from '@/apis/mapa';
 import { listLancamentos } from '@/apis/tarefas';
 import { listManejosTecnicos } from '@/apis/rebanho';
-import { API_ERROR_CODES } from '@/apis/_core/ApiError';
+import { ApiError, API_ERROR_CODES } from '@/apis/_core/ApiError';
 import { assertExclusaoPermitida } from './deleteGuardService';
 import { ehLoteDerivadoDeManejo, motivoDeHistoricoDoLote } from '@/domain/lotes/saldoLote';
+import { TIPOS_EXCLUSAO, mensagemDoMotivoExclusao } from '@/domain/lotes/exclusaoLote';
 
 /**
  * Origens geradas pelo próprio sistema.
@@ -210,56 +213,75 @@ const CARREGADORES_DE_DEPENDENCIA = Object.freeze({
   ManejoTecnicoRebanho: () => listManejosTecnicos(),
 });
 
+/**
+ * Elegibilidade de exclusão vinda do SERVIDOR (MAIKE-LOTES-R1). Lança
+ * `LOTE_DELETE_BLOCKED` quando bloqueado (contrato anterior desta função).
+ * @param {string} id
+ */
 export const validarExclusaoDeLote = async (id) => {
-  const lote = await buscarLotePorId(id);
-  await assertExclusaoPermitida({
-    entityName: 'Lote',
-    id,
-    currentRecord: lote,
-    carregadores: CARREGADORES_DE_DEPENDENCIA,
-    blockedCode: API_ERROR_CODES.LOTE_DELETE_BLOCKED,
-    operation: 'validarExclusaoDeLote',
-  });
+  const r = /** @type {any} */ (await consultarElegibilidadeExclusaoLote(id));
+  if (r?.tipo === TIPOS_EXCLUSAO.BLOQUEADO) {
+    throw new ApiError(API_ERROR_CODES.LOTE_DELETE_BLOCKED, {
+      operation: 'validarExclusaoDeLote',
+      resource: 'Lote',
+      details: { id, motivo: r.motivo ?? null, mensagem: mensagemDoMotivoExclusao(r.motivo) },
+    });
+  }
+  return r;
 };
 
 /**
- * Exclusão em lote com resultado explícito (Motor Base1).
+ * Elegibilidade de vários lotes (para a confirmação). Só leitura.
  * @param {string[]} ids
- * @param {{ lotes?: object[] }} [opcoes]
+ * @returns {Promise<Array<{id: string, tipo: string|null, motivo: string|null, erro?: unknown}>>}
  */
-export const excluirLotes = async (ids, { lotes = [] } = {}) => {
+export const consultarExclusaoDeLotes = async (ids) => {
+  const saida = [];
+  for (const id of Array.isArray(ids) ? ids : []) {
+    try {
+      const r = /** @type {any} */ (await consultarElegibilidadeExclusaoLote(id));
+      saida.push({ id, tipo: r?.tipo ?? null, motivo: r?.motivo ?? null });
+    } catch (erro) {
+      saida.push({ id, tipo: null, motivo: null, erro });
+    }
+  }
+  return saida;
+};
+
+const estaOnline = () => (typeof navigator === 'undefined' ? true : navigator.onLine !== false);
+
+/**
+ * Exclusão em lote com resultado por item (Motor Base1) — MAIKE-LOTES-R1.
+ *
+ * Sem pré-bloqueio por listas da tela: cada DELETE vai direto ao servidor
+ * (nunca à fila offline), que trava o lote, reavalia e decide entre exclusão
+ * física, lógica (histórico só cancelado) ou recusa com motivo. Offline: nada
+ * é enviado nem enfileirado.
+ * @param {string[]} ids
+ * @param {{ lotes?: object[] }} [_opcoes]
+ */
+export const excluirLotes = async (ids, _opcoes = {}) => {
   const listaIds = Array.isArray(ids) ? ids : [];
   /** @type {string[]} */
   const excluidos = [];
-  /** @type {Array<{ id: string, code?: string, erro?: unknown }>} */
+  /** @type {Array<{ id: string, code?: string, motivo?: string|null, erro?: unknown }>} */
   const bloqueados = [];
 
+  if (!estaOnline()) {
+    for (const id of listaIds) bloqueados.push({ id, code: API_ERROR_CODES.PROVIDER_UNAVAILABLE, motivo: 'offline' });
+    return { excluidos, bloqueados };
+  }
+
   for (const id of listaIds) {
-    const atual = (lotes || []).find((item) => item.id === id) || null;
-    // Lote gerado por manejo carrega cabeças que saíram de outro lote: apagá-lo
-    // pelo cadastro sumiria com elas sem estornar a origem. Desfaz-se pelo
-    // histórico de movimentações do mapa.
-    // Lote gerado por manejo, ou que já mudou desde a entrada (D-PROD-87):
-    // o servidor também recusa; aqui evita a chamada.
-    if (ehLoteDerivadoDeManejo(atual) || (atual && motivoDeHistoricoDoLote(atual))) {
-      bloqueados.push({ id, code: API_ERROR_CODES.LOTE_DELETE_BLOCKED });
-      continue;
-    }
     try {
-      await assertExclusaoPermitida({
-        entityName: 'Lote',
-        id,
-        currentRecord: atual,
-        carregadores: CARREGADORES_DE_DEPENDENCIA,
-        blockedCode: API_ERROR_CODES.LOTE_DELETE_BLOCKED,
-        operation: 'excluirLotes',
-      });
-      await deleteLote(id);
+      await excluirLoteOnline(id);
       excluidos.push(id);
     } catch (erro) {
+      const causa = /** @type {any} */ (erro)?.cause;
       bloqueados.push({
         id,
-        code: /** @type {{ code?: string }} */ (erro)?.code ?? API_ERROR_CODES.OPERATION_FAILED,
+        code: causa?.code ?? /** @type {{ code?: string }} */ (erro)?.code ?? API_ERROR_CODES.OPERATION_FAILED,
+        motivo: causa?.details?.motivo ?? null,
         erro,
       });
     }

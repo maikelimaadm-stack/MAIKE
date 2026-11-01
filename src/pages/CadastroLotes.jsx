@@ -13,8 +13,10 @@ import {
   criarLote,
   atualizarLote,
   excluirLotes,
+  consultarExclusaoDeLotes,
   listarIdsDeLotesComRegistros,
 } from "@/services/loteCadastroService";
+import { TIPOS_EXCLUSAO, TEXTO_CONFIRMACAO_LOGICA, mensagemDoMotivoExclusao } from "@/domain/lotes/exclusaoLote";
 import { persistirAnexosPendentes } from "@/services/anexoService";
 import { ehEntradaNoRebanho, motivoDeHistoricoDoLote } from "@/domain/lotes/saldoLote";
 import { getApiErrorMessage, hasApiErrorCode, API_ERROR_CODES } from "@/apis/_core/ApiError";
@@ -36,6 +38,8 @@ export default function CadastroLotes() {
 
   const [attachmentsRecord, setAttachmentsRecord] = useState(null);
   const [newRecordAttachmentsOpen, setNewRecordAttachmentsOpen] = useState(false);
+  // Algum selecionado sai por exclusão LÓGICA? Muda o texto da confirmação.
+  const [exclusaoLogica, setExclusaoLogica] = useState(false);
   const [pendingAttachments, setPendingAttachments] = useState([]);
 
   // Cadastro = lançamento da ENTRADA no rebanho (D-PROD-85): só lotes que são
@@ -176,7 +180,8 @@ export default function CadastroLotes() {
       if (excluidos.length) {
         await invalidateLotesComMapa();
       }
-      controller.chrome.setSelectedIds([]);
+      // Falhas continuam selecionadas (resultado por item); só o que saiu deixa a seleção.
+      controller.chrome.setSelectedIds(bloqueados.map((b) => b.id));
       if (
         controller.showForm &&
         controller.editingItem?.id &&
@@ -188,17 +193,22 @@ export default function CadastroLotes() {
         notifyExclusoesEmpilhadas(excluidos.length, { singular: "Lote excluído" });
       }
       if (bloqueados.length) {
+        if (bloqueados.every((b) => b.motivo === "offline")) {
+          notifyWarning("Sem conexão", "Exclusão de lote só com conexão: nada foi enviado nem guardado para depois.");
+          return;
+        }
         const soBloqueio = bloqueados.every(
           (b) =>
             b.code === API_ERROR_CODES.LOTE_DELETE_BLOCKED ||
             hasApiErrorCode(b.erro, API_ERROR_CODES.LOTE_DELETE_BLOCKED),
         );
+        const motivo = bloqueados.find((b) => b.motivo)?.motivo;
         notifyError(
           "Atenção",
           soBloqueio
             ? bloqueados.length === 1
-              ? "Este lote não pôde ser excluído: existem registros vinculados."
-              : `${bloqueados.length} lotes não puderam ser excluídos: existem registros vinculados.`
+              ? `Este lote não pôde ser excluído. ${mensagemDoMotivoExclusao(motivo)}`
+              : `${bloqueados.length} lotes não puderam ser excluídos. ${mensagemDoMotivoExclusao(motivo)}`
             : "Alguns lotes não puderam ser excluídos.",
         );
       }
@@ -275,14 +285,28 @@ export default function CadastroLotes() {
       }
       return controller.handleEditSelected();
     },
-    handleDeleteSelected: () => {
-      const selecionados = controller.allItems.filter((l) =>
-        controller.chrome.selectedIds.some((id) => String(id) === String(l.id)),
-      );
-      if (selecionados.some(temHistorico)) {
-        avisarHistorico("excluído");
+    // Excluir (MAIKE-LOTES-R1): não pré-bloqueia por "tem histórico" — histórico
+    // só cancelado pode sair do Cadastro. Quem decide é o servidor (a
+    // elegibilidade aqui só escolhe o texto; o DELETE revalida tudo).
+    handleDeleteSelected: async () => {
+      const ids = controller.chrome.selectedIds.map(String);
+      if (!ids.length) return;
+      if (typeof navigator !== "undefined" && navigator.onLine === false) {
+        notifyWarning("Sem conexão", "Exclusão de lote só com conexão: nada foi enviado nem guardado para depois.");
         return;
       }
+      const avaliacoes = await consultarExclusaoDeLotes(ids);
+      const bloqueados = avaliacoes.filter((a) => a.tipo === TIPOS_EXCLUSAO.BLOQUEADO);
+      if (bloqueados.length === ids.length) {
+        notifyWarning(
+          "Lote não pode ser excluído",
+          ids.length === 1
+            ? mensagemDoMotivoExclusao(bloqueados[0].motivo)
+            : `Nenhum dos ${ids.length} lotes pode ser excluído. ${mensagemDoMotivoExclusao(bloqueados[0].motivo)}`,
+        );
+        return;
+      }
+      setExclusaoLogica(avaliacoes.some((a) => a.tipo === TIPOS_EXCLUSAO.LOGICA));
       controller.handleDeleteSelected();
     },
   };
@@ -310,8 +334,13 @@ export default function CadastroLotes() {
         ]}
         deleteDialog={{
           title: "Confirmar exclusão",
-          descriptionOne: "Deseja realmente excluir este lote?",
-          descriptionMany: (n) => `Deseja realmente excluir ${n} lotes selecionados?`,
+          descriptionOne: exclusaoLogica
+            ? `Deseja realmente excluir este lote? ${TEXTO_CONFIRMACAO_LOGICA}`
+            : "Deseja realmente excluir este lote?",
+          descriptionMany: (n) =>
+            exclusaoLogica
+              ? `Deseja realmente excluir ${n} lotes selecionados? ${TEXTO_CONFIRMACAO_LOGICA} Lotes que não puderem sair serão informados.`
+              : `Deseja realmente excluir ${n} lotes selecionados? Lotes que não puderem sair serão informados.`,
         }}
         recordForm={
           <FormularioLote
