@@ -1,0 +1,16 @@
+PASS desktop-1440 morte: cancelada no histórico com ator e motivo
+PASS desktop-1440 morte: saldo 500 na API
+PASS desktop-1440 sem rolagem horizontal
+PASS desktop-1440 bloqueado (tentativa 1): explica, diz que nada mudou, sem confirmar e sem sugerir exclusão — Cancelar movimentação | Morte · BLOQ desktop-1440-mld2 · 50 cab. O registro original continua no histórico, marcado como cancelado. | O lote foi alterado depois desta mov
+PASS desktop-1440 bloqueado (tentativa 2): explica, diz que nada mudou, sem confirmar e sem sugerir exclusão — Cancelar movimentação | Morte · BLOQ desktop-1440-mld2 · 50 cab. O registro original continua no histórico, marcado como cancelado. | O lote foi alterado depois desta mov
+PASS desktop-1440 bloqueado: saldo continua 400 (sem crédito de 50) e movimento segue ativo — 400 → 400
+PASS desktop-1440 legado: mensagem e sem ação
+PASS desktop-1440 transferência: origem 100 e derivado 0/Inativo na API — [0,"Inativo"]
+PASS desktop-1440 curral: sem Excluir
+PASS desktop-1440 curral: abate cancelado, lote 30 Ativo
+PASS desktop-1440 offline: morte cancelada visível com motivo e autor — 31/10/2026 | Morte | Saída | Cancelado | MORTE desktop-1440-mld2 | Quantidade: 50 cab | Data: 31/10/2026 | Origem: Movimentação | Detalhes: Categoria: BOI. Caus
+PASS desktop-1440 offline: nenhuma ação de cancelar habilitada
+PASS desktop-1440 PATCH /lotes do navegador: nenhum operacional sem estado_esperado — 0 PATCH
+PASS desktop-1440 nenhum DELETE/PATCH de movimento/suplementação no navegador
+PASS desktop-1440 cancelamentos foram POST no comando do servidor (3) — 3
+PASS desktop-1440 sem erro de página
