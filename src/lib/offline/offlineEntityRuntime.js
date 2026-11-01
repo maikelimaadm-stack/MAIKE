@@ -85,6 +85,7 @@ const estaOnline = () => (typeof navigator === "undefined" ? true : navigator.on
  *   lerCache: (chave: string) => Promise<Array<object>>,
  *   gravarCache: (chave: string, registro: object) => Promise<void>,
  *   removerCache: (chave: string) => Promise<void>,
+ *   listarCaches?: () => Promise<Array<{cache_key: string, entity_name?: string, cliente_id?: string|null, items?: Array<object>}>>,
  *   listarFila: () => Promise<Array<object>>,
  *   adicionarNaFila: (item: object) => Promise<number|string>,
  *   atualizarNaFila: (id: number|string, campos: object) => Promise<void>,
@@ -102,6 +103,7 @@ export const criarArmazenamentoIndexedDB = () => ({
     await putItem(STORES_NAMES.ENTITY_CACHE, { cache_key: chave, ...registro });
   },
   removerCache: (chave) => deleteItem(STORES_NAMES.ENTITY_CACHE, chave),
+  listarCaches: () => getAllItems(STORES_NAMES.ENTITY_CACHE),
   listarFila: () => getAllItems(STORES_NAMES.ENTITY_QUEUE),
   adicionarNaFila: (item) => addItem(STORES_NAMES.ENTITY_QUEUE, item),
   atualizarNaFila: async (id, campos) => {
@@ -303,6 +305,68 @@ const enfileirar = async (storage, payload) => {
   const id = await storage.adicionarNaFila({ ...payload, created_at: new Date().toISOString() });
   emitirMudancaDeFila();
   return id;
+};
+
+/**
+ * Retira um registro de TODOS os caches da entidade que pertencem ao tenant da
+ * sessão (MAIKE-LOTES-PR167-R1). Uso: depois de uma exclusão CONFIRMADA pelo
+ * servidor (resposta definitiva), feita fora da fila — o cache não pode
+ * devolver o registro quando o aparelho ficar offline.
+ *
+ * Uma entidade como Lote é guardada uma vez por fazenda selecionada (a chave
+ * leva a empresa), e cada cópia pode conter o registro: todas são varridas.
+ * Cache de outro tenant nunca é tocado. Nada vai para a fila.
+ *
+ * @param {string} entityName
+ * @param {string} recordId
+ * @returns {Promise<number>} quantas entradas de cache mudaram
+ */
+export const removerRegistroDosCachesOffline = async (entityName, recordId) => {
+  const entrada = CATALOGO.get(entityName);
+  if (!entrada || !recordId) return 0;
+  const { storage, tenantScoped, tenantCatalog } = entrada;
+  const tenantId = tenantDe(tenantScoped);
+  const tira = (items) => (Array.isArray(items) ? items : []).filter((item) => item?.id !== recordId);
+
+  if (typeof storage.listarCaches !== "function") {
+    // Porta sem varredura: ao menos a chave da fazenda atual.
+    const empresaId = empresaIdParaEntidade(tenantCatalog);
+    const atuais = await lerCacheDe(storage, entityName, empresaId, tenantId);
+    if (!atuais.some((item) => item?.id === recordId)) return 0;
+    await gravarCacheDe(storage, entityName, empresaId, tira(atuais), tenantId);
+    return 1;
+  }
+
+  let alterados = 0;
+  for (const registro of await storage.listarCaches()) {
+    if (registro?.entity_name !== entityName) continue;
+    if (tenantScoped && (registro.cliente_id ?? null) !== (tenantId ?? null)) continue;
+    const items = Array.isArray(registro.items) ? registro.items : [];
+    if (!items.some((item) => item?.id === recordId)) continue;
+    const { cache_key: chave, ...resto } = registro;
+    await storage.gravarCache(chave, { ...resto, items: tira(items), updated_at: new Date().toISOString() });
+    alterados += 1;
+  }
+  return alterados;
+};
+
+/**
+ * Há operação na fila offline (do tenant da sessão) para este registro?
+ * Exclusão definitiva não pode passar por cima dela em silêncio.
+ * @param {string} entityName
+ * @param {string} recordId
+ */
+export const temPendenciaOfflineDoRegistro = async (entityName, recordId) => {
+  const entrada = CATALOGO.get(entityName);
+  if (!entrada || !recordId) return false;
+  const tenantId = tenantDe(entrada.tenantScoped);
+  const fila = await entrada.storage.listarFila();
+  return fila.some(
+    (item) =>
+      item.entity_name === entityName &&
+      (item.record_id === recordId || item.data?.id === recordId) &&
+      (!entrada.tenantScoped || (item.cliente_id ?? null) === (tenantId ?? null))
+  );
 };
 
 /**

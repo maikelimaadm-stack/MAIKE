@@ -19,6 +19,8 @@ import {
   deleteLote,
   consultarElegibilidadeExclusaoLote,
   excluirLoteOnline,
+  removerLoteDosCachesOffline,
+  temPendenciaOfflineLote,
   listMovimentacoes,
   listMovimentacoesPecuarias,
   listTodasMovimentacoes,
@@ -32,6 +34,7 @@ import { listLancamentos } from '@/apis/tarefas';
 import { listManejosTecnicos } from '@/apis/rebanho';
 import { ApiError, API_ERROR_CODES } from '@/apis/_core/ApiError';
 import { assertExclusaoPermitida } from './deleteGuardService';
+import { updateMapaCachedData } from './mapaCacheService';
 import { ehLoteDerivadoDeManejo, motivoDeHistoricoDoLote } from '@/domain/lotes/saldoLote';
 import { TIPOS_EXCLUSAO, mensagemDoMotivoExclusao } from '@/domain/lotes/exclusaoLote';
 
@@ -260,7 +263,7 @@ const estaOnline = () => (typeof navigator === 'undefined' ? true : navigator.on
  * @param {string[]} ids
  * @param {{ lotes?: object[] }} [_opcoes]
  */
-export const excluirLotes = async (ids, _opcoes = {}) => {
+export const excluirLotes = async (ids, { lotes = [] } = {}) => {
   const listaIds = Array.isArray(ids) ? ids : [];
   /** @type {string[]} */
   const excluidos = [];
@@ -273,6 +276,13 @@ export const excluirLotes = async (ids, _opcoes = {}) => {
   }
 
   for (const id of listaIds) {
+    // Alteração deste lote feita sem conexão ainda na fila: excluir agora
+    // faria o replay bater num lote que não existe mais (ou a descartaria em
+    // silêncio). Recusa explícita; nada é enviado (PR167-R1).
+    if (await temPendenciaOfflineLote(id).catch(() => true)) {
+      bloqueados.push({ id, code: API_ERROR_CODES.LOTE_DELETE_BLOCKED, motivo: 'pendencia_offline' });
+      continue;
+    }
     try {
       await excluirLoteOnline(id);
       excluidos.push(id);
@@ -284,6 +294,25 @@ export const excluirLotes = async (ids, _opcoes = {}) => {
         motivo: causa?.details?.motivo ?? null,
         erro,
       });
+    }
+  }
+
+  // Só depois de resposta DEFINITIVA (204): o lote sai do cache offline da
+  // entidade (todas as fazendas do tenant) e do cache do mapa da fazenda dele.
+  // Falha aqui não desfaz a exclusão; a próxima leitura online corrige.
+  for (const id of excluidos) {
+    try {
+      await removerLoteDosCachesOffline(id);
+    } catch {
+      /* cache é conveniência; a exclusão já foi confirmada */
+    }
+    const empresaId = /** @type {any} */ ((lotes || []).find((l) => /** @type {any} */ (l)?.id === id))?.empresa_id;
+    if (empresaId) {
+      try {
+        await updateMapaCachedData('lotes', empresaId, (items) => (items || []).filter((l) => l?.id !== id));
+      } catch {
+        /* idem */
+      }
     }
   }
 

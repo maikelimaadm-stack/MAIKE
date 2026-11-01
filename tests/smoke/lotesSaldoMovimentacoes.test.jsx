@@ -206,6 +206,7 @@ describe("loteCadastroService — lote gerado por manejo não é apagado pelo ca
     vi.doMock("@/apis/lotes", () => ({
       listLotes: vi.fn(), createLote: vi.fn(), updateLote: vi.fn(), deleteLote, excluirLoteOnline,
       consultarElegibilidadeExclusaoLote: vi.fn(),
+      temPendenciaOfflineLote: vi.fn(async () => false), removerLoteDosCachesOffline: vi.fn(async () => 0),
       listMovimentacoes: vi.fn(async () => []), listMovimentacoesPecuarias: vi.fn(async () => []),
       listTodasMovimentacoes: vi.fn(async () => []), listFornecedores: vi.fn(), listCategoriasManejo: vi.fn(),
       sincronizarReferenciasLote: vi.fn(), listSuplementacaoLotes: vi.fn(async () => []),

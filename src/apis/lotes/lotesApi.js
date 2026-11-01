@@ -216,6 +216,12 @@ export const buscarLotePorIdServidor = async (id) => {
   return runProviderCall(() => operacoesDeExclusao.buscarPorId(id), { ...contexto, details: { id } });
 };
 
+/** Depois de exclusão CONFIRMADA (204): lote fora de todos os caches offline do tenant. PR167-R1. */
+export const removerLoteDosCachesOffline = async (id) => operacoesDeExclusao.removerDosCachesOffline(id);
+
+/** Há alteração offline deste lote na fila (tenant da sessão)? PR167-R1. */
+export const temPendenciaOfflineLote = async (id) => operacoesDeExclusao.temPendenciaOffline(id);
+
 /** Exclusão definitiva, só online (sem fila offline). MAIKE-LOTES-R1. */
 export const excluirLoteOnline = async (id) => {
   const contexto = ctx('excluirLoteOnline');

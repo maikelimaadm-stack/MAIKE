@@ -23,6 +23,8 @@ export {
   deleteLote,
   consultarElegibilidadeExclusaoLote,
   excluirLoteOnline,
+  removerLoteDosCachesOffline,
+  temPendenciaOfflineLote,
   buscarLotePorIdServidor,
   updateMovimentacao,
   listFornecedores,

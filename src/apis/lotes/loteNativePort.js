@@ -6,6 +6,8 @@ import { nativeRequest } from '../_core/nativeHttpClient.js';
 import {
   createOfflineEntityAdapter,
   offlineStorageDisponivel,
+  removerRegistroDosCachesOffline,
+  temPendenciaOfflineDoRegistro,
 } from '@/lib/offline/offlineEntityRuntime';
 
 const RESOURCE = 'Lote';
@@ -108,6 +110,10 @@ export const operacoesDeExclusao = Object.freeze({
   elegibilidade: (id) =>
     nativeRequest(`${CAMINHO}/${encodeURIComponent(id)}/elegibilidade-exclusao`, { autenticado: true }, ctx('elegibilidadeExclusaoLote')),
   excluirOnline: (id) => operacoesNativas.delete(id),
+  /** Depois de 204 do servidor: tira o lote de todos os caches offline do tenant. */
+  removerDosCachesOffline: (id) => removerRegistroDosCachesOffline(ENTIDADE_OFFLINE, id),
+  /** Edição/criação offline deste lote ainda na fila? */
+  temPendenciaOffline: (id) => temPendenciaOfflineDoRegistro(ENTIDADE_OFFLINE, id),
   /** Leitura por id, inclusive lote excluído logicamente (histórico/auditoria). */
   buscarPorId: (id) => nativeRequest(`${CAMINHO}/${encodeURIComponent(id)}`, { autenticado: true }, ctx('buscarLotePorIdServidor')),
 });

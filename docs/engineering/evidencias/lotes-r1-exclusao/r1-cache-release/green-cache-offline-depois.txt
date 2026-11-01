@@ -1,0 +1,5 @@
+PR167-R1 P0-A — GREEN (vitest; runtime offline real + porta em memória com contrato IndexedDB)
+Data: 2026-11-01T11:34:38Z
+
+✓ tests/smoke/loteExclusaoCacheOffline.test.js (10 tests) 21ms
+Tests  10 passed (10)

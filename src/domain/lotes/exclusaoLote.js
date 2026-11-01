@@ -31,6 +31,7 @@ export const MENSAGENS_MOTIVO_EXCLUSAO = Object.freeze({
   cancelamento_nao_comprovado: 'Há movimentação marcada como cancelada sem comprovação do cancelamento.',
   estado_divergente_da_entrada: 'O lote não está como na entrada (saldo, área, categoria ou situação mudaram).',
   alteracao_sem_comprovacao: 'O lote teve alteração de saldo, área ou situação sem manejo comprovado.',
+  pendencia_offline: 'Há alteração deste lote feita sem conexão aguardando sincronização. Sincronize antes de excluir.',
 });
 
 export const mensagemDoMotivoExclusao = (motivo) =>
