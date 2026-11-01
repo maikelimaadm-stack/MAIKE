@@ -1,0 +1,16 @@
+PASS desktop-1440-zesk histórico da área lista a morte ativa com ação de cancelar — Histórico da Área PASTO 7 (24) | Entradas, saídas e manejos registrados nesta área, inclusive de lotes que já saíram. | 
+PASS desktop-1440-zesk diálogo mostra o efeito calculado no servidor (450 → 500)
+PASS desktop-1440-zesk após cancelar: original continua no histórico, marcado Cancelado com ator e motivo — 31/10/2026 | Morte | Saída | Cancelado | MORTE desktop-1440-zesk | Quantidade: 50 cab | Data: 31/10/2026 | Origem: Movimentação | Detalhes: Categoria: BOI. Causa: sintéti
+PASS desktop-1440-zesk sem rolagem horizontal
+PASS desktop-1440-zesk saldo do lote voltou a 500 no servidor — {"id":"cmvx2zeyx00ca7d0i5qiin4cr","q":500,"s":"Ativo"}
+PASS desktop-1440-zesk legado: mensagem "Registro antigo sem comprovação individual de efeito — cancelamento temporariamente indisponível" — 26 | Origem: Movimentação | Detalhes: Categoria: BOI. Legado sintético. | Registro antigo sem comprovação individual de efeito — cancelamento temporariamente indisponível
+PASS desktop-1440-zesk legado: sem botão Cancelar movimentação
+PASS desktop-1440-zesk curral: sem botão Excluir; abate com "Cancelar movimentação" — Abate | Histórico da Área | Histórico de Abate (20) | 31/10/2026 | Abate | ABATE desktop-1440-zesk | Quantidade: 30 cab | Data: 31/10/2026 |
+PASS desktop-1440-zesk curral: abate aparece Cancelado com motivo — Abate | Histórico da Área | Histórico de Abate (20) | 31/10/2026 | Abate | Cancelado | ABATE desktop-1440-zesk | Quantidade: 30 cab | Data: 31/10/2026 | Detalhe
+PASS desktop-1440-zesk offline: histórico vem do cache e avisa — Histórico da Área PASTO 7 (24) | Entradas, saídas e manejos registrados nesta área, inclusive de lotes que já saíram. | Sem conexão. Exibindo movimentações salv
+PASS desktop-1440-zesk offline: morte cancelada continua visível com motivo e autor — 31/10/2026 | Morte | Saída | Cancelado | MORTE desktop-1440-zesk | Quantidade: 50 cab | Data: 31/10/2026 | Origem: Movimentação | Detalhes: Categoria: BOI. Causa: sintéti
+PASS desktop-1440-zesk offline: nenhuma ação de cancelar oferecida
+PASS desktop-1440-zesk PATCH /lotes do navegador: campo operacional sempre com estado_esperado — 0 PATCH; sem estado: 0
+PASS desktop-1440-zesk nenhum DELETE/PATCH de movimento/suplementação no navegador
+PASS desktop-1440-zesk cancelamentos foram POST no comando do servidor (2) — 2
+PASS desktop-1440-zesk sem erro de página

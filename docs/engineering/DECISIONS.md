@@ -3611,4 +3611,33 @@ Relatório: `docs/engineering/MAIKE-R2A-MAPA-CANCELAMENTO-ESTORNO-SEGURO-REPORT.
 
 ---
 
+## D-PROD-95a — R2A-R1: proveniência causal do efeito, CAS em `PATCH /lotes`, chave pendente e cache de histórico
+
+**Subdecisão de D-PROD-95.** Missão MAIKE-R2A-PR162-R1-HARDENING-PROVENIENCIA-CONCORRENCIA-OFFLINE, na mesma PR #162. Sem migration, sem escrita em produção, sem ledger.
+
+**Contexto:** a revisão bloqueou a D-PROD-95.
+- A prova do efeito por AuditLog (janela de ±15 min) podia ser "emprestada". Com duas mortes de 50 e um único PATCH, o cancelamento devolvia 50 cabeças que nunca saíram (RED reproduzido: 200, saldo 500).
+- O `PATCH /lotes` gravava valor absoluto calculado antes da trava.
+
+**Decisão:**
+
+1. **Prova temporal removida.** O efeito só é cancelável com proveniência causal gravada pelo próprio servidor na transação que o produziu:
+   - comando `POST /movimentacoes-mapa/comandos/manejo-lote` (Morte, Abate, Transferência de Área) grava `efeito_servidor` com `antes`/`depois` por lote;
+   - o cancelamento confere esse campo contra a `OperacaoIdempotente` committed (`manejo_mapa_lote`) que aponta para o mesmo movimento.
+   - `efeito_servidor`, `modo_transferencia` e `lote_destino_id` são campos reservados (400 em POST, bulk e PATCH).
+   - Legado sem proveniência: fail-closed, `CANCELAMENTO_EFEITO_NAO_COMPROVADO`.
+2. **CAS em `PATCH /lotes`:** `FOR UPDATE` e `estado_esperado` obrigatório para mudar `quantidade_cabecas`, `status`, `area_atual_id` ou `categoria`; senão 409 `LOTE_ESTADO_CONFLITO`. Os consumidores do frontend enviam o estado lido.
+3. **Chave do cancelamento** persistida no aparelho enquanto o resultado é desconhecido. Abandonar pede confirmação. Chave nova só após resposta definitiva.
+4. **Cache de histórico** (`movimentacoesHistorico`) guarda ativos e cancelados; o cache operacional segue só com ativos. Não se afirma completude offline.
+5. **Interface:** legado mostra "Registro antigo sem comprovação individual de efeito — cancelamento temporariamente indisponível". Tipos adiados, cocho e depósito continuam bloqueados.
+
+**Limites declarados:**
+- Manejo offline continua no fluxo legado e gera registro não cancelável.
+- Transferência com várias categorias é atômica por lote, não no conjunto.
+- Nascimento, Pesagem, Categoria e Junção seguem no navegador, protegidos pelo CAS.
+
+Relatório: seção R2A-R1 de `docs/engineering/MAIKE-R2A-MAPA-CANCELAMENTO-ESTORNO-SEGURO-REPORT.md`.
+
+---
+
 <!-- Próxima decisão: D-PROD-96 -->

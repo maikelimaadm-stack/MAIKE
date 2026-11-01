@@ -501,6 +501,31 @@ describe('R2A-R1 — concorrência de saldo (CAS) e rollback', () => {
     assert.deepEqual([d.quantidade_cabecas, d.status, d.area_atual_id, d.categoria], [500, 'Ativo', c.A.id, 'BOI']);
   });
 
+  test('estado esperado OBSOLETO em status/área/categoria → 409; estado correto → 200', async () => {
+    const c = await cenario();
+    const l = await criarLote(c, { area: c.A });
+    // Outro usuário mudou cada campo antes: o PATCH que leu o valor antigo é recusado.
+    const obsoletos = [
+      [{ status: 'Inativo', estado_esperado: { status: 'Pendente' } }, 'status'],
+      [{ area_atual_id: c.B.id, estado_esperado: { area_atual_id: c.B.id } }, 'area'],
+      [{ categoria: 'VACA', estado_esperado: { categoria: 'NOVILHA' } }, 'categoria'],
+    ];
+    for (const [corpo, nome] of obsoletos) {
+      const r = await req('PATCH', `/lotes/${l.id}`, c.tokAdm, corpo);
+      assert.equal(r.statusCode, 409, nome);
+      assert.equal(r.json().code, 'LOTE_ESTADO_CONFLITO', nome);
+    }
+    let d = await lote(l.id);
+    assert.deepEqual([d.status, d.area_atual_id, d.categoria], ['Ativo', c.A.id, 'BOI']);
+    const r = await req('PATCH', `/lotes/${l.id}`, c.tokAdm, {
+      categoria: 'VACA', area_atual_id: c.B.id,
+      estado_esperado: { categoria: 'BOI', area_atual_id: c.A.id },
+    });
+    assert.equal(r.statusCode, 200);
+    d = await lote(l.id);
+    assert.deepEqual([d.area_atual_id, d.categoria], [c.B.id, 'VACA']);
+  });
+
   test('interleaving controlado: cancelamento e PATCH obsoleto esperam a mesma trava; nenhuma escrita se perde', async () => {
     const c = await cenario();
     const l = await criarLote(c, { area: c.A });

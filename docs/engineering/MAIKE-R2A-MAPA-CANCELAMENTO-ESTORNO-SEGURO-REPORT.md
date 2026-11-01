@@ -5,6 +5,126 @@
 - É a branch designada da sessão. Foi recriada a partir de `main` depois do merge da #161; nenhum commit novo foi empilhado sobre a #161.
 - Sem migration. Sem escrita em produção. Sem ledger L1.
 
+> **Atualização R2A-R1 (D-PROD-95a):** a revisão do arquiteto bloqueou a versão
+> abaixo. A prova temporal por AuditLog (±15 min) aceitava "prova emprestada", e o
+> `PATCH /lotes` gravava valor absoluto obsoleto. A seção **R2A-R1** logo abaixo
+> substitui as seções 3, 5 e 6 onde houver conflito. As seções originais ficam como
+> histórico.
+
+## R2A-R1 — Proveniência causal, concorrência, chave pendente e cache offline
+
+**Missão:** MAIKE-R2A-PR162-R1-HARDENING-PROVENIENCIA-CONCORRENCIA-OFFLINE. Mesma PR (#162, DRAFT). Sem migration: a proveniência é um campo do JSON `dados` do movimento. Sem escrita em produção. Sem ledger.
+
+### R1.1 P0-A — Proveniência causal (fim da prova emprestada)
+
+- **RED antes:** `backend/tests/r2aR1ProvenienciaRed.test.mjs` no SHA f45c6a2d. Cenário: duas mortes de 50 e um único PATCH 500→450. O cancelamento da segunda morte tomou emprestada a prova da primeira e veio **200, saldo 500**: devolveu 50 cabeças que nunca saíram. Saída em `evidencias/r2a-r1/red-prova-emprestada-antes.txt`.
+- **GREEN depois:** mesmo teste: as duas mortes legadas recebem **409 `CANCELAMENTO_EFEITO_NAO_COMPROVADO`**, o saldo continua 450 e nenhuma reserva de idempotência é gravada. Saída em `green-prova-emprestada-depois.txt`.
+- **Comando novo:** `POST /movimentacoes-mapa/comandos/manejo-lote` cobre Morte, Abate e Transferência de Área. Numa única transação:
+  - `executarComIdempotencia` com tipo `manejo_mapa_lote`;
+  - `FOR UPDATE` nos lotes, em ordem de id;
+  - delta calculado no servidor;
+  - lote derivado criado na transferência parcial;
+  - movimento gravado com `efeito_servidor = {comando, operation_id, registrado_em, registrado_por_usuario_id, modo, efeitos:[{lote_id, criado, antes, depois}]}`;
+  - auditoria.
+- **Cancelamento exige as duas provas:**
+  1. `efeito_servidor` válido;
+  2. `OperacaoIdempotente` do mesmo cliente, `operation_key`, tipo `manejo_mapa_lote` e status committed, cuja resposta gravada aponta para **este** movimento (`response_json.movimentacao.id === mov.id`).
+  - O cliente não forja a segunda prova. `efeito_servidor`, `modo_transferencia` e `lote_destino_id` agora são campos reservados: 400 em POST, bulk e PATCH.
+  - Uma proveniência copiada para outro movimento falha na conferência cruzada (409) e passa a contar como dependência posterior do original.
+- **Elegibilidade e POST** usam o mesmo `planejarCancelamento` e a mesma prova. Recusa não reserva idempotência, porque o rollback desfaz a reserva.
+- **Participantes da transferência:** cada efeito tem `lote_id` próprio, com antes e depois. O cancelamento confere cada um:
+  - mesma empresa;
+  - área atual igual à de `depois`;
+  - nenhum Inativo com cabeças;
+  - saldo não negativo;
+  - conservação total.
+- **Legado** (sem `efeito_servidor`, inclusive o que a primeira versão da R2A gravou com `modo_transferencia`) é **fail-closed**: `CANCELAMENTO_EFEITO_NAO_COMPROVADO`. Nada muda no banco.
+
+### R1.2 P0-B — Concorrência em `PATCH /lotes`
+
+- `atualizar` trava a linha (`SELECT … FOR UPDATE`) antes de ler o anterior.
+- Se o PATCH **muda** `quantidade_cabecas`, `status`, `area_atual_id` ou `categoria`, `estado_esperado` precisa trazer o valor anterior desse campo. Faltando ou divergindo: **409 `LOTE_ESTADO_CONFLITO`**. Peso, nome e campos não operacionais seguem livres.
+- Consumidores atualizados:
+  - `DetalhesLote` (17 chamadas via `atualizarLoteSeguro` → `comEstadoEsperado(loteLido, patch)`);
+  - `CadastroLotes` (`atualizarLote(id, dados, {registroAnterior})`);
+  - Renomear envia só `nome`.
+  - Não há fila offline que reenvie PATCH (verificado por busca).
+- **Testes determinísticos** (PostgreSQL 16 local), com trava segurada por `segurarLote` numa transação separada até a liberação:
+  - PATCH obsoleto depois de cancelamento → 409, saldo 500;
+  - PATCH sem estado, ou com estado obsoleto, em saldo, status, área e categoria → 409; peso e nome livres;
+  - intercalação controlada cancelamento × PATCH: os dois desfechos válidos (A ou B), nunca sobrescrita;
+  - **duas transferências parciais de 60 da mesma origem de 100** → [201, 409], total conservado em 100;
+  - três cancelamentos paralelos → [200, 409, 409];
+  - mesma chave em paralelo;
+  - rollback forçado por trigger e retry;
+  - "timeout depois do commit" com replay;
+  - isolamento de tenant.
+- Colisões de status, área e categoria: cobertas pelo CAS (campo divergente → 409) e pelas checagens do cancelamento (área atual ≠ `depois` → recusa; destino incompatível → `MANEJO_ESTADO_INVALIDO`).
+
+### R1.3 P1-A — Chave de idempotência do cancelamento
+
+- `operation_id` e motivo são gravados no `localStorage` (`maike_cancelamento_pendente:<id>`) **antes** do envio.
+- Enquanto o resultado é desconhecido, o par sobrevive a fechar e reabrir, remontar e recarregar.
+- Fechar nesse estado pede confirmação explícita (`window.confirm`).
+- Reabrir reusa a mesma chave e o mesmo motivo.
+- A pendência só sai com resposta definitiva: sucesso ou recusa 4xx estável. Só a recusa determinística libera uma chave nova.
+- Testes (vitest):
+  - timeout depois do commit → fechar (recusado e aceito) → reabrir → mesmo corpo;
+  - remontagem simulando refresh → mesmo corpo;
+  - replay 200 limpa a pendência.
+
+### R1.4 P1-B — Cache offline do histórico
+
+- Nova capacidade `movimentacoesHistorico` no `mapaCacheService` guarda **ativos e cancelados** com situação, motivo e autor. `movimentacoes` (cache operacional do mapa) continua só com ativos.
+- O Histórico usa `movimentacoesHistorico` para o fallback offline e para guardar a cópia quando está online. O cancelamento bem-sucedido força o refresh dessa chave.
+- A interface já diz "Exibindo movimentações salvas neste aparelho em …; podem estar desatualizadas". **Não** se afirma completude offline: é cópia do último refresh.
+- A paginação da R1 e o teste de 520 registros seguem iguais (17/17 em `historicoMovimentacoes`).
+
+### R1.5 P1-C — Interface e tipos
+
+- Registro sem proveniência mostra, sem botão: **"Registro antigo sem comprovação individual de efeito — cancelamento temporariamente indisponível"**.
+- `tipoTemCancelamento` exige tipo certificado **e** `efeito_servidor.comando === 'manejo_mapa_lote'`. Tipos adiados continuam bloqueados (teste de domínio).
+- Cancelados mostram "Cancelado em … por … — Motivo: …". "Usar nome original" segue criando renomeação nova. Cocho e depósito seguem suspensos (D-PROD-94a).
+- Morte, Abate e Transferência **online** no `DetalhesLote` usam o comando. Offline, o fluxo legado continua (várias chamadas, PATCH com `estado_esperado`) e gera registro **legado, não cancelável**. Isso é declarado.
+
+### R1.6 Matriz de tipos (substitui a seção 3)
+
+| Tipo / origem | Status |
+|---|---|
+| Morte criada pelo comando | **SUPORTADO_COM_PROVA_CAUSAL** |
+| Abate criado pelo comando (0/Inativo volta Ativo) | **SUPORTADO_COM_PROVA_CAUSAL** |
+| Transferência pelo comando (`total_no_lugar`, `parcial_novo_lote`, `parcial_unificado`, `total_unificado`) | **SUPORTADO_COM_PROVA_CAUSAL** |
+| Qualquer movimento legado (sem `efeito_servidor`): Morte, Abate e Transferência antigos, inclusive os gravados com `modo_transferencia` na primeira R2A, e os criados offline | **BLOQUEADO** (`CANCELAMENTO_EFEITO_NAO_COMPROVADO`); a interface mostra a mensagem de legado |
+| `efeito_servidor` sem `OperacaoIdempotente` correspondente (cópia ou forja) | **BLOQUEADO** (409) |
+| Nascimento, Pesagem, Mudança de Categoria, Junção, Renomear, Entrada/Saída | **ADIADO** (R2B) |
+| Cocho e depósito | **SUSPENSO** (R2C, D-PROD-94a) |
+
+### R1.7 Testes e evidências reais
+
+| Comando | Resultado |
+|---|---|
+| `node --test backend/tests/r2aR1ProvenienciaRed.test.mjs` | RED em f45c6a2d (200, saldo 500) → GREEN (409, saldo 450, sem reserva) |
+| `node --test backend/tests/movimentacaoCancelamentoR2A.test.mjs` | **33/33**: P0 rotas; P1 pelo comando; proveniência (duas mortes, forja, cópia); transferências pelo comando; CAS (faltante e obsoleto em saldo, status, área e categoria) e concorrência |
+| `npm run test:backend` (PostgreSQL 16 local) | **581 testes, 0 fail** (5 `todo` declarados na suíte) |
+| `vitest` (smoke completo) | 98 arquivos, **1139/1139** |
+| E2E cancelamento/legado/offline (Chromium, `maike_demo` sintético; semente pelo **comando**) | **64/64** em 1440, 768, 412 e 390 (16 cada). Inclui: saldo 500 conferido na API, mensagem exata de legado sem botão, **offline mostra a morte cancelada com motivo e autor**, nenhum `DELETE`/`PATCH` de movimento, PATCH de lote sempre com `estado_esperado` |
+| E2E manejo normal pela UI (Morte no Detalhes do Lote) | **36/36** (9 por largura): o lote certo abre, saldo QTD → QTD−7 na API, 1 POST no comando, nenhum POST legado, nenhum PATCH operacional sem estado, movimento com proveniência e elegível ao cancelamento |
+| `npm run gate:types` / `typecheck:backend` / lint | passaram (sem novo diagnóstico; 2 avisos de lint preexistentes) |
+
+Evidências: `docs/engineering/evidencias/r2a-r1/`
+- `red-*` e `green-*`;
+- `e2e-*.txt` e `e2e-manejo-ui-*.txt`;
+- capturas `01`–`08` por largura;
+- roteiros e semente.
+
+### R1.8 Riscos abertos (substitui os itens 1, 2 e 5 da seção 6)
+
+1. **Offline continua no fluxo legado:** Morte, Abate e Transferência feitas sem conexão geram registro sem proveniência, não cancelável. O PATCH leva `estado_esperado`, então estado divergente dá 409 em vez de sobrescrever.
+2. **Transferência com várias categorias** = um comando por lote de origem. Cada um é atômico, mas o conjunto não. Falha no meio deixa as primeiras categorias movidas, cada uma com proveniência própria e cancelável.
+3. **Demais manejos** (Nascimento, Pesagem, Mudança de Categoria, Junção) continuam no navegador, em várias chamadas. Agora estão protegidos pelo CAS, mas não são transacionais.
+4. **Pendência de cancelamento** fica no `localStorage` do aparelho. Em outro aparelho, a chave não é reaproveitada: o servidor responde pelo estado (já cancelado → recusa determinística).
+5. Os itens 3, 4, 6, 7 e 8 da seção 6 continuam válidos.
+
 ## 1. Inventário (consumidores reais das escritas operacionais)
 
 | Rota | Consumidor legítimo no `src/` | Decisão |

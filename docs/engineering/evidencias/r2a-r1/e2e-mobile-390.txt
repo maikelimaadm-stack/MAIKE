@@ -1,0 +1,16 @@
+PASS mobile-390-1com histórico da área lista a morte ativa com ação de cancelar — Histórico da Área PASTO 7 (30) | Entradas, saídas e manejos registrados nesta área, inclusive de lotes que já saíram. | 
+PASS mobile-390-1com diálogo mostra o efeito calculado no servidor (450 → 500)
+PASS mobile-390-1com após cancelar: original continua no histórico, marcado Cancelado com ator e motivo — 31/10/2026 | Morte | Saída | Cancelado | MORTE mobile-390-1com | Quantidade: 50 cab | Data: 31/10/2026 | Origem: Movimentação | Detalhes: Categoria: BOI. Causa: sintética
+PASS mobile-390-1com sem rolagem horizontal
+PASS mobile-390-1com saldo do lote voltou a 500 no servidor — {"id":"cmvx31cu100g17d0ilubxaf5r","q":500,"s":"Ativo"}
+PASS mobile-390-1com legado: mensagem "Registro antigo sem comprovação individual de efeito — cancelamento temporariamente indisponível" — 26 | Origem: Movimentação | Detalhes: Categoria: BOI. Legado sintético. | Registro antigo sem comprovação individual de efeito — cancelamento temporariamente indisponível
+PASS mobile-390-1com legado: sem botão Cancelar movimentação
+PASS mobile-390-1com curral: sem botão Excluir; abate com "Cancelar movimentação" — Abate | Histórico da Área | Histórico de Abate (23) | 31/10/2026 | Abate | ABATE mobile-390-1com | Quantidade: 30 cab | Data: 31/10/2026 | D
+PASS mobile-390-1com curral: abate aparece Cancelado com motivo — Abate | Histórico da Área | Histórico de Abate (23) | 31/10/2026 | Abate | Cancelado | ABATE mobile-390-1com | Quantidade: 30 cab | Data: 31/10/2026 | Detalhes:
+PASS mobile-390-1com offline: histórico vem do cache e avisa — Histórico da Área PASTO 7 (30) | Entradas, saídas e manejos registrados nesta área, inclusive de lotes que já saíram. | Sem conexão. Exibindo movimentações salv
+PASS mobile-390-1com offline: morte cancelada continua visível com motivo e autor — 31/10/2026 | Morte | Saída | Cancelado | MORTE mobile-390-1com | Quantidade: 50 cab | Data: 31/10/2026 | Origem: Movimentação | Detalhes: Categoria: BOI. Causa: sintética
+PASS mobile-390-1com offline: nenhuma ação de cancelar oferecida
+PASS mobile-390-1com PATCH /lotes do navegador: campo operacional sempre com estado_esperado — 0 PATCH; sem estado: 0
+PASS mobile-390-1com nenhum DELETE/PATCH de movimento/suplementação no navegador
+PASS mobile-390-1com cancelamentos foram POST no comando do servidor (2) — 2
+PASS mobile-390-1com sem erro de página
