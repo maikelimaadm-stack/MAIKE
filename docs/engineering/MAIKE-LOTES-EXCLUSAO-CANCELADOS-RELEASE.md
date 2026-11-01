@@ -1,10 +1,10 @@
 # Release — Exclusão do Cadastro de Lotes após cancelamento (PR #167, D-PROD-100)
 
-> **Estado: `DEPLOY_BLOCKED`.** Nenhum operador aplicou nem conferiu a migration
-> `20261101100000_lote_exclusao_logica` no banco real. Até isso estar provado
-> (passos 4 a 6), a PR #167 **não pode ser mergeada**. O merge na `main`
-> publica o código automaticamente (Vercel SPA+API), e o código novo responde
-> 500 (Prisma P2022) em `GET /lotes` sem as colunas.
+> **Estado: `MIGRATION_APLICADA` (2026-11-01).** A migration
+> `20261101100000_lote_exclusao_logica` foi aplicada e conferida no banco de
+> runtime com autorização do proprietário (passos 4 a 6). Evidência:
+> `evidencias/lotes-r1-exclusao/r2-fechamento-delete-offline/migracao-producao.txt`.
+> Merge liberado pelo proprietário; em seguida vem o smoke pós-deploy (passo 8).
 
 Este runbook é a ordem obrigatória. Quem executa é um operador autorizado pelo
 proprietário. Esta PR e o agente que a escreveu **não acessam produção** e não
