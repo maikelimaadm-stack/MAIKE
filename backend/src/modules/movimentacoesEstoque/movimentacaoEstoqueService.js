@@ -65,7 +65,7 @@ export const criar = async (contexto, entrada) => {
 };
 
 /**
- * R2A (D-PROD-96): movimento de estoque compõe saldo, FIFO e custo. PATCH aceita
+ * R2A (D-PROD-97): movimento de estoque compõe saldo, FIFO e custo. PATCH aceita
  * SÓ o nome exibido do local (`local_origem`/`local_destino`), que a renomeação
  * de depósito propaga (`FormularioPonto`). O nome é conferido contra o
  * `LocalEstoque` vinculado ao movimento (`local_estoque_origem`/`_destino`) no
@@ -119,7 +119,7 @@ export const atualizar = async (contexto, id, entrada) => {
   return comoPublico(atualizado);
 };
 
-/** R2A (D-PROD-96): DELETE apagaria saldo/FIFO sem estorno — nada é removido. */
+/** R2A (D-PROD-97): DELETE apagaria saldo/FIFO sem estorno — nada é removido. */
 export const excluir = async (contexto, id) => {
   const auth = exigirAuthContext(contexto?.auth);
   const existente = await buscarRegistro(auth.clienteId, id);

@@ -63,7 +63,7 @@ import { validarOrdemTemporalLote, validarOrdemTemporalLotes } from "../lotes/ma
 import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 
 /**
- * R2A-R1 (D-PROD-96a): online, Morte/Abate/Transferência vão pelo comando
+ * R2A-R1 (D-PROD-97a): online, Morte/Abate/Transferência vão pelo comando
  * atômico do servidor (efeito calculado e gravado numa transação, com
  * proveniência para o cancelamento). Offline segue o fluxo legado — sem
  * proveniência, portanto sem cancelamento — e todo PATCH de saldo/posição leva

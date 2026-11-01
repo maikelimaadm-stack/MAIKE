@@ -1,5 +1,5 @@
 /**
- * Situação de uma movimentação do mapa (R2A, D-PROD-96).
+ * Situação de uma movimentação do mapa (R2A, D-PROD-97).
  *
  * O cancelamento é server-side e preserva o original com
  * `situacao: 'cancelado'` + `cancelamento: {em, por_login, motivo, ...}`.
@@ -23,12 +23,12 @@ export const tipoCertificado = (mov) =>
   !!mov && TIPOS_COM_CANCELAMENTO.includes(mov.tipo) && !mov.motivo && ehMovimentoAtivo(mov);
 
 /**
- * R2A-R1 (D-PROD-96a): só movimento nascido do comando atômico do servidor tem
+ * R2A-R1 (D-PROD-97a): só movimento nascido do comando atômico do servidor tem
  * proveniência causal. Registro antigo (POST + PATCH do navegador) não.
  */
 export const temProvenienciaDoServidor = (mov) => {
   const ef = mov?.efeito_servidor;
-  // Paridade com o servidor (R2A-R2, D-PROD-96b): cada efeito precisa da âncora de auditoria.
+  // Paridade com o servidor (R2A-R2, D-PROD-97b): cada efeito precisa da âncora de auditoria.
   return (
     ef?.comando === 'manejo_mapa_lote' &&
     Array.isArray(ef.efeitos) &&

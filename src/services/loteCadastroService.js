@@ -183,7 +183,7 @@ export const criarLote = async (dados, { empresaId } = {}) => {
  * @param {{registroAnterior?: object}} [opcoes]
  */
 export const atualizarLote = async (id, dados, { registroAnterior } = {}) => {
-  // R2A-R1 (D-PROD-96a): saldo/posição vão com o estado lido no formulário.
+  // R2A-R1 (D-PROD-97a): saldo/posição vão com o estado lido no formulário.
   const corpo = registroAnterior ? comEstadoEsperado(registroAnterior, dados) : dados;
   const atualizado = await updateLote(id, {
     ...corpo,

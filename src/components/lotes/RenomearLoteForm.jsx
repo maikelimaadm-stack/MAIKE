@@ -69,7 +69,7 @@ export default function RenomearLoteForm({ lote, novoNome, onNovoNomeChange, emp
     onClose();
   };
 
-  // R2A (D-PROD-96): "reverter" apagava TODAS as renomeações em laço, sem
+  // R2A (D-PROD-97): "reverter" apagava TODAS as renomeações em laço, sem
   // transação. Agora volta ao nome original por uma renomeação NORMAL nova
   // (registro novo, histórico preservado): o botão só preenche o campo.
   const usarNomeOriginal = () => {

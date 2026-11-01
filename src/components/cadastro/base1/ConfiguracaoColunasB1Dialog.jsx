@@ -2,8 +2,10 @@ import React from "react";
 import { createPortal } from "react-dom";
 import {
   Check,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
+  ChevronUp,
   ChevronsLeft,
   ChevronsRight,
   GripVertical,
@@ -13,6 +15,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePortalComprasSkin } from "./portalComprasSkinContext";
+import MobileSheet, { useCelular } from "@/components/common/MobileSheet";
+import ToggleSwitch from "@/components/common/ToggleSwitch";
 
 /**
  * Configurador de colunas — paridade `ColunasDosItens` (portal compras / CONTROLE-DE-ESTOQUE).
@@ -37,6 +41,7 @@ export default function ConfiguracaoColunasB1Dialog({
   onRestaurar,
 }) {
   const portalSkin = usePortalComprasSkin();
+  const celular = useCelular();
   const ordemInicial = React.useMemo(() => colunas.map((c) => c.id), [colunas]);
   const [qa, setQa] = React.useState("");
   const [qu, setQu] = React.useState("");
@@ -140,6 +145,100 @@ export default function ConfiguracaoColunasB1Dialog({
     setSel(null);
     setAplicarPadrao(true);
   };
+
+  // Celular (D-PROD-96): uma lista só, no padrão dos Ajustes do iPhone —
+  // chave para mostrar/ocultar, ↑ ↓ para a ordem, pesquisa, Restaurar padrão.
+  // ✕ descarta e ✓ aplica, como nas outras folhas.
+  if (celular) {
+    const termo = qa.trim().toLowerCase();
+    const todas = draftOrdem.map((k) => porChave.get(k)).filter(Boolean);
+    const vistas = termo ? todas.filter((c) => c.label.toLowerCase().includes(termo)) : todas;
+    // A chave só mostra/oculta: a posição da coluna não muda.
+    const alternar = (key, ocultar) => {
+      if (ocultar && usadas.length <= 1) return;
+      setAplicarPadrao(false);
+      setDraftOcultas((p) => {
+        const n = new Set(p);
+        if (ocultar) n.add(key);
+        else n.delete(key);
+        return n;
+      });
+    };
+    const subirDescer = (key, delta) => {
+      setAplicarPadrao(false);
+      setDraftOrdem((ordem) => {
+        const i = ordem.indexOf(key);
+        const j = i + delta;
+        if (i < 0 || j < 0 || j >= ordem.length) return ordem;
+        const n = [...ordem];
+        [n[i], n[j]] = [n[j], n[i]];
+        return n;
+      });
+    };
+    return (
+      <MobileSheet
+        open
+        onClose={onFechar}
+        label={titulo}
+        title={titulo}
+        initialLarge
+        aside={`${usadas.length} de ${todas.length} visíveis`}
+        className="mk-colcfg"
+        headerAction={
+          <button type="button" className="mk-sheet__new" aria-label="Aplicar" title="Aplicar" onClick={salvar}>
+            <Check size={22} aria-hidden />
+          </button>
+        }
+      >
+        <div className="mk-pill mgs__busca">
+          {qa ? (
+            <button type="button" className="mk-pill__clear" aria-label="Limpar pesquisa" onClick={() => setQa("")}>
+              <X size={14} />
+            </button>
+          ) : (
+            <span className="mk-pill__icon" aria-hidden>
+              <Search size={14} />
+            </span>
+          )}
+          <input value={qa} onChange={(e) => setQa(e.target.value)} placeholder="Pesquisar coluna…" aria-label="Pesquisar coluna" />
+        </div>
+        <div className="mgs__lista mk-colcfg__lista" role="list" aria-label="Colunas">
+          {!vistas.length ? <div className="mgs__vazio">Nenhuma coluna encontrada</div> : null}
+          {vistas.map((c) => {
+            const visivel = !draftOcultas.has(c.id);
+            const travada = visivel && usadas.length <= 1;
+            const i = draftOrdem.indexOf(c.id);
+            return (
+              <div key={c.id} role="listitem" className="mgs__op mk-colcfg__row" data-coluna={c.id}>
+                <span className={cn("mk-colcfg__nome", !visivel && "is-off")}>{c.label}</span>
+                {!termo ? (
+                  <span className="mk-colcfg__ordem">
+                    <button type="button" aria-label={`Subir ${c.label}`} disabled={i <= 0} onClick={() => subirDescer(c.id, -1)}>
+                      <ChevronUp size={18} aria-hidden />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={`Descer ${c.label}`}
+                      disabled={i >= draftOrdem.length - 1}
+                      onClick={() => subirDescer(c.id, 1)}
+                    >
+                      <ChevronDown size={18} aria-hidden />
+                    </button>
+                  </span>
+                ) : null}
+                <span title={travada ? "Ao menos uma coluna fica na tabela" : undefined}>
+                  <ToggleSwitch checked={visivel} disabled={travada} ariaLabel={`Mostrar ${c.label}`} onChange={() => alternar(c.id, visivel)} />
+                </span>
+              </div>
+            );
+          })}
+        </div>
+        <button type="button" className="mk-colcfg__restaurar" onClick={restaurarRascunho}>
+          <RotateCcw size={16} aria-hidden /> Restaurar padrão
+        </button>
+      </MobileSheet>
+    );
+  }
 
   const lista = (itens, on, q, vazio) => {
     const vistas = filtra(itens, q);

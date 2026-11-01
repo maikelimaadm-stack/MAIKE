@@ -1,5 +1,5 @@
 /**
- * R2A (D-PROD-96) — UI do cancelamento server-side, curral e renomeação.
+ * R2A (D-PROD-97) — UI do cancelamento server-side, curral e renomeação.
  * Dados sintéticos; serviço mockado (a prova de banco está em
  * backend/tests/movimentacaoCancelamentoR2A.test.mjs).
  */

@@ -18,7 +18,7 @@ function formatDateOnly(value) {
 
 export default function HistoricoAbateCurral({ areaId }) {
   const empresaSelecionadaId = useEmpresaSelecionadaId();
-  // R2A (D-PROD-96): a exclusão antiga (somar no lote e apagar o movimento em
+  // R2A (D-PROD-97): a exclusão antiga (somar no lote e apagar o movimento em
   // duas chamadas) saiu. Cancelar abate é o comando do servidor.
   const { data: historico = [], isLoading } = useQuery({
     queryKey: ["historico-abate-curral", areaId, empresaSelecionadaId],

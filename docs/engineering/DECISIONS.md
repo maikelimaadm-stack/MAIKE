@@ -3615,9 +3615,42 @@ Relatório: `docs/engineering/UX-MOBILE-V2-REPORT.md` (seção V4). Teste: `test
 
 ---
 
-## D-PROD-96 — R2A: registros operacionais fechados no servidor; cancelamento transacional de movimentação do mapa
+## D-PROD-96 — Ajustes do celular: Anexo ao lado do Salvar, botões cinza sem sombra, colunas e filtros no padrão das folhas, folha sem atraso
 
-> **Numeração (decisão do proprietário, R2A-R2):** esta decisão foi redigida na PR #162 como "D-PROD-95". A maikelimaadm-stack/MAIKE#163 (UX-MOBILE-V4) entrou antes em `main` com D-PROD-95, que fica preservada. A R2A passou a ser **D-PROD-96**, e as subdecisões dela a **D-PROD-96a** (R2A-R1) e **D-PROD-96b** (R2A-R2).
+**Missão:** UX-MOBILE-V5. Pedidos do proprietário depois de usar a D-PROD-95 no aparelho.
+
+**Decisão:**
+1. **Ações da edição ao lado do ✓.**
+   - Um item de Mais opções com `whileEditing` (Anexos nos Lotes) deixa de ficar no menu durante a edição e vira botão de ícone ao lado do ✓ Salvar.
+   - No celular (< 768 px) ele vai para o cabeçalho do app (`mobileShellContext.record.acoes`), e a barra de ações some inteira na edição: não sobra a linha só com o ⚡.
+   - No tablet e no desktop fica na barra, colado ao ✓.
+   - O menu ⚡ não aparece na edição (revoga o item 10 da D-PROD-95 nesse ponto).
+2. **Sem piscada.** O formulário do registro não anima mais ao montar: trocar para a visualização de registro ou trocar de registro deixou de piscar.
+3. **Folha sem atraso.**
+   - Durante o arraste só `transform` muda, desenhado por `requestAnimationFrame`. A altura não é mais recalculada a cada movimento.
+   - No início do arraste, a média ganha a altura da grande, deslocada para baixo (mesma aparência); no fim anima até o destino e só então troca a altura.
+4. **Botões padronizados** (todos os `tb-btn`, o seletor de visualização, o pager, os botões das folhas e do cabeçalho do app e do tablet):
+   - sem sombra;
+   - fundo cinza (`--portal-acao-bg`), nenhum branco;
+   - ícone na cor de sempre: verde no Novo/Salvar/Aplicar, vermelho no Excluir;
+   - o modo ativo do seletor de visualização fica num cinza mais escuro;
+   - no celular, os botões da barra e o pager têm 38 px.
+5. **Cards** sem o painel branco por trás: só os cards sobre o fundo da página.
+6. **Menus iguais:** o menu do shadcn (tabelas do mapa, tarefas, usuário) usa no desktop o mesmo vidro do Mais opções do Base1; no celular os dois já seguiam o estilo iOS.
+7. **Filtro da coluna:** ✕ Cancelar à esquerda e ✓ Aplicar à direita, com o aviso de "nenhum registro" no meio.
+8. **Configurar colunas no celular:**
+   - folha grande com uma lista só, no padrão dos Ajustes do iPhone: chave do iOS para mostrar ou ocultar, ↑ ↓ para a ordem, pesquisa e "Restaurar padrão";
+   - ✕ descarta e ✓ aplica;
+   - a última coluna visível não pode ser ocultada.
+   - O desktop mantém as duas listas.
+
+Relatório: `docs/engineering/UX-MOBILE-V2-REPORT.md` (seção V5). Teste: `tests/smoke/mobileV5Ajustes.test.jsx`.
+
+---
+
+## D-PROD-97 — R2A: registros operacionais fechados no servidor; cancelamento transacional de movimentação do mapa
+
+> **Numeração (decisões do proprietário, R2A-R2 e R2A-R3):** esta decisão foi redigida na PR #162 como "D-PROD-95" e depois renumerada para "D-PROD-96", porque a maikelimaadm-stack/MAIKE#163 (UX-MOBILE-V4) entrou antes em `main` com D-PROD-95. Em seguida a maikelimaadm-stack/MAIKE#164 (ajustes do celular, V5) entrou em `main` com D-PROD-96. As duas decisões de `main` ficam preservadas. A R2A passou a ser **D-PROD-97**, e as subdecisões a **D-PROD-97a** (R2A-R1), **D-PROD-97b** (R2A-R2) e **D-PROD-97c** (R2A-R3).
 
 
 **Missão:** MAIKE-R2A-MAPA-CANCELAMENTO-ESTORNO-SEGURO-BACKEND-01. Base: `main` d2cba91 (merge da #161). Sem migration, sem escrita em produção, sem ledger.
@@ -3666,11 +3699,11 @@ Relatório: `docs/engineering/MAIKE-R2A-MAPA-CANCELAMENTO-ESTORNO-SEGURO-REPORT.
 
 ---
 
-## D-PROD-96a — R2A-R1: proveniência causal do efeito, CAS em `PATCH /lotes`, chave pendente e cache de histórico
+## D-PROD-97a — R2A-R1: proveniência causal do efeito, CAS em `PATCH /lotes`, chave pendente e cache de histórico
 
-**Subdecisão de D-PROD-96.** Missão MAIKE-R2A-PR162-R1-HARDENING-PROVENIENCIA-CONCORRENCIA-OFFLINE, na mesma PR #162. Sem migration, sem escrita em produção, sem ledger.
+**Subdecisão de D-PROD-97.** Missão MAIKE-R2A-PR162-R1-HARDENING-PROVENIENCIA-CONCORRENCIA-OFFLINE, na mesma PR #162. Sem migration, sem escrita em produção, sem ledger.
 
-**Contexto:** a revisão bloqueou a D-PROD-96 (então redigida como D-PROD-95).
+**Contexto:** a revisão bloqueou a D-PROD-97 (então redigida como D-PROD-95).
 - A prova do efeito por AuditLog (janela de ±15 min) podia ser "emprestada". Com duas mortes de 50 e um único PATCH, o cancelamento devolvia 50 cabeças que nunca saíram (RED reproduzido: 200, saldo 500).
 - O `PATCH /lotes` gravava valor absoluto calculado antes da trava.
 
@@ -3695,11 +3728,11 @@ Relatório: seção R2A-R1 de `docs/engineering/MAIKE-R2A-MAPA-CANCELAMENTO-ESTO
 
 ---
 
-## D-PROD-96b — R2A-R2: estado causal completo e fail-closed no cancelamento; numeração da R2A
+## D-PROD-97b — R2A-R2: estado causal completo e fail-closed no cancelamento; numeração da R2A
 
-**Subdecisão de D-PROD-96.** Missão MAIKE-R2A-PR162-R2-HARDENING-ESTADO-CAUSAL-CANCELAMENTO-E-GOVERNANCA, na mesma PR #162. Sem migration, sem backfill, sem ledger, sem escrita em produção.
+**Subdecisão de D-PROD-97.** Missão MAIKE-R2A-PR162-R2-HARDENING-ESTADO-CAUSAL-CANCELAMENTO-E-GOVERNANCA, na mesma PR #162. Sem migration, sem backfill, sem ledger, sem escrita em produção.
 
-**Contexto:** o CAS da D-PROD-96a impede escrita obsoleta em `PATCH /lotes`, mas aceita escrita válida. Depois do movimento, um PATCH com `estado_esperado` correto podia mudar saldo, situação, área ou categoria. O cancelamento só conferia a área e "Inativo com saldo" e somava `antes − depois` sobre o saldo atual.
+**Contexto:** o CAS da D-PROD-97a impede escrita obsoleta em `PATCH /lotes`, mas aceita escrita válida. Depois do movimento, um PATCH com `estado_esperado` correto podia mudar saldo, situação, área ou categoria. O cancelamento só conferia a área e "Inativo com saldo" e somava `antes − depois` sobre o saldo atual.
 - RED reproduzido no HEAD 1fbfef6:
   - 450 → PATCH 400 → cancelamento **200, saldo 450** (crédito de 50 sem prova);
   - 450 → PATCH 550 → **600**;
@@ -3711,29 +3744,61 @@ Relatório: seção R2A-R1 de `docs/engineering/MAIKE-R2A-MAPA-CANCELAMENTO-ESTO
    - o comando grava, em cada efeito de `efeito_servidor` (campo reservado), o `auditoria_id` do `AuditLog` que ele mesmo escreveu para aquele lote, com o pós-estado material completo: `quantidade_cabecas`, `status`, `area_atual_id`, `categoria`, `categoria_manejo_id`, `empresa_id`;
    - o cancelamento grava o `auditoria_id` das reversões que fizer em `cancelamento.efeitos` (também reservado).
 2. **Cancelamento só passa, na mesma transação e depois de travar movimento e lotes, se:**
-   1. a proveniência da D-PROD-96a confere (efeito + `OperacaoIdempotente` committed deste movimento);
+   1. a proveniência da D-PROD-97a confere (efeito + `OperacaoIdempotente` committed deste movimento);
    2. a auditoria original existe, é do mesmo tenant e lote e registra exatamente o pós-estado do efeito;
    3. não há dependência posterior em outras fontes;
    4. toda alteração **material** posterior nos lotes participantes (origem, destino e derivado) é explicada por um manejo comprovado posterior **já cancelado**, ou pela reversão dele. Qualquer outra recebe 409 `CANCELAMENTO_ALTERACAO_POSTERIOR`: PATCH direto, ida e volta, fluxo legado;
    5. o estado atual de cada participante é igual, campo a campo, ao pós-estado. Senão: 409 `CANCELAMENTO_ESTADO_DIVERGENTE`, que pega inclusive escrita sem auditoria.
    - Atendidas as condições, o lote volta exatamente ao pré-estado gravado. Não há delta sobre saldo corrente.
 3. **Fail-closed:**
-   - efeito sem âncora (gravado na D-PROD-96a, antes desta subdecisão) → `CANCELAMENTO_EFEITO_NAO_COMPROVADO`;
+   - efeito sem âncora (gravado na D-PROD-97a, antes desta subdecisão) → `CANCELAMENTO_EFEITO_NAO_COMPROVADO`;
    - mesmo milissegundo da âncora, exceto o `create` do próprio lote, conta como posterior;
    - edição sem campo material (peso, nome, identificador) não bloqueia.
 4. **Comando:**
    - `categoria_animal` divergente da categoria do lote → 409 `MANEJO_ESTADO_INVALIDO`; o movimento grava a categoria do lote;
    - `data_movimentacao` precisa ser data de calendário válida (400);
    - a área atual da origem precisa ser da mesma empresa.
-5. **Numeração:** a R2A é D-PROD-96, com D-PROD-96a e D-PROD-96b; a D-PROD-95 da UX-MOBILE-V4 fica intacta.
+5. **Numeração:** a R2A é D-PROD-97, com D-PROD-97a, D-PROD-97b e D-PROD-97c. As D-PROD-95 (UX-MOBILE-V4) e D-PROD-96 (ajustes do celular V5) de `main` ficam intactas.
 
 **Risco residual declarado:**
 - `PATCH /lotes` com CAS continua permitindo correção material direta. Ela não tem trilha operacional própria; a auditoria a registra.
 - O efeito disso é tornar não cancelável qualquer movimento anterior do lote, que fica para conciliação assistida (slice futuro).
-- Manejo offline legado e transferência com várias categorias (atômica por lote, não no conjunto) seguem como na D-PROD-96a.
+- Manejo offline legado e transferência com várias categorias (atômica por lote, não no conjunto) seguem como na D-PROD-97a.
 
 Relatório: seção R2A-R2 de `docs/engineering/MAIKE-R2A-MAPA-CANCELAMENTO-ESTORNO-SEGURO-REPORT.md`.
 
 ---
 
-<!-- Próxima decisão: D-PROD-97 -->
+## D-PROD-97c — R2A-R3: cancelamento de unificação devolve a identificação do destino sem destruir edição posterior
+
+**Subdecisão de D-PROD-97.** Missão MAIKE-R2A-PR162-R3-REVERSAO-COMPLETA-IDENTIFICADORES-DE-LOTES-UNIFICADOS, na mesma PR #162. Sem migration, sem backfill, sem escrita em produção.
+
+**Contexto:**
+- A unificação (`parcial_unificado`, `total_unificado`) copia `identificador_nome`, `identificador_sigla` e `identificador_cor` da origem para o destino, inclusive nulos.
+- O efeito não guardava esses valores, e o cancelamento só devolvia saldo, situação e área.
+- RED no HEAD f048615 (6 de 7 casos): o destino ficava com ORIGEM/ORG/#445566 depois do estorno.
+
+**Decisão:**
+
+1. **A semântica da unificação continua a mesma:** o destino recebe a identificação da origem. Mudá-la seria política de negócio não pedida.
+2. O comando grava `identificacao: {antes, depois}` com os três campos em **cada** efeito de `efeito_servidor` (campo reservado, junto da âncora `auditoria_id`). Esses campos continuam **não materiais**: `CAMPOS_MATERIAIS_LOTE` não muda.
+3. **Cancelamento:**
+   - devolve a identificação anterior **somente** com prova de que ninguém mexeu nela depois:
+     - nenhuma linha de `AuditLog` posterior à âncora tocou a identificação, salvo se explicada por manejo comprovado já cancelado ou pela reversão dele;
+     - e o valor atual é exatamente o que o comando aplicou;
+   - havendo edição posterior (inclusive ida e volta) ou valor que não confere, a identificação atual é **preservada**. O saldo é revertido normalmente;
+   - o efeito do cancelamento registra `identificacao: 'restaurada' | 'preservada_edicao_posterior' | 'inalterada'`, e a auditoria do lote guarda o snapshot completo.
+4. **Fail-closed:** unificação sem snapshot de identificação (formato da R2) → 409 `CANCELAMENTO_EFEITO_NAO_COMPROVADO`. Nada muda e nada é reservado.
+5. **Modos que não unificam** (`total_no_lugar`, `parcial_novo_lote`) não escrevem identificação no cancelamento. O derivado fica 0/Inativo, nunca é apagado, e a entrada histórica fica intacta.
+
+**Por que preservar em vez de recusar:**
+- A edição de identificação é legítima e não muda saldo.
+- Recusar travaria a reversão de cabeças por um rótulo.
+- Preservar nunca destrói dado. O pior caso é o destino continuar com a identificação que o usuário mesmo confirmou depois.
+- A escolha é registrada no cancelamento e no AuditLog.
+
+Relatório: seção R2A-R3 de `docs/engineering/MAIKE-R2A-MAPA-CANCELAMENTO-ESTORNO-SEGURO-REPORT.md`.
+
+---
+
+<!-- Próxima decisão: D-PROD-98 -->

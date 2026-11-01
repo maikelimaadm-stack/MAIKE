@@ -1,5 +1,5 @@
 /**
- * Comando atômico de manejo do mapa — R2A-R1 (D-PROD-96a).
+ * Comando atômico de manejo do mapa — R2A-R1 (D-PROD-97a).
  *
  * Morte, Abate e Transferência de Área deixam de ser "grava o movimento, depois
  * o navegador faz PATCH absoluto no lote". Numa transação PostgreSQL:
@@ -35,7 +35,7 @@ const normal = (v) => String(v || '').toUpperCase();
 const recusa = (codigo, mensagem, details = {}) => new AppError(codigo, mensagem, { details });
 
 /**
- * Campos MATERIAIS do lote (R2A-R2, D-PROD-96b): o que muda saldo, posição,
+ * Campos MATERIAIS do lote (R2A-R2, D-PROD-97b): o que muda saldo, posição,
  * situação ou classificação. O cancelamento exige que todos continuem iguais
  * ao pós-estado gravado aqui, e que nenhuma alteração material não comprovada
  * tenha ocorrido no meio (nem ida e volta).
@@ -50,7 +50,7 @@ export const CAMPOS_MATERIAIS_LOTE = Object.freeze([
 ]);
 
 /**
- * Identificação do lote (R2A-R3, D-PROD-96c): não é material — não muda saldo
+ * Identificação do lote (R2A-R3, D-PROD-97c): não é material — não muda saldo
  * nem bloqueia cancelamento —, mas a UNIFICAÇÃO a sobrescreve no destino. O
  * efeito guarda antes/depois para o cancelamento devolver o que era do destino.
  */

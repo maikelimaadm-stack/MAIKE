@@ -88,7 +88,7 @@ const formatHistoricoObservacoes = (item) => {
 };
 
 /**
- * Exclusão de lançamento pelo histórico: REMOVIDA (R2A, D-PROD-96). A antiga
+ * Exclusão de lançamento pelo histórico: REMOVIDA (R2A, D-PROD-97). A antiga
  * reversão no navegador (várias chamadas, sem transação) deu lugar ao comando
  * de cancelamento no servidor (`CancelarMovimentacao`). O servidor recusa
  * DELETE/PATCH diretos de movimentação.

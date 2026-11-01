@@ -1,19 +1,73 @@
 # MAIKE-R2A — Cancelamento e estorno seguro de movimentação (backend primeiro)
 
-**Data:** 2026-10-31 · **Decisão:** D-PROD-96 (redigida como D-PROD-95; ver nota de numeração) · subdecisões D-PROD-96a e D-PROD-96b · **Base:** `main` d2cba91 (merge da #161)
+**Data:** 2026-10-31 · **Decisão:** D-PROD-97 (redigida como D-PROD-95, depois D-PROD-96; ver a nota de numeração em `DECISIONS.md`) · subdecisões D-PROD-97a, D-PROD-97b e D-PROD-97c · **Base:** `main` d2cba91 (merge da #161)
 **PR:** maikelimaadm-stack/MAIKE#162 (DRAFT) · **Branch:** `claude/new-session-26kpxu`
 - É a branch designada da sessão. Foi recriada a partir de `main` depois do merge da #161; nenhum commit novo foi empilhado sobre a #161.
 - Sem migration. Sem escrita em produção. Sem ledger L1.
 
-> **Atualização R2A-R2 (D-PROD-96b):** a seção **R2A-R2** logo abaixo substitui a regra de elegibilidade da R2A-R1 (estado causal completo) e resolve a numeração.
+> **Atualização R2A-R3 (D-PROD-97c):** a seção **R2A-R3** logo abaixo completa a reversão das transferências com unificação: a identificação do destino volta, e a edição posterior é preservada.
 >
-> **Atualização R2A-R1 (D-PROD-96a):** a revisão do arquiteto bloqueou a versão
+> **Atualização R2A-R2 (D-PROD-97b):** a seção **R2A-R2** logo abaixo substitui a regra de elegibilidade da R2A-R1 (estado causal completo) e resolve a numeração.
+>
+> **Atualização R2A-R1 (D-PROD-97a):** a revisão do arquiteto bloqueou a versão
 > abaixo. A prova temporal por AuditLog (±15 min) aceitava "prova emprestada", e o
 > `PATCH /lotes` gravava valor absoluto obsoleto. A seção **R2A-R1** logo abaixo
 > substitui as seções 3, 5 e 6 onde houver conflito. As seções originais ficam como
 > histórico.
 
-## R2A-R2 — Estado causal completo, fail-closed e numeração (D-PROD-96b)
+## R2A-R3 — Reversão completa da identificação em unificação (D-PROD-97c)
+
+**Missão:** MAIKE-R2A-PR162-R3-REVERSAO-COMPLETA-IDENTIFICADORES-DE-LOTES-UNIFICADOS, na mesma PR #162 (DRAFT).
+- HEAD de partida: f048615.
+- Base observada na auditoria: 505acd6. Durante a missão, `main` avançou para 2fcc769 (#164), que foi integrada por merge.
+- Sem migration, sem backfill, sem escrita em produção.
+
+### R3.1 Bug → correção
+
+| Item | Conteúdo |
+|---|---|
+| Bug | A unificação (`parcial_unificado`, `total_unificado`) copia `identificador_nome`, `identificador_sigla` e `identificador_cor` da origem para o destino, nulos inclusive. O efeito não guardava o valor anterior, e o cancelamento não o devolvia |
+| Reprodução (HEAD f048615) | Destino DESTINO/DST/#112233 com 100 cab; origem ORIGEM/ORG/#445566. Depois da unificação e do cancelamento, os saldos voltam, mas o destino fica com **ORIGEM/ORG/#445566**. Com a origem sem identificador, o destino perdia o seu (ficava nulo). `r2aR3Identificadores`: **6 de 7 falhando**. Arquivo `evidencias/r2a-r3/red-identificadores-antes.txt` |
+| Outros campos sobrescritos pelo comando | Destino da unificação: só `quantidade_cabecas` e os três identificadores. Origem: `quantidade_cabecas` e `status`. No lugar: `area_atual_id`/`area_atual_nome` (já revertidos pela área). Derivado: criado; o cancelamento só zera e inativa. Nenhum outro campo fica oculto sem reversão |
+| Correção | `identificacao: {antes, depois}` em cada efeito. Restauração só com prova de ausência de edição posterior; edição posterior é preservada (`preservada_edicao_posterior`). Snapshot ausente em unificação → 409 `CANCELAMENTO_EFEITO_NAO_COMPROVADO` |
+| GREEN | `r2aR3Identificadores` **13/13**; backend **618 testes, 0 falhas**. Arquivo `evidencias/r2a-r3/green-identificadores-depois.txt` |
+
+### R3.2 Política de identificação (por que preservar)
+
+- **Prova de "ninguém mexeu":**
+  - nenhuma linha de `AuditLog` do lote depois da âncora `auditoria_id` altera a identificação, salvo se explicada por manejo comprovado já cancelado ou pela reversão dele;
+  - e o valor atual é exatamente o que o comando aplicou.
+- **Não basta comparar o valor atual com o aplicado:** uma ida e volta (ORIGEM → X → ORIGEM) deixa linhas de auditoria, e é tratada como edição.
+- Escrita sem auditoria que mude o valor também resulta em preservação.
+- **Preservar, e não recusar:** a identificação não é material. Recusar travaria a devolução de cabeças por causa de um rótulo; preservar nunca destrói dado. A escolha fica registrada no efeito do cancelamento e no snapshot completo do AuditLog.
+- `CAMPOS_MATERIAIS_LOTE` não mudou: a identificação não virou material.
+
+### R3.3 Matriz de cenários (PostgreSQL 16 real, HTTP)
+
+| Cenário | Resultado |
+|---|---|
+| parcial_unificado, origem identificada | origem e destino idênticos ao pré-movimento em **todos** os campos (saldo, situação, área, identificação, entrada histórica, número, empresa, categoria); replay sem efeito |
+| parcial_unificado, origem com identificadores nulos | idem; o destino recupera DESTINO/DST/#112233 |
+| total_unificado (identificada e nula) | idem; origem 500 Ativo, destino 100 |
+| Edição posterior do identificador do destino | saldo 100; edição mantida (EDITADO/EDT; cor da origem mantida); `preservada_edicao_posterior` |
+| Ida e volta ORIGEM → X → ORIGEM | edição mantida; `preservada_edicao_posterior` |
+| Concorrência ordem A (cancelamento pega a trava antes da edição) | `restaurada`; depois a edição vale (EDITADO/DST/#112233); 200/200, sem 500 |
+| Concorrência ordem B (edição pega a trava antes) | `preservada_edicao_posterior` (EDITADO/ORG); 200/200; repetido 3 vezes |
+| Unificação sem snapshot de identificação (formato R2) | 409 `CANCELAMENTO_EFEITO_NAO_COMPROVADO`; nada muda; sem reserva nem auditoria de cancelamento |
+| Duas unificações no mesmo destino | a mais antiga é bloqueada enquanto a mais recente estiver ativa; cancelando da mais recente para a mais antiga, o destino volta exato |
+| PATCH material depois da unificação | 409 `CANCELAMENTO_ALTERACAO_POSTERIOR`; identificação intacta |
+| Outro tenant | 404; nada muda |
+| total_no_lugar e parcial_novo_lote | identificação intacta; derivado só muda saldo e situação (0/Inativo), `quantidade_entrada` 30 |
+
+### R3.4 Interface
+
+O diálogo de cancelamento mostra o que acontece com a identificação:
+- "identificação volta a DESTINO";
+- ou "identificação editada depois da movimentação: mantida".
+
+Teste smoke 17/17.
+
+## R2A-R2 — Estado causal completo, fail-closed e numeração (D-PROD-97b)
 
 **Missão:** MAIKE-R2A-PR162-R2-HARDENING-ESTADO-CAUSAL-CANCELAMENTO-E-GOVERNANCA, na mesma PR #162 (DRAFT). HEAD de entrada 1fbfef6; base `main` 505acd6. Sem migration, sem backfill, sem ledger, sem escrita em produção.
 
@@ -230,7 +284,7 @@ Evidências: `docs/engineering/evidencias/r2a-r1/`
 
 ### R1.7a Merge de `main` (#163) e colisão de numeração
 
-- `main` avançou com a maikelimaadm-stack/MAIKE#163 (UX-MOBILE-V4), que também usava **D-PROD-95**. O único conflito foi `DECISIONS.md`. **Resolvido na R2A-R2 por decisão do proprietário:** a D-PROD-95 da V4 foi preservada, a R2A passou a D-PROD-96 e a R1 a D-PROD-96a. Detalhes na seção R2A-R2.
+- `main` avançou com a maikelimaadm-stack/MAIKE#163 (UX-MOBILE-V4), que também usava **D-PROD-95**, e depois com a #164 (ajustes do celular V5), que usa **D-PROD-96**. As duas foram preservadas. Por decisão do proprietário, a R2A ficou como **D-PROD-97**, com 97a, 97b e 97c; a próxima livre é D-PROD-98.
 - Depois do merge:
   - `verify:all` com as variáveis da CI: exit 0 (smoke 99 arquivos, 1149/1149; backend 0 falhas);
   - E2E repetido nas 4 larguras: cancelamento, legado e offline **64/64**; manejo pela UI **36/36**.

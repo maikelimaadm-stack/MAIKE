@@ -58,7 +58,7 @@ export const criarEmLote = async (contexto, registros) => {
 };
 
 /**
- * R2A (D-PROD-96): o evento compõe saída de estoque e rateio por lote. PATCH só
+ * R2A (D-PROD-97): o evento compõe saída de estoque e rateio por lote. PATCH só
  * aceita as métricas de fechamento/reabertura de período (sobra, dias, consumo diário do grupo), que não mexem
  * em saldo; qualquer outro campo → REGISTRO_OPERACIONAL_IMUTAVEL, nada gravado.
  */
@@ -90,7 +90,7 @@ export const atualizar = async (contexto, id, entrada) => {
   return documentoComoPublico(atualizado);
 };
 
-/** R2A (D-PROD-96): DELETE desmontaria o evento sem devolver estoque — nada é removido. */
+/** R2A (D-PROD-97): DELETE desmontaria o evento sem devolver estoque — nada é removido. */
 export const excluir = async (contexto, id) => {
   const auth = exigirAuthContext(contexto?.auth);
   const existente = await buscarRegistro(auth.clienteId, id);

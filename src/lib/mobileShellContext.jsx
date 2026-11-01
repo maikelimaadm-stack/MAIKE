@@ -9,7 +9,8 @@ import React from "react";
  * registro usa o rodapé para a navegação ‹ n/N ›. Quem sabe disso é o chrome;
  * quem desenha é o `Layout`.
  *
- * @typedef {{ editing: boolean, title?: string, subtitle?: string, onBack?: () => void, formId?: string, saving?: boolean }} MobileShellRecord
+ * @typedef {{ editing: boolean, title?: string, subtitle?: string, onBack?: () => void, formId?: string, saving?: boolean, acoes?: MobileShellAcao[] }} MobileShellRecord
+ * @typedef {{ key: string, label: string, icon?: React.ReactNode, disabled?: boolean, onSelect: () => void }} MobileShellAcao
  * @typedef {{ listChrome: boolean, record: MobileShellRecord | null }} MobileShellState
  */
 
@@ -45,7 +46,7 @@ export function useMobileShellState() {
  * Publicado pelo `CadastroListaChrome`. `record` nulo = lista (tabela/cards).
  * `onBack` vai por ref para não republicar a cada render.
  *
- * @param {{ editing: boolean, title?: string, subtitle?: string, onBack?: () => void, formId?: string, saving?: boolean } | null} record
+ * @param {{ editing: boolean, title?: string, subtitle?: string, onBack?: () => void, formId?: string, saving?: boolean, acoes?: MobileShellAcao[] } | null} record
  */
 export function usePublishMobileShell(record) {
   const { publish } = React.useContext(MobileShellContext);
@@ -58,6 +59,11 @@ export function usePublishMobileShell(record) {
   const subtitle = record?.subtitle ?? "";
   const formId = record?.formId ?? "";
   const saving = Boolean(record?.saving);
+  // Ações ao lado do ✓ (ex.: Anexos): o array muda a cada render; publica só
+  // quando a lista de chaves muda, e o clique lê a versão atual pelo ref.
+  const acoesRef = React.useRef(record?.acoes ?? []);
+  acoesRef.current = record?.acoes ?? [];
+  const chavesAcoes = (record?.acoes ?? []).map((a) => `${a.key}:${a.disabled ? 1 : 0}`).join("|");
 
   React.useEffect(() => {
     publish({ listChrome: true });
@@ -66,7 +72,20 @@ export function usePublishMobileShell(record) {
 
   React.useEffect(() => {
     publish({
-      record: open ? { editing, title, subtitle, formId, saving, onBack: () => backRef.current?.() } : null,
+      record: open
+        ? {
+            editing,
+            title,
+            subtitle,
+            formId,
+            saving,
+            onBack: () => backRef.current?.(),
+            acoes: acoesRef.current.map((a) => ({
+              ...a,
+              onSelect: () => acoesRef.current.find((atual) => atual.key === a.key)?.onSelect(),
+            })),
+          }
+        : null,
     });
-  }, [publish, open, editing, title, subtitle, formId, saving]);
+  }, [publish, open, editing, title, subtitle, formId, saving, chavesAcoes]);
 }

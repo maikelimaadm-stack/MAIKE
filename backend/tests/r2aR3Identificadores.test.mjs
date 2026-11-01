@@ -1,5 +1,5 @@
 /**
- * R2A-R3 (D-PROD-96c) — reversão completa dos identificadores em transferência
+ * R2A-R3 (D-PROD-97c) — reversão completa dos identificadores em transferência
  * com UNIFICAÇÃO. A unificação copia identificador_nome/sigla/cor da origem
  * para o destino; o cancelamento tem de devolver os do destino — sem destruir
  * edição legítima feita depois. PostgreSQL real, HTTP, auth.
@@ -66,11 +66,6 @@ const manejo = (c, corpo) =>
   req('POST', '/movimentacoes-mapa/comandos/manejo-lote', c.tokAdm, {
     operation_id: opId(), empresa_id: c.empresa.id, data_movimentacao: '2026-10-30T12:00:00.000Z', ...corpo,
   });
-const morte = async (c, l, q, tipo = 'Morte') => {
-  const r = await manejo(c, { tipo, lote_id: l.id, quantidade_animais: q });
-  assert.equal(r.statusCode, 201, r.body);
-  return r.json().movimentacao;
-};
 const transferir = async (c, l, q, area, loteDestinoId) => {
   const r = await manejo(c, {
     tipo: 'Transferência de Área', lote_id: l.id, quantidade_animais: q, area_destino_id: area.id,
@@ -79,37 +74,10 @@ const transferir = async (c, l, q, area, loteDestinoId) => {
   assert.equal(r.statusCode, 201, r.body);
   return r.json();
 };
-const elegivel = async (c, id) => (await req('GET', `/movimentacoes-mapa/${id}/elegibilidade-cancelamento`, c.tokAdm)).json();
 const cancelar = (c, id, operation_id = opId()) =>
   req('POST', `/movimentacoes-mapa/${id}/cancelamento`, c.tokAdm, { operation_id, motivo: 'lançado por engano' });
 
-/** Prova de "nada mudou": lotes, movimento, reserva de idempotência e auditoria de cancelamento. */
-const fotografar = async (c, movId, loteIds) => ({
-  lotes: await Promise.all(loteIds.map(async (id) => {
-    const l = await lote(id);
-    return [l.quantidade_cabecas, l.status, l.area_atual_id, l.categoria];
-  })),
-  dados: (await mov(movId)).dados,
-  reservas: await prisma().operacaoIdempotente.count({ where: { cliente_id: c.cliente.id, tipo_operacao: 'cancelamento_movimentacao_mapa' } }),
-  auditCancel: await prisma().auditLog.count({ where: { cliente_id: c.cliente.id, acao: 'cancelamento', entidade_id: movId } }),
-});
 
-/** Recusa completa: elegibilidade false + POST 409 com código esperado + nada muda. */
-const exigirRecusa = async (c, movId, loteIds, codigos) => {
-  const antes = await fotografar(c, movId, loteIds);
-  const e = await elegivel(c, movId);
-  assert.equal(e.elegivel, false, JSON.stringify(e));
-  assert.ok(codigos.includes(e.codigo), `elegibilidade ${e.codigo}`);
-  const opKey = opId();
-  const r = await cancelar(c, movId, opKey);
-  assert.equal(r.statusCode, 409, r.body);
-  assert.ok(codigos.includes(r.json().code), `POST ${r.json().code}`);
-  const depois = await fotografar(c, movId, loteIds);
-  assert.deepEqual(depois, antes, 'recusa não pode mudar lote, movimento, reserva nem auditoria');
-  assert.notEqual((await mov(movId)).dados.situacao, 'cancelado');
-  assert.equal(await prisma().operacaoIdempotente.count({ where: { operation_key: opKey } }), 0, 'recusa não reserva idempotência');
-  return r.json();
-};
 
 
 const ORIG = { identificador_nome: 'ORIGEM', identificador_sigla: 'ORG', identificador_cor: '#445566' };
@@ -276,7 +244,7 @@ describe('R2A-R3 P1 — prova, concorrência e regressão', () => {
     const ef = m.dados.efeito_servidor;
     await prisma().movimentacaoMapa.update({
       where: { id: m.id },
-      data: { dados: { ...m.dados, efeito_servidor: { ...ef, efeitos: ef.efeitos.map(({ identificacao, ...resto }) => resto) } } },
+      data: { dados: { ...m.dados, efeito_servidor: { ...ef, efeitos: ef.efeitos.map((e) => { const resto = { ...e }; delete resto.identificacao; return resto; }) } } },
     });
     const antes = [await ficha(o.id), await ficha(d.id)];
     const k = opId();
