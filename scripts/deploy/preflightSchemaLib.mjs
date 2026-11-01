@@ -37,6 +37,7 @@ export const COLUNAS_EXIGIDAS = Object.freeze([
   ['CategoriaManejo', 'catalogo_categoria_visual_id'],
   // MAIKE-LOTES-R1: a listagem de lotes filtra `excluido_em IS NULL`.
   ['Lote', 'excluido_em'],
+  ['Lote', 'excluido_por_usuario_id'],
 ]);
 
 /**
@@ -47,7 +48,7 @@ export const CONSULTAS = Object.freeze({
   migrations: `SELECT migration_name, finished_at IS NOT NULL AS concluida, rolled_back_at IS NOT NULL AS revertida
                  FROM "_prisma_migrations"`,
   colunas: `SELECT table_name, column_name FROM information_schema.columns
-             WHERE table_schema = 'public' AND (table_name, column_name) IN (('Usuario','papel_tenant'),('CategoriaManejo','catalogo_categoria_visual_id'),('Lote','excluido_em'))`,
+             WHERE table_schema = 'public' AND (table_name, column_name) IN (('Usuario','papel_tenant'),('CategoriaManejo','catalogo_categoria_visual_id'),('Lote','excluido_em'),('Lote','excluido_por_usuario_id'))`,
   tabelas: `SELECT c.relname AS tabela, c.relrowsecurity AS rls
               FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
              WHERE n.nspname = 'public' AND c.relkind = 'r' AND c.relname = ANY($1::text[])`,
