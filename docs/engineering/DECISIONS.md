@@ -3976,4 +3976,25 @@ Relatório: `docs/engineering/MAIKE-LOTES-EXCLUSAO-CANCELADOS-REPORT.md`.
 
 **Consequência:** relatório `MAIKE-R2B-COMANDOS-CANCELAMENTO-REPORT.md`; evidências em `evidencias/r2b-p1/`.
 
+**Complemento PR168-R2 (integridade do Nascimento):** RED 13/22 no `5ba86b9`; GREEN 22/22. Evidências em `evidencias/r2b-p1/r2-integridade-nascimento/`.
+- **Política materna (servidor e formulário):**
+  - a categoria da mãe precisa ser oficial de matriz: `Vaca 25 a 36 meses`, `Vaca + 36 meses` ou `Novilha 13 a 24 meses` (a novilha de primeira cria, já oferecida pelo produto);
+  - o lote precisa ser **Fêmea**;
+  - lote macho, sem sexo, Bezerra ou nome livre → 409 `MANEJO_CATEGORIA_MAE_INVALIDA`, sem gravar nada;
+  - lote sem sexo precisa ser corrigido no Cadastro: não se adivinha.
+- **Destino dos filhotes:**
+  - recebe só lote ativo da mesma categoria **e** do mesmo sexo, na mesma área e empresa, não excluído;
+  - lote incompatível ou sem sexo fica intacto e o servidor cria lote coerente;
+  - dois compatíveis → 409 `MANEJO_DESTINO_AMBIGUO`, sem unificação implícita.
+- **Vínculo materno:**
+  - `linhas[].maes_lote_ids` registra os lotes de matrizes **da categoria na área**; não é a mãe individual e a UI diz isso;
+  - `movimentoCitaLotes` é a definição **única** de "movimento cita o lote": `lote_id`, `lote_destino_id`, `lote_ids`, `efeitos[].lote_id` e `linhas[].maes_lote_ids`;
+  - é usada pelo histórico por lote (paginação keyset intacta), pelas dependências do cancelamento e pela guarda de exclusão (#167);
+  - matriz citada por nascimento ativo → `movimentacao_ativa`; com o nascimento cancelado com prova → exclusão lógica.
+- **Travas:**
+  - nascimento: área → lotes da área (inclui as matrizes) `FOR UPDATE`;
+  - exclusão: o lote;
+  - cancelamento: movimento → lotes;
+  - quem trava primeiro decide e o outro relê o estado confirmado; sem ciclo de travas (3 rodadas por cenário, sem 500).
+
 <!-- Próxima decisão: D-PROD-102 -->

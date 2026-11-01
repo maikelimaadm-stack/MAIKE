@@ -5,6 +5,7 @@
 - **PR:** #168 (draft)
 - **Migrations:** 0; o schema Prisma não muda
 - **Produção:** nenhuma leitura nem escrita nesta missão
+- **Rodada R2 (integridade do Nascimento):** seção 11
 
 ## 1. Diagnóstico (RED na main mergeada)
 
@@ -199,3 +200,65 @@ Qualquer erro desfaz tudo.
 - Unificação de destino na Mudança de Categoria, com política explícita e cancelamento da identificação (padrão R2A-R3).
 - Motor offline único (fila de comandos com chave idempotente e replay causal) para R2A e R2B.
 - Tela de conciliação assistida para recusas `CANCELAMENTO_ALTERACAO_POSTERIOR` e `CANCELAMENTO_ESTADO_DIVERGENTE`.
+
+## 11. PR168-R2 — integridade do Nascimento (matrizes, destino e vínculo materno)
+
+### Diagnóstico (RED no `5ba86b9`, HTTP + PostgreSQL reais)
+
+Evidência: `evidencias/r2b-p1/r2-integridade-nascimento/red-head-5ba86b9.txt`. Resultado: 13 de 22 falharam.
+
+| Problema | Reprodução no 5ba86b9 |
+|---|---|
+| P0-A mãe masculina | lote BOIS (Macho) com `categoria_mae = Boi 25 a 36 meses` → **201**, o rebanho cresce. Vaca cadastrada Macho e Bezerra como mãe também eram aceitas (A1, A2, A3, A6) |
+| P0-B destino incompatível | "Bezerro 0 a 12 meses" cadastrado Fêmea recebia os machos; havendo um compatível e outro incompatível, podia escolher o incompatível; dois compatíveis eram unificados de forma implícita (B1–B4) |
+| P0-C vínculo materno | matriz citada por nascimento **ativo** podia ser excluída fisicamente; o histórico da matriz não achava o nascimento; acima de 600 eventos, o total vinha errado; cancelar a mudança Novilha→Vaca era aceito mesmo com nascimento posterior apoiado nessa vaca (C1–C4, C6) |
+
+### Correção
+
+- **Política materna:**
+  - categoria oficial de matriz (Vaca 25-36, Vaca +36, Novilha 13-24) **e** lote Fêmea;
+  - comparação sem acento e sem diferença de caixa;
+  - a linha grava a categoria canônica;
+  - o formulário usa a mesma regra (`ehLoteDeMatriz`).
+- **Destino:**
+  - mesma categoria **e** mesmo sexo;
+  - incompatível ou sem sexo fica intacto e o servidor cria lote coerente;
+  - dois compatíveis → `MANEJO_DESTINO_AMBIGUO`;
+  - peso ponderado, entrada, área de entrada e identificação manual preservados (B2).
+- **Vínculo:**
+  - `movimentacaoVinculoLote.movimentoCitaLotes` é a definição única;
+  - usada em `movimentacaoMapaRepository` (histórico com cursor e total), `movimentacaoMapaCancelamentoService.dependenciasPosteriores` e `loteExclusaoService.movimentosQueCitam`;
+  - no frontend, `vinculoDoMovimento` / `idsDeMatrizesDoMovimento` dão a mesma resposta no histórico offline;
+  - o card do nascimento diz: "Lotes de matrizes da categoria na área: N (referência da categoria; não identifica a mãe individual)".
+
+### Testes (GREEN)
+
+| Suíte | Resultado |
+|---|---|
+| `r2bP1R2IntegridadeNascimento` (PostgreSQL real, HTTP) | **22/22** |
+| `r2bP1ComandosRebanho` (regressão R2B) | 52/52 |
+| `npm run test:backend` | 715 testes, 710 pass, 0 fail (5 todo) |
+| Smoke R2B | 19/19 (3 novos de paridade) |
+| E2E 1440/768/412/390 | ver `e2e-*.txt` (37 verificações por largura) |
+
+**O que a suíte R2 cobre:**
+- mãe macho, vaca cadastrada Macho, Bezerra, nome livre;
+- matriz excluída, de outra área, de outra empresa, de outro tenant;
+- as três categorias maternas legítimas;
+- linha válida junto com linha inválida (rollback integral);
+- destino incompatível, misto, ambíguo e sem sexo, com cancelamento exato;
+- matriz com nascimento ativo (bloqueio) e cancelado (exclusão lógica);
+- homônimo;
+- 611 eventos paginados sem duplicar;
+- dependência só pelo elo materno (C6).
+
+**Concorrência, 3 rodadas cada:**
+- DELETE da matriz × nascimento → nunca os dois; sem nascimento órfão;
+- cancelar a transferência da matriz × nascimento nela → nunca os dois.
+
+### Riscos residuais
+
+- Lotes de matriz **sem sexo** no Cadastro deixam de servir como mãe até alguém corrigir o sexo (falha fechada, intencional).
+- `maes_lote_ids` é a referência da categoria na área, não maternidade individual.
+- Movimentos antigos sem `linhas` não têm vínculo materno (não havia).
+- **E2E 390:** duas execuções iniciais falharam ao abrir o menu "Eventos" logo após fechar um diálogo, no toque móvel. O app não mudou. O roteiro passou a esperar o menu e repetir o toque uma vez, e depois disso 390 ficou 37/37 em execuções seguidas.
