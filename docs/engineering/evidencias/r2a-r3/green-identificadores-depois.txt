@@ -1,0 +1,28 @@
+R2A-R3 — GREEN (working tree sobre f048615f; PostgreSQL 16 local, maike_ci sintético)
+Data: 2026-11-01T03:14:38Z
+
+node --test backend/tests/r2aR3Identificadores.test.mjs:
+    ok 1 - parcial_unificado, origem identificada: destino volta a DESTINO/DST/\#112233; todos os campos iguais ao pré-movimento
+    ok 2 - parcial_unificado, origem SEM identificador (nulos): destino volta a DESTINO/DST/\#112233; todos os campos iguais ao pré-movimento
+    ok 3 - total_unificado, origem identificada: destino volta a DESTINO/DST/\#112233; todos os campos iguais ao pré-movimento
+    ok 4 - total_unificado, origem SEM identificador (nulos): destino volta a DESTINO/DST/\#112233; todos os campos iguais ao pré-movimento
+    ok 1 - usuário renomeia o identificador do destino depois da unificação: o saldo volta, a edição fica (auditada)
+    ok 2 - ida e volta do identificador (ORIGEM → X → ORIGEM) também conta como edição: nada é sobrescrito
+    ok 1 - total no lugar e parcial com lote novo: identificação intacta; derivado 0/Inativo, entrada histórica intacta
+    ok 1 - ordem A — cancelamento pega a trava antes da edição do identificador: restaura DESTINO e depois a edição vale
+    ok 2 - ordem B — edição pega a trava primeiro: o cancelamento devolve o saldo e PRESERVA a edição
+    ok 3 - unificação gravada SEM snapshot de identificação (formato R2) → 409 EFEITO_NAO_COMPROVADO; nada muda, sem reserva
+    ok 4 - duas unificações no mesmo destino, canceladas da mais recente para a mais antiga: DESTINO volta exato
+    ok 5 - regressão R2: PATCH material depois da unificação continua bloqueando (409), sem tocar identificação
+    ok 6 - outro tenant não cancela nem enxerga a unificação (404)
+# tests 13
+# pass 13
+# fail 0
+
+Concorrência (ordem A/B) repetida 3x: 2/2 em cada rodada
+
+npm run test:backend:
+# tests 618
+# pass 613
+# fail 0
+# todo 5

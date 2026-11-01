@@ -26,7 +26,7 @@ import { documentoComoPublico } from '../../shared/jsonDocument/jsonDocumentPubl
 import { executarComIdempotencia, fingerprintDePayload } from '../../shared/idempotency/operacaoIdempotenteService.js';
 import { registrarEvento } from '../auditoria/auditService.js';
 import { buscarNomesDeAreas } from './movimentacaoMapaRepository.js';
-import { CAMPOS_MATERIAIS_LOTE, COMANDO_MANEJO, TIPO_OPERACAO_MANEJO, estadoDe } from './manejoMapaComandoService.js';
+import { CAMPOS_IDENTIFICACAO_LOTE, CAMPOS_MATERIAIS_LOTE, COMANDO_MANEJO, TIPO_OPERACAO_MANEJO, estadoDe, identificacaoDe } from './manejoMapaComandoService.js';
 import { comoLotePublico } from '../lotes/loteService.js';
 
 export const TIPO_OPERACAO_CANCELAMENTO = 'cancelamento_movimentacao_mapa';
@@ -154,6 +154,25 @@ const ehMaterial = (linha) =>
   !linha.dados_novos ||
   divergencias(linha.dados_anteriores, linha.dados_novos).length > 0;
 
+/** Linha que mexe na identificação (ou que não permite saber): conta como edição posterior. */
+const mexeNaIdentificacao = (linha) => {
+  if (linha.acao !== 'update' || !linha.dados_anteriores || !linha.dados_novos) return true;
+  return CAMPOS_IDENTIFICACAO_LOTE.some((k) => {
+    const a = linha.dados_anteriores[k];
+    const n = linha.dados_novos[k];
+    if (a === undefined || n === undefined) return true;
+    return (a ?? null) !== (n ?? null);
+  });
+};
+
+/** Snapshot de identificação completo (os três campos presentes). */
+const identificacaoCompleta = (x) =>
+  !!x && typeof x === 'object' && CAMPOS_IDENTIFICACAO_LOTE.every((k) => Object.prototype.hasOwnProperty.call(x, k));
+const mesmaIdentificacao = (a, b) => CAMPOS_IDENTIFICACAO_LOTE.every((k) => (a?.[k] ?? null) === (b?.[k] ?? null));
+
+/** Modos em que o comando sobrescreve a identificação do destino. */
+const MODOS_UNIFICADOS = Object.freeze(['parcial_unificado', 'total_unificado']);
+
 /**
  * Toda alteração MATERIAL nos lotes participantes depois da auditoria original
  * precisa ser explicada por um manejo comprovado posterior JÁ CANCELADO (o
@@ -180,9 +199,11 @@ const exigirSemAlteracaoPosterior = async (tx, clienteId, mov, efeitos, ancoras)
     const a = ancora.createdAt.getTime();
     if (t < a) return false;
     if (t === a && l.acao === 'create') return false;
-    return ehMaterial(l);
+    return ehMaterial(l) || mexeNaIdentificacao(l);
   });
-  if (!suspeitas.length) return;
+  /** Lotes cuja identificação foi editada depois, fora de manejo comprovado já cancelado (R2A-R3). */
+  const identificacaoEditada = new Set();
+  if (!suspeitas.length) return identificacaoEditada;
 
   const ids = suspeitas.map((l) => l.id);
   const explicadas = /** @type {Array<{aid: string, fonte: string, mov_id: string, situacao: string|null}>} */ (
@@ -211,14 +232,16 @@ const exigirSemAlteracaoPosterior = async (tx, clienteId, mov, efeitos, ancoras)
     if (x && x.fonte === 'efeito' && x.situacao !== SITUACAO_CANCELADO) {
       throw recusa('CANCELAMENTO_DEPENDENCIA_POSTERIOR', 'há movimento posterior ativo sobre o lote', { lote_id: l.entidade_id, movimentacao_id: x.mov_id });
     }
-    if (!x) {
+    if (!x && ehMaterial(l)) {
       throw recusa(
         'CANCELAMENTO_ALTERACAO_POSTERIOR',
         'o lote teve alteração material depois deste movimento, fora de um manejo comprovado; a reversão não é comprovável',
         { lote_id: l.entidade_id }
       );
     }
+    if (!x) identificacaoEditada.add(l.entidade_id);
   }
+  return identificacaoEditada;
 };
 
 // ─── Dependências posteriores (banco, sem teto) ────────────────────────────
@@ -334,10 +357,10 @@ export const planejarCancelamento = async (tx, clienteId, id, { travar }) => {
     throw recusa('CANCELAMENTO_DEPENDENCIA_POSTERIOR', 'há registro posterior ligado ao lote ou à área', { dependencias });
   }
   // 2) Alteração material posterior nos lotes (PATCH direto, ida e volta…).
-  await exigirSemAlteracaoPosterior(tx, clienteId, mov, efeito.efeitos, ancoras);
+  const identificacaoEditada = await exigirSemAlteracaoPosterior(tx, clienteId, mov, efeito.efeitos, ancoras);
 
   // 3) Estado atual == pós-estado gravado, campo a campo, em TODOS os participantes.
-  /** @type {Array<{lote_id: string, antes: Record<string, any>, depois: Record<string, any>, auditoria_id?: string}>} */
+  /** @type {Array<{lote_id: string, antes: Record<string, any>, depois: Record<string, any>, auditoria_id?: string, identificacao: string}>} */
   const efeitos = [];
   for (const registro of efeito.efeitos) {
     const lote = lotes.get(registro.lote_id);
@@ -365,7 +388,33 @@ export const planejarCancelamento = async (tx, clienteId, id, { travar }) => {
       depois.area_atual_nome = nomes.get(alvo.area_atual_id);
       Object.assign(antes, { area_atual_id: lote.area_atual_id, area_atual_nome: lote.area_atual_nome });
     }
-    efeitos.push({ lote_id: lote.id, antes, depois });
+    // Identificação (R2A-R3, D-PROD-96c): a unificação sobrescreve a do destino.
+    // Devolve o valor anterior só com prova de que ninguém mexeu depois:
+    // nenhuma linha de auditoria posterior não explicada tocou a identificação
+    // E o valor atual é exatamente o que o comando aplicou. Havendo edição
+    // (inclusive ida e volta) ou valor que não confere, a edição do usuário é
+    // PRESERVADA — o cancelamento não destrói dado legítimo.
+    let identificacao = 'inalterada';
+    const ident = registro.identificacao;
+    if (!ident) {
+      if (MODOS_UNIFICADOS.includes(efeito.modo)) {
+        throw recusa('CANCELAMENTO_EFEITO_NAO_COMPROVADO', 'unificação sem snapshot de identificação do destino', { lote_id: lote.id });
+      }
+    } else {
+      if (!identificacaoCompleta(ident.antes) || !identificacaoCompleta(ident.depois)) {
+        throw recusa('CANCELAMENTO_EFEITO_NAO_COMPROVADO', 'snapshot de identificação incompleto', { lote_id: lote.id });
+      }
+      if (!mesmaIdentificacao(ident.antes, ident.depois) && !registro.criado) {
+        if (identificacaoEditada.has(lote.id) || !mesmaIdentificacao(identificacaoDe(lote), ident.depois)) {
+          identificacao = 'preservada_edicao_posterior';
+        } else {
+          identificacao = 'restaurada';
+          Object.assign(antes, identificacaoDe(lote));
+          for (const k of CAMPOS_IDENTIFICACAO_LOTE) depois[k] = ident.antes[k] ?? null;
+        }
+      }
+    }
+    efeitos.push({ lote_id: lote.id, antes, depois, identificacao });
   }
 
   // Conservação: transferência não cria nem some com cabeças.

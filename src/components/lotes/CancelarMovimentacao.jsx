@@ -108,6 +108,12 @@ const descreverEfeito = (efeito) => {
     partes.push(`área ${a.area_atual_nome || "-"} → ${d.area_atual_nome || "-"}`);
   }
   if (a.status && d.status && a.status !== d.status) partes.push(`${a.status} → ${d.status}`);
+  // Unificação (R2A-R3, D-PROD-96c): o servidor diz o que acontece com a identificação do destino.
+  if (efeito?.identificacao === "restaurada") {
+    partes.push(`identificação volta a ${d.identificador_nome || d.identificador_sigla || "sem identificador"}`);
+  } else if (efeito?.identificacao === "preservada_edicao_posterior") {
+    partes.push("identificação editada depois da movimentação: mantida");
+  }
   return partes.join(" · ");
 };
 

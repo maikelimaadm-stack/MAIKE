@@ -224,6 +224,22 @@ describe("CancelarMovimentacao — chave pendente (R2A-R1 P1-A)", () => {
     expect(screen.queryByRole("button", { name: "Confirmar cancelamento" })).toBeNull();
   });
 
+  it("R2A-R3: diálogo mostra o destino da identificação (restaurada ou edição posterior mantida)", async () => {
+    servico.consultarCancelamentoMovimentacao.mockImplementation(async () => ({
+      elegivel: true,
+      codigo: null,
+      pode_cancelar: true,
+      efeitos: [
+        { lote_id: "d1", identificacao: "restaurada", antes: { quantidade_cabecas: 150, status: "Ativo" }, depois: { quantidade_cabecas: 100, status: "Ativo", identificador_nome: "DESTINO" } },
+        { lote_id: "d2", identificacao: "preservada_edicao_posterior", antes: { quantidade_cabecas: 60, status: "Ativo" }, depois: { quantidade_cabecas: 40, status: "Ativo" } },
+      ],
+    }));
+    await renderizar(<CancelarMovimentacao movimento={MORTE} />);
+    await clicar(await screen.findByRole("button", { name: "Cancelar movimentação" }));
+    expect(await screen.findByText(/150 → 100 cab · identificação volta a DESTINO/)).toBeTruthy();
+    expect(screen.getByText(/60 → 40 cab · identificação editada depois da movimentação: mantida/)).toBeTruthy();
+  });
+
   it("efeito sem âncora de auditoria (registro da R2A-R1): sem ação, como legado", async () => {
     const dom = await import("@/domain/lotes/situacaoMovimento");
     const semAncora = { ...MORTE, efeito_servidor: { ...EFEITO_SERVIDOR, efeitos: [{ lote_id: "l1" }] } };

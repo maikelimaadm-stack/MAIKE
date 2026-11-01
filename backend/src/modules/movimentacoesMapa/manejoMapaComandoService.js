@@ -49,6 +49,27 @@ export const CAMPOS_MATERIAIS_LOTE = Object.freeze([
   'empresa_id',
 ]);
 
+/**
+ * Identificação do lote (R2A-R3, D-PROD-96c): não é material — não muda saldo
+ * nem bloqueia cancelamento —, mas a UNIFICAÇÃO a sobrescreve no destino. O
+ * efeito guarda antes/depois para o cancelamento devolver o que era do destino.
+ */
+export const CAMPOS_IDENTIFICACAO_LOTE = Object.freeze(['identificador_nome', 'identificador_sigla', 'identificador_cor']);
+export const identificacaoDe = (lote) => ({
+  identificador_nome: lote.identificador_nome ?? null,
+  identificador_sigla: lote.identificador_sigla ?? null,
+  identificador_cor: lote.identificador_cor ?? null,
+});
+/** Efeito com prova material + snapshot de identificação (antes/depois). */
+const efeitoDe = (loteId, criado, auditoriaId, antes, depois) => ({
+  lote_id: loteId,
+  criado,
+  auditoria_id: auditoriaId,
+  antes: estadoDe(antes),
+  depois: estadoDe(depois),
+  identificacao: { antes: identificacaoDe(antes), depois: identificacaoDe(depois) },
+});
+
 export const estadoDe = (lote) => ({
   quantidade_cabecas: lote.quantidade_cabecas,
   status: lote.status,
@@ -167,7 +188,7 @@ export const executarManejoLote = async (contexto, entrada) => {
         });
         if (!areaOrigem) throw recusa('MANEJO_ESTADO_INVALIDO', 'área atual do lote não pertence a esta empresa');
 
-        /** @type {Array<{lote_id: string, criado: boolean, auditoria_id: string, antes: object, depois: object}>} */
+        /** @type {Array<{lote_id: string, criado: boolean, auditoria_id: string, antes: object, depois: object, identificacao: {antes: object, depois: object}}>} */
         const efeitos = [];
         /** @type {Array<any>} */
         const lotesResultado = [];
@@ -181,7 +202,7 @@ export const executarManejoLote = async (contexto, entrada) => {
             quantidade_cabecas: saldoOrigem,
             status: saldoOrigem > 0 ? origem.status : 'Inativo',
           });
-          efeitos.push({ lote_id: origem.id, criado: false, auditoria_id: auditoriaId, antes: estadoDe(origem), depois: estadoDe(depois) });
+          efeitos.push(efeitoDe(origem.id, false, auditoriaId, origem, depois));
           lotesResultado.push(depois);
         } else {
           areaDestino = await tx.areaPastagem.findFirst({
@@ -218,7 +239,7 @@ export const executarManejoLote = async (contexto, entrada) => {
               area_atual_id: areaDestino.id,
               area_atual_nome: areaDestino.nome,
             });
-            efeitos.push({ lote_id: origem.id, criado: false, auditoria_id: auditoriaId, antes: estadoDe(origem), depois: estadoDe(depois) });
+            efeitos.push(efeitoDe(origem.id, false, auditoriaId, origem, depois));
             lotesResultado.push(depois);
           } else if (destino) {
             modo = total ? 'total_unificado' : 'parcial_unificado';
@@ -231,8 +252,8 @@ export const executarManejoLote = async (contexto, entrada) => {
               quantidade_cabecas: saldoOrigem,
               status: saldoOrigem > 0 ? origem.status : 'Inativo',
             });
-            efeitos.push({ lote_id: origem.id, criado: false, auditoria_id: audOrigem, antes: estadoDe(origem), depois: estadoDe(origDepois) });
-            efeitos.push({ lote_id: destino.id, criado: false, auditoria_id: audDestino, antes: estadoDe(destino), depois: estadoDe(destDepois) });
+            efeitos.push(efeitoDe(origem.id, false, audOrigem, origem, origDepois));
+            efeitos.push(efeitoDe(destino.id, false, audDestino, destino, destDepois));
             lotesResultado.push(origDepois, destDepois);
           } else {
             modo = 'parcial_novo_lote';
@@ -276,15 +297,12 @@ export const executarManejoLote = async (contexto, entrada) => {
               quantidade_cabecas: saldoOrigem,
               status: saldoOrigem > 0 ? origem.status : 'Inativo',
             });
-            efeitos.push({ lote_id: origem.id, criado: false, auditoria_id: audOrigem, antes: estadoDe(origem), depois: estadoDe(origDepois) });
+            efeitos.push(efeitoDe(origem.id, false, audOrigem, origem, origDepois));
             // Derivado: não é ENTRADA no rebanho (origem 'MOVIMENTAÇÃO'); o
             // "antes" é o lote vazio e inativo que o cancelamento deixa.
             efeitos.push({
-              lote_id: novo.id,
-              criado: true,
-              auditoria_id: audNovo.id,
+              ...efeitoDe(novo.id, true, audNovo.id, novo, novo),
               antes: { ...estadoDe(novo), quantidade_cabecas: 0, status: 'Inativo' },
-              depois: estadoDe(novo),
             });
             lotesResultado.push(origDepois, novo);
           }
