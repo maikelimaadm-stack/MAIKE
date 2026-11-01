@@ -40,7 +40,7 @@ export default function B1ChaveRow({
   onChange,
   disabled = false,
   ariaLabel,
-  showText = true,
+  showText = false,
   className,
   controlId,
   dataField,

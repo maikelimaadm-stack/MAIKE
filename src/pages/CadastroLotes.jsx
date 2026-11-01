@@ -5,7 +5,6 @@ import CadastroBase1Screen from "@/components/cadastro/base1/CadastroBase1Screen
 import FormularioLote, { FORMULARIO_LOTE_ID } from "@/components/lotes/FormularioLote";
 import TabelaLotes, { COLUNAS_DISPONIVEIS, getLoteFieldValue } from "@/components/lotes/TabelaLotes";
 import RegistroAnexosDialog from "@/components/common/RegistroAnexosDialog";
-import { PillBtn } from "@/components/cadastro/base1/Base1Ui";
 import { useCadastroBase1FullListController } from "@/hooks/useCadastroBase1FullListController";
 import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 import { refreshMapaCacheEntry } from "@/services/mapaCacheService";
@@ -299,14 +298,16 @@ export default function CadastroLotes() {
         controller={screenController}
         listErrorMessage={listErrorMessage}
         recordCode={recordCode}
-        extraToolbar={
-          controller.showForm ? (
-            <PillBtn type="button" tone="gray" onClick={openAttachments}>
-              <Paperclip className="h-4 w-4" aria-hidden />
-              Anexos
-            </PillBtn>
-          ) : null
-        }
+        additionalMoreActions={[
+          {
+            key: "anexos",
+            label: "Anexos",
+            icon: <Paperclip className="h-4 w-4" aria-hidden />,
+            hidden: !controller.showForm,
+            whileEditing: true,
+            onSelect: openAttachments,
+          },
+        ]}
         deleteDialog={{
           title: "Confirmar exclusão",
           descriptionOne: "Deseja realmente excluir este lote?",

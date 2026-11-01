@@ -83,7 +83,7 @@ describe('AN — anexos pendentes', () => {
     const linhas = screen.getAllByText('nota.pdf');
     expect(linhas).toHaveLength(2);
 
-    const botoes = screen.getAllByRole('button').filter((b) => b.className.includes('text-red-600'));
+    const botoes = screen.getAllByRole('button', { name: /remover anexo/i });
     await act(async () => { fireEvent.click(botoes[0]); });
 
     const restantes = pendentes();

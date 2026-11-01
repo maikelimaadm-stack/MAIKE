@@ -93,3 +93,33 @@ Medição no harness (Cadastro de Lotes, desktop): digitar 28 caracteres levou c
 - Lotes com dados reais de setores e áreas.
 
 **Testes:** `tests/smoke/mobileV3TabletBugs.test.jsx` (V3-1 a V3-6).
+
+## V4 — padrão iOS / app do Claude (D-PROD-95)
+
+Pedido do proprietário com prints do app do Claude no iPhone. Conferido no Chromium a 390×844 com toque (CDP) e a 1366×800. Capturas em `evidencias/ux-mobile-v2/v4-*.png`.
+
+| Pedido | Feito | Evidência |
+|---|---|---|
+| Folha embaixo com margem; no alto encosta nas bordas | Média = cartão flutuante; grande = borda a borda até o topo | v4-05, v4-06 |
+| Subir e descer sem mirar no botão de cima | Arrasta pela alça, pelo cabeçalho e pela lista no topo | v4-06 |
+| Mais opções e outros menus no estilo do app | Vidro claro com desfoque e itens grandes; o ⚡ ficou no lugar | v4-02 |
+| Botões grandes demais no celular | 44 → 38 px na barra | v4-01 |
+| Opções com linha divisória, não um cartão por opção | Lista agrupada num cartão branco | v4-05 |
+| + à direita para cadastrar novo (como o "i" do app) | + no título da folha; abre o formulário da entidade sem perder o atual | v4-05, v4-07 |
+| + verde e ✓ verde, sobre fundo cinza | Novo e Salvar em todos os tamanhos | v4-01, v4-09 |
+| Salvar à direita, descartar à esquerda | Barra e cabeçalho do registro no celular | v4-03, v4-09 |
+| Abertura do registro novo como a folha | ✕ · título · ✓ no cabeçalho; o formulário entra de baixo | v4-03 |
+| Arrastar do lado para voltar | Borda esquerda → mesmo voltar do cabeçalho | verificado (Novo lote → Lotes) |
+| Teclado numérico nos números | `inputmode="decimal"` | teste V4-2 |
+| Enter vai ao próximo; no último salva | `tecladoFormulario.js` | testes V4-1 e V4-3 |
+| Chave Ativo como a do iPhone (Modo Avião), sem Sim/Não | Trilho largo, bolinha em cápsula que estica ao pressionar, chave na ponta direita; texto removido | v4-03 |
+| Mais efeitos e transições | Folha, menu e registro com curva do iOS; botões encolhem ao toque | — |
+| Anexos no padrão do sistema; nos Lotes em Mais opções | Folha padrão; item "Anexos" no ⚡ (também na edição) | v4-08 |
+| Valores alinhados e ícone do tipo à direita | ▾ seleção/lista, calendário, relógio; texto e número sem ícone | v4-04 |
+
+**Verificação:** `npm run verify:all` passa em tudo menos `test:backend`, que exige PostgreSQL (`DATABASE_URL`) e não roda neste ambiente.
+
+**Não testado em aparelho real:**
+- gesto de voltar no Safari: o iOS também tem o gesto nativo do navegador e, em aba comum, os dois podem competir. Instalado como app (tela inicial), só o nosso vale;
+- `enterkeyhint` e `inputmode` no teclado do iPhone.
+

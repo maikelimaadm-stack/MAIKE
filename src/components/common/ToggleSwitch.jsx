@@ -1,15 +1,17 @@
 import React from "react";
 
+/** Chave liga/desliga no estilo do iOS (trilho arredondado, bolinha com sombra) — D-PROD-95. */
 export default function ToggleSwitch({ checked, disabled = false, onChange, className = "" }) {
   return (
     <button
       type="button"
+      role="switch"
+      aria-checked={checked}
       disabled={disabled}
       onClick={() => !disabled && onChange?.(!checked)}
-      className={`!h-4 !w-8 relative inline-flex items-center transition-colors border border-slate-300 shadow-none rounded-[1px] ${checked ? "bg-green-500 hover:bg-green-600" : "bg-slate-300 hover:bg-slate-400"} ${disabled ? "opacity-60 cursor-not-allowed" : "cursor-pointer"} ${className}`}
+      className={`mk-ios-switch ${checked ? "is-on" : ""} ${disabled ? "opacity-60 cursor-not-allowed" : "cursor-pointer"} ${className}`}
       aria-pressed={checked}>
-      
-      <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${checked ? "right-0.5" : "left-0.5"}`} />
+      <span className="mk-ios-switch__thumb" aria-hidden />
     </button>);
 
 }
