@@ -3900,4 +3900,80 @@ Relatório: `docs/engineering/MAIKE-LOTES-EXCLUSAO-CANCELADOS-REPORT.md`.
 
 ---
 
-<!-- Próxima decisão: D-PROD-101 -->
+## D-PROD-101 — Manejo do rebanho (Nascimento, Pesagem, Mudança de Categoria) por comando atômico com cancelamento causal
+
+**Missão:** MAIKE-R2B-P1-COMANDOS-E-CANCELAMENTOS-ATOMICO-NASCIMENTO-PESAGEM-CATEGORIA. Base `main` 895b80f (merge da #167). **Sem migration**; nenhuma escrita em produção.
+
+**Contexto:** na main, os três manejos eram sequências de `POST`/`PATCH` do navegador, uma por linha e uma por lote. O Nascimento usava `forEach` sem `await`. Uma falha no meio deixava gravação parcial. RED por HTTP com PostgreSQL real:
+- mudança parcial repetida: 50 → **70** cabeças;
+- pesagem: 2 de 3 lotes;
+- nascimento: linha 1 sem a linha 2.
+
+**Decisão:**
+
+1. **Comando** `POST /movimentacoes-mapa/comandos/manejo-rebanho`:
+   - corpo com schema estrito: `operation_id`, `tipo`, `empresa_id`, `area_id`, `data_movimentacao`, `observacoes`, `modo_pesagem` e `linhas[]`;
+   - uma confirmação da tela = **uma transação** e **um movimento agregado**;
+   - idempotência `manejo_mapa_rebanho` com fingerprint do conteúdo normalizado;
+   - trava `FOR UPDATE` da **área** e depois dos lotes em ordem de id;
+   - o servidor relê tudo e calcula cada efeito;
+   - cada lote é gravado e auditado **uma** vez;
+   - lote novo usa a sequência atual e tem auditoria `create`.
+2. **Movimento agregado** (JSON reservado, sem coluna nova):
+   - `lote_ids` lista todos os participantes; `lote_id` fica sendo o primário, por compatibilidade;
+   - `linhas` legíveis;
+   - `efeito_servidor{comando:'manejo_mapa_rebanho', operation_id, registrado_por_usuario_id, efeitos[]}`;
+   - cada efeito guarda `lote_id`, `criado`, `auditoria_id` e os snapshots `antes`/`depois` com quantidade, status, área, empresa, categoria, `categoria_manejo_id`/`nome`, sexo e peso.
+   - `lote_ids`, `linhas` e `modo_pesagem` passam a ser campos reservados: rota genérica responde 400.
+3. **Nascimento:**
+   - soma os filhotes e não reduz as mães;
+   - a categoria da mãe precisa ter lote ativo na área;
+   - a categoria do filhote vem da regra `categoriaDoFilhote`;
+   - linhas do mesmo sexo vão para o mesmo lote;
+   - se já existe lote ativo da categoria do filhote na área, incrementa (entrada e área de entrada intactas); senão cria lote `origem 'Nascimento'`;
+   - **política de peso:** média ponderada quando os dois pesos são conhecidos; peso do nascimento ausente mantém o do lote; lote sem peso continua sem peso; lote novo usa a média das linhas só quando todas informaram peso.
+4. **Pesagem:**
+   - muda só `peso_medio_kg`, entre 0 e 3000 kg (exclusivo em 0), com 4 casas;
+   - cada lote é uma linha, inclusive lotes da mesma categoria;
+   - o modo por lote só envia os lotes digitados;
+   - a categoria informada precisa conferir com a do lote.
+5. **Mudança de Categoria:**
+   - a categoria nova precisa ser uma das 8 oficiais e diferente da atual;
+   - a categoria de manejo é resolvida no servidor: com id, precisa estar ativa e ser da mesma oficial; sem id, vale a única ativa (mais de uma = `MANEJO_CATEGORIA_AMBIGUA`);
+   - o sexo vem da categoria e não pode contrariar o sexo do lote;
+   - **total:** muda o mesmo lote; **parcial:** cria derivado `origem 'Mudança de Categoria'` (não é entrada do Cadastro);
+   - linhas que disputam o mesmo saldo são somadas antes de gravar.
+   - Unificar com destino já existente **não** é suportado: falha fechada.
+6. **Cancelamento** no mesmo `POST /movimentacoes-mapa/:id/cancelamento` (admin, idempotente, motivo):
+   - proveniência: operação `manejo_mapa_rebanho` committed apontando para o movimento, e `lote_ids` igual aos efeitos;
+   - âncora: AuditLog de cada efeito igual ao `depois` em todos os campos acima;
+   - registro posterior em qualquer participante bloqueia (movimento com `lote_id`, `lote_ids` ou efeito, e as demais fontes);
+   - alteração posterior de saldo, classificação, sexo ou peso fora de manejo já cancelado bloqueia, **inclusive ida e volta**;
+   - estado atual diferente do `depois` bloqueia;
+   - reverte **todos** os efeitos juntos; lote criado fica 0/Inativo, sem exclusão física.
+   - Qualquer recusa: 409 sem mudar nada.
+7. **R2A e #167:**
+   - dependências e explicações reconhecem `lote_ids`, `efeitos[].lote_id` e os dois comandos certificados;
+   - Pesagem, Nascimento e Mudança **legados** (sem proveniência) respondem `CANCELAMENTO_EFEITO_NAO_COMPROVADO`;
+   - a exclusão lógica aceita cancelamento R2B comprovado.
+8. **Frontend:**
+   - envio único por confirmação, com duplo clique bloqueado;
+   - **só online**: offline recusa antes de enviar, sem fallback e sem fila;
+   - chave idempotente persistida por tenant, usuário, tipo e área enquanto o resultado é desconhecido;
+   - conteúdo divergente com pendência aberta só segue se o usuário descartar a pendência explicitamente;
+   - o histórico encontra o movimento agregado por qualquer participante e mostra as linhas.
+
+**Erros novos (409):** `MANEJO_CATEGORIA_MAE_INVALIDA`, `MANEJO_CATEGORIA_INVALIDA`, `MANEJO_CATEGORIA_AMBIGUA`, `MANEJO_CATEGORIA_INCOMPATIVEL`.
+
+**Matriz de aprovação:**
+- registrar: qualquer usuário autenticado do tenant;
+- cancelar: administrador ativo do tenant (como na R2A).
+
+**Limites:**
+- sem sincronização offline de R2B;
+- lote de filhotes cancelado continua no Cadastro como 0/Inativo, com `quantidade_entrada` original;
+- unificação de destino na mudança e junção manual ficam para fatia própria.
+
+**Consequência:** relatório `MAIKE-R2B-COMANDOS-CANCELAMENTO-REPORT.md`; evidências em `evidencias/r2b-p1/`.
+
+<!-- Próxima decisão: D-PROD-102 -->
