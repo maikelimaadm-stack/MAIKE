@@ -170,7 +170,7 @@ export const BACKEND_ONLY_CODES = Object.freeze({
     http: 409,
     meaning: 'produto possui movimentações de estoque e não pode ser excluído',
   },
-  // R2A (D-PROD-95): declarados para o 404 entre tenants não virar 500.
+  // R2A (D-PROD-96): declarados para o 404 entre tenants não virar 500.
   MOVIMENTACAOMAPA_NOT_FOUND: { http: 404, meaning: 'id não identifica movimentação do mapa deste tenant' },
   MOVIMENTACAOPECUARIA_NOT_FOUND: { http: 404, meaning: 'id não identifica movimentação pecuária deste tenant' },
   SUPLEMENTACAOLOTE_NOT_FOUND: { http: 404, meaning: 'id não identifica lote de suplementação deste tenant' },
@@ -196,7 +196,7 @@ export const BACKEND_ONLY_CODES = Object.freeze({
     http: 413,
     meaning: 'importação de áreas acima do limite de itens ou vértices por pedido',
   },
-  // R2A (D-PROD-95) — registros operacionais não se apagam nem se reescrevem
+  // R2A (D-PROD-96) — registros operacionais não se apagam nem se reescrevem
   // por rota genérica; o caminho é o cancelamento server-side.
   MOVIMENTO_CANCELAMENTO_OBRIGATORIO: {
     http: 409,
@@ -234,11 +234,15 @@ export const BACKEND_ONLY_CODES = Object.freeze({
     http: 409,
     meaning: 'o estado atual dos lotes não corresponde ao efeito do movimento; nada foi alterado',
   },
+  CANCELAMENTO_ALTERACAO_POSTERIOR: {
+    http: 409,
+    meaning: 'um lote do movimento teve alteração material posterior fora de manejo comprovado (correção direta, ida e volta); a reversão não é comprovável e nada foi alterado',
+  },
   CANCELAMENTO_EFEITO_NAO_COMPROVADO: {
     http: 409,
     meaning: 'não há registro de auditoria provando que o movimento alterou os lotes; nada foi alterado',
   },
-  // R2A-R1 (D-PROD-95a) — comando atômico de manejo e escrita de lote com estado esperado.
+  // R2A-R1 (D-PROD-96a) — comando atômico de manejo e escrita de lote com estado esperado.
   MANEJO_SALDO_INSUFICIENTE: {
     http: 409,
     meaning: 'o lote não tem cabeças suficientes no servidor para o manejo; nada foi gravado',

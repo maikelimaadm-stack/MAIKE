@@ -69,7 +69,7 @@ export const listarHistoricoMovimentacoesMapaPagina = (filtros) => {
 };
 
 /**
- * Cancelamento e elegibilidade (R2A, D-PROD-95) — só online, fora da fila
+ * Cancelamento e elegibilidade (R2A, D-PROD-96) — só online, fora da fila
  * offline: um cancelamento nunca é enfileirado para replay.
  */
 export const cancelarMovimentacaoMapaNativa = (id, corpo) =>

@@ -1,5 +1,5 @@
 /**
- * R2A (D-PROD-95) — fechamento de rotas destrutivas e cancelamento transacional
+ * R2A (D-PROD-96) — fechamento de rotas destrutivas e cancelamento transacional
  * de movimentação do mapa. PostgreSQL real, dados sintéticos.
  *
  * O "fluxo legado" abaixo reproduz o DetalhesLote: cada passo é uma chamada
@@ -449,14 +449,16 @@ describe('P1 — Transferência de Área pelo comando', () => {
     assert.equal((await lote(l.id)).area_atual_id, c.B.id);
   });
 
-  test('destino sem saldo para devolver → CANCELAMENTO_SALDO_INSUFICIENTE', async () => {
+  test('destino alterado por escrita direta (sem auditoria) → CANCELAMENTO_ESTADO_DIVERGENTE; nada muda', async () => {
     const c = await cenario();
     const l = await criarLote(c, { area: c.A });
     const dest = await criarLote(c, { qtd: 100, area: c.B });
     const { movimentacao: m } = await transferir(c, l, 50, c.B, dest.id);
+    // Escrita direta no banco (sem auditoria): a igualdade campo a campo com o pós-estado pega (R2A-R2).
     await prisma().lote.update({ where: { id: dest.id }, data: { quantidade_cabecas: 20 } });
-    assert.equal((await cancelar(c, m.id)).json().code, 'CANCELAMENTO_SALDO_INSUFICIENTE');
+    assert.equal((await cancelar(c, m.id)).json().code, 'CANCELAMENTO_ESTADO_DIVERGENTE');
     assert.equal((await lote(l.id)).quantidade_cabecas, 450);
+    assert.equal((await lote(dest.id)).quantidade_cabecas, 20);
   });
 });
 
@@ -526,21 +528,69 @@ describe('R2A-R1 — concorrência de saldo (CAS) e rollback', () => {
     assert.deepEqual([d.area_atual_id, d.categoria], [c.B.id, 'VACA']);
   });
 
-  test('interleaving controlado: cancelamento e PATCH obsoleto esperam a mesma trava; nenhuma escrita se perde', async () => {
+  /** Linhas de auditoria do lote depois da criação: prova QUAL operação mudou QUAL valor. */
+  const trilha = async (loteId) =>
+    (await prisma().auditLog.findMany({ where: { entidade: 'Lote', entidade_id: loteId, acao: 'update' }, orderBy: { createdAt: 'asc' } }))
+      .map((a) => `${a.dados_anteriores?.quantidade_cabecas}->${a.dados_novos?.quantidade_cabecas}${a.dados_novos?.movimentacao_cancelada_id ? ' (cancelamento)' : ''}`);
+
+  // R2A-R2 (D-PROD-96b): a ordem é forçada pela fila da trava do PostgreSQL —
+  // quem chega primeiro na espera do FOR UPDATE do lote ganha. Cada ordem tem
+  // o seu desfecho exato; "um ou outro" não basta.
+  test('ordem A (cancelamento pega a trava primeiro): devolve 50 (500); o PATCH 450→400 perde o CAS', async () => {
     const c = await cenario();
     const l = await criarLote(c, { area: c.A });
     const m = await morte(c, l, 50);
     const soltar = await segurarLote(l.id);
     const pCancel = cancelar(c, m.id);
+    await new Promise((r) => setTimeout(r, 300));
     const pPatch = req('PATCH', `/lotes/${l.id}`, c.tokAdm, { quantidade_cabecas: 400, estado_esperado: { quantidade_cabecas: 450 } });
     await new Promise((r) => setTimeout(r, 300));
     await soltar();
     const [rc, rp] = await Promise.all([pCancel, pPatch]);
-    const final = (await lote(l.id)).quantidade_cabecas;
-    // Ordem serial A: cancela (500) e o PATCH obsoleto é recusado. Ordem B: PATCH (400) e o cancelamento soma 50 (450).
-    const ordemA = rc.statusCode === 200 && rp.statusCode === 409 && final === 500;
-    const ordemB = rc.statusCode === 200 && rp.statusCode === 200 && final === 450;
-    assert.ok(ordemA || ordemB, `cancel=${rc.statusCode} patch=${rp.statusCode} final=${final}`);
+    assert.equal(rc.statusCode, 200, rc.body);
+    assert.equal(rp.statusCode, 409, rp.body);
+    assert.equal(rp.json().code, 'LOTE_ESTADO_CONFLITO');
+    assert.equal((await lote(l.id)).quantidade_cabecas, 500);
+    assert.equal((await mov(m.id)).dados.situacao, 'cancelado');
+    assert.deepEqual(await trilha(l.id), ['500->450', '450->500 (cancelamento)']);
+  });
+
+  test('ordem B (PATCH válido pega a trava primeiro): 450→400; o cancelamento detecta a intervenção e recusa sem crédito', async () => {
+    const c = await cenario();
+    const l = await criarLote(c, { area: c.A });
+    const m = await morte(c, l, 50);
+    const soltar = await segurarLote(l.id);
+    const pPatch = req('PATCH', `/lotes/${l.id}`, c.tokAdm, { quantidade_cabecas: 400, estado_esperado: { quantidade_cabecas: 450 } });
+    await new Promise((r) => setTimeout(r, 300));
+    const opKey = opId();
+    const pCancel = cancelar(c, m.id, c.tokAdm, { operation_id: opKey, motivo: 'lançado por engano' });
+    await new Promise((r) => setTimeout(r, 300));
+    await soltar();
+    const [rp, rc] = await Promise.all([pPatch, pCancel]);
+    assert.equal(rp.statusCode, 200, rp.body);
+    assert.equal(rc.statusCode, 409, rc.body);
+    assert.equal(rc.json().code, 'CANCELAMENTO_ALTERACAO_POSTERIOR');
+    assert.equal((await lote(l.id)).quantidade_cabecas, 400, 'nenhum crédito de 50');
+    assert.notEqual((await mov(m.id)).dados.situacao, 'cancelado');
+    assert.equal(await prisma().operacaoIdempotente.count({ where: { operation_key: opKey } }), 0);
+    assert.deepEqual(await trilha(l.id), ['500->450', '450->400']);
+  });
+
+  test('destino da transferência alterado concorrentemente: o cancelamento trava os DOIS lotes em ordem de id e recusa', async () => {
+    const c = await cenario();
+    const o = await criarLote(c, { area: c.A, qtd: 500 });
+    const d = await criarLote(c, { area: c.B, qtd: 100 });
+    const { movimentacao: t } = await transferir(c, o, 50, c.B, d.id);
+    const soltar = await segurarLote(d.id);
+    const pPatch = req('PATCH', `/lotes/${d.id}`, c.tokAdm, { quantidade_cabecas: 145, estado_esperado: { quantidade_cabecas: 150 } });
+    await new Promise((r) => setTimeout(r, 300));
+    const pCancel = cancelar(c, t.id);
+    await new Promise((r) => setTimeout(r, 300));
+    await soltar();
+    const [rp, rc] = await Promise.all([pPatch, pCancel]);
+    assert.equal(rp.statusCode, 200);
+    assert.equal(rc.statusCode, 409, rc.body);
+    assert.deepEqual([(await lote(o.id)).quantidade_cabecas, (await lote(d.id)).quantidade_cabecas], [450, 145]);
   });
 
   test('duas transferências parciais disputando a mesma origem (100; 60 + 60) → uma passa, outra 409; total 100', async () => {

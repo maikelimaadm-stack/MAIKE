@@ -1,15 +1,95 @@
 # MAIKE-R2A — Cancelamento e estorno seguro de movimentação (backend primeiro)
 
-**Data:** 2026-10-31 · **Decisão:** D-PROD-95 · **Base:** `main` d2cba91 (merge da #161)
+**Data:** 2026-10-31 · **Decisão:** D-PROD-96 (redigida como D-PROD-95; ver nota de numeração) · subdecisões D-PROD-96a e D-PROD-96b · **Base:** `main` d2cba91 (merge da #161)
 **PR:** maikelimaadm-stack/MAIKE#162 (DRAFT) · **Branch:** `claude/new-session-26kpxu`
 - É a branch designada da sessão. Foi recriada a partir de `main` depois do merge da #161; nenhum commit novo foi empilhado sobre a #161.
 - Sem migration. Sem escrita em produção. Sem ledger L1.
 
-> **Atualização R2A-R1 (D-PROD-95a):** a revisão do arquiteto bloqueou a versão
+> **Atualização R2A-R2 (D-PROD-96b):** a seção **R2A-R2** logo abaixo substitui a regra de elegibilidade da R2A-R1 (estado causal completo) e resolve a numeração.
+>
+> **Atualização R2A-R1 (D-PROD-96a):** a revisão do arquiteto bloqueou a versão
 > abaixo. A prova temporal por AuditLog (±15 min) aceitava "prova emprestada", e o
 > `PATCH /lotes` gravava valor absoluto obsoleto. A seção **R2A-R1** logo abaixo
 > substitui as seções 3, 5 e 6 onde houver conflito. As seções originais ficam como
 > histórico.
+
+## R2A-R2 — Estado causal completo, fail-closed e numeração (D-PROD-96b)
+
+**Missão:** MAIKE-R2A-PR162-R2-HARDENING-ESTADO-CAUSAL-CANCELAMENTO-E-GOVERNANCA, na mesma PR #162 (DRAFT). HEAD de entrada 1fbfef6; base `main` 505acd6. Sem migration, sem backfill, sem ledger, sem escrita em produção.
+
+### R2.1 Matriz: bug → correção
+
+| Item | Conteúdo |
+|---|---|
+| Bug | Depois do movimento, um `PATCH /lotes` **válido** (CAS correto) mudava saldo, situação, área ou categoria. O cancelamento continuava elegível e somava `antes − depois` sobre o saldo atual |
+| Reprodução (HEAD 1fbfef6) | 450 → PATCH 400 → cancelamento **200, saldo 450**. 450 → PATCH 550 → **600**. Ida e volta 450 → 400 → 450 → **500**. Arquivo `evidencias/r2a-r2/red-estado-causal-antes.txt` |
+| Causa | `planejarCancelamento` só conferia `area_atual_id` e "Inativo com saldo". `dependenciasPosteriores` olha outras fontes, nunca o `AuditLog` do lote. O teste de intercalação aceitava "PATCH 400 e cancelamento soma 50 → 450" como ordem legítima |
+| Teste RED | `backend/tests/r2aR2EstadoCausal.test.mjs`: **11 de 22 falhando** no HEAD de entrada (a1, a2, a3 categoria, a4 destino/derivado, a5 ×2, P0-C categoria ×2, data ×2) |
+| Correção | Âncora `auditoria_id` gravada pelo servidor em cada efeito. Conferência da auditoria original. Toda alteração material posterior tem de ser explicada por um manejo comprovado já cancelado, ou pela reversão dele (`CANCELAMENTO_ALTERACAO_POSTERIOR`). Estado atual = pós-estado, campo a campo, em todos os participantes (`CANCELAMENTO_ESTADO_DIVERGENTE`). Restauração exata do pré-estado. Tudo na mesma transação, depois de travar movimento e lotes em ordem de id |
+| Teste GREEN | `r2aR2EstadoCausal` **22/22**; `movimentacaoCancelamentoR2A` **35/35**. Arquivo `evidencias/r2a-r2/green-estado-causal-depois.txt` |
+
+### R2.2 Campos materiais e regra de "posterior"
+
+- **Materiais:** `quantidade_cabecas`, `status`, `area_atual_id`, `categoria`, `categoria_manejo_id`, `empresa_id`.
+- **Linha de auditoria material:** qualquer ação que não seja `update` (create, delete), snapshot ausente, ou diferença nesses campos. Edição de peso, nome ou identificador **não** bloqueia (teste a6).
+- **Posterior:** `createdAt` maior que o da âncora. No mesmo milissegundo, só o `create` do próprio lote é considerado anterior; o resto conta como posterior (fail-closed).
+- **Explicação aceita:** `auditoria_id` presente em `efeito_servidor.efeitos` de um movimento comprovado **cancelado**, ou em `cancelamento.efeitos`. Os dois são campos reservados (400 em POST, bulk e PATCH); o cliente não os escreve.
+  - Movimento posterior ativo → `CANCELAMENTO_DEPENDENCIA_POSTERIOR`.
+  - O `x-request-id` **não** é usado, porque é rótulo do cliente.
+
+### R2.3 Concorrência (PostgreSQL 16 real, trava segurada por transação à parte)
+
+| Cenário | Resultado exato provado |
+|---|---|
+| Ordem A: cancelamento pega a trava antes do PATCH 450 → 400 | cancelamento 200, saldo 500; PATCH 409 `LOTE_ESTADO_CONFLITO`; trilha `500->450`, `450->500 (cancelamento)` |
+| Ordem B: PATCH pega a trava antes do cancelamento | PATCH 200, saldo 400; cancelamento 409 `CANCELAMENTO_ALTERACAO_POSTERIOR`; sem crédito, sem reserva; trilha `500->450`, `450->400` |
+| Destino de transferência alterado concorrentemente | PATCH 200 (150 → 145); cancelamento 409; origem 450 e destino 145 |
+| Duas transferências de 60 sobre 100 | [201, 409], total 100 |
+| Três cancelamentos paralelos | [200, 409, 409] |
+| Mesma chave em paralelo | sem crédito duplicado |
+| Falha forçada depois de atualizar o lote | rollback total (sem reserva, sem auditoria órfã); o retry com a mesma chave conclui |
+| Tenant | outro tenant 404; tenants com o mesmo nome isolados |
+
+Execução repetida três vezes: 9/9 em cada rodada.
+
+### R2.4 Comando (P0-C)
+
+- `categoria_animal` diferente da categoria do lote → 409 `MANEJO_ESTADO_INVALIDO`; nada é criado. Sem o campo, o movimento grava a categoria do lote.
+- `data_movimentacao` "ontem", "2026-13-45", "2026-02-30T…" ou vazia → 400; nada é criado.
+- Área de destino de outra empresa do mesmo tenant → 404. A área atual da origem precisa ser da empresa.
+- POST genérico continua recusando `efeito_servidor`, `modo_transferencia`, `lote_destino_id`, `situacao` e `cancelamento` (400).
+- O derivado de transferência parcial continua com `origem: 'MOVIMENTAÇÃO'`; não é ENTRADA. `loteDerivadoIntegridade` passa sem mudança.
+
+### R2.5 Matriz de tipos (substitui a R1.6)
+
+| Tipo / origem | Status |
+|---|---|
+| Morte, Abate e Transferência (4 modos) criados pelo comando **com âncora de auditoria**, sem alteração material posterior não comprovada | **SUPORTADO_COM_PROVA_CAUSAL** |
+| Os mesmos depois de PATCH material (saldo, situação, área, categoria) em origem, destino ou derivado, inclusive ida e volta | **BLOQUEADO** (`CANCELAMENTO_ALTERACAO_POSTERIOR` / `CANCELAMENTO_ESTADO_DIVERGENTE`), para conciliação assistida futura |
+| Criados pelo comando da R2A-R1 (sem `auditoria_id`) | **BLOQUEADO** (`CANCELAMENTO_EFEITO_NAO_COMPROVADO`). Só existem em ambientes de teste: a PR nunca foi mergeada |
+| Legado sem `efeito_servidor` (inclusive manejo offline) | **BLOQUEADO** (mensagem de legado) |
+| Nascimento, Pesagem, Categoria, Junção, Renomear, Entrada/Saída | **ADIADO** |
+| Cocho e depósito | **SUSPENSO** (D-PROD-94a) |
+
+### R2.6 Interface
+
+- Mensagens novas sem sugerir exclusão de dados: "…Nada foi alterado. A reversão não pode ser comprovada e exigirá conciliação assistida."
+- O frontend exige a mesma âncora que o servidor (`tipoTemCancelamento`).
+- Pendência de cancelamento isolada por **tenant + usuário** (`maike_cancelamento_pendente:<cliente>:<usuario>:<mov>`). O motivo fica bloqueado enquanto o resultado é desconhecido.
+- Cancelamento continua só online, sem fila.
+
+### R2.7 Riscos residuais
+
+1. `PATCH /lotes` com CAS continua permitindo correção material direta, sem trilha operacional própria; a auditoria registra. O efeito é tornar o movimento anterior **não cancelável**, nunca creditar sem prova. A conciliação assistida fica para slice futuro.
+2. Linha de auditoria no mesmo milissegundo da âncora conta como posterior. É um falso bloqueio possível e raro, não um falso crédito.
+3. Os itens 1 a 4 da R1.8 continuam: offline legado, várias categorias, demais manejos e pendência por aparelho.
+
+### R2.8 Próximo slice (fora desta PR)
+
+- Conciliação assistida de movimentos bloqueados.
+- Trilha operacional para correção de saldo (substituir o PATCH material direto).
+- R2B: tipos adiados.
+- R2C: cocho e depósito.
 
 ## R2A-R1 — Proveniência causal, concorrência, chave pendente e cache offline
 
@@ -119,7 +199,7 @@ Evidências: `docs/engineering/evidencias/r2a-r1/`
 
 ### R1.7a Merge de `main` (#163) e colisão de numeração
 
-- `main` avançou com a maikelimaadm-stack/MAIKE#163 (UX-MOBILE-V4), que também usa **D-PROD-95**. O único conflito foi `DECISIONS.md`: as duas seções foram mantidas (V4 primeiro, depois R2A e D-PROD-95a), com nota explícita da colisão. **Renumerar é decisão do proprietário**; D-PROD-96 segue livre.
+- `main` avançou com a maikelimaadm-stack/MAIKE#163 (UX-MOBILE-V4), que também usava **D-PROD-95**. O único conflito foi `DECISIONS.md`. **Resolvido na R2A-R2 por decisão do proprietário:** a D-PROD-95 da V4 foi preservada, a R2A passou a D-PROD-96 e a R1 a D-PROD-96a. Detalhes na seção R2A-R2.
 - Depois do merge:
   - `verify:all` com as variáveis da CI: exit 0 (smoke 99 arquivos, 1149/1149; backend 0 falhas);
   - E2E repetido nas 4 larguras: cancelamento, legado e offline **64/64**; manejo pela UI **36/36**.

@@ -1,5 +1,5 @@
 /**
- * Comando atômico de manejo do mapa — R2A-R1 (D-PROD-95a).
+ * Comando atômico de manejo do mapa — R2A-R1 (D-PROD-96a).
  *
  * Morte, Abate e Transferência de Área deixam de ser "grava o movimento, depois
  * o navegador faz PATCH absoluto no lote". Numa transação PostgreSQL:
@@ -34,10 +34,28 @@ const texto = (v) => (typeof v === 'string' && v.trim() ? v.trim() : null);
 const normal = (v) => String(v || '').toUpperCase();
 const recusa = (codigo, mensagem, details = {}) => new AppError(codigo, mensagem, { details });
 
-const estadoDe = (lote) => ({
+/**
+ * Campos MATERIAIS do lote (R2A-R2, D-PROD-96b): o que muda saldo, posição,
+ * situação ou classificação. O cancelamento exige que todos continuem iguais
+ * ao pós-estado gravado aqui, e que nenhuma alteração material não comprovada
+ * tenha ocorrido no meio (nem ida e volta).
+ */
+export const CAMPOS_MATERIAIS_LOTE = Object.freeze([
+  'quantidade_cabecas',
+  'status',
+  'area_atual_id',
+  'categoria',
+  'categoria_manejo_id',
+  'empresa_id',
+]);
+
+export const estadoDe = (lote) => ({
   quantidade_cabecas: lote.quantidade_cabecas,
   status: lote.status,
   area_atual_id: lote.area_atual_id ?? null,
+  categoria: lote.categoria ?? null,
+  categoria_manejo_id: lote.categoria_manejo_id ?? null,
+  empresa_id: lote.empresa_id ?? null,
 });
 
 const travarLotes = async (tx, clienteId, ids) => {
@@ -49,14 +67,30 @@ const travarLotes = async (tx, clienteId, ids) => {
   return new Map(lotes.map((l) => [l.id, l]));
 };
 
+/**
+ * Atualiza e audita. Devolve também o id do AuditLog: ele entra no efeito
+ * (`auditoria_id`) e é a âncora causal que o cancelamento confere (R2A-R2).
+ */
 const atualizarLoteAuditado = async (tx, contexto, clienteId, anterior, dados) => {
   const atualizado = await tx.lote.update({ where: { cliente_id_id: { cliente_id: clienteId, id: anterior.id } }, data: dados });
-  await registrarEvento(
+  const auditoria = await registrarEvento(
     contexto,
     { acao: 'update', entidade: 'Lote', entidadeId: anterior.id, dadosAnteriores: comoLotePublico(anterior), dadosNovos: comoLotePublico(atualizado) },
     tx
   );
-  return atualizado;
+  return { atualizado, auditoriaId: auditoria.id };
+};
+
+/**
+ * Data operacional estrita: AAAA-MM-DD (opcionalmente com hora ISO) e dia que
+ * existe no calendário. "2026-02-30" ou "ontem" não criam movimento.
+ */
+const dataOperacionalValida = (valor) => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})(T\d{2}:\d{2}(:\d{2}(\.\d{1,3})?)?(Z|[+-]\d{2}:\d{2})?)?$/.exec(valor || '');
+  if (!m) return false;
+  const [ano, mes, dia] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  const d = new Date(Date.UTC(ano, mes - 1, dia));
+  return d.getUTCFullYear() === ano && d.getUTCMonth() === mes - 1 && d.getUTCDate() === dia && !Number.isNaN(new Date(valor).getTime());
 };
 
 /** Valida a forma; tudo que importa para saldo é relido do servidor. */
@@ -94,6 +128,9 @@ export const executarManejoLote = async (contexto, entrada) => {
   if (!e.operationKey || !e.empresaId || !e.loteId || !e.dataMovimentacao) {
     throw new AppError('REQUEST_VALIDATION_FAILED', 'operation_id, empresa_id, lote_id e data_movimentacao são obrigatórios');
   }
+  if (!dataOperacionalValida(e.dataMovimentacao)) {
+    throw new AppError('REQUEST_VALIDATION_FAILED', 'data_movimentacao inválida', { details: { field: 'data_movimentacao' } });
+  }
   const ehTransferencia = e.tipo === 'Transferência de Área';
   if (ehTransferencia && !e.areaDestinoId) {
     throw new AppError('REQUEST_VALIDATION_FAILED', 'transferência exige area_destino_id', { details: { field: 'area_destino_id' } });
@@ -120,9 +157,17 @@ export const executarManejoLote = async (contexto, entrada) => {
         if (origem.quantidade_cabecas < e.quantidade) {
           throw recusa('MANEJO_SALDO_INSUFICIENTE', 'o lote não tem cabeças suficientes', { disponivel: origem.quantidade_cabecas, pedido: e.quantidade });
         }
-        const areaOrigem = await tx.areaPastagem.findFirst({ where: { cliente_id: auth.clienteId, id: origem.area_atual_id }, select: { id: true, nome: true } });
+        // Categoria: a fonte é o lote, nunca o formulário (R2A-R2, P0-C).
+        if (e.categoriaAnimal && normal(e.categoriaAnimal) !== normal(origem.categoria)) {
+          throw recusa('MANEJO_ESTADO_INVALIDO', 'categoria informada não confere com a categoria do lote', { categoria_lote: origem.categoria ?? null });
+        }
+        const areaOrigem = await tx.areaPastagem.findFirst({
+          where: { cliente_id: auth.clienteId, empresa_id: e.empresaId, id: origem.area_atual_id },
+          select: { id: true, nome: true },
+        });
+        if (!areaOrigem) throw recusa('MANEJO_ESTADO_INVALIDO', 'área atual do lote não pertence a esta empresa');
 
-        /** @type {Array<{lote_id: string, criado: boolean, antes: object, depois: object}>} */
+        /** @type {Array<{lote_id: string, criado: boolean, auditoria_id: string, antes: object, depois: object}>} */
         const efeitos = [];
         /** @type {Array<any>} */
         const lotesResultado = [];
@@ -132,11 +177,11 @@ export const executarManejoLote = async (contexto, entrada) => {
 
         const saldoOrigem = origem.quantidade_cabecas - e.quantidade;
         if (!ehTransferencia) {
-          const depois = await atualizarLoteAuditado(tx, contexto, auth.clienteId, origem, {
+          const { atualizado: depois, auditoriaId } = await atualizarLoteAuditado(tx, contexto, auth.clienteId, origem, {
             quantidade_cabecas: saldoOrigem,
             status: saldoOrigem > 0 ? origem.status : 'Inativo',
           });
-          efeitos.push({ lote_id: origem.id, criado: false, antes: estadoDe(origem), depois: estadoDe(depois) });
+          efeitos.push({ lote_id: origem.id, criado: false, auditoria_id: auditoriaId, antes: estadoDe(origem), depois: estadoDe(depois) });
           lotesResultado.push(depois);
         } else {
           areaDestino = await tx.areaPastagem.findFirst({
@@ -156,7 +201,7 @@ export const executarManejoLote = async (contexto, entrada) => {
               destino.status === 'Ativo' &&
               destino.area_atual_id === areaDestino.id &&
               normal(destino.nome) === normal(origem.nome) &&
-              normal(destino.categoria) === normal(e.categoriaAnimal || origem.categoria);
+              normal(destino.categoria) === normal(origem.categoria);
             if (!compativel) throw recusa('MANEJO_ESTADO_INVALIDO', 'lote de destino incompatível (área, nome, categoria ou status)');
           }
           const total = e.quantidade === origem.quantidade_cabecas;
@@ -169,25 +214,25 @@ export const executarManejoLote = async (contexto, entrada) => {
           if (total && !destino) {
             modo = 'total_no_lugar';
             destinoId = origem.id;
-            const depois = await atualizarLoteAuditado(tx, contexto, auth.clienteId, origem, {
+            const { atualizado: depois, auditoriaId } = await atualizarLoteAuditado(tx, contexto, auth.clienteId, origem, {
               area_atual_id: areaDestino.id,
               area_atual_nome: areaDestino.nome,
             });
-            efeitos.push({ lote_id: origem.id, criado: false, antes: estadoDe(origem), depois: estadoDe(depois) });
+            efeitos.push({ lote_id: origem.id, criado: false, auditoria_id: auditoriaId, antes: estadoDe(origem), depois: estadoDe(depois) });
             lotesResultado.push(depois);
           } else if (destino) {
             modo = total ? 'total_unificado' : 'parcial_unificado';
             destinoId = destino.id;
-            const destDepois = await atualizarLoteAuditado(tx, contexto, auth.clienteId, destino, {
+            const { atualizado: destDepois, auditoriaId: audDestino } = await atualizarLoteAuditado(tx, contexto, auth.clienteId, destino, {
               quantidade_cabecas: destino.quantidade_cabecas + e.quantidade,
               ...identificador,
             });
-            const origDepois = await atualizarLoteAuditado(tx, contexto, auth.clienteId, origem, {
+            const { atualizado: origDepois, auditoriaId: audOrigem } = await atualizarLoteAuditado(tx, contexto, auth.clienteId, origem, {
               quantidade_cabecas: saldoOrigem,
               status: saldoOrigem > 0 ? origem.status : 'Inativo',
             });
-            efeitos.push({ lote_id: origem.id, criado: false, antes: estadoDe(origem), depois: estadoDe(origDepois) });
-            efeitos.push({ lote_id: destino.id, criado: false, antes: estadoDe(destino), depois: estadoDe(destDepois) });
+            efeitos.push({ lote_id: origem.id, criado: false, auditoria_id: audOrigem, antes: estadoDe(origem), depois: estadoDe(origDepois) });
+            efeitos.push({ lote_id: destino.id, criado: false, auditoria_id: audDestino, antes: estadoDe(destino), depois: estadoDe(destDepois) });
             lotesResultado.push(origDepois, destDepois);
           } else {
             modo = 'parcial_novo_lote';
@@ -225,17 +270,20 @@ export const executarManejoLote = async (contexto, entrada) => {
               origem: 'MOVIMENTAÇÃO',
               status: 'Ativo',
             });
-            await registrarEvento(contexto, { acao: 'create', entidade: 'Lote', entidadeId: novo.id, dadosNovos: comoLotePublico(novo) }, tx);
+            const audNovo = await registrarEvento(contexto, { acao: 'create', entidade: 'Lote', entidadeId: novo.id, dadosNovos: comoLotePublico(novo) }, tx);
             destinoId = novo.id;
-            const origDepois = await atualizarLoteAuditado(tx, contexto, auth.clienteId, origem, {
+            const { atualizado: origDepois, auditoriaId: audOrigem } = await atualizarLoteAuditado(tx, contexto, auth.clienteId, origem, {
               quantidade_cabecas: saldoOrigem,
               status: saldoOrigem > 0 ? origem.status : 'Inativo',
             });
-            efeitos.push({ lote_id: origem.id, criado: false, antes: estadoDe(origem), depois: estadoDe(origDepois) });
+            efeitos.push({ lote_id: origem.id, criado: false, auditoria_id: audOrigem, antes: estadoDe(origem), depois: estadoDe(origDepois) });
+            // Derivado: não é ENTRADA no rebanho (origem 'MOVIMENTAÇÃO'); o
+            // "antes" é o lote vazio e inativo que o cancelamento deixa.
             efeitos.push({
               lote_id: novo.id,
               criado: true,
-              antes: { quantidade_cabecas: 0, status: 'Inativo', area_atual_id: areaDestino.id },
+              auditoria_id: audNovo.id,
+              antes: { ...estadoDe(novo), quantidade_cabecas: 0, status: 'Inativo' },
               depois: estadoDe(novo),
             });
             lotesResultado.push(origDepois, novo);
@@ -253,7 +301,7 @@ export const executarManejoLote = async (contexto, entrada) => {
           ...(ehTransferencia
             ? { area_destino_id: areaDestino.id, area_destino_nome: areaDestino.nome, modo_transferencia: modo, lote_destino_id: destinoId }
             : {}),
-          ...(e.categoriaAnimal ? { categoria_animal: e.categoriaAnimal } : {}),
+          categoria_animal: origem.categoria ?? null,
           ...(e.observacoes ? { observacoes: e.observacoes } : {}),
           ...(e.usuarioResponsavel ? { usuario_responsavel: e.usuarioResponsavel } : {}),
           efeito_servidor: {

@@ -138,7 +138,7 @@ export const criarEmLote = async (contexto, registros) => {
 };
 
 /**
- * R2A (D-PROD-95): movimento do mapa muda saldo/posição de lote. Não se reescreve
+ * R2A (D-PROD-96): movimento do mapa muda saldo/posição de lote. Não se reescreve
  * por PATCH — o caminho é `POST /movimentacoes-mapa/:id/cancelamento`.
  * Outro tenant continua recebendo 404 (sem revelar existência).
  */
@@ -150,7 +150,7 @@ export const atualizar = async (contexto, id, entrada) => {
   throw movimentoExigeCancelamento(ENTIDADE);
 };
 
-/** R2A (D-PROD-95): idem para DELETE — nada é removido. */
+/** R2A (D-PROD-96): idem para DELETE — nada é removido. */
 export const excluir = async (contexto, id) => {
   const auth = exigirAuthContext(contexto?.auth);
   const existente = await buscarRegistro(auth.clienteId, id);

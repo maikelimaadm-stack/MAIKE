@@ -25,7 +25,7 @@ import { tipoTemCancelamento } from "@/domain/lotes/situacaoMovimento";
 /** @type {React.ComponentType<any>} */ const DialogTitle = DialogTitleUi;
 
 /**
- * Cancelar movimentação (R2A, D-PROD-95).
+ * Cancelar movimentação (R2A, D-PROD-96; estado causal D-PROD-96b).
  *
  * Nenhuma reversão acontece no navegador: o botão chama o comando do servidor,
  * que revalida tudo numa transação. A `operation_id` é gerada ao abrir e
@@ -39,7 +39,10 @@ export const MENSAGENS_RECUSA = Object.freeze({
   CANCELAMENTO_VINCULO_AMBIGUO: "Registro sem vínculo comprovado do lote (registro antigo ou unificação sem destino gravado). Não é possível cancelar com segurança.",
   CANCELAMENTO_DEPENDENCIA_POSTERIOR: "Há registros posteriores deste lote ou desta área. Cancele-os antes, do mais recente para o mais antigo.",
   CANCELAMENTO_JA_REALIZADO: "Esta movimentação já está cancelada.",
-  CANCELAMENTO_ESTADO_DIVERGENTE: "O estado atual do lote não corresponde ao efeito desta movimentação. Nada foi alterado.",
+  CANCELAMENTO_ESTADO_DIVERGENTE:
+    "O lote não está mais como esta movimentação o deixou (saldo, situação, área ou categoria mudaram depois). Nada foi alterado. A reversão não pode ser comprovada e exigirá conciliação assistida.",
+  CANCELAMENTO_ALTERACAO_POSTERIOR:
+    "O lote foi alterado depois desta movimentação por uma correção direta, sem manejo comprovado. Nada foi alterado. A reversão não pode ser comprovada e exigirá conciliação assistida.",
   CANCELAMENTO_SALDO_INSUFICIENTE: "O lote não tem cabeças suficientes para desfazer esta movimentação. Nada foi alterado.",
   CANCELAMENTO_EFEITO_NAO_COMPROVADO: "Não há registro provando que esta movimentação alterou o lote. Nada foi alterado.",
   TENANT_ADMIN_REQUIRED: "Somente o administrador da fazenda pode cancelar movimentações.",
@@ -58,31 +61,37 @@ const novaChave = () =>
 const estaOnline = () => (typeof navigator === "undefined" ? true : navigator.onLine !== false);
 
 /**
- * Operação pendente (R2A-R1, D-PROD-95a): chave + motivo gravados ANTES do
+ * Operação pendente (R2A-R1, D-PROD-96a): chave + motivo gravados ANTES do
  * envio e mantidos enquanto o resultado for desconhecido — sobrevive a fechar,
  * reabrir, trocar de tela e recarregar. Só sai com resposta definitiva do
  * servidor (sucesso ou recusa 4xx estável).
  */
-const chavePendente = (id) => `maike_cancelamento_pendente:${id}`;
-export const lerPendente = (id) => {
+/**
+ * Escopo por tenant + usuário: no mesmo aparelho, a pendência de um usuário
+ * nunca aparece (nem é reenviada) na sessão de outro.
+ * @param {any} usuario
+ */
+export const escopoDoUsuario = (usuario) => `${usuario?.cliente_id ?? "-"}:${usuario?.id ?? usuario?.usuario_id ?? "-"}`;
+const chavePendente = (escopo, id) => `maike_cancelamento_pendente:${escopo}:${id}`;
+export const lerPendente = (escopo, id) => {
   try {
-    const bruto = window.localStorage.getItem(chavePendente(id));
+    const bruto = window.localStorage.getItem(chavePendente(escopo, id));
     const dados = bruto ? JSON.parse(bruto) : null;
     return dados && typeof dados.operation_id === "string" && typeof dados.motivo === "string" ? dados : null;
   } catch {
     return null;
   }
 };
-const gravarPendente = (id, dados) => {
+const gravarPendente = (escopo, id, dados) => {
   try {
-    window.localStorage.setItem(chavePendente(id), JSON.stringify({ ...dados, em: new Date().toISOString() }));
+    window.localStorage.setItem(chavePendente(escopo, id), JSON.stringify({ ...dados, em: new Date().toISOString() }));
   } catch {
     /* sem storage: a chave fica só na memória do diálogo */
   }
 };
-const limparPendente = (id) => {
+const limparPendente = (escopo, id) => {
   try {
-    window.localStorage.removeItem(chavePendente(id));
+    window.localStorage.removeItem(chavePendente(escopo, id));
   } catch {
     /* idem */
   }
@@ -116,6 +125,7 @@ export default function CancelarMovimentacao({ movimento, onCancelado }) {
 
   const { data: usuario } = useQuery({ queryKey: ["usuario-atual-cancelamento"], queryFn: () => getCurrentUser(), staleTime: 60_000 });
   const admin = ehAdministrador(usuario);
+  const escopo = escopoDoUsuario(usuario);
 
   const elegibilidade = useQuery({
     queryKey: ["elegibilidade-cancelamento", movimento?.id],
@@ -132,7 +142,7 @@ export default function CancelarMovimentacao({ movimento, onCancelado }) {
   const online = estaOnline();
 
   const abrir = () => {
-    const pendente = lerPendente(movimento.id);
+    const pendente = lerPendente(escopo, movimento.id);
     if (pendente) {
       // Resultado anterior desconhecido: mesma chave e mesmo motivo, nunca outra operação.
       chaveRef.current = pendente.operation_id;
@@ -163,10 +173,10 @@ export default function CancelarMovimentacao({ movimento, onCancelado }) {
     if (enviando || motivo.trim().length < 3) return;
     setEnviando(true);
     setRecusa(null);
-    gravarPendente(movimento.id, { operation_id: chaveRef.current, motivo: motivo.trim() });
+    gravarPendente(escopo, movimento.id, { operation_id: chaveRef.current, motivo: motivo.trim() });
     try {
       await cancelarMovimentacaoMapa(movimento.id, { operation_id: chaveRef.current, motivo: motivo.trim() });
-      limparPendente(movimento.id);
+      limparPendente(escopo, movimento.id);
       toast.success("Movimentação cancelada.");
       setDesconhecido(false);
       setAberto(false);
@@ -187,7 +197,7 @@ export default function CancelarMovimentacao({ movimento, onCancelado }) {
       const codigo = codigoDoServidor(erro);
       if (ehRecusaDefinitiva(codigo)) {
         // Resposta estável do servidor: nada foi gravado; a próxima tentativa é outra operação.
-        limparPendente(movimento.id);
+        limparPendente(escopo, movimento.id);
         setRecusa(MENSAGENS_RECUSA[codigo] || "Não foi possível cancelar. Nada foi alterado.");
         setDesconhecido(false);
         chaveRef.current = novaChave();

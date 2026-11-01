@@ -140,7 +140,7 @@ export const criarLote = (dados) => createLote(dados);
 export const atualizarLote = (id, dados) => updateLote(id, dados);
 export const criarMovimentacao = (dados) => createMovimentacao(dados);
 /**
- * R2A (D-PROD-95): movimento do mapa não se apaga nem se reescreve — o servidor
+ * R2A (D-PROD-96): movimento do mapa não se apaga nem se reescreve — o servidor
  * recusa com MOVIMENTO_CANCELAMENTO_OBRIGATORIO. O caminho é o cancelamento.
  */
 export const cancelarMovimentacaoMapa = (id, corpo) => cancelarMovimentacao(id, corpo);

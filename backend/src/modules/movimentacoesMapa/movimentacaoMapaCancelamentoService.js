@@ -1,5 +1,5 @@
 /**
- * Cancelamento de movimentação do mapa — R2A (D-PROD-95).
+ * Cancelamento de movimentação do mapa — R2A (D-PROD-96).
  *
  * Uma transação PostgreSQL faz tudo ou nada:
  *   1. administrador ativo do tenant (`exigirAdminTenant`, relido do banco);
@@ -26,7 +26,8 @@ import { documentoComoPublico } from '../../shared/jsonDocument/jsonDocumentPubl
 import { executarComIdempotencia, fingerprintDePayload } from '../../shared/idempotency/operacaoIdempotenteService.js';
 import { registrarEvento } from '../auditoria/auditService.js';
 import { buscarNomesDeAreas } from './movimentacaoMapaRepository.js';
-import { COMANDO_MANEJO, TIPO_OPERACAO_MANEJO } from './manejoMapaComandoService.js';
+import { CAMPOS_MATERIAIS_LOTE, COMANDO_MANEJO, TIPO_OPERACAO_MANEJO, estadoDe } from './manejoMapaComandoService.js';
+import { comoLotePublico } from '../lotes/loteService.js';
 
 export const TIPO_OPERACAO_CANCELAMENTO = 'cancelamento_movimentacao_mapa';
 export const SITUACAO_CANCELADO = 'cancelado';
@@ -67,7 +68,7 @@ const buscarLotes = async (tx, clienteId, ids, travar) => {
   return new Map(lotes.map((l) => [l.id, l]));
 };
 
-// ─── Proveniência causal (R2A-R1, D-PROD-95a) ──────────────────────────────
+// ─── Proveniência causal (R2A-R1, D-PROD-96a) ──────────────────────────────
 
 /**
  * O efeito só é provado quando o movimento nasceu do comando atômico de manejo:
@@ -85,7 +86,14 @@ const exigirProveniencia = async (tx, clienteId, mov) => {
     typeof efeito.operation_id === 'string' &&
     Array.isArray(efeito.efeitos) &&
     efeito.efeitos.length > 0 &&
-    efeito.efeitos.every((x) => x && typeof x.lote_id === 'string' && x.antes && x.depois);
+    efeito.efeitos.every(
+      (x) =>
+        x &&
+        typeof x.lote_id === 'string' &&
+        typeof x.auditoria_id === 'string' &&
+        snapshotCompleto(x.antes) &&
+        snapshotCompleto(x.depois)
+    );
   if (!valido) {
     throw recusa('CANCELAMENTO_EFEITO_NAO_COMPROVADO', 'registro sem comprovação individual de efeito (anterior ao comando atômico)');
   }
@@ -99,6 +107,118 @@ const exigirProveniencia = async (tx, clienteId, mov) => {
     throw recusa('CANCELAMENTO_EFEITO_NAO_COMPROVADO', 'operação que gerou o efeito não confere com este movimento');
   }
   return efeito;
+};
+
+// ─── Estado causal (R2A-R2, D-PROD-96b) ────────────────────────────────────
+
+/** Snapshot com TODOS os campos materiais (registro da R2A-R1 sem eles: não comprovado). */
+const snapshotCompleto = (x) =>
+  !!x && typeof x === 'object' && CAMPOS_MATERIAIS_LOTE.every((k) => Object.prototype.hasOwnProperty.call(x, k));
+
+/** Igualdade estrita dos campos materiais; `undefined` nunca casa (fail-closed). */
+const divergencias = (a, b) =>
+  CAMPOS_MATERIAIS_LOTE.filter((k) => {
+    const va = a?.[k];
+    const vb = b?.[k];
+    if (va === undefined || vb === undefined) return true;
+    return (va ?? null) !== (vb ?? null);
+  });
+
+/**
+ * O AuditLog que o próprio comando gravou (id dentro de `efeito_servidor`,
+ * campo reservado) tem de existir, ser do mesmo tenant e lote, e registrar
+ * exatamente o pós-estado do efeito. É a âncora no tempo para "depois".
+ */
+const exigirAuditoriaOriginal = async (tx, clienteId, efeitos) => {
+  const ids = efeitos.map((x) => x.auditoria_id);
+  const linhas = await tx.auditLog.findMany({
+    where: { cliente_id: clienteId, id: { in: ids }, entidade: 'Lote' },
+    select: { id: true, entidade_id: true, acao: true, dados_novos: true, createdAt: true },
+  });
+  const porId = new Map(linhas.map((l) => [l.id, l]));
+  const ancoras = new Map();
+  for (const x of efeitos) {
+    const linha = porId.get(x.auditoria_id);
+    if (!linha || linha.entidade_id !== x.lote_id || divergencias(linha.dados_novos, x.depois).length) {
+      throw recusa('CANCELAMENTO_EFEITO_NAO_COMPROVADO', 'a auditoria original do efeito não confere', { lote_id: x.lote_id });
+    }
+    ancoras.set(x.lote_id, linha);
+  }
+  return ancoras;
+};
+
+/** Linha de auditoria que mexe em campo material (create/delete/qualquer outra ação também). */
+const ehMaterial = (linha) =>
+  linha.acao !== 'update' ||
+  !linha.dados_anteriores ||
+  !linha.dados_novos ||
+  divergencias(linha.dados_anteriores, linha.dados_novos).length > 0;
+
+/**
+ * Toda alteração MATERIAL nos lotes participantes depois da auditoria original
+ * precisa ser explicada por um manejo comprovado posterior JÁ CANCELADO (o
+ * efeito dele e a reversão dele, ambos com `auditoria_id` gravado pelo
+ * servidor em campos reservados). Qualquer outra — PATCH direto, ida e volta,
+ * fluxo legado — torna a reversão não comprovável. Edição sem campo material
+ * (peso, nome, identificador) não conta.
+ *
+ * Mesmo milissegundo da âncora: só o `create` do próprio lote é anterior por
+ * construção; o resto conta como posterior (fail-closed).
+ */
+const exigirSemAlteracaoPosterior = async (tx, clienteId, mov, efeitos, ancoras) => {
+  const proprios = new Set(efeitos.map((x) => x.auditoria_id));
+  const loteIds = efeitos.map((x) => x.lote_id);
+  const desde = new Date(Math.min(...[...ancoras.values()].map((a) => a.createdAt.getTime())));
+  const linhas = await tx.auditLog.findMany({
+    where: { cliente_id: clienteId, entidade: 'Lote', entidade_id: { in: loteIds }, createdAt: { gte: desde } },
+    select: { id: true, entidade_id: true, acao: true, dados_anteriores: true, dados_novos: true, createdAt: true },
+  });
+  const suspeitas = linhas.filter((l) => {
+    if (proprios.has(l.id)) return false;
+    const ancora = ancoras.get(l.entidade_id);
+    const t = l.createdAt.getTime();
+    const a = ancora.createdAt.getTime();
+    if (t < a) return false;
+    if (t === a && l.acao === 'create') return false;
+    return ehMaterial(l);
+  });
+  if (!suspeitas.length) return;
+
+  const ids = suspeitas.map((l) => l.id);
+  const explicadas = /** @type {Array<{aid: string, fonte: string, mov_id: string, situacao: string|null}>} */ (
+    await tx.$queryRaw`
+      SELECT e.val->>'auditoria_id' AS aid, 'efeito' AS fonte, m.id AS mov_id, m.dados->>'situacao' AS situacao
+        FROM "MovimentacaoMapa" m
+        CROSS JOIN LATERAL jsonb_array_elements(
+          CASE WHEN jsonb_typeof(m.dados->'efeito_servidor'->'efeitos') = 'array' THEN m.dados->'efeito_servidor'->'efeitos' ELSE '[]'::jsonb END
+        ) AS e(val)
+       WHERE m.cliente_id = ${clienteId} AND m.empresa_id = ${mov.empresa_id} AND m.id <> ${mov.id}
+         AND m.dados->'efeito_servidor'->>'comando' = ${COMANDO_MANEJO}
+         AND e.val->>'auditoria_id' = ANY(${ids}::text[])
+      UNION ALL
+      SELECT e.val->>'auditoria_id' AS aid, 'cancelamento' AS fonte, m.id AS mov_id, m.dados->>'situacao' AS situacao
+        FROM "MovimentacaoMapa" m
+        CROSS JOIN LATERAL jsonb_array_elements(
+          CASE WHEN jsonb_typeof(m.dados->'cancelamento'->'efeitos') = 'array' THEN m.dados->'cancelamento'->'efeitos' ELSE '[]'::jsonb END
+        ) AS e(val)
+       WHERE m.cliente_id = ${clienteId} AND m.empresa_id = ${mov.empresa_id} AND m.id <> ${mov.id}
+         AND m.dados->>'situacao' = ${SITUACAO_CANCELADO}
+         AND e.val->>'auditoria_id' = ANY(${ids}::text[])`
+  );
+  const porAid = new Map(explicadas.map((x) => [x.aid, x]));
+  for (const l of suspeitas) {
+    const x = porAid.get(l.id);
+    if (x && x.fonte === 'efeito' && x.situacao !== SITUACAO_CANCELADO) {
+      throw recusa('CANCELAMENTO_DEPENDENCIA_POSTERIOR', 'há movimento posterior ativo sobre o lote', { lote_id: l.entidade_id, movimentacao_id: x.mov_id });
+    }
+    if (!x) {
+      throw recusa(
+        'CANCELAMENTO_ALTERACAO_POSTERIOR',
+        'o lote teve alteração material depois deste movimento, fora de um manejo comprovado; a reversão não é comprovável',
+        { lote_id: l.entidade_id }
+      );
+    }
+  }
 };
 
 // ─── Dependências posteriores (banco, sem teto) ────────────────────────────
@@ -194,39 +314,17 @@ export const planejarCancelamento = async (tx, clienteId, id, { travar }) => {
   const efeito = await exigirProveniencia(tx, clienteId, mov);
   const ehTransferencia = d.tipo === 'Transferência de Área';
   const ids = efeito.efeitos.map((x) => x.lote_id);
+  // Travas antes de QUALQUER conferência: movimento (acima) e lotes em ordem de id.
   const lotes = await buscarLotes(tx, clienteId, ids, travar);
-
-  /** @type {Array<{lote_id: string, antes: Record<string, any>, depois: Record<string, any>}>} */
-  const efeitos = [];
   for (const registro of efeito.efeitos) {
     const lote = lotes.get(registro.lote_id);
     if (!lote || lote.empresa_id !== mov.empresa_id) {
       throw recusa('CANCELAMENTO_VINCULO_AMBIGUO', 'lote do efeito não encontrado nesta empresa', { lote_id: registro.lote_id });
     }
-    // O lote tem de estar onde o efeito o deixou (não mudou de área desde então).
-    if ((lote.area_atual_id ?? null) !== (registro.depois.area_atual_id ?? null)) {
-      throw recusa('CANCELAMENTO_ESTADO_DIVERGENTE', 'o lote não está na área em que o movimento o deixou', { lote_id: lote.id });
-    }
-    if (lote.status === 'Inativo' && lote.quantidade_cabecas > 0) {
-      throw recusa('CANCELAMENTO_ESTADO_DIVERGENTE', 'lote inativo com saldo — estado não explicável', { lote_id: lote.id });
-    }
-    const delta = Number(registro.antes.quantidade_cabecas) - Number(registro.depois.quantidade_cabecas);
-    const nova = lote.quantidade_cabecas + delta;
-    if (!Number.isInteger(nova) || nova < 0) {
-      throw recusa('CANCELAMENTO_SALDO_INSUFICIENTE', 'o lote não tem saldo para desfazer o movimento', { lote_id: lote.id, disponivel: lote.quantidade_cabecas, necessario: -delta });
-    }
-    /** @type {Record<string, any>} */
-    const depois = { quantidade_cabecas: nova, status: nova === 0 ? 'Inativo' : lote.status === 'Inativo' ? 'Ativo' : lote.status };
-    if ((registro.antes.area_atual_id ?? null) !== (registro.depois.area_atual_id ?? null) && registro.antes.area_atual_id) {
-      const nomes = await buscarNomesDeAreas(tx, clienteId, mov.empresa_id, [registro.antes.area_atual_id]);
-      depois.area_atual_id = registro.antes.area_atual_id;
-      depois.area_atual_nome = nomes.get(registro.antes.area_atual_id) || d.area_origem_nome || null;
-    }
-    const antes = { quantidade_cabecas: lote.quantidade_cabecas, status: lote.status };
-    if (depois.area_atual_id) Object.assign(antes, { area_atual_id: lote.area_atual_id, area_atual_nome: lote.area_atual_nome });
-    efeitos.push({ lote_id: lote.id, antes, depois });
   }
+  const ancoras = await exigirAuditoriaOriginal(tx, clienteId, efeito.efeitos);
 
+  // 1) Registros posteriores em outras fontes (dependência clássica).
   const dependencias = await dependenciasPosteriores(tx, clienteId, mov, {
     loteIds: ids,
     nomes: [d.lote, ...ids.map((i) => lotes.get(i)?.nome)],
@@ -234,6 +332,40 @@ export const planejarCancelamento = async (tx, clienteId, id, { travar }) => {
   });
   if (dependencias.length) {
     throw recusa('CANCELAMENTO_DEPENDENCIA_POSTERIOR', 'há registro posterior ligado ao lote ou à área', { dependencias });
+  }
+  // 2) Alteração material posterior nos lotes (PATCH direto, ida e volta…).
+  await exigirSemAlteracaoPosterior(tx, clienteId, mov, efeito.efeitos, ancoras);
+
+  // 3) Estado atual == pós-estado gravado, campo a campo, em TODOS os participantes.
+  /** @type {Array<{lote_id: string, antes: Record<string, any>, depois: Record<string, any>, auditoria_id?: string}>} */
+  const efeitos = [];
+  for (const registro of efeito.efeitos) {
+    const lote = lotes.get(registro.lote_id);
+    const campos = divergencias(estadoDe(lote), registro.depois);
+    if (campos.length) {
+      throw recusa('CANCELAMENTO_ESTADO_DIVERGENTE', 'o estado atual do lote não é o que o movimento deixou', { lote_id: lote.id, campos });
+    }
+    if (divergencias({ ...registro.antes, quantidade_cabecas: 0, status: '', area_atual_id: '' }, { ...registro.depois, quantidade_cabecas: 0, status: '', area_atual_id: '' }).length) {
+      // O comando só muda saldo, situação e área; classificação diferente entre antes/depois não é deste fluxo.
+      throw recusa('CANCELAMENTO_EFEITO_NAO_COMPROVADO', 'efeito com mudança de classificação não suportada', { lote_id: lote.id });
+    }
+    const alvo = registro.antes;
+    if (!Number.isInteger(alvo.quantidade_cabecas) || alvo.quantidade_cabecas < 0) {
+      throw recusa('CANCELAMENTO_EFEITO_NAO_COMPROVADO', 'pré-estado inválido no efeito', { lote_id: lote.id });
+    }
+    /** @type {Record<string, any>} */
+    const depois = { quantidade_cabecas: alvo.quantidade_cabecas, status: alvo.status };
+    const antes = { quantidade_cabecas: lote.quantidade_cabecas, status: lote.status };
+    if ((alvo.area_atual_id ?? null) !== (lote.area_atual_id ?? null) && alvo.area_atual_id) {
+      const nomes = await buscarNomesDeAreas(tx, clienteId, mov.empresa_id, [alvo.area_atual_id]);
+      if (!nomes.get(alvo.area_atual_id)) {
+        throw recusa('CANCELAMENTO_ESTADO_DIVERGENTE', 'a área de origem não existe mais nesta empresa', { lote_id: lote.id });
+      }
+      depois.area_atual_id = alvo.area_atual_id;
+      depois.area_atual_nome = nomes.get(alvo.area_atual_id);
+      Object.assign(antes, { area_atual_id: lote.area_atual_id, area_atual_nome: lote.area_atual_nome });
+    }
+    efeitos.push({ lote_id: lote.id, antes, depois });
   }
 
   // Conservação: transferência não cria nem some com cabeças.
@@ -278,17 +410,20 @@ export const cancelar = async (contexto, id, entrada) => {
             where: { cliente_id_id: { cliente_id: auth.clienteId, id: efeito.lote_id } },
             data: efeito.depois,
           });
-          await registrarEvento(
+          // Snapshot completo + id gravado no cancelamento (campo reservado):
+          // é o que explica esta alteração para cancelamentos anteriores (R2A-R2).
+          const auditoria = await registrarEvento(
             contexto,
             {
               acao: 'update',
               entidade: 'Lote',
               entidadeId: efeito.lote_id,
-              dadosAnteriores: { ...efeito.antes, quantidade_cabecas_anterior: anterior?.quantidade_cabecas ?? null, origem: 'cancelamento_movimentacao' },
-              dadosNovos: { ...efeito.depois, quantidade_cabecas: atualizado.quantidade_cabecas, movimentacao_cancelada_id: id },
+              dadosAnteriores: { ...comoLotePublico(anterior), origem: 'cancelamento_movimentacao' },
+              dadosNovos: { ...comoLotePublico(atualizado), movimentacao_cancelada_id: id },
             },
             tx
           );
+          efeito.auditoria_id = auditoria.id;
         }
         const cancelamento = {
           em: new Date().toISOString(),

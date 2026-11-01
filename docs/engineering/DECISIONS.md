@@ -3615,9 +3615,10 @@ Relatório: `docs/engineering/UX-MOBILE-V2-REPORT.md` (seção V4). Teste: `test
 
 ---
 
-> **Colisão de numeração (registrada, não resolvida aqui):** a maikelimaadm-stack/MAIKE#163 (UX-MOBILE-V4) entrou em `main` com o mesmo identificador **D-PROD-95**, enquanto esta R2A estava em revisão na #162. Renumerar exige decisão do proprietário. Até lá, nesta PR, "D-PROD-95 (R2A)" e "D-PROD-95a" referem-se às duas seções abaixo, e "D-PROD-95 (UX-MOBILE-V4)" à seção acima. D-PROD-96 continua livre.
+## D-PROD-96 — R2A: registros operacionais fechados no servidor; cancelamento transacional de movimentação do mapa
 
-## D-PROD-95 (R2A) — R2A: registros operacionais fechados no servidor; cancelamento transacional de movimentação do mapa
+> **Numeração (decisão do proprietário, R2A-R2):** esta decisão foi redigida na PR #162 como "D-PROD-95". A maikelimaadm-stack/MAIKE#163 (UX-MOBILE-V4) entrou antes em `main` com D-PROD-95, que fica preservada. A R2A passou a ser **D-PROD-96**, e as subdecisões dela a **D-PROD-96a** (R2A-R1) e **D-PROD-96b** (R2A-R2).
+
 
 **Missão:** MAIKE-R2A-MAPA-CANCELAMENTO-ESTORNO-SEGURO-BACKEND-01. Base: `main` d2cba91 (merge da #161). Sem migration, sem escrita em produção, sem ledger.
 
@@ -3665,11 +3666,11 @@ Relatório: `docs/engineering/MAIKE-R2A-MAPA-CANCELAMENTO-ESTORNO-SEGURO-REPORT.
 
 ---
 
-## D-PROD-95a — R2A-R1: proveniência causal do efeito, CAS em `PATCH /lotes`, chave pendente e cache de histórico
+## D-PROD-96a — R2A-R1: proveniência causal do efeito, CAS em `PATCH /lotes`, chave pendente e cache de histórico
 
-**Subdecisão de D-PROD-95.** Missão MAIKE-R2A-PR162-R1-HARDENING-PROVENIENCIA-CONCORRENCIA-OFFLINE, na mesma PR #162. Sem migration, sem escrita em produção, sem ledger.
+**Subdecisão de D-PROD-96.** Missão MAIKE-R2A-PR162-R1-HARDENING-PROVENIENCIA-CONCORRENCIA-OFFLINE, na mesma PR #162. Sem migration, sem escrita em produção, sem ledger.
 
-**Contexto:** a revisão bloqueou a D-PROD-95.
+**Contexto:** a revisão bloqueou a D-PROD-96 (então redigida como D-PROD-95).
 - A prova do efeito por AuditLog (janela de ±15 min) podia ser "emprestada". Com duas mortes de 50 e um único PATCH, o cancelamento devolvia 50 cabeças que nunca saíram (RED reproduzido: 200, saldo 500).
 - O `PATCH /lotes` gravava valor absoluto calculado antes da trava.
 
@@ -3694,4 +3695,45 @@ Relatório: seção R2A-R1 de `docs/engineering/MAIKE-R2A-MAPA-CANCELAMENTO-ESTO
 
 ---
 
-<!-- Próxima decisão: D-PROD-96 -->
+## D-PROD-96b — R2A-R2: estado causal completo e fail-closed no cancelamento; numeração da R2A
+
+**Subdecisão de D-PROD-96.** Missão MAIKE-R2A-PR162-R2-HARDENING-ESTADO-CAUSAL-CANCELAMENTO-E-GOVERNANCA, na mesma PR #162. Sem migration, sem backfill, sem ledger, sem escrita em produção.
+
+**Contexto:** o CAS da D-PROD-96a impede escrita obsoleta em `PATCH /lotes`, mas aceita escrita válida. Depois do movimento, um PATCH com `estado_esperado` correto podia mudar saldo, situação, área ou categoria. O cancelamento só conferia a área e "Inativo com saldo" e somava `antes − depois` sobre o saldo atual.
+- RED reproduzido no HEAD 1fbfef6:
+  - 450 → PATCH 400 → cancelamento **200, saldo 450** (crédito de 50 sem prova);
+  - 450 → PATCH 550 → **600**;
+  - ida e volta 450 → 400 → 450 → **500**.
+
+**Decisão:**
+
+1. **Âncora causal sem migration:**
+   - o comando grava, em cada efeito de `efeito_servidor` (campo reservado), o `auditoria_id` do `AuditLog` que ele mesmo escreveu para aquele lote, com o pós-estado material completo: `quantidade_cabecas`, `status`, `area_atual_id`, `categoria`, `categoria_manejo_id`, `empresa_id`;
+   - o cancelamento grava o `auditoria_id` das reversões que fizer em `cancelamento.efeitos` (também reservado).
+2. **Cancelamento só passa, na mesma transação e depois de travar movimento e lotes, se:**
+   1. a proveniência da D-PROD-96a confere (efeito + `OperacaoIdempotente` committed deste movimento);
+   2. a auditoria original existe, é do mesmo tenant e lote e registra exatamente o pós-estado do efeito;
+   3. não há dependência posterior em outras fontes;
+   4. toda alteração **material** posterior nos lotes participantes (origem, destino e derivado) é explicada por um manejo comprovado posterior **já cancelado**, ou pela reversão dele. Qualquer outra recebe 409 `CANCELAMENTO_ALTERACAO_POSTERIOR`: PATCH direto, ida e volta, fluxo legado;
+   5. o estado atual de cada participante é igual, campo a campo, ao pós-estado. Senão: 409 `CANCELAMENTO_ESTADO_DIVERGENTE`, que pega inclusive escrita sem auditoria.
+   - Atendidas as condições, o lote volta exatamente ao pré-estado gravado. Não há delta sobre saldo corrente.
+3. **Fail-closed:**
+   - efeito sem âncora (gravado na D-PROD-96a, antes desta subdecisão) → `CANCELAMENTO_EFEITO_NAO_COMPROVADO`;
+   - mesmo milissegundo da âncora, exceto o `create` do próprio lote, conta como posterior;
+   - edição sem campo material (peso, nome, identificador) não bloqueia.
+4. **Comando:**
+   - `categoria_animal` divergente da categoria do lote → 409 `MANEJO_ESTADO_INVALIDO`; o movimento grava a categoria do lote;
+   - `data_movimentacao` precisa ser data de calendário válida (400);
+   - a área atual da origem precisa ser da mesma empresa.
+5. **Numeração:** a R2A é D-PROD-96, com D-PROD-96a e D-PROD-96b; a D-PROD-95 da UX-MOBILE-V4 fica intacta.
+
+**Risco residual declarado:**
+- `PATCH /lotes` com CAS continua permitindo correção material direta. Ela não tem trilha operacional própria; a auditoria a registra.
+- O efeito disso é tornar não cancelável qualquer movimento anterior do lote, que fica para conciliação assistida (slice futuro).
+- Manejo offline legado e transferência com várias categorias (atômica por lote, não no conjunto) seguem como na D-PROD-96a.
+
+Relatório: seção R2A-R2 de `docs/engineering/MAIKE-R2A-MAPA-CANCELAMENTO-ESTORNO-SEGURO-REPORT.md`.
+
+---
+
+<!-- Próxima decisão: D-PROD-97 -->

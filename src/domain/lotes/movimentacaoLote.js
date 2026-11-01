@@ -163,7 +163,7 @@ export const nomeDaAreaDoMovimento = (nomeGravado, areaId, areas) => {
 
 /**
  * Campos de saldo/posição exigem o valor lido antes no PATCH /lotes (R2A-R1,
- * D-PROD-95a): o servidor recusa com LOTE_ESTADO_CONFLITO se o lote mudou
+ * D-PROD-96a): o servidor recusa com LOTE_ESTADO_CONFLITO se o lote mudou
  * desde a leitura, em vez de gravar um valor absoluto obsoleto.
  */
 export const CAMPOS_COM_ESTADO_ESPERADO = Object.freeze(['quantidade_cabecas', 'status', 'area_atual_id', 'categoria']);

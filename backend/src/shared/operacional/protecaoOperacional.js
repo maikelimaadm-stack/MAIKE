@@ -1,5 +1,5 @@
 /**
- * Proteção de registros operacionais (R2A, D-PROD-95).
+ * Proteção de registros operacionais (R2A, D-PROD-96).
  *
  * Movimento que afeta saldo de animais ou de estoque não se apaga nem se
  * reescreve por rota genérica: o caminho é o cancelamento server-side,

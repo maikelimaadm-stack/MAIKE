@@ -1,5 +1,5 @@
 /**
- * R2A (D-PROD-95) — UI do cancelamento server-side, curral e renomeação.
+ * R2A (D-PROD-96) — UI do cancelamento server-side, curral e renomeação.
  * Dados sintéticos; serviço mockado (a prova de banco está em
  * backend/tests/movimentacaoCancelamentoR2A.test.mjs).
  */
@@ -18,7 +18,7 @@ const servico = vi.hoisted(() => ({
   atualizarLote: vi.fn(),
   criarMovimentacao: vi.fn(),
 }));
-const sessao = vi.hoisted(() => ({ usuario: { administrador_fazenda: true } }));
+const sessao = vi.hoisted(() => ({ usuario: { id: "u-1", cliente_id: "c-1", administrador_fazenda: true } }));
 
 const cache = vi.hoisted(() => ({ refreshMapaCacheEntry: vi.fn(async () => []) }));
 vi.mock("@/services/loteManejoService", () => servico);
@@ -34,7 +34,7 @@ const { default: HistoricoAbateCurral } = await import("@/components/mapa/Histor
 const { default: RenomearLoteForm } = await import("@/components/lotes/RenomearLoteForm");
 
 // Criado pelo comando do servidor (R2A-R1): carrega a proveniência causal.
-const EFEITO_SERVIDOR = { comando: "manejo_mapa_lote", operation_id: "manejo-x", efeitos: [{ lote_id: "l1" }] };
+const EFEITO_SERVIDOR = { comando: "manejo_mapa_lote", operation_id: "manejo-x", efeitos: [{ lote_id: "l1", auditoria_id: "aud-1" }] };
 const MORTE = { id: "mv-1", empresa_id: "emp-1", tipo: "Morte", lote: "NELORE", lote_id: "l1", quantidade_animais: 50, area_origem_id: "a1", efeito_servidor: EFEITO_SERVIDOR };
 const LEGADO = { ...MORTE, id: "mv-legado", efeito_servidor: undefined };
 const ELEGIVEL = {
@@ -58,7 +58,7 @@ beforeEach(() => {
   online(true);
   window.localStorage.clear();
   servico.cancelarMovimentacaoMapa.mockReset();
-  sessao.usuario = { administrador_fazenda: true };
+  sessao.usuario = { id: "u-1", cliente_id: "c-1", administrador_fazenda: true };
   servico.consultarCancelamentoMovimentacao.mockImplementation(async () => ELEGIVEL);
   servico.cancelarMovimentacaoMapa.mockImplementation(async () => ({ movimentacao: { ...MORTE, situacao: "cancelado" } }));
 });
@@ -174,7 +174,7 @@ describe("CancelarMovimentacao — chave pendente (R2A-R1 P1-A)", () => {
     const c2 = servico.cancelarMovimentacaoMapa.mock.calls[1][1];
     expect(c2).toEqual(c1);
     // Resposta definitiva (replay 200): a pendência sai.
-    expect(window.localStorage.getItem("maike_cancelamento_pendente:mv-1")).toBeNull();
+    expect(window.localStorage.getItem("maike_cancelamento_pendente:c-1:u-1:mv-1")).toBeNull();
     confirmSpy.mockRestore();
   });
 
@@ -192,6 +192,42 @@ describe("CancelarMovimentacao — chave pendente (R2A-R1 P1-A)", () => {
     await clicar(screen.getByRole("button", { name: "Tentar de novo" }));
     await waitFor(() => expect(servico.cancelarMovimentacaoMapa).toHaveBeenCalledTimes(2));
     expect(servico.cancelarMovimentacaoMapa.mock.calls[1][1]).toEqual(c1);
+  });
+
+  it("pendência isolada por tenant+usuário: outro usuário no mesmo aparelho não herda chave nem motivo", async () => {
+    servico.cancelarMovimentacaoMapa.mockImplementationOnce(async () => { throw falhaDeRede(); });
+    const { unmount } = await renderizar(<CancelarMovimentacao movimento={MORTE} />);
+    await abrirEConfirmar("motivo do usuário A");
+    await screen.findByText(/pode ou não ter sido concluído/);
+    expect(window.localStorage.getItem("maike_cancelamento_pendente:c-1:u-1:mv-1")).toBeTruthy();
+    unmount();
+
+    sessao.usuario = { id: "u-2", cliente_id: "c-1", administrador_fazenda: true };
+    const { QueryClient: QC } = await import("@tanstack/react-query");
+    const client = new QC({ defaultOptions: { queries: { retry: false } } });
+    render(<QueryClientProvider client={client}><CancelarMovimentacao movimento={MORTE} /></QueryClientProvider>);
+    await assentar();
+    await clicar(await screen.findByRole("button", { name: "Cancelar movimentação" }));
+    expect((await screen.findByLabelText("Motivo do cancelamento")).value).toBe("");
+    expect(screen.getByRole("button", { name: "Confirmar cancelamento" })).toBeTruthy();
+    expect(screen.queryByText(/pode ou não ter sido concluído/)).toBeNull();
+  });
+
+  it("recusa por intervenção posterior: explica, diz que nada mudou e não oferece confirmação", async () => {
+    servico.consultarCancelamentoMovimentacao.mockImplementation(async () => ({ elegivel: false, codigo: "CANCELAMENTO_ALTERACAO_POSTERIOR" }));
+    await renderizar(<CancelarMovimentacao movimento={MORTE} />);
+    await clicar(await screen.findByRole("button", { name: "Cancelar movimentação" }));
+    const alerta = await screen.findByText(/correção direta, sem manejo comprovado/);
+    expect(alerta.textContent).toMatch(/Nada foi alterado/);
+    expect(alerta.textContent).toMatch(/conciliação assistida/);
+    expect(alerta.textContent).not.toMatch(/exclu/i);
+    expect(screen.queryByRole("button", { name: "Confirmar cancelamento" })).toBeNull();
+  });
+
+  it("efeito sem âncora de auditoria (registro da R2A-R1): sem ação, como legado", async () => {
+    const dom = await import("@/domain/lotes/situacaoMovimento");
+    const semAncora = { ...MORTE, efeito_servidor: { ...EFEITO_SERVIDOR, efeitos: [{ lote_id: "l1" }] } };
+    expect(dom.tipoTemCancelamento(semAncora)).toBe(false);
   });
 
   it("sucesso atualiza a cópia offline do histórico (força refresh de movimentacoesHistorico)", async () => {
