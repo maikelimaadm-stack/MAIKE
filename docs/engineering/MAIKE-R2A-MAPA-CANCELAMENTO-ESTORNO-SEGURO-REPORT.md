@@ -87,6 +87,8 @@ Os 36 testes da R3 cobrem, em cada largura:
 - nenhum `DELETE`/`PATCH` de movimento sai do navegador;
 - sem erro de página e sem rolagem horizontal.
 
+Depois do merge de #165/#166, que mexem em folhas e cards do celular, o E2E da R3 foi repetido: 1440 **9/9** e 390 **9/9** (`evidencias/r2a-r3/pos-merge-main/`). No 390, as duas primeiras tentativas usaram pastos com registros sintéticos antigos. Num deles havia uma Morte de 01/11, e por isso a transferência foi corretamente recusada por **dependência posterior na área**. Com pastos sem histórico, passou.
+
 Na primeira execução em 412, o toque no rótulo do pasto caiu sobre o marcador de outro lote sintético. Repetida com outro conjunto de pastos, passou 9/9. É a mesma sobreposição de dados de teste já registrada na R2, não uma regressão.
 
 **Declaração:**
