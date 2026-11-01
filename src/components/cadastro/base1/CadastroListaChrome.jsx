@@ -158,6 +158,8 @@ export default function CadastroListaChrome({
   const celular = useCelular();
   // Abaixo do desktop os cards se alinham sozinhos — sem "Layout dos cards".
   const desktop = useMediaQuery("(min-width: 1024px)");
+  // < 768px o cabeçalho do app tem ✕, ações e ✓ da edição: a barra some inteira.
+  const shellDoCelular = useMediaQuery("(max-width: 767px)");
   const oneSelected = selectedCount === 1;
   const anySelected = selectedCount > 0;
   const [showChips, setShowChips] = useState(true);
@@ -283,8 +285,14 @@ export default function CadastroListaChrome({
   );
 
   // Na edição o menu só mostra o que a tela marcou como `whileEditing`.
-  const itensMenu = secondaryToolsLocked ? extraMenuItems.filter((item) => item.whileEditing) : menuItems;
-  const menuDisponivel = !secondaryToolsLocked || itensMenu.length > 0;
+  // Na edição o menu sai; o que a tela marcou `whileEditing` (ex.: Anexos)
+  // vira botão de ícone ao lado do ✓ Salvar (D-PROD-96).
+  const itensMenu = menuItems;
+  const menuDisponivel = !secondaryToolsLocked;
+  const acoesDaEdicao = useMemo(
+    () => (secondaryToolsLocked ? (additionalMoreActions ?? []).filter((item) => !item.hidden && item.whileEditing) : []),
+    [secondaryToolsLocked, additionalMoreActions],
+  );
 
   const onMenu = (k) => {
     const extra = additionalMoreActions?.find((item) => item.key === k);
@@ -335,6 +343,7 @@ export default function CadastroListaChrome({
           onBack: onRecordBack ?? (() => onViewModeChange?.("table")),
           formId: recordEditing ? recordFormId : undefined,
           saving: Boolean(recordSaving),
+          acoes: recordEditing ? acoesDaEdicao : [],
         }
       : null,
   );
@@ -437,6 +446,8 @@ export default function CadastroListaChrome({
     </div>
   ) : null;
 
+  const barraNoCabecalho = Boolean(shellDoCelular && recordMode && recordEditing && secondaryToolsLocked);
+
   const toolbarRow = (
     <div
       data-testid="b1-toolbar"
@@ -515,7 +526,20 @@ export default function CadastroListaChrome({
         <FluidSlot open={Boolean(recordMode && recordEditing && recordToolbar)}>
           <div className="mg-fluid-slot__cluster">{recordToolbar}</div>
         </FluidSlot>
-        {!celular && secondaryToolsLocked && menuDisponivel ? maisOpcoesPopover : null}
+        {recordMode && recordEditing
+          ? acoesDaEdicao.map((acao) => (
+              <IconBtn
+                key={acao.key}
+                aria-label={acao.label}
+                title={acao.label}
+                disabled={acao.disabled}
+                className="mg-act-extra"
+                onClick={() => acao.onSelect()}
+              >
+                {acao.icon}
+              </IconBtn>
+            ))
+          : null}
         {celular ? maisOpcoesPopover : null}
       </div>
       {!secondaryToolsLocked && joinedShell ? (
@@ -746,7 +770,7 @@ export default function CadastroListaChrome({
       data-testid="b1-list"
       data-cadastro-chrome
     >
-      {!joinedShell ? toolbarRow : null}
+      {!joinedShell && !barraNoCabecalho ? toolbarRow : null}
       {!joinedShell ? pillsRail : null}
 
       <div className="flex min-h-0 flex-1 gap-2">
@@ -757,7 +781,7 @@ export default function CadastroListaChrome({
           )}
           onScrollCapture={carregarAoRolar}
         >
-          {joinedShell ? toolbarRow : null}
+          {joinedShell && !barraNoCabecalho ? toolbarRow : null}
           {joinedShell ? pillsRail : null}
           {shellBody}
           {listSummary}

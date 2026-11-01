@@ -281,15 +281,16 @@ export default function CadastroColunaFiltro({
           ) : null}
         </div>
         <div className="fpop-f">
-          <span className="fpop-zero" role={semResultado ? "status" : undefined}>
-            {semResultado ? "Nenhum registro atende a este filtro." : ""}
-          </span>
+          {/* Descartar à esquerda, Filtrar à direita — como ✕/✓ do registro (D-PROD-96). */}
           <button type="button" className="tb-btn tb-btn-icon tb-btn-sm shrink-0" title="Cancelar" aria-label="Cancelar" onClick={onFechar}>
             <X className="h-4 w-4" />
           </button>
+          <span className="fpop-zero" role={semResultado ? "status" : undefined}>
+            {semResultado ? "Nenhum registro atende a este filtro." : ""}
+          </span>
           <button
             type="submit"
-            className="tb-btn tb-btn-icon tb-btn-green tb-btn-sm shrink-0"
+            className="tb-btn tb-btn-icon tb-btn-green tb-btn-sm shrink-0 mk-btn-ok"
             title="Aplicar"
             aria-label="Aplicar"
             disabled={semResultado}
