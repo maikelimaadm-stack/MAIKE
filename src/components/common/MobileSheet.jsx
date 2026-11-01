@@ -132,6 +132,15 @@ export default function MobileSheet({
       const dy = y - g.y0;
       const dx = x - g.x0;
       if (!g.decidido) {
+        // iOS: se o primeiro touchmove não for cancelado a lista começa a rolar
+        // e o arraste da folha engasga. Cancela já no primeiro milímetro quando
+        // o gesto só pode ser da folha (cabeçalho/alça, lista no topo puxando
+        // para baixo, média puxando para cima).
+        if (ev?.cancelable && Math.abs(dy) >= Math.abs(dx)) {
+          const corpo = bodyRef.current;
+          const daFolha = !g.noCorpo || (dy > 0 && (!corpo || corpo.scrollTop <= 0)) || (dy < 0 && !grandeRef.current);
+          if (daFolha) ev.preventDefault();
+        }
         if (Math.abs(dy) < 7 && Math.abs(dx) < 7) return;
         g.decidido = true;
         if (Math.abs(dx) > Math.abs(dy)) {
@@ -150,12 +159,11 @@ export default function MobileSheet({
         g.max = alturaGrande();
         folha.classList.add("is-dragging");
         folha.style.transition = "none";
-        if (!grandeRef.current) {
-          // Média → altura da grande, deslocada: mesma aparência, arraste só com transform.
-          folha.style.height = `${g.max}px`;
-          folha.style.maxHeight = "none";
-          g.base = g.max - g.h0;
-        }
+        // Altura fixa na da grande durante todo o arraste (a média fica deslocada
+        // para baixo: mesma aparência). Assim só `transform` muda até soltar.
+        folha.style.height = `${g.max}px`;
+        folha.style.maxHeight = "none";
+        g.base = grandeRef.current ? 0 : g.max - g.h0;
       }
       if (ev?.cancelable) ev.preventDefault();
       const agora = performance.now();
@@ -166,9 +174,11 @@ export default function MobileSheet({
       if (!g.quadro) g.quadro = requestAnimationFrame(pintar);
     };
 
-    /** Anima até `alvo` px e chama `depois` ao terminar. */
+    /** Anima até `alvo` px e chama `depois` ao terminar. As margens e cantos da
+     *  troca média ↔ grande animam junto, na mesma curva (sem salto no fim). */
     const animarAte = (alvo, depois) => {
-      folha.style.transition = CURVA;
+      folha.classList.remove("is-dragging");
+      folha.style.transition = `${CURVA}, left 0.34s cubic-bezier(0.32, 0.72, 0, 1), right 0.34s cubic-bezier(0.32, 0.72, 0, 1), bottom 0.34s cubic-bezier(0.32, 0.72, 0, 1), border-radius 0.34s cubic-bezier(0.32, 0.72, 0, 1)`;
       folha.style.transform = `translate3d(0, ${alvo}px, 0)`;
       let feito = false;
       const fim = () => {
@@ -182,11 +192,12 @@ export default function MobileSheet({
     };
 
     const limpar = () => {
+      // Altura volta para a da classe e o deslocamento zera no mesmo quadro:
+      // a borda de cima não se mexe.
       folha.style.transition = "none";
       folha.style.height = "";
       folha.style.maxHeight = "";
       folha.style.transform = "";
-      folha.classList.remove("is-dragging");
       requestAnimationFrame(() => {
         folha.style.transition = "";
       });
@@ -216,15 +227,12 @@ export default function MobileSheet({
         destino = grandeRef.current && !rapidoBaixo && visivel > media * 0.7 ? "media" : "fechar";
       }
       if (destino === "grande") {
-        animarAte(0, () => {
-          setGrande(true);
-          limpar();
-        });
+        // Troca a classe já: margens e cantos animam junto com o deslizamento.
+        setGrande(true);
+        animarAte(0, limpar);
       } else if (destino === "media") {
-        animarAte(estado.max - media, () => {
-          setGrande(false);
-          limpar();
-        });
+        setGrande(false);
+        animarAte(estado.max - media, limpar);
       } else {
         animarAte(estado.max + 40, () => fecharRef.current?.());
       }
