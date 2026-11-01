@@ -598,6 +598,7 @@ const planejarCancelamentoRebanho = async (tx, clienteId, mov, { travar }) => {
   }
   await exigirSemAlteracaoPosteriorRebanho(tx, clienteId, mov, efeito.efeitos, ancoras);
 
+  /** @type {Array<{lote_id: string, lote_nome: string, criado: boolean, antes: Record<string, any>, depois: Record<string, any>, auditoria_id?: string}>} */
   const efeitos = [];
   for (const x of efeito.efeitos) {
     const lote = lotes.get(x.lote_id);
