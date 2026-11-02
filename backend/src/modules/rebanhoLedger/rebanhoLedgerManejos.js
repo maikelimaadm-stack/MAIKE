@@ -34,7 +34,6 @@ import {
   normal,
   pesoNaData,
   pesoNum,
-  pesoPonderado,
   ponto,
   posicaoDaIdentidade,
   recusa,
@@ -43,6 +42,9 @@ import {
   travarAreas,
   travarPosicoes,
   validarEReprojetar,
+  pesoAntesDoEvento,
+  registrarPesosDerivados,
+  verificarCausalidadeDePeso,
 } from './rebanhoLedgerNucleo.js';
 import { executarTransferencia } from './rebanhoLedgerService.js';
 
@@ -72,6 +74,8 @@ const concluir = async (tx, contexto, { e, evento, envolvidas, antes, areas, ped
   const auth = exigirAuthContext(contexto?.auth);
   await validarEReprojetar(tx, auth.clienteId, envolvidas, 'REBANHO_SALDO_HISTORICO_NEGATIVO', 'o manejo deixaria saldo negativo numa data; nada foi gravado',
     detalheSaldo(antes, areas, pedidos, dia));
+  // PR174-R2: nenhum peso derivado posterior pode depender do que este fato muda.
+  await verificarCausalidadeDePeso(tx, auth.clienteId, envolvidas, dia, { exceto: evento.id });
   ponto('apos_validar_manejo');
   const mov = await criarPonteMovimentacao(tx, contexto, { clienteId: auth.clienteId, empresaId: e.empresaId, evento, operationKey: e.operationKey, usuarioId: auth.usuarioId, dados: dadosPonte });
   ponto('antes_auditoria_manejo');
@@ -209,6 +213,8 @@ export const rebanhoNoLedger = async (tx, contexto, e, deps) => {
   const pedidos = new Map();
   const linhasPonte = [];
   const tocadas = new Set();
+  /** @type {Map<string, Array<{q: number, posicao_id: string|null, peso_informado: number|null}>>} */
+  const pesosPorDestino = new Map();
 
   if (e.tipo === 'Nascimento') {
     for (const linha of e.linhas) {
@@ -227,9 +233,8 @@ export const rebanhoNoLedger = async (tx, contexto, e, deps) => {
       });
       posicoes.set(posicao.id, posicao);
       await garantirPesoBase(tx, auth.clienteId, posicao);
-      const s = await saldoNaData(tx, auth.clienteId, posicao.id, dia);
-      const pAnt = await pesoNaData(tx, auth.clienteId, posicao.id, dia);
-      await registrarPeso(tx, { clienteId: auth.clienteId, empresaId: e.empresaId, eventoId: evento.id, posicaoId: posicao.id, dia, peso: pesoPonderado(s, pAnt ?? null, linha.quantidade, linha.peso_medio_kg ?? null), medido: linha.peso_medio_kg !== null });
+      if (!pesosPorDestino.has(posicao.id)) pesosPorDestino.set(posicao.id, []);
+      pesosPorDestino.get(posicao.id).push({ q: linha.quantidade, posicao_id: null, peso_informado: linha.peso_medio_kg ?? null });
       partidas.push({ posicao_id: posicao.id, delta: linha.quantidade });
       tocadas.add(posicao.id);
       linhasPonte.push({
@@ -274,10 +279,10 @@ export const rebanhoNoLedger = async (tx, contexto, e, deps) => {
         posicoes.set(d.id, d);
         await garantirPesoBase(tx, auth.clienteId, d);
         await garantirPesoBase(tx, auth.clienteId, f);
-        const sD = await saldoNaData(tx, auth.clienteId, d.id, dia);
-        const pD = await pesoNaData(tx, auth.clienteId, d.id, dia);
-        const pF = linha.peso_medio_kg ?? (await pesoNaData(tx, auth.clienteId, f.id, dia)) ?? pesoNum(f.peso_medio_kg);
-        await registrarPeso(tx, { clienteId: auth.clienteId, empresaId: e.empresaId, eventoId: evento.id, posicaoId: d.id, dia, peso: pesoPonderado(sD, pD ?? null, q, pF ?? null), medido: linha.peso_medio_kg !== null });
+        if (!pesosPorDestino.has(d.id)) pesosPorDestino.set(d.id, []);
+        pesosPorDestino.get(d.id).push(linha.peso_medio_kg !== null && linha.peso_medio_kg !== undefined
+          ? { q, posicao_id: null, peso_informado: linha.peso_medio_kg }
+          : { q, posicao_id: f.id, peso_informado: null });
         partidas.push({ posicao_id: f.id, delta: -q }, { posicao_id: d.id, delta: q });
         pedidos.set(f.id, (pedidos.get(f.id) ?? 0) + q);
         livre.set(f.id, livre.get(f.id) - q);
@@ -289,6 +294,7 @@ export const rebanhoNoLedger = async (tx, contexto, e, deps) => {
       linhasPonte.push({ quantidade: linha.quantidade, categoria_atual: linha.categoria_atual, categoria_nova: linha.categoria_nova, categoria_manejo_nome: cm?.nome ?? null, partes });
     }
   }
+  if (pesosPorDestino.size) await registrarPesosDerivados(tx, { clienteId: auth.clienteId, empresaId: e.empresaId, evento, dia, destinos: pesosPorDestino });
   if (partidas.length) await inserirPartidas(tx, { clienteId: auth.clienteId, empresaId: e.empresaId, eventoId: evento.id, dia, partidas });
   ponto('apos_primeira_partida');
   const envolvidas = [...tocadas];
@@ -351,9 +357,10 @@ export const juncaoNoLedger = async (tx, contexto, e, deps) => {
   });
   for (const id of ids) await garantirPesoBase(tx, auth.clienteId, posicoes.get(id));
   const sP = await saldoNaData(tx, auth.clienteId, principal.id, dia);
-  let peso = await pesoNaData(tx, auth.clienteId, principal.id, dia);
-  peso = peso === undefined ? pesoNum(principal.peso_medio_kg) : peso;
   let acumulado = sP;
+  const entradasDePeso = [];
+  /** Peso de cada origem na data (antes da junção), para a linha do histórico. */
+  const pesosDasOrigens = new Map();
   const contribuicoes = [];
   const partidas = [];
   const pedidos = new Map();
@@ -361,8 +368,8 @@ export const juncaoNoLedger = async (tx, contexto, e, deps) => {
     const o = posicoes.get(id);
     const q = await saldoNaData(tx, auth.clienteId, o.id, dia);
     if (q <= 0) throw recusa('JUNCAO_LOTE_INELEGIVEL', 'a posição de origem não tinha cabeças na data da junção', { posicao_id: o.id, data: dia });
-    const pO = await pesoNaData(tx, auth.clienteId, o.id, dia);
-    peso = pesoPonderado(acumulado, peso, q, pO === undefined ? pesoNum(o.peso_medio_kg) : pO);
+    entradasDePeso.push({ q, posicao_id: o.id, peso_informado: null });
+    pesosDasOrigens.set(o.id, (await pesoAntesDoEvento(tx, auth.clienteId, o.id, dia, evento)) ?? null);
     acumulado += q;
     partidas.push({ posicao_id: o.id, delta: -q }, { posicao_id: principal.id, delta: q });
     pedidos.set(o.id, q);
@@ -370,7 +377,7 @@ export const juncaoNoLedger = async (tx, contexto, e, deps) => {
   }
   await inserirPartidas(tx, { clienteId: auth.clienteId, empresaId: e.empresaId, eventoId: evento.id, dia, partidas });
   ponto('apos_primeira_partida');
-  await registrarPeso(tx, { clienteId: auth.clienteId, empresaId: e.empresaId, eventoId: evento.id, posicaoId: principal.id, dia, peso });
+  const peso = (await registrarPesosDerivados(tx, { clienteId: auth.clienteId, empresaId: e.empresaId, evento, dia, destinos: new Map([[principal.id, entradasDePeso]]) })).get(principal.id) ?? null;
   await tx.posicaoRebanho.update({ where: { cliente_id_id: { cliente_id: auth.clienteId, id: principal.id } }, data: { linhagem: [...(Array.isArray(principal.linhagem) ? principal.linhagem : []), ...contribuicoes] } });
   const participantes = ids.map((id) => posicoes.get(id));
   return concluir(tx, contexto, {
@@ -390,7 +397,7 @@ export const juncaoNoLedger = async (tx, contexto, e, deps) => {
         politica_peso: peso === null ? 'desconhecido_sem_media' : 'media_ponderada',
         total_cabecas: acumulado,
       },
-      linhas: contribuicoes.map((c) => ({ lote_id: c.posicao_id, posicao_id: c.posicao_id, lote_entrada_id: c.lote_id, nome: c.nome, numero_lote: c.numero_lote, quantidade: c.quantidade, peso_medio_kg: null })),
+      linhas: contribuicoes.map((c) => ({ lote_id: c.posicao_id, posicao_id: c.posicao_id, lote_entrada_id: c.lote_id, nome: c.nome, numero_lote: c.numero_lote, quantidade: c.quantidade, peso_medio_kg: pesosDasOrigens.get(c.posicao_id) ?? null })),
       ...(e.observacoes ? { observacoes: e.observacoes } : {}),
     },
   });

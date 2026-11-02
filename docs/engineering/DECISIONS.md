@@ -4343,4 +4343,40 @@ A auditoria do HEAD `0187cdd` encontrou sete achados (A–G). Esta revisão os f
 - **G — honestidade remota:** sem `MIGRATION_DATABASE_URL` neste container, a migração remota é `REMOTE_MIGRATION_BLOCKED`. Nenhuma ativação ou reset remoto antes do merge/deploy.
 - **Verificação:** `GET /rebanho/verificacao` inclui `pesos_divergentes` e `conservacao` (entradas + nascimentos + saídas + internos = saldo). `integro` exige tudo.
 
+### D-PROD-107 — complemento PR174-R2 (fechamento: reset × idempotência, POST genérico, peso causal)
+
+Auditoria do HEAD `84d0ad5`: três lacunas reproduzidas em RED (PostgreSQL real + HTTP) e fechadas na MESMA decisão, sem migration nova.
+
+- **A — reset de teste × respostas idempotentes e vínculos.**
+  - Reserva `OperacaoIdempotente` cuja resposta cita um movimento apagado pelo reset vira `status = 'desfeito'`.
+  - Busca: id exato (cuid) do movimento, dentro do tenant. Nunca `deleteMany` por cliente.
+  - O executor nunca responde replay de reserva desfeita: 409 `IDEMPOTENCY_EFEITO_DESFEITO`, inclusive no caminho concorrente.
+  - Recusa fechada `RESET_VINCULOS_PENDENTES` (com a lista de vínculos) quando um documento cita movimento apagado ou lote retirado. Fontes varridas:
+    - suplementação (evento e lote), aplicação de medicamento, evento sanitário e manejo técnico;
+    - movimentação pecuária, bebedouro (histórico, sanidade, alerta), tarefa e histórico de tarefa;
+    - anexo (`entidade_id`) e movimento de outra empresa.
+  - Documento adjacente nunca é apagado nem reescrito às cegas.
+  - Reexecução sem nada a fazer: no-op (sem backup, sem auditoria). Backup v2 inclui as reservas.
+  - AuditLog anterior é imutável. O AuditLog do reset lista os ids de movimentos apagados, lotes retirados e restaurados, e as chaves invalidadas.
+- **B — POST genérico não grava fato material em empresa ativada.**
+  - `exigirFatoGenericoForaDoLedger` roda na transação, antes de gravar, auditar ou reservar.
+  - Cobre `/movimentacoes-mapa` e `/movimentacoes-pecuaria` (unitário e `criarEmLote` do service; não há rota HTTP de lote).
+  - Resposta: 409 `REBANHO_LEDGER_SOMENTE_POR_COMANDO`.
+  - A empresa sai do documento E de cada lote ou posição citado: corpo com outra empresa não contorna.
+  - Whitelist fechada de informativo: `Entrada` + motivo `Renomear Lote`.
+  - Junção mantém `JUNCAO_SOMENTE_POR_COMANDO`. PATCH/DELETE já recusados (R2A). Campos reservados seguem com 400.
+  - Empresa legada: comportamento aprovado intacto.
+  - Serialização: o POST faz `FOR SHARE` na Empresa antes de ler a ativação; a ativação faz `FOR UPDATE` na Empresa.
+- **C — peso causal.** Estratégia escolhida: **recusa causal**, não replay de série.
+  - O peso derivado (transferência, junção, mudança de categoria, nascimento) é UMA função pura: média ponderada do destino antes do fato com cada entrada (peso da origem antes do fato, ou peso informado).
+  - Desconhecido contamina: `null`, nunca zero.
+  - A mesma função grava e, a cada mudança retroativa ou cancelamento, reconfere os fatos derivados ativos posteriores que tocam as posições afetadas.
+  - Se o peso de algum mudaria → 409 `REBANHO_PESO_DEPENDENCIA_CAUSAL` com `evento_id`, `tipo`, `data`, `posicao_id`, `peso_registrado_kg`, `peso_recalculado_kg`. Desfaz-se na ordem inversa.
+  - **Ordem dos fatos:** `(data_operacional, registrado_em, id)`. `registrado_em` = `clock_timestamp()` do banco, depois das travas. No mesmo dia vale a ordem de registro: pesagem lançada depois é posterior.
+  - **Fatos independentes passam:** pesagem posterior (outro dia ou mesmo dia registrada depois) substitui legitimamente. Retroativo que não muda o peso calculado também passa (ex.: transferência do dia 20 e depois do dia 18 com o mesmo peso).
+  - Descritor `dados.pesos_derivados` no evento. Uma observação por destino (a transferência deixou de gravar uma por item).
+  - Eventos anteriores ao R2 (só bancos locais, sem produção) não têm descritor e não são reconferidos.
+- **UI:** as recusas novas e `CANCELAMENTO_SALDO_HISTORICO_NEGATIVO` (antes tratada como "resultado desconhecido") viram recusa definitiva com data e pesos. A elegibilidade mostra o detalhe antes de qualquer envio. A linha da junção no histórico mostra o peso real da origem.
+- **Remoto:** `REMOTE_MIGRATION_BLOCKED` (sem `MIGRATION_*` no container). Nenhuma ativação ou reset remoto antes do merge e do deploy.
+
 <!-- Próxima decisão: D-PROD-108 -->

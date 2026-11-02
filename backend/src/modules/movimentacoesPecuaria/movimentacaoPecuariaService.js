@@ -2,6 +2,7 @@
  * Serviço de MovimentacaoPecuaria (P5.5).
  */
 import { exigirLotesDosDocumentos } from '../../shared/lotes/loteVivo.js';
+import { exigirFatoGenericoForaDoLedger } from '../rebanhoLedger/rebanhoLedgerGuardaGenerica.js';
 import { getPrismaClient } from '../../database/prismaClient.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { AppError } from '../../shared/errors/AppError.js';
@@ -30,6 +31,8 @@ export const criar = async (contexto, entrada) => {
   const criado = await prisma.$transaction(async (tx) => {
     const dados = montarDocumento(auth.clienteId, entrada);
     // Lote excluído do cadastro não recebe registro novo (MAIKE-LOTES-R1).
+    // PR174-R2: empresa no ledger → só comando certificado (antes de gravar/auditar).
+    await exigirFatoGenericoForaDoLedger(tx, auth.clienteId, [dados], 'MovimentacaoPecuaria');
     await exigirLotesDosDocumentos(tx, auth.clienteId, [dados.dados]);
     const registro = await inserirRegistro(tx, dados);
     await registrarEvento(
@@ -53,6 +56,7 @@ export const criarEmLote = async (contexto, registros) => {
     for (const entrada of registros) {
       const dados = montarDocumento(auth.clienteId, entrada);
       // Lote excluído do cadastro não recebe registro novo (MAIKE-LOTES-R1).
+      await exigirFatoGenericoForaDoLedger(tx, auth.clienteId, [dados], 'MovimentacaoPecuaria');
       await exigirLotesDosDocumentos(tx, auth.clienteId, [dados.dados]);
       const registro = await inserirRegistro(tx, dados);
       saida.push(registro);

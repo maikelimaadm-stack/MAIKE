@@ -128,3 +128,20 @@ describe('R2E histórico: movimento do ledger é certificado (achado do E2E)', (
     expect(mensagemDaTransferenciaLedger(erro)).toBe('Saldo insuficiente em PASTO B no dia 19/12/2026. Disponível na data: 67 cab; pedido: 72 cab. Nada foi gravado.');
   });
 });
+
+describe('PR174-R2 mensagens das recusas novas (nada de falso sucesso)', () => {
+  it('peso causal: manejo e cancelamento mostram a data do registro dependente e os pesos', async () => {
+    const erro = Object.assign(new Error('x'), { code: 'API_OPERATION_FAILED', cause: { code: 'REBANHO_PESO_DEPENDENCIA_CAUSAL' }, details: { data: '2026-11-02', peso_registrado_kg: 500, peso_recalculado_kg: 400 } });
+    expect(mensagemDaTransferenciaLedger(erro)).toBe('O registro do dia 02/11/2026 calculou o peso com o valor que este manejo mudaria. Cancele-o antes. Nada foi gravado.');
+    const { mensagemDeRecusa, MENSAGENS_RECUSA } = await import('@/components/lotes/CancelarMovimentacao');
+    expect(mensagemDeRecusa('REBANHO_PESO_DEPENDENCIA_CAUSAL', { data: '2026-11-02', peso_registrado_kg: 500, peso_recalculado_kg: 400 })).toMatch(/dia 02\/11\/2026 .*500 kg.*400 kg.*Nada foi alterado/);
+    expect(mensagemDeRecusa('CANCELAMENTO_SALDO_HISTORICO_NEGATIVO', { data: '2026-11-04', area_nome: 'PASTO B' })).toMatch(/PASTO B no dia 04\/11\/2026/);
+    for (const c of ['CANCELAMENTO_SALDO_HISTORICO_NEGATIVO', 'REBANHO_PESO_DEPENDENCIA_CAUSAL', 'REBANHO_LEDGER_CANCELAMENTO_LEGADO', 'IDEMPOTENCY_EFEITO_DESFEITO']) expect(MENSAGENS_RECUSA[c]).toMatch(/Nada foi alterado/);
+  });
+  it('POST genérico recusado e replay desfeito têm mensagem própria', () => {
+    for (const code of ['REBANHO_LEDGER_SOMENTE_POR_COMANDO', 'IDEMPOTENCY_EFEITO_DESFEITO']) {
+      const erro = Object.assign(new Error('x'), { code: 'API_OPERATION_FAILED', cause: { code } });
+      expect(mensagemDaTransferenciaLedger(erro)).toMatch(/Nada foi gravado/);
+    }
+  });
+});

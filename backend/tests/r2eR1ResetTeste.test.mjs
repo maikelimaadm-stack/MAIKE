@@ -105,10 +105,10 @@ describe('R1 reset controlado de dados de teste (escopo fechado)', () => {
     assert.equal(recusa.json().code, 'REBANHO_ATIVACAO_ENTRADAS_COM_HISTORICO');
 
     const plano = await planejarReset(prisma(), { clienteId: c.cliente.id, empresaId: c.empresa.id });
-    assert.deepEqual(plano, { empresa_nome: 'Fazenda', movimentacoes_a_apagar: 2, lotes_de_entrada: 1, lotes_a_restaurar: 1, lotes_derivados_ou_nascidos_a_retirar: 1 });
+    assert.deepEqual(plano, { empresa_nome: 'Fazenda', movimentacoes_a_apagar: 2, lotes_de_entrada: 1, lotes_a_restaurar: 1, lotes_derivados_ou_nascidos_a_retirar: 1, operacoes_a_invalidar: 2, vinculos_pendentes: 0 });
     let backup = null;
     const resumo = await executarReset(prisma(), { clienteId: c.cliente.id, empresaId: c.empresa.id, confirmarEmpresaNome: 'Fazenda', gravarBackup: (b) => { backup = b; } });
-    assert.deepEqual(resumo, { movimentacoes_apagadas: 2, lotes_restaurados: 1, lotes_retirados: 1, lotes_de_entrada: 1 });
+    assert.deepEqual(resumo, { movimentacoes_apagadas: 2, lotes_restaurados: 1, lotes_retirados: 1, operacoes_invalidadas: 2, lotes_de_entrada: 1 });
     assert.equal(backup.movimentacoes_mapa.length, 2);
     assert.equal(backup.lotes.length, 2);
     assert.deepEqual(backup.escopo, { cliente_id: c.cliente.id, empresa_id: c.empresa.id });

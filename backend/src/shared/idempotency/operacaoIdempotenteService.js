@@ -6,6 +6,21 @@ import { createHash } from 'node:crypto';
 import { AppError } from '../errors/AppError.js';
 
 /** @param {unknown} payload */
+/**
+ * PR174-R2 (D-PROD-107): reserva cujo EFEITO foi desfeito fora do comando
+ * (reset controlado de dados de teste). Nunca mais responde replay: o corpo
+ * guardado cita registros que não existem. A chave fica bloqueada (409
+ * estável); uma nova operação usa chave nova.
+ */
+export const STATUS_DESFEITO = 'desfeito';
+const recusarSeDesfeito = (registro, operationKey) => {
+  if (registro?.status === STATUS_DESFEITO) {
+    throw new AppError('IDEMPOTENCY_EFEITO_DESFEITO', 'o efeito desta operação foi desfeito (reset de dados de teste); envie como operação nova', {
+      details: { operation_id: operationKey },
+    });
+  }
+};
+
 export const fingerprintDePayload = (payload) =>
   createHash('sha256').update(JSON.stringify(payload ?? {})).digest('hex');
 
@@ -31,6 +46,7 @@ export const executarComIdempotencia = async (tx, opcoes) => {
 
   const existente = await tx.operacaoIdempotente.findUnique({ where: chave });
   if (existente) {
+    recusarSeDesfeito(existente, operationKey);
     if (existente.fingerprint !== fingerprint) {
       throw new AppError('IDEMPOTENCY_CONFLICT', 'operation_id reutilizado com payload diferente', {
         details: { operation_id: operationKey, tipo_operacao: tipoOperacao },
@@ -70,6 +86,7 @@ export const executarComIdempotencia = async (tx, opcoes) => {
   });
   if (count === 0) {
     const concorrente = await tx.operacaoIdempotente.findUnique({ where: chave });
+    recusarSeDesfeito(concorrente, operationKey);
     if (!concorrente || concorrente.fingerprint !== fingerprint) {
       throw new AppError('IDEMPOTENCY_CONFLICT', 'operation_id reutilizado com payload diferente', {
         details: { operation_id: operationKey },

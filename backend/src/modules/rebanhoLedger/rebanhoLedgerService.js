@@ -62,12 +62,14 @@ import {
   primeirosSaldosNegativos,
   recusa,
   registrarPeso,
+  registrarPesosDerivados,
   reprojetar,
   saldoNaData,
   texto,
   travarAreas,
   travarPosicoes,
   validarEReprojetar,
+  verificarCausalidadeDePeso,
 } from './rebanhoLedgerNucleo.js';
 
 export { COMANDO_LEDGER, ativacaoDaEmpresa, comoPosicaoPublica, dataOperacionalValida, diaDe } from './rebanhoLedgerNucleo.js';
@@ -140,7 +142,8 @@ export const ativarLedger = async (contexto, entrada) => {
       tipoOperacao: TIPO_OPERACAO_ATIVACAO,
       fingerprint,
       executar: async () => {
-        const empresa = await tx.empresa.findUnique({ where: { cliente_id_id: { cliente_id: auth.clienteId, id: empresaId } }, select: { id: true } });
+        // PR174-R2: trava a Empresa (o POST genérico usa FOR SHARE nela antes de ler a ativação).
+        const [empresa] = /** @type {Array<{id: string}>} */ (await tx.$queryRaw`SELECT id FROM "Empresa" WHERE cliente_id = ${auth.clienteId} AND id = ${empresaId} FOR UPDATE`);
         if (!empresa) throw new AppError('EMPRESA_NOT_FOUND', 'empresa não encontrada');
         if (await ativacaoDaEmpresa(tx, auth.clienteId, empresaId)) throw recusa('REBANHO_LEDGER_JA_ATIVO', 'o ledger já está ativo nesta empresa');
         // Trava todas as áreas e lotes da empresa: nenhum manejo legado corre durante a ativação.
@@ -405,18 +408,16 @@ export const executarTransferencia = async (tx, contexto, e) => {
     },
   });
   ponto('apos_evento');
-  // Peso no destino NA DATA do fato: ponderado com o que o destino tinha naquele dia.
+  // Peso no destino NA DATA do fato (PR174-R2): uma observação por destino,
+  // pela função única de peso derivado (a mesma que reconfere depois).
+  for (const p of todas.values()) await garantirPesoBase(tx, auth.clienteId, p);
+  const entradasPorDestino = new Map();
   for (const it of e.itens) {
-    const d = todas.get(destinos.get(it.posicao_id));
-    const o = todas.get(it.posicao_id);
-    await garantirPesoBase(tx, auth.clienteId, d);
-    await garantirPesoBase(tx, auth.clienteId, o);
-    const sDestino = await saldoNaData(tx, auth.clienteId, d.id, e.dia);
-    const pDestino = await pesoNaData(tx, auth.clienteId, d.id, e.dia);
-    const pOrigem = await pesoNaData(tx, auth.clienteId, o.id, e.dia);
-    const peso = pesoPonderado(sDestino, pDestino ?? null, it.quantidade, pOrigem ?? pesoNum(o.peso_medio_kg));
-    await registrarPeso(tx, { clienteId: auth.clienteId, empresaId: e.empresaId, eventoId: evento.id, posicaoId: d.id, dia: e.dia, peso });
+    const d = destinos.get(it.posicao_id);
+    if (!entradasPorDestino.has(d)) entradasPorDestino.set(d, []);
+    entradasPorDestino.get(d).push({ q: it.quantidade, posicao_id: it.posicao_id, peso_informado: null });
   }
+  await registrarPesosDerivados(tx, { clienteId: auth.clienteId, empresaId: e.empresaId, evento, dia: e.dia, destinos: entradasPorDestino });
   let n = 0;
   for (const it of e.itens) {
     await inserirPartidas(tx, {
@@ -429,6 +430,7 @@ export const executarTransferencia = async (tx, contexto, e) => {
   const envolvidas = [...todas.keys()];
   await validarEReprojetar(tx, auth.clienteId, envolvidas, 'REBANHO_SALDO_HISTORICO_NEGATIVO', 'a transferência deixaria saldo negativo numa data; nada foi gravado',
     detalheSaldo(todas, areas, new Map(e.itens.map((it) => [it.posicao_id, it.quantidade])), e.dia));
+  await verificarCausalidadeDePeso(tx, auth.clienteId, [...todas.keys()], e.dia, { exceto: evento.id });
   ponto('apos_segunda_posicao');
 
   const primeira = todas.get(e.itens[0].posicao_id);
@@ -544,6 +546,8 @@ export const cancelarMovimentoDoLedger = async (tx, contexto, mov, motivo, opera
       const p = antes.get(neg.posicao_id);
       return { data: neg.dia, area_id: p?.area_id ?? null, area_nome: areas.get(p?.area_id)?.nome ?? null, posicao_id: neg.posicao_id, nome: p?.nome ?? null, saldo_resultante: neg.saldo };
     });
+  // PR174-R2: o peso de um fato posterior que dependia deste não pode ficar "órfão".
+  await verificarCausalidadeDePeso(tx, auth.clienteId, ids, diaDoBanco(evento.data_operacional), { exceto: evento.id });
   const agora = new Date();
   await tx.eventoRebanho.update({
     where: { cliente_id_id: { cliente_id: auth.clienteId, id: evento.id } },

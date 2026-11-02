@@ -678,7 +678,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
       onClose();
       window.dispatchEvent(new CustomEvent('atualizar-mapa', { detail: { cacheKeys: ['lotes', 'movimentacoes', 'movimentacoesHistorico'] } }));
     } catch (erro) {
-      toast.error(mensagemDoErro(erro));
+      toast.error(mensagemDaTransferenciaLedger(erro));
     } finally {
       baixaEmAndamento.current = false;
       setEnviandoBaixa(false);
@@ -702,7 +702,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
       onClose();
       window.dispatchEvent(new CustomEvent('atualizar-mapa', { detail: { cacheKeys: ['lotes', 'movimentacoes', 'movimentacoesHistorico'] } }));
     } catch (erro) {
-      toast.error(mensagemDoErro(erro));
+      toast.error(mensagemDaTransferenciaLedger(erro));
     }
   };
 
@@ -737,7 +737,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
       onClose();
       window.dispatchEvent(new CustomEvent('atualizar-mapa', { detail: { cacheKeys: ['lotes', 'movimentacoes', 'movimentacoesHistorico'] } }));
     } catch (erro) {
-      toast.error(mensagemDoErro(erro));
+      toast.error(mensagemDaTransferenciaLedger(erro));
     } finally {
       setEnviandoJuncao(false);
     }

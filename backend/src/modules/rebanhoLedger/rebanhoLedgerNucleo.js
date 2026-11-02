@@ -244,11 +244,13 @@ export const saldoNaData = async (tx, clienteId, posicaoId, dia, semEventoId = n
  * (desempate: a gravada por último). `undefined` = nenhuma observação.
  */
 export const pesoNaData = async (tx, clienteId, posicaoId, dia) => {
-  const o = await tx.pesoRebanho.findFirst({
-    where: { cliente_id: clienteId, posicao_id: posicaoId, ativa: true, data_operacional: { lte: comoData(dia) } },
-    orderBy: [{ data_operacional: 'desc' }, { createdAt: 'desc' }, { id: 'desc' }],
-  });
-  return o ? pesoNum(o.peso_medio_kg) : undefined;
+  const [o] = /** @type {Array<{peso: unknown}>} */ (await tx.$queryRaw`
+    SELECT w.peso_medio_kg AS peso
+      FROM "PesoRebanho" w JOIN "EventoRebanho" ev ON ev.cliente_id = w.cliente_id AND ev.id = w.evento_id
+     WHERE w.cliente_id = ${clienteId} AND w.posicao_id = ${posicaoId} AND w.ativa AND w.data_operacional <= ${comoData(dia)}::date
+     ORDER BY w.data_operacional DESC, ev.registrado_em DESC, ev.id DESC, w."createdAt" DESC, w.id DESC
+     LIMIT 1`);
+  return o ? pesoNum(o.peso) : undefined;
 };
 
 /**
@@ -291,8 +293,9 @@ export const reprojetar = async (tx, clienteId, posicaoIds) => {
        SET quantidade_cabecas = COALESCE((SELECT SUM(x.delta) FROM "PartidaRebanho" x WHERE x.cliente_id = p.cliente_id AND x.posicao_id = p.id AND x.ativa), 0),
            peso_medio_kg = CASE
              WHEN EXISTS (SELECT 1 FROM "PesoRebanho" w WHERE w.cliente_id = p.cliente_id AND w.posicao_id = p.id)
-             THEN (SELECT w.peso_medio_kg FROM "PesoRebanho" w WHERE w.cliente_id = p.cliente_id AND w.posicao_id = p.id AND w.ativa
-                    ORDER BY w.data_operacional DESC, w."createdAt" DESC, w.id DESC LIMIT 1)
+             THEN (SELECT w.peso_medio_kg FROM "PesoRebanho" w JOIN "EventoRebanho" ev ON ev.cliente_id = w.cliente_id AND ev.id = w.evento_id
+                    WHERE w.cliente_id = p.cliente_id AND w.posicao_id = p.id AND w.ativa
+                    ORDER BY w.data_operacional DESC, ev.registrado_em DESC, ev.id DESC, w."createdAt" DESC, w.id DESC LIMIT 1)
              ELSE p.peso_medio_kg END,
            "updatedAt" = now()
      WHERE p.cliente_id = ${clienteId} AND p.id = ANY(${ids}::text[])`;
@@ -314,10 +317,136 @@ export const validarEReprojetar = async (tx, clienteId, posicaoIds, codigo, mens
 
 // ─── Evento, partidas, auditoria, ponte de histórico ───────────────────────
 
-export const criarEvento = (tx, { clienteId, empresaId, tipo, dia, usuarioId, operationKey, dados }) =>
-  tx.eventoRebanho.create({
-    data: { cliente_id: clienteId, empresa_id: empresaId, tipo, data_operacional: comoData(dia), registrado_por_usuario_id: usuarioId ?? null, operation_id: operationKey, dados },
+/**
+ * PR174-R2: `registrado_em` é o relógio do BANCO no momento da criação
+ * (clock_timestamp, depois das travas), não o início da transação. Fatos que
+ * disputam as mesmas posições ficam em ordem de registro real — é o
+ * desempate de "mesmo dia" do motor de peso causal.
+ */
+export const criarEvento = async (tx, { clienteId, empresaId, tipo, dia, usuarioId, operationKey, dados }) => {
+  const [{ agora }] = /** @type {Array<{agora: Date}>} */ (await tx.$queryRaw`SELECT clock_timestamp() AS agora`);
+  return tx.eventoRebanho.create({
+    data: { cliente_id: clienteId, empresa_id: empresaId, tipo, data_operacional: comoData(dia), registrado_em: agora, registrado_por_usuario_id: usuarioId ?? null, operation_id: operationKey, dados },
   });
+};
+
+// ─── Peso causal (PR174-R2) ────────────────────────────────────────────────
+//
+// Ordem dos fatos: (data_operacional, registrado_em, id do evento). "Antes de
+// F" = data anterior, ou mesma data e registrado antes de F. Um fato lançado
+// depois no MESMO dia é posterior (desempate documentado na D-PROD-107).
+//
+// Peso derivado (transferência, junção, mudança de categoria, nascimento) é
+// UMA função pura das entradas do fato: média ponderada do destino antes de F
+// com cada entrada (peso da origem antes de F, ou peso informado). Peso
+// desconhecido contamina (null, nunca zero). A mesma função grava e reconfere:
+// toda mudança retroativa/cancelamento reconfere os fatos derivados
+// posteriores que tocam as posições afetadas; se o peso deles mudaria,
+// 409 REBANHO_PESO_DEPENDENCIA_CAUSAL (desfazer na ordem inversa).
+
+const TIPOS_PESO_DERIVADO = Object.freeze(['TRANSFERENCIA', 'JUNCAO', 'MUDANCA_CATEGORIA', 'NASCIMENTO']);
+
+/** Peso ativo de uma posição imediatamente antes do fato `ref` (undefined = sem observação). */
+export const pesoAntesDoEvento = async (tx, clienteId, posicaoId, dia, ref) => {
+  const [l] = /** @type {Array<{peso: unknown}>} */ (await tx.$queryRaw`
+    SELECT w.peso_medio_kg AS peso
+      FROM "PesoRebanho" w JOIN "EventoRebanho" ev ON ev.cliente_id = w.cliente_id AND ev.id = w.evento_id
+     WHERE w.cliente_id = ${clienteId} AND w.posicao_id = ${posicaoId} AND w.ativa AND w.evento_id <> ${ref.id}
+       AND (w.data_operacional < ${comoData(dia)}::date
+            OR (w.data_operacional = ${comoData(dia)}::date AND (ev.registrado_em, ev.id) < (SELECT r.registrado_em, r.id FROM "EventoRebanho" r WHERE r.cliente_id = ${clienteId} AND r.id = ${ref.id})))
+     ORDER BY w.data_operacional DESC, ev.registrado_em DESC, ev.id DESC, w."createdAt" DESC, w.id DESC
+     LIMIT 1`);
+  return l ? pesoNum(l.peso) : undefined;
+};
+
+/** Saldo de uma posição imediatamente antes do fato `ref`. */
+export const saldoAntesDoEvento = async (tx, clienteId, posicaoId, dia, ref) => {
+  const [l] = /** @type {Array<{s: number}>} */ (await tx.$queryRaw`
+    SELECT COALESCE(SUM(x.delta), 0)::int AS s
+      FROM "PartidaRebanho" x JOIN "EventoRebanho" ev ON ev.cliente_id = x.cliente_id AND ev.id = x.evento_id
+     WHERE x.cliente_id = ${clienteId} AND x.posicao_id = ${posicaoId} AND x.ativa AND x.evento_id <> ${ref.id}
+       AND (x.data_operacional < ${comoData(dia)}::date
+            OR (x.data_operacional = ${comoData(dia)}::date AND (ev.registrado_em, ev.id) < (SELECT r.registrado_em, r.id FROM "EventoRebanho" r WHERE r.cliente_id = ${clienteId} AND r.id = ${ref.id})))`);
+  return l?.s ?? 0;
+};
+
+/** Média ponderada de [(cabeças, peso)]; qualquer peso desconhecido com cabeças → null. */
+export const combinarPesos = (pares) => {
+  const validos = pares.filter(([q]) => q > 0);
+  if (!validos.length) return null;
+  if (validos.some(([, w]) => w === null || w === undefined)) return null;
+  const total = validos.reduce((t, [q]) => t + q, 0);
+  return peso4(validos.reduce((t, [q, w]) => t + q * w, 0) / total);
+};
+
+/**
+ * @typedef {{ q: number, posicao_id: string|null, peso_informado: number|null }} EntradaDePeso
+ * @param {{id: string, registrado_em: Date}} ref fato que grava o peso
+ * @param {EntradaDePeso[]} entradas
+ */
+export const pesoDerivado = async (tx, clienteId, ref, destinoId, dia, entradas) => {
+  const s = await saldoAntesDoEvento(tx, clienteId, destinoId, dia, ref);
+  const pares = [];
+  if (s > 0) pares.push([s, (await pesoAntesDoEvento(tx, clienteId, destinoId, dia, ref)) ?? null]);
+  for (const e of entradas) {
+    const w = e.posicao_id ? (await pesoAntesDoEvento(tx, clienteId, e.posicao_id, dia, ref)) ?? null : e.peso_informado ?? null;
+    pares.push([e.q, w]);
+  }
+  return combinarPesos(pares);
+};
+
+/**
+ * Grava UMA observação por destino e guarda no evento o descritor
+ * (`dados.pesos_derivados`) que permite reconferir o cálculo depois.
+ * @param {{clienteId: string, empresaId: string, evento: any, dia: string, destinos: Map<string, EntradaDePeso[]>}} a
+ * @returns {Promise<Map<string, number|null>>}
+ */
+export const registrarPesosDerivados = async (tx, { clienteId, empresaId, evento, dia, destinos }) => {
+  const resultado = new Map();
+  const descritor = [];
+  for (const [destinoId, entradas] of [...destinos.entries()].sort(([a], [b]) => a.localeCompare(b))) {
+    const peso = await pesoDerivado(tx, clienteId, evento, destinoId, dia, entradas);
+    const medido = entradas.every((e) => !e.posicao_id && e.peso_informado !== null && e.peso_informado !== undefined);
+    await registrarPeso(tx, { clienteId, empresaId, eventoId: evento.id, posicaoId: destinoId, dia, peso, medido });
+    resultado.set(destinoId, peso);
+    descritor.push({ destino_posicao_id: destinoId, entradas: entradas.map((e) => ({ q: e.q, posicao_id: e.posicao_id ?? null, peso_informado: e.peso_informado ?? null })) });
+  }
+  const dados = evento.dados && typeof evento.dados === 'object' ? evento.dados : {};
+  await tx.eventoRebanho.update({ where: { cliente_id_id: { cliente_id: clienteId, id: evento.id } }, data: { dados: { ...dados, pesos_derivados: descritor } } });
+  evento.dados = { ...dados, pesos_derivados: descritor };
+  return resultado;
+};
+
+/**
+ * Reconfere os pesos derivados de fatos ATIVOS, de `diaMin` em diante, que
+ * tocam `posicaoIds`. Divergência → 409 com o primeiro fato afetado (ordem
+ * causal) e os dois pesos. A transação do chamador desfaz tudo.
+ */
+export const verificarCausalidadeDePeso = async (tx, clienteId, posicaoIds, diaMin, { exceto = null } = {}) => {
+  const ids = [...new Set(posicaoIds)];
+  if (!ids.length) return;
+  const candidatos = /** @type {Array<{id: string, tipo: string, data_operacional: Date, registrado_em: Date, dados: any}>} */ (await tx.$queryRaw`
+    SELECT ev.id, ev.tipo, ev.data_operacional, ev.registrado_em, ev.dados
+      FROM "EventoRebanho" ev
+     WHERE ev.cliente_id = ${clienteId} AND ev.situacao = 'ativo' AND ev.tipo = ANY(${TIPOS_PESO_DERIVADO}::text[])
+       AND ev.data_operacional >= ${comoData(diaMin)}::date AND ev.id <> ${exceto ?? ''}
+       AND ev.dados ? 'pesos_derivados'
+       AND EXISTS (SELECT 1 FROM "PartidaRebanho" x WHERE x.cliente_id = ev.cliente_id AND x.evento_id = ev.id AND x.ativa AND x.posicao_id = ANY(${ids}::text[]))
+     ORDER BY ev.data_operacional, ev.registrado_em, ev.id`);
+  for (const ev of candidatos) {
+    const dia = diaDoBanco(ev.data_operacional);
+    for (const d of ev.dados.pesos_derivados ?? []) {
+      const esperado = await pesoDerivado(tx, clienteId, ev, d.destino_posicao_id, dia, d.entradas ?? []);
+      const obs = await tx.pesoRebanho.findFirst({ where: { cliente_id: clienteId, evento_id: ev.id, posicao_id: d.destino_posicao_id, ativa: true }, orderBy: { id: 'desc' } });
+      const registrado = obs ? pesoNum(obs.peso_medio_kg) : null;
+      if ((registrado ?? null) !== (esperado ?? null)) {
+        throw recusa('REBANHO_PESO_DEPENDENCIA_CAUSAL', 'um fato posterior calculou o peso com o valor que esta mudança alteraria; desfaça os fatos dependentes na ordem inversa antes (nada foi gravado)', {
+          evento_id: ev.id, tipo: ev.tipo, data: dia, posicao_id: d.destino_posicao_id, peso_registrado_kg: registrado, peso_recalculado_kg: esperado,
+        });
+      }
+    }
+  }
+};
 
 export const inserirPartidas = (tx, { clienteId, empresaId, eventoId, dia, partidas }) =>
   partidas.length

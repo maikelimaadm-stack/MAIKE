@@ -251,3 +251,99 @@ Em todas: Cadastro (`Lote`) intacto, `verificacao.integro` e conservação, sem 
 | REMOTE_CUTOVER_APPLIED | NÃO | idem |
 | REMOTE_CLEANUP_APPLIED | NÃO | reset remoto só pós-deploy, com backup |
 | PRODUCTION_DEPLOYED | NÃO | PR em DRAFT, sem merge |
+
+---
+
+# PR174-R2 — Fechamento: reset × idempotência, POST genérico, peso causal (complemento da D-PROD-107)
+
+**Mesma PR (#174, DRAFT) e mesma branch.**
+- HEAD auditado: `84d0ad5`; CI `verify:all` SUCCESS, run 41501344126.
+- Base: main `f7a8ea3`, sem mudança (nada a incorporar).
+- Nenhuma outra PR aberta.
+- Sem migration nova; nenhuma editada.
+- Evidências: `evidencias/r2e-p1-lotes-ssot/r2-fechamento/`.
+
+> Ambiente: o container foi reciclado durante a missão e o PostgreSQL local voltou vazio. O banco descartável `maike_ci` foi recriado (`migrate deploy` do zero) com `maike_ci` superusuário, como no CI; sem isso, o laboratório P8 de grants não cria papéis. O E2E roda num banco descartável próprio, `maike_e2e_r2`: tenant demo, 30 áreas com polígono, empresa ativada pelo endpoint oficial em `modo: 'entradas'`.
+
+## R2.1 RED → GREEN (`backend/tests/r2eR2Fechamento.test.mjs`)
+
+| # | Achado | RED no `84d0ad5` | Correção | GREEN |
+|---|---|---|---|---|
+| A1 | Replay da mesma chave após o reset | 201 `replay:true` com movimento apagado | reserva → `desfeito`; 409 `IDEMPOTENCY_EFEITO_DESFEITO`; outra empresa/tenant seguem com replay | ok |
+| A2 | Documento citando derivado ou movimento apagado | reset prosseguia | 409 fechado `RESET_VINCULOS_PENDENTES` com a lista; nada muda | ok |
+| A3 | Reexecução e auditoria | sem campos de rastreio | no-op real; AuditLog anterior intacto; o do reset cita movimentos e chaves | ok |
+| A4 | Concorrência reset × comando (3×) | — | movimento existe ⇔ reserva `committed` | ok |
+| B1 | POST genérico material em empresa ativada | 201 sem partida | 409 `REBANHO_LEDGER_SOMENTE_POR_COMANDO` (9 tipos × cadastro/posição, outra empresa no corpo, alias pecuária, lote via service); junção e renomear preservados | ok |
+| B2 | Empresa legada | — | POST genérico aprovado intacto; PATCH/DELETE seguem 409 | ok |
+| B3 | Concorrência ativação × POST (3×) | — | nunca os dois aceitos (Empresa `FOR UPDATE`/`FOR SHARE`) | ok |
+| C1 | Cancelar pesagem que alimentou transferência | 200; B ficava 500 com A de volta a 400 | 409 causal (evento/posição/data/500→400); ordem inversa funciona | ok |
+| C2 | Pesagem retroativa antes da transferência | 201 | 409; posterior (outro dia ou mesmo dia registrada depois) passa | ok |
+| C3 | Transferir dia 02 e depois dia 01, mesmo peso | — | aceito (fluxo principal intacto) | ok |
+| C4 | Cancelar junção com peso usado depois; cadeia A→B→A | 200 | 409 causal; saldo e peso protegem a cadeia; ordem inversa funciona | ok |
+| C5 | Origem sem peso | — | destino `null` (nunca 0); retroativo que o tornaria conhecido → 409 | ok |
+| C6 | Concorrência cancelar pesagem × transferência (3×) | B incoerente | B sempre coerente com A na data | ok |
+| C7 | Mesmo dia: pesagem antes da transferência | — | desempate pela ordem de registro; cancelar → 409 | ok |
+| C8 | Falha injetada após a verificação causal | — | zero mudança, inclusive na reserva idempotente | ok |
+
+## R2.2 Matriz do POST genérico
+
+| Caminho | Empresa ativada | Empresa legada |
+|---|---|---|
+| `POST /movimentacoes-mapa` com tipo material (Transferência, Morte, Abate, Nascimento, Pesagem, Mudança, Entrada artificial, Saída, Venda) | 409 `REBANHO_LEDGER_SOMENTE_POR_COMANDO`, nada gravado/auditado | 201 (aprovado) |
+| idem com id de POSIÇÃO, ou `empresa_id` de outra empresa | 409 (empresa do lote/posição citado) | — |
+| `Junção de Lotes` | 409 `JUNCAO_SOMENTE_POR_COMANDO` | 409 idem |
+| `Entrada` + `Renomear Lote` (informativo) | 201 | 201 |
+| `POST /movimentacoes-pecuaria` (alias) | 409 | 201 |
+| `criarEmLote` (service; não há rota HTTP de lote, `/bulk` → 404) | lança 409, nada gravado | grava |
+| PATCH/DELETE genéricos | 409 (R2A) | 409 (R2A) |
+| Campos reservados (`lote_ids`, `lote_destino_id`, `efeito_servidor`…) | 400 (R2A) | 400 (R2A) |
+
+## R2.3 Peso causal: regra e desempate
+
+- **Peso derivado:**
+  - `peso(D, F) = média ponderada([(saldo de D antes de F, peso de D antes de F)] + entradas)`;
+  - cada entrada é `(q, peso da origem antes de F)` ou `(q, peso informado)`;
+  - qualquer peso desconhecido com cabeças → `null`.
+- **Antes de F:** data menor, ou mesma data e `(registrado_em, id)` menor. `registrado_em` = `clock_timestamp()` depois das travas.
+- **Reconferência:** toda mudança (manejo novo, retroativo ou cancelamento) reconfere os fatos derivados ativos de `data ≥ data da mudança` que têm partida nas posições tocadas. Divergência → 409 causal.
+- **Não bloqueia:**
+  - pesagem posterior independente;
+  - retroativo que não muda o valor calculado;
+  - fatos de outra linhagem (posição própria).
+
+## R2.4 Regressões, gates e E2E
+
+- **Ledger completo** (P1, R1 achados, R1 manejos, reset, R2): **56/56**. Inclui junção 1/5/20, nascimentos, transferências retroativas, cancelamentos, série de peso, K1 concorrência 3× e M3/C8 com falha injetada.
+- **`test:backend`** (código R2 antes dos ajustes finais de UI/junção/trava): 877 testes, 868 pass, 0 fail, 5 todo, 4 cancelados.
+  - Os 4 cancelados eram o laboratório P8, que falhou só por permissão do papel local recriado (`permission denied to create role`).
+  - Com `maike_ci` superusuário, como no CI, o P8 dá 4/4.
+  - O `verify:all` final reexecuta tudo.
+- **Smoke** inclui mensagens novas de recusa com data e pesos.
+- **E2E Chromium** (`e2e-1440/768/412/390.txt`): **136/136**. Por largura:
+  - transferência dia 20 e depois a retroativa do dia 18;
+  - morte, abate retroativo, mudança, pesagem, junção e nascimento;
+  - recusa retroativa (morte em B antes do gado chegar);
+  - histórico com cancelamento;
+  - **cancelar pela UI a pesagem que alimentou a junção → recusa causal na pré-checagem, com a data, sem campo de motivo e sem POST**;
+  - offline sem envio; Cadastro intacto; verificação íntegra; sem overflow e sem erro de página.
+  - Chromium mobile não é Safari real.
+- **Reset só por script local:** a UI não tem reset (0 referências em `src/`). A simulação contra a empresa ativada do fixture → `RECUSADO LEDGER_JA_ATIVO`, exit 3 (`reset-somente-script.txt`).
+
+## R2.5 Estado de migração e deploy
+
+| Item | Estado | Evidência |
+|---|---|---|
+| LOCAL_SCHEMA_APPLIED | SIM | `maike_ci` e `maike_e2e_r2` do zero; validate ok; status em dia; diff vazio (`migrations-e-deploy.txt`) |
+| LOCAL_DATA_MIGRATED | SIM | fixture E2E ativado (entradas); testes PG de reset, ativação e manejos |
+| REMOTE_EXPAND_APPLIED | BLOCKED | 0 variáveis `MIGRATION_*` no container (REMOTE_MIGRATION_BLOCKED); nada remoto lido ou escrito |
+| REMOTE_DATA_MIGRATED | NÃO | ativação só depois do merge e do deploy, em empresa de teste primeiro |
+| REMOTE_CUTOVER_APPLIED | NÃO | idem |
+| REMOTE_CLEANUP_APPLIED | NÃO | reset remoto só com alvo comprovado, backup e confirmação, depois do deploy |
+| PRODUCTION_DEPLOYED | NÃO | PR em DRAFT, sem merge |
+
+## R2.6 Riscos residuais
+
+- **Recusa causal × flexibilidade:** cancelar um fato antigo com dependentes de peso exige desfazer os posteriores na ordem inversa. É seguro, mas trabalhoso. O replay automático da série fica como evolução possível.
+- **Eventos sem descritor:** os de antes do R2, só em bancos locais, não são reconferidos. Em produção não existem (nada foi ativado).
+- **Varredura de vínculos do reset:** procura ids exatos nas fontes listadas. Fontes futuras precisam entrar na lista; o teste A2 é o guarda.
+- **Ordem no mesmo dia:** depende do relógio do banco. Com várias instâncias do app, o relógio é o do PostgreSQL, então é único.

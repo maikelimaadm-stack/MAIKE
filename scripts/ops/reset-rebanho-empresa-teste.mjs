@@ -73,11 +73,12 @@ try {
       confirmarEmpresaNome: confirmar,
       gravarBackup: (obj) => writeFileSync(backup, `${JSON.stringify(obj, null, 2)}\n`, { flag: 'wx' }),
     });
-    console.log(JSON.stringify({ resultado: 'RESET_APLICADO', ...resumo }, null, 2));
+    console.log(JSON.stringify({ resultado: resumo.sem_alteracoes ? 'SEM_ALTERACOES' : 'RESET_APLICADO', ...resumo }, null, 2));
   }
 } catch (e) {
   if (e instanceof ResetRecusado) {
     console.error(`reset-rebanho-empresa-teste: RECUSADO ${e.codigo} — ${e.message}; nada alterado`);
+    if (e.detalhes && Object.keys(e.detalhes).length) console.error(JSON.stringify(e.detalhes, null, 2));
     process.exitCode = 3;
   } else {
     console.error(`reset-rebanho-empresa-teste: FALHA TÉCNICA (${e?.code ?? e?.name ?? 'erro'}); nada alterado`);

@@ -1,0 +1,4 @@
+Reset SÓ por script local (não há reset pela UI: 0 referências em src/).
+Simulação contra a empresa ATIVADA do fixture E2E (banco local descartável maike_e2e_r2):
+exit=3
+reset-rebanho-empresa-teste: RECUSADO LEDGER_JA_ATIVO — o ledger já está ativo nesta empresa; o reset é só para ANTES da ativação; nada alterado

@@ -1,0 +1,50 @@
+PASS desktop-1440 transferência: sem overflow horizontal — {"sw":1440,"cw":1440,"l":280,"r":1160,"vw":1440}
+PASS desktop-1440 transferência: 1 POST do ledger, nada legado — 1
+PASS desktop-1440 transferência: A=537 B=45 — 537/45
+PASS desktop-1440 retroativa dia 18 depois do dia 20: aceita (mesmo peso), A=532 B=50 — 532/50 Gado movido com sucesso!
+PASS desktop-1440 morte: sem overflow horizontal — {"sw":1440,"cw":1440,"l":272,"r":1168,"vw":1440}
+PASS desktop-1440 morte: 1 POST baixa-rebanho, nada legado, toast de sucesso — Morte registrado: 4 cab (R1A desktop-1440: 4)
+PASS desktop-1440 morte: A=528 — 528
+PASS desktop-1440 abate: sem overflow horizontal — {"sw":1440,"cw":1440,"l":272,"r":1168,"vw":1440}
+PASS desktop-1440 abate retroativo: 1 POST, aceito — Abate registrado: 17 cab (R1A desktop-1440: 17)
+PASS desktop-1440 abate: A=511 — 511
+PASS desktop-1440 abate: corpo com a data retroativa e sem saldo/tenant — {"operation_id":"rebanho-25540cf8-a278-450b-a5d4-2771a4e8ccd8","tipo":"Abate","empresa_id":"cmvznzb4400047d3vl57ajnf6","area_id":"cmvznzb55000m7d3vtduixvef","da
+PASS desktop-1440 mudança de categoria: sem overflow horizontal — {"sw":1440,"cw":1440,"l":272,"r":1168,"vw":1440}
+PASS desktop-1440 mudança: 1 POST manejo-rebanho; 24 TOURO na mesma linhagem; total de A igual — Mudança de categoria registrado
+PASS desktop-1440 pesagem: sem overflow horizontal — {"sw":1440,"cw":1440,"l":272,"r":1168,"vw":1440}
+PASS desktop-1440 pesagem: 1 POST; peso 432,5 nas posições de A (série de peso no ledger) — Pesagem registrado 432.5,432.5,432.5
+PASS desktop-1440 junção: sem overflow horizontal — {"sw":1440,"cw":1440,"l":496,"r":944,"vw":1440}
+PASS desktop-1440 junção: 1 POST juncao-lotes; uma posição BOI em A com a linhagem das duas entradas — Lotes unificados: 487 cabeças no lote "R1A desktop-1440" 1
+PASS desktop-1440 junção: total de A conservado — 511
+PASS desktop-1440 nascimento: sem overflow horizontal — {"sw":1440,"cw":1440,"l":272,"r":1168,"vw":1440}
+PASS desktop-1440 nascimento: 1 POST; posição NASCIDOS com 6 cab, sem entrada (não é compra) — Nascimento registrado
+PASS desktop-1440 nascimento: C=69 — 69
+PASS desktop-1440 morte em B antes de o gado chegar: recusa clara, nada gravado — A categoria não tem cabeças suficientes nos lotes ativos desta área. Recarregue o mapa. Nada foi baixado.
+PASS desktop-1440 recusa: diálogo continua aberto
+PASS desktop-1440 histórico de A lista transferência (2), morte, abate, mudança, pesagem e junção — Histórico da Área PASTO 08 (7)
+Área
+Lotes atuais
+
+Entradas, saídas e manejos registrados nesta área, inclusive de lotes que já saíram.
+
+24/12/2026
+Junção de Lotes
+Manejo
+Ativo
+R1A desktop-1440
+Quantid
+PASS desktop-1440 cancelamento: sem overflow horizontal — {"sw":1440,"cw":1440,"l":496.07916259765625,"r":943.9208374023438,"vw":1440}
+PASS desktop-1440 cancelamento da morte pela UI → A=515 — 515
+PASS desktop-1440 pré-checagem: sem campo de motivo nem POST de cancelamento
+PASS desktop-1440 cancelar pesagem com junção posterior dependente: recusa causal explícita (dia 24/12), nada muda — Cancelar movimentação
+
+Pesagem · R1A desktop-1440 · 0 cab. O registro original continua no histórico, marcado como cancelado.
+
+O registro do dia 24/12/2026 calculou o peso a partir deste (registrado 432,5 kg; passaria a 
+PASS desktop-1440 offline: indisponibilidade explícita, sem requisição de escrita — Sem conexão: este manejo (nascimento, pesagem, mudança de categoria, junção, morte ou abate) só pode ser registrado online. Nada foi gravado.
+PASS desktop-1440 Cadastro R1A desktop-1440: Lote = entrada (417 cab, área de entrada), nenhuma escrita de saldo — [417,"Ativo"]
+PASS desktop-1440 Cadastro R1B desktop-1440: Lote = entrada (165 cab, área de entrada), nenhuma escrita de saldo — [165,"Ativo"]
+PASS desktop-1440 Cadastro R1V desktop-1440: Lote = entrada (63 cab, área de entrada), nenhuma escrita de saldo — [63,"Ativo"]
+PASS desktop-1440 verificação do ledger: íntegro e conservação fecha — {"posicoes":19,"divergentes":[],"pesos_divergentes":[],"negativos":[],"conservacao":{"entradas":1990,"nascimentos":28,"saidas":-41,"internos":0,"saldo":1977,"conserva":true},"integro":true}
+PASS desktop-1440 sem erro de página
+RESUMO desktop-1440: 34/34 PASS

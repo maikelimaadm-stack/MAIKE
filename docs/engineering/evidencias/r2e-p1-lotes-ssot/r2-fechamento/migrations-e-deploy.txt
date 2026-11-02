@@ -1,0 +1,16 @@
+Migrations — PR174-R2 (nenhuma migration nova; nenhuma editada)
+- git diff 84d0ad5 -- backend/prisma/  → 0 arquivos (schema e migrations intactos)
+- 20261102200000_rebanho_ledger_posicoes: aditiva (DROP só em comentário de rollback, linhas 14–15)
+- 20261103100000_rebanho_ledger_r1_manejos: aditiva (0 DROP/TRUNCATE/DELETE)
+- PostgreSQL 16 local descartável (maike_ci, recriado neste container): prisma migrate deploy do zero → OK
+  prisma validate → válido; migrate status → "Database schema is up to date!"; migrate diff --exit-code → "No difference detected." (exit 0)
+- Banco local do E2E (maike_e2e_r2): migrate deploy do zero → OK
+Por que não houve schema novo: os estados novos cabem no que já existe —
+  OperacaoIdempotente.status VARCHAR(32) sem CHECK → 'desfeito';
+  EventoRebanho.dados JSONB → descritor `pesos_derivados`;
+  EventoRebanho.registrado_em já existia → passa a receber clock_timestamp() do banco.
+Pre-deploy (scripts/deploy/run-migrations.mjs, `npm run deploy:migrate`): exige MIGRATION_DATABASE_URL
+  (nunca fallback para DATABASE_URL), recusa a porta 6543 (pooler de transação) e confere
+  MIGRATION_EXPECTED_SYSTEM_IDENTIFIER contra o alvo. Gate supabase-public-grants (REVOKE/RLS) verde.
+REMOTO: este container tem 0 variáveis MIGRATION_* → REMOTE_MIGRATION_BLOCKED.
+  Nada foi lido, escrito, ativado ou resetado remotamente. Nenhum SQL improvisado.
