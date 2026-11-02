@@ -3997,4 +3997,71 @@ Relatório: `docs/engineering/MAIKE-LOTES-EXCLUSAO-CANCELADOS-REPORT.md`.
   - cancelamento: movimento → lotes;
   - quem trava primeiro decide e o outro relê o estado confirmado; sem ciclo de travas (3 rodadas por cenário, sem 500).
 
-<!-- Próxima decisão: D-PROD-102 -->
+## D-PROD-102 — Junção de Lotes do Mapa por comando atômico com cancelamento causal (R2C-P1)
+
+**Missão:** MAIKE-R2C-P1-JUNCAO-DE-LOTES-ATOMICA-CANCELAMENTO-CAUSAL. Base `main` 04afd25 (merge da #168). **Sem migration**; nenhuma escrita em produção.
+
+**Contexto:** o botão "Confirmar Junção" fazia N+2 chamadas sem transação: um PATCH por lote absorvido, um PATCH no principal e um POST genérico `tipo: 'Entrada'`, com o snapshot dentro de `observacoes`. RED 7/7 na main, por HTTP com PostgreSQL real:
+- falha na 2ª chamada: 90 → 60 cabeças; na 3ª: 90 → 40;
+- falha no POST: saldo mudou sem movimento;
+- retry depois da falha: "Entrada 90" duplicada;
+- peso desconhecido tratado como 0: 257,8 kg em vez de 386,7 kg (média dos pesos conhecidos);
+- a junção era classificada como "Entrada".
+
+**Decisão:**
+
+1. **Comando** `POST /movimentacoes-mapa/comandos/juncao-lotes`:
+   - o corpo aceita só `operation_id`, `empresa_id`, `area_id`, `lote_principal_id`, `lote_origem_ids` (1 a 20, únicos, sem o principal), `data_movimentacao` e `observacoes`; qualquer outro campo responde 400;
+   - idempotência `manejo_mapa_juncao_lotes` com fingerprint do conteúdo canônico;
+   - trava `FOR UPDATE` da área e depois dos lotes, em ordem de id — a mesma ordem da R2B, sem ciclo com R2A nem com a exclusão #167.
+2. **Validação no servidor:**
+   - lotes do tenant e da empresa, não excluídos, ativos, com cabeças, na mesma área (de outra área exige transferência antes);
+   - mesma categoria, mesmo sexo definido (Macho/Fêmea) e mesma `categoria_manejo_id`;
+   - nenhum registro ATIVO posterior à data em nenhum participante. A consulta é completa, sem teto, e cancelados ficam fora; é o mesmo `dependenciasPosteriores` do cancelamento.
+3. **Efeito:**
+   - o principal recebe a soma; cada origem fica 0/Inativo; nenhum lote é criado;
+   - entrada, área de entrada, categoria de entrada, origem, compra e identificação ficam intactas;
+   - peso: média ponderada (4 casas) só quando todos os pesos são conhecidos; senão o principal fica `null`. Desconhecido nunca vale 0.
+   - Raça e sistema produtivo do principal se mantêm; os das origens ficam registrados em `linhas`.
+4. **Movimento:**
+   - tipo `Junção de Lotes` (nunca `Entrada`): saldo líquido zero, não conta como entrada;
+   - `lote_id` = principal; `lote_ids` = principal e depois as origens;
+   - `linhas` = contribuição de cada origem com identificação;
+   - `juncao` = resumo do principal e a política de peso;
+   - `efeito_servidor{comando:'manejo_mapa_juncao_lotes', operation_id, registrado_por_usuario_id, efeitos[]}`, cada efeito com snapshot de saldo, situação, área, empresa, classificação, sexo e peso;
+   - `juncao` passa a ser campo reservado.
+5. **Cancelamento** (mesmo endpoint, só administrador):
+   - reutiliza o planejador causal da R2B, parametrizado pelo comando e pelo tipo de operação;
+   - exige: proveniência confirmada, AuditLog igual ao pós-estado, nenhum registro posterior em nenhum participante, nenhuma alteração posterior de saldo, classificação, sexo ou peso (inclusive ida e volta);
+   - restaura saldo, situação e peso de todos os lotes juntos;
+   - o movimento continua no histórico como `situacao:'cancelado'`.
+6. **Legado:**
+   - o POST/bulk genérico com o tipo novo, com `motivo` "Junção de Lotes" ou com o marcador `[JUNCAO_LOTES]` responde 409 `JUNCAO_SOMENTE_POR_COMANDO`; outras entradas passam;
+   - junções antigas não viram canceláveis; a tela diz isso.
+7. **Histórico e #167:** os participantes entram por `movimentoCitaLotes` (`lote_ids` e efeitos):
+   - o histórico de cada lote os encontra;
+   - exclusão bloqueada enquanto a junção está ativa (`movimentacao_ativa`);
+   - depois do cancelamento comprovado, vale o contrato da #167.
+8. **Frontend:**
+   - o diálogo envia só o comando;
+   - prévia marcada como "o servidor confere";
+   - aviso de peso desconhecido;
+   - duplo clique bloqueado; o diálogo não fecha durante o envio;
+   - só online;
+   - pendência idempotente por tenant, usuário, tipo, empresa e área.
+
+**Erros novos:**
+- `JUNCAO_LOTE_INELEGIVEL` (409);
+- `JUNCAO_CLASSIFICACAO_DIVERGENTE` (409);
+- `JUNCAO_DATA_RETROATIVA` (409);
+- `JUNCAO_SOMENTE_POR_COMANDO` (409);
+- e os existentes: `LOTE_NOT_FOUND`, `AREA_NOT_FOUND`, `IDEMPOTENCY_CONFLICT`, 400 de forma.
+
+**Limites:**
+- sem sincronização offline;
+- unificação de destino na Mudança de Categoria fica para slice próprio;
+- junções legadas não são estornadas.
+
+**Consequência:** relatório `MAIKE-R2C-JUNCAO-ATOMICA-REPORT.md`; evidências em `evidencias/r2c-p1-juncao/`.
+
+<!-- Próxima decisão: D-PROD-103 -->
