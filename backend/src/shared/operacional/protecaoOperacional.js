@@ -31,6 +31,8 @@ export const CAMPOS_RESERVADOS_CANCELAMENTO = Object.freeze([
   'lote_ids',
   'linhas',
   'modo_pesagem',
+  // R2C-P1 (D-PROD-102): resumo da junção é escrito só pelo comando de junção.
+  'juncao',
 ]);
 
 /** @param {unknown} entrada */

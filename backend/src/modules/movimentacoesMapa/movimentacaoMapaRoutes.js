@@ -6,6 +6,8 @@ import { querystringListagemEmpresa } from '../../shared/http/listQueryLimit.js'
 import { listar, listarHistorico, criar, atualizar, excluir, HISTORICO_LIMITE_MAXIMO } from './movimentacaoMapaService.js';
 import { cancelar, elegibilidade } from './movimentacaoMapaCancelamentoService.js';
 import { executarManejoLote } from './manejoMapaComandoService.js';
+import { executarJuncaoLotes } from './manejoJuncaoComandoService.js';
+import { MAX_ORIGENS_JUNCAO } from './juncaoConstantes.js';
 import { executarManejoRebanho, MAX_LINHAS, MODOS_PESAGEM, PESO_MAXIMO_KG, SEXOS, TIPOS_DO_COMANDO_REBANHO } from './manejoRebanhoComandoService.js';
 
 const ID_SCHEMA = {
@@ -142,6 +144,29 @@ const MANEJO_REBANHO_SCHEMA = {
   },
 };
 
+/**
+ * Junção de Lotes (R2C-P1, D-PROD-102): só ids, data e observação. Saldo,
+ * peso, área de destino, categoria, tenant, autor e efeitos são do servidor;
+ * qualquer outro campo é 400.
+ */
+const ID_LOTE = { type: 'string', minLength: 1, maxLength: 64 };
+const JUNCAO_SCHEMA = {
+  body: {
+    type: 'object',
+    required: ['operation_id', 'empresa_id', 'area_id', 'lote_principal_id', 'lote_origem_ids', 'data_movimentacao'],
+    additionalProperties: false,
+    properties: {
+      operation_id: { type: 'string', minLength: 8, maxLength: 160, pattern: '^[A-Za-z0-9_.:-]+$' },
+      empresa_id: ID_LOTE,
+      area_id: ID_LOTE,
+      lote_principal_id: ID_LOTE,
+      lote_origem_ids: { type: 'array', minItems: 1, maxItems: MAX_ORIGENS_JUNCAO, uniqueItems: true, items: ID_LOTE },
+      data_movimentacao: { type: 'string', minLength: 10, maxLength: 40 },
+      observacoes: { type: 'string', maxLength: 4000 },
+    },
+  },
+};
+
 /** @param {import('fastify').FastifyInstance} app */
 export const registrarMovimentacaoMapaRoutes = async (app) => {
   app.get('/movimentacoes-mapa', { onRequest: [app.autenticar], schema: LISTAR_SCHEMA }, async (request) => {
@@ -164,6 +189,12 @@ export const registrarMovimentacaoMapaRoutes = async (app) => {
   app.post('/movimentacoes-mapa/comandos/manejo-rebanho', { onRequest: [app.autenticar], schema: MANEJO_REBANHO_SCHEMA }, async (request, reply) => {
     exigirAuthContext(request.contexto.auth);
     const { status, body } = await executarManejoRebanho(request.contexto, /** @type {Record<string, unknown>} */ (request.body));
+    return reply.status(status).send(body);
+  });
+
+  app.post('/movimentacoes-mapa/comandos/juncao-lotes', { onRequest: [app.autenticar], schema: JUNCAO_SCHEMA }, async (request, reply) => {
+    exigirAuthContext(request.contexto.auth);
+    const { status, body } = await executarJuncaoLotes(request.contexto, /** @type {Record<string, unknown>} */ (request.body));
     return reply.status(status).send(body);
   });
 

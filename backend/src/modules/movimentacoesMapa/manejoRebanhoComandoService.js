@@ -114,7 +114,7 @@ const recusa = (codigo, mensagem, details = {}) => new AppError(codigo, mensagem
 const categoriaOficial = (valor) => Object.keys(CATEGORIAS_OFICIAIS).find((c) => normal(c) === normal(valor)) ?? null;
 
 /** Data operacional estrita (mesma regra do comando R2A). */
-const dataOperacionalValida = (valor) => {
+export const dataOperacionalValida = (valor) => {
   const m = /^(\d{4})-(\d{2})-(\d{2})(T\d{2}:\d{2}(:\d{2}(\.\d{1,3})?)?(Z|[+-]\d{2}:\d{2})?)?$/.exec(valor || '');
   if (!m) return false;
   const [ano, mes, dia] = [Number(m[1]), Number(m[2]), Number(m[3])];
@@ -210,10 +210,12 @@ export const definirFalhaInjetadaR2B = (n) => {
   if (process.env.NODE_ENV !== 'test') throw new Error('gancho de teste fora de NODE_ENV=test');
   ganchos.falharNoEfeito = n;
 };
+/** Comandos irmãos (junção) usam o mesmo gancho de falha injetada. */
+export const falhaInjetadaNoEfeito = () => ganchos.falharNoEfeito;
 
 // ─── Leitura com trava ─────────────────────────────────────────────────────
 
-const travarAreaELotes = async (tx, clienteId, empresaId, areaId, idsExtras) => {
+export const travarAreaELotes = async (tx, clienteId, empresaId, areaId, idsExtras) => {
   await tx.$queryRaw`SELECT id FROM "AreaPastagem" WHERE cliente_id = ${clienteId} AND empresa_id = ${empresaId} AND id = ${areaId} FOR UPDATE`;
   const area = await tx.areaPastagem.findFirst({
     where: { cliente_id: clienteId, empresa_id: empresaId, id: areaId },
@@ -234,7 +236,7 @@ const travarAreaELotes = async (tx, clienteId, empresaId, areaId, idsExtras) => 
 };
 
 /** Lote em condição de manejo nesta área (vivo, ativo, com cabeças, mesma empresa). */
-const operavel = (lote, empresaId, areaId) =>
+export const operavel = (lote, empresaId, areaId) =>
   !!lote && !lote.excluido_em && lote.empresa_id === empresaId && lote.area_atual_id === areaId && lote.status === 'Ativo' && lote.quantidade_cabecas > 0;
 
 /**

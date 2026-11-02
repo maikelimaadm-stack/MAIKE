@@ -310,8 +310,12 @@ describe('P1 — Morte e Abate pelo comando atômico', () => {
     const l = await criarLote(c, { area: c.A });
     const porNome = await criarMov(c, { tipo: 'Morte', lote: l.nome, quantidade_animais: 5, area_origem_id: c.A.id });
     assert.equal((await cancelar(c, porNome.id)).json().code, 'CANCELAMENTO_VINCULO_AMBIGUO');
-    const juncao = await criarMov(c, { tipo: 'Junção de Lotes', lote: l.nome, lote_id: l.id, quantidade_animais: 500, area_origem_id: c.A.id });
-    assert.equal((await cancelar(c, juncao.id)).json().code, 'CANCELAMENTO_TIPO_NAO_SUPORTADO');
+    const entrada = await criarMov(c, { tipo: 'Entrada', lote: l.nome, lote_id: l.id, quantidade_animais: 500, area_origem_id: c.A.id });
+    assert.equal((await cancelar(c, entrada.id)).json().code, 'CANCELAMENTO_TIPO_NAO_SUPORTADO');
+    // R2C-P1 (D-PROD-102): junção pelo POST genérico agora é recusada (só pelo comando).
+    const juncao = await req('POST', '/movimentacoes-mapa', c.tokAdm, { empresa_id: c.empresa.id, tipo: 'Junção de Lotes', lote: l.nome, lote_id: l.id, quantidade_animais: 500 });
+    assert.equal(juncao.statusCode, 409, juncao.body);
+    assert.equal(juncao.json().code, 'JUNCAO_SOMENTE_POR_COMANDO');
     // R2B-P1 (D-PROD-101): Pesagem passou a ser tipo certificado; a legada (sem
     // proveniência do comando do rebanho) segue recusada, como a Morte legada.
     const pesagem = await criarMov(c, { tipo: 'Pesagem', lote: l.nome, lote_id: l.id, quantidade_animais: 500, area_origem_id: c.A.id });

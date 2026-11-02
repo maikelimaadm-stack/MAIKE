@@ -12,10 +12,14 @@ export const SITUACAO_CANCELADO = 'cancelado';
 /** Tipos com cancelamento certificado no servidor (espelho de `TIPOS_CANCELAVEIS`): R2A + R2B-P1. */
 export const TIPOS_R2A = Object.freeze(['Morte', 'Abate', 'Transferência de Área']);
 export const TIPOS_R2B = Object.freeze(['Nascimento', 'Pesagem', 'Mudança de Categoria']);
-export const TIPOS_COM_CANCELAMENTO = Object.freeze([...TIPOS_R2A, ...TIPOS_R2B]);
+export const TIPO_JUNCAO = 'Junção de Lotes';
+export const TIPOS_COM_CANCELAMENTO = Object.freeze([...TIPOS_R2A, ...TIPOS_R2B, TIPO_JUNCAO]);
+/** Tipos de movimento agregado: `lote_ids` precisa listar todos os efeitos. */
+const TIPOS_AGREGADOS = Object.freeze([...TIPOS_R2B, TIPO_JUNCAO]);
 
 /** Comando que certifica cada grupo de tipos (o servidor confere a operação idempotente). */
-const COMANDO_DO_TIPO = (tipo) => (TIPOS_R2B.includes(tipo) ? 'manejo_mapa_rebanho' : 'manejo_mapa_lote');
+const COMANDO_DO_TIPO = (tipo) =>
+  tipo === TIPO_JUNCAO ? 'manejo_mapa_juncao_lotes' : TIPOS_R2B.includes(tipo) ? 'manejo_mapa_rebanho' : 'manejo_mapa_lote';
 
 /** @param {any} mov */
 export const ehMovimentoCancelado = (mov) => mov?.situacao === SITUACAO_CANCELADO;
@@ -41,7 +45,7 @@ export const temProvenienciaDoServidor = (mov) => {
     Array.isArray(ef.efeitos) &&
     ef.efeitos.length > 0 &&
     ef.efeitos.every((x) => typeof x?.auditoria_id === 'string' && x.auditoria_id !== '');
-  if (!ancorado || !TIPOS_R2B.includes(mov.tipo)) return ancorado;
+  if (!ancorado || !TIPOS_AGREGADOS.includes(mov.tipo)) return ancorado;
   return Array.isArray(mov.lote_ids) && mov.lote_ids.length === ef.efeitos.length;
 };
 
@@ -51,9 +55,17 @@ export const tipoTemCancelamento = (mov) => tipoCertificado(mov) && temProvenien
 export const MENSAGEM_LEGADO_SEM_PROVA =
   'Registro antigo sem comprovação individual de efeito — cancelamento temporariamente indisponível';
 
+export const MENSAGEM_JUNCAO_LEGADA =
+  'Junção antiga, feita pelo navegador sem comprovação de efeito — não pode ser cancelada com segurança';
+
+/** Junção do fluxo antigo (tipo 'Entrada' + motivo/ marcador): nunca vira cancelável por heurística. */
+export const ehJuncaoLegada = (mov) =>
+  !!mov && mov.tipo !== TIPO_JUNCAO && (mov.motivo === TIPO_JUNCAO || (typeof mov.observacoes === 'string' && mov.observacoes.includes('[JUNCAO_LOTES]')));
+
 /** Texto para quando a ação não aparece num movimento ativo. */
 export const motivoSemCancelamento = (mov) => {
   if (!mov || !ehMovimentoAtivo(mov)) return null;
+  if (ehJuncaoLegada(mov)) return MENSAGEM_JUNCAO_LEGADA;
   if (!tipoCertificado(mov)) return 'Cancelamento não disponível para este tipo.';
   if (!temProvenienciaDoServidor(mov)) return MENSAGEM_LEGADO_SEM_PROVA;
   return null;

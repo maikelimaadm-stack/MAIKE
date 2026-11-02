@@ -268,6 +268,23 @@ export const BACKEND_ONLY_CODES = Object.freeze({
     http: 409,
     meaning: 'mais de uma categoria de manejo ativa corresponde à categoria oficial; o formulário precisa escolher; nada foi gravado',
   },
+  // R2C-P1 (D-PROD-102) — Junção de Lotes.
+  JUNCAO_LOTE_INELEGIVEL: {
+    http: 409,
+    meaning: 'lote da junção fora da área, inativo ou sem cabeças; nada foi gravado',
+  },
+  JUNCAO_CLASSIFICACAO_DIVERGENTE: {
+    http: 409,
+    meaning: 'lotes com categoria, sexo ou categoria de manejo diferentes (ou sexo indefinido); nada foi gravado',
+  },
+  JUNCAO_DATA_RETROATIVA: {
+    http: 409,
+    meaning: 'há registro ativo posterior à data da junção num dos lotes; nada foi gravado',
+  },
+  JUNCAO_SOMENTE_POR_COMANDO: {
+    http: 409,
+    meaning: 'junção de lotes só pelo comando /movimentacoes-mapa/comandos/juncao-lotes; o POST genérico recusa; nada foi gravado',
+  },
   MANEJO_DESTINO_AMBIGUO: {
     http: 409,
     meaning: 'há mais de um lote de filhotes compatível (categoria e sexo) na área; sem unificação implícita; nada foi gravado',
