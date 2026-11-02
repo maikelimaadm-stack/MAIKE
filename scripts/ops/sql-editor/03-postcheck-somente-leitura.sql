@@ -10,13 +10,13 @@
 WITH
 tenant(nome) AS (
   SELECT unnest(ARRAY[
-    'PartidaRebanho','EventoRebanho','PosicaoRebanho','RebanhoLedgerAtivacao',
+    'HistoricoLancamentoTarefa','LancamentoTarefa','PesoRebanho','PartidaRebanho','EventoRebanho','PosicaoRebanho','RebanhoLedgerAtivacao',
     'AplicacaoMedicamento','AuditLog','Bebedouro','BebedouroAlerta','BebedouroHistorico','BebedouroSanidade',
     'Categoria','CategoriaManejo','ConfiguracaoIcone','Empresa','EntidadeCodigoSequencia','EstoqueLoteNota',
-    'EventoSanitario','Fornecedor','HistoricoLancamentoTarefa','LinhaGeografica','LocalEstoque',
+    'EventoSanitario','Fornecedor','LinhaGeografica','LocalEstoque',
     'ManejoTecnicoRebanho','Marca','MovimentacaoEstoque','MovimentacaoMapa','MovimentacaoPecuaria',
     'OperacaoIdempotente','Permissao','PontoReferencia','PontoSuplementacao','Produto','RegistroAnexo',
-    'SuplementacaoEvento','SuplementacaoLote','UnidadeMedida','LancamentoTarefa','Usuario','Lote',
+    'SuplementacaoEvento','SuplementacaoLote','UnidadeMedida','Usuario','Lote',
     'TipoTarefa','AreaPastagem','GrupoAtividade','Setor'
   ]::text[])
 ),

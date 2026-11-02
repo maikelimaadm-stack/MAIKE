@@ -83,6 +83,21 @@ const concluir = async (tx, contexto, { e, evento, envolvidas, antes, areas, ped
 // ─── B1: Morte e Abate (multi-posição, baixa R2D) ──────────────────────────
 
 /**
+ * Saldo de cada posição da área NA DATA do manejo (não o saldo de hoje): um
+ * manejo retroativo distribui sobre o que existia naquele dia. Eventos futuros
+ * são protegidos depois pela validação temporal (REBANHO_SALDO_HISTORICO_NEGATIVO).
+ */
+const comSaldoNaData = async (tx, clienteId, posicoes, areaId, dia) => {
+  const m = new Map();
+  for (const p of posicoes.values()) {
+    if (p.area_id !== areaId) continue;
+    const s = await saldoNaData(tx, clienteId, p.id, dia);
+    if (s > 0) m.set(p.id, { ...p, quantidade_cabecas: s });
+  }
+  return m;
+};
+
+/**
  * @param {any} e entrada normalizada da baixa (lerEntradaBaixa)
  * @param {{CATEGORIAS_OFICIAIS: Record<string,string>, distribuirBaixa: Function, POLITICA_ALOCACAO: string}} deps
  */
@@ -97,7 +112,8 @@ export const baixaNoLedger = async (tx, contexto, e, deps) => {
     if (fora) throw new AppError('POSICAO_REBANHO_NOT_FOUND', 'posição selecionada não encontrada nesta empresa', { details: { posicao_id: fora } });
   }
   const filtro = e.selecionados ? new Set(e.selecionados) : null;
-  const elegiveis = [...posicoes.values()].filter((p) => p.area_id === area.id && p.quantidade_cabecas > 0 && (!filtro || filtro.has(p.id)));
+  const naData = await comSaldoNaData(tx, auth.clienteId, posicoes, area.id, dia);
+  const elegiveis = [...naData.values()].filter((p) => !filtro || filtro.has(p.id));
   for (const linha of e.linhas) {
     const oficial = Object.keys(deps.CATEGORIAS_OFICIAIS).find((c) => normal(c) === normal(linha.categoria));
     if (!oficial) continue;
@@ -122,7 +138,7 @@ export const baixaNoLedger = async (tx, contexto, e, deps) => {
   const participantes = [...baixaPorPosicao.keys()].map((id) => posicoes.get(id));
   const nome = (id) => ({ nome: posicoes.get(id).nome, numero_lote: posicoes.get(id).numero_lote ?? null });
   const total = e.linhas.reduce((t, l) => t + l.quantidade, 0);
-  const saldosAntes = new Map(participantes.map((p) => [p.id, p.quantidade_cabecas]));
+  const saldosAntes = new Map(participantes.map((p) => [p.id, naData.get(p.id).quantidade_cabecas]));
   return concluir(tx, contexto, {
     e, evento, envolvidas: participantes.map((p) => p.id), antes: posicoes, areas, pedidos: baixaPorPosicao, dia,
     dadosPonte: {
@@ -181,7 +197,8 @@ export const rebanhoNoLedger = async (tx, contexto, e, deps) => {
   exigirDiaNoLedger(ativacao, dia);
   const extras = e.tipo === 'Pesagem' ? e.linhas.map((l) => l.lote_id) : [];
   const { area, areas, posicoes } = await travarAreaEPosicoes(tx, auth.clienteId, e.empresaId, e.areaId, extras);
-  const vivas = () => [...posicoes.values()].filter((p) => p.area_id === area.id && p.quantidade_cabecas > 0);
+  const naData = await comSaldoNaData(tx, auth.clienteId, posicoes, area.id, dia);
+  const vivas = () => [...naData.values()];
   const tipo = { Nascimento: TIPOS_EVENTO.NASCIMENTO, Pesagem: TIPOS_EVENTO.PESAGEM, 'Mudança de Categoria': TIPOS_EVENTO.MUDANCA_CATEGORIA }[e.tipo];
   const evento = await criarEvento(tx, {
     clienteId: auth.clienteId, empresaId: e.empresaId, tipo, dia, usuarioId: auth.usuarioId, operationKey: e.operationKey,
@@ -239,7 +256,7 @@ export const rebanhoNoLedger = async (tx, contexto, e, deps) => {
     }
   } else {
     // Mudança de Categoria: −q na classificação antiga, +q na nova, mesma origem e área.
-    const livre = new Map([...posicoes.values()].map((p) => [p.id, p.quantidade_cabecas]));
+    const livre = new Map([...naData.values()].map((p) => [p.id, p.quantidade_cabecas]));
     for (const linha of e.linhas) {
       const sexoNovo = deps.CATEGORIAS_OFICIAIS[linha.categoria_nova];
       const cm = await deps.resolverCategoriaManejo(tx, auth.clienteId, e.empresaId, linha.categoria_nova, linha.categoria_manejo_id_novo);

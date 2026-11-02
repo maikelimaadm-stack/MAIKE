@@ -134,7 +134,7 @@ describe('SQL Editor — 01 precheck', () => {
     // Todas as do repositório (25 até a PR #145; a D-PROD-79 acrescentou mais).
     assert.ok(Number(l['migrations concluídas'].valor) >= 25);
     assert.equal(l['migrations concluídas'].status, 'OK');
-    assert.equal(l['tabelas em public'].valor, '57', '53 + 4 do ledger R2E-P1 (D-PROD-107)');
+    assert.equal(l['tabelas em public'].valor, '58', '53 + 5 do ledger R2E-P1/R1 (D-PROD-107)');
     assert.match(l.VEREDITO.valor, /PRONTO PARA O 02/);
     assert.deepEqual(await contar(), antes, 'precheck não altera nada');
     const i1 = impressaoAtual();
