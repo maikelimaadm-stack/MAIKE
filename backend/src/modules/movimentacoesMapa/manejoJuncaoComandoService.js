@@ -34,7 +34,7 @@ import {
   travarAreaELotes,
   SEXOS,
 } from './manejoRebanhoComandoService.js';
-import { dependenciasPosteriores } from './movimentacaoMapaCancelamentoService.js';
+import { registrosAtivosPosteriores } from './guardaTemporalComando.js';
 import { COMANDO_JUNCAO, MAX_ORIGENS_JUNCAO, TIPO_JUNCAO, TIPO_OPERACAO_JUNCAO } from './juncaoConstantes.js';
 
 const texto = (v) => (typeof v === 'string' && v.trim() ? v.trim() : null);
@@ -139,11 +139,12 @@ export const executarJuncaoLotes = async (contexto, entrada) => {
         }
 
         // ── Data: nada posterior ATIVO em nenhum participante (consulta completa, cancelados fora) ──
-        const pseudo = { id: '', empresa_id: e.empresaId, createdAt: new Date('9999-12-31T00:00:00Z'), dados: { data_movimentacao: e.dataMovimentacao } };
-        const posteriores = await dependenciasPosteriores(tx, auth.clienteId, pseudo, {
+        // Guarda temporal própria de comando novo (PR169-R2): data operacional
+        // confiável ou, sem ela, a data de registro; tarefas pela data realizada.
+        const posteriores = await registrosAtivosPosteriores(tx, auth.clienteId, e.empresaId, {
           loteIds: ids,
           nomes: ids.map((id) => porId.get(id)?.nome),
-          areaIds: [],
+          data: e.dataMovimentacao,
         });
         if (posteriores.length) {
           throw recusa('JUNCAO_DATA_RETROATIVA', 'há registro ativo posterior à data da junção num dos lotes; use data igual ou posterior', { dependencias: posteriores });

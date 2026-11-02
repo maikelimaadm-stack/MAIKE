@@ -265,7 +265,7 @@ const exigirSemAlteracaoPosterior = async (tx, clienteId, mov, efeitos, ancoras)
 // ─── Dependências posteriores (banco, sem teto) ────────────────────────────
 
 /** Fontes JSON com vínculo de lote: tabela fixa (constante, não entrada) e campos de data. */
-const FONTES_DE_LOTE = Object.freeze([
+export const FONTES_DE_LOTE = Object.freeze([
   { tabela: 'MovimentacaoPecuaria', datas: ['data_movimentacao', 'data_evento'] },
   { tabela: 'SuplementacaoLote', datas: ['data_lancamento'] },
   { tabela: 'AplicacaoMedicamento', datas: ['data_aplicacao'] },

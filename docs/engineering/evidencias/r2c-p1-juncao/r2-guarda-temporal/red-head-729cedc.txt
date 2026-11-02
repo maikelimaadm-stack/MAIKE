@@ -1,0 +1,54 @@
+RED — HEAD 729cedcf711e5836d6094d756805e45cafa58f71 (PR #169 antes da R2), PostgreSQL local descartável, HTTP autenticado
+Nota: T3 ('25/10/2026') bloqueia só por coincidência da comparação de texto ('25…' > '2026…'); T3c ('01/11/2026', também posterior) mostra a falha.
+#   ANTES  {"lotes":[["ORIGEM",30,"Ativo",400],["PRINCIPAL",40,"Ativo",400]],"movs":0,"audits":2,"ops":0}
+#   DEPOIS {"lotes":[["ORIGEM",0,"Inativo",400],["PRINCIPAL",70,"Ativo",400]],"movs":1,"audits":5,"ops":1}
+#   HTTP 201 
+# Subtest: PR169-R2 RED — registro posterior ignorado pela guarda temporal
+    not ok 1 - T1: tarefa da ORIGEM concluída depois da data da junção → 409 JUNCAO_DATA_RETROATIVA
+        201 !== 409
+#   ANTES  {"lotes":[["ORIGEM",30,"Ativo",400],["PRINCIPAL",40,"Ativo",400]],"movs":0,"audits":2,"ops":0}
+#   DEPOIS {"lotes":[["ORIGEM",0,"Inativo",400],["PRINCIPAL",70,"Ativo",400]],"movs":1,"audits":5,"ops":1}
+#   HTTP 201 
+    not ok 2 - T1b: tarefa em andamento (iniciada depois da data) → 409
+        201 !== 409
+#   ANTES  {"lotes":[["ORIGEM",30,"Ativo",400],["PRINCIPAL",40,"Ativo",400]],"movs":1,"audits":3,"ops":0}
+#   DEPOIS {"lotes":[["ORIGEM",0,"Inativo",400],["PRINCIPAL",70,"Ativo",400]],"movs":2,"audits":6,"ops":1}
+#   HTTP 201 
+    not ok 3 - T2: movimentação ATIVA sem data operacional, registrada depois da data → 409 (data de registro vale)
+        201 !== 409
+#   ANTES  {"lotes":[["ORIGEM",30,"Ativo",400],["PRINCIPAL",40,"Ativo",400]],"movs":0,"audits":2,"ops":0}
+#   DEPOIS {"lotes":[["ORIGEM",30,"Ativo",400],["PRINCIPAL",40,"Ativo",400]],"movs":0,"audits":2,"ops":0}
+#   HTTP 409 JUNCAO_DATA_RETROATIVA
+    ok 4 - T3: evento sanitário da ORIGEM com data malformada ("25/10/2026"), registrado depois → 409
+#   ANTES  {"lotes":[["ORIGEM",30,"Ativo",400],["PRINCIPAL",40,"Ativo",400]],"movs":0,"audits":2,"ops":0}
+#   DEPOIS {"lotes":[["ORIGEM",0,"Inativo",400],["PRINCIPAL",70,"Ativo",400]],"movs":1,"audits":5,"ops":1}
+#   HTTP 201 
+    not ok 5 - T3c: data malformada "01/11/2026" (posterior, mas perde na comparação de texto) → 409
+        201 !== 409
+#   ANTES  {"lotes":[["ORIGEM",30,"Ativo",400],["PRINCIPAL",40,"Ativo",400]],"movs":0,"audits":2,"ops":0}
+#   DEPOIS {"lotes":[["ORIGEM",0,"Inativo",400],["PRINCIPAL",70,"Ativo",400]],"movs":1,"audits":5,"ops":1}
+#   HTTP 201 
+    not ok 6 - T3b: evento sanitário sem data, registrado depois → 409
+        201 !== 409
+# Subtest: PR169-R2 GREEN — anteriores passam, cancelados não bloqueiam, sem vazamento
+    ok 1 - G1: registros comprovadamente ANTERIORES (data operacional ≤ data da junção) não bloqueiam, mesmo registrados agora
+#   ANTES  {"lotes":[["ORIGEM",30,"Ativo",400],["PRINCIPAL",40,"Ativo",400]],"movs":0,"audits":2,"ops":0}
+#   DEPOIS {"lotes":[["ORIGEM",30,"Ativo",400],["PRINCIPAL",40,"Ativo",400]],"movs":0,"audits":2,"ops":0}
+#   HTTP 409 JUNCAO_DATA_RETROATIVA
+    ok 2 - G2: mesmo dia não bloqueia (ISO com hora e AAAA-MM-DD); dia seguinte bloqueia
+    ok 3 - G3: data com fuso: o dia operacional é o do próprio registro (prefixo), não convertido para UTC
+    ok 4 - G4: tarefa só com previsão futura NÃO é evento realizado; registrada antes da data não bloqueia
+    ok 5 - G5: tarefa CANCELADA e movimento CANCELADO posteriores não bloqueiam
+#   ANTES  {"lotes":[["ORIGEM",30,"Ativo",400],["PRINCIPAL",40,"Ativo",400]],"movs":611,"audits":2,"ops":0}
+#   DEPOIS {"lotes":[["ORIGEM",30,"Ativo",400],["PRINCIPAL",40,"Ativo",400]],"movs":611,"audits":2,"ops":0}
+#   HTTP 409 JUNCAO_DATA_RETROATIVA
+    ok 6 - G6: 610 cancelados posteriores + 1 ativo → bloqueia; só os 610 → permite
+    ok 7 - G7: tarefa de OUTRO lote, de OUTRA empresa e de OUTRO tenant não bloqueiam; homônimo com outro id também não
+#   ANTES  {"lotes":[["ORIGEM",30,"Ativo",400],["PRINCIPAL",40,"Ativo",400]],"movs":0,"audits":2,"ops":0}
+#   DEPOIS {"lotes":[["ORIGEM",0,"Inativo",400],["PRINCIPAL",70,"Ativo",400]],"movs":1,"audits":5,"ops":1}
+#   HTTP 201 
+    not ok 8 - G8: registro posterior no PRINCIPAL também bloqueia; junção de 6 lotes com tudo anterior conserva e pondera
+        201 !== 409
+# tests 14
+# pass 8
+# fail 6

@@ -1,0 +1,56 @@
+GREEN — correção sobre 729cedc (guardaTemporalComando.js), PostgreSQL local descartável, HTTP autenticado
+# Subtest: PR169-R2 RED — registro posterior ignorado pela guarda temporal
+    ok 1 - T1: tarefa da ORIGEM concluída depois da data da junção → 409 JUNCAO_DATA_RETROATIVA
+    ok 2 - T1b: tarefa em andamento (iniciada depois da data) → 409
+    ok 3 - T2: movimentação ATIVA sem data operacional, registrada depois da data → 409 (data de registro vale)
+    ok 4 - T3: evento sanitário da ORIGEM com data malformada ("25/10/2026"), registrado depois → 409
+    ok 5 - T3c: data malformada "01/11/2026" (posterior, mas perde na comparação de texto) → 409
+    ok 6 - T3b: evento sanitário sem data, registrado depois → 409
+# Subtest: PR169-R2 GREEN — anteriores passam, cancelados não bloqueiam, sem vazamento
+    ok 1 - G1: registros comprovadamente ANTERIORES (data operacional ≤ data da junção) não bloqueiam, mesmo registrados agora
+    ok 2 - G2: mesmo dia não bloqueia (ISO com hora e AAAA-MM-DD); dia seguinte bloqueia
+    ok 3 - G3: data com fuso: o dia operacional é o do próprio registro (prefixo), não convertido para UTC
+    ok 4 - G4: tarefa só com previsão futura NÃO é evento realizado; registrada antes da data não bloqueia
+    ok 5 - G5: tarefa CANCELADA e movimento CANCELADO posteriores não bloqueiam
+    ok 6 - G6: 610 cancelados posteriores + 1 ativo → bloqueia; só os 610 → permite
+    ok 7 - G7: tarefa de OUTRO lote, de OUTRA empresa e de OUTRO tenant não bloqueiam; homônimo com outro id também não
+    ok 8 - G8: registro posterior no PRINCIPAL também bloqueia; junção de 6 lotes com tudo anterior conserva e pondera
+# tests 14
+# pass 14
+# fail 0
+
+Regressão junção (r2cP1JuncaoLotes, inclui concorrência 3x):
+    ok 1 - J1: 40+30+20 → principal 90, origens 0/Inativo, 1 movimento "Junção de Lotes" (não Entrada); entrada e identificação intactas; cancelar volta 40/30/20
+    ok 2 - J2: pesos todos conhecidos → média ponderada (4 casas); um desconhecido → principal fica sem peso (null), nunca zero; cancelar restaura exato
+    ok 3 - J3: 1 origem e muitas origens (2 e 6 lotes) conservam o total
+    ok 1 - V1: forma — duplicado, principal entre origens, vazio, teto, campos do navegador, data impossível → 400
+    ok 2 - V2: lote zerado/inativo, excluído, de outra área → recusa estável
+    ok 3 - V3: categoria, sexo, categoria de manejo divergentes ou sexo indefinido → JUNCAO_CLASSIFICACAO_DIVERGENTE
+    ok 4 - V4: área de outra empresa, área inexistente, outro tenant, homônimos com ids diferentes
+    ok 5 - V5: evento posterior ATIVO num participante → JUNCAO_DATA_RETROATIVA; só cancelados (> 600) não bloqueiam
+    ok 6 - V6: falha injetada em cada efeito e antes do movimento → banco inalterado (lotes, movimento, auditoria, idempotência)
+    ok 7 - V7: replay da mesma chave devolve o mesmo resultado; conteúdo divergente → 409; retry após commit não duplica
+    ok 1 - K1: não-admin não cancela; dois cancelamentos: o segundo é recusado sem mutação dupla
+    ok 2 - K2: dependência posterior R2A (morte no principal) e R2B (pesagem) bloqueiam; ida e volta de peso por PATCH bloqueia
+    ok 3 - K3: efeito forjado (operação de outro movimento) → CANCELAMENTO_EFEITO_NAO_COMPROVADO
+    ok 1 - H1: histórico pelo principal e por CADA absorvido acha a junção; pela área também
+    ok 2 - H2: \#167 — participante de junção ativa não sai do Cadastro; depois do cancelamento, exclusão lógica (histórico preservado)
+    ok 3 - G1: POST genérico de junção (tipo novo, legado Entrada+motivo, marcador) → 409; campo "juncao" → 400; Entrada legítima passa
+    ok 1 - C1.1: duas junções com origem compartilhada → uma vale, a outra 409; nada duplicado
+    ok 2 - C2.1: junção × morte na origem → conservação exata, sem 500
+    ok 3 - C3.1: junção × transferência da origem → nunca os dois sobre a mesma cabeça
+    ok 4 - C4.1: junção × DELETE da origem → sem exclusão órfã
+    ok 5 - C5.1: cancelar junção × pesagem do principal → nunca reverte por cima
+    ok 6 - C1.2: duas junções com origem compartilhada → uma vale, a outra 409; nada duplicado
+    ok 7 - C2.2: junção × morte na origem → conservação exata, sem 500
+    ok 8 - C3.2: junção × transferência da origem → nunca os dois sobre a mesma cabeça
+    ok 9 - C4.2: junção × DELETE da origem → sem exclusão órfã
+    ok 10 - C5.2: cancelar junção × pesagem do principal → nunca reverte por cima
+    ok 11 - C1.3: duas junções com origem compartilhada → uma vale, a outra 409; nada duplicado
+    ok 12 - C2.3: junção × morte na origem → conservação exata, sem 500
+    ok 13 - C3.3: junção × transferência da origem → nunca os dois sobre a mesma cabeça
+    ok 14 - C4.3: junção × DELETE da origem → sem exclusão órfã
+    ok 15 - C5.3: cancelar junção × pesagem do principal → nunca reverte por cima
+# tests 31
+# pass 31
+# fail 0
