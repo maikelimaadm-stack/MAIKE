@@ -155,3 +155,12 @@ Pedido do proprietário com prints do app do Claude no iPhone. Conferido no Chro
 | Pulinho do iPhone | A cápsula passa ~3 px do ponto e volta; estica ao pressionar | teste V7-2; posição medida quadro a quadro |
 | Nos formulários, ao lado do rótulo | A chave fica colada ao rótulo | v7-01 |
 
+## V8 — folha sem piscada e chave = UISwitch (D-PROD-102)
+
+| Pedido | Feito | Evidência |
+|---|---|---|
+| Piscada ao descer a folha para o meio (manter a média flutuante) | Largura sempre da tela; flutuante por recorte (`clip-path`) que anima sem redesenhar; alturas medidas como o CSS | v8-01; largura constante e recorte contínuo medidos quadro a quadro |
+| Chave com o comportamento do UISwitch, em cápsula, verde do MAIKE, igual em todas, mouse e toque | 60×28, cápsula 38×24 → 44 pressionada, mola com puladinha de ~2 px; ouvinte de toque para o `:active` no iOS | testes V7-1, V7-2, V8-1, V8-2; medido |
+
+**Não testado em aparelho real:** a sensação da mola e do recorte no iPhone.
+
