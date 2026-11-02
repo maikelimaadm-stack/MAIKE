@@ -268,7 +268,7 @@ export const BACKEND_ONLY_CODES = Object.freeze({
     http: 409,
     meaning: 'mais de uma categoria de manejo ativa corresponde à categoria oficial; o formulário precisa escolher; nada foi gravado',
   },
-  // R2C-P1 (D-PROD-102) — Junção de Lotes.
+  // R2C-P1 (D-PROD-103) — Junção de Lotes.
   JUNCAO_LOTE_INELEGIVEL: {
     http: 409,
     meaning: 'lote da junção fora da área, inativo ou sem cabeças; nada foi gravado',

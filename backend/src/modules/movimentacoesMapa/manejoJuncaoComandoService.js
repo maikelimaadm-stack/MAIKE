@@ -1,5 +1,5 @@
 /**
- * Comando atômico de JUNÇÃO DE LOTES — R2C-P1 (D-PROD-102).
+ * Comando atômico de JUNÇÃO DE LOTES — R2C-P1 (D-PROD-103).
  *
  * Substitui o fluxo do navegador (N PATCHes + PATCH do principal + POST
  * genérico "Entrada") por UMA transação PostgreSQL:

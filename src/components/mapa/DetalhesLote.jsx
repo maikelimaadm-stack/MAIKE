@@ -636,7 +636,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
   const areaDoManejo = () => lotes[0]?.area_atual_id;
 
   /**
-   * R2C-P1 (D-PROD-102): Junção de Lotes por UM comando do servidor — soma,
+   * R2C-P1 (D-PROD-103): Junção de Lotes por UM comando do servidor — soma,
    * zera as origens e grava o movimento 'Junção de Lotes' numa transação.
    * Nada de PATCH em sequência nem POST genérico; offline fica indisponível.
    */

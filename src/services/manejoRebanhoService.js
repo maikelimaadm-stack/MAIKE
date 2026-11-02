@@ -145,7 +145,7 @@ export const enviarManejoRebanho = async (corpo, opcoes) => {
 };
 
 /**
- * Junção de Lotes (R2C-P1, D-PROD-102): mesmo envio online-only com pendência
+ * Junção de Lotes (R2C-P1, D-PROD-103): mesmo envio online-only com pendência
  * idempotente; o corpo só tem ids, data e observação.
  * @param {Record<string, any>} corpo
  * @param {{ escopo: string, enviar?: (c: any) => Promise<any>, online?: () => boolean, confirmarDescarte?: (m: string) => boolean, storage?: Storage|null }} opcoes
