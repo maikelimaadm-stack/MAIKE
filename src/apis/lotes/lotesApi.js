@@ -20,6 +20,8 @@ import {
   executarManejoRebanho,
   executarJuncaoLotes,
   executarBaixaRebanho,
+  listarPosicoesRebanho,
+  executarTransferenciaLedger,
 } from '@/apis/movimentacoes-mapa';
 import { ehMovimentoAtivo } from '@/domain/lotes/situacaoMovimento';
 import { listMovimentacoesPecuariaNativas } from '@/apis/movimentacoes-pecuaria';
@@ -167,6 +169,24 @@ export const registrarBaixaRebanhoServidor = async (corpo) => {
   const contexto = ctx('registrarBaixaRebanho');
   assertArgument(isObjeto(corpo) && isId(corpo.operation_id) && isId(corpo.area_id) && Array.isArray(corpo.linhas), 'corpo', contexto);
   return runProviderCall(() => executarBaixaRebanho(corpo), { ...contexto, details: { area_id: corpo.area_id, tipo: corpo.tipo } });
+};
+
+/**
+ * R2E-P1 (D-PROD-107): posições do ledger. `ativo: false` = empresa ainda no
+ * modelo legado (o mapa lê os lotes como antes). Erro propaga: nunca cai para
+ * o Lote como saldo numa empresa ativada.
+ */
+export const listarPosicoesRebanhoServidor = async (empresaId) => {
+  const contexto = ctx('listarPosicoesRebanho');
+  assertArgument(isId(empresaId), 'empresaId', contexto);
+  return runProviderCall(() => listarPosicoesRebanho(empresaId), { ...contexto, details: { empresa_id: empresaId } });
+};
+
+/** R2E-P1: transferência (multi-posição, retroativa) numa transação do servidor. Nunca vai para a fila offline. */
+export const registrarTransferenciaLedgerServidor = async (corpo) => {
+  const contexto = ctx('registrarTransferenciaLedger');
+  assertArgument(isObjeto(corpo) && isId(corpo.operation_id) && isId(corpo.area_destino_id) && Array.isArray(corpo.itens), 'corpo', contexto);
+  return runProviderCall(() => executarTransferenciaLedger(corpo), { ...contexto, details: { area_destino_id: corpo.area_destino_id } });
 };
 
 export const consultarElegibilidadeCancelamento = async (id) => {

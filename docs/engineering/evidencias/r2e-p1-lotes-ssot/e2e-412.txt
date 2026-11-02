@@ -1,0 +1,36 @@
+PASS mobile-412 formulário de transferência (2026-12-20): sem overflow horizontal — {"sw":412,"cw":412,"l":8,"r":404,"vw":412}
+PASS mobile-412 dia 20: 1 POST do comando do ledger (duplo toque não duplica) — 1 POST
+PASS mobile-412 corpo: posição + quantidade, dia escrito, sem saldo/tenant/lote — {"operation_id":"ledger-23ee9935-88c6-4744-a2c5-bdbd3a7051a3","empresa_id":"cmvwd6au200037d5t9qk00js3","area_destino_id":"cmvwl7m0s028j7d3ttf6hfywq","data_movimentacao":"2026-12-20T12:00:00.000Z","ite
+PASS mobile-412 sem manejo-lote, PATCH/POST /lotes ou POST genérico
+PASS mobile-412 servidor: A=442 B=152 — 442/152
+PASS mobile-412 formulário de transferência (2026-12-18): sem overflow horizontal — {"sw":412,"cw":412,"l":8,"r":404,"vw":412}
+PASS mobile-412 dia 18 (retroativo, lançado depois): aceito com 1 POST — 373/221
+PASS mobile-412 ledger: a mesma entrada em DUAS posições (A e B), nenhum lote novo
+PASS mobile-412 formulário de transferência (2026-12-19): sem overflow horizontal — {"sw":412,"cw":412,"l":8,"r":404,"vw":412}
+PASS mobile-412 409: mensagem com área e data do saldo negativo (B no dia 19) — Saldo insuficiente em PASTO 60 no dia 19/12/2026. Disponível na data: 69 cab; pedido: 74 cab. Nada foi gravado.
+PASS mobile-412 409: diálogo continua aberto
+PASS mobile-412 409: nada mudou no servidor — 373/221
+PASS mobile-412 área B (pelo mapa) mostra a posição da linhagem com 221 cab — Detalhes do Lote
+Informações da Área: PASTO 60
+Hectares
+96,44 ha
+UA/ha
+2,04
+UA total
+196,44
+Pastagem
+Marandu
+Qtd. Lotes
+1
+Qtd. Cabeças
+221
+Média geral
+400,00 kg
+PASS mobile-412 operação não migrada (Morte): recusa clara, sem requisição
+PASS mobile-412 diálogo de cancelamento: sem overflow horizontal — {"sw":412,"cw":412,"l":8.744074821472168,"r":403.25591564178467,"vw":412}
+PASS mobile-412 cancelamento do dia 18 pela UI → A e B voltam (o dia 20 continua) — 442/152
+PASS mobile-412 Cadastro de Lotes mostra a entrada original (1 cadastro, sem derivado)
+PASS mobile-412 API /lotes/:id: entrada = quantidade original, área de entrada A — [594,true]
+PASS mobile-412 offline: indisponibilidade explícita, sem requisição de escrita — Sem conexão: este manejo (nascimento, pesagem, mudança de categoria, junção, morte ou abate) só pode ser registrado online. Nada foi gravado.
+PASS mobile-412 sem erro de página
+RESUMO mobile-412: 20/20 PASS

@@ -35,6 +35,7 @@ import { AppError } from '../../shared/errors/AppError.js';
 import { documentoComoPublico } from '../../shared/jsonDocument/jsonDocumentPublic.js';
 import { executarComIdempotencia, fingerprintDePayload } from '../../shared/idempotency/operacaoIdempotenteService.js';
 import { registrarEvento } from '../auditoria/auditService.js';
+import { exigirModoLegado } from '../rebanhoLedger/rebanhoLedgerService.js';
 import { comoLotePublico } from '../lotes/loteService.js';
 import {
   CATEGORIAS_OFICIAIS,
@@ -205,6 +206,7 @@ export const executarBaixaRebanho = async (contexto, entrada) => {
       executar: async () => {
         const empresa = await tx.empresa.findUnique({ where: { cliente_id_id: { cliente_id: auth.clienteId, id: e.empresaId } }, select: { id: true } });
         if (!empresa) throw new AppError('EMPRESA_NOT_FOUND', 'empresa não encontrada');
+        await exigirModoLegado(tx, auth.clienteId, e.empresaId, 'baixa-rebanho');
 
         // Trava a área e TODOS os lotes dela (ordem de id) antes de ler saldo.
         const { area, lotes } = await travarAreaELotes(tx, auth.clienteId, e.empresaId, e.areaId, e.selecionados ?? []);

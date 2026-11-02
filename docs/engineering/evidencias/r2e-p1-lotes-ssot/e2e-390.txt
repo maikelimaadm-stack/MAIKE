@@ -1,0 +1,36 @@
+PASS mobile-390 formulário de transferência (2026-12-20): sem overflow horizontal — {"sw":390,"cw":390,"l":8,"r":382,"vw":390}
+PASS mobile-390 dia 20: 1 POST do comando do ledger (duplo toque não duplica) — 1 POST
+PASS mobile-390 corpo: posição + quantidade, dia escrito, sem saldo/tenant/lote — {"operation_id":"ledger-a8726235-5cda-4152-973e-af6685da1353","empresa_id":"cmvwd6au200037d5t9qk00js3","area_destino_id":"cmvwl7m18028t7d3t3ianloxx","data_movimentacao":"2026-12-20T12:00:00.000Z","ite
+PASS mobile-390 sem manejo-lote, PATCH/POST /lotes ou POST genérico
+PASS mobile-390 servidor: A=341 B=179 — 341/179
+PASS mobile-390 formulário de transferência (2026-12-18): sem overflow horizontal — {"sw":390,"cw":390,"l":8,"r":382,"vw":390}
+PASS mobile-390 dia 18 (retroativo, lançado depois): aceito com 1 POST — 251/269
+PASS mobile-390 ledger: a mesma entrada em DUAS posições (A e B), nenhum lote novo
+PASS mobile-390 formulário de transferência (2026-12-19): sem overflow horizontal — {"sw":390,"cw":390,"l":8,"r":382,"vw":390}
+PASS mobile-390 409: mensagem com área e data do saldo negativo (B no dia 19) — Saldo insuficiente em PASTO 62 no dia 19/12/2026. Disponível na data: 90 cab; pedido: 95 cab. Nada foi gravado.
+PASS mobile-390 409: diálogo continua aberto
+PASS mobile-390 409: nada mudou no servidor — 251/269
+PASS mobile-390 área B (pelo mapa) mostra a posição da linhagem com 269 cab — Detalhes do Lote
+Informações da Área: PASTO 62
+Hectares
+96,43 ha
+UA/ha
+2,48
+UA total
+239,11
+Pastagem
+Marandu
+Qtd. Lotes
+1
+Qtd. Cabeças
+269
+Média geral
+400,00 kg
+PASS mobile-390 operação não migrada (Morte): recusa clara, sem requisição
+PASS mobile-390 diálogo de cancelamento: sem overflow horizontal — {"sw":390,"cw":390,"l":8.285216331481934,"r":381.71478176116943,"vw":390}
+PASS mobile-390 cancelamento do dia 18 pela UI → A e B voltam (o dia 20 continua) — 341/179
+PASS mobile-390 Cadastro de Lotes mostra a entrada original (1 cadastro, sem derivado)
+PASS mobile-390 API /lotes/:id: entrada = quantidade original, área de entrada A — [520,true]
+PASS mobile-390 offline: indisponibilidade explícita, sem requisição de escrita — Sem conexão: este manejo (nascimento, pesagem, mudança de categoria, junção, morte ou abate) só pode ser registrado online. Nada foi gravado.
+PASS mobile-390 sem erro de página
+RESUMO mobile-390: 20/20 PASS

@@ -15,6 +15,8 @@ export {
   registrarManejoRebanhoServidor,
   registrarJuncaoLotesServidor,
   registrarBaixaRebanhoServidor,
+  listarPosicoesRebanhoServidor,
+  registrarTransferenciaLedgerServidor,
   createMovimentacao,
   deleteMovimentacao,
   listMovimentacoesPecuarias,

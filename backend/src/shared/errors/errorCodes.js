@@ -285,6 +285,19 @@ export const BACKEND_ONLY_CODES = Object.freeze({
     http: 409,
     meaning: 'junção de lotes só pelo comando /movimentacoes-mapa/comandos/juncao-lotes; o POST genérico recusa; nada foi gravado',
   },
+  // R2E-P1 (D-PROD-107) — ledger do rebanho por posição.
+  POSICAO_REBANHO_NOT_FOUND: { http: 404, meaning: 'posição do rebanho não encontrada nesta empresa' },
+  REBANHO_LEDGER_INATIVO: { http: 409, meaning: 'o ledger de posições não está ativo nesta empresa' },
+  REBANHO_LEDGER_JA_ATIVO: { http: 409, meaning: 'o ledger de posições já está ativo nesta empresa' },
+  REBANHO_LEDGER_OPERACAO_NAO_MIGRADA: { http: 409, meaning: 'empresa no ledger: esta operação ainda não foi migrada para ele e foi recusada sem gravar nada' },
+  REBANHO_LEDGER_SALDO_SOMENTE_POR_EVENTO: { http: 409, meaning: 'empresa no ledger: saldo, área, status e classificação do lote só mudam por evento' },
+  REBANHO_SALDO_HISTORICO_NEGATIVO: { http: 409, meaning: 'o fato deixaria saldo negativo em alguma data; nada foi gravado' },
+  CANCELAMENTO_SALDO_HISTORICO_NEGATIVO: { http: 409, meaning: 'cancelar deixaria saldo negativo em alguma data (fato posterior depende); nada mudou' },
+  REBANHO_ANTES_DO_CORTE: { http: 409, meaning: 'data anterior ao início do ledger nesta empresa' },
+  REBANHO_DESTINO_IGUAL_ORIGEM: { http: 409, meaning: 'área de destino igual à de origem' },
+  REBANHO_AREA_INATIVA: { http: 409, meaning: 'área de destino inativa' },
+  REBANHO_ATIVACAO_LOTE_SEM_AREA: { http: 409, meaning: 'há lote ativo com cabeças e sem área válida; corrija antes de ativar' },
+  REBANHO_ATIVACAO_CORTE_ANTERIOR_AO_HISTORICO: { http: 409, meaning: 'há movimentação legada ativa depois da data de corte' },
   // R2D-P1 (D-PROD-105) — baixa multi-lote (Morte/Abate).
   BAIXA_SALDO_INSUFICIENTE: {
     http: 409,

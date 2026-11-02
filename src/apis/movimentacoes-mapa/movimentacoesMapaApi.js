@@ -8,6 +8,8 @@ import {
   executarManejoRebanhoNativo,
   executarJuncaoLotesNativo,
   executarBaixaRebanhoNativo,
+  listarPosicoesRebanhoNativo,
+  executarTransferenciaLedgerNativo,
 } from './movimentacaoMapaNativePort.js';
 
 export const listMovimentacoesMapaNativas = (...args) => movimentacaoMapaPort.list(...args);
@@ -22,3 +24,5 @@ export const executarManejoLote = (corpo) => executarManejoLoteNativo(corpo);
 export const executarManejoRebanho = (corpo) => executarManejoRebanhoNativo(corpo);
 export const executarJuncaoLotes = (corpo) => executarJuncaoLotesNativo(corpo);
 export const executarBaixaRebanho = (corpo) => executarBaixaRebanhoNativo(corpo);
+export const listarPosicoesRebanho = (empresaId) => listarPosicoesRebanhoNativo(empresaId);
+export const executarTransferenciaLedger = (corpo) => executarTransferenciaLedgerNativo(corpo);

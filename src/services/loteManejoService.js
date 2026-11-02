@@ -29,6 +29,7 @@ import {
   registrarManejoRebanhoServidor,
   registrarJuncaoLotesServidor,
   registrarBaixaRebanhoServidor,
+  registrarTransferenciaLedgerServidor,
   filterSuplementacaoLotes,
   createSuplementacaoEvento,
   listSuplementacaoEventos,
@@ -156,6 +157,7 @@ export const registrarManejoLote = (corpo) => registrarManejoLoteServidor(corpo)
 export const registrarManejoRebanho = (corpo) => registrarManejoRebanhoServidor(corpo);
 export const registrarJuncaoLotes = (corpo) => registrarJuncaoLotesServidor(corpo);
 export const registrarBaixaRebanho = (corpo) => registrarBaixaRebanhoServidor(corpo);
+export const registrarTransferenciaLedger = (corpo) => registrarTransferenciaLedgerServidor(corpo);
 export const criarEventoSuplementacao = (dados) => createSuplementacaoEvento(dados);
 export const registrarSuplementacaoEmLote = (registros) => bulkCreateSuplementacaoLote(registros);
 

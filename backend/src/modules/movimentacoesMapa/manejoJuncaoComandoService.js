@@ -24,6 +24,7 @@ import { AppError } from '../../shared/errors/AppError.js';
 import { documentoComoPublico } from '../../shared/jsonDocument/jsonDocumentPublic.js';
 import { executarComIdempotencia, fingerprintDePayload } from '../../shared/idempotency/operacaoIdempotenteService.js';
 import { registrarEvento } from '../auditoria/auditService.js';
+import { exigirModoLegado } from '../rebanhoLedger/rebanhoLedgerService.js';
 import { comoLotePublico } from '../lotes/loteService.js';
 import {
   dataOperacionalValida,
@@ -98,6 +99,7 @@ export const executarJuncaoLotes = async (contexto, entrada) => {
       executar: async () => {
         const empresa = await tx.empresa.findUnique({ where: { cliente_id_id: { cliente_id: auth.clienteId, id: e.empresaId } }, select: { id: true } });
         if (!empresa) throw new AppError('EMPRESA_NOT_FOUND', 'empresa não encontrada');
+        await exigirModoLegado(tx, auth.clienteId, e.empresaId, 'juncao-lotes');
 
         const ids = [e.principalId, ...e.origens];
         const { area, lotes } = await travarAreaELotes(tx, auth.clienteId, e.empresaId, e.areaId, ids);

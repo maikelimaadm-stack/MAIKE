@@ -1,0 +1,111 @@
+# R2E-P1 RED — main f7a8ea3b8ccae5d5d30c1735d283330a2b0a82dd (sem alteração de código; só este teste)
+# PostgreSQL 16 local descartável (maike_ci), HTTP autenticado (app.inject), dados sintéticos
+# Comando: R2E_RED=1 node --test --test-concurrency=1 tests/r2eP1LedgerRed.test.mjs
+
+TAP version 13
+# ◇ injected env (0) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
+# (node:521) [FSTDEP023] FastifyDeprecation: disableRequestLogging option is deprecated. Use the logController option with disableRequestLogging or isLogDisabled override instead. The disableRequestLogging top-level option will be removed in `fastify@6`.
+# (Use `node --trace-warnings ...` to show where the warning was created)
+#   dia 02: HTTP 201 parcial_novo_lote
+#   dia 01: HTTP 201 parcial_novo_lote
+#   Lote (3 linhas):
+#     LOTE 001|-|300|PASTO A|entrada=500
+#     LOTE 001|MOVIMENTAÇÃO|100|PASTO B|entrada=100
+#     LOTE 001|MOVIMENTAÇÃO|100|PASTO B|entrada=100
+#   navegador (validarOrdemTemporalLote) recusaria o dia 01? true
+# Subtest: R2E RED — cadastro e saldo misturados em Lote
+    # Subtest: R1: 500 em A; transfere 100 no dia 02 e depois 100 no dia 01 → cada parcial fabrica um Lote "MOVIMENTAÇÃO" no cadastro
+    not ok 1 - R1: 500 em A; transfere 100 no dia 02 e depois 100 no dia 01 → cada parcial fabrica um Lote "MOVIMENTAÇÃO" no cadastro
+      ---
+      duration_ms: 5261.092441
+      type: 'test'
+      location: '/home/user/MAIKE/backend/tests/r2eP1LedgerRed.test.mjs:65:3'
+      failureType: 'testCodeFailure'
+      error: |-
+        o cadastro deveria ter só a entrada de 500
+        
+        3 !== 1
+        
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected: 1
+      actual: 3
+      operator: 'strictEqual'
+      stack: |-
+        TestContext.<anonymous> (file:///home/user/MAIKE/backend/tests/r2eP1LedgerRed.test.mjs:78:12)
+        process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async Promise.all (index 0)
+        async Suite.run (node:internal/test_runner/test:1442:7)
+        async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+      ...
+#   já existe transferência 2026-11-02T12:00Z; nova no dia "2026-11-02" é bloqueada pela tela? true
+    # Subtest: R2: segunda transferência no MESMO dia 02 → o comparador do navegador acusa "posterior" (meia-noite × meio-dia)
+    not ok 2 - R2: segunda transferência no MESMO dia 02 → o comparador do navegador acusa "posterior" (meia-noite × meio-dia)
+      ---
+      duration_ms: 259.945696
+      type: 'test'
+      location: '/home/user/MAIKE/backend/tests/r2eP1LedgerRed.test.mjs:81:3'
+      failureType: 'testCodeFailure'
+      error: |-
+        mesmo dia não é posterior
+        
+        true !== false
+        
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected: false
+      actual: true
+      operator: 'strictEqual'
+      stack: |-
+        TestContext.<anonymous> (file:///home/user/MAIKE/backend/tests/r2eP1LedgerRed.test.mjs:87:12)
+        process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async Suite.processPendingSubtests (node:internal/test_runner/test:744:7)
+      ...
+#   A→B dia 05: HTTP 201; B→C dia 01: HTTP 201 
+#   Lote:
+#     LOTE 001|-|400|PASTO A|entrada=500
+#     LOTE 001|MOVIMENTAÇÃO|50|PASTO B|entrada=100
+#     LOTE 001|MOVIMENTAÇÃO|50|PASTO C|entrada=50
+    # Subtest: R3: origem SEM estoque na data (B só recebeu no dia 05) aceita transferência B→C no dia 01 porque o servidor só olha o saldo de hoje
+    not ok 3 - R3: origem SEM estoque na data (B só recebeu no dia 05) aceita transferência B→C no dia 01 porque o servidor só olha o saldo de hoje
+      ---
+      duration_ms: 291.623313
+      type: 'test'
+      location: '/home/user/MAIKE/backend/tests/r2eP1LedgerRed.test.mjs:90:3'
+      failureType: 'testCodeFailure'
+      error: |-
+        no dia 01 a área B não tinha nenhuma cabeça
+        
+        201 !== 409
+        
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected: 409
+      actual: 201
+      operator: 'strictEqual'
+      stack: |-
+        TestContext.<anonymous> (file:///home/user/MAIKE/backend/tests/r2eP1LedgerRed.test.mjs:97:12)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async Suite.processPendingSubtests (node:internal/test_runner/test:744:7)
+      ...
+    1..3
+not ok 1 - R2E RED — cadastro e saldo misturados em Lote
+  ---
+  duration_ms: 6457.105018
+  type: 'suite'
+  location: '/home/user/MAIKE/backend/tests/r2eP1LedgerRed.test.mjs:64:1'
+  failureType: 'subtestsFailed'
+  error: '3 subtests failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+1..1
+# tests 3
+# suites 1
+# pass 0
+# fail 3
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 7164.372846

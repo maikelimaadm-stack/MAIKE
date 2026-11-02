@@ -349,6 +349,15 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
       }
     }
 
+    // R2E-P1 (D-PROD-107): no ledger (posições) e sem conexão, não busca sobras
+    // (a busca falharia em silêncio): segue para o envio, que recusa com
+    // "Sem conexão" ANTES de qualquer requisição. O fluxo legado não muda.
+    const ehLedger = lotesOriginais.some((l) => l?.__posicao === true);
+    if (ehLedger && typeof navigator !== 'undefined' && navigator.onLine === false) {
+      await executarMovimentacao(formData, []);
+      return;
+    }
+
     if (!sobraDestinoDecidida) {
       const pendentes = await buscarSobrasDestinoPendentes();
       if (pendentes.length > 0) {

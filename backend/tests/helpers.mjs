@@ -32,6 +32,11 @@ const ORDEM_DE_LIMPEZA = [
   'catalogoTipoEntidade',
   'operadorProdutoMaike',
   'catalogoMeta',
+  // R2E-P1 (D-PROD-107) — ledger do rebanho: partidas → eventos → posições → ativação, antes de Lote/Área/Empresa.
+  'partidaRebanho',
+  'eventoRebanho',
+  'posicaoRebanho',
+  'rebanhoLedgerAtivacao',
   'auditLog',
   'registroAnexo',
   // P5.5 — documentos JSON tenant-scoped (Restrict → Cliente).

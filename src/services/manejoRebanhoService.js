@@ -12,7 +12,7 @@
  * conscientemente. Escopo por tenant + usuário + tipo + área.
  */
 
-import { registrarManejoRebanho, registrarJuncaoLotes, registrarBaixaRebanho } from '@/services/loteManejoService';
+import { registrarManejoRebanho, registrarJuncaoLotes, registrarBaixaRebanho, registrarTransferenciaLedger } from '@/services/loteManejoService';
 
 export const CODIGO_OFFLINE = 'MANEJO_REBANHO_OFFLINE';
 export const CODIGO_PENDENTE = 'MANEJO_REBANHO_PENDENTE_DIVERGENTE';
@@ -37,6 +37,12 @@ const RECUSAS_DEFINITIVAS = new Set([
   'BAIXA_SALDO_INSUFICIENTE',
   'BAIXA_CLASSIFICACAO_DIVERGENTE',
   'BAIXA_DATA_RETROATIVA',
+  'REBANHO_SALDO_HISTORICO_NEGATIVO',
+  'REBANHO_ANTES_DO_CORTE',
+  'REBANHO_DESTINO_IGUAL_ORIGEM',
+  'REBANHO_AREA_INATIVA',
+  'REBANHO_LEDGER_INATIVO',
+  'POSICAO_REBANHO_NOT_FOUND',
 ]);
 
 export const MENSAGENS_MANEJO_REBANHO = Object.freeze({
@@ -55,6 +61,13 @@ export const MENSAGENS_MANEJO_REBANHO = Object.freeze({
   BAIXA_SALDO_INSUFICIENTE: 'A categoria não tem cabeças suficientes nos lotes ativos desta área. Recarregue o mapa. Nada foi baixado.',
   BAIXA_CLASSIFICACAO_DIVERGENTE: 'Há lote desta categoria com sexo incompatível. Corrija o cadastro do lote antes. Nada foi baixado.',
   BAIXA_DATA_RETROATIVA: 'Há registro posterior à data escolhida num dos lotes. Use uma data igual ou posterior. Nada foi baixado.',
+  REBANHO_SALDO_HISTORICO_NEGATIVO: 'A transferência deixaria saldo negativo numa data. Nada foi gravado.',
+  REBANHO_ANTES_DO_CORTE: 'A data é anterior ao início do controle por posições nesta fazenda. Nada foi gravado.',
+  REBANHO_DESTINO_IGUAL_ORIGEM: 'A área de destino é a mesma da origem. Nada foi gravado.',
+  REBANHO_AREA_INATIVA: 'A área de destino está inativa. Nada foi gravado.',
+  REBANHO_LEDGER_INATIVO: 'O controle por posições não está ativo nesta fazenda. Recarregue o mapa. Nada foi gravado.',
+  REBANHO_LEDGER_OPERACAO_NAO_MIGRADA: 'Esta operação ainda não foi migrada para o controle por posições. Nada foi gravado.',
+  POSICAO_REBANHO_NOT_FOUND: 'Uma posição não está mais nesta área. Recarregue o mapa. Nada foi gravado.',
   LOTE_NOT_FOUND: 'Um lote não está mais ativo nesta área. Recarregue o mapa. Nada foi gravado.',
   AREA_NOT_FOUND: 'Área não encontrada nesta fazenda. Nada foi gravado.',
   REQUEST_VALIDATION_FAILED: 'Dados inválidos (quantidade, peso ou data). Nada foi gravado.',
@@ -165,4 +178,35 @@ export const enviarJuncaoLotes = (corpo, opcoes) => enviarManejoRebanho(corpo, {
  * @param {Record<string, any>} corpo
  * @param {{ escopo: string, enviar?: (c: any) => Promise<any>, online?: () => boolean, confirmarDescarte?: (m: string) => boolean, storage?: Storage|null }} opcoes
  */
+/**
+ * R2E-P1 (D-PROD-107): mensagem com o veredito do servidor (data, área,
+ * disponível e pedido) quando a linha do tempo recusa a transferência.
+ */
+export const mensagemDaTransferenciaLedger = (erro) => {
+  // O cliente nativo mescla os `details` do servidor em `erro.details` (nativeHttpClient.detalhesSeguros).
+  const d = erro?.details ?? erro?.cause?.details ?? null;
+  if (codigoDoErro(erro) === 'REBANHO_SALDO_HISTORICO_NEGATIVO' && d?.data) {
+    const dia = String(d.data).split('-').reverse().join('/');
+    const qtd = d.disponivel !== null && d.disponivel !== undefined ? ` Disponível na data: ${d.disponivel} cab; pedido: ${d.pedido} cab.` : ` Saldo resultante: ${d.saldo_resultante} cab.`;
+    return `Saldo insuficiente em ${d.area_nome ?? 'uma área'} no dia ${dia}.${qtd} Nada foi gravado.`;
+  }
+  return mensagemDoErro(erro);
+};
+
+/**
+ * Transferência no ledger: online-only e com pendência idempotente (mesmo
+ * padrão dos outros comandos). `tipo`/`area_id` só compõem a chave local da
+ * pendência — não vão no corpo (o servidor recusa campo desconhecido).
+ * @param {Record<string, any>} corpo
+ * @param {{ escopo: string, online?: () => boolean, confirmarDescarte?: (m: string) => boolean, storage?: Storage|null, enviar?: (c: any) => Promise<any> }} opcoes
+ */
+export const enviarTransferenciaLedger = (corpo, opcoes) =>
+  enviarManejoRebanho(
+    { tipo: 'TRANSFERENCIA_LEDGER', area_id: corpo.area_destino_id, ...corpo },
+    {
+      ...opcoes,
+      enviar: ({ tipo: _t, area_id: _a, ...limpo }) => (opcoes.enviar ?? registrarTransferenciaLedger)(limpo),
+    }
+  );
+
 export const enviarBaixaRebanho = (corpo, opcoes) => enviarManejoRebanho(corpo, { enviar: registrarBaixaRebanho, ...opcoes });

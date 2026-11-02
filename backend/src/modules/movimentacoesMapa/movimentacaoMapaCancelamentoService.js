@@ -39,6 +39,7 @@ import {
 } from './manejoRebanhoComandoService.js';
 import { COMANDO_JUNCAO, TIPO_JUNCAO, TIPO_OPERACAO_JUNCAO } from './juncaoConstantes.js';
 import { COMANDO_BAIXA, TIPO_OPERACAO_BAIXA, TIPOS_BAIXA } from './baixaConstantes.js';
+import { COMANDO_LEDGER, cancelarMovimentoDoLedger, ehMovimentoDoLedger } from '../rebanhoLedger/rebanhoLedgerService.js';
 
 export const TIPO_OPERACAO_CANCELAMENTO = 'cancelamento_movimentacao_mapa';
 export const SITUACAO_CANCELADO = 'cancelado';
@@ -48,7 +49,8 @@ export const TIPOS_CANCELAVEIS_R2A = Object.freeze(['Morte', 'Abate', 'Transfer�
 export const TIPOS_CANCELAVEIS = Object.freeze([...TIPOS_CANCELAVEIS_R2A, ...TIPOS_DO_COMANDO_REBANHO, TIPO_JUNCAO]);
 
 /** Comandos com proveniência certificada (efeito + operação idempotente). */
-export const COMANDOS_CERTIFICADOS = Object.freeze([COMANDO_MANEJO, COMANDO_REBANHO, COMANDO_JUNCAO, COMANDO_BAIXA]);
+/** Inclui o ledger (R2E-P1): cancelamento dele também tem prova (operação idempotente + evento). */
+export const COMANDOS_CERTIFICADOS = Object.freeze([COMANDO_MANEJO, COMANDO_REBANHO, COMANDO_JUNCAO, COMANDO_BAIXA, COMANDO_LEDGER]);
 
 /** Comando e tipo de operação idempotente que certificam cada grupo de tipos (R2B / R2C). */
 const CERTIFICACAO_REBANHO = Object.freeze({ comando: COMANDO_REBANHO, tipoOperacao: TIPO_OPERACAO_REBANHO });
@@ -646,6 +648,18 @@ export const cancelar = async (contexto, id, entrada) => {
       tipoOperacao: TIPO_OPERACAO_CANCELAMENTO,
       fingerprint,
       executar: async () => {
+        // R2E-P1 (D-PROD-107): transferência do ledger cancela o EVENTO e revalida a linha do tempo.
+        const movLedger = await buscarMovimento(tx, auth.clienteId, id, true);
+        if (movLedger && ehMovimentoDoLedger(movLedger)) {
+          if (movLedger.dados?.situacao === SITUACAO_CANCELADO) throw recusa('CANCELAMENTO_JA_REALIZADO', 'a movimentação já está cancelada');
+          const { efeitos, cancelamento } = await cancelarMovimentoDoLedger(tx, contexto, movLedger, motivo, operationKey);
+          const movCancelado = await tx.movimentacaoMapa.update({
+            where: { cliente_id_id: { cliente_id: auth.clienteId, id } },
+            data: { dados: { ...movLedger.dados, situacao: SITUACAO_CANCELADO, cancelamento: { ...cancelamento, por_login: ator?.login ?? auth.login ?? null } } },
+          });
+          await registrarEvento(contexto, { acao: 'cancelamento', entidade: 'MovimentacaoMapa', entidadeId: id, dadosAnteriores: documentoComoPublico(movLedger), dadosNovos: documentoComoPublico(movCancelado) }, tx);
+          return { httpStatus: 200, body: { movimentacao: documentoComoPublico(movCancelado), efeitos } };
+        }
         const plano = await planejarCancelamento(tx, auth.clienteId, id, { travar: true });
         for (const efeito of plano.efeitos) {
           const anterior = await tx.lote.findUnique({ where: { cliente_id_id: { cliente_id: auth.clienteId, id: efeito.lote_id } } });
@@ -709,6 +723,21 @@ export const elegibilidade = async (contexto, id) => {
   return prisma.$transaction(async (tx) => {
     const ator = await atorDoTenant(contexto, tx);
     const podeCancelar = ehAdminTenantAtivo(ator);
+    const movLedger = await buscarMovimento(tx, auth.clienteId, id, false);
+    if (movLedger && ehMovimentoDoLedger(movLedger)) {
+      // Ensaio dentro de SAVEPOINT: o mesmo motor do POST, desfeito em seguida.
+      await tx.$executeRawUnsafe('SAVEPOINT elegibilidade_ledger');
+      try {
+        if (movLedger.dados?.situacao === SITUACAO_CANCELADO) throw recusa('CANCELAMENTO_JA_REALIZADO', 'a movimentação já está cancelada');
+        const { efeitos } = await cancelarMovimentoDoLedger(tx, contexto, movLedger, 'ensaio', 'ensaio');
+        return { elegivel: true, codigo: null, motivo: null, tipo: movLedger.dados.tipo, modo: 'ledger', efeitos, requer_administrador: true, pode_cancelar: podeCancelar };
+      } catch (erro) {
+        if (erro instanceof AppError) return { elegivel: false, codigo: erro.code, motivo: erro.message, detalhes: erro.details ?? null, requer_administrador: true, pode_cancelar: podeCancelar };
+        throw erro;
+      } finally {
+        await tx.$executeRawUnsafe('ROLLBACK TO SAVEPOINT elegibilidade_ledger');
+      }
+    }
     try {
       const plano = await planejarCancelamento(tx, auth.clienteId, id, { travar: false });
       return { elegivel: true, codigo: null, motivo: null, tipo: plano.tipo, modo: plano.modo, efeitos: plano.efeitos, requer_administrador: true, pode_cancelar: podeCancelar };

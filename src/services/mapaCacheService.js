@@ -31,6 +31,7 @@ import {
 } from '@/apis/mapa';
 import {
   listLotes,
+  listarPosicoesRebanhoServidor,
   listMovimentacoes,
   listSuplementacaoEventos,
   listSuplementacaoLotes,
@@ -69,7 +70,13 @@ const CAPACIDADES = {
   pontosSuplementacao: async (empresaId) =>
     daEmpresa(await listPontosSuplementacao(), empresaId).filter((p) => p.status === 'Ativo'),
   linhas: async (empresaId) => daEmpresa(await listLinhas(), empresaId).filter((l) => l.ativo !== false),
-  lotes: async (empresaId) => daEmpresa(await listLotes(), empresaId).filter((l) => l.status === 'Ativo'),
+  // R2E-P1 (D-PROD-107): empresa no ledger → o mapa mostra POSIÇÕES (saldo por área); o Lote é só o cadastro.
+  // Erro na consulta propaga (sem cair para Lote como saldo).
+  lotes: async (empresaId) => {
+    const ledger = await listarPosicoesRebanhoServidor(empresaId);
+    if (ledger?.ativo) return ledger.itens;
+    return daEmpresa(await listLotes(), empresaId).filter((l) => l.status === 'Ativo');
+  },
   icones: async () => (await listIcones()).filter((i) => i.ativo !== false),
   eventosSuplementacao: async (empresaId) => daEmpresa(await listSuplementacaoEventos(), empresaId),
   estoqueLotes: async (empresaId) =>

@@ -95,6 +95,14 @@ export const executarJuncaoLotesNativo = (corpo) =>
 export const executarBaixaRebanhoNativo = (corpo) =>
   nativeRequest(`${CAMINHO}/comandos/baixa-rebanho`, { method: 'POST', body: corpo, autenticado: true }, ctx('executarBaixaRebanho'));
 
+/** R2E-P1 (D-PROD-107): posições do ledger da empresa (`{ativo, data_corte, itens}`). */
+export const listarPosicoesRebanhoNativo = (empresaId) =>
+  nativeRequest(`/rebanho/posicoes?empresa_id=${encodeURIComponent(empresaId)}`, { autenticado: true }, ctx('listarPosicoesRebanho'));
+
+/** R2E-P1: transferência retroativa no ledger (uma confirmação = um POST). Só online. */
+export const executarTransferenciaLedgerNativo = (corpo) =>
+  nativeRequest('/rebanho/comandos/transferencia', { method: 'POST', body: corpo, autenticado: true }, ctx('executarTransferenciaLedger'));
+
 export const elegibilidadeCancelamentoMovimentacaoMapaNativa = (id) =>
   nativeRequest(`${CAMINHO}/${encodeURIComponent(id)}/elegibilidade-cancelamento`, { autenticado: true }, ctx('elegibilidadeCancelamentoMovimentacaoMapa'));
 

@@ -32,6 +32,7 @@ import { reservarNumero } from '../sequencias/entidadeCodigoService.js';
 import { inserirLote } from '../lotes/loteRepository.js';
 import { comoLotePublico, ENTIDADE_SEQUENCIA, escopoDaNumeracao } from '../lotes/loteService.js';
 import { CAMPOS_MATERIAIS_LOTE, estadoDe } from './manejoMapaComandoService.js';
+import { exigirModoLegado } from '../rebanhoLedger/rebanhoLedgerService.js';
 
 export const COMANDO_REBANHO = 'manejo_mapa_rebanho';
 export const TIPO_OPERACAO_REBANHO = 'manejo_mapa_rebanho';
@@ -476,6 +477,7 @@ export const executarManejoRebanho = async (contexto, entrada) => {
       executar: async () => {
         const empresa = await tx.empresa.findUnique({ where: { cliente_id_id: { cliente_id: auth.clienteId, id: e.empresaId } }, select: { id: true } });
         if (!empresa) throw new AppError('EMPRESA_NOT_FOUND', 'empresa não encontrada');
+        await exigirModoLegado(tx, auth.clienteId, e.empresaId, 'manejo-rebanho');
 
         const extras = e.tipo === PESAGEM ? e.linhas.map((l) => l.lote_id) : [];
         const { area, lotes } = await travarAreaELotes(tx, auth.clienteId, e.empresaId, e.areaId, extras);

@@ -12,6 +12,7 @@ import { reservarNumero, ESCOPO_TENANT } from '../sequencias/entidadeCodigoServi
 import { AppError, loteNotFound, loteDeleteBlocked, loteUpdateBlocked, setorNotFound, areaNotFound } from '../../shared/errors/AppError.js';
 import { avaliarExclusaoLote, TIPO_BLOQUEADO, TIPO_FISICA, TIPO_JA_EXCLUIDO, TIPO_LOGICA } from './loteExclusaoService.js';
 import { origemDerivadaDeManejo } from './loteOrigem.js';
+import { ativacaoDaEmpresa, cancelarEntradaParaExclusao, registrarEntradaSeAtivo, travarAreasDoLoteNoLedger } from '../rebanhoLedger/rebanhoLedgerService.js';
 import { buscarSetor } from '../setores/setorRepository.js';
 import { buscarArea } from '../areas/areaPastagemRepository.js';
 import {
@@ -196,6 +197,13 @@ const resolverArea = async (tx, clienteId, areaId) => {
  * do mapa nunca os enviam: escrevem saldo, status, área atual, categoria
  * atual, sexo, peso atual, nome e identificador.
  */
+/** Campos que, numa empresa no ledger (D-PROD-107), só mudam por evento do mapa. */
+const CAMPOS_OPERACIONAIS_NO_LEDGER = Object.freeze(new Set([
+  'quantidade_cabecas', 'status', 'area_atual_id', 'categoria', 'categoria_manejo_id', 'categoria_manejo_nome', 'sexo', 'peso_medio_kg',
+  // A data da entrada é a data do evento ENTRADA no ledger: não se reescreve por PATCH.
+  'data_entrada', 'area_entrada_id',
+]));
+
 const CAMPOS_SO_DO_CADASTRO = Object.freeze(new Set([
   'idade_media_meses', 'setor_id', 'raca_predominante', 'sistema_produtivo', 'data_entrada',
   'motivo_entrada', 'motivo_ajuste', 'motivo_outros', 'origem', 'fornecedor_id', 'fornecedor_nome',
@@ -335,6 +343,9 @@ export const criar = async (contexto, entrada) => {
       tx
     );
 
+    // R2E-P1 (D-PROD-107): empresa no ledger → o cadastro é a ENTRADA (evento + posição), na mesma transação.
+    await registrarEntradaSeAtivo(tx, contexto, registro);
+
     return publico;
   });
 
@@ -379,7 +390,9 @@ export const atualizar = async (contexto, id, entrada) => {
   return prisma.$transaction(async (tx) => {
     // R2A-R1 (D-PROD-99a): trava e relê dentro da transação, para o
     // compare-and-swap abaixo valer contra cancelamento e manejo concorrentes.
-    await tx.$queryRaw`SELECT id FROM "Lote" WHERE cliente_id = ${auth.clienteId} AND id = ${id} FOR UPDATE`;
+    // FOR NO KEY UPDATE: serializa os escritores do lote sem bloquear o KEY SHARE
+    // das FKs (ex.: posição do ledger que cita o lote) — R2E-P1, sem deadlock.
+    await tx.$queryRaw`SELECT id FROM "Lote" WHERE cliente_id = ${auth.clienteId} AND id = ${id} FOR NO KEY UPDATE`;
     const anterior = await buscarLote(auth.clienteId, id, tx);
     // Lote excluído logicamente (MAIKE-LOTES-R1) não volta a ser editável.
     if (!anterior || anterior.excluido_em) throw loteNotFound();
@@ -387,6 +400,19 @@ export const atualizar = async (contexto, id, entrada) => {
     const campos = camposDe(entrada);
     /** @type {Record<string, unknown>} */
     const patch = { ...campos };
+
+    // R2E-P1 (D-PROD-107): no ledger, o Lote é só o cadastro da entrada. Saldo,
+    // área, status e classificação mudam por evento, nunca por PATCH; e o
+    // lançamento da entrada só é editável enquanto não houver fato além dela.
+    const noLedger = await ativacaoDaEmpresa(tx, auth.clienteId, anterior.empresa_id);
+    if (noLedger) {
+      const operacionais = Object.keys(patch).filter((k) => CAMPOS_OPERACIONAIS_NO_LEDGER.has(k));
+      if (operacionais.length) {
+        throw new AppError('REBANHO_LEDGER_SALDO_SOMENTE_POR_EVENTO', 'no ledger, saldo, área, status e classificação mudam só por evento do mapa', {
+          details: { id, campos: operacionais },
+        });
+      }
+    }
     exigirEstadoEsperado(anterior, patch, entrada?.estado_esperado);
 
     // Editar o lançamento da entrada só antes de qualquer movimentação, manejo
@@ -436,6 +462,11 @@ export const atualizar = async (contexto, id, entrada) => {
     const registro = Object.keys(patch).length
       ? await atualizarLotePorId(tx, auth.clienteId, id, patch)
       : anterior;
+    if (noLedger) {
+      // Nome e identificação do cadastro acompanham as posições desta linhagem (só exibição).
+      const exibicao = Object.fromEntries(['nome', 'identificador_nome', 'identificador_sigla', 'identificador_cor'].filter((k) => k in patch).map((k) => [k, patch[k]]));
+      if (Object.keys(exibicao).length) await tx.posicaoRebanho.updateMany({ where: { cliente_id: auth.clienteId, lote_entrada_id: id }, data: exibicao });
+    }
 
     const publico = comoLotePublico(registro);
 
@@ -502,6 +533,8 @@ export const excluir = async (contexto, id) => {
   const prisma = getPrismaClient();
 
   return prisma.$transaction(async (tx) => {
+    // R2E-P1: no ledger, áreas antes do Lote (mesma ordem da transferência).
+    await travarAreasDoLoteNoLedger(tx, auth.clienteId, id);
     // Trava primeiro: escritores que citam o lote tomam FOR SHARE na mesma
     // linha, então exclusão e novo vínculo nunca se cruzam (TOCTOU).
     await tx.$queryRaw`SELECT id FROM "Lote" WHERE cliente_id = ${auth.clienteId} AND id = ${id} FOR UPDATE`;
@@ -517,7 +550,9 @@ export const excluir = async (contexto, id) => {
       });
     }
 
-    if (avaliacao.tipo === TIPO_LOGICA) {
+    // R2E-P1: no ledger a entrada é cancelada (sem fato além dela) e o cadastro vira tombstone — a posição tem FK para o lote.
+    const ledger = await cancelarEntradaParaExclusao(tx, contexto, anterior);
+    if (avaliacao.tipo === TIPO_LOGICA || ledger.ativo) {
       const marcado = await marcarLoteExcluido(tx, auth.clienteId, id, auth.usuarioId);
       await registrarEvento(
         contexto,

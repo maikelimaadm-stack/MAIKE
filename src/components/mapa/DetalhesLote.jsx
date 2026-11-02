@@ -55,8 +55,8 @@ import InformacoesArea from "./InformacoesArea";
 import { Progress } from "@/components/ui/progress";
 import { AlertTriangle } from "lucide-react";
 import { validarOrdemTemporalLote, validarOrdemTemporalLotes } from "../lotes/manejoValidations.jsx";
-import { corpoNascimento, corpoPesagem, corpoMudancaCategoria, corpoJuncao, corpoBaixa, previaJuncao } from "@/domain/lotes/manejoRebanho";
-import { enviarManejoRebanho, enviarJuncaoLotes, enviarBaixaRebanho, mensagemDoErro } from "@/services/manejoRebanhoService";
+import { corpoNascimento, corpoPesagem, corpoMudancaCategoria, corpoJuncao, corpoBaixa, previaJuncao, corpoTransferenciaLedger, ehPosicaoDoLedger } from "@/domain/lotes/manejoRebanho";
+import { enviarManejoRebanho, enviarJuncaoLotes, enviarBaixaRebanho, enviarTransferenciaLedger, mensagemDaTransferenciaLedger, mensagemDoErro } from "@/services/manejoRebanhoService";
 import { escopoDoUsuario } from "../lotes/CancelarMovimentacao";
 import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 
@@ -82,6 +82,17 @@ const chaveDeManejo = (formData, tipo, loteId, extra = "") => {
 const atualizarLoteSeguro = (loteLido, patch) => atualizarLote(loteLido.id, comEstadoEsperado(loteLido, patch));
 
 export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
+  /** R2E-P1 (D-PROD-107): o mapa entregou POSIÇÕES do ledger (empresa ativada), não Lotes. */
+  const modoLedger = (lotes || []).some(ehPosicaoDoLedger);
+  const transferenciaEmAndamento = useRef(false);
+  /** No ledger, só a transferência e os históricos estão migrados; o resto recusa antes de abrir (fail-closed). */
+  const seMigrado = (abrir) => () => {
+    if (modoLedger) {
+      toast.error('Esta operação ainda não foi migrada para o controle por posições. Nada foi gravado.');
+      return;
+    }
+    abrir();
+  };
   const empresaSelecionadaId = useEmpresaSelecionadaId();
   const [showMovimentacao, setShowMovimentacao] = useState(false);
   const [showMorte, setShowMorte] = useState(false);
@@ -98,6 +109,11 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
   const [lotesAtualizados, setLotesAtualizados] = useState(null);
   const [movimentacaoPendente, setMovimentacaoPendente] = useState(null);
   const [registrarPesagemAposMovimentacao, setRegistrarPesagemAposMovimentacao] = useState(false);
+  /** Chave da transferência do ledger: nasce na 1ª confirmação e morre quando o diálogo Mover fecha. */
+  const chaveTransferenciaLedger = useRef(null);
+  useEffect(() => {
+    if (!showMovimentacao) chaveTransferenciaLedger.current = null;
+  }, [showMovimentacao]);
   const [movimentacoesCriadasIds, setMovimentacoesCriadasIds] = useState([]);
   const [progresso, setProgresso] = useState({ show: false, atual: 0, total: 0, mensagem: '' });
   const [showJuntarLotes, setShowJuntarLotes] = useState(false);
@@ -222,6 +238,32 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
       }
       const areaSaida = areaPorId(areasConhecidas, formData.area_saida_id);
       const areaEntrada = areaPorId(areasConhecidas, formData.area_entrada_id);
+
+      // R2E-P1 (D-PROD-107): empresa no ledger → UM comando do servidor por
+      // confirmação (posições + quantidades). Sem validação temporal no
+      // navegador (o servidor confere a linha do tempo inteira), sem PATCH/POST
+      // legado e sem lote derivado. Sobras de suplementação ainda não entram
+      // na mesma transação: recusa ANTES de enviar, sem falso sucesso.
+      if (modoLedger) {
+        if (Array.isArray(formData.sobras_destino_aproveitar) && formData.sobras_destino_aproveitar.length > 0) {
+          throw Object.assign(new Error('ledger'), { mensagemTela: 'Aproveitar sobras de suplementação na mesma confirmação ainda não está disponível no controle por posições. Desmarque as sobras e registre a suplementação depois. Nada foi gravado.' });
+        }
+        const { corpo, faltando } = corpoTransferenciaLedger({ empresaId: empresaSelecionadaId, areaDestinoId: formData.area_entrada_id, data: formData.data_movimentacao, posicoes: lotes, formData });
+        if (faltando.length || !corpo.itens.length) {
+          throw Object.assign(new Error('ledger'), { mensagemTela: `Quantidade maior que as posições desta área (${faltando.map((f) => `${f.categoria}: faltam ${f.faltam}`).join(', ') || 'nada a mover'}). Nada foi gravado.` });
+        }
+        // Uma chave idempotente por abertura do diálogo: reenvio do MESMO conteúdo
+        // (duplo toque, mesmo depois de o servidor responder) vira replay, nunca 2ª transferência.
+        if (!chaveTransferenciaLedger.current) {
+          chaveTransferenciaLedger.current = `ledger-${typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`}`;
+        }
+        try {
+          const resposta = /** @type {any} */ (await enviarTransferenciaLedger({ operation_id: chaveTransferenciaLedger.current, ...corpo }, { escopo: escopoDoUsuario(user) }));
+          return resposta?.movimentacao ? [resposta.movimentacao] : [];
+        } catch (erro) {
+          throw Object.assign(new Error('ledger'), { mensagemTela: mensagemDaTransferenciaLedger(erro) });
+        }
+      }
       const movimentacoesCriadas = [];
       const todosLotesSistema = await listarLotesDaEmpresa(empresaSelecionadaId);
       const lotesDestinoAtivos = todosLotesSistema.filter((l) =>
@@ -552,11 +594,33 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
       console.error('❌ Erro:', error);
       setMovimentacaoPendente(null);
       setMovimentacoesCriadasIds([]);
-      toast.error('❌ Erro ao mover gado');
+      toast.error(/** @type {any} */ (error)?.mensagemTela || '❌ Erro ao mover gado');
     }
   });
 
   const handleMovimentacao = async (formData) => {
+    // R2E-P1: no ledger a pesagem ainda não foi migrada — não oferece "pesar depois".
+    // Trava síncrona + espera da mutação: o formulário fica "Movimentando…" até o
+    // servidor responder e um segundo toque não vira segundo envio (achado no E2E).
+    if (modoLedger) {
+      if (transferenciaEmAndamento.current) return;
+      // Offline o React Query PAUSA a mutação (networkMode 'online') e o botão
+      // ficaria "Movimentando…" para sempre: recusa explícita antes de tudo.
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+        toast.error(mensagemDoErro({ code: 'MANEJO_REBANHO_OFFLINE' }));
+        return;
+      }
+      transferenciaEmAndamento.current = true;
+      setRegistrarPesagemAposMovimentacao(false);
+      try {
+        await movimentacaoMutation.mutateAsync(formData);
+      } catch {
+        /* onError já mostrou a mensagem; o diálogo continua aberto */
+      } finally {
+        transferenciaEmAndamento.current = false;
+      }
+      return;
+    }
     setMovimentacaoPendente(formData);
     setShowConfirmPesagem(true);
   };
@@ -790,7 +854,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-56">
-            {permissions.registrar_abate !== false && <DropdownMenuItem onClick={() => setShowAbate(true)} className="text-xs">Abate</DropdownMenuItem>}
+            {permissions.registrar_abate !== false && <DropdownMenuItem onClick={seMigrado(() => setShowAbate(true))} className="text-xs">Abate</DropdownMenuItem>}
             {permissions.juntar_lotes !== false && lotes.length > 1 && (() => {
               const porCategoria = {};
               lotes.forEach((l) => {
@@ -804,6 +868,10 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
               return (
                 <DropdownMenuItem
                   onClick={() => {
+                    if (modoLedger) {
+                      toast.error('Esta operação ainda não foi migrada para o controle por posições. Nada foi gravado.');
+                      return;
+                    }
                     if (categoriasJuntaveis.length === 1) {
                       setCategoriaSelecionadaJuncao(categoriasJuntaveis[0][0]);
                       setLotePrincipalJuncao(null);
@@ -820,11 +888,16 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
               );
             })()}
             {permissions.mover_lotes !== false && <DropdownMenuItem onClick={() => setShowMovimentacao(true)} className="text-xs">Mover</DropdownMenuItem>}
-            {permissions.mudar_categoria_lotes !== false && <DropdownMenuItem onClick={() => setShowMudancaCategoria(true)} className="text-xs">Mudar Categoria</DropdownMenuItem>}
-            {permissions.registrar_nascimento !== false && <DropdownMenuItem onClick={() => setShowNascimento(true)} className="text-xs">Nascimento</DropdownMenuItem>}
-            {permissions.registrar_morte !== false && <DropdownMenuItem onClick={() => setShowMorte(true)} className="text-xs">Morte</DropdownMenuItem>}
-            {permissions.pesar_lotes !== false && <DropdownMenuItem onClick={() => setShowPesagem(true)} className="text-xs">Pesar</DropdownMenuItem>}
+            {permissions.mudar_categoria_lotes !== false && <DropdownMenuItem onClick={seMigrado(() => setShowMudancaCategoria(true))} className="text-xs">Mudar Categoria</DropdownMenuItem>}
+            {permissions.registrar_nascimento !== false && <DropdownMenuItem onClick={seMigrado(() => setShowNascimento(true))} className="text-xs">Nascimento</DropdownMenuItem>}
+            {permissions.registrar_morte !== false && <DropdownMenuItem onClick={seMigrado(() => setShowMorte(true))} className="text-xs">Morte</DropdownMenuItem>}
+            {permissions.pesar_lotes !== false && <DropdownMenuItem onClick={seMigrado(() => setShowPesagem(true))} className="text-xs">Pesar</DropdownMenuItem>}
             {permissions.renomear_lotes !== false && <DropdownMenuItem onClick={() => {
+              // No ledger, o nome é do cadastro (Cadastro de Lotes); a posição só o exibe.
+              if (modoLedger) {
+                toast.error('No controle por posições, renomeie o lote no Cadastro de Lotes. Nada foi gravado.');
+                return;
+              }
               if (lotes.length === 1) {
                 setLoteParaRenomear(lotes[0]);
                 setNovoNomeLote(lotes[0].nome);

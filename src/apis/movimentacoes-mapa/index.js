@@ -11,4 +11,6 @@ export {
   executarManejoRebanho,
   executarJuncaoLotes,
   executarBaixaRebanho,
+  listarPosicoesRebanho,
+  executarTransferenciaLedger,
 } from './movimentacoesMapaApi.js';
