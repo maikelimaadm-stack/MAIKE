@@ -188,7 +188,7 @@ export const manejoLoteNoLedger = async (tx, contexto, e, deps) => {
 
 /**
  * @param {any} e entrada normalizada do comando do rebanho (lerEntradaRebanho)
- * @param {{CATEGORIAS_OFICIAIS: Record<string,string>, CATEGORIAS_MATERNAS: string[], categoriaDoFilhote: Function, resolverCategoriaManejo: Function}} deps
+ * @param {{CATEGORIAS_OFICIAIS: Record<string,string>, CATEGORIAS_MATERNAS: readonly string[], categoriaDoFilhote: Function, resolverCategoriaManejo: Function}} deps
  */
 export const rebanhoNoLedger = async (tx, contexto, e, deps) => {
   const auth = exigirAuthContext(contexto?.auth);
@@ -320,7 +320,7 @@ export const rebanhoNoLedger = async (tx, contexto, e, deps) => {
  * ficam como contribuições na composição da principal (sem trocar a origem da
  * identidade, sem fabricar entrada). Peso: ponderado só se todos conhecidos.
  * @param {any} e entrada normalizada da junção (lerEntradaJuncao)
- * @param {{SEXOS: string[]}} deps
+ * @param {{SEXOS: readonly string[]}} deps
  */
 export const juncaoNoLedger = async (tx, contexto, e, deps) => {
   const auth = exigirAuthContext(contexto?.auth);

@@ -19,6 +19,9 @@ function DesvioIndicador({ real, esperado }) {
 }
 
 export default function HistoricoSuplementacaoLote({ loteId, loteNome }) {
+  // PR174-R1 (D-PROD-107): no ledger o id recebido é de POSIÇÃO; o registro
+  // guarda posicao_id (operacional) e lote_id = entrada (cadastro).
+  const doLote = (h) => h.lote_id === loteId || h.posicao_id === loteId;
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   const [periodoMeses, setPeriodoMeses] = useState("3");
 
@@ -31,15 +34,15 @@ export default function HistoricoSuplementacaoLote({ loteId, loteNome }) {
       if (navigator.onLine) {
         if (cached?.length) {
           refreshMapaCacheEntry('suplementacaoLote', empresaSelecionadaId).then(fresh => {
-            if (fresh?.length) queryClient.setQueryData(['suplementacao-lote', empresaSelecionadaId, loteId], fresh.filter(h => h.lote_id === loteId));
+            if (fresh?.length) queryClient.setQueryData(['suplementacao-lote', empresaSelecionadaId, loteId], fresh.filter(h => doLote(h)));
           });
-          return cached.filter(h => h.lote_id === loteId);
+          return cached.filter(h => doLote(h));
         } else {
           const fresh = await refreshMapaCacheEntry('suplementacaoLote', empresaSelecionadaId);
-          return fresh.filter(h => h.lote_id === loteId);
+          return fresh.filter(h => doLote(h));
         }
       }
-      return (cached || []).filter(h => h.lote_id === loteId);
+      return (cached || []).filter(h => doLote(h));
     },
     enabled: !!empresaSelecionadaId && !!loteId,
   });

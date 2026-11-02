@@ -1,0 +1,31 @@
+gate:governance-paths — PASSOU (documentos, links e gates coerentes)
+gate:package-sync — PASSOU (maike-mapa-manejo@0.0.0, 59 dependência(s) direta(s), lockfileVersion 3)
+gate:product-scope — PASSOU (17 páginas, 35 entidades, 0 function(s))
+gate:api-boundary — PASSOU (0 arquivo(s) legado(s) restante(s))
+gate:native-api — PASSOU (URL por referência estática; JWT só em sessionStorage; login sem cliente_id; catálogo de erros sincronizado; fronteira HTTP única; CORS com allowlist exata)
+gate:setor-native — PASSOU (model tenant-scoped com migration; numeração por sequência em transação; sem exclusão nativa; sem Base44 no caminho de Setor; porta única; tenant só do token; id offline fora da rede; sem fallback silencioso; auditoria transacional; rotas autenticadas; cache e fila offline com dono; default de tipo chegando ao banco)
+gate:marca-native — PASSOU
+gate:unidade-medida-native — PASSOU
+gate:tarefa-cadastro-native — PASSOU
+gate:lote-native — PASSOU
+gate:lancamento-tarefa-native — PASSOU
+gate:p55-base44-exit-final — PASSOU
+gate:area-pastagem-native — PASSOU (12 regras verificadas)
+gate:map-geography-native — PASSOU (12 regras verificadas)
+gate:usuario-admin — PASSOU (9 regras verificadas)
+gate:source-closure — PASSOU (457 arquivos, 457 alcançáveis, 0 na allowlist)
+gate:import-integrity — PASSOU (457 arquivos verificados, 0 imports quebrados)
+gate:admin-isolation — PASSOU (457 arquivo(s) do cliente, 10 do admin; nenhuma ponte entre os dois)
+gate:no-secrets — PASSOU (1856 arquivos verificados, 0 segredos)
+PASSOU
+gate:modelobase1-pecuario — PASSOU (config/modelobase1-pecuario.json: 11 seções, 8 códigos de erro, 10 padrões proibidos)
+gate:motorbase1-independence — PASSOU (base1/hooks cadastro/lib cadastro sem import de domínio)
+gate:tenancy — PASSOU (57 model(s); raiz "Cliente"; 43 tenant-scoped; 5 fontes de tenant proibidas; 176 arquivo(s) de backend varrido(s))
+gate:rebanho-ssot — PASSOU (4 arquivo(s) do ledger; 4 comandos do mapa delegando ao ledger na empresa ativada)
+gate:indices — PASSOU (57 model(s), 107 índice(s), 73 unique(s); prefixo de tenant "cliente_id" exigido fora da raiz "Cliente")
+gate:deploy-migrations — PASSOU (runner exige conexão própria sem fallback e recusa o pooler de transação; scripts apontam para o runner; migration fora do startup; a CI exercita o caminho de produção; variável server-only e documentada; instrução de ativação sincronizada)
+gate:supabase-public-grants — PASSOU (REVOKE anon/authenticated + RLS sem FORCE nem política aberta Data API)
+gate:types — PASSOU (sem regressão sobre 1746 diagnóstico(s) de dívida versionada; atual: 1236; teto certificado: 1746)
+gate:admin-isolation — PASSOU (457 arquivo(s) do cliente, 10 do admin; nenhuma ponte entre os dois)
+TODAS AS ETAPAS PASSARAM
+rc=0

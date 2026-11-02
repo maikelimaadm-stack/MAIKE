@@ -4307,4 +4307,40 @@ Relatório: `docs/engineering/UX-MOBILE-V2-REPORT.md` (seção V9). Teste: `test
 
 **Consequência:** relatório `MAIKE-R2E-LOTE-SSOT-POSICOES-RETROATIVAS-REPORT.md`; evidências em `evidencias/r2e-p1-lotes-ssot/`. Migração remota: `REMOTE_MIGRATION_BLOCKED` nesta sessão (sem `MIGRATION_DATABASE_URL`); aplica pelo pre-deploy (`deploy:migrate`) na publicação.
 
+### D-PROD-107 — complemento PR174-R1 (ledger integral: cadastro, posições, manejos, cancelamentos)
+
+A auditoria do HEAD `0187cdd` encontrou sete achados (A–G). Esta revisão os fecha na MESMA decisão; nada renumerado. O "Fora desta fase" acima deixou de valer.
+
+- **A — derivados não viram entrada:** a ativação rastreia a linhagem de cada lote legado pela movimentação certificada que o criou (`efeito_servidor.efeitos[].criado`), recursivamente até a entrada. Classes: `entrada`, `derivado_rastreado` (posição com `lote_entrada_id` da raiz), `derivado_sem_prova` (`legado:<id>`, nunca por nome) e `nascimento_legado`.
+- **B — cancelamento legado sem drift:** cancelar movimento legado numa empresa ativada → 409 `REBANHO_LEDGER_CANCELAMENTO_LEGADO` (antes mutava `Lote`). Também na elegibilidade.
+- **C — evolução versionada:** migration nova `20261103100000_rebanho_ledger_r1_manejos` (a aplicada não foi editada). Traz:
+  - CHECK de tipos ampliado (MORTE, ABATE, NASCIMENTO, PESAGEM, MUDANCA_CATEGORIA, JUNCAO);
+  - `RebanhoLedgerAtivacao.modo`;
+  - tabela `PesoRebanho` (série de peso por posição/data);
+  - FKs triplas `(cliente_id, empresa_id, id)` de partida/peso → evento/posição;
+  - `LancamentoTarefa.posicao_id` (FK);
+  - REVOKE/RLS.
+- **D — nada fail-closed:** os MESMOS endpoints delegam ao ledger quando a empresa está ativada, na transação e na idempotência do comando legado:
+  - Morte/Abate (baixa multi-posição, mesma política determinística);
+  - manejo-lote R2A (o `lote_id` é posição);
+  - Nascimento (posição `origem: nascimento`, sem entrada);
+  - Pesagem (observação medida na data);
+  - Mudança de Categoria (−/+ na mesma linhagem);
+  - Junção (1/5/20 origens, contribuições na `linhagem` do principal);
+  - Transferência.
+  Manejos retroativos distribuem pelo saldo NA DATA. A linha do tempo inteira é revalidada (409 `REBANHO_SALDO_HISTORICO_NEGATIVO` com data e área). O cancelamento genérico desativa partidas e pesos e remove contribuições.
+- **E — retroatividade desde a entrada real:** ativação `modo: 'entradas'` sem corte: um evento ENTRADA por cadastro na `data_entrada`. Recusa (`REBANHO_ATIVACAO_ENTRADAS_COM_HISTORICO`) se houver movimento legado ativo ou lote fora do estado de entrada. Para empresas de TESTE com histórico há o reset controlado `scripts/ops/reset-rebanho-empresa-teste.mjs`:
+  - escopo cliente+empresa;
+  - simulação por padrão;
+  - nome de confirmação e backup JSON antes de alterar;
+  - derivados por exclusão lógica;
+  - recusa com ledger ativo;
+  - alvo remoto exige `RESET_EXPECTED_SYSTEM_IDENTIFIER`;
+  - nunca toca auth, usuários, outras empresas ou outros clientes.
+  O modo `saldo_abertura` continua para empresas reais.
+- **F — vínculos posição × entrada:** documentos (suplementação, sanidade, manejo técnico, movimentação pecuária) e tarefas que citam uma posição gravam `posicao_id` + `lote_id` = entrada (nascidos: `null`), sempre no tenant. Peso historiado em `PesoRebanho`; `saldos?data=` devolve o peso na data. Sobras de cocho: passo SEPARADO depois do comando da transferência; se falhar, aviso explícito "Transferência registrada, mas as sobras NÃO foram registradas" (sem falso sucesso).
+- **UI:** `seMigrado` removido; todos os manejos abrem sobre as posições. O histórico reconhece qualquer manejo `rebanho_ledger` como certificado. Resumo e histórico de suplementação casam `posicao_id` e `lote_id`. Renomear continua no Cadastro de Lotes (o nome é do cadastro).
+- **G — honestidade remota:** sem `MIGRATION_DATABASE_URL` neste container, a migração remota é `REMOTE_MIGRATION_BLOCKED`. Nenhuma ativação ou reset remoto antes do merge/deploy.
+- **Verificação:** `GET /rebanho/verificacao` inclui `pesos_divergentes` e `conservacao` (entradas + nascimentos + saídas + internos = saldo). `integro` exige tudo.
+
 <!-- Próxima decisão: D-PROD-108 -->

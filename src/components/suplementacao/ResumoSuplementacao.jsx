@@ -5,17 +5,23 @@ import { formatDateBR, formatKg } from "../utils/pecuariaUtils";
 import { formatConsumoGramasCabDia, formatConsumoKgCabDia, formatQuantidadeTecnica } from "./formatters";
 import DesvioConsumoTag from "./DesvioConsumoTag";
 
-export default function ResumoSuplementacao({ lotesIds = [], modo = "completo", areaId = "" }) {
+/**
+ * @param {{ lotesIds?: string[], modo?: string, areaId?: string, lotesInformados?: any[] }} props
+ * `lotesInformados`: PR174-R1 (D-PROD-107) — numa empresa no ledger o mapa já
+ * entrega as POSIÇÕES desta área (cabeças/peso da projeção); não há Lote a buscar.
+ */
+export default function ResumoSuplementacao({ lotesIds = [], modo = "completo", areaId = "", lotesInformados = undefined }) {
   const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
 
-  const { data: lotesAtuais = [] } = useQuery({
+  const { data: lotesBuscados = [] } = useQuery({
     queryKey: ["suplementacao-lotes-atuais", empresaSelecionadaId, lotesIds.join("|")],
     queryFn: async () => {
       const all = await listarLotesDaEmpresa(empresaSelecionadaId);
       return all.filter((lote) => lote.empresa_id === empresaSelecionadaId && lotesIds.includes(lote.id) && lote.status === "Ativo");
     },
-    enabled: !!empresaSelecionadaId && lotesIds.length > 0,
+    enabled: !!empresaSelecionadaId && lotesIds.length > 0 && !lotesInformados,
   });
+  const lotesAtuais = lotesInformados ? lotesInformados.filter((p) => Number(p.quantidade_cabecas || 0) > 0) : lotesBuscados;
 
   const { data: eventosArea = [] } = useQuery({
     queryKey: ["suplementacao-eventos-area-resumo", empresaSelecionadaId, areaId],

@@ -41,13 +41,15 @@ export const COMANDO_BAIXA = 'manejo_mapa_baixa_rebanho';
 const ehBaixaAgregada = (mov) => TIPOS_BAIXA.includes(mov?.tipo) && mov?.efeito_servidor?.comando === COMANDO_BAIXA;
 
 /**
- * R2E-P1 (D-PROD-107): transferência do ledger de posições. A prova é o evento
- * do ledger (`evento_id`) + a operação idempotente que o servidor confere no
- * cancelamento; não há `efeitos` por lote (o efeito são as partidas).
+ * R2E-P1/PR174-R1 (D-PROD-107): movimento do ledger de posições — qualquer
+ * manejo certificado (Transferência, Morte, Abate, Nascimento, Pesagem,
+ * Mudança de Categoria, Junção). A prova é o evento do ledger (`evento_id`) +
+ * a operação idempotente que o servidor confere no cancelamento; não há
+ * `efeitos` por lote (o efeito são as partidas).
  */
 export const COMANDO_LEDGER = 'rebanho_ledger';
 export const ehMovimentoDoLedger = (mov) =>
-  mov?.tipo === 'Transferência de Área' && mov?.efeito_servidor?.comando === COMANDO_LEDGER && typeof mov?.efeito_servidor?.evento_id === 'string' && mov.efeito_servidor.evento_id !== '';
+  TIPOS_COM_CANCELAMENTO.includes(mov?.tipo) && mov?.efeito_servidor?.comando === COMANDO_LEDGER && typeof mov?.efeito_servidor?.evento_id === 'string' && mov.efeito_servidor.evento_id !== '';
 
 export const temProvenienciaDoServidor = (mov) => {
   if (ehMovimentoDoLedger(mov)) return true;

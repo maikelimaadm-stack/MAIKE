@@ -85,14 +85,11 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
   /** R2E-P1 (D-PROD-107): o mapa entregou POSIÇÕES do ledger (empresa ativada), não Lotes. */
   const modoLedger = (lotes || []).some(ehPosicaoDoLedger);
   const transferenciaEmAndamento = useRef(false);
-  /** No ledger, só a transferência e os históricos estão migrados; o resto recusa antes de abrir (fail-closed). */
-  const seMigrado = (abrir) => () => {
-    if (modoLedger) {
-      toast.error('Esta operação ainda não foi migrada para o controle por posições. Nada foi gravado.');
-      return;
-    }
-    abrir();
-  };
+  /** PR174-R1: aviso quando a transferência gravou e o passo das sobras falhou. */
+  const avisoSobrasLedger = useRef(/** @type {string|null} */ (null));
+  // PR174-R1 (D-PROD-107): no ledger TODOS os manejos (Morte, Abate, Nascimento,
+  // Pesagem, Mudança de Categoria, Junção, Transferência) vão pelos mesmos
+  // comandos atômicos do servidor, que operam sobre as POSIÇÕES desta área.
   const empresaSelecionadaId = useEmpresaSelecionadaId();
   const [showMovimentacao, setShowMovimentacao] = useState(false);
   const [showMorte, setShowMorte] = useState(false);
@@ -239,6 +236,85 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
       const areaSaida = areaPorId(areasConhecidas, formData.area_saida_id);
       const areaEntrada = areaPorId(areasConhecidas, formData.area_entrada_id);
 
+      /**
+       * Sobras do cocho do destino: abre o novo lançamento de suplementação com
+       * a sobra anterior e o vincula às cabeças que ficaram na área de destino.
+       * No ledger (PR174-R1) isto é um PASSO SEPARADO, depois do comando da
+       * transferência: as linhas citam posições e o servidor grava posicao_id +
+       * lote_id da entrada (resolverPosicoesNosDocumentos).
+       */
+      const registrarSobrasNoDestino = async (lotesAtualizadosDestino) => {
+        const totalMovimentado = formData.mover_todos === 'sim'
+          ? lotes.reduce((sum, lote) => sum + Number(lote.quantidade_cabecas || 0), 0)
+          : (formData.movimentacoes || []).reduce((sum, mov) => sum + Number(mov.quantidade || 0), 0);
+
+        const produtosEmpresa = await listarProdutosDaEmpresa(empresaSelecionadaId);
+        const lotesParaHistoricoSuplementacao = lotesAtualizadosDestino.filter((lote) =>
+          lote.area_atual_id === formData.area_entrada_id &&
+          lote.status === 'Ativo' &&
+          Number(lote.quantidade_cabecas || 0) > 0
+        );
+        const totalCabecasHistorico = lotesParaHistoricoSuplementacao.reduce((sum, lote) => sum + Number(lote.quantidade_cabecas || 0), 0);
+        const pesoMedioHistorico = totalCabecasHistorico > 0
+          ? lotesParaHistoricoSuplementacao.reduce((sum, lote) => sum + Number(lote.peso_medio_kg || 0) * Number(lote.quantidade_cabecas || 0), 0) / totalCabecasHistorico
+          : 0;
+
+        for (const sobra of formData.sobras_destino_aproveitar) {
+          const produtoSobra = produtosEmpresa.find((produto) => produto.id === sobra.produto_id || produto.nome_produto === sobra.produto) || null;
+          const percentualPV = Number(produtoSobra?.percentual_consumo_pv || 0);
+          const consumoEsperadoGrupo = percentualPV > 0 && pesoMedioHistorico > 0
+            ? (pesoMedioHistorico * (percentualPV / 100)) * totalCabecasHistorico
+            : null;
+          const novoEventoSuplementacao = await criarEventoSuplementacao({
+            empresa_id: empresaSelecionadaId,
+            ponto_suplementacao_id: sobra.ponto_id,
+            ponto_nome: sobra.ponto_nome,
+            area_id: formData.area_entrada_id,
+            area_nome: areaEntrada?.nome || '',
+            area_ids: [formData.area_entrada_id],
+            area_nomes: [areaEntrada?.nome || ''].filter(Boolean),
+            data_lancamento: formData.data_movimentacao,
+            produto: sobra.produto,
+            produto_id: sobra.produto_id || null,
+            tipo_consumo: sobra.tipo_consumo || null,
+            quantidade_total_kg: 0,
+            sobra_kg: Number(sobra.sobra_kg || 0),
+            dias_periodo: null,
+            consumo_diario_grupo_kg: null,
+            total_cabecas_afetadas: totalCabecasHistorico || totalMovimentado,
+            peso_medio_lotes_kg: pesoMedioHistorico || null,
+            consumo_esperado_pv_kg: consumoEsperadoGrupo,
+            percentual_consumo_pv_usado: percentualPV > 0 ? percentualPV : null,
+            observacoes: `Novo lançamento de consumo aberto automaticamente após movimentação, aproveitando sobra anterior de ${Number(sobra.sobra_kg || 0).toFixed(2)} kg.`,
+          });
+
+          if (lotesParaHistoricoSuplementacao.length > 0) {
+            await registrarSuplementacaoEmLote(lotesParaHistoricoSuplementacao.map((lote) => ({
+              empresa_id: empresaSelecionadaId,
+              suplementacao_evento_id: novoEventoSuplementacao.id,
+              lote_id: lote.id,
+              lote_nome: lote.nome,
+              categoria: lote.categoria,
+              fator_consumo: 1,
+              peso_medio_lote_kg: Number(lote.peso_medio_kg || 0) || null,
+              consumo_esperado_pv_lote_kg: percentualPV > 0 && Number(lote.peso_medio_kg || 0) > 0
+                ? Number(lote.peso_medio_kg || 0) * (percentualPV / 100) * Number(lote.quantidade_cabecas || 0)
+                : null,
+              data_lancamento: formData.data_movimentacao,
+              produto: sobra.produto,
+              cabecas_na_area: Number(lote.quantidade_cabecas || 0),
+              peso_consumo_lote: Number(lote.quantidade_cabecas || 0),
+              percentual_consumo_lote: totalMovimentado > 0 ? Number(lote.quantidade_cabecas || 0) / totalMovimentado : 0,
+              dias_periodo: null,
+              consumo_unitario_dia: null,
+              consumo_por_cabeca_dia_kg: null,
+              consumo_total_lote_periodo_kg: null,
+            })));
+          }
+        }
+      
+      };
+
       // R2E-P1 (D-PROD-107): empresa no ledger → UM comando do servidor por
       // confirmação (posições + quantidades). Sem validação temporal no
       // navegador (o servidor confere a linha do tempo inteira), sem PATCH/POST
@@ -246,9 +322,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
       // na mesma transação: recusa ANTES de enviar, sem falso sucesso.
       if (modoLedger) {
         const dadosLedger = /** @type {any} */ (formData);
-        if (Array.isArray(dadosLedger.sobras_destino_aproveitar) && dadosLedger.sobras_destino_aproveitar.length > 0) {
-          throw Object.assign(new Error('ledger'), { mensagemTela: 'Aproveitar sobras de suplementação na mesma confirmação ainda não está disponível no controle por posições. Desmarque as sobras e registre a suplementação depois. Nada foi gravado.' });
-        }
+        avisoSobrasLedger.current = null;
         const { corpo, faltando } = corpoTransferenciaLedger({ empresaId: empresaSelecionadaId, areaDestinoId: dadosLedger.area_entrada_id, data: dadosLedger.data_movimentacao, posicoes: lotes, formData: dadosLedger });
         if (faltando.length || !corpo.itens.length) {
           throw Object.assign(new Error('ledger'), { mensagemTela: `Quantidade maior que as posições desta área (${faltando.map((f) => `${f.categoria}: faltam ${f.faltam}`).join(', ') || 'nada a mover'}). Nada foi gravado.` });
@@ -258,12 +332,24 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
         if (!chaveTransferenciaLedger.current) {
           chaveTransferenciaLedger.current = `ledger-${typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`}`;
         }
+        let resposta;
         try {
-          const resposta = /** @type {any} */ (await enviarTransferenciaLedger({ operation_id: chaveTransferenciaLedger.current, ...corpo }, { escopo: escopoDoUsuario(user) }));
-          return resposta?.movimentacao ? [resposta.movimentacao] : [];
+          resposta = /** @type {any} */ (await enviarTransferenciaLedger({ operation_id: chaveTransferenciaLedger.current, ...corpo }, { escopo: escopoDoUsuario(user) }));
         } catch (erro) {
           throw Object.assign(new Error('ledger'), { mensagemTela: mensagemDaTransferenciaLedger(erro) });
         }
+        // A transferência JÁ está gravada. As sobras são um segundo passo
+        // explícito: se falharem, o usuário vê exatamente isso (sem falso
+        // sucesso e sem dizer "nada foi gravado" sobre a transferência).
+        if (Array.isArray(dadosLedger.sobras_destino_aproveitar) && dadosLedger.sobras_destino_aproveitar.length > 0 && !resposta?.replay) {
+          try {
+            const posicoesAtuais = /** @type {any[]} */ ((await refreshMapaCacheEntry('lotes', empresaSelecionadaId, { force: true })) || []);
+            await registrarSobrasNoDestino(posicoesAtuais);
+          } catch (erroSobras) {
+            avisoSobrasLedger.current = `Transferência registrada, mas as sobras do cocho NÃO foram registradas (${/** @type {any} */ (erroSobras)?.message || 'erro'}). Registre a suplementação no cocho do destino.`;
+          }
+        }
+        return resposta?.movimentacao ? [resposta.movimentacao] : [];
       }
       const movimentacoesCriadas = [];
       const todosLotesSistema = await listarLotesDaEmpresa(empresaSelecionadaId);
@@ -485,82 +571,19 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
       }
 
       if (Array.isArray(formData.sobras_destino_aproveitar) && formData.sobras_destino_aproveitar.length > 0) {
-        const totalMovimentado = formData.mover_todos === 'sim'
-          ? lotes.reduce((sum, lote) => sum + Number(lote.quantidade_cabecas || 0), 0)
-          : (formData.movimentacoes || []).reduce((sum, mov) => sum + Number(mov.quantidade || 0), 0);
-
-        const lotesAtualizadosDestino = await listarLotesDaEmpresa(empresaSelecionadaId);
-        const produtosEmpresa = await listarProdutosDaEmpresa(empresaSelecionadaId);
-        const lotesParaHistoricoSuplementacao = lotesAtualizadosDestino.filter((lote) =>
-          lote.area_atual_id === formData.area_entrada_id &&
-          lote.status === 'Ativo' &&
-          Number(lote.quantidade_cabecas || 0) > 0
-        );
-        const totalCabecasHistorico = lotesParaHistoricoSuplementacao.reduce((sum, lote) => sum + Number(lote.quantidade_cabecas || 0), 0);
-        const pesoMedioHistorico = totalCabecasHistorico > 0
-          ? lotesParaHistoricoSuplementacao.reduce((sum, lote) => sum + Number(lote.peso_medio_kg || 0) * Number(lote.quantidade_cabecas || 0), 0) / totalCabecasHistorico
-          : 0;
-
-        for (const sobra of formData.sobras_destino_aproveitar) {
-          const produtoSobra = produtosEmpresa.find((produto) => produto.id === sobra.produto_id || produto.nome_produto === sobra.produto) || null;
-          const percentualPV = Number(produtoSobra?.percentual_consumo_pv || 0);
-          const consumoEsperadoGrupo = percentualPV > 0 && pesoMedioHistorico > 0
-            ? (pesoMedioHistorico * (percentualPV / 100)) * totalCabecasHistorico
-            : null;
-          const novoEventoSuplementacao = await criarEventoSuplementacao({
-            empresa_id: empresaSelecionadaId,
-            ponto_suplementacao_id: sobra.ponto_id,
-            ponto_nome: sobra.ponto_nome,
-            area_id: formData.area_entrada_id,
-            area_nome: areaEntrada?.nome || '',
-            area_ids: [formData.area_entrada_id],
-            area_nomes: [areaEntrada?.nome || ''].filter(Boolean),
-            data_lancamento: formData.data_movimentacao,
-            produto: sobra.produto,
-            produto_id: sobra.produto_id || null,
-            tipo_consumo: sobra.tipo_consumo || null,
-            quantidade_total_kg: 0,
-            sobra_kg: Number(sobra.sobra_kg || 0),
-            dias_periodo: null,
-            consumo_diario_grupo_kg: null,
-            total_cabecas_afetadas: totalCabecasHistorico || totalMovimentado,
-            peso_medio_lotes_kg: pesoMedioHistorico || null,
-            consumo_esperado_pv_kg: consumoEsperadoGrupo,
-            percentual_consumo_pv_usado: percentualPV > 0 ? percentualPV : null,
-            observacoes: `Novo lançamento de consumo aberto automaticamente após movimentação, aproveitando sobra anterior de ${Number(sobra.sobra_kg || 0).toFixed(2)} kg.`,
-          });
-
-          if (lotesParaHistoricoSuplementacao.length > 0) {
-            await registrarSuplementacaoEmLote(lotesParaHistoricoSuplementacao.map((lote) => ({
-              empresa_id: empresaSelecionadaId,
-              suplementacao_evento_id: novoEventoSuplementacao.id,
-              lote_id: lote.id,
-              lote_nome: lote.nome,
-              categoria: lote.categoria,
-              fator_consumo: 1,
-              peso_medio_lote_kg: Number(lote.peso_medio_kg || 0) || null,
-              consumo_esperado_pv_lote_kg: percentualPV > 0 && Number(lote.peso_medio_kg || 0) > 0
-                ? Number(lote.peso_medio_kg || 0) * (percentualPV / 100) * Number(lote.quantidade_cabecas || 0)
-                : null,
-              data_lancamento: formData.data_movimentacao,
-              produto: sobra.produto,
-              cabecas_na_area: Number(lote.quantidade_cabecas || 0),
-              peso_consumo_lote: Number(lote.quantidade_cabecas || 0),
-              percentual_consumo_lote: totalMovimentado > 0 ? Number(lote.quantidade_cabecas || 0) / totalMovimentado : 0,
-              dias_periodo: null,
-              consumo_unitario_dia: null,
-              consumo_por_cabeca_dia_kg: null,
-              consumo_total_lote_periodo_kg: null,
-            })));
-          }
-        }
+        await registrarSobrasNoDestino(await listarLotesDaEmpresa(empresaSelecionadaId));
       }
 
       return movimentacoesCriadas;
 
     },
     onSuccess: async (movimentacoesCriadas, variables) => {
-      toast.success('Gado movido com sucesso!');
+      if (avisoSobrasLedger.current) {
+        toast.warning(avisoSobrasLedger.current);
+        avisoSobrasLedger.current = null;
+      } else {
+        toast.success('Gado movido com sucesso!');
+      }
       setAreaDestinoPreSelecionada(null);
       setShowMovimentacao(false);
       window.dispatchEvent(new CustomEvent('atualizar-mapa', { detail: { cacheKeys: ['lotes', 'movimentacoes', 'movimentacoesHistorico'] } }));
@@ -600,7 +623,8 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
   });
 
   const handleMovimentacao = async (formData) => {
-    // R2E-P1: no ledger a pesagem ainda não foi migrada — não oferece "pesar depois".
+    // PR174-R1: no ledger a pesagem é o comando próprio (menu Pesar), sobre as posições;
+    // o "pesar depois" do fluxo legado relia Lotes e não é oferecido aqui.
     // Trava síncrona + espera da mutação: o formulário fica "Movimentando…" até o
     // servidor responder e um segundo toque não vira segundo envio (achado no E2E).
     if (modoLedger) {
@@ -845,7 +869,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
           })}
       </div>
 
-      <ResumoSuplementacao lotesIds={lotes.map((l) => l.id)} modo="completo" areaId={lotes[0]?.area_atual_id || ""} />
+      <ResumoSuplementacao lotesIds={lotes.map((l) => l.id)} lotesInformados={modoLedger ? lotes : undefined} modo="completo" areaId={lotes[0]?.area_atual_id || ""} />
 
       <div className="my-1 grid grid-cols-2 md:grid-cols-2 gap-1">
         <DropdownMenu>
@@ -855,7 +879,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-56">
-            {permissions.registrar_abate !== false && <DropdownMenuItem onClick={seMigrado(() => setShowAbate(true))} className="text-xs">Abate</DropdownMenuItem>}
+            {permissions.registrar_abate !== false && <DropdownMenuItem onClick={() => setShowAbate(true)} className="text-xs">Abate</DropdownMenuItem>}
             {permissions.juntar_lotes !== false && lotes.length > 1 && (() => {
               const porCategoria = {};
               lotes.forEach((l) => {
@@ -869,10 +893,6 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
               return (
                 <DropdownMenuItem
                   onClick={() => {
-                    if (modoLedger) {
-                      toast.error('Esta operação ainda não foi migrada para o controle por posições. Nada foi gravado.');
-                      return;
-                    }
                     if (categoriasJuntaveis.length === 1) {
                       setCategoriaSelecionadaJuncao(categoriasJuntaveis[0][0]);
                       setLotePrincipalJuncao(null);
@@ -889,10 +909,10 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
               );
             })()}
             {permissions.mover_lotes !== false && <DropdownMenuItem onClick={() => setShowMovimentacao(true)} className="text-xs">Mover</DropdownMenuItem>}
-            {permissions.mudar_categoria_lotes !== false && <DropdownMenuItem onClick={seMigrado(() => setShowMudancaCategoria(true))} className="text-xs">Mudar Categoria</DropdownMenuItem>}
-            {permissions.registrar_nascimento !== false && <DropdownMenuItem onClick={seMigrado(() => setShowNascimento(true))} className="text-xs">Nascimento</DropdownMenuItem>}
-            {permissions.registrar_morte !== false && <DropdownMenuItem onClick={seMigrado(() => setShowMorte(true))} className="text-xs">Morte</DropdownMenuItem>}
-            {permissions.pesar_lotes !== false && <DropdownMenuItem onClick={seMigrado(() => setShowPesagem(true))} className="text-xs">Pesar</DropdownMenuItem>}
+            {permissions.mudar_categoria_lotes !== false && <DropdownMenuItem onClick={() => setShowMudancaCategoria(true)} className="text-xs">Mudar Categoria</DropdownMenuItem>}
+            {permissions.registrar_nascimento !== false && <DropdownMenuItem onClick={() => setShowNascimento(true)} className="text-xs">Nascimento</DropdownMenuItem>}
+            {permissions.registrar_morte !== false && <DropdownMenuItem onClick={() => setShowMorte(true)} className="text-xs">Morte</DropdownMenuItem>}
+            {permissions.pesar_lotes !== false && <DropdownMenuItem onClick={() => setShowPesagem(true)} className="text-xs">Pesar</DropdownMenuItem>}
             {permissions.renomear_lotes !== false && <DropdownMenuItem onClick={() => {
               // No ledger, o nome é do cadastro (Cadastro de Lotes); a posição só o exibe.
               if (modoLedger) {

@@ -150,3 +150,104 @@ Ao final, a verificação deu 251 posições, 0 divergências, 0 dias negativos 
 - **Peso** é atributo atual da posição, não historiado: transferência retroativa não recalcula pesos passados.
 - **Ativação** não tem desfazer automático; recomenda-se ativar primeiro uma empresa de teste.
 - **Safari real** não foi testado.
+
+---
+
+# PR174-R1 — Ledger integral: cadastro, posições, TODOS os manejos, cancelamentos e cutover (complemento da D-PROD-107)
+
+**Mesma PR, mesma branch.**
+- HEAD auditado: `0187cdd`.
+- Base: main `f7a8ea3`, sem mudança.
+- Commits: `6715739` (ondas A/B), `bbc0a2f` (B: saldo na data + matriz + SQL Editor) e o commit desta entrega (C: UI, vínculos, sobras, reset, E2E, docs).
+
+As seções 1–7 acima descrevem a R2E-P1. Onde dizem "fail-closed", "fora desta fase" ou "operações não migradas", **esta seção as substitui**.
+
+## R1.1 Achados da auditoria → RED → GREEN
+
+| # | Achado | RED em `0187cdd` | Correção | GREEN |
+|---|---|---|---|---|
+| A | Lote derivado vira entrada própria na ativação | falhou | linhagem rastreada pela movimentação certificada; `derivado_rastreado` herda a entrada raiz; sem prova → `legado:<id>` | `r2eR1Achados` |
+| B | Cancelar movimento legado em empresa ativada muta `Lote` (drift) | falhou | 409 `REBANHO_LEDGER_CANCELAMENTO_LEGADO` (cancelamento e elegibilidade) | `r2eR1Achados` |
+| C | Novos tipos exigiriam editar a migration aplicada | — | migration nova `20261103100000_rebanho_ledger_r1_manejos` (expand) | `migrate diff` sem drift |
+| D | Manejos fail-closed | falhou | os mesmos endpoints delegam ao ledger | `r2eR1ManejosLedger` 13/13 |
+| E | Corte impede retroatividade até a entrada | falhou | `modo: 'entradas'` + reset controlado de teste | `r2eR1Achados`, `r2eR1ResetTeste` 2/2 |
+| F | IDs de posição gravados como `lote_id`; peso sem histórico; sobras desligadas | falhou | `posicao_id` + `lote_id` = entrada; `PesoRebanho`; sobras como passo separado | `r2eR1Achados`, smoke |
+| G | Honestidade remota | — | matriz R1.6 | — |
+
+Evidência RED: `evidencias/r2e-p1-lotes-ssot/r1-integracao-completa/red-head-0187cdd.txt` (5/5 falharam no HEAD auditado).
+
+## R1.2 Matriz de operações (empresa ativada)
+
+| Operação | Endpoint | Ledger | Retroativo | Cancelamento | `Lote` escrito? |
+|---|---|---|---|---|---|
+| Entrada (cadastro) | `POST /lotes` | evento ENTRADA + peso | data_entrada | exclusão #167 | só o cadastro |
+| Transferência (total/parcial/multi) | `/rebanho/comandos/transferencia` e R2A `manejo-lote` | sim | sim | sim | não |
+| Morte / Abate (multi-categoria) | `comandos/baixa-rebanho` e R2A | sim | sim (saldo NA DATA) | sim | não |
+| Nascimento | `comandos/manejo-rebanho` | posição `nascimento` | sim | sim | não |
+| Pesagem | `comandos/manejo-rebanho` | série `PesoRebanho` | sim | sim | não |
+| Mudança de Categoria | `comandos/manejo-rebanho` | −/+ na linhagem | sim | sim | não |
+| Junção (1/5/20 origens) | `comandos/juncao-lotes` | contribuições na linhagem | sim | sim | não |
+| Sobras do cocho na transferência | suplementação (passo 2) | `posicao_id` + entrada | — | documento | não |
+| Tarefa / suplementação / sanidade | documentos | `posicao_id` + `lote_id` = entrada | — | — | não |
+| Renomear | Cadastro de Lotes | o nome é do cadastro | — | — | só o nome |
+
+## R1.3 Testes
+
+**Backend PostgreSQL + HTTP:** `test:backend` 864 testes, 859 pass, 0 fail, 5 todo.
+- Ledger: P1 21, R1 achados 5, R1 manejos 13 (39/39), reset 2/2.
+- Concorrência: 3 rodadas.
+- Tenant isolado.
+- Rollback por falha injetada em 3 passos, com zero mudança.
+- R2A/R2B/R2C/R2D legados seguem verdes nas empresas não ativadas.
+- SQL Editor 17/17, cientes de `PesoRebanho` e da FK tarefa→posição; 58 tabelas.
+
+**Smoke:** 1250/1250.
+
+**`verify:all`:** TODAS AS ETAPAS PASSARAM (`verify-all.txt`).
+
+**E2E Chromium**, `e2e-todas-operacoes-*.txt`, script `e2e-todas-operacoes.cjs`: 1440/768/412/390 = **124/124**. Por resolução, pela UI e sobre posições:
+- transferência;
+- morte;
+- abate retroativo;
+- mudança;
+- pesagem;
+- junção;
+- nascimento;
+- recusa retroativa;
+- histórico + cancelamento;
+- offline sem envio.
+
+Em todas: Cadastro (`Lote`) intacto, `verificacao.integro` e conservação, sem overflow e sem erro de página.
+
+**Achado do próprio E2E:** um total igual em duas áreas abria a área errada no clique. O roteiro passou a confirmar o nome da área; o app estava correto.
+
+## R1.4 Cutover / runbook (pós-merge, NÃO executado)
+
+1. Deploy. O pre-deploy `deploy:migrate` aplica as 2 migrations expand. Só `MIGRATION_DATABASE_URL` (5432 session/direct) + `MIGRATION_EXPECTED_SYSTEM_IDENTIFIER`.
+2. Empresa de TESTE com histórico legado:
+   1. `reset-rebanho-empresa-teste.mjs` em simulação;
+   2. depois `--executar --confirmar-empresa "<nome>" --backup <arquivo>`;
+   3. `POST /rebanho/ativacao {modo:'entradas'}`;
+   4. `GET /rebanho/verificacao` → `integro: true`.
+3. Empresa real: `modo: 'saldo_abertura'` com corte ≥ último movimento legado ativo. O reset não se aplica.
+4. Rollback: não há desativação (os fatos vivem no ledger). Reverter o deploy mantém o banco expand compatível, e a empresa ativada fica sem manejo no backend antigo. Ativar primeiro uma empresa de teste.
+5. Contract (remover colunas operacionais de `Lote`): só depois de produção estável.
+
+## R1.5 Riscos residuais
+
+- **Peso na junção:** as linhas da ponte de histórico registram `peso_medio_kg: null` por origem; a série `PesoRebanho` do principal está correta.
+- **"Pesar depois da movimentação":** o atalho do fluxo legado não é oferecido no ledger. A pesagem é pelo menu Pesar.
+- **Indicadores e relatórios** que agregam por `lote_id` passam a ver a entrada; quem precisar da posição usa `posicao_id`.
+- **Safari real** não foi testado.
+
+## R1.6 Estado de migração e deploy (cada item com evidência)
+
+| Item | Estado | Evidência |
+|---|---|---|
+| LOCAL_SCHEMA_APPLIED | SIM | `maike_ci`, `maike_demo`, `maike_demo_r2e`: upgrade pelo `migrate deploy`; zero→upgrade nos testes; `migrate diff` vazio |
+| LOCAL_DATA_MIGRATED | SIM | `maike_demo_r2e` ativado (saldo_abertura) e E2E de todas as operações; `modo: entradas` e reset provados em PG |
+| REMOTE_EXPAND_APPLIED | BLOCKED | container sem `MIGRATION_DATABASE_URL` e `MIGRATION_EXPECTED_SYSTEM_IDENTIFIER`; nada foi lido nem escrito remotamente (REMOTE_MIGRATION_BLOCKED) |
+| REMOTE_DATA_MIGRATED | NÃO | depende do deploy; ativação proibida antes do merge |
+| REMOTE_CUTOVER_APPLIED | NÃO | idem |
+| REMOTE_CLEANUP_APPLIED | NÃO | reset remoto só pós-deploy, com backup |
+| PRODUCTION_DEPLOYED | NÃO | PR em DRAFT, sem merge |

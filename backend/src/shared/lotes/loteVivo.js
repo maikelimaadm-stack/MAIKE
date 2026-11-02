@@ -69,7 +69,7 @@ export const exigirLotesDosDocumentos = async (tx, clienteId, documentos) => {
  */
 export const resolverPosicoesNosDocumentos = async (tx, clienteId, documentos) => {
   const pares = [['lote_id', 'posicao_id'], ['lote_destino_id', 'posicao_destino_id']];
-  const ids = [...new Set(documentos.flatMap((d) => (d && typeof d === 'object' ? pares.map(([c]) => d[c]).filter((v) => typeof v === 'string' && v.trim()) : [])))];
+  const ids = /** @type {string[]} */ ([...new Set(documentos.flatMap((d) => (d && typeof d === 'object' ? pares.map(([c]) => d[c]).filter((v) => typeof v === 'string' && v.trim()) : [])))]);
   if (!ids.length) return;
   const posicoes = await tx.posicaoRebanho.findMany({ where: { cliente_id: clienteId, id: { in: ids } }, select: { id: true, lote_entrada_id: true } });
   if (!posicoes.length) return;

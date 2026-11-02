@@ -1,0 +1,43 @@
+PASS desktop-1440 transferência: sem overflow horizontal — {"sw":1440,"cw":1440,"l":280,"r":1160,"vw":1440}
+PASS desktop-1440 transferência: 1 POST do ledger, nada legado — 1
+PASS desktop-1440 transferência: A=537 B=36 — 537/36
+PASS desktop-1440 morte: sem overflow horizontal — {"sw":1440,"cw":1440,"l":272,"r":1168,"vw":1440}
+PASS desktop-1440 morte: 1 POST baixa-rebanho, nada legado, toast de sucesso — Morte registrado: 4 cab (R1A desktop-1440: 4)
+PASS desktop-1440 morte: A=533 — 533
+PASS desktop-1440 abate: sem overflow horizontal — {"sw":1440,"cw":1440,"l":272,"r":1168,"vw":1440}
+PASS desktop-1440 abate retroativo: 1 POST, aceito — Abate registrado: 11 cab (R1A desktop-1440: 11)
+PASS desktop-1440 abate: A=522 — 522
+PASS desktop-1440 abate: corpo com a data retroativa e sem saldo/tenant — {"operation_id":"rebanho-5b96bb51-fcdb-40ce-8605-d6db86621839","tipo":"Abate","empresa_id":"cmvwd6au200037d5t9qk00js3","area_id":"cmvwl7m2h029d7d3te0ge2s89","da
+PASS desktop-1440 mudança de categoria: sem overflow horizontal — {"sw":1440,"cw":1440,"l":272,"r":1168,"vw":1440}
+PASS desktop-1440 mudança: 1 POST manejo-rebanho; 21 TOURO na mesma linhagem; total de A igual — Mudança de categoria registrado
+PASS desktop-1440 pesagem: sem overflow horizontal — {"sw":1440,"cw":1440,"l":272,"r":1168,"vw":1440}
+PASS desktop-1440 pesagem: 1 POST; peso 432,5 nas posições de A (série de peso no ledger) — Pesagem registrado 432.5,432.5,432.5
+PASS desktop-1440 junção: sem overflow horizontal — {"sw":1440,"cw":1440,"l":496,"r":944,"vw":1440}
+PASS desktop-1440 junção: 1 POST juncao-lotes; uma posição BOI em A com a linhagem das duas entradas — Lotes unificados: 501 cabeças no lote "R1A desktop-1440" 1
+PASS desktop-1440 junção: total de A conservado — 522
+PASS desktop-1440 nascimento: sem overflow horizontal — {"sw":1440,"cw":1440,"l":272,"r":1168,"vw":1440}
+PASS desktop-1440 nascimento: 1 POST; posição NASCIDOS com 9 cab, sem entrada (não é compra) — Nascimento registrado
+PASS desktop-1440 nascimento: C=71 — 71
+PASS desktop-1440 morte em B antes de o gado chegar: recusa clara, nada gravado — A categoria não tem cabeças suficientes nos lotes ativos desta área. Recarregue o mapa. Nada foi baixado.
+PASS desktop-1440 recusa: diálogo continua aberto
+PASS desktop-1440 histórico de A lista transferência, morte, abate, mudança, pesagem e junção — Histórico da Área PASTO 66 (7)
+Área
+Lotes atuais
+
+Entradas, saídas e manejos registrados nesta área, inclusive de lotes que já saíram.
+
+24/12/2026
+Junção de Lotes
+Manejo
+Ativo
+R1A desktop-1440
+Quantid
+PASS desktop-1440 cancelamento: sem overflow horizontal — {"sw":1440,"cw":1440,"l":498.8984375,"r":941.1015625,"vw":1440}
+PASS desktop-1440 cancelamento da morte pela UI → A=526 — 526
+PASS desktop-1440 offline: indisponibilidade explícita, sem requisição de escrita — Sem conexão: este manejo (nascimento, pesagem, mudança de categoria, junção, morte ou abate) só pode ser registrado online. Nada foi gravado.
+PASS desktop-1440 Cadastro R1A desktop-1440: Lote = entrada (378 cab, área de entrada), nenhuma escrita de saldo — [378,"Ativo"]
+PASS desktop-1440 Cadastro R1B desktop-1440: Lote = entrada (195 cab, área de entrada), nenhuma escrita de saldo — [195,"Ativo"]
+PASS desktop-1440 Cadastro R1V desktop-1440: Lote = entrada (62 cab, área de entrada), nenhuma escrita de saldo — [62,"Ativo"]
+PASS desktop-1440 verificação do ledger: íntegro e conservação fecha — {"posicoes":263,"divergentes":[],"pesos_divergentes":[],"negativos":[],"conservacao":{"entradas":52221,"nascimentos":17,"saidas":-11,"internos":0,"saldo":52227,"conserva":true},"integro":true}
+PASS desktop-1440 sem erro de página
+RESUMO desktop-1440: 31/31 PASS
