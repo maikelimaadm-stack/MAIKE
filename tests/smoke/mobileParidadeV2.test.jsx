@@ -47,7 +47,7 @@ describe('PAR — seletores', () => {
     expect(achados).toEqual([]);
   });
 
-  it('PAR4 — B1Select no desktop continua o select nativo, com a mesma API', async () => {
+  it('PAR4 — B1Select no desktop abre o painel de seleção abaixo do campo, com a mesma API (D-PROD-105)', async () => {
     const { default: B1Select } = await import('@/components/cadastro/base1/B1Select');
     const onChange = vi.fn();
     render(
@@ -56,10 +56,12 @@ describe('PAR — seletores', () => {
         <option value="a">A</option>
       </B1Select>,
     );
-    const sel = screen.getByRole('combobox', { name: 'Tipo' });
-    expect(sel.tagName).toBe('SELECT');
-    await act(async () => fireEvent.change(sel, { target: { value: 'a' } }));
-    expect(onChange).toHaveBeenCalled();
+    const campo = screen.getByRole('combobox', { name: 'Tipo' });
+    await act(async () => fireEvent.click(campo));
+    // "SELECIONE" não vira opção; "A" sim.
+    expect(screen.getAllByRole('option').map((o) => o.textContent)).toEqual(['A']);
+    await act(async () => fireEvent.click(screen.getByRole('option', { name: 'A' })));
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ target: { value: 'a' } }));
   });
 
   it('PAR5 — select genérico e autocomplete têm o caminho de folha no celular', () => {

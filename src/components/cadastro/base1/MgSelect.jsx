@@ -3,6 +3,7 @@ import * as Popover from "@radix-ui/react-popover";
 import { Check, ChevronDown, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import MobileSheet, { useCelular } from "@/components/common/MobileSheet";
+import PainelSelecao from "@/components/common/PainelSelecao";
 import { usePortalComprasSkin } from "./portalComprasSkinContext";
 
 /**
@@ -262,6 +263,8 @@ export function MgSelect({
     onOpenChange?.(o);
     if (!o) setSearch("");
   };
+  const displayRef = useRef(/** @type {HTMLButtonElement | null} */ (null));
+  const ancora = React.useCallback(() => displayRef.current?.closest(".mg-field") ?? displayRef.current, []);
   const cur = options.find((o) => o.value === value);
   const filtered = search
     ? options.filter((o) => o.label.toLowerCase().includes(search.toLowerCase()))
@@ -302,6 +305,45 @@ export function MgSelect({
           />
         ) : null}
       </>
+    );
+  }
+
+  // Campo de formulário no desktop/tablet (D-PROD-105): o mesmo painel das
+  // outras listas, logo abaixo do campo. O painel em pílula (ex.: itens por
+  // página) segue o seu próprio desenho.
+  if (!isPillPanel) {
+    return (
+      <PainelSelecao
+        open={open}
+        onOpenChange={setOpen}
+        ancora={ancora}
+        itens={options.map((o) => ({
+          value: o.value,
+          label: o.code ? `${o.code} · ${o.label}` : o.label,
+          texto: [o.code, o.label].filter(Boolean).join(" "),
+        }))}
+        valor={value ?? null}
+        onEscolher={(v) => onChange(v)}
+        pesquisavel={options.length > 8}
+        rotulo={ariaLabel || placeholder}
+      >
+        <CmdDisplay
+          ref={displayRef}
+          id={id}
+          aria-expanded={open}
+          aria-haspopup="listbox"
+          aria-label={ariaLabel}
+          disabled={disabled}
+          empty={!cur}
+          placeholder={placeholder}
+          onClear={allowEmpty ? () => onChange("") : undefined}
+          className={className}
+          wrapClassName={wrapClassName}
+          onClick={() => setOpen(!open)}
+        >
+          {cur?.label}
+        </CmdDisplay>
+      </PainelSelecao>
     );
   }
 

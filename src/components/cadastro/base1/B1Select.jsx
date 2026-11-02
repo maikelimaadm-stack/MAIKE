@@ -1,6 +1,7 @@
 import React from "react";
 import { Check, ChevronDown, Search, X } from "lucide-react";
 import MobileSheet, { useCelular } from "@/components/common/MobileSheet";
+import PainelSelecao from "@/components/common/PainelSelecao";
 
 /** Texto de um nó React (filhos de `<option>`). */
 function textoDe(no) {
@@ -28,25 +29,29 @@ function opcoesDe(children) {
 }
 
 /**
- * `<select>` dos formulários Base1. Desktop: o select nativo de sempre. Celular:
- * o campo abre a folha de baixo com as opções (e pesquisa acima de 8), como os
- * demais seletores (D-PROD-88). Mesma API do `<select>`: `value`, `onChange(e)`.
+ * `<select>` dos formulários Base1. Celular: a folha de baixo com as opções (e
+ * pesquisa acima de 8), como os demais seletores (D-PROD-88). Desktop/tablet:
+ * o mesmo painel das outras listas, logo abaixo do campo (D-PROD-105).
+ * Mesma API do `<select>`: `value`, `onChange(e)`.
  *
  * @param {React.SelectHTMLAttributes<HTMLSelectElement> & { children?: React.ReactNode }} props
  */
 export default function B1Select(props) {
   const celular = useCelular();
   const { value, onChange, children, className, disabled, id } = props;
+  // Atributos data-* (ex.: data-status) seguem para o botão, como iam para o <select>.
+  const dataAttrs = Object.fromEntries(Object.entries(props).filter(([k]) => k.startsWith("data-")));
   const [aberto, setAberto] = React.useState(false);
   const [busca, setBusca] = React.useState("");
   const botao = React.useRef(/** @type {HTMLButtonElement | null} */ (null));
-
-  if (!celular) return <select {...props}>{children}</select>;
+  const ancora = React.useCallback(() => botao.current?.closest(".mg-field") ?? botao.current, []);
 
   const opcoes = opcoesDe(children);
   const atual = opcoes.find((o) => o.value === String(value ?? ""));
   const vazio = !atual || atual.value === "";
-  const reais = opcoes.filter((o) => o.value !== "");
+  // Fora da lista só o "Selecione…" (ou opção vazia sem rótulo). Uma opção vazia
+  // com nome — ex.: "SEM VÍNCULO" — é uma escolha válida.
+  const reais = opcoes.filter((o) => o.value !== "" || (o.label.trim() !== "" && !/^selecione/i.test(o.label.trim())));
   const pesquisavel = reais.length > 8;
   const termo = busca.trim().toLowerCase();
   const vistas = termo ? reais.filter((o) => o.label.toLowerCase().includes(termo)) : reais;
@@ -58,6 +63,47 @@ export default function B1Select(props) {
     setAberto(false);
     onChange?.(/** @type {any} */ ({ target: { value: v }, currentTarget: { value: v } }));
   };
+
+  // Desktop/tablet (D-PROD-105): o mesmo painel das outras listas, logo abaixo do campo.
+  if (!celular) {
+    return (
+      <PainelSelecao
+        open={aberto}
+        onOpenChange={setAberto}
+        ancora={ancora}
+        itens={reais.map((o) => ({ value: o.value, label: o.label, texto: o.label, disabled: o.disabled }))}
+        valor={String(value ?? "")}
+        onEscolher={escolher}
+        pesquisavel={pesquisavel}
+        rotulo={props["aria-label"] || "opções"}
+      >
+        <button
+          ref={botao}
+          id={id}
+          type="button"
+          role="combobox"
+          aria-expanded={aberto}
+          aria-haspopup="listbox"
+          aria-label={props["aria-label"]}
+          disabled={disabled}
+          className={`${className ?? ""} b1-select-btn`}
+          value={String(value ?? "")}
+          {...dataAttrs}
+          {...(vazio ? { "data-placeholder": "" } : {})}
+          onClick={() => setAberto((v) => !v)}
+          onKeyDown={(e) => {
+            if (e.key === "ArrowDown" || e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              setAberto(true);
+            }
+          }}
+        >
+          <span className="b1-select-btn__v">{vazio ? "" : atual.label}</span>
+          <ChevronDown aria-hidden className="b1-select-btn__c" />
+        </button>
+      </PainelSelecao>
+    );
+  }
 
   return (
     <>

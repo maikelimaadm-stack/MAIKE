@@ -173,3 +173,15 @@ Pedido do proprietário com prints do app do Claude no iPhone. Conferido no Chro
 
 **Não testado em aparelho real:** a correção da folha no Safari do iPhone.
 
+## V10 — desktop com estrutura de desktop (D-PROD-105)
+
+| Pedido | Feito | Evidência |
+|---|---|---|
+| Listas do desktop no modelo da lista de Marca, abrindo alinhadas abaixo do campo; clique no campo funcionando | `PainelSelecao`: 4 px abaixo do campo, mesma largura, pesquisa em cima e "+ Novo …" embaixo; o clique abre e fecha; digitar pesquisa | v10-01; medido no harness (Produtos e Lotes) |
+| "Misturou mobile com desktop": chave grande, pop-up estranho, botões fora do padrão | Desktop ≥1024 px: chave 36×20; cadastro rápido em diálogo com ✕/✓ da barra do registro | v10-02 |
+| "SELECIONE" sobreposto ao rótulo (Estado) | `B1Select` vazio mostra só o rótulo | v10-02 |
+| Botões sem sombra | shadcn `outline`/`secondary` cinza e sem sombra | — |
+| Barras de rolagem despadronizadas | Mesma barra de 8 px em todas as áreas no Chrome, Edge e Safari | — |
+
+**Não testado:** Windows real (as setas da barra nativa vieram do print do proprietário).
+
