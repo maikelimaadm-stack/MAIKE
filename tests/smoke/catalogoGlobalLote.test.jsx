@@ -9,7 +9,7 @@
 import React from "react";
 import { readFileSync } from "node:fs";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, waitFor, fireEvent, cleanup } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent, cleanup, act } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 const api = {
@@ -138,12 +138,18 @@ describe("Categoria de Manejo escolhe a categoria oficial (sem editar ícone)", 
     );
     const select = await screen.findByLabelText("Ícone oficial (catálogo MAIKE)");
     await waitFor(() => expect(select.getAttribute("data-status")).toBe("ok"));
-    const opcoes = [...select.querySelectorAll("option")].map((o) => o.textContent);
+    // Desktop (D-PROD-106): o campo abre o painel de seleção abaixo dele.
+    await act(async () => {
+      fireEvent.click(select);
+    });
+    const opcoes = screen.getAllByRole("option").map((o) => o.textContent.trim());
     expect(opcoes).toEqual(["SEM VÍNCULO", "Bezerro", "Garrote"]);
     expect(screen.queryByText(/upload|enviar imagem|publicar/i)).toBeNull();
     expect(document.querySelector('input[type="file"]')).toBeNull();
 
-    fireEvent.change(select, { target: { value: "cv-gar" } });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("option", { name: "Garrote" }));
+    });
     fireEvent.submit(screen.getByTestId("b1-form-categoria-manejo"));
     expect(onSubmit).toHaveBeenCalledTimes(1);
     const dados = onSubmit.mock.calls[0][0];

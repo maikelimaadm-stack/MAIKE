@@ -3566,3 +3566,339 @@ button.mk-switch[data-mk-tocado][data-state="unchecked"]:not(#mk-padrao) .mk-swi
     animation: none !important;
   }
 }
+
+/*
+ * ══ Painel de seleção do desktop/tablet (D-PROD-106) ═════════════════════
+ * Mesmo visual da lista de Marca (`.mk-ac-pop`): branco, cantos 12, linha sob
+ * o mouse em verde-claro, escolhida em verde; pesquisa em cima, "+ Novo"
+ * embaixo. Largura = a do campo (mínimo 220).
+ */
+.mk-sel-pop {
+  z-index: 10000;
+  box-sizing: border-box;
+  display: flex;
+  width: var(--radix-popper-anchor-width);
+  min-width: 220px;
+  max-width: min(480px, calc(100vw - 16px));
+  max-height: min(380px, var(--radix-popper-available-height, 380px));
+  flex-direction: column;
+  padding: 4px;
+  overflow: hidden;
+  border: 1px solid #e7eaee;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow:
+    0 18px 40px rgba(15, 23, 42, 0.18),
+    0 2px 8px rgba(15, 23, 42, 0.08);
+  color: #334155;
+  outline: none;
+  animation: b1-glass-rise 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.mk-sel-busca {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  margin: 2px 2px 4px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: #f1f3f4;
+}
+
+.mk-sel-busca:focus-within {
+  box-shadow: 0 0 0 2px rgba(64, 222, 99, 0.35);
+}
+
+.mk-sel-busca__ic {
+  flex-shrink: 0;
+  color: #9ca3af;
+}
+
+.mk-sel-busca__limpar {
+  display: flex;
+  flex-shrink: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #6b7280;
+  cursor: pointer;
+}
+
+.mk-sel-busca input {
+  min-width: 0;
+  flex: 1;
+  height: 100%;
+  border: 0;
+  background: transparent;
+  color: #1f2937;
+  font-size: 12.5px;
+  outline: none;
+}
+
+.mk-sel-lista {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.mk-sel-op {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 8px;
+  margin: 1px 0;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #334155;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.mk-sel-op.is-hi {
+  background: rgba(64, 222, 99, 0.13);
+}
+
+.mk-sel-op.is-on {
+  color: #15803d;
+  font-weight: 600;
+}
+
+.mk-sel-op:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.mk-sel-op__txt {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
+.mk-sel-op__label,
+.mk-sel-op__label > div {
+  overflow: hidden;
+  color: inherit !important;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mk-sel-op__sub {
+  color: #6b7280;
+  font-size: 10.5px;
+  font-weight: 400;
+}
+
+.mk-sel-op__check {
+  flex-shrink: 0;
+  color: #16a34a;
+}
+
+.mk-sel-vazio,
+.mk-sel-mais {
+  padding: 12px 10px;
+  color: #6b7280;
+  font-size: 12px;
+  text-align: center;
+}
+
+.mk-sel-mais {
+  padding: 6px 10px;
+  font-size: 11px;
+}
+
+.mk-sel-novo {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  padding: 8px 10px;
+  border: 0;
+  border-top: 1px solid #eef0f2;
+  border-radius: 0 0 8px 8px;
+  background: transparent;
+  color: #16a34a;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.mk-sel-novo:hover {
+  background: #f0fdf4;
+}
+
+/* Campo que abre o painel: o campo inteiro é clicável */
+.mk-sel-campo {
+  cursor: pointer;
+}
+
+.mk-sel-campo input {
+  cursor: pointer;
+  caret-color: transparent;
+}
+
+/* Select do shadcn (Radix) no desktop/tablet: mesmo visual do painel de seleção */
+@media (min-width: 640px) {
+  .mk-select:not(#mk-padrao) {
+    padding: 4px;
+    border: 1px solid #e7eaee;
+    border-radius: 12px;
+    background: #fff;
+    box-shadow:
+      0 18px 40px rgba(15, 23, 42, 0.18),
+      0 2px 8px rgba(15, 23, 42, 0.08);
+  }
+
+  .mk-select .mk-select-item:not(#mk-padrao) {
+    margin: 1px 0;
+    border-radius: 8px;
+    color: #334155;
+    font-size: 12px;
+  }
+
+  .mk-select .mk-select-item[data-highlighted]:not(#mk-padrao) {
+    background: rgba(64, 222, 99, 0.13);
+    color: #334155;
+  }
+
+  .mk-select .mk-select-item[data-state="checked"]:not(#mk-padrao) {
+    color: #15803d;
+    font-weight: 600;
+  }
+
+  .mk-select .mk-select-item[data-state="checked"]:not(#mk-padrao) svg {
+    color: #16a34a;
+  }
+}
+
+/*
+ * ══ Desktop separado do celular (D-PROD-106) ═════════════════════════════
+ * O desenho do iOS (chave grande de vidro, folhas, botões redondos) é do
+ * celular/tablet. No desktop (≥1024px) volta o padrão de desktop.
+ */
+
+/* Cadastro rápido no desktop: diálogo, não folha */
+.mk-crd-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgba(15, 23, 42, 0.35);
+}
+
+.mk-crd {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  z-index: 61;
+  display: flex;
+  flex-direction: column;
+  width: min(960px, calc(100vw - 48px));
+  max-height: calc(100vh - 64px);
+  transform: translate(-50%, -50%);
+  overflow: hidden;
+  border: 1px solid #e7eaee;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 16px 48px rgba(15, 23, 42, 0.18);
+}
+
+.mk-crd:focus {
+  outline: none;
+}
+
+.mk-crd .mk-crd__head:not(#mk-padrao) {
+  display: flex;
+  flex-direction: row;
+  height: auto;
+  min-height: 0;
+  background: #fff;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px 10px 18px;
+  border-bottom: 1px solid #e7eaee;
+}
+
+.mk-crd__title {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 15px;
+  font-weight: 600;
+  color: #1f2937;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mk-crd__acoes {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mk-crd__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 14px 18px 18px;
+}
+
+.mk-crd .mk-cr__corpo {
+  padding: 0;
+}
+
+/* Chave no desktop: tamanho compacto padrão (36×20), bolinha redonda, sem vidro */
+@media (min-width: 1024px) {
+  :root {
+    --mk-sw-w: 36px;
+    --mk-sw-h: 20px;
+    --mk-sw-g: 2px;
+    --mk-sw-knob: 16px;
+    --mk-sw-knob-press: 16px;
+    --mk-sw-vidro-escala: 1;
+    --mk-sw-sombra: 0 1px 2px rgba(0, 0, 0, 0.18);
+    --mk-sw-mola: cubic-bezier(0.25, 0.8, 0.3, 1);
+    --mk-sw-tempo: 0.2s;
+  }
+
+  .cadastro-b1 .b1-switch:not(#mk-padrao) {
+    --sw-b: 1;
+  }
+
+  .cadastro-b1 .b1-switch:not(#mk-padrao),
+  .mk-ios-switch:not(#mk-padrao),
+  button.mk-switch:not(#mk-padrao) {
+    overflow: hidden;
+  }
+
+  .cadastro-b1 .b1-switch:not(#mk-padrao) .b1-switch__thumb,
+  .mk-ios-switch:not(#mk-padrao) .mk-ios-switch__thumb,
+  button.mk-switch:not(#mk-padrao) .mk-switch__thumb,
+  .cadastro-b1 .b1-switch:active:not(:disabled):not(#mk-padrao) .b1-switch__thumb,
+  .mk-ios-switch:active:not(:disabled):not(#mk-padrao) .mk-ios-switch__thumb,
+  button.mk-switch:active:not(:disabled):not(#mk-padrao) .mk-switch__thumb {
+    scale: 1;
+    background: #fff;
+    box-shadow: var(--mk-sw-sombra);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    animation: none !important;
+  }
+}
+
+/* Barras de rolagem: o mesmo desenho (8px, cinza, arredondada) em toda tela.
+ * No Chrome/Edge, `scrollbar-width`/`scrollbar-color` desligam o
+ * ::-webkit-scrollbar e cada área ficava com a barra nativa (com setas). */
+@supports selector(::-webkit-scrollbar) {
+  *:not([class*="scrollbar-width:none"]):not(.mg-toolbar__row--actions) {
+    scrollbar-width: auto !important;
+    scrollbar-color: auto !important;
+  }
+}

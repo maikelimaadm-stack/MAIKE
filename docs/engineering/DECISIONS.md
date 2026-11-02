@@ -4234,4 +4234,21 @@ Relatório: `docs/engineering/UX-MOBILE-V2-REPORT.md` (seção V9). Teste: `test
 
 **Consequência:** relatório `MAIKE-R2D-BAIXAS-MULTILOTES-REPORT.md`; evidências em `evidencias/r2d-p1-baixas-multilotes/`. Migrations: 0.
 
-<!-- Próxima decisão: D-PROD-106 -->
+## D-PROD-106 — Desktop com estrutura de desktop: listas abaixo do campo, diálogo e chave compacta
+
+- **Contexto:** o proprietário pediu no desktop o mesmo modelo visual das listas do celular (pesquisa em cima, "+ cadastrar" embaixo) e botões sem sombra. Depois apontou que o desenho do celular tinha vazado para o desktop:
+  - chave Ativo muito grande;
+  - "+ cadastrar" abrindo folha com botões redondos;
+  - "SELECIONE" sobreposto ao rótulo;
+  - listas que não abriam;
+  - barras de rolagem diferentes entre áreas.
+- **Decisão:**
+  - **Listas no desktop/tablet** (`PainelSelecao`): o painel branco da lista de Marca abre 4 px abaixo do campo, com a mesma largura. Pesquisa no topo, "+ Novo …" no rodapé. Clicar de novo no campo fecha; digitar abre com o texto na pesquisa; ↑ ↓ Enter navegam. Vale para `AutocompleteGenerico`, `B1Select` e `MgSelect` (exceto o painel de pílulas).
+  - **`B1Select` vazio:** não mostra mais "SELECIONE"; o rótulo do campo ocupa o lugar.
+  - **Cadastro rápido no desktop (≥1024 px):** diálogo de desktop com título à esquerda e ✕ Cancelar / ✓ Salvar com os mesmos botões da barra do registro. Celular e tablet continuam com a folha.
+  - **Chave no desktop (≥1024 px):** 36×20, bolinha redonda, sem o vidro do iOS. O desenho de 60×28 com vidro fica só no celular e no tablet.
+  - **Botões shadcn `outline` e `secondary`:** cinza `#f1f3f4`, sem sombra.
+  - **Barras de rolagem:** no Chrome, Edge e Safari, `scrollbar-width`/`scrollbar-color` deixam de anular o `::-webkit-scrollbar`. Toda área rola com a mesma barra de 8 px cinza arredondada. As áreas que escondem a barra continuam escondendo.
+- **Consequência:** celular e desktop compartilham o visual das listas, mas cada um mantém sua estrutura.
+
+<!-- Próxima decisão: D-PROD-107 -->

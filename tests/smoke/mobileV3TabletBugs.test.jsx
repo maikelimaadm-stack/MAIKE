@@ -22,19 +22,19 @@ describe('V3 — AutocompleteGenerico no desktop', () => {
 
   it('V3-1 — lista vazia avisa em vez de não abrir nada', async () => {
     const campo = await montar([]);
-    await act(async () => fireEvent.focus(campo));
+    await act(async () => fireEvent.click(campo));
     expect(await screen.findByText('Nenhuma opção disponível')).toBeInTheDocument();
   });
 
-  it('V3-2 — depois de escolher, um novo clique no campo (ainda focado) reabre a lista', async () => {
+  it('V3-2 — depois de escolher, um novo clique no campo reabre a lista (D-PROD-106: painel abaixo do campo)', async () => {
     const campo = await montar([{ id: 'a', nome: 'Setor Norte' }, { id: 'b', nome: 'Setor Sul' }]);
-    await act(async () => fireEvent.focus(campo));
-    await act(async () => fireEvent.click(screen.getByText('Setor Sul')));
-    // Fechou: o texto só existe como valor do campo, não como opção.
-    expect(screen.queryByText('Setor Sul')).toBeNull();
     await act(async () => fireEvent.click(campo));
-    // Reabriu filtrando pelo texto escolhido.
-    expect(screen.getByText('Setor Sul')).toBeInTheDocument();
+    await act(async () => fireEvent.click(screen.getByRole('option', { name: 'Setor Sul' })));
+    // Fechou: o texto só existe como valor do campo, não como opção.
+    expect(screen.queryByRole('option', { name: 'Setor Sul' })).toBeNull();
+    await act(async () => fireEvent.click(campo));
+    // Reabriu com a escolhida marcada.
+    expect(screen.getByRole('option', { name: 'Setor Sul' })).toHaveAttribute('aria-selected', 'true');
   });
 });
 
