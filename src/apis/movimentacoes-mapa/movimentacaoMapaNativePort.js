@@ -87,7 +87,7 @@ export const executarManejoLoteNativo = (corpo) =>
 export const executarManejoRebanhoNativo = (corpo) =>
   nativeRequest(`${CAMINHO}/comandos/manejo-rebanho`, { method: 'POST', body: corpo, autenticado: true }, ctx('executarManejoRebanho'));
 
-/** Comando atômico de junção de lotes (R2C-P1, D-PROD-103). Só online. */
+/** Comando atômico de junção de lotes (R2C-P1, D-PROD-104). Só online. */
 export const executarJuncaoLotesNativo = (corpo) =>
   nativeRequest(`${CAMINHO}/comandos/juncao-lotes`, { method: 'POST', body: corpo, autenticado: true }, ctx('executarJuncaoLotes'));
 

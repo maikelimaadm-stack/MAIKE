@@ -1,5 +1,5 @@
 /**
- * Constantes da Junção de Lotes (R2C-P1, D-PROD-103). Módulo sem dependências
+ * Constantes da Junção de Lotes (R2C-P1, D-PROD-104). Módulo sem dependências
  * para ser importado pelo comando, pelo cancelamento e pela guarda do POST
  * genérico sem ciclo de imports.
  */

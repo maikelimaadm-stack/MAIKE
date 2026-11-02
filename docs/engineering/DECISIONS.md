@@ -4020,9 +4020,32 @@ Relatório: `docs/engineering/UX-MOBILE-V2-REPORT.md` (seção V8). Testes: `tes
 
 ---
 
-## D-PROD-103 — Junção de Lotes do Mapa por comando atômico com cancelamento causal (R2C-P1)
+## D-PROD-103 — Folha sem a "travinha" no iPhone e chave com cápsula de vidro (iOS 26)
 
-> Numerada D-PROD-102 na branch; renumerada para D-PROD-103 porque a #170 (mobile) ocupou D-PROD-102 na main durante a missão.
+**Missão:** UX-MOBILE-V9. O proprietário mandou um vídeo da tela do iPhone: ao soltar a folha, ela "travava". No mesmo vídeo, mostrou a chave do app do Claude (iOS 26) como referência para o botão Ativo.
+
+**Diagnóstico (vídeo medido quadro a quadro, 30 fps):** ao descer para a média, o topo da folha assentava (658 px do vídeo), saltava para 1184 num quadro e subia de novo (757 → 707 → … → 657). No fim do arraste, `limpar()` desligava a transição, zerava o deslocamento e religava a transição num `requestAnimationFrame`. O Safari juntava as duas mudanças e animava o deslocamento de volta.
+
+**Decisão:**
+1. **Folha:**
+   - `limpar()` força a leitura do layout (`getBoundingClientRect`) depois de zerar altura e deslocamento e antes de religar a transição, tudo síncrono;
+   - nenhuma mudança visual: a folha só não salta mais ao terminar de subir ou descer.
+2. **Chave = cápsula de vidro do iOS 26**, como no vídeo, em todas (`B1Switch`, `ToggleSwitch`, `Switch` do shadcn), com as cores e o tamanho da D-PROD-102:
+   - segurando: a cápsula não estica mais. Ela cresce 1,38× além do trilho e fica de vidro (translúcida, borda clara, `backdrop-filter`);
+   - ao trocar: a cápsula fica de vidro e grande enquanto desliza com a mola, e volta a ser branca e normal ao chegar. Os nomes da animação se alternam para ela rodar a cada toque;
+   - o vidro só roda depois de um toque na chave (o `Layout` marca `data-mk-tocado` no `pointerdown`), para não pulsar ao abrir a tela;
+   - com "reduzir movimento" ligado, sem animação de vidro.
+   - Medido no Chromium: cápsula 38×24 → 52×33 durante a troca → 38×24 ao chegar.
+
+**Não testado em aparelho real:** a correção da folha no Safari do iPhone. O ambiente não tem WebKit; o defeito foi diagnosticado no vídeo e a correção é a forma padrão de evitar esse agrupamento de mudanças no Safari.
+
+Relatório: `docs/engineering/UX-MOBILE-V2-REPORT.md` (seção V9). Teste: `tests/smoke/mobileV9Vidro.test.jsx`.
+
+---
+
+## D-PROD-104 — Junção de Lotes do Mapa por comando atômico com cancelamento causal (R2C-P1)
+
+> Numerada D-PROD-102 e depois D-PROD-103 na branch; renumerada para D-PROD-104 porque a #170 (D-PROD-102) e a #171 (D-PROD-103), ambas mobile, ocuparam esses números na main durante a missão.
 
 **Missão:** MAIKE-R2C-P1-JUNCAO-DE-LOTES-ATOMICA-CANCELAMENTO-CAUSAL. Base `main` 04afd25 (merge da #168). **Sem migration**; nenhuma escrita em produção.
 
@@ -4089,4 +4112,4 @@ Relatório: `docs/engineering/UX-MOBILE-V2-REPORT.md` (seção V8). Testes: `tes
 
 **Consequência:** relatório `MAIKE-R2C-JUNCAO-ATOMICA-REPORT.md`; evidências em `evidencias/r2c-p1-juncao/`.
 
-<!-- Próxima decisão: D-PROD-104 -->
+<!-- Próxima decisão: D-PROD-105 -->

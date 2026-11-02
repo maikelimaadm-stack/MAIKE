@@ -1,11 +1,11 @@
-# R2C-P1 — Junção de Lotes atômica com cancelamento causal (D-PROD-103)
+# R2C-P1 — Junção de Lotes atômica com cancelamento causal (D-PROD-104)
 
 - **Missão:** MAIKE-R2C-P1-JUNCAO-DE-LOTES-ATOMICA-CANCELAMENTO-CAUSAL
 - **Base:** `main` 04afd25 (merge da #168)
 - **PR:** #169 (draft)
 - **Migrations:** 0, sem mudança no schema Prisma
 - **Produção:** nenhuma leitura nem escrita
-- **Colisão de numeração:** durante a missão a #170 (mobile) foi mergeada usando D-PROD-102. A main foi incorporada por merge (sem rebase nem force-push), a D-PROD-102 da #170 ficou intacta e esta decisão passou a ser **D-PROD-103** (próxima livre: D-PROD-104). Os arquivos da #170 não foram tocados.
+- **Colisão de numeração:** durante a missão a #170 (D-PROD-102) e a #171 (D-PROD-103), ambas mobile, foram mergeadas. A main foi incorporada por merge (sem rebase nem force-push), as decisões delas ficaram intactas e esta passou a ser **D-PROD-104** (próxima livre: D-PROD-105). Arquivos da #170/#171 não foram tocados.
 
 ## 1. Diagnóstico (RED executado na main 04afd25)
 

@@ -1,5 +1,5 @@
 /**
- * R2C-P1 (D-PROD-103) — Junção de Lotes por comando atômico com cancelamento causal.
+ * R2C-P1 (D-PROD-104) — Junção de Lotes por comando atômico com cancelamento causal.
  *
  * PostgreSQL real, HTTP autenticado, dados sintéticos. Toda prova de "nada
  * gravado" conta lotes, movimentos, auditorias e reservas de idempotência.

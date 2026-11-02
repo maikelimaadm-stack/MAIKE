@@ -148,7 +148,7 @@ export const registrarManejoRebanhoServidor = async (corpo) => {
 };
 
 /**
- * Junção de Lotes (R2C-P1, D-PROD-103): o navegador manda só ids e data; o
+ * Junção de Lotes (R2C-P1, D-PROD-104): o navegador manda só ids e data; o
  * servidor soma, zera as origens e grava UM movimento numa transação.
  */
 export const registrarJuncaoLotesServidor = async (corpo) => {

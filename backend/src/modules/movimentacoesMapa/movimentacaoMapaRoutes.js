@@ -145,7 +145,7 @@ const MANEJO_REBANHO_SCHEMA = {
 };
 
 /**
- * Junção de Lotes (R2C-P1, D-PROD-103): só ids, data e observação. Saldo,
+ * Junção de Lotes (R2C-P1, D-PROD-104): só ids, data e observação. Saldo,
  * peso, área de destino, categoria, tenant, autor e efeitos são do servidor;
  * qualquer outro campo é 400.
  */

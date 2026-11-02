@@ -65,7 +65,7 @@ const semAcento = (v) =>
     .toUpperCase();
 
 /**
- * R2C-P1 (D-PROD-103): junção de lotes só pelo comando atômico. Recusa o
+ * R2C-P1 (D-PROD-104): junção de lotes só pelo comando atômico. Recusa o
  * tipo novo, o legado ('Entrada' com motivo 'Junção de Lotes') e o marcador
  * de snapshot do navegador antigo. Outras entradas legítimas passam.
  * @param {unknown} entrada

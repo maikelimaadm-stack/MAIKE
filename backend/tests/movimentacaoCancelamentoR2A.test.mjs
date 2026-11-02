@@ -312,7 +312,7 @@ describe('P1 — Morte e Abate pelo comando atômico', () => {
     assert.equal((await cancelar(c, porNome.id)).json().code, 'CANCELAMENTO_VINCULO_AMBIGUO');
     const entrada = await criarMov(c, { tipo: 'Entrada', lote: l.nome, lote_id: l.id, quantidade_animais: 500, area_origem_id: c.A.id });
     assert.equal((await cancelar(c, entrada.id)).json().code, 'CANCELAMENTO_TIPO_NAO_SUPORTADO');
-    // R2C-P1 (D-PROD-103): junção pelo POST genérico agora é recusada (só pelo comando).
+    // R2C-P1 (D-PROD-104): junção pelo POST genérico agora é recusada (só pelo comando).
     const juncao = await req('POST', '/movimentacoes-mapa', c.tokAdm, { empresa_id: c.empresa.id, tipo: 'Junção de Lotes', lote: l.nome, lote_id: l.id, quantidade_animais: 500 });
     assert.equal(juncao.statusCode, 409, juncao.body);
     assert.equal(juncao.json().code, 'JUNCAO_SOMENTE_POR_COMANDO');

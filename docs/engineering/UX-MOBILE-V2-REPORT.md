@@ -164,3 +164,12 @@ Pedido do proprietário com prints do app do Claude no iPhone. Conferido no Chro
 
 **Não testado em aparelho real:** a sensação da mola e do recorte no iPhone.
 
+## V9 — folha sem a "travinha" e chave de vidro (D-PROD-103)
+
+| Pedido | Feito | Evidência |
+|---|---|---|
+| Resolver de vez a pequena trava ao subir e descer a folha (vídeo do iPhone) | Diagnóstico no vídeo: a folha saltava ~500 px num quadro ao terminar de descer. `limpar()` agora aplica o layout sem transição antes de religá-la | teste V9-1 |
+| Botão Ativo como a chave do vídeo (iOS 26) | Segurando: cápsula grande de vidro. Ao trocar: vidro enquanto desliza, branca ao chegar. Verde do MAIKE, em todas as chaves | v9-01 (vidro no meio da troca · segurando · repouso); testes V9-2 a V9-4 |
+
+**Não testado em aparelho real:** a correção da folha no Safari do iPhone.
+
