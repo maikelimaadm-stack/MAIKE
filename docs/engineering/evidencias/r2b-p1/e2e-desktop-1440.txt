@@ -1,0 +1,36 @@
+PASS desktop-1440 nascimento: sem overflow horizontal — {"sw":1440,"cw":1440,"l":272,"r":1168,"vw":1440}
+PASS desktop-1440 nascimento: 1 POST do comando para 2 linhas (duplo toque não duplica) — 1 POST
+PASS desktop-1440 nascimento: corpo com 2 linhas e sem cabeças por lote — [{"sexo":"Macho","categoria_mae":"Vaca + 36 meses","quantidade":5,"peso_medio_kg":32},{"sexo":"Fêmea","categoria_mae":"Vaca + 36 meses","quantidade":3,"peso_medio_kg":null}]
+PASS desktop-1440 nascimento: lotes de filhotes 5 M (32 kg) e 3 F; mães intactas — 5/32 3
+PASS desktop-1440 nascimento: UM movimento agregado com 2 participantes e proveniência
+PASS desktop-1440 pesagem: sem overflow horizontal — {"sw":1440,"cw":1440,"l":272,"r":1168,"vw":1440}
+PASS desktop-1440 pesagem: 1 POST do comando para 3 lotes — 2 POST no total
+PASS desktop-1440 pesagem: modo por lote, só os 3 lotes digitados — [{"lote_id":"cmvy1203a00717dclfh4pzdys","peso_medio_kg":420},{"lote_id":"cmvy1203r00767dcliee4r1o2","peso_medio_kg":425},{"lote_id":"cmvy1204f007b7dclg8lr4nqi","peso_medio_kg":300}]
+PASS desktop-1440 pesagem: 3 pesos novos, cabeças intactas
+PASS desktop-1440 mudança: sem overflow horizontal — {"sw":1440,"cw":1440,"l":272,"r":1168,"vw":1440}
+PASS desktop-1440 mudança: 1 POST do comando — 3 POST no total
+PASS desktop-1440 mudança: origem 60 → 40, derivado 20 Boi (não é compra), total conservado — 40 / 20 Boi 25 a 36 meses
+PASS desktop-1440 histórico: pesagem mostra 3 lotes envolvidos e peso anterior → novo — Histórico da Área PASTO 10 (3)
+Área
+Lotes atuais
+
+Entradas, saídas e manejos registrados nesta área, inclusive de lotes que já saíram.
+
+01/11/2026
+Mudança de Ca
+PASS desktop-1440 histórico: nascimento mostra as 2 linhas
+PASS desktop-1440 cancelar pesagem com mudança posterior: recusado antes do motivo — Há registros posteriores deste lote ou desta área. Cancele-os antes, do mais recente para o mais antigo.
+PASS desktop-1440 cancelamento bloqueado: sem overflow horizontal — {"sw":1440,"cw":1440,"l":496.84039306640625,"r":943.1596069335938,"vw":1440}
+PASS desktop-1440 diálogo de cancelamento: sem overflow horizontal — {"sw":1440,"cw":1440,"l":500.73931884765625,"r":939.2606811523438,"vw":1440}
+PASS desktop-1440 cancelar mudança pela UI: origem volta a 60, derivado 0/Inativo (não apagado) — 60 / 0 Inativo
+PASS desktop-1440 agora a pesagem é elegível (mais nova → mais antiga) — null
+PASS desktop-1440 cancelar pesagem: os 3 pesos voltam
+PASS desktop-1440 offline: mensagem explícita de indisponibilidade — Sem conexão: nascimento, pesagem e mudança de categoria só podem ser registrados online. Nada foi gravado.
+PASS desktop-1440 offline: nenhuma requisição de escrita disparada
+PASS desktop-1440 offline: fila offline sem Lote/MovimentacaoMapa
+PASS desktop-1440 offline: formulário continua aberto (nada perdido)
+PASS desktop-1440 offline: servidor sem nascimento novo
+PASS desktop-1440 sem POST/PATCH legado de movimento (/movimentacoes-mapa) pelo navegador — POST /movimentacoes-mapa/comandos/manejo-rebanho,POST /movimentacoes-mapa/comandos/manejo-rebanho,POST /movimentacoes-mapa/comandos/manejo-rebanho,POST /movimentacoes-mapa/cmvy13hi4008d7dcljnb0le42/ca
+PASS desktop-1440 sem POST/PATCH /lotes pelo navegador nos manejos
+PASS desktop-1440 sem erro de página
+RESUMO desktop-1440: 28/28 PASS

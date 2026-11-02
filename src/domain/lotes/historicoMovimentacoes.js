@@ -16,6 +16,8 @@
  * marcado `vinculo: 'nome'` para a tela dizer que o vínculo é inferido.
  */
 
+import { idsDeLotesDoMovimento, idsDeMatrizesDoMovimento } from './manejoRebanho.js';
+
 export const ESCOPO_AREA = 'area';
 export const ESCOPO_LOTES = 'lotes';
 export const TRANSFERENCIA = 'Transferência de Área';
@@ -54,6 +56,17 @@ export const vinculoComLotes = (loteId, loteNome, lotes = []) => {
   return nome && nomesDosLotes(lotes).includes(nome) ? 'nome' : null;
 };
 
+/**
+ * Vínculo de um MOVIMENTO do mapa: movimento agregado (R2B-P1, D-PROD-101)
+ * casa por QUALQUER participante (`lote_ids`, efeitos), não só pelo primário.
+ */
+export const vinculoDoMovimento = (mov, lotes = []) => {
+  // Paridade com o servidor (`movimentoCitaLotes`): participantes + lotes de matrizes.
+  const ids = [...new Set([...idsDeLotesDoMovimento(mov), ...idsDeMatrizesDoMovimento(mov)])];
+  if (ids.length > 1 || idsDeMatrizesDoMovimento(mov).length) return ids.some((id) => idsDosLotes(lotes).includes(id)) ? 'id' : null;
+  return vinculoComLotes(mov?.lote_id, mov?.lote, lotes);
+};
+
 /** A movimentação toca a área (origem, destino ou local do evento)? */
 export const movimentoTocaArea = (mov, areaId) =>
   temTexto(areaId) && (mov?.area_origem_id === areaId || mov?.area_destino_id === areaId || mov?.area_id === areaId);
@@ -71,7 +84,7 @@ export const filtrarMovimentacoes = (movimentacoes, contexto) =>
     .filter((mov) =>
       contexto.escopo === ESCOPO_AREA
         ? movimentoTocaArea(mov, contexto.areaId)
-        : vinculoComLotes(mov.lote_id, mov.lote, contexto.lotes) !== null
+        : vinculoDoMovimento(mov, contexto.lotes) !== null
     )
     .sort((a, b) => tempo(b.created_date) - tempo(a.created_date) || String(b.id).localeCompare(String(a.id)));
 

@@ -1,0 +1,60 @@
+## R2B Nascimento — uma confirmação, várias linhas, uma transação
+    ok 1 - N1: 2 linhas (M 10 / F 8) sem lote de filhotes → cria 2 lotes, 1 movimento, mães intactas, rebanho +18
+    ok 2 - N2: lote de bezerros existente 20 @100kg + 10 @40kg → 30 @80kg (média ponderada); entrada e área de entrada intactas
+    ok 3 - N3: duas linhas do mesmo sexo vão para o MESMO lote novo (sem peso numa delas → peso desconhecido)
+    ok 4 - N4: 2ª linha inválida (categoria de mãe ausente na área) → 409 e NADA gravado
+    ok 5 - N5: falha injetada no 2º efeito → 500 e NADA gravado (0 lotes, movimentos, auditorias, idempotência)
+    ok 6 - N6: replay da mesma chave não duplica; mesma chave com conteúdo diferente → 409 IDEMPOTENCY_CONFLICT
+    ok 7 - N7: validação de forma → 400 sem gravar (sexo, quantidade, peso, data impossível, campo reservado, linhas vazias)
+    ok 8 - N8: área de outra empresa, área inexistente, outro tenant → 404 sem gravar
+    ok 9 - N9: cancelar — lote criado fica 0/Inativo (não apagado); lote existente volta a quantidade e peso anteriores
+    ok 10 - N10: morte posterior no lote de filhotes bloqueia; cancelar a morte primeiro libera (mais nova → mais antiga)
+    ok 11 - N11: PATCH direto de peso no lote incrementado depois do nascimento bloqueia (inclusive ida e volta)
+    ok 12 - N12: lote excluído do Cadastro não serve de lote de filhotes nem de mãe
+## R2B Pesagem — muda peso, nunca cabeças; todos ou nenhum
+    ok 1 - P1: 3 lotes (dois da mesma categoria, tratados individualmente) → todos com peso novo, cabeças intactas, 1 movimento
+    ok 2 - P2: falha injetada no 3º efeito → NADA gravado; nenhum dos 3 pesos muda
+    ok 3 - P3: lote de outra área, repetido, peso inválido ou categoria divergente → recusa sem gravar
+    ok 4 - P4: cancelar devolve os 3 pesos anteriores e não toca nas cabeças
+    ok 5 - P5: pesagem posterior bloqueia a anterior; cancelar da mais nova para a mais antiga funciona
+    ok 6 - P6: ida e volta de peso por PATCH (410 → 400 → 410) bloqueia o cancelamento
+    ok 7 - P7: PATCH só de nome depois da pesagem não bloqueia (não é campo de efeito)
+## R2B Mudança de Categoria — conserva cabeças; total no lugar, parcial gera derivado
+    ok 1 - M1: total → mesmo lote muda categoria, sexo e categoria de manejo; cabeças e entrada intactas
+    ok 2 - M2: parcial 20 de 50 → origem 30, derivado 20 (origem "Mudança de Categoria", não é compra); soma conservada
+    ok 3 - M3: duas linhas disputando o mesmo saldo (30 + 30 de 50) → 409 e NADA gravado
+    ok 4 - M4: uma linha de 50 sobre dois lotes (30 + 40) → 1º total, 2º parcial 20; conserva 70
+    ok 5 - M5: incompatível com sexo, categoria fora do oficial, igual à atual, manejo de outra oficial, ambígua → recusa sem gravar
+    ok 6 - M6: falha injetada no 2º efeito (linha 1 parcial + linha 2) → NADA gravado
+    ok 7 - M7: cancelar parcial → origem volta a 50, derivado 0/Inativo; cancelar total → classificação inteira restaurada
+    ok 8 - M8: operação dependente na categoria nova (pesagem do derivado) bloqueia o cancelamento da mudança
+    ok 9 - M9: PATCH direto de categoria depois da mudança total → recusa (estado divergente ou alteração posterior)
+## R2B concorrência real
+    ok 1 - C1.1: dois nascimentos com a MESMA chave em paralelo → um efeito
+    ok 2 - C2.1: dois nascimentos DISTINTOS em paralelo → ambos contados, num só lote de filhotes (área serializa)
+    ok 3 - C3.1: duas mudanças competindo pelo mesmo saldo (30 + 30 de 50) → uma aceita, outra recusada
+    ok 4 - C4.1: pesagem com a mesma chave em paralelo → um efeito; chaves distintas → as duas, em série
+    ok 5 - C5.1: cancelar × registrar pesagem posterior em paralelo → nunca reverte por cima da nova
+    ok 6 - C6.1: dois cancelamentos simultâneos (chaves distintas) → um reverte, o outro recusa; reversão única
+    ok 7 - C1.2: dois nascimentos com a MESMA chave em paralelo → um efeito
+    ok 8 - C2.2: dois nascimentos DISTINTOS em paralelo → ambos contados, num só lote de filhotes (área serializa)
+    ok 9 - C3.2: duas mudanças competindo pelo mesmo saldo (30 + 30 de 50) → uma aceita, outra recusada
+    ok 10 - C4.2: pesagem com a mesma chave em paralelo → um efeito; chaves distintas → as duas, em série
+    ok 11 - C5.2: cancelar × registrar pesagem posterior em paralelo → nunca reverte por cima da nova
+    ok 12 - C6.2: dois cancelamentos simultâneos (chaves distintas) → um reverte, o outro recusa; reversão única
+    ok 13 - C1.3: dois nascimentos com a MESMA chave em paralelo → um efeito
+    ok 14 - C2.3: dois nascimentos DISTINTOS em paralelo → ambos contados, num só lote de filhotes (área serializa)
+    ok 15 - C3.3: duas mudanças competindo pelo mesmo saldo (30 + 30 de 50) → uma aceita, outra recusada
+    ok 16 - C4.3: pesagem com a mesma chave em paralelo → um efeito; chaves distintas → as duas, em série
+    ok 17 - C5.3: cancelar × registrar pesagem posterior em paralelo → nunca reverte por cima da nova
+    ok 18 - C6.3: dois cancelamentos simultâneos (chaves distintas) → um reverte, o outro recusa; reversão única
+## R2B integração — histórico, exclusão lógica, R2A e superfície genérica
+    ok 1 - X1: histórico por lote acha o movimento agregado por QUALQUER participante; por área também
+    ok 2 - X2: \#167 — lote de compra pesado (R2B ativo) não sai do Cadastro; com a pesagem cancelada, sai por exclusão lógica
+    ok 3 - X3: \#167 — participante de mudança parcial ATIVA não é excluído (referência em efeitos[].lote_id)
+    ok 4 - X4: R2A intacto — morte registra e cancela; pesagem R2B ativa posterior bloqueia o cancelamento da morte
+    ok 5 - X5: POST genérico não forja movimento agregado nem cancelável
+    ok 6 - X6: proveniência forjada direto no banco (operação de outro movimento) → cancelamento recusado
+# tests 52
+# pass 52
+# fail 0

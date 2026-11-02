@@ -1,0 +1,24 @@
+main HEAD 895b80fb0b6092b1b58e830d81ae6856edbd1488 (merge da #167)
+# ANTES  {"lotes":["MATRIZES:Vaca + 36 meses:100:Ativo:-"],"movs":[]}
+# DEPOIS {"lotes":["MATRIZES:Vaca + 36 meses:100:Ativo:-","BEZERRO - PASTO A:Bezerro 0 a 12 meses:10:Ativo:-"],"movs":["Nascimento:BEZERRO - PASTO A:10"]}
+not ok 1 - RED nascimento 2 linhas: 2ª linha falha → nada deveria ficar gravado
+    gravação parcial: a linha 1 ficou e a linha 2 não
+# ANTES  {"lotes":["L1:Boi 25 a 36 meses:50:Ativo:400","L2:Boi 25 a 36 meses:40:Ativo:380","L3:Garrote 13 a 24 meses:30:Ativo:-"],"movs":[]}
+# DEPOIS {"lotes":["L1:Boi 25 a 36 meses:50:Ativo:450","L2:Boi 25 a 36 meses:40:Ativo:450","L3:Garrote 13 a 24 meses:30:Ativo:-"],"movs":["Pesagem:L1:50","Pesagem:L2:40"]}
+not ok 2 - RED pesagem 3 lotes: 3º lote falha → nenhum peso deveria mudar
+    gravação parcial: 2 de 3 lotes pesados
+# ANTES  {"lotes":["G:Garrote 13 a 24 meses:50:Ativo:-"],"movs":[]}
+# DEPOIS {"lotes":["G:Garrote 13 a 24 meses:30:Ativo:-","G:Boi 25 a 36 meses:20:Ativo:-","G:Touro + 36 meses:20:Ativo:-"],"movs":["Mudança de Categoria:G:20"]}
+# cabeças ativas: antes 50, depois 70
+not ok 3 - RED mudança parcial repetida: 2ª linha falha → origem e derivado deveriam ficar como antes
+    gravação parcial e cabeças duplicadas
+# POST /comandos/manejo-rebanho na main → 404
+not ok 4 - RED o comando atômico R2B não existe na main
+    404 !== 201
+# pass 0
+# fail 4
+Suíte nova r2bP1ComandosRebanho.test.mjs executada na main 895b80f:
+#     throw new ERR_MODULE_NOT_FOUND(
+# Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/maike-main/backend/src/modules/movimentacoesMapa/manejoRebanhoComandoService.js' imported from /tmp/maike-main/backend/tests/r2bP1ComandosRebanho.test.mjs
+#   code: 'ERR_MODULE_NOT_FOUND',
+# tests 1

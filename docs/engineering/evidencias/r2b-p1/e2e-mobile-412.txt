@@ -1,0 +1,36 @@
+PASS mobile-412 nascimento: sem overflow horizontal — {"sw":412,"cw":412,"l":8,"r":404,"vw":412}
+PASS mobile-412 nascimento: 1 POST do comando para 2 linhas (duplo toque não duplica) — 1 POST
+PASS mobile-412 nascimento: corpo com 2 linhas e sem cabeças por lote — [{"sexo":"Macho","categoria_mae":"Vaca + 36 meses","quantidade":5,"peso_medio_kg":32},{"sexo":"Fêmea","categoria_mae":"Vaca + 36 meses","quantidade":3,"peso_medio_kg":null}]
+PASS mobile-412 nascimento: lotes de filhotes 5 M (32 kg) e 3 F; mães intactas — 5/32 3
+PASS mobile-412 nascimento: UM movimento agregado com 2 participantes e proveniência
+PASS mobile-412 pesagem: sem overflow horizontal — {"sw":412,"cw":412,"l":8,"r":404,"vw":412}
+PASS mobile-412 pesagem: 1 POST do comando para 3 lotes — 2 POST no total
+PASS mobile-412 pesagem: modo por lote, só os 3 lotes digitados — [{"lote_id":"cmvy16icf00b57dclhimakgz0","peso_medio_kg":420},{"lote_id":"cmvy16id100ba7dclibkt6njh","peso_medio_kg":425},{"lote_id":"cmvy16idk00bf7dclw6pnyg09","peso_medio_kg":300}]
+PASS mobile-412 pesagem: 3 pesos novos, cabeças intactas
+PASS mobile-412 mudança: sem overflow horizontal — {"sw":412,"cw":412,"l":8,"r":404,"vw":412}
+PASS mobile-412 mudança: 1 POST do comando — 3 POST no total
+PASS mobile-412 mudança: origem 60 → 40, derivado 20 Boi (não é compra), total conservado — 40 / 20 Boi 25 a 36 meses
+PASS mobile-412 histórico: pesagem mostra 3 lotes envolvidos e peso anterior → novo — Histórico da Área PASTO 23 (4)
+Área
+Lotes atuais
+
+Entradas, saídas e manejos registrados nesta área, inclusive de lotes que já saíram.
+
+01/11/2026
+Mudança de Ca
+PASS mobile-412 histórico: nascimento mostra as 2 linhas
+PASS mobile-412 cancelar pesagem com mudança posterior: recusado antes do motivo — Há registros posteriores deste lote ou desta área. Cancele-os antes, do mais recente para o mais antigo.
+PASS mobile-412 cancelamento bloqueado: sem overflow horizontal — {"sw":412,"cw":412,"l":12.19743537902832,"r":399.8025379180908,"vw":412}
+PASS mobile-412 diálogo de cancelamento: sem overflow horizontal — {"sw":412,"cw":412,"l":10.555768966674805,"r":401.44425773620605,"vw":412}
+PASS mobile-412 cancelar mudança pela UI: origem volta a 60, derivado 0/Inativo (não apagado) — 60 / 0 Inativo
+PASS mobile-412 agora a pesagem é elegível (mais nova → mais antiga) — null
+PASS mobile-412 cancelar pesagem: os 3 pesos voltam
+PASS mobile-412 offline: mensagem explícita de indisponibilidade — Sem conexão: nascimento, pesagem e mudança de categoria só podem ser registrados online. Nada foi gravado.
+PASS mobile-412 offline: nenhuma requisição de escrita disparada
+PASS mobile-412 offline: fila offline sem Lote/MovimentacaoMapa
+PASS mobile-412 offline: formulário continua aberto (nada perdido)
+PASS mobile-412 offline: servidor sem nascimento novo
+PASS mobile-412 sem POST/PATCH legado de movimento (/movimentacoes-mapa) pelo navegador — POST /movimentacoes-mapa/comandos/manejo-rebanho,POST /movimentacoes-mapa/comandos/manejo-rebanho,POST /movimentacoes-mapa/comandos/manejo-rebanho,POST /movimentacoes-mapa/cmvy17z3h00ch7dcl4o1d41di/ca
+PASS mobile-412 sem POST/PATCH /lotes pelo navegador nos manejos
+PASS mobile-412 sem erro de página
+RESUMO mobile-412: 28/28 PASS

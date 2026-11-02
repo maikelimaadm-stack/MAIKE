@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 
 import {
   listarLotesDaEmpresa,
-  listarTodosLotes,
   listarProdutosDaEmpresa,
   criarLote,
   atualizarLote,
@@ -16,13 +15,9 @@ import {
 } from "@/services/loteManejoService";
 import {
   encontrarLoteDestinoCompativel,
-  encontrarLoteFilhote,
-  categoriaDoFilhote,
   modoDaMovimentacao,
   saldoEStatusDaOrigem,
   quantidadeAplicavel,
-  pesoAplicavel,
-  ganhoDePeso,
   areaPorId,
   comEstadoEsperado,
 } from "@/domain/lotes/movimentacaoLote";
@@ -30,7 +25,7 @@ import { listarIconesPorTipoEntidade } from "@/services/mapaService";
 import { getCurrentUser } from "@/services/sessionService";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getMapaCachedData, refreshMapaCacheEntry } from "@/services/mapaCacheService";
-import { normalizeText, toNoonUtcISOString } from "../utils/pecuariaUtils";
+import { toNoonUtcISOString } from "../utils/pecuariaUtils";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -60,6 +55,9 @@ import InformacoesArea from "./InformacoesArea";
 import { Progress } from "@/components/ui/progress";
 import { AlertTriangle } from "lucide-react";
 import { validarOrdemTemporalLote, validarOrdemTemporalLotes } from "../lotes/manejoValidations.jsx";
+import { corpoNascimento, corpoPesagem, corpoMudancaCategoria } from "@/domain/lotes/manejoRebanho";
+import { enviarManejoRebanho, mensagemDoErro } from "@/services/manejoRebanhoService";
+import { escopoDoUsuario } from "../lotes/CancelarMovimentacao";
 import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 
 /**
@@ -616,71 +614,29 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
     window.dispatchEvent(new CustomEvent('atualizar-mapa'));
   };
 
-  const handleNascimento = async (formData) => {
-    // Determinar categoria baseada no sexo
-    const categoriaFilhote = categoriaDoFilhote(formData.sexo);
-
-    // Buscar lote da categoria correta na mesma área
-    const areaAtualId = lotes[0]?.area_atual_id;
-    const todosLotes = await listarTodosLotes();
-    let loteFilhote = encontrarLoteFilhote(todosLotes, {
-      empresaId: empresaSelecionadaId,
-      categoria: categoriaFilhote,
-      areaId: areaAtualId
-    });
-
-    if (loteFilhote) {
-      // Adicionar ao lote existente
-      await atualizarLoteSeguro(loteFilhote, {
-        quantidade_cabecas: loteFilhote.quantidade_cabecas + formData.quantidade,
-        peso_medio_kg: formData.peso_medio ? parseFloat(formData.peso_medio) : loteFilhote.peso_medio_kg
-      });
-    } else {
-      // Criar novo lote
-      const areaAtual = areas.find((a) => a.id === areaAtualId);
-      loteFilhote = await criarLote({
-        empresa_id: empresaSelecionadaId,
-        nome: `${categoriaFilhote.split(' ')[0].toUpperCase()} - ${areaAtual?.nome || 'AREA'}`,
-        quantidade_cabecas: formData.quantidade,
-        quantidade_entrada: formData.quantidade,
-        categoria: categoriaFilhote,
-        categoria_entrada: categoriaFilhote,
-        sexo: formData.sexo,
-        peso_medio_kg: formData.peso_medio ? parseFloat(formData.peso_medio) : null,
-        peso_entrada_kg: formData.peso_medio ? parseFloat(formData.peso_medio) : null,
-        idade_media_meses: 0,
-        area_atual_id: areaAtualId,
-        area_atual_nome: areaAtual?.nome || '',
-        data_entrada: formData.data_nascimento,
-        motivo_entrada: 'Outros',
-        motivo_outros: 'Nascimento',
-        origem: 'Nascimento',
-        status: 'Ativo',
-        sistema_produtivo: lotes[0]?.sistema_produtivo
-      });
+  /**
+   * R2B-P1 (D-PROD-101): Nascimento, Pesagem e Mudança de Categoria vão por UM
+   * comando atômico do servidor por confirmação — todas as linhas e lotes numa
+   * transação, cancelável como unidade. Offline: indisponível (sem fallback de
+   * POST+PATCH soltos). Erro: nada gravado, mensagem clara; o formulário fica
+   * aberto para corrigir ou reenviar o MESMO registro (mesma chave).
+   */
+  const executarManejoRebanho = async (corpo, rotulo, fechar) => {
+    try {
+      const resposta = /** @type {any} */ (await enviarManejoRebanho(corpo, { escopo: escopoDoUsuario(user) }));
+      toast.success(resposta?.replay ? `${rotulo}: o servidor já tinha este registro (nada duplicado)` : `${rotulo} registrado`);
+      fechar(false);
+      onClose();
+      window.dispatchEvent(new CustomEvent('atualizar-mapa', { detail: { cacheKeys: ['lotes', 'movimentacoes', 'movimentacoesHistorico'] } }));
+    } catch (erro) {
+      toast.error(mensagemDoErro(erro));
     }
-
-    const areaNascimento = areas.find((a) => a.id === areaAtualId);
-
-    // Registrar movimentação
-    await criarMovimentacao({
-      empresa_id: empresaSelecionadaId,
-      data_movimentacao: toNoonUtcISOString(formData.data_nascimento),
-      tipo: 'Nascimento',
-      lote: loteFilhote.nome,
-      lote_id: loteFilhote.id,
-      quantidade_animais: formData.quantidade,
-      peso_medio: parseFloat(formData.peso_medio) || null,
-      area_destino_id: areaAtualId,
-      area_destino_nome: areaNascimento?.nome || '',
-      observacoes: `Categoria mãe: ${formData.categoria_mae}. Sexo: ${formData.sexo}. Categoria filhote: ${categoriaFilhote}. ${formData.observacoes}`
-    });
-
-    toast.success('Nascimento registrado');
-    setShowNascimento(false);
-    onClose();
-    window.dispatchEvent(new CustomEvent('atualizar-mapa'));
   };
+
+  const areaDoManejo = () => lotes[0]?.area_atual_id;
+
+  const handleNascimento = (formData) =>
+    executarManejoRebanho(corpoNascimento({ empresaId: empresaSelecionadaId, areaId: areaDoManejo(), formData }), 'Nascimento', setShowNascimento);
 
   const handleAbate = async (formData) => {
     const lotesCategoria = lotes.filter((l) => l.categoria === formData.categoria);
@@ -735,162 +691,20 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
     window.dispatchEvent(new CustomEvent('atualizar-mapa'));
   };
 
-  const handleMudancaCategoria = async (formData) => {
-    try {
-      const areaAtualId = lotes[0]?.area_atual_id;
-      const areaMudanca = areas.find((a) => a.id === areaAtualId);
-
-      for (const mudanca of formData.mudancas) {
-        const lotesCategoria = lotes.filter((l) => normalizeText(l.categoria) === normalizeText(mudanca.categoria_atual));
-        let quantidadeRestante = Number(mudanca.quantidade || 0);
-
-        for (const lote of lotesCategoria) {
-          if (quantidadeRestante <= 0) break;
-
-          await validarOrdemTemporalLote({
-            empresaId: empresaSelecionadaId,
-            loteId: lote.id,
-            dataReferencia: formData.data_mudanca
-          });
-
-          const qtdMudar = quantidadeAplicavel(quantidadeRestante, lote);
-          const sexoNovo = mudanca.sexo_novo || lote.sexo;
-          const catManejoIdNovo = mudanca.categoria_manejo_id_novo || lote.categoria_manejo_id;
-          const catManejoNomeNovo = mudanca.categoria_manejo_nome_novo || lote.categoria_manejo_nome;
-          let loteDestinoId = lote.id;
-          const modoMudanca = modoDaMovimentacao(qtdMudar, lote.quantidade_cabecas);
-
-          if (modoMudanca === 'total') {
-            await atualizarLoteSeguro(lote, {
-              categoria: mudanca.categoria_nova,
-              sexo: sexoNovo,
-              categoria_manejo_id: catManejoIdNovo,
-              categoria_manejo_nome: catManejoNomeNovo
-            });
-          } else {
-            const loteNovoCategoria = await criarLote({
-              empresa_id: empresaSelecionadaId,
-              nome: lote.nome,
-              identificador_nome: lote.identificador_nome,
-              identificador_sigla: lote.identificador_sigla,
-              identificador_cor: lote.identificador_cor,
-              quantidade_cabecas: qtdMudar,
-              quantidade_entrada: qtdMudar,
-              categoria: mudanca.categoria_nova,
-              categoria_entrada: lote.categoria_entrada || mudanca.categoria_nova,
-              sexo: sexoNovo,
-              categoria_manejo_id: catManejoIdNovo,
-              categoria_manejo_nome: catManejoNomeNovo,
-              categoria_manejo_entrada_id: lote.categoria_manejo_entrada_id || catManejoIdNovo,
-              categoria_manejo_entrada_nome: lote.categoria_manejo_entrada_nome || catManejoNomeNovo,
-              peso_medio_kg: mudanca.peso_medio || lote.peso_medio_kg,
-              peso_entrada_kg: lote.peso_entrada_kg || lote.peso_medio_kg,
-              idade_media_meses: lote.idade_media_meses,
-              area_atual_id: areaAtualId,
-              area_atual_nome: areaMudanca?.nome || '',
-              raca_predominante: lote.raca_predominante,
-              sistema_produtivo: lote.sistema_produtivo,
-              data_entrada: formData.data_mudanca,
-              motivo_entrada: 'Outros',
-              motivo_outros: 'Mudança de Categoria',
-              origem: 'Mudança de Categoria',
-              status: 'Ativo'
-            });
-            loteDestinoId = loteNovoCategoria.id;
-
-            await atualizarLoteSeguro(lote, {
-              quantidade_cabecas: saldoEStatusDaOrigem(lote, qtdMudar).quantidade_cabecas
-            });
-          }
-
-          const snapshotMudanca = {
-            modo: modoMudanca,
-            origem_lote_id: lote.id,
-            destino_lote_id: loteDestinoId,
-            categoria_anterior: lote.categoria,
-            categoria_nova: mudanca.categoria_nova
-          };
-
-          await criarMovimentacao({
-            empresa_id: empresaSelecionadaId,
-            data_movimentacao: toNoonUtcISOString(formData.data_mudanca),
-            tipo: 'Mudança de Categoria',
-            lote: lote.nome,
-            lote_id: lote.id,
-            quantidade_animais: qtdMudar,
-            area_origem_id: areaAtualId,
-            area_origem_nome: areaMudanca?.nome || '',
-            peso_medio: mudanca.peso_medio || null,
-            observacoes: `[MUDANCA_CATEGORIA]${JSON.stringify(snapshotMudanca)}\nDe ${lote.categoria} para ${mudanca.categoria_nova}. Sexo: ${lote.sexo}. ${formData.observacoes}`
-          });
-
-          quantidadeRestante -= qtdMudar;
-        }
-
-        if (quantidadeRestante > 0) {
-          throw new Error(`Saldo insuficiente para mudar ${mudanca.quantidade} cabeças da categoria ${mudanca.categoria_atual}.`);
-        }
-      }
-
-      toast.success('Categorias atualizadas');
-      setShowMudancaCategoria(false);
-      onClose();
-      window.dispatchEvent(new CustomEvent('atualizar-mapa', { detail: { cacheKeys: ['lotes', 'movimentacoes', 'movimentacoesHistorico'] } }));
-    } catch (error) {
-      toast.error(error?.message || 'Erro ao salvar mudança de categoria');
-    }
-  };
+  const handleMudancaCategoria = (formData) =>
+    executarManejoRebanho(corpoMudancaCategoria({ empresaId: empresaSelecionadaId, areaId: areaDoManejo(), formData }), 'Mudança de categoria', setShowMudancaCategoria);
 
   const handlePesagem = async (formData) => {
     const lotesParaPesar = lotesAtualizados || lotes;
-    const areaAtualId = lotesParaPesar[0]?.area_atual_id;
-    const areaPesagem = areas.find((a) => a.id === areaAtualId);
-
-    // Se há pesos individuais por lote, usar esses; senão usar por categoria
-    const pesosIndividuais = formData.pesos_por_lote || {};
-
-    for (const categoria of formData.categorias_selecionadas) {
-      const lotesCategoria = lotesParaPesar.filter((l) => l.categoria === categoria);
-      const pesoPadrao = parseFloat(formData.pesos_por_categoria[categoria]);
-
-      for (const lote of lotesCategoria) {
-        await validarOrdemTemporalLote({
-          empresaId: empresaSelecionadaId,
-          loteId: lote.id,
-          dataReferencia: formData.data_pesagem
-        });
-
-        // Verificar se tem peso individual para este lote específico
-        const pesoNovo = pesoAplicavel({ pesosPorLote: pesosIndividuais, loteId: lote.id, pesoPadrao });
-        if (pesoNovo === null) continue;
-
-        const pesoAnterior = lote.peso_medio_kg || 0;
-        const ganho = ganhoDePeso(pesoNovo, pesoAnterior);
-
-        await criarMovimentacao({
-          empresa_id: empresaSelecionadaId,
-          data_movimentacao: toNoonUtcISOString(formData.data_pesagem),
-          tipo: 'Pesagem',
-          lote: lote.nome,
-          lote_id: lote.id,
-          quantidade_animais: lote.quantidade_cabecas,
-          peso_medio: pesoNovo,
-          area_origem_id: areaAtualId,
-          area_origem_nome: areaPesagem?.nome || '',
-          observacoes: `Categoria: ${categoria}. Sexo: ${lote.sexo}. Peso anterior: ${pesoAnterior}kg. Ganho: ${ganho.toFixed(1)}kg. ${formData.observacoes}`
-        });
-
-        await atualizarLoteSeguro(lote, {
-          peso_medio_kg: pesoNovo
-        });
-      }
+    const corpo = corpoPesagem({ empresaId: empresaSelecionadaId, areaId: lotesParaPesar[0]?.area_atual_id, lotes: lotesParaPesar, formData });
+    if (!corpo.linhas.length) {
+      toast.error('Nenhum lote com peso válido para registrar.');
+      return;
     }
-
-    toast.success('Pesagens registradas');
-    setShowPesagem(false);
-    setMovimentacoesCriadasIds([]);
-    onClose();
-    window.dispatchEvent(new CustomEvent('atualizar-mapa'));
+    await executarManejoRebanho(corpo, 'Pesagem', (v) => {
+      setShowPesagem(v);
+      setMovimentacoesCriadasIds([]);
+    });
   };
 
   if (loadingInicial) {

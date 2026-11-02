@@ -23,9 +23,9 @@
 
 import { Prisma } from '@prisma/client';
 
-import { TIPO_OPERACAO_CANCELAMENTO, SITUACAO_CANCELADO } from '../movimentacoesMapa/movimentacaoMapaCancelamentoService.js';
-import { COMANDO_MANEJO } from '../movimentacoesMapa/manejoMapaComandoService.js';
+import { TIPO_OPERACAO_CANCELAMENTO, SITUACAO_CANCELADO, COMANDOS_CERTIFICADOS } from '../movimentacoesMapa/movimentacaoMapaCancelamentoService.js';
 import { origemDerivadaDeManejo } from './loteOrigem.js';
+import { movimentoCitaLotes } from '../movimentacoesMapa/movimentacaoVinculoLote.js';
 
 export const TIPO_FISICA = 'exclusao_fisica';
 export const TIPO_LOGICA = 'exclusao_logica';
@@ -63,7 +63,8 @@ const bloqueio = (motivo, detalhes = {}) => ({ tipo: TIPO_BLOQUEADO, motivo, det
 
 /**
  * Movimentos do mapa que citam o lote por qualquer caminho de identidade:
- * `lote_id`, `lote_destino_id`, `efeito_servidor.efeitos[].lote_id` ou o id
+ * vínculo estrutural único (`movimentoCitaLotes`: `lote_id`, `lote_destino_id`,
+ * `lote_ids`, `efeitos[].lote_id`, `linhas[].maes_lote_ids`) ou o id
  * dentro de `observacoes` (legado). Sem teto: consulta no banco, não lista.
  */
 const movimentosQueCitam = async (tx, clienteId, loteId) =>
@@ -77,16 +78,9 @@ const movimentosQueCitam = async (tx, clienteId, loteId) =>
         FROM "MovimentacaoMapa" m
        WHERE m.cliente_id = ${clienteId}
          AND (
-           m.dados->>'lote_id' = ${loteId}
-           OR m.dados->>'lote_destino_id' = ${loteId}
+           ${movimentoCitaLotes('m', [loteId])}
+           -- legado: id citado só no texto das observações (conservador: bloqueia)
            OR position(${loteId} IN COALESCE(m.dados->>'observacoes', '')) > 0
-           OR EXISTS (
-             SELECT 1 FROM jsonb_array_elements(
-               CASE WHEN jsonb_typeof(m.dados->'efeito_servidor'->'efeitos') = 'array'
-                    THEN m.dados->'efeito_servidor'->'efeitos' ELSE '[]'::jsonb END
-             ) AS e(val)
-             WHERE e.val->>'lote_id' = ${loteId}
-           )
          )`
   );
 
@@ -149,7 +143,7 @@ const provarCancelamentos = async (tx, clienteId, cancelados) => {
   for (const m of cancelados) {
     const op = m.cancel_op ? porChave.get(m.cancel_op) : null;
     const resposta = /** @type {any} */ (op?.response_json);
-    if (m.comando !== COMANDO_MANEJO || !op || op.status !== 'committed' || resposta?.movimentacao?.id !== m.id) {
+    if (!COMANDOS_CERTIFICADOS.includes(m.comando) || !op || op.status !== 'committed' || resposta?.movimentacao?.id !== m.id) {
       return { ok: false, movimentacao_id: m.id };
     }
     for (const lista of [m.dados?.efeito_servidor?.efeitos, m.dados?.cancelamento?.efeitos]) {

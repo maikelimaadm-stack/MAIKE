@@ -70,6 +70,7 @@ export default function FormularioPesagem({ lote, onSubmit, onCancel }) {
       setSaving(true);
       try {
         await onSubmit({
+          modo: 'todos',
           data_pesagem: formData.data_pesagem,
           categorias_selecionadas: categoriasDisponiveis,
           pesos_por_categoria: categoriasDisponiveis.reduce((acc, cat) => {
@@ -92,6 +93,8 @@ export default function FormularioPesagem({ lote, onSubmit, onCancel }) {
       setSaving(true);
       try {
         await onSubmit({
+          // R2B-P1: só os lotes com peso preenchido entram (sem "peso da categoria" de fallback).
+          modo: 'por_lote',
           data_pesagem: formData.data_pesagem,
           categorias_selecionadas: categoriasAfetadas,
           pesos_por_categoria: categoriasAfetadas.reduce((acc, cat) => {
@@ -116,6 +119,7 @@ export default function FormularioPesagem({ lote, onSubmit, onCancel }) {
       setSaving(true);
       try {
         await onSubmit({
+          modo: 'por_categoria',
           data_pesagem: formData.data_pesagem,
           categorias_selecionadas: pesagensValidas.map(p => p.categoria),
           pesos_por_categoria: pesagensValidas.reduce((acc, p) => {
