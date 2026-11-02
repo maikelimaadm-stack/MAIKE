@@ -1,0 +1,34 @@
+MENU reaberto 0x
+PASS mobile-412 formulário de morte: sem overflow horizontal — {"sw":412,"cw":412,"l":8,"r":404,"vw":412}
+PASS mobile-412 morte: 1 POST do comando de baixa (duplo toque não duplica) — 1 POST
+PASS mobile-412 corpo só com categoria/quantidade/causa e seleção da tela (sem saldo, lote alvo ou tenant) — {"operation_id":"rebanho-5a43bd8a-2ece-4092-ad97-a004970ce774","tipo":"Morte","empresa_id":"cmvwd6au200037d5t9qk00js3","area_id":"cmvwl7ltk023o7d3tcoe2e64x","data_movimentacao":"2026-11-02T12:00:00.00
+PASS mobile-412 nenhum manejo-lote por lote, PATCH /lotes ou POST genérico
+PASS mobile-412 servidor: baixa em 2 lotes (1º zerado/Inativo, 2º −10), 3º intacto — 0/Inativo 20/Ativo 20/Ativo
+PASS mobile-412 histórico mostra a distribuição real por lote e a causa — Histórico da Área PASTO 25 (2)
+Área
+Lotes atuais
+
+Entradas, saídas e manejos registrados nesta área, inclusive de lotes que já saíram.
+
+02/11/2026
+Morte
+Saída
+Ativo
+BX1 mobile-412
+Quantidade: 279 cab
+Data: 02/11/2026
+279
+PASS mobile-412 diálogo de cancelamento: sem overflow horizontal — {"sw":412,"cw":412,"l":8.30214786529541,"r":403.69783878326416,"vw":412}
+PASS mobile-412 cancelamento pela UI devolve o conjunto exato — 269/Ativo 30/Ativo 20/Ativo
+PASS mobile-412 formulário de abate: sem overflow horizontal — {"sw":412,"cw":412,"l":8,"r":404,"vw":412}
+PASS mobile-412 abate: 1 POST; peso vivo é total da linha — {"operation_id":"rebanho-c10c9d39-2298-45a9-984e-ee5ed1cc005f","tipo":"Abate","empresa_id":"cmvwd6au200037d5t9qk00js3","area_id":"cmvwl7ltk023o7d3tcoe2e64x","data_movimentacao":"2026-11-02T12:00:00.00
+PASS mobile-412 abate: sem PATCH/POST legado
+PASS mobile-412 servidor: abate distribuído (1º zerado, 2º −5) — 0/Inativo 25/Ativo 20/Ativo
+PASS mobile-412 409: mensagem de data retroativa e diálogo continua aberto — Há registro posterior à data escolhida num dos lotes. Use uma data igual ou posterior. Nada foi baixado.
+PASS mobile-412 409: exatamente 1 POST nessa tentativa
+PASS mobile-412 409: nada mudou no servidor — 0/Inativo 24/Ativo 20/Ativo
+PASS mobile-412 offline: indisponibilidade explícita — Sem conexão: este manejo (nascimento, pesagem, mudança de categoria, junção, morte ou abate) só pode ser registrado online. Nada foi gravado.
+PASS mobile-412 offline: nenhuma requisição de escrita
+PASS mobile-412 offline: fila sem Lote/MovimentacaoMapa
+PASS mobile-412 sem erro de página
+RESUMO mobile-412: 19/19 PASS

@@ -14,7 +14,11 @@ import LancField from "@/components/cadastro/base1/LancField";
 /** Campo flutuante Base1 (rótulo dentro) — D-PROD-88. */
 const FL = LancField;
 
-export default function FormularioMorte({ lote, onSubmit, onCancel }) {
+/**
+ * R2D-P1 (D-PROD-105): UMA confirmação = UM envio com todas as categorias
+ * (`linhas`); o servidor escolhe os lotes e baixa tudo numa transação.
+ */
+export default function FormularioMorte({ lote, onSubmit, onCancel, enviando = false }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   const lotesArray = Array.isArray(lote) ? lote : [lote];
   
@@ -53,14 +57,15 @@ export default function FormularioMorte({ lote, onSubmit, onCancel }) {
       return;
     }
     
-    mortesValidas.forEach(morte => {
-      onSubmit({
-        data_ocorrencia: formData.data_ocorrencia,
+    if (enviando) return;
+    onSubmit({
+      data_ocorrencia: formData.data_ocorrencia,
+      observacoes: formData.observacoes,
+      linhas: mortesValidas.map((morte) => ({
         categoria: morte.categoria,
         quantidade: parseInt(morte.quantidade),
         causa_morte: morte.causa_morte,
-        observacoes: formData.observacoes
-      });
+      })),
     });
   };
 
@@ -200,7 +205,7 @@ export default function FormularioMorte({ lote, onSubmit, onCancel }) {
           </FL>
           <div className="flex justify-end gap-1 pt-1 border-t">
             <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-7 text-xs">Cancelar</Button>
-            <Button type="submit" size="sm" className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white">Registrar Mortes</Button>
+            <Button type="submit" size="sm" disabled={enviando} aria-busy={enviando} className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white">{enviando ? "Registrando…" : "Registrar Mortes"}</Button>
           </div>
         </form>
       </CardContent>

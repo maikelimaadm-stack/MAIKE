@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -55,8 +55,8 @@ import InformacoesArea from "./InformacoesArea";
 import { Progress } from "@/components/ui/progress";
 import { AlertTriangle } from "lucide-react";
 import { validarOrdemTemporalLote, validarOrdemTemporalLotes } from "../lotes/manejoValidations.jsx";
-import { corpoNascimento, corpoPesagem, corpoMudancaCategoria, corpoJuncao, previaJuncao } from "@/domain/lotes/manejoRebanho";
-import { enviarManejoRebanho, enviarJuncaoLotes, mensagemDoErro } from "@/services/manejoRebanhoService";
+import { corpoNascimento, corpoPesagem, corpoMudancaCategoria, corpoJuncao, corpoBaixa, previaJuncao } from "@/domain/lotes/manejoRebanho";
+import { enviarManejoRebanho, enviarJuncaoLotes, enviarBaixaRebanho, mensagemDoErro } from "@/services/manejoRebanhoService";
 import { escopoDoUsuario } from "../lotes/CancelarMovimentacao";
 import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 
@@ -561,58 +561,42 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
     setShowConfirmPesagem(true);
   };
 
-  const handleMorte = async (formData) => {
-    const lotesCategoria = lotes.filter((l) => l.categoria === formData.categoria);
-    const areaAtualId = lotes[0]?.area_atual_id;
-    const areaMorte = areas.find((a) => a.id === areaAtualId);
-    let quantidadeRestante = Number(formData.quantidade || 0);
-
-    for (const lote of lotesCategoria) {
-      await validarOrdemTemporalLote({
-        empresaId: empresaSelecionadaId,
-        loteId: lote.id,
-        dataReferencia: formData.data_ocorrencia
-      });
-
-      const qtdRemover = quantidadeAplicavel(quantidadeRestante, lote);
-      if (qtdRemover <= 0) continue;
-
-      if (usarComandoDoServidor()) {
-        // R2A-R1: baixa e movimento numa transação no servidor (com proveniência).
-        await registrarManejoLote({
-          operation_id: chaveDeManejo(formData, 'morte', lote.id),
-          tipo: 'Morte',
-          empresa_id: empresaSelecionadaId,
-          lote_id: lote.id,
-          quantidade_animais: Number(qtdRemover),
-          data_movimentacao: toNoonUtcISOString(formData.data_ocorrencia),
-          observacoes: `Categoria: ${formData.categoria}. Sexo: ${lote.sexo}. Causa: ${formData.causa_morte}. ${formData.observacoes}`,
-        });
-      } else {
-        await criarMovimentacao({
-          empresa_id: empresaSelecionadaId,
-          data_movimentacao: toNoonUtcISOString(formData.data_ocorrencia),
-          tipo: 'Morte',
-          lote: lote.nome,
-          lote_id: lote.id,
-          quantidade_animais: qtdRemover,
-          area_origem_id: areaAtualId,
-          area_origem_nome: areaMorte?.nome || '',
-          observacoes: `Categoria: ${formData.categoria}. Sexo: ${lote.sexo}. Causa: ${formData.causa_morte}. ${formData.observacoes}`
-        });
-
-        await atualizarLoteSeguro(lote, saldoEStatusDaOrigem(lote, qtdRemover));
-      }
-
-      quantidadeRestante -= qtdRemover;
-      if (quantidadeRestante <= 0) break;
+  /**
+   * R2D-P1 (D-PROD-105): Morte e Abate — UMA confirmação do formulário (todas as
+   * categorias) é UM comando do servidor: ele escolhe os lotes da área pela
+   * política determinística, baixa todos numa transação e grava UM movimento
+   * cancelável como unidade. Nada de laço de comandos por lote, nem POST+PATCH
+   * legado: offline fica indisponível antes de qualquer requisição. Erro
+   * definitivo ou desconhecido: o diálogo continua aberto com a explicação.
+   */
+  const [enviandoBaixa, setEnviandoBaixa] = useState(false);
+  const baixaEmAndamento = useRef(false);
+  const executarBaixa = async (tipo, formData, data, fechar) => {
+    // Trava síncrona: duplo clique antes da nova renderização não gera 2º POST.
+    if (baixaEmAndamento.current) return;
+    baixaEmAndamento.current = true;
+    setEnviandoBaixa(true);
+    try {
+      const corpo = corpoBaixa({ tipo, empresaId: empresaSelecionadaId, areaId: areaDoManejo(), data, observacoes: formData.observacoes, linhas: formData.linhas, loteIds: lotes.map((l) => l.id) });
+      const resposta = /** @type {any} */ (await enviarBaixaRebanho(corpo, { escopo: escopoDoUsuario(user) }));
+      const distribuicao = (resposta?.movimentacao?.baixa?.lotes || []).map((l) => `${l.nome}: ${l.quantidade}`).join(', ');
+      toast.success(
+        resposta?.replay
+          ? `${tipo}: o servidor já tinha este registro (nada duplicado)`
+          : `${tipo} registrado: ${resposta?.movimentacao?.quantidade_animais ?? ''} cab${distribuicao ? ` (${distribuicao})` : ''}`
+      );
+      fechar(false);
+      onClose();
+      window.dispatchEvent(new CustomEvent('atualizar-mapa', { detail: { cacheKeys: ['lotes', 'movimentacoes', 'movimentacoesHistorico'] } }));
+    } catch (erro) {
+      toast.error(mensagemDoErro(erro));
+    } finally {
+      baixaEmAndamento.current = false;
+      setEnviandoBaixa(false);
     }
-
-    toast.success('Morte registrada');
-    setShowMorte(false);
-    onClose();
-    window.dispatchEvent(new CustomEvent('atualizar-mapa'));
   };
+
+  const handleMorte = (formData) => executarBaixa('Morte', formData, formData.data_ocorrencia, setShowMorte);
 
   /**
    * R2B-P1 (D-PROD-101): Nascimento, Pesagem e Mudança de Categoria vão por UM
@@ -673,58 +657,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
   const handleNascimento = (formData) =>
     executarManejoRebanho(corpoNascimento({ empresaId: empresaSelecionadaId, areaId: areaDoManejo(), formData }), 'Nascimento', setShowNascimento);
 
-  const handleAbate = async (formData) => {
-    const lotesCategoria = lotes.filter((l) => l.categoria === formData.categoria);
-    const areaAtualId = lotes[0]?.area_atual_id;
-    const areaAbate = areas.find((a) => a.id === areaAtualId);
-    let quantidadeRestante = Number(formData.quantidade || 0);
-
-    for (const lote of lotesCategoria) {
-      await validarOrdemTemporalLote({
-        empresaId: empresaSelecionadaId,
-        loteId: lote.id,
-        dataReferencia: formData.data_abate
-      });
-
-      const qtdRemover = quantidadeAplicavel(quantidadeRestante, lote);
-      if (qtdRemover <= 0) continue;
-
-      if (usarComandoDoServidor()) {
-        // R2A-R1: baixa e movimento numa transação no servidor (com proveniência).
-        await registrarManejoLote({
-          operation_id: chaveDeManejo(formData, 'abate', lote.id),
-          tipo: 'Abate',
-          empresa_id: empresaSelecionadaId,
-          lote_id: lote.id,
-          quantidade_animais: Number(qtdRemover),
-          data_movimentacao: toNoonUtcISOString(formData.data_abate),
-          observacoes: `Categoria: ${formData.categoria}. Sexo: ${lote.sexo}. Peso vivo: ${formData.peso_vivo_total}kg. Peso carcaça: ${formData.peso_carcaca_total}kg. Destino: ${formData.destino}. ${formData.observacoes}`,
-        });
-      } else {
-        await criarMovimentacao({
-          empresa_id: empresaSelecionadaId,
-          data_movimentacao: toNoonUtcISOString(formData.data_abate),
-          tipo: 'Abate',
-          lote: lote.nome,
-          lote_id: lote.id,
-          quantidade_animais: qtdRemover,
-          area_origem_id: areaAtualId,
-          area_origem_nome: areaAbate?.nome || '',
-          observacoes: `Categoria: ${formData.categoria}. Sexo: ${lote.sexo}. Peso vivo: ${formData.peso_vivo_total}kg. Peso carcaça: ${formData.peso_carcaca_total}kg. Destino: ${formData.destino}. ${formData.observacoes}`
-        });
-
-        await atualizarLoteSeguro(lote, saldoEStatusDaOrigem(lote, qtdRemover));
-      }
-
-      quantidadeRestante -= qtdRemover;
-      if (quantidadeRestante <= 0) break;
-    }
-
-    toast.success('Abate registrado');
-    setShowAbate(false);
-    onClose();
-    window.dispatchEvent(new CustomEvent('atualizar-mapa'));
-  };
+  const handleAbate = (formData) => executarBaixa('Abate', formData, formData.data_abate, setShowAbate);
 
   const handleMudancaCategoria = (formData) =>
     executarManejoRebanho(corpoMudancaCategoria({ empresaId: empresaSelecionadaId, areaId: areaDoManejo(), formData }), 'Mudança de categoria', setShowMudancaCategoria);
@@ -1030,6 +963,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
             <FormularioMorte
               lote={lotes}
               onSubmit={handleMorte}
+              enviando={enviandoBaixa}
               onCancel={() => setShowMorte(false)} />
 
             }
@@ -1056,6 +990,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
             <FormularioAbate
               lote={lotes}
               onSubmit={handleAbate}
+              enviando={enviandoBaixa}
               onCancel={() => setShowAbate(false)} />
 
             }
