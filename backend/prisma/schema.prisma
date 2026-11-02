@@ -92,6 +92,7 @@ model Cliente {
   posicoesRebanho        PosicaoRebanho[]
   eventosRebanho         EventoRebanho[]
   partidasRebanho        PartidaRebanho[]
+  pesosRebanho           PesoRebanho[]
 
   @@index([nome])
   @@index([ativo])
@@ -835,6 +836,8 @@ model LancamentoTarefa {
   area_nome              String?   @db.VarChar(255)
   lote_id                String?   @db.VarChar(64)
   lote_nome              String?   @db.VarChar(255)
+  /// R2E-R1 (D-PROD-107): posição do ledger citada pelo mapa (lote_id continua sendo o CADASTRO da entrada).
+  posicao_id             String?   @db.VarChar(64)
   ponto_suplementacao_id String?   @db.VarChar(64)
   coordenadas            Json?
   responsavel_id         String?   @db.VarChar(64)
@@ -851,6 +854,7 @@ model LancamentoTarefa {
   tipoTarefa TipoTarefa    @relation(fields: [cliente_id, tipo_tarefa_id], references: [cliente_id, id], onDelete: Restrict)
   grupo    GrupoAtividade? @relation(fields: [cliente_id, grupo_atividade_id], references: [cliente_id, id], onDelete: Restrict)
   lote     Lote?           @relation(fields: [cliente_id, lote_id], references: [cliente_id, id], onDelete: Restrict)
+  posicao  PosicaoRebanho? @relation(fields: [cliente_id, posicao_id], references: [cliente_id, id], onDelete: Restrict)
   area     AreaPastagem?   @relation(fields: [cliente_id, area_id], references: [cliente_id, id], onDelete: Restrict)
   historicos HistoricoLancamentoTarefa[]
 
@@ -859,6 +863,7 @@ model LancamentoTarefa {
   @@index([cliente_id, tipo_tarefa_id])
   @@index([cliente_id, grupo_atividade_id])
   @@index([cliente_id, lote_id])
+  @@index([cliente_id, posicao_id])
   @@index([cliente_id, area_id])
   @@index([cliente_id, status])
   @@index([cliente_id, updatedAt])
@@ -1606,6 +1611,8 @@ model RebanhoLedgerAtivacao {
   cliente_id             String   @db.VarChar(64)
   empresa_id             String   @db.VarChar(64)
   data_corte             DateTime @db.Date
+  /// 'saldo_abertura' (corte = saldo atual legado) ou 'entradas' (linha do tempo reconstruída desde cada entrada).
+  modo                   String   @default("saldo_abertura") @db.VarChar(32)
   ativado_por_usuario_id String?  @db.VarChar(64)
   createdAt              DateTime @default(now())
   updatedAt              DateTime @updatedAt
@@ -1648,8 +1655,12 @@ model PosicaoRebanho {
   area        AreaPastagem     @relation(fields: [cliente_id, area_id], references: [cliente_id, id], onDelete: Restrict)
   loteEntrada Lote?            @relation(fields: [cliente_id, lote_entrada_id], references: [cliente_id, id], onDelete: Restrict)
   partidas    PartidaRebanho[]
+  pesos       PesoRebanho[]
+  tarefas     LancamentoTarefa[]
 
   @@unique([cliente_id, id])
+  /// Alvo das FKs com empresa (partida/peso não cruzam empresa) — R2E-R1.
+  @@unique([cliente_id, empresa_id, id])
   @@unique([cliente_id, empresa_id, area_id, chave_identidade])
   @@index([cliente_id, empresa_id, area_id])
   @@index([cliente_id, lote_entrada_id])
@@ -1679,8 +1690,11 @@ model EventoRebanho {
   cliente  Cliente          @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
   empresa  Empresa          @relation(fields: [cliente_id, empresa_id], references: [cliente_id, id], onDelete: Restrict)
   partidas PartidaRebanho[]
+  pesos    PesoRebanho[]
 
   @@unique([cliente_id, id])
+  /// Alvo das FKs com empresa (partida/peso não cruzam empresa) — R2E-R1.
+  @@unique([cliente_id, empresa_id, id])
   @@unique([cliente_id, empresa_id, tipo, operation_id])
   @@index([cliente_id, empresa_id, data_operacional])
   @@index([cliente_id, movimentacao_id])
@@ -1701,8 +1715,35 @@ model PartidaRebanho {
   updatedAt        DateTime @updatedAt
 
   cliente Cliente        @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
-  evento  EventoRebanho  @relation(fields: [cliente_id, evento_id], references: [cliente_id, id], onDelete: Restrict)
-  posicao PosicaoRebanho @relation(fields: [cliente_id, posicao_id], references: [cliente_id, id], onDelete: Restrict)
+  evento  EventoRebanho  @relation(fields: [cliente_id, empresa_id, evento_id], references: [cliente_id, empresa_id, id], onDelete: Restrict)
+  posicao PosicaoRebanho @relation(fields: [cliente_id, empresa_id, posicao_id], references: [cliente_id, empresa_id, id], onDelete: Restrict)
+
+  @@unique([cliente_id, id])
+  @@index([cliente_id, posicao_id, data_operacional])
+  @@index([cliente_id, evento_id])
+}
+
+/// Peso médio observado numa posição numa data (R2E-R1): pesagem medida ou
+/// peso resultante de transferência/junção/mudança/nascimento. Série histórica:
+/// o peso de uma posição numa data é a última observação ATIVA até aquele dia;
+/// `PosicaoRebanho.peso_medio_kg` é a projeção da última. `peso_medio_kg` NULL =
+/// desconhecido (nunca zero). Cancelar o evento desativa a observação.
+model PesoRebanho {
+  id               String   @id @default(cuid())
+  cliente_id       String   @db.VarChar(64)
+  empresa_id       String   @db.VarChar(64)
+  evento_id        String   @db.VarChar(64)
+  posicao_id       String   @db.VarChar(64)
+  data_operacional DateTime @db.Date
+  peso_medio_kg    Decimal? @db.Decimal(14, 4)
+  medido           Boolean  @default(false)
+  ativa            Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  cliente Cliente        @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  evento  EventoRebanho  @relation(fields: [cliente_id, empresa_id, evento_id], references: [cliente_id, empresa_id, id], onDelete: Restrict)
+  posicao PosicaoRebanho @relation(fields: [cliente_id, empresa_id, posicao_id], references: [cliente_id, empresa_id, id], onDelete: Restrict)
 
   @@unique([cliente_id, id])
   @@index([cliente_id, posicao_id, data_operacional])

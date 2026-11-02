@@ -33,6 +33,10 @@ const ORDEM_DE_LIMPEZA = [
   'operadorProdutoMaike',
   'catalogoMeta',
   // R2E-P1 (D-PROD-107) — ledger do rebanho: partidas → eventos → posições → ativação, antes de Lote/Área/Empresa.
+  // Tarefa cita posição do ledger (R2E-R1): sai antes das posições.
+  'historicoLancamentoTarefa',
+  'lancamentoTarefa',
+  'pesoRebanho',
   'partidaRebanho',
   'eventoRebanho',
   'posicaoRebanho',
@@ -68,8 +72,6 @@ const ORDEM_DE_LIMPEZA = [
   'produto',
   'localEstoque',
   'categoria',
-  'historicoLancamentoTarefa',
-  'lancamentoTarefa',
   'lote',
   'areaPastagem',
   'marca',

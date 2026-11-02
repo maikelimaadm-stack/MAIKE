@@ -9,9 +9,10 @@
  *  P107-LEDGER-PROJECAO    a projeção de posição é escrita fora do motor
  *                          (`posicaoRebanho.update*` de `quantidade_cabecas`,
  *                          `partidaRebanho.*` fora de `rebanhoLedger/`);
- *  P107-LEGADO-FAIL-CLOSED um comando do mapa que ainda escreve saldo em `Lote`
- *                          não chama `exigirModoLegado` (duas fontes de
- *                          verdade numa empresa ativada);
+ *  P107-LEGADO-DELEGA      um comando do mapa que escreve saldo em `Lote` não
+ *                          delega ao ledger (`empresaNoLedger` → `*NoLedger`)
+ *                          ANTES da primeira escrita em `Lote` (duas fontes de
+ *                          verdade numa empresa ativada) — R2E-R1;
  *  P107-PATCH-LOTE         o PATCH de lote perdeu a recusa dos campos
  *                          operacionais no ledger;
  *  P107-MIGRATION          a migration do ledger perdeu os CHECKs de saldo.
@@ -45,7 +46,7 @@ for (const rel of ledger) {
 }
 for (const rel of arquivosJs('backend/src').filter((r) => !r.startsWith(LEDGER_DIR))) {
   const src = semComentarios(ler(rel));
-  if (/\bpartidaRebanho\.(create|createMany|update|updateMany|upsert|delete|deleteMany)\s*\(|"PartidaRebanho"/.test(src)) falha('P107-LEDGER-PROJECAO', `${rel} escreve partidas fora do motor`);
+  if (/\b(partidaRebanho|pesoRebanho)\.(create|createMany|update|updateMany|upsert|delete|deleteMany)\s*\(|"PartidaRebanho"|"PesoRebanho"/.test(src)) falha('P107-LEDGER-PROJECAO', `${rel} escreve partidas/pesos fora do motor`);
   if (/\bposicaoRebanho\.(create|update|upsert|delete|deleteMany)\s*\(/.test(src)) falha('P107-LEDGER-PROJECAO', `${rel} escreve posição fora do motor`);
 }
 
@@ -58,7 +59,9 @@ const COMANDOS = [
 for (const rel of COMANDOS) {
   if (!existsSync(join(ROOT, rel))) continue;
   const src = semComentarios(ler(rel));
-  if (/tx\.lote\.update|inserirLote/.test(src) && !/await exigirModoLegado\(tx,/.test(src)) falha('P107-LEGADO-FAIL-CLOSED', `${rel} escreve saldo em Lote sem exigirModoLegado`);
+  const escrita = src.search(/tx\.lote\.update|inserirLote\(/);
+  const delega = src.search(/if \(await empresaNoLedger\(tx, auth\.clienteId, e\.empresaId\)\)/);
+  if (escrita >= 0 && (delega < 0 || !/NoLedger\(tx, contexto, e/.test(src))) falha('P107-LEGADO-DELEGA', `${rel} escreve saldo em Lote sem delegar ao ledger`);
 }
 
 const servicoLote = 'backend/src/modules/lotes/loteService.js';
@@ -80,4 +83,4 @@ if (falhas.length) {
   console.error(`gate:rebanho-ssot — FALHOU (${falhas.length})\n  - ${falhas.join('\n  - ')}\n\nVer docs/engineering/DECISIONS.md (D-PROD-107).`);
   process.exit(1);
 }
-console.log(`gate:rebanho-ssot — PASSOU (${ledger.length} arquivo(s) do ledger; ${COMANDOS.length} comandos legados com fail-closed)`);
+console.log(`gate:rebanho-ssot — PASSOU (${ledger.length} arquivo(s) do ledger; ${COMANDOS.length} comandos do mapa delegando ao ledger na empresa ativada)`);

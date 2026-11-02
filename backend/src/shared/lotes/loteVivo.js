@@ -51,5 +51,36 @@ export const exigirLotesNaoExcluidos = async (tx, clienteId, ids) => {
  * @param {string} clienteId
  * @param {Array<Record<string, unknown>|null|undefined>} documentos
  */
-export const exigirLotesDosDocumentos = (tx, clienteId, documentos) =>
-  exigirLotesNaoExcluidos(tx, clienteId, idsDeLoteCitados(documentos));
+export const exigirLotesDosDocumentos = async (tx, clienteId, documentos) => {
+  await resolverPosicoesNosDocumentos(tx, clienteId, documentos);
+  return exigirLotesNaoExcluidos(tx, clienteId, idsDeLoteCitados(documentos));
+};
+
+/**
+ * R2E-R1 (D-PROD-107): numa empresa no ledger o mapa entrega ids de POSIÇÃO.
+ * Documento que cita uma posição em `lote_id`/`lote_destino_id` passa a
+ * guardar as DUAS coisas, cada uma no seu campo: `posicao_id` (a posição
+ * operacional) e `lote_id` = a ENTRADA de origem (cadastro) — ou null quando a
+ * posição não tem entrada (nascidos). Nunca grava id de posição como se fosse
+ * Lote. Escopo: só posições do mesmo tenant.
+ * @param {import('@prisma/client').Prisma.TransactionClient} tx
+ * @param {string} clienteId
+ * @param {Array<Record<string, unknown>|null|undefined>} documentos
+ */
+export const resolverPosicoesNosDocumentos = async (tx, clienteId, documentos) => {
+  const pares = [['lote_id', 'posicao_id'], ['lote_destino_id', 'posicao_destino_id']];
+  const ids = [...new Set(documentos.flatMap((d) => (d && typeof d === 'object' ? pares.map(([c]) => d[c]).filter((v) => typeof v === 'string' && v.trim()) : [])))];
+  if (!ids.length) return;
+  const posicoes = await tx.posicaoRebanho.findMany({ where: { cliente_id: clienteId, id: { in: ids } }, select: { id: true, lote_entrada_id: true } });
+  if (!posicoes.length) return;
+  const porId = new Map(posicoes.map((p) => [p.id, p]));
+  for (const d of documentos) {
+    if (!d || typeof d !== 'object') continue;
+    for (const [campoLote, campoPosicao] of pares) {
+      const p = typeof d[campoLote] === 'string' ? porId.get(d[campoLote].trim()) : null;
+      if (!p) continue;
+      d[campoPosicao] = p.id;
+      d[campoLote] = p.lote_entrada_id ?? null;
+    }
+  }
+};

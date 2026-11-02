@@ -39,7 +39,7 @@ import {
 } from './manejoRebanhoComandoService.js';
 import { COMANDO_JUNCAO, TIPO_JUNCAO, TIPO_OPERACAO_JUNCAO } from './juncaoConstantes.js';
 import { COMANDO_BAIXA, TIPO_OPERACAO_BAIXA, TIPOS_BAIXA } from './baixaConstantes.js';
-import { COMANDO_LEDGER, cancelarMovimentoDoLedger, ehMovimentoDoLedger } from '../rebanhoLedger/rebanhoLedgerService.js';
+import { COMANDO_LEDGER, cancelarMovimentoDoLedger, ehMovimentoDoLedger, exigirCancelamentoLegadoPermitido } from '../rebanhoLedger/rebanhoLedgerService.js';
 
 export const TIPO_OPERACAO_CANCELAMENTO = 'cancelamento_movimentacao_mapa';
 export const SITUACAO_CANCELADO = 'cancelado';
@@ -660,6 +660,8 @@ export const cancelar = async (contexto, id, entrada) => {
           await registrarEvento(contexto, { acao: 'cancelamento', entidade: 'MovimentacaoMapa', entidadeId: id, dadosAnteriores: documentoComoPublico(movLedger), dadosNovos: documentoComoPublico(movCancelado) }, tx);
           return { httpStatus: 200, body: { movimentacao: documentoComoPublico(movCancelado), efeitos } };
         }
+        // R2E-R1: movimento legado numa empresa já no ledger não é desfeito pelo modelo antigo (drift).
+        if (movLedger) await exigirCancelamentoLegadoPermitido(tx, auth.clienteId, movLedger);
         const plano = await planejarCancelamento(tx, auth.clienteId, id, { travar: true });
         for (const efeito of plano.efeitos) {
           const anterior = await tx.lote.findUnique({ where: { cliente_id_id: { cliente_id: auth.clienteId, id: efeito.lote_id } } });
@@ -739,6 +741,7 @@ export const elegibilidade = async (contexto, id) => {
       }
     }
     try {
+      if (movLedger) await exigirCancelamentoLegadoPermitido(tx, auth.clienteId, movLedger);
       const plano = await planejarCancelamento(tx, auth.clienteId, id, { travar: false });
       return { elegivel: true, codigo: null, motivo: null, tipo: plano.tipo, modo: plano.modo, efeitos: plano.efeitos, requer_administrador: true, pode_cancelar: podeCancelar };
     } catch (erro) {

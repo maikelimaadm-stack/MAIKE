@@ -36,6 +36,8 @@ beforeEach(async () => {
 /** As tabelas novas têm FK para Cliente/Empresa/Área/Lote: saem antes da limpeza padrão. */
 const limparDoLedger = async () => {
   const p = prisma();
+  await p.pesoRebanho.deleteMany({});
+  await p.lancamentoTarefa.updateMany({ where: { posicao_id: { not: null } }, data: { posicao_id: null } });
   await p.partidaRebanho.deleteMany({});
   await p.eventoRebanho.deleteMany({});
   await p.posicaoRebanho.deleteMany({});
@@ -307,7 +309,7 @@ describe('R2E ledger — cancelamento, histórico, cadastro', () => {
     await verificacaoIntegra(c);
   });
 
-  test('X3: comandos que ainda escrevem saldo em Lote recusam empresa no ledger (fail-closed); empresa legada segue igual', async () => {
+  test('X3: na empresa no ledger os comandos do mapa operam POSIÇÕES — id de CADASTRO não é posição (404) e Lote nunca muda; empresa legada segue igual', async () => {
     const c = await cenario();
     const lote = await entrada(c);
     const casos = [
@@ -317,7 +319,7 @@ describe('R2E ledger — cancelamento, histórico, cadastro', () => {
       ['/movimentacoes-mapa/comandos/baixa-rebanho', { operation_id: opId(), tipo: 'Abate', empresa_id: c.empresa.id, area_id: c.A.id, data_movimentacao: '2026-11-02', linhas: [{ categoria: BOI, quantidade: 1 }] }],
       ['/movimentacoes-mapa/comandos/juncao-lotes', { operation_id: opId(), empresa_id: c.empresa.id, area_id: c.A.id, lote_principal_id: lote.id, lote_origem_ids: [(await entrada(c, { nome: 'L2', qtd: 5 })).id], data_movimentacao: '2026-11-02' }],
     ];
-    for (const [url, corpo] of casos) await exigirNadaGravado(c, () => req('POST', url, c.tok, corpo), 409, 'REBANHO_LEDGER_OPERACAO_NAO_MIGRADA');
+    for (const [url, corpo] of casos.filter(([u]) => !/baixa-rebanho/.test(u))) await exigirNadaGravado(c, () => req('POST', url, c.tok, corpo), 404, 'POSICAO_REBANHO_NOT_FOUND');
     const s = await cenario({ ativar: false });
     const ls = await entrada(s);
     const r = await req('POST', '/movimentacoes-mapa/comandos/manejo-lote', s.tok, { operation_id: opId(), tipo: 'Morte', empresa_id: s.empresa.id, lote_id: ls.id, quantidade_animais: 1, data_movimentacao: '2026-11-02' });
@@ -339,7 +341,9 @@ describe('R2E ledger — cancelamento, histórico, cadastro', () => {
     assert.deepEqual(await porArea(c), { 'PASTO A': 380, 'PASTO B': 120 });
     assert.deepEqual((await contagem(c)).lotes, lotesAntes, 'Lote intocado');
     const derivada = (await posicoes(c)).find((p) => p.area_atual_id === c.B.id);
-    assert.equal(derivada.linhagem[0].classe, 'derivado_legado');
+    // R1: derivado legado NÃO vira entrada — linhagem rastreada até o cadastro original.
+    assert.equal(derivada.linhagem[0].classe, 'derivado_rastreado');
+    assert.equal(derivada.lote_entrada_id, l.id);
     assert.equal((await req('POST', '/rebanho/ativacao', c.tok, { ...corpo, data_corte: '2026-10-29', operation_id: opId() })).json().code, 'REBANHO_LEDGER_JA_ATIVO');
     const s = await cenario({ ativar: false });
     await prisma().lote.create({ data: { cliente_id: s.cliente.id, empresa_id: s.empresa.id, numero_lote: 'SA1', nome: 'SEM AREA', quantidade_cabecas: 5, quantidade_entrada: 5, status: 'Ativo', motivo_entrada: 'Compra' } });

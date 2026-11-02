@@ -1,25 +1,27 @@
 /**
- * Ledger do rebanho por posição — R2E-P1 (D-PROD-107).
+ * Ledger do rebanho por posição — R2E-P1/R1 (D-PROD-107).
  *
  * Numa empresa ATIVADA (`RebanhoLedgerAtivacao`), a fonte de verdade do saldo
  * operacional é o ledger: `EventoRebanho` (fato com dia operacional) +
- * `PartidaRebanho` (delta por posição). `PosicaoRebanho.quantidade_cabecas` é
- * a projeção (soma das partidas ativas), recalculada a cada escrita. `Lote`
- * vira só o cadastro de ENTRADA: nenhuma movimentação cria ou altera Lote.
+ * `PartidaRebanho` (delta por posição) + `PesoRebanho` (série de peso).
+ * `PosicaoRebanho` é a projeção. `Lote` é só o cadastro de ENTRADA: nenhum
+ * manejo cria ou altera Lote numa empresa ativada.
  *
- * Retroatividade (regra de disponibilidade por DIA):
- *  - `data_operacional` é o dia do fato; `registrado_em` é quando foi digitado;
- *  - o saldo de cada posição no FIM de cada dia precisa ser >= 0, em TODA a
- *    linha do tempo (não só hoje). Eventos do mesmo dia valem juntos: não há
- *    "meia-noite × meio-dia" nem ordem de digitação;
- *  - lançar um fato no passado é aceito se nenhum fim de dia, do fato em
- *    diante, ficar negativo; senão 409 com data, área, disponível e pedido —
- *    e nada é gravado (a transação inteira volta);
- *  - consulta por janela no banco, sem teto de registros.
+ * Este arquivo: ativação (dois modos), entrada pelo cadastro, transferência,
+ * cancelamento de qualquer fato do ledger, guarda do cancelamento legado e
+ * leituras. Os demais manejos estão em `rebanhoLedgerManejos.js`. As
+ * primitivas (motor temporal, série de peso, identidade, travas) em
+ * `rebanhoLedgerNucleo.js`.
  *
- * Travas: áreas envolvidas (ordem de id) → posições (ordem de id). Posição
- * nova só nasce com a área de destino travada, então não há corrida na
- * identidade.
+ * Ativação:
+ *  - `saldo_abertura`: o saldo atual de cada lote legado vira abertura no dia
+ *    do corte; fatos antes do corte são recusados (passado não reconstruído).
+ *    Lote derivado legado (origem MOVIMENTAÇÃO) NÃO vira entrada: a linhagem é
+ *    rastreada pela movimentação certificada que o criou até a entrada
+ *    original; sem prova, fica como origem `legado:<id>` sem `lote_entrada_id`;
+ *  - `entradas`: empresa sem histórico legado ativo e com cada lote no estado
+ *    da própria entrada — cada cadastro vira ENTRADA na sua data de entrada e a
+ *    linha do tempo inteira fica disponível para lançamentos retroativos.
  */
 
 import { Prisma } from '@prisma/client';
@@ -31,233 +33,104 @@ import { AppError } from '../../shared/errors/AppError.js';
 import { documentoComoPublico } from '../../shared/jsonDocument/jsonDocumentPublic.js';
 import { executarComIdempotencia, fingerprintDePayload } from '../../shared/idempotency/operacaoIdempotenteService.js';
 import { registrarEvento } from '../auditoria/auditService.js';
+import {
+  COMANDO_LEDGER,
+  TIPOS_CANCELAVEIS,
+  TIPOS_EVENTO,
+  ativacaoDaEmpresa,
+  auditarPosicoes,
+  comoData,
+  comoPosicaoPublica,
+  criarEvento,
+  criarPonteMovimentacao,
+  dataOperacionalValida,
+  detalheSaldo,
+  diaDe,
+  diaDoBanco,
+  exigirDiaNoLedger,
+  garantirPesoBase,
+  idsCitados,
+  inserirPartidas,
+  invalido,
+  moldeDe,
+  normal,
+  pesoNaData,
+  pesoNum,
+  pesoPonderado,
+  ponto,
+  posicaoDaIdentidade,
+  primeirosSaldosNegativos,
+  recusa,
+  registrarPeso,
+  reprojetar,
+  saldoNaData,
+  texto,
+  travarAreas,
+  travarPosicoes,
+  validarEReprojetar,
+} from './rebanhoLedgerNucleo.js';
 
-export const COMANDO_LEDGER = 'rebanho_ledger';
+export { COMANDO_LEDGER, ativacaoDaEmpresa, comoPosicaoPublica, dataOperacionalValida, diaDe } from './rebanhoLedgerNucleo.js';
+export { definirFalhaInjetadaLedger } from './rebanhoLedgerNucleo.js';
+
 export const TIPO_OPERACAO_TRANSFERENCIA = 'rebanho_ledger_transferencia';
 export const TIPO_OPERACAO_ATIVACAO = 'rebanho_ledger_ativacao';
-export const TIPO_OPERACAO_CANCELAMENTO_LEDGER = 'cancelamento_movimentacao_mapa';
-export const TIPOS_EVENTO = Object.freeze({ ABERTURA: 'SALDO_ABERTURA', ENTRADA: 'ENTRADA', TRANSFERENCIA: 'TRANSFERENCIA' });
+export const MODOS_ATIVACAO = Object.freeze(['saldo_abertura', 'entradas']);
 export const MAX_ITENS_TRANSFERENCIA = 50;
+/** Origens de Lote que não são entrada no rebanho (mesma lista de `loteOrigem.js`, sem acento/caixa). */
+const ORIGENS_DERIVADAS = Object.freeze(['MOVIMENTACAO', 'REVERSAO MOVIMENTACAO', 'MUDANCA DE CATEGORIA', 'EDICAO MOVIMENTACAO']);
+const ehDerivado = (lote) => ORIGENS_DERIVADAS.includes(normal(lote.origem));
+const ehNascimentoLegado = (lote) => normal(lote.origem) === 'NASCIMENTO';
+
+// ─── Ativação da empresa ───────────────────────────────────────────────────
 
 /**
- * Mesma regra de `dataOperacionalValida` dos comandos do mapa (cópia local
- * para não criar ciclo de import com eles, que importam este módulo).
+ * Linhagem de um lote legado: entrada (o próprio cadastro), derivado
+ * rastreado (movimentação certificada que o criou → lote de origem,
+ * recursivamente até uma entrada) ou sem prova (`legado:<id>`). Nunca por nome.
  */
-export const dataOperacionalValida = (valor) => {
-  const m = /^(\d{4})-(\d{2})-(\d{2})(T\d{2}:\d{2}(:\d{2}(\.\d{1,3})?)?(Z|[+-]\d{2}:\d{2})?)?$/.exec(valor || '');
-  if (!m) return false;
-  const [ano, mes, dia] = [Number(m[1]), Number(m[2]), Number(m[3])];
-  const d = new Date(Date.UTC(ano, mes - 1, dia));
-  return d.getUTCFullYear() === ano && d.getUTCMonth() === mes - 1 && d.getUTCDate() === dia && !Number.isNaN(new Date(valor).getTime());
-};
-
-const texto = (v) => (typeof v === 'string' && v.trim() ? v.trim() : null);
-const normal = (v) => String(v ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toUpperCase();
-const invalido = (mensagem, details = {}) => new AppError('REQUEST_VALIDATION_FAILED', mensagem, { details });
-const recusa = (codigo, mensagem, details = {}) => new AppError(codigo, mensagem, { details });
-export const diaDe = (valor) => String(valor).slice(0, 10);
-const comoData = (dia) => new Date(`${dia}T00:00:00.000Z`);
-const diaDoBanco = (d) => (d instanceof Date ? d.toISOString().slice(0, 10) : String(d).slice(0, 10));
-const pesoNum = (v) => (v === null || v === undefined ? null : Number(v));
-
-// ─── Ganchos de teste (só NODE_ENV=test): prova de rollback por passo ─────
-const ganchos = { falharEm: null };
-export const definirFalhaInjetadaLedger = (passo) => {
-  if (process.env.NODE_ENV !== 'test') throw new Error('gancho de teste fora de NODE_ENV=test');
-  ganchos.falharEm = passo;
-};
-const ponto = (passo) => {
-  if (ganchos.falharEm === passo) throw new Error(`falha injetada: ${passo}`);
-};
-
-// ─── Ativação ──────────────────────────────────────────────────────────────
-
-/** Ativação da empresa (ou null = modelo legado). */
-export const ativacaoDaEmpresa = (tx, clienteId, empresaId) =>
-  tx.rebanhoLedgerAtivacao.findUnique({ where: { cliente_id_empresa_id: { cliente_id: clienteId, empresa_id: empresaId } } });
-
-/**
- * Comandos que ainda escrevem saldo em `Lote` recusam empresa ativada (fail
- * closed): duas fontes de verdade nunca. Chamado dentro da transação deles.
- */
-export const exigirModoLegado = async (tx, clienteId, empresaId, operacao) => {
-  if (!empresaId) return;
-  if (await ativacaoDaEmpresa(tx, clienteId, empresaId)) {
-    throw recusa(
-      'REBANHO_LEDGER_OPERACAO_NAO_MIGRADA',
-      'esta empresa usa o ledger de posições; esta operação ainda não foi migrada para ele e foi recusada sem gravar nada',
-      { operacao }
-    );
+const linhagemLegada = async (tx, clienteId, empresaId, lote, porId, profundidade = 0) => {
+  if (!ehDerivado(lote)) {
+    if (ehNascimentoLegado(lote)) return { origem: `nascimento-legado:${lote.id}`, lote_entrada_id: null, classe: 'nascimento_legado', raiz: lote };
+    return { origem: lote.id, lote_entrada_id: lote.id, classe: 'entrada', raiz: lote };
   }
-};
-
-// ─── Identidade e posição ──────────────────────────────────────────────────
-
-/** Identidade da posição: linhagem de entrada + classificação. Nunca o nome. */
-export const chaveIdentidade = ({ lote_entrada_id, categoria, sexo, categoria_manejo_id }) =>
-  JSON.stringify([lote_entrada_id ?? null, normal(categoria) || null, normal(sexo) || null, categoria_manejo_id ?? null]);
-
-/** Forma pública com os nomes de campo do Lote (o mapa e os formulários a leem sem adaptação). */
-export const comoPosicaoPublica = (p, areaNome = null) => ({
-  id: p.id,
-  posicao_id: p.id,
-  __posicao: true,
-  empresa_id: p.empresa_id,
-  lote_entrada_id: p.lote_entrada_id ?? null,
-  linhagem: p.linhagem ?? [],
-  nome: p.nome,
-  numero_lote: p.numero_lote ?? null,
-  quantidade_cabecas: p.quantidade_cabecas,
-  area_atual_id: p.area_id,
-  area_atual_nome: areaNome ?? p.area?.nome ?? null,
-  categoria: p.categoria ?? null,
-  categoria_manejo_id: p.categoria_manejo_id ?? null,
-  categoria_manejo_nome: p.categoria_manejo_nome ?? null,
-  sexo: p.sexo ?? null,
-  peso_medio_kg: pesoNum(p.peso_medio_kg),
-  status: p.quantidade_cabecas > 0 ? 'Ativo' : 'Inativo',
-  identificador_nome: p.identificador_nome ?? null,
-  identificador_sigla: p.identificador_sigla ?? null,
-  identificador_cor: p.identificador_cor ?? null,
-  updated_date: p.updatedAt,
-  created_date: p.createdAt,
-});
-
-const travarAreas = async (tx, clienteId, empresaId, areaIds) => {
-  const ids = [...new Set(areaIds.filter(Boolean))].sort();
-  if (!ids.length) return new Map();
-  await tx.$queryRaw`SELECT id FROM "AreaPastagem" WHERE cliente_id = ${clienteId} AND id = ANY(${ids}::text[]) ORDER BY id FOR UPDATE`;
-  const areas = await tx.areaPastagem.findMany({ where: { cliente_id: clienteId, empresa_id: empresaId, id: { in: ids } }, select: { id: true, nome: true, ativo: true } });
-  return new Map(areas.map((a) => [a.id, a]));
-};
-
-const travarPosicoes = async (tx, clienteId, ids) => {
-  const ordenados = [...new Set(ids.filter(Boolean))].sort();
-  if (!ordenados.length) return new Map();
-  await tx.$queryRaw`SELECT id FROM "PosicaoRebanho" WHERE cliente_id = ${clienteId} AND id = ANY(${ordenados}::text[]) ORDER BY id FOR UPDATE`;
-  const ps = await tx.posicaoRebanho.findMany({ where: { cliente_id: clienteId, id: { in: ordenados } } });
-  return new Map(ps.map((p) => [p.id, p]));
-};
-
-/** Posição da identidade na área (cria vazia se não existir). Exige a área travada pelo chamador. */
-const posicaoDaIdentidade = async (tx, clienteId, empresaId, areaId, molde) => {
-  const chave = chaveIdentidade(molde);
-  const existente = await tx.posicaoRebanho.findUnique({
-    where: { cliente_id_empresa_id_area_id_chave_identidade: { cliente_id: clienteId, empresa_id: empresaId, area_id: areaId, chave_identidade: chave } },
-  });
-  if (existente) return { posicao: existente, criada: false };
-  const criada = await tx.posicaoRebanho.create({
-    data: {
-      cliente_id: clienteId,
-      empresa_id: empresaId,
-      area_id: areaId,
-      chave_identidade: chave,
-      lote_entrada_id: molde.lote_entrada_id ?? null,
-      linhagem: molde.linhagem ?? [],
-      nome: molde.nome,
-      numero_lote: molde.numero_lote ?? null,
-      categoria: molde.categoria ?? null,
-      categoria_manejo_id: molde.categoria_manejo_id ?? null,
-      categoria_manejo_nome: molde.categoria_manejo_nome ?? null,
-      sexo: molde.sexo ?? null,
-      peso_medio_kg: molde.peso_medio_kg ?? null,
-      quantidade_cabecas: 0,
-      identificador_nome: molde.identificador_nome ?? null,
-      identificador_sigla: molde.identificador_sigla ?? null,
-      identificador_cor: molde.identificador_cor ?? null,
-    },
-  });
-  return { posicao: criada, criada: true };
-};
-
-// ─── Motor temporal ────────────────────────────────────────────────────────
-
-/** Primeiro fim de dia negativo de cada posição (só partidas ativas; sem teto). */
-export const primeirosSaldosNegativos = async (tx, clienteId, posicaoIds) => {
-  const ids = [...new Set(posicaoIds)];
-  if (!ids.length) return [];
-  return /** @type {Array<{posicao_id: string, dia: Date, saldo: number}>} */ (
+  if (profundidade > 20) return { origem: `legado:${lote.id}`, lote_entrada_id: null, classe: 'derivado_sem_prova', raiz: lote };
+  // Movimentação certificada (efeito_servidor reservado) que CRIOU este lote.
+  const [mov] = /** @type {Array<{lote_id: string|null, tipo: string|null, efeitos: any}>} */ (
     await tx.$queryRaw`
-      WITH por_dia AS (
-        SELECT posicao_id, data_operacional AS dia, SUM(delta)::int AS s
-          FROM "PartidaRebanho"
-         WHERE cliente_id = ${clienteId} AND posicao_id = ANY(${ids}::text[]) AND ativa
-         GROUP BY posicao_id, data_operacional
-      ), acumulado AS (
-        SELECT posicao_id, dia, (SUM(s) OVER (PARTITION BY posicao_id ORDER BY dia))::int AS saldo FROM por_dia
-      )
-      SELECT DISTINCT ON (posicao_id) posicao_id, dia, saldo FROM acumulado WHERE saldo < 0 ORDER BY posicao_id, dia`
+      SELECT m.dados->>'lote_id' AS lote_id, m.dados->>'tipo' AS tipo, m.dados->'efeito_servidor'->'efeitos' AS efeitos
+        FROM "MovimentacaoMapa" m
+       WHERE m.cliente_id = ${clienteId} AND m.empresa_id = ${empresaId}
+         AND COALESCE(m.dados->>'situacao', '') <> 'cancelado'
+         AND jsonb_typeof(m.dados->'efeito_servidor'->'efeitos') = 'array'
+         AND EXISTS (SELECT 1 FROM jsonb_array_elements(m.dados->'efeito_servidor'->'efeitos') e
+                      WHERE e->>'lote_id' = ${lote.id} AND (e->>'criado')::boolean IS TRUE)
+       ORDER BY m."createdAt" LIMIT 1`
   );
-};
-
-/** Projeção = soma das partidas ativas (idempotente; corrige qualquer desvio). */
-const reprojetar = async (tx, clienteId, posicaoIds) => {
-  const ids = [...new Set(posicaoIds)].sort();
-  if (!ids.length) return;
-  await tx.$executeRaw`
-    UPDATE "PosicaoRebanho" p
-       SET quantidade_cabecas = COALESCE((SELECT SUM(x.delta) FROM "PartidaRebanho" x WHERE x.cliente_id = p.cliente_id AND x.posicao_id = p.id AND x.ativa), 0),
-           "updatedAt" = now()
-     WHERE p.cliente_id = ${clienteId} AND p.id = ANY(${ids}::text[])`;
+  const origemId = mov && Array.isArray(mov.efeitos) ? mov.efeitos.find((x) => x && x.criado !== true && x.lote_id !== lote.id)?.lote_id ?? mov.lote_id : null;
+  const origem = origemId && origemId !== lote.id ? porId.get(origemId) ?? (await tx.lote.findFirst({ where: { cliente_id: clienteId, empresa_id: empresaId, id: origemId } })) : null;
+  if (!origem) return { origem: `legado:${lote.id}`, lote_entrada_id: null, classe: 'derivado_sem_prova', raiz: lote };
+  const r = await linhagemLegada(tx, clienteId, empresaId, origem, porId, profundidade + 1);
+  return { ...r, classe: r.classe === 'entrada' ? 'derivado_rastreado' : r.classe };
 };
 
 /**
- * Valida a linha do tempo das posições e reprojeta. Primeiro fim de dia
- * negativo → 409 estável (a transação do chamador desfaz tudo).
- * @param {(neg: {posicao_id: string, dia: string, saldo: number}) => Record<string, unknown>} detalhar
- */
-const validarEReprojetar = async (tx, clienteId, posicaoIds, codigo, mensagem, detalhar) => {
-  const negativos = await primeirosSaldosNegativos(tx, clienteId, posicaoIds);
-  if (negativos.length) {
-    const primeiro = [...negativos].sort((a, b) => diaDoBanco(a.dia).localeCompare(diaDoBanco(b.dia)))[0];
-    throw recusa(codigo, mensagem, detalhar({ posicao_id: primeiro.posicao_id, dia: diaDoBanco(primeiro.dia), saldo: primeiro.saldo }));
-  }
-  await reprojetar(tx, clienteId, posicaoIds);
-};
-
-const criarEvento = (tx, { clienteId, empresaId, tipo, dia, usuarioId, operationKey, dados }) =>
-  tx.eventoRebanho.create({
-    data: {
-      cliente_id: clienteId,
-      empresa_id: empresaId,
-      tipo,
-      data_operacional: comoData(dia),
-      registrado_por_usuario_id: usuarioId ?? null,
-      operation_id: operationKey,
-      dados,
-    },
-  });
-
-const inserirPartidas = (tx, { clienteId, empresaId, eventoId, dia, partidas }) =>
-  tx.partidaRebanho.createMany({
-    data: partidas.map((p) => ({ cliente_id: clienteId, empresa_id: empresaId, evento_id: eventoId, posicao_id: p.posicao_id, data_operacional: comoData(dia), delta: p.delta })),
-  });
-
-const auditarPosicoes = async (contexto, tx, clienteId, ids, antes) => {
-  const depois = await tx.posicaoRebanho.findMany({ where: { cliente_id: clienteId, id: { in: [...new Set(ids)] } } });
-  for (const p of depois) {
-    const a = antes.get(p.id);
-    await registrarEvento(contexto, { acao: a ? 'update' : 'create', entidade: 'PosicaoRebanho', entidadeId: p.id, dadosAnteriores: a ? comoPosicaoPublica(a) : undefined, dadosNovos: comoPosicaoPublica(p) }, tx);
-  }
-  return new Map(depois.map((p) => [p.id, p]));
-};
-
-// ─── Ativação da empresa (saldo de abertura, sem destruir nada) ─────────────
-
-/**
- * Ativa o ledger numa empresa. Cada lote ATIVO com saldo e área vira uma
- * posição com partida de SALDO_ABERTURA no dia do corte. Nada é apagado nem
- * alterado em `Lote`; o histórico legado continua consultável. Fatos com data
- * anterior ao corte são recusados depois (o ledger não conhece o passado).
+ * Ativa o ledger numa empresa (ver modos no topo do arquivo). Nada é apagado
+ * nem alterado em `Lote`; o histórico legado continua consultável.
  */
 export const ativarLedger = async (contexto, entrada) => {
   const auth = exigirAuthContext(contexto?.auth);
   const operationKey = texto(entrada?.operation_id);
   const empresaId = texto(entrada?.empresa_id);
+  const modo = texto(entrada?.modo) ?? 'saldo_abertura';
   const dataCorte = texto(entrada?.data_corte);
-  if (!operationKey || !empresaId || !dataCorte) throw invalido('operation_id, empresa_id e data_corte são obrigatórios');
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(dataCorte) || !dataOperacionalValida(dataCorte)) throw invalido('data_corte deve ser AAAA-MM-DD de calendário real', { field: 'data_corte' });
-  const fingerprint = fingerprintDePayload({ empresaId, dataCorte });
+  if (!operationKey || !empresaId) throw invalido('operation_id e empresa_id são obrigatórios');
+  if (!MODOS_ATIVACAO.includes(modo)) throw invalido('modo deve ser saldo_abertura ou entradas', { field: 'modo' });
+  if (modo === 'saldo_abertura' && (!dataCorte || !/^\d{4}-\d{2}-\d{2}$/.test(dataCorte) || !dataOperacionalValida(dataCorte))) {
+    throw invalido('data_corte deve ser AAAA-MM-DD de calendário real', { field: 'data_corte' });
+  }
+  if (modo === 'entradas' && dataCorte) throw invalido('no modo entradas não há data de corte: a linha do tempo começa em cada entrada', { field: 'data_corte' });
+  const fingerprint = fingerprintDePayload({ empresaId, modo, dataCorte });
   const prisma = getPrismaClient();
   const r = await prisma.$transaction(async (tx) => {
     await exigirAdminTenant(contexto, tx);
@@ -270,42 +143,111 @@ export const ativarLedger = async (contexto, entrada) => {
         const empresa = await tx.empresa.findUnique({ where: { cliente_id_id: { cliente_id: auth.clienteId, id: empresaId } }, select: { id: true } });
         if (!empresa) throw new AppError('EMPRESA_NOT_FOUND', 'empresa não encontrada');
         if (await ativacaoDaEmpresa(tx, auth.clienteId, empresaId)) throw recusa('REBANHO_LEDGER_JA_ATIVO', 'o ledger já está ativo nesta empresa');
-        // Trava todas as áreas e lotes da empresa: nenhum manejo legado corre durante a abertura.
+        // Trava todas as áreas e lotes da empresa: nenhum manejo legado corre durante a ativação.
         const areas = await tx.areaPastagem.findMany({ where: { cliente_id: auth.clienteId, empresa_id: empresaId }, select: { id: true } });
         const mapaAreas = await travarAreas(tx, auth.clienteId, empresaId, areas.map((a) => a.id));
         await tx.$queryRaw`SELECT id FROM "Lote" WHERE cliente_id = ${auth.clienteId} AND empresa_id = ${empresaId} ORDER BY id FOR UPDATE`;
-        const posteriores = /** @type {Array<{n: number}>} */ (
+        const todos = await tx.lote.findMany({ where: { cliente_id: auth.clienteId, empresa_id: empresaId, excluido_em: null }, orderBy: { id: 'asc' } });
+        const porId = new Map(todos.map((l) => [l.id, l]));
+
+        const [hist] = /** @type {Array<{ativos: number, depois: number}>} */ (
           await tx.$queryRaw`
-            SELECT COUNT(*)::int AS n FROM "MovimentacaoMapa" m
-             WHERE m.cliente_id = ${auth.clienteId} AND m.empresa_id = ${empresaId}
-               AND COALESCE(m.dados->>'situacao', '') <> 'cancelado'
-               AND COALESCE(NULLIF(left(m.dados->>'data_movimentacao', 10), ''), to_char(m."createdAt", 'YYYY-MM-DD')) > ${dataCorte}`
+            SELECT COUNT(*) FILTER (WHERE COALESCE(m.dados->>'situacao', '') <> 'cancelado')::int AS ativos,
+                   COUNT(*) FILTER (WHERE COALESCE(m.dados->>'situacao', '') <> 'cancelado'
+                                      AND COALESCE(NULLIF(left(m.dados->>'data_movimentacao', 10), ''), to_char(m."createdAt", 'YYYY-MM-DD')) > ${dataCorte ?? '9999-12-31'})::int AS depois
+              FROM "MovimentacaoMapa" m WHERE m.cliente_id = ${auth.clienteId} AND m.empresa_id = ${empresaId}`
         );
-        if (posteriores[0]?.n) {
-          throw recusa('REBANHO_ATIVACAO_CORTE_ANTERIOR_AO_HISTORICO', 'há movimentação legada ativa depois da data de corte; escolha um corte igual ou posterior', { quantidade: posteriores[0].n });
-        }
-        const lotes = await tx.lote.findMany({ where: { cliente_id: auth.clienteId, empresa_id: empresaId, excluido_em: null, status: 'Ativo', quantidade_cabecas: { gt: 0 } }, orderBy: { id: 'asc' } });
-        const semArea = lotes.filter((l) => !l.area_atual_id || !mapaAreas.has(l.area_atual_id));
+        const ativos = todos.filter((l) => l.status === 'Ativo' && l.quantidade_cabecas > 0);
+        const semArea = ativos.filter((l) => !l.area_atual_id || !mapaAreas.has(l.area_atual_id));
         if (semArea.length) throw recusa('REBANHO_ATIVACAO_LOTE_SEM_AREA', 'há lote ativo com cabeças e sem área válida nesta empresa; corrija antes de ativar', { lote_ids: semArea.map((l) => l.id) });
 
-        await tx.rebanhoLedgerAtivacao.create({ data: { cliente_id: auth.clienteId, empresa_id: empresaId, data_corte: comoData(dataCorte), ativado_por_usuario_id: auth.usuarioId } });
-        const evento = await criarEvento(tx, {
-          clienteId: auth.clienteId, empresaId, tipo: TIPOS_EVENTO.ABERTURA, dia: dataCorte, usuarioId: auth.usuarioId, operationKey,
-          dados: { origem: 'saldo_atual_do_modelo_legado', lotes: lotes.length },
-        });
-        const partidas = [];
-        for (const l of lotes) {
-          const derivado = normal(l.origem) === 'MOVIMENTACAO';
-          const { posicao } = await posicaoDaIdentidade(tx, auth.clienteId, empresaId, l.area_atual_id, {
-            ...l, lote_entrada_id: l.id, linhagem: [{ lote_id: l.id, nome: l.nome, numero_lote: l.numero_lote ?? null, classe: derivado ? 'derivado_legado' : 'entrada' }],
-          });
-          partidas.push({ posicao_id: posicao.id, delta: l.quantidade_cabecas });
+        const partidasPorDia = new Map();
+        const pesos = [];
+        const somar = (dia, posicaoId, delta) => {
+          if (!partidasPorDia.has(dia)) partidasPorDia.set(dia, new Map());
+          const m = partidasPorDia.get(dia);
+          m.set(posicaoId, (m.get(posicaoId) ?? 0) + delta);
+        };
+        let dataCorteEfetiva = dataCorte;
+        const resumo = { entradas: 0, derivados_rastreados: 0, derivados_sem_prova: 0, nascimentos_legados: 0 };
+
+        if (modo === 'saldo_abertura') {
+          if (hist?.depois) throw recusa('REBANHO_ATIVACAO_CORTE_ANTERIOR_AO_HISTORICO', 'há movimentação legada ativa depois da data de corte; escolha um corte igual ou posterior', { quantidade: hist.depois });
+          for (const l of ativos) {
+            const lin = await linhagemLegada(tx, auth.clienteId, empresaId, l, porId);
+            if (lin.classe === 'derivado_rastreado') resumo.derivados_rastreados += 1;
+            else if (lin.classe === 'derivado_sem_prova') resumo.derivados_sem_prova += 1;
+            else if (lin.classe === 'nascimento_legado') resumo.nascimentos_legados += 1;
+            else resumo.entradas += 1;
+            const raiz = lin.raiz;
+            const { posicao } = await posicaoDaIdentidade(tx, auth.clienteId, empresaId, l.area_atual_id, {
+              ...l,
+              origem: lin.origem,
+              lote_entrada_id: lin.lote_entrada_id,
+              nome: lin.lote_entrada_id ? raiz.nome : l.nome,
+              numero_lote: lin.lote_entrada_id ? raiz.numero_lote : l.numero_lote,
+              linhagem: [{ lote_id: lin.lote_entrada_id ?? l.id, nome: raiz.nome, numero_lote: raiz.numero_lote ?? null, classe: lin.classe, lote_legado_id: l.id }],
+            });
+            somar(dataCorte, posicao.id, l.quantidade_cabecas);
+            if (pesoNum(l.peso_medio_kg) !== null) pesos.push({ posicao, dia: dataCorte, peso: pesoNum(l.peso_medio_kg), q: l.quantidade_cabecas });
+          }
+        } else {
+          // Reconstrução pelas ENTRADAS: só quando o passado é exatamente as entradas.
+          if (hist?.ativos) throw recusa('REBANHO_ATIVACAO_ENTRADAS_COM_HISTORICO', 'há movimentação legada ativa; cancele-a (ou use o reset de dados de teste) antes de reconstruir pelas entradas', { movimentacoes_ativas: hist.ativos });
+          const problemas = [];
+          for (const l of todos) {
+            const vivo = l.status === 'Ativo' && l.quantidade_cabecas > 0;
+            if (ehDerivado(l)) {
+              if (vivo) problemas.push({ lote_id: l.id, motivo: 'lote_derivado_ativo' });
+              continue;
+            }
+            if (!vivo) continue;
+            if (l.quantidade_cabecas !== l.quantidade_entrada || (l.area_atual_id ?? null) !== (l.area_entrada_id ?? l.area_atual_id ?? null) || !l.data_entrada) {
+              problemas.push({ lote_id: l.id, motivo: !l.data_entrada ? 'sem_data_de_entrada' : 'estado_diferente_da_entrada' });
+            }
+          }
+          if (problemas.length) throw recusa('REBANHO_ATIVACAO_ENTRADAS_COM_HISTORICO', 'há lote cujo estado não é a própria entrada; use saldo de abertura ou o reset de dados de teste', { lotes: problemas });
+          for (const l of ativos) {
+            const dia = diaDoBanco(l.data_entrada);
+            const { posicao } = await posicaoDaIdentidade(tx, auth.clienteId, empresaId, l.area_entrada_id ?? l.area_atual_id, {
+              ...l,
+              origem: ehNascimentoLegado(l) ? `nascimento-legado:${l.id}` : l.id,
+              lote_entrada_id: l.id,
+              linhagem: [{ lote_id: l.id, nome: l.nome, numero_lote: l.numero_lote ?? null, classe: 'entrada' }],
+            });
+            somar(dia, posicao.id, l.quantidade_entrada);
+            resumo.entradas += 1;
+            const p = pesoNum(l.peso_entrada_kg) ?? pesoNum(l.peso_medio_kg);
+            if (p !== null) pesos.push({ posicao, dia, peso: p, q: l.quantidade_entrada });
+            if (!dataCorteEfetiva || dia < dataCorteEfetiva) dataCorteEfetiva = dia;
+          }
+          dataCorteEfetiva = dataCorteEfetiva ?? new Date().toISOString().slice(0, 10);
         }
-        if (partidas.length) await inserirPartidas(tx, { clienteId: auth.clienteId, empresaId, eventoId: evento.id, dia: dataCorte, partidas });
-        await reprojetar(tx, auth.clienteId, partidas.map((p) => p.posicao_id));
-        const total = partidas.reduce((t, p) => t + p.delta, 0);
-        await registrarEvento(contexto, { acao: 'create', entidade: 'EventoRebanho', entidadeId: evento.id, dadosNovos: { tipo: evento.tipo, empresa_id: empresaId, data_corte: dataCorte, posicoes: partidas.length, total } }, tx);
-        return { httpStatus: 201, body: { empresa_id: empresaId, data_corte: dataCorte, posicoes: partidas.length, total_cabecas: total, evento_id: evento.id } };
+
+        await tx.rebanhoLedgerAtivacao.create({ data: { cliente_id: auth.clienteId, empresa_id: empresaId, data_corte: comoData(dataCorteEfetiva), modo, ativado_por_usuario_id: auth.usuarioId } });
+        const tipo = modo === 'saldo_abertura' ? TIPOS_EVENTO.ABERTURA : TIPOS_EVENTO.ENTRADA;
+        const eventos = [];
+        let total = 0;
+        for (const [dia, partidas] of [...partidasPorDia.entries()].sort()) {
+          const evento = await criarEvento(tx, {
+            clienteId: auth.clienteId, empresaId, tipo, dia, usuarioId: auth.usuarioId, operationKey: `${operationKey}:${dia}`,
+            dados: { origem: modo === 'saldo_abertura' ? 'saldo_atual_do_modelo_legado' : 'entradas_do_cadastro', modo, ativacao: operationKey },
+          });
+          await inserirPartidas(tx, { clienteId: auth.clienteId, empresaId, eventoId: evento.id, dia, partidas: [...partidas.entries()].map(([posicao_id, delta]) => ({ posicao_id, delta })) });
+          for (const w of pesos.filter((x) => x.dia === dia)) {
+            // Várias linhas legadas na mesma posição: peso ponderado só se todas conhecidas.
+            const ja = await pesoNaData(tx, auth.clienteId, w.posicao.id, dia);
+            const s = ja === undefined ? 0 : await saldoNaData(tx, auth.clienteId, w.posicao.id, dia);
+            const peso = ja === undefined ? w.peso : pesoPonderado(s - w.q, ja, w.q, w.peso);
+            await registrarPeso(tx, { clienteId: auth.clienteId, empresaId, eventoId: evento.id, posicaoId: w.posicao.id, dia, peso });
+          }
+          eventos.push(evento.id);
+          total += [...partidas.values()].reduce((t, x) => t + x, 0);
+        }
+        const posicaoIds = [...new Set([...partidasPorDia.values()].flatMap((m) => [...m.keys()]))];
+        await reprojetar(tx, auth.clienteId, posicaoIds);
+        await registrarEvento(contexto, { acao: 'create', entidade: 'RebanhoLedgerAtivacao', entidadeId: empresaId, dadosNovos: { empresa_id: empresaId, modo, data_corte: dataCorteEfetiva, posicoes: posicaoIds.length, total, eventos, ...resumo } }, tx);
+        return { httpStatus: 201, body: { empresa_id: empresaId, modo, data_corte: dataCorteEfetiva, posicoes: posicaoIds.length, total_cabecas: total, eventos, ...resumo } };
       },
     });
   });
@@ -314,9 +256,8 @@ export const ativarLedger = async (contexto, entrada) => {
 
 /**
  * Ordem de travas do ledger é ÁREA → LOTE/POSIÇÃO. A exclusão do cadastro trava
- * o Lote (FOR UPDATE); numa empresa ativada ela chama isto ANTES, para não
- * cruzar com uma transferência que segura a área e pede KEY SHARE no Lote ao
- * criar a posição de destino (deadlock 40P01 visto em teste).
+ * o Lote (FOR UPDATE); numa empresa ativada ela chama isto ANTES (deadlock 40P01
+ * visto em teste: transferência segura a área e pede KEY SHARE no Lote).
  */
 export const travarAreasDoLoteNoLedger = async (tx, clienteId, loteId) => {
   const lote = await tx.lote.findUnique({ where: { cliente_id_id: { cliente_id: clienteId, id: loteId } }, select: { empresa_id: true } });
@@ -327,10 +268,7 @@ export const travarAreasDoLoteNoLedger = async (tx, clienteId, loteId) => {
 
 // ─── Entrada (cadastro de lote numa empresa ativada) ───────────────────────
 
-/**
- * Cadastro de lote = ENTRADA no ledger, na mesma transação do INSERT do Lote.
- * O Lote guarda só o fato da entrada; o saldo nasce numa posição.
- */
+/** Cadastro de lote = ENTRADA no ledger, na mesma transação do INSERT do Lote. */
 export const registrarEntradaSeAtivo = async (tx, contexto, lote) => {
   const auth = exigirAuthContext(contexto?.auth);
   const ativacao = await ativacaoDaEmpresa(tx, auth.clienteId, lote.empresa_id);
@@ -340,9 +278,7 @@ export const registrarEntradaSeAtivo = async (tx, contexto, lote) => {
   if (!areaId) throw invalido('lote precisa de área de entrada no ledger', { field: 'area_entrada_id' });
   if (!lote.data_entrada) throw invalido('lote precisa de data de entrada no ledger', { field: 'data_entrada' });
   const dia = diaDoBanco(lote.data_entrada);
-  if (dia < diaDoBanco(ativacao.data_corte)) {
-    throw recusa('REBANHO_ANTES_DO_CORTE', 'a data é anterior ao início do ledger nesta empresa', { data: dia, data_corte: diaDoBanco(ativacao.data_corte) });
-  }
+  exigirDiaNoLedger(ativacao, dia);
   if (!(quantidade > 0)) return null;
   await travarAreas(tx, auth.clienteId, lote.empresa_id, [areaId]);
   const evento = await criarEvento(tx, {
@@ -350,10 +286,15 @@ export const registrarEntradaSeAtivo = async (tx, contexto, lote) => {
     dados: { lote_id: lote.id, quantidade, area_id: areaId },
   });
   const { posicao } = await posicaoDaIdentidade(tx, auth.clienteId, lote.empresa_id, areaId, {
-    ...lote, lote_entrada_id: lote.id, linhagem: [{ lote_id: lote.id, nome: lote.nome, numero_lote: lote.numero_lote ?? null, classe: 'entrada' }],
+    ...lote,
+    origem: lote.id,
+    lote_entrada_id: lote.id,
+    linhagem: [{ lote_id: lote.id, nome: lote.nome, numero_lote: lote.numero_lote ?? null, classe: 'entrada' }],
   });
   await inserirPartidas(tx, { clienteId: auth.clienteId, empresaId: lote.empresa_id, eventoId: evento.id, dia, partidas: [{ posicao_id: posicao.id, delta: quantidade }] });
-  await reprojetar(tx, auth.clienteId, [posicao.id]);
+  const peso = pesoNum(lote.peso_entrada_kg) ?? pesoNum(lote.peso_medio_kg);
+  if (peso !== null) await registrarPeso(tx, { clienteId: auth.clienteId, empresaId: lote.empresa_id, eventoId: evento.id, posicaoId: posicao.id, dia, peso });
+  await validarEReprojetar(tx, auth.clienteId, [posicao.id], 'REBANHO_SALDO_HISTORICO_NEGATIVO', 'a entrada deixaria saldo negativo', (n) => n);
   await registrarEvento(contexto, { acao: 'create', entidade: 'EventoRebanho', entidadeId: evento.id, dadosNovos: { tipo: evento.tipo, lote_id: lote.id, posicao_id: posicao.id, quantidade, data_operacional: dia } }, tx);
   return { evento_id: evento.id, posicao_id: posicao.id };
 };
@@ -361,8 +302,8 @@ export const registrarEntradaSeAtivo = async (tx, contexto, lote) => {
 /**
  * Exclusão do cadastro numa empresa ativada: só se as posições do lote não
  * têm NENHUM fato ativo além da própria entrada/abertura. Então a entrada é
- * cancelada (partidas inativas, posições zeradas) e o chamador marca o
- * tombstone. Histórico nunca é apagado.
+ * cancelada (partidas e pesos inativos, posições zeradas) e o chamador marca
+ * o tombstone. Histórico nunca é apagado.
  */
 export const cancelarEntradaParaExclusao = async (tx, contexto, lote) => {
   const auth = exigirAuthContext(contexto?.auth);
@@ -377,6 +318,7 @@ export const cancelarEntradaParaExclusao = async (tx, contexto, lote) => {
   }
   const eventoIds = [...new Set(partidas.map((p) => p.evento_id))];
   await tx.partidaRebanho.updateMany({ where: { cliente_id: auth.clienteId, id: { in: partidas.map((p) => p.id) } }, data: { ativa: false } });
+  await tx.pesoRebanho.updateMany({ where: { cliente_id: auth.clienteId, posicao_id: { in: posicoes.map((p) => p.id) }, evento_id: { in: eventoIds } }, data: { ativa: false } });
   await reprojetar(tx, auth.clienteId, posicoes.map((p) => p.id));
   for (const id of eventoIds) {
     const ev = partidas.find((p) => p.evento_id === id).evento;
@@ -409,6 +351,119 @@ export const lerEntradaTransferencia = (entrada) => {
   return { operationKey, empresaId, areaDestinoId, data, dia: diaDe(data), itens, observacoes };
 };
 
+/**
+ * Núcleo da transferência, dentro da transação/idempotência do chamador
+ * (comando novo ou o `manejo-lote` legado numa empresa ativada).
+ */
+export const executarTransferencia = async (tx, contexto, e) => {
+  const auth = exigirAuthContext(contexto?.auth);
+  const ativacao = await ativacaoDaEmpresa(tx, auth.clienteId, e.empresaId);
+  if (!ativacao) throw recusa('REBANHO_LEDGER_INATIVO', 'o ledger de posições não está ativo nesta empresa');
+  exigirDiaNoLedger(ativacao, e.dia);
+  // Leitura sem trava só para saber as áreas; a trava vem em seguida, na ordem área → posição.
+  const previas = await tx.posicaoRebanho.findMany({ where: { cliente_id: auth.clienteId, id: { in: e.itens.map((i) => i.posicao_id) } }, select: { id: true, area_id: true, empresa_id: true } });
+  const porIdPrevia = new Map(previas.map((p) => [p.id, p]));
+  for (const it of e.itens) {
+    const p = porIdPrevia.get(it.posicao_id);
+    if (!p || p.empresa_id !== e.empresaId) throw new AppError('POSICAO_REBANHO_NOT_FOUND', 'posição não encontrada nesta empresa', { details: { posicao_id: it.posicao_id } });
+  }
+  const areas = await travarAreas(tx, auth.clienteId, e.empresaId, [e.areaDestinoId, ...previas.map((p) => p.area_id)]);
+  const destino = areas.get(e.areaDestinoId);
+  if (!destino) throw new AppError('AREA_NOT_FOUND', 'área de destino não encontrada nesta empresa');
+  if (destino.ativo === false) throw recusa('REBANHO_AREA_INATIVA', 'área de destino inativa');
+  const origens = await travarPosicoes(tx, auth.clienteId, e.itens.map((i) => i.posicao_id));
+  for (const it of e.itens) {
+    const o = origens.get(it.posicao_id);
+    if (!o || o.empresa_id !== e.empresaId) throw new AppError('POSICAO_REBANHO_NOT_FOUND', 'posição não encontrada nesta empresa', { details: { posicao_id: it.posicao_id } });
+    if (o.area_id === e.areaDestinoId) throw recusa('REBANHO_DESTINO_IGUAL_ORIGEM', 'a área de destino é a mesma da origem', { posicao_id: o.id });
+  }
+  ponto('apos_validar');
+
+  // Destino de cada item: mesma identidade (origem + classificação) na área de destino.
+  const destinos = new Map();
+  for (const it of e.itens) {
+    const { posicao } = await posicaoDaIdentidade(tx, auth.clienteId, e.empresaId, e.areaDestinoId, moldeDe(origens.get(it.posicao_id)));
+    destinos.set(it.posicao_id, posicao.id);
+  }
+  const todas = await travarPosicoes(tx, auth.clienteId, [...e.itens.map((i) => i.posicao_id), ...destinos.values()]);
+  const antes = new Map(todas);
+
+  const evento = await criarEvento(tx, {
+    clienteId: auth.clienteId, empresaId: e.empresaId, tipo: TIPOS_EVENTO.TRANSFERENCIA, dia: e.dia, usuarioId: auth.usuarioId, operationKey: e.operationKey,
+    dados: {
+      area_destino_id: destino.id,
+      area_destino_nome: destino.nome,
+      ...(e.observacoes ? { observacoes: e.observacoes } : {}),
+      itens: e.itens.map((it) => {
+        const o = todas.get(it.posicao_id);
+        return {
+          origem_posicao_id: o.id, destino_posicao_id: destinos.get(it.posicao_id), quantidade: it.quantidade,
+          area_origem_id: o.area_id, area_origem_nome: areas.get(o.area_id)?.nome ?? null,
+          lote_entrada_id: o.lote_entrada_id, nome: o.nome, categoria: o.categoria, sexo: o.sexo,
+        };
+      }),
+    },
+  });
+  ponto('apos_evento');
+  // Peso no destino NA DATA do fato: ponderado com o que o destino tinha naquele dia.
+  for (const it of e.itens) {
+    const d = todas.get(destinos.get(it.posicao_id));
+    const o = todas.get(it.posicao_id);
+    await garantirPesoBase(tx, auth.clienteId, d);
+    await garantirPesoBase(tx, auth.clienteId, o);
+    const sDestino = await saldoNaData(tx, auth.clienteId, d.id, e.dia);
+    const pDestino = await pesoNaData(tx, auth.clienteId, d.id, e.dia);
+    const pOrigem = await pesoNaData(tx, auth.clienteId, o.id, e.dia);
+    const peso = pesoPonderado(sDestino, pDestino ?? null, it.quantidade, pOrigem ?? pesoNum(o.peso_medio_kg));
+    await registrarPeso(tx, { clienteId: auth.clienteId, empresaId: e.empresaId, eventoId: evento.id, posicaoId: d.id, dia: e.dia, peso });
+  }
+  let n = 0;
+  for (const it of e.itens) {
+    await inserirPartidas(tx, {
+      clienteId: auth.clienteId, empresaId: e.empresaId, eventoId: evento.id, dia: e.dia,
+      partidas: [{ posicao_id: it.posicao_id, delta: -it.quantidade }, { posicao_id: destinos.get(it.posicao_id), delta: it.quantidade }],
+    });
+    n += 1;
+    if (n === 1) ponto('apos_primeira_partida');
+  }
+  const envolvidas = [...todas.keys()];
+  await validarEReprojetar(tx, auth.clienteId, envolvidas, 'REBANHO_SALDO_HISTORICO_NEGATIVO', 'a transferência deixaria saldo negativo numa data; nada foi gravado',
+    detalheSaldo(todas, areas, new Map(e.itens.map((it) => [it.posicao_id, it.quantidade])), e.dia));
+  ponto('apos_segunda_posicao');
+
+  const primeira = todas.get(e.itens[0].posicao_id);
+  const total = e.itens.reduce((t, it) => t + it.quantidade, 0);
+  const mov = await criarPonteMovimentacao(tx, contexto, {
+    clienteId: auth.clienteId, empresaId: e.empresaId, evento, operationKey: e.operationKey, usuarioId: auth.usuarioId,
+    dados: {
+      tipo: 'Transferência de Área',
+      lote: primeira.nome,
+      lote_id: primeira.lote_entrada_id ?? primeira.id,
+      lote_ids: idsCitados([...todas.values()]),
+      quantidade_animais: total,
+      data_movimentacao: e.data,
+      area_origem_id: primeira.area_id,
+      area_origem_nome: areas.get(primeira.area_id)?.nome ?? null,
+      area_destino_id: destino.id,
+      area_destino_nome: destino.nome,
+      categoria_animal: [...new Set(e.itens.map((it) => todas.get(it.posicao_id).categoria).filter(Boolean))].join(', ') || null,
+      linhas: evento.dados.itens,
+      ...(e.observacoes ? { observacoes: e.observacoes } : {}),
+    },
+  });
+  ponto('antes_auditoria');
+  const depois = await auditarPosicoes(contexto, tx, auth.clienteId, envolvidas, antes);
+  return {
+    httpStatus: 201,
+    body: {
+      evento: { id: evento.id, tipo: evento.tipo, data_operacional: e.dia, registrado_em: evento.registrado_em.toISOString() },
+      movimentacao: documentoComoPublico(mov),
+      posicoes: [...depois.values()].map((p) => comoPosicaoPublica(p, areas.get(p.area_id)?.nome ?? null)),
+      lotes: [...depois.values()].map((p) => comoPosicaoPublica(p, areas.get(p.area_id)?.nome ?? null)),
+    },
+  };
+};
+
 export const transferir = async (contexto, entrada) => {
   const auth = exigirAuthContext(contexto?.auth);
   const e = lerEntradaTransferencia(entrada);
@@ -423,139 +478,7 @@ export const transferir = async (contexto, entrada) => {
       executar: async () => {
         const empresa = await tx.empresa.findUnique({ where: { cliente_id_id: { cliente_id: auth.clienteId, id: e.empresaId } }, select: { id: true } });
         if (!empresa) throw new AppError('EMPRESA_NOT_FOUND', 'empresa não encontrada');
-        const ativacao = await ativacaoDaEmpresa(tx, auth.clienteId, e.empresaId);
-        if (!ativacao) throw recusa('REBANHO_LEDGER_INATIVO', 'o ledger de posições não está ativo nesta empresa');
-        if (e.dia < diaDoBanco(ativacao.data_corte)) {
-          throw recusa('REBANHO_ANTES_DO_CORTE', 'a data é anterior ao início do ledger nesta empresa', { data: e.dia, data_corte: diaDoBanco(ativacao.data_corte) });
-        }
-        // Leitura sem trava só para saber as áreas; a trava vem em seguida, na ordem área → posição.
-        const previas = await tx.posicaoRebanho.findMany({ where: { cliente_id: auth.clienteId, id: { in: e.itens.map((i) => i.posicao_id) } }, select: { id: true, area_id: true, empresa_id: true } });
-        const porIdPrevia = new Map(previas.map((p) => [p.id, p]));
-        for (const it of e.itens) {
-          const p = porIdPrevia.get(it.posicao_id);
-          if (!p || p.empresa_id !== e.empresaId) throw new AppError('POSICAO_REBANHO_NOT_FOUND', 'posição não encontrada nesta empresa', { details: { posicao_id: it.posicao_id } });
-        }
-        const areas = await travarAreas(tx, auth.clienteId, e.empresaId, [e.areaDestinoId, ...previas.map((p) => p.area_id)]);
-        const destino = areas.get(e.areaDestinoId);
-        if (!destino) throw new AppError('AREA_NOT_FOUND', 'área de destino não encontrada nesta empresa');
-        if (destino.ativo === false) throw recusa('REBANHO_AREA_INATIVA', 'área de destino inativa');
-        let origens = await travarPosicoes(tx, auth.clienteId, e.itens.map((i) => i.posicao_id));
-        for (const it of e.itens) {
-          const o = origens.get(it.posicao_id);
-          if (!o || o.empresa_id !== e.empresaId) throw new AppError('POSICAO_REBANHO_NOT_FOUND', 'posição não encontrada nesta empresa', { details: { posicao_id: it.posicao_id } });
-          if (o.area_id === e.areaDestinoId) throw recusa('REBANHO_DESTINO_IGUAL_ORIGEM', 'a área de destino é a mesma da origem', { posicao_id: o.id });
-        }
-        ponto('apos_validar');
-
-        // Destino de cada item: mesma identidade (linhagem + classificação) na área de destino.
-        const destinos = new Map();
-        for (const it of e.itens) {
-          const o = origens.get(it.posicao_id);
-          const { posicao } = await posicaoDaIdentidade(tx, auth.clienteId, e.empresaId, e.areaDestinoId, o);
-          destinos.set(it.posicao_id, posicao.id);
-        }
-        const todas = await travarPosicoes(tx, auth.clienteId, [...e.itens.map((i) => i.posicao_id), ...destinos.values()]);
-        const antes = new Map(todas);
-        origens = todas;
-
-        const evento = await criarEvento(tx, {
-          clienteId: auth.clienteId, empresaId: e.empresaId, tipo: TIPOS_EVENTO.TRANSFERENCIA, dia: e.dia, usuarioId: auth.usuarioId, operationKey: e.operationKey,
-          dados: {
-            area_destino_id: destino.id,
-            area_destino_nome: destino.nome,
-            ...(e.observacoes ? { observacoes: e.observacoes } : {}),
-            itens: e.itens.map((it) => {
-              const o = origens.get(it.posicao_id);
-              return {
-                origem_posicao_id: o.id, destino_posicao_id: destinos.get(it.posicao_id), quantidade: it.quantidade,
-                area_origem_id: o.area_id, area_origem_nome: areas.get(o.area_id)?.nome ?? null,
-                lote_entrada_id: o.lote_entrada_id, nome: o.nome, categoria: o.categoria, sexo: o.sexo,
-              };
-            }),
-          },
-        });
-        ponto('apos_evento');
-        let n = 0;
-        for (const it of e.itens) {
-          await inserirPartidas(tx, {
-            clienteId: auth.clienteId, empresaId: e.empresaId, eventoId: evento.id, dia: e.dia,
-            partidas: [{ posicao_id: it.posicao_id, delta: -it.quantidade }, { posicao_id: destinos.get(it.posicao_id), delta: it.quantidade }],
-          });
-          n += 1;
-          if (n === 1) ponto('apos_primeira_partida');
-        }
-        // Peso: atributo atual da posição (não historiado). Destino novo herda o
-        // da origem; destino com cabeças só recebe média ponderada se os dois
-        // pesos forem conhecidos — senão fica sem peso (desconhecido não é zero).
-        for (const it of e.itens) {
-          const o = origens.get(it.posicao_id);
-          const d = origens.get(destinos.get(it.posicao_id));
-          const pd = pesoNum(d.peso_medio_kg);
-          const po = pesoNum(o.peso_medio_kg);
-          let peso = null;
-          if (d.quantidade_cabecas === 0) peso = po;
-          else if (pd !== null && po !== null) peso = Number(((pd * d.quantidade_cabecas + po * it.quantidade) / (d.quantidade_cabecas + it.quantidade)).toFixed(4));
-          if ((peso ?? null) !== (pd ?? null)) await tx.posicaoRebanho.update({ where: { cliente_id_id: { cliente_id: auth.clienteId, id: d.id } }, data: { peso_medio_kg: peso } });
-        }
-        const envolvidas = [...todas.keys()];
-        await validarEReprojetar(tx, auth.clienteId, envolvidas, 'REBANHO_SALDO_HISTORICO_NEGATIVO',
-          'a transferência deixaria saldo negativo numa data; nada foi gravado', (neg) => {
-            const p = todas.get(neg.posicao_id);
-            const it = e.itens.find((i) => i.posicao_id === neg.posicao_id);
-            return {
-              data: neg.dia, area_id: p?.area_id ?? null, area_nome: areas.get(p?.area_id)?.nome ?? null, posicao_id: neg.posicao_id,
-              lote_entrada_id: p?.lote_entrada_id ?? null, nome: p?.nome ?? null,
-              disponivel: it && neg.dia >= e.dia ? neg.saldo + it.quantidade : null, pedido: it?.quantidade ?? null, saldo_resultante: neg.saldo,
-            };
-          });
-        ponto('apos_segunda_posicao');
-
-        // Ponte com o histórico existente (MovimentacaoMapa): o fato continua
-        // visível por cadastro de origem, por posição e por área.
-        const loteIds = [...new Set(e.itens.flatMap((it) => {
-          const o = origens.get(it.posicao_id);
-          return [o.lote_entrada_id, o.id, destinos.get(it.posicao_id)].filter(Boolean);
-        }))];
-        const primeira = origens.get(e.itens[0].posicao_id);
-        const total = e.itens.reduce((t, it) => t + it.quantidade, 0);
-        const mov = await tx.movimentacaoMapa.create({
-          data: {
-            cliente_id: auth.clienteId,
-            empresa_id: e.empresaId,
-            dados: {
-              tipo: 'Transferência de Área',
-              lote: primeira.nome,
-              lote_id: primeira.lote_entrada_id ?? primeira.id,
-              lote_ids: loteIds,
-              quantidade_animais: total,
-              data_movimentacao: e.data,
-              area_origem_id: primeira.area_id,
-              area_origem_nome: areas.get(primeira.area_id)?.nome ?? null,
-              area_destino_id: destino.id,
-              area_destino_nome: destino.nome,
-              categoria_animal: [...new Set(e.itens.map((it) => origens.get(it.posicao_id).categoria).filter(Boolean))].join(', ') || null,
-              linhas: evento.dados.itens,
-              ...(e.observacoes ? { observacoes: e.observacoes } : {}),
-              efeito_servidor: {
-                comando: COMANDO_LEDGER, evento_id: evento.id, operation_id: e.operationKey,
-                registrado_em: evento.registrado_em.toISOString(), registrado_por_usuario_id: auth.usuarioId,
-              },
-            },
-          },
-        });
-        await tx.eventoRebanho.update({ where: { cliente_id_id: { cliente_id: auth.clienteId, id: evento.id } }, data: { movimentacao_id: mov.id } });
-        ponto('antes_auditoria');
-        const depois = await auditarPosicoes(contexto, tx, auth.clienteId, envolvidas, antes);
-        await registrarEvento(contexto, { acao: 'create', entidade: 'EventoRebanho', entidadeId: evento.id, dadosNovos: { tipo: evento.tipo, data_operacional: e.dia, movimentacao_id: mov.id, total } }, tx);
-        await registrarEvento(contexto, { acao: 'create', entidade: 'MovimentacaoMapa', entidadeId: mov.id, dadosNovos: documentoComoPublico(mov) }, tx);
-        return {
-          httpStatus: 201,
-          body: {
-            evento: { id: evento.id, tipo: evento.tipo, data_operacional: e.dia, registrado_em: evento.registrado_em.toISOString() },
-            movimentacao: documentoComoPublico(mov),
-            posicoes: [...depois.values()].map((p) => comoPosicaoPublica(p, areas.get(p.area_id)?.nome ?? null)),
-          },
-        };
+        return executarTransferencia(tx, contexto, e);
       },
     })
   );
@@ -568,26 +491,54 @@ export const transferir = async (contexto, entrada) => {
 export const ehMovimentoDoLedger = (mov) => mov?.dados?.efeito_servidor?.comando === COMANDO_LEDGER;
 
 /**
- * Cancela o EVENTO do ledger ligado ao movimento: desativa as partidas,
- * revalida a linha do tempo de todas as posições tocadas (um fato futuro que
- * dependia destas cabeças bloqueia: 409 com a data) e reprojeta. O original
- * fica, marcado `cancelado`, com quem/quando/motivo. Chamado dentro da
- * transação e da idempotência do cancelamento.
+ * Numa empresa ATIVADA, movimento legado (anterior ao ledger) não é desfeito
+ * pelo caminho antigo — mexeria em `Lote` e abriria duas verdades (drift
+ * reproduzido no RED B). O histórico continua consultável; a correção é um
+ * fato novo no ledger.
+ */
+export const exigirCancelamentoLegadoPermitido = async (tx, clienteId, mov) => {
+  if (ehMovimentoDoLedger(mov)) return;
+  if (await ativacaoDaEmpresa(tx, clienteId, mov.empresa_id)) {
+    throw recusa(
+      'REBANHO_LEDGER_CANCELAMENTO_LEGADO',
+      'esta empresa usa o ledger de posições: movimentos anteriores à ativação ficam no histórico e não são desfeitos pelo modelo antigo; registre a correção como um novo manejo',
+      { movimentacao_id: mov.id }
+    );
+  }
+};
+
+/**
+ * Cancela o EVENTO do ledger ligado ao movimento (qualquer manejo): desativa
+ * partidas e pesos, revalida a linha do tempo de todas as posições tocadas (um
+ * fato posterior que dependia destas cabeças bloqueia: 409 com a data) e
+ * reprojeta. Junção: as contribuições de linhagem deste evento saem da
+ * composição. O original fica, marcado `cancelado`.
  */
 export const cancelarMovimentoDoLedger = async (tx, contexto, mov, motivo, operationKey) => {
   const auth = exigirAuthContext(contexto?.auth);
   const eventoId = mov.dados.efeito_servidor.evento_id;
   const evento = await tx.eventoRebanho.findUnique({ where: { cliente_id_id: { cliente_id: auth.clienteId, id: String(eventoId) } } });
-  if (!evento || evento.movimentacao_id !== mov.id || evento.empresa_id !== mov.empresa_id || evento.tipo !== TIPOS_EVENTO.TRANSFERENCIA) {
+  if (!evento || evento.movimentacao_id !== mov.id || evento.empresa_id !== mov.empresa_id || !TIPOS_CANCELAVEIS.includes(evento.tipo)) {
     throw recusa('CANCELAMENTO_EFEITO_NAO_COMPROVADO', 'o evento do ledger não confere com este movimento');
   }
+  const operacao = await tx.operacaoIdempotente.findFirst({ where: { cliente_id: auth.clienteId, operation_key: evento.operation_id, status: 'committed' } });
+  if (!operacao) throw recusa('CANCELAMENTO_EFEITO_NAO_COMPROVADO', 'a operação que gerou o evento não foi confirmada');
   if (evento.situacao === 'cancelado') throw recusa('CANCELAMENTO_JA_REALIZADO', 'a movimentação já está cancelada');
   const partidas = await tx.partidaRebanho.findMany({ where: { cliente_id: auth.clienteId, evento_id: evento.id } });
-  const ids = [...new Set(partidas.map((p) => p.posicao_id))];
+  const pesos = await tx.pesoRebanho.findMany({ where: { cliente_id: auth.clienteId, evento_id: evento.id }, select: { posicao_id: true } });
+  const ids = [...new Set([...partidas.map((p) => p.posicao_id), ...pesos.map((p) => p.posicao_id)])];
   const previas = await tx.posicaoRebanho.findMany({ where: { cliente_id: auth.clienteId, id: { in: ids } }, select: { area_id: true } });
   const areas = await travarAreas(tx, auth.clienteId, evento.empresa_id, previas.map((p) => p.area_id));
   const antes = await travarPosicoes(tx, auth.clienteId, ids);
   await tx.partidaRebanho.updateMany({ where: { cliente_id: auth.clienteId, evento_id: evento.id }, data: { ativa: false } });
+  await tx.pesoRebanho.updateMany({ where: { cliente_id: auth.clienteId, evento_id: evento.id }, data: { ativa: false } });
+  if (evento.tipo === TIPOS_EVENTO.JUNCAO) {
+    for (const p of antes.values()) {
+      const lin = Array.isArray(p.linhagem) ? p.linhagem : [];
+      const restante = lin.filter((x) => x?.evento_id !== evento.id);
+      if (restante.length !== lin.length) await tx.posicaoRebanho.update({ where: { cliente_id_id: { cliente_id: auth.clienteId, id: p.id } }, data: { linhagem: restante } });
+    }
+  }
   await validarEReprojetar(tx, auth.clienteId, ids, 'CANCELAMENTO_SALDO_HISTORICO_NEGATIVO',
     'cancelar esta movimentação deixaria saldo negativo numa data (um fato posterior usa estas cabeças); cancele o posterior antes', (neg) => {
       const p = antes.get(neg.posicao_id);
@@ -600,7 +551,7 @@ export const cancelarMovimentoDoLedger = async (tx, contexto, mov, motivo, opera
   });
   const depois = await auditarPosicoes(contexto, tx, auth.clienteId, ids, antes);
   const efeitos = partidas.map((p) => ({ posicao_id: p.posicao_id, delta_desfeito: -p.delta, depois: depois.get(p.posicao_id)?.quantidade_cabecas ?? null }));
-  return { efeitos, cancelamento: { em: agora.toISOString(), por_usuario_id: auth.usuarioId, motivo, operation_id: operationKey, modo: 'ledger', efeitos } };
+  return { efeitos, cancelamento: { em: agora.toISOString(), por_usuario_id: auth.usuarioId, motivo, operation_id: operationKey, modo: 'ledger', evento_tipo: evento.tipo, efeitos } };
 };
 
 // ─── Leituras ──────────────────────────────────────────────────────────────
@@ -610,40 +561,44 @@ export const listarPosicoes = async (contexto, { empresa_id: empresaId, incluir_
   const auth = exigirAuthContext(contexto?.auth);
   const prisma = getPrismaClient();
   const ativacao = await ativacaoDaEmpresa(prisma, auth.clienteId, empresaId);
-  if (!ativacao) return { ativo: false, data_corte: null, itens: [] };
+  if (!ativacao) return { ativo: false, modo: null, data_corte: null, itens: [] };
   const ps = await prisma.posicaoRebanho.findMany({
     where: { cliente_id: auth.clienteId, empresa_id: empresaId, ...(incluirVazias === 'true' ? {} : { quantidade_cabecas: { gt: 0 } }) },
     include: { area: { select: { nome: true } } },
     orderBy: [{ area_id: 'asc' }, { numero_lote: 'asc' }, { id: 'asc' }],
   });
-  return { ativo: true, data_corte: diaDoBanco(ativacao.data_corte), itens: ps.map((p) => comoPosicaoPublica(p)) };
+  return { ativo: true, modo: ativacao.modo, data_corte: diaDoBanco(ativacao.data_corte), itens: ps.map((p) => comoPosicaoPublica(p)) };
 };
 
-/** Saldo em uma data (fim do dia) por posição, a partir das partidas ativas. */
+/** Saldo e peso em uma data (fim do dia) por posição, a partir das partidas e pesos ativos. */
 export const saldosNaData = async (contexto, { empresa_id: empresaId, data, area_id: areaId }) => {
   const auth = exigirAuthContext(contexto?.auth);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(data ?? '')) || !dataOperacionalValida(data)) throw invalido('data deve ser AAAA-MM-DD de calendário real', { field: 'data' });
   const prisma = getPrismaClient();
   if (!(await ativacaoDaEmpresa(prisma, auth.clienteId, empresaId))) throw recusa('REBANHO_LEDGER_INATIVO', 'o ledger de posições não está ativo nesta empresa');
-  const linhas = /** @type {Array<{posicao_id: string, area_id: string, area_nome: string, nome: string, categoria: string|null, sexo: string|null, lote_entrada_id: string|null, saldo: number}>} */ (
+  const linhas = /** @type {Array<{posicao_id: string, area_id: string, area_nome: string, nome: string, categoria: string|null, sexo: string|null, lote_entrada_id: string|null, saldo: number, peso: any}>} */ (
     await prisma.$queryRaw`
       SELECT p.id AS posicao_id, p.area_id, a.nome AS area_nome, p.nome, p.categoria, p.sexo, p.lote_entrada_id,
-             COALESCE(SUM(x.delta) FILTER (WHERE x.ativa AND x.data_operacional <= ${data}::date), 0)::int AS saldo
+             COALESCE((SELECT SUM(x.delta) FROM "PartidaRebanho" x WHERE x.cliente_id = p.cliente_id AND x.posicao_id = p.id AND x.ativa AND x.data_operacional <= ${data}::date), 0)::int AS saldo,
+             (SELECT w.peso_medio_kg FROM "PesoRebanho" w WHERE w.cliente_id = p.cliente_id AND w.posicao_id = p.id AND w.ativa AND w.data_operacional <= ${data}::date
+               ORDER BY w.data_operacional DESC, w."createdAt" DESC, w.id DESC LIMIT 1) AS peso
         FROM "PosicaoRebanho" p
         JOIN "AreaPastagem" a ON a.cliente_id = p.cliente_id AND a.id = p.area_id
-        LEFT JOIN "PartidaRebanho" x ON x.cliente_id = p.cliente_id AND x.posicao_id = p.id
        WHERE p.cliente_id = ${auth.clienteId} AND p.empresa_id = ${empresaId}
          ${areaId ? Prisma.sql`AND p.area_id = ${areaId}` : Prisma.empty}
-       GROUP BY p.id, a.nome
        ORDER BY p.area_id, p.id`
   );
-  const comSaldo = linhas.filter((l) => l.saldo !== 0);
+  const comSaldo = linhas.filter((l) => l.saldo !== 0).map((l) => ({ ...l, peso_medio_kg: pesoNum(l.peso), peso: undefined }));
   const porArea = {};
   for (const l of comSaldo) porArea[l.area_id] = { area_id: l.area_id, area_nome: l.area_nome, total: (porArea[l.area_id]?.total ?? 0) + l.saldo };
   return { data, posicoes: comSaldo, areas: Object.values(porArea), total: comSaldo.reduce((t, l) => t + l.saldo, 0) };
 };
 
-/** Reconciliação read-only: projeção × soma das partidas e fins de dia negativos. */
+/**
+ * Reconciliação read-only: projeção × partidas, fins de dia negativos, peso
+ * projetado × última observação, e conservação (entradas + nascimentos −
+ * mortes/abates = saldo total).
+ */
 export const verificarLedger = async (contexto, { empresa_id: empresaId }) => {
   const auth = exigirAuthContext(contexto?.auth);
   const prisma = getPrismaClient();
@@ -654,7 +609,33 @@ export const verificarLedger = async (contexto, { empresa_id: empresaId }) => {
        WHERE p.cliente_id = ${auth.clienteId} AND p.empresa_id = ${empresaId}
        GROUP BY p.id HAVING p.quantidade_cabecas <> COALESCE(SUM(x.delta) FILTER (WHERE x.ativa), 0)`
   );
+  const pesosDivergentes = /** @type {Array<{posicao_id: string}>} */ (
+    await prisma.$queryRaw`
+      SELECT p.id AS posicao_id FROM "PosicaoRebanho" p
+       WHERE p.cliente_id = ${auth.clienteId} AND p.empresa_id = ${empresaId}
+         AND EXISTS (SELECT 1 FROM "PesoRebanho" w WHERE w.cliente_id = p.cliente_id AND w.posicao_id = p.id)
+         AND p.peso_medio_kg IS DISTINCT FROM (SELECT w.peso_medio_kg FROM "PesoRebanho" w WHERE w.cliente_id = p.cliente_id AND w.posicao_id = p.id AND w.ativa
+                                               ORDER BY w.data_operacional DESC, w."createdAt" DESC, w.id DESC LIMIT 1)`
+  );
+  const [conservacao] = /** @type {Array<{entradas: number, nascimentos: number, saidas: number, internos: number, saldo: number}>} */ (
+    await prisma.$queryRaw`
+      SELECT COALESCE(SUM(x.delta) FILTER (WHERE e.tipo IN ('SALDO_ABERTURA','ENTRADA')), 0)::int AS entradas,
+             COALESCE(SUM(x.delta) FILTER (WHERE e.tipo = 'NASCIMENTO'), 0)::int AS nascimentos,
+             COALESCE(SUM(x.delta) FILTER (WHERE e.tipo IN ('MORTE','ABATE')), 0)::int AS saidas,
+             COALESCE(SUM(x.delta) FILTER (WHERE e.tipo IN ('TRANSFERENCIA','MUDANCA_CATEGORIA','JUNCAO','PESAGEM')), 0)::int AS internos,
+             COALESCE(SUM(x.delta), 0)::int AS saldo
+        FROM "PartidaRebanho" x JOIN "EventoRebanho" e ON e.cliente_id = x.cliente_id AND e.id = x.evento_id
+       WHERE x.cliente_id = ${auth.clienteId} AND x.empresa_id = ${empresaId} AND x.ativa`
+  );
   const ids = (await prisma.posicaoRebanho.findMany({ where: { cliente_id: auth.clienteId, empresa_id: empresaId }, select: { id: true } })).map((p) => p.id);
   const negativos = await primeirosSaldosNegativos(prisma, auth.clienteId, ids);
-  return { posicoes: ids.length, divergentes, negativos: negativos.map((n) => ({ ...n, dia: diaDoBanco(n.dia) })), integro: !divergentes.length && !negativos.length };
+  const conserva = !!conservacao && conservacao.internos === 0 && conservacao.entradas + conservacao.nascimentos + conservacao.saidas === conservacao.saldo;
+  return {
+    posicoes: ids.length,
+    divergentes,
+    pesos_divergentes: pesosDivergentes,
+    negativos: negativos.map((n) => ({ ...n, dia: diaDoBanco(n.dia) })),
+    conservacao: { ...conservacao, conserva },
+    integro: !divergentes.length && !negativos.length && !pesosDivergentes.length && conserva,
+  };
 };

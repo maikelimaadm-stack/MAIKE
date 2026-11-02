@@ -84,6 +84,7 @@ export const comoLancamentoPublico = (registro) => ({
   area_id: registro.area_id ?? null,
   area_nome: registro.area_nome ?? null,
   lote_id: registro.lote_id ?? null,
+  posicao_id: registro.posicao_id ?? null,
   lote_nome: registro.lote_nome ?? null,
   ponto_suplementacao_id: registro.ponto_suplementacao_id ?? null,
   coordenadas: registro.coordenadas ?? null,
@@ -191,12 +192,19 @@ const resolverTipoTarefa = async (tx, clienteId, tipoId) => {
  * @param {string | null | undefined} loteId
  */
 const resolverLote = async (tx, clienteId, loteId) => {
-  if (!loteId) return { lote_id: null, lote_nome: null };
+  if (!loteId) return { lote_id: null, lote_nome: null, posicao_id: null };
+  // R2E-R1 (D-PROD-107): no ledger o mapa cita a POSIÇÃO; a tarefa guarda a
+  // posição em `posicao_id` e a ENTRADA de origem (cadastro) em `lote_id`.
+  const posicao = await tx.posicaoRebanho.findFirst({ where: { cliente_id: clienteId, id: loteId }, select: { id: true, nome: true, lote_entrada_id: true } });
+  if (posicao) {
+    if (posicao.lote_entrada_id) await exigirLotesNaoExcluidos(tx, clienteId, [posicao.lote_entrada_id]);
+    return { lote_id: posicao.lote_entrada_id ?? null, lote_nome: posicao.nome, posicao_id: posicao.id };
+  }
   // FOR SHARE + recusa de lote excluído do cadastro (MAIKE-LOTES-R1).
   await exigirLotesNaoExcluidos(tx, clienteId, [loteId]);
   const lote = await buscarLote(clienteId, loteId, tx);
   if (!lote) throw loteNotFound();
-  return { lote_id: loteId, lote_nome: lote.nome };
+  return { lote_id: loteId, lote_nome: lote.nome, posicao_id: null };
 };
 
 /**

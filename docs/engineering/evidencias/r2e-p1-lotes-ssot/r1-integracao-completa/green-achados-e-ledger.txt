@@ -1,0 +1,220 @@
+TAP version 13
+# ◇ injected env (0) from .env // tip: ⌘ suppress logs { quiet: true }
+# (node:1452) [FSTDEP023] FastifyDeprecation: disableRequestLogging option is deprecated. Use the logController option with disableRequestLogging or isLogDisabled override instead. The disableRequestLogging top-level option will be removed in `fastify@6`.
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: R2E ledger — cadastro × posições × movimentações, retroatividade
+    # Subtest: L1: 500 em A; 02 A→B 100 → 400/100; depois 01 A→B 100 → 300/200; Lote só com a entrada de 500; 450 no dia 01 → 409 sem efeito
+    ok 1 - L1: 500 em A; 02 A→B 100 → 400/100; depois 01 A→B 100 → 300/200; Lote só com a entrada de 500; 450 no dia 01 → 409 sem efeito
+      ---
+      duration_ms: 810.317547
+      type: 'test'
+      ...
+    # Subtest: L2: A=320 B=150 C=30 (com retorno): 02 A→B 100; 01 A→B 100 (lançado depois); 03 B→C 50; 04 C→A 20; total 500; replay não duplica
+    ok 2 - L2: A=320 B=150 C=30 (com retorno): 02 A→B 100; 01 A→B 100 (lançado depois); 03 B→C 50; 04 C→A 20; total 500; replay não duplica
+      ---
+      duration_ms: 702.360185
+      type: 'test'
+      ...
+    # Subtest: L3: saldo histórico — origem sem estoque na data (mesmo com saldo hoje) e retroativo que quebra fato futuro → 409 com data/área/disponível
+    ok 3 - L3: saldo histórico — origem sem estoque na data (mesmo com saldo hoje) e retroativo que quebra fato futuro → 409 com data/área/disponível
+      ---
+      duration_ms: 673.456646
+      type: 'test'
+      ...
+    # Subtest: L4: mesmo dia — várias transferências no dia 02 são aceitas (sem meia-noite × meio-dia); disponibilidade é por FIM de dia
+    ok 4 - L4: mesmo dia — várias transferências no dia 02 são aceitas (sem meia-noite × meio-dia); disponibilidade é por FIM de dia
+      ---
+      duration_ms: 685.33012
+      type: 'test'
+      ...
+    # Subtest: L5: várias entradas e homônimos — 500 e 300 (mesmo nome) numa confirmação para B: duas posições, linhagens separadas, total 800
+    ok 5 - L5: várias entradas e homônimos — 500 e 300 (mesmo nome) numa confirmação para B: duas posições, linhagens separadas, total 800
+      ---
+      duration_ms: 544.332346
+      type: 'test'
+      ...
+    # Subtest: L6: contrato estrito e isolamento — data impossível, antes do corte, mesmo destino, posição/área alheias, campos forjados
+    ok 6 - L6: contrato estrito e isolamento — data impossível, antes do corte, mesmo destino, posição/área alheias, campos forjados
+      ---
+      duration_ms: 1335.876081
+      type: 'test'
+      ...
+    1..6
+ok 1 - R2E ledger — cadastro × posições × movimentações, retroatividade
+  ---
+  duration_ms: 5229.692434
+  type: 'suite'
+  ...
+# Subtest: R2E ledger — cancelamento, histórico, cadastro
+    # Subtest: X1: cancelar fato do qual um posterior depende → 409 com data; cancela o posterior e depois o anterior; histórico rotulado nas duas áreas e na entrada
+    ok 1 - X1: cancelar fato do qual um posterior depende → 409 com data; cancela o posterior e depois o anterior; histórico rotulado nas duas áreas e na entrada
+      ---
+      duration_ms: 750.977901
+      type: 'test'
+      ...
+    # Subtest: X2: cadastro — PATCH de saldo/área/status → 409; nome propaga às posições; DELETE com movimento ativo → 409; sem movimento → tombstone e posição zerada
+    ok 2 - X2: cadastro — PATCH de saldo/área/status → 409; nome propaga às posições; DELETE com movimento ativo → 409; sem movimento → tombstone e posição zerada
+      ---
+      duration_ms: 843.376386
+      type: 'test'
+      ...
+    # Subtest: X3: na empresa no ledger os comandos do mapa operam POSIÇÕES — id de CADASTRO não é posição (404) e Lote nunca muda; empresa legada segue igual
+    ok 3 - X3: na empresa no ledger os comandos do mapa operam POSIÇÕES — id de CADASTRO não é posição (404) e Lote nunca muda; empresa legada segue igual
+      ---
+      duration_ms: 983.322532
+      type: 'test'
+      ...
+    # Subtest: X4: ativação — saldo de abertura das linhas legadas (inclusive derivadas) sem alterar Lote; só admin; corte anterior a movimento legado e lote sem área → 409
+    ok 4 - X4: ativação — saldo de abertura das linhas legadas (inclusive derivadas) sem alterar Lote; só admin; corte anterior a movimento legado e lote sem área → 409
+      ---
+      duration_ms: 912.492909
+      type: 'test'
+      ...
+    1..4
+ok 2 - R2E ledger — cancelamento, histórico, cadastro
+  ---
+  duration_ms: 3491.051542
+  type: 'suite'
+  ...
+# Subtest: R2E ledger — rollback por passo, volume, concorrência (3 rodadas)
+    # Subtest: R1: falha injetada após validar, após evento, após 1ª partida, após reprojeção e antes da auditoria → ZERO mudança
+    ok 1 - R1: falha injetada após validar, após evento, após 1ª partida, após reprojeção e antes da auditoria → ZERO mudança
+      ---
+      duration_ms: 2470.94433
+      type: 'test'
+      ...
+#   transferência retroativa validada contra 2.000+ partidas em 29 ms
+#   EXPLAIN:
+#     GroupAggregate (actual rows=54 loops=1)
+#       Group Key: posicao_id, data_operacional
+#       Buffers: shared hit=102
+#       ->  Index Scan using "PartidaRebanho_cliente_id_posicao_id_data_operacional_idx" on "PartidaRebanho" (actual rows=1964 loops=1)
+#             Index Cond: ((cliente_id)::text = 'cmvzjz8q700zt7d4c7d6n32w4'::text)
+#             Filter: (ativa AND ((posicao_id)::text = ANY ('{cmvzjz90n010r7d4cigu130ap,cmvzjz91o010z7d4cb6mk0a9i}'::text[])))
+#             Rows Removed by Filter: 41
+#             Buffers: shared hit=102
+#     Planning:
+#       Buffers: shared hit=4
+#     Planning Time: 0.158 ms
+#     Execution Time: 0.617 ms
+    # Subtest: V1: 1.000 fatos numa posição com cancelados no meio (> 610): retroativo valida a linha inteira, sem teto; EXPLAIN usa o índice
+    ok 2 - V1: 1.000 fatos numa posição com cancelados no meio (> 610): retroativo valida a linha inteira, sem teto; EXPLAIN usa o índice
+      ---
+      duration_ms: 899.064314
+      type: 'test'
+      ...
+    # Subtest: K1.1: duas transferências da mesma origem disputando saldo (300 + 300 de 500) → uma 201, outra 409; total 500
+    ok 3 - K1.1: duas transferências da mesma origem disputando saldo (300 + 300 de 500) → uma 201, outra 409; total 500
+      ---
+      duration_ms: 453.32353
+      type: 'test'
+      ...
+    # Subtest: K2.1: A→B e B→A simultâneas (travas em ordem) e cancelamento × nova transferência dependente → sem deadlock, sem 500
+    ok 4 - K2.1: A→B e B→A simultâneas (travas em ordem) e cancelamento × nova transferência dependente → sem deadlock, sem 500
+      ---
+      duration_ms: 573.726861
+      type: 'test'
+      ...
+    # Subtest: K3.1: mesma chave em paralelo → um efeito; nova entrada × transferência; DELETE × transferência → consistentes
+    ok 5 - K3.1: mesma chave em paralelo → um efeito; nova entrada × transferência; DELETE × transferência → consistentes
+      ---
+      duration_ms: 712.461162
+      type: 'test'
+      ...
+    # Subtest: K1.2: duas transferências da mesma origem disputando saldo (300 + 300 de 500) → uma 201, outra 409; total 500
+    ok 6 - K1.2: duas transferências da mesma origem disputando saldo (300 + 300 de 500) → uma 201, outra 409; total 500
+      ---
+      duration_ms: 492.51799
+      type: 'test'
+      ...
+    # Subtest: K2.2: A→B e B→A simultâneas (travas em ordem) e cancelamento × nova transferência dependente → sem deadlock, sem 500
+    ok 7 - K2.2: A→B e B→A simultâneas (travas em ordem) e cancelamento × nova transferência dependente → sem deadlock, sem 500
+      ---
+      duration_ms: 685.309883
+      type: 'test'
+      ...
+    # Subtest: K3.2: mesma chave em paralelo → um efeito; nova entrada × transferência; DELETE × transferência → consistentes
+    ok 8 - K3.2: mesma chave em paralelo → um efeito; nova entrada × transferência; DELETE × transferência → consistentes
+      ---
+      duration_ms: 757.168257
+      type: 'test'
+      ...
+    # Subtest: K1.3: duas transferências da mesma origem disputando saldo (300 + 300 de 500) → uma 201, outra 409; total 500
+    ok 9 - K1.3: duas transferências da mesma origem disputando saldo (300 + 300 de 500) → uma 201, outra 409; total 500
+      ---
+      duration_ms: 490.049615
+      type: 'test'
+      ...
+    # Subtest: K2.3: A→B e B→A simultâneas (travas em ordem) e cancelamento × nova transferência dependente → sem deadlock, sem 500
+    ok 10 - K2.3: A→B e B→A simultâneas (travas em ordem) e cancelamento × nova transferência dependente → sem deadlock, sem 500
+      ---
+      duration_ms: 613.490292
+      type: 'test'
+      ...
+    # Subtest: K3.3: mesma chave em paralelo → um efeito; nova entrada × transferência; DELETE × transferência → consistentes
+    ok 11 - K3.3: mesma chave em paralelo → um efeito; nova entrada × transferência; DELETE × transferência → consistentes
+      ---
+      duration_ms: 676.857068
+      type: 'test'
+      ...
+    1..11
+ok 3 - R2E ledger — rollback por passo, volume, concorrência (3 rodadas)
+  ---
+  duration_ms: 8825.984439
+  type: 'suite'
+  ...
+# ◇ injected env (0) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+# (node:1475) [FSTDEP023] FastifyDeprecation: disableRequestLogging option is deprecated. Use the logController option with disableRequestLogging or isLogDisabled override instead. The disableRequestLogging top-level option will be removed in `fastify@6`.
+# (Use `node --trace-warnings ...` to show where the warning was created)
+#   posições: [["PASTO A",400,"ENTRADA ORIGINAL"],["PASTO B",100,"ENTRADA ORIGINAL"]]
+# Subtest: PR174-R1 achados (comportamento correto)
+    # Subtest: A: derivado legado (origem MOVIMENTAÇÃO) NÃO vira segunda entrada na ativação: linhagem rastreada até a entrada original
+    ok 1 - A: derivado legado (origem MOVIMENTAÇÃO) NÃO vira segunda entrada na ativação: linhagem rastreada até a entrada original
+      ---
+      duration_ms: 537.778333
+      type: 'test'
+      ...
+#   cancelamento legado: HTTP 409 REBANHO_LEDGER_CANCELAMENTO_LEGADO; Lote 495→495; ledger 495
+    # Subtest: B: cancelamento de movimento LEGADO numa empresa ativada não pode mexer em Lote (drift) — recusa estável
+    ok 2 - B: cancelamento de movimento LEGADO numa empresa ativada não pode mexer em Lote (drift) — recusa estável
+      ---
+      duration_ms: 377.092067
+      type: 'test'
+      ...
+#   ativação modo entradas: HTTP 201 
+    # Subtest: E: empresa reconstruída pelas ENTRADAS (sem histórico legado): transferência com data entre a entrada e hoje é aceita
+    ok 3 - E: empresa reconstruída pelas ENTRADAS (sem histórico legado): transferência com data entre a entrada e hoje é aceita
+      ---
+      duration_ms: 410.768558
+      type: 'test'
+      ...
+#   suplementação: HTTP 201 lote_id=entrada posicao_id=cmvzjzfi6004i7d4z4iczozwz
+#   tarefa: HTTP 201 
+    # Subtest: F: suplementação e tarefa citando o id da POSIÇÃO guardam a entrada certa (lote_id) e a posição (posicao_id)
+    ok 4 - F: suplementação e tarefa citando o id da POSIÇÃO guardam a entrada certa (lote_id) e a posição (posicao_id)
+      ---
+      duration_ms: 332.348498
+      type: 'test'
+      ...
+#   morte: HTTP 201 ; pesagem: HTTP 201 
+    # Subtest: D: manejos na empresa ativada funcionam pelo ledger (Morte, Pesagem) — sem OPERACAO_NAO_MIGRADA
+    ok 5 - D: manejos na empresa ativada funcionam pelo ledger (Morte, Pesagem) — sem OPERACAO_NAO_MIGRADA
+      ---
+      duration_ms: 430.938067
+      type: 'test'
+      ...
+    1..5
+ok 4 - PR174-R1 achados (comportamento correto)
+  ---
+  duration_ms: 2537.239261
+  type: 'suite'
+  ...
+1..4
+# tests 26
+# suites 4
+# pass 26
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 21080.143638

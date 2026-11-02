@@ -297,6 +297,8 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   REBANHO_DESTINO_IGUAL_ORIGEM: { http: 409, meaning: 'área de destino igual à de origem' },
   REBANHO_AREA_INATIVA: { http: 409, meaning: 'área de destino inativa' },
   REBANHO_ATIVACAO_LOTE_SEM_AREA: { http: 409, meaning: 'há lote ativo com cabeças e sem área válida; corrija antes de ativar' },
+  REBANHO_LEDGER_CANCELAMENTO_LEGADO: { http: 409, meaning: 'empresa no ledger: movimento anterior à ativação fica no histórico e não é desfeito pelo modelo antigo; registre a correção como manejo novo' },
+  REBANHO_ATIVACAO_ENTRADAS_COM_HISTORICO: { http: 409, meaning: 'reconstrução pelas entradas exige empresa sem movimentação legada ativa e lotes no estado da própria entrada' },
   REBANHO_ATIVACAO_CORTE_ANTERIOR_AO_HISTORICO: { http: 409, meaning: 'há movimentação legada ativa depois da data de corte' },
   // R2D-P1 (D-PROD-105) — baixa multi-lote (Morte/Abate).
   BAIXA_SALDO_INSUFICIENTE: {

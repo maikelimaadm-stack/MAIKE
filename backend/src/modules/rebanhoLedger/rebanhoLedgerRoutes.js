@@ -4,7 +4,7 @@
  * servidor; qualquer outro campo é 400.
  */
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
-import { ativarLedger, listarPosicoes, MAX_ITENS_TRANSFERENCIA, saldosNaData, transferir, verificarLedger } from './rebanhoLedgerService.js';
+import { ativarLedger, listarPosicoes, MAX_ITENS_TRANSFERENCIA, MODOS_ATIVACAO, saldosNaData, transferir, verificarLedger } from './rebanhoLedgerService.js';
 
 const ID = { type: 'string', minLength: 1, maxLength: 64 };
 const OPERATION_ID = { type: 'string', minLength: 8, maxLength: 160, pattern: '^[A-Za-z0-9_.:-]+$' };
@@ -37,9 +37,9 @@ const TRANSFERENCIA_SCHEMA = {
 const ATIVACAO_SCHEMA = {
   body: {
     type: 'object',
-    required: ['operation_id', 'empresa_id', 'data_corte'],
+    required: ['operation_id', 'empresa_id'],
     additionalProperties: false,
-    properties: { operation_id: OPERATION_ID, empresa_id: ID, data_corte: { type: 'string', minLength: 10, maxLength: 10 } },
+    properties: { operation_id: OPERATION_ID, empresa_id: ID, modo: { type: 'string', enum: [...MODOS_ATIVACAO] }, data_corte: { type: 'string', minLength: 10, maxLength: 10 } },
   },
 };
 const EMPRESA_QUERY = (extra = {}, required = []) => ({

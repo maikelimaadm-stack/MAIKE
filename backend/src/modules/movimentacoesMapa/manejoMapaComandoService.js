@@ -21,7 +21,7 @@ import { AppError } from '../../shared/errors/AppError.js';
 import { documentoComoPublico } from '../../shared/jsonDocument/jsonDocumentPublic.js';
 import { executarComIdempotencia, fingerprintDePayload } from '../../shared/idempotency/operacaoIdempotenteService.js';
 import { registrarEvento } from '../auditoria/auditService.js';
-import { exigirModoLegado } from '../rebanhoLedger/rebanhoLedgerService.js';
+import { empresaNoLedger, manejoLoteNoLedger } from '../rebanhoLedger/rebanhoLedgerManejos.js';
 import { reservarNumero } from '../sequencias/entidadeCodigoService.js';
 import { inserirLote } from '../lotes/loteRepository.js';
 import { comoLotePublico, ENTIDADE_SEQUENCIA, escopoDaNumeracao } from '../lotes/loteService.js';
@@ -169,7 +169,14 @@ export const executarManejoLote = async (contexto, entrada) => {
       executar: async () => {
         const empresa = await tx.empresa.findUnique({ where: { cliente_id_id: { cliente_id: auth.clienteId, id: e.empresaId } }, select: { id: true } });
         if (!empresa) throw new AppError('EMPRESA_NOT_FOUND', 'empresa não encontrada');
-        await exigirModoLegado(tx, auth.clienteId, e.empresaId, 'manejo-lote');
+        // R2E-R1 (D-PROD-107): empresa no ledger → o mesmo comando opera POSIÇÕES (nunca Lote).
+        if (await empresaNoLedger(tx, auth.clienteId, e.empresaId)) {
+          // Import dinâmico: os módulos do rebanho/baixa importam este arquivo no topo (ciclo).
+          const { CATEGORIAS_OFICIAIS } = await import('./manejoRebanhoComandoService.js');
+          const { distribuirBaixa } = await import('./manejoBaixaComandoService.js');
+          const { POLITICA_ALOCACAO } = await import('./baixaConstantes.js');
+          return manejoLoteNoLedger(tx, contexto, e, { CATEGORIAS_OFICIAIS, distribuirBaixa, POLITICA_ALOCACAO });
+        }
 
         const lotes = await travarLotes(tx, auth.clienteId, [e.loteId, ehTransferencia ? e.loteDestinoId : null]);
         const origem = lotes.get(e.loteId);
