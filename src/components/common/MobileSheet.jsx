@@ -204,14 +204,17 @@ export default function MobileSheet({
 
     const limpar = () => {
       // Altura volta para a da classe e o deslocamento zera no mesmo quadro:
-      // a borda de cima não se mexe.
+      // a borda de cima não se mexe. A leitura de layout ABAIXO aplica isso
+      // SEM transição antes de religá-la. Antes a transição era religada num
+      // requestAnimationFrame e o Safari juntava as duas mudanças: o
+      // deslocamento "voltava" animado — a folha descia ~500 px num quadro e
+      // subia de novo (a "travinha" do vídeo do proprietário, D-PROD-103).
       folha.style.transition = "none";
       folha.style.height = "";
       folha.style.maxHeight = "";
       folha.style.transform = "";
-      requestAnimationFrame(() => {
-        folha.style.transition = "";
-      });
+      void folha.getBoundingClientRect();
+      folha.style.transition = "";
     };
 
     const soltar = () => {

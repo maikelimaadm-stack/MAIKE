@@ -112,10 +112,20 @@ function LayoutShell({ children, currentPageName }) {
   React.useEffect(() => instalarTecladoDoFormulario(), []);
   // iOS Safari só aplica :active (bolinha da chave esticando ao pressionar,
   // botões encolhendo) quando há um ouvinte de toque na página (D-PROD-102).
+  // A cápsula de vidro da chave (D-PROD-103) só anima depois de um toque nela,
+  // para não "pulsar" quando a tela abre.
   React.useEffect(() => {
     const nada = () => {};
+    const marcarChave = (event) => {
+      const chave = event.target instanceof Element ? event.target.closest('[role="switch"]') : null;
+      if (chave) chave.setAttribute("data-mk-tocado", "");
+    };
     document.addEventListener("touchstart", nada, { passive: true });
-    return () => document.removeEventListener("touchstart", nada);
+    document.addEventListener("pointerdown", marcarChave, true);
+    return () => {
+      document.removeEventListener("touchstart", nada);
+      document.removeEventListener("pointerdown", marcarChave, true);
+    };
   }, []);
   const mainRef = React.useRef(/** @type {HTMLElement | null} */ (null));
 
