@@ -2161,7 +2161,14 @@ form:has(.mk-lanc) button[class*="border-dashed"] {
   }
 }
 
-/* Folha: média = cartão flutuante; grande = encosta nas bordas e vai ao topo */
+/*
+ * Folha (D-PROD-102): média = cartão flutuante (margem de 8 px e cantos
+ * redondos); grande = de borda a borda. A folha tem SEMPRE a largura da tela;
+ * o "flutuante" é um recorte (clip-path) com cantos redondos. O recorte anima
+ * sem mexer no layout — antes as margens (left/right/bottom) animavam, a
+ * largura mudava a cada quadro, o conteúdo era redesenhado e a folha piscava
+ * ao descer da grande para a média.
+ */
 @media (max-width: 639px) {
   .mk-sheet-scrim {
     animation: mk-fade-in 0.25s ease;
@@ -2169,34 +2176,29 @@ form:has(.mk-lanc) button[class*="border-dashed"] {
   }
 
   .mk-sheet {
-    right: 8px;
-    bottom: calc(8px + env(safe-area-inset-bottom, 0px));
-    left: 8px;
-    height: 62dvh;
-    max-height: 62dvh;
-    padding-bottom: 0;
-    border-radius: 38px;
-    box-shadow: 0 12px 44px rgba(0, 0, 0, 0.2);
+    --mk-folha-margem: 8px;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    height: calc(62dvh + var(--mk-folha-margem) + env(safe-area-inset-bottom, 0px));
+    max-height: calc(62dvh + var(--mk-folha-margem) + env(safe-area-inset-bottom, 0px));
+    padding: 0 var(--mk-folha-margem) calc(var(--mk-folha-margem) + env(safe-area-inset-bottom, 0px));
+    border-radius: 0;
+    box-shadow: none;
+    clip-path: inset(0 var(--mk-folha-margem) calc(var(--mk-folha-margem) + env(safe-area-inset-bottom, 0px)) var(--mk-folha-margem) round 38px);
     animation: mk-sheet-in 0.4s var(--mk-ease-ios);
     transition:
       height 0.38s var(--mk-ease-ios),
       max-height 0.38s var(--mk-ease-ios),
-      left 0.38s var(--mk-ease-ios),
-      right 0.38s var(--mk-ease-ios),
-      bottom 0.38s var(--mk-ease-ios),
-      border-radius 0.38s var(--mk-ease-ios),
+      clip-path 0.34s var(--mk-ease-ios),
       transform 0.3s var(--mk-ease-ios);
-    will-change: transform, height;
+    will-change: transform, clip-path;
   }
 
   .mk-sheet.is-large {
-    right: 0;
-    bottom: 0;
-    left: 0;
     height: calc(100dvh - 10px - var(--mk-safe-top));
     max-height: calc(100dvh - 10px - var(--mk-safe-top));
-    padding-bottom: env(safe-area-inset-bottom, 0px);
-    border-radius: 38px 38px 0 0;
+    clip-path: inset(0 0 0 0 round 38px 38px 0 0);
   }
 
   .mk-sheet.is-dragging {
@@ -3022,29 +3024,58 @@ a.mk-anexos__arquivo:hover {
 }
 
 /*
- * Chave do iOS (D-PROD-98): UM tamanho para todas — B1Switch (Ativo dos
- * cadastros), ToggleSwitch (colunas, formulário dinâmico) e o Switch do
- * shadcn. Trilho 56×26, cápsula 36×22. Ao trocar, a cápsula passa um pouco
- * do ponto e volta (o "pulinho" do iPhone); pressionada, ela estica.
- * A chave fica ao lado do rótulo, não no outro canto.
+ * Chave = UISwitch do iPhone (D-PROD-102; refina a D-PROD-98). Vale para TODAS:
+ * B1Switch (Ativo dos cadastros), ToggleSwitch (colunas, formulário dinâmico)
+ * e o Switch do shadcn.
+ *  - trilho 60×28 e "bolinha" em cápsula 38×24 (formato do iOS atual), com a
+ *    sombra do iOS;
+ *  - pressionar (mouse ou toque) estica a cápsula para 44, na direção que ela vai;
+ *  - ao soltar, ela desliza com mola e dá uma puladinha leve ao chegar;
+ *  - cores do MAIKE: verde do sistema ligada, cinza claro desligada.
  */
 :root {
-  --mk-sw-w: 56px;
-  --mk-sw-h: 26px;
+  --mk-sw-w: 60px;
+  --mk-sw-h: 28px;
   --mk-sw-g: 2px;
-  --mk-sw-thumb: 36px;
-  --mk-sw-on: #34c759;
-  --mk-sw-off: #e3e3e8;
-  --mk-sw-pulo: cubic-bezier(0.3, 1.9, 0.5, 1);
+  --mk-sw-knob: 38px;
+  --mk-sw-knob-press: 44px;
+  --mk-sw-on: var(--mg-accent, #40de63);
+  --mk-sw-off: #e4e4e7;
+  --mk-sw-off-press: #d9d9de;
+  --mk-sw-sombra: 0 3px 8px rgba(0, 0, 0, 0.15), 0 3px 1px rgba(0, 0, 0, 0.06), 0 0 0 0.5px rgba(0, 0, 0, 0.04);
+  /* Fallback: leve passagem do ponto */
+  --mk-sw-mola: cubic-bezier(0.3, 1.35, 0.5, 1);
+  --mk-sw-tempo: 0.42s;
 }
 
+/* Mola de verdade onde o navegador entende linear() (Safari 17.2+, Chrome 113+) */
+@supports (transition-timing-function: linear(0, 1)) {
+  :root {
+    --mk-sw-mola: linear(0, 0.22 6%, 0.64 14%, 0.95 23%, 1.08 31%, 1.1 36%, 1.06 44%, 1.01 55%, 0.995 67%, 1 82%, 1);
+    --mk-sw-tempo: 0.5s;
+  }
+}
+
+.cadastro-b1 .b1-switch:not(#mk-padrao),
+.mk-ios-switch:not(#mk-padrao),
+button.mk-switch:not(#mk-padrao) {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* B1Switch: a bolinha usa aspect-ratio (largura = altura × --sw-b) */
 .cadastro-b1 .b1-switch:not(#mk-padrao) {
   --sw-w: var(--mk-sw-w);
   --sw-h: var(--mk-sw-h);
   --sw-g: var(--mk-sw-g);
-  --sw-b: 1.64;
+  --sw-b: 1.58;
   background: var(--mk-sw-off);
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.04);
+  box-shadow: none;
+  transition: background 0.25s ease;
+}
+
+.cadastro-b1 .b1-switch:active:not(:disabled):not(#mk-padrao) {
+  background: var(--mk-sw-off-press);
 }
 
 .cadastro-b1 .b1-switch[aria-checked="true"]:not(#mk-padrao) {
@@ -3052,25 +3083,32 @@ a.mk-anexos__arquivo:hover {
 }
 
 .cadastro-b1 .b1-switch:not(#mk-padrao) .b1-switch__thumb {
+  box-shadow: var(--mk-sw-sombra);
   transition:
-    transform 0.55s var(--mk-sw-pulo),
-    aspect-ratio 0.22s var(--mk-ease-ios);
+    transform var(--mk-sw-tempo) var(--mk-sw-mola),
+    aspect-ratio 0.2s cubic-bezier(0.25, 0.8, 0.3, 1);
 }
 
 .cadastro-b1 .b1-switch:active:not(:disabled):not(#mk-padrao) .b1-switch__thumb {
-  aspect-ratio: 2;
+  aspect-ratio: 1.83;
 }
 
-/* Ao lado do rótulo (desfaz o "rótulo à esquerda, chave na ponta" da D-PROD-95) */
+/* Ao lado do rótulo */
 .cadastro-b1 .b1-chave-row:not(#mk-padrao) {
   justify-content: flex-start;
   width: auto;
 }
 
+/* ToggleSwitch */
 .mk-ios-switch:not(#mk-padrao) {
   width: var(--mk-sw-w);
   height: var(--mk-sw-h);
   background: var(--mk-sw-off);
+  transition: background 0.25s ease;
+}
+
+.mk-ios-switch:active:not(:disabled):not(#mk-padrao) {
+  background: var(--mk-sw-off-press);
 }
 
 .mk-ios-switch.is-on:not(#mk-padrao) {
@@ -3080,34 +3118,39 @@ a.mk-anexos__arquivo:hover {
 .mk-ios-switch:not(#mk-padrao) .mk-ios-switch__thumb {
   top: var(--mk-sw-g);
   left: var(--mk-sw-g);
-  width: var(--mk-sw-thumb);
+  width: var(--mk-sw-knob);
   height: calc(var(--mk-sw-h) - var(--mk-sw-g) * 2);
+  box-shadow: var(--mk-sw-sombra);
   transition:
-    transform 0.55s var(--mk-sw-pulo),
-    width 0.22s var(--mk-ease-ios);
+    transform var(--mk-sw-tempo) var(--mk-sw-mola),
+    width 0.2s cubic-bezier(0.25, 0.8, 0.3, 1);
 }
 
 .mk-ios-switch.is-on:not(#mk-padrao) .mk-ios-switch__thumb {
-  transform: translateX(calc(var(--mk-sw-w) - var(--mk-sw-thumb) - var(--mk-sw-g) * 2));
+  transform: translateX(calc(var(--mk-sw-w) - var(--mk-sw-knob) - var(--mk-sw-g) * 2));
 }
 
 .mk-ios-switch:active:not(:disabled):not(#mk-padrao) .mk-ios-switch__thumb {
-  width: calc(var(--mk-sw-thumb) + 8px);
+  width: var(--mk-sw-knob-press);
 }
 
 .mk-ios-switch.is-on:active:not(:disabled):not(#mk-padrao) .mk-ios-switch__thumb {
-  transform: translateX(calc(var(--mk-sw-w) - var(--mk-sw-thumb) - 8px - var(--mk-sw-g) * 2));
+  transform: translateX(calc(var(--mk-sw-w) - var(--mk-sw-knob-press) - var(--mk-sw-g) * 2));
 }
 
-/* Switch do shadcn (filtros do mapa, formulários antigos): mesmo desenho */
+/* Switch do shadcn (Radix): mesmo desenho e comportamento */
 button.mk-switch:not(#mk-padrao) {
   width: var(--mk-sw-w);
   height: var(--mk-sw-h);
   padding: 0;
   border: 0;
   background: var(--mk-sw-off);
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.04);
-  transition: background 0.3s var(--mk-ease-ios);
+  box-shadow: none;
+  transition: background 0.25s ease;
+}
+
+button.mk-switch:active:not(:disabled):not(#mk-padrao) {
+  background: var(--mk-sw-off-press);
 }
 
 button.mk-switch[data-state="checked"]:not(#mk-padrao) {
@@ -3115,19 +3158,27 @@ button.mk-switch[data-state="checked"]:not(#mk-padrao) {
 }
 
 button.mk-switch:not(#mk-padrao) .mk-switch__thumb {
-  width: var(--mk-sw-thumb);
+  width: var(--mk-sw-knob);
   height: calc(var(--mk-sw-h) - var(--mk-sw-g) * 2);
   margin-left: var(--mk-sw-g);
   border-radius: 999px;
   background: #fff;
-  box-shadow:
-    0 3px 8px rgba(0, 0, 0, 0.15),
-    0 3px 1px rgba(0, 0, 0, 0.06);
-  transition: transform 0.55s var(--mk-sw-pulo);
+  box-shadow: var(--mk-sw-sombra);
+  transition:
+    transform var(--mk-sw-tempo) var(--mk-sw-mola),
+    width 0.2s cubic-bezier(0.25, 0.8, 0.3, 1);
 }
 
 button.mk-switch[data-state="checked"]:not(#mk-padrao) .mk-switch__thumb {
-  transform: translateX(calc(var(--mk-sw-w) - var(--mk-sw-thumb) - var(--mk-sw-g) * 2));
+  transform: translateX(calc(var(--mk-sw-w) - var(--mk-sw-knob) - var(--mk-sw-g) * 2));
+}
+
+button.mk-switch:active:not(:disabled):not(#mk-padrao) .mk-switch__thumb {
+  width: var(--mk-sw-knob-press);
+}
+
+button.mk-switch[data-state="checked"]:active:not(:disabled):not(#mk-padrao) .mk-switch__thumb {
+  transform: translateX(calc(var(--mk-sw-w) - var(--mk-sw-knob-press) - var(--mk-sw-g) * 2));
 }
 
 /*

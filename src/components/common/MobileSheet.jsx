@@ -10,11 +10,20 @@ const FOLGA_TOPO = 10;
 /** Alvos que nunca começam o arraste da folha (digitar, rolar horizontal…). */
 const NAO_ARRASTA = "input, textarea, select, [contenteditable='true'], [data-no-sheet-drag]";
 
-const alturaGrande = () => {
-  if (typeof window === "undefined") return 800;
-  const topo = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--mk-safe-top")) || 0;
-  return window.innerHeight - FOLGA_TOPO - topo;
+/** Mede uma altura CSS exatamente como a folha a calcula (dvh, área segura). */
+const medirAltura = (expr) => {
+  if (typeof document === "undefined") return 0;
+  const sonda = document.createElement("div");
+  sonda.style.cssText = `position:fixed;top:0;left:0;width:1px;visibility:hidden;pointer-events:none;height:${expr}`;
+  document.body.appendChild(sonda);
+  const h = sonda.getBoundingClientRect().height;
+  sonda.remove();
+  return h;
 };
+/** Mesmas contas do CSS (`.mk-sheet.is-large` e `.mk-sheet`) — sem salto ao trocar a altura no fim. */
+const alturaGrande = () => medirAltura(`calc(100dvh - ${FOLGA_TOPO}px - env(safe-area-inset-top, 0px))`) || window.innerHeight - FOLGA_TOPO;
+const alturaMedia = () =>
+  medirAltura("calc(62dvh + 8px + env(safe-area-inset-bottom, 0px))") || window.innerHeight * FRACAO_MEDIA;
 
 /**
  * Folha que abre de baixo no celular (padrão único das aberturas do app),
@@ -22,6 +31,8 @@ const alturaGrande = () => {
  *
  * - **Média** (62%): cartão flutuante, com margem e os quatro cantos redondos.
  * - **Grande**: vai até perto do topo e encosta nas bordas da tela.
+ * - A largura nunca muda: o "flutuante" é um recorte (clip-path), que anima
+ *   sem redesenhar o conteúdo (D-PROD-102 — fim da piscada ao descer).
  * - Arrasta-se pela alça, pelo cabeçalho ou pela própria lista quando ela está
  *   no topo — não é preciso mirar na alça. Para cima expande; para baixo
  *   reduz e, já na média, fecha. Tocar na alça alterna.
@@ -174,11 +185,11 @@ export default function MobileSheet({
       if (!g.quadro) g.quadro = requestAnimationFrame(pintar);
     };
 
-    /** Anima até `alvo` px e chama `depois` ao terminar. As margens e cantos da
-     *  troca média ↔ grande animam junto, na mesma curva (sem salto no fim). */
+    /** Anima até `alvo` px e chama `depois` ao terminar. O recorte (cartão
+     *  flutuante ↔ borda a borda) anima junto e não mexe no layout (D-PROD-102). */
     const animarAte = (alvo, depois) => {
       folha.classList.remove("is-dragging");
-      folha.style.transition = `${CURVA}, left 0.34s cubic-bezier(0.32, 0.72, 0, 1), right 0.34s cubic-bezier(0.32, 0.72, 0, 1), bottom 0.34s cubic-bezier(0.32, 0.72, 0, 1), border-radius 0.34s cubic-bezier(0.32, 0.72, 0, 1)`;
+      folha.style.transition = `${CURVA}, clip-path 0.34s cubic-bezier(0.32, 0.72, 0, 1)`;
       folha.style.transform = `translate3d(0, ${alvo}px, 0)`;
       let feito = false;
       const fim = () => {
@@ -217,7 +228,7 @@ export default function MobileSheet({
       folha.addEventListener("click", engolir, { capture: true, once: true });
       window.setTimeout(() => folha.removeEventListener("click", engolir, { capture: true }), 350);
 
-      const media = window.innerHeight * FRACAO_MEDIA;
+      const media = alturaMedia();
       const visivel = estado.max - Math.max(0, estado.desloc);
       const rapidoBaixo = estado.vel > 0.6;
       const rapidoCima = estado.vel < -0.6;

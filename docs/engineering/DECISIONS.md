@@ -3997,4 +3997,27 @@ Relatório: `docs/engineering/MAIKE-LOTES-EXCLUSAO-CANCELADOS-REPORT.md`.
   - cancelamento: movimento → lotes;
   - quem trava primeiro decide e o outro relê o estado confirmado; sem ciclo de travas (3 rodadas por cenário, sem 500).
 
-<!-- Próxima decisão: D-PROD-102 -->
+## D-PROD-102 — Folha sem piscada ao descer e chave com o comportamento do UISwitch
+
+**Missão:** UX-MOBILE-V8. O proprietário viu que, ao descer a folha da grande para a média, ela piscava. Pediu que a média continue flutuante (com as margens laterais) e que só o defeito fosse corrigido. Pediu também que todas as chaves tenham o comportamento do UISwitch do iPhone, com a cápsula alongada do iOS atual e o verde do MAIKE.
+
+**Decisão:**
+1. **Folha (`MobileSheet`):**
+   - **Causa da piscada:** a média flutuante era feita com margens (`left/right/bottom: 8px`) que animavam ao trocar para a grande. A largura mudava a cada quadro e o conteúdo era redesenhado.
+   - **Correção:** a folha tem sempre a largura da tela. O "flutuante" da média é um recorte (`clip-path: inset(0 8px 8px 8px round 38px)`), e a grande é `inset(0 round 38px 38px 0 0)`. O recorte anima sem mexer no layout.
+   - O conteúdo tem recuo de 8 px fixo nos dois tamanhos (nada se move por dentro).
+   - As alturas usadas no arraste são medidas com as mesmas contas do CSS (`dvh` e área segura), por uma sonda: ao soltar, a troca de altura no fim não dá salto.
+   - Medido no Chromium: largura constante (390), recorte de 0 a 8 px contínuo e topo monotônico ao subir e descer.
+   - O aspecto da média é o mesmo de antes (D-PROD-95).
+2. **Chave = UISwitch** (refina a D-PROD-98), em todas: `B1Switch`, `ToggleSwitch` e `Switch` do shadcn:
+   - trilho 60×28 e "bolinha" em cápsula 38×24, no formato do iOS atual pedido pelo proprietário, com a sombra do iOS;
+   - pressionar (mouse ou toque) estica a cápsula para 44 na direção em que ela vai, e o trilho desligado escurece um pouco;
+   - ao soltar, ela desliza com mola (`linear()` com pico de 1,1; `cubic-bezier(0.3, 1.35, 0.5, 1)` onde não há `linear()`) e dá uma puladinha leve, de ~2 px;
+   - cores do MAIKE: `--mg-accent` ligada, `#e4e4e7` desligada;
+   - para o `:active` funcionar no iOS Safari, o `Layout` registra um ouvinte de `touchstart` passivo na página.
+
+Relatório: `docs/engineering/UX-MOBILE-V2-REPORT.md` (seção V8). Testes: `tests/smoke/mobileV7Chave.test.jsx`, `tests/smoke/mobileV6Folha.test.jsx`.
+
+---
+
+<!-- Próxima decisão: D-PROD-103 -->

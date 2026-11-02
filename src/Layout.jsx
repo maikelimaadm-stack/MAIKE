@@ -110,6 +110,13 @@ function LayoutShell({ children, currentPageName }) {
 
   // Enter = Tab nos formulários, teclado numérico nos campos de número (D-PROD-95).
   React.useEffect(() => instalarTecladoDoFormulario(), []);
+  // iOS Safari só aplica :active (bolinha da chave esticando ao pressionar,
+  // botões encolhendo) quando há um ouvinte de toque na página (D-PROD-102).
+  React.useEffect(() => {
+    const nada = () => {};
+    document.addEventListener("touchstart", nada, { passive: true });
+    return () => document.removeEventListener("touchstart", nada);
+  }, []);
   const mainRef = React.useRef(/** @type {HTMLElement | null} */ (null));
 
   // Prevenir tradução automática do navegador
