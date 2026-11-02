@@ -141,3 +141,71 @@ Nenhum 500 nem deadlock.
 - **Peso `null` depois de junção com peso desconhecido:** a média precisa de uma nova pesagem. É escolha de segurança: não se inventa média.
 - Junções legadas continuam como estão: tipo 'Entrada', não canceláveis.
 - O teto de 20 lotes absorvidos por confirmação cobre os lotes de uma área e categoria. Acima disso, fazer em mais de uma confirmação.
+
+## 9. PR169-R2 — guarda temporal real da junção
+
+### Diagnóstico (RED executado no HEAD 729cedc)
+
+A guarda chamava `dependenciasPosteriores` (feita para **cancelar** um movimento que já existe) passando um movimento fictício com `createdAt` 9999-12-31. Consequências:
+- `createdAt > mov.createdAt` nunca casava;
+- `LancamentoTarefa`, que só compara `createdAt`, **nunca** bloqueava;
+- registros sem data operacional (`'' > data` é falso) eram ignorados;
+- datas fora do padrão eram comparadas como texto.
+
+| Teste (HTTP + PostgreSQL) | No 729cedc |
+|---|---|
+| T1 tarefa da origem concluída depois da data | **201**: origem 30 → 0/Inativo, principal 40 → 70 |
+| T1b tarefa iniciada depois | **201** |
+| T2 movimento ativo sem data operacional, registrado depois | **201** |
+| T3 data "25/10/2026" | 409, mas **por coincidência** da comparação de texto |
+| T3c data "01/11/2026" (posterior) | **201** |
+| T3b evento sem data, registrado depois | **201** |
+| G8 tarefa posterior no **principal** | **201** |
+
+Evidência: `evidencias/r2c-p1-juncao/r2-guarda-temporal/red-head-729cedc.txt`, com saldos, status, contagens de movimento, AuditLog e reservas antes e depois.
+
+### Correção
+
+Arquivo novo `guardaTemporalComando.js` com `registrosAtivosPosteriores`, uma consulta **própria** para comando novo. A consulta do cancelamento não foi alterada.
+
+**Data efetiva** de cada registro:
+- prefixo `AAAA-MM-DD` confiável do campo de data da fonte (o dia operacional como foi registrado, sem converter fuso: `2026-10-20T23:00-03:00` conta como 20/10);
+- senão, a data de **registro** (`createdAt` UTC): o que entrou no sistema depois da data pedida não é prova de ter acontecido antes.
+
+**Regra:** data efetiva > data da junção → 409 `JUNCAO_DATA_RETROATIVA`. **Mesmo dia passa:** o comando é gravado agora, depois dos registros daquele dia.
+
+**Tarefa:**
+- data efetiva: `data_conclusao`, senão `data_inicio`, senão `createdAt`;
+- `data_prevista` não é evento;
+- `Cancelada` não bloqueia.
+
+**Movimento:** `cancelado` não bloqueia.
+
+**Vínculo:** o mesmo do histórico e da exclusão (`movimentoCitaLotes`), mais o nome só para legado sem `lote_id`. Sempre dentro do tenant e da empresa, sem teto.
+
+**Execução:** dentro da transação, depois das travas de área e de lotes. A recusa não grava nada: saldo, peso, status, movimento, auditoria e reserva idempotente ficam iguais.
+
+### Testes
+
+| Caso | Resultado |
+|---|---|
+| T1/T1b/T2/T3/T3b/T3c/G8 | 409, nada gravado |
+| G1 registros com data anterior, registrados agora | 201 |
+| G2 mesmo dia (ISO e AAAA-MM-DD) passa; dia seguinte bloqueia | ok |
+| G3 data com fuso (`-03:00`) | dia do prefixo; 201 |
+| G4 tarefa só com previsão futura, registrada antes | 201 |
+| G5 tarefa Cancelada e movimento cancelado posteriores | 201 |
+| G6 611 movimentos posteriores: 610 cancelados + 1 ativo | 409; com todos cancelados → 201 |
+| G7 tarefa de outro lote, outra empresa, outro tenant, homônimo | 201 |
+| G8b junção de 6 lotes, tudo anterior | conserva 25 cab, pondera o peso, nenhum lote criado |
+
+**Totais:**
+- `r2cP1R2GuardaTemporal`: 14/14.
+- `r2cP1JuncaoLotes`: 31/31 (inclui concorrência 3× por cenário).
+- `npm run test:backend`: 760 testes, 755 pass, 0 fail (5 todo).
+
+### Riscos residuais
+
+- **Registro sem data operacional e lançado hoje** bloqueia junção com data anterior (conservador). Basta usar a data de hoje, ou registrar a data operacional no evento.
+- **Data operacional malformada mas com prefixo AAAA-MM-DD** (ex.: `2026-13-40`): é comparada pelo prefixo e, se maior, bloqueia (conservador).
+- **Safari real:** o E2E roda em Chromium com emulação de toque (iPhone e Android por viewport); não foi testado em Safari de verdade.

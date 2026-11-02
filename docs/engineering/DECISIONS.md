@@ -4112,4 +4112,22 @@ Relatório: `docs/engineering/UX-MOBILE-V2-REPORT.md` (seção V9). Teste: `test
 
 **Consequência:** relatório `MAIKE-R2C-JUNCAO-ATOMICA-REPORT.md`; evidências em `evidencias/r2c-p1-juncao/`.
 
+**Complemento PR169-R2 (guarda temporal real):**
+- **Problema:** a junção usava a consulta do cancelamento com um movimento fictício de `createdAt` 9999-12-31. Por isso, tarefas (comparadas só por `createdAt`) e registros sem data operacional nunca bloqueavam. RED 6/6 no `729cedc`: tarefa concluída ou iniciada depois, movimento sem data, evento sem data ou com data "01/11/2026", tarefa no principal.
+- **Correção:** `guardaTemporalComando.registrosAtivosPosteriores`, uma consulta própria para comando novo.
+  - A `dependenciasPosteriores` do cancelamento R2A/R2B ficou inalterada.
+- **Data efetiva** de cada registro, comparada com a data da junção:
+  - vale o prefixo AAAA-MM-DD confiável do campo de data da fonte (dia operacional como foi registrado, sem converter fuso);
+  - sem esse prefixo, vale a data de registro (`createdAt`, UTC);
+  - bloqueia se a data efetiva for **maior** que a da junção (409 `JUNCAO_DATA_RETROATIVA`);
+  - mesmo dia não bloqueia: a junção é gravada agora, depois dos registros daquele dia.
+- **Tarefa (`LancamentoTarefa`):**
+  - data efetiva: `data_conclusao` (realizada), senão `data_inicio` (iniciada), senão `createdAt`;
+  - `data_prevista` é previsão e não conta como evento;
+  - tarefa `Cancelada` não bloqueia.
+- **Movimento:** cancelado não bloqueia.
+- **Vínculo:** `movimentoCitaLotes`, mais o nome apenas para legado sem `lote_id`; sempre dentro do tenant e da empresa; sem teto.
+- **Execução:** roda dentro da transação, depois das travas de área e de lotes.
+- GREEN 14/14; junção 31/31.
+
 <!-- Próxima decisão: D-PROD-105 -->
