@@ -4251,4 +4251,60 @@ Relatório: `docs/engineering/UX-MOBILE-V2-REPORT.md` (seção V9). Teste: `test
   - **Barras de rolagem:** no Chrome, Edge e Safari, `scrollbar-width`/`scrollbar-color` deixam de anular o `::-webkit-scrollbar`. Toda área rola com a mesma barra de 8 px cinza arredondada. As áreas que escondem a barra continuam escondendo.
 - **Consequência:** celular e desktop compartilham o visual das listas, mas cada um mantém sua estrutura.
 
-<!-- Próxima decisão: D-PROD-107 -->
+## D-PROD-107 — Ledger do rebanho por posição: cadastro de entrada × posições × movimentações, com transferência retroativa (R2E-P1)
+
+**Contexto:** `Lote` misturava o cadastro da entrada (quantidade, data e área de entrada, compra) com o saldo operacional (`quantidade_cabecas`, `area_atual_id`, status). Uma linha só admite uma área, então cada transferência parcial fabricava um Lote `origem: 'MOVIMENTAÇÃO'`, que poluía o cadastro.
+- A ordem temporal era do navegador:
+  - teto de 200 registros;
+  - comparação meia-noite × meio-dia;
+  - recusa por ordem de lançamento.
+- O servidor só olhava o saldo de hoje.
+- RED na main `f7a8ea3`, 3/3:
+  - **R1:** 500 em A, transferência de 100 no dia 02 e depois de 100 no dia 01 → 3 linhas em `Lote` (2 derivadas), e a tela recusaria o dia 01.
+  - **R2:** uma segunda transferência no mesmo dia é bloqueada pela tela.
+  - **R3:** B→C no dia 01 é aceito com B tendo recebido animais só no dia 05.
+
+**Decisão:** três responsabilidades e UMA fonte de verdade por empresa ATIVADA.
+- **Cadastro (`Lote`):** só a ENTRADA. Na empresa ativada, `POST /lotes` grava o Lote e, na mesma transação, o evento `ENTRADA` e a posição. `PATCH` de saldo, área, status, classificação ou data de entrada → 409 `REBANHO_LEDGER_SALDO_SOMENTE_POR_EVENTO`. Nome e identificação propagam às posições, só para exibição. Nenhuma movimentação cria ou altera `Lote`.
+- **Ledger (autoritativo):** `EventoRebanho` é o fato imutável, com `data_operacional` (dia), `registrado_em`, autor, `operation_id` e situação. `PartidaRebanho` é o delta por posição no dia do evento. Cancelar marca o evento `cancelado` e desativa as partidas; nada é apagado nem tem a data reescrita.
+- **Posição (`PosicaoRebanho`):** projeção do saldo atual (soma das partidas ativas), recalculada a cada escrita e verificável (`GET /rebanho/verificacao`).
+  - Identidade = linhagem de entrada + categoria + sexo + categoria de manejo, por área. Nunca o nome; homônimos não colidem.
+  - A mesma entrada vive em várias áreas ao mesmo tempo; o retorno volta à mesma posição.
+  - `linhagem` guarda a composição: entrada, ou `derivado_legado` na abertura.
+- **Disponibilidade por DIA:** o saldo de cada posição no FIM de cada dia tem de ser ≥ 0 em toda a linha do tempo.
+  - Eventos do mesmo dia valem juntos: sem ordem de digitação, sem meia-noite × meio-dia.
+  - Fato retroativo é aceito se nenhum fim de dia, dele em diante, ficar negativo.
+  - Senão → 409 `REBANHO_SALDO_HISTORICO_NEGATIVO` com `data`, `area_nome`, `disponivel`, `pedido` e `saldo_resultante`; rollback total.
+  - Consulta por janela no banco, sem teto: 2.000+ partidas validadas em ~34 ms com índice `(cliente_id, posicao_id, data_operacional)`.
+- **Transferência:** `POST /rebanho/comandos/transferencia` com `{operation_id, empresa_id, area_destino_id, data_movimentacao, itens[{posicao_id, quantidade}]}` e schema estrito.
+  - Uma confirmação = uma transação = um evento.
+  - Partidas −q na origem e +q na posição da mesma identidade no destino.
+  - Peso é atributo atual: destino novo herda; destino com cabeças só tem média se os dois pesos forem conhecidos; senão `null`.
+  - Ponte de histórico: um `MovimentacaoMapa` com `efeito_servidor.comando = 'rebanho_ledger'` + `evento_id`, citando a entrada e as posições.
+- **Cancelamento:** mesmo endpoint, só administrador ativo, idempotente. Desativa as partidas e revalida a linha do tempo de todas as posições tocadas. Fato posterior dependente → 409 `CANCELAMENTO_SALDO_HISTORICO_NEGATIVO` com a data; a elegibilidade é ensaiada em SAVEPOINT. Cancelar duas vezes → `CANCELAMENTO_JA_REALIZADO`.
+- **Ativação por empresa (`POST /rebanho/ativacao`):** só administrador, idempotente.
+  - Exige data de corte ≥ último movimento legado ativo e todo lote ativo com área.
+  - Cada lote ativo com saldo vira uma posição com evento `SALDO_ABERTURA` no dia do corte. Nada é apagado nem alterado em `Lote`.
+  - Fatos antes do corte → 409 `REBANHO_ANTES_DO_CORTE`.
+  - Escolhemos migração preservadora em vez de reset de dados de teste: não foi preciso destruir nada.
+- **Travas:** área (ordem de id) → posições (ordem de id).
+  - A exclusão do cadastro trava as áreas antes do Lote.
+  - O PATCH de Lote usa `FOR NO KEY UPDATE`.
+  - Isso eliminou o deadlock 40P01 visto em teste: DELETE × transferência via KEY SHARE da FK posição → lote.
+- **Fail-closed (cobertura desta fase):** na empresa ativada, Morte/Abate/Transferência R2A, Nascimento/Pesagem/Mudança (R2B), Junção (R2C) e Baixa multi-lote (R2D/#172) → 409 `REBANHO_LEDGER_OPERACAO_NAO_MIGRADA`, sem gravar. A tela recusa antes de abrir o formulário. Duas escritas autoritativas nunca.
+- **Exclusão (#167) na empresa ativada:** só sem fato ativo além da entrada. A entrada é cancelada e o cadastro vira tombstone (a posição tem FK).
+- **Frontend:**
+  - o loader `lotes` do mapa lê `/rebanho/posicoes` quando ativo, sem cair para Lote em erro;
+  - a transferência vai por um comando, sem `validarOrdemTemporalLote(s)`, sem PATCH/POST/derivado;
+  - chave idempotente por diálogo (duplo toque = replay);
+  - offline recusa antes de qualquer requisição;
+  - sobras de suplementação na mesma confirmação recusam antes de enviar;
+  - o histórico reconhece a proveniência do ledger.
+- **Migration expand** `20261102200000_rebanho_ledger_posicoes`: só tabelas novas, CHECK saldo ≥ 0, delta ≠ 0 e situação/tipo/cancelamento coerentes, FKs compostas com `cliente_id`, REVOKE anon/authenticated e RLS sem FORCE. O backend da main roda contra o banco migrado (108/108).
+- **Gate `gate:rebanho-ssot`:** o ledger não escreve `Lote`; partidas e posições só pelo motor; comandos legados com `exigirModoLegado`; PATCH de Lote com a separação; CHECKs na migration.
+
+**Fora desta fase (próximos slices):** portar ao ledger Morte/Abate (R2D), Nascimento, Pesagem, Mudança de Categoria e Junção (com contribuições de linhagem); vínculos de suplementação, tarefas e sanitário por posição; contract das colunas operacionais de `Lote`.
+
+**Consequência:** relatório `MAIKE-R2E-LOTE-SSOT-POSICOES-RETROATIVAS-REPORT.md`; evidências em `evidencias/r2e-p1-lotes-ssot/`. Migração remota: `REMOTE_MIGRATION_BLOCKED` nesta sessão (sem `MIGRATION_DATABASE_URL`); aplica pelo pre-deploy (`deploy:migrate`) na publicação.
+
+<!-- Próxima decisão: D-PROD-108 -->

@@ -50,48 +50,48 @@ model Cliente {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  usuarios                   Usuario[]
-  auditLogs                  AuditLog[]
-  sequencias                 EntidadeCodigoSequencia[]
-  operacoesIdempotentes      OperacaoIdempotente[]
-  anexos                     RegistroAnexo[]
-  setores                    Setor[]
-  marcas                     Marca[]
-  unidadesMedida             UnidadeMedida[]
-  gruposAtividade            GrupoAtividade[]
-  tiposTarefa                TipoTarefa[]
-  areasPastagem              AreaPastagem[]
-  configuracoesIcone         ConfiguracaoIcone[]
-  pontosReferencia           PontoReferencia[]
-  linhasGeograficas          LinhaGeografica[]
-  lotes                      Lote[]
-  categorias                 Categoria[]
-  locaisEstoque              LocalEstoque[]
-  produtos                   Produto[]
-  lancamentosTarefa          LancamentoTarefa[]
+  usuarios      Usuario[]
+  auditLogs     AuditLog[]
+  sequencias    EntidadeCodigoSequencia[]
+  operacoesIdempotentes OperacaoIdempotente[]
+  anexos        RegistroAnexo[]
+  setores            Setor[]
+  marcas             Marca[]
+  unidadesMedida     UnidadeMedida[]
+  gruposAtividade    GrupoAtividade[]
+  tiposTarefa        TipoTarefa[]
+  areasPastagem      AreaPastagem[]
+  configuracoesIcone ConfiguracaoIcone[]
+  pontosReferencia   PontoReferencia[]
+  linhasGeograficas  LinhaGeografica[]
+  lotes              Lote[]
+  categorias         Categoria[]
+  locaisEstoque      LocalEstoque[]
+  produtos           Produto[]
+  lancamentosTarefa  LancamentoTarefa[]
   historicosLancamentoTarefa HistoricoLancamentoTarefa[]
-  empresas                   Empresa[]
-  permissoes                 Permissao[]
-  fornecedores               Fornecedor[]
-  categoriasManejo           CategoriaManejo[]
-  bebedouros                 Bebedouro[]
-  pontosSuplementacao        PontoSuplementacao[]
-  estoqueLotesNota           EstoqueLoteNota[]
-  movimentacoesEstoque       MovimentacaoEstoque[]
-  movimentacoesMapa          MovimentacaoMapa[]
-  movimentacoesPecuaria      MovimentacaoPecuaria[]
-  suplementacaoEventos       SuplementacaoEvento[]
-  suplementacaoLotes         SuplementacaoLote[]
-  aplicacoesMedicamento      AplicacaoMedicamento[]
-  eventosSanitarios          EventoSanitario[]
-  manejosTecnicoRebanho      ManejoTecnicoRebanho[]
-  bebedourosHistorico        BebedouroHistorico[]
-  bebedourosSanidade         BebedouroSanidade[]
-  bebedourosAlertas          BebedouroAlerta[]
-  rebanhoAtivacoes           RebanhoLedgerAtivacao[]
-  posicoesRebanho            PosicaoRebanho[]
-  eventosRebanho             EventoRebanho[]
-  partidasRebanho            PartidaRebanho[]
+  empresas               Empresa[]
+  permissoes             Permissao[]
+  fornecedores           Fornecedor[]
+  categoriasManejo       CategoriaManejo[]
+  bebedouros             Bebedouro[]
+  pontosSuplementacao    PontoSuplementacao[]
+  estoqueLotesNota       EstoqueLoteNota[]
+  movimentacoesEstoque   MovimentacaoEstoque[]
+  movimentacoesMapa      MovimentacaoMapa[]
+  movimentacoesPecuaria  MovimentacaoPecuaria[]
+  suplementacaoEventos   SuplementacaoEvento[]
+  suplementacaoLotes     SuplementacaoLote[]
+  aplicacoesMedicamento  AplicacaoMedicamento[]
+  eventosSanitarios      EventoSanitario[]
+  manejosTecnicoRebanho  ManejoTecnicoRebanho[]
+  bebedourosHistorico    BebedouroHistorico[]
+  bebedourosSanidade     BebedouroSanidade[]
+  bebedourosAlertas      BebedouroAlerta[]
+  rebanhoAtivacoes       RebanhoLedgerAtivacao[]
+  posicoesRebanho        PosicaoRebanho[]
+  eventosRebanho         EventoRebanho[]
+  partidasRebanho        PartidaRebanho[]
 
   @@index([nome])
   @@index([ativo])
@@ -111,27 +111,24 @@ model Cliente {
 // (contrato: `tenancy.clienteDeletePolicy = "explicit-reviewed"`).
 // ---------------------------------------------------------------------------
 model Usuario {
-  id           String   @id @default(cuid())
-  cliente_id   String   @db.VarChar(64)
-  nome         String   @db.VarChar(255)
-  login        String   @db.VarChar(120)
-  senha_hash   String   @db.VarChar(255)
-  ativo        Boolean  @default(true)
+  id         String   @id @default(cuid())
+  cliente_id String   @db.VarChar(64)
+  nome       String   @db.VarChar(255)
+  login      String   @db.VarChar(120)
+  senha_hash String   @db.VarChar(255)
+  ativo      Boolean  @default(true)
   /// Autoridade de administrador DA FAZENDA (tenant), server-owned (PR145-R4, D-PROD-71).
   /// `usuario` (padrão) | `administrador`. Nenhuma rota HTTP grava este campo:
   /// só o script operacional `scripts/auth/papel-tenant.mjs`. Não confundir com
   /// `Permissao.is_admin` (preferência de menu, editável) nem com o proprietário
   /// do produto (`AdminPrincipalMaike`).
-  papel_tenant String   @default("usuario") @db.VarChar(32)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  papel_tenant String @default("usuario") @db.VarChar(32)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  cliente              Cliente                @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
-  auditLogs            AuditLog[]
+  cliente   Cliente    @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  auditLogs AuditLog[]
   operadorProdutoMaike OperadorProdutoMaike[]
-  // Login global entre contas ativas: migration `p6_1_login_global_hygiene` +
-  // índice parcial SQL `Usuario_login_ativo_global_key` (D-PROD-35). No Prisma
-  // permanece @@unique([cliente_id, login]); índice só em `login` violaria gate:indices.
 
   @@unique([cliente_id, login])
   // Chave referenciável tenant-aware. Existe para que quem aponta para um
@@ -141,6 +138,9 @@ model Usuario {
   @@index([cliente_id, ativo])
   // Keyset da listagem paginada GET /usuarios/page (SCALE-01).
   @@index([cliente_id, createdAt, id])
+  // Login global entre contas ativas: migration `p6_1_login_global_hygiene` +
+  // índice parcial SQL `Usuario_login_ativo_global_key` (D-PROD-35). No Prisma
+  // permanece @@unique([cliente_id, login]); índice só em `login` violaria gate:indices.
 }
 
 // ---------------------------------------------------------------------------
@@ -231,16 +231,16 @@ model EntidadeCodigoSequencia {
 // OperacaoIdempotente — deduplicação durável de comandos compostos (ESTAB-P0-01).
 // ---------------------------------------------------------------------------
 model OperacaoIdempotente {
-  id            String   @id @default(cuid())
-  cliente_id    String   @db.VarChar(64)
-  operation_key String   @db.VarChar(128)
-  tipo_operacao String   @db.VarChar(64)
-  fingerprint   String   @db.VarChar(128)
-  status        String   @db.VarChar(32)
-  http_status   Int?
-  response_json Json?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id             String   @id @default(cuid())
+  cliente_id     String   @db.VarChar(64)
+  operation_key  String   @db.VarChar(128)
+  tipo_operacao  String   @db.VarChar(64)
+  fingerprint    String   @db.VarChar(128)
+  status         String   @db.VarChar(32)
+  http_status    Int?
+  response_json  Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   cliente Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
 
@@ -414,7 +414,7 @@ model GrupoAtividade {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  cliente     Cliente            @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  cliente     Cliente              @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
   tipos       TipoTarefa[]
   lancamentos LancamentoTarefa[]
 
@@ -444,9 +444,9 @@ model TipoTarefa {
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
-  cliente     Cliente            @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
-  grupo       GrupoAtividade     @relation(fields: [cliente_id, grupo_atividade_id], references: [cliente_id, id], onDelete: Restrict)
-  lancamentos LancamentoTarefa[]
+  cliente Cliente        @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  grupo        GrupoAtividade   @relation(fields: [cliente_id, grupo_atividade_id], references: [cliente_id, id], onDelete: Restrict)
+  lancamentos  LancamentoTarefa[]
 
   @@unique([cliente_id, id])
   @@unique([cliente_id, grupo_atividade_id, nome_tipo])
@@ -527,14 +527,13 @@ model AreaPastagem {
   createdAt                    DateTime @default(now())
   updatedAt                    DateTime @updatedAt
 
-  cliente      Cliente            @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
-  setor        Setor              @relation(fields: [cliente_id, setor_id], references: [cliente_id, id], onDelete: Restrict)
-  lotesEntrada Lote[]             @relation("LoteAreaEntrada")
-  lotesAtual   Lote[]             @relation("LoteAreaAtual")
-  lancamentos  LancamentoTarefa[]
+  cliente       Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  setor         Setor   @relation(fields: [cliente_id, setor_id], references: [cliente_id, id], onDelete: Restrict)
+  lotesEntrada  Lote[]             @relation("LoteAreaEntrada")
+  lotesAtual    Lote[]             @relation("LoteAreaAtual")
+  lancamentos   LancamentoTarefa[]
 
   posicoesRebanho PosicaoRebanho[]
-
   @@unique([cliente_id, numero_area])
   @@unique([cliente_id, id])
   @@index([cliente_id, empresa_id])
@@ -699,14 +698,13 @@ model Lote {
   createdAt                     DateTime  @default(now())
   updatedAt                     DateTime  @updatedAt
 
-  cliente     Cliente            @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
-  setor       Setor?             @relation(fields: [cliente_id, setor_id], references: [cliente_id, id], onDelete: Restrict)
+  cliente     Cliente       @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  setor       Setor?        @relation(fields: [cliente_id, setor_id], references: [cliente_id, id], onDelete: Restrict)
   areaEntrada AreaPastagem?      @relation("LoteAreaEntrada", fields: [cliente_id, area_entrada_id], references: [cliente_id, id], onDelete: Restrict)
   areaAtual   AreaPastagem?      @relation("LoteAreaAtual", fields: [cliente_id, area_atual_id], references: [cliente_id, id], onDelete: Restrict)
   lancamentos LancamentoTarefa[]
 
   posicoesRebanho PosicaoRebanho[]
-
   @@unique([cliente_id, numero_lote])
   @@unique([cliente_id, id])
   @@index([cliente_id, empresa_id])
@@ -849,11 +847,11 @@ model LancamentoTarefa {
   createdAt              DateTime  @default(now())
   updatedAt              DateTime  @updatedAt
 
-  cliente    Cliente                     @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
-  tipoTarefa TipoTarefa                  @relation(fields: [cliente_id, tipo_tarefa_id], references: [cliente_id, id], onDelete: Restrict)
-  grupo      GrupoAtividade?             @relation(fields: [cliente_id, grupo_atividade_id], references: [cliente_id, id], onDelete: Restrict)
-  lote       Lote?                       @relation(fields: [cliente_id, lote_id], references: [cliente_id, id], onDelete: Restrict)
-  area       AreaPastagem?               @relation(fields: [cliente_id, area_id], references: [cliente_id, id], onDelete: Restrict)
+  cliente  Cliente         @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  tipoTarefa TipoTarefa    @relation(fields: [cliente_id, tipo_tarefa_id], references: [cliente_id, id], onDelete: Restrict)
+  grupo    GrupoAtividade? @relation(fields: [cliente_id, grupo_atividade_id], references: [cliente_id, id], onDelete: Restrict)
+  lote     Lote?           @relation(fields: [cliente_id, lote_id], references: [cliente_id, id], onDelete: Restrict)
+  area     AreaPastagem?   @relation(fields: [cliente_id, area_id], references: [cliente_id, id], onDelete: Restrict)
   historicos HistoricoLancamentoTarefa[]
 
   @@unique([cliente_id, id])
@@ -891,7 +889,6 @@ model HistoricoLancamentoTarefa {
   @@index([cliente_id, empresa_id])
   @@index([cliente_id, data_evento])
 }
-
 // ---------------------------------------------------------------------------
 // P5.4 — saída Base44: Empresa, estoque, suplementação, permissões (D-PROD-50+).
 // ---------------------------------------------------------------------------
@@ -923,7 +920,6 @@ model Empresa {
   rebanhoAtivacao RebanhoLedgerAtivacao[]
   posicoesRebanho PosicaoRebanho[]
   eventosRebanho  EventoRebanho[]
-
   @@unique([cliente_id, id])
   @@unique([cliente_id, numero_empresa])
   @@unique([cliente_id, nome])
@@ -984,38 +980,38 @@ model Fornecedor {
 }
 
 model CategoriaManejo {
-  id                           String   @id @default(cuid())
-  cliente_id                   String   @db.VarChar(64)
-  empresa_id                   String   @db.VarChar(64)
-  nome                         String   @db.VarChar(255)
-  sigla                        String?  @db.VarChar(32)
-  especie                      String?  @db.VarChar(128)
-  sexo                         String?  @db.VarChar(32)
-  raca                         String?  @db.VarChar(128)
-  idade_minima_meses           Int?
-  idade_maxima_meses           Int?
-  categoria_oficial            String?  @db.VarChar(128)
+  id                    String   @id @default(cuid())
+  cliente_id            String   @db.VarChar(64)
+  empresa_id            String   @db.VarChar(64)
+  nome                  String   @db.VarChar(255)
+  sigla                 String?  @db.VarChar(32)
+  especie               String?  @db.VarChar(128)
+  sexo                  String?  @db.VarChar(32)
+  raca                  String?  @db.VarChar(128)
+  idade_minima_meses    Int?
+  idade_maxima_meses    Int?
+  categoria_oficial     String?  @db.VarChar(128)
   /// Vínculo explícito com a categoria visual GLOBAL do tipo `lote` (D-PROD-69).
   /// Opcional: categorias antigas continuam válidas sem vínculo.
-  catalogo_categoria_visual_id String?  @db.VarChar(64)
-  ganho_peso_anual_kg          Decimal? @db.Decimal(14, 4)
-  gmd_janeiro                  Decimal? @db.Decimal(14, 4)
-  gmd_fevereiro                Decimal? @db.Decimal(14, 4)
-  gmd_marco                    Decimal? @db.Decimal(14, 4)
-  gmd_abril                    Decimal? @db.Decimal(14, 4)
-  gmd_maio                     Decimal? @db.Decimal(14, 4)
-  gmd_junho                    Decimal? @db.Decimal(14, 4)
-  gmd_julho                    Decimal? @db.Decimal(14, 4)
-  gmd_agosto                   Decimal? @db.Decimal(14, 4)
-  gmd_setembro                 Decimal? @db.Decimal(14, 4)
-  gmd_outubro                  Decimal? @db.Decimal(14, 4)
-  gmd_novembro                 Decimal? @db.Decimal(14, 4)
-  gmd_dezembro                 Decimal? @db.Decimal(14, 4)
-  ativo                        Boolean  @default(true)
-  createdAt                    DateTime @default(now())
-  updatedAt                    DateTime @updatedAt
+  catalogo_categoria_visual_id String? @db.VarChar(64)
+  ganho_peso_anual_kg   Decimal? @db.Decimal(14, 4)
+  gmd_janeiro           Decimal? @db.Decimal(14, 4)
+  gmd_fevereiro         Decimal? @db.Decimal(14, 4)
+  gmd_marco             Decimal? @db.Decimal(14, 4)
+  gmd_abril             Decimal? @db.Decimal(14, 4)
+  gmd_maio              Decimal? @db.Decimal(14, 4)
+  gmd_junho             Decimal? @db.Decimal(14, 4)
+  gmd_julho             Decimal? @db.Decimal(14, 4)
+  gmd_agosto            Decimal? @db.Decimal(14, 4)
+  gmd_setembro          Decimal? @db.Decimal(14, 4)
+  gmd_outubro           Decimal? @db.Decimal(14, 4)
+  gmd_novembro          Decimal? @db.Decimal(14, 4)
+  gmd_dezembro          Decimal? @db.Decimal(14, 4)
+  ativo                 Boolean  @default(true)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
 
-  cliente                 Cliente                  @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  cliente Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
   catalogoCategoriaVisual CatalogoCategoriaVisual? @relation(fields: [catalogo_categoria_visual_id], references: [id], onDelete: Restrict)
 
   @@unique([cliente_id, id])
@@ -1024,32 +1020,32 @@ model CategoriaManejo {
 }
 
 model Bebedouro {
-  id                          String   @id @default(cuid())
-  cliente_id                  String   @db.VarChar(64)
-  empresa_id                  String   @db.VarChar(64)
-  ponto_referencia_id         String?  @db.VarChar(64)
-  nome                        String   @db.VarChar(255)
-  codigo_interno              String?  @db.VarChar(64)
-  pasto_id                    String?  @db.VarChar(64)
-  pasto_nome                  String?  @db.VarChar(255)
-  area_vinculada_ids          String[] @default([])
-  area_vinculada_nomes        String[] @default([])
-  setor_id                    String?  @db.VarChar(64)
-  setor_nome                  String?  @db.VarChar(255)
-  tipo                        String   @db.VarChar(64)
-  capacidade_litros           Decimal? @db.Decimal(14, 4)
-  origem_agua                 String?  @db.VarChar(64)
-  coordenadas                 Json?
-  status                      String   @default("Ativo") @db.VarChar(32)
-  periodicidade_limpeza       String?  @default("Mensal") @db.VarChar(32)
-  periodicidade_inspecao      String?  @default("Semanal") @db.VarChar(32)
-  dias_limpeza_personalizado  Int?
+  id                         String   @id @default(cuid())
+  cliente_id                 String   @db.VarChar(64)
+  empresa_id                 String   @db.VarChar(64)
+  ponto_referencia_id        String?  @db.VarChar(64)
+  nome                       String   @db.VarChar(255)
+  codigo_interno             String?  @db.VarChar(64)
+  pasto_id                   String?  @db.VarChar(64)
+  pasto_nome                 String?  @db.VarChar(255)
+  area_vinculada_ids         String[] @default([])
+  area_vinculada_nomes       String[] @default([])
+  setor_id                   String?  @db.VarChar(64)
+  setor_nome                 String?  @db.VarChar(255)
+  tipo                       String   @db.VarChar(64)
+  capacidade_litros          Decimal? @db.Decimal(14, 4)
+  origem_agua                String?  @db.VarChar(64)
+  coordenadas                Json?
+  status                     String   @default("Ativo") @db.VarChar(32)
+  periodicidade_limpeza      String?  @default("Mensal") @db.VarChar(32)
+  periodicidade_inspecao     String?  @default("Semanal") @db.VarChar(32)
+  dias_limpeza_personalizado Int?
   dias_inspecao_personalizado Int?
-  observacoes                 String?  @db.VarChar(2000)
-  fotos                       String[] @default([])
-  ativo                       Boolean  @default(true)
-  createdAt                   DateTime @default(now())
-  updatedAt                   DateTime @updatedAt
+  observacoes                String?  @db.VarChar(2000)
+  fotos                      String[] @default([])
+  ativo                      Boolean  @default(true)
+  createdAt                  DateTime @default(now())
+  updatedAt                  DateTime @updatedAt
 
   cliente Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
 
@@ -1058,39 +1054,39 @@ model Bebedouro {
 }
 
 model PontoSuplementacao {
-  id                          String   @id @default(cuid())
-  cliente_id                  String   @db.VarChar(64)
-  empresa_id                  String   @db.VarChar(64)
-  numero_ponto                String   @db.VarChar(32)
-  setor_id                    String?  @db.VarChar(64)
-  setor_nome                  String?  @db.VarChar(255)
-  nome_ponto                  String   @db.VarChar(255)
-  sigla                       String?  @db.VarChar(32)
-  categoria_ponto             String   @default("COCHO") @db.VarChar(32)
-  tipo                        String?  @db.VarChar(128)
-  produto_padrao              String?  @db.VarChar(255)
-  capacidade_cocho_kg         Decimal? @db.Decimal(14, 4)
-  estoque_minimo_kg           Decimal? @db.Decimal(14, 4)
-  metragem_cocho_m            Decimal? @db.Decimal(14, 4)
-  cobertura_cocho             String?  @db.VarChar(32)
-  area_vinculada_id           String?  @db.VarChar(64)
-  area_vinculada_nome         String?  @db.VarChar(255)
-  area_vinculada_ids          String[] @default([])
-  area_vinculada_nomes        String[] @default([])
-  deposito_origem_id          String?  @db.VarChar(64)
-  deposito_origem_nome        String?  @db.VarChar(255)
-  local_estoque_id            String?  @db.VarChar(64)
-  local_estoque_nome          String?  @db.VarChar(255)
-  consumo_ideal_por_cabeca_kg Decimal? @db.Decimal(14, 4)
-  limite_minimo_consumo       Decimal? @db.Decimal(14, 4)
-  limite_maximo_consumo       Decimal? @db.Decimal(14, 4)
-  dias_alerta_reposicao       Int?     @default(3)
-  alerta_sem_lancamento_dias  Int?     @default(10)
-  coordenadas                 Json?
-  status                      String   @default("Ativo") @db.VarChar(32)
-  observacoes                 String?  @db.VarChar(2000)
-  createdAt                   DateTime @default(now())
-  updatedAt                   DateTime @updatedAt
+  id                           String   @id @default(cuid())
+  cliente_id                   String   @db.VarChar(64)
+  empresa_id                   String   @db.VarChar(64)
+  numero_ponto                 String   @db.VarChar(32)
+  setor_id                     String?  @db.VarChar(64)
+  setor_nome                   String?  @db.VarChar(255)
+  nome_ponto                   String   @db.VarChar(255)
+  sigla                        String?  @db.VarChar(32)
+  categoria_ponto              String   @default("COCHO") @db.VarChar(32)
+  tipo                         String?  @db.VarChar(128)
+  produto_padrao               String?  @db.VarChar(255)
+  capacidade_cocho_kg          Decimal? @db.Decimal(14, 4)
+  estoque_minimo_kg            Decimal? @db.Decimal(14, 4)
+  metragem_cocho_m             Decimal? @db.Decimal(14, 4)
+  cobertura_cocho              String?  @db.VarChar(32)
+  area_vinculada_id            String?  @db.VarChar(64)
+  area_vinculada_nome          String?  @db.VarChar(255)
+  area_vinculada_ids           String[] @default([])
+  area_vinculada_nomes         String[] @default([])
+  deposito_origem_id           String?  @db.VarChar(64)
+  deposito_origem_nome         String?  @db.VarChar(255)
+  local_estoque_id             String?  @db.VarChar(64)
+  local_estoque_nome           String?  @db.VarChar(255)
+  consumo_ideal_por_cabeca_kg  Decimal? @db.Decimal(14, 4)
+  limite_minimo_consumo        Decimal? @db.Decimal(14, 4)
+  limite_maximo_consumo        Decimal? @db.Decimal(14, 4)
+  dias_alerta_reposicao        Int?     @default(3)
+  alerta_sem_lancamento_dias   Int?     @default(10)
+  coordenadas                  Json?
+  status                       String   @default("Ativo") @db.VarChar(32)
+  observacoes                  String?  @db.VarChar(2000)
+  createdAt                    DateTime @default(now())
+  updatedAt                    DateTime @updatedAt
 
   cliente Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
 
@@ -1128,69 +1124,69 @@ model EstoqueLoteNota {
 }
 
 model MovimentacaoEstoque {
-  id                         String    @id @default(cuid())
-  cliente_id                 String    @db.VarChar(64)
-  empresa_id                 String    @db.VarChar(64)
-  numero_movimentacao        String    @db.VarChar(32)
-  tipo_movimentacao          String    @db.VarChar(32)
-  tipo_detalhado             String?   @db.VarChar(128)
-  tipo_documento             String?   @db.VarChar(64)
-  numero_documento           String?   @db.VarChar(64)
-  chave_documento            String?   @db.VarChar(2000)
-  data_documento             DateTime? @db.Date
-  data_movimentacao          DateTime
-  produto_id                 String    @db.VarChar(64)
-  produto_nome               String?   @db.VarChar(255)
-  produto_codigo             String?   @db.VarChar(64)
-  produto_categoria          String?   @db.VarChar(255)
-  quantidade                 Decimal   @db.Decimal(14, 4)
-  unidade_medida             String    @db.VarChar(32)
-  valor_unitario             Decimal?  @db.Decimal(14, 4)
-  valor_total                Decimal?  @db.Decimal(14, 4)
-  local_origem               String?   @db.VarChar(255)
-  local_destino              String?   @db.VarChar(255)
-  local_estoque_origem       String?   @db.VarChar(255)
-  local_estoque_destino      String?   @db.VarChar(255)
-  custo_medio_antes          Decimal?  @db.Decimal(14, 4)
-  custo_medio_depois         Decimal?  @db.Decimal(14, 4)
-  saldo_antes                Decimal?  @db.Decimal(14, 4)
-  saldo_depois               Decimal?  @db.Decimal(14, 4)
-  fornecedor_id              String?   @db.VarChar(64)
-  fornecedor_nome            String?   @db.VarChar(255)
-  cliente_nome               String?   @db.VarChar(255)
-  safra_id                   String?   @db.VarChar(64)
-  safra_nome                 String?   @db.VarChar(255)
-  centro_custo_id            String?   @db.VarChar(64)
-  centro_custo_nome          String?   @db.VarChar(255)
-  lancamento_origem_id       String?   @db.VarChar(64)
-  motivo_movimentacao        String?   @db.VarChar(255)
-  observacoes                String?   @db.VarChar(2000)
-  responsavel                String?   @db.VarChar(255)
-  usuario_responsavel        String?   @db.VarChar(255)
-  status                     String    @default("Ativa") @db.VarChar(32)
-  vinculado                  Boolean   @default(false)
-  tipo_vinculo               String?   @db.VarChar(32)
-  lote_vinculado_id          String?   @db.VarChar(64)
-  lote_vinculado_nome        String?   @db.VarChar(255)
-  area_vinculada_id          String?   @db.VarChar(64)
-  area_vinculada_nome        String?   @db.VarChar(255)
-  maquina_vinculada_id       String?   @db.VarChar(64)
-  maquina_vinculada_nome     String?   @db.VarChar(255)
-  origem_sistema             String    @default("manual") @db.VarChar(32)
-  deposito_id                String?   @db.VarChar(64)
-  ponto_suplementacao_id     String?   @db.VarChar(64)
-  movimento_pai_id           String?   @db.VarChar(64)
-  movimento_filho_id         String?   @db.VarChar(64)
-  bloqueado_exclusao_estoque Boolean   @default(false)
-  exclusao_somente_em        String?   @db.VarChar(32)
-  movimentacao_grupo_id      String?   @db.VarChar(64)
-  numero_movimentacao_seq    Int?
-  total_movimentacoes_grupo  Int?
-  is_registro_principal      Boolean   @default(false)
-  modo_saida_fifo            String?   @db.VarChar(32)
-  lotes_consumidos           Json?
-  createdAt                  DateTime  @default(now())
-  updatedAt                  DateTime  @updatedAt
+  id                          String    @id @default(cuid())
+  cliente_id                  String    @db.VarChar(64)
+  empresa_id                  String    @db.VarChar(64)
+  numero_movimentacao         String    @db.VarChar(32)
+  tipo_movimentacao           String    @db.VarChar(32)
+  tipo_detalhado              String?   @db.VarChar(128)
+  tipo_documento              String?   @db.VarChar(64)
+  numero_documento            String?   @db.VarChar(64)
+  chave_documento             String?   @db.VarChar(2000)
+  data_documento              DateTime? @db.Date
+  data_movimentacao           DateTime
+  produto_id                  String    @db.VarChar(64)
+  produto_nome                String?   @db.VarChar(255)
+  produto_codigo              String?   @db.VarChar(64)
+  produto_categoria           String?   @db.VarChar(255)
+  quantidade                  Decimal   @db.Decimal(14, 4)
+  unidade_medida              String    @db.VarChar(32)
+  valor_unitario              Decimal?  @db.Decimal(14, 4)
+  valor_total                 Decimal?  @db.Decimal(14, 4)
+  local_origem                String?   @db.VarChar(255)
+  local_destino               String?   @db.VarChar(255)
+  local_estoque_origem        String?   @db.VarChar(255)
+  local_estoque_destino       String?   @db.VarChar(255)
+  custo_medio_antes           Decimal?  @db.Decimal(14, 4)
+  custo_medio_depois          Decimal?  @db.Decimal(14, 4)
+  saldo_antes                 Decimal?  @db.Decimal(14, 4)
+  saldo_depois                Decimal?  @db.Decimal(14, 4)
+  fornecedor_id               String?   @db.VarChar(64)
+  fornecedor_nome             String?   @db.VarChar(255)
+  cliente_nome                String?   @db.VarChar(255)
+  safra_id                    String?   @db.VarChar(64)
+  safra_nome                  String?   @db.VarChar(255)
+  centro_custo_id             String?   @db.VarChar(64)
+  centro_custo_nome           String?   @db.VarChar(255)
+  lancamento_origem_id        String?   @db.VarChar(64)
+  motivo_movimentacao         String?   @db.VarChar(255)
+  observacoes                 String?   @db.VarChar(2000)
+  responsavel                 String?   @db.VarChar(255)
+  usuario_responsavel         String?   @db.VarChar(255)
+  status                      String    @default("Ativa") @db.VarChar(32)
+  vinculado                   Boolean   @default(false)
+  tipo_vinculo                String?   @db.VarChar(32)
+  lote_vinculado_id           String?   @db.VarChar(64)
+  lote_vinculado_nome         String?   @db.VarChar(255)
+  area_vinculada_id           String?   @db.VarChar(64)
+  area_vinculada_nome         String?   @db.VarChar(255)
+  maquina_vinculada_id        String?   @db.VarChar(64)
+  maquina_vinculada_nome      String?   @db.VarChar(255)
+  origem_sistema              String    @default("manual") @db.VarChar(32)
+  deposito_id                 String?   @db.VarChar(64)
+  ponto_suplementacao_id      String?   @db.VarChar(64)
+  movimento_pai_id            String?   @db.VarChar(64)
+  movimento_filho_id          String?   @db.VarChar(64)
+  bloqueado_exclusao_estoque  Boolean   @default(false)
+  exclusao_somente_em         String?   @db.VarChar(32)
+  movimentacao_grupo_id       String?   @db.VarChar(64)
+  numero_movimentacao_seq     Int?
+  total_movimentacoes_grupo   Int?
+  is_registro_principal       Boolean   @default(false)
+  modo_saida_fifo             String?   @db.VarChar(32)
+  lotes_consumidos            Json?
+  createdAt                   DateTime  @default(now())
+  updatedAt                   DateTime  @updatedAt
 
   cliente Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
 
@@ -1368,8 +1364,8 @@ model CatalogoTipoEntidade {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  categorias  CatalogoCategoriaVisual[]
-  icones      CatalogoIcone[]
+  categorias CatalogoCategoriaVisual[]
+  icones     CatalogoIcone[]
   regrasMisto CatalogoRegraMisto[]
 
   @@index([ativo, ordem])
@@ -1385,28 +1381,28 @@ model CatalogoCategoriaVisual {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  tipo                  CatalogoTipoEntidade          @relation(fields: [tipo_id], references: [id], onDelete: Restrict)
-  icones                CatalogoIcone[]
+  tipo              CatalogoTipoEntidade @relation(fields: [tipo_id], references: [id], onDelete: Restrict)
+  icones            CatalogoIcone[]
   regrasMistoCategorias CatalogoRegraMistoCategoria[]
-  categoriasManejo      CategoriaManejo[]
+  categoriasManejo  CategoriaManejo[]
 
   @@unique([tipo_id, codigo])
   @@index([tipo_id, ativo, ordem])
 }
 
 model CatalogoAsset {
-  id           String   @id @default(cuid())
-  bucket       String   @db.VarChar(128)
-  storage_path String   @unique @db.VarChar(512)
-  mime         String   @db.VarChar(128)
-  bytes        Int
-  sha256       String   @db.VarChar(64)
-  largura      Int?
-  altura       Int?
-  revisao      Int      @default(1)
-  estado       String   @default("pendente") @db.VarChar(32)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id            String   @id @default(cuid())
+  bucket        String   @db.VarChar(128)
+  storage_path  String   @unique @db.VarChar(512)
+  mime          String   @db.VarChar(128)
+  bytes         Int
+  sha256        String   @db.VarChar(64)
+  largura       Int?
+  altura        Int?
+  revisao       Int      @default(1)
+  estado        String   @default("pendente") @db.VarChar(32)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   iconesPrincipal CatalogoIcone[] @relation("IconeAssetPrincipal")
   iconesSub       CatalogoIcone[] @relation("IconeAssetSub")
@@ -1416,22 +1412,22 @@ model CatalogoAsset {
 }
 
 model CatalogoIcone {
-  id                 String   @id @default(cuid())
-  tipo_id            String   @db.VarChar(64)
-  categoria_id       String   @db.VarChar(64)
-  asset_principal_id String?  @db.VarChar(64)
-  asset_subicone_id  String?  @db.VarChar(64)
-  cor_fallback       String?  @db.VarChar(32)
-  estado             String   @default("rascunho") @db.VarChar(32)
-  revisao            Int      @default(1)
-  ativo              Boolean  @default(true)
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  id                  String   @id @default(cuid())
+  tipo_id             String   @db.VarChar(64)
+  categoria_id        String   @db.VarChar(64)
+  asset_principal_id  String?  @db.VarChar(64)
+  asset_subicone_id   String?  @db.VarChar(64)
+  cor_fallback        String?  @db.VarChar(32)
+  estado              String   @default("rascunho") @db.VarChar(32)
+  revisao             Int      @default(1)
+  ativo               Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
-  tipo                 CatalogoTipoEntidade    @relation(fields: [tipo_id], references: [id], onDelete: Restrict)
-  categoria            CatalogoCategoriaVisual @relation(fields: [categoria_id], references: [id], onDelete: Restrict)
-  assetPrincipal       CatalogoAsset?          @relation("IconeAssetPrincipal", fields: [asset_principal_id], references: [id], onDelete: Restrict)
-  assetSubicone        CatalogoAsset?          @relation("IconeAssetSub", fields: [asset_subicone_id], references: [id], onDelete: Restrict)
+  tipo            CatalogoTipoEntidade    @relation(fields: [tipo_id], references: [id], onDelete: Restrict)
+  categoria       CatalogoCategoriaVisual @relation(fields: [categoria_id], references: [id], onDelete: Restrict)
+  assetPrincipal  CatalogoAsset?          @relation("IconeAssetPrincipal", fields: [asset_principal_id], references: [id], onDelete: Restrict)
+  assetSubicone   CatalogoAsset?          @relation("IconeAssetSub", fields: [asset_subicone_id], references: [id], onDelete: Restrict)
   regrasMistoResultado CatalogoRegraMisto[]
 
   @@index([tipo_id, categoria_id, estado])
@@ -1449,8 +1445,8 @@ model CatalogoRegraMisto {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  tipo       CatalogoTipoEntidade          @relation(fields: [tipo_id], references: [id], onDelete: Restrict)
-  icone      CatalogoIcone                 @relation(fields: [icone_id], references: [id], onDelete: Restrict)
+  tipo       CatalogoTipoEntidade @relation(fields: [tipo_id], references: [id], onDelete: Restrict)
+  icone      CatalogoIcone        @relation(fields: [icone_id], references: [id], onDelete: Restrict)
   categorias CatalogoRegraMistoCategoria[]
 
   @@index([tipo_id, estado, prioridade, especificidade])
@@ -1464,7 +1460,7 @@ model CatalogoRegraMistoCategoria {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  regra     CatalogoRegraMisto      @relation(fields: [regra_id], references: [id], onDelete: Restrict)
+  regra     CatalogoRegraMisto       @relation(fields: [regra_id], references: [id], onDelete: Restrict)
   categoria CatalogoCategoriaVisual @relation(fields: [categoria_id], references: [id], onDelete: Restrict)
 
   @@unique([regra_id, categoria_id])
@@ -1480,7 +1476,7 @@ model OperadorProdutoMaike {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  usuario    Usuario                   @relation(fields: [cliente_id, usuario_id], references: [cliente_id, id], onDelete: Restrict)
+  usuario   Usuario @relation(fields: [cliente_id, usuario_id], references: [cliente_id, id], onDelete: Restrict)
   auditorias AuditoriaCatalogoGlobal[]
 
   @@unique([cliente_id, usuario_id])
@@ -1499,7 +1495,7 @@ model AuditoriaCatalogoGlobal {
   updatedAt   DateTime @updatedAt
 
   /// Ator desde a R3 (D-PROD-70). Registros antigos mantêm só `operador_id`.
-  admin_id String? @db.VarChar(64)
+  admin_id    String?  @db.VarChar(64)
 
   operador OperadorProdutoMaike? @relation(fields: [operador_id], references: [id], onDelete: Restrict)
   admin    AdminPrincipalMaike?  @relation(fields: [admin_id], references: [id], onDelete: Restrict)

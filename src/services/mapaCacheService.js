@@ -73,7 +73,7 @@ const CAPACIDADES = {
   // R2E-P1 (D-PROD-107): empresa no ledger → o mapa mostra POSIÇÕES (saldo por área); o Lote é só o cadastro.
   // Erro na consulta propaga (sem cair para Lote como saldo).
   lotes: async (empresaId) => {
-    const ledger = await listarPosicoesRebanhoServidor(empresaId);
+    const ledger = /** @type {{ativo?: boolean, itens?: any[]}} */ (await listarPosicoesRebanhoServidor(empresaId));
     if (ledger?.ativo) return ledger.itens;
     return daEmpresa(await listLotes(), empresaId).filter((l) => l.status === 'Ativo');
   },

@@ -245,10 +245,11 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
       // legado e sem lote derivado. Sobras de suplementação ainda não entram
       // na mesma transação: recusa ANTES de enviar, sem falso sucesso.
       if (modoLedger) {
-        if (Array.isArray(formData.sobras_destino_aproveitar) && formData.sobras_destino_aproveitar.length > 0) {
+        const dadosLedger = /** @type {any} */ (formData);
+        if (Array.isArray(dadosLedger.sobras_destino_aproveitar) && dadosLedger.sobras_destino_aproveitar.length > 0) {
           throw Object.assign(new Error('ledger'), { mensagemTela: 'Aproveitar sobras de suplementação na mesma confirmação ainda não está disponível no controle por posições. Desmarque as sobras e registre a suplementação depois. Nada foi gravado.' });
         }
-        const { corpo, faltando } = corpoTransferenciaLedger({ empresaId: empresaSelecionadaId, areaDestinoId: formData.area_entrada_id, data: formData.data_movimentacao, posicoes: lotes, formData });
+        const { corpo, faltando } = corpoTransferenciaLedger({ empresaId: empresaSelecionadaId, areaDestinoId: dadosLedger.area_entrada_id, data: dadosLedger.data_movimentacao, posicoes: lotes, formData: dadosLedger });
         if (faltando.length || !corpo.itens.length) {
           throw Object.assign(new Error('ledger'), { mensagemTela: `Quantidade maior que as posições desta área (${faltando.map((f) => `${f.categoria}: faltam ${f.faltam}`).join(', ') || 'nada a mover'}). Nada foi gravado.` });
         }

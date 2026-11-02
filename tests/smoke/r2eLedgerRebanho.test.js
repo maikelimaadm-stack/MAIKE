@@ -75,7 +75,7 @@ describe('R2E mapa e DetalhesLote no modo ledger', () => {
   it('transferência no ledger: um comando, sem validarOrdemTemporal, sem PATCH/POST/criarLote; demais operações recusam antes de abrir', () => {
     const fonte = readFileSync('src/components/mapa/DetalhesLote.jsx', 'utf8');
     const ledger = fonte.slice(fonte.indexOf('      if (modoLedger) {'), fonte.indexOf('      const movimentacoesCriadas = [];'));
-    expect(ledger).toMatch(/enviarTransferenciaLedger\(corpo/);
+    expect(ledger).toMatch(/enviarTransferenciaLedger\(\{ operation_id: chaveTransferenciaLedger\.current, \.\.\.corpo \}/);
     expect(ledger).not.toMatch(/validarOrdemTemporal|atualizarLote|criarMovimentacao|criarLote|registrarManejoLote/);
     expect(ledger).toMatch(/return resposta\?\.movimentacao/);
     for (const abrir of ['setShowAbate', 'setShowMorte', 'setShowNascimento', 'setShowMudancaCategoria', 'setShowPesagem']) {
