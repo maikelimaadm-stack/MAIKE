@@ -41,8 +41,6 @@ const req = (metodo, url, token, payload) =>
   app.inject({ method: metodo, url, headers: token ? { authorization: `Bearer ${token}` } : {}, ...(payload !== undefined ? { payload } : {}) });
 const opId = () => `op-${randomUUID()}`;
 const BOI = 'Boi 25 a 36 meses';
-const GARROTE = 'Garrote 13 a 24 meses';
-const VACA = 'Vaca + 36 meses';
 
 const cenario = async () => {
   const p = prisma();
@@ -75,11 +73,6 @@ const ok = async (r, status = 201) => {
   assert.equal(x.statusCode, status, x.body);
   return x.json();
 };
-const totalPorArea = async (c) => {
-  const m = {};
-  for (const p of await posicoes(c)) if (p.quantidade_cabecas > 0) m[p.area_atual_nome] = (m[p.area_atual_nome] ?? 0) + p.quantidade_cabecas;
-  return m;
-};
 const verificar = async (c) => {
   const v = (await req('GET', `/rebanho/verificacao?empresa_id=${c.empresa.id}`, c.tok)).json();
   assert.equal(v.integro, true, JSON.stringify(v));
@@ -109,15 +102,12 @@ const exigirNadaGravado = async (c, acao, status, codigo) => {
   return r;
 };
 const cancelar = (c, movId, operation_id = opId()) => req('POST', `/movimentacoes-mapa/${movId}/cancelamento`, c.tok, { operation_id, motivo: 'teste do ledger' });
-const baixa = (c, tipo, linhas, extra = {}) =>
-  req('POST', '/movimentacoes-mapa/comandos/baixa-rebanho', c.tok, { operation_id: opId(), tipo, empresa_id: c.empresa.id, area_id: c.A.id, data_movimentacao: '2026-11-02', linhas, ...extra });
 const rebanho = (c, tipo, linhas, extra = {}) =>
   req('POST', '/movimentacoes-mapa/comandos/manejo-rebanho', c.tok, { operation_id: opId(), tipo, empresa_id: c.empresa.id, area_id: c.A.id, data_movimentacao: '2026-11-02', linhas, ...extra });
 const juntar = (c, principal, origens, extra = {}) =>
   req('POST', '/movimentacoes-mapa/comandos/juncao-lotes', c.tok, { operation_id: opId(), empresa_id: c.empresa.id, area_id: c.A.id, lote_principal_id: principal.id, lote_origem_ids: origens.map((o) => o.id), data_movimentacao: '2026-11-02', ...extra });
 const transferir = (c, itens, destino, dia) =>
   req('POST', '/rebanho/comandos/transferencia', c.tok, { operation_id: opId(), empresa_id: c.empresa.id, area_destino_id: destino.id, data_movimentacao: `2026-11-${dia}`, itens });
-const saldoEm = async (c, data) => (await req('GET', `/rebanho/saldos?empresa_id=${c.empresa.id}&data=${data}`, c.tok)).json();
 
 
 const legado = async () => {

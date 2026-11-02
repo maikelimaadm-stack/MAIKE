@@ -398,7 +398,8 @@ export const pesoDerivado = async (tx, clienteId, ref, destinoId, dia, entradas)
 /**
  * Grava UMA observação por destino e guarda no evento o descritor
  * (`dados.pesos_derivados`) que permite reconferir o cálculo depois.
- * @param {{clienteId: string, empresaId: string, evento: any, dia: string, destinos: Map<string, EntradaDePeso[]>}} a
+ * @param {any} tx
+ * @param {{clienteId: string, empresaId: string, evento: any, dia: string, destinos: Map<string, EntradaDePeso[]>}} opcoes
  * @returns {Promise<Map<string, number|null>>}
  */
 export const registrarPesosDerivados = async (tx, { clienteId, empresaId, evento, dia, destinos }) => {
