@@ -4130,4 +4130,30 @@ Relatório: `docs/engineering/UX-MOBILE-V2-REPORT.md` (seção V9). Teste: `test
 - **Execução:** roda dentro da transação, depois das travas de área e de lotes.
 - GREEN 14/14; junção 31/31.
 
+**Complemento PR169-R3 (datas impossíveis e campos de data conflitantes):**
+- **Problema:** a "data confiável" do R2 era só o regex `^[0-9]{4}-[0-9]{2}-[0-9]{2}`, sem âncora final e sem calendário. Valores como `2026-00-00`, `2026-02-30`, `2025-13-45`, `2026-10-00` e `2026-10-19texto` viravam datas confiáveis e eram comparados como texto. Se ordenavam antes da junção, escondiam um registro feito depois dela, e o fallback `createdAt` não era usado. Em `MovimentacaoPecuaria` (`data_movimentacao`, `data_evento`) o `COALESCE` usava a primeira data, e uma primeira data anterior escondia uma segunda posterior.
+  - RED 8 de 10 no `b63b294`: A, B1–B4, C2, D1, D3 responderam 201 e efetivaram a junção.
+  - C1 (data inválida lexicamente posterior) e D2 (data posterior no primeiro campo) já bloqueavam.
+- **Data confiável** passa a ser uma data de calendário **real**, no texto inteiro:
+  - formato `AAAA-MM-DD`, ou ISO `AAAA-MM-DDTHH:MM[:SS[.fff]][Z|±HH:MM]`, a mesma gramática de `dataOperacionalValida` do comando;
+  - mês 01–12, dia existente no mês (com ano bissexto) e ano diferente de `0000`;
+  - o dia é o prefixo como foi escrito, sem converter o fuso.
+  - A validação é SQL puro em `CASE` aninhado: os casts só rodam depois do regex, então nunca lança erro.
+- **Data efetiva** (conservadora): `GREATEST` de todas as datas confiáveis dos campos da fonte.
+  - Entra também o `createdAt` (UTC) quando nenhuma data é confiável, ou quando algum campo de data está preenchido com valor não confiável.
+  - Assim, data impossível nunca prova anterioridade e data anterior nunca esconde data posterior.
+  - Data inválida em registro feito **antes** da junção não bloqueia: o `createdAt` decide.
+- **Prioridade semântica das fontes com mais de uma data:**
+  - `MovimentacaoPecuaria.data_movimentacao` e `data_evento` são sinônimos legados do dia do evento, sem prioridade entre si; em conflito vale a maior.
+  - `LancamentoTarefa`: `GREATEST(data_conclusao, data_inicio)`, senão `createdAt`.
+  - `data_prevista` continua sem contar: é previsão, não evento realizado.
+- **Inalterados:**
+  - recusa 409 `JUNCAO_DATA_RETROATIVA` sem efeito;
+  - validação dentro da transação, depois das travas;
+  - vínculo estrutural e legado por nome;
+  - tenant e empresa; sem teto;
+  - cancelados ignorados.
+  - O `dependenciasPosteriores` do cancelamento R2A/R2B não foi tocado. Ele combina `createdAt` e datas com OU, então uma data inválida só pode somar bloqueio, nunca esconder.
+- **Resultado:** GREEN 21/21 (`r2cP1R3DatasInvalidas`); R2 14/14; junção 31/31.
+
 <!-- Próxima decisão: D-PROD-105 -->

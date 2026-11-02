@@ -207,5 +207,82 @@ Arquivo novo `guardaTemporalComando.js` com `registrosAtivosPosteriores`, uma co
 ### Riscos residuais
 
 - **Registro sem data operacional e lançado hoje** bloqueia junção com data anterior (conservador). Basta usar a data de hoje, ou registrar a data operacional no evento.
-- **Data operacional malformada mas com prefixo AAAA-MM-DD** (ex.: `2026-13-40`): é comparada pelo prefixo e, se maior, bloqueia (conservador).
+- ~~**Data operacional malformada mas com prefixo AAAA-MM-DD**: comparada pelo prefixo.~~ Isso estava incompleto: se o prefixo ordenava antes, o registro era escondido. Corrigido no PR169-R3 (§10).
 - **Safari real:** o E2E roda em Chromium com emulação de toque (iPhone e Android por viewport); não foi testado em Safari de verdade.
+
+## 10. PR169-R3 — datas impossíveis e campos de data conflitantes
+
+### Diagnóstico (RED executado no HEAD b63b294)
+
+A "data confiável" do R2 era `^[0-9]{4}-[0-9]{2}-[0-9]{2}`. O regex não tinha âncora final nem checagem de calendário, e a data era comparada como texto. Registros abaixo foram gravados agora, depois da data da junção (20/10). PostgreSQL local, HTTP autenticado.
+
+| Caso | Valor | HEAD b63b294 |
+|---|---|---|
+| A | `EventoSanitario.data_evento = 2026-00-00` | **201**, junção efetivada (ORIGEM 0/Inativo, +1 movimento, +3 auditorias, +1 reserva) |
+| B1 | `2026-02-30` | **201** |
+| B2 | `2026-10-19texto` | **201** |
+| B3 | `2025-13-45` (ano anterior) | **201** |
+| B4 | `MovimentacaoMapa.data_movimentacao = 2026-02-30` | **201** |
+| C1 | `2026-13-01` (inválida, lexicamente posterior) | 409 (por acaso) |
+| C2 | `2026-10-00` (inválida, lexicamente anterior) | **201** |
+| D1 | `MovimentacaoPecuaria`: `data_movimentacao` 10/10, `data_evento` 25/10 (registro antigo) | **201**: o COALESCE pegou 10/10 |
+| D2 | inverso (25/10 e 10/10) | 409 |
+| D3 | `data_movimentacao` 10/10 válida + `data_evento` 2026-00-00, registrado agora | **201** |
+
+Evidência: `evidencias/r2c-p1-juncao/r3-datas-invalidas/red-head-b63b294.txt`, com ANTES, DEPOIS e o código HTTP de cada caso.
+
+### Semântica de `MovimentacaoPecuaria`
+
+- É documento JSON livre, herdado do legado. Nenhuma tela atual grava os dois campos.
+- `data_movimentacao` e `data_evento` designam o dia do mesmo evento realizado; nenhum é previsão.
+- Não há base para dar prioridade a um sobre o outro. Em conflito, a escolha conservadora é a **maior** data confiável.
+
+### Correção (`guardaTemporalComando.js`)
+
+- `dataConfiavel` aceita só uma data de calendário **real**, no texto inteiro:
+  - `AAAA-MM-DD`, ou ISO com hora e fuso opcionais (mesma gramática do comando);
+  - mês 01–12, dia existente no mês (com ano bissexto) e ano diferente de `0000`;
+  - o dia é o prefixo escrito, sem converter o fuso.
+  - É SQL puro em `CASE` aninhado, e o cast só roda depois do regex: **nunca lança erro**.
+- `dataEfetiva(alias, campos)` = `GREATEST(datas confiáveis…, createdAt)`.
+  - O `createdAt` entra quando nenhuma data é confiável ou algum campo preenchido não é confiável.
+  - Data impossível nunca prova anterioridade; data anterior nunca esconde data posterior.
+- Tarefa: `GREATEST(data_conclusao, data_inicio)`, senão `createdAt`. `data_prevista` não conta.
+- **Não mudou:**
+  - 409 `JUNCAO_DATA_RETROATIVA` sem efeito;
+  - validação dentro da transação, depois das travas;
+  - vínculo estrutural e legado por nome;
+  - tenant e empresa; sem teto;
+  - cancelados ignorados.
+- **Cancelamento:** o `dependenciasPosteriores` do R2A/R2B não foi alterado. Ele já combina `createdAt` e datas com OU, então uma data inválida só soma bloqueio.
+
+### Testes (`r2cP1R3DatasInvalidas.test.mjs`, 21/21)
+
+| Caso | Resultado |
+|---|---|
+| A, B1–B4, C1, C2, D1–D3 | 409, ANTES = DEPOIS (saldos, status, peso, movimentos, auditoria, reservas) |
+| V1: 25 valores pelo SQL real (válidos, ISO, fuso, bissextos 2024/2000, 2025-02-29, 1900-02-29, 04-31, 0000, lixo, hora 25, fuso +99, nulo, vazio) | só calendário real é aceito; o que o SQL aceita, o JS do comando também aceita |
+| V2: número, objeto, booleano, array, espaços e texto de 5000 caracteres no campo de data | sem 500; registro antigo → 201 |
+| G1: datas reais anteriores (AAAA-MM-DD, ISO, ISO com fuso, bissexto, duas datas anteriores) registradas agora | 201 |
+| G2: mesmo dia passa; dia seguinte com fuso bloqueia | ok |
+| G3: data impossível em registro **anterior** à junção | 201 (o `createdAt` decide) |
+| G4: sem data: antigo passa; recente bloqueia | ok |
+| G5: data real posterior com `createdAt` antigo | 409 |
+| G6: tarefa com início posterior e conclusão anterior | 409 |
+| G6: só previsão; Cancelada; iniciada depois | 201; 201; 409 |
+| G7: data impossível em movimento cancelado, outra empresa, outro tenant ou homônimo com id | 201 |
+| G8: legado só por nome, com data impossível | 409 |
+| G9: 610 cancelados + 1 ativo, todos com data impossível | 409; só cancelados → 201 |
+
+**Totais:**
+- `r2cP1R2GuardaTemporal`: 14/14.
+- `r2cP1JuncaoLotes`: 31/31, com C1–C5 × 3 rodadas.
+- `npm run test:backend`: 781 testes, 776 pass, 0 fail (5 todo).
+- Smoke: 1228/1228.
+- E2E Chromium em 1440/768/412/390: 72/72.
+
+### Riscos residuais
+
+- **Data inválida em registro antigo:** o registro feito antes da junção não bloqueia, porque só o `createdAt` é prova. Se esse campo representasse um evento futuro, não há como saber.
+- **Formatos legítimos fora da gramática** (ex.: `2026-10-20 10:00:00`, com espaço) caem no `createdAt`. Isso é conservador.
+- **Safari real** não foi testado, como no R2.
