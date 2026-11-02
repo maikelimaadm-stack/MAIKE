@@ -14,7 +14,11 @@ import LancField from "@/components/cadastro/base1/LancField";
 /** Campo flutuante Base1 (rótulo dentro) — D-PROD-88. */
 const FL = LancField;
 
-export default function FormularioAbate({ lote, onSubmit, onCancel }) {
+/**
+ * R2D-P1 (D-PROD-105): UMA confirmação = UM envio com todas as categorias
+ * (`linhas`); pesos são totais da linha. O servidor escolhe os lotes.
+ */
+export default function FormularioAbate({ lote, onSubmit, onCancel, enviando = false }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   const lotesArray = Array.isArray(lote) ? lote : [lote];
   
@@ -53,17 +57,18 @@ export default function FormularioAbate({ lote, onSubmit, onCancel }) {
       return;
     }
     
-    abatesValidos.forEach(abate => {
-      onSubmit({
-        data_abate: formData.data_abate,
+    if (enviando) return;
+    onSubmit({
+      data_abate: formData.data_abate,
+      observacoes: formData.observacoes,
+      linhas: abatesValidos.map((abate) => ({
         categoria: abate.categoria,
         quantidade: parseInt(abate.quantidade),
         peso_vivo_total: abate.peso_vivo_total ? parseFloat(abate.peso_vivo_total) : null,
         peso_carcaca_total: abate.peso_carcaca_total ? parseFloat(abate.peso_carcaca_total) : null,
         destino: abate.destino,
         destino_nome: abate.destino_nome,
-        observacoes: formData.observacoes
-      });
+      })),
     });
   };
 
@@ -237,7 +242,7 @@ export default function FormularioAbate({ lote, onSubmit, onCancel }) {
           </FL>
           <div className="flex justify-end gap-1 pt-1 border-t">
             <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-7 text-xs">Cancelar</Button>
-            <Button type="submit" size="sm" className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white">Registrar Abates</Button>
+            <Button type="submit" size="sm" disabled={enviando} aria-busy={enviando} className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white">{enviando ? "Registrando…" : "Registrar Abates"}</Button>
           </div>
         </form>
       </CardContent>

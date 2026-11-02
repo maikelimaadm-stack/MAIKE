@@ -1,0 +1,34 @@
+MENU reaberto 0x
+PASS mobile-390 formulário de morte: sem overflow horizontal — {"sw":390,"cw":390,"l":8,"r":382,"vw":390}
+PASS mobile-390 morte: 1 POST do comando de baixa (duplo toque não duplica) — 1 POST
+PASS mobile-390 corpo só com categoria/quantidade/causa e seleção da tela (sem saldo, lote alvo ou tenant) — {"operation_id":"rebanho-24038702-73d4-4f80-a42b-84bab63101c0","tipo":"Morte","empresa_id":"cmvwd6au200037d5t9qk00js3","area_id":"cmvwl7ltq023t7d3tvvpce8er","data_movimentacao":"2026-11-02T12:00:00.00
+PASS mobile-390 nenhum manejo-lote por lote, PATCH /lotes ou POST genérico
+PASS mobile-390 servidor: baixa em 2 lotes (1º zerado/Inativo, 2º −10), 3º intacto — 0/Inativo 20/Ativo 20/Ativo
+PASS mobile-390 histórico mostra a distribuição real por lote e a causa — Histórico da Área PASTO 26 (3)
+Área
+Lotes atuais
+
+Entradas, saídas e manejos registrados nesta área, inclusive de lotes que já saíram.
+
+02/11/2026
+Morte
+Saída
+Ativo
+BX1 mobile-390
+Quantidade: 379 cab
+Data: 02/11/2026
+379
+PASS mobile-390 diálogo de cancelamento: sem overflow horizontal — {"sw":390,"cw":390,"l":10.417949676513672,"r":379.5820732116699,"vw":390}
+PASS mobile-390 cancelamento pela UI devolve o conjunto exato — 369/Ativo 30/Ativo 20/Ativo
+PASS mobile-390 formulário de abate: sem overflow horizontal — {"sw":390,"cw":390,"l":8,"r":382,"vw":390}
+PASS mobile-390 abate: 1 POST; peso vivo é total da linha — {"operation_id":"rebanho-75a0f000-08e9-480d-8459-ac0c49c95ea7","tipo":"Abate","empresa_id":"cmvwd6au200037d5t9qk00js3","area_id":"cmvwl7ltq023t7d3tvvpce8er","data_movimentacao":"2026-11-02T12:00:00.00
+PASS mobile-390 abate: sem PATCH/POST legado
+PASS mobile-390 servidor: abate distribuído (1º zerado, 2º −5) — 0/Inativo 25/Ativo 20/Ativo
+PASS mobile-390 409: mensagem de data retroativa e diálogo continua aberto — Há registro posterior à data escolhida num dos lotes. Use uma data igual ou posterior. Nada foi baixado.
+PASS mobile-390 409: exatamente 1 POST nessa tentativa
+PASS mobile-390 409: nada mudou no servidor — 0/Inativo 24/Ativo 20/Ativo
+PASS mobile-390 offline: indisponibilidade explícita — Sem conexão: este manejo (nascimento, pesagem, mudança de categoria, junção, morte ou abate) só pode ser registrado online. Nada foi gravado.
+PASS mobile-390 offline: nenhuma requisição de escrita
+PASS mobile-390 offline: fila sem Lote/MovimentacaoMapa
+PASS mobile-390 sem erro de página
+RESUMO mobile-390: 19/19 PASS

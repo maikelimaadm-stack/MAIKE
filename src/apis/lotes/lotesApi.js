@@ -19,6 +19,7 @@ import {
   executarManejoLote,
   executarManejoRebanho,
   executarJuncaoLotes,
+  executarBaixaRebanho,
 } from '@/apis/movimentacoes-mapa';
 import { ehMovimentoAtivo } from '@/domain/lotes/situacaoMovimento';
 import { listMovimentacoesPecuariaNativas } from '@/apis/movimentacoes-pecuaria';
@@ -155,6 +156,17 @@ export const registrarJuncaoLotesServidor = async (corpo) => {
   const contexto = ctx('registrarJuncaoLotes');
   assertArgument(isObjeto(corpo) && isId(corpo.operation_id) && isId(corpo.lote_principal_id) && Array.isArray(corpo.lote_origem_ids), 'corpo', contexto);
   return runProviderCall(() => executarJuncaoLotes(corpo), { ...contexto, details: { lote_principal_id: corpo.lote_principal_id } });
+};
+
+/**
+ * Baixa multi-lote — Morte/Abate (R2D-P1, D-PROD-105): o navegador manda
+ * categoria e quantidade por linha; o servidor escolhe os lotes, baixa todos
+ * e grava UM movimento numa transação. Nunca vai para a fila offline.
+ */
+export const registrarBaixaRebanhoServidor = async (corpo) => {
+  const contexto = ctx('registrarBaixaRebanho');
+  assertArgument(isObjeto(corpo) && isId(corpo.operation_id) && isId(corpo.area_id) && Array.isArray(corpo.linhas), 'corpo', contexto);
+  return runProviderCall(() => executarBaixaRebanho(corpo), { ...contexto, details: { area_id: corpo.area_id, tipo: corpo.tipo } });
 };
 
 export const consultarElegibilidadeCancelamento = async (id) => {

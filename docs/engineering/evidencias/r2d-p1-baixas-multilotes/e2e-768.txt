@@ -1,0 +1,34 @@
+MENU reaberto 0x
+PASS tablet-768 formulário de morte: sem overflow horizontal — {"sw":768,"cw":768,"l":0,"r":768,"vw":768}
+PASS tablet-768 morte: 1 POST do comando de baixa (duplo toque não duplica) — 1 POST
+PASS tablet-768 corpo só com categoria/quantidade/causa e seleção da tela (sem saldo, lote alvo ou tenant) — {"operation_id":"rebanho-4eeb8dee-c676-4cc3-abcd-11c42fa30795","tipo":"Morte","empresa_id":"cmvwd6au200037d5t9qk00js3","area_id":"cmvwl7ltc023j7d3t9pxr4jff","data_movimentacao":"2026-11-02T12:00:00.00
+PASS tablet-768 nenhum manejo-lote por lote, PATCH /lotes ou POST genérico
+PASS tablet-768 servidor: baixa em 2 lotes (1º zerado/Inativo, 2º −10), 3º intacto — 0/Inativo 20/Ativo 20/Ativo
+PASS tablet-768 histórico mostra a distribuição real por lote e a causa — Histórico da Área PASTO 24 (3)
+Área
+Lotes atuais
+
+Entradas, saídas e manejos registrados nesta área, inclusive de lotes que já saíram.
+
+02/11/2026
+Morte
+Saída
+Ativo
+BX1 tablet-768
+Quantidade: 82 cab
+Data: 02/11/2026
+82 d
+PASS tablet-768 diálogo de cancelamento: sem overflow horizontal — {"sw":768,"cw":768,"l":162.89663696289062,"r":605.1033935546875,"vw":768}
+PASS tablet-768 cancelamento pela UI devolve o conjunto exato — 72/Ativo 30/Ativo 20/Ativo
+PASS tablet-768 formulário de abate: sem overflow horizontal — {"sw":768,"cw":768,"l":0,"r":768,"vw":768}
+PASS tablet-768 abate: 1 POST; peso vivo é total da linha — {"operation_id":"rebanho-2453da99-7e61-40a4-8a3e-a8bce579ff41","tipo":"Abate","empresa_id":"cmvwd6au200037d5t9qk00js3","area_id":"cmvwl7ltc023j7d3t9pxr4jff","data_movimentacao":"2026-11-02T12:00:00.00
+PASS tablet-768 abate: sem PATCH/POST legado
+PASS tablet-768 servidor: abate distribuído (1º zerado, 2º −5) — 0/Inativo 25/Ativo 20/Ativo
+PASS tablet-768 409: mensagem de data retroativa e diálogo continua aberto — Há registro posterior à data escolhida num dos lotes. Use uma data igual ou posterior. Nada foi baixado.
+PASS tablet-768 409: exatamente 1 POST nessa tentativa
+PASS tablet-768 409: nada mudou no servidor — 0/Inativo 24/Ativo 20/Ativo
+PASS tablet-768 offline: indisponibilidade explícita — Sem conexão: este manejo (nascimento, pesagem, mudança de categoria, junção, morte ou abate) só pode ser registrado online. Nada foi gravado.
+PASS tablet-768 offline: nenhuma requisição de escrita
+PASS tablet-768 offline: fila sem Lote/MovimentacaoMapa
+PASS tablet-768 sem erro de página
+RESUMO tablet-768: 19/19 PASS

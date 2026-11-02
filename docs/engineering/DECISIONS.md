@@ -4156,4 +4156,82 @@ Relatório: `docs/engineering/UX-MOBILE-V2-REPORT.md` (seção V9). Teste: `test
   - O `dependenciasPosteriores` do cancelamento R2A/R2B não foi tocado. Ele combina `createdAt` e datas com OU, então uma data inválida só pode somar bloqueio, nunca esconder.
 - **Resultado:** GREEN 21/21 (`r2cP1R3DatasInvalidas`); R2 14/14; junção 31/31.
 
-<!-- Próxima decisão: D-PROD-105 -->
+## D-PROD-105 — Baixa multi-lote (Morte e Abate) por comando atômico com cancelamento do conjunto (R2D-P1)
+
+**Contexto:** `DetalhesLote.handleMorte/handleAbate` percorria os lotes da categoria e mandava UM comando R2A (`/comandos/manejo-lote`) por lote, cada um na sua transação. RED na main `52bc804` (PostgreSQL local, HTTP autenticado):
+- falha de rede na 2ª chamada deixava 40 cabeças baixadas;
+- lote excluído entre a tela e o envio fazia a 2ª linha voltar 404 com 40 já baixadas;
+- falha na 3ª linha deixava 70 baixadas;
+- timeout seguido de reenvio dava erro com 40 baixadas;
+- pedido de 100 cabeças com 90 disponíveis baixava 90 e mostrava "sucesso".
+
+**Decisão:** `POST /movimentacoes-mapa/comandos/baixa-rebanho`. UMA confirmação do formulário (todas as categorias dela) = UMA transação = UM movimento `Morte` ou `Abate`.
+
+**Contrato** (`additionalProperties: false`):
+- campos de topo: `operation_id`, `tipo` (Morte|Abate), `empresa_id`, `area_id`, `data_movimentacao`, `observacoes?`, `lotes_selecionados?`;
+- `linhas[1..20]`: `{categoria, quantidade, causa_morte}` para Morte, ou `{categoria, quantidade, peso_vivo_total_kg?, peso_carcaca_total_kg?, destino?, destino_nome?}` para Abate.
+- Por que `linhas` e não `categoria` + `quantidade` no topo: os formulários atuais aceitam várias categorias (e a mesma categoria com causas diferentes) numa confirmação. Com uma só categoria no topo, a confirmação continuaria dividida em vários POSTs.
+- Saldo, lote alvo, distribuição, tenant, autor, `efeito_servidor`, `lote_ids` e `situacao` nunca vêm do cliente: o schema devolve 400.
+- `lotes_selecionados` (os lotes que a tela mostrava; o mapa pode filtrar) é só FILTRO:
+  - cada id é relido sob trava;
+  - inelegível não entra na conta;
+  - id de outro tenant ou empresa → 404 `LOTE_NOT_FOUND`.
+
+**Alocação** (determinística, no servidor):
+- elegíveis são os lotes da área, da empresa, ativos, não excluídos (#167), com saldo > 0 e da categoria da linha (comparação sem acento e sem caixa);
+- ordem: `numero_lote` numérico crescente, depois texto ou vazio, depois `id` (`numero_lote_crescente_depois_id`, gravado no movimento);
+- linhas da mesma categoria compartilham o saldo, na ordem das linhas;
+- o total pedido por categoria acima do disponível → 409 `BAIXA_SALDO_INSUFICIENTE` (com `disponivel` e `pedido`), sem nada gravado;
+- categoria oficial com lote de sexo contrário → 409 `BAIXA_CLASSIFICACAO_DIVERGENTE`.
+- A distribuição final aparece no movimento (`linhas[].distribuicao`, `baixa.lotes` com saldo antes/depois), no toast de sucesso e no histórico. A tela não estima; a decisão é do servidor.
+
+**1 lote × N lotes:**
+- mesmo comando e mesmo formato; `lote_id` = primeiro participante; `lote_ids` = todos os participantes, sem repetição;
+- um lote usado por duas linhas é gravado uma vez, com uma auditoria.
+- O comando individual R2A (`manejo-lote`) continua existindo para Transferência e para chamadas diretas.
+- A tela não usa mais o R2A para Morte/Abate.
+
+**Efeito:**
+- trava a área e depois todos os lotes da área (e os selecionados) em ordem de id, como R2B/R2C;
+- reduz o saldo sem negativo; lote zerado fica `Inativo` e nunca é apagado;
+- peso médio, entrada, origem, identificação e Cadastro não mudam; nenhum lote é criado; nunca vira `Entrada`;
+- uma linha de `AuditLog` por participante, mais a do movimento;
+- invariante: antes − depois = total pedido, senão erro interno e rollback;
+- falha em qualquer ponto → rollback total, inclusive da reserva idempotente.
+
+**Metadados:**
+- `causa_morte` vem da lista do formulário;
+- `peso_vivo_total_kg` e `peso_carcaca_total_kg` são TOTAIS da linha como digitados, nunca multiplicados nem rateados por lote;
+- carcaça > vivo → 400; teto de 3000 kg por cabeça; destino da lista; `destino_nome` obrigatório nos destinos em que o formulário o exige.
+
+**Data:**
+- calendário real (`dataOperacionalValida`);
+- guarda de comando novo (`registrosAtivosPosteriores`, D-PROD-104 R2/R3) sobre os participantes; registro ativo posterior → 409 `BAIXA_DATA_RETROATIVA`;
+- mesmo dia passa; cancelados não contam; consulta completa, sem teto.
+
+**Idempotência:** `manejo_mapa_baixa_rebanho` + fingerprint do conteúdo canônico. Replay idêntico devolve a mesma resposta; mesma chave com outro conteúdo → 409 `IDEMPOTENCY_CONFLICT`.
+
+**Cancelamento:**
+- mesmo endpoint, só administrador ativo do tenant, idempotente;
+- `planejarCancelamento` encaminha para o planejador certificado R2B/R2C (`planejarCancelamentoRebanho`) quando o tipo é Morte/Abate E `efeito_servidor.comando` é o da baixa;
+- `efeito_servidor` é campo reservado, e a proveniência ainda confere a operação idempotente `committed` que aponta para o movimento;
+- auditorias-âncora iguais ao pós-estado; dependências posteriores; alteração posterior (inclusive ida e volta);
+- reverte todos os participantes juntos;
+- Morte/Abate legados (POST genérico) e R2A individuais seguem pelos caminhos antigos;
+- `COMANDOS_CERTIFICADOS` inclui o comando de baixa.
+
+**Frontend:**
+- os formulários enviam UMA vez com `linhas` e desabilitam o botão durante o envio;
+- `DetalhesLote` tem trava síncrona (`useRef`) contra duplo clique antes da renderização;
+- `enviarBaixaRebanho` é online-only, com pendência idempotente por tenant + usuário + tipo + empresa + área;
+- offline recusa antes de qualquer requisição, sem fila e sem POST+PATCH legado;
+- erro definitivo ou desconhecido mantém o diálogo aberto com mensagem;
+- o histórico descreve a distribuição.
+
+**Fora do escopo:**
+- transferência multi-lote; suplementação;
+- o POST genérico de `Morte`/`Abate` sem efeito em saldo continua aceito (registro sem proveniência, não cancelável).
+
+**Consequência:** relatório `MAIKE-R2D-BAIXAS-MULTILOTES-REPORT.md`; evidências em `evidencias/r2d-p1-baixas-multilotes/`. Migrations: 0.
+
+<!-- Próxima decisão: D-PROD-106 -->

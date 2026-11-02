@@ -1,0 +1,254 @@
+# R2D-P1 RED — main 52bc804556ca15ce37478ab1d13b5a252f4b8846 (sem alteração de código; só este teste novo)
+# PostgreSQL 16 local descartável (maike_ci), HTTP autenticado via app.inject, dados sintéticos
+# O laço reproduz DetalhesLote.handleMorte/handleAbate: 1 POST /comandos/manejo-lote por lote, quantidadeAplicavel, saldo lido na tela
+# Comando: R2D_RED=1 node --test --test-concurrency=1 tests/r2dP1BaixasRed.test.mjs (no CI a suíte RED fica em skip; o laço legado é não atômico por natureza)
+
+TAP version 13
+# ◇ injected env (0) from .env // tip: ⌘ enable debugging { debug: true }
+# (node:556) [FSTDEP023] FastifyDeprecation: disableRequestLogging option is deprecated. Use the logController option with disableRequestLogging or isLogDisabled override instead. The disableRequestLogging top-level option will be removed in `fastify@6`.
+# (Use `node --trace-warnings ...` to show where the warning was created)
+#   POST /movimentacoes-mapa/comandos/baixa-rebanho → HTTP 404
+# Subtest: R2D RED — baixa multi-lote pelo laço do navegador
+    # Subtest: R0: o comando atômico novo não existe na main → 404
+    not ok 1 - R0: o comando atômico novo não existe na main → 404
+      ---
+      duration_ms: 4355.731001
+      type: 'test'
+      location: '/home/user/MAIKE/backend/tests/r2dP1BaixasRed.test.mjs:105:3'
+      failureType: 'testCodeFailure'
+      error: 'endpoint de baixa multi-lote ausente'
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected: 404
+      actual: 404
+      operator: 'notStrictEqual'
+      stack: |-
+        TestContext.<anonymous> (file:///home/user/MAIKE/backend/tests/r2dP1BaixasRed.test.mjs:109:12)
+        process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async Promise.all (index 0)
+        async Suite.run (node:internal/test_runner/test:1442:7)
+        async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+      ...
+#   [R1]
+#   ANTES  {"lotes":"L20:20/Ativo L30:30/Ativo L40:40/Ativo","total":90,"movs":0,"audits":3,"ops":0}
+#   DEPOIS {"lotes":"L20:20/Ativo L30:30/Ativo L40:0/Inativo","total":50,"movs":1,"audits":5,"ops":1}
+#   tela: rede caiu na 2ª chamada
+    # Subtest: R1: MORTE 60 em 40+30+20, falha de rede na 2ª chamada → 40 já baixadas
+    not ok 2 - R1: MORTE 60 em 40+30+20, falha de rede na 2ª chamada → 40 já baixadas
+      ---
+      duration_ms: 410.530659
+      type: 'test'
+      location: '/home/user/MAIKE/backend/tests/r2dP1BaixasRed.test.mjs:112:3'
+      failureType: 'testCodeFailure'
+      error: |-
+        falha numa parte da confirmação não pode deixar baixa parcial
+        + actual - expected
+        
+          {
+        +   audits: 5,
+        +   lotes: 'L20:20/Ativo L30:30/Ativo L40:0/Inativo',
+        +   movs: 1,
+        +   ops: 1,
+        +   total: 50
+        -   audits: 3,
+        -   lotes: 'L20:20/Ativo L30:30/Ativo L40:40/Ativo',
+        -   movs: 0,
+        -   ops: 0,
+        -   total: 90
+          }
+        
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected:
+        lotes: 'L20:20/Ativo L30:30/Ativo L40:40/Ativo'
+        total: 90
+        movs: 0
+        audits: 3
+        ops: 0
+      actual:
+        lotes: 'L20:20/Ativo L30:30/Ativo L40:0/Inativo'
+        total: 50
+        movs: 1
+        audits: 5
+        ops: 1
+      operator: 'deepStrictEqual'
+      stack: |-
+        exigirNadaGravado (file:///home/user/MAIKE/backend/tests/r2dP1BaixasRed.test.mjs:102:53)
+        TestContext.<anonymous> (file:///home/user/MAIKE/backend/tests/r2dP1BaixasRed.test.mjs:118:5)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async Suite.processPendingSubtests (node:internal/test_runner/test:744:7)
+      ...
+#   [R2]
+#   ANTES  {"lotes":"L20:20/Ativo L30:30/Ativo L40:40/Ativo","total":90,"movs":0,"audits":3,"ops":0}
+#   DEPOIS {"lotes":"L20:20/Ativo L30:30/Ativo L40:0/Inativo","total":50,"movs":1,"audits":5,"ops":1}
+#   tela: HTTP 404 LOTE_NOT_FOUND
+    # Subtest: R2: ABATE 60, 2ª linha recusada pelo servidor (lote excluído do cadastro entre a tela e o envio) → 40 já baixadas
+    not ok 3 - R2: ABATE 60, 2ª linha recusada pelo servidor (lote excluído do cadastro entre a tela e o envio) → 40 já baixadas
+      ---
+      duration_ms: 342.258379
+      type: 'test'
+      location: '/home/user/MAIKE/backend/tests/r2dP1BaixasRed.test.mjs:121:3'
+      failureType: 'testCodeFailure'
+      error: |-
+        falha numa parte da confirmação não pode deixar baixa parcial
+        + actual - expected
+        
+          {
+        +   audits: 5,
+        -   audits: 3,
+            lotes: undefined,
+        +   movs: 1,
+        +   ops: 1,
+        -   movs: 0,
+        -   ops: 0,
+            total: undefined
+          }
+        
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected:
+        movs: 0
+        audits: 3
+        ops: 0
+      actual:
+        movs: 1
+        audits: 5
+        ops: 1
+      operator: 'deepStrictEqual'
+      stack: |-
+        exigirNadaGravado (file:///home/user/MAIKE/backend/tests/r2dP1BaixasRed.test.mjs:102:53)
+        TestContext.<anonymous> (file:///home/user/MAIKE/backend/tests/r2dP1BaixasRed.test.mjs:130:5)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async Suite.processPendingSubtests (node:internal/test_runner/test:744:7)
+      ...
+#   [R3]
+#   ANTES  {"lotes":"L20:20/Ativo L30:30/Ativo L40:40/Ativo","total":90,"movs":0,"audits":3,"ops":0}
+#   DEPOIS {"lotes":"L20:20/Inativo L30:0/Inativo L40:0/Inativo","total":0,"movs":2,"audits":7,"ops":2}
+#   tela: HTTP 409 MANEJO_ESTADO_INVALIDO
+    # Subtest: R3: MORTE 80 em três lotes, 3ª linha falha (lote inativado entre a tela e o envio) → 70 já baixadas
+    not ok 4 - R3: MORTE 80 em três lotes, 3ª linha falha (lote inativado entre a tela e o envio) → 70 já baixadas
+      ---
+      duration_ms: 394.779151
+      type: 'test'
+      location: '/home/user/MAIKE/backend/tests/r2dP1BaixasRed.test.mjs:133:3'
+      failureType: 'testCodeFailure'
+      error: |-
+        nenhum movimento deveria existir
+        
+        2 !== 0
+        
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected: 0
+      actual: 2
+      operator: 'strictEqual'
+      stack: |-
+        TestContext.<anonymous> (file:///home/user/MAIKE/backend/tests/r2dP1BaixasRed.test.mjs:142:12)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async Suite.processPendingSubtests (node:internal/test_runner/test:744:7)
+      ...
+#   [R4]
+#   ANTES  {"lotes":"L20:20/Ativo L30:30/Ativo L40:40/Ativo","total":90,"movs":0,"audits":3,"ops":0}
+#   DEPOIS {"lotes":"L20:20/Ativo L30:30/Ativo L40:10/Ativo","total":60,"movs":1,"audits":5,"ops":1}
+#   envio1: rejected HTTP 409 MANEJO_SALDO_INSUFICIENTE | envio2: fulfilled 
+    # Subtest: R4: duplo clique (dois envios do formulário, chaves diferentes) → baixa repetida ou erro depois de baixa
+    ok 5 - R4: duplo clique (dois envios do formulário, chaves diferentes) → baixa repetida ou erro depois de baixa
+      ---
+      duration_ms: 359.778227
+      type: 'test'
+      ...
+#   [R5]
+#   ANTES  {"lotes":"L20:20/Ativo L30:30/Ativo L40:40/Ativo","total":90,"movs":0,"audits":3,"ops":0}
+#   DEPOIS {"lotes":"L20:20/Ativo L30:30/Ativo L40:0/Inativo","total":50,"movs":1,"audits":5,"ops":1}
+#   tentativa1: timeout | reenvio: HTTP 409 MANEJO_ESTADO_INVALIDO
+    # Subtest: R5: timeout com resposta perdida na 1ª chamada; usuário reenvia (novo envio) → erro com 40 já baixadas
+    not ok 6 - R5: timeout com resposta perdida na 1ª chamada; usuário reenvia (novo envio) → erro com 40 já baixadas
+      ---
+      duration_ms: 433.519808
+      type: 'test'
+      location: '/home/user/MAIKE/backend/tests/r2dP1BaixasRed.test.mjs:154:3'
+      failureType: 'testCodeFailure'
+      error: |-
+        Expected values to be strictly equal:
+        
+        40 !== 60
+        
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected: 60
+      actual: 40
+      operator: 'strictEqual'
+      stack: |-
+        TestContext.<anonymous> (file:///home/user/MAIKE/backend/tests/r2dP1BaixasRed.test.mjs:163:12)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async Suite.processPendingSubtests (node:internal/test_runner/test:744:7)
+      ...
+#   [R6]
+#   ANTES  {"lotes":"L20:20/Ativo L30:30/Ativo L40:40/Ativo","total":90,"movs":0,"audits":3,"ops":0}
+#   DEPOIS {"lotes":"L20:0/Inativo L30:0/Inativo L40:0/Inativo","total":0,"movs":3,"audits":9,"ops":3}
+#   tela: sucesso; restante não baixado = 10
+    # Subtest: R6: quantidade acima do disponível (100 em 90) → baixa 90 e "sucesso", sem recusa
+    not ok 7 - R6: quantidade acima do disponível (100 em 90) → baixa 90 e "sucesso", sem recusa
+      ---
+      duration_ms: 418.496497
+      type: 'test'
+      location: '/home/user/MAIKE/backend/tests/r2dP1BaixasRed.test.mjs:167:3'
+      failureType: 'testCodeFailure'
+      error: |-
+        falha numa parte da confirmação não pode deixar baixa parcial
+        + actual - expected
+        
+          {
+        +   audits: 9,
+        +   lotes: 'L20:0/Inativo L30:0/Inativo L40:0/Inativo',
+        +   movs: 3,
+        +   ops: 3,
+        +   total: 0
+        -   audits: 3,
+        -   lotes: 'L20:20/Ativo L30:30/Ativo L40:40/Ativo',
+        -   movs: 0,
+        -   ops: 0,
+        -   total: 90
+          }
+        
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected:
+        lotes: 'L20:20/Ativo L30:30/Ativo L40:40/Ativo'
+        total: 90
+        movs: 0
+        audits: 3
+        ops: 0
+      actual:
+        lotes: 'L20:0/Inativo L30:0/Inativo L40:0/Inativo'
+        total: 0
+        movs: 3
+        audits: 9
+        ops: 3
+      operator: 'deepStrictEqual'
+      stack: |-
+        exigirNadaGravado (file:///home/user/MAIKE/backend/tests/r2dP1BaixasRed.test.mjs:102:53)
+        TestContext.<anonymous> (file:///home/user/MAIKE/backend/tests/r2dP1BaixasRed.test.mjs:173:5)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async Suite.processPendingSubtests (node:internal/test_runner/test:744:7)
+      ...
+    1..7
+not ok 1 - R2D RED — baixa multi-lote pelo laço do navegador
+  ---
+  duration_ms: 7434.814715
+  type: 'suite'
+  location: '/home/user/MAIKE/backend/tests/r2dP1BaixasRed.test.mjs:104:1'
+  failureType: 'subtestsFailed'
+  error: '6 subtests failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+1..1
+# tests 7
+# suites 1
+# pass 1
+# fail 6
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 8162.879695

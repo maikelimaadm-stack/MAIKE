@@ -13,6 +13,7 @@ export const SITUACAO_CANCELADO = 'cancelado';
 export const TIPOS_R2A = Object.freeze(['Morte', 'Abate', 'Transferência de Área']);
 export const TIPOS_R2B = Object.freeze(['Nascimento', 'Pesagem', 'Mudança de Categoria']);
 export const TIPO_JUNCAO = 'Junção de Lotes';
+const TIPOS_BAIXA = Object.freeze(['Morte', 'Abate']);
 export const TIPOS_COM_CANCELAMENTO = Object.freeze([...TIPOS_R2A, ...TIPOS_R2B, TIPO_JUNCAO]);
 /** Tipos de movimento agregado: `lote_ids` precisa listar todos os efeitos. */
 const TIPOS_AGREGADOS = Object.freeze([...TIPOS_R2B, TIPO_JUNCAO]);
@@ -35,17 +36,23 @@ export const tipoCertificado = (mov) =>
  * R2A-R1 (D-PROD-99a): só movimento nascido do comando atômico do servidor tem
  * proveniência causal. Registro antigo (POST + PATCH do navegador) não.
  */
+/** R2D-P1 (D-PROD-105): Morte/Abate multi-lote, comando agregado de baixa. */
+export const COMANDO_BAIXA = 'manejo_mapa_baixa_rebanho';
+const ehBaixaAgregada = (mov) => TIPOS_BAIXA.includes(mov?.tipo) && mov?.efeito_servidor?.comando === COMANDO_BAIXA;
+
 export const temProvenienciaDoServidor = (mov) => {
   const ef = mov?.efeito_servidor;
   // Paridade com o servidor (R2A-R2, D-PROD-99b): cada efeito precisa da âncora de auditoria;
   // R2B (D-PROD-101): comando do rebanho + todos os participantes em `lote_ids`.
+  // R2D (D-PROD-105): Morte/Abate do comando de baixa são agregados (mesma regra).
+  const baixa = ehBaixaAgregada(mov);
   const ancorado =
     !!mov &&
-    ef?.comando === COMANDO_DO_TIPO(mov.tipo) &&
+    (baixa || ef?.comando === COMANDO_DO_TIPO(mov.tipo)) &&
     Array.isArray(ef.efeitos) &&
     ef.efeitos.length > 0 &&
     ef.efeitos.every((x) => typeof x?.auditoria_id === 'string' && x.auditoria_id !== '');
-  if (!ancorado || !TIPOS_AGREGADOS.includes(mov.tipo)) return ancorado;
+  if (!ancorado || (!baixa && !TIPOS_AGREGADOS.includes(mov.tipo))) return ancorado;
   return Array.isArray(mov.lote_ids) && mov.lote_ids.length === ef.efeitos.length;
 };
 

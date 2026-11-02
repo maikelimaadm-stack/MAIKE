@@ -9,6 +9,8 @@
 
 export const NASCIMENTO = 'Nascimento';
 export const JUNCAO = 'Junção de Lotes';
+export const MORTE = 'Morte';
+export const ABATE = 'Abate';
 export const PESAGEM = 'Pesagem';
 export const MUDANCA_CATEGORIA = 'Mudança de Categoria';
 export const TIPOS_MANEJO_REBANHO = Object.freeze([NASCIMENTO, PESAGEM, MUDANCA_CATEGORIA]);
@@ -114,6 +116,33 @@ export const corpoJuncao = ({ empresaId, areaId, principalId, origemIds, data, o
   ...(typeof observacoes === 'string' && observacoes.trim() ? { observacoes: observacoes.trim() } : {}),
 });
 
+/**
+ * Baixa multi-lote — Morte/Abate (R2D-P1, D-PROD-105): UMA confirmação do
+ * formulário (todas as categorias dela) vira UM corpo. Só categoria,
+ * quantidade e os metadados digitados; lotes e distribuição são do servidor.
+ * Pesos são TOTAIS da linha (como digitados), nunca por lote.
+ * @param {{ tipo: 'Morte'|'Abate', empresaId: string, areaId: string, data: string, observacoes?: string,
+ *   linhas: Array<Record<string, any>>, loteIds?: string[] }} p
+ */
+export const corpoBaixa = ({ tipo, empresaId, areaId, data, observacoes, linhas, loteIds }) => ({
+  ...base({ tipo, empresaId, areaId, data, observacoes }),
+  // Lotes que a tela mostrava: só filtro (o servidor relê e revalida cada um).
+  ...(Array.isArray(loteIds) && loteIds.length ? { lotes_selecionados: [...new Set(loteIds.filter(Boolean))].sort() } : {}),
+  linhas: (linhas || []).map((l) => {
+    const linha = { categoria: l.categoria, quantidade: Number(l.quantidade) };
+    if (tipo === MORTE) return { ...linha, causa_morte: l.causa_morte };
+    const pv = numeroPositivo(l.peso_vivo_total);
+    const pc = numeroPositivo(l.peso_carcaca_total);
+    return {
+      ...linha,
+      ...(pv !== null ? { peso_vivo_total_kg: pv } : {}),
+      ...(pc !== null ? { peso_carcaca_total_kg: pc } : {}),
+      ...(l.destino ? { destino: l.destino } : {}),
+      ...(l.destino && typeof l.destino_nome === 'string' && l.destino_nome.trim() ? { destino_nome: l.destino_nome.trim() } : {}),
+    };
+  }),
+});
+
 /** Prévia da junção na tela (o servidor recalcula): total e se o peso médio é demonstrável. */
 export const previaJuncao = (lotes) => {
   const lista = Array.isArray(lotes) ? lotes : [];
@@ -162,6 +191,20 @@ export const descreverLinhasDoMovimento = (mov) => {
       saida.push(j.politica_peso === 'media_ponderada' ? `Peso médio: ${kg(j.principal.peso_antes_kg)} → ${kg(j.principal.peso_depois_kg)}` : 'Peso médio não demonstrável (algum lote sem peso): ficou sem peso');
     }
     return saida;
+  }
+  if ((mov?.tipo === MORTE || mov?.tipo === ABATE) && linhas.length && linhas.every((l) => Array.isArray(l?.distribuicao))) {
+    return linhas.map((l) => {
+      const dist = l.distribuicao.map((d) => `${d.nome} ${d.quantidade} cab`).join(', ');
+      const extra =
+        mov.tipo === MORTE
+          ? l.causa_morte ? ` · causa: ${l.causa_morte}` : ''
+          : [
+              typeof l.peso_vivo_total_kg === 'number' ? `peso vivo total ${kg(l.peso_vivo_total_kg)}` : null,
+              typeof l.peso_carcaca_total_kg === 'number' ? `carcaça total ${kg(l.peso_carcaca_total_kg)}` : null,
+              l.destino ? `destino: ${l.destino}${l.destino_nome ? ` (${l.destino_nome})` : ''}` : null,
+            ].filter(Boolean).map((t) => ` · ${t}`).join('');
+      return `${l.quantidade} de ${l.categoria} → ${dist}${extra}`;
+    });
   }
   if (mov?.tipo === MUDANCA_CATEGORIA) {
     return linhas.map((l) => {
