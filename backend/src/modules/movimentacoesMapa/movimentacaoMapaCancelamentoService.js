@@ -38,6 +38,7 @@ import {
   pesoNormal,
 } from './manejoRebanhoComandoService.js';
 import { COMANDO_JUNCAO, TIPO_JUNCAO, TIPO_OPERACAO_JUNCAO } from './juncaoConstantes.js';
+import { COMANDO_BAIXA, TIPO_OPERACAO_BAIXA, TIPOS_BAIXA } from './baixaConstantes.js';
 
 export const TIPO_OPERACAO_CANCELAMENTO = 'cancelamento_movimentacao_mapa';
 export const SITUACAO_CANCELADO = 'cancelado';
@@ -47,11 +48,12 @@ export const TIPOS_CANCELAVEIS_R2A = Object.freeze(['Morte', 'Abate', 'Transfer�
 export const TIPOS_CANCELAVEIS = Object.freeze([...TIPOS_CANCELAVEIS_R2A, ...TIPOS_DO_COMANDO_REBANHO, TIPO_JUNCAO]);
 
 /** Comandos com proveniência certificada (efeito + operação idempotente). */
-export const COMANDOS_CERTIFICADOS = Object.freeze([COMANDO_MANEJO, COMANDO_REBANHO, COMANDO_JUNCAO]);
+export const COMANDOS_CERTIFICADOS = Object.freeze([COMANDO_MANEJO, COMANDO_REBANHO, COMANDO_JUNCAO, COMANDO_BAIXA]);
 
 /** Comando e tipo de operação idempotente que certificam cada grupo de tipos (R2B / R2C). */
 const CERTIFICACAO_REBANHO = Object.freeze({ comando: COMANDO_REBANHO, tipoOperacao: TIPO_OPERACAO_REBANHO });
 const CERTIFICACAO_JUNCAO = Object.freeze({ comando: COMANDO_JUNCAO, tipoOperacao: TIPO_OPERACAO_JUNCAO });
+const CERTIFICACAO_BAIXA = Object.freeze({ comando: COMANDO_BAIXA, tipoOperacao: TIPO_OPERACAO_BAIXA });
 
 /** Modos de transferência gravados pelo `DetalhesLote` a partir da R2A. */
 export const MODOS_TRANSFERENCIA = Object.freeze([
@@ -346,6 +348,11 @@ export const planejarCancelamento = async (tx, clienteId, id, { travar }) => {
   }
   if (TIPOS_DO_COMANDO_REBANHO.includes(d.tipo)) return planejarCancelamentoRebanho(tx, clienteId, mov, { travar, ...CERTIFICACAO_REBANHO });
   if (d.tipo === TIPO_JUNCAO) return planejarCancelamentoRebanho(tx, clienteId, mov, { travar, ...CERTIFICACAO_JUNCAO });
+  // Baixa multi-lote (R2D-P1): Morte/Abate gravados pelo comando de baixa. `efeito_servidor` é
+  // reservado (POST/PATCH genéricos recusam); a proveniência ainda confere a operação idempotente.
+  if (TIPOS_BAIXA.includes(d.tipo) && d.efeito_servidor?.comando === COMANDO_BAIXA) {
+    return planejarCancelamentoRebanho(tx, clienteId, mov, { travar, ...CERTIFICACAO_BAIXA });
+  }
   if (!TIPOS_CANCELAVEIS_R2A.includes(d.tipo) || texto(d.motivo)) {
     throw recusa('CANCELAMENTO_TIPO_NAO_SUPORTADO', 'cancelamento ainda não disponível para este tipo', { tipo: d.tipo ?? null, motivo: d.motivo ?? null });
   }

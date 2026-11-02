@@ -285,6 +285,19 @@ export const BACKEND_ONLY_CODES = Object.freeze({
     http: 409,
     meaning: 'junção de lotes só pelo comando /movimentacoes-mapa/comandos/juncao-lotes; o POST genérico recusa; nada foi gravado',
   },
+  // R2D-P1 (D-PROD-105) — baixa multi-lote (Morte/Abate).
+  BAIXA_SALDO_INSUFICIENTE: {
+    http: 409,
+    meaning: 'a categoria não tem cabeças suficientes nos lotes ativos da área; nada foi baixado',
+  },
+  BAIXA_CLASSIFICACAO_DIVERGENTE: {
+    http: 409,
+    meaning: 'há lote da categoria com sexo incompatível com a categoria oficial; nada foi baixado',
+  },
+  BAIXA_DATA_RETROATIVA: {
+    http: 409,
+    meaning: 'há registro ativo posterior à data da baixa num dos lotes; nada foi baixado',
+  },
   MANEJO_DESTINO_AMBIGUO: {
     http: 409,
     meaning: 'há mais de um lote de filhotes compatível (categoria e sexo) na área; sem unificação implícita; nada foi gravado',

@@ -31,7 +31,7 @@ function opcoesDe(children) {
 /**
  * `<select>` dos formulários Base1. Celular: a folha de baixo com as opções (e
  * pesquisa acima de 8), como os demais seletores (D-PROD-88). Desktop/tablet:
- * o mesmo painel das outras listas, logo abaixo do campo (D-PROD-105).
+ * o mesmo painel das outras listas, logo abaixo do campo (D-PROD-106).
  * Mesma API do `<select>`: `value`, `onChange(e)`.
  *
  * @param {React.SelectHTMLAttributes<HTMLSelectElement> & { children?: React.ReactNode }} props
@@ -64,7 +64,7 @@ export default function B1Select(props) {
     onChange?.(/** @type {any} */ ({ target: { value: v }, currentTarget: { value: v } }));
   };
 
-  // Desktop/tablet (D-PROD-105): o mesmo painel das outras listas, logo abaixo do campo.
+  // Desktop/tablet (D-PROD-106): o mesmo painel das outras listas, logo abaixo do campo.
   if (!celular) {
     return (
       <PainelSelecao

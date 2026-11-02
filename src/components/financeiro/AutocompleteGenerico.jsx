@@ -13,7 +13,7 @@ const porNome = (displayField) => (a, b) =>
  * Campo de escolha num cadastro (Setor, Marca, Categoria…).
  *
  * - Celular: folha de baixo (D-PROD-88/95).
- * - Desktop/tablet (D-PROD-105): o campo inteiro abre o `PainelSelecao` logo
+ * - Desktop/tablet (D-PROD-106): o campo inteiro abre o `PainelSelecao` logo
  *   abaixo dele — pesquisa em cima, lista no visual da lista de Marca, "+ Novo"
  *   embaixo. Digitar com o campo focado já abre com a pesquisa preenchida.
  */

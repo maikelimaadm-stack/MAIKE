@@ -26,7 +26,7 @@ describe('V3 — AutocompleteGenerico no desktop', () => {
     expect(await screen.findByText('Nenhuma opção disponível')).toBeInTheDocument();
   });
 
-  it('V3-2 — depois de escolher, um novo clique no campo reabre a lista (D-PROD-105: painel abaixo do campo)', async () => {
+  it('V3-2 — depois de escolher, um novo clique no campo reabre a lista (D-PROD-106: painel abaixo do campo)', async () => {
     const campo = await montar([{ id: 'a', nome: 'Setor Norte' }, { id: 'b', nome: 'Setor Sul' }]);
     await act(async () => fireEvent.click(campo));
     await act(async () => fireEvent.click(screen.getByRole('option', { name: 'Setor Sul' })));

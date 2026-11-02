@@ -308,7 +308,7 @@ export function MgSelect({
     );
   }
 
-  // Campo de formulário no desktop/tablet (D-PROD-105): o mesmo painel das
+  // Campo de formulário no desktop/tablet (D-PROD-106): o mesmo painel das
   // outras listas, logo abaixo do campo. O painel em pílula (ex.: itens por
   // página) segue o seu próprio desenho.
   if (!isPillPanel) {

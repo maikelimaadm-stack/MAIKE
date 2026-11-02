@@ -8,9 +8,9 @@ const LIMITE = 200;
 
 /**
  * Painel de seleção do desktop/tablet no mesmo modelo visual da folha do
- * celular (D-PROD-105): pesquisa em cima, opções num cartão branco com linhas
+ * celular (D-PROD-106): pesquisa em cima, opções num cartão branco com linhas
  * Visual da lista de Marca do cadastro de Produtos (o modelo escolhido pelo
- * proprietário — D-PROD-105): painel branco, opção sob o mouse em verde-claro,
+ * proprietário — D-PROD-106): painel branco, opção sob o mouse em verde-claro,
  * escolhida em verde com ✓; pesquisa em cima e "+ Novo …" embaixo.
  * Abre logo ABAIXO do campo inteiro (`ancora` = o `.mg-field`), não do texto
  * dentro dele — antes o painel nascia por cima da metade de baixo do campo.

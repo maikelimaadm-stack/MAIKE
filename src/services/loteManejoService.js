@@ -28,6 +28,7 @@ import {
   registrarManejoLoteServidor,
   registrarManejoRebanhoServidor,
   registrarJuncaoLotesServidor,
+  registrarBaixaRebanhoServidor,
   filterSuplementacaoLotes,
   createSuplementacaoEvento,
   listSuplementacaoEventos,
@@ -154,6 +155,7 @@ export const consultarCancelamentoMovimentacao = (id) => consultarElegibilidadeC
 export const registrarManejoLote = (corpo) => registrarManejoLoteServidor(corpo);
 export const registrarManejoRebanho = (corpo) => registrarManejoRebanhoServidor(corpo);
 export const registrarJuncaoLotes = (corpo) => registrarJuncaoLotesServidor(corpo);
+export const registrarBaixaRebanho = (corpo) => registrarBaixaRebanhoServidor(corpo);
 export const criarEventoSuplementacao = (dados) => createSuplementacaoEvento(dados);
 export const registrarSuplementacaoEmLote = (registros) => bulkCreateSuplementacaoLote(registros);
 

@@ -173,7 +173,7 @@ Pedido do proprietário com prints do app do Claude no iPhone. Conferido no Chro
 
 **Não testado em aparelho real:** a correção da folha no Safari do iPhone.
 
-## V10 — desktop com estrutura de desktop (D-PROD-105)
+## V10 — desktop com estrutura de desktop (D-PROD-106)
 
 | Pedido | Feito | Evidência |
 |---|---|---|

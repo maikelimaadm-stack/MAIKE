@@ -12,7 +12,7 @@
  * conscientemente. Escopo por tenant + usuário + tipo + área.
  */
 
-import { registrarManejoRebanho, registrarJuncaoLotes } from '@/services/loteManejoService';
+import { registrarManejoRebanho, registrarJuncaoLotes, registrarBaixaRebanho } from '@/services/loteManejoService';
 
 export const CODIGO_OFFLINE = 'MANEJO_REBANHO_OFFLINE';
 export const CODIGO_PENDENTE = 'MANEJO_REBANHO_PENDENTE_DIVERGENTE';
@@ -34,10 +34,13 @@ const RECUSAS_DEFINITIVAS = new Set([
   'JUNCAO_LOTE_INELEGIVEL',
   'JUNCAO_CLASSIFICACAO_DIVERGENTE',
   'JUNCAO_DATA_RETROATIVA',
+  'BAIXA_SALDO_INSUFICIENTE',
+  'BAIXA_CLASSIFICACAO_DIVERGENTE',
+  'BAIXA_DATA_RETROATIVA',
 ]);
 
 export const MENSAGENS_MANEJO_REBANHO = Object.freeze({
-  [CODIGO_OFFLINE]: 'Sem conexão: nascimento, pesagem e mudança de categoria só podem ser registrados online. Nada foi gravado.',
+  [CODIGO_OFFLINE]: 'Sem conexão: este manejo (nascimento, pesagem, mudança de categoria, junção, morte ou abate) só pode ser registrado online. Nada foi gravado.',
   [CODIGO_PENDENTE]: 'Há um envio anterior sem confirmação. Reenvie o mesmo registro para concluir, ou confira o histórico antes de registrar outro.',
   MANEJO_SALDO_INSUFICIENTE: 'Saldo insuficiente na categoria. Nada foi gravado.',
   MANEJO_ESTADO_INVALIDO: 'Um lote não está mais como na tela (categoria, situação ou área mudaram). Recarregue o mapa. Nada foi gravado.',
@@ -49,6 +52,9 @@ export const MENSAGENS_MANEJO_REBANHO = Object.freeze({
   JUNCAO_LOTE_INELEGIVEL: 'Um dos lotes não está mais ativo nesta área (ou está sem cabeças). Recarregue o mapa. Nada foi gravado.',
   JUNCAO_CLASSIFICACAO_DIVERGENTE: 'Os lotes não têm a mesma categoria, sexo ou categoria de manejo (ou falta o sexo). Não é possível juntar. Nada foi gravado.',
   JUNCAO_DATA_RETROATIVA: 'Há registro posterior à data escolhida num dos lotes. Use uma data igual ou posterior. Nada foi gravado.',
+  BAIXA_SALDO_INSUFICIENTE: 'A categoria não tem cabeças suficientes nos lotes ativos desta área. Recarregue o mapa. Nada foi baixado.',
+  BAIXA_CLASSIFICACAO_DIVERGENTE: 'Há lote desta categoria com sexo incompatível. Corrija o cadastro do lote antes. Nada foi baixado.',
+  BAIXA_DATA_RETROATIVA: 'Há registro posterior à data escolhida num dos lotes. Use uma data igual ou posterior. Nada foi baixado.',
   LOTE_NOT_FOUND: 'Um lote não está mais ativo nesta área. Recarregue o mapa. Nada foi gravado.',
   AREA_NOT_FOUND: 'Área não encontrada nesta fazenda. Nada foi gravado.',
   REQUEST_VALIDATION_FAILED: 'Dados inválidos (quantidade, peso ou data). Nada foi gravado.',
@@ -151,3 +157,12 @@ export const enviarManejoRebanho = async (corpo, opcoes) => {
  * @param {{ escopo: string, enviar?: (c: any) => Promise<any>, online?: () => boolean, confirmarDescarte?: (m: string) => boolean, storage?: Storage|null }} opcoes
  */
 export const enviarJuncaoLotes = (corpo, opcoes) => enviarManejoRebanho(corpo, { enviar: registrarJuncaoLotes, ...opcoes });
+
+/**
+ * Baixa multi-lote — Morte/Abate (R2D-P1, D-PROD-105): mesmo envio online-only
+ * com pendência idempotente (tenant + usuário + tipo + empresa + área). Uma
+ * confirmação do formulário = UM POST; o servidor escolhe os lotes.
+ * @param {Record<string, any>} corpo
+ * @param {{ escopo: string, enviar?: (c: any) => Promise<any>, online?: () => boolean, confirmarDescarte?: (m: string) => boolean, storage?: Storage|null }} opcoes
+ */
+export const enviarBaixaRebanho = (corpo, opcoes) => enviarManejoRebanho(corpo, { enviar: registrarBaixaRebanho, ...opcoes });

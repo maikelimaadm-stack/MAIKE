@@ -91,6 +91,10 @@ export const executarManejoRebanhoNativo = (corpo) =>
 export const executarJuncaoLotesNativo = (corpo) =>
   nativeRequest(`${CAMINHO}/comandos/juncao-lotes`, { method: 'POST', body: corpo, autenticado: true }, ctx('executarJuncaoLotes'));
 
+/** Comando atômico de baixa multi-lote — Morte/Abate (R2D-P1, D-PROD-105). Só online. */
+export const executarBaixaRebanhoNativo = (corpo) =>
+  nativeRequest(`${CAMINHO}/comandos/baixa-rebanho`, { method: 'POST', body: corpo, autenticado: true }, ctx('executarBaixaRebanho'));
+
 export const elegibilidadeCancelamentoMovimentacaoMapaNativa = (id) =>
   nativeRequest(`${CAMINHO}/${encodeURIComponent(id)}/elegibilidade-cancelamento`, { autenticado: true }, ctx('elegibilidadeCancelamentoMovimentacaoMapa'));
 

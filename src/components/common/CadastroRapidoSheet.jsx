@@ -9,7 +9,7 @@ import { PillBtn } from "@/components/cadastro/base1/Base1Ui";
  * formulário da entidade abre por cima do formulário atual, que fica intacto.
  *
  * - Celular/tablet: folha grande com ✕ / ✓ redondos no cabeçalho (padrão iOS).
- * - Desktop (≥1024px, D-PROD-105): diálogo de desktop — título à esquerda,
+ * - Desktop (≥1024px, D-PROD-106): diálogo de desktop — título à esquerda,
  *   ✕ Cancelar e ✓ Salvar com os mesmos botões da barra do registro. Nada de
  *   folha, alça ou botões redondos do celular.
  *

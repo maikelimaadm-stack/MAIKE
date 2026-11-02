@@ -138,7 +138,7 @@ describe("Categoria de Manejo escolhe a categoria oficial (sem editar ícone)", 
     );
     const select = await screen.findByLabelText("Ícone oficial (catálogo MAIKE)");
     await waitFor(() => expect(select.getAttribute("data-status")).toBe("ok"));
-    // Desktop (D-PROD-105): o campo abre o painel de seleção abaixo dele.
+    // Desktop (D-PROD-106): o campo abre o painel de seleção abaixo dele.
     await act(async () => {
       fireEvent.click(select);
     });

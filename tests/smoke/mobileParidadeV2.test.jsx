@@ -47,7 +47,7 @@ describe('PAR — seletores', () => {
     expect(achados).toEqual([]);
   });
 
-  it('PAR4 — B1Select no desktop abre o painel de seleção abaixo do campo, com a mesma API (D-PROD-105)', async () => {
+  it('PAR4 — B1Select no desktop abre o painel de seleção abaixo do campo, com a mesma API (D-PROD-106)', async () => {
     const { default: B1Select } = await import('@/components/cadastro/base1/B1Select');
     const onChange = vi.fn();
     render(

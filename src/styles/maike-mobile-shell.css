@@ -3568,7 +3568,7 @@ button.mk-switch[data-mk-tocado][data-state="unchecked"]:not(#mk-padrao) .mk-swi
 }
 
 /*
- * ══ Painel de seleção do desktop/tablet (D-PROD-105) ═════════════════════
+ * ══ Painel de seleção do desktop/tablet (D-PROD-106) ═════════════════════
  * Mesmo visual da lista de Marca (`.mk-ac-pop`): branco, cantos 12, linha sob
  * o mouse em verde-claro, escolhida em verde; pesquisa em cima, "+ Novo"
  * embaixo. Largura = a do campo (mínimo 220).
@@ -3780,7 +3780,7 @@ button.mk-switch[data-mk-tocado][data-state="unchecked"]:not(#mk-padrao) .mk-swi
 }
 
 /*
- * ══ Desktop separado do celular (D-PROD-105) ═════════════════════════════
+ * ══ Desktop separado do celular (D-PROD-106) ═════════════════════════════
  * O desenho do iOS (chave grande de vidro, folhas, botões redondos) é do
  * celular/tablet. No desktop (≥1024px) volta o padrão de desktop.
  */

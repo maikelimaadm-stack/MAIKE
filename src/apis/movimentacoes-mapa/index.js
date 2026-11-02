@@ -10,4 +10,5 @@ export {
   executarManejoLote,
   executarManejoRebanho,
   executarJuncaoLotes,
+  executarBaixaRebanho,
 } from './movimentacoesMapaApi.js';
