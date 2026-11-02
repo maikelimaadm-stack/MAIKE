@@ -8,6 +8,7 @@ import { AppError } from '../../shared/errors/AppError.js';
 import { registrarEvento } from '../auditoria/auditService.js';
 import { documentoComoPublico, montarDocumento } from '../../shared/jsonDocument/jsonDocumentPublic.js';
 import { movimentoExigeCancelamento, rejeitarCamposReservados } from '../../shared/operacional/protecaoOperacional.js';
+import { MARCADOR_JUNCAO_LEGADO, TIPO_JUNCAO } from './juncaoConstantes.js';
 import {
   listarRegistros,
   buscarRegistro,
@@ -54,6 +55,33 @@ const comNomesDeAreaResolvidos = async (tx, clienteId, documento) => {
     if (nome) resolvidos[campoNome] = nome;
   }
   return { ...documento, dados: resolvidos };
+};
+
+const semAcento = (v) =>
+  String(v ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toUpperCase();
+
+/**
+ * R2C-P1 (D-PROD-104): junção de lotes só pelo comando atômico. Recusa o
+ * tipo novo, o legado ('Entrada' com motivo 'Junção de Lotes') e o marcador
+ * de snapshot do navegador antigo. Outras entradas legítimas passam.
+ * @param {unknown} entrada
+ */
+export const rejeitarJuncaoGenerica = (entrada) => {
+  if (!entrada || typeof entrada !== 'object') return;
+  const e = /** @type {Record<string, unknown>} */ (entrada);
+  const ehJuncao =
+    semAcento(e.tipo) === semAcento(TIPO_JUNCAO) ||
+    semAcento(e.motivo) === semAcento(TIPO_JUNCAO) ||
+    (typeof e.observacoes === 'string' && e.observacoes.includes(MARCADOR_JUNCAO_LEGADO));
+  if (ehJuncao) {
+    throw new AppError('JUNCAO_SOMENTE_POR_COMANDO', 'junção de lotes só pelo comando atômico de junção', {
+      details: { comando: '/movimentacoes-mapa/comandos/juncao-lotes' },
+    });
+  }
 };
 
 export const listar = async (contexto, filtros = {}) => {
@@ -105,6 +133,7 @@ export const listarHistorico = async (contexto, query = {}) => {
 export const criar = async (contexto, entrada) => {
   const auth = exigirAuthContext(contexto?.auth);
   rejeitarCamposReservados(entrada);
+  rejeitarJuncaoGenerica(entrada);
   const prisma = getPrismaClient();
   const criado = await prisma.$transaction(async (tx) => {
     const dados = await comNomesDeAreaResolvidos(tx, auth.clienteId, montarDocumento(auth.clienteId, entrada));
@@ -127,6 +156,7 @@ export const criarEmLote = async (contexto, registros) => {
     throw new AppError('REQUEST_VALIDATION_FAILED', 'lista vazia');
   }
   registros.forEach(rejeitarCamposReservados);
+  registros.forEach(rejeitarJuncaoGenerica);
   const prisma = getPrismaClient();
   const criados = await prisma.$transaction(async (tx) => {
     const saida = [];

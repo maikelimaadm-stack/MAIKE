@@ -37,16 +37,21 @@ import {
   estadoRebanhoDe,
   pesoNormal,
 } from './manejoRebanhoComandoService.js';
+import { COMANDO_JUNCAO, TIPO_JUNCAO, TIPO_OPERACAO_JUNCAO } from './juncaoConstantes.js';
 
 export const TIPO_OPERACAO_CANCELAMENTO = 'cancelamento_movimentacao_mapa';
 export const SITUACAO_CANCELADO = 'cancelado';
 
 /** Tipos com cancelamento certificado: R2A (D-PROD-99) + R2B-P1 (D-PROD-101). */
 export const TIPOS_CANCELAVEIS_R2A = Object.freeze(['Morte', 'Abate', 'Transferência de Área']);
-export const TIPOS_CANCELAVEIS = Object.freeze([...TIPOS_CANCELAVEIS_R2A, ...TIPOS_DO_COMANDO_REBANHO]);
+export const TIPOS_CANCELAVEIS = Object.freeze([...TIPOS_CANCELAVEIS_R2A, ...TIPOS_DO_COMANDO_REBANHO, TIPO_JUNCAO]);
 
 /** Comandos com proveniência certificada (efeito + operação idempotente). */
-export const COMANDOS_CERTIFICADOS = Object.freeze([COMANDO_MANEJO, COMANDO_REBANHO]);
+export const COMANDOS_CERTIFICADOS = Object.freeze([COMANDO_MANEJO, COMANDO_REBANHO, COMANDO_JUNCAO]);
+
+/** Comando e tipo de operação idempotente que certificam cada grupo de tipos (R2B / R2C). */
+const CERTIFICACAO_REBANHO = Object.freeze({ comando: COMANDO_REBANHO, tipoOperacao: TIPO_OPERACAO_REBANHO });
+const CERTIFICACAO_JUNCAO = Object.freeze({ comando: COMANDO_JUNCAO, tipoOperacao: TIPO_OPERACAO_JUNCAO });
 
 /** Modos de transferência gravados pelo `DetalhesLote` a partir da R2A. */
 export const MODOS_TRANSFERENCIA = Object.freeze([
@@ -279,7 +284,7 @@ const posteriorA = (alias, campos, mov) => {
  * legado SEM id) e, em transferência, às áreas. Conservador por desenho: na
  * dúvida conta. Movimentos cancelados não contam.
  */
-const dependenciasPosteriores = async (tx, clienteId, mov, { loteIds, nomes, areaIds }) => {
+export const dependenciasPosteriores = async (tx, clienteId, mov, { loteIds, nomes, areaIds }) => {
   const encontrados = [];
   const lotes = [...new Set(loteIds)];
   const nomesUp = [...new Set(nomes.filter(Boolean).map((n) => n.trim().toUpperCase()))];
@@ -339,7 +344,8 @@ export const planejarCancelamento = async (tx, clienteId, id, { travar }) => {
   if (d.situacao === SITUACAO_CANCELADO) {
     throw recusa('CANCELAMENTO_JA_REALIZADO', 'a movimentação já está cancelada');
   }
-  if (TIPOS_DO_COMANDO_REBANHO.includes(d.tipo)) return planejarCancelamentoRebanho(tx, clienteId, mov, { travar });
+  if (TIPOS_DO_COMANDO_REBANHO.includes(d.tipo)) return planejarCancelamentoRebanho(tx, clienteId, mov, { travar, ...CERTIFICACAO_REBANHO });
+  if (d.tipo === TIPO_JUNCAO) return planejarCancelamentoRebanho(tx, clienteId, mov, { travar, ...CERTIFICACAO_JUNCAO });
   if (!TIPOS_CANCELAVEIS_R2A.includes(d.tipo) || texto(d.motivo)) {
     throw recusa('CANCELAMENTO_TIPO_NAO_SUPORTADO', 'cancelamento ainda não disponível para este tipo', { tipo: d.tipo ?? null, motivo: d.motivo ?? null });
   }
@@ -443,14 +449,14 @@ export const planejarCancelamento = async (tx, clienteId, id, { travar }) => {
 // ─── R2B-P1: Nascimento, Pesagem, Mudança de Categoria (D-PROD-101) ────────
 
 /** Proveniência R2B: efeito reservado + operação idempotente confirmada apontando para ESTE movimento. */
-const exigirProvenienciaRebanho = async (tx, clienteId, mov) => {
+const exigirProvenienciaRebanho = async (tx, clienteId, mov, { comando, tipoOperacao }) => {
   const d = /** @type {Record<string, any>} */ (mov.dados || {});
   const efeito = d.efeito_servidor;
   const completo = (x) => !!x && typeof x === 'object' && !divergenciasRebanho(x, x).length;
   const valido =
     efeito &&
     typeof efeito === 'object' &&
-    efeito.comando === COMANDO_REBANHO &&
+    efeito.comando === comando &&
     typeof efeito.operation_id === 'string' &&
     Array.isArray(efeito.efeitos) &&
     efeito.efeitos.length > 0 &&
@@ -464,7 +470,7 @@ const exigirProvenienciaRebanho = async (tx, clienteId, mov) => {
   }
   const operacao = await tx.operacaoIdempotente.findUnique({
     where: {
-      cliente_id_operation_key_tipo_operacao: { cliente_id: clienteId, operation_key: efeito.operation_id, tipo_operacao: TIPO_OPERACAO_REBANHO },
+      cliente_id_operation_key_tipo_operacao: { cliente_id: clienteId, operation_key: efeito.operation_id, tipo_operacao: tipoOperacao },
     },
   });
   const resposta = /** @type {any} */ (operacao?.response_json);
@@ -555,12 +561,12 @@ const exigirSemAlteracaoPosteriorRebanho = async (tx, clienteId, mov, efeitos, a
 /** Campos que o cancelamento R2B grava (área e empresa nunca mudam neste comando). */
 const CAMPOS_REVERSAO_REBANHO = Object.freeze(['quantidade_cabecas', 'status', 'categoria', 'categoria_manejo_id', 'categoria_manejo_nome', 'sexo', 'peso_medio_kg']);
 
-const planejarCancelamentoRebanho = async (tx, clienteId, mov, { travar }) => {
+const planejarCancelamentoRebanho = async (tx, clienteId, mov, { travar, comando, tipoOperacao }) => {
   const d = /** @type {Record<string, any>} */ (mov.dados || {});
   if (texto(d.motivo)) {
     throw recusa('CANCELAMENTO_TIPO_NAO_SUPORTADO', 'cancelamento ainda não disponível para este tipo', { tipo: d.tipo ?? null, motivo: d.motivo ?? null });
   }
-  const efeito = await exigirProvenienciaRebanho(tx, clienteId, mov);
+  const efeito = await exigirProvenienciaRebanho(tx, clienteId, mov, { comando, tipoOperacao });
   const ids = efeito.efeitos.map((x) => x.lote_id);
   const lotes = await buscarLotes(tx, clienteId, ids, travar);
   for (const x of efeito.efeitos) {

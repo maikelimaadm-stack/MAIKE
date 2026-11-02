@@ -12,7 +12,7 @@
  * conscientemente. Escopo por tenant + usuário + tipo + área.
  */
 
-import { registrarManejoRebanho } from '@/services/loteManejoService';
+import { registrarManejoRebanho, registrarJuncaoLotes } from '@/services/loteManejoService';
 
 export const CODIGO_OFFLINE = 'MANEJO_REBANHO_OFFLINE';
 export const CODIGO_PENDENTE = 'MANEJO_REBANHO_PENDENTE_DIVERGENTE';
@@ -31,6 +31,9 @@ const RECUSAS_DEFINITIVAS = new Set([
   'MANEJO_CATEGORIA_AMBIGUA',
   'MANEJO_CATEGORIA_INCOMPATIVEL',
   'MANEJO_DESTINO_AMBIGUO',
+  'JUNCAO_LOTE_INELEGIVEL',
+  'JUNCAO_CLASSIFICACAO_DIVERGENTE',
+  'JUNCAO_DATA_RETROATIVA',
 ]);
 
 export const MENSAGENS_MANEJO_REBANHO = Object.freeze({
@@ -43,6 +46,9 @@ export const MENSAGENS_MANEJO_REBANHO = Object.freeze({
   MANEJO_CATEGORIA_AMBIGUA: 'Há mais de uma categoria de manejo para esta categoria. Escolha uma no cadastro. Nada foi gravado.',
   MANEJO_CATEGORIA_INCOMPATIVEL: 'A categoria nova não combina com o sexo do lote. Nada foi gravado.',
   MANEJO_DESTINO_AMBIGUO: 'Há mais de um lote de bezerros do mesmo sexo nesta área; não há junção automática. Ajuste os lotes antes. Nada foi gravado.',
+  JUNCAO_LOTE_INELEGIVEL: 'Um dos lotes não está mais ativo nesta área (ou está sem cabeças). Recarregue o mapa. Nada foi gravado.',
+  JUNCAO_CLASSIFICACAO_DIVERGENTE: 'Os lotes não têm a mesma categoria, sexo ou categoria de manejo (ou falta o sexo). Não é possível juntar. Nada foi gravado.',
+  JUNCAO_DATA_RETROATIVA: 'Há registro posterior à data escolhida num dos lotes. Use uma data igual ou posterior. Nada foi gravado.',
   LOTE_NOT_FOUND: 'Um lote não está mais ativo nesta área. Recarregue o mapa. Nada foi gravado.',
   AREA_NOT_FOUND: 'Área não encontrada nesta fazenda. Nada foi gravado.',
   REQUEST_VALIDATION_FAILED: 'Dados inválidos (quantidade, peso ou data). Nada foi gravado.',
@@ -62,7 +68,10 @@ export const mensagemDoErro = (erro) => {
 
 const erroLocal = (code) => Object.assign(new Error(MENSAGENS_MANEJO_REBANHO[code]), { code });
 
-const chavePendencia = (escopo, corpo) => `maike_manejo_rebanho_pendente:${escopo}:${corpo.tipo}:${corpo.area_id}`;
+/** Pendência por tenant + usuário (escopo), tipo, empresa e área. */
+const chavePendencia = (escopo, corpo) =>
+  `maike_manejo_rebanho_pendente:${escopo}:${corpo.tipo || TIPO_JUNCAO_CHAVE}:${corpo.empresa_id}:${corpo.area_id}`;
+const TIPO_JUNCAO_CHAVE = 'Junção de Lotes';
 
 const novaChave = () =>
   `rebanho-${typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`}`;
@@ -134,3 +143,11 @@ export const enviarManejoRebanho = async (corpo, opcoes) => {
     throw erro;
   }
 };
+
+/**
+ * Junção de Lotes (R2C-P1, D-PROD-104): mesmo envio online-only com pendência
+ * idempotente; o corpo só tem ids, data e observação.
+ * @param {Record<string, any>} corpo
+ * @param {{ escopo: string, enviar?: (c: any) => Promise<any>, online?: () => boolean, confirmarDescarte?: (m: string) => boolean, storage?: Storage|null }} opcoes
+ */
+export const enviarJuncaoLotes = (corpo, opcoes) => enviarManejoRebanho(corpo, { enviar: registrarJuncaoLotes, ...opcoes });

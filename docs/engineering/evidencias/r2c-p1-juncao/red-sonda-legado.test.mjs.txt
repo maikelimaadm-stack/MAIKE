@@ -1,0 +1,113 @@
+/**
+ * R2C-P1 — RED contra a main 04afd25 (pós-#168). Reproduz por HTTP real e
+ * PostgreSQL real a MESMA sequência do botão "Confirmar Junção" de
+ * DetalhesLote: PATCH de cada absorvido (CAS), PATCH do principal (CAS),
+ * POST genérico tipo 'Entrada' / motivo 'Junção de Lotes'. Falhas injetadas
+ * como sessão expirada (401) na 2ª/3ª chamada. Exige o comportamento certo
+ * (tudo ou nada, total conservado, peso não inventado, tipo próprio) e por
+ * isso FALHA na main.
+ */
+import { test, before, after, beforeEach } from 'node:test';
+import assert from 'node:assert/strict';
+import { criarApp, criarTenant, limparBanco, encerrar, autenticarNoApp } from './helpers.mjs';
+import { getPrismaClient } from '../src/database/prismaClient.js';
+
+let app;
+const p = () => getPrismaClient();
+before(async () => { app = await criarApp(); await app.ready(); });
+after(async () => { await app.close(); await encerrar(); });
+beforeEach(async () => { await limparBanco(); });
+const req = (m, url, tok, payload) => app.inject({ method: m, url, headers: tok ? { authorization: `Bearer ${tok}` } : {}, ...(payload !== undefined ? { payload } : {}) });
+
+const cenario = async (pesos = [400, 380, 360]) => {
+  const adm = await criarTenant({ papelTenant: 'administrador' });
+  const tok = (await autenticarNoApp(app, adm.credenciais)).corpo.token;
+  const empresa = await p().empresa.create({ data: { cliente_id: adm.cliente.id, numero_empresa: 1, apelido: 'FAZ', nome: 'Fazenda' } });
+  const setor = await p().setor.create({ data: { cliente_id: adm.cliente.id, empresa_id: empresa.id, numero_setor: '1', nome: 'S1' } });
+  const A = await p().areaPastagem.create({ data: { cliente_id: adm.cliente.id, empresa_id: empresa.id, setor_id: setor.id, setor_nome: 'S1', numero_area: '1', nome: 'PASTO A', tamanho_hectares: 10 } });
+  const lote = async (nome, qtd, peso) => (await req('POST', '/lotes', tok, { empresa_id: empresa.id, nome, quantidade_cabecas: qtd, categoria: 'Boi 25 a 36 meses', sexo: 'Macho', setor_id: setor.id, area_entrada_id: A.id, area_atual_id: A.id, data_entrada: '2026-10-01', motivo_entrada: 'Compra', status: 'Ativo', ...(peso ? { peso_medio_kg: peso } : {}) })).json();
+  return { cli: adm.cliente.id, tok, empresa, A, principal: await lote('PRINCIPAL', 40, pesos[0]), a: await lote('ORIGEM A', 30, pesos[1]), b: await lote('ORIGEM B', 20, pesos[2]) };
+};
+const total = async (cli) => (await p().lote.findMany({ where: { cliente_id: cli, status: 'Ativo' } })).reduce((t, l) => t + l.quantidade_cabecas, 0);
+const estado = async (c) => ({
+  lotes: (await p().lote.findMany({ where: { cliente_id: c.cli }, orderBy: { createdAt: 'asc' } })).map((l) => `${l.nome}:${l.quantidade_cabecas}:${l.status}:${l.peso_medio_kg ?? '-'}`),
+  movs: (await p().movimentacaoMapa.findMany({ where: { cliente_id: c.cli } })).map((m) => `${m.dados.tipo}/${m.dados.motivo ?? '-'}:${m.dados.quantidade_animais}`),
+  total: await total(c.cli),
+});
+const relatar = (nome, antes, depois) => console.log(`\n### ${nome}\nANTES  ${JSON.stringify(antes)}\nDEPOIS ${JSON.stringify(depois)}`);
+
+/** Sequência do botão na main; `falharEm` = índice (1-based) da chamada que recebe 401. */
+const juncaoLegada = async (c, lidos, falharEm = 0) => {
+  const [principal, ...outros] = lidos;
+  const todos = lidos;
+  const totalCab = todos.reduce((s, l) => s + l.quantidade_cabecas, 0);
+  const pesoTotal = todos.reduce((s, l) => s + (l.peso_medio_kg || 0) * l.quantidade_cabecas, 0); // desconhecido vira 0
+  const pesoMedio = pesoTotal / totalCab;
+  let n = 0;
+  const chamar = async (m, url, corpo) => { n += 1; const r = await req(m, url, n === falharEm ? null : c.tok, corpo); if (r.statusCode >= 400) throw new Error(`${m} ${url} → ${r.statusCode} ${r.json().code}`); return r; };
+  for (const l of outros) await chamar('PATCH', `/lotes/${l.id}`, { status: 'Inativo', quantidade_cabecas: 0, estado_esperado: { status: l.status, quantidade_cabecas: l.quantidade_cabecas } });
+  await chamar('PATCH', `/lotes/${principal.id}`, { quantidade_cabecas: totalCab, peso_medio_kg: pesoMedio > 0 ? Math.round(pesoMedio * 10) / 10 : principal.peso_medio_kg, estado_esperado: { quantidade_cabecas: principal.quantidade_cabecas } });
+  await chamar('POST', '/movimentacoes-mapa', { empresa_id: c.empresa.id, tipo: 'Entrada', motivo: 'Junção de Lotes', lote: principal.nome, lote_id: principal.id, quantidade_animais: totalCab, area_origem_id: c.A.id, observacoes: `[JUNCAO_LOTES]${JSON.stringify(lidos.map((l) => ({ id: l.id })))}` });
+};
+
+test('RED-1 falha na 2ª chamada (PATCH do 2º absorvido): 40+30+20=90 deve continuar 90', async () => {
+  const c = await cenario();
+  const antes = await estado(c);
+  await juncaoLegada(c, [c.principal, c.a, c.b], 2).catch((e) => console.log('erro:', e.message));
+  const depois = await estado(c);
+  relatar('falha na 2ª chamada', antes, depois);
+  assert.equal(depois.total, 90, 'cabeças sumiram');
+});
+
+test('RED-2 falha na 3ª chamada (PATCH do principal): total deve continuar 90', async () => {
+  const c = await cenario();
+  const antes = await estado(c);
+  await juncaoLegada(c, [c.principal, c.a, c.b], 3).catch((e) => console.log('erro:', e.message));
+  const depois = await estado(c);
+  relatar('falha na 3ª chamada', antes, depois);
+  assert.equal(depois.total, 90, 'cabeças sumiram');
+});
+
+test('RED-3 falha na 4ª chamada (POST do movimento): efeito sem movimento', async () => {
+  const c = await cenario();
+  await juncaoLegada(c, [c.principal, c.a, c.b], 4).catch((e) => console.log('erro:', e.message));
+  const depois = await estado(c);
+  relatar('falha na 4ª chamada', null, depois);
+  assert.ok(depois.movs.length === 1 || depois.lotes.some((l) => l.startsWith('ORIGEM A:30')), 'saldo mudou sem movimento que o registre');
+});
+
+test('RED-4 retry após falha parcial: reenviar com a leitura antiga dá 409; reabrir e juntar de novo perde as 30 cabeças', async () => {
+  const c = await cenario();
+  await juncaoLegada(c, [c.principal, c.a, c.b], 2).catch(() => {});
+  const retry = await juncaoLegada(c, [c.principal, c.a, c.b]).then(() => 'ok', (e) => e.message);
+  console.log('retry com leitura antiga:', retry);
+  const vivos = (await p().lote.findMany({ where: { cliente_id: c.cli, status: 'Ativo' }, orderBy: { createdAt: 'asc' } })).map((l) => ({ ...l, peso_medio_kg: l.peso_medio_kg === null ? null : Number(l.peso_medio_kg) }));
+  await juncaoLegada(c, vivos);
+  const depois = await estado(c);
+  relatar('retry depois de falha parcial (tela reaberta)', null, depois);
+  assert.equal(depois.total, 90, 'perda permanente de cabeças');
+  assert.equal(depois.movs.length, 1, 'retry/reabertura registrou junção duplicada (Entrada repetida, sem nada absorvido)');
+});
+
+test('RED-5 peso desconhecido tratado como 0: média falsa', async () => {
+  const c = await cenario([400, null, 360]);
+  await juncaoLegada(c, [c.principal, c.a, c.b]);
+  const pr = await p().lote.findUnique({ where: { id: c.principal.id } });
+  console.log(`\n### peso: principal 40@400, A 30@desconhecido, B 20@360 → gravado ${pr.peso_medio_kg} (média dos conhecidos seria ${((40 * 400 + 20 * 360) / 60).toFixed(1)})`);
+  assert.equal(pr.peso_medio_kg, null, 'média não demonstrável deveria ficar nula, não inventada');
+});
+
+test('RED-6 junção registrada como "Entrada" sem entrada de cabeças', async () => {
+  const c = await cenario();
+  await juncaoLegada(c, [c.principal, c.a, c.b]);
+  const m = await p().movimentacaoMapa.findFirst({ where: { cliente_id: c.cli } });
+  console.log(`\n### tipo gravado: ${m.dados.tipo} / motivo ${m.dados.motivo}; total antes 90, depois ${await total(c.cli)}`);
+  assert.notEqual(m.dados.tipo, 'Entrada');
+});
+
+test('RED-7 comando atômico de junção não existe na main', async () => {
+  const c = await cenario();
+  const r = await req('POST', '/movimentacoes-mapa/comandos/juncao-lotes', c.tok, { operation_id: 'op-12345678', empresa_id: c.empresa.id, area_id: c.A.id, lote_principal_id: c.principal.id, lote_origem_ids: [c.a.id], data_movimentacao: '2026-10-30' });
+  console.log(`POST /comandos/juncao-lotes na main → ${r.statusCode}`);
+  assert.equal(r.statusCode, 201);
+});

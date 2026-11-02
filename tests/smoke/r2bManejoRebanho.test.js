@@ -172,3 +172,44 @@ describe('PR168-R2 paridade frontend × servidor (nascimento)', () => {
     expect(mensagemDoErro(erroServidor('MANEJO_CATEGORIA_MAE_INVALIDA'))).toMatch(/FÊMEAS.*matriz/);
   });
 });
+
+describe('R2C-P1 junção de lotes — frontend', () => {
+  it('corpo só com ids, data e observação (sem saldo nem peso); principal nunca entre as origens', async () => {
+    const { corpoJuncao } = await import('@/domain/lotes/manejoRebanho');
+    expect(corpoJuncao({ empresaId: 'e', areaId: 'A', principalId: 'p', origemIds: ['a', 'p', 'a', 'b'], data: '2026-10-30' })).toEqual({
+      empresa_id: 'e', area_id: 'A', lote_principal_id: 'p', lote_origem_ids: ['a', 'b'], data_movimentacao: '2026-10-30T12:00:00.000Z',
+    });
+  });
+  it('prévia: peso desconhecido NÃO vira zero (sem média) — aviso na tela', async () => {
+    const { previaJuncao } = await import('@/domain/lotes/manejoRebanho');
+    expect(previaJuncao([{ quantidade_cabecas: 40, peso_medio_kg: 400 }, { quantidade_cabecas: 30, peso_medio_kg: 380 }])).toEqual({ total: 70, pesoConhecido: true, pesoMedio: 391.43 });
+    expect(previaJuncao([{ quantidade_cabecas: 40, peso_medio_kg: 400 }, { quantidade_cabecas: 30, peso_medio_kg: null }])).toEqual({ total: 70, pesoConhecido: false, pesoMedio: null });
+  });
+  it('envio online-only com pendência idempotente; offline não chama o servidor', async () => {
+    const { enviarJuncaoLotes } = await import('@/services/manejoRebanhoService');
+    const storage = memoria();
+    const corpo = { empresa_id: 'e', area_id: 'A', lote_principal_id: 'p', lote_origem_ids: ['a'], data_movimentacao: '2026-10-30T12:00:00.000Z' };
+    const enviar = vi.fn().mockRejectedValueOnce(new TypeError('Failed to fetch')).mockResolvedValueOnce({ replay: true });
+    await expect(enviarJuncaoLotes(corpo, { escopo: 'c:u', enviar, online: () => false, storage })).rejects.toMatchObject({ code: CODIGO_OFFLINE });
+    expect(enviar).not.toHaveBeenCalled();
+    await expect(enviarJuncaoLotes(corpo, { escopo: 'c:u', enviar, online: () => true, storage })).rejects.toThrow();
+    await enviarJuncaoLotes(corpo, { escopo: 'c:u', enviar, online: () => true, storage });
+    expect(enviar.mock.calls[0][0].operation_id).toBe(enviar.mock.calls[1][0].operation_id);
+    expect([...storage.m.keys()]).toEqual([]);
+  });
+  it('cancelamento: junção certificada oferece botão; junção legada (Entrada + motivo/marcador) nunca', async () => {
+    const { MENSAGEM_JUNCAO_LEGADA } = await import('@/domain/lotes/situacaoMovimento');
+    const efeitos = [{ lote_id: 'p', auditoria_id: 'a1' }, { lote_id: 'a', auditoria_id: 'a2' }];
+    expect(tipoTemCancelamento({ tipo: 'Junção de Lotes', lote_ids: ['p', 'a'], efeito_servidor: { comando: 'manejo_mapa_juncao_lotes', efeitos } })).toBe(true);
+    expect(tipoTemCancelamento({ tipo: 'Junção de Lotes', lote_ids: ['p', 'a'], efeito_servidor: { comando: 'manejo_mapa_rebanho', efeitos } })).toBe(false);
+    expect(tipoTemCancelamento({ tipo: 'Entrada', motivo: 'Junção de Lotes', lote_id: 'p' })).toBe(false);
+    expect(motivoSemCancelamento({ tipo: 'Entrada', motivo: 'Junção de Lotes', lote_id: 'p' })).toBe(MENSAGEM_JUNCAO_LEGADA);
+    expect(motivoSemCancelamento({ tipo: 'Entrada', observacoes: '[JUNCAO_LOTES][]', lote_id: 'p' })).toBe(MENSAGEM_JUNCAO_LEGADA);
+  });
+  it('histórico: junção acha principal e absorvidos; linhas legíveis com política de peso', () => {
+    const mov = { id: 'j', empresa_id: 'e', tipo: 'Junção de Lotes', lote_id: 'p', lote: 'P', lote_ids: ['p', 'a'], efeito_servidor: { efeitos: [] }, created_date: '2026-10-30',
+      linhas: [{ lote_id: 'a', nome: 'A', quantidade: 30, peso_medio_kg: null }], juncao: { principal: { nome: 'P', quantidade_antes: 40, quantidade_depois: 70 }, politica_peso: 'desconhecido_sem_media' } };
+    expect(filtrarMovimentacoes([mov], { empresaId: 'e', escopo: ESCOPO_LOTES, lotes: [{ id: 'a', nome: 'A' }] }).map((m) => m.id)).toEqual(['j']);
+    expect(descreverLinhasDoMovimento(mov)).toEqual(['A (30 cab, peso desconhecido) → P', 'P: 40 → 70 cab', 'Peso médio não demonstrável (algum lote sem peso): ficou sem peso']);
+  });
+});

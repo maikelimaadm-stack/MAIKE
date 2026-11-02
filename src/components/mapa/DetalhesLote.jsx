@@ -55,8 +55,8 @@ import InformacoesArea from "./InformacoesArea";
 import { Progress } from "@/components/ui/progress";
 import { AlertTriangle } from "lucide-react";
 import { validarOrdemTemporalLote, validarOrdemTemporalLotes } from "../lotes/manejoValidations.jsx";
-import { corpoNascimento, corpoPesagem, corpoMudancaCategoria } from "@/domain/lotes/manejoRebanho";
-import { enviarManejoRebanho, mensagemDoErro } from "@/services/manejoRebanhoService";
+import { corpoNascimento, corpoPesagem, corpoMudancaCategoria, corpoJuncao, previaJuncao } from "@/domain/lotes/manejoRebanho";
+import { enviarManejoRebanho, enviarJuncaoLotes, mensagemDoErro } from "@/services/manejoRebanhoService";
 import { escopoDoUsuario } from "../lotes/CancelarMovimentacao";
 import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 
@@ -635,6 +635,41 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
 
   const areaDoManejo = () => lotes[0]?.area_atual_id;
 
+  /**
+   * R2C-P1 (D-PROD-104): Junção de Lotes por UM comando do servidor — soma,
+   * zera as origens e grava o movimento 'Junção de Lotes' numa transação.
+   * Nada de PATCH em sequência nem POST genérico; offline fica indisponível.
+   */
+  const [enviandoJuncao, setEnviandoJuncao] = useState(false);
+  const confirmarJuncao = async (principal, origens) => {
+    if (enviandoJuncao) return;
+    setEnviandoJuncao(true);
+    try {
+      const corpo = corpoJuncao({
+        empresaId: empresaSelecionadaId,
+        areaId: principal.area_atual_id,
+        principalId: principal.id,
+        origemIds: origens.map((l) => l.id),
+        data: dataJuncao,
+      });
+      const resposta = /** @type {any} */ (await enviarJuncaoLotes(corpo, { escopo: escopoDoUsuario(user) }));
+      const final = (resposta?.lotes || []).find((l) => l.id === principal.id);
+      toast.success(
+        resposta?.replay
+          ? 'Junção: o servidor já tinha este registro (nada duplicado)'
+          : `Lotes unificados: ${final?.quantidade_cabecas ?? '?'} cabeças no lote "${principal.nome}"`
+      );
+      setShowJuntarLotes(false);
+      setLotePrincipalJuncao(null);
+      onClose();
+      window.dispatchEvent(new CustomEvent('atualizar-mapa', { detail: { cacheKeys: ['lotes', 'movimentacoes', 'movimentacoesHistorico'] } }));
+    } catch (erro) {
+      toast.error(mensagemDoErro(erro));
+    } finally {
+      setEnviandoJuncao(false);
+    }
+  };
+
   const handleNascimento = (formData) =>
     executarManejoRebanho(corpoNascimento({ empresaId: empresaSelecionadaId, areaId: areaDoManejo(), formData }), 'Nascimento', setShowNascimento);
 
@@ -883,7 +918,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
       </div>
 
       {/* Dialog Juntar Lotes */}
-      <Dialog open={showJuntarLotes} onOpenChange={(open) => {setShowJuntarLotes(open);if (!open) {setCategoriaSelecionadaJuncao(null);setLotePrincipalJuncao(null);}}}>
+      <Dialog open={showJuntarLotes} onOpenChange={(open) => {if (!open && enviandoJuncao) return;setShowJuntarLotes(open);if (!open) {setCategoriaSelecionadaJuncao(null);setLotePrincipalJuncao(null);}}}>
         <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle className="text-sm">Juntar Lotes</DialogTitle></DialogHeader>
           {(() => {
@@ -933,8 +968,13 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
                   <div className="space-y-3">
                   <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3">
                     <p className="text-xs font-semibold text-emerald-800">Lote principal: {lotePrincipalJuncao.nome}</p>
-                    <p className="text-[10px] text-emerald-700">{lotePrincipalJuncao.quantidade_cabecas} cab → {totalCab} cab após junção</p>
+                    <p className="text-[10px] text-emerald-700">{lotePrincipalJuncao.quantidade_cabecas} cab → {totalCab} cab após junção (prévia; o servidor confere tudo ao confirmar)</p>
                   </div>
+                  {!previaJuncao(lotesParaJuntar).pesoConhecido && (
+                    <p role="note" data-testid="aviso-peso-juncao" className="rounded border border-amber-200 bg-amber-50 p-2 text-[11px] text-amber-900">
+                      Algum lote está sem peso médio: depois da junção o lote principal fica <strong>sem peso</strong> até a próxima pesagem (o desconhecido não é tratado como zero).
+                    </p>
+                  )}
                   <div className="space-y-1">
                     <p className="text-xs text-slate-600">Lotes que serão absorvidos:</p>
                     {outrosLotes.map((l) =>
@@ -950,48 +990,8 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
                   </div>
                   <div className="flex justify-end gap-2 pt-2 border-t">
                     <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setLotePrincipalJuncao(null)}>Voltar</Button>
-                    <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={async () => {
-                        await validarOrdemTemporalLotes({
-                          empresaId: empresaSelecionadaId,
-                          lotes: lotesParaJuntar,
-                          dataReferencia: dataJuncao
-                        });
-
-                        const principal = lotePrincipalJuncao;
-                        const pesoTotal = lotesParaJuntar.reduce((s, l) => s + (l.peso_medio_kg || 0) * (l.quantidade_cabecas || 0), 0);
-                        const pesoMedio = totalCab > 0 ? pesoTotal / totalCab : 0;
-                        const snapshotLotes = lotesParaJuntar.map((l) => ({
-                          id: l.id, nome: l.nome, quantidade_cabecas: l.quantidade_cabecas || 0,
-                          peso_medio_kg: l.peso_medio_kg || 0, status: l.status || 'Ativo',
-                          categoria: l.categoria || '', categoria_manejo_id: l.categoria_manejo_id || '',
-                          categoria_manejo_nome: l.categoria_manejo_nome || '',
-                          area_atual_id: l.area_atual_id || '', area_atual_nome: l.area_atual_nome || ''
-                        }));
-                        const nomesLotes = lotesParaJuntar.map((l) => l.nome).join(', ');
-                        for (const l of outrosLotes) {
-                          await atualizarLoteSeguro(l, { status: 'Inativo', quantidade_cabecas: 0 });
-                        }
-                        await atualizarLoteSeguro(principal, {
-                          quantidade_cabecas: totalCab,
-                          peso_medio_kg: pesoMedio > 0 ? Math.round(pesoMedio * 10) / 10 : principal.peso_medio_kg
-                        });
-                        const areaAtualId = principal.area_atual_id;
-                        const areaJuncao = areas.find((a) => a.id === areaAtualId);
-                        await criarMovimentacao({
-                          empresa_id: empresaSelecionadaId,
-                          data_movimentacao: toNoonUtcISOString(dataJuncao),
-                          tipo: 'Entrada', motivo: 'Junção de Lotes',
-                          lote: principal.nome, lote_id: principal.id,
-                          quantidade_animais: totalCab,
-                          area_origem_id: areaAtualId, area_origem_nome: areaJuncao?.nome || '',
-                          observacoes: `[JUNCAO_LOTES]${JSON.stringify(snapshotLotes)}\nJunção de Lotes: ${nomesLotes} → ${principal.nome}. Total: ${totalCab} cabeças.`
-                        });
-                        toast.success(`Lotes unificados! ${totalCab} cabeças no lote "${principal.nome}"`);
-                        setShowJuntarLotes(false);
-                        onClose();
-                        window.dispatchEvent(new CustomEvent('atualizar-mapa'));
-                      }}>
-                      Confirmar Junção
+                    <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" disabled={enviandoJuncao} onClick={() => confirmarJuncao(lotePrincipalJuncao, outrosLotes)}>
+                      {enviandoJuncao ? 'Juntando...' : 'Confirmar Junção'}
                     </Button>
                   </div>
                 </div>);

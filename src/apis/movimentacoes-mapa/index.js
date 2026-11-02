@@ -9,4 +9,5 @@ export {
   elegibilidadeCancelamentoMovimentacaoMapa,
   executarManejoLote,
   executarManejoRebanho,
+  executarJuncaoLotes,
 } from './movimentacoesMapaApi.js';
