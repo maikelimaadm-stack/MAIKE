@@ -1,0 +1,20 @@
+MENU reaberto 0x
+PASS tablet-768 aviso de peso desconhecido visível antes de confirmar
+PASS tablet-768 diálogo de junção: sem overflow horizontal — {"sw":768,"cw":768,"l":161.653076171875,"r":606.346923828125,"vw":768}
+PASS tablet-768 1 POST do comando de junção (duplo toque não duplica) — 1 POST
+PASS tablet-768 corpo só com ids/data (sem saldo, peso, tenant) — {"operation_id":"rebanho-03aecd18-cd7b-4dfc-a8f0-464128aedc23","empresa_id":"cmvwd6au200037d5t9qk00js3","area_id":"cmvwl7m9o02e37d3t54m3dvc2","lote_principal_id":"cmvyo3ocb00ag7diay2yqaevg","lote_orig
+PASS tablet-768 servidor: principal = soma, origens 0/Inativo — 327 Inativo Inativo
+PASS tablet-768 peso desconhecido não virou média falsa (principal sem peso) — null
+PASS tablet-768 movimento "Junção de Lotes" (não Entrada) achado pelo lote absorvido
+PASS tablet-768 nenhum PATCH/POST /lotes nem POST genérico de movimento — POST /auth/login,POST /movimentacoes-mapa/comandos/juncao-lotes
+PASS tablet-768 histórico mostra contribuições e política de peso — Histórico da Área PASTO 100 (11)
+PASS tablet-768 diálogo de cancelamento: sem overflow horizontal — {"sw":768,"cw":768,"l":164.7468719482422,"r":603.2530975341797,"vw":768}
+PASS tablet-768 cancelamento pela UI: volta exato (qtd, status, peso) — 277/Ativo/400 30/Ativo/380 20/Ativo/null
+PASS tablet-768 409: mensagem clara de data retroativa e diálogo continua aberto — Há registro posterior à data escolhida num dos lotes. Use uma data igual ou posterior. Nada foi gravado.
+PASS tablet-768 409: nada mudou no servidor
+PASS tablet-768 409: exatamente 1 POST do comando nessa tentativa
+PASS tablet-768 offline: indisponibilidade explícita — Sem conexão: nascimento, pesagem e mudança de categoria só podem ser registrados online. Nada foi gravado.
+PASS tablet-768 offline: nenhuma requisição de escrita
+PASS tablet-768 offline: fila sem Lote/MovimentacaoMapa
+PASS tablet-768 sem erro de página
+RESUMO tablet-768: 18/18 PASS

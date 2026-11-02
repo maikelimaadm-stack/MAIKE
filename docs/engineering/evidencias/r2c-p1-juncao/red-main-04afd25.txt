@@ -1,0 +1,33 @@
+RED — main 04afd25efdf68d66b4a33711b73985daddb3949c (pós-#168), PostgreSQL local descartável, HTTP autenticado
+Falhas injetadas = sessão expirada (401) na N-ésima chamada da sequência do botão 'Confirmar Junção'.
+# erro: PATCH /lotes/cmvyniz7c000l7dfdiep9yy0c → 401 TENANT_CONTEXT_REQUIRED
+# ANTES  {"lotes":["PRINCIPAL:40:Ativo:400","ORIGEM A:30:Ativo:380","ORIGEM B:20:Ativo:360"],"movs":[],"total":90}
+# DEPOIS {"lotes":["PRINCIPAL:40:Ativo:400","ORIGEM A:0:Inativo:380","ORIGEM B:20:Ativo:360"],"movs":[],"total":60}
+not ok 1 - RED-1 falha na 2ª chamada (PATCH do 2º absorvido): 40+30+20=90 deve continuar 90
+    cabeças sumiram
+# erro: PATCH /lotes/cmvynizf900117dfduocp1mjr → 401 TENANT_CONTEXT_REQUIRED
+# ANTES  {"lotes":["PRINCIPAL:40:Ativo:400","ORIGEM A:30:Ativo:380","ORIGEM B:20:Ativo:360"],"movs":[],"total":90}
+# DEPOIS {"lotes":["PRINCIPAL:40:Ativo:400","ORIGEM A:0:Inativo:380","ORIGEM B:0:Inativo:360"],"movs":[],"total":40}
+not ok 2 - RED-2 falha na 3ª chamada (PATCH do principal): total deve continuar 90
+    cabeças sumiram
+# erro: POST /movimentacoes-mapa → 401 TENANT_CONTEXT_REQUIRED
+# ANTES  null
+# DEPOIS {"lotes":["PRINCIPAL:90:Ativo:384.4","ORIGEM A:0:Inativo:380","ORIGEM B:0:Inativo:360"],"movs":[],"total":90}
+not ok 3 - RED-3 falha na 4ª chamada (POST do movimento): efeito sem movimento
+  error: 'saldo mudou sem movimento que o registre'
+# retry com leitura antiga: ok
+# \#\#\# retry depois de falha parcial (tela reaberta)
+# ANTES  null
+# DEPOIS {"lotes":["PRINCIPAL:90:Ativo:384.4","ORIGEM A:0:Inativo:380","ORIGEM B:0:Inativo:360"],"movs":["Entrada/Junção de Lotes:90","Entrada/Junção de Lotes:90"],"total":90}
+# Subtest: RED-4 retry após falha parcial: reenviar com a leitura antiga dá 409; reabrir e juntar de novo perde as 30 cabeças
+not ok 4 - RED-4 retry após falha parcial: reenviar com a leitura antiga dá 409; reabrir e juntar de novo perde as 30 cabeças
+    retry/reabertura registrou junção duplicada (Entrada repetida, sem nada absorvido)
+# \#\#\# peso: principal 40@400, A 30@desconhecido, B 20@360 → gravado 257.8 (média dos conhecidos seria 386.7)
+not ok 5 - RED-5 peso desconhecido tratado como 0: média falsa
+    média não demonstrável deveria ficar nula, não inventada
+# \#\#\# tipo gravado: Entrada / motivo Junção de Lotes; total antes 90, depois 90
+not ok 6 - RED-6 junção registrada como "Entrada" sem entrada de cabeças
+# POST /comandos/juncao-lotes na main → 404
+not ok 7 - RED-7 comando atômico de junção não existe na main
+# pass 0
+# fail 7

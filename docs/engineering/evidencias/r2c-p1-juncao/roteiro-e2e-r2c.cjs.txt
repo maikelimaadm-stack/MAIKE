@@ -1,0 +1,160 @@
+// R2C-P1 E2E (Chromium real): Juntar Lotes pela UI do Mapa → UM POST do comando; nada de PATCH/POST genérico;
+// peso desconhecido avisado e não inventado; histórico; cancelamento pela UI; 409 por data retroativa; offline sem envio.
+const { chromium } = require('playwright');
+const W = Number(process.argv[2]), H = Number(process.argv[3]), BASE = process.argv[4], NOME_AREA = process.argv[5];
+const OUT = '/tmp/claude-0/r2c';
+const API = 'http://127.0.0.1:3334';
+const E = 'cmvwd6au200037d5t9qk00js3', S = 'cmvwd6auy00087d5tqtm2rk09';
+const BOI = 'Boi 25 a 36 meses';
+const res = [];
+const ok = (nome, cond, extra = '') => res.push(`${cond ? 'PASS' : 'FAIL'} ${BASE} ${nome}${extra ? ' — ' + String(extra).slice(0, 200) : ''}`);
+const lista = (x) => (Array.isArray(x) ? x : x?.items || []);
+(async () => {
+  const { token } = await (await fetch(`${API}/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ login: 'demo.operador', senha: 'senha-demo-local-123' }) })).json();
+  const call = async (m, u, b) => (await fetch(`${API}${u}`, { method: m, headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' }, body: b ? JSON.stringify(b) : undefined })).json();
+  const P = lista(await call('GET', '/areas-pastagem?limit=500')).find((a) => a.nome === NOME_AREA);
+  const mk = (nome, qtd, peso) => call('POST', '/lotes', { empresa_id: E, nome, quantidade_cabecas: qtd, categoria: BOI, sexo: 'Macho', setor_id: S, area_entrada_id: P.id, area_atual_id: P.id, data_entrada: '2026-10-01', motivo_entrada: 'Compra', status: 'Ativo', ...(peso ? { peso_medio_kg: peso } : {}) });
+  const base = 37 + Math.floor(Math.random() * 400);
+  const pr = await mk(`PRIN ${BASE}`, base, 400);
+  const a = await mk(`ORIA ${BASE}`, 30, 380);
+  const b = await mk(`ORIB ${BASE}`, 20, null);
+  let total = base + 50;
+  const lote = async (id) => call('GET', `/lotes/${id}`);
+
+  const browser = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader'] });
+  const mobile = W < 800;
+  const ctx = await browser.newContext({ viewport: { width: W, height: H }, isMobile: mobile, hasTouch: mobile });
+  const page = await ctx.newPage();
+  global.__page = page;
+  const erros = []; page.on('pageerror', (e) => erros.push(e.message.slice(0, 160)));
+  const reqs = [];
+  page.on('request', (r) => { if (!['GET', 'OPTIONS', 'HEAD'].includes(r.method())) reqs.push({ m: r.method(), u: new URL(r.url()).pathname.replace(/^\/(api\/)?native/, ''), b: r.postData() || '' }); });
+  const tocar = async (loc) => { if (mobile) await loc.tap({ force: true }); else await loc.click({ force: true }); };
+  // Itens de menu: SEM force — o Playwright espera o item ficar estável (fim da animação de abertura do
+  // Radix). Com force, o toque usava a posição do meio da animação e acertava o item vizinho ("Mover").
+  const tocarEstavel = async (loc) => { if (mobile) await loc.tap(); else await loc.click(); };
+  const semOverflow = async (rotulo) => {
+    const m = await page.evaluate(() => { const d = [...document.querySelectorAll('[role="dialog"]')].pop(); const r = d ? d.getBoundingClientRect() : { left: 0, right: 0 }; return { sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth, l: r.left, r: r.right, vw: window.innerWidth }; });
+    ok(`${rotulo}: sem overflow horizontal`, m.sw <= m.cw + 1 && m.l >= -1 && m.r <= m.vw + 1, JSON.stringify(m));
+  };
+  let menusReabertos = 0;
+  const juncoes = () => reqs.filter((r) => r.m === 'POST' && /comandos\/juncao-lotes/.test(r.u));
+
+  await page.goto('http://127.0.0.1:5180/', { waitUntil: 'networkidle' });
+  await page.locator('input').nth(0).fill('demo.operador');
+  await page.locator('input[type=password]').fill('senha-demo-local-123');
+  await page.keyboard.press('Enter');
+  await page.waitForURL(/mapageral/i, { timeout: 20000 });
+
+  const abrirArea = async () => {
+    await page.goto('http://127.0.0.1:5180/MapaGeral', { waitUntil: 'networkidle' });
+    await page.waitForTimeout(6000);
+    await page.getByText(String(total), { exact: true }).first().dispatchEvent('click');
+    await page.getByText('Detalhes do Lote').first().waitFor({ timeout: 20000 });
+  };
+  // Radix DropdownMenu abre no pointerdown; no toque móvel o gatilho só abre quando o painel terminou
+  // de montar. Esperamos o gatilho estável (visível + habilitado) e confirmamos o menu aberto (aria-expanded).
+  const evento = async (nome, menu = 'Eventos') => {
+    const gatilho = page.getByRole('button', { name: menu }).first();
+    await gatilho.waitFor({ state: 'visible', timeout: 15000 });
+    await page.waitForTimeout(400);
+    const item = page.getByRole('menuitem', { name: nome });
+    await tocar(gatilho);
+    // Com o menu aberto o Radix marca o resto como aria-hidden; o sinal confiável de "abriu" é o item visível.
+    if (!(await item.waitFor({ timeout: 3000 }).then(() => true, () => false))) {
+      menusReabertos += 1;
+      await page.keyboard.press('Escape').catch(() => {});
+      await page.waitForTimeout(500);
+      await tocar(page.getByRole('button', { name: menu }).first());
+    }
+    await tocarEstavel(item);
+  };
+  const abrirJuncao = async () => {
+    await evento('Juntar Lotes');
+    const dlg = page.getByRole('dialog').last();
+    await dlg.getByText('Juntar Lotes').first().waitFor({ timeout: 10000 });
+    await tocar(dlg.getByRole('button', { name: new RegExp(`PRIN ${BASE}`) }));
+    await dlg.getByText(/Lotes que serão absorvidos/).waitFor({ timeout: 10000 });
+    return dlg;
+  };
+
+  // ── 1. Junção pela UI (duplo toque) ─────────────────────────────────────
+  await abrirArea();
+  let dlg = await abrirJuncao();
+  ok('aviso de peso desconhecido visível antes de confirmar', await dlg.getByTestId('aviso-peso-juncao').isVisible());
+  await semOverflow('diálogo de junção');
+  await page.screenshot({ path: `${OUT}/${BASE}-01-juncao-confirmacao.png` });
+  const btn = dlg.getByRole('button', { name: /Confirmar Junção|Juntando/ });
+  await tocar(btn);
+  await tocar(btn).catch(() => {});
+  await page.waitForTimeout(4000);
+  ok('1 POST do comando de junção (duplo toque não duplica)', juncoes().length === 1, `${juncoes().length} POST`);
+  const corpo = JSON.parse(juncoes()[0]?.b || '{}');
+  ok('corpo só com ids/data (sem saldo, peso, tenant)', corpo.lote_principal_id === pr.id && JSON.stringify([...corpo.lote_origem_ids].sort()) === JSON.stringify([a.id, b.id].sort()) && !('quantidade_cabecas' in corpo) && !('peso_medio_kg' in corpo), JSON.stringify(corpo));
+  const [dp, da, db] = await Promise.all([lote(pr.id), lote(a.id), lote(b.id)]);
+  ok('servidor: principal = soma, origens 0/Inativo', dp.quantidade_cabecas === total && da.quantidade_cabecas === 0 && da.status === 'Inativo' && db.quantidade_cabecas === 0 && db.status === 'Inativo', `${dp.quantidade_cabecas} ${da.status} ${db.status}`);
+  ok('peso desconhecido não virou média falsa (principal sem peso)', dp.peso_medio_kg === null, String(dp.peso_medio_kg));
+  const hist = lista(await call('GET', `/movimentacoes-mapa/historico?empresa_id=${E}&lote_ids=${b.id}`));
+  const mj = hist.find((m) => m.tipo === 'Junção de Lotes');
+  ok('movimento "Junção de Lotes" (não Entrada) achado pelo lote absorvido', !!mj && mj.lote_ids?.length === 3 && mj.efeito_servidor?.comando === 'manejo_mapa_juncao_lotes');
+  ok('nenhum PATCH/POST /lotes nem POST genérico de movimento', !reqs.some((r) => (['POST', 'PATCH'].includes(r.m) && /^\/lotes/.test(r.u)) || (r.m === 'POST' && r.u === '/movimentacoes-mapa')), reqs.map((r) => `${r.m} ${r.u}`).join(','));
+
+  // ── 2. Histórico + cancelamento pela UI ─────────────────────────────────
+  await abrirArea();
+  await evento('Histórico de Movimentação', 'Históricos');
+  await page.getByRole('dialog').last().getByText('Junção de Lotes', { exact: true }).first().waitFor({ timeout: 15000 });
+  await page.waitForTimeout(1500);
+  const texto = await page.getByRole('dialog').last().innerText();
+  ok('histórico mostra contribuições e política de peso', /ORIA .* \(30 cab, 380 kg\)/.test(texto) && /peso desconhecido/.test(texto) && /não demonstrável/.test(texto), texto.slice(0, 200));
+  await page.screenshot({ path: `${OUT}/${BASE}-02-historico-juncao.png` });
+  const cartao = page.locator('div.rounded-lg, div.rounded-xl, li').filter({ has: page.getByText('Junção de Lotes', { exact: true }) }).filter({ has: page.getByRole('button', { name: 'Cancelar movimentação' }) }).last();
+  await tocar(cartao.getByRole('button', { name: 'Cancelar movimentação' }));
+  const dc = page.getByRole('dialog').last();
+  await dc.getByText('Efeito ao cancelar').waitFor({ timeout: 15000 });
+  await dc.locator('textarea').fill('Junção feita por engano (teste E2E)');
+  await semOverflow('diálogo de cancelamento');
+  await page.screenshot({ path: `${OUT}/${BASE}-03-cancelar-juncao.png` });
+  await tocar(dc.getByRole('button', { name: 'Confirmar cancelamento' }));
+  await page.waitForTimeout(4000);
+  const v = await Promise.all([lote(pr.id), lote(a.id), lote(b.id)]);
+  ok('cancelamento pela UI: volta exato (qtd, status, peso)', v[0].quantidade_cabecas === base && v[0].peso_medio_kg === 400 && v[1].quantidade_cabecas === 30 && v[1].status === 'Ativo' && v[2].quantidade_cabecas === 20 && v[2].status === 'Ativo',
+    v.map((l) => `${l.quantidade_cabecas}/${l.status}/${l.peso_medio_kg}`).join(' '));
+
+  // ── 3. 409 por data retroativa (registro ativo posterior em A) ──────────
+  await call('POST', '/movimentacoes-mapa/comandos/manejo-lote', { operation_id: `e2e-r2c-morte-${a.id}`, tipo: 'Morte', empresa_id: E, lote_id: a.id, quantidade_animais: 1, data_movimentacao: '2026-12-15T12:00:00.000Z' });
+  total -= 1;
+  const antes409 = reqs.length;
+  await abrirArea();
+  dlg = await abrirJuncao();
+  await tocar(dlg.getByRole('button', { name: /Confirmar Junção/ }));
+  await page.waitForTimeout(3000);
+  const toast409 = (await page.locator('[data-sonner-toast]').allInnerTexts()).join(' | ');
+  ok('409: mensagem clara de data retroativa e diálogo continua aberto', /registro posterior/.test(toast409) && await dlg.getByRole('button', { name: /Confirmar Junção/ }).isVisible(), toast409.slice(0, 160));
+  ok('409: nada mudou no servidor', (await lote(pr.id)).quantidade_cabecas === base && (await lote(a.id)).quantidade_cabecas === 29);
+  ok('409: exatamente 1 POST do comando nessa tentativa', reqs.slice(antes409).filter((r) => /comandos\/juncao-lotes/.test(r.u)).length === 1);
+  await page.screenshot({ path: `${OUT}/${BASE}-04-recusa-409.png` });
+
+  // ── 4. Offline: indisponível, nada enviado ──────────────────────────────
+  const antesOff = reqs.length;
+  await ctx.setOffline(true);
+  await page.evaluate(() => window.dispatchEvent(new Event('offline')));
+  await tocar(dlg.getByRole('button', { name: /Confirmar Junção/ }));
+  await page.waitForTimeout(1500);
+  const toastOff = (await page.locator('[data-sonner-toast]').allInnerTexts()).join(' | ');
+  ok('offline: indisponibilidade explícita', /Sem conexão/.test(toastOff), toastOff.slice(0, 160));
+  ok('offline: nenhuma requisição de escrita', reqs.length === antesOff, reqs.slice(antesOff).map((r) => `${r.m} ${r.u}`).join(','));
+  const fila = await page.evaluate(() => new Promise((resolve) => {
+    const rq = indexedDB.open('pesagens_offline_db');
+    rq.onerror = () => resolve(['erro']);
+    rq.onsuccess = () => { const db = rq.result; if (!db.objectStoreNames.contains('entity_queue')) return resolve([]); const t = db.transaction('entity_queue', 'readonly').objectStore('entity_queue').getAll(); t.onsuccess = () => resolve(t.result.map((f) => `${f.entity_name}:${f.operation}`)); };
+  }));
+  ok('offline: fila sem Lote/MovimentacaoMapa', !fila.some((f) => /^(Lote|MovimentacaoMapa):/.test(f)), fila.join(','));
+  await ctx.setOffline(false);
+  console.log(`MENU reaberto ${menusReabertos}x`);
+  ok('sem erro de página', erros.length === 0, erros.join(' ; '));
+  await browser.close();
+  console.log(res.join('\n'));
+  const falhas = res.filter((r) => r.startsWith('FAIL')).length;
+  console.log(`RESUMO ${BASE}: ${res.length - falhas}/${res.length} PASS`);
+  process.exit(falhas ? 1 : 0);
+})().catch(async (e) => { try { await global.__page.screenshot({ path: `${OUT}/${BASE}-ERRO.png` }); } catch {} console.log(res.join('\n')); console.error('ERRO', e.message.split('\n').slice(0, 6).join(' | ')); process.exit(2); });

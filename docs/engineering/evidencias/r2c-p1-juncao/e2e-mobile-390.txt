@@ -1,0 +1,20 @@
+MENU reaberto 0x
+PASS mobile-390 aviso de peso desconhecido visível antes de confirmar
+PASS mobile-390 diálogo de junção: sem overflow horizontal — {"sw":390,"cw":390,"l":9.37991714477539,"r":380.62009048461914,"vw":390}
+PASS mobile-390 1 POST do comando de junção (duplo toque não duplica) — 1 POST
+PASS mobile-390 corpo só com ids/data (sem saldo, peso, tenant) — {"operation_id":"rebanho-d1df9b7c-bf02-4ad7-8ecb-056691c710e3","empresa_id":"cmvwd6au200037d5t9qk00js3","area_id":"cmvwl7lsj022u7d3td18kdcn0","lote_principal_id":"cmvyo1kav00827diaibbkbvrt","lote_orig
+PASS mobile-390 servidor: principal = soma, origens 0/Inativo — 391 Inativo Inativo
+PASS mobile-390 peso desconhecido não virou média falsa (principal sem peso) — null
+PASS mobile-390 movimento "Junção de Lotes" (não Entrada) achado pelo lote absorvido
+PASS mobile-390 nenhum PATCH/POST /lotes nem POST genérico de movimento — POST /auth/login,POST /movimentacoes-mapa/comandos/juncao-lotes
+PASS mobile-390 histórico mostra contribuições e política de peso — Histórico da Área PASTO 19 (12)
+PASS mobile-390 diálogo de cancelamento: sem overflow horizontal — {"sw":390,"cw":390,"l":11.96446704864502,"r":378.03551197052,"vw":390}
+PASS mobile-390 cancelamento pela UI: volta exato (qtd, status, peso) — 341/Ativo/400 30/Ativo/380 20/Ativo/null
+PASS mobile-390 409: mensagem clara de data retroativa e diálogo continua aberto — Há registro posterior à data escolhida num dos lotes. Use uma data igual ou posterior. Nada foi gravado.
+PASS mobile-390 409: nada mudou no servidor
+PASS mobile-390 409: exatamente 1 POST do comando nessa tentativa
+PASS mobile-390 offline: indisponibilidade explícita — Sem conexão: nascimento, pesagem e mudança de categoria só podem ser registrados online. Nada foi gravado.
+PASS mobile-390 offline: nenhuma requisição de escrita
+PASS mobile-390 offline: fila sem Lote/MovimentacaoMapa
+PASS mobile-390 sem erro de página
+RESUMO mobile-390: 18/18 PASS

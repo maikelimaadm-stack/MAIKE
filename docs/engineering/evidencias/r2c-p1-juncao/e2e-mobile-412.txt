@@ -1,0 +1,20 @@
+MENU reaberto 0x
+PASS mobile-412 aviso de peso desconhecido visível antes de confirmar
+PASS mobile-412 diálogo de junção: sem overflow horizontal — {"sw":412,"cw":412,"l":9.461465835571289,"r":402.53855323791504,"vw":412}
+PASS mobile-412 1 POST do comando de junção (duplo toque não duplica) — 1 POST
+PASS mobile-412 corpo só com ids/data (sem saldo, peso, tenant) — {"operation_id":"rebanho-df030d5c-6eaa-4a0f-9da4-b5e825639a9e","empresa_id":"cmvwd6au200037d5t9qk00js3","area_id":"cmvwl7ls1022k7d3tgkp8l6u2","lote_principal_id":"cmvyo4o6100bn7diaw06i376t","lote_orig
+PASS mobile-412 servidor: principal = soma, origens 0/Inativo — 406 Inativo Inativo
+PASS mobile-412 peso desconhecido não virou média falsa (principal sem peso) — null
+PASS mobile-412 movimento "Junção de Lotes" (não Entrada) achado pelo lote absorvido
+PASS mobile-412 nenhum PATCH/POST /lotes nem POST genérico de movimento — POST /auth/login,POST /movimentacoes-mapa/comandos/juncao-lotes
+PASS mobile-412 histórico mostra contribuições e política de peso — Histórico da Área PASTO 17 (11)
+PASS mobile-412 diálogo de cancelamento: sem overflow horizontal — {"sw":412,"cw":412,"l":12.192962646484375,"r":399.8070373535156,"vw":412}
+PASS mobile-412 cancelamento pela UI: volta exato (qtd, status, peso) — 356/Ativo/400 30/Ativo/380 20/Ativo/null
+PASS mobile-412 409: mensagem clara de data retroativa e diálogo continua aberto — Há registro posterior à data escolhida num dos lotes. Use uma data igual ou posterior. Nada foi gravado.
+PASS mobile-412 409: nada mudou no servidor
+PASS mobile-412 409: exatamente 1 POST do comando nessa tentativa
+PASS mobile-412 offline: indisponibilidade explícita — Sem conexão: nascimento, pesagem e mudança de categoria só podem ser registrados online. Nada foi gravado.
+PASS mobile-412 offline: nenhuma requisição de escrita
+PASS mobile-412 offline: fila sem Lote/MovimentacaoMapa
+PASS mobile-412 sem erro de página
+RESUMO mobile-412: 18/18 PASS

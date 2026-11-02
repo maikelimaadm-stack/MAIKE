@@ -8,6 +8,7 @@
  */
 
 export const NASCIMENTO = 'Nascimento';
+export const JUNCAO = 'Junção de Lotes';
 export const PESAGEM = 'Pesagem';
 export const MUDANCA_CATEGORIA = 'Mudança de Categoria';
 export const TIPOS_MANEJO_REBANHO = Object.freeze([NASCIMENTO, PESAGEM, MUDANCA_CATEGORIA]);
@@ -99,6 +100,29 @@ export const corpoMudancaCategoria = ({ empresaId, areaId, formData }) => ({
   })),
 });
 
+/**
+ * Junção de Lotes (R2C-P1): só ids, data e observação — saldo, peso e efeitos
+ * são do servidor.
+ * @param {{ empresaId: string, areaId: string, principalId: string, origemIds: string[], data: string, observacoes?: string }} p
+ */
+export const corpoJuncao = ({ empresaId, areaId, principalId, origemIds, data, observacoes }) => ({
+  empresa_id: empresaId,
+  area_id: areaId,
+  lote_principal_id: principalId,
+  lote_origem_ids: [...new Set(origemIds)].filter((id) => id && id !== principalId),
+  data_movimentacao: dataOperacional(data),
+  ...(typeof observacoes === 'string' && observacoes.trim() ? { observacoes: observacoes.trim() } : {}),
+});
+
+/** Prévia da junção na tela (o servidor recalcula): total e se o peso médio é demonstrável. */
+export const previaJuncao = (lotes) => {
+  const lista = Array.isArray(lotes) ? lotes : [];
+  const total = lista.reduce((t, l) => t + (Number(l?.quantidade_cabecas) || 0), 0);
+  const pesoConhecido = lista.length > 0 && lista.every((l) => typeof l?.peso_medio_kg === 'number' && Number.isFinite(l.peso_medio_kg));
+  const pesoMedio = pesoConhecido && total > 0 ? Number((lista.reduce((t, l) => t + l.quantidade_cabecas * l.peso_medio_kg, 0) / total).toFixed(2)) : null;
+  return { total, pesoConhecido, pesoMedio };
+};
+
 /** Lotes de matrizes considerados no nascimento (categoria/área; não é a mãe individual). */
 export const idsDeMatrizesDoMovimento = (mov) => [
   ...new Set((Array.isArray(mov?.linhas) ? mov.linhas : []).flatMap((l) => (Array.isArray(l?.maes_lote_ids) ? l.maes_lote_ids : [])).filter((id) => typeof id === 'string' && id)),
@@ -129,6 +153,15 @@ export const descreverLinhasDoMovimento = (mov) => {
     return linhas.map(
       (l) => `${l.lote_nome} (${l.quantidade_cabecas} cab): ${kg(l.peso_anterior_kg)} → ${kg(l.peso_novo_kg)}${typeof l.ganho_kg === 'number' ? ` (${l.ganho_kg >= 0 ? '+' : ''}${kg(l.ganho_kg)})` : ''}`
     );
+  }
+  if (mov?.tipo === JUNCAO) {
+    const j = mov.juncao || {};
+    const saida = linhas.map((l) => `${l.nome} (${l.quantidade} cab${typeof l.peso_medio_kg === 'number' ? `, ${kg(l.peso_medio_kg)}` : ', peso desconhecido'}) → ${j.principal?.nome || mov.lote || 'lote principal'}`);
+    if (j.principal) {
+      saida.push(`${j.principal.nome}: ${j.principal.quantidade_antes} → ${j.principal.quantidade_depois} cab`);
+      saida.push(j.politica_peso === 'media_ponderada' ? `Peso médio: ${kg(j.principal.peso_antes_kg)} → ${kg(j.principal.peso_depois_kg)}` : 'Peso médio não demonstrável (algum lote sem peso): ficou sem peso');
+    }
+    return saida;
   }
   if (mov?.tipo === MUDANCA_CATEGORIA) {
     return linhas.map((l) => {

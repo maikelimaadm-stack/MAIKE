@@ -1,0 +1,23 @@
+Backend completo (npm run test:backend) na branch R2C (commit b67569a):
+# tests 746
+# suites 178
+# pass 741
+# fail 0
+# todo 5
+
+Concorrência real (3 rodadas por cenário) — suíte r2cP1JuncaoLotes:
+    ok 1 - C1.1: duas junções com origem compartilhada → uma vale, a outra 409; nada duplicado
+    ok 2 - C2.1: junção × morte na origem → conservação exata, sem 500
+    ok 3 - C3.1: junção × transferência da origem → nunca os dois sobre a mesma cabeça
+    ok 4 - C4.1: junção × DELETE da origem → sem exclusão órfã
+    ok 5 - C5.1: cancelar junção × pesagem do principal → nunca reverte por cima
+    ok 6 - C1.2: duas junções com origem compartilhada → uma vale, a outra 409; nada duplicado
+    ok 7 - C2.2: junção × morte na origem → conservação exata, sem 500
+    ok 8 - C3.2: junção × transferência da origem → nunca os dois sobre a mesma cabeça
+    ok 9 - C4.2: junção × DELETE da origem → sem exclusão órfã
+    ok 10 - C5.2: cancelar junção × pesagem do principal → nunca reverte por cima
+    ok 11 - C1.3: duas junções com origem compartilhada → uma vale, a outra 409; nada duplicado
+    ok 12 - C2.3: junção × morte na origem → conservação exata, sem 500
+    ok 13 - C3.3: junção × transferência da origem → nunca os dois sobre a mesma cabeça
+    ok 14 - C4.3: junção × DELETE da origem → sem exclusão órfã
+    ok 15 - C5.3: cancelar junção × pesagem do principal → nunca reverte por cima

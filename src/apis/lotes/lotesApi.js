@@ -18,6 +18,7 @@ import {
   elegibilidadeCancelamentoMovimentacaoMapa,
   executarManejoLote,
   executarManejoRebanho,
+  executarJuncaoLotes,
 } from '@/apis/movimentacoes-mapa';
 import { ehMovimentoAtivo } from '@/domain/lotes/situacaoMovimento';
 import { listMovimentacoesPecuariaNativas } from '@/apis/movimentacoes-pecuaria';
@@ -144,6 +145,16 @@ export const registrarManejoRebanhoServidor = async (corpo) => {
   const contexto = ctx('registrarManejoRebanho');
   assertArgument(isObjeto(corpo) && isId(corpo.operation_id) && isId(corpo.area_id) && Array.isArray(corpo.linhas), 'corpo', contexto);
   return runProviderCall(() => executarManejoRebanho(corpo), { ...contexto, details: { area_id: corpo.area_id, tipo: corpo.tipo } });
+};
+
+/**
+ * Junção de Lotes (R2C-P1, D-PROD-104): o navegador manda só ids e data; o
+ * servidor soma, zera as origens e grava UM movimento numa transação.
+ */
+export const registrarJuncaoLotesServidor = async (corpo) => {
+  const contexto = ctx('registrarJuncaoLotes');
+  assertArgument(isObjeto(corpo) && isId(corpo.operation_id) && isId(corpo.lote_principal_id) && Array.isArray(corpo.lote_origem_ids), 'corpo', contexto);
+  return runProviderCall(() => executarJuncaoLotes(corpo), { ...contexto, details: { lote_principal_id: corpo.lote_principal_id } });
 };
 
 export const consultarElegibilidadeCancelamento = async (id) => {

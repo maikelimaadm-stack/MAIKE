@@ -1,0 +1,20 @@
+MENU reaberto 0x
+PASS desktop-1440 aviso de peso desconhecido visível antes de confirmar
+PASS desktop-1440 diálogo de junção: sem overflow horizontal — {"sw":1440,"cw":1440,"l":498.8923645019531,"r":941.107666015625,"vw":1440}
+PASS desktop-1440 1 POST do comando de junção (duplo toque não duplica) — 1 POST
+PASS desktop-1440 corpo só com ids/data (sem saldo, peso, tenant) — {"operation_id":"rebanho-959c050d-3468-4d77-80cc-cc8a377da1cc","empresa_id":"cmvwd6au200037d5t9qk00js3","area_id":"cmvwl7m30029s7d3t5kq1tayc","lote_principal_id":"cmvyo2p2400997diaozcuwqfk","lote_orig
+PASS desktop-1440 servidor: principal = soma, origens 0/Inativo — 348 Inativo Inativo
+PASS desktop-1440 peso desconhecido não virou média falsa (principal sem peso) — null
+PASS desktop-1440 movimento "Junção de Lotes" (não Entrada) achado pelo lote absorvido
+PASS desktop-1440 nenhum PATCH/POST /lotes nem POST genérico de movimento — POST /auth/login,POST /movimentacoes-mapa/comandos/juncao-lotes
+PASS desktop-1440 histórico mostra contribuições e política de peso — Histórico da Área PASTO 69 (3)
+PASS desktop-1440 diálogo de cancelamento: sem overflow horizontal — {"sw":1440,"cw":1440,"l":498.89337158203125,"r":941.1066284179688,"vw":1440}
+PASS desktop-1440 cancelamento pela UI: volta exato (qtd, status, peso) — 298/Ativo/400 30/Ativo/380 20/Ativo/null
+PASS desktop-1440 409: mensagem clara de data retroativa e diálogo continua aberto — Há registro posterior à data escolhida num dos lotes. Use uma data igual ou posterior. Nada foi gravado.
+PASS desktop-1440 409: nada mudou no servidor
+PASS desktop-1440 409: exatamente 1 POST do comando nessa tentativa
+PASS desktop-1440 offline: indisponibilidade explícita — Sem conexão: nascimento, pesagem e mudança de categoria só podem ser registrados online. Nada foi gravado.
+PASS desktop-1440 offline: nenhuma requisição de escrita
+PASS desktop-1440 offline: fila sem Lote/MovimentacaoMapa
+PASS desktop-1440 sem erro de página
+RESUMO desktop-1440: 18/18 PASS

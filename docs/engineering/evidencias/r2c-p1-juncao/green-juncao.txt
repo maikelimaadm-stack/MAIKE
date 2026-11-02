@@ -1,0 +1,40 @@
+GREEN — branch claude/r2c-p1-juncao-lotes-atomica (árvore de trabalho sobre 04afd25), PostgreSQL local descartável, HTTP autenticado
+# Subtest: R2C junção — saldo, peso, invariantes e cancelamento
+    ok 1 - J1: 40+30+20 → principal 90, origens 0/Inativo, 1 movimento "Junção de Lotes" (não Entrada); entrada e identificação intactas; cancelar volta 40/30/20
+    ok 2 - J2: pesos todos conhecidos → média ponderada (4 casas); um desconhecido → principal fica sem peso (null), nunca zero; cancelar restaura exato
+    ok 3 - J3: 1 origem e muitas origens (2 e 6 lotes) conservam o total
+# Subtest: R2C junção — validações no servidor (nada gravado)
+    ok 1 - V1: forma — duplicado, principal entre origens, vazio, teto, campos do navegador, data impossível → 400
+    ok 2 - V2: lote zerado/inativo, excluído, de outra área → recusa estável
+    ok 3 - V3: categoria, sexo, categoria de manejo divergentes ou sexo indefinido → JUNCAO_CLASSIFICACAO_DIVERGENTE
+    ok 4 - V4: área de outra empresa, área inexistente, outro tenant, homônimos com ids diferentes
+    ok 5 - V5: evento posterior ATIVO num participante → JUNCAO_DATA_RETROATIVA; só cancelados (> 600) não bloqueiam
+    ok 6 - V6: falha injetada em cada efeito e antes do movimento → banco inalterado (lotes, movimento, auditoria, idempotência)
+    ok 7 - V7: replay da mesma chave devolve o mesmo resultado; conteúdo divergente → 409; retry após commit não duplica
+# Subtest: R2C junção — cancelamento certificado
+    ok 1 - K1: não-admin não cancela; dois cancelamentos: o segundo é recusado sem mutação dupla
+    ok 2 - K2: dependência posterior R2A (morte no principal) e R2B (pesagem) bloqueiam; ida e volta de peso por PATCH bloqueia
+    ok 3 - K3: efeito forjado (operação de outro movimento) → CANCELAMENTO_EFEITO_NAO_COMPROVADO
+# Subtest: R2C junção — histórico, exclusão (\#167) e POST genérico
+    ok 1 - H1: histórico pelo principal e por CADA absorvido acha a junção; pela área também
+    ok 2 - H2: \#167 — participante de junção ativa não sai do Cadastro; depois do cancelamento, exclusão lógica (histórico preservado)
+    ok 3 - G1: POST genérico de junção (tipo novo, legado Entrada+motivo, marcador) → 409; campo "juncao" → 400; Entrada legítima passa
+# Subtest: R2C junção — concorrência real (3 rodadas)
+    ok 1 - C1.1: duas junções com origem compartilhada → uma vale, a outra 409; nada duplicado
+    ok 2 - C2.1: junção × morte na origem → conservação exata, sem 500
+    ok 3 - C3.1: junção × transferência da origem → nunca os dois sobre a mesma cabeça
+    ok 4 - C4.1: junção × DELETE da origem → sem exclusão órfã
+    ok 5 - C5.1: cancelar junção × pesagem do principal → nunca reverte por cima
+    ok 6 - C1.2: duas junções com origem compartilhada → uma vale, a outra 409; nada duplicado
+    ok 7 - C2.2: junção × morte na origem → conservação exata, sem 500
+    ok 8 - C3.2: junção × transferência da origem → nunca os dois sobre a mesma cabeça
+    ok 9 - C4.2: junção × DELETE da origem → sem exclusão órfã
+    ok 10 - C5.2: cancelar junção × pesagem do principal → nunca reverte por cima
+    ok 11 - C1.3: duas junções com origem compartilhada → uma vale, a outra 409; nada duplicado
+    ok 12 - C2.3: junção × morte na origem → conservação exata, sem 500
+    ok 13 - C3.3: junção × transferência da origem → nunca os dois sobre a mesma cabeça
+    ok 14 - C4.3: junção × DELETE da origem → sem exclusão órfã
+    ok 15 - C5.3: cancelar junção × pesagem do principal → nunca reverte por cima
+# tests 31
+# pass 31
+# fail 0

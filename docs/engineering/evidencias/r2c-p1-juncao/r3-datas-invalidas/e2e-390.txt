@@ -1,0 +1,31 @@
+MENU reaberto 0x
+PASS mobile-390 aviso de peso desconhecido visível antes de confirmar
+PASS mobile-390 diálogo de junção: sem overflow horizontal — {"sw":390,"cw":390,"l":9.382881164550781,"r":380.6171340942383,"vw":390}
+PASS mobile-390 1 POST do comando de junção (duplo toque não duplica) — 1 POST
+PASS mobile-390 corpo só com ids/data (sem saldo, peso, tenant) — {"operation_id":"rebanho-718d5c7d-a778-4991-81c3-07d90eb7aa19","empresa_id":"cmvwd6au200037d5t9qk00js3","area_id":"cmvwl7lsa022p7d3t7wqkgqld","lote_principal_id":"cmvzamk9h003n7de2g4kh8ed8","lote_orig
+PASS mobile-390 servidor: principal = soma, origens 0/Inativo — 226 Inativo Inativo
+PASS mobile-390 peso desconhecido não virou média falsa (principal sem peso) — null
+PASS mobile-390 movimento "Junção de Lotes" (não Entrada) achado pelo lote absorvido
+PASS mobile-390 nenhum PATCH/POST /lotes nem POST genérico de movimento — POST /auth/login,POST /movimentacoes-mapa/comandos/juncao-lotes
+PASS mobile-390 histórico mostra contribuições e política de peso — Histórico da Área PASTO 18 (13)
+Área
+Lotes atuais
+
+Entradas, saídas e manejos registrados nesta área, inclusive de lotes que já saíram.
+
+02/11/2026
+Junção de Lotes
+Manejo
+Ativo
+PRIN mobile-390
+Quantid
+PASS mobile-390 diálogo de cancelamento: sem overflow horizontal — {"sw":390,"cw":390,"l":11.969694137573242,"r":378.0303020477295,"vw":390}
+PASS mobile-390 cancelamento pela UI: volta exato (qtd, status, peso) — 176/Ativo/400 30/Ativo/380 20/Ativo/null
+PASS mobile-390 409: mensagem clara de data retroativa e diálogo continua aberto — Há registro posterior à data escolhida num dos lotes. Use uma data igual ou posterior. Nada foi gravado.
+PASS mobile-390 409: nada mudou no servidor
+PASS mobile-390 409: exatamente 1 POST do comando nessa tentativa
+PASS mobile-390 offline: indisponibilidade explícita — Sem conexão: nascimento, pesagem e mudança de categoria só podem ser registrados online. Nada foi gravado.
+PASS mobile-390 offline: nenhuma requisição de escrita
+PASS mobile-390 offline: fila sem Lote/MovimentacaoMapa
+PASS mobile-390 sem erro de página
+RESUMO mobile-390: 18/18 PASS

@@ -1,0 +1,212 @@
+# PR169-R3 GREEN — r2cP1R3DatasInvalidas.test.mjs (PostgreSQL local, HTTP autenticado)
+TAP version 13
+# ◇ injected env (0) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+# (node:558) [FSTDEP023] FastifyDeprecation: disableRequestLogging option is deprecated. Use the logController option with disableRequestLogging or isLogDisabled override instead. The disableRequestLogging top-level option will be removed in `fastify@6`.
+# (Use `node --trace-warnings ...` to show where the warning was created)
+#   ANTES  {"lotes":[["ORIGEM",30,"Ativo",400],["PRINCIPAL",40,"Ativo",400]],"movs":0,"audits":2,"ops":0}
+#   DEPOIS {"lotes":[["ORIGEM",30,"Ativo",400],["PRINCIPAL",40,"Ativo",400]],"movs":0,"audits":2,"ops":0}
+#   HTTP 409 JUNCAO_DATA_RETROATIVA
+# Subtest: PR169-R3 RED — data impossível ou conflitante escondia registro posterior
+    # Subtest: A: evento sanitário com data_evento 2026-00-00, registrado depois da junção → 409
+    ok 1 - A: evento sanitário com data_evento 2026-00-00, registrado depois da junção → 409
+      ---
+      duration_ms: 546.857625
+      type: 'test'
+      ...
+#   ANTES  {"lotes":[["ORIGEM",30,"Ativo",400],["PRINCIPAL",40,"Ativo",400]],"movs":0,"audits":2,"ops":0}
+#   DEPOIS {"lotes":[["ORIGEM",30,"Ativo",400],["PRINCIPAL",40,"Ativo",400]],"movs":0,"audits":2,"ops":0}
+#   HTTP 409 JUNCAO_DATA_RETROATIVA
+    # Subtest: B1: data impossível 2026-02-30 → 409
+    ok 2 - B1: data impossível 2026-02-30 → 409
+      ---
+      duration_ms: 317.492327
+      type: 'test'
+      ...
+#   ANTES  {"lotes":[["ORIGEM",30,"Ativo",400],["PRINCIPAL",40,"Ativo",400]],"movs":0,"audits":2,"ops":0}
+#   DEPOIS {"lotes":[["ORIGEM",30,"Ativo",400],["PRINCIPAL",40,"Ativo",400]],"movs":0,"audits":2,"ops":0}
+#   HTTP 409 JUNCAO_DATA_RETROATIVA
+    # Subtest: B2: lixo depois da data ("2026-10-19texto") → 409
+    ok 3 - B2: lixo depois da data ("2026-10-19texto") → 409
+      ---
+      duration_ms: 314.239931
+      type: 'test'
+      ...
+#   ANTES  {"lotes":[["ORIGEM",30,"Ativo",400],["PRINCIPAL",40,"Ativo",400]],"movs":0,"audits":2,"ops":0}
+#   DEPOIS {"lotes":[["ORIGEM",30,"Ativo",400],["PRINCIPAL",40,"Ativo",400]],"movs":0,"audits":2,"ops":0}
+#   HTTP 409 JUNCAO_DATA_RETROATIVA
+    # Subtest: B3: data impossível de ano anterior (2025-13-45) → 409
+    ok 4 - B3: data impossível de ano anterior (2025-13-45) → 409
+      ---
+      duration_ms: 328.393457
+      type: 'test'
+      ...
+#   ANTES  {"lotes":[["ORIGEM",30,"Ativo",400],["PRINCIPAL",40,"Ativo",400]],"movs":1,"audits":2,"ops":0}
+#   DEPOIS {"lotes":[["ORIGEM",30,"Ativo",400],["PRINCIPAL",40,"Ativo",400]],"movs":1,"audits":2,"ops":0}
+#   HTTP 409 JUNCAO_DATA_RETROATIVA
+    # Subtest: B4: MovimentacaoMapa ativa com data_movimentacao 2026-02-30 → 409
+    ok 5 - B4: MovimentacaoMapa ativa com data_movimentacao 2026-02-30 → 409
+      ---
+      duration_ms: 312.184029
+      type: 'test'
+      ...
+#   ANTES  {"lotes":[["ORIGEM",30,"Ativo",400],["PRINCIPAL",40,"Ativo",400]],"movs":0,"audits":2,"ops":0}
+#   DEPOIS {"lotes":[["ORIGEM",30,"Ativo",400],["PRINCIPAL",40,"Ativo",400]],"movs":0,"audits":2,"ops":0}
+#   HTTP 409 JUNCAO_DATA_RETROATIVA
+    # Subtest: C1: data inválida lexicamente POSTERIOR (2026-13-01) continua bloqueando → 409
+    ok 6 - C1: data inválida lexicamente POSTERIOR (2026-13-01) continua bloqueando → 409
+      ---
+      duration_ms: 326.22326
+      type: 'test'
+      ...
+#   ANTES  {"lotes":[["ORIGEM",30,"Ativo",400],["PRINCIPAL",40,"Ativo",400]],"movs":0,"audits":2,"ops":0}
+#   DEPOIS {"lotes":[["ORIGEM",30,"Ativo",400],["PRINCIPAL",40,"Ativo",400]],"movs":0,"audits":2,"ops":0}
+#   HTTP 409 JUNCAO_DATA_RETROATIVA
+    # Subtest: C2: data inválida lexicamente ANTERIOR (2026-10-00) não prova anterioridade → 409
+    ok 7 - C2: data inválida lexicamente ANTERIOR (2026-10-00) não prova anterioridade → 409
+      ---
+      duration_ms: 295.981626
+      type: 'test'
+      ...
+#   ANTES  {"lotes":[["ORIGEM",30,"Ativo",400],["PRINCIPAL",40,"Ativo",400]],"movs":0,"audits":2,"ops":0}
+#   DEPOIS {"lotes":[["ORIGEM",30,"Ativo",400],["PRINCIPAL",40,"Ativo",400]],"movs":0,"audits":2,"ops":0}
+#   HTTP 409 JUNCAO_DATA_RETROATIVA
+    # Subtest: D1: MovimentacaoPecuaria data_movimentacao ANTERIOR e data_evento POSTERIOR → 409
+    ok 8 - D1: MovimentacaoPecuaria data_movimentacao ANTERIOR e data_evento POSTERIOR → 409
+      ---
+      duration_ms: 275.727169
+      type: 'test'
+      ...
+#   ANTES  {"lotes":[["ORIGEM",30,"Ativo",400],["PRINCIPAL",40,"Ativo",400]],"movs":0,"audits":2,"ops":0}
+#   DEPOIS {"lotes":[["ORIGEM",30,"Ativo",400],["PRINCIPAL",40,"Ativo",400]],"movs":0,"audits":2,"ops":0}
+#   HTTP 409 JUNCAO_DATA_RETROATIVA
+    # Subtest: D2: inverso — data_movimentacao POSTERIOR e data_evento ANTERIOR → 409
+    ok 9 - D2: inverso — data_movimentacao POSTERIOR e data_evento ANTERIOR → 409
+      ---
+      duration_ms: 282.524005
+      type: 'test'
+      ...
+#   ANTES  {"lotes":[["ORIGEM",30,"Ativo",400],["PRINCIPAL",40,"Ativo",400]],"movs":0,"audits":2,"ops":0}
+#   DEPOIS {"lotes":[["ORIGEM",30,"Ativo",400],["PRINCIPAL",40,"Ativo",400]],"movs":0,"audits":2,"ops":0}
+#   HTTP 409 JUNCAO_DATA_RETROATIVA
+    # Subtest: D3: data_movimentacao válida ANTERIOR + data_evento IMPOSSÍVEL, registrado depois → 409
+    ok 10 - D3: data_movimentacao válida ANTERIOR + data_evento IMPOSSÍVEL, registrado depois → 409
+      ---
+      duration_ms: 306.863664
+      type: 'test'
+      ...
+    1..10
+ok 1 - PR169-R3 RED — data impossível ou conflitante escondia registro posterior
+  ---
+  duration_ms: 3817.393832
+  type: 'suite'
+  ...
+# Subtest: PR169-R3 GREEN — validação de calendário no SQL (nunca lança)
+    # Subtest: V1: só data de calendário REAL é confiável; o dia é o prefixo escrito; mesma regra do comando
+    ok 1 - V1: só data de calendário REAL é confiável; o dia é o prefixo escrito; mesma regra do comando
+      ---
+      duration_ms: 68.04611
+      type: 'test'
+      ...
+    # Subtest: V2: valores esdrúxulos nos campos de data (número JSON, objeto, espaços, texto longo) não geram 500
+    ok 2 - V2: valores esdrúxulos nos campos de data (número JSON, objeto, espaços, texto longo) não geram 500
+      ---
+      duration_ms: 296.518255
+      type: 'test'
+      ...
+    1..2
+ok 2 - PR169-R3 GREEN — validação de calendário no SQL (nunca lança)
+  ---
+  duration_ms: 365.078785
+  type: 'suite'
+  ...
+# Subtest: PR169-R3 GREEN — semântica preservada (anteriores passam, posteriores bloqueiam)
+    # Subtest: G1: datas REAIS anteriores (AAAA-MM-DD, ISO, ISO com fuso, bissexto) não bloqueiam, mesmo registradas agora
+    ok 1 - G1: datas REAIS anteriores (AAAA-MM-DD, ISO, ISO com fuso, bissexto) não bloqueiam, mesmo registradas agora
+      ---
+      duration_ms: 347.633914
+      type: 'test'
+      ...
+#   ANTES  {"lotes":[["ORIGEM",30,"Ativo",400],["PRINCIPAL",40,"Ativo",400]],"movs":0,"audits":2,"ops":0}
+#   DEPOIS {"lotes":[["ORIGEM",30,"Ativo",400],["PRINCIPAL",40,"Ativo",400]],"movs":0,"audits":2,"ops":0}
+#   HTTP 409 JUNCAO_DATA_RETROATIVA
+    # Subtest: G2: mesmo dia não bloqueia; dia seguinte bloqueia; ISO com fuso usa o dia escrito
+    ok 2 - G2: mesmo dia não bloqueia; dia seguinte bloqueia; ISO com fuso usa o dia escrito
+      ---
+      duration_ms: 638.997744
+      type: 'test'
+      ...
+    # Subtest: G3: data impossível com registro ANTERIOR à junção: createdAt (fallback) decide → não bloqueia
+    ok 3 - G3: data impossível com registro ANTERIOR à junção: createdAt (fallback) decide → não bloqueia
+      ---
+      duration_ms: 356.105515
+      type: 'test'
+      ...
+#   ANTES  {"lotes":[["ORIGEM",30,"Ativo",400],["PRINCIPAL",40,"Ativo",400]],"movs":0,"audits":2,"ops":0}
+#   DEPOIS {"lotes":[["ORIGEM",30,"Ativo",400],["PRINCIPAL",40,"Ativo",400]],"movs":0,"audits":2,"ops":0}
+#   HTTP 409 JUNCAO_DATA_RETROATIVA
+    # Subtest: G4: sem data: registrado antes passa; registrado depois bloqueia
+    ok 4 - G4: sem data: registrado antes passa; registrado depois bloqueia
+      ---
+      duration_ms: 545.815388
+      type: 'test'
+      ...
+#   ANTES  {"lotes":[["ORIGEM",30,"Ativo",400],["PRINCIPAL",40,"Ativo",400]],"movs":0,"audits":2,"ops":0}
+#   DEPOIS {"lotes":[["ORIGEM",30,"Ativo",400],["PRINCIPAL",40,"Ativo",400]],"movs":0,"audits":2,"ops":0}
+#   HTTP 409 JUNCAO_DATA_RETROATIVA
+    # Subtest: G5: data REAL posterior bloqueia mesmo com createdAt antigo (agendado antes, evento depois)
+    ok 5 - G5: data REAL posterior bloqueia mesmo com createdAt antigo (agendado antes, evento depois)
+      ---
+      duration_ms: 321.1245
+      type: 'test'
+      ...
+#   ANTES  {"lotes":[["ORIGEM",30,"Ativo",400],["PRINCIPAL",40,"Ativo",400]],"movs":0,"audits":2,"ops":0}
+#   DEPOIS {"lotes":[["ORIGEM",30,"Ativo",400],["PRINCIPAL",40,"Ativo",400]],"movs":0,"audits":2,"ops":0}
+#   HTTP 409 JUNCAO_DATA_RETROATIVA
+#   ANTES  {"lotes":[["ORIGEM",30,"Ativo",400],["PRINCIPAL",40,"Ativo",400]],"movs":0,"audits":2,"ops":0}
+#   DEPOIS {"lotes":[["ORIGEM",30,"Ativo",400],["PRINCIPAL",40,"Ativo",400]],"movs":0,"audits":2,"ops":0}
+#   HTTP 409 JUNCAO_DATA_RETROATIVA
+    # Subtest: G6: tarefa — início posterior com conclusão anterior (inconsistente) bloqueia; só previsão não; Cancelada não
+    ok 6 - G6: tarefa — início posterior com conclusão anterior (inconsistente) bloqueia; só previsão não; Cancelada não
+      ---
+      duration_ms: 832.750596
+      type: 'test'
+      ...
+    # Subtest: G7: data impossível em movimento CANCELADO, em OUTRA empresa, OUTRO tenant ou lote homônimo com id não bloqueia
+    ok 7 - G7: data impossível em movimento CANCELADO, em OUTRA empresa, OUTRO tenant ou lote homônimo com id não bloqueia
+      ---
+      duration_ms: 526.834686
+      type: 'test'
+      ...
+#   ANTES  {"lotes":[["ORIGEM",30,"Ativo",400],["PRINCIPAL",40,"Ativo",400]],"movs":0,"audits":2,"ops":0}
+#   DEPOIS {"lotes":[["ORIGEM",30,"Ativo",400],["PRINCIPAL",40,"Ativo",400]],"movs":0,"audits":2,"ops":0}
+#   HTTP 409 JUNCAO_DATA_RETROATIVA
+    # Subtest: G8: legado SEM lote_id, só pelo nome, com data impossível registrada depois → bloqueia
+    ok 8 - G8: legado SEM lote_id, só pelo nome, com data impossível registrada depois → bloqueia
+      ---
+      duration_ms: 273.480008
+      type: 'test'
+      ...
+#   ANTES  {"lotes":[["ORIGEM",30,"Ativo",400],["PRINCIPAL",40,"Ativo",400]],"movs":611,"audits":2,"ops":0}
+#   DEPOIS {"lotes":[["ORIGEM",30,"Ativo",400],["PRINCIPAL",40,"Ativo",400]],"movs":611,"audits":2,"ops":0}
+#   HTTP 409 JUNCAO_DATA_RETROATIVA
+    # Subtest: G9: 610 movimentos cancelados com data impossível + 1 ativo com data impossível → bloqueia; só cancelados → permite
+    ok 9 - G9: 610 movimentos cancelados com data impossível + 1 ativo com data impossível → bloqueia; só cancelados → permite
+      ---
+      duration_ms: 476.791119
+      type: 'test'
+      ...
+    1..9
+ok 3 - PR169-R3 GREEN — semântica preservada (anteriores passam, posteriores bloqueiam)
+  ---
+  duration_ms: 4320.630892
+  type: 'suite'
+  ...
+1..3
+# tests 21
+# suites 3
+# pass 21
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 8945.370312

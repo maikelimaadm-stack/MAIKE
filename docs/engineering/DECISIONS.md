@@ -4043,4 +4043,117 @@ Relatório: `docs/engineering/UX-MOBILE-V2-REPORT.md` (seção V9). Teste: `test
 
 ---
 
-<!-- Próxima decisão: D-PROD-104 -->
+## D-PROD-104 — Junção de Lotes do Mapa por comando atômico com cancelamento causal (R2C-P1)
+
+> Numerada D-PROD-102 e depois D-PROD-103 na branch; renumerada para D-PROD-104 porque a #170 (D-PROD-102) e a #171 (D-PROD-103), ambas mobile, ocuparam esses números na main durante a missão.
+
+**Missão:** MAIKE-R2C-P1-JUNCAO-DE-LOTES-ATOMICA-CANCELAMENTO-CAUSAL. Base `main` 04afd25 (merge da #168). **Sem migration**; nenhuma escrita em produção.
+
+**Contexto:** o botão "Confirmar Junção" fazia N+2 chamadas sem transação: um PATCH por lote absorvido, um PATCH no principal e um POST genérico `tipo: 'Entrada'`, com o snapshot dentro de `observacoes`. RED 7/7 na main, por HTTP com PostgreSQL real:
+- falha na 2ª chamada: 90 → 60 cabeças; na 3ª: 90 → 40;
+- falha no POST: saldo mudou sem movimento;
+- retry depois da falha: "Entrada 90" duplicada;
+- peso desconhecido tratado como 0: 257,8 kg em vez de 386,7 kg (média dos pesos conhecidos);
+- a junção era classificada como "Entrada".
+
+**Decisão:**
+
+1. **Comando** `POST /movimentacoes-mapa/comandos/juncao-lotes`:
+   - o corpo aceita só `operation_id`, `empresa_id`, `area_id`, `lote_principal_id`, `lote_origem_ids` (1 a 20, únicos, sem o principal), `data_movimentacao` e `observacoes`; qualquer outro campo responde 400;
+   - idempotência `manejo_mapa_juncao_lotes` com fingerprint do conteúdo canônico;
+   - trava `FOR UPDATE` da área e depois dos lotes, em ordem de id — a mesma ordem da R2B, sem ciclo com R2A nem com a exclusão #167.
+2. **Validação no servidor:**
+   - lotes do tenant e da empresa, não excluídos, ativos, com cabeças, na mesma área (de outra área exige transferência antes);
+   - mesma categoria, mesmo sexo definido (Macho/Fêmea) e mesma `categoria_manejo_id`;
+   - nenhum registro ATIVO posterior à data em nenhum participante. A consulta é completa, sem teto, e cancelados ficam fora; é o mesmo `dependenciasPosteriores` do cancelamento.
+3. **Efeito:**
+   - o principal recebe a soma; cada origem fica 0/Inativo; nenhum lote é criado;
+   - entrada, área de entrada, categoria de entrada, origem, compra e identificação ficam intactas;
+   - peso: média ponderada (4 casas) só quando todos os pesos são conhecidos; senão o principal fica `null`. Desconhecido nunca vale 0.
+   - Raça e sistema produtivo do principal se mantêm; os das origens ficam registrados em `linhas`.
+4. **Movimento:**
+   - tipo `Junção de Lotes` (nunca `Entrada`): saldo líquido zero, não conta como entrada;
+   - `lote_id` = principal; `lote_ids` = principal e depois as origens;
+   - `linhas` = contribuição de cada origem com identificação;
+   - `juncao` = resumo do principal e a política de peso;
+   - `efeito_servidor{comando:'manejo_mapa_juncao_lotes', operation_id, registrado_por_usuario_id, efeitos[]}`, cada efeito com snapshot de saldo, situação, área, empresa, classificação, sexo e peso;
+   - `juncao` passa a ser campo reservado.
+5. **Cancelamento** (mesmo endpoint, só administrador):
+   - reutiliza o planejador causal da R2B, parametrizado pelo comando e pelo tipo de operação;
+   - exige: proveniência confirmada, AuditLog igual ao pós-estado, nenhum registro posterior em nenhum participante, nenhuma alteração posterior de saldo, classificação, sexo ou peso (inclusive ida e volta);
+   - restaura saldo, situação e peso de todos os lotes juntos;
+   - o movimento continua no histórico como `situacao:'cancelado'`.
+6. **Legado:**
+   - o POST/bulk genérico com o tipo novo, com `motivo` "Junção de Lotes" ou com o marcador `[JUNCAO_LOTES]` responde 409 `JUNCAO_SOMENTE_POR_COMANDO`; outras entradas passam;
+   - junções antigas não viram canceláveis; a tela diz isso.
+7. **Histórico e #167:** os participantes entram por `movimentoCitaLotes` (`lote_ids` e efeitos):
+   - o histórico de cada lote os encontra;
+   - exclusão bloqueada enquanto a junção está ativa (`movimentacao_ativa`);
+   - depois do cancelamento comprovado, vale o contrato da #167.
+8. **Frontend:**
+   - o diálogo envia só o comando;
+   - prévia marcada como "o servidor confere";
+   - aviso de peso desconhecido;
+   - duplo clique bloqueado; o diálogo não fecha durante o envio;
+   - só online;
+   - pendência idempotente por tenant, usuário, tipo, empresa e área.
+
+**Erros novos:**
+- `JUNCAO_LOTE_INELEGIVEL` (409);
+- `JUNCAO_CLASSIFICACAO_DIVERGENTE` (409);
+- `JUNCAO_DATA_RETROATIVA` (409);
+- `JUNCAO_SOMENTE_POR_COMANDO` (409);
+- e os existentes: `LOTE_NOT_FOUND`, `AREA_NOT_FOUND`, `IDEMPOTENCY_CONFLICT`, 400 de forma.
+
+**Limites:**
+- sem sincronização offline;
+- unificação de destino na Mudança de Categoria fica para slice próprio;
+- junções legadas não são estornadas.
+
+**Consequência:** relatório `MAIKE-R2C-JUNCAO-ATOMICA-REPORT.md`; evidências em `evidencias/r2c-p1-juncao/`.
+
+**Complemento PR169-R2 (guarda temporal real):**
+- **Problema:** a junção usava a consulta do cancelamento com um movimento fictício de `createdAt` 9999-12-31. Por isso, tarefas (comparadas só por `createdAt`) e registros sem data operacional nunca bloqueavam. RED 6/6 no `729cedc`: tarefa concluída ou iniciada depois, movimento sem data, evento sem data ou com data "01/11/2026", tarefa no principal.
+- **Correção:** `guardaTemporalComando.registrosAtivosPosteriores`, uma consulta própria para comando novo.
+  - A `dependenciasPosteriores` do cancelamento R2A/R2B ficou inalterada.
+- **Data efetiva** de cada registro, comparada com a data da junção:
+  - vale o prefixo AAAA-MM-DD confiável do campo de data da fonte (dia operacional como foi registrado, sem converter fuso);
+  - sem esse prefixo, vale a data de registro (`createdAt`, UTC);
+  - bloqueia se a data efetiva for **maior** que a da junção (409 `JUNCAO_DATA_RETROATIVA`);
+  - mesmo dia não bloqueia: a junção é gravada agora, depois dos registros daquele dia.
+- **Tarefa (`LancamentoTarefa`):**
+  - data efetiva: `data_conclusao` (realizada), senão `data_inicio` (iniciada), senão `createdAt`;
+  - `data_prevista` é previsão e não conta como evento;
+  - tarefa `Cancelada` não bloqueia.
+- **Movimento:** cancelado não bloqueia.
+- **Vínculo:** `movimentoCitaLotes`, mais o nome apenas para legado sem `lote_id`; sempre dentro do tenant e da empresa; sem teto.
+- **Execução:** roda dentro da transação, depois das travas de área e de lotes.
+- GREEN 14/14; junção 31/31.
+
+**Complemento PR169-R3 (datas impossíveis e campos de data conflitantes):**
+- **Problema:** a "data confiável" do R2 era só o regex `^[0-9]{4}-[0-9]{2}-[0-9]{2}`, sem âncora final e sem calendário. Valores como `2026-00-00`, `2026-02-30`, `2025-13-45`, `2026-10-00` e `2026-10-19texto` viravam datas confiáveis e eram comparados como texto. Se ordenavam antes da junção, escondiam um registro feito depois dela, e o fallback `createdAt` não era usado. Em `MovimentacaoPecuaria` (`data_movimentacao`, `data_evento`) o `COALESCE` usava a primeira data, e uma primeira data anterior escondia uma segunda posterior.
+  - RED 8 de 10 no `b63b294`: A, B1–B4, C2, D1, D3 responderam 201 e efetivaram a junção.
+  - C1 (data inválida lexicamente posterior) e D2 (data posterior no primeiro campo) já bloqueavam.
+- **Data confiável** passa a ser uma data de calendário **real**, no texto inteiro:
+  - formato `AAAA-MM-DD`, ou ISO `AAAA-MM-DDTHH:MM[:SS[.fff]][Z|±HH:MM]`, a mesma gramática de `dataOperacionalValida` do comando;
+  - mês 01–12, dia existente no mês (com ano bissexto) e ano diferente de `0000`;
+  - o dia é o prefixo como foi escrito, sem converter o fuso.
+  - A validação é SQL puro em `CASE` aninhado: os casts só rodam depois do regex, então nunca lança erro.
+- **Data efetiva** (conservadora): `GREATEST` de todas as datas confiáveis dos campos da fonte.
+  - Entra também o `createdAt` (UTC) quando nenhuma data é confiável, ou quando algum campo de data está preenchido com valor não confiável.
+  - Assim, data impossível nunca prova anterioridade e data anterior nunca esconde data posterior.
+  - Data inválida em registro feito **antes** da junção não bloqueia: o `createdAt` decide.
+- **Prioridade semântica das fontes com mais de uma data:**
+  - `MovimentacaoPecuaria.data_movimentacao` e `data_evento` são sinônimos legados do dia do evento, sem prioridade entre si; em conflito vale a maior.
+  - `LancamentoTarefa`: `GREATEST(data_conclusao, data_inicio)`, senão `createdAt`.
+  - `data_prevista` continua sem contar: é previsão, não evento realizado.
+- **Inalterados:**
+  - recusa 409 `JUNCAO_DATA_RETROATIVA` sem efeito;
+  - validação dentro da transação, depois das travas;
+  - vínculo estrutural e legado por nome;
+  - tenant e empresa; sem teto;
+  - cancelados ignorados.
+  - O `dependenciasPosteriores` do cancelamento R2A/R2B não foi tocado. Ele combina `createdAt` e datas com OU, então uma data inválida só pode somar bloqueio, nunca esconder.
+- **Resultado:** GREEN 21/21 (`r2cP1R3DatasInvalidas`); R2 14/14; junção 31/31.
+
+<!-- Próxima decisão: D-PROD-105 -->
