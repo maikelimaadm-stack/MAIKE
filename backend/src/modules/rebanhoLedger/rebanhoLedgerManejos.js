@@ -44,7 +44,7 @@ import {
   validarEReprojetar,
   pesoAntesDoEvento,
   registrarPesosDerivados,
-  verificarCausalidadeDePeso,
+  verificarDependenciasTemporais,
 } from './rebanhoLedgerNucleo.js';
 import { executarTransferencia } from './rebanhoLedgerService.js';
 
@@ -75,7 +75,7 @@ const concluir = async (tx, contexto, { e, evento, envolvidas, antes, areas, ped
   await validarEReprojetar(tx, auth.clienteId, envolvidas, 'REBANHO_SALDO_HISTORICO_NEGATIVO', 'o manejo deixaria saldo negativo numa data; nada foi gravado',
     detalheSaldo(antes, areas, pedidos, dia));
   // PR174-R2: nenhum peso derivado posterior pode depender do que este fato muda.
-  await verificarCausalidadeDePeso(tx, auth.clienteId, envolvidas, dia, { exceto: evento.id });
+  await verificarDependenciasTemporais(tx, auth.clienteId, envolvidas, dia, { exceto: evento.id });
   ponto('apos_validar_manejo');
   const mov = await criarPonteMovimentacao(tx, contexto, { clienteId: auth.clienteId, empresaId: e.empresaId, evento, operationKey: e.operationKey, usuarioId: auth.usuarioId, dados: dadosPonte });
   ponto('antes_auditoria_manejo');

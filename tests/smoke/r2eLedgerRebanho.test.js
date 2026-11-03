@@ -145,3 +145,15 @@ describe('PR174-R2 mensagens das recusas novas (nada de falso sucesso)', () => {
     }
   });
 });
+
+describe('PR174-R3 recusa de fato sem saldo (pesagem/nascimento posterior)', () => {
+  it('manejo e cancelamento mostram tipo e data do fato dependente; recusa é definitiva', async () => {
+    const pes = Object.assign(new Error('x'), { code: 'API_OPERATION_FAILED', cause: { code: 'REBANHO_DEPENDENCIA_FATO_SEM_SALDO' }, details: { tipo: 'PESAGEM', data: '2026-11-05' } });
+    expect(mensagemDaTransferenciaLedger(pes)).toBe('A pesagem do dia 05/11/2026 ficaria numa posição sem cabeças. Cancele-a antes. Nada foi gravado.');
+    const nas = Object.assign(new Error('x'), { code: 'API_OPERATION_FAILED', cause: { code: 'REBANHO_DEPENDENCIA_FATO_SEM_SALDO' }, details: { tipo: 'NASCIMENTO', data: '2026-11-05' } });
+    expect(mensagemDaTransferenciaLedger(nas)).toMatch(/nascimento do dia 05\/11\/2026 ficaria sem as matrizes/);
+    const { mensagemDeRecusa, MENSAGENS_RECUSA } = await import('@/components/lotes/CancelarMovimentacao');
+    expect(MENSAGENS_RECUSA.REBANHO_DEPENDENCIA_FATO_SEM_SALDO).toMatch(/Nada foi alterado/);
+    expect(mensagemDeRecusa('REBANHO_DEPENDENCIA_FATO_SEM_SALDO', { tipo: 'PESAGEM', data: '2026-11-05' })).toMatch(/pesagem do dia 05\/11\/2026/);
+  });
+});

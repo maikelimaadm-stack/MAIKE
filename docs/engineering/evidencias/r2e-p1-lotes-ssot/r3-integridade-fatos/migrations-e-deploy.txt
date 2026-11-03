@@ -1,0 +1,6 @@
+migrations alteradas desde ce1ab5b: 0 (nenhuma migration nova)
+The schema at prisma/schema.prisma is valid 🚀
+Database schema is up to date!
+
+diff exit=0
+variáveis MIGRATION_* no container: 0 → REMOTE_MIGRATION_BLOCKED

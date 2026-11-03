@@ -39,6 +39,7 @@ const RECUSAS_DEFINITIVAS = new Set([
   'BAIXA_DATA_RETROATIVA',
   'REBANHO_SALDO_HISTORICO_NEGATIVO',
   'REBANHO_PESO_DEPENDENCIA_CAUSAL',
+  'REBANHO_DEPENDENCIA_FATO_SEM_SALDO',
   'REBANHO_LEDGER_SOMENTE_POR_COMANDO',
   'IDEMPOTENCY_EFEITO_DESFEITO',
   'REBANHO_ANTES_DO_CORTE',
@@ -76,6 +77,7 @@ export const MENSAGENS_MANEJO_REBANHO = Object.freeze({
   REQUEST_VALIDATION_FAILED: 'Dados inválidos (quantidade, peso ou data). Nada foi gravado.',
   IDEMPOTENCY_CONFLICT: 'Este envio já foi usado com outro conteúdo. Abra o formulário de novo. Nada foi gravado.',
   IDEMPOTENCY_IN_PROGRESS: 'O envio anterior ainda está sendo processado. Aguarde e tente de novo com o mesmo registro.',
+  REBANHO_DEPENDENCIA_FATO_SEM_SALDO: 'Uma pesagem ou nascimento posterior ficaria sem cabeças (ou sem as matrizes) na data dele. Cancele-o antes. Nada foi gravado.',
   REBANHO_PESO_DEPENDENCIA_CAUSAL: 'Um registro posterior calculou o peso com o valor que este manejo mudaria. Cancele o posterior antes. Nada foi gravado.',
   REBANHO_LEDGER_SOMENTE_POR_COMANDO: 'Nesta fazenda o rebanho é controlado por posições: use o manejo do mapa. Nada foi gravado.',
   IDEMPOTENCY_EFEITO_DESFEITO: 'Este envio foi desfeito por um reset de dados de teste. Abra o formulário de novo. Nada foi gravado.',
@@ -195,6 +197,12 @@ export const mensagemDaTransferenciaLedger = (erro) => {
     const dia = String(d.data).split('-').reverse().join('/');
     const qtd = d.disponivel !== null && d.disponivel !== undefined ? ` Disponível na data: ${d.disponivel} cab; pedido: ${d.pedido} cab.` : ` Saldo resultante: ${d.saldo_resultante} cab.`;
     return `Saldo insuficiente em ${d.area_nome ?? 'uma área'} no dia ${dia}.${qtd} Nada foi gravado.`;
+  }
+  if (codigoDoErro(erro) === 'REBANHO_DEPENDENCIA_FATO_SEM_SALDO' && d?.data) {
+    const dia = String(d.data).split('-').reverse().join('/');
+    return d.tipo === 'NASCIMENTO'
+      ? `O nascimento do dia ${dia} ficaria sem as matrizes registradas nele. Cancele-o antes. Nada foi gravado.`
+      : `A pesagem do dia ${dia} ficaria numa posição sem cabeças. Cancele-a antes. Nada foi gravado.`;
   }
   if (codigoDoErro(erro) === 'REBANHO_PESO_DEPENDENCIA_CAUSAL' && d?.data) {
     const dia = String(d.data).split('-').reverse().join('/');

@@ -347,3 +347,69 @@ Em todas: Cadastro (`Lote`) intacto, `verificacao.integro` e conservação, sem 
 - **Eventos sem descritor:** os de antes do R2, só em bancos locais, não são reconferidos. Em produção não existem (nada foi ativado).
 - **Varredura de vínculos do reset:** procura ids exatos nas fontes listadas. Fontes futuras precisam entrar na lista; o teste A2 é o guarda.
 - **Ordem no mesmo dia:** depende do relógio do banco. Com várias instâncias do app, o relógio é o do PostgreSQL, então é único.
+
+---
+
+# PR174-R3 — Integridade de fatos sem delta e renomeação de formato fechado (complemento da D-PROD-107)
+
+**Mesma PR (#174, DRAFT), mesma branch.** HEAD auditado `ce1ab5b` (CI SUCCESS, run 41520484347); base main `f7a8ea3`, inalterada. Sem migration nova. Evidências: `evidencias/r2e-p1-lotes-ssot/r3-integridade-fatos/`.
+
+## R3.1 RED → GREEN (`backend/tests/r2eR3IntegridadeFatos.test.mjs`)
+
+| # | Hipótese | RED no `ce1ab5b` | GREEN |
+|---|---|---|---|
+| P1.1 | 100 em A; pesagem dia 05; depois transferência TOTAL A→B no dia 01 | 201 (pesagem ficava numa posição vazia) | 409 `REBANHO_DEPENDENCIA_FATO_SEM_SALDO` (evento, PESAGEM, data, posição, área, `saldo_no_fato: 0`); nada gravado |
+| P1.3 | morte, abate e mudança retroativos que zeram a posição pesada | 201 | 409; cancelada a pesagem, a morte passa |
+| P1.5 | cancelar a transferência de volta que sustentava a pesagem | 200 | 409 (o cancelamento também é guardado) |
+| P2.1 | 20 vacas; nascimento dia 05; depois todas as vacas A→B no dia 01 | 201 | 409 (NASCIMENTO, `posicao_ids` maternas, área, data) |
+| P2.2 | várias posições maternas | remover todas → 201 | remover uma com outra certificada presente → 201; remover todas (transferência ou morte) → 409; nascimento cancelado não bloqueia |
+| P2.3 | vacas de outra posição chegando depois | 201 | não "salvam" o nascimento: 409 |
+| P3.1 | `Entrada` + `Renomear Lote` com quantidade, áreas, categoria ou peso, ou `lote_id` de posição | 201 | 409 `REBANHO_LEDGER_SOMENTE_POR_COMANDO` (unitário e lote); renomeação real → 201 |
+| I1 | renomeação com `lote_id` de OUTRO tenant | 201 (achado novo) | 4xx, nada gravado |
+
+**Controles verdes antes e depois:**
+- saída parcial que deixa cabeças;
+- retirada de outra posição;
+- pesagem de outra área;
+- mesmo dia: pesagem registrada antes da transferência total → aceita (ordem de registro); pesagem registrada depois, na posição vazia → recusa na criação;
+- empresa legada aceita a renomeação antiga com quantidade.
+
+## R3.2 Contrato temporal
+
+- **Saldo "no fato" F:** soma das partidas ativas com data < data(F), ou data = data(F) e `(registrado_em, id)` anterior ao de F. `registrado_em` é o `clock_timestamp()` do banco, depois das travas.
+- **Não existe exigência de ordem de LANÇAMENTO entre dias:** retroativos continuam livres quando não violam nada.
+- **PESAGEM:** cada posição pesada com saldo > 0 no fato.
+- **NASCIMENTO:** em cada linha, Σ (saldo no fato das `maes_posicao_ids` certificadas) > 0.
+- **Guarda única** `verificarDependenciasTemporais` (peso causal R2 + pré-condições R3): transação do comando, depois das travas. Cobre transferência, baixa, nascimento, pesagem, mudança, junção e cancelamento.
+- **Verificação:** `GET /rebanho/verificacao` → `precondicoes_violadas` e `integro: false` quando houver violação. Prova V1: fixture corrompido por fora do motor, só leitura.
+
+## R3.3 Caso do proprietário, concorrência, idempotência, tenant
+
+- **D2:** 500 em A; A→B 100 no dia 02; depois A→B 100 no dia 01 → 300/200. 1 Lote (sem derivado); peso 400 em B; conservação 500/500.
+- **Concorrência 3×:**
+  - K1 (transferência retroativa × pesagem) e K2 (transferência retroativa × nascimento): nunca os dois aceitos, sem 500, verificação íntegra;
+  - A4, B3 e C6 (R2) continuam verdes.
+- **I1:** recusa não reserva chave; o reenvio da mesma chave dá a mesma recusa, sem duplicar.
+
+## R3.4 Regressões, E2E e gates
+
+- **Ledger completo** (R3 15 + R2 15 + P1 + R1 + manejos + reset): **71/71**.
+- **E2E Chromium 1440/768/412/390: 144/144** (36 por largura). Cobre o fluxo R2 inteiro mais a **morte retroativa das matrizes antes do nascimento**: a tela mostra "O nascimento do dia 21/12/2026 ficaria sem as matrizes…", o diálogo continua aberto e nada é gravado. Safari real não foi testado.
+- **Smoke:** mensagens novas com tipo e data.
+- `verify:all`: ver `verify-all-local.txt`. O CI no SHA final é o gate de aceitação.
+
+## R3.5 Migrations e deploy
+
+| Item | Estado |
+|---|---|
+| Migration nova | NÃO (0 arquivos em `backend/prisma/` desde `ce1ab5b`) |
+| Local (`maike_ci`) | validate ok; status "up to date"; `migrate diff --exit-code` = 0 |
+| REMOTE_EXPAND_APPLIED | BLOCKED — 0 variáveis `MIGRATION_*` no container; nada remoto lido ou escrito |
+| Ativação, reset ou cutover remoto | NÃO executado (proibido antes do merge) |
+| PRODUCTION_DEPLOYED | NÃO |
+
+## R3.6 Riscos residuais
+
+- **Outros fatos sem delta:** foram revisados os demais tipos. Entrada e saldo de abertura têm partida; baixa, mudança, junção e transferência têm delta e passam pela regra de saldo. Hoje não há outro fato sem delta com pré-condição.
+- **Vínculo materno:** depende de `maes_posicao_ids` gravados pelo servidor na ponte. Ponte ausente (não ocorre pelos comandos) = linha sem pré-condição verificável.
+- **Ordem no mesmo dia:** é a de registro no banco; comandos simultâneos são serializados pelas travas de área e posição.

@@ -1,0 +1,52 @@
+PASS tablet-768 transferência: sem overflow horizontal — {"sw":768,"cw":768,"l":0,"r":768,"vw":768}
+PASS tablet-768 transferência: 1 POST do ledger, nada legado — 1
+PASS tablet-768 transferência: A=633 B=34 — 633/34
+PASS tablet-768 retroativa dia 18 depois do dia 20: aceita (mesmo peso), A=628 B=39 — 628/39 Gado movido com sucesso!
+PASS tablet-768 morte: sem overflow horizontal — {"sw":768,"cw":768,"l":0,"r":768,"vw":768}
+PASS tablet-768 morte: 1 POST baixa-rebanho, nada legado, toast de sucesso — Morte registrado: 8 cab (R1A tablet-768: 8)
+PASS tablet-768 morte: A=620 — 620
+PASS tablet-768 abate: sem overflow horizontal — {"sw":768,"cw":768,"l":0,"r":768,"vw":768}
+PASS tablet-768 abate retroativo: 1 POST, aceito — Abate registrado: 13 cab (R1A tablet-768: 13)
+PASS tablet-768 abate: A=607 — 607
+PASS tablet-768 abate: corpo com a data retroativa e sem saldo/tenant — {"operation_id":"rebanho-2730477f-84c6-4fb8-b5c9-5817eb0e455e","tipo":"Abate","empresa_id":"cmvznzb4400047d3vl57ajnf6","area_id":"cmvzxz7p300077dqfnz36nspw","da
+PASS tablet-768 mudança de categoria: sem overflow horizontal — {"sw":768,"cw":768,"l":0,"r":768,"vw":768}
+PASS tablet-768 mudança: 1 POST manejo-rebanho; 24 TOURO na mesma linhagem; total de A igual — Mudança de categoria registrado
+PASS tablet-768 pesagem: sem overflow horizontal — {"sw":768,"cw":768,"l":0,"r":768,"vw":768}
+PASS tablet-768 pesagem: 1 POST; peso 432,5 nas posições de A (série de peso no ledger) — Pesagem registrado 432.5,432.5,432.5
+PASS tablet-768 junção: sem overflow horizontal — {"sw":768,"cw":768,"l":160,"r":608,"vw":768}
+PASS tablet-768 junção: 1 POST juncao-lotes; uma posição BOI em A com a linhagem das duas entradas — Lotes unificados: 583 cabeças no lote "R1A tablet-768" 1
+PASS tablet-768 junção: total de A conservado — 607
+PASS tablet-768 nascimento: sem overflow horizontal — {"sw":768,"cw":768,"l":0,"r":768,"vw":768}
+PASS tablet-768 nascimento: 1 POST; posição NASCIDOS com 11 cab, sem entrada (não é compra) — Nascimento registrado
+PASS tablet-768 nascimento: C=77 — 77
+PASS tablet-768 R3: morte retroativa das matrizes do nascimento → recusa com a data do nascimento, nada gravado — O nascimento do dia 21/12/2026 ficaria sem as matrizes registradas nele. Cancele-o antes. Nada foi gravado.
+PASS tablet-768 R3: diálogo continua aberto após o 409
+PASS tablet-768 morte em B antes de o gado chegar: recusa clara, nada gravado — A categoria não tem cabeças suficientes nos lotes ativos desta área. Recarregue o mapa. Nada foi baixado.
+PASS tablet-768 recusa: diálogo continua aberto
+PASS tablet-768 histórico de A lista transferência (2), morte, abate, mudança, pesagem e junção — Histórico da Área PASTO 34 (7)
+Área
+Lotes atuais
+
+Entradas, saídas e manejos registrados nesta área, inclusive de lotes que já saíram.
+
+24/12/2026
+Junção de Lotes
+Manejo
+Ativo
+R1A tablet-768
+Quantidad
+PASS tablet-768 cancelamento: sem overflow horizontal — {"sw":768,"cw":768,"l":160.84127807617188,"r":607.1587524414062,"vw":768}
+PASS tablet-768 cancelamento da morte pela UI → A=615 — 615
+PASS tablet-768 pré-checagem: sem campo de motivo nem POST de cancelamento
+PASS tablet-768 cancelar pesagem com junção posterior dependente: recusa causal explícita (dia 24/12), nada muda — Cancelar movimentação
+
+Pesagem · R1A tablet-768 · 0 cab. O registro original continua no histórico, marcado como cancelado.
+
+O registro do dia 24/12/2026 calculou o peso a partir deste (registrado 432,5 kg; passaria a 39
+PASS tablet-768 offline: indisponibilidade explícita, sem requisição de escrita — Sem conexão: este manejo (nascimento, pesagem, mudança de categoria, junção, morte ou abate) só pode ser registrado online. Nada foi gravado.
+PASS tablet-768 Cadastro R1A tablet-768: Lote = entrada (474 cab, área de entrada), nenhuma escrita de saldo — [474,"Ativo"]
+PASS tablet-768 Cadastro R1B tablet-768: Lote = entrada (193 cab, área de entrada), nenhuma escrita de saldo — [193,"Ativo"]
+PASS tablet-768 Cadastro R1V tablet-768: Lote = entrada (66 cab, área de entrada), nenhuma escrita de saldo — [66,"Ativo"]
+PASS tablet-768 verificação do ledger: íntegro e conservação fecha — {"posicoes":68,"divergentes":[],"pesos_divergentes":[],"negativos":[],"conservacao":{"entradas":7931,"nascimentos":97,"saidas":-152,"internos":0,"saldo":7876,"conserva":true},"precondicoes_violadas":[
+PASS tablet-768 sem erro de página
+RESUMO tablet-768: 36/36 PASS

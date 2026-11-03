@@ -49,6 +49,7 @@ export const MENSAGENS_RECUSA = Object.freeze({
   IDEMPOTENCY_CONFLICT: "Esta operação já foi enviada com outro motivo. Feche e abra de novo para recomeçar.",
   // Ledger de posições (D-PROD-107): recusas estáveis — nada foi alterado.
   CANCELAMENTO_SALDO_HISTORICO_NEGATIVO: "Um registro posterior usa estas cabeças. Cancele-o antes, do mais recente para o mais antigo. Nada foi alterado.",
+  REBANHO_DEPENDENCIA_FATO_SEM_SALDO: "Uma pesagem ou nascimento posterior depende deste registro. Cancele-o antes, do mais recente para o mais antigo. Nada foi alterado.",
   REBANHO_PESO_DEPENDENCIA_CAUSAL: "Um registro posterior calculou o peso a partir deste. Cancele-o antes, do mais recente para o mais antigo. Nada foi alterado.",
   REBANHO_LEDGER_CANCELAMENTO_LEGADO: "Movimento anterior ao controle por posições: fica no histórico. Registre a correção como um manejo novo. Nada foi alterado.",
   IDEMPOTENCY_EFEITO_DESFEITO: "Esta operação foi desfeita por um reset de dados de teste. Feche e abra de novo. Nada foi alterado.",
@@ -60,6 +61,11 @@ export const mensagemDeRecusa = (codigo, detalhes) => {
   const d = detalhes && typeof detalhes === "object" ? detalhes : null;
   if (codigo === "CANCELAMENTO_SALDO_HISTORICO_NEGATIVO" && d?.data) {
     return `Cancelar deixaria saldo negativo em ${d.area_nome ?? "uma área"} no dia ${diaBR(d.data)}. Cancele antes o registro posterior que usa estas cabeças. Nada foi alterado.`;
+  }
+  if (codigo === "REBANHO_DEPENDENCIA_FATO_SEM_SALDO" && d?.data) {
+    return d.tipo === "NASCIMENTO"
+      ? `O nascimento do dia ${diaBR(d.data)} ficaria sem as matrizes registradas nele. Cancele-o antes. Nada foi alterado.`
+      : `A pesagem do dia ${diaBR(d.data)} ficaria numa posição sem cabeças. Cancele-a antes. Nada foi alterado.`;
   }
   if (codigo === "REBANHO_PESO_DEPENDENCIA_CAUSAL" && d?.data) {
     const kg = (v) => (v === null || v === undefined ? "desconhecido" : `${Number(v).toLocaleString("pt-BR")} kg`);

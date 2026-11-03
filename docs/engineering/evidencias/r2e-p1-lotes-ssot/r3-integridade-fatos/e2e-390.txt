@@ -1,0 +1,52 @@
+PASS mobile-390 transferência: sem overflow horizontal — {"sw":390,"cw":390,"l":8,"r":382,"vw":390}
+PASS mobile-390 transferência: 1 POST do ledger, nada legado — 1
+PASS mobile-390 transferência: A=436 B=40 — 436/40
+PASS mobile-390 retroativa dia 18 depois do dia 20: aceita (mesmo peso), A=429 B=47 — 429/47 Gado movido com sucesso!
+PASS mobile-390 morte: sem overflow horizontal — {"sw":390,"cw":390,"l":8,"r":382,"vw":390}
+PASS mobile-390 morte: 1 POST baixa-rebanho, nada legado, toast de sucesso — Morte registrado: 5 cab (R1A mobile-390: 5)
+PASS mobile-390 morte: A=424 — 424
+PASS mobile-390 abate: sem overflow horizontal — {"sw":390,"cw":390,"l":8,"r":382,"vw":390}
+PASS mobile-390 abate retroativo: 1 POST, aceito — Abate registrado: 15 cab (R1A mobile-390: 15)
+PASS mobile-390 abate: A=409 — 409
+PASS mobile-390 abate: corpo com a data retroativa e sem saldo/tenant — {"operation_id":"rebanho-070df366-0b39-4dc7-a607-cd644c1d1609","tipo":"Abate","empresa_id":"cmvznzb4400047d3vl57ajnf6","area_id":"cmvzxz7pg000j7dqfr4ve22jg","da
+PASS mobile-390 mudança de categoria: sem overflow horizontal — {"sw":390,"cw":390,"l":8,"r":382,"vw":390}
+PASS mobile-390 mudança: 1 POST manejo-rebanho; 25 TOURO na mesma linhagem; total de A igual — Mudança de categoria registrado
+PASS mobile-390 pesagem: sem overflow horizontal — {"sw":390,"cw":390,"l":8,"r":382,"vw":390}
+PASS mobile-390 pesagem: 1 POST; peso 432,5 nas posições de A (série de peso no ledger) — Pesagem registrado 432.5,432.5,432.5
+PASS mobile-390 junção: sem overflow horizontal — {"sw":390,"cw":390,"l":8,"r":382,"vw":390}
+PASS mobile-390 junção: 1 POST juncao-lotes; uma posição BOI em A com a linhagem das duas entradas — Lotes unificados: 384 cabeças no lote "R1A mobile-390" 1
+PASS mobile-390 junção: total de A conservado — 409
+PASS mobile-390 nascimento: sem overflow horizontal — {"sw":390,"cw":390,"l":8,"r":382,"vw":390}
+PASS mobile-390 nascimento: 1 POST; posição NASCIDOS com 12 cab, sem entrada (não é compra) — Nascimento registrado
+PASS mobile-390 nascimento: C=77 — 77
+PASS mobile-390 R3: morte retroativa das matrizes do nascimento → recusa com a data do nascimento, nada gravado — O nascimento do dia 21/12/2026 ficaria sem as matrizes registradas nele. Cancele-o antes. Nada foi gravado.
+PASS mobile-390 R3: diálogo continua aberto após o 409
+PASS mobile-390 morte em B antes de o gado chegar: recusa clara, nada gravado — A categoria não tem cabeças suficientes nos lotes ativos desta área. Recarregue o mapa. Nada foi baixado.
+PASS mobile-390 recusa: diálogo continua aberto
+PASS mobile-390 histórico de A lista transferência (2), morte, abate, mudança, pesagem e junção — Histórico da Área PASTO 40 (7)
+Área
+Lotes atuais
+
+Entradas, saídas e manejos registrados nesta área, inclusive de lotes que já saíram.
+
+24/12/2026
+Junção de Lotes
+Manejo
+Ativo
+R1A mobile-390
+Quantidad
+PASS mobile-390 cancelamento: sem overflow horizontal — {"sw":390,"cw":390,"l":8.704854965209961,"r":381.2951259613037,"vw":390}
+PASS mobile-390 cancelamento da morte pela UI → A=414 — 414
+PASS mobile-390 pré-checagem: sem campo de motivo nem POST de cancelamento
+PASS mobile-390 cancelar pesagem com junção posterior dependente: recusa causal explícita (dia 24/12), nada muda — Cancelar movimentação
+
+Pesagem · R1A mobile-390 · 0 cab. O registro original continua no histórico, marcado como cancelado.
+
+O registro do dia 24/12/2026 calculou o peso a partir deste (registrado 432,5 kg; passaria a 39
+PASS mobile-390 offline: indisponibilidade explícita, sem requisição de escrita — Sem conexão: este manejo (nascimento, pesagem, mudança de categoria, junção, morte ou abate) só pode ser registrado online. Nada foi gravado.
+PASS mobile-390 Cadastro R1A mobile-390: Lote = entrada (301 cab, área de entrada), nenhuma escrita de saldo — [301,"Ativo"]
+PASS mobile-390 Cadastro R1B mobile-390: Lote = entrada (175 cab, área de entrada), nenhuma escrita de saldo — [175,"Ativo"]
+PASS mobile-390 Cadastro R1V mobile-390: Lote = entrada (65 cab, área de entrada), nenhuma escrita de saldo — [65,"Ativo"]
+PASS mobile-390 verificação do ledger: íntegro e conservação fecha — {"posicoes":80,"divergentes":[],"pesos_divergentes":[],"negativos":[],"conservacao":{"entradas":9060,"nascimentos":115,"saidas":-185,"internos":0,"saldo":8990,"conserva":true},"precondicoes_violadas":
+PASS mobile-390 sem erro de página
+RESUMO mobile-390: 36/36 PASS

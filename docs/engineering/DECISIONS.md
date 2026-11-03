@@ -4379,4 +4379,22 @@ Auditoria do HEAD `84d0ad5`: três lacunas reproduzidas em RED (PostgreSQL real 
 - **UI:** as recusas novas e `CANCELAMENTO_SALDO_HISTORICO_NEGATIVO` (antes tratada como "resultado desconhecido") viram recusa definitiva com data e pesos. A elegibilidade mostra o detalhe antes de qualquer envio. A linha da junção no histórico mostra o peso real da origem.
 - **Remoto:** `REMOTE_MIGRATION_BLOCKED` (sem `MIGRATION_*` no container). Nenhuma ativação ou reset remoto antes do merge e do deploy.
 
+### D-PROD-107 — complemento PR174-R3 (pré-condições de fatos sem delta; renomeação de formato fechado)
+
+Auditoria do HEAD `ce1ab5b`: três hipóteses reproduzidas em RED (PostgreSQL real + HTTP). Fechadas na mesma decisão, sem migration nova.
+
+- **Fatos sem delta.** Pesagem e nascimento não movem cabeças; por isso a regra de saldo ≥ 0 e o peso causal (R2) não os protegiam.
+  - **Pré-condições estruturais:**
+    - PESAGEM — cada posição pesada (as `PesoRebanho` do evento) tinha cabeças no fato;
+    - NASCIMENTO — em cada linha, ALGUMA das `maes_posicao_ids` certificadas pelo servidor na criação tinha cabeças no fato. Vacas que chegam depois, de outra posição, não substituem as certificadas.
+  - **Momento do fato:** saldo "antes do fato" na mesma ordem do R2, `(data_operacional, registrado_em = clock_timestamp do banco, id)`. Fato do mesmo dia registrado antes da pesagem conta; registrado depois, não.
+  - **Implementação:** função ÚNICA `violacoesDePrecondicao`, chamada por `verificarDependenciasTemporais` (peso causal + pré-condições). Roda na transação, depois das travas, em transferência, todos os manejos (via `concluir`) e cancelamento.
+  - **Recusa:** 409 `REBANHO_DEPENDENCIA_FATO_SEM_SALDO` com `evento_id`, `tipo`, `data`, `posicao_id`/`posicao_ids`, `area_id` e `saldo_no_fato`. Zero mutação, inclusive na reserva idempotente.
+  - **Não bloqueia:** evento cancelado; pesagem de outra posição, área, empresa ou tenant; saída parcial que deixa cabeças; matriz certificada ainda presente.
+  - **`GET /rebanho/verificacao`:** passa a listar `precondicoes_violadas`, e `integro` exige a lista vazia. A ordem do peso projetado na verificação foi alinhada à do motor (evento, não `createdAt`).
+- **Renomeação informativa no POST genérico.** Antes bastava `Entrada` + `Renomear Lote`; agora a whitelist é por FORMATO:
+  - só `empresa_id`, `tipo`, `motivo`, `lote`, `lote_id`, `observacoes`, `data_movimentacao` e `usuario_responsavel`; qualquer outro campo com valor (quantidade, área, categoria, peso…) torna o documento material → 409 `REBANHO_LEDGER_SOMENTE_POR_COMANDO`;
+  - `lote_id` precisa ser um CADASTRO existente do mesmo tenant e da mesma empresa do documento. Posição ou id de outro tenant tornam o documento material — achado do próprio teste: antes, id de outro tenant passava;
+  - empresa legada: inalterada. Na empresa ativada, a renomeação é feita pelo Cadastro de Lotes, e a renomeação estrita não carrega quantidade, logo não entra em contagem material.
+
 <!-- Próxima decisão: D-PROD-108 -->

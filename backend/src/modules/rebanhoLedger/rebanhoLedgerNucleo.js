@@ -506,3 +506,84 @@ export const detalheSaldo = (posicoes, areas, pedidos, dia) => (neg) => {
     saldo_resultante: neg.saldo,
   };
 };
+
+// ─── Pré-condições de fatos SEM delta (PR174-R3) ───────────────────────────
+//
+// Pesagem e nascimento não movem cabeças, então a regra de saldo ≥ 0 não os
+// protege. Cada um tem uma pré-condição estrutural, avaliada "no fato" (antes
+// dele na ordem (data, registrado_em, id) — a mesma ordem do peso causal):
+//  - PESAGEM: cada posição pesada (PesoRebanho do evento) tinha cabeças.
+//  - NASCIMENTO: em cada linha, ALGUMA das posições maternas certificadas na
+//    criação (`maes_posicao_ids` gravados pelo servidor) tinha cabeças.
+// Vínculo por id estrutural, nunca por nome; evento cancelado não conta.
+
+/**
+ * Lista violações (sem alterar nada). Filtro por `posicaoIds` (guarda dos
+ * comandos) ou por `empresaId` (verificação).
+ * @param {{posicaoIds?: string[]|null, empresaId?: string|null, diaMin?: string|null, exceto?: string|null, limite?: number}} f
+ */
+export const violacoesDePrecondicao = async (tx, clienteId, { posicaoIds = null, empresaId = null, diaMin = null, exceto = null, limite = 50 } = {}) => {
+  const ids = posicaoIds ? [...new Set(posicaoIds)] : null;
+  if (ids && !ids.length) return [];
+  const desde = comoData(diaMin ?? '0001-01-01');
+  const violacoes = [];
+  const pesagens = /** @type {Array<{id: string, tipo: string, data_operacional: Date, registrado_em: Date, posicao_id: string, area_id: string}>} */ (await tx.$queryRaw`
+    SELECT DISTINCT ev.id, ev.tipo, ev.data_operacional, ev.registrado_em, w.posicao_id, p.area_id
+      FROM "EventoRebanho" ev
+      JOIN "PesoRebanho" w ON w.cliente_id = ev.cliente_id AND w.evento_id = ev.id AND w.ativa
+      JOIN "PosicaoRebanho" p ON p.cliente_id = w.cliente_id AND p.id = w.posicao_id
+     WHERE ev.cliente_id = ${clienteId} AND ev.tipo = 'PESAGEM' AND ev.situacao = 'ativo' AND ev.id <> ${exceto ?? ''}
+       AND ev.data_operacional >= ${desde}::date
+       AND (${empresaId}::text IS NULL OR ev.empresa_id = ${empresaId})
+       AND (${ids}::text[] IS NULL OR w.posicao_id = ANY(${ids}::text[]))
+     ORDER BY ev.data_operacional, ev.registrado_em, ev.id`);
+  for (const ev of pesagens) {
+    const dia = diaDoBanco(ev.data_operacional);
+    const s = await saldoAntesDoEvento(tx, clienteId, ev.posicao_id, dia, ev);
+    if (s <= 0) violacoes.push({ evento_id: ev.id, tipo: 'PESAGEM', data: dia, posicao_id: ev.posicao_id, area_id: ev.area_id, saldo_no_fato: s });
+    if (violacoes.length >= limite) return violacoes;
+  }
+  const nascimentos = /** @type {Array<{id: string, tipo: string, data_operacional: Date, registrado_em: Date, linhas: any}>} */ (await tx.$queryRaw`
+    SELECT ev.id, ev.tipo, ev.data_operacional, ev.registrado_em, m.dados->'linhas' AS linhas
+      FROM "EventoRebanho" ev
+      JOIN "MovimentacaoMapa" m ON m.cliente_id = ev.cliente_id AND m.id = ev.movimentacao_id
+     WHERE ev.cliente_id = ${clienteId} AND ev.tipo = 'NASCIMENTO' AND ev.situacao = 'ativo' AND ev.id <> ${exceto ?? ''}
+       AND ev.data_operacional >= ${desde}::date
+       AND (${empresaId}::text IS NULL OR ev.empresa_id = ${empresaId})
+       AND (${ids}::text[] IS NULL OR EXISTS (
+             SELECT 1 FROM jsonb_array_elements(COALESCE(m.dados->'linhas', '[]'::jsonb)) l
+                      CROSS JOIN LATERAL jsonb_array_elements_text(COALESCE(l->'maes_posicao_ids', '[]'::jsonb)) x
+              WHERE x = ANY(${ids}::text[])))
+     ORDER BY ev.data_operacional, ev.registrado_em, ev.id`);
+  for (const ev of nascimentos) {
+    const dia = diaDoBanco(ev.data_operacional);
+    for (const linha of Array.isArray(ev.linhas) ? ev.linhas : []) {
+      const maes = Array.isArray(linha?.maes_posicao_ids) ? linha.maes_posicao_ids.filter((x) => typeof x === 'string') : [];
+      if (!maes.length) continue;
+      if (ids && !maes.some((m) => ids.includes(m))) continue;
+      let total = 0;
+      for (const m of maes) total += Math.max(0, await saldoAntesDoEvento(tx, clienteId, m, dia, ev));
+      if (total <= 0) {
+        const area = await tx.posicaoRebanho.findFirst({ where: { cliente_id: clienteId, id: maes[0] }, select: { area_id: true } });
+        violacoes.push({ evento_id: ev.id, tipo: 'NASCIMENTO', data: dia, posicao_ids: maes, area_id: area?.area_id ?? null, categoria_mae: linha.categoria_mae ?? null, saldo_no_fato: 0 });
+        if (violacoes.length >= limite) return violacoes;
+      }
+    }
+  }
+  return violacoes;
+};
+
+/**
+ * Guarda temporal ÚNICA dos comandos (PR174-R2 + R3), na mesma transação e
+ * depois das travas: peso causal dos fatos derivados + pré-condições dos fatos
+ * sem delta. Primeira violação → 409 estável (a transação desfaz tudo).
+ */
+export const verificarDependenciasTemporais = async (tx, clienteId, posicaoIds, diaMin, { exceto = null } = {}) => {
+  await verificarCausalidadeDePeso(tx, clienteId, posicaoIds, diaMin, { exceto });
+  const [v] = await violacoesDePrecondicao(tx, clienteId, { posicaoIds, diaMin, exceto, limite: 1 });
+  if (v) {
+    throw recusa('REBANHO_DEPENDENCIA_FATO_SEM_SALDO', v.tipo === 'PESAGEM'
+      ? 'uma pesagem posterior ficaria numa posição sem cabeças na data dela; cancele-a antes (nada foi gravado)'
+      : 'um nascimento posterior ficaria sem as matrizes certificadas na data dele; cancele-o antes (nada foi gravado)', v);
+  }
+};

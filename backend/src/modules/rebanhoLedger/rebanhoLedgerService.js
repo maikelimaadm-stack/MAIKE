@@ -69,7 +69,8 @@ import {
   travarAreas,
   travarPosicoes,
   validarEReprojetar,
-  verificarCausalidadeDePeso,
+  verificarDependenciasTemporais,
+  violacoesDePrecondicao,
 } from './rebanhoLedgerNucleo.js';
 
 export { COMANDO_LEDGER, ativacaoDaEmpresa, comoPosicaoPublica, dataOperacionalValida, diaDe } from './rebanhoLedgerNucleo.js';
@@ -430,7 +431,7 @@ export const executarTransferencia = async (tx, contexto, e) => {
   const envolvidas = [...todas.keys()];
   await validarEReprojetar(tx, auth.clienteId, envolvidas, 'REBANHO_SALDO_HISTORICO_NEGATIVO', 'a transferência deixaria saldo negativo numa data; nada foi gravado',
     detalheSaldo(todas, areas, new Map(e.itens.map((it) => [it.posicao_id, it.quantidade])), e.dia));
-  await verificarCausalidadeDePeso(tx, auth.clienteId, [...todas.keys()], e.dia, { exceto: evento.id });
+  await verificarDependenciasTemporais(tx, auth.clienteId, [...todas.keys()], e.dia, { exceto: evento.id });
   ponto('apos_segunda_posicao');
 
   const primeira = todas.get(e.itens[0].posicao_id);
@@ -547,7 +548,7 @@ export const cancelarMovimentoDoLedger = async (tx, contexto, mov, motivo, opera
       return { data: neg.dia, area_id: p?.area_id ?? null, area_nome: areas.get(p?.area_id)?.nome ?? null, posicao_id: neg.posicao_id, nome: p?.nome ?? null, saldo_resultante: neg.saldo };
     });
   // PR174-R2: o peso de um fato posterior que dependia deste não pode ficar "órfão".
-  await verificarCausalidadeDePeso(tx, auth.clienteId, ids, diaDoBanco(evento.data_operacional), { exceto: evento.id });
+  await verificarDependenciasTemporais(tx, auth.clienteId, ids, diaDoBanco(evento.data_operacional), { exceto: evento.id });
   const agora = new Date();
   await tx.eventoRebanho.update({
     where: { cliente_id_id: { cliente_id: auth.clienteId, id: evento.id } },
@@ -601,7 +602,7 @@ export const saldosNaData = async (contexto, { empresa_id: empresaId, data, area
 /**
  * Reconciliação read-only: projeção × partidas, fins de dia negativos, peso
  * projetado × última observação, e conservação (entradas + nascimentos −
- * mortes/abates = saldo total).
+ * mortes/abates = saldo total) e pré-condições de fatos sem delta (R3).
  */
 export const verificarLedger = async (contexto, { empresa_id: empresaId }) => {
   const auth = exigirAuthContext(contexto?.auth);
@@ -618,8 +619,9 @@ export const verificarLedger = async (contexto, { empresa_id: empresaId }) => {
       SELECT p.id AS posicao_id FROM "PosicaoRebanho" p
        WHERE p.cliente_id = ${auth.clienteId} AND p.empresa_id = ${empresaId}
          AND EXISTS (SELECT 1 FROM "PesoRebanho" w WHERE w.cliente_id = p.cliente_id AND w.posicao_id = p.id)
-         AND p.peso_medio_kg IS DISTINCT FROM (SELECT w.peso_medio_kg FROM "PesoRebanho" w WHERE w.cliente_id = p.cliente_id AND w.posicao_id = p.id AND w.ativa
-                                               ORDER BY w.data_operacional DESC, w."createdAt" DESC, w.id DESC LIMIT 1)`
+         AND p.peso_medio_kg IS DISTINCT FROM (SELECT w.peso_medio_kg FROM "PesoRebanho" w JOIN "EventoRebanho" ev ON ev.cliente_id = w.cliente_id AND ev.id = w.evento_id
+                                                WHERE w.cliente_id = p.cliente_id AND w.posicao_id = p.id AND w.ativa
+                                               ORDER BY w.data_operacional DESC, ev.registrado_em DESC, ev.id DESC, w."createdAt" DESC, w.id DESC LIMIT 1)`
   );
   const [conservacao] = /** @type {Array<{entradas: number, nascimentos: number, saidas: number, internos: number, saldo: number}>} */ (
     await prisma.$queryRaw`
@@ -633,6 +635,7 @@ export const verificarLedger = async (contexto, { empresa_id: empresaId }) => {
   );
   const ids = (await prisma.posicaoRebanho.findMany({ where: { cliente_id: auth.clienteId, empresa_id: empresaId }, select: { id: true } })).map((p) => p.id);
   const negativos = await primeirosSaldosNegativos(prisma, auth.clienteId, ids);
+  const precondicoesVioladas = await violacoesDePrecondicao(prisma, auth.clienteId, { empresaId, limite: 100 });
   const conserva = !!conservacao && conservacao.internos === 0 && conservacao.entradas + conservacao.nascimentos + conservacao.saidas === conservacao.saldo;
   return {
     posicoes: ids.length,
@@ -640,6 +643,8 @@ export const verificarLedger = async (contexto, { empresa_id: empresaId }) => {
     pesos_divergentes: pesosDivergentes,
     negativos: negativos.map((n) => ({ ...n, dia: diaDoBanco(n.dia) })),
     conservacao: { ...conservacao, conserva },
-    integro: !divergentes.length && !negativos.length && !pesosDivergentes.length && conserva,
+    // PR174-R3: fatos sem delta (pesagem/nascimento) cuja pré-condição não vale mais na data deles.
+    precondicoes_violadas: precondicoesVioladas,
+    integro: !divergentes.length && !negativos.length && !pesosDivergentes.length && conserva && !precondicoesVioladas.length,
   };
 };
