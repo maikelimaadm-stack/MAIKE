@@ -417,3 +417,73 @@ Em todas: Cadastro (`Lote`) intacto, `verificacao.integro` e conservação, sem 
 - **Outros fatos sem delta:** foram revisados os demais tipos. Entrada e saldo de abertura têm partida; baixa, mudança, junção e transferência têm delta e passam pela regra de saldo. Hoje não há outro fato sem delta com pré-condição.
 - **Vínculo materno:** depende de `maes_posicao_ids` gravados pelo servidor na ponte. Ponte ausente (não ocorre pelos comandos) = linha sem pré-condição verificável.
 - **Ordem no mesmo dia:** é a de registro no banco; comandos simultâneos são serializados pelas travas de área e posição.
+
+---
+
+# PR174-R4 — Três responsabilidades (Lote = entrada · PosicaoRebanho = estado atual · MovimentacaoMapa = histórico)
+
+Mesma PR (#174, DRAFT). HEAD inicial: `9f7fca7`. Evidências em `evidencias/r2e-p1-lotes-ssot/r4-tres-responsabilidades/`. A decisão por tabela física está na D-PROD-107 (complemento R4).
+
+## R4.1 Fonte da verdade por dado
+
+| Dado | Fonte | Observação |
+|---|---|---|
+| Entrada original | `Lote` | só cadastro de origem; nenhum manejo cria nem altera (empresa ativada); no legado, nenhum manejo cria |
+| Estado atual (área, cabeças, categoria, sexo, peso, nome, linhagem) | `PosicaoRebanho` | proveniência da entrada (raça, sistema, data) exposta só para leitura |
+| Histórico navegável de todos os manejos, inclusive pesagem | `MovimentacaoMapa` | 1 registro certificado por comando; `efeito_servidor.evento_id` ↔ `EventoRebanho.movimentacao_id` (1:1) |
+| Saldo retroativo / cancelamento | `PartidaRebanho` (interna) | deltas indexados por posição e dia |
+| Peso no tempo | `PesoRebanho` (índice interno) | única fonte canônica; o MovimentacaoMapa carrega anterior/novo como cópia de leitura |
+
+## R4.2 RED → GREEN
+
+RED no `9f7fca7`: a empresa legada fabricava registro no cadastro de entradas:
+- L1: transferência parcial sem destino criava lote derivado → 201;
+- L2: nascimento e mudança parcial criavam lote → 201;
+- L3: `POST /lotes` com origem "Movimentação" → 201;
+- C2: a posição pública não trazia a proveniência.
+
+O contrato da empresa ativada já valia (C1).
+
+GREEN (`r2eR4ContratoTresResponsabilidades`): **6/6**.
+- **L1/L2/L3:** 409 `LOTE_CADASTRO_SOMENTE_ENTRADAS`, com nada gravado.
+- **L4:** legado sem fabricação segue funcionando (total, morte).
+- **C1 ponta a ponta:**
+  - 500 → 300 A / 200 B, com a transferência do dia 02 lançada antes da do dia 01;
+  - morte de 5 em B → 195;
+  - pesagem de B → peso atual 431,5 na posição e registro "Pesagem" no histórico (posição, 400 → 431,5, 195 cab.);
+  - nascimento sem Lote;
+  - junção e cancelamento;
+  - nº de Lotes = nº de entradas; Lote de 500 intacto;
+  - 6 registros de histórico, 1:1 com os eventos internos.
+- **C2:** a posição traz raça, sistema e data de entrada.
+
+**Suítes legadas** (`conversao-suites-legadas.txt`): 38 testes convertidos, nenhum pulado, desligado ou apagado.
+- A fabricação virou recusa provada.
+- Os demais cenários usam destino de ENTRADA ou dado legado pré-existente simulado.
+
+## R4.3 Frontend
+
+- `DetalhesLote`: o fallback do navegador não chama mais `criarLote`. Sem lote igual no destino, mostra a recusa com mensagem própria.
+- O erro do servidor `LOTE_CADASTRO_SOMENTE_ENTRADAS` aparece com mensagem clara.
+- O Cadastro já listava só entradas (D-PROD-85); agora há smoke que trava isso.
+- Mudança visual nenhuma, além da mensagem de recusa. Por isso o E2E não foi repetido (o fluxo do ledger não mudou).
+
+## R4.4 Gates
+
+`verify:all` local no `b7e057b`: TODAS AS ETAPAS PASSARAM.
+- test:backend: 900 testes, 895 pass, 0 fail, 5 todo;
+- smoke: 1255/1255;
+- lint, tipos, build e gates: verdes.
+
+## R4.5 Migrations
+
+- Nenhuma migration nova.
+- Local: em dia, sem drift.
+- Remoto: BLOCKED (REMOTE_MIGRATION_BLOCKED), sem variáveis `MIGRATION_*`.
+- Nada de ativação, reset ou deploy remoto.
+
+## R4.6 Limitações e próximos passos
+
+- **Empresa legada (pré-cutover):** manejos que não fabricam cadastro ainda escrevem o saldo nas colunas do Lote (snapshot legado). O fim desse modo é o cutover pós-merge: ativar cada empresa (teste primeiro) e, a partir daí, o Lote fica congelado.
+- **Transferência parcial, nascimento e mudança parcial legados ficam indisponíveis até a ativação** da empresa. Mensagem: "peça ao administrador para ativar".
+- **Consolidação física** de `EventoRebanho` e `PesoRebanho` em `MovimentacaoMapa`: só com migration aditiva, backfill e prova de equivalência (plano na D-PROD-107).
