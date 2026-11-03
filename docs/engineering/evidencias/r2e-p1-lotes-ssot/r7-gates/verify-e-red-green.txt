@@ -1,22 +1,23 @@
-PR174-R7 verify:all local no HEAD 62ceea5
-1 ETAPA(S) FALHARAM
+PR174-R7 verify:all local
+1ª execução (62ceea5): 1 ETAPA FALHOU — test:backend 1 falha: R7A1 chamava o CLI por caminho relativo ao cwd (Cannot find module). Corrigido em 33b057b.
+2ª execução (33b057b, única repetição): TODAS AS ETAPAS PASSARAM
 # tests 684
 # pass 684
 # fail 0
 # skipped 0
 # todo 0
 # tests 731
-# pass 725
-# fail 1
+# pass 726
+# fail 0
 # skipped 0
 # todo 5
       Tests  1275 passed (1275)
 
 R6 (25be5cd) — RED reproduzido:
 classificador R6 ACEITAVA: CREATE OR REPLACE FUNCTION, CREATE OR REPLACE VIEW, GRANT, REVOKE, SELECT pg_terminate_backend, CREATE TRIGGER
-    not ok 1 - R7A1: banco SEM schema R2E → inventário lista o que falta, diagnóstico/cutover recusam CUTOVER_SCHEMA_PENDENTE sem escrever; CLI --inventario funciona e o diagnóstico sai 3
+cutoverRebanhoLib R6: sem inventário pré-schema (R7A1 falha: inventarioSchema is not a function)
 
-GREEN R7 (backend):
+GREEN R7 (backend r2eR6CutoverAtomicoVinculos):
     ok 1 - A1: falha DENTRO da ativação depois do reset → ROLLBACK total (0 exclusões, Lotes idênticos, sem ativação); o backup é a cópia do pré-estado
     ok 2 - A2: sucesso → reset + ativação num COMMIT; acesso/senhas/permissões/empresa/áreas preservados; outro tenant e outra empresa intocados; reexecução = no-op sem backup
     ok 3 - A3: backup falha ou não confere → aborta ANTES do DELETE; nada muda
