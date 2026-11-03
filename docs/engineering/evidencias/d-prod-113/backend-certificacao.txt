@@ -1,0 +1,18 @@
+    ok 1 - cada nó do meio bloqueia; exclusão na ordem causal inversa libera o antecessor; projeção final = só a entrada
+    ok 1 - nascimento bloqueado enquanto os nascidos são usados; desbloqueia na ordem inversa; matrizes intactas
+    ok 2 - morte das matrizes antes do nascimento (retroativa) bloqueia pela pré-condição; nascimento independente de outra área não bloqueia
+    ok 1 - junção bloqueada enquanto o resultado é abatido; exclusão inversa restaura linhagem e pesos ponderados
+    ok 2 - abate e morte pelo comando de BAIXA (multi-categoria) e pelo manejo de lote — mesma reversão
+    ok 1 - transferências e baixas posteriores INDEPENDENTES não bloqueiam; dependente no mesmo dia (registrado depois) bloqueia
+    ok 2 - retroativo: morte em data ANTERIOR a uma transferência já lançada; excluir a morte devolve; excluir a transferência por último restaura
+    ok 1 - excluir pesagem intermediária e final restaura a série; transferência derivada do peso bloqueia a pesagem que a alimentou
+    ok 1 - segunda transferência para B (posição já existe) não remove a posição; multi-item (2 entradas) reverte as duas origens
+    ok 2 - transferência TOTAL (zera a origem) e morte TOTAL no destino: exclusão inversa restaura; origem zerada não é removida (tem a entrada)
+    ok 1 - pesagem na nova categoria bloqueia a mudança; total (todas as cabeças) reverte categoria original
+    ok 1 - dois nascimentos na mesma área somam na MESMA posição; excluir o primeiro respeita o peso derivado do segundo; posição só some sem nenhum uso
+    ok 1 - excluir a transferência × criar morte DEPENDENTE dela ao mesmo tempo: no máximo um vence; ledger íntegro (sem TOCTOU)
+    ok 2 - duas exclusões INDEPENDENTES na mesma origem ao mesmo tempo: ambas passam, sem deadlock
+    ok 1 - movimento sem prova do ledger, cancelado pelo endpoint antigo e entrada do cadastro: nenhum é excluível; DELETE/PATCH genéricos seguem recusados
+# tests 15
+# pass 15
+# fail 0

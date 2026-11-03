@@ -1,0 +1,16 @@
+// Seed SINTÉTICO só no banco LOCAL maike_e2e_r2.
+import { randomUUID } from 'node:crypto';
+const helpers = await import('/home/user/MAIKE/backend/tests/helpers.mjs');
+const { getPrismaClient } = await import('/home/user/MAIKE/backend/src/database/prismaClient.js');
+if (!/localhost:5432\/maike_e2e_r2/.test(process.env.DATABASE_URL || '')) throw new Error('seed só no banco local maike_e2e_r2');
+const p = getPrismaClient();
+const tag = randomUUID().slice(0, 6);
+const t = await helpers.criarTenant({ papelTenant: 'administrador', login: `d113.admin.${tag}`, senha: process.env.SENHA_LOCAL_E2E ?? 'defina-localmente' });
+const empresa = await p.empresa.create({ data: { cliente_id: t.cliente.id, numero_empresa: 1, apelido: 'FAZ', nome: 'Fazenda D113' } });
+const setor = await p.setor.create({ data: { cliente_id: t.cliente.id, empresa_id: empresa.id, numero_setor: '1', nome: 'Setor 1' } });
+const poly = (dx) => ({ coords: [[-15.8, -47.9 + dx], [-15.8, -47.89 + dx], [-15.79, -47.89 + dx], [-15.79, -47.9 + dx]], cor: '#22c55e' });
+const area = (n, nome, dx, extra = {}) => p.areaPastagem.create({ data: { cliente_id: t.cliente.id, empresa_id: empresa.id, setor_id: setor.id, setor_nome: setor.nome, numero_area: String(n), nome, tamanho_hectares: 10, coordenadas: poly(dx), ...extra } });
+const A = await area(1, 'PASTO A', 0), B = await area(2, 'PASTO B', 0.02);
+const CUR = await area(3, 'CURRAL 1', 0.04, { tipo_cultura: 'Infraestrutura', tipo_infraestrutura: 'Curral' }).catch(() => area(3, 'CURRAL 1', 0.04, { tipo_cultura: 'Infraestrutura', tipo_pastagem: 'Curral' }));
+console.log(JSON.stringify({ login: t.credenciais.login, senha: t.credenciais.senha, empresa: empresa.id, setor: setor.id, A: A.id, B: B.id, CUR: CUR.id }));
+await helpers.encerrar();

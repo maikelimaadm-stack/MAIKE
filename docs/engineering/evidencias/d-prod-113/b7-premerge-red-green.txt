@@ -1,0 +1,10 @@
+B7 no HEAD de partida (árvore limpa) — RED:
+not ok 1 - B7: runner no HEAD atual — sem credenciais só há análise local declarada "alvo remoto NÃO verificado"
+    premerge-migrate: RECUSADO MANIFESTO_INCOMPLETO — manifesto cita migration ausente da release: 20261102200000_rebanho_ledger_posicoes, 20261103100000_rebanho_ledger_r1_manejos; nada aplicado
+# pass 0
+# fail 1
+
+Após a correção — premerge-migrate.test.mjs:
+# tests 12
+# pass 12
+# fail 0

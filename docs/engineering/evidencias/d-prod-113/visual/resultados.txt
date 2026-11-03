@@ -1,0 +1,41 @@
+D-PROD-113 — E2E real (Chromium/Playwright) contra backend + Vite + PostgreSQL 16 LOCAIS (banco maike_e2e_r2), dados sintéticos; sem Preview/produção.
+Resultado: 57/57 PASS (19 por largura × 1440/390/412).
+desktop-1440: 19/19 PASS (mesmas 19 verificações abaixo; saída registrada no relatório da missão).
+PASS mobile-390 cadeia antes do clique: transferência/pesagem/mudança BLOQUEADAS, morte elegível — {"T":"Exclusão bloqueada","P":"Exclusão bloq
+PASS mobile-390 clique no bloqueado NÃO abre diálogo
+PASS mobile-390 motivo do bloqueio ligado ao botão (aria-describedby) e visível
+PASS mobile-390 sem rolagem horizontal (cadeia)
+PASS mobile-390 excluir Morte pela UI → Mudança de Categoria desbloqueia sem recarregar — elegivel
+PASS mobile-390 Morte some do histórico
+PASS mobile-390 excluir Mudança de Categoria pela UI → Pesagem desbloqueia sem recarregar — elegivel
+PASS mobile-390 Mudança de Categoria some do histórico
+PASS mobile-390 excluir Pesagem pela UI → Transferência de Área desbloqueia sem recarregar — elegivel
+PASS mobile-390 Pesagem some do histórico
+PASS mobile-390 fim da cadeia: só a entrada (A=40), nada em B — [["PASTO A","Garrote 13 a 24 meses",40]]
+PASS mobile-390 Cadastro de Lotes intacto (40)
+PASS mobile-390 curral: abate com "Excluir movimentação" elegível — elegivel
+PASS mobile-390 sem rolagem horizontal (curral)
+PASS mobile-390 curral: abate some do histórico do curral
+PASS mobile-390 curral: cabeças devolvidas (10 no curral)
+PASS mobile-390 no máximo 2 GETs de elegibilidade simultâneos (máx=2)
+PASS mobile-390 nenhum DELETE/PATCH de movimento
+PASS mobile-390 sem erro de página
+PASS mobile-412 cadeia antes do clique: transferência/pesagem/mudança BLOQUEADAS, morte elegível — {"T":"Exclusão bloqueada","P":"Exclusão bloq
+PASS mobile-412 clique no bloqueado NÃO abre diálogo
+PASS mobile-412 motivo do bloqueio ligado ao botão (aria-describedby) e visível
+PASS mobile-412 sem rolagem horizontal (cadeia)
+PASS mobile-412 excluir Morte pela UI → Mudança de Categoria desbloqueia sem recarregar — elegivel
+PASS mobile-412 Morte some do histórico
+PASS mobile-412 excluir Mudança de Categoria pela UI → Pesagem desbloqueia sem recarregar — elegivel
+PASS mobile-412 Mudança de Categoria some do histórico
+PASS mobile-412 excluir Pesagem pela UI → Transferência de Área desbloqueia sem recarregar — elegivel
+PASS mobile-412 Pesagem some do histórico
+PASS mobile-412 fim da cadeia: só a entrada (A=40), nada em B — [["PASTO A","Garrote 13 a 24 meses",40]]
+PASS mobile-412 Cadastro de Lotes intacto (40)
+PASS mobile-412 curral: abate com "Excluir movimentação" elegível — elegivel
+PASS mobile-412 sem rolagem horizontal (curral)
+PASS mobile-412 curral: abate some do histórico do curral
+PASS mobile-412 curral: cabeças devolvidas (10 no curral)
+PASS mobile-412 no máximo 2 GETs de elegibilidade simultâneos (máx=2)
+PASS mobile-412 nenhum DELETE/PATCH de movimento
+PASS mobile-412 sem erro de página

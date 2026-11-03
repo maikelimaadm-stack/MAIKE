@@ -1,0 +1,123 @@
+// D-PROD-113 — E2E real: backend + Vite + PostgreSQL 16 LOCAIS (maike_e2e_r2), dados sintéticos. Sem Preview/produção.
+const { chromium } = require('playwright');
+const [W, H] = [Number(process.argv[2]), Number(process.argv[3])];
+const BASE = process.argv[4];
+const S = JSON.parse(require('fs').readFileSync('/tmp/claude-0/d113/seed.json', 'utf8'));
+const OUT = '/tmp/claude-0/d113/shots';
+const API = 'http://127.0.0.1:3334';
+const TAG = `${BASE}-${Date.now().toString(36).slice(-4)}`;
+const res = [];
+const ok = (n, c, x = '') => res.push(`${c ? 'PASS' : 'FAIL'} ${BASE} ${n}${x ? ' — ' + String(x).replace(/\n+/g, ' | ').slice(0, 200) : ''}`);
+(async () => {
+  const { token } = await (await fetch(`${API}/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ login: S.login, senha: S.senha }) })).json();
+  const call = async (m, u, b) => { const r = await fetch(`${API}${u}`, { method: m, headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }); const j = await r.json().catch(() => ({})); if (!r.ok && r.status !== 409) throw new Error(`${m} ${u} ${r.status} ${JSON.stringify(j).slice(0, 200)}`); return j; };
+  const op = (s) => `${s}-${TAG}-${Math.random().toString(36).slice(2, 8)}`;
+  await call('POST', '/rebanho/ativacao', { operation_id: `atv-${S.empresa}`, empresa_id: S.empresa, modo: 'entradas' });
+  const novo = (nome, qtd, categoria, area = S.A) => call('POST', '/lotes', { empresa_id: S.empresa, nome, quantidade_cabecas: qtd, categoria, sexo: 'Macho', setor_id: S.setor, area_entrada_id: area, area_atual_id: area, data_entrada: '2026-10-01', motivo_entrada: 'Compra', status: 'Ativo', peso_medio_kg: 300 });
+  const posicoes = async () => (await call('GET', `/rebanho/posicoes?empresa_id=${S.empresa}&incluir_vazias=true`)).itens;
+  const pos = async (lote, area, categoria) => (await posicoes()).find((p) => p.lote_entrada_id === lote.id && p.area_atual_id === area && (!categoria || p.categoria === categoria));
+  const manejo = (corpo) => call('POST', '/movimentacoes-mapa/comandos/manejo-lote', { operation_id: op('m'), empresa_id: S.empresa, ...corpo });
+  const rebanho = (tipo, area, dia, linhas) => call('POST', '/movimentacoes-mapa/comandos/manejo-rebanho', { operation_id: op('r'), tipo, empresa_id: S.empresa, area_id: area, data_movimentacao: `2026-10-${dia}`, linhas });
+
+  // Cadeia CERT-1 sintética: entrada → transferência → pesagem → mudança de categoria → morte (área B).
+  const gar = await novo(`GAR ${TAG}`, 40, 'Garrote 13 a 24 meses');
+  await manejo({ tipo: 'Transferência de Área', lote_id: (await pos(gar, S.A)).id, quantidade_animais: 20, area_destino_id: S.B, data_movimentacao: '2026-10-10' });
+  await rebanho('Pesagem', S.B, '12', [{ lote_id: (await pos(gar, S.B)).id, peso_medio_kg: 330 }]);
+  await rebanho('Mudança de Categoria', S.B, '14', [{ categoria_atual: 'Garrote 13 a 24 meses', categoria_nova: 'Boi 25 a 36 meses', quantidade: 10 }]);
+  await manejo({ tipo: 'Morte', lote_id: (await pos(gar, S.B, 'Boi 25 a 36 meses')).id, quantidade_animais: 4, data_movimentacao: '2026-10-16' });
+  // Curral: transferência para o curral e abate lá.
+  const cur = await novo(`CUR ${TAG}`, 12, 'Boi 25 a 36 meses');
+  await manejo({ tipo: 'Transferência de Área', lote_id: (await pos(cur, S.A)).id, quantidade_animais: 10, area_destino_id: S.CUR, data_movimentacao: '2026-10-10' });
+  await manejo({ tipo: 'Abate', lote_id: (await pos(cur, S.CUR)).id, quantidade_animais: 4, data_movimentacao: '2026-10-12' });
+
+  const browser = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader'] });
+  const mobile = W < 800;
+  const ctx = await browser.newContext({ viewport: { width: W, height: H }, isMobile: mobile, hasTouch: mobile });
+  const page = await ctx.newPage();
+  const erros = []; page.on('pageerror', (e) => erros.push(e.message.slice(0, 160)));
+  let emVoo = 0, maxVoo = 0; const perigosos = [];
+  page.on('request', (r) => { const u = new URL(r.url()).pathname; if (/elegibilidade-exclusao$/.test(u)) { emVoo++; maxVoo = Math.max(maxVoo, emVoo); } if (['DELETE', 'PATCH'].includes(r.method()) && /movimentacoes-/.test(u)) perigosos.push(u); });
+  const fim = (r) => { if (/elegibilidade-exclusao$/.test(new URL(r.url()).pathname)) emVoo--; };
+  page.on('requestfinished', fim); page.on('requestfailed', fim);
+  await page.goto('http://127.0.0.1:5180/', { waitUntil: 'networkidle' });
+  await page.locator('input').nth(0).fill(S.login);
+  await page.locator('input[type=password]').fill(S.senha);
+  await page.keyboard.press('Enter');
+  await page.waitForURL(/mapageral/i, { timeout: 30000 });
+  await page.waitForTimeout(6000);
+  const tocar = async (loc) => { if (mobile) await loc.tap({ force: true }); else await loc.click({ force: true }); };
+  const fechar = async () => { for (let i = 0; i < 3; i++) { await page.keyboard.press('Escape'); await page.waitForTimeout(250); } await page.waitForTimeout(400); };
+  const abrirArea = async (nome) => {
+    const box = await page.getByText(nome, { exact: true }).first().boundingBox();
+    const x = box.x + box.width / 2, y = box.y + 1;
+    if (mobile) await page.touchscreen.tap(x, y); else await page.mouse.click(x, y);
+    await page.waitForTimeout(4000);
+  };
+  const semOverflow = async () => !(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1));
+  const card = (tipo) => page.locator('div.border.rounded-lg').filter({ hasText: TAG }).filter({ hasText: tipo }).filter({ has: page.locator('[data-estado-exclusao]') }).first();
+  const estado = async (tipo) => { const c = card(tipo); await c.scrollIntoViewIfNeeded().catch(() => {}); await page.waitForTimeout(300); return c.locator('[data-estado-exclusao]').getAttribute('data-estado-exclusao'); };
+  const esperarEstado = async (tipo, alvo, ms = 20000) => { const t0 = Date.now(); let e; while (Date.now() - t0 < ms) { e = await estado(tipo).catch(() => null); if (e === alvo) return e; await page.waitForTimeout(500); } return e; };
+  const excluirPelaUi = async (tipo) => {
+    const c = card(tipo);
+    await c.scrollIntoViewIfNeeded().catch(() => {});
+    await tocar(c.getByRole('button', { name: 'Excluir movimentação' }));
+    await page.getByLabel('Motivo da exclusão').waitFor({ timeout: 15000 });
+    await page.getByLabel('Motivo da exclusão').fill('Certificação D-PROD-113 (sintético)');
+    await page.getByRole('checkbox').check({ force: true });
+    const conf = page.getByRole('button', { name: 'Excluir definitivamente' });
+    const t0 = Date.now(); while ((await conf.isDisabled()) && Date.now() - t0 < 15000) await page.waitForTimeout(300);
+    await tocar(conf);
+    await page.getByText('Movimentação excluída.').first().waitFor({ timeout: 20000 });
+    await page.waitForTimeout(1500);
+  };
+  try {
+    await abrirArea('PASTO B');
+    const ini = { T: await esperarEstado('Transferência de Área', 'Exclusão bloqueada'), P: await esperarEstado('Pesagem', 'Exclusão bloqueada'), MC: await esperarEstado('Mudança de Categoria', 'Exclusão bloqueada'), M: await esperarEstado('Morte', 'elegivel') };
+    ok('cadeia antes do clique: transferência/pesagem/mudança BLOQUEADAS, morte elegível', ini.T === 'Exclusão bloqueada' && ini.P === 'Exclusão bloqueada' && ini.MC === 'Exclusão bloqueada' && ini.M === 'elegivel', JSON.stringify(ini));
+    const bloqueado = card('Transferência de Área').getByRole('button', { name: 'Exclusão bloqueada' });
+    await tocar(bloqueado);
+    ok('clique no bloqueado NÃO abre diálogo', (await page.getByRole('heading', { name: 'Excluir movimentação', exact: true }).count()) === 0);
+    ok('motivo do bloqueio ligado ao botão (aria-describedby) e visível', !!(await bloqueado.getAttribute('aria-describedby')) && (await card('Transferência de Área').innerText()).includes('exclua o lançamento dependente primeiro'));
+    ok('sem rolagem horizontal (cadeia)', await semOverflow());
+    await page.screenshot({ path: `${OUT}/${BASE}-01-cadeia-estados.png` });
+    for (const [apagar, liberar] of [['Morte', 'Mudança de Categoria'], ['Mudança de Categoria', 'Pesagem'], ['Pesagem', 'Transferência de Área']]) {
+      await excluirPelaUi(apagar);
+      const e = await esperarEstado(liberar, 'elegivel');
+      ok(`excluir ${apagar} pela UI → ${liberar} desbloqueia sem recarregar`, e === 'elegivel', e);
+      ok(`${apagar} some do histórico`, (await card(apagar).count()) === 0);
+      if (apagar === 'Morte') await page.screenshot({ path: `${OUT}/${BASE}-02-desbloqueio.png` });
+    }
+    await excluirPelaUi('Transferência de Área');
+    const ps = (await posicoes()).filter((p) => p.lote_entrada_id === gar.id);
+    ok('fim da cadeia: só a entrada (A=40), nada em B', ps.filter((p) => p.quantidade_cabecas > 0).length === 1 && ps.find((p) => p.area_atual_id === S.A)?.quantidade_cabecas === 40, JSON.stringify(ps.map((p) => [p.area_atual_nome, p.categoria, p.quantidade_cabecas])));
+    const lotes = await call('GET', '/lotes?limit=500');
+    ok('Cadastro de Lotes intacto (40)', (Array.isArray(lotes) ? lotes : lotes.items).find((l) => l.id === gar.id)?.quantidade_cabecas === 40);
+    await fechar();
+    // Curral
+    await abrirArea('CURRAL 1');
+    const cAb = page.locator('div.border.rounded-lg').filter({ hasText: `CUR ${TAG}` }).filter({ hasText: 'Abate' }).filter({ has: page.locator('[data-estado-exclusao]') }).first();
+    await cAb.waitFor({ timeout: 20000 });
+    const t0 = Date.now(); let eAb; while (Date.now() - t0 < 20000) { eAb = await cAb.locator('[data-estado-exclusao]').getAttribute('data-estado-exclusao'); if (eAb === 'elegivel') break; await page.waitForTimeout(500); }
+    ok('curral: abate com "Excluir movimentação" elegível', eAb === 'elegivel', eAb);
+    ok('sem rolagem horizontal (curral)', await semOverflow());
+    await page.screenshot({ path: `${OUT}/${BASE}-03-curral.png` });
+    await tocar(cAb.getByRole('button', { name: 'Excluir movimentação' }));
+    await page.getByLabel('Motivo da exclusão').fill('Certificação D-PROD-113 (sintético)');
+    await page.getByRole('checkbox').check({ force: true });
+    const conf = page.getByRole('button', { name: 'Excluir definitivamente' });
+    const t1 = Date.now(); while ((await conf.isDisabled()) && Date.now() - t1 < 15000) await page.waitForTimeout(300);
+    await tocar(conf);
+    await page.getByText('Movimentação excluída.').first().waitFor({ timeout: 20000 });
+    await page.waitForTimeout(2000);
+    ok('curral: abate some do histórico do curral', (await page.locator('div.border.rounded-lg').filter({ hasText: `CUR ${TAG}` }).filter({ hasText: 'Abate' }).count()) === 0);
+    ok('curral: cabeças devolvidas (10 no curral)', (await pos(cur, S.CUR)).quantidade_cabecas === 10);
+    ok(`no máximo 2 GETs de elegibilidade simultâneos (máx=${maxVoo})`, maxVoo <= 2);
+    ok('nenhum DELETE/PATCH de movimento', perigosos.length === 0, perigosos.join(','));
+    ok('sem erro de página', erros.length === 0, erros.join(' | '));
+  } catch (e) {
+    ok('execução', false, e.message);
+    await page.screenshot({ path: `${OUT}/${BASE}-ERRO.png` }).catch(() => {});
+  }
+  await browser.close();
+  console.log(res.join('\n'));
+})();

@@ -4619,4 +4619,30 @@ O resultado foi conferido no Chromium com o ícone real do lote: 8, 50, 500, 5.0
 
 ---
 
-<!-- Próxima decisão: D-PROD-113 -->
+## D-PROD-113 — Certificação transversal dos manejos, dependências e exclusões
+
+**Objetivo:** certificar, com PostgreSQL local real e UI real, todos os manejos do ledger em cadeias:
+- criação;
+- elegibilidade e exclusão definitiva;
+- desbloqueio após excluir o dependente;
+- independência causal;
+- casos retroativos e no mesmo dia;
+- conservação de cabeças;
+- GET sem escrita;
+- concorrência;
+- compatibilidade com o legado.
+
+**Resultado:**
+- **Motor de exclusão (D-PROD-110):** nenhum bug encontrado nos cenários executados. Matriz em `backend/tests/certificacaoManejosExclusoes.test.mjs`.
+- **UX da pré-validação (D-PROD-112):** três bugs reproduzidos com teste RED e corrigidos em `ExcluirMovimentacao.jsx`:
+  - **UX-1 (P1):** com o histórico aberto, a fila offline sincronizava mas o card continuava "Exclusão bloqueada" até remontar. Agora o card escuta o evento de mudança da fila (exposto pela camada de serviço) e relê as pendências.
+  - **UX-2 (P2):** consultas que esperavam vaga no limite de 2 ainda disparavam depois do card sumir ou do histórico fechar. Agora o `signal` do React Query cancela a consulta enfileirada.
+  - **UX-3 (P2):** uma consulta que nunca respondia segurava uma das 2 vagas para sempre e travava os demais cards em "Verificando…". Agora há um teto de 30 s por consulta: a vaga é liberada e a consulta falha fechada, com "Verificar de novo".
+- **BUG-4 (P1, release):** `premerge-migrate` recusava toda release posterior à #174 com MANIFESTO_INCOMPLETO. As migrations aprovadas já estavam na main. Isso deixava o CI da main vermelho a cada merge e o `verify:all` local vermelho com árvore limpa (teste B7).
+  - Correção: `migrationsDoManifestoFaltando` não conta como faltando a migration aprovada que já está na `origin/main`; continua recusando a que não está nem na main nem na release.
+  - Coberto pelo teste B8.
+- **Sem mudanças:** motor de exclusão, ledger, banco e migrations. Nenhuma escrita em produção ou no Preview.
+
+---
+
+<!-- Próxima decisão: D-PROD-114 -->
