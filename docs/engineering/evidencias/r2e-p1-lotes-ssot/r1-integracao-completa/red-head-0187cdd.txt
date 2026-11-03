@@ -1,0 +1,153 @@
+# PR174-R1 RED — HEAD 0187cddeda6261ddeea2c44d21c2bd8e5729f4af (sem alteração de código; só este teste)
+# PostgreSQL 16 local descartável (maike_ci), HTTP autenticado, dados sintéticos
+
+TAP version 13
+# ◇ injected env (0) from .env // tip: ⌁ auth for agents [www.vestauth.com]
+# (node:357) [FSTDEP023] FastifyDeprecation: disableRequestLogging option is deprecated. Use the logController option with disableRequestLogging or isLogDisabled override instead. The disableRequestLogging top-level option will be removed in `fastify@6`.
+# (Use `node --trace-warnings ...` to show where the warning was created)
+#   posições: [["PASTO A",400,"ENTRADA ORIGINAL"],["PASTO B",100,"DERIVADO COMO ENTRADA"]]
+# Subtest: PR174-R1 achados (comportamento correto)
+    # Subtest: A: derivado legado (origem MOVIMENTAÇÃO) NÃO vira segunda entrada na ativação: linhagem rastreada até a entrada original
+    not ok 1 - A: derivado legado (origem MOVIMENTAÇÃO) NÃO vira segunda entrada na ativação: linhagem rastreada até a entrada original
+      ---
+      duration_ms: 3517.110392
+      type: 'test'
+      location: '/home/user/MAIKE/backend/tests/r2eR1Achados.test.mjs:58:3'
+      failureType: 'testCodeFailure'
+      error: 'derivado não pode ser lote_entrada_id'
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected: true
+      actual: false
+      operator: '=='
+      stack: |-
+        TestContext.<anonymous> (file:///home/user/MAIKE/backend/tests/r2eR1Achados.test.mjs:67:12)
+        process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async Promise.all (index 0)
+        async Suite.run (node:internal/test_runner/test:1442:7)
+        async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+      ...
+#   cancelamento legado: HTTP 200 ; Lote 495→500; ledger 495
+    # Subtest: B: cancelamento de movimento LEGADO numa empresa ativada não pode mexer em Lote (drift) — recusa estável
+    not ok 2 - B: cancelamento de movimento LEGADO numa empresa ativada não pode mexer em Lote (drift) — recusa estável
+      ---
+      duration_ms: 466.831481
+      type: 'test'
+      location: '/home/user/MAIKE/backend/tests/r2eR1Achados.test.mjs:71:3'
+      failureType: 'testCodeFailure'
+      error: |-
+        {"movimentacao":{"lote":"LOTE 001","tipo":"Morte","lote_id":"cmvzjm1oh001q7d9x7wa63ox5","situacao":"cancelado","cancelamento":{"em":"2026-11-02T17:38:40.150Z","modo":null,"motivo":"teste drift","efeitos":[{"antes":{"status":"Ativo","quantidade_cabecas":495},"depois":{"status":"Ativo","quantidade_cabecas":500},"lote_id":"cmvzjm1oh001q7d9x7wa63ox5","auditoria_id":"cmvzjm1sk002c7d9xv1j8frjd","identificacao":"inalterada"}],"por_login":"operador-t-94ad242b","operation_id":"op-c60aa548-dc64-4b3f-aa04-9f0b6bd1bf39","por_usuario_id":"cmvzjm1ks001b7d9xelbochjt"},"area_origem_id":"cmvzjm1nv001l7d9xisk79m9q","efeito_servidor":{"comando":"manejo_mapa_lote","efeitos":[{"antes":{"status":"Ativo","categoria":"Boi 25 a 36 meses","empresa_id":"cmvzjm1ni001d7d9xp5ud4fvg","area_atual_id":"cmvzjm1nv001l7d9xisk79m9q","quantidade_cabecas":500,"categoria_manejo_id":null},"criado":false,"depois":{"status":"Ativo","categoria":"Boi 25 a 36 meses","empresa_id":"cmvzjm1ni001d7d9xp5ud4fvg","area_atual_id":"cmvzjm1nv001l7d9xisk79m9q","quantidade_cabecas":495,"categoria_manejo_id":null},"lote_id":"cmvzjm1oh001q7d9x7wa63ox5","auditoria_id":"cmvzjm1p5001v7d9x7eqblca4","identificacao":{"antes":{"identificador_cor":null,"identificador_nome":null,"identificador_sigla":null},"depois":{"identificador_cor":null,"identificador_nome":null,"identificador_sigla":null}}}],"operation_id":"op-cd4133b9-b774-4c8c-b7ad-147d853ffff6","registrado_em":"2026-11-02T17:38:40.026Z","registrado_por_usuario_id":"cmvzjm1ks001b7d9xelbochjt"},"area_origem_nome":"PASTO A","categoria_animal":"Boi 25 a 36 meses","data_movimentacao":"2026-10-28T12:00:00.000Z","quantidade_animais":5,"empresa_id":"cmvzjm1ni001d7d9xp5ud4fvg","id":"cmvzjm1p6001x7d9xnn10ild5","created_date":"2026-11-02T17:38:40.027Z","updated_date":"2026-11-02T17:38:40.151Z"},"efeitos":[{"lote_id":"cmvzjm1oh001q7d9x7wa63ox5","antes":{"quantidade_cabecas":495,"status":"Ativo"},"depois":{"quantidade_cabecas":500,"status":"Ativo"},"identificacao":"inalterada","auditoria_id":"cmvzjm1sk002c7d9xv1j8frjd"}],"replay":false}
+        
+        200 !== 409
+        
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected: 409
+      actual: 200
+      operator: 'strictEqual'
+      stack: |-
+        TestContext.<anonymous> (file:///home/user/MAIKE/backend/tests/r2eR1Achados.test.mjs:82:12)
+        process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async Suite.processPendingSubtests (node:internal/test_runner/test:744:7)
+      ...
+#   ativação modo entradas: HTTP 400 REQUEST_VALIDATION_FAILED
+    # Subtest: E: empresa reconstruída pelas ENTRADAS (sem histórico legado): transferência com data entre a entrada e hoje é aceita
+    not ok 3 - E: empresa reconstruída pelas ENTRADAS (sem histórico legado): transferência com data entre a entrada e hoje é aceita
+      ---
+      duration_ms: 319.992987
+      type: 'test'
+      location: '/home/user/MAIKE/backend/tests/r2eR1Achados.test.mjs:87:3'
+      failureType: 'testCodeFailure'
+      error: |-
+        {"code":"REQUEST_VALIDATION_FAILED","message":"requisição inválida","request_id":"7dcaa831-e032-47e2-b2bc-ab0ba44a7010","field":"data_corte","reason":"required"}
+        
+        400 !== 201
+        
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected: 201
+      actual: 400
+      operator: 'strictEqual'
+      stack: |-
+        TestContext.<anonymous> (file:///home/user/MAIKE/backend/tests/r2eR1Achados.test.mjs:92:12)
+        process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async Suite.processPendingSubtests (node:internal/test_runner/test:744:7)
+      ...
+#   suplementação: HTTP 201 lote_id=ID DA POSIÇÃO posicao_id=-
+    # Subtest: F: suplementação e tarefa citando o id da POSIÇÃO guardam a entrada certa (lote_id) e a posição (posicao_id)
+    not ok 4 - F: suplementação e tarefa citando o id da POSIÇÃO guardam a entrada certa (lote_id) e a posição (posicao_id)
+      ---
+      duration_ms: 350.828972
+      type: 'test'
+      location: '/home/user/MAIKE/backend/tests/r2eR1Achados.test.mjs:98:3'
+      failureType: 'testCodeFailure'
+      error: |-
+        Expected values to be strictly deep-equal:
+        + actual - expected
+        
+          [
+        -   'cmvzjm2a7003g7d9xuqpk9zb6',
+            'cmvzjm2b3003p7d9x03oue18q',
+        +   undefined
+          ]
+        
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected:
+        0: 'cmvzjm2a7003g7d9xuqpk9zb6'
+        1: 'cmvzjm2b3003p7d9x03oue18q'
+      actual:
+        0: 'cmvzjm2b3003p7d9x03oue18q'
+      operator: 'deepStrictEqual'
+      stack: |-
+        TestContext.<anonymous> (file:///home/user/MAIKE/backend/tests/r2eR1Achados.test.mjs:106:12)
+        process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async Suite.processPendingSubtests (node:internal/test_runner/test:744:7)
+      ...
+#   morte: HTTP 409 REBANHO_LEDGER_OPERACAO_NAO_MIGRADA; pesagem: HTTP 409 REBANHO_LEDGER_OPERACAO_NAO_MIGRADA
+    # Subtest: D: manejos na empresa ativada funcionam pelo ledger (Morte, Pesagem) — sem OPERACAO_NAO_MIGRADA
+    not ok 5 - D: manejos na empresa ativada funcionam pelo ledger (Morte, Pesagem) — sem OPERACAO_NAO_MIGRADA
+      ---
+      duration_ms: 374.189808
+      type: 'test'
+      location: '/home/user/MAIKE/backend/tests/r2eR1Achados.test.mjs:113:3'
+      failureType: 'testCodeFailure'
+      error: |-
+        {"code":"REBANHO_LEDGER_OPERACAO_NAO_MIGRADA","message":"esta empresa usa o ledger de posições; esta operação ainda não foi migrada para ele e foi recusada sem gravar nada","request_id":"58507c5f-43a4-4f80-b805-31965dfb9b5a","details":{"operacao":"baixa-rebanho"}}
+        
+        409 !== 201
+        
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected: 201
+      actual: 409
+      operator: 'strictEqual'
+      stack: |-
+        TestContext.<anonymous> (file:///home/user/MAIKE/backend/tests/r2eR1Achados.test.mjs:121:12)
+        process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async Suite.processPendingSubtests (node:internal/test_runner/test:744:7)
+      ...
+    1..5
+not ok 1 - PR174-R1 achados (comportamento correto)
+  ---
+  duration_ms: 5791.509781
+  type: 'suite'
+  location: '/home/user/MAIKE/backend/tests/r2eR1Achados.test.mjs:57:1'
+  failureType: 'subtestsFailed'
+  error: '5 subtests failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+1..1
+# tests 5
+# suites 1
+# pass 0
+# fail 5
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 7633.823924

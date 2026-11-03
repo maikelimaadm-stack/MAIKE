@@ -66,6 +66,9 @@ describe('health', () => {
     assert.equal(corpo.processo, 'up');
     assert.equal(corpo.banco, 'up');
     assert.deepEqual(corpo.configuracaoIncompleta, []);
+    // PR174-R6: o cutover confere a capacidade e o SHA publicado (nunca segredo).
+    assert.ok(corpo.capacidades.includes('rebanho-ledger-cutover-r6'));
+    assert.ok(corpo.release === null || /^[0-9a-f]{40}$/.test(corpo.release));
   });
 
   test('BE-02 resposta de health não vaza stack trace nem string de conexão', async () => {

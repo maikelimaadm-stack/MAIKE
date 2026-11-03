@@ -56,6 +56,7 @@
     "gate:modelobase1-pecuario": "node scripts/gates/gate-modelobase1-pecuario.mjs",
     "gate:motorbase1-independence": "node scripts/gates/gate-motorbase1-independence.mjs",
     "gate:tenancy": "node scripts/gates/gate-tenancy.mjs",
+    "gate:rebanho-ssot": "node scripts/gates/gate-rebanho-ssot.mjs",
     "gate:indices": "node scripts/gates/gate-indices.mjs",
     "gate:types": "node scripts/gates/gate-typecheck-ratchet.mjs",
     "gate:admin-isolation": "node scripts/gates/gate-admin-isolation.mjs",

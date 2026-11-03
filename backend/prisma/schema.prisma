@@ -88,6 +88,11 @@ model Cliente {
   bebedourosHistorico    BebedouroHistorico[]
   bebedourosSanidade     BebedouroSanidade[]
   bebedourosAlertas      BebedouroAlerta[]
+  rebanhoAtivacoes       RebanhoLedgerAtivacao[]
+  posicoesRebanho        PosicaoRebanho[]
+  eventosRebanho         EventoRebanho[]
+  partidasRebanho        PartidaRebanho[]
+  pesosRebanho           PesoRebanho[]
 
   @@index([nome])
   @@index([ativo])
@@ -529,6 +534,7 @@ model AreaPastagem {
   lotesAtual    Lote[]             @relation("LoteAreaAtual")
   lancamentos   LancamentoTarefa[]
 
+  posicoesRebanho PosicaoRebanho[]
   @@unique([cliente_id, numero_area])
   @@unique([cliente_id, id])
   @@index([cliente_id, empresa_id])
@@ -699,6 +705,7 @@ model Lote {
   areaAtual   AreaPastagem?      @relation("LoteAreaAtual", fields: [cliente_id, area_atual_id], references: [cliente_id, id], onDelete: Restrict)
   lancamentos LancamentoTarefa[]
 
+  posicoesRebanho PosicaoRebanho[]
   @@unique([cliente_id, numero_lote])
   @@unique([cliente_id, id])
   @@index([cliente_id, empresa_id])
@@ -829,6 +836,8 @@ model LancamentoTarefa {
   area_nome              String?   @db.VarChar(255)
   lote_id                String?   @db.VarChar(64)
   lote_nome              String?   @db.VarChar(255)
+  /// R2E-R1 (D-PROD-107): posição do ledger citada pelo mapa (lote_id continua sendo o CADASTRO da entrada).
+  posicao_id             String?   @db.VarChar(64)
   ponto_suplementacao_id String?   @db.VarChar(64)
   coordenadas            Json?
   responsavel_id         String?   @db.VarChar(64)
@@ -845,6 +854,7 @@ model LancamentoTarefa {
   tipoTarefa TipoTarefa    @relation(fields: [cliente_id, tipo_tarefa_id], references: [cliente_id, id], onDelete: Restrict)
   grupo    GrupoAtividade? @relation(fields: [cliente_id, grupo_atividade_id], references: [cliente_id, id], onDelete: Restrict)
   lote     Lote?           @relation(fields: [cliente_id, lote_id], references: [cliente_id, id], onDelete: Restrict)
+  posicao  PosicaoRebanho? @relation(fields: [cliente_id, posicao_id], references: [cliente_id, id], onDelete: Restrict)
   area     AreaPastagem?   @relation(fields: [cliente_id, area_id], references: [cliente_id, id], onDelete: Restrict)
   historicos HistoricoLancamentoTarefa[]
 
@@ -853,6 +863,7 @@ model LancamentoTarefa {
   @@index([cliente_id, tipo_tarefa_id])
   @@index([cliente_id, grupo_atividade_id])
   @@index([cliente_id, lote_id])
+  @@index([cliente_id, posicao_id])
   @@index([cliente_id, area_id])
   @@index([cliente_id, status])
   @@index([cliente_id, updatedAt])
@@ -911,6 +922,9 @@ model Empresa {
 
   cliente Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
 
+  rebanhoAtivacao RebanhoLedgerAtivacao[]
+  posicoesRebanho PosicaoRebanho[]
+  eventosRebanho  EventoRebanho[]
   @@unique([cliente_id, id])
   @@unique([cliente_id, numero_empresa])
   @@unique([cliente_id, nome])
@@ -1577,4 +1591,161 @@ model EventoSegurancaAdminMaike {
 
   @@index([admin_id, createdAt])
   @@index([createdAt])
+}
+
+// ─── R2E-P1 (D-PROD-107): ledger do rebanho por posição ───────────────────
+//
+// Três responsabilidades, uma fonte de verdade por empresa ATIVADA:
+//  - `Lote` = cadastro de ENTRADA (fato histórico; não recebe saldo nem área
+//    de movimento depois da ativação);
+//  - `EventoRebanho` + `PartidaRebanho` = ledger AUTORITATIVO: cada fato com
+//    data operacional (dia) e deltas por posição;
+//  - `PosicaoRebanho` = projeção do saldo atual (soma das partidas ativas),
+//    reconstruível e verificada pelo motor.
+// Empresa sem `RebanhoLedgerAtivacao` segue no modelo legado (fase expand).
+
+/// Ativação do ledger por empresa: a partir do corte, o saldo operacional mora
+/// nas posições. Antes do corte, o histórico legado é "saldo de abertura".
+model RebanhoLedgerAtivacao {
+  id                     String   @id @default(cuid())
+  cliente_id             String   @db.VarChar(64)
+  empresa_id             String   @db.VarChar(64)
+  data_corte             DateTime @db.Date
+  /// 'saldo_abertura' (corte = saldo atual legado) ou 'entradas' (linha do tempo reconstruída desde cada entrada).
+  modo                   String   @default("saldo_abertura") @db.VarChar(32)
+  ativado_por_usuario_id String?  @db.VarChar(64)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  cliente Cliente @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  empresa Empresa @relation(fields: [cliente_id, empresa_id], references: [cliente_id, id], onDelete: Restrict)
+
+  @@unique([cliente_id, empresa_id])
+  @@unique([cliente_id, id])
+}
+
+/// Posição operacional: animais de UMA linhagem de entrada, numa área, numa
+/// classificação (categoria + sexo + categoria de manejo). A mesma entrada
+/// pode ter posições em várias áreas. Identidade = `chave_identidade`.
+model PosicaoRebanho {
+  id                    String   @id @default(cuid())
+  cliente_id            String   @db.VarChar(64)
+  empresa_id            String   @db.VarChar(64)
+  area_id               String   @db.VarChar(64)
+  lote_entrada_id       String?  @db.VarChar(64)
+  /// Composição de entradas (junção futura): [{lote_id, nome, numero_lote}].
+  linhagem              Json     @default("[]")
+  chave_identidade      String   @db.VarChar(512)
+  nome                  String   @db.VarChar(255)
+  numero_lote           String?  @db.VarChar(64)
+  categoria             String?  @db.VarChar(128)
+  categoria_manejo_id   String?  @db.VarChar(64)
+  categoria_manejo_nome String?  @db.VarChar(255)
+  sexo                  String?  @db.VarChar(32)
+  peso_medio_kg         Decimal? @db.Decimal(14, 4)
+  quantidade_cabecas    Int      @default(0)
+  identificador_nome    String?  @db.VarChar(255)
+  identificador_sigla   String?  @db.VarChar(32)
+  identificador_cor     String?  @db.VarChar(32)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  cliente     Cliente          @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  empresa     Empresa          @relation(fields: [cliente_id, empresa_id], references: [cliente_id, id], onDelete: Restrict)
+  area        AreaPastagem     @relation(fields: [cliente_id, area_id], references: [cliente_id, id], onDelete: Restrict)
+  loteEntrada Lote?            @relation(fields: [cliente_id, lote_entrada_id], references: [cliente_id, id], onDelete: Restrict)
+  partidas    PartidaRebanho[]
+  pesos       PesoRebanho[]
+  tarefas     LancamentoTarefa[]
+
+  @@unique([cliente_id, id])
+  /// Alvo das FKs com empresa (partida/peso não cruzam empresa) — R2E-R1.
+  @@unique([cliente_id, empresa_id, id])
+  @@unique([cliente_id, empresa_id, area_id, chave_identidade])
+  @@index([cliente_id, empresa_id, area_id])
+  @@index([cliente_id, lote_entrada_id])
+}
+
+/// Fato do rebanho (imutável): tipo, dia operacional, quando foi gravado e
+/// por quem. Cancelar marca `situacao = 'cancelado'` e desativa as partidas;
+/// nada é apagado nem tem a data reescrita.
+model EventoRebanho {
+  id                        String    @id @default(cuid())
+  cliente_id                String    @db.VarChar(64)
+  empresa_id                String    @db.VarChar(64)
+  tipo                      String    @db.VarChar(32)
+  data_operacional          DateTime  @db.Date
+  registrado_em             DateTime  @default(now())
+  registrado_por_usuario_id String?   @db.VarChar(64)
+  operation_id              String    @db.VarChar(160)
+  situacao                  String    @default("ativo") @db.VarChar(16)
+  cancelado_em              DateTime?
+  cancelado_por_usuario_id  String?   @db.VarChar(64)
+  motivo_cancelamento       String?   @db.VarChar(500)
+  movimentacao_id           String?   @db.VarChar(64)
+  dados                     Json      @default("{}")
+  createdAt                 DateTime  @default(now())
+  updatedAt                 DateTime  @updatedAt
+
+  cliente  Cliente          @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  empresa  Empresa          @relation(fields: [cliente_id, empresa_id], references: [cliente_id, id], onDelete: Restrict)
+  partidas PartidaRebanho[]
+  pesos    PesoRebanho[]
+
+  @@unique([cliente_id, id])
+  /// Alvo das FKs com empresa (partida/peso não cruzam empresa) — R2E-R1.
+  @@unique([cliente_id, empresa_id, id])
+  @@unique([cliente_id, empresa_id, tipo, operation_id])
+  @@index([cliente_id, empresa_id, data_operacional])
+  @@index([cliente_id, movimentacao_id])
+}
+
+/// Delta de cabeças numa posição, no dia operacional do evento. Saldo da
+/// posição numa data = soma das partidas ATIVAS até o fim daquele dia.
+model PartidaRebanho {
+  id               String   @id @default(cuid())
+  cliente_id       String   @db.VarChar(64)
+  empresa_id       String   @db.VarChar(64)
+  evento_id        String   @db.VarChar(64)
+  posicao_id       String   @db.VarChar(64)
+  data_operacional DateTime @db.Date
+  delta            Int
+  ativa            Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  cliente Cliente        @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  evento  EventoRebanho  @relation(fields: [cliente_id, empresa_id, evento_id], references: [cliente_id, empresa_id, id], onDelete: Restrict)
+  posicao PosicaoRebanho @relation(fields: [cliente_id, empresa_id, posicao_id], references: [cliente_id, empresa_id, id], onDelete: Restrict)
+
+  @@unique([cliente_id, id])
+  @@index([cliente_id, posicao_id, data_operacional])
+  @@index([cliente_id, evento_id])
+}
+
+/// Peso médio observado numa posição numa data (R2E-R1): pesagem medida ou
+/// peso resultante de transferência/junção/mudança/nascimento. Série histórica:
+/// o peso de uma posição numa data é a última observação ATIVA até aquele dia;
+/// `PosicaoRebanho.peso_medio_kg` é a projeção da última. `peso_medio_kg` NULL =
+/// desconhecido (nunca zero). Cancelar o evento desativa a observação.
+model PesoRebanho {
+  id               String   @id @default(cuid())
+  cliente_id       String   @db.VarChar(64)
+  empresa_id       String   @db.VarChar(64)
+  evento_id        String   @db.VarChar(64)
+  posicao_id       String   @db.VarChar(64)
+  data_operacional DateTime @db.Date
+  peso_medio_kg    Decimal? @db.Decimal(14, 4)
+  medido           Boolean  @default(false)
+  ativa            Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  cliente Cliente        @relation(fields: [cliente_id], references: [id], onDelete: Restrict)
+  evento  EventoRebanho  @relation(fields: [cliente_id, empresa_id, evento_id], references: [cliente_id, empresa_id, id], onDelete: Restrict)
+  posicao PosicaoRebanho @relation(fields: [cliente_id, empresa_id, posicao_id], references: [cliente_id, empresa_id, id], onDelete: Restrict)
+
+  @@unique([cliente_id, id])
+  @@index([cliente_id, posicao_id, data_operacional])
+  @@index([cliente_id, evento_id])
 }

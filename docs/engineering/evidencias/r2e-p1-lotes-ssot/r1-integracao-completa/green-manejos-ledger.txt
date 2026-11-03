@@ -1,0 +1,58 @@
+# Subtest: R2E ledger — cadastro × posições × movimentações, retroatividade
+    ok 1 - L1: 500 em A; 02 A→B 100 → 400/100; depois 01 A→B 100 → 300/200; Lote só com a entrada de 500; 450 no dia 01 → 409 sem efeito
+    ok 2 - L2: A=320 B=150 C=30 (com retorno): 02 A→B 100; 01 A→B 100 (lançado depois); 03 B→C 50; 04 C→A 20; total 500; replay não duplica
+    ok 3 - L3: saldo histórico — origem sem estoque na data (mesmo com saldo hoje) e retroativo que quebra fato futuro → 409 com data/área/disponível
+    ok 4 - L4: mesmo dia — várias transferências no dia 02 são aceitas (sem meia-noite × meio-dia); disponibilidade é por FIM de dia
+    ok 5 - L5: várias entradas e homônimos — 500 e 300 (mesmo nome) numa confirmação para B: duas posições, linhagens separadas, total 800
+    ok 6 - L6: contrato estrito e isolamento — data impossível, antes do corte, mesmo destino, posição/área alheias, campos forjados
+ok 1 - R2E ledger — cadastro × posições × movimentações, retroatividade
+# Subtest: R2E ledger — cancelamento, histórico, cadastro
+    ok 1 - X1: cancelar fato do qual um posterior depende → 409 com data; cancela o posterior e depois o anterior; histórico rotulado nas duas áreas e na entrada
+    ok 2 - X2: cadastro — PATCH de saldo/área/status → 409; nome propaga às posições; DELETE com movimento ativo → 409; sem movimento → tombstone e posição zerada
+    ok 3 - X3: na empresa no ledger os comandos do mapa operam POSIÇÕES — id de CADASTRO não é posição (404) e Lote nunca muda; empresa legada segue igual
+    ok 4 - X4: ativação — saldo de abertura das linhas legadas (inclusive derivadas) sem alterar Lote; só admin; corte anterior a movimento legado e lote sem área → 409
+ok 2 - R2E ledger — cancelamento, histórico, cadastro
+# Subtest: R2E ledger — rollback por passo, volume, concorrência (3 rodadas)
+    ok 1 - R1: falha injetada após validar, após evento, após 1ª partida, após reprojeção e antes da auditoria → ZERO mudança
+    ok 2 - V1: 1.000 fatos numa posição com cancelados no meio (> 610): retroativo valida a linha inteira, sem teto; EXPLAIN usa o índice
+    ok 3 - K1.1: duas transferências da mesma origem disputando saldo (300 + 300 de 500) → uma 201, outra 409; total 500
+    ok 4 - K2.1: A→B e B→A simultâneas (travas em ordem) e cancelamento × nova transferência dependente → sem deadlock, sem 500
+    ok 5 - K3.1: mesma chave em paralelo → um efeito; nova entrada × transferência; DELETE × transferência → consistentes
+    ok 6 - K1.2: duas transferências da mesma origem disputando saldo (300 + 300 de 500) → uma 201, outra 409; total 500
+    ok 7 - K2.2: A→B e B→A simultâneas (travas em ordem) e cancelamento × nova transferência dependente → sem deadlock, sem 500
+    ok 8 - K3.2: mesma chave em paralelo → um efeito; nova entrada × transferência; DELETE × transferência → consistentes
+    ok 9 - K1.3: duas transferências da mesma origem disputando saldo (300 + 300 de 500) → uma 201, outra 409; total 500
+    ok 10 - K2.3: A→B e B→A simultâneas (travas em ordem) e cancelamento × nova transferência dependente → sem deadlock, sem 500
+    ok 11 - K3.3: mesma chave em paralelo → um efeito; nova entrada × transferência; DELETE × transferência → consistentes
+ok 3 - R2E ledger — rollback por passo, volume, concorrência (3 rodadas)
+# Subtest: PR174-R1 achados (comportamento correto)
+    ok 1 - A: derivado legado (origem MOVIMENTAÇÃO) NÃO vira segunda entrada na ativação: linhagem rastreada até a entrada original
+    ok 2 - B: cancelamento de movimento LEGADO numa empresa ativada não pode mexer em Lote (drift) — recusa estável
+    ok 3 - E: empresa reconstruída pelas ENTRADAS (sem histórico legado): transferência com data entre a entrada e hoje é aceita
+    ok 4 - F: suplementação e tarefa citando o id da POSIÇÃO guardam a entrada certa (lote_id) e a posição (posicao_id)
+    ok 5 - D: manejos na empresa ativada funcionam pelo ledger (Morte, Pesagem) — sem OPERACAO_NAO_MIGRADA
+ok 4 - PR174-R1 achados (comportamento correto)
+# Subtest: R1 B1 — Morte e Abate no ledger
+    ok 1 - M1: morte em duas categorias numa confirmação → 1 evento, posições baixadas, Lote intacto; cancelar restaura; conservação
+    ok 2 - M2: abate retroativo cabe na linha do tempo; retroativo que quebra a transferência futura → 409 com data; acima do saldo → 409; nada gravado
+    ok 3 - M3: falha injetada após 1ª partida, após validar e antes da auditoria → ZERO mudança (inclusive reserva idempotente)
+    ok 4 - M4: R2A manejo-lote (Morte de UMA posição) e replay da mesma chave; id de CADASTRO não é posição (404)
+ok 5 - R1 B1 — Morte e Abate no ledger
+# Subtest: R1 B2–B4 — Nascimento, Pesagem, Mudança de Categoria no ledger
+    ok 1 - N1: nascimento = cabeças NOVAS (origem nascimento, sem cadastro/compra); crias transferidas → cancelar nascimento bloqueia; mãe inválida → 409
+    ok 2 - P1: pesagem — série histórica: retroativa não sobrescreve a medição posterior; saldo/peso em data; cancelar recompõe; desconhecido continua null
+    ok 3 - C1: mudança de categoria parcial/total na mesma linhagem, sem novo Lote; sexo incompatível → 409; cancelar restaura
+ok 6 - R1 B2–B4 — Nascimento, Pesagem, Mudança de Categoria no ledger
+# Subtest: R1 B5 — Junção de posições no ledger
+    ok 1 - J1: 3 entradas (uma sem peso) → principal com tudo, origens 0, composição de linhagens, peso desconhecido; Lote intacto; histórico por origem; cancelar desfaz composição
+    ok 2 - J2: 5 origens com peso conhecido → média ponderada; 20 origens → aceita; classificação divergente → 409
+ok 7 - R1 B5 — Junção de posições no ledger
+# Subtest: R1 — tenant e concorrência (3 rodadas)
+    ok 1 - T1: posição/área de outro tenant em baixa, pesagem, junção e nascimento → 404 sem gravar
+    ok 2 - K1.1: morte × transferência da mesma posição; junção × transferência; cancelar × morte → conservação, sem 500, sem deadlock
+    ok 3 - K1.2: morte × transferência da mesma posição; junção × transferência; cancelar × morte → conservação, sem 500, sem deadlock
+    ok 4 - K1.3: morte × transferência da mesma posição; junção × transferência; cancelar × morte → conservação, sem 500, sem deadlock
+ok 8 - R1 — tenant e concorrência (3 rodadas)
+# tests 39
+# pass 39
+# fail 0

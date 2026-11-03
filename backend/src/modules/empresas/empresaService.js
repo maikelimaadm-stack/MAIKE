@@ -13,6 +13,7 @@ import {
   excluirRegistroPorId,
 } from './empresaRepository.js';
 import { reservarNumeroEmpresa } from './empresaSequencia.js';
+import { ativarEmpresaNaTransacao } from '../rebanhoLedger/rebanhoLedgerService.js';
 import { erroNomeConflitoEmpresa, lancarSeP2002Empresa } from './empresaUniqueViolation.js';
 
 const CAMPOS_GRAVAVEIS = Object.freeze([
@@ -125,6 +126,10 @@ export const criar = async (contexto, entrada) => {
         { acao: 'create', entidade: 'Empresa', entidadeId: registro.id, dadosNovos: comoPublico(registro) },
         tx,
       );
+      // PR174-R5 (D-PROD-107): empresa nova nasce no controle por posições — sem
+      // histórico, a ativação pelas entradas não tem conflito; nunca existe
+      // "empresa nova no modelo legado" (Lote nunca recebe manejo).
+      await ativarEmpresaNaTransacao(tx, contexto, { empresaId: registro.id, modo: 'entradas', dataCorte: null });
       return registro;
     });
     return comoPublico(criado);
@@ -175,6 +180,12 @@ export const excluir = async (contexto, id) => {
   await prisma.$transaction(async (tx) => {
     const existente = await buscarRegistro(auth.clienteId, id, tx);
     if (!existente) throw erroNaoEncontrado();
+    // PR174-R5: a empresa nasce ativada no ledger. Sem nenhum fato do rebanho, a
+    // ativação vazia não é dado — sai junto; com fatos, os vínculos seguem
+    // protegendo a exclusão (onDelete: Restrict).
+    if (!(await tx.eventoRebanho.count({ where: { cliente_id: auth.clienteId, empresa_id: id } }))) {
+      await tx.rebanhoLedgerAtivacao.deleteMany({ where: { cliente_id: auth.clienteId, empresa_id: id } });
+    }
     await excluirRegistroPorId(tx, auth.clienteId, id);
     await registrarEvento(
       contexto,

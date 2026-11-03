@@ -1,0 +1,15 @@
+Suítes legadas convertidas ao contrato "cadastro só de entradas" (nenhum teste pulado, desligado ou apagado)
+(a) = a essência era FABRICAR lote → agora prova a recusa 409 LOTE_CADASTRO_SOMENTE_ENTRADAS com nada gravado
+(b) = a essência era outra (cancelamento, CAS/concorrência, idempotência, #167, validação materna, histórico)
+      → mantida com destino de ENTRADA já cadastrado (merge) ou com dado legado pré-existente simulado
+      (fixture helpers.transferenciaComDerivadoLegado: o comando real faz merge; o prisma marca o destino como legado)
+
+movimentacaoCancelamentoR2A ......... 2 testes (1 a, 1 b)        35/35
+r2aR2EstadoCausal ................... 2 testes (b, b+a)          22/22
+r2aR3Identificadores ................ 1 teste  (a no passo parcial) 13/13
+loteExclusaoCancelados .............. 1 teste  (b)               23/23
+loteDerivadoIntegridade ............. fixture (dado legado)       13/13
+r2bP1ComandosRebanho ................ 16 testes (N1 a+b; M2, M7 a; demais b) 52/52
+r2bP1R2IntegridadeNascimento ........ 16 testes (B1, B4 a; demais b)          22/22
+r2eP1LedgerRebanho / r2eR1Achados / r2eR1ResetTeste / r2eR2Fechamento ... fixture legado (b)
+estoquePecuarioLedger* .............. 0 testes alterados (já passavam)

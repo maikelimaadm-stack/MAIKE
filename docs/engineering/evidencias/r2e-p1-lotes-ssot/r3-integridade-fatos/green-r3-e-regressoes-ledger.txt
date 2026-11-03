@@ -1,0 +1,76 @@
+GREEN — PR174-R3 (PostgreSQL 16 local descartável + HTTP autenticado)
+Arquivos: r2eR3IntegridadeFatos + regressões do ledger (R2, P1, R1 achados, R1 manejos, reset)
+    ok 1 - L1: 500 em A; 02 A→B 100 → 400/100; depois 01 A→B 100 → 300/200; Lote só com a entrada de 500; 450 no dia 01 → 409 sem efeito
+    ok 2 - L2: A=320 B=150 C=30 (com retorno): 02 A→B 100; 01 A→B 100 (lançado depois); 03 B→C 50; 04 C→A 20; total 500; replay não duplica
+    ok 3 - L3: saldo histórico — origem sem estoque na data (mesmo com saldo hoje) e retroativo que quebra fato futuro → 409 com data/área/disponível
+    ok 4 - L4: mesmo dia — várias transferências no dia 02 são aceitas (sem meia-noite × meio-dia); disponibilidade é por FIM de dia
+    ok 5 - L5: várias entradas e homônimos — 500 e 300 (mesmo nome) numa confirmação para B: duas posições, linhagens separadas, total 800
+    ok 6 - L6: contrato estrito e isolamento — data impossível, antes do corte, mesmo destino, posição/área alheias, campos forjados
+    ok 1 - X1: cancelar fato do qual um posterior depende → 409 com data; cancela o posterior e depois o anterior; histórico rotulado nas duas áreas e na entrada
+    ok 2 - X2: cadastro — PATCH de saldo/área/status → 409; nome propaga às posições; DELETE com movimento ativo → 409; sem movimento → tombstone e posição zerada
+    ok 3 - X3: na empresa no ledger os comandos do mapa operam POSIÇÕES — id de CADASTRO não é posição (404) e Lote nunca muda; empresa legada segue igual
+    ok 4 - X4: ativação — saldo de abertura das linhas legadas (inclusive derivadas) sem alterar Lote; só admin; corte anterior a movimento legado e lote sem área → 409
+    ok 1 - R1: falha injetada após validar, após evento, após 1ª partida, após reprojeção e antes da auditoria → ZERO mudança
+    ok 2 - V1: 1.000 fatos numa posição com cancelados no meio (> 610): retroativo valida a linha inteira, sem teto; EXPLAIN usa o índice
+    ok 3 - K1.1: duas transferências da mesma origem disputando saldo (300 + 300 de 500) → uma 201, outra 409; total 500
+    ok 4 - K2.1: A→B e B→A simultâneas (travas em ordem) e cancelamento × nova transferência dependente → sem deadlock, sem 500
+    ok 5 - K3.1: mesma chave em paralelo → um efeito; nova entrada × transferência; DELETE × transferência → consistentes
+    ok 6 - K1.2: duas transferências da mesma origem disputando saldo (300 + 300 de 500) → uma 201, outra 409; total 500
+    ok 7 - K2.2: A→B e B→A simultâneas (travas em ordem) e cancelamento × nova transferência dependente → sem deadlock, sem 500
+    ok 8 - K3.2: mesma chave em paralelo → um efeito; nova entrada × transferência; DELETE × transferência → consistentes
+    ok 9 - K1.3: duas transferências da mesma origem disputando saldo (300 + 300 de 500) → uma 201, outra 409; total 500
+    ok 10 - K2.3: A→B e B→A simultâneas (travas em ordem) e cancelamento × nova transferência dependente → sem deadlock, sem 500
+    ok 11 - K3.3: mesma chave em paralelo → um efeito; nova entrada × transferência; DELETE × transferência → consistentes
+    ok 1 - A: derivado legado (origem MOVIMENTAÇÃO) NÃO vira segunda entrada na ativação: linhagem rastreada até a entrada original
+    ok 2 - B: cancelamento de movimento LEGADO numa empresa ativada não pode mexer em Lote (drift) — recusa estável
+    ok 3 - E: empresa reconstruída pelas ENTRADAS (sem histórico legado): transferência com data entre a entrada e hoje é aceita
+    ok 4 - F: suplementação e tarefa citando o id da POSIÇÃO guardam a entrada certa (lote_id) e a posição (posicao_id)
+    ok 5 - D: manejos na empresa ativada funcionam pelo ledger (Morte, Pesagem) — sem OPERACAO_NAO_MIGRADA
+    ok 1 - M1: morte em duas categorias numa confirmação → 1 evento, posições baixadas, Lote intacto; cancelar restaura; conservação
+    ok 2 - M2: abate retroativo cabe na linha do tempo; retroativo que quebra a transferência futura → 409 com data; acima do saldo → 409; nada gravado
+    ok 3 - M3: falha injetada após 1ª partida, após validar e antes da auditoria → ZERO mudança (inclusive reserva idempotente)
+    ok 4 - M4: R2A manejo-lote (Morte de UMA posição) e replay da mesma chave; id de CADASTRO não é posição (404)
+    ok 1 - N1: nascimento = cabeças NOVAS (origem nascimento, sem cadastro/compra); crias transferidas → cancelar nascimento bloqueia; mãe inválida → 409
+    ok 2 - P1: pesagem — série histórica: retroativa não sobrescreve a medição posterior; saldo/peso em data; cancelar recompõe; desconhecido continua null
+    ok 3 - C1: mudança de categoria parcial/total na mesma linhagem, sem novo Lote; sexo incompatível → 409; cancelar restaura
+    ok 1 - J1: 3 entradas (uma sem peso) → principal com tudo, origens 0, composição de linhagens, peso desconhecido; Lote intacto; histórico por origem; cancelar desfaz composição
+    ok 2 - J2: 5 origens com peso conhecido → média ponderada; 20 origens → aceita; classificação divergente → 409
+    ok 1 - T1: posição/área de outro tenant em baixa, pesagem, junção e nascimento → 404 sem gravar
+    ok 2 - K1.1: morte × transferência da mesma posição; junção × transferência; cancelar × morte → conservação, sem 500, sem deadlock
+    ok 3 - K1.2: morte × transferência da mesma posição; junção × transferência; cancelar × morte → conservação, sem 500, sem deadlock
+    ok 4 - K1.3: morte × transferência da mesma posição; junção × transferência; cancelar × morte → conservação, sem 500, sem deadlock
+    ok 1 - RS1: sem reset a ativação por entradas recusa; reset → entradas restauradas, derivado retirado, outra empresa e outro cliente intactos; ativação 201
+    ok 2 - RS2: travas — nome divergente, backup que falha e ledger já ativo → RECUSA e nada muda
+    ok 1 - A1: replay da MESMA chave depois do reset → 409 estável (nunca 201 com movimento apagado); outra empresa e outro tenant seguem com replay
+    ok 2 - A2: documento (suplementação/sanidade/anexo; tarefas pela mesma varredura) que cita lote derivado ou movimento apagado → reset RECUSA e nada muda
+    ok 3 - A3: reset reexecutado é no-op (sem nova auditoria, sem perda); AuditLog preservado e o do reset cita movimentos e chaves
+    ok 4 - A4: concorrência 3× — reset × comando legado: movimento existe ⇔ reserva committed (nunca replay órfão), sem 500
+    ok 1 - B1: unitário, lote (service), alias pecuária, com id de cadastro OU de posição → 409 REBANHO_LEDGER_SOMENTE_POR_COMANDO, nada gravado; junção segue com o código próprio; renomear (informativo) passa
+    ok 2 - B2: empresa LEGADA conserva o POST genérico aprovado; PATCH/DELETE seguem recusados
+    ok 3 - B3: concorrência 3× — ativação (entradas) × POST genérico material: nunca os dois aceitos
+    ok 1 - C1: cancelar pesagem que alimentou a transferência posterior → 409 causal com evento/posição/data/pesos; desfazendo na ordem inversa, funciona
+    ok 2 - C2: pesagem RETROATIVA antes de transferência que usou outro peso → 409; pesagem posterior (outro dia ou mesmo dia registrada depois) é independente e passa
+    ok 3 - C3: transferir dia 02 e depois dia 01 com o MESMO peso → aceito (fluxo principal); outra linhagem para B vira posição própria (sem interferência de peso)
+    ok 4 - C4: cancelar junção cujo peso alimentou transferência posterior → 409; ordem inversa funciona; cadeia A→B→C idem
+    ok 5 - C5: origem SEM peso → destino null (nunca zero); pesagem retroativa que tornaria o destino conhecido → 409; sem dependência, pesagem e cancelamento funcionam
+    ok 6 - C6: concorrência 3× — cancelar pesagem × transferência que lê esse peso: serializa, sem 500, B sempre coerente com A na data
+    ok 7 - C7: MESMO dia — pesagem registrada ANTES da transferência alimenta o destino; cancelá-la → 409; desempate é a ordem de registro
+    ok 8 - C8: falha injetada depois da verificação causal (transferência e manejo) → ZERO mudança, inclusive a reserva idempotente
+    ok 1 - P1.1 (hipótese): pesagem dia 05; depois transferência TOTAL retroativa dia 01 → 409 com evento/posição/área/data; nada gravado
+    ok 2 - P1.2 controles: parcial deixando cabeças (201); retirada de outra posição sem pesagem (201); pesagem de outra área não bloqueia
+    ok 3 - P1.3 morte, abate e mudança de categoria retroativos que zeram a posição pesada → 409; cancelada a pesagem, passam
+    ok 4 - P1.4 mesmo dia: pesagem registrada ANTES da transferência total do dia (ordem de registro) → aceita; pesagem registrada DEPOIS na posição vazia → recusa na criação
+    ok 5 - P1.5 cancelar a transferência de VOLTA que sustentava a pesagem posterior → 409 (cancelamento também é guardado)
+    ok 1 - P2.1 (hipótese): nascimento dia 05; depois transferência retroativa de TODAS as vacas dia 01 → 409 com posições maternas/área/data
+    ok 2 - P2.2 várias posições maternas: remover UMA (outra certificada segue com cabeças) → 201; remover todas → 409; nascimento cancelado não bloqueia
+    ok 3 - P2.3 controles: retirada parcial que mantém matrizes (201); vacas que CHEGAM depois não “salvam” nascimento sem as certificadas
+    ok 1 - P3.1 (hipótese): Entrada + Renomear Lote com campos materiais → 409, nada gravado; renomeação real passa; posição no lugar do cadastro → 409
+    ok 2 - P3.2 empresa LEGADA: renomeação do formulário antigo (com quantidade) segue aceita
+    ok 1 - V1: fato inconsistente gravado por fora (banco descartável) → GET /rebanho/verificacao integro:false e aponta o fato, sem alterar nada
+    ok 2 - D2 (caso do proprietário): 500 em A; A→B 100 dia 02; depois A→B 100 dia 01 → 300/200, sem Lote derivado, conservação e peso
+    ok 3 - K1: concorrência 3× — transferência retroativa total × pesagem futura: nunca as duas aceitas, sem 500, sem fato órfão
+    ok 4 - K2: concorrência 3× — transferência retroativa de todas as matrizes × nascimento futuro: nunca as duas aceitas
+    ok 5 - I1: recusa não reserva chave — reenvio da MESMA chave recusada → mesma recusa, sem duplicar; tenant: lote de outro tenant não vira renomeação
+# tests 71
+# pass 71
+# fail 0

@@ -1,0 +1,53 @@
+RED no HEAD 84d0ad5 (PostgreSQL 16 local + HTTP autenticado) — antes de qualquer correção
+    not ok 1 - A1: replay da MESMA chave depois do reset → 409 estável (nunca 201 com movimento apagado); outra empresa e outro tenant seguem com replay
+    not ok 2 - A2: documento (suplementação/tarefa/sanidade/anexo) que cita lote derivado ou movimento apagado → reset RECUSA e nada muda
+    not ok 3 - A3: reset reexecutado é no-op (sem nova auditoria, sem perda); AuditLog preservado e o do reset cita movimentos e chaves
+    not ok 1 - B1: unitário, lote (service), alias pecuária, com id de cadastro OU de posição → 409 REBANHO_LEDGER_SOMENTE_POR_COMANDO, nada gravado; junção segue com o código próprio; renomear (informativo) passa
+    ok 2 - B2: empresa LEGADA conserva o POST genérico aprovado; PATCH/DELETE seguem recusados
+    not ok 1 - C1: cancelar pesagem que alimentou a transferência posterior → 409 causal com evento/posição/data/pesos; desfazendo na ordem inversa, funciona
+    not ok 2 - C2: pesagem RETROATIVA antes de transferência que usou outro peso → 409; pesagem posterior (outro dia ou mesmo dia registrada depois) é independente e passa
+    ok 3 - C3: transferir dia 02 e depois dia 01 com o MESMO peso → aceito (fluxo principal); com pesos diferentes no destino → 409 causal
+    not ok 4 - C4: cancelar junção cujo peso alimentou transferência posterior → 409; ordem inversa funciona; cadeia A→B→C idem
+    not ok 5 - C5: origem SEM peso → destino null (nunca zero); pesagem retroativa que tornaria o destino conhecido → 409; sem dependência, pesagem e cancelamento funcionam
+    not ok 6 - C6: concorrência 3× — cancelar pesagem × transferência que lê esse peso: serializa, sem 500, B sempre coerente com A na data
+# tests 11
+# pass 2
+# fail 9
+
+Erros (resumo):
+      error: |-
+        replay órfão: {"lotes":[{"id":"<id>","nome":"COMPRA","sexo":"Macho","origem":null,"status":"Ativo","setor_id":"<id>","categoria":"Boi 25 a 36 meses","chave_nfe":null,"empresa_id":"cmvznppp
+        
+        201 !== 409
+      error: 'Missing expected rejection: reset recusa'
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      stack: |-
+      error: |-
+        Expected values to be strictly equal:
+        
+        undefined !== 1
+      error: |-
+        {"tipo":"Transferência de Área","lote_id":"<id>","area_origem_id":"<id>","area_origem_nome":"PASTO A","data_movimentacao":"2026-11-02","quantidade_animais":5,"empresa_id":"cmvznpqtr004c7dl
+        
+        201 !== 409
+      error: |-
+        {"movimentacao":{"lote":"LOTE","tipo":"Pesagem","linhas":[{"lote_id":"<id>","ganho_kg":100,"lote_nome":"LOTE","posicao_id":"<id>","peso_novo_kg":500,"lote_entrada_id":"cmvznprfg00657dlup35rs
+        
+        200 !== 409
+      error: |-
+        {"evento":{"id":"<id>","tipo":"PESAGEM","data_operacional":"2026-11-01"},"movimentacao":{"lote":"LOTE","tipo":"Pesagem","linhas":[{"lote_id":"<id>","ganho_kg":100,"lote_nome":"LOTE","posicao
+        
+        201 !== 409
+      error: |-
+        {"movimentacao":{"lote":"L1","tipo":"Junção de Lotes","juncao":{"principal":{"nome":"L1","lote_id":"<id>","posicao_id":"<id>","numero_lote":"1","peso_antes_kg":400,"peso_depois_kg":375,"lo
+        
+        200 !== 409
+      error: |-
+        {"evento":{"id":"<id>","tipo":"PESAGEM","data_operacional":"2026-11-01"},"movimentacao":{"lote":"LOTE","tipo":"Pesagem","linhas":[{"lote_id":"<id>","ganho_kg":null,"lote_nome":"LOTE","posica
+        
+        201 !== 409
+      error: |-
+        rodada 1
+        + actual - expected
+        

@@ -1,0 +1,44 @@
+RED no HEAD ce1ab5b19fc9569eade6d7ee481a9b01862522d8 (PostgreSQL 16 local descartável + HTTP autenticado), antes de qualquer correção
+    not ok 1 - P1.1 (hipótese): pesagem dia 05; depois transferência TOTAL retroativa dia 01 → 409 com evento/posição/área/data; nada gravado
+    ok 2 - P1.2 controles: parcial deixando cabeças (201); retirada de outra posição sem pesagem (201); pesagem de outra área não bloqueia
+    not ok 3 - P1.3 morte, abate e mudança de categoria retroativos que zeram a posição pesada → 409; cancelada a pesagem, passam
+    ok 4 - P1.4 mesmo dia: pesagem registrada ANTES da transferência total do dia (ordem de registro) → aceita; pesagem registrada DEPOIS na posição vazia → recusa na criação
+    not ok 5 - P1.5 cancelar a ENTRADA de reforço que sustentava a pesagem → 409; cancelar transferência que esvaziou e depois pesar e recancelar: coerente
+    not ok 1 - P2.1 (hipótese): nascimento dia 05; depois transferência retroativa de TODAS as vacas dia 01 → 409 com posições maternas/área/data
+    not ok 2 - P2.2 várias posições maternas: remover UMA (outra certificada segue com cabeças) → 201; remover todas → 409; nascimento cancelado não bloqueia
+    not ok 3 - P2.3 controles: retirada parcial que mantém matrizes (201); vacas que CHEGAM depois não “salvam” nascimento sem as certificadas
+    not ok 1 - P3.1 (hipótese): Entrada + Renomear Lote com campos materiais → 409, nada gravado; renomeação real passa; posição no lugar do cadastro → 409
+    ok 2 - P3.2 empresa LEGADA: renomeação do formulário antigo (com quantidade) segue aceita
+# tests 10
+# pass 3
+# fail 7
+
+Erros (resumo, ids anonimizados):
+      error: |-
+        {"evento":{"id":"<id>","tipo":"TRANSFERENCIA","data_operacional":"2026-11-01","registrado_em":"2026-11-03T00:16:28.025Z"},"movimentacao":{"lote":"LOTE","tipo":"Transferên
+        
+        201 !== 409
+      error: |-
+        {"evento":{"id":"<id>","tipo":"MORTE","data_operacional":"2026-11-01"},"movimentacao":{"lote":"LOTE","tipo":"Morte","baixa":{"lotes":[{"nome":"LOTE","lote_id":"cmvzxtn4100
+        
+        201 !== 409
+      error: |-
+        {"movimentacao":{"lote":"LOTE","tipo":"Transferência de Área","linhas":[{"nome":"LOTE","sexo":"Macho","categoria":"Boi 25 a 36 meses","quantidade":40,"area_origem_id":"cmvzxtns7008a7d8n4dozh
+        
+        200 !== 409
+      error: |-
+        {"evento":{"id":"<id>","tipo":"TRANSFERENCIA","data_operacional":"2026-11-01","registrado_em":"2026-11-03T00:16:30.587Z"},"movimentacao":{"lote":"VACAS","tipo":"Transferê
+        
+        201 !== 409
+      error: |-
+        {"evento":{"id":"<id>","tipo":"TRANSFERENCIA","data_operacional":"2026-11-02","registrado_em":"2026-11-03T00:16:31.140Z"},"movimentacao":{"lote":"VACAS2","tipo":"Transfer�
+        
+        201 !== 409
+      error: |-
+        {"evento":{"id":"<id>","tipo":"TRANSFERENCIA","data_operacional":"2026-11-02","registrado_em":"2026-11-03T00:16:31.643Z"},"movimentacao":{"lote":"VACAS","tipo":"Transferê
+        
+        201 !== 409
+      error: |-
+        {"lote":"NOVO","tipo":"Entrada","motivo":"Renomear Lote","lote_id":"<id>","observacoes":"Renomear Lote: \"LOTE\" → \"NOVO\"","data_movimentacao":"2026-11-02","quantidade
+        
+        201 !== 409

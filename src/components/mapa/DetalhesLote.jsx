@@ -4,28 +4,15 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
 import {
-  listarLotesDaEmpresa,
   listarProdutosDaEmpresa,
-  criarLote,
-  atualizarLote,
-  criarMovimentacao,
   criarEventoSuplementacao,
   registrarSuplementacaoEmLote,
-  registrarManejoLote,
 } from "@/services/loteManejoService";
-import {
-  encontrarLoteDestinoCompativel,
-  modoDaMovimentacao,
-  saldoEStatusDaOrigem,
-  quantidadeAplicavel,
-  areaPorId,
-  comEstadoEsperado,
-} from "@/domain/lotes/movimentacaoLote";
+import { areaPorId } from "@/domain/lotes/movimentacaoLote";
 import { listarIconesPorTipoEntidade } from "@/services/mapaService";
 import { getCurrentUser } from "@/services/sessionService";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getMapaCachedData, refreshMapaCacheEntry } from "@/services/mapaCacheService";
-import { toNoonUtcISOString } from "../utils/pecuariaUtils";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -54,34 +41,32 @@ import ResumoSuplementacao from "../suplementacao/ResumoSuplementacao";
 import InformacoesArea from "./InformacoesArea";
 import { Progress } from "@/components/ui/progress";
 import { AlertTriangle } from "lucide-react";
-import { validarOrdemTemporalLote, validarOrdemTemporalLotes } from "../lotes/manejoValidations.jsx";
-import { corpoNascimento, corpoPesagem, corpoMudancaCategoria, corpoJuncao, corpoBaixa, previaJuncao } from "@/domain/lotes/manejoRebanho";
-import { enviarManejoRebanho, enviarJuncaoLotes, enviarBaixaRebanho, mensagemDoErro } from "@/services/manejoRebanhoService";
+import { corpoNascimento, corpoPesagem, corpoMudancaCategoria, corpoJuncao, corpoBaixa, previaJuncao, corpoTransferenciaLedger, ehPosicaoDoLedger } from "@/domain/lotes/manejoRebanho";
+import { enviarManejoRebanho, enviarJuncaoLotes, enviarBaixaRebanho, enviarTransferenciaLedger, mensagemDaTransferenciaLedger, mensagemDoErro, codigoDoErro, MENSAGENS_MANEJO_REBANHO } from "@/services/manejoRebanhoService";
 import { escopoDoUsuario } from "../lotes/CancelarMovimentacao";
 import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 
 /**
- * R2A-R1 (D-PROD-99a): online, Morte/Abate/Transferência vão pelo comando
- * atômico do servidor (efeito calculado e gravado numa transação, com
- * proveniência para o cancelamento). Offline segue o fluxo legado — sem
- * proveniência, portanto sem cancelamento — e todo PATCH de saldo/posição leva
- * o estado lido (`comEstadoEsperado`).
+ * Contrato do dono (D-PROD-107): `Lote` é só o cadastro de ENTRADA. O navegador
+ * nunca grava efeito de manejo em Lote — nada de PATCH de saldo/área/status,
+ * lote derivado ou fallback com várias requisições. Todo manejo do mapa vai pelos
+ * comandos do servidor, que só rodam no ledger (empresa ativada: o mapa entrega
+ * POSIÇÕES). Empresa ainda não migrada: o manejo é recusado aqui, sem requisição
+ * (o servidor responderia 409 REBANHO_CUTOVER_PENDENTE).
  */
-const usarComandoDoServidor = () => typeof navigator === "undefined" || navigator.onLine !== false;
-
-/** Chave idempotente estável por envio do formulário + tipo + lote (reenvio do mesmo envio não duplica). */
-const chaveDeManejo = (formData, tipo, loteId, extra = "") => {
-  if (!formData.__chaveManejo) {
-    formData.__chaveManejo =
-      typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  }
-  return `manejo-${formData.__chaveManejo}-${tipo}-${loteId}${extra ? `-${String(extra).replace(/[^A-Za-z0-9_.:-]/g, "")}` : ""}`;
+const recusarManejoSemLedger = () => {
+  toast.error(MENSAGENS_MANEJO_REBANHO.REBANHO_CUTOVER_PENDENTE);
 };
 
-/** PATCH de lote com o estado lido (compare-and-swap no servidor). */
-const atualizarLoteSeguro = (loteLido, patch) => atualizarLote(loteLido.id, comEstadoEsperado(loteLido, patch));
-
 export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
+  /** R2E-P1 (D-PROD-107): o mapa entregou POSIÇÕES do ledger (empresa ativada), não Lotes. */
+  const modoLedger = (lotes || []).some(ehPosicaoDoLedger);
+  const transferenciaEmAndamento = useRef(false);
+  /** PR174-R1: aviso quando a transferência gravou e o passo das sobras falhou. */
+  const avisoSobrasLedger = useRef(/** @type {string|null} */ (null));
+  // PR174-R1 (D-PROD-107): no ledger TODOS os manejos (Morte, Abate, Nascimento,
+  // Pesagem, Mudança de Categoria, Junção, Transferência) vão pelos mesmos
+  // comandos atômicos do servidor, que operam sobre as POSIÇÕES desta área.
   const empresaSelecionadaId = useEmpresaSelecionadaId();
   const [showMovimentacao, setShowMovimentacao] = useState(false);
   const [showMorte, setShowMorte] = useState(false);
@@ -94,11 +79,11 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
   const [showRenomear, setShowRenomear] = useState(false);
   const [novoNomeLote, setNovoNomeLote] = useState('');
   const [loteParaRenomear, setLoteParaRenomear] = useState(null);
-  const [showConfirmPesagem, setShowConfirmPesagem] = useState(false);
-  const [lotesAtualizados, setLotesAtualizados] = useState(null);
-  const [movimentacaoPendente, setMovimentacaoPendente] = useState(null);
-  const [registrarPesagemAposMovimentacao, setRegistrarPesagemAposMovimentacao] = useState(false);
-  const [movimentacoesCriadasIds, setMovimentacoesCriadasIds] = useState([]);
+  /** Chave da transferência do ledger: nasce na 1ª confirmação e morre quando o diálogo Mover fecha. */
+  const chaveTransferenciaLedger = useRef(null);
+  useEffect(() => {
+    if (!showMovimentacao) chaveTransferenciaLedger.current = null;
+  }, [showMovimentacao]);
   const [progresso, setProgresso] = useState({ show: false, atual: 0, total: 0, mensagem: '' });
   const [showJuntarLotes, setShowJuntarLotes] = useState(false);
   const [lotePrincipalJuncao, setLotePrincipalJuncao] = useState(null);
@@ -108,9 +93,22 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
   const queryClient = useQueryClient();
   const { data: user } = useQuery({ queryKey: ['detalhes-lote-user'], queryFn: () => getCurrentUser(), staleTime: 10 * 60 * 1000 });
 
+  /** Abre o formulário de um manejo; sem ledger (empresa não migrada) recusa sem requisição. */
+  const abrirManejo = (abrir) => {
+    if (!modoLedger) {
+      recusarManejoSemLedger();
+      return;
+    }
+    abrir(true);
+  };
+
   // Listener para abrir movimentação via drag-and-drop
   React.useEffect(() => {
     const handleOpenMovimentacao = (e) => {
+      if (!modoLedger) {
+        recusarManejoSemLedger();
+        return;
+      }
       setAreaDestinoPreSelecionada(e?.detail?.areaDestinoId || null);
       setShowMovimentacao(true);
     };
@@ -119,7 +117,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
     return () => {
       window.removeEventListener('open-movimentacao', handleOpenMovimentacao);
     };
-  }, []);
+  }, [modoLedger]);
 
   const { data: iconesConfig = [] } = useQuery({
     queryKey: ['configuracao-icones-global'],
@@ -169,16 +167,6 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
 
   const areaAtual = areas.find((a) => a.id === lotes[0]?.area_atual_id) || { nome: lotes[0]?.area_atual_nome || 'Desconhecida' };
 
-  const atualizarLoteDestinoLocal = (lista, loteAtualizado) => {
-    if (!loteAtualizado?.id) return;
-    const index = lista.findIndex((item) => item.id === loteAtualizado.id);
-    if (index >= 0) {
-      lista[index] = loteAtualizado;
-      return;
-    }
-    lista.push(loteAtualizado);
-  };
-
   // Buscar todos os lotes ativos na mesma área (para métricas da área)
   const { data: todosLotesNaArea = [], isLoading: loadingLotesArea } = useQuery({
     queryKey: ['mapa-lotes', empresaSelecionadaId],
@@ -206,6 +194,9 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
   const movimentacaoMutation = useMutation({
     mutationFn: async (formData) => {
       console.log('🔄 INICIANDO MOVIMENTAÇÃO');
+      if (!modoLedger) {
+        throw Object.assign(new Error('cutover-pendente'), { mensagemTela: MENSAGENS_MANEJO_REBANHO.REBANHO_CUTOVER_PENDENTE });
+      }
       // O cache de áreas pode não ter a área criada há pouco (caso real: destino
       // gravado com id certo e nome vazio). Faltando alguma, relê as áreas.
       let areasConhecidas = areas;
@@ -220,233 +211,20 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
           queryClient.setQueryData(['mapa-areas', empresaSelecionadaId], frescas);
         }
       }
-      const areaSaida = areaPorId(areasConhecidas, formData.area_saida_id);
       const areaEntrada = areaPorId(areasConhecidas, formData.area_entrada_id);
-      const movimentacoesCriadas = [];
-      const todosLotesSistema = await listarLotesDaEmpresa(empresaSelecionadaId);
-      const lotesDestinoAtivos = todosLotesSistema.filter((l) =>
-      l.area_atual_id === formData.area_entrada_id &&
-      l.status === 'Ativo'
-      );
-      const lotesOrigemLocais = lotes.map((lote) => ({ ...lote }));
-      const atualizarLoteOrigemLocal = (loteId, changes) => {
-        const index = lotesOrigemLocais.findIndex((item) => item.id === loteId);
-        if (index >= 0) {
-          lotesOrigemLocais[index] = { ...lotesOrigemLocais[index], ...changes };
-        }
-      };
-      /** R2A-R1: transferência num comando atômico; o servidor decide o modo e grava a proveniência. */
-      const transferirPeloServidor = async (lote, quantidade, loteExistente, categoria, observacoes, extraChave) => {
-        const dadosForm = /** @type {any} */ (formData);
-        const resposta = /** @type {any} */ (await registrarManejoLote({
-          operation_id: chaveDeManejo(dadosForm, 'transferencia', lote.id, extraChave),
-          tipo: 'Transferência de Área',
-          empresa_id: empresaSelecionadaId,
-          lote_id: lote.id,
-          quantidade_animais: Number(quantidade),
-          data_movimentacao: toNoonUtcISOString(dadosForm.data_movimentacao),
-          area_destino_id: dadosForm.area_entrada_id,
-          ...(loteExistente ? { lote_destino_id: loteExistente.id } : {}),
-          ...(categoria ? { categoria_animal: categoria } : {}),
-          observacoes,
-          ...(user?.email ? { usuario_responsavel: user.email } : {}),
-        }));
-        for (const atualizado of resposta?.lotes || []) {
-          if (atualizado.id === lote.id) atualizarLoteOrigemLocal(atualizado.id, atualizado);
-          if (atualizado.area_atual_id === dadosForm.area_entrada_id && atualizado.status === 'Ativo') {
-            atualizarLoteDestinoLocal(lotesDestinoAtivos, atualizado);
-          }
-        }
-        if (resposta?.movimentacao) movimentacoesCriadas.push(resposta.movimentacao);
-      };
-      const localizarDestinoCompativel = (loteOrigem, categoriaMovimento) =>
-        encontrarLoteDestinoCompativel(lotesDestinoAtivos, {
-          loteOrigem,
-          categoriaMovimento,
-          areaDestinoId: formData.area_entrada_id,
-        });
 
-      // Movimentação - os eventos já foram fechados no FormularioMovimentacaoLote
-      if (formData.mover_todos === 'sim') {
-        await validarOrdemTemporalLotes({
-          empresaId: empresaSelecionadaId,
-          lotes,
-          dataReferencia: formData.data_movimentacao
-        });
-
-        for (const lote of lotes) {
-          const categoriaMovimento = (lote.categoria || '').toUpperCase();
-          const loteExistente = localizarDestinoCompativel(lote, categoriaMovimento);
-          const identificadorPayload = {
-            identificador_nome: lote.identificador_nome || null,
-            identificador_sigla: lote.identificador_sigla || null,
-            identificador_cor: lote.identificador_cor || null,
-          };
-
-          if (usarComandoDoServidor()) {
-            await transferirPeloServidor(lote, lote.quantidade_cabecas, loteExistente, lote.categoria, `Movimentação completa do lote - ${lote.quantidade_cabecas} cabeças`, 'todos');
-            continue;
-          }
-          if (loteExistente) {
-            const loteDestinoAtualizado = await atualizarLoteSeguro(loteExistente, {
-              quantidade_cabecas: (loteExistente.quantidade_cabecas || 0) + (lote.quantidade_cabecas || 0),
-              ...identificadorPayload
-            });
-            atualizarLoteDestinoLocal(lotesDestinoAtivos, loteDestinoAtualizado);
-            await atualizarLoteSeguro(lote, { status: 'Inativo', quantidade_cabecas: 0 });
-          } else {
-            await atualizarLoteSeguro(lote, {
-              area_atual_id: formData.area_entrada_id,
-              area_atual_nome: areaEntrada?.nome || ''
-            });
-          }
-
-          const movimentacaoCriada = await criarMovimentacao({
-            empresa_id: empresaSelecionadaId,
-            data_movimentacao: toNoonUtcISOString(formData.data_movimentacao),
-            tipo: 'Transferência de Área',
-            lote: lote.nome,
-            lote_id: lote.id,
-            categoria_animal: lote.categoria,
-            quantidade_animais: lote.quantidade_cabecas,
-            area_origem_id: formData.area_saida_id,
-            area_origem_nome: areaSaida?.nome || '',
-            area_destino_id: formData.area_entrada_id,
-            area_destino_nome: areaEntrada?.nome || '',
-            usuario_responsavel: user?.email || null,
-            observacoes: `Movimentação completa do lote - ${lote.quantidade_cabecas} cabeças`
-          });
-          movimentacoesCriadas.push(movimentacaoCriada);
-        }
-      } else {
-        for (const mov of formData.movimentacoes) {
-          if (mov.quantidade <= 0) continue;
-
-          const lotesCategoria = lotesOrigemLocais.filter((l) => l.categoria?.toUpperCase() === mov.categoria && (l.quantidade_cabecas || 0) > 0 && l.status === 'Ativo');
-          let quantidadeRestante = Number(mov.quantidade || 0);
-
-          for (const lote of lotesCategoria) {
-            if (quantidadeRestante <= 0) break;
-
-            await validarOrdemTemporalLote({
-              empresaId: empresaSelecionadaId,
-              loteId: lote.id,
-              dataReferencia: formData.data_movimentacao
-            });
-
-            const quantidadeMover = quantidadeAplicavel(quantidadeRestante, lote);
-            if (quantidadeMover <= 0) continue;
-            // Unificação automática: buscar lote com mesmo nome+categoria no destino
-            const loteExistente = localizarDestinoCompativel(lote, mov.categoria);
-            const identificadorPayload = {
-              identificador_nome: lote.identificador_nome || null,
-              identificador_sigla: lote.identificador_sigla || null,
-              identificador_cor: lote.identificador_cor || null,
-            };
-
-            if (usarComandoDoServidor()) {
-              await transferirPeloServidor(lote, quantidadeMover, loteExistente, mov.categoria, `Movimentação parcial - ${quantidadeMover} cabeças de ${mov.categoria}`, mov.categoria);
-              quantidadeRestante -= quantidadeMover;
-              continue;
-            }
-            if (modoDaMovimentacao(quantidadeMover, lote.quantidade_cabecas) === 'total') {
-              if (loteExistente) {
-                // Unificar automaticamente com lote existente de mesmo nome+categoria
-                const loteDestinoAtualizado = await atualizarLoteSeguro(loteExistente, {
-                  quantidade_cabecas: (loteExistente.quantidade_cabecas || 0) + quantidadeMover,
-                  ...identificadorPayload
-                });
-                atualizarLoteDestinoLocal(lotesDestinoAtivos, loteDestinoAtualizado);
-                await atualizarLoteSeguro(lote, { status: 'Inativo', quantidade_cabecas: 0 });
-                atualizarLoteOrigemLocal(lote.id, { status: 'Inativo', quantidade_cabecas: 0 });
-              } else {
-                await atualizarLoteSeguro(lote, {
-                  area_atual_id: formData.area_entrada_id,
-                  area_atual_nome: areaEntrada?.nome || ''
-                });
-                atualizarLoteOrigemLocal(lote.id, {
-                  area_atual_id: formData.area_entrada_id,
-                  area_atual_nome: areaEntrada?.nome || ''
-                });
-              }
-            } else {
-              if (loteExistente) {
-                const loteDestinoAtualizado = await atualizarLoteSeguro(loteExistente, {
-                  quantidade_cabecas: (loteExistente.quantidade_cabecas || 0) + quantidadeMover,
-                  ...identificadorPayload
-                });
-                atualizarLoteDestinoLocal(lotesDestinoAtivos, loteDestinoAtualizado);
-              } else {
-                const novoLote = await criarLote({
-                  empresa_id: empresaSelecionadaId,
-                  nome: lote.nome,
-                  quantidade_cabecas: quantidadeMover,
-                  quantidade_entrada: quantidadeMover,
-                  categoria: lote.categoria,
-                  categoria_entrada: lote.categoria_entrada || lote.categoria,
-                  sexo: lote.sexo,
-                  peso_medio_kg: lote.peso_medio_kg,
-                  peso_entrada_kg: lote.peso_entrada_kg || lote.peso_medio_kg,
-                  idade_media_meses: lote.idade_media_meses,
-                  area_atual_id: formData.area_entrada_id,
-                  area_atual_nome: areaEntrada?.nome || '',
-                  area_entrada_id: formData.area_entrada_id,
-                  area_entrada_nome: areaEntrada?.nome || '',
-                  raca_predominante: lote.raca_predominante,
-                  sistema_produtivo: lote.sistema_produtivo,
-                  categoria_manejo_id: lote.categoria_manejo_id,
-                  categoria_manejo_nome: lote.categoria_manejo_nome,
-                  categoria_manejo_entrada_id: lote.categoria_manejo_entrada_id || lote.categoria_manejo_id,
-                  categoria_manejo_entrada_nome: lote.categoria_manejo_entrada_nome || lote.categoria_manejo_nome,
-                  identificador_nome: lote.identificador_nome || null,
-                  identificador_sigla: lote.identificador_sigla || null,
-                  identificador_cor: lote.identificador_cor || null,
-                  data_entrada: formData.data_movimentacao,
-                  motivo_entrada: 'Outros',
-                  motivo_outros: 'Movimentação parcial',
-                  origem: 'MOVIMENTAÇÃO',
-                  status: 'Ativo'
-                });
-                lotesDestinoAtivos.push(novoLote);
-              }
-
-              const saldoOrigem = saldoEStatusDaOrigem(lote, quantidadeMover);
-              await atualizarLoteSeguro(lote, saldoOrigem);
-              atualizarLoteOrigemLocal(lote.id, saldoOrigem);
-            }
-
-            const movimentacaoCriada = await criarMovimentacao({
-              empresa_id: empresaSelecionadaId,
-              data_movimentacao: toNoonUtcISOString(formData.data_movimentacao),
-              tipo: 'Transferência de Área',
-              lote: lote.nome,
-              lote_id: lote.id,
-              categoria_animal: lote.categoria,
-              quantidade_animais: quantidadeMover,
-              area_origem_id: formData.area_saida_id,
-              area_origem_nome: areaSaida?.nome || '',
-              area_destino_id: formData.area_entrada_id,
-              area_destino_nome: areaEntrada?.nome || '',
-              usuario_responsavel: user?.email || null,
-              observacoes: `Movimentação parcial - ${quantidadeMover} cabeças de ${mov.categoria}`
-            });
-            movimentacoesCriadas.push(movimentacaoCriada);
-
-            quantidadeRestante -= quantidadeMover;
-          }
-
-          if (quantidadeRestante > 0) {
-            throw new Error(`Não foi possível mover toda a quantidade solicitada da categoria ${mov.categoria}.`);
-          }
-        }
-      }
-
-      if (Array.isArray(formData.sobras_destino_aproveitar) && formData.sobras_destino_aproveitar.length > 0) {
+      /**
+       * Sobras do cocho do destino: abre o novo lançamento de suplementação com
+       * a sobra anterior e o vincula às cabeças que ficaram na área de destino.
+       * No ledger (PR174-R1) isto é um PASSO SEPARADO, depois do comando da
+       * transferência: as linhas citam posições e o servidor grava posicao_id +
+       * lote_id da entrada (resolverPosicoesNosDocumentos).
+       */
+      const registrarSobrasNoDestino = async (lotesAtualizadosDestino) => {
         const totalMovimentado = formData.mover_todos === 'sim'
           ? lotes.reduce((sum, lote) => sum + Number(lote.quantidade_cabecas || 0), 0)
           : (formData.movimentacoes || []).reduce((sum, mov) => sum + Number(mov.quantidade || 0), 0);
 
-        const lotesAtualizadosDestino = await listarLotesDaEmpresa(empresaSelecionadaId);
         const produtosEmpresa = await listarProdutosDaEmpresa(empresaSelecionadaId);
         const lotesParaHistoricoSuplementacao = lotesAtualizadosDestino.filter((lote) =>
           lote.area_atual_id === formData.area_entrada_id &&
@@ -511,13 +289,53 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
             })));
           }
         }
+      
+      };
+
+      // R2E-P1 (D-PROD-107): empresa no ledger → UM comando do servidor por
+      // confirmação (posições + quantidades). Sem validação temporal no
+      // navegador (o servidor confere a linha do tempo inteira), sem PATCH/POST
+      // e sem lote derivado. Sem ledger não há caminho de escrita no navegador
+      // (recusado no topo desta função, antes de qualquer requisição).
+      if (modoLedger) {
+        const dadosLedger = /** @type {any} */ (formData);
+        avisoSobrasLedger.current = null;
+        const { corpo, faltando } = corpoTransferenciaLedger({ empresaId: empresaSelecionadaId, areaDestinoId: dadosLedger.area_entrada_id, data: dadosLedger.data_movimentacao, posicoes: lotes, formData: dadosLedger });
+        if (faltando.length || !corpo.itens.length) {
+          throw Object.assign(new Error('ledger'), { mensagemTela: `Quantidade maior que as posições desta área (${faltando.map((f) => `${f.categoria}: faltam ${f.faltam}`).join(', ') || 'nada a mover'}). Nada foi gravado.` });
+        }
+        // Uma chave idempotente por abertura do diálogo: reenvio do MESMO conteúdo
+        // (duplo toque, mesmo depois de o servidor responder) vira replay, nunca 2ª transferência.
+        if (!chaveTransferenciaLedger.current) {
+          chaveTransferenciaLedger.current = `ledger-${typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`}`;
+        }
+        let resposta;
+        try {
+          resposta = /** @type {any} */ (await enviarTransferenciaLedger({ operation_id: chaveTransferenciaLedger.current, ...corpo }, { escopo: escopoDoUsuario(user) }));
+        } catch (erro) {
+          throw Object.assign(new Error('ledger'), { mensagemTela: mensagemDaTransferenciaLedger(erro) });
+        }
+        // A transferência JÁ está gravada. As sobras são um segundo passo
+        // explícito: se falharem, o usuário vê exatamente isso (sem falso
+        // sucesso e sem dizer "nada foi gravado" sobre a transferência).
+        if (Array.isArray(dadosLedger.sobras_destino_aproveitar) && dadosLedger.sobras_destino_aproveitar.length > 0 && !resposta?.replay) {
+          try {
+            const posicoesAtuais = /** @type {any[]} */ ((await refreshMapaCacheEntry('lotes', empresaSelecionadaId, { force: true })) || []);
+            await registrarSobrasNoDestino(posicoesAtuais);
+          } catch (erroSobras) {
+            avisoSobrasLedger.current = `Transferência registrada, mas as sobras do cocho NÃO foram registradas (${/** @type {any} */ (erroSobras)?.message || 'erro'}). Registre a suplementação no cocho do destino.`;
+          }
+        }
+        return resposta?.movimentacao ? [resposta.movimentacao] : [];
       }
-
-      return movimentacoesCriadas;
-
     },
-    onSuccess: async (movimentacoesCriadas, variables) => {
-      toast.success('Gado movido com sucesso!');
+    onSuccess: async () => {
+      if (avisoSobrasLedger.current) {
+        toast.warning(avisoSobrasLedger.current);
+        avisoSobrasLedger.current = null;
+      } else {
+        toast.success('Gado movido com sucesso!');
+      }
       setAreaDestinoPreSelecionada(null);
       setShowMovimentacao(false);
       window.dispatchEvent(new CustomEvent('atualizar-mapa', { detail: { cacheKeys: ['lotes', 'movimentacoes', 'movimentacoesHistorico'] } }));
@@ -525,40 +343,38 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
       queryClient.invalidateQueries({ queryKey: ['mapa-lotes'] });
       queryClient.invalidateQueries({ queryKey: ['mapa-cache', 'lotes'] });
 
-      setMovimentacaoPendente(null);
-      setMovimentacoesCriadasIds((movimentacoesCriadas || []).map((item) => item.id).filter(Boolean));
-
-      if (registrarPesagemAposMovimentacao) {
-        const lotesNovos = await listarLotesDaEmpresa(empresaSelecionadaId);
-        const categoriasMovidas = variables.mover_todos === 'sim' ?
-        [...new Set(lotes.map((l) => (l.categoria || '').toUpperCase()))] :
-        [...new Set((variables.movimentacoes || []).filter((m) => Number(m.quantidade) > 0).map((m) => (m.categoria || '').toUpperCase()))];
-        const nomesOrigem = new Set(lotes.map((l) => l.nome));
-        const lotesDestino = lotesNovos.filter((l) =>
-        l.area_atual_id === variables.area_entrada_id &&
-        l.status === 'Ativo' && (
-        nomesOrigem.has(l.nome) || categoriasMovidas.includes((l.categoria || '').toUpperCase()))
-        );
-        setLotesAtualizados(lotesDestino.length > 0 ? lotesDestino : lotes);
-        setShowPesagem(true);
-        return;
-      }
-
-      setLotesAtualizados(null);
-      setMovimentacoesCriadasIds([]);
       onClose();
     },
     onError: (error) => {
       console.error('❌ Erro:', error);
-      setMovimentacaoPendente(null);
-      setMovimentacoesCriadasIds([]);
-      toast.error('❌ Erro ao mover gado');
+      const codigo = codigoDoErro(error);
+      toast.error(/** @type {any} */ (error)?.mensagemTela || (codigo && MENSAGENS_MANEJO_REBANHO[codigo]) || '❌ Erro ao mover gado');
     }
   });
 
   const handleMovimentacao = async (formData) => {
-    setMovimentacaoPendente(formData);
-    setShowConfirmPesagem(true);
+    // PR174-R1: no ledger a pesagem é o comando próprio (menu Pesar), sobre as posições.
+    // Trava síncrona + espera da mutação: o formulário fica "Movimentando…" até o
+    // servidor responder e um segundo toque não vira segundo envio (achado no E2E).
+    if (modoLedger) {
+      if (transferenciaEmAndamento.current) return;
+      // Offline o React Query PAUSA a mutação (networkMode 'online') e o botão
+      // ficaria "Movimentando…" para sempre: recusa explícita antes de tudo.
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+        toast.error(mensagemDoErro({ code: 'MANEJO_REBANHO_OFFLINE' }));
+        return;
+      }
+      transferenciaEmAndamento.current = true;
+      try {
+        await movimentacaoMutation.mutateAsync(formData);
+      } catch {
+        /* onError já mostrou a mensagem; o diálogo continua aberto */
+      } finally {
+        transferenciaEmAndamento.current = false;
+      }
+      return;
+    }
+    recusarManejoSemLedger();
   };
 
   /**
@@ -572,6 +388,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
   const [enviandoBaixa, setEnviandoBaixa] = useState(false);
   const baixaEmAndamento = useRef(false);
   const executarBaixa = async (tipo, formData, data, fechar) => {
+    if (!modoLedger) return recusarManejoSemLedger();
     // Trava síncrona: duplo clique antes da nova renderização não gera 2º POST.
     if (baixaEmAndamento.current) return;
     baixaEmAndamento.current = true;
@@ -589,7 +406,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
       onClose();
       window.dispatchEvent(new CustomEvent('atualizar-mapa', { detail: { cacheKeys: ['lotes', 'movimentacoes', 'movimentacoesHistorico'] } }));
     } catch (erro) {
-      toast.error(mensagemDoErro(erro));
+      toast.error(mensagemDaTransferenciaLedger(erro));
     } finally {
       baixaEmAndamento.current = false;
       setEnviandoBaixa(false);
@@ -606,6 +423,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
    * aberto para corrigir ou reenviar o MESMO registro (mesma chave).
    */
   const executarManejoRebanho = async (corpo, rotulo, fechar) => {
+    if (!modoLedger) return recusarManejoSemLedger();
     try {
       const resposta = /** @type {any} */ (await enviarManejoRebanho(corpo, { escopo: escopoDoUsuario(user) }));
       toast.success(resposta?.replay ? `${rotulo}: o servidor já tinha este registro (nada duplicado)` : `${rotulo} registrado`);
@@ -613,7 +431,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
       onClose();
       window.dispatchEvent(new CustomEvent('atualizar-mapa', { detail: { cacheKeys: ['lotes', 'movimentacoes', 'movimentacoesHistorico'] } }));
     } catch (erro) {
-      toast.error(mensagemDoErro(erro));
+      toast.error(mensagemDaTransferenciaLedger(erro));
     }
   };
 
@@ -626,6 +444,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
    */
   const [enviandoJuncao, setEnviandoJuncao] = useState(false);
   const confirmarJuncao = async (principal, origens) => {
+    if (!modoLedger) return recusarManejoSemLedger();
     if (enviandoJuncao) return;
     setEnviandoJuncao(true);
     try {
@@ -648,7 +467,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
       onClose();
       window.dispatchEvent(new CustomEvent('atualizar-mapa', { detail: { cacheKeys: ['lotes', 'movimentacoes', 'movimentacoesHistorico'] } }));
     } catch (erro) {
-      toast.error(mensagemDoErro(erro));
+      toast.error(mensagemDaTransferenciaLedger(erro));
     } finally {
       setEnviandoJuncao(false);
     }
@@ -663,16 +482,14 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
     executarManejoRebanho(corpoMudancaCategoria({ empresaId: empresaSelecionadaId, areaId: areaDoManejo(), formData }), 'Mudança de categoria', setShowMudancaCategoria);
 
   const handlePesagem = async (formData) => {
-    const lotesParaPesar = lotesAtualizados || lotes;
+    if (!modoLedger) return recusarManejoSemLedger();
+    const lotesParaPesar = lotes;
     const corpo = corpoPesagem({ empresaId: empresaSelecionadaId, areaId: lotesParaPesar[0]?.area_atual_id, lotes: lotesParaPesar, formData });
     if (!corpo.linhas.length) {
       toast.error('Nenhum lote com peso válido para registrar.');
       return;
     }
-    await executarManejoRebanho(corpo, 'Pesagem', (v) => {
-      setShowPesagem(v);
-      setMovimentacoesCriadasIds([]);
-    });
+    await executarManejoRebanho(corpo, 'Pesagem', setShowPesagem);
   };
 
   if (loadingInicial) {
@@ -780,7 +597,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
           })}
       </div>
 
-      <ResumoSuplementacao lotesIds={lotes.map((l) => l.id)} modo="completo" areaId={lotes[0]?.area_atual_id || ""} />
+      <ResumoSuplementacao lotesIds={lotes.map((l) => l.id)} lotesInformados={modoLedger ? lotes : undefined} modo="completo" areaId={lotes[0]?.area_atual_id || ""} />
 
       <div className="my-1 grid grid-cols-2 md:grid-cols-2 gap-1">
         <DropdownMenu>
@@ -790,7 +607,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-56">
-            {permissions.registrar_abate !== false && <DropdownMenuItem onClick={() => setShowAbate(true)} className="text-xs">Abate</DropdownMenuItem>}
+            {permissions.registrar_abate !== false && <DropdownMenuItem onClick={() => abrirManejo(setShowAbate)} className="text-xs">Abate</DropdownMenuItem>}
             {permissions.juntar_lotes !== false && lotes.length > 1 && (() => {
               const porCategoria = {};
               lotes.forEach((l) => {
@@ -804,6 +621,10 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
               return (
                 <DropdownMenuItem
                   onClick={() => {
+                    if (!modoLedger) {
+                      recusarManejoSemLedger();
+                      return;
+                    }
                     if (categoriasJuntaveis.length === 1) {
                       setCategoriaSelecionadaJuncao(categoriasJuntaveis[0][0]);
                       setLotePrincipalJuncao(null);
@@ -819,12 +640,17 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
                 </DropdownMenuItem>
               );
             })()}
-            {permissions.mover_lotes !== false && <DropdownMenuItem onClick={() => setShowMovimentacao(true)} className="text-xs">Mover</DropdownMenuItem>}
-            {permissions.mudar_categoria_lotes !== false && <DropdownMenuItem onClick={() => setShowMudancaCategoria(true)} className="text-xs">Mudar Categoria</DropdownMenuItem>}
-            {permissions.registrar_nascimento !== false && <DropdownMenuItem onClick={() => setShowNascimento(true)} className="text-xs">Nascimento</DropdownMenuItem>}
-            {permissions.registrar_morte !== false && <DropdownMenuItem onClick={() => setShowMorte(true)} className="text-xs">Morte</DropdownMenuItem>}
-            {permissions.pesar_lotes !== false && <DropdownMenuItem onClick={() => setShowPesagem(true)} className="text-xs">Pesar</DropdownMenuItem>}
+            {permissions.mover_lotes !== false && <DropdownMenuItem onClick={() => abrirManejo(setShowMovimentacao)} className="text-xs">Mover</DropdownMenuItem>}
+            {permissions.mudar_categoria_lotes !== false && <DropdownMenuItem onClick={() => abrirManejo(setShowMudancaCategoria)} className="text-xs">Mudar Categoria</DropdownMenuItem>}
+            {permissions.registrar_nascimento !== false && <DropdownMenuItem onClick={() => abrirManejo(setShowNascimento)} className="text-xs">Nascimento</DropdownMenuItem>}
+            {permissions.registrar_morte !== false && <DropdownMenuItem onClick={() => abrirManejo(setShowMorte)} className="text-xs">Morte</DropdownMenuItem>}
+            {permissions.pesar_lotes !== false && <DropdownMenuItem onClick={() => abrirManejo(setShowPesagem)} className="text-xs">Pesar</DropdownMenuItem>}
             {permissions.renomear_lotes !== false && <DropdownMenuItem onClick={() => {
+              // No ledger, o nome é do cadastro (Cadastro de Lotes); a posição só o exibe.
+              if (modoLedger) {
+                toast.error('No controle por posições, renomeie o lote no Cadastro de Lotes. Nada foi gravado.');
+                return;
+              }
               if (lotes.length === 1) {
                 setLoteParaRenomear(lotes[0]);
                 setNovoNomeLote(lotes[0].nome);
@@ -1008,14 +834,14 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={showPesagem} onOpenChange={(open) => {setShowPesagem(open);if (!open) {setLotesAtualizados(null);setMovimentacoesCriadasIds([]);}}}>
+      <Dialog open={showPesagem} onOpenChange={setShowPesagem}>
         <DialogContent className="max-w-4xl">
           <DialogHeader><DialogTitle>Pesagem</DialogTitle></DialogHeader>
           {showPesagem &&
             <FormularioPesagem
-              lote={lotesAtualizados || lotes}
+              lote={lotes}
               onSubmit={handlePesagem}
-              onCancel={() => {setShowPesagem(false);setLotesAtualizados(null);setMovimentacoesCriadasIds([]);}} />
+              onCancel={() => setShowPesagem(false)} />
 
             }
         </DialogContent>
@@ -1085,40 +911,6 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
         </DialogContent>
       </Dialog>
 
-      {/* Dialog confirmar pesagem antes da movimentação */}
-      <Dialog open={showConfirmPesagem} onOpenChange={setShowConfirmPesagem}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader><DialogTitle className="text-sm">Abrir pesagem depois da movimentação?</DialogTitle></DialogHeader>
-          <p className="text-xs text-slate-600">Depois de confirmar a movimentação, deseja abrir a pesagem dos lotes movimentados?</p>
-          <div className="flex justify-end gap-2 mt-2">
-            <Button
-                variant="outline"
-                size="sm"
-                className="h-8 text-xs"
-                disabled={!movimentacaoPendente || movimentacaoMutation.isPending}
-                onClick={() => {
-                  setRegistrarPesagemAposMovimentacao(false);
-                  setShowConfirmPesagem(false);
-                  movimentacaoMutation.mutate(movimentacaoPendente);
-                }}>
-                
-              Não
-            </Button>
-            <Button
-                size="sm"
-                className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700"
-                disabled={!movimentacaoPendente || movimentacaoMutation.isPending}
-                onClick={() => {
-                  setRegistrarPesagemAposMovimentacao(true);
-                  setShowConfirmPesagem(false);
-                  movimentacaoMutation.mutate(movimentacaoPendente);
-                }}>
-                
-              Sim, Pesar
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
 
     <Dialog open={progresso.show} onOpenChange={() => {}}>

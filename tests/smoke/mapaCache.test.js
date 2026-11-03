@@ -29,6 +29,8 @@ vi.mock('@/apis/mapa', () => ({
 const listMovimentacoesLote = vi.fn(async () => []);
 vi.mock('@/apis/lotes', () => ({
   listLotes: async () => [],
+  // R2E-P1: empresa sem ledger → o loader do mapa cai nos lotes legados.
+  listarPosicoesRebanhoServidor: async () => ({ ativo: false, data_corte: null, itens: [] }),
   listMovimentacoes: (...a) => listMovimentacoesLote(...a),
   listSuplementacaoEventos: async () => [],
   listSuplementacaoLotes: async () => [],

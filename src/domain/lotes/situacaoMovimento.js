@@ -40,7 +40,19 @@ export const tipoCertificado = (mov) =>
 export const COMANDO_BAIXA = 'manejo_mapa_baixa_rebanho';
 const ehBaixaAgregada = (mov) => TIPOS_BAIXA.includes(mov?.tipo) && mov?.efeito_servidor?.comando === COMANDO_BAIXA;
 
+/**
+ * R2E-P1/PR174-R1 (D-PROD-107): movimento do ledger de posições — qualquer
+ * manejo certificado (Transferência, Morte, Abate, Nascimento, Pesagem,
+ * Mudança de Categoria, Junção). A prova é o evento do ledger (`evento_id`) +
+ * a operação idempotente que o servidor confere no cancelamento; não há
+ * `efeitos` por lote (o efeito são as partidas).
+ */
+export const COMANDO_LEDGER = 'rebanho_ledger';
+export const ehMovimentoDoLedger = (mov) =>
+  TIPOS_COM_CANCELAMENTO.includes(mov?.tipo) && mov?.efeito_servidor?.comando === COMANDO_LEDGER && typeof mov?.efeito_servidor?.evento_id === 'string' && mov.efeito_servidor.evento_id !== '';
+
 export const temProvenienciaDoServidor = (mov) => {
+  if (ehMovimentoDoLedger(mov)) return true;
   const ef = mov?.efeito_servidor;
   // Paridade com o servidor (R2A-R2, D-PROD-99b): cada efeito precisa da âncora de auditoria;
   // R2B (D-PROD-101): comando do rebanho + todos os participantes em `lote_ids`.

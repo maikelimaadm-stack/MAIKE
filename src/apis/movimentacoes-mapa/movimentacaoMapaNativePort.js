@@ -79,10 +79,6 @@ export const cancelarMovimentacaoMapaNativa = (id, corpo) =>
     ctx('cancelarMovimentacaoMapa')
   );
 
-/** Comando atômico de manejo (R2A-R1): só online, fora da fila offline. */
-export const executarManejoLoteNativo = (corpo) =>
-  nativeRequest(`${CAMINHO}/comandos/manejo-lote`, { method: 'POST', body: corpo, autenticado: true }, ctx('executarManejoLote'));
-
 /** Comando atômico do rebanho (R2B-P1, D-PROD-101): Nascimento, Pesagem, Mudança de Categoria. Só online. */
 export const executarManejoRebanhoNativo = (corpo) =>
   nativeRequest(`${CAMINHO}/comandos/manejo-rebanho`, { method: 'POST', body: corpo, autenticado: true }, ctx('executarManejoRebanho'));
@@ -94,6 +90,14 @@ export const executarJuncaoLotesNativo = (corpo) =>
 /** Comando atômico de baixa multi-lote — Morte/Abate (R2D-P1, D-PROD-105). Só online. */
 export const executarBaixaRebanhoNativo = (corpo) =>
   nativeRequest(`${CAMINHO}/comandos/baixa-rebanho`, { method: 'POST', body: corpo, autenticado: true }, ctx('executarBaixaRebanho'));
+
+/** R2E-P1 (D-PROD-107): posições do ledger da empresa (`{ativo, data_corte, itens}`). */
+export const listarPosicoesRebanhoNativo = (empresaId) =>
+  nativeRequest(`/rebanho/posicoes?empresa_id=${encodeURIComponent(empresaId)}`, { autenticado: true }, ctx('listarPosicoesRebanho'));
+
+/** R2E-P1: transferência retroativa no ledger (uma confirmação = um POST). Só online. */
+export const executarTransferenciaLedgerNativo = (corpo) =>
+  nativeRequest('/rebanho/comandos/transferencia', { method: 'POST', body: corpo, autenticado: true }, ctx('executarTransferenciaLedger'));
 
 export const elegibilidadeCancelamentoMovimentacaoMapaNativa = (id) =>
   nativeRequest(`${CAMINHO}/${encodeURIComponent(id)}/elegibilidade-cancelamento`, { autenticado: true }, ctx('elegibilidadeCancelamentoMovimentacaoMapa'));

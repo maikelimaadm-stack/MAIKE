@@ -1,0 +1,55 @@
+verify:all local no SHA e58771d (PostgreSQL 16 local descartável, sem processo concorrente no banco):
+  test:gates           PASS           0      69.1s  npm run test:gates
+  governance-paths     PASS           0      144ms  npm run gate:governance-paths
+  package-sync         PASS           0      140ms  npm run gate:package-sync
+  product-scope        PASS           0      528ms  npm run gate:product-scope
+  api-boundary         PASS           0       1.6s  npm run gate:api-boundary
+  native-api           PASS           0      187ms  npm run gate:native-api
+  setor-native         PASS           0      182ms  npm run gate:setor-native
+  marca-native         PASS           0      183ms  npm run gate:marca-native
+  unidade-medida-native PASS           0      168ms  npm run gate:unidade-medida-native
+  tarefa-cadastro-native PASS           0      149ms  npm run gate:tarefa-cadastro-native
+  lote-native          PASS           0      170ms  npm run gate:lote-native
+  lancamento-tarefa-native PASS           0      201ms  npm run gate:lancamento-tarefa-native
+  p52-cadastros-estoque-native PASS           0      215ms  npm run gate:p52-cadastros-estoque-native
+  p54-base44-exit      PASS           0      147ms  npm run gate:p54-base44-exit
+  p55-base44-exit-final PASS           0      176ms  npm run gate:p55-base44-exit-final
+  area-pastagem-native PASS           0      191ms  npm run gate:area-pastagem-native
+  map-geography-native PASS           0      182ms  npm run gate:map-geography-native
+  usuario-admin        PASS           0      141ms  npm run gate:usuario-admin
+  source-closure       PASS           0      187ms  npm run gate:source-closure
+  import-integrity     PASS           0      192ms  npm run gate:import-integrity
+  admin-isolation      PASS           0      188ms  npm run gate:admin-isolation
+  no-secrets           PASS           0       1.2s  npm run gate:no-secrets
+  base44               PASS           0      165ms  npm run gate:base44
+  modelobase1-pecuario PASS           0      139ms  npm run gate:modelobase1-pecuario
+  motorbase1-independence PASS           0      726ms  npm run gate:motorbase1-independence
+  tenancy              PASS           0      191ms  npm run gate:tenancy
+  rebanho-ssot         PASS           0      149ms  npm run gate:rebanho-ssot
+  indices              PASS           0      142ms  npm run gate:indices
+  deploy-migrations    PASS           0      173ms  npm run gate:deploy-migrations
+  supabase-public-grants PASS           0      145ms  npm run gate:supabase-public-grants
+  prisma:generate      PASS           0       2.1s  npm run prisma:generate
+  types                PASS           0      11.7s  npm run gate:types
+  typecheck:backend    PASS           0       7.5s  npm run typecheck:backend
+  lint                 PASS           0      17.4s  npm run lint
+  test:backend         PASS           0     350.7s  npm run test:backend
+  test:smoke           PASS           0      58.2s  npm run test:smoke
+  build                PASS           0      19.9s  npm run build
+  build:admin          PASS           0       1.6s  npm run build:admin
+  admin-isolation:bundles PASS           0      190ms  npm run gate:admin-isolation
+# tests 647
+# pass 647
+# fail 0
+# tests 894
+# pass 889
+# fail 0
+      Tests  1253 passed (1253)
+
+TODAS AS ETAPAS PASSARAM
+
+rc=0
+
+Histórico de CI desta missão:
+- 0cf1527: FAIL — typecheck:backend (JSDoc de violacoesDePrecondicao) → corrigido em 006abd8
+- 006abd8: FAIL — teste R2D D2 com data fixa 2026-11-02 (bomba-relógio do próprio teste, existe na main) → corrigido em e58771d

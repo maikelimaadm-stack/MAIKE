@@ -26,6 +26,7 @@ const SELECAO = Object.freeze({
   area_id: true,
   area_nome: true,
   lote_id: true,
+  posicao_id: true,
   lote_nome: true,
   ponto_suplementacao_id: true,
   coordenadas: true,

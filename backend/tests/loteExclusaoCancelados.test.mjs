@@ -62,15 +62,41 @@ const manejo = (c, corpo) =>
   req('POST', '/movimentacoes-mapa/comandos/manejo-lote', c.tokAdm, {
     operation_id: opId(), empresa_id: c.empresa.id, data_movimentacao: '2026-10-30T12:00:00.000Z', ...corpo,
   });
+/**
+ * PR174-R5: manejo só no ledger. A empresa é ativada (pelas entradas) na
+ * primeira vez que um teste precisa de um manejo; o histórico do lote vem dos
+ * fatos do ledger, e o cadastro (Lote) fica sempre no retrato da entrada.
+ */
+const garantirLedger = async (c) => {
+  if (c.ativo) return;
+  const r = await req('POST', '/rebanho/ativacao', c.tokAdm, { operation_id: opId(), empresa_id: c.empresa.id, modo: 'entradas' });
+  assert.equal(r.statusCode, 201, r.body);
+  c.ativo = true;
+};
+const posicaoDe = async (c, l, area = null) => {
+  await garantirLedger(c);
+  const itens = (await req('GET', `/rebanho/posicoes?empresa_id=${c.empresa.id}&incluir_vazias=true`, c.tokAdm)).json().itens;
+  const p = itens.find((x) => x.lote_entrada_id === l.id && x.area_atual_id === (area?.id ?? l.area_entrada_id ?? l.area_atual_id));
+  assert.ok(p, `posição do lote ${l.id}`);
+  return p;
+};
 const morte = async (c, l, q, tipo = 'Morte') => {
-  const r = await manejo(c, { tipo, lote_id: l.id, quantidade_animais: q });
+  const p = await posicaoDe(c, l);
+  const r = await manejo(c, { tipo, lote_id: p.id, quantidade_animais: q });
   assert.equal(r.statusCode, 201, r.body);
   return r.json().movimentacao;
 };
-const transferir = async (c, l, q, area, loteDestinoId) => {
-  const r = await manejo(c, {
-    tipo: 'Transferência de Área', lote_id: l.id, quantidade_animais: q, area_destino_id: area.id,
-    ...(loteDestinoId ? { lote_destino_id: loteDestinoId } : {}),
+const transferir = async (c, l, q, area) => {
+  const p = await posicaoDe(c, l);
+  const r = await manejo(c, { tipo: 'Transferência de Área', lote_id: p.id, quantidade_animais: q, area_destino_id: area.id });
+  assert.equal(r.statusCode, 201, r.body);
+  return r.json();
+};
+const juntar = async (c, principal, origens, area) => {
+  const pp = await posicaoDe(c, principal, area);
+  const po = await Promise.all(origens.map((o) => posicaoDe(c, o, area)));
+  const r = await req('POST', '/movimentacoes-mapa/comandos/juncao-lotes', c.tokAdm, {
+    operation_id: opId(), empresa_id: c.empresa.id, area_id: area.id, lote_principal_id: pp.id, lote_origem_ids: po.map((x) => x.id), data_movimentacao: '2026-10-30',
   });
   assert.equal(r.statusCode, 201, r.body);
   return r.json();
@@ -170,26 +196,30 @@ describe('LOTES-R1 1 — só histórico cancelado: exclusão LÓGICA', () => {
     assert.equal((await excluir(c, l.id)).statusCode, 204);
   });
 
-  test('parcial com lote novo cancelada: entrada original sai por exclusão lógica; o derivado fica (0/Inativo) e nunca é entrada excluível', async () => {
+  test('transferência parcial cancelada: entrada original sai por exclusão lógica; derivado LEGADO (origem de manejo) nunca é entrada excluível', async () => {
+    // PR174-R5: o derivado é DADO LEGADO pré-existente (base anterior ao ledger), gravado direto no banco.
     const c = await cenario();
     const l = await criarLote(c, { area: c.A, qtd: 100 });
+    const deriv = await criarLote(c, { area: c.B, qtd: 20 });
     const t = await transferir(c, l, 30, c.B);
-    const deriv = t.lotes.find((x) => x.id !== l.id);
+    await prisma().lote.update({ where: { id: deriv.id }, data: { origem: 'MOVIMENTAÇÃO' } });
+    assert.equal((await lote(l.id)).quantidade_cabecas, 100, 'Lote não recebe o manejo');
     assert.equal((await cancelar(c, t.movimentacao.id)).statusCode, 200);
     await exigirTipo(c, l.id, 'exclusao_logica');
     assert.equal((await excluir(c, l.id)).statusCode, 204);
     await exigirBloqueio(c, deriv.id, 'lote_gerado_por_manejo');
     const dv = await lote(deriv.id);
-    assert.deepEqual([dv.quantidade_cabecas, dv.status, dv.origem, dv.quantidade_entrada], [0, 'Inativo', 'MOVIMENTAÇÃO', 30]);
+    assert.deepEqual([dv.quantidade_cabecas, dv.status, dv.origem, dv.quantidade_entrada], [20, 'Ativo', 'MOVIMENTAÇÃO', 20]);
   });
 
-  test('unificação: destino citado só por lote_destino_id/efeitos — ativa bloqueia; cancelada libera os dois', async () => {
+  test('junção: entrada citada só como participante (principal/origem) — ativa bloqueia as duas; cancelada libera as duas', async () => {
     const c = await cenario();
     const o = await criarLote(c, { area: c.A, qtd: 500 });
-    const d = await criarLote(c, { area: c.B, qtd: 100 });
-    const t = await transferir(c, o, 50, c.B, d.id);
+    const d = await criarLote(c, { area: c.A, qtd: 100 });
+    const j = await juntar(c, o, [d], c.A);
     await exigirBloqueio(c, d.id, 'movimentacao_ativa');
-    assert.equal((await cancelar(c, t.movimentacao.id)).statusCode, 200);
+    await exigirBloqueio(c, o.id, 'movimentacao_ativa');
+    assert.equal((await cancelar(c, j.movimentacao.id)).statusCode, 200);
     await exigirTipo(c, d.id, 'exclusao_logica');
     await exigirTipo(c, o.id, 'exclusao_logica');
   });
@@ -202,10 +232,10 @@ describe('LOTES-R1 1 — só histórico cancelado: exclusão LÓGICA', () => {
     assert.equal((await cancelar(c, m.id)).statusCode, 200);
     await morte(c, outro, 5); // ativo, mesmo nome, outro id
     await exigirTipo(c, l.id, 'exclusao_logica');
-    const r = await req('POST', '/movimentacoes-mapa', c.tokAdm, {
-      empresa_id: c.empresa.id, tipo: 'Pesagem', lote: l.nome, quantidade_animais: 1, data_movimentacao: '2026-10-29T12:00:00.000Z',
+    // Registro legado só por NOME (base anterior ao ledger), gravado direto no banco.
+    await prisma().movimentacaoMapa.create({
+      data: { cliente_id: c.cliente.id, empresa_id: c.empresa.id, dados: { tipo: 'Pesagem', lote: l.nome, quantidade_animais: 1, data_movimentacao: '2026-10-29T12:00:00.000Z' } },
     });
-    assert.equal(r.statusCode, 201, r.body);
     await exigirBloqueio(c, l.id, 'vinculo_legado_por_nome');
   });
 });
@@ -224,8 +254,13 @@ describe('LOTES-R1 2 — dependências vivas bloqueiam', () => {
       const l = await criarLote(c, { area: c.A });
       const m = await morte(c, l, 10);
       assert.equal((await cancelar(c, m.id)).statusCode, 200);
-      const r = await req('POST', `/${rota}`, c.tokAdm, { empresa_id: c.empresa.id, lote_id: l.id, lote: l.nome, ...extra });
-      assert.equal(r.statusCode, 201, r.body);
+      if (rota === 'movimentacoes-pecuaria') {
+        // Empresa no ledger não aceita o alias genérico de manejo: o registro é legado (pré-existente).
+        await prisma().movimentacaoPecuaria.create({ data: { cliente_id: c.cliente.id, empresa_id: c.empresa.id, dados: { lote_id: l.id, lote: l.nome, ...extra } } });
+      } else {
+        const r = await req('POST', `/${rota}`, c.tokAdm, { empresa_id: c.empresa.id, lote_id: l.id, lote: l.nome, ...extra });
+        assert.equal(r.statusCode, 201, r.body);
+      }
       await exigirBloqueio(c, l.id, motivo);
     });
   }
@@ -319,14 +354,21 @@ describe('LOTES-R1 4 — lote excluído não recebe nada novo; tenant', () => {
     const c = await cenario();
     const l = await tombstone(c);
     assert.equal((await patch(c, l.id, { peso_medio_kg: 400 })).statusCode, 404);
-    const mm = await req('POST', '/movimentacoes-mapa/comandos/manejo-lote', c.tokAdm, {
-      operation_id: opId(), empresa_id: c.empresa.id, tipo: 'Morte', lote_id: l.id, quantidade_animais: 1, data_movimentacao: '2026-10-30T12:00:00.000Z',
-    });
+    // Pelo id do cadastro (não é posição) → 404; pela posição da entrada excluída (zerada) → recusa; nada gravado.
+    const movsAntes = await prisma().movimentacaoMapa.count({ where: { cliente_id: c.cliente.id } });
+    const mm = await manejo(c, { tipo: 'Morte', lote_id: l.id, quantidade_animais: 1 });
     assert.equal(mm.statusCode, 404, mm.body);
+    const pz = await posicaoDe(c, l);
+    assert.equal(pz.quantidade_cabecas, 0, 'posição da entrada excluída zerada');
+    const mp = await manejo(c, { tipo: 'Morte', lote_id: pz.id, quantidade_animais: 1 });
+    assert.ok([404, 409].includes(mp.statusCode), mp.body);
+    assert.equal(await prisma().movimentacaoMapa.count({ where: { cliente_id: c.cliente.id } }), movsAntes);
     for (const rota of ['movimentacoes-mapa', 'eventos-sanitarios', 'aplicacoes-medicamento', 'manejos-tecnico-rebanho', 'suplementacao-lotes', 'movimentacoes-pecuaria']) {
       const r = await req('POST', `/${rota}`, c.tokAdm, { empresa_id: c.empresa.id, lote_id: l.id, tipo: 'Pesagem', data_movimentacao: '2026-10-30' });
       assert.equal(r.statusCode, 409, `${rota} ${r.body}`);
-      assert.equal(r.json().code, 'LOTE_EXCLUIDO');
+      // Empresa no ledger: o POST genérico de manejo já é recusado antes (só por comando).
+      const aceitos = ['movimentacoes-mapa', 'movimentacoes-pecuaria'].includes(rota) ? ['LOTE_EXCLUIDO', 'REBANHO_LEDGER_SOMENTE_POR_COMANDO'] : ['LOTE_EXCLUIDO'];
+      assert.ok(aceitos.includes(r.json().code), `${rota} ${r.body}`);
     }
   });
 
@@ -364,35 +406,36 @@ describe('LOTES-R1 5 — concorrência real (trava do lote)', () => {
     return l;
   };
 
-  test('exclusão primeiro, manejo depois: tombstone vence; o manejo é recusado; nenhum movimento ativo novo', async () => {
-    const c = await cenario();
-    const l = await preparar(c);
-    const soltar = await segurarLote(l.id);
-    const pd = excluir(c, l.id);
-    await espera(300);
-    const pm = manejo(c, { tipo: 'Morte', lote_id: l.id, quantidade_animais: 1 });
-    await espera(300);
-    await soltar();
-    const [rd, rm] = await Promise.all([pd, pm]);
-    assert.equal(rd.statusCode, 204, rd.body);
-    assert.equal(rm.statusCode, 404, rm.body);
-    assert.equal(await prisma().movimentacaoMapa.count({ where: { cliente_id: c.cliente.id, NOT: { dados: { path: ['situacao'], equals: 'cancelado' } } } }), 0);
-    assert.equal((await lote(l.id)).quantidade_cabecas, 500);
-  });
-
-  test('manejo primeiro, exclusão depois: o manejo vale e a exclusão é bloqueada', async () => {
-    const c = await cenario();
-    const l = await preparar(c);
-    const soltar = await segurarLote(l.id);
-    const pm = manejo(c, { tipo: 'Morte', lote_id: l.id, quantidade_animais: 1 });
-    await espera(300);
-    const pd = excluir(c, l.id);
-    await espera(300);
-    await soltar();
-    const [rm, rd] = await Promise.all([pm, pd]);
-    assert.equal(rm.statusCode, 201, rm.body);
-    assert.equal(rd.statusCode, 409, rd.body);
-    assert.equal((await lote(l.id)).excluido_em, null);
+  test('exclusão × manejo do ledger (3 rodadas, as duas ordens): nunca os dois — tombstone sem movimento ativo novo, ou manejo válido e exclusão bloqueada', async () => {
+    for (let rodada = 0; rodada < 3; rodada += 1) {
+      for (const exclusaoPrimeiro of [true, false]) {
+        await limparBanco();
+        const c = await cenario();
+        const l = await preparar(c);
+        const p = await posicaoDe(c, l);
+        const soltar = await segurarLote(l.id);
+        const primeiro = exclusaoPrimeiro ? excluir(c, l.id) : manejo(c, { tipo: 'Morte', lote_id: p.id, quantidade_animais: 1 });
+        await espera(150);
+        const segundo = exclusaoPrimeiro ? manejo(c, { tipo: 'Morte', lote_id: p.id, quantidade_animais: 1 }) : excluir(c, l.id);
+        await espera(150);
+        await soltar();
+        const [r1, r2] = await Promise.all([primeiro, segundo]);
+        const [rd, rm] = exclusaoPrimeiro ? [r1, r2] : [r2, r1];
+        assert.ok(![rd.statusCode, rm.statusCode].includes(500), `${rd.body} / ${rm.body}`);
+        const ativos = await prisma().movimentacaoMapa.count({ where: { cliente_id: c.cliente.id, NOT: { dados: { path: ['situacao'], equals: 'cancelado' } } } });
+        const t = await lote(l.id);
+        if (rd.statusCode === 204) {
+          assert.notEqual(rm.statusCode, 201, `rodada ${rodada}: exclusão e manejo aceitos juntos`);
+          assert.equal(ativos, 0);
+          assert.ok(t.excluido_em);
+        } else {
+          assert.equal(rd.statusCode, 409, rd.body);
+          assert.equal(rm.statusCode, 201, rm.body);
+          assert.equal(t.excluido_em, null);
+        }
+        assert.equal(t.quantidade_cabecas, 500, 'Lote nunca recebe o manejo');
+      }
+    }
   });
 
   test('registro genérico (sanidade) primeiro, exclusão depois: bloqueada; exclusão primeiro: registro recusado', async () => {

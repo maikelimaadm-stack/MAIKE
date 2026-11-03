@@ -1,0 +1,10 @@
+GREEN R4 (r2eR4ContratoTresResponsabilidades) — 6/6 no código final
+    ok 1 - L1: transferência PARCIAL para pasto sem lote igual → 409 (criaria lote derivado); nada gravado
+    ok 2 - L2: nascimento legado → 409 (criaria lote de nascidos); mudança de categoria PARCIAL → 409
+    ok 3 - L3: cadastro manual com origem de manejo (Movimentação, Mudança de Categoria) → 409; entrada genuína → 201
+    ok 4 - L4 controles legados que NÃO fabricam cadastro seguem: transferência total, morte
+    ok 1 - C1: 500 → 300 A / 200 B; morte 5 em B = 195; pesagem B; nascimento sem Lote; 02 depois 01; junção + cancelamento; Lote 500 intacto
+    ok 2 - C2: posição pública traz os atributos atuais E a proveniência da entrada (raça, sistema, data de entrada); cadastro não muda
+# tests 6
+# pass 6
+# fail 0

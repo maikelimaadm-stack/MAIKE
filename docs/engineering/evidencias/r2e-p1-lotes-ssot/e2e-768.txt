@@ -1,0 +1,36 @@
+PASS tablet-768 formulário de transferência (2026-12-20): sem overflow horizontal — {"sw":768,"cw":768,"l":0,"r":768,"vw":768}
+PASS tablet-768 dia 20: 1 POST do comando do ledger (duplo toque não duplica) — 1 POST
+PASS tablet-768 corpo: posição + quantidade, dia escrito, sem saldo/tenant/lote — {"operation_id":"ledger-5fa26737-e4de-4cf5-9fa5-3ff995e2cf22","empresa_id":"cmvwd6au200037d5t9qk00js3","area_destino_id":"cmvwl7lzw027z7d3tuuidkw9b","data_movimentacao":"2026-12-20T12:00:00.000Z","ite
+PASS tablet-768 sem manejo-lote, PATCH/POST /lotes ou POST genérico
+PASS tablet-768 servidor: A=295 B=167 — 295/167
+PASS tablet-768 formulário de transferência (2026-12-18): sem overflow horizontal — {"sw":768,"cw":768,"l":0,"r":768,"vw":768}
+PASS tablet-768 dia 18 (retroativo, lançado depois): aceito com 1 POST — 218/244
+PASS tablet-768 ledger: a mesma entrada em DUAS posições (A e B), nenhum lote novo
+PASS tablet-768 formulário de transferência (2026-12-19): sem overflow horizontal — {"sw":768,"cw":768,"l":0,"r":768,"vw":768}
+PASS tablet-768 409: mensagem com área e data do saldo negativo (B no dia 19) — Saldo insuficiente em PASTO 56 no dia 19/12/2026. Disponível na data: 77 cab; pedido: 82 cab. Nada foi gravado.
+PASS tablet-768 409: diálogo continua aberto
+PASS tablet-768 409: nada mudou no servidor — 218/244
+PASS tablet-768 área B (pelo mapa) mostra a posição da linhagem com 244 cab — Detalhes do Lote
+Informações da Área: PASTO 56
+Hectares
+96,44 ha
+UA/ha
+2,25
+UA total
+216,89
+Pastagem
+Marandu
+Qtd. Lotes
+1
+Qtd. Cabeças
+244
+Média geral
+400,00 kg
+PASS tablet-768 operação não migrada (Morte): recusa clara, sem requisição
+PASS tablet-768 diálogo de cancelamento: sem overflow horizontal — {"sw":768,"cw":768,"l":162.90008544921875,"r":605.0999145507812,"vw":768}
+PASS tablet-768 cancelamento do dia 18 pela UI → A e B voltam (o dia 20 continua) — 295/167
+PASS tablet-768 Cadastro de Lotes mostra a entrada original (1 cadastro, sem derivado)
+PASS tablet-768 API /lotes/:id: entrada = quantidade original, área de entrada A — [462,true]
+PASS tablet-768 offline: indisponibilidade explícita, sem requisição de escrita — Sem conexão: este manejo (nascimento, pesagem, mudança de categoria, junção, morte ou abate) só pode ser registrado online. Nada foi gravado.
+PASS tablet-768 sem erro de página
+RESUMO tablet-768: 20/20 PASS

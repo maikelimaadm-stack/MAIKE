@@ -1,0 +1,36 @@
+PASS desktop-1440 formulário de transferência (2026-12-20): sem overflow horizontal — {"sw":1440,"cw":1440,"l":280,"r":1160,"vw":1440}
+PASS desktop-1440 dia 20: 1 POST do comando do ledger (duplo toque não duplica) — 1 POST
+PASS desktop-1440 corpo: posição + quantidade, dia escrito, sem saldo/tenant/lote — {"operation_id":"ledger-76c44daa-c2a8-4cb1-ba44-3471ccb86b25","empresa_id":"cmvwd6au200037d5t9qk00js3","area_destino_id":"cmvwl7lys027p7d3tofigw6uq","data_movimentacao":"2026-12-20T12:00:00.000Z","ite
+PASS desktop-1440 sem manejo-lote, PATCH/POST /lotes ou POST genérico
+PASS desktop-1440 servidor: A=641 B=118 — 641/118
+PASS desktop-1440 formulário de transferência (2026-12-18): sem overflow horizontal — {"sw":1440,"cw":1440,"l":280,"r":1160,"vw":1440}
+PASS desktop-1440 dia 18 (retroativo, lançado depois): aceito com 1 POST — 577/182
+PASS desktop-1440 ledger: a mesma entrada em DUAS posições (A e B), nenhum lote novo
+PASS desktop-1440 formulário de transferência (2026-12-19): sem overflow horizontal — {"sw":1440,"cw":1440,"l":280,"r":1160,"vw":1440}
+PASS desktop-1440 409: mensagem com área e data do saldo negativo (B no dia 19) — Saldo insuficiente em PASTO 54 no dia 19/12/2026. Disponível na data: 64 cab; pedido: 69 cab. Nada foi gravado.
+PASS desktop-1440 409: diálogo continua aberto
+PASS desktop-1440 409: nada mudou no servidor — 577/182
+PASS desktop-1440 área B (pelo mapa) mostra a posição da linhagem com 182 cab — Detalhes do Lote
+Informações da Área: PASTO 54
+Hectares
+96,44 ha
+UA/ha
+1,68
+UA total
+161,78
+Pastagem
+Marandu
+Qtd. Lotes
+1
+Qtd. Cabeças
+182
+Média geral
+400,00 kg
+PASS desktop-1440 operação não migrada (Morte): recusa clara, sem requisição
+PASS desktop-1440 diálogo de cancelamento: sem overflow horizontal — {"sw":1440,"cw":1440,"l":496.8391418457031,"r":943.160888671875,"vw":1440}
+PASS desktop-1440 cancelamento do dia 18 pela UI → A e B voltam (o dia 20 continua) — 641/118
+PASS desktop-1440 Cadastro de Lotes mostra a entrada original (1 cadastro, sem derivado)
+PASS desktop-1440 API /lotes/:id: entrada = quantidade original, área de entrada A — [759,true]
+PASS desktop-1440 offline: indisponibilidade explícita, sem requisição de escrita — Sem conexão: este manejo (nascimento, pesagem, mudança de categoria, junção, morte ou abate) só pode ser registrado online. Nada foi gravado.
+PASS desktop-1440 sem erro de página
+RESUMO desktop-1440: 20/20 PASS

@@ -1,0 +1,52 @@
+PASS mobile-412 transferência: sem overflow horizontal — {"sw":412,"cw":412,"l":8,"r":404,"vw":412}
+PASS mobile-412 transferência: 1 POST do ledger, nada legado — 1
+PASS mobile-412 transferência: A=493 B=31 — 493/31
+PASS mobile-412 retroativa dia 18 depois do dia 20: aceita (mesmo peso), A=487 B=37 — 487/37 Gado movido com sucesso!
+PASS mobile-412 morte: sem overflow horizontal — {"sw":412,"cw":412,"l":8,"r":404,"vw":412}
+PASS mobile-412 morte: 1 POST baixa-rebanho, nada legado, toast de sucesso — Morte registrado: 9 cab (R1A mobile-412: 9)
+PASS mobile-412 morte: A=478 — 478
+PASS mobile-412 abate: sem overflow horizontal — {"sw":412,"cw":412,"l":8,"r":404,"vw":412}
+PASS mobile-412 abate retroativo: 1 POST, aceito — Abate registrado: 18 cab (R1A mobile-412: 18)
+PASS mobile-412 abate: A=460 — 460
+PASS mobile-412 abate: corpo com a data retroativa e sem saldo/tenant — {"operation_id":"rebanho-a0113c55-8068-44c4-9f65-6d897c600094","tipo":"Abate","empresa_id":"cmvznzb4400047d3vl57ajnf6","area_id":"cmvzxz7p9000d7dqfv5l7j0r4","da
+PASS mobile-412 mudança de categoria: sem overflow horizontal — {"sw":412,"cw":412,"l":8,"r":404,"vw":412}
+PASS mobile-412 mudança: 1 POST manejo-rebanho; 22 TOURO na mesma linhagem; total de A igual — Mudança de categoria registrado
+PASS mobile-412 pesagem: sem overflow horizontal — {"sw":412,"cw":412,"l":8,"r":404,"vw":412}
+PASS mobile-412 pesagem: 1 POST; peso 432,5 nas posições de A (série de peso no ledger) — Pesagem registrado 432.5,432.5,432.5
+PASS mobile-412 junção: sem overflow horizontal — {"sw":412,"cw":412,"l":8,"r":404,"vw":412}
+PASS mobile-412 junção: 1 POST juncao-lotes; uma posição BOI em A com a linhagem das duas entradas — Lotes unificados: 438 cabeças no lote "R1A mobile-412" 1
+PASS mobile-412 junção: total de A conservado — 460
+PASS mobile-412 nascimento: sem overflow horizontal — {"sw":412,"cw":412,"l":8,"r":404,"vw":412}
+PASS mobile-412 nascimento: 1 POST; posição NASCIDOS com 6 cab, sem entrada (não é compra) — Nascimento registrado
+PASS mobile-412 nascimento: C=70 — 70
+PASS mobile-412 R3: morte retroativa das matrizes do nascimento → recusa com a data do nascimento, nada gravado — O nascimento do dia 21/12/2026 ficaria sem as matrizes registradas nele. Cancele-o antes. Nada foi gravado.
+PASS mobile-412 R3: diálogo continua aberto após o 409
+PASS mobile-412 morte em B antes de o gado chegar: recusa clara, nada gravado — A categoria não tem cabeças suficientes nos lotes ativos desta área. Recarregue o mapa. Nada foi baixado.
+PASS mobile-412 recusa: diálogo continua aberto
+PASS mobile-412 histórico de A lista transferência (2), morte, abate, mudança, pesagem e junção — Histórico da Área PASTO 37 (7)
+Área
+Lotes atuais
+
+Entradas, saídas e manejos registrados nesta área, inclusive de lotes que já saíram.
+
+24/12/2026
+Junção de Lotes
+Manejo
+Ativo
+R1A mobile-412
+Quantidad
+PASS mobile-412 cancelamento: sem overflow horizontal — {"sw":412,"cw":412,"l":8.742988586425781,"r":403.2570266723633,"vw":412}
+PASS mobile-412 cancelamento da morte pela UI → A=469 — 469
+PASS mobile-412 pré-checagem: sem campo de motivo nem POST de cancelamento
+PASS mobile-412 cancelar pesagem com junção posterior dependente: recusa causal explícita (dia 24/12), nada muda — Cancelar movimentação
+
+Pesagem · R1A mobile-412 · 0 cab. O registro original continua no histórico, marcado como cancelado.
+
+O registro do dia 24/12/2026 calculou o peso a partir deste (registrado 432,5 kg; passaria a 39
+PASS mobile-412 offline: indisponibilidade explícita, sem requisição de escrita — Sem conexão: este manejo (nascimento, pesagem, mudança de categoria, junção, morte ou abate) só pode ser registrado online. Nada foi gravado.
+PASS mobile-412 Cadastro R1A mobile-412: Lote = entrada (351 cab, área de entrada), nenhuma escrita de saldo — [351,"Ativo"]
+PASS mobile-412 Cadastro R1B mobile-412: Lote = entrada (173 cab, área de entrada), nenhuma escrita de saldo — [173,"Ativo"]
+PASS mobile-412 Cadastro R1V mobile-412: Lote = entrada (64 cab, área de entrada), nenhuma escrita de saldo — [64,"Ativo"]
+PASS mobile-412 verificação do ledger: íntegro e conservação fecha — {"posicoes":74,"divergentes":[],"pesos_divergentes":[],"negativos":[],"conservacao":{"entradas":8519,"nascimentos":103,"saidas":-170,"internos":0,"saldo":8452,"conserva":true},"precondicoes_violadas":
+PASS mobile-412 sem erro de página
+RESUMO mobile-412: 36/36 PASS

@@ -1,0 +1,5 @@
+PR174-R5 — status remoto (sem segredos)
+REMOTE_MIGRATION_BLOCKED: container sem MIGRATION_DATABASE_URL / MIGRATION_EXPECTED_SYSTEM_IDENTIFIER (0 variáveis MIGRATION_*).
+REMOTE_RESET_BLOCKED: sem CUTOVER_DATABASE_URL / RESET_DATABASE_URL; nenhum reset ou cutover remoto executado.
+Vercel: filter_project_envs → 403 (sem escopo de time); nenhuma configuração de produção alterada.
+Caminho de release: .github/workflows/release-migrate.yml (workflow_dispatch, environment production, SHA + confirmação).

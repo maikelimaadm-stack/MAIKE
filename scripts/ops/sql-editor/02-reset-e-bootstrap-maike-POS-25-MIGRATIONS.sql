@@ -20,11 +20,11 @@
 --   - Tudo roda numa única transação: se o editor não executar o arquivo
 --     inteiro de uma vez, ele para ANTES de alterar qualquer coisa.
 --   - Confere o banco (system_identifier + nome do banco), 25/25 migrations,
---     o conjunto EXATO de 53 tabelas, só tabelas comuns em public, as colunas
+--     o conjunto EXATO de 58 tabelas (53 + 5 do ledger R2E-P1/R1), só tabelas comuns em public, as colunas
 --     cliente_id esperadas, a ordem das FKs, nenhuma linha de tabela
 --     preservada apontando para o tenant, e a impressão do inventário (com as
 --     tabelas travadas contra escrita — mudança desde o 01 = para).
---   - Apaga SOMENTE linhas das 38 tabelas de tenant (por cliente_id) e os
+--   - Apaga SOMENTE linhas das 43 tabelas de tenant (por cliente_id) e os
 --     clientes de teste. Nunca toca _prisma_migrations, catálogo global,
 --     identidade do proprietário (MAIKE Admin), auth, storage, schema, RLS,
 --     grants. Sem DROP/TRUNCATE/DDL.
@@ -54,12 +54,13 @@ DO $maike$
 DECLARE
   -- Ordem segura de exclusão (filha → mãe), conferida contra as FKs reais abaixo.
   c_tenant constant text[] := ARRAY[
+    'HistoricoLancamentoTarefa','LancamentoTarefa','PesoRebanho','PartidaRebanho','EventoRebanho','PosicaoRebanho','RebanhoLedgerAtivacao',
     'AplicacaoMedicamento','AuditLog','Bebedouro','BebedouroAlerta','BebedouroHistorico','BebedouroSanidade',
     'Categoria','CategoriaManejo','ConfiguracaoIcone','Empresa','EntidadeCodigoSequencia','EstoqueLoteNota',
-    'EventoSanitario','Fornecedor','HistoricoLancamentoTarefa','LinhaGeografica','LocalEstoque',
+    'EventoSanitario','Fornecedor','LinhaGeografica','LocalEstoque',
     'ManejoTecnicoRebanho','Marca','MovimentacaoEstoque','MovimentacaoMapa','MovimentacaoPecuaria',
     'OperacaoIdempotente','Permissao','PontoReferencia','PontoSuplementacao','Produto','RegistroAnexo',
-    'SuplementacaoEvento','SuplementacaoLote','UnidadeMedida','LancamentoTarefa','Usuario','Lote',
+    'SuplementacaoEvento','SuplementacaoLote','UnidadeMedida','Usuario','Lote',
     'TipoTarefa','AreaPastagem','GrupoAtividade','Setor'];
   c_preservadas constant text[] := ARRAY[
     'AdminPrincipalMaike','AuditoriaCatalogoGlobal','CatalogoAsset','CatalogoCategoriaVisual','CatalogoIcone',
@@ -127,7 +128,7 @@ BEGIN
     RAISE EXCEPTION 'MAIKE-02: falta tabela esperada em public. Nada foi alterado.';
   END IF;
 
-  -- 4. cliente_id exatamente nas 38 de tenant (+ OperadorProdutoMaike, preservada).
+  -- 4. cliente_id exatamente nas 43 de tenant (+ OperadorProdutoMaike, preservada).
   IF (SELECT array_agg(table_name::text ORDER BY table_name) FROM information_schema.columns
        WHERE table_schema = 'public' AND column_name = 'cliente_id')
      IS DISTINCT FROM (SELECT array_agg(x ORDER BY x) FROM unnest(c_tenant || ARRAY['OperadorProdutoMaike']) x) THEN
@@ -182,12 +183,13 @@ BEGIN
   END IF;
 
   -- 7. Trava as tabelas de tenant contra escrita e confere a impressão do inventário.
-  LOCK TABLE "AplicacaoMedicamento","AuditLog","Bebedouro","BebedouroAlerta","BebedouroHistorico","BebedouroSanidade",
+  LOCK TABLE "HistoricoLancamentoTarefa","LancamentoTarefa","PesoRebanho","PartidaRebanho","EventoRebanho","PosicaoRebanho","RebanhoLedgerAtivacao",
+    "AplicacaoMedicamento","AuditLog","Bebedouro","BebedouroAlerta","BebedouroHistorico","BebedouroSanidade",
     "Categoria","CategoriaManejo","ConfiguracaoIcone","Empresa","EntidadeCodigoSequencia","EstoqueLoteNota",
-    "EventoSanitario","Fornecedor","HistoricoLancamentoTarefa","LinhaGeografica","LocalEstoque",
+    "EventoSanitario","Fornecedor","LinhaGeografica","LocalEstoque",
     "ManejoTecnicoRebanho","Marca","MovimentacaoEstoque","MovimentacaoMapa","MovimentacaoPecuaria",
     "OperacaoIdempotente","Permissao","PontoReferencia","PontoSuplementacao","Produto","RegistroAnexo",
-    "SuplementacaoEvento","SuplementacaoLote","UnidadeMedida","LancamentoTarefa","Usuario","Lote",
+    "SuplementacaoEvento","SuplementacaoLote","UnidadeMedida","Usuario","Lote",
     "TipoTarefa","AreaPastagem","GrupoAtividade","Setor","Cliente" IN EXCLUSIVE MODE;
   SELECT left(md5('v1|'
            || (SELECT string_agg(c.relname, ',' ORDER BY c.relname) FROM pg_class c JOIN pg_namespace ns ON ns.oid = c.relnamespace

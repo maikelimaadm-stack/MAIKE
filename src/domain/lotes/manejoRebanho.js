@@ -143,6 +143,53 @@ export const corpoBaixa = ({ tipo, empresaId, areaId, data, observacoes, linhas,
   }),
 });
 
+/** Posição do ledger (R2E-P1) vinda do mapa, e não um Lote de cadastro? */
+export const ehPosicaoDoLedger = (item) => item?.__posicao === true && typeof item?.id === 'string';
+
+const ordemDasPosicoes = (a, b) => {
+  const n = (p) => (/^\d+$/.test(String(p.numero_lote ?? '')) ? Number(p.numero_lote) : Number.POSITIVE_INFINITY);
+  return n(a) - n(b) || String(a.numero_lote ?? '').localeCompare(String(b.numero_lote ?? '')) || String(a.id).localeCompare(String(b.id));
+};
+
+/**
+ * Transferência no ledger (R2E-P1, D-PROD-107): UMA confirmação = UM corpo com
+ * as posições e quantidades. "Mover todos" leva cada posição inteira; por
+ * categoria, distribui pela ordem estável das posições (número do lote, id).
+ * O servidor revalida tudo contra a linha do tempo; nada aqui é saldo.
+ * @returns {{ corpo: Record<string, any>, faltando: Array<{categoria: string, faltam: number}> }}
+ */
+export const corpoTransferenciaLedger = ({ empresaId, areaDestinoId, data, posicoes, formData }) => {
+  const ativas = (posicoes || []).filter((p) => ehPosicaoDoLedger(p) && Number(p.quantidade_cabecas) > 0);
+  const qtd = new Map();
+  const faltando = [];
+  if (formData?.mover_todos === 'sim') {
+    for (const p of ativas) qtd.set(p.id, Number(p.quantidade_cabecas));
+  } else {
+    for (const mov of formData?.movimentacoes || []) {
+      let restante = Number(mov?.quantidade || 0);
+      if (!(restante > 0)) continue;
+      for (const p of ativas.filter((x) => semAcento(x.categoria) === semAcento(mov.categoria)).sort(ordemDasPosicoes)) {
+        if (restante <= 0) break;
+        const livre = Number(p.quantidade_cabecas) - (qtd.get(p.id) ?? 0);
+        const q = Math.min(livre, restante);
+        if (q <= 0) continue;
+        qtd.set(p.id, (qtd.get(p.id) ?? 0) + q);
+        restante -= q;
+      }
+      if (restante > 0) faltando.push({ categoria: mov.categoria, faltam: restante });
+    }
+  }
+  return {
+    corpo: {
+      empresa_id: empresaId,
+      area_destino_id: areaDestinoId,
+      data_movimentacao: dataOperacional(data),
+      itens: [...qtd.entries()].map(([posicao_id, quantidade]) => ({ posicao_id, quantidade })),
+    },
+    faltando,
+  };
+};
+
 /** Prévia da junção na tela (o servidor recalcula): total e se o peso médio é demonstrável. */
 export const previaJuncao = (lotes) => {
   const lista = Array.isArray(lotes) ? lotes : [];

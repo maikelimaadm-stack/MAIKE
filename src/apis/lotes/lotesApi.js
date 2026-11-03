@@ -16,10 +16,11 @@ import {
   listHistoricoMovimentacoesMapaNativo,
   cancelarMovimentacaoMapa,
   elegibilidadeCancelamentoMovimentacaoMapa,
-  executarManejoLote,
   executarManejoRebanho,
   executarJuncaoLotes,
   executarBaixaRebanho,
+  listarPosicoesRebanho,
+  executarTransferenciaLedger,
 } from '@/apis/movimentacoes-mapa';
 import { ehMovimentoAtivo } from '@/domain/lotes/situacaoMovimento';
 import { listMovimentacoesPecuariaNativas } from '@/apis/movimentacoes-pecuaria';
@@ -128,16 +129,6 @@ export const cancelarMovimentacao = async (id, { operation_id, motivo }) => {
 };
 
 /**
- * Comando atômico de manejo (R2A-R1, D-PROD-99a): Morte, Abate ou Transferência
- * numa transação no servidor. Resposta `{movimentacao, lotes, replay}`.
- */
-export const registrarManejoLoteServidor = async (corpo) => {
-  const contexto = ctx('registrarManejoLote');
-  assertArgument(isObjeto(corpo) && isId(corpo.operation_id) && isId(corpo.lote_id), 'corpo', contexto);
-  return runProviderCall(() => executarManejoLote(corpo), { ...contexto, details: { lote_id: corpo.lote_id } });
-};
-
-/**
  * Comando atômico do rebanho (R2B-P1, D-PROD-101): Nascimento, Pesagem ou
  * Mudança de Categoria com todas as linhas numa transação no servidor.
  * Resposta `{movimentacao, lotes, replay}`. Nunca vai para a fila offline.
@@ -167,6 +158,24 @@ export const registrarBaixaRebanhoServidor = async (corpo) => {
   const contexto = ctx('registrarBaixaRebanho');
   assertArgument(isObjeto(corpo) && isId(corpo.operation_id) && isId(corpo.area_id) && Array.isArray(corpo.linhas), 'corpo', contexto);
   return runProviderCall(() => executarBaixaRebanho(corpo), { ...contexto, details: { area_id: corpo.area_id, tipo: corpo.tipo } });
+};
+
+/**
+ * R2E-P1 (D-PROD-107): posições do ledger. `ativo: false` = empresa ainda no
+ * modelo legado (o mapa lê os lotes como antes). Erro propaga: nunca cai para
+ * o Lote como saldo numa empresa ativada.
+ */
+export const listarPosicoesRebanhoServidor = async (empresaId) => {
+  const contexto = ctx('listarPosicoesRebanho');
+  assertArgument(isId(empresaId), 'empresaId', contexto);
+  return runProviderCall(() => listarPosicoesRebanho(empresaId), { ...contexto, details: { empresa_id: empresaId } });
+};
+
+/** R2E-P1: transferência (multi-posição, retroativa) numa transação do servidor. Nunca vai para a fila offline. */
+export const registrarTransferenciaLedgerServidor = async (corpo) => {
+  const contexto = ctx('registrarTransferenciaLedger');
+  assertArgument(isObjeto(corpo) && isId(corpo.operation_id) && isId(corpo.area_destino_id) && Array.isArray(corpo.itens), 'corpo', contexto);
+  return runProviderCall(() => executarTransferenciaLedger(corpo), { ...contexto, details: { area_destino_id: corpo.area_destino_id } });
 };
 
 export const consultarElegibilidadeCancelamento = async (id) => {

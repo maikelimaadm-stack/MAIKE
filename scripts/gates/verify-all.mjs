@@ -55,6 +55,7 @@ const ETAPAS = [
   ['modelobase1-pecuario', npm('gate:modelobase1-pecuario')],
   ['motorbase1-independence', npm('gate:motorbase1-independence')],
   ['tenancy', npm('gate:tenancy')],
+  ['rebanho-ssot', npm('gate:rebanho-ssot')],
   ['indices', npm('gate:indices')],
   // Depois dos gates de schema e antes de qualquer coisa que toque banco: ele
   // verifica o **caminho** pelo qual a migration chega ao banco, não o schema

@@ -1,0 +1,28 @@
+PR174-R6 verify:all local no HEAD 58d8f1e — TODAS AS ETAPAS PASSARAM
+# tests 680
+# pass 680
+# fail 0
+# skipped 0
+# todo 0
+# tests 728
+# pass 723
+# fail 0
+# skipped 0
+# todo 5
+      Tests  1275 passed (1275)
+
+RED no código R5 (e90a02d):
+    not ok 1 - A1: falha DENTRO da ativação depois do reset → ROLLBACK total (0 exclusões, Lotes idênticos, sem ativação); o backup é a cópia do pré-estado
+    not ok 1 - D1: documento de outro módulo cita (por id) a posição CRIADA pela transferência → 409 com tipo/id; saldo intacto; elegibilidade igual; removido o documento, cancela
+
+GREEN R6:
+    ok 1 - A1: falha DENTRO da ativação depois do reset → ROLLBACK total (0 exclusões, Lotes idênticos, sem ativação); o backup é a cópia do pré-estado
+    ok 2 - A2: sucesso → reset + ativação num COMMIT; acesso/senhas/permissões/empresa/áreas preservados; outro tenant e outra empresa intocados; reexecução = no-op sem backup
+    ok 3 - A3: backup falha ou não confere → aborta ANTES do DELETE; nada muda
+    ok 4 - A4: vínculo de outro módulo citando o movimento a apagar → RESET_VINCULOS_PENDENTES, nada muda (nem ativação)
+    ok 5 - A5: escopo/confirmação/administrador/estratégia validados antes de qualquer escrita
+    ok 6 - A6: disputa REAL (duas conexões): cadastro de lote e PATCH concorrentes esperam o corte; depois, o lote novo tem posição e o PATCH de saldo é recusado — sem drift
+    ok 7 - A7: manifesto detecta backup adulterado
+    ok 1 - D1: documento de outro módulo cita (por id) a posição CRIADA pela transferência → 409 com tipo/id; saldo intacto; elegibilidade igual; removido o documento, cancela
+    ok 2 - D2: documento que cita o PRÓPRIO movimento bloqueia; documento sem vínculo real (posição que já existia, outro id) NÃO bloqueia
+    ok 3 - D3: fato posterior do ledger na posição criada (pesagem/morte) bloqueia; cancelar o posterior e depois o anterior → sucesso; cadastro de entrada imutável

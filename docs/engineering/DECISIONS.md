@@ -4251,7 +4251,228 @@ Relatório: `docs/engineering/UX-MOBILE-V2-REPORT.md` (seção V9). Teste: `test
   - **Barras de rolagem:** no Chrome, Edge e Safari, `scrollbar-width`/`scrollbar-color` deixam de anular o `::-webkit-scrollbar`. Toda área rola com a mesma barra de 8 px cinza arredondada. As áreas que escondem a barra continuam escondendo.
 - **Consequência:** celular e desktop compartilham o visual das listas, mas cada um mantém sua estrutura.
 
-## D-PROD-107 — Importação KML: nome de verdade quando `<name>` é código do aplicativo
+## D-PROD-107 — Ledger do rebanho por posição: cadastro de entrada × posições × movimentações, com transferência retroativa (R2E-P1)
+
+**Contexto:** `Lote` misturava o cadastro da entrada (quantidade, data e área de entrada, compra) com o saldo operacional (`quantidade_cabecas`, `area_atual_id`, status). Uma linha só admite uma área, então cada transferência parcial fabricava um Lote `origem: 'MOVIMENTAÇÃO'`, que poluía o cadastro.
+- A ordem temporal era do navegador:
+  - teto de 200 registros;
+  - comparação meia-noite × meio-dia;
+  - recusa por ordem de lançamento.
+- O servidor só olhava o saldo de hoje.
+- RED na main `f7a8ea3`, 3/3:
+  - **R1:** 500 em A, transferência de 100 no dia 02 e depois de 100 no dia 01 → 3 linhas em `Lote` (2 derivadas), e a tela recusaria o dia 01.
+  - **R2:** uma segunda transferência no mesmo dia é bloqueada pela tela.
+  - **R3:** B→C no dia 01 é aceito com B tendo recebido animais só no dia 05.
+
+**Decisão:** três responsabilidades e UMA fonte de verdade por empresa ATIVADA.
+- **Cadastro (`Lote`):** só a ENTRADA. Na empresa ativada, `POST /lotes` grava o Lote e, na mesma transação, o evento `ENTRADA` e a posição. `PATCH` de saldo, área, status, classificação ou data de entrada → 409 `REBANHO_LEDGER_SALDO_SOMENTE_POR_EVENTO`. Nome e identificação propagam às posições, só para exibição. Nenhuma movimentação cria ou altera `Lote`.
+- **Ledger (autoritativo):** `EventoRebanho` é o fato imutável, com `data_operacional` (dia), `registrado_em`, autor, `operation_id` e situação. `PartidaRebanho` é o delta por posição no dia do evento. Cancelar marca o evento `cancelado` e desativa as partidas; nada é apagado nem tem a data reescrita.
+- **Posição (`PosicaoRebanho`):** projeção do saldo atual (soma das partidas ativas), recalculada a cada escrita e verificável (`GET /rebanho/verificacao`).
+  - Identidade = linhagem de entrada + categoria + sexo + categoria de manejo, por área. Nunca o nome; homônimos não colidem.
+  - A mesma entrada vive em várias áreas ao mesmo tempo; o retorno volta à mesma posição.
+  - `linhagem` guarda a composição: entrada, ou `derivado_legado` na abertura.
+- **Disponibilidade por DIA:** o saldo de cada posição no FIM de cada dia tem de ser ≥ 0 em toda a linha do tempo.
+  - Eventos do mesmo dia valem juntos: sem ordem de digitação, sem meia-noite × meio-dia.
+  - Fato retroativo é aceito se nenhum fim de dia, dele em diante, ficar negativo.
+  - Senão → 409 `REBANHO_SALDO_HISTORICO_NEGATIVO` com `data`, `area_nome`, `disponivel`, `pedido` e `saldo_resultante`; rollback total.
+  - Consulta por janela no banco, sem teto: 2.000+ partidas validadas em ~34 ms com índice `(cliente_id, posicao_id, data_operacional)`.
+- **Transferência:** `POST /rebanho/comandos/transferencia` com `{operation_id, empresa_id, area_destino_id, data_movimentacao, itens[{posicao_id, quantidade}]}` e schema estrito.
+  - Uma confirmação = uma transação = um evento.
+  - Partidas −q na origem e +q na posição da mesma identidade no destino.
+  - Peso é atributo atual: destino novo herda; destino com cabeças só tem média se os dois pesos forem conhecidos; senão `null`.
+  - Ponte de histórico: um `MovimentacaoMapa` com `efeito_servidor.comando = 'rebanho_ledger'` + `evento_id`, citando a entrada e as posições.
+- **Cancelamento:** mesmo endpoint, só administrador ativo, idempotente. Desativa as partidas e revalida a linha do tempo de todas as posições tocadas. Fato posterior dependente → 409 `CANCELAMENTO_SALDO_HISTORICO_NEGATIVO` com a data; a elegibilidade é ensaiada em SAVEPOINT. Cancelar duas vezes → `CANCELAMENTO_JA_REALIZADO`.
+- **Ativação por empresa (`POST /rebanho/ativacao`):** só administrador, idempotente.
+  - Exige data de corte ≥ último movimento legado ativo e todo lote ativo com área.
+  - Cada lote ativo com saldo vira uma posição com evento `SALDO_ABERTURA` no dia do corte. Nada é apagado nem alterado em `Lote`.
+  - Fatos antes do corte → 409 `REBANHO_ANTES_DO_CORTE`.
+  - Escolhemos migração preservadora em vez de reset de dados de teste: não foi preciso destruir nada.
+- **Travas:** área (ordem de id) → posições (ordem de id).
+  - A exclusão do cadastro trava as áreas antes do Lote.
+  - O PATCH de Lote usa `FOR NO KEY UPDATE`.
+  - Isso eliminou o deadlock 40P01 visto em teste: DELETE × transferência via KEY SHARE da FK posição → lote.
+- **Fail-closed (cobertura desta fase):** na empresa ativada, Morte/Abate/Transferência R2A, Nascimento/Pesagem/Mudança (R2B), Junção (R2C) e Baixa multi-lote (R2D/#172) → 409 `REBANHO_LEDGER_OPERACAO_NAO_MIGRADA`, sem gravar. A tela recusa antes de abrir o formulário. Duas escritas autoritativas nunca.
+- **Exclusão (#167) na empresa ativada:** só sem fato ativo além da entrada. A entrada é cancelada e o cadastro vira tombstone (a posição tem FK).
+- **Frontend:**
+  - o loader `lotes` do mapa lê `/rebanho/posicoes` quando ativo, sem cair para Lote em erro;
+  - a transferência vai por um comando, sem `validarOrdemTemporalLote(s)`, sem PATCH/POST/derivado;
+  - chave idempotente por diálogo (duplo toque = replay);
+  - offline recusa antes de qualquer requisição;
+  - sobras de suplementação na mesma confirmação recusam antes de enviar;
+  - o histórico reconhece a proveniência do ledger.
+- **Migration expand** `20261102200000_rebanho_ledger_posicoes`: só tabelas novas, CHECK saldo ≥ 0, delta ≠ 0 e situação/tipo/cancelamento coerentes, FKs compostas com `cliente_id`, REVOKE anon/authenticated e RLS sem FORCE. O backend da main roda contra o banco migrado (108/108).
+- **Gate `gate:rebanho-ssot`:** o ledger não escreve `Lote`; partidas e posições só pelo motor; comandos legados com `exigirModoLegado`; PATCH de Lote com a separação; CHECKs na migration.
+
+**Fora desta fase (próximos slices):** portar ao ledger Morte/Abate (R2D), Nascimento, Pesagem, Mudança de Categoria e Junção (com contribuições de linhagem); vínculos de suplementação, tarefas e sanitário por posição; contract das colunas operacionais de `Lote`.
+
+**Consequência:** relatório `MAIKE-R2E-LOTE-SSOT-POSICOES-RETROATIVAS-REPORT.md`; evidências em `evidencias/r2e-p1-lotes-ssot/`. Migração remota: `REMOTE_MIGRATION_BLOCKED` nesta sessão (sem `MIGRATION_DATABASE_URL`); aplica pelo pre-deploy (`deploy:migrate`) na publicação.
+
+### D-PROD-107 — complemento PR174-R1 (ledger integral: cadastro, posições, manejos, cancelamentos)
+
+A auditoria do HEAD `0187cdd` encontrou sete achados (A–G). Esta revisão os fecha na MESMA decisão; nada renumerado. O "Fora desta fase" acima deixou de valer.
+
+- **A — derivados não viram entrada:** a ativação rastreia a linhagem de cada lote legado pela movimentação certificada que o criou (`efeito_servidor.efeitos[].criado`), recursivamente até a entrada. Classes: `entrada`, `derivado_rastreado` (posição com `lote_entrada_id` da raiz), `derivado_sem_prova` (`legado:<id>`, nunca por nome) e `nascimento_legado`.
+- **B — cancelamento legado sem drift:** cancelar movimento legado numa empresa ativada → 409 `REBANHO_LEDGER_CANCELAMENTO_LEGADO` (antes mutava `Lote`). Também na elegibilidade.
+- **C — evolução versionada:** migration nova `20261103100000_rebanho_ledger_r1_manejos` (a aplicada não foi editada). Traz:
+  - CHECK de tipos ampliado (MORTE, ABATE, NASCIMENTO, PESAGEM, MUDANCA_CATEGORIA, JUNCAO);
+  - `RebanhoLedgerAtivacao.modo`;
+  - tabela `PesoRebanho` (série de peso por posição/data);
+  - FKs triplas `(cliente_id, empresa_id, id)` de partida/peso → evento/posição;
+  - `LancamentoTarefa.posicao_id` (FK);
+  - REVOKE/RLS.
+- **D — nada fail-closed:** os MESMOS endpoints delegam ao ledger quando a empresa está ativada, na transação e na idempotência do comando legado:
+  - Morte/Abate (baixa multi-posição, mesma política determinística);
+  - manejo-lote R2A (o `lote_id` é posição);
+  - Nascimento (posição `origem: nascimento`, sem entrada);
+  - Pesagem (observação medida na data);
+  - Mudança de Categoria (−/+ na mesma linhagem);
+  - Junção (1/5/20 origens, contribuições na `linhagem` do principal);
+  - Transferência.
+  Manejos retroativos distribuem pelo saldo NA DATA. A linha do tempo inteira é revalidada (409 `REBANHO_SALDO_HISTORICO_NEGATIVO` com data e área). O cancelamento genérico desativa partidas e pesos e remove contribuições.
+- **E — retroatividade desde a entrada real:** ativação `modo: 'entradas'` sem corte: um evento ENTRADA por cadastro na `data_entrada`. Recusa (`REBANHO_ATIVACAO_ENTRADAS_COM_HISTORICO`) se houver movimento legado ativo ou lote fora do estado de entrada. Para empresas de TESTE com histórico há o reset controlado `scripts/ops/reset-rebanho-empresa-teste.mjs`:
+  - escopo cliente+empresa;
+  - simulação por padrão;
+  - nome de confirmação e backup JSON antes de alterar;
+  - derivados por exclusão lógica;
+  - recusa com ledger ativo;
+  - alvo remoto exige `RESET_EXPECTED_SYSTEM_IDENTIFIER`;
+  - nunca toca auth, usuários, outras empresas ou outros clientes.
+  O modo `saldo_abertura` continua para empresas reais.
+- **F — vínculos posição × entrada:** documentos (suplementação, sanidade, manejo técnico, movimentação pecuária) e tarefas que citam uma posição gravam `posicao_id` + `lote_id` = entrada (nascidos: `null`), sempre no tenant. Peso historiado em `PesoRebanho`; `saldos?data=` devolve o peso na data. Sobras de cocho: passo SEPARADO depois do comando da transferência; se falhar, aviso explícito "Transferência registrada, mas as sobras NÃO foram registradas" (sem falso sucesso).
+- **UI:** `seMigrado` removido; todos os manejos abrem sobre as posições. O histórico reconhece qualquer manejo `rebanho_ledger` como certificado. Resumo e histórico de suplementação casam `posicao_id` e `lote_id`. Renomear continua no Cadastro de Lotes (o nome é do cadastro).
+- **G — honestidade remota:** sem `MIGRATION_DATABASE_URL` neste container, a migração remota é `REMOTE_MIGRATION_BLOCKED`. Nenhuma ativação ou reset remoto antes do merge/deploy.
+- **Verificação:** `GET /rebanho/verificacao` inclui `pesos_divergentes` e `conservacao` (entradas + nascimentos + saídas + internos = saldo). `integro` exige tudo.
+
+### D-PROD-107 — complemento PR174-R2 (fechamento: reset × idempotência, POST genérico, peso causal)
+
+Auditoria do HEAD `84d0ad5`: três lacunas reproduzidas em RED (PostgreSQL real + HTTP) e fechadas na MESMA decisão, sem migration nova.
+
+- **A — reset de teste × respostas idempotentes e vínculos.**
+  - Reserva `OperacaoIdempotente` cuja resposta cita um movimento apagado pelo reset vira `status = 'desfeito'`.
+  - Busca: id exato (cuid) do movimento, dentro do tenant. Nunca `deleteMany` por cliente.
+  - O executor nunca responde replay de reserva desfeita: 409 `IDEMPOTENCY_EFEITO_DESFEITO`, inclusive no caminho concorrente.
+  - Recusa fechada `RESET_VINCULOS_PENDENTES` (com a lista de vínculos) quando um documento cita movimento apagado ou lote retirado. Fontes varridas:
+    - suplementação (evento e lote), aplicação de medicamento, evento sanitário e manejo técnico;
+    - movimentação pecuária, bebedouro (histórico, sanidade, alerta), tarefa e histórico de tarefa;
+    - anexo (`entidade_id`) e movimento de outra empresa.
+  - Documento adjacente nunca é apagado nem reescrito às cegas.
+  - Reexecução sem nada a fazer: no-op (sem backup, sem auditoria). Backup v2 inclui as reservas.
+  - AuditLog anterior é imutável. O AuditLog do reset lista os ids de movimentos apagados, lotes retirados e restaurados, e as chaves invalidadas.
+- **B — POST genérico não grava fato material em empresa ativada.**
+  - `exigirFatoGenericoForaDoLedger` roda na transação, antes de gravar, auditar ou reservar.
+  - Cobre `/movimentacoes-mapa` e `/movimentacoes-pecuaria` (unitário e `criarEmLote` do service; não há rota HTTP de lote).
+  - Resposta: 409 `REBANHO_LEDGER_SOMENTE_POR_COMANDO`.
+  - A empresa sai do documento E de cada lote ou posição citado: corpo com outra empresa não contorna.
+  - Whitelist fechada de informativo: `Entrada` + motivo `Renomear Lote`.
+  - Junção mantém `JUNCAO_SOMENTE_POR_COMANDO`. PATCH/DELETE já recusados (R2A). Campos reservados seguem com 400.
+  - Empresa legada: comportamento aprovado intacto.
+  - Serialização: o POST faz `FOR SHARE` na Empresa antes de ler a ativação; a ativação faz `FOR UPDATE` na Empresa.
+- **C — peso causal.** Estratégia escolhida: **recusa causal**, não replay de série.
+  - O peso derivado (transferência, junção, mudança de categoria, nascimento) é UMA função pura: média ponderada do destino antes do fato com cada entrada (peso da origem antes do fato, ou peso informado).
+  - Desconhecido contamina: `null`, nunca zero.
+  - A mesma função grava e, a cada mudança retroativa ou cancelamento, reconfere os fatos derivados ativos posteriores que tocam as posições afetadas.
+  - Se o peso de algum mudaria → 409 `REBANHO_PESO_DEPENDENCIA_CAUSAL` com `evento_id`, `tipo`, `data`, `posicao_id`, `peso_registrado_kg`, `peso_recalculado_kg`. Desfaz-se na ordem inversa.
+  - **Ordem dos fatos:** `(data_operacional, registrado_em, id)`. `registrado_em` = `clock_timestamp()` do banco, depois das travas. No mesmo dia vale a ordem de registro: pesagem lançada depois é posterior.
+  - **Fatos independentes passam:** pesagem posterior (outro dia ou mesmo dia registrada depois) substitui legitimamente. Retroativo que não muda o peso calculado também passa (ex.: transferência do dia 20 e depois do dia 18 com o mesmo peso).
+  - Descritor `dados.pesos_derivados` no evento. Uma observação por destino (a transferência deixou de gravar uma por item).
+  - Eventos anteriores ao R2 (só bancos locais, sem produção) não têm descritor e não são reconferidos.
+- **UI:** as recusas novas e `CANCELAMENTO_SALDO_HISTORICO_NEGATIVO` (antes tratada como "resultado desconhecido") viram recusa definitiva com data e pesos. A elegibilidade mostra o detalhe antes de qualquer envio. A linha da junção no histórico mostra o peso real da origem.
+- **Remoto:** `REMOTE_MIGRATION_BLOCKED` (sem `MIGRATION_*` no container). Nenhuma ativação ou reset remoto antes do merge e do deploy.
+
+### D-PROD-107 — complemento PR174-R3 (pré-condições de fatos sem delta; renomeação de formato fechado)
+
+Auditoria do HEAD `ce1ab5b`: três hipóteses reproduzidas em RED (PostgreSQL real + HTTP). Fechadas na mesma decisão, sem migration nova.
+
+- **Fatos sem delta.** Pesagem e nascimento não movem cabeças; por isso a regra de saldo ≥ 0 e o peso causal (R2) não os protegiam.
+  - **Pré-condições estruturais:**
+    - PESAGEM — cada posição pesada (as `PesoRebanho` do evento) tinha cabeças no fato;
+    - NASCIMENTO — em cada linha, ALGUMA das `maes_posicao_ids` certificadas pelo servidor na criação tinha cabeças no fato. Vacas que chegam depois, de outra posição, não substituem as certificadas.
+  - **Momento do fato:** saldo "antes do fato" na mesma ordem do R2, `(data_operacional, registrado_em = clock_timestamp do banco, id)`. Fato do mesmo dia registrado antes da pesagem conta; registrado depois, não.
+  - **Implementação:** função ÚNICA `violacoesDePrecondicao`, chamada por `verificarDependenciasTemporais` (peso causal + pré-condições). Roda na transação, depois das travas, em transferência, todos os manejos (via `concluir`) e cancelamento.
+  - **Recusa:** 409 `REBANHO_DEPENDENCIA_FATO_SEM_SALDO` com `evento_id`, `tipo`, `data`, `posicao_id`/`posicao_ids`, `area_id` e `saldo_no_fato`. Zero mutação, inclusive na reserva idempotente.
+  - **Não bloqueia:** evento cancelado; pesagem de outra posição, área, empresa ou tenant; saída parcial que deixa cabeças; matriz certificada ainda presente.
+  - **`GET /rebanho/verificacao`:** passa a listar `precondicoes_violadas`, e `integro` exige a lista vazia. A ordem do peso projetado na verificação foi alinhada à do motor (evento, não `createdAt`).
+- **Renomeação informativa no POST genérico.** Antes bastava `Entrada` + `Renomear Lote`; agora a whitelist é por FORMATO:
+  - só `empresa_id`, `tipo`, `motivo`, `lote`, `lote_id`, `observacoes`, `data_movimentacao` e `usuario_responsavel`; qualquer outro campo com valor (quantidade, área, categoria, peso…) torna o documento material → 409 `REBANHO_LEDGER_SOMENTE_POR_COMANDO`;
+  - `lote_id` precisa ser um CADASTRO existente do mesmo tenant e da mesma empresa do documento. Posição ou id de outro tenant tornam o documento material — achado do próprio teste: antes, id de outro tenant passava;
+  - empresa legada: inalterada. Na empresa ativada, a renomeação é feita pelo Cadastro de Lotes, e a renomeação estrita não carrega quantidade, logo não entra em contagem material.
+
+### D-PROD-107 — complemento PR174-R4 (três responsabilidades; decisão por tabela física)
+
+**Contrato do proprietário:**
+- **Lote** = só a ENTRADA original (cadastro de origem, nunca saldo).
+- **PosicaoRebanho** = estado ATUAL de cada grupo: área, cabeças, categoria, sexo, classificação, peso atual, nome e linhagem. A proveniência da entrada (raça, sistema produtivo, data de entrada) também é exposta, só para leitura.
+- **MovimentacaoMapa** = histórico operacional ÚNICO de todos os manejos, inclusive a pesagem (posição, quantidade, peso anterior e novo, autor, cancelamento).
+- **Uma entrada pode originar várias posições.**
+
+**Fechado nesta revisão (RED → GREEN):** nenhum manejo fabrica linha no cadastro de Lote, nem no modelo legado.
+- O backend recusa 409 `LOTE_CADASTRO_SOMENTE_ENTRADAS` em três casos:
+  - transferência parcial legada sem destino existente (o antigo `parcial_novo_lote`);
+  - nascimento ou mudança legada que criaria lote novo;
+  - `POST /lotes` com origem de manejo.
+- No navegador, o `criarLote` do fallback de `DetalhesLote` foi removido.
+- A empresa legada mantém os manejos que NÃO fabricam cadastro (total, junção ao destino existente, morte, abate, pesagem): é o modo pré-cutover, em que as colunas de saldo de Lote ainda são o snapshot legado.
+- Na empresa ativada, o Lote é congelado como entrada (guardas R2E-P1/R1).
+- O Cadastro lista só entradas (D-PROD-85; derivados legados não aparecem e não são apagados).
+
+**Matriz por tabela física**
+
+| Tabela | Decisão | Por quê |
+|---|---|---|
+| `Lote` | MANTER (cadastro de entrada) | fonte da entrada original; colunas de saldo = snapshot legado pré-cutover, congeladas na empresa ativada |
+| `PosicaoRebanho` | MANTER (estado atual) | projeção única do estado atual, que o mapa lê |
+| `MovimentacaoMapa` | MANTER (histórico de negócio único) | todo comando grava nela, na mesma transação, o registro certificado com `efeito_servidor.evento_id`; é o que a tela mostra e cancela |
+| `EventoRebanho` | MANTER interno | cabeçalho transacional do fato (operation_id, ordem `registrado_em`, situação), 1:1 com MovimentacaoMapa via `movimentacao_id`; não tem tela nem é histórico paralelo. Consolidar no JSON do MovimentacaoMapa perderia a ordem e os índices tipados usados no saldo e no peso causal |
+| `PartidaRebanho` | MANTER interno | deltas por posição/dia: é o que permite saldo retroativo, cancelamento e "saldo ≥ 0 em toda a linha do tempo" com índice. Não é representável com custo aceitável dentro do JSON do histórico |
+| `PesoRebanho` | MANTER como índice temporal interno | ÚNICA fonte canônica do peso no tempo (o peso derivado e o causal R2/R3 dependem dela). A pesagem no MovimentacaoMapa traz anterior/novo como CÓPIA de leitura. Consolidar exigiria provar equivalência em retroativo, cancelamento, null e concorrência; não foi provado, então não foi feito |
+
+**Não há "outro controle":** as três tabelas internas não têm tela, menu nem API de escrita própria. São escritas só pelos comandos do mapa e verificáveis por `GET /rebanho/verificacao`.
+
+**Plano de consolidação** (futuro, mesma decisão): quando o histórico precisar de índices temporais próprios, avaliar mover `EventoRebanho` para colunas tipadas em `MovimentacaoMapa`, por migration aditiva com backfill e prova de equivalência. Nada é removido sem migration versionada, backup e RED/GREEN.
+
+### D-PROD-107 — complemento PR174-R5 (cutover completo, sem modelo legado)
+
+- **O modelo antigo de saldo em `Lote` deixou de existir em execução.** A R4 recusava só os casos que fabricavam lote; a R5 vai além:
+  - os comandos do mapa (manejo-lote, manejo-rebanho, junção, baixa) e o cancelamento passam por UMA guarda, `exigirEmpresaNoLedger`;
+  - empresa no controle por posições → ledger, com todos os manejos (parcial para pasto vazio, nascimento, mudança parcial, junção etc.) e nenhum 409 artificial;
+  - empresa ainda não migrada → 409 `REBANHO_CUTOVER_PENDENTE`;
+  - os ramos que escreviam saldo em Lote foram REMOVIDOS do backend e do navegador (sem reserva).
+- **Empresa nova nasce ativada** (`modo: entradas`, na transação de criação). Não existe empresa nova no legado.
+- **Cutover das empresas existentes:** ação administrativa ÚNICA por `cliente_id + empresa_id` (`scripts/ops/cutover-rebanho.mjs`):
+  - diagnóstico somente leitura;
+  - estratégias `entradas`, `reset_e_entradas` (reset autorizado, com backup e confirmação pelo nome) ou `saldo_abertura` (preserva o histórico);
+  - assinatura por administrador do próprio cliente;
+  - falha fechada se o `system_identifier` não conferir;
+  - nunca roda em build, startup ou request.
+- **Release na Vercel** (backend = Fastify serverless `api/fastify.js`; a Vercel não migra): workflow manual protegido `release-migrate.yml` (environment `production`) → `npm run deploy:migrate` com `MIGRATION_DATABASE_URL` + `MIGRATION_EXPECTED_SYSTEM_IDENTIFIER` (conferência obrigatória).
+- **Ordem segura:**
+  1. CI verde e backup;
+  2. migrations EXPAND, que o código antigo tolera;
+  3. merge, deploy automático da Vercel;
+  4. cutover imediato, empresa de teste primeiro.
+  - Entre 3 e 4, os manejos de empresas ainda não migradas recebem a recusa clara, nunca escrita legada.
+
+
+### D-PROD-107 — complemento PR174-R6 (fechamento seguro de release e cutover)
+
+- O cutover é **atômico**: reset e ativação acontecem num único COMMIT/ROLLBACK, com travas Empresa → AreaPastagem → Lote → MovimentacaoMapa. O backup tem manifesto sha256 conferido antes de qualquer exclusão e fica fora do repositório.
+- O cutover só roda **depois** do merge, com o backend novo comprovado em produção (`/api/native/health`: `capacidades` ∋ `rebanho-ledger-cutover-r6`, `release` = SHA na main). Nunca com o backend antigo aceitando gravações.
+- As migrations da PR rodam antes do merge pelo `scripts/deploy/premerge-migrate.mjs`. O `release-migrate.yml` só é disparável depois de estar na main.
+- O cancelamento do ledger recusa (409 `REBANHO_CANCELAMENTO_VINCULO_POSTERIOR`) quando um lançamento de outro módulo cita, por id, a posição nascida do evento ou o próprio movimento.
+- Exclusão física de movimentações continua fora de escopo.
+- Runbook: `docs/engineering/MAIKE-PR174-RELEASE-CUTOVER-RUNBOOK.md`.
+
+### D-PROD-107 — complemento PR174-R7 (gates pré-release)
+
+- O inventário somente leitura funciona antes das migrations. Sem schema R2E, o diagnóstico e o cutover devolvem `CUTOVER_SCHEMA_PENDENTE`; o cutover revalida tudo dentro da própria transação.
+- EXPAND só por allowlist fechada: manifesto SHA-256 pinado mais conferência estrutural. O padrão é recusar. Aplicar exige o alvo verificado (`system_identifier` + `_prisma_migrations`).
+- O cutover remoto exige o origin de produção configurado (`MAIKE_PRODUCAO_ORIGIN`), health sem redirect com a identidade da implantação Vercel e `release` = HEAD da main remota.
+
+---
+
+## D-PROD-108 — Importação KML: nome de verdade quando `<name>` é código do aplicativo
+
+> Registrada na main (PR #175) como D-PROD-107. Foi renumerada para D-PROD-108 ao integrar a main na PR #174, cujo ledger do rebanho já usava a D-PROD-107 em 60 arquivos. O conteúdo não mudou.
 
 **Pedido do proprietário:** a importação do KML não trazia os nomes corretos. Em produção, 74 das 80 áreas ficaram com nomes como `06FED7BE-9736-4A1F-93FB-E481CB663AC7`. O aplicativo de campo que gerou o arquivo grava um UUID em `<name>`, e o leitor só olhava essa tag.
 
@@ -4275,4 +4496,4 @@ Testes KML-N1..N5 em `tests/smoke/importacaoAreasParser.test.js`.
 
 ---
 
-<!-- Próxima decisão: D-PROD-108 -->
+<!-- Próxima decisão: D-PROD-109 -->

@@ -1,0 +1,51 @@
+verify:all local no SHA 9c9aaf5 (PostgreSQL 16 local descartável):
+  test:gates           PASS           0      75.3s  npm run test:gates
+  governance-paths     PASS           0      155ms  npm run gate:governance-paths
+  package-sync         PASS           0      153ms  npm run gate:package-sync
+  product-scope        PASS           0      580ms  npm run gate:product-scope
+  api-boundary         PASS           0       1.7s  npm run gate:api-boundary
+  native-api           PASS           0      212ms  npm run gate:native-api
+  setor-native         PASS           0      202ms  npm run gate:setor-native
+  marca-native         PASS           0      201ms  npm run gate:marca-native
+  unidade-medida-native PASS           0      177ms  npm run gate:unidade-medida-native
+  tarefa-cadastro-native PASS           0      162ms  npm run gate:tarefa-cadastro-native
+  lote-native          PASS           0      209ms  npm run gate:lote-native
+  lancamento-tarefa-native PASS           0      226ms  npm run gate:lancamento-tarefa-native
+  p52-cadastros-estoque-native PASS           0      271ms  npm run gate:p52-cadastros-estoque-native
+  p54-base44-exit      PASS           0      197ms  npm run gate:p54-base44-exit
+  p55-base44-exit-final PASS           0      164ms  npm run gate:p55-base44-exit-final
+  area-pastagem-native PASS           0      200ms  npm run gate:area-pastagem-native
+  map-geography-native PASS           0      256ms  npm run gate:map-geography-native
+  usuario-admin        PASS           0      187ms  npm run gate:usuario-admin
+  source-closure       PASS           0      224ms  npm run gate:source-closure
+  import-integrity     PASS           0      210ms  npm run gate:import-integrity
+  admin-isolation      PASS           0      208ms  npm run gate:admin-isolation
+  no-secrets           PASS           0       1.4s  npm run gate:no-secrets
+  base44               PASS           0      196ms  npm run gate:base44
+  modelobase1-pecuario PASS           0      160ms  npm run gate:modelobase1-pecuario
+  motorbase1-independence PASS           0      805ms  npm run gate:motorbase1-independence
+  tenancy              PASS           0      208ms  npm run gate:tenancy
+  rebanho-ssot         PASS           0      206ms  npm run gate:rebanho-ssot
+  indices              PASS           0      154ms  npm run gate:indices
+  deploy-migrations    PASS           0      182ms  npm run gate:deploy-migrations
+  supabase-public-grants PASS           0      146ms  npm run gate:supabase-public-grants
+  prisma:generate      PASS           0       2.3s  npm run prisma:generate
+  types                PASS           0      12.9s  npm run gate:types
+  typecheck:backend    PASS           0       8.6s  npm run typecheck:backend
+  lint                 PASS           0      20.7s  npm run lint
+  test:backend         PASS           0     378.0s  npm run test:backend
+  test:smoke           PASS           0      68.2s  npm run test:smoke
+  build                PASS           0      20.7s  npm run build
+  build:admin          PASS           0       1.7s  npm run build:admin
+  admin-isolation:bundles PASS           0      221ms  npm run gate:admin-isolation
+# tests 647
+# pass 647
+# fail 0
+# tests 879
+# pass 874
+# fail 0
+      Tests  1252 passed (1252)
+
+TODAS AS ETAPAS PASSARAM
+
+rc=0

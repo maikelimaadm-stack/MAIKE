@@ -15,6 +15,7 @@ import { gerarSenhaHash } from '../src/modules/auth/authService.js';
 import { criarProprietarioInicial } from '../src/modules/adminMaike/adminService.js';
 import { zerarLimitadorAdmin } from '../src/modules/adminMaike/adminSessao.js';
 import { codigoTotp, passoTotpAtual } from '../src/modules/adminMaike/adminCrypto.js';
+import { fingerprintDePayload } from '../src/shared/idempotency/operacaoIdempotenteService.js';
 
 /** Ordem de limpeza respeita as foreign keys (tudo é Restrict). */
 const ORDEM_DE_LIMPEZA = [
@@ -32,6 +33,15 @@ const ORDEM_DE_LIMPEZA = [
   'catalogoTipoEntidade',
   'operadorProdutoMaike',
   'catalogoMeta',
+  // R2E-P1 (D-PROD-107) — ledger do rebanho: partidas → eventos → posições → ativação, antes de Lote/Área/Empresa.
+  // Tarefa cita posição do ledger (R2E-R1): sai antes das posições.
+  'historicoLancamentoTarefa',
+  'lancamentoTarefa',
+  'pesoRebanho',
+  'partidaRebanho',
+  'eventoRebanho',
+  'posicaoRebanho',
+  'rebanhoLedgerAtivacao',
   'auditLog',
   'registroAnexo',
   // P5.5 — documentos JSON tenant-scoped (Restrict → Cliente).
@@ -63,8 +73,6 @@ const ORDEM_DE_LIMPEZA = [
   'produto',
   'localEstoque',
   'categoria',
-  'historicoLancamentoTarefa',
-  'lancamentoTarefa',
   'lote',
   'areaPastagem',
   'marca',
@@ -203,4 +211,133 @@ export const criarAdminComSessao = async (app, opcoes = {}) => {
     return codigoTotp(segredo, passo);
   };
   return { admin, login, senha, segredo, headers, codigosRecuperacao: r2.json().codigos_recuperacao, proximoCodigo };
+};
+
+/**
+ * PR174-R4/R5 (D-PROD-107): o manejo não fabrica mais lote derivado e os
+ * comandos do mapa só operam o ledger (empresa sem cutover → 409). Testes que
+ * precisam do DADO LEGADO que a antiga transferência parcial "com lote novo"
+ * deixava no banco o escrevem DIRETO no banco (simula uma base pré-cutover):
+ *  1. o destino é cadastrado como entrada VAZIA (0 cabeças) na área e depois
+ *     reescrito como derivado (origem MOVIMENTAÇÃO, quantidade = transferida);
+ *  2. a origem é debitada (saldo, Inativo se zerar);
+ *  3. um MovimentacaoMapa com `efeito_servidor` do comando antigo
+ *     (`manejo_mapa_lote`, modo `parcial_novo_lote`, efeito do destino
+ *     `criado: true`) e a operação idempotente confirmada apontando para ele —
+ *     a linhagem da ativação e o reset de teste a reconhecem como antes.
+ * Devolve `{ movimentacao, lotes, derivadoId, corpo }` (corpo = o pedido
+ * que o comando antigo teria recebido, para provas de replay).
+ *
+ * @param {import('fastify').FastifyInstance} app
+ * @param {{ token: string, empresaId: string, setorId: string, origem: any, quantidade: number, areaDestinoId: string, data: string, corpoExtra?: Record<string, unknown> }} p
+ */
+export const transferenciaComDerivadoLegado = async (app, { token, empresaId, setorId, origem, quantidade, areaDestinoId, data, corpoExtra = {} }) => {
+  const headers = { authorization: `Bearer ${token}` };
+  const dia = String(data).slice(0, 10);
+  const destino = await app.inject({
+    method: 'POST', url: '/lotes', headers,
+    payload: {
+      empresa_id: empresaId, nome: origem.nome, quantidade_cabecas: 0, categoria: origem.categoria, ...(origem.sexo ? { sexo: origem.sexo } : {}),
+      setor_id: setorId, area_entrada_id: areaDestinoId, area_atual_id: areaDestinoId, data_entrada: dia, motivo_entrada: 'Compra', status: 'Ativo',
+    },
+  });
+  if (destino.statusCode !== 201) throw new Error(`fixture derivado legado: cadastro do destino ${destino.statusCode} ${destino.body}`);
+  const derivadoId = destino.json().id;
+  const corpo = {
+    operation_id: `op-${randomUUID()}`, tipo: 'Transferência de Área', empresa_id: empresaId, lote_id: origem.id, quantidade_animais: quantidade,
+    area_destino_id: areaDestinoId, lote_destino_id: derivadoId, data_movimentacao: data, ...corpoExtra,
+  };
+  const p = getPrismaClient();
+  const o = await p.lote.findFirst({ where: { id: origem.id } });
+  if (!o || o.quantidade_cabecas < quantidade) throw new Error('fixture derivado legado: origem sem saldo');
+  const area = await p.areaPastagem.findFirst({ where: { cliente_id: o.cliente_id, id: areaDestinoId } });
+  const saldo = o.quantidade_cabecas - quantidade;
+  const estado = (l) => ({
+    quantidade_cabecas: l.quantidade_cabecas, status: l.status, area_atual_id: l.area_atual_id ?? null,
+    categoria: l.categoria ?? null, categoria_manejo_id: l.categoria_manejo_id ?? null, empresa_id: l.empresa_id ?? null,
+  });
+  const origemDepois = await p.lote.update({
+    where: { cliente_id_id: { cliente_id: o.cliente_id, id: o.id } },
+    data: { quantidade_cabecas: saldo, status: saldo > 0 ? o.status : 'Inativo' },
+  });
+  const derivado = await p.lote.update({
+    where: { cliente_id_id: { cliente_id: o.cliente_id, id: derivadoId } },
+    data: {
+      quantidade_cabecas: quantidade, quantidade_entrada: quantidade, origem: 'MOVIMENTAÇÃO', motivo_entrada: 'Outros', motivo_outros: 'Movimentação parcial',
+      data_entrada: new Date(data), area_atual_nome: area?.nome ?? null, area_entrada_nome: area?.nome ?? null,
+    },
+  });
+  const mov = await p.movimentacaoMapa.create({
+    data: {
+      cliente_id: o.cliente_id, empresa_id: empresaId,
+      dados: {
+        tipo: 'Transferência de Área', lote: o.nome, lote_id: o.id, quantidade_animais: quantidade, data_movimentacao: data,
+        area_origem_id: o.area_atual_id, area_origem_nome: o.area_atual_nome ?? null, area_destino_id: areaDestinoId, area_destino_nome: area?.nome ?? null,
+        modo_transferencia: 'parcial_novo_lote', lote_destino_id: derivadoId, categoria_animal: o.categoria ?? null,
+        efeito_servidor: {
+          comando: 'manejo_mapa_lote', operation_id: corpo.operation_id, registrado_em: new Date().toISOString(), modo: 'parcial_novo_lote',
+          efeitos: [
+            { lote_id: o.id, criado: false, auditoria_id: 'legado', antes: estado(o), depois: estado(origemDepois) },
+            { lote_id: derivadoId, criado: true, auditoria_id: 'legado', antes: { ...estado(derivado), quantidade_cabecas: 0, status: 'Inativo' }, depois: estado(derivado) },
+          ],
+        },
+      },
+    },
+  });
+  const movimentacao = { ...mov.dados, id: mov.id, empresa_id: mov.empresa_id };
+  const resposta = { movimentacao, lotes: [{ id: o.id }, { id: derivadoId }] };
+  // Mesmo fingerprint que o comando antigo gravava (forma normalizada do pedido).
+  const txt = (v) => (typeof v === 'string' && v.trim() ? v.trim() : null);
+  const fingerprint = fingerprintDePayload({
+    tipo: corpo.tipo, empresaId, loteId: o.id, quantidade, dataMovimentacao: txt(corpo.data_movimentacao), areaDestinoId, loteDestinoId: derivadoId,
+    observacoes: typeof corpo.observacoes === 'string' ? corpo.observacoes : null, categoriaAnimal: txt(corpo.categoria_animal), usuarioResponsavel: txt(corpo.usuario_responsavel),
+  });
+  await p.operacaoIdempotente.create({
+    data: { cliente_id: o.cliente_id, operation_key: corpo.operation_id, tipo_operacao: 'manejo_mapa_lote', fingerprint, status: 'committed', http_status: 201, response_json: resposta },
+  });
+  return { ...resposta, derivadoId, corpo };
+};
+
+/**
+ * PR174-R5: grava DIRETO no banco um movimento LEGADO certificado (o que os
+ * comandos anteriores ao ledger deixavam): MovimentacaoMapa com
+ * `efeito_servidor` do comando antigo e a operação idempotente confirmada
+ * apontando para ele. Simula base pré-cutover; nunca passa pelos comandos.
+ * @param {{ clienteId: string, empresaId: string, comando: string, tipoOperacao?: string, operationKey?: string, fingerprint?: string, dados: Record<string, any>, efeitos?: Array<Record<string, any>>, situacao?: string }} p
+ */
+export const gravarMovimentoLegado = async ({ clienteId, empresaId, comando, tipoOperacao = comando, operationKey = `op-${randomUUID()}`, fingerprint = 'legado', dados, efeitos = [], situacao }) => {
+  const p = getPrismaClient();
+  const mov = await p.movimentacaoMapa.create({
+    data: {
+      cliente_id: clienteId, empresa_id: empresaId,
+      dados: {
+        ...dados,
+        ...(situacao ? { situacao } : {}),
+        efeito_servidor: { comando, operation_id: operationKey, registrado_em: new Date().toISOString(), efeitos },
+      },
+    },
+  });
+  const movimentacao = { ...mov.dados, id: mov.id, empresa_id: mov.empresa_id };
+  await p.operacaoIdempotente.create({
+    data: { cliente_id: clienteId, operation_key: operationKey, tipo_operacao: tipoOperacao, fingerprint, status: 'committed', http_status: 201, response_json: { movimentacao } },
+  });
+  return { movimentacao, operationKey };
+};
+
+/**
+ * Morte/Abate LEGADA (comando de baixa anterior ao ledger) gravada direto no
+ * banco: debita o lote e grava o movimento certificado.
+ * @param {{ lote: any, quantidade: number, data?: string, tipo?: string }} p
+ */
+export const baixaLegada = async ({ lote, quantidade, data = '2026-10-29', tipo = 'Morte' }) => {
+  const p = getPrismaClient();
+  const o = await p.lote.findFirst({ where: { id: lote.id } });
+  const saldo = o.quantidade_cabecas - quantidade;
+  const depois = await p.lote.update({ where: { cliente_id_id: { cliente_id: o.cliente_id, id: o.id } }, data: { quantidade_cabecas: saldo, status: saldo > 0 ? o.status : 'Inativo' } });
+  const estado = (l) => ({ quantidade_cabecas: l.quantidade_cabecas, status: l.status, area_atual_id: l.area_atual_id ?? null, categoria: l.categoria ?? null, categoria_manejo_id: l.categoria_manejo_id ?? null, empresa_id: l.empresa_id ?? null });
+  return gravarMovimentoLegado({
+    clienteId: o.cliente_id, empresaId: o.empresa_id, comando: 'manejo_mapa_baixa_rebanho',
+    dados: { tipo, lote: o.nome, lote_id: o.id, lote_ids: [o.id], quantidade_animais: quantidade, data_movimentacao: data, area_origem_id: o.area_atual_id, categoria_animal: o.categoria ?? null },
+    efeitos: [{ lote_id: o.id, criado: false, auditoria_id: 'legado', antes: estado(o), depois: estado(depois) }],
+  });
 };

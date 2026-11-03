@@ -46,6 +46,7 @@ import { registrarPontoSuplementacaoRoutes } from './modules/pontosSuplementacao
 import { registrarEstoqueLoteNotaRoutes } from './modules/estoqueLotesNota/estoqueLoteNotaRoutes.js';
 import { registrarMovimentacaoEstoqueRoutes } from './modules/movimentacoesEstoque/movimentacaoEstoqueRoutes.js';
 import { registrarMovimentacaoMapaRoutes } from './modules/movimentacoesMapa/movimentacaoMapaRoutes.js';
+import { registrarRebanhoLedgerRoutes } from './modules/rebanhoLedger/rebanhoLedgerRoutes.js';
 import { registrarMovimentacaoPecuariaRoutes } from './modules/movimentacoesPecuaria/movimentacaoPecuariaRoutes.js';
 import { registrarSuplementacaoEventoRoutes } from './modules/suplementacaoEventos/suplementacaoEventoRoutes.js';
 import { registrarSuplementacaoLoteRoutes } from './modules/suplementacaoLotes/suplementacaoLoteRoutes.js';
@@ -174,6 +175,7 @@ export const construirApp = async (opcoes = {}) => {
   await app.register(registrarEstoqueLoteNotaRoutes);
   await app.register(registrarMovimentacaoEstoqueRoutes);
   await app.register(registrarMovimentacaoMapaRoutes);
+  await app.register(registrarRebanhoLedgerRoutes);
   await app.register(registrarMovimentacaoPecuariaRoutes);
   await app.register(registrarSuplementacaoEventoRoutes);
   await app.register(registrarSuplementacaoLoteRoutes);

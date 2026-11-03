@@ -41,14 +41,20 @@ const tenant = async () => {
 };
 
 const criarLote = async (token, payload) => {
+  // PR174-R4: o cadastro só aceita ENTRADAS; lote "gerado por manejo" passou a ser
+  // só DADO LEGADO pré-existente. O fixture o simula: cadastra como entrada e grava
+  // a origem derivada direto no banco (como estaria uma base legada).
+  const derivada = origemDerivadaDeManejo(payload.origem);
   const r = await app.inject({
     method: 'POST',
     url: '/lotes',
     headers: auth(token),
-    payload: { empresa_id: 'emp-1', nome: 'TESTE', motivo_entrada: 'Ajuste', ...payload },
+    payload: { empresa_id: 'emp-1', nome: 'TESTE', motivo_entrada: 'Ajuste', ...payload, ...(derivada ? { origem: 'AJUSTE' } : {}) },
   });
   assert.equal(r.statusCode, 201, r.body);
-  return r.json();
+  if (!derivada) return r.json();
+  await getPrismaClient().lote.update({ where: { id: r.json().id }, data: { origem: payload.origem } });
+  return { ...r.json(), origem: payload.origem };
 };
 
 /** Lote 1 (500 → 450) + lote 2 derivado (50) + transferência que cita só o lote 1. */

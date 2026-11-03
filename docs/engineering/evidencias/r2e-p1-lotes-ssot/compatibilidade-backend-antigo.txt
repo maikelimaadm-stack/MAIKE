@@ -1,0 +1,786 @@
+# R2E-P1 — compatibilidade EXPAND: backend da main f7a8ea3 (código antigo, client Prisma antigo) contra o banco COM a migration 20261102200000_rebanho_ledger_posicoes aplicada
+# PostgreSQL 16 local descartável (maike_ci); suites R2D + R2C + R2A da própria main
+
+TAP version 13
+# ◇ injected env (0) from .env // tip: ⌘ suppress logs { quiet: true }
+# (node:9995) [FSTDEP023] FastifyDeprecation: disableRequestLogging option is deprecated. Use the logController option with disableRequestLogging or isLogDisabled override instead. The disableRequestLogging top-level option will be removed in `fastify@6`.
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: P0 — MovimentacaoMapa e MovimentacaoPecuaria
+    # Subtest: DELETE e PATCH diretos → 409 MOVIMENTO_CANCELAMENTO_OBRIGATORIO; nada muda; outro tenant → 404
+    ok 1 - DELETE e PATCH diretos → 409 MOVIMENTO_CANCELAMENTO_OBRIGATORIO; nada muda; outro tenant → 404
+      ---
+      duration_ms: 855.384862
+      type: 'test'
+      ...
+    # Subtest: POST e bulk recusam campos reservados de cancelamento (400) — nada gravado
+    ok 2 - POST e bulk recusam campos reservados de cancelamento (400) — nada gravado
+      ---
+      duration_ms: 347.313314
+      type: 'test'
+      ...
+    # Subtest: movimentacoes-pecuaria: PATCH e DELETE bloqueados
+    ok 3 - movimentacoes-pecuaria: PATCH e DELETE bloqueados
+      ---
+      duration_ms: 334.619119
+      type: 'test'
+      ...
+    1..3
+ok 1 - P0 — MovimentacaoMapa e MovimentacaoPecuaria
+  ---
+  duration_ms: 1976.253874
+  type: 'suite'
+  ...
+# Subtest: P0 — suplementação e estoque
+    # Subtest: SuplementacaoEvento: só métricas de período; DELETE 409; reservado 400
+    ok 1 - SuplementacaoEvento: só métricas de período; DELETE 409; reservado 400
+      ---
+      duration_ms: 378.427236
+      type: 'test'
+      ...
+    # Subtest: SuplementacaoLote: só métricas de consumo; vínculo e DELETE bloqueados
+    ok 2 - SuplementacaoLote: só métricas de consumo; vínculo e DELETE bloqueados
+      ---
+      duration_ms: 378.355622
+      type: 'test'
+      ...
+    # Subtest: MovimentacaoEstoque: PATCH só o nome do local, conferido; DELETE 409
+    ok 3 - MovimentacaoEstoque: PATCH só o nome do local, conferido; DELETE 409
+      ---
+      duration_ms: 692.083902
+      type: 'test'
+      ...
+    1..3
+ok 2 - P0 — suplementação e estoque
+  ---
+  duration_ms: 1449.669115
+  type: 'suite'
+  ...
+# Subtest: P1 — Morte e Abate pelo comando atômico
+    # Subtest: 500 → morte de 50 (comando) → 450 → cancelar → 500; original preservado; proveniência e auditoria
+    ok 1 - 500 → morte de 50 (comando) → 450 → cancelar → 500; original preservado; proveniência e auditoria
+      ---
+      duration_ms: 431.543099
+      type: 'test'
+      ...
+    # Subtest: Abate: Inativo com 0 volta Ativo; replay da mesma chave não dobra
+    ok 2 - Abate: Inativo com 0 volta Ativo; replay da mesma chave não dobra
+      ---
+      duration_ms: 471.11629
+      type: 'test'
+      ...
+    # Subtest: comando: replay da mesma chave não baixa duas vezes; mesma chave com outro corpo → 409; saldo insuficiente → 409
+    ok 3 - comando: replay da mesma chave não baixa duas vezes; mesma chave com outro corpo → 409; saldo insuficiente → 409
+      ---
+      duration_ms: 719.848034
+      type: 'test'
+      ...
+    # Subtest: autorização: comum 403, outro tenant 404, sem token 401, admin revogado 403 — nada muda
+    ok 4 - autorização: comum 403, outro tenant 404, sem token 401, admin revogado 403 — nada muda
+      ---
+      duration_ms: 657.913496
+      type: 'test'
+      ...
+    # Subtest: dependências posteriores (pesagem por id, sanidade) → 409, saldo intacto
+    ok 5 - dependências posteriores (pesagem por id, sanidade) → 409, saldo intacto
+      ---
+      duration_ms: 510.362526
+      type: 'test'
+      ...
+    # Subtest: tipo sem suporte e movimento sem lote_id → 409, nada muda
+    ok 6 - tipo sem suporte e movimento sem lote_id → 409, nada muda
+      ---
+      duration_ms: 423.397323
+      type: 'test'
+      ...
+    1..6
+ok 3 - P1 — Morte e Abate pelo comando atômico
+  ---
+  duration_ms: 3215.401401
+  type: 'suite'
+  ...
+# Subtest: R2A-R1 — proveniência causal (nunca prova emprestada)
+    # Subtest: duas mortes de 50 / um único PATCH: \#B (sem efeito) recusada; \#A legado recusado; saldo e originais intactos
+    ok 1 - duas mortes de 50 / um único PATCH: \#B (sem efeito) recusada; \#A legado recusado; saldo e originais intactos
+      ---
+      duration_ms: 389.599949
+      type: 'test'
+      ...
+    # Subtest: duas mortes iguais pelo comando: cada uma cancela só o próprio efeito (500 → 400 → 450 → 500)
+    ok 2 - duas mortes iguais pelo comando: cada uma cancela só o próprio efeito (500 → 400 → 450 → 500)
+      ---
+      duration_ms: 488.347111
+      type: 'test'
+      ...
+    # Subtest: cliente não fabrica proveniência: POST/bulk com efeito_servidor, modo ou lote_destino_id → 400
+    ok 3 - cliente não fabrica proveniência: POST/bulk com efeito_servidor, modo ou lote_destino_id → 400
+      ---
+      duration_ms: 336.112117
+      type: 'test'
+      ...
+    # Subtest: proveniência copiada para outro movimento (forja direta no banco) não vale: a operação aponta para o original
+    ok 4 - proveniência copiada para outro movimento (forja direta no banco) não vale: a operação aponta para o original
+      ---
+      duration_ms: 395.576453
+      type: 'test'
+      ...
+    1..4
+ok 4 - R2A-R1 — proveniência causal (nunca prova emprestada)
+  ---
+  duration_ms: 1610.255609
+  type: 'suite'
+  ...
+# Subtest: P1 — Transferência de Área pelo comando
+    # Subtest: total no lugar: área volta à origem; cabeças e entrada histórica intactas
+    ok 1 - total no lugar: área volta à origem; cabeças e entrada histórica intactas
+      ---
+      duration_ms: 414.847064
+      type: 'test'
+      ...
+    # Subtest: parcial com lote novo: 500 → 450 + 50 → cancelar → 500 + 0 (derivado Inativo, entrada 50 intacta)
+    ok 2 - parcial com lote novo: 500 → 450 + 50 → cancelar → 500 + 0 (derivado Inativo, entrada 50 intacta)
+      ---
+      duration_ms: 417.628505
+      type: 'test'
+      ...
+    # Subtest: parcial unificada com destino preexistente: 500/100 → 450/150 → 500/100
+    ok 3 - parcial unificada com destino preexistente: 500/100 → 450/150 → 500/100
+      ---
+      duration_ms: 415.689839
+      type: 'test'
+      ...
+    # Subtest: total unificada: 500 + 100 → 0 Inativo / 600 → 500 Ativo / 100
+    ok 4 - total unificada: 500 + 100 → 0 Inativo / 600 → 500 Ativo / 100
+      ---
+      duration_ms: 441.64604
+      type: 'test'
+      ...
+    # Subtest: destino incompatível (outro nome/categoria/área) → 409 e nada muda
+    ok 5 - destino incompatível (outro nome/categoria/área) → 409 e nada muda
+      ---
+      duration_ms: 385.543021
+      type: 'test'
+      ...
+    # Subtest: legado (POST + PATCH do navegador, sem proveniência) → recusa fail-closed, nada muda
+    ok 6 - legado (POST + PATCH do navegador, sem proveniência) → recusa fail-closed, nada muda
+      ---
+      duration_ms: 375.069577
+      type: 'test'
+      ...
+    # Subtest: destino alterado por escrita direta (sem auditoria) → CANCELAMENTO_ESTADO_DIVERGENTE; nada muda
+    ok 7 - destino alterado por escrita direta (sem auditoria) → CANCELAMENTO_ESTADO_DIVERGENTE; nada muda
+      ---
+      duration_ms: 432.823649
+      type: 'test'
+      ...
+    1..7
+ok 5 - P1 — Transferência de Área pelo comando
+  ---
+  duration_ms: 2884.280987
+  type: 'suite'
+  ...
+# Subtest: R2A-R1 — concorrência de saldo (CAS) e rollback
+    # Subtest: PATCH obsoleto depois do cancelamento (quantidade calculada antes) → 409 LOTE_ESTADO_CONFLITO; saldo 500
+    ok 1 - PATCH obsoleto depois do cancelamento (quantidade calculada antes) → 409 LOTE_ESTADO_CONFLITO; saldo 500
+      ---
+      duration_ms: 402.090965
+      type: 'test'
+      ...
+    # Subtest: PATCH de saldo/área/status/categoria sem estado esperado → 409; peso e nome seguem livres
+    ok 2 - PATCH de saldo/área/status/categoria sem estado esperado → 409; peso e nome seguem livres
+      ---
+      duration_ms: 378.35453
+      type: 'test'
+      ...
+    # Subtest: estado esperado OBSOLETO em status/área/categoria → 409; estado correto → 200
+    ok 3 - estado esperado OBSOLETO em status/área/categoria → 409; estado correto → 200
+      ---
+      duration_ms: 336.084404
+      type: 'test'
+      ...
+    # Subtest: ordem A (cancelamento pega a trava primeiro): devolve 50 (500); o PATCH 450→400 perde o CAS
+    ok 4 - ordem A (cancelamento pega a trava primeiro): devolve 50 (500); o PATCH 450→400 perde o CAS
+      ---
+      duration_ms: 1014.017711
+      type: 'test'
+      ...
+    # Subtest: ordem B (PATCH válido pega a trava primeiro): 450→400; o cancelamento detecta a intervenção e recusa sem crédito
+    ok 5 - ordem B (PATCH válido pega a trava primeiro): 450→400; o cancelamento detecta a intervenção e recusa sem crédito
+      ---
+      duration_ms: 1079.951671
+      type: 'test'
+      ...
+    # Subtest: destino da transferência alterado concorrentemente: o cancelamento trava os DOIS lotes em ordem de id e recusa
+    ok 6 - destino da transferência alterado concorrentemente: o cancelamento trava os DOIS lotes em ordem de id e recusa
+      ---
+      duration_ms: 1013.214443
+      type: 'test'
+      ...
+    # Subtest: duas transferências parciais disputando a mesma origem (100; 60 + 60) → uma passa, outra 409; total 100
+    ok 7 - duas transferências parciais disputando a mesma origem (100; 60 + 60) → uma passa, outra 409; total 100
+      ---
+      duration_ms: 666.76174
+      type: 'test'
+      ...
+    # Subtest: dois cancelamentos simultâneos com chaves diferentes → um 200; saldo 500, não 550
+    ok 8 - dois cancelamentos simultâneos com chaves diferentes → um 200; saldo 500, não 550
+      ---
+      duration_ms: 400.289384
+      type: 'test'
+      ...
+    # Subtest: mesma chave em paralelo → nenhum crédito duplicado
+    ok 9 - mesma chave em paralelo → nenhum crédito duplicado
+      ---
+      duration_ms: 387.364375
+      type: 'test'
+      ...
+# prisma:error 
+# Invalid `prisma.movimentacaoMapa.update()` invocation:
+# Error occurred during query execution:
+# ConnectorError(ConnectorError { user_facing_error: None, kind: QueryError(PostgresError { code: "P0001", message: "falha simulada", severity: "ERROR", detail: None, column: None, hint: None }), transient: false })
+    # Subtest: falha forçada depois de atualizar o lote → rollback completo; retry da mesma chave conclui
+    ok 10 - falha forçada depois de atualizar o lote → rollback completo; retry da mesma chave conclui
+      ---
+      duration_ms: 439.946314
+      type: 'test'
+      ...
+    # Subtest: "timeout depois do COMMIT": o reenvio com a mesma chave devolve o mesmo resultado, sem segundo crédito
+    ok 11 - "timeout depois do COMMIT": o reenvio com a mesma chave devolve o mesmo resultado, sem segundo crédito
+      ---
+      duration_ms: 379.196896
+      type: 'test'
+      ...
+    # Subtest: tenants isolados com o mesmo nome de lote
+    ok 12 - tenants isolados com o mesmo nome de lote
+      ---
+      duration_ms: 702.675603
+      type: 'test'
+      ...
+    1..12
+ok 6 - R2A-R1 — concorrência de saldo (CAS) e rollback
+  ---
+  duration_ms: 7201.277313
+  type: 'suite'
+  ...
+# ◇ injected env (0) from .env // tip: ⌘ enable debugging { debug: true }
+# (node:10022) [FSTDEP023] FastifyDeprecation: disableRequestLogging option is deprecated. Use the logController option with disableRequestLogging or isLogDisabled override instead. The disableRequestLogging top-level option will be removed in `fastify@6`.
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: R2C junção — saldo, peso, invariantes e cancelamento
+    # Subtest: J1: 40+30+20 → principal 90, origens 0/Inativo, 1 movimento "Junção de Lotes" (não Entrada); entrada e identificação intactas; cancelar volta 40/30/20
+    ok 1 - J1: 40+30+20 → principal 90, origens 0/Inativo, 1 movimento "Junção de Lotes" (não Entrada); entrada e identificação intactas; cancelar volta 40/30/20
+      ---
+      duration_ms: 697.303661
+      type: 'test'
+      ...
+    # Subtest: J2: pesos todos conhecidos → média ponderada (4 casas); um desconhecido → principal fica sem peso (null), nunca zero; cancelar restaura exato
+    ok 2 - J2: pesos todos conhecidos → média ponderada (4 casas); um desconhecido → principal fica sem peso (null), nunca zero; cancelar restaura exato
+      ---
+      duration_ms: 1377.600411
+      type: 'test'
+      ...
+    # Subtest: J3: 1 origem e muitas origens (2 e 6 lotes) conservam o total
+    ok 3 - J3: 1 origem e muitas origens (2 e 6 lotes) conservam o total
+      ---
+      duration_ms: 537.477209
+      type: 'test'
+      ...
+    1..3
+ok 7 - R2C junção — saldo, peso, invariantes e cancelamento
+  ---
+  duration_ms: 3020.397328
+  type: 'suite'
+  ...
+# Subtest: R2C junção — validações no servidor (nada gravado)
+    # Subtest: V1: forma — duplicado, principal entre origens, vazio, teto, campos do navegador, data impossível → 400
+    ok 1 - V1: forma — duplicado, principal entre origens, vazio, teto, campos do navegador, data impossível → 400
+      ---
+      duration_ms: 484.531536
+      type: 'test'
+      ...
+    # Subtest: V2: lote zerado/inativo, excluído, de outra área → recusa estável
+    ok 2 - V2: lote zerado/inativo, excluído, de outra área → recusa estável
+      ---
+      duration_ms: 479.149328
+      type: 'test'
+      ...
+    # Subtest: V3: categoria, sexo, categoria de manejo divergentes ou sexo indefinido → JUNCAO_CLASSIFICACAO_DIVERGENTE
+    ok 3 - V3: categoria, sexo, categoria de manejo divergentes ou sexo indefinido → JUNCAO_CLASSIFICACAO_DIVERGENTE
+      ---
+      duration_ms: 515.022664
+      type: 'test'
+      ...
+    # Subtest: V4: área de outra empresa, área inexistente, outro tenant, homônimos com ids diferentes
+    ok 4 - V4: área de outra empresa, área inexistente, outro tenant, homônimos com ids diferentes
+      ---
+      duration_ms: 845.608333
+      type: 'test'
+      ...
+    # Subtest: V5: evento posterior ATIVO num participante → JUNCAO_DATA_RETROATIVA; só cancelados (> 600) não bloqueiam
+    ok 5 - V5: evento posterior ATIVO num participante → JUNCAO_DATA_RETROATIVA; só cancelados (> 600) não bloqueiam
+      ---
+      duration_ms: 1070.451464
+      type: 'test'
+      ...
+    # Subtest: V6: falha injetada em cada efeito e antes do movimento → banco inalterado (lotes, movimento, auditoria, idempotência)
+    ok 6 - V6: falha injetada em cada efeito e antes do movimento → banco inalterado (lotes, movimento, auditoria, idempotência)
+      ---
+      duration_ms: 1543.665508
+      type: 'test'
+      ...
+    # Subtest: V7: replay da mesma chave devolve o mesmo resultado; conteúdo divergente → 409; retry após commit não duplica
+    ok 7 - V7: replay da mesma chave devolve o mesmo resultado; conteúdo divergente → 409; retry após commit não duplica
+      ---
+      duration_ms: 420.91413
+      type: 'test'
+      ...
+    1..7
+ok 8 - R2C junção — validações no servidor (nada gravado)
+  ---
+  duration_ms: 5361.07542
+  type: 'suite'
+  ...
+# Subtest: R2C junção — cancelamento certificado
+    # Subtest: K1: não-admin não cancela; dois cancelamentos: o segundo é recusado sem mutação dupla
+    ok 1 - K1: não-admin não cancela; dois cancelamentos: o segundo é recusado sem mutação dupla
+      ---
+      duration_ms: 490.433045
+      type: 'test'
+      ...
+    # Subtest: K2: dependência posterior R2A (morte no principal) e R2B (pesagem) bloqueiam; ida e volta de peso por PATCH bloqueia
+    ok 2 - K2: dependência posterior R2A (morte no principal) e R2B (pesagem) bloqueiam; ida e volta de peso por PATCH bloqueia
+      ---
+      duration_ms: 1229.325389
+      type: 'test'
+      ...
+    # Subtest: K3: efeito forjado (operação de outro movimento) → CANCELAMENTO_EFEITO_NAO_COMPROVADO
+    ok 3 - K3: efeito forjado (operação de outro movimento) → CANCELAMENTO_EFEITO_NAO_COMPROVADO
+      ---
+      duration_ms: 570.895363
+      type: 'test'
+      ...
+    1..3
+ok 9 - R2C junção — cancelamento certificado
+  ---
+  duration_ms: 2291.132512
+  type: 'suite'
+  ...
+# Subtest: R2C junção — histórico, exclusão (\#167) e POST genérico
+    # Subtest: H1: histórico pelo principal e por CADA absorvido acha a junção; pela área também
+    ok 1 - H1: histórico pelo principal e por CADA absorvido acha a junção; pela área também
+      ---
+      duration_ms: 432.985713
+      type: 'test'
+      ...
+    # Subtest: H2: \#167 — participante de junção ativa não sai do Cadastro; depois do cancelamento, exclusão lógica (histórico preservado)
+    ok 2 - H2: \#167 — participante de junção ativa não sai do Cadastro; depois do cancelamento, exclusão lógica (histórico preservado)
+      ---
+      duration_ms: 717.102291
+      type: 'test'
+      ...
+    # Subtest: G1: POST genérico de junção (tipo novo, legado Entrada+motivo, marcador) → 409; campo "juncao" → 400; Entrada legítima passa
+    ok 3 - G1: POST genérico de junção (tipo novo, legado Entrada+motivo, marcador) → 409; campo "juncao" → 400; Entrada legítima passa
+      ---
+      duration_ms: 460.234411
+      type: 'test'
+      ...
+    1..3
+ok 10 - R2C junção — histórico, exclusão (\#167) e POST genérico
+  ---
+  duration_ms: 1610.711335
+  type: 'suite'
+  ...
+# Subtest: R2C junção — concorrência real (3 rodadas)
+    # Subtest: C1.1: duas junções com origem compartilhada → uma vale, a outra 409; nada duplicado
+    ok 1 - C1.1: duas junções com origem compartilhada → uma vale, a outra 409; nada duplicado
+      ---
+      duration_ms: 504.456493
+      type: 'test'
+      ...
+    # Subtest: C2.1: junção × morte na origem → conservação exata, sem 500
+    ok 2 - C2.1: junção × morte na origem → conservação exata, sem 500
+      ---
+      duration_ms: 501.279234
+      type: 'test'
+      ...
+    # Subtest: C3.1: junção × transferência da origem → nunca os dois sobre a mesma cabeça
+    ok 3 - C3.1: junção × transferência da origem → nunca os dois sobre a mesma cabeça
+      ---
+      duration_ms: 430.939652
+      type: 'test'
+      ...
+    # Subtest: C4.1: junção × DELETE da origem → sem exclusão órfã
+    ok 4 - C4.1: junção × DELETE da origem → sem exclusão órfã
+      ---
+      duration_ms: 417.766032
+      type: 'test'
+      ...
+    # Subtest: C5.1: cancelar junção × pesagem do principal → nunca reverte por cima
+    ok 5 - C5.1: cancelar junção × pesagem do principal → nunca reverte por cima
+      ---
+      duration_ms: 457.757186
+      type: 'test'
+      ...
+    # Subtest: C1.2: duas junções com origem compartilhada → uma vale, a outra 409; nada duplicado
+    ok 6 - C1.2: duas junções com origem compartilhada → uma vale, a outra 409; nada duplicado
+      ---
+      duration_ms: 479.905677
+      type: 'test'
+      ...
+    # Subtest: C2.2: junção × morte na origem → conservação exata, sem 500
+    ok 7 - C2.2: junção × morte na origem → conservação exata, sem 500
+      ---
+      duration_ms: 436.014614
+      type: 'test'
+      ...
+    # Subtest: C3.2: junção × transferência da origem → nunca os dois sobre a mesma cabeça
+    ok 8 - C3.2: junção × transferência da origem → nunca os dois sobre a mesma cabeça
+      ---
+      duration_ms: 377.967604
+      type: 'test'
+      ...
+    # Subtest: C4.2: junção × DELETE da origem → sem exclusão órfã
+    ok 9 - C4.2: junção × DELETE da origem → sem exclusão órfã
+      ---
+      duration_ms: 398.611414
+      type: 'test'
+      ...
+    # Subtest: C5.2: cancelar junção × pesagem do principal → nunca reverte por cima
+    ok 10 - C5.2: cancelar junção × pesagem do principal → nunca reverte por cima
+      ---
+      duration_ms: 450.218474
+      type: 'test'
+      ...
+    # Subtest: C1.3: duas junções com origem compartilhada → uma vale, a outra 409; nada duplicado
+    ok 11 - C1.3: duas junções com origem compartilhada → uma vale, a outra 409; nada duplicado
+      ---
+      duration_ms: 484.147322
+      type: 'test'
+      ...
+    # Subtest: C2.3: junção × morte na origem → conservação exata, sem 500
+    ok 12 - C2.3: junção × morte na origem → conservação exata, sem 500
+      ---
+      duration_ms: 491.594083
+      type: 'test'
+      ...
+    # Subtest: C3.3: junção × transferência da origem → nunca os dois sobre a mesma cabeça
+    ok 13 - C3.3: junção × transferência da origem → nunca os dois sobre a mesma cabeça
+      ---
+      duration_ms: 406.291039
+      type: 'test'
+      ...
+    # Subtest: C4.3: junção × DELETE da origem → sem exclusão órfã
+    ok 14 - C4.3: junção × DELETE da origem → sem exclusão órfã
+      ---
+      duration_ms: 384.828747
+      type: 'test'
+      ...
+    # Subtest: C5.3: cancelar junção × pesagem do principal → nunca reverte por cima
+    ok 15 - C5.3: cancelar junção × pesagem do principal → nunca reverte por cima
+      ---
+      duration_ms: 453.814752
+      type: 'test'
+      ...
+    1..15
+ok 11 - R2C junção — concorrência real (3 rodadas)
+  ---
+  duration_ms: 6677.137721
+  type: 'suite'
+  ...
+# ◇ injected env (0) from .env // tip: ⌁ auth for agents [www.vestauth.com]
+# (node:10049) [FSTDEP023] FastifyDeprecation: disableRequestLogging option is deprecated. Use the logController option with disableRequestLogging or isLogDisabled override instead. The disableRequestLogging top-level option will be removed in `fastify@6`.
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: R2D baixa — saldos, alocação, metadados e cancelamento do conjunto
+    # Subtest: B1: MORTE 60 em 40+30+20 → 0/Inativo, 10, 20 (total 30); 1 movimento, 1 auditoria por participante; cancelar → 40/30/20
+    ok 1 - B1: MORTE 60 em 40+30+20 → 0/Inativo, 10, 20 (total 30); 1 movimento, 1 auditoria por participante; cancelar → 40/30/20
+      ---
+      duration_ms: 731.072236
+      type: 'test'
+      ...
+    # Subtest: B2: ABATE 60 — metadados são TOTAIS da linha (não multiplicados por lote); peso médio dos lotes não muda; cancelar volta
+    ok 2 - B2: ABATE 60 — metadados são TOTAIS da linha (não multiplicados por lote); peso médio dos lotes não muda; cancelar volta
+      ---
+      duration_ms: 513.731247
+      type: 'test'
+      ...
+    # Subtest: B3: 1, 2 e 3 lotes — 10 só no 1º; 50 em dois; 90 zera os três (todos Inativo, nenhum apagado)
+    ok 3 - B3: 1, 2 e 3 lotes — 10 só no 1º; 50 em dois; 90 zera os três (todos Inativo, nenhum apagado)
+      ---
+      duration_ms: 1313.916093
+      type: 'test'
+      ...
+    # Subtest: B4: excedente (100 em 90), categoria sem lote, outra categoria → 409 BAIXA_SALDO_INSUFICIENTE com disponível; nada gravado
+    ok 4 - B4: excedente (100 em 90), categoria sem lote, outra categoria → 409 BAIXA_SALDO_INSUFICIENTE com disponível; nada gravado
+      ---
+      duration_ms: 470.036378
+      type: 'test'
+      ...
+    # Subtest: B5: lote inativo, zerado, excluído (\#167), de outra área, outra empresa ou outro tenant não entra na conta
+    ok 5 - B5: lote inativo, zerado, excluído (\#167), de outra área, outra empresa ou outro tenant não entra na conta
+      ---
+      duration_ms: 768.524764
+      type: 'test'
+      ...
+    # Subtest: B5b: lotes_selecionados é só filtro — lote fora da seleção não é baixado; selecionado inelegível não entra; id de outro tenant → 404
+    ok 6 - B5b: lotes_selecionados é só filtro — lote fora da seleção não é baixado; selecionado inelegível não entra; id de outro tenant → 404
+      ---
+      duration_ms: 762.795816
+      type: 'test'
+      ...
+    # Subtest: B6: categoria oficial com lote de sexo contrário → 409 BAIXA_CLASSIFICACAO_DIVERGENTE; nada gravado
+    ok 7 - B6: categoria oficial com lote de sexo contrário → 409 BAIXA_CLASSIFICACAO_DIVERGENTE; nada gravado
+      ---
+      duration_ms: 391.543288
+      type: 'test'
+      ...
+    # Subtest: B7: mesma categoria em duas linhas (Doença 30 + Predador 20) → cada lote baixado UMA vez, distribuição por linha
+    ok 8 - B7: mesma categoria em duas linhas (Doença 30 + Predador 20) → cada lote baixado UMA vez, distribuição por linha
+      ---
+      duration_ms: 413.379541
+      type: 'test'
+      ...
+    # Subtest: B8: duas categorias numa confirmação → UM movimento, UMA transação; cancelar devolve tudo
+    ok 9 - B8: duas categorias numa confirmação → UM movimento, UMA transação; cancelar devolve tudo
+      ---
+      duration_ms: 535.579684
+      type: 'test'
+      ...
+    # Subtest: B9: política determinística — numero_lote crescente (numérico antes de texto), depois id; independe da ordem de criação
+    ok 10 - B9: política determinística — numero_lote crescente (numérico antes de texto), depois id; independe da ordem de criação
+      ---
+      duration_ms: 46.20547
+      type: 'test'
+      ...
+    1..10
+ok 12 - R2D baixa — saldos, alocação, metadados e cancelamento do conjunto
+  ---
+  duration_ms: 6401.470218
+  type: 'suite'
+  ...
+# Subtest: R2D baixa — atomicidade, idempotência e contrato
+    # Subtest: A1: falha injetada no 1º, 2º, 3º efeito e antes do movimento → rollback total (inclusive reserva idempotente)
+    ok 1 - A1: falha injetada no 1º, 2º, 3º efeito e antes do movimento → rollback total (inclusive reserva idempotente)
+      ---
+      duration_ms: 1850.690134
+      type: 'test'
+      ...
+    # Subtest: A2: replay da mesma chave → mesma resposta, uma baixa; mesma chave com conteúdo diferente → 409 IDEMPOTENCY_CONFLICT
+    ok 2 - A2: replay da mesma chave → mesma resposta, uma baixa; mesma chave com conteúdo diferente → 409 IDEMPOTENCY_CONFLICT
+      ---
+      duration_ms: 466.363831
+      type: 'test'
+      ...
+    # Subtest: A3: contrato estrito — campos reservados, saldo/lote do cliente e formas inválidas → 400; nada gravado
+    ok 3 - A3: contrato estrito — campos reservados, saldo/lote do cliente e formas inválidas → 400; nada gravado
+      ---
+      duration_ms: 671.144958
+      type: 'test'
+      ...
+    # Subtest: A4: outro tenant, área de outra empresa ou inexistente → 404 sem vazamento; sem token → 401
+    ok 4 - A4: outro tenant, área de outra empresa ou inexistente → 404 sem vazamento; sem token → 401
+      ---
+      duration_ms: 747.659753
+      type: 'test'
+      ...
+    # Subtest: A5: POST genérico com lote_ids/linhas/efeito_servidor continua recusado; usuário comum pode registrar baixa (permissão de manejo)
+    ok 5 - A5: POST genérico com lote_ids/linhas/efeito_servidor continua recusado; usuário comum pode registrar baixa (permissão de manejo)
+      ---
+      duration_ms: 406.998058
+      type: 'test'
+      ...
+    1..5
+ok 13 - R2D baixa — atomicidade, idempotência e contrato
+  ---
+  duration_ms: 4143.510912
+  type: 'suite'
+  ...
+# Subtest: R2D baixa — data operacional
+    # Subtest: D1: registro ATIVO posterior num participante → 409 BAIXA_DATA_RETROATIVA; mesmo dia e anterior passam; cancelado não bloqueia
+    ok 1 - D1: registro ATIVO posterior num participante → 409 BAIXA_DATA_RETROATIVA; mesmo dia e anterior passam; cancelado não bloqueia
+      ---
+      duration_ms: 481.378096
+      type: 'test'
+      ...
+    # Subtest: D2: data impossível e sem data, registradas depois → bloqueiam (createdAt); tarefa só prevista não
+    ok 2 - D2: data impossível e sem data, registradas depois → bloqueiam (createdAt); tarefa só prevista não
+      ---
+      duration_ms: 446.409923
+      type: 'test'
+      ...
+    # Subtest: D3: 610 movimentos cancelados posteriores + 1 ativo → bloqueia; só cancelados → passa
+    ok 3 - D3: 610 movimentos cancelados posteriores + 1 ativo → bloqueia; só cancelados → passa
+      ---
+      duration_ms: 489.850678
+      type: 'test'
+      ...
+    1..3
+ok 14 - R2D baixa — data operacional
+  ---
+  duration_ms: 1418.059588
+  type: 'suite'
+  ...
+# Subtest: R2D baixa — cancelamento, histórico e exclusão (\#167)
+    # Subtest: X1: só administrador cancela; replay do cancelamento não duplica; segundo cancelamento → CANCELAMENTO_JA_REALIZADO
+    ok 1 - X1: só administrador cancela; replay do cancelamento não duplica; segundo cancelamento → CANCELAMENTO_JA_REALIZADO
+      ---
+      duration_ms: 564.992327
+      type: 'test'
+      ...
+    # Subtest: X2: manejo posterior comprovado num participante bloqueia; cancelado ele, a baixa cancela
+    ok 2 - X2: manejo posterior comprovado num participante bloqueia; cancelado ele, a baixa cancela
+      ---
+      duration_ms: 681.031668
+      type: 'test'
+      ...
+    # Subtest: X3: alteração direta (ida e volta) num participante → CANCELAMENTO_ALTERACAO_POSTERIOR; estado divergente → recusa; nada muda
+    ok 3 - X3: alteração direta (ida e volta) num participante → CANCELAMENTO_ALTERACAO_POSTERIOR; estado divergente → recusa; nada muda
+      ---
+      duration_ms: 1007.798273
+      type: 'test'
+      ...
+    # Subtest: X4: Morte legada (POST genérico) e Morte individual R2A seguem pelos caminhos antigos
+    ok 4 - X4: Morte legada (POST genérico) e Morte individual R2A seguem pelos caminhos antigos
+      ---
+      duration_ms: 501.949353
+      type: 'test'
+      ...
+    # Subtest: H1: histórico por lote e por área acha a baixa em cada participante (não no lote que não participou), com total íntegro
+    ok 5 - H1: histórico por lote e por área acha a baixa em cada participante (não no lote que não participou), com total íntegro
+      ---
+      duration_ms: 472.056136
+      type: 'test'
+      ...
+    # Subtest: H2: \#167 — participante de baixa ativa não sai do Cadastro; depois do cancelamento, exclusão lógica e histórico preservado
+    ok 6 - H2: \#167 — participante de baixa ativa não sai do Cadastro; depois do cancelamento, exclusão lógica e histórico preservado
+      ---
+      duration_ms: 686.981496
+      type: 'test'
+      ...
+    1..6
+ok 15 - R2D baixa — cancelamento, histórico e exclusão (\#167)
+  ---
+  duration_ms: 3915.611241
+  type: 'suite'
+  ...
+# Subtest: R2D baixa — concorrência real (3 rodadas)
+    # Subtest: K1.1: duas baixas disputando o saldo (60 + 60 em 90) → uma 201, outra 409; sem cabeça fantasma
+    ok 1 - K1.1: duas baixas disputando o saldo (60 + 60 em 90) → uma 201, outra 409; sem cabeça fantasma
+      ---
+      duration_ms: 465.000972
+      type: 'test'
+      ...
+    # Subtest: K2.1: baixa × transferência do participante → conservação exata
+    ok 2 - K2.1: baixa × transferência do participante → conservação exata
+      ---
+      duration_ms: 481.044581
+      type: 'test'
+      ...
+    # Subtest: K3.1: baixa × junção dos mesmos lotes → total = 90 − baixa efetivada
+    ok 3 - K3.1: baixa × junção dos mesmos lotes → total = 90 − baixa efetivada
+      ---
+      duration_ms: 426.460304
+      type: 'test'
+      ...
+    # Subtest: K4.1: baixa × DELETE de participante → nunca baixa em lote excluído nem exclusão órfã
+    ok 4 - K4.1: baixa × DELETE de participante → nunca baixa em lote excluído nem exclusão órfã
+      ---
+      duration_ms: 473.915459
+      type: 'test'
+      ...
+    # Subtest: K5.1: cancelar baixa × pesagem do participante → nunca reverte por cima
+    ok 5 - K5.1: cancelar baixa × pesagem do participante → nunca reverte por cima
+      ---
+      duration_ms: 452.70363
+      type: 'test'
+      ...
+    # Subtest: K6.1: confirmação duplicada em paralelo (mesma chave) → uma baixa, um movimento
+    ok 6 - K6.1: confirmação duplicada em paralelo (mesma chave) → uma baixa, um movimento
+      ---
+      duration_ms: 455.119
+      type: 'test'
+      ...
+    # Subtest: K1.2: duas baixas disputando o saldo (60 + 60 em 90) → uma 201, outra 409; sem cabeça fantasma
+    ok 7 - K1.2: duas baixas disputando o saldo (60 + 60 em 90) → uma 201, outra 409; sem cabeça fantasma
+      ---
+      duration_ms: 449.765372
+      type: 'test'
+      ...
+    # Subtest: K2.2: baixa × transferência do participante → conservação exata
+    ok 8 - K2.2: baixa × transferência do participante → conservação exata
+      ---
+      duration_ms: 431.893039
+      type: 'test'
+      ...
+    # Subtest: K3.2: baixa × junção dos mesmos lotes → total = 90 − baixa efetivada
+    ok 9 - K3.2: baixa × junção dos mesmos lotes → total = 90 − baixa efetivada
+      ---
+      duration_ms: 419.922263
+      type: 'test'
+      ...
+    # Subtest: K4.2: baixa × DELETE de participante → nunca baixa em lote excluído nem exclusão órfã
+    ok 10 - K4.2: baixa × DELETE de participante → nunca baixa em lote excluído nem exclusão órfã
+      ---
+      duration_ms: 412.176092
+      type: 'test'
+      ...
+    # Subtest: K5.2: cancelar baixa × pesagem do participante → nunca reverte por cima
+    ok 11 - K5.2: cancelar baixa × pesagem do participante → nunca reverte por cima
+      ---
+      duration_ms: 448.109009
+      type: 'test'
+      ...
+    # Subtest: K6.2: confirmação duplicada em paralelo (mesma chave) → uma baixa, um movimento
+    ok 12 - K6.2: confirmação duplicada em paralelo (mesma chave) → uma baixa, um movimento
+      ---
+      duration_ms: 447.8186
+      type: 'test'
+      ...
+    # Subtest: K1.3: duas baixas disputando o saldo (60 + 60 em 90) → uma 201, outra 409; sem cabeça fantasma
+    ok 13 - K1.3: duas baixas disputando o saldo (60 + 60 em 90) → uma 201, outra 409; sem cabeça fantasma
+      ---
+      duration_ms: 449.986341
+      type: 'test'
+      ...
+    # Subtest: K2.3: baixa × transferência do participante → conservação exata
+    ok 14 - K2.3: baixa × transferência do participante → conservação exata
+      ---
+      duration_ms: 477.707618
+      type: 'test'
+      ...
+    # Subtest: K3.3: baixa × junção dos mesmos lotes → total = 90 − baixa efetivada
+    ok 15 - K3.3: baixa × junção dos mesmos lotes → total = 90 − baixa efetivada
+      ---
+      duration_ms: 570.259069
+      type: 'test'
+      ...
+    # Subtest: K4.3: baixa × DELETE de participante → nunca baixa em lote excluído nem exclusão órfã
+    ok 16 - K4.3: baixa × DELETE de participante → nunca baixa em lote excluído nem exclusão órfã
+      ---
+      duration_ms: 474.606407
+      type: 'test'
+      ...
+    # Subtest: K5.3: cancelar baixa × pesagem do participante → nunca reverte por cima
+    ok 17 - K5.3: cancelar baixa × pesagem do participante → nunca reverte por cima
+      ---
+      duration_ms: 523.174848
+      type: 'test'
+      ...
+    # Subtest: K6.3: confirmação duplicada em paralelo (mesma chave) → uma baixa, um movimento
+    ok 18 - K6.3: confirmação duplicada em paralelo (mesma chave) → uma baixa, um movimento
+      ---
+      duration_ms: 443.335758
+      type: 'test'
+      ...
+    1..18
+ok 16 - R2D baixa — concorrência real (3 rodadas)
+  ---
+  duration_ms: 8305.150513
+  type: 'suite'
+  ...
+1..16
+# tests 108
+# suites 16
+# pass 108
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 63036.733626

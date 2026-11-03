@@ -47,7 +47,32 @@ export const MENSAGENS_RECUSA = Object.freeze({
   CANCELAMENTO_EFEITO_NAO_COMPROVADO: "Não há registro provando que esta movimentação alterou o lote. Nada foi alterado.",
   TENANT_ADMIN_REQUIRED: "Somente o administrador da fazenda pode cancelar movimentações.",
   IDEMPOTENCY_CONFLICT: "Esta operação já foi enviada com outro motivo. Feche e abra de novo para recomeçar.",
+  // Ledger de posições (D-PROD-107): recusas estáveis — nada foi alterado.
+  CANCELAMENTO_SALDO_HISTORICO_NEGATIVO: "Um registro posterior usa estas cabeças. Cancele-o antes, do mais recente para o mais antigo. Nada foi alterado.",
+  REBANHO_DEPENDENCIA_FATO_SEM_SALDO: "Uma pesagem ou nascimento posterior depende deste registro. Cancele-o antes, do mais recente para o mais antigo. Nada foi alterado.",
+  REBANHO_PESO_DEPENDENCIA_CAUSAL: "Um registro posterior calculou o peso a partir deste. Cancele-o antes, do mais recente para o mais antigo. Nada foi alterado.",
+  REBANHO_LEDGER_CANCELAMENTO_LEGADO: "Movimento anterior ao controle por posições: fica no histórico. Registre a correção como um manejo novo. Nada foi alterado.",
+  IDEMPOTENCY_EFEITO_DESFEITO: "Esta operação foi desfeita por um reset de dados de teste. Feche e abra de novo. Nada foi alterado.",
 });
+
+const diaBR = (d) => String(d ?? "").split("-").reverse().join("/");
+/** Recusa com o detalhe do servidor (data/peso) quando houver. */
+export const mensagemDeRecusa = (codigo, detalhes) => {
+  const d = detalhes && typeof detalhes === "object" ? detalhes : null;
+  if (codigo === "CANCELAMENTO_SALDO_HISTORICO_NEGATIVO" && d?.data) {
+    return `Cancelar deixaria saldo negativo em ${d.area_nome ?? "uma área"} no dia ${diaBR(d.data)}. Cancele antes o registro posterior que usa estas cabeças. Nada foi alterado.`;
+  }
+  if (codigo === "REBANHO_DEPENDENCIA_FATO_SEM_SALDO" && d?.data) {
+    return d.tipo === "NASCIMENTO"
+      ? `O nascimento do dia ${diaBR(d.data)} ficaria sem as matrizes registradas nele. Cancele-o antes. Nada foi alterado.`
+      : `A pesagem do dia ${diaBR(d.data)} ficaria numa posição sem cabeças. Cancele-a antes. Nada foi alterado.`;
+  }
+  if (codigo === "REBANHO_PESO_DEPENDENCIA_CAUSAL" && d?.data) {
+    const kg = (v) => (v === null || v === undefined ? "desconhecido" : `${Number(v).toLocaleString("pt-BR")} kg`);
+    return `O registro do dia ${diaBR(d.data)} calculou o peso a partir deste (registrado ${kg(d.peso_registrado_kg)}; passaria a ${kg(d.peso_recalculado_kg)}). Cancele-o antes. Nada foi alterado.`;
+  }
+  return MENSAGENS_RECUSA[codigo] || "Não foi possível cancelar. Nada foi alterado.";
+};
 
 /** Código do servidor preservado no `cause` do ApiError (corpo da resposta). */
 const codigoDoServidor = (erro) => (typeof erro?.cause?.code === "string" ? erro.cause.code : null);
@@ -210,7 +235,7 @@ export default function CancelarMovimentacao({ movimento, onCancelado }) {
       if (ehRecusaDefinitiva(codigo)) {
         // Resposta estável do servidor: nada foi gravado; a próxima tentativa é outra operação.
         limparPendente(escopo, movimento.id);
-        setRecusa(MENSAGENS_RECUSA[codigo] || "Não foi possível cancelar. Nada foi alterado.");
+        setRecusa(mensagemDeRecusa(codigo, /** @type {any} */ (erro)?.details ?? /** @type {any} */ (erro)?.cause?.details));
         setDesconhecido(false);
         chaveRef.current = novaChave();
       } else {
@@ -221,7 +246,7 @@ export default function CancelarMovimentacao({ movimento, onCancelado }) {
     }
   };
 
-  /** @type {{elegivel?: boolean, codigo?: string|null, motivo?: string|null, efeitos?: any[]} | undefined} */
+  /** @type {{elegivel?: boolean, codigo?: string|null, motivo?: string|null, detalhes?: any, efeitos?: any[]} | undefined} */
   const e = /** @type {any} */ (elegibilidade.data);
   const motivoPronto = motivo.trim().length >= 3;
 
@@ -257,7 +282,7 @@ export default function CancelarMovimentacao({ movimento, onCancelado }) {
           )}
           {e && !e.elegivel && !desconhecido && (
             <div role="alert" className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1.5 text-xs text-amber-900">
-              {MENSAGENS_RECUSA[e.codigo] || e.motivo || "Cancelamento indisponível."}
+              {(e.codigo && e.codigo in MENSAGENS_RECUSA ? mensagemDeRecusa(e.codigo, e.detalhes) : null) || e.motivo || "Cancelamento indisponível."}
             </div>
           )}
           {(e?.elegivel || desconhecido) && (
