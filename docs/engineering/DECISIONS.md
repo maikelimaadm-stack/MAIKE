@@ -4585,6 +4585,11 @@ Testes KML-N1..N5 em `tests/smoke/importacaoAreasParser.test.js`.
   - abrir o diálogo reconsulta;
   - confirmar exige elegibilidade fresca: `elegivel === true`, `pode_excluir === true`, sem consulta em voo, sem erro e sem pendência;
   - o POST continua revalidando tudo na transação; um 409 entre o GET e o POST mostra a mensagem, não mexe no cache local e faz o card reconsultar.
+- **Fail-closed (PR180-R2).** A fila offline só conta como "vazia" quando a leitura terminou com sucesso **e** devolveu explicitamente um array vazio.
+  - Ainda sem resposta, com erro, sendo relida ou em formato inesperado (`undefined`, `null`, objeto) nunca vira `[]`.
+  - Nesses casos o card mostra "Verificando…" ou "Não foi possível verificar"; "Verificar de novo" refaz só a leitura que falhou.
+  - Durante qualquer releitura da elegibilidade, a resposta antiga não habilita nada.
+  - O botão de confirmar e o guard de `confirmar` usam as mesmas pré-condições: online, fila vazia confirmada, elegibilidade fresca, ou resultado anterior desconhecido com a mesma chave.
 - **Fora do escopo:** motor de exclusão, ledger, banco e migrations ficam inalterados.
 
 ---

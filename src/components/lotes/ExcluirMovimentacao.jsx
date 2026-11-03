@@ -276,7 +276,12 @@ export default function ExcluirMovimentacao({ movimento, onExcluido }) {
   // Operação legada na fila offline para este registro: falha fechada.
   const pendencias = useQuery({
     queryKey: ["pendencias-offline-movimentacao", usuario?.cliente_id ?? null, movimento?.id],
-    queryFn: () => pendenciasOfflineDaMovimentacao(movimento.id),
+    // Formato inesperado vira ERRO (fail-closed), nunca "fila vazia".
+    queryFn: async () => {
+      const lidas = await pendenciasOfflineDaMovimentacao(movimento.id);
+      if (!Array.isArray(lidas)) throw new Error("formato inesperado da fila offline");
+      return lidas;
+    },
     enabled: suportado && admin && !!usuario && (visivel || aberto),
     staleTime: ELEGIBILIDADE_STALE_MS,
     retry: false,
@@ -319,10 +324,30 @@ export default function ExcluirMovimentacao({ movimento, onExcluido }) {
     setAberto(valor);
   };
 
-  const pendenciasNaFila = Array.isArray(pendencias.data) ? pendencias.data : [];
+  /*
+   * FAIL-CLOSED (PR180-R2): a fila offline só conta como "vazia" quando a
+   * leitura TERMINOU com sucesso e devolveu explicitamente um array vazio.
+   * Ainda não respondeu, falhou, está relendo ou veio em formato inesperado
+   * (undefined/null/objeto) nunca vira "[]": o card fica em verificação ou
+   * erro, e nada habilita a exclusão.
+   */
+  const filaComFormato = pendencias.isSuccess && Array.isArray(pendencias.data);
+  const pendenciasNaFila = filaComFormato ? pendencias.data : [];
+  const filaFalhou = pendencias.isError || (pendencias.isSuccess && !Array.isArray(pendencias.data));
+  const filaVaziaConfirmada = filaComFormato && !pendencias.isFetching && pendencias.data.length === 0;
+
+  /** @type {{elegivel?: boolean, pode_excluir?: boolean, codigo?: string|null, motivo?: string|null, detalhes?: any, efeitos?: any[]} | undefined} */
+  const e = /** @type {any} */ (elegibilidade.data);
+  const motivoPronto = motivo.trim().length >= 3;
+  // Elegibilidade FRESCA: resposta do servidor sem releitura em voo e sem erro (nunca a verde antiga).
+  const elegivelAgora = elegibilidade.isSuccess && e?.elegivel === true && e?.pode_excluir === true && !elegibilidade.isFetching && !elegibilidade.isError;
+  // Mesmas pré-condições no botão e no guard de `confirmar` (não confiar só em `disabled`).
+  // Resultado desconhecido (`desconhecido`) reenvia a MESMA operação mesmo que o GET
+  // dê 404 (já excluída), mas nunca sem a fila confirmada vazia.
+  const podeEnviar = motivoPronto && confirmado && !enviando && online && filaVaziaConfirmada && (elegivelAgora || desconhecido);
 
   const confirmar = async () => {
-    if (enviando || motivo.trim().length < 3 || !confirmado || !online || pendenciasNaFila.length) return;
+    if (!podeEnviar) return;
     setEnviando(true);
     setRecusa(null);
     gravarPendente(escopo, movimento.id, { operation_id: chaveRef.current, motivo: motivo.trim() });
@@ -360,13 +385,6 @@ export default function ExcluirMovimentacao({ movimento, onExcluido }) {
     }
   };
 
-  /** @type {{elegivel?: boolean, pode_excluir?: boolean, codigo?: string|null, motivo?: string|null, detalhes?: any, efeitos?: any[]} | undefined} */
-  const e = /** @type {any} */ (elegibilidade.data);
-  const motivoPronto = motivo.trim().length >= 3;
-  // Confirmar exige elegibilidade FRESCA (revalidada ao abrir), sem consulta em voo nem erro.
-  const elegivelAgora = e?.elegivel === true && e?.pode_excluir === true && !elegibilidade.isFetching && !elegibilidade.isError;
-  const podeEnviar =
-    motivoPronto && confirmado && !enviando && online && !pendenciasNaFila.length && !pendencias.isFetching && (elegivelAgora || desconhecido);
 
   /**
    * Estado do card ANTES do clique. Só "elegível" habilita a ação; todo o
@@ -374,11 +392,15 @@ export default function ExcluirMovimentacao({ movimento, onExcluido }) {
    * @type {{rotulo: string, habilitado: boolean, motivo: string|null, tentarDeNovo?: boolean, destrutivo?: boolean}}
    */
   const estado = (() => {
-    if (lerPendente(escopo, movimento.id)) return { rotulo: "Excluir movimentação", habilitado: online, motivo: online ? "Exclusão anterior sem confirmação do servidor: abra para reenviar a mesma operação." : "Sem conexão: a exclusão só é feita online.", destrutivo: true };
     if (!online) return { rotulo: "Exclusão indisponível", habilitado: false, motivo: "Sem conexão: a exclusão só é feita online e não entra na fila offline." };
     if (pendenciasNaFila.length) return { rotulo: "Exclusão bloqueada", habilitado: false, motivo: "Há operação offline ainda não sincronizada para este registro. Sincronize antes de excluir." };
+    if (filaFalhou) return { rotulo: "Não foi possível verificar", habilitado: false, motivo: "Não foi possível ler a fila offline deste aparelho. Nada foi alterado.", tentarDeNovo: true };
+    if (!filaVaziaConfirmada) return { rotulo: "Verificando exclusão…", habilitado: false, motivo: null };
+    // Resultado anterior desconhecido: reabrir reenvia a MESMA operação (a fila já foi conferida acima).
+    if (lerPendente(escopo, movimento.id)) return { rotulo: "Excluir movimentação", habilitado: true, motivo: "Exclusão anterior sem confirmação do servidor: abra para reenviar a mesma operação.", destrutivo: true };
     if (elegibilidade.isError) return { rotulo: "Não foi possível verificar", habilitado: false, motivo: "A conferência no servidor falhou. Nada foi alterado.", tentarDeNovo: true };
-    if (!e || (elegibilidade.isFetching && e.elegivel)) return { rotulo: "Verificando exclusão…", habilitado: false, motivo: null };
+    // Releitura em voo: nunca expor a resposta antiga (potencialmente verde).
+    if (!e || !elegibilidade.isSuccess || elegibilidade.isFetching) return { rotulo: "Verificando exclusão…", habilitado: false, motivo: null };
     if (!e.elegivel) return { rotulo: "Exclusão bloqueada", habilitado: false, motivo: motivoCurtoDoBloqueio(e) };
     if (e.pode_excluir !== true) return { rotulo: "Exclusão bloqueada", habilitado: false, motivo: MENSAGENS_RECUSA.TENANT_ADMIN_REQUIRED };
     return { rotulo: "Excluir movimentação", habilitado: true, motivo: null, destrutivo: true };
@@ -412,7 +434,9 @@ export default function ExcluirMovimentacao({ movimento, onExcluido }) {
             onClick={(ev) => {
               ev.preventDefault();
               ev.stopPropagation();
-              elegibilidade.refetch();
+              // Refaz só o que falhou (nunca exclui).
+              if (filaFalhou) pendencias.refetch();
+              if (elegibilidade.isError || !filaFalhou) elegibilidade.refetch();
             }}
           >
             Verificar de novo
@@ -443,7 +467,12 @@ export default function ExcluirMovimentacao({ movimento, onExcluido }) {
               Há operação offline ainda não sincronizada para este registro. Sincronize antes de excluir.
             </div>
           )}
-          {elegibilidade.isLoading && online && <div role="status" className="text-sm text-slate-500">Conferindo no servidor...</div>}
+          {filaFalhou && (
+            <div role="alert" className="rounded-md border border-red-200 bg-red-50 px-2 py-1.5 text-xs text-red-800">
+              Não foi possível ler a fila offline deste aparelho. A exclusão fica bloqueada até a leitura dar certo. Nada foi alterado.
+            </div>
+          )}
+          {online && (elegibilidade.isFetching || pendencias.isFetching) && <div role="status" className="text-sm text-slate-500">Conferindo no servidor...</div>}
           {elegibilidade.isError && (
             <div role="alert" className="text-sm text-red-700">Não foi possível conferir agora. Tente novamente.</div>
           )}

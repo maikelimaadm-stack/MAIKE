@@ -36,6 +36,21 @@ Decisão: [D-PROD-111](./DECISIONS.md). Motor, ledger, banco e migrations não f
   - Ao abrir o histórico de B (16 movimentos), no máximo 2 GETs simultâneos e 2 no total.
   - Evidências em `evidencias/d-prod-111/`.
 
+## PR180-R2 — fail-closed da fila offline
+- **Defeito** (no HEAD `ad490a9c`): a leitura da fila offline usava `Array.isArray(data) ? data : []`. Uma fila ainda sem resposta, ou cuja leitura falhou, contava como vazia. Se o GET elegível chegasse antes da leitura da fila, o card podia habilitar.
+- **Correção:**
+  - fila vazia **confirmada** = leitura terminada com sucesso + array vazio + nenhuma releitura em voo;
+  - formato inesperado vira erro;
+  - elegibilidade só vale fresca;
+  - o mesmo predicado vale no botão e no guard de `confirmar`;
+  - o retry com a mesma chave continua, mas só com a fila confirmada vazia.
+- **Testes A–E** (`exclusaoMovimentacao.test.jsx`):
+  - RED no código antigo: 4 falham (A, B, C, E); o D (releitura) já passava;
+  - GREEN: 29/29 no arquivo e 86/86 no smoke afetado;
+  - EX-UX em PostgreSQL local: 28/28;
+  - Playwright local: 14/14 (1440 e 390);
+  - evidências em `evidencias/d-prod-111/pr180-r2-*.txt`.
+
 ## Limites
 - No cenário de aceite, a área do bloqueador não sai no card: o servidor manda só o `area_id` nesse código. O trajeto (A → B) já aparece no card.
 - Elegibilidade reaproveitada por até 30 s, enquanto o histórico fica aberto. Confirmar sempre reconsulta.

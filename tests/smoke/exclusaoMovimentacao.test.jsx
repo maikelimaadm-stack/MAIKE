@@ -364,6 +364,92 @@ describe("Pré-validação — escala (100 movimentos)", () => {
   });
 });
 
+describe("PR180-R2 — fail-closed: fila offline e elegibilidade precisam de resultado confiável", () => {
+  const adiado = () => { let resolver, rejeitar; const promessa = new Promise((r, j) => { resolver = r; rejeitar = j; }); return { promessa, resolver, rejeitar }; };
+  // `hidden: true`: com o diálogo aberto, o card fica sob aria-hidden — ainda assim não pode estar habilitado.
+  const botaoExcluir = () => screen.queryByRole("button", { name: "Excluir movimentação", hidden: true });
+
+  it("A) GET elegível já respondeu, fila offline ainda pendente → 'Verificando…' desabilitado; só habilita quando a fila devolve []", async () => {
+    const fila = adiado();
+    servico.pendenciasOfflineDaMovimentacao.mockImplementation(() => fila.promessa);
+    await renderizar(<ExcluirMovimentacao movimento={TRANSF} />);
+    await waitFor(() => expect(servico.consultarExclusaoMovimentacao).toHaveBeenCalled());
+    await assentar();
+    expect((await screen.findByRole("button", { name: "Verificando exclusão…" })).hasAttribute("disabled")).toBe(true);
+    expect(botaoExcluir()).toBeNull();
+    await act(async () => { fila.resolver([]); await new Promise((r) => setTimeout(r, 30)); });
+    expect((await screen.findByRole("button", { name: "Excluir movimentação" })).hasAttribute("disabled")).toBe(false);
+  });
+
+  it("B) leitura da fila REJEITA → 'Não foi possível verificar', nenhum POST; 'Verificar de novo' relê a fila e, com [], habilita", async () => {
+    servico.pendenciasOfflineDaMovimentacao.mockImplementationOnce(async () => { throw new Error("IndexedDB indisponível"); });
+    await renderizar(<ExcluirMovimentacao movimento={TRANSF} />);
+    const b = await screen.findByRole("button", { name: "Não foi possível verificar" });
+    expect(b.hasAttribute("disabled")).toBe(true);
+    expect(screen.getByText(/Não foi possível ler a fila offline/)).toBeTruthy();
+    expect(botaoExcluir()).toBeNull();
+    fireEvent.click(b);
+    expect(servico.excluirMovimentacaoMapa).not.toHaveBeenCalled();
+    const chamadasFila = servico.pendenciasOfflineDaMovimentacao.mock.calls.length;
+    await clicar(screen.getByRole("button", { name: "Verificar de novo" }));
+    await waitFor(() => expect(servico.pendenciasOfflineDaMovimentacao.mock.calls.length).toBeGreaterThan(chamadasFila));
+    expect((await screen.findByRole("button", { name: "Excluir movimentação" })).hasAttribute("disabled")).toBe(false);
+    expect(servico.excluirMovimentacaoMapa).not.toHaveBeenCalled();
+  });
+
+  it("C) fila devolve formato inválido (undefined/null/objeto) → falha fechada, nunca habilita", async () => {
+    for (const invalido of [undefined, null, { length: 0 }]) {
+      servico.pendenciasOfflineDaMovimentacao.mockImplementation(async () => invalido);
+      const r = await renderizar(<ExcluirMovimentacao movimento={TRANSF} />);
+      expect((await screen.findByRole("button", { name: "Não foi possível verificar" })).hasAttribute("disabled")).toBe(true);
+      expect(botaoExcluir()).toBeNull();
+      r.unmount();
+    }
+  });
+
+  it("D) releitura em voo ou com erro após resposta elegível → nenhum botão habilitado com o dado antigo (card e diálogo)", async () => {
+    await renderizar(<ExcluirMovimentacao movimento={TRANSF} />);
+    const b = await screen.findByRole("button", { name: "Excluir movimentação" });
+    const releitura = adiado();
+    servico.consultarExclusaoMovimentacao.mockImplementation(() => releitura.promessa);
+    await clicar(b); // abrir → revalida
+    expect(screen.getAllByRole("button", { name: "Verificando exclusão…", hidden: true }).length).toBeGreaterThan(0);
+    expect(botaoExcluir()).toBeNull();
+    const confirmar = screen.queryByRole("button", { name: "Excluir definitivamente" });
+    if (confirmar) {
+      fireEvent.change(screen.getByLabelText("Motivo da exclusão"), { target: { value: "lançado errado" } });
+      fireEvent.click(screen.getByRole("checkbox"));
+      expect(confirmar.hasAttribute("disabled")).toBe(true);
+      fireEvent.click(confirmar);
+    }
+    await act(async () => { releitura.rejeitar(Object.assign(new Error("rede"), { code: "API_PROVIDER_UNAVAILABLE" })); await new Promise((r) => setTimeout(r, 30)); });
+    expect(botaoExcluir()).toBeNull();
+    const confirmar2 = screen.queryByRole("button", { name: "Excluir definitivamente" });
+    if (confirmar2) expect(confirmar2.hasAttribute("disabled")).toBe(true);
+    expect(servico.excluirMovimentacaoMapa).not.toHaveBeenCalled();
+  });
+
+  it("E) pendência real na fila bloqueia card e diálogo mesmo com GET elegível; retry de resultado desconhecido usa a MESMA chave só com a fila confirmada vazia", async () => {
+    servico.pendenciasOfflineDaMovimentacao.mockImplementation(async () => ["update"]);
+    window.localStorage.setItem("maike_exclusao_movimentacao_pendente:c-1:u-1:mv-1", JSON.stringify({ operation_id: "excluir-original", motivo: "motivo original" }));
+    let r = await renderizar(<ExcluirMovimentacao movimento={TRANSF} />);
+    expect((await screen.findByRole("button", { name: "Exclusão bloqueada" })).hasAttribute("disabled")).toBe(true);
+    expect(botaoExcluir()).toBeNull();
+    r.unmount();
+
+    // Fila sincronizada (vazia): o retry legítimo volta, com a mesma operação e motivo.
+    servico.pendenciasOfflineDaMovimentacao.mockImplementation(async () => []);
+    servico.consultarExclusaoMovimentacao.mockImplementation(async () => { throw Object.assign(new Error("x"), { code: "API_OPERATION_FAILED", cause: { code: "MOVIMENTACAOMAPA_NOT_FOUND" } }); });
+    servico.excluirMovimentacaoMapa.mockImplementation(async () => ({ excluida: true, movimentacao_id: "mv-1", replay: true }));
+    r = await renderizar(<ExcluirMovimentacao movimento={TRANSF} />);
+    await clicar(await screen.findByRole("button", { name: "Excluir movimentação" }));
+    expect(screen.getByLabelText("Motivo da exclusão").value).toBe("motivo original");
+    await clicar(screen.getByRole("button", { name: "Tentar de novo" }));
+    await waitFor(() => expect(servico.excluirMovimentacaoMapa).toHaveBeenCalledTimes(1));
+    expect(servico.excluirMovimentacaoMapa.mock.calls[0][1]).toEqual({ operation_id: "excluir-original", motivo: "motivo original" });
+  });
+});
+
 describe("Histórico de Abate do Curral", () => {
   it("cancelado antigo aparece marcado (sem limpeza retroativa); ativo do ledger oferece 'Excluir movimentação'; nenhum 'Cancelar'", async () => {
     servico.listarTodasMovimentacoes.mockImplementation(async () => [
