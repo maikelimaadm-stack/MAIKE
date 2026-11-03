@@ -147,17 +147,23 @@ const exigirRecusaCancelamento = async (c, movId, codigos) => {
 // ═══ NASCIMENTO ════════════════════════════════════════════════════════════
 
 describe('R2B Nascimento — uma confirmação, várias linhas, uma transação', () => {
-  test('N1: 2 linhas (M 10 / F 8) sem lote de filhotes → cria 2 lotes, 1 movimento, mães intactas, rebanho +18', async () => {
+  test('N1 (R4): 2 linhas (M 10 / F 8) sem lote de filhotes → 409 LOTE_CADASTRO_SOMENTE_ENTRADAS, nada gravado; com os lotes de filhotes cadastrados → 1 movimento, 2 lotes incrementados, mães intactas, rebanho +18', async () => {
     const c = await cenario();
     const vacas = await criarLote(c, { nome: 'MATRIZES', qtd: 100, area: c.A, categoria: VACA, sexo: 'Fêmea', peso: 450 });
-    const total0 = await cabecas(c);
-    const r = await ok(rebanho(c, {
+    const corpo = {
       tipo: 'Nascimento',
       linhas: [
         { sexo: 'Macho', categoria_mae: VACA, quantidade: 10, peso_medio_kg: 30 },
         { sexo: 'Fêmea', categoria_mae: VACA, quantidade: 8, peso_medio_kg: 28 },
       ],
-    }));
+    };
+    // PR174-R4: o nascimento não fabrica lote de filhotes no cadastro de entradas.
+    await exigirNadaGravado(c, () => rebanho(c, corpo), 409, 'LOTE_CADASTRO_SOMENTE_ENTRADAS');
+    const bz = await criarLote(c, { nome: 'BEZERRO - PASTO A', qtd: 5, area: c.A, categoria: BEZERRO, sexo: 'Macho', peso: 30 });
+    const bza = await criarLote(c, { nome: 'BEZERRA - PASTO A', qtd: 4, area: c.A, categoria: BEZERRA, sexo: 'Fêmea', peso: 28 });
+    const total0 = await cabecas(c);
+    const lotes0 = await prisma().lote.count({ where: { cliente_id: c.cliente.id } });
+    const r = await ok(rebanho(c, corpo));
     const m = r.movimentacao;
     assert.equal(m.tipo, 'Nascimento');
     assert.equal(m.lote_ids.length, 2);
@@ -165,14 +171,15 @@ describe('R2B Nascimento — uma confirmação, várias linhas, uma transação'
     assert.equal(m.efeito_servidor.registrado_por_usuario_id.length > 0, true);
     assert.equal(m.quantidade_animais, 18);
     assert.equal(m.linhas.length, 2);
-    const machos = await lote(m.linhas[0].lote_id);
-    const femeas = await lote(m.linhas[1].lote_id);
-    assert.deepEqual([machos.categoria, machos.quantidade_cabecas, machos.sexo, peso(machos), machos.origem], [BEZERRO, 10, 'Macho', 30, 'Nascimento']);
-    assert.deepEqual([femeas.categoria, femeas.quantidade_cabecas, femeas.sexo, peso(femeas)], [BEZERRA, 8, 'Fêmea', 28]);
+    assert.deepEqual([m.linhas[0].lote_id, m.linhas[1].lote_id, m.linhas[0].lote_criado, m.linhas[1].lote_criado], [bz.id, bza.id, false, false]);
+    const machos = await lote(bz.id);
+    const femeas = await lote(bza.id);
+    assert.deepEqual([machos.categoria, machos.quantidade_cabecas, machos.sexo, peso(machos)], [BEZERRO, 15, 'Macho', 30]);
+    assert.deepEqual([femeas.categoria, femeas.quantidade_cabecas, femeas.sexo, peso(femeas)], [BEZERRA, 12, 'Fêmea', 28]);
     assert.equal(machos.area_atual_id, c.A.id);
-    assert.equal(machos.nome, 'BEZERRO - PASTO A');
     assert.equal((await lote(vacas.id)).quantidade_cabecas, 100, 'nascimento não reduz mães');
     assert.equal(await cabecas(c), total0 + 18);
+    assert.equal(await prisma().lote.count({ where: { cliente_id: c.cliente.id } }), lotes0, 'nenhum lote criado');
     assert.equal(await prisma().movimentacaoMapa.count({ where: { cliente_id: c.cliente.id } }), 1);
   });
 
@@ -186,16 +193,18 @@ describe('R2B Nascimento — uma confirmação, várias linhas, uma transação'
     assert.equal(r.movimentacao.linhas[0].lote_criado, false);
   });
 
-  test('N3: duas linhas do mesmo sexo vão para o MESMO lote novo (sem peso numa delas → peso desconhecido)', async () => {
+  test('N3: duas linhas do mesmo sexo vão para o MESMO lote de filhotes (sem peso numa delas → peso do lote mantido)', async () => {
+    // PR174-R4: o lote de filhotes é uma ENTRADA cadastrada (o nascimento não o fabrica).
     const c = await cenario();
     await criarLote(c, { nome: 'MATRIZES', qtd: 100, area: c.A, categoria: VACA, sexo: 'Fêmea' });
+    const bz = await criarLote(c, { nome: 'BZ', qtd: 5, area: c.A, categoria: BEZERRO, sexo: 'Macho', peso: 50 });
     const r = await ok(rebanho(c, { tipo: 'Nascimento', linhas: [
       { sexo: 'Macho', categoria_mae: VACA, quantidade: 3, peso_medio_kg: 30 },
       { sexo: 'Macho', categoria_mae: VACA, quantidade: 4 },
     ] }));
-    assert.equal(r.movimentacao.lote_ids.length, 1);
-    const l = await lote(r.movimentacao.lote_ids[0]);
-    assert.deepEqual([l.quantidade_cabecas, peso(l)], [7, null]);
+    assert.deepEqual(r.movimentacao.lote_ids, [bz.id]);
+    const l = await lote(bz.id);
+    assert.deepEqual([l.quantidade_cabecas, peso(l)], [12, 50]);
   });
 
   test('N4: 2ª linha inválida (categoria de mãe ausente na área) → 409 e NADA gravado', async () => {
@@ -207,9 +216,12 @@ describe('R2B Nascimento — uma confirmação, várias linhas, uma transação'
     ] }), 409, 'MANEJO_CATEGORIA_MAE_INVALIDA');
   });
 
-  test('N5: falha injetada no 2º efeito → 500 e NADA gravado (0 lotes, movimentos, auditorias, idempotência)', async () => {
+  test('N5: falha injetada no 2º efeito → 500 e NADA gravado (lotes, movimentos, auditorias, idempotência)', async () => {
     const c = await cenario();
     await criarLote(c, { nome: 'MATRIZES', qtd: 100, area: c.A, categoria: VACA, sexo: 'Fêmea' });
+    // PR174-R4: lotes de filhotes cadastrados (o nascimento incrementa; não cria).
+    await criarLote(c, { nome: 'BZ', qtd: 2, area: c.A, categoria: BEZERRO, sexo: 'Macho' });
+    await criarLote(c, { nome: 'BZA', qtd: 2, area: c.A, categoria: BEZERRA, sexo: 'Fêmea' });
     definirFalhaInjetadaR2B(2);
     const corpo = { operation_id: opId(), tipo: 'Nascimento', linhas: [
       { sexo: 'Macho', categoria_mae: VACA, quantidade: 10 },
@@ -228,13 +240,15 @@ describe('R2B Nascimento — uma confirmação, várias linhas, uma transação'
   test('N6: replay da mesma chave não duplica; mesma chave com conteúdo diferente → 409 IDEMPOTENCY_CONFLICT', async () => {
     const c = await cenario();
     await criarLote(c, { nome: 'MATRIZES', qtd: 100, area: c.A, categoria: VACA, sexo: 'Fêmea' });
+    const bz = await criarLote(c, { nome: 'BZ', qtd: 5, area: c.A, categoria: BEZERRO, sexo: 'Macho' });
     const corpo = { operation_id: opId(), tipo: 'Nascimento', linhas: [{ sexo: 'Macho', categoria_mae: VACA, quantidade: 10 }] };
     const a = await ok(rebanho(c, corpo));
     const b = await ok(rebanho(c, corpo));
     assert.equal(b.replay, true);
     assert.equal(b.movimentacao.id, a.movimentacao.id);
     await exigirNadaGravado(c, () => rebanho(c, { ...corpo, linhas: [{ sexo: 'Macho', categoria_mae: VACA, quantidade: 11 }] }), 409, 'IDEMPOTENCY_CONFLICT');
-    assert.equal((await lote(a.movimentacao.lote_id)).quantidade_cabecas, 10);
+    assert.equal(a.movimentacao.lote_id, bz.id);
+    assert.equal((await lote(bz.id)).quantidade_cabecas, 15);
   });
 
   test('N7: validação de forma → 400 sem gravar (sexo, quantidade, peso, data impossível, campo reservado, linhas vazias)', async () => {
@@ -267,16 +281,20 @@ describe('R2B Nascimento — uma confirmação, várias linhas, uma transação'
     await exigirNadaGravado(c, () => rebanho(outro, { tipo: 'Nascimento', area_id: c.A.id, empresa_id: c.empresa.id, linhas }), 404);
   });
 
-  test('N9: cancelar — lote criado fica 0/Inativo (não apagado); lote existente volta a quantidade e peso anteriores', async () => {
+  test('N9: cancelar — os dois lotes de filhotes existentes voltam a quantidade, peso e situação anteriores (nada apagado)', async () => {
     const c = await cenario();
     await criarLote(c, { nome: 'MATRIZES', qtd: 100, area: c.A, categoria: VACA, sexo: 'Fêmea' });
     const bz = await criarLote(c, { nome: 'BZ', qtd: 20, area: c.A, categoria: BEZERRO, sexo: 'Macho', peso: 100 });
+    // PR174-R4: o lote de fêmeas também é uma ENTRADA cadastrada (antes era criado pelo nascimento).
+    const bza = await criarLote(c, { nome: 'BZA', qtd: 4, area: c.A, categoria: BEZERRA, sexo: 'Fêmea', peso: 30 });
     const total0 = await cabecas(c);
     const r = await ok(rebanho(c, { tipo: 'Nascimento', linhas: [
       { sexo: 'Macho', categoria_mae: VACA, quantidade: 10, peso_medio_kg: 40 },
       { sexo: 'Fêmea', categoria_mae: VACA, quantidade: 6, peso_medio_kg: 35 },
     ] }));
     const femeas = r.movimentacao.linhas[1].lote_id;
+    assert.equal(femeas, bza.id);
+    assert.equal((await lote(bza.id)).quantidade_cabecas, 10);
     assert.equal((await elegivel(c, r.movimentacao.id)).elegivel, true);
     const cancelado = await cancelarOk(c, r.movimentacao.id);
     assert.equal(cancelado.movimentacao.situacao, 'cancelado');
@@ -285,7 +303,7 @@ describe('R2B Nascimento — uma confirmação, várias linhas, uma transação'
     assert.deepEqual([bzDepois.quantidade_cabecas, peso(bzDepois)], [20, 100]);
     const fDepois = await lote(femeas);
     assert.ok(fDepois, 'lote de filhotes não é apagado');
-    assert.deepEqual([fDepois.quantidade_cabecas, fDepois.status], [0, 'Inativo']);
+    assert.deepEqual([fDepois.quantidade_cabecas, peso(fDepois), fDepois.status], [4, 30, 'Ativo']);
     assert.equal(await cabecas(c), total0);
     await exigirRecusaCancelamento(c, r.movimentacao.id, ['CANCELAMENTO_JA_REALIZADO']);
   });
@@ -293,13 +311,16 @@ describe('R2B Nascimento — uma confirmação, várias linhas, uma transação'
   test('N10: morte posterior no lote de filhotes bloqueia; cancelar a morte primeiro libera (mais nova → mais antiga)', async () => {
     const c = await cenario();
     await criarLote(c, { nome: 'MATRIZES', qtd: 100, area: c.A, categoria: VACA, sexo: 'Fêmea' });
+    // PR174-R4: lote de filhotes cadastrado como ENTRADA (o nascimento não o fabrica).
+    const bz = await criarLote(c, { nome: 'BZ', qtd: 5, area: c.A, categoria: BEZERRO, sexo: 'Macho' });
     const r = await ok(rebanho(c, { tipo: 'Nascimento', linhas: [{ sexo: 'Macho', categoria_mae: VACA, quantidade: 10 }] }));
-    const filhotes = await lote(r.movimentacao.lote_id);
+    assert.equal(r.movimentacao.lote_id, bz.id);
+    const filhotes = await lote(bz.id);
     const m = await morte(c, filhotes, 2);
     await exigirRecusaCancelamento(c, r.movimentacao.id, ['CANCELAMENTO_DEPENDENCIA_POSTERIOR']);
     await cancelarOk(c, m.id);
     await cancelarOk(c, r.movimentacao.id);
-    assert.deepEqual([(await lote(filhotes.id)).quantidade_cabecas, (await lote(filhotes.id)).status], [0, 'Inativo']);
+    assert.deepEqual([(await lote(filhotes.id)).quantidade_cabecas, (await lote(filhotes.id)).status], [5, 'Ativo']);
   });
 
   test('N11: PATCH direto de peso no lote incrementado depois do nascimento bloqueia (inclusive ida e volta)', async () => {
@@ -412,7 +433,7 @@ describe('R2B Pesagem — muda peso, nunca cabeças; todos ou nenhum', () => {
 
 // ═══ MUDANÇA DE CATEGORIA ══════════════════════════════════════════════════
 
-describe('R2B Mudança de Categoria — conserva cabeças; total no lugar, parcial gera derivado', () => {
+describe('R2B Mudança de Categoria — conserva cabeças; total no lugar, parcial recusada (R4: não gera derivado)', () => {
   test('M1: total → mesmo lote muda categoria, sexo e categoria de manejo; cabeças e entrada intactas', async () => {
     const c = await cenario();
     const cm = await prisma().categoriaManejo.create({ data: { cliente_id: c.cliente.id, empresa_id: c.empresa.id, nome: 'BOI MAGRO', categoria_oficial: BOI, sexo: 'Macho' } });
@@ -426,16 +447,12 @@ describe('R2B Mudança de Categoria — conserva cabeças; total no lugar, parci
     assert.equal(await cabecas(c), total0);
   });
 
-  test('M2: parcial 20 de 50 → origem 30, derivado 20 (origem "Mudança de Categoria", não é compra); soma conservada', async () => {
+  test('M2 (R4): parcial 20 de 50 → 409 LOTE_CADASTRO_SOMENTE_ENTRADAS; nenhum derivado, origem intacta, nada gravado', async () => {
     const c = await cenario();
     const g = await criarLote(c, { nome: 'G', qtd: 50, area: c.A, categoria: GARROTE, sexo: 'Macho', peso: 300 });
-    const r = await ok(rebanho(c, { tipo: 'Mudança de Categoria', linhas: [{ categoria_atual: GARROTE, categoria_nova: BOI, quantidade: 20 }] }));
-    const parte = r.movimentacao.linhas[0].partes[0];
-    assert.equal(parte.modo, 'parcial');
-    const deriv = await lote(parte.lote_destino_id);
-    assert.deepEqual([(await lote(g.id)).quantidade_cabecas, deriv.quantidade_cabecas, deriv.categoria, deriv.origem, deriv.motivo_entrada, peso(deriv)],
-      [30, 20, BOI, 'Mudança de Categoria', 'Outros', 300]);
-    assert.deepEqual(r.movimentacao.lote_ids.sort(), [g.id, deriv.id].sort());
+    await exigirNadaGravado(c, () => rebanho(c, { tipo: 'Mudança de Categoria', linhas: [{ categoria_atual: GARROTE, categoria_nova: BOI, quantidade: 20 }] }), 409, 'LOTE_CADASTRO_SOMENTE_ENTRADAS');
+    const o = await lote(g.id);
+    assert.deepEqual([o.quantidade_cabecas, o.categoria, peso(o)], [50, GARROTE, 300]);
   });
 
   test('M3: duas linhas disputando o mesmo saldo (30 + 30 de 50) → 409 e NADA gravado', async () => {
@@ -447,21 +464,24 @@ describe('R2B Mudança de Categoria — conserva cabeças; total no lugar, parci
     ] }), 409, 'MANEJO_SALDO_INSUFICIENTE');
   });
 
-  test('M4: uma linha de 50 sobre dois lotes (30 + 40) → 1º total, 2º parcial 20; conserva 70', async () => {
+  test('M4: uma linha de 70 sobre dois lotes (30 + 40) → os dois totais, no lugar; conserva 70 (sem lote novo)', async () => {
     const c = await cenario();
     const ids = [
       (await criarLote(c, { nome: 'G1', qtd: 30, area: c.A, categoria: GARROTE, sexo: 'Macho' })).id,
       (await criarLote(c, { nome: 'G2', qtd: 40, area: c.A, categoria: GARROTE, sexo: 'Macho' })).id,
     ].sort();
     const total0 = await cabecas(c);
-    const r = await ok(rebanho(c, { tipo: 'Mudança de Categoria', linhas: [{ categoria_atual: GARROTE, categoria_nova: BOI, quantidade: 50 }] }));
+    // PR174-R4: a parte parcial criaria lote derivado; a linha cobre os dois lotes inteiros.
+    const r = await ok(rebanho(c, { tipo: 'Mudança de Categoria', linhas: [{ categoria_atual: GARROTE, categoria_nova: BOI, quantidade: 70 }] }));
     const partes = r.movimentacao.linhas[0].partes;
     assert.equal(partes.length, 2);
-    assert.equal(partes.reduce((t, p) => t + p.quantidade, 0), 50);
+    assert.deepEqual(partes.map((p) => p.modo), ['total', 'total']);
+    assert.deepEqual(partes.map((p) => p.lote_origem_id).sort(), ids);
+    assert.equal(partes.reduce((t, p) => t + p.quantidade, 0), 70);
     assert.equal(await cabecas(c), total0);
-    const somaBoi = (await prisma().lote.findMany({ where: { cliente_id: c.cliente.id, categoria: BOI, status: 'Ativo' } })).reduce((t, l) => t + l.quantidade_cabecas, 0);
-    assert.equal(somaBoi, 50);
-    assert.ok(ids.length === 2);
+    const bois = await prisma().lote.findMany({ where: { cliente_id: c.cliente.id, categoria: BOI, status: 'Ativo' } });
+    assert.deepEqual(bois.map((l) => l.id).sort(), ids, 'os mesmos lotes, nenhum criado');
+    assert.equal(bois.reduce((t, l) => t + l.quantidade_cabecas, 0), 70);
   });
 
   test('M5: incompatível com sexo, categoria fora do oficial, igual à atual, manejo de outra oficial, ambígua → recusa sem gravar', async () => {
@@ -478,27 +498,24 @@ describe('R2B Mudança de Categoria — conserva cabeças; total no lugar, parci
     await exigirNadaGravado(c, () => rebanho(c, { tipo: 'Mudança de Categoria', linhas: [{ categoria_atual: GARROTE, categoria_nova: BOI, quantidade: 10 }] }), 409, 'MANEJO_CATEGORIA_AMBIGUA');
   });
 
-  test('M6: falha injetada no 2º efeito (linha 1 parcial + linha 2) → NADA gravado', async () => {
+  test('M6: falha injetada no 2º efeito (linha 1 + linha 2, totais) → NADA gravado', async () => {
     const c = await cenario();
     await criarLote(c, { nome: 'G', qtd: 50, area: c.A, categoria: GARROTE, sexo: 'Macho' });
     await criarLote(c, { nome: 'B', qtd: 30, area: c.A, categoria: BEZERRO, sexo: 'Macho' });
     definirFalhaInjetadaR2B(2);
     await exigirNadaGravado(c, () => rebanho(c, { tipo: 'Mudança de Categoria', linhas: [
-      { categoria_atual: GARROTE, categoria_nova: BOI, quantidade: 20 },
+      { categoria_atual: GARROTE, categoria_nova: BOI, quantidade: 50 },
       { categoria_atual: BEZERRO, categoria_nova: GARROTE, quantidade: 30 },
     ] }), 500);
   });
 
-  test('M7: cancelar parcial → origem volta a 50, derivado 0/Inativo; cancelar total → classificação inteira restaurada', async () => {
+  test('M7: parcial recusada (R4) sem efeito; cancelar total → classificação inteira restaurada', async () => {
     const c = await cenario();
     const cm = await prisma().categoriaManejo.create({ data: { cliente_id: c.cliente.id, empresa_id: c.empresa.id, nome: 'GARROTE ERA', categoria_oficial: GARROTE, sexo: 'Macho' } });
     const g = await criarLote(c, { nome: 'G', qtd: 50, area: c.A, categoria: GARROTE, sexo: 'Macho', peso: 300 });
     await prisma().lote.update({ where: { id: g.id }, data: { categoria_manejo_id: cm.id, categoria_manejo_nome: cm.nome } });
-    const parcial = await ok(rebanho(c, { tipo: 'Mudança de Categoria', linhas: [{ categoria_atual: GARROTE, categoria_nova: BOI, quantidade: 20, peso_medio_kg: 330 }] }));
-    const deriv = parcial.movimentacao.linhas[0].partes[0].lote_destino_id;
-    await cancelarOk(c, parcial.movimentacao.id);
-    assert.deepEqual([(await lote(g.id)).quantidade_cabecas, (await lote(deriv)).quantidade_cabecas, (await lote(deriv)).status], [50, 0, 'Inativo']);
-    assert.ok(await lote(deriv), 'derivado não é apagado');
+    await exigirNadaGravado(c, () => rebanho(c, { tipo: 'Mudança de Categoria', linhas: [{ categoria_atual: GARROTE, categoria_nova: BOI, quantidade: 20, peso_medio_kg: 330 }] }), 409, 'LOTE_CADASTRO_SOMENTE_ENTRADAS');
+    assert.deepEqual([(await lote(g.id)).quantidade_cabecas, (await lote(g.id)).categoria], [50, GARROTE]);
 
     const total = await ok(rebanho(c, { tipo: 'Mudança de Categoria', linhas: [{ categoria_atual: GARROTE, categoria_nova: BOI, quantidade: 50, peso_medio_kg: 340 }] }));
     assert.equal((await lote(g.id)).categoria, BOI);
@@ -507,15 +524,17 @@ describe('R2B Mudança de Categoria — conserva cabeças; total no lugar, parci
     assert.deepEqual([d.quantidade_cabecas, d.categoria, d.categoria_manejo_id, d.categoria_manejo_nome, d.sexo, peso(d)], [50, GARROTE, cm.id, 'GARROTE ERA', 'Macho', 300]);
   });
 
-  test('M8: operação dependente na categoria nova (pesagem do derivado) bloqueia o cancelamento da mudança', async () => {
+  test('M8: operação dependente na categoria nova (pesagem do lote reclassificado) bloqueia o cancelamento da mudança', async () => {
     const c = await cenario();
-    await criarLote(c, { nome: 'G', qtd: 50, area: c.A, categoria: GARROTE, sexo: 'Macho' });
-    const r = await ok(rebanho(c, { tipo: 'Mudança de Categoria', linhas: [{ categoria_atual: GARROTE, categoria_nova: BOI, quantidade: 20 }] }));
-    const deriv = r.movimentacao.linhas[0].partes[0].lote_destino_id;
-    const p = await ok(rebanho(c, { tipo: 'Pesagem', linhas: [{ lote_id: deriv, peso_medio_kg: 410 }] }));
+    const g = await criarLote(c, { nome: 'G', qtd: 50, area: c.A, categoria: GARROTE, sexo: 'Macho' });
+    // PR174-R4: mudança total (no lugar) — a parcial criaria derivado e é recusada.
+    const r = await ok(rebanho(c, { tipo: 'Mudança de Categoria', linhas: [{ categoria_atual: GARROTE, categoria_nova: BOI, quantidade: 50 }] }));
+    assert.equal(r.movimentacao.linhas[0].partes[0].lote_destino_id, g.id);
+    const p = await ok(rebanho(c, { tipo: 'Pesagem', linhas: [{ lote_id: g.id, categoria: BOI, peso_medio_kg: 410 }] }));
     await exigirRecusaCancelamento(c, r.movimentacao.id, ['CANCELAMENTO_DEPENDENCIA_POSTERIOR']);
     await cancelarOk(c, p.movimentacao.id);
     await cancelarOk(c, r.movimentacao.id);
+    assert.equal((await lote(g.id)).categoria, GARROTE);
   });
 
   test('M9: PATCH direto de categoria depois da mudança total → recusa (estado divergente ou alteração posterior)', async () => {
@@ -534,35 +553,41 @@ describe('R2B concorrência real', () => {
     test(`C1.${rodada}: dois nascimentos com a MESMA chave em paralelo → um efeito`, async () => {
       const c = await cenario();
       await criarLote(c, { nome: 'MATRIZES', qtd: 100, area: c.A, categoria: VACA, sexo: 'Fêmea' });
+      // PR174-R4: lote de filhotes cadastrado como ENTRADA (o nascimento não o fabrica).
+      await criarLote(c, { nome: 'BZ', qtd: 5, area: c.A, categoria: BEZERRO, sexo: 'Macho' });
       const corpo = { operation_id: opId(), tipo: 'Nascimento', linhas: [{ sexo: 'Macho', categoria_mae: VACA, quantidade: 10 }] };
       const rs = await Promise.all([rebanho(c, corpo), rebanho(c, corpo)]);
       assert.ok(rs.every((r) => [201, 409].includes(r.statusCode)), rs.map((r) => r.body).join(' | '));
       assert.ok(rs.some((r) => r.statusCode === 201));
       assert.equal(await prisma().movimentacaoMapa.count({ where: { cliente_id: c.cliente.id } }), 1);
       const bz = await prisma().lote.findMany({ where: { cliente_id: c.cliente.id, categoria: BEZERRO } });
-      assert.deepEqual(bz.map((l) => l.quantidade_cabecas), [10]);
+      assert.deepEqual(bz.map((l) => l.quantidade_cabecas), [15]);
     });
 
     test(`C2.${rodada}: dois nascimentos DISTINTOS em paralelo → ambos contados, num só lote de filhotes (área serializa)`, async () => {
       const c = await cenario();
       await criarLote(c, { nome: 'MATRIZES', qtd: 100, area: c.A, categoria: VACA, sexo: 'Fêmea' });
+      // PR174-R4: lote de filhotes cadastrado como ENTRADA (o nascimento não o fabrica).
+      await criarLote(c, { nome: 'BZ', qtd: 5, area: c.A, categoria: BEZERRO, sexo: 'Macho' });
       const rs = await Promise.all([
         rebanho(c, { tipo: 'Nascimento', linhas: [{ sexo: 'Macho', categoria_mae: VACA, quantidade: 10 }] }),
         rebanho(c, { tipo: 'Nascimento', linhas: [{ sexo: 'Macho', categoria_mae: VACA, quantidade: 7 }] }),
       ]);
       assert.deepEqual(rs.map((r) => r.statusCode), [201, 201], rs.map((r) => r.body).join(' | '));
       const bz = await prisma().lote.findMany({ where: { cliente_id: c.cliente.id, categoria: BEZERRO } });
-      assert.deepEqual(bz.map((l) => l.quantidade_cabecas), [17]);
+      assert.deepEqual(bz.map((l) => l.quantidade_cabecas), [22]);
     });
 
-    test(`C3.${rodada}: duas mudanças competindo pelo mesmo saldo (30 + 30 de 50) → uma aceita, outra recusada`, async () => {
+    test(`C3.${rodada}: duas mudanças competindo pelo mesmo saldo (50 + 50 de 50) → uma aceita, outra recusada por saldo`, async () => {
       const c = await cenario();
       await criarLote(c, { nome: 'G', qtd: 50, area: c.A, categoria: GARROTE, sexo: 'Macho' });
+      // PR174-R4: mudanças totais (a parcial criaria lote derivado e é recusada de saída).
       const rs = await Promise.all([
-        rebanho(c, { tipo: 'Mudança de Categoria', linhas: [{ categoria_atual: GARROTE, categoria_nova: BOI, quantidade: 30 }] }),
-        rebanho(c, { tipo: 'Mudança de Categoria', linhas: [{ categoria_atual: GARROTE, categoria_nova: 'Touro + 36 meses', quantidade: 30 }] }),
+        rebanho(c, { tipo: 'Mudança de Categoria', linhas: [{ categoria_atual: GARROTE, categoria_nova: BOI, quantidade: 50 }] }),
+        rebanho(c, { tipo: 'Mudança de Categoria', linhas: [{ categoria_atual: GARROTE, categoria_nova: 'Touro + 36 meses', quantidade: 50 }] }),
       ]);
       assert.deepEqual(rs.map((r) => r.statusCode).sort(), [201, 409], rs.map((r) => r.body).join(' | '));
+      assert.ok(rs.some((r) => r.statusCode === 409 && r.json().code === 'MANEJO_SALDO_INSUFICIENTE'), rs.map((r) => r.body).join(' | '));
       assert.equal(await cabecas(c), 50);
       assert.equal(await prisma().movimentacaoMapa.count({ where: { cliente_id: c.cliente.id } }), 1);
     });
@@ -645,10 +670,11 @@ describe('R2B integração — histórico, exclusão lógica, R2A e superfície 
     assert.ok((await lote(l1.id)).excluido_em, 'exclusão LÓGICA (histórico preservado)');
   });
 
-  test('X3: #167 — participante de mudança parcial ATIVA não é excluído (referência em efeitos[].lote_id)', async () => {
+  test('X3: #167 — participante de mudança de categoria ATIVA não é excluído (referência em efeitos[].lote_id)', async () => {
     const c = await cenario();
     const g = await criarLote(c, { nome: 'G', qtd: 50, area: c.A, categoria: GARROTE, sexo: 'Macho' });
-    await ok(rebanho(c, { tipo: 'Mudança de Categoria', linhas: [{ categoria_atual: GARROTE, categoria_nova: BOI, quantidade: 20 }] }));
+    // PR174-R4: mudança total (a parcial criaria derivado e é recusada).
+    await ok(rebanho(c, { tipo: 'Mudança de Categoria', linhas: [{ categoria_atual: GARROTE, categoria_nova: BOI, quantidade: 50 }] }));
     const r = await req('DELETE', `/lotes/${g.id}`, c.tok);
     assert.equal(r.statusCode, 409, r.body);
   });
