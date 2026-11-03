@@ -116,21 +116,22 @@ const manejoLote = (c, body) => req('POST', '/movimentacoes-mapa/comandos/manejo
 
 // ═══ Empresa LEGADA (pré-cutover): manejo nunca fabrica registro no cadastro de entradas ═══
 
-describe('R4 L — cadastro só de entradas também na empresa legada', () => {
-  test('L1: transferência PARCIAL para pasto sem lote igual → 409 (criaria lote derivado); nada gravado', async () => {
+describe('R4 L — cadastro só de entradas também na empresa não migrada (PR174-R5: sem modelo legado)', () => {
+  const CUTOVER = 'REBANHO_CUTOVER_PENDENTE';
+  test('L1: transferência PARCIAL para pasto sem lote igual → 409 REBANHO_CUTOVER_PENDENTE (nunca lote derivado); nada gravado', async () => {
     const c = await cenario();
     const l = await entrada(c, { qtd: 100 });
     const antes = await qtdLotes(c);
-    await exigirNadaGravado(c, () => manejoLote(c, { tipo: 'Transferência de Área', lote_id: l.id, quantidade_animais: 30, area_destino_id: c.B.id, categoria_animal: BOI }), 409, CODIGO);
+    await exigirNadaGravado(c, () => manejoLote(c, { tipo: 'Transferência de Área', lote_id: l.id, quantidade_animais: 30, area_destino_id: c.B.id, categoria_animal: BOI }), 409, CUTOVER);
     assert.equal(await qtdLotes(c), antes);
   });
 
-  test('L2: nascimento legado → 409 (criaria lote de nascidos); mudança de categoria PARCIAL → 409', async () => {
+  test('L2: nascimento e mudança de categoria PARCIAL na empresa não migrada → 409 REBANHO_CUTOVER_PENDENTE (nunca lote de nascidos/derivado)', async () => {
     const c = await cenario();
     await entrada(c, { nome: 'VACAS', qtd: 20, categoria: VACA, sexo: 'Fêmea', peso: 450 });
     await entrada(c, { nome: 'BOIS', qtd: 40 });
-    await exigirNadaGravado(c, () => rebanho(c, 'Nascimento', [{ categoria_mae: VACA, sexo: 'Macho', quantidade: 3 }]), 409, CODIGO);
-    await exigirNadaGravado(c, () => rebanho(c, 'Mudança de Categoria', [{ categoria_atual: BOI, categoria_nova: 'Touro + 36 meses', quantidade: 10 }]), 409, CODIGO);
+    await exigirNadaGravado(c, () => rebanho(c, 'Nascimento', [{ categoria_mae: VACA, sexo: 'Macho', quantidade: 3 }]), 409, CUTOVER);
+    await exigirNadaGravado(c, () => rebanho(c, 'Mudança de Categoria', [{ categoria_atual: BOI, categoria_nova: 'Touro + 36 meses', quantidade: 10 }]), 409, CUTOVER);
   });
 
   test('L3: cadastro manual com origem de manejo (Movimentação, Mudança de Categoria) → 409; entrada genuína → 201', async () => {
@@ -145,12 +146,19 @@ describe('R4 L — cadastro só de entradas também na empresa legada', () => {
     assert.equal(await qtdLotes(c), 1);
   });
 
-  test('L4 controles legados que NÃO fabricam cadastro seguem: transferência total, morte', async () => {
+  test('L4: nem transferência total nem morte rodam no modelo antigo (Lote não recebe manejo) → 409 REBANHO_CUTOVER_PENDENTE; depois do cutover, os mesmos manejos passam no ledger sem tocar Lote', async () => {
     const c = await cenario();
     const l = await entrada(c, { qtd: 50 });
-    await ok(manejoLote(c, { tipo: 'Transferência de Área', lote_id: l.id, quantidade_animais: 50, area_destino_id: c.B.id, categoria_animal: BOI }));
-    await ok(req('POST', '/movimentacoes-mapa/comandos/baixa-rebanho', c.tok, { operation_id: opId(), tipo: 'Morte', empresa_id: c.empresa.id, area_id: c.B.id, data_movimentacao: '2026-10-29', linhas: [{ categoria: BOI, quantidade: 2, causa_morte: 'Doença' }] }));
+    await exigirNadaGravado(c, () => manejoLote(c, { tipo: 'Transferência de Área', lote_id: l.id, quantidade_animais: 50, area_destino_id: c.B.id, categoria_animal: BOI }), 409, CUTOVER);
+    await exigirNadaGravado(c, () => req('POST', '/movimentacoes-mapa/comandos/baixa-rebanho', c.tok, { operation_id: opId(), tipo: 'Morte', empresa_id: c.empresa.id, area_id: c.A.id, data_movimentacao: '2026-10-29', linhas: [{ categoria: BOI, quantidade: 2, causa_morte: 'Doença' }] }), 409, CUTOVER);
+    await ativar(c);
+    const pA = await pos(c, daEntrada(l, c.A));
+    await ok(manejoLote(c, { tipo: 'Transferência de Área', lote_id: pA.id, quantidade_animais: 50, area_destino_id: c.B.id }));
+    await ok(req('POST', '/movimentacoes-mapa/comandos/baixa-rebanho', c.tok, { operation_id: opId(), tipo: 'Morte', empresa_id: c.empresa.id, area_id: c.B.id, data_movimentacao: '2026-11-03', linhas: [{ categoria: BOI, quantidade: 2, causa_morte: 'Doença' }] }));
+    assert.equal((await pos(c, daEntrada(l, c.B))).quantidade_cabecas, 48);
     assert.equal(await qtdLotes(c), 1);
+    const cad = await prisma().lote.findUnique({ where: { id: l.id } });
+    assert.deepEqual([cad.quantidade_cabecas, cad.area_atual_id], [50, c.A.id]);
   });
 });
 
