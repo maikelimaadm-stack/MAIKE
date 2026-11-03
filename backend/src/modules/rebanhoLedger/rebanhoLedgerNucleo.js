@@ -520,7 +520,9 @@ export const detalheSaldo = (posicoes, areas, pedidos, dia) => (neg) => {
 /**
  * Lista violações (sem alterar nada). Filtro por `posicaoIds` (guarda dos
  * comandos) ou por `empresaId` (verificação).
- * @param {{posicaoIds?: string[]|null, empresaId?: string|null, diaMin?: string|null, exceto?: string|null, limite?: number}} f
+ * @param {any} tx
+ * @param {string} clienteId
+ * @param {{posicaoIds?: string[]|null, empresaId?: string|null, diaMin?: string|null, exceto?: string|null, limite?: number}} [filtro]
  */
 export const violacoesDePrecondicao = async (tx, clienteId, { posicaoIds = null, empresaId = null, diaMin = null, exceto = null, limite = 50 } = {}) => {
   const ids = posicaoIds ? [...new Set(posicaoIds)] : null;
