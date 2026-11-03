@@ -140,10 +140,10 @@ describe('PR174-R2 mensagens das recusas novas (nada de falso sucesso)', () => {
   it('peso causal: manejo e cancelamento mostram a data do registro dependente e os pesos', async () => {
     const erro = Object.assign(new Error('x'), { code: 'API_OPERATION_FAILED', cause: { code: 'REBANHO_PESO_DEPENDENCIA_CAUSAL' }, details: { data: '2026-11-02', peso_registrado_kg: 500, peso_recalculado_kg: 400 } });
     expect(mensagemDaTransferenciaLedger(erro)).toBe('O registro do dia 02/11/2026 calculou o peso com o valor que este manejo mudaria. Cancele-o antes. Nada foi gravado.');
-    const { mensagemDeRecusa, MENSAGENS_RECUSA } = await import('@/components/lotes/CancelarMovimentacao');
+    const { mensagemDeRecusa, MENSAGENS_RECUSA } = await import('@/components/lotes/ExcluirMovimentacao');
     expect(mensagemDeRecusa('REBANHO_PESO_DEPENDENCIA_CAUSAL', { data: '2026-11-02', peso_registrado_kg: 500, peso_recalculado_kg: 400 })).toMatch(/dia 02\/11\/2026 .*500 kg.*400 kg.*Nada foi alterado/);
     expect(mensagemDeRecusa('CANCELAMENTO_SALDO_HISTORICO_NEGATIVO', { data: '2026-11-04', area_nome: 'PASTO B' })).toMatch(/PASTO B no dia 04\/11\/2026/);
-    for (const c of ['CANCELAMENTO_SALDO_HISTORICO_NEGATIVO', 'REBANHO_PESO_DEPENDENCIA_CAUSAL', 'REBANHO_LEDGER_CANCELAMENTO_LEGADO', 'IDEMPOTENCY_EFEITO_DESFEITO']) expect(MENSAGENS_RECUSA[c]).toMatch(/Nada foi alterado/);
+    for (const c of ['CANCELAMENTO_SALDO_HISTORICO_NEGATIVO', 'REBANHO_PESO_DEPENDENCIA_CAUSAL', 'EXCLUSAO_MOVIMENTO_LEGADO', 'EXCLUSAO_MOVIMENTO_CANCELADO', 'EXCLUSAO_REFERENCIA_DOCUMENTAL']) expect(MENSAGENS_RECUSA[c]).toMatch(/Nada foi alterado/);
   });
   it('POST genérico recusado e replay desfeito têm mensagem própria', () => {
     for (const code of ['REBANHO_LEDGER_SOMENTE_POR_COMANDO', 'IDEMPOTENCY_EFEITO_DESFEITO']) {
@@ -159,7 +159,7 @@ describe('PR174-R3 recusa de fato sem saldo (pesagem/nascimento posterior)', () 
     expect(mensagemDaTransferenciaLedger(pes)).toBe('A pesagem do dia 05/11/2026 ficaria numa posição sem cabeças. Cancele-a antes. Nada foi gravado.');
     const nas = Object.assign(new Error('x'), { code: 'API_OPERATION_FAILED', cause: { code: 'REBANHO_DEPENDENCIA_FATO_SEM_SALDO' }, details: { tipo: 'NASCIMENTO', data: '2026-11-05' } });
     expect(mensagemDaTransferenciaLedger(nas)).toMatch(/nascimento do dia 05\/11\/2026 ficaria sem as matrizes/);
-    const { mensagemDeRecusa, MENSAGENS_RECUSA } = await import('@/components/lotes/CancelarMovimentacao');
+    const { mensagemDeRecusa, MENSAGENS_RECUSA } = await import('@/components/lotes/ExcluirMovimentacao');
     expect(MENSAGENS_RECUSA.REBANHO_DEPENDENCIA_FATO_SEM_SALDO).toMatch(/Nada foi alterado/);
     expect(mensagemDeRecusa('REBANHO_DEPENDENCIA_FATO_SEM_SALDO', { tipo: 'PESAGEM', data: '2026-11-05' })).toMatch(/pesagem do dia 05\/11\/2026/);
   });

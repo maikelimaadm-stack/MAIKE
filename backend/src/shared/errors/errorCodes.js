@@ -297,6 +297,12 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   REBANHO_DESTINO_IGUAL_ORIGEM: { http: 409, meaning: 'área de destino igual à de origem' },
   REBANHO_AREA_INATIVA: { http: 409, meaning: 'área de destino inativa' },
   REBANHO_ATIVACAO_LOTE_SEM_AREA: { http: 409, meaning: 'há lote ativo com cabeças e sem área válida; corrija antes de ativar' },
+  // D-PROD-110 — exclusão definitiva segura de movimentação do rebanho.
+  IDEMPOTENCY_EFEITO_EXCLUIDO: { http: 409, meaning: 'o fato gerado por esta chave foi excluído definitivamente; não há replay nem recriação — lance a operação correta com chave nova' },
+  EXCLUSAO_JA_REALIZADA: { http: 409, meaning: 'esta movimentação já foi excluída definitivamente; nada foi alterado' },
+  EXCLUSAO_MOVIMENTO_LEGADO: { http: 409, meaning: 'movimento sem evento certificado do ledger (anterior ao controle por posições) não é excluído; nada foi alterado' },
+  EXCLUSAO_MOVIMENTO_CANCELADO: { http: 409, meaning: 'movimento já cancelado pelo mecanismo anterior não é apagado retroativamente; nada foi alterado' },
+  EXCLUSAO_REFERENCIA_DOCUMENTAL: { http: 409, meaning: 'há documento de outro módulo (mesmo cancelado) que cita esta movimentação por id; apagar deixaria referência órfã; nada foi alterado' },
   IDEMPOTENCY_EFEITO_DESFEITO: { http: 409, meaning: 'a operação com esta chave teve o efeito desfeito por reset controlado de dados de teste; não há replay — envie como operação nova' },
   REBANHO_LEDGER_SOMENTE_POR_COMANDO: { http: 409, meaning: 'empresa no ledger: fato que muda saldo, classificação, peso ou estado do rebanho só entra pelos comandos certificados; o POST genérico não grava' },
   REBANHO_CANCELAMENTO_VINCULO_POSTERIOR: { http: 409, meaning: 'cancelamento recusado: lançamento de outro módulo cita (por id) a posição criada pela movimentação ou o próprio movimento' },

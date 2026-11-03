@@ -24,6 +24,10 @@ import {
   filterMovimentacoes,
   cancelarMovimentacao,
   consultarElegibilidadeCancelamento,
+  excluirMovimentacaoDefinitiva,
+  consultarElegibilidadeExclusaoMovimentacao,
+  removerMovimentacaoExcluidaDosCaches,
+  pendenciasOfflineDeMovimentacao,
   registrarManejoRebanhoServidor,
   registrarJuncaoLotesServidor,
   registrarBaixaRebanhoServidor,
@@ -149,6 +153,14 @@ export const criarMovimentacao = (dados) => createMovimentacao(dados);
  */
 export const cancelarMovimentacaoMapa = (id, corpo) => cancelarMovimentacao(id, corpo);
 export const consultarCancelamentoMovimentacao = (id) => consultarElegibilidadeCancelamento(id);
+/**
+ * D-PROD-110: a correção de um movimento confirmado é EXCLUIR (definitivo,
+ * server-side, só online) e lançar a operação certa. Não há edição.
+ */
+export const excluirMovimentacaoMapa = (id, corpo) => excluirMovimentacaoDefinitiva(id, corpo);
+export const consultarExclusaoMovimentacao = (id) => consultarElegibilidadeExclusaoMovimentacao(id);
+export const removerMovimentacaoExcluidaDoCacheOffline = (id) => removerMovimentacaoExcluidaDosCaches(id);
+export const pendenciasOfflineDaMovimentacao = (id) => pendenciasOfflineDeMovimentacao(id);
 /**
  * Comandos atômicos do rebanho no servidor (só no ledger; empresa não migrada
  * recebe 409 REBANHO_CUTOVER_PENDENTE). O navegador não cria lote derivado.

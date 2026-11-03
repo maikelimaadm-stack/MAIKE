@@ -22,7 +22,13 @@
  *                          cadastro de entrada e nunca recebe efeito de manejo;
  *  P107-PATCH-LOTE         o PATCH de lote perdeu a recusa dos campos
  *                          operacionais no ledger;
- *  P107-MIGRATION          a migration do ledger perdeu os CHECKs de saldo.
+ *  P107-MIGRATION          a migration do ledger perdeu os CHECKs de saldo;
+ *  P110-EXCLUSAO-UNICA     apagar fisicamente um fato do ledger (`eventoRebanho.
+ *                          delete*`, SQL DELETE em "EventoRebanho") fora do motor
+ *                          único `rebanhoLedgerExclusao.js`, ou o motor deixou de
+ *                          reverter pelo cancelamento certificado / o comando de
+ *                          exclusão deixou de exigir admin + idempotência + trava
+ *                          (D-PROD-110).
  */
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
@@ -103,6 +109,27 @@ else {
   const sql = ler(MIG);
   for (const c of ['PosicaoRebanho_quantidade_nao_negativa', 'PartidaRebanho_delta_nao_zero', 'EventoRebanho_situacao_valida']) {
     if (!sql.includes(c)) falha('P107-MIGRATION', `CHECK ausente: ${c}`);
+  }
+}
+
+// D-PROD-110 — exclusão definitiva: um único motor, sempre pela reversão certificada.
+const EXCLUSAO_MOTOR = `${LEDGER_DIR}/rebanhoLedgerExclusao.js`;
+const EXCLUSAO_SERVICO = `${MAPA_DIR}/movimentacaoMapaExclusaoService.js`;
+for (const rel of arquivosJs('backend/src')) {
+  if (rel === EXCLUSAO_MOTOR) continue;
+  const src = semComentarios(ler(rel));
+  if (/\beventoRebanho\.(delete|deleteMany)\s*\(|DELETE\s+FROM\s+"EventoRebanho"/i.test(src)) falha('P110-EXCLUSAO-UNICA', `${rel} apaga EventoRebanho fora do motor de exclusão`);
+}
+if (!existsSync(join(ROOT, EXCLUSAO_MOTOR)) || !existsSync(join(ROOT, EXCLUSAO_SERVICO))) falha('P110-EXCLUSAO-UNICA', 'motor ou serviço de exclusão ausente');
+else {
+  const motor = semComentarios(ler(EXCLUSAO_MOTOR));
+  const reverte = motor.search(/await cancelarMovimentoDoLedger\(tx, contexto, mov,/);
+  const apaga = motor.search(/eventoRebanho\.delete\(/);
+  if (reverte < 0 || apaga < 0 || apaga < reverte) falha('P110-EXCLUSAO-UNICA', `${EXCLUSAO_MOTOR} não reverte pelo motor certificado antes de apagar`);
+  if (/onDelete:\s*Cascade|CASCADE/i.test(motor)) falha('P110-EXCLUSAO-UNICA', `${EXCLUSAO_MOTOR} usa cascata`);
+  const servico = semComentarios(ler(EXCLUSAO_SERVICO));
+  for (const [re, nome] of [[/await exigirAdminTenant\(contexto, tx\)/, 'exigirAdminTenant'], [/executarComIdempotencia\(tx,/, 'executarComIdempotencia'], [/FOR UPDATE/, 'trava do movimento'], [/excluirMovimentoDoLedger\(tx, contexto, mov,/, 'motor único']]) {
+    if (!re.test(servico)) falha('P110-EXCLUSAO-UNICA', `${EXCLUSAO_SERVICO} perdeu ${nome}`);
   }
 }
 

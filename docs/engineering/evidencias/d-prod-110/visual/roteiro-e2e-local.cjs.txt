@@ -1,0 +1,105 @@
+// D-PROD-110 smoke visual NÃO destrutivo para dados reais: backend + PostgreSQL LOCAIS (maike_e2e_r2), dados sintéticos.
+const { chromium } = require('playwright');
+const [W, H] = [Number(process.argv[2]), Number(process.argv[3])];
+const BASE = process.argv[4];
+const S = JSON.parse(process.argv[5]);
+const OUT = '/tmp/claude-0/d110/shots';
+const API = 'http://127.0.0.1:3334';
+const TAG = `${BASE}-${Date.now().toString(36).slice(-4)}`;
+const res = [];
+const ok = (n, c, x = '') => res.push(`${c ? 'PASS' : 'FAIL'} ${BASE} ${n}${x ? ' — ' + String(x).slice(0, 200) : ''}`);
+(async () => {
+  const { token } = await (await fetch(`${API}/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ login: S.login, senha: S.senha }) })).json();
+  const call = async (m, u, b) => { const r = await fetch(`${API}${u}`, { method: m, headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }); const j = await r.json().catch(() => ({})); if (!r.ok && r.status !== 409) throw new Error(`${m} ${u} ${r.status} ${JSON.stringify(j).slice(0, 200)}`); return j; };
+  await call('POST', '/rebanho/ativacao', { operation_id: `atv-${S.empresa}`, empresa_id: S.empresa, modo: 'entradas' });
+  const lote = await call('POST', '/lotes', { empresa_id: S.empresa, nome: `B6 ${TAG}`, quantidade_cabecas: 10, categoria: 'Boi 25 a 36 meses', sexo: 'Macho', setor_id: S.setor, area_entrada_id: S.A, area_atual_id: S.A, data_entrada: '2026-10-01', motivo_entrada: 'Compra', status: 'Ativo', peso_medio_kg: 400 });
+  const posicoes = async () => (await call('GET', `/rebanho/posicoes?empresa_id=${S.empresa}&incluir_vazias=true`)).itens.filter((p) => p.lote_entrada_id === lote.id);
+  const saldoEm = async (area) => (await posicoes()).filter((p) => p.area_atual_id === area).reduce((t, p) => t + p.quantidade_cabecas, 0);
+  const posA = (await posicoes()).find((p) => p.area_atual_id === S.A);
+  const transf = async (q, dia) => (await call('POST', '/movimentacoes-mapa/comandos/manejo-lote', { operation_id: `t-${TAG}-${dia}`, empresa_id: S.empresa, tipo: 'Transferência de Área', lote_id: posA.id, quantidade_animais: q, area_destino_id: S.B, data_movimentacao: `2026-10-${dia}` })).movimentacao;
+  const t1 = await transf(3, '10');
+  ok('API antes: A=7 B=3', (await saldoEm(S.A)) === 7 && (await saldoEm(S.B)) === 3);
+
+  const browser = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader'] });
+  const mobile = W < 800;
+  const ctx = await browser.newContext({ viewport: { width: W, height: H }, isMobile: mobile, hasTouch: mobile });
+  const page = await ctx.newPage();
+  const erros = []; page.on('pageerror', (e) => erros.push(e.message.slice(0, 160)));
+  const perigosos = [], exclusoes = [];
+  page.on('request', (r) => {
+    const u = new URL(r.url()).pathname;
+    if (['DELETE', 'PATCH'].includes(r.method()) && /movimentacoes-/.test(u)) perigosos.push(`${r.method()} ${u}`);
+    if (r.method() === 'POST' && /\/exclusao$/.test(u)) exclusoes.push(r.postDataJSON());
+  });
+  await page.goto('http://127.0.0.1:5180/', { waitUntil: 'networkidle' });
+  await page.locator('input').nth(0).fill(S.login);
+  await page.locator('input[type=password]').fill(S.senha);
+  await page.keyboard.press('Enter');
+  await page.waitForURL(/mapageral/i, { timeout: 30000 });
+  await page.waitForTimeout(6000);
+  const tocar = async (loc) => { if (mobile) await loc.tap({ force: true }); else await loc.click({ force: true }); };
+  const fechar = async () => { for (let i = 0; i < 3; i++) { await page.keyboard.press('Escape'); await page.waitForTimeout(250); } await page.waitForTimeout(400); };
+  const dlg = () => page.getByRole('dialog').last();
+  const txt = async () => (await dlg().innerText().catch(() => '')).replace(/\n+/g, ' | ');
+  const semOverflow = async () => !(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1));
+  const abrirArea = async (nome) => {
+    const box = await page.getByText(nome, { exact: true }).first().boundingBox();
+    const x = box.x + box.width / 2, y = box.y + 1;
+    if (mobile) await page.touchscreen.tap(x, y); else await page.mouse.click(x, y);
+    await page.waitForTimeout(3000);
+  };
+  try {
+    await abrirArea('PASTO B');
+    let t = await txt();
+    ok('histórico de B mostra a transferência e "Excluir movimentação"; sem "Cancelar"', /Transferência de Área/.test(t) && (await page.getByRole('button', { name: 'Excluir movimentação' }).count()) >= 1 && (await page.getByRole('button', { name: 'Cancelar movimentação' }).count()) === 0, t.slice(0, 160));
+    await page.screenshot({ path: `${OUT}/${BASE}-01-historico.png` });
+    const card = page.locator('div.border.rounded-lg').filter({ hasText: `B6 ${TAG}` }).filter({ has: page.getByRole('button', { name: 'Excluir movimentação' }) }).first();
+    await card.scrollIntoViewIfNeeded().catch(() => {});
+    await tocar(card.getByRole('button', { name: 'Excluir movimentação' }));
+    await page.getByText('Efeito ao excluir').waitFor({ timeout: 15000 });
+    t = await txt();
+    ok('diálogo: definitiva, efeito por posição (+3 fica 10 / -3 fica 0), posição criada deixa de existir', /definitiva/.test(t) && /\+3 cab \(fica 10\)/.test(t) && /-3 cab \(fica 0\)/.test(t) && /deixa de existir/.test(t), t.slice(0, 260));
+    const confirmar = page.getByRole('button', { name: 'Excluir definitivamente' });
+    await page.getByLabel('Motivo da exclusão').fill('Transferência lançada errado (teste sintético)');
+    ok('confirmar desabilitado sem marcar a caixa', await confirmar.isDisabled());
+    await page.getByRole('checkbox').check({ force: true });
+    ok('sem rolagem horizontal no diálogo', await semOverflow());
+    await page.screenshot({ path: `${OUT}/${BASE}-02-dialogo-confirmacao.png` });
+    await tocar(confirmar);
+    await page.getByText('Movimentação excluída.').first().waitFor({ timeout: 15000 }).catch(() => {});
+    await page.waitForTimeout(2500);
+    ok('B6 API: A=10, B=0', (await saldoEm(S.A)) === 10 && (await saldoEm(S.B)) === 0, `A=${await saldoEm(S.A)} B=${await saldoEm(S.B)}`);
+    const lotes = await call('GET', '/lotes?limit=500');
+    ok('B6 cadastro continua 10', (Array.isArray(lotes) ? lotes : lotes.items).find((l) => l.id === lote.id)?.quantidade_cabecas === 10);
+    const hist = await call('GET', `/movimentacoes-mapa/historico?empresa_id=${S.empresa}&lote_ids=${lote.id}`);
+    ok('B6 item fora do histórico (API)', !hist.items.some((m) => m.id === t1.id));
+    ok('corpo enviado só {operation_id, motivo}', exclusoes.length === 1 && Object.keys(exclusoes[0]).sort().join() === 'motivo,operation_id', JSON.stringify(exclusoes));
+    await fechar();
+    await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(6000);
+    await abrirArea('PASTO B');
+    t = await txt();
+    ok('recarregado: item não reaparece no histórico de B', !t.includes(`B6 ${TAG}`), t.slice(0, 160));
+    await page.screenshot({ path: `${OUT}/${BASE}-03-apos-exclusao-reload.png` });
+    await fechar();
+
+    // Offline: nova transferência, histórico em cache, botão desabilitado com motivo.
+    await transf(2, '11');
+    await page.reload({ waitUntil: 'networkidle' }); await page.waitForTimeout(6000);
+    await abrirArea('PASTO B'); await page.waitForTimeout(1500); await fechar();
+    await ctx.setOffline(true);
+    await abrirArea('PASTO B');
+    t = await txt();
+    const bOff = page.getByRole('button', { name: 'Excluir movimentação' });
+    const n = await bOff.count();
+    ok('offline: botão ausente (histórico em cache, só leitura) ou desabilitado com motivo', n === 0 || ((await bOff.first().isDisabled()) && /Exclusão só com conexão/.test(t)), `n=${n} ${t.slice(0, 160)}`);
+    await page.screenshot({ path: `${OUT}/${BASE}-04-offline.png` });
+    await ctx.setOffline(false);
+    ok('nenhum DELETE/PATCH de movimento no navegador', perigosos.length === 0, perigosos.join(','));
+    ok('sem erro de página', erros.length === 0, erros.join(' | '));
+  } catch (e) {
+    ok('execução', false, e.message);
+    await page.screenshot({ path: `${OUT}/${BASE}-ERRO.png` }).catch(() => {});
+  }
+  await browser.close();
+  console.log(res.join('\n'));
+})();
