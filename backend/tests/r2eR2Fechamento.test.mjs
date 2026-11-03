@@ -10,7 +10,7 @@ import { test, describe, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 
-import { criarApp, criarTenant, limparBanco, encerrar, autenticarNoApp, transferenciaComDerivadoLegado } from './helpers.mjs';
+import { criarApp, criarTenant, limparBanco, encerrar, autenticarNoApp, transferenciaComDerivadoLegado, baixaLegada } from './helpers.mjs';
 import { getPrismaClient } from '../src/database/prismaClient.js';
 import { definirFalhaInjetadaLedger } from '../src/modules/rebanhoLedger/rebanhoLedgerService.js';
 import { executarReset, planejarReset } from '../../scripts/ops/resetRebanhoEmpresaTesteLib.mjs';
@@ -146,8 +146,9 @@ describe('R2 A — reset de teste não deixa replay órfão nem vínculo inváli
     const c = await legado();
     const l = await entrada(c, { nome: 'COMPRA', qtd: 500 });
     const { body: tBody, t } = await transfComDerivadoLegado(c, l, 120, c.B);
-    const mBody = corpoMorteLegada(c, 5);
-    const m = await ok(req('POST', '/movimentacoes-mapa/comandos/baixa-rebanho', c.tok, mBody));
+    // PR174-R5: os movimentos legados são DADO pré-existente (base anterior ao cutover).
+    const m = await baixaLegada({ lote: l, quantidade: 5 });
+    const mBody = { ...corpoMorteLegada(c, 5), operation_id: m.operationKey };
     // Controles: outra empresa do mesmo tenant e outro tenant, com chaves próprias.
     const outra = await prisma().empresa.create({ data: { cliente_id: c.cliente.id, numero_empresa: 2, apelido: 'OUT', nome: 'Outra' } });
     const setor2 = await prisma().setor.create({ data: { cliente_id: c.cliente.id, empresa_id: outra.id, numero_setor: '9', nome: 'S9' } });
@@ -155,12 +156,10 @@ describe('R2 A — reset de teste não deixa replay órfão nem vínculo inváli
     const b2 = await prisma().areaPastagem.create({ data: { cliente_id: c.cliente.id, empresa_id: outra.id, setor_id: setor2.id, setor_nome: 'S9', numero_area: '10', nome: 'PASTO Y', tamanho_hectares: 5 } });
     const c2 = { ...c, empresa: outra, setor: setor2, A: a2, B: b2 };
     const l2 = await entrada(c2, { nome: 'OUTRA', qtd: 50 });
-    const oBody = { ...corpoTransfLegada(c2, l2, 10, b2), lote_destino_id: (await destinoEntrada(c2, l2, b2)).id };
-    await ok(manejoLote(c2, oBody));
+    const { body: oBody } = await transfComDerivadoLegado(c2, l2, 10, b2);
     const viz = await legado();
     const lv = await entrada(viz, { nome: 'VIZ', qtd: 30 });
-    const vBody = { ...corpoTransfLegada(viz, lv, 5, viz.B), lote_destino_id: (await destinoEntrada(viz, lv, viz.B)).id };
-    await ok(manejoLote(viz, vBody));
+    const { body: vBody } = await transfComDerivadoLegado(viz, lv, 5, viz.B);
 
     await resetar(c);
     assert.equal(await prisma().movimentacaoMapa.count({ where: { id: { in: [t.movimentacao.id, m.movimentacao.id] } } }), 0, 'movimentos apagados pelo reset');
@@ -230,25 +229,23 @@ describe('R2 A — reset de teste não deixa replay órfão nem vínculo inváli
     assert.equal((await planejarReset(prisma(), { clienteId: c.cliente.id, empresaId: c.empresa.id })).movimentacoes_a_apagar, 0);
   });
 
-  test('A4: concorrência 3× — reset × comando legado: movimento existe ⇔ reserva committed (nunca replay órfão), sem 500', async () => {
+  test('A4: concorrência 3× — reset × comando do mapa numa empresa NÃO migrada: o comando é 409 REBANHO_CUTOVER_PENDENTE (nunca grava, nunca reserva chave), o reset conclui, sem 500', async () => {
     for (let rodada = 0; rodada < 3; rodada += 1) {
       await limparBanco();
       const c = await legado();
       const l = await entrada(c, { nome: 'COMPRA', qtd: 500 });
-      // PR174-R4: as transferências parciais legadas unificam numa ENTRADA já cadastrada em B
-      // (o manejo não fabrica lote); o reset a restaura e ela segue apta a receber.
+      await transfComDerivadoLegado(c, l, 50, c.B);
       const destino = await destinoEntrada(c, l, c.B, 10);
-      await ok(manejoLote(c, { ...corpoTransfLegada(c, l, 50, c.B), lote_destino_id: destino.id }));
       const body = { ...corpoTransfLegada(c, l, 30, c.B), lote_destino_id: destino.id };
       const [rr, rc] = await Promise.allSettled([resetar(c), manejoLote(c, body)]);
       assert.equal(rr.status, 'fulfilled', String(rr.reason?.message ?? ''));
-      assert.equal(rc.value.statusCode, 201, rc.value.body);
-      const op = await prisma().operacaoIdempotente.findFirst({ where: { cliente_id: c.cliente.id, operation_key: body.operation_id } });
-      const movId = rc.value.json().movimentacao?.id;
-      const existe = movId ? (await prisma().movimentacaoMapa.count({ where: { id: movId } })) === 1 : false;
-      assert.equal(existe, op.status === 'committed', `rodada ${rodada}: movimento ${existe} × reserva ${op.status}`);
+      assert.equal(rc.value.statusCode, 409, rc.value.body);
+      assert.equal(rc.value.json().code, 'REBANHO_CUTOVER_PENDENTE', rc.value.body);
+      assert.equal(await prisma().operacaoIdempotente.count({ where: { cliente_id: c.cliente.id, operation_key: body.operation_id } }), 0, `rodada ${rodada}: recusa não reserva a chave`);
+      assert.equal(await prisma().movimentacaoMapa.count({ where: { cliente_id: c.cliente.id, empresa_id: c.empresa.id } }), 0, 'reset apagou o legado; o comando não gravou nada');
       const replay = await manejoLote(c, body);
-      assert.equal(replay.statusCode, existe ? 201 : 409, replay.body);
+      assert.equal(replay.statusCode, 409, replay.body);
+      assert.equal(replay.json().code, 'REBANHO_CUTOVER_PENDENTE');
     }
   });
 });
