@@ -43,7 +43,7 @@ export default function IconeOficialLotePreview({ categoriaVisualId = null, cate
   if (!categoriaVisualId) {
     status = categoriaManejoSelecionada ? "mapeamento_pendente" : "sem_categoria";
     conteudo = categoriaManejoSelecionada
-      ? "Ícone oficial: esta categoria de manejo ainda não tem categoria oficial do catálogo MAIKE."
+      ? "Ícone oficial: esta categoria de manejo ainda não tem categoria oficial do catálogo MAK Gestão."
       : "Ícone oficial: selecione a categoria de manejo.";
   } else if (isError) {
     status = "erro";

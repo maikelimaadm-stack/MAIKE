@@ -4496,4 +4496,18 @@ Testes KML-N1..N5 em `tests/smoke/importacaoAreasParser.test.js`.
 
 ---
 
-<!-- Próxima decisão: D-PROD-109 -->
+## D-PROD-109 — Marca do produto: MAK Gestão
+
+**Pedido do proprietário:** o sistema passa a se chamar **MAK Gestão**, com a logo enviada por ele. O domínio de produção já é `www.makgestao.com`.
+
+**Decisão (só o que o usuário vê):**
+- título da aba, favicon, ícone de app (`apple-touch-icon`) e `manifest.webmanifest` com "MAK Gestão";
+- logo na tela de login ("Entrar no MAK Gestão") e símbolo ao lado do nome no cabeçalho;
+- os rótulos visíveis "catálogo MAIKE" e "entrada nativa MAIKE" passam a dizer MAK Gestão;
+- arquivos em `public/brand/`, gerados a partir da imagem original do proprietário.
+
+**Fora do escopo:** nome do repositório, identificadores internos, variáveis `VITE_MAIKE_*`, banco, gates e documentação histórica. O nome interno do projeto continua MAIKE.
+
+---
+
+<!-- Próxima decisão: D-PROD-110 -->

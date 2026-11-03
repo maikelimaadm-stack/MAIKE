@@ -1,5 +1,5 @@
 /**
- * Escolha da categoria oficial do catálogo MAIKE (tipo `lote`) para uma
+ * Escolha da categoria oficial do catálogo MAK Gestão (tipo `lote`) para uma
  * Categoria de Manejo (D-PROD-69). Só lista categorias publicadas; não há
  * upload, cor nem edição de ícone — o ícone é global do produto.
  *
@@ -35,7 +35,7 @@ export default function CategoriaOficialCatalogoSelect({ value = "", onChange, c
 
   return (
     <B1Select
-      aria-label="Ícone oficial (catálogo MAIKE)"
+      aria-label="Ícone oficial (catálogo MAK Gestão)"
       data-testid="categoria-oficial-catalogo"
       data-status={isError ? "erro" : isLoading ? "carregando" : "ok"}
       value={value || NENHUMA}
