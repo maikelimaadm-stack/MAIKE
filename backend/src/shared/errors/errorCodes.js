@@ -299,6 +299,7 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   REBANHO_ATIVACAO_LOTE_SEM_AREA: { http: 409, meaning: 'há lote ativo com cabeças e sem área válida; corrija antes de ativar' },
   IDEMPOTENCY_EFEITO_DESFEITO: { http: 409, meaning: 'a operação com esta chave teve o efeito desfeito por reset controlado de dados de teste; não há replay — envie como operação nova' },
   REBANHO_LEDGER_SOMENTE_POR_COMANDO: { http: 409, meaning: 'empresa no ledger: fato que muda saldo, classificação, peso ou estado do rebanho só entra pelos comandos certificados; o POST genérico não grava' },
+  REBANHO_CANCELAMENTO_VINCULO_POSTERIOR: { http: 409, meaning: 'cancelamento recusado: lançamento de outro módulo cita (por id) a posição criada pela movimentação ou o próprio movimento' },
   REBANHO_CUTOVER_PENDENTE: { http: 409, meaning: 'empresa ainda não migrada para o controle por posições; manejo bloqueado até o cutover administrativo (scripts/ops/cutover-rebanho.mjs)' },
   LOTE_CADASTRO_SOMENTE_ENTRADAS: { http: 409, meaning: 'o cadastro de lotes guarda só entradas; manejo (inclusive no modelo legado) não cria lote derivado — ative o controle por posições' },
   REBANHO_DEPENDENCIA_FATO_SEM_SALDO: { http: 409, meaning: 'um fato posterior sem movimento de cabeças (pesagem ou nascimento) perderia a pré-condição na data dele; cancele-o antes' },

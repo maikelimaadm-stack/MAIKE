@@ -31,8 +31,14 @@
  * Nunca toca: outras empresas, outros clientes, Cliente, Empresa, Usuario,
  * Permissao, AreaPastagem, auth, catálogo global, `_prisma_migrations`, schema.
  * Sem TRUNCATE, sem DDL. Recusa se o ledger já estiver ativo na empresa.
- * Tudo numa transação: qualquer erro desfaz tudo.
+ * Tudo numa transação: qualquer erro desfaz tudo. PR174-R6: o núcleo
+ * `executarResetNaTransacao(tx, …)` roda na transação do CHAMADOR (o cutover
+ * junta reset + ativação num único COMMIT); `executarReset` é o wrapper que
+ * abre a própria transação.
+ * Ordem de travas (igual à da ativação do ledger): Empresa → AreaPastagem →
+ * Lote → MovimentacaoMapa, sempre ORDER BY id.
  */
+import { createHash } from 'node:crypto';
 
 const ORIGENS_DERIVADAS = Object.freeze(['MOVIMENTACAO', 'REVERSAO MOVIMENTACAO', 'MUDANCA DE CATEGORIA', 'EDICAO MOVIMENTACAO']);
 const normal = (v) =>
@@ -150,13 +156,52 @@ export const planejarReset = async (prisma, { clienteId, empresaId }) => {
  * exato da empresa (segunda trava humana). `gravarBackup(obj)` recebe TUDO o
  * que será alterado ANTES da alteração; se falhar, nada é alterado.
  */
-export const executarReset = async (prisma, { clienteId, empresaId, confirmarEmpresaNome, gravarBackup, agora = new Date() }) => {
+/** Trava a empresa e tudo que o reset/ativação tocam, em ordem determinística. */
+export const travarEmpresaParaCorte = async (tx, clienteId, empresaId) => {
+  const [empresa] = await tx.$queryRaw`SELECT id FROM "Empresa" WHERE cliente_id = ${clienteId} AND id = ${empresaId} FOR UPDATE`;
+  if (!empresa) throw new ResetRecusado('EMPRESA_FORA_DO_ESCOPO', 'empresa não encontrada neste cliente');
+  await tx.$queryRaw`SELECT id FROM "AreaPastagem" WHERE cliente_id = ${clienteId} AND empresa_id = ${empresaId} ORDER BY id FOR UPDATE`;
+  await tx.$queryRaw`SELECT id FROM "Lote" WHERE cliente_id = ${clienteId} AND empresa_id = ${empresaId} ORDER BY id FOR UPDATE`;
+  await tx.$queryRaw`SELECT id FROM "MovimentacaoMapa" WHERE cliente_id = ${clienteId} AND empresa_id = ${empresaId} ORDER BY id FOR UPDATE`;
+};
+
+/**
+ * Manifesto de integridade do backup: contagens + sha256 do conteúdo
+ * canônico (JSON sem o próprio manifesto). Sem credenciais: só linhas
+ * operacionais da empresa (Lote, MovimentacaoMapa, OperacaoIdempotente).
+ */
+export const manifestoDoBackup = (conteudo) => ({
+  contagens: { lotes: conteudo.lotes.length, movimentacoes_mapa: conteudo.movimentacoes_mapa.length, operacoes_idempotentes: conteudo.operacoes_idempotentes.length },
+  sha256: createHash('sha256').update(JSON.stringify(conteudo)).digest('hex'),
+});
+
+/** Confere um backup lido de volta (objeto JSON) contra o manifesto dele. */
+export const conferirBackup = (obj) => {
+  const { manifesto, ...conteudo } = obj ?? {};
+  const calc = manifestoDoBackup(conteudo);
+  return !!manifesto && manifesto.sha256 === calc.sha256 && JSON.stringify(manifesto.contagens) === JSON.stringify(calc.contagens);
+};
+
+/**
+ * Executa o reset numa transação própria (wrapper). `confirmarEmpresaNome` tem
+ * de ser o nome exato da empresa (segunda trava humana). `gravarBackup(obj)`
+ * recebe TUDO o que será alterado ANTES da alteração; se falhar, nada é alterado.
+ */
+export const executarReset = async (prisma, opcoes) => {
+  validarOpcoes(opcoes);
+  return prisma.$transaction((tx) => executarResetNaTransacao(tx, opcoes), { timeout: 120_000 });
+};
+
+const validarOpcoes = ({ clienteId, empresaId, gravarBackup } = {}) => {
   if (!clienteId || !empresaId) throw new ResetRecusado('ESCOPO_OBRIGATORIO', 'cliente_id e empresa_id são obrigatórios');
   if (typeof gravarBackup !== 'function') throw new ResetRecusado('BACKUP_OBRIGATORIO', 'o backup é obrigatório');
-  return prisma.$transaction(async (tx) => {
-    // Trava as linhas da empresa contra manejo concorrente durante o reset.
-    await tx.$queryRaw`SELECT id FROM "Lote" WHERE cliente_id = ${clienteId} AND empresa_id = ${empresaId} ORDER BY id FOR UPDATE`;
-    await tx.$queryRaw`SELECT id FROM "MovimentacaoMapa" WHERE cliente_id = ${clienteId} AND empresa_id = ${empresaId} ORDER BY id FOR UPDATE`;
+};
+
+/** Núcleo do reset na transação do chamador (nunca abre $transaction). */
+export const executarResetNaTransacao = async (tx, { clienteId, empresaId, confirmarEmpresaNome, gravarBackup, agora = new Date() }) => {
+  validarOpcoes({ clienteId, empresaId, gravarBackup });
+  {
+    await travarEmpresaParaCorte(tx, clienteId, empresaId);
     const p = await carregar(tx, clienteId, empresaId);
     if (confirmarEmpresaNome !== p.empresa.nome) throw new ResetRecusado('CONFIRMACAO_DIVERGENTE', 'o nome de confirmação não confere com a empresa');
     if (p.vinculos.length) {
@@ -165,14 +210,17 @@ export const executarReset = async (prisma, { clienteId, empresaId, confirmarEmp
     if (!p.movimentacoes.length && !p.aRestaurar.length && !p.retirados.length && !p.operacoes.length) {
       return { sem_alteracoes: true, movimentacoes_apagadas: 0, lotes_restaurados: 0, lotes_retirados: 0, operacoes_invalidadas: 0, lotes_de_entrada: p.entradas.length };
     }
-    await gravarBackup({
-      versao: 2,
+    const conteudo = {
+      versao: 3,
       gerado_em: agora.toISOString(),
       escopo: { cliente_id: clienteId, empresa_id: empresaId },
       lotes: p.lotes,
       movimentacoes_mapa: p.movimentacoes,
       operacoes_idempotentes: p.operacoes,
-    });
+    };
+    // O backup é gravado e CONFERIDO antes de qualquer DELETE/UPDATE; erro aqui aborta a transação inteira.
+    const confirmado = await gravarBackup({ ...conteudo, manifesto: manifestoDoBackup(JSON.parse(JSON.stringify(conteudo))) });
+    if (confirmado === false) throw new ResetRecusado('BACKUP_NAO_CONFERIDO', 'o backup não pôde ser conferido; nada foi alterado');
     const apagadas = await tx.movimentacaoMapa.deleteMany({ where: { cliente_id: clienteId, empresa_id: empresaId, id: { in: p.movimentacoes.map((m) => m.id) } } });
     for (const l of p.aRestaurar) {
       await tx.lote.update({ where: { cliente_id_id: { cliente_id: clienteId, id: l.id } }, data: estadoDeEntrada(l) });
@@ -208,5 +256,5 @@ export const executarReset = async (prisma, { clienteId, empresaId, confirmarEmp
       },
     });
     return resumo;
-  });
+  }
 };

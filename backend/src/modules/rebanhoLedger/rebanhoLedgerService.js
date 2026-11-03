@@ -288,6 +288,9 @@ export const travarAreasDoLoteNoLedger = async (tx, clienteId, loteId) => {
 /** Cadastro de lote = ENTRADA no ledger, na mesma transação do INSERT do Lote. */
 export const registrarEntradaSeAtivo = async (tx, contexto, lote) => {
   const auth = exigirAuthContext(contexto?.auth);
+  // PR174-R6: serializa com a ativação/cutover (que trava a Empresa FOR UPDATE).
+  // Sem isto, um lote criado durante o cutover leria "não ativada" e ficaria sem posição.
+  await tx.$queryRaw`SELECT id FROM "Empresa" WHERE cliente_id = ${auth.clienteId} AND id = ${lote.empresa_id} FOR SHARE`;
   const ativacao = await ativacaoDaEmpresa(tx, auth.clienteId, lote.empresa_id);
   if (!ativacao) return null;
   const quantidade = lote.quantidade_entrada ?? lote.quantidade_cabecas;
@@ -536,6 +539,50 @@ export const exigirCancelamentoLegadoPermitido = async (tx, clienteId, mov) => {
  * reprojeta. Junção: as contribuições de linhagem deste evento saem da
  * composição. O original fica, marcado `cancelado`.
  */
+/**
+ * PR174-R6 — vínculos CAUSAIS de outros módulos (cancelamento do ledger).
+ * Só por ID estável, nunca por nome ou data:
+ *  - documento que cita o próprio movimento (`dados.movimentacao_id`);
+ *  - documento que cita uma posição que NASCEU deste evento (a primeira
+ *    partida ativa dela, na ordem (data, registrado_em, id), é deste evento):
+ *    sem o movimento a posição não existiria, logo o documento depende dele.
+ * Posição que já existia antes (o movimento só somou cabeças) não gera
+ * vínculo aqui: saldo e peso dela já são protegidos pela linha do tempo.
+ * Consultas limitadas ao tenant + empresa e a no máximo 20 bloqueadores.
+ */
+const FONTES_JSON_CAUSAIS = Object.freeze(['MovimentacaoPecuaria', 'SuplementacaoEvento', 'SuplementacaoLote', 'AplicacaoMedicamento', 'EventoSanitario', 'ManejoTecnicoRebanho']);
+export const vinculosCausaisDoMovimento = async (tx, clienteId, evento, movimentacaoId) => {
+  const nascidas = /** @type {Array<{posicao_id: string}>} */ (await tx.$queryRaw`
+    SELECT DISTINCT p.posicao_id FROM "PartidaRebanho" p
+     WHERE p.cliente_id = ${clienteId} AND p.evento_id = ${evento.id} AND p.delta > 0
+       AND NOT EXISTS (
+         SELECT 1 FROM "PartidaRebanho" q JOIN "EventoRebanho" e2 ON e2.cliente_id = q.cliente_id AND e2.id = q.evento_id
+          WHERE q.cliente_id = ${clienteId} AND q.posicao_id = p.posicao_id AND q.ativa AND q.evento_id <> ${evento.id}
+            AND (e2.data_operacional, e2.registrado_em, e2.id) < (${evento.data_operacional}::date, ${evento.registrado_em}::timestamptz, ${evento.id}))`).map((r) => r.posicao_id);
+  const bloqueadores = [];
+  if (nascidas.length) {
+    const tarefas = await tx.lancamentoTarefa.findMany({ where: { cliente_id: clienteId, empresa_id: evento.empresa_id, posicao_id: { in: nascidas } }, select: { id: true, posicao_id: true, data_inicio: true, data_pedido: true }, take: 20, orderBy: { id: 'asc' } });
+    for (const t of tarefas) bloqueadores.push({ tipo: 'LancamentoTarefa', id: t.id, posicao_id: t.posicao_id, data: (t.data_inicio ?? t.data_pedido)?.toISOString?.().slice(0, 10) ?? null });
+  }
+  for (const tabela of FONTES_JSON_CAUSAIS) {
+    if (bloqueadores.length >= 20) break;
+    const linhas = /** @type {Array<{id: string, data: string|null}>} */ (await tx.$queryRawUnsafe(
+      `SELECT t.id, COALESCE(t.dados->>'data', t.dados->>'data_aplicacao', t.dados->>'data_evento', t.dados->>'data_movimentacao') AS data
+         FROM "${tabela}" t
+        WHERE t.cliente_id = $1 AND t.empresa_id = $2
+          AND COALESCE(t.dados->>'situacao', '') <> 'cancelado'
+          AND (t.dados->>'movimentacao_id' = $3
+               OR t.dados->>'posicao_id' = ANY($4::text[]) OR t.dados->>'lote_id' = ANY($4::text[])
+               OR (jsonb_typeof(t.dados->'posicao_ids') = 'array' AND t.dados->'posicao_ids' ?| $4::text[])
+               OR (jsonb_typeof(t.dados->'lote_ids') = 'array' AND t.dados->'lote_ids' ?| $4::text[]))
+        ORDER BY t.id LIMIT 20`,
+      clienteId, evento.empresa_id, movimentacaoId, nascidas,
+    ));
+    for (const l of linhas) bloqueadores.push({ tipo: tabela, id: l.id, data: l.data ?? null });
+  }
+  return bloqueadores;
+};
+
 export const cancelarMovimentoDoLedger = async (tx, contexto, mov, motivo, operationKey) => {
   const auth = exigirAuthContext(contexto?.auth);
   const eventoId = mov.dados.efeito_servidor.evento_id;
@@ -546,6 +593,10 @@ export const cancelarMovimentoDoLedger = async (tx, contexto, mov, motivo, opera
   const operacao = await tx.operacaoIdempotente.findFirst({ where: { cliente_id: auth.clienteId, operation_key: evento.operation_id, status: 'committed' } });
   if (!operacao) throw recusa('CANCELAMENTO_EFEITO_NAO_COMPROVADO', 'a operação que gerou o evento não foi confirmada');
   if (evento.situacao === 'cancelado') throw recusa('CANCELAMENTO_JA_REALIZADO', 'a movimentação já está cancelada');
+  const vinculados = await vinculosCausaisDoMovimento(tx, auth.clienteId, evento, mov.id);
+  if (vinculados.length) {
+    throw recusa('REBANHO_CANCELAMENTO_VINCULO_POSTERIOR', 'há lançamentos de outros módulos que dependem desta movimentação (citam a posição criada por ela ou o próprio movimento); trate-os antes (nada foi alterado)', { bloqueadores: vinculados });
+  }
   const partidas = await tx.partidaRebanho.findMany({ where: { cliente_id: auth.clienteId, evento_id: evento.id } });
   const pesos = await tx.pesoRebanho.findMany({ where: { cliente_id: auth.clienteId, evento_id: evento.id }, select: { posicao_id: true } });
   const ids = [...new Set([...partidas.map((p) => p.posicao_id), ...pesos.map((p) => p.posicao_id)])];

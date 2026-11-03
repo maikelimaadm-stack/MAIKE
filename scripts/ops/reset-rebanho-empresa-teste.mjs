@@ -19,10 +19,12 @@
  * Exit: 0 ok · 1 falha técnica · 2 uso incorreto · 3 recusado (nada alterado)
  */
 
-import { existsSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { PrismaClient } from '@prisma/client';
 
-import { ResetRecusado, executarReset, planejarReset } from './resetRebanhoEmpresaTesteLib.mjs';
+import { ResetRecusado, conferirBackup, executarReset, planejarReset } from './resetRebanhoEmpresaTesteLib.mjs';
 
 const args = process.argv.slice(2);
 const valor = (nome) => {
@@ -44,6 +46,8 @@ const confirmar = valor('--confirmar-empresa');
 const backup = valor('--backup');
 if (executar && (!confirmar || !backup)) uso('--executar exige --confirmar-empresa e --backup');
 if (backup && existsSync(backup)) uso('o arquivo de backup já existe (não sobrescreve)');
+const RAIZ_REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
+if (backup && resolve(backup).startsWith(`${RAIZ_REPO}/`)) uso('o backup tem de ficar fora do repositório');
 
 let host;
 try {
@@ -71,7 +75,10 @@ try {
       clienteId,
       empresaId,
       confirmarEmpresaNome: confirmar,
-      gravarBackup: (obj) => writeFileSync(backup, `${JSON.stringify(obj, null, 2)}\n`, { flag: 'wx' }),
+      gravarBackup: (obj) => {
+        writeFileSync(backup, `${JSON.stringify(obj, null, 2)}\n`, { flag: 'wx', mode: 0o600 });
+        return conferirBackup(JSON.parse(readFileSync(backup, 'utf8')));
+      },
     });
     console.log(JSON.stringify({ resultado: resumo.sem_alteracoes ? 'SEM_ALTERACOES' : 'RESET_APLICADO', ...resumo }, null, 2));
   }

@@ -16,7 +16,9 @@
  * não for local, o system_identifier do banco TEM de conferir (falha fechada).
  * Exit: 0 ok · 1 falha técnica · 2 uso incorreto · 3 recusado (nada alterado)
  */
-import { existsSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const args = process.argv.slice(2);
 const valor = (nome) => {
@@ -42,6 +44,9 @@ const dataCorte = valor('--data-corte');
 if (executar && (!estrategia || !confirmar || !usuarioId)) uso('--executar exige --estrategia, --confirmar-empresa e --usuario-admin-id');
 if (executar && estrategia === 'reset_e_entradas' && !backup) uso('reset_e_entradas exige --backup');
 if (backup && existsSync(backup)) uso('o arquivo de backup já existe (não sobrescreve)');
+// PR174-R6: backup FORA do repositório (nunca versionado, nunca artefato de CI).
+const RAIZ_REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
+if (backup && resolve(backup).startsWith(`${RAIZ_REPO}/`)) uso('o backup tem de ficar fora do repositório');
 
 let host;
 try {
@@ -57,6 +62,7 @@ if (!local && !esperado) uso('alvo remoto exige CUTOVER_EXPECTED_SYSTEM_IDENTIFI
 process.env.DATABASE_URL = url;
 const { PrismaClient } = await import('@prisma/client');
 const { diagnosticarEmpresa, executarCutover, CutoverRecusado } = await import('./cutoverRebanhoLib.mjs');
+const { conferirBackup } = await import('./resetRebanhoEmpresaTesteLib.mjs');
 const prisma = new PrismaClient({ datasources: { db: { url } } });
 try {
   if (esperado) {
@@ -72,7 +78,11 @@ try {
     const { ativarEmpresaNaTransacao } = await import('../../backend/src/modules/rebanhoLedger/rebanhoLedgerService.js');
     const r = await executarCutover(prisma, {
       clienteId, empresaId, estrategia, dataCorte: dataCorte ?? null, usuarioId, confirmarEmpresaNome: confirmar, ativarEmpresaNaTransacao,
-      gravarBackup: (obj) => writeFileSync(backup, `${JSON.stringify(obj, null, 2)}\n`, { flag: 'wx' }),
+      // Grava (exclusivo, 0600), relê e confere o manifesto ANTES de qualquer DELETE; falha = ROLLBACK.
+      gravarBackup: (obj) => {
+        writeFileSync(backup, `${JSON.stringify(obj, null, 2)}\n`, { flag: 'wx', mode: 0o600 });
+        return conferirBackup(JSON.parse(readFileSync(backup, 'utf8')));
+      },
     });
     console.log(JSON.stringify(r, null, 2));
   }

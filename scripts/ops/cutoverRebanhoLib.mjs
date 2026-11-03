@@ -15,9 +15,16 @@
  *  - `saldo_abertura`: preserva o histórico legado; posições abertas com o
  *    saldo atual na data de corte (≥ último movimento legado ativo).
  * Usuários, senhas, permissões, cliente, empresa, áreas e catálogos NUNCA são
- * tocados. Tudo transacional; falha = nada muda.
+ * tocados.
+ *
+ * PR174-R6 — ATÔMICO: reset (quando houver) e ativação rodam numa ÚNICA
+ * transação PostgreSQL (um COMMIT ou um ROLLBACK). Falha na ativação depois do
+ * reset desfaz o reset também. O arquivo de backup pode sobrar nesse caso: ele
+ * é a cópia do PRÉ-estado (que é exatamente o estado do banco após o rollback).
+ * Travas na ordem da ativação: Empresa → AreaPastagem → Lote → MovimentacaoMapa.
+ * Repetir um cutover concluído é no-op (JA_ATIVA): sem backup, sem escrita.
  */
-import { executarReset, planejarReset } from './resetRebanhoEmpresaTesteLib.mjs';
+import { executarResetNaTransacao, planejarReset, travarEmpresaParaCorte } from './resetRebanhoEmpresaTesteLib.mjs';
 
 export const ESTRATEGIAS = Object.freeze(['entradas', 'reset_e_entradas', 'saldo_abertura']);
 
@@ -63,24 +70,32 @@ export const diagnosticarEmpresa = async (prisma, { clienteId, empresaId }) => {
  * ativação do backend), assim o script usa exatamente a mesma regra da API.
  * `usuarioId` = administrador do próprio cliente que assina a ativação.
  */
-export const executarCutover = async (prisma, { clienteId, empresaId, estrategia, dataCorte = null, usuarioId, confirmarEmpresaNome, gravarBackup, ativarEmpresaNaTransacao }) => {
+export const executarCutover = async (prisma, { clienteId, empresaId, estrategia, dataCorte = null, usuarioId, confirmarEmpresaNome, gravarBackup, ativarEmpresaNaTransacao, timeoutMs = 120_000 }) => {
+  if (!clienteId || !empresaId) throw new CutoverRecusado('ESCOPO_OBRIGATORIO', 'cliente_id e empresa_id são obrigatórios');
   if (!ESTRATEGIAS.includes(estrategia)) throw new CutoverRecusado('ESTRATEGIA_INVALIDA', `estratégia deve ser ${ESTRATEGIAS.join(', ')}`);
-  const antes = await diagnosticarEmpresa(prisma, { clienteId, empresaId });
-  if (antes.ativa) return { resultado: 'JA_ATIVA', modo: antes.modo };
-  if (confirmarEmpresaNome !== antes.empresa_nome) throw new CutoverRecusado('CONFIRMACAO_DIVERGENTE', 'o nome de confirmação não confere com a empresa');
-  const admin = await prisma.usuario.findFirst({ where: { cliente_id: clienteId, id: usuarioId ?? '', ativo: true, papel_tenant: 'administrador' }, select: { id: true } });
-  if (!admin) throw new CutoverRecusado('ADMINISTRADOR_OBRIGATORIO', 'informe um administrador ativo deste cliente para assinar a ativação');
-  let reset = null;
-  if (estrategia === 'reset_e_entradas') {
-    reset = await executarReset(prisma, { clienteId, empresaId, confirmarEmpresaNome, gravarBackup });
-  }
-  const contexto = { auth: { clienteId, usuarioId: admin.id }, requestId: `cutover-${Date.now()}` };
-  const modo = estrategia === 'saldo_abertura' ? 'saldo_abertura' : 'entradas';
+  if (typeof ativarEmpresaNaTransacao !== 'function') throw new CutoverRecusado('ATIVACAO_OBRIGATORIA', 'o núcleo da ativação é obrigatório');
+  if (estrategia === 'reset_e_entradas' && typeof gravarBackup !== 'function') throw new CutoverRecusado('BACKUP_OBRIGATORIO', 'reset_e_entradas exige backup');
   try {
-    const ativacao = await prisma.$transaction((tx) => ativarEmpresaNaTransacao(tx, contexto, { empresaId, modo, dataCorte: modo === 'saldo_abertura' ? dataCorte : null }));
-    return { resultado: 'ATIVADA', estrategia, reset, ativacao: ativacao.body };
+    return await prisma.$transaction(async (tx) => {
+      // Uma transação, uma ordem de travas: nada de manejo/cadastro atravessa o corte.
+      await travarEmpresaParaCorte(tx, clienteId, empresaId);
+      const antes = await diagnosticarEmpresa(tx, { clienteId, empresaId });
+      if (antes.ativa) return { resultado: 'JA_ATIVA', modo: antes.modo };
+      if (confirmarEmpresaNome !== antes.empresa_nome) throw new CutoverRecusado('CONFIRMACAO_DIVERGENTE', 'o nome de confirmação não confere com a empresa');
+      const admin = await tx.usuario.findFirst({ where: { cliente_id: clienteId, id: usuarioId ?? '', ativo: true, papel_tenant: 'administrador' }, select: { id: true } });
+      if (!admin) throw new CutoverRecusado('ADMINISTRADOR_OBRIGATORIO', 'informe um administrador ativo deste cliente para assinar a ativação');
+      const reset = estrategia === 'reset_e_entradas'
+        ? await executarResetNaTransacao(tx, { clienteId, empresaId, confirmarEmpresaNome, gravarBackup })
+        : null;
+      const contexto = { auth: { clienteId, usuarioId: admin.id }, requestId: `cutover-${Date.now()}` };
+      const modo = estrategia === 'saldo_abertura' ? 'saldo_abertura' : 'entradas';
+      const ativacao = await ativarEmpresaNaTransacao(tx, contexto, { empresaId, modo, dataCorte: modo === 'saldo_abertura' ? dataCorte : null });
+      return { resultado: 'ATIVADA', estrategia, reset, ativacao: ativacao.body };
+    }, { timeout: timeoutMs });
   } catch (e) {
-    throw new CutoverRecusado(e?.code ?? 'ATIVACAO_RECUSADA', e?.message ?? 'ativação recusada', { ...(e?.details ?? {}), reset_aplicado: !!reset });
+    if (e instanceof CutoverRecusado) throw e;
+    // ResetRecusado / AppError da ativação / erro técnico: tudo foi desfeito pelo ROLLBACK.
+    throw new CutoverRecusado(e?.codigo ?? e?.code ?? 'ATIVACAO_RECUSADA', e?.message ?? 'cutover recusado', { ...(e?.detalhes ?? e?.details ?? {}), desfeito: true });
   }
 };
 
