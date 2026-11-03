@@ -24,7 +24,7 @@ describe('CNT — quantidade de cabeças no marcador', () => {
 
   it('CNT-03 o marcador usa texto formatado, fonte fixa e fica abaixo da figura', () => {
     const fonte = readFileSync('src/components/mapa/useMapRenderer.jsx', 'utf8');
-    expect(FONTE_CONTAGEM_PX).toBe(10);
+    expect(FONTE_CONTAGEM_PX).toBe(9.5);
     expect(fonte).toMatch(/entry\.badge\.textContent = formatarContagem\(totalCabecas\)/);
     expect(fonte).toMatch(/top:69%;[^`]*color:#6b7280;font-size:\$\{FONTE_CONTAGEM_PX\}px/);
     expect(fonte).not.toMatch(/badge\.style\.fontSize/);
