@@ -297,3 +297,47 @@ export const transferenciaComDerivadoLegado = async (app, { token, empresaId, se
   });
   return { ...resposta, derivadoId, corpo };
 };
+
+/**
+ * PR174-R5: grava DIRETO no banco um movimento LEGADO certificado (o que os
+ * comandos anteriores ao ledger deixavam): MovimentacaoMapa com
+ * `efeito_servidor` do comando antigo e a operação idempotente confirmada
+ * apontando para ele. Simula base pré-cutover; nunca passa pelos comandos.
+ * @param {{ clienteId: string, empresaId: string, comando: string, tipoOperacao?: string, operationKey?: string, fingerprint?: string, dados: Record<string, any>, efeitos?: Array<Record<string, any>>, situacao?: string }} p
+ */
+export const gravarMovimentoLegado = async ({ clienteId, empresaId, comando, tipoOperacao = comando, operationKey = `op-${randomUUID()}`, fingerprint = 'legado', dados, efeitos = [], situacao }) => {
+  const p = getPrismaClient();
+  const mov = await p.movimentacaoMapa.create({
+    data: {
+      cliente_id: clienteId, empresa_id: empresaId,
+      dados: {
+        ...dados,
+        ...(situacao ? { situacao } : {}),
+        efeito_servidor: { comando, operation_id: operationKey, registrado_em: new Date().toISOString(), efeitos },
+      },
+    },
+  });
+  const movimentacao = { ...mov.dados, id: mov.id, empresa_id: mov.empresa_id };
+  await p.operacaoIdempotente.create({
+    data: { cliente_id: clienteId, operation_key: operationKey, tipo_operacao: tipoOperacao, fingerprint, status: 'committed', http_status: 201, response_json: { movimentacao } },
+  });
+  return { movimentacao, operationKey };
+};
+
+/**
+ * Morte/Abate LEGADA (comando de baixa anterior ao ledger) gravada direto no
+ * banco: debita o lote e grava o movimento certificado.
+ * @param {{ lote: any, quantidade: number, data?: string, tipo?: string }} p
+ */
+export const baixaLegada = async ({ lote, quantidade, data = '2026-10-29', tipo = 'Morte' }) => {
+  const p = getPrismaClient();
+  const o = await p.lote.findFirst({ where: { id: lote.id } });
+  const saldo = o.quantidade_cabecas - quantidade;
+  const depois = await p.lote.update({ where: { cliente_id_id: { cliente_id: o.cliente_id, id: o.id } }, data: { quantidade_cabecas: saldo, status: saldo > 0 ? o.status : 'Inativo' } });
+  const estado = (l) => ({ quantidade_cabecas: l.quantidade_cabecas, status: l.status, area_atual_id: l.area_atual_id ?? null, categoria: l.categoria ?? null, categoria_manejo_id: l.categoria_manejo_id ?? null, empresa_id: l.empresa_id ?? null });
+  return gravarMovimentoLegado({
+    clienteId: o.cliente_id, empresaId: o.empresa_id, comando: 'manejo_mapa_baixa_rebanho',
+    dados: { tipo, lote: o.nome, lote_id: o.id, lote_ids: [o.id], quantidade_animais: quantidade, data_movimentacao: data, area_origem_id: o.area_atual_id, categoria_animal: o.categoria ?? null },
+    efeitos: [{ lote_id: o.id, criado: false, auditoria_id: 'legado', antes: estado(o), depois: estado(depois) }],
+  });
+};
