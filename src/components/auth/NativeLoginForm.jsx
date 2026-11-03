@@ -58,7 +58,8 @@ const NativeLoginForm = ({ onAutenticado, entrar }) => {
         className="w-full max-w-sm space-y-4 rounded-lg border border-slate-200 bg-white p-6 shadow-sm"
       >
         <div className="space-y-1">
-          <h1 className="text-lg font-semibold text-slate-900">Entrar no MAIKE</h1>
+          <img src="/brand/mak-gestao-logo.png" alt="MAK Gestão" className="mx-auto h-24 w-24 object-contain" />
+          <h1 className="text-lg font-semibold text-slate-900">Entrar no MAK Gestão</h1>
           <p className="text-sm text-slate-500">
             Informe usuário e senha. Não há código de cliente — o sistema associa sua conta
             automaticamente.

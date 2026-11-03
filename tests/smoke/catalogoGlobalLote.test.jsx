@@ -136,7 +136,7 @@ describe("Categoria de Manejo escolhe a categoria oficial (sem editar ícone)", 
         onCancel={() => {}}
       />,
     );
-    const select = await screen.findByLabelText("Ícone oficial (catálogo MAIKE)");
+    const select = await screen.findByLabelText("Ícone oficial (catálogo MAK Gestão)");
     await waitFor(() => expect(select.getAttribute("data-status")).toBe("ok"));
     // Desktop (D-PROD-106): o campo abre o painel de seleção abaixo dele.
     await act(async () => {
@@ -174,7 +174,7 @@ describe("Categoria de Manejo escolhe a categoria oficial (sem editar ícone)", 
         onCancel={() => {}}
       />,
     );
-    const select = await screen.findByLabelText("Ícone oficial (catálogo MAIKE)");
+    const select = await screen.findByLabelText("Ícone oficial (catálogo MAK Gestão)");
     await waitFor(() => expect(select.getAttribute("data-status")).toBe("erro"));
     expect(select.value).toBe("cv-bez");
     fireEvent.submit(screen.getByTestId("b1-form-categoria-manejo"));

@@ -126,7 +126,7 @@ export default function Usuarios() {
 
   const listErrorMessage = getApiErrorMessage(
     controller.listaQueryError,
-    "Não foi possível carregar as contas nativas. Verifique se você está autenticado no backend MAIKE.",
+    "Não foi possível carregar as contas nativas. Verifique se você está autenticado no MAK Gestão.",
   );
 
   const screenController = { ...controller, saving };

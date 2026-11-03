@@ -103,7 +103,7 @@ export default function FormularioContaAcesso({
     <CadastroFormShell
       embedded={embedded}
       title={isEditing ? "Editar conta" : "Nova conta"}
-      subtitle="Login e senha da entrada nativa MAIKE. Permissões de menu ficam em Administração › Permissões."
+      subtitle="Login e senha da entrada do MAK Gestão. Permissões de menu ficam em Administração › Permissões."
     >
       <form id={FORMULARIO_CONTA_ACESSO_ID} onSubmit={handleSubmit} className="space-y-2 max-w-xl">
         <B1Field label="Nome" required error={fieldError("nome")} disabled={readOnly}>

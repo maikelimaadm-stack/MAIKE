@@ -261,7 +261,7 @@ export default function FormularioCategoriaManejo({
       </B1Field>
 
       <B1Field
-        label="Ícone oficial (catálogo MAIKE)"
+        label="Ícone oficial (catálogo MAK Gestão)"
         span={4}
         // Sempre mostra um texto ("SEM VÍNCULO" ou o nome): o rótulo fica no alto.
         hasValue
