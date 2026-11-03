@@ -4251,4 +4251,28 @@ Relatório: `docs/engineering/UX-MOBILE-V2-REPORT.md` (seção V9). Teste: `test
   - **Barras de rolagem:** no Chrome, Edge e Safari, `scrollbar-width`/`scrollbar-color` deixam de anular o `::-webkit-scrollbar`. Toda área rola com a mesma barra de 8 px cinza arredondada. As áreas que escondem a barra continuam escondendo.
 - **Consequência:** celular e desktop compartilham o visual das listas, mas cada um mantém sua estrutura.
 
-<!-- Próxima decisão: D-PROD-107 -->
+## D-PROD-107 — Importação KML: nome de verdade quando `<name>` é código do aplicativo
+
+**Pedido do proprietário:** a importação do KML não trazia os nomes corretos. Em produção, 74 das 80 áreas ficaram com nomes como `06FED7BE-9736-4A1F-93FB-E481CB663AC7`. O aplicativo de campo que gerou o arquivo grava um UUID em `<name>`, e o leitor só olhava essa tag.
+
+**Decisão** (`src/lib/geografia/importacaoAreas.js`):
+- `pareceIdentificador` marca como "não é nome":
+  - UUID, com ou sem chaves ou hífens;
+  - hash hexadecimal de 16 caracteres ou mais;
+  - os rótulos padrão: "Polígono sem título", "Untitled Polygon", "Sem nome"…
+- O nome do Placemark é o primeiro candidato que seja nome de verdade, nesta ordem:
+  1. `<name>`;
+  2. campos do `<ExtendedData>` (`Data/value` e `SchemaData/SimpleData`), procurados sem diferenciar acento, maiúscula ou separador. Chaves: nome, name, nome_area, nome_pasto, pasto, piquete, talhão, invernada, area_nome, título, title, label, rótulo, descrição;
+  3. `<description>` curta (até 60 caracteres) e sem HTML de tabela;
+  4. nome da `<Folder>` que guarda só aquele Placemark.
+- Sem nenhum candidato, o nome fica vazio e a conferência sugere um nome, como já fazia. O código nunca vira nome.
+- A sigla também é lida do `<ExtendedData>`.
+- No GeoJSON, as mesmas chaves de nome passam pelo filtro de código.
+
+**Fora do escopo:** renomear as áreas já gravadas com UUID. O proprietário renomeia no cadastro ou reimporta o arquivo.
+
+Testes KML-N1..N5 em `tests/smoke/importacaoAreasParser.test.js`.
+
+---
+
+<!-- Próxima decisão: D-PROD-108 -->
