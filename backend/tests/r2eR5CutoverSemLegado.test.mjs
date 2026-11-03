@@ -10,7 +10,7 @@ import { test, describe, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 
-import { criarApp, criarTenant, limparBanco, encerrar, autenticarNoApp } from './helpers.mjs';
+import { criarApp, criarTenant, limparBanco, encerrar, autenticarNoApp, baixaLegada, transferenciaComDerivadoLegado } from './helpers.mjs';
 import { getPrismaClient } from '../src/database/prismaClient.js';
 import { definirFalhaInjetadaLedger, ativarEmpresaNaTransacao } from '../src/modules/rebanhoLedger/rebanhoLedgerService.js';
 import { diagnosticarEmpresa, executarCutover } from '../../scripts/ops/cutoverRebanhoLib.mjs';
@@ -120,19 +120,55 @@ describe('R5 — sem legado: guarda única, empresa nova ativada, cutover admini
   test('G1: empresa NÃO migrada → todo comando do mapa 409 REBANHO_CUTOVER_PENDENTE, nada gravado; nenhum Lote alterado', async () => {
     const c = await cenario();
     const l = await entrada(c, { qtd: 100 });
+    const l2 = await entrada(c, { nome: 'LOTE 2', qtd: 10 });
+    await entrada(c, { nome: 'VACAS', qtd: 20, categoria: VACA, sexo: 'Fêmea', peso: 450 });
     const corpos = [
       ['/movimentacoes-mapa/comandos/manejo-lote', { operation_id: opId(), tipo: 'Transferência de Área', empresa_id: c.empresa.id, lote_id: l.id, quantidade_animais: 100, data_movimentacao: '2026-10-28', area_destino_id: c.B.id, categoria_animal: BOI }],
       ['/movimentacoes-mapa/comandos/baixa-rebanho', { operation_id: opId(), tipo: 'Morte', empresa_id: c.empresa.id, area_id: c.A.id, data_movimentacao: '2026-10-29', linhas: [{ categoria: BOI, quantidade: 2, causa_morte: 'Doença' }] }],
+      ['/movimentacoes-mapa/comandos/manejo-lote', { operation_id: opId(), tipo: 'Morte', empresa_id: c.empresa.id, lote_id: l.id, quantidade_animais: 1, data_movimentacao: '2026-10-29' }],
+      ['/movimentacoes-mapa/comandos/baixa-rebanho', { operation_id: opId(), tipo: 'Morte', empresa_id: c.empresa.id, area_id: c.A.id, data_movimentacao: '2026-10-29', linhas: [{ categoria: BOI, quantidade: 2, causa_morte: 'Doença' }] }],
       ['/movimentacoes-mapa/comandos/manejo-rebanho', { operation_id: opId(), tipo: 'Pesagem', empresa_id: c.empresa.id, area_id: c.A.id, data_movimentacao: '2026-10-29', linhas: [{ lote_id: l.id, peso_medio_kg: 420 }] }],
+      ['/movimentacoes-mapa/comandos/manejo-rebanho', { operation_id: opId(), tipo: 'Nascimento', empresa_id: c.empresa.id, area_id: c.A.id, data_movimentacao: '2026-10-29', linhas: [{ categoria_mae: VACA, sexo: 'Macho', quantidade: 1 }] }],
+      ['/movimentacoes-mapa/comandos/juncao-lotes', { operation_id: opId(), empresa_id: c.empresa.id, area_id: c.A.id, lote_principal_id: l.id, lote_origem_ids: [l2.id], data_movimentacao: '2026-10-29' }],
     ];
     for (const [url, body] of corpos) await exigirNadaGravado(c, () => req('POST', url, c.tok, body), 409, CUTOVER);
+    // A recusa não reserva a chave: o mesmo pedido continua recusado (nunca vira replay).
+    await exigirNadaGravado(c, () => req('POST', corpos[0][0], c.tok, corpos[0][1]), 409, CUTOVER);
     const cad = await prisma().lote.findUnique({ where: { id: l.id } });
     assert.deepEqual([cad.quantidade_cabecas, cad.area_atual_id], [100, c.A.id]);
   });
 
+  test('G1b: empresa NÃO migrada → cancelamento (e elegibilidade) de movimento LEGADO 409 REBANHO_CUTOVER_PENDENTE; o modelo antigo nunca reverte Lote', async () => {
+    const c = await cenario();
+    const l = await entrada(c, { nome: 'COMPRA', qtd: 500 });
+    const morte = await baixaLegada({ lote: l, quantidade: 5 });
+    const transf = await transferenciaComDerivadoLegado(app, { token: c.tok, empresaId: c.empresa.id, setorId: c.setor.id, origem: l, quantidade: 120, areaDestinoId: c.B.id, data: '2026-10-28' });
+    const generico = await legadoTransferido(c, { ...l, quantidade_cabecas: 375 }, 10);
+    for (const id of [morte.movimentacao.id, transf.movimentacao.id, generico.id]) {
+      const e = await req('GET', `/movimentacoes-mapa/${id}/elegibilidade-cancelamento`, c.tok);
+      assert.equal(e.statusCode, 200, e.body);
+      assert.deepEqual([e.json().elegivel, e.json().codigo], [false, CUTOVER], e.body);
+      await exigirNadaGravado(c, () => req('POST', `/movimentacoes-mapa/${id}/cancelamento`, c.tok, { operation_id: opId(), motivo: 'engano' }), 409, CUTOVER);
+    }
+    // Inexistente continua 404 (nunca vaza como cutover).
+    assert.equal((await req('POST', '/movimentacoes-mapa/nao-existe/cancelamento', c.tok, { operation_id: opId(), motivo: 'x' })).statusCode, 404);
+    const cad = await prisma().lote.findUnique({ where: { id: l.id } });
+    assert.equal(cad.quantidade_cabecas, 365, 'Lote só com o que a base legada já tinha');
+  });
+
+  test('G1c: empresa ATIVADA → cancelamento de movimento LEGADO 409 REBANHO_LEDGER_CANCELAMENTO_LEGADO, nada gravado', async () => {
+    const c = await cenario();
+    const l = await entrada(c, { nome: 'COMPRA', qtd: 500 });
+    const morte = await baixaLegada({ lote: l, quantidade: 5 });
+    await ok(req('POST', '/rebanho/ativacao', c.tok, { operation_id: opId(), empresa_id: c.empresa.id, modo: 'saldo_abertura', data_corte: '2026-10-30' }));
+    const e = await req('GET', `/movimentacoes-mapa/${morte.movimentacao.id}/elegibilidade-cancelamento`, c.tok);
+    assert.deepEqual([e.json().elegivel, e.json().codigo], [false, 'REBANHO_LEDGER_CANCELAMENTO_LEGADO'], e.body);
+    await exigirNadaGravado(c, () => req('POST', `/movimentacoes-mapa/${morte.movimentacao.id}/cancelamento`, c.tok, { operation_id: opId(), motivo: 'engano' }), 409, 'REBANHO_LEDGER_CANCELAMENTO_LEGADO');
+  });
+
   test('G2: empresa criada pela API nasce ATIVADA; transferência parcial para pasto VAZIO, nascimento e mudança parcial → 201, nenhum Lote criado', async () => {
     const c = await cenario();
-    const r = await req('POST', '/empresas', c.tok, { nome: 'Nova Fazenda', apelido: 'NOVA' });
+    const r = await req('POST', '/empresas', c.tok, { nome: 'Nova Fazenda', apelido: 'NOVA', tipo_pessoa: 'Jurídica' });
     assert.equal(r.statusCode, 201, r.body);
     const emp = r.json();
     const setor = await prisma().setor.create({ data: { cliente_id: c.cliente.id, empresa_id: emp.id, numero_setor: '1', nome: 'S1' } });
