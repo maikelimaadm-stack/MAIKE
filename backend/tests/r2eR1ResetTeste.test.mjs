@@ -11,7 +11,7 @@ import { test, describe, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 
-import { criarApp, criarTenant, limparBanco, encerrar, autenticarNoApp, transferenciaComDerivadoLegado } from './helpers.mjs';
+import { criarApp, criarTenant, limparBanco, encerrar, autenticarNoApp, transferenciaComDerivadoLegado, baixaLegada } from './helpers.mjs';
 import { getPrismaClient } from '../src/database/prismaClient.js';
 import { definirFalhaInjetadaLedger } from '../src/modules/rebanhoLedger/rebanhoLedgerService.js';
 import { planejarReset, executarReset, ResetRecusado } from '../../scripts/ops/resetRebanhoEmpresaTesteLib.mjs';
@@ -61,10 +61,6 @@ const entrada = async (c, { nome = 'LOTE', qtd = 40, area = c.A, data = '2026-10
 /** Empresa reconstruída pelas entradas (linha do tempo completa desde cada entrada). */
 
 const ativar = (c) => req('POST', '/rebanho/ativacao', c.tok, { operation_id: opId(), empresa_id: c.empresa.id, modo: 'entradas' });
-const morteLegada = (c, quantidade) =>
-  req('POST', '/movimentacoes-mapa/comandos/baixa-rebanho', c.tok, {
-    operation_id: opId(), tipo: 'Morte', empresa_id: c.empresa.id, area_id: c.A.id, data_movimentacao: '2026-10-29', linhas: [{ categoria: BOI, quantidade, causa_morte: 'Doença' }],
-  });
 const foto = async (clienteId, empresaId) => {
   const p = prisma();
   const w = { cliente_id: clienteId, ...(empresaId ? { empresa_id: empresaId } : {}) };
@@ -85,8 +81,8 @@ const comHistorico = async () => {
   await transferenciaComDerivadoLegado(app, {
     token: c.tok, empresaId: c.empresa.id, setorId: c.setor.id, origem: l, quantidade: 30, areaDestinoId: c.B.id, data: '2026-10-28', corpoExtra: { categoria_animal: BOI },
   });
-  const r2 = await morteLegada(c, 5);
-  assert.equal(r2.statusCode, 201, r2.body);
+  // PR174-R5: morte legada = dado pré-existente (os comandos não gravam mais fora do ledger).
+  await baixaLegada({ lote: l, quantidade: 5, data: '2026-10-29' });
   return { c, l };
 };
 

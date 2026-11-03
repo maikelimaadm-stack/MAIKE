@@ -9,7 +9,7 @@ import { test, describe, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 
-import { criarApp, criarTenant, limparBanco, encerrar, autenticarNoApp, transferenciaComDerivadoLegado } from './helpers.mjs';
+import { criarApp, criarTenant, limparBanco, encerrar, autenticarNoApp, transferenciaComDerivadoLegado, baixaLegada } from './helpers.mjs';
 import { getPrismaClient } from '../src/database/prismaClient.js';
 
 /** @type {import('fastify').FastifyInstance} */
@@ -71,11 +71,11 @@ describe('PR174-R1 achados (comportamento correto)', () => {
   test('B: cancelamento de movimento LEGADO numa empresa ativada não pode mexer em Lote (drift) — recusa estável', async () => {
     const c = await cenario();
     const l = await entrada(c);
-    const m = await req('POST', '/movimentacoes-mapa/comandos/manejo-lote', c.tok, { operation_id: opId(), tipo: 'Morte', empresa_id: c.empresa.id, lote_id: l.id, quantidade_animais: 5, data_movimentacao: '2026-10-28T12:00:00.000Z' });
-    assert.equal(m.statusCode, 201, m.body);
+    // PR174-R5: movimento legado = dado pré-existente (base anterior ao cutover).
+    const m = await baixaLegada({ lote: l, quantidade: 5, data: '2026-10-28T12:00:00.000Z' });
     assert.equal((await ativar(c)).statusCode, 201);
     const antes = (await prisma().lote.findUnique({ where: { id: l.id } })).quantidade_cabecas;
-    const r = await req('POST', `/movimentacoes-mapa/${m.json().movimentacao.id}/cancelamento`, c.tok, { operation_id: opId(), motivo: 'teste drift' });
+    const r = await req('POST', `/movimentacoes-mapa/${m.movimentacao.id}/cancelamento`, c.tok, { operation_id: opId(), motivo: 'teste drift' });
     const depois = (await prisma().lote.findUnique({ where: { id: l.id } })).quantidade_cabecas;
     const ledger = (await posicoes(c)).reduce((t, p) => t + p.quantidade_cabecas, 0);
     console.log(`  cancelamento legado: HTTP ${r.statusCode} ${r.json().code ?? ''}; Lote ${antes}→${depois}; ledger ${ledger}`);
