@@ -309,7 +309,7 @@ describe('R2E ledger — cancelamento, histórico, cadastro', () => {
     await verificacaoIntegra(c);
   });
 
-  test('X3: na empresa no ledger os comandos do mapa operam POSIÇÕES — id de CADASTRO não é posição (404) e Lote nunca muda; empresa legada segue igual', async () => {
+  test('X3: na empresa no ledger os comandos do mapa operam POSIÇÕES — id de CADASTRO não é posição (404) e Lote nunca muda; empresa não migrada → 409 REBANHO_CUTOVER_PENDENTE', async () => {
     const c = await cenario();
     const lote = await entrada(c);
     const casos = [
@@ -322,8 +322,8 @@ describe('R2E ledger — cancelamento, histórico, cadastro', () => {
     for (const [url, corpo] of casos.filter(([u]) => !/baixa-rebanho/.test(u))) await exigirNadaGravado(c, () => req('POST', url, c.tok, corpo), 404, 'POSICAO_REBANHO_NOT_FOUND');
     const s = await cenario({ ativar: false });
     const ls = await entrada(s);
-    const r = await req('POST', '/movimentacoes-mapa/comandos/manejo-lote', s.tok, { operation_id: opId(), tipo: 'Morte', empresa_id: s.empresa.id, lote_id: ls.id, quantidade_animais: 1, data_movimentacao: '2026-11-02' });
-    assert.equal(r.statusCode, 201, r.body);
+    // PR174-R5: empresa não migrada não tem mais modelo legado — 409 e nada gravado.
+    await exigirNadaGravado(s, () => req('POST', '/movimentacoes-mapa/comandos/manejo-lote', s.tok, { operation_id: opId(), tipo: 'Morte', empresa_id: s.empresa.id, lote_id: ls.id, quantidade_animais: 1, data_movimentacao: '2026-11-02' }), 409, 'REBANHO_CUTOVER_PENDENTE');
   });
 
   test('X4: ativação — saldo de abertura das linhas legadas (inclusive derivadas) sem alterar Lote; só admin; corte anterior a movimento legado e lote sem área → 409', async () => {
