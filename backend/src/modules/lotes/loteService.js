@@ -11,7 +11,7 @@ import { registrarEvento } from '../auditoria/auditService.js';
 import { reservarNumero, ESCOPO_TENANT } from '../sequencias/entidadeCodigoService.js';
 import { AppError, loteNotFound, loteDeleteBlocked, loteUpdateBlocked, setorNotFound, areaNotFound } from '../../shared/errors/AppError.js';
 import { avaliarExclusaoLote, TIPO_BLOQUEADO, TIPO_FISICA, TIPO_JA_EXCLUIDO, TIPO_LOGICA } from './loteExclusaoService.js';
-import { origemDerivadaDeManejo } from './loteOrigem.js';
+import { origemDerivadaDeManejo, recusarLoteFabricadoPorManejo } from './loteOrigem.js';
 import { ativacaoDaEmpresa, cancelarEntradaParaExclusao, registrarEntradaSeAtivo, travarAreasDoLoteNoLedger } from '../rebanhoLedger/rebanhoLedgerService.js';
 import { buscarSetor } from '../setores/setorRepository.js';
 import { buscarArea } from '../areas/areaPastagemRepository.js';
@@ -247,6 +247,8 @@ export const criar = async (contexto, entrada) => {
   const auth = exigirAuthContext(contexto?.auth);
   const prisma = getPrismaClient();
   const campos = camposDe(entrada);
+  // PR174-R4: cadastro só de ENTRADAS — origem de manejo (lote derivado) não é cadastrável.
+  if (origemDerivadaDeManejo(campos.origem)) recusarLoteFabricadoPorManejo({ origem: campos.origem });
 
   const criado = await prisma.$transaction(async (tx) => {
     const empresaId = String(campos.empresa_id);

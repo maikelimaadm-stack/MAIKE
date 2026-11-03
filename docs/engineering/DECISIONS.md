@@ -4397,4 +4397,37 @@ Auditoria do HEAD `ce1ab5b`: três hipóteses reproduzidas em RED (PostgreSQL re
   - `lote_id` precisa ser um CADASTRO existente do mesmo tenant e da mesma empresa do documento. Posição ou id de outro tenant tornam o documento material — achado do próprio teste: antes, id de outro tenant passava;
   - empresa legada: inalterada. Na empresa ativada, a renomeação é feita pelo Cadastro de Lotes, e a renomeação estrita não carrega quantidade, logo não entra em contagem material.
 
+### D-PROD-107 — complemento PR174-R4 (três responsabilidades; decisão por tabela física)
+
+**Contrato do proprietário:**
+- **Lote** = só a ENTRADA original (cadastro de origem, nunca saldo).
+- **PosicaoRebanho** = estado ATUAL de cada grupo: área, cabeças, categoria, sexo, classificação, peso atual, nome e linhagem. A proveniência da entrada (raça, sistema produtivo, data de entrada) também é exposta, só para leitura.
+- **MovimentacaoMapa** = histórico operacional ÚNICO de todos os manejos, inclusive a pesagem (posição, quantidade, peso anterior e novo, autor, cancelamento).
+- **Uma entrada pode originar várias posições.**
+
+**Fechado nesta revisão (RED → GREEN):** nenhum manejo fabrica linha no cadastro de Lote, nem no modelo legado.
+- O backend recusa 409 `LOTE_CADASTRO_SOMENTE_ENTRADAS` em três casos:
+  - transferência parcial legada sem destino existente (o antigo `parcial_novo_lote`);
+  - nascimento ou mudança legada que criaria lote novo;
+  - `POST /lotes` com origem de manejo.
+- No navegador, o `criarLote` do fallback de `DetalhesLote` foi removido.
+- A empresa legada mantém os manejos que NÃO fabricam cadastro (total, junção ao destino existente, morte, abate, pesagem): é o modo pré-cutover, em que as colunas de saldo de Lote ainda são o snapshot legado.
+- Na empresa ativada, o Lote é congelado como entrada (guardas R2E-P1/R1).
+- O Cadastro lista só entradas (D-PROD-85; derivados legados não aparecem e não são apagados).
+
+**Matriz por tabela física**
+
+| Tabela | Decisão | Por quê |
+|---|---|---|
+| `Lote` | MANTER (cadastro de entrada) | fonte da entrada original; colunas de saldo = snapshot legado pré-cutover, congeladas na empresa ativada |
+| `PosicaoRebanho` | MANTER (estado atual) | projeção única do estado atual, que o mapa lê |
+| `MovimentacaoMapa` | MANTER (histórico de negócio único) | todo comando grava nela, na mesma transação, o registro certificado com `efeito_servidor.evento_id`; é o que a tela mostra e cancela |
+| `EventoRebanho` | MANTER interno | cabeçalho transacional do fato (operation_id, ordem `registrado_em`, situação), 1:1 com MovimentacaoMapa via `movimentacao_id`; não tem tela nem é histórico paralelo. Consolidar no JSON do MovimentacaoMapa perderia a ordem e os índices tipados usados no saldo e no peso causal |
+| `PartidaRebanho` | MANTER interno | deltas por posição/dia: é o que permite saldo retroativo, cancelamento e "saldo ≥ 0 em toda a linha do tempo" com índice. Não é representável com custo aceitável dentro do JSON do histórico |
+| `PesoRebanho` | MANTER como índice temporal interno | ÚNICA fonte canônica do peso no tempo (o peso derivado e o causal R2/R3 dependem dela). A pesagem no MovimentacaoMapa traz anterior/novo como CÓPIA de leitura. Consolidar exigiria provar equivalência em retroativo, cancelamento, null e concorrência; não foi provado, então não foi feito |
+
+**Não há "outro controle":** as três tabelas internas não têm tela, menu nem API de escrita própria. São escritas só pelos comandos do mapa e verificáveis por `GET /rebanho/verificacao`.
+
+**Plano de consolidação** (futuro, mesma decisão): quando o histórico precisar de índices temporais próprios, avaliar mover `EventoRebanho` para colunas tipadas em `MovimentacaoMapa`, por migration aditiva com backfill e prova de equivalência. Nada é removido sem migration versionada, backup e RED/GREEN.
+
 <!-- Próxima decisão: D-PROD-108 -->

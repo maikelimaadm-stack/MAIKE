@@ -569,7 +569,7 @@ export const listarPosicoes = async (contexto, { empresa_id: empresaId, incluir_
   if (!ativacao) return { ativo: false, modo: null, data_corte: null, itens: [] };
   const ps = await prisma.posicaoRebanho.findMany({
     where: { cliente_id: auth.clienteId, empresa_id: empresaId, ...(incluirVazias === 'true' ? {} : { quantidade_cabecas: { gt: 0 } }) },
-    include: { area: { select: { nome: true } } },
+    include: { area: { select: { nome: true } }, loteEntrada: { select: { raca_predominante: true, sistema_produtivo: true, data_entrada: true } } },
     orderBy: [{ area_id: 'asc' }, { numero_lote: 'asc' }, { id: 'asc' }],
   });
   return { ativo: true, modo: ativacao.modo, data_corte: diaDoBanco(ativacao.data_corte), itens: ps.map((p) => comoPosicaoPublica(p)) };

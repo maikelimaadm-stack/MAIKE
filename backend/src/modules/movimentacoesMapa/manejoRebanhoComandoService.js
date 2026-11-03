@@ -30,6 +30,7 @@ import { executarComIdempotencia, fingerprintDePayload } from '../../shared/idem
 import { registrarEvento } from '../auditoria/auditService.js';
 import { reservarNumero } from '../sequencias/entidadeCodigoService.js';
 import { inserirLote } from '../lotes/loteRepository.js';
+import { recusarLoteFabricadoPorManejo } from '../lotes/loteOrigem.js';
 import { comoLotePublico, ENTIDADE_SEQUENCIA, escopoDaNumeracao } from '../lotes/loteService.js';
 import { CAMPOS_MATERIAIS_LOTE, estadoDe } from './manejoMapaComandoService.js';
 import { empresaNoLedger, rebanhoNoLedger } from '../rebanhoLedger/rebanhoLedgerManejos.js';
@@ -528,6 +529,8 @@ export const executarManejoRebanho = async (contexto, entrada) => {
           efeitos.push({ lote_id: x.original.id, criado: false, auditoria_id: auditoria.id, antes, depois: estadoRebanhoDe(atualizado) });
           lotesResultado.push(atualizado);
         }
+        // PR174-R4: nascimento/mudança que criaria lote novo não fabrica cadastro (só entradas).
+        if (plano.novos.length) recusarLoteFabricadoPorManejo({ tipo: e.tipo, lotes_novos: plano.novos.length });
         for (const novo of plano.novos) {
           talvezFalhar();
           const numero = await reservarNumero(tx, { clienteId: auth.clienteId, entidade: ENTIDADE_SEQUENCIA, escopoTipo: escopoDaNumeracao() });

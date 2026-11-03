@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import {
   listarLotesDaEmpresa,
   listarProdutosDaEmpresa,
-  criarLote,
   atualizarLote,
   criarMovimentacao,
   criarEventoSuplementacao,
@@ -56,7 +55,7 @@ import { Progress } from "@/components/ui/progress";
 import { AlertTriangle } from "lucide-react";
 import { validarOrdemTemporalLote, validarOrdemTemporalLotes } from "../lotes/manejoValidations.jsx";
 import { corpoNascimento, corpoPesagem, corpoMudancaCategoria, corpoJuncao, corpoBaixa, previaJuncao, corpoTransferenciaLedger, ehPosicaoDoLedger } from "@/domain/lotes/manejoRebanho";
-import { enviarManejoRebanho, enviarJuncaoLotes, enviarBaixaRebanho, enviarTransferenciaLedger, mensagemDaTransferenciaLedger, mensagemDoErro } from "@/services/manejoRebanhoService";
+import { enviarManejoRebanho, enviarJuncaoLotes, enviarBaixaRebanho, enviarTransferenciaLedger, mensagemDaTransferenciaLedger, mensagemDoErro, codigoDoErro, MENSAGENS_MANEJO_REBANHO } from "@/services/manejoRebanhoService";
 import { escopoDoUsuario } from "../lotes/CancelarMovimentacao";
 import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 
@@ -506,37 +505,11 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
                 });
                 atualizarLoteDestinoLocal(lotesDestinoAtivos, loteDestinoAtualizado);
               } else {
-                const novoLote = await criarLote({
-                  empresa_id: empresaSelecionadaId,
-                  nome: lote.nome,
-                  quantidade_cabecas: quantidadeMover,
-                  quantidade_entrada: quantidadeMover,
-                  categoria: lote.categoria,
-                  categoria_entrada: lote.categoria_entrada || lote.categoria,
-                  sexo: lote.sexo,
-                  peso_medio_kg: lote.peso_medio_kg,
-                  peso_entrada_kg: lote.peso_entrada_kg || lote.peso_medio_kg,
-                  idade_media_meses: lote.idade_media_meses,
-                  area_atual_id: formData.area_entrada_id,
-                  area_atual_nome: areaEntrada?.nome || '',
-                  area_entrada_id: formData.area_entrada_id,
-                  area_entrada_nome: areaEntrada?.nome || '',
-                  raca_predominante: lote.raca_predominante,
-                  sistema_produtivo: lote.sistema_produtivo,
-                  categoria_manejo_id: lote.categoria_manejo_id,
-                  categoria_manejo_nome: lote.categoria_manejo_nome,
-                  categoria_manejo_entrada_id: lote.categoria_manejo_entrada_id || lote.categoria_manejo_id,
-                  categoria_manejo_entrada_nome: lote.categoria_manejo_entrada_nome || lote.categoria_manejo_nome,
-                  identificador_nome: lote.identificador_nome || null,
-                  identificador_sigla: lote.identificador_sigla || null,
-                  identificador_cor: lote.identificador_cor || null,
-                  data_entrada: formData.data_movimentacao,
-                  motivo_entrada: 'Outros',
-                  motivo_outros: 'Movimentação parcial',
-                  origem: 'MOVIMENTAÇÃO',
-                  status: 'Ativo'
+                // PR174-R4 (D-PROD-107): o cadastro de lotes guarda só ENTRADAS — o navegador
+                // nunca fabrica lote derivado. Sem lote igual no destino, recusa antes de gravar.
+                throw Object.assign(new Error('cadastro-somente-entradas'), {
+                  mensagemTela: MENSAGENS_MANEJO_REBANHO.LOTE_CADASTRO_SOMENTE_ENTRADAS,
                 });
-                lotesDestinoAtivos.push(novoLote);
               }
 
               const saldoOrigem = saldoEStatusDaOrigem(lote, quantidadeMover);
@@ -618,7 +591,8 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
       console.error('❌ Erro:', error);
       setMovimentacaoPendente(null);
       setMovimentacoesCriadasIds([]);
-      toast.error(/** @type {any} */ (error)?.mensagemTela || '❌ Erro ao mover gado');
+      const codigo = codigoDoErro(error);
+      toast.error(/** @type {any} */ (error)?.mensagemTela || (codigo && MENSAGENS_MANEJO_REBANHO[codigo]) || '❌ Erro ao mover gado');
     }
   });
 

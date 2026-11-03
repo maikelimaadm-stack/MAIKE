@@ -24,6 +24,7 @@ import { registrarEvento } from '../auditoria/auditService.js';
 import { empresaNoLedger, manejoLoteNoLedger } from '../rebanhoLedger/rebanhoLedgerManejos.js';
 import { reservarNumero } from '../sequencias/entidadeCodigoService.js';
 import { inserirLote } from '../lotes/loteRepository.js';
+import { recusarLoteFabricadoPorManejo } from '../lotes/loteOrigem.js';
 import { comoLotePublico, ENTIDADE_SEQUENCIA, escopoDaNumeracao } from '../lotes/loteService.js';
 
 export const TIPO_OPERACAO_MANEJO = 'manejo_mapa_lote';
@@ -268,6 +269,8 @@ export const executarManejoLote = async (contexto, entrada) => {
             lotesResultado.push(origDepois, destDepois);
           } else {
             modo = 'parcial_novo_lote';
+            // PR174-R4: manejo nunca fabrica linha no cadastro de entradas (nem no modelo legado).
+            recusarLoteFabricadoPorManejo({ lote_id: origem.id, area_destino_id: e.areaDestinoId, motivo: 'transferencia_parcial_sem_destino_existente' });
             const numero = await reservarNumero(tx, { clienteId: auth.clienteId, entidade: ENTIDADE_SEQUENCIA, escopoTipo: escopoDaNumeracao() });
             const data = new Date(e.dataMovimentacao);
             const novo = await inserirLote(tx, {

@@ -135,6 +135,11 @@ export const comoPosicaoPublica = (p, areaNome = null) => ({
   identificador_nome: p.identificador_nome ?? null,
   identificador_sigla: p.identificador_sigla ?? null,
   identificador_cor: p.identificador_cor ?? null,
+  // PR174-R4: proveniência da ENTRADA (só leitura, do cadastro de origem). O estado
+  // atual é da posição; estes campos descrevem de onde o grupo veio.
+  raca_predominante: p.loteEntrada?.raca_predominante ?? null,
+  sistema_produtivo: p.loteEntrada?.sistema_produtivo ?? null,
+  data_entrada: p.loteEntrada?.data_entrada ? diaDoBanco(p.loteEntrada.data_entrada) : null,
   updated_date: p.updatedAt,
   created_date: p.createdAt,
 });

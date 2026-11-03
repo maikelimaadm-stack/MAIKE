@@ -157,3 +157,17 @@ describe('PR174-R3 recusa de fato sem saldo (pesagem/nascimento posterior)', () 
     expect(mensagemDeRecusa('REBANHO_DEPENDENCIA_FATO_SEM_SALDO', { tipo: 'PESAGEM', data: '2026-11-05' })).toMatch(/pesagem do dia 05\/11\/2026/);
   });
 });
+
+describe('PR174-R4 cadastro só de entradas (frontend)', () => {
+  it('DetalhesLote não fabrica lote (sem criarLote); recusa explícita com mensagem própria', () => {
+    const fonte = readFileSync('src/components/mapa/DetalhesLote.jsx', 'utf8');
+    expect(fonte).not.toMatch(/criarLote\(/);
+    expect(fonte).toMatch(/MENSAGENS_MANEJO_REBANHO\.LOTE_CADASTRO_SOMENTE_ENTRADAS/);
+    const erro = Object.assign(new Error('x'), { code: 'API_OPERATION_FAILED', cause: { code: 'LOTE_CADASTRO_SOMENTE_ENTRADAS' } });
+    expect(mensagemDaTransferenciaLedger(erro)).toMatch(/cadastro de lotes guarda só entradas.*Nada foi gravado/);
+  });
+  it('Cadastro de Lotes lista só entradas (filtra os derivados legados)', () => {
+    const fonte = readFileSync('src/pages/CadastroLotes.jsx', 'utf8');
+    expect(fonte).toMatch(/todos\.filter\(ehEntradaNoRebanho\)/);
+  });
+});
