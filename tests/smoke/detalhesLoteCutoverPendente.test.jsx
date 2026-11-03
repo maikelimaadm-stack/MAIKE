@@ -21,6 +21,10 @@ const servico = vi.hoisted(() => ({
   registrarTransferenciaLedger: vi.fn(),
 }));
 const toast = vi.hoisted(() => ({ error: vi.fn(), success: vi.fn(), warning: vi.fn() }));
+const formulario = vi.hoisted(() => (nome) => async () => {
+  const { createElement } = await import("react");
+  return { default: () => createElement("div", { "data-testid": `form-${nome}` }) };
+});
 const cache = vi.hoisted(() => ({ getMapaCachedData: vi.fn(async () => []), refreshMapaCacheEntry: vi.fn(async () => []) }));
 
 vi.mock("@/services/loteManejoService", () => servico);
@@ -42,7 +46,6 @@ vi.mock("@/components/ui/dialog", () => ({
   DialogHeader: ({ children }) => <div>{children}</div>,
   DialogTitle: ({ children }) => <div>{children}</div>,
 }));
-const formulario = (nome) => () => ({ default: () => <div data-testid={`form-${nome}`} /> });
 vi.mock("@/components/lotes/FormularioMovimentacaoLote", formulario("mover"));
 vi.mock("@/components/lotes/FormularioMorte", formulario("morte"));
 vi.mock("@/components/lotes/FormularioNascimento", formulario("nascimento"));

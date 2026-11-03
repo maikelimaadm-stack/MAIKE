@@ -180,6 +180,12 @@ export const excluir = async (contexto, id) => {
   await prisma.$transaction(async (tx) => {
     const existente = await buscarRegistro(auth.clienteId, id, tx);
     if (!existente) throw erroNaoEncontrado();
+    // PR174-R5: a empresa nasce ativada no ledger. Sem nenhum fato do rebanho, a
+    // ativação vazia não é dado — sai junto; com fatos, os vínculos seguem
+    // protegendo a exclusão (onDelete: Restrict).
+    if (!(await tx.eventoRebanho.count({ where: { cliente_id: auth.clienteId, empresa_id: id } }))) {
+      await tx.rebanhoLedgerAtivacao.deleteMany({ where: { cliente_id: auth.clienteId, empresa_id: id } });
+    }
     await excluirRegistroPorId(tx, auth.clienteId, id);
     await registrarEvento(
       contexto,
