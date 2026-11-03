@@ -28,6 +28,7 @@ import {
   consultarElegibilidadeExclusaoMovimentacao,
   removerMovimentacaoExcluidaDosCaches,
   pendenciasOfflineDeMovimentacao,
+  eventoFilaOfflineMovimentacoes,
   registrarManejoRebanhoServidor,
   registrarJuncaoLotesServidor,
   registrarBaixaRebanhoServidor,
@@ -158,9 +159,10 @@ export const consultarCancelamentoMovimentacao = (id) => consultarElegibilidadeC
  * server-side, só online) e lançar a operação certa. Não há edição.
  */
 export const excluirMovimentacaoMapa = (id, corpo) => excluirMovimentacaoDefinitiva(id, corpo);
-export const consultarExclusaoMovimentacao = (id) => consultarElegibilidadeExclusaoMovimentacao(id);
+export const consultarExclusaoMovimentacao = (id, opcoes) => consultarElegibilidadeExclusaoMovimentacao(id, opcoes);
 export const removerMovimentacaoExcluidaDoCacheOffline = (id) => removerMovimentacaoExcluidaDosCaches(id);
 export const pendenciasOfflineDaMovimentacao = (id) => pendenciasOfflineDeMovimentacao(id);
+export const eventoMudancaFilaOffline = () => eventoFilaOfflineMovimentacoes();
 /**
  * Comandos atômicos do rebanho no servidor (só no ledger; empresa não migrada
  * recebe 409 REBANHO_CUTOVER_PENDENTE). O navegador não cria lote derivado.

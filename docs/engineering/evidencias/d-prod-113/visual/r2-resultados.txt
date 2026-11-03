@@ -1,0 +1,59 @@
+PR181-R2 — Playwright local (stack isolada, dados sintéticos), com contador DENTRO da página (fetch→fim do corpo/abort).
+O contador por eventos de rede do Playwright fica atrás do abort real (mostra 3); o contador da aplicação mostra o limite real (2).
+PASS r2-desktop-1440 cadeia antes do clique: transferência/pesagem/mudança BLOQUEADAS, morte elegível — {"T":"Exclusão bloqueada","P":"Exclusão bloqueada","MC":"Exclusão bloqueada","M":"elegiv
+PASS r2-desktop-1440 clique no bloqueado NÃO abre diálogo
+PASS r2-desktop-1440 motivo do bloqueio ligado ao botão (aria-describedby) e visível
+PASS r2-desktop-1440 sem rolagem horizontal (cadeia)
+PASS r2-desktop-1440 excluir Morte pela UI → Mudança de Categoria desbloqueia sem recarregar — elegivel
+PASS r2-desktop-1440 Morte some do histórico
+PASS r2-desktop-1440 excluir Mudança de Categoria pela UI → Pesagem desbloqueia sem recarregar — elegivel
+PASS r2-desktop-1440 Mudança de Categoria some do histórico
+PASS r2-desktop-1440 excluir Pesagem pela UI → Transferência de Área desbloqueia sem recarregar — elegivel
+PASS r2-desktop-1440 Pesagem some do histórico
+PASS r2-desktop-1440 fim da cadeia: só a entrada (A=40), nada em B — [["PASTO A","Garrote 13 a 24 meses",40]]
+PASS r2-desktop-1440 Cadastro de Lotes intacto (40)
+PASS r2-desktop-1440 curral: abate com "Excluir movimentação" elegível — elegivel
+PASS r2-desktop-1440 sem rolagem horizontal (curral)
+PASS r2-desktop-1440 curral: abate some do histórico do curral
+PASS r2-desktop-1440 curral: cabeças devolvidas (10 no curral)
+PASS r2-desktop-1440 no máximo 2 GETs de elegibilidade em voo na aplicação (máx=2; total=26; abortados=6; eventos de rede=3)
+PASS r2-desktop-1440 nenhum DELETE/PATCH de movimento
+PASS r2-desktop-1440 sem erro de página
+PASS r2-mobile-390 cadeia antes do clique: transferência/pesagem/mudança BLOQUEADAS, morte elegível — {"T":"Exclusão bloqueada","P":"Exclusão bloqueada","MC":"Exclusão bloqueada","M":"elegivel
+PASS r2-mobile-390 clique no bloqueado NÃO abre diálogo
+PASS r2-mobile-390 motivo do bloqueio ligado ao botão (aria-describedby) e visível
+PASS r2-mobile-390 sem rolagem horizontal (cadeia)
+PASS r2-mobile-390 excluir Morte pela UI → Mudança de Categoria desbloqueia sem recarregar — elegivel
+PASS r2-mobile-390 Morte some do histórico
+PASS r2-mobile-390 excluir Mudança de Categoria pela UI → Pesagem desbloqueia sem recarregar — elegivel
+PASS r2-mobile-390 Mudança de Categoria some do histórico
+PASS r2-mobile-390 excluir Pesagem pela UI → Transferência de Área desbloqueia sem recarregar — elegivel
+PASS r2-mobile-390 Pesagem some do histórico
+PASS r2-mobile-390 fim da cadeia: só a entrada (A=40), nada em B — [["PASTO A","Garrote 13 a 24 meses",40]]
+PASS r2-mobile-390 Cadastro de Lotes intacto (40)
+PASS r2-mobile-390 curral: abate com "Excluir movimentação" elegível — elegivel
+PASS r2-mobile-390 sem rolagem horizontal (curral)
+PASS r2-mobile-390 curral: abate some do histórico do curral
+PASS r2-mobile-390 curral: cabeças devolvidas (10 no curral)
+PASS r2-mobile-390 no máximo 2 GETs de elegibilidade em voo na aplicação (máx=2; total=25; abortados=6; eventos de rede=3)
+PASS r2-mobile-390 nenhum DELETE/PATCH de movimento
+PASS r2-mobile-390 sem erro de página
+PASS r2-mobile-412 cadeia antes do clique: transferência/pesagem/mudança BLOQUEADAS, morte elegível — {"T":"Exclusão bloqueada","P":"Exclusão bloqueada","MC":"Exclusão bloqueada","M":"elegivel
+PASS r2-mobile-412 clique no bloqueado NÃO abre diálogo
+PASS r2-mobile-412 motivo do bloqueio ligado ao botão (aria-describedby) e visível
+PASS r2-mobile-412 sem rolagem horizontal (cadeia)
+PASS r2-mobile-412 excluir Morte pela UI → Mudança de Categoria desbloqueia sem recarregar — elegivel
+PASS r2-mobile-412 Morte some do histórico
+PASS r2-mobile-412 excluir Mudança de Categoria pela UI → Pesagem desbloqueia sem recarregar — elegivel
+PASS r2-mobile-412 Mudança de Categoria some do histórico
+PASS r2-mobile-412 excluir Pesagem pela UI → Transferência de Área desbloqueia sem recarregar — elegivel
+PASS r2-mobile-412 Pesagem some do histórico
+PASS r2-mobile-412 fim da cadeia: só a entrada (A=40), nada em B — [["PASTO A","Garrote 13 a 24 meses",40]]
+PASS r2-mobile-412 Cadastro de Lotes intacto (40)
+PASS r2-mobile-412 curral: abate com "Excluir movimentação" elegível — elegivel
+PASS r2-mobile-412 sem rolagem horizontal (curral)
+PASS r2-mobile-412 curral: abate some do histórico do curral
+PASS r2-mobile-412 curral: cabeças devolvidas (10 no curral)
+PASS r2-mobile-412 no máximo 2 GETs de elegibilidade em voo na aplicação (máx=2; total=25; abortados=4; eventos de rede=3)
+PASS r2-mobile-412 nenhum DELETE/PATCH de movimento
+PASS r2-mobile-412 sem erro de página

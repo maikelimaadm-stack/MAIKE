@@ -1,0 +1,8 @@
+UX-1..3 contra o componente do HEAD de partida 69cb9eca (RED):
+   × D-PROD-113 — bugs de UX reproduzidos (RED → GREEN) > UX-1: fila offline sincroniza com o histórico aberto → o card sai de 'Exclusão bloqueada' sem
+   × D-PROD-113 — bugs de UX reproduzidos (RED → GREEN) > UX-2: cards desmontados (sair da tela/fechar o histórico) não disparam as consultas que estavam
+   × D-PROD-113 — bugs de UX reproduzidos (RED → GREEN) > UX-3: consulta que nunca responde não segura a vaga do limite para sempre (libera e falha fechad
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  3 failed | 29 skipped (32)
+
+GREEN após a correção: exclusaoMovimentacao.test.jsx + smoke afetado 89/89.

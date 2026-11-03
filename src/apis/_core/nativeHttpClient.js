@@ -173,7 +173,12 @@ const lerCorpo = async (resposta) => {
  * (D-PROD-90 R1) usa, porque a gravação dela é uma transação de até 60 s no
  * servidor e cortá-la aos 20 s criaria "resultado desconhecido" sem motivo.
  *
- * @param {{method?: 'GET'|'POST'|'PATCH'|'DELETE', body?: object|null, autenticado?: boolean, timeoutMs?: number}} opcoes
+ * `signal` (opcional, PR181-R2): cancelamento pedido por quem chama (ex.: a
+ * conferência de elegibilidade cujo card sumiu ou estourou o prazo). Ele aborta
+ * o MESMO controlador do transporte — o fetch E a leitura do corpo — e o
+ * listener sai ao fim da chamada. Sem `signal`, nada muda.
+ *
+ * @param {{method?: 'GET'|'POST'|'PATCH'|'DELETE', body?: object|null, autenticado?: boolean, timeoutMs?: number, signal?: AbortSignal}} opcoes
  * @param {{operation: string, resource: string, details?: object}} contexto
  * @returns {Promise<unknown>}
  */
@@ -214,6 +219,11 @@ export const nativeRequest = async (caminho, opcoes, contexto) => {
   // Node 17.3+/navegadores recentes, e o `clearTimeout` evita segurar o
   // processo vivo em teste.
   const controlador = new AbortController();
+  const externo = opcoes.signal ?? null;
+  if (externo?.aborted) throw erroDeIndisponibilidade(contexto, Object.assign(new Error('requisição cancelada'), { name: 'AbortError' }));
+  const repassarAbort = () => controlador.abort();
+  externo?.addEventListener('abort', repassarAbort, { once: true });
+  const soltarExterno = () => externo?.removeEventListener('abort', repassarAbort);
   const timer = setTimeout(() => controlador.abort(), limiteMs);
 
   let resposta;
@@ -231,12 +241,22 @@ export const nativeRequest = async (caminho, opcoes, contexto) => {
   } catch (erro) {
     // Rede caída, DNS, CORS recusado e abort caem todos aqui, e todos
     // significam a mesma coisa para quem está na tela: o serviço não respondeu.
+    soltarExterno();
     throw erroDeIndisponibilidade(contexto, erro);
   } finally {
     clearTimeout(timer);
   }
 
-  const corpo = await lerCorpo(resposta);
+  let corpo;
+  try {
+    corpo = await lerCorpo(resposta);
+  } catch (erro) {
+    // Só o cancelamento pedido por quem chama vira indisponibilidade aqui; o resto segue como antes.
+    if (externo?.aborted) throw erroDeIndisponibilidade(contexto, erro);
+    throw erro;
+  } finally {
+    soltarExterno();
+  }
 
   if (resposta.ok) return corpo;
 

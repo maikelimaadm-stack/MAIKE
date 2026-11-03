@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { spawnSync, execFileSync } from 'node:child_process';
 
-import { classificarMigrations, conferirHistoricoRemoto, sha256, MIGRATIONS_APROVADAS } from '../../deploy/premergeMigrateLib.mjs';
+import { classificarMigrations, conferirHistoricoRemoto, sha256, MIGRATIONS_APROVADAS, migrationsDoManifestoFaltando } from '../../deploy/premergeMigrateLib.mjs';
 import { conferirBackendNovo, validarOrigemProducao } from '../../ops/cutoverRebanhoLib.mjs';
 
 const NOMES = Object.keys(MIGRATIONS_APROVADAS);
@@ -171,4 +171,16 @@ test('C3: CLI remoto + --executar com URL de preview/sem origin configurado → 
   assert.equal(semConfig.status, 3);
   assert.match(semConfig.stderr, /ORIGEM_PRODUCAO_NAO_CONFIGURADA/);
   for (const r of [sem, preview, semConfig]) assert.doesNotMatch(r.stdout + r.stderr, /SEGREDO|postgresql:\/\//);
+});
+
+test('B8 (D-PROD-113): migration aprovada que já está na main não "falta"; a que não está nem na main nem na release continua recusada', () => {
+  const manifesto = { m_antiga: 'h1', m_nova: 'h2', m_sumida: 'h3' };
+  const naMain = (n) => n === 'm_antiga';
+  assert.deepEqual(migrationsDoManifestoFaltando(manifesto, ['m_nova'], naMain), ['m_sumida']);
+  assert.deepEqual(migrationsDoManifestoFaltando(manifesto, ['m_nova', 'm_sumida'], naMain), []);
+  assert.deepEqual(migrationsDoManifestoFaltando(manifesto, [], () => false), ['m_antiga', 'm_nova', 'm_sumida'], 'sem main: tudo falta (fail-closed)');
+  // As migrations aprovadas hoje já estão todas na main → release sem migrations nova é aceita.
+  const naMainReal = (n) => { try { execFileSync('git', ['cat-file', '-e', `origin/main:backend/prisma/migrations/${n}/migration.sql`], { stdio: 'ignore' }); return true; } catch { return false; } };
+  const temMain = (() => { try { execFileSync('git', ['rev-parse', '--verify', 'origin/main'], { stdio: 'ignore' }); return true; } catch { return false; } })();
+  if (temMain) assert.deepEqual(migrationsDoManifestoFaltando(MIGRATIONS_APROVADAS, [], naMainReal), []);
 });

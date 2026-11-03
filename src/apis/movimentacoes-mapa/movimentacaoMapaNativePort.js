@@ -7,6 +7,7 @@ import {
   offlineStorageDisponivel,
   removerRegistroDosCachesOffline,
   pendenciasOfflineDoRegistro,
+  getOfflineSyncEventName,
 } from '@/lib/offline/offlineEntityRuntime';
 
 const RESOURCE = 'MovimentacaoMapa';
@@ -112,13 +113,16 @@ export const excluirMovimentacaoMapaNativa = (id, corpo) =>
     ctx('excluirMovimentacaoMapa')
   );
 
-export const elegibilidadeExclusaoMovimentacaoMapaNativa = (id) =>
-  nativeRequest(`${CAMINHO}/${encodeURIComponent(id)}/elegibilidade-exclusao`, { autenticado: true }, ctx('elegibilidadeExclusaoMovimentacaoMapa'));
+/** `opcoes.signal` (opcional, PR181-R2) cancela o GET de verdade (fetch e corpo). */
+export const elegibilidadeExclusaoMovimentacaoMapaNativa = (id, opcoes = {}) =>
+  nativeRequest(`${CAMINHO}/${encodeURIComponent(id)}/elegibilidade-exclusao`, { autenticado: true, signal: opcoes?.signal }, ctx('elegibilidadeExclusaoMovimentacaoMapa'));
 
 /** Depois da exclusão confirmada: tira o movimento de todas as cópias offline do tenant. */
 export const removerMovimentacaoDosCachesOffline = (id) => removerRegistroDosCachesOffline(ENTIDADE_OFFLINE, id);
 /** Operações deste movimento ainda na fila offline (exclusão fica bloqueada enquanto houver). */
 export const pendenciasOfflineDaMovimentacao = (id) => pendenciasOfflineDoRegistro(ENTIDADE_OFFLINE, id);
+/** Nome do evento de janela emitido a cada mudança da fila offline (inclusive ao sincronizar). */
+export const eventoMudancaFilaOffline = () => getOfflineSyncEventName();
 
 export const elegibilidadeCancelamentoMovimentacaoMapaNativa = (id) =>
   nativeRequest(`${CAMINHO}/${encodeURIComponent(id)}/elegibilidade-cancelamento`, { autenticado: true }, ctx('elegibilidadeCancelamentoMovimentacaoMapa'));

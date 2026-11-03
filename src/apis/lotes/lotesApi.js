@@ -20,6 +20,7 @@ import {
   elegibilidadeExclusaoMovimentacaoMapa,
   removerMovimentacaoDosCachesOffline,
   pendenciasOfflineDaMovimentacao,
+  eventoMudancaFilaOffline,
   executarManejoRebanho,
   executarJuncaoLotes,
   executarBaixaRebanho,
@@ -193,16 +194,19 @@ export const excluirMovimentacaoDefinitiva = async (id, { operation_id, motivo }
   return runProviderCall(() => excluirMovimentacaoMapa(id, { operation_id, motivo }), { ...contexto, details: { id } });
 };
 
-export const consultarElegibilidadeExclusaoMovimentacao = async (id) => {
+/** `opcoes.signal` (opcional): cancelamento real do GET (PR181-R2). */
+export const consultarElegibilidadeExclusaoMovimentacao = async (id, opcoes) => {
   const contexto = ctx('consultarElegibilidadeExclusaoMovimentacao');
   assertArgument(isId(id), 'id', contexto);
-  return runProviderCall(() => elegibilidadeExclusaoMovimentacaoMapa(id), { ...contexto, details: { id } });
+  return runProviderCall(() => elegibilidadeExclusaoMovimentacaoMapa(id, opcoes), { ...contexto, details: { id } });
 };
 
 /** Depois da exclusão confirmada pelo servidor: some de todas as cópias offline do tenant. */
 export const removerMovimentacaoExcluidaDosCaches = (id) => removerMovimentacaoDosCachesOffline(id);
 /** Operações deste movimento na fila offline do tenant (bloqueiam a exclusão). */
 export const pendenciasOfflineDeMovimentacao = (id) => pendenciasOfflineDaMovimentacao(id);
+/** Evento de janela disparado quando a fila offline muda (enfileira, sincroniza, descarta). */
+export const eventoFilaOfflineMovimentacoes = () => eventoMudancaFilaOffline();
 
 export const consultarElegibilidadeCancelamento = async (id) => {
   const contexto = ctx('consultarElegibilidadeCancelamento');

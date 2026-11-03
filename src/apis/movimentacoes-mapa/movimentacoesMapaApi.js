@@ -8,6 +8,7 @@ import {
   elegibilidadeExclusaoMovimentacaoMapaNativa,
   removerMovimentacaoDosCachesOffline as removerDosCachesOfflineNativo,
   pendenciasOfflineDaMovimentacao as pendenciasOfflineNativas,
+  eventoMudancaFilaOffline as eventoMudancaFilaOfflineNativo,
   executarManejoRebanhoNativo,
   executarJuncaoLotesNativo,
   executarBaixaRebanhoNativo,
@@ -24,9 +25,10 @@ export const listHistoricoMovimentacoesMapaNativo = (filtros) => listarHistorico
 export const cancelarMovimentacaoMapa = (id, corpo) => cancelarMovimentacaoMapaNativa(id, corpo);
 export const elegibilidadeCancelamentoMovimentacaoMapa = (id) => elegibilidadeCancelamentoMovimentacaoMapaNativa(id);
 export const excluirMovimentacaoMapa = (id, corpo) => excluirMovimentacaoMapaNativa(id, corpo);
-export const elegibilidadeExclusaoMovimentacaoMapa = (id) => elegibilidadeExclusaoMovimentacaoMapaNativa(id);
+export const elegibilidadeExclusaoMovimentacaoMapa = (id, opcoes) => elegibilidadeExclusaoMovimentacaoMapaNativa(id, opcoes);
 export const removerMovimentacaoDosCachesOffline = (id) => removerDosCachesOfflineNativo(id);
 export const pendenciasOfflineDaMovimentacao = (id) => pendenciasOfflineNativas(id);
+export const eventoMudancaFilaOffline = () => eventoMudancaFilaOfflineNativo();
 export const executarManejoRebanho = (corpo) => executarManejoRebanhoNativo(corpo);
 export const executarJuncaoLotes = (corpo) => executarJuncaoLotesNativo(corpo);
 export const executarBaixaRebanho = (corpo) => executarBaixaRebanhoNativo(corpo);
