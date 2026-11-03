@@ -503,7 +503,7 @@ export default function useMapRenderer(mapInstanceRef) {
             // Quantidade de cabeças: cinza, abaixo da figura, com halo claro para
             // ler sobre o ícone (D-PROD-82). Tamanho fixo e milhar com ponto,
             // texto em `preencherLote` (D-PROD-111).
-            `position:absolute;left:50%;top:66%;transform:translate(-50%,-50%);color:#6b7280;font-size:${FONTE_CONTAGEM_PX}px;font-weight:700;font-family:Inter,Arial,sans-serif;line-height:1;white-space:nowrap;text-shadow:0 0 2px rgba(255,255,255,.95),0 0 3px rgba(255,255,255,.8);pointer-events:none;`;
+            `position:absolute;left:50%;top:69%;transform:translate(-50%,-50%);color:#6b7280;font-size:${FONTE_CONTAGEM_PX}px;font-weight:700;font-family:Inter,Arial,sans-serif;line-height:1;white-space:nowrap;text-shadow:0 0 2px rgba(255,255,255,.95),0 0 3px rgba(255,255,255,.8);pointer-events:none;`;
           const ind = document.createElement("div");
           ind.className = "mg-lote-ident";
           ind.style.cssText = "position:absolute;left:calc(50% + 18px);top:calc(50% - 22px);transform:translate(-50%,-50%);display:flex;pointer-events:none;";

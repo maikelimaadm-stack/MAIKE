@@ -4569,7 +4569,7 @@ Testes KML-N1..N5 em `tests/smoke/importacaoAreasParser.test.js`.
 - os nomes das áreas e os hectares ficam sem sombra nas letras.
 
 **Decisão:**
-- `.mg-lote-count` fica a 66% da altura do ícone de 44 px.
+- `.mg-lote-count` fica a 69% da altura do ícone de 44 px.
 - A cor passa a `#6b7280`.
 - A fonte fica fixa em 10 px (`FONTE_CONTAGEM_PX`, em `src/lib/maplibre/contagemLote.js`). Isso substitui o encolhimento por largura medida da D-PROD-83: a medição por canvas e o mínimo de 5 px saem do código.
 - `formatarContagem` separa o milhar com ponto, sem depender do locale do navegador. Valor ausente ou inválido vira "0".

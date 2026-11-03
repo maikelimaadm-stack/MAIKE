@@ -26,7 +26,7 @@ describe('CNT — quantidade de cabeças no marcador', () => {
     const fonte = readFileSync('src/components/mapa/useMapRenderer.jsx', 'utf8');
     expect(FONTE_CONTAGEM_PX).toBe(10);
     expect(fonte).toMatch(/entry\.badge\.textContent = formatarContagem\(totalCabecas\)/);
-    expect(fonte).toMatch(/top:66%;[^`]*color:#6b7280;font-size:\$\{FONTE_CONTAGEM_PX\}px/);
+    expect(fonte).toMatch(/top:69%;[^`]*color:#6b7280;font-size:\$\{FONTE_CONTAGEM_PX\}px/);
     expect(fonte).not.toMatch(/badge\.style\.fontSize/);
   });
 
