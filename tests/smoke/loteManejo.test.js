@@ -239,9 +239,10 @@ describe('DL — operações compostas', () => {
     expect(lotesApi.updateLote).toHaveBeenCalledWith('l1', { quantidade_cabecas: 5 });
   });
 
-  it('DL9 — criação de lote de destino passa pelo service', async () => {
-    lotesApi.createLote.mockResolvedValue({ id: 'novo' });
-    expect(await service.criarLote({ nome: 'X' })).toEqual({ id: 'novo' });
+  it('DL9 — o manejo do mapa não cria lote de destino (Lote é só o cadastro de entrada)', async () => {
+    expect(service.criarLote).toBeUndefined();
+    expect(service.registrarManejoLote).toBeUndefined();
+    expect(lotesApi.createLote).not.toHaveBeenCalled();
   });
 
   it('DL14 — falha parcial tem código estável e detalhes seguros', () => {

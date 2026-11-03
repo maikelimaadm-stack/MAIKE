@@ -74,18 +74,23 @@ describe('R2E mapa e DetalhesLote no modo ledger', () => {
   });
   it('transferência no ledger: um comando, sem validarOrdemTemporal, sem PATCH/POST/criarLote; PR174-R1: todas as operações abrem (sem seMigrado)', () => {
     const fonte = readFileSync('src/components/mapa/DetalhesLote.jsx', 'utf8');
-    const ledger = fonte.slice(fonte.indexOf('      if (modoLedger) {'), fonte.indexOf('      const movimentacoesCriadas = [];'));
+    const ledger = fonte.slice(fonte.indexOf('      if (modoLedger) {'), fonte.indexOf('    onSuccess: async'));
     expect(ledger).toMatch(/enviarTransferenciaLedger\(\{ operation_id: chaveTransferenciaLedger\.current, \.\.\.corpo \}/);
     expect(ledger).not.toMatch(/validarOrdemTemporal|atualizarLote|criarMovimentacao|criarLote|registrarManejoLote/);
     expect(ledger).toMatch(/return resposta\?\.movimentacao/);
+    expect(ledger.length).toBeGreaterThan(0);
+    expect(ledger).not.toMatch(/MENSAGENS_MANEJO_REBANHO\.REBANHO_CUTOVER_PENDENTE/);
     expect(fonte).not.toMatch(/seMigrado|ainda não foi migrada/);
-    for (const abrir of ['setShowAbate', 'setShowMorte', 'setShowNascimento', 'setShowMudancaCategoria', 'setShowPesagem']) {
-      expect(fonte).toMatch(new RegExp(`onClick=\\{\\(\\) => ${abrir}\\(true\\)\\}`));
+    // Contrato do dono: no ledger toda operação abre; sem ledger, abrirManejo recusa (cutover pendente).
+    for (const abrir of ['setShowAbate', 'setShowMorte', 'setShowNascimento', 'setShowMudancaCategoria', 'setShowPesagem', 'setShowMovimentacao']) {
+      expect(fonte).toMatch(new RegExp(`onClick=\\{\\(\\) => abrirManejo\\(${abrir}\\)\\}`));
     }
+    const abrirManejo = fonte.slice(fonte.indexOf('  const abrirManejo = (abrir) => {'), fonte.indexOf('  // Listener para abrir movimentação via drag-and-drop'));
+    expect(abrirManejo).toMatch(/if \(!modoLedger\) \{\s*recusarManejoSemLedger\(\);\s*return;\s*\}\s*abrir\(true\);/);
   });
   it('PR174-R1 sobras no ledger: passo SEPARADO depois do comando; falha vira aviso explícito (sem falso sucesso)', () => {
     const fonte = readFileSync('src/components/mapa/DetalhesLote.jsx', 'utf8');
-    const ledger = fonte.slice(fonte.indexOf('      if (modoLedger) {'), fonte.indexOf('      const movimentacoesCriadas = [];'));
+    const ledger = fonte.slice(fonte.indexOf('      if (modoLedger) {'), fonte.indexOf('    onSuccess: async'));
     const iCmd = ledger.indexOf('await enviarTransferenciaLedger(');
     const iSobras = ledger.indexOf('await registrarSobrasNoDestino(posicoesAtuais)');
     expect(iCmd).toBeGreaterThan(-1);
@@ -99,10 +104,12 @@ describe('R2E mapa e DetalhesLote no modo ledger', () => {
 describe('R2E duplo toque na transferência do ledger (achado do E2E)', () => {
   it('handleMovimentacao no ledger tem trava síncrona e espera a mutação (o botão não reabilita no meio)', () => {
     const fonte = readFileSync('src/components/mapa/DetalhesLote.jsx', 'utf8');
-    const trecho = fonte.slice(fonte.indexOf('  const handleMovimentacao = async'), fonte.indexOf('  setMovimentacaoPendente(formData);'));
+    const trecho = fonte.slice(fonte.indexOf('  const handleMovimentacao = async'), fonte.indexOf('    recusarManejoSemLedger();\n  };', fonte.indexOf('  const handleMovimentacao = async')));
     expect(trecho).toMatch(/if \(transferenciaEmAndamento\.current\) return;/);
     expect(trecho).toMatch(/await movimentacaoMutation\.mutateAsync\(formData\)/);
     expect(trecho).not.toMatch(/movimentacaoMutation\.mutate\(formData\)/);
+    expect(trecho).toMatch(/if \(modoLedger\) \{/);
+    expect(fonte).not.toMatch(/movimentacaoMutation\.mutate\(/);
   });
 });
 
@@ -159,10 +166,14 @@ describe('PR174-R3 recusa de fato sem saldo (pesagem/nascimento posterior)', () 
 });
 
 describe('PR174-R4 cadastro só de entradas (frontend)', () => {
-  it('DetalhesLote não fabrica lote (sem criarLote); recusa explícita com mensagem própria', () => {
+  it('DetalhesLote não fabrica lote nem grava efeito em Lote; sem ledger recusa com REBANHO_CUTOVER_PENDENTE', () => {
     const fonte = readFileSync('src/components/mapa/DetalhesLote.jsx', 'utf8');
-    expect(fonte).not.toMatch(/criarLote\(/);
-    expect(fonte).toMatch(/MENSAGENS_MANEJO_REBANHO\.LOTE_CADASTRO_SOMENTE_ENTRADAS/);
+    expect(fonte).not.toMatch(/criarLote\(|atualizarLote|criarMovimentacao|registrarManejoLote/);
+    expect(fonte).toMatch(/MENSAGENS_MANEJO_REBANHO\.REBANHO_CUTOVER_PENDENTE/);
+    const mutacao = fonte.slice(fonte.indexOf('    mutationFn: async (formData) => {'), fonte.indexOf('      let areasConhecidas = areas;'));
+    expect(mutacao).toMatch(/if \(!modoLedger\) \{\s*throw Object\.assign\(new Error\('cutover-pendente'\), \{ mensagemTela: MENSAGENS_MANEJO_REBANHO\.REBANHO_CUTOVER_PENDENTE \}\);/);
+    const servico = readFileSync('src/services/loteManejoService.js', 'utf8');
+    expect(servico).not.toMatch(/export const (criarLote|registrarManejoLote)\b/);
     const erro = Object.assign(new Error('x'), { code: 'API_OPERATION_FAILED', cause: { code: 'LOTE_CADASTRO_SOMENTE_ENTRADAS' } });
     expect(mensagemDaTransferenciaLedger(erro)).toMatch(/cadastro de lotes guarda só entradas.*Nada foi gravado/);
   });
