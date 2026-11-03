@@ -151,7 +151,7 @@ describe('R5 — sem legado: guarda única, empresa nova ativada, cutover admini
       await exigirNadaGravado(c, () => req('POST', `/movimentacoes-mapa/${id}/cancelamento`, c.tok, { operation_id: opId(), motivo: 'engano' }), 409, CUTOVER);
     }
     // Inexistente continua 404 (nunca vaza como cutover).
-    assert.equal((await req('POST', '/movimentacoes-mapa/nao-existe/cancelamento', c.tok, { operation_id: opId(), motivo: 'x' })).statusCode, 404);
+    assert.equal((await req('POST', '/movimentacoes-mapa/nao-existe/cancelamento', c.tok, { operation_id: opId(), motivo: 'engano no registro' })).statusCode, 404);
     const cad = await prisma().lote.findUnique({ where: { id: l.id } });
     assert.equal(cad.quantidade_cabecas, 365, 'Lote só com o que a base legada já tinha');
   });
@@ -171,7 +171,7 @@ describe('R5 — sem legado: guarda única, empresa nova ativada, cutover admini
     const r = await req('POST', '/empresas', c.tok, { nome: 'Nova Fazenda', apelido: 'NOVA', tipo_pessoa: 'Jurídica' });
     assert.equal(r.statusCode, 201, r.body);
     const emp = r.json();
-    const setor = await prisma().setor.create({ data: { cliente_id: c.cliente.id, empresa_id: emp.id, numero_setor: '1', nome: 'S1' } });
+    const setor = await prisma().setor.create({ data: { cliente_id: c.cliente.id, empresa_id: emp.id, numero_setor: '2', nome: 'S1' } });
     const area = (n) => prisma().areaPastagem.create({ data: { cliente_id: c.cliente.id, empresa_id: emp.id, setor_id: setor.id, setor_nome: 'S1', numero_area: String(n), nome: `P${n}`, tamanho_hectares: 10 } });
     const n = { ...c, empresa: emp, setor, A: await area(1), B: await area(2) };
     assert.equal((await req('GET', `/rebanho/posicoes?empresa_id=${emp.id}`, c.tok)).json().ativo, true);
