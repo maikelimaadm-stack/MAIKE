@@ -79,10 +79,6 @@ export const cancelarMovimentacaoMapaNativa = (id, corpo) =>
     ctx('cancelarMovimentacaoMapa')
   );
 
-/** Comando atômico de manejo (R2A-R1): só online, fora da fila offline. */
-export const executarManejoLoteNativo = (corpo) =>
-  nativeRequest(`${CAMINHO}/comandos/manejo-lote`, { method: 'POST', body: corpo, autenticado: true }, ctx('executarManejoLote'));
-
 /** Comando atômico do rebanho (R2B-P1, D-PROD-101): Nascimento, Pesagem, Mudança de Categoria. Só online. */
 export const executarManejoRebanhoNativo = (corpo) =>
   nativeRequest(`${CAMINHO}/comandos/manejo-rebanho`, { method: 'POST', body: corpo, autenticado: true }, ctx('executarManejoRebanho'));

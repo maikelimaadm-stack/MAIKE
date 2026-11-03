@@ -7,7 +7,6 @@ export {
   listHistoricoMovimentacoesMapaNativo,
   cancelarMovimentacaoMapa,
   elegibilidadeCancelamentoMovimentacaoMapa,
-  executarManejoLote,
   executarManejoRebanho,
   executarJuncaoLotes,
   executarBaixaRebanho,

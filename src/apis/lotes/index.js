@@ -11,7 +11,6 @@ export {
   filterMovimentacoes,
   cancelarMovimentacao,
   consultarElegibilidadeCancelamento,
-  registrarManejoLoteServidor,
   registrarManejoRebanhoServidor,
   registrarJuncaoLotesServidor,
   registrarBaixaRebanhoServidor,

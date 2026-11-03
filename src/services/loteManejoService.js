@@ -16,7 +16,6 @@
 import {
   listLotes,
   filterLotes,
-  createLote,
   updateLote,
   createMovimentacao,
   listMovimentacoes,
@@ -25,7 +24,6 @@ import {
   filterMovimentacoes,
   cancelarMovimentacao,
   consultarElegibilidadeCancelamento,
-  registrarManejoLoteServidor,
   registrarManejoRebanhoServidor,
   registrarJuncaoLotesServidor,
   registrarBaixaRebanhoServidor,
@@ -143,7 +141,6 @@ export const listarEventosSuplementacao = () => listSuplementacaoEventos();
 
 // ── Escrita ───────────────────────────────────────────────────────────────
 
-export const criarLote = (dados) => createLote(dados);
 export const atualizarLote = (id, dados) => updateLote(id, dados);
 export const criarMovimentacao = (dados) => createMovimentacao(dados);
 /**
@@ -152,8 +149,10 @@ export const criarMovimentacao = (dados) => createMovimentacao(dados);
  */
 export const cancelarMovimentacaoMapa = (id, corpo) => cancelarMovimentacao(id, corpo);
 export const consultarCancelamentoMovimentacao = (id) => consultarElegibilidadeCancelamento(id);
-/** Manejo atômico no servidor (R2A-R1): efeito e movimento numa transação. */
-export const registrarManejoLote = (corpo) => registrarManejoLoteServidor(corpo);
+/**
+ * Comandos atômicos do rebanho no servidor (só no ledger; empresa não migrada
+ * recebe 409 REBANHO_CUTOVER_PENDENTE). O navegador não cria lote derivado.
+ */
 export const registrarManejoRebanho = (corpo) => registrarManejoRebanhoServidor(corpo);
 export const registrarJuncaoLotes = (corpo) => registrarJuncaoLotesServidor(corpo);
 export const registrarBaixaRebanho = (corpo) => registrarBaixaRebanhoServidor(corpo);

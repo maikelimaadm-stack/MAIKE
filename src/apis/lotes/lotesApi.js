@@ -16,7 +16,6 @@ import {
   listHistoricoMovimentacoesMapaNativo,
   cancelarMovimentacaoMapa,
   elegibilidadeCancelamentoMovimentacaoMapa,
-  executarManejoLote,
   executarManejoRebanho,
   executarJuncaoLotes,
   executarBaixaRebanho,
@@ -127,16 +126,6 @@ export const cancelarMovimentacao = async (id, { operation_id, motivo }) => {
   assertArgument(isId(id), 'id', contexto);
   assertArgument(isId(operation_id) && isId(motivo), 'corpo', contexto);
   return runProviderCall(() => cancelarMovimentacaoMapa(id, { operation_id, motivo }), { ...contexto, details: { id } });
-};
-
-/**
- * Comando atômico de manejo (R2A-R1, D-PROD-99a): Morte, Abate ou Transferência
- * numa transação no servidor. Resposta `{movimentacao, lotes, replay}`.
- */
-export const registrarManejoLoteServidor = async (corpo) => {
-  const contexto = ctx('registrarManejoLote');
-  assertArgument(isObjeto(corpo) && isId(corpo.operation_id) && isId(corpo.lote_id), 'corpo', contexto);
-  return runProviderCall(() => executarManejoLote(corpo), { ...contexto, details: { lote_id: corpo.lote_id } });
 };
 
 /**
