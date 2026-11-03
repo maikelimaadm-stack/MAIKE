@@ -49,7 +49,7 @@ import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 /**
  * Contrato do dono (D-PROD-107): `Lote` é só o cadastro de ENTRADA. O navegador
  * nunca grava efeito de manejo em Lote — nada de PATCH de saldo/área/status,
- * criarLote ou fallback com várias requisições. Todo manejo do mapa vai pelos
+ * lote derivado ou fallback com várias requisições. Todo manejo do mapa vai pelos
  * comandos do servidor, que só rodam no ledger (empresa ativada: o mapa entrega
  * POSIÇÕES). Empresa ainda não migrada: o manejo é recusado aqui, sem requisição
  * (o servidor responderia 409 REBANHO_CUTOVER_PENDENTE).
