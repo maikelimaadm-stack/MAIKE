@@ -171,6 +171,22 @@ const primeiroTexto = (props, chaves, max) => {
   return "";
 };
 
+const RE_UUID = /^\{?[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}\}?$/i;
+const NOMES_PADRAO_DE_APP = /^(pol[ií]gono sem t[ií]tulo|untitled( polygon| placemark)?|unnamed|sem t[ií]tulo|sem nome|placemark|polygon|pol[ií]gono|caminho sem t[ií]tulo)( \d+)?$/i;
+
+/**
+ * Nome que não é nome: código gerado pelo aplicativo (UUID, hash) ou o rótulo
+ * padrão de quem não nomeou o polígono. Não serve como nome da área.
+ */
+export const pareceIdentificador = (texto) => {
+  const t = String(texto ?? "").trim();
+  if (!t) return true;
+  return RE_UUID.test(t) || /^[0-9a-f]{16,}$/i.test(t) || NOMES_PADRAO_DE_APP.test(t);
+};
+
+/** Primeiro nome de verdade entre os candidatos, na ordem dada. */
+const primeiroNome = (candidatos) => candidatos.map((c) => textoDoArquivo(c, 255)).find((t) => t && !pareceIdentificador(t)) ?? "";
+
 const primeiroNumero = (props, chaves) => {
   for (const k of chaves) {
     const v = props?.[k];
@@ -244,7 +260,7 @@ function itensDoGeoJson(json) {
     const base = {
       ref: `f${i + 1}`,
       origem: `Elemento ${i + 1}`,
-      nomeNoArquivo: primeiroTexto(props, CHAVES_NOME, 255),
+      nomeNoArquivo: primeiroNome(CHAVES_NOME.map((k) => props?.[k])),
       siglaNoArquivo: primeiroTexto(props, CHAVES_SIGLA, 10),
       tipoGeometria: "",
     };
@@ -305,6 +321,74 @@ const descendentes = (raiz, nomeLocal) =>
 const filhoDireto = (raiz, nomeLocal) =>
   Array.from(raiz.children ?? []).find((el) => el.localName === nomeLocal) ?? null;
 
+/**
+ * Campos do Placemark em <ExtendedData>: `<Data name="…"><value>` e
+ * `<SchemaData><SimpleData name="…">`, como exportam QGIS, CAR/SIGEF e os
+ * aplicativos de medição de campo.
+ * @returns {Record<string, string>}
+ */
+const dadosEstendidos = (pm) => {
+  /** @type {Record<string, string>} */
+  const out = {};
+  const ext = filhoDireto(pm, "ExtendedData");
+  if (!ext) return out;
+  for (const d of descendentes(ext, "Data")) {
+    const chave = d.getAttribute("name");
+    const valor = filhoDireto(d, "value");
+    if (chave && valor && !(chave in out)) out[chave] = valor.textContent ?? "";
+  }
+  for (const d of descendentes(ext, "SimpleData")) {
+    const chave = d.getAttribute("name");
+    if (chave && !(chave in out)) out[chave] = d.textContent ?? "";
+  }
+  return out;
+};
+
+const normalizarChave = (k) => String(k).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
+
+/** Valores dos campos cuja chave (sem acento, caixa ou separador) está na lista, na ordem da lista. */
+const valoresPorChave = (dados, chaves) => {
+  const entradas = Object.entries(dados).map(([k, v]) => [normalizarChave(k), v]);
+  return chaves
+    .map(normalizarChave)
+    .flatMap((p) => entradas.filter(([k, v]) => k === p && textoDoArquivo(v)).map(([, v]) => v));
+};
+
+const CHAVES_NOME_KML = [
+  "nome", "name", "nome_area", "nome_pasto", "pasto", "piquete", "talhao", "invernada", "area_nome",
+  "titulo", "title", "label", "rotulo", "descricao",
+];
+
+/** Texto curto e sem HTML da <description>; tabela ou texto longo não é nome. */
+const descricaoComoNome = (pm) => {
+  const bruto = filhoDireto(pm, "description")?.textContent ?? "";
+  if (/<(table|tr|td|br|img|div|p)\b/i.test(bruto)) return "";
+  const t = textoDoArquivo(bruto.replace(/<[^>]*>/g, " "), 255);
+  return t.length <= 60 ? t : "";
+};
+
+/** Nome da pasta (<Folder>) quando ela guarda só este Placemark. */
+const nomeDaPastaUnica = (pm) => {
+  const pai = pm.parentElement;
+  if (!pai || pai.localName !== "Folder") return "";
+  if (descendentes(pai, "Placemark").length !== 1) return "";
+  return filhoDireto(pai, "name")?.textContent ?? "";
+};
+
+/**
+ * Nome da área no KML. <name> vale quando é um nome de verdade; quando falta
+ * ou é um código do aplicativo (UUID, "Polígono sem título"), o nome vem dos
+ * campos do <ExtendedData>, de uma <description> curta ou da pasta que guarda
+ * só este Placemark. Sem nenhum, fica vazio e a conferência sugere um nome.
+ */
+const nomeDoPlacemark = (pm, dados) =>
+  primeiroNome([
+    filhoDireto(pm, "name")?.textContent ?? "",
+    ...valoresPorChave(dados, CHAVES_NOME_KML),
+    descricaoComoNome(pm),
+    nomeDaPastaUnica(pm),
+  ]);
+
 /** "lng,lat[,alt] lng,lat[,alt] …" → vértices. Token malformado → null. */
 const coordenadasKml = (texto) => {
   const tokens = String(texto ?? "").replace(/\s*,\s*/g, ",").trim().split(/\s+/).filter(Boolean);
@@ -346,12 +430,12 @@ function itensDoKml(texto) {
   }
 
   const itens = placemarks.map((pm, i) => {
-    const nomeEl = filhoDireto(pm, "name");
+    const dados = dadosEstendidos(pm);
     const base = {
       ref: `f${i + 1}`,
       origem: `Placemark ${i + 1}`,
-      nomeNoArquivo: textoDoArquivo(nomeEl?.textContent ?? "", 255),
-      siglaNoArquivo: "",
+      nomeNoArquivo: nomeDoPlacemark(pm, dados),
+      siglaNoArquivo: textoDoArquivo(valoresPorChave(dados, CHAVES_SIGLA)[0], 10),
       tipoGeometria: "",
     };
     const poligonos = descendentes(pm, "Polygon");

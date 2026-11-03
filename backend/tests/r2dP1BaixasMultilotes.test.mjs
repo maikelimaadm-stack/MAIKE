@@ -378,7 +378,8 @@ describe('R2D baixa — data operacional', () => {
     const { l40 } = await tres(c);
     await prisma().eventoSanitario.create({ data: { cliente_id: c.cliente.id, empresa_id: c.empresa.id, dados: { lote_id: l40.id, data_evento: '2026-02-30' } } });
     await exigirNadaGravado(c, () => baixar(c, 'Morte', [morte(BOI, 5)]), 409, 'BAIXA_DATA_RETROATIVA');
-    await ok(baixar(c, 'Morte', [morte(BOI, 5)], { data_movimentacao: '2026-11-02T12:00:00.000Z' }));
+    // Data igual ou posterior ao createdAt do evento (gravado agora): o "agora" do teste, nunca uma data fixa.
+    await ok(baixar(c, 'Morte', [morte(BOI, 5)], { data_movimentacao: new Date().toISOString() }));
   });
 
   test('D3: 610 movimentos cancelados posteriores + 1 ativo → bloqueia; só cancelados → passa', async () => {

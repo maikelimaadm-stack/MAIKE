@@ -6,7 +6,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, it, expect } from "vitest";
 
-import { lerArquivoDeAreas, detectarFormato, normalizarAnel, LIMITES_ARQUIVO } from "@/lib/geografia/importacaoAreas";
+import { lerArquivoDeAreas, detectarFormato, normalizarAnel, LIMITES_ARQUIVO, pareceIdentificador } from "@/lib/geografia/importacaoAreas";
 import { areaHectares, toPersistedCoords, anelSeAutoIntersecta } from "@/lib/geografia";
 import { itemDeEnvio } from "@/services/areaImportacaoService";
 
@@ -245,5 +245,44 @@ describe("formato, limites e geometria", () => {
     expect(Object.keys(item)).not.toContain("numero_area");
     expect(Object.keys(item)).not.toContain("setor_nome");
     expect(Object.keys(item)).not.toContain("cliente_id");
+  });
+});
+
+describe("KML — nome de verdade quando <name> é código do aplicativo", () => {
+  const anel = "<Polygon><outerBoundaryIs><LinearRing><coordinates>0,0 0.01,0 0.01,0.01 0,0.01 0,0</coordinates></LinearRing></outerBoundaryIs></Polygon>";
+  const nomeDe = (placemark, envolver = (x) => x) =>
+    ler("a.kml", `<kml xmlns="http://www.opengis.net/kml/2.2"><Document>${envolver(`<Placemark>${placemark}${anel}</Placemark>`)}</Document></kml>`).itens[0].nomeNoArquivo;
+
+  it("KML-N1 <name> de verdade continua valendo", () => {
+    expect(nomeDe("<name>Pasto 3</name>")).toBe("Pasto 3");
+    expect(nomeDe("<name><![CDATA[Piquete 7A]]></name>")).toBe("Piquete 7A");
+  });
+
+  it("KML-N2 <name> UUID cede ao campo do ExtendedData (Data/value e SimpleData)", () => {
+    const uuid = "<name>06FED7BE-9736-4A1F-93FB-E481CB663AC7</name>";
+    expect(nomeDe(`${uuid}<ExtendedData><Data name="Nome"><value>Pasto do Rio</value></Data></ExtendedData>`)).toBe("Pasto do Rio");
+    expect(nomeDe(`${uuid}<ExtendedData><SchemaData schemaUrl="#s"><SimpleData name="PASTO">Retiro 2</SimpleData></SchemaData></ExtendedData>`)).toBe("Retiro 2");
+    // Campo "name" também UUID: segue para o próximo campo com nome.
+    expect(
+      nomeDe(`${uuid}<ExtendedData><Data name="name"><value>0BB5A2C3-C066-429A-B892-AC4AFCEAA6F1</value></Data><Data name="talhão"><value>T-04</value></Data></ExtendedData>`),
+    ).toBe("T-04");
+  });
+
+  it("KML-N3 sem ExtendedData: description curta ou pasta com um só Placemark", () => {
+    expect(nomeDe("<name>Polígono sem título</name><description>Maternidade</description>")).toBe("Maternidade");
+    expect(nomeDe("<name>Untitled Polygon</name>", (pm) => `<Folder><name>Pasto Velho</name>${pm}</Folder>`)).toBe("Pasto Velho");
+    // Tabela HTML na description não é nome.
+    expect(nomeDe("<name>1B30E649B80F4548B9C22B6938251A4E</name><description><![CDATA[<table><tr><td>x</td></tr></table>]]></description>")).toBe("");
+  });
+
+  it("KML-N4 só código, sem outro nome: vazio, para a conferência sugerir", () => {
+    expect(nomeDe("<name>FF7C0506-F212-4711-830B-395925CB5F25</name>")).toBe("");
+    expect(pareceIdentificador("Pasto 1")).toBe(false);
+    expect(pareceIdentificador("{06FED7BE-9736-4A1F-93FB-E481CB663AC7}")).toBe(true);
+  });
+
+  it("KML-N5 sigla vem do ExtendedData", () => {
+    const lido = ler("a.kml", `<kml><Placemark><name>Pasto 1</name><ExtendedData><Data name="sigla"><value>P1</value></Data></ExtendedData>${anel}</Placemark></kml>`);
+    expect(lido.itens[0].siglaNoArquivo).toBe("P1");
   });
 });
