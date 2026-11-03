@@ -22,8 +22,10 @@ before(async () => {
   // Prova do alvo ANTES de qualquer escrita: só banco local.
   const url = new URL(process.env.DATABASE_URL ?? '');
   assert.ok(['localhost', '127.0.0.1'].includes(url.hostname), 'suite só roda contra PostgreSQL local');
-  const [{ db, addr }] = await prisma().$queryRaw`SELECT current_database() AS db, COALESCE(inet_server_addr()::text, 'socket') AS addr`;
-  assert.ok(/^(127\.0\.0\.1|::1|socket)/.test(addr), `servidor local (${addr})`);
+  // O IP que o servidor vê pode ser o da rede Docker (CI): a prova é a URL local + banco sem
+  // as roles que todo projeto Supabase tem.
+  const [{ db, supabase }] = await prisma().$queryRaw`SELECT current_database() AS db, EXISTS (SELECT 1 FROM pg_roles WHERE rolname IN ('supabase_admin', 'supabase_auth_admin')) AS supabase`;
+  assert.equal(supabase, false, 'alvo não pode ser um banco Supabase');
   assert.ok(!/prod|supabase/i.test(db), `banco de teste (${db})`);
   app = await criarApp();
   await app.ready();
