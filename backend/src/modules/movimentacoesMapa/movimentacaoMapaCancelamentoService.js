@@ -16,8 +16,6 @@
  * Tudo vem do servidor: o corpo só traz `operation_id` e `motivo`.
  */
 
-import { Prisma } from '@prisma/client';
-
 import { getPrismaClient } from '../../database/prismaClient.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { exigirAdminTenant, atorDoTenant, ehAdminTenantAtivo } from '../../shared/auth/exigirAdminTenant.js';
@@ -25,7 +23,6 @@ import { AppError } from '../../shared/errors/AppError.js';
 import { documentoComoPublico } from '../../shared/jsonDocument/jsonDocumentPublic.js';
 import { executarComIdempotencia, fingerprintDePayload } from '../../shared/idempotency/operacaoIdempotenteService.js';
 import { registrarEvento } from '../auditoria/auditService.js';
-import { movimentoCitaLotes } from './movimentacaoVinculoLote.js';
 import { COMANDO_MANEJO } from './manejoMapaComandoService.js';
 import { COMANDO_REBANHO } from './manejoRebanhoComandoService.js';
 import { COMANDO_JUNCAO } from './juncaoConstantes.js';
@@ -48,7 +45,6 @@ const erroNaoEncontrado = () => new AppError('MOVIMENTACAOMAPA_NOT_FOUND', 'Movi
 const recusa = (codigo, mensagem, details = {}) => new AppError(codigo, mensagem, { details });
 
 const texto = (v) => (typeof v === 'string' && v.trim() ? v.trim() : null);
-const data10 = (v) => (typeof v === 'string' ? v.slice(0, 10) : v instanceof Date ? v.toISOString().slice(0, 10) : '');
 
 const buscarMovimento = async (tx, clienteId, id, travar) => {
   if (travar) {
@@ -67,74 +63,6 @@ const recusarCancelamentoLegado = async (tx, clienteId, mov) => {
   await exigirEmpresaNoLedger(tx, clienteId, mov.empresa_id);
   // Inalcançável (ativada já recusou acima); fail-closed mesmo assim.
   throw recusa('REBANHO_LEDGER_CANCELAMENTO_LEGADO', 'movimentos anteriores ao ledger não são desfeitos pelo modelo antigo', { movimentacao_id: mov.id });
-};
-
-// ─── Dependências posteriores (banco, sem teto) ────────────────────────────
-
-/** Fontes JSON com vínculo de lote: tabela fixa (constante, não entrada) e campos de data. */
-export const FONTES_DE_LOTE = Object.freeze([
-  { tabela: 'MovimentacaoPecuaria', datas: ['data_movimentacao', 'data_evento'] },
-  { tabela: 'SuplementacaoLote', datas: ['data_lancamento'] },
-  { tabela: 'AplicacaoMedicamento', datas: ['data_aplicacao'] },
-  { tabela: 'EventoSanitario', datas: ['data_evento'] },
-  { tabela: 'ManejoTecnicoRebanho', datas: ['data_evento'] },
-]);
-
-const posteriorA = (alias, campos, mov) => {
-  const dataMov = data10(mov.dados?.data_movimentacao) || data10(mov.createdAt);
-  const datas = campos.map((c) => Prisma.sql`left(COALESCE(${Prisma.raw(alias)}.dados->>${c}, ''), 10) > ${dataMov}`);
-  return Prisma.sql`(${Prisma.raw(alias)}."createdAt" > ${mov.createdAt} OR ${Prisma.join(datas, ' OR ')})`;
-};
-
-/**
- * Conta registros posteriores ligados aos lotes (por ID; nome só para registro
- * legado SEM id) e, em transferência, às áreas. Conservador por desenho: na
- * dúvida conta. Movimentos cancelados não contam.
- */
-export const dependenciasPosteriores = async (tx, clienteId, mov, { loteIds, nomes, areaIds }) => {
-  const encontrados = [];
-  const lotes = [...new Set(loteIds)];
-  const nomesUp = [...new Set(nomes.filter(Boolean).map((n) => n.trim().toUpperCase()))];
-
-  const porArea = areaIds.length
-    ? Prisma.sql`OR m.dados->>'area_origem_id' = ANY(${areaIds}::text[]) OR m.dados->>'area_destino_id' = ANY(${areaIds}::text[]) OR m.dados->>'area_id' = ANY(${areaIds}::text[])`
-    : Prisma.empty;
-  const [mapa] = /** @type {Array<{n: number}>} */ (
-    await tx.$queryRaw`
-      SELECT COUNT(*)::int AS n FROM "MovimentacaoMapa" m
-      WHERE m.cliente_id = ${clienteId} AND m.empresa_id = ${mov.empresa_id} AND m.id <> ${mov.id}
-        AND COALESCE(m.dados->>'situacao', '') <> ${SITUACAO_CANCELADO}
-        AND (
-          ${movimentoCitaLotes('m', lotes)}
-          OR EXISTS (SELECT 1 FROM unnest(${lotes}::text[]) AS l(id) WHERE position(l.id IN COALESCE(m.dados->>'observacoes', '')) > 0)
-          OR (COALESCE(m.dados->>'lote_id', '') = '' AND upper(btrim(COALESCE(m.dados->>'lote', ''))) = ANY(${nomesUp}::text[]))
-          ${porArea}
-        )
-        AND ${posteriorA('m', ['data_movimentacao'], mov)}`
-  );
-  if (mapa?.n) encontrados.push({ fonte: 'MovimentacaoMapa', quantidade: mapa.n });
-
-  for (const fonte of FONTES_DE_LOTE) {
-    const [linha] = /** @type {Array<{n: number}>} */ (
-      await tx.$queryRaw`
-        SELECT COUNT(*)::int AS n FROM ${Prisma.raw(`"${fonte.tabela}"`)} d
-        WHERE d.cliente_id = ${clienteId} AND d.empresa_id = ${mov.empresa_id}
-          AND (
-            d.dados->>'lote_id' = ANY(${lotes}::text[])
-            OR (COALESCE(d.dados->>'lote_id', '') = ''
-                AND upper(btrim(COALESCE(d.dados->>'lote', d.dados->>'lote_nome', d.dados->>'nome_lote', ''))) = ANY(${nomesUp}::text[]))
-          )
-          AND ${posteriorA('d', fonte.datas, mov)}`
-    );
-    if (linha?.n) encontrados.push({ fonte: fonte.tabela, quantidade: linha.n });
-  }
-
-  const tarefas = await tx.lancamentoTarefa.count({
-    where: { cliente_id: clienteId, empresa_id: mov.empresa_id, lote_id: { in: lotes }, createdAt: { gt: mov.createdAt } },
-  });
-  if (tarefas) encontrados.push({ fonte: 'LancamentoTarefa', quantidade: tarefas });
-
-  return encontrados;
 };
 
 // ─── Comando ───────────────────────────────────────────────────────────────

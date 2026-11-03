@@ -18,6 +18,7 @@ import { randomUUID } from 'node:crypto';
 import { criarApp, criarTenant, limparBanco, encerrar, autenticarNoApp } from './helpers.mjs';
 import { getPrismaClient } from '../src/database/prismaClient.js';
 import { definirFalhaInjetadaLedger } from '../src/modules/rebanhoLedger/rebanhoLedgerService.js';
+import { distribuirBaixa, ordemDeAlocacao } from '../src/modules/movimentacoesMapa/manejoBaixaComandoService.js';
 
 /** @type {import('fastify').FastifyInstance} */
 let app;
@@ -260,6 +261,76 @@ describe('R5 conv. — baixa: alocação determinística, filtro e metadados', (
     });
     assert.equal(r.statusCode, 201, r.body);
     await exigirNadaGravado(c, () => baixa(c, 'Morte', morteBoi(1)), 409, 'BAIXA_CLASSIFICACAO_DIVERGENTE');
+  });
+});
+
+describe('R5 conv. — regras de cada comando sobre posições', () => {
+  test('R1: política determinística pura (usada pela baixa do ledger) — numero_lote crescente (numérico antes de texto/vazio), depois id; independe da ordem de criação', () => {
+    const itens = [
+      { id: 'c', numero_lote: '10', categoria: BOI, quantidade_cabecas: 5 },
+      { id: 'b', numero_lote: '2', categoria: BOI, quantidade_cabecas: 5 },
+      { id: 'a', numero_lote: 'X1', categoria: BOI, quantidade_cabecas: 5 },
+      { id: 'd', numero_lote: null, categoria: BOI, quantidade_cabecas: 5 },
+      { id: 'e', numero_lote: '2', categoria: BOI, quantidade_cabecas: 5 },
+    ];
+    assert.deepEqual([...itens].sort(ordemDeAlocacao).map((l) => l.id), ['b', 'e', 'c', 'd', 'a']);
+    const [linha] = distribuirBaixa(itens, [{ categoria: BOI, quantidade: 12 }]);
+    assert.deepEqual(linha.distribuicao, [{ lote_id: 'b', quantidade: 5 }, { lote_id: 'e', quantidade: 5 }, { lote_id: 'c', quantidade: 2 }]);
+  });
+
+  test('R2: nascimento — duas linhas do mesmo sexo vão para a MESMA posição de nascidos; peso ponderado só com todos os pesos conhecidos (desconhecido nunca vale zero)', async () => {
+    const c = await cenario();
+    await ok(rebanho(c, 'Nascimento', [{ categoria_mae: VACA, sexo: 'Macho', quantidade: 20, peso_medio_kg: 100 }, { categoria_mae: VACA, sexo: 'Macho', quantidade: 10, peso_medio_kg: 40 }]));
+    const nascidos = () => posicoes(c).then((ps) => ps.filter((p) => !p.lote_entrada_id && p.sexo === 'Macho'));
+    let ps = await nascidos();
+    assert.equal(ps.length, 1);
+    assert.deepEqual([ps[0].quantidade_cabecas, Number(ps[0].peso_medio_kg)], [30, 80]);
+    await ok(rebanho(c, 'Nascimento', [{ categoria_mae: VACA, sexo: 'Macho', quantidade: 5 }], { data_movimentacao: '2026-11-03' }));
+    ps = await nascidos();
+    assert.equal(ps.length, 1);
+    assert.equal(ps[0].quantidade_cabecas, 35);
+    assert.ok(ps[0].peso_medio_kg === null || Number(ps[0].peso_medio_kg) === 80, `peso desconhecido nunca vira zero na média: ${ps[0].peso_medio_kg}`);
+  });
+
+  test('R3: pesagem muda peso e nunca cabeças; categoria informada divergente da posição → 409; posição de outra área → 404; nada gravado', async () => {
+    const c = await cenario();
+    const b1 = await pos(c, c.bois1);
+    await exigirNadaGravado(c, () => rebanho(c, 'Pesagem', [{ lote_id: b1.id, categoria: VACA, peso_medio_kg: 410 }]), 409, 'MANEJO_ESTADO_INVALIDO');
+    await exigirNadaGravado(c, () => rebanho(c, 'Pesagem', [{ lote_id: b1.id, peso_medio_kg: 410 }], { area_id: c.B.id }), 404);
+    await ok(rebanho(c, 'Pesagem', [{ lote_id: b1.id, categoria: BOI, peso_medio_kg: 412 }]));
+    const depois = await pos(c, c.bois1);
+    assert.deepEqual([depois.quantidade_cabecas, Number(depois.peso_medio_kg)], [40, 412]);
+  });
+
+  test('R4: mudança de categoria — uma linha de 70 sobre duas posições (40 + 30) conserva 70; categoria de manejo de outra categoria oficial → 409 MANEJO_CATEGORIA_INVALIDA; duas ativas da mesma oficial sem escolha → 409 MANEJO_CATEGORIA_AMBIGUA', async () => {
+    const c = await cenario();
+    const cm = (nome, oficial) => prisma().categoriaManejo.create({ data: { cliente_id: c.cliente.id, empresa_id: c.empresa.id, nome, categoria_oficial: oficial, ativo: true } });
+    const deGarrote = await cm('GARROTE X', GARROTE);
+    await exigirNadaGravado(c, () => rebanho(c, 'Mudança de Categoria', [{ categoria_atual: BOI, categoria_nova: 'Touro + 36 meses', quantidade: 5, categoria_manejo_id_novo: deGarrote.id }]), 409, 'MANEJO_CATEGORIA_INVALIDA');
+    await cm('TOURO A', 'Touro + 36 meses');
+    await cm('TOURO B', 'Touro + 36 meses');
+    await exigirNadaGravado(c, () => rebanho(c, 'Mudança de Categoria', [{ categoria_atual: BOI, categoria_nova: 'Touro + 36 meses', quantidade: 5 }]), 409, 'MANEJO_CATEGORIA_AMBIGUA');
+    await prisma().categoriaManejo.updateMany({ where: { cliente_id: c.cliente.id, nome: { in: ['TOURO A', 'TOURO B'] } }, data: { ativo: false } });
+    const m = await ok(rebanho(c, 'Mudança de Categoria', [{ categoria_atual: BOI, categoria_nova: 'Touro + 36 meses', quantidade: 70 }]));
+    assert.equal(m.movimentacao.linhas[0].partes.reduce((t, p) => t + p.quantidade, 0), 70);
+    assert.equal(new Set(m.movimentacao.linhas[0].partes.map((p) => p.de_posicao_id)).size, 2);
+    const ps = await posicoes(c);
+    assert.equal(ps.filter((p) => p.categoria === BOI).reduce((t, p) => t + p.quantidade_cabecas, 0), 0);
+    assert.equal(ps.filter((p) => p.categoria === 'Touro + 36 meses').reduce((t, p) => t + p.quantidade_cabecas, 0), 70);
+    assert.equal(await total(c), 140);
+  });
+
+  test('R5: junção — posição zerada, de entrada excluída ou de outra área → recusa estável (JUNCAO_LOTE_INELEGIVEL), nada gravado', async () => {
+    const c = await cenario();
+    const [b1, b2] = [await pos(c, c.bois1), await pos(c, c.bois2)];
+    await ok(baixa(c, 'Morte', morteBoi(30), { lotes_selecionados: [b2.id] }));
+    await exigirNadaGravado(c, () => juntar(c, b1, [b2]), 409, 'JUNCAO_LOTE_INELEGIVEL');
+    const outraArea = await entrada(c, { nome: 'BOIS B', qtd: 10, area: c.B });
+    await exigirNadaGravado(c, () => pos(c, outraArea, c.B).then((pb) => juntar(c, b1, [pb])), 409, 'JUNCAO_LOTE_INELEGIVEL');
+    const excl = await entrada(c, { nome: 'BOIS EXCL', qtd: 10 });
+    const pe = await pos(c, excl);
+    assert.equal((await req('DELETE', `/lotes/${excl.id}`, c.tok)).statusCode, 204);
+    await exigirNadaGravado(c, () => juntar(c, b1, [pe]), 409, 'JUNCAO_LOTE_INELEGIVEL');
   });
 });
 

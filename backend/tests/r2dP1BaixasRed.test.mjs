@@ -12,7 +12,7 @@
  * docs/engineering/evidencias/r2d-p1-baixas-multilotes/red-main.txt). O laço
  * legado continua não atômico por natureza — a correção é a tela não usá-lo
  * mais —, então a suíte só roda com R2D_RED=1. A proteção equivalente no
- * comando novo está em r2dP1BaixasMultilotes.test.mjs (A1, A2, B4, K6).
+ * comando (agora só no ledger, PR174-R5) está em r2eR5ComandosLedgerConvertidos.test.mjs (A1, A2, B1, K1).
  */
 
 import { test, describe, before, after, beforeEach } from 'node:test';

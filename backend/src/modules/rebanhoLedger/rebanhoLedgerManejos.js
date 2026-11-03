@@ -263,6 +263,8 @@ export const rebanhoNoLedger = async (tx, contexto, e, deps) => {
     for (const linha of e.linhas) {
       const p = posicoes.get(linha.lote_id);
       if (!p || p.empresa_id !== e.empresaId || p.area_id !== area.id) throw new AppError('POSICAO_REBANHO_NOT_FOUND', 'posição da pesagem não está nesta área', { details: { posicao_id: linha.lote_id } });
+      // PR174-R5: a categoria que a tela mostrava (opcional) precisa ser a da posição — o formulário não reclassifica.
+      if (linha.categoria && normal(linha.categoria) !== normal(p.categoria)) throw recusa('MANEJO_ESTADO_INVALIDO', 'categoria informada não confere com a da posição', { posicao_id: p.id, categoria_posicao: p.categoria ?? null });
       const s = await saldoNaData(tx, auth.clienteId, p.id, dia);
       if (s <= 0) throw recusa('MANEJO_ESTADO_INVALIDO', 'a posição não tinha cabeças na data da pesagem', { posicao_id: p.id, data: dia });
       await garantirPesoBase(tx, auth.clienteId, p);
