@@ -1,0 +1,60 @@
+PR174-R5 verify:all local (HEAD 13fb7bd; código idêntico a aef6121) — resumo
+RESUMO
+======================================================================
+  ETAPA                RESULTADO   EXIT    DURAÇÃO  COMANDO
+  test:gates           PASS           0      72.8s  npm run test:gates
+  governance-paths     PASS           0      140ms  npm run gate:governance-paths
+  package-sync         PASS           0      143ms  npm run gate:package-sync
+  product-scope        PASS           0      523ms  npm run gate:product-scope
+  api-boundary         PASS           0       1.8s  npm run gate:api-boundary
+  native-api           PASS           0      228ms  npm run gate:native-api
+  setor-native         PASS           0      174ms  npm run gate:setor-native
+  marca-native         PASS           0      196ms  npm run gate:marca-native
+  unidade-medida-native PASS           0      222ms  npm run gate:unidade-medida-native
+  tarefa-cadastro-native PASS           0      192ms  npm run gate:tarefa-cadastro-native
+  lote-native          PASS           0      179ms  npm run gate:lote-native
+  lancamento-tarefa-native PASS           0      186ms  npm run gate:lancamento-tarefa-native
+  p52-cadastros-estoque-native PASS           0      263ms  npm run gate:p52-cadastros-estoque-native
+  p54-base44-exit      PASS           0      151ms  npm run gate:p54-base44-exit
+  p55-base44-exit-final PASS           0      155ms  npm run gate:p55-base44-exit-final
+  area-pastagem-native PASS           0      176ms  npm run gate:area-pastagem-native
+  map-geography-native PASS           0      185ms  npm run gate:map-geography-native
+  usuario-admin        PASS           0      193ms  npm run gate:usuario-admin
+  source-closure       PASS           0      234ms  npm run gate:source-closure
+  import-integrity     PASS           0      201ms  npm run gate:import-integrity
+  admin-isolation      PASS           0      197ms  npm run gate:admin-isolation
+  no-secrets           PASS           0       1.1s  npm run gate:no-secrets
+  base44               PASS           0      165ms  npm run gate:base44
+  modelobase1-pecuario PASS           0      167ms  npm run gate:modelobase1-pecuario
+  motorbase1-independence PASS           0      810ms  npm run gate:motorbase1-independence
+  tenancy              PASS           0      192ms  npm run gate:tenancy
+  rebanho-ssot         PASS           0      175ms  npm run gate:rebanho-ssot
+  indices              PASS           0      168ms  npm run gate:indices
+  deploy-migrations    PASS           0      172ms  npm run gate:deploy-migrations
+  supabase-public-grants PASS           0      179ms  npm run gate:supabase-public-grants
+  prisma:generate      PASS           0       1.9s  npm run prisma:generate
+  types                PASS           0      13.3s  npm run gate:types
+  typecheck:backend    PASS           0       8.6s  npm run typecheck:backend
+  lint                 PASS           0      19.0s  npm run lint
+  test:backend         PASS           0     361.2s  npm run test:backend
+  test:smoke           PASS           0      65.2s  npm run test:smoke
+  build                PASS           0      19.1s  npm run build
+  build:admin          PASS           0       1.8s  npm run build:admin
+  admin-isolation:bundles PASS           0      208ms  npm run gate:admin-isolation
+
+  Total: 572.0s
+
+TODAS AS ETAPAS PASSARAM
+
+EXIT=0
+# tests 674
+# pass 674
+# fail 0
+# skipped 0
+# todo 0
+# tests 718
+# pass 713
+# fail 0
+# skipped 0
+# todo 5
+      Tests  1275 passed (1275)
