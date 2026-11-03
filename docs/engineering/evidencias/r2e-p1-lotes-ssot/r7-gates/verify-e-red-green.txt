@@ -1,0 +1,32 @@
+PR174-R7 verify:all local no HEAD 62ceea5
+1 ETAPA(S) FALHARAM
+# tests 684
+# pass 684
+# fail 0
+# skipped 0
+# todo 0
+# tests 731
+# pass 725
+# fail 1
+# skipped 0
+# todo 5
+      Tests  1275 passed (1275)
+
+R6 (25be5cd) — RED reproduzido:
+classificador R6 ACEITAVA: CREATE OR REPLACE FUNCTION, CREATE OR REPLACE VIEW, GRANT, REVOKE, SELECT pg_terminate_backend, CREATE TRIGGER
+    not ok 1 - R7A1: banco SEM schema R2E → inventário lista o que falta, diagnóstico/cutover recusam CUTOVER_SCHEMA_PENDENTE sem escrever; CLI --inventario funciona e o diagnóstico sai 3
+
+GREEN R7 (backend):
+    ok 1 - A1: falha DENTRO da ativação depois do reset → ROLLBACK total (0 exclusões, Lotes idênticos, sem ativação); o backup é a cópia do pré-estado
+    ok 2 - A2: sucesso → reset + ativação num COMMIT; acesso/senhas/permissões/empresa/áreas preservados; outro tenant e outra empresa intocados; reexecução = no-op sem backup
+    ok 3 - A3: backup falha ou não confere → aborta ANTES do DELETE; nada muda
+    ok 4 - A4: vínculo de outro módulo citando o movimento a apagar → RESET_VINCULOS_PENDENTES, nada muda (nem ativação)
+    ok 5 - A5: escopo/confirmação/administrador/estratégia validados antes de qualquer escrita
+    ok 6 - A6: disputa REAL (duas conexões): cadastro de lote e PATCH concorrentes esperam o corte; depois, o lote novo tem posição e o PATCH de saldo é recusado — sem drift
+    ok 7 - A7: manifesto detecta backup adulterado
+    ok 1 - D1: documento de outro módulo cita (por id) a posição CRIADA pela transferência → 409 com tipo/id; saldo intacto; elegibilidade igual; removido o documento, cancela
+    ok 2 - D2: documento que cita o PRÓPRIO movimento bloqueia; documento sem vínculo real (posição que já existia, outro id) NÃO bloqueia
+    ok 3 - D3: fato posterior do ledger na posição criada (pesagem/morte) bloqueia; cancelar o posterior e depois o anterior → sucesso; cadastro de entrada imutável
+    ok 1 - R7A1: banco SEM schema R2E → inventário lista o que falta, diagnóstico/cutover recusam CUTOVER_SCHEMA_PENDENTE sem escrever; CLI --inventario funciona e o diagnóstico sai 3
+    ok 2 - R7A2: banco COM schema R2E → inventário pronto e diagnóstico real da empresa
+    ok 3 - R7D1: backup operacional não contém credenciais (senha_hash, login, URL)
