@@ -329,7 +329,12 @@ export const cancelarEntradaParaExclusao = async (tx, contexto, lote) => {
   await travarAreas(tx, auth.clienteId, lote.empresa_id, posicoes.map((p) => p.area_id));
   await travarPosicoes(tx, auth.clienteId, posicoes.map((p) => p.id));
   const partidas = await tx.partidaRebanho.findMany({ where: { cliente_id: auth.clienteId, posicao_id: { in: posicoes.map((p) => p.id) }, ativa: true }, include: { evento: true } });
-  const alheias = partidas.filter((p) => ![TIPOS_EVENTO.ENTRADA, TIPOS_EVENTO.ABERTURA].includes(p.evento.tipo) || (p.evento.tipo === TIPOS_EVENTO.ENTRADA && p.evento.dados?.lote_id !== lote.id));
+  // Entrada própria: o evento ENTRADA do cadastro deste lote, ou a ativação (ENTRADA
+  // pelas entradas / ABERTURA), que agrega vários lotes num evento por dia — nas
+  // posições DESTE lote, as partidas dela são a entrada dele (PR174-R5).
+  const daAtivacao = (ev) => ev.tipo === TIPOS_EVENTO.ABERTURA || (ev.tipo === TIPOS_EVENTO.ENTRADA && !!ev.dados?.ativacao && !ev.dados?.lote_id);
+  const daEntradaDoLote = (ev) => ev.tipo === TIPOS_EVENTO.ENTRADA && ev.dados?.lote_id === lote.id;
+  const alheias = partidas.filter((p) => !daAtivacao(p.evento) && !daEntradaDoLote(p.evento));
   if (alheias.length) {
     throw new AppError('LOTE_DELETE_BLOCKED', 'o lote tem movimentação ativa no ledger; cancele-a antes', { details: { id: lote.id, motivo: 'movimentacao_ativa', vinculo: 'movimentacoes_mapa' } });
   }
@@ -339,7 +344,8 @@ export const cancelarEntradaParaExclusao = async (tx, contexto, lote) => {
   await reprojetar(tx, auth.clienteId, posicoes.map((p) => p.id));
   for (const id of eventoIds) {
     const ev = partidas.find((p) => p.evento_id === id).evento;
-    if (ev.tipo === TIPOS_EVENTO.ENTRADA) {
+    // O evento da ativação cobre outros lotes: só as partidas deste saem; ele fica.
+    if (daEntradaDoLote(ev)) {
       await tx.eventoRebanho.update({ where: { cliente_id_id: { cliente_id: auth.clienteId, id } }, data: { situacao: 'cancelado', cancelado_em: new Date(), cancelado_por_usuario_id: auth.usuarioId, motivo_cancelamento: 'exclusão do lote no cadastro' } });
     }
   }
