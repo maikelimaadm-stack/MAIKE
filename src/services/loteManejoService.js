@@ -28,6 +28,7 @@ import {
   consultarElegibilidadeExclusaoMovimentacao,
   removerMovimentacaoExcluidaDosCaches,
   pendenciasOfflineDeMovimentacao,
+  eventoFilaOfflineMovimentacoes,
   registrarManejoRebanhoServidor,
   registrarJuncaoLotesServidor,
   registrarBaixaRebanhoServidor,
@@ -161,6 +162,7 @@ export const excluirMovimentacaoMapa = (id, corpo) => excluirMovimentacaoDefinit
 export const consultarExclusaoMovimentacao = (id) => consultarElegibilidadeExclusaoMovimentacao(id);
 export const removerMovimentacaoExcluidaDoCacheOffline = (id) => removerMovimentacaoExcluidaDosCaches(id);
 export const pendenciasOfflineDaMovimentacao = (id) => pendenciasOfflineDeMovimentacao(id);
+export const eventoMudancaFilaOffline = () => eventoFilaOfflineMovimentacoes();
 /**
  * Comandos atômicos do rebanho no servidor (só no ledger; empresa não migrada
  * recebe 409 REBANHO_CUTOVER_PENDENTE). O navegador não cria lote derivado.

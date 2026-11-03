@@ -16,6 +16,7 @@ const servico = vi.hoisted(() => ({
   consultarExclusaoMovimentacao: vi.fn(),
   removerMovimentacaoExcluidaDoCacheOffline: vi.fn(async () => 1),
   pendenciasOfflineDaMovimentacao: vi.fn(async () => []),
+  eventoMudancaFilaOffline: () => "offline-entity-queue-updated",
   listarTodasMovimentacoes: vi.fn(),
   atualizarLote: vi.fn(),
   criarMovimentacao: vi.fn(),
@@ -447,6 +448,53 @@ describe("PR180-R2 — fail-closed: fila offline e elegibilidade precisam de res
     await clicar(screen.getByRole("button", { name: "Tentar de novo" }));
     await waitFor(() => expect(servico.excluirMovimentacaoMapa).toHaveBeenCalledTimes(1));
     expect(servico.excluirMovimentacaoMapa.mock.calls[0][1]).toEqual({ operation_id: "excluir-original", motivo: "motivo original" });
+  });
+});
+
+describe("D-PROD-113 — bugs de UX reproduzidos (RED → GREEN)", () => {
+  const adiado = () => { let resolver; const promessa = new Promise((r) => { resolver = r; }); return { promessa, resolver }; };
+
+  it("UX-1: fila offline sincroniza com o histórico aberto → o card sai de 'Exclusão bloqueada' sem precisar remontar", async () => {
+    let pendentes = ["update"];
+    servico.pendenciasOfflineDaMovimentacao.mockImplementation(async () => pendentes);
+    await renderizar(<ExcluirMovimentacao movimento={TRANSF} />);
+    expect((await screen.findByRole("button", { name: "Exclusão bloqueada" })).hasAttribute("disabled")).toBe(true);
+    pendentes = [];
+    await act(async () => { window.dispatchEvent(new CustomEvent("offline-entity-queue-updated")); await new Promise((r) => setTimeout(r, 30)); });
+    expect((await screen.findByRole("button", { name: "Excluir movimentação" })).hasAttribute("disabled")).toBe(false);
+  });
+
+  it("UX-2: cards desmontados (sair da tela/fechar o histórico) não disparam as consultas que estavam na fila", async () => {
+    const pendentes = [];
+    servico.consultarExclusaoMovimentacao.mockClear();
+    servico.consultarExclusaoMovimentacao.mockImplementation(() => { const d = adiado(); pendentes.push(d); return d.promessa; });
+    const movs = Array.from({ length: 10 }, (_, i) => ({ ...TRANSF, id: `mv-u${i}` }));
+    const r = await renderizar(<div>{movs.map((m) => <ExcluirMovimentacao key={m.id} movimento={m} />)}</div>);
+    expect(servico.consultarExclusaoMovimentacao).toHaveBeenCalledTimes(2);
+    r.unmount();
+    await act(async () => { for (const d of pendentes.splice(0)) d.resolver(ELEGIVEL); await new Promise((res) => setTimeout(res, 50)); });
+    await act(async () => { for (const d of pendentes.splice(0)) d.resolver(ELEGIVEL); await new Promise((res) => setTimeout(res, 50)); });
+    expect(servico.consultarExclusaoMovimentacao).toHaveBeenCalledTimes(2);
+  });
+
+  it("UX-3: consulta que nunca responde não segura a vaga do limite para sempre (libera e falha fechado)", async () => {
+    const mod = await import("@/components/lotes/ExcluirMovimentacao");
+    vi.useFakeTimers();
+    try {
+      const pendurada = mod.comLimiteDeConsultas(() => new Promise(() => {}));
+      const pendurada2 = mod.comLimiteDeConsultas(() => new Promise(() => {}));
+      let terceira = null;
+      const p3 = mod.comLimiteDeConsultas(async () => { terceira = "rodou"; return "ok"; });
+      const falhas = [pendurada.catch((e) => e), pendurada2.catch((e) => e)];
+      await vi.advanceTimersByTimeAsync(mod.LIMITE_CONSULTA_MS + 10);
+      const [e1, e2] = await Promise.all(falhas);
+      expect(e1).toBeInstanceOf(Error);
+      expect(e2).toBeInstanceOf(Error);
+      expect(await p3).toBe("ok");
+      expect(terceira).toBe("rodou");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

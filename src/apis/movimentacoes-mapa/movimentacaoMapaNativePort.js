@@ -7,6 +7,7 @@ import {
   offlineStorageDisponivel,
   removerRegistroDosCachesOffline,
   pendenciasOfflineDoRegistro,
+  getOfflineSyncEventName,
 } from '@/lib/offline/offlineEntityRuntime';
 
 const RESOURCE = 'MovimentacaoMapa';
@@ -119,6 +120,8 @@ export const elegibilidadeExclusaoMovimentacaoMapaNativa = (id) =>
 export const removerMovimentacaoDosCachesOffline = (id) => removerRegistroDosCachesOffline(ENTIDADE_OFFLINE, id);
 /** Operações deste movimento ainda na fila offline (exclusão fica bloqueada enquanto houver). */
 export const pendenciasOfflineDaMovimentacao = (id) => pendenciasOfflineDoRegistro(ENTIDADE_OFFLINE, id);
+/** Nome do evento de janela emitido a cada mudança da fila offline (inclusive ao sincronizar). */
+export const eventoMudancaFilaOffline = () => getOfflineSyncEventName();
 
 export const elegibilidadeCancelamentoMovimentacaoMapaNativa = (id) =>
   nativeRequest(`${CAMINHO}/${encodeURIComponent(id)}/elegibilidade-cancelamento`, { autenticado: true }, ctx('elegibilidadeCancelamentoMovimentacaoMapa'));

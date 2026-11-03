@@ -15,6 +15,7 @@ export {
   consultarElegibilidadeExclusaoMovimentacao,
   removerMovimentacaoExcluidaDosCaches,
   pendenciasOfflineDeMovimentacao,
+  eventoFilaOfflineMovimentacoes,
   registrarManejoRebanhoServidor,
   registrarJuncaoLotesServidor,
   registrarBaixaRebanhoServidor,

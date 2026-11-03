@@ -16,6 +16,7 @@ import {
   consultarExclusaoMovimentacao,
   removerMovimentacaoExcluidaDoCacheOffline,
   pendenciasOfflineDaMovimentacao,
+  eventoMudancaFilaOffline,
 } from "@/services/loteManejoService";
 import { refreshMapaCacheEntry, updateMapaCachedData } from "@/services/mapaCacheService";
 import { tipoTemExclusao } from "@/domain/lotes/situacaoMovimento";
@@ -181,21 +182,53 @@ const limparCaches = async (queryClient, movimento) => {
  */
 export const MAX_CONSULTAS_SIMULTANEAS = 2;
 export const ELEGIBILIDADE_STALE_MS = 30_000;
+/**
+ * D-PROD-113 (UX-3): teto de cada consulta DENTRO do limite. Uma resposta que
+ * nunca chega (corpo travado depois dos cabeçalhos, por exemplo) não pode
+ * segurar uma das 2 vagas para sempre: a vaga é liberada e a consulta falha
+ * fechada ("Não foi possível verificar", com "Verificar de novo").
+ */
+export const LIMITE_CONSULTA_MS = 30_000;
 const fila = { ativos: 0, espera: [] };
 const liberar = () => {
   fila.ativos -= 1;
   const proximo = fila.espera.shift();
   if (proximo) proximo();
 };
-/** Executa `fn` respeitando o limite global de consultas simultâneas. */
-export const comLimiteDeConsultas = (fn) =>
+const erroCancelada = () => Object.assign(new Error("consulta cancelada"), { name: "AbortError" });
+/**
+ * Executa `fn` respeitando o limite global de consultas simultâneas.
+ * D-PROD-113 (UX-2): com `signal` abortado (card desmontado / histórico
+ * fechado), a consulta que ainda esperava vaga NÃO é disparada.
+ * @param {() => Promise<any>} fn
+ * @param {AbortSignal} [signal]
+ */
+export const comLimiteDeConsultas = (fn, signal) =>
   new Promise((resolve, reject) => {
     const rodar = () => {
+      if (signal?.aborted) {
+        reject(erroCancelada());
+        // A vaga não chegou a ser ocupada: passa para o próximo da fila.
+        const proximo = fila.espera.shift();
+        if (proximo) proximo();
+        return;
+      }
       fila.ativos += 1;
+      let liberada = false;
+      const soltar = () => {
+        if (liberada) return;
+        liberada = true;
+        clearTimeout(teto);
+        liberar();
+      };
+      const teto = setTimeout(() => {
+        reject(new Error("tempo esgotado na conferência da exclusão"));
+        soltar();
+      }, LIMITE_CONSULTA_MS);
       Promise.resolve()
         .then(fn)
         .then(resolve, reject)
-        .finally(liberar);
+        .finally(soltar);
     };
     if (fila.ativos < MAX_CONSULTAS_SIMULTANEAS) rodar();
     else fila.espera.push(rodar);
@@ -266,7 +299,8 @@ export default function ExcluirMovimentacao({ movimento, onExcluido }) {
   // Escopo da resposta: usuário + tenant + empresa + movimento (nunca reaproveita outro escopo).
   const elegibilidade = useQuery({
     queryKey: ["elegibilidade-exclusao-movimentacao", usuario?.cliente_id ?? null, usuario?.id ?? null, movimento?.empresa_id ?? null, movimento?.id],
-    queryFn: () => comLimiteDeConsultas(() => consultarExclusaoMovimentacao(movimento.id)),
+    // O `signal` do React Query cancela a consulta ainda na fila quando o card some (UX-2).
+    queryFn: ({ signal }) => comLimiteDeConsultas(() => consultarExclusaoMovimentacao(movimento.id), signal),
     enabled: suportado && admin && !!usuario && online && (visivel || aberto),
     staleTime: ELEGIBILIDADE_STALE_MS,
     // Reabrir o histórico confere de novo (um manejo feito com ele fechado não deixa verde velho).
@@ -286,6 +320,18 @@ export default function ExcluirMovimentacao({ movimento, onExcluido }) {
     staleTime: ELEGIBILIDADE_STALE_MS,
     retry: false,
   });
+
+  // D-PROD-113 (UX-1): a fila offline mudou (enfileirou, sincronizou, descartou) →
+  // relê as pendências deste registro. Sem isso, um card bloqueado por pendência
+  // ficava bloqueado depois da sincronização até remontar.
+  const chavePendencias = pendencias.refetch;
+  React.useEffect(() => {
+    if (!suportado || !admin) return undefined;
+    const nome = eventoMudancaFilaOffline();
+    const reler = () => { chavePendencias(); };
+    window.addEventListener(nome, reler);
+    return () => window.removeEventListener(nome, reler);
+  }, [suportado, admin, chavePendencias]);
 
   if (!suportado) return null;
   // Só o administrador ativo vê a ação (o servidor reautoriza no POST).

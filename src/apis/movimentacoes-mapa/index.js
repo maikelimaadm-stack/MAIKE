@@ -11,6 +11,7 @@ export {
   elegibilidadeExclusaoMovimentacaoMapa,
   removerMovimentacaoDosCachesOffline,
   pendenciasOfflineDaMovimentacao,
+  eventoMudancaFilaOffline,
   executarManejoRebanho,
   executarJuncaoLotes,
   executarBaixaRebanho,

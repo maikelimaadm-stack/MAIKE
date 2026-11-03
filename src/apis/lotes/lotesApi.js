@@ -20,6 +20,7 @@ import {
   elegibilidadeExclusaoMovimentacaoMapa,
   removerMovimentacaoDosCachesOffline,
   pendenciasOfflineDaMovimentacao,
+  eventoMudancaFilaOffline,
   executarManejoRebanho,
   executarJuncaoLotes,
   executarBaixaRebanho,
@@ -203,6 +204,8 @@ export const consultarElegibilidadeExclusaoMovimentacao = async (id) => {
 export const removerMovimentacaoExcluidaDosCaches = (id) => removerMovimentacaoDosCachesOffline(id);
 /** Operações deste movimento na fila offline do tenant (bloqueiam a exclusão). */
 export const pendenciasOfflineDeMovimentacao = (id) => pendenciasOfflineDaMovimentacao(id);
+/** Evento de janela disparado quando a fila offline muda (enfileira, sincroniza, descarta). */
+export const eventoFilaOfflineMovimentacoes = () => eventoMudancaFilaOffline();
 
 export const consultarElegibilidadeCancelamento = async (id) => {
   const contexto = ctx('consultarElegibilidadeCancelamento');
