@@ -1,0 +1,20 @@
+D-PROD-110 / PR178-R2 — smoke visual em Chromium real (Playwright), 2026-11-03.
+Ambiente: backend Fastify local (127.0.0.1:3334) + Vite local (127.0.0.1:5180) + PostgreSQL 16 LOCAL (banco maike_e2e_r2).
+Dados 100% sintéticos (tenant criado localmente). Nenhum acesso ao Preview, à produção ou ao Supabase.
+Viewports: 1440x900 (duas rodadas), 390x844 e 412x915 (isMobile + touch).
+Resultado: 52/52 PASS (13 verificações por rodada), em 4 rodadas.
+Por rodada:
+- B6 pela UI: 10 em A, transferência de 3 para B, EXCLUIR → API A=10, B=0, cadastro 10, item fora do histórico.
+- O histórico mostra "Excluir movimentação" e não mostra "Cancelar".
+- O diálogo informa "definitiva" e o efeito por posição (+3 fica 10 / -3 fica 0 / posição deixa de existir).
+- Confirmar fica desabilitado sem a caixa marcada. Sem rolagem horizontal.
+- O corpo enviado contém só {operation_id, motivo}.
+- Recarregar a página não faz o item reaparecer.
+- Offline: o histórico em cache é só leitura e não oferece a ação.
+- Zero DELETE/PATCH de movimento. Zero erros de página.
+Arquivos:
+- *-01-historico.png
+- *-02-dialogo-confirmacao.png
+- *-03-apos-exclusao-reload.png
+- *-04-offline.png
+- roteiro-e2e-local.cjs.txt (credenciais passadas por argumento, não gravadas)

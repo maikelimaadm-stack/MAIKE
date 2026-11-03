@@ -24,7 +24,12 @@ Cada efeito traz, por posição: `nome`, `area_nome`, `delta_desfeito`, `quantid
 5. Recusa com `EXCLUSAO_REFERENCIA_DOCUMENTAL` se algum documento, mesmo cancelado, cita o movimento.
 6. Apaga, nesta ordem: `PesoRebanho` → `PartidaRebanho` → `EventoRebanho` → `MovimentacaoMapa`. Não há cascata.
 7. Remove a posição sem nenhum uso restante e reprojeta as demais.
-8. Marca a operação original como `status = 'excluido'`. Um replay dela recebe 409 `IDEMPOTENCY_EFEITO_EXCLUIDO`.
+8. Marca **exatamente um** recibo de origem como `status = 'excluido'`, conferindo que a contagem é 1. Um replay dele recebe 409 `IDEMPOTENCY_EFEITO_EXCLUIDO`.
+   O recibo de origem (PR178-R2) é o único `committed` do tenant que:
+   - tem a chave do evento;
+   - é de um dos tipos de comando do ledger;
+   - tem resposta guardada que cita este evento e este movimento.
+   Zero ou dois recibos assim → 409 `CANCELAMENTO_EFEITO_NAO_COMPROVADO`. Um homônimo de outro tipo não é tocado.
 9. Grava `AuditLog` com `exclusao_definitiva` e um `delete` por posição removida.
 
 Qualquer falha desfaz tudo. Isso está provado com falhas injetadas em `exclusao_apos_reversao` e em `exclusao_apos_delete`.
@@ -102,8 +107,19 @@ Também foram ajustados `historicoMovimentacoes`, `r2eLedgerRebanho` e `detalhes
 
 **Gate:** `gate:rebanho-ssot` ganhou a regra `P110-EXCLUSAO-UNICA`.
 
+## PR178-R2 — fechamento
+
+- **Brecha corrigida.** O código antigo marcava `excluido` por `(cliente, operation_key)` sem o tipo, e o cancelamento usava `findFirst` sem o tipo. Agora existe `reciboDeOrigemDoFato` (em `rebanhoLedgerService.js`), usado pelo cancelamento e pela exclusão.
+- **Testes de colisão de chave.** Na versão antiga 3 de 4 testes novos falhavam (o 4º, de elegibilidade repetida, passava). Prova da falha: o recibo `cancelamento_movimentacao_mapa` homônimo virava `excluido`. Agora:
+  - 27/27 em `exclusaoMovimentacaoLedger`;
+  - 62/62 junto com as suítes R1, R5 e R6;
+  - 80/80 nas demais suítes que usam cancelamento.
+- **Smoke visual real** (Chromium, backend e PostgreSQL locais isolados, dados sintéticos): 52/52 PASS em 1440 (duas rodadas), 390 e 412. Evidências em `evidencias/d-prod-110/visual/`.
+- **Preview:** isolamento NÃO COMPROVADO. As variáveis de banco têm alvo `production` e `preview`, e a API da Vercel recusou listar o escopo nesta sessão (403). Por isso `PREVIEW_WRITE_TEST_BLOCKED = SIM`: nenhum login com escrita no Preview.
+- **Risco residual:** o endpoint antigo `POST /cancelamento` continua disponível para clientes antigos. Ele produz movimentos `cancelado`, que a exclusão não apaga.
+
 ## Riscos e limites
 
-- Não houve smoke visual em um navegador real, nem em desktop nem no celular. A verificação foi feita com jsdom. A conferência visual fica no Vercel Preview desta PR.
+- O teste visual em navegador real foi feito localmente (ver acima). O Preview não foi usado para escrita.
 - A busca por citações à posição removida usa `strpos` sobre o JSON dentro do tenant. É uma busca conservadora: na dúvida, a posição fica.
 - **Release bloqueado:** sem backup restaurável comprovado e sem autorização de deploy do proprietário, o uso real não está liberado.

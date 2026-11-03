@@ -4523,6 +4523,12 @@ Testes KML-N1..N5 em `tests/smoke/importacaoAreasParser.test.js`.
 - **Posições:** a posição que só existia por esse fato também sai, desde que nenhuma partida, peso, tarefa, linhagem, outro movimento, outro evento ou documento dos módulos vinculados a cite por id. Na dúvida, ela fica, zerada e coerente.
 - **Travas:** mesma ordem do cancelamento (movimento `FOR UPDATE` → áreas → posições). Assim cancelar × excluir e duas exclusões se serializam sem deadlock. A segunda recebe 409 `EXCLUSAO_JA_REALIZADA`, ou 409 `EXCLUSAO_MOVIMENTO_CANCELADO` se o cancelamento venceu.
 - **Idempotência:**
+  - recibo de origem EXATO (PR178-R2): a chave única de `OperacaoIdempotente` é (cliente, `operation_key`, `tipo_operacao`), então a mesma chave pode existir em tipos diferentes. O recibo de origem é o **único** `committed` do tenant que:
+    - tem a chave do evento;
+    - é de um dos cinco comandos que gravam fatos do ledger (`TIPOS_OPERACAO_ORIGEM_LEDGER`);
+    - tem resposta guardada que cita **este** evento e **este** movimento.
+  - zero ou mais de um recibo assim → 409 `CANCELAMENTO_EFEITO_NAO_COMPROVADO`, nada alterado. Vale também para o cancelamento antigo, que antes usava `findFirst` sem o tipo;
+  - a exclusão marca exatamente essa linha (contagem conferida = 1). Um homônimo de outro tipo continua `committed` e com replay;
   - o recibo da operação **original** não é apagado: vira `status = 'excluido'`. Um replay (fila antiga, timeout, dupla confirmação) recebe 409 `IDEMPOTENCY_EFEITO_EXCLUIDO`, nunca recria o fato nem devolve um corpo que cita registros apagados;
   - a exclusão tem o próprio recibo: retry com a mesma chave recebe a mesma resposta (`replay: true`), sem segundo estorno.
   - Não há migration: `status` já é texto livre (VarChar 32).
@@ -4545,6 +4551,10 @@ Testes KML-N1..N5 em `tests/smoke/importacaoAreasParser.test.js`.
   - apagar `EventoRebanho` só é possível no motor único;
   - o motor reverte pelo cancelamento certificado antes de apagar e não usa cascata;
   - o serviço exige admin, idempotência e trava.
+
+**Compatibilidade (risco residual):** `POST /movimentacoes-mapa/:id/cancelamento` continua no backend para clientes antigos. Ele ainda pode gerar movimentos marcados `cancelado`, que a exclusão não apaga (`EXCLUSAO_MOVIMENTO_CANCELADO`). Um cancelamento de cliente antigo e uma exclusão nova são resultados distintos no banco e na auditoria. A interface atual não chama mais o cancelamento.
+
+**Preview:** as variáveis de banco da Vercel têm alvo `production` e `preview`, e o isolamento do Preview não foi comprovado. Por isso nenhum teste com escrita é feito no Preview (`PREVIEW_WRITE_TEST_BLOCKED`). O E2E funcional e visual roda em PostgreSQL local isolado.
 
 **Release:** CODE_READY não libera produção. O uso real continua bloqueado até haver backup restaurável comprovado e autorização de deploy do proprietário.
 

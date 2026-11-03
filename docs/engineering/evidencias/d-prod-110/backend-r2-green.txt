@@ -1,0 +1,65 @@
+    ok 1 - B6: 10 em A → transferência de 3 para B → EXCLUIR → A=10, B=0, cadastro 10, some do histórico; posição B (só dela) removida; auditoria mantida
+    ok 2 - transferência TOTAL para área nova e de volta para posição pré-existente: excluir a volta restaura sem remover a posição de origem
+    ok 1 - morte posterior na posição criada → 409 CANCELAMENTO_SALDO_HISTORICO_NEGATIVO; elegibilidade igual; 0 escrita
+    ok 2 - pesagem posterior na posição criada → 409 REBANHO_DEPENDENCIA_FATO_SEM_SALDO; tarefa ligada à posição → 409 REBANHO_CANCELAMENTO_VINCULO_POSTERIOR
+    ok 3 - documento de outro módulo que cita o movimento (mesmo CANCELADO) bloqueia: EXCLUSAO_REFERENCIA_DOCUMENTAL / vínculo posterior
+    ok 1 - T1 (3 A→B) e depois T2 (2 A→C) + pesagem em A: excluir T1 passa; A=8, C=2, B some
+    ok 1 - cancelar e excluir ao mesmo tempo: exatamente um vence; estado coerente
+    ok 2 - duas exclusões simultâneas (chaves diferentes): uma 200, a outra 409 EXCLUSAO_JA_REALIZADA; um único estorno
+    ok 3 - retry com a MESMA operation_id (resposta perdida) → replay idêntico, sem segundo estorno; mesma chave com outro motivo → 409 IDEMPOTENCY_CONFLICT
+    ok 1 - falha em exclusao_apos_reversao → 500 e nada muda (movimento, evento, partidas, pesos, posições, auditoria, operações)
+    ok 2 - falha em exclusao_apos_delete → 500 e nada muda (movimento, evento, partidas, pesos, posições, auditoria, operações)
+    ok 1 - reenvio exato da transferência original (fila antiga/timeout) → 409 IDEMPOTENCY_EFEITO_EXCLUIDO; nada recriado
+    ok 1 - comum 403; tenant B 404 (comando e elegibilidade); sem token 401; delta/saldo/cliente_id no corpo 400; admin revogado 403
+    ok 1 - evento adulterado/forjado → CANCELAMENTO_EFEITO_NAO_COMPROVADO; operação de origem não confirmada → idem
+    ok 2 - movimento legado (sem evento do ledger) → EXCLUSAO_MOVIMENTO_LEGADO; já cancelado → EXCLUSAO_MOVIMENTO_CANCELADO (sem limpeza retroativa)
+    ok 1 - Morte
+    ok 2 - Abate
+    ok 3 - Morte (manejo-lote)
+    ok 4 - Nascimento
+    ok 5 - Pesagem
+    ok 6 - Mudança de Categoria
+    ok 7 - Junção
+    ok 8 - Transferência parcial retroativa
+    ok 1 - constantes: os tipos de origem do ledger são exatamente os dos comandos
+    ok 2 - mesma operation_key em DOIS tipos (o homônimo gravado ANTES): excluir marca só o recibo de origem; o outro segue committed e com replay
+    ok 3 - proveniência ausente (recibo não cita o evento/movimento) ou ambígua (dois recibos citam) → 409, zero escrita
+    ok 4 - elegibilidade repetida (elegível e recusada) não persiste nada: recibos, auditoria, posições, eventos
+    ok 1 - M1: morte em duas categorias numa confirmação → 1 evento, posições baixadas, Lote intacto; cancelar restaura; conservação
+    ok 2 - M2: abate retroativo cabe na linha do tempo; retroativo que quebra a transferência futura → 409 com data; acima do saldo → 409; nada gravado
+    ok 3 - M3: falha injetada após 1ª partida, após validar e antes da auditoria → ZERO mudança (inclusive reserva idempotente)
+    ok 4 - M4: R2A manejo-lote (Morte de UMA posição) e replay da mesma chave; id de CADASTRO não é posição (404)
+    ok 1 - N1: nascimento = cabeças NOVAS (origem nascimento, sem cadastro/compra); crias transferidas → cancelar nascimento bloqueia; mãe inválida → 409
+    ok 2 - P1: pesagem — série histórica: retroativa não sobrescreve a medição posterior; saldo/peso em data; cancelar recompõe; desconhecido continua null
+    ok 3 - C1: mudança de categoria parcial/total na mesma linhagem, sem novo Lote; sexo incompatível → 409; cancelar restaura
+    ok 1 - J1: 3 entradas (uma sem peso) → principal com tudo, origens 0, composição de linhagens, peso desconhecido; Lote intacto; histórico por origem; cancelar desfaz composição
+    ok 2 - J2: 5 origens com peso conhecido → média ponderada; 20 origens → aceita; classificação divergente → 409
+    ok 1 - T1: posição/área de outro tenant em baixa, pesagem, junção e nascimento → 404 sem gravar
+    ok 2 - K1.1: morte × transferência da mesma posição; junção × transferência; cancelar × morte → conservação, sem 500, sem deadlock
+    ok 3 - K1.2: morte × transferência da mesma posição; junção × transferência; cancelar × morte → conservação, sem 500, sem deadlock
+    ok 4 - K1.3: morte × transferência da mesma posição; junção × transferência; cancelar × morte → conservação, sem 500, sem deadlock
+    ok 1 - CL1: DELETE e PATCH diretos do movimento do ledger → 409 MOVIMENTO_CANCELAMENTO_OBRIGATORIO; nada muda; outro tenant → 404
+    ok 2 - CL2: autorização — comum 403, outro tenant 404 (cancelamento e elegibilidade), sem token 401, cliente_id no corpo 400, admin revogado 403 — nada muda
+    ok 3 - CL3: proveniência do ledger copiada para outro movimento (forja direta no banco) não cancela nada: o evento aponta para o original
+    ok 4 - CL4: duas mortes iguais — cada cancelamento desfaz só o próprio fato (500 → 400 → 450 → 500); repetir → CANCELAMENTO_JA_REALIZADO
+    ok 1 - CL5: dois cancelamentos simultâneos com chaves diferentes (3 rodadas) → um 200, outro 409; cabeças devolvidas uma vez só (500, não 550)
+    ok 2 - CL6: mesma chave em paralelo (3 rodadas) → um efeito, o outro replay ou em processamento; nunca crédito duplicado
+    ok 3 - CL7: falha forçada no fim do cancelamento → rollback completo (partidas, evento, posição, reserva); retry da mesma chave conclui; reenvio depois do COMMIT devolve o mesmo resultado
+    ok 4 - CL8: tenants isolados com o mesmo nome de entrada — cancelar em A não toca B
+    ok 5 - CL9: identificação nunca é sobrescrita — junção (com origem identificada) e o cancelamento dela não tocam identificador do cadastro nem da posição principal
+    ok 1 - A1: falha DENTRO da ativação depois do reset → ROLLBACK total (0 exclusões, Lotes idênticos, sem ativação); o backup é a cópia do pré-estado
+    ok 2 - A2: sucesso → reset + ativação num COMMIT; acesso/senhas/permissões/empresa/áreas preservados; outro tenant e outra empresa intocados; reexecução = no-op sem backup
+    ok 3 - A3: backup falha ou não confere → aborta ANTES do DELETE; nada muda
+    ok 4 - A4: vínculo de outro módulo citando o movimento a apagar → RESET_VINCULOS_PENDENTES, nada muda (nem ativação)
+    ok 5 - A5: escopo/confirmação/administrador/estratégia validados antes de qualquer escrita
+    ok 6 - A6: disputa REAL (duas conexões): cadastro de lote e PATCH concorrentes esperam o corte; depois, o lote novo tem posição e o PATCH de saldo é recusado — sem drift
+    ok 7 - A7: manifesto detecta backup adulterado
+    ok 1 - D1: documento de outro módulo cita (por id) a posição CRIADA pela transferência → 409 com tipo/id; saldo intacto; elegibilidade igual; removido o documento, cancela
+    ok 2 - D2: documento que cita o PRÓPRIO movimento bloqueia; documento sem vínculo real (posição que já existia, outro id) NÃO bloqueia
+    ok 3 - D3: fato posterior do ledger na posição criada (pesagem/morte) bloqueia; cancelar o posterior e depois o anterior → sucesso; cadastro de entrada imutável
+    ok 1 - R7A1: banco SEM schema R2E → inventário lista o que falta, diagnóstico/cutover recusam CUTOVER_SCHEMA_PENDENTE sem escrever; CLI --inventario funciona e o diagnóstico sai 3
+    ok 2 - R7A2: banco COM schema R2E → inventário pronto e diagnóstico real da empresa
+    ok 3 - R7D1: backup operacional não contém credenciais (senha_hash, login, URL)
+# tests 62
+# pass 62
+# fail 0

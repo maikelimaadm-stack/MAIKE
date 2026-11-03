@@ -583,6 +583,42 @@ export const vinculosCausaisDoMovimento = async (tx, clienteId, evento, moviment
   return bloqueadores;
 };
 
+/**
+ * PR178-R2 (D-PROD-110) — recibo idempotente EXATO que gerou o fato.
+ *
+ * A chave única de `OperacaoIdempotente` é (cliente, operation_key,
+ * tipo_operacao): a mesma chave pode existir em tipos diferentes. O recibo de
+ * origem é o único `committed` do tenant com a chave do evento, de um dos
+ * comandos que gravam fatos do ledger no mapa, cuja resposta guardada cita
+ * ESTE evento e ESTE movimento. Zero ou mais de um → não comprovado (409),
+ * nada é alterado. Nunca `findFirst` arbitrário.
+ *
+ * Literais (não importados) para não criar ciclo com os comandos; o teste
+ * `exclusaoMovimentacaoLedger` confere que batem com as constantes deles.
+ */
+export const TIPOS_OPERACAO_ORIGEM_LEDGER = Object.freeze([
+  'rebanho_ledger_transferencia',
+  'manejo_mapa_lote',
+  'manejo_mapa_rebanho',
+  'manejo_mapa_juncao_lotes',
+  'manejo_mapa_baixa_rebanho',
+]);
+export const reciboDeOrigemDoFato = async (tx, clienteId, evento, movimentacaoId) => {
+  const recibos = /** @type {Array<{id: string, tipo_operacao: string}>} */ (await tx.$queryRaw`
+    SELECT o.id, o.tipo_operacao FROM "OperacaoIdempotente" o
+     WHERE o.cliente_id = ${clienteId} AND o.operation_key = ${evento.operation_id} AND o.status = 'committed'
+       AND o.tipo_operacao = ANY(${[...TIPOS_OPERACAO_ORIGEM_LEDGER]}::text[])
+       AND o.response_json->'evento'->>'id' = ${evento.id}
+       AND o.response_json->'movimentacao'->>'id' = ${movimentacaoId}
+     LIMIT 2`);
+  if (recibos.length !== 1) {
+    throw recusa('CANCELAMENTO_EFEITO_NAO_COMPROVADO', recibos.length
+      ? 'há mais de um recibo confirmado para este fato; a origem é ambígua (nada foi alterado)'
+      : 'a operação que gerou o evento não foi confirmada (nada foi alterado)');
+  }
+  return recibos[0];
+};
+
 export const cancelarMovimentoDoLedger = async (tx, contexto, mov, motivo, operationKey) => {
   const auth = exigirAuthContext(contexto?.auth);
   const eventoId = mov.dados.efeito_servidor.evento_id;
@@ -590,8 +626,7 @@ export const cancelarMovimentoDoLedger = async (tx, contexto, mov, motivo, opera
   if (!evento || evento.movimentacao_id !== mov.id || evento.empresa_id !== mov.empresa_id || !TIPOS_CANCELAVEIS.includes(evento.tipo)) {
     throw recusa('CANCELAMENTO_EFEITO_NAO_COMPROVADO', 'o evento do ledger não confere com este movimento');
   }
-  const operacao = await tx.operacaoIdempotente.findFirst({ where: { cliente_id: auth.clienteId, operation_key: evento.operation_id, status: 'committed' } });
-  if (!operacao) throw recusa('CANCELAMENTO_EFEITO_NAO_COMPROVADO', 'a operação que gerou o evento não foi confirmada');
+  await reciboDeOrigemDoFato(tx, auth.clienteId, evento, mov.id);
   if (evento.situacao === 'cancelado') throw recusa('CANCELAMENTO_JA_REALIZADO', 'a movimentação já está cancelada');
   const vinculados = await vinculosCausaisDoMovimento(tx, auth.clienteId, evento, mov.id);
   if (vinculados.length) {

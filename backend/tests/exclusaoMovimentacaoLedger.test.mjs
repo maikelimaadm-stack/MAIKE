@@ -456,3 +456,70 @@ describe('EX-T — cada manejo: excluir devolve a projeção exata de antes; Lot
     });
   }
 });
+
+// ═══ PR178-R2 — recibo idempotente EXATO (mesma chave, tipos diferentes) ═══
+
+describe('EX-R2 — recibo de origem exato por (cliente, chave, tipo)', () => {
+  const morteCom = (c, operation_id) =>
+    req('POST', '/movimentacoes-mapa/comandos/manejo-lote', c.tok, { operation_id, tipo: 'Morte', empresa_id: c.empresa.id, lote_id: c.posA.id, quantidade_animais: 1, data_movimentacao: '2026-10-05' });
+  const recibos = async (c, chave) => (await prisma().operacaoIdempotente.findMany({ where: { cliente_id: c.cliente.id, operation_key: chave }, orderBy: { createdAt: 'asc' } })).map((o) => [o.tipo_operacao, o.status]);
+
+  test('constantes: os tipos de origem do ledger são exatamente os dos comandos', async () => {
+    const { TIPOS_OPERACAO_ORIGEM_LEDGER, TIPO_OPERACAO_TRANSFERENCIA } = await import('../src/modules/rebanhoLedger/rebanhoLedgerService.js');
+    const { TIPO_OPERACAO_MANEJO } = await import('../src/modules/movimentacoesMapa/manejoMapaComandoService.js');
+    const { TIPO_OPERACAO_REBANHO } = await import('../src/modules/movimentacoesMapa/manejoRebanhoComandoService.js');
+    const { TIPO_OPERACAO_JUNCAO } = await import('../src/modules/movimentacoesMapa/juncaoConstantes.js');
+    const { TIPO_OPERACAO_BAIXA } = await import('../src/modules/movimentacoesMapa/baixaConstantes.js');
+    assert.deepEqual([...TIPOS_OPERACAO_ORIGEM_LEDGER].sort(), [TIPO_OPERACAO_TRANSFERENCIA, TIPO_OPERACAO_MANEJO, TIPO_OPERACAO_REBANHO, TIPO_OPERACAO_JUNCAO, TIPO_OPERACAO_BAIXA].sort());
+  });
+
+  test('mesma operation_key em DOIS tipos (o homônimo gravado ANTES): excluir marca só o recibo de origem; o outro segue committed e com replay', async () => {
+    const c = await cenario();
+    const K = opId();
+    // 1º: um cancelamento real com a chave K (recibo cancelamento_movimentacao_mapa, gravado primeiro).
+    const m = (await ok(morteCom(c, opId()))).movimentacao;
+    const corpoCancel = { operation_id: K, motivo: 'chave homônima' };
+    await ok(req('POST', `/movimentacoes-mapa/${m.id}/cancelamento`, c.tok, corpoCancel), 200);
+    // 2º: a transferência com a MESMA chave K (recibo manejo_mapa_lote).
+    const corpoT = { operation_id: K, tipo: 'Transferência de Área', empresa_id: c.empresa.id, lote_id: c.posA.id, quantidade_animais: 3, area_destino_id: c.B.id, data_movimentacao: '2026-10-10' };
+    const t = (await ok(req('POST', '/movimentacoes-mapa/comandos/manejo-lote', c.tok, corpoT))).movimentacao;
+    assert.deepEqual(await recibos(c, K), [['cancelamento_movimentacao_mapa', 'committed'], ['manejo_mapa_lote', 'committed']]);
+
+    await ok(excluir(c, t.id), 200);
+    assert.deepEqual(await recibos(c, K), [['cancelamento_movimentacao_mapa', 'committed'], ['manejo_mapa_lote', 'excluido']], 'só o recibo de origem muda');
+    const replayCancel = await ok(req('POST', `/movimentacoes-mapa/${m.id}/cancelamento`, c.tok, corpoCancel), 200);
+    assert.equal(replayCancel.replay, true, 'o homônimo de outro tipo continua com replay');
+    await exigirNadaMuda(c, () => req('POST', '/movimentacoes-mapa/comandos/manejo-lote', c.tok, corpoT), 409, 'IDEMPOTENCY_EFEITO_EXCLUIDO');
+    assert.deepEqual([await saldo(c, c.lote, c.A), await saldo(c, c.lote, c.B)], [10, 0]);
+    await verificar(c);
+  });
+
+  test('proveniência ausente (recibo não cita o evento/movimento) ou ambígua (dois recibos citam) → 409, zero escrita', async () => {
+    const c = await cenario();
+    const t = (await ok(transferencia(c, c.posA, 3, c.B))).movimentacao;
+    const ev = await prisma().eventoRebanho.findUnique({ where: { id: await eventoDe(t.id) } });
+    const original = await prisma().operacaoIdempotente.findFirst({ where: { cliente_id: c.cliente.id, operation_key: ev.operation_id, tipo_operacao: 'manejo_mapa_lote' } });
+    // Ambígua: um segundo recibo committed, de outro tipo de origem, citando o mesmo fato.
+    const forjado = await prisma().operacaoIdempotente.create({ data: { cliente_id: c.cliente.id, operation_key: ev.operation_id, tipo_operacao: 'manejo_mapa_rebanho', fingerprint: 'x', status: 'committed', http_status: 201, response_json: original.response_json } });
+    await exigirNadaMuda(c, () => excluir(c, t.id), 409, 'CANCELAMENTO_EFEITO_NAO_COMPROVADO');
+    assert.equal((await elegibilidade(c, t.id)).codigo, 'CANCELAMENTO_EFEITO_NAO_COMPROVADO');
+    await prisma().operacaoIdempotente.delete({ where: { id: forjado.id } });
+    // Ausente: o único recibo não cita este evento.
+    await prisma().operacaoIdempotente.update({ where: { id: original.id }, data: { response_json: { ...original.response_json, evento: { id: 'outro-evento' } } } });
+    await exigirNadaMuda(c, () => excluir(c, t.id), 409, 'CANCELAMENTO_EFEITO_NAO_COMPROVADO');
+    await prisma().operacaoIdempotente.update({ where: { id: original.id }, data: { response_json: original.response_json } });
+    await ok(excluir(c, t.id), 200);
+  });
+
+  test('elegibilidade repetida (elegível e recusada) não persiste nada: recibos, auditoria, posições, eventos', async () => {
+    const c = await cenario();
+    const t = (await ok(transferencia(c, c.posA, 3, c.B))).movimentacao;
+    const antes = await foto(c);
+    for (let i = 0; i < 3; i += 1) assert.equal((await elegibilidade(c, t.id)).elegivel, true);
+    assert.deepEqual(await foto(c), antes);
+    await ok(manejoLote(c, { tipo: 'Morte', lote_id: (await posDe(c, c.lote, c.B)).id, quantidade_animais: 1, data_movimentacao: '2026-10-12' }));
+    const antes2 = await foto(c);
+    for (let i = 0; i < 3; i += 1) assert.equal((await elegibilidade(c, t.id)).elegivel, false);
+    assert.deepEqual(await foto(c), antes2);
+  });
+});

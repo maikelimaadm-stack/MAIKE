@@ -23,7 +23,7 @@ import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { STATUS_EXCLUIDO } from '../../shared/idempotency/operacaoIdempotenteService.js';
 import { registrarEvento } from '../auditoria/auditService.js';
 import { comoPosicaoPublica, diaDoBanco, ponto, recusa, reprojetar } from './rebanhoLedgerNucleo.js';
-import { FONTES_JSON_CAUSAIS, cancelarMovimentoDoLedger } from './rebanhoLedgerService.js';
+import { FONTES_JSON_CAUSAIS, cancelarMovimentoDoLedger, reciboDeOrigemDoFato } from './rebanhoLedgerService.js';
 
 /**
  * Documentos de outros módulos que citam o PRÓPRIO movimento por id, em
@@ -84,6 +84,7 @@ export const excluirMovimentoDoLedger = async (tx, contexto, mov, motivo, operat
   ponto('exclusao_apos_reversao');
   const evento = await tx.eventoRebanho.findUnique({ where: { cliente_id_id: { cliente_id: clienteId, id: String(mov.dados.efeito_servidor.evento_id) } } });
   if (!evento || evento.movimentacao_id !== mov.id) throw recusa('CANCELAMENTO_EFEITO_NAO_COMPROVADO', 'o evento do ledger não confere com este movimento');
+  const recibo = await reciboDeOrigemDoFato(tx, clienteId, evento, mov.id);
 
   // 2. Nenhum documento (nem cancelado) pode ficar citando um movimento apagado.
   const referencias = await referenciasDocumentais(tx, clienteId, empresaId, mov.id);
@@ -133,7 +134,12 @@ export const excluirMovimentoDoLedger = async (tx, contexto, mov, motivo, operat
   });
 
   // 5. O recibo da operação original vira marcador estável (nunca replay/recriação).
-  await tx.operacaoIdempotente.updateMany({ where: { cliente_id: clienteId, operation_key: evento.operation_id, status: 'committed' }, data: { status: STATUS_EXCLUIDO } });
+  // Exatamente UM recibo: o do tipo que gerou este fato (chave homônima de outro tipo fica intacta).
+  const { count } = await tx.operacaoIdempotente.updateMany({
+    where: { id: recibo.id, cliente_id: clienteId, operation_key: evento.operation_id, tipo_operacao: recibo.tipo_operacao, status: 'committed' },
+    data: { status: STATUS_EXCLUIDO },
+  });
+  if (count !== 1) throw recusa('CANCELAMENTO_EFEITO_NAO_COMPROVADO', 'o recibo da operação de origem mudou durante a exclusão (nada foi alterado)');
 
   // 6. Auditoria administrativa mínima (não é histórico operacional).
   await registrarEvento(contexto, {
