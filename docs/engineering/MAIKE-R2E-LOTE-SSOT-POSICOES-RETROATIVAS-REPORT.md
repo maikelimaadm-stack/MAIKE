@@ -396,7 +396,11 @@ Em todas: Cadastro (`Lote`) intacto, `verificacao.integro` e conservação, sem 
 - **Ledger completo** (R3 15 + R2 15 + P1 + R1 + manejos + reset): **71/71**.
 - **E2E Chromium 1440/768/412/390: 144/144** (36 por largura). Cobre o fluxo R2 inteiro mais a **morte retroativa das matrizes antes do nascimento**: a tela mostra "O nascimento do dia 21/12/2026 ficaria sem as matrizes…", o diálogo continua aberto e nada é gravado. Safari real não foi testado.
 - **Smoke:** mensagens novas com tipo e data.
-- `verify:all`: ver `verify-all-local.txt`. O CI no SHA final é o gate de aceitação.
+- **`verify:all` local no `e58771d`:** TODAS AS ETAPAS PASSARAM. test:backend 894 testes, 889 pass, 0 fail, 5 todo; smoke 1253/1253; lint, tipos, build e gates verdes (`verify-all-local.txt`).
+- **Dois vermelhos de CI no caminho, ambos corrigidos na PR:**
+  - `0cf1527`: JSDoc de `violacoesDePrecondicao` no `typecheck:backend`;
+  - `006abd8`: o teste R2D D2 tinha data fixa `2026-11-02` e o registro sem data conta pelo `createdAt`. Com a virada do relógio para 03/11 a recusa ficou correta e o teste, errado. Passou a usar a data de hoje, sem afrouxar a asserção. A bomba-relógio existe também na main.
+- O CI no SHA final é o gate de aceitação.
 
 ## R3.5 Migrations e deploy
 
