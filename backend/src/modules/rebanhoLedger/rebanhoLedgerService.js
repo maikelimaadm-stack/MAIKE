@@ -550,7 +550,7 @@ export const exigirCancelamentoLegadoPermitido = async (tx, clienteId, mov) => {
  * vínculo aqui: saldo e peso dela já são protegidos pela linha do tempo.
  * Consultas limitadas ao tenant + empresa e a no máximo 20 bloqueadores.
  */
-const FONTES_JSON_CAUSAIS = Object.freeze(['MovimentacaoPecuaria', 'SuplementacaoEvento', 'SuplementacaoLote', 'AplicacaoMedicamento', 'EventoSanitario', 'ManejoTecnicoRebanho']);
+export const FONTES_JSON_CAUSAIS = Object.freeze(['MovimentacaoPecuaria', 'SuplementacaoEvento', 'SuplementacaoLote', 'AplicacaoMedicamento', 'EventoSanitario', 'ManejoTecnicoRebanho']);
 export const vinculosCausaisDoMovimento = async (tx, clienteId, evento, movimentacaoId) => {
   const nascidas = /** @type {Array<{posicao_id: string}>} */ (await tx.$queryRaw`
     SELECT DISTINCT p.posicao_id FROM "PartidaRebanho" p

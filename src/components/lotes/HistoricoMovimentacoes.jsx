@@ -12,8 +12,8 @@ import { useQuery, useInfiniteQuery, useQueryClient } from "@tanstack/react-quer
 import { buscarLoteDoHistorico, listarHistoricoMovimentacoesPagina } from "@/services/loteManejoService";
 import { Button } from "@/components/ui/button";
 import { normalizeText, getJuncaoLotesSnapshot } from "../utils/pecuariaUtils";
-import { ehMovimentoCancelado, motivoSemCancelamento, tipoTemCancelamento } from "@/domain/lotes/situacaoMovimento";
-import CancelarMovimentacao from "./CancelarMovimentacao";
+import { ehMovimentoCancelado, motivoSemCancelamento, tipoTemExclusao } from "@/domain/lotes/situacaoMovimento";
+import ExcluirMovimentacao from "./ExcluirMovimentacao";
 import { getMapaCachedData, getMapaCacheSnapshot, refreshMapaCacheEntry } from "@/services/mapaCacheService";
 import { nomeDaAreaDoMovimento } from "@/domain/lotes/movimentacaoLote";
 import {
@@ -89,10 +89,10 @@ const formatHistoricoObservacoes = (item) => {
 };
 
 /**
- * Exclusão de lançamento pelo histórico: REMOVIDA (R2A, D-PROD-99). A antiga
- * reversão no navegador (várias chamadas, sem transação) deu lugar ao comando
- * de cancelamento no servidor (`CancelarMovimentacao`). O servidor recusa
- * DELETE/PATCH diretos de movimentação.
+ * Correção de lançamento pelo histórico (D-PROD-110): a única ação é
+ * `ExcluirMovimentacao` — exclusão definitiva, server-side, só online, que
+ * apaga o fato inteiro ou nada. Não há edição de movimento confirmado. O
+ * servidor segue recusando DELETE/PATCH genéricos de movimentação.
  */
 
 /** Página do servidor; "Carregar mais" busca a próxima. */
@@ -576,9 +576,9 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
                       </div>
                     </div>
 
-                    {item.source === 'movimentacao' && origem === 'servidor' && !item.cancelado && tipoTemCancelamento(item.raw) && (
+                    {item.source === 'movimentacao' && origem === 'servidor' && !item.cancelado && tipoTemExclusao(item.raw) && (
                       <div className="flex gap-1 shrink-0">
-                        <CancelarMovimentacao movimento={item.raw} />
+                        <ExcluirMovimentacao movimento={item.raw} />
                       </div>
                     )}
                   </div>

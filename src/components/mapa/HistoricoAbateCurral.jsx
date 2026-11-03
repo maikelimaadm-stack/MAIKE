@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useQuery } from "@tanstack/react-query";
 import { listarTodasMovimentacoes } from "@/services/loteManejoService";
-import CancelarMovimentacao from "@/components/lotes/CancelarMovimentacao";
+import ExcluirMovimentacao from "@/components/lotes/ExcluirMovimentacao";
 import { ehMovimentoCancelado } from "@/domain/lotes/situacaoMovimento";
 import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 
@@ -110,7 +110,7 @@ export default function HistoricoAbateCurral({ areaId }) {
                 </div>
                 {!item.cancelado && (
                   <div className="shrink-0">
-                    <CancelarMovimentacao movimento={item.raw} />
+                    <ExcluirMovimentacao movimento={item.raw} />
                   </div>
                 )}
               </div>

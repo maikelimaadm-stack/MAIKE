@@ -5,6 +5,8 @@ import { nativeRequest } from '../_core/nativeHttpClient.js';
 import {
   createOfflineEntityAdapter,
   offlineStorageDisponivel,
+  removerRegistroDosCachesOffline,
+  pendenciasOfflineDoRegistro,
 } from '@/lib/offline/offlineEntityRuntime';
 
 const RESOURCE = 'MovimentacaoMapa';
@@ -98,6 +100,25 @@ export const listarPosicoesRebanhoNativo = (empresaId) =>
 /** R2E-P1: transferência retroativa no ledger (uma confirmação = um POST). Só online. */
 export const executarTransferenciaLedgerNativo = (corpo) =>
   nativeRequest('/rebanho/comandos/transferencia', { method: 'POST', body: corpo, autenticado: true }, ctx('executarTransferenciaLedger'));
+
+/**
+ * Exclusão definitiva segura (D-PROD-110) — só online, nunca enfileirada.
+ * Corpo só `{operation_id, motivo}`; o servidor revalida tudo sob trava.
+ */
+export const excluirMovimentacaoMapaNativa = (id, corpo) =>
+  nativeRequest(
+    `${CAMINHO}/${encodeURIComponent(id)}/exclusao`,
+    { method: 'POST', body: corpo, autenticado: true },
+    ctx('excluirMovimentacaoMapa')
+  );
+
+export const elegibilidadeExclusaoMovimentacaoMapaNativa = (id) =>
+  nativeRequest(`${CAMINHO}/${encodeURIComponent(id)}/elegibilidade-exclusao`, { autenticado: true }, ctx('elegibilidadeExclusaoMovimentacaoMapa'));
+
+/** Depois da exclusão confirmada: tira o movimento de todas as cópias offline do tenant. */
+export const removerMovimentacaoDosCachesOffline = (id) => removerRegistroDosCachesOffline(ENTIDADE_OFFLINE, id);
+/** Operações deste movimento ainda na fila offline (exclusão fica bloqueada enquanto houver). */
+export const pendenciasOfflineDaMovimentacao = (id) => pendenciasOfflineDoRegistro(ENTIDADE_OFFLINE, id);
 
 export const elegibilidadeCancelamentoMovimentacaoMapaNativa = (id) =>
   nativeRequest(`${CAMINHO}/${encodeURIComponent(id)}/elegibilidade-cancelamento`, { autenticado: true }, ctx('elegibilidadeCancelamentoMovimentacaoMapa'));

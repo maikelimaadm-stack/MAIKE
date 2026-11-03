@@ -68,6 +68,13 @@ export const temProvenienciaDoServidor = (mov) => {
   return Array.isArray(mov.lote_ids) && mov.lote_ids.length === ef.efeitos.length;
 };
 
+/**
+ * D-PROD-110: só movimento ATIVO do ledger (evento certificado) oferece a
+ * exclusão definitiva. Legado e já cancelado ficam como estão (o servidor
+ * recusaria com EXCLUSAO_MOVIMENTO_LEGADO / EXCLUSAO_MOVIMENTO_CANCELADO).
+ */
+export const tipoTemExclusao = (mov) => tipoCertificado(mov) && ehMovimentoDoLedger(mov);
+
 /** Pode oferecer a ação? (a decisão final é sempre do servidor) */
 export const tipoTemCancelamento = (mov) => tipoCertificado(mov) && temProvenienciaDoServidor(mov);
 
