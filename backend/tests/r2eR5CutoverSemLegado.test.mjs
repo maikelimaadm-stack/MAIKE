@@ -172,7 +172,7 @@ describe('R5 — sem legado: guarda única, empresa nova ativada, cutover admini
     assert.equal(r.statusCode, 201, r.body);
     const emp = r.json();
     const setor = await prisma().setor.create({ data: { cliente_id: c.cliente.id, empresa_id: emp.id, numero_setor: '2', nome: 'S1' } });
-    const area = (n) => prisma().areaPastagem.create({ data: { cliente_id: c.cliente.id, empresa_id: emp.id, setor_id: setor.id, setor_nome: 'S1', numero_area: String(n), nome: `P${n}`, tamanho_hectares: 10 } });
+    const area = (n) => prisma().areaPastagem.create({ data: { cliente_id: c.cliente.id, empresa_id: emp.id, setor_id: setor.id, setor_nome: 'S1', numero_area: String(10 + n), nome: `P${n}`, tamanho_hectares: 10 } });
     const n = { ...c, empresa: emp, setor, A: await area(1), B: await area(2) };
     assert.equal((await req('GET', `/rebanho/posicoes?empresa_id=${emp.id}`, c.tok)).json().ativo, true);
     const l = await entrada(n, { qtd: 500, peso: 400 });
@@ -180,6 +180,10 @@ describe('R5 — sem legado: guarda única, empresa nova ativada, cutover admini
     const antes = await qtdLotes(n);
     const pA = await pos(n, daEntrada(l, n.A));
     await ok(req('POST', '/rebanho/comandos/transferencia', c.tok, { operation_id: opId(), empresa_id: emp.id, area_destino_id: n.B.id, data_movimentacao: '2026-11-02', itens: [{ posicao_id: pA.id, quantidade: 200 }] }));
+    // O comando do mapa (manejo-lote) também: parcial para pasto VAZIO sem lote derivado.
+    const C = await area(3);
+    await ok(req('POST', '/movimentacoes-mapa/comandos/manejo-lote', c.tok, { operation_id: opId(), tipo: 'Transferência de Área', empresa_id: emp.id, lote_id: pA.id, quantidade_animais: 30, area_destino_id: C.id, data_movimentacao: '2026-11-02' }));
+    assert.equal((await posicoes(n)).filter((x) => x.area_atual_id === C.id).reduce((t, x) => t + x.quantidade_cabecas, 0), 30);
     await ok(req('POST', '/movimentacoes-mapa/comandos/manejo-rebanho', c.tok, { operation_id: opId(), tipo: 'Nascimento', empresa_id: emp.id, area_id: n.A.id, data_movimentacao: '2026-11-03', linhas: [{ categoria_mae: VACA, sexo: 'Macho', quantidade: 3 }] }));
     await ok(req('POST', '/movimentacoes-mapa/comandos/manejo-rebanho', c.tok, { operation_id: opId(), tipo: 'Mudança de Categoria', empresa_id: emp.id, area_id: n.A.id, data_movimentacao: '2026-11-04', linhas: [{ categoria_atual: BOI, categoria_nova: 'Touro + 36 meses', quantidade: 50 }] }));
     assert.equal(await qtdLotes(n), antes, 'nenhum Lote criado por manejo');
