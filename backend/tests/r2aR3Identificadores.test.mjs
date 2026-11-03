@@ -158,7 +158,7 @@ describe('R2A-R3 P0 — edição legítima POSTERIOR do identificador do destino
 });
 
 describe('R2A-R3 D — modos que não unificam não escrevem identificador no cancelamento', () => {
-  test('total no lugar e parcial com lote novo: identificação intacta; derivado 0/Inativo, entrada histórica intacta', async () => {
+  test('total no lugar: identificação intacta; parcial sem destino existente recusada (R4: nenhum derivado, nada gravado)', async () => {
     const c = await cenario();
     const l = await criarLote(c, { nome: 'L1', area: c.A, qtd: 40, ident: ORIG });
     const antes = await ficha(l.id);
@@ -168,14 +168,19 @@ describe('R2A-R3 D — modos que não unificam não escrevem identificador no ca
 
     const l2 = await criarLote(c, { nome: 'L2', area: c.A, qtd: 100, ident: ORIG });
     const antes2 = await ficha(l2.id);
-    const t2 = await transferir(c, l2, 30, c.C);
-    const deriv = t2.lotes.find((x) => x.id !== l2.id);
-    const derivAntes = await ficha(deriv.id);
-    assert.equal((await cancelar(c, t2.movimentacao.id)).statusCode, 200);
+    // PR174-R4: o modo "parcial com lote novo" deixou de existir — o manejo não fabrica lote.
+    const contar = () => Promise.all([
+      prisma().lote.count({ where: { cliente_id: c.cliente.id } }),
+      prisma().movimentacaoMapa.count({ where: { cliente_id: c.cliente.id } }),
+      prisma().auditLog.count({ where: { cliente_id: c.cliente.id } }),
+      prisma().operacaoIdempotente.count({ where: { cliente_id: c.cliente.id } }),
+    ]);
+    const contagemAntes = await contar();
+    const r2 = await manejo(c, { tipo: 'Transferência de Área', lote_id: l2.id, quantidade_animais: 30, area_destino_id: c.C.id });
+    assert.equal(r2.statusCode, 409, r2.body);
+    assert.equal(r2.json().code, 'LOTE_CADASTRO_SOMENTE_ENTRADAS');
+    assert.deepEqual(await contar(), contagemAntes, 'nada gravado');
     assert.deepEqual(await ficha(l2.id), antes2);
-    const dv = await ficha(deriv.id);
-    assert.deepEqual(dv, { ...derivAntes, quantidade_cabecas: 0, status: 'Inativo' }, 'derivado: só saldo e situação mudam');
-    assert.equal(dv.quantidade_entrada, 30);
   });
 });
 

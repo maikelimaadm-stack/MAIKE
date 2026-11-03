@@ -388,7 +388,6 @@ describe('R2A-R1 — proveniência causal (nunca prova emprestada)', () => {
 });
 
 describe('P1 — Transferência de Área pelo comando', () => {
-  const soma = async (...ids) => (await Promise.all(ids.map(lote))).reduce((t, x) => t + x.quantidade_cabecas, 0);
 
   test('total no lugar: área volta à origem; cabeças e entrada histórica intactas', async () => {
     const c = await cenario();
@@ -401,19 +400,23 @@ describe('P1 — Transferência de Área pelo comando', () => {
     assert.deepEqual([d.area_atual_id, d.area_atual_nome, d.quantidade_cabecas, d.area_entrada_id], [c.A.id, 'PASTO A', 500, c.A.id]);
   });
 
-  test('parcial com lote novo: 500 → 450 + 50 → cancelar → 500 + 0 (derivado Inativo, entrada 50 intacta)', async () => {
+  test('R4: parcial sem destino existente → 409 LOTE_CADASTRO_SOMENTE_ENTRADAS; nenhum lote derivado, nada gravado', async () => {
     const c = await cenario();
     const l = await criarLote(c, { area: c.A });
-    const { movimentacao: m } = await transferir(c, l, 50, c.B);
-    assert.equal(m.modo_transferencia, 'parcial_novo_lote');
-    const derivadoId = m.lote_destino_id;
-    const derivado = await lote(derivadoId);
-    assert.deepEqual([derivado.quantidade_cabecas, derivado.quantidade_entrada, derivado.origem, derivado.area_atual_id], [50, 50, 'MOVIMENTAÇÃO', c.B.id]);
-    assert.equal(await soma(l.id, derivadoId), 500);
-    assert.equal((await cancelar(c, m.id)).statusCode, 200);
-    const d = await lote(derivadoId);
-    assert.deepEqual([(await lote(l.id)).quantidade_cabecas, d.quantidade_cabecas, d.status, d.quantidade_entrada], [500, 0, 'Inativo', 50]);
-    assert.equal(await soma(l.id, derivadoId), 500);
+    const p = prisma();
+    const contar = async () => Promise.all([
+      p.lote.count({ where: { cliente_id: c.cliente.id } }),
+      p.movimentacaoMapa.count({ where: { cliente_id: c.cliente.id } }),
+      p.auditLog.count({ where: { cliente_id: c.cliente.id } }),
+      p.operacaoIdempotente.count({ where: { cliente_id: c.cliente.id } }),
+    ]);
+    const antes = await contar();
+    const r = await manejo(c, { tipo: 'Transferência de Área', lote_id: l.id, quantidade_animais: 50, area_destino_id: c.B.id, categoria_animal: 'BOI' });
+    assert.equal(r.statusCode, 409, r.body);
+    assert.equal(r.json().code, 'LOTE_CADASTRO_SOMENTE_ENTRADAS');
+    assert.deepEqual(await contar(), antes);
+    const o = await lote(l.id);
+    assert.deepEqual([o.quantidade_cabecas, o.area_atual_id, o.status], [500, c.A.id, 'Ativo']);
   });
 
   test('parcial unificada com destino preexistente: 500/100 → 450/150 → 500/100', async () => {
@@ -601,11 +604,13 @@ describe('R2A-R1 — concorrência de saldo (CAS) e rollback', () => {
     assert.deepEqual([(await lote(o.id)).quantidade_cabecas, (await lote(d.id)).quantidade_cabecas], [450, 145]);
   });
 
-  test('duas transferências parciais disputando a mesma origem (100; 60 + 60) → uma passa, outra 409; total 100', async () => {
+  test('duas transferências parciais disputando a mesma origem (100; 60 + 60) → uma passa, outra 409; total 100 + 10 do destino', async () => {
     const c = await cenario();
     const l = await criarLote(c, { qtd: 100, area: c.A });
+    // PR174-R4: destino é uma ENTRADA preexistente compatível (o manejo não fabrica lote).
+    const dest = await criarLote(c, { qtd: 10, area: c.B });
     const soltar = await segurarLote(l.id);
-    const corpo = { tipo: 'Transferência de Área', lote_id: l.id, quantidade_animais: 60, area_destino_id: c.B.id, categoria_animal: 'BOI' };
+    const corpo = { tipo: 'Transferência de Área', lote_id: l.id, quantidade_animais: 60, area_destino_id: c.B.id, lote_destino_id: dest.id, categoria_animal: 'BOI' };
     const p1 = manejo(c, corpo);
     const p2 = manejo(c, corpo);
     await new Promise((r) => setTimeout(r, 300));
@@ -614,7 +619,9 @@ describe('R2A-R1 — concorrência de saldo (CAS) e rollback', () => {
     assert.deepEqual(rs.map((r) => r.statusCode).sort(), [201, 409], rs.map((r) => r.body).join(' | '));
     assert.ok(rs.some((r) => r.json().code === 'MANEJO_SALDO_INSUFICIENTE'));
     const todos = await prisma().lote.findMany({ where: { cliente_id: c.cliente.id } });
-    assert.equal(todos.reduce((t, x) => t + x.quantidade_cabecas, 0), 100);
+    assert.equal(todos.length, 2, 'nenhum lote criado');
+    assert.equal(todos.reduce((t, x) => t + x.quantidade_cabecas, 0), 110);
+    assert.deepEqual([(await lote(l.id)).quantidade_cabecas, (await lote(dest.id)).quantidade_cabecas], [40, 70]);
   });
 
   test('dois cancelamentos simultâneos com chaves diferentes → um 200; saldo 500, não 550', async () => {

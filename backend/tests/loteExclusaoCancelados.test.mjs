@@ -170,17 +170,22 @@ describe('LOTES-R1 1 — só histórico cancelado: exclusão LÓGICA', () => {
     assert.equal((await excluir(c, l.id)).statusCode, 204);
   });
 
-  test('parcial com lote novo cancelada: entrada original sai por exclusão lógica; o derivado fica (0/Inativo) e nunca é entrada excluível', async () => {
+  test('parcial unificada num derivado LEGADO, cancelada: entrada original sai por exclusão lógica; o derivado volta ao saldo anterior e nunca é entrada excluível', async () => {
+    // PR174-R4: o manejo não fabrica lote derivado; o derivado aqui é DADO LEGADO
+    // pré-existente (cadastrado como entrada e com a origem derivada gravada direto no banco).
     const c = await cenario();
     const l = await criarLote(c, { area: c.A, qtd: 100 });
-    const t = await transferir(c, l, 30, c.B);
-    const deriv = t.lotes.find((x) => x.id !== l.id);
+    const deriv = await criarLote(c, { area: c.B, qtd: 20 });
+    await prisma().lote.update({ where: { id: deriv.id }, data: { origem: 'MOVIMENTAÇÃO' } });
+    const t = await transferir(c, l, 30, c.B, deriv.id);
+    assert.equal(t.movimentacao.modo_transferencia, 'parcial_unificado');
+    assert.equal((await lote(deriv.id)).quantidade_cabecas, 50);
     assert.equal((await cancelar(c, t.movimentacao.id)).statusCode, 200);
     await exigirTipo(c, l.id, 'exclusao_logica');
     assert.equal((await excluir(c, l.id)).statusCode, 204);
     await exigirBloqueio(c, deriv.id, 'lote_gerado_por_manejo');
     const dv = await lote(deriv.id);
-    assert.deepEqual([dv.quantidade_cabecas, dv.status, dv.origem, dv.quantidade_entrada], [0, 'Inativo', 'MOVIMENTAÇÃO', 30]);
+    assert.deepEqual([dv.quantidade_cabecas, dv.status, dv.origem, dv.quantidade_entrada], [20, 'Ativo', 'MOVIMENTAÇÃO', 20]);
   });
 
   test('unificação: destino citado só por lote_destino_id/efeitos — ativa bloqueia; cancelada libera os dois', async () => {

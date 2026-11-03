@@ -166,15 +166,17 @@ describe('R2A-R2 a4 — transferência: mudança posterior na ORIGEM ou no DESTI
     await exigirRecusa(c, t.movimentacao.id, [o.id, d.id], INTERVENCAO);
   });
 
-  test('parcial com lote novo: categoria do derivado mudada → 409; derivado continua Ativo com 50', async () => {
+  test('parcial unificada: categoria do destino mudada → 409; destino continua Ativo com 150', async () => {
+    // PR174-R4: o manejo não fabrica lote; o destino é uma ENTRADA preexistente compatível.
     const c = await cenario();
     const o = await criarLote(c, { area: c.A, qtd: 500 });
-    const t = await transferir(c, o, 50, c.B);
-    const derivado = t.lotes.find((x) => x.id !== o.id);
-    assert.equal((await patch(c, derivado.id, { categoria: 'VACA', estado_esperado: { categoria: 'BOI' } })).statusCode, 200);
-    await exigirRecusa(c, t.movimentacao.id, [o.id, derivado.id], INTERVENCAO);
-    const dv = await lote(derivado.id);
-    assert.deepEqual([dv.quantidade_cabecas, dv.status], [50, 'Ativo']);
+    const d = await criarLote(c, { area: c.B, qtd: 100 });
+    const t = await transferir(c, o, 50, c.B, d.id);
+    assert.equal(t.movimentacao.modo_transferencia, 'parcial_unificado');
+    assert.equal((await patch(c, d.id, { categoria: 'VACA', estado_esperado: { categoria: 'BOI' } })).statusCode, 200);
+    await exigirRecusa(c, t.movimentacao.id, [o.id, d.id], INTERVENCAO);
+    const dv = await lote(d.id);
+    assert.deepEqual([dv.quantidade_cabecas, dv.status, dv.categoria], [150, 'Ativo', 'VACA']);
   });
 
   test('total unificada: status do destino mudado → 409', async () => {
@@ -220,7 +222,7 @@ describe('R2A-R2 a6 — sem intervenção material: tudo continua cancelável, s
     assert.equal((await lote(l.id)).quantidade_cabecas, 500);
   });
 
-  test('morte, abate, transferência (no lugar, parcial novo, parcial unificada, total unificada) cancelam; replay não credita duas vezes', async () => {
+  test('morte, abate, transferência (no lugar, parcial unificada, total unificada) cancelam; parcial sem destino é recusada (R4); replay não credita duas vezes', async () => {
     const c = await cenario();
     const l1 = await criarLote(c, { nome: 'L1', area: c.A });
     const m1 = await morte(c, l1, 50);
@@ -242,10 +244,15 @@ describe('R2A-R2 a6 — sem intervenção material: tudo continua cancelável, s
     assert.equal((await lote(l3.id)).area_atual_id, c.A.id);
 
     const l4 = await criarLote(c, { nome: 'L4', area: c.A, qtd: 100 });
-    const t4 = await transferir(c, l4, 30, c.C);
-    const deriv = t4.lotes.find((x) => x.id !== l4.id);
-    assert.equal((await cancelar(c, t4.movimentacao.id)).statusCode, 200);
-    assert.deepEqual([(await lote(l4.id)).quantidade_cabecas, (await lote(deriv.id)).quantidade_cabecas, (await lote(deriv.id)).status], [100, 0, 'Inativo']);
+    // PR174-R4: parcial sem destino existente criaria lote derivado → recusada, nada gravado.
+    const lotesAntes = await prisma().lote.count({ where: { cliente_id: c.cliente.id } });
+    const movsAntes = await prisma().movimentacaoMapa.count({ where: { cliente_id: c.cliente.id } });
+    const t4 = await manejo(c, { tipo: 'Transferência de Área', lote_id: l4.id, quantidade_animais: 30, area_destino_id: c.C.id });
+    assert.equal(t4.statusCode, 409, t4.body);
+    assert.equal(t4.json().code, 'LOTE_CADASTRO_SOMENTE_ENTRADAS');
+    assert.equal(await prisma().lote.count({ where: { cliente_id: c.cliente.id } }), lotesAntes);
+    assert.equal(await prisma().movimentacaoMapa.count({ where: { cliente_id: c.cliente.id } }), movsAntes);
+    assert.deepEqual([(await lote(l4.id)).quantidade_cabecas, (await lote(l4.id)).area_atual_id], [100, c.A.id]);
 
     const o5 = await criarLote(c, { nome: 'L5', area: c.A, qtd: 100 });
     const d5 = await criarLote(c, { nome: 'L5', area: c.B, qtd: 20 });
