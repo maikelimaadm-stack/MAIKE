@@ -17,7 +17,7 @@ import {
   resolverIconeTarefa,
   textoHectares,
 } from "@/lib/maplibre/mapaGeralRender.js";
-import { criarMedidorDeTexto, tamanhoFonteContagem } from "@/lib/maplibre/contagemLote.js";
+import { FONTE_CONTAGEM_PX, formatarContagem } from "@/lib/maplibre/contagemLote.js";
 
 /**
  * Renderizador incremental do Mapa Geral sobre MapLibre (D-PROD-65).
@@ -289,7 +289,7 @@ export default function useMapRenderer(mapInstanceRef) {
         const el = document.createElement("div");
         el.className = "mg-area-label";
         el.style.cssText =
-          "pointer-events:none;color:#fff;text-align:center;white-space:nowrap;line-height:1.15;text-shadow:0 1px 2px rgba(0,0,0,.85),0 0 3px rgba(0,0,0,.6);font-family:Inter,Arial,sans-serif;";
+          "pointer-events:none;color:#fff;text-align:center;white-space:nowrap;line-height:1.15;font-family:Inter,Arial,sans-serif;";
         const titulo = document.createElement("div");
         titulo.style.fontWeight = "700";
         const ha = document.createElement("div");
@@ -500,11 +500,10 @@ export default function useMapRenderer(mapInstanceRef) {
           const badge = document.createElement("div");
           badge.className = "mg-lote-count";
           badge.style.cssText =
-            // Quantidade de cabeças: cinza escuro, abaixo da figura, com halo claro
-            // para ler sobre o ícone (D-PROD-82). O tamanho da fonte se ajusta ao
-            // largura medida do número em `preencherLote` (D-PROD-83). Um pouco
-            // mais acima e menor, acompanhando o ícone de 44 px (D-PROD-89).
-            "position:absolute;left:50%;top:66%;transform:translate(-50%,-50%);color:#374151;font-weight:700;font-family:Inter,Arial,sans-serif;line-height:1;white-space:nowrap;text-shadow:0 0 2px rgba(255,255,255,.95),0 0 3px rgba(255,255,255,.8);pointer-events:none;";
+            // Quantidade de cabeças: cinza, abaixo da figura, com halo claro para
+            // ler sobre o ícone (D-PROD-82). Tamanho fixo e milhar com ponto,
+            // texto em `preencherLote` (D-PROD-111).
+            `position:absolute;left:50%;top:69%;transform:translate(-50%,-50%);color:#6b7280;font-size:${FONTE_CONTAGEM_PX}px;font-weight:700;font-family:Inter,Arial,sans-serif;line-height:1;white-space:nowrap;text-shadow:0 0 2px rgba(255,255,255,.95),0 0 3px rgba(255,255,255,.8);pointer-events:none;`;
           const ind = document.createElement("div");
           ind.className = "mg-lote-ident";
           ind.style.cssText = "position:absolute;left:calc(50% + 18px);top:calc(50% - 22px);transform:translate(-50%,-50%);display:flex;pointer-events:none;";
@@ -637,13 +636,8 @@ function identificadoresDoLote(lotesNaArea) {
   return unicos.length <= 1 ? unicos : [{ cor: "linear-gradient(90deg, #000000 50%, #ffffff 50%)", nome: "MISTO", sigla: "" }];
 }
 
-let medirContagem;
-
 function preencherLote(entry, { totalCabecas, identificadores, totalAlertas, blinkAlerts, key, canDragLotes }) {
-  const textoCabecas = String(totalCabecas);
-  entry.badge.textContent = textoCabecas;
-  medirContagem ||= criarMedidorDeTexto();
-  entry.badge.style.fontSize = `${tamanhoFonteContagem(textoCabecas, medirContagem)}px`;
+  entry.badge.textContent = formatarContagem(totalCabecas);
   entry.ind.replaceChildren(
     ...identificadores.map((i) => {
       const d = document.createElement("div");

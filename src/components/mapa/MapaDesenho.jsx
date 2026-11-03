@@ -286,7 +286,6 @@ export default function MapaDesenho({ tipoDesenho, usarGPS = false, itemEditando
         const el = document.createElement("div");
         el.className =
           "pointer-events-none whitespace-nowrap text-center text-[11px] font-bold uppercase leading-tight tracking-[0.02em] text-white";
-        el.style.textShadow = "0 1px 3px rgba(0,0,0,0.95)";
         const nomeEl = document.createElement("div");
         nomeEl.textContent = area.nome || area.numero_area || "ÁREA";
         el.appendChild(nomeEl);

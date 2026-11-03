@@ -4560,4 +4560,29 @@ Testes KML-N1..N5 em `tests/smoke/importacaoAreasParser.test.js`.
 
 ---
 
-<!-- Próxima decisão: D-PROD-111 -->
+## D-PROD-111 — Quantidade de cabeças com tamanho fixo e milhar com ponto; rótulos de área sem sombra
+
+**Pedido do proprietário:**
+- o número da quantidade no ícone do gado não diminui mais conforme o tamanho do número. Isso vinha do ícone antigo, onde não cabiam muitos números;
+- o milhar aparece com ponto (5.000);
+- o número fica num cinza um pouco mais claro, um pouco mais alto e com a letra um pouco maior do que na primeira versão aprovada;
+- os nomes das áreas e os hectares ficam sem sombra nas letras.
+
+**Decisão:**
+- `.mg-lote-count` fica a 69% da altura do ícone de 44 px.
+- A cor passa a `#6b7280`.
+- A fonte fica fixa em 9,5 px (`FONTE_CONTAGEM_PX`, em `src/lib/maplibre/contagemLote.js`). Isso substitui o encolhimento por largura medida da D-PROD-83: a medição por canvas e o mínimo de 5 px saem do código.
+- `formatarContagem` separa o milhar com ponto, sem depender do locale do navegador. Valor ausente ou inválido vira "0".
+- O `text-shadow` sai dos rótulos de área:
+  - `.mg-area-label` no `useMapRenderer.jsx`;
+  - `MapaDesenho.jsx`;
+  - `SelecaoAreasMapa.jsx`.
+
+  Os três mostram o mesmo texto (nome e hectares).
+- O halo claro do número de cabeças continua: ele separa o número do desenho do ícone.
+
+O resultado foi conferido no Chromium com o ícone real do lote: 8, 50, 500, 5.000 e 12.500 cabem. Testes CNT-01..04 em `tests/smoke/contagemLote.test.js`.
+
+---
+
+<!-- Próxima decisão: D-PROD-112 -->
