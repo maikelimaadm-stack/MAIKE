@@ -1,0 +1,66 @@
+// MAIKE-POS178-UX — pré-validação no card. Stack LOCAL isolada (maike_e2e_r2), dados sintéticos.
+const { chromium } = require('playwright');
+const [W, H] = [Number(process.argv[2]), Number(process.argv[3])];
+const BASE = process.argv[4];
+const S = JSON.parse(require('fs').readFileSync('/tmp/claude-0/d110/seed-ux.json', 'utf8'));
+const OUT = '/tmp/claude-0/d110/shots-ux';
+const API = 'http://127.0.0.1:3334';
+const TAG = `${BASE}-${Date.now().toString(36).slice(-4)}`;
+const res = [];
+const ok = (n, c, x = '') => res.push(`${c ? 'PASS' : 'FAIL'} ${BASE} ${n}${x ? ' — ' + String(x).slice(0, 220) : ''}`);
+(async () => {
+  const { token } = await (await fetch(`${API}/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ login: S.login, senha: S.senha }) })).json();
+  const call = async (m, u, b) => { const r = await fetch(`${API}${u}`, { method: m, headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }); const j = await r.json().catch(() => ({})); if (!r.ok && r.status !== 409) throw new Error(`${m} ${u} ${r.status} ${JSON.stringify(j).slice(0, 200)}`); return j; };
+  await call('POST', '/rebanho/ativacao', { operation_id: `atv-${S.empresa}`, empresa_id: S.empresa, modo: 'entradas' });
+  const lote = await call('POST', '/lotes', { empresa_id: S.empresa, nome: `KM ${TAG}`, quantidade_cabecas: 80, categoria: 'Boi 25 a 36 meses', sexo: 'Macho', setor_id: S.setor, area_entrada_id: S.A, area_atual_id: S.A, data_entrada: '2026-10-01', motivo_entrada: 'Compra', status: 'Ativo', peso_medio_kg: 320 });
+  const pos = async (area) => (await call('GET', `/rebanho/posicoes?empresa_id=${S.empresa}&incluir_vazias=true`)).itens.find((p) => p.lote_entrada_id === lote.id && p.area_atual_id === area);
+  const t = (await call('POST', '/movimentacoes-mapa/comandos/manejo-lote', { operation_id: `t-${TAG}`, empresa_id: S.empresa, tipo: 'Transferência de Área', lote_id: (await pos(S.A)).id, quantidade_animais: 50, area_destino_id: S.B, data_movimentacao: '2026-10-10' })).movimentacao;
+  const p = (await call('POST', '/movimentacoes-mapa/comandos/manejo-rebanho', { operation_id: `p-${TAG}`, empresa_id: S.empresa, tipo: 'Pesagem', area_id: S.B, data_movimentacao: '2026-10-15', linhas: [{ lote_id: (await pos(S.B)).id, peso_medio_kg: 350 }] })).movimentacao;
+
+  const browser = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader'] });
+  const mobile = W < 800;
+  const ctx = await browser.newContext({ viewport: { width: W, height: H }, isMobile: mobile, hasTouch: mobile });
+  const page = await ctx.newPage();
+  const erros = []; page.on('pageerror', (e) => erros.push(e.message.slice(0, 160)));
+  let emVoo = 0, maxVoo = 0, totalGet = 0; const excl = [];
+  page.on('request', (r) => { const u = new URL(r.url()).pathname; if (/elegibilidade-exclusao$/.test(u)) { emVoo++; totalGet++; maxVoo = Math.max(maxVoo, emVoo); } if (r.method() === 'POST' && /\/exclusao$/.test(u)) excl.push(u); });
+  const fim = (r) => { if (/elegibilidade-exclusao$/.test(new URL(r.url()).pathname)) emVoo--; };
+  page.on('requestfinished', fim); page.on('requestfailed', fim);
+  await page.goto('http://127.0.0.1:5180/', { waitUntil: 'networkidle' });
+  await page.locator('input').nth(0).fill(S.login);
+  await page.locator('input[type=password]').fill(S.senha);
+  await page.keyboard.press('Enter');
+  await page.waitForURL(/mapageral/i, { timeout: 30000 });
+  await page.waitForTimeout(6000);
+  const abrirArea = async (nome) => {
+    const box = await page.getByText(nome, { exact: true }).first().boundingBox();
+    const x = box.x + box.width / 2, y = box.y + 1;
+    if (mobile) await page.touchscreen.tap(x, y); else await page.mouse.click(x, y);
+    await page.waitForTimeout(4000);
+  };
+  const card = (texto) => page.locator('div.border.rounded-lg').filter({ hasText: texto });
+  try {
+    await abrirArea('PASTO B');
+    const cardT = card(`KM ${TAG}`).filter({ hasText: 'Transferência de Área' }).first();
+    const cardP = card(`KM ${TAG}`).filter({ hasText: 'Pesagem' }).first();
+    await cardT.getByRole('button', { name: 'Exclusão bloqueada' }).waitFor({ timeout: 20000 });
+    const bT = cardT.getByRole('button', { name: 'Exclusão bloqueada' });
+    ok('transferência: "Exclusão bloqueada" desabilitado SEM clique', await bT.isDisabled());
+    const txtT = await cardT.innerText();
+    ok('motivo no card: pesagem/manejo posterior dependente + tipo e data do bloqueador', /Existe pesagem\/manejo posterior dependente; exclua o lançamento dependente primeiro\. Bloqueador: pesagem em 15\/10\/2026/.test(txtT), txtT.replace(/\n+/g, ' | '));
+    const bP = cardP.getByRole('button', { name: 'Excluir movimentação' });
+    await bP.waitFor({ timeout: 20000 });
+    ok('pesagem: "Excluir movimentação" habilitado', !(await bP.isDisabled()));
+    ok('nenhum diálogo aberto e nenhum POST /exclusao', (await page.getByRole('heading', { name: 'Excluir movimentação', exact: true }).count()) === 0 && excl.length === 0);
+    ok('sem rolagem horizontal', !(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)));
+    ok(`GET elegibilidade: máx simultâneo ≤ 2 (máx=${maxVoo}, total=${totalGet})`, maxVoo <= 2 && totalGet >= 2 && totalGet <= 6);
+    await cardT.scrollIntoViewIfNeeded().catch(() => {});
+    await page.screenshot({ path: `${OUT}/${BASE}-01-bloqueada-e-elegivel.png` });
+    ok('sem erro de página', erros.length === 0, erros.join(' | '));
+  } catch (e) {
+    ok('execução', false, e.message);
+    await page.screenshot({ path: `${OUT}/${BASE}-ERRO.png` }).catch(() => {});
+  }
+  await browser.close();
+  console.log(res.join('\n'));
+})();

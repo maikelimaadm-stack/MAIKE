@@ -1,0 +1,23 @@
+MAIKE-POS178-UX — Playwright local (Chromium), backend + Vite + PostgreSQL 16 LOCAIS (maike_e2e_r2), dados sintéticos; sem Preview/produção.
+Cenário: 80 em A, transfere 50 para B (10/10), pesagem em B 320→350 (15/10). Histórico da área B aberto (16 movimentos acumulados das rodadas; só os cards visíveis consultam).
+PASS desktop-1440 transferência: "Exclusão bloqueada" desabilitado SEM clique
+PASS desktop-1440 motivo no card: pesagem/manejo posterior dependente + tipo e data do bloqueador — 10/10/2026 | Trans
+PASS desktop-1440 pesagem: "Excluir movimentação" habilitado
+PASS desktop-1440 nenhum diálogo aberto e nenhum POST /exclusao
+PASS desktop-1440 sem rolagem horizontal
+PASS desktop-1440 GET elegibilidade: máx simultâneo ≤ 2 (máx=2, total=2)
+PASS desktop-1440 sem erro de página
+PASS mobile-390 transferência: "Exclusão bloqueada" desabilitado SEM clique
+PASS mobile-390 motivo no card: pesagem/manejo posterior dependente + tipo e data do bloqueador — 10/10/2026 | Transfe
+PASS mobile-390 pesagem: "Excluir movimentação" habilitado
+PASS mobile-390 nenhum diálogo aberto e nenhum POST /exclusao
+PASS mobile-390 sem rolagem horizontal
+PASS mobile-390 GET elegibilidade: máx simultâneo ≤ 2 (máx=2, total=2)
+PASS mobile-390 sem erro de página
+PASS mobile-412 transferência: "Exclusão bloqueada" desabilitado SEM clique
+PASS mobile-412 motivo no card: pesagem/manejo posterior dependente + tipo e data do bloqueador — 10/10/2026 | Transfe
+PASS mobile-412 pesagem: "Excluir movimentação" habilitado
+PASS mobile-412 nenhum diálogo aberto e nenhum POST /exclusao
+PASS mobile-412 sem rolagem horizontal
+PASS mobile-412 GET elegibilidade: máx simultâneo ≤ 2 (máx=2, total=2)
+PASS mobile-412 sem erro de página

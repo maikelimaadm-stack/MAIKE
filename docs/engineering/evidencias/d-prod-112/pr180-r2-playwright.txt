@@ -1,0 +1,15 @@
+PR180-R2 — Playwright local (mesma stack isolada) após a correção fail-closed:
+PASS desktop-1440 transferência: "Exclusão bloqueada" desabilitado SEM clique
+PASS desktop-1440 motivo no card: pesagem/manejo posterior dependente + tipo e data do bloqueador — 10/10/20
+PASS desktop-1440 pesagem: "Excluir movimentação" habilitado
+PASS desktop-1440 nenhum diálogo aberto e nenhum POST /exclusao
+PASS desktop-1440 sem rolagem horizontal
+PASS desktop-1440 GET elegibilidade: máx simultâneo ≤ 2 (máx=2, total=2)
+PASS desktop-1440 sem erro de página
+PASS mobile-390 transferência: "Exclusão bloqueada" desabilitado SEM clique
+PASS mobile-390 motivo no card: pesagem/manejo posterior dependente + tipo e data do bloqueador — 10/10/2026
+PASS mobile-390 pesagem: "Excluir movimentação" habilitado
+PASS mobile-390 nenhum diálogo aberto e nenhum POST /exclusao
+PASS mobile-390 sem rolagem horizontal
+PASS mobile-390 GET elegibilidade: máx simultâneo ≤ 2 (máx=2, total=2)
+PASS mobile-390 sem erro de página

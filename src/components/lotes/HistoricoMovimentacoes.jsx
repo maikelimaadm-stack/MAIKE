@@ -230,6 +230,9 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
     const aoAtualizarMapa = () => {
       queryClient.invalidateQueries({ queryKey: ['historico-movimentacoes'] });
       queryClient.invalidateQueries({ queryKey: ['historico-registros-lote'] });
+      // Manejo/exclusão pode mudar a elegibilidade dos outros movimentos: marca como velha;
+      // só os cards visíveis reconsultam (com o limite de concorrência), sem laço.
+      queryClient.invalidateQueries({ queryKey: ['elegibilidade-exclusao-movimentacao'] });
     };
     window.addEventListener('atualizar-mapa', aoAtualizarMapa);
     return () => window.removeEventListener('atualizar-mapa', aoAtualizarMapa);
@@ -575,13 +578,13 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
                         )}
                       </div>
                     </div>
-
-                    {item.source === 'movimentacao' && origem === 'servidor' && !item.cancelado && tipoTemExclusao(item.raw) && (
-                      <div className="flex gap-1 shrink-0">
-                        <ExcluirMovimentacao movimento={item.raw} />
-                      </div>
-                    )}
                   </div>
+                  {/* Ação no rodapé do card: estado (verificando/bloqueada/elegível) e motivo visíveis antes do clique. */}
+                  {item.source === 'movimentacao' && origem === 'servidor' && !item.cancelado && tipoTemExclusao(item.raw) && (
+                    <div className="border-t border-slate-100 pt-1.5">
+                      <ExcluirMovimentacao movimento={item.raw} />
+                    </div>
+                  )}
                 </div>
               );
             })}

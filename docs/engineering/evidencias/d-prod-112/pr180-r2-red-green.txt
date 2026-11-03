@@ -1,0 +1,9 @@
+PR180-R2 — testes A–E contra o componente do HEAD ad490a9c (RED):
+   × PR180-R2 — fail-closed: fila offline e elegibilidade precisam de resultado confiável > A) GET elegível já respondeu, fila offline ainda pen
+   × PR180-R2 — fail-closed: fila offline e elegibilidade precisam de resultado confiável > B) leitura da fila REJEITA → 'Não foi possível ver
+   × PR180-R2 — fail-closed: fila offline e elegibilidade precisam de resultado confiável > C) fila devolve formato inválido (undefined/null/obje
+   × PR180-R2 — fail-closed: fila offline e elegibilidade precisam de resultado confiável > E) pendência real na fila bloqueia card e diálogo me
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  4 failed | 1 passed | 24 skipped (29)
+
+GREEN no HEAD da correção: exclusaoMovimentacao.test.jsx 29/29; smoke afetado 86/86.

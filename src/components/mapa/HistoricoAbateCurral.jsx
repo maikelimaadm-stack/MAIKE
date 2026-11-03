@@ -108,12 +108,12 @@ export default function HistoricoAbateCurral({ areaId }) {
                     )}
                   </div>
                 </div>
-                {!item.cancelado && (
-                  <div className="shrink-0">
-                    <ExcluirMovimentacao movimento={item.raw} />
-                  </div>
-                )}
               </div>
+              {!item.cancelado && (
+                <div className="border-t border-slate-100 pt-1.5">
+                  <ExcluirMovimentacao movimento={item.raw} />
+                </div>
+              )}
             </div>
           ))}
         </div>
