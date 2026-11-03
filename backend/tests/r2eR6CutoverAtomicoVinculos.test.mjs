@@ -8,6 +8,7 @@
 import { test, describe, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
+import { fileURLToPath } from 'node:url';
 
 import { criarApp, criarTenant, limparBanco, encerrar, autenticarNoApp } from './helpers.mjs';
 import { getPrismaClient } from '../src/database/prismaClient.js';
@@ -307,7 +308,7 @@ describe('R7-A — inventário antes do schema R2E (somente leitura, fail-closed
       await assert.rejects(diagnosticarEmpresa(antigo, { clienteId: 'cli-r7', empresaId: 'emp-r7' }), (e) => e.codigo === 'CUTOVER_SCHEMA_PENDENTE' && e.detalhes.ausentes.length === 7);
       await assert.rejects(executarCutover(antigo, { clienteId: 'cli-r7', empresaId: 'emp-r7', estrategia: 'entradas', usuarioId: 'x', confirmarEmpresaNome: 'Fazenda R7', ativarEmpresaNaTransacao }), (e) => e.codigo === 'CUTOVER_SCHEMA_PENDENTE');
       const env = { ...process.env, CUTOVER_DATABASE_URL: url };
-      const cli = (...a) => spawnSync('node', ['../scripts/ops/cutover-rebanho.mjs', '--cliente-id', 'cli-r7', ...a], { encoding: 'utf8', env });
+      const cli = (...a) => spawnSync('node', [fileURLToPath(new URL('../../scripts/ops/cutover-rebanho.mjs', import.meta.url)), '--cliente-id', 'cli-r7', ...a], { encoding: 'utf8', env });
       const i = cli('--inventario');
       assert.equal(i.status, 0, i.stderr);
       const saida = JSON.parse(i.stdout);
