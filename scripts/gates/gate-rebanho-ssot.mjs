@@ -9,10 +9,17 @@
  *  P107-LEDGER-PROJECAO    a projeção de posição é escrita fora do motor
  *                          (`posicaoRebanho.update*` de `quantidade_cabecas`,
  *                          `partidaRebanho.*` fora de `rebanhoLedger/`);
- *  P107-LEGADO-DELEGA      um comando do mapa que escreve saldo em `Lote` não
- *                          delega ao ledger (`empresaNoLedger` → `*NoLedger`)
- *                          ANTES da primeira escrita em `Lote` (duas fontes de
- *                          verdade numa empresa ativada) — R2E-R1;
+ *  P107-LEGADO-DELEGA      um dos quatro comandos do mapa não passa pelo guarda
+ *                          único `await exigirEmpresaNoLedger(tx, auth.clienteId,
+ *                          e.empresaId)` seguido de `*NoLedger(tx, contexto, e…)`
+ *                          (R2E-R1 → PR174-R5: sem modelo legado; empresa sem
+ *                          cutover recebe 409 REBANHO_CUTOVER_PENDENTE);
+ *  P174-MAPA-SEM-LOTE      um arquivo de `movimentacoesMapa/` (os comandos do
+ *                          mapa e o cancelamento entre eles) escreve em `Lote`
+ *                          (`inserirLote`, `atualizarLote*`, `tx.lote.create/
+ *                          update/upsert/delete*`, `lote.updateMany`, SQL
+ *                          INSERT/UPDATE/DELETE em "Lote") — Lote é só o
+ *                          cadastro de entrada e nunca recebe efeito de manejo;
  *  P107-PATCH-LOTE         o PATCH de lote perdeu a recusa dos campos
  *                          operacionais no ledger;
  *  P107-MIGRATION          a migration do ledger perdeu os CHECKs de saldo.
@@ -50,18 +57,38 @@ for (const rel of arquivosJs('backend/src').filter((r) => !r.startsWith(LEDGER_D
   if (/\bposicaoRebanho\.(create|update|upsert|delete|deleteMany)\s*\(/.test(src)) falha('P107-LEDGER-PROJECAO', `${rel} escreve posição fora do motor`);
 }
 
+const MAPA_DIR = 'backend/src/modules/movimentacoesMapa';
 const COMANDOS = [
-  'backend/src/modules/movimentacoesMapa/manejoMapaComandoService.js',
-  'backend/src/modules/movimentacoesMapa/manejoRebanhoComandoService.js',
-  'backend/src/modules/movimentacoesMapa/manejoJuncaoComandoService.js',
-  'backend/src/modules/movimentacoesMapa/manejoBaixaComandoService.js',
+  `${MAPA_DIR}/manejoMapaComandoService.js`,
+  `${MAPA_DIR}/manejoRebanhoComandoService.js`,
+  `${MAPA_DIR}/manejoJuncaoComandoService.js`,
+  `${MAPA_DIR}/manejoBaixaComandoService.js`,
 ];
+const CANCELAMENTO = `${MAPA_DIR}/movimentacaoMapaCancelamentoService.js`;
 for (const rel of COMANDOS) {
-  if (!existsSync(join(ROOT, rel))) continue;
+  if (!existsSync(join(ROOT, rel))) {
+    falha('P107-LEGADO-DELEGA', `comando ausente: ${rel}`);
+    continue;
+  }
   const src = semComentarios(ler(rel));
-  const escrita = src.search(/tx\.lote\.update|inserirLote\(/);
-  const delega = src.search(/if \(await empresaNoLedger\(tx, auth\.clienteId, e\.empresaId\)\)/);
-  if (escrita >= 0 && (delega < 0 || !/NoLedger\(tx, contexto, e/.test(src))) falha('P107-LEGADO-DELEGA', `${rel} escreve saldo em Lote sem delegar ao ledger`);
+  const guarda = src.search(/await exigirEmpresaNoLedger\(tx, auth\.clienteId, e\.empresaId\)/);
+  const delega = src.search(/return \w+NoLedger\(tx, contexto, e\b/);
+  if (guarda < 0) falha('P107-LEGADO-DELEGA', `${rel} não exige a empresa no ledger (await exigirEmpresaNoLedger(tx, auth.clienteId, e.empresaId))`);
+  else if (delega < 0 || delega < guarda) falha('P107-LEGADO-DELEGA', `${rel} não delega ao ledger (*NoLedger(tx, contexto, e…)) depois do guarda`);
+  if (/\bif \(true\)/.test(src)) falha('P107-LEGADO-DELEGA', `${rel} mantém desvio morto (if (true)) para o modelo legado`);
+}
+
+const ESCRITA_LOTE = [
+  [/\binserirLote\b/, 'inserirLote'],
+  [/\batualizarLote\w*/, 'atualizarLote*'],
+  [/\blote\.(create|createMany|update|updateMany|upsert|delete|deleteMany)\s*\(/, 'lote.create/update/upsert/delete*'],
+  [/\b(INSERT\s+INTO|UPDATE|DELETE\s+FROM)\s+"Lote"/i, 'SQL de escrita em "Lote"'],
+];
+const mapa = arquivosJs(MAPA_DIR);
+for (const rel of [...COMANDOS, CANCELAMENTO]) if (!mapa.includes(rel)) falha('P174-MAPA-SEM-LOTE', `arquivo esperado ausente: ${rel}`);
+for (const rel of mapa) {
+  const src = semComentarios(ler(rel));
+  for (const [re, nome] of ESCRITA_LOTE) if (re.test(src)) falha('P174-MAPA-SEM-LOTE', `${rel} escreve em Lote (${nome})`);
 }
 
 const servicoLote = 'backend/src/modules/lotes/loteService.js';
@@ -83,4 +110,4 @@ if (falhas.length) {
   console.error(`gate:rebanho-ssot — FALHOU (${falhas.length})\n  - ${falhas.join('\n  - ')}\n\nVer docs/engineering/DECISIONS.md (D-PROD-107).`);
   process.exit(1);
 }
-console.log(`gate:rebanho-ssot — PASSOU (${ledger.length} arquivo(s) do ledger; ${COMANDOS.length} comandos do mapa delegando ao ledger na empresa ativada)`);
+console.log(`gate:rebanho-ssot — PASSOU (${ledger.length} arquivo(s) do ledger; ${COMANDOS.length} comandos do mapa só pelo ledger; ${mapa.length} arquivo(s) do mapa sem escrita em Lote)`);
