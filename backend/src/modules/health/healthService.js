@@ -18,9 +18,13 @@ import { getPrismaClient } from '../../database/prismaClient.js';
 import { variaveisObrigatoriasAusentes } from '../../config/env.js';
 
 /**
+ * PR174-R6: `release` (SHA do commit publicado, variável de sistema da Vercel;
+ * público, não é segredo) e `capacidades` deixam o cutover provar que o
+ * backend em produção já é o novo (o antigo não expõe a capacidade).
  * @returns {Promise<{status: 'ok'|'degraded', processo: 'up', banco: 'up'|'down',
- *                    configuracaoIncompleta: string[]}>}
+ *                    configuracaoIncompleta: string[], release: string|null, capacidades: string[]}>}
  */
+export const CAPACIDADE_CUTOVER = 'rebanho-ledger-cutover-r6';
 export const verificarSaude = async () => {
   const configuracaoIncompleta = variaveisObrigatoriasAusentes();
 
@@ -40,5 +44,7 @@ export const verificarSaude = async () => {
     processo: 'up',
     banco,
     configuracaoIncompleta,
+    release: /^[0-9a-f]{40}$/.test(process.env.VERCEL_GIT_COMMIT_SHA ?? '') ? process.env.VERCEL_GIT_COMMIT_SHA : null,
+    capacidades: [CAPACIDADE_CUTOVER],
   };
 };

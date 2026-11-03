@@ -525,7 +525,7 @@ O backend é Fastify serverless (`api/fastify.js`). A Vercel não migra.
 
 **Corrida com o deploy automático da main:** o merge dispara o build de produção da Vercel. Se o código novo subir antes das migrations, as rotas que leem as tabelas novas falham. As migrations do PR #174 são EXPAND, então o código antigo continua funcionando com o banco migrado. Por isso o schema deve ser aplicado **antes** do merge, rodando o workflow com o SHA da branch.
 
-**Ordem segura:**
+**Ordem segura (SUPERADA pela R6 — não usar: fazia cutover antes do merge, com o backend antigo ainda gravando; ver `MAIKE-PR174-RELEASE-CUTOVER-RUNBOOK.md`):**
 1. CI verde e backup.
 2. Diagnóstico de cada empresa.
 3. `release-migrate` com o SHA da PR.
@@ -549,3 +549,15 @@ Suítes legadas convertidas ou removidas, com mapa em `evidencias/r2e-p1-lotes-s
 - **Registros de outras fontes** (sanidade, tarefas, pecuária) datados depois de um manejo **não bloqueiam mais** cancelamento ou retroativo. O ledger bloqueia só pela própria linha do tempo de saldo/peso. Isso é decisão de produto se for desejado.
 - **Pesagem com `categoria` divergente da posição** agora é recusada com 409 `MANEJO_ESTADO_INVALIDO` (o frontend envia a categoria da própria posição).
 - **Consolidação física** de `EventoRebanho`/`PartidaRebanho`/`PesoRebanho`: segue interna, sem fusão.
+
+## R6 — Fechamento seguro: cutover atômico, release pré-merge real, vínculos causais
+
+| Defeito da R5 | Correção | Evidência |
+|---|---|---|
+| Reset e ativação em transações separadas: ativação falhando deixava o reset commitado | `executarResetNaTransacao(tx)` + `executarCutover` numa única `$transaction`; travas Empresa → Área → Lote → Movimento; backup com manifesto sha256 conferido antes do DELETE; CLIs gravam fora do repo, 0600, `wx` | `r2eR6CutoverAtomicoVinculos` A1–A7; A1 falha no código R5 |
+| Lote criado durante o cutover podia ficar sem posição | `registrarEntradaSeAtivo` toma `Empresa FOR SHARE` antes de ler a ativação | A6 (duas conexões reais) |
+| `release-migrate.yml` (workflow_dispatch) não pode ser disparado antes de estar na main | `scripts/deploy/premerge-migrate.mjs` (SHA exato, árvore limpa, EXPAND comprovado, só presença das variáveis, `npm run deploy:migrate`) | `scripts/tests/deploy/premerge-migrate.test.mjs` |
+| Runbook mandava cutover antes do merge (drift com o backend antigo) | Runbook R6: migrations EXPAND antes do merge → merge → health prova backend novo → cutover atômico por empresa; CLI recusa sem `--backend-url`/`--release-sha` provados | `/health` com `release` e `capacidades`; teste de barreira |
+| Cancelamento ignorava vínculos de outros módulos | 409 `REBANHO_CANCELAMENTO_VINCULO_POSTERIOR` quando um documento cita, por id, a posição nascida do evento ou o próprio movimento; sem heurística de nome ou data | D1–D3; D1 falha no código R5 |
+
+**Limite declarado:** vínculo só é reconhecido por id estável: `LancamentoTarefa.posicao_id` e as chaves JSON `posicao_id`, `lote_id`, `posicao_ids`, `lote_ids`, `movimentacao_id` nos documentos de suplementação, sanidade, medicamento, manejo técnico e movimentação pecuária. Um documento sem id não bloqueia. Posição que já existia antes do movimento é protegida pela linha do tempo de saldo e peso, não por esta regra.

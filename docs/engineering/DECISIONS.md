@@ -4453,3 +4453,12 @@ Auditoria do HEAD `ce1ab5b`: três hipóteses reproduzidas em RED (PostgreSQL re
   - Entre 3 e 4, os manejos de empresas ainda não migradas recebem a recusa clara, nunca escrita legada.
 
 <!-- Próxima decisão: D-PROD-108 -->
+
+### D-PROD-107 — complemento PR174-R6 (fechamento seguro de release e cutover)
+
+- O cutover é **atômico**: reset e ativação acontecem num único COMMIT/ROLLBACK, com travas Empresa → AreaPastagem → Lote → MovimentacaoMapa. O backup tem manifesto sha256 conferido antes de qualquer exclusão e fica fora do repositório.
+- O cutover só roda **depois** do merge, com o backend novo comprovado em produção (`/api/native/health`: `capacidades` ∋ `rebanho-ledger-cutover-r6`, `release` = SHA na main). Nunca com o backend antigo aceitando gravações.
+- As migrations da PR rodam antes do merge pelo `scripts/deploy/premerge-migrate.mjs`. O `release-migrate.yml` só é disparável depois de estar na main.
+- O cancelamento do ledger recusa (409 `REBANHO_CANCELAMENTO_VINCULO_POSTERIOR`) quando um lançamento de outro módulo cita, por id, a posição nascida do evento ou o próprio movimento.
+- Exclusão física de movimentações continua fora de escopo.
+- Runbook: `docs/engineering/MAIKE-PR174-RELEASE-CUTOVER-RUNBOOK.md`.

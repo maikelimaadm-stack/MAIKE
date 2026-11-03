@@ -13,9 +13,11 @@ name: release-migrate
 #     MIGRATION_DATABASE_URL (sessão/direta, recusa o pooler 6543, nunca cai
 #     para DATABASE_URL) e confere MIGRATION_EXPECTED_SYSTEM_IDENTIFIER;
 #   - os segredos vêm do environment e nunca são impressos.
-# As migrations da PR #174 são EXPAND (só tabelas/colunas novas): o código em
-# produção continua funcionando com o banco migrado. Ordem completa do release
-# e do cutover: docs/engineering/MAIKE-R2E-LOTE-SSOT-POSICOES-RETROATIVAS-REPORT.md §R5.
+# PR174-R6: `workflow_dispatch` só pode ser disparado depois que este arquivo
+# estiver na branch padrão (main). Ele NÃO é o caminho pré-merge da PR #174 —
+# para isso use scripts/deploy/premerge-migrate.mjs (checkout exato do SHA,
+# EXPAND comprovado). Este workflow serve às releases POSTERIORES ao merge.
+# Runbook: docs/engineering/MAIKE-PR174-RELEASE-CUTOVER-RUNBOOK.md.
 
 on:
   workflow_dispatch:

@@ -14,6 +14,10 @@
  * Segurança: lê só CUTOVER_DATABASE_URL (nunca DATABASE_URL de runtime) e não a
  * imprime. Se CUTOVER_EXPECTED_SYSTEM_IDENTIFIER estiver definido, ou se o alvo
  * não for local, o system_identifier do banco TEM de conferir (falha fechada).
+ * PR174-R6: alvo remoto + --executar exige --backend-url <https://…> e
+ * --release-sha <40hex>: o health de produção tem de mostrar o backend NOVO
+ * nesse SHA, e o SHA tem de estar na origin/main (merge feito). Sem isso,
+ * recusa — nunca cutover enquanto o backend antigo aceita gravações.
  * Exit: 0 ok · 1 falha técnica · 2 uso incorreto · 3 recusado (nada alterado)
  */
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
@@ -57,6 +61,27 @@ try {
 const local = ['localhost', '127.0.0.1', '::1'].includes(host);
 const esperado = process.env.CUTOVER_EXPECTED_SYSTEM_IDENTIFIER;
 if (!local && !esperado) uso('alvo remoto exige CUTOVER_EXPECTED_SYSTEM_IDENTIFIER');
+if (!local && executar) {
+  const backendUrl = valor('--backend-url');
+  const releaseSha = valor('--release-sha');
+  if (!backendUrl || !/^https:\/\//.test(backendUrl) || !releaseSha) uso('alvo remoto + --executar exige --backend-url https://… e --release-sha <40hex>');
+  const { execFileSync } = await import('node:child_process');
+  let shaNaMain = false;
+  try {
+    execFileSync('git', ['merge-base', '--is-ancestor', releaseSha, 'origin/main'], { stdio: 'ignore' });
+    shaNaMain = true;
+  } catch { /* fora da main */ }
+  let health = null;
+  try {
+    health = await (await fetch(`${backendUrl.replace(/\/$/, '')}/api/native/health`)).json();
+  } catch { /* indisponível */ }
+  const { conferirBackendNovo: conferir } = await import('./cutoverRebanhoLib.mjs');
+  const c = conferir({ health, releaseSha, shaNaMain });
+  if (!c.ok) {
+    console.error(`cutover-rebanho: RECUSADO ${c.motivo} — produção ainda não está comprovadamente no backend novo; nada alterado`);
+    process.exit(3);
+  }
+}
 
 // O núcleo do backend lê DATABASE_URL ao importar: aponta-o para o MESMO alvo conferido.
 process.env.DATABASE_URL = url;

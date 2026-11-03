@@ -99,4 +99,20 @@ export const executarCutover = async (prisma, { clienteId, empresaId, estrategia
   }
 };
 
+/**
+ * PR174-R6 — barreira contra drift: o cutover só roda quando o backend em
+ * produção JÁ é o código novo (o antigo ainda escreveria saldo em Lote e
+ * ignoraria a ativação). Prova = `/api/native/health` expõe a capacidade
+ * `rebanho-ledger-cutover-r6` e `release` igual ao SHA aprovado, e esse SHA já
+ * está na main (merge feito). Pura (o CLI busca o health e consulta o git).
+ */
+export const conferirBackendNovo = ({ health, releaseSha, shaNaMain }) => {
+  if (!/^[0-9a-f]{40}$/.test(releaseSha ?? '')) return { ok: false, motivo: 'RELEASE_SHA_INVALIDO' };
+  if (!shaNaMain) return { ok: false, motivo: 'RELEASE_FORA_DA_MAIN' };
+  if (!Array.isArray(health?.capacidades) || !health.capacidades.includes('rebanho-ledger-cutover-r6')) return { ok: false, motivo: 'BACKEND_ANTIGO_EM_PRODUCAO' };
+  if (health.release !== releaseSha) return { ok: false, motivo: 'BACKEND_EM_OUTRO_SHA' };
+  if (health.status !== 'ok') return { ok: false, motivo: 'BACKEND_DEGRADADO' };
+  return { ok: true, motivo: null };
+};
+
 export { planejarReset };
