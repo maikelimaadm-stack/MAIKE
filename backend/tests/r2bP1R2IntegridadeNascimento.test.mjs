@@ -68,6 +68,13 @@ const criarLote = async (c, { nome = 'L', qtd, area, categoria, sexo, peso = nul
   assert.equal(r.statusCode, 201, r.body);
   return r.json();
 };
+/**
+ * PR174-R4: o nascimento não fabrica lote no cadastro (só entradas). Quando a
+ * prova não é sobre o destino dos filhotes, o lote de filhotes compatível já
+ * existe como ENTRADA cadastrada na área — o nascimento só o incrementa.
+ */
+const filhotes = (c, sexo, area = c.A) =>
+  criarLote(c, { nome: sexo === 'Macho' ? 'BZ' : 'BZA', qtd: 1, area, categoria: sexo === 'Macho' ? BEZERRO : BEZERRA, sexo });
 const nascimento = (c, linhas, extra = {}) =>
   req('POST', '/movimentacoes-mapa/comandos/manejo-rebanho', c.tok, {
     operation_id: opId(), tipo: 'Nascimento', empresa_id: c.empresa.id, area_id: c.A.id, data_movimentacao: DATA, linhas, ...extra,
@@ -150,6 +157,8 @@ describe('PR168-R2 P0-A — validação materna no servidor', () => {
       await criarLote(c, { nome: 'V36', qtd: 40, area: c.A, categoria: VACA36, sexo: 'Fêmea' }),
       await criarLote(c, { nome: 'NOV', qtd: 20, area: c.A, categoria: NOVILHA, sexo: 'Fêmea' }),
     ];
+    await filhotes(c, 'Macho');
+    await filhotes(c, 'Fêmea');
     const r = await ok(nascimento(c, [
       { sexo: 'Macho', categoria_mae: VACA25, quantidade: 2 },
       { sexo: 'Macho', categoria_mae: 'vaca + 36 MESES', quantidade: 3 },
@@ -173,17 +182,12 @@ describe('PR168-R2 P0-A — validação materna no servidor', () => {
 // ═══ P0-B — destino de filhotes compatível em sexo ═════════════════════════
 
 describe('PR168-R2 P0-B — seleção segura do lote de filhotes', () => {
-  test('B1: lote "Bezerro" marcado Fêmea NÃO recebe machos; cria lote coerente e não toca o incompatível', async () => {
+  test('B1 (R4): lote "Bezerro" marcado Fêmea NÃO recebe machos; sem destino compatível → 409 LOTE_CADASTRO_SOMENTE_ENTRADAS, nada gravado, incompatível intocado', async () => {
     const c = await cenario();
     await criarLote(c, { nome: 'VACAS', qtd: 50, area: c.A, categoria: VACA36, sexo: 'Fêmea' });
     const errado = await criarLote(c, { nome: 'BZ ERRADO', qtd: 12, area: c.A, categoria: BEZERRO, sexo: 'Fêmea', peso: 90 });
     const antes = await lote(errado.id);
-    const r = await ok(nascimento(c, [{ sexo: 'Macho', categoria_mae: VACA36, quantidade: 5, peso_medio_kg: 30 }]));
-    const linha = r.movimentacao.linhas[0];
-    assert.equal(linha.lote_criado, true);
-    assert.notEqual(linha.lote_id, errado.id);
-    const novo = await lote(linha.lote_id);
-    assert.deepEqual([novo.categoria, novo.sexo, novo.quantidade_cabecas], [BEZERRO, 'Macho', 5]);
+    await exigirNadaGravado(c, () => nascimento(c, [{ sexo: 'Macho', categoria_mae: VACA36, quantidade: 5, peso_medio_kg: 30 }]), 409, 'LOTE_CADASTRO_SOMENTE_ENTRADAS');
     const depois = await lote(errado.id);
     assert.deepEqual([depois.quantidade_cabecas, peso(depois), depois.sexo, depois.updatedAt.getTime()], [antes.quantidade_cabecas, 90, 'Fêmea', antes.updatedAt.getTime()]);
   });
@@ -212,12 +216,11 @@ describe('PR168-R2 P0-B — seleção segura do lote de filhotes', () => {
     await exigirNadaGravado(c, () => nascimento(c, [{ sexo: 'Macho', categoria_mae: VACA36, quantidade: 3 }]), 409, 'MANEJO_DESTINO_AMBIGUO');
   });
 
-  test('B4: lote de filhotes sem sexo cadastrado não é destino (não se adivinha); cria lote coerente', async () => {
+  test('B4 (R4): lote de filhotes sem sexo cadastrado não é destino (não se adivinha); sem destino compatível → 409 LOTE_CADASTRO_SOMENTE_ENTRADAS, nada gravado', async () => {
     const c = await cenario();
     await criarLote(c, { nome: 'VACAS', qtd: 50, area: c.A, categoria: VACA36, sexo: 'Fêmea' });
     const semSexo = await criarLote(c, { nome: 'BZA ?', qtd: 9, area: c.A, categoria: BEZERRA });
-    const r = await ok(nascimento(c, [{ sexo: 'Fêmea', categoria_mae: VACA36, quantidade: 4 }]));
-    assert.notEqual(r.movimentacao.linhas[0].lote_id, semSexo.id);
+    await exigirNadaGravado(c, () => nascimento(c, [{ sexo: 'Fêmea', categoria_mae: VACA36, quantidade: 4 }]), 409, 'LOTE_CADASTRO_SOMENTE_ENTRADAS');
     assert.equal((await lote(semSexo.id)).quantidade_cabecas, 9);
   });
 });
@@ -228,6 +231,7 @@ describe('PR168-R2 P0-C — histórico, dependências e exclusão pelos lotes de
   test('C1: nascimento ATIVO que cita a matriz bloqueia a exclusão (movimentacao_ativa); lote não some', async () => {
     const c = await cenario();
     const vacas = await criarLote(c, { nome: 'VACAS', qtd: 50, area: c.A, categoria: VACA36, sexo: 'Fêmea' });
+    await filhotes(c, 'Macho');
     await ok(nascimento(c, [{ sexo: 'Macho', categoria_mae: VACA36, quantidade: 4 }]));
     const e = await eleg(c, vacas.id);
     assert.deepEqual([e.tipo, e.motivo], ['bloqueado', 'movimentacao_ativa'], JSON.stringify(e));
@@ -240,6 +244,7 @@ describe('PR168-R2 P0-C — histórico, dependências e exclusão pelos lotes de
   test('C2: nascimento cancelado com prova → exclusão LÓGICA da matriz (linha preservada)', async () => {
     const c = await cenario();
     const vacas = await criarLote(c, { nome: 'VACAS', qtd: 50, area: c.A, categoria: VACA36, sexo: 'Fêmea' });
+    await filhotes(c, 'Macho');
     const r = await ok(nascimento(c, [{ sexo: 'Macho', categoria_mae: VACA36, quantidade: 4 }]));
     await cancelarOk(c, r.movimentacao.id);
     assert.equal((await eleg(c, vacas.id)).tipo, 'exclusao_logica');
@@ -256,6 +261,7 @@ describe('PR168-R2 P0-C — histórico, dependências e exclusão pelos lotes de
     const c = await cenario();
     const vacas = await criarLote(c, { nome: 'VACAS', qtd: 50, area: c.A, categoria: VACA36, sexo: 'Fêmea' });
     const homonimo = await criarLote(c, { nome: 'VACAS', qtd: 10, area: c.B, categoria: VACA36, sexo: 'Fêmea' });
+    await filhotes(c, 'Fêmea');
     const r = await ok(nascimento(c, [{ sexo: 'Fêmea', categoria_mae: VACA36, quantidade: 4 }]));
     assert.deepEqual((await historicoIds(c, vacas.id)).json().items.map((m) => m.id), [r.movimentacao.id]);
     assert.deepEqual((await historicoIds(c, homonimo.id)).json().items, []);
@@ -269,6 +275,7 @@ describe('PR168-R2 P0-C — histórico, dependências e exclusão pelos lotes de
   test('C4: mais de 600 eventos citando a matriz → paginação completa, sem duplicar, total correto', async () => {
     const c = await cenario();
     const vacas = await criarLote(c, { nome: 'VACAS', qtd: 50, area: c.A, categoria: VACA36, sexo: 'Fêmea' });
+    await filhotes(c, 'Fêmea');
     const real = await ok(nascimento(c, [{ sexo: 'Fêmea', categoria_mae: VACA36, quantidade: 1 }]));
     // Eventos sintéticos de leitura (gravação direta, só para volume): 300 ativos + 310 cancelados.
     const base = Date.now() - 10_000_000;
@@ -301,6 +308,7 @@ describe('PR168-R2 P0-C — histórico, dependências e exclusão pelos lotes de
       operation_id: opId(), tipo: 'Transferência de Área', empresa_id: c.empresa.id, lote_id: vacas.id, quantidade_animais: 50, area_destino_id: c.A.id, data_movimentacao: DATA,
     });
     assert.equal(t.statusCode, 201, t.body);
+    await filhotes(c, 'Macho');
     const n = await ok(nascimento(c, [{ sexo: 'Macho', categoria_mae: VACA36, quantidade: 3 }]));
     const recusa = await cancelar(c, t.json().movimentacao.id);
     assert.equal(recusa.statusCode, 409, recusa.body);
@@ -320,6 +328,7 @@ describe('PR168-R2 P0-C — dependência só pelo vínculo materno', () => {
       operation_id: opId(), tipo: 'Mudança de Categoria', empresa_id: c.empresa.id, area_id: c.A.id, data_movimentacao: DATA,
       linhas: [{ categoria_atual: NOVILHA, categoria_nova: VACA25, quantidade: 30 }],
     }));
+    await filhotes(c, 'Fêmea');
     const n = await ok(nascimento(c, [{ sexo: 'Fêmea', categoria_mae: VACA25, quantidade: 2 }]));
     assert.deepEqual(n.movimentacao.linhas[0].maes_lote_ids, [nov.id]);
     const r = await cancelar(c, m.movimentacao.id);
@@ -340,6 +349,7 @@ describe('PR168-R2 concorrência — quem trava primeiro decide; nunca órfão n
     test(`K1.${rodada}: DELETE da matriz × nascimento`, async () => {
       const c = await cenario();
       const vacas = await criarLote(c, { nome: 'VACAS', qtd: 50, area: c.A, categoria: VACA36, sexo: 'Fêmea' });
+      await filhotes(c, 'Macho');
       const ordem = rodada % 2 === 0;
       const [del, nas] = ordem
         ? (await Promise.all([nascimento(c, [{ sexo: 'Macho', categoria_mae: VACA36, quantidade: 4 }]), req('DELETE', `/lotes/${vacas.id}`, c.tok)])).reverse()
@@ -363,6 +373,7 @@ describe('PR168-R2 concorrência — quem trava primeiro decide; nunca órfão n
       const t = (await req('POST', '/movimentacoes-mapa/comandos/manejo-lote', c.tok, {
         operation_id: opId(), tipo: 'Transferência de Área', empresa_id: c.empresa.id, lote_id: vacas.id, quantidade_animais: 50, area_destino_id: c.A.id, data_movimentacao: DATA,
       })).json();
+      await filhotes(c, 'Fêmea');
       const [canc, nas] = await Promise.all([cancelar(c, t.movimentacao.id), nascimento(c, [{ sexo: 'Fêmea', categoria_mae: VACA36, quantidade: 2 }])]);
       assert.ok([200, 409].includes(canc.statusCode), canc.body);
       assert.ok([201, 409].includes(nas.statusCode), nas.body);
