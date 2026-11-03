@@ -504,7 +504,7 @@ export default function useMapRenderer(mapInstanceRef) {
             // para ler sobre o ícone (D-PROD-82). O tamanho da fonte se ajusta ao
             // largura medida do número em `preencherLote` (D-PROD-83). Um pouco
             // mais acima e menor, acompanhando o ícone de 44 px (D-PROD-89).
-            "position:absolute;left:50%;top:66%;transform:translate(-50%,-50%);color:#374151;font-weight:700;font-family:Inter,Arial,sans-serif;line-height:1;white-space:nowrap;text-shadow:0 0 2px rgba(255,255,255,.95),0 0 3px rgba(255,255,255,.8);pointer-events:none;";
+            "position:absolute;left:50%;top:71%;transform:translate(-50%,-50%);color:#4b5563;font-weight:700;font-family:Inter,Arial,sans-serif;line-height:1;white-space:nowrap;text-shadow:0 0 2px rgba(255,255,255,.95),0 0 3px rgba(255,255,255,.8);pointer-events:none;";
           const ind = document.createElement("div");
           ind.className = "mg-lote-ident";
           ind.style.cssText = "position:absolute;left:calc(50% + 18px);top:calc(50% - 22px);transform:translate(-50%,-50%);display:flex;pointer-events:none;";

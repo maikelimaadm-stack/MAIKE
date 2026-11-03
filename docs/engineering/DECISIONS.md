@@ -4510,4 +4510,18 @@ Testes KML-N1..N5 em `tests/smoke/importacaoAreasParser.test.js`.
 
 ---
 
-<!-- Próxima decisão: D-PROD-110 -->
+## D-PROD-110 — Quantidade de cabeças: mais baixa, menor e cinza mais claro
+
+**Pedido do proprietário:** o número da quantidade no ícone do gado deve ficar mais embaixo, com letra um pouco menor e um tom de preto mais claro.
+
+**Decisão:**
+- `.mg-lote-count` passa de 66% para 71% da altura do ícone (44 px). Em 74% o número já encostava na borda inferior do ícone real ("BEZERRO 0 A 12 MESES").
+- A cor passa de `#374151` para `#4b5563`.
+- A fonte base passa de 10 px para 9 px (`FONTE_CONTAGEM_BASE`).
+- A regra de encolher para caber na faixa de 22 px não muda (D-PROD-83).
+
+O resultado foi conferido no Chromium com o ícone real do lote. Testes CNT em `tests/smoke/contagemLote.test.js`.
+
+---
+
+<!-- Próxima decisão: D-PROD-111 -->
