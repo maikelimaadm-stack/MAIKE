@@ -30,7 +30,7 @@
 import { execFileSync, spawnSync } from 'node:child_process';
 import { readFileSync, readdirSync } from 'node:fs';
 
-import { MIGRATIONS_APROVADAS, classificarMigrations, conferirHistoricoRemoto, sha256 } from './premergeMigrateLib.mjs';
+import { MIGRATIONS_APROVADAS, classificarMigrations, conferirHistoricoRemoto, migrationsDoManifestoFaltando, sha256 } from './premergeMigrateLib.mjs';
 import { CONSULTA_HISTORICO, executorPrisma, lerIdentidade } from './alvoBancoLib.mjs';
 
 const args = process.argv.slice(2);
@@ -65,7 +65,9 @@ if (alteradas) recusar('MIGRATION_BASE_ALTERADA', 'migration já existente na ma
 const novas = git('diff', '--name-only', '--diff-filter=A', 'origin/main...HEAD', '--', 'backend/prisma/migrations').split('\n').filter((f) => f.endsWith('migration.sql'));
 const nomesNovas = novas.map((f) => f.split('/').at(-2)).sort();
 const c = classificarMigrations(novas.map((f) => ({ nome: f.split('/').at(-2), sql: readFileSync(f, 'utf8') })));
-const faltamNoDiff = Object.keys(MIGRATIONS_APROVADAS).filter((n) => !nomesNovas.includes(n));
+// D-PROD-113: migration do manifesto que já está na main foi liberada antes; não "falta".
+const naMain = (n) => { try { git('cat-file', '-e', `origin/main:backend/prisma/migrations/${n}/migration.sql`); return true; } catch { return false; } };
+const faltamNoDiff = migrationsDoManifestoFaltando(MIGRATIONS_APROVADAS, nomesNovas, naMain);
 console.log(JSON.stringify({ sha, main: mainRemota, migrations_novas: nomesNovas, expand: c.expand, tabelas_novas: c.tabelas_novas, colunas_novas_em_tabelas_antigas: c.colunas_novas_em_tabelas_antigas, violacoes: c.violacoes }, null, 2));
 if (!c.expand) recusar('MIGRATIONS_NAO_EXPAND', 'migrations fora da allowlist/manifesto da release');
 if (faltamNoDiff.length) recusar('MANIFESTO_INCOMPLETO', `manifesto cita migration ausente da release: ${faltamNoDiff.join(', ')}`);

@@ -136,3 +136,16 @@ export const conferirHistoricoRemoto = ({ locais, linhas, aprovadas = MIGRATIONS
   for (const n of pendentes) if (!(n in aprovadas)) falhas.push(`pendente fora do manifesto da release: ${n}`);
   return { ok: falhas.length === 0, codigo: falhas.length ? 'PREMERGE_MIGRATIONS_NAO_COMPROVADAS' : null, pendentes, falhas };
 };
+
+/**
+ * D-PROD-113: migrations do manifesto que FALTAM de verdade na release.
+ * Uma migration aprovada que já está na main foi liberada por uma release
+ * anterior (ex.: as da PR #174) e não conta como faltando; só falta a que não
+ * está nem nas novas da release nem na main. Sem isto, toda release depois da
+ * #174 era recusada com MANIFESTO_INCOMPLETO (e o CI da main ficava vermelho).
+ * @param {Record<string, string>} manifesto
+ * @param {string[]} nomesNovas
+ * @param {(nome: string) => boolean} estaNaMain
+ */
+export const migrationsDoManifestoFaltando = (manifesto, nomesNovas, estaNaMain) =>
+  Object.keys(manifesto).filter((n) => !nomesNovas.includes(n) && !estaNaMain(n));
