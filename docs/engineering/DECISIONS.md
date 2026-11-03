@@ -4510,17 +4510,20 @@ Testes KML-N1..N5 em `tests/smoke/importacaoAreasParser.test.js`.
 
 ---
 
-## D-PROD-110 — Quantidade de cabeças: mais baixa, menor e cinza mais claro
+## D-PROD-110 — Quantidade de cabeças: mais baixa, tamanho fixo, milhar com ponto e cinza mais claro
 
-**Pedido do proprietário:** o número da quantidade no ícone do gado deve ficar mais embaixo, com letra um pouco menor e um tom de preto mais claro.
+**Pedido do proprietário:**
+- o número da quantidade no ícone do gado fica mais embaixo, com letra um pouco menor e um tom mais claro;
+- a letra não deve mais diminuir conforme o número: isso vinha do ícone antigo, onde não cabiam muitos números;
+- o milhar aparece com ponto: 5.000.
 
 **Decisão:**
-- `.mg-lote-count` passa de 66% para 71% da altura do ícone (44 px). Em 74% o número já encostava na borda inferior do ícone real ("BEZERRO 0 A 12 MESES").
-- A cor passa de `#374151` para `#4b5563`.
-- A fonte base passa de 10 px para 9 px (`FONTE_CONTAGEM_BASE`).
-- A regra de encolher para caber na faixa de 22 px não muda (D-PROD-83).
+- `.mg-lote-count` passa de 66% para 71% da altura do ícone de 44 px. Em 74% o número encostava na borda inferior do ícone real ("BEZERRO 0 A 12 MESES").
+- A cor passa de `#374151` para `#6b7280`.
+- A fonte fica fixa em 9 px (`FONTE_CONTAGEM_PX`, em `src/lib/maplibre/contagemLote.js`). Isso substitui o encolhimento por largura medida da D-PROD-83: a medição por canvas e o mínimo de 5 px saem do código.
+- `formatarContagem` separa o milhar com ponto, sem depender do locale do navegador. Valor ausente ou inválido vira "0".
 
-O resultado foi conferido no Chromium com o ícone real do lote. Testes CNT em `tests/smoke/contagemLote.test.js`.
+O resultado foi conferido no Chromium com o ícone real do lote: 8, 50, 500, 5.000 e 12.500 cabem. Testes CNT-01..03 em `tests/smoke/contagemLote.test.js`.
 
 ---
 
