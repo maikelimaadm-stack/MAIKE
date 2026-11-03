@@ -24,9 +24,17 @@ describe('CNT — quantidade de cabeças no marcador', () => {
 
   it('CNT-03 o marcador usa texto formatado, fonte fixa e fica abaixo da figura', () => {
     const fonte = readFileSync('src/components/mapa/useMapRenderer.jsx', 'utf8');
-    expect(FONTE_CONTAGEM_PX).toBe(9);
+    expect(FONTE_CONTAGEM_PX).toBe(10);
     expect(fonte).toMatch(/entry\.badge\.textContent = formatarContagem\(totalCabecas\)/);
-    expect(fonte).toMatch(/top:71%;[^`]*color:#6b7280;font-size:\$\{FONTE_CONTAGEM_PX\}px/);
+    expect(fonte).toMatch(/top:66%;[^`]*color:#6b7280;font-size:\$\{FONTE_CONTAGEM_PX\}px/);
     expect(fonte).not.toMatch(/badge\.style\.fontSize/);
+  });
+
+  it('CNT-04 rótulo de área (nome e hectares) sem sombra no texto', () => {
+    for (const arq of ['src/components/mapa/useMapRenderer.jsx', 'src/components/mapa/MapaDesenho.jsx', 'src/components/mapa/SelecaoAreasMapa.jsx']) {
+      const fonte = readFileSync(arq, 'utf8');
+      expect(fonte).not.toMatch(/el\.style\.textShadow/);
+      expect(fonte).not.toMatch(/mg-area-label[\s\S]{0,200}text-shadow/);
+    }
   });
 });

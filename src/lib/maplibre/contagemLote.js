@@ -5,7 +5,7 @@
  * quantidade de um lote), e milhar separado por ponto: 5000 → "5.000".
  */
 
-export const FONTE_CONTAGEM_PX = 9;
+export const FONTE_CONTAGEM_PX = 10;
 
 /** @param {number|string|null|undefined} total @returns {string} */
 export const formatarContagem = (total) => {

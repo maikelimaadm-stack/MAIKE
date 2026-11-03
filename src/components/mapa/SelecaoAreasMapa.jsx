@@ -299,7 +299,6 @@ export default function SelecaoAreasMapa({
       const el = document.createElement("div");
       el.className =
         "pointer-events-none whitespace-nowrap text-[11px] font-bold uppercase tracking-[0.02em] text-white";
-      el.style.textShadow = "0 1px 3px rgba(0,0,0,0.95)";
       el.textContent = String(f.properties?.nome || "ÁREA");
       const marker = new maplibregl.Marker({ element: el, anchor: "center" })
         .setLngLat([lng, lat])
