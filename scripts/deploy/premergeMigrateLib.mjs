@@ -37,6 +37,20 @@ export const DO_RLS_APROVADOS = Object.freeze([
   'e6e0a232e9b893ae8bf24387e3455f89256930eef2aed29d7ac96130f4c62ae9',
 ]);
 
+/**
+ * PR174-R8: migrations HISTÓRICAS aplicadas à mão em produção, registradas em
+ * `_prisma_migrations` com checksum literal 'manual' (documentado em
+ * docs/engineering/MAIKE-CATALOGO-OPERACAO-SUPABASE.md, A2). Exceção FECHADA:
+ * só estes nomes e só o valor exato 'manual'; qualquer outro checksum diferente
+ * do arquivo continua sendo divergência.
+ */
+export const CHECKSUM_MANUAL_HISTORICO = Object.freeze([
+  '20260908174141_p3_foundation',
+  '20260909112833_p4_1_setor_native',
+  '20260909201703_p4_1_r2_setor_tipo_default',
+  '20261027140000_p4_marcas_native',
+]);
+
 export const sha256 = (texto) => createHash('sha256').update(texto).digest('hex');
 const semComentarios = (sql) => sql.replace(/--[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '');
 const q = (s) => s.replace(/"/g, '');
@@ -113,7 +127,9 @@ export const conferirHistoricoRemoto = ({ locais, linhas, aprovadas = MIGRATIONS
       continue;
     }
     if (!porNome.has(l.migration_name)) falhas.push(`migration no banco sem arquivo nesta release: ${l.migration_name}`);
-    else if (porNome.get(l.migration_name) !== l.checksum) falhas.push(`checksum divergente no banco: ${l.migration_name}`);
+    else if (porNome.get(l.migration_name) !== l.checksum && !(l.checksum === 'manual' && CHECKSUM_MANUAL_HISTORICO.includes(l.migration_name))) {
+      falhas.push(`checksum divergente no banco: ${l.migration_name}`);
+    }
     aplicadas.add(l.migration_name);
   }
   const pendentes = locais.map((l) => l.nome).filter((n) => !aplicadas.has(n));
