@@ -39,9 +39,37 @@ export class CutoverRecusado extends Error {
 const ORIGENS_DERIVADAS = ['MOVIMENTACAO', 'REVERSAO MOVIMENTACAO', 'MUDANCA DE CATEGORIA', 'EDICAO MOVIMENTACAO'];
 const normal = (v) => String(v ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toUpperCase();
 
+/**
+ * PR174-R7 — inventário SOMENTE LEITURA do schema, disponível ANTES das
+ * migrations (só pg_catalog/information_schema; nunca toca tabela R2E).
+ * Sem o schema R2E completo o diagnóstico/cutover devolve
+ * CUTOVER_SCHEMA_PENDENTE com o que falta — nunca "empresa ativa", nunca escrita.
+ */
+export const OBJETOS_R2E = Object.freeze({
+  tabelas: ['RebanhoLedgerAtivacao', 'PosicaoRebanho', 'EventoRebanho', 'PartidaRebanho', 'PesoRebanho'],
+  colunas: [['RebanhoLedgerAtivacao', 'modo'], ['LancamentoTarefa', 'posicao_id']],
+});
+export const inventarioSchema = async (db) => {
+  const tabelas = await db.$queryRaw`SELECT table_name AS t FROM information_schema.tables WHERE table_schema = current_schema() AND table_name = ANY(${OBJETOS_R2E.tabelas}::text[])`;
+  const colunas = await db.$queryRaw`SELECT table_name AS t, column_name AS c FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = ANY(${OBJETOS_R2E.colunas.map((x) => x[0])}::text[])`;
+  const tem = new Set(tabelas.map((r) => r.t));
+  const temCol = new Set(colunas.map((r) => `${r.t}.${r.c}`));
+  const ausentes = [
+    ...OBJETOS_R2E.tabelas.filter((t) => !tem.has(t)),
+    ...OBJETOS_R2E.colunas.map(([t, c]) => `${t}.${c}`).filter((x) => !temCol.has(x)),
+  ];
+  return { schema_r2e_pronto: ausentes.length === 0, ausentes };
+};
+export const exigirSchemaR2E = async (db) => {
+  const inv = await inventarioSchema(db);
+  if (!inv.schema_r2e_pronto) throw new CutoverRecusado('CUTOVER_SCHEMA_PENDENTE', 'o banco ainda não tem o schema do ledger (aplique as migrations EXPAND antes); nada foi lido nem gravado', { ausentes: inv.ausentes });
+  return inv;
+};
+
 /** Somente leitura: estado de UMA empresa para o cutover. */
 export const diagnosticarEmpresa = async (prisma, { clienteId, empresaId }) => {
   if (!clienteId || !empresaId) throw new CutoverRecusado('ESCOPO_OBRIGATORIO', 'cliente_id e empresa_id são obrigatórios');
+  await exigirSchemaR2E(prisma);
   const empresa = await prisma.empresa.findUnique({ where: { cliente_id_id: { cliente_id: clienteId, id: empresaId } }, select: { id: true, nome: true } });
   if (!empresa) throw new CutoverRecusado('EMPRESA_FORA_DO_ESCOPO', 'empresa não encontrada neste cliente');
   const ativacao = await prisma.rebanhoLedgerAtivacao.findFirst({ where: { cliente_id: clienteId, empresa_id: empresaId }, select: { modo: true } });
@@ -77,7 +105,9 @@ export const executarCutover = async (prisma, { clienteId, empresaId, estrategia
   if (estrategia === 'reset_e_entradas' && typeof gravarBackup !== 'function') throw new CutoverRecusado('BACKUP_OBRIGATORIO', 'reset_e_entradas exige backup');
   try {
     return await prisma.$transaction(async (tx) => {
+      await exigirSchemaR2E(tx);
       // Uma transação, uma ordem de travas: nada de manejo/cadastro atravessa o corte.
+      // Estado, vínculos e confirmação são REVALIDADOS aqui, nunca herdados do diagnóstico anterior.
       await travarEmpresaParaCorte(tx, clienteId, empresaId);
       const antes = await diagnosticarEmpresa(tx, { clienteId, empresaId });
       if (antes.ativa) return { resultado: 'JA_ATIVA', modo: antes.modo };
@@ -100,16 +130,59 @@ export const executarCutover = async (prisma, { clienteId, empresaId, estrategia
 };
 
 /**
- * PR174-R6 — barreira contra drift: o cutover só roda quando o backend em
- * produção JÁ é o código novo (o antigo ainda escreveria saldo em Lote e
- * ignoraria a ativação). Prova = `/api/native/health` expõe a capacidade
- * `rebanho-ledger-cutover-r6` e `release` igual ao SHA aprovado, e esse SHA já
- * está na main (merge feito). Pura (o CLI busca o health e consulta o git).
+ * PR174-R6/R7 — barreira contra drift: o cutover só roda quando o backend em
+ * PRODUÇÃO do projeto MAIKE JÁ é o código novo e publicado da main atual.
+ *
+ * `validarOrigemProducao`: o operador configura o origin de produção esperado
+ * (MAIKE_PRODUCAO_ORIGIN, não-secreto); a URL informada tem de ser EXATAMENTE
+ * esse origin (https, sem credenciais, sem caminho/query/fragmento, nunca
+ * localhost nem preview `*-git-*` / `*.vercel.app` diferente do configurado).
+ *
+ * `conferirBackendNovo` (pura) exige, do health lido SEM seguir redirect:
+ *  - HTTP 200 sem redirect; status ok;
+ *  - capacidade `rebanho-ledger-cutover-r6`;
+ *  - implantacao.ambiente = production, repositório = maikelimaadm-stack/MAIKE,
+ *    domínio de produção = host do origin configurado;
+ *  - release = SHA aprovado = HEAD ATUAL da main REMOTA (git ls-remote, não a
+ *    origin/main local, que pode estar defasada).
  */
-export const conferirBackendNovo = ({ health, releaseSha, shaNaMain }) => {
+export const REPOSITORIO_ESPERADO = 'maikelimaadm-stack/MAIKE';
+const HOST_LOCAL = /^(localhost|127\.|0\.0\.0\.0|\[?::1\]?$)/i;
+
+export const validarOrigemProducao = ({ informada, configurada }) => {
+  const parse = (u) => {
+    try {
+      return new URL(u);
+    } catch {
+      return null;
+    }
+  };
+  const c = parse(configurada ?? '');
+  if (!c) return { ok: false, motivo: 'ORIGEM_PRODUCAO_NAO_CONFIGURADA' };
+  if (c.protocol !== 'https:' || c.username || c.password || (c.pathname !== '/' && c.pathname !== '') || c.search || c.hash || HOST_LOCAL.test(c.hostname) || /-git-/.test(c.hostname)) {
+    return { ok: false, motivo: 'ORIGEM_PRODUCAO_INVALIDA' };
+  }
+  const u = parse(informada ?? '');
+  if (!u) return { ok: false, motivo: 'URL_INVALIDA' };
+  if (u.protocol !== 'https:') return { ok: false, motivo: 'URL_NAO_HTTPS' };
+  if (u.username || u.password) return { ok: false, motivo: 'URL_COM_CREDENCIAIS' };
+  if ((u.pathname !== '/' && u.pathname !== '') || u.search || u.hash) return { ok: false, motivo: 'URL_COM_CAMINHO' };
+  if (HOST_LOCAL.test(u.hostname)) return { ok: false, motivo: 'URL_LOCAL' };
+  if (u.origin !== c.origin) return { ok: false, motivo: /-git-|vercel\.app$/.test(u.hostname) ? 'URL_DE_PREVIEW' : 'URL_FORA_DA_PRODUCAO' };
+  return { ok: true, motivo: null, origin: c.origin, host: c.hostname.toLowerCase() };
+};
+
+export const conferirBackendNovo = ({ health, httpStatus = 200, redirecionou = false, releaseSha, mainRemota, hostProducao }) => {
   if (!/^[0-9a-f]{40}$/.test(releaseSha ?? '')) return { ok: false, motivo: 'RELEASE_SHA_INVALIDO' };
-  if (!shaNaMain) return { ok: false, motivo: 'RELEASE_FORA_DA_MAIN' };
+  if (!/^[0-9a-f]{40}$/.test(mainRemota ?? '')) return { ok: false, motivo: 'MAIN_REMOTA_INDISPONIVEL' };
+  if (releaseSha !== mainRemota) return { ok: false, motivo: 'RELEASE_NAO_E_MAIN_ATUAL' };
+  if (redirecionou || (httpStatus >= 300 && httpStatus < 400)) return { ok: false, motivo: 'HEALTH_REDIRECIONADO' };
+  if (httpStatus !== 200) return { ok: false, motivo: 'HEALTH_INDISPONIVEL' };
   if (!Array.isArray(health?.capacidades) || !health.capacidades.includes('rebanho-ledger-cutover-r6')) return { ok: false, motivo: 'BACKEND_ANTIGO_EM_PRODUCAO' };
+  const imp = health.implantacao ?? {};
+  if (imp.ambiente !== 'production') return { ok: false, motivo: 'IMPLANTACAO_NAO_E_PRODUCAO' };
+  if (imp.repositorio !== REPOSITORIO_ESPERADO) return { ok: false, motivo: 'REPOSITORIO_DIVERGENTE' };
+  if (!hostProducao || imp.dominio_producao !== hostProducao) return { ok: false, motivo: 'DOMINIO_PRODUCAO_DIVERGENTE' };
   if (health.release !== releaseSha) return { ok: false, motivo: 'BACKEND_EM_OUTRO_SHA' };
   if (health.status !== 'ok') return { ok: false, motivo: 'BACKEND_DEGRADADO' };
   return { ok: true, motivo: null };

@@ -4,7 +4,9 @@
  * (escopo e estratégias em cutoverRebanhoLib.mjs). Ação OPERACIONAL única e
  * separada: nunca roda no build da Vercel, no startup da função nem em request.
  *
- * Diagnóstico (padrão; SOMENTE LEITURA):
+ * Inventário (SOMENTE LEITURA; funciona ANTES das migrations — informa CUTOVER_SCHEMA_PENDENTE):
+ *   CUTOVER_DATABASE_URL='postgresql://…' node scripts/ops/cutover-rebanho.mjs --cliente-id <id> --inventario
+ * Diagnóstico (padrão; SOMENTE LEITURA; exige schema R2E, senão CUTOVER_SCHEMA_PENDENTE exit 3):
  *   CUTOVER_DATABASE_URL='postgresql://…' node scripts/ops/cutover-rebanho.mjs --cliente-id <id> --empresa-id <id>
  * Execução (todas as travas):
  *   … --executar --estrategia entradas|reset_e_entradas|saldo_abertura \
@@ -14,10 +16,11 @@
  * Segurança: lê só CUTOVER_DATABASE_URL (nunca DATABASE_URL de runtime) e não a
  * imprime. Se CUTOVER_EXPECTED_SYSTEM_IDENTIFIER estiver definido, ou se o alvo
  * não for local, o system_identifier do banco TEM de conferir (falha fechada).
- * PR174-R6: alvo remoto + --executar exige --backend-url <https://…> e
- * --release-sha <40hex>: o health de produção tem de mostrar o backend NOVO
- * nesse SHA, e o SHA tem de estar na origin/main (merge feito). Sem isso,
- * recusa — nunca cutover enquanto o backend antigo aceita gravações.
+ * PR174-R6/R7: alvo remoto + --executar exige --backend-url (= MAIKE_PRODUCAO_ORIGIN,
+ * origin de produção configurado pelo operador) e --release-sha <40hex> = HEAD
+ * atual da main REMOTA. O health (sem seguir redirect) tem de provar: produção,
+ * repositório maikelimaadm-stack/MAIKE, domínio de produção = origin, release =
+ * esse SHA e a capacidade do cutover. Senão, recusa ANTES de conectar ao banco.
  * Exit: 0 ok · 1 falha técnica · 2 uso incorreto · 3 recusado (nada alterado)
  */
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
@@ -38,7 +41,9 @@ const url = process.env.CUTOVER_DATABASE_URL;
 if (!url) uso('CUTOVER_DATABASE_URL ausente');
 const clienteId = valor('--cliente-id');
 const empresaId = valor('--empresa-id');
-if (!clienteId || !empresaId) uso('--cliente-id e --empresa-id são obrigatórios');
+const inventario = args.includes('--inventario');
+if (!clienteId || (!empresaId && !inventario)) uso('--cliente-id e --empresa-id são obrigatórios (ou --cliente-id com --inventario)');
+if (inventario && args.includes('--executar')) uso('--inventario é somente leitura');
 const executar = args.includes('--executar');
 const estrategia = valor('--estrategia');
 const confirmar = valor('--confirmar-empresa');
@@ -62,23 +67,36 @@ const local = ['localhost', '127.0.0.1', '::1'].includes(host);
 const esperado = process.env.CUTOVER_EXPECTED_SYSTEM_IDENTIFIER;
 if (!local && !esperado) uso('alvo remoto exige CUTOVER_EXPECTED_SYSTEM_IDENTIFIER');
 if (!local && executar) {
+  // PR174-R7: produção comprovada ANTES de abrir qualquer conexão de escrita.
   const backendUrl = valor('--backend-url');
   const releaseSha = valor('--release-sha');
-  if (!backendUrl || !/^https:\/\//.test(backendUrl) || !releaseSha) uso('alvo remoto + --executar exige --backend-url https://… e --release-sha <40hex>');
+  if (!backendUrl || !releaseSha) uso('alvo remoto + --executar exige --backend-url <origin de produção> e --release-sha <40hex>');
+  const { validarOrigemProducao, conferirBackendNovo: conferir } = await import('./cutoverRebanhoLib.mjs');
+  const origem = validarOrigemProducao({ informada: backendUrl, configurada: process.env.MAIKE_PRODUCAO_ORIGIN });
+  if (!origem.ok) {
+    console.error(`cutover-rebanho: RECUSADO ${origem.motivo} — defina MAIKE_PRODUCAO_ORIGIN (origin de produção do projeto Vercel) e use exatamente ele; nada alterado`);
+    process.exit(3);
+  }
   const { execFileSync } = await import('node:child_process');
-  let shaNaMain = false;
+  let mainRemota = null;
   try {
-    execFileSync('git', ['merge-base', '--is-ancestor', releaseSha, 'origin/main'], { stdio: 'ignore' });
-    shaNaMain = true;
-  } catch { /* fora da main */ }
+    const remoto = execFileSync('git', ['remote', 'get-url', 'origin'], { encoding: 'utf8' });
+    if (/maikelimaadm-stack\/MAIKE(\.git)?\s*$/i.test(remoto.trim())) {
+      mainRemota = execFileSync('git', ['ls-remote', 'origin', 'refs/heads/main'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).split(/\s+/)[0] || null;
+    }
+  } catch { /* remoto indisponível */ }
   let health = null;
+  let httpStatus = 0;
+  let redirecionou = false;
   try {
-    health = await (await fetch(`${backendUrl.replace(/\/$/, '')}/api/native/health`)).json();
+    const r = await fetch(`${origem.origin}/api/native/health`, { redirect: 'manual' });
+    httpStatus = r.status;
+    redirecionou = r.type === 'opaqueredirect' || (r.status >= 300 && r.status < 400);
+    if (r.status === 200) health = await r.json();
   } catch { /* indisponível */ }
-  const { conferirBackendNovo: conferir } = await import('./cutoverRebanhoLib.mjs');
-  const c = conferir({ health, releaseSha, shaNaMain });
+  const c = conferir({ health, httpStatus, redirecionou, releaseSha, mainRemota, hostProducao: origem.host });
   if (!c.ok) {
-    console.error(`cutover-rebanho: RECUSADO ${c.motivo} — produção ainda não está comprovadamente no backend novo; nada alterado`);
+    console.error(`cutover-rebanho: RECUSADO ${c.motivo} — produção não está comprovadamente no backend novo da main atual; nada alterado`);
     process.exit(3);
   }
 }
@@ -98,8 +116,20 @@ try {
       throw new Error('ALVO_DIVERGENTE');
     }
   }
-  console.log(JSON.stringify({ modo: executar ? 'EXECUCAO' : 'DIAGNOSTICO', ...(await diagnosticarEmpresa(prisma, { clienteId, empresaId })) }, null, 2));
-  if (executar) {
+  if (inventario) {
+    // PR174-R7: SOMENTE LEITURA, funciona antes das migrations (nenhuma tabela R2E é consultada).
+    const { inventarioSchema } = await import('./cutoverRebanhoLib.mjs');
+    const schema = await inventarioSchema(prisma);
+    const empresas = await prisma.$queryRaw`SELECT e.id, e.nome,
+        (SELECT COUNT(*)::int FROM "Lote" l WHERE l.cliente_id = e.cliente_id AND l.empresa_id = e.id) AS lotes,
+        (SELECT COUNT(*)::int FROM "MovimentacaoMapa" m WHERE m.cliente_id = e.cliente_id AND m.empresa_id = e.id) AS movimentacoes
+      FROM "Empresa" e WHERE e.cliente_id = ${clienteId} ORDER BY e.id`;
+    console.log(JSON.stringify({ modo: 'INVENTARIO', resultado: schema.schema_r2e_pronto ? 'SCHEMA_R2E_PRONTO' : 'CUTOVER_SCHEMA_PENDENTE', ...schema, empresas }, null, 2));
+    process.exitCode = 0;
+  } else {
+    console.log(JSON.stringify({ modo: executar ? 'EXECUCAO' : 'DIAGNOSTICO', ...(await diagnosticarEmpresa(prisma, { clienteId, empresaId })) }, null, 2));
+  }
+  if (executar && !inventario) {
     const { ativarEmpresaNaTransacao } = await import('../../backend/src/modules/rebanhoLedger/rebanhoLedgerService.js');
     const r = await executarCutover(prisma, {
       clienteId, empresaId, estrategia, dataCorte: dataCorte ?? null, usuarioId, confirmarEmpresaNome: confirmar, ativarEmpresaNaTransacao,

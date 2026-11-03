@@ -4462,3 +4462,9 @@ Auditoria do HEAD `ce1ab5b`: três hipóteses reproduzidas em RED (PostgreSQL re
 - O cancelamento do ledger recusa (409 `REBANHO_CANCELAMENTO_VINCULO_POSTERIOR`) quando um lançamento de outro módulo cita, por id, a posição nascida do evento ou o próprio movimento.
 - Exclusão física de movimentações continua fora de escopo.
 - Runbook: `docs/engineering/MAIKE-PR174-RELEASE-CUTOVER-RUNBOOK.md`.
+
+### D-PROD-107 — complemento PR174-R7 (gates pré-release)
+
+- O inventário somente leitura funciona antes das migrations. Sem schema R2E, o diagnóstico e o cutover devolvem `CUTOVER_SCHEMA_PENDENTE`; o cutover revalida tudo dentro da própria transação.
+- EXPAND só por allowlist fechada: manifesto SHA-256 pinado mais conferência estrutural. O padrão é recusar. Aplicar exige o alvo verificado (`system_identifier` + `_prisma_migrations`).
+- O cutover remoto exige o origin de produção configurado (`MAIKE_PRODUCAO_ORIGIN`), health sem redirect com a identidade da implantação Vercel e `release` = HEAD da main remota.

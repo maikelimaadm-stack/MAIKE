@@ -561,3 +561,12 @@ Suítes legadas convertidas ou removidas, com mapa em `evidencias/r2e-p1-lotes-s
 | Cancelamento ignorava vínculos de outros módulos | 409 `REBANHO_CANCELAMENTO_VINCULO_POSTERIOR` quando um documento cita, por id, a posição nascida do evento ou o próprio movimento; sem heurística de nome ou data | D1–D3; D1 falha no código R5 |
 
 **Limite declarado:** vínculo só é reconhecido por id estável: `LancamentoTarefa.posicao_id` e as chaves JSON `posicao_id`, `lote_id`, `posicao_ids`, `lote_ids`, `movimentacao_id` nos documentos de suplementação, sanidade, medicamento, manejo técnico e movimentação pecuária. Um documento sem id não bloqueia. Posição que já existia antes do movimento é protegida pela linha do tempo de saldo e peso, não por esta regra.
+
+## R7 — Gates pré-release: EXPAND fechado, alvo comprovado, inventário pré-schema
+
+| Achado | Correção | Evidência |
+|---|---|---|
+| A: o diagnóstico consultava `RebanhoLedgerAtivacao` antes das migrations e falhava de forma críptica | `inventarioSchema` (só `information_schema`) + `exigirSchemaR2E` no diagnóstico e dentro da transação do cutover → `CUTOVER_SCHEMA_PENDENTE` com os ausentes; CLI `--inventario` somente leitura | R7A1 (schema real sem R2E, CLI exit 0/3, nada escrito), R7A2 |
+| B: o classificador aceitava `CREATE…`/`GRANT`/`REVOKE`/`SELECT`/`SET`; o runner não conferia o banco | Allowlist fechada (manifesto SHA-256 dos 2 arquivos + conferência estrutural instrução a instrução; DO só com hash auditado e sobre tabelas novas); `--base` proibido; `origin/main` = `ls-remote`; `--verificar-alvo`/`--aplicar` exigem `system_identifier` + `_prisma_migrations` coerentes (`PREMERGE_MIGRATIONS_NAO_COMPROVADAS`); análise local declara "alvo remoto NÃO verificado" | B1–B7; o classificador da R6 aceitava FUNCTION/VIEW/GRANT/REVOKE/SELECT/TRIGGER (RED reproduzido) |
+| C: `--backend-url` aceitava qualquer https; main local podia estar defasada | `MAIKE_PRODUCAO_ORIGIN` obrigatório e idêntico; recusa preview, host arbitrário, caminho, http, localhost e credenciais; health sem seguir redirect; `/health.implantacao` (ambiente/repositório/domínio de produção da Vercel); `release` = HEAD da main **remota** | C1–C3 (recusa antes de conectar ao banco) |
+| D: restauração e escopo | Código da R6 mantido; prova de backup sem credenciais (R7D1); runbook: o backup do provedor é obrigatório e testado, e restaurá-lo não é rollback inocente | R7D1, runbook |

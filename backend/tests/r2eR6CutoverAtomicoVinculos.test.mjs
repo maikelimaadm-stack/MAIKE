@@ -285,3 +285,61 @@ describe('R6-D — vínculos causais no cancelamento do ledger', () => {
     assert.deepEqual([l.quantidade_cabecas, l.quantidade_entrada, l.area_atual_id], [500, 500, c.A.id], 'manejo nunca altera o cadastro de entrada');
   });
 });
+
+describe('R7-A — inventário antes do schema R2E (somente leitura, fail-closed)', () => {
+  const SCHEMA = 'r7_sem_r2e';
+  const comSchema = (url, s) => `${url}${url.includes('?') ? '&' : '?'}schema=${s}`;
+  test('R7A1: banco SEM schema R2E → inventário lista o que falta, diagnóstico/cutover recusam CUTOVER_SCHEMA_PENDENTE sem escrever; CLI --inventario funciona e o diagnóstico sai 3', async () => {
+    const { PrismaClient } = await import('@prisma/client');
+    const { inventarioSchema, diagnosticarEmpresa } = await import('../../scripts/ops/cutoverRebanhoLib.mjs');
+    const { spawnSync } = await import('node:child_process');
+    const p = prisma();
+    await p.$executeRawUnsafe(`DROP SCHEMA IF EXISTS ${SCHEMA} CASCADE`);
+    await p.$executeRawUnsafe(`CREATE SCHEMA ${SCHEMA}`);
+    for (const t of ['Empresa', 'Lote', 'MovimentacaoMapa', 'LancamentoTarefa']) await p.$executeRawUnsafe(`CREATE TABLE ${SCHEMA}."${t}" (LIKE public."${t}" INCLUDING ALL)`);
+    await p.$executeRawUnsafe(`ALTER TABLE ${SCHEMA}."LancamentoTarefa" DROP COLUMN "posicao_id"`);
+    await p.$executeRawUnsafe(`INSERT INTO ${SCHEMA}."Empresa" (id, cliente_id, numero_empresa, apelido, nome, "updatedAt") VALUES ('emp-r7', 'cli-r7', 1, 'F', 'Fazenda R7', now())`);
+    const url = comSchema(process.env.DATABASE_URL, SCHEMA);
+    const antigo = new PrismaClient({ datasources: { db: { url } } });
+    try {
+      const inv = await inventarioSchema(antigo);
+      assert.deepEqual(inv, { schema_r2e_pronto: false, ausentes: ['RebanhoLedgerAtivacao', 'PosicaoRebanho', 'EventoRebanho', 'PartidaRebanho', 'PesoRebanho', 'RebanhoLedgerAtivacao.modo', 'LancamentoTarefa.posicao_id'] });
+      await assert.rejects(diagnosticarEmpresa(antigo, { clienteId: 'cli-r7', empresaId: 'emp-r7' }), (e) => e.codigo === 'CUTOVER_SCHEMA_PENDENTE' && e.detalhes.ausentes.length === 7);
+      await assert.rejects(executarCutover(antigo, { clienteId: 'cli-r7', empresaId: 'emp-r7', estrategia: 'entradas', usuarioId: 'x', confirmarEmpresaNome: 'Fazenda R7', ativarEmpresaNaTransacao }), (e) => e.codigo === 'CUTOVER_SCHEMA_PENDENTE');
+      const env = { ...process.env, CUTOVER_DATABASE_URL: url };
+      const cli = (...a) => spawnSync('node', ['../scripts/ops/cutover-rebanho.mjs', '--cliente-id', 'cli-r7', ...a], { encoding: 'utf8', env });
+      const i = cli('--inventario');
+      assert.equal(i.status, 0, i.stderr);
+      const saida = JSON.parse(i.stdout);
+      assert.deepEqual([saida.modo, saida.resultado, saida.empresas.map((e) => e.nome)], ['INVENTARIO', 'CUTOVER_SCHEMA_PENDENTE', ['Fazenda R7']]);
+      const d = cli('--empresa-id', 'emp-r7');
+      assert.equal(d.status, 3);
+      assert.match(d.stderr, /CUTOVER_SCHEMA_PENDENTE/);
+      assert.doesNotMatch(i.stdout + i.stderr + d.stdout + d.stderr, /postgres(ql)?:\/\//);
+      assert.equal((await antigo.$queryRawUnsafe(`SELECT COUNT(*)::int AS n FROM ${SCHEMA}."Empresa"`))[0].n, 1, 'nada escrito');
+    } finally {
+      await antigo.$disconnect();
+      await p.$executeRawUnsafe(`DROP SCHEMA IF EXISTS ${SCHEMA} CASCADE`);
+    }
+  });
+
+  test('R7A2: banco COM schema R2E → inventário pronto e diagnóstico real da empresa', async () => {
+    const { inventarioSchema, diagnosticarEmpresa } = await import('../../scripts/ops/cutoverRebanhoLib.mjs');
+    assert.deepEqual(await inventarioSchema(prisma()), { schema_r2e_pronto: true, ausentes: [] });
+    const c = await cenario();
+    await entrada(c);
+    const d = await diagnosticarEmpresa(prisma(), { clienteId: c.cliente.id, empresaId: c.empresa.id });
+    assert.deepEqual([d.ativa, d.lotes_de_entrada, d.recomendacao], [false, 1, 'entradas']);
+  });
+
+  test('R7D1: backup operacional não contém credenciais (senha_hash, login, URL)', async () => {
+    const c = await cenario();
+    const l = await entrada(c);
+    await legadoTransferido(c, l, 50);
+    let backup;
+    await cutover(c, { gravarBackup: (b) => { backup = b; return true; } });
+    const txt = JSON.stringify(backup);
+    assert.doesNotMatch(txt, /senha_hash|senha|postgres(ql)?:\/\//i);
+    assert.deepEqual(Object.keys(backup).sort(), ['escopo', 'gerado_em', 'lotes', 'manifesto', 'movimentacoes_mapa', 'operacoes_idempotentes', 'versao']);
+  });
+});
