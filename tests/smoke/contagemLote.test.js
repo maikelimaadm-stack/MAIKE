@@ -1,5 +1,5 @@
 /**
- * Quantidade de cabeças no marcador do lote (D-PROD-82/110): cinza,
+ * Quantidade de cabeças no marcador do lote (D-PROD-82/111): cinza,
  * abaixo da figura, tamanho fixo e milhar separado por ponto.
  */
 import { describe, it, expect } from 'vitest';

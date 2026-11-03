@@ -43,7 +43,7 @@ import { Progress } from "@/components/ui/progress";
 import { AlertTriangle } from "lucide-react";
 import { corpoNascimento, corpoPesagem, corpoMudancaCategoria, corpoJuncao, corpoBaixa, previaJuncao, corpoTransferenciaLedger, ehPosicaoDoLedger } from "@/domain/lotes/manejoRebanho";
 import { enviarManejoRebanho, enviarJuncaoLotes, enviarBaixaRebanho, enviarTransferenciaLedger, mensagemDaTransferenciaLedger, mensagemDoErro, codigoDoErro, MENSAGENS_MANEJO_REBANHO } from "@/services/manejoRebanhoService";
-import { escopoDoUsuario } from "../lotes/CancelarMovimentacao";
+import { escopoDoUsuario } from "../lotes/ExcluirMovimentacao";
 import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 
 /**

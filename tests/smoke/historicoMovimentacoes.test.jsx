@@ -115,13 +115,16 @@ describe("domínio — escopo da área × escopo do lote", () => {
 const servico = vi.hoisted(() => ({
   listarHistoricoMovimentacoesPagina: vi.fn(),
   buscarLoteDoHistorico: vi.fn(async () => null),
-  cancelarMovimentacaoMapa: vi.fn(),
-  consultarCancelamentoMovimentacao: vi.fn(),
+  excluirMovimentacaoMapa: vi.fn(),
+  consultarExclusaoMovimentacao: vi.fn(),
+  removerMovimentacaoExcluidaDoCacheOffline: vi.fn(async () => 0),
+  pendenciasOfflineDaMovimentacao: vi.fn(async () => []),
 }));
 const cache = vi.hoisted(() => ({
   getMapaCachedData: vi.fn(),
   getMapaCacheSnapshot: vi.fn(),
   refreshMapaCacheEntry: vi.fn(),
+  updateMapaCachedData: vi.fn(async () => []),
 }));
 const empresa = vi.hoisted(() => ({ atual: "emp-1" }));
 
@@ -177,7 +180,7 @@ describe("HistoricoMovimentacoes — leitura online", () => {
     expect(screen.getAllByText("Entrada")).toHaveLength(1);
     expect(screen.queryByRole("button", { name: "Excluir" })).toBeNull();
     expect(screen.getAllByText("Ativo")).toHaveLength(3);
-    expect(screen.queryByRole("button", { name: "Cancelar movimentação" })).toBeNull(); // usuário comum
+    expect(screen.queryByRole("button", { name: "Excluir movimentação" })).toBeNull(); // usuário comum
     expect(servico.listarHistoricoMovimentacoesPagina).toHaveBeenCalledWith(
       expect.objectContaining({ empresaId: EMP, areaId: "area-A", cursor: null, limit: 100 })
     );
@@ -289,7 +292,7 @@ describe("HistoricoMovimentacoes — troca de empresa e offline", () => {
     expect(cache.getMapaCacheSnapshot).toHaveBeenCalledWith("movimentacoesHistorico", EMP);
     expect(screen.getAllByText("Cancelado").length).toBeGreaterThan(0);
     expect(screen.getByText(/por admin\.teste — Motivo: lançado em duplicidade/)).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Cancelar movimentação" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Excluir movimentação" })).toBeNull();
   });
 
   it("MAIKE-LOTES-R1: movimento cancelado de lote excluído do cadastro mostra o indicador (sem erro de lote não encontrado)", async () => {

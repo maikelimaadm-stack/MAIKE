@@ -4510,7 +4510,57 @@ Testes KML-N1..N5 em `tests/smoke/importacaoAreasParser.test.js`.
 
 ---
 
-## D-PROD-110 — Quantidade de cabeças: mais baixa, tamanho fixo, milhar com ponto e cinza mais claro
+## D-PROD-110 — Exclusão definitiva segura de movimentações do rebanho
+
+**Pedido do proprietário:** não existe edição de movimento confirmado. Para corrigir uma transferência, peso, data ou quantidade lançados errado, a movimentação é **excluída com segurança** e a operação certa é lançada de novo. Diferente do cancelamento, a exclusão **não deixa** o registro cancelado no histórico operacional.
+
+**Decisão:**
+- Contrato oficial, só online: `GET /movimentacoes-mapa/:id/elegibilidade-exclusao` (informativo, ensaio em SAVEPOINT desfeito) e `POST /movimentacoes-mapa/:id/exclusao` com `{operation_id, motivo}`. O schema recusa qualquer outro campo (delta, saldo, `cliente_id`, `empresa_id`). Só o administrador ativo do tenant, relido do banco. Outro tenant recebe 404. Os `DELETE` e `PATCH` genéricos continuam recusados.
+- Um único motor, `backend/src/modules/rebanhoLedger/rebanhoLedgerExclusao.js`:
+  - primeiro reverte pelo **motor certificado do cancelamento** (`cancelarMovimentoDoLedger`), sem nenhuma fórmula nova. As guardas são as mesmas: vínculos causais por id, saldo ≥ 0 em cada data, peso causal, pré-condição de pesagem/nascimento e linhagem da junção;
+  - a dependência é **causal**, não cronológica: um fato posterior independente não bloqueia;
+  - depois, na mesma transação, apaga fisicamente o fato na ordem das FKs: `PesoRebanho` → `PartidaRebanho` → `EventoRebanho` → `MovimentacaoMapa`. Todas as FKs são Restrict; não há cascata.
+- **Posições:** a posição que só existia por esse fato também sai, desde que nenhuma partida, peso, tarefa, linhagem, outro movimento, outro evento ou documento dos módulos vinculados a cite por id. Na dúvida, ela fica, zerada e coerente.
+- **Travas:** mesma ordem do cancelamento (movimento `FOR UPDATE` → áreas → posições). Assim cancelar × excluir e duas exclusões se serializam sem deadlock. A segunda recebe 409 `EXCLUSAO_JA_REALIZADA`, ou 409 `EXCLUSAO_MOVIMENTO_CANCELADO` se o cancelamento venceu.
+- **Idempotência:**
+  - recibo de origem EXATO (PR178-R2): a chave única de `OperacaoIdempotente` é (cliente, `operation_key`, `tipo_operacao`), então a mesma chave pode existir em tipos diferentes. O recibo de origem é o **único** `committed` do tenant que:
+    - tem a chave do evento;
+    - é de um dos cinco comandos que gravam fatos do ledger (`TIPOS_OPERACAO_ORIGEM_LEDGER`);
+    - tem resposta guardada que cita **este** evento e **este** movimento.
+  - zero ou mais de um recibo assim → 409 `CANCELAMENTO_EFEITO_NAO_COMPROVADO`, nada alterado. Vale também para o cancelamento antigo, que antes usava `findFirst` sem o tipo;
+  - a exclusão marca exatamente essa linha (contagem conferida = 1). Um homônimo de outro tipo continua `committed` e com replay;
+  - o recibo da operação **original** não é apagado: vira `status = 'excluido'`. Um replay (fila antiga, timeout, dupla confirmação) recebe 409 `IDEMPOTENCY_EFEITO_EXCLUIDO`, nunca recria o fato nem devolve um corpo que cita registros apagados;
+  - a exclusão tem o próprio recibo: retry com a mesma chave recebe a mesma resposta (`replay: true`), sem segundo estorno.
+  - Não há migration: `status` já é texto livre (VarChar 32).
+- **Auditoria:** um `AuditLog` mínimo `acao = 'exclusao_definitiva'` (entidade `MovimentacaoMapa`). Registra tenant, usuário, `request_id`, motivo, tipo, data, evento, operação original, efeitos por posição e posições removidas; o sanitizador já tira chaves de credencial. Também registra `delete` por posição removida. Auditoria é administrativa, não histórico operacional.
+- **Recusas estáveis** (nada é gravado):
+  - `EXCLUSAO_MOVIMENTO_LEGADO`: movimento sem evento certificado do ledger;
+  - `EXCLUSAO_MOVIMENTO_CANCELADO`: movimento já cancelado; não há limpeza retroativa;
+  - `EXCLUSAO_REFERENCIA_DOCUMENTAL`: documento, mesmo cancelado, que cita o movimento;
+  - `EXCLUSAO_JA_REALIZADA`;
+  - além dos códigos do motor: `CANCELAMENTO_SALDO_HISTORICO_NEGATIVO`, `REBANHO_DEPENDENCIA_FATO_SEM_SALDO`, `REBANHO_PESO_DEPENDENCIA_CAUSAL`, `REBANHO_CANCELAMENTO_VINCULO_POSTERIOR` e `CANCELAMENTO_EFEITO_NAO_COMPROVADO`.
+- **Tipos suportados:** todos os manejos do ledger — Transferência, Morte, Abate, Nascimento, Pesagem, Mudança de Categoria e Junção. Entrada e saldo de abertura não são movimentos do mapa; seguem pela exclusão do cadastro de lotes.
+- **UI:** "Excluir movimentação" substitui "Cancelar movimentação" nos históricos (Histórico de Movimentações e Histórico de Abate do Curral).
+  - Mostra elegibilidade, bloqueador com data/área e efeito por posição.
+  - Exige motivo e confirmação explícita.
+  - Faz retry com a mesma chave quando o resultado é desconhecido.
+  - Offline o botão fica desabilitado com o motivo, e nada vai para a fila. Uma operação na fila offline para o registro bloqueia a exclusão.
+  - Depois do sucesso, tira o movimento das cópias offline do tenant e das listas do mapa da empresa, e força o refresh.
+  - O endpoint de cancelamento continua no backend para compatibilidade, sem ação na UI.
+- **Gate:** `gate:rebanho-ssot` ganha `P110-EXCLUSAO-UNICA`:
+  - apagar `EventoRebanho` só é possível no motor único;
+  - o motor reverte pelo cancelamento certificado antes de apagar e não usa cascata;
+  - o serviço exige admin, idempotência e trava.
+
+**Compatibilidade (risco residual):** `POST /movimentacoes-mapa/:id/cancelamento` continua no backend para clientes antigos. Ele ainda pode gerar movimentos marcados `cancelado`, que a exclusão não apaga (`EXCLUSAO_MOVIMENTO_CANCELADO`). Um cancelamento de cliente antigo e uma exclusão nova são resultados distintos no banco e na auditoria. A interface atual não chama mais o cancelamento.
+
+**Preview:** as variáveis de banco da Vercel têm alvo `production` e `preview`, e o isolamento do Preview não foi comprovado. Por isso nenhum teste com escrita é feito no Preview (`PREVIEW_WRITE_TEST_BLOCKED`). O E2E funcional e visual roda em PostgreSQL local isolado.
+
+**Release:** CODE_READY não libera produção. O uso real continua bloqueado até haver backup restaurável comprovado e autorização de deploy do proprietário.
+
+---
+
+## D-PROD-111 — Quantidade de cabeças: mais baixa, tamanho fixo, milhar com ponto e cinza mais claro
 
 **Pedido do proprietário:**
 - o número da quantidade no ícone do gado fica mais embaixo, com letra um pouco menor e um tom mais claro;
@@ -4527,4 +4577,4 @@ O resultado foi conferido no Chromium com o ícone real do lote: 8, 50, 500, 5.0
 
 ---
 
-<!-- Próxima decisão: D-PROD-111 -->
+<!-- Próxima decisão: D-PROD-112 -->

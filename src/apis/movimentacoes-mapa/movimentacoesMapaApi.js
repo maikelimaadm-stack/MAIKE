@@ -4,6 +4,10 @@ import {
   listarHistoricoMovimentacoesMapaPagina,
   cancelarMovimentacaoMapaNativa,
   elegibilidadeCancelamentoMovimentacaoMapaNativa,
+  excluirMovimentacaoMapaNativa,
+  elegibilidadeExclusaoMovimentacaoMapaNativa,
+  removerMovimentacaoDosCachesOffline as removerDosCachesOfflineNativo,
+  pendenciasOfflineDaMovimentacao as pendenciasOfflineNativas,
   executarManejoRebanhoNativo,
   executarJuncaoLotesNativo,
   executarBaixaRebanhoNativo,
@@ -19,6 +23,10 @@ export const deleteMovimentacaoMapaNativa = (...args) => movimentacaoMapaPort.de
 export const listHistoricoMovimentacoesMapaNativo = (filtros) => listarHistoricoMovimentacoesMapaPagina(filtros);
 export const cancelarMovimentacaoMapa = (id, corpo) => cancelarMovimentacaoMapaNativa(id, corpo);
 export const elegibilidadeCancelamentoMovimentacaoMapa = (id) => elegibilidadeCancelamentoMovimentacaoMapaNativa(id);
+export const excluirMovimentacaoMapa = (id, corpo) => excluirMovimentacaoMapaNativa(id, corpo);
+export const elegibilidadeExclusaoMovimentacaoMapa = (id) => elegibilidadeExclusaoMovimentacaoMapaNativa(id);
+export const removerMovimentacaoDosCachesOffline = (id) => removerDosCachesOfflineNativo(id);
+export const pendenciasOfflineDaMovimentacao = (id) => pendenciasOfflineNativas(id);
 export const executarManejoRebanho = (corpo) => executarManejoRebanhoNativo(corpo);
 export const executarJuncaoLotes = (corpo) => executarJuncaoLotesNativo(corpo);
 export const executarBaixaRebanho = (corpo) => executarBaixaRebanhoNativo(corpo);

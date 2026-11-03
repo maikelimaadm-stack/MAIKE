@@ -5,6 +5,7 @@ import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { querystringListagemEmpresa } from '../../shared/http/listQueryLimit.js';
 import { listar, listarHistorico, criar, atualizar, excluir, HISTORICO_LIMITE_MAXIMO } from './movimentacaoMapaService.js';
 import { cancelar, elegibilidade } from './movimentacaoMapaCancelamentoService.js';
+import { excluir as excluirDefinitivo, elegibilidadeExclusao } from './movimentacaoMapaExclusaoService.js';
 import { executarManejoLote } from './manejoMapaComandoService.js';
 import { executarJuncaoLotes } from './manejoJuncaoComandoService.js';
 import { MAX_ORIGENS_JUNCAO } from './juncaoConstantes.js';
@@ -258,6 +259,20 @@ export const registrarMovimentacaoMapaRoutes = async (app) => {
     exigirAuthContext(request.contexto.auth);
     const { id } = /** @type {{id: string}} */ (request.params);
     const { status, body } = await cancelar(request.contexto, id, /** @type {{operation_id: string, motivo: string}} */ (request.body));
+    return reply.status(status).send(body);
+  });
+
+  // D-PROD-110 — exclusão definitiva segura (contrato oficial; o DELETE genérico segue recusado).
+  app.get('/movimentacoes-mapa/:id/elegibilidade-exclusao', { onRequest: [app.autenticar], schema: ID_SCHEMA }, async (request) => {
+    exigirAuthContext(request.contexto.auth);
+    const { id } = /** @type {{id: string}} */ (request.params);
+    return elegibilidadeExclusao(request.contexto, id);
+  });
+
+  app.post('/movimentacoes-mapa/:id/exclusao', { onRequest: [app.autenticar], schema: CANCELAMENTO_SCHEMA }, async (request, reply) => {
+    exigirAuthContext(request.contexto.auth);
+    const { id } = /** @type {{id: string}} */ (request.params);
+    const { status, body } = await excluirDefinitivo(request.contexto, id, /** @type {{operation_id: string, motivo: string}} */ (request.body));
     return reply.status(status).send(body);
   });
 

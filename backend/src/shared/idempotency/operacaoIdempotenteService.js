@@ -13,7 +13,19 @@ import { AppError } from '../errors/AppError.js';
  * estável); uma nova operação usa chave nova.
  */
 export const STATUS_DESFEITO = 'desfeito';
+/**
+ * D-PROD-110: o fato desta chave foi EXCLUÍDO definitivamente pelo comando
+ * oficial de exclusão. O recibo não é apagado: fica como marcador estável para
+ * que replay (fila antiga, timeout, dupla confirmação) nunca recrie o fato nem
+ * devolva um corpo que cita registros apagados.
+ */
+export const STATUS_EXCLUIDO = 'excluido';
 const recusarSeDesfeito = (registro, operationKey) => {
+  if (registro?.status === STATUS_EXCLUIDO) {
+    throw new AppError('IDEMPOTENCY_EFEITO_EXCLUIDO', 'o fato desta operação foi excluído definitivamente; lance a operação correta com uma chave nova', {
+      details: { operation_id: operationKey },
+    });
+  }
   if (registro?.status === STATUS_DESFEITO) {
     throw new AppError('IDEMPOTENCY_EFEITO_DESFEITO', 'o efeito desta operação foi desfeito (reset de dados de teste); envie como operação nova', {
       details: { operation_id: operationKey },

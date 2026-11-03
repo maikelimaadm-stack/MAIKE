@@ -1,0 +1,27 @@
+    not ok 1 - B6: 10 em A → transferência de 3 para B → EXCLUIR → A=10, B=0, cadastro 10, some do histórico; posição B (só dela) removida; auditoria mantida
+    not ok 2 - transferência TOTAL para área nova e de volta para posição pré-existente: excluir a volta restaura sem remover a posição de origem
+    not ok 1 - morte posterior na posição criada → 409 CANCELAMENTO_SALDO_HISTORICO_NEGATIVO; elegibilidade igual; 0 escrita
+    not ok 2 - pesagem posterior na posição criada → 409 REBANHO_DEPENDENCIA_FATO_SEM_SALDO; tarefa ligada à posição → 409 REBANHO_CANCELAMENTO_VINCULO_POSTERIOR
+    not ok 3 - documento de outro módulo que cita o movimento (mesmo CANCELADO) bloqueia: EXCLUSAO_REFERENCIA_DOCUMENTAL / vínculo posterior
+    not ok 1 - T1 (3 A→B) e depois T2 (2 A→C) + pesagem em A: excluir T1 passa; A=8, C=2, B some
+    not ok 1 - cancelar e excluir ao mesmo tempo: exatamente um vence; estado coerente
+    not ok 2 - duas exclusões simultâneas (chaves diferentes): uma 200, a outra 409 EXCLUSAO_JA_REALIZADA; um único estorno
+    not ok 3 - retry com a MESMA operation_id (resposta perdida) → replay idêntico, sem segundo estorno; mesma chave com outro motivo → 409 IDEMPOTENCY_CONFLICT
+    not ok 1 - falha em exclusao_apos_reversao → 500 e nada muda (movimento, evento, partidas, pesos, posições, auditoria, operações)
+    not ok 2 - falha em exclusao_apos_delete → 500 e nada muda (movimento, evento, partidas, pesos, posições, auditoria, operações)
+    not ok 1 - reenvio exato da transferência original (fila antiga/timeout) → 409 IDEMPOTENCY_EFEITO_EXCLUIDO; nada recriado
+    not ok 1 - comum 403; tenant B 404 (comando e elegibilidade); sem token 401; delta/saldo/cliente_id no corpo 400; admin revogado 403
+    not ok 1 - evento adulterado/forjado → CANCELAMENTO_EFEITO_NAO_COMPROVADO; operação de origem não confirmada → idem
+    not ok 2 - movimento legado (sem evento do ledger) → EXCLUSAO_MOVIMENTO_LEGADO; já cancelado → EXCLUSAO_MOVIMENTO_CANCELADO (sem limpeza retroativa)
+    not ok 1 - Morte
+    not ok 2 - Abate
+    not ok 3 - Morte (manejo-lote)
+    not ok 4 - Nascimento
+    not ok 5 - Pesagem
+    not ok 6 - Mudança de Categoria
+    not ok 7 - Junção
+    not ok 8 - Transferência parcial retroativa
+# tests 23
+# pass 0
+# fail 23
+Motivo do RED (todas as 23): rota inexistente — 'Route POST:/movimentacoes-mapa/<id>/exclusao not found' / 'Route GET:/movimentacoes-mapa/<id>/elegibilidade-exclusao not found' (404).

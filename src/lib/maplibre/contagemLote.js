@@ -1,5 +1,5 @@
 /**
- * Quantidade de cabeças no marcador do lote (D-PROD-82/89/110; substitui o encolhimento da D-PROD-83).
+ * Quantidade de cabeças no marcador do lote (D-PROD-82/89/111; substitui o encolhimento da D-PROD-83).
  *
  * Tamanho fixo, sem encolher conforme o número (o ícone de 44 px comporta a
  * quantidade de um lote), e milhar separado por ponto: 5000 → "5.000".

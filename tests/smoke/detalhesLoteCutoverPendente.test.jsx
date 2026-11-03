@@ -32,7 +32,7 @@ vi.mock("@/services/mapaCacheService", () => cache);
 vi.mock("@/services/mapaService", () => ({ listarIconesPorTipoEntidade: async () => [] }));
 vi.mock("@/services/sessionService", () => ({ getCurrentUser: async () => ({ id: "u-1", cliente_id: "c-1" }) }));
 vi.mock("@/hooks/useEmpresaSelecionadaId", () => ({ useEmpresaSelecionadaId: () => "emp-1" }));
-vi.mock("@/components/lotes/CancelarMovimentacao", () => ({ escopoDoUsuario: () => "c-1:u-1" }));
+vi.mock("@/components/lotes/ExcluirMovimentacao", () => ({ escopoDoUsuario: () => "c-1:u-1" }));
 vi.mock("sonner", () => ({ toast }));
 vi.mock("@/components/ui/dropdown-menu", () => ({
   DropdownMenu: ({ children }) => <div>{children}</div>,

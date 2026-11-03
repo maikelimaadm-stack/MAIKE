@@ -16,6 +16,10 @@ import {
   listHistoricoMovimentacoesMapaNativo,
   cancelarMovimentacaoMapa,
   elegibilidadeCancelamentoMovimentacaoMapa,
+  excluirMovimentacaoMapa,
+  elegibilidadeExclusaoMovimentacaoMapa,
+  removerMovimentacaoDosCachesOffline,
+  pendenciasOfflineDaMovimentacao,
   executarManejoRebanho,
   executarJuncaoLotes,
   executarBaixaRebanho,
@@ -177,6 +181,28 @@ export const registrarTransferenciaLedgerServidor = async (corpo) => {
   assertArgument(isObjeto(corpo) && isId(corpo.operation_id) && isId(corpo.area_destino_id) && Array.isArray(corpo.itens), 'corpo', contexto);
   return runProviderCall(() => executarTransferenciaLedger(corpo), { ...contexto, details: { area_destino_id: corpo.area_destino_id } });
 };
+
+/**
+ * Exclusão definitiva segura (D-PROD-110). Só `operation_id` e `motivo` vão no
+ * corpo; nada de delta ou saldo. Sem fila offline.
+ */
+export const excluirMovimentacaoDefinitiva = async (id, { operation_id, motivo }) => {
+  const contexto = ctx('excluirMovimentacaoDefinitiva');
+  assertArgument(isId(id), 'id', contexto);
+  assertArgument(isId(operation_id) && isId(motivo), 'corpo', contexto);
+  return runProviderCall(() => excluirMovimentacaoMapa(id, { operation_id, motivo }), { ...contexto, details: { id } });
+};
+
+export const consultarElegibilidadeExclusaoMovimentacao = async (id) => {
+  const contexto = ctx('consultarElegibilidadeExclusaoMovimentacao');
+  assertArgument(isId(id), 'id', contexto);
+  return runProviderCall(() => elegibilidadeExclusaoMovimentacaoMapa(id), { ...contexto, details: { id } });
+};
+
+/** Depois da exclusão confirmada pelo servidor: some de todas as cópias offline do tenant. */
+export const removerMovimentacaoExcluidaDosCaches = (id) => removerMovimentacaoDosCachesOffline(id);
+/** Operações deste movimento na fila offline do tenant (bloqueiam a exclusão). */
+export const pendenciasOfflineDeMovimentacao = (id) => pendenciasOfflineDaMovimentacao(id);
 
 export const consultarElegibilidadeCancelamento = async (id) => {
   const contexto = ctx('consultarElegibilidadeCancelamento');
