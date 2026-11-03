@@ -126,10 +126,12 @@ const linhagemLegada = async (tx, clienteId, empresaId, lote, porId, profundidad
  * empresa — PR174-R5). Mesmas travas e validações; quem chama decide a
  * autorização e a idempotência.
  * @param {any} tx
- * @param {{auth: any}} contexto
- * @param {{empresaId: string, modo: string, dataCorte: string|null}} p
+ * @param {{auth: any, requestId: string}} contexto
+ * @param {{empresaId: string, modo: string, dataCorte: string|null, operationKey?: string}} p
+ *   `operationKey` ancora os eventos de abertura/entrada (padrão: `ativacao:<empresa>`,
+ *   única porque a empresa só é ativada uma vez).
  */
-export const ativarEmpresaNaTransacao = async (tx, contexto, { empresaId, modo, dataCorte }) => {
+export const ativarEmpresaNaTransacao = async (tx, contexto, { empresaId, modo, dataCorte, operationKey = `ativacao:${empresaId}` }) => {
   const auth = exigirAuthContext(contexto?.auth);
   // PR174-R2: trava a Empresa (o POST genérico usa FOR SHARE nela antes de ler a ativação).
   const [empresa] = /** @type {Array<{id: string}>} */ (await tx.$queryRaw`SELECT id FROM "Empresa" WHERE cliente_id = ${auth.clienteId} AND id = ${empresaId} FOR UPDATE`);
@@ -263,7 +265,7 @@ export const ativarLedger = async (contexto, entrada) => {
       operationKey,
       tipoOperacao: TIPO_OPERACAO_ATIVACAO,
       fingerprint,
-      executar: () => ativarEmpresaNaTransacao(tx, contexto, { empresaId, modo, dataCorte }),
+      executar: () => ativarEmpresaNaTransacao(tx, contexto, { empresaId, modo, dataCorte, operationKey }),
     });
   });
   return { status: r.httpStatus, body: { ...r.body, replay: r.replay } };
