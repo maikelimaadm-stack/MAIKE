@@ -48,6 +48,28 @@ Também seguem verdes as suítes anteriores:
 
 Os testes RED estão no HEAD de partida. Evidências: `evidencias/d-prod-113/ux-red-green.txt` e `b7-premerge-red-green.txt`.
 
+## PR181-R2 — cancelamento REAL das consultas de elegibilidade
+
+**Falha remanescente do UX-3 (HEAD `ed3ff4a5`):**
+- o teto de 30 s liberava a vaga, mas não abortava a requisição HTTP em andamento;
+- o `nativeHttpClient` ignorava `signal` externo e limpava o próprio timer já nos cabeçalhos, então um corpo travado ficava vivo;
+- fechar o histórico também não abortava os GETs em voo.
+
+**Correção:**
+- `nativeRequest` aceita `signal` opcional e o compõe com o controlador do transporte. O abort atinge o fetch **e** a leitura do corpo, e o listener sai no fim, inclusive em erro de corpo. Sem `signal`, o contrato não muda: o GET padrão continua com timeout de 20 s e o POST com `timeoutMs` de 60 s.
+- O `signal` desce por porta → API → lotesApi → serviço (assinaturas retrocompatíveis).
+- Limitador, com prazo de 30 s e no máximo 2 ativas:
+  - cada consulta tem um AbortController próprio, que chega ao fetch;
+  - prazo vencido ou cancelamento do React Query (desmontagem, troca de escopo) chamam `abort()` de fato, e quem chamou recebe a falha na hora (fail-closed);
+  - a vaga só volta quando o transporte confirma o fim da requisição abortada, com teto de 2 s (`GRACA_ABORT_MS`) para transporte que não coopere. Assim nunca há 3 em voo;
+  - consulta cancelada ainda na fila sai da fila e nunca dispara GET;
+  - a redistribuição da vaga roda em microtask, para que um fechamento com vários cancelamentos no mesmo tick não inicie quem também será cancelado;
+  - resposta e liberação acontecem exatamente uma vez.
+
+**Testes:** RED no `ed3ff4a5` (H1–H4 e R2-1/3/4/5); GREEN em `nativeHttpClientAbort` 6/6 e `exclusaoMovimentacao` 37/37.
+
+**Playwright 57/57:** com o contador dentro da página, o máximo foi de 2 em voo, com 4 a 6 aborts reais por rodada. Evidências: `evidencias/d-prod-113/r2-cancelamento-red-green.txt` e `visual/r2-resultados.txt`.
+
 ## UI real (Playwright, stack local)
 
 `evidencias/d-prod-113/visual/`: 57/57 PASS em 1440, 390 e 412.

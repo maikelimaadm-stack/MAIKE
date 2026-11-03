@@ -1,0 +1,16 @@
+PR181-R2 — RED no HEAD ed3ff4a5 (cliente HTTP ignora signal; limitador não aborta o transporte):
+   × nativeRequest — AbortSignal externo (PR181-R2) > H1: abort externo com o fetch em voo aborta o transporte e rejeita como indisponibilidade 200
+   × nativeRequest — AbortSignal externo (PR181-R2) > H2: cabeçalhos chegaram e o corpo travou → abort externo interrompe a LEITURA do corpo 200
+   × nativeRequest — AbortSignal externo (PR181-R2) > H3: signal já abortado não dispara fetch nenhum 20002ms
+   × nativeRequest — AbortSignal externo (PR181-R2) > H4: o listener do signal externo sai ao terminar (sucesso e erro de corpo); abort tardio não
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  4 failed | 1 passed (5)
+   × PR181-R2 — cancelamento REAL das consultas de elegibilidade > R2-1: consulta ATIVA expirada recebe abort no transporte antes de a próxima ocu
+   × PR181-R2 — cancelamento REAL das consultas de elegibilidade > R2-3: fechar o histórico com 2 GETs ativos + 8 na fila → os 2 recebem abort n
+   × PR181-R2 — cancelamento REAL das consultas de elegibilidade > R2-4: consulta cancelada ainda na fila sai da fila (zero GET, sem retenção) 32
+   × PR181-R2 — cancelamento REAL das consultas de elegibilidade > R2-5: corridas resolução × abort × timeout liberam a vaga exatamente uma vez
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  tests/smoke/exclusaoMovimentacao.test.jsx > PR181-R2 — cancelamento REAL das consultas de elegibilidade > R2-5: corridas resolução × abort
+      Tests  4 failed | 32 skipped (36)
+
+GREEN no HEAD da correção: nativeHttpClientAbort 6/6 (H1–H6); exclusaoMovimentacao 37/37 (R2-1, R2-3..R2-6 + UX-1..3 + PR180-R2); smoke afetado 106/106.

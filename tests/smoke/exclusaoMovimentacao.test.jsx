@@ -206,7 +206,7 @@ describe("Pré-validação no card (MAIKE-POS178-UX) — estado ANTES do clique"
     const { container } = await renderizar(<ExcluirMovimentacao movimento={TRANSF} />);
     expect((await screen.findByRole("button", { name: "Excluir movimentação" })).hasAttribute("disabled")).toBe(false);
     expect(estadoDoCard(container)).toBe("elegivel");
-    expect(servico.consultarExclusaoMovimentacao).toHaveBeenCalledWith("mv-1");
+    expect(servico.consultarExclusaoMovimentacao).toHaveBeenCalledWith("mv-1", { signal: expect.any(AbortSignal) });
   });
 
   it("3) bloqueada por pesagem posterior: 'Exclusão bloqueada' desabilitado, motivo com tipo/data/área no card, sem abrir diálogo", async () => {
@@ -486,12 +486,152 @@ describe("D-PROD-113 — bugs de UX reproduzidos (RED → GREEN)", () => {
       let terceira = null;
       const p3 = mod.comLimiteDeConsultas(async () => { terceira = "rodou"; return "ok"; });
       const falhas = [pendurada.catch((e) => e), pendurada2.catch((e) => e)];
-      await vi.advanceTimersByTimeAsync(mod.LIMITE_CONSULTA_MS + 10);
+      // Transporte que IGNORA o abort: a vaga volta no teto de graça (nunca presa para sempre).
+      await vi.advanceTimersByTimeAsync(mod.LIMITE_CONSULTA_MS + mod.GRACA_ABORT_MS + 10);
       const [e1, e2] = await Promise.all(falhas);
       expect(e1).toBeInstanceOf(Error);
       expect(e2).toBeInstanceOf(Error);
       expect(await p3).toBe("ok");
       expect(terceira).toBe("rodou");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe("PR181-R2 — cancelamento REAL das consultas de elegibilidade", () => {
+  /** Transporte instrumentado: cada consulta guarda o signal recebido e só termina por abort ou resolução manual. */
+  const transporte = () => {
+    const voos = [];
+    let ativosMax = 0;
+    const ativos = () => voos.filter((v) => !v.fim).length;
+    const fn = (signal) => new Promise((resolve, reject) => {
+      const voo = { signal, fim: false, resolver: (x) => { voo.fim = true; resolve(x); } };
+      voos.push(voo);
+      ativosMax = Math.max(ativosMax, ativos());
+      signal?.addEventListener("abort", () => { voo.fim = true; reject(Object.assign(new Error("aborted"), { name: "AbortError" })); });
+    });
+    return { fn, voos, ativos, max: () => ativosMax };
+  };
+
+  it("R2-1: consulta ATIVA expirada recebe abort no transporte antes de a próxima ocupar a vaga; nunca mais de 2 ativas", async () => {
+    const mod = await import("@/components/lotes/ExcluirMovimentacao");
+    vi.useFakeTimers();
+    try {
+      const t = transporte();
+      const ps = [0, 1, 2].map(() => mod.comLimiteDeConsultas((sig) => t.fn(sig)).catch((e) => e));
+      await vi.advanceTimersByTimeAsync(0);
+      expect(t.voos).toHaveLength(2);
+      await vi.advanceTimersByTimeAsync(mod.LIMITE_CONSULTA_MS + 1);
+      expect(t.voos[0].signal.aborted).toBe(true);
+      expect(t.voos[1].signal.aborted).toBe(true);
+      expect(t.voos).toHaveLength(3);
+      expect(t.max()).toBeLessThanOrEqual(2);
+      t.voos[2].resolver("ok");
+      const [e1, e2, r3] = await Promise.all(ps);
+      expect(e1).toBeInstanceOf(Error);
+      expect(e2).toBeInstanceOf(Error);
+      expect(r3).toBe("ok");
+      expect(mod.__estadoLimiteConsultas()).toEqual({ ativos: 0, espera: 0 });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("R2-6: após o abort, a vaga só volta quando o transporte confirma o fim (nunca 3 em voo de verdade)", async () => {
+    const mod = await import("@/components/lotes/ExcluirMovimentacao");
+    vi.useFakeTimers();
+    try {
+      let emVoo = 0, max = 0;
+      const lento = (sig) => new Promise((resolve, reject) => {
+        emVoo += 1; max = Math.max(max, emVoo);
+        // O transporte demora 500 ms para encerrar depois do abort (como o navegador).
+        sig.addEventListener("abort", () => setTimeout(() => { emVoo -= 1; reject(Object.assign(new Error("aborted"), { name: "AbortError" })); }, 500));
+      });
+      const ps = [0, 1, 2].map(() => mod.comLimiteDeConsultas(lento).catch((e) => e));
+      await vi.advanceTimersByTimeAsync(mod.LIMITE_CONSULTA_MS + 1);
+      expect(mod.__estadoLimiteConsultas()).toEqual({ ativos: 2, espera: 1 }); // abortadas, mas ainda encerrando
+      await vi.advanceTimersByTimeAsync(600);
+      expect(mod.__estadoLimiteConsultas().ativos).toBe(1); // a terceira começou só agora
+      expect(max).toBeLessThanOrEqual(2);
+      await vi.advanceTimersByTimeAsync(mod.LIMITE_CONSULTA_MS + 600);
+      await Promise.all(ps);
+      expect(mod.__estadoLimiteConsultas()).toEqual({ ativos: 0, espera: 0 });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("R2-3: fechar o histórico com 2 GETs ativos + 8 na fila → os 2 recebem abort no transporte, os 8 nunca começam; reabrir não fica retido", async () => {
+    const mod = await import("@/components/lotes/ExcluirMovimentacao");
+    const sinais = [];
+    servico.consultarExclusaoMovimentacao.mockClear();
+    servico.consultarExclusaoMovimentacao.mockImplementation((id, opcoes) => new Promise((resolve, reject) => {
+      sinais.push(opcoes?.signal);
+      opcoes?.signal?.addEventListener("abort", () => reject(Object.assign(new Error("aborted"), { name: "AbortError" })));
+    }));
+    const movs = Array.from({ length: 10 }, (_, i) => ({ ...TRANSF, id: `mv-r2-${i}` }));
+    const r = await renderizar(<div>{movs.map((m) => <ExcluirMovimentacao key={m.id} movimento={m} />)}</div>);
+    expect(servico.consultarExclusaoMovimentacao).toHaveBeenCalledTimes(2);
+    expect(sinais.every((s) => s instanceof AbortSignal && !s.aborted)).toBe(true);
+    r.unmount();
+    await assentar();
+    expect(sinais.map((s) => s.aborted)).toEqual([true, true]);
+    expect(servico.consultarExclusaoMovimentacao).toHaveBeenCalledTimes(2);
+    expect(mod.__estadoLimiteConsultas()).toEqual({ ativos: 0, espera: 0 });
+    // Reabrir: as vagas estão livres.
+    servico.consultarExclusaoMovimentacao.mockImplementation(async () => ELEGIVEL);
+    await renderizar(<ExcluirMovimentacao movimento={TRANSF} />);
+    expect((await screen.findByRole("button", { name: "Excluir movimentação" })).hasAttribute("disabled")).toBe(false);
+  });
+
+  it("R2-4: consulta cancelada ainda na fila sai da fila (zero GET, sem retenção)", async () => {
+    const mod = await import("@/components/lotes/ExcluirMovimentacao");
+    vi.useFakeTimers();
+    try {
+      const t = transporte();
+      const a = mod.comLimiteDeConsultas((sig) => t.fn(sig)).catch((e) => e);
+      const b = mod.comLimiteDeConsultas((sig) => t.fn(sig)).catch((e) => e);
+      const ac = new AbortController();
+      const fnFila = vi.fn((sig) => t.fn(sig));
+      const c = mod.comLimiteDeConsultas(fnFila, ac.signal).catch((e) => e);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(mod.__estadoLimiteConsultas()).toEqual({ ativos: 2, espera: 1 });
+      ac.abort();
+      expect((await c).name).toBe("AbortError");
+      expect(mod.__estadoLimiteConsultas()).toEqual({ ativos: 2, espera: 0 });
+      t.voos[0].resolver(1);
+      t.voos[1].resolver(2);
+      await Promise.all([a, b]);
+      expect(fnFila).not.toHaveBeenCalled();
+      expect(mod.__estadoLimiteConsultas()).toEqual({ ativos: 0, espera: 0 });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("R2-5: corridas resolução × abort × timeout liberam a vaga exatamente uma vez (sem contador negativo, sem erro solto)", async () => {
+    const mod = await import("@/components/lotes/ExcluirMovimentacao");
+    vi.useFakeTimers();
+    try {
+      const t = transporte();
+      const ac = new AbortController();
+      const p = mod.comLimiteDeConsultas((sig) => t.fn(sig), ac.signal);
+      await vi.advanceTimersByTimeAsync(0);
+      t.voos[0].resolver("ok");
+      expect(await p).toBe("ok");
+      ac.abort(); // depois da resposta
+      await vi.advanceTimersByTimeAsync(mod.LIMITE_CONSULTA_MS + 1); // timer já limpo
+      expect(mod.__estadoLimiteConsultas()).toEqual({ ativos: 0, espera: 0 });
+      // abort e timeout no mesmo instante
+      const ac2 = new AbortController();
+      const q = mod.comLimiteDeConsultas((sig) => t.fn(sig), ac2.signal).catch((e) => e);
+      await vi.advanceTimersByTimeAsync(mod.LIMITE_CONSULTA_MS - 1);
+      ac2.abort();
+      await vi.advanceTimersByTimeAsync(5);
+      expect((await q)).toBeInstanceOf(Error);
+      expect(t.voos[1].signal.aborted).toBe(true);
+      expect(mod.__estadoLimiteConsultas()).toEqual({ ativos: 0, espera: 0 });
     } finally {
       vi.useRealTimers();
     }

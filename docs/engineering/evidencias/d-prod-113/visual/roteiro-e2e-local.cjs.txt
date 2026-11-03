@@ -34,6 +34,23 @@ const ok = (n, c, x = '') => res.push(`${c ? 'PASS' : 'FAIL'} ${BASE} ${n}${x ? 
   const mobile = W < 800;
   const ctx = await browser.newContext({ viewport: { width: W, height: H }, isMobile: mobile, hasTouch: mobile });
   const page = await ctx.newPage();
+  // Contador DENTRO da página: GET de elegibilidade em voo do fetch até o fim do corpo (ou abort).
+  await page.addInitScript(() => {
+    const original = window.fetch.bind(window);
+    window.__eleg = { voo: 0, max: 0, total: 0, abortados: 0 };
+    window.fetch = (url, init) => {
+      const alvo = String(url).includes('/elegibilidade-exclusao');
+      if (!alvo) return original(url, init);
+      const e = window.__eleg; e.voo += 1; e.total += 1; e.max = Math.max(e.max, e.voo);
+      let fim = false; const terminar = () => { if (!fim) { fim = true; e.voo -= 1; } };
+      init?.signal?.addEventListener('abort', () => { e.abortados += 1; });
+      return original(url, init).then((r) => {
+        const textoOriginal = r.text.bind(r);
+        r.text = () => textoOriginal().finally(terminar);
+        return r;
+      }, (err) => { terminar(); throw err; });
+    };
+  });
   const erros = []; page.on('pageerror', (e) => erros.push(e.message.slice(0, 160)));
   let emVoo = 0, maxVoo = 0; const perigosos = [];
   page.on('request', (r) => { const u = new URL(r.url()).pathname; if (/elegibilidade-exclusao$/.test(u)) { emVoo++; maxVoo = Math.max(maxVoo, emVoo); } if (['DELETE', 'PATCH'].includes(r.method()) && /movimentacoes-/.test(u)) perigosos.push(u); });
@@ -111,7 +128,8 @@ const ok = (n, c, x = '') => res.push(`${c ? 'PASS' : 'FAIL'} ${BASE} ${n}${x ? 
     await page.waitForTimeout(2000);
     ok('curral: abate some do histórico do curral', (await page.locator('div.border.rounded-lg').filter({ hasText: `CUR ${TAG}` }).filter({ hasText: 'Abate' }).count()) === 0);
     ok('curral: cabeças devolvidas (10 no curral)', (await pos(cur, S.CUR)).quantidade_cabecas === 10);
-    ok(`no máximo 2 GETs de elegibilidade simultâneos (máx=${maxVoo})`, maxVoo <= 2);
+    const eleg = await page.evaluate(() => window.__eleg);
+    ok(`no máximo 2 GETs de elegibilidade em voo na aplicação (máx=${eleg.max}; total=${eleg.total}; abortados=${eleg.abortados}; eventos de rede=${maxVoo})`, eleg.max <= 2);
     ok('nenhum DELETE/PATCH de movimento', perigosos.length === 0, perigosos.join(','));
     ok('sem erro de página', erros.length === 0, erros.join(' | '));
   } catch (e) {

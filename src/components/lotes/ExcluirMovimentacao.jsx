@@ -189,49 +189,94 @@ export const ELEGIBILIDADE_STALE_MS = 30_000;
  * fechada ("Não foi possível verificar", com "Verificar de novo").
  */
 export const LIMITE_CONSULTA_MS = 30_000;
+/**
+ * PR181-R2: limitador com cancelamento REAL. Cada consulta recebe o `signal`
+ * de um AbortController próprio, que chega ao transporte HTTP (fetch e leitura
+ * do corpo). Prazo vencido ou cancelamento do React Query (card desmontado,
+ * troca de escopo) chamam `abort()` de fato antes de liberar a vaga; consulta
+ * cancelada ainda na fila sai da fila e nunca dispara GET. A vaga é liberada
+ * exatamente uma vez (`finalizar` idempotente); resposta tardia é ignorada.
+ */
 const fila = { ativos: 0, espera: [] };
-const liberar = () => {
-  fila.ativos -= 1;
-  const proximo = fila.espera.shift();
-  if (proximo) proximo();
+/**
+ * Depois do `abort()`, a vaga só volta quando o transporte confirma o fim da
+ * requisição abortada (o fetch rejeita) — assim nunca há mais de 2 em voo de
+ * verdade. Teto de segurança para transporte que não coopere com o abort.
+ */
+export const GRACA_ABORT_MS = 2_000;
+const proximoDaFila = () => {
+  while (fila.ativos < MAX_CONSULTAS_SIMULTANEAS && fila.espera.length) fila.espera.shift().iniciar();
 };
 const erroCancelada = () => Object.assign(new Error("consulta cancelada"), { name: "AbortError" });
+/** Só para testes: estado do limitador. */
+export const __estadoLimiteConsultas = () => ({ ativos: fila.ativos, espera: fila.espera.length });
 /**
- * Executa `fn` respeitando o limite global de consultas simultâneas.
- * D-PROD-113 (UX-2): com `signal` abortado (card desmontado / histórico
- * fechado), a consulta que ainda esperava vaga NÃO é disparada.
- * @param {() => Promise<any>} fn
- * @param {AbortSignal} [signal]
+ * @param {(signal: AbortSignal) => Promise<any>} fn recebe o signal do TRANSPORTE
+ * @param {AbortSignal} [signal] cancelamento vindo de fora (React Query)
  */
 export const comLimiteDeConsultas = (fn, signal) =>
   new Promise((resolve, reject) => {
-    const rodar = () => {
-      if (signal?.aborted) {
-        reject(erroCancelada());
-        // A vaga não chegou a ser ocupada: passa para o próximo da fila.
-        const proximo = fila.espera.shift();
-        if (proximo) proximo();
+    if (signal?.aborted) {
+      reject(erroCancelada());
+      return;
+    }
+    const controle = new AbortController();
+    let ocupando = false;
+    let respondido = false;
+    let teto = null;
+    let graca = null;
+    // Libera a vaga EXATAMENTE uma vez; a redistribuição vai para microtask para que
+    // um fechamento (vários cancelamentos no mesmo tick) não inicie quem também será cancelado.
+    const liberarVaga = () => {
+      if (!ocupando) return;
+      ocupando = false;
+      clearTimeout(graca);
+      fila.ativos -= 1;
+      queueMicrotask(proximoDaFila);
+    };
+    // Responde a quem chamou EXATAMENTE uma vez (resposta tardia é ignorada).
+    const responder = (ok, valor) => {
+      if (respondido) return;
+      respondido = true;
+      clearTimeout(teto);
+      signal?.removeEventListener("abort", aoCancelar);
+      if (ok) resolve(valor);
+      else reject(valor);
+    };
+    /** Aborta o transporte, falha fechado já, e devolve a vaga quando o transporte terminar (ou no teto). */
+    const abortarAtiva = (erro) => {
+      controle.abort();
+      responder(false, erro);
+      if (ocupando) graca = setTimeout(liberarVaga, GRACA_ABORT_MS);
+    };
+    const item = {
+      iniciar: () => {
+        if (respondido) return;
+        if (signal?.aborted) {
+          aoCancelar();
+          return;
+        }
+        fila.ativos += 1;
+        ocupando = true;
+        teto = setTimeout(() => abortarAtiva(new Error("tempo esgotado na conferência da exclusão")), LIMITE_CONSULTA_MS);
+        Promise.resolve()
+          .then(() => fn(controle.signal))
+          .then((v) => responder(true, v), (e) => responder(false, e))
+          .finally(liberarVaga);
+      },
+    };
+    function aoCancelar() {
+      const i = fila.espera.indexOf(item);
+      if (i >= 0) {
+        fila.espera.splice(i, 1);
+        responder(false, erroCancelada());
         return;
       }
-      fila.ativos += 1;
-      let liberada = false;
-      const soltar = () => {
-        if (liberada) return;
-        liberada = true;
-        clearTimeout(teto);
-        liberar();
-      };
-      const teto = setTimeout(() => {
-        reject(new Error("tempo esgotado na conferência da exclusão"));
-        soltar();
-      }, LIMITE_CONSULTA_MS);
-      Promise.resolve()
-        .then(fn)
-        .then(resolve, reject)
-        .finally(soltar);
-    };
-    if (fila.ativos < MAX_CONSULTAS_SIMULTANEAS) rodar();
-    else fila.espera.push(rodar);
+      abortarAtiva(erroCancelada());
+    }
+    signal?.addEventListener("abort", aoCancelar, { once: true });
+    fila.espera.push(item);
+    proximoDaFila();
   });
 
 /** Card dentro (ou perto) da área visível? Sem IntersectionObserver: considera visível (o limite global segue valendo). */
@@ -300,7 +345,8 @@ export default function ExcluirMovimentacao({ movimento, onExcluido }) {
   const elegibilidade = useQuery({
     queryKey: ["elegibilidade-exclusao-movimentacao", usuario?.cliente_id ?? null, usuario?.id ?? null, movimento?.empresa_id ?? null, movimento?.id],
     // O `signal` do React Query cancela a consulta ainda na fila quando o card some (UX-2).
-    queryFn: ({ signal }) => comLimiteDeConsultas(() => consultarExclusaoMovimentacao(movimento.id), signal),
+    // PR181-R2: o signal do TRANSPORTE desce até o fetch (prazo e desmontagem abortam o GET de verdade).
+    queryFn: ({ signal }) => comLimiteDeConsultas((sinal) => consultarExclusaoMovimentacao(movimento.id, { signal: sinal }), signal),
     enabled: suportado && admin && !!usuario && online && (visivel || aberto),
     staleTime: ELEGIBILIDADE_STALE_MS,
     // Reabrir o histórico confere de novo (um manejo feito com ele fechado não deixa verde velho).
