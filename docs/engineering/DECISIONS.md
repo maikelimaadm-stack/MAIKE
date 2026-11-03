@@ -4430,4 +4430,26 @@ Auditoria do HEAD `ce1ab5b`: três hipóteses reproduzidas em RED (PostgreSQL re
 
 **Plano de consolidação** (futuro, mesma decisão): quando o histórico precisar de índices temporais próprios, avaliar mover `EventoRebanho` para colunas tipadas em `MovimentacaoMapa`, por migration aditiva com backfill e prova de equivalência. Nada é removido sem migration versionada, backup e RED/GREEN.
 
+### D-PROD-107 — complemento PR174-R5 (cutover completo, sem modelo legado)
+
+- **O modelo antigo de saldo em `Lote` deixou de existir em execução.** A R4 recusava só os casos que fabricavam lote; a R5 vai além:
+  - os comandos do mapa (manejo-lote, manejo-rebanho, junção, baixa) e o cancelamento passam por UMA guarda, `exigirEmpresaNoLedger`;
+  - empresa no controle por posições → ledger, com todos os manejos (parcial para pasto vazio, nascimento, mudança parcial, junção etc.) e nenhum 409 artificial;
+  - empresa ainda não migrada → 409 `REBANHO_CUTOVER_PENDENTE`;
+  - os ramos que escreviam saldo em Lote foram REMOVIDOS do backend e do navegador (sem reserva).
+- **Empresa nova nasce ativada** (`modo: entradas`, na transação de criação). Não existe empresa nova no legado.
+- **Cutover das empresas existentes:** ação administrativa ÚNICA por `cliente_id + empresa_id` (`scripts/ops/cutover-rebanho.mjs`):
+  - diagnóstico somente leitura;
+  - estratégias `entradas`, `reset_e_entradas` (reset autorizado, com backup e confirmação pelo nome) ou `saldo_abertura` (preserva o histórico);
+  - assinatura por administrador do próprio cliente;
+  - falha fechada se o `system_identifier` não conferir;
+  - nunca roda em build, startup ou request.
+- **Release na Vercel** (backend = Fastify serverless `api/fastify.js`; a Vercel não migra): workflow manual protegido `release-migrate.yml` (environment `production`) → `npm run deploy:migrate` com `MIGRATION_DATABASE_URL` + `MIGRATION_EXPECTED_SYSTEM_IDENTIFIER` (conferência obrigatória).
+- **Ordem segura:**
+  1. CI verde e backup;
+  2. migrations EXPAND, que o código antigo tolera;
+  3. merge, deploy automático da Vercel;
+  4. cutover imediato, empresa de teste primeiro.
+  - Entre 3 e 4, os manejos de empresas ainda não migradas recebem a recusa clara, nunca escrita legada.
+
 <!-- Próxima decisão: D-PROD-108 -->

@@ -121,6 +121,127 @@ const linhagemLegada = async (tx, clienteId, empresaId, lote, porId, profundidad
  * Ativa o ledger numa empresa (ver modos no topo do arquivo). Nada é apagado
  * nem alterado em `Lote`; o histórico legado continua consultável.
  */
+/**
+ * Núcleo da ativação, na transação do chamador (API, cutover e criação de
+ * empresa — PR174-R5). Mesmas travas e validações; quem chama decide a
+ * autorização e a idempotência.
+ * @param {any} tx
+ * @param {{auth: any}} contexto
+ * @param {{empresaId: string, modo: string, dataCorte: string|null}} p
+ */
+export const ativarEmpresaNaTransacao = async (tx, contexto, { empresaId, modo, dataCorte }) => {
+  const auth = exigirAuthContext(contexto?.auth);
+  // PR174-R2: trava a Empresa (o POST genérico usa FOR SHARE nela antes de ler a ativação).
+  const [empresa] = /** @type {Array<{id: string}>} */ (await tx.$queryRaw`SELECT id FROM "Empresa" WHERE cliente_id = ${auth.clienteId} AND id = ${empresaId} FOR UPDATE`);
+  if (!empresa) throw new AppError('EMPRESA_NOT_FOUND', 'empresa não encontrada');
+  if (await ativacaoDaEmpresa(tx, auth.clienteId, empresaId)) throw recusa('REBANHO_LEDGER_JA_ATIVO', 'o ledger já está ativo nesta empresa');
+  // Trava todas as áreas e lotes da empresa: nenhum manejo legado corre durante a ativação.
+  const areas = await tx.areaPastagem.findMany({ where: { cliente_id: auth.clienteId, empresa_id: empresaId }, select: { id: true } });
+  const mapaAreas = await travarAreas(tx, auth.clienteId, empresaId, areas.map((a) => a.id));
+  await tx.$queryRaw`SELECT id FROM "Lote" WHERE cliente_id = ${auth.clienteId} AND empresa_id = ${empresaId} ORDER BY id FOR UPDATE`;
+  const todos = await tx.lote.findMany({ where: { cliente_id: auth.clienteId, empresa_id: empresaId, excluido_em: null }, orderBy: { id: 'asc' } });
+  const porId = new Map(todos.map((l) => [l.id, l]));
+
+  const [hist] = /** @type {Array<{ativos: number, depois: number}>} */ (
+    await tx.$queryRaw`
+      SELECT COUNT(*) FILTER (WHERE COALESCE(m.dados->>'situacao', '') <> 'cancelado')::int AS ativos,
+             COUNT(*) FILTER (WHERE COALESCE(m.dados->>'situacao', '') <> 'cancelado'
+                                AND COALESCE(NULLIF(left(m.dados->>'data_movimentacao', 10), ''), to_char(m."createdAt", 'YYYY-MM-DD')) > ${dataCorte ?? '9999-12-31'})::int AS depois
+        FROM "MovimentacaoMapa" m WHERE m.cliente_id = ${auth.clienteId} AND m.empresa_id = ${empresaId}`
+  );
+  const ativos = todos.filter((l) => l.status === 'Ativo' && l.quantidade_cabecas > 0);
+  const semArea = ativos.filter((l) => !l.area_atual_id || !mapaAreas.has(l.area_atual_id));
+  if (semArea.length) throw recusa('REBANHO_ATIVACAO_LOTE_SEM_AREA', 'há lote ativo com cabeças e sem área válida nesta empresa; corrija antes de ativar', { lote_ids: semArea.map((l) => l.id) });
+
+  const partidasPorDia = new Map();
+  const pesos = [];
+  const somar = (dia, posicaoId, delta) => {
+    if (!partidasPorDia.has(dia)) partidasPorDia.set(dia, new Map());
+    const m = partidasPorDia.get(dia);
+    m.set(posicaoId, (m.get(posicaoId) ?? 0) + delta);
+  };
+  let dataCorteEfetiva = dataCorte;
+  const resumo = { entradas: 0, derivados_rastreados: 0, derivados_sem_prova: 0, nascimentos_legados: 0 };
+
+  if (modo === 'saldo_abertura') {
+    if (hist?.depois) throw recusa('REBANHO_ATIVACAO_CORTE_ANTERIOR_AO_HISTORICO', 'há movimentação legada ativa depois da data de corte; escolha um corte igual ou posterior', { quantidade: hist.depois });
+    for (const l of ativos) {
+      const lin = await linhagemLegada(tx, auth.clienteId, empresaId, l, porId);
+      if (lin.classe === 'derivado_rastreado') resumo.derivados_rastreados += 1;
+      else if (lin.classe === 'derivado_sem_prova') resumo.derivados_sem_prova += 1;
+      else if (lin.classe === 'nascimento_legado') resumo.nascimentos_legados += 1;
+      else resumo.entradas += 1;
+      const raiz = lin.raiz;
+      const { posicao } = await posicaoDaIdentidade(tx, auth.clienteId, empresaId, l.area_atual_id, {
+        ...l,
+        origem: lin.origem,
+        lote_entrada_id: lin.lote_entrada_id,
+        nome: lin.lote_entrada_id ? raiz.nome : l.nome,
+        numero_lote: lin.lote_entrada_id ? raiz.numero_lote : l.numero_lote,
+        linhagem: [{ lote_id: lin.lote_entrada_id ?? l.id, nome: raiz.nome, numero_lote: raiz.numero_lote ?? null, classe: lin.classe, lote_legado_id: l.id }],
+      });
+      somar(dataCorte, posicao.id, l.quantidade_cabecas);
+      if (pesoNum(l.peso_medio_kg) !== null) pesos.push({ posicao, dia: dataCorte, peso: pesoNum(l.peso_medio_kg), q: l.quantidade_cabecas });
+    }
+  } else {
+    // Reconstrução pelas ENTRADAS: só quando o passado é exatamente as entradas.
+    if (hist?.ativos) throw recusa('REBANHO_ATIVACAO_ENTRADAS_COM_HISTORICO', 'há movimentação legada ativa; cancele-a (ou use o reset de dados de teste) antes de reconstruir pelas entradas', { movimentacoes_ativas: hist.ativos });
+    const problemas = [];
+    for (const l of todos) {
+      const vivo = l.status === 'Ativo' && l.quantidade_cabecas > 0;
+      if (ehDerivado(l)) {
+        if (vivo) problemas.push({ lote_id: l.id, motivo: 'lote_derivado_ativo' });
+        continue;
+      }
+      if (!vivo) continue;
+      if (l.quantidade_cabecas !== l.quantidade_entrada || (l.area_atual_id ?? null) !== (l.area_entrada_id ?? l.area_atual_id ?? null) || !l.data_entrada) {
+        problemas.push({ lote_id: l.id, motivo: !l.data_entrada ? 'sem_data_de_entrada' : 'estado_diferente_da_entrada' });
+      }
+    }
+    if (problemas.length) throw recusa('REBANHO_ATIVACAO_ENTRADAS_COM_HISTORICO', 'há lote cujo estado não é a própria entrada; use saldo de abertura ou o reset de dados de teste', { lotes: problemas });
+    for (const l of ativos) {
+      const dia = diaDoBanco(l.data_entrada);
+      const { posicao } = await posicaoDaIdentidade(tx, auth.clienteId, empresaId, l.area_entrada_id ?? l.area_atual_id, {
+        ...l,
+        origem: ehNascimentoLegado(l) ? `nascimento-legado:${l.id}` : l.id,
+        lote_entrada_id: l.id,
+        linhagem: [{ lote_id: l.id, nome: l.nome, numero_lote: l.numero_lote ?? null, classe: 'entrada' }],
+      });
+      somar(dia, posicao.id, l.quantidade_entrada);
+      resumo.entradas += 1;
+      const p = pesoNum(l.peso_entrada_kg) ?? pesoNum(l.peso_medio_kg);
+      if (p !== null) pesos.push({ posicao, dia, peso: p, q: l.quantidade_entrada });
+      if (!dataCorteEfetiva || dia < dataCorteEfetiva) dataCorteEfetiva = dia;
+    }
+    dataCorteEfetiva = dataCorteEfetiva ?? new Date().toISOString().slice(0, 10);
+  }
+
+  await tx.rebanhoLedgerAtivacao.create({ data: { cliente_id: auth.clienteId, empresa_id: empresaId, data_corte: comoData(dataCorteEfetiva), modo, ativado_por_usuario_id: auth.usuarioId } });
+  const tipo = modo === 'saldo_abertura' ? TIPOS_EVENTO.ABERTURA : TIPOS_EVENTO.ENTRADA;
+  const eventos = [];
+  let total = 0;
+  for (const [dia, partidas] of [...partidasPorDia.entries()].sort()) {
+    const evento = await criarEvento(tx, {
+      clienteId: auth.clienteId, empresaId, tipo, dia, usuarioId: auth.usuarioId, operationKey: `${operationKey}:${dia}`,
+      dados: { origem: modo === 'saldo_abertura' ? 'saldo_atual_do_modelo_legado' : 'entradas_do_cadastro', modo, ativacao: operationKey },
+    });
+    await inserirPartidas(tx, { clienteId: auth.clienteId, empresaId, eventoId: evento.id, dia, partidas: [...partidas.entries()].map(([posicao_id, delta]) => ({ posicao_id, delta })) });
+    for (const w of pesos.filter((x) => x.dia === dia)) {
+      // Várias linhas legadas na mesma posição: peso ponderado só se todas conhecidas.
+      const ja = await pesoNaData(tx, auth.clienteId, w.posicao.id, dia);
+      const s = ja === undefined ? 0 : await saldoNaData(tx, auth.clienteId, w.posicao.id, dia);
+      const peso = ja === undefined ? w.peso : pesoPonderado(s - w.q, ja, w.q, w.peso);
+      await registrarPeso(tx, { clienteId: auth.clienteId, empresaId, eventoId: evento.id, posicaoId: w.posicao.id, dia, peso });
+    }
+    eventos.push(evento.id);
+    total += [...partidas.values()].reduce((t, x) => t + x, 0);
+  }
+  const posicaoIds = [...new Set([...partidasPorDia.values()].flatMap((m) => [...m.keys()]))];
+  await reprojetar(tx, auth.clienteId, posicaoIds);
+  await registrarEvento(contexto, { acao: 'create', entidade: 'RebanhoLedgerAtivacao', entidadeId: empresaId, dadosNovos: { empresa_id: empresaId, modo, data_corte: dataCorteEfetiva, posicoes: posicaoIds.length, total, eventos, ...resumo } }, tx);
+  return { httpStatus: 201, body: { empresa_id: empresaId, modo, data_corte: dataCorteEfetiva, posicoes: posicaoIds.length, total_cabecas: total, eventos, ...resumo } };
+};
+
 export const ativarLedger = async (contexto, entrada) => {
   const auth = exigirAuthContext(contexto?.auth);
   const operationKey = texto(entrada?.operation_id);
@@ -142,117 +263,7 @@ export const ativarLedger = async (contexto, entrada) => {
       operationKey,
       tipoOperacao: TIPO_OPERACAO_ATIVACAO,
       fingerprint,
-      executar: async () => {
-        // PR174-R2: trava a Empresa (o POST genérico usa FOR SHARE nela antes de ler a ativação).
-        const [empresa] = /** @type {Array<{id: string}>} */ (await tx.$queryRaw`SELECT id FROM "Empresa" WHERE cliente_id = ${auth.clienteId} AND id = ${empresaId} FOR UPDATE`);
-        if (!empresa) throw new AppError('EMPRESA_NOT_FOUND', 'empresa não encontrada');
-        if (await ativacaoDaEmpresa(tx, auth.clienteId, empresaId)) throw recusa('REBANHO_LEDGER_JA_ATIVO', 'o ledger já está ativo nesta empresa');
-        // Trava todas as áreas e lotes da empresa: nenhum manejo legado corre durante a ativação.
-        const areas = await tx.areaPastagem.findMany({ where: { cliente_id: auth.clienteId, empresa_id: empresaId }, select: { id: true } });
-        const mapaAreas = await travarAreas(tx, auth.clienteId, empresaId, areas.map((a) => a.id));
-        await tx.$queryRaw`SELECT id FROM "Lote" WHERE cliente_id = ${auth.clienteId} AND empresa_id = ${empresaId} ORDER BY id FOR UPDATE`;
-        const todos = await tx.lote.findMany({ where: { cliente_id: auth.clienteId, empresa_id: empresaId, excluido_em: null }, orderBy: { id: 'asc' } });
-        const porId = new Map(todos.map((l) => [l.id, l]));
-
-        const [hist] = /** @type {Array<{ativos: number, depois: number}>} */ (
-          await tx.$queryRaw`
-            SELECT COUNT(*) FILTER (WHERE COALESCE(m.dados->>'situacao', '') <> 'cancelado')::int AS ativos,
-                   COUNT(*) FILTER (WHERE COALESCE(m.dados->>'situacao', '') <> 'cancelado'
-                                      AND COALESCE(NULLIF(left(m.dados->>'data_movimentacao', 10), ''), to_char(m."createdAt", 'YYYY-MM-DD')) > ${dataCorte ?? '9999-12-31'})::int AS depois
-              FROM "MovimentacaoMapa" m WHERE m.cliente_id = ${auth.clienteId} AND m.empresa_id = ${empresaId}`
-        );
-        const ativos = todos.filter((l) => l.status === 'Ativo' && l.quantidade_cabecas > 0);
-        const semArea = ativos.filter((l) => !l.area_atual_id || !mapaAreas.has(l.area_atual_id));
-        if (semArea.length) throw recusa('REBANHO_ATIVACAO_LOTE_SEM_AREA', 'há lote ativo com cabeças e sem área válida nesta empresa; corrija antes de ativar', { lote_ids: semArea.map((l) => l.id) });
-
-        const partidasPorDia = new Map();
-        const pesos = [];
-        const somar = (dia, posicaoId, delta) => {
-          if (!partidasPorDia.has(dia)) partidasPorDia.set(dia, new Map());
-          const m = partidasPorDia.get(dia);
-          m.set(posicaoId, (m.get(posicaoId) ?? 0) + delta);
-        };
-        let dataCorteEfetiva = dataCorte;
-        const resumo = { entradas: 0, derivados_rastreados: 0, derivados_sem_prova: 0, nascimentos_legados: 0 };
-
-        if (modo === 'saldo_abertura') {
-          if (hist?.depois) throw recusa('REBANHO_ATIVACAO_CORTE_ANTERIOR_AO_HISTORICO', 'há movimentação legada ativa depois da data de corte; escolha um corte igual ou posterior', { quantidade: hist.depois });
-          for (const l of ativos) {
-            const lin = await linhagemLegada(tx, auth.clienteId, empresaId, l, porId);
-            if (lin.classe === 'derivado_rastreado') resumo.derivados_rastreados += 1;
-            else if (lin.classe === 'derivado_sem_prova') resumo.derivados_sem_prova += 1;
-            else if (lin.classe === 'nascimento_legado') resumo.nascimentos_legados += 1;
-            else resumo.entradas += 1;
-            const raiz = lin.raiz;
-            const { posicao } = await posicaoDaIdentidade(tx, auth.clienteId, empresaId, l.area_atual_id, {
-              ...l,
-              origem: lin.origem,
-              lote_entrada_id: lin.lote_entrada_id,
-              nome: lin.lote_entrada_id ? raiz.nome : l.nome,
-              numero_lote: lin.lote_entrada_id ? raiz.numero_lote : l.numero_lote,
-              linhagem: [{ lote_id: lin.lote_entrada_id ?? l.id, nome: raiz.nome, numero_lote: raiz.numero_lote ?? null, classe: lin.classe, lote_legado_id: l.id }],
-            });
-            somar(dataCorte, posicao.id, l.quantidade_cabecas);
-            if (pesoNum(l.peso_medio_kg) !== null) pesos.push({ posicao, dia: dataCorte, peso: pesoNum(l.peso_medio_kg), q: l.quantidade_cabecas });
-          }
-        } else {
-          // Reconstrução pelas ENTRADAS: só quando o passado é exatamente as entradas.
-          if (hist?.ativos) throw recusa('REBANHO_ATIVACAO_ENTRADAS_COM_HISTORICO', 'há movimentação legada ativa; cancele-a (ou use o reset de dados de teste) antes de reconstruir pelas entradas', { movimentacoes_ativas: hist.ativos });
-          const problemas = [];
-          for (const l of todos) {
-            const vivo = l.status === 'Ativo' && l.quantidade_cabecas > 0;
-            if (ehDerivado(l)) {
-              if (vivo) problemas.push({ lote_id: l.id, motivo: 'lote_derivado_ativo' });
-              continue;
-            }
-            if (!vivo) continue;
-            if (l.quantidade_cabecas !== l.quantidade_entrada || (l.area_atual_id ?? null) !== (l.area_entrada_id ?? l.area_atual_id ?? null) || !l.data_entrada) {
-              problemas.push({ lote_id: l.id, motivo: !l.data_entrada ? 'sem_data_de_entrada' : 'estado_diferente_da_entrada' });
-            }
-          }
-          if (problemas.length) throw recusa('REBANHO_ATIVACAO_ENTRADAS_COM_HISTORICO', 'há lote cujo estado não é a própria entrada; use saldo de abertura ou o reset de dados de teste', { lotes: problemas });
-          for (const l of ativos) {
-            const dia = diaDoBanco(l.data_entrada);
-            const { posicao } = await posicaoDaIdentidade(tx, auth.clienteId, empresaId, l.area_entrada_id ?? l.area_atual_id, {
-              ...l,
-              origem: ehNascimentoLegado(l) ? `nascimento-legado:${l.id}` : l.id,
-              lote_entrada_id: l.id,
-              linhagem: [{ lote_id: l.id, nome: l.nome, numero_lote: l.numero_lote ?? null, classe: 'entrada' }],
-            });
-            somar(dia, posicao.id, l.quantidade_entrada);
-            resumo.entradas += 1;
-            const p = pesoNum(l.peso_entrada_kg) ?? pesoNum(l.peso_medio_kg);
-            if (p !== null) pesos.push({ posicao, dia, peso: p, q: l.quantidade_entrada });
-            if (!dataCorteEfetiva || dia < dataCorteEfetiva) dataCorteEfetiva = dia;
-          }
-          dataCorteEfetiva = dataCorteEfetiva ?? new Date().toISOString().slice(0, 10);
-        }
-
-        await tx.rebanhoLedgerAtivacao.create({ data: { cliente_id: auth.clienteId, empresa_id: empresaId, data_corte: comoData(dataCorteEfetiva), modo, ativado_por_usuario_id: auth.usuarioId } });
-        const tipo = modo === 'saldo_abertura' ? TIPOS_EVENTO.ABERTURA : TIPOS_EVENTO.ENTRADA;
-        const eventos = [];
-        let total = 0;
-        for (const [dia, partidas] of [...partidasPorDia.entries()].sort()) {
-          const evento = await criarEvento(tx, {
-            clienteId: auth.clienteId, empresaId, tipo, dia, usuarioId: auth.usuarioId, operationKey: `${operationKey}:${dia}`,
-            dados: { origem: modo === 'saldo_abertura' ? 'saldo_atual_do_modelo_legado' : 'entradas_do_cadastro', modo, ativacao: operationKey },
-          });
-          await inserirPartidas(tx, { clienteId: auth.clienteId, empresaId, eventoId: evento.id, dia, partidas: [...partidas.entries()].map(([posicao_id, delta]) => ({ posicao_id, delta })) });
-          for (const w of pesos.filter((x) => x.dia === dia)) {
-            // Várias linhas legadas na mesma posição: peso ponderado só se todas conhecidas.
-            const ja = await pesoNaData(tx, auth.clienteId, w.posicao.id, dia);
-            const s = ja === undefined ? 0 : await saldoNaData(tx, auth.clienteId, w.posicao.id, dia);
-            const peso = ja === undefined ? w.peso : pesoPonderado(s - w.q, ja, w.q, w.peso);
-            await registrarPeso(tx, { clienteId: auth.clienteId, empresaId, eventoId: evento.id, posicaoId: w.posicao.id, dia, peso });
-          }
-          eventos.push(evento.id);
-          total += [...partidas.values()].reduce((t, x) => t + x, 0);
-        }
-        const posicaoIds = [...new Set([...partidasPorDia.values()].flatMap((m) => [...m.keys()]))];
-        await reprojetar(tx, auth.clienteId, posicaoIds);
-        await registrarEvento(contexto, { acao: 'create', entidade: 'RebanhoLedgerAtivacao', entidadeId: empresaId, dadosNovos: { empresa_id: empresaId, modo, data_corte: dataCorteEfetiva, posicoes: posicaoIds.length, total, eventos, ...resumo } }, tx);
-        return { httpStatus: 201, body: { empresa_id: empresaId, modo, data_corte: dataCorteEfetiva, posicoes: posicaoIds.length, total_cabecas: total, eventos, ...resumo } };
-      },
+      executar: () => ativarEmpresaNaTransacao(tx, contexto, { empresaId, modo, dataCorte }),
     });
   });
   return { status: r.httpStatus, body: { ...r.body, replay: r.replay } };

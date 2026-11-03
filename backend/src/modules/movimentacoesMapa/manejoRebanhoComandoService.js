@@ -33,7 +33,7 @@ import { inserirLote } from '../lotes/loteRepository.js';
 import { recusarLoteFabricadoPorManejo } from '../lotes/loteOrigem.js';
 import { comoLotePublico, ENTIDADE_SEQUENCIA, escopoDaNumeracao } from '../lotes/loteService.js';
 import { CAMPOS_MATERIAIS_LOTE, estadoDe } from './manejoMapaComandoService.js';
-import { empresaNoLedger, rebanhoNoLedger } from '../rebanhoLedger/rebanhoLedgerManejos.js';
+import { exigirEmpresaNoLedger, rebanhoNoLedger } from '../rebanhoLedger/rebanhoLedgerManejos.js';
 
 export const COMANDO_REBANHO = 'manejo_mapa_rebanho';
 export const TIPO_OPERACAO_REBANHO = 'manejo_mapa_rebanho';
@@ -479,7 +479,8 @@ export const executarManejoRebanho = async (contexto, entrada) => {
         const empresa = await tx.empresa.findUnique({ where: { cliente_id_id: { cliente_id: auth.clienteId, id: e.empresaId } }, select: { id: true } });
         if (!empresa) throw new AppError('EMPRESA_NOT_FOUND', 'empresa não encontrada');
         // R2E-R1 (D-PROD-107): empresa no ledger → Nascimento/Pesagem/Mudança sobre POSIÇÕES (nunca Lote).
-        if (await empresaNoLedger(tx, auth.clienteId, e.empresaId)) {
+        await exigirEmpresaNoLedger(tx, auth.clienteId, e.empresaId); // PR174-R5: sem modelo legado
+        if (true) {
           return rebanhoNoLedger(tx, contexto, e, { CATEGORIAS_OFICIAIS, CATEGORIAS_MATERNAS, categoriaDoFilhote, resolverCategoriaManejo });
         }
 

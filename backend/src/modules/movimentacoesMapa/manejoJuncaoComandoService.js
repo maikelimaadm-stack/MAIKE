@@ -24,7 +24,7 @@ import { AppError } from '../../shared/errors/AppError.js';
 import { documentoComoPublico } from '../../shared/jsonDocument/jsonDocumentPublic.js';
 import { executarComIdempotencia, fingerprintDePayload } from '../../shared/idempotency/operacaoIdempotenteService.js';
 import { registrarEvento } from '../auditoria/auditService.js';
-import { empresaNoLedger, juncaoNoLedger } from '../rebanhoLedger/rebanhoLedgerManejos.js';
+import { exigirEmpresaNoLedger, juncaoNoLedger } from '../rebanhoLedger/rebanhoLedgerManejos.js';
 import { comoLotePublico } from '../lotes/loteService.js';
 import {
   dataOperacionalValida,
@@ -100,7 +100,8 @@ export const executarJuncaoLotes = async (contexto, entrada) => {
         const empresa = await tx.empresa.findUnique({ where: { cliente_id_id: { cliente_id: auth.clienteId, id: e.empresaId } }, select: { id: true } });
         if (!empresa) throw new AppError('EMPRESA_NOT_FOUND', 'empresa não encontrada');
         // R2E-R1 (D-PROD-107): empresa no ledger → junção de POSIÇÕES com composição de linhagens.
-        if (await empresaNoLedger(tx, auth.clienteId, e.empresaId)) return juncaoNoLedger(tx, contexto, e, { SEXOS });
+        await exigirEmpresaNoLedger(tx, auth.clienteId, e.empresaId); // PR174-R5: sem modelo legado
+        if (true) return juncaoNoLedger(tx, contexto, e, { SEXOS });
 
         const ids = [e.principalId, ...e.origens];
         const { area, lotes } = await travarAreaELotes(tx, auth.clienteId, e.empresaId, e.areaId, ids);

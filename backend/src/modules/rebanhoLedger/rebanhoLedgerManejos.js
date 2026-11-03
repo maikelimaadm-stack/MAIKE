@@ -59,6 +59,22 @@ const ordemEstavel = (a, b) => {
 /** Empresa no ledger? (o comando legado chama e, se sim, delega) */
 export const empresaNoLedger = (tx, clienteId, empresaId) => ativacaoDaEmpresa(tx, clienteId, empresaId);
 
+/**
+ * PR174-R5 (D-PROD-107): guarda ÚNICA dos comandos do mapa. Empresa no
+ * controle por posições → segue no ledger. Empresa ainda NÃO ativada (só pode
+ * existir antes do cutover: empresa nova já nasce ativada) → 409 estável
+ * REBANHO_CUTOVER_PENDENTE; o modelo antigo de saldo em Lote não é mais
+ * executado (Lote = só entrada). O cutover é a ação administrativa
+ * `scripts/ops/cutover-rebanho.mjs`.
+ */
+export const exigirEmpresaNoLedger = async (tx, clienteId, empresaId) => {
+  const ativacao = await ativacaoDaEmpresa(tx, clienteId, empresaId);
+  if (ativacao) return ativacao;
+  throw new AppError('REBANHO_CUTOVER_PENDENTE', 'esta fazenda ainda não foi migrada para o controle por posições; o administrador precisa concluir o cutover (nada foi gravado)', {
+    details: { empresa_id: empresaId },
+  });
+};
+
 /** Trava a área e as posições vivas dela (ordem área → posição); devolve área e mapa. */
 const travarAreaEPosicoes = async (tx, clienteId, empresaId, areaId, extras = []) => {
   const areas = await travarAreas(tx, clienteId, empresaId, [areaId]);

@@ -1,0 +1,78 @@
+name: release-migrate
+
+# PR174-R5 (D-PROD-107) — barreira de schema do release na VERCEL.
+#
+# O backend é Fastify serverless na Vercel (api/fastify.js, /api/native/*). A
+# Vercel NÃO aplica migrations: o buildCommand só gera o Prisma Client e o
+# bundle, e a função serverless nunca migra (D-PROD-28, gate:deploy-migrations).
+# Este job é a etapa ONE-SHOT, manual e protegida, que aplica as migrations no
+# banco remoto ANTES de o código novo ir para produção:
+#   - disparo manual (workflow_dispatch) com o SHA exato e frase de confirmação;
+#   - environment `production` (configure "Required reviewers" no GitHub);
+#   - usa SÓ o runner oficial `npm run deploy:migrate`, que exige
+#     MIGRATION_DATABASE_URL (sessão/direta, recusa o pooler 6543, nunca cai
+#     para DATABASE_URL) e confere MIGRATION_EXPECTED_SYSTEM_IDENTIFIER;
+#   - os segredos vêm do environment e nunca são impressos.
+# As migrations da PR #174 são EXPAND (só tabelas/colunas novas): o código em
+# produção continua funcionando com o banco migrado. Ordem completa do release
+# e do cutover: docs/engineering/MAIKE-R2E-LOTE-SSOT-POSICOES-RETROATIVAS-REPORT.md §R5.
+
+on:
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: 'SHA exato (40 caracteres) cujo schema será aplicado'
+        required: true
+        type: string
+      confirmacao:
+        description: 'Digite APLICAR_MIGRATIONS_PRODUCAO'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-migrate
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    name: deploy:migrate (one-shot)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+    steps:
+      - name: Conferir entradas
+        env:
+          SHA: ${{ inputs.sha }}
+          CONFIRMACAO: ${{ inputs.confirmacao }}
+        run: |
+          [[ "$CONFIRMACAO" == "APLICAR_MIGRATIONS_PRODUCAO" ]] || { echo "confirmação ausente"; exit 1; }
+          [[ "$SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "SHA inválido"; exit 1; }
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.sha }}
+          fetch-depth: 0
+
+      - name: SHA pertence a main ou a branch da PR em release
+        env:
+          SHA: ${{ inputs.sha }}
+        run: |
+          git branch -r --contains "$SHA" | grep -Eq 'origin/(main|claude/r2e-p1-lotes-posicoes-movimentos-retroativos)$' \
+            || { echo "SHA fora de main/branch de release"; exit 1; }
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - name: Aplicar migrations (runner oficial, alvo conferido)
+        env:
+          MIGRATION_DATABASE_URL: ${{ secrets.MIGRATION_DATABASE_URL }}
+          MIGRATION_EXPECTED_SYSTEM_IDENTIFIER: ${{ secrets.MIGRATION_EXPECTED_SYSTEM_IDENTIFIER }}
+          MIGRATION_EXIGIR_CONFERENCIA: sim
+        run: npm run deploy:migrate

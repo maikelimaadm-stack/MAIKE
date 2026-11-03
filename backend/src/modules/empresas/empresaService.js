@@ -13,6 +13,7 @@ import {
   excluirRegistroPorId,
 } from './empresaRepository.js';
 import { reservarNumeroEmpresa } from './empresaSequencia.js';
+import { ativarEmpresaNaTransacao } from '../rebanhoLedger/rebanhoLedgerService.js';
 import { erroNomeConflitoEmpresa, lancarSeP2002Empresa } from './empresaUniqueViolation.js';
 
 const CAMPOS_GRAVAVEIS = Object.freeze([
@@ -125,6 +126,10 @@ export const criar = async (contexto, entrada) => {
         { acao: 'create', entidade: 'Empresa', entidadeId: registro.id, dadosNovos: comoPublico(registro) },
         tx,
       );
+      // PR174-R5 (D-PROD-107): empresa nova nasce no controle por posições — sem
+      // histórico, a ativação pelas entradas não tem conflito; nunca existe
+      // "empresa nova no modelo legado" (Lote nunca recebe manejo).
+      await ativarEmpresaNaTransacao(tx, contexto, { empresaId: registro.id, modo: 'entradas', dataCorte: null });
       return registro;
     });
     return comoPublico(criado);

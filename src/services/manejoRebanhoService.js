@@ -48,6 +48,7 @@ const RECUSAS_DEFINITIVAS = new Set([
   'REBANHO_AREA_INATIVA',
   'REBANHO_LEDGER_INATIVO',
   'POSICAO_REBANHO_NOT_FOUND',
+  'REBANHO_CUTOVER_PENDENTE',
 ]);
 
 export const MENSAGENS_MANEJO_REBANHO = Object.freeze({
@@ -72,6 +73,7 @@ export const MENSAGENS_MANEJO_REBANHO = Object.freeze({
   REBANHO_AREA_INATIVA: 'A área de destino está inativa. Nada foi gravado.',
   REBANHO_LEDGER_INATIVO: 'O controle por posições não está ativo nesta fazenda. Recarregue o mapa. Nada foi gravado.',
   REBANHO_LEDGER_OPERACAO_NAO_MIGRADA: 'Esta operação ainda não foi migrada para o controle por posições. Nada foi gravado.',
+  REBANHO_CUTOVER_PENDENTE: 'Esta fazenda ainda não foi migrada para o controle por posições. O administrador precisa concluir a migração; nada foi gravado.',
   POSICAO_REBANHO_NOT_FOUND: 'Uma posição não está mais nesta área. Recarregue o mapa. Nada foi gravado.',
   LOTE_NOT_FOUND: 'Um lote não está mais ativo nesta área. Recarregue o mapa. Nada foi gravado.',
   AREA_NOT_FOUND: 'Área não encontrada nesta fazenda. Nada foi gravado.',

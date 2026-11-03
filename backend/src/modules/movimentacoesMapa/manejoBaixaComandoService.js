@@ -35,7 +35,7 @@ import { AppError } from '../../shared/errors/AppError.js';
 import { documentoComoPublico } from '../../shared/jsonDocument/jsonDocumentPublic.js';
 import { executarComIdempotencia, fingerprintDePayload } from '../../shared/idempotency/operacaoIdempotenteService.js';
 import { registrarEvento } from '../auditoria/auditService.js';
-import { empresaNoLedger, baixaNoLedger } from '../rebanhoLedger/rebanhoLedgerManejos.js';
+import { exigirEmpresaNoLedger, baixaNoLedger } from '../rebanhoLedger/rebanhoLedgerManejos.js';
 import { comoLotePublico } from '../lotes/loteService.js';
 import {
   CATEGORIAS_OFICIAIS,
@@ -207,7 +207,8 @@ export const executarBaixaRebanho = async (contexto, entrada) => {
         const empresa = await tx.empresa.findUnique({ where: { cliente_id_id: { cliente_id: auth.clienteId, id: e.empresaId } }, select: { id: true } });
         if (!empresa) throw new AppError('EMPRESA_NOT_FOUND', 'empresa não encontrada');
         // R2E-R1 (D-PROD-107): empresa no ledger → baixa das POSIÇÕES da área (nunca Lote).
-        if (await empresaNoLedger(tx, auth.clienteId, e.empresaId)) return baixaNoLedger(tx, contexto, e, { CATEGORIAS_OFICIAIS, distribuirBaixa, POLITICA_ALOCACAO });
+        await exigirEmpresaNoLedger(tx, auth.clienteId, e.empresaId); // PR174-R5: sem modelo legado
+        if (true) return baixaNoLedger(tx, contexto, e, { CATEGORIAS_OFICIAIS, distribuirBaixa, POLITICA_ALOCACAO });
 
         // Trava a área e TODOS os lotes dela (ordem de id) antes de ler saldo.
         const { area, lotes } = await travarAreaELotes(tx, auth.clienteId, e.empresaId, e.areaId, e.selecionados ?? []);
