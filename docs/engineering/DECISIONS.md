@@ -4452,7 +4452,6 @@ Auditoria do HEAD `ce1ab5b`: três hipóteses reproduzidas em RED (PostgreSQL re
   4. cutover imediato, empresa de teste primeiro.
   - Entre 3 e 4, os manejos de empresas ainda não migradas recebem a recusa clara, nunca escrita legada.
 
-<!-- Próxima decisão: D-PROD-108 -->
 
 ### D-PROD-107 — complemento PR174-R6 (fechamento seguro de release e cutover)
 
@@ -4468,3 +4467,33 @@ Auditoria do HEAD `ce1ab5b`: três hipóteses reproduzidas em RED (PostgreSQL re
 - O inventário somente leitura funciona antes das migrations. Sem schema R2E, o diagnóstico e o cutover devolvem `CUTOVER_SCHEMA_PENDENTE`; o cutover revalida tudo dentro da própria transação.
 - EXPAND só por allowlist fechada: manifesto SHA-256 pinado mais conferência estrutural. O padrão é recusar. Aplicar exige o alvo verificado (`system_identifier` + `_prisma_migrations`).
 - O cutover remoto exige o origin de produção configurado (`MAIKE_PRODUCAO_ORIGIN`), health sem redirect com a identidade da implantação Vercel e `release` = HEAD da main remota.
+
+---
+
+## D-PROD-108 — Importação KML: nome de verdade quando `<name>` é código do aplicativo
+
+> Registrada na main (PR #175) como D-PROD-107. Foi renumerada para D-PROD-108 ao integrar a main na PR #174, cujo ledger do rebanho já usava a D-PROD-107 em 60 arquivos. O conteúdo não mudou.
+
+**Pedido do proprietário:** a importação do KML não trazia os nomes corretos. Em produção, 74 das 80 áreas ficaram com nomes como `06FED7BE-9736-4A1F-93FB-E481CB663AC7`. O aplicativo de campo que gerou o arquivo grava um UUID em `<name>`, e o leitor só olhava essa tag.
+
+**Decisão** (`src/lib/geografia/importacaoAreas.js`):
+- `pareceIdentificador` marca como "não é nome":
+  - UUID, com ou sem chaves ou hífens;
+  - hash hexadecimal de 16 caracteres ou mais;
+  - os rótulos padrão: "Polígono sem título", "Untitled Polygon", "Sem nome"…
+- O nome do Placemark é o primeiro candidato que seja nome de verdade, nesta ordem:
+  1. `<name>`;
+  2. campos do `<ExtendedData>` (`Data/value` e `SchemaData/SimpleData`), procurados sem diferenciar acento, maiúscula ou separador. Chaves: nome, name, nome_area, nome_pasto, pasto, piquete, talhão, invernada, area_nome, título, title, label, rótulo, descrição;
+  3. `<description>` curta (até 60 caracteres) e sem HTML de tabela;
+  4. nome da `<Folder>` que guarda só aquele Placemark.
+- Sem nenhum candidato, o nome fica vazio e a conferência sugere um nome, como já fazia. O código nunca vira nome.
+- A sigla também é lida do `<ExtendedData>`.
+- No GeoJSON, as mesmas chaves de nome passam pelo filtro de código.
+
+**Fora do escopo:** renomear as áreas já gravadas com UUID. O proprietário renomeia no cadastro ou reimporta o arquivo.
+
+Testes KML-N1..N5 em `tests/smoke/importacaoAreasParser.test.js`.
+
+---
+
+<!-- Próxima decisão: D-PROD-109 -->
