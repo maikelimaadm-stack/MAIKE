@@ -211,3 +211,54 @@ export const criarAdminComSessao = async (app, opcoes = {}) => {
   };
   return { admin, login, senha, segredo, headers, codigosRecuperacao: r2.json().codigos_recuperacao, proximoCodigo };
 };
+
+/**
+ * PR174-R4 (D-PROD-107): o manejo não fabrica mais lote derivado — o cadastro de
+ * Lote é só de ENTRADAS. Testes que precisam do DADO LEGADO que a antiga
+ * transferência parcial "com lote novo" deixava no banco o simulam assim:
+ *  1. cadastra o destino como entrada VAZIA (0 cabeças) compatível na área;
+ *  2. a transferência certificada de hoje UNIFICA nele (efeito real, auditado);
+ *  3. a base é ajustada direto no banco para o formato antigo: destino com
+ *     origem MOVIMENTAÇÃO e quantidade de entrada = quantidade transferida, e o
+ *     efeito do destino marcado `criado: true` (modo `parcial_novo_lote`).
+ * Devolve a resposta do comando (movimentacao, lotes) e o id do derivado.
+ *
+ * @param {import('fastify').FastifyInstance} app
+ * @param {{ token: string, empresaId: string, setorId: string, origem: any, quantidade: number, areaDestinoId: string, data: string, corpoExtra?: Record<string, unknown> }} p
+ */
+export const transferenciaComDerivadoLegado = async (app, { token, empresaId, setorId, origem, quantidade, areaDestinoId, data, corpoExtra = {} }) => {
+  const headers = { authorization: `Bearer ${token}` };
+  const dia = String(data).slice(0, 10);
+  const destino = await app.inject({
+    method: 'POST', url: '/lotes', headers,
+    payload: {
+      empresa_id: empresaId, nome: origem.nome, quantidade_cabecas: 0, categoria: origem.categoria, ...(origem.sexo ? { sexo: origem.sexo } : {}),
+      setor_id: setorId, area_entrada_id: areaDestinoId, area_atual_id: areaDestinoId, data_entrada: dia, motivo_entrada: 'Compra', status: 'Ativo',
+    },
+  });
+  if (destino.statusCode !== 201) throw new Error(`fixture derivado legado: cadastro do destino ${destino.statusCode} ${destino.body}`);
+  const derivadoId = destino.json().id;
+  const corpo = {
+    operation_id: `op-${randomUUID()}`, tipo: 'Transferência de Área', empresa_id: empresaId, lote_id: origem.id, quantidade_animais: quantidade,
+    area_destino_id: areaDestinoId, lote_destino_id: derivadoId, data_movimentacao: data, ...corpoExtra,
+  };
+  const t = await app.inject({ method: 'POST', url: '/movimentacoes-mapa/comandos/manejo-lote', headers, payload: corpo });
+  if (t.statusCode !== 201) throw new Error(`fixture derivado legado: transferência ${t.statusCode} ${t.body}`);
+  const p = getPrismaClient();
+  const resposta = t.json();
+  const lote = await p.lote.findFirst({ where: { id: derivadoId } });
+  await p.lote.update({
+    where: { cliente_id_id: { cliente_id: lote.cliente_id, id: derivadoId } },
+    data: { origem: 'MOVIMENTAÇÃO', quantidade_entrada: quantidade, motivo_entrada: 'Outros', motivo_outros: 'Movimentação parcial', data_entrada: new Date(data) },
+  });
+  const mov = await p.movimentacaoMapa.findFirst({ where: { id: resposta.movimentacao.id } });
+  const ef = mov.dados.efeito_servidor;
+  const efeitos = ef.efeitos.map((e) => (e.lote_id === derivadoId
+    ? { ...e, criado: true, antes: { ...e.depois, quantidade_cabecas: 0, status: 'Inativo' } }
+    : e));
+  await p.movimentacaoMapa.update({
+    where: { id: mov.id },
+    data: { dados: { ...mov.dados, modo_transferencia: 'parcial_novo_lote', efeito_servidor: { ...ef, modo: 'parcial_novo_lote', efeitos } } },
+  });
+  return { ...resposta, derivadoId, corpo };
+};

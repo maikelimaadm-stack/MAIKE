@@ -10,7 +10,7 @@ import { test, describe, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 
-import { criarApp, criarTenant, limparBanco, encerrar, autenticarNoApp } from './helpers.mjs';
+import { criarApp, criarTenant, limparBanco, encerrar, autenticarNoApp, transferenciaComDerivadoLegado } from './helpers.mjs';
 import { getPrismaClient } from '../src/database/prismaClient.js';
 import { definirFalhaInjetadaLedger } from '../src/modules/rebanhoLedger/rebanhoLedgerService.js';
 import { executarReset, planejarReset } from '../../scripts/ops/resetRebanhoEmpresaTesteLib.mjs';
@@ -119,6 +119,19 @@ const corpoTransfLegada = (c, lote, quantidade, destino) => ({
   operation_id: opId(), tipo: 'Transferência de Área', empresa_id: c.empresa.id, lote_id: lote.id, quantidade_animais: quantidade,
   data_movimentacao: '2026-10-28', area_destino_id: destino.id, categoria_animal: BOI,
 });
+/**
+ * PR174-R4: o manejo não fabrica mais lote derivado. Transferência legada com
+ * derivado = DADO LEGADO pré-existente (fixture compartilhada); devolve o corpo
+ * do comando (para replay) e a resposta.
+ */
+const transfComDerivadoLegado = async (c, lote, quantidade, destino) => {
+  const r = await transferenciaComDerivadoLegado(app, {
+    token: c.tok, empresaId: c.empresa.id, setorId: c.setor.id, origem: lote, quantidade, areaDestinoId: destino.id, data: '2026-10-28', corpoExtra: { categoria_animal: BOI },
+  });
+  return { body: r.corpo, t: r, derivadoId: r.derivadoId };
+};
+/** Destino genuíno (ENTRADA compatível já cadastrada) para a transferência parcial legada unificar. */
+const destinoEntrada = (c, lote, destino, qtd = 1) => entrada(c, { nome: lote.nome, qtd, area: destino });
 const corpoMorteLegada = (c, quantidade) => ({
   operation_id: opId(), tipo: 'Morte', empresa_id: c.empresa.id, area_id: c.A.id, data_movimentacao: '2026-10-29', linhas: [{ categoria: BOI, quantidade, causa_morte: 'Doença' }],
 });
@@ -132,8 +145,7 @@ describe('R2 A — reset de teste não deixa replay órfão nem vínculo inváli
   test('A1: replay da MESMA chave depois do reset → 409 estável (nunca 201 com movimento apagado); outra empresa e outro tenant seguem com replay', async () => {
     const c = await legado();
     const l = await entrada(c, { nome: 'COMPRA', qtd: 500 });
-    const tBody = corpoTransfLegada(c, l, 120, c.B);
-    const t = await ok(manejoLote(c, tBody));
+    const { body: tBody, t } = await transfComDerivadoLegado(c, l, 120, c.B);
     const mBody = corpoMorteLegada(c, 5);
     const m = await ok(req('POST', '/movimentacoes-mapa/comandos/baixa-rebanho', c.tok, mBody));
     // Controles: outra empresa do mesmo tenant e outro tenant, com chaves próprias.
@@ -143,11 +155,11 @@ describe('R2 A — reset de teste não deixa replay órfão nem vínculo inváli
     const b2 = await prisma().areaPastagem.create({ data: { cliente_id: c.cliente.id, empresa_id: outra.id, setor_id: setor2.id, setor_nome: 'S9', numero_area: '10', nome: 'PASTO Y', tamanho_hectares: 5 } });
     const c2 = { ...c, empresa: outra, setor: setor2, A: a2, B: b2 };
     const l2 = await entrada(c2, { nome: 'OUTRA', qtd: 50 });
-    const oBody = corpoTransfLegada(c2, l2, 10, b2);
+    const oBody = { ...corpoTransfLegada(c2, l2, 10, b2), lote_destino_id: (await destinoEntrada(c2, l2, b2)).id };
     await ok(manejoLote(c2, oBody));
     const viz = await legado();
     const lv = await entrada(viz, { nome: 'VIZ', qtd: 30 });
-    const vBody = corpoTransfLegada(viz, lv, 5, viz.B);
+    const vBody = { ...corpoTransfLegada(viz, lv, 5, viz.B), lote_destino_id: (await destinoEntrada(viz, lv, viz.B)).id };
     await ok(manejoLote(viz, vBody));
 
     await resetar(c);
@@ -173,9 +185,9 @@ describe('R2 A — reset de teste não deixa replay órfão nem vínculo inváli
   test('A2: documento (suplementação/sanidade/anexo; tarefas pela mesma varredura) que cita lote derivado ou movimento apagado → reset RECUSA e nada muda', async () => {
     const c = await legado();
     const l = await entrada(c, { nome: 'COMPRA', qtd: 500 });
-    const t = await ok(manejoLote(c, corpoTransfLegada(c, l, 120, c.B)));
+    const { t, derivadoId } = await transfComDerivadoLegado(c, l, 120, c.B);
     const derivado = (await prisma().lote.findMany({ where: { cliente_id: c.cliente.id, NOT: { id: l.id } } }))[0];
-    assert.ok(derivado, 'transferência parcial legada criou derivado');
+    assert.ok(derivado && derivado.id === derivadoId && derivado.origem === 'MOVIMENTAÇÃO', 'derivado legado da transferência parcial');
     const casos = [
       () => prisma().suplementacaoLote.create({ data: { cliente_id: c.cliente.id, empresa_id: c.empresa.id, dados: { lote_id: derivado.id, lote_nome: derivado.nome } } }),
       () => prisma().eventoSanitario.create({ data: { cliente_id: c.cliente.id, empresa_id: c.empresa.id, dados: { lote_ids: [derivado.id] } } }),
@@ -197,8 +209,7 @@ describe('R2 A — reset de teste não deixa replay órfão nem vínculo inváli
   test('A3: reset reexecutado é no-op (sem nova auditoria, sem perda); AuditLog preservado e o do reset cita movimentos e chaves', async () => {
     const c = await legado();
     const l = await entrada(c, { nome: 'COMPRA', qtd: 500 });
-    const tBody = corpoTransfLegada(c, l, 120, c.B);
-    const t = await ok(manejoLote(c, tBody));
+    const { body: tBody, t } = await transfComDerivadoLegado(c, l, 120, c.B);
     const auditsAntes = await prisma().auditLog.findMany({ where: { cliente_id: c.cliente.id }, orderBy: { id: 'asc' } });
     const r1 = await resetar(c);
     assert.equal(r1.movimentacoes_apagadas, 1);
@@ -224,8 +235,11 @@ describe('R2 A — reset de teste não deixa replay órfão nem vínculo inváli
       await limparBanco();
       const c = await legado();
       const l = await entrada(c, { nome: 'COMPRA', qtd: 500 });
-      await ok(manejoLote(c, corpoTransfLegada(c, l, 50, c.B)));
-      const body = corpoTransfLegada(c, l, 30, c.B);
+      // PR174-R4: as transferências parciais legadas unificam numa ENTRADA já cadastrada em B
+      // (o manejo não fabrica lote); o reset a restaura e ela segue apta a receber.
+      const destino = await destinoEntrada(c, l, c.B, 10);
+      await ok(manejoLote(c, { ...corpoTransfLegada(c, l, 50, c.B), lote_destino_id: destino.id }));
+      const body = { ...corpoTransfLegada(c, l, 30, c.B), lote_destino_id: destino.id };
       const [rr, rc] = await Promise.allSettled([resetar(c), manejoLote(c, body)]);
       assert.equal(rr.status, 'fulfilled', String(rr.reason?.message ?? ''));
       assert.equal(rc.value.statusCode, 201, rc.value.body);

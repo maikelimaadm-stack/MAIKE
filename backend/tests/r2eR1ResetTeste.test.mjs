@@ -11,7 +11,7 @@ import { test, describe, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 
-import { criarApp, criarTenant, limparBanco, encerrar, autenticarNoApp } from './helpers.mjs';
+import { criarApp, criarTenant, limparBanco, encerrar, autenticarNoApp, transferenciaComDerivadoLegado } from './helpers.mjs';
 import { getPrismaClient } from '../src/database/prismaClient.js';
 import { definirFalhaInjetadaLedger } from '../src/modules/rebanhoLedger/rebanhoLedgerService.js';
 import { planejarReset, executarReset, ResetRecusado } from '../../scripts/ops/resetRebanhoEmpresaTesteLib.mjs';
@@ -61,11 +61,6 @@ const entrada = async (c, { nome = 'LOTE', qtd = 40, area = c.A, data = '2026-10
 /** Empresa reconstruída pelas entradas (linha do tempo completa desde cada entrada). */
 
 const ativar = (c) => req('POST', '/rebanho/ativacao', c.tok, { operation_id: opId(), empresa_id: c.empresa.id, modo: 'entradas' });
-const transferirLegado = (c, lote, quantidade, destino) =>
-  req('POST', '/movimentacoes-mapa/comandos/manejo-lote', c.tok, {
-    operation_id: opId(), tipo: 'Transferência de Área', empresa_id: c.empresa.id, lote_id: lote.id, quantidade_animais: quantidade,
-    data_movimentacao: '2026-10-28', area_destino_id: destino.id, categoria_animal: BOI,
-  });
 const morteLegada = (c, quantidade) =>
   req('POST', '/movimentacoes-mapa/comandos/baixa-rebanho', c.tok, {
     operation_id: opId(), tipo: 'Morte', empresa_id: c.empresa.id, area_id: c.A.id, data_movimentacao: '2026-10-29', linhas: [{ categoria: BOI, quantidade, causa_morte: 'Doença' }],
@@ -79,12 +74,17 @@ const foto = async (clienteId, empresaId) => {
     audits: empresaId ? null : await p.auditLog.count({ where: { cliente_id: clienteId } }),
   };
 };
-/** Empresa de teste com histórico legado: transferência parcial (cria derivado) + morte. */
+/**
+ * Empresa de teste com histórico legado: transferência parcial que deixou um
+ * derivado + morte. PR174-R4: o derivado é DADO LEGADO pré-existente (o manejo
+ * não fabrica mais lote), simulado pela fixture compartilhada.
+ */
 const comHistorico = async () => {
   const c = await cenario();
   const l = await entrada(c, { nome: 'COMPRA', qtd: 100 });
-  const r1 = await transferirLegado(c, l, 30, c.B);
-  assert.equal(r1.statusCode, 201, r1.body);
+  await transferenciaComDerivadoLegado(app, {
+    token: c.tok, empresaId: c.empresa.id, setorId: c.setor.id, origem: l, quantidade: 30, areaDestinoId: c.B.id, data: '2026-10-28', corpoExtra: { categoria_animal: BOI },
+  });
   const r2 = await morteLegada(c, 5);
   assert.equal(r2.statusCode, 201, r2.body);
   return { c, l };

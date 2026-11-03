@@ -9,7 +9,7 @@ import { test, describe, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 
-import { criarApp, criarTenant, limparBanco, encerrar, autenticarNoApp } from './helpers.mjs';
+import { criarApp, criarTenant, limparBanco, encerrar, autenticarNoApp, transferenciaComDerivadoLegado } from './helpers.mjs';
 import { getPrismaClient } from '../src/database/prismaClient.js';
 
 /** @type {import('fastify').FastifyInstance} */
@@ -58,9 +58,9 @@ describe('PR174-R1 achados (comportamento correto)', () => {
   test('A: derivado legado (origem MOVIMENTAÇÃO) NÃO vira segunda entrada na ativação: linhagem rastreada até a entrada original', async () => {
     const c = await cenario();
     const l = await entrada(c);
-    const t = await req('POST', '/movimentacoes-mapa/comandos/manejo-lote', c.tok, { operation_id: opId(), tipo: 'Transferência de Área', empresa_id: c.empresa.id, lote_id: l.id, quantidade_animais: 100, area_destino_id: c.B.id, data_movimentacao: '2026-10-28T12:00:00.000Z' });
-    assert.equal(t.statusCode, 201, t.body);
-    const derivado = t.json().lotes.find((x) => x.id !== l.id);
+    // PR174-R4: o derivado é DADO LEGADO pré-existente (o manejo não fabrica mais lote).
+    const t = await transferenciaComDerivadoLegado(app, { token: c.tok, empresaId: c.empresa.id, setorId: c.setor.id, origem: l, quantidade: 100, areaDestinoId: c.B.id, data: '2026-10-28T12:00:00.000Z' });
+    const derivado = { id: t.derivadoId };
     assert.equal((await ativar(c)).statusCode, 201);
     const ps = await posicoes(c);
     console.log(`  posições: ${JSON.stringify(ps.map((p) => [p.area_atual_nome, p.quantidade_cabecas, p.lote_entrada_id === l.id ? 'ENTRADA ORIGINAL' : p.lote_entrada_id === derivado.id ? 'DERIVADO COMO ENTRADA' : p.lote_entrada_id]))}`);

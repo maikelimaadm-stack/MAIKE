@@ -9,7 +9,7 @@ import { test, describe, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 
-import { criarApp, criarTenant, limparBanco, encerrar, autenticarNoApp } from './helpers.mjs';
+import { criarApp, criarTenant, limparBanco, encerrar, autenticarNoApp, transferenciaComDerivadoLegado } from './helpers.mjs';
 import { getPrismaClient } from '../src/database/prismaClient.js';
 import { definirFalhaInjetadaLedger } from '../src/modules/rebanhoLedger/rebanhoLedgerService.js';
 
@@ -329,8 +329,8 @@ describe('R2E ledger — cancelamento, histórico, cadastro', () => {
   test('X4: ativação — saldo de abertura das linhas legadas (inclusive derivadas) sem alterar Lote; só admin; corte anterior a movimento legado e lote sem área → 409', async () => {
     const c = await cenario({ ativar: false });
     const l = await entrada(c);
-    const t = await req('POST', '/movimentacoes-mapa/comandos/manejo-lote', c.tok, { operation_id: opId(), tipo: 'Transferência de Área', empresa_id: c.empresa.id, lote_id: l.id, quantidade_animais: 120, area_destino_id: c.B.id, data_movimentacao: '2026-10-28T12:00:00.000Z' });
-    assert.equal(t.statusCode, 201, t.body);
+    // PR174-R4: o derivado é DADO LEGADO pré-existente (o manejo não fabrica mais lote).
+    await transferenciaComDerivadoLegado(app, { token: c.tok, empresaId: c.empresa.id, setorId: c.setor.id, origem: l, quantidade: 120, areaDestinoId: c.B.id, data: '2026-10-28T12:00:00.000Z' });
     const lotesAntes = (await contagem(c)).lotes;
     const corpo = { operation_id: opId(), empresa_id: c.empresa.id, data_corte: '2026-10-27' };
     await exigirNadaGravado(c, () => req('POST', '/rebanho/ativacao', c.tok, corpo), 409, 'REBANHO_ATIVACAO_CORTE_ANTERIOR_AO_HISTORICO');
