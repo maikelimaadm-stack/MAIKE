@@ -487,3 +487,65 @@ GREEN (`r2eR4ContratoTresResponsabilidades`): **6/6**.
 - **Empresa legada (pré-cutover):** manejos que não fabricam cadastro ainda escrevem o saldo nas colunas do Lote (snapshot legado). O fim desse modo é o cutover pós-merge: ativar cada empresa (teste primeiro) e, a partir daí, o Lote fica congelado.
 - **Transferência parcial, nascimento e mudança parcial legados ficam indisponíveis até a ativação** da empresa. Mensagem: "peça ao administrador para ativar".
 - **Consolidação física** de `EventoRebanho` e `PesoRebanho` em `MovimentacaoMapa`: só com migration aditiva, backfill e prova de equivalência (plano na D-PROD-107).
+
+## R5 — Cutover completo, sem modelo legado (PR174-R5)
+
+**Contrato.** Lote = só cadastro de entrada. PosicaoRebanho = estado atual. MovimentacaoMapa = histórico navegável (inclui pesagem). Nenhum comando do mapa escreve em `Lote` (gate P174-MAPA-SEM-LOTE).
+
+### R5.1 Matriz comando → fonte de saldo
+
+| Comando | Empresa ativada | Empresa não ativada |
+|---|---|---|
+| `/movimentacoes-mapa/comandos/manejo-lote` (transferência total/parcial, qualquer pasto, inclusive vazio) | ledger (posições) | 409 `REBANHO_CUTOVER_PENDENTE`, nada gravado |
+| `/rebanho/comandos/transferencia` | ledger | 409 `REBANHO_CUTOVER_PENDENTE` |
+| `/movimentacoes-mapa/comandos/baixa-rebanho` (morte/abate) | ledger | 409 `REBANHO_CUTOVER_PENDENTE` |
+| `/movimentacoes-mapa/comandos/manejo-rebanho` (pesagem, nascimento, mudança total/parcial) | ledger | 409 `REBANHO_CUTOVER_PENDENTE` |
+| `/movimentacoes-mapa/comandos/juncao-lotes` | ledger | 409 `REBANHO_CUTOVER_PENDENTE` |
+| cancelamento de movimento ledger | ledger (bloqueado por fato posterior dependente) | — |
+| cancelamento de movimento legado | 409 `REBANHO_LEDGER_CANCELAMENTO_LEGADO` | 409 `REBANHO_CUTOVER_PENDENTE` |
+| POST genérico material | 409 `REBANHO_LEDGER_SOMENTE_POR_COMANDO` | (sem efeito no saldo) |
+
+Não existe mais 409 `LOTE_CADASTRO_SOMENTE_ENTRADAS` em caso normal: numa empresa ativada todos os manejos funcionam. O único bloqueio é o da empresa ainda não migrada, com caminho administrativo real (cutover).
+
+### R5.2 Cutover
+
+- **Empresa nova** nasce ativada (`empresaService.criar` → `ativarEmpresaNaTransacao`, modo `entradas`).
+- **Empresa existente:** `scripts/ops/cutover-rebanho.mjs` (diagnóstico somente leitura por padrão; execução com `--executar`, nome de confirmação, administrador ativo do cliente). Estratégias:
+  - `entradas`: só quando o passado é exatamente o cadastro;
+  - `reset_e_entradas`: reset autorizado e escopado (`cliente_id`+`empresa_id`), com backup antes, depois `entradas`;
+  - `saldo_abertura`: preserva o histórico legado e abre posições na data de corte.
+- **O reset preserva** Usuario (incluindo hash de senha), Cliente, Empresa, Permissões, áreas e catálogos. Também não afeta outra empresa nem outro tenant. O backup não contém hash de senha (teste C2).
+- **Alvo divergente** (`CUTOVER_EXPECTED_SYSTEM_IDENTIFIER` diferente): exit 3, nada alterado, URL nunca impressa (teste C4).
+
+### R5.3 Release na Vercel
+
+O backend é Fastify serverless (`api/fastify.js`). A Vercel não migra.
+
+**Barreira de release:** workflow `release-migrate.yml`. Ele é manual, roda no environment `production`, recebe o SHA exato e a frase de confirmação e executa `npm run deploy:migrate` com `MIGRATION_DATABASE_URL` (sessão, não o pooler 6543) e `MIGRATION_EXPECTED_SYSTEM_IDENTIFIER`.
+
+**Corrida com o deploy automático da main:** o merge dispara o build de produção da Vercel. Se o código novo subir antes das migrations, as rotas que leem as tabelas novas falham. As migrations do PR #174 são EXPAND, então o código antigo continua funcionando com o banco migrado. Por isso o schema deve ser aplicado **antes** do merge, rodando o workflow com o SHA da branch.
+
+**Ordem segura:**
+1. CI verde e backup.
+2. Diagnóstico de cada empresa.
+3. `release-migrate` com o SHA da PR.
+4. Reset escopado, se necessário.
+5. Cutover da empresa de teste, depois das demais.
+6. Validar no preview.
+7. Merge, deploy automático.
+
+Esta PR não altera configuração da Vercel.
+
+**Estado remoto:** REMOTE_MIGRATION_BLOCKED e REMOTE_RESET_BLOCKED. Este ambiente não tem credenciais `MIGRATION_*`/`CUTOVER_*` e as envs da Vercel retornaram 403. Nada foi executado remotamente.
+
+### R5.4 Legado removido
+
+Os quatro services de comando e o cancelamento perderam cerca de 1.700 linhas do motor legado. `guardaTemporalComando.js` foi apagado. O frontend `DetalhesLote` perdeu cerca de 276 linhas e o caminho do comando legado `manejo-lote` no cliente.
+
+Suítes legadas convertidas ou removidas, com mapa em `evidencias/r2e-p1-lotes-ssot/r5-cutover/cobertura-legado-para-ledger.txt`.
+
+### R5.5 Riscos residuais
+
+- **Registros de outras fontes** (sanidade, tarefas, pecuária) datados depois de um manejo **não bloqueiam mais** cancelamento ou retroativo. O ledger bloqueia só pela própria linha do tempo de saldo/peso. Isso é decisão de produto se for desejado.
+- **Pesagem com `categoria` divergente da posição** agora é recusada com 409 `MANEJO_ESTADO_INVALIDO` (o frontend envia a categoria da própria posição).
+- **Consolidação física** de `EventoRebanho`/`PartidaRebanho`/`PesoRebanho`: segue interna, sem fusão.
