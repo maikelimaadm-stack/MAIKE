@@ -170,6 +170,69 @@ const limparCaches = async (queryClient, movimento) => {
 };
 
 /**
+ * Pré-validação no histórico (MAIKE-POS178-UX): a elegibilidade de cada card é
+ * consultada ANTES do clique, mas o GET faz um ensaio transacional real no
+ * servidor. Para não disparar 100 ensaios de uma vez:
+ *  - só consulta o card visível (IntersectionObserver, margem de 200px);
+ *  - no máximo `MAX_CONSULTAS_SIMULTANEAS` consultas em voo por página;
+ *  - React Query por usuário + tenant + empresa + id (sem request duplicado);
+ *  - `staleTime` evita reconsulta a cada render/foco.
+ * A resposta é SÓ indicativa: o POST revalida tudo na transação.
+ */
+export const MAX_CONSULTAS_SIMULTANEAS = 2;
+export const ELEGIBILIDADE_STALE_MS = 30_000;
+const fila = { ativos: 0, espera: [] };
+const liberar = () => {
+  fila.ativos -= 1;
+  const proximo = fila.espera.shift();
+  if (proximo) proximo();
+};
+/** Executa `fn` respeitando o limite global de consultas simultâneas. */
+export const comLimiteDeConsultas = (fn) =>
+  new Promise((resolve, reject) => {
+    const rodar = () => {
+      fila.ativos += 1;
+      Promise.resolve()
+        .then(fn)
+        .then(resolve, reject)
+        .finally(liberar);
+    };
+    if (fila.ativos < MAX_CONSULTAS_SIMULTANEAS) rodar();
+    else fila.espera.push(rodar);
+  });
+
+/** Card dentro (ou perto) da área visível? Sem IntersectionObserver: considera visível (o limite global segue valendo). */
+const useVisivel = (el) => {
+  const [visivel, setVisivel] = React.useState(typeof IntersectionObserver === "undefined");
+  React.useEffect(() => {
+    if (!el || typeof IntersectionObserver === "undefined") return undefined;
+    const obs = new IntersectionObserver((entradas) => {
+      for (const e of entradas) setVisivel(e.isIntersecting);
+    }, { rootMargin: "200px 0px" });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [el]);
+  return visivel;
+};
+
+/** Texto curto do bloqueio para o card (data, área, tipo quando o servidor manda). */
+export const motivoCurtoDoBloqueio = (e) => {
+  if (!e || e.elegivel) return null;
+  const d = e.detalhes && typeof e.detalhes === "object" ? e.detalhes : null;
+  const dependente = ["CANCELAMENTO_SALDO_HISTORICO_NEGATIVO", "REBANHO_DEPENDENCIA_FATO_SEM_SALDO", "REBANHO_PESO_DEPENDENCIA_CAUSAL"].includes(e.codigo);
+  const base = dependente
+    ? "Existe pesagem/manejo posterior dependente; exclua o lançamento dependente primeiro."
+    : (e.codigo && e.codigo in MENSAGENS_RECUSA ? mensagemDeRecusa(e.codigo, d) : e.motivo) || "Exclusão indisponível.";
+  if (!dependente) return base;
+  const extra = [
+    d?.tipo ? String(d.tipo).toLowerCase() : null,
+    d?.data ? `em ${diaBR(d.data)}` : null,
+    d?.area_nome ? `(${d.area_nome})` : null,
+  ].filter(Boolean).join(" ");
+  return extra ? `${base} Bloqueador: ${extra}.` : base;
+};
+
+/**
  * @param {{ movimento: any, onExcluido?: () => void }} props
  */
 export default function ExcluirMovimentacao({ movimento, onExcluido }) {
@@ -197,23 +260,29 @@ export default function ExcluirMovimentacao({ movimento, onExcluido }) {
   const admin = ehAdministrador(usuario);
   const escopo = escopoDoUsuario(usuario);
 
+  const [cardEl, setCardEl] = React.useState(null);
+  const visivel = useVisivel(cardEl);
+  const suportado = !!movimento && tipoTemExclusao(movimento);
+  // Escopo da resposta: usuário + tenant + empresa + movimento (nunca reaproveita outro escopo).
   const elegibilidade = useQuery({
-    queryKey: ["elegibilidade-exclusao-movimentacao", movimento?.id],
-    queryFn: () => consultarExclusaoMovimentacao(movimento.id),
-    enabled: aberto && !!movimento?.id && online,
-    staleTime: 0,
+    queryKey: ["elegibilidade-exclusao-movimentacao", usuario?.cliente_id ?? null, usuario?.id ?? null, movimento?.empresa_id ?? null, movimento?.id],
+    queryFn: () => comLimiteDeConsultas(() => consultarExclusaoMovimentacao(movimento.id)),
+    enabled: suportado && admin && !!usuario && online && (visivel || aberto),
+    staleTime: ELEGIBILIDADE_STALE_MS,
+    // Reabrir o histórico confere de novo (um manejo feito com ele fechado não deixa verde velho).
+    refetchOnMount: "always",
     retry: false,
   });
   // Operação legada na fila offline para este registro: falha fechada.
-  const fila = useQuery({
-    queryKey: ["pendencias-offline-movimentacao", movimento?.id],
+  const pendencias = useQuery({
+    queryKey: ["pendencias-offline-movimentacao", usuario?.cliente_id ?? null, movimento?.id],
     queryFn: () => pendenciasOfflineDaMovimentacao(movimento.id),
-    enabled: aberto && !!movimento?.id,
-    staleTime: 0,
+    enabled: suportado && admin && !!usuario && (visivel || aberto),
+    staleTime: ELEGIBILIDADE_STALE_MS,
     retry: false,
   });
 
-  if (!movimento || !tipoTemExclusao(movimento)) return null;
+  if (!suportado) return null;
   // Só o administrador ativo vê a ação (o servidor reautoriza no POST).
   if (!admin) return null;
 
@@ -233,6 +302,9 @@ export default function ExcluirMovimentacao({ movimento, onExcluido }) {
     }
     setRecusa(null);
     setAberto(true);
+    // Revalida imediatamente antes de permitir confirmar (a do card pode estar velha).
+    elegibilidade.refetch();
+    pendencias.refetch();
   };
 
   const fechar = (valor) => {
@@ -247,7 +319,7 @@ export default function ExcluirMovimentacao({ movimento, onExcluido }) {
     setAberto(valor);
   };
 
-  const pendenciasNaFila = Array.isArray(fila.data) ? fila.data : [];
+  const pendenciasNaFila = Array.isArray(pendencias.data) ? pendencias.data : [];
 
   const confirmar = async () => {
     if (enviando || motivo.trim().length < 3 || !confirmado || !online || pendenciasNaFila.length) return;
@@ -278,6 +350,8 @@ export default function ExcluirMovimentacao({ movimento, onExcluido }) {
         setRecusa(mensagemDeRecusa(codigo, /** @type {any} */ (erro)?.details ?? /** @type {any} */ (erro)?.cause?.details));
         setDesconhecido(false);
         chaveRef.current = novaChave();
+        // O estado mudou entre o GET e o POST (409): o card e o diálogo reconsultam.
+        elegibilidade.refetch();
       } else {
         setDesconhecido(true);
       }
@@ -286,29 +360,70 @@ export default function ExcluirMovimentacao({ movimento, onExcluido }) {
     }
   };
 
-  /** @type {{elegivel?: boolean, codigo?: string|null, motivo?: string|null, detalhes?: any, efeitos?: any[]} | undefined} */
+  /** @type {{elegivel?: boolean, pode_excluir?: boolean, codigo?: string|null, motivo?: string|null, detalhes?: any, efeitos?: any[]} | undefined} */
   const e = /** @type {any} */ (elegibilidade.data);
   const motivoPronto = motivo.trim().length >= 3;
-  const podeEnviar = motivoPronto && confirmado && !enviando && online && !pendenciasNaFila.length;
+  // Confirmar exige elegibilidade FRESCA (revalidada ao abrir), sem consulta em voo nem erro.
+  const elegivelAgora = e?.elegivel === true && e?.pode_excluir === true && !elegibilidade.isFetching && !elegibilidade.isError;
+  const podeEnviar =
+    motivoPronto && confirmado && !enviando && online && !pendenciasNaFila.length && !pendencias.isFetching && (elegivelAgora || desconhecido);
+
+  /**
+   * Estado do card ANTES do clique. Só "elegível" habilita a ação; todo o
+   * resto é um controle desabilitado com o motivo visível no próprio card.
+   * @type {{rotulo: string, habilitado: boolean, motivo: string|null, tentarDeNovo?: boolean, destrutivo?: boolean}}
+   */
+  const estado = (() => {
+    if (lerPendente(escopo, movimento.id)) return { rotulo: "Excluir movimentação", habilitado: online, motivo: online ? "Exclusão anterior sem confirmação do servidor: abra para reenviar a mesma operação." : "Sem conexão: a exclusão só é feita online.", destrutivo: true };
+    if (!online) return { rotulo: "Exclusão indisponível", habilitado: false, motivo: "Sem conexão: a exclusão só é feita online e não entra na fila offline." };
+    if (pendenciasNaFila.length) return { rotulo: "Exclusão bloqueada", habilitado: false, motivo: "Há operação offline ainda não sincronizada para este registro. Sincronize antes de excluir." };
+    if (elegibilidade.isError) return { rotulo: "Não foi possível verificar", habilitado: false, motivo: "A conferência no servidor falhou. Nada foi alterado.", tentarDeNovo: true };
+    if (!e || (elegibilidade.isFetching && e.elegivel)) return { rotulo: "Verificando exclusão…", habilitado: false, motivo: null };
+    if (!e.elegivel) return { rotulo: "Exclusão bloqueada", habilitado: false, motivo: motivoCurtoDoBloqueio(e) };
+    if (e.pode_excluir !== true) return { rotulo: "Exclusão bloqueada", habilitado: false, motivo: MENSAGENS_RECUSA.TENANT_ADMIN_REQUIRED };
+    return { rotulo: "Excluir movimentação", habilitado: true, motivo: null, destrutivo: true };
+  })();
+  const idMotivo = `motivo-bloqueio-${movimento.id}`;
 
   return (
-    <>
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        className="h-8 text-xs text-red-700"
-        disabled={!online}
-        title={online ? undefined : "Exclusão só com conexão (não vai para a fila offline)"}
-        onClick={(ev) => {
-          ev.preventDefault();
-          ev.stopPropagation();
-          abrir();
-        }}
-      >
-        Excluir movimentação
-      </Button>
-      {!online && <span className="ml-1 text-[11px] text-slate-500">Exclusão só com conexão</span>}
+    <div ref={setCardEl} className="flex flex-col items-start gap-1" data-estado-exclusao={estado.habilitado ? "elegivel" : estado.rotulo}>
+      <div className="flex flex-wrap items-center gap-1">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className={`h-8 text-xs ${estado.destrutivo && estado.habilitado ? "text-red-700" : "text-slate-500"}`}
+          disabled={!estado.habilitado}
+          aria-describedby={estado.motivo ? idMotivo : undefined}
+          onClick={(ev) => {
+            ev.preventDefault();
+            ev.stopPropagation();
+            if (estado.habilitado) abrir();
+          }}
+        >
+          {estado.rotulo}
+        </Button>
+        {estado.tentarDeNovo && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-8 text-xs text-slate-600"
+            onClick={(ev) => {
+              ev.preventDefault();
+              ev.stopPropagation();
+              elegibilidade.refetch();
+            }}
+          >
+            Verificar de novo
+          </Button>
+        )}
+      </div>
+      {estado.motivo && (
+        <p id={idMotivo} className="max-w-full text-[11px] leading-snug text-slate-600">
+          {estado.motivo}
+        </p>
+      )}
       <Dialog open={aberto} onOpenChange={fechar}>
         <DialogContent className="max-w-md">
           <DialogHeader>
@@ -388,6 +503,6 @@ export default function ExcluirMovimentacao({ movimento, onExcluido }) {
           )}
         </DialogContent>
       </Dialog>
-    </>
+    </div>
   );
 }

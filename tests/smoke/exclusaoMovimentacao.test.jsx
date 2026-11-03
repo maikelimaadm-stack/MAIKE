@@ -168,18 +168,6 @@ describe("ExcluirMovimentacao", () => {
     expect(c2.operation_id).not.toBe(c1.operation_id);
   });
 
-  it("não elegível (dependência/vínculo): explica com tipo e data, sem botão de confirmar", async () => {
-    servico.consultarExclusaoMovimentacao.mockImplementation(async () => ({
-      elegivel: false,
-      codigo: "REBANHO_CANCELAMENTO_VINCULO_POSTERIOR",
-      detalhes: { bloqueadores: [{ tipo: "LancamentoTarefa", id: "t1", data: "2026-10-15" }] },
-    }));
-    await renderizar(<ExcluirMovimentacao movimento={TRANSF} />);
-    await clicar(await screen.findByRole("button", { name: "Excluir movimentação" }));
-    expect(await screen.findByText(/LancamentoTarefa de 15\/10\/2026/)).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Excluir definitivamente" })).toBeNull();
-  });
-
   it("já excluída por outra sessão: tira das telas/caches em vez de mostrar erro", async () => {
     servico.excluirMovimentacaoMapa.mockImplementationOnce(async () => {
       throw Object.assign(new Error("x"), { code: "API_OPERATION_FAILED", cause: { code: "EXCLUSAO_JA_REALIZADA" } });
@@ -187,42 +175,6 @@ describe("ExcluirMovimentacao", () => {
     await renderizar(<ExcluirMovimentacao movimento={TRANSF} />);
     await abrirEConfirmar();
     await waitFor(() => expect(servico.removerMovimentacaoExcluidaDoCacheOffline).toHaveBeenCalledWith("mv-1"));
-  });
-
-  it("operação na fila offline para o registro: bloqueia e explica (falha fechada)", async () => {
-    servico.pendenciasOfflineDaMovimentacao.mockImplementation(async () => ["update"]);
-    await renderizar(<ExcluirMovimentacao movimento={TRANSF} />);
-    await clicar(await screen.findByRole("button", { name: "Excluir movimentação" }));
-    expect(await screen.findByText(/operação offline ainda não sincronizada/)).toBeTruthy();
-    fireEvent.change(screen.getByLabelText("Motivo da exclusão"), { target: { value: "lançado errado" } });
-    fireEvent.click(screen.getByRole("checkbox"));
-    expect(screen.getByRole("button", { name: "Excluir definitivamente" }).hasAttribute("disabled")).toBe(true);
-  });
-
-  it("usuário comum: sem ação; offline: desabilitado com motivo e sem chamada; legado e cancelado: sem ação", async () => {
-    sessao.usuario = { administrador_fazenda: false };
-    const { unmount } = await renderizar(<ExcluirMovimentacao movimento={TRANSF} />);
-    await assentar();
-    expect(screen.queryByRole("button", { name: "Excluir movimentação" })).toBeNull();
-    unmount();
-
-    sessao.usuario = { id: "u-1", cliente_id: "c-1", administrador_fazenda: true };
-    online(false);
-    const off = await renderizar(<ExcluirMovimentacao movimento={TRANSF} />);
-    const botao = await screen.findByRole("button", { name: "Excluir movimentação" });
-    expect(botao.hasAttribute("disabled")).toBe(true);
-    expect(botao.getAttribute("title")).toMatch(/só com conexão/);
-    expect(screen.getByText("Exclusão só com conexão")).toBeTruthy();
-    expect(servico.consultarExclusaoMovimentacao).not.toHaveBeenCalledWith("mv-1-offline");
-    off.unmount();
-    online(true);
-
-    for (const mov of [LEGADO, { ...TRANSF, situacao: "cancelado" }, { ...TRANSF, efeito_servidor: { comando: "rebanho_ledger" } }]) {
-      const r = await renderizar(<ExcluirMovimentacao movimento={mov} />);
-      await assentar();
-      expect(screen.queryByRole("button", { name: "Excluir movimentação" })).toBeNull();
-      r.unmount();
-    }
   });
 
   it("domínio: só movimento ativo do ledger oferece exclusão; todos os manejos do ledger", async () => {
@@ -233,6 +185,182 @@ describe("ExcluirMovimentacao", () => {
     expect(dom.tipoTemExclusao(LEGADO)).toBe(false);
     expect(dom.tipoTemExclusao({ ...TRANSF, situacao: "cancelado" })).toBe(false);
     expect(dom.tipoTemExclusao({ ...TRANSF, tipo: "Entrada" })).toBe(false);
+  });
+});
+
+describe("Pré-validação no card (MAIKE-POS178-UX) — estado ANTES do clique", () => {
+  const estadoDoCard = (c) => c.querySelector("[data-estado-exclusao]")?.getAttribute("data-estado-exclusao");
+
+  it("1) consultando: controle neutro desabilitado 'Verificando exclusão…' (nunca habilitado por padrão)", async () => {
+    let soltar;
+    servico.consultarExclusaoMovimentacao.mockImplementation(() => new Promise((r) => { soltar = () => r(ELEGIVEL); }));
+    await renderizar(<ExcluirMovimentacao movimento={TRANSF} />);
+    const b = await screen.findByRole("button", { name: "Verificando exclusão…" });
+    expect(b.hasAttribute("disabled")).toBe(true);
+    await act(async () => { soltar(); await new Promise((r) => setTimeout(r, 30)); });
+    expect((await screen.findByRole("button", { name: "Excluir movimentação" })).hasAttribute("disabled")).toBe(false);
+  });
+
+  it("2) elegível + pode_excluir: 'Excluir movimentação' habilitado sem clique prévio", async () => {
+    const { container } = await renderizar(<ExcluirMovimentacao movimento={TRANSF} />);
+    expect((await screen.findByRole("button", { name: "Excluir movimentação" })).hasAttribute("disabled")).toBe(false);
+    expect(estadoDoCard(container)).toBe("elegivel");
+    expect(servico.consultarExclusaoMovimentacao).toHaveBeenCalledWith("mv-1");
+  });
+
+  it("3) bloqueada por pesagem posterior: 'Exclusão bloqueada' desabilitado, motivo com tipo/data/área no card, sem abrir diálogo", async () => {
+    servico.consultarExclusaoMovimentacao.mockImplementation(async () => ({
+      elegivel: false, pode_excluir: true, codigo: "REBANHO_DEPENDENCIA_FATO_SEM_SALDO",
+      detalhes: { tipo: "PESAGEM", data: "2026-10-12", area_id: "aB", area_nome: "PASTO B" },
+    }));
+    await renderizar(<ExcluirMovimentacao movimento={TRANSF} />);
+    const b = await screen.findByRole("button", { name: "Exclusão bloqueada" });
+    expect(b.hasAttribute("disabled")).toBe(true);
+    const motivo = screen.getByText(/Existe pesagem\/manejo posterior dependente; exclua o lançamento dependente primeiro\. Bloqueador: pesagem em 12\/10\/2026 \(PASTO B\)\./);
+    expect(b.getAttribute("aria-describedby")).toBe(motivo.id);
+    fireEvent.click(b);
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Excluir movimentação" })).toBeNull();
+  });
+
+  it("3b) vínculo de outro módulo: motivo do servidor com tipo e data", async () => {
+    servico.consultarExclusaoMovimentacao.mockImplementation(async () => ({
+      elegivel: false, codigo: "REBANHO_CANCELAMENTO_VINCULO_POSTERIOR",
+      detalhes: { bloqueadores: [{ tipo: "LancamentoTarefa", id: "t1", data: "2026-10-15" }] },
+    }));
+    await renderizar(<ExcluirMovimentacao movimento={TRANSF} />);
+    expect((await screen.findByRole("button", { name: "Exclusão bloqueada" })).hasAttribute("disabled")).toBe(true);
+    expect(screen.getByText(/LancamentoTarefa de 15\/10\/2026/)).toBeTruthy();
+  });
+
+  it("4) erro de rede/API: 'Não foi possível verificar' desabilitado + 'Verificar de novo' só reconsulta (não exclui)", async () => {
+    servico.consultarExclusaoMovimentacao.mockImplementationOnce(async () => { throw Object.assign(new Error("rede"), { code: "API_PROVIDER_UNAVAILABLE" }); });
+    await renderizar(<ExcluirMovimentacao movimento={TRANSF} />);
+    expect((await screen.findByRole("button", { name: "Não foi possível verificar" })).hasAttribute("disabled")).toBe(true);
+    await clicar(screen.getByRole("button", { name: "Verificar de novo" }));
+    expect((await screen.findByRole("button", { name: "Excluir movimentação" })).hasAttribute("disabled")).toBe(false);
+    expect(servico.consultarExclusaoMovimentacao).toHaveBeenCalledTimes(2);
+    expect(servico.excluirMovimentacaoMapa).not.toHaveBeenCalled();
+  });
+
+  it("5) offline: controle desabilitado com motivo e NENHUMA consulta", async () => {
+    online(false);
+    servico.consultarExclusaoMovimentacao.mockClear();
+    await renderizar(<ExcluirMovimentacao movimento={TRANSF} />);
+    expect((await screen.findByRole("button", { name: "Exclusão indisponível" })).hasAttribute("disabled")).toBe(true);
+    expect(screen.getByText(/Sem conexão: a exclusão só é feita online/)).toBeTruthy();
+    expect(servico.consultarExclusaoMovimentacao).not.toHaveBeenCalled();
+  });
+
+  it("6) pendência offline do registro: 'Exclusão bloqueada' com motivo (falha fechada)", async () => {
+    servico.pendenciasOfflineDaMovimentacao.mockImplementation(async () => ["update"]);
+    await renderizar(<ExcluirMovimentacao movimento={TRANSF} />);
+    expect((await screen.findByRole("button", { name: "Exclusão bloqueada" })).hasAttribute("disabled")).toBe(true);
+    expect(screen.getByText(/operação offline ainda não sincronizada/)).toBeTruthy();
+  });
+
+  it("sem autorização, legado e cancelado: nenhuma ação e nenhuma consulta", async () => {
+    servico.consultarExclusaoMovimentacao.mockClear();
+    sessao.usuario = { administrador_fazenda: false };
+    let r = await renderizar(<ExcluirMovimentacao movimento={TRANSF} />);
+    await assentar();
+    expect(screen.queryByRole("button")).toBeNull();
+    r.unmount();
+    sessao.usuario = { id: "u-1", cliente_id: "c-1", administrador_fazenda: true };
+    for (const mov of [LEGADO, { ...TRANSF, situacao: "cancelado" }, { ...TRANSF, efeito_servidor: { comando: "rebanho_ledger" } }]) {
+      r = await renderizar(<ExcluirMovimentacao movimento={mov} />);
+      await assentar();
+      expect(screen.queryByRole("button")).toBeNull();
+      r.unmount();
+    }
+    expect(servico.consultarExclusaoMovimentacao).not.toHaveBeenCalled();
+  });
+
+  it("pode_excluir=false (admin revogado no servidor): bloqueada, não habilita", async () => {
+    servico.consultarExclusaoMovimentacao.mockImplementation(async () => ({ ...ELEGIVEL, pode_excluir: false }));
+    await renderizar(<ExcluirMovimentacao movimento={TRANSF} />);
+    expect((await screen.findByRole("button", { name: "Exclusão bloqueada" })).hasAttribute("disabled")).toBe(true);
+  });
+
+  it("abrir revalida no servidor: se ficou bloqueada entre o card e o clique, o diálogo não oferece confirmar", async () => {
+    await renderizar(<ExcluirMovimentacao movimento={TRANSF} />);
+    const b = await screen.findByRole("button", { name: "Excluir movimentação" });
+    servico.consultarExclusaoMovimentacao.mockImplementation(async () => ({ elegivel: false, codigo: "CANCELAMENTO_SALDO_HISTORICO_NEGATIVO", detalhes: { data: "2026-10-12", area_nome: "PASTO B" } }));
+    await clicar(b);
+    await assentar();
+    expect(servico.consultarExclusaoMovimentacao).toHaveBeenCalledTimes(2);
+    expect(screen.queryByRole("button", { name: "Excluir definitivamente" })).toBeNull();
+  });
+
+  it("corrida GET→POST: servidor responde 409 no POST → mensagem, nada local muda, card reconsulta", async () => {
+    servico.excluirMovimentacaoMapa.mockImplementationOnce(async () => {
+      throw Object.assign(new Error("x"), { code: "API_OPERATION_FAILED", cause: { code: "REBANHO_DEPENDENCIA_FATO_SEM_SALDO" }, details: { tipo: "PESAGEM", data: "2026-10-12" } });
+    });
+    await renderizar(<ExcluirMovimentacao movimento={TRANSF} />);
+    const antes = servico.consultarExclusaoMovimentacao.mock.calls.length;
+    await abrirEConfirmar();
+    expect(await screen.findByText(/pesagem do dia 12\/10\/2026/)).toBeTruthy();
+    expect(servico.removerMovimentacaoExcluidaDoCacheOffline).not.toHaveBeenCalled();
+    expect(cache.updateMapaCachedData).not.toHaveBeenCalled();
+    await waitFor(() => expect(servico.consultarExclusaoMovimentacao.mock.calls.length).toBeGreaterThan(antes + 1));
+  });
+
+  it("escopo: outro tenant/empresa/usuário não reaproveita a resposta (chave por tenant+usuário+empresa+id)", async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const ui = (mov) => <QueryClientProvider client={client}><ExcluirMovimentacao movimento={mov} /></QueryClientProvider>;
+    const r = render(ui(TRANSF));
+    await screen.findByRole("button", { name: "Excluir movimentação" });
+    r.unmount();
+    servico.consultarExclusaoMovimentacao.mockClear();
+    render(ui({ ...TRANSF, empresa_id: "emp-2" }));
+    await screen.findByRole("button", { name: "Excluir movimentação" });
+    expect(servico.consultarExclusaoMovimentacao).toHaveBeenCalledTimes(1);
+    const chaves = client.getQueryCache().findAll({ queryKey: ["elegibilidade-exclusao-movimentacao"] }).map((q) => q.queryKey);
+    expect(chaves).toEqual(expect.arrayContaining([
+      ["elegibilidade-exclusao-movimentacao", "c-1", "u-1", "emp-1", "mv-1"],
+      ["elegibilidade-exclusao-movimentacao", "c-1", "u-1", "emp-2", "mv-1"],
+    ]));
+  });
+});
+
+describe("Pré-validação — escala (100 movimentos)", () => {
+  it("100 cards visíveis: no máximo 2 GETs simultâneos, um por card, sem laço", async () => {
+    let emVoo = 0, maximo = 0;
+    servico.consultarExclusaoMovimentacao.mockClear();
+    servico.consultarExclusaoMovimentacao.mockImplementation(async () => {
+      emVoo += 1; maximo = Math.max(maximo, emVoo);
+      await new Promise((r) => setTimeout(r, 1));
+      emVoo -= 1;
+      return ELEGIVEL;
+    });
+    const movs = Array.from({ length: 100 }, (_, i) => ({ ...TRANSF, id: `mv-${i}` }));
+    await renderizar(<div>{movs.map((m) => <ExcluirMovimentacao key={m.id} movimento={m} />)}</div>);
+    await waitFor(() => expect(screen.getAllByRole("button", { name: "Excluir movimentação" })).toHaveLength(100), { timeout: 30000 });
+    await assentar();
+    expect(maximo).toBeLessThanOrEqual(2);
+    expect(servico.consultarExclusaoMovimentacao).toHaveBeenCalledTimes(100);
+  }, 40000);
+
+  it("com IntersectionObserver: só os cards na área visível consultam (viewport inicial)", async () => {
+    const original = globalThis.IntersectionObserver;
+    let ordem = 0;
+    globalThis.IntersectionObserver = class {
+      constructor(cb) { this.cb = cb; this.n = ordem++; }
+      observe(el) { this.cb([{ target: el, isIntersecting: this.n < 6 }]); }
+      disconnect() {}
+    };
+    try {
+      servico.consultarExclusaoMovimentacao.mockClear();
+      servico.consultarExclusaoMovimentacao.mockImplementation(async () => ELEGIVEL);
+      const movs = Array.from({ length: 100 }, (_, i) => ({ ...TRANSF, id: `mv-v${i}` }));
+      await renderizar(<div>{movs.map((m) => <ExcluirMovimentacao key={m.id} movimento={m} />)}</div>);
+      await waitFor(() => expect(screen.getAllByRole("button", { name: "Excluir movimentação" })).toHaveLength(6));
+      await assentar();
+      expect(servico.consultarExclusaoMovimentacao).toHaveBeenCalledTimes(6);
+      expect(screen.getAllByRole("button", { name: "Verificando exclusão…" })).toHaveLength(94);
+    } finally {
+      globalThis.IntersectionObserver = original;
+    }
   });
 });
 

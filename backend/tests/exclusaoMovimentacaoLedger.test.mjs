@@ -523,3 +523,35 @@ describe('EX-R2 — recibo de origem exato por (cliente, chave, tipo)', () => {
     assert.deepEqual(await foto(c), antes2);
   });
 });
+
+// ═══ MAIKE-POS178-UX — pré-validação: o GET de elegibilidade é a fonte do card ═══
+
+describe('EX-UX — elegibilidade da transferência × pesagem posterior (cenário de aceite, sintético)', () => {
+  test('50 de A→B e pesagem posterior em B (320→350): GET recusa a transferência e permite a pesagem; excluída a pesagem, a transferência fica elegível; POST revalida', async () => {
+    const c = await base();
+    c.lote = await entrada(c, { nome: 'KM', qtd: 80, peso: 320 });
+    await ativar(c);
+    const posA = await posDe(c, c.lote, c.A);
+    const t = (await ok(transferencia(c, posA, 50, c.B, '2026-10-10'))).movimentacao;
+    const posB = await posDe(c, c.lote, c.B);
+    const pes = (await ok(rebanho(c, 'Pesagem', [{ lote_id: posB.id, peso_medio_kg: 350 }], { area_id: c.B.id, data_movimentacao: '2026-10-15' }))).movimentacao;
+
+    const antes = await foto(c);
+    const eT = await elegibilidade(c, t.id);
+    assert.deepEqual([eT.elegivel, eT.codigo, eT.pode_excluir], [false, 'REBANHO_DEPENDENCIA_FATO_SEM_SALDO', true], JSON.stringify(eT));
+    assert.deepEqual([eT.detalhes.tipo, eT.detalhes.data, eT.detalhes.area_id], ['PESAGEM', '2026-10-15', c.B.id], 'card mostra tipo, data e área do bloqueador');
+    const eP = await elegibilidade(c, pes.id);
+    assert.deepEqual([eP.elegivel, eP.pode_excluir], [true, true], JSON.stringify(eP));
+    assert.deepEqual(await foto(c), antes, 'GETs não gravam nada');
+    // O POST revalida na transação (não confia no card).
+    await exigirNadaMuda(c, () => excluir(c, t.id), 409, 'REBANHO_DEPENDENCIA_FATO_SEM_SALDO');
+
+    await ok(excluir(c, pes.id), 200);
+    assert.equal(Number((await posDe(c, c.lote, c.B)).peso_medio_kg), 320, 'peso volta ao derivado da transferência');
+    const eT2 = await elegibilidade(c, t.id);
+    assert.deepEqual([eT2.elegivel, eT2.codigo], [true, null], JSON.stringify(eT2));
+    await ok(excluir(c, t.id), 200);
+    assert.deepEqual([await saldo(c, c.lote, c.A), await saldo(c, c.lote, c.B)], [80, 0]);
+    await verificar(c);
+  });
+});

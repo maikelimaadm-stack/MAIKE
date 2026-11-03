@@ -4560,4 +4560,33 @@ Testes KML-N1..N5 em `tests/smoke/importacaoAreasParser.test.js`.
 
 ---
 
-<!-- Próxima decisão: D-PROD-111 -->
+## D-PROD-111 — Pré-validação da exclusão no histórico (UX, motor intacto)
+
+**Problema:** o card do histórico mostrava "Excluir movimentação" habilitado mesmo quando havia pesagem ou manejo posterior dependente. A elegibilidade só era consultada depois de abrir o diálogo.
+
+**Decisão:**
+- **Fonte única:** o próprio `GET /movimentacoes-mapa/:id/elegibilidade-exclusao`. O frontend não infere bloqueio por data, tipo ou ordem e não replica regras de saldo.
+- **Estado do card antes do clique:**
+  - "Verificando exclusão…": desabilitado, nunca habilitado por padrão;
+  - "Excluir movimentação": só quando `elegivel` **e** `pode_excluir`;
+  - "Exclusão bloqueada": desabilitado, cinza, com o motivo no card (tipo e data do bloqueador; área quando o servidor a envia);
+  - "Não foi possível verificar": desabilitado, com "Verificar de novo", que só reconsulta;
+  - offline e pendência na fila offline: desabilitado, com o motivo;
+  - não-admin, legado e cancelado: seguem sem a ação.
+  - O motivo fica em texto visível ligado ao botão por `aria-describedby`; não depende de tooltip.
+- **Escala:** o GET faz ensaio transacional, então:
+  - só o card visível consulta (IntersectionObserver, margem de 200px);
+  - no máximo **2** consultas simultâneas por página;
+  - React Query com chave por tenant + usuário + empresa + id;
+  - `staleTime` de 30 s e `refetchOnMount: 'always'`, para que reabrir o histórico confira de novo.
+  - Manejos e exclusões (evento `atualizar-mapa`) invalidam o prefixo; só os cards visíveis reconsultam, sem laço.
+  - Não há endpoint em lote.
+- **A pré-validação é só indicativa:**
+  - abrir o diálogo reconsulta;
+  - confirmar exige elegibilidade fresca: `elegivel === true`, `pode_excluir === true`, sem consulta em voo, sem erro e sem pendência;
+  - o POST continua revalidando tudo na transação; um 409 entre o GET e o POST mostra a mensagem, não mexe no cache local e faz o card reconsultar.
+- **Fora do escopo:** motor de exclusão, ledger, banco e migrations ficam inalterados.
+
+---
+
+<!-- Próxima decisão: D-PROD-112 -->
