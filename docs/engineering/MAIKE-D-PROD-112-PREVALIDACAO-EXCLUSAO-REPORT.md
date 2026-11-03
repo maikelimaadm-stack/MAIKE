@@ -1,7 +1,7 @@
-# D-PROD-111 — Pré-validação da exclusão no histórico
+# D-PROD-112 — Pré-validação da exclusão no histórico
 
 Missão: MAIKE-POS178-UX. A pessoa vê **antes de clicar** se a movimentação pode ser excluída.
-Decisão: [D-PROD-111](./DECISIONS.md). Motor, ledger, banco e migrations não foram alterados.
+Decisão: [D-PROD-112](./DECISIONS.md). Motor, ledger, banco e migrations não foram alterados.
 
 ## O que mudou
 - `src/components/lotes/ExcluirMovimentacao.jsx`:
@@ -34,7 +34,7 @@ Decisão: [D-PROD-111](./DECISIONS.md). Motor, ledger, banco e migrations não f
   - A pesagem fica com o botão habilitado.
   - Sem rolagem horizontal.
   - Ao abrir o histórico de B (16 movimentos), no máximo 2 GETs simultâneos e 2 no total.
-  - Evidências em `evidencias/d-prod-111/`.
+  - Evidências em `evidencias/d-prod-112/`.
 
 ## PR180-R2 — fail-closed da fila offline
 - **Defeito** (no HEAD `ad490a9c`): a leitura da fila offline usava `Array.isArray(data) ? data : []`. Uma fila ainda sem resposta, ou cuja leitura falhou, contava como vazia. Se o GET elegível chegasse antes da leitura da fila, o card podia habilitar.
@@ -49,7 +49,7 @@ Decisão: [D-PROD-111](./DECISIONS.md). Motor, ledger, banco e migrations não f
   - GREEN: 29/29 no arquivo e 86/86 no smoke afetado;
   - EX-UX em PostgreSQL local: 28/28;
   - Playwright local: 14/14 (1440 e 390);
-  - evidências em `evidencias/d-prod-111/pr180-r2-*.txt`.
+  - evidências em `evidencias/d-prod-112/pr180-r2-*.txt`.
 
 ## Limites
 - No cenário de aceite, a área do bloqueador não sai no card: o servidor manda só o `area_id` nesse código. O trajeto (A → B) já aparece no card.
