@@ -83,7 +83,8 @@ const cenario = async () => {
   c.posA = await posDe(c, c.lote, c.A);
   return c;
 };
-const posDe = (c, lote, area) => prisma().posicaoRebanho.findFirst({ where: { cliente_id: c.cliente.id, lote_entrada_id: lote.id, area_id: area.id } });
+// Posição DA ENTRADA (a primeira criada): ordem explícita, como no CERT (ver D-PROD-122).
+const posDe = (c, lote, area) => prisma().posicaoRebanho.findFirst({ where: { cliente_id: c.cliente.id, lote_entrada_id: lote.id, area_id: area.id }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] });
 const saldo = async (c, lote, area) => (await posDe(c, lote, area))?.quantidade_cabecas ?? 0;
 const ok = async (r, status = 201) => {
   const x = await r;

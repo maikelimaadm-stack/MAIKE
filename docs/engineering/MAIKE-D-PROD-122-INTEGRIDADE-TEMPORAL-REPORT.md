@@ -133,6 +133,14 @@ Para cada item do inventário:
 
 O KM - 06 de produção NÃO foi tocado.
 
+## Achado durante a verificação
+
+- **Teste instável pré-existente (CERT-7, D-PROD-113).** O `posDe` usava `findFirst` sem ordem para achar a posição da entrada. Depois de uma mudança de categoria existem duas posições com a mesma entrada e a mesma área, e o PostgreSQL devolvia qualquer uma, conforme a ordem física, que muda após UPDATE.
+  - Falhou uma vez no `verify:all` (15 !== 0) e passou 3/3 isolado.
+  - Correção só no teste: ordem explícita (`createdAt`, `id`), a posição da entrada é a primeira criada. O mesmo helper de `exclusaoMovimentacaoLedger` recebeu a mesma ordem.
+  - Nenhum teste foi desabilitado e o código de produção não mudou por isso.
+- **Tipos.** `nativeRequest` passou a aceitar `PUT` no JSDoc; o runtime já repassava o método.
+
 ## Riscos e limites
 
 - **Futuros já gravados continuam.** A projeção atual pode divergir do as-of até a data de cada um ou até o saneamento. O deploy sozinho não corrige o histórico.

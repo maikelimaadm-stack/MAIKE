@@ -186,7 +186,7 @@ export const atualizar = async (contexto, id, entrada) => {
  * ledger do rebanho). Só administrador ativo do tenant; empresa travada; troca
  * de um fuso já configurado exige motivo e fica na auditoria (anterior/novo).
  * Não reescreve nenhuma data já gravada. Mesmo valor = nada muda.
- * @param {{auth: import('../../shared/auth/authContext.js').AuthContext}} contexto
+ * @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto
  * @param {string} id
  * @param {Record<string, unknown>} entrada
  */

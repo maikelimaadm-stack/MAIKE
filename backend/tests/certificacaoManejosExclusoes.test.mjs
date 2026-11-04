@@ -71,7 +71,9 @@ const ok = async (r, status = 201) => {
   assert.equal(x.statusCode, status, x.body);
   return x.json();
 };
-const posDe = (c, lote, area) => prisma().posicaoRebanho.findFirst({ where: { cliente_id: c.cliente.id, lote_entrada_id: lote.id, area_id: area.id } });
+// Posição DA ENTRADA (a primeira criada). Sem ordem, findFirst devolvia qualquer
+// posição da mesma entrada/área (ex.: a da nova categoria) conforme a ordem física.
+const posDe = (c, lote, area) => prisma().posicaoRebanho.findFirst({ where: { cliente_id: c.cliente.id, lote_entrada_id: lote.id, area_id: area.id }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] });
 const posQuery = (c, where) => prisma().posicaoRebanho.findFirst({ where: { cliente_id: c.cliente.id, ...where } });
 
 // ── comandos reais do backend ───────────────────────────────────────────────
