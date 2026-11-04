@@ -272,6 +272,28 @@ describe('D-PROD-122 — fato realizado com data futura é recusado em todos os 
     await exigirFuturoRecusado(rb, () => CAMINHOS['morte (baixa)'](rb, AMANHA), { fuso: RIO_BRANCO });
   }));
 
+  test('F-troca: troca de fuso em andamento × manejo na virada — o manejo espera a troca e decide pelo fuso NOVO', () => noRelogio('2026-11-05T04:30:00Z', async () => {
+    // 01:30 de 05/11 em SP (05/11 é hoje) | 23:30 de 04/11 em Rio Branco (05/11 é amanhã).
+    const c = await empresaAtiva({ fuso: SP });
+    const antes = await fotografia(c);
+    let sinalizar;
+    const trocaComTrava = new Promise((r) => { sinalizar = r; });
+    const troca = prisma().$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM "Empresa" WHERE cliente_id = ${c.cliente.id} AND id = ${c.empresa.id} FOR UPDATE`;
+      await tx.empresa.update({ where: { id: c.empresa.id }, data: { fuso_horario: RIO_BRANCO } });
+      sinalizar();
+      await new Promise((r) => setTimeout(r, 600));
+    }, { timeout: 10_000 });
+    await trocaComTrava;
+    const r = await CAMINHOS['morte (baixa)'](c, AMANHA);
+    await troca;
+    assert.equal(r.statusCode, 409, `a troca já em andamento tem de valer para o manejo concorrente: ${r.body}`);
+    assert.equal(r.json().code, 'REBANHO_DATA_FUTURA');
+    assert.equal(r.json().details.fuso, RIO_BRANCO);
+    const depois = await fotografia(c);
+    assert.deepEqual({ ...depois, audits: antes.audits }, antes, 'nenhum fato gravado');
+  }));
+
   test('F-conc: 3 pedidos futuros simultâneos → todos 409, nada gravado', () => noRelogio(MEIO_DIA_04, async () => {
     const c = await empresaAtiva();
     const antes = await fotografia(c);

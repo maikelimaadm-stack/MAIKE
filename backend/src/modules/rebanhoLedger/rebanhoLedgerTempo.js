@@ -94,11 +94,18 @@ export const diaNoFuso = (instante, fuso) => {
  * @returns {Promise<string>}
  */
 export const fusoDaEmpresa = async (tx, clienteId, empresaId) => {
-  const empresa = await tx.empresa.findUnique({ where: { cliente_id_id: { cliente_id: clienteId, id: empresaId } }, select: { fuso_horario: true } });
+  // FOR SHARE (PR190-R2): uma troca de fuso em andamento (PUT, que trava a
+  // Empresa FOR UPDATE) termina ANTES de a guarda decidir; o manejo relê a versão
+  // confirmada. Sem isto, um fato podia ser aceito pelo fuso antigo e confirmado
+  // depois da troca — "futuro" no fuso em vigor. Ordem de travas preservada:
+  // Empresa → Área → Posição (a mesma da ativação e do cadastro de lote).
+  const [empresa] = /** @type {Array<{fuso_horario: string|null}>} */ (
+    await tx.$queryRaw`SELECT fuso_horario FROM "Empresa" WHERE cliente_id = ${clienteId} AND id = ${empresaId} FOR SHARE`
+  );
   if (!empresa) throw new AppError('EMPRESA_NOT_FOUND', 'empresa não encontrada');
   const fuso = normalizarFusoIana(empresa.fuso_horario);
   if (!fuso) {
-    throw new AppError('EMPRESA_FUSO_NAO_CONFIGURADO', 'o fuso horário da fazenda não está configurado; o administrador precisa configurá-lo antes de registrar manejos (nada foi gravado)', {
+    throw new AppError('EMPRESA_FUSO_NAO_CONFIGURADO', 'o fuso horário da fazenda não está configurado: o administrador precisa configurá-lo em Empresa → "Fuso horário da fazenda" antes de registrar manejos e lotes. Nada foi gravado.', {
       details: { empresa_id: empresaId },
     });
   }

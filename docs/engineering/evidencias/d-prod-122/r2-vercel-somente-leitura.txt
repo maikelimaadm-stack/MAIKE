@@ -1,0 +1,25 @@
+PR190-R2 — Vercel, consulta SOMENTE LEITURA em 2026-11-04 (MCP get_project, list_deployments, filter_project_envs SEM decrypt).
+Nenhum valor de variável foi decifrado, lido ou registrado. Nenhuma alteração na Vercel.
+
+Projeto: maike (prj_jbLcws3pOJqXu2Fo3joKFJG86dzh). get_project não expõe configuração de git que pause, ignore ou exija promoção manual.
+
+Deployments de PRODUÇÃO recentes (target=production, githubCommitRef=main), um por merge, todos READY:
+  #189 merge f49004a1  →  dpl_ALfyfYjzRXiJbunwEo7Pi22i5v6V  READY  isRollbackCandidate=true
+  #188 merge 149a639f  →  dpl_EHguB6hCm1yNnjbjjtZ99WJA2KxL  READY  isRollbackCandidate=true
+  #187 merge 7f91383a  →  dpl_E8Jo8fMaCsxM6teyMcB6tQdg8qjP  READY  isRollbackCandidate=true
+  #186 merge c86b7018  →  dpl_DEeEzRGM2z2kSmvyxCdTnkMaJoCt  READY  isRollbackCandidate=true
+  #185 merge 562df32e  →  dpl_H8ZsqKcUuXHz4vrDaqsf6vWFFxB1  READY  isRollbackCandidate=true
+Conclusão: merge na main → deploy de produção automático. Nenhuma trava técnica comprovada.
+
+Variáveis de banco (só nome → alvo; valores NÃO lidos):
+  POSTGRES_PRISMA_URL      → production, preview   (integração Supabase icfg_UsO8…)  ← vence a precedência do runtime
+  DATABASE_URL             → production, preview
+  POSTGRES_URL             → production            (integração Supabase)
+  POSTGRES_URL_NON_POOLING → production            (integração Supabase)
+  MIGRATION_DATABASE_URL   → production, preview
+Conclusões:
+  - O runtime (env.js: POSTGRES_PRISMA_URL ?? DATABASE_URL ?? POSTGRES_URL) usa a URL da integração Supabase.
+  - O Preview usa a MESMA variável: o Preview compartilha o banco de produção.
+  - O vínculo com o projeto Supabase uuemcasqcdjucflulkne NÃO é provado por aqui → TARGET_UNVERIFIED até o R2 (system_identifier).
+
+Build: vercel.json buildCommand = "npm run prisma:generate && npm run build" — não aplica migrations.

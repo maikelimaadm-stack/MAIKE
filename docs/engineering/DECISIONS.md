@@ -4860,4 +4860,12 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
 - **Não mudou:** `reprojetar()` (sem job diário), o H2 (ordem do histórico), o H4 (mensagens de bloqueio) e o H3 (categorias).
 - **Consequência:** nenhum fato futuro novo entra no rebanho e a projeção deixa de "andar para o futuro" com lançamentos novos. Os futuros já gravados continuam até a data deles ou até saneamento manual autorizado. O rollout exige: migration → fuso configurado em cada empresa → runtime novo. Ver `MAIKE-D-PROD-122-INTEGRIDADE-TEMPORAL-REPORT.md`.
 
+### D-PROD-122 — complemento PR190-R2 (portão de release do fuso)
+
+- **Release:**
+  - O runbook antigo (configurar pela tela ou `PUT` antes do deploy) era inexequível, porque essas rotas só existem no runtime novo.
+  - Contrato novo: TARGET_PROVEN (`system_identifier`) → SCHEMA (`premerge-migrate --aplicar`, antes do merge) → DATA (`scripts/ops/configurar-fuso-empresas.mjs`, plano explícito, sem inferência, transação única com AuditLog e referência de backup) → preflight `scripts/deploy/preflight-fuso-release.mjs` READY → merge (que publica produção automaticamente).
+  - O DEPLOY_GUARDED é procedimental: não há trava técnica comprovada na Vercel.
+- **Concorrência:** a guarda temporal lê o fuso da Empresa com `FOR SHARE`. A troca de fuso em andamento termina antes de o manejo decidir. Ordem de travas Empresa → Área → Posição.
+
 <!-- Próxima decisão: D-PROD-123 -->

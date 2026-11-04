@@ -69,7 +69,7 @@ Evidência: `evidencias/d-prod-122/red-green.txt`.
 
 **Na main `f49004a1`, sem implementação:** 32 de 36 falham. A transferência para amanhã é aceita com 201 onde se exige 409.
 
-**Na branch:** 37 de 37 passam.
+**Na branch:** 38 de 38 passam (inclui F-troca, da R2).
 
 | Grupo | Testes |
 |---|---|
@@ -115,17 +115,126 @@ Evidências: `evidencias/d-prod-122/inventario-cli.txt` e `inventario-km06-sinte
 - Empresas sem fuso saem listadas à parte.
 - **KM-06 sintético** (relógio real 04/11/2026, fuso SP): 1 MORTE futura em 2026-11-27. Na posição Bezerro, a projeção é 0 e o saldo até hoje é 1 (futuro −1, causa `fato_futuro`). Totais: 49 × 50.
 
-## Runbook de rollout (não executado; exige autorização do proprietário)
+## Release segura (PR190-R2): portões, runbook e rollback
 
-1. **Backup restaurável** comprovado do banco de produção.
-2. **Migration**, isolada e compatível com o backend atual, que não lê a coluna.
-3. **Configurar o fuso de cada empresa**, de forma explícita, pelo administrador:
-   - pela tela de Empresa ("Fuso horário da fazenda" → "Salvar fuso"); ou
-   - pela rota `PUT /empresas/:id/fuso-horario`.
-   - Não há preenchimento em massa e nada é inferido da UF.
-4. **Conferir** que nenhuma empresa ativada ficou sem fuso. O inventário lista `empresas_sem_fuso` (só em banco local ou cópia; remoto exige autorização separada).
-5. **Publicar o runtime novo.** Se o passo 3 não estiver completo, as empresas sem fuso passam a receber `EMPRESA_FUSO_NAO_CONFIGURADO` em todo manejo novo e em todo lote novo. Por isso a ordem é obrigatória.
-6. **Rollback.** Basta reverter o runtime, porque a coluna é inofensiva para o backend antigo. A coluna só se remove se nenhuma empresa tiver fuso.
+### Por que o runbook anterior era inválido
+
+O runbook anterior (backup → migration → configurar o fuso pela tela ou pelo `PUT` → publicar) não era executável. A tela e a rota `PUT /empresas/:id/fuso-horario` nascem nesta PR, então **não existem no runtime publicado antes do merge**. Configurar por elas antes do deploy é impossível.
+
+Também faltavam três coisas:
+- prova do alvo;
+- prova de que o merge publica sozinho;
+- defesa contra publicar antes da migration.
+
+### Fatos verificados (somente leitura, 04/11/2026)
+
+| Fato | Evidência |
+|---|---|
+| O merge na `main` publica produção **automaticamente** | Vercel `list_deployments` (production): #185, #186, #187, #188 e #189 geraram, cada um, um deployment `READY` com `githubCommitRef=main` no SHA do merge. Não foi encontrada pausa, nem ignored build step, nem promoção manual. O `get_project` não expõe configuração de git que bloqueie. |
+| O build **não migra** | `vercel.json`: `buildCommand = npm run prisma:generate && npm run build`. O `quality.yml` só roda `verify:all` com Postgres efêmero. O `release-migrate.yml` é `workflow_dispatch` manual. |
+| Alvo do runtime | `env.js` usa `POSTGRES_PRISMA_URL ?? DATABASE_URL ?? POSTGRES_URL`. Na Vercel, `POSTGRES_PRISMA_URL` vem da integração Supabase e está em **production e preview**: o Preview desta PR usa o MESMO banco da produção. Valores não foram decifrados nem lidos. |
+| Estado do Supabase `uuemcasqcdjucflulkne` | Leitura do ARQUITETO: migration NÃO aplicada, coluna ausente, 1 empresa ativada. Não repetido aqui e sem nenhuma mutação. |
+| Vínculo Vercel ↔ esse projeto Supabase | **Não comprovado**: os valores de conexão são segredos. O nome do projeto não prova nada → `TARGET_UNVERIFIED` até a prova por `system_identifier` (passo R2). |
+| Código novo sobre schema antigo | Teste A1: `prisma.empresa.findMany()` → **P2022** (o client novo seleciona `fuso_horario`). Publicar antes da migration derruba Empresa e o ledger. |
+
+### Portões
+
+| Portão | Definição | Como se prova |
+|---|---|---|
+| CODE_READY | Código e testes aprovados | CI `verify:all` verde no HEAD e auditoria do arquiteto |
+| TARGET_PROVEN | O banco da migration e da configuração é o MESMO do runtime de produção | `system_identifier` igual ao esperado, lido pela URL de runtime de production (a que vence a precedência) e pela de migration (`conferir-alvo-banco.mjs` ou `preflight-fuso-release.mjs`) |
+| SCHEMA_READY | Migration `20261104200000_empresa_fuso_horario` aplicada, concluída, não revertida, checksum do manifesto; coluna `varchar(64)` anulável | `preflight-fuso-release.mjs` (somente leitura) |
+| DATA_READY | Toda empresa ATIVADA no ledger com fuso IANA explícito válido. Sem padrão global, sem inferência, sem valor fabricado | `preflight-fuso-release.mjs` |
+| DEPLOY_GUARDED | Nenhum código novo exposto antes de TARGET, SCHEMA e DATA | **Procedimental**: o merge é o único gatilho do deploy de produção e só acontece depois do preflight READY anexado à PR. Não existe trava técnica na Vercel comprovada (ver Riscos). |
+| OPERATIONAL_RELEASE_READY | TARGET ∧ SCHEMA ∧ DATA ∧ DEPLOY_GUARDED, com evidências e autorização | — |
+
+### Runbook novo (nada executado nesta rodada; cada passo exige autorização do proprietário)
+
+Executa o **proprietário ou um operador autorizado**, numa máquina protegida, com checkout EXATO do SHA aprovado da PR. Os segredos ficam só no terminal dele; nada é versionado e nenhuma URL é impressa.
+
+**R0 — Congelamento.** A PR #190 continua DRAFT. Ninguém faz merge até o R5 dar READY.
+
+**R1 — Backup restaurável.**
+- Backup ou PITR do projeto Supabase de produção, conferido como restaurável.
+- Anotar a referência (id e horário). Ela vai para o AuditLog do R4.
+- Sem isso, o R4 recusa em alvo remoto (`BACKUP_NAO_COMPROVADO`).
+
+**R2 — TARGET_PROVEN.**
+- Obter o `system_identifier` esperado do banco de produção. É um valor não secreto, a anotar e conferir pelo SQL Editor: `SELECT system_identifier FROM pg_control_system();`.
+- No terminal, exportar:
+  - `POSTGRES_PRISMA_URL` = o valor de **production** na Vercel (o que o runtime usa);
+  - `MIGRATION_DATABASE_URL` = conexão direta ou de sessão, não o pooler 6543;
+  - `MIGRATION_EXPECTED_SYSTEM_IDENTIFIER`.
+- Rodar:
+
+      node scripts/deploy/conferir-alvo-banco.mjs   → "ALVO CONFERE"
+
+- Se der divergente ou sem acesso: **PARAR** (TARGET_UNVERIFIED).
+
+**R3 — SCHEMA, pré-merge e compatível com o runtime atual.**
+
+      node scripts/deploy/premerge-migrate.mjs --sha <HEAD da PR> --verificar-alvo
+      node scripts/deploy/premerge-migrate.mjs --sha <HEAD da PR> --aplicar
+
+- É o executor auditado da D-PROD-107: manifesto pinado, allowlist EXPAND, `system_identifier` e recusa do pooler.
+- A migration só ADICIONA uma coluna anulável. O runtime antigo, ainda no ar, não a seleciona e segue funcionando.
+
+**R4 — DATA, configurado DIRETO no banco, sem o runtime novo.**
+1. O proprietário escreve o plano, **fora do repositório**. Ele lista as empresas ativadas com o fuso escolhido por ele (IANA), e um administrador ativo de cada cliente assina:
+
+       { "administradores": { "<cliente_id>": "<usuario_id admin>" },
+         "empresas": [ { "cliente_id": "…", "empresa_id": "…", "fuso_horario": "America/Cuiaba" } ] }
+
+2. Simulação (padrão, nada é gravado):
+
+       FUSO_DATABASE_URL=… FUSO_EXPECTED_SYSTEM_IDENTIFIER=…          node scripts/ops/configurar-fuso-empresas.mjs --plano /fora/do/repo/plano.json
+
+3. Aplicação: uma transação, Empresa `FOR UPDATE`, AuditLog por mudança com a referência do backup, tudo ou nada:
+
+       … --aplicar --confirmar APLICAR_FUSOS_DAS_FAZENDAS --referencia-backup "<R1>"
+
+- **Recusa** com:
+  - alvo sem `system_identifier` ou divergente;
+  - sem frase de confirmação; sem backup;
+  - plano dentro do repositório;
+  - schema não pronto;
+  - empresa de outro cliente ou inexistente;
+  - IANA inválido;
+  - administrador inválido;
+  - duplicata;
+  - troca de fuso existente sem motivo.
+- **Reexecutar é seguro:** fuso igual não muda nada e não gera auditoria nova.
+
+**R5 — Preflight final (somente leitura), imediatamente antes do merge.**
+
+      POSTGRES_PRISMA_URL=<production> MIGRATION_EXPECTED_SYSTEM_IDENTIFIER=… [MIGRATION_DATABASE_URL=…]         node scripts/deploy/preflight-fuso-release.mjs
+
+- Exige `estado: READY`, `TARGET: SID_CONFERE`, `SCHEMA_READY: true` e `DATA_READY: true`.
+- A saída JSON (ids em hash) vai como comentário na PR, para a auditoria.
+- BLOCKED → não fazer merge.
+
+**R6 — Merge manual pelo proprietário.** A Vercel publica produção automaticamente. Conferir:
+- deployment `READY` no SHA do merge;
+- `GET /api/native/health` com `release` = SHA do merge e `status: ok`;
+- leitura do Cadastro de Empresa com o fuso visível.
+
+**R7 — Pós-deploy (somente leitura).**
+- Inventário de futuros, só em cópia local ou com autorização separada.
+- O KM - 06 continua intocado até decisão caso a caso.
+
+**Janela entre R5 e R6.** Uma empresa NOVA criada pelo runtime antigo nesse intervalo nasce ativada sem fuso. Depois do deploy ela recusa manejos com `EMPRESA_FUSO_NAO_CONFIGURADO`, sem gravar nada, até o administrador configurar o fuso na tela nova. É fail-closed, sem perda de dado.
+
+### Rollback e recuperação
+
+- **Problema depois do R6:** Instant Rollback, na Vercel, para o deployment de produção anterior. Ele é `isRollbackCandidate`, e há registros no histórico.
+  - O runtime antigo ignora a coluna e os fusos.
+  - **Nunca dar DROP na coluna:** ela é inofensiva e preserva a configuração para o re-deploy.
+- **Usuários já operaram no runtime novo:** os fatos gravados são válidos nos dois runtimes (data ≤ hoje, mesmo ledger). Não há nada a desfazer. Os fatos recusados (409) não gravaram nada.
+- **Merge publicado SEM o R3** (erro de sequência): Empresa e o ledger falham com P2022.
+  - O caminho mais rápido é o rollback do deployment.
+  - O forward-fix é rodar o R3 e depois o R4.
+  - Não aplicar SQL à mão.
+- **R4 falhou no meio:** impossível por desenho (uma transação). Basta reler o preflight e reaplicar.
 
 ## Saneamento manual dos futuros legados (não executado)
 
@@ -147,7 +256,29 @@ O KM - 06 de produção NÃO foi tocado.
   - Nenhum teste foi desabilitado e o código de produção não mudou por isso.
 - **Tipos.** `nativeRequest` passou a aceitar `PUT` no JSDoc; o runtime já repassava o método.
 
+## PR190-R2 — achados e correções
+
+- **Corrida entre troca de fuso e manejo na virada do dia (bug real, corrigido).**
+  - Antes, a guarda lia `Empresa.fuso_horario` sem trava. Com um `PUT` de fuso em andamento (Empresa `FOR UPDATE`), o manejo lia o fuso ANTIGO.
+  - RED (`F-troca`, relógio 04:30Z, de SP para Rio Branco): uma morte em 05/11 foi aceita com 201 e confirmada depois da troca, ou seja, futura no fuso em vigor.
+  - Correção: `fusoDaEmpresa` lê `SELECT … FOR SHARE`. O manejo espera a troca e decide pela versão confirmada (GREEN: 409 `REBANHO_DATA_FUTURA`, fuso Rio Branco, nenhum fato).
+  - A ordem de travas Empresa → Área → Posição é a mesma da ativação e do cadastro de lote. Nenhuma trava nova inverte a ordem.
+- **Mensagem do 409 sem fuso** passa a dizer onde configurar: Empresa → "Fuso horário da fazenda". Diz também que nada foi gravado.
+- **Erro de carga do Cadastro de Empresa (G3).**
+  - O adaptador offline não engole o erro do `GET` online.
+  - A tela mostra o aviso com "Tentar novamente" e não uma lista vazia. Isso vale também para o 500 que um P2022 produziria.
+  - Coberto por um smoke novo em `empresaPage`.
+- **Ferramentas de release novas** (somente local nos testes):
+  - `scripts/ops/fusoReleaseLib.mjs`;
+  - `scripts/ops/configurar-fuso-empresas.mjs`;
+  - `scripts/deploy/preflight-fuso-release.mjs`.
+  - Suíte `backend/tests/dProd122ReleaseFuso.test.mjs`, 13 testes, matriz A–F.
+
 ## Riscos e limites
+
+- **DEPLOY_GUARDED é procedimental, não técnico.** O merge publica produção sozinho (comprovado). Nenhuma trava da Vercel foi comprovada e nada foi inventado. A proteção é a ordem: R3, R4 e R5 antes do merge. Desligar o deploy automático da `main` na Vercel é decisão do proprietário e não foi feito.
+- **O Preview compartilha o banco de produção** (`POSTGRES_PRISMA_URL` com alvo production e preview). O Preview da #190 roda o código novo contra o schema antigo. As leituras de Empresa dão erro (P2022) e não há escrita parcial (transação), mas o Preview não deve ser usado. Isso é risco pré-existente: `PREVIEW_WRITE_TEST_BLOCKED`.
+- **TARGET_UNVERIFIED.** O vínculo entre o runtime da Vercel e o projeto Supabase `uuemcasqcdjucflulkne` só se prova no R2, por `system_identifier`, no terminal do operador.
 
 - **Futuros já gravados continuam.** A projeção atual pode divergir do as-of até a data de cada um ou até o saneamento. O deploy sozinho não corrige o histórico.
 - **Fila offline do Lote.** Um lote criado offline com data futura, ou em empresa sem fuso, recebe 409 na sincronização e fica parado no primeiro item da fila (comportamento atual para qualquer 4xx). Não gera duplicata. Os comandos de manejo são só online.
