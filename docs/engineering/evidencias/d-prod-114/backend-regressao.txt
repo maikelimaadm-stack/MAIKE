@@ -1,0 +1,59 @@
+    ok 1 - cada nó do meio bloqueia; exclusão na ordem causal inversa libera o antecessor; projeção final = só a entrada
+    ok 1 - nascimento bloqueado enquanto os nascidos são usados; desbloqueia na ordem inversa; matrizes intactas
+    ok 2 - morte das matrizes antes do nascimento (retroativa) bloqueia pela pré-condição; nascimento independente de outra área não bloqueia
+    ok 1 - junção bloqueada enquanto o resultado é abatido; exclusão inversa restaura linhagem e pesos ponderados
+    ok 2 - abate e morte pelo comando de BAIXA (multi-categoria) e pelo manejo de lote — mesma reversão
+    ok 1 - transferências e baixas posteriores INDEPENDENTES não bloqueiam; dependente no mesmo dia (registrado depois) bloqueia
+    ok 2 - retroativo: morte em data ANTERIOR a uma transferência já lançada; excluir a morte devolve; excluir a transferência por último restaura
+    ok 1 - excluir pesagem intermediária e final restaura a série; transferência derivada do peso bloqueia a pesagem que a alimentou
+    ok 1 - segunda transferência para B (posição já existe) não remove a posição; multi-item (2 entradas) reverte as duas origens
+    ok 2 - transferência TOTAL (zera a origem) e morte TOTAL no destino: exclusão inversa restaura; origem zerada não é removida (tem a entrada)
+    ok 1 - pesagem na nova categoria bloqueia a mudança; total (todas as cabeças) reverte categoria original
+    ok 1 - dois nascimentos na mesma área somam na MESMA posição; excluir o primeiro respeita o peso derivado do segundo; posição só some sem nenhum uso
+    ok 1 - excluir a transferência × criar morte DEPENDENTE dela ao mesmo tempo: no máximo um vence; ledger íntegro (sem TOCTOU)
+    ok 2 - duas exclusões INDEPENDENTES na mesma origem ao mesmo tempo: ambas passam, sem deadlock
+    ok 1 - movimento sem prova do ledger, cancelado pelo endpoint antigo e entrada do cadastro: nenhum é excluível; DELETE/PATCH genéricos seguem recusados
+    ok 1 - B6: 10 em A → transferência de 3 para B → EXCLUIR → A=10, B=0, cadastro 10, some do histórico; posição B (só dela) removida; auditoria mantida
+    ok 2 - transferência TOTAL para área nova e de volta para posição pré-existente: excluir a volta restaura sem remover a posição de origem
+    ok 1 - morte posterior na posição criada → 409 CANCELAMENTO_SALDO_HISTORICO_NEGATIVO; elegibilidade igual; 0 escrita
+    ok 2 - pesagem posterior na posição criada → 409 REBANHO_DEPENDENCIA_FATO_SEM_SALDO; tarefa ligada à posição → 409 REBANHO_CANCELAMENTO_VINCULO_POSTERIOR
+    ok 3 - documento de outro módulo que cita o movimento (mesmo CANCELADO) bloqueia: EXCLUSAO_REFERENCIA_DOCUMENTAL / vínculo posterior
+    ok 1 - T1 (3 A→B) e depois T2 (2 A→C) + pesagem em A: excluir T1 passa; A=8, C=2, B some
+    ok 1 - cancelar e excluir ao mesmo tempo: exatamente um vence; estado coerente
+    ok 2 - duas exclusões simultâneas (chaves diferentes): uma 200, a outra 409 EXCLUSAO_JA_REALIZADA; um único estorno
+    ok 3 - retry com a MESMA operation_id (resposta perdida) → replay idêntico, sem segundo estorno; mesma chave com outro motivo → 409 IDEMPOTENCY_CONFLICT
+    ok 1 - falha em exclusao_apos_reversao → 500 e nada muda (movimento, evento, partidas, pesos, posições, auditoria, operações)
+    ok 2 - falha em exclusao_apos_delete → 500 e nada muda (movimento, evento, partidas, pesos, posições, auditoria, operações)
+    ok 1 - reenvio exato da transferência original (fila antiga/timeout) → 409 IDEMPOTENCY_EFEITO_EXCLUIDO; nada recriado
+    ok 1 - comum 403; tenant B 404 (comando e elegibilidade); sem token 401; delta/saldo/cliente_id no corpo 400; admin revogado 403
+    ok 1 - evento adulterado/forjado → CANCELAMENTO_EFEITO_NAO_COMPROVADO; operação de origem não confirmada → idem
+    ok 2 - movimento legado (sem evento do ledger) → EXCLUSAO_MOVIMENTO_LEGADO; já cancelado → EXCLUSAO_MOVIMENTO_CANCELADO (sem limpeza retroativa)
+    ok 1 - Morte
+    ok 2 - Abate
+    ok 3 - Morte (manejo-lote)
+    ok 4 - Nascimento
+    ok 5 - Pesagem
+    ok 6 - Mudança de Categoria
+    ok 7 - Junção
+    ok 8 - Transferência parcial retroativa
+    ok 1 - constantes: os tipos de origem do ledger são exatamente os dos comandos
+    ok 2 - mesma operation_key em DOIS tipos (o homônimo gravado ANTES): excluir marca só o recibo de origem; o outro segue committed e com replay
+    ok 3 - proveniência ausente (recibo não cita o evento/movimento) ou ambígua (dois recibos citam) → 409, zero escrita
+    ok 4 - elegibilidade repetida (elegível e recusada) não persiste nada: recibos, auditoria, posições, eventos
+    ok 1 - 50 de A→B e pesagem posterior em B (320→350): GET recusa a transferência e permite a pesagem; excluída a pesagem, a transferência fica elegível; POST revalida
+    ok 1 - M1: morte em duas categorias numa confirmação → 1 evento, posições baixadas, Lote intacto; cancelar restaura; conservação
+    ok 2 - M2: abate retroativo cabe na linha do tempo; retroativo que quebra a transferência futura → 409 com data; acima do saldo → 409; nada gravado
+    ok 3 - M3: falha injetada após 1ª partida, após validar e antes da auditoria → ZERO mudança (inclusive reserva idempotente)
+    ok 4 - M4: R2A manejo-lote (Morte de UMA posição) e replay da mesma chave; id de CADASTRO não é posição (404)
+    ok 1 - N1: nascimento = cabeças NOVAS (origem nascimento, sem cadastro/compra); crias transferidas → cancelar nascimento bloqueia; mãe inválida → 409
+    ok 2 - P1: pesagem — série histórica: retroativa não sobrescreve a medição posterior; saldo/peso em data; cancelar recompõe; desconhecido continua null
+    ok 3 - C1: mudança de categoria parcial/total na mesma linhagem, sem novo Lote; sexo incompatível → 409; cancelar restaura
+    ok 1 - J1: 3 entradas (uma sem peso) → principal com tudo, origens 0, composição de linhagens, peso desconhecido; Lote intacto; histórico por origem; cancelar desfaz composição
+    ok 2 - J2: 5 origens com peso conhecido → média ponderada; 20 origens → aceita; classificação divergente → 409
+    ok 1 - T1: posição/área de outro tenant em baixa, pesagem, junção e nascimento → 404 sem gravar
+    ok 2 - K1.1: morte × transferência da mesma posição; junção × transferência; cancelar × morte → conservação, sem 500, sem deadlock
+    ok 3 - K1.2: morte × transferência da mesma posição; junção × transferência; cancelar × morte → conservação, sem 500, sem deadlock
+    ok 4 - K1.3: morte × transferência da mesma posição; junção × transferência; cancelar × morte → conservação, sem 500, sem deadlock
+# tests 56
+# pass 56
+# fail 0

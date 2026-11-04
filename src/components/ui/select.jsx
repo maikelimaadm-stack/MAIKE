@@ -51,7 +51,7 @@ SelectScrollDownButton.displayName =
 
 const SelectContent = React.forwardRef(
   /**
-   * Contrato declarado (D-PROD-114), como no `button.jsx`: as props do
+   * Contrato declarado (D-PROD-115), como no `button.jsx`: as props do
    * `SelectPrimitive.Content` do Radix, com `children`. Zero mudança de runtime.
    *
    * @param {React.ComponentPropsWithoutRef<typeof SelectPrimitive.Content>} propriedades

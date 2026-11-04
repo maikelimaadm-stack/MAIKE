@@ -88,7 +88,7 @@ describe('R2D DetalhesLote e formulários', () => {
       const f = readFileSync(arq, 'utf8');
       expect(f).not.toMatch(/forEach\([^)]*=>\s*\{\s*onSubmit/);
       expect(f).toMatch(/linhas: /);
-      // D-PROD-114: o botão é o do LancLoteRodape, que desabilita com `enviando` (ver lancamentoLoteUi.test.jsx)
+      // D-PROD-115: o botão é o do LancLoteRodape, que desabilita com `enviando` (ver lancamentoLoteUi.test.jsx)
       expect(f).toMatch(/LancLoteRodape[^>]*enviando=\{enviando\}/);
     }
   });

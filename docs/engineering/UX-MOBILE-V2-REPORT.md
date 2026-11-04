@@ -185,7 +185,7 @@ Pedido do proprietário com prints do app do Claude no iPhone. Conferido no Chro
 
 **Não testado:** Windows real (as setas da barra nativa vieram do print do proprietário).
 
-## V11 — lançamentos de lote do Mapa Geral no padrão do cadastro (D-PROD-114)
+## V11 — lançamentos de lote do Mapa Geral no padrão do cadastro (D-PROD-115)
 
 | Pedido | Feito | Evidência |
 |---|---|---|

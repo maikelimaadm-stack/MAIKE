@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * D-PROD-114 — lançamentos de lote do Mapa Geral com a mesma abertura do
+ * D-PROD-115 — lançamentos de lote do Mapa Geral com a mesma abertura do
  * cadastro rápido: um cabeçalho só (título + lotes) com ✕ e ✓; o rodapé do
  * formulário vira o ✓ do cabeçalho e respeita "enviando".
  */
@@ -26,7 +26,7 @@ const montar = (props = {}) => {
   return { onSubmit, onCancelar };
 };
 
-describe("LancLoteDialogo (D-PROD-114)", () => {
+describe("LancLoteDialogo (D-PROD-115)", () => {
   it("um cabeçalho só: título e os lotes; sem rodapé de botões dentro do formulário", () => {
     montar();
     expect(screen.getAllByText("Registrar Morte")).toHaveLength(1);

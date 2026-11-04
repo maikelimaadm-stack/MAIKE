@@ -1,0 +1,8 @@
+UX-4 no HEAD de partida 2b2477f3 (RED):
+   × D-PROD-114 — card da movimentação excluída > UX-4: depois da exclusão confirmada, o card some e NÃO reconsulta a elegibilidade do id apagado (sem G
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+AssertionError: expected 4 to be 3 // Object.is equality
+      Tests  1 failed | 37 skipped (38)
+
+E2E antes da correção: 'C nenhuma resposta 4xx' FALHOU com 3× 404 GET /movimentacoes-mapa/<id-excluído>/elegibilidade-exclusao por rodada.
+GREEN: exclusaoMovimentacao 38/38; smoke afetado 101/101; E2E 148/148 sem 4xx.

@@ -4645,7 +4645,26 @@ O resultado foi conferido no Chromium com o ícone real do lote: 8, 50, 500, 5.0
 
 ---
 
-## D-PROD-114 — Lançamentos de lote do Mapa Geral no padrão do cadastro
+## D-PROD-114 — Certificação E2E de Nascimento e Junção pela interface
+
+**Objetivo:** provar na UI real do Mapa, com backend e PostgreSQL 16 locais e tenant sintético, as cadeias:
+- nascimento → pesagem dependente;
+- junção → morte dependente.
+
+Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio sem recarregar, exclusão do antecessor e restauração exata. O Cadastro de Lotes continua sendo só entrada.
+
+**Resultado:** 148/148 verificações E2E em 1440, 390, 412 e 768 (roteiro em `evidencias/d-prod-114/visual/`).
+
+**Bug encontrado e corrigido:**
+- **UX-4 (P2):** depois de excluir, o card do movimento apagado continuava montado até o histórico recarregar. A invalidação geral (limpeza de cache e evento `atualizar-mapa`) refazia o GET de elegibilidade do id apagado, que respondia 404 (3 por rodada no E2E).
+- **Correção:** em `ExcluirMovimentacao.jsx`, com a exclusão confirmada (ou "já não existe"), o card marca `excluida`, desliga as duas consultas e some na hora.
+- **Prova:** teste UX-4 RED → GREEN.
+
+**Sem mudanças:** motor de exclusão, ledger, API, banco e migrations. Nenhuma escrita remota.
+
+---
+
+## D-PROD-115 — Lançamentos de lote do Mapa Geral no padrão do cadastro
 
 - **Contexto:** o proprietário pediu para ajustar os lançamentos de lote do Mapa Geral: campos, espaços e aberturas estavam diferentes entre si e tinham dois cabeçalhos. Pediu também que abrissem como o cadastro rápido ("Novo setor" no Cadastro de Lotes).
   - Lançamentos: Morte, Abate, Nascimento, Pesagem, Mudança de Categoria, Mover, Juntar e Renomear.
@@ -4675,4 +4694,4 @@ O resultado foi conferido no Chromium com o ícone real do lote: 8, 50, 500, 5.0
 - **Removido:** o "Histórico" da Mudança de Categoria. Era um espaço que sempre mostrava "Nenhum histórico disponível".
 - **Consequência:** a próxima tela de manejo usa as mesmas peças.
 
-<!-- Próxima decisão: D-PROD-115 -->
+<!-- Próxima decisão: D-PROD-116 -->

@@ -1,0 +1,307 @@
+// D-PROD-114 — E2E real (Chromium) de NASCIMENTO e JUNÇÃO pela UI do Mapa: criar → dependente → bloqueio antes
+// do clique → excluir dependente → desbloqueio sem reload → excluir antecessor → restauração exata.
+// Backend + Vite + PostgreSQL 16 LOCAIS (banco maike_e2e_r2), tenant SINTÉTICO criado por execução.
+const { chromium } = require('playwright');
+const [W, H] = [Number(process.argv[2]), Number(process.argv[3])];
+const BASE = process.argv[4];
+const OUT = '/tmp/claude-0/d114/shots';
+const API = 'http://127.0.0.1:3334';
+const APP = 'http://127.0.0.1:5180';
+const res = [];
+const ok = (n, c, x = '') => res.push(`${c ? 'PASS' : 'FAIL'} ${BASE} ${n}${x ? ' — ' + String(x).replace(/\n+/g, ' | ').slice(0, 220) : ''}`);
+const VACA = 'Vaca + 36 meses', BOI = 'Boi 25 a 36 meses';
+(async () => {
+  // ── Guard de alvo: só stack e banco LOCAIS ────────────────────────────────
+  const dbUrl = new URL(process.env.DATABASE_URL || '');
+  if (!['localhost', '127.0.0.1'].includes(dbUrl.hostname) || !/maike_e2e_r2$/.test(dbUrl.pathname)) throw new Error('alvo não-local recusado');
+  if (!/^http:\/\/127\.0\.0\.1:/.test(API) || !/^http:\/\/127\.0\.0\.1:/.test(APP)) throw new Error('stack não-local recusada');
+  const helpers = await import('/home/user/MAIKE/backend/tests/helpers.mjs');
+  const { getPrismaClient } = await import('/home/user/MAIKE/backend/src/database/prismaClient.js');
+  const p = getPrismaClient();
+  const [{ supabase }] = await p.$queryRaw`SELECT EXISTS (SELECT 1 FROM pg_roles WHERE rolname IN ('supabase_admin','supabase_auth_admin')) AS supabase`;
+  if (supabase) throw new Error('banco Supabase recusado');
+
+  // ── Seed sintético ────────────────────────────────────────────────────────
+  const TAG = `${BASE}-${Date.now().toString(36).slice(-5)}`;
+  const senha = `s-${Math.random().toString(36).slice(2)}-local`;
+  const t = await helpers.criarTenant({ papelTenant: 'administrador', login: `d114.${TAG}`, senha });
+  const C = t.cliente.id;
+  const empresa = await p.empresa.create({ data: { cliente_id: C, numero_empresa: 1, apelido: 'FAZ', nome: `Fazenda ${TAG}` } });
+  const setor = await p.setor.create({ data: { cliente_id: C, empresa_id: empresa.id, numero_setor: '1', nome: 'Setor 1' } });
+  const poly = (dx) => ({ coords: [[-15.8, -47.9 + dx], [-15.8, -47.89 + dx], [-15.79, -47.89 + dx], [-15.79, -47.9 + dx]], cor: '#22c55e' });
+  const area = (n, nome, dx) => p.areaPastagem.create({ data: { cliente_id: C, empresa_id: empresa.id, setor_id: setor.id, setor_nome: setor.nome, numero_area: String(n), nome, tamanho_hectares: 10, coordenadas: poly(dx) } });
+  const A = await area(1, 'PASTO NASC', 0), B = await area(2, 'PASTO JUNC', 0.02);
+  const { token } = await (await fetch(`${API}/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ login: t.credenciais.login, senha }) })).json();
+  const call = async (m, u, b) => { const r = await fetch(`${API}${u}`, { method: m, headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }); const j = await r.json().catch(() => ({})); return { status: r.status, j }; };
+  const novo = async (nome, qtd, categoria, sexo, areaId, peso) => (await call('POST', '/lotes', { empresa_id: empresa.id, nome, quantidade_cabecas: qtd, categoria, sexo, setor_id: setor.id, area_entrada_id: areaId, area_atual_id: areaId, data_entrada: '2026-10-01', motivo_entrada: 'Compra', status: 'Ativo', peso_medio_kg: peso })).j;
+  const vacas = await novo(`VACAS ${TAG}`, 10, VACA, 'Fêmea', A.id, 450);
+  const prin = await novo(`PRIN ${TAG}`, 30, BOI, 'Macho', B.id, 400);
+  const orig = await novo(`ORIG ${TAG}`, 20, BOI, 'Macho', B.id, 350);
+  const atv = await call('POST', '/rebanho/ativacao', { operation_id: `atv-${TAG}`, empresa_id: empresa.id, modo: 'entradas' });
+  if (atv.status !== 201) throw new Error(`ativação ${atv.status} ${JSON.stringify(atv.j)}`);
+
+  // ── Fotografias e invariantes no banco local ──────────────────────────────
+  const w = { cliente_id: C };
+  const projecao = async () => (await p.posicaoRebanho.findMany({ where: w, orderBy: { id: 'asc' } })).map((x) => [x.id, x.area_id, x.categoria, x.sexo, x.quantidade_cabecas, x.peso_medio_kg === null ? null : Number(x.peso_medio_kg), JSON.stringify(x.linhagem)]);
+  const lotesCad = async () => (await p.lote.findMany({ where: w, orderBy: { id: 'asc' } })).map((l) => [l.id, l.quantidade_cabecas, l.quantidade_entrada, l.status, l.area_atual_id, Number(l.peso_medio_kg)]);
+  const verificar = async () => (await call('GET', `/rebanho/verificacao?empresa_id=${empresa.id}`)).j.integro === true;
+  const orfaos = async () => (await p.$queryRaw`
+    SELECT (SELECT count(*) FROM "PartidaRebanho" x WHERE x.cliente_id = ${C} AND NOT EXISTS (SELECT 1 FROM "EventoRebanho" e WHERE e.id = x.evento_id))::int
+         + (SELECT count(*) FROM "PesoRebanho" x WHERE x.cliente_id = ${C} AND NOT EXISTS (SELECT 1 FROM "EventoRebanho" e WHERE e.id = x.evento_id))::int
+         + (SELECT count(*) FROM "MovimentacaoMapa" m WHERE m.cliente_id = ${C} AND m.dados->'efeito_servidor'->>'comando' = 'rebanho_ledger' AND NOT EXISTS (SELECT 1 FROM "EventoRebanho" e WHERE e.id = m.dados->'efeito_servidor'->>'evento_id'))::int AS n`)[0].n;
+  const conservacao = async () => {
+    const evs = await p.eventoRebanho.findMany({ where: { ...w, situacao: 'ativo' }, include: { partidas: true } });
+    const soma = (tipo) => evs.filter((e) => e.tipo === tipo).flatMap((e) => e.partidas.filter((x) => x.ativa)).reduce((s, x) => s + x.delta, 0);
+    const entradas = (await p.lote.findMany({ where: { ...w, excluido_em: null } })).reduce((s, l) => s + l.quantidade_entrada, 0);
+    const atuais = (await p.posicaoRebanho.findMany({ where: w })).reduce((s, x) => s + x.quantidade_cabecas, 0);
+    return atuais === entradas + soma('NASCIMENTO') + soma('MORTE') + soma('ABATE');
+  };
+  const fatoApagado = async (movId) => {
+    const ev = await p.eventoRebanho.findFirst({ where: { ...w, movimentacao_id: movId } });
+    const mov = await p.movimentacaoMapa.count({ where: { id: movId } });
+    const aud = await p.auditLog.count({ where: { ...w, entidade: 'MovimentacaoMapa', entidade_id: movId, acao: 'exclusao_definitiva' } });
+    return { ev: !!ev, mov, aud };
+  };
+  const recibosExcluidos = async () => p.operacaoIdempotente.count({ where: { ...w, status: 'excluido' } });
+  const movPorTipo = async (tipo) => (await p.movimentacaoMapa.findMany({ where: w })).filter((m) => m.dados.tipo === tipo).map((m) => m.id);
+
+  // ── Navegador ─────────────────────────────────────────────────────────────
+  const browser = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader'] });
+  const mobile = W < 800;
+  const ctx = await browser.newContext({ viewport: { width: W, height: H }, isMobile: mobile, hasTouch: mobile });
+  const page = await ctx.newPage();
+  await page.addInitScript(() => {
+    const original = window.fetch.bind(window);
+    window.__eleg = { voo: 0, max: 0, total: 0, abortados: 0 };
+    window.fetch = (url, init) => {
+      if (!String(url).includes('/elegibilidade-exclusao')) return original(url, init);
+      const e = window.__eleg; e.voo += 1; e.total += 1; e.max = Math.max(e.max, e.voo);
+      let fim = false; const terminar = () => { if (!fim) { fim = true; e.voo -= 1; } };
+      init?.signal?.addEventListener('abort', () => { e.abortados += 1; });
+      return original(url, init).then((r) => { const tx = r.text.bind(r); r.text = () => tx().finally(terminar); return r; }, (err) => { terminar(); throw err; });
+    };
+  });
+  const erros = [], consoleErros = [], reqs = [];
+  page.on('pageerror', (e) => erros.push(e.message.slice(0, 160)));
+  page.on('console', (m) => { if (m.type() === 'error') consoleErros.push(m.text().slice(0, 160)); });
+  const respostas4xx = [];
+  page.on('response', (r) => { if (r.status() >= 400) respostas4xx.push(`${r.status()} ${r.request().method()} ${new URL(r.url()).pathname}`); });
+  page.on('request', (r) => { const u = new URL(r.url()); if (u.host === '127.0.0.1:3334' && r.method() !== 'GET') reqs.push({ m: r.method(), u: u.pathname, b: r.postData() }); });
+  const tocar = async (loc) => { await loc.waitFor({ state: 'visible', timeout: 15000 }); if (mobile) await loc.tap(); else await loc.click(); };
+  const semOverflow = async () => !(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1));
+  const fechar = async () => { for (let i = 0; i < 3; i++) { await page.keyboard.press('Escape'); await page.waitForTimeout(200); } };
+  await page.goto(APP + '/', { waitUntil: 'networkidle' });
+  await page.locator('input').nth(0).fill(t.credenciais.login);
+  await page.locator('input[type=password]').fill(senha);
+  await page.keyboard.press('Enter');
+  await page.waitForURL(/mapageral/i, { timeout: 30000 });
+  const abrirLote = async (total) => {
+    await page.goto(APP + '/MapaGeral', { waitUntil: 'networkidle' });
+    await page.getByText(String(total), { exact: true }).first().waitFor({ timeout: 30000 });
+    await page.getByText(String(total), { exact: true }).first().dispatchEvent('click');
+    await page.getByText('Detalhes do Lote').first().waitFor({ timeout: 20000 });
+  };
+  const menu = async (nome, gatilhoNome = 'Eventos') => {
+    const item = page.getByRole('menuitem', { name: nome });
+    for (let i = 0; i < 3; i += 1) {
+      const g = page.getByRole('button', { name: gatilhoNome }).first();
+      await g.waitFor({ state: 'visible', timeout: 15000 });
+      await tocar(g);
+      if (await item.waitFor({ timeout: 4000 }).then(() => true, () => false)) break;
+      await page.keyboard.press('Escape').catch(() => {});
+      await page.waitForTimeout(500);
+    }
+    await tocar(item);
+  };
+  const escolher = async (gatilho, opcao) => { await tocar(gatilho); await tocar(page.getByRole('option', { name: opcao }).first()); };
+  const linha = (dlg, i) => dlg.locator('div.border.border-slate-200.rounded-lg').nth(i);
+  const card = (tipo) => page.locator('div.border.rounded-lg').filter({ hasText: tipo }).filter({ has: page.locator('[data-estado-exclusao]') }).first();
+  const estado = async (tipo) => card(tipo).locator('[data-estado-exclusao]').getAttribute('data-estado-exclusao').catch(() => null);
+  const esperarEstado = async (tipo, alvo, ms = 25000) => { const t0 = Date.now(); let e = null; while (Date.now() - t0 < ms) { e = await estado(tipo); if (e === alvo) return e; await page.waitForTimeout(400); } return e; };
+  const excluirPelaUi = async (tipo, motivo) => {
+    const c = card(tipo);
+    await c.scrollIntoViewIfNeeded();
+    await tocar(c.getByRole('button', { name: 'Excluir movimentação' }));
+    const dlgEx = page.getByRole('dialog').filter({ has: page.getByRole('heading', { name: 'Excluir movimentação', exact: true }) });
+    await dlgEx.getByLabel('Motivo da exclusão').fill(motivo);
+    await dlgEx.getByRole('checkbox').check();
+    const conf = dlgEx.getByRole('button', { name: 'Excluir definitivamente' });
+    await page.waitForFunction((el) => !el.disabled, await conf.elementHandle(), { timeout: 20000 });
+    const antes = reqs.length;
+    const resposta = page.waitForResponse((r) => /\/exclusao$/.test(new URL(r.url()).pathname) && r.request().method() === 'POST', { timeout: 20000 });
+    await tocar(conf);
+    const rr = await resposta;
+    if (rr.status() !== 200) throw new Error(`exclusão ${rr.status()}`);
+    await page.waitForTimeout(800);
+    return reqs.slice(antes).filter((r) => /\/exclusao$/.test(r.u));
+  };
+  const abrirHistorico = async () => { await menu('Histórico de Movimentação', 'Históricos'); await page.waitForTimeout(500); };
+
+  try {
+    // ═══ A. NASCIMENTO ═══════════════════════════════════════════════════════
+    const preNasc = { posicoes: await projecao(), lotes: await lotesCad(), recibos: await recibosExcluidos() };
+    await abrirLote(10);
+    await menu('Nascimento');
+    let dlg = page.getByRole('dialog').last();
+    await dlg.getByText(/Registrar Nascimento/).first().waitFor({ timeout: 15000 });
+    await tocar(dlg.getByRole('button', { name: 'Adicionar Categoria' }));
+    await tocar(dlg.getByRole('button', { name: 'Adicionar Categoria' }));
+    await linha(dlg, 0).locator('input[type=number]').nth(0).fill('3');
+    await linha(dlg, 0).locator('input[type=number]').nth(1).fill('32');
+    await escolher(linha(dlg, 0).getByText('Selecione o sexo'), 'Macho');
+    await linha(dlg, 1).locator('input[type=number]').nth(0).fill('2');
+    await linha(dlg, 1).locator('input[type=number]').nth(1).fill('30');
+    await escolher(linha(dlg, 1).getByText('Selecione o sexo'), 'Fêmea');
+    ok('A1 diálogo de nascimento sem rolagem horizontal', await semOverflow());
+    await page.screenshot({ path: `${OUT}/${BASE}-A1-nascimento-2-linhas.png` });
+    const bNasc = dlg.getByRole('button', { name: 'Registrar Nascimentos' });
+    const n0 = reqs.length;
+    await bNasc.dblclick({ timeout: 10000 }).catch(async () => { await tocar(bNasc); });
+    await page.waitForTimeout(3500);
+    const postsNasc = reqs.slice(n0).filter((r) => /comandos\/manejo-rebanho$/.test(r.u));
+    ok('A1 UM POST de comando por confirmação (duplo clique não duplica)', postsNasc.length === 1, `${postsNasc.length} POST`);
+    const corpoN = JSON.parse(postsNasc[0]?.b || '{}');
+    ok('A1 corpo: Nascimento, 2 linhas, sem saldo/lote', corpoN.tipo === 'Nascimento' && corpoN.linhas?.length === 2 && !('lote_id' in corpoN), JSON.stringify(corpoN.linhas));
+    const nasc = (await p.posicaoRebanho.findMany({ where: { ...w, area_id: A.id, lote_entrada_id: null } })).map((x) => [x.sexo, x.quantidade_cabecas, x.peso_medio_kg === null ? null : Number(x.peso_medio_kg)]).sort();
+    ok('A1 posições dos nascidos: 3 machos 32 kg e 2 fêmeas 30 kg', JSON.stringify(nasc) === JSON.stringify([['Fêmea', 2, 30], ['Macho', 3, 32]].sort()), JSON.stringify(nasc));
+    ok('A1 matrizes e Cadastro intactos', JSON.stringify(await lotesCad()) === JSON.stringify(preNasc.lotes) && (await p.posicaoRebanho.findFirst({ where: { ...w, lote_entrada_id: vacas.id } })).quantidade_cabecas === 10);
+    ok('A1 ledger íntegro, conservação, zero órfãos', (await verificar()) && (await conservacao()) && (await orfaos()) === 0);
+    const [movNasc] = await movPorTipo('Nascimento');
+    await fechar();
+
+    // A2: dependente pela UI — pesagem dos bezerros machos (precondição causal do nascimento).
+    await abrirLote(15);
+    await menu('Pesar');
+    dlg = page.getByRole('dialog').last();
+    await dlg.getByText(/Registrar Pesagem/).first().waitFor({ timeout: 15000 });
+    await tocar(dlg.getByRole('button', { name: 'Por Lote' }));
+    const pesLinha = dlg.locator('div.border.border-slate-200.rounded-lg', { hasText: /NASCIDOS BEZERRO/i }).first();
+    await pesLinha.locator('input').first().fill('40');
+    await page.screenshot({ path: `${OUT}/${BASE}-A2-pesagem-bezerros.png` });
+    const p0 = reqs.length;
+    await tocar(dlg.getByRole('button', { name: 'Registrar Pesagens' }));
+    await page.waitForTimeout(3000);
+    ok('A2 pesagem dependente: UM POST de comando', reqs.slice(p0).filter((r) => /comandos\/manejo-rebanho$/.test(r.u)).length === 1);
+    const [movPes] = await movPorTipo('Pesagem');
+    await fechar();
+
+    // Histórico: aberto DEPOIS dos manejos (forma 1 de navegação).
+    await abrirLote(15);
+    await abrirHistorico();
+    const eN = await esperarEstado('Nascimento', 'Exclusão bloqueada');
+    const eP = await esperarEstado('Pesagem', 'elegivel');
+    ok('A2 antes do clique: Nascimento BLOQUEADO, Pesagem elegível', eN === 'Exclusão bloqueada' && eP === 'elegivel', `${eN} / ${eP}`);
+    const bBloq = card('Nascimento').getByRole('button', { name: 'Exclusão bloqueada' });
+    ok('A2 bloqueado: disabled + aria-describedby com motivo visível', (await bBloq.isDisabled()) && !!(await bBloq.getAttribute('aria-describedby')) && /exclua o lançamento dependente primeiro/.test(await card('Nascimento').innerText()));
+    ok('A2 sem rolagem horizontal (histórico)', await semOverflow());
+    await page.screenshot({ path: `${OUT}/${BASE}-A2-nascimento-bloqueado.png` });
+
+    // A3: excluir dependente → nascimento desbloqueia SEM reload → excluir nascimento.
+    const exPes = await excluirPelaUi('Pesagem', 'Pesagem lançada errado (E2E sintético)');
+    ok('A3 exclusão do dependente: 1 POST /exclusao só com {operation_id, motivo}', exPes.length === 1 && Object.keys(JSON.parse(exPes[0].b)).sort().join() === 'motivo,operation_id');
+    const fp = await fatoApagado(movPes);
+    ok('A3 pesagem apagada fisicamente (mov+evento) com auditoria', fp.mov === 0 && !fp.ev && fp.aud === 1, JSON.stringify(fp));
+    ok('A3 Nascimento desbloqueou sem recarregar', (await esperarEstado('Nascimento', 'elegivel')) === 'elegivel');
+    await page.screenshot({ path: `${OUT}/${BASE}-A3-nascimento-desbloqueado.png` });
+    await excluirPelaUi('Nascimento', 'Nascimento lançado errado (E2E sintético)');
+    const fn = await fatoApagado(movNasc);
+    ok('A3 nascimento apagado fisicamente com auditoria', fn.mov === 0 && !fn.ev && fn.aud === 1, JSON.stringify(fn));
+    ok('A3 projeção EXATA de antes do nascimento (posições dos bezerros removidas)', JSON.stringify(await projecao()) === JSON.stringify(preNasc.posicoes));
+    ok('A3 Cadastro de Lotes intacto; 2 recibos originais marcados excluido', JSON.stringify(await lotesCad()) === JSON.stringify(preNasc.lotes) && (await recibosExcluidos()) - preNasc.recibos === 2);
+    ok('A3 ledger íntegro, conservação, zero órfãos', (await verificar()) && (await conservacao()) && (await orfaos()) === 0);
+    await page.waitForTimeout(1500);
+    ok('A3 histórico sem os itens excluídos (sem reload)', !(await page.locator('div.border.rounded-lg').filter({ hasText: 'Nascimento' }).filter({ has: page.locator('[data-estado-exclusao]') }).count()));
+    await fechar();
+    // Forma 2 de navegação: reabrir depois da exclusão.
+    await abrirLote(10);
+    await abrirHistorico();
+    await page.waitForTimeout(2500);
+    const txtReab = await page.getByRole('dialog').last().innerText();
+    ok('A3 reabrir o histórico: nada de Nascimento/Pesagem ressuscitado', !/Nascimento/.test(txtReab) && !/Pesagem/.test(txtReab), txtReab.slice(0, 160));
+    await fechar();
+
+    // ═══ B. JUNÇÃO ══════════════════════════════════════════════════════════
+    const preJ = { posicoes: await projecao(), lotes: await lotesCad(), recibos: await recibosExcluidos() };
+    await abrirLote(50);
+    await menu('Juntar Lotes');
+    dlg = page.getByRole('dialog').last();
+    await dlg.getByText('Juntar Lotes').first().waitFor({ timeout: 15000 });
+    await tocar(dlg.getByRole('button', { name: new RegExp(`PRIN ${TAG}`) }));
+    await dlg.getByText(/Lotes que serão absorvidos/).waitFor({ timeout: 15000 });
+    ok('B1 diálogo de junção sem rolagem horizontal', await semOverflow());
+    await page.screenshot({ path: `${OUT}/${BASE}-B1-juncao-confirmacao.png` });
+    const bJ = dlg.getByRole('button', { name: /Confirmar Junção/ });
+    const j0 = reqs.length;
+    await bJ.dblclick({ timeout: 10000 }).catch(async () => { await tocar(bJ); });
+    await page.waitForTimeout(3500);
+    const postsJ = reqs.slice(j0).filter((r) => /comandos\/juncao-lotes$/.test(r.u));
+    ok('B1 UM POST de junção (duplo clique não duplica); nenhum POST/PATCH de lote ou movimento genérico', postsJ.length === 1 && !reqs.slice(j0).some((r) => /^\/lotes/.test(r.u) || r.u === '/movimentacoes-mapa'), `${postsJ.length} POST`);
+    const cJ = JSON.parse(postsJ[0]?.b || '{}');
+    ok('B1 corpo só com ids/data (sem saldo/peso)', cJ.lote_principal_id && Array.isArray(cJ.lote_origem_ids) && !('quantidade_cabecas' in cJ) && !('peso_medio_kg' in cJ), JSON.stringify(cJ));
+    const pPrin = await p.posicaoRebanho.findFirst({ where: { ...w, lote_entrada_id: prin.id, area_id: B.id } });
+    const pOrig = await p.posicaoRebanho.findFirst({ where: { ...w, lote_entrada_id: orig.id, area_id: B.id } });
+    ok('B1 servidor: principal 50 com peso ponderado 380; origem 0; linhagem com a contribuição', pPrin.quantidade_cabecas === 50 && Number(pPrin.peso_medio_kg) === 380 && pOrig.quantidade_cabecas === 0 && JSON.stringify(pPrin.linhagem).includes(orig.id), `${pPrin.quantidade_cabecas}/${pPrin.peso_medio_kg}/${pOrig.quantidade_cabecas}`);
+    ok('B1 Cadastro intacto; ledger íntegro, conservação, zero órfãos', JSON.stringify(await lotesCad()) === JSON.stringify(preJ.lotes) && (await verificar()) && (await conservacao()) && (await orfaos()) === 0);
+    const [movJ] = await movPorTipo('Junção de Lotes');
+    await fechar();
+
+    // B2: dependente pela UI — morte de 40 (só existe por causa da junção).
+    await abrirLote(50);
+    await menu('Morte');
+    dlg = page.getByRole('dialog').last();
+    await dlg.getByText(/Registrar Morte/).first().waitFor({ timeout: 15000 });
+    const lm = dlg.locator('div.border.border-slate-200.rounded-lg').first();
+    if (!(await lm.count())) await tocar(dlg.getByRole('button', { name: 'Adicionar Categoria' }));
+    const lin = dlg.locator('div.border.border-slate-200.rounded-lg').first();
+    const trig = lin.getByRole('combobox').first();
+    if (!/Boi/.test(await trig.innerText())) await escolher(trig, new RegExp(BOI.replace('+', '\\+')));
+    await lin.locator('input[type=number]').first().fill('40');
+    await escolher(lin.getByText('Selecione a causa'), 'Doença');
+    const m0 = reqs.length;
+    await tocar(dlg.getByRole('button', { name: /^Registrar/ }).last());
+    await page.waitForTimeout(3000);
+    ok('B2 morte dependente: UM POST de baixa', reqs.slice(m0).filter((r) => /comandos\/(baixa-rebanho|manejo-lote)$/.test(r.u)).length === 1, reqs.slice(m0).map((r) => r.u).join(','));
+    const [movM] = await movPorTipo('Morte');
+    await fechar();
+    // Histórico da junção: abre pelo lote PRIN (10 cab após a morte).
+    await page.goto(APP + '/MapaGeral', { waitUntil: 'networkidle' });
+    const marcadores = page.getByText('10', { exact: true });
+    await marcadores.last().waitFor({ timeout: 20000 });
+    await marcadores.last().dispatchEvent('click');
+    await page.getByText('Detalhes do Lote').first().waitFor({ timeout: 20000 });
+    await abrirHistorico();
+    const eJ = await esperarEstado('Junção de Lotes', 'Exclusão bloqueada');
+    const eM = await esperarEstado('Morte', 'elegivel');
+    ok('B2 antes do clique: Junção BLOQUEADA, Morte elegível', eJ === 'Exclusão bloqueada' && eM === 'elegivel', `${eJ} / ${eM}`);
+    const bJb = card('Junção de Lotes').getByRole('button', { name: 'Exclusão bloqueada' });
+    ok('B2 bloqueado: disabled + aria-describedby + motivo visível', (await bJb.isDisabled()) && !!(await bJb.getAttribute('aria-describedby')) && /dependente/.test(await card('Junção de Lotes').innerText()));
+    // POST 409 sem mutação (recusa no servidor, mesma regra do card).
+    const fotoAntes = JSON.stringify([await projecao(), await lotesCad(), await recibosExcluidos(), await p.auditLog.count({ where: w })]);
+    const r409 = await call('POST', `/movimentacoes-mapa/${movJ}/exclusao`, { operation_id: `x-${TAG}`, motivo: 'tentativa bloqueada' });
+    ok('B3 POST com dependência ativa → 409 e ZERO mutação', r409.status === 409 && JSON.stringify([await projecao(), await lotesCad(), await recibosExcluidos(), await p.auditLog.count({ where: w })]) === fotoAntes, `${r409.status} ${r409.j.code}`);
+    await page.screenshot({ path: `${OUT}/${BASE}-B2-juncao-bloqueada.png` });
+    await excluirPelaUi('Morte', 'Morte lançada errado (E2E sintético)');
+    ok('B2 Junção desbloqueou sem recarregar', (await esperarEstado('Junção de Lotes', 'elegivel')) === 'elegivel');
+    await excluirPelaUi('Junção de Lotes', 'Junção lançada errado (E2E sintético)');
+    const fj = await fatoApagado(movJ);
+    ok('B2 junção apagada fisicamente com auditoria', fj.mov === 0 && !fj.ev && fj.aud === 1, JSON.stringify(fj));
+    ok('B2 estado pré-junção EXATO (quantidades, pesos, linhagem); Cadastro intacto; 2 recibos excluido', JSON.stringify(await projecao()) === JSON.stringify(preJ.posicoes) && JSON.stringify(await lotesCad()) === JSON.stringify(preJ.lotes) && (await recibosExcluidos()) - preJ.recibos === 2);
+    ok('B2 ledger íntegro, conservação, zero órfãos', (await verificar()) && (await conservacao()) && (await orfaos()) === 0);
+    ok('B2 sem rolagem horizontal', await semOverflow());
+    await page.screenshot({ path: `${OUT}/${BASE}-B2-apos-exclusao.png` });
+    await fechar();
+
+    // C: transversais.
+    const eleg = await page.evaluate(() => window.__eleg);
+    ok(`C3 no máximo 2 GETs de elegibilidade em voo na página (máx=${eleg.max}, total=${eleg.total}, abortados=${eleg.abortados})`, eleg.max <= 2);
+    ok('C nenhum DELETE/PATCH de movimento, nenhum /cancelamento', !reqs.some((r) => (['DELETE', 'PATCH'].includes(r.m) && /movimentacoes-/.test(r.u)) || /\/cancelamento$/.test(r.u)));
+    ok('C sem erro de página nem console.error', erros.length === 0 && consoleErros.length === 0, [...erros, ...consoleErros].join(' | '));
+    ok('C nenhuma resposta 4xx/5xx inesperada (409 do B3 foi pela API, fora da página)', respostas4xx.length === 0, respostas4xx.join(' | '));
+  } catch (e) {
+    ok('execução', false, e.message);
+    await page.screenshot({ path: `${OUT}/${BASE}-ERRO.png` }).catch(() => {});
+  }
+  await browser.close();
+  await helpers.encerrar();
+  console.log(res.join('\n'));
+})();

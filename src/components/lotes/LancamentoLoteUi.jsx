@@ -8,7 +8,7 @@ import { PillBtn } from "@/components/cadastro/base1/Base1Ui";
 /*
  * Peças comuns dos lançamentos de lote do Mapa Geral (Morte, Abate,
  * Nascimento, Pesagem, Mudança de Categoria, Mover, Juntar, Renomear —
- * D-PROD-114). Um só desenho para todos:
+ * D-PROD-115). Um só desenho para todos:
  *
  *   diálogo (título + lotes) › corpo › [campos do topo] › itens › + Adicionar › Observações › rodapé
  *
