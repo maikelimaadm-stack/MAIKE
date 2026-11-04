@@ -125,7 +125,7 @@ export const baixaNoLedger = async (tx, contexto, e, deps) => {
   const auth = exigirAuthContext(contexto?.auth);
   const ativacao = await ativacaoDaEmpresa(tx, auth.clienteId, e.empresaId);
   const dia = diaDe(e.dataMovimentacao);
-  exigirDiaNoLedger(ativacao, dia);
+  await exigirDiaNoLedger(tx, auth.clienteId, ativacao, dia);
   const { area, areas, posicoes } = await travarAreaEPosicoes(tx, auth.clienteId, e.empresaId, e.areaId, e.selecionados ?? []);
   if (e.selecionados) {
     const fora = e.selecionados.find((id) => posicoes.get(id)?.empresa_id !== e.empresaId);
@@ -214,7 +214,7 @@ export const rebanhoNoLedger = async (tx, contexto, e, deps) => {
   const auth = exigirAuthContext(contexto?.auth);
   const ativacao = await ativacaoDaEmpresa(tx, auth.clienteId, e.empresaId);
   const dia = diaDe(e.dataMovimentacao);
-  exigirDiaNoLedger(ativacao, dia);
+  await exigirDiaNoLedger(tx, auth.clienteId, ativacao, dia);
   const extras = e.tipo === 'Pesagem' ? e.linhas.map((l) => l.lote_id) : [];
   const { area, areas, posicoes } = await travarAreaEPosicoes(tx, auth.clienteId, e.empresaId, e.areaId, extras);
   const naData = await comSaldoNaData(tx, auth.clienteId, posicoes, area.id, dia);
@@ -350,7 +350,7 @@ export const juncaoNoLedger = async (tx, contexto, e, deps) => {
   const auth = exigirAuthContext(contexto?.auth);
   const ativacao = await ativacaoDaEmpresa(tx, auth.clienteId, e.empresaId);
   const dia = diaDe(e.dataMovimentacao);
-  exigirDiaNoLedger(ativacao, dia);
+  await exigirDiaNoLedger(tx, auth.clienteId, ativacao, dia);
   if (e.origens.length > MAX_ORIGENS_JUNCAO_LEDGER) throw recusa('JUNCAO_LOTE_INELEGIVEL', `no máximo ${MAX_ORIGENS_JUNCAO_LEDGER} origens por junção`);
   const ids = [e.principalId, ...e.origens];
   const { area, areas, posicoes } = await travarAreaEPosicoes(tx, auth.clienteId, e.empresaId, e.areaId, ids);

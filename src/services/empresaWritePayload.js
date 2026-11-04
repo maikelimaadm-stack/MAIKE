@@ -37,10 +37,14 @@ const OPCIONAIS_STRING = new Set([
 ]);
 
 /**
+ * D-PROD-122: o fuso IANA da fazenda só vai no corpo da CRIAÇÃO. Depois, muda
+ * apenas pela rota administrativa `PUT /empresas/:id/fuso-horario` (o PATCH
+ * genérico recusa o campo).
  * @param {Record<string, unknown>} bruto
+ * @param {{criacao?: boolean}} [opcoes]
  * @returns {Record<string, unknown>}
  */
-export const projetarPayloadEmpresa = (bruto) => {
+export const projetarPayloadEmpresa = (bruto, { criacao = false } = {}) => {
   if (!bruto || typeof bruto !== 'object' || Array.isArray(bruto)) return {};
   /** @type {Record<string, unknown>} */
   const saida = {};
@@ -51,6 +55,9 @@ export const projetarPayloadEmpresa = (bruto) => {
       valor = null;
     }
     saida[campo] = valor;
+  }
+  if (criacao && typeof bruto.fuso_horario === 'string' && bruto.fuso_horario.trim()) {
+    saida.fuso_horario = bruto.fuso_horario.trim();
   }
   return saida;
 };

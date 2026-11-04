@@ -46,6 +46,14 @@ const operacoesNativas = Object.freeze({
     ),
 });
 
+/** D-PROD-122: rota administrativa do fuso (online; nunca entra na fila offline). */
+export const configurarFusoHorarioNativo = (id, corpo) =>
+  nativeRequest(
+    `${CAMINHO}/${encodeURIComponent(id)}/fuso-horario`,
+    { method: 'PUT', body: corpo, autenticado: true },
+    ctx('configurarFusoHorarioEmpresa')
+  );
+
 export const empresaPort = offlineStorageDisponivel()
   ? createOfflineEntityAdapter({
       entityName: ENTIDADE_OFFLINE,

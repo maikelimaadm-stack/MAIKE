@@ -13,7 +13,7 @@
  */
 
 import { runProviderCall, assertArgument } from '../_core/normalizeApiError.js';
-import { empresaPort } from './empresaNativePort.js';
+import { empresaPort, configurarFusoHorarioNativo } from './empresaNativePort.js';
 import { projetarPayloadEmpresa } from '@/services/empresaWritePayload.js';
 
 const RESOURCE = 'Empresa';
@@ -49,7 +49,7 @@ export const listEmpresas = async (opcoes = {}) => {
 export const createEmpresa = async (dados) => {
   const contexto = { operation: 'create', resource: RESOURCE };
   assertArgument(isPlainObject(dados), 'dados', contexto);
-  return runProviderCall(() => empresaPort.create(projetarPayloadEmpresa(dados)), contexto);
+  return runProviderCall(() => empresaPort.create(projetarPayloadEmpresa(dados, { criacao: true })), contexto);
 };
 
 /**
@@ -66,6 +66,21 @@ export const updateEmpresa = async (id, dados) => {
     ...contexto,
     details: { id },
   });
+};
+
+/**
+ * D-PROD-122: configura o fuso IANA da fazenda (só administrador; online, sem
+ * fila offline). Trocar um fuso já configurado exige `motivo`.
+ * @param {string} id
+ * @param {{fuso_horario: string, motivo?: string}} dados
+ * @returns {Promise<object>}
+ */
+export const configurarFusoHorarioEmpresa = async (id, dados) => {
+  const contexto = { operation: 'configurarFusoHorario', resource: RESOURCE };
+  assertArgument(isNonEmptyString(id), 'id', contexto);
+  assertArgument(isPlainObject(dados) && isNonEmptyString(dados.fuso_horario), 'dados', contexto);
+  const corpo = { fuso_horario: dados.fuso_horario.trim(), ...(isNonEmptyString(dados.motivo) ? { motivo: dados.motivo.trim() } : {}) };
+  return runProviderCall(() => configurarFusoHorarioNativo(id, corpo), { ...contexto, details: { id } });
 };
 
 /**

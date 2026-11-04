@@ -9,6 +9,7 @@ import {
   updateEmpresa as updateEmpresaApi,
   deleteEmpresa as deleteEmpresaApi,
   listEmpresas as listEmpresasApi,
+  configurarFusoHorarioEmpresa as configurarFusoHorarioEmpresaApi,
 } from '@/apis/empresa';
 
 /**
@@ -31,6 +32,14 @@ export const createEmpresa = (dados) => createEmpresaApi(dados);
  * @returns {Promise<object>}
  */
 export const updateEmpresa = (id, dados) => updateEmpresaApi(id, dados);
+
+/**
+ * D-PROD-122: configura o fuso horário da fazenda (administrador; auditado).
+ * @param {string} id
+ * @param {{fuso_horario: string, motivo?: string}} dados
+ * @returns {Promise<object>}
+ */
+export const configurarFusoHorarioEmpresa = (id, dados) => configurarFusoHorarioEmpresaApi(id, dados);
 
 /**
  * Exclui uma empresa.

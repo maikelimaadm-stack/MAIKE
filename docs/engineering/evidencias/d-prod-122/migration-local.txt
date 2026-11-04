@@ -1,0 +1,47 @@
+== alvo: PostgreSQL 16 local (host local), banco descartável maike_d122_vazio — URL não impressa
+== 1) banco VAZIO → deploy:migrate
+30 migrations found in prisma/migrations
+Applying migration `20260908174141_p3_foundation`
+Applying migration `20260909112833_p4_1_setor_native`
+Applying migration `20260909201703_p4_1_r2_setor_tipo_default`
+Applying migration `20260910190000_p4_2_area_pastagem_native`
+Applying migration `20261023180000_p4_3_map_geography_native`
+Applying migration `20261023210000_p6_1_login_global_hygiene`
+Applying migration `20261027140000_p4_marcas_native`
+Applying migration `20261027180000_p4_5_unidade_medida_native`
+Applying migration `20261027190000_p5_grupo_tipo_tarefa_native`
+Applying migration `20261027200000_p51_lote_native`
+Applying migration `20261027210000_p52_categoria_local_produto_native`
+Applying migration `20261027220000_p53_lancamento_tarefa_native`
+Applying migration `20261027230000_p54_base44_exit_movimentacao`
+Applying migration `20261028120000_p55_base44_exit_final`
+Applying migration `20261028200000_p54_marca_list_keyset_indexes`
+Applying migration `20261028210000_empresa_numero_empresa`
+Applying migration `20261028230000_operacao_idempotente`
+Applying migration `20261028240000_p8_supabase_public_revoke_rls`
+Applying migration `20261028250000_catalogo_global_slice1`
+Applying migration `20261028250100_catalogo_global_slice1_schema_fix`
+Applying migration `20261028250200_catalogo_global_slice1_r1_assets`
+Applying migration `20261029100000_scale01_usuario_keyset_index`
+Applying migration `20261029200000_categoria_manejo_vinculo_catalogo`
+Applying migration `20261029300000_admin_principal_maike`
+Applying migration `20261029400000_usuario_papel_tenant`
+Applying migration `20261030100000_icone_url_text`
+Applying migration `20261101100000_lote_exclusao_logica`
+Applying migration `20261102200000_rebanho_ledger_posicoes`
+Applying migration `20261103100000_rebanho_ledger_r1_manejos`
+Applying migration `20261104200000_empresa_fuso_horario`
+The following migration(s) have been applied:
+  └─ 20261104200000_empresa_fuso_horario/
+All migrations have been successfully applied.
+deploy:migrate — migrations aplicadas.
+== 2) reaplicar no mesmo banco (idempotente)
+No pending migrations to apply.
+deploy:migrate — migrations aplicadas.
+== 3) coluna criada
+fuso_horario|character varying|64|YES|
+== 4) _prisma_migrations
+20261104200000_empresa_fuso_horario|bb2c1cb63cbc1324b6ab9c7d9141f51dfd2418374c8badb9cfe82fe3d4f29017|t
+== 5) base JÁ POVOADA (maike_ci, migrada antes desta PR e com dados de teste) → deploy aplicou só a nova
+20261104200000_empresa_fuso_horario|t
+   (a migration não tem DEFAULT nem UPDATE: nenhuma empresa recebe fuso automaticamente)

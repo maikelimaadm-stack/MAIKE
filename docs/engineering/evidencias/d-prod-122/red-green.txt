@@ -1,0 +1,93 @@
+D-PROD-122 (S1/H1) — RED na main f49004a1 (sem implementação) × GREEN na branch
+PostgreSQL 16 LOCAL (maike_ci, dados sintéticos). Nenhum banco remoto.
+
+=== RED: backend/tests/dProd122IntegridadeTemporal.test.mjs contra o código da main ===
+    not ok 1 - P1: 23:59 / 00:00 em São Paulo, Cuiabá e Rio Branco com o processo em UTC
+    not ok 2 - P2: fuso IANA — válidos canonizados; inválidos recusados
+    not ok 3 - P3: relógio de teste isolado por contexto (concorrente) e restaurado ao sair
+    not ok 4 - P4: fora de NODE_ENV=test o relógio de teste é recusado e a variável de teste é ignorada
+    not ok 1 - F: transferência (comando) — amanhã → 409 REBANHO_DATA_FUTURA sem escrita; hoje → aceito
+    not ok 2 - F: transferência (manejo-lote legado) — amanhã → 409 REBANHO_DATA_FUTURA sem escrita; hoje → aceito
+    not ok 3 - F: morte (manejo-lote legado) — amanhã → 409 REBANHO_DATA_FUTURA sem escrita; hoje → aceito
+    not ok 4 - F: morte (baixa) — amanhã → 409 REBANHO_DATA_FUTURA sem escrita; hoje → aceito
+    not ok 5 - F: abate (baixa) — amanhã → 409 REBANHO_DATA_FUTURA sem escrita; hoje → aceito
+    not ok 6 - F: nascimento — amanhã → 409 REBANHO_DATA_FUTURA sem escrita; hoje → aceito
+    not ok 7 - F: pesagem — amanhã → 409 REBANHO_DATA_FUTURA sem escrita; hoje → aceito
+    not ok 8 - F: mudança de categoria — amanhã → 409 REBANHO_DATA_FUTURA sem escrita; hoje → aceito
+    not ok 9 - F: junção — amanhã → 409 REBANHO_DATA_FUTURA sem escrita; hoje → aceito
+    not ok 10 - F: entrada (cadastro de Lote em empresa ativada) — amanhã → 409 REBANHO_DATA_FUTURA sem escrita; hoje → aceito
+    ok 11 - F-R: retroativo (ontem) continua aceito pelas regras temporais de sempre
+    not ok 12 - F-ISO: data com hora/offset vale pelo DIA literal informado (sem conversão silenciosa)
+    not ok 13 - F-borda: 23:59/00:00 no fuso da fazenda decide hoje × amanhã (SP, Cuiabá, Rio Branco)
+    not ok 14 - F-fuso: o mesmo instante é "amanhã" em Rio Branco e já "hoje" em São Paulo
+    not ok 15 - F-conc: 3 pedidos futuros simultâneos → todos 409, nada gravado
+    not ok 1 - A1: saldo_abertura com data_corte futura → 409 sem escrita; corte hoje → ativa
+    not ok 2 - A2: entradas com uma entrada futura no cadastro (empresa ainda legada) → 409 sem escrita
+    ok 3 - A3: entradas todas até hoje → ativa (data_corte efetiva = entrada mais antiga)
+    ok 4 - A4: entradas sem nenhuma entrada viva → data de corte = hoje DA FAZENDA (não o dia UTC)
+    not ok 5 - A5: ativação sem fuso configurado → 409 EMPRESA_FUSO_NAO_CONFIGURADO, rollback sem sobras
+    not ok 1 - S1: escrita nova → 409 EMPRESA_FUSO_NAO_CONFIGURADO sem escrita; leitura, histórico e exclusão seguem
+    not ok 1 - R1: replay idêntico de operação committed com data futura → mesma resposta, sem 409 e sem nova linha
+    not ok 2 - R2: operação NOVA com a mesma data futura → 409 e nenhum recibo criado
+    not ok 3 - R3: exclusão segura do futuro legado não é bloqueada por data nem por fuso; restaura o estado
+    not ok 1 - C1: admin configura; inválido 400; usuário comum 403; PATCH genérico não aceita o campo; leitura expõe
+    not ok 2 - C2: troca de fuso já configurado exige motivo e registra anterior/novo na auditoria
+    not ok 3 - C3: tenant B não enxerga nem configura a empresa de A; o fuso de B não afeta o relógio de A
+    ok 4 - C4: empresa de outro tenant → 404; empresa inexistente → 404
+    not ok 1 - K1: 50 bezerros, morte em +23 dias, pesagem 50 e reclassificação 49 → projeção 49 × as-of 50; inventário aponta sem alterar
+    not ok 2 - K2: inventário roda em transação READ ONLY (escrita dentro dela é recusada pelo PostgreSQL)
+    not ok 3 - K3: empresa sem fuso aparece como pendente de configuração, sem inventariar por um fuso inventado
+    not ok 4 - K4: sem --mostrar-ids a saída usa hash curto (sem ids nem nomes crus)
+# tests 36
+# pass 4
+# fail 32
+
+--- exemplo de falha RED (data futura ACEITA: 201 onde se exige 409) ---
+        REBANHO_DATA_FUTURA: {"evento":{"id":"<id>","tipo":"TRANSFERENCIA","data_operacional":"2026-11-05","registrado_em":"2026-11-04T21:17:18.748Z"},"movimentacao":{"lote":"L1","tipo":"Transferênci
+        
+        201 !== 409
+        
+
+(os 4 que passam no RED não dependem da regra nova: retroativo, entradas até hoje, corte sem entradas, 404 de empresa inexistente)
+
+=== GREEN: mesma suíte na branch ===
+    ok 1 - P1: 23:59 / 00:00 em São Paulo, Cuiabá e Rio Branco com o processo em UTC
+    ok 2 - P2: fuso IANA — válidos canonizados; inválidos recusados
+    ok 3 - P3: relógio de teste isolado por contexto (concorrente) e restaurado ao sair
+    ok 4 - P4: fora de NODE_ENV=test o relógio de teste é recusado e a variável de teste é ignorada
+    ok 1 - F: transferência (comando) — amanhã → 409 REBANHO_DATA_FUTURA sem escrita; hoje → aceito
+    ok 2 - F: transferência (manejo-lote legado) — amanhã → 409 REBANHO_DATA_FUTURA sem escrita; hoje → aceito
+    ok 3 - F: morte (manejo-lote legado) — amanhã → 409 REBANHO_DATA_FUTURA sem escrita; hoje → aceito
+    ok 4 - F: morte (baixa) — amanhã → 409 REBANHO_DATA_FUTURA sem escrita; hoje → aceito
+    ok 5 - F: abate (baixa) — amanhã → 409 REBANHO_DATA_FUTURA sem escrita; hoje → aceito
+    ok 6 - F: nascimento — amanhã → 409 REBANHO_DATA_FUTURA sem escrita; hoje → aceito
+    ok 7 - F: pesagem — amanhã → 409 REBANHO_DATA_FUTURA sem escrita; hoje → aceito
+    ok 8 - F: mudança de categoria — amanhã → 409 REBANHO_DATA_FUTURA sem escrita; hoje → aceito
+    ok 9 - F: junção — amanhã → 409 REBANHO_DATA_FUTURA sem escrita; hoje → aceito
+    ok 10 - F: entrada (cadastro de Lote em empresa ativada) — amanhã → 409 REBANHO_DATA_FUTURA sem escrita; hoje → aceito
+    ok 11 - F-R: retroativo (ontem) continua aceito pelas regras temporais de sempre
+    ok 12 - F-ISO: data com hora/offset vale pelo DIA literal informado (sem conversão silenciosa)
+    ok 13 - F-borda: 23:59/00:00 no fuso da fazenda decide hoje × amanhã (SP, Cuiabá, Rio Branco)
+    ok 14 - F-fuso: o mesmo instante é "amanhã" em Rio Branco e já "hoje" em São Paulo
+    ok 15 - F-conc: 3 pedidos futuros simultâneos → todos 409, nada gravado
+    ok 1 - A1: saldo_abertura com data_corte futura → 409 sem escrita; corte hoje → ativa
+    ok 2 - A2: entradas com uma entrada futura no cadastro (empresa ainda legada) → 409 sem escrita
+    ok 3 - A3: entradas todas até hoje → ativa (data_corte efetiva = entrada mais antiga)
+    ok 4 - A4: entradas sem nenhuma entrada viva → data de corte = hoje DA FAZENDA (não o dia UTC)
+    ok 5 - A5: ativação sem fuso configurado → 409 EMPRESA_FUSO_NAO_CONFIGURADO, rollback sem sobras
+    ok 1 - S1: escrita nova → 409 EMPRESA_FUSO_NAO_CONFIGURADO sem escrita; leitura, histórico e exclusão seguem
+    ok 1 - R1: replay idêntico de operação committed com data futura → mesma resposta, sem 409 e sem nova linha
+    ok 2 - R2: operação NOVA com a mesma data futura → 409 e nenhum recibo criado
+    ok 3 - R3: exclusão segura do futuro legado não é bloqueada por data nem por fuso; restaura o estado
+    ok 1 - C1: admin configura; inválido 400; usuário comum 403; PATCH genérico não aceita o campo; leitura expõe
+    ok 2 - C2: troca de fuso já configurado exige motivo e registra anterior/novo na auditoria
+    ok 3 - C3: tenant B não enxerga nem configura a empresa de A; o fuso de B não afeta o relógio de A
+    ok 4 - C5: POST /empresas sem fuso cria e ativa (sem fato); escrita nova falha fechada até configurar; com fuso válido, canonizado; inválido 400
+    ok 5 - C4: empresa de outro tenant → 404; empresa inexistente → 404
+    ok 1 - K1: 50 bezerros, morte em +23 dias, pesagem 50 e reclassificação 49 → projeção 49 × as-of 50; inventário aponta sem alterar
+    ok 2 - K2: inventário roda em transação READ ONLY (escrita dentro dela é recusada pelo PostgreSQL)
+    ok 3 - K3: empresa sem fuso aparece como pendente de configuração, sem inventariar por um fuso inventado
+    ok 4 - K4: sem --mostrar-ids a saída usa hash curto (sem ids nem nomes crus)
+# tests 37
+# pass 37
+# fail 0

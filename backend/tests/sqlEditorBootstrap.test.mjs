@@ -87,7 +87,7 @@ const semear = async ({ clientes = 1 } = {}) => {
     const t = await criarTenant({ login: i === 0 ? 'legado.admin' : undefined });
     const c = t.cliente.id;
     await p.permissao.create({ data: { cliente_id: c, user_email: t.usuario.login, is_admin: true } });
-    const emp = await p.empresa.create({ data: { cliente_id: c, numero_empresa: 1, apelido: 'E', nome: 'EMPRESA' } });
+    const emp = await p.empresa.create({ data: { cliente_id: c, numero_empresa: 1, fuso_horario: 'America/Sao_Paulo', apelido: 'E', nome: 'EMPRESA' } });
     const setor = await p.setor.create({ data: { cliente_id: c, empresa_id: emp.id, numero_setor: '1', nome: 'S' } });
     await p.areaPastagem.create({ data: { cliente_id: c, empresa_id: emp.id, setor_id: setor.id, setor_nome: 'S', numero_area: '1', nome: 'A', tamanho_hectares: 1 } });
     const lote = await p.lote.create({ data: { cliente_id: c, empresa_id: emp.id, numero_lote: '1', nome: 'L', quantidade_cabecas: 5, quantidade_entrada: 5, motivo_entrada: 'Compra' } });
@@ -331,7 +331,7 @@ describe('SQL Editor — 02 sucesso + 03 postcheck + API real', () => {
     assert.equal(res2.senha, null, 'senha nunca é mostrada de novo');
     const depois = await p.usuario.findFirst();
     assert.deepEqual([depois.id, depois.senha_hash], [conta.id, conta.senha_hash]);
-    await p.empresa.create({ data: { cliente_id: conta.cliente_id, numero_empresa: 1, apelido: 'REAL', nome: 'REAL' } });
+    await p.empresa.create({ data: { cliente_id: conta.cliente_id, numero_empresa: 1, fuso_horario: 'America/Sao_Paulo', apelido: 'REAL', nome: 'REAL' } });
     assert.match(psql(reset({ impressao: impressaoAtual() })).stderr, /ANOMALIA/);
     assert.equal(await p.empresa.count(), 1);
     assert.equal(await p.usuario.count(), 1);

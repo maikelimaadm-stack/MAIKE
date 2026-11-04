@@ -116,7 +116,17 @@ console.log(
  * A alternativa seria um schema por arquivo. Custa mais e não paga: a suíte
  * inteira roda em segundos.
  */
+/**
+ * D-PROD-122: o ledger do rebanho recusa fato com data posterior a "hoje" no
+ * fuso da fazenda. As fixtures usam datas fixas (out–dez/2026); sem relógio
+ * determinístico, a suíte dependeria do dia real da máquina. O relógio de
+ * teste só existe com NODE_ENV=test (rebanhoLedgerTempo.js) — por isso o
+ * runner o define AQUI, só no processo dos testes (nunca no job inteiro: ver
+ * quality.yml sobre o build). `MAIKE_TESTE_AGORA` é o instante padrão; cada
+ * teste temporal fixa o seu por contexto (`comRelogioDeTeste`).
+ */
 const r = spawnSync(process.execPath, ['--test', '--test-concurrency=1', ...arquivos], {
   stdio: 'inherit',
+  env: { ...process.env, NODE_ENV: 'test', MAIKE_TESTE_AGORA: process.env.MAIKE_TESTE_AGORA || '2027-06-15T15:00:00.000Z' },
 });
 process.exit(r.status === null ? 1 : r.status);

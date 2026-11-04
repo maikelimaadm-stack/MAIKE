@@ -9,5 +9,6 @@ export {
   createEmpresa,
   updateEmpresa,
   deleteEmpresa,
+  configurarFusoHorarioEmpresa,
   EMPRESA_DEFAULT_ORDER,
 } from './empresaApi.js';

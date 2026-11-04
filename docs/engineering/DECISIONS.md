@@ -4831,4 +4831,33 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
   - **Teste-guarda:** nenhum `confirm()` ou `alert()` volta para `src/`.
 - **Consequência:** toda notificação sai no mesmo cartão e toda confirmação ou aviso no mesmo diálogo, no desktop e no celular.
 
-<!-- Próxima decisão: D-PROD-122 -->
+## D-PROD-122 — Integridade temporal do rebanho: só fatos realizados, no "hoje" da fazenda (S1/H1)
+
+- **Contexto:** na auditoria do KM - 06 (04/11/2026), uma morte com `data_operacional` de 27/11, registrada em 04/11, fez a projeção mostrar 49 cabeças, contra 50 no saldo as-of 04/11. A causa:
+  - `reprojetar()` soma TODAS as partidas ativas, sem corte de data;
+  - nenhum comando do ledger recusava data posterior a hoje (só formato e corte inferior);
+  - não existia fuso da fazenda: o único "hoje" do backend era o dia UTC (ativação sem entradas).
+- **Decisão (S1):**
+  - **Só fatos realizados.** Todo fato NOVO com data posterior a hoje da fazenda é recusado no servidor, antes de qualquer escrita, com `REBANHO_DATA_FUTURA` (409, details `{data, hoje, fuso}`). Planejamento é outro domínio, não criado aqui.
+  - **"Hoje" da fazenda** = relógio do servidor no fuso IANA da Empresa (`Empresa.fuso_horario`, migration aditiva `20261104200000_empresa_fuso_horario`, anulável, sem DEFAULT). Nunca o navegador, nunca UTC, nunca inferido de UF ou cidade. Validação por `Intl.DateTimeFormat`, com o nome canonizado; offset não é fuso.
+  - **Data operacional = dia literal** informado (AAAA-MM-DD). Hora/offset na string não deslocam o dia: é a mesma semântica de `diaDe` desde a R2A, sem mudar dado gravado.
+  - **Guarda única:** `exigirDiaNoLedger(tx, clienteId, ativacao, dia)` (núcleo) aplica corte + hoje. É chamada por:
+    - entrada do cadastro em empresa ativada;
+    - transferência (comando e manejo-lote legado);
+    - baixa (morte/abate) e manejo-lote de morte;
+    - nascimento, pesagem e mudança de categoria;
+    - junção.
+    A ativação aplica a regra ao `data_corte` (saldo de abertura) e ao CONJUNTO de entradas (modo entradas, com `details.lotes`). Nenhum outro escritor de `EventoRebanho`/`PartidaRebanho`/`PesoRebanho` existe em `backend/src` (o `estoquePecuarioLedger` não tem rota e usa schema próprio).
+  - **Sem fuso = falha fechada** para fato novo: `EMPRESA_FUSO_NAO_CONFIGURADO` (409), sem fuso padrão. Leitura (posições, saldos as-of, verificação, histórico), elegibilidade e exclusão segura NÃO dependem de fuso.
+  - Exceção única: a empresa NOVA (sem entradas) nasce ativada sem fuso. Ali nenhum fato é criado, e o `data_corte` do modo entradas é só informativo: usa o hoje da fazenda se houver fuso, senão o dia do servidor.
+  - **Ordem:** a idempotência vem antes da guarda. O replay idêntico de recibo committed (mesmo de fato futuro legado) devolve a resposta guardada, sem 409 e sem exigir fuso. Uma operação nova recusada não deixa recibo, auditoria nem linha.
+  - **Futuros legados:** não são editados, apagados nem reprojetados automaticamente. A exclusão segura (D-PROD-110) continua possível e não é bloqueada por data nem por fuso. O inventário READ-ONLY `scripts/ops/inventario-futuros-rebanho.mjs` aponta-os: transação `READ ONLY`, só banco local, ids com hash.
+  - **Configuração:**
+    - `PUT /empresas/:id/fuso-horario`: só administrador ativo do tenant, empresa travada, AuditLog com anterior/novo. Trocar um fuso já configurado exige `motivo`; o mesmo valor não muda nada. O PATCH genérico continua recusando o campo.
+    - `POST /empresas` aceita `fuso_horario` opcional, auditado no create.
+    - Na UI, o campo "Fuso horário da fazenda" no cadastro de Empresa (lista do Brasil, sem padrão) e "Salvar fuso" na edição.
+  - **Testes:** relógio injetável só em `NODE_ENV=test` (AsyncLocalStorage por contexto + `MAIKE_TESTE_AGORA` definido pelo runner). As fixtures recebem o fuso explícito; nenhuma data foi reescrita.
+- **Não mudou:** `reprojetar()` (sem job diário), o H2 (ordem do histórico), o H4 (mensagens de bloqueio) e o H3 (categorias).
+- **Consequência:** nenhum fato futuro novo entra no rebanho e a projeção deixa de "andar para o futuro" com lançamentos novos. Os futuros já gravados continuam até a data deles ou até saneamento manual autorizado. O rollout exige: migration → fuso configurado em cada empresa → runtime novo. Ver `MAIKE-D-PROD-122-INTEGRIDADE-TEMPORAL-REPORT.md`.
+
+<!-- Próxima decisão: D-PROD-123 -->

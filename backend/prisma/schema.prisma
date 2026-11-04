@@ -917,6 +917,9 @@ model Empresa {
   cep                String?  @db.VarChar(16)
   logotipo_url       String?  @db.VarChar(2000)
   observacoes        String?  @db.VarChar(2000)
+  /// D-PROD-122 (S1/H1): fuso IANA da fazenda ("America/Cuiaba"). Define o
+  /// "hoje" do ledger do rebanho; nulo = não configurado (fato novo falha fechado).
+  fuso_horario       String?  @db.VarChar(64)
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 

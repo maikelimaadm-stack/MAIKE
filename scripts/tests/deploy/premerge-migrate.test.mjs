@@ -5,7 +5,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import { spawnSync, execFileSync } from 'node:child_process';
 
 import { classificarMigrations, conferirHistoricoRemoto, sha256, MIGRATIONS_APROVADAS, migrationsDoManifestoFaltando } from '../../deploy/premergeMigrateLib.mjs';
@@ -17,11 +17,11 @@ const BASE = `CREATE TABLE "Nova" ("id" TEXT NOT NULL, "cliente_id" VARCHAR(64) 
 /** Classifica SQL sintético com manifesto próprio (só para testar a conferência estrutural). */
 const classificar = (sql, extra = {}) => classificarMigrations([{ nome: 'x', sql }], { manifesto: { x: sha256(sql) }, ...extra });
 
-test('B1: as duas migrations da PR #174 passam (manifesto pinado + estrutura): só tabelas novas e LancamentoTarefa.posicao_id anulável com FK', () => {
+test('B1: as migrations do manifesto passam (pinadas + estrutura): só tabelas novas, LancamentoTarefa.posicao_id e Empresa.fuso_horario (D-PROD-122) anuláveis', () => {
   const c = classificarMigrations(NOMES.map(ler));
   assert.deepEqual(c.violacoes, []);
   assert.deepEqual(c.tabelas_novas, ['EventoRebanho', 'PartidaRebanho', 'PesoRebanho', 'PosicaoRebanho', 'RebanhoLedgerAtivacao']);
-  assert.deepEqual(c.colunas_novas_em_tabelas_antigas, ['LancamentoTarefa.posicao_id']);
+  assert.deepEqual([...c.colunas_novas_em_tabelas_antigas].sort(), ['Empresa.fuso_horario', 'LancamentoTarefa.posicao_id']);
 });
 
 test('B2: padrão = RECUSAR — cada caso negativo é violação com código estável', () => {
@@ -179,8 +179,12 @@ test('B8 (D-PROD-113): migration aprovada que já está na main não "falta"; a 
   assert.deepEqual(migrationsDoManifestoFaltando(manifesto, ['m_nova'], naMain), ['m_sumida']);
   assert.deepEqual(migrationsDoManifestoFaltando(manifesto, ['m_nova', 'm_sumida'], naMain), []);
   assert.deepEqual(migrationsDoManifestoFaltando(manifesto, [], () => false), ['m_antiga', 'm_nova', 'm_sumida'], 'sem main: tudo falta (fail-closed)');
-  // As migrations aprovadas hoje já estão todas na main → release sem migrations nova é aceita.
+  // Cada migration aprovada ou já está na main ou é nova NESTA árvore (a release a
+  // traz): nada do manifesto "falta". Na main (sem migration nova) a release vazia passa.
   const naMainReal = (n) => { try { execFileSync('git', ['cat-file', '-e', `origin/main:backend/prisma/migrations/${n}/migration.sql`], { stdio: 'ignore' }); return true; } catch { return false; } };
   const temMain = (() => { try { execFileSync('git', ['rev-parse', '--verify', 'origin/main'], { stdio: 'ignore' }); return true; } catch { return false; } })();
-  if (temMain) assert.deepEqual(migrationsDoManifestoFaltando(MIGRATIONS_APROVADAS, [], naMainReal), []);
+  if (temMain) {
+    const novasNaArvore = NOMES.filter((n) => !naMainReal(n) && existsSync(`backend/prisma/migrations/${n}/migration.sql`));
+    assert.deepEqual(migrationsDoManifestoFaltando(MIGRATIONS_APROVADAS, novasNaArvore, naMainReal), []);
+  }
 });

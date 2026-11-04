@@ -42,7 +42,7 @@ const esquemasL1 = async () =>
 const criarCenario = async (opcoes = {}) => {
   const { cliente, usuario } = await criarTenant();
   const ctx = { auth: { clienteId: cliente.id, usuarioId: usuario.id, login: 'operador' }, requestId: `req-${randomUUID()}` };
-  const empresa = await prisma.empresa.create({ data: { cliente_id: cliente.id, numero_empresa: 1, apelido: 'FAZ', nome: 'Fazenda L1' } });
+  const empresa = await prisma.empresa.create({ data: { cliente_id: cliente.id, numero_empresa: 1, fuso_horario: 'America/Sao_Paulo', apelido: 'FAZ', nome: 'Fazenda L1' } });
   const setor = await prisma.setor.create({ data: { cliente_id: cliente.id, empresa_id: empresa.id, numero_setor: '1', nome: 'Setor 1' } });
   const areas = [];
   for (let i = 0; i < (opcoes.areas ?? 4); i += 1) {
@@ -324,7 +324,7 @@ describe('ledger pecuário L1 — invariantes e recusas sem gravação parcial',
     await rejeitaCom(transferir(cen, A, B, 1, cen.vaca.id), C.SALDO_INSUFICIENTE);
     await entrar(cen, A, 7, null);
     assert.deepEqual(await saldosPorArea(cen, CATEGORIA_SEM), { [A]: 7 });
-    const outra = await prisma.empresa.create({ data: { cliente_id: cen.cliente.id, numero_empresa: 2, apelido: 'OUT', nome: 'Outra' } });
+    const outra = await prisma.empresa.create({ data: { cliente_id: cen.cliente.id, numero_empresa: 2, fuso_horario: 'America/Sao_Paulo', apelido: 'OUT', nome: 'Outra' } });
     const catOutra = await prisma.categoriaManejo.create({ data: { cliente_id: cen.cliente.id, empresa_id: outra.id, nome: 'BOI' } });
     await rejeitaCom(transferir(cen, A, B, 1, catOutra.id), C.CATEGORIA_INVALIDA);
   });
@@ -340,7 +340,7 @@ describe('ledger pecuário L1 — invariantes e recusas sem gravação parcial',
     );
     assert.deepEqual(await ledger.listarPosicoes(t2.ctx, t1.empresa.id), []);
     await rejeitaCom(transferir(t1, A1, t2.areas[0].id, 1), C.DESTINO_INVALIDO);
-    const outra = await prisma.empresa.create({ data: { cliente_id: t1.cliente.id, numero_empresa: 2, apelido: 'OUT', nome: 'Outra' } });
+    const outra = await prisma.empresa.create({ data: { cliente_id: t1.cliente.id, numero_empresa: 2, fuso_horario: 'America/Sao_Paulo', apelido: 'OUT', nome: 'Outra' } });
     const setor2 = await prisma.setor.create({ data: { cliente_id: t1.cliente.id, empresa_id: outra.id, numero_setor: '2', nome: 'S2' } });
     const areaOutra = await prisma.areaPastagem.create({ data: { cliente_id: t1.cliente.id, empresa_id: outra.id, setor_id: setor2.id, setor_nome: 'S2', numero_area: '99', nome: 'X', tamanho_hectares: 1 } });
     await rejeitaCom(transferir(t1, A1, areaOutra.id, 1), C.DESTINO_INVALIDO);

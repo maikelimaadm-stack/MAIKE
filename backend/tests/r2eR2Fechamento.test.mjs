@@ -46,7 +46,7 @@ const cenario = async () => {
   const p = prisma();
   const adm = await criarTenant({ papelTenant: 'administrador' });
   const tok = (await autenticarNoApp(app, adm.credenciais)).corpo.token;
-  const empresa = await p.empresa.create({ data: { cliente_id: adm.cliente.id, numero_empresa: 1, apelido: 'FAZ', nome: 'Fazenda' } });
+  const empresa = await p.empresa.create({ data: { cliente_id: adm.cliente.id, numero_empresa: 1, fuso_horario: 'America/Sao_Paulo', apelido: 'FAZ', nome: 'Fazenda' } });
   const setor = await p.setor.create({ data: { cliente_id: adm.cliente.id, empresa_id: empresa.id, numero_setor: '1', nome: 'Setor 1' } });
   const area = (n, nome) => p.areaPastagem.create({ data: { cliente_id: adm.cliente.id, empresa_id: empresa.id, setor_id: setor.id, setor_nome: setor.nome, numero_area: String(n), nome, tamanho_hectares: 10 } });
   return { cliente: adm.cliente, tok, empresa, setor, A: await area(1, 'PASTO A'), B: await area(2, 'PASTO B') };
@@ -150,7 +150,7 @@ describe('R2 A — reset de teste não deixa replay órfão nem vínculo inváli
     const m = await baixaLegada({ lote: l, quantidade: 5 });
     const mBody = { ...corpoMorteLegada(c, 5), operation_id: m.operationKey };
     // Controles: outra empresa do mesmo tenant e outro tenant, com chaves próprias.
-    const outra = await prisma().empresa.create({ data: { cliente_id: c.cliente.id, numero_empresa: 2, apelido: 'OUT', nome: 'Outra' } });
+    const outra = await prisma().empresa.create({ data: { cliente_id: c.cliente.id, numero_empresa: 2, fuso_horario: 'America/Sao_Paulo', apelido: 'OUT', nome: 'Outra' } });
     const setor2 = await prisma().setor.create({ data: { cliente_id: c.cliente.id, empresa_id: outra.id, numero_setor: '9', nome: 'S9' } });
     const a2 = await prisma().areaPastagem.create({ data: { cliente_id: c.cliente.id, empresa_id: outra.id, setor_id: setor2.id, setor_nome: 'S9', numero_area: '9', nome: 'PASTO X', tamanho_hectares: 5 } });
     const b2 = await prisma().areaPastagem.create({ data: { cliente_id: c.cliente.id, empresa_id: outra.id, setor_id: setor2.id, setor_nome: 'S9', numero_area: '10', nome: 'PASTO Y', tamanho_hectares: 5 } });
@@ -265,7 +265,7 @@ describe('R2 B — POST genérico não registra fato material numa empresa ativa
       }
     }
     // Empresa informada errada (outra empresa / ausente) não contorna: o lote citado é da empresa ativada.
-    const outra = await prisma().empresa.create({ data: { cliente_id: c.cliente.id, numero_empresa: 2, apelido: 'OUT', nome: 'Outra' } });
+    const outra = await prisma().empresa.create({ data: { cliente_id: c.cliente.id, numero_empresa: 2, fuso_horario: 'America/Sao_Paulo', apelido: 'OUT', nome: 'Outra' } });
     await exigirNadaGravado(c, () => req('POST', '/movimentacoes-mapa', c.tok, { empresa_id: outra.id, tipo: 'Morte', lote_id: l.id, quantidade_animais: 1 }), 409, 'REBANHO_LEDGER_SOMENTE_POR_COMANDO');
     await exigirNadaGravado(c, () => req('POST', '/movimentacoes-mapa', c.tok, { empresa_id: outra.id, tipo: 'Transferência de Área', posicao_id: p.id, quantidade_animais: 1 }), 409, 'REBANHO_LEDGER_SOMENTE_POR_COMANDO');
     // Junção continua com o código próprio (anterior ao ledger).

@@ -294,6 +294,10 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   REBANHO_SALDO_HISTORICO_NEGATIVO: { http: 409, meaning: 'o fato deixaria saldo negativo em alguma data; nada foi gravado' },
   CANCELAMENTO_SALDO_HISTORICO_NEGATIVO: { http: 409, meaning: 'cancelar deixaria saldo negativo em alguma data (fato posterior depende); nada mudou' },
   REBANHO_ANTES_DO_CORTE: { http: 409, meaning: 'data anterior ao início do ledger nesta empresa' },
+  // D-PROD-122 (S1/H1) — só fatos realizados: o "hoje" é o da fazenda (fuso IANA da Empresa).
+  REBANHO_DATA_FUTURA: { http: 409, meaning: 'data operacional posterior a hoje no fuso da fazenda; só fatos realizados entram no rebanho; nada foi gravado' },
+  EMPRESA_FUSO_NAO_CONFIGURADO: { http: 409, meaning: 'fuso horário da fazenda não configurado: escrita nova do rebanho recusada (falha fechada); nada foi gravado' },
+  EMPRESA_FUSO_INVALIDO: { http: 400, meaning: 'fuso horário não é um nome IANA válido (ex.: America/Cuiaba)' },
   REBANHO_DESTINO_IGUAL_ORIGEM: { http: 409, meaning: 'área de destino igual à de origem' },
   REBANHO_AREA_INATIVA: { http: 409, meaning: 'área de destino inativa' },
   REBANHO_ATIVACAO_LOTE_SEM_AREA: { http: 409, meaning: 'há lote ativo com cabeças e sem área válida; corrija antes de ativar' },

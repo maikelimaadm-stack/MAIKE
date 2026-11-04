@@ -40,7 +40,7 @@ const cenario = async (nomeEmpresa = 'Fazenda') => {
   const p = prisma();
   const adm = await criarTenant({ papelTenant: 'administrador' });
   const tok = (await autenticarNoApp(app, adm.credenciais)).corpo.token;
-  const empresa = await p.empresa.create({ data: { cliente_id: adm.cliente.id, numero_empresa: 1, apelido: 'FAZ', nome: nomeEmpresa } });
+  const empresa = await p.empresa.create({ data: { cliente_id: adm.cliente.id, numero_empresa: 1, fuso_horario: 'America/Sao_Paulo', apelido: 'FAZ', nome: nomeEmpresa } });
   const setor = await p.setor.create({ data: { cliente_id: adm.cliente.id, empresa_id: empresa.id, numero_setor: '1', nome: 'Setor 1' } });
   const area = (n, nome) => p.areaPastagem.create({ data: { cliente_id: adm.cliente.id, empresa_id: empresa.id, setor_id: setor.id, setor_nome: setor.nome, numero_area: String(n), nome, tamanho_hectares: 10 } });
   return { cliente: adm.cliente, usuario: adm.usuario, tok, empresa, setor, A: await area(1, 'PASTO A'), B: await area(2, 'PASTO B') };
@@ -118,7 +118,7 @@ describe('R6-A — cutover atômico', () => {
     await legadoTransferido(c, l, 200);
     const lo = await entrada(outro);
     await legadoTransferido(outro, lo, 50);
-    const outraEmpresa = await prisma().empresa.create({ data: { cliente_id: c.cliente.id, numero_empresa: 2, apelido: 'F2', nome: 'Fazenda 2' } });
+    const outraEmpresa = await prisma().empresa.create({ data: { cliente_id: c.cliente.id, numero_empresa: 2, fuso_horario: 'America/Sao_Paulo', apelido: 'F2', nome: 'Fazenda 2' } });
     const acessoAntes = await acessos(c);
     const outroAntes = await foto(outro);
     let backups = 0;
