@@ -21,6 +21,7 @@ import DetalhesPontoSuplementacao from "../components/mapa/DetalhesPontoSuplemen
 import DetalhesBebedouro from "../components/bebedouros/DetalhesBebedouro";
 import TarefasMapaPanel from "../components/mapa/TarefasMapaPanel";
 import DetalhesTarefaMapa from "../components/mapa/DetalhesTarefaMapa";
+import { LancLoteDialogo } from "../components/lotes/LancamentoLoteUi";
 import MapaInsights from "../components/mapa/MapaInsights";
 import MapaControlesMobile from "../components/mapa/MapaControlesMobile";
 import MapaFiltrosAvancados, {
@@ -88,6 +89,8 @@ export default function MapaGeral() {
   const [selectedBebedouro, setSelectedBebedouro] = useState(null);
   const [showTarefas, setShowTarefas] = useState(false);
   const [tarefasContext, setTarefasContext] = useState({});
+  /** Nome do local no subtítulo da Gestão de Tarefas (D-PROD-118). */
+  const localDasTarefas = /** @type {{ areaNome?: string, loteNome?: string }} */ (tarefasContext).areaNome || /** @type {{ loteNome?: string }} */ (tarefasContext).loteNome || "";
   const [selectedTarefa, setSelectedTarefa] = useState(null);
   const [showDetalhesTarefa, setShowDetalhesTarefa] = useState(false);
   const [selecionandoLocalTarefa, setSelecionandoLocalTarefa] = useState(false);
@@ -1149,18 +1152,13 @@ export default function MapaGeral() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={showTarefas} onOpenChange={(open) => {setShowTarefas(open);if (!open && podeUsarTarefasMapa) refetchTarefas();}}>
-        <DialogContent className="p-3 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] bg-background px-2 py-2 overflow-x-auto sm:w-full sm:p-1 fixed left-[50%] top-[50%] z-50 grid w-full translate-x-[-50%] translate-y-[-50%] gap-2 border shadow-lg duration-200 sm:rounded-lg max-w-[99vw] md:max-w-[92vw] xl:max-w-[96vw] max-h-[95vh] overflow-y-auto">
+      <LancLoteDialogo open={showTarefas} onOpenChange={(open) => {setShowTarefas(open);if (!open && podeUsarTarefasMapa) refetchTarefas();}} titulo="Gestão de Tarefas" lotes={localDasTarefas ? [{ nome: localDasTarefas }] : []} amplo somenteLeitura>
           <TarefasMapaPanel areaId={tarefasContext.areaId} areaNome={tarefasContext.areaNome} loteId={tarefasContext.loteId} loteNome={tarefasContext.loteNome} pontoSuplId={tarefasContext.pontoSuplId} initialCoordinates={tarefasContext.initialCoordinates} initialDraft={tarefasContext.initialDraft} openCreateOnMount={tarefasContext.openCreateOnMount} onRequestSelectLocation={handleRequestSelectTaskLocation} onClose={() => {setShowTarefas(false);setTarefasContext({});if (podeUsarTarefasMapa) refetchTarefas();}} />
-        </DialogContent>
-      </Dialog>
+      </LancLoteDialogo>
 
-      <Dialog open={showDetalhesTarefa} onOpenChange={(open) => {setShowDetalhesTarefa(open);if (!open && podeUsarTarefasMapa) refetchTarefas();}}>
-        <DialogContent className="p-3 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] bg-background px-2 py-2 overflow-x-hidden data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:w-full sm:p-1 fixed left-[50%] top-[50%] z-50 grid w-full translate-x-[-50%] translate-y-[-50%] gap-2 border shadow-lg duration-200 sm:rounded-lg max-w-[95vw] md:max-w-[75vw] xl:max-w-[65vw] max-h-[95vh] overflow-y-auto">
-          <DialogHeader className="sr-only"><DialogTitle>Detalhes da tarefa</DialogTitle></DialogHeader>
+      <LancLoteDialogo open={showDetalhesTarefa} onOpenChange={(open) => {setShowDetalhesTarefa(open);if (!open && podeUsarTarefasMapa) refetchTarefas();}} titulo="Detalhes da tarefa" largo somenteLeitura>
           {selectedTarefa && <DetalhesTarefaMapa tarefa={selectedTarefa} onRequestSelectLocation={handleRequestSelectTaskLocation} onSaved={(updated) => {if (updated) setSelectedTarefa(updated);if (podeUsarTarefasMapa) refetchTarefas();}} />}
-        </DialogContent>
-      </Dialog>
+      </LancLoteDialogo>
 
       <Dialog open={showInsights} onOpenChange={setShowInsights}>
         <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">

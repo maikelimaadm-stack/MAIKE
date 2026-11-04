@@ -38,9 +38,9 @@ export const useLancLoteDialogo = () => React.useContext(LancLoteCtx);
  * lançamentos. Um conteúdo pode trocar o título do diálogo pelo contexto
  * (`useLancLoteDialogo().setTitulo`), para não repetir o título dentro.
  *
- * @param {{ open: boolean, onOpenChange: (v: boolean) => void, titulo: string, lotes?: Array<{ nome?: string }>, largo?: boolean, somenteLeitura?: boolean, children: React.ReactNode }} props
+ * @param {{ open: boolean, onOpenChange: (v: boolean) => void, titulo: string, lotes?: Array<{ nome?: string }>, largo?: boolean, amplo?: boolean, somenteLeitura?: boolean, children: React.ReactNode }} props
  */
-export function LancLoteDialogo({ open, onOpenChange, titulo, lotes, largo = false, somenteLeitura = false, children }) {
+export function LancLoteDialogo({ open, onOpenChange, titulo, lotes, largo = false, amplo = false, somenteLeitura = false, children }) {
   const nomes = (lotes || []).map((l) => l?.nome).filter(Boolean).join(" · ");
   const desktop = useMediaQuery("(min-width: 1024px)");
   const formId = `mk-ll-${React.useId().replace(/:/g, "")}`;
@@ -72,6 +72,7 @@ export function LancLoteDialogo({ open, onOpenChange, titulo, lotes, largo = fal
           "mk-ll-dlg fixed left-[50%] top-[50%] z-50 translate-x-[-50%] translate-y-[-50%] duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
           desktop ? "is-desktop data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95" : "is-tela",
           largo && "mk-ll-dlg--largo",
+          amplo && "mk-ll-dlg--amplo",
         )}
       >
         <div className="mk-ll-dlg__head">

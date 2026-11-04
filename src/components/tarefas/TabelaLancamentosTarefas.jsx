@@ -14,8 +14,10 @@ import {
 "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import TarefaDetalhesDialog from "@/components/tarefas/TarefaDetalhesDialog";
+import { useLancLoteDialogo } from "@/components/lotes/LancamentoLoteUi";
+import { PillBtn } from "@/components/cadastro/base1/Base1Ui";
 import ConfiguracaoColunasMapaDialog from "@/components/mapa/ConfiguracaoColunasMapaDialog";
-import { MoreVertical, Filter, X, ArrowDownAZ, ArrowUpZA, GripVertical, Settings } from "lucide-react";
+import { MoreVertical, Filter, X, ArrowDownAZ, ArrowUpZA, GripVertical, Settings, Plus } from "lucide-react";
 
 const escaparCsv = (valor) => `"${String(valor ?? "").replaceAll('"', '""')}"`;
 
@@ -71,6 +73,7 @@ export default function TabelaLancamentosTarefas({
   headerTitle,
   headerDescription
 }) {
+  const noDialogo = useLancLoteDialogo();
   const [searchTerm, setSearchTerm] = useState("");
   const [filtroStatus, setFiltroStatus] = useState([]);
   const [filtroPrioridade, setFiltroPrioridade] = useState([]);
@@ -529,35 +532,18 @@ export default function TabelaLancamentosTarefas({
   return (
     <div className="flex flex-col h-full w-full min-w-0 space-y-1">
       {showHeaderActions &&
-      <div className="bg-white px-1 py-1 rounded flex flex-col md:flex-row justify-between items-start md:items-center gap-2 shadow-sm border-b border-slate-200">
-  
-  <div>
-    <h1 className="font-bold text-slate-900">
-     {headerTitle || "Gestão de Tarefas"}
-    </h1>
-  </div>
-
-  <div className="flex flex-nowrap justify-end gap-2 w-full md:w-auto">
-    
-    <Button
-            variant="outline"
-            size="icon"
-            onClick={() => setShowConfigColunas?.(true)}
-            className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-7 w-7">
-            
-      <Settings className="w-4 h-4" />
-    </Button>
-
-    <Button
-            onClick={() => onAdd?.()}
-            size="sm"
-            className="bg-lime-900 text-primary-foreground px-3 text-xs font-medium rounded-md inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow h-7 hover:bg-emerald-600">
-            
-      Adicionar
-    </Button>
-
-  </div>
-</div>
+      <div className={`cadastro-b1 mk-tar__barra ${noDialogo ? "is-no-dialogo" : ""}`}>
+        {/* D-PROD-118: dentro do diálogo padrão o título fica no cabeçalho do diálogo. */}
+        {!noDialogo ? <h1 className="font-bold text-slate-900">{headerTitle || "Gestão de Tarefas"}</h1> : null}
+        <div className="mk-tar__barra-acoes">
+          <PillBtn tone="gray" className="mg-act-ic" onClick={() => setShowConfigColunas?.(true)} aria-label="Configurar colunas" title="Configurar colunas">
+            <Settings className="w-4 h-4" aria-hidden />
+          </PillBtn>
+          <PillBtn className="mg-act-ic mg-act-novo" onClick={() => onAdd?.()} aria-label="Adicionar" title="Adicionar tarefa">
+            <Plus className="w-4 h-4" aria-hidden />
+          </PillBtn>
+        </div>
+      </div>
 
       }
 
