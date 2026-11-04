@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { normalizeText, getJuncaoLotesSnapshot } from "../utils/pecuariaUtils";
 import { ehMovimentoCancelado, motivoSemCancelamento, tipoTemExclusao } from "@/domain/lotes/situacaoMovimento";
 import ExcluirMovimentacao from "./ExcluirMovimentacao";
+import { useLancLoteDialogo } from "./LancamentoLoteUi";
 import { getMapaCachedData, getMapaCacheSnapshot, refreshMapaCacheEntry } from "@/services/mapaCacheService";
 import { nomeDaAreaDoMovimento } from "@/domain/lotes/movimentacaoLote";
 import {
@@ -32,6 +33,10 @@ import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 /** @type {React.ComponentType<any>} */ const CardContent = CardContentUi;
 /** @type {React.ComponentType<any>} */ const CardHeader = CardHeaderUi;
 /** @type {React.ComponentType<any>} */ const CardTitle = CardTitleUi;
+/** Dentro do diálogo: sem cartão (D-PROD-117). @param {{ children?: React.ReactNode }} props */
+const MolduraSimples = ({ children }) => <div className="mk-hist">{children}</div>;
+/** @param {{ children?: React.ReactNode, className?: string }} props */
+const CorpoSimples = ({ children }) => <div className="mk-hist__corpo">{children}</div>;
 
 const CORES_TIPO = {
   "Transferência de Área": "bg-slate-100 text-slate-800 border-slate-300",
@@ -402,6 +407,19 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
       ? `Histórico da Área${areaNome ? ` ${areaNome}` : ''}`
       : `Histórico do${loteNomes.length > 1 ? 's' : ''} Lote${loteNomes.length > 1 ? 's' : ''}`;
 
+  // D-PROD-117: dentro do diálogo do lote (LancLoteDialogo) o título vai para o
+  // cabeçalho do diálogo — um cabeçalho só, sem cartão dentro.
+  const noDialogo = useLancLoteDialogo();
+  const temLista = !carregando && historicoVisivel.length > 0;
+  const tituloComContagem = `${titulo}${temLista ? ` (${historicoVisivel.length})` : ''}`;
+  React.useEffect(() => {
+    if (!noDialogo) return undefined;
+    noDialogo.setTitulo(tituloComContagem);
+    return () => noDialogo.setTitulo(null);
+  }, [noDialogo, tituloComContagem]);
+  const Moldura = noDialogo ? MolduraSimples : Card;
+  const Corpo = noDialogo ? CorpoSimples : CardContent;
+
   const seletorDeEscopo = areaId && lotesEmFoco.length > 0 && (
     <div className="flex gap-1" role="group" aria-label="Escopo do histórico">
       {[
@@ -423,7 +441,16 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
     </div>
   );
 
-  const cabecalho = (contagem) => (
+  const cabecalho = (contagem) => noDialogo ? (
+    <div className="mk-hist__barra">
+      {seletorDeEscopo}
+      <p className="mk-hist__desc">
+        {escopoEfetivo === ESCOPO_AREA
+          ? 'Entradas, saídas e manejos registrados nesta área, inclusive de lotes que já saíram.'
+          : 'Registros dos lotes desta área pelo identificador, em qualquer área por onde passaram.'}
+      </p>
+    </div>
+  ) : (
     <CardHeader className="bg-slate-50 border-b py-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <CardTitle className="text-sm font-semibold">
@@ -457,20 +484,20 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
 
   if (carregando) {
     return (
-      <Card>
+      <Moldura>
         {cabecalho(null)}
-        <CardContent className="p-4">
+        <Corpo className="p-4">
           <div role="status" className="text-center text-sm text-slate-500">Carregando histórico...</div>
-        </CardContent>
-      </Card>
+        </Corpo>
+      </Moldura>
     );
   }
 
   if (movimentacoesQuery.isError && movimentacoesCarregadas.length === 0) {
     return (
-      <Card>
+      <Moldura>
         {cabecalho(null)}
-        <CardContent className="p-4">
+        <Corpo className="p-4">
           <div role="alert" className="space-y-2 py-6 text-center text-sm text-slate-600">
             <div>Não foi possível carregar o histórico.</div>
             <div className="text-[11px] text-slate-500">{getApiErrorMessage(movimentacoesQuery.error, 'Tente novamente em instantes.')}</div>
@@ -478,35 +505,35 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
               Tentar novamente
             </Button>
           </div>
-        </CardContent>
-      </Card>
+        </Corpo>
+      </Moldura>
     );
   }
 
   if (historicoVisivel.length === 0) {
     const semCacheNoAparelho = origem === 'cache' && !primeiraPagina?.atualizadoEm;
     return (
-      <Card>
+      <Moldura>
         {cabecalho(null)}
         {avisoDeOrigem}
-        <CardContent className="p-4">
+        <Corpo className="p-4">
           <div className="text-center py-8 text-slate-500 text-sm">
             {semCacheNoAparelho
               ? 'Este aparelho ainda não tem movimentações salvas para consulta sem conexão.'
               : 'Nenhum lançamento encontrado'}
           </div>
-        </CardContent>
-      </Card>
+        </Corpo>
+      </Moldura>
     );
   }
 
   return (
     <>
-      <Card>
+      <Moldura>
         {cabecalho(historicoVisivel.length)}
         {avisoDeOrigem}
-        <CardContent className="p-2">
-          <div className="max-h-[500px] overflow-y-auto space-y-2">
+        <Corpo className="p-2">
+          <div className={noDialogo ? "mk-hist__lista" : "max-h-[500px] overflow-y-auto space-y-2"}>
             {historicoVisivel.map((item) => {
               const tipoExibicao = item.tipo_exibicao || item.tipo;
 
@@ -613,8 +640,8 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
               Não foi possível carregar a próxima página. {getApiErrorMessage(movimentacoesQuery.error, '')}
             </div>
           )}
-        </CardContent>
-      </Card>
+        </Corpo>
+      </Moldura>
     </>
   );
 }
