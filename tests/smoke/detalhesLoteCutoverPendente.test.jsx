@@ -45,6 +45,7 @@ vi.mock("@/components/ui/dialog", () => ({
   DialogContent: ({ children }) => <div>{children}</div>,
   DialogHeader: ({ children }) => <div>{children}</div>,
   DialogTitle: ({ children }) => <div>{children}</div>,
+  DialogDescription: ({ children }) => <div>{children}</div>,
 }));
 vi.mock("@/components/lotes/FormularioMovimentacaoLote", formulario("mover"));
 vi.mock("@/components/lotes/FormularioMorte", formulario("morte"));

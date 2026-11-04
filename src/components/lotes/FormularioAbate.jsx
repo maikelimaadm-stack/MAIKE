@@ -1,14 +1,11 @@
 import React, { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { X, Plus } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { listarIconesDaEmpresa } from "@/services/mapaService";
 import { getTodayLocalDate } from "../utils/pecuariaUtils";
+import { LancLoteForm, LancLoteItens, LancLoteItem, LancLoteAdicionar, LancLoteRodape, LL_CTL } from "@/components/lotes/LancamentoLoteUi";
 import LancField from "@/components/cadastro/base1/LancField";
 
 /** Campo flutuante Base1 (rótulo dentro) — D-PROD-88. */
@@ -99,20 +96,14 @@ export default function FormularioAbate({ lote, onSubmit, onCancel, enviando = f
     setFormData({ ...formData, abates: novosAbates });
   };
 
-  const nomeExibicao = lotesArray.map(l => l.nome).join(' - ');
 
   return (
-    <Card>
-      <CardHeader className="bg-slate-50 border-b py-3">
-        <CardTitle className="text-sm font-semibold">Abate para Consumo - {nomeExibicao}</CardTitle>
-      </CardHeader>
-      <CardContent className="p-2 max-h-[calc(100vh-200px)] overflow-y-auto">
-        <form onSubmit={handleSubmit} className="space-y-1">
+    <LancLoteForm onSubmit={handleSubmit}>
           <FL label="Data do Abate" required>
-            <Input type="date" value={formData.data_abate} onChange={(e) => setFormData({ ...formData, data_abate: e.target.value })} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" required />
+            <Input type="date" value={formData.data_abate} onChange={(e) => setFormData({ ...formData, data_abate: e.target.value })} className={LL_CTL} required />
           </FL>
 
-          <div className="space-y-2 max-h-[45vh] overflow-y-auto">
+          <LancLoteItens>
             {formData.abates.map((abate, index) => {
               const infoCategoria = lotesPorCategoria[abate.categoria];
               const configIcone = iconesConfig.find(ic => 
@@ -122,25 +113,14 @@ export default function FormularioAbate({ lote, onSubmit, onCancel, enviando = f
               const iconeUrl = configIcone?.sub_icone_url || configIcone?.icone_url;
 
               return (
-                <div key={index} className="border border-slate-200 rounded-lg p-3 bg-white">
-                  <div className="flex items-center justify-between mb-1">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => removerCategoria(index)}
-                      className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-50 ml-auto"
-                    >
-                      <X className="w-4 h-4" />
-                    </Button>
-                  </div>
+                <LancLoteItem key={index} titulo={`Categoria ${index + 1}`} icone={iconeUrl} onRemover={() => removerCategoria(index)} rotuloRemover="Remover categoria">
 
-                  <FL label="Categoria">
+                  <FL label="Categoria" className="mk-ll__cheio">
                     <Select
                       value={abate.categoria}
                       onValueChange={(v) => handleAbateChange(index, 'categoria', v)}
                     >
-                      <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent">
+                      <SelectTrigger className={LL_CTL}>
                         <SelectValue>
                           {infoCategoria?.totalCabecas || 0} cb - {abate.categoria}
                         </SelectValue>
@@ -158,7 +138,7 @@ export default function FormularioAbate({ lote, onSubmit, onCancel, enviando = f
                     </Select>
                   </FL>
 
-                  <div className="space-y-1">
+                  <>
                     <FL label="Quantidade" required>
                       <Input
                         type="number"
@@ -166,7 +146,7 @@ export default function FormularioAbate({ lote, onSubmit, onCancel, enviando = f
                         max={infoCategoria.totalCabecas}
                         value={abate.quantidade}
                         onChange={(e) => handleAbateChange(index, 'quantidade', e.target.value)}
-                        className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent"
+                        className={LL_CTL}
                         placeholder="0"
                         required
                       />
@@ -177,7 +157,7 @@ export default function FormularioAbate({ lote, onSubmit, onCancel, enviando = f
                         step="0.1"
                         value={abate.peso_vivo_total}
                         onChange={(e) => handleAbateChange(index, 'peso_vivo_total', e.target.value)}
-                        className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent"
+                        className={LL_CTL}
                         placeholder="0"
                       />
                     </FL>
@@ -187,7 +167,7 @@ export default function FormularioAbate({ lote, onSubmit, onCancel, enviando = f
                         step="0.1"
                         value={abate.peso_carcaca_total}
                         onChange={(e) => handleAbateChange(index, 'peso_carcaca_total', e.target.value)}
-                        className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent"
+                        className={LL_CTL}
                         placeholder="0"
                       />
                     </FL>
@@ -197,7 +177,7 @@ export default function FormularioAbate({ lote, onSubmit, onCancel, enviando = f
                         value={abate.destino}
                         onValueChange={(v) => handleAbateChange(index, 'destino', v)}
                       >
-                        <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent">
+                        <SelectTrigger className={LL_CTL}>
                           <SelectValue placeholder="Selecione o destino" />
                         </SelectTrigger>
                         <SelectContent>
@@ -222,30 +202,18 @@ export default function FormularioAbate({ lote, onSubmit, onCancel, enviando = f
                         />
                       </FL>
                     )}
-                  </div>
-                </div>
+                  </>
+                </LancLoteItem>
               );
             })}
 
-            <Button
-              type="button"
-              onClick={adicionarCategoria}
-              variant="outline"
-              className="w-full h-7 text-xs border-dashed border-2 border-slate-300 hover:border-slate-400"
-            >
-              Adicionar Categoria
-            </Button>
-          </div>
+            <LancLoteAdicionar onClick={adicionarCategoria} />
+          </LancLoteItens>
 
           <FL label="Observações Gerais">
-            <Textarea value={formData.observacoes} onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })} className="text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" rows={2} />
+            <Textarea value={formData.observacoes} onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })} className={LL_CTL} rows={2} />
           </FL>
-          <div className="flex justify-end gap-1 pt-1 border-t">
-            <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-7 text-xs">Cancelar</Button>
-            <Button type="submit" size="sm" disabled={enviando} aria-busy={enviando} className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white">{enviando ? "Registrando…" : "Registrar Abates"}</Button>
-          </div>
-        </form>
-      </CardContent>
-    </Card>
+          <LancLoteRodape onCancelar={onCancel} textoAcao="Registrar Abates" textoEnviando="Registrando…" enviando={enviando} />
+        </LancLoteForm>
   );
 }

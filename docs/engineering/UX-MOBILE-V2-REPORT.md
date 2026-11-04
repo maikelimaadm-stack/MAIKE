@@ -185,3 +185,15 @@ Pedido do proprietário com prints do app do Claude no iPhone. Conferido no Chro
 
 **Não testado:** Windows real (as setas da barra nativa vieram do print do proprietário).
 
+## V11 — lançamentos de lote do Mapa Geral no padrão do cadastro (D-PROD-114)
+
+| Pedido | Feito | Evidência |
+|---|---|---|
+| Campos, espaços e aberturas diferentes entre os lançamentos de lote | Mesmas peças em todos (`LancamentoLoteUi`): itens com título e ✕ numa linha, grade de 2 colunas, 8 px, "+ Adicionar" na largura dos campos | antes: v11-00; depois: v11-01, v11-02 |
+| Abrir igual ao cadastro (tela inteira com fechar no celular; diálogo no desktop, como "Novo setor") | `LancLoteDialogo`: desktop com ✕/✓ no topo; celular/tablet em tela inteira com ✕ · título · ✓ | v11-01, v11-03 |
+| Dois cabeçalhos | Removido o cartão com título de dentro; fica só o do diálogo, com os lotes embaixo | v11-01; teste `lancamentoLoteUi` |
+| Sim/Não e modo da pesagem diferentes | `LancLoteSegmento` | v11-01, v11-02 |
+| Juntar e Renomear em outro estilo | Mesmo diálogo, opções em lista e data em `LancField` | v11-04 |
+
+**Não testado em aparelho real.** Telas verificadas no harness em 1600 px e 390 px.
+

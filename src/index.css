@@ -3,6 +3,7 @@
 @import "./styles/cadastro-b1-controls.css";
 @import "./styles/cadastro-b1ref.css";
 @import "./styles/maike-mobile-shell.css";
+@import "./styles/lancamento-lote.css";
 
 @tailwind base;
 @tailwind components;

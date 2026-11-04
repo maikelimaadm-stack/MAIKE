@@ -5,12 +5,10 @@ import {
   criarMovimentacao,
 } from "@/services/loteManejoService";
 import { useQuery } from "@tanstack/react-query";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { Undo2 } from "lucide-react";
 import { toast } from "sonner";
+import { LancLoteForm, LancLoteRodape, LancLoteAviso, LL_CTL } from "@/components/lotes/LancamentoLoteUi";
 import LancField from "@/components/cadastro/base1/LancField";
 
 /** Campo flutuante Base1 (rótulo dentro) — D-PROD-88. */
@@ -77,42 +75,31 @@ export default function RenomearLoteForm({ lote, novoNome, onNovoNomeChange, emp
   };
 
   return (
-    <div className="space-y-3">
-      <p className="text-xs text-slate-600">Lote atual: <strong>{lote.nome}</strong></p>
+    <LancLoteForm onSubmit={(e) => { e.preventDefault(); if (!loading) handleSalvar(); }}>
+      <p className="mk-ll__texto">Lote atual: <strong>{lote.nome}</strong></p>
 
       {nomeOriginal && nomeOriginal !== lote.nome && (
-        <div className="p-2 bg-amber-50 border border-amber-200 rounded-md">
-          <div className="text-xs text-amber-800 mb-2">
-            Nome original: <Badge variant="outline" className="ml-1 text-xs">{nomeOriginal}</Badge>
+        <LancLoteAviso tom="ambar">
+          <div className="mb-2 flex flex-wrap items-center gap-2">
+            <span>Nome original: <strong>{nomeOriginal}</strong></span>
+            <button type="button" className="mk-ll__opcao !inline-flex !w-auto !min-h-[30px] gap-1" onClick={usarNomeOriginal} disabled={loading}>
+              <Undo2 className="h-3.5 w-3.5" aria-hidden />
+              Usar nome original
+            </button>
           </div>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="h-7 text-xs gap-1 border-amber-300 text-amber-700 hover:bg-amber-100"
-            onClick={usarNomeOriginal}
-            disabled={loading}
-          >
-            <Undo2 className="w-3 h-3" />
-            Usar nome original
-          </Button>
-          <p className="mt-1 text-[10px] text-amber-700">
-            Salvar cria uma nova renomeação; as anteriores continuam no histórico.
-          </p>
-        </div>
+          <p className="text-[11px]">Salvar cria uma nova renomeação; as anteriores continuam no histórico.</p>
+        </LancLoteAviso>
       )}
 
-      <FL label="Novo nome">
-        <Input value={novoNome} onChange={e => onNovoNomeChange(e.target.value)} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" />
-      </FL>
-      <FL label="Data" required>
-        <Input type="date" value={dataRenomeacao} onChange={e => setDataRenomeacao(e.target.value)} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" />
-      </FL>
-      <div className="flex justify-end gap-1">
-        <Button variant="outline" size="sm" className="h-7 text-xs" onClick={onCancel} disabled={loading}>Cancelar</Button>
-        <Button size="sm" className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white" onClick={handleSalvar} disabled={loading}>
-          {loading ? 'Salvando...' : 'Salvar'}
-        </Button>
+      <div className="mk-ll__grade">
+        <FL label="Novo nome">
+          <Input value={novoNome} onChange={e => onNovoNomeChange(e.target.value)} className={LL_CTL} />
+        </FL>
+        <FL label="Data" required>
+          <Input type="date" value={dataRenomeacao} onChange={e => setDataRenomeacao(e.target.value)} className={LL_CTL} />
+        </FL>
       </div>
-    </div>
+      <LancLoteRodape onCancelar={onCancel} cancelarDesabilitado={loading} textoAcao="Salvar" textoEnviando="Salvando..." enviando={loading} />
+    </LancLoteForm>
   );
 }
