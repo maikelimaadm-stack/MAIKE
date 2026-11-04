@@ -322,6 +322,9 @@ export default function ExcluirMovimentacao({ movimento, onExcluido }) {
   const [desconhecido, setDesconhecido] = React.useState(false);
   const [recusa, setRecusa] = React.useState(null);
   const [online, setOnline] = React.useState(estaOnline());
+  // D-PROD-114 (UX-4): exclusão confirmada → o card some e nunca mais consulta este id
+  // (antes, a invalidação geral reconsultava o movimento apagado: GET 404).
+  const [excluida, setExcluida] = React.useState(false);
   const chaveRef = React.useRef(null);
 
   React.useEffect(() => {
@@ -347,7 +350,7 @@ export default function ExcluirMovimentacao({ movimento, onExcluido }) {
     // O `signal` do React Query cancela a consulta ainda na fila quando o card some (UX-2).
     // PR181-R2: o signal do TRANSPORTE desce até o fetch (prazo e desmontagem abortam o GET de verdade).
     queryFn: ({ signal }) => comLimiteDeConsultas((sinal) => consultarExclusaoMovimentacao(movimento.id, { signal: sinal }), signal),
-    enabled: suportado && admin && !!usuario && online && (visivel || aberto),
+    enabled: !excluida && suportado && admin && !!usuario && online && (visivel || aberto),
     staleTime: ELEGIBILIDADE_STALE_MS,
     // Reabrir o histórico confere de novo (um manejo feito com ele fechado não deixa verde velho).
     refetchOnMount: "always",
@@ -362,7 +365,7 @@ export default function ExcluirMovimentacao({ movimento, onExcluido }) {
       if (!Array.isArray(lidas)) throw new Error("formato inesperado da fila offline");
       return lidas;
     },
-    enabled: suportado && admin && !!usuario && (visivel || aberto),
+    enabled: !excluida && suportado && admin && !!usuario && (visivel || aberto),
     staleTime: ELEGIBILIDADE_STALE_MS,
     retry: false,
   });
@@ -379,7 +382,7 @@ export default function ExcluirMovimentacao({ movimento, onExcluido }) {
     return () => window.removeEventListener(nome, reler);
   }, [suportado, admin, chavePendencias]);
 
-  if (!suportado) return null;
+  if (!suportado || excluida) return null;
   // Só o administrador ativo vê a ação (o servidor reautoriza no POST).
   if (!admin) return null;
 
@@ -449,6 +452,7 @@ export default function ExcluirMovimentacao({ movimento, onExcluido }) {
       toast.success("Movimentação excluída.");
       setDesconhecido(false);
       setAberto(false);
+      setExcluida(true);
       await limparCaches(queryClient, movimento);
       onExcluido?.();
     } catch (erro) {
@@ -459,6 +463,7 @@ export default function ExcluirMovimentacao({ movimento, onExcluido }) {
         setDesconhecido(false);
         setAberto(false);
         toast.success("Esta movimentação já não existe.");
+        setExcluida(true);
         await limparCaches(queryClient, movimento);
         onExcluido?.();
       } else if (ehRecusaDefinitiva(codigo)) {
