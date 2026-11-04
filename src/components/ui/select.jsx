@@ -49,7 +49,15 @@ const SelectScrollDownButton = React.forwardRef(({ className, ...props }, ref) =
 SelectScrollDownButton.displayName =
   SelectPrimitive.ScrollDownButton.displayName
 
-const SelectContent = React.forwardRef(({ className, children, position = "popper", ...props }, ref) => (
+const SelectContent = React.forwardRef(
+  /**
+   * Contrato declarado (D-PROD-115), como no `button.jsx`: as props do
+   * `SelectPrimitive.Content` do Radix, com `children`. Zero mudança de runtime.
+   *
+   * @param {React.ComponentPropsWithoutRef<typeof SelectPrimitive.Content>} propriedades
+   * @param {React.Ref<HTMLDivElement>} ref
+   */
+  ({ className, children, position = "popper", ...props }, ref) => (
   <SelectPrimitive.Portal>
     <SelectPrimitive.Content
       ref={ref}
@@ -70,7 +78,7 @@ const SelectContent = React.forwardRef(({ className, children, position = "poppe
       <SelectScrollDownButton />
     </SelectPrimitive.Content>
   </SelectPrimitive.Portal>
-))
+  ))
 SelectContent.displayName = SelectPrimitive.Content.displayName
 
 const SelectLabel = React.forwardRef(({ className, ...props }, ref) => (

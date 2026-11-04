@@ -1,0 +1,512 @@
+/*
+ * Lançamentos de lote do Mapa Geral (D-PROD-115) — um só desenho para
+ * Morte, Abate, Nascimento, Pesagem, Mudança de Categoria, Mover, Juntar e
+ * Renomear. Peças em src/components/lotes/LancamentoLoteUi.jsx.
+ *
+ * Medidas: 8 px entre blocos; campos 38 px (48 no celular); botões 36 px
+ * (44 no celular); itens com borda clara e raio 12, sem caixa dentro de caixa.
+ */
+
+/* ── Abertura: igual ao cadastro rápido (D-PROD-106) ─────────────────── */
+.mk-ll-dlg:not(#mk-padrao) {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  max-width: none;
+  padding: 0;
+  overflow: hidden;
+  background: #fff;
+}
+
+.mk-ll-dlg__head:not(#mk-padrao) {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  text-align: left;
+}
+
+.mk-ll-dlg__txt {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.mk-ll-dlg__titulo:not(#mk-padrao) {
+  overflow: hidden;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.25;
+  color: #1f2937;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mk-ll-dlg__lotes:not(#mk-padrao) {
+  overflow: hidden;
+  margin-top: 1px;
+  font-size: 12px;
+  color: #64748b;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mk-ll-dlg__acoes {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Corpo: uma rolagem só */
+.mk-ll-dlg > .mk-ll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* Desktop: diálogo centralizado (como "Novo setor") */
+.mk-ll-dlg.is-desktop:not(#mk-padrao) {
+  width: min(720px, calc(100vw - 48px));
+  max-height: calc(100vh - 64px);
+  border: 1px solid #e7eaee;
+  border-radius: 12px;
+  box-shadow: 0 16px 48px rgba(15, 23, 42, 0.18);
+}
+
+.mk-ll-dlg--largo.is-desktop:not(#mk-padrao) {
+  width: min(880px, calc(100vw - 48px));
+}
+
+.mk-ll-dlg.is-desktop .mk-ll-dlg__head:not(#mk-padrao) {
+  padding: 10px 14px 10px 18px;
+  border-bottom: 1px solid #e7eaee;
+}
+
+.mk-ll-dlg.is-desktop > .mk-ll {
+  padding: 14px 18px 18px;
+}
+
+/* Celular/tablet: tela inteira, ✕ · título · ✓ */
+.mk-ll-dlg.is-tela:not(#mk-padrao) {
+  inset: 0;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  max-height: none;
+  transform: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.mk-ll-dlg.is-tela .mk-ll-dlg__head:not(#mk-padrao) {
+  padding: calc(env(safe-area-inset-top, 0px) + 10px) 12px 10px;
+}
+
+.mk-ll-dlg.is-tela .mk-ll-dlg__txt {
+  text-align: center;
+}
+
+.mk-ll-dlg.is-tela .mk-ll-dlg__titulo:not(#mk-padrao) {
+  font-size: 17px;
+}
+
+.mk-ll-dlg.is-tela > .mk-ll {
+  padding: 4px 16px calc(env(safe-area-inset-bottom, 0px) + 24px);
+}
+
+.mk-ll-dlg__redondo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 999px;
+  background: #f1f3f4;
+  color: #334155;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mk-ll-dlg__redondo svg {
+  width: 22px;
+  height: 22px;
+}
+
+.mk-ll-dlg__redondo--salvar {
+  color: #16a34a;
+}
+
+.mk-ll-dlg__redondo:active:not(:disabled) {
+  background: #e4e7ea;
+}
+
+.mk-ll-dlg__redondo:disabled {
+  opacity: 0.5;
+}
+
+@media (min-width: 640px) {
+  .mk-ll-dlg.is-tela > .mk-ll {
+    padding-left: 24px;
+    padding-right: 24px;
+  }
+}
+
+/* ── Corpo ───────────────────────────────────────────────────────────── */
+.mk-ll {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+}
+
+.mk-ll > * {
+  flex-shrink: 0;
+}
+
+.mk-ll .mk-lanc + .mk-lanc {
+  margin-top: 0;
+}
+
+.mk-ll__grade {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+}
+
+@media (min-width: 640px) {
+  .mk-ll__grade {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* Campo que ocupa a linha toda (ex.: observações) */
+  .mk-ll__grade > .mk-ll__cheio {
+    grid-column: 1 / -1;
+  }
+}
+
+.mk-ll__itens {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+}
+
+/* ── Item (categoria / lote) ─────────────────────────────────────────── */
+.mk-ll__item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid #e7eaee;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.mk-ll__item-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 24px;
+}
+
+.mk-ll__item-ic {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+}
+
+.mk-ll__item-txt {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.mk-ll__item-titulo {
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 600;
+  color: #334155;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.mk-ll__item-sub {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.mk-ll__item-rodape {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.mk-ll__remover {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #ef4444;
+  cursor: pointer;
+}
+
+.mk-ll__remover:hover {
+  background: #fef2f2;
+}
+
+.mk-ll__remover svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* ── + Adicionar ─────────────────────────────────────────────────────── */
+.mk-ll__add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  height: 36px;
+  border: 1.5px dashed #cbd5e1;
+  border-radius: 10px;
+  background: transparent;
+  color: #334155;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.mk-ll__add:hover:not(:disabled) {
+  border-color: var(--mg-accent, #40de63);
+  background: rgba(64, 222, 99, 0.06);
+}
+
+.mk-ll__add svg {
+  width: 15px;
+  height: 15px;
+  color: #16a34a;
+}
+
+/* ── Segmento (Sim/Não, modo da pesagem) ─────────────────────────────── */
+.mk-ll__seg-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.mk-ll__seg-rotulo {
+  padding-left: 2px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #64748b;
+}
+
+.mk-ll__req {
+  color: #ef4444;
+}
+
+.mk-ll__seg {
+  display: grid;
+  gap: 4px;
+  padding: 3px;
+  border-radius: 10px;
+  background: #f1f3f4;
+}
+
+.mk-ll__seg-op {
+  min-width: 0;
+  height: 30px;
+  padding: 0 8px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #475569;
+  font-size: 12.5px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.mk-ll__seg-op.is-on {
+  background: var(--mg-accent, #40de63);
+  color: #fff;
+}
+
+.mk-ll__seg-op:focus-visible {
+  outline: 2px solid rgba(64, 222, 99, 0.5);
+  outline-offset: 1px;
+}
+
+/* ── Aviso ───────────────────────────────────────────────────────────── */
+.mk-ll__aviso {
+  padding: 8px 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+  font-size: 12px;
+  color: #334155;
+}
+
+.mk-ll__aviso--ambar {
+  border-color: #fde68a;
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.mk-ll__aviso--vermelho {
+  border-color: #fecaca;
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.mk-ll__aviso--verde {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+  color: #166534;
+}
+
+/* ── Rodapé ──────────────────────────────────────────────────────────── */
+.mk-ll__rodape {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 10px;
+  border-top: 1px solid #eef0f3;
+  background: #fff;
+}
+
+.mk-ll__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 36px;
+  min-width: 96px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.mk-ll__btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.mk-ll__btn--cinza {
+  background: #f1f3f4;
+  color: #334155;
+}
+
+.mk-ll__btn--cinza:hover:not(:disabled) {
+  background: #e8ebee;
+}
+
+.mk-ll__btn--verde {
+  background: var(--mg-accent, #40de63);
+  color: #fff;
+}
+
+.mk-ll__btn--verde:hover:not(:disabled) {
+  background: var(--mg-accent-hover, #36c956);
+}
+
+.mk-ll__btn--ambar {
+  background: #d97706;
+  color: #fff;
+}
+
+.mk-ll__btn--ambar:hover:not(:disabled) {
+  background: #b45309;
+}
+
+/* Opção de lista em botão (Juntar/Renomear: escolher lote ou categoria) */
+.mk-ll__opcao {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-height: 40px;
+  padding: 0 12px;
+  border: 1px solid #e7eaee;
+  border-radius: 10px;
+  background: #fff;
+  color: #334155;
+  font-size: 13px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+}
+
+.mk-ll__opcao:hover {
+  border-color: rgba(64, 222, 99, 0.45);
+  background: rgba(64, 222, 99, 0.06);
+}
+
+.mk-ll__opcao > span:last-child {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.mk-ll__texto {
+  font-size: 12.5px;
+  color: #475569;
+}
+
+/* ── Celular ─────────────────────────────────────────────────────────── */
+@media (max-width: 639px) {
+  .mk-ll__add,
+  .mk-ll__btn {
+    height: 44px;
+    font-size: 14px;
+  }
+
+  .mk-ll__seg-op {
+    height: 38px;
+    font-size: 13px;
+    white-space: normal;
+    line-height: 1.1;
+  }
+
+  .mk-ll__rodape .mk-ll__btn {
+    flex: 1 1 0;
+  }
+}
+
+/* DialogHeader do shadcn traz flex-col + space-y: aqui é uma linha */
+.mk-ll-dlg__head:not(#mk-padrao) > * {
+  margin: 0 !important;
+}
+
+.mk-ll-dlg .mk-ll-dlg__acoes:not(#mk-padrao) {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  height: auto;
+  min-height: 0;
+  background: transparent;
+}

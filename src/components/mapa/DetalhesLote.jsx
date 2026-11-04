@@ -34,9 +34,10 @@ import FormularioMudancaCategoria from "../lotes/FormularioMudancaCategoria";
 import FormularioPesagem from "../lotes/FormularioPesagem";
 import HistoricoMovimentacoes from "../lotes/HistoricoMovimentacoes";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import HistoricoSuplementacaoLote from "../suplementacao/HistoricoSuplementacaoLote";
 import RenomearLoteForm from "../lotes/RenomearLoteForm";
+import { LancLoteDialogo, LancLoteForm, LancLoteAviso, LancLoteRodape, LL_CTL } from "../lotes/LancamentoLoteUi";
+import LancField from "@/components/cadastro/base1/LancField";
 import ResumoSuplementacao from "../suplementacao/ResumoSuplementacao";
 import InformacoesArea from "./InformacoesArea";
 import { Progress } from "@/components/ui/progress";
@@ -677,9 +678,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
       </div>
 
       {/* Dialog Juntar Lotes */}
-      <Dialog open={showJuntarLotes} onOpenChange={(open) => {if (!open && enviandoJuncao) return;setShowJuntarLotes(open);if (!open) {setCategoriaSelecionadaJuncao(null);setLotePrincipalJuncao(null);}}}>
-        <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle className="text-sm">Juntar Lotes</DialogTitle></DialogHeader>
+      <LancLoteDialogo open={showJuntarLotes} onOpenChange={(open) => {if (!open && enviandoJuncao) return;setShowJuntarLotes(open);if (!open) {setCategoriaSelecionadaJuncao(null);setLotePrincipalJuncao(null);}}} titulo="Juntar Lotes" lotes={lotes}>
           {(() => {
               const porCategoria = {};
               lotes.forEach((l) => {
@@ -691,12 +690,13 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
 
               if (!categoriaSelecionadaJuncao && categoriasJuntaveis.length > 1) {
                 return (
-                  <div className="space-y-2">
-                  <p className="text-xs text-slate-600">Selecione a categoria para juntar:</p>
+                  <div className="mk-ll">
+                  <p className="mk-ll__texto">Selecione a categoria para juntar:</p>
                   {categoriasJuntaveis.map(([cat, ls]) =>
-                    <Button key={cat} variant="outline" className="w-full h-9 text-xs justify-start" onClick={() => {setCategoriaSelecionadaJuncao(cat);setLotePrincipalJuncao(null);}}>
-                      {cat} ({ls.length} lotes, {ls.reduce((s, l) => s + (l.quantidade_cabecas || 0), 0)} cab)
-                    </Button>
+                    <button type="button" key={cat} className="mk-ll__opcao" onClick={() => {setCategoriaSelecionadaJuncao(cat);setLotePrincipalJuncao(null);}}>
+                      <span>{cat}</span>
+                      <span>{ls.length} lotes · {ls.reduce((s, l) => s + (l.quantidade_cabecas || 0), 0)} cab</span>
+                    </button>
                     )}
                 </div>);
 
@@ -707,14 +707,14 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
 
               if (!lotePrincipalJuncao && lotesParaJuntar.length > 0) {
                 return (
-                  <div className="space-y-2">
-                  <p className="text-xs text-slate-600">Selecione o lote que receberá os animais (lote principal):</p>
-                  <p className="text-[10px] text-slate-500">Categoria: <strong>{catSel}</strong></p>
+                  <div className="mk-ll">
+                  <p className="mk-ll__texto">Selecione o lote que receberá os animais (lote principal):</p>
+                  <p className="mk-ll__item-sub">Categoria: <strong>{catSel}</strong></p>
                   {lotesParaJuntar.map((l) =>
-                    <Button key={l.id} variant="outline" className="w-full h-9 text-xs justify-between" onClick={() => setLotePrincipalJuncao(l)}>
+                    <button type="button" key={l.id} className="mk-ll__opcao" onClick={() => setLotePrincipalJuncao(l)}>
                       <span>{l.nome}</span>
-                      <span className="text-slate-500">{l.quantidade_cabecas} cab</span>
-                    </Button>
+                      <span>{l.quantidade_cabecas} cab</span>
+                    </button>
                     )}
                 </div>);
 
@@ -724,51 +724,39 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
                 const outrosLotes = lotesParaJuntar.filter((l) => l.id !== lotePrincipalJuncao.id);
                 const totalCab = lotesParaJuntar.reduce((s, l) => s + (l.quantidade_cabecas || 0), 0);
                 return (
-                  <div className="space-y-3">
-                  <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3">
-                    <p className="text-xs font-semibold text-emerald-800">Lote principal: {lotePrincipalJuncao.nome}</p>
-                    <p className="text-[10px] text-emerald-700">{lotePrincipalJuncao.quantidade_cabecas} cab → {totalCab} cab após junção (prévia; o servidor confere tudo ao confirmar)</p>
-                  </div>
+                  <LancLoteForm onSubmit={(e) => { e.preventDefault(); if (!enviandoJuncao) confirmarJuncao(lotePrincipalJuncao, outrosLotes); }}>
+                  <LancLoteAviso tom="verde">
+                    <p className="font-semibold">Lote principal: {lotePrincipalJuncao.nome}</p>
+                    <p className="text-[11px]">{lotePrincipalJuncao.quantidade_cabecas} cab → {totalCab} cab após junção (prévia; o servidor confere tudo ao confirmar)</p>
+                  </LancLoteAviso>
                   {!previaJuncao(lotesParaJuntar).pesoConhecido && (
-                    <p role="note" data-testid="aviso-peso-juncao" className="rounded border border-amber-200 bg-amber-50 p-2 text-[11px] text-amber-900">
+                    <p role="note" data-testid="aviso-peso-juncao" className="mk-ll__aviso mk-ll__aviso--ambar">
                       Algum lote está sem peso médio: depois da junção o lote principal fica <strong>sem peso</strong> até a próxima pesagem (o desconhecido não é tratado como zero).
                     </p>
                   )}
-                  <div className="space-y-1">
-                    <p className="text-xs text-slate-600">Lotes que serão absorvidos:</p>
-                    {outrosLotes.map((l) =>
-                      <div key={l.id} className="flex justify-between text-xs p-2 bg-slate-50 rounded border">
-                        <span>{l.nome}</span>
-                        <span className="text-slate-500">{l.quantidade_cabecas} cab</span>
-                      </div>
-                      )}
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs uppercase">Data</Label>
-                    <Input type="date" value={dataJuncao} onChange={(e) => setDataJuncao(e.target.value)} className="h-8 text-xs" />
-                  </div>
-                  <div className="flex justify-end gap-2 pt-2 border-t">
-                    <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setLotePrincipalJuncao(null)}>Voltar</Button>
-                    <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" disabled={enviandoJuncao} onClick={() => confirmarJuncao(lotePrincipalJuncao, outrosLotes)}>
-                      {enviandoJuncao ? 'Juntando...' : 'Confirmar Junção'}
-                    </Button>
-                  </div>
-                </div>);
+                  <p className="mk-ll__texto">Lotes que serão absorvidos:</p>
+                  {outrosLotes.map((l) =>
+                    <div key={l.id} className="mk-ll__opcao" style={{ cursor: 'default' }}>
+                      <span>{l.nome}</span>
+                      <span>{l.quantidade_cabecas} cab</span>
+                    </div>
+                    )}
+                  <LancField label="Data" required>
+                    <Input type="date" value={dataJuncao} onChange={(e) => setDataJuncao(e.target.value)} className={LL_CTL} />
+                  </LancField>
+                  <button type="button" className="mk-ll__texto self-start underline-offset-2 hover:underline" onClick={() => setLotePrincipalJuncao(null)} disabled={enviandoJuncao}>‹ Voltar e escolher outro lote principal</button>
+                  <LancLoteRodape onCancelar={() => setShowJuntarLotes(false)} cancelarDesabilitado={enviandoJuncao} textoAcao="Confirmar Junção" textoEnviando="Juntando..." enviando={enviandoJuncao} />
+                </LancLoteForm>);
 
               }
               return null;
             })()}
-        </DialogContent>
-      </Dialog>
+      </LancLoteDialogo>
 
-      <Dialog open={showMovimentacao} onOpenChange={(open) => {
+      <LancLoteDialogo open={showMovimentacao} onOpenChange={(open) => {
           setShowMovimentacao(open);
           if (!open) setAreaDestinoPreSelecionada(null);
-        }}>
-        <DialogContent className="max-w-[880px] max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Movimentação de Lotes</DialogTitle>
-          </DialogHeader>
+        }} titulo="Mover Lotes" lotes={lotes} largo>
           <FormularioMovimentacaoLote
               lotesOriginais={lotes}
               areaOrigem={areaAtual}
@@ -778,13 +766,9 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
                 setAreaDestinoPreSelecionada(null);
                 setShowMovimentacao(false);
               }} />
-            
-        </DialogContent>
-      </Dialog>
+      </LancLoteDialogo>
 
-      <Dialog open={showMorte} onOpenChange={setShowMorte}>
-        <DialogContent className="max-w-4xl">
-          <DialogHeader><DialogTitle>Registrar Morte</DialogTitle></DialogHeader>
+      <LancLoteDialogo open={showMorte} onOpenChange={setShowMorte} titulo="Registrar Morte" lotes={lotes}>
           {showMorte &&
             <FormularioMorte
               lote={lotes}
@@ -793,12 +777,9 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
               onCancel={() => setShowMorte(false)} />
 
             }
-        </DialogContent>
-      </Dialog>
+      </LancLoteDialogo>
 
-      <Dialog open={showNascimento} onOpenChange={setShowNascimento}>
-        <DialogContent className="max-w-4xl">
-          <DialogHeader><DialogTitle>Registrar Nascimento</DialogTitle></DialogHeader>
+      <LancLoteDialogo open={showNascimento} onOpenChange={setShowNascimento} titulo="Registrar Nascimento" lotes={lotes}>
           {showNascimento &&
             <FormularioNascimento
               lote={lotes}
@@ -806,12 +787,9 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
               onCancel={() => setShowNascimento(false)} />
 
             }
-        </DialogContent>
-      </Dialog>
+      </LancLoteDialogo>
 
-      <Dialog open={showAbate} onOpenChange={setShowAbate}>
-        <DialogContent className="max-w-4xl">
-          <DialogHeader><DialogTitle>Registrar Abate</DialogTitle></DialogHeader>
+      <LancLoteDialogo open={showAbate} onOpenChange={setShowAbate} titulo="Registrar Abate" lotes={lotes}>
           {showAbate &&
             <FormularioAbate
               lote={lotes}
@@ -820,23 +798,16 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
               onCancel={() => setShowAbate(false)} />
 
             }
-        </DialogContent>
-      </Dialog>
+      </LancLoteDialogo>
 
-      <Dialog open={showMudancaCategoria} onOpenChange={setShowMudancaCategoria}>
-        <DialogContent className="max-w-4xl">
-          <DialogHeader><DialogTitle>Mudança de Categoria</DialogTitle></DialogHeader>
+      <LancLoteDialogo open={showMudancaCategoria} onOpenChange={setShowMudancaCategoria} titulo="Mudança de Categoria" lotes={lotes}>
           <FormularioMudancaCategoria
               lote={lotes}
               onSubmit={handleMudancaCategoria}
               onCancel={() => setShowMudancaCategoria(false)} />
-            
-        </DialogContent>
-      </Dialog>
+      </LancLoteDialogo>
 
-      <Dialog open={showPesagem} onOpenChange={setShowPesagem}>
-        <DialogContent className="max-w-4xl">
-          <DialogHeader><DialogTitle>Pesagem</DialogTitle></DialogHeader>
+      <LancLoteDialogo open={showPesagem} onOpenChange={setShowPesagem} titulo="Registrar Pesagem" lotes={lotes}>
           {showPesagem &&
             <FormularioPesagem
               lote={lotes}
@@ -844,8 +815,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
               onCancel={() => setShowPesagem(false)} />
 
             }
-        </DialogContent>
-      </Dialog>
+      </LancLoteDialogo>
 
       <Dialog open={showHistorico} onOpenChange={setShowHistorico}>
         <DialogContent className="bg-background px-2 py-2 fixed left-[50%] top-[50%] z-50 grid w-full translate-x-[-50%] translate-y-[-50%] gap-4 border shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -878,19 +848,18 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
       </Dialog>
 
       {/* Dialog Renomear Lote */}
-      <Dialog open={showRenomear} onOpenChange={setShowRenomear}>
-        <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle className="text-sm">Renomear Lote</DialogTitle></DialogHeader>
+      <LancLoteDialogo open={showRenomear} onOpenChange={setShowRenomear} titulo="Renomear Lote" lotes={loteParaRenomear ? [loteParaRenomear] : lotes}>
           {!loteParaRenomear && lotes.length > 1 ?
-            <div className="space-y-2">
-              <p className="text-xs text-slate-600">Selecione o lote para renomear:</p>
+            <div className="mk-ll">
+              <p className="mk-ll__texto">Selecione o lote para renomear:</p>
               {lotes.map((l) =>
-              <Button key={l.id} variant="outline" className="w-full h-9 text-xs justify-start" onClick={() => {
+              <button type="button" key={l.id} className="mk-ll__opcao" onClick={() => {
                 setLoteParaRenomear(l);
                 setNovoNomeLote(l.nome);
               }}>
-                  {l.nome} ({l.quantidade_cabecas} cab - {l.categoria})
-                </Button>
+                  <span>{l.nome}</span>
+                  <span>{l.quantidade_cabecas} cab · {l.categoria}</span>
+                </button>
               )}
             </div> :
             loteParaRenomear ?
@@ -908,8 +877,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
               onCancel={() => setShowRenomear(false)} /> :
 
             null}
-        </DialogContent>
-      </Dialog>
+      </LancLoteDialogo>
 
     </div>
 

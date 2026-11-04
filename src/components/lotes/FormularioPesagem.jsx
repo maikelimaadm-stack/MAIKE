@@ -1,14 +1,11 @@
 import React, { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { X, Save, Plus } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuery } from "@tanstack/react-query";
 import { listarIconesDaEmpresa } from "@/services/mapaService";
 import { getTodayLocalDate } from "../utils/pecuariaUtils";
+import { LancLoteForm, LancLoteItens, LancLoteItem, LancLoteAdicionar, LancLoteRodape, LancLoteSegmento, LL_CTL } from "@/components/lotes/LancamentoLoteUi";
 import LancField from "@/components/cadastro/base1/LancField";
 
 /** Campo flutuante Base1 (rótulo dentro) — D-PROD-88. */
@@ -160,51 +157,17 @@ export default function FormularioPesagem({ lote, onSubmit, onCancel }) {
     setFormData({ ...formData, pesagens: novasPesagens });
   };
 
-  const nomeExibicao = lotesArray.map(l => l.nome).join(' - ');
 
   return (
-    <Card>
-      <CardHeader className="bg-slate-50 border-b py-3">
-        <CardTitle className="text-sm font-semibold">Registrar Pesagem - {nomeExibicao}</CardTitle>
-      </CardHeader>
-      <CardContent className="p-2 max-h-[calc(100vh-200px)] overflow-y-auto">
-        <form onSubmit={handleSubmit} className="space-y-1">
+    <LancLoteForm onSubmit={handleSubmit}>
           <FL label="Data da Pesagem" required>
-            <Input type="date" value={formData.data_pesagem} onChange={(e) => setFormData({ ...formData, data_pesagem: e.target.value })} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" required />
+            <Input type="date" value={formData.data_pesagem} onChange={(e) => setFormData({ ...formData, data_pesagem: e.target.value })} className={LL_CTL} required />
           </FL>
 
-          <div className="space-y-2 border-b pb-3">
-            <Label className="text-xs font-semibold">Modo de Pesagem</Label>
-            <div className="flex gap-2 flex-wrap">
-              <Button
-                type="button"
-                onClick={() => setModoPesagem("categorias")}
-                variant={modoPesagem === "categorias" ? "default" : "outline"}
-                className={`flex-1 h-8 text-xs ${modoPesagem === "categorias" ? 'bg-emerald-600 hover:bg-emerald-700' : ''}`}
-              >
-                Por Categoria
-              </Button>
-              <Button
-                type="button"
-                onClick={() => setModoPesagem("individual")}
-                variant={modoPesagem === "individual" ? "default" : "outline"}
-                className={`flex-1 h-8 text-xs ${modoPesagem === "individual" ? 'bg-emerald-600 hover:bg-emerald-700' : ''}`}
-              >
-                Por Lote
-              </Button>
-              <Button
-                type="button"
-                onClick={() => setModoPesagem("todos")}
-                variant={modoPesagem === "todos" ? "default" : "outline"}
-                className={`flex-1 h-8 text-xs ${modoPesagem === "todos" ? 'bg-emerald-600 hover:bg-emerald-700' : ''}`}
-              >
-                Todos (Mesmo Peso)
-              </Button>
-            </div>
-          </div>
+          <LancLoteSegmento rotulo="Modo de Pesagem" valor={modoPesagem} onChange={setModoPesagem} opcoes={[{ value: "categorias", label: "Por Categoria" }, { value: "individual", label: "Por Lote" }, { value: "todos", label: "Todos (Mesmo Peso)" }]} />
 
           {modoPesagem === "individual" ? (
-            <div className="space-y-2 max-h-[45vh] overflow-y-auto">
+            <LancLoteItens>
               {lotesArray.map((loteItem) => {
                 const configIcone = iconesConfig.find(ic => 
                   ic.tipo_entidade === 'Lote' && 
@@ -212,30 +175,23 @@ export default function FormularioPesagem({ lote, onSubmit, onCancel }) {
                 );
                 const iconeUrl = configIcone?.sub_icone_url || configIcone?.icone_url;
                 return (
-                  <div key={loteItem.id} className="border border-slate-200 rounded-lg p-3 bg-white">
-                    <div className="flex items-center gap-2 mb-2">
-                      {iconeUrl && <img src={iconeUrl} alt="" className="w-6 h-6 object-contain" />}
-                      <div className="flex-1 min-w-0">
-                        <div className="text-xs font-semibold text-slate-900 truncate">{loteItem.nome}</div>
-                        <div className="text-[10px] text-slate-500">{loteItem.categoria} • {loteItem.quantidade_cabecas || 0} cab • Peso atual: {loteItem.peso_medio_kg || 0} kg</div>
-                      </div>
-                    </div>
-                    <FL label="Novo Peso (kg)">
+                  <LancLoteItem key={loteItem.id} titulo={loteItem.nome} icone={iconeUrl} sub={<>{loteItem.categoria} • {loteItem.quantidade_cabecas || 0} cab • Peso atual: {loteItem.peso_medio_kg || 0} kg</>}>
+                    <FL label="Novo Peso (kg)" className="mk-ll__cheio">
                       <Input
                         type="number"
                         step="0.1"
                         value={pesosIndividuais[loteItem.id] || ''}
                         onChange={(e) => setPesosIndividuais(prev => ({ ...prev, [loteItem.id]: e.target.value }))}
                         placeholder={String(loteItem.peso_medio_kg || 0)}
-                        className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent"
+                        className={LL_CTL}
                       />
                     </FL>
-                  </div>
+                  </LancLoteItem>
                 );
               })}
-            </div>
+            </LancLoteItens>
           ) : modoPesagem === "todos" ? (
-            <div className="space-y-2 bg-slate-50 border border-slate-300 rounded-lg p-4">
+            <>
               <FL label="Peso para Todos os Animais (kg)" required>
                 <Input
                   type="number"
@@ -246,12 +202,10 @@ export default function FormularioPesagem({ lote, onSubmit, onCancel }) {
                   placeholder="0"
                 />
               </FL>
-              <div className="text-[10px] text-slate-600 mt-2">
-                Este peso será aplicado a todas as {categoriasDisponiveis.length} categoria(s)
-              </div>
-            </div>
+              <div className="mk-ll__item-rodape">Este peso será aplicado a todas as {categoriasDisponiveis.length} categoria(s)</div>
+            </>
           ) : (
-            <div className="space-y-2 max-h-[45vh] overflow-y-auto">
+            <LancLoteItens>
               {formData.pesagens.map((pesagem, index) => {
                 const infoCategoria = lotesPorCategoria[pesagem.categoria];
                 const configIcone = iconesConfig.find(ic => 
@@ -261,25 +215,14 @@ export default function FormularioPesagem({ lote, onSubmit, onCancel }) {
                 const iconeUrl = configIcone?.sub_icone_url || configIcone?.icone_url;
 
                 return (
-                  <div key={index} className="border border-slate-200 rounded-lg p-3 bg-white">
-                    <div className="flex items-center justify-between mb-1">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => removerCategoria(index)}
-                        className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-50 ml-auto"
-                      >
-                        <X className="w-4 h-4" />
-                      </Button>
-                    </div>
+                  <LancLoteItem key={index} titulo={`Categoria ${index + 1}`} icone={iconeUrl} onRemover={() => removerCategoria(index)} rotuloRemover="Remover categoria">
 
-                    <FL label="Categoria">
+                    <FL label="Categoria" className="mk-ll__cheio">
                     <Select
                       value={pesagem.categoria}
                       onValueChange={(v) => handlePesagemChange(index, 'categoria', v)}
                     >
-                      <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent">
+                      <SelectTrigger className={LL_CTL}>
                         <SelectValue>
                           {infoCategoria?.totalCabecas || 0} cb - {pesagem.categoria}
                         </SelectValue>
@@ -304,34 +247,22 @@ export default function FormularioPesagem({ lote, onSubmit, onCancel }) {
                         value={pesagem.peso}
                         onChange={(e) => handlePesagemChange(index, 'peso', e.target.value)}
                         placeholder="0"
-                        className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent"
+                        className={LL_CTL}
                         required
                       />
                     </FL>
-                  </div>
+                  </LancLoteItem>
                 );
               })}
 
-              <Button
-                type="button"
-                onClick={adicionarCategoria}
-                variant="outline"
-                className="w-full h-7 text-xs border-dashed border-2 border-slate-300 hover:border-slate-400"
-              >
-                Adicionar Categoria
-              </Button>
-            </div>
+              <LancLoteAdicionar onClick={adicionarCategoria} />
+            </LancLoteItens>
           )}
 
           <FL label="Observações Gerais">
-            <Textarea value={formData.observacoes} onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })} className="text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" rows={2} />
+            <Textarea value={formData.observacoes} onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })} className={LL_CTL} rows={2} />
           </FL>
-          <div className="flex justify-end gap-1 pt-1 border-t">
-            <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-7 text-xs" disabled={saving}>Cancelar</Button>
-            <Button type="submit" size="sm" className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white" disabled={saving}>{saving ? 'Salvando...' : 'Registrar Pesagens'}</Button>
-          </div>
-        </form>
-      </CardContent>
-    </Card>
+          <LancLoteRodape onCancelar={onCancel} cancelarDesabilitado={saving} textoAcao="Registrar Pesagens" textoEnviando="Salvando..." enviando={saving} />
+        </LancLoteForm>
   );
 }

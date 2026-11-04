@@ -1,11 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { X, Plus } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { listarIconesDaEmpresa, listarTodosPontosSuplementacao } from "@/services/mapaService";
 import { listarTodosLotes, listarEventosSuplementacao } from "@/services/loteManejoService";
@@ -17,6 +12,7 @@ import { toast } from "sonner";
 import { calcularDiasPeriodo } from "../utils/consumoUtils";
 import { fecharPeriodoSuplementacao } from "@/services/suplementacaoService";
 import { getTodayLocalDate } from "../utils/pecuariaUtils";
+import { LancLoteForm, LancLoteItens, LancLoteItem, LancLoteAdicionar, LancLoteRodape, LancLoteSegmento, LancLoteAviso, LL_CTL } from "@/components/lotes/LancamentoLoteUi";
 import LancField from "@/components/cadastro/base1/LancField";
 
 /** Campo flutuante Base1 (rótulo dentro) — D-PROD-88. */
@@ -374,28 +370,19 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
 
   if (etapa === 'verificacao') {
     return (
-      <Card className="shadow-sm">
-        <CardHeader className="bg-slate-50 border-b py-3">
-          <CardTitle className="text-sm font-semibold">Verificando Suplementação...</CardTitle>
-        </CardHeader>
-        <CardContent className="p-4">
+      <div className="mk-ll" role="status">
           <div className="text-center py-8">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-slate-900 mx-auto"></div>
             <p className="text-xs text-slate-600 mt-4">Verificando eventos de suplementação abertos...</p>
           </div>
-        </CardContent>
-      </Card>);
+      </div>);
 
   }
 
   if (etapa === 'fechamento_consumo') {
     return (
-      <Card className="shadow-sm">
-        <CardHeader className="bg-amber-50 border-b py-3 border-amber-200">
-          <CardTitle className="text-sm font-semibold text-amber-900">⚠️ Fechamento de Consumo Necessário</CardTitle>
-        </CardHeader>
-        <CardContent className="p-4 max-h-[calc(100vh-200px)] overflow-y-auto overflow-x-hidden" style={{ scrollbarWidth: "thin", scrollbarColor: "#cbd5e1 transparent" }}>
-          <div className="space-y-4">
+      <>
+      <LancLoteForm onSubmit={(e) => { e.preventDefault(); handleFecharEventos(); }}>
             {progresso.show &&
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                 <div className="flex items-center justify-between mb-2">
@@ -410,47 +397,44 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
                 </div>
               </div>
             }
-            <div className="bg-amber-50 border border-amber-300 rounded-lg p-3">
-              <p className="text-xs text-amber-900 mb-2">
+            <LancLoteAviso tom="ambar">
+              <p className="mb-1 font-semibold">Fechamento de consumo necessário</p>
+              <p className="mb-1">
                 <strong>Atenção:</strong> Existem {eventosAbertos.length} evento(s) de suplementação em aberto na área de origem.
               </p>
               <p className="text-xs text-amber-800">
                 Para mover o gado, é necessário fechar esses períodos informando a data do fechamento e quanto sobrou no cocho.
               </p>
-            </div>
+            </LancLoteAviso>
 
             <FL label="Data do fechamento do consumo" required>
               <Input
                 type="date"
                 value={formData.data_movimentacao}
                 onChange={(e) => setFormData({ ...formData, data_movimentacao: e.target.value })}
-                className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent"
+                className={LL_CTL}
                 required
               />
             </FL>
 
-            <div className="space-y-3">
+            <LancLoteItens>
               {eventosAbertos.map((evento) => {
                 const diasPeriodo = calcularDiasPeriodo(evento.data_lancamento, formData.data_movimentacao);
                 return (
-                  <div key={evento.id} className="border border-slate-200 rounded-lg p-3 bg-white">
-                    <div className="mb-3">
-                      <div className="text-xs font-semibold text-slate-900">{evento.ponto_nome}</div>
-                      <div className="text-[10px] text-slate-600 mt-1 space-y-0.5">
+                  <LancLoteItem key={evento.id} titulo={evento.ponto_nome} sub={<div className="text-[10px] text-slate-600 mt-1 space-y-0.5">
                         <div>Lançamento: {new Date(evento.data_lancamento).toLocaleDateString()}</div>
                         <div>Produto: {evento.produto}</div>
                         <div>Quantidade fornecida: {evento.quantidade_total_kg.toFixed(1)} kg</div>
                         <div className="font-semibold text-blue-700">Período: {diasPeriodo} dia(s)</div>
-                      </div>
-                    </div>
+                      </div>}>
 
-                    <div className="space-y-1">
+                    <>
                       <FL label="Sobra no cocho (kg)" required>
                         <Input
                           type="number"
                           step="0.1"
                           min="0"
-                          max={evento.quantidade_total_kg}
+                          max={(evento.quantidade_total_kg || 0) + (evento.sobra_kg || 0)}
                           value={formData.sobras_cocho[evento.id] || ''}
                           onChange={(e) => setFormData({
                             ...formData,
@@ -459,42 +443,26 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
                               [evento.id]: e.target.value
                             }
                           })}
-                          className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent"
+                          className={LL_CTL}
                           placeholder="0.0"
                           required />
                       </FL>
                       <p className="text-[10px] text-slate-500">
                         Informe 0 se não sobrou nada no cocho
                       </p>
-                    </div>
+                    </>
 
-                    <div className="mt-2 pt-2 border-t border-slate-200">
-                      <div className="text-[10px] text-slate-700">
-                        <strong>Consumo calculado:</strong>{' '}
-                        {(evento.quantidade_total_kg - parseFloat(formData.sobras_cocho[evento.id] || 0) + parseFloat(evento.sobra_kg || 0)).toFixed(1)} kg
-                      </div>
+                    <div className="mk-ll__cheio mk-ll__item-rodape">
+                      <strong>Consumo calculado:</strong>{' '}
+                      {(evento.quantidade_total_kg - parseFloat(formData.sobras_cocho[evento.id] || 0) + parseFloat(evento.sobra_kg || 0)).toFixed(1)} kg
                     </div>
-                  </div>);
+                  </LancLoteItem>);
 
               })}
-            </div>
+            </LancLoteItens>
 
-            <div className="flex justify-end gap-2 pt-4 border-t">
-              <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-8 text-xs" disabled={loading || progresso.show}>
-                Cancelar
-              </Button>
-              <Button
-                type="button"
-                onClick={handleFecharEventos}
-                size="sm"
-                className="h-8 text-xs bg-amber-600 hover:bg-amber-700"
-                disabled={loading || progresso.show}>
-
-                {loading || progresso.show ? 'Fechando...' : 'Fechar Consumos e Continuar'}
-              </Button>
-            </div>
-          </div>
-        </CardContent>
+            <LancLoteRodape onCancelar={onCancel} cancelarDesabilitado={loading || progresso.show} textoAcao="Fechar Consumos e Continuar" textoEnviando="Fechando..." enviando={loading || progresso.show} />
+      </LancLoteForm>
 
         <Dialog open={progresso.show} onOpenChange={() => {}}>
           <DialogContent className="sm:max-w-md">
@@ -507,38 +475,26 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
             </div>
           </DialogContent>
         </Dialog>
-      </Card>);
+      </>);
 
   }
 
   return (
     <>
-    <Card className="shadow-sm">
-      <CardHeader className="bg-slate-50 border-b py-3">
-        <CardTitle className="text-sm font-semibold">Movimentação de Lotes</CardTitle>
-      </CardHeader>
-      <CardContent className="p-2 max-h-[calc(100vh-200px)] overflow-y-auto overflow-x-hidden" style={{ scrollbarWidth: "thin", scrollbarColor: "#cbd5e1 transparent" }}>
-        <form onSubmit={handleSubmit} className="space-y-1">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-1">
+    <LancLoteForm onSubmit={handleSubmit}>
+          <div className="mk-ll__grade">
             <FL label="Data da Movimentação" required>
-              <Input type="date" value={formData.data_movimentacao} onChange={(e) => setFormData({ ...formData, data_movimentacao: e.target.value })} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" required />
+              <Input type="date" value={formData.data_movimentacao} onChange={(e) => setFormData({ ...formData, data_movimentacao: e.target.value })} className={LL_CTL} required />
             </FL>
-            <div>
-              <label className="text-[12px] text-slate-500 pl-1 leading-none">Movimentar todo o lote? <span className="text-red-500">*</span></label>
-              <RadioGroup value={formData.mover_todos} onValueChange={(v) => setFormData({ ...formData, mover_todos: v })} className="flex gap-4 mt-1">
-                <div className="flex items-center space-x-2"><RadioGroupItem value="sim" id="sim" /><Label htmlFor="sim" className="text-xs cursor-pointer">Sim</Label></div>
-                <div className="flex items-center space-x-2"><RadioGroupItem value="nao" id="nao" /><Label htmlFor="nao" className="text-xs cursor-pointer">Não</Label></div>
-              </RadioGroup>
-            </div>
+            <LancLoteSegmento rotulo="Movimentar todo o lote?" required valor={formData.mover_todos} onChange={(v) => setFormData({ ...formData, mover_todos: v })} opcoes={[{ value: "sim", label: "Sim" }, { value: "nao", label: "Não" }]} />
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-1">
+          <div className="mk-ll__grade">
             <FL label="Setor de saída" required>
-              <Select value={formData.setor_saida_id || '__none__'} onValueChange={(v) => setFormData({ ...formData, setor_saida_id: v === '__none__' ? '' : v, area_saida_id: '' })}>
-                <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent">
+              <Select value={formData.setor_saida_id || ''} onValueChange={(v) => setFormData({ ...formData, setor_saida_id: v === '__none__' ? '' : v, area_saida_id: '' })}>
+                <SelectTrigger className={LL_CTL}>
                   <SelectValue placeholder="Selecione o setor de saída" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__none__" className="text-xs">Selecione</SelectItem>
                   {setores.map((setor) =>
                   <SelectItem key={setor.id} value={setor.id} className="text-xs">{setor.nome}</SelectItem>
                   )}
@@ -547,15 +503,14 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
             </FL>
             <FL label="Área e módulo de saída" required>
               <Select
-                value={formData.area_saida_id || '__none__'}
+                value={formData.area_saida_id || ''}
                 onValueChange={(v) => setFormData({ ...formData, area_saida_id: v === '__none__' ? '' : v })}
                 disabled={!formData.setor_saida_id}>
 
-                <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent">
+                <SelectTrigger className={LL_CTL}>
                   <SelectValue placeholder={formData.setor_saida_id ? 'Selecione a área de saída' : 'Selecione o setor primeiro'} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__none__" className="text-xs">Selecione</SelectItem>
                   {areasSaida.map((area) =>
                   <SelectItem key={area.id} value={area.id} className="text-xs">
                       {area.numero_area ? `${area.numero_area} - ${area.nome}` : area.nome}
@@ -565,12 +520,11 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
               </Select>
             </FL>
             <FL label="Setor de entrada" required>
-              <Select value={formData.setor_entrada_id || '__none__'} onValueChange={(v) => setFormData({ ...formData, setor_entrada_id: v === '__none__' ? '' : v, area_entrada_id: '' })}>
-                <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent">
+              <Select value={formData.setor_entrada_id || ''} onValueChange={(v) => setFormData({ ...formData, setor_entrada_id: v === '__none__' ? '' : v, area_entrada_id: '' })}>
+                <SelectTrigger className={LL_CTL}>
                   <SelectValue placeholder="Selecione o setor de entrada" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__none__" className="text-xs">Selecione</SelectItem>
                   {setores.map((setor) =>
                   <SelectItem key={setor.id} value={setor.id} className="text-xs">{setor.nome}</SelectItem>
                   )}
@@ -579,15 +533,14 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
             </FL>
             <FL label="Área e módulo de entrada" required>
               <Select
-                value={formData.area_entrada_id || '__none__'}
+                value={formData.area_entrada_id || ''}
                 onValueChange={(v) => setFormData({ ...formData, area_entrada_id: v === '__none__' ? '' : v })}
                 disabled={!formData.setor_entrada_id}>
 
-                <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent">
+                <SelectTrigger className={LL_CTL}>
                   <SelectValue placeholder={formData.setor_entrada_id ? 'Selecione a área de entrada' : 'Selecione o setor primeiro'} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__none__" className="text-xs">Selecione</SelectItem>
                   {areasEntrada.map((area) =>
                   <SelectItem key={area.id} value={area.id} className="text-xs">
                         {area.numero_area ? `${area.numero_area} - ${area.nome}` : area.nome}
@@ -599,9 +552,9 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
           </div>
 
           {formData.mover_todos === 'nao' &&
-          <div className="space-y-2 max-h-[42vh] overflow-y-auto overflow-x-hidden" style={{ scrollbarWidth: "thin", scrollbarColor: "#cbd5e1 transparent" }}>
+          <LancLoteItens>
               {Object.entries(totaisSolicitadosPorCategoria).some(([categoria, total]) => total > (categoriasPorLote[categoria]?.quantidade_total || 0)) && (
-                <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                <div className="mk-ll__aviso mk-ll__aviso--vermelho">
                   A soma solicitada por categoria ultrapassa o total disponível em pelo menos um grupo.
                 </div>
               )}
@@ -614,19 +567,9 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
               const iconeUrl = configIcone?.sub_icone_url || configIcone?.icone_url;
 
               return (
-                <div key={index} className="border border-slate-200 rounded-lg p-3 bg-white">
-                    <div className="flex items-center justify-between mb-1">
-                      <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleRemoveMovimentacao(index)}
-                      className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-50 ml-auto">
-                        <X className="w-4 h-4" />
-                      </Button>
-                    </div>
+                <LancLoteItem key={index} titulo={`Categoria ${index + 1}`} icone={iconeUrl} onRemover={() => handleRemoveMovimentacao(index)} rotuloRemover="Remover categoria">
 
-                    <FL label="Categoria">
+                    <FL label="Categoria" className="mk-ll__cheio">
                     <Select
                     value={mov.categoria}
                     onValueChange={(v) => {
@@ -636,7 +579,7 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
                       handleMovimentacaoChange(index, 'peso_medio', cat.peso_medio);
                     }}>
 
-                      <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent">
+                      <SelectTrigger className={LL_CTL}>
                         <SelectValue>
                           {infoCategoria?.quantidade_total || 0} cb - {mov.categoria}
                         </SelectValue>
@@ -654,7 +597,7 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
                     </Select>
                     </FL>
 
-                    <div className="space-y-1">
+                    <>
                       <FL label="Quantidade" required>
                         <Input
                         type="number"
@@ -666,11 +609,11 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
                           }
                         }}
                         max={mov.quantidade_maxima}
-                        className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent"
+                        className={LL_CTL}
                         placeholder="0"
                         required />
                       </FL>
-                      <span className="text-[10px] text-slate-500">Máximo: {mov.quantidade_maxima} cabeças</span>
+                      <span className="mk-ll__item-rodape self-center">Máximo: {mov.quantidade_maxima} cabeças</span>
 
                       
 
@@ -683,29 +626,19 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
 
 
 
-                    </div>
-                  </div>);
+                    </>
+                  </LancLoteItem>);
 
             })}
 
-              <Button
-              type="button"
-              onClick={adicionarMovimentacao}
-              variant="outline"
-              className="w-full h-8 text-xs border-dashed border-2 border-slate-300 hover:border-slate-400">
-                Adicionar Categoria
-              </Button>
-            </div>
+              <LancLoteAdicionar onClick={adicionarMovimentacao} />
+            </LancLoteItens>
           }
 
 
 
-          <div className="flex justify-end gap-1 pt-1 border-t">
-            <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-7 text-xs" disabled={loading}>Cancelar</Button>
-            <Button type="submit" size="sm" className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white" disabled={loading}>{loading ? 'Movimentando...' : 'Confirmar Movimentação'}</Button>
-          </div>
-        </form>
-      </CardContent>
+          <LancLoteRodape onCancelar={onCancel} cancelarDesabilitado={loading} textoAcao="Confirmar Movimentação" textoEnviando="Movimentando..." enviando={loading} />
+    </LancLoteForm>
 
       <Dialog open={progresso.show} onOpenChange={() => {}}>
         <DialogContent className="sm:max-w-md">
@@ -718,7 +651,6 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
           </div>
         </DialogContent>
       </Dialog>
-    </Card>
 
     <AlertDialog open={mostrarPerguntaConsumo} onOpenChange={setMostrarPerguntaConsumo}>
       <AlertDialogContent>

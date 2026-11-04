@@ -4664,4 +4664,34 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
 
 ---
 
-<!-- Próxima decisão: D-PROD-115 -->
+## D-PROD-115 — Lançamentos de lote do Mapa Geral no padrão do cadastro
+
+- **Contexto:** o proprietário pediu para ajustar os lançamentos de lote do Mapa Geral: campos, espaços e aberturas estavam diferentes entre si e tinham dois cabeçalhos. Pediu também que abrissem como o cadastro rápido ("Novo setor" no Cadastro de Lotes).
+  - Lançamentos: Morte, Abate, Nascimento, Pesagem, Mudança de Categoria, Mover, Juntar e Renomear.
+  - Diferenças encontradas no harness (desktop 1600 px e celular 390 px):
+    - título repetido (o do diálogo e o do cartão de dentro);
+    - caixa dentro de caixa;
+    - linha vazia só com o ✕ em cada categoria;
+    - espaços de 4 a 16 px;
+    - Sim/Não em rádio nativo;
+    - modo da pesagem com botões de formatos diferentes;
+    - Cancelar e Registrar com alturas diferentes;
+    - "SELECIONE" escrito nos selects do Mover;
+    - larguras de diálogo diferentes.
+- **Decisão:** peças comuns em `src/components/lotes/LancamentoLoteUi.jsx` e estilo único em `src/styles/lancamento-lote.css`.
+  - **Abertura (`LancLoteDialogo`):**
+    - desktop (≥1024 px): diálogo com título e lotes à esquerda, ✕ e ✓ no topo à direita (mesmos botões do registro);
+    - celular e tablet: tela inteira, ✕ redondo à esquerda, título no meio, ✓ à direita.
+    - É sempre um diálogo do Radix, porque abre por cima do "Detalhes do Lote", que já é diálogo. A folha do celular perderia foco e toque ali.
+  - **Um cabeçalho só:** os formulários não têm mais cartão com título próprio.
+  - **Ação no cabeçalho:** `LancLoteRodape` entrega a ação ao ✓ do cabeçalho (envio, "enviando…", desabilitado). Fora do diálogo, ele continua desenhando Cancelar e a ação.
+  - **Itens (`LancLoteItem`):** título "Categoria N" e ✕ na mesma linha. Campos em grade de 2 colunas a partir de 640 px, 1 no celular.
+  - **Medidas:** 8 px entre blocos e uma rolagem só.
+  - **Escolhas curtas (`LancLoteSegmento`):** Sim/Não e o modo da pesagem são botões do mesmo tamanho, com o escolhido em verde.
+  - **+ Adicionar Categoria:** na largura dos campos.
+  - **Mover:** selects sem a opção "Selecione"; o rótulo do campo faz esse papel.
+- **Fora do escopo:** regras de envio e validação. Os handlers e os comandos do servidor não mudaram.
+- **Removido:** o "Histórico" da Mudança de Categoria. Era um espaço que sempre mostrava "Nenhum histórico disponível".
+- **Consequência:** a próxima tela de manejo usa as mesmas peças.
+
+<!-- Próxima decisão: D-PROD-116 -->
