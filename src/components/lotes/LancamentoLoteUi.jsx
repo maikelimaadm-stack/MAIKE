@@ -241,15 +241,20 @@ export function LancLoteRodape(props) {
   // Dentro do diálogo: a ação vai para o ✓ do cabeçalho (como no cadastro).
   const ultimo = React.useRef(props);
   ultimo.current = props;
+  // Dono do registro: ao desmontar, só limpa se a ação ainda for a deste
+  // rodapé (outro rodapé pode já ter se registrado — ex.: Mover → fechamento).
+  const [dono] = React.useState(() => ({}));
   React.useLayoutEffect(() => {
     if (!ctx) return undefined;
     ctx.setAcao({
+      dono,
       textoAcao, textoEnviando, enviando, disabled, tipoAcao, tom, cancelarDesabilitado,
       onAcao: (/** @type {any} */ e) => ultimo.current.onAcao?.(e),
       onCancelar: () => ultimo.current.onCancelar?.(),
     });
-  }, [ctx, textoAcao, textoEnviando, enviando, disabled, tipoAcao, tom, cancelarDesabilitado]);
-  React.useEffect(() => (ctx ? () => ctx.setAcao(null) : undefined), [ctx]);
+    return undefined;
+  }, [ctx, dono, textoAcao, textoEnviando, enviando, disabled, tipoAcao, tom, cancelarDesabilitado]);
+  React.useLayoutEffect(() => (ctx ? () => ctx.setAcao((/** @type {any} */ atual) => (atual?.dono === dono ? null : atual)) : undefined), [ctx, dono]);
   if (ctx) return null;
   return (
     <div className="mk-ll__rodape">

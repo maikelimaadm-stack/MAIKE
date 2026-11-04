@@ -434,7 +434,7 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
                           type="number"
                           step="0.1"
                           min="0"
-                          max={evento.quantidade_total_kg}
+                          max={(evento.quantidade_total_kg || 0) + (evento.sobra_kg || 0)}
                           value={formData.sobras_cocho[evento.id] || ''}
                           onChange={(e) => setFormData({
                             ...formData,

@@ -51,6 +51,34 @@ describe("LancLoteDialogo (D-PROD-115)", () => {
     expect(ok.hasAttribute("disabled")).toBe(true);
   });
 
+  it("trocar o rodapé por outro (ex.: Mover → fechamento de consumo) mantém o ✓ ativo com a ação nova", async () => {
+    const Troca = ({ etapa }) => (
+      <LancLoteDialogo open onOpenChange={() => {}} titulo="Mover Lotes">
+        {etapa === "a" ? (
+          <LancLoteForm key="a"><LancLoteRodape onCancelar={() => {}} textoAcao="Confirmar Movimentação" /></LancLoteForm>
+        ) : (
+          <>
+            <p>fechamento</p>
+            <LancLoteForm key="b"><LancLoteRodape onCancelar={() => {}} textoAcao="Fechar Consumos e Continuar" /></LancLoteForm>
+          </>
+        )}
+      </LancLoteDialogo>
+    );
+    const { rerender } = render(<Troca etapa="a" />);
+    expect(screen.getByRole("button", { name: "Confirmar Movimentação" }).hasAttribute("disabled")).toBe(false);
+    await act(async () => {
+      rerender(<Troca etapa="b" />);
+    });
+    const ok = screen.getByRole("button", { name: "Fechar Consumos e Continuar" });
+    expect(ok.hasAttribute("disabled")).toBe(false);
+  });
+
+  it("fechamento de consumo aceita sobra até o fornecido + a sobra anterior (mesmo limite do envio)", () => {
+    const fonte = readFileSync("src/components/lotes/FormularioMovimentacaoLote.jsx", "utf8");
+    expect(fonte).toMatch(/max=\{\(evento\.quantidade_total_kg \|\| 0\) \+ \(evento\.sobra_kg \|\| 0\)\}/);
+    expect(fonte).toMatch(/saldoFisicoMaximo = \(evento\.quantidade_total_kg \|\| 0\) \+ \(evento\.sobra_kg \|\| 0\)/);
+  });
+
   it("fora do diálogo o rodapé desenha Cancelar e a ação (desabilitada ao enviar)", () => {
     render(<LancLoteRodape onCancelar={() => {}} textoAcao="Salvar" enviando textoEnviando="Salvando..." />);
     expect(screen.getByRole("button", { name: "Salvando..." }).hasAttribute("disabled")).toBe(true);
