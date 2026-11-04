@@ -19,6 +19,7 @@ import {
   DialogHeader,
   DialogTitle } from
 "@/components/ui/dialog";
+import AcoesDoLote from "./AcoesDoLote";
 import FormularioMovimentacaoLote from "../lotes/FormularioMovimentacaoLote";
 import FormularioMorte from "../lotes/FormularioMorte";
 import FormularioNascimento from "../lotes/FormularioNascimento";
@@ -593,7 +594,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
 
       <ResumoSuplementacao lotesIds={lotes.map((l) => l.id)} lotesInformados={modoLedger ? lotes : undefined} modo="completo" areaId={lotes[0]?.area_atual_id || ""} />
 
-      {/* D-PROD-119: Manejos e Históricos em quadros (ícone + nome), no mesmo lugar e separados. */}
+      {/* D-PROD-119: um botão só abre os quadros de Manejos e Históricos (separados). */}
       {(() => {
         const porCategoria = {};
         lotes.forEach((l) => {
@@ -626,43 +627,22 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
           setShowRenomear(true);
         };
         const manejos = [
+          permissions.registrar_abate !== false && { nome: 'Abate', Icone: Beef, onClick: () => abrirManejo(setShowAbate) },
+          permissions.juntar_lotes !== false && lotes.length > 1 && categoriasJuntaveis.length > 0 && { nome: 'Juntar Lotes', Icone: Combine, onClick: abrirJuncao },
           permissions.mover_lotes !== false && { nome: 'Mover', Icone: ArrowLeftRight, onClick: () => abrirManejo(setShowMovimentacao) },
-          permissions.pesar_lotes !== false && { nome: 'Pesar', Icone: Scale, onClick: () => abrirManejo(setShowPesagem) },
+          permissions.mudar_categoria_lotes !== false && { nome: 'Mudar Categoria', Icone: Tags, onClick: () => abrirManejo(setShowMudancaCategoria) },
           permissions.registrar_nascimento !== false && { nome: 'Nascimento', Icone: Baby, onClick: () => abrirManejo(setShowNascimento) },
           permissions.registrar_morte !== false && { nome: 'Morte', Icone: HeartCrack, onClick: () => abrirManejo(setShowMorte) },
-          permissions.registrar_abate !== false && { nome: 'Abate', Icone: Beef, onClick: () => abrirManejo(setShowAbate) },
-          permissions.mudar_categoria_lotes !== false && { nome: 'Mudar Categoria', Icone: Tags, onClick: () => abrirManejo(setShowMudancaCategoria) },
-          permissions.juntar_lotes !== false && lotes.length > 1 && categoriasJuntaveis.length > 0 && { nome: 'Juntar Lotes', Icone: Combine, onClick: abrirJuncao },
+          permissions.pesar_lotes !== false && { nome: 'Pesar', Icone: Scale, onClick: () => abrirManejo(setShowPesagem) },
           permissions.renomear_lotes !== false && { nome: 'Renomear Lote', Icone: PencilLine, onClick: abrirRenomear },
         ].filter(Boolean);
         const historicos = [
           permissions.visualizar_historico_movimentacoes_lote !== false && { nome: 'Movimentação', rotulo: 'Histórico de Movimentação', Icone: History, onClick: () => setShowHistorico(true) },
           permissions.visualizar_historico_suplementacao_lote !== false && { nome: 'Suplementação', rotulo: 'Histórico de Suplementação', Icone: Wheat, onClick: () => setShowHistoricoSupl(true) },
         ].filter(Boolean);
-        const quadros = (itens) => (
-          <div className="mk-dl__quadros">
-            {itens.map(({ nome, rotulo, Icone, onClick }) => (
-              <button key={nome} type="button" className="mk-dl__quadro" onClick={onClick} aria-label={rotulo || nome} title={rotulo || nome}>
-                <Icone aria-hidden />
-                <span>{nome}</span>
-              </button>
-            ))}
-          </div>
-        );
         return (
-          <div className="mk-dl__acoes">
-            {manejos.length > 0 && (
-              <section className="mk-dl__grupo" aria-label="Manejos">
-                <h3 className="mk-dl__grupo-titulo">Manejos</h3>
-                {quadros(manejos)}
-              </section>
-            )}
-            {historicos.length > 0 && (
-              <section className="mk-dl__grupo" aria-label="Históricos">
-                <h3 className="mk-dl__grupo-titulo">Históricos</h3>
-                {quadros(historicos)}
-              </section>
-            )}
+          <div className="my-1">
+            <AcoesDoLote grupos={[{ titulo: 'Manejos', itens: manejos }, { titulo: 'Históricos', itens: historicos }]} />
           </div>
         );
       })()}

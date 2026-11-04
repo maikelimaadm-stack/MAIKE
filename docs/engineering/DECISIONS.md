@@ -4771,22 +4771,22 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
   - O lote e as tarefas do Mapa Geral usam a mesma abertura e as mesmas peças. O `LancLoteDialogo` deixa de ser só do lote.
   - A dívida de tipos caiu de 996 para 947.
 
-## D-PROD-119 — Detalhes do Lote com Manejos e Históricos em quadros
+## D-PROD-119 — Detalhes do Lote: visual do sistema e Manejos/Históricos em quadros
 
-- **Contexto:** o proprietário pediu os botões do Detalhes do Lote no estilo dos quadros do app do Claude ("Adicionar contexto": Câmera, Fotos, Arquivos), responsivos como as listas, com os Históricos no mesmo lugar dos manejos, mas bem separados.
+- **Contexto:** o proprietário pediu uma melhoria visual no Detalhes do Lote, no padrão do sistema: abertura, letras e sombras. Os campos não podem mudar.
+  - Os botões ficam no estilo dos quadros do app do Claude ("Adicionar contexto": Câmera, Fotos, Arquivos), abrindo com um clique, com Manejos e Históricos no mesmo lugar e bem separados.
+  - No desktop, os quadros ficam embaixo e menores.
   - Antes eram dois menus suspensos, "Eventos" e "Históricos".
-  - O próprio Detalhes do Lote era um diálogo genérico, sem tela inteira no celular.
 - **Decisão:**
-  - **Quadros:** cinza, cantos 16, ícone em cima e nome embaixo, com toque que encolhe levemente.
-  - **Dois grupos com título, um abaixo do outro:**
-    - **Manejos:** Mover, Pesar, Nascimento, Morte, Abate, Mudar Categoria, Juntar Lotes, Renomear Lote;
-    - **Históricos:** Movimentação, Suplementação.
-  - **Grade:** 3 por linha no celular e 4 no tablet e no desktop (8 manejos = 2 linhas inteiras).
-  - **Comportamento:** permissões, recusa sem ledger (`abrirManejo`) e as regras de Juntar e Renomear seguem iguais. Os históricos mantêm o nome acessível "Histórico de Movimentação" e "Histórico de Suplementação".
-  - **Dados da área e dos lotes:** cartões brancos de cantos 12 com indicadores cinza de rótulo e valor, em 2 colunas no celular (antes eram 4 apertadas) e 4 a partir de 640 px.
-  - **Abertura:** o Detalhes do Lote abre no diálogo padrão (`LancLoteDialogo somenteLeitura`), em tela inteira no celular.
-- **Consequência:**
-  - Os manejos ficam visíveis com um toque, sem abrir menu.
-  - A dívida de tipos caiu de 947 para 932.
+  - **Campos:** os mesmos da área e do lote, com os mesmos rótulos e a mesma ordem.
+  - **Visual:**
+    - cartões brancos de cantos 12, com indicadores cinza de rótulo e valor;
+    - 2 colunas no celular (antes eram 4 apertadas) e 4 a partir de 640 px.
+  - **Abertura:** diálogo padrão (`LancLoteDialogo somenteLeitura`), com cabeçalho e ✕, em tela inteira no celular.
+  - **Quadros (`AcoesDoLote`):** ícone em cima e nome embaixo, em dois grupos com título, **Manejos** e **Históricos**.
+    - Desktop e tablet: à vista, embaixo, menores (cerca de 60 px), e cada um abre a ação com um clique.
+    - Celular: um só botão, "Manejos e históricos", abre a folha de baixo com ✕ e título, como o "Adicionar contexto". Escolher fecha a folha e abre a ação.
+  - **Sem mudança:** permissões, recusa sem ledger (`abrirManejo`) e regras de Juntar e Renomear. Os históricos mantêm o nome acessível "Histórico de Movimentação" e "Histórico de Suplementação".
+- **Consequência:** os mesmos campos, no visual do sistema, e todos os manejos e históricos com um clique.
 
 <!-- Próxima decisão: D-PROD-120 -->

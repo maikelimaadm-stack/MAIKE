@@ -79,6 +79,12 @@ const renderizar = async (lotes) => {
   return utils;
 };
 const clicar = (el) => act(async () => { fireEvent.click(el); await new Promise((r) => setTimeout(r, 10)); });
+/** D-PROD-119: manejos e históricos em quadros (no celular, atrás do botão "Manejos e históricos"). */
+const acao = async (nome) => {
+  const botaoUnico = screen.queryByRole("button", { name: "Manejos e históricos" });
+  if (botaoUnico) await clicar(botaoUnico); // celular; no desktop os quadros já estão à vista
+  await clicar(screen.getByRole("button", { name: nome }));
+};
 const nenhumaEscrita = () => {
   for (const fn of ["registrarManejoRebanho", "registrarJuncaoLotes", "registrarBaixaRebanho", "registrarTransferenciaLedger", "criarEventoSuplementacao", "registrarSuplementacaoEmLote"]) {
     expect(servico[fn]).not.toHaveBeenCalled();
@@ -108,7 +114,7 @@ describe("REBANHO_CUTOVER_PENDENTE: mensagem própria e recusa definitiva", () =
 describe("DetalhesLote sem ledger (empresa não migrada)", () => {
   it.each(MANEJOS)("%s: toast com a mensagem do cutover, nenhum formulário e nenhuma requisição", async (manejo) => {
     await renderizar([loteLegado("l1"), loteLegado("l2")]);
-    await clicar(screen.getByRole("button", { name: manejo }));
+    await acao(manejo);
     expect(toast.error).toHaveBeenCalledWith(MSG);
     expect(screen.queryByRole("dialog")).toBe(null);
     nenhumaEscrita();
@@ -122,11 +128,11 @@ describe("DetalhesLote sem ledger (empresa não migrada)", () => {
   });
   it("históricos seguem abrindo (somente leitura)", async () => {
     await renderizar([loteLegado("l1")]);
-    await clicar(screen.getByRole("button", { name: "Histórico de Movimentação" }));
+    await acao("Histórico de Movimentação");
     expect(screen.getByTestId("form-historico")).toBeTruthy();
     // D-PROD-117: o histórico é um diálogo modal (LancLoteDialogo); fecha antes de abrir o outro.
     await clicar(screen.getByRole("button", { name: "Fechar" }));
-    await clicar(screen.getByRole("button", { name: "Histórico de Suplementação" }));
+    await acao("Histórico de Suplementação");
     expect(screen.getByTestId("form-historico-supl")).toBeTruthy();
     expect(toast.error).not.toHaveBeenCalled();
   });
@@ -137,14 +143,14 @@ describe("DetalhesLote no ledger (posições): formulários abrem como antes", (
     "%s abre o formulário sem recusa",
     async (manejo, id) => {
       await renderizar([posicao("p1"), posicao("p2")]);
-      await clicar(screen.getByRole("button", { name: manejo }));
+      await acao(manejo);
       expect(screen.getByTestId(`form-${id}`)).toBeTruthy();
       expect(toast.error).not.toHaveBeenCalled();
     }
   );
   it("Juntar Lotes abre o diálogo de junção", async () => {
     await renderizar([posicao("p1"), posicao("p2")]);
-    await clicar(screen.getByRole("button", { name: "Juntar Lotes" }));
+    await acao("Juntar Lotes");
     expect(screen.getByText("Selecione o lote que receberá os animais (lote principal):")).toBeTruthy();
     expect(toast.error).not.toHaveBeenCalled();
   });

@@ -226,13 +226,12 @@ Pedido do proprietário com prints do app do Claude no iPhone. Conferido no Chro
 
 **Não testado em aparelho real.** O Gestão de Tarefas foi visto com a tabela vazia, porque o harness não tem tarefas.
 
-## V15 — Detalhes do Lote com Manejos e Históricos em quadros (D-PROD-119)
+## V15 — Detalhes do Lote: visual do sistema e quadros de Manejos/Históricos (D-PROD-119)
 
 | Pedido | Feito | Evidência |
 |---|---|---|
-| Botões dos manejos no estilo Câmera/Fotos/Arquivos | Quadros cinza com ícone e nome, no lugar dos menus "Eventos" e "Históricos" | antes: v15-00; depois: v15-01 (desktop), v15-02 (celular 390 e 360 px) |
-| Responsivo como as listas | 3 por linha no celular e 4 no tablet e no desktop. Dados da área e dos lotes em 2 colunas no celular | v15-02 |
-| Históricos no mesmo lugar, mas separados | Grupos "Manejos" e "Históricos" com título | v15-01 |
+| Melhorar abertura, letras e sombras sem mudar campos | Diálogo padrão (tela inteira no celular). Cartões com indicadores, com os mesmos campos e rótulos | v15-01 |
+| Botões no estilo Câmera/Fotos/Arquivos, um clique abre | Quadros com ícone e nome em grupos Manejos e Históricos | v15-01, v15-02 |
+| Desktop: botões embaixo, menores | Quadros à vista embaixo, com cerca de 60 px. No celular, um botão só abre a folha de baixo | v15-01 (desktop), v15-02 (celular e tablet) |
 
-Morte e Histórico de Movimentação abrem pelos quadros nas três larguras (harness). **Não testado em aparelho real.**
-
+Morte e Histórico de Movimentação abrem pelos quadros a 1600, 820 e 390 px (harness). **Não testado em aparelho real.**

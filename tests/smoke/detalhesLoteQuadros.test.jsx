@@ -1,17 +1,31 @@
 // @vitest-environment jsdom
 /**
- * D-PROD-119 — Detalhes do Lote: Manejos e Históricos em quadros (ícone +
- * nome) no mesmo lugar, em grupos separados; sem os menus "Eventos"/"Históricos".
+ * D-PROD-119 — Detalhes do Lote: um botão só ("Manejos e históricos") abre os
+ * quadros (ícone + nome) em grupos separados; sem os menus "Eventos"/"Históricos".
+ * O resto do Detalhes do Lote fica como era.
  */
-import { describe, it, expect } from "vitest";
+import React from "react";
+import { describe, it, expect, vi, afterEach } from "vitest";
+import { render, screen, fireEvent, cleanup, act } from "@testing-library/react";
+import { Scale } from "lucide-react";
+import AcoesDoLote from "@/components/mapa/AcoesDoLote";
 import { readFileSync } from "node:fs";
+
+afterEach(cleanup);
 
 const fonte = readFileSync("src/components/mapa/DetalhesLote.jsx", "utf8");
 
-describe("Detalhes do Lote em quadros (D-PROD-119)", () => {
-  it("dois grupos separados — Manejos e Históricos — e nenhum menu suspenso", () => {
-    expect(fonte).toMatch(/aria-label="Manejos"/);
-    expect(fonte).toMatch(/aria-label="Históricos"/);
+const grupos = (pesar, historico) => [
+  { titulo: "Manejos", itens: [{ nome: "Pesar", Icone: Scale, onClick: pesar }] },
+  { titulo: "Históricos", itens: [{ nome: "Movimentação", rotulo: "Histórico de Movimentação", Icone: Scale, onClick: historico }] },
+];
+const comoCelular = (sim) => {
+  window.matchMedia = /** @type {any} */ ((q) => ({ matches: sim && /max-width: 639px/.test(q), media: q, addEventListener() {}, removeEventListener() {} }));
+};
+
+describe("Detalhes do Lote: Manejos e Históricos em quadros (D-PROD-119)", () => {
+  it("sem menus suspensos; dois grupos separados — Manejos e Históricos", () => {
+    expect(fonte).toMatch(/<AcoesDoLote grupos=\{\[\{ titulo: 'Manejos', itens: manejos \}, \{ titulo: 'Históricos', itens: historicos \}\]\} \/>/);
     expect(fonte).not.toMatch(/DropdownMenu/);
   });
 
@@ -25,8 +39,36 @@ describe("Detalhes do Lote em quadros (D-PROD-119)", () => {
     }
   });
 
-  it("o próprio Detalhes do Lote abre no diálogo padrão (tela inteira no celular)", () => {
-    const mapa = readFileSync("src/pages/MapaGeral.jsx", "utf8");
-    expect(mapa).toMatch(/<LancLoteDialogo(?:(?!<\/?LancLoteDialogo)[\s\S])*?titulo="Detalhes do Lote"(?:(?!<\/?LancLoteDialogo)[\s\S])*?somenteLeitura/);
+  it("mesmos campos do lote e da área (só o visual mudou)", () => {
+    const area = readFileSync("src/components/mapa/InformacoesArea.jsx", "utf8");
+    for (const c of ["Identificador", "Sigla", "Qtd. Cabeças", "Peso Médio", "Dias de pastejo", "Sist. Rep.", "Raça Predominante", "Sexo", "Categoria de Manejo:", "Categoria Oficial:"]) {
+      expect(fonte, c).toContain(c);
+    }
+    for (const c of ["Hectares", "UA/ha", "UA total", "Pastagem", "Qtd. Lotes", "Qtd. Cabeças", "Média geral", "Dias pastejo"]) {
+      expect(area, c).toContain(c);
+    }
+  });
+
+  it("desktop: quadros à vista; um clique abre a ação", async () => {
+    comoCelular(false);
+    const pesar = vi.fn();
+    render(<AcoesDoLote grupos={grupos(pesar, vi.fn())} />);
+    expect(screen.queryByRole("button", { name: "Manejos e históricos" })).toBeNull();
+    expect(screen.getByRole("region", { name: "Manejos" })).toBeTruthy();
+    expect(screen.getByRole("region", { name: "Históricos" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Pesar" }));
+    expect(pesar).toHaveBeenCalledTimes(1);
+  });
+
+  it("celular: um botão só abre a folha; escolher fecha a folha e chama a ação", async () => {
+    comoCelular(true);
+    const historico = vi.fn();
+    render(<AcoesDoLote grupos={grupos(vi.fn(), historico)} />);
+    expect(screen.queryByRole("button", { name: "Histórico de Movimentação" })).toBeNull();
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Manejos e históricos" })); });
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Histórico de Movimentação" })); });
+    expect(historico).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("button", { name: "Histórico de Movimentação" })).toBeNull();
+    comoCelular(false);
   });
 });
