@@ -668,3 +668,159 @@
   align-items: center;
   gap: 8px;
 }
+
+/* ── Detalhes do Lote (D-PROD-119) ────────────────────────────────────── */
+.mk-dl__lotes {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+}
+
+@media (min-width: 768px) {
+  .mk-dl__lotes {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.mk-dl__cartao {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid #e7eaee;
+  border-radius: 12px;
+  background: #fff;
+  font-size: 12px;
+}
+
+.mk-dl__infos {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+@media (min-width: 640px) {
+  .mk-dl__infos:not(.mk-dl__infos--2) {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.mk-dl__info {
+  min-width: 0;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: #f6f7f8;
+}
+
+.mk-dl__info > div:first-child {
+  font-size: 10.5px;
+  color: #64748b;
+}
+
+.mk-dl__info > div:last-child {
+  overflow-wrap: anywhere;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.mk-dl__rodape {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 16px;
+  font-size: 11px;
+}
+
+/* Manejos e Históricos: quadros com ícone em cima e nome embaixo */
+.mk-dl__acoes {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 4px;
+}
+
+.mk-dl__grupo {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mk-dl__grupo-titulo {
+  padding-left: 2px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #64748b;
+  text-transform: uppercase;
+}
+
+.mk-dl__quadros {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+@media (min-width: 640px) {
+  .mk-dl__quadros {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.mk-dl__quadro {
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+  min-height: 84px;
+  padding: 12px 6px;
+  border: 0;
+  border-radius: 16px;
+  background: #f1f3f4;
+  color: #1f2937;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.15;
+  text-align: center;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s, transform 0.1s;
+}
+
+.mk-dl__quadro:hover {
+  background: #e8ebee;
+}
+
+.mk-dl__quadro:active {
+  transform: scale(0.97);
+  background: #e4e7ea;
+}
+
+.mk-dl__quadro:focus-visible {
+  outline: 2px solid rgba(64, 222, 99, 0.6);
+  outline-offset: 2px;
+}
+
+.mk-dl__quadro svg {
+  width: 26px;
+  height: 26px;
+  stroke-width: 1.6;
+  color: #334155;
+}
+
+.mk-dl__quadro span {
+  max-width: 100%;
+  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: none;
+}
+
+@media (max-width: 639px) {
+  .mk-dl__quadro {
+    min-height: 92px;
+    padding: 12px 4px;
+    font-size: 13px;
+  }
+}
