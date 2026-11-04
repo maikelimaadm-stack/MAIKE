@@ -1,11 +1,11 @@
 import React, { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuery } from "@tanstack/react-query";
 import { listarIconesDaEmpresa } from "@/services/mapaService";
 import { getTodayLocalDate } from "../utils/pecuariaUtils";
 import { LancLoteForm, LancLoteItens, LancLoteItem, LancLoteAdicionar, LancLoteRodape, LL_CTL } from "@/components/lotes/LancamentoLoteUi";
+import B1Select from "@/components/cadastro/base1/B1Select";
 import LancField from "@/components/cadastro/base1/LancField";
 
 /** Campo flutuante Base1 (rótulo dentro) — D-PROD-88. */
@@ -116,26 +116,16 @@ export default function FormularioAbate({ lote, onSubmit, onCancel, enviando = f
                 <LancLoteItem key={index} titulo={`Categoria ${index + 1}`} icone={iconeUrl} onRemover={() => removerCategoria(index)} rotuloRemover="Remover categoria">
 
                   <FL label="Categoria" className="mk-ll__cheio">
-                    <Select
-                      value={abate.categoria}
-                      onValueChange={(v) => handleAbateChange(index, 'categoria', v)}
-                    >
-                      <SelectTrigger className={LL_CTL}>
-                        <SelectValue>
-                          {infoCategoria?.totalCabecas || 0} cb - {abate.categoria}
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
+                    <B1Select value={(abate.categoria) ?? ""} onChange={(e) => { const v = e.target.value; handleAbateChange(index, 'categoria', v); }} className={LL_CTL}>
                         {categoriasDisponiveis.map(cat => {
                           const info = lotesPorCategoria[cat];
                           return (
-                            <SelectItem key={cat} value={cat} className="text-xs">
+                            <option key={cat} value={cat}>
                               {info.totalCabecas} cb - {cat}
-                            </SelectItem>
+                            </option>
                           );
                         })}
-                      </SelectContent>
-                    </Select>
+                    </B1Select>
                   </FL>
 
                   <>
@@ -173,21 +163,13 @@ export default function FormularioAbate({ lote, onSubmit, onCancel, enviando = f
                     </FL>
 
                     <FL label="Destino">
-                      <Select
-                        value={abate.destino}
-                        onValueChange={(v) => handleAbateChange(index, 'destino', v)}
-                      >
-                        <SelectTrigger className={LL_CTL}>
-                          <SelectValue placeholder="Selecione o destino" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Frigorífico" className="text-xs">Frigorífico</SelectItem>
-                          <SelectItem value="Açougue" className="text-xs">Açougue</SelectItem>
-                          <SelectItem value="Consumo Próprio" className="text-xs">Consumo Próprio</SelectItem>
-                          <SelectItem value="Venda Direta" className="text-xs">Venda Direta</SelectItem>
-                          <SelectItem value="Outro" className="text-xs">Outro</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <B1Select value={(abate.destino) ?? ""} onChange={(e) => { const v = e.target.value; handleAbateChange(index, 'destino', v); }} className={LL_CTL}>
+                          <option value="Frigorífico">Frigorífico</option>
+                          <option value="Açougue">Açougue</option>
+                          <option value="Consumo Próprio">Consumo Próprio</option>
+                          <option value="Venda Direta">Venda Direta</option>
+                          <option value="Outro">Outro</option>
+                      </B1Select>
                     </FL>
 
                     {(abate.destino === "Frigorífico" || abate.destino === "Açougue" || abate.destino === "Venda Direta" || abate.destino === "Outro") && (

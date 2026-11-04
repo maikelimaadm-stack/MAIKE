@@ -4694,4 +4694,21 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
 - **Removido:** o "Histórico" da Mudança de Categoria. Era um espaço que sempre mostrava "Nenhum histórico disponível".
 - **Consequência:** a próxima tela de manejo usa as mesmas peças.
 
-<!-- Próxima decisão: D-PROD-116 -->
+## D-PROD-116 — Listas dos lançamentos de lote iguais às do cadastro
+
+- **Contexto:** o proprietário apontou que as listas dos lançamentos de lote não abriam como as do cadastro.
+  - **Antes:** era o `Select` genérico do Radix.
+    - Desktop: menu solto.
+    - Celular: folha sem título, sem pesquisa e sem marca da escolhida.
+  - **Cadastro:** desktop usa o `PainelSelecao` (D-PROD-106), logo abaixo do campo e com pesquisa acima de 8 opções. Celular usa a folha com ✕, o nome do campo como título e a lista agrupada.
+- **Decisão:**
+  - Os lançamentos de lote passam a usar o `B1Select`, o mesmo do cadastro: Morte, Abate, Nascimento, Pesagem, Mudança de Categoria e Mover.
+  - **A folha do celular abre dentro do diálogo.** O lançamento é um diálogo do Radix (D-PROD-115), que bloqueia toque e foco fora dele.
+    - O `MobileSheet` ganhou `MobileSheetPortalCtx`, que diz onde a folha é montada.
+    - O `LancLoteDialogo` oferece um alvo dentro do próprio diálogo.
+    - Fora dele, a folha continua no `document.body`.
+- **Consequência:**
+  - O mesmo componente de lista em cadastros e lançamentos.
+  - A dívida de tipos caiu de 1071 para 1033, sem diagnóstico novo.
+
+<!-- Próxima decisão: D-PROD-117 -->

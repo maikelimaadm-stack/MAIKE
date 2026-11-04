@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuery } from "@tanstack/react-query";
 import { listarIconesDaEmpresa, listarTodosPontosSuplementacao } from "@/services/mapaService";
 import { listarTodosLotes, listarEventosSuplementacao } from "@/services/loteManejoService";
@@ -13,6 +12,7 @@ import { calcularDiasPeriodo } from "../utils/consumoUtils";
 import { fecharPeriodoSuplementacao } from "@/services/suplementacaoService";
 import { getTodayLocalDate } from "../utils/pecuariaUtils";
 import { LancLoteForm, LancLoteItens, LancLoteItem, LancLoteAdicionar, LancLoteRodape, LancLoteSegmento, LancLoteAviso, LL_CTL } from "@/components/lotes/LancamentoLoteUi";
+import B1Select from "@/components/cadastro/base1/B1Select";
 import LancField from "@/components/cadastro/base1/LancField";
 
 /** Campo flutuante Base1 (rótulo dentro) — D-PROD-88. */
@@ -490,64 +490,36 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
           </div>
           <div className="mk-ll__grade">
             <FL label="Setor de saída" required>
-              <Select value={formData.setor_saida_id || ''} onValueChange={(v) => setFormData({ ...formData, setor_saida_id: v === '__none__' ? '' : v, area_saida_id: '' })}>
-                <SelectTrigger className={LL_CTL}>
-                  <SelectValue placeholder="Selecione o setor de saída" />
-                </SelectTrigger>
-                <SelectContent>
+              <B1Select value={formData.setor_saida_id || ''} onChange={(e) => { const v = e.target.value; setFormData({ ...formData, setor_saida_id: v === '__none__' ? '' : v, area_saida_id: '' }); }} className={LL_CTL}>
                   {setores.map((setor) =>
-                  <SelectItem key={setor.id} value={setor.id} className="text-xs">{setor.nome}</SelectItem>
+                  <option key={setor.id} value={setor.id}>{setor.nome}</option>
                   )}
-                </SelectContent>
-              </Select>
+              </B1Select>
             </FL>
             <FL label="Área e módulo de saída" required>
-              <Select
-                value={formData.area_saida_id || ''}
-                onValueChange={(v) => setFormData({ ...formData, area_saida_id: v === '__none__' ? '' : v })}
-                disabled={!formData.setor_saida_id}>
-
-                <SelectTrigger className={LL_CTL}>
-                  <SelectValue placeholder={formData.setor_saida_id ? 'Selecione a área de saída' : 'Selecione o setor primeiro'} />
-                </SelectTrigger>
-                <SelectContent>
+              <B1Select value={formData.area_saida_id || ''} onChange={(e) => { const v = e.target.value; setFormData({ ...formData, area_saida_id: v === '__none__' ? '' : v }); }} disabled={!formData.setor_saida_id} className={LL_CTL}>
                   {areasSaida.map((area) =>
-                  <SelectItem key={area.id} value={area.id} className="text-xs">
+                  <option key={area.id} value={area.id}>
                       {area.numero_area ? `${area.numero_area} - ${area.nome}` : area.nome}
-                    </SelectItem>
+                    </option>
                   )}
-                </SelectContent>
-              </Select>
+              </B1Select>
             </FL>
             <FL label="Setor de entrada" required>
-              <Select value={formData.setor_entrada_id || ''} onValueChange={(v) => setFormData({ ...formData, setor_entrada_id: v === '__none__' ? '' : v, area_entrada_id: '' })}>
-                <SelectTrigger className={LL_CTL}>
-                  <SelectValue placeholder="Selecione o setor de entrada" />
-                </SelectTrigger>
-                <SelectContent>
+              <B1Select value={formData.setor_entrada_id || ''} onChange={(e) => { const v = e.target.value; setFormData({ ...formData, setor_entrada_id: v === '__none__' ? '' : v, area_entrada_id: '' }); }} className={LL_CTL}>
                   {setores.map((setor) =>
-                  <SelectItem key={setor.id} value={setor.id} className="text-xs">{setor.nome}</SelectItem>
+                  <option key={setor.id} value={setor.id}>{setor.nome}</option>
                   )}
-                </SelectContent>
-              </Select>
+              </B1Select>
             </FL>
             <FL label="Área e módulo de entrada" required>
-              <Select
-                value={formData.area_entrada_id || ''}
-                onValueChange={(v) => setFormData({ ...formData, area_entrada_id: v === '__none__' ? '' : v })}
-                disabled={!formData.setor_entrada_id}>
-
-                <SelectTrigger className={LL_CTL}>
-                  <SelectValue placeholder={formData.setor_entrada_id ? 'Selecione a área de entrada' : 'Selecione o setor primeiro'} />
-                </SelectTrigger>
-                <SelectContent>
+              <B1Select value={formData.area_entrada_id || ''} onChange={(e) => { const v = e.target.value; setFormData({ ...formData, area_entrada_id: v === '__none__' ? '' : v }); }} disabled={!formData.setor_entrada_id} className={LL_CTL}>
                   {areasEntrada.map((area) =>
-                  <SelectItem key={area.id} value={area.id} className="text-xs">
+                  <option key={area.id} value={area.id}>
                         {area.numero_area ? `${area.numero_area} - ${area.nome}` : area.nome}
-                      </SelectItem>
+                      </option>
                   )}
-                </SelectContent>
-              </Select>
+              </B1Select>
             </FL>
           </div>
 
@@ -570,31 +542,19 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
                 <LancLoteItem key={index} titulo={`Categoria ${index + 1}`} icone={iconeUrl} onRemover={() => handleRemoveMovimentacao(index)} rotuloRemover="Remover categoria">
 
                     <FL label="Categoria" className="mk-ll__cheio">
-                    <Select
-                    value={mov.categoria}
-                    onValueChange={(v) => {
-                      const cat = categoriasPorLote[v];
+                    <B1Select value={(mov.categoria) ?? ""} onChange={(e) => { const v = e.target.value; const cat = categoriasPorLote[v];
                       handleMovimentacaoChange(index, 'categoria', v);
                       handleMovimentacaoChange(index, 'quantidade_maxima', cat.quantidade_total);
-                      handleMovimentacaoChange(index, 'peso_medio', cat.peso_medio);
-                    }}>
-
-                      <SelectTrigger className={LL_CTL}>
-                        <SelectValue>
-                          {infoCategoria?.quantidade_total || 0} cb - {mov.categoria}
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
+                      handleMovimentacaoChange(index, 'peso_medio', cat.peso_medio); }} className={LL_CTL}>
                         {categoriasDisponiveis.map((cat) => {
                         const info = categoriasPorLote[cat];
                         return (
-                          <SelectItem key={cat} value={cat} className="text-xs">
+                          <option key={cat} value={cat}>
                               {info.quantidade_total} cb - {cat}
-                            </SelectItem>);
+                            </option>);
 
                       })}
-                      </SelectContent>
-                    </Select>
+                    </B1Select>
                     </FL>
 
                     <>

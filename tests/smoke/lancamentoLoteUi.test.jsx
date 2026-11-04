@@ -8,6 +8,7 @@ import React from "react";
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, fireEvent, cleanup, act } from "@testing-library/react";
 import { readFileSync } from "node:fs";
+import MobileSheet from "@/components/common/MobileSheet";
 import { LancLoteDialogo, LancLoteForm, LancLoteRodape, LancLoteItem, LancLoteSegmento } from "@/components/lotes/LancamentoLoteUi";
 
 afterEach(cleanup);
@@ -99,6 +100,35 @@ describe("LancLoteDialogo (D-PROD-115)", () => {
     expect(screen.getByRole("radio", { name: "Sim" }).getAttribute("aria-checked")).toBe("true");
     fireEvent.click(screen.getByRole("radio", { name: "Não" }));
     expect(onChange).toHaveBeenCalledWith("nao");
+  });
+
+  it("D-PROD-116: a folha do celular abre DENTRO do diálogo do lançamento (senão o diálogo bloqueia toque e foco)", async () => {
+    const Com = () => {
+      const [aberta, setAberta] = React.useState(false);
+      return (
+        <LancLoteDialogo open onOpenChange={() => {}} titulo="Registrar Morte">
+          <button type="button" onClick={() => setAberta(true)}>abrir</button>
+          <MobileSheet open={aberta} onClose={() => setAberta(false)} label="Causa da Morte" title="Causa da Morte">
+            <div>opções</div>
+          </MobileSheet>
+        </LancLoteDialogo>
+      );
+    };
+    render(<Com />);
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "abrir" }));
+    });
+    const folha = document.querySelector(".mk-sheet");
+    expect(folha).toBeTruthy();
+    expect(folha.closest(".mk-ll-dlg")).toBeTruthy();
+  });
+
+  it("D-PROD-116: as listas dos lançamentos de lote são as do cadastro (B1Select), não o Select genérico", () => {
+    for (const f of ["Abate", "Morte", "Nascimento", "Pesagem", "MudancaCategoria", "MovimentacaoLote"]) {
+      const fonte = readFileSync(`src/components/lotes/Formulario${f}.jsx`, "utf8");
+      expect(fonte, f).not.toMatch(/@\/components\/ui\/select/);
+      expect(fonte, f).toMatch(/<B1Select\b/);
+    }
   });
 
   it("os lançamentos de lote não têm mais cartão com cabeçalho próprio (sem cabeçalho duplicado)", () => {

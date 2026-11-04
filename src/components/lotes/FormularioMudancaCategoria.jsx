@@ -1,11 +1,11 @@
 import React, { useState } from "react";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuery } from "@tanstack/react-query";
 import { listarIconesDaEmpresa } from "@/services/mapaService";
 import { listarCategoriasManejoDaEmpresa } from "@/services/categoriaManejoService";
 import { getTodayLocalDate } from "../utils/pecuariaUtils";
 import { LancLoteForm, LancLoteItens, LancLoteItem, LancLoteAdicionar, LancLoteRodape, LL_CTL } from "@/components/lotes/LancamentoLoteUi";
+import B1Select from "@/components/cadastro/base1/B1Select";
 import LancField from "@/components/cadastro/base1/LancField";
 
 /** Campo flutuante Base1 (rótulo dentro) — D-PROD-88. */
@@ -151,26 +151,16 @@ export default function FormularioMudancaCategoria({ lote, onSubmit, onCancel })
                 <LancLoteItem key={index} titulo={`Categoria ${index + 1}`} icone={iconeUrl} onRemover={() => removerCategoria(index)} rotuloRemover="Remover categoria">
 
                   <FL label="Categoria Atual">
-                    <Select
-                      value={mudanca.categoria_atual}
-                      onValueChange={(v) => handleMudancaChange(index, 'categoria_atual', v)}
-                    >
-                      <SelectTrigger className={LL_CTL}>
-                        <SelectValue>
-                          {infoCategoria?.totalCabecas || 0} cb - {mudanca.categoria_atual}
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
+                    <B1Select value={(mudanca.categoria_atual) ?? ""} onChange={(e) => { const v = e.target.value; handleMudancaChange(index, 'categoria_atual', v); }} className={LL_CTL}>
                         {categoriasDisponiveis.map(cat => {
                           const info = lotesPorCategoria[cat];
                           return (
-                            <SelectItem key={cat} value={cat} className="text-xs">
+                            <option key={cat} value={cat}>
                               {info.totalCabecas} cb - {cat}
-                            </SelectItem>
+                            </option>
                           );
                         })}
-                      </SelectContent>
-                    </Select>
+                    </B1Select>
                   </FL>
 
                   <>
@@ -187,19 +177,11 @@ export default function FormularioMudancaCategoria({ lote, onSubmit, onCancel })
                       />
                     </FL>
                     <FL label="Nova Categoria" required>
-                      <Select
-                        value={mudanca.categoria_nova}
-                        onValueChange={(v) => handleMudancaChange(index, 'categoria_nova', v)}
-                      >
-                        <SelectTrigger className={LL_CTL}>
-                          <SelectValue placeholder="Selecione a nova categoria" />
-                        </SelectTrigger>
-                        <SelectContent>
+                      <B1Select value={(mudanca.categoria_nova) ?? ""} onChange={(e) => { const v = e.target.value; handleMudancaChange(index, 'categoria_nova', v); }} className={LL_CTL}>
                           {CATEGORIAS.filter(c => c !== mudanca.categoria_atual).map(cat => (
-                            <SelectItem key={cat} value={cat} className="text-xs">{cat}</SelectItem>
+                            <option key={cat} value={cat}>{cat}</option>
                           ))}
-                        </SelectContent>
-                      </Select>
+                      </B1Select>
                     </FL>
 
                     {mudanca.sexo_novo && (
