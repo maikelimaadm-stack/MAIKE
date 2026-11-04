@@ -44,7 +44,7 @@ import MobileSheet from "@/components/common/MobileSheet";
 import MobileModulesView from "@/components/navigation/MobileModulesView";
 import { MobileShellProvider, useMobileShellState } from "@/lib/mobileShellContext";
 import { instalarTecladoDoFormulario } from "@/lib/tecladoFormulario";
-import useDeslizarParaVoltar from "@/hooks/useDeslizarParaVoltar";
+import useDeslizarParaVoltar, { useDeslizarParaFechar } from "@/hooks/useDeslizarParaVoltar";
 import PermissionAlertDialog from "@/components/common/PermissionAlertDialog";
 import { DEFAULT_MENU, PAGINAS_SO_ADMINISTRADOR, flattenMenuPages, findMenuItemByUrl, getAllPages } from "@/lib/menuConfig";
 import { ACTION_LABELS, canAccessModule, canAccessPage, canPerformAction, detectPermissionAction, normalizePermissionRecord } from "@/lib/permissions";
@@ -400,6 +400,8 @@ function LayoutShell({ children, currentPageName }) {
   const mostrarNavInferior = !mobileRecord;
   // Deslizar da borda esquerda = o mesmo voltar do cabeçalho (registro → lista, tela → módulo).
   useDeslizarParaVoltar({ ativo: Boolean(mobileBack), onVoltar: mobileBack?.run, alvoRef: mainRef });
+  // Com uma janela aberta (lançamento, histórico, detalhes, folha), o mesmo gesto a fecha.
+  useDeslizarParaFechar();
 
   const userMenu =
   <DropdownMenu>

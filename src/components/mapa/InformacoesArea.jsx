@@ -1,5 +1,4 @@
 import React, { useMemo } from "react";
-import { Badge } from "@/components/ui/badge";
 
 function fmt(value, digits = 2) {
   return Number(value || 0).toLocaleString("pt-BR", { minimumFractionDigits: digits, maximumFractionDigits: digits });
@@ -47,9 +46,9 @@ export default function InformacoesArea({ area, lotesNaArea = [], tituloLotes })
 
   return (
     <div className="mk-dl__cartao">
-      <Badge variant="outline" className="bg-yellow-400 text-slate-950 px-2.5 py-0.5 text-xs font-semibold rounded-full inline-flex items-center border border-yellow-300">
-        Informações da Área: {area.nome}
-      </Badge>
+      <div className="mk-dl__cab">
+        <span className="mk-dl__nome">Informações da Área: {area.nome}</span>
+      </div>
 
       {isCurral ? (
         <div className="mk-dl__infos mk-dl__infos--2">
@@ -100,19 +99,19 @@ export default function InformacoesArea({ area, lotesNaArea = [], tituloLotes })
       )}
 
       {!isCurral && sistemasUnicos.length > 0 &&
-      <div className="flex items-center gap-1 flex-wrap">
-          <span className="text-[10px] text-slate-500">Sistemas Reprodutivos:</span>
+      <div className="mk-dl__chips">
+          <span className="mk-dl__chips-rotulo">Sistemas Reprodutivos:</span>
           {sistemasUnicos.map((s) =>
-        <Badge key={s} variant="outline" className="text-[9px] px-1.5 py-0 border-slate-300 text-slate-700">{s}</Badge>
+        <span key={s} className="mk-dl__chip">{s}</span>
         )}
         </div>
       }
 
       {tituloLotes &&
-      <div className="flex items-center gap-1 flex-wrap">
-          <span className="text-[10px] text-slate-500">Lotes:</span>
+      <div className="mk-dl__chips">
+          <span className="mk-dl__chips-rotulo">Lotes:</span>
           {tituloLotes.split(' - ').map((nome, index) =>
-        <Badge key={`${nome}-${index}`} variant="outline" className="text-[9px] px-1.5 py-0 border-slate-300 text-slate-700">{nome}</Badge>
+        <span key={`${nome}-${index}`} className="mk-dl__chip">{nome}</span>
         )}
         </div>
       }

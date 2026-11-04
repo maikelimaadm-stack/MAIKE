@@ -99,3 +99,88 @@ export default function useDeslizarParaVoltar({ ativo, onVoltar, alvoRef }) {
     };
   }, [ativo, alvoRef]);
 }
+
+/**
+ * Deslizar da borda esquerda também FECHA a janela de cima (D-PROD-120): os
+ * lançamentos, históricos, detalhes e folhas abrem em tela inteira no celular,
+ * e o gesto de voltar do iPhone precisa valer neles. A janela acompanha o dedo
+ * (`translate`, que soma ao `transform` do diálogo) e, passando do limiar,
+ * fecha como o ✕: folha pelo fundo escuro; diálogo do Radix pelo Esc.
+ */
+export function useDeslizarParaFechar() {
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    /** @type {null | { x0: number, y0: number, dx: number, decidido: boolean, arrastando: boolean, janela: HTMLElement, mover: HTMLElement }} */
+    let g = null;
+    const celular = () => window.matchMedia?.("(max-width: 767px)").matches;
+
+    const janelaDeCima = () => {
+      const abertas = /** @type {HTMLElement[]} */ (Array.from(document.querySelectorAll(".mk-sheet-root, [role='dialog'][data-state='open']")));
+      return abertas[abertas.length - 1] || null;
+    };
+
+    const inicio = (e) => {
+      const t = e.touches[0];
+      if (!t || t.clientX > BORDA || !celular()) return;
+      const janela = janelaDeCima();
+      if (!janela) return;
+      const mover = janela.classList.contains("mk-sheet-root") ? /** @type {HTMLElement} */ (janela.querySelector(".mk-sheet") || janela) : janela;
+      g = { x0: t.clientX, y0: t.clientY, dx: 0, decidido: false, arrastando: false, janela, mover };
+    };
+
+    const mover = (e) => {
+      if (!g) return;
+      const t = e.touches[0];
+      const dx = t.clientX - g.x0;
+      const dy = t.clientY - g.y0;
+      if (!g.decidido) {
+        if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+        g.decidido = true;
+        g.arrastando = dx > 0 && Math.abs(dx) > Math.abs(dy) * 1.2;
+        if (!g.arrastando) {
+          g = null;
+          return;
+        }
+        g.mover.style.transition = "none";
+      }
+      if (e.cancelable) e.preventDefault();
+      g.dx = Math.max(0, dx);
+      g.mover.style.translate = `${g.dx}px 0`;
+    };
+
+    const fim = () => {
+      if (!g) return;
+      const { dx, arrastando, janela, mover: el } = g;
+      g = null;
+      if (!arrastando) return;
+      const fechar = dx > LIMIAR;
+      el.style.transition = "translate 0.22s cubic-bezier(0.32, 0.72, 0, 1)";
+      el.style.translate = fechar ? "100vw 0" : "0 0";
+      window.setTimeout(() => {
+        const voltarAoLugar = () => {
+          el.style.transition = "";
+          el.style.translate = "";
+        };
+        if (!fechar) return voltarAoLugar();
+        const fundo = janela.classList.contains("mk-sheet-root") ? /** @type {HTMLElement | null} */ (janela.querySelector(".mk-sheet-scrim")) : null;
+        if (fundo) fundo.click();
+        else janela.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+        // Se a janela não pôde fechar (ex.: salvando), volta ao lugar.
+        window.setTimeout(() => {
+          if (janela.isConnected && (janela.classList.contains("mk-sheet-root") || janela.getAttribute("data-state") === "open")) voltarAoLugar();
+        }, 450);
+      }, fechar ? 200 : 230);
+    };
+
+    document.addEventListener("touchstart", inicio, { passive: true });
+    document.addEventListener("touchmove", mover, { passive: false });
+    document.addEventListener("touchend", fim);
+    document.addEventListener("touchcancel", fim);
+    return () => {
+      document.removeEventListener("touchstart", inicio);
+      document.removeEventListener("touchmove", mover);
+      document.removeEventListener("touchend", fim);
+      document.removeEventListener("touchcancel", fim);
+    };
+  }, []);
+}

@@ -516,6 +516,19 @@
   visibility: hidden;
 }
 
+/* Lugar à direita do título no celular (só leitura): mesmo tamanho do ✕,
+   vazio fica invisível e o título continua no centro (D-PROD-120). */
+.mk-ll-dlg__slot {
+  display: inline-flex;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+}
+
+.mk-al__redondo[aria-expanded="true"] {
+  background: #e4e7ea;
+}
+
 /* ── Históricos do lote (D-PROD-117) ─────────────────────────────────── */
 .mk-hist {
   display: flex;
@@ -688,8 +701,9 @@
   gap: 8px;
   padding: 10px;
   border: 1px solid #e7eaee;
-  border-radius: 12px;
+  border-radius: 14px;
   background: #fff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
   font-size: 12px;
 }
 
@@ -722,6 +736,87 @@
   font-size: 12.5px;
   font-weight: 600;
   color: #1f2937;
+}
+
+/* Cabeçalho do cartão: nome na cor dos botões (D-PROD-120) */
+.mk-dl__cab {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.mk-dl__nome {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  max-width: 100%;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: var(--mg-accent, #40de63);
+  box-shadow: 0 1px 2px rgba(22, 101, 52, 0.18);
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.mk-dl__icone {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: #f6f7f8;
+}
+
+.mk-dl__icone img {
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
+}
+
+.mk-dl__chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.mk-dl__chips-rotulo {
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.mk-dl__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(64, 222, 99, 0.14);
+  color: #166534;
+  font-size: 11.5px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.mk-dl__chip--cinza {
+  background: #f1f3f4;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.mk-dl__chip--cinza strong {
+  color: #1f2937;
+  font-weight: 600;
 }
 
 .mk-dl__rodape {
@@ -961,7 +1056,9 @@
 
 /* Desktop/tablet: quadros sempre à vista embaixo do Detalhes do Lote, menores */
 .mk-al--embaixo .mk-al__quadros {
-  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  /* Larguras iguais em todos os grupos (sem quadros esticados de tamanhos diferentes). */
+  grid-template-columns: repeat(auto-fill, minmax(100px, 112px));
+  justify-content: start;
   gap: 6px;
 }
 
@@ -985,10 +1082,39 @@
   gap: 10px 16px;
 }
 
-.mk-al--embaixo .mk-al__grupo:first-child {
-  flex: 1 1 420px;
+.mk-al--embaixo .mk-al__grupo {
+  flex: 1 1 100%;
 }
 
-.mk-al--embaixo .mk-al__grupo:last-child {
-  flex: 0 1 230px;
+@media (min-width: 1024px) {
+  .mk-al--embaixo .mk-al__grupo:first-child {
+    flex: 1 1 420px;
+  }
+
+  .mk-al--embaixo .mk-al__grupo:last-child {
+    flex: 0 1 236px;
+  }
+}
+
+/* Folha do celular: colunas que cabem (3 no iPhone, mais quando sobra) */
+.mk-al__folha .mk-al__quadros {
+  grid-template-columns: repeat(auto-fill, minmax(102px, 1fr));
+}
+
+@media (max-width: 359px) {
+  .mk-al__folha {
+    padding-right: 12px;
+    padding-left: 12px;
+  }
+
+  .mk-al__folha .mk-al__quadros {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .mk-al__folha .mk-al__quadro {
+    min-height: 84px;
+    padding: 8px 2px;
+    font-size: 11px;
+  }
 }
