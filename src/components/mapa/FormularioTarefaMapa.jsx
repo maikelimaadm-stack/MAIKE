@@ -2,12 +2,8 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { listarTodosGrupos, listarTodosTipos, listarUsuarios, listarPermissoes } from "@/services/tarefasMapaService";
 import { getCurrentUser } from "@/services/sessionService";
 import { useQuery } from "@tanstack/react-query";
-import { motion } from "framer-motion";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Crosshair, MapPin, ImagePlus, X, WifiOff } from "lucide-react";
 import { toast } from "sonner";
@@ -16,6 +12,8 @@ import useSetorAreas from "@/hooks/useSetorAreas";
 import { getPermissionDisplayName, getUserDisplayName, isExcludedSystemUser } from "@/lib/userDisplayName";
 import { canAccessPage, normalizePermissionRecord } from "@/lib/permissions";
 import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
+import B1Select from "@/components/cadastro/base1/B1Select";
+import { LancLoteForm, LancLoteRodape, LL_CTL } from "@/components/lotes/LancamentoLoteUi";
 import LancField from "@/components/cadastro/base1/LancField";
 
 /** Campo flutuante Base1 (rótulo dentro) — D-PROD-88. */
@@ -338,37 +336,22 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
   };
 
   return (
-    <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
-    <form onSubmit={handleSubmit} className="overflow-x-hidden" style={{ overscrollBehavior: 'none', touchAction: 'pan-y pinch-zoom' }}>
-      <Card className="shadow-sm border-slate-300">
-        <CardHeader className="flex flex-col space-y-1.5 p-6 bg-slate-50 border-b py-1 px-1">
-          <CardTitle className="text-sm font-semibold text-slate-700">
-            {tarefa ? "Editar Tarefa" : "Lançar Nova Tarefa"}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-1" style={{ maxHeight: 'calc(100vh - 150px)', overflowY: 'auto', overflowX: 'hidden', scrollbarWidth: "thin", scrollbarColor: "#cbd5e1 transparent" }}>
-          <div className="space-y-0.5">
+    <LancLoteForm onSubmit={handleSubmit} className="overflow-x-hidden" style={{ touchAction: 'pan-y pinch-zoom' }}>
             <FL label="Título da tarefa" required error={errors.titulo} dataField="titulo">
               <Input value={formData.titulo} onChange={(e) => { setErrors((prev) => ({ ...prev, titulo: false })); setFormData((prev) => ({ ...prev, titulo: e.target.value })); }} placeholder="EX: CERCA QUEBRADA NA DIVISA" className="h-7 text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" style={{ textTransform: "uppercase" }} />
             </FL>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-1">
+      <div className="mk-ll__grade mk-ll__grade--4">
         <FL label="Fazenda">
-          <Select value={setorSelecionadoId || "__sem_setor__"} onValueChange={(value) => { const setor = setores.find((item) => item.id === value); setSetorSelecionadoId(value === "__sem_setor__" ? "" : value); setFormData((prev) => ({ ...prev, setor_nome: value === "__sem_setor__" ? "" : setor?.nome || "", area_id: areaId || loteId ? prev.area_id : "", area_nome: areaId || loteId ? prev.area_nome : "" })); }} disabled={Boolean(areaId || loteId)}>
-            <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue placeholder="SELECIONE" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__sem_setor__" className="text-xs">SELECIONE</SelectItem>
-              {setores.map((setor) => <SelectItem key={setor.id} value={setor.id} className="text-xs">{(setor.nome || "").toUpperCase()}</SelectItem>)}
-            </SelectContent>
-          </Select>
+          <B1Select value={setorSelecionadoId || ""} onChange={(e) => { const value = e.target.value; const setor = setores.find((item) => item.id === value); setSetorSelecionadoId(value); setFormData((prev) => ({ ...prev, setor_nome: setor?.nome || "", area_id: areaId || loteId ? prev.area_id : "", area_nome: areaId || loteId ? prev.area_nome : "" })); }} disabled={Boolean(areaId || loteId)} className={LL_CTL}>
+              {setores.map((setor) => <option key={setor.id} value={setor.id}>{(setor.nome || "").toUpperCase()}</option>)}
+          </B1Select>
         </FL>
 
         {!areaId && !loteId ?
           <FL label="Local / pasto">
-            <Select value={formData.area_id} onValueChange={handleAreaChange} disabled={!setorSelecionadoId}>
-              <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue placeholder={setorSelecionadoId ? "SELECIONE" : "SELECIONE A FAZENDA"} /></SelectTrigger>
-              <SelectContent>{areasDoSetor.map((area) => <SelectItem key={area.id} value={area.id} className="text-xs">{(area.nome || "").toUpperCase()}</SelectItem>)}</SelectContent>
-            </Select>
+            <B1Select value={formData.area_id ?? ""} onChange={(e) => handleAreaChange(e.target.value)} disabled={!setorSelecionadoId} className={LL_CTL}>{areasDoSetor.map((area) => <option key={area.id} value={area.id}>{(area.nome || "").toUpperCase()}</option>)}
+            </B1Select>
           </FL> :
           <FL label="Local / pasto">
             <Input value={(formData.area_nome || formData.lote_nome || "").toUpperCase()} readOnly className="h-7 text-xs bg-slate-50 uppercase border-0 shadow-none focus-visible:ring-0" />
@@ -376,70 +359,56 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
         }
 
         <FL label="Grupo de atividade" required error={errors.grupo_atividade_id} dataField="grupo_atividade_id">
-          <Select value={formData.grupo_atividade_id} onValueChange={handleGrupoAtividadeChange}>
-            <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue placeholder="SELECIONE" /></SelectTrigger>
-            <SelectContent>{gruposAtividade.map((grupo) => <SelectItem key={grupo.id} value={grupo.id} className="text-xs">{(grupo.nome_grupo || "").toUpperCase()}</SelectItem>)}</SelectContent>
-          </Select>
+          <B1Select value={formData.grupo_atividade_id ?? ""} onChange={(e) => handleGrupoAtividadeChange(e.target.value)} className={LL_CTL}>{gruposAtividade.map((grupo) => <option key={grupo.id} value={grupo.id}>{(grupo.nome_grupo || "").toUpperCase()}</option>)}
+          </B1Select>
         </FL>
 
         <FL label="Tipo de tarefa" required error={errors.tipo_tarefa_id} dataField="tipo_tarefa_id">
-          <Select value={formData.tipo_tarefa_id} onValueChange={handleTipoTarefaChange} disabled={!formData.grupo_atividade_id}>
-            <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue placeholder={formData.grupo_atividade_id ? "SELECIONE" : "SELECIONE O GRUPO"} /></SelectTrigger>
-            <SelectContent>{tiposTarefaFiltrados.map((tipo) => <SelectItem key={tipo.id} value={tipo.id} className="text-xs">{(tipo.nome_tipo || "").toUpperCase()}</SelectItem>)}</SelectContent>
-          </Select>
+          <B1Select value={formData.tipo_tarefa_id ?? ""} onChange={(e) => handleTipoTarefaChange(e.target.value)} disabled={!formData.grupo_atividade_id} className={LL_CTL}>{tiposTarefaFiltrados.map((tipo) => <option key={tipo.id} value={tipo.id}>{(tipo.nome_tipo || "").toUpperCase()}</option>)}
+          </B1Select>
         </FL>
 
         <FL label="Responsável" dataField="responsavel_id">
-          <Select value={formData.responsavel_id} onValueChange={handleResponsavelChange}>
-            <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue placeholder="SELECIONE" /></SelectTrigger>
-            <SelectContent>{usuariosOrdenados.map((item) => { const permissao = permissoesUsuarios.find((registro) => (registro.user_email || registro.data?.user_email) === item.email); return <SelectItem key={item.id} value={item.id} className="text-xs">{getPermissionDisplayName(permissao?.data || permissao, item).toUpperCase()}</SelectItem>; })}</SelectContent>
-          </Select>
+          <B1Select value={formData.responsavel_id ?? ""} onChange={(e) => handleResponsavelChange(e.target.value)} className={LL_CTL}>{usuariosOrdenados.map((item) => { const permissao = permissoesUsuarios.find((registro) => (registro.user_email || registro.data?.user_email) === item.email); return <option key={item.id} value={item.id}>{getPermissionDisplayName(permissao?.data || permissao, item).toUpperCase()}</option>; })}
+          </B1Select>
         </FL>
 
         <FL label="Solicitante" dataField="solicitante">
-          <Select value={formData.solicitante} onValueChange={handleSolicitanteChange}>
-            <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue placeholder="SELECIONE" /></SelectTrigger>
-            <SelectContent>{usuariosOrdenados.map((item) => { const permissao = permissoesUsuarios.find((registro) => (registro.user_email || registro.data?.user_email) === item.email); const nome = getPermissionDisplayName(permissao?.data || permissao, item); return <SelectItem key={item.id} value={nome} className="text-xs">{nome.toUpperCase()}</SelectItem>; })}</SelectContent>
-          </Select>
+          <B1Select value={formData.solicitante ?? ""} onChange={(e) => handleSolicitanteChange(e.target.value)} className={LL_CTL}>{usuariosOrdenados.map((item) => { const permissao = permissoesUsuarios.find((registro) => (registro.user_email || registro.data?.user_email) === item.email); const nome = getPermissionDisplayName(permissao?.data || permissao, item); return <option key={item.id} value={nome}>{nome.toUpperCase()}</option>; })}
+          </B1Select>
         </FL>
 
         <FL label="Prioridade">
-          <Select value={formData.prioridade} onValueChange={(value) => setFormData((prev) => ({ ...prev, prioridade: value }))}>
-            <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Baixa" className="text-xs">BAIXA</SelectItem>
-              <SelectItem value="Média" className="text-xs">MÉDIA</SelectItem>
-              <SelectItem value="Alta" className="text-xs">ALTA</SelectItem>
-            </SelectContent>
-          </Select>
+          <B1Select value={formData.prioridade ?? ""} onChange={(e) => { const value = e.target.value; setFormData((prev) => ({ ...prev, prioridade: value })); }} className={LL_CTL}>
+              <option value="Baixa">BAIXA</option>
+              <option value="Média">MÉDIA</option>
+              <option value="Alta">ALTA</option>
+          </B1Select>
         </FL>
 
         <FL label="Status">
-          <Select value={formData.status} onValueChange={(value) => { setErrors((prev) => ({ ...prev, data_conclusao: false })); setFormData((prev) => ({ ...prev, status: value })); }}>
-            <SelectTrigger className="h-7 text-xs border-0 shadow-none focus:ring-0 bg-transparent"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Pendente" className="text-xs">PENDENTE</SelectItem>
-              <SelectItem value="Em Andamento" className="text-xs">EM ANDAMENTO</SelectItem>
-              <SelectItem value="Concluída" className="text-xs">CONCLUÍDA</SelectItem>
-              <SelectItem value="Cancelada" className="text-xs">CANCELADA</SelectItem>
-            </SelectContent>
-          </Select>
+          <B1Select value={formData.status ?? ""} onChange={(e) => { const value = e.target.value; setErrors((prev) => ({ ...prev, data_conclusao: false })); setFormData((prev) => ({ ...prev, status: value })); }} className={LL_CTL}>
+              <option value="Pendente">PENDENTE</option>
+              <option value="Em Andamento">EM ANDAMENTO</option>
+              <option value="Concluída">CONCLUÍDA</option>
+              <option value="Cancelada">CANCELADA</option>
+          </B1Select>
         </FL>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-1 pt-0.5 border-t">
+        <div className="mk-ll__grade mk-ll__grade--3">
           <FL label="Data do pedido" required error={errors.data_pedido} dataField="data_pedido">
-            <Input type="date" value={formData.data_pedido} onChange={(e) => { setErrors((prev) => ({ ...prev, data_pedido: false })); setFormData((prev) => ({ ...prev, data_pedido: e.target.value })); }} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" />
+            <Input type="date" value={formData.data_pedido} onChange={(e) => { setErrors((prev) => ({ ...prev, data_pedido: false })); setFormData((prev) => ({ ...prev, data_pedido: e.target.value })); }} className={LL_CTL} />
           </FL>
           <FL label="Prazo previsto">
-            <Input type="date" value={formData.data_prevista} onChange={(e) => setFormData((prev) => ({ ...prev, data_prevista: e.target.value }))} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" />
+            <Input type="date" value={formData.data_prevista} onChange={(e) => setFormData((prev) => ({ ...prev, data_prevista: e.target.value }))} className={LL_CTL} />
           </FL>
           <FL label={`Data de conclusão${formData.status === "Concluída" ? "" : ""}`} required={formData.status === "Concluída"} error={errors.data_conclusao} dataField="data_conclusao">
-            <Input type="date" value={formData.data_conclusao} onChange={(e) => { setErrors((prev) => ({ ...prev, data_conclusao: false })); setFormData((prev) => ({ ...prev, data_conclusao: e.target.value })); }} className="h-7 text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" />
+            <Input type="date" value={formData.data_conclusao} onChange={(e) => { setErrors((prev) => ({ ...prev, data_conclusao: false })); setFormData((prev) => ({ ...prev, data_conclusao: e.target.value })); }} className={LL_CTL} />
           </FL>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
+        <div className="mk-ll__grade">
           <FL label="Descrição da tarefa">
             <Textarea value={formData.descricao} onChange={(e) => setFormData((prev) => ({ ...prev, descricao: e.target.value }))} placeholder="DESCREVA O QUE PRECISA SER FEITO" className="text-xs uppercase border-0 shadow-none focus-visible:ring-0 bg-transparent" style={{ textTransform: "uppercase" }} rows={2} />
           </FL>
@@ -448,9 +417,9 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
           </FL>
         </div>
 
-        <div className="space-y-1 lg:col-span-2">
-          <label className="text-[12px] text-slate-500 pl-1 leading-none">Local da tarefa no mapa</label>
-          <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-2">
+        <section className="mk-ll__item">
+          <header className="mk-ll__item-head"><div className="mk-ll__item-titulo">Local da tarefa no mapa</div></header>
+          <div className="space-y-2">
             {(formData.area_nome || formData.lote_nome) && <div className="text-xs text-slate-600"><span className="font-medium">VINCULADO A:</span> {formData.area_nome || formData.lote_nome}</div>}
             {formData.coordenadas ? <div className="text-xs text-slate-600 flex items-center gap-2"><MapPin className="w-3.5 h-3.5" />{formData.coordenadas.lat.toFixed(6)}, {formData.coordenadas.lng.toFixed(6)}</div> : <div className="text-xs text-slate-500">MARQUE O PONTO EXATO NO MAPA PARA FACILITAR A EXECUÇÃO.</div>}
             <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={() => { if (onRequestSelectLocation) { onRequestSelectLocation(formData); return; } setShowLocationPicker(true); }}>
@@ -458,15 +427,15 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
               {formData.coordenadas ? "Alterar ponto no mapa" : "Marcar ponto no mapa"}
             </Button>
           </div>
-        </div>
+        </section>
 
         {/* Seção de fotos */}
-        <div className="space-y-1 pt-0.5 border-t">
-          <div className="flex items-center justify-between">
-            <label className="text-[12px] text-slate-500 pl-1 leading-none">Fotos da tarefa</label>
+        <section className="mk-ll__item">
+          <div className="mk-ll__item-head justify-between">
+            <div className="mk-ll__item-titulo">Fotos da tarefa</div>
             {isOffline && <span className="flex items-center gap-1 text-[10px] text-amber-600"><WifiOff className="w-3 h-3" />Offline — fotos salvas localmente</span>}
           </div>
-          <div className="flex flex-wrap gap-2 p-2 rounded-md border border-slate-200 bg-slate-50 min-h-[60px]">
+          <div className="flex flex-wrap gap-2">
             {/* Fotos já salvas */}
             {(formData.fotos || []).map((url, idx) => (
               <div key={`saved-${idx}`} className="relative w-16 h-16 rounded-md overflow-hidden border border-slate-300 group">
@@ -496,17 +465,9 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
           {pendingImageFiles.length > 0 && (
             <p className="text-[10px] text-emerald-700 pl-1">{pendingImageFiles.length} foto(s) nova(s) {isOffline ? '— serão enviadas ao sincronizar' : '— serão enviadas ao salvar'}</p>
           )}
-        </div>
+        </section>
 
-        <div className="flex flex-col-reverse lg:flex-row justify-end gap-1 pt-1 border-t">
-          <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-7 text-xs px-3" disabled={isSubmitting || externalSubmitting}>Cancelar</Button>
-          <Button type="submit" size="sm" className="h-7 text-xs px-3 bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-60" disabled={isSubmitting || externalSubmitting}>
-            {(isSubmitting || externalSubmitting) ? "Salvando..." : tarefa ? "Atualizar" : "Salvar"}
-          </Button>
-        </div>
-      </div>
-        </CardContent>
-      </Card>
+        <LancLoteRodape onCancelar={onCancel} cancelarDesabilitado={isSubmitting || externalSubmitting} textoAcao={tarefa ? "Atualizar" : "Salvar"} textoEnviando="Salvando..." enviando={isSubmitting || externalSubmitting} />
 
       {!onRequestSelectLocation &&
       <TaskLocationPickerDialog
@@ -528,7 +489,6 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
         }} />
 
       }
-    </form>
-    </motion.div>);
+    </LancLoteForm>);
 
 }

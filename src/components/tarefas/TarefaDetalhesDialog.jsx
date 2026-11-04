@@ -1,22 +1,18 @@
 import React from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { LancLoteDialogo } from "@/components/lotes/LancamentoLoteUi";
 import DetalhesTarefaMapa from "@/components/mapa/DetalhesTarefaMapa";
 
+/** Detalhes da tarefa na abertura padrão (D-PROD-118): o título é a tarefa, só ✕. */
 export default function TarefaDetalhesDialog({ open, onOpenChange, tarefa, onSaved }) {
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[95vw] max-w-[95vw] md:max-w-2xl max-h-[95vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-sm">Detalhes da tarefa</DialogTitle>
-        </DialogHeader>
-        {tarefa ? (
-          <DetalhesTarefaMapa
-            tarefa={tarefa}
-            onClose={() => onOpenChange(false)}
-            onSaved={onSaved}
-          />
-        ) : null}
-      </DialogContent>
-    </Dialog>
+    <LancLoteDialogo open={open} onOpenChange={onOpenChange} titulo="Detalhes da tarefa" largo somenteLeitura>
+      {tarefa ? (
+        <DetalhesTarefaMapa
+          tarefa={tarefa}
+          onClose={() => onOpenChange(false)}
+          onSaved={onSaved}
+        />
+      ) : null}
+    </LancLoteDialogo>
   );
 }

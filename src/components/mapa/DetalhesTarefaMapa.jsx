@@ -3,12 +3,9 @@ import { atualizarTarefa, enviarAnexo } from "@/services/tarefasMapaService";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getMapaCachedData, refreshMapaCacheEntry } from "@/services/mapaCacheService";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import { LancLoteDialogo, LancLoteForm, LancLoteRodape, LancLoteSegmento, LL_CTL, useLancLoteDialogo } from "@/components/lotes/LancamentoLoteUi";
+import LancField from "@/components/cadastro/base1/LancField";
 import FormularioTarefaMapa, { normalizeTaskPriority } from "./FormularioTarefaMapa";
 import HistoricoTarefaPanel from "./HistoricoTarefaPanel";
 import TarefaResumoVisual from "./TarefaResumoVisual";
@@ -48,6 +45,13 @@ const formatDateBR = (value) => {
 export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequestSelectLocation }) {
   const queryClient = useQueryClient();
   const [currentTarefa, setCurrentTarefa] = useState(tarefa);
+  // D-PROD-118: aberta no diálogo padrão, o título do diálogo é a tarefa.
+  const noDialogo = useLancLoteDialogo();
+  useEffect(() => {
+    if (!noDialogo) return undefined;
+    noDialogo.setTitulo(currentTarefa?.titulo ? `Tarefa: ${currentTarefa.titulo}` : null);
+    return () => noDialogo.setTitulo(null);
+  }, [noDialogo, currentTarefa?.titulo]);
   const [showEdit, setShowEdit] = useState(false);
   const [showEvento, setShowEvento] = useState(false);
   const [showHistorico, setShowHistorico] = useState(false);
@@ -118,6 +122,18 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
   const podeEntrarEmAndamento = !currentTarefa.data_inicio && currentTarefa.status === "Pendente";
   const podeConcluir = currentTarefa.status !== "Concluída" && currentTarefa.status !== "Cancelada";
   const podeCancelar = currentTarefa.status !== "Cancelada" && currentTarefa.status !== "Concluída";
+  const opcoesEvento = [
+    podeRegistrar && { value: "Registro", label: "Registro" },
+    podeEntrarEmAndamento && { value: "Em Andamento", label: "Em andamento" },
+    podeCancelar && { value: "Cancelada", label: "Cancelada" },
+    podeConcluir && { value: "Concluída", label: "Concluída" },
+  ].filter(Boolean);
+  // D-PROD-118: o tipo escolhido precisa estar entre os permitidos (antes podia
+  // abrir em "Em Andamento" numa tarefa que já tinha início, e gravar assim).
+  const tipoEventoValido = opcoesEvento.some((o) => o.value === eventoTipo) ? eventoTipo : opcoesEvento[0]?.value || "";
+  useEffect(() => {
+    if (tipoEventoValido !== eventoTipo) setEventoTipo(tipoEventoValido);
+  }, [tipoEventoValido, eventoTipo]);
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data, pendingImageFiles = [] }) => {
@@ -231,75 +247,50 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
   });
 
   return (
-    <div className="space-y-1" translate="no">
-      <div className="pb-2 border-b space-y-1">
-        <div className="flex items-center gap-1 flex-wrap ">
-<Badge
-            variant="outline"
-            className="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground rounded-md px-2 h-6 text-xs">
-            
-  Tarefa: {currentTarefa.titulo}
-</Badge>
-
-          
-                  </div>
-                <div className="grid grid-cols-3 gap-1">
-
-<Badge
-            variant="outline"
-            className={`text-[10px] border-transparent shadow-none ${STATUS_CORES[currentTarefa.status] || STATUS_CORES.Pendente}`}>
-            
-  Status: {currentTarefa.status}
-</Badge>
-
-<Badge
-            variant="outline"
-            className={`text-[10px] border-transparent shadow-none ${prioridadeClassName}`}>
-            
-  Prioridade: {prioridade}
-</Badge>
-
-
-        </div>
+    <div className="mk-hist" translate="no">
+      {/* D-PROD-118: dentro do diálogo o título é a tarefa; aqui ficam status, prioridade e as ações. */}
+      {!noDialogo ? <div className="mk-hist__secao-titulo">Tarefa: {currentTarefa.titulo}</div> : null}
+      <div className="mk-tar__chips">
+        <Badge variant="outline" className={`rounded-full text-[11px] border-transparent shadow-none ${STATUS_CORES[currentTarefa.status] || STATUS_CORES.Pendente}`}>
+          Status: {currentTarefa.status}
+        </Badge>
+        <Badge variant="outline" className={`rounded-full text-[11px] border-transparent shadow-none ${prioridadeClassName}`}>
+          Prioridade: {prioridade}
+        </Badge>
       </div>
 
-      <div className="grid grid-cols-3 gap-1">
-        <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowEdit(true)}>
-          Editar
-        </Button>
-        <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowEvento(true)}>
-          Evento
-        </Button>
-        <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowHistorico(true)}>
-          Histórico
-        </Button>
+      <div className="mk-tar__acoes">
+        <button type="button" className="mk-ll__btn mk-ll__btn--cinza" onClick={() => setShowEdit(true)}>Editar</button>
+        <button type="button" className="mk-ll__btn mk-ll__btn--cinza" onClick={() => setShowEvento(true)}>Evento</button>
+        <button type="button" className="mk-ll__btn mk-ll__btn--cinza" onClick={() => setShowHistorico(true)}>Histórico</button>
       </div>
 
-
-      <CardSection title="Informações da Tarefa">
-        <div className="space-y-1 text-[10px]">
-          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Grupo:</span><span className="font-semibold text-slate-900 break-words">{currentTarefa.grupo_atividade_nome || "-"}</span></div>
-          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Tipo base:</span><span className="font-semibold text-slate-900 break-words">{currentTarefa.tipo || "-"}</span></div>
-          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Tipo de tarefa:</span><span className="font-semibold text-slate-900 break-words">{currentTarefa.tipo_tarefa_nome || "-"}</span></div>
-          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Solicitante / Responsável:</span><span className="font-semibold text-slate-900 break-words">{currentTarefa.solicitante || currentTarefa.responsavel_geral || "-"}</span></div>
-          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Responsável execução:</span><span className="font-semibold text-slate-900 break-words">{currentTarefa.responsavel || "-"}</span></div>
-          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Data do pedido:</span><span className="font-semibold text-slate-900">{formatDateBR(currentTarefa.data_pedido)}</span></div>
-          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Prazo:</span><span className="font-semibold text-slate-900">{formatDateBR(currentTarefa.data_prevista)}</span></div>
-          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Data de início:</span><span className="font-semibold text-slate-900">{formatDateBR(currentTarefa.data_inicio)}</span></div>
-          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Data de conclusão:</span><span className="font-semibold text-slate-900">{formatDateBR(currentTarefa.data_conclusao)}</span></div>
-          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Fazenda/Setor:</span><span className="font-semibold text-slate-900 break-words">{currentTarefa.setor_nome || "-"}</span></div>
-          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Área/Local:</span><span className="font-semibold text-slate-900 break-words">{currentTarefa.area_nome || currentTarefa.lote_nome || "-"}</span></div>
-          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Descrição:</span><span className="font-semibold text-slate-900 break-words">{currentTarefa.descricao || "-"}</span></div>
-          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Observações:</span><span className="font-semibold text-slate-900 break-words">{currentTarefa.observacoes || "-"}</span></div>
-          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Obs. conclusão:</span><span className="font-semibold text-slate-900 break-words">{currentTarefa.observacoes_conclusao || "-"}</span></div>
-          <div className="flex gap-2"><span className="font-medium text-slate-600 whitespace-nowrap">Coordenadas:</span><span className="font-semibold text-slate-900 break-words">{currentTarefa.coordenadas ? `${currentTarefa.coordenadas.lat?.toFixed?.(6) || currentTarefa.coordenadas.lat}, ${currentTarefa.coordenadas.lng?.toFixed?.(6) || currentTarefa.coordenadas.lng}` : "-"}</span></div>
-        </div>
-      </CardSection>
+      <section className="mk-ll__item">
+        <header className="mk-ll__item-head"><div className="mk-ll__item-titulo">Informações da tarefa</div></header>
+        <dl className="mk-tar__info">
+          <div className="mk-tar__campo"><dt>Grupo</dt><dd>{currentTarefa.grupo_atividade_nome || "-"}</dd></div>
+          <div className="mk-tar__campo"><dt>Tipo base</dt><dd>{currentTarefa.tipo || "-"}</dd></div>
+          <div className="mk-tar__campo"><dt>Tipo de tarefa</dt><dd>{currentTarefa.tipo_tarefa_nome || "-"}</dd></div>
+          <div className="mk-tar__campo"><dt>Solicitante / Responsável</dt><dd>{currentTarefa.solicitante || currentTarefa.responsavel_geral || "-"}</dd></div>
+          <div className="mk-tar__campo"><dt>Responsável execução</dt><dd>{currentTarefa.responsavel || "-"}</dd></div>
+          <div className="mk-tar__campo"><dt>Data do pedido</dt><dd>{formatDateBR(currentTarefa.data_pedido)}</dd></div>
+          <div className="mk-tar__campo"><dt>Prazo</dt><dd>{formatDateBR(currentTarefa.data_prevista)}</dd></div>
+          <div className="mk-tar__campo"><dt>Data de início</dt><dd>{formatDateBR(currentTarefa.data_inicio)}</dd></div>
+          <div className="mk-tar__campo"><dt>Data de conclusão</dt><dd>{formatDateBR(currentTarefa.data_conclusao)}</dd></div>
+          <div className="mk-tar__campo"><dt>Fazenda/Setor</dt><dd>{currentTarefa.setor_nome || "-"}</dd></div>
+          <div className="mk-tar__campo"><dt>Área/Local</dt><dd>{currentTarefa.area_nome || currentTarefa.lote_nome || "-"}</dd></div>
+          <div className="mk-tar__campo"><dt>Descrição</dt><dd>{currentTarefa.descricao || "-"}</dd></div>
+          <div className="mk-tar__campo"><dt>Observações</dt><dd>{currentTarefa.observacoes || "-"}</dd></div>
+          <div className="mk-tar__campo"><dt>Obs. conclusão</dt><dd>{currentTarefa.observacoes_conclusao || "-"}</dd></div>
+          <div className="mk-tar__campo"><dt>Coordenadas</dt><dd>{currentTarefa.coordenadas ? `${currentTarefa.coordenadas.lat?.toFixed?.(6) || currentTarefa.coordenadas.lat}, ${currentTarefa.coordenadas.lng?.toFixed?.(6) || currentTarefa.coordenadas.lng}` : "-"}</dd></div>
+        </dl>
+      </section>
 
       <FotosTarefaGaleria tarefa={currentTarefa} />
 
-      <CardSection title="Últimos eventos">
-        <div className="space-y-2 text-[10px]">
+      <section className="mk-ll__item">
+        <header className="mk-ll__item-head"><div className="mk-ll__item-titulo">Últimos eventos</div></header>
+        <div className="space-y-2 text-[11px]">
           {loadingHistorico ? (
             <div className="rounded-lg border border-slate-200 bg-white p-3 flex items-center gap-3">
               <div className="animate-spin w-4 h-4 border-2 border-emerald-600 border-t-transparent rounded-full" />
@@ -319,15 +310,9 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
           )
           }
         </div>
-      </CardSection>
+      </section>
 
-      <Dialog open={showEdit} onOpenChange={setShowEdit}>
-        <DialogContent className="p-3 bg-background px-2 py-2 sm:w-full sm:p-1 fixed left-[50%] top-[50%] z-50 grid w-full translate-x-[-50%] translate-y-[-50%] gap-2 border shadow-lg duration-200 sm:rounded-lg max-w-[98vw] md:max-w-[92vw] xl:max-w-[88vw] h-[95vh] overflow-hidden">
-          <DialogHeader className="px-4 pt-4 pb-3 border-b bg-white sticky top-0 z-10">
-            <DialogTitle className="text-sm font-bold text-slate-900">EDITAR TAREFA DO MAPA</DialogTitle>
-            <p className="text-xs text-slate-600">Mesmo padrão da tela de lançamentos, aberto em formato de painel grande pelo mapa.</p>
-          </DialogHeader>
-          <div className="overflow-auto min-h-0 max-h-[calc(95vh-90px)] pr-1">
+      <LancLoteDialogo open={showEdit} onOpenChange={setShowEdit} titulo="Editar tarefa" lotes={[{ nome: currentTarefa.titulo }]} largo>
             <FormularioTarefaMapa
               key={`${currentTarefa.id}-${currentTarefa.coordenadas?.lat || 'sem-lat'}-${currentTarefa.coordenadas?.lng || 'sem-lng'}`}
               tarefa={currentTarefa}
@@ -346,55 +331,33 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
               onRequestSelectLocation={onRequestSelectLocation}
               externalSubmitting={updateMutation.isPending}
             />
-          </div>
-        </DialogContent>
-      </Dialog>
+      </LancLoteDialogo>
 
-      <Dialog open={showHistorico} onOpenChange={setShowHistorico}>
-        <DialogContent className="bg-background px-2 py-2 fixed left-[50%] top-[50%] z-50 grid w-full translate-x-[-50%] translate-y-[-50%] gap-4 border shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg max-w-4xl max-h-[90vh] overflow-y-auto">
-          <HistoricoTarefaPanel tarefaId={currentTarefa.id} tarefaTitulo={currentTarefa.titulo} historico={historico} />
-        </DialogContent>
-      </Dialog>
+      <LancLoteDialogo open={showHistorico} onOpenChange={setShowHistorico} titulo="Histórico da tarefa" lotes={[{ nome: currentTarefa.titulo }]} largo somenteLeitura>
+        <HistoricoTarefaPanel tarefaId={currentTarefa.id} tarefaTitulo={currentTarefa.titulo} historico={historico} />
+      </LancLoteDialogo>
 
-      <Dialog open={showEvento} onOpenChange={setShowEvento}>
-        <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Registrar evento da tarefa</DialogTitle></DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-1.5">
-              <Label className="text-xs">Tipo de evento</Label>
-              <Select value={eventoTipo} onValueChange={setEventoTipo}>
-                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {podeRegistrar && <SelectItem value="Registro" className="text-xs">Registro</SelectItem>}
-                  {podeEntrarEmAndamento && <SelectItem value="Em Andamento" className="text-xs">Em Andamento</SelectItem>}
-                  {podeCancelar && <SelectItem value="Cancelada" className="text-xs">Cancelada</SelectItem>}
-                  {podeConcluir && <SelectItem value="Concluída" className="text-xs">Concluída</SelectItem>}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">Data do evento</Label>
-              <input type="datetime-local" value={eventoData} onChange={(e) => setEventoData(e.target.value)} className="flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-xs" />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">Descrição</Label>
-              <Textarea value={eventoDescricao} onChange={(e) => setEventoDescricao(e.target.value)} className="min-h-[120px] text-xs" placeholder="Ex: foi fazer o serviço e quebrou o trator" />
-            </div>
-            <div className="flex justify-end gap-2 pt-2 border-t">
-              <Button type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowEvento(false)}>Cancelar</Button>
-              <Button type="button" size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={() => eventoMutation.mutate()}>Salvar evento</Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <LancLoteDialogo open={showEvento} onOpenChange={setShowEvento} titulo="Registrar evento" lotes={[{ nome: currentTarefa.titulo }]}>
+        <LancLoteForm onSubmit={(e) => { e.preventDefault(); if (!eventoMutation.isPending) eventoMutation.mutate(); }}>
+          <LancLoteSegmento
+            rotulo="Tipo de evento"
+            valor={tipoEventoValido}
+            onChange={setEventoTipo}
+            opcoes={opcoesEvento}
+          />
+          <LancField label="Data do evento">
+            <input type="datetime-local" value={eventoData} onChange={(e) => setEventoData(e.target.value)} className={LL_CTL} />
+          </LancField>
+          <LancField label="Descrição">
+            <textarea value={eventoDescricao} onChange={(e) => setEventoDescricao(e.target.value)} className={LL_CTL} rows={4} placeholder="Ex: foi fazer o serviço e quebrou o trator" />
+          </LancField>
+          <LancLoteRodape onCancelar={() => setShowEvento(false)} cancelarDesabilitado={eventoMutation.isPending} textoAcao="Salvar evento" textoEnviando="Salvando..." enviando={eventoMutation.isPending} />
+        </LancLoteForm>
+      </LancLoteDialogo>
     </div>);
 
 }
 
 function CardInfo({ label, value }) {
   return <div className="rounded-lg border border-slate-200 bg-white p-1 shadow-sm"><div className="text-slate-500">{label}</div><div className="text-sm font-bold text-slate-900 break-words leading-tight">{value}</div></div>;
-}
-
-function CardSection({ title, children }) {
-  return <div className="border border-slate-200 rounded-lg bg-white shadow-sm p-1 space-y-1">{children}</div>;
 }

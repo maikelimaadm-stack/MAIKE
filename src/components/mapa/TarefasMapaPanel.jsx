@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { listarTarefasDaEmpresa, listarIconesPorTipo, criarTarefa, atualizarTarefa, excluirTarefa, enviarAnexo } from "@/services/tarefasMapaService";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { LancLoteDialogo } from "@/components/lotes/LancamentoLoteUi";
 import { Settings, WifiOff } from "lucide-react";
 import { toast } from "sonner";
 import { ApiError, API_ERROR_CODES, getApiErrorMessage, hasApiErrorCode } from "@/apis/_core/ApiError";
@@ -185,16 +185,16 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
       />
       )}
 
-      <Dialog open={showForm} onOpenChange={(open) => {
-        setShowForm(open);
-        if (!open) setEditingTarefa(null);
-      }}>
-        <DialogContent className="p-3 bg-background px-2 py-2 sm:w-full sm:p-1 fixed left-[50%] top-[50%] z-50 grid w-full translate-x-[-50%] translate-y-[-50%] gap-2 border shadow-lg duration-200 sm:rounded-lg max-w-[98vw] md:max-w-[92vw] xl:max-w-[88vw] h-[95vh] overflow-hidden">
-          <DialogHeader className="px-4 pt-4 pb-3 border-b bg-white sticky top-0 z-10">
-            <DialogTitle className="text-sm font-bold text-slate-900">{editingTarefa ? 'EDITAR TAREFA DO MAPA' : 'NOVA TAREFA DO MAPA'}</DialogTitle>
-            <p className="text-xs text-slate-600">Mesmo padrão da tela de lançamentos, aberto em formato de painel grande pelo mapa.</p>
-          </DialogHeader>
-          <div className="overflow-auto min-h-0 max-h-[calc(95vh-90px)] pr-1">
+      <LancLoteDialogo
+        open={showForm}
+        onOpenChange={(open) => {
+          setShowForm(open);
+          if (!open) setEditingTarefa(null);
+        }}
+        titulo={editingTarefa ? 'Editar tarefa' : 'Nova tarefa'}
+        lotes={panelSubtitulo ? [{ nome: panelSubtitulo }] : []}
+        largo
+      >
             <FormularioTarefaMapa
             key={`${editingTarefa?.id || 'nova'}-${initialDraft?.id || 'sem-rascunho'}-${initialCoordinates?.lat || 'sem-lat'}-${initialCoordinates?.lng || 'sem-lng'}`}
             tarefa={editingTarefa}
@@ -233,9 +233,7 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
             }}
             onCancel={() => { setShowForm(false); setEditingTarefa(null); }}
           />
-          </div>
-        </DialogContent>
-      </Dialog>
+      </LancLoteDialogo>
     </div>
   );
 }

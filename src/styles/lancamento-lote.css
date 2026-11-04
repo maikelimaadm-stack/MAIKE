@@ -585,3 +585,86 @@
   padding-top: 16px;
   border-top: 1px solid #eef0f3;
 }
+
+/* Grades maiores (tarefa: 4 e 3 colunas no desktop) */
+@media (min-width: 1024px) {
+  .mk-ll__grade--4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .mk-ll__grade--3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* Diálogo amplo (tabelas: Gestão de Tarefas) */
+.mk-ll-dlg--amplo.is-desktop:not(#mk-padrao) {
+  width: min(1400px, calc(100vw - 48px));
+}
+
+/* ── Tarefas do Mapa (D-PROD-118) ─────────────────────────────────────── */
+.mk-tar__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.mk-tar__acoes {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.mk-tar__acoes .mk-ll__btn {
+  min-width: 0;
+}
+
+.mk-tar__info {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 16px;
+}
+
+@media (min-width: 1024px) {
+  .mk-tar__info {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.mk-tar__campo {
+  min-width: 0;
+}
+
+.mk-tar__campo dt {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.mk-tar__campo dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.mk-tar__barra:not(#mk-padrao) {
+  display: flex;
+  flex-direction: row;
+  height: auto;
+  background: transparent;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 2px 0 6px;
+}
+
+.mk-tar__barra.is-no-dialogo:not(#mk-padrao) {
+  justify-content: flex-end;
+}
+
+.mk-tar__barra-acoes {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}

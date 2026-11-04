@@ -216,3 +216,13 @@ Pedido do proprietário com prints do app do Claude no iPhone. Conferido no Chro
 
 **Não testado em aparelho real.** Telas verificadas no harness com dados de exemplo.
 
+## V14 — tarefas do Mapa Geral no padrão dos lançamentos (D-PROD-118)
+
+| Pedido | Feito | Evidência |
+|---|---|---|
+| Tarefas no mesmo padrão | Nova/Editar, Detalhes, Evento, Histórico e Gestão de Tarefas abrem no diálogo padrão (tela inteira no celular), com um cabeçalho só | antes: v14-00; depois: v14-01 (desktop), v14-02 (celular) |
+| Listas | Listas do cadastro no formulário da tarefa. A escolha do grupo foi testada no harness | v14-02 |
+| Bug | O evento não começa mais num tipo proibido ("Em Andamento" numa tarefa já iniciada) | teste `tarefasMapaPadrao` |
+
+**Não testado em aparelho real.** O Gestão de Tarefas foi visto com a tabela vazia, porque o harness não tem tarefas.
+

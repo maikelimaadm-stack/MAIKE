@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import { useLancLoteDialogo } from "@/components/lotes/LancamentoLoteUi";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -23,6 +24,14 @@ const formatDateTimeBR = (value) => {
 export default function HistoricoTarefaPanel({ tarefaId, tarefaTitulo, historico = [] }) {
   const queryClient = useQueryClient();
   const [deletingId, setDeletingId] = useState(null);
+  // D-PROD-118: no diálogo padrão o título (com a contagem) vai para o cabeçalho.
+  const noDialogo = useLancLoteDialogo();
+  const titulo = `Histórico da Tarefa (${historico.length})`;
+  useEffect(() => {
+    if (!noDialogo) return undefined;
+    noDialogo.setTitulo(titulo);
+    return () => noDialogo.setTitulo(null);
+  }, [noDialogo, titulo]);
 
   const handleDelete = async (item, index) => {
     if (index !== 0) return toast.error("Exclua primeiro o último histórico.");
@@ -40,19 +49,14 @@ export default function HistoricoTarefaPanel({ tarefaId, tarefaTitulo, historico
     }
   };
 
-  return (
-    <div className="space-y-3">
-      <Card className="border-slate-200 shadow-sm">
-        <CardHeader className="bg-slate-50 border-b py-3 px-3">
-          <CardTitle className="text-sm font-semibold">Histórico da Tarefa ({historico.length})</CardTitle>
-        </CardHeader>
-        <CardContent className="p-2">
+  const lista = (
+        <>
           {historico.length === 0 ? (
             <div className="text-center py-8 text-xs text-slate-500">Nenhum histórico encontrado.</div>
           ) : (
-            <div className="max-h-[60vh] overflow-y-auto space-y-1">
+            <div className={noDialogo ? "mk-hist__lista" : "max-h-[60vh] overflow-y-auto space-y-1"}>
               {historico.map((item, index) => (
-                <div key={item.id} className="border border-slate-200 rounded-lg bg-white shadow-sm p-1 space-y-1 hover:bg-gray-50">
+                <div key={item.id} className="border border-slate-200 rounded-lg bg-white p-2 space-y-1">
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-1 flex-wrap">
                       <div className="text-[11px] font-bold text-slate-900">{tarefaTitulo}</div>
@@ -90,6 +94,19 @@ export default function HistoricoTarefaPanel({ tarefaId, tarefaTitulo, historico
               ))}
             </div>
           )}
+        </>
+  );
+
+  if (noDialogo) return <div className="mk-hist">{lista}</div>;
+
+  return (
+    <div className="space-y-3">
+      <Card className="border-slate-200 shadow-sm">
+        <CardHeader className="bg-slate-50 border-b py-3 px-3">
+          <CardTitle className="text-sm font-semibold">Histórico da Tarefa ({historico.length})</CardTitle>
+        </CardHeader>
+        <CardContent className="p-2">
+          {lista}
         </CardContent>
       </Card>
     </div>

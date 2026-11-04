@@ -4740,4 +4740,35 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
   - Lançamentos e históricos do lote com a mesma abertura e um só cabeçalho.
   - A dívida de tipos caiu de 1033 para 996.
 
-<!-- Próxima decisão: D-PROD-118 -->
+## D-PROD-118 — Tarefas do Mapa Geral no padrão dos lançamentos
+
+- **Contexto:** o proprietário pediu que as tarefas do Mapa Geral fiquem no padrão dos lançamentos e históricos do lote (D-PROD-115 a 117). O harness em 1600 e 390 px mostrou:
+  - **Nova/Editar tarefa:** três cabeçalhos ("NOVA TAREFA DO MAPA", a frase técnica "Mesmo padrão da tela de lançamentos…" e "Lançar Nova Tarefa"), rodapé Cancelar/Salvar, listas com "SELECIONE" e sem tela inteira no celular.
+  - **Detalhes da tarefa:** diálogo sem cabeçalho nem ✕, em outro desenho.
+  - **Gestão de Tarefas:** título repetido e botão verde-escuro fora do padrão.
+- **Decisão:** as mesmas peças do lote (`LancLoteDialogo`, `LancLoteForm`, `LancLoteRodape`, `LancLoteSegmento`, `B1Select`).
+  - **Nova/Editar tarefa:**
+    - diálogo padrão com ✕/✓ no topo e o local (área ou lote) embaixo do título;
+    - sem cartão interno;
+    - listas do cadastro, sem "SELECIONE" nem a opção falsa de setor;
+    - grades de 4 e 3 colunas no desktop;
+    - "Local no mapa" e "Fotos" no desenho dos itens.
+  - **Detalhes da tarefa:**
+    - diálogo padrão só com ✕ e o título "Tarefa: X";
+    - status e prioridade em etiquetas;
+    - Editar, Evento e Histórico em botões cinza;
+    - informações em grade de rótulo e valor.
+  - **Evento:**
+    - diálogo padrão com o tipo em segmento, a data e a descrição em `LancField`, e ✓ "Salvar evento";
+    - **bug corrigido:** o tipo começava em "Em Andamento" mesmo quando não era permitido (tarefa já iniciada), e o evento era gravado assim. Agora vale sempre o primeiro tipo permitido.
+  - **Histórico da tarefa:** somente leitura, com o título e a contagem no cabeçalho do diálogo.
+  - **Gestão de Tarefas:**
+    - diálogo padrão amplo (até 1400 px) e tela inteira no celular;
+    - o título sai da tabela;
+    - configurar colunas e + (adicionar) com os botões do cadastro.
+  - **`TarefaDetalhesDialog`** (aberto pela tabela): mesma abertura.
+- **Consequência:**
+  - O lote e as tarefas do Mapa Geral usam a mesma abertura e as mesmas peças. O `LancLoteDialogo` deixa de ser só do lote.
+  - A dívida de tipos caiu de 996 para 947.
+
+<!-- Próxima decisão: D-PROD-119 -->
