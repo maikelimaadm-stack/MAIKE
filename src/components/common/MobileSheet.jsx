@@ -26,6 +26,14 @@ const alturaMedia = () =>
   medirAltura("calc(62dvh + 8px + env(safe-area-inset-bottom, 0px))") || window.innerHeight * FRACAO_MEDIA;
 
 /**
+ * Onde a folha é montada. Padrão: `document.body`. Dentro de um diálogo do
+ * Radix (ex.: lançamentos de lote, D-PROD-116) a folha precisa nascer DENTRO
+ * do diálogo, senão o diálogo bloqueia toque e foco fora dele.
+ * @type {React.Context<HTMLElement | null>}
+ */
+export const MobileSheetPortalCtx = React.createContext(/** @type {HTMLElement | null} */ (null));
+
+/**
  * Folha que abre de baixo no celular (padrão único das aberturas do app),
  * no comportamento das folhas do iOS / app do Claude (D-PROD-95):
  *
@@ -65,6 +73,7 @@ export default function MobileSheet({
   role = "dialog",
   initialLarge = false,
 }) {
+  const alvoPortal = React.useContext(MobileSheetPortalCtx);
   const [grande, setGrande] = React.useState(initialLarge);
   const [saindo, setSaindo] = React.useState(false);
   const sheetRef = React.useRef(/** @type {HTMLDivElement | null} */ (null));
@@ -325,7 +334,7 @@ export default function MobileSheet({
         {footer ? <div className="mk-sheet__footer">{footer}</div> : null}
       </div>
     </div>,
-    document.body,
+    alvoPortal ?? document.body,
   );
 }
 

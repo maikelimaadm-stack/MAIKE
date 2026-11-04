@@ -2,7 +2,7 @@ import React from "react";
 import { Check, Loader2, Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { useMediaQuery } from "@/components/common/MobileSheet";
+import { useMediaQuery, MobileSheetPortalCtx } from "@/components/common/MobileSheet";
 import { PillBtn } from "@/components/cadastro/base1/Base1Ui";
 
 /*
@@ -38,6 +38,8 @@ export function LancLoteDialogo({ open, onOpenChange, titulo, lotes, largo = fal
   const desktop = useMediaQuery("(min-width: 1024px)");
   const formId = `mk-ll-${React.useId().replace(/:/g, "")}`;
   const [acao, setAcao] = React.useState(/** @type {any} */ (null));
+  // As listas do celular (folha) abrem dentro do diálogo (D-PROD-116).
+  const [alvoFolha, setAlvoFolha] = React.useState(/** @type {HTMLElement | null} */ (null));
   const ctx = React.useMemo(() => ({ formId, setAcao }), [formId]);
   const fechar = () => (acao?.onCancelar ? acao.onCancelar() : onOpenChange(false));
   const ocupado = Boolean(acao?.enviando);
@@ -101,7 +103,10 @@ export function LancLoteDialogo({ open, onOpenChange, titulo, lotes, largo = fal
             </button>
           )}
         </div>
-        <LancLoteCtx.Provider value={ctx}>{children}</LancLoteCtx.Provider>
+        <MobileSheetPortalCtx.Provider value={alvoFolha}>
+          <LancLoteCtx.Provider value={ctx}>{children}</LancLoteCtx.Provider>
+        </MobileSheetPortalCtx.Provider>
+        <div ref={setAlvoFolha} className="mk-ll-dlg__folhas" />
       </DialogPrimitive.Content>
       </DialogPrimitive.Portal>
     </DialogPrimitive.Root>

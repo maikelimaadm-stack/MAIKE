@@ -1,10 +1,10 @@
 import React, { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuery } from "@tanstack/react-query";
 import { listarIconesDaEmpresa } from "@/services/mapaService";
 import { getTodayLocalDate } from "../utils/pecuariaUtils";
+import B1Select from "@/components/cadastro/base1/B1Select";
 import LancField from "@/components/cadastro/base1/LancField";
 import { LancLoteForm, LancLoteItens, LancLoteItem, LancLoteAdicionar, LancLoteRodape, LL_CTL } from "@/components/lotes/LancamentoLoteUi";
 
@@ -110,23 +110,16 @@ export default function FormularioMorte({ lote, onSubmit, onCancel, enviando = f
           return (
             <LancLoteItem key={index} titulo={`Categoria ${index + 1}`} icone={iconeUrl} onRemover={() => removerCategoria(index)} rotuloRemover="Remover categoria">
               <FL label="Categoria" className="mk-ll__cheio">
-                <Select value={morte.categoria} onValueChange={(v) => handleMorteChange(index, 'categoria', v)}>
-                  <SelectTrigger className={LL_CTL}>
-                    <SelectValue>
-                      {infoCategoria?.totalCabecas || 0} cb - {morte.categoria}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
+                <B1Select value={(morte.categoria) ?? ""} onChange={(e) => { const v = e.target.value; handleMorteChange(index, 'categoria', v); }} className={LL_CTL}>
                     {categoriasDisponiveis.map(cat => {
                       const info = lotesPorCategoria[cat];
                       return (
-                        <SelectItem key={cat} value={cat} className="text-xs">
+                        <option key={cat} value={cat}>
                           {info.totalCabecas} cb - {cat}
-                        </SelectItem>
+                        </option>
                       );
                     })}
-                  </SelectContent>
-                </Select>
+                </B1Select>
               </FL>
 
               <FL label="Quantidade" required>
@@ -143,19 +136,14 @@ export default function FormularioMorte({ lote, onSubmit, onCancel, enviando = f
               </FL>
 
               <FL label="Causa da Morte" required>
-                <Select value={morte.causa_morte} onValueChange={(v) => handleMorteChange(index, 'causa_morte', v)}>
-                  <SelectTrigger className={LL_CTL}>
-                    <SelectValue placeholder="Selecione a causa" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Doença" className="text-xs">Doença</SelectItem>
-                    <SelectItem value="Acidente" className="text-xs">Acidente</SelectItem>
-                    <SelectItem value="Predador" className="text-xs">Predador</SelectItem>
-                    <SelectItem value="Natural" className="text-xs">Natural</SelectItem>
-                    <SelectItem value="Desconhecida" className="text-xs">Desconhecida</SelectItem>
-                    <SelectItem value="Outra" className="text-xs">Outra</SelectItem>
-                  </SelectContent>
-                </Select>
+                <B1Select value={(morte.causa_morte) ?? ""} onChange={(e) => { const v = e.target.value; handleMorteChange(index, 'causa_morte', v); }} className={LL_CTL}>
+                    <option value="Doença">Doença</option>
+                    <option value="Acidente">Acidente</option>
+                    <option value="Predador">Predador</option>
+                    <option value="Natural">Natural</option>
+                    <option value="Desconhecida">Desconhecida</option>
+                    <option value="Outra">Outra</option>
+                </B1Select>
               </FL>
             </LancLoteItem>
           );

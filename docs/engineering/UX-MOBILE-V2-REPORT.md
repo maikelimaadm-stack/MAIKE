@@ -197,3 +197,12 @@ Pedido do proprietário com prints do app do Claude no iPhone. Conferido no Chro
 
 **Não testado em aparelho real.** Telas verificadas no harness em 1600 px e 390 px.
 
+## V12 — listas dos lançamentos de lote iguais às do cadastro (D-PROD-116)
+
+| Pedido | Feito | Evidência |
+|---|---|---|
+| Listas dos lançamentos diferentes das do cadastro, com aberturas diferentes | `B1Select` nos 6 lançamentos de lote. Desktop/tablet: lista logo abaixo do campo, com a mesma largura (medido: 4 px abaixo, mesma esquerda e largura). Celular: folha com ✕, título do campo e lista agrupada | antes: v12-00; referência: v12-01; depois: v12-02 |
+| Folha do celular por cima do lançamento | Abre dentro do diálogo (`MobileSheetPortalCtx`). Toque e escolha funcionam, e o diálogo continua aberto | teste `lancamentoLoteUi` |
+
+**Não testado em aparelho real.**
+

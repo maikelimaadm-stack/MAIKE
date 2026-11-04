@@ -1,11 +1,11 @@
 import React, { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuery } from "@tanstack/react-query";
 import { listarIconesDaEmpresa } from "@/services/mapaService";
 import { getTodayLocalDate } from "../utils/pecuariaUtils";
 import { LancLoteForm, LancLoteItens, LancLoteItem, LancLoteAdicionar, LancLoteRodape, LancLoteSegmento, LL_CTL } from "@/components/lotes/LancamentoLoteUi";
+import B1Select from "@/components/cadastro/base1/B1Select";
 import LancField from "@/components/cadastro/base1/LancField";
 
 /** Campo flutuante Base1 (rótulo dentro) — D-PROD-88. */
@@ -218,26 +218,16 @@ export default function FormularioPesagem({ lote, onSubmit, onCancel }) {
                   <LancLoteItem key={index} titulo={`Categoria ${index + 1}`} icone={iconeUrl} onRemover={() => removerCategoria(index)} rotuloRemover="Remover categoria">
 
                     <FL label="Categoria" className="mk-ll__cheio">
-                    <Select
-                      value={pesagem.categoria}
-                      onValueChange={(v) => handlePesagemChange(index, 'categoria', v)}
-                    >
-                      <SelectTrigger className={LL_CTL}>
-                        <SelectValue>
-                          {infoCategoria?.totalCabecas || 0} cb - {pesagem.categoria}
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
+                    <B1Select value={(pesagem.categoria) ?? ""} onChange={(e) => { const v = e.target.value; handlePesagemChange(index, 'categoria', v); }} className={LL_CTL}>
                         {categoriasDisponiveis.map(cat => {
                           const info = lotesPorCategoria[cat];
                           return (
-                            <SelectItem key={cat} value={cat} className="text-xs">
+                            <option key={cat} value={cat}>
                               {info.totalCabecas} cb - {cat}
-                            </SelectItem>
+                            </option>
                           );
                         })}
-                      </SelectContent>
-                    </Select>
+                    </B1Select>
                     </FL>
 
                     <FL label="Peso Atual (kg)" required>

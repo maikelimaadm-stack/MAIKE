@@ -1,11 +1,11 @@
 import React, { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuery } from "@tanstack/react-query";
 import { listarIconesDaEmpresa } from "@/services/mapaService";
 import { getTodayLocalDate } from "../utils/pecuariaUtils";
 import { LancLoteForm, LancLoteItens, LancLoteItem, LancLoteAdicionar, LancLoteRodape, LL_CTL } from "@/components/lotes/LancamentoLoteUi";
+import B1Select from "@/components/cadastro/base1/B1Select";
 import LancField from "@/components/cadastro/base1/LancField";
 import { ehLoteDeMatriz } from "@/domain/lotes/manejoRebanho";
 
@@ -126,26 +126,16 @@ export default function FormularioNascimento({ lote, onSubmit, onCancel }) {
                 <LancLoteItem key={index} titulo={`Categoria ${index + 1}`} icone={iconeUrl} onRemover={() => removerCategoria(index)} rotuloRemover="Remover categoria">
 
                   <FL label="Categoria Mãe">
-                    <Select
-                      value={nascimento.categoria_mae}
-                      onValueChange={(v) => handleNascimentoChange(index, 'categoria_mae', v)}
-                    >
-                      <SelectTrigger className={LL_CTL}>
-                        <SelectValue>
-                          {infoCategoria?.totalCabecas || 0} cb - {nascimento.categoria_mae}
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
+                    <B1Select value={(nascimento.categoria_mae) ?? ""} onChange={(e) => { const v = e.target.value; handleNascimentoChange(index, 'categoria_mae', v); }} className={LL_CTL}>
                         {categoriasDisponiveis.map(cat => {
                           const info = lotesPorCategoria[cat];
                           return (
-                            <SelectItem key={cat} value={cat} className="text-xs">
+                            <option key={cat} value={cat}>
                               {info.totalCabecas} cb - {cat}
-                            </SelectItem>
+                            </option>
                           );
                         })}
-                      </SelectContent>
-                    </Select>
+                    </B1Select>
                   </FL>
 
                   <>
@@ -161,18 +151,10 @@ export default function FormularioNascimento({ lote, onSubmit, onCancel }) {
                       />
                     </FL>
                     <FL label="Sexo" required>
-                      <Select
-                        value={nascimento.sexo}
-                        onValueChange={(v) => handleNascimentoChange(index, 'sexo', v)}
-                      >
-                        <SelectTrigger className={LL_CTL}>
-                          <SelectValue placeholder="Selecione o sexo" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Macho" className="text-xs">Macho</SelectItem>
-                          <SelectItem value="Fêmea" className="text-xs">Fêmea</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <B1Select value={(nascimento.sexo) ?? ""} onChange={(e) => { const v = e.target.value; handleNascimentoChange(index, 'sexo', v); }} className={LL_CTL}>
+                          <option value="Macho">Macho</option>
+                          <option value="Fêmea">Fêmea</option>
+                      </B1Select>
                     </FL>
 
                     <FL label="Peso Médio (kg)">
