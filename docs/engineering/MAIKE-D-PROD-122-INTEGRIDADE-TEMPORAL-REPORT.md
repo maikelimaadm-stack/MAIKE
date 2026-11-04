@@ -82,7 +82,13 @@ Evidência: `evidencias/d-prod-122/red-green.txt`.
 | Configuração | C1 (admin, inválido, comum 403, PATCH recusa, leitura), C2 (motivo e auditoria), C3 (tenant B), C4 (404), C5 (`POST /empresas` com e sem fuso) |
 | Inventário | K1 (KM-06 sintético: projeção 49 × as-of 50), K2 (escrita na transação recusada pelo PostgreSQL), K3 (sem fuso), K4 (ids com hash) |
 
-**Regressão:** suíte backend completa local, 811 testes (805 passando, 5 `todo` pré-existentes, 0 falhas depois das fixtures). Gates `test:gates` 12/12 no pré-merge. `gate:rebanho-ssot` PASSOU. Smoke de Empresa 51/51.
+**Regressão (`verify:all` local no `110e5ec9`, EXIT=0, "TODAS AS ETAPAS PASSARAM"):**
+
+- backend 811 testes: 806 passando, 5 `todo` pré-existentes, 0 falhas;
+- gates 686/686;
+- smoke (vitest) 1345/1345;
+- `gate:types` sem regressão (dívida de 926 para 925);
+- `typecheck:backend`, lint e `gate:rebanho-ssot` PASSARAM.
 
 ## Migration local
 
