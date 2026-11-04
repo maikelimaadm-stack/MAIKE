@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { Toaster } from "@/components/ui/toaster"
 import MaikeSonnerToaster from "@/components/common/MaikeSonnerToaster";
 import GlobalRequiredFieldsGuard from '@/components/common/GlobalRequiredFieldsGuard';
-import GlobalDeleteBlockDialog from '@/components/common/GlobalDeleteBlockDialog';
+import MaikeAvisosHost from '@/components/common/MaikeAvisosHost';
 import "@/styles/maike-notify.css";
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
@@ -162,7 +162,7 @@ function App() {
       <BootSplashProvider>
       <QueryClientProvider client={queryClientInstance}>
         <GlobalRequiredFieldsGuard />
-        <GlobalDeleteBlockDialog />
+        <MaikeAvisosHost />
         <Router>
           <AuthenticatedApp />
         </Router>

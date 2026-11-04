@@ -4814,4 +4814,21 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
     - Fora do diálogo, o botão largo continua.
 - **Consequência:** o Detalhes do Lote fica limpo e na cor do sistema. O gesto de voltar do iPhone vale nas janelas, e os quadros ficam iguais em toda largura.
 
-<!-- Próxima decisão: D-PROD-121 -->
+## D-PROD-121 — Notificações e confirmações de exclusão no padrão do sistema
+
+- **Contexto:** o proprietário pediu para arrumar as notificações e as confirmações de exclusão. No harness:
+  - 197 chamadas diretas de `toast.success/error/warning/info/message` do sonner saíam como **texto solto, sem cartão**, porque o Toaster é `unstyled` e só o `notifySuccess` e afins desenhavam o cartão;
+  - 9 lugares usavam o `window.confirm` do navegador, que no celular mostra o endereço do site numa caixa cinza;
+  - 13 validações de manejo usavam `alert()`;
+  - o aviso "Não é possível excluir" usava outro diálogo (`TopNoticeDialog`), e o `AlertDialog` do importador de áreas tinha o visual cru do shadcn.
+- **Decisão:**
+  - **Toasts:** `instalarToastsDoSistema` (em `maikeNotify`, instalado no `main.jsx` antes do interceptor de exclusão) faz os métodos do sonner usarem o mesmo `MaikeToastCard`. A duração, o `id` e a `description` são mantidos. Um toast só com título fica centralizado.
+  - **Confirmações:** `confirmar` e `confirmarExclusao` (em `src/lib/maikeConfirmar.js`) devolvem uma promessa, e o `MaikeAvisosHost` (montado no App) as mostra no `ConfirmDialog`, uma de cada vez. Sem host montado, cai no `window.confirm`.
+    - Trocados: histórico de tarefa, cocho, depósito, bebedouro, ícones, permissões, duração da suplementação, fechar a exclusão sem confirmação e o descarte do envio de manejo pendente (agora com `await`).
+  - **Avisos:** os `alert()` dos formulários de manejo viram `notifyWarning`/`notifyError`. "Não é possível excluir" e o `PermissionAlertDialog` passam a usar o mesmo diálogo, com um botão só, "Entendi" (`soInformar`). O `GlobalDeleteBlockDialog` sai, e o evento passa a se chamar `maike:exclusao-bloqueada`.
+  - **AlertDialog (Radix):** fica com o visual do `ConfirmDialog`: cantos 16, cabeçalho e rodapé, botões em pílula, ação verde e perigo vermelho.
+  - **Celular:** título e texto centralizados, botões largos de 44 px e cantos 20.
+  - **Teste-guarda:** nenhum `confirm()` ou `alert()` volta para `src/`.
+- **Consequência:** toda notificação sai no mesmo cartão e toda confirmação ou aviso no mesmo diálogo, no desktop e no celular.
+
+<!-- Próxima decisão: D-PROD-122 -->

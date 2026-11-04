@@ -20,6 +20,15 @@
   color: #334155;
 }
 
+.mg-toast--so-titulo {
+  align-items: center;
+}
+
+.mg-toast--so-titulo .mg-toast__icon,
+.mg-toast--so-titulo .mg-toast__close {
+  margin-top: 0;
+}
+
 .mg-toast__icon {
   flex-shrink: 0;
   display: inline-flex;
@@ -174,4 +183,172 @@
 .mg-confirm-dialog .mg-confirm-dialog__f .mg-confirm-dialog__excluir svg {
   color: #dc2626 !important;
   stroke: currentColor !important;
+}
+
+.mg-confirm-dialog__espaco {
+  flex-grow: 1;
+}
+
+.mg-confirm-dialog__b {
+  white-space: pre-line;
+}
+
+/* Celular: botões largos e altos para o dedo (D-PROD-121) */
+@media (max-width: 639px) {
+  .mg-confirm-dialog {
+    border-radius: 20px;
+  }
+
+  .mg-confirm-dialog__h {
+    justify-content: center;
+    min-height: 0;
+    padding: 18px 18px 0;
+    border-bottom: 0;
+  }
+
+  .mg-confirm-dialog__t {
+    font-size: 16px;
+    text-align: center;
+  }
+
+  .mg-confirm-dialog__b {
+    padding: 8px 20px 18px;
+    font-size: 14px;
+    text-align: center;
+  }
+
+  .mg-confirm-dialog__f {
+    gap: 10px;
+    padding: 12px;
+    background: #fff;
+  }
+
+  .mg-confirm-dialog__espaco {
+    display: none;
+  }
+
+  .mg-confirm-dialog .mg-confirm-dialog__f .tb-btn {
+    flex: 1 1 0 !important;
+    justify-content: center !important;
+    height: 44px !important;
+    min-height: 44px !important;
+    border-radius: 12px !important;
+    font-size: 14px !important;
+  }
+}
+
+/* Toasts: cartão inteiro clicável no celular sem estourar a largura */
+@media (max-width: 639px) {
+  .mg-toast-host {
+    width: calc(100vw - 24px);
+  }
+}
+
+/* AlertDialog (Radix) no mesmo visual do diálogo de confirmação (D-PROD-121) */
+.mg-alerta {
+  box-sizing: border-box;
+  width: min(440px, calc(100vw - 24px));
+  overflow: hidden;
+  border: 1px solid #e7eaee;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 24px 64px rgba(15, 23, 42, 0.26);
+}
+
+.mg-alerta__cab {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px 18px;
+}
+
+.mg-alerta__titulo {
+  font-size: 14px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.mg-alerta__texto {
+  font-size: 13px;
+  line-height: 1.45;
+  color: #475569;
+}
+
+.mg-alerta__rodape {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 11px 14px;
+  border-top: 1px solid #f1f4f6;
+  background: #fbfcfd;
+}
+
+.mg-alerta__botao {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  background: #f1f3f4;
+  color: #475569;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.mg-alerta__botao:hover {
+  background: #e8eaed;
+}
+
+.mg-alerta__botao--acao {
+  background: var(--mg-accent, #40de63);
+  color: #fff;
+}
+
+.mg-alerta__botao--acao:hover {
+  background: var(--mg-accent-hover, #36c956);
+}
+
+.mg-alerta__botao--acao.mg-alerta__botao--perigo {
+  background: #f1f3f4;
+  color: #dc2626;
+}
+
+.mg-alerta__botao--acao.mg-alerta__botao--perigo:hover {
+  background: rgba(220, 38, 38, 0.08);
+}
+
+@media (max-width: 639px) {
+  .mg-alerta {
+    border-radius: 20px;
+  }
+
+  .mg-alerta__cab {
+    padding: 18px 20px 14px;
+    text-align: center;
+  }
+
+  .mg-alerta__titulo {
+    font-size: 16px;
+  }
+
+  .mg-alerta__texto {
+    font-size: 14px;
+  }
+
+  .mg-alerta__rodape {
+    gap: 10px;
+    padding: 12px;
+    background: #fff;
+  }
+
+  .mg-alerta__botao {
+    flex: 1 1 0;
+    height: 44px;
+    border-radius: 12px;
+    font-size: 14px;
+  }
 }

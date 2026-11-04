@@ -7,6 +7,7 @@ import { getTodayLocalDate } from "../utils/pecuariaUtils";
 import { LancLoteForm, LancLoteItens, LancLoteItem, LancLoteAdicionar, LancLoteRodape, LancLoteSegmento, LL_CTL } from "@/components/lotes/LancamentoLoteUi";
 import B1Select from "@/components/cadastro/base1/B1Select";
 import LancField from "@/components/cadastro/base1/LancField";
+import { notifyWarning } from "@/lib/maikeNotify";
 
 /** Campo flutuante Base1 (rótulo dentro) — D-PROD-88. */
 const FL = LancField;
@@ -60,7 +61,7 @@ export default function FormularioPesagem({ lote, onSubmit, onCancel }) {
     
     if (modoPesagem === "todos") {
       if (!pesoGeral || parseFloat(pesoGeral) <= 0) {
-        alert("Informe o peso para todos os animais");
+        notifyWarning("Atenção", "Informe o peso para todos os animais");
         return;
       }
 
@@ -83,7 +84,7 @@ export default function FormularioPesagem({ lote, onSubmit, onCancel }) {
       // Modo individual: peso por lote
       const lotesComPeso = Object.entries(pesosIndividuais).filter(([, peso]) => peso && parseFloat(peso) > 0);
       if (lotesComPeso.length === 0) {
-        alert("Preencha o peso de pelo menos um lote");
+        notifyWarning("Atenção", "Preencha o peso de pelo menos um lote");
         return;
       }
       const categoriasAfetadas = [...new Set(lotesArray.filter(l => pesosIndividuais[l.id]).map(l => l.categoria))];
@@ -109,7 +110,7 @@ export default function FormularioPesagem({ lote, onSubmit, onCancel }) {
     } else {
       const pesagensValidas = formData.pesagens.filter(p => p.peso && parseFloat(p.peso) > 0);
       if (pesagensValidas.length === 0) {
-        alert("Preencha o peso de pelo menos uma categoria");
+        notifyWarning("Atenção", "Preencha o peso de pelo menos uma categoria");
         return;
       }
 

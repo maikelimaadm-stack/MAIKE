@@ -14,6 +14,7 @@ import { getTodayLocalDate } from "../utils/pecuariaUtils";
 import { LancLoteForm, LancLoteItens, LancLoteItem, LancLoteAdicionar, LancLoteRodape, LancLoteSegmento, LancLoteAviso, LL_CTL } from "@/components/lotes/LancamentoLoteUi";
 import B1Select from "@/components/cadastro/base1/B1Select";
 import LancField from "@/components/cadastro/base1/LancField";
+import { notifyWarning, notifyError } from "@/lib/maikeNotify";
 
 /** Campo flutuante Base1 (rótulo dentro) — D-PROD-88. */
 const FL = LancField;
@@ -306,7 +307,7 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
     } catch (error) {
       console.error('Erro ao fechar eventos:', error);
       setProgresso({ show: false, atual: 0, total: 0, mensagem: '' });
-      alert('Erro ao fechar períodos de consumo');
+      notifyError('Erro', 'Erro ao fechar períodos de consumo');
     } finally {
       setLoading(false);
     }
@@ -317,30 +318,30 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
     if (loading) return;
 
     if (!formData.area_saida_id) {
-      alert('Selecione a área de saída');
+      notifyWarning("Atenção", 'Selecione a área de saída');
       return;
     }
 
     if (!formData.area_entrada_id) {
-      alert('Selecione a área de entrada');
+      notifyWarning("Atenção", 'Selecione a área de entrada');
       return;
     }
 
     if (formData.mover_todos === 'nao') {
       if (formData.movimentacoes.length === 0) {
-        alert('Adicione pelo menos uma movimentação');
+        notifyWarning("Atenção", 'Adicione pelo menos uma movimentação');
         return;
       }
 
       const temQuantidadeInvalida = formData.movimentacoes.some((m) => !m.quantidade || m.quantidade <= 0);
       if (temQuantidadeInvalida) {
-        alert('Todas as movimentações devem ter quantidade maior que zero');
+        notifyWarning("Atenção", 'Todas as movimentações devem ter quantidade maior que zero');
         return;
       }
 
       const categoriasExcedidas = Object.entries(totaisSolicitadosPorCategoria).filter(([categoria, total]) => total > (categoriasPorLote[categoria]?.quantidade_total || 0));
       if (categoriasExcedidas.length > 0) {
-        alert('A soma movimentada por categoria excede o total disponível em um ou mais grupos.');
+        notifyWarning("Atenção", 'A soma movimentada por categoria excede o total disponível em um ou mais grupos.');
         return;
       }
     }

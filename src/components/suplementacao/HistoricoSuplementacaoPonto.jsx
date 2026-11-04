@@ -12,6 +12,7 @@ import { safeDivide } from "../utils/pecuariaUtils";
 import CardMetricaEvento from "./CardMetricaEvento";
 import DesvioConsumoTag from "./DesvioConsumoTag";
 import { CANCELAMENTO_COCHO_HABILITADO, MENSAGEM_ESTORNO_SUSPENSO } from "@/domain/estornos/politicaEstorno";
+import { confirmarExclusao } from "@/lib/maikeConfirmar";
 
 // `ui/card` é forwardRef sem tipos de props: o checkJs não enxerga `children`.
 /** @type {React.ComponentType<any>} */ const Card = CardUi;
@@ -94,7 +95,7 @@ export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto 
     if (!CANCELAMENTO_COCHO_HABILITADO) return toast.info(MENSAGEM_ESTORNO_SUSPENSO);
     if (index !== 0) return toast.error("Exclua primeiro o último lançamento.");
     if (bloqueiosPorEvento[evento.id]) return toast.error("Este lançamento do cocho não pode ser excluído porque existem registros criados depois dele na mesma área.");
-    if (!confirm("Excluir este lançamento e reverter o estoque do depósito?")) return;
+    if (!(await confirmarExclusao("Excluir este lançamento e reverter o estoque do depósito?"))) return;
     setDeletingId(evento.id);
     try {
       await excluirEventoSuplementacaoComReversao({ evento, ponto, userEmail: user?.email });

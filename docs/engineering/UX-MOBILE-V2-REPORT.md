@@ -248,3 +248,13 @@ Morte e Histórico de Movimentação abrem pelos quadros a 1600, 820 e 390 px (h
 
 **Não testado em aparelho real.**
 
+## V17 — notificações e confirmações de exclusão no padrão do sistema (D-PROD-121)
+
+| Pedido | Feito | Evidência |
+|---|---|---|
+| Notificações | Os 197 `toast.*` diretos (antes texto solto) passam a sair no cartão do sistema | v17-00 (antes), v17-01 |
+| Confirmações de exclusão | Os 9 `window.confirm` passam ao diálogo do sistema (`confirmarExclusao`). No celular, botões largos de 44 px | v17-02, v17-04 |
+| Avisos | Os 13 `alert()` viram cartões de aviso. "Não é possível excluir" e as permissões passam ao mesmo diálogo, com "Entendi". O `AlertDialog` fica no mesmo visual | v17-03 |
+
+Teste `notificacoesConfirmacoes`: a promessa do `confirmar`, o aviso de bloqueio, os toasts e a guarda contra `confirm`/`alert`. **Não testado em aparelho real.**
+

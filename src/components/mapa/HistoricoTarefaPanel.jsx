@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useQueryClient } from "@tanstack/react-query";
 import { excluirHistorico } from "@/services/tarefasMapaService";
 import { toast } from "sonner";
+import { confirmarExclusao } from "@/lib/maikeConfirmar";
 
 const formatDateBR = (value) => {
   if (!value) return "-";
@@ -35,7 +36,7 @@ export default function HistoricoTarefaPanel({ tarefaId, tarefaTitulo, historico
 
   const handleDelete = async (item, index) => {
     if (index !== 0) return toast.error("Exclua primeiro o último histórico.");
-    if (!confirm("Excluir este histórico da tarefa?")) return;
+    if (!(await confirmarExclusao("Excluir este histórico da tarefa?"))) return;
 
     setDeletingId(item.id);
     try {

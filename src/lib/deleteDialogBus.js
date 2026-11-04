@@ -1,3 +1,6 @@
+/** Evento do aviso "Não é possível excluir" — mostrado pelo MaikeAvisosHost (D-PROD-121). */
+export const EVENTO_EXCLUSAO_BLOQUEADA = "maike:exclusao-bloqueada";
+
 export function shouldShowDeleteDialog(message) {
   const text = String(message || "").toLowerCase();
   return (
@@ -14,7 +17,7 @@ export function shouldShowDeleteDialog(message) {
 export function emitDeleteDialog(message, title = "Não é possível excluir") {
   if (typeof window === "undefined") return;
   window.dispatchEvent(
-    new CustomEvent("base44:delete-dialog", {
+    new CustomEvent(EVENTO_EXCLUSAO_BLOQUEADA, {
       detail: {
         title,
         description: String(message || "Não foi possível concluir a exclusão."),

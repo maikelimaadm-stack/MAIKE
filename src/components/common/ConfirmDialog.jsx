@@ -7,6 +7,10 @@ import { cn } from "@/lib/utils";
 /**
  * Pedido de confirmação — sempre no centro da tela.
  * Cancelar: X + texto. Excluir (destructive): lixeira + texto vermelhos, fundo cinza (paridade toolbar).
+ * `soInformar`: aviso com um botão só ("Entendi") (D-PROD-121).
+ * No celular os botões ocupam a largura, com 44 px de altura (D-PROD-121).
+ *
+ * @param {{ open: boolean, onOpenChange?: (v: boolean) => void, title?: string, description?: React.ReactNode, onConfirm?: () => void, confirmText?: string, cancelText?: string, variant?: string, soInformar?: boolean }} props
  */
 export default function ConfirmDialog({
   open,
@@ -17,6 +21,7 @@ export default function ConfirmDialog({
   confirmText = "Excluir",
   cancelText = "Cancelar",
   variant = "default",
+  soInformar = false,
 }) {
   const isDestructive = variant === "destructive" || variant === "danger";
 
@@ -65,7 +70,8 @@ export default function ConfirmDialog({
               {description}
             </div>
             <div className="mg-confirm-dialog__f">
-              <span style={{ flexGrow: 1 }} />
+              <span className="mg-confirm-dialog__espaco" />
+              {soInformar ? null : (
               <button
                 type="button"
                 className="tb-btn tb-btn-gray shrink-0"
@@ -76,11 +82,12 @@ export default function ConfirmDialog({
                 <X className="h-4 w-4" aria-hidden />
                 {cancelText}
               </button>
+              )}
               <button
                 type="button"
                 className={cn(
                   "tb-btn shrink-0",
-                  isDestructive ? "tb-btn-red mg-confirm-dialog__excluir" : "tb-btn-green",
+                  isDestructive ? "tb-btn-red mg-confirm-dialog__excluir" : "tb-btn-green mg-confirm-dialog__ok",
                 )}
                 title={confirmText}
                 aria-label={confirmText}

@@ -7,6 +7,7 @@ import { getTodayLocalDate } from "../utils/pecuariaUtils";
 import { LancLoteForm, LancLoteItens, LancLoteItem, LancLoteAdicionar, LancLoteRodape, LL_CTL } from "@/components/lotes/LancamentoLoteUi";
 import B1Select from "@/components/cadastro/base1/B1Select";
 import LancField from "@/components/cadastro/base1/LancField";
+import { notifyWarning } from "@/lib/maikeNotify";
 
 /** Campo flutuante Base1 (rótulo dentro) — D-PROD-88. */
 const FL = LancField;
@@ -50,7 +51,7 @@ export default function FormularioAbate({ lote, onSubmit, onCancel, enviando = f
     e.preventDefault();
     const abatesValidos = formData.abates.filter(a => parseInt(a.quantidade) > 0);
     if (abatesValidos.length === 0) {
-      alert("Preencha pelo menos um abate com quantidade");
+      notifyWarning("Atenção", "Preencha pelo menos um abate com quantidade");
       return;
     }
     

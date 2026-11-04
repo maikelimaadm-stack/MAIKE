@@ -8,6 +8,7 @@ import { LancLoteForm, LancLoteItens, LancLoteItem, LancLoteAdicionar, LancLoteR
 import B1Select from "@/components/cadastro/base1/B1Select";
 import LancField from "@/components/cadastro/base1/LancField";
 import { ehLoteDeMatriz } from "@/domain/lotes/manejoRebanho";
+import { notifyWarning } from "@/lib/maikeNotify";
 
 /** Campo flutuante Base1 (rótulo dentro) — D-PROD-88. */
 const FL = LancField;
@@ -60,7 +61,7 @@ export default function FormularioNascimento({ lote, onSubmit, onCancel }) {
     const preenchidas = formData.nascimentos.filter(n => n.quantidade !== "" || n.sexo);
     const invalida = preenchidas.find(n => !n.sexo || !n.categoria_mae || !(Number(n.quantidade) > 0) || !Number.isInteger(Number(n.quantidade)));
     if (preenchidas.length === 0 || invalida) {
-      alert("Preencha cada linha com categoria da mãe, sexo e quantidade inteira maior que zero");
+      notifyWarning("Atenção", "Preencha cada linha com categoria da mãe, sexo e quantidade inteira maior que zero");
       return;
     }
     setSaving(true);

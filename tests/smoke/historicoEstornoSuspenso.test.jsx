@@ -95,7 +95,7 @@ describe("T01 — histórico do cocho", () => {
     const guarda = corpo.indexOf("if (!CANCELAMENTO_COCHO_HABILITADO) return");
     expect(guarda).toBeGreaterThan(-1);
     expect(guarda).toBeLessThan(corpo.indexOf("excluirEventoSuplementacaoComReversao("));
-    expect(guarda).toBeLessThan(corpo.indexOf("confirm("));
+    expect(guarda).toBeLessThan(corpo.indexOf("confirmarExclusao("));
   });
 });
 
@@ -118,7 +118,7 @@ describe("T02 — histórico do depósito", () => {
     const guarda = corpo.indexOf("if (!CANCELAMENTO_TRANSFERENCIA_DEPOSITO_HABILITADO) return");
     expect(guarda).toBeGreaterThan(-1);
     expect(guarda).toBeLessThan(corpo.indexOf("excluirTransferenciaDeposito("));
-    expect(guarda).toBeLessThan(corpo.indexOf("confirm("));
+    expect(guarda).toBeLessThan(corpo.indexOf("confirmarExclusao("));
   });
 });
 
