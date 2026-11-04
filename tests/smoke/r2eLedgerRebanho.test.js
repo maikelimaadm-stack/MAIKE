@@ -83,7 +83,8 @@ describe('R2E mapa e DetalhesLote no modo ledger', () => {
     expect(fonte).not.toMatch(/seMigrado|ainda não foi migrada/);
     // Contrato do dono: no ledger toda operação abre; sem ledger, abrirManejo recusa (cutover pendente).
     for (const abrir of ['setShowAbate', 'setShowMorte', 'setShowNascimento', 'setShowMudancaCategoria', 'setShowPesagem', 'setShowMovimentacao']) {
-      expect(fonte).toMatch(new RegExp(`onClick=\\{\\(\\) => abrirManejo\\(${abrir}\\)\\}`));
+      // D-PROD-119: os manejos viraram quadros (`onClick: () => abrirManejo(...)`); a regra é a mesma.
+      expect(fonte).toMatch(new RegExp(`onClick(?:=\\{|: )\\(\\) => abrirManejo\\(${abrir}\\)`));
     }
     const abrirManejo = fonte.slice(fonte.indexOf('  const abrirManejo = (abrir) => {'), fonte.indexOf('  // Listener para abrir movimentação via drag-and-drop'));
     expect(abrirManejo).toMatch(/if \(!modoLedger\) \{\s*recusarManejoSemLedger\(\);\s*return;\s*\}\s*abrir\(true\);/);

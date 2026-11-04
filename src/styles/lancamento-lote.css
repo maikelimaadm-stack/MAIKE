@@ -668,3 +668,327 @@
   align-items: center;
   gap: 8px;
 }
+
+/* ── Detalhes do Lote: cartões (mesmos campos) (D-PROD-119) ────────────────────────────────────── */
+.mk-dl__lotes {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+}
+
+@media (min-width: 768px) {
+  .mk-dl__lotes {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.mk-dl__cartao {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid #e7eaee;
+  border-radius: 12px;
+  background: #fff;
+  font-size: 12px;
+}
+
+.mk-dl__infos {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+@media (min-width: 640px) {
+  .mk-dl__infos:not(.mk-dl__infos--2) {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.mk-dl__info {
+  min-width: 0;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: #f6f7f8;
+}
+
+.mk-dl__info > div:first-child {
+  font-size: 10.5px;
+  color: #64748b;
+}
+
+.mk-dl__info > div:last-child {
+  overflow-wrap: anywhere;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.mk-dl__rodape {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 16px;
+  font-size: 11px;
+}
+
+/* ── Detalhes do Lote: botão único + quadros de ações (D-PROD-119) ───── */
+.mk-al__botao {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  height: 40px;
+  border: 0;
+  border-radius: 12px;
+  background: #f1f3f4;
+  color: #1f2937;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.mk-al__botao:hover,
+.mk-al__botao[aria-expanded="true"] {
+  background: #e8ebee;
+}
+
+.mk-al__botao svg {
+  width: 17px;
+  height: 17px;
+  color: #334155;
+}
+
+.mk-al__botao .mk-al__chev {
+  width: 15px;
+  height: 15px;
+  color: #94a3b8;
+  transition: transform 0.15s;
+}
+
+.mk-al__botao[aria-expanded="true"] .mk-al__chev {
+  transform: rotate(180deg);
+}
+
+/* Desktop/tablet: painel logo abaixo do botão */
+.mk-al__painel {
+  z-index: 60;
+  width: min(480px, calc(100vw - 24px));
+  padding: 12px;
+  border: 1px solid #e7eaee;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.16);
+}
+
+/* Celular: folha que sobe de baixo (como "Adicionar contexto") */
+.mk-al__scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgba(15, 23, 42, 0.4);
+}
+
+.mk-al__folha {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 61;
+  max-height: 88dvh;
+  overflow-y: auto;
+  padding: 6px 16px calc(env(safe-area-inset-bottom, 0px) + 20px);
+  border-radius: 28px 28px 0 0;
+  background: #f7f7f8;
+  animation: mk-al-sobe 0.28s cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+
+@keyframes mk-al-sobe {
+  from {
+    transform: translateY(100%);
+  }
+
+  to {
+    transform: translateY(0);
+  }
+}
+
+.mk-al__alca {
+  display: flex;
+  justify-content: center;
+  padding: 4px 0 8px;
+}
+
+.mk-al__alca span {
+  width: 40px;
+  height: 5px;
+  border-radius: 999px;
+  background: #d4d4d8;
+}
+
+.mk-al__cab {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.mk-al__titulo {
+  flex: 1 1 auto;
+  font-size: 17px;
+  font-weight: 600;
+  color: #1f2937;
+  text-align: center;
+}
+
+.mk-al__fechar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
+  color: #334155;
+}
+
+.mk-al__fechar svg {
+  width: 22px;
+  height: 22px;
+}
+
+.mk-al__fechar--vazio {
+  visibility: hidden;
+}
+
+/* Grupos e quadros */
+.mk-al__grupos {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.mk-al__grupo {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mk-al__grupo-titulo {
+  padding-left: 2px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #64748b;
+  text-transform: uppercase;
+}
+
+.mk-al__quadros {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.mk-al__quadro {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+  min-height: 80px;
+  padding: 10px 4px;
+  border: 0;
+  border-radius: 16px;
+  background: #f1f3f4;
+  color: #1f2937;
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1.15;
+  text-align: center;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s, transform 0.1s;
+}
+
+.mk-al__quadro:hover {
+  background: #e8ebee;
+}
+
+.mk-al__quadro:active {
+  transform: scale(0.97);
+}
+
+.mk-al__quadro:focus-visible {
+  outline: 2px solid rgba(64, 222, 99, 0.6);
+  outline-offset: 2px;
+}
+
+.mk-al__quadro svg {
+  width: 24px;
+  height: 24px;
+  stroke-width: 1.6;
+  color: #334155;
+}
+
+.mk-al__quadro span {
+  max-width: 100%;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
+@media (max-width: 639px) {
+  .mk-al__quadros {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .mk-al__folha .mk-al__quadro {
+    min-height: 96px;
+    background: #fff;
+    font-size: 13px;
+  }
+
+  .mk-al__folha .mk-al__quadro svg {
+    width: 26px;
+    height: 26px;
+  }
+}
+
+/* Desktop/tablet: quadros sempre à vista embaixo do Detalhes do Lote, menores */
+.mk-al--embaixo .mk-al__quadros {
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  gap: 6px;
+}
+
+.mk-al--embaixo .mk-al__quadro {
+  min-height: 60px;
+  gap: 4px;
+  padding: 8px 4px;
+  border-radius: 12px;
+  font-size: 12px;
+}
+
+.mk-al--embaixo .mk-al__quadro svg {
+  width: 19px;
+  height: 19px;
+}
+
+.mk-al--embaixo .mk-al__grupos {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 10px 16px;
+}
+
+.mk-al--embaixo .mk-al__grupo:first-child {
+  flex: 1 1 420px;
+}
+
+.mk-al--embaixo .mk-al__grupo:last-child {
+  flex: 0 1 230px;
+}

@@ -46,53 +46,53 @@ export default function InformacoesArea({ area, lotesNaArea = [], tituloLotes })
   if (!area) return null;
 
   return (
-    <div className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-[11px] space-y-1">
-      <Badge variant="outline" className="bg-yellow-400 text-slate-950 px-2.5 py-0.5 text-xs font-semibold rounded-md inline-flex items-center border border-yellow-300">
+    <div className="mk-dl__cartao">
+      <Badge variant="outline" className="bg-yellow-400 text-slate-950 px-2.5 py-0.5 text-xs font-semibold rounded-full inline-flex items-center border border-yellow-300">
         Informações da Área: {area.nome}
       </Badge>
 
       {isCurral ? (
-        <div className="grid grid-cols-2 gap-1 text-[10px]">
-          <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
+        <div className="mk-dl__infos mk-dl__infos--2">
+          <div className="mk-dl__info">
             <div className="text-slate-500">Tipo de infraestrutura</div>
             <div className="font-semibold text-slate-900">{tipoInfraestrutura}</div>
           </div>
-          <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
+          <div className="mk-dl__info">
             <div className="text-slate-500">Tipo de área</div>
             <div className="font-semibold text-slate-900">{area.tipo_cultura || '-'}</div>
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-4 sm:grid-cols-4 gap-1 text-[10px]">
-          <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
+        <div className="mk-dl__infos">
+          <div className="mk-dl__info">
             <div className="text-slate-500">Hectares</div>
             <div className="font-semibold text-slate-900">{hectares > 0 ? `${fmt(hectares)} ha` : '-'}</div>
           </div>
-          <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
+          <div className="mk-dl__info">
             <div className="text-slate-500">UA/ha</div>
             <div className="font-semibold text-slate-900">{fmt(uaHa)}</div>
           </div>
-          <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
+          <div className="mk-dl__info">
             <div className="text-slate-500">UA total</div>
             <div className="font-semibold text-slate-900">{fmt(totalUA)}</div>
           </div>
-          <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
+          <div className="mk-dl__info">
             <div className="text-slate-500">Pastagem</div>
             <div className="font-semibold text-slate-900">{area.tipo_pastagem || '-'}</div>
           </div>
-          <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
+          <div className="mk-dl__info">
             <div className="text-slate-500">Qtd. Lotes</div>
             <div className="font-semibold text-slate-900">{lotesNaArea.length.toLocaleString('pt-BR')}</div>
           </div>
-          <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
+          <div className="mk-dl__info">
             <div className="text-slate-500">Qtd. Cabeças</div>
             <div className="font-semibold text-slate-900">{totalCabecas.toLocaleString('pt-BR')}</div>
           </div>
-          <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
+          <div className="mk-dl__info">
             <div className="text-slate-500">Média geral</div>
             <div className="font-semibold text-slate-900">{pesoMedioGeral > 0 ? `${fmt(pesoMedioGeral)} kg` : '-'}</div>
           </div>
-          <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
+          <div className="mk-dl__info">
             <div className="text-slate-500">Dias pastejo</div>
             <div className="font-semibold text-slate-900">{diasPastejoMedio.toLocaleString('pt-BR')} dia(s)</div>
           </div>

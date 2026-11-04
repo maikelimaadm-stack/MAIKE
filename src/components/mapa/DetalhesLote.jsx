@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 
 import {
   listarProdutosDaEmpresa,
@@ -20,12 +19,7 @@ import {
   DialogHeader,
   DialogTitle } from
 "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger
-} from "@/components/ui/dropdown-menu";
+import AcoesDoLote from "./AcoesDoLote";
 import FormularioMovimentacaoLote from "../lotes/FormularioMovimentacaoLote";
 import FormularioMorte from "../lotes/FormularioMorte";
 import FormularioNascimento from "../lotes/FormularioNascimento";
@@ -41,7 +35,7 @@ import LancField from "@/components/cadastro/base1/LancField";
 import ResumoSuplementacao from "../suplementacao/ResumoSuplementacao";
 import InformacoesArea from "./InformacoesArea";
 import { Progress } from "@/components/ui/progress";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, ArrowLeftRight, Baby, Beef, Combine, HeartCrack, History, PencilLine, Scale, Tags, Wheat } from "lucide-react";
 import { corpoNascimento, corpoPesagem, corpoMudancaCategoria, corpoJuncao, corpoBaixa, previaJuncao, corpoTransferenciaLedger, ehPosicaoDoLedger } from "@/domain/lotes/manejoRebanho";
 import { enviarManejoRebanho, enviarJuncaoLotes, enviarBaixaRebanho, enviarTransferenciaLedger, mensagemDaTransferenciaLedger, mensagemDoErro, codigoDoErro, MENSAGENS_MANEJO_REBANHO } from "@/services/manejoRebanhoService";
 import { escopoDoUsuario } from "../lotes/ExcluirMovimentacao";
@@ -509,7 +503,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
     <div className="space-y-2" translate="no">
       <InformacoesArea area={areaAtual} lotesNaArea={todosLotesNaArea} tituloLotes={tituloLotes} />
 
-      <div className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-1">
+      <div className="mk-dl__lotes">
         {categorias.map((categoria) => {
             const lotesCategoria = lotesPorCategoria[categoria];
             const configIcone = iconesConfig.find((ic) =>
@@ -527,9 +521,9 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
               if (entrada) {entrada.setHours(0, 0, 0, 0);diasPastejo = Math.max(0, Math.floor((hoje - entrada) / 86400000));}
 
               return (
-                <div key={lote.id} className="bg-slate-50 text-[11px] px-1 py-1 rounded-lg border border-slate-200 space-y-1">
+                <div key={lote.id} className="mk-dl__cartao">
                 <div className="flex items-center justify-between">
-                  <Badge variant="outline" className="bg-yellow-400 text-slate-950 px-2.5 py-0.5 text-xs font-semibold rounded-md inline-flex items-center border border-yellow-300">
+                  <Badge variant="outline" className="bg-yellow-400 text-slate-950 px-2.5 py-0.5 text-xs font-semibold rounded-full inline-flex items-center border border-yellow-300">
                     Lote: {lote.nome}
                   </Badge>
                   {iconeUrl &&
@@ -551,44 +545,44 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
                     </div>
                   </div>
                 )}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-1 text-[10px]">
-                  <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
+                <div className="mk-dl__infos">
+                  <div className="mk-dl__info">
                     <div className="text-slate-500">Identificador</div>
                     <div className="font-semibold text-slate-900 flex items-center gap-1.5">
                       {lote.identificador_cor && <span className="inline-block w-3 h-3 rounded-full border border-slate-300" style={{ backgroundColor: lote.identificador_cor }} />}
                       <span>{(lote.identificador_nome || '-').toUpperCase()}</span>
                     </div>
                   </div>
-                  <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
+                  <div className="mk-dl__info">
                     <div className="text-slate-500">Sigla</div>
                     <div className="font-semibold text-slate-900">{(lote.identificador_sigla || '-').toUpperCase()}</div>
                   </div>
-                  <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
+                  <div className="mk-dl__info">
                     <div className="text-slate-500">Qtd. Cabeças</div>
                     <div className="font-semibold text-slate-900">{cab.toLocaleString('pt-BR')}</div>
                   </div>
-                  <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
+                  <div className="mk-dl__info">
                     <div className="text-slate-500">Peso Médio</div>
                     <div className="font-semibold text-slate-900">{peso > 0 ? `${peso.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg` : '-'}</div>
                   </div>
-                  <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
+                  <div className="mk-dl__info">
                     <div className="text-slate-500">Dias de pastejo</div>
                     <div className="font-semibold text-slate-900">{diasPastejo.toLocaleString('pt-BR')} dia(s)</div>
                   </div>
-                  <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
+                  <div className="mk-dl__info">
                     <div className="text-slate-500">Sist. Rep.</div>
                     <div className="font-semibold text-slate-900">{(lote.sistema_produtivo || '-').toUpperCase()}</div>
                   </div>
-                  <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
+                  <div className="mk-dl__info">
                     <div className="text-slate-500">Raça Predominante</div>
                     <div className="font-semibold text-slate-900">{(lote.raca_predominante || '-').toUpperCase()}</div>
                   </div>
-                  <div className="rounded border border-slate-200 bg-white px-1.5 py-1">
+                  <div className="mk-dl__info">
                     <div className="text-slate-500">Sexo</div>
                     <div className="font-semibold text-slate-900">{(lote.sexo || '-').toUpperCase()}</div>
                   </div>
                 </div>
-                <div className="space-y-0.5 text-[10px]">
+                <div className="mk-dl__rodape">
                   <div className="text-slate-500">Categoria de Manejo: <span className="font-semibold text-slate-700">{(lote.categoria_manejo_nome || '-').toUpperCase()}</span></div>
                   <div className="text-slate-500">Categoria Oficial: <span className="font-semibold text-slate-700">{(lote.categoria || '-').toUpperCase()}</span></div>
                 </div>
@@ -600,82 +594,58 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
 
       <ResumoSuplementacao lotesIds={lotes.map((l) => l.id)} lotesInformados={modoLedger ? lotes : undefined} modo="completo" areaId={lotes[0]?.area_atual_id || ""} />
 
-      <div className="my-1 grid grid-cols-2 md:grid-cols-2 gap-1">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="h-8 text-xs">
-              Eventos
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-56">
-            {permissions.registrar_abate !== false && <DropdownMenuItem onClick={() => abrirManejo(setShowAbate)} className="text-xs">Abate</DropdownMenuItem>}
-            {permissions.juntar_lotes !== false && lotes.length > 1 && (() => {
-              const porCategoria = {};
-              lotes.forEach((l) => {
-                const cat = (l.categoria || '').toUpperCase();
-                if (!porCategoria[cat]) porCategoria[cat] = [];
-                porCategoria[cat].push(l);
-              });
-              const categoriasJuntaveis = Object.entries(porCategoria).filter(([, ls]) => ls.length > 1);
-              const temJuntavel = categoriasJuntaveis.length > 0;
-              if (!temJuntavel) return null;
-              return (
-                <DropdownMenuItem
-                  onClick={() => {
-                    if (!modoLedger) {
-                      recusarManejoSemLedger();
-                      return;
-                    }
-                    if (categoriasJuntaveis.length === 1) {
-                      setCategoriaSelecionadaJuncao(categoriasJuntaveis[0][0]);
-                      setLotePrincipalJuncao(null);
-                    } else {
-                      setCategoriaSelecionadaJuncao(null);
-                      setLotePrincipalJuncao(null);
-                    }
-                    setShowJuntarLotes(true);
-                  }}
-                  className="text-xs"
-                >
-                  Juntar Lotes
-                </DropdownMenuItem>
-              );
-            })()}
-            {permissions.mover_lotes !== false && <DropdownMenuItem onClick={() => abrirManejo(setShowMovimentacao)} className="text-xs">Mover</DropdownMenuItem>}
-            {permissions.mudar_categoria_lotes !== false && <DropdownMenuItem onClick={() => abrirManejo(setShowMudancaCategoria)} className="text-xs">Mudar Categoria</DropdownMenuItem>}
-            {permissions.registrar_nascimento !== false && <DropdownMenuItem onClick={() => abrirManejo(setShowNascimento)} className="text-xs">Nascimento</DropdownMenuItem>}
-            {permissions.registrar_morte !== false && <DropdownMenuItem onClick={() => abrirManejo(setShowMorte)} className="text-xs">Morte</DropdownMenuItem>}
-            {permissions.pesar_lotes !== false && <DropdownMenuItem onClick={() => abrirManejo(setShowPesagem)} className="text-xs">Pesar</DropdownMenuItem>}
-            {permissions.renomear_lotes !== false && <DropdownMenuItem onClick={() => {
-              // No ledger, o nome é do cadastro (Cadastro de Lotes); a posição só o exibe.
-              if (modoLedger) {
-                toast.error('No controle por posições, renomeie o lote no Cadastro de Lotes. Nada foi gravado.');
-                return;
-              }
-              if (lotes.length === 1) {
-                setLoteParaRenomear(lotes[0]);
-                setNovoNomeLote(lotes[0].nome);
-                setShowRenomear(true);
-              } else {
-                setLoteParaRenomear(null);
-                setShowRenomear(true);
-              }
-            }} className="text-xs">Renomear Lote</DropdownMenuItem>}
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="h-8 text-xs">
-              Históricos
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-56">
-            {permissions.visualizar_historico_movimentacoes_lote !== false && <DropdownMenuItem onClick={() => setShowHistorico(true)} className="text-xs">Histórico de Movimentação</DropdownMenuItem>}
-            {permissions.visualizar_historico_suplementacao_lote !== false && <DropdownMenuItem onClick={() => setShowHistoricoSupl(true)} className="text-xs">Histórico de Suplementação</DropdownMenuItem>}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
+      {/* D-PROD-119: um botão só abre os quadros de Manejos e Históricos (separados). */}
+      {(() => {
+        const porCategoria = {};
+        lotes.forEach((l) => {
+          const cat = (l.categoria || '').toUpperCase();
+          if (!porCategoria[cat]) porCategoria[cat] = [];
+          porCategoria[cat].push(l);
+        });
+        const categoriasJuntaveis = Object.entries(porCategoria).filter(([, ls]) => ls.length > 1);
+        const abrirJuncao = () => {
+          if (!modoLedger) {
+            recusarManejoSemLedger();
+            return;
+          }
+          setCategoriaSelecionadaJuncao(categoriasJuntaveis.length === 1 ? categoriasJuntaveis[0][0] : null);
+          setLotePrincipalJuncao(null);
+          setShowJuntarLotes(true);
+        };
+        const abrirRenomear = () => {
+          // No ledger, o nome é do cadastro (Cadastro de Lotes); a posição só o exibe.
+          if (modoLedger) {
+            toast.error('No controle por posições, renomeie o lote no Cadastro de Lotes. Nada foi gravado.');
+            return;
+          }
+          if (lotes.length === 1) {
+            setLoteParaRenomear(lotes[0]);
+            setNovoNomeLote(lotes[0].nome);
+          } else {
+            setLoteParaRenomear(null);
+          }
+          setShowRenomear(true);
+        };
+        const manejos = [
+          permissions.registrar_abate !== false && { nome: 'Abate', Icone: Beef, onClick: () => abrirManejo(setShowAbate) },
+          permissions.juntar_lotes !== false && lotes.length > 1 && categoriasJuntaveis.length > 0 && { nome: 'Juntar Lotes', Icone: Combine, onClick: abrirJuncao },
+          permissions.mover_lotes !== false && { nome: 'Mover', Icone: ArrowLeftRight, onClick: () => abrirManejo(setShowMovimentacao) },
+          permissions.mudar_categoria_lotes !== false && { nome: 'Mudar Categoria', Icone: Tags, onClick: () => abrirManejo(setShowMudancaCategoria) },
+          permissions.registrar_nascimento !== false && { nome: 'Nascimento', Icone: Baby, onClick: () => abrirManejo(setShowNascimento) },
+          permissions.registrar_morte !== false && { nome: 'Morte', Icone: HeartCrack, onClick: () => abrirManejo(setShowMorte) },
+          permissions.pesar_lotes !== false && { nome: 'Pesar', Icone: Scale, onClick: () => abrirManejo(setShowPesagem) },
+          permissions.renomear_lotes !== false && { nome: 'Renomear Lote', Icone: PencilLine, onClick: abrirRenomear },
+        ].filter(Boolean);
+        const historicos = [
+          permissions.visualizar_historico_movimentacoes_lote !== false && { nome: 'Movimentação', rotulo: 'Histórico de Movimentação', Icone: History, onClick: () => setShowHistorico(true) },
+          permissions.visualizar_historico_suplementacao_lote !== false && { nome: 'Suplementação', rotulo: 'Histórico de Suplementação', Icone: Wheat, onClick: () => setShowHistoricoSupl(true) },
+        ].filter(Boolean);
+        return (
+          <div className="my-1">
+            <AcoesDoLote grupos={[{ titulo: 'Manejos', itens: manejos }, { titulo: 'Históricos', itens: historicos }]} />
+          </div>
+        );
+      })()}
 
       {/* Dialog Juntar Lotes */}
       <LancLoteDialogo open={showJuntarLotes} onOpenChange={(open) => {if (!open && enviandoJuncao) return;setShowJuntarLotes(open);if (!open) {setCategoriaSelecionadaJuncao(null);setLotePrincipalJuncao(null);}}} titulo="Juntar Lotes" lotes={lotes}>
