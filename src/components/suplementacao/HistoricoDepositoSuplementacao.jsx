@@ -9,6 +9,7 @@ import { excluirTransferenciaDeposito } from "@/services/suplementacaoHistoricoS
 import { formatKg } from "./formatters";
 import { getMapaCachedData, refreshMapaCacheEntry } from "@/services/mapaCacheService";
 import { CANCELAMENTO_TRANSFERENCIA_DEPOSITO_HABILITADO, MENSAGEM_ESTORNO_SUSPENSO } from "@/domain/estornos/politicaEstorno";
+import { confirmarExclusao } from "@/lib/maikeConfirmar";
 
 // `ui/card` é forwardRef sem tipos de props: o checkJs não enxerga `children`.
 /** @type {React.ComponentType<any>} */ const Card = CardUi;
@@ -92,7 +93,7 @@ export default function HistoricoDepositoSuplementacao({ deposito }) {
     if (!["transferencia_recebida", "transferencia_enviada"].includes(movimentacao.tipo_detalhado)) {
       return toast.error("Lançamento de nutrição não é cancelado pelo histórico do depósito.");
     }
-    if (!confirm("Excluir este lançamento e reverter a transferência?")) return;
+    if (!(await confirmarExclusao("Excluir este lançamento e reverter a transferência?"))) return;
 
     setDeletingId(movimentacao.id);
     try {

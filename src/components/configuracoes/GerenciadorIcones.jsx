@@ -25,6 +25,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { confirmarExclusao } from "@/lib/maikeConfirmar";
 
 const TIPOS_ENTIDADE = [
   { value: "Ponto", label: "Ponto de Referência" },
@@ -240,8 +241,8 @@ export default function GerenciadorIcones() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => {
-                                if (window.confirm(`Remover ícone ${icone.categoria}?`)) {
+                              onClick={async () => {
+                                if (await confirmarExclusao(`Remover ícone ${icone.categoria}?`, { textoConfirmar: "Remover" })) {
                                   deleteIconeMutation.mutate(icone.id);
                                 }
                               }}

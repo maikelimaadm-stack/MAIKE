@@ -64,3 +64,34 @@ export function notifyExclusoesEmpilhadas(count, opts = {}) {
     }, i * delayMs);
   }
 }
+
+/**
+ * `toast.success/error/warning/info/message` do sonner chamados direto (sem
+ * `notifySuccess`) saíam como texto solto, sem cartão: o Toaster é `unstyled`.
+ * Aqui eles passam a usar o mesmo cartão do sistema (D-PROD-121). Instalar
+ * ANTES do `installDeleteDialogInterceptor`, que embrulha o `toast.error`.
+ */
+const TOM_POR_METODO = /** @type {const} */ ({ success: "success", error: "error", warning: "warning", info: "info", message: "info" });
+const DURACAO_POR_TOM = { success: 4200, warning: 5200, error: 5600, info: 4500 };
+
+export function instalarToastsDoSistema(alvo = toast) {
+  const t = /** @type {any} */ (alvo);
+  if (t.__maikeToastsDoSistema) return;
+  for (const [metodo, tom] of Object.entries(TOM_POR_METODO)) {
+    t[metodo] = (/** @type {any} */ mensagem, /** @type {any} */ opcoes = {}) => {
+      const titulo = typeof mensagem === "string" ? mensagem : mensagem?.message || String(mensagem ?? "");
+      const descricao = typeof opcoes?.description === "string" ? opcoes.description : "";
+      return t.custom(
+        (/** @type {any} */ id) => <MaikeToastCard tone={tom} title={titulo} description={descricao} onClose={() => t.dismiss(id)} />,
+        {
+          id: opcoes?.id,
+          position: TOAST_POSITION,
+          duration: opcoes?.duration ?? DURACAO_POR_TOM[tom],
+          unstyled: true,
+          className: "mg-toast-host",
+        },
+      );
+    };
+  }
+  t.__maikeToastsDoSistema = true;
+}

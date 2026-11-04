@@ -1023,7 +1023,7 @@ export default function ImportarAreasDialog({ open, onOpenChange, maxPorLote = M
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Voltar</AlertDialogCancel>
-            <AlertDialogAction className="bg-emerald-600 hover:bg-emerald-700" onClick={enviarImportacao}>
+            <AlertDialogAction onClick={enviarImportacao}>
               Gravar áreas
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -1044,7 +1044,7 @@ export default function ImportarAreasDialog({ open, onOpenChange, maxPorLote = M
           <AlertDialogFooter>
             <AlertDialogCancel>{confirmarSaida?.tipo === "desconhecido" ? "Continuar verificando" : "Voltar"}</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-red-600 hover:bg-red-700"
+              className="mg-alerta__botao--perigo"
               onClick={() => {
                 const acao = confirmarSaida?.acao;
                 setConfirmarSaida(null);

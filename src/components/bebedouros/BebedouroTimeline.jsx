@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useQueryClient } from "@tanstack/react-query";
 import { excluirHistorico } from "@/services/bebedouroDataService";
+import { confirmarExclusao } from "@/lib/maikeConfirmar";
 
 const statusClass = {
   Pendente: "text-amber-700 border-amber-200 bg-amber-50",
@@ -20,7 +21,7 @@ export default function BebedouroTimeline({ historico = [] }) {
 
   const handleDelete = async (item, index) => {
     if (index !== 0) return;
-    if (!confirm("Excluir este lançamento do bebedouro?")) return;
+    if (!(await confirmarExclusao("Excluir este lançamento do bebedouro?"))) return;
     setDeletingId(item.id);
     await excluirHistorico(item.id);
     queryClient.invalidateQueries({ queryKey: ["bebedouro-historico"] });

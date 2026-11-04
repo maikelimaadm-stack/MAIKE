@@ -7,6 +7,7 @@ import { getTodayLocalDate } from "../utils/pecuariaUtils";
 import { LancLoteForm, LancLoteItens, LancLoteItem, LancLoteAdicionar, LancLoteRodape, LL_CTL } from "@/components/lotes/LancamentoLoteUi";
 import B1Select from "@/components/cadastro/base1/B1Select";
 import LancField from "@/components/cadastro/base1/LancField";
+import { notifyWarning } from "@/lib/maikeNotify";
 
 /** Campo flutuante Base1 (rótulo dentro) — D-PROD-88. */
 const FL = LancField;
@@ -76,7 +77,7 @@ export default function FormularioMudancaCategoria({ lote, onSubmit, onCancel })
 
     const mudancasValidas = formData.mudancas.filter(m => m.categoria_nova && parseInt(m.quantidade) > 0);
     if (mudancasValidas.length === 0) {
-      alert("Preencha pelo menos uma mudança com quantidade e categoria nova");
+      notifyWarning("Atenção", "Preencha pelo menos uma mudança com quantidade e categoria nova");
       return;
     }
 

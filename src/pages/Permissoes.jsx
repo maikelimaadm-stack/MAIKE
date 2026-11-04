@@ -21,6 +21,7 @@ import { getPermissionDisplayName, getUserDisplayName } from "@/lib/userDisplayN
 import { useAuth } from "@/lib/AuthContext";
 import { isUsuariosListagemRestrita } from "@/lib/usuariosListQuery";
 import { BASE1_LISTA_INTEGRADA_VISUAL } from "@/components/cadastro/base1/base1VisualPreset";
+import { confirmarExclusao } from "@/lib/maikeConfirmar";
 
 export default function Permissoes() {
   const [showForm, setShowForm] = useState(false);
@@ -145,7 +146,7 @@ export default function Permissoes() {
       return;
     }
 
-    if (window.confirm("REMOVER TODAS AS PERMISSÕES DESTE USUÁRIO?")) {
+    if (await confirmarExclusao("Remover todas as permissões deste usuário?", { titulo: "Remover permissões", textoConfirmar: "Remover" })) {
       try {
         await deleteMutation.mutateAsync(userEmail);
       } catch {

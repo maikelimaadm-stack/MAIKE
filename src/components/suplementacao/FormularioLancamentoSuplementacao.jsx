@@ -35,6 +35,7 @@ import { safeDivide } from "../utils/pecuariaUtils";
 import { quantidadeParaKg, produtoSuportaSacos, kgParaSacos } from "./unidadeConversaoUtils";
 import { consumoEsperadoPorCabecaDia, pesoMedioPonderadoLotes } from "./consumoPVUtils";
 import SobraHerdadaDialog from "./SobraHerdadaDialog";
+import { confirmar } from "@/lib/maikeConfirmar";
 
 export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onCancel }) {
   const empresaSelecionadaId = localStorage.getItem("empresa_selecionada_id");
@@ -389,7 +390,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
     }
 
     if (statusDuracao.status === "baixo" || statusDuracao.status === "alto") {
-      const confirmarDuracao = window.confirm(`${statusDuracao.message}\n\nDeseja salvar mesmo assim?`);
+      const confirmarDuracao = await confirmar({ titulo: "Duração fora do esperado", descricao: `${statusDuracao.message}\n\nDeseja salvar mesmo assim?`, textoConfirmar: "Salvar mesmo assim" });
       if (!confirmarDuracao) return;
     }
 

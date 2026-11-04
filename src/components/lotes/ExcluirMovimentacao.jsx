@@ -20,6 +20,7 @@ import {
 } from "@/services/loteManejoService";
 import { refreshMapaCacheEntry, updateMapaCachedData } from "@/services/mapaCacheService";
 import { tipoTemExclusao } from "@/domain/lotes/situacaoMovimento";
+import { confirmar as pedirConfirmacao } from "@/lib/maikeConfirmar";
 
 // Componentes de `ui/*` são forwardRef sem tipos de props: o checkJs não enxerga `children`.
 /** @type {React.ComponentType<any>} */ const Button = ButtonUi;
@@ -410,11 +411,16 @@ export default function ExcluirMovimentacao({ movimento, onExcluido }) {
   const fechar = (valor) => {
     if (!valor && enviando) return;
     if (!valor && desconhecido) {
-      const ok = window.confirm(
-        "O servidor ainda não confirmou esta exclusão. A operação fica guardada e será reenviada com a mesma chave quando você abrir de novo. Fechar mesmo assim?"
-      );
-      if (!ok) return;
-      queryClient.invalidateQueries({ queryKey: ["historico-movimentacoes"] });
+      pedirConfirmacao({
+        titulo: "Exclusão sem confirmação",
+        descricao: "O servidor ainda não confirmou esta exclusão. A operação fica guardada e será reenviada com a mesma chave quando você abrir de novo. Fechar mesmo assim?",
+        textoConfirmar: "Fechar",
+      }).then((ok) => {
+        if (!ok) return;
+        queryClient.invalidateQueries({ queryKey: ["historico-movimentacoes"] });
+        setAberto(false);
+      });
+      return;
     }
     setAberto(valor);
   };

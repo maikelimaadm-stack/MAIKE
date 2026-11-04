@@ -13,6 +13,7 @@
  */
 
 import { registrarManejoRebanho, registrarJuncaoLotes, registrarBaixaRebanho, registrarTransferenciaLedger } from '@/services/loteManejoService';
+import { confirmar } from '@/lib/maikeConfirmar';
 
 export const CODIGO_OFFLINE = 'MANEJO_REBANHO_OFFLINE';
 export const CODIGO_PENDENTE = 'MANEJO_REBANHO_PENDENTE_DIVERGENTE';
@@ -142,14 +143,14 @@ const limparPendencia = (escopo, corpo, storage) => {
 /**
  * @param {Record<string, any>} corpo sem `operation_id`
  * @param {{ escopo: string, enviar?: (c: any) => Promise<any>, online?: () => boolean,
- *   confirmarDescarte?: (mensagem: string) => boolean, storage?: Storage|null }} opcoes
+ *   confirmarDescarte?: (mensagem: string) => boolean | Promise<boolean>, storage?: Storage|null }} opcoes
  */
 export const enviarManejoRebanho = async (corpo, opcoes) => {
   const {
     escopo,
     enviar = registrarManejoRebanho,
     online = () => typeof navigator === 'undefined' || navigator.onLine !== false,
-    confirmarDescarte = (mensagem) => (typeof window !== 'undefined' && typeof window.confirm === 'function' ? window.confirm(mensagem) : false),
+    confirmarDescarte = (mensagem) => confirmar({ titulo: 'Envio anterior sem confirmação', descricao: mensagem, textoConfirmar: 'Descartar e registrar', textoCancelar: 'Manter', perigo: true }),
     storage = armazenamentoPadrao(),
   } = opcoes;
   if (!online()) throw erroLocal(CODIGO_OFFLINE);
@@ -157,8 +158,8 @@ export const enviarManejoRebanho = async (corpo, opcoes) => {
   const conteudo = JSON.stringify(corpo);
   let pendencia = lerPendencia(escopo, corpo, storage);
   if (pendencia && pendencia.conteudo !== conteudo) {
-    const descartar = confirmarDescarte(
-      'Há um envio anterior deste manejo nesta área sem confirmação do servidor. Confira o histórico antes.\n\nOK: descartar o envio anterior e registrar este.\nCancelar: manter (reenvie o mesmo registro para concluir).'
+    const descartar = await confirmarDescarte(
+      'Há um envio anterior deste manejo nesta área sem confirmação do servidor. Confira o histórico antes.\n\nDescartar e registrar: descarta o envio anterior e registra este.\nManter: reenvie o mesmo registro para concluir.'
     );
     if (!descartar) throw erroLocal(CODIGO_PENDENTE);
     pendencia = null;
@@ -179,7 +180,7 @@ export const enviarManejoRebanho = async (corpo, opcoes) => {
  * Junção de Lotes (R2C-P1, D-PROD-104): mesmo envio online-only com pendência
  * idempotente; o corpo só tem ids, data e observação.
  * @param {Record<string, any>} corpo
- * @param {{ escopo: string, enviar?: (c: any) => Promise<any>, online?: () => boolean, confirmarDescarte?: (m: string) => boolean, storage?: Storage|null }} opcoes
+ * @param {{ escopo: string, enviar?: (c: any) => Promise<any>, online?: () => boolean, confirmarDescarte?: (m: string) => boolean | Promise<boolean>, storage?: Storage|null }} opcoes
  */
 export const enviarJuncaoLotes = (corpo, opcoes) => enviarManejoRebanho(corpo, { enviar: registrarJuncaoLotes, ...opcoes });
 
@@ -188,7 +189,7 @@ export const enviarJuncaoLotes = (corpo, opcoes) => enviarManejoRebanho(corpo, {
  * com pendência idempotente (tenant + usuário + tipo + empresa + área). Uma
  * confirmação do formulário = UM POST; o servidor escolhe os lotes.
  * @param {Record<string, any>} corpo
- * @param {{ escopo: string, enviar?: (c: any) => Promise<any>, online?: () => boolean, confirmarDescarte?: (m: string) => boolean, storage?: Storage|null }} opcoes
+ * @param {{ escopo: string, enviar?: (c: any) => Promise<any>, online?: () => boolean, confirmarDescarte?: (m: string) => boolean | Promise<boolean>, storage?: Storage|null }} opcoes
  */
 /**
  * R2E-P1 (D-PROD-107): mensagem com o veredito do servidor (data, área,
@@ -220,7 +221,7 @@ export const mensagemDaTransferenciaLedger = (erro) => {
  * padrão dos outros comandos). `tipo`/`area_id` só compõem a chave local da
  * pendência — não vão no corpo (o servidor recusa campo desconhecido).
  * @param {Record<string, any>} corpo
- * @param {{ escopo: string, online?: () => boolean, confirmarDescarte?: (m: string) => boolean, storage?: Storage|null, enviar?: (c: any) => Promise<any> }} opcoes
+ * @param {{ escopo: string, online?: () => boolean, confirmarDescarte?: (m: string) => boolean | Promise<boolean>, storage?: Storage|null, enviar?: (c: any) => Promise<any> }} opcoes
  */
 export const enviarTransferenciaLedger = (corpo, opcoes) =>
   enviarManejoRebanho(

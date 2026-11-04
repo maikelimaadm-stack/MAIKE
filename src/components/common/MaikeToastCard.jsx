@@ -27,7 +27,7 @@ export default function MaikeToastCard({
         : Check;
 
   return (
-    <div className={cn("mg-toast", `mg-toast--${tone}`, className)} role="status">
+    <div className={cn("mg-toast", `mg-toast--${tone}`, !description && "mg-toast--so-titulo", className)} role="status">
       <span className={cn("mg-toast__icon", `mg-toast__icon--${tone}`)} aria-hidden>
         <Icon className="mg-toast__glyph" strokeWidth={2.5} />
       </span>
