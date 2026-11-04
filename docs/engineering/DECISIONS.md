@@ -4789,4 +4789,29 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
   - **Sem mudança:** permissões, recusa sem ledger (`abrirManejo`) e regras de Juntar e Renomear. Os históricos mantêm o nome acessível "Histórico de Movimentação" e "Histórico de Suplementação".
 - **Consequência:** os mesmos campos, no visual do sistema, e todos os manejos e históricos com um clique.
 
-<!-- Próxima decisão: D-PROD-120 -->
+## D-PROD-120 — Detalhes do Lote sem alertas, nomes em verde, gesto de fechar e quadros responsivos
+
+- **Contexto:** o proprietário pediu:
+  - tirar os "Alertas do lote";
+  - pôr os nomes de área e de lote na cor dos botões, no lugar do amarelo, com uma melhoria visual;
+  - fazer o "voltar puxando para o lado" valer em tudo;
+  - deixar os quadros responsivos;
+  - no celular, pôr o botão de manejos no alto, à direita, na posição do ✕ espelhada.
+- **Decisão:**
+  - **Alertas:** o bloco "Alertas do lote" sai do Detalhes do Lote. Os campos continuam os mesmos.
+  - **Nomes:** "Informações da Área: …" e "Lote: …" viram pílulas verdes `--mg-accent` com texto branco, como Novo e Salvar.
+    - Os rótulos de rodapé viram chips: cinza para as categorias, verde-claro para os lotes e sistemas reprodutivos.
+    - Os cartões ganham cantos 14 e uma sombra leve.
+  - **Gesto:** `useDeslizarParaFechar` fica global no `Layout`. No celular (< 768 px), arrastar da borda esquerda (28 px) por mais de 90 px fecha a janela de cima: lançamento, histórico, detalhes, tarefa ou folha.
+    - A janela acompanha o dedo.
+    - Uma folha fecha pelo fundo escuro e um diálogo do Radix pelo Esc. Assim, quem não pode fechar (por exemplo, enquanto salva) volta ao lugar.
+    - Sem janela aberta, segue valendo o `useDeslizarParaVoltar` (D-PROD-95).
+  - **Quadros:**
+    - Desktop e tablet: largura igual em todos os grupos (100 a 112 px, sem esticar), grupos empilhados abaixo de 1024 px e lado a lado acima.
+    - Celular: a folha usa colunas que cabem (mínimo de 102 px). Abaixo de 360 px são 3 colunas, com letra e margem menores, e nenhum nome estoura.
+  - **Botão no celular:** dentro do `LancLoteDialogo somenteLeitura`, o lugar à direita do título (antes vazio) vira um slot (`slotDireito` no contexto).
+    - O `AcoesDoLote` põe ali um botão redondo (ícone de grade, nome acessível "Manejos e históricos"), espelho do ✕, que abre a mesma folha.
+    - Fora do diálogo, o botão largo continua.
+- **Consequência:** o Detalhes do Lote fica limpo e na cor do sistema. O gesto de voltar do iPhone vale nas janelas, e os quadros ficam iguais em toda largura.
+
+<!-- Próxima decisão: D-PROD-121 -->

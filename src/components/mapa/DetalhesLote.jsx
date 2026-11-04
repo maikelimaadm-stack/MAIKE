@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 
 import {
   listarProdutosDaEmpresa,
@@ -35,7 +34,7 @@ import LancField from "@/components/cadastro/base1/LancField";
 import ResumoSuplementacao from "../suplementacao/ResumoSuplementacao";
 import InformacoesArea from "./InformacoesArea";
 import { Progress } from "@/components/ui/progress";
-import { AlertTriangle, ArrowLeftRight, Baby, Beef, Combine, HeartCrack, History, PencilLine, Scale, Tags, Wheat } from "lucide-react";
+import { ArrowLeftRight, Baby, Beef, Combine, HeartCrack, History, PencilLine, Scale, Tags, Wheat } from "lucide-react";
 import { corpoNascimento, corpoPesagem, corpoMudancaCategoria, corpoJuncao, corpoBaixa, previaJuncao, corpoTransferenciaLedger, ehPosicaoDoLedger } from "@/domain/lotes/manejoRebanho";
 import { enviarManejoRebanho, enviarJuncaoLotes, enviarBaixaRebanho, enviarTransferenciaLedger, mensagemDaTransferenciaLedger, mensagemDoErro, codigoDoErro, MENSAGENS_MANEJO_REBANHO } from "@/services/manejoRebanhoService";
 import { escopoDoUsuario } from "../lotes/ExcluirMovimentacao";
@@ -522,29 +521,12 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
 
               return (
                 <div key={lote.id} className="mk-dl__cartao">
-                <div className="flex items-center justify-between">
-                  <Badge variant="outline" className="bg-yellow-400 text-slate-950 px-2.5 py-0.5 text-xs font-semibold rounded-full inline-flex items-center border border-yellow-300">
-                    Lote: {lote.nome}
-                  </Badge>
+                <div className="mk-dl__cab">
+                  <span className="mk-dl__nome">Lote: {lote.nome}</span>
                   {iconeUrl &&
-                    <img src={iconeUrl} alt={categoria} className="w-10 h-10 object-contain flex-shrink-0" />
+                    <span className="mk-dl__icone"><img src={iconeUrl} alt={categoria} /></span>
                     }
                 </div>
-                {(lote.alertas || []).length > 0 && (
-                  <div className="rounded-lg border border-red-200 bg-red-50 px-2 py-1.5 space-y-1">
-                    <div className="flex items-center gap-1 text-[10px] font-bold text-red-700 uppercase">
-                      <AlertTriangle className="w-3.5 h-3.5" />
-                      Alertas do lote
-                    </div>
-                    <div className="flex flex-wrap gap-1">
-                      {(lote.alertas || []).map((alerta, index) => (
-                        <Badge key={`${lote.id}_alerta_${index}`} variant="outline" className="border-red-300 bg-white text-red-700 text-[10px]">
-                          {alerta.titulo || alerta.tipo}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
                 <div className="mk-dl__infos">
                   <div className="mk-dl__info">
                     <div className="text-slate-500">Identificador</div>
@@ -582,9 +564,9 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
                     <div className="font-semibold text-slate-900">{(lote.sexo || '-').toUpperCase()}</div>
                   </div>
                 </div>
-                <div className="mk-dl__rodape">
-                  <div className="text-slate-500">Categoria de Manejo: <span className="font-semibold text-slate-700">{(lote.categoria_manejo_nome || '-').toUpperCase()}</span></div>
-                  <div className="text-slate-500">Categoria Oficial: <span className="font-semibold text-slate-700">{(lote.categoria || '-').toUpperCase()}</span></div>
+                <div className="mk-dl__chips">
+                  <span className="mk-dl__chip mk-dl__chip--cinza">Categoria de Manejo: <strong>{(lote.categoria_manejo_nome || '-').toUpperCase()}</strong></span>
+                  <span className="mk-dl__chip mk-dl__chip--cinza">Categoria Oficial: <strong>{(lote.categoria || '-').toUpperCase()}</strong></span>
                 </div>
               </div>);
 

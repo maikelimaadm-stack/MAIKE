@@ -1,13 +1,16 @@
 import React from "react";
+import { createPortal } from "react-dom";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { ChevronDown, LayoutGrid, X } from "lucide-react";
 import { useMediaQuery } from "@/components/common/MobileSheet";
+import { useLancLoteDialogo } from "@/components/lotes/LancamentoLoteUi";
 
 /**
  * Manejos e Históricos do Detalhes do Lote (D-PROD-119), em quadros (ícone em
  * cima, nome embaixo — como o "Adicionar contexto" do app do Claude), em
  * grupos separados; cada quadro abre a ação com um clique.
  * - celular: um botão só, "Manejos e históricos", abre a folha de baixo (✕ e título);
+ *   dentro do diálogo ele fica no alto, à direita (espelho do ✕) (D-PROD-120);
  * - tablet/desktop: os quadros ficam à vista, menores, embaixo do Detalhes do Lote.
  *
  * @param {{ grupos: Array<{ titulo: string, itens: Array<{ nome: string, rotulo?: string, Icone: React.ComponentType<any>, onClick: () => void }> }> }} props
@@ -15,6 +18,7 @@ import { useMediaQuery } from "@/components/common/MobileSheet";
 export default function AcoesDoLote({ grupos }) {
   const celular = useMediaQuery("(max-width: 639px)");
   const [aberto, setAberto] = React.useState(false);
+  const slot = useLancLoteDialogo()?.slotDireito || null;
   const visiveis = grupos.filter((g) => g.itens.length > 0);
   if (!visiveis.length) return null;
 
@@ -41,7 +45,11 @@ export default function AcoesDoLote({ grupos }) {
     </div>
   );
 
-  const gatilho = (
+  const gatilho = slot ? (
+    <button type="button" className="mk-ll-dlg__redondo mk-al__redondo" aria-haspopup="dialog" aria-expanded={aberto} aria-label="Manejos e históricos" title="Manejos e históricos">
+      <LayoutGrid aria-hidden />
+    </button>
+  ) : (
     <button type="button" className="mk-al__botao" aria-haspopup="dialog" aria-expanded={aberto}>
       <LayoutGrid aria-hidden />
       <span>Manejos e históricos</span>
@@ -52,7 +60,7 @@ export default function AcoesDoLote({ grupos }) {
   if (celular) {
     return (
       <DialogPrimitive.Root open={aberto} onOpenChange={setAberto}>
-        <DialogPrimitive.Trigger asChild>{gatilho}</DialogPrimitive.Trigger>
+        {slot ? createPortal(<DialogPrimitive.Trigger asChild>{gatilho}</DialogPrimitive.Trigger>, slot) : <DialogPrimitive.Trigger asChild>{gatilho}</DialogPrimitive.Trigger>}
         <DialogPrimitive.Portal>
           <DialogPrimitive.Overlay className="mk-al__scrim" />
           <DialogPrimitive.Content className="mk-al__folha" onOpenAutoFocus={(e) => e.preventDefault()}>

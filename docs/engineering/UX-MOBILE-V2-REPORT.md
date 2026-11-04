@@ -235,3 +235,16 @@ Pedido do proprietário com prints do app do Claude no iPhone. Conferido no Chro
 | Desktop: botões embaixo, menores | Quadros à vista embaixo, com cerca de 60 px. No celular, um botão só abre a folha de baixo | v15-01 (desktop), v15-02 (celular e tablet) |
 
 Morte e Histórico de Movimentação abrem pelos quadros a 1600, 820 e 390 px (harness). **Não testado em aparelho real.**
+
+## V16 — Detalhes do Lote sem alertas, nomes em verde, gesto de fechar e quadros responsivos (D-PROD-120)
+
+| Pedido | Feito | Evidência |
+|---|---|---|
+| Remover alertas do lote | O bloco "Alertas do lote" saiu. Os campos são os mesmos | v16-01, v16-02 |
+| Nomes de área e lote na cor dos botões | Pílulas verdes `--mg-accent` com texto branco. Chips nos rodapés e sombra leve nos cartões | v16-01, v16-02 |
+| Voltar puxando para o lado em tudo | `useDeslizarParaFechar` global: da borda esquerda fecha a janela de cima (folha ou diálogo). Curto ou longe da borda não fecha | teste `detalhesLoteVisualGesto` + harness (toques CDP a 390 px) |
+| Quadros não ficavam responsivos | Larguras iguais (medido de 1440 a 320 px: uma largura só por tamanho, nenhum nome estourando) | v16-03 (320 px) |
+| Botão de manejos no celular no alto à direita | Botão redondo no lugar à direita do título, espelho do ✕, que abre a folha | v16-01 |
+
+**Não testado em aparelho real.**
+

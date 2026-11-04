@@ -19,7 +19,7 @@ import { PillBtn } from "@/components/cadastro/base1/Base1Ui";
 /**
  * Contexto do diálogo: o rodapé do formulário (`LancLoteRodape`) entrega a
  * ação aqui e ela vira o ✓ do cabeçalho; o `<form>` ganha o id do ✓.
- * @type {React.Context<null | { formId: string, setAcao: (a: any) => void, setTitulo: (t: string | null) => void }>}
+ * @type {React.Context<null | { formId: string, setAcao: (a: any) => void, setTitulo: (t: string | null) => void, slotDireito: HTMLElement | null }>}
  */
 const LancLoteCtx = React.createContext(null);
 
@@ -48,7 +48,10 @@ export function LancLoteDialogo({ open, onOpenChange, titulo, lotes, largo = fal
   // As listas do celular (folha) abrem dentro do diálogo (D-PROD-116).
   const [alvoFolha, setAlvoFolha] = React.useState(/** @type {HTMLElement | null} */ (null));
   const [tituloDoConteudo, setTitulo] = React.useState(/** @type {string | null} */ (null));
-  const ctx = React.useMemo(() => ({ formId, setAcao, setTitulo }), [formId]);
+  // Celular, só leitura: o lugar à direita do título (espelho do ✕) recebe um
+  // botão do conteúdo, ex.: "Manejos e históricos" do Detalhes do Lote (D-PROD-120).
+  const [slotDireito, setSlotDireito] = React.useState(/** @type {HTMLElement | null} */ (null));
+  const ctx = React.useMemo(() => ({ formId, setAcao, setTitulo, slotDireito }), [formId, slotDireito]);
   const tituloVisivel = tituloDoConteudo || titulo;
   const fechar = () => (acao?.onCancelar ? acao.onCancelar() : onOpenChange(false));
   const ocupado = Boolean(acao?.enviando);
@@ -93,7 +96,7 @@ export function LancLoteDialogo({ open, onOpenChange, titulo, lotes, largo = fal
                 </PillBtn>
               </div>
             ) : (
-              <span className="mk-ll-dlg__redondo mk-ll-dlg__redondo--vazio" aria-hidden />
+              <div ref={setSlotDireito} className="mk-ll-dlg__slot" />
             )
           ) : desktop ? (
             <div className="mk-ll-dlg__acoes cadastro-b1">
