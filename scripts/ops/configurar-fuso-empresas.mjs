@@ -28,6 +28,10 @@ import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+// PR190-R3: saída padrão SEM ids crus (hash); plano conferido pelo caminho real;
+// alvo remoto exige SID esperado (+ RELEASE_ALVO_ATESTADO e backup ao aplicar);
+// SID ilegível → TARGET_UNVERIFIED; argumento repetido → uso incorreto.
+
 const args = process.argv.slice(2);
 const valor = (n) => {
   const i = args.indexOf(n);
@@ -44,9 +48,15 @@ const recusar = (codigo, motivo, detalhes) => {
 };
 
 const conhecidos = new Set(['--plano', '--aplicar', '--confirmar', '--referencia-backup']);
+const vistos = new Set();
 for (let i = 0; i < args.length; i += 1) {
   if (!conhecidos.has(args[i])) uso(`argumento desconhecido: ${args[i]}`);
-  if (['--plano', '--confirmar', '--referencia-backup'].includes(args[i])) i += 1;
+  if (vistos.has(args[i])) uso(`argumento repetido: ${args[i]}`);
+  vistos.add(args[i]);
+  if (['--plano', '--confirmar', '--referencia-backup'].includes(args[i])) {
+    if (!args[i + 1] || args[i + 1].startsWith('--')) uso(`${args[i]} exige um valor`);
+    i += 1;
+  }
 }
 const url = process.env.FUSO_DATABASE_URL;
 if (!url) uso('FUSO_DATABASE_URL ausente');
@@ -54,21 +64,20 @@ const caminhoPlano = valor('--plano');
 if (!caminhoPlano) uso('--plano <arquivo.json> é obrigatório');
 const aplicar = args.includes('--aplicar');
 
-let host;
 try {
-  host = new URL(url).hostname.replace(/^\[|\]$/g, '');
+  new URL(url);
 } catch {
   uso('FUSO_DATABASE_URL inválida');
 }
-const local = ['localhost', '127.0.0.1', '::1'].includes(host);
+const { validarBarreirasCli, planejarFusos, aplicarPlanoFusos, FusoReleaseRecusado, hostEhLocal, planoForaDoRepositorio } = await import('./fusoReleaseLib.mjs');
+const local = hostEhLocal(url);
 const esperadoSid = process.env.FUSO_EXPECTED_SYSTEM_IDENTIFIER;
 const referenciaBackup = valor('--referencia-backup') ?? null;
 
-const { validarBarreirasCli, planejarFusos, aplicarPlanoFusos, FusoReleaseRecusado } = await import('./fusoReleaseLib.mjs');
-const barreiras = validarBarreirasCli({ local, esperadoSid, aplicar, confirmacao: valor('--confirmar'), referenciaBackup });
+const barreiras = validarBarreirasCli({ local, esperadoSid, aplicar, confirmacao: valor('--confirmar'), referenciaBackup, atestado: process.env.RELEASE_ALVO_ATESTADO });
 if (!barreiras.ok) recusar(barreiras.codigo, barreiras.motivo);
 const RAIZ_REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
-if (!local && resolve(caminhoPlano).startsWith(`${RAIZ_REPO}/`)) recusar('PLANO_DENTRO_DO_REPO', 'o plano de produção fica fora do repositório (não versionar ids reais)');
+if (!planoForaDoRepositorio(caminhoPlano, RAIZ_REPO)) recusar('PLANO_DENTRO_DO_REPO_OU_INEXISTENTE', 'o plano tem de existir FORA do repositório (caminho real, symlinks resolvidos; não versionar ids reais)');
 
 let plano;
 try {
@@ -81,7 +90,12 @@ const { PrismaClient } = await import('@prisma/client');
 const prisma = new PrismaClient({ datasources: { db: { url } } });
 try {
   if (!local || esperadoSid) {
-    const [{ sid }] = /** @type {Array<{sid: string}>} */ (await prisma.$queryRaw`SELECT system_identifier::text AS sid FROM pg_control_system()`);
+    let sid = null;
+    try {
+      [{ sid }] = /** @type {Array<{sid: string}>} */ (await prisma.$queryRaw`SELECT system_identifier::text AS sid FROM pg_control_system()`);
+    } catch (e) {
+      recusar('TARGET_UNVERIFIED', `não foi possível ler a identidade do alvo (${e?.code ?? e?.name ?? 'erro'})`);
+    }
     if (sid !== String(esperadoSid)) recusar('ALVO_DIVERGENTE', 'system_identifier do alvo não confere com FUSO_EXPECTED_SYSTEM_IDENTIFIER');
   }
   const simulacao = await planejarFusos(prisma, plano);

@@ -28,10 +28,13 @@
  * confirmação antes de abrir escrita.
  */
 
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
+import { realpathSync } from 'node:fs';
+import { sep } from 'node:path';
 
 import { normalizarFusoIana } from '../../backend/src/modules/rebanhoLedger/rebanhoLedgerTempo.js';
 import { MIGRATIONS_APROVADAS } from '../deploy/premergeMigrateLib.mjs';
+import { conferirAlvos, executorPrisma } from '../deploy/alvoBancoLib.mjs';
 
 export const MIGRATION_FUSO = '20261104200000_empresa_fuso_horario';
 export const CHECKSUM_MIGRATION_FUSO = MIGRATIONS_APROVADAS[MIGRATION_FUSO];
@@ -46,6 +49,58 @@ export class FusoReleaseRecusado extends Error {
 }
 
 const texto = (v) => (typeof v === 'string' && v.trim() ? v.trim() : null);
+
+/** PR190-R3: identificador estável e curto para saídas (nunca o id cru). */
+export const hashId = (v) => (v === null || v === undefined ? null : `h:${createHash('sha256').update(String(v)).digest('hex').slice(0, 12)}`);
+
+/** Hosts tratados como banco local descartável (literalmente; nunca por resolução de DNS). */
+export const HOSTS_LOCAIS = Object.freeze(['localhost', '127.0.0.1', '::1']);
+export const hostEhLocal = (url) => {
+  try {
+    return HOSTS_LOCAIS.includes(new URL(url).hostname.replace(/^\[|\]$/g, ''));
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * PR190-R3: o plano de produção vive FORA do repositório — conferido pelo
+ * caminho REAL (symlinks resolvidos). Arquivo inexistente/ilegível = não comprovado.
+ */
+export const planoForaDoRepositorio = (caminho, raizRepo) => {
+  try {
+    const real = realpathSync(caminho);
+    const raiz = realpathSync(raizRepo);
+    return real !== raiz && !real.startsWith(`${raiz}${sep}`);
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * PR190-R3 — prova do alvo para release (fail-closed).
+ *  - LOCAL_TESTE: runtime (e migration, se dada) em host local literal.
+ *  - Qualquer outro caso exige, na MESMA execução: URL do runtime, URL da
+ *    migration, SID esperado e o atestado de quem obteve o SID no banco
+ *    autorizado; as duas conexões são lidas e têm de ser o MESMO banco (cluster,
+ *    OID do banco lógico e histórico de migrations — alvoBancoLib.compararAlvos).
+ *    Um SID igual ao informado pelo próprio operador NÃO é prova sozinho.
+ * Nunca devolve URL, host, usuário ou SID.
+ * @returns {Promise<{ok: boolean, local: boolean, TARGET: string, motivos: string[], falhas: string[]}>}
+ */
+export const avaliarAlvoRelease = async ({ urlRuntime, urlMigracao, esperadoSid, atestado, executar = executorPrisma }) => {
+  const local = !!urlRuntime && hostEhLocal(urlRuntime) && (!urlMigracao || hostEhLocal(urlMigracao));
+  if (local) return { ok: true, local: true, TARGET: 'LOCAL_TESTE', motivos: [], falhas: [] };
+  const motivos = [];
+  if (!urlRuntime) motivos.push('RUNTIME_URL_AUSENTE');
+  if (!urlMigracao) motivos.push('MIGRATION_DATABASE_URL_AUSENTE');
+  if (!/^\d{6,25}$/.test(String(esperadoSid ?? ''))) motivos.push('SID_ESPERADO_AUSENTE');
+  if (!texto(atestado)) motivos.push('ATESTADO_AUSENTE');
+  if (motivos.length) return { ok: false, local: false, TARGET: 'TARGET_UNVERIFIED', motivos, falhas: [] };
+  const v = await conferirAlvos({ esperadoSid: String(esperadoSid), urlRuntime, urlMigracao, executar });
+  if (!v.ok) return { ok: false, local: false, TARGET: 'TARGET_UNVERIFIED', motivos: ['ALVOS_NAO_CONFEREM'], falhas: v.falhas };
+  return { ok: true, local: false, TARGET: 'ALVOS_CONFEREM_SID_ATESTADO', motivos: [], falhas: [] };
+};
 
 /** Schema da release (somente leitura; funciona ANTES da migration). */
 export const diagnosticarSchemaFuso = async (db, { checksumEsperado = CHECKSUM_MIGRATION_FUSO } = {}) => {
@@ -146,9 +201,11 @@ const exigirSchema = async (db) => {
   if (!schema.pronto) throw new FusoReleaseRecusado('SCHEMA_NAO_PRONTO', 'aplique e confira a migration do fuso antes (premerge-migrate); nada foi lido nem gravado', { motivos: schema.motivos });
 };
 
+// PR190-R3: relatório e detalhes de erro SEM ids crus (hash estável); os ids reais
+// ficam só dentro da transação (UPDATE/AuditLog).
 const comoRelatorio = (decisoes) => ({
   itens: decisoes.map(({ it, d }) => ({
-    indice: it.indice, cliente_id: it.clienteId, empresa_id: it.empresaId, fuso_novo: it.fuso, fuso_atual: d.atual ?? null,
+    indice: it.indice, cliente: hashId(it.clienteId), empresa: hashId(it.empresaId), fuso_novo: it.fuso, fuso_atual: d.atual ?? null,
     acao: d.acao ?? 'recusado', ...(d.recusa ? { codigo: d.recusa[0], motivo: d.recusa[1] } : {}),
   })),
   mudancas: decisoes.filter(({ d }) => d.acao === 'configurar' || d.acao === 'trocar').length,
@@ -204,9 +261,10 @@ export const aplicarPlanoFusos = async (prisma, plano, { referenciaBackup = null
  * em alvo remoto exige referência de backup e a frase de confirmação.
  * @returns {{ok: true} | {ok: false, codigo: string, motivo: string}}
  */
-export const validarBarreirasCli = ({ local, esperadoSid, aplicar, confirmacao, referenciaBackup }) => {
+export const validarBarreirasCli = ({ local, esperadoSid, aplicar, confirmacao, referenciaBackup, atestado = null }) => {
   if (!local && !/^\d{6,25}$/.test(String(esperadoSid ?? ''))) return { ok: false, codigo: 'ALVO_SEM_IDENTIFICADOR', motivo: 'alvo remoto exige FUSO_EXPECTED_SYSTEM_IDENTIFIER' };
   if (aplicar && confirmacao !== FRASE_CONFIRMACAO) return { ok: false, codigo: 'CONFIRMACAO_AUSENTE', motivo: `--aplicar exige --confirmar ${FRASE_CONFIRMACAO}` };
   if (aplicar && !local && !texto(referenciaBackup)) return { ok: false, codigo: 'BACKUP_NAO_COMPROVADO', motivo: 'alvo remoto exige --referencia-backup (backup restaurável conferido ANTES)' };
+  if (aplicar && !local && !texto(atestado)) return { ok: false, codigo: 'ATESTADO_AUSENTE', motivo: 'alvo remoto exige RELEASE_ALVO_ATESTADO (quem obteve o system_identifier no banco autorizado, como e quando)' };
   return { ok: true };
 };

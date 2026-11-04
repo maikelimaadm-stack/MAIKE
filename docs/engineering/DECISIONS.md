@@ -4867,5 +4867,10 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
   - Contrato novo: TARGET_PROVEN (`system_identifier`) → SCHEMA (`premerge-migrate --aplicar`, antes do merge) → DATA (`scripts/ops/configurar-fuso-empresas.mjs`, plano explícito, sem inferência, transação única com AuditLog e referência de backup) → preflight `scripts/deploy/preflight-fuso-release.mjs` READY → merge (que publica produção automaticamente).
   - O DEPLOY_GUARDED é procedimental: não há trava técnica comprovada na Vercel.
 - **Concorrência:** a guarda temporal lê o fuso da Empresa com `FOR SHARE`. A troca de fuso em andamento termina antes de o manejo decidir. Ordem de travas Empresa → Área → Posição.
+- **PR190-R3:**
+  - Fora do banco local, o preflight só dá READY com as DUAS conexões (runtime e migration) lidas e iguais (SID = esperado, OID do banco e histórico), mais o `RELEASE_ALVO_ATESTADO`: quem obteve o SID no banco autorizado. Senão, TARGET_UNVERIFIED.
+  - `READY_LOCAL_TESTE` nunca vale como prova de produção.
+  - As saídas dos CLIs de release usam ids em hash.
+  - O plano é conferido pelo caminho real (symlinks resolvidos), fora do repositório.
 
 <!-- Próxima decisão: D-PROD-123 -->

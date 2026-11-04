@@ -212,7 +212,7 @@ describe('PR190-R2 C — fuso configurado pelo plano, sem o runtime novo', () =>
     const pre = rodar('scripts/deploy/preflight-fuso-release.mjs', envLocal, ['--mostrar-ids']);
     assert.equal(pre.status, 3, pre.stderr + pre.stdout);
     const j = JSON.parse(pre.stdout);
-    assert.deepEqual([j.estado, j.TARGET, j.SCHEMA_READY, j.DATA_READY], ['BLOCKED', 'LOCAL', true, false]);
+    assert.deepEqual([j.estado, j.TARGET, j.SCHEMA_READY, j.DATA_READY], ['BLOCKED', 'LOCAL_TESTE', true, false]);
     assert.equal(j.empresas_sem_fuso[0].empresa_id, t.empresa.id);
     const semIds = JSON.parse(rodar('scripts/deploy/preflight-fuso-release.mjs', envLocal).stdout);
     assert.ok(!JSON.stringify(semIds).includes(t.empresa.id), 'sem --mostrar-ids, ids em hash');
@@ -228,7 +228,7 @@ describe('PR190-R2 C — fuso configurado pelo plano, sem o runtime novo', () =>
     assert.match(ap.stdout, /"modo": "APLICADO"/);
     const pos = rodar('scripts/deploy/preflight-fuso-release.mjs', envLocal);
     assert.equal(pos.status, 0, pos.stdout);
-    assert.equal(JSON.parse(pos.stdout).estado, 'READY');
+    assert.equal(JSON.parse(pos.stdout).estado, 'READY_LOCAL_TESTE');
   });
 });
 
@@ -278,7 +278,8 @@ describe('PR190-R2 D — recusas fail-closed, sem nenhuma mutação', () => {
     assert.deepEqual(await fotografia(), antes);
     assert.deepEqual(validarBarreirasCli({ local: false, esperadoSid: null, aplicar: false }), { ok: false, codigo: 'ALVO_SEM_IDENTIFICADOR', motivo: 'alvo remoto exige FUSO_EXPECTED_SYSTEM_IDENTIFIER' });
     assert.equal(validarBarreirasCli({ local: false, esperadoSid: '7000000000000000001', aplicar: true, confirmacao: FRASE_CONFIRMACAO, referenciaBackup: '' }).codigo, 'BACKUP_NAO_COMPROVADO');
-    assert.equal(validarBarreirasCli({ local: false, esperadoSid: '7000000000000000001', aplicar: true, confirmacao: FRASE_CONFIRMACAO, referenciaBackup: 'pitr 2026-11-05 10:00' }).ok, true);
+    assert.equal(validarBarreirasCli({ local: false, esperadoSid: '7000000000000000001', aplicar: true, confirmacao: FRASE_CONFIRMACAO, referenciaBackup: 'pitr 2026-11-05 10:00' }).codigo, 'ATESTADO_AUSENTE', 'R3: aplicar em alvo remoto exige o atestado do SID');
+    assert.equal(validarBarreirasCli({ local: false, esperadoSid: '7000000000000000001', aplicar: true, confirmacao: FRASE_CONFIRMACAO, referenciaBackup: 'pitr 2026-11-05 10:00', atestado: 'proprietário, SQL Editor' }).ok, true);
     // Alvo remoto sem identificador: recusado ANTES de conectar (host inexistente nem é contatado).
     const remoto = rodar('scripts/ops/configurar-fuso-empresas.mjs', { FUSO_DATABASE_URL: 'postgresql://u:x@db.invalido.example:5432/postgres' }, ['--plano', caminho]);
     assert.equal(remoto.status, 3);

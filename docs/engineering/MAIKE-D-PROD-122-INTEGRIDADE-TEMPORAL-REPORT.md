@@ -142,7 +142,7 @@ Também faltavam três coisas:
 | Portão | Definição | Como se prova |
 |---|---|---|
 | CODE_READY | Código e testes aprovados | CI `verify:all` verde no HEAD e auditoria do arquiteto |
-| TARGET_PROVEN | O banco da migration e da configuração é o MESMO do runtime de produção | `system_identifier` igual ao esperado, lido pela URL de runtime de production (a que vence a precedência) e pela de migration (`conferir-alvo-banco.mjs` ou `preflight-fuso-release.mjs`) |
+| TARGET_PROVEN | O banco da migration e da configuração é o MESMO do runtime de produção, e esse banco é o AUTORIZADO | Na mesma execução do `preflight-fuso-release.mjs` (R3): a URL do runtime de production (a que vence a precedência) e a `MIGRATION_DATABASE_URL` são lidas. As duas precisam do mesmo `system_identifier` = esperado, do mesmo OID de banco e do mesmo histórico. O SID esperado só vale com `RELEASE_ALVO_ATESTADO`: quem o obteve no banco autorizado, como e quando. Faltou qualquer item → TARGET_UNVERIFIED |
 | SCHEMA_READY | Migration `20261104200000_empresa_fuso_horario` aplicada, concluída, não revertida, checksum do manifesto; coluna `varchar(64)` anulável | `preflight-fuso-release.mjs` (somente leitura) |
 | DATA_READY | Toda empresa ATIVADA no ledger com fuso IANA explícito válido. Sem padrão global, sem inferência, sem valor fabricado | `preflight-fuso-release.mjs` |
 | DEPLOY_GUARDED | Nenhum código novo exposto antes de TARGET, SCHEMA e DATA | **Procedimental**: o merge é o único gatilho do deploy de produção e só acontece depois do preflight READY anexado à PR. Não existe trava técnica na Vercel comprovada (ver Riscos). |
@@ -159,17 +159,20 @@ Executa o **proprietário ou um operador autorizado**, numa máquina protegida, 
 - Anotar a referência (id e horário). Ela vai para o AuditLog do R4.
 - Sem isso, o R4 recusa em alvo remoto (`BACKUP_NAO_COMPROVADO`).
 
-**R2 — TARGET_PROVEN.**
-- Obter o `system_identifier` esperado do banco de produção. É um valor não secreto, a anotar e conferir pelo SQL Editor: `SELECT system_identifier FROM pg_control_system();`.
-- No terminal, exportar:
-  - `POSTGRES_PRISMA_URL` = o valor de **production** na Vercel (o que o runtime usa);
-  - `MIGRATION_DATABASE_URL` = conexão direta ou de sessão, não o pooler 6543;
-  - `MIGRATION_EXPECTED_SYSTEM_IDENTIFIER`.
-- Rodar:
+**R2 — TARGET_PROVEN.** Quem atesta o alvo é o **proprietário**.
+1. Logado no painel do projeto Supabase AUTORIZADO, ele roda no SQL Editor `SELECT system_identifier FROM pg_control_system();` e anota o valor fora do repositório. É ele quem atesta.
+   - Num PostgreSQL 16 padrão, a função é executável por qualquer papel; isso foi provado localmente com um papel sem privilégio.
+   - Se no Supabase alguma conexão negar a leitura, o resultado é TARGET_UNVERIFIED: **PARAR**. Não existe prova alternativa por hostname.
+2. No terminal do operador, exportar:
+   - `POSTGRES_PRISMA_URL` = o valor de **production** na Vercel (o que o runtime usa);
+   - `MIGRATION_DATABASE_URL` = conexão direta ou de sessão, não o pooler 6543;
+   - `MIGRATION_EXPECTED_SYSTEM_IDENTIFIER` = o valor do passo 1;
+   - `RELEASE_ALVO_ATESTADO` = "<quem>, SQL Editor do projeto autorizado, <data/hora>".
+3. Rodar:
 
-      node scripts/deploy/conferir-alvo-banco.mjs   → "ALVO CONFERE"
+       node scripts/deploy/conferir-alvo-banco.mjs   → "ALVO CONFERE"
 
-- Se der divergente ou sem acesso: **PARAR** (TARGET_UNVERIFIED).
+4. Se der divergente, sem acesso ou faltar o atestado: **PARAR** (TARGET_UNVERIFIED).
 
 **R3 — SCHEMA, pré-merge e compatível com o runtime atual.**
 
@@ -187,7 +190,8 @@ Executa o **proprietário ou um operador autorizado**, numa máquina protegida, 
 
 2. Simulação (padrão, nada é gravado):
 
-       FUSO_DATABASE_URL=… FUSO_EXPECTED_SYSTEM_IDENTIFIER=…          node scripts/ops/configurar-fuso-empresas.mjs --plano /fora/do/repo/plano.json
+       FUSO_DATABASE_URL=<migration> FUSO_EXPECTED_SYSTEM_IDENTIFIER=… RELEASE_ALVO_ATESTADO="…" \
+         node scripts/ops/configurar-fuso-empresas.mjs --plano /fora/do/repo/plano.json
 
 3. Aplicação: uma transação, Empresa `FOR UPDATE`, AuditLog por mudança com a referência do backup, tudo ou nada:
 
@@ -196,7 +200,10 @@ Executa o **proprietário ou um operador autorizado**, numa máquina protegida, 
 - **Recusa** com:
   - alvo sem `system_identifier` ou divergente;
   - sem frase de confirmação; sem backup;
-  - plano dentro do repositório;
+  - plano dentro do repositório, inclusive por symlink (o caminho real é conferido), ou inexistente;
+  - sem `RELEASE_ALVO_ATESTADO` ao aplicar em alvo remoto;
+  - `system_identifier` ilegível (TARGET_UNVERIFIED);
+  - argumento repetido ou sem valor;
   - schema não pronto;
   - empresa de outro cliente ou inexistente;
   - IANA inválido;
@@ -204,12 +211,18 @@ Executa o **proprietário ou um operador autorizado**, numa máquina protegida, 
   - duplicata;
   - troca de fuso existente sem motivo.
 - **Reexecutar é seguro:** fuso igual não muda nada e não gera auditoria nova.
+- **Saída (R3):** só hashes estáveis (`h:` + 12 hex) de cliente e empresa, nunca o id cru, nem do administrador, nem em erros. Os ids reais ficam só na transação (UPDATE e AuditLog). Não existe modo detalhado.
 
 **R5 — Preflight final (somente leitura), imediatamente antes do merge.**
 
-      POSTGRES_PRISMA_URL=<production> MIGRATION_EXPECTED_SYSTEM_IDENTIFIER=… [MIGRATION_DATABASE_URL=…]         node scripts/deploy/preflight-fuso-release.mjs
+      POSTGRES_PRISMA_URL=<production> MIGRATION_DATABASE_URL=<migration> \
+      MIGRATION_EXPECTED_SYSTEM_IDENTIFIER=… RELEASE_ALVO_ATESTADO="…" \
+        node scripts/deploy/preflight-fuso-release.mjs
 
-- Exige `estado: READY`, `TARGET: SID_CONFERE`, `SCHEMA_READY: true` e `DATA_READY: true`.
+- Exige `estado: READY_ALVO_CONFERIDO`, `TARGET: ALVOS_CONFEREM_SID_ATESTADO`, `atestado_alvo: informado`, `SCHEMA_READY: true` e `DATA_READY: true`.
+- As **duas** URLs e o atestado são obrigatórios (R3). Uma URL só, SID ausente ou divergente, sem permissão, inalcançável ou bancos diferentes → BLOCKED / TARGET_UNVERIFIED.
+- `READY_LOCAL_TESTE` vale só para banco local descartável e **não** é prova de produção.
+- A saída nunca traz URL, host, usuário, SID nem ids crus. `--mostrar-ids` é recusado fora do banco local.
 - A saída JSON (ids em hash) vai como comentário na PR, para a auditoria.
 - BLOCKED → não fazer merge.
 
@@ -273,6 +286,37 @@ O KM - 06 de produção NÃO foi tocado.
   - `scripts/ops/configurar-fuso-empresas.mjs`;
   - `scripts/deploy/preflight-fuso-release.mjs`.
   - Suíte `backend/tests/dProd122ReleaseFuso.test.mjs`, 13 testes, matriz A–F.
+
+## PR190-R3 — fechamento do portão de release
+
+**G1 — alvo.**
+- RED: o preflight da R2 dava `READY` só com a URL do runtime e o SID; a migration era opcional (`G1-RED1`, `"estado": "READY"` com exit 0).
+- Agora (`avaliarAlvoRelease` em `fusoReleaseLib.mjs`), fora do banco local, são obrigatórios:
+  - as duas URLs;
+  - o SID esperado;
+  - o `RELEASE_ALVO_ATESTADO`.
+- As duas conexões são lidas e comparadas: SID, OID do banco e histórico de migrations.
+- Os estados ficam separados: `READY_LOCAL_TESTE` × `READY_ALVO_CONFERIDO`.
+- Bancos diferentes no mesmo cluster → BLOCKED: o mesmo SID não basta.
+- Alvo inalcançável → TARGET_UNVERIFIED, não falha técnica genérica.
+- O ramo remoto foi exercitado contra o banco LOCAL pelo alias `vm` → 127.0.0.1, que não está na lista de hosts locais. Nada saiu da máquina.
+
+**G2 — confidencialidade.**
+- RED: simulação e aplicação imprimiam `cliente_id` e `empresa_id` crus.
+- Agora o relatório e os detalhes de erro da biblioteca usam `hashId`. Teste com ids sintéticos cobrindo sucesso, reaplicação, recusa com rollback e o erro serializado da lib.
+- `planoForaDoRepositorio` usa `realpathSync`: symlink de fora apontando para dentro do repo é recusado, e plano inexistente também.
+
+**G3 — fail-closed.**
+- Argumentos repetidos, desconhecidos ou sem valor → exit 2, sem efeito.
+- `system_identifier` ilegível no CLI de configuração → TARGET_UNVERIFIED (exit 3).
+- `pg_control_system()`: executável por PUBLIC num PostgreSQL 16 padrão, provado com papel sem privilégio. No Supabase não foi verificado (sem credenciais); se negado → TARGET_UNVERIFIED.
+- SCHEMA_READY confere histórico, checksum, concluída/não revertida e coluna. DATA_READY só considera empresas ATIVADAS.
+- A migration continua EXPAND: NULL, sem DEFAULT nem UPDATE, checksum inalterado. O rollback recomendado continua só de runtime.
+
+**G4 — integridade.**
+- As suítes H1 (38) e release (13) continuam verdes. A R3 tem 12 testes.
+- H1 + release + R3 + exclusão + certificação rodaram 3×: 106/106 em cada rodada.
+- Nenhuma guarda foi afrouxada: replay antes da guarda, 409 sem escrita, `FOR SHARE` na guarda, `FOR UPDATE` na troca, AuditLog único, sem fallback de fuso, exclusão de futuro legado permitida.
 
 ## Riscos e limites
 
