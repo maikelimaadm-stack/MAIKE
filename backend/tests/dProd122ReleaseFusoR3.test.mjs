@@ -13,9 +13,9 @@
  * G3  Parâmetros repetidos/desconhecidos recusados sem efeito; SID ilegível
  *     (sem permissão) → TARGET_UNVERIFIED, nunca falha técnica genérica.
  *
- * Caminho "não local" contra o banco LOCAL descartável: o host `vm` resolve
- * para 127.0.0.1 (/etc/hosts) e NÃO está na lista de hosts locais dos scripts
- * — exercita o ramo remoto sem nenhum banco remoto. Nada sai desta máquina.
+ * Caminho "não local" contra o banco de TESTE: um nome de host que não é literal
+ * local (hostname da máquina ou alias do /etc/hosts) mas chega ao mesmo
+ * PostgreSQL descartável — exercita o ramo remoto sem nenhum banco remoto.
  */
 
 import { test, describe, before, after, beforeEach } from 'node:test';
@@ -24,7 +24,7 @@ import { randomUUID } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { lookup } from 'node:dns/promises';
 import { mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { hostname, tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { criarApp, criarTenant, limparBanco, encerrar, autenticarNoApp } from './helpers.mjs';
@@ -41,10 +41,27 @@ before(async () => {
   process.env.NODE_ENV = 'test';
   app = await criarApp();
   await app.ready();
-  try {
-    const r = await lookup('vm');
-    if (r.address === '127.0.0.1') aliasRemoto = 'vm';
-  } catch { /* sem alias: os testes de ramo remoto falham explicitamente */ }
+  // Um nome de host que NÃO é literal local (localhost/127.0.0.1/::1) mas chega
+  // ao MESMO PostgreSQL de teste: o hostname da máquina (CI: IP do runner, onde a
+  // porta do serviço postgres está publicada; aqui: /etc/hosts) ou aliases do
+  // /etc/hosts. Escolhido por conexão real; nenhum banco remoto é contatado.
+  const { PrismaClient } = await import('@prisma/client');
+  for (const candidato of ['maike-alvo-teste', hostname(), 'vm', 'runsc', 'localhost.localdomain']) {
+    if (!candidato || ['localhost', '127.0.0.1', '::1'].includes(candidato)) continue;
+    try {
+      await lookup(candidato);
+      const u = new URL(process.env.DATABASE_URL);
+      u.hostname = candidato;
+      const cliente = new PrismaClient({ datasourceUrl: u.toString() });
+      try {
+        await cliente.$queryRawUnsafe('SELECT 1');
+        aliasRemoto = candidato;
+      } finally {
+        await cliente.$disconnect();
+      }
+      if (aliasRemoto) break;
+    } catch { /* próximo candidato */ }
+  }
 });
 after(async () => {
   process.env.NODE_ENV = NODE_ENV_ORIGINAL;
@@ -63,7 +80,7 @@ const req = (metodo, url, token, payload) =>
 const urlLocal = () => process.env.DATABASE_URL;
 /** Mesma conexão local, mas com host "não local" (ramo remoto dos scripts). */
 const urlRemotaSimulada = (url = urlLocal()) => {
-  assert.ok(aliasRemoto, 'host alias "vm" → 127.0.0.1 indisponível nesta máquina');
+  assert.ok(aliasRemoto, 'nenhum nome de host não literal chega ao PostgreSQL de teste (hostname da máquina, vm, runsc)');
   const u = new URL(url);
   u.hostname = aliasRemoto;
   return u.toString();

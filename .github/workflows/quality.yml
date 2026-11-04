@@ -95,5 +95,11 @@ jobs:
           echo "PostgreSQL não ficou pronto a tempo"
           exit 1
 
+      # D-PROD-122 (PR190-R3): nome de host NÃO literal que chega ao mesmo
+      # PostgreSQL efêmero do job, para exercitar o ramo "alvo não local" dos
+      # scripts de release sem nenhum banco remoto (dProd122ReleaseFusoR3).
+      - name: Alias local para o ramo remoto dos testes de release
+        run: echo "127.0.0.1 maike-alvo-teste" | sudo tee -a /etc/hosts
+
       - name: Verificação completa
         run: npm run verify:all
