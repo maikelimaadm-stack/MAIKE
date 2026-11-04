@@ -638,6 +638,26 @@ describe("PR181-R2 — cancelamento REAL das consultas de elegibilidade", () => 
   });
 });
 
+describe("D-PROD-114 — card da movimentação excluída", () => {
+  it("UX-4: depois da exclusão confirmada, o card some e NÃO reconsulta a elegibilidade do id apagado (sem GET 404)", async () => {
+    servico.consultarExclusaoMovimentacao.mockClear();
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(<QueryClientProvider client={client}><ExcluirMovimentacao movimento={TRANSF} /></QueryClientProvider>);
+    await clicar(await screen.findByRole("button", { name: "Excluir movimentação" }));
+    await screen.findByText(/PASTO A: \+3 cab \(fica 10\)/);
+    fireEvent.change(screen.getByLabelText("Motivo da exclusão"), { target: { value: "lançado errado" } });
+    fireEvent.click(screen.getByRole("checkbox"));
+    await clicar(screen.getByRole("button", { name: "Excluir definitivamente" }));
+    await waitFor(() => expect(servico.excluirMovimentacaoMapa).toHaveBeenCalledTimes(1));
+    await assentar();
+    const consultasAteAqui = servico.consultarExclusaoMovimentacao.mock.calls.length;
+    // O histórico ainda não recarregou: a invalidação geral (atualizar-mapa) não pode reconsultar o id apagado.
+    await act(async () => { await client.invalidateQueries({ queryKey: ["elegibilidade-exclusao-movimentacao"] }); await new Promise((r) => setTimeout(r, 30)); });
+    expect(servico.consultarExclusaoMovimentacao.mock.calls.length).toBe(consultasAteAqui);
+    expect(screen.queryByRole("button", { name: /Excluir movimentação|Verificando exclusão|Exclusão bloqueada/ })).toBeNull();
+  });
+});
+
 describe("Histórico de Abate do Curral", () => {
   it("cancelado antigo aparece marcado (sem limpeza retroativa); ativo do ledger oferece 'Excluir movimentação'; nenhum 'Cancelar'", async () => {
     servico.listarTodasMovimentacoes.mockImplementation(async () => [

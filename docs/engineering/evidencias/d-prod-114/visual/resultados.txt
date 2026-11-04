@@ -1,0 +1,150 @@
+D-PROD-114 — E2E real (Chromium/Playwright), backend + Vite + PostgreSQL 16 LOCAIS (banco maike_e2e_r2), tenant sintético criado por execução (senha aleatória, não gravada).
+Resultado: 148/148 PASS (37 verificações × 1440/390/412/768).
+PASS desktop-1440 A1 diálogo de nascimento sem rolagem horizontal
+PASS desktop-1440 A1 UM POST de comando por confirmação (duplo clique não duplica) — 1 POST
+PASS desktop-1440 A1 corpo: Nascimento, 2 linhas, sem saldo/lote — [{"sexo":"Macho","categoria_mae":"Vaca + 36 meses","quantidade":3,"peso_medio_kg":32},{"sexo":"Fêmea","categoria_mae":"Vaca + 36 meses","quantidade":2,"peso_medio_kg":30}]
+PASS desktop-1440 A1 posições dos nascidos: 3 machos 32 kg e 2 fêmeas 30 kg — [["Fêmea",2,30],["Macho",3,32]]
+PASS desktop-1440 A1 matrizes e Cadastro intactos
+PASS desktop-1440 A1 ledger íntegro, conservação, zero órfãos
+PASS desktop-1440 A2 pesagem dependente: UM POST de comando
+PASS desktop-1440 A2 antes do clique: Nascimento BLOQUEADO, Pesagem elegível — Exclusão bloqueada / elegivel
+PASS desktop-1440 A2 bloqueado: disabled + aria-describedby com motivo visível
+PASS desktop-1440 A2 sem rolagem horizontal (histórico)
+PASS desktop-1440 A3 exclusão do dependente: 1 POST /exclusao só com {operation_id, motivo}
+PASS desktop-1440 A3 pesagem apagada fisicamente (mov+evento) com auditoria — {"ev":false,"mov":0,"aud":1}
+PASS desktop-1440 A3 Nascimento desbloqueou sem recarregar
+PASS desktop-1440 A3 nascimento apagado fisicamente com auditoria — {"ev":false,"mov":0,"aud":1}
+PASS desktop-1440 A3 projeção EXATA de antes do nascimento (posições dos bezerros removidas)
+PASS desktop-1440 A3 Cadastro de Lotes intacto; 2 recibos originais marcados excluido
+PASS desktop-1440 A3 ledger íntegro, conservação, zero órfãos
+PASS desktop-1440 A3 histórico sem os itens excluídos (sem reload)
+PASS desktop-1440 A3 reabrir o histórico: nada de Nascimento/Pesagem ressuscitado — Histórico da Área PASTO NASC | Área | Lotes atuais | Entradas, saídas e manejos registrados nesta área, inclusive de lotes que já saíram. | Nenhum lançamento encontr
+PASS desktop-1440 B1 diálogo de junção sem rolagem horizontal
+PASS desktop-1440 B1 UM POST de junção (duplo clique não duplica); nenhum POST/PATCH de lote ou movimento genérico — 1 POST
+PASS desktop-1440 B1 corpo só com ids/data (sem saldo/peso) — {"operation_id":"rebanho-baaf4ac9-4ba3-44c5-aab1-3532077551f5","empresa_id":"cmw1cvptp00047dvklr49aw8w","area_id":"cmw1cvpty000a7dvk5hvanf0g","lote_principal_id":"cmw1cvpyn00bd7dapk4rn4nan","lote
+PASS desktop-1440 B1 servidor: principal 50 com peso ponderado 380; origem 0; linhagem com a contribuição — 50/380/0
+PASS desktop-1440 B1 Cadastro intacto; ledger íntegro, conservação, zero órfãos
+PASS desktop-1440 B2 morte dependente: UM POST de baixa — /api/native/movimentacoes-mapa/comandos/baixa-rebanho
+PASS desktop-1440 B2 antes do clique: Junção BLOQUEADA, Morte elegível — Exclusão bloqueada / elegivel
+PASS desktop-1440 B2 bloqueado: disabled + aria-describedby + motivo visível
+PASS desktop-1440 B3 POST com dependência ativa → 409 e ZERO mutação — 409 CANCELAMENTO_SALDO_HISTORICO_NEGATIVO
+PASS desktop-1440 B2 Junção desbloqueou sem recarregar
+PASS desktop-1440 B2 junção apagada fisicamente com auditoria — {"ev":false,"mov":0,"aud":1}
+PASS desktop-1440 B2 estado pré-junção EXATO (quantidades, pesos, linhagem); Cadastro intacto; 2 recibos excluido
+PASS desktop-1440 B2 ledger íntegro, conservação, zero órfãos
+PASS desktop-1440 B2 sem rolagem horizontal
+PASS desktop-1440 C3 no máximo 2 GETs de elegibilidade em voo na página (máx=2, total=6, abortados=0)
+PASS desktop-1440 C nenhum DELETE/PATCH de movimento, nenhum /cancelamento
+PASS desktop-1440 C sem erro de página nem console.error
+PASS desktop-1440 C nenhuma resposta 4xx/5xx inesperada (409 do B3 foi pela API, fora da página)
+PASS mobile-390 A1 diálogo de nascimento sem rolagem horizontal
+PASS mobile-390 A1 UM POST de comando por confirmação (duplo clique não duplica) — 1 POST
+PASS mobile-390 A1 corpo: Nascimento, 2 linhas, sem saldo/lote — [{"sexo":"Macho","categoria_mae":"Vaca + 36 meses","quantidade":3,"peso_medio_kg":32},{"sexo":"Fêmea","categoria_mae":"Vaca + 36 meses","quantidade":2,"peso_medio_kg":30}]
+PASS mobile-390 A1 posições dos nascidos: 3 machos 32 kg e 2 fêmeas 30 kg — [["Fêmea",2,30],["Macho",3,32]]
+PASS mobile-390 A1 matrizes e Cadastro intactos
+PASS mobile-390 A1 ledger íntegro, conservação, zero órfãos
+PASS mobile-390 A2 pesagem dependente: UM POST de comando
+PASS mobile-390 A2 antes do clique: Nascimento BLOQUEADO, Pesagem elegível — Exclusão bloqueada / elegivel
+PASS mobile-390 A2 bloqueado: disabled + aria-describedby com motivo visível
+PASS mobile-390 A2 sem rolagem horizontal (histórico)
+PASS mobile-390 A3 exclusão do dependente: 1 POST /exclusao só com {operation_id, motivo}
+PASS mobile-390 A3 pesagem apagada fisicamente (mov+evento) com auditoria — {"ev":false,"mov":0,"aud":1}
+PASS mobile-390 A3 Nascimento desbloqueou sem recarregar
+PASS mobile-390 A3 nascimento apagado fisicamente com auditoria — {"ev":false,"mov":0,"aud":1}
+PASS mobile-390 A3 projeção EXATA de antes do nascimento (posições dos bezerros removidas)
+PASS mobile-390 A3 Cadastro de Lotes intacto; 2 recibos originais marcados excluido
+PASS mobile-390 A3 ledger íntegro, conservação, zero órfãos
+PASS mobile-390 A3 histórico sem os itens excluídos (sem reload)
+PASS mobile-390 A3 reabrir o histórico: nada de Nascimento/Pesagem ressuscitado — Histórico da Área PASTO NASC | Área | Lotes atuais | Entradas, saídas e manejos registrados nesta área, inclusive de lotes que já saíram. | Nenhum lançamento encontra
+PASS mobile-390 B1 diálogo de junção sem rolagem horizontal
+PASS mobile-390 B1 UM POST de junção (duplo clique não duplica); nenhum POST/PATCH de lote ou movimento genérico — 1 POST
+PASS mobile-390 B1 corpo só com ids/data (sem saldo/peso) — {"operation_id":"rebanho-25971b2d-7ae6-437c-a8a7-c71ef3ec5570","empresa_id":"cmw1cwyxd00047dzem38am8q1","area_id":"cmw1cwyxm000a7dzep0cqqf1k","lote_principal_id":"cmw1cwz3f00gs7dapita31fmi","lote_o
+PASS mobile-390 B1 servidor: principal 50 com peso ponderado 380; origem 0; linhagem com a contribuição — 50/380/0
+PASS mobile-390 B1 Cadastro intacto; ledger íntegro, conservação, zero órfãos
+PASS mobile-390 B2 morte dependente: UM POST de baixa — /api/native/movimentacoes-mapa/comandos/baixa-rebanho
+PASS mobile-390 B2 antes do clique: Junção BLOQUEADA, Morte elegível — Exclusão bloqueada / elegivel
+PASS mobile-390 B2 bloqueado: disabled + aria-describedby + motivo visível
+PASS mobile-390 B3 POST com dependência ativa → 409 e ZERO mutação — 409 CANCELAMENTO_SALDO_HISTORICO_NEGATIVO
+PASS mobile-390 B2 Junção desbloqueou sem recarregar
+PASS mobile-390 B2 junção apagada fisicamente com auditoria — {"ev":false,"mov":0,"aud":1}
+PASS mobile-390 B2 estado pré-junção EXATO (quantidades, pesos, linhagem); Cadastro intacto; 2 recibos excluido
+PASS mobile-390 B2 ledger íntegro, conservação, zero órfãos
+PASS mobile-390 B2 sem rolagem horizontal
+PASS mobile-390 C3 no máximo 2 GETs de elegibilidade em voo na página (máx=2, total=6, abortados=0)
+PASS mobile-390 C nenhum DELETE/PATCH de movimento, nenhum /cancelamento
+PASS mobile-390 C sem erro de página nem console.error
+PASS mobile-390 C nenhuma resposta 4xx/5xx inesperada (409 do B3 foi pela API, fora da página)
+PASS mobile-412 A1 diálogo de nascimento sem rolagem horizontal
+PASS mobile-412 A1 UM POST de comando por confirmação (duplo clique não duplica) — 1 POST
+PASS mobile-412 A1 corpo: Nascimento, 2 linhas, sem saldo/lote — [{"sexo":"Macho","categoria_mae":"Vaca + 36 meses","quantidade":3,"peso_medio_kg":32},{"sexo":"Fêmea","categoria_mae":"Vaca + 36 meses","quantidade":2,"peso_medio_kg":30}]
+PASS mobile-412 A1 posições dos nascidos: 3 machos 32 kg e 2 fêmeas 30 kg — [["Fêmea",2,30],["Macho",3,32]]
+PASS mobile-412 A1 matrizes e Cadastro intactos
+PASS mobile-412 A1 ledger íntegro, conservação, zero órfãos
+PASS mobile-412 A2 pesagem dependente: UM POST de comando
+PASS mobile-412 A2 antes do clique: Nascimento BLOQUEADO, Pesagem elegível — Exclusão bloqueada / elegivel
+PASS mobile-412 A2 bloqueado: disabled + aria-describedby com motivo visível
+PASS mobile-412 A2 sem rolagem horizontal (histórico)
+PASS mobile-412 A3 exclusão do dependente: 1 POST /exclusao só com {operation_id, motivo}
+PASS mobile-412 A3 pesagem apagada fisicamente (mov+evento) com auditoria — {"ev":false,"mov":0,"aud":1}
+PASS mobile-412 A3 Nascimento desbloqueou sem recarregar
+PASS mobile-412 A3 nascimento apagado fisicamente com auditoria — {"ev":false,"mov":0,"aud":1}
+PASS mobile-412 A3 projeção EXATA de antes do nascimento (posições dos bezerros removidas)
+PASS mobile-412 A3 Cadastro de Lotes intacto; 2 recibos originais marcados excluido
+PASS mobile-412 A3 ledger íntegro, conservação, zero órfãos
+PASS mobile-412 A3 histórico sem os itens excluídos (sem reload)
+PASS mobile-412 A3 reabrir o histórico: nada de Nascimento/Pesagem ressuscitado — Histórico da Área PASTO NASC | Área | Lotes atuais | Entradas, saídas e manejos registrados nesta área, inclusive de lotes que já saíram. | Nenhum lançamento encontra
+PASS mobile-412 B1 diálogo de junção sem rolagem horizontal
+PASS mobile-412 B1 UM POST de junção (duplo clique não duplica); nenhum POST/PATCH de lote ou movimento genérico — 1 POST
+PASS mobile-412 B1 corpo só com ids/data (sem saldo/peso) — {"operation_id":"rebanho-6b0fd229-1f16-443f-81b8-d1d3db33223d","empresa_id":"cmw1cy4a200047d33psfgxz8e","area_id":"cmw1cy4ab000a7d332470giyf","lote_principal_id":"cmw1cy4f200m77dapavh4lsju","lote_o
+PASS mobile-412 B1 servidor: principal 50 com peso ponderado 380; origem 0; linhagem com a contribuição — 50/380/0
+PASS mobile-412 B1 Cadastro intacto; ledger íntegro, conservação, zero órfãos
+PASS mobile-412 B2 morte dependente: UM POST de baixa — /api/native/movimentacoes-mapa/comandos/baixa-rebanho
+PASS mobile-412 B2 antes do clique: Junção BLOQUEADA, Morte elegível — Exclusão bloqueada / elegivel
+PASS mobile-412 B2 bloqueado: disabled + aria-describedby + motivo visível
+PASS mobile-412 B3 POST com dependência ativa → 409 e ZERO mutação — 409 CANCELAMENTO_SALDO_HISTORICO_NEGATIVO
+PASS mobile-412 B2 Junção desbloqueou sem recarregar
+PASS mobile-412 B2 junção apagada fisicamente com auditoria — {"ev":false,"mov":0,"aud":1}
+PASS mobile-412 B2 estado pré-junção EXATO (quantidades, pesos, linhagem); Cadastro intacto; 2 recibos excluido
+PASS mobile-412 B2 ledger íntegro, conservação, zero órfãos
+PASS mobile-412 B2 sem rolagem horizontal
+PASS mobile-412 C3 no máximo 2 GETs de elegibilidade em voo na página (máx=2, total=6, abortados=0)
+PASS mobile-412 C nenhum DELETE/PATCH de movimento, nenhum /cancelamento
+PASS mobile-412 C sem erro de página nem console.error
+PASS mobile-412 C nenhuma resposta 4xx/5xx inesperada (409 do B3 foi pela API, fora da página)
+PASS tablet-768 A1 diálogo de nascimento sem rolagem horizontal
+PASS tablet-768 A1 UM POST de comando por confirmação (duplo clique não duplica) — 1 POST
+PASS tablet-768 A1 corpo: Nascimento, 2 linhas, sem saldo/lote — [{"sexo":"Macho","categoria_mae":"Vaca + 36 meses","quantidade":3,"peso_medio_kg":32},{"sexo":"Fêmea","categoria_mae":"Vaca + 36 meses","quantidade":2,"peso_medio_kg":30}]
+PASS tablet-768 A1 posições dos nascidos: 3 machos 32 kg e 2 fêmeas 30 kg — [["Fêmea",2,30],["Macho",3,32]]
+PASS tablet-768 A1 matrizes e Cadastro intactos
+PASS tablet-768 A1 ledger íntegro, conservação, zero órfãos
+PASS tablet-768 A2 pesagem dependente: UM POST de comando
+PASS tablet-768 A2 antes do clique: Nascimento BLOQUEADO, Pesagem elegível — Exclusão bloqueada / elegivel
+PASS tablet-768 A2 bloqueado: disabled + aria-describedby com motivo visível
+PASS tablet-768 A2 sem rolagem horizontal (histórico)
+PASS tablet-768 A3 exclusão do dependente: 1 POST /exclusao só com {operation_id, motivo}
+PASS tablet-768 A3 pesagem apagada fisicamente (mov+evento) com auditoria — {"ev":false,"mov":0,"aud":1}
+PASS tablet-768 A3 Nascimento desbloqueou sem recarregar
+PASS tablet-768 A3 nascimento apagado fisicamente com auditoria — {"ev":false,"mov":0,"aud":1}
+PASS tablet-768 A3 projeção EXATA de antes do nascimento (posições dos bezerros removidas)
+PASS tablet-768 A3 Cadastro de Lotes intacto; 2 recibos originais marcados excluido
+PASS tablet-768 A3 ledger íntegro, conservação, zero órfãos
+PASS tablet-768 A3 histórico sem os itens excluídos (sem reload)
+PASS tablet-768 A3 reabrir o histórico: nada de Nascimento/Pesagem ressuscitado — Histórico da Área PASTO NASC | Área | Lotes atuais | Entradas, saídas e manejos registrados nesta área, inclusive de lotes que já saíram. | Nenhum lançamento encontra
+PASS tablet-768 B1 diálogo de junção sem rolagem horizontal
+PASS tablet-768 B1 UM POST de junção (duplo clique não duplica); nenhum POST/PATCH de lote ou movimento genérico — 1 POST
+PASS tablet-768 B1 corpo só com ids/data (sem saldo/peso) — {"operation_id":"rebanho-77f3446f-248e-4740-99bf-ad2d9ab10aa0","empresa_id":"cmw1czfbr00047d7eyq9ptg2p","area_id":"cmw1czfc1000a7d7e8wkq309l","lote_principal_id":"cmw1czfgx00rm7dapu30iv76t","lote_o
+PASS tablet-768 B1 servidor: principal 50 com peso ponderado 380; origem 0; linhagem com a contribuição — 50/380/0
+PASS tablet-768 B1 Cadastro intacto; ledger íntegro, conservação, zero órfãos
+PASS tablet-768 B2 morte dependente: UM POST de baixa — /api/native/movimentacoes-mapa/comandos/baixa-rebanho
+PASS tablet-768 B2 antes do clique: Junção BLOQUEADA, Morte elegível — Exclusão bloqueada / elegivel
+PASS tablet-768 B2 bloqueado: disabled + aria-describedby + motivo visível
+PASS tablet-768 B3 POST com dependência ativa → 409 e ZERO mutação — 409 CANCELAMENTO_SALDO_HISTORICO_NEGATIVO
+PASS tablet-768 B2 Junção desbloqueou sem recarregar
+PASS tablet-768 B2 junção apagada fisicamente com auditoria — {"ev":false,"mov":0,"aud":1}
+PASS tablet-768 B2 estado pré-junção EXATO (quantidades, pesos, linhagem); Cadastro intacto; 2 recibos excluido
+PASS tablet-768 B2 ledger íntegro, conservação, zero órfãos
+PASS tablet-768 B2 sem rolagem horizontal
+PASS tablet-768 C3 no máximo 2 GETs de elegibilidade em voo na página (máx=2, total=6, abortados=0)
+PASS tablet-768 C nenhum DELETE/PATCH de movimento, nenhum /cancelamento
+PASS tablet-768 C sem erro de página nem console.error
+PASS tablet-768 C nenhuma resposta 4xx/5xx inesperada (409 do B3 foi pela API, fora da página)

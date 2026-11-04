@@ -4645,4 +4645,23 @@ O resultado foi conferido no Chromium com o ícone real do lote: 8, 50, 500, 5.0
 
 ---
 
-<!-- Próxima decisão: D-PROD-114 -->
+## D-PROD-114 — Certificação E2E de Nascimento e Junção pela interface
+
+**Objetivo:** provar na UI real do Mapa, com backend e PostgreSQL 16 locais e tenant sintético, as cadeias:
+- nascimento → pesagem dependente;
+- junção → morte dependente.
+
+Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio sem recarregar, exclusão do antecessor e restauração exata. O Cadastro de Lotes continua sendo só entrada.
+
+**Resultado:** 148/148 verificações E2E em 1440, 390, 412 e 768 (roteiro em `evidencias/d-prod-114/visual/`).
+
+**Bug encontrado e corrigido:**
+- **UX-4 (P2):** depois de excluir, o card do movimento apagado continuava montado até o histórico recarregar. A invalidação geral (limpeza de cache e evento `atualizar-mapa`) refazia o GET de elegibilidade do id apagado, que respondia 404 (3 por rodada no E2E).
+- **Correção:** em `ExcluirMovimentacao.jsx`, com a exclusão confirmada (ou "já não existe"), o card marca `excluida`, desliga as duas consultas e some na hora.
+- **Prova:** teste UX-4 RED → GREEN.
+
+**Sem mudanças:** motor de exclusão, ledger, API, banco e migrations. Nenhuma escrita remota.
+
+---
+
+<!-- Próxima decisão: D-PROD-115 -->
