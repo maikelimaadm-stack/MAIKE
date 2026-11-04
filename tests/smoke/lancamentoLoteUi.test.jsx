@@ -9,7 +9,7 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, fireEvent, cleanup, act } from "@testing-library/react";
 import { readFileSync } from "node:fs";
 import MobileSheet from "@/components/common/MobileSheet";
-import { LancLoteDialogo, LancLoteForm, LancLoteRodape, LancLoteItem, LancLoteSegmento } from "@/components/lotes/LancamentoLoteUi";
+import { useLancLoteDialogo, LancLoteDialogo, LancLoteForm, LancLoteRodape, LancLoteItem, LancLoteSegmento } from "@/components/lotes/LancamentoLoteUi";
 
 afterEach(cleanup);
 
@@ -129,6 +129,37 @@ describe("LancLoteDialogo (D-PROD-115)", () => {
       expect(fonte, f).not.toMatch(/@\/components\/ui\/select/);
       expect(fonte, f).toMatch(/<B1Select\b/);
     }
+  });
+
+  it("D-PROD-117: histórico (somente leitura) só tem ✕; o conteúdo troca o título do diálogo (um cabeçalho só)", async () => {
+    const Conteudo = () => {
+      const ctx = useLancLoteDialogo();
+      React.useEffect(() => {
+        ctx?.setTitulo("Histórico dos Lotes (3)");
+        return () => ctx?.setTitulo(null);
+      }, [ctx]);
+      return <p>itens</p>;
+    };
+    await act(async () => {
+      render(
+        <LancLoteDialogo open onOpenChange={() => {}} titulo="Histórico de Movimentação" lotes={[{ nome: "LOTE 1" }]} somenteLeitura>
+          <Conteudo />
+        </LancLoteDialogo>,
+      );
+    });
+    expect(screen.getByText("Histórico dos Lotes (3)")).toBeTruthy();
+    expect(screen.queryByText("Histórico de Movimentação")).toBeNull();
+    expect(screen.getByRole("button", { name: "Fechar" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Salvar" })).toBeNull();
+  });
+
+  it("D-PROD-117: históricos do lote abrem no diálogo padrão e a suplementação não repete o título", () => {
+    const detalhes = readFileSync("src/components/mapa/DetalhesLote.jsx", "utf8");
+    expect(detalhes).toMatch(/<LancLoteDialogo[^>]*titulo="Histórico de Movimentação"[^>]*somenteLeitura/);
+    expect(detalhes).toMatch(/<LancLoteDialogo[^>]*titulo="Histórico de Suplementação"[^>]*somenteLeitura/);
+    const supl = readFileSync("src/components/suplementacao/HistoricoSuplementacaoLote.jsx", "utf8");
+    expect(supl).not.toMatch(/Histórico de Suplementação - /);
+    expect(supl).not.toMatch(/@\/components\/ui\/select/);
   });
 
   it("os lançamentos de lote não têm mais cartão com cabeçalho próprio (sem cabeçalho duplicado)", () => {

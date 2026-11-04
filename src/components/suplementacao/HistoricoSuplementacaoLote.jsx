@@ -1,8 +1,7 @@
 import React, { useMemo, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { LancLoteSegmento } from "@/components/lotes/LancamentoLoteUi";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar } from "recharts";
 import { getMapaCachedData, refreshMapaCacheEntry } from "@/services/mapaCacheService";
 import { formatDateBR } from "../utils/pecuariaUtils";
@@ -67,37 +66,42 @@ export default function HistoricoSuplementacaoLote({ loteId, loteNome }) {
   }, [dadosGraficoConsumo, historicoFiltrado]);
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-slate-900">Histórico de Suplementação - {loteNome}</h3>
-        <Select value={periodoMeses} onValueChange={setPeriodoMeses}>
-          <SelectTrigger className="w-32 h-8 text-xs"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="1" className="text-xs">Último mês</SelectItem>
-            <SelectItem value="3" className="text-xs">Últimos 3 meses</SelectItem>
-            <SelectItem value="6" className="text-xs">Últimos 6 meses</SelectItem>
-            <SelectItem value="12" className="text-xs">Último ano</SelectItem>
-          </SelectContent>
-        </Select>
+    <div className="mk-hist">
+      {/* D-PROD-117: o título "Histórico de Suplementação" é do diálogo; aqui só o lote e o período. */}
+      <div className="mk-hist__secao-head">
+        <h3 className="mk-hist__secao-titulo">{loteNome}</h3>
+        <div className="mk-hist__periodo">
+          <LancLoteSegmento
+            rotulo="Período"
+            valor={periodoMeses}
+            onChange={setPeriodoMeses}
+            opcoes={[
+              { value: "1", label: "1 mês" },
+              { value: "3", label: "3 meses" },
+              { value: "6", label: "6 meses" },
+              { value: "12", label: "1 ano" },
+            ]}
+          />
+        </div>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <Card><CardContent className="p-3"><div className="text-xs text-slate-600">Lançamentos</div><div className="text-2xl font-bold text-slate-900">{resumo.lancamentos}</div></CardContent></Card>
-        <Card><CardContent className="p-3"><div className="text-xs text-slate-600">Períodos fechados</div><div className="text-2xl font-bold text-slate-900">{resumo.periodosValidos}</div></CardContent></Card>
-        <Card><CardContent className="p-3"><div className="text-xs text-slate-600">Média kg/cab/dia</div><div className="text-xl font-bold text-slate-900">{formatConsumoKgCabDia(resumo.consumoMedioKgCabDia)}</div></CardContent></Card>
-        <Card><CardContent className="p-3"><div className="text-xs text-slate-600">Média g/cab/dia</div><div className="text-xl font-bold text-slate-900">{formatConsumoGramasCabDia(resumo.consumoMedioKgCabDia)} g</div></CardContent></Card>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+        <div className="mk-hist__kpi"><div className="text-xs text-slate-600">Lançamentos</div><div className="text-2xl font-bold text-slate-900">{resumo.lancamentos}</div></div>
+        <div className="mk-hist__kpi"><div className="text-xs text-slate-600">Períodos fechados</div><div className="text-2xl font-bold text-slate-900">{resumo.periodosValidos}</div></div>
+        <div className="mk-hist__kpi"><div className="text-xs text-slate-600">Média kg/cab/dia</div><div className="text-xl font-bold text-slate-900">{formatConsumoKgCabDia(resumo.consumoMedioKgCabDia)}</div></div>
+        <div className="mk-hist__kpi"><div className="text-xs text-slate-600">Média g/cab/dia</div><div className="text-xl font-bold text-slate-900">{formatConsumoGramasCabDia(resumo.consumoMedioKgCabDia)} g</div></div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-        <Card className="lg:col-span-2"><CardContent className="p-3"><div className="text-xs text-slate-600">Consumo total do período</div><div className="text-2xl font-bold text-slate-900">{formatQuantidadeTecnica(resumo.consumoTotalKg, 1)} kg</div><div className="text-[10px] text-slate-500">Último lançamento: {resumo.ultimoLancamento ? formatDateBR(resumo.ultimoLancamento.data_lancamento) : '-'}</div></CardContent></Card>
-        <Card><CardContent className="p-3"><div className="text-xs text-slate-600">Último produto</div><div className="text-sm font-bold text-slate-900 break-words">{resumo.ultimoLancamento?.produto || '-'}</div></CardContent></Card>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-2">
+        <div className="mk-hist__kpi lg:col-span-2"><div className="text-xs text-slate-600">Consumo total do período</div><div className="text-2xl font-bold text-slate-900">{formatQuantidadeTecnica(resumo.consumoTotalKg, 1)} kg</div><div className="text-[10px] text-slate-500">Último lançamento: {resumo.ultimoLancamento ? formatDateBR(resumo.ultimoLancamento.data_lancamento) : '-'}</div></div>
+        <div className="mk-hist__kpi"><div className="text-xs text-slate-600">Último produto</div><div className="text-sm font-bold text-slate-900 break-words">{resumo.ultimoLancamento?.produto || '-'}</div></div>
       </div>
 
       {historicoFiltrado.length > 0 && (
         <>
-          <Card>
-            <CardHeader className="py-3 border-b"><CardTitle className="text-xs font-semibold">Consumo Real vs. Esperado</CardTitle></CardHeader>
-            <CardContent className="p-3">
+          <section className="mk-ll__item">
+            <header className="mk-ll__item-head"><div className="mk-ll__item-titulo">Consumo Real vs. Esperado</div></header>
+            <div>
               <ResponsiveContainer width="100%" height={250}>
                 <LineChart data={dadosGraficoComEsperado}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
@@ -109,13 +113,13 @@ export default function HistoricoSuplementacaoLote({ loteId, loteNome }) {
                   <Line type="monotone" dataKey="esperado" stroke="#94a3b8" strokeWidth={2} strokeDasharray="5 5" name="Esperado (%PV)" connectNulls={false} />
                 </LineChart>
               </ResponsiveContainer>
-            </CardContent>
-          </Card>
+            </div>
+          </section>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-            <Card>
-              <CardHeader className="py-3 border-b"><CardTitle className="text-xs font-semibold">Consumo total por mês</CardTitle></CardHeader>
-              <CardContent className="p-3">
+            <section className="mk-ll__item">
+            <header className="mk-ll__item-head"><div className="mk-ll__item-titulo">Consumo total por mês</div></header>
+            <div>
                 <ResponsiveContainer width="100%" height={250}>
                   <BarChart data={dadosGraficoMensal}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
@@ -126,12 +130,12 @@ export default function HistoricoSuplementacaoLote({ loteId, loteNome }) {
                     <Bar dataKey="totalKg" fill="#64748b" name="Consumo Total (kg)" />
                   </BarChart>
                 </ResponsiveContainer>
-              </CardContent>
-            </Card>
+              </div>
+          </section>
 
-            <Card>
-              <CardHeader className="py-3 border-b"><CardTitle className="text-xs font-semibold">Produtos mais usados</CardTitle></CardHeader>
-              <CardContent className="p-3">
+            <section className="mk-ll__item">
+            <header className="mk-ll__item-head"><div className="mk-ll__item-titulo">Produtos mais usados</div></header>
+            <div>
                 <div className="space-y-2 max-h-64 overflow-y-auto">
                   {resumo.consumoPorProduto.length === 0 ? (
                     <div className="text-center py-8 text-xs text-slate-500">Sem períodos fechados.</div>
@@ -148,21 +152,21 @@ export default function HistoricoSuplementacaoLote({ loteId, loteNome }) {
                     </div>
                   ))}
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+          </section>
           </div>
         </>
       )}
 
-      <Card>
-        <CardHeader className="py-3 border-b"><CardTitle className="text-xs font-semibold">Detalhamento dos lançamentos</CardTitle></CardHeader>
-        <CardContent className="p-3">
+      <section className="mk-ll__item">
+            <header className="mk-ll__item-head"><div className="mk-ll__item-titulo">Detalhamento dos lançamentos</div></header>
+            <div>
           {isLoading ? (
             <div className="text-center py-8 text-xs text-slate-500">Carregando...</div>
           ) : historicoFiltrado.length === 0 ? (
             <div className="text-center py-8 text-xs text-slate-500">Nenhum lançamento encontrado</div>
           ) : (
-            <div className="space-y-2 max-h-96 overflow-y-auto">
+            <div className="mk-hist__lista">
               {historicoFiltrado.map((item) => {
                 const periodoFechado = (item.dias_periodo || 0) > 0;
                 const consumoReal = item.consumo_por_cabeca_dia_kg || 0;
@@ -219,8 +223,8 @@ export default function HistoricoSuplementacaoLote({ loteId, loteNome }) {
               })}
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+          </section>
     </div>
   );
 }

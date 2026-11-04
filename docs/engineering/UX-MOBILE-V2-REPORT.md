@@ -206,3 +206,13 @@ Pedido do proprietário com prints do app do Claude no iPhone. Conferido no Chro
 
 **Não testado em aparelho real.**
 
+## V13 — históricos do lote no padrão dos lançamentos (D-PROD-117)
+
+| Pedido | Feito | Evidência |
+|---|---|---|
+| Arrumar os históricos | Movimentação e Suplementação abrem como os lançamentos: diálogo no desktop e tela inteira no celular, com ✕ e um cabeçalho só | antes: v13-00; depois: v13-01 (desktop), v13-02 (celular) |
+| Título repetido na suplementação | O título fica só no diálogo; cada seção mostra o lote | v13-01 |
+| Período cortado no celular | Segmento 1 mês / 3 meses / 6 meses / 1 ano | v13-02 |
+
+**Não testado em aparelho real.** Telas verificadas no harness com dados de exemplo.
+

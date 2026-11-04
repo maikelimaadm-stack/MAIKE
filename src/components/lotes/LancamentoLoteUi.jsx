@@ -19,9 +19,12 @@ import { PillBtn } from "@/components/cadastro/base1/Base1Ui";
 /**
  * Contexto do diálogo: o rodapé do formulário (`LancLoteRodape`) entrega a
  * ação aqui e ela vira o ✓ do cabeçalho; o `<form>` ganha o id do ✓.
- * @type {React.Context<null | { formId: string, setAcao: (a: any) => void }>}
+ * @type {React.Context<null | { formId: string, setAcao: (a: any) => void, setTitulo: (t: string | null) => void }>}
  */
 const LancLoteCtx = React.createContext(null);
+
+/** Dentro de um `LancLoteDialogo`? Devolve o contexto (ou `null`). */
+export const useLancLoteDialogo = () => React.useContext(LancLoteCtx);
 
 /**
  * Abertura do lançamento — igual ao cadastro rápido (ex.: "Novo setor" no
@@ -31,16 +34,22 @@ const LancLoteCtx = React.createContext(null);
  * É um diálogo do Radix nos dois casos, para abrir por cima do "Detalhes do
  * Lote" (que já é um diálogo) sem perder foco nem toque.
  *
- * @param {{ open: boolean, onOpenChange: (v: boolean) => void, titulo: string, lotes?: Array<{ nome?: string }>, largo?: boolean, children: React.ReactNode }} props
+ * `somenteLeitura` (históricos, D-PROD-117): só o ✕; o corpo rola como o dos
+ * lançamentos. Um conteúdo pode trocar o título do diálogo pelo contexto
+ * (`useLancLoteDialogo().setTitulo`), para não repetir o título dentro.
+ *
+ * @param {{ open: boolean, onOpenChange: (v: boolean) => void, titulo: string, lotes?: Array<{ nome?: string }>, largo?: boolean, somenteLeitura?: boolean, children: React.ReactNode }} props
  */
-export function LancLoteDialogo({ open, onOpenChange, titulo, lotes, largo = false, children }) {
+export function LancLoteDialogo({ open, onOpenChange, titulo, lotes, largo = false, somenteLeitura = false, children }) {
   const nomes = (lotes || []).map((l) => l?.nome).filter(Boolean).join(" · ");
   const desktop = useMediaQuery("(min-width: 1024px)");
   const formId = `mk-ll-${React.useId().replace(/:/g, "")}`;
   const [acao, setAcao] = React.useState(/** @type {any} */ (null));
   // As listas do celular (folha) abrem dentro do diálogo (D-PROD-116).
   const [alvoFolha, setAlvoFolha] = React.useState(/** @type {HTMLElement | null} */ (null));
-  const ctx = React.useMemo(() => ({ formId, setAcao }), [formId]);
+  const [tituloDoConteudo, setTitulo] = React.useState(/** @type {string | null} */ (null));
+  const ctx = React.useMemo(() => ({ formId, setAcao, setTitulo }), [formId]);
+  const tituloVisivel = tituloDoConteudo || titulo;
   const fechar = () => (acao?.onCancelar ? acao.onCancelar() : onOpenChange(false));
   const ocupado = Boolean(acao?.enviando);
   const rotulo = ocupado && acao?.textoEnviando ? acao.textoEnviando : acao?.textoAcao || "Salvar";
@@ -57,6 +66,8 @@ export function LancLoteDialogo({ open, onOpenChange, titulo, lotes, largo = fal
       <DialogPrimitive.Portal>
       <DialogPrimitive.Overlay className="mk-ll-scrim fixed inset-0 z-50 bg-black/60 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
       <DialogPrimitive.Content
+        // Histórico: nada para preencher — não acende o ✕ ao abrir.
+        onOpenAutoFocus={somenteLeitura ? (e) => e.preventDefault() : undefined}
         className={cn(
           "mk-ll-dlg fixed left-[50%] top-[50%] z-50 translate-x-[-50%] translate-y-[-50%] duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
           desktop ? "is-desktop data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95" : "is-tela",
@@ -65,15 +76,25 @@ export function LancLoteDialogo({ open, onOpenChange, titulo, lotes, largo = fal
       >
         <div className="mk-ll-dlg__head">
           {!desktop ? (
-            <button type="button" className="mk-ll-dlg__redondo" onClick={fechar} aria-label="Cancelar" title="Cancelar" disabled={acao?.cancelarDesabilitado}>
+            <button type="button" className="mk-ll-dlg__redondo" onClick={fechar} aria-label={somenteLeitura ? "Fechar" : "Cancelar"} title={somenteLeitura ? "Fechar" : "Cancelar"} disabled={acao?.cancelarDesabilitado}>
               <X aria-hidden />
             </button>
           ) : null}
           <div className="mk-ll-dlg__txt">
-            <DialogPrimitive.Title className="mk-ll-dlg__titulo">{titulo}</DialogPrimitive.Title>
-            <DialogPrimitive.Description className={nomes ? "mk-ll-dlg__lotes" : "sr-only"}>{nomes || titulo}</DialogPrimitive.Description>
+            <DialogPrimitive.Title className="mk-ll-dlg__titulo">{tituloVisivel}</DialogPrimitive.Title>
+            <DialogPrimitive.Description className={nomes ? "mk-ll-dlg__lotes" : "sr-only"}>{nomes || tituloVisivel}</DialogPrimitive.Description>
           </div>
-          {desktop ? (
+          {somenteLeitura ? (
+            desktop ? (
+              <div className="mk-ll-dlg__acoes cadastro-b1">
+                <PillBtn tone="gray" className="mg-act-ic mg-act-cancelar" onClick={fechar} aria-label="Fechar" title="Fechar">
+                  <X className="h-4 w-4" aria-hidden />
+                </PillBtn>
+              </div>
+            ) : (
+              <span className="mk-ll-dlg__redondo mk-ll-dlg__redondo--vazio" aria-hidden />
+            )
+          ) : desktop ? (
             <div className="mk-ll-dlg__acoes cadastro-b1">
               <PillBtn tone="gray" className="mg-act-ic mg-act-cancelar" onClick={fechar} disabled={acao?.cancelarDesabilitado} aria-label="Cancelar" title="Cancelar">
                 <X className="h-4 w-4" aria-hidden />
@@ -104,7 +125,7 @@ export function LancLoteDialogo({ open, onOpenChange, titulo, lotes, largo = fal
           )}
         </div>
         <MobileSheetPortalCtx.Provider value={alvoFolha}>
-          <LancLoteCtx.Provider value={ctx}>{children}</LancLoteCtx.Provider>
+          <LancLoteCtx.Provider value={ctx}>{somenteLeitura ? <div className="mk-ll">{children}</div> : children}</LancLoteCtx.Provider>
         </MobileSheetPortalCtx.Provider>
         <div ref={setAlvoFolha} className="mk-ll-dlg__folhas" />
       </DialogPrimitive.Content>

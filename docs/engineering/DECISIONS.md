@@ -4711,4 +4711,33 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
   - O mesmo componente de lista em cadastros e lançamentos.
   - A dívida de tipos caiu de 1071 para 1033, sem diagnóstico novo.
 
-<!-- Próxima decisão: D-PROD-117 -->
+## D-PROD-117 — Históricos do lote no padrão dos lançamentos
+
+- **Contexto:** o proprietário pediu para arrumar os históricos do lote no Mapa Geral.
+  - **Histórico de Movimentação:**
+    - diálogo pequeno com um cartão e cabeçalho próprio dentro;
+    - um quadradinho de fechar solto;
+    - no celular, não abria em tela inteira.
+  - **Histórico de Suplementação:**
+    - o título aparecia três vezes: no diálogo, num título solto e em cada lote ("Histórico de Suplementação - LOTE 1");
+    - o período era o `Select` genérico, cortado no celular.
+- **Decisão:** a mesma abertura dos lançamentos (`LancLoteDialogo`, D-PROD-115), com `somenteLeitura`.
+  - **Abertura:**
+    - só o ✕ (no celular o lugar do ✓ fica vazio, para o título ficar no meio);
+    - corpo com uma rolagem só;
+    - sem foco automático no ✕.
+  - **`HistoricoMovimentacoes` dentro do diálogo:**
+    - manda o título com a contagem ("Histórico dos Lotes (5)") para o cabeçalho, pelo `useLancLoteDialogo().setTitulo`;
+    - não desenha cartão nem cabeçalho;
+    - a lista não tem altura fixa.
+    - Fora do diálogo (aba Histórico da Área) continua como era.
+  - **`HistoricoSuplementacaoLote`:**
+    - o lote como título da seção;
+    - período em segmento (1 mês, 3 meses, 6 meses, 1 ano);
+    - indicadores e seções no desenho dos itens dos lançamentos.
+  - **Mais de um lote:** separador entre eles, sem o título repetido.
+- **Consequência:**
+  - Lançamentos e históricos do lote com a mesma abertura e um só cabeçalho.
+  - A dívida de tipos caiu de 1033 para 996.
+
+<!-- Próxima decisão: D-PROD-118 -->

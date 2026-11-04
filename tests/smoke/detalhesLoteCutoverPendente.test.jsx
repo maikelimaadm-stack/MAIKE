@@ -124,6 +124,8 @@ describe("DetalhesLote sem ledger (empresa não migrada)", () => {
     await renderizar([loteLegado("l1")]);
     await clicar(screen.getByRole("button", { name: "Histórico de Movimentação" }));
     expect(screen.getByTestId("form-historico")).toBeTruthy();
+    // D-PROD-117: o histórico é um diálogo modal (LancLoteDialogo); fecha antes de abrir o outro.
+    await clicar(screen.getByRole("button", { name: "Fechar" }));
     await clicar(screen.getByRole("button", { name: "Histórico de Suplementação" }));
     expect(screen.getByTestId("form-historico-supl")).toBeTruthy();
     expect(toast.error).not.toHaveBeenCalled();

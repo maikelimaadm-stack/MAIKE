@@ -510,3 +510,78 @@
   min-height: 0;
   background: transparent;
 }
+
+/* Histórico (somente leitura): no celular o lugar do ✓ fica vazio, para o título seguir no meio */
+.mk-ll-dlg__redondo--vazio {
+  visibility: hidden;
+}
+
+/* ── Históricos do lote (D-PROD-117) ─────────────────────────────────── */
+.mk-hist {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.mk-hist__barra {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 12px;
+}
+
+.mk-hist__desc {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.mk-hist__corpo {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mk-hist__lista {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mk-hist__lista > * {
+  border-radius: 12px !important;
+  border-color: #e7eaee !important;
+}
+
+.mk-hist__secao-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px 12px;
+}
+
+.mk-hist__secao-titulo {
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+  text-transform: uppercase;
+}
+
+.mk-hist__periodo {
+  width: min(340px, 100%);
+}
+
+.mk-hist__kpi {
+  padding: 10px 12px;
+  border: 1px solid #e7eaee;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.mk-hist__separador {
+  margin-top: 8px;
+  padding-top: 16px;
+  border-top: 1px solid #eef0f3;
+}
