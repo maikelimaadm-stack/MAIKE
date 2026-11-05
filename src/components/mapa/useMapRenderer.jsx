@@ -186,6 +186,7 @@ export default function useMapRenderer(mapInstanceRef) {
     if (arrumarRef.current) {
       try {
         mapInstanceRef.current?.off("moveend", arrumarRef.current.handler);
+        mapInstanceRef.current?.off("resize", arrumarRef.current.handler);
       } catch {
         /* ignore */
       }
@@ -272,11 +273,6 @@ export default function useMapRenderer(mapInstanceRef) {
   const arrumarRotulos = () => {
     const map = getMap();
     if (!map) return;
-    // Lote de área sem rótulo (nomes desligados ou área sem nome): volta à
-    // posição padrão, sem o espaço do nome embaixo (D-PROD-127).
-    markersRef.current.forEach((entry, key) => {
-      if (key.startsWith("lote_area_") && !labelsRef.current.has(key.slice("lote_area_".length))) entry.marker.setOffset(OFFSET_LOTE_PX);
-    });
     if (!labelsRef.current.size) return;
     const caixa = (/** @type {Element} */ el) => {
       const r = el.getBoundingClientRect();
@@ -284,9 +280,11 @@ export default function useMapRenderer(mapInstanceRef) {
     };
 
     /**
-     * Põe todos os rótulos num nível e já na posição final (D-PROD-127): sem
-     * lote, o nome centrado no ponto; com lote, o par ícone (em cima) + nome
-     * (embaixo) centrado. A colisão é medida depois disso, no que vai aparecer.
+     * Põe todos os rótulos num nível (D-PROD-126). Posição FIXA (D-PROD-128):
+     * o ícone do lote nunca se mexe (ponta no ponto da área, OFFSET_LOTE_PX);
+     * o nome fica logo abaixo dele, ou — área sem lote — centrado no ponto, por
+     * CSS. Nada depende da altura do texto, então nada pula ao trocar de nível,
+     * no zoom ou ao redimensionar. A colisão é medida no que vai aparecer.
      * @param {"tudo" | "nome" | "sigla"} modo
      */
     const aplicar = (modo) => {
@@ -294,22 +292,14 @@ export default function useMapRenderer(mapInstanceRef) {
         entry.titulo.textContent = modo === "sigla" ? entry.sigla : entry.nome;
         entry.ha.style.display = modo === "tudo" && entry.temHa ? "block" : "none";
         entry.extra.style.display = modo === "tudo" && entry.temExtra ? "block" : "none";
-        const h = entry.el.offsetHeight || 0;
-        const lote = markersRef.current.get(`lote_area_${id}`);
-        if (lote?.el) {
-          const H = lote.el.offsetHeight || 44;
-          const total = H + 2 + h;
-          lote.marker.setOffset([0, Math.round(-total / 2 + H / 2)]);
-          entry.marker.setOffset([0, Math.round(-total / 2 + H + 2)]);
-        } else {
-          entry.marker.setOffset([0, Math.round(-h / 2)]);
-        }
+        const temLote = markersRef.current.has(`lote_area_${id}`);
+        entry.corpo.style.transform = temLote ? "" : "translateY(calc(-50% - 2px))";
       });
     };
     const medir = () => {
       /** @type {Map<string, { x: number, y: number, w: number, h: number }>} */
       const rotulos = new Map();
-      labelsRef.current.forEach((entry, id) => rotulos.set(id, caixa(entry.el)));
+      labelsRef.current.forEach((entry, id) => rotulos.set(id, caixa(entry.corpo)));
       const obstaculos = [];
       markersRef.current.forEach((entry, key) => {
         // `dono`: o ícone do lote da própria área não conta contra o nome dela
@@ -361,6 +351,7 @@ export default function useMapRenderer(mapInstanceRef) {
       const handler = () => agendarArrumar();
       arrumarRef.current = { handler, quadro: 0 };
       map.on("moveend", handler);
+      map.on("resize", handler); // janela/painel mudou de tamanho (D-PROD-128)
     }
     cancelAnimationFrame(arrumarRef.current.quadro);
     arrumarRef.current.quadro = requestAnimationFrame(arrumarRotulos);
@@ -409,11 +400,16 @@ export default function useMapRenderer(mapInstanceRef) {
         ha.style.opacity = "0.95";
         const extra = document.createElement("div");
         extra.style.cssText = "font-weight:600;color:#fef08a;";
-        el.append(titulo, ha, extra);
-        // Rótulo logo abaixo do centroide; o ícone de lotes fica acima (OFFSET_LOTE_PX):
-        // nenhum cobre o outro em qualquer zoom.
+        // `corpo` leva o texto; centralizar é só CSS (translateY), sem medir
+        // nem mexer no offset — nada pula no zoom nem ao redimensionar (D-PROD-128).
+        const corpo = document.createElement("div");
+        corpo.className = "mg-area-label__corpo";
+        corpo.append(titulo, ha, extra);
+        el.append(corpo);
+        // Âncora logo abaixo do ponto; o ícone de lote fica acima, com a ponta
+        // no ponto (OFFSET_LOTE_PX, fixo).
         const marker = new maplibregl.Marker({ element: el, anchor: "top", offset: [0, 2] }).setLngLat([centro.lng, centro.lat]).addTo(map);
-        entry = { el, marker, titulo, ha, extra };
+        entry = { el, corpo, marker, titulo, ha, extra };
         labelsRef.current.set(id, entry);
       } else {
         entry.marker.setLngLat([centro.lng, centro.lat]);

@@ -299,3 +299,12 @@ Harness a 390 px com 72 áreas, com o mapa base trocado por um fundo liso porque
   - Antes, 4 pontos ficavam a menos de 30 m de uma divisa; depois, nenhum. Só o MT - 12 ficou 6 m mais perto da borda (104 m).
   - Evidências v19-02 (antes e depois) e v19-03 (áreas reais com lotes, no harness, com o mapa base trocado por um fundo liso).
 - **Não testado em aparelho.**
+
+### V19c — ícone do lote e nome presos ao pasto (D-PROD-128)
+
+| Pedido | Feito | Medição (harness, áreas reais, 390 px) |
+|---|---|---|
+| Os ícones do gado e os pastos saíam do lugar ao redimensionar | O ícone do lote fica fixo, com a ponta no ponto da área. Sem lote, o nome é centrado por CSS; com lote, fica logo abaixo do ícone. O nível é refeito também no `resize` | Ícones dentro do próprio pasto: afastado **1 de 8 → 8 de 8**; zoom +1 **4 de 7 → 8 de 8**. Nomes: 25 de 26 → 27 de 27 |
+
+**Não testado em aparelho.**
+
