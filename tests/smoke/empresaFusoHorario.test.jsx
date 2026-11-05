@@ -1,5 +1,5 @@
 /**
- * D-PROD-122 (S1/H1) — fuso horário da fazenda no cadastro de Empresa.
+ * D-PROD-124 (S1/H1) — fuso horário da fazenda no cadastro de Empresa.
  *
  * - Criação: o fuso escolhido vai no POST; edição: o PATCH NUNCA leva o campo
  *   (o servidor o recusa) — a troca é pela rota administrativa própria.
@@ -25,7 +25,7 @@ const escolherFuso = (rotulo) => {
   fireEvent.click(within(lista).getByRole("option", { name: rotulo }));
 };
 
-describe("D-PROD-122 — fuso horário da Empresa", () => {
+describe("D-PROD-124 — fuso horário da Empresa", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     try { localStorage.clear(); } catch { /* sem storage */ }

@@ -506,7 +506,8 @@ export default function useMapRenderer(mapInstanceRef) {
             `position:absolute;left:50%;top:69%;transform:translate(-50%,-50%);color:#6b7280;font-size:${FONTE_CONTAGEM_PX}px;font-weight:700;font-family:Inter,Arial,sans-serif;line-height:1;white-space:nowrap;text-shadow:0 0 2px rgba(255,255,255,.95),0 0 3px rgba(255,255,255,.8);pointer-events:none;`;
           const ind = document.createElement("div");
           ind.className = "mg-lote-ident";
-          ind.style.cssText = "position:absolute;left:calc(50% + 18px);top:calc(50% - 22px);transform:translate(-50%,-50%);display:flex;pointer-events:none;";
+          // Identificador no canto de cima à direita, só uma bordinha dentro da figura (D-PROD-125).
+          ind.style.cssText = "position:absolute;left:calc(50% + 22px);top:calc(50% - 24px);transform:translate(-50%,-50%);display:flex;pointer-events:none;";
           entry.el.append(badge, ind);
           entry.badge = badge;
           entry.ind = ind;
@@ -643,7 +644,7 @@ function preencherLote(entry, { totalCabecas, identificadores, totalAlertas, bli
       const d = document.createElement("div");
       d.title = i.nome || i.sigla || "";
       d.style.cssText =
-        "width:15px;height:15px;border-radius:9999px;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;font-size:7px;font-weight:700;color:#fff;line-height:1;overflow:hidden;";
+        "width:13px;height:13px;box-sizing:border-box;border-radius:9999px;border:1px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;font-size:6px;font-weight:700;color:#fff;line-height:1;overflow:hidden;";
       d.style.background = i.cor;
       d.textContent = i.sigla ? String(i.sigla).substring(0, 2) : "";
       return d;

@@ -161,7 +161,7 @@ describe('página Empresa — MotorBase1 + service', () => {
     expect(fonte).toMatch(/bloqueados/);
   });
 
-  it('D-PROD-122 (G3): falha do GET /empresas (ex.: schema sem a coluna nova → 500) aparece como erro, nunca como lista vazia', async () => {
+  it('D-PROD-124 (G3): falha do GET /empresas (ex.: schema sem a coluna nova → 500) aparece como erro, nunca como lista vazia', async () => {
     const { ApiError, API_ERROR_CODES } = await import('@/apis/_core/ApiError');
     serviceMock.listEmpresas.mockRejectedValue(new ApiError(API_ERROR_CODES.OPERATION_FAILED, { operation: 'list', resource: 'Empresa' }));
     await renderPagina();

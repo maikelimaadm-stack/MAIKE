@@ -258,3 +258,25 @@ Morte e Histórico de Movimentação abrem pelos quadros a 1600, 820 e 390 px (h
 
 Teste `notificacoesConfirmacoes`: a promessa do `confirmar`, o aviso de bloqueio, os toasts e a guarda contra `confirm`/`alert`. **Não testado em aparelho real.**
 
+## V18 — Detalhes do Lote: campos numa linha, área em texto, fundo cinza e botões brancos (D-PROD-124)
+
+| Pedido | Feito | Evidência |
+|---|---|---|
+| Sub-ícone só com a imagem | Sem o quadro de fundo, com 26 px | v18-01 |
+| Letras menores e iguais ao "Categoria de Manejo" | Rótulo e valor com 10,5 px (cinza e escuro) | v18-01, v18-02 |
+| Área sem o verde | "Informações da Área" só em texto escuro | v18-01, v18-02 |
+| Sem quebra de linha | Campos numa linha. O texto que não cabe corre devagar | v18-01 ("LOTE COMPOSTO DE ENGORDA") |
+| Remover Categoria Oficial, Sistemas Reprodutivos e Lotes | Removidos | v18-01 |
+| Fundo cinza e botões brancos, como no celular | Corpo cinza, cartões e quadros brancos | v18-01, v18-02 |
+
+**Não testado em aparelho real.**
+
+### V18b — cabeçalho cinza, ✕ branco, sub-ícone maior, fechar só pelo ✕, identificador do mapa (D-PROD-125)
+
+- **Cabeçalho:** o do desktop fica cinza, sem a faixa branca, com o ✕ branco e menos espaço até o primeiro cartão (v18-03).
+- **Sub-ícone:** passa a 36 px sem aumentar a linha (a linha segue com 22 px, medida no harness).
+- **Fechar:**
+  - Desktop: o clique fora e o Esc não fecham mais; só o ✕ fecha (harness: o clique fora e o Esc deixam aberto, o ✕ fecha).
+  - Celular: o gesto da borda (D-PROD-120) segue valendo.
+- **Mapa:** a bolinha do identificador tem 13 px, borda de 1 px e letra de 6 px, no canto de cima à direita, com só uma bordinha dentro da figura. **Não visto no mapa real** (o harness não tem o mapa).
+
