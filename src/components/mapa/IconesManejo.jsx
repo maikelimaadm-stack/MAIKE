@@ -24,7 +24,7 @@ export const IconePesar = iconeImagem("/icons/pesar.png");
 /** Nascimento: vaca com o bezerro e os símbolos de macho e fêmea. */
 export const IconeNascimento = iconeImagem("/icons/nascimento.png");
 
-/** Saída (antigo "Abate"): boi com a seta de saída. */
+/** Saída (antigo "Abate"): boi com o ícone de saída. */
 export const IconeSaida = iconeImagem("/icons/saida.png");
 
 /** Morte: animal deitado com o X. */

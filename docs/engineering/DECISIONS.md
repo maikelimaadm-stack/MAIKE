@@ -5037,7 +5037,7 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
 ## D-PROD-131 — Manejos "Saída" (antigo Abate), "Mover", "Pesar", "Nascimento", "Morte" e "Juntar Lotes": ícones do proprietário
 
 - **Contexto:** o proprietário enviou imagens próprias para seis botões de manejo e pediu que "Abate" passe a se chamar "Saída":
-  - Saída: um boi com a seta de saída;
+  - Saída: um boi com o ícone de saída. É a segunda versão; o arquivo enviado não chegou à sessão, então a imagem foi montada com o mesmo boi das outras imagens e o ícone de saída desenhado igual ao enviado;
   - Mover: um boi com setas de ida e volta (segunda versão; a primeira tinha porteiras);
   - Pesar: uma balança digital com o visor 0.0;
   - Nascimento: uma vaca com o bezerro e os símbolos de macho e fêmea (segunda versão, toda em cinza-escuro);
