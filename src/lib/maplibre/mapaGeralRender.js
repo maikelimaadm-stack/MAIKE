@@ -127,6 +127,40 @@ export function pontoRotuloSeguro(ring) {
   return melhor ? { lat: melhor.lat, lng: melhor.lng } : c;
 }
 
+/**
+ * Quais rótulos de área aparecem, para o mapa não virar uma bagunça de nomes
+ * por cima de nomes (D-PROD-126). Áreas maiores na tela têm prioridade. Cada
+ * rótulo precisa caber na própria área e não bater em outro rótulo nem num
+ * ícone de lote; se não couber inteiro, tenta só o nome (sem "ha"); se nem
+ * isso, some. Aproximando o mapa, tudo volta.
+ *
+ * @typedef {{ x: number, y: number, w: number, h: number }} Caixa
+ * @param {Array<{ id: string, area: Caixa, tudo: Caixa, nome: Caixa }>} rotulos caixas na tela (px)
+ * @param {Caixa[]} [obstaculos] ícones de lote etc.
+ * @param {{ folga?: number, sobraNaArea?: number }} [opcoes]
+ * @returns {Map<string, "tudo" | "nome" | "nada">}
+ */
+export function decidirRotulos(rotulos, obstaculos = [], { folga = 2, sobraNaArea = 6 } = {}) {
+  const colocados = [...obstaculos];
+  const bate = (c) => colocados.some((o) => c.x < o.x + o.w + folga && o.x < c.x + c.w + folga && c.y < o.y + o.h + folga && o.y < c.y + c.h + folga);
+  const cabe = (c, area) => c.w <= area.w + sobraNaArea && c.h <= area.h + sobraNaArea;
+  const ordem = [...rotulos].sort((a, b) => b.area.w * b.area.h - a.area.w * a.area.h);
+  /** @type {Map<string, "tudo" | "nome" | "nada">} */
+  const decisao = new Map();
+  for (const r of ordem) {
+    if (cabe(r.tudo, r.area) && !bate(r.tudo)) {
+      decisao.set(r.id, "tudo");
+      colocados.push(r.tudo);
+    } else if (cabe(r.nome, r.area) && !bate(r.nome)) {
+      decisao.set(r.id, "nome");
+      colocados.push(r.nome);
+    } else {
+      decisao.set(r.id, "nada");
+    }
+  }
+  return decisao;
+}
+
 /** Fonte do rótulo por faixas largas de zoom (sem “pulsar” a cada leve zoom). */
 export function fontesRotuloPorZoom(zoom) {
   if (!Number.isFinite(zoom) || zoom < 13) return { nome: 10, ha: 9 };

@@ -4908,4 +4908,17 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
   Ela exige missão, manifesto e autorização próprios.
 - **Consequência:** a ordem do histórico passa a ser a da vida do rebanho, determinística entre páginas. A virada do runtime invalida uma vez os cursores v1 em memória, com 400 estável e reinício automático. Ver `MAIKE-D-PROD-123-HISTORICO-OCORRENCIA-REPORT.md`.
 
-<!-- Próxima decisão: D-PROD-124 -->
+## D-PROD-126 — Mapa Geral: rótulos de área sem bagunça
+
+> Os números D-PROD-124 e D-PROD-125 ficam com o PR do Detalhes do Lote (#193), aberto em paralelo.
+
+- **Contexto:** no celular, com o mapa afastado, os nomes e os hectares das áreas se atropelam ("bagunça de números", foto do proprietário). Os rótulos são marcadores DOM, sem nenhuma regra de colisão.
+- **Decisão:** `decidirRotulos` (em `mapaGeralRender.js`, função pura) escolhe, a cada movimento ou zoom (`moveend`) e quando as áreas ou os lotes mudam, o que cada rótulo mostra:
+  - As áreas maiores na tela vêm primeiro.
+  - Um rótulo aparece **inteiro** (nome e "ha") se couber na caixa da própria área na tela, com 6 px de folga, e não bater em rótulo já colocado nem em ícone de lote (2 px de folga).
+  - Se o rótulo inteiro não couber ou bater, aparece **só o nome**, com o mesmo teste.
+  - Se nem o nome couber, o rótulo **some**. Aproximando o mapa, ele volta.
+  - A medição é feita com `visibility: hidden`, sem piscar. O `data-rotulo` (tudo, nome ou nada) fica no elemento.
+- **Consequência:** sem texto por cima de texto em nenhum zoom. No harness, a 390 px, com 72 áreas pequenas: antes os 72 se sobrepunham; depois aparecem 29 sem sobreposição; com 2 níveis de zoom aparecem os 72.
+
+<!-- Próxima decisão: D-PROD-127 -->

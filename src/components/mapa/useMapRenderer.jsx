@@ -1,6 +1,6 @@
 import { useRef, useCallback } from "react";
 import { maplibregl, setSourceData } from "@/lib/maplibre/lifecycle.js";
-import { parseVertex } from "@/lib/geografia/coords.js";
+import { parseVertex, parseVertices } from "@/lib/geografia/coords.js";
 import { buildAccuracyCircleCollection } from "@/lib/maplibre/gpsCapture.js";
 import {
   MG_LAYER_IDS,
@@ -8,6 +8,7 @@ import {
   buildMgAreasCollection,
   buildMgLinhasCollection,
   centroideArea,
+  decidirRotulos,
   ensureMgLayers,
   fontesRotuloPorZoom,
   iconeSemAchatar,
@@ -147,6 +148,7 @@ export default function useMapRenderer(mapInstanceRef) {
   const linhasByIdRef = useRef(new Map());
   const dataRef = useRef({ areas: null, linhas: null, user: null });
   const labelZoomHandlerRef = useRef(/** @type {null | (() => void)} */ (null));
+  const arrumarRef = useRef(/** @type {null | { handler: () => void, quadro: number }} */ (null));
 
   const getMap = () => mapInstanceRef.current;
 
@@ -179,6 +181,15 @@ export default function useMapRenderer(mapInstanceRef) {
         /* ignore */
       }
       labelZoomHandlerRef.current = null;
+    }
+    if (arrumarRef.current) {
+      try {
+        mapInstanceRef.current?.off("moveend", arrumarRef.current.handler);
+      } catch {
+        /* ignore */
+      }
+      cancelAnimationFrame(arrumarRef.current.quadro);
+      arrumarRef.current = null;
     }
     areasByIdRef.current.clear();
     linhasByIdRef.current.clear();
@@ -253,6 +264,64 @@ export default function useMapRenderer(mapInstanceRef) {
   }, [mapInstanceRef]);
 
   // ─── Rótulos das áreas (nome + ha + extra) ───
+  /**
+   * Sem bagunça de rótulos (D-PROD-126): mede cada rótulo e a área dele na
+   * tela e mostra só o que cabe sem bater em outro rótulo ou ícone de lote.
+   */
+  const arrumarRotulos = () => {
+    const map = getMap();
+    if (!map || !labelsRef.current.size) return;
+    const caixa = (/** @type {Element} */ el) => {
+      const r = el.getBoundingClientRect();
+      return { x: r.left, y: r.top, w: r.width, h: r.height };
+    };
+    const itens = [];
+    labelsRef.current.forEach((entry, id) => {
+      // mede com tudo à mostra (sem pintar) para decidir
+      entry.el.style.visibility = "hidden";
+      entry.ha.style.display = entry.temHa ? "block" : "none";
+      entry.extra.style.display = entry.temExtra ? "block" : "none";
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      for (const p of entry.ring || []) {
+        const pt = map.project([p.lng, p.lat]);
+        if (pt.x < minX) minX = pt.x;
+        if (pt.y < minY) minY = pt.y;
+        if (pt.x > maxX) maxX = pt.x;
+        if (pt.y > maxY) maxY = pt.y;
+      }
+      if (!Number.isFinite(minX)) return;
+      const tudo = caixa(entry.el);
+      const t = caixa(entry.titulo);
+      itens.push({ id, area: { x: minX, y: minY, w: maxX - minX, h: maxY - minY }, tudo, nome: { x: t.x, y: t.y, w: t.w, h: t.h } });
+    });
+    const obstaculos = [];
+    markersRef.current.forEach((entry, key) => {
+      if (key.startsWith("lote_") && entry.el) obstaculos.push(caixa(entry.el));
+    });
+    const decisao = decidirRotulos(itens, obstaculos);
+    labelsRef.current.forEach((entry, id) => {
+      const d = decisao.get(id) || "nada";
+      if (d === "nome") {
+        entry.ha.style.display = "none";
+        entry.extra.style.display = "none";
+      }
+      entry.el.style.visibility = d === "nada" ? "hidden" : "visible";
+      entry.el.dataset.rotulo = d;
+    });
+  };
+
+  const agendarArrumar = () => {
+    const map = getMap();
+    if (!map) return;
+    if (!arrumarRef.current) {
+      const handler = () => agendarArrumar();
+      arrumarRef.current = { handler, quadro: 0 };
+      map.on("moveend", handler);
+    }
+    cancelAnimationFrame(arrumarRef.current.quadro);
+    arrumarRef.current.quadro = requestAnimationFrame(arrumarRotulos);
+  };
+
   const syncLabels = useCallback((areas, show, extraTextFn, showHectares = true) => {
     const map = getMap();
     if (!map) return;
@@ -310,8 +379,12 @@ export default function useMapRenderer(mapInstanceRef) {
       entry.ha.style.display = haText ? "block" : "none";
       entry.extra.textContent = extraText || "";
       entry.extra.style.display = extraText ? "block" : "none";
+      entry.temHa = Boolean(haText);
+      entry.temExtra = Boolean(extraText);
+      entry.ring = parseVertices(area?.coordenadas?.coords);
       aplicarFonte(entry);
     }
+    agendarArrumar();
   }, [mapInstanceRef]);
 
   /**
@@ -535,6 +608,8 @@ export default function useMapRenderer(mapInstanceRef) {
       });
     }
     syncGrupo(prefix, itens);
+    // Os ícones de lote são obstáculos para os rótulos (D-PROD-126).
+    agendarArrumar();
   }, [mapInstanceRef]);
 
   // ─── Tarefas ───

@@ -258,3 +258,11 @@ Morte e Histórico de Movimentação abrem pelos quadros a 1600, 820 e 390 px (h
 
 Teste `notificacoesConfirmacoes`: a promessa do `confirmar`, o aviso de bloqueio, os toasts e a guarda contra `confirm`/`alert`. **Não testado em aparelho real.**
 
+## V19 — Mapa Geral: rótulos de área sem bagunça (D-PROD-126)
+
+| Pedido | Feito | Evidência |
+|---|---|---|
+| Não ficar a bagunça de nomes e números das áreas no celular | Só aparece o rótulo que cabe na área e não bate em outro rótulo nem em ícone de lote. As áreas maiores vêm primeiro. Sem espaço, o "ha" sai antes. Aproximando, tudo volta | v19-01 (antes · depois · zoom +2) |
+
+Harness a 390 px com 72 áreas pequenas, com o mapa base trocado por um fundo liso porque não há internet: antes, 72 rótulos sobrepostos; depois, 29 sem sobreposição; com zoom +2, os 72. **Não testado no mapa real nem em aparelho.**
+
