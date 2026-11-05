@@ -506,8 +506,8 @@ export default function useMapRenderer(mapInstanceRef) {
             `position:absolute;left:50%;top:69%;transform:translate(-50%,-50%);color:#6b7280;font-size:${FONTE_CONTAGEM_PX}px;font-weight:700;font-family:Inter,Arial,sans-serif;line-height:1;white-space:nowrap;text-shadow:0 0 2px rgba(255,255,255,.95),0 0 3px rgba(255,255,255,.8);pointer-events:none;`;
           const ind = document.createElement("div");
           ind.className = "mg-lote-ident";
-          // Identificador encostado na borda direita da figura (D-PROD-125).
-          ind.style.cssText = "position:absolute;left:calc(50% + 15px);top:calc(50% - 20px);transform:translate(-50%,-50%);display:flex;pointer-events:none;";
+          // Identificador do lado de fora, colado na borda direita da figura (D-PROD-125).
+          ind.style.cssText = "position:absolute;left:calc(50% + 26px);top:calc(50% - 20px);transform:translate(-50%,-50%);display:flex;pointer-events:none;";
           entry.el.append(badge, ind);
           entry.badge = badge;
           entry.ind = ind;

@@ -79,7 +79,7 @@ describe("Ajustes D-PROD-125", () => {
 
   it("identificador do lote no mapa: bolinha menor, borda fina, encostada na figura", () => {
     const mapa = readFileSync("src/components/mapa/useMapRenderer.jsx", "utf8");
-    expect(mapa).toContain("left:calc(50% + 15px)");
+    expect(mapa).toContain("left:calc(50% + 26px)");
     expect(mapa).toContain("width:13px;height:13px;box-sizing:border-box;border-radius:9999px;border:1px solid #fff;");
     expect(mapa).toContain("font-size:6px");
   });
