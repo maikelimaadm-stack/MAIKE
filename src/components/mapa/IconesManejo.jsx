@@ -15,7 +15,7 @@ const iconeImagem = (src) => {
   return Icone;
 };
 
-/** Mover: boi entre duas porteiras, com as setas de troca. */
+/** Mover: boi com as setas de ida e volta. */
 export const IconeMoverAnimais = iconeImagem("/icons/mover-animais.png");
 
 /** Pesar: balança digital com o visor 0.0. */
@@ -26,3 +26,6 @@ export const IconeNascimento = iconeImagem("/icons/nascimento.png");
 
 /** Saída (antigo "Abate"): boi com a seta de saída. */
 export const IconeSaida = iconeImagem("/icons/saida.png");
+
+/** Morte: animal deitado com o X. */
+export const IconeMorte = iconeImagem("/icons/morte.png");
