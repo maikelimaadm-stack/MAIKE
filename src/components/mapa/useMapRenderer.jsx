@@ -13,6 +13,7 @@ import {
   pontoEFolga,
   siglaDaArea,
   ensureMgLayers,
+  aplicarEstiloPasto,
   fontesRotuloPorZoom,
   iconeSemAchatar,
   resolverIconeLote,
@@ -163,12 +164,22 @@ export default function useMapRenderer(mapInstanceRef) {
   const labelZoomHandlerRef = useRef(/** @type {null | (() => void)} */ (null));
   const arrumarRef = useRef(/** @type {null | { handler: () => void, quadro: number }} */ (null));
 
+  const estiloPastoRef = useRef("cheio");
+
   const getMap = () => mapInstanceRef.current;
+
+  /** Estilo dos pastos (D-PROD-132): guardado e reaplicado após troca de basemap. */
+  const setEstiloPasto = useCallback((estilo) => {
+    estiloPastoRef.current = estilo || "cheio";
+    const map = mapInstanceRef.current;
+    if (map) aplicarEstiloPasto(map, estiloPastoRef.current);
+  }, [mapInstanceRef]);
 
   const ensureLayers = useCallback(() => {
     const map = mapInstanceRef.current;
     if (!map) return;
     ensureMgLayers(map);
+    aplicarEstiloPasto(map, estiloPastoRef.current);
     const d = dataRef.current;
     if (d.areas) setSourceData(map, MG_SOURCE_IDS.AREAS, d.areas);
     if (d.linhas) setSourceData(map, MG_SOURCE_IDS.LINHAS, d.linhas);
@@ -214,6 +225,7 @@ export default function useMapRenderer(mapInstanceRef) {
     const map = getMap();
     if (!map) return;
     ensureMgLayers(map);
+    aplicarEstiloPasto(map, estiloPastoRef.current);
     areasCallbacksRef.current = { onClick: onClickArea, onRightClick: onRightClickArea };
     const lista = show ? areas : [];
     areasByIdRef.current = new Map(lista.map((a) => [String(a.id), a]));
@@ -804,7 +816,7 @@ export default function useMapRenderer(mapInstanceRef) {
     }
   }, [mapInstanceRef]);
 
-  return { clearAll, ensureLayers, hitArea, syncAreas, syncLabels, syncPontos, syncLinhas, syncPontosSuplementacao, syncLotes, syncTarefas, syncUserLocation };
+  return { clearAll, ensureLayers, hitArea, syncAreas, syncLabels, syncPontos, syncLinhas, syncPontosSuplementacao, syncLotes, syncTarefas, syncUserLocation, setEstiloPasto };
 }
 
 function identificadoresDoLote(lotesNaArea) {

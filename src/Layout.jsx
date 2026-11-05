@@ -386,6 +386,9 @@ function LayoutShell({ children, currentPageName }) {
   }, {});
 
   const isRoot = location.pathname === createPageUrl(PRIMARY_PAGE);
+  // D-PROD-132: no celular e no tablet o Mapa Geral é a tela de entrada, sem o
+  // cabeçalho do sistema por cima (a barra inferior/lateral continua navegando).
+  const telaMapa = currentPageName === PRIMARY_PAGE;
 
   const appContentOffset = menuOculto ? "51px" : "91px";
 
@@ -467,7 +470,7 @@ function LayoutShell({ children, currentPageName }) {
     </DropdownMenu>;
 
   return (
-    <div className="h-[100dvh] overflow-hidden bg-slate-50 safe-area-top flex flex-col" translate="no" style={{ "--app-content-offset": appContentOffset }}>
+    <div className={`h-[100dvh] overflow-hidden bg-slate-50 safe-area-top flex flex-col${telaMapa ? " mk-shell--mapa" : ""}`} translate="no" style={{ "--app-content-offset": appContentOffset }}>
       <style>{`
         html, body { overscroll-behavior: none; }
         button, [role="button"], a { -webkit-user-select: none; user-select: none; }
@@ -798,7 +801,7 @@ function LayoutShell({ children, currentPageName }) {
             </button>;
         })}
       </nav>
-      <main ref={mainRef} className={`max-w-[1600px] mx-auto flex-1 min-h-0 w-full min-w-0 overflow-hidden md:pb-0 ${mostrarNavInferior ? "pb-[calc(66px+env(safe-area-inset-bottom))]" : "pb-0"}`}>
+      <main ref={mainRef} className={`${telaMapa ? "" : "max-w-[1600px] "}mx-auto flex-1 min-h-0 w-full min-w-0 overflow-hidden md:pb-0 ${mostrarNavInferior ? "pb-[calc(66px+env(safe-area-inset-bottom))]" : "pb-0"}`}>
         <div className="relative h-full min-h-0 overflow-hidden">
           {paginaLiberada ? children : permissoesCarregadas ?
           <div role="alert" data-testid="acesso-sem-tela" className="mx-auto max-w-md p-6 text-center text-sm text-slate-700">
