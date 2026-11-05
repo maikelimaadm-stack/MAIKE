@@ -51,10 +51,11 @@ vi.mock('@/apis/session', async (importOriginal) => {
 
 import { carregarPermissaoEfetiva, permissaoEfetiva, avisarPermissoesAtualizadas, sairDaSessaoNativa } from '@/services/sessionService';
 import { canAccessModule, canAccessPage, canPerformAction } from '@/lib/permissions';
+import { MAPA_GERAL_ACESSO_TOTAL, MAPA_GERAL_ACOES_GRAVADORAS, normalizeMapaGeralPermissions } from '@/lib/mapaGeralPermissions';
 import { ApiError, API_ERROR_CODES, getApiErrorMessage } from '@/apis/_core/ApiError';
 
-const operador = { id: 'u-op', login: 'vaqueiro', email: 'vaqueiro', nome: 'Vaqueiro', administrador_fazenda: false };
-const admin = { id: 'u-adm', login: 'dono', email: 'dono', nome: 'Dono', administrador_fazenda: true };
+const operador = { id: 'u-op', login: 'vaqueiro', email: 'vaqueiro', nome: 'Vaqueiro', administrador_fazenda: false, cliente_id: 'fazenda-1' };
+const admin = { id: 'u-adm', login: 'dono', email: 'dono', nome: 'Dono', administrador_fazenda: true, cliente_id: 'fazenda-1' };
 
 const tela = (modulo_id, tela_id, acoes = {}) => ({
   modulo_id, tela_id, visualizar: false, novo: false, salvar: false, editar: false, excluir: false, importar: false, exportar: false, ...acoes,
@@ -217,16 +218,16 @@ describe('PERM-F3 — cache offline por login, nunca amplia', () => {
   });
 
   it('cache adulterado (outro login, is_admin) é ignorado; logout limpa o cache', async () => {
-    localStorage.setItem('maike_permissao_efetiva:vaqueiro', JSON.stringify({ user_email: 'outro', is_admin: true }));
+    localStorage.setItem('maike_permissao_efetiva:fazenda-1:vaqueiro', JSON.stringify({ user_email: 'outro', is_admin: true }));
     Object.defineProperty(navigator, 'onLine', { configurable: true, value: false });
     expect(await carregarPermissaoEfetiva(operador)).toBeNull();
 
     Object.defineProperty(navigator, 'onLine', { configurable: true, value: true });
     sessao.permissoes = [soVerMapa()];
     await carregarPermissaoEfetiva(operador);
-    expect(localStorage.getItem('maike_permissao_efetiva:vaqueiro')).not.toBeNull();
+    expect(localStorage.getItem('maike_permissao_efetiva:fazenda-1:vaqueiro')).not.toBeNull();
     sairDaSessaoNativa();
-    expect(localStorage.getItem('maike_permissao_efetiva:vaqueiro')).toBeNull();
+    expect(localStorage.getItem('maike_permissao_efetiva:fazenda-1:vaqueiro')).toBeNull();
   });
 
   it('linha removida no servidor apaga o cache (revogação vale offline depois)', async () => {
@@ -236,6 +237,46 @@ describe('PERM-F3 — cache offline por login, nunca amplia', () => {
     expect(await carregarPermissaoEfetiva(operador)).toBeNull();
     Object.defineProperty(navigator, 'onLine', { configurable: true, value: false });
     expect(await carregarPermissaoEfetiva(operador)).toBeNull();
+  });
+});
+
+describe('PERM-R2 — cache por tenant + login; política das ações do mapa', () => {
+  it('mesmo login em OUTRA fazenda não lê o cache; sem tenant conhecido não há cache', async () => {
+    sessao.permissoes = [{ ...soVerMapa(), is_admin: true }];
+    await carregarPermissaoEfetiva(operador);
+    Object.defineProperty(navigator, 'onLine', { configurable: true, value: false });
+    expect((await carregarPermissaoEfetiva(operador))?.is_admin).toBe(true);
+    expect(await carregarPermissaoEfetiva({ ...operador, cliente_id: 'fazenda-2' })).toBeNull();
+    expect(await carregarPermissaoEfetiva({ ...operador, cliente_id: undefined })).toBeNull();
+    localStorage.setItem('maike_permissao_efetiva:fazenda-1:vaqueiro', JSON.stringify({ ...soVerMapa(), cliente_id: 'fazenda-2', is_admin: true }));
+    expect(await carregarPermissaoEfetiva(operador)).toBeNull();
+  });
+
+  it('ação gravadora ausente, objeto ausente ou valor não booleano → desligada; visualização ausente → ligada', () => {
+    const semObjeto = normalizeMapaGeralPermissions(null, true);
+    const omitida = normalizeMapaGeralPermissions({ visualizar_lotes: false }, true);
+    const texto = normalizeMapaGeralPermissions({ mover_lotes: 'true', pesar_lotes: 1 }, true);
+    for (const p of [semObjeto, omitida, texto]) {
+      for (const k of MAPA_GERAL_ACOES_GRAVADORAS) expect(p[k]).toBe(false);
+    }
+    expect(semObjeto.visualizar_lotes).toBe(true);
+    expect(omitida.visualizar_lotes).toBe(false);
+    expect(normalizeMapaGeralPermissions({ mover_lotes: true }, true).mover_lotes).toBe(true);
+    expect(Object.values(normalizeMapaGeralPermissions({ mover_lotes: true }, false)).every((v) => v === false)).toBe(true);
+    expect(Object.values(MAPA_GERAL_ACESSO_TOTAL).every((v) => v === true)).toBe(true);
+  });
+
+  it('mesma lista de ações gravadoras no navegador e no servidor', () => {
+    const servidor = readFileSync('backend/src/shared/auth/autorizacaoTela.js', 'utf8');
+    const lista = servidor.slice(servidor.indexOf('ACOES_GRAVADORAS_MAPA = Object.freeze(['), servidor.indexOf(']);', servidor.indexOf('ACOES_GRAVADORAS_MAPA = Object.freeze([')));
+    const chaves = [...lista.matchAll(/'([a-z_]+)'/g)].map((m) => m[1]);
+    expect(chaves.sort()).toEqual([...MAPA_GERAL_ACOES_GRAVADORAS].sort());
+  });
+
+  it('formulário de usuário não liga ação ausente ao editar registro antigo', () => {
+    const form = readFileSync('src/components/usuarios/FormularioUsuario.jsx', 'utf8');
+    expect(form).toContain('normalizeMapaGeralPermissions(initialData.mapa_geral_permissoes)');
+    expect(form).not.toMatch(/\.\.\.DEFAULT_MAPA_GERAL_PERMISSIONS,\s*\.\.\.initialData\.mapa_geral_permissoes/);
   });
 });
 

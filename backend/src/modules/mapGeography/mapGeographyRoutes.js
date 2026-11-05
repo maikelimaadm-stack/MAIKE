@@ -20,7 +20,7 @@ import {
   criar as criarLinha,
   atualizar as atualizarLinha,
 } from './linhaGeograficaService.js';
-import { porTela, TELAS } from '../../shared/auth/autorizacaoTela.js';
+import { apenasAdminTenant, porTela, TELAS } from '../../shared/auth/autorizacaoTela.js';
 
 const TIPOS_ENTIDADE_ICONE = [
   'Ponto',
@@ -164,7 +164,7 @@ export const registrarMapGeographyRoutes = async (app) => {
 
   app.post(
     '/configuracao-icones',
-    { onRequest: [app.autenticar], bodyLimit: LIMITE_CORPO_ICONE, schema: CRIAR_ICONE_SCHEMA },
+    { onRequest: [app.autenticar], preHandler: [apenasAdminTenant()], bodyLimit: LIMITE_CORPO_ICONE, schema: CRIAR_ICONE_SCHEMA },
     async (request, reply) => {
       exigirAuthContext(request.contexto.auth);
       const icone = await criarIcone(request.contexto, corpoValidado(request.body));
@@ -174,7 +174,7 @@ export const registrarMapGeographyRoutes = async (app) => {
 
   app.patch(
     '/configuracao-icones/:id',
-    { onRequest: [app.autenticar], bodyLimit: LIMITE_CORPO_ICONE, schema: ATUALIZAR_ICONE_SCHEMA },
+    { onRequest: [app.autenticar], preHandler: [apenasAdminTenant()], bodyLimit: LIMITE_CORPO_ICONE, schema: ATUALIZAR_ICONE_SCHEMA },
     async (request) => {
       exigirAuthContext(request.contexto.auth);
       const { id } = /** @type {{id: string}} */ (request.params);

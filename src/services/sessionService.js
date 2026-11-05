@@ -212,23 +212,37 @@ export const permissaoEfetiva = (usuario, registro) => {
 };
 
 const PERMISSAO_LOCAL_PREFIXO = 'maike_permissao_efetiva:';
-const chavePermissaoLocal = (login) => `${PERMISSAO_LOCAL_PREFIXO}${login}`;
+/**
+ * Chave do cache = tenant + login (R2). Sem tenant conhecido (usuário antigo em
+ * cache), não há chave: nada é lido nem gravado — sem cache não se amplia nada.
+ */
+const chavePermissaoLocal = (usuario) => {
+  const login = loginDoUsuario(usuario);
+  const tenant = typeof usuario?.cliente_id === 'string' && usuario.cliente_id ? usuario.cliente_id : null;
+  return login && tenant ? `${PERMISSAO_LOCAL_PREFIXO}${tenant}:${login}` : null;
+};
 
-const lerPermissaoLocal = (login) => {
+const lerPermissaoLocal = (usuario) => {
+  const chave = chavePermissaoLocal(usuario);
+  const login = loginDoUsuario(usuario);
+  if (!chave) return null;
   try {
-    const bruto = localStorage.getItem(chavePermissaoLocal(login));
+    const bruto = localStorage.getItem(chave);
     const salvo = bruto ? JSON.parse(bruto) : null;
-    // Só a linha da PRÓPRIA conta; qualquer outra coisa é descartada.
-    return salvo && salvo.user_email === login ? salvo : null;
+    // Só a linha da PRÓPRIA conta e do MESMO tenant; qualquer outra coisa é descartada.
+    const mesmoTenant = !salvo?.cliente_id || salvo.cliente_id === usuario.cliente_id;
+    return salvo && salvo.user_email === login && mesmoTenant ? salvo : null;
   } catch {
     return null;
   }
 };
 
-const gravarPermissaoLocal = (login, registro) => {
+const gravarPermissaoLocal = (usuario, registro) => {
+  const chave = chavePermissaoLocal(usuario);
+  if (!chave) return;
   try {
-    if (registro) localStorage.setItem(chavePermissaoLocal(login), JSON.stringify(registro));
-    else localStorage.removeItem(chavePermissaoLocal(login));
+    if (registro) localStorage.setItem(chave, JSON.stringify(registro));
+    else localStorage.removeItem(chave);
   } catch {
     // Armazenamento indisponível: segue sem cache (nunca amplia nada).
   }
@@ -258,7 +272,7 @@ export const avisarPermissoesAtualizadas = () => {
 
 /**
  * Lê a permissão efetiva do servidor. Online: grava em cache local SÓ a linha da
- * própria conta (chave por login). Offline ou falha: usa esse cache — que é
+ * própria conta (chave por tenant + login). Offline ou falha: usa esse cache — que é
  * apenas o último valor DADO PELO SERVIDOR, nunca mais que isso — ou `null`.
  * Nenhuma falha vira privilégio; o servidor continua sendo quem bloqueia.
  *
@@ -272,13 +286,13 @@ export const carregarPermissaoEfetiva = async (usuario) => {
     try {
       const todas = await listPermissoes();
       const registro = permissaoDoUsuario(todas, login);
-      gravarPermissaoLocal(login, registro);
+      gravarPermissaoLocal(usuario, registro);
       return permissaoEfetiva(usuario, registro);
     } catch {
       // cai no cache da própria conta
     }
   }
-  return permissaoEfetiva(usuario, lerPermissaoLocal(login));
+  return permissaoEfetiva(usuario, lerPermissaoLocal(usuario));
 };
 
 /**

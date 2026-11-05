@@ -16,8 +16,12 @@
  *    administrador da fazenda — as telas só-admin seguem exigindo o papel);
  *  - senão: módulo concedido E linha da tela presente com `visualizar = true` E
  *    a ação = true. Sem linha, sem módulo, sem tela ou ação ausente → NEGADO;
- *  - ação do Mapa Geral: tela `pec-mapa-geral` visível E a chave do mapa não
- *    desligada (ausente = ligada, a mesma regra do formulário).
+ *  - ação do Mapa Geral: tela `pec-mapa-geral` visível E a chave do mapa:
+ *      · ação GRAVADORA (`ACOES_GRAVADORAS_MAPA`): só `=== true` (R2 — ausente,
+ *        objeto do mapa ausente ou valor não booleano → NEGADO; registro
+ *        parcial legado não ganha ação por padrão);
+ *      · visualização: ausente = ligada (só exibição; a tela já é explícita).
+ *    Mesma regra no navegador (`src/lib/mapaGeralPermissions.js`).
  *
  * Negação: 403 `ACAO_NAO_PERMITIDA`, antes de qualquer escrita (preHandler).
  */
@@ -25,13 +29,24 @@
 import { getPrismaClient } from '../../database/prismaClient.js';
 import { AppError } from '../errors/AppError.js';
 import { exigirAuthContext } from './authContext.js';
-import { atorDoTenant, ehAdminTenantAtivo } from './exigirAdminTenant.js';
+import { atorDoTenant, ehAdminTenantAtivo, tenantAdminRequired } from './exigirAdminTenant.js';
 
 /** Telas do `menuConfig` (ids estáveis, os mesmos gravados em `permissoes_telas`). */
 export const TELAS = Object.freeze({
   MAPA_GERAL: Object.freeze({ modulo: 'mapa', tela: 'pec-mapa-geral' }),
   MAPA_CADASTRO: Object.freeze({ modulo: 'mapa', tela: 'pec-mapa-cadastro' }),
   LOTES: Object.freeze({ modulo: 'manejo', tela: 'pec-lotes' }),
+  SETORES: Object.freeze({ modulo: 'manejo', tela: 'pec-setores' }),
+  CATEGORIAS_MANEJO: Object.freeze({ modulo: 'manejo', tela: 'pec-categorias-manejo' }),
+  BEBEDOUROS: Object.freeze({ modulo: 'manejo', tela: 'pec-bebedouros' }),
+  PRODUTOS: Object.freeze({ modulo: 'suporte-mapa', tela: 'sup-produtos' }),
+  CATEGORIAS: Object.freeze({ modulo: 'suporte-mapa', tela: 'sup-categorias' }),
+  MARCAS: Object.freeze({ modulo: 'suporte-mapa', tela: 'sup-marcas' }),
+  UNIDADES: Object.freeze({ modulo: 'suporte-mapa', tela: 'sup-unidades' }),
+  LOCAIS: Object.freeze({ modulo: 'suporte-mapa', tela: 'sup-locais' }),
+  TIPOS_TAREFA: Object.freeze({ modulo: 'suporte-mapa', tela: 'sup-tipos-tarefa' }),
+  GRUPOS_ATIVIDADE: Object.freeze({ modulo: 'suporte-mapa', tela: 'sup-grupos-atividades' }),
+  EMPRESA: Object.freeze({ modulo: 'administracao', tela: 'adm-empresa' }),
 });
 
 export const ACOES = Object.freeze(['visualizar', 'novo', 'salvar', 'editar', 'excluir', 'importar', 'exportar']);
@@ -53,6 +68,34 @@ export const chaveMapaDoTipo = (tipo) => {
   if (t === 'renomear lote') return 'renomear_lotes';
   if (t === 'juncao de lotes' || t === 'juncao') return 'juntar_lotes';
   return null;
+};
+
+/**
+ * Chaves do Mapa Geral que GRAVAM (manejo, suplementação, depósitos). Mesma
+ * lista de `MAPA_GERAL_ACOES_GRAVADORAS` no navegador (teste de paridade).
+ */
+export const ACOES_GRAVADORAS_MAPA = Object.freeze([
+  'mover_lotes', 'pesar_lotes', 'mudar_categoria_lotes', 'registrar_nascimento', 'registrar_morte',
+  'registrar_abate', 'renomear_lotes', 'juntar_lotes', 'lancar_suplementacao', 'movimentar_depositos',
+]);
+
+const semAcento = (v) => String(v ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+
+/**
+ * R2 — `POST /movimentacoes-mapa` genérico: allowlist tipada. Devolve a chave
+ * do mapa exigida, ou `null` = "sem contrato" (só o administrador real).
+ *  - registro informativo do Renomear Lote (tipo 'Entrada' ou 'Renomear Lote'
+ *    + motivo 'Renomear Lote') → `renomear_lotes`;
+ *  - tipo conhecido (por qualquer grafia normalizada) → a chave do tipo;
+ *  - qualquer outro tipo/alias → null.
+ * @param {Record<string, unknown>|undefined|null} corpo
+ */
+export const chaveMapaDoGenerico = (corpo) => {
+  const tipo = semAcento(corpo?.tipo);
+  const motivo = semAcento(corpo?.motivo);
+  if (motivo === 'renomear lote' && (tipo === 'entrada' || tipo === 'renomear lote')) return 'renomear_lotes';
+  if (motivo && motivo !== tipo) return null;
+  return chaveMapaDoTipo(corpo?.tipo);
 };
 
 /** @param {Record<string, unknown>} details */
@@ -97,7 +140,14 @@ export const mapaPermite = (aut, chave) => {
   if (aut.adminReal || aut.registro?.is_admin === true) return true;
   const mapa = aut.registro?.mapa_geral_permissoes;
   const valor = mapa && typeof mapa === 'object' && !Array.isArray(mapa) ? mapa[chave] : undefined;
+  if (ACOES_GRAVADORAS_MAPA.includes(chave)) return valor === true;
   return valor !== false;
+};
+
+/** preHandler: só o administrador REAL da fazenda (papel relido do banco). */
+export const apenasAdminTenant = () => async (request) => {
+  const aut = await carregarAutorizacao(request.contexto);
+  if (!aut.adminReal) throw tenantAdminRequired();
 };
 
 /**
@@ -132,6 +182,22 @@ export const autorizar = (decidir) => async (request) => {
 /** preHandler: exige a ação na tela. */
 export const porTela = (alvo, acao) =>
   autorizar((_req, aut) => (telaPermite(aut, alvo, acao) ? true : { tela: alvo.tela, acao }));
+
+/**
+ * preHandler "qualquer uma de": a ação passa se UMA das concessões valer — a
+ * tela do cadastro ou a tela de onde a interface faz o cadastro rápido. Cada
+ * item é `[alvo, acao]` (tela) ou `{ mapa: chave }` (ação do Mapa Geral).
+ * @param {Array<[{modulo: string, tela: string}, string] | {mapa: string}>} opcoes
+ */
+export const porQualquer = (...opcoes) =>
+  autorizar((_req, aut) =>
+    opcoes.some((o) => (Array.isArray(o) ? telaPermite(aut, o[0], o[1]) : mapaPermite(aut, o.mapa)))
+      ? true
+      : { exige: opcoes.map((o) => (Array.isArray(o) ? `${o[0].tela}:${o[1]}` : `mapa:${o.mapa}`)) });
+
+/** preHandler: administrador real OU a concessão explícita `is_admin` da linha (todas as telas). */
+export const porAcessoTotal = () =>
+  autorizar((_req, aut) => (aut.adminReal || (aut.ativo && aut.registro?.is_admin === true) ? true : { exige: ['acesso_total'] }));
 
 /** preHandler: exige a chave do mapa (fixa ou derivada da requisição). */
 export const porMapa = (chaveOuFn) =>

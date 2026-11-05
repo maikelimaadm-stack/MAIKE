@@ -20,7 +20,7 @@ vi.mock('@/apis/_providers/base44Provider.js', () => ({
   tarefasProvider: {}, sessionProvider: {}, rebanhoProvider: {}, arquivosProvider: {},
 }));
 
-import { normalizeMapaGeralPermissions, DEFAULT_MAPA_GERAL_PERMISSIONS } from '@/lib/mapaGeralPermissions';
+import { normalizeMapaGeralPermissions, DEFAULT_MAPA_GERAL_PERMISSIONS, MAPA_GERAL_ACESSO_TOTAL } from '@/lib/mapaGeralPermissions';
 import { CACHE_KEYS } from '@/services/mapaCacheService';
 
 /** Fonte sem comentários: comentário explicativo não é código. */
@@ -42,7 +42,7 @@ const MAPA_CADASTRO = 'src/pages/MapaCadastro.jsx';
  */
 const permissoesDaPagina = ({ currentUser, permissaoAtual, podeAcessarPagina }) => {
   if (currentUser?.administrador_fazenda === true || permissaoAtual?.is_admin === true) {
-    return normalizeMapaGeralPermissions({}, true);
+    return { ...MAPA_GERAL_ACESSO_TOTAL };
   }
   return normalizeMapaGeralPermissions(permissaoAtual?.mapa_geral_permissoes, podeAcessarPagina);
 };
@@ -75,6 +75,9 @@ describe('MG3/MG4 — permissões', () => {
       podeAcessarPagina: true,
     });
     expect(comum.visualizar_tarefas).toBe(false);
+    // R2: registro parcial legado — ação que grava não informada fica desligada.
+    expect(comum.mover_lotes).toBe(false);
+    expect(comum.visualizar_lotes).toBe(true);
     // As demais chaves continuam existindo, com o padrão do produto.
     expect(Object.keys(comum)).toEqual(Object.keys(DEFAULT_MAPA_GERAL_PERMISSIONS));
   });
@@ -87,7 +90,7 @@ describe('MG3/MG4 — permissões', () => {
   it('a página continua usando exatamente esta combinação (módulo `mapa`, papel real)', () => {
     const fonte = codigoDe(MAPA_GERAL);
     expect(fonte).toContain("ehAdministrador(currentUser) || permissaoAtual?.is_admin === true");
-    expect(fonte).toContain('normalizeMapaGeralPermissions({}, true)');
+    expect(fonte).toContain('return { ...MAPA_GERAL_ACESSO_TOTAL }');
     expect(fonte).toContain("canAccessPage(permissaoAtual, 'pec-mapa-geral', 'mapa')");
     expect(fonte).not.toContain("'pec-mapa-geral', 'pecuaria'");
     expect(fonte).not.toContain("role === 'admin'");

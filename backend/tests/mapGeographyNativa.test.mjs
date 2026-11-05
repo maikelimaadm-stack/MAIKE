@@ -30,8 +30,9 @@ beforeEach(async () => {
 const EMPRESA = 'empresa-legada-1';
 const auth = (token) => ({ authorization: `Bearer ${token}` });
 
+// R2 (PR #199): ícones são configuração só do administrador real da fazenda.
 const tenantAutenticado = async (opcoes) => {
-  const { credenciais } = await criarTenant(opcoes);
+  const { credenciais } = await criarTenant({ papelTenant: 'administrador', ...opcoes });
   const { corpo } = await autenticarNoApp(app, credenciais);
   return { token: corpo.token };
 };

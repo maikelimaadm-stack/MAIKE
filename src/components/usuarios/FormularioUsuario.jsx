@@ -16,7 +16,7 @@ import { Shield, Lock } from "lucide-react";
 import { toast } from "sonner";
 import ConfiguracaoPermissoesTelas from "@/components/usuarios/ConfiguracaoPermissoesTelas";
 import { DEFAULT_MENU, getMenuModules } from "@/lib/menuConfig";
-import { DEFAULT_MAPA_GERAL_PERMISSIONS } from "@/lib/mapaGeralPermissions";
+import { DEFAULT_MAPA_GERAL_PERMISSIONS, normalizeMapaGeralPermissions } from "@/lib/mapaGeralPermissions";
 import { createRestrictedPagePermission } from "@/lib/permissions";
 import { getUserDisplayName, isExcludedSystemUser } from "@/lib/userDisplayName";
 import LancField from "@/components/cadastro/base1/LancField";
@@ -36,11 +36,11 @@ const createInitialFormData = (initialData) => ({
   permissoes_telas: initialData?.permissoes_telas || RESTRICTED_PAGE_PERMISSIONS,
   mobile_menu_ids: initialData?.mobile_menu_ids || [],
   is_admin: initialData?.is_admin || false,
+  // R2: a mesma regra da aplicação (servidor e mapa). Antes o formulário
+  // mesclava os padrões `true`: editar um registro antigo sem a chave de ação
+  // gravava a ação como LIGADA sem o administrador ter marcado.
   mapa_geral_permissoes: initialData?.mapa_geral_permissoes
-    ? {
-        ...DEFAULT_MAPA_GERAL_PERMISSIONS,
-        ...initialData.mapa_geral_permissoes,
-      }
+    ? normalizeMapaGeralPermissions(initialData.mapa_geral_permissoes)
     : RESTRICTED_MAPA_GERAL_PERMISSIONS,
 });
 

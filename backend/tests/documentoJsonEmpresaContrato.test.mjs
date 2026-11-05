@@ -54,7 +54,7 @@ const ROTAS_JSON = Object.freeze([
 
 const cenario = async () => {
   const prisma = getPrismaClient();
-  const { cliente, credenciais } = await criarTenant();
+  const { cliente, credenciais } = await criarTenant({ papelTenant: 'administrador' }); // R2: documento sem tipo é só do administrador real
   const { corpo } = await autenticarNoApp(app, credenciais);
   const empresa = await prisma.empresa.create({ data: { cliente_id: cliente.id, numero_empresa: 1, fuso_horario: 'America/Sao_Paulo', apelido: 'FAZ', nome: 'Fazenda' } });
   return { token: corpo.token, cliente, empresa };

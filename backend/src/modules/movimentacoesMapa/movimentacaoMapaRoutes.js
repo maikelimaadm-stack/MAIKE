@@ -12,7 +12,7 @@ import { MAX_ORIGENS_JUNCAO } from './juncaoConstantes.js';
 import { executarBaixaRebanho } from './manejoBaixaComandoService.js';
 import { CAUSAS_MORTE, DESTINOS_ABATE, MAX_LINHAS_BAIXA, MAX_LOTES_SELECIONADOS, TIPOS_BAIXA } from './baixaConstantes.js';
 import { executarManejoRebanho, MAX_LINHAS, MODOS_PESAGEM, PESO_MAXIMO_KG, SEXOS, TIPOS_DO_COMANDO_REBANHO } from './manejoRebanhoComandoService.js';
-import { porMapa, chaveMapaDoTipo, autorizar, mapaPermite, telaPermite, TELAS } from '../../shared/auth/autorizacaoTela.js';
+import { porMapa, chaveMapaDoTipo, chaveMapaDoGenerico, autorizar, mapaPermite, TELAS } from '../../shared/auth/autorizacaoTela.js';
 
 /** Ação do Mapa Geral exigida pelo `tipo` do corpo (já validado pelo schema). */
 const chaveDoCorpo = (request) => chaveMapaDoTipo(request.body?.tipo);
@@ -284,10 +284,13 @@ export const registrarMovimentacaoMapaRoutes = async (app) => {
   // própria exige "salvar" no Mapa Geral.
   app.post('/movimentacoes-mapa', {
     onRequest: [app.autenticar],
+    // R2: allowlist tipada. Renomeio informativo → `renomear_lotes`; tipo
+    // conhecido → a chave do tipo; tipo/alias sem contrato → só o administrador
+    // real (nem "salvar" nem a concessão `is_admin` da linha bastam).
     preHandler: [autorizar((req, aut) => {
-      const chave = chaveMapaDoTipo(/** @type {any} */ (req.body)?.tipo);
+      const chave = chaveMapaDoGenerico(/** @type {any} */ (req.body));
       if (chave) return mapaPermite(aut, chave) ? true : { tela: TELAS.MAPA_GERAL.tela, mapa: chave };
-      return telaPermite(aut, TELAS.MAPA_GERAL, 'salvar') ? true : { tela: TELAS.MAPA_GERAL.tela, acao: 'salvar' };
+      return aut.adminReal ? true : { tela: TELAS.MAPA_GERAL.tela, tipo: 'sem_contrato' };
     })],
     schema: CRIAR_SCHEMA }, async (request, reply) => {
     exigirAuthContext(request.contexto.auth);

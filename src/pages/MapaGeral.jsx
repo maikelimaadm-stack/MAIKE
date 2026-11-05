@@ -4,7 +4,7 @@ import { getMapaCachedData, refreshMapaCacheEntry } from "@/services/mapaCacheSe
 import { EVENTO_PERMISSOES_ATUALIZADAS, carregarPermissaoEfetiva, ehAdministrador, getCurrentUser } from "@/services/sessionService";
 import { listarBebedourosAtivos } from "@/services/mapaService";
 import { canAccessPage } from "@/lib/permissions";
-import { normalizeMapaGeralPermissions } from "@/lib/mapaGeralPermissions";
+import { MAPA_GERAL_ACESSO_TOTAL, normalizeMapaGeralPermissions } from "@/lib/mapaGeralPermissions";
 import { Button } from "@/components/ui/button";
 import { BarChart3 } from "lucide-react";
 import { toast } from "sonner";
@@ -227,7 +227,7 @@ export default function MapaGeral() {
   const acessoTotalTelas = ehAdministrador(currentUser) || permissaoAtual?.is_admin === true;
 
   const mapaGeralPermissions = useMemo(() => {
-    if (acessoTotalTelas) return normalizeMapaGeralPermissions({}, true);
+    if (acessoTotalTelas) return { ...MAPA_GERAL_ACESSO_TOTAL };
     return normalizeMapaGeralPermissions(
       permissaoAtual?.mapa_geral_permissoes,
       canAccessPage(permissaoAtual, 'pec-mapa-geral', 'mapa')
