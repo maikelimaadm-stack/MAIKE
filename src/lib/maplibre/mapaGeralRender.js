@@ -262,7 +262,7 @@ export function siglaDaArea(area) {
  *
  * @typedef {{ x: number, y: number, w: number, h: number }} Caixa
  * @param {Array<{ id: string, area: Caixa, tudo: Caixa, nome: Caixa }>} rotulos caixas na tela (px)
- * @param {Caixa[] | { tudo: Caixa[], nome: Caixa[] }} [obstaculos] ícones de lote etc.; por nível quando eles mudam de lugar com o nível
+ * @param {Array<Caixa & { dono?: string }> | { tudo: Array<Caixa & { dono?: string }>, nome: Array<Caixa & { dono?: string }> }} [obstaculos] ícones de lote etc.; por nível quando eles mudam de lugar com o nível. `dono` = id da área do ícone: o ícone da própria área não conta contra o nome dela
  * @param {{ folga?: number, sobraNaArea?: number, tolerancia?: number }} [opcoes]
  * @returns {"tudo" | "nome" | "sigla"}
  */
@@ -275,7 +275,7 @@ export function escolherModoRotulos(rotulos, obstaculos = [], { folga = 2, sobra
       const c = r[chave];
       const naoCabe = c.w > r.area.w + sobraNaArea || c.h > r.area.h + sobraNaArea;
       const obs = Array.isArray(obstaculos) ? obstaculos : obstaculos[chave] || [];
-      const colide = obs.some((o) => bate(c, o)) || rotulos.some((o, k) => k !== i && bate(c, o[chave]));
+      const colide = obs.some((o) => o.dono !== r.id && bate(c, o)) || rotulos.some((o, k) => k !== i && bate(c, o[chave]));
       if (naoCabe || colide) n += 1;
     });
     return n;

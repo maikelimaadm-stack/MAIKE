@@ -44,6 +44,13 @@ describe("escolherModoRotulos (D-PROD-126)", () => {
     expect(escolherModoRotulos(r, { tudo: [], nome: [] })).toBe("tudo");
   });
 
+  it("o ícone do lote da própria área não conta contra o nome dela (revisão Cursor no #194)", () => {
+    const r = [rot("a", cx(0, 0, 100, 100), cx(10, 47, 40, 30))];
+    const proprio = { ...cx(10, 0, 40, 46.5), dono: "a" }; // meio pixel de arredondamento
+    expect(escolherModoRotulos(r, [proprio])).toBe("tudo");
+    expect(escolherModoRotulos(r, [{ ...proprio, dono: "b" }])).not.toBe("tudo");
+  });
+
   it("uma área minúscula entre muitas não derruba o mapa para a sigla (tolerância 10%)", () => {
     const r = Array.from({ length: 12 }, (_, i) => rot(`a${i}`, cx(i * 200, 0, 150, 100), cx(i * 200 + 10, 10, 40, 24)));
     r.push(rot("mini", cx(5000, 0, 10, 5), cx(5000, 0, 40, 24)));
@@ -111,5 +118,8 @@ describe("pontoMaisDentro — nome e lote no miolo da área torta (D-PROD-127)",
     // par ícone + nome centrado no ponto; sem lote, nome no meio
     expect(r).toMatch(/lote\.marker\.setOffset\(\[0, Math\.round\(-total \/ 2 \+ H \/ 2\)\]\)/);
     expect(r).toMatch(/entry\.marker\.setOffset\(\[0, Math\.round\(-h \/ 2\)\]\)/);
+    // nomes desligados: o lote volta à posição padrão (revisão Cursor no #194)
+    expect(r).toMatch(/!labelsRef\.current\.has\(key\.slice\("lote_area_"\.length\)\)\) entry\.marker\.setOffset\(OFFSET_LOTE_PX\)/);
+    expect(r.indexOf("entry.marker.setOffset(OFFSET_LOTE_PX)")).toBeLessThan(r.indexOf("if (!labelsRef.current.size) return;"));
   });
 });
