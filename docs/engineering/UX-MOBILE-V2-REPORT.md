@@ -299,3 +299,32 @@ Harness a 390 px com 72 áreas, com o mapa base trocado por um fundo liso porque
   - Antes, 4 pontos ficavam a menos de 30 m de uma divisa; depois, nenhum. Só o MT - 12 ficou 6 m mais perto da borda (104 m).
   - Evidências v19-02 (antes e depois) e v19-03 (áreas reais com lotes, no harness, com o mapa base trocado por um fundo liso).
 - **Não testado em aparelho.**
+
+### V19c — ícone do lote e nome com posição fixa (D-PROD-128)
+
+| Pedido | Feito | Medição |
+|---|---|---|
+| Manter o zoom como está, mas os ícones e os nomes não podem sair da posição | O par ícone + nome continua centrado, com posições constantes (`PAR_LOTE`): ícone a −14 px e nome a +10 px. Sem lote, o nome é centrado por CSS. Nada é medido | Harness com áreas reais: espaço de 5 px entre o ícone e o nome em todos os zooms e níveis |
+
+Duas tentativas anteriores nesta rodada (ícone fixo com a ponta no ponto e ícone encolhendo com o pasto) foram revertidas a pedido do proprietário. **Não testado em aparelho.**
+
+### V19d — o nome do pasto acompanha o zoom (D-PROD-129)
+
+| Pedido | Feito | Medição (zoom 16,5 → 12, áreas reais) |
+|---|---|---|
+| Ícone perfeito, sem mudar o zoom dele; os nomes não podem parecer sair da área ao dar zoom | A fonte do nome acompanha o zoom suavemente, a cada quadro, e o nível (sigla, nome ou ha) é revisto durante o zoom (no máximo a cada 120 ms), não só no fim. O ícone não muda | Texto dentro do pasto: média 81% → 92%; pior quadro 49% → 90% |
+
+**Não testado em aparelho.**
+
+### V19e — o nome do pasto encolhe junto com o pasto (D-PROD-130)
+
+| Pedido | Feito | Medição (áreas reais) |
+|---|---|---|
+| Os nomes ainda se moviam e saíam dos polígonos | A cada quadro do zoom, o nome escala para caber no círculo livre do seu pasto (de 60% a 100%). O ícone não muda | Afastando: média 94% e pior 93% (eram 81% e 49%). Aproximando: média 97% e pior 94% (v19-05) |
+
+**Não testado em aparelho.**
+
+
+## V20 — Botões do mapa: revertido
+
+O novo visual dos botões do Mapa Geral (D-PROD-131: painel Visualização, sem o ✕ e sem o cabeçalho no celular) foi **desfeito a pedido do proprietário** ("remova por enquanto"). O mapa voltou ao estado do D-PROD-130. O número D-PROD-131 fica livre.

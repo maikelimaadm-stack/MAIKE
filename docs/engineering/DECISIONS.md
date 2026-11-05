@@ -4991,4 +4991,47 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
   - só o MT - 12 ficou um pouco mais perto da borda (110 → 104 m), ainda longe dela;
   - harness com as áreas reais e lotes: v19-03.
 
-<!-- Próxima decisão: D-PROD-128 -->
+## D-PROD-128 — Mapa Geral: ícone do lote e nome com posição fixa (não saem do lugar)
+
+- **Contexto:** o proprietário quer manter o zoom e o tamanho dos ícones como estão (D-PROD-126/127), mas os ícones do gado e os nomes "saíam da posição".
+  - O D-PROD-127 centrava o par ícone + nome recalculando os `offset` pela **altura medida** do nome e do ícone.
+  - Por isso, a cada troca de nível (sigla, nome ou nome + ha), na mudança de fonte no fim do zoom, ao redimensionar e quando a figura do boi terminava de carregar (44 px no lugar do círculo de 38 px), o ícone e o nome subiam ou desciam.
+  - Duas tentativas anteriores nesta rodada foram revertidas a pedido do proprietário: o ícone com a ponta fixa no ponto e o ícone encolhendo com o pasto.
+- **Decisão:**
+  - **Visual mantido:** o par ícone + nome segue centrado no ponto da área, com o mesmo tamanho e o mesmo zoom.
+  - **Posições constantes (`PAR_LOTE`):** a conta usa alturas reservadas fixas: ícone de 44 px, 2 px de espaço e nome de 26 px.
+    - Ícone: `offset` [0, −14].
+    - Nome: [0, +10], logo abaixo do ícone.
+    - Nada é medido (`offsetHeight` sai do código).
+  - **Área sem lote:** o nome fica centrado no ponto por CSS (`translateY(-50%)` num `corpo` interno), sem medir.
+- **Consequência:** no harness com as áreas reais, a distância entre o ícone e o nome ficou igual (5 px) em todos os níveis e zooms. Nada se mexe ao trocar de nível, ao aproximar ou afastar, ao redimensionar ou ao carregar a imagem.
+
+## D-PROD-129 — Mapa Geral: o nome do pasto acompanha o zoom (não parece sair da área)
+
+- **Contexto:** o proprietário aprovou o ícone do gado e pediu para não mexer no zoom dele. Mas, ao dar zoom, os nomes dos pastos "pareciam se afastar da área".
+  - Medido quadro a quadro, o nome **não** se desloca em relação ao ponto: o centro do texto fica a 0 px.
+  - O efeito vinha do **tempo** das trocas:
+    - a fonte mudava em degraus (10, 11 e 12 px) e só no `zoomend`;
+    - o nível (sigla, nome ou nome + ha) só era revisto no `moveend`.
+  - Ao afastar, o pasto encolhia durante todo o zoom enquanto o nome continuava grande. No pior quadro, só 49% do texto ficava dentro do pasto.
+- **Decisão (só o nome; o ícone não muda):**
+  - **Fonte suave:** `fontesRotuloPorZoom` vai de 10 px (zoom ≤ 13) a 12 px (zoom ≥ 17), de ¼ em ¼ px. O "ha" fica 1 px menor, com mínimo de 9 px. É aplicada no evento `zoom`, a cada quadro.
+  - **Nível durante o zoom:** `arrumarDuranteZoom` revê sigla, nome ou nome + ha a no máximo cada 120 ms enquanto o zoom acontece, além do `moveend`.
+  - `data-area` no rótulo (id da área), para a medição.
+- **Consequência:** no zoom de 16,5 para 12 (áreas reais, harness, 390 px), a fração do texto dentro do próprio pasto passou de 81% para 92% na média e de 49% para 90% no pior quadro. No fim, segue em 90%.
+
+## D-PROD-130 — Mapa Geral: o nome do pasto encolhe junto com o pasto no zoom
+
+- **Contexto:** mesmo com o D-PROD-129, o proprietário via os nomes "se movendo" e saindo dos polígonos ao dar zoom.
+  - Raiz: o nome tem tamanho fixo em px, enquanto o pasto muda 2× por nível de zoom. A fonte de 10 a 12 px não acompanha isso, então ao afastar o polígono encolhe por baixo do nome.
+- **Decisão (só o nome; o ícone do lote não muda):**
+  - `pontoEFolga` dá o ponto do nome e a **folga** dele, isto é, o raio do círculo livre em volta.
+  - Em cada `arrumarRotulos`, o texto é medido sem escala e a folga é convertida em px no zoom atual (`raio0`, `z0`).
+  - **A cada quadro do zoom**, `escalarNome` aplica `scale(s)` no texto, com `s = escalaRotulo(w, h, raio0·2^(z−z0))`. O texto cabe no círculo livre, com até 100% do tamanho normal e no mínimo 60%, para continuar legível.
+  - Origem da escala: centro do texto (área sem lote) ou topo do texto (com lote, logo abaixo do ícone).
+- **Consequência:** fração do texto dentro do próprio pasto (áreas reais, harness, 390 px):
+  - afastando (zoom 16,5 → 12): média 94% e pior quadro 93% (era 81% e 49% no início da rodada; 92% e 90% com o D-PROD-129);
+  - aproximando: média 97% e pior quadro 94%;
+  - evidência: v19-05.
+
+<!-- Próxima decisão: D-PROD-131 -->
