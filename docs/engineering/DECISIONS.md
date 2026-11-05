@@ -5058,4 +5058,23 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
   - Teste: `tests/smoke/iconesManejo.test.jsx`.
   - Evidências: v21-01 e v21-02.
 
-<!-- Próxima decisão: D-PROD-132 -->
+## D-PROD-132 — Mapa Geral: camadas e filtros salvos por usuário; permissão não apaga a preferência
+
+- **Contexto:** a cada acesso o mapa abria "limpo", com Áreas, Detalhes Áreas e Lotes desligados.
+  - Ao abrir, a permissão ainda carregando valia "nada liberado" (PR #199).
+  - Um efeito desligava as camadas, e a gravação salvava isso por cima da preferência.
+  - Além disso, a preferência era por empresa, não por usuário.
+- **Decisão:**
+  - **O que o usuário escolhe** (`pref*`) é salvo.
+  - **O que aparece** é a preferência E a permissão, calculado na renderização. A permissão nunca reescreve a preferência.
+  - **A gravação** só começa depois de aplicar a preferência do usuário atual.
+  - **Chave local:** fazenda + conta + empresa.
+  - **Migração:** no primeiro acesso de cada usuário, a preferência herda o que o aparelho já tinha salvo (chave por empresa e chave legada).
+- **Consequência:**
+  - O mapa reabre como o usuário deixou.
+  - Contas diferentes no mesmo aparelho não se misturam.
+  - A preferência fica **no aparelho** (localStorage). Em outro aparelho, o usuário começa do padrão, e só então passa a ter a preferência salva ali. Sincronizar entre aparelhos exigiria gravar no servidor; fica para outro slice.
+  - Teste: `tests/smoke/mapaFiltrosPorUsuario.test.jsx`. RED na main: depois de abrir o mapa, a preferência salva ficava `showAreas:false`, `showLotes:false`.
+  - Relatório: `docs/engineering/MAIKE-MAPA-FILTROS-POR-USUARIO-REPORT.md`.
+
+<!-- Próxima decisão: D-PROD-133 -->

@@ -138,10 +138,11 @@ describe('R3-03 — shell App.jsx', () => {
 
 describe('R3-04 — filtros Mapa Geral', () => {
   it('lerFiltrosMapaGeral tolera JSON inválido', () => {
+    const escopo = { clienteId: 'tenant-1', login: 'u', empresaId: 'x' };
     localStorage.setItem('mapa_geral_filtros_x', '{bad');
-    expect(lerFiltrosMapaGeral('x')).toBeNull();
+    expect(lerFiltrosMapaGeral(escopo)).toBeNull();
     localStorage.setItem('mapa_geral_filtros_x', JSON.stringify({ showLotes: false }));
-    expect(lerFiltrosMapaGeral('x')).toEqual({ showLotes: false });
+    expect(lerFiltrosMapaGeral(escopo)).toEqual({ showLotes: false });
   });
 
   it('MapaGeral monta com storage corrompido', async () => {
