@@ -36,7 +36,28 @@ chamada direta.
 - Fechar isso exige separar as leituras "do mapa" das leituras "do cadastro".
   É o próximo slice (§ plano no relatório).
 
-## Tabela
+## Matriz permissão → efeito autorizado → condição verificável (R3)
+
+"0 rotas sem guarda" NÃO quer dizer "0 caminhos de permissão excessiva". Esta matriz diz o que cada concessão
+permite gravar e sob qual condição o servidor confere. Todas as condições são relidas do banco a cada requisição.
+
+| Concessão | Efeito autorizado | Condição verificada no servidor |
+|---|---|---|
+| administrador real (`papel_tenant`) | tudo no tenant, inclusive Permissões, Usuários, ícones, fuso, ativação, cancelamento/exclusão e rotas sem tela | `Usuario` ativo e com papel `administrador` (dentro da transação nas ações administrativas) |
+| linha `is_admin` | todas as telas e ações, incluindo as tarefas do mapa | linha da própria conta no tenant. **Não** inclui Permissões, Usuários, ícones, rotas sem tela nem `POST` genérico sem contrato |
+| `mover_lotes` | transferência (comando do ledger / manejo-lote) e **fechamento do período** de suplementação ao mover | fechamento: o corpo só traz os campos aceitos pelo service (`CAMPOS_PATCH_PERMITIDOS`) **e** o registro está aberto (`dias_periodo` vazio). **Não** cria suplementação nem grava sobras |
+| `lancar_suplementacao` | criar/editar suplementação (evento, lotes, bulk, lançamento com lotes) e saída de estoque da suplementação | tela do Mapa Geral visível + chave `=== true`. **Não** move gado |
+| `movimentar_depositos` | transferência entre depósitos | idem |
+| demais chaves do mapa (pesar, morte, abate, nascimento, categoria, renomear, juntar) | o comando do tipo correspondente; renomear: PATCH só dos campos de nome e o registro informativo | chave `=== true`; no PATCH de lote, só os campos de nome |
+| Mapa Cadastro `novo`/`salvar`/`editar` | áreas, pontos, linhas, cochos, depósitos, locais, bebedouro | ação da tela. Mudar o nome do local nas movimentações e notas aceita **só** `local_origem`, `local_destino` e `local_estoque_nome` |
+| Mapa Cadastro `excluir` | excluir pontos e cochos; desvincular cochos do depósito excluído | PATCH de cocho só com `deposito_origem_id` e `deposito_origem_nome` |
+| Locais `editar`/`salvar` | cadastro de locais + renomear o depósito ligado | PATCH de ponto só com `nome_ponto`, `local_estoque_nome` e `deposito_origem_nome` |
+| Cadastro de Lotes `novo`/`editar`/`salvar` | lotes; setor e categoria de manejo rápidos (**só criar**); anexos e upload | ação da tela; remover anexo exige `excluir` |
+| tela X `editar`/`salvar` (Lote, Produto, Setor, Grupo, Tipo de tarefa) | `/referencias/sincronizar` **da própria entidade X** | `entity_name` do corpo precisa ser a entidade da tela concedida |
+| Bebedouros, ou Mapa Geral `salvar`/`excluir` | histórico de bebedouro | ação da tela |
+| Empresa `novo`/`editar`/`excluir` | cadastro da empresa | ação da tela (o fuso exige o administrador real) |
+
+## Tabela rota → guarda
 
 Total: 201 rotas · (a) 76 · (b) 2 · (c) 65 · (d) 56 · pública 2 · (e) LACUNA 0
 

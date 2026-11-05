@@ -259,3 +259,45 @@ Arquivo: `MAIKE-PERMISSOES-R2-COBERTURA-ENDPOINTS.md`.
    - `DetalhesBebedouro` não foi tocado nesta PR.
 3. **Heurística de clique do Layout:** continua só como conveniência visual (ícones, "Nova…" e Enter escapam). A segurança é o 403 do servidor.
 4. **Janela de revogação em voo:** ver 9.2. Trava transacional `FOR UPDATE` na linha de permissão só se o arquiteto exigir.
+
+## 10. R3 — desvio de privilégio em suplementação e outros `porQualquer`
+
+### 10.1 Reproduzido no HEAD `454ace85`
+Arquivo: `backend/tests/permissoesR3.test.mjs`. Resultado: 8 de 9 falham. Todas as provas são de persistência, comparando a fotografia de todas as tabelas do tenant, o AuditLog e o ledger antes e depois.
+
+| Concessão | Requisição | Resultado no HEAD | Agora |
+|---|---|---|---|
+| só `mover_lotes` | `POST /suplementacao-eventos` (`quantidade_total_kg: 5000`) | **201: gravou o evento e o AuditLog** | 403, nada gravado |
+| só `mover_lotes` | `POST /suplementacao-lotes`, `/bulk`, `lancamento-com-lotes` | (o 1º já tinha gravado) | 403 |
+| só `mover_lotes` | `PATCH` de evento já fechado (`sobra_kg: 99`) | **200: reescreveu o período fechado** | 403 |
+| só `mover_lotes` | sobras depois da transferência (o passo 2 do `DetalhesLote`) | **201** | 403. A transferência continua 201 e fica gravada no ledger |
+| Locais `editar` | `PATCH /pontos-suplementacao` com `coordenadas` | **200: moveu o ponto** | 403. Renomear o depósito continua 200 |
+| Tipos de tarefa `editar` | `/referencias/sincronizar` com `entity_name: Lote` | **`total_updated: 1`: renomeou Lote nas referências** | 403. `TipoTarefa` continua passando |
+| Cadastro de Lotes `editar` | `DELETE /registros-anexo/:id` | chegava ao service | 403 (exige `excluir`) |
+
+Barreira que **já existia** (provada, não reescrita): o service de suplementação só aceita por PATCH os campos do fechamento (`CAMPOS_PATCH_PERMITIDOS`, 409 `REGISTRO_OPERACIONAL_IMUTAVEL`). Por isso o PATCH arbitrário de `quantidade_total_kg` nunca gravou. O risco real no PATCH era reescrever um período já fechado.
+
+### 10.2 Lançamento livre × sobra de transferência — escolha técnica
+- O passo de sobras (`registrarSobrasNoDestino` em `DetalhesLote.jsx`) chama as rotas genéricas sem nenhum vínculo verificável com a transferência. O cliente nem repassa o id da movimentação.
+- Um comando de sobras ligado a um evento de transferência comprovado exigiria alterar o `DetalhesLote.jsx`, arquivo da PR #198 aberta (colisão). Por isso **não** foi feito nesta PR.
+- **Não** foi criada confiança em campo do cliente.
+- **Contrato atual (fail-closed):**
+  - criar suplementação (POST, bulk, lançamento com lotes) exige `lancar_suplementacao`;
+  - com `mover_lotes`, o PATCH só fecha um período **aberto**, com os campos do fechamento;
+  - quem tem `mover_lotes` sem `lancar_suplementacao` move normalmente, mas as **sobras não são gravadas**. O fluxo existente avisa: "Transferência registrada, mas as sobras do cocho NÃO foram registradas… Registre a suplementação no cocho do destino".
+- **Limitação operacional registrada:** um comando dedicado de sobras ligado à transferência fica para depois do merge da #198. Não está "100% pronto" para esse perfil.
+
+### 10.3 Revisão dos demais `porQualquer`
+Corrigidos:
+- **cocho/depósito:** os PATCH de tela cruzada só nos campos do fluxo (`excluir` → desvincular; Locais → renomear);
+- **movimentação de estoque e nota:** o Mapa Cadastro só renomeia o local;
+- **referências:** exigem a tela da própria entidade;
+- **anexo:** remover exige `excluir`.
+
+Mantidos, com contrato explícito:
+- setor e categoria de manejo rápidos a partir do Cadastro de Lotes (só criar);
+- local e bebedouro a partir do Mapa Cadastro;
+- histórico de bebedouro por Mapa Geral `salvar`/`excluir` (risco residual 9.4-2);
+- upload por Lotes ou Empresa.
+
+Matriz permissão → efeito → condição: ver `MAIKE-PERMISSOES-R2-COBERTURA-ENDPOINTS.md`.

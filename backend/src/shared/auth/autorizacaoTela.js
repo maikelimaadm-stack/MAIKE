@@ -187,17 +187,43 @@ export const porTela = (alvo, acao) =>
  * preHandler "qualquer uma de": a ação passa se UMA das concessões valer — a
  * tela do cadastro ou a tela de onde a interface faz o cadastro rápido. Cada
  * item é `[alvo, acao]` (tela) ou `{ mapa: chave }` (ação do Mapa Geral).
- * @param {...(Array<any> | {mapa: string})} opcoes  `[alvo, acao]` ou `{ mapa }`
+ * @param {...any} opcoes  `[alvo, acao]`, `{ mapa }` ou `{ de, campos }`
  */
 export const porQualquer = (...opcoes) =>
-  autorizar((_req, aut) =>
-    opcoes.some((o) => (Array.isArray(o) ? telaPermite(aut, o[0], o[1]) : mapaPermite(aut, o.mapa)))
+  autorizar((req, aut) =>
+    acessoTotal(aut) || opcoes.some((o) => opcaoPermite(req, aut, o))
       ? true
-      : { exige: opcoes.map((o) => (Array.isArray(o) ? `${o[0].tela}:${o[1]}` : `mapa:${o.mapa}`)) });
+      : { exige: opcoes.map(rotuloDaOpcao) });
+
+/**
+ * Uma opção de `porQualquer`:
+ *  - `[alvo, acao]` — tela/ação;  `{ mapa }` — ação do Mapa Geral;
+ *  - `{ de: <opção>, campos: [...] }` — R3: a concessão só vale se o corpo
+ *    tocar APENAS esses campos (fluxo de tela cruzada: renomear o depósito a
+ *    partir de Locais, desvincular cochos ao excluir no Mapa Cadastro…).
+ */
+const opcaoPermite = (req, aut, o) => {
+  if (Array.isArray(o)) return telaPermite(aut, o[0], o[1]);
+  if (o && o.de) return somenteCampos(req?.body, o.campos) && opcaoPermite(req, aut, o.de);
+  return mapaPermite(aut, o.mapa);
+};
+const rotuloDaOpcao = (o) =>
+  Array.isArray(o) ? `${o[0].tela}:${o[1]}` : o?.de ? `${rotuloDaOpcao(o.de)}[${o.campos.join(',')}]` : `mapa:${o.mapa}`;
+
+/** Administrador real ou a concessão `is_admin` da linha (todas as telas e ações). */
+export const acessoTotal = (aut) => Boolean(aut?.adminReal || (aut?.ativo && aut.registro?.is_admin === true));
+
+/**
+ * O corpo é um objeto não vazio que só traz chaves desta lista.
+ * @param {unknown} corpo @param {readonly string[]} campos
+ */
+export const somenteCampos = (corpo, campos) =>
+  Boolean(corpo) && typeof corpo === 'object' && !Array.isArray(corpo) &&
+  Object.keys(corpo).length > 0 && Object.keys(corpo).every((k) => campos.includes(k));
 
 /** preHandler: administrador real OU a concessão explícita `is_admin` da linha (todas as telas). */
 export const porAcessoTotal = () =>
-  autorizar((_req, aut) => (aut.adminReal || (aut.ativo && aut.registro?.is_admin === true) ? true : { exige: ['acesso_total'] }));
+  autorizar((_req, aut) => (acessoTotal(aut) ? true : { exige: ['acesso_total'] }));
 
 /** preHandler: exige a chave do mapa (fixa ou derivada da requisição). */
 export const porMapa = (chaveOuFn) =>
