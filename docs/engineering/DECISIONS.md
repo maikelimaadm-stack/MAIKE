@@ -4926,4 +4926,15 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
   - O mapa afastado mostra só as siglas, todas; aproximando, todas ganham o nome e depois o ha.
   - No harness, a 390 px, com 72 áreas: antes, os nomes se sobrepunham (v19-00). Agora o mapa afastado mostra as 72 siglas, e com zoom +1 aparecem os 72 nomes com o ha (v19-01).
 
-<!-- Próxima decisão: D-PROD-127 -->
+## D-PROD-127 — Mapa Geral: nome e ícone do lote no miolo da área, não em cima da divisa
+
+- **Contexto:** em áreas tortas (em L, recortadas ou com quina), o nome caía em cima de uma divisa ("desalinhamento", fotos do proprietário: KM - 01). O ponto usado era o centroide, e o ponto de varredura só era usado quando o centroide caía fora. O proprietário pediu cuidado para o lote não ficar errado.
+- **Decisão:** `centroideArea` passa a usar `pontoMaisDentro`, o ponto mais longe de todas as bordas (centro do maior círculo que cabe na área, algoritmo polylabel, com a longitude corrigida pela latitude e precisão de 1% do menor lado). `pontoRotuloSeguro` fica como reserva.
+  - Em área quadrada continua sendo o centro.
+  - **O mesmo ponto vale para o rótulo, o ícone do lote** (acima, `OFFSET_LOTE_PX`) e a tarefa sem coordenada própria. Assim o lote segue dentro da sua área, junto do nome.
+- **Consequência:** medido nas 107 áreas reais (projeto MAIKE):
+  - a menos de 30 m de uma divisa: antes 4 pontos (KM - 14 a 5 m, KM - 08 C a 13 m, MT - 15 a 16 m, MT - 05 A a 29 m); depois nenhum;
+  - nenhuma área piorou;
+  - o KM - 01 passou de 48 m para 130 m da borda.
+
+<!-- Próxima decisão: D-PROD-128 -->

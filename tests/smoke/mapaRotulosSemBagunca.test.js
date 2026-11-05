@@ -4,7 +4,8 @@
  */
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
-import { escolherModoRotulos, siglaDaArea } from "@/lib/maplibre/mapaGeralRender.js";
+import { centroideArea, escolherModoRotulos, pontoMaisDentro, siglaDaArea } from "@/lib/maplibre/mapaGeralRender.js";
+import { pointInPolygonRing } from "@/lib/maplibre/taskLocationPicker.js";
 
 const cx = (x, y, w, h) => ({ x, y, w, h });
 /** rótulo com caixa "tudo" (nome + ha) e "nome" (metade de cima) */
@@ -49,5 +50,45 @@ describe("escolherModoRotulos (D-PROD-126)", () => {
     expect(r).toMatch(/if \(modo === "sigla"\) entry\.titulo\.textContent = entry\.sigla;/);
     expect(r).not.toMatch(/visibility = d === "nada"/);
     expect((r.match(/agendarArrumar\(\);/g) || []).length).toBeGreaterThanOrEqual(2);
+  });
+});
+
+describe("pontoMaisDentro — nome e lote no miolo da área torta (D-PROD-127)", () => {
+  // distância (em graus) do ponto à borda mais próxima
+  const borda = (p, ring) => Math.min(...ring.map((a, i) => {
+    const b = ring[(i + 1) % ring.length];
+    const dx = b.lng - a.lng, dy = b.lat - a.lat;
+    const t = Math.max(0, Math.min(1, ((p.lng - a.lng) * dx + (p.lat - a.lat) * dy) / (dx * dx + dy * dy)));
+    return Math.hypot(p.lng - (a.lng + dx * t), p.lat - (a.lat + dy * t));
+  }));
+
+  it("quadrado: o centro", () => {
+    const q = [{ lat: 0, lng: 0 }, { lat: 0, lng: 0.02 }, { lat: -0.02, lng: 0.02 }, { lat: -0.02, lng: 0 }];
+    const p = pontoMaisDentro(q);
+    expect(p.lat).toBeCloseTo(-0.01, 6);
+    expect(p.lng).toBeCloseTo(0.01, 6);
+  });
+
+  it("área em L: o ponto fica dentro e bem longe das divisas (o centroide fica colado na quina)", () => {
+    // L: perna grossa embaixo, perna fina subindo à esquerda
+    const L = [
+      { lat: 0, lng: 0 }, { lat: 0, lng: 0.004 }, { lat: -0.012, lng: 0.004 }, { lat: -0.012, lng: 0.02 },
+      { lat: -0.02, lng: 0.02 }, { lat: -0.02, lng: 0 },
+    ];
+    const p = pontoMaisDentro(L);
+    expect(pointInPolygonRing(p, L)).toBe(true);
+    const c = { lat: L.reduce((t, v) => t + v.lat, 0) / L.length, lng: L.reduce((t, v) => t + v.lng, 0) / L.length };
+    expect(borda(p, L)).toBeGreaterThan(borda(c, L) * 2);
+    expect(borda(p, L)).toBeGreaterThan(0.0035);
+  });
+
+  it("o nome e o ícone do lote usam o mesmo ponto (centroideArea → pontoMaisDentro)", () => {
+    const L = [[0, 0], [0, 0.004], [-0.012, 0.004], [-0.012, 0.02], [-0.02, 0.02], [-0.02, 0]];
+    const area = { coordenadas: { coords: L } };
+    const viaArea = centroideArea(area);
+    const direto = pontoMaisDentro(L.map(([lat, lng]) => ({ lat, lng })));
+    expect(viaArea).toEqual(direto);
+    const r = readFileSync("src/components/mapa/useMapRenderer.jsx", "utf8");
+    expect((r.match(/centroideArea\(area\)/g) || []).length).toBeGreaterThanOrEqual(3); // rótulo, lote e tarefa
   });
 });

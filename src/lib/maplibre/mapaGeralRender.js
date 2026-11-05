@@ -86,7 +86,89 @@ export function buildMgLinhasCollection(linhas) {
 export function centroideArea(area) {
   const ring = parseVertices(area?.coordenadas?.coords);
   if (ring.length < 3) return null;
-  return pontoRotuloSeguro(ring);
+  // D-PROD-127: o ponto mais "de dentro" (longe de todas as bordas), para o
+  // nome e o ícone do lote não caírem em cima de uma divisa em área torta.
+  return pontoMaisDentro(ring) || pontoRotuloSeguro(ring);
+}
+
+/**
+ * Ponto mais longe das bordas do polígono (centro do maior círculo que cabe
+ * dentro — "polo de inacessibilidade"), D-PROD-127. Em área quadrada é o
+ * centro; em L, U ou recortada fica no miolo da parte mais larga, nunca numa
+ * divisa nem fora. Busca em grade com refinamento (algoritmo polylabel), em
+ * metros aproximados (longitude corrigida pela latitude).
+ * @param {{ lat: number, lng: number }[]} ring anel aberto válido (≥3)
+ * @param {number} [precisao] fração do menor lado da caixa (padrão 1%)
+ * @returns {{ lat: number, lng: number } | null}
+ */
+export function pontoMaisDentro(ring, precisao = 0.01) {
+  if (!Array.isArray(ring) || ring.length < 3) return null;
+  const k = Math.cos(((ring.reduce((t, p) => t + p.lat, 0) / ring.length) * Math.PI) / 180) || 1;
+  const pts = ring.map((p) => [p.lng * k, p.lat]);
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const [x, y] of pts) {
+    if (x < minX) minX = x;
+    if (y < minY) minY = y;
+    if (x > maxX) maxX = x;
+    if (y > maxY) maxY = y;
+  }
+  const larg = maxX - minX;
+  const alt = maxY - minY;
+  const lado = Math.min(larg, alt);
+  if (!(lado > 0)) return null;
+  const minimo = lado * precisao;
+
+  /** distância com sinal do ponto à borda (positiva dentro) */
+  const dist = (x, y) => {
+    let dentro = false;
+    let menor = Infinity;
+    for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+      const [ax, ay] = pts[i];
+      const [bx, by] = pts[j];
+      if ((ay > y) !== (by > y) && x < ((bx - ax) * (y - ay)) / (by - ay) + ax) dentro = !dentro;
+      let dx = bx - ax;
+      let dy = by - ay;
+      let px = ax;
+      let py = ay;
+      if (dx !== 0 || dy !== 0) {
+        const t = Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / (dx * dx + dy * dy)));
+        px = ax + dx * t;
+        py = ay + dy * t;
+      }
+      dx = x - px;
+      dy = y - py;
+      const d2 = dx * dx + dy * dy;
+      if (d2 < menor) menor = d2;
+    }
+    return (dentro ? 1 : -1) * Math.sqrt(menor);
+  };
+  const celula = (x, y, h) => {
+    const d = dist(x, y);
+    return { x, y, h, d, max: d + h * Math.SQRT2 };
+  };
+
+  // começa pelo centroide (em quadrado/retângulo ele já é a resposta)
+  const c = safeCentroid(ring);
+  let melhor = c ? celula(c.lng * k, c.lat, 0) : celula(minX + larg / 2, minY + alt / 2, 0);
+  const centroCaixa = celula(minX + larg / 2, minY + alt / 2, 0);
+  if (centroCaixa.d > melhor.d) melhor = centroCaixa;
+
+  const fila = [];
+  const h0 = lado / 2;
+  for (let x = minX; x < maxX; x += lado) for (let y = minY; y < maxY; y += lado) fila.push(celula(x + h0, y + h0, h0));
+  let voltas = 0;
+  while (fila.length && voltas++ < 5000) {
+    // maior potencial primeiro
+    let iMax = 0;
+    for (let i = 1; i < fila.length; i += 1) if (fila[i].max > fila[iMax].max) iMax = i;
+    const cel = fila.splice(iMax, 1)[0];
+    if (cel.d > melhor.d) melhor = cel;
+    if (cel.max - melhor.d <= minimo) continue;
+    const h = cel.h / 2;
+    fila.push(celula(cel.x - h, cel.y - h, h), celula(cel.x + h, cel.y - h, h), celula(cel.x - h, cel.y + h, h), celula(cel.x + h, cel.y + h, h));
+  }
+  if (!(melhor.d > 0)) return null;
+  return { lat: melhor.y, lng: melhor.x / k };
 }
 
 /**

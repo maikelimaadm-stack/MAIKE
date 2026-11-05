@@ -266,3 +266,13 @@ Teste `notificacoesConfirmacoes`: a promessa do `confirmar`, o aviso de bloqueio
 | Primeira versão "picada" rejeitada; quer a sigla quando não couber | Sem esconder nenhum. Sigla do cadastro ou, sem ela, o nome sem o prefixo ("KM - 01" → "01") | v19-01 |
 
 Harness a 390 px com 72 áreas, com o mapa base trocado por um fundo liso porque não há internet: afastado, as 72 siglas; com zoom +1, os 72 nomes com o ha. **Não testado no mapa real nem em aparelho.**
+
+### V19b — nome e ícone do lote no miolo da área (D-PROD-127)
+
+- **Pedido:** resolver os nomes desalinhados, em cima das divisas, nas áreas que não são quadradas, sem errar o lugar do lote.
+- **Feito:** o ponto do nome, do lote e da tarefa passa a ser o mais longe de todas as bordas (polylabel). O mesmo ponto vale para o nome e para o lote.
+- **Medição nas 107 áreas reais:**
+  - Antes, 4 pontos ficavam a menos de 30 m de uma divisa; depois, nenhum. Nenhuma área piorou.
+  - O antes e o depois no harness, com as áreas reais e o mapa base trocado por um fundo liso, estão em v19-02.
+- **Não testado em aparelho.**
+
