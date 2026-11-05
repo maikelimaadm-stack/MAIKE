@@ -27,7 +27,7 @@ import { flattenMenuPages } from "@/lib/menuConfig";
 export const ICONE_MODULO = { mapa: Map, manejo: LayoutGrid, "suporte-mapa": Package, administracao: Shield };
 
 /** Ícone de cada tela (url do `menuConfig`). */
-const ICONE_TELA = {
+export const ICONE_TELA = {
   MapaGeral: Map,
   MapaCadastro: Pen,
   CadastroLotes: LayoutGrid,

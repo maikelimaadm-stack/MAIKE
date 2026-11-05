@@ -1,86 +1,141 @@
 import React from "react";
-import { Button } from "@/components/ui/button";
-import { X, Filter, Target, RefreshCw, ClipboardList, Move } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { ChevronDown, ClipboardList, Layers, Menu, Move, RefreshCw, SlidersHorizontal, Target } from "lucide-react";
+import { useMapaShell } from "@/lib/mapaShellContext";
 
+const CAMADAS = [
+  { id: "roadmap", label: "Mapa" },
+  { id: "satellite", label: "Satélite" },
+];
+
+/**
+ * Controles flutuantes do Mapa Geral (D-PROD-131), iguais no celular, tablet e computador.
+ *
+ * - Alto à esquerda: ☰ (menu lateral, no lugar do antigo ✕) + nome da fazenda
+ *   (troca a empresa) e as ferramentas Tarefas e Filtros.
+ * - Alto à direita: Camadas (Mapa/Satélite numa escolha só) e Atualizar,
+ *   Minha localização e Mover lotes num grupo único.
+ */
 export default function MapaControlesMobile({
   mapType, setMapType,
   onRefresh, onLocate, onToggleDrag,
   dragEnabled = false,
-  onOpenTarefas, onOpenInsights, onOpenFiltros,
+  onOpenTarefas, onOpenFiltros,
   showTarefasButton = true,
-  showInsightsButton = true,
   showFiltrosButton = true
 }) {
-  const navigate = useNavigate();
+  const shell = useMapaShell();
+  const [camadasAberto, setCamadasAberto] = React.useState(false);
+  const camadasRef = React.useRef(/** @type {HTMLDivElement | null} */ (null));
+
+  React.useEffect(() => {
+    if (!camadasAberto) return undefined;
+    const fora = (e) => {
+      if (!camadasRef.current?.contains(/** @type {Node} */ (e.target))) setCamadasAberto(false);
+    };
+    const esc = (e) => e.key === "Escape" && setCamadasAberto(false);
+    document.addEventListener("pointerdown", fora, true);
+    document.addEventListener("keydown", esc);
+    return () => {
+      document.removeEventListener("pointerdown", fora, true);
+      document.removeEventListener("keydown", esc);
+    };
+  }, [camadasAberto]);
+
+  const camadaAtual = CAMADAS.find((c) => c.id === mapType) || CAMADAS[0];
 
   return (
     <>
-      {/* Top-left: voltar + ações */}
-      <div className="bg-transparent p-1 rounded-lg absolute top-1 left-1 z-20 flex gap-1.5 spacy-1 gap-1 shadow-md">
-        <Button
-          variant="secondary"
-          size="icon" className="bg-neutral-50 text-secondary-foreground text-sm font-medium rounded-full inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-secondary/80 h-7 w-7 shadow-md"
+      <div className="mk-mapa-topo">
+        {shell ? (
+          <div className="mk-mapa-card mk-mapa-fazenda">
+            <button type="button" className="mk-mapa-btn" onClick={shell.abrirMenu} aria-label="Abrir menu" title="Menu">
+              <Menu size={19} aria-hidden />
+            </button>
+            <span className="mk-mapa-fazenda__div" aria-hidden />
+            {shell.trocarEmpresa ? (
+              <button type="button" className="mk-mapa-fazenda__nome" onClick={shell.trocarEmpresa} aria-label="Trocar empresa" title="Trocar empresa">
+                <span>{shell.empresaNome}</span>
+                <ChevronDown size={14} aria-hidden />
+              </button>
+            ) : (
+              <span className="mk-mapa-fazenda__nome">
+                <span>{shell.empresaNome}</span>
+              </span>
+            )}
+          </div>
+        ) : null}
 
-          onClick={() => navigate(-1)}>
-          
-          <X className="w-5 h-5 text-slate-700" />
-        </Button>
-        {showTarefasButton &&
-        <Button variant="secondary" size="icon" onClick={onOpenTarefas} className="bg-neutral-50 text-secondary-foreground text-sm font-medium rounded-full inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-secondary/80 h-7 w-7 shadow-md" title="Tarefas">
-            <ClipboardList className="w-5 h-5 text-slate-700" />
-          </Button>
-        }
-        
-
-
-
-        
-        {showFiltrosButton &&
-        <Button variant="secondary" size="icon" onClick={onOpenFiltros} className="bg-neutral-50 text-secondary-foreground text-sm font-medium rounded-full inline-flex items-center justify-center gap-2 whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-secondary/80 h-7 w-7 shadow-md" title="Filtros">
-            <Filter className="w-5 h-5 text-slate-700" />
-          </Button>
-        }
+        {showTarefasButton || showFiltrosButton ? (
+          <div className="mk-mapa-ferramentas">
+            {showTarefasButton ? (
+              <button type="button" className="mk-mapa-card mk-mapa-chip" onClick={onOpenTarefas} aria-label="Tarefas" title="Tarefas">
+                <ClipboardList size={17} aria-hidden />
+                <span className="mk-mapa-chip__txt">Tarefas</span>
+              </button>
+            ) : null}
+            {showFiltrosButton ? (
+              <button type="button" className="mk-mapa-card mk-mapa-chip" onClick={onOpenFiltros} aria-label="Filtros" title="Filtros">
+                <SlidersHorizontal size={17} aria-hidden />
+                <span className="mk-mapa-chip__txt">Filtros</span>
+              </button>
+            ) : null}
+          </div>
+        ) : null}
       </div>
 
-      {/* Top-right: mapa/satélite + ações */}
-      <div className="absolute top-0.5 right-1 z-20 flex flex-col items-end gap-1 spacy-1">
-        <div className="bg-transparent p-1 rounded-lg flex gap-1 shadow-md pointer-events-auto">
-          <Button
+      <div className="mk-mapa-dir">
+        <div ref={camadasRef} className="mk-mapa-camadas">
+          <button
             type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => setMapType('roadmap')}
-            className={`h-7 px-3 text-xs rounded-md border shadow-sm pointer-events-auto ${mapType === 'roadmap' ? 'bg-black text-white border-black hover:bg-black' : 'bg-white text-black border-slate-300 hover:bg-slate-100'}`}>
-            Mapa
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => setMapType('satellite')}
-            className={`h-7 px-3 text-xs rounded-md border shadow-sm pointer-events-auto ${mapType === 'satellite' ? 'bg-black text-white border-black hover:bg-black' : 'bg-white text-black border-slate-300 hover:bg-slate-100'}`}>
-            Satélite
-          </Button>
+            className={`mk-mapa-card mk-mapa-btn mk-mapa-btn--solo${camadasAberto ? " is-on" : ""}`}
+            onClick={() => setCamadasAberto((v) => !v)}
+            aria-expanded={camadasAberto}
+            aria-haspopup="true"
+            aria-label={`Camadas do mapa: ${camadaAtual.label}`}
+            title="Camadas do mapa">
+            <Layers size={18} aria-hidden />
+          </button>
+          {camadasAberto ? (
+            <div className="mk-mapa-card mk-mapa-camadas__menu" role="group" aria-label="Tipo de mapa">
+              <span className="mk-mapa-camadas__titulo">Tipo de mapa</span>
+              <div className="mk-mapa-camadas__opcoes">
+                {CAMADAS.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    aria-pressed={mapType === c.id}
+                    className={`mk-mapa-camada${mapType === c.id ? " is-on" : ""}`}
+                    onClick={() => {
+                      setMapType(c.id);
+                      setCamadasAberto(false);
+                    }}>
+                    <span className={`mk-mapa-camada__mini mk-mapa-camada__mini--${c.id}`} aria-hidden />
+                    {c.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
         </div>
-        <div className="bg-transparent text-black p-1 rounded-lg flex flex-col gap-1 shadow-md pointer-events-auto spacy-1">
-          <Button type="button" variant="secondary" size="icon" onClick={onRefresh} className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 bg-neutral-50 hover:bg-neutral-100 text-slate-700 h-7 w-7 rounded-full shadow-md pointer-events-auto">
-            <RefreshCw className="w-4 h-4" />
-          </Button>
-          <Button type="button" variant="secondary" size="icon" onClick={onLocate} className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 bg-neutral-50 hover:bg-neutral-100 text-slate-700 h-7 w-7 rounded-full shadow-md pointer-events-auto">
-            <Target className="w-4 h-4" />
-          </Button>
-          <Button
-            type="button"
-            variant="secondary"
-            size="icon"
-            onClick={onToggleDrag} className={`inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 h-7 w-7 rounded-full shadow-md pointer-events-auto ${dragEnabled ? 'bg-black hover:bg-black text-white' : 'bg-neutral-50 hover:bg-neutral-100 text-slate-700'}`}
 
+        <div className="mk-mapa-card mk-mapa-pilha">
+          <button type="button" className="mk-mapa-btn" onClick={onRefresh} aria-label="Atualizar mapa" title="Atualizar mapa">
+            <RefreshCw size={17} aria-hidden />
+          </button>
+          <button type="button" className="mk-mapa-btn" onClick={onLocate} aria-label="Minha localização" title="Minha localização">
+            <Target size={17} aria-hidden />
+          </button>
+          <button
+            type="button"
+            className={`mk-mapa-btn${dragEnabled ? " is-on" : ""}`}
+            onClick={onToggleDrag}
+            aria-pressed={dragEnabled}
+            aria-label={dragEnabled ? "Arrasto ativo" : "Ativar arrasto"}
             title={dragEnabled ? "Arrasto ativo" : "Ativar arrasto"}>
-            <Move className="w-4 h-4" />
-          </Button>
+            <Move size={17} aria-hidden />
+          </button>
         </div>
       </div>
-    </>);
-
+    </>
+  );
 }

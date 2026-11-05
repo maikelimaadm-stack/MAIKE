@@ -42,6 +42,8 @@ import {
 
 import MobileSheet from "@/components/common/MobileSheet";
 import MobileModulesView from "@/components/navigation/MobileModulesView";
+import MenuLateral from "@/components/navigation/MenuLateral";
+import { MapaShellContext } from "@/lib/mapaShellContext";
 import { MobileShellProvider, useMobileShellState } from "@/lib/mobileShellContext";
 import { instalarTecladoDoFormulario } from "@/lib/tecladoFormulario";
 import useDeslizarParaVoltar, { useDeslizarParaFechar } from "@/hooks/useDeslizarParaVoltar";
@@ -81,6 +83,7 @@ function LayoutShell({ children, currentPageName }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileModuloId, setMobileModuloId] = useState(null);
   const [empresaSheetOpen, setEmpresaSheetOpen] = useState(false);
+  const [menuLateralOpen, setMenuLateralOpen] = useState(false);
   const shellMobile = useMobileShellState();
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -356,6 +359,9 @@ function LayoutShell({ children, currentPageName }) {
   }, {});
 
   const isRoot = location.pathname === createPageUrl(PRIMARY_PAGE);
+  // D-PROD-131: o Mapa Geral é a tela de entrada, sem cabeçalho/menu do sistema por cima;
+  // o ☰ do próprio mapa abre o menu lateral.
+  const telaMapa = currentPageName === PRIMARY_PAGE;
 
   const appContentOffset = menuOculto ? "51px" : "91px";
 
@@ -403,6 +409,15 @@ function LayoutShell({ children, currentPageName }) {
   // Com uma janela aberta (lançamento, histórico, detalhes, folha), o mesmo gesto a fecha.
   useDeslizarParaFechar();
 
+  const mapaShell = React.useMemo(
+    () => ({
+      abrirMenu: () => setMenuLateralOpen(true),
+      trocarEmpresa: empresas.length > 0 ? () => setEmpresaSheetOpen(true) : null,
+      empresaNome,
+    }),
+    [empresas.length, empresaNome],
+  );
+
   const userMenu =
   <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -437,7 +452,7 @@ function LayoutShell({ children, currentPageName }) {
     </DropdownMenu>;
 
   return (
-    <div className="h-[100dvh] overflow-hidden bg-slate-50 safe-area-top flex flex-col" translate="no" style={{ "--app-content-offset": appContentOffset }}>
+    <div className={`h-[100dvh] overflow-hidden bg-slate-50 safe-area-top flex flex-col${telaMapa ? " mk-shell--mapa" : ""}`} translate="no" style={{ "--app-content-offset": appContentOffset }}>
       <style>{`
         html, body { overscroll-behavior: none; }
         button, [role="button"], a { -webkit-user-select: none; user-select: none; }
@@ -768,9 +783,9 @@ function LayoutShell({ children, currentPageName }) {
             </button>;
         })}
       </nav>
-      <main ref={mainRef} className={`max-w-[1600px] mx-auto flex-1 min-h-0 w-full min-w-0 overflow-hidden md:pb-0 ${mostrarNavInferior ? "pb-[calc(66px+env(safe-area-inset-bottom))]" : "pb-0"}`}>
+      <main ref={mainRef} className={`${telaMapa ? "" : "max-w-[1600px] "}mx-auto flex-1 min-h-0 w-full min-w-0 overflow-hidden md:pb-0 ${mostrarNavInferior ? "pb-[calc(66px+env(safe-area-inset-bottom))]" : "pb-0"}`}>
         <div className="relative h-full min-h-0 overflow-hidden">
-          {children}
+          <MapaShellContext.Provider value={mapaShell}>{children}</MapaShellContext.Provider>
           {mobileMenuOpen ?
           <MobileModulesView
             menuItems={menuItemsFiltered}
@@ -786,6 +801,18 @@ function LayoutShell({ children, currentPageName }) {
         </div>
       </main>
       </div>
+
+      <MenuLateral
+        open={menuLateralOpen}
+        onClose={() => setMenuLateralOpen(false)}
+        menuItems={menuItemsFiltered}
+        paginaAtualUrl={currentMenuPage?.url || null}
+        empresaNome={empresaNome}
+        onTrocarEmpresa={empresas.length > 0 ? () => setEmpresaSheetOpen(true) : null}
+        usuario={user}
+        mostrarConfiguracoes={isAdminUser}
+        onSair={handleLogout}
+        onAbrirTela={(e, url) => aoClicarMenu(e, createPageUrl(url))} />
 
       <MobileSheet open={empresaSheetOpen} onClose={() => setEmpresaSheetOpen(false)} label="Trocar empresa" title="Trocar empresa">
         <p className="mk-co__desc">A troca recarrega os registros da empresa escolhida e limpa a seleção atual.</p>

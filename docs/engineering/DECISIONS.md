@@ -5034,4 +5034,29 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
   - aproximando: média 97% e pior quadro 94%;
   - evidência: v19-05.
 
-<!-- Próxima decisão: D-PROD-131 -->
+## D-PROD-131 — Mapa Geral é a tela de entrada: ☰ no lugar do ✕ e controles flutuantes novos
+
+- **Contexto:** o proprietário sentia que entrava no mapa "por uma tela":
+  - havia cabeçalho e menu do sistema por cima e um ✕ (`navigate(-1)`) para fechar o mapa;
+  - o aviso e a atribuição do satélite ocupavam muito espaço;
+  - pediu um desenho mais bonito, na linha dos apps de mapa de fazenda (referência citada: AgriWebb, que tem o mapa em tela cheia, menu lateral e controles em cartões flutuantes).
+- **Decisão:**
+  - Na tela `MapaGeral` o Layout recebe `mk-shell--mapa`. O CSS tira o cabeçalho e a barra de módulos, e o mapa ocupa a largura toda. A barra inferior do celular e a barra lateral do tablet continuam.
+  - O ✕ saiu. No lugar, o cartão "☰ | Fazenda ▾":
+    - ☰ abre o **menu lateral** (`MenuLateral`), igual em todos os tamanhos. Ele traz a fazenda, a busca de telas, os módulos com suas telas (a atual em verde) e o usuário com Configurações e Sair.
+    - O nome da fazenda troca a empresa.
+    - A ponte com o mapa é `MapaShellContext`. Fora do Layout o ☰ não aparece.
+  - Tarefas e Filtros viram cartões; no celular mostram só o ícone.
+  - À direita ficam **Camadas** (Mapa/Satélite numa escolha só, com miniaturas) e um grupo único com Atualizar, Minha localização e Mover lotes. O zoom nativo usa o mesmo desenho.
+  - O resumo (animais, peso médio, áreas) fica num cartão único.
+  - Satélite:
+    - "Google Maps" continua sempre visível na atribuição nativa, em letra pequena.
+    - O copyright longo do viewport fica inteiro atrás de "ⓘ Fontes de dados", sem cortar.
+    - O aviso de falha virou uma pílula compacta com título, motivo em uma linha, "Tentar novamente" e fechar. Ela não cobre os botões da direita no celular.
+- **Consequência:**
+  - O mapa ganha a área do cabeçalho: 91 px no computador e 56 px no celular.
+  - Os outros caminhos para as telas continuam: barra inferior, barra lateral e busca.
+  - Teste: `tests/smoke/mapaV2Menu.test.jsx`.
+  - Evidências: v20-01 a v20-07.
+
+<!-- Próxima decisão: D-PROD-132 -->

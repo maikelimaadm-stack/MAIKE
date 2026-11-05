@@ -1017,7 +1017,7 @@ export default function MapaGeral() {
   const totalAlertas = lotesFiltrados.filter((l) => l.alertas.length > 0).length;
 
   return (
-    <div className="relative h-full min-h-0 w-full overflow-hidden bg-white" translate="no">
+    <div className="mk-mapa relative h-full min-h-0 w-full overflow-hidden bg-white" translate="no">
       <div className="w-full h-full relative">
         {/* `isolation: isolate` confina o z-index dos marcadores (até 10000) ao
             mapa: sem isso eles atravessavam janelas e pop-ups abertos por cima. */}
@@ -1032,10 +1032,8 @@ export default function MapaGeral() {
           dragEnabled={dragLotesEnabled}
           onToggleDrag={() => setDragLotesEnabled((prev) => !prev)}
           showTarefasButton={podeUsarTarefasMapa}
-          showInsightsButton={mapaGeralPermissions.visualizar_insights}
           showFiltrosButton={mapaGeralPermissions.visualizar_filtros_camadas}
           onOpenTarefas={() => {if (!podeUsarTarefasMapa) return;setTarefasContext({});setShowTarefas(true);}}
-          onOpenInsights={() => {if (!mapaGeralPermissions.visualizar_insights) return;setShowInsights(true);}}
           onOpenFiltros={() => {if (!mapaGeralPermissions.visualizar_filtros_camadas) return;setShowFiltros(true);}} />
 
 
@@ -1046,21 +1044,21 @@ export default function MapaGeral() {
           tiposPastagemCores={tiposPastagemCores} />
 
 
-        {/* Barra resumo inferior */}
-        <div className="absolute bottom-2 left-2 right-2 z-10">
-          <div className="bg-white/95 text-[10px] px-2 rounded-lg inline-flex max-w-full items-center gap-3 shadow-md border border-slate-200 pointer-events-auto">
-            <div className="text-center">
-              <div className="font-bold text-emerald-700 text-sm leading-tight flex items-center gap-1.5 justify-center">
-                <span>{totalCabecas}</span>
-                {pesoMedioGeral > 0 && <span className="text-blue-700">| {pesoMedioGeral} kg</span>}
-              </div>
-              <div className="text-slate-500">Animais{pesoMedioGeral > 0 ? ' | Peso méd.' : ''}</div>
+        {/* Resumo inferior (D-PROD-131): cartão único, números grandes e rótulos discretos */}
+        <div className="mk-mapa-resumo mk-mapa-card" aria-label="Resumo do mapa">
+          <div className="mk-mapa-resumo__item">
+            <span className="mk-mapa-resumo__num mk-mapa-resumo__num--verde">{totalCabecas}</span>
+            <span className="mk-mapa-resumo__rot">Animais</span>
+          </div>
+          {pesoMedioGeral > 0 &&
+          <div className="mk-mapa-resumo__item">
+              <span className="mk-mapa-resumo__num">{pesoMedioGeral}<small> kg</small></span>
+              <span className="mk-mapa-resumo__rot">Peso méd.</span>
             </div>
-            <div className="w-px h-5 bg-slate-200" />
-            <div className="text-center">
-              <div className="font-bold text-blue-700 text-sm leading-tight">{areasFiltradas.length}</div>
-              <div className="text-slate-500">Áreas</div>
-            </div>
+          }
+          <div className="mk-mapa-resumo__item">
+            <span className="mk-mapa-resumo__num">{areasFiltradas.length}</span>
+            <span className="mk-mapa-resumo__rot">Áreas</span>
           </div>
         </div>
 

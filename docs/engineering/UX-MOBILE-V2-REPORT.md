@@ -324,3 +324,13 @@ Duas tentativas anteriores nesta rodada (ícone fixo com a ponta no ponto e íco
 
 **Não testado em aparelho.**
 
+## V20 — Mapa Geral como tela de entrada (D-PROD-131)
+
+| Pedido | Feito | Evidência |
+|---|---|---|
+| Entrar no mapa "como um menu", não por uma tela; menu no lugar do ✕ | O mapa ocupa a tela, sem o cabeçalho do sistema. O ☰ abre o menu lateral, com fazenda, busca, módulos e telas, e usuário | v20-01, v20-03, v20-05 |
+| Design mais bonito (referência AgriWebb) | Controles em cartões flutuantes: Camadas com miniaturas, grupo único de ações, zoom no mesmo desenho e resumo num cartão | v20-01, v20-02, v20-04 |
+| Informações do satélite (Google) sem ficar grande | "Google Maps" em letra pequena. O copyright fica atrás de "ⓘ Fontes de dados". O aviso de falha virou uma pílula compacta | v20-06 |
+
+**Não testado em aparelho.** O satélite das evidências usa um tile sintético (magenta), não uma imagem real do Google.
+
