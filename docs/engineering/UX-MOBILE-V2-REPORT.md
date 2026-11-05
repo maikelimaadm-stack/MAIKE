@@ -273,7 +273,7 @@ Teste `notificacoesConfirmacoes`: a promessa do `confirmar`, o aviso de bloqueio
 
 ### V18b — cabeçalho cinza, ✕ branco, sub-ícone maior, fechar só pelo ✕, identificador do mapa (D-PROD-125)
 
-- **Cabeçalho:** o do desktop fica cinza, sem a faixa branca, com o ✕ branco (v18-03).
+- **Cabeçalho:** o do desktop fica cinza, sem a faixa branca, com o ✕ branco e menos espaço até o primeiro cartão (v18-03).
 - **Sub-ícone:** passa a 36 px sem aumentar a linha (a linha segue com 22 px, medida no harness).
 - **Fechar:**
   - Desktop: o clique fora e o Esc não fecham mais; só o ✕ fecha (harness: o clique fora e o Esc deixam aberto, o ✕ fecha).

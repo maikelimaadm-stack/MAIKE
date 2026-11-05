@@ -869,6 +869,11 @@
   border-bottom: 0;
 }
 
+/* Menos espaço entre o título e o primeiro cartão (D-PROD-125) */
+.mk-ll-dlg.is-desktop:has(> .mk-ll > .mk-dl) > .mk-ll {
+  padding-top: 2px;
+}
+
 .mk-ll-dlg.is-desktop:has(> .mk-ll > .mk-dl) .mk-ll-dlg__acoes.cadastro-b1 .tb-btn.tb-btn-gray.mg-act-cancelar:not(#mk-padrao) {
   background: #fff !important;
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.1) !important;
