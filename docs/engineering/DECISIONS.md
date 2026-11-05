@@ -4935,4 +4935,20 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
     - Os quadros de Manejos e Históricos ficam brancos, como na folha do celular.
 - **Consequência:** o Detalhes do Lote fica mais limpo e compacto, sem textos quebrados. No desktop fica com o mesmo visual do celular.
 
-<!-- Próxima decisão: D-PROD-125 -->
+## D-PROD-125 — Detalhes do Lote no desktop: cabeçalho cinza, fechar só pelo ✕; identificador do mapa menor
+
+- **Contexto:** o proprietário pediu:
+  - tirar a faixa branca do cabeçalho do Detalhes do Lote no desktop e deixar o ✕ branco como os outros botões;
+  - aumentar o sub-ícone sem aumentar a linha;
+  - fechar o diálogo do desktop só pelo ✕, como os demais;
+  - no marcador do lote no mapa, uma bolinha do identificador menor, com borda branca e letra mais finas e encostada na borda da figura.
+- **Decisão:**
+  - **Cabeçalho:** no Detalhes do Lote, o diálogo inteiro do desktop fica cinza (`#f2f3f5`), sem a borda do cabeçalho, com o ✕ branco.
+  - **Sub-ícone:** a imagem passa a 36 px, numa caixa com a altura da pílula (22 px, `overflow: visible`); a linha não cresce.
+  - **Fechar:** o `LancLoteDialogo` no desktop (≥ 1024 px) ignora o clique fora e o Esc; fecha só pelo ✕ (ou pelo ✓ ao salvar). No celular segue a tela inteira com ✕ e o gesto da borda (D-PROD-120).
+  - **Mapa:**
+    - a bolinha passa de 15 para 13 px, a borda de 2 para 1 px e a letra de 7 para 6 px;
+    - o centro sai de +18 para +15 px e de −22 para −20 px, para encostar na borda direita da figura.
+- **Consequência:** o desktop fica igual ao celular, e um clique fora não fecha mais o diálogo sem querer. O identificador fica discreto sobre a figura.
+
+<!-- Próxima decisão: D-PROD-126 -->

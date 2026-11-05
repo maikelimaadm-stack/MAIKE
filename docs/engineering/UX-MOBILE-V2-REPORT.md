@@ -271,3 +271,12 @@ Teste `notificacoesConfirmacoes`: a promessa do `confirmar`, o aviso de bloqueio
 
 **Não testado em aparelho real.**
 
+### V18b — cabeçalho cinza, ✕ branco, sub-ícone maior, fechar só pelo ✕, identificador do mapa (D-PROD-125)
+
+- **Cabeçalho:** o do desktop fica cinza, sem a faixa branca, com o ✕ branco (v18-03).
+- **Sub-ícone:** passa a 36 px sem aumentar a linha (a linha segue com 22 px, medida no harness).
+- **Fechar:**
+  - Desktop: o clique fora e o Esc não fecham mais; só o ✕ fecha (harness: o clique fora e o Esc deixam aberto, o ✕ fecha).
+  - Celular: o gesto da borda (D-PROD-120) segue valendo.
+- **Mapa:** a bolinha do identificador tem 13 px, borda de 1 px e letra de 6 px, encostada na figura. **Não visto no mapa real** (o harness não tem o mapa).
+

@@ -64,6 +64,27 @@ describe("Campos numa linha só, texto corre se não couber (D-PROD-124)", () =>
   });
 });
 
+describe("Ajustes D-PROD-125", () => {
+  it("desktop fecha só pelo ✕ (sem clique fora nem Esc)", () => {
+    const ui = readFileSync("src/components/lotes/LancamentoLoteUi.jsx", "utf8");
+    expect(ui).toMatch(/onInteractOutside=\{desktop \? \(e\) => e\.preventDefault\(\) : undefined\}/);
+    expect(ui).toMatch(/onEscapeKeyDown=\{desktop \? \(e\) => e\.preventDefault\(\) : undefined\}/);
+  });
+
+  it("sub-ícone maior sem aumentar a linha; cabeçalho cinza e ✕ branco", () => {
+    expect(css).toMatch(/\.mk-dl__icone \{[^}]*height: 22px;[^}]*overflow: visible;/);
+    expect(css).toMatch(/\.mk-dl__icone img \{[^}]*width: 36px;/);
+    expect(css).toMatch(/\.mk-dl\) \.mk-ll-dlg__head:not\(#mk-padrao\) \{[^}]*background: transparent;/);
+  });
+
+  it("identificador do lote no mapa: bolinha menor, borda fina, encostada na figura", () => {
+    const mapa = readFileSync("src/components/mapa/useMapRenderer.jsx", "utf8");
+    expect(mapa).toContain("left:calc(50% + 15px)");
+    expect(mapa).toContain("width:13px;height:13px;box-sizing:border-box;border-radius:9999px;border:1px solid #fff;");
+    expect(mapa).toContain("font-size:6px");
+  });
+});
+
 describe("Celular: botão de manejos no alto, à direita do título (D-PROD-120)", () => {
   it("fica no cabeçalho do diálogo (espelho do ✕) e abre a folha", () => {
     window.matchMedia = /** @type {any} */ ((q) => ({ matches: /max-width/.test(q), media: q, addEventListener() {}, removeEventListener() {} }));

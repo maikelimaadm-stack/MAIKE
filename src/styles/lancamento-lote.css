@@ -818,12 +818,17 @@
 /* Sub-ícone do lote: só a imagem (ela já não tem fundo) */
 .mk-dl__icone {
   display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
   flex: 0 0 auto;
+  height: 22px;
+  overflow: visible;
 }
 
+/* Maior sem aumentar a linha: a caixa fica com a altura da pílula (D-PROD-125) */
 .mk-dl__icone img {
-  width: 26px;
-  height: 26px;
+  width: 36px;
+  height: 36px;
   object-fit: contain;
 }
 
@@ -854,8 +859,19 @@
 }
 
 /* Fundo cinza atrás dos cartões e dos botões, como no celular; botões brancos (D-PROD-124) */
-.mk-ll-dlg.is-desktop:has(> .mk-ll > .mk-dl) > .mk-ll {
+.mk-ll-dlg.is-desktop:has(> .mk-ll > .mk-dl):not(#mk-padrao) {
   background: #f2f3f5;
+}
+
+/* Cabeçalho também cinza, sem a faixa branca; ✕ branco como os botões (D-PROD-125) */
+.mk-ll-dlg.is-desktop:has(> .mk-ll > .mk-dl) .mk-ll-dlg__head:not(#mk-padrao) {
+  background: transparent;
+  border-bottom: 0;
+}
+
+.mk-ll-dlg.is-desktop:has(> .mk-ll > .mk-dl) .mk-ll-dlg__acoes.cadastro-b1 .tb-btn.tb-btn-gray.mg-act-cancelar:not(#mk-padrao) {
+  background: #fff !important;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.1) !important;
 }
 
 .mk-ll-dlg.is-tela:has(> .mk-ll > .mk-dl):not(#mk-padrao) {

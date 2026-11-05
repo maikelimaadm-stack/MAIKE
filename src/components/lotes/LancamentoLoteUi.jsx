@@ -71,6 +71,9 @@ export function LancLoteDialogo({ open, onOpenChange, titulo, lotes, largo = fal
       <DialogPrimitive.Content
         // Histórico: nada para preencher — não acende o ✕ ao abrir.
         onOpenAutoFocus={somenteLeitura ? (e) => e.preventDefault() : undefined}
+        // Desktop: fecha só pelo ✕, como os cadastros — sem clique fora nem Esc (D-PROD-125).
+        onInteractOutside={desktop ? (e) => e.preventDefault() : undefined}
+        onEscapeKeyDown={desktop ? (e) => e.preventDefault() : undefined}
         className={cn(
           "mk-ll-dlg fixed left-[50%] top-[50%] z-50 translate-x-[-50%] translate-y-[-50%] duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
           desktop ? "is-desktop data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95" : "is-tela",
