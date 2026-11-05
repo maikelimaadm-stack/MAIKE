@@ -23,3 +23,6 @@ export const IconePesar = iconeImagem("/icons/pesar.png");
 
 /** Nascimento: vaca com o bezerro e os símbolos de macho e fêmea. */
 export const IconeNascimento = iconeImagem("/icons/nascimento.png");
+
+/** Saída (antigo "Abate"): boi com a seta de saída. */
+export const IconeSaida = iconeImagem("/icons/saida.png");
