@@ -6,6 +6,7 @@ import { MemoryRouter } from "react-router-dom";
 import "../../../src/index.css";
 import MapaDesenho from "@/components/mapa/MapaDesenho";
 import MapaGeral from "@/pages/MapaGeral";
+import HistoricoMovimentacoes from "@/components/lotes/HistoricoMovimentacoes";
 import { AREAS } from "./dados.js";
 import { lerAreasSalvas } from "./stubs/mapaService.js";
 import maplibregl from "maplibre-gl";
@@ -26,6 +27,8 @@ window.__E2E__ = { salvos: 0, cancelados: 0 };
 function App() {
   // Como `MapaCadastro`: salvar ou cancelar fecha o editor (volta à listagem).
   const [fechado, setFechado] = React.useState(null);
+  // D-PROD-123 (H2): histórico por ocorrência, larguras 390/412/768/1440.
+  if (cena === "historico") return <div style={{ padding: 8 }}><HistoricoMovimentacoes lotes={[{ id: "l1", nome: "Lote A", area_atual_id: "a1" }]} areaId="a1" /></div>;
   if (cena === "geral") return <div style={{ height: "100vh" }}><MapaGeral /></div>;
   if (fechado) return <div data-testid="harness-listagem">listagem ({fechado})</div>;
   // GEO-08: "editar-salva" reabre a última área gravada no store local.

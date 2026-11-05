@@ -53,7 +53,8 @@ describe("domínio — escopo da área × escopo do lote", () => {
   it("500 cabeças: A mostra saídas 50+450 e a pesagem; B mostra entradas 50+450; nada duplica", () => {
     const a = filtrarMovimentacoes(movs, { empresaId: EMP, escopo: ESCOPO_AREA, areaId: "area-A", lotes: [] });
     const b = filtrarMovimentacoes(movs, { empresaId: EMP, escopo: ESCOPO_AREA, areaId: "area-B", lotes: [] });
-    expect(a.map((m) => m.id)).toEqual(["m3", "m2", "m1"]);
+    // H2 (D-PROD-123): ordem por ocorrência; m2 não tem data do fato → "não informada", no fim.
+    expect(a.map((m) => m.id)).toEqual(["m3", "m1", "m2"]);
     expect(b.map((m) => m.id)).toEqual(["m3", "m1"]);
     const soma = (lista, fluxo, area) => lista.filter((m) => fluxoNaArea(m, area) === fluxo).reduce((s, m) => s + m.quantidade_animais, 0);
     expect(soma(a, "Saída", "area-A")).toBe(500);
@@ -77,7 +78,7 @@ describe("domínio — escopo da área × escopo do lote", () => {
   it("escopo dos lotes: trajetória pelo id em qualquer área, sem homônimo", () => {
     const comHomonimo = [...movs, { id: "m5", empresa_id: EMP, tipo: "Pesagem", lote: "TESTE", lote_id: "lote-outro", area_origem_id: "area-C" }];
     const r = filtrarMovimentacoes(comHomonimo, { empresaId: EMP, escopo: ESCOPO_LOTES, lotes: [{ id: "lote-1", nome: "TESTE" }] });
-    expect(r.map((m) => m.id)).toEqual(["m3", "m2", "m1"]);
+    expect(r.map((m) => m.id)).toEqual(["m3", "m1", "m2"]);
   });
 
   it("registro sem área (medicamento) entra só depois que o lote entrou na área; com área explícita entra sempre", () => {
@@ -269,7 +270,7 @@ describe("HistoricoMovimentacoes — troca de empresa e offline", () => {
     }));
     renderizar();
     expect(await screen.findByText("Movimentações em cache: 3")).toBeTruthy();
-    expect(screen.getByRole("status").textContent).toMatch(/Sem conexão\. Exibindo movimentações salvas neste aparelho em 31\/10\/2026/);
+    expect(screen.getByRole("status").textContent).toMatch(/Sem conexão\. Histórico offline parcial: \d+ movimentaç(ão salva|ões salvas) neste aparelho, atualizado em 31\/10\/2026/);
     expect(servico.listarHistoricoMovimentacoesPagina).not.toHaveBeenCalled();
     expect(screen.queryByRole("button", { name: "Carregar mais" })).toBeNull();
   });

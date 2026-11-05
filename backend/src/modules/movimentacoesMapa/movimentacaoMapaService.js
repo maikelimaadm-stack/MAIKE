@@ -18,7 +18,8 @@ import {
   listarHistoricoPagina,
   contarHistorico,
 } from './movimentacaoMapaRepository.js';
-import { decodificarCursor, montarEnvelopeKeyset, normalizarLimite } from '../../shared/pagination/keysetCursor.js';
+import { normalizarLimite } from '../../shared/pagination/keysetCursor.js';
+import { codificarCursorHistorico, decodificarCursorHistorico, hashDoEscopo, ORDEM_HISTORICO } from './historicoCursorV2.js';
 
 const ENTIDADE = 'MovimentacaoMapa';
 const erroNaoEncontrado = () => new AppError('MOVIMENTACAOMAPA_NOT_FOUND', 'MovimentacaoMapa não encontrado');
@@ -100,11 +101,30 @@ const listaDeTextos = (valor) =>
   [...new Set((Array.isArray(valor) ? valor : valor == null ? [] : [valor]).map(textoOuNulo).filter(Boolean))];
 
 /**
- * Histórico paginado (só leitura) — D-PROD-94.
+ * Item público do histórico: o documento + as duas datas do H2 (D-PROD-123).
+ * `historico_ocorrencia` é 'YYYY-MM-DD' ou null ("não informada" — nunca uma
+ * data inventada); `historico_registrado_em` é o instante real do registro.
+ * Calculados no servidor a cada leitura: um valor homônimo em `dados` nunca vence.
+ * @param {Record<string, any>} linha
+ */
+export const itemDoHistorico = (linha) => ({
+  ...documentoComoPublico(linha),
+  historico_ocorrencia: linha.h_ocorrencia ?? null,
+  historico_ocorrencia_origem: linha.h_origem ?? null,
+  historico_registrado_em: linha.h_registrado instanceof Date ? linha.h_registrado.toISOString() : linha.h_registrado ?? null,
+});
+
+/**
+ * Histórico paginado (só leitura) — D-PROD-94; ordem por ocorrência — D-PROD-123.
  *
  * O tenant é o do token; `empresa_id` é filtro de escopo DENTRO do tenant,
  * nunca autoridade (empresa de outro tenant devolve conjunto vazio). Envelope
  * keyset com `total`, para a tela nunca afirmar completude que não tem.
+ *
+ * Ordem global determinística (tem_ocorrencia, ocorrência, registrado,
+ * createdAt, id — tudo DESC), aplicada no SQL a TODO o conjunto filtrado: a
+ * página N é sempre o pedaço N da mesma ordem, nunca uma página reordenada no
+ * navegador. Cursor v2 assinado e preso ao escopo (`historicoCursorV2.js`).
  *
  * @param {{auth: import('../../shared/auth/authContext.js').AuthContext}} contexto
  * @param {Record<string, unknown>} query
@@ -115,20 +135,32 @@ export const listarHistorico = async (contexto, query = {}) => {
   if (!empresaId) {
     throw new AppError('REQUEST_VALIDATION_FAILED', 'empresa_id é obrigatório', { details: { field: 'empresa_id', reason: 'required' } });
   }
-  const cursorBruto = textoOuNulo(query.cursor);
-  const cursor = cursorBruto ? decodificarCursor(cursorBruto) : null;
-  if (cursorBruto && !cursor) throw new AppError('REQUEST_VALIDATION_FAILED', 'cursor inválido');
-
-  const filtro = {
+  const escopo = {
     empresaId,
     areaId: textoOuNulo(query.area_id),
     loteIds: listaDeTextos(query.lote_ids),
     lotesNomesLegado: listaDeTextos(query.lote_nomes).map((nome) => nome.toLowerCase()),
-    cursor,
-    limit: normalizarLimite(query.limit, { padrao: HISTORICO_LIMITE_PADRAO, maximo: HISTORICO_LIMITE_MAXIMO }),
   };
+  const hash = hashDoEscopo(auth.clienteId, escopo);
+  const cursorBruto = textoOuNulo(query.cursor);
+  const cursor = cursorBruto ? decodificarCursorHistorico(cursorBruto, hash) : null;
+  const limit = normalizarLimite(query.limit, { padrao: HISTORICO_LIMITE_PADRAO, maximo: HISTORICO_LIMITE_MAXIMO });
+  const filtro = { ...escopo, cursor, limit };
   const [registros, total] = await Promise.all([listarHistoricoPagina(auth.clienteId, filtro), contarHistorico(auth.clienteId, filtro)]);
-  return montarEnvelopeKeyset({ registros, limit: filtro.limit, total, mapItem: documentoComoPublico });
+  const hasMore = registros.length > limit;
+  const pagina = hasMore ? registros.slice(0, limit) : registros;
+  const ultimo = pagina[pagina.length - 1];
+  return {
+    items: pagina.map(itemDoHistorico),
+    next_cursor:
+      hasMore && ultimo
+        ? codificarCursorHistorico({ ocorrencia: ultimo.h_ocorrencia ?? null, registrado_em: ultimo.h_registrado, createdAt: ultimo.createdAt, id: ultimo.id }, hash)
+        : null,
+    has_more: hasMore,
+    total,
+    limit,
+    ordem: ORDEM_HISTORICO,
+  };
 };
 
 export const criar = async (contexto, entrada) => {

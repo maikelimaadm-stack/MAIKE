@@ -17,6 +17,7 @@ export default defineConfig({
       { find: /^@\/services\/mapaCacheService(\.js)?$/, replacement: stub("mapaCacheService.js") },
       { find: /^@\/services\/sessionService(\.js)?$/, replacement: stub("sessionService.js") },
       { find: /^@\/services\/mapaService(\.js)?$/, replacement: stub("mapaService.js") },
+      { find: /^@\/services\/loteManejoService(\.js)?$/, replacement: stub("loteManejoService.js") },
       { find: /^@\/services\/bebedouroDataService(\.js)?$/, replacement: stub("bebedouroDataService.js") },
       { find: /^@\/hooks\/useEmpresaSelecionadaId(\.js)?$/, replacement: stub("useEmpresaSelecionadaId.js") },
       { find: "@", replacement: path.resolve(raiz, "src") },
