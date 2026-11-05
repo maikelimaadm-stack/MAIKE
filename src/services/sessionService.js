@@ -172,6 +172,7 @@ export const sairDaSessaoNativa = () => {
   logoutNativo();
   try {
     localStorage.removeItem(OFFLINE_USER_KEY);
+    limparPermissoesLocais();
   } catch {
     // Cache local indisponível não impede o logout: o token já saiu.
   }
@@ -181,23 +182,103 @@ export const sairDaSessaoNativa = () => {
 export const permissaoDoUsuario = (permissoes, email) =>
   (Array.isArray(permissoes) ? permissoes : []).find((item) => item.user_email === email) || null;
 
+/** Identificador canônico da conta no servidor (`Usuario.login`; `email` é só eco). */
+export const loginDoUsuario = (usuario) => usuario?.login || usuario?.email || null;
+
 /**
- * Permissão mínima quando a Base44 não responde — evita menu/telas em branco
- * para operadores autenticados nativamente (P5.3, D-PROD-49).
+ * Permissão EFETIVA da sessão — o que a interface aplica (o servidor decide o mesmo, 403).
  *
- * @param {{ email?: string, login?: string, nome?: string } | null | undefined} usuario
+ *  - administrador da fazenda (papel nativo lido do servidor) → acesso total;
+ *  - senão, a linha `Permissao` da própria conta, normalizada;
+ *  - sem linha → `null` = NADA liberado (antes, `permissaoMinimaNativa` dava
+ *    `is_admin: true` a quem não tinha registro ou quando a leitura falhava).
+ *
+ * @param {object|null|undefined} usuario
+ * @param {object|null|undefined} registro
  */
-export const permissaoMinimaNativa = (usuario) => {
-  const email = usuario?.email || usuario?.login;
-  if (!email) return null;
-  return normalizePermissionRecord({
-    user_email: email,
-    user_nome: usuario?.nome || email,
-    is_admin: true,
-    modulos_permitidos: [],
-    permissoes_telas: [],
-    mobile_menu_ids: [],
-  });
+export const permissaoEfetiva = (usuario, registro) => {
+  const login = loginDoUsuario(usuario);
+  if (!login) return null;
+  if (usuario?.administrador_fazenda === true) {
+    return normalizePermissionRecord({
+      ...(registro || {}),
+      user_email: login,
+      user_nome: registro?.user_nome || usuario?.nome || login,
+      is_admin: true,
+    });
+  }
+  if (!registro || registro.user_email !== login) return null;
+  return normalizePermissionRecord(registro);
+};
+
+const PERMISSAO_LOCAL_PREFIXO = 'maike_permissao_efetiva:';
+const chavePermissaoLocal = (login) => `${PERMISSAO_LOCAL_PREFIXO}${login}`;
+
+const lerPermissaoLocal = (login) => {
+  try {
+    const bruto = localStorage.getItem(chavePermissaoLocal(login));
+    const salvo = bruto ? JSON.parse(bruto) : null;
+    // Só a linha da PRÓPRIA conta; qualquer outra coisa é descartada.
+    return salvo && salvo.user_email === login ? salvo : null;
+  } catch {
+    return null;
+  }
+};
+
+const gravarPermissaoLocal = (login, registro) => {
+  try {
+    if (registro) localStorage.setItem(chavePermissaoLocal(login), JSON.stringify(registro));
+    else localStorage.removeItem(chavePermissaoLocal(login));
+  } catch {
+    // Armazenamento indisponível: segue sem cache (nunca amplia nada).
+  }
+};
+
+const limparPermissoesLocais = () => {
+  try {
+    for (let i = localStorage.length - 1; i >= 0; i -= 1) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith(PERMISSAO_LOCAL_PREFIXO)) localStorage.removeItem(k);
+    }
+  } catch {
+    // ignora
+  }
+};
+
+/** Evento disparado quando permissões foram gravadas (a sessão revalida na hora). */
+export const EVENTO_PERMISSOES_ATUALIZADAS = 'maike:permissoes-atualizadas';
+
+export const avisarPermissoesAtualizadas = () => {
+  try {
+    window.dispatchEvent(new Event(EVENTO_PERMISSOES_ATUALIZADAS));
+  } catch {
+    // sem window (testes de node): nada a avisar
+  }
+};
+
+/**
+ * Lê a permissão efetiva do servidor. Online: grava em cache local SÓ a linha da
+ * própria conta (chave por login). Offline ou falha: usa esse cache — que é
+ * apenas o último valor DADO PELO SERVIDOR, nunca mais que isso — ou `null`.
+ * Nenhuma falha vira privilégio; o servidor continua sendo quem bloqueia.
+ *
+ * @param {object|null|undefined} usuario
+ * @returns {Promise<object|null>}
+ */
+export const carregarPermissaoEfetiva = async (usuario) => {
+  const login = loginDoUsuario(usuario);
+  if (!login) return null;
+  if (estaOnline()) {
+    try {
+      const todas = await listPermissoes();
+      const registro = permissaoDoUsuario(todas, login);
+      gravarPermissaoLocal(login, registro);
+      return permissaoEfetiva(usuario, registro);
+    } catch {
+      // cai no cache da própria conta
+    }
+  }
+  return permissaoEfetiva(usuario, lerPermissaoLocal(login));
 };
 
 /**
@@ -205,9 +286,7 @@ export const permissaoMinimaNativa = (usuario) => {
  *
  * Mesma regra em `Layout` e `ConfiguracoesGerais`. Desde a D-PROD-77 vale SÓ o
  * papel lido do banco pelo servidor (`Usuario.papel_tenant`): `Permissao.is_admin`
- * é preferência de menu editável e deixou de ser autoridade (D-PROD-71) — e a
- * permissão mínima nativa o marca como `true` para quem não tem registro, o que
- * abria Usuários/Permissões no menu de qualquer conta.
+ * é concessão de telas/menu editável e deixou de ser autoridade (D-PROD-71).
  */
 export const ehAdministrador = (usuario) => usuario?.administrador_fazenda === true;
 

@@ -33,7 +33,7 @@ describe('sessão de tenant revalidada no banco', () => {
   });
 
   test('SR-02 conta apagada (junto com o cliente): o token antigo vira 401', async () => {
-    const t = await criarTenant();
+    const t = await criarTenant({ semPermissao: true });
     const token = (await autenticarNoApp(app, t.credenciais)).corpo.token;
     assert.ok(token, "login deve devolver token");
     const db = getPrismaClient();

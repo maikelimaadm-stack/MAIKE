@@ -374,6 +374,8 @@ export const BACKEND_ONLY_CODES = Object.freeze({
     http: 404,
     meaning: 'recurso do catálogo global não encontrado',
   },
+  // Permissões — autorização por tela/ação e por ação do Mapa Geral (servidor).
+  ACAO_NAO_PERMITIDA: { http: 403, meaning: 'a conta não tem permissão para esta tela/ação (configurada em Permissões); nada foi gravado' },
   TENANT_ADMIN_REQUIRED: {
     http: 403,
     meaning: 'ação restrita ao administrador da fazenda (Usuario.papel_tenant server-owned, ativo)',

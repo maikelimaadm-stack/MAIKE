@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getMapaCachedData, refreshMapaCacheEntry } from "@/services/mapaCacheService";
-import { getCurrentUser } from "@/services/sessionService";
+import { EVENTO_PERMISSOES_ATUALIZADAS, carregarPermissaoEfetiva, ehAdministrador, getCurrentUser } from "@/services/sessionService";
 import { listarBebedourosAtivos } from "@/services/mapaService";
-import { canAccessPage, normalizePermissionRecord } from "@/lib/permissions";
+import { canAccessPage } from "@/lib/permissions";
 import { normalizeMapaGeralPermissions } from "@/lib/mapaGeralPermissions";
 import { Button } from "@/components/ui/button";
 import { BarChart3 } from "lucide-react";
@@ -201,38 +201,43 @@ export default function MapaGeral() {
     staleTime: 5 * 60 * 1000
   });
 
-  const { data: permissoes = [] } = useQuery({
-    queryKey: ['mapa-geral-permissoes'],
-    queryFn: async () => {
-      const cached = await getMapaCachedData('permissoes', '__GLOBAL__');
-      if (!navigator.onLine && cached?.length) return cached;
-      const fresh = await refreshMapaCacheEntry('permissoes', '__GLOBAL__');
-      return fresh?.length ? fresh : cached || [];
-    },
-    staleTime: 5 * 60 * 1000,
-    refetchOnWindowFocus: false
+  // Permissão EFETIVA da própria conta (mesma regra do servidor): papel real
+  // (`administrador_fazenda`) ou a linha da conta pelo login. Revalida no foco e
+  // a cada 30 s; sem linha/falha = nada liberado (antes: tudo, por fallback).
+  const loginAtual = currentUser?.login || currentUser?.email || null;
+  const { data: permissaoAtual = null } = useQuery({
+    queryKey: ['permissao-efetiva', loginAtual, currentUser?.administrador_fazenda === true],
+    queryFn: () => carregarPermissaoEfetiva(currentUser),
+    enabled: Boolean(loginAtual),
+    staleTime: 30 * 1000,
+    refetchInterval: 60 * 1000,
+    refetchOnWindowFocus: true
   });
 
-  const permissaoAtual = useMemo(() => {
-    const registro = permissoes.find((item) => item.user_email === currentUser?.email) || null;
-    return normalizePermissionRecord(registro);
-  }, [permissoes, currentUser?.email]);
+  useEffect(() => {
+    const revalidar = () => queryClient.invalidateQueries({ queryKey: ['permissao-efetiva'] });
+    window.addEventListener(EVENTO_PERMISSOES_ATUALIZADAS, revalidar);
+    window.addEventListener('online', revalidar);
+    return () => {
+      window.removeEventListener(EVENTO_PERMISSOES_ATUALIZADAS, revalidar);
+      window.removeEventListener('online', revalidar);
+    };
+  }, [queryClient]);
+
+  const acessoTotalTelas = ehAdministrador(currentUser) || permissaoAtual?.is_admin === true;
 
   const mapaGeralPermissions = useMemo(() => {
-    if (currentUser?.role === 'admin' || permissaoAtual?.is_admin) {
-      return normalizeMapaGeralPermissions({}, true);
-    }
-
+    if (acessoTotalTelas) return normalizeMapaGeralPermissions({}, true);
     return normalizeMapaGeralPermissions(
       permissaoAtual?.mapa_geral_permissoes,
-      canAccessPage(permissaoAtual, 'pec-mapa-geral', 'pecuaria')
+      canAccessPage(permissaoAtual, 'pec-mapa-geral', 'mapa')
     );
-  }, [currentUser?.role, permissaoAtual]);
+  }, [acessoTotalTelas, permissaoAtual]);
 
   const podeUsarTarefasMapa = useMemo(() => {
-    if (currentUser?.role === 'admin' || permissaoAtual?.is_admin) return mapaGeralPermissions.visualizar_tarefas;
+    if (acessoTotalTelas) return mapaGeralPermissions.visualizar_tarefas;
     return mapaGeralPermissions.visualizar_tarefas && canAccessPage(permissaoAtual, 'gt-lancamentos', 'gestao-tarefas');
-  }, [currentUser?.role, permissaoAtual, mapaGeralPermissions.visualizar_tarefas]);
+  }, [acessoTotalTelas, permissaoAtual, mapaGeralPermissions.visualizar_tarefas]);
 
   // ─── Queries ───
   const ST = 5 * 60 * 1000;

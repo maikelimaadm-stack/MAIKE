@@ -87,7 +87,7 @@ const retrato = async () => {
 /** O estado de produção de 30/10: cliente e conta "maike" + 124 linhas de teste do mesmo cliente. */
 const semearMaike = async () => {
   const p = prisma();
-  const t = await criarTenant({ codigo: 'maike', login: 'maike', senha: SENHA_EXISTENTE });
+  const t = await criarTenant({ semPermissao: true, codigo: 'maike', login: 'maike', senha: SENHA_EXISTENTE });
   const c = t.cliente.id;
   await p.permissao.create({ data: { cliente_id: c, user_email: 'maike', is_admin: true } });
   const emp = await p.empresa.create({ data: { cliente_id: c, numero_empresa: 1, fuso_horario: 'America/Sao_Paulo', apelido: 'E', nome: 'EMPRESA' } });
@@ -145,7 +145,7 @@ describe('01 precheck — falso positivo corrigido', () => {
     const t = await semearMaike();
     await prisma().usuario.update({ where: { id: t.usuario.id }, data: { papel_tenant: 'administrador' } });
     assert.match(pre().VEREDITO.valor, /^MAIKE EXISTENTE/);
-    await criarTenant({ codigo: 'outro-tenant', login: 'outro' });
+    await criarTenant({ semPermissao: true, codigo: 'outro-tenant', login: 'outro' });
     const l = pre();
     assert.match(l['cliente "maike" / login "maike" já existem'].status, /^PARAR/);
     assert.match(l.VEREDITO.valor, /^PARAR: há linha PARAR acima/);
@@ -177,7 +177,7 @@ describe('04 limpeza preservando maike — falha fechada', () => {
     await p.permissao.create({ data: { cliente_id: t.cliente.id, user_email: 'concorrente@x', is_admin: false } });
     assert.match(psql(limpeza({ impressao: imp })).stderr, /o inventário mudou desde o 01/);
     // cliente extra
-    await criarTenant({ codigo: 'outro-tenant', login: 'outro' });
+    await criarTenant({ semPermissao: true, codigo: 'outro-tenant', login: 'outro' });
     assert.match(psql(limpeza({ impressao: pre()[ITEM_IMPRESSAO].valor })).stderr, /ANOMALIA — o banco não tem exatamente 1 cliente/);
     assert.equal(await p.auditLog.count(), 110);
   });

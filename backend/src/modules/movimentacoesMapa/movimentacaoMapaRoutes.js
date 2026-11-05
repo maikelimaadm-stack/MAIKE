@@ -12,6 +12,10 @@ import { MAX_ORIGENS_JUNCAO } from './juncaoConstantes.js';
 import { executarBaixaRebanho } from './manejoBaixaComandoService.js';
 import { CAUSAS_MORTE, DESTINOS_ABATE, MAX_LINHAS_BAIXA, MAX_LOTES_SELECIONADOS, TIPOS_BAIXA } from './baixaConstantes.js';
 import { executarManejoRebanho, MAX_LINHAS, MODOS_PESAGEM, PESO_MAXIMO_KG, SEXOS, TIPOS_DO_COMANDO_REBANHO } from './manejoRebanhoComandoService.js';
+import { porMapa, chaveMapaDoTipo, autorizar, mapaPermite, telaPermite, TELAS } from '../../shared/auth/autorizacaoTela.js';
+
+/** Ação do Mapa Geral exigida pelo `tipo` do corpo (já validado pelo schema). */
+const chaveDoCorpo = (request) => chaveMapaDoTipo(request.body?.tipo);
 
 const ID_SCHEMA = {
   params: {
@@ -225,25 +229,25 @@ export const registrarMovimentacaoMapaRoutes = async (app) => {
     return listarHistorico(request.contexto, /** @type {Record<string, unknown>} */ (request.query ?? {}));
   });
 
-  app.post('/movimentacoes-mapa/comandos/manejo-lote', { onRequest: [app.autenticar], schema: MANEJO_SCHEMA }, async (request, reply) => {
+  app.post('/movimentacoes-mapa/comandos/manejo-lote', { onRequest: [app.autenticar], preHandler: [porMapa(chaveDoCorpo)], schema: MANEJO_SCHEMA }, async (request, reply) => {
     exigirAuthContext(request.contexto.auth);
     const { status, body } = await executarManejoLote(request.contexto, /** @type {Record<string, unknown>} */ (request.body));
     return reply.status(status).send(body);
   });
 
-  app.post('/movimentacoes-mapa/comandos/manejo-rebanho', { onRequest: [app.autenticar], schema: MANEJO_REBANHO_SCHEMA }, async (request, reply) => {
+  app.post('/movimentacoes-mapa/comandos/manejo-rebanho', { onRequest: [app.autenticar], preHandler: [porMapa(chaveDoCorpo)], schema: MANEJO_REBANHO_SCHEMA }, async (request, reply) => {
     exigirAuthContext(request.contexto.auth);
     const { status, body } = await executarManejoRebanho(request.contexto, /** @type {Record<string, unknown>} */ (request.body));
     return reply.status(status).send(body);
   });
 
-  app.post('/movimentacoes-mapa/comandos/juncao-lotes', { onRequest: [app.autenticar], schema: JUNCAO_SCHEMA }, async (request, reply) => {
+  app.post('/movimentacoes-mapa/comandos/juncao-lotes', { onRequest: [app.autenticar], preHandler: [porMapa('juntar_lotes')], schema: JUNCAO_SCHEMA }, async (request, reply) => {
     exigirAuthContext(request.contexto.auth);
     const { status, body } = await executarJuncaoLotes(request.contexto, /** @type {Record<string, unknown>} */ (request.body));
     return reply.status(status).send(body);
   });
 
-  app.post('/movimentacoes-mapa/comandos/baixa-rebanho', { onRequest: [app.autenticar], schema: BAIXA_SCHEMA }, async (request, reply) => {
+  app.post('/movimentacoes-mapa/comandos/baixa-rebanho', { onRequest: [app.autenticar], preHandler: [porMapa(chaveDoCorpo)], schema: BAIXA_SCHEMA }, async (request, reply) => {
     exigirAuthContext(request.contexto.auth);
     const { status, body } = await executarBaixaRebanho(request.contexto, /** @type {Record<string, unknown>} */ (request.body));
     return reply.status(status).send(body);
@@ -276,7 +280,16 @@ export const registrarMovimentacaoMapaRoutes = async (app) => {
     return reply.status(status).send(body);
   });
 
-  app.post('/movimentacoes-mapa', { onRequest: [app.autenticar], schema: CRIAR_SCHEMA }, async (request, reply) => {
+  // Lançamento genérico (legado/offline): a ação do mapa do tipo; tipo sem ação
+  // própria exige "salvar" no Mapa Geral.
+  app.post('/movimentacoes-mapa', {
+    onRequest: [app.autenticar],
+    preHandler: [autorizar((req, aut) => {
+      const chave = chaveMapaDoTipo(/** @type {any} */ (req.body)?.tipo);
+      if (chave) return mapaPermite(aut, chave) ? true : { tela: TELAS.MAPA_GERAL.tela, mapa: chave };
+      return telaPermite(aut, TELAS.MAPA_GERAL, 'salvar') ? true : { tela: TELAS.MAPA_GERAL.tela, acao: 'salvar' };
+    })],
+    schema: CRIAR_SCHEMA }, async (request, reply) => {
     exigirAuthContext(request.contexto.auth);
     const registro = await criar(request.contexto, /** @type {Record<string, unknown>} */ (request.body));
     return reply.status(201).send(registro);

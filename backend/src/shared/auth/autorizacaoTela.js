@@ -1,0 +1,141 @@
+/**
+ * Autorização por TELA/AÇÃO e por ação do MAPA GERAL — fonte única no servidor.
+ *
+ * Antes, a tela de Permissões gravava `Permissao` (módulos, telas × ações,
+ * permissões do Mapa Geral), mas NENHUMA rota de negócio a consultava: o
+ * bloqueio era só visual no navegador. Uma requisição direta fazia tudo.
+ *
+ * Regras (fail-closed):
+ *  - administrador da fazenda (`Usuario.papel_tenant = 'administrador'`, ativo,
+ *    relido do banco a cada chamada) → tudo;
+ *  - conta inativa ou inexistente → nada;
+ *  - linha `Permissao` do PRÓPRIO login no MESMO tenant (vínculo canônico
+ *    `cliente_id + user_email = login`; nada vem do corpo) com `is_admin = true`
+ *    → todas as telas e ações (concessão EXPLÍCITA "acesso total a módulos,
+ *    telas, ações e menu mobile" feita pelo administrador; NÃO dá autoridade de
+ *    administrador da fazenda — as telas só-admin seguem exigindo o papel);
+ *  - senão: módulo concedido E linha da tela presente com `visualizar = true` E
+ *    a ação = true. Sem linha, sem módulo, sem tela ou ação ausente → NEGADO;
+ *  - ação do Mapa Geral: tela `pec-mapa-geral` visível E a chave do mapa não
+ *    desligada (ausente = ligada, a mesma regra do formulário).
+ *
+ * Negação: 403 `ACAO_NAO_PERMITIDA`, antes de qualquer escrita (preHandler).
+ */
+
+import { getPrismaClient } from '../../database/prismaClient.js';
+import { AppError } from '../errors/AppError.js';
+import { exigirAuthContext } from './authContext.js';
+import { atorDoTenant, ehAdminTenantAtivo } from './exigirAdminTenant.js';
+
+/** Telas do `menuConfig` (ids estáveis, os mesmos gravados em `permissoes_telas`). */
+export const TELAS = Object.freeze({
+  MAPA_GERAL: Object.freeze({ modulo: 'mapa', tela: 'pec-mapa-geral' }),
+  MAPA_CADASTRO: Object.freeze({ modulo: 'mapa', tela: 'pec-mapa-cadastro' }),
+  LOTES: Object.freeze({ modulo: 'manejo', tela: 'pec-lotes' }),
+});
+
+export const ACOES = Object.freeze(['visualizar', 'novo', 'salvar', 'editar', 'excluir', 'importar', 'exportar']);
+
+/**
+ * Ação do Mapa Geral exigida por um TIPO de movimentação/manejo. Tipo
+ * desconhecido → null (o chamador decide; os guardas abaixo negam).
+ * @param {unknown} tipo
+ * @returns {string|null}
+ */
+export const chaveMapaDoTipo = (tipo) => {
+  const t = String(tipo ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+  if (t === 'transferencia de area' || t === 'transferencia') return 'mover_lotes';
+  if (t === 'morte') return 'registrar_morte';
+  if (t === 'abate') return 'registrar_abate';
+  if (t === 'nascimento') return 'registrar_nascimento';
+  if (t === 'pesagem') return 'pesar_lotes';
+  if (t === 'mudanca de categoria') return 'mudar_categoria_lotes';
+  if (t === 'renomear lote') return 'renomear_lotes';
+  if (t === 'juncao de lotes' || t === 'juncao') return 'juntar_lotes';
+  return null;
+};
+
+/** @param {Record<string, unknown>} details */
+export const acaoNaoPermitida = (details) =>
+  new AppError('ACAO_NAO_PERMITIDA', 'você não tem permissão para esta ação', { details });
+
+const lista = (v) => (Array.isArray(v) ? v : []);
+
+/**
+ * Quem pede e o que tem, relido do banco (nunca do token, corpo ou navegador).
+ * @param {{auth: import('./authContext.js').AuthContext}} contexto
+ * @param {import('@prisma/client').Prisma.TransactionClient} [tx]
+ * @returns {Promise<{ ativo: boolean, adminReal: boolean, registro: any|null }>}
+ */
+export const carregarAutorizacao = async (contexto, tx) => {
+  const auth = exigirAuthContext(contexto?.auth);
+  const ator = await atorDoTenant(contexto, tx);
+  if (!ator?.ativo) return { ativo: false, adminReal: false, registro: null };
+  if (ehAdminTenantAtivo(ator)) return { ativo: true, adminReal: true, registro: null };
+  const registro = await (tx ?? getPrismaClient()).permissao.findUnique({
+    where: { cliente_id_user_email: { cliente_id: auth.clienteId, user_email: auth.login } },
+  });
+  return { ativo: true, adminReal: false, registro };
+};
+
+/** Avaliação pura (testável sem banco). */
+export const telaPermite = (aut, { modulo, tela }, acao) => {
+  if (!aut?.ativo) return false;
+  if (aut.adminReal) return true;
+  const r = aut.registro;
+  if (!r) return false;
+  if (r.is_admin === true) return true;
+  if (!lista(r.modulos_permitidos).includes(modulo)) return false;
+  const linha = lista(r.permissoes_telas).find((t) => t && t.tela_id === tela);
+  if (!linha || linha.visualizar !== true) return false;
+  return acao === 'visualizar' ? true : linha[acao] === true;
+};
+
+/** Ação do Mapa Geral (chave de `mapa_geral_permissoes`). */
+export const mapaPermite = (aut, chave) => {
+  if (!telaPermite(aut, TELAS.MAPA_GERAL, 'visualizar')) return false;
+  if (aut.adminReal || aut.registro?.is_admin === true) return true;
+  const mapa = aut.registro?.mapa_geral_permissoes;
+  const valor = mapa && typeof mapa === 'object' && !Array.isArray(mapa) ? mapa[chave] : undefined;
+  return valor !== false;
+};
+
+/**
+ * @param {{auth: import('./authContext.js').AuthContext}} contexto
+ * @param {{ modulo: string, tela: string }} alvo
+ * @param {string} acao
+ */
+export const exigirTela = async (contexto, alvo, acao, tx) => {
+  const aut = await carregarAutorizacao(contexto, tx);
+  if (!telaPermite(aut, alvo, acao)) throw acaoNaoPermitida({ tela: alvo.tela, acao });
+  return aut;
+};
+
+/** @param {{auth: import('./authContext.js').AuthContext}} contexto @param {string} chave */
+export const exigirMapa = async (contexto, chave, tx) => {
+  const aut = await carregarAutorizacao(contexto, tx);
+  if (!mapaPermite(aut, chave)) throw acaoNaoPermitida({ tela: TELAS.MAPA_GERAL.tela, mapa: chave });
+  return aut;
+};
+
+/**
+ * preHandler Fastify: decide pela requisição (corpo já validado pelo schema).
+ * `decidir(request, aut)` devolve `true` ou um objeto de detalhes da negação.
+ * @param {(request: any, aut: Awaited<ReturnType<typeof carregarAutorizacao>>) => true | Record<string, unknown>} decidir
+ */
+export const autorizar = (decidir) => async (request) => {
+  const aut = await carregarAutorizacao(request.contexto);
+  const r = decidir(request, aut);
+  if (r !== true) throw acaoNaoPermitida(r);
+};
+
+/** preHandler: exige a ação na tela. */
+export const porTela = (alvo, acao) =>
+  autorizar((_req, aut) => (telaPermite(aut, alvo, acao) ? true : { tela: alvo.tela, acao }));
+
+/** preHandler: exige a chave do mapa (fixa ou derivada da requisição). */
+export const porMapa = (chaveOuFn) =>
+  autorizar((req, aut) => {
+    const chave = typeof chaveOuFn === 'function' ? chaveOuFn(req) : chaveOuFn;
+    return chave && mapaPermite(aut, chave) ? true : { tela: TELAS.MAPA_GERAL.tela, mapa: chave ?? null };
+  });

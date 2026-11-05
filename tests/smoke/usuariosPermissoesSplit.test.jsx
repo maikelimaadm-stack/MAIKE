@@ -120,13 +120,14 @@ describe("AUTH-REDTEAM — adm-permissoes herda adm-usuarios", () => {
     expect(getPagePermission(allowed, "adm-permissoes")?.tela_id).toBe("adm-usuarios");
   });
 
-  it("usuário sem linha de tela continua fail-open (documentado)", () => {
-    const failOpen = {
+  it("usuário sem linha de tela é NEGADO (fail-closed, mesma regra do servidor)", () => {
+    const semLinha = {
       is_admin: false,
       modulos_permitidos: ["administracao"],
       permissoes_telas: [],
     };
-    expect(canAccessPage(failOpen, "adm-permissoes", "administracao")).toBe(true);
+    expect(canAccessPage(semLinha, "adm-permissoes", "administracao")).toBe(false);
+    expect(canAccessPage(null, "adm-permissoes", "administracao")).toBe(false);
   });
 });
 
