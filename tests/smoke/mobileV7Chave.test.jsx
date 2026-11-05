@@ -3,7 +3,7 @@
  * trilho 60×28, cápsula 38×24 que estica ao pressionar e chega com mola.
  */
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 
 const css = () => readFileSync('src/styles/maike-mobile-shell.css', 'utf8');
 
@@ -34,10 +34,9 @@ describe('V7/V8 — chave do iOS', () => {
     expect(css()).toMatch(/\.cadastro-b1 \.b1-chave-row:not\(#mk-padrao\) \{\s*justify-content: flex-start;/);
   });
 
-  it('V7-4 — Switch do shadcn usa as classes do padrão', () => {
-    const fonte = readFileSync('src/components/ui/switch.jsx', 'utf8');
-    expect(fonte).toMatch(/"mk-switch peer/);
-    expect(fonte).toMatch(/"mk-switch__thumb /);
+  it('V7-4 — sem Switch do shadcn: as chaves do sistema são o ToggleSwitch e o B1Switch (D-PROD-132)', () => {
+    expect(existsSync('src/components/ui/switch.jsx')).toBe(false);
+    expect(readFileSync('src/components/mapa/MapaFiltrosAvancados.jsx', 'utf8')).toMatch(/<ToggleSwitch /);
   });
 
   it('V8-1 — pressionar estica a bolinha nas três chaves', () => {
