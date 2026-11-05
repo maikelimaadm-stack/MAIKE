@@ -34,8 +34,8 @@ import LancField from "@/components/cadastro/base1/LancField";
 import ResumoSuplementacao from "../suplementacao/ResumoSuplementacao";
 import InformacoesArea from "./InformacoesArea";
 import { Progress } from "@/components/ui/progress";
-import { Combine, History, PencilLine, Tags, Wheat } from "lucide-react";
-import { IconeMorte, IconeMoverAnimais, IconeNascimento, IconePesar, IconeSaida } from "@/components/mapa/IconesManejo";
+import { History, PencilLine, Tags, Wheat } from "lucide-react";
+import { IconeJuntarLotes, IconeMorte, IconeMoverAnimais, IconeNascimento, IconePesar, IconeSaida } from "@/components/mapa/IconesManejo";
 import { corpoNascimento, corpoPesagem, corpoMudancaCategoria, corpoJuncao, corpoBaixa, previaJuncao, corpoTransferenciaLedger, ehPosicaoDoLedger } from "@/domain/lotes/manejoRebanho";
 import { enviarManejoRebanho, enviarJuncaoLotes, enviarBaixaRebanho, enviarTransferenciaLedger, mensagemDaTransferenciaLedger, mensagemDoErro, codigoDoErro, MENSAGENS_MANEJO_REBANHO } from "@/services/manejoRebanhoService";
 import { escopoDoUsuario } from "../lotes/ExcluirMovimentacao";
@@ -586,7 +586,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
         };
         const manejos = [
           permissions.registrar_abate !== false && { nome: 'Saída', Icone: IconeSaida, onClick: () => abrirManejo(setShowAbate) },
-          permissions.juntar_lotes !== false && lotes.length > 1 && categoriasJuntaveis.length > 0 && { nome: 'Juntar Lotes', Icone: Combine, onClick: abrirJuncao },
+          permissions.juntar_lotes !== false && lotes.length > 1 && categoriasJuntaveis.length > 0 && { nome: 'Juntar Lotes', Icone: IconeJuntarLotes, onClick: abrirJuncao },
           permissions.mover_lotes !== false && { nome: 'Mover', Icone: IconeMoverAnimais, onClick: () => abrirManejo(setShowMovimentacao) },
           permissions.mudar_categoria_lotes !== false && { nome: 'Mudar Categoria', Icone: Tags, onClick: () => abrirManejo(setShowMudancaCategoria) },
           permissions.registrar_nascimento !== false && { nome: 'Nascimento', Icone: IconeNascimento, onClick: () => abrirManejo(setShowNascimento) },

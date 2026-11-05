@@ -29,3 +29,6 @@ export const IconeSaida = iconeImagem("/icons/saida.png");
 
 /** Morte: animal deitado com o X. */
 export const IconeMorte = iconeImagem("/icons/morte.png");
+
+/** Juntar Lotes: boi com as setas que se encontram. */
+export const IconeJuntarLotes = iconeImagem("/icons/juntar-lotes.png");

@@ -5034,18 +5034,19 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
   - aproximando: média 97% e pior quadro 94%;
   - evidência: v19-05.
 
-## D-PROD-131 — Manejos "Saída" (antigo Abate), "Mover", "Pesar", "Nascimento" e "Morte": ícones do proprietário
+## D-PROD-131 — Manejos "Saída" (antigo Abate), "Mover", "Pesar", "Nascimento", "Morte" e "Juntar Lotes": ícones do proprietário
 
-- **Contexto:** o proprietário enviou imagens próprias para cinco botões de manejo e pediu que "Abate" passe a se chamar "Saída":
+- **Contexto:** o proprietário enviou imagens próprias para seis botões de manejo e pediu que "Abate" passe a se chamar "Saída":
   - Saída: um boi com a seta de saída;
   - Mover: um boi com setas de ida e volta (segunda versão; a primeira tinha porteiras);
   - Pesar: uma balança digital com o visor 0.0;
   - Nascimento: uma vaca com o bezerro e os símbolos de macho e fêmea (segunda versão, toda em cinza-escuro);
-  - Morte: um animal deitado com um X.
+  - Morte: um animal deitado com um X;
+  - Juntar Lotes: um boi com setas que se encontram.
 - **Decisão:**
-  - Os quadros "Saída", "Mover", "Pesar", "Nascimento" e "Morte" dos Manejos (Detalhes do Lote) usam essas imagens no lugar dos ícones `Beef`, `ArrowLeftRight`, `Scale`, `Baby` e `HeartCrack`.
+  - Os quadros "Saída", "Mover", "Pesar", "Nascimento", "Morte" e "Juntar Lotes" dos Manejos (Detalhes do Lote) usam essas imagens no lugar dos ícones `Beef`, `ArrowLeftRight`, `Scale`, `Baby`, `HeartCrack` e `Combine`.
   - O quadro "Abate" passa a se chamar **"Saída"**, e a janela passa a ser "Registrar Saída". O registro continua sendo o mesmo manejo de abate: tipo `Abate`, `FormularioAbate` e a permissão `registrar_abate`.
-  - As imagens foram recortadas, com o fundo branco tirado, e salvas em `public/icons/` (`saida.png`, `mover-animais.png`, `pesar.png`, `nascimento.png`, `morte.png`). Como as imagens mais largas têm cerca de 2,7:1, a largura máxima é de 88 px, o que ainda cabe no quadro. Elas são exibidas por `IconesManejo`.
+  - As imagens foram recortadas, com o fundo branco tirado, e salvas em `public/icons/` (`saida.png`, `mover-animais.png`, `pesar.png`, `nascimento.png`, `morte.png`, `juntar-lotes.png`). Como as imagens mais largas têm cerca de 2,7:1, a largura máxima é de 88 px, o que ainda cabe no quadro. Elas são exibidas por `IconesManejo`.
   - A pedido do proprietário, ficam **maiores** que os outros ícones: 32 px, 36 px na folha do celular e 30 px nos quadros menores do computador.
   - Uma margem negativa faz a imagem crescer para cima, sem aumentar o quadro nem descer o nome.
 - **Consequência:**
