@@ -299,12 +299,24 @@ export default function useMapRenderer(mapInstanceRef) {
       if (key.startsWith("lote_") && entry.el) obstaculos.push(caixa(entry.el));
     });
     const modo = escolherModoRotulos(itens, obstaculos);
-    labelsRef.current.forEach((entry) => {
+    labelsRef.current.forEach((entry, id) => {
       if (modo !== "tudo") {
         entry.ha.style.display = "none";
         entry.extra.style.display = "none";
       }
       if (modo === "sigla") entry.titulo.textContent = entry.sigla;
+      // Centraliza no ponto da área (D-PROD-127): sem lote, o nome bem no meio;
+      // com lote, o par ícone (em cima) + nome (embaixo) centrado no ponto.
+      const h = entry.el.offsetHeight || 0;
+      const lote = markersRef.current.get(`lote_area_${id}`);
+      if (lote?.el) {
+        const H = lote.el.offsetHeight || 44;
+        const total = H + 2 + h;
+        lote.marker.setOffset([0, Math.round(-total / 2 + H / 2)]);
+        entry.marker.setOffset([0, Math.round(-total / 2 + H + 2)]);
+      } else {
+        entry.marker.setOffset([0, Math.round(-h / 2)]);
+      }
       entry.el.style.visibility = "visible";
       entry.el.dataset.rotulo = modo;
     });

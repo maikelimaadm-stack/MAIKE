@@ -267,12 +267,13 @@ Teste `notificacoesConfirmacoes`: a promessa do `confirmar`, o aviso de bloqueio
 
 Harness a 390 px com 72 áreas, com o mapa base trocado por um fundo liso porque não há internet: afastado, as 72 siglas; com zoom +1, os 72 nomes com o ha. **Não testado no mapa real nem em aparelho.**
 
-### V19b — nome e ícone do lote no miolo da área (D-PROD-127)
+### V19b — nome e ícone do lote centrados no miolo da área (D-PROD-127)
 
-- **Pedido:** resolver os nomes desalinhados, em cima das divisas, nas áreas que não são quadradas, sem errar o lugar do lote.
-- **Feito:** o ponto do nome, do lote e da tarefa passa a ser o mais longe de todas as bordas (polylabel). O mesmo ponto vale para o nome e para o lote.
+- **Pedido:** resolver os nomes desalinhados, em cima das divisas, nas áreas que não são quadradas, sem errar o lugar do lote. Depois: uns ainda ficavam no meio e outros não.
+- **Feito:**
+  - O ponto agora é bem dentro da área e o mais perto possível do meio dela.
+  - Sem lote, o nome fica centrado no ponto. Com lote, o par ícone e nome fica centrado.
 - **Medição nas 107 áreas reais:**
-  - Antes, 4 pontos ficavam a menos de 30 m de uma divisa; depois, nenhum. Nenhuma área piorou.
-  - O antes e o depois no harness, com as áreas reais e o mapa base trocado por um fundo liso, estão em v19-02.
+  - Antes, 4 pontos ficavam a menos de 30 m de uma divisa; depois, nenhum. Só o MT - 12 ficou 6 m mais perto da borda (104 m).
+  - Evidências v19-02 (antes e depois) e v19-03 (áreas reais com lotes, no harness, com o mapa base trocado por um fundo liso).
 - **Não testado em aparelho.**
-

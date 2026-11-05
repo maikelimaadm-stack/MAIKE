@@ -79,7 +79,16 @@ describe("pontoMaisDentro — nome e lote no miolo da área torta (D-PROD-127)",
     expect(pointInPolygonRing(p, L)).toBe(true);
     const c = { lat: L.reduce((t, v) => t + v.lat, 0) / L.length, lng: L.reduce((t, v) => t + v.lng, 0) / L.length };
     expect(borda(p, L)).toBeGreaterThan(borda(c, L) * 2);
-    expect(borda(p, L)).toBeGreaterThan(0.0035);
+    expect(borda(p, L)).toBeGreaterThan(0.0025); // ≥ 70% da folga máxima (0,004)
+  });
+
+  it("faixa comprida (torta): o nome vai para o meio da faixa, não para uma ponta", () => {
+    // paralelogramo comprido e inclinado
+    const faixa = [{ lat: 0, lng: 0 }, { lat: 0.004, lng: 0.04 }, { lat: 0.0, lng: 0.04 }, { lat: -0.004, lng: 0 }];
+    const p = pontoMaisDentro(faixa);
+    expect(pointInPolygonRing(p, faixa)).toBe(true);
+    expect(p.lng).toBeGreaterThan(0.016);
+    expect(p.lng).toBeLessThan(0.024);
   });
 
   it("o nome e o ícone do lote usam o mesmo ponto (centroideArea → pontoMaisDentro)", () => {
@@ -90,5 +99,8 @@ describe("pontoMaisDentro — nome e lote no miolo da área torta (D-PROD-127)",
     expect(viaArea).toEqual(direto);
     const r = readFileSync("src/components/mapa/useMapRenderer.jsx", "utf8");
     expect((r.match(/centroideArea\(area\)/g) || []).length).toBeGreaterThanOrEqual(3); // rótulo, lote e tarefa
+    // par ícone + nome centrado no ponto; sem lote, nome no meio
+    expect(r).toMatch(/lote\.marker\.setOffset\(\[0, Math\.round\(-total \/ 2 \+ H \/ 2\)\]\)/);
+    expect(r).toMatch(/entry\.marker\.setOffset\(\[0, Math\.round\(-h \/ 2\)\]\)/);
   });
 });

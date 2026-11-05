@@ -92,8 +92,10 @@ export function centroideArea(area) {
 }
 
 /**
- * Ponto mais longe das bordas do polígono (centro do maior círculo que cabe
- * dentro — "polo de inacessibilidade"), D-PROD-127. Em área quadrada é o
+ * Ponto bem dentro do polígono e o mais perto possível do meio dele
+ * (D-PROD-127): acha a maior folga até as bordas (centro do maior círculo que
+ * cabe — "polo de inacessibilidade") e, entre os pontos com ao menos 70%
+ * dessa folga, usa o mais perto do centroide. Em área quadrada é o
  * centro; em L, U ou recortada fica no miolo da parte mais larga, nunca numa
  * divisa nem fora. Busca em grade com refinamento (algoritmo polylabel), em
  * metros aproximados (longitude corrigida pela latitude).
@@ -168,7 +170,36 @@ export function pontoMaisDentro(ring, precisao = 0.01) {
     fila.push(celula(cel.x - h, cel.y - h, h), celula(cel.x + h, cel.y - h, h), celula(cel.x - h, cel.y + h, h), celula(cel.x + h, cel.y + h, h));
   }
   if (!(melhor.d > 0)) return null;
-  return { lat: melhor.y, lng: melhor.x / k };
+
+  // Entre os pontos "fundos o bastante" (≥ 70% da maior folga), fica o mais
+  // perto do meio da área: numa faixa comprida o nome vai para o meio dela,
+  // não para uma ponta qualquer (D-PROD-127).
+  const fundo = melhor.d * 0.7;
+  const meio = c ? { x: c.lng * k, y: c.lat } : { x: minX + larg / 2, y: minY + alt / 2 };
+  /** @type {{ x: number, y: number, d: number }} */
+  let escolhido = { x: melhor.x, y: melhor.y, d: melhor.d };
+  let perto = Math.hypot(melhor.x - meio.x, melhor.y - meio.y);
+  const dMeio = dist(meio.x, meio.y);
+  if (dMeio >= fundo) {
+    escolhido = { x: meio.x, y: meio.y, d: dMeio };
+    perto = 0;
+  } else {
+    const N = 32;
+    for (let i = 0; i <= N; i += 1) {
+      for (let j = 0; j <= N; j += 1) {
+        const x = minX + (larg * i) / N;
+        const y = minY + (alt * j) / N;
+        const dd = Math.hypot(x - meio.x, y - meio.y);
+        if (dd >= perto) continue;
+        const d = dist(x, y);
+        if (d >= fundo) {
+          escolhido = { x, y, d };
+          perto = dd;
+        }
+      }
+    }
+  }
+  return { lat: escolhido.y, lng: escolhido.x / k };
 }
 
 /**
