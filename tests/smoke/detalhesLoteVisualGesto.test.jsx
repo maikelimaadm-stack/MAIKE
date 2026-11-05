@@ -30,9 +30,37 @@ describe("Detalhes do Lote: visual (D-PROD-120)", () => {
 
   it("nomes de área e lote em verde (cor dos botões), sem o amarelo", () => {
     expect(detalhes).toMatch(/className="mk-dl__nome">Lote: \{lote\.nome\}/);
-    expect(area).toMatch(/className="mk-dl__nome">Informações da Área: \{area\.nome\}/);
+    // D-PROD-124: a área fica só em texto escuro (sem o verde); o lote continua verde.
+    expect(area).toMatch(/className="mk-dl__nome mk-dl__nome--area">Informações da Área: \{area\.nome\}/);
+    expect(css).toMatch(/\.mk-dl__nome--area \{[^}]*background: none;[^}]*color: #1f2937;/);
     for (const f of [detalhes, area]) expect(f).not.toMatch(/yellow|amber/);
     expect(css).toMatch(/\.mk-dl__nome \{[^}]*background: var\(--mg-accent, #40de63\);[^}]*color: #fff;/);
+  });
+});
+
+describe("Campos numa linha só, texto corre se não couber (D-PROD-124)", () => {
+  it("rótulo e valor no mesmo tamanho do Categoria de Manejo, sem quebra de linha", () => {
+    expect(css).toMatch(/\.mk-dl__linha \{[^}]*overflow: hidden;[^}]*white-space: nowrap;[^}]*font-size: 10\.5px;/);
+    expect(css).toMatch(/\.mk-dl__chip \{[^}]*font-size: 10\.5px;/);
+    expect(css).toMatch(/\.mk-dl__icone \{[^}]*\}/);
+    expect(css).not.toMatch(/\.mk-dl__icone \{[^}]*background/);
+  });
+
+  it("CampoDl corre quando o texto passa da largura", async () => {
+    const { default: CampoDl } = await import("@/components/mapa/CampoDl");
+    const sw = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "scrollWidth");
+    const cw = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "clientWidth");
+    Object.defineProperty(HTMLElement.prototype, "scrollWidth", { configurable: true, get() { return this.classList.contains("mk-dl__correr") ? 200 : 80; } });
+    Object.defineProperty(HTMLElement.prototype, "clientWidth", { configurable: true, get() { return 80; } });
+    try {
+      const { container } = render(<CampoDl rotulo="Identificador">LOTE COMPOSTO DE ENGORDA</CampoDl>);
+      const corre = container.querySelectorAll(".mk-dl__correr.is-correndo");
+      expect(corre.length).toBe(2);
+      expect(/** @type {HTMLElement} */ (corre[1]).style.getPropertyValue("--mk-dist")).toBe("-120px");
+    } finally {
+      if (sw) Object.defineProperty(HTMLElement.prototype, "scrollWidth", sw);
+      if (cw) Object.defineProperty(HTMLElement.prototype, "clientWidth", cw);
+    }
   });
 });
 

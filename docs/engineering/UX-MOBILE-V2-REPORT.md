@@ -258,3 +258,16 @@ Morte e Histórico de Movimentação abrem pelos quadros a 1600, 820 e 390 px (h
 
 Teste `notificacoesConfirmacoes`: a promessa do `confirmar`, o aviso de bloqueio, os toasts e a guarda contra `confirm`/`alert`. **Não testado em aparelho real.**
 
+## V18 — Detalhes do Lote: campos numa linha, área em texto, fundo cinza e botões brancos (D-PROD-124)
+
+| Pedido | Feito | Evidência |
+|---|---|---|
+| Sub-ícone só com a imagem | Sem o quadro de fundo, com 26 px | v18-01 |
+| Letras menores e iguais ao "Categoria de Manejo" | Rótulo e valor com 10,5 px (cinza e escuro) | v18-01, v18-02 |
+| Área sem o verde | "Informações da Área" só em texto escuro | v18-01, v18-02 |
+| Sem quebra de linha | Campos numa linha. O texto que não cabe corre devagar | v18-01 ("LOTE COMPOSTO DE ENGORDA") |
+| Remover Categoria Oficial, Sistemas Reprodutivos e Lotes | Removidos | v18-01 |
+| Fundo cinza e botões brancos, como no celular | Corpo cinza, cartões e quadros brancos | v18-01, v18-02 |
+
+**Não testado em aparelho real.**
+

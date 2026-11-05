@@ -26,7 +26,7 @@ const TIPO_OPTIONS = [
 const UF_OPTIONS = ESTADOS.map((uf) => ({ value: uf, label: uf }));
 
 /**
- * D-PROD-122: fuso IANA da fazenda — define o "hoje" dos manejos do rebanho.
+ * D-PROD-124: fuso IANA da fazenda — define o "hoje" dos manejos do rebanho.
  * Escolha explícita do usuário (nunca inferido da UF). Brasil sem horário de verão.
  */
 export const FUSOS_BRASIL = Object.freeze([

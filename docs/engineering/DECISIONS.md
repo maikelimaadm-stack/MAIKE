@@ -4908,4 +4908,31 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
   Ela exige missão, manifesto e autorização próprios.
 - **Consequência:** a ordem do histórico passa a ser a da vida do rebanho, determinística entre páginas. A virada do runtime invalida uma vez os cursores v1 em memória, com 400 estável e reinício automático. Ver `MAIKE-D-PROD-123-HISTORICO-OCORRENCIA-REPORT.md`.
 
-<!-- Próxima decisão: D-PROD-124 -->
+## D-PROD-124 — Detalhes do Lote: campos numa linha, área em texto, fundo cinza e botões brancos
+
+- **Contexto:** o proprietário pediu, no Detalhes do Lote:
+  - o sub-ícone do lote só com a imagem, que já não tem fundo;
+  - letras menores;
+  - a área sem o verde, só a letra escura;
+  - sem quebra de linha nos campos, com o texto correndo quando não couber;
+  - só a Categoria de Manejo, sem a Categoria Oficial;
+  - na área, sem Sistemas Reprodutivos e sem Lotes;
+  - rótulo e valor iguais ao "Categoria de Manejo";
+  - cartões mantidos, botões brancos e fundo cinza atrás de tudo, como no celular.
+- **Decisão:**
+  - **Campos (`CampoDl`):** rótulo cinza (500) e valor escuro (600), ambos com 10,5 px, como o chip "Categoria de Manejo", numa linha só (`nowrap`).
+    - Se o texto passar da largura (medido com `ResizeObserver`), ele corre devagar até o fim e volta.
+    - Com "reduzir movimento" ligado, o texto fica parado.
+  - **Cabeçalhos:**
+    - "Lote: …" continua em pílula verde, menor (10,5 px).
+    - "Informações da Área: …" fica só em texto `#1f2937`.
+    - O sub-ícone é só a imagem, com 26 px.
+  - **Removidos:**
+    - do lote: Categoria Oficial;
+    - da área: Sistemas Reprodutivos e Lotes.
+  - **Fundo:** o corpo do diálogo do Detalhes do Lote fica cinza (`#f2f3f5`). No celular, o diálogo inteiro fica cinza, com ✕ e grade brancos.
+    - Os cartões continuam brancos.
+    - Os quadros de Manejos e Históricos ficam brancos, como na folha do celular.
+- **Consequência:** o Detalhes do Lote fica mais limpo e compacto, sem textos quebrados. No desktop fica com o mesmo visual do celular.
+
+<!-- Próxima decisão: D-PROD-125 -->
