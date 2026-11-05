@@ -415,6 +415,50 @@ export function lerVisaoSalva(raw) {
 }
 
 /**
+ * Estilos de exibição dos pastos no Mapa Geral (D-PROD-131), escolhidos em
+ * "Visualização": cheio (padrão), suave (cor clara, satélite aparece) e só
+ * contorno (linha na cor do pasto). Só muda pintura — clique e rótulos iguais.
+ */
+export const ESTILOS_PASTO = Object.freeze([
+  { id: "cheio", label: "Cheio" },
+  { id: "suave", label: "Suave" },
+  { id: "contorno", label: "Contorno" },
+]);
+
+/** @param {string} [estilo] */
+export function paintEstiloPasto(estilo) {
+  const divisa = paintAreaDivisa();
+  if (estilo === "suave") return { fill: { "fill-opacity": 0.4 }, line: divisa };
+  if (estilo === "contorno") {
+    return {
+      fill: { "fill-opacity": 0.08 },
+      line: {
+        "line-color": ["coalesce", ["get", "fill"], "#94a3b8"],
+        "line-opacity": 1,
+        "line-width": ["interpolate", ["linear"], ["zoom"], 10, 1.2, 14, 2, 18, 3],
+      },
+    };
+  }
+  return { fill: { "fill-opacity": paintAreaFill("fill")["fill-opacity"] }, line: divisa };
+}
+
+/**
+ * Aplica o estilo nas camadas de áreas já criadas (idempotente).
+ * @param {any} map
+ * @param {string} [estilo]
+ */
+export function aplicarEstiloPasto(map, estilo) {
+  if (typeof map?.getLayer !== "function" || typeof map.setPaintProperty !== "function") return;
+  const p = paintEstiloPasto(estilo);
+  const set = (layer, props) => {
+    if (!map.getLayer(layer)) return;
+    for (const [k, v] of Object.entries(props)) map.setPaintProperty(layer, k, v);
+  };
+  set(MG_LAYER_IDS.AREAS_FILL, p.fill);
+  set(MG_LAYER_IDS.AREAS_LINE, p.line);
+}
+
+/**
  * Sources/layers do Mapa Geral — idempotente (reaplicável após setStyle).
  * Ordem: áreas (fill, divisa, destaque) → linhas → localização.
  * @param {any} map

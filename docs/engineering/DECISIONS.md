@@ -5034,29 +5034,32 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
   - aproximando: média 97% e pior quadro 94%;
   - evidência: v19-05.
 
-## D-PROD-131 — Mapa Geral é a tela de entrada: ☰ no lugar do ✕ e controles flutuantes novos
+## D-PROD-131 — Mapa Geral: sem o ✕, painel "Visualização" e controles flutuantes
 
 - **Contexto:** o proprietário sentia que entrava no mapa "por uma tela":
-  - havia cabeçalho e menu do sistema por cima e um ✕ (`navigate(-1)`) para fechar o mapa;
+  - havia um ✕ (`navigate(-1)`) para fechar o mapa, e no celular o cabeçalho do sistema ficava por cima;
   - o aviso e a atribuição do satélite ocupavam muito espaço;
-  - pediu um desenho mais bonito, na linha dos apps de mapa de fazenda (referência citada: AgriWebb, que tem o mapa em tela cheia, menu lateral e controles em cartões flutuantes).
+  - pediu um desenho mais bonito, na linha dos apps de mapa de fazenda (referência citada: AgriWebb), com **mais estilos de visualização dos polígonos** e tudo mais organizado.
+  - Uma primeira versão tinha botão de fazenda e menu lateral (☰). Ele recusou os dois: "não preciso desse menu".
 - **Decisão:**
-  - Na tela `MapaGeral` o Layout recebe `mk-shell--mapa`. O CSS tira o cabeçalho e a barra de módulos, e o mapa ocupa a largura toda. A barra inferior do celular e a barra lateral do tablet continuam.
-  - O ✕ saiu. No lugar, o cartão "☰ | Fazenda ▾":
-    - ☰ abre o **menu lateral** (`MenuLateral`), igual em todos os tamanhos. Ele traz a fazenda, a busca de telas, os módulos com suas telas (a atual em verde) e o usuário com Configurações e Sair.
-    - O nome da fazenda troca a empresa.
-    - A ponte com o mapa é `MapaShellContext`. Fora do Layout o ☰ não aparece.
-  - Tarefas e Filtros viram cartões; no celular mostram só o ícone.
-  - À direita ficam **Camadas** (Mapa/Satélite numa escolha só, com miniaturas) e um grupo único com Atualizar, Minha localização e Mover lotes. O zoom nativo usa o mesmo desenho.
-  - O resumo (animais, peso médio, áreas) fica num cartão único.
+  - Celular e tablet: na tela `MapaGeral` o Layout recebe `mk-shell--mapa` e o CSS tira o cabeçalho abaixo de 1024 px. A barra inferior e a barra lateral continuam navegando.
+  - Computador: o cabeçalho e o menu do sistema continuam, porque são a navegação; o mapa usa a largura toda.
+  - O ✕ saiu. No alto à esquerda ficam só Tarefas e Filtros, em cartões; no celular, só o ícone.
+  - No alto à direita, o botão **Visualização** (`MapaVisualizacao`) abre um painel com quatro seções:
+    - **Tipo de mapa**: Mapa ou Satélite, com miniaturas.
+    - **Estilo dos pastos**: Cheio (padrão), Suave (cor clara, o satélite aparece por baixo) ou Contorno (linha na cor do pasto). Está em `paintEstiloPasto` e `aplicarEstiloPasto`; o renderer reaplica o estilo após trocar o basemap, e a escolha é salva com a visão.
+    - **Colorir pastos por**: os mesmos modos de antes, com amostra de cores.
+    - **Mostrar no mapa**: as camadas em blocos de liga/desliga, conforme as permissões (`camadasDoMapa`).
+  - Os Filtros ficam só com o que filtra os dados (`mostrarVisualizacao={false}`).
+  - Atualizar, Minha localização e Mover lotes ficam num grupo único. O zoom nativo e o resumo seguem o mesmo desenho.
   - Satélite:
     - "Google Maps" continua sempre visível na atribuição nativa, em letra pequena.
     - O copyright longo do viewport fica inteiro atrás de "ⓘ Fontes de dados", sem cortar.
-    - O aviso de falha virou uma pílula compacta com título, motivo em uma linha, "Tentar novamente" e fechar. Ela não cobre os botões da direita no celular.
+    - O aviso de falha virou uma pílula compacta, com "Tentar novamente" e fechar.
 - **Consequência:**
-  - O mapa ganha a área do cabeçalho: 91 px no computador e 56 px no celular.
-  - Os outros caminhos para as telas continuam: barra inferior, barra lateral e busca.
-  - Teste: `tests/smoke/mapaV2Menu.test.jsx`.
+  - O celular ganha 56 px de mapa.
+  - A visualização fica num lugar só e os filtros ficam mais curtos.
+  - Teste: `tests/smoke/mapaV2Visualizacao.test.jsx`.
   - Evidências: v20-01 a v20-07.
 
 <!-- Próxima decisão: D-PROD-132 -->
