@@ -15,6 +15,7 @@
 
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { conferirImportacao, importarAreas, LIMITES_IMPORTACAO } from './areaImportacaoService.js';
+import { porTela, TELAS } from '../../shared/auth/autorizacaoTela.js';
 
 /** ~50 mil vértices em JSON cabem em 4 MB; o limite da Vercel é 4,5 MB. */
 const LIMITE_CORPO = 4 * 1024 * 1024;
@@ -74,7 +75,7 @@ const corpoValidado = (corpo) => corpo;
 export const registrarAreaImportacaoRoutes = async (app) => {
   app.post(
     '/areas-pastagem/importacao/conferir',
-    { onRequest: [app.autenticar], bodyLimit: LIMITE_CORPO, schema: CONFERIR_SCHEMA },
+    { onRequest: [app.autenticar], preHandler: [porTela(TELAS.MAPA_CADASTRO, 'importar')], bodyLimit: LIMITE_CORPO, schema: CONFERIR_SCHEMA },
     async (request) => {
       exigirAuthContext(request.contexto.auth);
       return conferirImportacao(request.contexto, corpoValidado(request.body));
@@ -83,7 +84,7 @@ export const registrarAreaImportacaoRoutes = async (app) => {
 
   app.post(
     '/areas-pastagem/importacao',
-    { onRequest: [app.autenticar], bodyLimit: LIMITE_CORPO, schema: IMPORTAR_SCHEMA },
+    { onRequest: [app.autenticar], preHandler: [porTela(TELAS.MAPA_CADASTRO, 'importar')], bodyLimit: LIMITE_CORPO, schema: IMPORTAR_SCHEMA },
     async (request, reply) => {
       exigirAuthContext(request.contexto.auth);
       const resultado = await importarAreas(request.contexto, corpoValidado(request.body));

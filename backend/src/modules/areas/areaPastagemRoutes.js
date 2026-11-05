@@ -35,6 +35,7 @@
 
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { listar, criar, atualizar } from './areaPastagemService.js';
+import { porTela, TELAS } from '../../shared/auth/autorizacaoTela.js';
 
 /** Enums fechados do cadastro, herdados de `base44/entities/AreaPastagem.jsonc`. */
 const CLASSIFICACOES = ['Alta', 'Média', 'Baixa'];
@@ -137,7 +138,7 @@ export const registrarAreaPastagemRoutes = async (app) => {
 
   app.post(
     '/areas-pastagem',
-    { onRequest: [app.autenticar], schema: CRIAR_SCHEMA },
+    { onRequest: [app.autenticar], preHandler: [porTela(TELAS.MAPA_CADASTRO, 'novo')], schema: CRIAR_SCHEMA },
     async (request, reply) => {
       exigirAuthContext(request.contexto.auth);
       const area = await criar(request.contexto, corpoValidado(request.body));
@@ -147,7 +148,7 @@ export const registrarAreaPastagemRoutes = async (app) => {
 
   app.patch(
     '/areas-pastagem/:id',
-    { onRequest: [app.autenticar], schema: ATUALIZAR_SCHEMA },
+    { onRequest: [app.autenticar], preHandler: [porTela(TELAS.MAPA_CADASTRO, 'editar')], schema: ATUALIZAR_SCHEMA },
     async (request) => {
       exigirAuthContext(request.contexto.auth);
       const { id } = /** @type {{id: string}} */ (request.params);

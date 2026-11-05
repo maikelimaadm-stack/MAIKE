@@ -72,7 +72,7 @@ const operador = async () => (await criarAdminComSessao(app)).headers;
 
 /** Leitura publicada, como um cliente a veria. */
 const publicadosComoCliente = async () => {
-  const { credenciais } = await criarTenant();
+  const { credenciais } = await criarTenant({ semPermissao: true });
   const { corpo } = await autenticarNoApp(app, credenciais);
   return (await httpCom({ authorization: `Bearer ${corpo.token}` })({ method: 'GET', url: '/catalogo-global/icones' })).body;
 };
@@ -145,7 +145,7 @@ describe('importação de ícones oficiais (D-PROD-69/70)', () => {
   });
 
   test('I-03 admin de tenant (e operador legado) não importa: 403 e nada é gravado', async () => {
-    const { cliente, usuario, credenciais } = await criarTenant();
+    const { cliente, usuario, credenciais } = await criarTenant({ semPermissao: true });
     await getPrismaClient().permissao.create({ data: { cliente_id: cliente.id, user_email: usuario.login, is_admin: true } });
     const { corpo } = await autenticarNoApp(app, credenciais);
     const caminho = await manifestoEm([{ categoria: { codigo: 'bezerro', nome: 'Bezerro' }, imagem: 'b.png' }], {

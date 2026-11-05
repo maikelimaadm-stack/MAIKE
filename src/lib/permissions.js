@@ -40,28 +40,39 @@ export const getPagePermission = (permission, pageId) => {
   return null;
 };
 
+/*
+ * Avaliação FAIL-CLOSED (mesma regra do servidor, `backend/src/shared/auth/autorizacaoTela.js`):
+ *  - sem registro → nada (antes: tudo liberado);
+ *  - `is_admin` da linha → todas as telas/ações (concessão explícita de menu; não é
+ *    o papel de administrador da fazenda — para ele o chamador monta o registro
+ *    efetivo com `permissaoEfetiva`);
+ *  - senão: módulo concedido E linha da tela com `visualizar === true` E a ação
+ *    `=== true`. Tela sem linha → negada (antes: liberada).
+ * Isto só decide o que a interface mostra; quem bloqueia de fato é o servidor (403).
+ */
 export const canAccessModule = (permission, moduleId) => {
   const normalized = normalizePermissionRecord(permission);
-  if (!normalized || normalized.is_admin) return true;
+  if (!normalized) return false;
+  if (normalized.is_admin === true) return true;
   return normalized.modulos_permitidos.includes(moduleId);
 };
 
 export const canAccessPage = (permission, pageId, moduleId) => {
   const normalized = normalizePermissionRecord(permission);
-  if (!normalized || normalized.is_admin) return true;
+  if (!normalized) return false;
+  if (normalized.is_admin === true) return true;
   if (!canAccessModule(normalized, moduleId)) return false;
   const pagePermission = getPagePermission(normalized, pageId);
-  if (!pagePermission) return true;
-  return pagePermission.visualizar !== false;
+  return pagePermission?.visualizar === true;
 };
 
 export const canPerformAction = (permission, pageId, moduleId, action) => {
   const normalized = normalizePermissionRecord(permission);
-  if (!normalized || normalized.is_admin) return true;
+  if (!normalized) return false;
+  if (normalized.is_admin === true) return true;
   if (!canAccessPage(normalized, pageId, moduleId)) return false;
-  const pagePermission = getPagePermission(normalized, pageId);
-  if (!pagePermission) return true;
-  return pagePermission[action] !== false;
+  if (action === "visualizar") return true;
+  return getPagePermission(normalized, pageId)?.[action] === true;
 };
 
 const createBasePagePermission = (moduleId, moduleTitle, page, defaultValue) => ({

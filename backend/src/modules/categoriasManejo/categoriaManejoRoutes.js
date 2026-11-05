@@ -3,6 +3,7 @@
  */
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { listar, criar, atualizar, excluir } from './categoriaManejoService.js';
+import { GUARDAS } from '../../shared/auth/guardasRotas.js';
 
 const ID_SCHEMA = {
   params: {
@@ -42,19 +43,19 @@ export const registrarCategoriaManejoRoutes = async (app) => {
     return registros;
   });
 
-  app.post('/categorias-manejo', { onRequest: [app.autenticar], schema: CRIAR_SCHEMA }, async (request, reply) => {
+  app.post('/categorias-manejo', { onRequest: [app.autenticar], preHandler: [GUARDAS.categoriaManejo.criar], schema: CRIAR_SCHEMA }, async (request, reply) => {
     exigirAuthContext(request.contexto.auth);
     const registro = await criar(request.contexto, /** @type {Record<string, unknown>} */ (request.body));
     return reply.status(201).send(registro);
   });
 
-  app.patch('/categorias-manejo/:id', { onRequest: [app.autenticar], schema: ATUALIZAR_SCHEMA }, async (request) => {
+  app.patch('/categorias-manejo/:id', { onRequest: [app.autenticar], preHandler: [GUARDAS.categoriaManejo.editar], schema: ATUALIZAR_SCHEMA }, async (request) => {
     exigirAuthContext(request.contexto.auth);
     const { id } = /** @type {{id: string}} */ (request.params);
     return atualizar(request.contexto, id, /** @type {Record<string, unknown>} */ (request.body));
   });
 
-  app.delete('/categorias-manejo/:id', { onRequest: [app.autenticar], schema: ID_SCHEMA }, async (request, reply) => {
+  app.delete('/categorias-manejo/:id', { onRequest: [app.autenticar], preHandler: [GUARDAS.categoriaManejo.excluir], schema: ID_SCHEMA }, async (request, reply) => {
     exigirAuthContext(request.contexto.auth);
     const { id } = /** @type {{id: string}} */ (request.params);
     await excluir(request.contexto, id);

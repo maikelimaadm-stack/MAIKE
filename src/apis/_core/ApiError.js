@@ -125,6 +125,8 @@ export const API_ERROR_CODES = Object.freeze({
 
   // PR145-R4 — autoridade do administrador da fazenda (D-PROD-71).
   TENANT_ADMIN_REQUIRED: 'TENANT_ADMIN_REQUIRED',
+  // Permissões por tela/ação e do Mapa Geral, decididas no servidor.
+  ACAO_NAO_PERMITIDA: 'ACAO_NAO_PERMITIDA',
   USUARIO_SENHA_ATUAL_INVALIDA: 'USUARIO_SENHA_ATUAL_INVALIDA',
   USUARIO_INATIVO: 'USUARIO_INATIVO',
 
@@ -206,6 +208,8 @@ const MENSAGENS = Object.freeze({
   [API_ERROR_CODES.USUARIO_NOT_FOUND]: 'Este usuário não foi encontrado. Atualize a lista e tente novamente.',
   [API_ERROR_CODES.USUARIO_LOGIN_DUPLICADO]: 'Já existe um usuário com este login neste cliente.',
   [API_ERROR_CODES.USUARIO_SELF_DEACTIVATE]: 'Você não pode desativar a sua própria conta.',
+  [API_ERROR_CODES.ACAO_NAO_PERMITIDA]:
+    'Você não tem permissão para esta ação. Nada foi gravado. Peça ao administrador da fazenda para liberar em Usuários.',
   [API_ERROR_CODES.TENANT_ADMIN_REQUIRED]:
     'Somente o administrador da fazenda pode fazer isso. Peça ao administrador da sua fazenda.',
   [API_ERROR_CODES.USUARIO_SENHA_ATUAL_INVALIDA]: 'Para trocar a sua senha, informe a senha atual correta.',

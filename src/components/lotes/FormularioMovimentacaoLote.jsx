@@ -19,11 +19,19 @@ import { notifyWarning, notifyError } from "@/lib/maikeNotify";
 /** Campo flutuante Base1 (rótulo dentro) — D-PROD-88. */
 const FL = LancField;
 
-export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem, areaDestinoPreSelecionada, onSubmit, onCancel }) {
+/**
+ * `podeLancarSuplementacao` (R4, PR #199): só quem tem "lançar suplementação"
+ * fecha o consumo do cocho ou aproveita sobra no destino — o servidor recusa
+ * (403) para os demais. Sem a permissão, o formulário NÃO oferece o fechamento:
+ * avisa que o consumo continua aberto e segue para a movimentação.
+ * Padrão `false` (o lado seguro).
+ */
+export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem, areaDestinoPreSelecionada, onSubmit, onCancel, podeLancarSuplementacao = false }) {
   const empresaSelecionadaId = localStorage.getItem('empresa_selecionada_id');
   const [loading, setLoading] = useState(false);
   const [etapa, setEtapa] = useState('verificacao'); // 'verificacao', 'confirmar_consumo', 'fechamento_consumo', 'movimentacao'
   const [eventosAbertos, setEventosAbertos] = useState([]);
+  const [consumoAbertoSemPermissao, setConsumoAbertoSemPermissao] = useState(0);
   const [mostrarPerguntaConsumo, setMostrarPerguntaConsumo] = useState(false);
   const [mostrarPerguntaSobraDestino, setMostrarPerguntaSobraDestino] = useState(false);
   const [sobrasDestinoPendentes, setSobrasDestinoPendentes] = useState([]);
@@ -128,7 +136,12 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
 
         setEventosAbertos(abertos);
 
-        if (abertos.length > 0) {
+        if (abertos.length > 0 && !podeLancarSuplementacao) {
+          // R4: sem "lançar suplementação" não há fechamento (o servidor recusa);
+          // move sem tocar no consumo, que continua aberto — e diz isso.
+          setConsumoAbertoSemPermissao(abertos.length);
+          setEtapa('movimentacao');
+        } else if (abertos.length > 0) {
           setMostrarPerguntaConsumo(true);
           setEtapa('confirmar_consumo');
           const sobrasIniciais = {};
@@ -355,7 +368,8 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
       return;
     }
 
-    if (!sobraDestinoDecidida) {
+    // R4: aproveitar sobra no destino grava suplementação — só com "lançar".
+    if (!sobraDestinoDecidida && podeLancarSuplementacao) {
       const pendentes = await buscarSobrasDestinoPendentes();
       if (pendentes.length > 0) {
         setSobrasDestinoPendentes(pendentes);
@@ -483,6 +497,16 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
   return (
     <>
     <LancLoteForm onSubmit={handleSubmit}>
+          {consumoAbertoSemPermissao > 0 &&
+          <LancLoteAviso tom="ambar">
+              <p className="mb-1 font-semibold" data-testid="consumo-aberto-sem-permissao">Consumo do cocho continua aberto</p>
+              <p className="text-xs text-amber-800">
+                Há {consumoAbertoSemPermissao} consumo(s) de suplementação em aberto na área de origem. Seu perfil não fecha consumo nem
+                aproveita sobra de cocho (permissão "Lançar suplementação"): o gado será movido e o consumo seguirá aberto até alguém
+                com essa permissão fechá-lo.
+              </p>
+            </LancLoteAviso>
+          }
           <div className="mk-ll__grade">
             <FL label="Data da Movimentação" required>
               <Input type="date" value={formData.data_movimentacao} onChange={(e) => setFormData({ ...formData, data_movimentacao: e.target.value })} className={LL_CTL} required />

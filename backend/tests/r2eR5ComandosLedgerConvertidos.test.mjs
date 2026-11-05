@@ -58,6 +58,8 @@ const cenario = async () => {
       senha_hash: (await p.usuario.findUnique({ where: { id: adm.usuario.id } })).senha_hash, papel_tenant: 'usuario',
     },
   });
+  // Operador com permissão de manejo concedida (Permissões → acesso total às telas).
+  await p.permissao.create({ data: { cliente_id: adm.cliente.id, user_email: comum.login, user_nome: 'Comum', is_admin: true } });
   const tok = (await autenticarNoApp(app, adm.credenciais)).corpo.token;
   const tokComum = (await autenticarNoApp(app, { login: comum.login, senha: adm.credenciais.senha })).corpo.token;
   const empresa = await p.empresa.create({ data: { cliente_id: adm.cliente.id, numero_empresa: 1, fuso_horario: 'America/Sao_Paulo', apelido: 'FAZ', nome: 'Fazenda' } });

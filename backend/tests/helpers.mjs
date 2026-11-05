@@ -141,6 +141,13 @@ export const criarTenant = async (opcoes = {}) => {
     },
   });
 
+  // Permissões no servidor: a conta padrão dos testes recebe acesso total às
+  // TELAS (concessão explícita `is_admin` da linha de Permissão — não é o papel
+  // de administrador da fazenda). `semPermissao: true` cria a conta sem linha.
+  if (!opcoes.semPermissao) {
+    await prisma.permissao.create({ data: { cliente_id: cliente.id, user_email: login, user_nome: 'Operador de Teste', is_admin: true } });
+  }
+
   return { cliente, usuario, credenciais: { login, senha } };
 };
 

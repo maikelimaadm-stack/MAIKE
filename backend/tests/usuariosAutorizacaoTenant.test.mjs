@@ -35,7 +35,7 @@ const login = (credenciais) => app.inject({ method: 'POST', url: '/auth/login', 
 
 /** Fazenda com um administrador (fixture de banco) e um usuário comum criado por ele. */
 const fazenda = async () => {
-  const adm = await criarTenant({ papelTenant: 'administrador' });
+  const adm = await criarTenant({ semPermissao: true, papelTenant: 'administrador' });
   const tokAdm = (await autenticarNoApp(app, adm.credenciais)).corpo.token;
   const comumCred = { login: `comum-${adm.cliente.codigo}`, senha: 'senha-do-comum-1' };
   const criado = await req('POST', '/usuarios', tokAdm, { nome: 'Peão', ...comumCred });
@@ -81,7 +81,7 @@ describe('usuário comum NÃO administra a fazenda', () => {
   });
 
   test('U-03 is_admin=true só na Permissao NÃO é autoridade sem papel server-owned', async () => {
-    const t = await criarTenant();
+    const t = await criarTenant({ semPermissao: true });
     await prisma().permissao.create({ data: { cliente_id: t.cliente.id, user_email: t.usuario.login, is_admin: true } });
     const tok = (await autenticarNoApp(app, t.credenciais)).corpo.token;
     assert.equal((await req('POST', '/usuarios', tok, { nome: 'X', login: 'x-y', senha: 'senha-nova-123' })).statusCode, 403);

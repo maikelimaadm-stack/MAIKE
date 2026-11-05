@@ -5,6 +5,7 @@ import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { querystringListagemEmpresa } from '../../shared/http/listQueryLimit.js';
 import { listar, criar, atualizar, excluir } from './suplementacaoEventoService.js';
 import { comandoLancamentoComLotes } from './suplementacaoEventoComandoService.js';
+import { GUARDAS } from '../../shared/auth/guardasRotas.js';
 
 const ID_SCHEMA = {
   params: {
@@ -37,7 +38,7 @@ export const registrarSuplementacaoEventoRoutes = async (app) => {
     return listar(request.contexto, query);
   });
 
-  app.post('/suplementacao-eventos', { onRequest: [app.autenticar], schema: CRIAR_SCHEMA }, async (request, reply) => {
+  app.post('/suplementacao-eventos', { onRequest: [app.autenticar], preHandler: [GUARDAS.suplementacaoEvento.criar], schema: CRIAR_SCHEMA }, async (request, reply) => {
     exigirAuthContext(request.contexto.auth);
     const registro = await criar(request.contexto, /** @type {Record<string, unknown>} */ (request.body));
     return reply.status(201).send(registro);
@@ -46,7 +47,7 @@ export const registrarSuplementacaoEventoRoutes = async (app) => {
   app.post(
     '/suplementacao-eventos/comandos/lancamento-com-lotes',
     {
-      onRequest: [app.autenticar],
+      onRequest: [app.autenticar], preHandler: [GUARDAS.suplementacaoEvento.lancamento],
       schema: {
         body: {
           type: 'object',
@@ -70,13 +71,13 @@ export const registrarSuplementacaoEventoRoutes = async (app) => {
     }
   );
 
-  app.patch('/suplementacao-eventos/:id', { onRequest: [app.autenticar], schema: ATUALIZAR_SCHEMA }, async (request) => {
+  app.patch('/suplementacao-eventos/:id', { onRequest: [app.autenticar], preHandler: [GUARDAS.suplementacaoEvento.editar], schema: ATUALIZAR_SCHEMA }, async (request) => {
     exigirAuthContext(request.contexto.auth);
     const { id } = /** @type {{id: string}} */ (request.params);
     return atualizar(request.contexto, id, /** @type {Record<string, unknown>} */ (request.body));
   });
 
-  app.delete('/suplementacao-eventos/:id', { onRequest: [app.autenticar], schema: ID_SCHEMA }, async (request, reply) => {
+  app.delete('/suplementacao-eventos/:id', { onRequest: [app.autenticar], preHandler: [GUARDAS.suplementacaoEvento.excluir], schema: ID_SCHEMA }, async (request, reply) => {
     exigirAuthContext(request.contexto.auth);
     const { id } = /** @type {{id: string}} */ (request.params);
     await excluir(request.contexto, id);

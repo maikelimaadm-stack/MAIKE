@@ -1,10 +1,10 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getMapaCachedData, refreshMapaCacheEntry } from "@/services/mapaCacheService";
-import { getCurrentUser } from "@/services/sessionService";
+import { EVENTO_PERMISSOES_ATUALIZADAS, carregarPermissaoEfetiva, ehAdministrador, getCurrentUser } from "@/services/sessionService";
 import { listarBebedourosAtivos } from "@/services/mapaService";
-import { canAccessPage, normalizePermissionRecord } from "@/lib/permissions";
-import { normalizeMapaGeralPermissions } from "@/lib/mapaGeralPermissions";
+import { canAccessPage } from "@/lib/permissions";
+import { MAPA_GERAL_ACESSO_TOTAL, normalizeMapaGeralPermissions } from "@/lib/mapaGeralPermissions";
 import { Button } from "@/components/ui/button";
 import { BarChart3 } from "lucide-react";
 import { toast } from "sonner";
@@ -28,6 +28,7 @@ import MapaFiltrosAvancados, {
   CORES_TIPO_CULTURA, CORES_APROVEITAMENTO, CORES_OCUPACAO, CORES_CATEGORIA_GADO,
   CORES_UA_HA, CORES_SITUACAO_PASTO } from
 "../components/mapa/MapaFiltrosAvancados";
+import MapaVisualizacao from "../components/mapa/MapaVisualizacao";
 import MapaLegenda from "../components/mapa/MapaLegenda";
 import useMapRenderer from "../components/mapa/useMapRenderer";
 import useSetorAreas from "@/hooks/useSetorAreas";
@@ -77,6 +78,7 @@ export default function MapaGeral() {
   const [filtroPesoMin, setFiltroPesoMin] = useState(null);
   const [filtroPesoMax, setFiltroPesoMax] = useState(null);
   const [modoColoracao, setModoColoracao] = useState('padrao');
+  const [estiloPasto, setEstiloPasto] = useState('cheio');
 
   // Painéis
   const [showDetalhesLote, setShowDetalhesLote] = useState(false);
@@ -133,6 +135,7 @@ export default function MapaGeral() {
     setFiltroPesoMin(state.filtroPesoMin ?? null);
     setFiltroPesoMax(state.filtroPesoMax ?? null);
     if (typeof state.modoColoracao === 'string') setModoColoracao(state.modoColoracao);
+    if (typeof state.estiloPasto === 'string') setEstiloPasto(state.estiloPasto);
   }, [empresaSelecionadaId]);
 
   useEffect(() => {
@@ -161,8 +164,9 @@ export default function MapaGeral() {
       filtroPesoMin,
       filtroPesoMax,
       modoColoracao,
+      estiloPasto,
     });
-  }, [empresaSelecionadaId, mapType, showAreas, showPontos, showLinhas, showLotes, showTaskIcons, dragLotesEnabled, showCochos, showDepositos, showAlertas, showUserLocation, showNomesAreas, showHectaresAreas, filtroCategoria, filtroIdentificador, filtroStatus, filtroSistema, filtroAlertaTipo, filtroTipoCultura, filtroTipoPastagem, filtroSetor, filtroPesoMin, filtroPesoMax, modoColoracao]);
+  }, [empresaSelecionadaId, estiloPasto, mapType, showAreas, showPontos, showLinhas, showLotes, showTaskIcons, dragLotesEnabled, showCochos, showDepositos, showAlertas, showUserLocation, showNomesAreas, showHectaresAreas, filtroCategoria, filtroIdentificador, filtroStatus, filtroSistema, filtroAlertaTipo, filtroTipoCultura, filtroTipoPastagem, filtroSetor, filtroPesoMin, filtroPesoMax, modoColoracao]);
 
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
@@ -176,6 +180,11 @@ export default function MapaGeral() {
   const renderer = useMapRenderer(mapInstanceRef);
   const rendererEnsureRef = useRef(renderer.ensureLayers);
   const rendererHitRef = useRef(renderer.hitArea);
+  const rendererEstiloRef = useRef(renderer.setEstiloPasto);
+  rendererEstiloRef.current = renderer.setEstiloPasto;
+  useEffect(() => {
+    if (mapReady) rendererEstiloRef.current?.(estiloPasto);
+  }, [mapReady, estiloPasto]);
   rendererHitRef.current = renderer.hitArea;
   rendererEnsureRef.current = renderer.ensureLayers;
   const basemap = useBasemap(mapInstance, {
@@ -201,38 +210,43 @@ export default function MapaGeral() {
     staleTime: 5 * 60 * 1000
   });
 
-  const { data: permissoes = [] } = useQuery({
-    queryKey: ['mapa-geral-permissoes'],
-    queryFn: async () => {
-      const cached = await getMapaCachedData('permissoes', '__GLOBAL__');
-      if (!navigator.onLine && cached?.length) return cached;
-      const fresh = await refreshMapaCacheEntry('permissoes', '__GLOBAL__');
-      return fresh?.length ? fresh : cached || [];
-    },
-    staleTime: 5 * 60 * 1000,
-    refetchOnWindowFocus: false
+  // Permissão EFETIVA da própria conta (mesma regra do servidor): papel real
+  // (`administrador_fazenda`) ou a linha da conta pelo login. Revalida no foco e
+  // a cada 30 s; sem linha/falha = nada liberado (antes: tudo, por fallback).
+  const loginAtual = currentUser?.login || currentUser?.email || null;
+  const { data: permissaoAtual = null } = useQuery({
+    queryKey: ['permissao-efetiva', loginAtual, currentUser?.administrador_fazenda === true],
+    queryFn: () => carregarPermissaoEfetiva(currentUser),
+    enabled: Boolean(loginAtual),
+    staleTime: 30 * 1000,
+    refetchInterval: 60 * 1000,
+    refetchOnWindowFocus: true
   });
 
-  const permissaoAtual = useMemo(() => {
-    const registro = permissoes.find((item) => item.user_email === currentUser?.email) || null;
-    return normalizePermissionRecord(registro);
-  }, [permissoes, currentUser?.email]);
+  useEffect(() => {
+    const revalidar = () => queryClient.invalidateQueries({ queryKey: ['permissao-efetiva'] });
+    window.addEventListener(EVENTO_PERMISSOES_ATUALIZADAS, revalidar);
+    window.addEventListener('online', revalidar);
+    return () => {
+      window.removeEventListener(EVENTO_PERMISSOES_ATUALIZADAS, revalidar);
+      window.removeEventListener('online', revalidar);
+    };
+  }, [queryClient]);
+
+  const acessoTotalTelas = ehAdministrador(currentUser) || permissaoAtual?.is_admin === true;
 
   const mapaGeralPermissions = useMemo(() => {
-    if (currentUser?.role === 'admin' || permissaoAtual?.is_admin) {
-      return normalizeMapaGeralPermissions({}, true);
-    }
-
+    if (acessoTotalTelas) return { ...MAPA_GERAL_ACESSO_TOTAL };
     return normalizeMapaGeralPermissions(
       permissaoAtual?.mapa_geral_permissoes,
-      canAccessPage(permissaoAtual, 'pec-mapa-geral', 'pecuaria')
+      canAccessPage(permissaoAtual, 'pec-mapa-geral', 'mapa')
     );
-  }, [currentUser?.role, permissaoAtual]);
+  }, [acessoTotalTelas, permissaoAtual]);
 
   const podeUsarTarefasMapa = useMemo(() => {
-    if (currentUser?.role === 'admin' || permissaoAtual?.is_admin) return mapaGeralPermissions.visualizar_tarefas;
+    if (acessoTotalTelas) return mapaGeralPermissions.visualizar_tarefas;
     return mapaGeralPermissions.visualizar_tarefas && canAccessPage(permissaoAtual, 'gt-lancamentos', 'gestao-tarefas');
-  }, [currentUser?.role, permissaoAtual, mapaGeralPermissions.visualizar_tarefas]);
+  }, [acessoTotalTelas, permissaoAtual, mapaGeralPermissions.visualizar_tarefas]);
 
   // ─── Queries ───
   const ST = 5 * 60 * 1000;
@@ -1017,7 +1031,7 @@ export default function MapaGeral() {
   const totalAlertas = lotesFiltrados.filter((l) => l.alertas.length > 0).length;
 
   return (
-    <div className="relative h-full min-h-0 w-full overflow-hidden bg-white" translate="no">
+    <div className="mk-mapa relative h-full min-h-0 w-full overflow-hidden bg-white" translate="no">
       <div className="w-full h-full relative">
         {/* `isolation: isolate` confina o z-index dos marcadores (até 10000) ao
             mapa: sem isso eles atravessavam janelas e pop-ups abertos por cima. */}
@@ -1032,11 +1046,16 @@ export default function MapaGeral() {
           dragEnabled={dragLotesEnabled}
           onToggleDrag={() => setDragLotesEnabled((prev) => !prev)}
           showTarefasButton={podeUsarTarefasMapa}
-          showInsightsButton={mapaGeralPermissions.visualizar_insights}
           showFiltrosButton={mapaGeralPermissions.visualizar_filtros_camadas}
           onOpenTarefas={() => {if (!podeUsarTarefasMapa) return;setTarefasContext({});setShowTarefas(true);}}
-          onOpenInsights={() => {if (!mapaGeralPermissions.visualizar_insights) return;setShowInsights(true);}}
-          onOpenFiltros={() => {if (!mapaGeralPermissions.visualizar_filtros_camadas) return;setShowFiltros(true);}} />
+          onOpenFiltros={() => {if (!mapaGeralPermissions.visualizar_filtros_camadas) return;setShowFiltros(true);}}
+          painel={
+          <MapaVisualizacao
+            mapType={mapTypeEfetivo} setMapType={setMapType}
+            estiloPasto={estiloPasto} setEstiloPasto={setEstiloPasto}
+            modoColoracao={modoColoracao} setModoColoracao={setModoColoracao}
+            podeColorir={mapaGeralPermissions.visualizar_filtros_camadas !== false && mapaGeralPermissions.visualizar_areas !== false} />
+          } />
 
 
         {/* Legenda */}
@@ -1046,21 +1065,21 @@ export default function MapaGeral() {
           tiposPastagemCores={tiposPastagemCores} />
 
 
-        {/* Barra resumo inferior */}
-        <div className="absolute bottom-2 left-2 right-2 z-10">
-          <div className="bg-white/95 text-[10px] px-2 rounded-lg inline-flex max-w-full items-center gap-3 shadow-md border border-slate-200 pointer-events-auto">
-            <div className="text-center">
-              <div className="font-bold text-emerald-700 text-sm leading-tight flex items-center gap-1.5 justify-center">
-                <span>{totalCabecas}</span>
-                {pesoMedioGeral > 0 && <span className="text-blue-700">| {pesoMedioGeral} kg</span>}
-              </div>
-              <div className="text-slate-500">Animais{pesoMedioGeral > 0 ? ' | Peso méd.' : ''}</div>
+        {/* Resumo inferior (D-PROD-131): cartão único, números grandes e rótulos discretos */}
+        <div className="mk-mapa-resumo mk-mapa-card" aria-label="Resumo do mapa">
+          <div className="mk-mapa-resumo__item">
+            <span className="mk-mapa-resumo__num mk-mapa-resumo__num--verde">{totalCabecas}</span>
+            <span className="mk-mapa-resumo__rot">Animais</span>
+          </div>
+          {pesoMedioGeral > 0 &&
+          <div className="mk-mapa-resumo__item">
+              <span className="mk-mapa-resumo__num">{pesoMedioGeral}<small> kg</small></span>
+              <span className="mk-mapa-resumo__rot">Peso méd.</span>
             </div>
-            <div className="w-px h-5 bg-slate-200" />
-            <div className="text-center">
-              <div className="font-bold text-blue-700 text-sm leading-tight">{areasFiltradas.length}</div>
-              <div className="text-slate-500">Áreas</div>
-            </div>
+          }
+          <div className="mk-mapa-resumo__item">
+            <span className="mk-mapa-resumo__num">{areasFiltradas.length}</span>
+            <span className="mk-mapa-resumo__rot">Áreas</span>
           </div>
         </div>
 
@@ -1117,7 +1136,8 @@ export default function MapaGeral() {
               tiposPastagem={tiposPastagem}
               setores={setores}
               sistemasProdutivos={sistemasProdutivos}
-              permissions={mapaGeralPermissions} />
+              permissions={mapaGeralPermissions}
+              mostrarCores={false} />
 
           </div>
         </SheetContent>

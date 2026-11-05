@@ -71,13 +71,37 @@ export const MAPA_GERAL_PERMISSION_GROUPS = [
   },
 ];
 
-export const normalizeMapaGeralPermissions = (value, enabled = true) => {
-  if (!enabled) {
-    return Object.fromEntries(Object.keys(DEFAULT_MAPA_GERAL_PERMISSIONS).map((key) => [key, false]));
-  }
+/**
+ * Chaves que GRAVAM (mesma lista de `ACOES_GRAVADORAS_MAPA` no servidor,
+ * `backend/src/shared/auth/autorizacaoTela.js` — teste de paridade).
+ */
+export const MAPA_GERAL_ACOES_GRAVADORAS = Object.freeze([
+  'mover_lotes', 'pesar_lotes', 'mudar_categoria_lotes', 'registrar_nascimento', 'registrar_morte',
+  'registrar_abate', 'renomear_lotes', 'juntar_lotes', 'lancar_suplementacao', 'movimentar_depositos',
+]);
 
-  return {
-    ...DEFAULT_MAPA_GERAL_PERMISSIONS,
-    ...(value || {}),
-  };
+/** Administrador real da fazenda ou concessão `is_admin`: tudo ligado. */
+export const MAPA_GERAL_ACESSO_TOTAL = Object.freeze(
+  Object.fromEntries(Object.keys(DEFAULT_MAPA_GERAL_PERMISSIONS).map((key) => [key, true]))
+);
+
+const ehGravadora = (key) => MAPA_GERAL_ACOES_GRAVADORAS.includes(key);
+
+/**
+ * Permissões do mapa de um OPERADOR (R2, mesma regra do servidor):
+ *  - tela do mapa não visível (`enabled` false) → tudo desligado;
+ *  - ação gravadora: ligada só se gravada `=== true` (ausente, objeto ausente ou
+ *    valor não booleano → desligada — registro parcial legado não ganha ação);
+ *  - visualização: ausente = ligada; só `false` desliga.
+ * @param {unknown} value
+ * @param {boolean} [enabled]
+ * @returns {Record<string, any>}
+ */
+export const normalizeMapaGeralPermissions = (value, enabled = true) => {
+  const chaves = Object.keys(DEFAULT_MAPA_GERAL_PERMISSIONS);
+  if (!enabled) return Object.fromEntries(chaves.map((key) => [key, false]));
+  const salvo = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  return Object.fromEntries(
+    chaves.map((key) => [key, ehGravadora(key) ? salvo[key] === true : salvo[key] !== false])
+  );
 };

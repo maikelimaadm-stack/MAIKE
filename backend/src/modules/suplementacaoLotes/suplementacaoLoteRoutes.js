@@ -4,6 +4,7 @@
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { querystringListagemEmpresa } from '../../shared/http/listQueryLimit.js';
 import { listar, criar, atualizar, excluir, criarEmLote } from './suplementacaoLoteService.js';
+import { GUARDAS } from '../../shared/auth/guardasRotas.js';
 
 const ID_SCHEMA = {
   params: {
@@ -46,25 +47,25 @@ export const registrarSuplementacaoLoteRoutes = async (app) => {
     return listar(request.contexto, query);
   });
 
-  app.post('/suplementacao-lotes', { onRequest: [app.autenticar], schema: CRIAR_SCHEMA }, async (request, reply) => {
+  app.post('/suplementacao-lotes', { onRequest: [app.autenticar], preHandler: [GUARDAS.suplementacaoLote.criar], schema: CRIAR_SCHEMA }, async (request, reply) => {
     exigirAuthContext(request.contexto.auth);
     const registro = await criar(request.contexto, /** @type {Record<string, unknown>} */ (request.body));
     return reply.status(201).send(registro);
   });
 
-  app.patch('/suplementacao-lotes/:id', { onRequest: [app.autenticar], schema: ATUALIZAR_SCHEMA }, async (request) => {
+  app.patch('/suplementacao-lotes/:id', { onRequest: [app.autenticar], preHandler: [GUARDAS.suplementacaoLote.editar], schema: ATUALIZAR_SCHEMA }, async (request) => {
     exigirAuthContext(request.contexto.auth);
     const { id } = /** @type {{id: string}} */ (request.params);
     return atualizar(request.contexto, id, /** @type {Record<string, unknown>} */ (request.body));
   });
 
-  app.delete('/suplementacao-lotes/:id', { onRequest: [app.autenticar], schema: ID_SCHEMA }, async (request, reply) => {
+  app.delete('/suplementacao-lotes/:id', { onRequest: [app.autenticar], preHandler: [GUARDAS.suplementacaoLote.excluir], schema: ID_SCHEMA }, async (request, reply) => {
     exigirAuthContext(request.contexto.auth);
     const { id } = /** @type {{id: string}} */ (request.params);
     await excluir(request.contexto, id);
     return reply.status(204).send();
   });
-  app.post('/suplementacao-lotes/bulk', { onRequest: [app.autenticar], schema: BULK_SCHEMA }, async (request, reply) => {
+  app.post('/suplementacao-lotes/bulk', { onRequest: [app.autenticar], preHandler: [GUARDAS.suplementacaoLote.criar], schema: BULK_SCHEMA }, async (request, reply) => {
     exigirAuthContext(request.contexto.auth);
     const body = /** @type {{registros: object[]}} */ (request.body);
     const lista = await criarEmLote(request.contexto, body.registros);

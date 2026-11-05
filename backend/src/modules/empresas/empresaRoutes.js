@@ -3,6 +3,7 @@
  */
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { listar, criar, atualizar, excluir, configurarFusoHorario } from './empresaService.js';
+import { porTela, TELAS } from '../../shared/auth/autorizacaoTela.js';
 
 const CAMPOS = Object.freeze({
   apelido: { type: 'string', minLength: 1, maxLength: 255, pattern: '\\S' },
@@ -89,13 +90,13 @@ export const registrarEmpresaRoutes = async (app) => {
     return registros;
   });
 
-  app.post('/empresas', { onRequest: [app.autenticar], schema: CRIAR_SCHEMA }, async (request, reply) => {
+  app.post('/empresas', { onRequest: [app.autenticar], preHandler: [porTela(TELAS.EMPRESA, 'novo')], schema: CRIAR_SCHEMA }, async (request, reply) => {
     exigirAuthContext(request.contexto.auth);
     const registro = await criar(request.contexto, /** @type {Record<string, unknown>} */ (request.body));
     return reply.status(201).send(registro);
   });
 
-  app.patch('/empresas/:id', { onRequest: [app.autenticar], schema: ATUALIZAR_SCHEMA }, async (request) => {
+  app.patch('/empresas/:id', { onRequest: [app.autenticar], preHandler: [porTela(TELAS.EMPRESA, 'editar')], schema: ATUALIZAR_SCHEMA }, async (request) => {
     exigirAuthContext(request.contexto.auth);
     const { id } = /** @type {{id: string}} */ (request.params);
     return atualizar(request.contexto, id, /** @type {Record<string, unknown>} */ (request.body));
@@ -107,7 +108,7 @@ export const registrarEmpresaRoutes = async (app) => {
     return configurarFusoHorario(request.contexto, id, /** @type {Record<string, unknown>} */ (request.body));
   });
 
-  app.delete('/empresas/:id', { onRequest: [app.autenticar], schema: ID_SCHEMA }, async (request, reply) => {
+  app.delete('/empresas/:id', { onRequest: [app.autenticar], preHandler: [porTela(TELAS.EMPRESA, 'excluir')], schema: ID_SCHEMA }, async (request, reply) => {
     exigirAuthContext(request.contexto.auth);
     const { id } = /** @type {{id: string}} */ (request.params);
     await excluir(request.contexto, id);

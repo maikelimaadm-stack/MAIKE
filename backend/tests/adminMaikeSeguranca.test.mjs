@@ -49,7 +49,7 @@ const preSessao = (r) => ({ ...base, cookie: cookieAdminDe(r), 'x-maike-admin-cs
 const proibidosNoCorpo = /senha_hash|mfa_segredo|token_hash|scrypt\$|"token"/;
 
 const tenant = async () => {
-  const t = await criarTenant();
+  const t = await criarTenant({ semPermissao: true });
   const { corpo } = await autenticarNoApp(app, t.credenciais);
   return { ...t, jwt: corpo.token };
 };

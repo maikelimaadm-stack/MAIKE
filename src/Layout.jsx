@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { listEmpresas } from "@/services/empresaService";
-import { ehAdministrador, getCurrentUser, getCachedUser, listarPermissoes, permissaoDoUsuario, permissaoMinimaNativa } from "@/services/sessionService";
+import { EVENTO_PERMISSOES_ATUALIZADAS, carregarPermissaoEfetiva, ehAdministrador, getCurrentUser, getCachedUser } from "@/services/sessionService";
 import { useAuth } from "@/lib/AuthContext";
 import { useBootSplash } from "@/lib/bootSplashContext";
 import {
@@ -85,6 +85,8 @@ function LayoutShell({ children, currentPageName }) {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [userPermissions, setUserPermissions] = useState(null);
+  // `null` em userPermissions = NADA liberado; este flag diz se a leitura já terminou.
+  const [permissoesCarregadas, setPermissoesCarregadas] = useState(false);
   const [permissionDialog, setPermissionDialog] = useState({ open: false, title: "", description: "" });
   const permissionRedirectRef = useRef(null);
   const permissionGateRef = useRef(null);
@@ -209,26 +211,48 @@ function LayoutShell({ children, currentPageName }) {
 
         setUser(currentUser);
 
-        // Carregar permissões do usuário
-        try {
-          const allPermissoes = await listarPermissoes();
-          const permissao =
-            permissaoDoUsuario(allPermissoes, currentUser?.email) ||
-            permissaoMinimaNativa(currentUser);
-          setUserPermissions(permissao);
-        } catch (error) {
-          console.error("Erro ao carregar permissões:", error);
-          setUserPermissions(permissaoMinimaNativa(currentUser));
-        }
+        // Permissão EFETIVA (papel real do servidor + linha da própria conta).
+        // Falha de leitura nunca vira privilégio: sem dado = nada liberado.
+        setUserPermissions(await carregarPermissaoEfetiva(currentUser));
       } catch (error) {
         console.error("Erro ao carregar usuário:", error);
         setUser(null);
+        setUserPermissions(null);
       } finally {
+        setPermissoesCarregadas(true);
         setAuthLoading(false);
       }
     };
     loadUser();
   }, []);
+
+  // Revalidação: mudança feita pelo administrador chega SEM logout — ao voltar
+  // o foco, ao reconectar, a cada minuto e quando esta sessão grava permissões.
+  useEffect(() => {
+    if (!user) return undefined;
+    let ativo = true;
+    const revalidar = async () => {
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+      const efetiva = await carregarPermissaoEfetiva(user);
+      if (ativo) setUserPermissions(efetiva);
+    };
+    const aoMudarVisibilidade = () => {
+      if (document.visibilityState === "visible") revalidar();
+    };
+    window.addEventListener("focus", revalidar);
+    window.addEventListener("online", revalidar);
+    window.addEventListener(EVENTO_PERMISSOES_ATUALIZADAS, revalidar);
+    document.addEventListener("visibilitychange", aoMudarVisibilidade);
+    const intervalo = window.setInterval(revalidar, 60_000);
+    return () => {
+      ativo = false;
+      window.removeEventListener("focus", revalidar);
+      window.removeEventListener("online", revalidar);
+      window.removeEventListener(EVENTO_PERMISSOES_ATUALIZADAS, revalidar);
+      document.removeEventListener("visibilitychange", aoMudarVisibilidade);
+      window.clearInterval(intervalo);
+    };
+  }, [user]);
 
   // Sair encerra a sessão **nativa** (P4.0). Antes isto chamava o logout da
   // Base44, que descartava o token do SDK; desde que a autenticação do
@@ -293,7 +317,7 @@ function LayoutShell({ children, currentPageName }) {
   }, [location.pathname]);
 
   useEffect(() => {
-    if (!currentMenuPage || userPermissions === null) return;
+    if (!currentMenuPage || !permissoesCarregadas) return;
     const gateKey = `${location.pathname}:${currentMenuPage.id}`;
     if (podeVerPagina(currentMenuPage.id, currentMenuPage.moduleId)) {
       permissionGateRef.current = null;
@@ -302,13 +326,19 @@ function LayoutShell({ children, currentPageName }) {
     }
     if (permissionGateRef.current === gateKey) return;
     permissionGateRef.current = gateKey;
+    // Nenhuma tela liberada: não redireciona (evita laço); o conteúdo mostra o aviso.
+    if (!firstAllowedPage) return;
 
     openPermissionDialog(
       "Tela bloqueada",
       "Você não tem permissão para visualizar esta tela.",
       createPageUrl(firstAllowedPage?.url || PRIMARY_PAGE)
     );
-  }, [currentMenuPage, normalizedPermissions, podeVerPagina, firstAllowedPage, userPermissions, location.pathname]);
+  }, [currentMenuPage, normalizedPermissions, podeVerPagina, firstAllowedPage, permissoesCarregadas, location.pathname]);
+
+  // URL colada / refresh: a tela do menu só monta depois de a permissão ser lida
+  // e se ela estiver liberada (o servidor responde 403 de qualquer forma).
+  const paginaLiberada = !currentMenuPage || (permissoesCarregadas && podeVerPagina(currentMenuPage.id, currentMenuPage.moduleId));
 
   useEffect(() => {
     if (!currentMenuPage || currentMenuPage.id === 'pec-mapa-geral') return;
@@ -356,6 +386,9 @@ function LayoutShell({ children, currentPageName }) {
   }, {});
 
   const isRoot = location.pathname === createPageUrl(PRIMARY_PAGE);
+  // D-PROD-132: no celular e no tablet o Mapa Geral é a tela de entrada, sem o
+  // cabeçalho do sistema por cima (a barra inferior/lateral continua navegando).
+  const telaMapa = currentPageName === PRIMARY_PAGE;
 
   const appContentOffset = menuOculto ? "51px" : "91px";
 
@@ -437,7 +470,7 @@ function LayoutShell({ children, currentPageName }) {
     </DropdownMenu>;
 
   return (
-    <div className="h-[100dvh] overflow-hidden bg-slate-50 safe-area-top flex flex-col" translate="no" style={{ "--app-content-offset": appContentOffset }}>
+    <div className={`h-[100dvh] overflow-hidden bg-slate-50 safe-area-top flex flex-col${telaMapa ? " mk-shell--mapa" : ""}`} translate="no" style={{ "--app-content-offset": appContentOffset }}>
       <style>{`
         html, body { overscroll-behavior: none; }
         button, [role="button"], a { -webkit-user-select: none; user-select: none; }
@@ -768,9 +801,15 @@ function LayoutShell({ children, currentPageName }) {
             </button>;
         })}
       </nav>
-      <main ref={mainRef} className={`max-w-[1600px] mx-auto flex-1 min-h-0 w-full min-w-0 overflow-hidden md:pb-0 ${mostrarNavInferior ? "pb-[calc(66px+env(safe-area-inset-bottom))]" : "pb-0"}`}>
+      <main ref={mainRef} className={`${telaMapa ? "" : "max-w-[1600px] "}mx-auto flex-1 min-h-0 w-full min-w-0 overflow-hidden md:pb-0 ${mostrarNavInferior ? "pb-[calc(66px+env(safe-area-inset-bottom))]" : "pb-0"}`}>
         <div className="relative h-full min-h-0 overflow-hidden">
-          {children}
+          {paginaLiberada ? children : permissoesCarregadas ?
+          <div role="alert" data-testid="acesso-sem-tela" className="mx-auto max-w-md p-6 text-center text-sm text-slate-700">
+              {firstAllowedPage ?
+            "Você não tem permissão para visualizar esta tela." :
+            "Sua conta ainda não tem telas liberadas. Peça ao administrador da fazenda para configurar suas permissões em Usuários."}
+            </div> :
+          null}
           {mobileMenuOpen ?
           <MobileModulesView
             menuItems={menuItemsFiltered}

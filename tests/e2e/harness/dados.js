@@ -23,7 +23,7 @@ export const PONTOS_SUPL = [
 export const LINHAS = [
   { id: "ln1", empresa_id: EMPRESA, nome: "Cerca", tipo: "Cerca", coordenadas: { coords: [[base.lat + 0.0025, base.lng - 0.004], [base.lat + 0.0025, base.lng + 0.0033]], cor: "#f59e0b" } },
 ];
-export const USUARIO = { id: "u1", email: "e2e@maike.local", role: "admin", full_name: "E2E" };
+export const USUARIO = { id: "u1", login: "e2e@maike.local", email: "e2e@maike.local", administrador_fazenda: true, full_name: "E2E" };
 
 /** Empresa B (GEO-09): áreas em outro lugar e cores diferentes — nunca podem aparecer em A. */
 export const EMPRESA_B = "emp-b";

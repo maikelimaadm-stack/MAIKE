@@ -5,6 +5,7 @@
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { listar, criar, atualizar, excluir, buscarPorId, elegibilidadeExclusao, comoLotePublico } from './loteService.js';
 import { elegibilidadeCorrecaoEntrada, corrigirEntradaLote, CAMPOS_ADMINISTRATIVOS_DA_ENTRADA } from './loteCorrecaoEntradaService.js';
+import { autorizar, porTela, telaPermite, mapaPermite, TELAS } from '../../shared/auth/autorizacaoTela.js';
 
 const MOTIVOS = ['Compra', 'Ajuste', 'Inventário', 'Outros'];
 const STATUS = ['Ativo', 'Inativo', 'Vendido', 'Abatido', 'Transferido'];
@@ -137,6 +138,20 @@ const CORRIGIR_ENTRADA_SCHEMA = {
   },
 };
 
+/** Campos que o "Renomear Lote" do Mapa Geral envia (só exibição do cadastro). */
+const CAMPOS_DE_RENOMEAR = Object.freeze(['nome', 'identificador_nome', 'identificador_sigla', 'identificador_cor']);
+
+/**
+ * PATCH do lote: "editar" no Cadastro de Lotes; OU só renomear (nome/identificação)
+ * com "Renomear lote" concedido no Mapa Geral.
+ */
+const autorizarPatchLote = autorizar((req, aut) => {
+  if (telaPermite(aut, TELAS.LOTES, 'editar')) return true;
+  const chaves = Object.keys(/** @type {Record<string, unknown>} */ (req.body ?? {}));
+  if (chaves.length && chaves.every((k) => CAMPOS_DE_RENOMEAR.includes(k)) && mapaPermite(aut, 'renomear_lotes')) return true;
+  return { tela: TELAS.LOTES.tela, acao: 'editar' };
+});
+
 /** @param {unknown} corpo @returns {Record<string, unknown>} */
 const corpoValidado = (corpo) => /** @type {Record<string, unknown>} */ (corpo);
 
@@ -167,26 +182,26 @@ export const registrarLoteRoutes = async (app) => {
     return elegibilidadeCorrecaoEntrada(request.contexto, id);
   });
 
-  app.post('/lotes/:id/correcao-entrada', { onRequest: [app.autenticar], schema: CORRIGIR_ENTRADA_SCHEMA }, async (request, reply) => {
+  app.post('/lotes/:id/correcao-entrada', { onRequest: [app.autenticar], preHandler: [porTela(TELAS.LOTES, 'editar')], schema: CORRIGIR_ENTRADA_SCHEMA }, async (request, reply) => {
     exigirAuthContext(request.contexto.auth);
     const { id } = /** @type {{id: string}} */ (request.params);
     const r = await corrigirEntradaLote(request.contexto, id, corpoValidado(request.body), comoLotePublico);
     return reply.status(r.status).send(r.body);
   });
 
-  app.post('/lotes', { onRequest: [app.autenticar], schema: CRIAR_SCHEMA }, async (request, reply) => {
+  app.post('/lotes', { onRequest: [app.autenticar], preHandler: [porTela(TELAS.LOTES, 'novo')], schema: CRIAR_SCHEMA }, async (request, reply) => {
     exigirAuthContext(request.contexto.auth);
     const lote = await criar(request.contexto, corpoValidado(request.body));
     return reply.status(201).send(lote);
   });
 
-  app.patch('/lotes/:id', { onRequest: [app.autenticar], schema: ATUALIZAR_SCHEMA }, async (request) => {
+  app.patch('/lotes/:id', { onRequest: [app.autenticar], preHandler: [autorizarPatchLote], schema: ATUALIZAR_SCHEMA }, async (request) => {
     exigirAuthContext(request.contexto.auth);
     const { id } = /** @type {{id: string}} */ (request.params);
     return atualizar(request.contexto, id, corpoValidado(request.body));
   });
 
-  app.delete('/lotes/:id', { onRequest: [app.autenticar], schema: EXCLUIR_SCHEMA }, async (request, reply) => {
+  app.delete('/lotes/:id', { onRequest: [app.autenticar], preHandler: [porTela(TELAS.LOTES, 'excluir')], schema: EXCLUIR_SCHEMA }, async (request, reply) => {
     exigirAuthContext(request.contexto.auth);
     const { id } = /** @type {{id: string}} */ (request.params);
     await excluir(request.contexto, id);

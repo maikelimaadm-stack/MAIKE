@@ -195,6 +195,9 @@ export const obterUsuarioAtualLegado = async () => {
     id: contexto.usuario_id,
     login,
     email: login,
+    // Tenant da sessão, vindo do servidor (`/auth/contexto`): separa o cache
+    // local de permissões por fazenda + conta (R2, PR #199).
+    cliente_id: texto(contexto.cliente_id) || null,
     // Papel da conta na fazenda, relido do banco pelo servidor (D-PROD-77).
     // Decide só o menu; cada ação administrativa é reautorizada no backend.
     administrador_fazenda: contexto.administrador_fazenda === true,

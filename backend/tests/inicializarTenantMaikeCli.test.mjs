@@ -38,8 +38,8 @@ const contar = async () => {
 /** Dados de teste em várias relações (FK composta de AuditLog, auto-referência, cascata). */
 const semear = async () => {
   const p = prisma();
-  const a = await criarTenant({ login: 'legado.admin' });
-  const b = await criarTenant();
+  const a = await criarTenant({ semPermissao: true, login: 'legado.admin' });
+  const b = await criarTenant({ semPermissao: true });
   for (const t of [a, b]) {
     const c = t.cliente.id;
     await p.permissao.create({ data: { cliente_id: c, user_email: t.usuario.login, is_admin: true } });

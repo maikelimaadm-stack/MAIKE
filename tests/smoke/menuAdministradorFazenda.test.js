@@ -10,7 +10,9 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 
 import { PAGINAS_SO_ADMINISTRADOR, DEFAULT_MENU } from '../../src/lib/menuConfig.js';
-import { ehAdministrador, permissaoMinimaNativa } from '../../src/services/sessionService.js';
+import * as sessao from '../../src/services/sessionService.js';
+
+const { ehAdministrador, permissaoEfetiva } = sessao;
 
 const codigoDe = (rel) =>
   readFileSync(rel, 'utf8')
@@ -26,11 +28,13 @@ describe('ADM — menu administrativo pelo papel do servidor', () => {
     }
   });
 
-  it('ADM-02 a permissão mínima (is_admin: true) NÃO torna ninguém administrador', () => {
-    const minima = permissaoMinimaNativa({ login: 'vaqueiro' });
-    expect(minima.is_admin).toBe(true);
-    expect(ehAdministrador({ login: 'vaqueiro', administrador_fazenda: false }, minima)).toBe(false);
+  it('ADM-02 conta sem registro de permissão NÃO recebe nada (antes: is_admin: true por fallback)', () => {
+    expect(sessao.permissaoMinimaNativa).toBeUndefined();
+    expect(permissaoEfetiva({ login: 'vaqueiro', administrador_fazenda: false }, null)).toBeNull();
+    // `is_admin` da linha é concessão de telas, nunca papel de administrador da fazenda.
+    expect(ehAdministrador({ login: 'vaqueiro', administrador_fazenda: false })).toBe(false);
     expect(ehAdministrador({ login: 'maike', administrador_fazenda: true })).toBe(true);
+    expect(permissaoEfetiva({ login: 'maike', administrador_fazenda: true }, null)?.is_admin).toBe(true);
   });
 
   it('ADM-03 o Layout filtra o menu e bloqueia a URL direta pelo papel', () => {

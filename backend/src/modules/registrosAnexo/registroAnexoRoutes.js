@@ -1,5 +1,6 @@
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { criar, excluirPorId, listar } from './registroAnexoService.js';
+import { GUARDAS } from '../../shared/auth/guardasRotas.js';
 
 const LISTAR_SCHEMA = {
   querystring: {
@@ -33,13 +34,13 @@ export const registrarRegistroAnexoRoutes = async (app) => {
     return listar(request.contexto, query);
   });
 
-  app.post('/registros-anexo', { onRequest: [app.autenticar], schema: CRIAR_SCHEMA }, async (request, reply) => {
+  app.post('/registros-anexo', { onRequest: [app.autenticar], preHandler: [GUARDAS.anexo.criar], schema: CRIAR_SCHEMA }, async (request, reply) => {
     exigirAuthContext(request.contexto.auth);
     const registro = await criar(request.contexto, /** @type {Record<string, unknown>} */ (request.body));
     return reply.status(201).send(registro);
   });
 
-  app.delete('/registros-anexo/:id', { onRequest: [app.autenticar], schema: ID_SCHEMA }, async (request, reply) => {
+  app.delete('/registros-anexo/:id', { onRequest: [app.autenticar], preHandler: [GUARDAS.anexo.excluir], schema: ID_SCHEMA }, async (request, reply) => {
     exigirAuthContext(request.contexto.auth);
     const { id } = /** @type {{id: string}} */ (request.params);
     await excluirPorId(request.contexto, id);

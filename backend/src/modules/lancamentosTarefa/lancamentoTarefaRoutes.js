@@ -13,6 +13,7 @@ import {
   excluirHistorico,
   enumsContrato,
 } from './lancamentoTarefaService.js';
+import { GUARDAS } from '../../shared/auth/guardasRotas.js';
 
 const { TIPOS_BASE, PRIORIDADES, STATUS, EVENTOS } = enumsContrato;
 
@@ -142,7 +143,7 @@ export const registrarLancamentoTarefaRoutes = async (app) => {
 
   app.post(
     '/lancamentos-tarefa',
-    { onRequest: [app.autenticar], schema: CRIAR_LANCAMENTO_SCHEMA },
+    { onRequest: [app.autenticar], preHandler: [GUARDAS.tarefa], schema: CRIAR_LANCAMENTO_SCHEMA },
     async (request, reply) => {
       exigirAuthContext(request.contexto.auth);
       const lancamento = await criar(request.contexto, corpoValidado(request.body));
@@ -152,7 +153,7 @@ export const registrarLancamentoTarefaRoutes = async (app) => {
 
   app.patch(
     '/lancamentos-tarefa/:id',
-    { onRequest: [app.autenticar], schema: ATUALIZAR_LANCAMENTO_SCHEMA },
+    { onRequest: [app.autenticar], preHandler: [GUARDAS.tarefa], schema: ATUALIZAR_LANCAMENTO_SCHEMA },
     async (request) => {
       exigirAuthContext(request.contexto.auth);
       const { id } = /** @type {{id: string}} */ (request.params);
@@ -162,7 +163,7 @@ export const registrarLancamentoTarefaRoutes = async (app) => {
 
   app.delete(
     '/lancamentos-tarefa/:id',
-    { onRequest: [app.autenticar], schema: EXCLUIR_LANCAMENTO_SCHEMA },
+    { onRequest: [app.autenticar], preHandler: [GUARDAS.tarefa], schema: EXCLUIR_LANCAMENTO_SCHEMA },
     async (request, reply) => {
       exigirAuthContext(request.contexto.auth);
       const { id } = /** @type {{id: string}} */ (request.params);
@@ -183,7 +184,7 @@ export const registrarLancamentoTarefaRoutes = async (app) => {
 
   app.post(
     '/historicos-lancamento-tarefa',
-    { onRequest: [app.autenticar], schema: CRIAR_HISTORICO_SCHEMA },
+    { onRequest: [app.autenticar], preHandler: [GUARDAS.tarefa], schema: CRIAR_HISTORICO_SCHEMA },
     async (request, reply) => {
       exigirAuthContext(request.contexto.auth);
       const historico = await criarHistorico(request.contexto, corpoValidado(request.body));
@@ -193,7 +194,7 @@ export const registrarLancamentoTarefaRoutes = async (app) => {
 
   app.delete(
     '/historicos-lancamento-tarefa/:id',
-    { onRequest: [app.autenticar], schema: EXCLUIR_HISTORICO_SCHEMA },
+    { onRequest: [app.autenticar], preHandler: [GUARDAS.tarefa], schema: EXCLUIR_HISTORICO_SCHEMA },
     async (request, reply) => {
       exigirAuthContext(request.contexto.auth);
       const { id } = /** @type {{id: string}} */ (request.params);

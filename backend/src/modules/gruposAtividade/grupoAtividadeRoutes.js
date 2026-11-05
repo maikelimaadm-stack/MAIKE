@@ -4,6 +4,7 @@
 
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { listar, criar, atualizar, excluir } from './grupoAtividadeService.js';
+import { GUARDAS } from '../../shared/auth/guardasRotas.js';
 
 const CAMPOS = Object.freeze({
   nome_grupo: { type: 'string', minLength: 1, maxLength: 255, pattern: '\\S' },
@@ -56,19 +57,19 @@ export const registrarGrupoAtividadeRoutes = async (app) => {
     return listar(request.contexto);
   });
 
-  app.post('/grupos-atividade', { onRequest: [app.autenticar], schema: CRIAR_SCHEMA }, async (request, reply) => {
+  app.post('/grupos-atividade', { onRequest: [app.autenticar], preHandler: [GUARDAS.grupoAtividade.criar], schema: CRIAR_SCHEMA }, async (request, reply) => {
     exigirAuthContext(request.contexto.auth);
     const grupo = await criar(request.contexto, corpoValidado(request.body));
     return reply.status(201).send(grupo);
   });
 
-  app.patch('/grupos-atividade/:id', { onRequest: [app.autenticar], schema: ATUALIZAR_SCHEMA }, async (request) => {
+  app.patch('/grupos-atividade/:id', { onRequest: [app.autenticar], preHandler: [GUARDAS.grupoAtividade.editar], schema: ATUALIZAR_SCHEMA }, async (request) => {
     exigirAuthContext(request.contexto.auth);
     const { id } = /** @type {{id: string}} */ (request.params);
     return atualizar(request.contexto, id, corpoValidado(request.body));
   });
 
-  app.delete('/grupos-atividade/:id', { onRequest: [app.autenticar], schema: EXCLUIR_SCHEMA }, async (request, reply) => {
+  app.delete('/grupos-atividade/:id', { onRequest: [app.autenticar], preHandler: [GUARDAS.grupoAtividade.excluir], schema: EXCLUIR_SCHEMA }, async (request, reply) => {
     exigirAuthContext(request.contexto.auth);
     const { id } = /** @type {{id: string}} */ (request.params);
     await excluir(request.contexto, id);

@@ -124,7 +124,7 @@ const revisaoManifesto = async (token) => {
 };
 
 const tenantComToken = async () => {
-  const { cliente, usuario, credenciais } = await criarTenant();
+  const { cliente, usuario, credenciais } = await criarTenant({ semPermissao: true });
   const { corpo } = await autenticarNoApp(app, credenciais);
   return { cliente, usuario, token: corpo.token, credenciais };
 };

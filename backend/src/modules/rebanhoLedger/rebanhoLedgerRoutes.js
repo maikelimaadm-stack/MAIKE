@@ -5,6 +5,7 @@
  */
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { ativarLedger, listarPosicoes, MAX_ITENS_TRANSFERENCIA, MODOS_ATIVACAO, saldosNaData, transferir, verificarLedger } from './rebanhoLedgerService.js';
+import { porMapa } from '../../shared/auth/autorizacaoTela.js';
 
 const ID = { type: 'string', minLength: 1, maxLength: 64 };
 const OPERATION_ID = { type: 'string', minLength: 8, maxLength: 160, pattern: '^[A-Za-z0-9_.:-]+$' };
@@ -65,7 +66,7 @@ export const registrarRebanhoLedgerRoutes = async (app) => {
     const { status, body } = await ativarLedger(request.contexto, /** @type {any} */ (request.body));
     return reply.status(status).send(body);
   });
-  app.post('/rebanho/comandos/transferencia', { onRequest: [app.autenticar], schema: TRANSFERENCIA_SCHEMA }, async (request, reply) => {
+  app.post('/rebanho/comandos/transferencia', { onRequest: [app.autenticar], preHandler: [porMapa('mover_lotes')], schema: TRANSFERENCIA_SCHEMA }, async (request, reply) => {
     exigirAuthContext(request.contexto.auth);
     const { status, body } = await transferir(request.contexto, /** @type {any} */ (request.body));
     return reply.status(status).send(body);
