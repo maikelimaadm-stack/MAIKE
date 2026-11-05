@@ -4,7 +4,8 @@
  * deploy do runtime novo (a tela e a rota PUT só existem depois dele).
  *
  * Uso:
- *   FUSO_DATABASE_URL=… [FUSO_EXPECTED_SYSTEM_IDENTIFIER=…] \
+ *   FUSO_DATABASE_URL=… POSTGRES_PRISMA_URL=<runtime production> MIGRATION_DATABASE_URL=… \
+ *   FUSO_EXPECTED_SYSTEM_IDENTIFIER=… RELEASE_ALVO_ATESTADO="…" \
  *     node scripts/ops/configurar-fuso-empresas.mjs --plano plano.json             (simulação, padrão)
  *   … --plano plano.json --aplicar --confirmar APLICAR_FUSOS_DAS_FAZENDAS \
  *     [--referencia-backup "<id/horário do backup restaurável conferido>"]
@@ -14,7 +15,10 @@
  *     "empresas": [ { "cliente_id": "…", "empresa_id": "…", "fuso_horario": "America/Cuiaba", "motivo": "opcional; obrigatório para TROCAR um fuso já configurado" } ] }
  *
  * Barreiras (fail-closed; exit 3 = recusado, nada gravado):
- *  - alvo remoto exige FUSO_EXPECTED_SYSTEM_IDENTIFIER, conferido ANTES de qualquer leitura de negócio;
+ *  - alvo remoto (R4): FUSO_DATABASE_URL, runtime (POSTGRES_PRISMA_URL ?? DATABASE_URL ?? POSTGRES_URL),
+ *    MIGRATION_DATABASE_URL, FUSO_EXPECTED_SYSTEM_IDENTIFIER e RELEASE_ALVO_ATESTADO; as TRÊS conexões
+ *    lidas e o MESMO banco lógico (SID = esperado, current_database, OID, histórico) ANTES de
+ *    qualquer leitura de negócio, e reconferido dentro da transação; senão TARGET_UNVERIFIED;
  *  - --aplicar exige a frase de confirmação; em alvo remoto exige --referencia-backup e plano FORA do repositório;
  *  - schema da release pronto (migration com checksum do manifesto + coluna); senão recusa;
  *  - empresa do cliente informado, administrador ativo do mesmo cliente, IANA válido, sem duplicatas;
@@ -69,8 +73,13 @@ try {
 } catch {
   uso('FUSO_DATABASE_URL inválida');
 }
-const { validarBarreirasCli, planejarFusos, aplicarPlanoFusos, FusoReleaseRecusado, hostEhLocal, planoForaDoRepositorio } = await import('./fusoReleaseLib.mjs');
-const local = hostEhLocal(url);
+const { validarBarreirasCli, planejarFusos, aplicarPlanoFusos, FusoReleaseRecusado, hostEhLocal, planoForaDoRepositorio, avaliarAlvoEscritaFuso } = await import('./fusoReleaseLib.mjs');
+// PR190-R4: as conexões do RUNTIME (mesma precedência do backend/src/config/env.js)
+// e da MIGRATION entram como evidência independente da conexão que escreve.
+const env = (n) => (typeof process.env[n] === 'string' && process.env[n].trim() ? process.env[n].trim() : null);
+const urlRuntime = env('POSTGRES_PRISMA_URL') ?? env('DATABASE_URL') ?? env('POSTGRES_URL');
+const urlMigracao = env('MIGRATION_DATABASE_URL');
+const local = hostEhLocal(url) && (!urlRuntime || hostEhLocal(urlRuntime)) && (!urlMigracao || hostEhLocal(urlMigracao));
 const esperadoSid = process.env.FUSO_EXPECTED_SYSTEM_IDENTIFIER;
 const referenciaBackup = valor('--referencia-backup') ?? null;
 
@@ -86,10 +95,20 @@ try {
   uso(`plano ilegível (${e instanceof SyntaxError ? 'JSON inválido' : e?.code ?? 'erro'})`);
 }
 
+// PR190-R4: alvo não local → as TRÊS conexões lidas e iguais (mesmo banco LÓGICO,
+// não só o mesmo cluster), ANTES de qualquer leitura de negócio. A identidade
+// aprovada é reconferida dentro da transação de escrita (TOCTOU).
+let identidadeEsperada = null;
+if (!local) {
+  const alvo = await avaliarAlvoEscritaFuso({ urlFuso: url, urlRuntime, urlMigracao, esperadoSid, atestado: env('RELEASE_ALVO_ATESTADO') });
+  if (!alvo.ok) recusar('TARGET_UNVERIFIED', `alvo da escrita não comprovado (${alvo.motivos.join(', ')})`, alvo.falhas.length ? { falhas: alvo.falhas } : undefined);
+  identidadeEsperada = alvo.identidade;
+}
+
 const { PrismaClient } = await import('@prisma/client');
 const prisma = new PrismaClient({ datasources: { db: { url } } });
 try {
-  if (!local || esperadoSid) {
+  if (local && esperadoSid) {
     let sid = null;
     try {
       [{ sid }] = /** @type {Array<{sid: string}>} */ (await prisma.$queryRaw`SELECT system_identifier::text AS sid FROM pg_control_system()`);
@@ -98,11 +117,11 @@ try {
     }
     if (sid !== String(esperadoSid)) recusar('ALVO_DIVERGENTE', 'system_identifier do alvo não confere com FUSO_EXPECTED_SYSTEM_IDENTIFIER');
   }
-  const simulacao = await planejarFusos(prisma, plano);
+  const simulacao = await planejarFusos(prisma, plano, { identidadeEsperada });
   console.log(JSON.stringify({ modo: 'SIMULACAO', ...simulacao }, null, 2));
   if (simulacao.recusas) recusar('PLANO_COM_RECUSAS', 'corrija o plano (ver itens recusados acima)');
   if (aplicar) {
-    const r = await aplicarPlanoFusos(prisma, plano, { referenciaBackup });
+    const r = await aplicarPlanoFusos(prisma, plano, { referenciaBackup, identidadeEsperada });
     console.log(JSON.stringify({ modo: 'APLICADO', ...r }, null, 2));
   } else {
     console.error('configurar-fuso-empresas: simulação apenas (nada gravado). Para aplicar: --aplicar --confirmar APLICAR_FUSOS_DAS_FAZENDAS');

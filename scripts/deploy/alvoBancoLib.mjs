@@ -91,6 +91,38 @@ export const compararAlvos = ({ esperadoSid, runtime, migracao }) => {
   return { ok: falhas.length === 0, falhas, resumo };
 };
 
+/**
+ * PR190-R4 (D-PROD-122) — veredito puro sobre N ≥ 2 identidades: todas lidas,
+ * todas com o SID esperado e histórico presente, e TODAS o MESMO banco lógico
+ * (SID, current_database, OID do banco e assinatura do histórico). Menos de duas
+ * conexões nunca prova nada. Mensagens sem SID, URL, host ou usuário.
+ * Não substitui `compararAlvos` (contrato de duas conexões já aprovado).
+ * @param {{ esperadoSid: string, identidades: Array<[string, any]> }} e
+ */
+export const compararIdentidades = ({ esperadoSid, identidades }) => {
+  const falhas = [];
+  if (!/^\d{6,25}$/.test(String(esperadoSid ?? ''))) falhas.push('identificador esperado ausente ou inválido');
+  if (!Array.isArray(identidades) || identidades.length < 2) falhas.push('são necessárias ao menos duas conexões');
+  const lidas = [];
+  for (const [nome, id] of identidades ?? []) {
+    if (!id?.ok) {
+      falhas.push(`${nome}: ${id?.erro ?? 'não lida'}`);
+      continue;
+    }
+    if (id.sid !== String(esperadoSid)) falhas.push(`${nome}: system_identifier difere do esperado`);
+    if (!id.tem_historico) falhas.push(`${nome}: public._prisma_migrations ausente (banco errado ou vazio)`);
+    lidas.push([nome, id]);
+  }
+  const [ref] = lidas;
+  for (const [nome, id] of lidas.slice(1)) {
+    if (id.sid !== ref[1].sid) falhas.push(`${ref[0]} e ${nome} estão em clusters diferentes`);
+    if (id.banco !== ref[1].banco) falhas.push(`${ref[0]} e ${nome}: current_database difere`);
+    if (id.banco_oid !== ref[1].banco_oid) falhas.push(`${ref[0]} e ${nome}: OID do banco difere (outro banco lógico)`);
+    if (id.historico !== ref[1].historico) falhas.push(`${ref[0]} e ${nome}: histórico de migrations difere`);
+  }
+  return { ok: falhas.length === 0, falhas };
+};
+
 /** Executor real: um PrismaClient efêmero por URL (lazy, para os testes não exigirem banco). */
 export const executorPrisma = async (url, sql) => {
   const { PrismaClient } = await import('@prisma/client');

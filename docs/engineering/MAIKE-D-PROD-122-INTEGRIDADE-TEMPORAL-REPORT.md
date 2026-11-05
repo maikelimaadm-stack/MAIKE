@@ -190,8 +190,10 @@ Executa o **proprietário ou um operador autorizado**, numa máquina protegida, 
 
 2. Simulação (padrão, nada é gravado):
 
-       FUSO_DATABASE_URL=<migration> FUSO_EXPECTED_SYSTEM_IDENTIFIER=… RELEASE_ALVO_ATESTADO="…" \
-         node scripts/ops/configurar-fuso-empresas.mjs --plano /fora/do/repo/plano.json
+       # mesma sessão de terminal do R2/R3 (variáveis da seção "Sessão única do operador")
+       node scripts/ops/configurar-fuso-empresas.mjs --plano /fora/do/repo/plano.json
+
+   (R4 da PR190) Antes de ler qualquer dado de negócio, o CLI lê as TRÊS conexões: `FUSO_DATABASE_URL` (a que escreve), o runtime (`POSTGRES_PRISMA_URL ?? DATABASE_URL ?? POSTGRES_URL`) e `MIGRATION_DATABASE_URL`. Exige o MESMO banco LÓGICO: SID = esperado, `current_database`, OID e histórico de migrations. O mesmo cluster não basta. Dentro da transação de escrita a identidade é conferida DE NOVO. Faltou, divergiu ou não leu → TARGET_UNVERIFIED (exit 3), nada gravado.
 
 3. Aplicação: uma transação, Empresa `FOR UPDATE`, AuditLog por mudança com a referência do backup, tudo ou nada:
 
@@ -212,6 +214,21 @@ Executa o **proprietário ou um operador autorizado**, numa máquina protegida, 
   - troca de fuso existente sem motivo.
 - **Reexecutar é seguro:** fuso igual não muda nada e não gera auditoria nova.
 - **Saída (R3):** só hashes estáveis (`h:` + 12 hex) de cliente e empresa, nunca o id cru, nem do administrador, nem em erros. Os ids reais ficam só na transação (UPDATE e AuditLog). Não existe modo detalhado.
+
+**Sessão única do operador (R2 → R5), sem confundir as conexões.** Num ÚNICO terminal protegido, uma vez:
+
+    export POSTGRES_PRISMA_URL='<runtime: valor de PRODUCTION do projeto maike na Vercel>'
+    export MIGRATION_DATABASE_URL='<conexão direta/sessão do MESMO projeto; nunca o pooler 6543>'
+    export FUSO_DATABASE_URL="$MIGRATION_DATABASE_URL"        # quem escreve os fusos = a conexão de migration
+    export MIGRATION_EXPECTED_SYSTEM_IDENTIFIER='<SID do R2>'
+    export FUSO_EXPECTED_SYSTEM_IDENTIFIER="$MIGRATION_EXPECTED_SYSTEM_IDENTIFIER"
+    export RELEASE_ALVO_ATESTADO='<quem, onde, quando obteve o SID e os valores de runtime>'
+
+Os quatro passos (conferir-alvo-banco, premerge-migrate, configurar-fuso-empresas e preflight-fuso-release) leem as MESMAS variáveis. Nenhum passo recebe uma URL diferente da usada no anterior.
+
+- **O que vale como "runtime de produção":** o valor de `POSTGRES_PRISMA_URL` (a variável que vence a precedência do `env.js`) no ambiente **Production** do projeto Vercel, copiado pelo operador autorizado na tela de variáveis do projeto. O deployment de produção ativo tem de ser posterior à última edição dessa variável; caso contrário, refazer o deploy não está autorizado aqui → STOP.
+- **`RELEASE_ALVO_ATESTADO` é um registro HUMANO** de quem obteve o SID e os valores de runtime, onde e quando. Não é evidência criptográfica nem prova independente do vínculo com a Vercel. A prova técnica é só a igualdade de identidade das conexões que o operador forneceu. Sem esse procedimento humano → TARGET_UNVERIFIED.
+- **RLS em `public._prisma_migrations`:** um papel sem visibilidade do histórico (sem ser dono nem ter BYPASSRLS) lê o histórico vazio, e a comparação diverge → TARGET_UNVERIFIED (teste R4-4b). Use papéis que leem o histórico (dono ou serviço). Nunca desligue o RLS para "passar".
 
 **R5 — Preflight final (somente leitura), imediatamente antes do merge.**
 
@@ -317,6 +334,29 @@ O KM - 06 de produção NÃO foi tocado.
 - As suítes H1 (38) e release (13) continuam verdes. A R3 tem 12 testes.
 - H1 + release + R3 + exclusão + certificação rodaram 3×: 106/106 em cada rodada.
 - Nenhuma guarda foi afrouxada: replay antes da guarda, 409 sem escrita, `FOR SHARE` na guarda, `FOR UPDATE` na troca, AuditLog único, sem fallback de fuso, exclusão de futuro legado permitida.
+
+## PR190-R4 — banco lógico da escrita de fusos
+
+**Lacuna.** O `configurar-fuso-empresas.mjs` (R3) comparava só o `system_identifier`, que prova o cluster. Dois bancos lógicos no mesmo cluster têm o mesmo SID.
+
+**RED (`R4-1`, no `512487bb`).** Com o segundo banco lógico `maike_d122_r4_outro` no mesmo cluster local, semeado e migrado, e a `FUSO_DATABASE_URL` apontando para ele, o CLI antigo terminou com exit 0. Simulou e APLICOU o plano no banco errado.
+
+**Correção:**
+- `alvoBancoLib.compararIdentidades`: N ≥ 2 conexões, todas lidas, SID = esperado, histórico presente, mesmo `current_database`, OID e histórico. O `compararAlvos` (duas conexões, R3) ficou intocado.
+- `fusoReleaseLib.avaliarAlvoEscritaFuso`: as três conexões, mais SID e atestado.
+- `exigirIdentidade` dentro de `planejarFusos` e na abertura da transação de `aplicarPlanoFusos`, sobre a mesma sessão que escreve. Isso trata o TOCTOU: outro banco, histórico alterado no meio (R4-7) ou identidade ilegível → TARGET_UNVERIFIED e rollback.
+- `configurar-fuso-empresas.mjs` exige as três conexões em alvo não local.
+
+**GREEN (`dProd122ReleaseFusoR4`, 9 testes):**
+- **R4-0:** sanidade, mesmo SID e outro OID.
+- **R4-1:** banco errado recusado, com fotografia zero nos dois bancos (Empresa, AuditLog, histórico).
+- **R4-2:** mesmo banco por host e usuário distintos → simula e aplica no local; reaplicar não audita de novo.
+- **R4-3:** runtime, migration, SID ou atestado ausentes, credencial inválida ou SID divergente → recusa sem escrita.
+- **R4-4:** `pg_control_system` negado ao papel do runtime → TARGET_UNVERIFIED.
+- **R4-4b:** histórico invisível por RLS → TARGET_UNVERIFIED.
+- **R4-5:** comparação pura de N identidades.
+- **R4-6:** identidade de outro banco recusada dentro da transação; concorrência ×2 = 1 auditoria.
+- **R4-7:** histórico mudou entre a verificação e a escrita → recusa.
 
 ## Riscos e limites
 

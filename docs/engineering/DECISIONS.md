@@ -4872,5 +4872,10 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
   - `READY_LOCAL_TESTE` nunca vale como prova de produção.
   - As saídas dos CLIs de release usam ids em hash.
   - O plano é conferido pelo caminho real (symlinks resolvidos), fora do repositório.
+- **PR190-R4:**
+  - A escrita de fusos em alvo não local exige as TRÊS conexões (a que escreve, runtime e migration) como o MESMO banco LÓGICO: SID = esperado, `current_database`, OID e histórico. O mesmo cluster não basta.
+  - A identidade é reconferida dentro da transação de escrita (TOCTOU).
+  - `RELEASE_ALVO_ATESTADO` é registro humano, não prova criptográfica do vínculo com a Vercel.
+  - O papel sem visibilidade do histórico (RLS) resulta em TARGET_UNVERIFIED.
 
 <!-- Próxima decisão: D-PROD-123 -->

@@ -34,7 +34,7 @@ import { sep } from 'node:path';
 
 import { normalizarFusoIana } from '../../backend/src/modules/rebanhoLedger/rebanhoLedgerTempo.js';
 import { MIGRATIONS_APROVADAS } from '../deploy/premergeMigrateLib.mjs';
-import { conferirAlvos, executorPrisma } from '../deploy/alvoBancoLib.mjs';
+import { compararIdentidades, conferirAlvos, executorPrisma, lerIdentidade } from '../deploy/alvoBancoLib.mjs';
 
 export const MIGRATION_FUSO = '20261104200000_empresa_fuso_horario';
 export const CHECKSUM_MIGRATION_FUSO = MIGRATIONS_APROVADAS[MIGRATION_FUSO];
@@ -203,6 +203,48 @@ const exigirSchema = async (db) => {
 
 // PR190-R3: relatório e detalhes de erro SEM ids crus (hash estável); os ids reais
 // ficam só dentro da transação (UPDATE/AuditLog).
+/**
+ * PR190-R4 — alvo da ESCRITA de fusos. Em alvo não local, as TRÊS conexões —
+ * a que escreve (FUSO_DATABASE_URL), a do runtime (precedência do env.js) e a da
+ * migration — são lidas e têm de ser o MESMO banco lógico (SID = esperado,
+ * current_database, OID e histórico), com atestado. SID isolado prova só o
+ * cluster: dois bancos lógicos do mesmo cluster têm o mesmo SID.
+ * Devolve a identidade aprovada para ser reconferida DENTRO da transação.
+ * @returns {Promise<{ok: boolean, local: boolean, motivos: string[], falhas: string[], identidade: any}>}
+ */
+export const avaliarAlvoEscritaFuso = async ({ urlFuso, urlRuntime, urlMigracao, esperadoSid, atestado, executar = executorPrisma }) => {
+  const local = !!urlFuso && hostEhLocal(urlFuso) && (!urlRuntime || hostEhLocal(urlRuntime)) && (!urlMigracao || hostEhLocal(urlMigracao));
+  if (local) return { ok: true, local: true, motivos: [], falhas: [], identidade: null };
+  const motivos = [];
+  if (!urlFuso) motivos.push('FUSO_DATABASE_URL_AUSENTE');
+  if (!urlRuntime) motivos.push('RUNTIME_URL_AUSENTE');
+  if (!urlMigracao) motivos.push('MIGRATION_DATABASE_URL_AUSENTE');
+  if (!/^\d{6,25}$/.test(String(esperadoSid ?? ''))) motivos.push('SID_ESPERADO_AUSENTE');
+  if (!texto(atestado)) motivos.push('ATESTADO_AUSENTE');
+  if (motivos.length) return { ok: false, local: false, motivos, falhas: [], identidade: null };
+  const identidades = [
+    ['fuso', await lerIdentidade(urlFuso, executar)],
+    ['runtime', await lerIdentidade(urlRuntime, executar)],
+    ['migration', await lerIdentidade(urlMigracao, executar)],
+  ];
+  const v = compararIdentidades({ esperadoSid: String(esperadoSid), identidades });
+  if (!v.ok) return { ok: false, local: false, motivos: ['ALVOS_NAO_CONFEREM'], falhas: v.falhas, identidade: null };
+  return { ok: true, local: false, motivos: [], falhas: [], identidade: identidades[0][1] };
+};
+
+/**
+ * PR190-R4 — TOCTOU: a conexão que vai ler/escrever (a mesma sessão da
+ * transação) é conferida contra a identidade aprovada ANTES de qualquer
+ * leitura de negócio. Outro banco, histórico alterado no meio ou identidade
+ * ilegível → TARGET_UNVERIFIED (a transação desfaz tudo).
+ */
+const exigirIdentidade = async (db, esperada) => {
+  if (!esperada) return;
+  const atual = await lerIdentidade('conexao-da-transacao', (_url, sql) => db.$queryRawUnsafe(sql));
+  const v = compararIdentidades({ esperadoSid: esperada.sid, identidades: [['aprovada', esperada], ['transacao', atual]] });
+  if (!v.ok) throw new FusoReleaseRecusado('TARGET_UNVERIFIED', 'a conexão de escrita não é o banco lógico aprovado (ou mudou desde a verificação); nada foi gravado', { falhas: v.falhas });
+};
+
 const comoRelatorio = (decisoes) => ({
   itens: decisoes.map(({ it, d }) => ({
     indice: it.indice, cliente: hashId(it.clienteId), empresa: hashId(it.empresaId), fuso_novo: it.fuso, fuso_atual: d.atual ?? null,
@@ -213,8 +255,9 @@ const comoRelatorio = (decisoes) => ({
 });
 
 /** Simulação (somente leitura). */
-export const planejarFusos = async (db, plano) => {
+export const planejarFusos = async (db, plano, { identidadeEsperada = null } = {}) => {
   const itens = lerPlano(plano);
+  await exigirIdentidade(db, identidadeEsperada);
   await exigirSchema(db);
   const estado = await lerEstado(db, itens, { travar: false });
   return comoRelatorio(estado.map(({ it, empresa, admin }) => ({ it, d: decidir(it, empresa, admin) })));
@@ -224,11 +267,12 @@ export const planejarFusos = async (db, plano) => {
  * Aplica o plano numa ÚNICA transação; qualquer recusa → ROLLBACK total.
  * @param {any} prisma
  * @param {any} plano
- * @param {{referenciaBackup?: string|null, requestId?: string, timeoutMs?: number}} [opcoes]
+ * @param {{referenciaBackup?: string|null, requestId?: string, timeoutMs?: number, identidadeEsperada?: any}} [opcoes]
  */
-export const aplicarPlanoFusos = async (prisma, plano, { referenciaBackup = null, requestId = `fuso-release:${randomUUID()}`, timeoutMs = 60_000 } = {}) => {
+export const aplicarPlanoFusos = async (prisma, plano, { referenciaBackup = null, requestId = `fuso-release:${randomUUID()}`, timeoutMs = 60_000, identidadeEsperada = null } = {}) => {
   const itens = lerPlano(plano).sort((a, b) => a.clienteId.localeCompare(b.clienteId) || a.empresaId.localeCompare(b.empresaId));
   return prisma.$transaction(async (tx) => {
+    await exigirIdentidade(tx, identidadeEsperada);
     await exigirSchema(tx);
     const estado = await lerEstado(tx, itens, { travar: true });
     const decisoes = estado.map(({ it, empresa, admin }) => ({ it, d: decidir(it, empresa, admin) }));

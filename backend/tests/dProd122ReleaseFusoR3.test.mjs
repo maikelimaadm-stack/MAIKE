@@ -277,7 +277,8 @@ describe('PR190-R3 G2 — saídas sem identificadores crus; plano fora do reposi
     assert.match(semAtestado.stderr, /ATESTADO_AUSENTE/);
     const sidErrado = rodar('scripts/ops/configurar-fuso-empresas.mjs', { ...env, FUSO_EXPECTED_SYSTEM_IDENTIFIER: '1234567890123456789', RELEASE_ALVO_ATESTADO: 'x' }, ['--plano', caminho, '--aplicar', '--confirmar', FRASE, '--referencia-backup', 'pitr']);
     assert.equal(sidErrado.status, 3);
-    assert.match(sidErrado.stderr, /ALVO_DIVERGENTE/);
+    // R4: sem runtime/migration o alvo nem chega a ser lido (TARGET_UNVERIFIED).
+    assert.match(sidErrado.stderr, /TARGET_UNVERIFIED/);
     for (const r of [semSid, semAtestado, sidErrado]) semSegredos(r.stdout + r.stderr, t, [await sidLocal()]);
     assert.equal((await prisma().empresa.findUnique({ where: { id: t.empresa.id } })).fuso_horario, null);
   });
