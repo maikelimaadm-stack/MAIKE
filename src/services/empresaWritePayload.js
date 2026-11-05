@@ -37,7 +37,7 @@ const OPCIONAIS_STRING = new Set([
 ]);
 
 /**
- * D-PROD-122: o fuso IANA da fazenda só vai no corpo da CRIAÇÃO. Depois, muda
+ * D-PROD-124: o fuso IANA da fazenda só vai no corpo da CRIAÇÃO. Depois, muda
  * apenas pela rota administrativa `PUT /empresas/:id/fuso-horario` (o PATCH
  * genérico recusa o campo).
  * @param {Record<string, unknown>} bruto

@@ -721,24 +721,67 @@
 
 .mk-dl__info {
   min-width: 0;
-  padding: 6px 8px;
+  padding: 5px 8px;
   border-radius: 8px;
   background: #f6f7f8;
 }
 
-.mk-dl__info > div:first-child {
+/* Campo: rótulo e valor no tamanho do "Categoria de Manejo", numa linha só;
+   se não couber, o texto corre devagar (D-PROD-124). */
+.mk-dl__linha {
+  overflow: hidden;
+  white-space: nowrap;
   font-size: 10.5px;
+  line-height: 1.4;
+}
+
+.mk-dl__correr {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.mk-dl__correr.is-correndo {
+  animation: mk-dl-correr var(--mk-tempo, 6s) ease-in-out infinite alternate;
+}
+
+@keyframes mk-dl-correr {
+  0%,
+  20% {
+    transform: translateX(0);
+  }
+
+  80%,
+  100% {
+    transform: translateX(var(--mk-dist, 0));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mk-dl__correr.is-correndo {
+    animation: none;
+  }
+}
+
+.mk-dl__rotulo {
+  font-weight: 500;
   color: #64748b;
 }
 
-.mk-dl__info > div:last-child {
-  overflow-wrap: anywhere;
-  font-size: 12.5px;
+.mk-dl__valor {
   font-weight: 600;
   color: #1f2937;
 }
 
-/* Cabeçalho do cartão: nome na cor dos botões (D-PROD-120) */
+.mk-dl__cor {
+  flex: 0 0 auto;
+  width: 9px;
+  height: 9px;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+}
+
+/* Cabeçalho do cartão: nome do lote na cor dos botões; área só em texto (D-PROD-124) */
 .mk-dl__cab {
   display: flex;
   align-items: center;
@@ -752,32 +795,40 @@
   align-items: center;
   min-width: 0;
   max-width: 100%;
-  padding: 5px 12px;
+  padding: 3px 10px;
   border-radius: 999px;
   background: var(--mg-accent, #40de63);
   box-shadow: 0 1px 2px rgba(22, 101, 52, 0.18);
   color: #fff;
-  font-size: 12.5px;
+  font-size: 10.5px;
   font-weight: 700;
   letter-spacing: 0.01em;
   line-height: 1.25;
   overflow-wrap: anywhere;
 }
 
+.mk-dl__nome--area {
+  padding: 2px 0;
+  background: none;
+  box-shadow: none;
+  color: #1f2937;
+  font-size: 11.5px;
+}
+
+/* Sub-ícone do lote: só a imagem (ela já não tem fundo) */
 .mk-dl__icone {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-end;
   flex: 0 0 auto;
-  width: 34px;
-  height: 34px;
-  border-radius: 10px;
-  background: #f6f7f8;
+  height: 22px;
+  overflow: visible;
 }
 
+/* Maior sem aumentar a linha: a caixa fica com a altura da pílula (D-PROD-125) */
 .mk-dl__icone img {
-  width: 26px;
-  height: 26px;
+  width: 36px;
+  height: 36px;
   object-fit: contain;
 }
 
@@ -788,35 +839,67 @@
   gap: 6px;
 }
 
-.mk-dl__chips-rotulo {
-  font-size: 11px;
-  font-weight: 600;
-  color: #64748b;
-}
-
 .mk-dl__chip {
   display: inline-flex;
   align-items: center;
   gap: 4px;
   max-width: 100%;
-  padding: 3px 10px;
+  padding: 2px 9px;
   border-radius: 999px;
-  background: rgba(64, 222, 99, 0.14);
-  color: #166534;
-  font-size: 11.5px;
-  font-weight: 600;
+  background: #f1f3f4;
+  color: #64748b;
+  font-size: 10.5px;
+  font-weight: 500;
   overflow-wrap: anywhere;
 }
 
-.mk-dl__chip--cinza {
-  background: #f1f3f4;
-  color: #64748b;
-  font-weight: 500;
-}
-
-.mk-dl__chip--cinza strong {
+.mk-dl__chip strong {
   color: #1f2937;
   font-weight: 600;
+}
+
+/* Fundo cinza atrás dos cartões e dos botões, como no celular; botões brancos (D-PROD-124) */
+.mk-ll-dlg.is-desktop:has(> .mk-ll > .mk-dl):not(#mk-padrao) {
+  background: #f2f3f5;
+}
+
+/* Cabeçalho também cinza, sem a faixa branca; ✕ branco como os botões (D-PROD-125) */
+.mk-ll-dlg.is-desktop:has(> .mk-ll > .mk-dl) .mk-ll-dlg__head:not(#mk-padrao) {
+  background: transparent;
+  border-bottom: 0;
+}
+
+/* Menos espaço entre o título e o primeiro cartão (D-PROD-125) */
+.mk-ll-dlg.is-desktop:has(> .mk-ll > .mk-dl) > .mk-ll {
+  padding-top: 2px;
+}
+
+.mk-ll-dlg.is-desktop:has(> .mk-ll > .mk-dl) .mk-ll-dlg__acoes.cadastro-b1 .tb-btn.tb-btn-gray.mg-act-cancelar:not(#mk-padrao) {
+  background: #fff !important;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.1) !important;
+}
+
+.mk-ll-dlg.is-tela:has(> .mk-ll > .mk-dl):not(#mk-padrao) {
+  background: #f2f3f5;
+}
+
+.mk-ll-dlg.is-tela:has(> .mk-ll > .mk-dl) .mk-ll-dlg__redondo {
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.1);
+}
+
+.mk-dl .mk-al--embaixo .mk-al__quadro {
+  font-size: 11px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+}
+
+.mk-dl .mk-al--embaixo .mk-al__grupo-titulo {
+  font-size: 11px;
+}
+
+.mk-dl .mk-al--embaixo .mk-al__quadro:hover {
+  background: #f8fafc;
 }
 
 .mk-dl__rodape {

@@ -39,6 +39,7 @@ import { corpoNascimento, corpoPesagem, corpoMudancaCategoria, corpoJuncao, corp
 import { enviarManejoRebanho, enviarJuncaoLotes, enviarBaixaRebanho, enviarTransferenciaLedger, mensagemDaTransferenciaLedger, mensagemDoErro, codigoDoErro, MENSAGENS_MANEJO_REBANHO } from "@/services/manejoRebanhoService";
 import { escopoDoUsuario } from "../lotes/ExcluirMovimentacao";
 import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
+import CampoDl from "./CampoDl";
 
 /**
  * Contrato do dono (D-PROD-107): `Lote` é só o cadastro de ENTRADA. O navegador
@@ -138,7 +139,6 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
   const totalCabecas = lotes.reduce((sum, lote) => sum + (lote.quantidade_cabecas || 0), 0);
 
   // Título com nomes dos lotes
-  const tituloLotes = lotes.map((l) => l.nome).join(' - ');
 
   const { data: areas = [], isLoading: loadingAreas } = useQuery({
     queryKey: ['mapa-areas', empresaSelecionadaId],
@@ -499,8 +499,8 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
 
   return (
     <>
-    <div className="space-y-2" translate="no">
-      <InformacoesArea area={areaAtual} lotesNaArea={todosLotesNaArea} tituloLotes={tituloLotes} />
+    <div className="mk-dl space-y-2" translate="no">
+      <InformacoesArea area={areaAtual} lotesNaArea={todosLotesNaArea} />
 
       <div className="mk-dl__lotes">
         {categorias.map((categoria) => {
@@ -528,45 +528,20 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
                     }
                 </div>
                 <div className="mk-dl__infos">
-                  <div className="mk-dl__info">
-                    <div className="text-slate-500">Identificador</div>
-                    <div className="font-semibold text-slate-900 flex items-center gap-1.5">
-                      {lote.identificador_cor && <span className="inline-block w-3 h-3 rounded-full border border-slate-300" style={{ backgroundColor: lote.identificador_cor }} />}
-                      <span>{(lote.identificador_nome || '-').toUpperCase()}</span>
-                    </div>
-                  </div>
-                  <div className="mk-dl__info">
-                    <div className="text-slate-500">Sigla</div>
-                    <div className="font-semibold text-slate-900">{(lote.identificador_sigla || '-').toUpperCase()}</div>
-                  </div>
-                  <div className="mk-dl__info">
-                    <div className="text-slate-500">Qtd. Cabeças</div>
-                    <div className="font-semibold text-slate-900">{cab.toLocaleString('pt-BR')}</div>
-                  </div>
-                  <div className="mk-dl__info">
-                    <div className="text-slate-500">Peso Médio</div>
-                    <div className="font-semibold text-slate-900">{peso > 0 ? `${peso.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg` : '-'}</div>
-                  </div>
-                  <div className="mk-dl__info">
-                    <div className="text-slate-500">Dias de pastejo</div>
-                    <div className="font-semibold text-slate-900">{diasPastejo.toLocaleString('pt-BR')} dia(s)</div>
-                  </div>
-                  <div className="mk-dl__info">
-                    <div className="text-slate-500">Sist. Rep.</div>
-                    <div className="font-semibold text-slate-900">{(lote.sistema_produtivo || '-').toUpperCase()}</div>
-                  </div>
-                  <div className="mk-dl__info">
-                    <div className="text-slate-500">Raça Predominante</div>
-                    <div className="font-semibold text-slate-900">{(lote.raca_predominante || '-').toUpperCase()}</div>
-                  </div>
-                  <div className="mk-dl__info">
-                    <div className="text-slate-500">Sexo</div>
-                    <div className="font-semibold text-slate-900">{(lote.sexo || '-').toUpperCase()}</div>
-                  </div>
+                  <CampoDl rotulo="Identificador">
+                      {lote.identificador_cor && <span className="mk-dl__cor" style={{ backgroundColor: lote.identificador_cor }} />}
+                      {(lote.identificador_nome || '-').toUpperCase()}
+                    </CampoDl>
+                  <CampoDl rotulo="Sigla">{(lote.identificador_sigla || '-').toUpperCase()}</CampoDl>
+                  <CampoDl rotulo="Qtd. Cabeças">{cab.toLocaleString('pt-BR')}</CampoDl>
+                  <CampoDl rotulo="Peso Médio">{peso > 0 ? `${peso.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg` : '-'}</CampoDl>
+                  <CampoDl rotulo="Dias de pastejo">{diasPastejo.toLocaleString('pt-BR')} dia(s)</CampoDl>
+                  <CampoDl rotulo="Sist. Rep.">{(lote.sistema_produtivo || '-').toUpperCase()}</CampoDl>
+                  <CampoDl rotulo="Raça Predominante">{(lote.raca_predominante || '-').toUpperCase()}</CampoDl>
+                  <CampoDl rotulo="Sexo">{(lote.sexo || '-').toUpperCase()}</CampoDl>
                 </div>
                 <div className="mk-dl__chips">
-                  <span className="mk-dl__chip mk-dl__chip--cinza">Categoria de Manejo: <strong>{(lote.categoria_manejo_nome || '-').toUpperCase()}</strong></span>
-                  <span className="mk-dl__chip mk-dl__chip--cinza">Categoria Oficial: <strong>{(lote.categoria || '-').toUpperCase()}</strong></span>
+                  <span className="mk-dl__chip">Categoria de Manejo: <strong>{(lote.categoria_manejo_nome || '-').toUpperCase()}</strong></span>
                 </div>
               </div>);
 
