@@ -56,7 +56,7 @@ const gravarPreferencias = ({ login, lembrar }) => {
 };
 
 const CAMPO_CLASSE =
-  'peer h-12 w-full rounded-xl border border-slate-300 bg-white pl-11 pr-3 text-base text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 hover:border-slate-400 focus:border-[#22c55e] focus:ring-4 focus:ring-[#40de63]/25 aria-[invalid=true]:border-red-400';
+  'peer h-12 w-full rounded-xl border border-slate-300 bg-white pl-11 pr-3 text-base text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 hover:border-slate-400 focus:border-[#22c55e] focus:ring-2 focus:ring-[#40de63]/20 aria-[invalid=true]:border-red-400 aria-[invalid=true]:focus:border-red-400 aria-[invalid=true]:focus:ring-red-400/15';
 
 /**
  * @param {{onAutenticado: (sessao: {usuario: object, clienteId: string}) => void,
