@@ -262,7 +262,7 @@ Teste `notificacoesConfirmacoes`: a promessa do `confirmar`, o aviso de bloqueio
 
 | Pedido | Feito | Evidência |
 |---|---|---|
-| Não ficar a bagunça de nomes e números das áreas no celular | Só aparece o rótulo que cabe na área e não bate em outro rótulo nem em ícone de lote. As áreas maiores vêm primeiro. Sem espaço, o "ha" sai antes. Aproximando, tudo volta | v19-01 (antes · depois · zoom +2) |
+| Não ficar a bagunça de nomes e números das áreas no celular | Todos os rótulos ficam no mesmo nível: nome e ha, só o nome, ou só a sigla, conforme o espaço | v19-00 (antes) e v19-01 (afastado · zoom +1 · zoom +2) |
+| Primeira versão "picada" rejeitada; quer a sigla quando não couber | Sem esconder nenhum. Sigla do cadastro ou, sem ela, o nome sem o prefixo ("KM - 01" → "01") | v19-01 |
 
-Harness a 390 px com 72 áreas pequenas, com o mapa base trocado por um fundo liso porque não há internet: antes, 72 rótulos sobrepostos; depois, 29 sem sobreposição; com zoom +2, os 72. **Não testado no mapa real nem em aparelho.**
-
+Harness a 390 px com 72 áreas, com o mapa base trocado por um fundo liso porque não há internet: afastado, as 72 siglas; com zoom +1, os 72 nomes com o ha. **Não testado no mapa real nem em aparelho.**

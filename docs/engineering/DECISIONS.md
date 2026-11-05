@@ -4913,12 +4913,17 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
 > Os números D-PROD-124 e D-PROD-125 ficam com o PR do Detalhes do Lote (#193), aberto em paralelo.
 
 - **Contexto:** no celular, com o mapa afastado, os nomes e os hectares das áreas se atropelam ("bagunça de números", foto do proprietário). Os rótulos são marcadores DOM, sem nenhuma regra de colisão.
-- **Decisão:** `decidirRotulos` (em `mapaGeralRender.js`, função pura) escolhe, a cada movimento ou zoom (`moveend`) e quando as áreas ou os lotes mudam, o que cada rótulo mostra:
-  - As áreas maiores na tela vêm primeiro.
-  - Um rótulo aparece **inteiro** (nome e "ha") se couber na caixa da própria área na tela, com 6 px de folga, e não bater em rótulo já colocado nem em ícone de lote (2 px de folga).
-  - Se o rótulo inteiro não couber ou bater, aparece **só o nome**, com o mesmo teste.
-  - Se nem o nome couber, o rótulo **some**. Aproximando o mapa, ele volta.
-  - A medição é feita com `visibility: hidden`, sem piscar. O `data-rotulo` (tudo, nome ou nada) fica no elemento.
-- **Consequência:** sem texto por cima de texto em nenhum zoom. No harness, a 390 px, com 72 áreas pequenas: antes os 72 se sobrepunham; depois aparecem 29 sem sobreposição; com 2 níveis de zoom aparecem os 72.
+- **Primeira tentativa (rejeitada):** esconder só os rótulos que se batiam. O proprietário não gostou de ver "picado", com umas áreas com nome e outras sem.
+- **Decisão:** `escolherModoRotulos` (em `mapaGeralRender.js`, função pura) põe **todos os rótulos no mesmo nível**. Reaplica a cada movimento ou zoom (`moveend`) e quando as áreas ou os lotes mudam:
+  - **nome e ha**, se cabem;
+  - senão **só o nome**;
+  - senão **só a sigla**.
+  - "Cabe" significa que o rótulo cabe na caixa da própria área na tela (6 px de folga) e não bate em outro rótulo nem em ícone de lote.
+  - Há tolerância de 10% dos rótulos, para uma área minúscula não derrubar o mapa inteiro.
+  - **Sigla** (`siglaDaArea`): a do cadastro da área (`sigla`). Sem ela, o nome sem o prefixo: "KM - 01" → "01", "KM - 07 A" → "07 A".
+  - A medição é feita com `visibility: hidden`, sem piscar. O `data-rotulo` (tudo, nome ou sigla) fica no elemento. Nenhum rótulo é escondido.
+- **Consequência:**
+  - O mapa afastado mostra só as siglas, todas; aproximando, todas ganham o nome e depois o ha.
+  - No harness, a 390 px, com 72 áreas: antes, os nomes se sobrepunham (v19-00). Agora o mapa afastado mostra as 72 siglas, e com zoom +1 aparecem os 72 nomes com o ha (v19-01).
 
 <!-- Próxima decisão: D-PROD-127 -->

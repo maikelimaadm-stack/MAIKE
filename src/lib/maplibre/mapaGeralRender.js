@@ -128,37 +128,48 @@ export function pontoRotuloSeguro(ring) {
 }
 
 /**
- * Quais rótulos de área aparecem, para o mapa não virar uma bagunça de nomes
- * por cima de nomes (D-PROD-126). Áreas maiores na tela têm prioridade. Cada
- * rótulo precisa caber na própria área e não bater em outro rótulo nem num
- * ícone de lote; se não couber inteiro, tenta só o nome (sem "ha"); se nem
- * isso, some. Aproximando o mapa, tudo volta.
+ * Sigla curta da área para o mapa afastado (D-PROD-126): a do cadastro; sem
+ * ela, o nome sem o prefixo ("KM - 01 A" → "01 A", "KM - 01" → "01").
+ * @param {{ sigla?: string | null, nome?: string | null } | null | undefined} area
+ */
+export function siglaDaArea(area) {
+  const sigla = String(area?.sigla ?? "").trim();
+  if (sigla) return sigla;
+  const nome = String(area?.nome ?? "").trim();
+  const semPrefixo = nome.replace(/^[^\d-]*-\s*/u, "").trim();
+  return semPrefixo || nome;
+}
+
+/**
+ * Nível dos rótulos de área, IGUAL para todos (D-PROD-126) — sem mostrar uns
+ * e esconder outros. "tudo" (nome + ha) se cabe; senão "nome"; senão "sigla".
+ * Cabe = o rótulo cabe na caixa da própria área na tela e não bate em outro
+ * rótulo nem em ícone de lote. Tolera uns poucos casos (`tolerancia`) para uma
+ * área minúscula não derrubar o mapa inteiro para a sigla.
  *
  * @typedef {{ x: number, y: number, w: number, h: number }} Caixa
  * @param {Array<{ id: string, area: Caixa, tudo: Caixa, nome: Caixa }>} rotulos caixas na tela (px)
  * @param {Caixa[]} [obstaculos] ícones de lote etc.
- * @param {{ folga?: number, sobraNaArea?: number }} [opcoes]
- * @returns {Map<string, "tudo" | "nome" | "nada">}
+ * @param {{ folga?: number, sobraNaArea?: number, tolerancia?: number }} [opcoes]
+ * @returns {"tudo" | "nome" | "sigla"}
  */
-export function decidirRotulos(rotulos, obstaculos = [], { folga = 2, sobraNaArea = 6 } = {}) {
-  const colocados = [...obstaculos];
-  const bate = (c) => colocados.some((o) => c.x < o.x + o.w + folga && o.x < c.x + c.w + folga && c.y < o.y + o.h + folga && o.y < c.y + c.h + folga);
-  const cabe = (c, area) => c.w <= area.w + sobraNaArea && c.h <= area.h + sobraNaArea;
-  const ordem = [...rotulos].sort((a, b) => b.area.w * b.area.h - a.area.w * a.area.h);
-  /** @type {Map<string, "tudo" | "nome" | "nada">} */
-  const decisao = new Map();
-  for (const r of ordem) {
-    if (cabe(r.tudo, r.area) && !bate(r.tudo)) {
-      decisao.set(r.id, "tudo");
-      colocados.push(r.tudo);
-    } else if (cabe(r.nome, r.area) && !bate(r.nome)) {
-      decisao.set(r.id, "nome");
-      colocados.push(r.nome);
-    } else {
-      decisao.set(r.id, "nada");
-    }
-  }
-  return decisao;
+export function escolherModoRotulos(rotulos, obstaculos = [], { folga = 2, sobraNaArea = 6, tolerancia = 0.1 } = {}) {
+  if (!rotulos.length) return "tudo";
+  const bate = (a, b) => a.x < b.x + b.w + folga && b.x < a.x + a.w + folga && a.y < b.y + b.h + folga && b.y < a.y + a.h + folga;
+  const problemas = (/** @type {"tudo" | "nome"} */ chave) => {
+    let n = 0;
+    rotulos.forEach((r, i) => {
+      const c = r[chave];
+      const naoCabe = c.w > r.area.w + sobraNaArea || c.h > r.area.h + sobraNaArea;
+      const colide = obstaculos.some((o) => bate(c, o)) || rotulos.some((o, k) => k !== i && bate(c, o[chave]));
+      if (naoCabe || colide) n += 1;
+    });
+    return n;
+  };
+  const limite = Math.floor(rotulos.length * tolerancia);
+  if (problemas("tudo") <= limite) return "tudo";
+  if (problemas("nome") <= limite) return "nome";
+  return "sigla";
 }
 
 /** Fonte do rótulo por faixas largas de zoom (sem “pulsar” a cada leve zoom). */

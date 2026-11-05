@@ -8,7 +8,8 @@ import {
   buildMgAreasCollection,
   buildMgLinhasCollection,
   centroideArea,
-  decidirRotulos,
+  escolherModoRotulos,
+  siglaDaArea,
   ensureMgLayers,
   fontesRotuloPorZoom,
   iconeSemAchatar,
@@ -265,8 +266,8 @@ export default function useMapRenderer(mapInstanceRef) {
 
   // ─── Rótulos das áreas (nome + ha + extra) ───
   /**
-   * Sem bagunça de rótulos (D-PROD-126): mede cada rótulo e a área dele na
-   * tela e mostra só o que cabe sem bater em outro rótulo ou ícone de lote.
+   * Sem bagunça de rótulos (D-PROD-126): mede os rótulos e as áreas na tela e
+   * põe TODOS no mesmo nível — nome + ha, só o nome, ou só a sigla.
    */
   const arrumarRotulos = () => {
     const map = getMap();
@@ -277,8 +278,9 @@ export default function useMapRenderer(mapInstanceRef) {
     };
     const itens = [];
     labelsRef.current.forEach((entry, id) => {
-      // mede com tudo à mostra (sem pintar) para decidir
+      // mede com o nome e o "ha" (sem pintar) para escolher o nível
       entry.el.style.visibility = "hidden";
+      entry.titulo.textContent = entry.nome;
       entry.ha.style.display = entry.temHa ? "block" : "none";
       entry.extra.style.display = entry.temExtra ? "block" : "none";
       let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
@@ -290,23 +292,21 @@ export default function useMapRenderer(mapInstanceRef) {
         if (pt.y > maxY) maxY = pt.y;
       }
       if (!Number.isFinite(minX)) return;
-      const tudo = caixa(entry.el);
-      const t = caixa(entry.titulo);
-      itens.push({ id, area: { x: minX, y: minY, w: maxX - minX, h: maxY - minY }, tudo, nome: { x: t.x, y: t.y, w: t.w, h: t.h } });
+      itens.push({ id, area: { x: minX, y: minY, w: maxX - minX, h: maxY - minY }, tudo: caixa(entry.el), nome: caixa(entry.titulo) });
     });
     const obstaculos = [];
     markersRef.current.forEach((entry, key) => {
       if (key.startsWith("lote_") && entry.el) obstaculos.push(caixa(entry.el));
     });
-    const decisao = decidirRotulos(itens, obstaculos);
-    labelsRef.current.forEach((entry, id) => {
-      const d = decisao.get(id) || "nada";
-      if (d === "nome") {
+    const modo = escolherModoRotulos(itens, obstaculos);
+    labelsRef.current.forEach((entry) => {
+      if (modo !== "tudo") {
         entry.ha.style.display = "none";
         entry.extra.style.display = "none";
       }
-      entry.el.style.visibility = d === "nada" ? "hidden" : "visible";
-      entry.el.dataset.rotulo = d;
+      if (modo === "sigla") entry.titulo.textContent = entry.sigla;
+      entry.el.style.visibility = "visible";
+      entry.el.dataset.rotulo = modo;
     });
   };
 
@@ -374,7 +374,9 @@ export default function useMapRenderer(mapInstanceRef) {
       } else {
         entry.marker.setLngLat([centro.lng, centro.lat]);
       }
-      entry.titulo.textContent = area.nome || "";
+      entry.nome = area.nome || "";
+      entry.sigla = siglaDaArea(area);
+      entry.titulo.textContent = entry.nome;
       entry.ha.textContent = haText || "";
       entry.ha.style.display = haText ? "block" : "none";
       entry.extra.textContent = extraText || "";
