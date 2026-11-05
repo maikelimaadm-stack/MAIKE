@@ -276,13 +276,46 @@ export default function useMapRenderer(mapInstanceRef) {
       const r = el.getBoundingClientRect();
       return { x: r.left, y: r.top, w: r.width, h: r.height };
     };
-    const itens = [];
+
+    /**
+     * Põe todos os rótulos num nível e já na posição final (D-PROD-127): sem
+     * lote, o nome centrado no ponto; com lote, o par ícone (em cima) + nome
+     * (embaixo) centrado. A colisão é medida depois disso, no que vai aparecer.
+     * @param {"tudo" | "nome" | "sigla"} modo
+     */
+    const aplicar = (modo) => {
+      labelsRef.current.forEach((entry, id) => {
+        entry.titulo.textContent = modo === "sigla" ? entry.sigla : entry.nome;
+        entry.ha.style.display = modo === "tudo" && entry.temHa ? "block" : "none";
+        entry.extra.style.display = modo === "tudo" && entry.temExtra ? "block" : "none";
+        const h = entry.el.offsetHeight || 0;
+        const lote = markersRef.current.get(`lote_area_${id}`);
+        if (lote?.el) {
+          const H = lote.el.offsetHeight || 44;
+          const total = H + 2 + h;
+          lote.marker.setOffset([0, Math.round(-total / 2 + H / 2)]);
+          entry.marker.setOffset([0, Math.round(-total / 2 + H + 2)]);
+        } else {
+          entry.marker.setOffset([0, Math.round(-h / 2)]);
+        }
+      });
+    };
+    const medir = () => {
+      /** @type {Map<string, { x: number, y: number, w: number, h: number }>} */
+      const rotulos = new Map();
+      labelsRef.current.forEach((entry, id) => rotulos.set(id, caixa(entry.el)));
+      const obstaculos = [];
+      markersRef.current.forEach((entry, key) => {
+        if (key.startsWith("lote_") && entry.el) obstaculos.push(caixa(entry.el));
+      });
+      return { rotulos, obstaculos };
+    };
+
+    // caixa de cada área na tela
+    /** @type {Map<string, { x: number, y: number, w: number, h: number }>} */
+    const areas = new Map();
     labelsRef.current.forEach((entry, id) => {
-      // mede com o nome e o "ha" (sem pintar) para escolher o nível
-      entry.el.style.visibility = "hidden";
-      entry.titulo.textContent = entry.nome;
-      entry.ha.style.display = entry.temHa ? "block" : "none";
-      entry.extra.style.display = entry.temExtra ? "block" : "none";
+      entry.el.style.visibility = "hidden"; // mede sem pintar
       let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
       for (const p of entry.ring || []) {
         const pt = map.project([p.lng, p.lat]);
@@ -291,32 +324,24 @@ export default function useMapRenderer(mapInstanceRef) {
         if (pt.x > maxX) maxX = pt.x;
         if (pt.y > maxY) maxY = pt.y;
       }
-      if (!Number.isFinite(minX)) return;
-      itens.push({ id, area: { x: minX, y: minY, w: maxX - minX, h: maxY - minY }, tudo: caixa(entry.el), nome: caixa(entry.titulo) });
+      if (Number.isFinite(minX)) areas.set(id, { x: minX, y: minY, w: maxX - minX, h: maxY - minY });
     });
-    const obstaculos = [];
-    markersRef.current.forEach((entry, key) => {
-      if (key.startsWith("lote_") && entry.el) obstaculos.push(caixa(entry.el));
+
+    // mede cada nível já na posição final; o nome é medido sozinho (sem o "ha"
+    // por perto, que alargaria a caixa)
+    aplicar("tudo");
+    const comTudo = medir();
+    aplicar("nome");
+    const soNome = medir();
+    const itens = [];
+    areas.forEach((area, id) => {
+      const tudo = comTudo.rotulos.get(id);
+      const nome = soNome.rotulos.get(id);
+      if (tudo && nome) itens.push({ id, area, tudo, nome });
     });
-    const modo = escolherModoRotulos(itens, obstaculos);
-    labelsRef.current.forEach((entry, id) => {
-      if (modo !== "tudo") {
-        entry.ha.style.display = "none";
-        entry.extra.style.display = "none";
-      }
-      if (modo === "sigla") entry.titulo.textContent = entry.sigla;
-      // Centraliza no ponto da área (D-PROD-127): sem lote, o nome bem no meio;
-      // com lote, o par ícone (em cima) + nome (embaixo) centrado no ponto.
-      const h = entry.el.offsetHeight || 0;
-      const lote = markersRef.current.get(`lote_area_${id}`);
-      if (lote?.el) {
-        const H = lote.el.offsetHeight || 44;
-        const total = H + 2 + h;
-        lote.marker.setOffset([0, Math.round(-total / 2 + H / 2)]);
-        entry.marker.setOffset([0, Math.round(-total / 2 + H + 2)]);
-      } else {
-        entry.marker.setOffset([0, Math.round(-h / 2)]);
-      }
+    const modo = escolherModoRotulos(itens, { tudo: comTudo.obstaculos, nome: soNome.obstaculos });
+    aplicar(modo);
+    labelsRef.current.forEach((entry) => {
       entry.el.style.visibility = "visible";
       entry.el.dataset.rotulo = modo;
     });

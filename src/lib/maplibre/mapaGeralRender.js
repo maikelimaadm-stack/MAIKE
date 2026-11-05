@@ -262,7 +262,7 @@ export function siglaDaArea(area) {
  *
  * @typedef {{ x: number, y: number, w: number, h: number }} Caixa
  * @param {Array<{ id: string, area: Caixa, tudo: Caixa, nome: Caixa }>} rotulos caixas na tela (px)
- * @param {Caixa[]} [obstaculos] ícones de lote etc.
+ * @param {Caixa[] | { tudo: Caixa[], nome: Caixa[] }} [obstaculos] ícones de lote etc.; por nível quando eles mudam de lugar com o nível
  * @param {{ folga?: number, sobraNaArea?: number, tolerancia?: number }} [opcoes]
  * @returns {"tudo" | "nome" | "sigla"}
  */
@@ -274,7 +274,8 @@ export function escolherModoRotulos(rotulos, obstaculos = [], { folga = 2, sobra
     rotulos.forEach((r, i) => {
       const c = r[chave];
       const naoCabe = c.w > r.area.w + sobraNaArea || c.h > r.area.h + sobraNaArea;
-      const colide = obstaculos.some((o) => bate(c, o)) || rotulos.some((o, k) => k !== i && bate(c, o[chave]));
+      const obs = Array.isArray(obstaculos) ? obstaculos : obstaculos[chave] || [];
+      const colide = obs.some((o) => bate(c, o)) || rotulos.some((o, k) => k !== i && bate(c, o[chave]));
       if (naoCabe || colide) n += 1;
     });
     return n;

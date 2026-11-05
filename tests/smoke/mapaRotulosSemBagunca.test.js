@@ -37,6 +37,13 @@ describe("escolherModoRotulos (D-PROD-126)", () => {
     expect(escolherModoRotulos(r)).toBe("sigla");
   });
 
+  it("obstáculos por nível: o ícone que só bate no nível 'tudo' derruba para 'nome', não para a sigla", () => {
+    const r = [rot("a", cx(0, 0, 100, 100), cx(10, 10, 40, 30))];
+    const icone = cx(10, 35, 40, 10); // encosta na parte de baixo (o "ha") só no layout "tudo"
+    expect(escolherModoRotulos(r, { tudo: [icone], nome: [] })).toBe("nome");
+    expect(escolherModoRotulos(r, { tudo: [], nome: [] })).toBe("tudo");
+  });
+
   it("uma área minúscula entre muitas não derruba o mapa para a sigla (tolerância 10%)", () => {
     const r = Array.from({ length: 12 }, (_, i) => rot(`a${i}`, cx(i * 200, 0, 150, 100), cx(i * 200 + 10, 10, 40, 24)));
     r.push(rot("mini", cx(5000, 0, 10, 5), cx(5000, 0, 40, 24)));
@@ -46,8 +53,10 @@ describe("escolherModoRotulos (D-PROD-126)", () => {
   it("o renderer reaplica a cada movimento/zoom e quando os lotes mudam, e troca o texto pela sigla", () => {
     const r = readFileSync("src/components/mapa/useMapRenderer.jsx", "utf8");
     expect(r).toMatch(/map\.on\("moveend", handler\)/);
-    expect(r).toMatch(/escolherModoRotulos\(itens, obstaculos\)/);
-    expect(r).toMatch(/if \(modo === "sigla"\) entry\.titulo\.textContent = entry\.sigla;/);
+    // mede cada nível já na posição final e o nome sozinho (revisão Codex no #194)
+    expect(r).toMatch(/aplicar\("tudo"\);\s*const comTudo = medir\(\);\s*aplicar\("nome"\);\s*const soNome = medir\(\);/);
+    expect(r).toMatch(/escolherModoRotulos\(itens, \{ tudo: comTudo\.obstaculos, nome: soNome\.obstaculos \}\)/);
+    expect(r).toMatch(/entry\.titulo\.textContent = modo === "sigla" \? entry\.sigla : entry\.nome;/);
     expect(r).not.toMatch(/visibility = d === "nada"/);
     expect((r.match(/agendarArrumar\(\);/g) || []).length).toBeGreaterThanOrEqual(2);
   });

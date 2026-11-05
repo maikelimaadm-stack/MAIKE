@@ -4984,6 +4984,7 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
     - área sem lote: o nome fica centrado no ponto (`offset` de −altura/2);
     - área com lote: o par ícone (em cima), 2 px de espaço e o nome (embaixo) fica centrado no ponto, porque os dois `offset` são recalculados a cada nível de rótulo.
   - O mesmo ponto vale para o rótulo, o lote e a tarefa sem coordenada própria.
+  - **Medição na posição final (revisão do Codex no #194):** cada nível (nome + ha e só o nome) é aplicado **já com os offsets finais** e só então medido, inclusive os ícones de lote, que viram obstáculos por nível. O nome é medido sozinho, sem o "ha" alargando a caixa.
 - **Consequência:** medido nas 107 áreas reais (projeto MAIKE):
   - a menos de 30 m de uma divisa: antes 4 pontos (KM - 14 a 5 m, KM - 08 C a 13 m, MT - 15 a 16 m, MT - 05 A a 29 m); depois nenhum (103, 94, 109 e 124 m);
   - o KM - 01 passou de 48 m para 97 m da borda;
