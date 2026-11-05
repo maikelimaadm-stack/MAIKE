@@ -688,7 +688,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
               lotesOriginais={lotes}
               areaOrigem={areaAtual}
               areaDestinoPreSelecionada={areaDestinoPreSelecionada}
-              podeLancarSuplementacao={permissions.lancar_suplementacao === true}
+              podeLancarSuplementacao={/** @type {Record<string, unknown>} */ (permissions).lancar_suplementacao === true}
               onSubmit={handleMovimentacao}
               onCancel={() => {
                 setAreaDestinoPreSelecionada(null);

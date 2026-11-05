@@ -115,7 +115,6 @@ const cenario = async () => {
 
 const transferir = (c, tok) =>
   req('POST', '/rebanho/comandos/transferencia', tok, { operation_id: opId(), empresa_id: c.empresa.id, area_destino_id: c.B.id, data_movimentacao: '2026-11-01T12:00:00.000Z', itens: [{ posicao_id: c.posicao.id, quantidade: 10 }] });
-const SOBRA_EVENTO = (c) => ({ empresa_id: c.empresa.id, area_id: c.B.id, produto: 'SAL', quantidade_total_kg: 0, sobra_kg: 12, data_lancamento: '2026-11-01', observacoes: 'aberto automaticamente após movimentação' });
 
 
 /** Segundo período ABERTO, de OUTRO grupo (área B), criado pelo admin. */

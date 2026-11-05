@@ -67,7 +67,7 @@ describe("R4 — mover sem permissão de lançar suplementação", () => {
   });
 
   it("Detalhes do Lote passa a permissão real do mapa (=== true) e a sobra do destino só é oferecida com ela", () => {
-    expect(readFileSync("src/components/mapa/DetalhesLote.jsx", "utf8")).toContain("podeLancarSuplementacao={permissions.lancar_suplementacao === true}");
+    expect(readFileSync("src/components/mapa/DetalhesLote.jsx", "utf8")).toContain("(permissions).lancar_suplementacao === true}");
     expect(readFileSync("src/components/lotes/FormularioMovimentacaoLote.jsx", "utf8")).toContain("if (!sobraDestinoDecidida && podeLancarSuplementacao)");
   });
 });
