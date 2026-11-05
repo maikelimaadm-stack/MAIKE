@@ -32,3 +32,6 @@ export const IconeMorte = iconeImagem("/icons/morte.png");
 
 /** Juntar Lotes: boi com as setas que se encontram. */
 export const IconeJuntarLotes = iconeImagem("/icons/juntar-lotes.png");
+
+/** Mudar Categoria: bezerro → boi, cada um num quadro, com a seta entre eles. */
+export const IconeMudarCategoria = iconeImagem("/icons/mudar-categoria.png");
