@@ -553,7 +553,7 @@ function LayoutShell({ children, currentPageName }) {
         <div className="max-w-[1600px] mx-auto px-4 py-2 hidden lg:block">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <img src="/brand/mak-gestao-icon-192.png" alt="MAK Gestão" className="h-9 w-9 shrink-0 rounded-md object-contain" />
+              <img src="/brand/mak-gestao-simbolo.png" alt="MAK Gestão" className="h-9 w-9 shrink-0 object-contain" />
               <div>
                 <h1 className="font-bold text-slate-900 text-base leading-tight">
                   {empresaAtual?.apelido || empresaAtual?.nome || 'MAK Gestão'}

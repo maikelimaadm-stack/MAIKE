@@ -357,3 +357,10 @@ O novo visual dos botões do Mapa Geral (D-PROD-131: painel Visualização, sem 
 
 **Não testado em aparelho.** Nas fotos, as tarefas são exemplos do ambiente de teste.
 
+## V24 — Novas logos (D-PROD-134)
+
+| Pedido | Feito | Evidência |
+|---|---|---|
+| Trocar as logos do sistema pelas enviadas | Logo horizontal (M ao lado de MAK Gestão) na entrada; logo completa no carregamento; símbolo M no ícone da aba, do app instalado e no cabeçalho | v24-01, v24-02, v24-03 |
+
+**Não testado em aparelho.** Quem já instalou o app no celular pode precisar remover e instalar de novo para o ícone trocar.
