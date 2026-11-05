@@ -110,6 +110,9 @@ export const listHistoricoMovimentacoesPagina = async (filtros) => {
     has_more: pagina?.has_more === true,
     total: Number.isFinite(pagina?.total) ? pagina.total : null,
     limit: pagina?.limit ?? null,
+    // D-PROD-123 (PR191-R2): marcador da ordem H2; sem ele a tela não usa as
+    // datas `historico_*` calculadas pelo servidor.
+    ordem: typeof pagina?.ordem === 'string' ? pagina.ordem : null,
   };
 };
 
