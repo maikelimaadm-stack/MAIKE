@@ -34,7 +34,8 @@ import LancField from "@/components/cadastro/base1/LancField";
 import ResumoSuplementacao from "../suplementacao/ResumoSuplementacao";
 import InformacoesArea from "./InformacoesArea";
 import { Progress } from "@/components/ui/progress";
-import { ArrowLeftRight, Baby, Beef, Combine, HeartCrack, History, PencilLine, Scale, Tags, Wheat } from "lucide-react";
+import { Baby, Beef, Combine, HeartCrack, History, PencilLine, Scale, Tags, Wheat } from "lucide-react";
+import IconeMoverAnimais from "@/components/mapa/IconeMoverAnimais";
 import { corpoNascimento, corpoPesagem, corpoMudancaCategoria, corpoJuncao, corpoBaixa, previaJuncao, corpoTransferenciaLedger, ehPosicaoDoLedger } from "@/domain/lotes/manejoRebanho";
 import { enviarManejoRebanho, enviarJuncaoLotes, enviarBaixaRebanho, enviarTransferenciaLedger, mensagemDaTransferenciaLedger, mensagemDoErro, codigoDoErro, MENSAGENS_MANEJO_REBANHO } from "@/services/manejoRebanhoService";
 import { escopoDoUsuario } from "../lotes/ExcluirMovimentacao";
@@ -586,7 +587,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
         const manejos = [
           permissions.registrar_abate !== false && { nome: 'Abate', Icone: Beef, onClick: () => abrirManejo(setShowAbate) },
           permissions.juntar_lotes !== false && lotes.length > 1 && categoriasJuntaveis.length > 0 && { nome: 'Juntar Lotes', Icone: Combine, onClick: abrirJuncao },
-          permissions.mover_lotes !== false && { nome: 'Mover', Icone: ArrowLeftRight, onClick: () => abrirManejo(setShowMovimentacao) },
+          permissions.mover_lotes !== false && { nome: 'Mover', Icone: IconeMoverAnimais, onClick: () => abrirManejo(setShowMovimentacao) },
           permissions.mudar_categoria_lotes !== false && { nome: 'Mudar Categoria', Icone: Tags, onClick: () => abrirManejo(setShowMudancaCategoria) },
           permissions.registrar_nascimento !== false && { nome: 'Nascimento', Icone: Baby, onClick: () => abrirManejo(setShowNascimento) },
           permissions.registrar_morte !== false && { nome: 'Morte', Icone: HeartCrack, onClick: () => abrirManejo(setShowMorte) },

@@ -5034,4 +5034,16 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
   - aproximando: média 97% e pior quadro 94%;
   - evidência: v19-05.
 
-<!-- Próxima decisão: D-PROD-131 -->
+## D-PROD-131 — Manejo "Mover": ícone do proprietário (boi entre porteiras)
+
+- **Contexto:** o proprietário enviou uma imagem própria para o botão de mover animais: um boi entre duas porteiras, com setas verdes de troca.
+- **Decisão:**
+  - O quadro "Mover" dos Manejos (Detalhes do Lote) usa essa imagem no lugar do ícone `ArrowLeftRight`.
+  - A imagem foi recortada, com o fundo branco tirado, e salva em `public/icons/mover-animais.png`. Ela é exibida por `IconeMoverAnimais`.
+  - Tem a mesma altura dos outros ícones (24 px; 26 px na folha do celular) e `display: block`, para o nome não descer.
+- **Consequência:**
+  - O nome "Mover" fica alinhado com os outros quadros.
+  - Teste: `tests/smoke/iconeMoverAnimais.test.jsx`.
+  - Evidências: v21-01 e v21-02.
+
+<!-- Próxima decisão: D-PROD-132 -->

@@ -328,3 +328,12 @@ Duas tentativas anteriores nesta rodada (ícone fixo com a ponta no ponto e íco
 ## V20 — Botões do mapa: revertido
 
 O novo visual dos botões do Mapa Geral (D-PROD-131: painel Visualização, sem o ✕ e sem o cabeçalho no celular) foi **desfeito a pedido do proprietário** ("remova por enquanto"). O mapa voltou ao estado do D-PROD-130. O número D-PROD-131 fica livre.
+
+## V21 — Ícone do "Mover" (D-PROD-131)
+
+| Pedido | Feito | Evidência |
+|---|---|---|
+| Usar a imagem enviada (boi entre porteiras) no botão de mover animais | O quadro "Mover" dos Manejos mostra a imagem, na mesma altura dos outros ícones e com o nome alinhado | v21-01 (computador), v21-02 (celular) |
+
+**Não testado em aparelho.**
+

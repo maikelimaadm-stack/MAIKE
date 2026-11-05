@@ -1114,6 +1114,15 @@
   color: #334155;
 }
 
+/* Ícone em imagem (Mover animais): mesma altura dos ícones, mais largo */
+.mk-al__quadro .mk-al__img {
+  display: block;
+  height: 24px;
+  width: auto;
+  max-width: 56px;
+  object-fit: contain;
+}
+
 .mk-al__quadro span {
   max-width: 100%;
   overflow-wrap: normal;
@@ -1133,6 +1142,10 @@
 
   .mk-al__folha .mk-al__quadro svg {
     width: 26px;
+    height: 26px;
+  }
+
+  .mk-al__folha .mk-al__quadro .mk-al__img {
     height: 26px;
   }
 }
