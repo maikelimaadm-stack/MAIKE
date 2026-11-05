@@ -23,6 +23,7 @@ import DynamicFormRenderer from "@/components/dynamic/DynamicFormRenderer";
 import IconeOficialLotePreview from "@/components/catalogoGlobal/IconeOficialLotePreview";
 import { ehLoteDerivadoDeManejo, entradaHistoricaDoLote } from "@/domain/lotes/saldoLote";
 import LayoutConfiguratorDialog from "@/components/dynamic/LayoutConfiguratorDialog";
+import { ESTADOS_CORRECAO, camposDaCorrecaoDeEntrada, camposAdministrativosAlterados, errosNumericosDaEntrada, inteiroPositivoDigitado, pesoDigitado } from "@/domain/lotes/correcaoEntrada";
 export const FORMULARIO_LOTE_ID = "formulario-lote-base1";
 
 const FL = ({ label, required, error, children, dataField, wide = false, compact = false, medium = false }) =>
@@ -111,13 +112,20 @@ export default function FormularioLote({
   onClearFilter = undefined,
   initialData,
   isEditing,
+  // R1: elegibilidade da correção da ENTRADA, vinda do servidor
+  // ({estado: consultando|elegivel|bloqueado|erro, mensagem?}).
+  correcaoEntrada = null,
 }) {
   const embedded = variant === "embedded";
   const isDuplicating = !!initialData?._isDuplicate;
   const shouldPersistEntrySnapshot = !isEditing || isDuplicating;
   // Registro já gravado: a quantidade só muda por manejo (movimentação, morte,
   // abate…), que deixa rastro. Editar aqui reescreveria o saldo sem histórico.
-  const quantidadesSomenteLeitura = !shouldPersistEntrySnapshot;
+  // R1: entrada sem nenhum registro depois dela (o SERVIDOR diz) pode ser
+  // corrigida — pelo comando de correção, nunca pelo PATCH genérico.
+  const corrigindoEntrada = Boolean(isEditing && !isDuplicating && correcaoEntrada?.estado === ESTADOS_CORRECAO.ELEGIVEL);
+  const quantidadesSomenteLeitura = !shouldPersistEntrySnapshot && !corrigindoEntrada;
+  const [motivoCorrecao, setMotivoCorrecao] = useState("");
   const empresaSelecionadaId = useEmpresaSelecionadaId();
   const [errors, setErrors] = useState({});
   const [activeTab, setActiveTab] = useState("geral");
@@ -196,6 +204,7 @@ export default function FormularioLote({
     setErrors({});
     setIsDirty(!isEditing || !!initialData?._isDuplicate);
     setEditMode(!isEditing || !!initialData?._isDuplicate);
+    setMotivoCorrecao("");
   }, [initialData?.id, initialData?.numero_lote, initialData?._isDuplicate, isEditing]);
 
   const { setores, areas, getAreasBySetor } = useSetorAreas(empresaSelecionadaId);
@@ -316,10 +325,10 @@ export default function FormularioLote({
       }
     });
 
-    const qtd = parseInt(String(formData?.quantidade_cabecas ?? "").trim(), 10);
-    if (!quantidadesSomenteLeitura && (!Number.isFinite(qtd) || qtd <= 0)) {
-      nextErrors.quantidade_cabecas = true;
-    }
+    // R3: número digitado inválido ("100.5", "100abc", "0", "300abc") é ERRO no
+    // campo — nunca truncado nem trocado por vazio. O texto digitado fica no campo.
+    const numerosInvalidos = errosNumericosDaEntrada(formData, { quantidadeEditavel: !quantidadesSomenteLeitura });
+    for (const campo of numerosInvalidos) nextErrors[campo] = true;
 
     if (isMotivoEntrada("AJUSTE") && isEmptyValue(formData?.motivo_ajuste)) {
       nextErrors.motivo_ajuste = true;
@@ -333,7 +342,11 @@ export default function FormularioLote({
 
     if (Object.keys(nextErrors).length === 0) return true;
 
-    setNoticeDialog({ open: true, title: "Campos obrigatórios", description: "Preencha os campos obrigatórios antes de salvar o lote." });
+    setNoticeDialog(
+      numerosInvalidos.length
+        ? { open: true, title: "Número inválido", description: "Quantidade de cabeças deve ser um número inteiro positivo (sem casas decimais) e o peso, um número válido. Nada foi salvo." }
+        : { open: true, title: "Campos obrigatórios", description: "Preencha os campos obrigatórios antes de salvar o lote." }
+    );
     const firstField = Object.keys(nextErrors)[0];
     const element = document.querySelector(`[data-field="${firstField}"]`);
     element?.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -356,8 +369,10 @@ export default function FormularioLote({
 
     const area = areas.find((item) => item.id === formData.area_entrada_id);
     const categoriaManejo = categoriasManejo.find((item) => item.id === formData.categoria_manejo_id);
-    const quantidade = parseInt(formData.quantidade_cabecas) || 0;
-    const peso = parseFloat(formData.peso_medio_kg) || 0;
+    // Já validados (R3): inteiro positivo e peso decimal; peso vazio segue a política (0 = não informado).
+    const quantidadeDigitada = inteiroPositivoDigitado(formData.quantidade_cabecas);
+    const quantidade = Number.isNaN(quantidadeDigitada) ? 0 : quantidadeDigitada;
+    const peso = pesoDigitado(formData.peso_medio_kg) ?? 0;
 
     const motivoEntrada =
       normalizarMotivoEntrada(formData.motivo_entrada) ?? formData.motivo_entrada;
@@ -392,7 +407,23 @@ export default function FormularioLote({
       categoria_manejo_entrada_nome: categoriaManejo?.nome || ""
     };
 
+    if (!shouldPersistEntrySnapshot && corrigindoEntrada) {
+      // R1-R2: UM salvamento = UM comando. Tudo o que mudou no lançamento da
+      // entrada (operacionais E administrativos) vai junto, numa transação.
+      const campos = { ...camposAdministrativosAlterados(initialData, dataToSave, formData), ...camposDaCorrecaoDeEntrada(initialData, formData) };
+      if (Object.keys(campos).length) {
+        if (!motivoCorrecao.trim()) {
+          setErrors((prev) => ({ ...prev, motivo_correcao: true }));
+          setNoticeDialog({ open: true, title: "Motivo da correção", description: "Informe o motivo da correção da entrada antes de salvar." });
+          return;
+        }
+        dataToSave.__correcaoEntrada = { campos, motivo: motivoCorrecao.trim() };
+      }
+    }
+
     if (!shouldPersistEntrySnapshot) {
+      // A data da entrada também é da entrada: só muda pela correção (R1).
+      delete dataToSave.data_entrada;
       // Edição não regrava quantidade (saldo muda só por manejo; entrada é
       // imutável no servidor), não troca a origem de lote gerado por manejo e
       // NUNCA move o lote: a área de entrada é registro histórico; a área atual
@@ -466,11 +497,13 @@ export default function FormularioLote({
           </div>
         ),
       }
-    : { id: "quantidade_cabecas", name: "quantidade_cabecas", label: "Qtd. Cabeças (entrada)", type: "number", required: true, compact: true, errorKey: "quantidade_cabecas", totalizable: true },
+    // R3: texto com teclado numérico — o que foi digitado fica no campo e é
+    // validado (inteiro positivo), nunca truncado nem trocado por vazio.
+    : { id: "quantidade_cabecas", name: "quantidade_cabecas", label: "Qtd. Cabeças (entrada)", type: "number", required: true, compact: true, errorKey: "quantidade_cabecas", totalizable: true, render: ({ value }) => <input type="text" inputMode="numeric" aria-label="Qtd. Cabeças (entrada)" aria-invalid={Boolean(/** @type {any} */ (errors).quantidade_cabecas)} value={value ?? ""} onChange={(e) => handleChange("quantidade_cabecas", e.target.value)} readOnly={isReadOnly} className="h-[22px] w-full text-xs border-0 rounded-none shadow-none outline-none focus-visible:ring-0 bg-transparent px-1 tabular-nums" /> },
   { id: "categoria_manejo_id", name: "categoria_manejo_id", label: "Categoria de Manejo", type: "autocomplete", required: true, readOnly: quantidadesSomenteLeitura, errorKey: "categoria_manejo_id", options: categoriasManejo, placeholder: "BUSCAR CATEGORIA...", displayField: "nome", searchFields: ["nome", "categoria_oficial", "sexo", "raca"], render: ({ value }) => <AutocompleteGenerico items={categoriasManejo} value={value} disabled={quantidadesSomenteLeitura} readOnly={quantidadesSomenteLeitura || isReadOnly} onChange={(nextValue) => handleChange("categoria_manejo_id", nextValue)} onCreateNew={quantidadesSomenteLeitura || isReadOnly ? undefined : (nome) => setCadastroRapido({ tipo: "categoria", nome })} createNewLabel="Nova categoria de manejo" placeholder="BUSCAR CATEGORIA..." displayField="nome" searchFields={["nome", "categoria_oficial", "sexo", "raca"]} className="w-full" inputClassName="border-0 shadow-none focus-visible:ring-0 bg-transparent h-[22px] text-xs px-1" renderItem={(item) => <div className="text-xs font-medium text-slate-900">{(item.nome || "").toUpperCase()} {item.categoria_oficial ? `(${item.categoria_oficial})` : ""}</div>} /> },
   { id: "sexo", name: "sexo", label: "Sexo", type: "autocomplete", required: true, readOnly: quantidadesSomenteLeitura, errorKey: "sexo", options: opcoesSexo, placeholder: "BUSCAR SEXO...", displayField: "nome", searchFields: ["nome"] },
   { id: "raca_predominante", name: "raca_predominante", label: "Raça Predominante", type: "text", required: true, errorKey: "raca_predominante", uppercase: true, placeholder: "RAÇA" },
-  { id: "peso_medio_kg", name: "peso_medio_kg", label: quantidadesSomenteLeitura ? "Peso Médio na Entrada (kg)" : "Peso Médio (kg)", type: "number", required: true, readOnly: quantidadesSomenteLeitura, compact: true, errorKey: "peso_medio_kg", totalizable: true },
+  { id: "peso_medio_kg", name: "peso_medio_kg", label: quantidadesSomenteLeitura ? "Peso Médio na Entrada (kg)" : "Peso Médio (kg)", type: "number", required: true, readOnly: quantidadesSomenteLeitura, compact: true, errorKey: "peso_medio_kg", totalizable: true , render: ({ value }) => <input type="text" inputMode="decimal" aria-label="Peso Médio (kg)" aria-invalid={Boolean(/** @type {any} */ (errors).peso_medio_kg)} value={value ?? ""} onChange={(e) => handleChange("peso_medio_kg", e.target.value)} readOnly={isReadOnly || quantidadesSomenteLeitura} className="h-[22px] w-full text-xs border-0 rounded-none shadow-none outline-none focus-visible:ring-0 bg-transparent px-1 tabular-nums" /> },
   { id: "idade_media_meses", name: "idade_media_meses", label: "Idade Média (meses)", type: "number", required: true, compact: true, errorKey: "idade_media_meses", totalizable: true },
   { id: "sistema_produtivo", name: "sistema_produtivo", label: "Sistema Produtivo", type: "checkbox", required: true, wide: true, errorKey: "sistema_produtivo", render: () => <div className="b1-multi" role="group" aria-label="Sistema Produtivo">{SISTEMAS.map((item) => {const checked = parseSistemasProdutivos(formData.sistema_produtivo).includes(item);return <button key={item} type="button" role="checkbox" aria-checked={checked} disabled={isReadOnly} onClick={() => toggleSistemaProdutivo(item)} className={`b1-multi__op${checked ? " is-on" : ""}`}>{checked ? <svg viewBox="0 0 12 12" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden><path d="M2 6l3 3 5-6" /></svg> : null}{item}</button>;})}</div> },
   { id: "motivo_entrada", name: "motivo_entrada", label: "Motivo da Entrada", type: "select", optionsMode: "native", options: opcoesMotivoEntrada, placeholder: "BUSCAR MOTIVO...", displayField: "nome", searchFields: ["nome"] },
@@ -609,6 +642,41 @@ export default function FormularioLote({
 
 
         <div className="flex-1 min-h-0 overflow-y-auto pb-6 pr-2" style={{ scrollbarWidth: "thin", scrollbarColor: "#cbd5e1 transparent" }}>
+          {isEditing && !isDuplicating && correcaoEntrada ? (
+            <div
+              role="status"
+              data-testid="correcao-entrada-aviso"
+              data-estado={correcaoEntrada.estado}
+              className={`mx-2 mt-1 rounded-md border px-2 py-1.5 text-[11px] ${correcaoEntrada.estado === ESTADOS_CORRECAO.ELEGIVEL ? "border-emerald-200 bg-emerald-50 text-emerald-900" : correcaoEntrada.estado === ESTADOS_CORRECAO.CONSULTANDO ? "border-slate-200 bg-slate-50 text-slate-600" : "border-amber-200 bg-amber-50 text-amber-900"}`}
+            >
+              {correcaoEntrada.estado === ESTADOS_CORRECAO.CONSULTANDO && "Verificando no servidor se a entrada pode ser corrigida…"}
+              {correcaoEntrada.estado === ESTADOS_CORRECAO.ELEGIVEL && (
+                <>
+                  Entrada sem registros depois dela: quantidade da entrada, peso de entrada, data, categoria, sexo, setor e área de entrada podem ser corrigidos.
+                  A correção reescreve o próprio lançamento (não é movimentação) e fica registrada com o motivo.
+                </>
+              )}
+              {correcaoEntrada.estado === ESTADOS_CORRECAO.BLOQUEADO && (
+                <>A entrada não pode ser corrigida: {correcaoEntrada.mensagem}. Quantidade, peso, data, categoria, sexo, setor e área de entrada ficam como lançados.</>
+              )}
+              {correcaoEntrada.estado === ESTADOS_CORRECAO.ERRO && (
+                <>Não foi possível verificar se a entrada pode ser corrigida{correcaoEntrada.mensagem ? ` (${correcaoEntrada.mensagem})` : ""}. Os campos da entrada ficam bloqueados.</>
+              )}
+              {corrigindoEntrada && !isReadOnly && (
+                <label className="mt-1.5 flex flex-col gap-0.5" data-field="motivo_correcao">
+                  <span className="font-semibold">Motivo da correção (obrigatório se mudar algum campo da entrada)</span>
+                  <input
+                    value={motivoCorrecao}
+                    onChange={(e) => { setMotivoCorrecao(e.target.value); setErrors((prev) => ({ ...prev, motivo_correcao: false })); }}
+                    placeholder="EX.: QUANTIDADE DIGITADA ERRADA"
+                    aria-label="Motivo da correção"
+                    maxLength={500}
+                    className={`h-[24px] rounded-md border border-slate-300 bg-white px-2 text-xs ${/** @type {any} */ (errors).motivo_correcao ? "border-red-500 bg-red-50" : ""}`}
+                  />
+                </label>
+              )}
+            </div>
+          ) : null}
           <fieldset className={isReadOnly ? "pointer-events-none [&_input]:cursor-default [&_textarea]:cursor-default [&_button]:cursor-default" : ""}>
             <div className={useBase1Visual ? "px-2 py-1 w-full" : "px-4 md:px-8 py-1 max-w-[780px]"}>
               <DynamicFormRenderer

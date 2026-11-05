@@ -3,7 +3,8 @@
  */
 
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
-import { listar, criar, atualizar, excluir, buscarPorId, elegibilidadeExclusao } from './loteService.js';
+import { listar, criar, atualizar, excluir, buscarPorId, elegibilidadeExclusao, comoLotePublico } from './loteService.js';
+import { elegibilidadeCorrecaoEntrada, corrigirEntradaLote, CAMPOS_ADMINISTRATIVOS_DA_ENTRADA } from './loteCorrecaoEntradaService.js';
 
 const MOTIVOS = ['Compra', 'Ajuste', 'Inventário', 'Outros'];
 const STATUS = ['Ativo', 'Inativo', 'Vendido', 'Abatido', 'Transferido'];
@@ -99,6 +100,43 @@ const EXCLUIR_SCHEMA = {
   },
 };
 
+/** R1 — correção atômica da entrada original (contrato fechado; o serviço revalida tudo). */
+const CORRIGIR_ENTRADA_SCHEMA = {
+  params: EXCLUIR_SCHEMA.params,
+  body: {
+    type: 'object',
+    required: ['operation_id', 'motivo', 'estado_esperado', 'campos'],
+    additionalProperties: false,
+    properties: {
+      operation_id: { type: 'string', minLength: 1, maxLength: 128 },
+      motivo: { type: 'string', minLength: 1, maxLength: 500, pattern: '\\S' },
+      estado_esperado: {
+        type: 'object',
+        required: ['updated_date'],
+        additionalProperties: false,
+        properties: { updated_date: { type: 'string', minLength: 1, maxLength: 40 } },
+      },
+      campos: {
+        type: 'object',
+        minProperties: 1,
+        additionalProperties: false,
+        properties: {
+          quantidade: { type: 'integer', minimum: 1, maximum: 2147483647 },
+          peso_entrada_kg: { type: ['number', 'null'], exclusiveMinimum: 0, maximum: 99999999.9999 },
+          data_entrada: { type: 'string', minLength: 10, maxLength: 10 },
+          categoria: { type: ['string', 'null'], maxLength: 128 },
+          categoria_manejo_id: { type: ['string', 'null'], maxLength: 64 },
+          sexo: { type: ['string', 'null'], enum: [...SEXOS, null] },
+          setor_id: { type: ['string', 'null'], maxLength: 64 },
+          area_entrada_id: { type: ['string', 'null'], maxLength: 64 },
+          // R1-R2: administrativos da entrada, mesmas regras da criação (mesma transação).
+          ...Object.fromEntries(CAMPOS_ADMINISTRATIVOS_DA_ENTRADA.map((k) => [k, CAMPOS_CRIACAO[k]])),
+        },
+      },
+    },
+  },
+};
+
 /** @param {unknown} corpo @returns {Record<string, unknown>} */
 const corpoValidado = (corpo) => /** @type {Record<string, unknown>} */ (corpo);
 
@@ -120,6 +158,20 @@ export const registrarLoteRoutes = async (app) => {
     exigirAuthContext(request.contexto.auth);
     const { id } = /** @type {{id: string}} */ (request.params);
     return elegibilidadeExclusao(request.contexto, id);
+  });
+
+  // R1: elegibilidade (só leitura) e comando de correção da entrada original.
+  app.get('/lotes/:id/elegibilidade-correcao-entrada', { onRequest: [app.autenticar], schema: EXCLUIR_SCHEMA }, async (request) => {
+    exigirAuthContext(request.contexto.auth);
+    const { id } = /** @type {{id: string}} */ (request.params);
+    return elegibilidadeCorrecaoEntrada(request.contexto, id);
+  });
+
+  app.post('/lotes/:id/correcao-entrada', { onRequest: [app.autenticar], schema: CORRIGIR_ENTRADA_SCHEMA }, async (request, reply) => {
+    exigirAuthContext(request.contexto.auth);
+    const { id } = /** @type {{id: string}} */ (request.params);
+    const r = await corrigirEntradaLote(request.contexto, id, corpoValidado(request.body), comoLotePublico);
+    return reply.status(r.status).send(r.body);
   });
 
   app.post('/lotes', { onRequest: [app.autenticar], schema: CRIAR_SCHEMA }, async (request, reply) => {
