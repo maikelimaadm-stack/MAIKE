@@ -1,10 +1,11 @@
 import React, { useMemo } from "react";
+import CampoDl from "./CampoDl";
 
 function fmt(value, digits = 2) {
   return Number(value || 0).toLocaleString("pt-BR", { minimumFractionDigits: digits, maximumFractionDigits: digits });
 }
 
-export default function InformacoesArea({ area, lotesNaArea = [], tituloLotes }) {
+export default function InformacoesArea({ area, lotesNaArea = [] }) {
   const totalCabecas = lotesNaArea.reduce((s, l) => s + (l.quantidade_cabecas || 0), 0);
   const hectares = area?.area_pastejada || area?.tamanho_hectares || 0;
   const isCurral = area?.tipo_cultura === 'Infraestrutura' && String(area?.tipo_infraestrutura || area?.tipo_pastagem || '').trim().toLowerCase() === 'curral';
@@ -40,81 +41,32 @@ export default function InformacoesArea({ area, lotesNaArea = [], tituloLotes })
     return totalCabecas > 0 ? pesoTotal / totalCabecas : 0;
   }, [lotesNaArea, totalCabecas]);
 
-  const sistemasUnicos = [...new Set(lotesNaArea.map((l) => l.sistema_produtivo).filter(Boolean))];
-
   if (!area) return null;
 
   return (
     <div className="mk-dl__cartao">
       <div className="mk-dl__cab">
-        <span className="mk-dl__nome">Informações da Área: {area.nome}</span>
+        <span className="mk-dl__nome mk-dl__nome--area">Informações da Área: {area.nome}</span>
       </div>
 
       {isCurral ? (
         <div className="mk-dl__infos mk-dl__infos--2">
-          <div className="mk-dl__info">
-            <div className="text-slate-500">Tipo de infraestrutura</div>
-            <div className="font-semibold text-slate-900">{tipoInfraestrutura}</div>
-          </div>
-          <div className="mk-dl__info">
-            <div className="text-slate-500">Tipo de área</div>
-            <div className="font-semibold text-slate-900">{area.tipo_cultura || '-'}</div>
-          </div>
+          <CampoDl rotulo="Tipo de infraestrutura">{tipoInfraestrutura}</CampoDl>
+          <CampoDl rotulo="Tipo de área">{area.tipo_cultura || '-'}</CampoDl>
         </div>
       ) : (
         <div className="mk-dl__infos">
-          <div className="mk-dl__info">
-            <div className="text-slate-500">Hectares</div>
-            <div className="font-semibold text-slate-900">{hectares > 0 ? `${fmt(hectares)} ha` : '-'}</div>
-          </div>
-          <div className="mk-dl__info">
-            <div className="text-slate-500">UA/ha</div>
-            <div className="font-semibold text-slate-900">{fmt(uaHa)}</div>
-          </div>
-          <div className="mk-dl__info">
-            <div className="text-slate-500">UA total</div>
-            <div className="font-semibold text-slate-900">{fmt(totalUA)}</div>
-          </div>
-          <div className="mk-dl__info">
-            <div className="text-slate-500">Pastagem</div>
-            <div className="font-semibold text-slate-900">{area.tipo_pastagem || '-'}</div>
-          </div>
-          <div className="mk-dl__info">
-            <div className="text-slate-500">Qtd. Lotes</div>
-            <div className="font-semibold text-slate-900">{lotesNaArea.length.toLocaleString('pt-BR')}</div>
-          </div>
-          <div className="mk-dl__info">
-            <div className="text-slate-500">Qtd. Cabeças</div>
-            <div className="font-semibold text-slate-900">{totalCabecas.toLocaleString('pt-BR')}</div>
-          </div>
-          <div className="mk-dl__info">
-            <div className="text-slate-500">Média geral</div>
-            <div className="font-semibold text-slate-900">{pesoMedioGeral > 0 ? `${fmt(pesoMedioGeral)} kg` : '-'}</div>
-          </div>
-          <div className="mk-dl__info">
-            <div className="text-slate-500">Dias pastejo</div>
-            <div className="font-semibold text-slate-900">{diasPastejoMedio.toLocaleString('pt-BR')} dia(s)</div>
-          </div>
+          <CampoDl rotulo="Hectares">{hectares > 0 ? `${fmt(hectares)} ha` : '-'}</CampoDl>
+          <CampoDl rotulo="UA/ha">{fmt(uaHa)}</CampoDl>
+          <CampoDl rotulo="UA total">{fmt(totalUA)}</CampoDl>
+          <CampoDl rotulo="Pastagem">{area.tipo_pastagem || '-'}</CampoDl>
+          <CampoDl rotulo="Qtd. Lotes">{lotesNaArea.length.toLocaleString('pt-BR')}</CampoDl>
+          <CampoDl rotulo="Qtd. Cabeças">{totalCabecas.toLocaleString('pt-BR')}</CampoDl>
+          <CampoDl rotulo="Média geral">{pesoMedioGeral > 0 ? `${fmt(pesoMedioGeral)} kg` : '-'}</CampoDl>
+          <CampoDl rotulo="Dias pastejo">{diasPastejoMedio.toLocaleString('pt-BR')} dia(s)</CampoDl>
         </div>
       )}
 
-      {!isCurral && sistemasUnicos.length > 0 &&
-      <div className="mk-dl__chips">
-          <span className="mk-dl__chips-rotulo">Sistemas Reprodutivos:</span>
-          {sistemasUnicos.map((s) =>
-        <span key={s} className="mk-dl__chip">{s}</span>
-        )}
-        </div>
-      }
-
-      {tituloLotes &&
-      <div className="mk-dl__chips">
-          <span className="mk-dl__chips-rotulo">Lotes:</span>
-          {tituloLotes.split(' - ').map((nome, index) =>
-        <span key={`${nome}-${index}`} className="mk-dl__chip">{nome}</span>
-        )}
-        </div>
-      }
     </div>
   );
 }

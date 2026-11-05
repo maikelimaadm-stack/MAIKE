@@ -34,7 +34,7 @@ export const createEmpresa = (dados) => createEmpresaApi(dados);
 export const updateEmpresa = (id, dados) => updateEmpresaApi(id, dados);
 
 /**
- * D-PROD-122: configura o fuso horário da fazenda (administrador; auditado).
+ * D-PROD-124: configura o fuso horário da fazenda (administrador; auditado).
  * @param {string} id
  * @param {{fuso_horario: string, motivo?: string}} dados
  * @returns {Promise<object>}

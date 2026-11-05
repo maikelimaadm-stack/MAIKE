@@ -69,7 +69,7 @@ export const updateEmpresa = async (id, dados) => {
 };
 
 /**
- * D-PROD-122: configura o fuso IANA da fazenda (só administrador; online, sem
+ * D-PROD-124: configura o fuso IANA da fazenda (só administrador; online, sem
  * fila offline). Trocar um fuso já configurado exige `motivo`.
  * @param {string} id
  * @param {{fuso_horario: string, motivo?: string}} dados
