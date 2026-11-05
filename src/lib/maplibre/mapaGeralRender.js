@@ -104,18 +104,6 @@ export function centroideArea(area) {
  * @returns {{ lat: number, lng: number } | null}
  */
 export function pontoMaisDentro(ring, precisao = 0.01) {
-  const r = pontoEFolga(ring, precisao);
-  return r ? { lat: r.lat, lng: r.lng } : null;
-}
-
-/**
- * O mesmo ponto de `pontoMaisDentro` e a **folga** dele: o raio do círculo livre
- * em volta do ponto (em graus de latitude) — quanto cabe de ícone ali (D-PROD-128).
- * @param {{ lat: number, lng: number }[]} ring
- * @param {number} [precisao]
- * @returns {{ lat: number, lng: number, folga: number } | null}
- */
-export function pontoEFolga(ring, precisao = 0.01) {
   if (!Array.isArray(ring) || ring.length < 3) return null;
   const k = Math.cos(((ring.reduce((t, p) => t + p.lat, 0) / ring.length) * Math.PI) / 180) || 1;
   const pts = ring.map((p) => [p.lng * k, p.lat]);
@@ -211,7 +199,7 @@ export function pontoEFolga(ring, precisao = 0.01) {
       }
     }
   }
-  return { lat: escolhido.y, lng: escolhido.x / k, folga: escolhido.d };
+  return { lat: escolhido.y, lng: escolhido.x / k };
 }
 
 /**
@@ -263,26 +251,6 @@ export function siglaDaArea(area) {
   const nome = String(area?.nome ?? "").trim();
   const semPrefixo = nome.replace(/^[^\d-]*-\s*/u, "").trim();
   return semPrefixo || nome;
-}
-
-/**
- * Tamanho e posição do ícone do lote para ficar DENTRO do pasto (D-PROD-128).
- * `raio` = folga em volta do ponto da área, em px na tela. O ícone (44 px)
- * fica com a ponta no ponto, todo acima dele, quando cabe (raio ≥ 48 px).
- * Com menos folga ele desce, aos poucos, até ficar centrado no ponto, e
- * encolhe (até 45%, para continuar legível) para caber no círculo — contínuo com o zoom, sem pulos.
- * @param {number | null | undefined} raio folga em px (sem folga conhecida: tamanho normal)
- * @returns {{ escala: number, desce: number, base: number }} escala; quanto o
- *   centro do ícone desce (px, 0 = ponta no ponto, 26 = centrado no ponto); e
- *   onde fica a base do ícone em relação ao ponto (px, para o nome ir logo abaixo)
- */
-export function layoutLote(raio) {
-  if (!(Number(raio) > 0)) return { escala: 1, desce: 0, base: -4 };
-  const r = Number(raio);
-  const escala = Math.max(0.45, Math.min(1, Math.floor((r / 27.5) * 20) / 20));
-  const desce = Math.round(26 * Math.max(0, Math.min(1, (48 - r) / 20.5)) * 10) / 10;
-  const base = Math.round((-26 + desce + 22 * escala) * 10) / 10;
-  return { escala, desce, base };
 }
 
 /**

@@ -5003,14 +5003,5 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
   - Nada depende da altura do texto, então nada pula ao trocar de nível, no zoom ou ao redimensionar.
   - O nível dos rótulos é recalculado também no `resize` do mapa.
 - **Consequência:** no harness, com as mesmas áreas, **8 de 8** ícones apontam para dentro do próprio pasto em todos os zooms, e 27 de 27 nomes ficam dentro da área.
-- **Ícone do tamanho do pasto (segundo pedido):** com o mapa afastado, o ícone de 44 px ficava maior que o pasto e invadia os vizinhos ("o número fica saindo fora da área").
-  - `layoutLote` usa a **folga do ponto**, isto é, o raio do círculo livre em volta dele (`pontoEFolga`), convertida em px no zoom atual.
-  - Com folga de 48 px ou mais, o ícone fica normal, com a ponta no ponto.
-  - Com menos folga, ele desce aos poucos até ficar centrado no ponto e encolhe até 45% (mínimo para continuar legível). A contagem não fica menor que 7 px. É o único ajuste de fonte da contagem, e segue a escala do ícone inteiro, nunca a quantidade de dígitos (D-PROD-111 continua valendo: 9,5 px fixos no tamanho normal).
-  - Ícone, contagem e identificador ficam num só bloco (`.mg-lote-escala`), escalado por CSS. O nome vai logo abaixo da base do ícone.
-  - Medido no harness com as áreas reais, como fração média de cada ícone dentro do próprio pasto:
-    - mapa afastado: 30% → 79%;
-    - zoom +1: 40% → 99% (7 de 8 inteiros);
-    - zoom +2: 74% → 100%.
 
 <!-- Próxima decisão: D-PROD-129 -->

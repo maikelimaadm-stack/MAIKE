@@ -308,8 +308,3 @@ Harness a 390 px com 72 áreas, com o mapa base trocado por um fundo liso porque
 
 **Não testado em aparelho.**
 
-- **Ícone do tamanho do pasto (D-PROD-128):**
-  - Pedido: o número e o ícone saíam fora da área com o mapa afastado.
-  - Feito: o ícone encolhe e desce para o centro do ponto conforme a folga do pasto na tela, com mínimo de 45%.
-  - Medição, como fração média de cada ícone dentro do pasto: afastado 30% → 79%; zoom +1 40% → 99%; zoom +2 74% → 100% (v19-04).
-

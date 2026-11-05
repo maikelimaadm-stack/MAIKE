@@ -27,11 +27,7 @@ describe('CNT — quantidade de cabeças no marcador', () => {
     expect(FONTE_CONTAGEM_PX).toBe(9.5);
     expect(fonte).toMatch(/entry\.badge\.textContent = formatarContagem\(totalCabecas\)/);
     expect(fonte).toMatch(/top:69%;[^`]*color:#6b7280;font-size:\$\{FONTE_CONTAGEM_PX\}px/);
-    // D-PROD-111: nada de encolher pela quantidade de dígitos. D-PROD-128: o único
-    // ajuste é compensar a escala do ícone inteiro, para a contagem ficar ≥ 7 px.
-    const ajustes = fonte.match(/badge\.style\.fontSize = [^;]+;/g) || [];
-    expect(ajustes).toEqual(["badge.style.fontSize = `${Math.max(7, FONTE_CONTAGEM_PX * s) / s}px`;"]);
-    expect(fonte).not.toMatch(/measureText|scrollWidth[\s\S]{0,80}badge/);
+    expect(fonte).not.toMatch(/badge\.style\.fontSize/);
   });
 
   it('CNT-04 rótulo de área (nome e hectares) sem sombra no texto', () => {
