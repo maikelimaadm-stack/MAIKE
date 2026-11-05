@@ -104,6 +104,18 @@ export function centroideArea(area) {
  * @returns {{ lat: number, lng: number } | null}
  */
 export function pontoMaisDentro(ring, precisao = 0.01) {
+  const r = pontoEFolga(ring, precisao);
+  return r ? { lat: r.lat, lng: r.lng } : null;
+}
+
+/**
+ * O mesmo ponto de `pontoMaisDentro` e a **folga** dele (D-PROD-130): o raio do
+ * círculo livre em volta do ponto, em graus de latitude — quanto cabe de nome ali.
+ * @param {{ lat: number, lng: number }[]} ring
+ * @param {number} [precisao]
+ * @returns {{ lat: number, lng: number, folga: number } | null}
+ */
+export function pontoEFolga(ring, precisao = 0.01) {
   if (!Array.isArray(ring) || ring.length < 3) return null;
   const k = Math.cos(((ring.reduce((t, p) => t + p.lat, 0) / ring.length) * Math.PI) / 180) || 1;
   const pts = ring.map((p) => [p.lng * k, p.lat]);
@@ -199,7 +211,7 @@ export function pontoMaisDentro(ring, precisao = 0.01) {
       }
     }
   }
-  return { lat: escolhido.y, lng: escolhido.x / k };
+  return { lat: escolhido.y, lng: escolhido.x / k, folga: escolhido.d };
 }
 
 /**
@@ -297,6 +309,22 @@ export function fontesRotuloPorZoom(zoom) {
   const z = Number.isFinite(zoom) ? zoom : 0;
   const nome = Math.round(Math.max(10, Math.min(12, 10 + (z - 13) * 0.5)) * 4) / 4;
   return { nome, ha: Math.max(9, nome - 1) };
+}
+
+/**
+ * Escala do nome do pasto para caber no espaço livre em volta do ponto
+ * (D-PROD-130): o texto (w × h px) tem de caber no círculo de raio `raio` px.
+ * Encolhe junto com o pasto no zoom; nunca passa do tamanho normal (1) nem fica
+ * abaixo de `minimo` (legível).
+ * @param {number} w largura do texto (px, sem escala)
+ * @param {number} h altura do texto (px, sem escala)
+ * @param {number | null | undefined} raio folga do ponto na tela (px)
+ * @param {number} [minimo]
+ */
+export function escalaRotulo(w, h, raio, minimo = 0.6) {
+  if (!(w > 0) || !(h > 0) || !(Number(raio) > 0)) return 1;
+  const s = (2 * Number(raio) * 0.95) / Math.hypot(w, h);
+  return Math.max(minimo, Math.min(1, Math.round(s * 100) / 100));
 }
 
 /** "ha 12,34" (área pastejada se houver, senão tamanho); null se ≤ 0. */

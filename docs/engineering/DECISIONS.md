@@ -5020,4 +5020,18 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
   - `data-area` no rótulo (id da área), para a medição.
 - **Consequência:** no zoom de 16,5 para 12 (áreas reais, harness, 390 px), a fração do texto dentro do próprio pasto passou de 81% para 92% na média e de 49% para 90% no pior quadro. No fim, segue em 90%.
 
-<!-- Próxima decisão: D-PROD-130 -->
+## D-PROD-130 — Mapa Geral: o nome do pasto encolhe junto com o pasto no zoom
+
+- **Contexto:** mesmo com o D-PROD-129, o proprietário via os nomes "se movendo" e saindo dos polígonos ao dar zoom.
+  - Raiz: o nome tem tamanho fixo em px, enquanto o pasto muda 2× por nível de zoom. A fonte de 10 a 12 px não acompanha isso, então ao afastar o polígono encolhe por baixo do nome.
+- **Decisão (só o nome; o ícone do lote não muda):**
+  - `pontoEFolga` dá o ponto do nome e a **folga** dele, isto é, o raio do círculo livre em volta.
+  - Em cada `arrumarRotulos`, o texto é medido sem escala e a folga é convertida em px no zoom atual (`raio0`, `z0`).
+  - **A cada quadro do zoom**, `escalarNome` aplica `scale(s)` no texto, com `s = escalaRotulo(w, h, raio0·2^(z−z0))`. O texto cabe no círculo livre, com até 100% do tamanho normal e no mínimo 60%, para continuar legível.
+  - Origem da escala: centro do texto (área sem lote) ou topo do texto (com lote, logo abaixo do ícone).
+- **Consequência:** fração do texto dentro do próprio pasto (áreas reais, harness, 390 px):
+  - afastando (zoom 16,5 → 12): média 94% e pior quadro 93% (era 81% e 49% no início da rodada; 92% e 90% com o D-PROD-129);
+  - aproximando: média 97% e pior quadro 94%;
+  - evidência: v19-05.
+
+<!-- Próxima decisão: D-PROD-131 -->

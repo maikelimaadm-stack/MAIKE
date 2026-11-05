@@ -8,7 +8,9 @@ import {
   buildMgAreasCollection,
   buildMgLinhasCollection,
   centroideArea,
+  escalaRotulo,
   escolherModoRotulos,
+  pontoEFolga,
   siglaDaArea,
   ensureMgLayers,
   fontesRotuloPorZoom,
@@ -312,11 +314,14 @@ export default function useMapRenderer(mapInstanceRef) {
         if (lote?.el) {
           lote.marker.setOffset(PAR_LOTE.icone);
           entry.marker.setOffset(PAR_LOTE.nome);
-          entry.corpo.style.transform = "";
+          entry.base = "";
+          entry.corpo.style.transformOrigin = "50% 0";
         } else {
           entry.marker.setOffset([0, 0]);
-          entry.corpo.style.transform = "translateY(-50%)";
+          entry.base = "translateY(-50%)";
+          entry.corpo.style.transformOrigin = "50% 50%";
         }
+        entry.corpo.style.transform = entry.base; // mede sem escala
       });
     };
     const medir = () => {
@@ -361,10 +366,30 @@ export default function useMapRenderer(mapInstanceRef) {
     });
     const modo = escolherModoRotulos(itens, { tudo: comTudo.obstaculos, nome: soNome.obstaculos });
     aplicar(modo);
+    const zoom = map.getZoom();
     labelsRef.current.forEach((entry) => {
+      // tamanho do texto sem escala e a folga do ponto na tela, neste zoom
+      const t = entry.corpo.getBoundingClientRect(); // ainda sem escala (aplicar)
+      entry.tam = { w: t.width, h: t.height };
+      const pf = entry.pf;
+      entry.raio0 = pf ? Math.abs(map.project([pf.lng, pf.lat + pf.folga]).y - map.project([pf.lng, pf.lat]).y) : null;
+      entry.z0 = zoom;
+      escalarNome(entry, zoom);
       entry.el.style.visibility = "visible";
       entry.el.dataset.rotulo = modo;
     });
+  };
+
+  /**
+   * Nome do tamanho do pasto (D-PROD-130): a folga do ponto cresce/encolhe com o
+   * zoom (×2 por nível); o nome acompanha a cada quadro, para não sobrar para
+   * fora do polígono. O ícone do lote não é tocado.
+   */
+  const escalarNome = (/** @type {any} */ entry, /** @type {number} */ zoom) => {
+    if (!entry?.corpo || !entry.tam) return;
+    const raio = entry.raio0 ? entry.raio0 * Math.pow(2, zoom - entry.z0) : null;
+    const s = escalaRotulo(entry.tam.w, entry.tam.h, raio);
+    entry.corpo.style.transform = s < 1 ? `${entry.base || ""} scale(${s})`.trim() : entry.base || "";
   };
 
   /** Revisão do nível durante o zoom, no máximo a cada 120 ms (D-PROD-129). */
@@ -412,7 +437,11 @@ export default function useMapRenderer(mapInstanceRef) {
     // só no fim —, para o nome não ficar maior que o pasto enquanto ele encolhe.
     if (!labelZoomHandlerRef.current) {
       const h = () => {
-        labelsRef.current.forEach(aplicarFonte);
+        const z = map.getZoom();
+        labelsRef.current.forEach((entry) => {
+          aplicarFonte(entry);
+          escalarNome(entry, z);
+        });
         arrumarDuranteZoom();
       };
       labelZoomHandlerRef.current = h;
@@ -458,7 +487,12 @@ export default function useMapRenderer(mapInstanceRef) {
       entry.extra.style.display = extraText ? "block" : "none";
       entry.temHa = Boolean(haText);
       entry.temExtra = Boolean(extraText);
-      entry.ring = parseVertices(area?.coordenadas?.coords);
+      const chaveRing = JSON.stringify(area?.coordenadas?.coords || null);
+      if (entry.chaveRing !== chaveRing) {
+        entry.chaveRing = chaveRing;
+        entry.ring = parseVertices(area?.coordenadas?.coords);
+        entry.pf = pontoEFolga(entry.ring);
+      }
       aplicarFonte(entry);
     }
     agendarArrumar();

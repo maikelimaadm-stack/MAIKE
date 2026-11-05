@@ -4,7 +4,7 @@
  */
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
-import { centroideArea, escolherModoRotulos, fontesRotuloPorZoom, pontoMaisDentro, siglaDaArea } from "@/lib/maplibre/mapaGeralRender.js";
+import { centroideArea, escalaRotulo, escolherModoRotulos, fontesRotuloPorZoom, pontoEFolga, pontoMaisDentro, siglaDaArea } from "@/lib/maplibre/mapaGeralRender.js";
 import { pointInPolygonRing } from "@/lib/maplibre/taskLocationPicker.js";
 
 const cx = (x, y, w, h) => ({ x, y, w, h });
@@ -118,7 +118,7 @@ describe("pontoMaisDentro — nome e lote no miolo da área torta (D-PROD-127)",
     // D-PROD-128: par ícone + nome centrado no ponto com posições FIXAS — nada
     // depende da altura do nome nem da imagem; sem lote, nome centrado por CSS
     expect(r).toMatch(/lote\.marker\.setOffset\(PAR_LOTE\.icone\);\s*entry\.marker\.setOffset\(PAR_LOTE\.nome\);/);
-    expect(r).toMatch(/entry\.marker\.setOffset\(\[0, 0\]\);\s*entry\.corpo\.style\.transform = "translateY\(-50%\)";/);
+    expect(r).toMatch(/entry\.marker\.setOffset\(\[0, 0\]\);\s*entry\.base = "translateY\(-50%\)";/);
     expect(r).toMatch(/icone: \/\*\* @type \{\[number, number\]\} \*\/ \(\[0, -14\]\)/);
     expect(r).toMatch(/nome: \/\*\* @type \{\[number, number\]\} \*\/ \(\[0, 10\]\)/);
     expect(r).not.toMatch(/offsetHeight/);
@@ -145,10 +145,38 @@ describe("nome do pasto acompanha o zoom (D-PROD-129)", () => {
     const r = readFileSync("src/components/mapa/useMapRenderer.jsx", "utf8");
     expect(r).toMatch(/map\.on\("zoom", h\)/);
     expect(r).not.toMatch(/map\.on\("zoomend"/);
-    expect(r).toMatch(/labelsRef\.current\.forEach\(aplicarFonte\);\s*arrumarDuranteZoom\(\);/);
+    expect(r).toMatch(/aplicarFonte\(entry\);\s*escalarNome\(entry, z\);/);
+    expect(r).toMatch(/arrumarDuranteZoom\(\);/);
     expect(r).toMatch(/if \(agora - ultimoArrumarRef\.current < 120\) return;/);
     // ícone do lote: posição fixa do D-PROD-128, sem escala por zoom
     expect(r).toMatch(/lote\.marker\.setOffset\(PAR_LOTE\.icone\);/);
-    expect(r).not.toMatch(/scale\(/);
+    // só o nome escala (D-PROD-130); o ícone do lote nunca
+    expect((r.match(/scale\(/g) || []).length).toBe(1);
+    expect(r).toMatch(/entry\.corpo\.style\.transform = s < 1 \? `\$\{entry\.base \|\| ""\} scale\(\$\{s\}\)`/);
+  });
+});
+
+describe("nome do tamanho do pasto (D-PROD-130)", () => {
+  it("cabe no círculo livre do ponto; nunca maior que o normal nem menor que 60%", () => {
+    expect(escalaRotulo(40, 13, 100)).toBe(1);
+    expect(escalaRotulo(40, 13, 18)).toBeCloseTo((2 * 18 * 0.95) / Math.hypot(40, 13), 2);
+    expect(escalaRotulo(80, 26, 5)).toBe(0.6);
+    expect(escalaRotulo(40, 13, null)).toBe(1);
+  });
+
+  it("no zoom o nome encolhe na mesma proporção do pasto (×2 por nível) até o mínimo", () => {
+    const r0 = 14; // folga em px no zoom de referência
+    const s0 = escalaRotulo(30, 13, r0);
+    const s1 = escalaRotulo(30, 13, r0 * Math.pow(2, -0.25)); // afastou ¼ de nível
+    expect(s1).toBeLessThan(s0);
+    expect(s1 / s0).toBeCloseTo(Math.pow(2, -0.25), 1);
+    expect(escalaRotulo(30, 13, r0 * Math.pow(2, -3))).toBe(0.6); // muito afastado: mínimo legível
+  });
+
+  it("pontoEFolga: mesmo ponto do pontoMaisDentro e a folga até a borda", () => {
+    const q = [{ lat: 0, lng: 0 }, { lat: 0, lng: 0.02 }, { lat: -0.02, lng: 0.02 }, { lat: -0.02, lng: 0 }];
+    const pf = pontoEFolga(q);
+    expect({ lat: pf.lat, lng: pf.lng }).toEqual(pontoMaisDentro(q));
+    expect(pf.folga).toBeCloseTo(0.01, 4);
   });
 });

@@ -316,3 +316,11 @@ Duas tentativas anteriores nesta rodada (ícone fixo com a ponta no ponto e íco
 
 **Não testado em aparelho.**
 
+### V19e — o nome do pasto encolhe junto com o pasto (D-PROD-130)
+
+| Pedido | Feito | Medição (áreas reais) |
+|---|---|---|
+| Os nomes ainda se moviam e saíam dos polígonos | A cada quadro do zoom, o nome escala para caber no círculo livre do seu pasto (de 60% a 100%). O ícone não muda | Afastando: média 94% e pior 93% (eram 81% e 49%). Aproximando: média 97% e pior 94% (v19-05) |
+
+**Não testado em aparelho.**
+
