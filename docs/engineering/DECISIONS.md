@@ -5058,23 +5058,27 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
   - Teste: `tests/smoke/iconesManejo.test.jsx`.
   - Evidências: v21-01 e v21-02.
 
-## D-PROD-132 — Mapa Geral: camadas e filtros salvos por usuário; permissão não apaga a preferência
+## D-PROD-133 — Mapa Geral: camadas e filtros salvos por usuário; permissão não apaga a preferência
+
+> Numerada 133 porque a PR #200, aberta em paralelo, usa a D-PROD-132.
 
 - **Contexto:** a cada acesso o mapa abria "limpo", com Áreas, Detalhes Áreas e Lotes desligados.
   - Ao abrir, a permissão ainda carregando valia "nada liberado" (PR #199).
   - Um efeito desligava as camadas, e a gravação salvava isso por cima da preferência.
   - Além disso, a preferência era por empresa, não por usuário.
 - **Decisão:**
-  - **O que o usuário escolhe** (`pref*`) é salvo.
-  - **O que aparece** é a preferência E a permissão, calculado na renderização. A permissão nunca reescreve a preferência.
-  - **A gravação** só começa depois de aplicar a preferência do usuário atual.
-  - **Chave local:** fazenda + conta + empresa.
-  - **Migração:** no primeiro acesso de cada usuário, a preferência herda o que o aparelho já tinha salvo (chave por empresa e chave legada).
+  - **O que o usuário escolhe** é salvo.
+  - **O que aparece** é a preferência E a permissão (`camadasVisiveis`). A permissão nunca reescreve a preferência.
+  - **Chave local:** fazenda + conta + empresa, com as **três obrigatórias**. Sem a fazenda da sessão, nada é lido nem gravado; nunca um tenant `-` compartilhado.
+  - **Escopo trocado** (conta, empresa ou fazenda) com o mapa montado: aplica o estado **completo** do novo escopo (`normalizarFiltrosMapa`), ou seja, o salvo dele ou o padrão. Nenhum valor do escopo anterior sobrevive.
+  - **Gravação:** só depois de aplicar o estado do escopo atual.
+  - **Padrão** (o proprietário pediu): Áreas, Detalhes Áreas e Lotes ligados, quando a permissão deixa ver.
+  - **Legado:** as chaves antigas (por empresa e global) não têm titular verificável, pois qualquer conta do aparelho pode tê-las gravado. Por isso **não são herdadas por ninguém** (seria copiar filtros de outra pessoa) e **não são apagadas**. Na primeira vez, cada conta começa no padrão.
 - **Consequência:**
-  - O mapa reabre como o usuário deixou.
-  - Contas diferentes no mesmo aparelho não se misturam.
-  - A preferência fica **no aparelho** (localStorage). Em outro aparelho, o usuário começa do padrão, e só então passa a ter a preferência salva ali. Sincronizar entre aparelhos exigiria gravar no servidor; fica para outro slice.
-  - Teste: `tests/smoke/mapaFiltrosPorUsuario.test.jsx`. RED na main: depois de abrir o mapa, a preferência salva ficava `showAreas:false`, `showLotes:false`.
+  - O mapa reabre como cada usuário deixou.
+  - Contas e fazendas diferentes no mesmo aparelho não se misturam.
+  - A preferência fica **no aparelho** (localStorage). Sincronizar entre aparelhos exigiria gravar no servidor; fica para outro slice.
+  - Testes: `tests/smoke/mapaFiltrosEscopo.test.jsx` e `tests/smoke/mapaFiltrosPorUsuario.test.jsx`.
   - Relatório: `docs/engineering/MAIKE-MAPA-FILTROS-POR-USUARIO-REPORT.md`.
 
-<!-- Próxima decisão: D-PROD-133 -->
+<!-- Próxima decisão: D-PROD-134 -->

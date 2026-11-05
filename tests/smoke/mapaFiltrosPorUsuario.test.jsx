@@ -13,9 +13,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, cleanup, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
-import { readFileSync } from 'node:fs';
 
-import { lerFiltrosMapaGeral, salvarFiltrosMapaGeral, chaveFiltrosDoUsuario } from '@/lib/mapaGeralFiltrosStorage';
+import { lerFiltrosMapaGeral, salvarFiltrosMapaGeral, chaveFiltrosDoUsuario, camadasVisiveis, normalizarFiltrosMapa, PADRAO_FILTROS_MAPA } from '@/lib/mapaGeralFiltrosStorage';
 
 const sessao = vi.hoisted(() => ({ usuario: null, atrasoPermissao: 50 }));
 
@@ -79,13 +78,13 @@ describe('MAPA-FILTROS — a preferência do usuário sobrevive ao acesso', () =
     for (const [k, v] of Object.entries(PREFERENCIA)) expect(salvo?.[k], k).toEqual(v);
   });
 
-  it('primeiro acesso de um usuário herda a preferência antiga do aparelho (sem começar limpo) e passa a ter a sua', async () => {
-    localStorage.setItem('mapa_geral_filtros_emp-1', JSON.stringify(PREFERENCIA));
+  it('primeiro acesso sem preferência: Áreas, Detalhes Áreas e Lotes LIGADOS (padrão do proprietário), gravados para o usuário', async () => {
     await abrirMapa();
     const proprio = JSON.parse(localStorage.getItem(chaveFiltrosDoUsuario(ESCOPO)) || 'null');
-    expect(proprio?.filtroCategoria).toBe('BOI');
-    expect(proprio?.showNomesAreas).toBe(false);
     expect(proprio?.showAreas).toBe(true);
+    expect(proprio?.showNomesAreas).toBe(true);
+    expect(proprio?.showLotes).toBe(true);
+    expect(proprio?.filtroCategoria).toBe('todas');
   });
 
   it('cada usuário tem a sua: a preferência de um não muda a do outro', async () => {
@@ -99,13 +98,14 @@ describe('MAPA-FILTROS — a preferência do usuário sobrevive ao acesso', () =
     expect(chaveFiltrosDoUsuario(ESCOPO)).not.toBe(chaveFiltrosDoUsuario({ ...ESCOPO, clienteId: 'tenant-2' }));
   });
 
-  it('o que aparece é preferência E permissão; a permissão nunca reescreve a preferência', () => {
-    const fonte = readFileSync('src/pages/MapaGeral.jsx', 'utf8');
-    expect(fonte).toContain('const showAreas = prefShowAreas && mapaGeralPermissions.visualizar_areas;');
-    expect(fonte).toContain('const showLotes = prefShowLotes && mapaGeralPermissions.visualizar_lotes;');
-    expect(fonte).not.toContain('setShowAreas(false)');
-    expect(fonte).not.toContain('setShowLotes(false)');
-    expect(fonte).not.toContain('setShowNomesAreas(false)');
-    expect(fonte).toContain('if (!escopoFiltros || filtrosCarregados !== escopoFiltros.chave) return;');
+  it('o que aparece é preferência E permissão (comportamento), sem reescrever a preferência', () => {
+    const pref = { ...PADRAO_FILTROS_MAPA, showLotes: true, showAreas: true };
+    const semLotes = { visualizar_areas: true, visualizar_nomes_areas: true, visualizar_lotes: false };
+    const vis = camadasVisiveis(pref, semLotes);
+    expect(vis.showAreas).toBe(true);
+    expect(vis.showLotes).toBe(false);
+    expect(pref.showLotes).toBe(true);
+    expect(normalizarFiltrosMapa(null)).toEqual(PADRAO_FILTROS_MAPA);
+    expect(normalizarFiltrosMapa({ showLotes: false, filtroCategoria: 7, filtroPesoMin: 'x' })).toMatchObject({ showLotes: false, filtroCategoria: 'todas', filtroPesoMin: null, showAreas: true });
   });
 });

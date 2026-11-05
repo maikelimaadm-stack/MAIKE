@@ -1,4 +1,4 @@
-# MAIKE — Mapa Geral: filtros e camadas salvos por usuário (D-PROD-132)
+# MAIKE — Mapa Geral: filtros e camadas salvos por usuário (D-PROD-133)
 
 ## Pedido do proprietário
 "Sempre no meu primeiro acesso o mapa já tem que carregar filtrado: lotes, detalhes de áreas e áreas. Cada usuário tem suas preferências de filtro. Sempre que ele filtrar, tem que deixar filtrado; se não, toda hora que eu entro fica limpo."
@@ -20,7 +20,7 @@ RED, com o código da `main` e o `MapaGeral` real em jsdom: a preferência salva
   - a gravação só acontece depois de a preferência desse escopo ter sido aplicada (`filtrosCarregados`).
 - `src/lib/mapaGeralFiltrosStorage.js`:
   - chave `mapa_geral_filtros_u:<cliente>:<login>:<empresa>`;
-  - a leitura herda a chave antiga por empresa e a legada no primeiro acesso, sem perder o que o aparelho já tinha.
+  - (R1) sem herança da chave antiga por empresa nem da legada: elas não têm titular verificável; ficam guardadas, não são copiadas.
 - Painéis (filtros, insights e tarefas) continuam fechando sem permissão. Eles não fazem parte da preferência salva.
 
 ## O que fica salvo
@@ -58,3 +58,27 @@ RED, com o código da `main` e o `MapaGeral` real em jsdom: a preferência salva
 - `tests/smoke/mapaFiltrosPorUsuario.test.jsx` (4): preferência mantida ao reabrir, herança no primeiro acesso, isolamento entre usuários e tenants, e "permissão não reescreve a preferência".
 - `tests/smoke/r3PostPr96Bugfix.test.jsx`: leitura tolerante a JSON inválido, no novo escopo.
 - Smoke completo: 1447/1447.
+
+## R1 — escopo fechado (auditoria da PR #201)
+
+### Defeitos (RED no HEAD `56ccd2f6`, jsdom, `MapaGeral` montado)
+Teste: `tests/smoke/mapaFiltrosEscopo.test.jsx`, com 5 testes; todos falhavam.
+
+1. **Troca A → B sem desmontar:** B, sem preferência, ficava com os estados de A (`showAreas:false`…) e os gravava como seus.
+2. **Empresa 1 → 2:** a empresa 2 herdava os filtros da 1.
+3. **Sem `cliente_id` ainda carregado:** gravava em `mapa_geral_filtros_u:-:<login>:<empresa>`, uma chave comum a qualquer tenant.
+4. **Legado por empresa:** era copiado para qualquer conta sem registro. Por exemplo, B herdava a categoria BOI de A.
+5. **Helper:** faltava um helper de "preferência E permissão" testável por comportamento.
+
+### Correção
+- **`normalizarFiltrosMapa`:** devolve o estado COMPLETO (padrão + valores salvos de tipo válido). É aplicado inteiro a cada escopo, e a marca de "carregado" vai no mesmo lote de atualizações.
+- **Escopo:** exige fazenda, conta e empresa. A fazenda vem de `currentUser.cliente_id` (o `/auth/contexto`) ou do `clienteId` do `AuthContext`. Sem fazenda, nada é lido nem gravado.
+- **Legado:** não é herdado nem apagado.
+- **`camadasVisiveis`:** preferência E permissão, usado pelo `MapaGeral`.
+
+### GREEN
+- **Troca de conta:** B recebe o padrão (Áreas, Detalhes Áreas e Lotes ligados; categoria `todas`), e a preferência de A fica intacta.
+- **Troca de empresa:** a empresa 2 vem no padrão; ao voltar, a empresa 1 está intacta.
+- **Outro tenant:** isolado, e não existe nenhuma chave com `-`.
+- **Legado:** não é copiado e continua guardado.
+- **Permissão atrasada:** não apaga a preferência, e a camada proibida não aparece.

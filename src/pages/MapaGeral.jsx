@@ -42,7 +42,8 @@ import { parseVertices } from "@/lib/geografia/coords.js";
 import useBasemap from "../components/mapa/useBasemap";
 import BasemapAtribuicao from "../components/mapa/BasemapAtribuicao";
 import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
-import { lerFiltrosMapaGeral, salvarFiltrosMapaGeral } from "@/lib/mapaGeralFiltrosStorage";
+import { lerFiltrosMapaGeral, salvarFiltrosMapaGeral, normalizarFiltrosMapa, camadasVisiveis } from "@/lib/mapaGeralFiltrosStorage";
+import { useAuth } from "@/lib/AuthContext";
 import { mensagemFalhaMapa, navegadorTemWebGL, MENSAGEM_WEBGL_DESLIGADO } from "@/lib/maplibre/falhaWebGL";
 
 export default function MapaGeral() {
@@ -184,58 +185,57 @@ export default function MapaGeral() {
   // preferência E a permissão. Antes, a permissão ainda carregando (= nada
   // liberado) DESLIGAVA Áreas/Detalhes/Lotes e isso era gravado por cima da
   // preferência — todo acesso começava "limpo".
+  // Fazenda da sessão: a do usuário (/auth/contexto) ou a do AuthContext. Sem
+  // ela não há escopo — nada é lido nem gravado (nunca um tenant "-" comum).
+  const { clienteId: clienteIdSessao } = useAuth();
+  const clienteFiltros = currentUser?.cliente_id || clienteIdSessao || null;
   const escopoFiltros = useMemo(() => {
-    if (!loginAtual || !empresaSelecionadaId) return null;
-    const cliente = currentUser?.cliente_id || null;
-    return { clienteId: cliente, login: loginAtual, empresaId: empresaSelecionadaId, chave: `${cliente || '-'}:${loginAtual}:${empresaSelecionadaId}` };
-  }, [currentUser?.cliente_id, loginAtual, empresaSelecionadaId]);
+    if (!clienteFiltros || !loginAtual || !empresaSelecionadaId) return null;
+    return { clienteId: clienteFiltros, login: loginAtual, empresaId: empresaSelecionadaId, chave: `${clienteFiltros}:${loginAtual}:${empresaSelecionadaId}` };
+  }, [clienteFiltros, loginAtual, empresaSelecionadaId]);
   const [filtrosCarregados, setFiltrosCarregados] = useState(null);
 
-  const showAreas = prefShowAreas && mapaGeralPermissions.visualizar_areas;
-  const showNomesAreas = prefShowNomesAreas && mapaGeralPermissions.visualizar_nomes_areas;
-  const showPontos = prefShowPontos && mapaGeralPermissions.visualizar_pontos_referencia;
-  const showLinhas = prefShowLinhas && mapaGeralPermissions.visualizar_linhas;
-  const showLotes = prefShowLotes && mapaGeralPermissions.visualizar_lotes;
-  const showCochos = prefShowCochos && mapaGeralPermissions.visualizar_cochos_suplementacao;
-  const showDepositos = prefShowDepositos && mapaGeralPermissions.visualizar_cochos_suplementacao;
-  const showAlertas = prefShowAlertas && mapaGeralPermissions.visualizar_alertas;
-  const showUserLocation = prefShowUserLocation && mapaGeralPermissions.visualizar_localizacao;
-  const dragLotesEnabled = prefDragLotesEnabled && mapaGeralPermissions.mover_lotes;
+  const {
+    showAreas, showNomesAreas, showPontos, showLinhas, showLotes, showCochos, showDepositos, showAlertas,
+    showUserLocation, dragLotesEnabled,
+  } = camadasVisiveis({
+    showAreas: prefShowAreas, showNomesAreas: prefShowNomesAreas, showPontos: prefShowPontos, showLinhas: prefShowLinhas,
+    showLotes: prefShowLotes, showCochos: prefShowCochos, showDepositos: prefShowDepositos, showAlertas: prefShowAlertas,
+    showUserLocation: prefShowUserLocation, dragLotesEnabled: prefDragLotesEnabled,
+  }, mapaGeralPermissions);
 
   useEffect(() => {
     if (!escopoFiltros) return;
-    const state = lerFiltrosMapaGeral(escopoFiltros);
-    // Marca o escopo como carregado (com ou sem preferência salva) DEPOIS de aplicar.
-    setFiltrosCarregados(escopoFiltros.chave);
-    if (!state) return;
+    // Estado COMPLETO do escopo novo: o salvo dele ou o padrão (Áreas, Detalhes
+    // Áreas e Lotes ligados). Nenhum valor do escopo anterior sobrevive; a
+    // marca de carregado vai no MESMO lote de atualizações, então a gravação só
+    // roda já com os valores deste escopo.
+    const st = normalizarFiltrosMapa(lerFiltrosMapaGeral(escopoFiltros));
     setMapTypeState('satellite');
-    if (typeof state.showAreas === 'boolean') setShowAreas(state.showAreas);
-    if (typeof state.showPontos === 'boolean') setShowPontos(state.showPontos);
-    if (typeof state.showLinhas === 'boolean') setShowLinhas(state.showLinhas);
-    if (typeof state.showLotes === 'boolean') setShowLotes(state.showLotes);
-    if (typeof state.showTaskIcons === 'boolean') setShowTaskIcons(state.showTaskIcons);
-    if (typeof state.dragLotesEnabled === 'boolean') setDragLotesEnabled(state.dragLotesEnabled);
-    if (typeof state.showCochos === 'boolean') setShowCochos(state.showCochos);
-    if (typeof state.showDepositos === 'boolean') setShowDepositos(state.showDepositos);
-    if (typeof state.showPontosSuplementacao === 'boolean') {
-      setShowCochos(state.showPontosSuplementacao);
-      setShowDepositos(state.showPontosSuplementacao);
-    }
-    if (typeof state.showAlertas === 'boolean') setShowAlertas(state.showAlertas);
-    if (typeof state.showUserLocation === 'boolean') setShowUserLocation(state.showUserLocation);
-    if (typeof state.showNomesAreas === 'boolean') setShowNomesAreas(state.showNomesAreas);
-    if (typeof state.showHectaresAreas === 'boolean') setShowHectaresAreas(state.showHectaresAreas);
-    if (typeof state.filtroCategoria === 'string') setFiltroCategoria(state.filtroCategoria);
-    if (typeof state.filtroIdentificador === 'string') setFiltroIdentificador(state.filtroIdentificador);
-    if (typeof state.filtroStatus === 'string') setFiltroStatus(state.filtroStatus);
-    if (typeof state.filtroSistema === 'string') setFiltroSistema(state.filtroSistema);
-    if (typeof state.filtroAlertaTipo === 'string') setFiltroAlertaTipo(state.filtroAlertaTipo);
-    if (typeof state.filtroTipoCultura === 'string') setFiltroTipoCultura(state.filtroTipoCultura);
-    if (typeof state.filtroTipoPastagem === 'string') setFiltroTipoPastagem(state.filtroTipoPastagem);
-    if (typeof state.filtroSetor === 'string') setFiltroSetor(state.filtroSetor);
-    setFiltroPesoMin(state.filtroPesoMin ?? null);
-    setFiltroPesoMax(state.filtroPesoMax ?? null);
-    if (typeof state.modoColoracao === 'string') setModoColoracao(state.modoColoracao);
+    setShowAreas(st.showAreas);
+    setShowNomesAreas(st.showNomesAreas);
+    setShowHectaresAreas(st.showHectaresAreas);
+    setShowLotes(st.showLotes);
+    setShowPontos(st.showPontos);
+    setShowLinhas(st.showLinhas);
+    setShowCochos(st.showCochos);
+    setShowDepositos(st.showDepositos);
+    setShowAlertas(st.showAlertas);
+    setShowUserLocation(st.showUserLocation);
+    setShowTaskIcons(st.showTaskIcons);
+    setDragLotesEnabled(st.dragLotesEnabled);
+    setFiltroCategoria(st.filtroCategoria);
+    setFiltroIdentificador(st.filtroIdentificador);
+    setFiltroStatus(st.filtroStatus);
+    setFiltroSistema(st.filtroSistema);
+    setFiltroAlertaTipo(st.filtroAlertaTipo);
+    setFiltroTipoCultura(st.filtroTipoCultura);
+    setFiltroTipoPastagem(st.filtroTipoPastagem);
+    setFiltroSetor(st.filtroSetor);
+    setFiltroPesoMin(st.filtroPesoMin);
+    setFiltroPesoMax(st.filtroPesoMax);
+    setModoColoracao(st.modoColoracao);
+    setFiltrosCarregados(escopoFiltros.chave);
   }, [escopoFiltros]);
 
   useEffect(() => {
