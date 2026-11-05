@@ -256,8 +256,8 @@ const verificarFonteDeTenant = () => {
 
   const codigo = semComentarios(ler(SESSION_API));
 
-  // O corpo do login tem exatamente `login` e `senha` (D-PROD-33). Tenant vem
-  // da resposta/JWT, nunca do payload de entrada.
+  // O corpo do login tem `login`, `senha` e o opt-in `lembrar` (D-PROD-33,
+  // D-PROD-135). Tenant vem da resposta/JWT, nunca do payload de entrada.
   const corpoDoLogin = codigo.match(/body:\s*\{[^}]*\}/)?.[0] ?? '';
   if (/\bcliente_id\s*:/.test(corpoDoLogin)) {
     registrar(
@@ -268,7 +268,7 @@ const verificarFonteDeTenant = () => {
   if (/\bcliente\s*[,:]/.test(corpoDoLogin)) {
     registrar(
       'P4-NATIVE-TENANT-SOURCE',
-      `${SESSION_API} ainda envia 'cliente' no login: o contrato é só login e senha (D-PROD-33)`
+      `${SESSION_API} ainda envia 'cliente' no login: o contrato é login, senha e lembrar (D-PROD-33, D-PROD-135)`
     );
   }
   if (!/\blogin\s*:/.test(corpoDoLogin) || !/\bsenha\s*[,}]/.test(corpoDoLogin)) {

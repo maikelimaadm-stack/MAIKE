@@ -28,7 +28,7 @@
 
 import { nativeRequest } from '../_core/nativeHttpClient.js';
 import { ApiError, API_ERROR_CODES, isApiError, hasApiErrorCode } from '../_core/ApiError.js';
-import { hasNativeToken, setNativeToken, clearNativeToken } from '@/lib/auth/nativeTokenStorage';
+import { hasNativeToken, setNativeToken, clearNativeToken, descartarTokenRecusado } from '@/lib/auth/nativeTokenStorage';
 import { setOfflineTenant, clearOfflineTenant } from '@/lib/offline/offlineTenant';
 
 const RESOURCE = 'SessaoNativa';
@@ -255,6 +255,9 @@ export const restaurarSessao = async () => {
     // um token recusado guardado só produz um 401 por requisição até alguém
     // perceber.
     if (hasApiErrorCode(erro, API_ERROR_CODES.TENANT_CONTEXT_REQUIRED)) {
+      // Só o token recusado sai. Se sobrou outro (ex.: aba velha com sessão
+      // vencida e uma sessão "Manter conectado" válida), tenta com ele.
+      if (descartarTokenRecusado()) return restaurarSessao();
       descartarSessaoLocal();
       return { autenticado: false, contexto: null };
     }

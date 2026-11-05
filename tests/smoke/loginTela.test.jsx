@@ -54,6 +54,14 @@ describe('NativeLoginForm — tela nova', () => {
     expect(window.localStorage.getItem('maike_login_preferencias')).toBeNull();
   });
 
+  it('LOG-06 tocar no texto "Manter conectado" também liga a chave', () => {
+    render(<NativeLoginForm entrar={vi.fn()} onAutenticado={vi.fn()} />);
+    fireEvent.click(screen.getByText('Não use em computador compartilhado.'));
+    expect(screen.getByRole('switch', { name: 'Manter conectado' }).getAttribute('aria-checked')).toBe('true');
+    fireEvent.click(screen.getByRole('switch', { name: 'Manter conectado' }));
+    expect(screen.getByRole('switch', { name: 'Manter conectado' }).getAttribute('aria-checked')).toBe('false');
+  });
+
   it('LOG-05 o olho mostra e esconde a senha', () => {
     render(<NativeLoginForm entrar={vi.fn()} onAutenticado={vi.fn()} />);
     const senha = screen.getByLabelText('Senha');

@@ -82,6 +82,7 @@ npm run deploy:migrate
 | `AUTH_SECRET` | Sim | Gerar por ambiente; marcar Sensitive no Vercel |
 | `FRONTEND_ORIGINS` | Sim | Lista **exata**, vírgula, **sem** barra final |
 | `AUTH_TOKEN_TTL` | Não | Default `8h` |
+| `AUTH_TOKEN_TTL_LEMBRAR` | Não | Default `30d` — validade com "Manter conectado" (D-PROD-135) |
 
 ### 4.2 Frontend (build — prefixo `VITE_`)
 
@@ -93,7 +94,7 @@ npm run deploy:migrate
 
 ### 4.3 Vercel projeto `maike` (nomes observados — Production/Preview)
 
-**MAIKE nativo (usar):** `DATABASE_URL`, `MIGRATION_DATABASE_URL`, `AUTH_SECRET`, `FRONTEND_ORIGINS`, `AUTH_TOKEN_TTL`, `VITE_MAIKE_API_URL`, `VITE_GOOGLE_MAPS_API_KEY`, `VITE_SKIP_NATIVE_LOGIN`
+**MAIKE nativo (usar):** `DATABASE_URL`, `MIGRATION_DATABASE_URL`, `AUTH_SECRET`, `FRONTEND_ORIGINS`, `AUTH_TOKEN_TTL`, `AUTH_TOKEN_TTL_LEMBRAR`, `VITE_MAIKE_API_URL`, `VITE_GOOGLE_MAPS_API_KEY`, `VITE_SKIP_NATIVE_LOGIN`
 
 **Integração Supabase (marketplace — não substituem o contrato Prisma acima):** `POSTGRES_*`, `SUPABASE_*`, `NEXT_PUBLIC_SUPABASE_*`
 

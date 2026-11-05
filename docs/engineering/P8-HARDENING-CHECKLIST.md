@@ -16,7 +16,7 @@ Referência: [`ROADMAP.md`](./ROADMAP.md) § P8 · [`GAP-AUDIT-POS-BASE44-2026-1
   hoje isolamento tenant fica na API Fastify (`cliente_id`).
 - [ ] **Autorização real** — além de JWT + tenant; perfis/permissões (continuação P6).
 - [ ] **Rate limiting** — login e APIs sensíveis.
-- [ ] **CSP / cookies** — endurecer front; JWT permanece memória + `sessionStorage`
+- [ ] **CSP / cookies** — endurecer front; JWT em memória + `sessionStorage`, e no armazenamento persistente só com "Manter conectado" (D-PROD-135) — candidato natural a cookie `HttpOnly` + refresh token com revogação
   (D-PROD-24) até decisão de cookies httpOnly.
 - [ ] **Refresh / rotação de token** — se escopo P8 incluir sessão longa.
 

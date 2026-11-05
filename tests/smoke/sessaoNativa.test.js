@@ -335,6 +335,35 @@ describe('P4T — restauração e logout', () => {
     expect(window.sessionStorage.getItem(NATIVE_TOKEN_STORAGE_KEY)).toBeNull();
   });
 
+  it('P4T-08c token vencido de outra aba NÃO apaga a sessão "Manter conectado" (D-PROD-135)', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(respostaJson(401, { code: 'TENANT_CONTEXT_REQUIRED' }))
+      .mockResolvedValueOnce(respostaJson(200, CONTEXTO_OK));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { restaurarSessao, NATIVE_TOKEN_STORAGE_KEY } = await carregar();
+    window.sessionStorage.setItem(NATIVE_TOKEN_STORAGE_KEY, 'jwt.velho.da.aba');
+    window.localStorage.setItem(NATIVE_TOKEN_STORAGE_KEY, 'jwt.lembrado');
+
+    const veredito = await restaurarSessao();
+
+    expect(veredito.autenticado).toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls[1][1].headers.Authorization).toBe('Bearer jwt.lembrado');
+    expect(window.sessionStorage.getItem(NATIVE_TOKEN_STORAGE_KEY)).toBeNull();
+    expect(window.localStorage.getItem(NATIVE_TOKEN_STORAGE_KEY)).toBe('jwt.lembrado');
+  });
+
+  it('P4T-08d sair da conta apaga a sessão da aba e a do aparelho', async () => {
+    const { logout, setNativeToken, NATIVE_TOKEN_STORAGE_KEY } = await carregar();
+    setNativeToken('jwt.lembrado', { lembrar: true });
+    window.sessionStorage.setItem(NATIVE_TOKEN_STORAGE_KEY, 'jwt.aba');
+    logout();
+    expect(window.sessionStorage.getItem(NATIVE_TOKEN_STORAGE_KEY)).toBeNull();
+    expect(window.localStorage.getItem(NATIVE_TOKEN_STORAGE_KEY)).toBeNull();
+  });
+
   it('P4T-08b / P4R1-T05 sem token, a restauração nem chama o servidor', async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);

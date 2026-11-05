@@ -179,6 +179,7 @@ const NativeLoginForm = ({ onAutenticado, entrar }) => {
                     onChange={(evento) => {
                       setLogin(evento.target.value);
                       if (faltando === 'login') setFaltando(null);
+                      if (erro) setErro(null);
                     }}
                     autoComplete="username"
                     autoCapitalize="none"
@@ -216,6 +217,7 @@ const NativeLoginForm = ({ onAutenticado, entrar }) => {
                     onChange={(evento) => {
                       setSenha(evento.target.value);
                       if (faltando === 'senha') setFaltando(null);
+                      if (erro) setErro(null);
                     }}
                     onKeyUp={verCapsLock}
                     onKeyDown={verCapsLock}
@@ -252,7 +254,13 @@ const NativeLoginForm = ({ onAutenticado, entrar }) => {
                 ) : null}
               </div>
 
-              <div className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 px-3.5 py-2.5">
+              {/* A linha inteira liga e desliga (alvo de toque grande), não só a chave. */}
+              <div
+                onClick={(evento) => {
+                  if (!(evento.target instanceof Element) || !evento.target.closest('[role="switch"]')) setLembrar((v) => !v);
+                }}
+                className="flex min-h-[56px] cursor-pointer select-none items-center justify-between gap-3 rounded-xl bg-slate-50 px-3.5 py-2.5 transition hover:bg-slate-100"
+              >
                 <div className="min-w-0">
                   <p id="login-lembrar" className="text-sm font-semibold text-slate-800">
                     Manter conectado

@@ -163,6 +163,29 @@ export const clearNativeToken = () => {
   }
 };
 
+/**
+ * Descarta **só** o token que o servidor recusou.
+ *
+ * Diferente de `clearNativeToken` (sair da conta, que apaga tudo): numa aba
+ * antiga pode sobrar no `sessionStorage` um token vencido de uma entrada sem
+ * "Manter conectado", enquanto o armazenamento persistente guarda outro,
+ * válido, de uma entrada lembrada. Recusar o velho não pode apagar o novo.
+ *
+ * @returns {boolean} se ainda resta outro token guardado para tentar
+ */
+export const descartarTokenRecusado = () => {
+  const recusado = tokenEmMemoria ?? getNativeToken();
+  tokenEmMemoria = null;
+  for (const area of [storage(), armazenamentoPersistente()]) {
+    try {
+      if (area && normalizar(area.getItem(CHAVE_TOKEN)) === recusado) area.removeItem(CHAVE_TOKEN);
+    } catch {
+      // Sem storage não há o que apagar.
+    }
+  }
+  return getNativeToken() !== null;
+};
+
 /** Existe token guardado? Não diz nada sobre ele ser válido. */
 export const hasNativeToken = () => getNativeToken() !== null;
 

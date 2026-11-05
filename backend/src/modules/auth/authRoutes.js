@@ -29,7 +29,7 @@ const LOGIN_SCHEMA = {
 /** @param {import('fastify').FastifyInstance} app */
 export const registrarAuthRoutes = async (app) => {
   app.post('/auth/login', { schema: LOGIN_SCHEMA }, async (request, reply) => {
-    const { lembrar = false, ...credenciais } = request.body;
+    const { lembrar = false, ...credenciais } = /** @type {{ login: string, senha: string, lembrar?: boolean }} */ (request.body);
     const identidade = await autenticar(credenciais);
 
     const token = await reply.jwtSign(montarPayloadDeSessao(identidade), {
