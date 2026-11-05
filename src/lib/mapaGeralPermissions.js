@@ -93,6 +93,9 @@ const ehGravadora = (key) => MAPA_GERAL_ACOES_GRAVADORAS.includes(key);
  *  - ação gravadora: ligada só se gravada `=== true` (ausente, objeto ausente ou
  *    valor não booleano → desligada — registro parcial legado não ganha ação);
  *  - visualização: ausente = ligada; só `false` desliga.
+ * @param {unknown} value
+ * @param {boolean} [enabled]
+ * @returns {Record<string, any>}
  */
 export const normalizeMapaGeralPermissions = (value, enabled = true) => {
   const chaves = Object.keys(DEFAULT_MAPA_GERAL_PERMISSIONS);
