@@ -32,7 +32,7 @@ describe("Detalhes do Lote: Manejos e Históricos em quadros (D-PROD-119)", () =
   it("todos os manejos e históricos continuam, com as mesmas permissões", () => {
     for (const [perm, nome] of [
       ["mover_lotes", "Mover"], ["pesar_lotes", "Pesar"], ["registrar_nascimento", "Nascimento"], ["registrar_morte", "Morte"],
-      ["registrar_abate", "Abate"], ["mudar_categoria_lotes", "Mudar Categoria"], ["juntar_lotes", "Juntar Lotes"], ["renomear_lotes", "Renomear Lote"],
+      ["registrar_abate", "Saída"], ["mudar_categoria_lotes", "Mudar Categoria"], ["juntar_lotes", "Juntar Lotes"], ["renomear_lotes", "Editar Informação"],
       ["visualizar_historico_movimentacoes_lote", "Movimentação"], ["visualizar_historico_suplementacao_lote", "Suplementação"],
     ]) {
       expect(fonte, nome).toMatch(new RegExp(`permissions\\.${perm} !== false[^\\n]*nome: '${nome}'`));

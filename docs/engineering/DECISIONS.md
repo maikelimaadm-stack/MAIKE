@@ -5034,4 +5034,28 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
   - aproximando: média 97% e pior quadro 94%;
   - evidência: v19-05.
 
-<!-- Próxima decisão: D-PROD-131 -->
+## D-PROD-131 — Manejos "Saída" (antigo Abate), "Mover", "Pesar", "Nascimento", "Morte", "Juntar Lotes", "Mudar Categoria" e "Editar Informação" (antigo Renomear Lote): ícones do proprietário
+
+- **Contexto:** o proprietário enviou imagens próprias para os oito botões de manejo, refeitas algumas vezes na mesma PR. As versões finais estão abaixo e pediu que "Abate" passe a se chamar "Saída" e "Renomear Lote" passe a se chamar "Editar Informação":
+  - Saída: um boi com uma porta de saída;
+  - Mover: um boi com setas de ida e volta;
+  - Pesar: uma balança digital com o visor 0.0;
+  - Nascimento: uma vaca com o bezerro e um calendário com +;
+  - Morte: um animal deitado com um X;
+  - Juntar Lotes: um boi com camadas que se juntam numa só;
+  - Mudar Categoria: um bezerro e um boi, cada um num quadro, com uma seta entre eles;
+  - Editar Informação: um boi com a pasta da ficha do animal e um lápis;
+  - nos Históricos, Movimentação (uma ficha com setas de ida e volta e um relógio) e Suplementação (uma ficha com um saco de ração e um relógio).
+- **Decisão:**
+  - Os quadros "Saída", "Mover", "Pesar", "Nascimento", "Morte", "Juntar Lotes", "Mudar Categoria" e "Editar Informação" dos Manejos (Detalhes do Lote) usam essas imagens no lugar dos ícones `Beef`, `ArrowLeftRight`, `Scale`, `Baby`, `HeartCrack`, `Combine`, `Tags` e `PencilLine`; os históricos de Movimentação e de Suplementação deixam `History` e `Wheat`.
+  - O quadro "Abate" passa a se chamar **"Saída"**, e a janela passa a ser "Registrar Saída". O registro continua sendo o mesmo manejo de abate: tipo `Abate`, `FormularioAbate` e a permissão `registrar_abate`.
+  - O quadro "Renomear Lote" passa a se chamar **"Editar Informação"**, e a janela também. Ele continua renomeando o lote, com a mesma permissão (`renomear_lotes`). O registro no histórico segue com o motivo "Renomear Lote".
+  - As imagens foram recortadas, com o fundo branco tirado, e salvas em `public/icons/` (`saida.png`, `mover-animais.png`, `pesar.png`, `nascimento.png`, `morte.png`, `juntar-lotes.png`, `mudar-categoria.png`, `editar-informacao.png`, `historico-movimentacao.png`, `historico-suplementacao.png`). Como as imagens mais largas têm cerca de 2,7:1, a largura máxima é de 88 px, o que ainda cabe no quadro. Elas são exibidas por `IconesManejo`.
+  - A pedido do proprietário, ficam **maiores** que os outros ícones: 32 px, 36 px na folha do celular e 30 px nos quadros menores do computador.
+  - Uma margem negativa faz a imagem crescer para cima, sem aumentar o quadro nem descer o nome.
+- **Consequência:**
+  - O nome de cada quadro fica alinhado com os outros.
+  - Teste: `tests/smoke/iconesManejo.test.jsx`.
+  - Evidências: v21-01 e v21-02.
+
+<!-- Próxima decisão: D-PROD-132 -->

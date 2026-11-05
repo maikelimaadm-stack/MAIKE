@@ -169,7 +169,7 @@ describe("LancLoteDialogo (D-PROD-115)", () => {
       expect(fonte, f).toMatch(/LancLoteRodape/);
     }
     const detalhes = readFileSync("src/components/mapa/DetalhesLote.jsx", "utf8");
-    for (const t of ["Registrar Morte", "Registrar Abate", "Registrar Nascimento", "Registrar Pesagem", "Mudança de Categoria", "Mover Lotes", "Juntar Lotes", "Renomear Lote"]) {
+    for (const t of ["Registrar Morte", "Registrar Saída", "Registrar Nascimento", "Registrar Pesagem", "Mudança de Categoria", "Mover Lotes", "Juntar Lotes", "Editar Informação"]) {
       expect(detalhes, t).toMatch(new RegExp(`<LancLoteDialogo(?:(?!</?LancLoteDialogo)[\\s\\S])*?titulo="${t}"`));
     }
   });

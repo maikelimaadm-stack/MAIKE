@@ -66,7 +66,7 @@ const MSG = "Esta fazenda ainda não foi migrada para o controle por posições.
 const BOI = "BOI";
 const loteLegado = (id) => ({ id, nome: `L-${id}`, categoria: BOI, quantidade_cabecas: 10, area_atual_id: "a1", status: "Ativo" });
 const posicao = (id) => ({ ...loteLegado(id), __posicao: true });
-const MANEJOS = ["Mover", "Morte", "Abate", "Nascimento", "Mudar Categoria", "Pesar", "Juntar Lotes"];
+const MANEJOS = ["Mover", "Morte", "Saída", "Nascimento", "Mudar Categoria", "Pesar", "Juntar Lotes"];
 
 const renderizar = async (lotes) => {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -139,7 +139,7 @@ describe("DetalhesLote sem ledger (empresa não migrada)", () => {
 });
 
 describe("DetalhesLote no ledger (posições): formulários abrem como antes", () => {
-  it.each([["Mover", "mover"], ["Morte", "morte"], ["Abate", "abate"], ["Nascimento", "nascimento"], ["Mudar Categoria", "mudanca"], ["Pesar", "pesagem"]])(
+  it.each([["Mover", "mover"], ["Morte", "morte"], ["Saída", "abate"], ["Nascimento", "nascimento"], ["Mudar Categoria", "mudanca"], ["Pesar", "pesagem"]])(
     "%s abre o formulário sem recusa",
     async (manejo, id) => {
       await renderizar([posicao("p1"), posicao("p2")]);
