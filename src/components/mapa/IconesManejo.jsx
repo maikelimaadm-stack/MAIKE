@@ -21,16 +21,16 @@ export const IconeMoverAnimais = iconeImagem("/icons/mover-animais.png");
 /** Pesar: balança digital com o visor 0.0. */
 export const IconePesar = iconeImagem("/icons/pesar.png");
 
-/** Nascimento: vaca com o bezerro e os símbolos de macho e fêmea. */
+/** Nascimento: vaca com o bezerro e o calendário com +. */
 export const IconeNascimento = iconeImagem("/icons/nascimento.png");
 
-/** Saída (antigo "Abate"): boi com o ícone de saída. */
+/** Saída (antigo "Abate"): boi com a porta de saída. */
 export const IconeSaida = iconeImagem("/icons/saida.png");
 
 /** Morte: animal deitado com o X. */
 export const IconeMorte = iconeImagem("/icons/morte.png");
 
-/** Juntar Lotes: boi com as setas que se encontram. */
+/** Juntar Lotes: boi com as camadas que se juntam numa só. */
 export const IconeJuntarLotes = iconeImagem("/icons/juntar-lotes.png");
 
 /** Mudar Categoria: bezerro → boi, cada um num quadro, com a seta entre eles. */

@@ -5036,13 +5036,13 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
 
 ## D-PROD-131 — Manejos "Saída" (antigo Abate), "Mover", "Pesar", "Nascimento", "Morte", "Juntar Lotes", "Mudar Categoria" e "Editar Informação" (antigo Renomear Lote): ícones do proprietário
 
-- **Contexto:** o proprietário enviou imagens próprias para os oito botões de manejo e pediu que "Abate" passe a se chamar "Saída" e "Renomear Lote" passe a se chamar "Editar Informação":
-  - Saída: um boi com o ícone de saída. É a segunda versão; o arquivo enviado não chegou à sessão, então a imagem foi montada com o mesmo boi das outras imagens e o ícone de saída desenhado igual ao enviado;
-  - Mover: um boi com setas de ida e volta (segunda versão; a primeira tinha porteiras);
+- **Contexto:** o proprietário enviou imagens próprias para os oito botões de manejo, refeitas algumas vezes na mesma PR. As versões finais estão abaixo e pediu que "Abate" passe a se chamar "Saída" e "Renomear Lote" passe a se chamar "Editar Informação":
+  - Saída: um boi com uma porta de saída;
+  - Mover: um boi com setas de ida e volta;
   - Pesar: uma balança digital com o visor 0.0;
-  - Nascimento: uma vaca com o bezerro e os símbolos de macho e fêmea (segunda versão, toda em cinza-escuro);
+  - Nascimento: uma vaca com o bezerro e um calendário com +;
   - Morte: um animal deitado com um X;
-  - Juntar Lotes: um boi com setas que se encontram;
+  - Juntar Lotes: um boi com camadas que se juntam numa só;
   - Mudar Categoria: um bezerro e um boi, cada um num quadro, com uma seta entre eles;
   - Editar Informação: um boi com uma ficha e um lápis.
 - **Decisão:**
