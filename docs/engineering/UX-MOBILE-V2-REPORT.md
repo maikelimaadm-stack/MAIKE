@@ -329,11 +329,11 @@ Duas tentativas anteriores nesta rodada (ícone fixo com a ponta no ponto e íco
 
 O novo visual dos botões do Mapa Geral (D-PROD-131: painel Visualização, sem o ✕ e sem o cabeçalho no celular) foi **desfeito a pedido do proprietário** ("remova por enquanto"). O mapa voltou ao estado do D-PROD-130. O número D-PROD-131 fica livre.
 
-## V21 — Ícones do "Saída", do "Mover", do "Pesar", do "Nascimento", da "Morte", do "Juntar Lotes" e do "Mudar Categoria" (D-PROD-131)
+## V21 — Ícones do "Saída", do "Mover", do "Pesar", do "Nascimento", da "Morte", do "Juntar Lotes", do "Mudar Categoria" e do "Editar Informação" (D-PROD-131)
 
 | Pedido | Feito | Evidência |
 |---|---|---|
-| Usar as imagens enviadas no Saída (boi com seta, antigo Abate), no Mover (boi com setas), no Pesar (balança), no Nascimento (vaca com bezerro) na Morte (animal deitado com X) no Juntar Lotes (boi com setas que se encontram) e no Mudar Categoria (bezerro para boi), e deixá-las maiores; trocar o nome "Abate" por "Saída" | Os quadros mostram as imagens maiores, sem aumentar o quadro e com o nome alinhado | v21-01 (computador), v21-02 (celular) |
+| Usar as imagens enviadas no Saída (boi com seta, antigo Abate), no Mover (boi com setas), no Pesar (balança), no Nascimento (vaca com bezerro) na Morte (animal deitado com X) no Juntar Lotes (boi com setas que se encontram) no Mudar Categoria (bezerro para boi) e no Editar Informação (boi com ficha e lápis), e deixá-las maiores; trocar os nomes "Abate" por "Saída" e "Renomear Lote" por "Editar Informação" | Os quadros mostram as imagens maiores, sem aumentar o quadro e com o nome alinhado | v21-01 (computador), v21-02 (celular) |
 
 **Não testado em aparelho.**
 

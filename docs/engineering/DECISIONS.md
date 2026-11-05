@@ -5034,20 +5034,22 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
   - aproximando: média 97% e pior quadro 94%;
   - evidência: v19-05.
 
-## D-PROD-131 — Manejos "Saída" (antigo Abate), "Mover", "Pesar", "Nascimento", "Morte", "Juntar Lotes" e "Mudar Categoria": ícones do proprietário
+## D-PROD-131 — Manejos "Saída" (antigo Abate), "Mover", "Pesar", "Nascimento", "Morte", "Juntar Lotes", "Mudar Categoria" e "Editar Informação" (antigo Renomear Lote): ícones do proprietário
 
-- **Contexto:** o proprietário enviou imagens próprias para sete botões de manejo e pediu que "Abate" passe a se chamar "Saída":
+- **Contexto:** o proprietário enviou imagens próprias para os oito botões de manejo e pediu que "Abate" passe a se chamar "Saída" e "Renomear Lote" passe a se chamar "Editar Informação":
   - Saída: um boi com o ícone de saída. É a segunda versão; o arquivo enviado não chegou à sessão, então a imagem foi montada com o mesmo boi das outras imagens e o ícone de saída desenhado igual ao enviado;
   - Mover: um boi com setas de ida e volta (segunda versão; a primeira tinha porteiras);
   - Pesar: uma balança digital com o visor 0.0;
   - Nascimento: uma vaca com o bezerro e os símbolos de macho e fêmea (segunda versão, toda em cinza-escuro);
   - Morte: um animal deitado com um X;
   - Juntar Lotes: um boi com setas que se encontram;
-  - Mudar Categoria: um bezerro e um boi, cada um num quadro, com uma seta entre eles.
+  - Mudar Categoria: um bezerro e um boi, cada um num quadro, com uma seta entre eles;
+  - Editar Informação: um boi com uma ficha e um lápis.
 - **Decisão:**
-  - Os quadros "Saída", "Mover", "Pesar", "Nascimento", "Morte", "Juntar Lotes" e "Mudar Categoria" dos Manejos (Detalhes do Lote) usam essas imagens no lugar dos ícones `Beef`, `ArrowLeftRight`, `Scale`, `Baby`, `HeartCrack`, `Combine` e `Tags`.
+  - Os quadros "Saída", "Mover", "Pesar", "Nascimento", "Morte", "Juntar Lotes", "Mudar Categoria" e "Editar Informação" dos Manejos (Detalhes do Lote) usam essas imagens no lugar dos ícones `Beef`, `ArrowLeftRight`, `Scale`, `Baby`, `HeartCrack`, `Combine`, `Tags` e `PencilLine`.
   - O quadro "Abate" passa a se chamar **"Saída"**, e a janela passa a ser "Registrar Saída". O registro continua sendo o mesmo manejo de abate: tipo `Abate`, `FormularioAbate` e a permissão `registrar_abate`.
-  - As imagens foram recortadas, com o fundo branco tirado, e salvas em `public/icons/` (`saida.png`, `mover-animais.png`, `pesar.png`, `nascimento.png`, `morte.png`, `juntar-lotes.png`, `mudar-categoria.png`). Como as imagens mais largas têm cerca de 2,7:1, a largura máxima é de 88 px, o que ainda cabe no quadro. Elas são exibidas por `IconesManejo`.
+  - O quadro "Renomear Lote" passa a se chamar **"Editar Informação"**, e a janela também. Ele continua renomeando o lote, com a mesma permissão (`renomear_lotes`). O registro no histórico segue com o motivo "Renomear Lote".
+  - As imagens foram recortadas, com o fundo branco tirado, e salvas em `public/icons/` (`saida.png`, `mover-animais.png`, `pesar.png`, `nascimento.png`, `morte.png`, `juntar-lotes.png`, `mudar-categoria.png`, `editar-informacao.png`). Como as imagens mais largas têm cerca de 2,7:1, a largura máxima é de 88 px, o que ainda cabe no quadro. Elas são exibidas por `IconesManejo`.
   - A pedido do proprietário, ficam **maiores** que os outros ícones: 32 px, 36 px na folha do celular e 30 px nos quadros menores do computador.
   - Uma margem negativa faz a imagem crescer para cima, sem aumentar o quadro nem descer o nome.
 - **Consequência:**
