@@ -4878,4 +4878,33 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
   - `RELEASE_ALVO_ATESTADO` é registro humano, não prova criptográfica do vínculo com a Vercel.
   - O papel sem visibilidade do histórico (RLS) resulta em TARGET_UNVERIFIED.
 
-<!-- Próxima decisão: D-PROD-123 -->
+## D-PROD-123 — Histórico cronológico por OCORRÊNCIA, com paginação keyset global (H2)
+
+- **Contexto:** o histórico de movimentações paginava e exibia pela data de CADASTRO (`createdAt DESC, id DESC`). Um lançamento retroativo registrado hoje aparecia no topo, e um fato antigo podia ficar entre fatos recentes. Reordenar só a página carregada no navegador não resolve: a página N continuaria sendo o pedaço N da ordem de cadastro.
+- **Decisão:**
+  - **Ordem global no SQL**, aplicada ao conjunto filtrado inteiro, com a tupla `(tem_ocorrencia DESC, ocorrencia DESC, registrado DESC, createdAt DESC, id COLLATE "C" DESC)`. Essa mesma tupla está no ORDER BY, no predicado keyset (comparação de linha) e no cursor.
+  - **Ocorrência:**
+    - `EventoRebanho.data_operacional`, quando o vínculo é inequívoco: mesmo tenant, mesma empresa, `ev.movimentacao_id = m.id` E `ev.id = dados.efeito_servidor.evento_id`;
+    - senão, o dia LITERAL de `dados.data_movimentacao` (`AAAA-MM-DD` ou `AAAA-MM-DDT…`, data de calendário válida via `pg_input_is_valid`, sem conversão de fuso);
+    - senão, NULL: "Data da ocorrência não informada", no fim da ordem. Nunca uma data inventada.
+  - **Registrado:** `EventoRebanho.registrado_em` (vínculo inequívoco) ou o `createdAt` real da linha.
+  - O LEFT JOIN é pela chave única do evento, então não multiplica linhas. Os filtros (tenant, empresa, área, lotes por id, nome só para legado) e o COUNT ficam idênticos.
+  - **Cursor v2** (`historicoCursorV2.js`):
+    - `{v:2, o, r, c, i, e, s}`: `e` é o hash do escopo (tenant, empresa, área, lotes, nomes) e `s` é o HMAC-SHA256 (chave HKDF do `AUTH_SECRET`).
+    - Cursor v1, malformado, adulterado ou de outro escopo dá 400 estável `HISTORICO_CURSOR_INVALIDO`, com `details.motivo`.
+    - O cursor não é autoridade: os filtros vêm do token e da query.
+    - O `keysetCursor` compartilhado não mudou, e `montarEnvelopeKeyset` não é usado aqui.
+  - **Resposta:** cada item ganha `historico_ocorrencia`, `historico_ocorrencia_origem` (`evento`|`data_movimentacao`|null) e `historico_registrado_em`, calculados na leitura (um homônimo em `dados` nunca vence). O envelope ganha `ordem: "ocorrencia_desc_v2"`.
+  - **Navegador:**
+    - O card mostra "Ocorrência" e "Registrado em".
+    - O cliente recomeça da primeira página SÓ com `HISTORICO_CURSOR_INVALIDO`; qualquer outra falha continua visível.
+    - O cache offline é ordenado com a mesma semântica e rotulado "Histórico offline parcial", com a contagem e a data de atualização. No ledger, `data_operacional` = 10 primeiros caracteres de `data_movimentacao` (`diaDe`), então o offline coincide com o servidor.
+    - As outras fontes (nutrição, medicamentos, sanidade, manejo técnico) vêm do cache do aparelho, sem endpoint agregado. Elas entram na mesma ordem só até o último movimento carregado enquanto houver páginas, e um aviso de cobertura diz quantas esperam o "Carregar mais".
+- **Não mudou:** o SSOT do rebanho, `EventoRebanho`/`PartidaRebanho`/`PesoRebanho`/`PosicaoRebanho`, o H1 (fuso, `REBANHO_DATA_FUTURA`), causalidade, 409 de exclusão, saldo, cadastro de lotes, `entradasNaArea`, `contarHistorico`, elegibilidade e a data operacional gravada. Nenhum dado é reescrito; os futuros legados aparecem no topo, sem correção automática. Sem migration.
+- **Desempenho (PG16 local, EXPLAIN ANALYZE):** 1ª página da empresa inteira em 11/54/116 ms a 2k/10k/50k movimentos, contra 24 ms da consulta antiga a 50k. Se um tenant passar de ~50k movimentos por fazenda, a proposta aditiva (EXPAND) é:
+  - coluna `ocorrencia`/`registrado` em `MovimentacaoMapa`, gravada na escrita, com backfill;
+  - índice `(cliente_id, empresa_id, ocorrencia DESC NULLS LAST, registrado DESC, createdAt DESC, id)`.
+  Ela exige missão, manifesto e autorização próprios.
+- **Consequência:** a ordem do histórico passa a ser a da vida do rebanho, determinística entre páginas. A virada do runtime invalida uma vez os cursores v1 em memória, com 400 estável e reinício automático. Ver `MAIKE-D-PROD-123-HISTORICO-OCORRENCIA-REPORT.md`.
+
+<!-- Próxima decisão: D-PROD-124 -->

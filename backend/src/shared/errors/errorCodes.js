@@ -298,6 +298,8 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   REBANHO_DATA_FUTURA: { http: 409, meaning: 'data operacional posterior a hoje no fuso da fazenda; só fatos realizados entram no rebanho; nada foi gravado' },
   EMPRESA_FUSO_NAO_CONFIGURADO: { http: 409, meaning: 'fuso horário da fazenda não configurado: escrita nova do rebanho recusada (falha fechada); nada foi gravado' },
   EMPRESA_FUSO_INVALIDO: { http: 400, meaning: 'fuso horário não é um nome IANA válido (ex.: America/Cuiaba)' },
+  // D-PROD-123 (H2) — cursor do histórico por ocorrência: v1, malformado, adulterado ou de outro escopo.
+  HISTORICO_CURSOR_INVALIDO: { http: 400, meaning: 'cursor do histórico inválido (versão antiga, malformado, adulterado ou de outra consulta); recomece do início' },
   REBANHO_DESTINO_IGUAL_ORIGEM: { http: 409, meaning: 'área de destino igual à de origem' },
   REBANHO_AREA_INATIVA: { http: 409, meaning: 'área de destino inativa' },
   REBANHO_ATIVACAO_LOTE_SEM_AREA: { http: 409, meaning: 'há lote ativo com cabeças e sem área válida; corrija antes de ativar' },

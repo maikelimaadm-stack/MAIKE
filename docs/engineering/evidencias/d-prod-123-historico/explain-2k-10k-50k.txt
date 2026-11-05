@@ -1,0 +1,424 @@
+# D-PROD-123 (H2) — EXPLAIN (ANALYZE, BUFFERS) da consulta real (sqlHistoricoPagina), PostgreSQL 16 local descartável, dados sintéticos.
+# Massa por N: N movimentos na empresa alvo + N em outra empresa do mesmo tenant (ruído); 40% com EventoRebanho vinculado; 5% sem data; 8 áreas; 40 lotes.
+# Linha de base (consulta da main, ORDER BY createdAt): 50k empresa inteira 24.0 ms; 50k área 26.2 ms.
+
+### N=2000 — empresa inteira, 1ª página
+Limit  (cost=480.58..491.44 rows=101 width=347) (actual time=11.244..11.419 rows=101 loops=1)
+  Buffers: shared hit=162
+  ->  Result  (cost=480.58..695.58 rows=2000 width=347) (actual time=11.242..11.410 rows=101 loops=1)
+        Buffers: shared hit=162
+        ->  Sort  (cost=480.58..485.58 rows=2000 width=319) (actual time=11.208..11.216 rows=101 loops=1)
+              Sort Key: (CASE WHEN (COALESCE(ev.data_operacional, CASE WHEN (((m.dados ->> 'data_movimentacao'::text) ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}($|T)'::text) AND pg_input_is_valid("left"((m.dados ->> 'data_movimentacao'::text), 10), 'date'::text)) THEN ("left"((m.dados ->> 'data_movimentacao'::text), 10))::date ELSE NULL::date END) IS NULL) THEN 0 ELSE 1 END) DESC, (COALESCE(COALESCE(ev.data_operacional, CASE WHEN (((m.dados ->> 'data_movimentacao'::text) ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}($|T)'::text) AND pg_input_is_valid("left"((m.dados ->> 'data_movimentacao'::text), 10), 'date'::text)) THEN ("left"((m.dados ->> 'data_movimentacao'::text), 10))::date ELSE NULL::date END), '0001-01-01'::date)) DESC, (COALESCE(ev.registrado_em, m."createdAt")) DESC, m."createdAt" DESC, m.id COLLATE "C" DESC
+              Sort Method: top-N heapsort  Memory: 110kB
+              Buffers: shared hit=162
+              ->  Hash Left Join  (cost=64.00..404.00 rows=2000 width=319) (actual time=0.589..9.557 rows=2000 loops=1)
+                    Hash Cond: ((((m.dados -> 'efeito_servidor'::text) ->> 'evento_id'::text) = ev.id) AND (m.id = (ev.movimentacao_id)::text))
+                    Buffers: shared hit=162
+                    ->  Seq Scan on "MovimentacaoMapa" m  (cost=0.00..194.00 rows=2000 width=235) (actual time=0.010..0.884 rows=2000 loops=1)
+                          Filter: (((cliente_id)::text = 'perfcli'::text) AND ((empresa_id)::text = 'perfemp'::text))
+                          Rows Removed by Filter: 2000
+                          Buffers: shared hit=134
+                    ->  Hash  (cost=52.00..52.00 rows=800 width=52) (actual time=0.565..0.566 rows=800 loops=1)
+                          Buckets: 1024  Batches: 1  Memory Usage: 78kB
+                          Buffers: shared hit=28
+                          ->  Seq Scan on "EventoRebanho" ev  (cost=0.00..52.00 rows=800 width=52) (actual time=0.006..0.358 rows=800 loops=1)
+                                Filter: (((cliente_id)::text = 'perfcli'::text) AND ((empresa_id)::text = 'perfemp'::text))
+                                Rows Removed by Filter: 800
+                                Buffers: shared hit=28
+Planning:
+  Buffers: shared hit=6
+Planning Time: 0.432 ms
+Execution Time: 11.482 ms
+
+### N=2000 — área (area-3), 1ª página
+Limit  (cost=285.90..289.12 rows=30 width=347) (actual time=6.822..7.009 rows=101 loops=1)
+  Buffers: shared hit=98
+  ->  Result  (cost=285.90..289.12 rows=30 width=347) (actual time=6.820..7.000 rows=101 loops=1)
+        Buffers: shared hit=98
+        ->  Sort  (cost=285.90..285.97 rows=30 width=319) (actual time=6.619..6.631 rows=101 loops=1)
+              Sort Key: (CASE WHEN (COALESCE(ev.data_operacional, CASE WHEN (((m.dados ->> 'data_movimentacao'::text) ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}($|T)'::text) AND pg_input_is_valid("left"((m.dados ->> 'data_movimentacao'::text), 10), 'date'::text)) THEN ("left"((m.dados ->> 'data_movimentacao'::text), 10))::date ELSE NULL::date END) IS NULL) THEN 0 ELSE 1 END) DESC, (COALESCE(COALESCE(ev.data_operacional, CASE WHEN (((m.dados ->> 'data_movimentacao'::text) ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}($|T)'::text) AND pg_input_is_valid("left"((m.dados ->> 'data_movimentacao'::text), 10), 'date'::text)) THEN ("left"((m.dados ->> 'data_movimentacao'::text), 10))::date ELSE NULL::date END), '0001-01-01'::date)) DESC, (COALESCE(ev.registrado_em, m."createdAt")) DESC, m."createdAt" DESC, m.id COLLATE "C" DESC
+              Sort Method: top-N heapsort  Memory: 111kB
+              Buffers: shared hit=98
+              ->  Hash Right Join  (cost=226.74..285.16 rows=30 width=319) (actual time=1.731..5.525 rows=500 loops=1)
+                    Hash Cond: ((ev.id = ((m.dados -> 'efeito_servidor'::text) ->> 'evento_id'::text)) AND ((ev.movimentacao_id)::text = m.id))
+                    Buffers: shared hit=98
+                    ->  Seq Scan on "EventoRebanho" ev  (cost=0.00..52.00 rows=800 width=52) (actual time=0.012..0.445 rows=800 loops=1)
+                          Filter: (((cliente_id)::text = 'perfcli'::text) AND ((empresa_id)::text = 'perfemp'::text))
+                          Rows Removed by Filter: 800
+                          Buffers: shared hit=28
+                    ->  Hash  (cost=226.29..226.29 rows=30 width=235) (actual time=1.695..1.697 rows=500 loops=1)
+                          Buckets: 1024  Batches: 1  Memory Usage: 142kB
+                          Buffers: shared hit=70
+                          ->  Bitmap Heap Scan on "MovimentacaoMapa" m  (cost=32.29..226.29 rows=30 width=235) (actual time=0.102..1.373 rows=500 loops=1)
+                                Recheck Cond: (((cliente_id)::text = 'perfcli'::text) AND ((empresa_id)::text = 'perfemp'::text))
+                                Filter: (((dados ->> 'area_origem_id'::text) = 'area-3'::text) OR ((dados ->> 'area_destino_id'::text) = 'area-3'::text) OR ((dados ->> 'area_id'::text) = 'area-3'::text))
+                                Rows Removed by Filter: 1500
+                                Heap Blocks: exact=67
+                                Buffers: shared hit=70
+                                ->  Bitmap Index Scan on "MovimentacaoMapa_cliente_id_empresa_id_idx"  (cost=0.00..32.28 rows=2000 width=0) (actual time=0.078..0.078 rows=2000 loops=1)
+                                      Index Cond: (((cliente_id)::text = 'perfcli'::text) AND ((empresa_id)::text = 'perfemp'::text))
+                                      Buffers: shared hit=3
+Planning:
+  Buffers: shared hit=6
+Planning Time: 0.799 ms
+Execution Time: 7.111 ms
+
+### N=2000 — lotes [lote-7], 1ª página
+Limit  (cost=7895.70..7906.56 rows=101 width=347) (actual time=6.054..6.195 rows=50 loops=1)
+  Buffers: shared hit=98
+  ->  Result  (cost=7895.70..8084.04 rows=1752 width=347) (actual time=6.052..6.188 rows=50 loops=1)
+        Buffers: shared hit=98
+        ->  Sort  (cost=7895.70..7900.08 rows=1752 width=319) (actual time=6.006..6.014 rows=50 loops=1)
+              Sort Key: (CASE WHEN (COALESCE(ev.data_operacional, CASE WHEN (((m.dados ->> 'data_movimentacao'::text) ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}($|T)'::text) AND pg_input_is_valid("left"((m.dados ->> 'data_movimentacao'::text), 10), 'date'::text)) THEN ("left"((m.dados ->> 'data_movimentacao'::text), 10))::date ELSE NULL::date END) IS NULL) THEN 0 ELSE 1 END) DESC, (COALESCE(COALESCE(ev.data_operacional, CASE WHEN (((m.dados ->> 'data_movimentacao'::text) ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}($|T)'::text) AND pg_input_is_valid("left"((m.dados ->> 'data_movimentacao'::text), 10), 'date'::text)) THEN ("left"((m.dados ->> 'data_movimentacao'::text), 10))::date ELSE NULL::date END), '0001-01-01'::date)) DESC, (COALESCE(ev.registrado_em, m."createdAt")) DESC, m."createdAt" DESC, m.id COLLATE "C" DESC
+              Sort Method: quicksort  Memory: 50kB
+              Buffers: shared hit=98
+              ->  Hash Left Join  (cost=96.72..7828.61 rows=1752 width=319) (actual time=0.821..5.865 rows=50 loops=1)
+                    Hash Cond: ((((m.dados -> 'efeito_servidor'::text) ->> 'evento_id'::text) = ev.id) AND (m.id = (ev.movimentacao_id)::text))
+                    Buffers: shared hit=98
+                    ->  Bitmap Heap Scan on "MovimentacaoMapa" m  (cost=32.72..7636.72 rows=1752 width=235) (actual time=0.118..4.846 rows=50 loops=1)
+                          Recheck Cond: (((cliente_id)::text = 'perfcli'::text) AND ((empresa_id)::text = 'perfemp'::text))
+                          Filter: (((dados ->> 'lote_id'::text) = ANY ('{lote-7}'::text[])) OR ((dados ->> 'lote_destino_id'::text) = ANY ('{lote-7}'::text[])) OR (SubPlan 1) OR (SubPlan 2) OR (SubPlan 3) OR ((COALESCE((dados ->> 'lote_id'::text), ''::text) = ''::text) AND (lower(btrim((dados ->> 'lote'::text))) = ANY ('{}'::text[]))))
+                          Rows Removed by Filter: 1950
+                          Heap Blocks: exact=67
+                          Buffers: shared hit=70
+                          ->  Bitmap Index Scan on "MovimentacaoMapa_cliente_id_empresa_id_idx"  (cost=0.00..32.28 rows=2000 width=0) (actual time=0.058..0.059 rows=2000 loops=1)
+                                Index Cond: (((cliente_id)::text = 'perfcli'::text) AND ((empresa_id)::text = 'perfemp'::text))
+                                Buffers: shared hit=3
+                          SubPlan 1
+                            ->  Function Scan on jsonb_array_elements_text vli  (cost=0.01..1.14 rows=1 width=0) (actual time=0.000..0.000 rows=0 loops=1950)
+                                  Filter: (id = ANY ('{lote-7}'::text[]))
+                          SubPlan 2
+                            ->  Function Scan on jsonb_array_elements vef  (cost=0.02..1.39 rows=1 width=0) (actual time=0.000..0.000 rows=0 loops=1950)
+                                  Filter: ((val ->> 'lote_id'::text) = ANY ('{lote-7}'::text[]))
+                          SubPlan 3
+                            ->  Nested Loop  (cost=0.03..114.53 rows=100 width=0) (actual time=0.001..0.001 rows=0 loops=1950)
+                                  ->  Function Scan on jsonb_array_elements vln  (cost=0.01..1.01 rows=100 width=32) (actual time=0.000..0.000 rows=0 loops=1950)
+                                  ->  Function Scan on jsonb_array_elements_text vma  (cost=0.01..1.14 rows=1 width=0) (never executed)
+                                        Filter: (id = ANY ('{lote-7}'::text[]))
+                    ->  Hash  (cost=52.00..52.00 rows=800 width=52) (actual time=0.648..0.649 rows=800 loops=1)
+                          Buckets: 1024  Batches: 1  Memory Usage: 78kB
+                          Buffers: shared hit=28
+                          ->  Seq Scan on "EventoRebanho" ev  (cost=0.00..52.00 rows=800 width=52) (actual time=0.008..0.352 rows=800 loops=1)
+                                Filter: (((cliente_id)::text = 'perfcli'::text) AND ((empresa_id)::text = 'perfemp'::text))
+                                Rows Removed by Filter: 800
+                                Buffers: shared hit=28
+Planning:
+  Buffers: shared hit=6
+Planning Time: 0.762 ms
+Execution Time: 6.341 ms
+
+### N=2000 — empresa inteira, página do meio (cursor)
+Limit  (cost=339.56..350.42 rows=101 width=347) (actual time=12.018..12.221 rows=101 loops=1)
+  Buffers: shared hit=162
+  ->  Result  (cost=339.56..411.27 rows=667 width=347) (actual time=12.017..12.212 rows=101 loops=1)
+        Buffers: shared hit=162
+        ->  Sort  (cost=339.56..341.23 rows=667 width=319) (actual time=11.974..11.983 rows=101 loops=1)
+              Sort Key: (CASE WHEN (COALESCE(ev.data_operacional, CASE WHEN (((m.dados ->> 'data_movimentacao'::text) ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}($|T)'::text) AND pg_input_is_valid("left"((m.dados ->> 'data_movimentacao'::text), 10), 'date'::text)) THEN ("left"((m.dados ->> 'data_movimentacao'::text), 10))::date ELSE NULL::date END) IS NULL) THEN 0 ELSE 1 END) DESC, (COALESCE(COALESCE(ev.data_operacional, CASE WHEN (((m.dados ->> 'data_movimentacao'::text) ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}($|T)'::text) AND pg_input_is_valid("left"((m.dados ->> 'data_movimentacao'::text), 10), 'date'::text)) THEN ("left"((m.dados ->> 'data_movimentacao'::text), 10))::date ELSE NULL::date END), '0001-01-01'::date)) DESC, (COALESCE(ev.registrado_em, m."createdAt")) DESC, m."createdAt" DESC, m.id COLLATE "C" DESC
+              Sort Method: top-N heapsort  Memory: 113kB
+              Buffers: shared hit=162
+              ->  Hash Left Join  (cost=64.00..314.02 rows=667 width=319) (actual time=0.598..10.929 rows=1000 loops=1)
+                    Hash Cond: ((((m.dados -> 'efeito_servidor'::text) ->> 'evento_id'::text) = ev.id) AND (m.id = (ev.movimentacao_id)::text))
+                    Filter: (ROW(CASE WHEN (COALESCE(ev.data_operacional, CASE WHEN (((m.dados ->> 'data_movimentacao'::text) ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}($|T)'::text) AND pg_input_is_valid("left"((m.dados ->> 'data_movimentacao'::text), 10), 'date'::text)) THEN ("left"((m.dados ->> 'data_movimentacao'::text), 10))::date ELSE NULL::date END) IS NULL) THEN 0 ELSE 1 END, COALESCE(COALESCE(ev.data_operacional, CASE WHEN (((m.dados ->> 'data_movimentacao'::text) ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}($|T)'::text) AND pg_input_is_valid("left"((m.dados ->> 'data_movimentacao'::text), 10), 'date'::text)) THEN ("left"((m.dados ->> 'data_movimentacao'::text), 10))::date ELSE NULL::date END), '0001-01-01'::date), COALESCE(ev.registrado_em, m."createdAt"), m."createdAt", (m.id)::text) < ROW(1, ('2025-03-16'::cstring)::date, ('2025-01-01T00:40:00.000Z'::cstring)::timestamp(3) without time zone, ('2025-01-01T00:40:00.000Z'::cstring)::timestamp(3) without time zone, 'perfempm40'::text COLLATE "C"))
+                    Rows Removed by Filter: 1000
+                    Buffers: shared hit=162
+                    ->  Seq Scan on "MovimentacaoMapa" m  (cost=0.00..194.00 rows=2000 width=235) (actual time=0.008..0.909 rows=2000 loops=1)
+                          Filter: (((cliente_id)::text = 'perfcli'::text) AND ((empresa_id)::text = 'perfemp'::text))
+                          Rows Removed by Filter: 2000
+                          Buffers: shared hit=134
+                    ->  Hash  (cost=52.00..52.00 rows=800 width=52) (actual time=0.569..0.571 rows=800 loops=1)
+                          Buckets: 1024  Batches: 1  Memory Usage: 78kB
+                          Buffers: shared hit=28
+                          ->  Seq Scan on "EventoRebanho" ev  (cost=0.00..52.00 rows=800 width=52) (actual time=0.007..0.324 rows=800 loops=1)
+                                Filter: (((cliente_id)::text = 'perfcli'::text) AND ((empresa_id)::text = 'perfemp'::text))
+                                Rows Removed by Filter: 800
+                                Buffers: shared hit=28
+Planning:
+  Buffers: shared hit=6
+Planning Time: 0.453 ms
+Execution Time: 12.307 ms
+
+### N=10000 — empresa inteira, 1ª página
+Limit  (cost=2401.91..2412.77 rows=101 width=348) (actual time=53.765..53.951 rows=101 loops=1)
+  Buffers: shared hit=809
+  ->  Result  (cost=2401.91..3476.91 rows=10000 width=348) (actual time=53.763..53.942 rows=101 loops=1)
+        Buffers: shared hit=809
+        ->  Sort  (cost=2401.91..2426.91 rows=10000 width=320) (actual time=53.673..53.681 rows=101 loops=1)
+              Sort Key: (CASE WHEN (COALESCE(ev.data_operacional, CASE WHEN (((m.dados ->> 'data_movimentacao'::text) ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}($|T)'::text) AND pg_input_is_valid("left"((m.dados ->> 'data_movimentacao'::text), 10), 'date'::text)) THEN ("left"((m.dados ->> 'data_movimentacao'::text), 10))::date ELSE NULL::date END) IS NULL) THEN 0 ELSE 1 END) DESC, (COALESCE(COALESCE(ev.data_operacional, CASE WHEN (((m.dados ->> 'data_movimentacao'::text) ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}($|T)'::text) AND pg_input_is_valid("left"((m.dados ->> 'data_movimentacao'::text), 10), 'date'::text)) THEN ("left"((m.dados ->> 'data_movimentacao'::text), 10))::date ELSE NULL::date END), '0001-01-01'::date)) DESC, (COALESCE(ev.registrado_em, m."createdAt")) DESC, m."createdAt" DESC, m.id COLLATE "C" DESC
+              Sort Method: top-N heapsort  Memory: 110kB
+              Buffers: shared hit=809
+              ->  Hash Left Join  (cost=322.00..2019.00 rows=10000 width=320) (actual time=2.847..47.378 rows=10000 loops=1)
+                    Hash Cond: ((((m.dados -> 'efeito_servidor'::text) ->> 'evento_id'::text) = ev.id) AND (m.id = (ev.movimentacao_id)::text))
+                    Buffers: shared hit=809
+                    ->  Seq Scan on "MovimentacaoMapa" m  (cost=0.00..967.00 rows=10000 width=236) (actual time=0.009..4.613 rows=10000 loops=1)
+                          Filter: (((cliente_id)::text = 'perfcli'::text) AND ((empresa_id)::text = 'perfemp'::text))
+                          Rows Removed by Filter: 10000
+                          Buffers: shared hit=667
+                    ->  Hash  (cost=262.00..262.00 rows=4000 width=54) (actual time=2.812..2.813 rows=4000 loops=1)
+                          Buckets: 4096  Batches: 1  Memory Usage: 392kB
+                          Buffers: shared hit=142
+                          ->  Seq Scan on "EventoRebanho" ev  (cost=0.00..262.00 rows=4000 width=54) (actual time=0.007..1.702 rows=4000 loops=1)
+                                Filter: (((cliente_id)::text = 'perfcli'::text) AND ((empresa_id)::text = 'perfemp'::text))
+                                Rows Removed by Filter: 4000
+                                Buffers: shared hit=142
+Planning:
+  Buffers: shared hit=6
+Planning Time: 0.435 ms
+Execution Time: 54.026 ms
+
+### N=10000 — área (area-3), 1ª página
+Limit  (cost=1405.00..1415.85 rows=101 width=348) (actual time=18.373..18.611 rows=101 loops=1)
+  Buffers: shared hit=485
+  ->  Result  (cost=1405.00..1421.01 rows=149 width=348) (actual time=18.371..18.602 rows=101 loops=1)
+        Buffers: shared hit=485
+        ->  Sort  (cost=1405.00..1405.37 rows=149 width=320) (actual time=18.326..18.336 rows=101 loops=1)
+              Sort Key: (CASE WHEN (COALESCE(ev.data_operacional, CASE WHEN (((m.dados ->> 'data_movimentacao'::text) ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}($|T)'::text) AND pg_input_is_valid("left"((m.dados ->> 'data_movimentacao'::text), 10), 'date'::text)) THEN ("left"((m.dados ->> 'data_movimentacao'::text), 10))::date ELSE NULL::date END) IS NULL) THEN 0 ELSE 1 END) DESC, (COALESCE(COALESCE(ev.data_operacional, CASE WHEN (((m.dados ->> 'data_movimentacao'::text) ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}($|T)'::text) AND pg_input_is_valid("left"((m.dados ->> 'data_movimentacao'::text), 10), 'date'::text)) THEN ("left"((m.dados ->> 'data_movimentacao'::text), 10))::date ELSE NULL::date END), '0001-01-01'::date)) DESC, (COALESCE(ev.registrado_em, m."createdAt")) DESC, m."createdAt" DESC, m.id COLLATE "C" DESC
+              Sort Method: top-N heapsort  Memory: 112kB
+              Buffers: shared hit=485
+              ->  Hash Right Join  (cost=1105.56..1399.62 rows=149 width=320) (actual time=4.746..16.430 rows=2500 loops=1)
+                    Hash Cond: ((ev.id = ((m.dados -> 'efeito_servidor'::text) ->> 'evento_id'::text)) AND ((ev.movimentacao_id)::text = m.id))
+                    Buffers: shared hit=485
+                    ->  Seq Scan on "EventoRebanho" ev  (cost=0.00..262.00 rows=4000 width=54) (actual time=0.016..1.427 rows=4000 loops=1)
+                          Filter: (((cliente_id)::text = 'perfcli'::text) AND ((empresa_id)::text = 'perfemp'::text))
+                          Rows Removed by Filter: 4000
+                          Buffers: shared hit=142
+                    ->  Hash  (cost=1103.32..1103.32 rows=149 width=236) (actual time=4.712..4.715 rows=2500 loops=1)
+                          Buckets: 4096 (originally 1024)  Batches: 1 (originally 1)  Memory Usage: 703kB
+                          Buffers: shared hit=343
+                          ->  Bitmap Heap Scan on "MovimentacaoMapa" m  (cost=136.32..1103.32 rows=149 width=236) (actual time=0.312..4.003 rows=2500 loops=1)
+                                Recheck Cond: (((cliente_id)::text = 'perfcli'::text) AND ((empresa_id)::text = 'perfemp'::text))
+                                Filter: (((dados ->> 'area_origem_id'::text) = 'area-3'::text) OR ((dados ->> 'area_destino_id'::text) = 'area-3'::text) OR ((dados ->> 'area_id'::text) = 'area-3'::text))
+                                Rows Removed by Filter: 7500
+                                Heap Blocks: exact=334
+                                Buffers: shared hit=343
+                                ->  Bitmap Index Scan on "MovimentacaoMapa_cliente_id_empresa_id_idx"  (cost=0.00..136.29 rows=10000 width=0) (actual time=0.268..0.268 rows=10000 loops=1)
+                                      Index Cond: (((cliente_id)::text = 'perfcli'::text) AND ((empresa_id)::text = 'perfemp'::text))
+                                      Buffers: shared hit=9
+Planning:
+  Buffers: shared hit=6
+Planning Time: 0.461 ms
+Execution Time: 18.698 ms
+
+### N=10000 — lotes [lote-7], 1ª página
+Limit  (cost=39452.61..39463.47 rows=101 width=348) (actual time=30.014..30.292 rows=101 loops=1)
+  Buffers: shared hit=485
+  ->  Result  (cost=39452.61..40394.53 rows=8762 width=348) (actual time=30.012..30.283 rows=101 loops=1)
+        Buffers: shared hit=485
+        ->  Sort  (cost=39452.61..39474.52 rows=8762 width=320) (actual time=29.972..29.982 rows=101 loops=1)
+              Sort Key: (CASE WHEN (COALESCE(ev.data_operacional, CASE WHEN (((m.dados ->> 'data_movimentacao'::text) ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}($|T)'::text) AND pg_input_is_valid("left"((m.dados ->> 'data_movimentacao'::text), 10), 'date'::text)) THEN ("left"((m.dados ->> 'data_movimentacao'::text), 10))::date ELSE NULL::date END) IS NULL) THEN 0 ELSE 1 END) DESC, (COALESCE(COALESCE(ev.data_operacional, CASE WHEN (((m.dados ->> 'data_movimentacao'::text) ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}($|T)'::text) AND pg_input_is_valid("left"((m.dados ->> 'data_movimentacao'::text), 10), 'date'::text)) THEN ("left"((m.dados ->> 'data_movimentacao'::text), 10))::date ELSE NULL::date END), '0001-01-01'::date)) DESC, (COALESCE(ev.registrado_em, m."createdAt")) DESC, m."createdAt" DESC, m.id COLLATE "C" DESC
+              Sort Method: top-N heapsort  Memory: 113kB
+              Buffers: shared hit=485
+              ->  Hash Left Join  (cost=460.48..39117.10 rows=8762 width=320) (actual time=3.138..29.419 rows=250 loops=1)
+                    Hash Cond: ((((m.dados -> 'efeito_servidor'::text) ->> 'evento_id'::text) = ev.id) AND (m.id = (ev.movimentacao_id)::text))
+                    Buffers: shared hit=485
+                    ->  Bitmap Heap Scan on "MovimentacaoMapa" m  (cost=138.48..38155.48 rows=8762 width=236) (actual time=0.341..24.732 rows=250 loops=1)
+                          Recheck Cond: (((cliente_id)::text = 'perfcli'::text) AND ((empresa_id)::text = 'perfemp'::text))
+                          Filter: (((dados ->> 'lote_id'::text) = ANY ('{lote-7}'::text[])) OR ((dados ->> 'lote_destino_id'::text) = ANY ('{lote-7}'::text[])) OR (SubPlan 1) OR (SubPlan 2) OR (SubPlan 3) OR ((COALESCE((dados ->> 'lote_id'::text), ''::text) = ''::text) AND (lower(btrim((dados ->> 'lote'::text))) = ANY ('{}'::text[]))))
+                          Rows Removed by Filter: 9750
+                          Heap Blocks: exact=334
+                          Buffers: shared hit=343
+                          ->  Bitmap Index Scan on "MovimentacaoMapa_cliente_id_empresa_id_idx"  (cost=0.00..136.29 rows=10000 width=0) (actual time=0.233..0.234 rows=10000 loops=1)
+                                Index Cond: (((cliente_id)::text = 'perfcli'::text) AND ((empresa_id)::text = 'perfemp'::text))
+                                Buffers: shared hit=9
+                          SubPlan 1
+                            ->  Function Scan on jsonb_array_elements_text vli  (cost=0.01..1.14 rows=1 width=0) (actual time=0.000..0.000 rows=0 loops=9750)
+                                  Filter: (id = ANY ('{lote-7}'::text[]))
+                          SubPlan 2
+                            ->  Function Scan on jsonb_array_elements vef  (cost=0.02..1.39 rows=1 width=0) (actual time=0.000..0.000 rows=0 loops=9750)
+                                  Filter: ((val ->> 'lote_id'::text) = ANY ('{lote-7}'::text[]))
+                          SubPlan 3
+                            ->  Nested Loop  (cost=0.03..114.53 rows=100 width=0) (actual time=0.001..0.001 rows=0 loops=9750)
+                                  ->  Function Scan on jsonb_array_elements vln  (cost=0.01..1.01 rows=100 width=32) (actual time=0.000..0.000 rows=0 loops=9750)
+                                  ->  Function Scan on jsonb_array_elements_text vma  (cost=0.01..1.14 rows=1 width=0) (never executed)
+                                        Filter: (id = ANY ('{lote-7}'::text[]))
+                    ->  Hash  (cost=262.00..262.00 rows=4000 width=54) (actual time=2.731..2.733 rows=4000 loops=1)
+                          Buckets: 4096  Batches: 1  Memory Usage: 392kB
+                          Buffers: shared hit=142
+                          ->  Seq Scan on "EventoRebanho" ev  (cost=0.00..262.00 rows=4000 width=54) (actual time=0.008..1.642 rows=4000 loops=1)
+                                Filter: (((cliente_id)::text = 'perfcli'::text) AND ((empresa_id)::text = 'perfemp'::text))
+                                Rows Removed by Filter: 4000
+                                Buffers: shared hit=142
+Planning:
+  Buffers: shared hit=6
+Planning Time: 0.579 ms
+Execution Time: 30.390 ms
+
+### N=10000 — empresa inteira, página do meio (cursor)
+Limit  (cost=1696.60..1707.46 rows=101 width=348) (actual time=57.790..57.958 rows=101 loops=1)
+  Buffers: shared hit=809
+  ->  Result  (cost=1696.60..2054.90 rows=3333 width=348) (actual time=57.788..57.949 rows=101 loops=1)
+        Buffers: shared hit=809
+        ->  Sort  (cost=1696.60..1704.93 rows=3333 width=320) (actual time=57.730..57.739 rows=101 loops=1)
+              Sort Key: (CASE WHEN (COALESCE(ev.data_operacional, CASE WHEN (((m.dados ->> 'data_movimentacao'::text) ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}($|T)'::text) AND pg_input_is_valid("left"((m.dados ->> 'data_movimentacao'::text), 10), 'date'::text)) THEN ("left"((m.dados ->> 'data_movimentacao'::text), 10))::date ELSE NULL::date END) IS NULL) THEN 0 ELSE 1 END) DESC, (COALESCE(COALESCE(ev.data_operacional, CASE WHEN (((m.dados ->> 'data_movimentacao'::text) ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}($|T)'::text) AND pg_input_is_valid("left"((m.dados ->> 'data_movimentacao'::text), 10), 'date'::text)) THEN ("left"((m.dados ->> 'data_movimentacao'::text), 10))::date ELSE NULL::date END), '0001-01-01'::date)) DESC, (COALESCE(ev.registrado_em, m."createdAt")) DESC, m."createdAt" DESC, m.id COLLATE "C" DESC
+              Sort Method: top-N heapsort  Memory: 114kB
+              Buffers: shared hit=809
+              ->  Hash Left Join  (cost=322.00..1568.98 rows=3333 width=320) (actual time=2.927..54.198 rows=5000 loops=1)
+                    Hash Cond: ((((m.dados -> 'efeito_servidor'::text) ->> 'evento_id'::text) = ev.id) AND (m.id = (ev.movimentacao_id)::text))
+                    Filter: (ROW(CASE WHEN (COALESCE(ev.data_operacional, CASE WHEN (((m.dados ->> 'data_movimentacao'::text) ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}($|T)'::text) AND pg_input_is_valid("left"((m.dados ->> 'data_movimentacao'::text), 10), 'date'::text)) THEN ("left"((m.dados ->> 'data_movimentacao'::text), 10))::date ELSE NULL::date END) IS NULL) THEN 0 ELSE 1 END, COALESCE(COALESCE(ev.data_operacional, CASE WHEN (((m.dados ->> 'data_movimentacao'::text) ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}($|T)'::text) AND pg_input_is_valid("left"((m.dados ->> 'data_movimentacao'::text), 10), 'date'::text)) THEN ("left"((m.dados ->> 'data_movimentacao'::text), 10))::date ELSE NULL::date END), '0001-01-01'::date), COALESCE(ev.registrado_em, m."createdAt"), m."createdAt", (m.id)::text) < ROW(1, ('2025-03-24'::cstring)::date, ('2025-01-07T22:04:00.000Z'::cstring)::timestamp(3) without time zone, ('2025-01-07T22:04:00.000Z'::cstring)::timestamp(3) without time zone, 'perfempm9964'::text COLLATE "C"))
+                    Rows Removed by Filter: 5000
+                    Buffers: shared hit=809
+                    ->  Seq Scan on "MovimentacaoMapa" m  (cost=0.00..967.00 rows=10000 width=236) (actual time=0.008..4.539 rows=10000 loops=1)
+                          Filter: (((cliente_id)::text = 'perfcli'::text) AND ((empresa_id)::text = 'perfemp'::text))
+                          Rows Removed by Filter: 10000
+                          Buffers: shared hit=667
+                    ->  Hash  (cost=262.00..262.00 rows=4000 width=54) (actual time=2.881..2.883 rows=4000 loops=1)
+                          Buckets: 4096  Batches: 1  Memory Usage: 392kB
+                          Buffers: shared hit=142
+                          ->  Seq Scan on "EventoRebanho" ev  (cost=0.00..262.00 rows=4000 width=54) (actual time=0.006..1.697 rows=4000 loops=1)
+                                Filter: (((cliente_id)::text = 'perfcli'::text) AND ((empresa_id)::text = 'perfemp'::text))
+                                Rows Removed by Filter: 4000
+                                Buffers: shared hit=142
+Planning:
+  Buffers: shared hit=6
+Planning Time: 0.458 ms
+Execution Time: 58.032 ms
+
+### N=50000 — empresa inteira, 1ª página
+Limit  (cost=8913.08..8927.64 rows=101 width=349) (actual time=109.383..115.835 rows=101 loops=1)
+  Buffers: shared hit=5860
+  ->  Gather Merge  (cost=8913.08..14909.89 rows=41594 width=349) (actual time=109.381..115.817 rows=101 loops=1)
+        Workers Planned: 2
+        Workers Launched: 2
+        Buffers: shared hit=5860
+        ->  Result  (cost=7913.06..10148.73 rows=20797 width=349) (actual time=105.696..105.907 rows=80 loops=3)
+              Buffers: shared hit=5860
+              ->  Sort  (cost=7913.06..7965.05 rows=20797 width=321) (actual time=105.557..105.567 rows=80 loops=3)
+                    Sort Key: (CASE WHEN (COALESCE(ev.data_operacional, CASE WHEN (((m.dados ->> 'data_movimentacao'::text) ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}($|T)'::text) AND pg_input_is_valid("left"((m.dados ->> 'data_movimentacao'::text), 10), 'date'::text)) THEN ("left"((m.dados ->> 'data_movimentacao'::text), 10))::date ELSE NULL::date END) IS NULL) THEN 0 ELSE 1 END) DESC, (COALESCE(COALESCE(ev.data_operacional, CASE WHEN (((m.dados ->> 'data_movimentacao'::text) ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}($|T)'::text) AND pg_input_is_valid("left"((m.dados ->> 'data_movimentacao'::text), 10), 'date'::text)) THEN ("left"((m.dados ->> 'data_movimentacao'::text), 10))::date ELSE NULL::date END), '0001-01-01'::date)) DESC, (COALESCE(ev.registrado_em, m."createdAt")) DESC, m."createdAt" DESC, m.id COLLATE "C" DESC
+                    Sort Method: top-N heapsort  Memory: 121kB
+                    Buffers: shared hit=5860
+                    Worker 0:  Sort Method: top-N heapsort  Memory: 107kB
+                    Worker 1:  Sort Method: top-N heapsort  Memory: 113kB
+                    ->  Hash Left Join  (cost=1639.53..7116.72 rows=20797 width=321) (actual time=17.189..95.609 rows=16667 loops=3)
+                          Hash Cond: ((((m.dados -> 'efeito_servidor'::text) ->> 'evento_id'::text) = ev.id) AND (m.id = (ev.movimentacao_id)::text))
+                          Buffers: shared hit=5740
+                          ->  Parallel Seq Scan on "MovimentacaoMapa" m  (cost=0.00..3959.00 rows=20797 width=237) (actual time=0.014..10.615 rows=16667 loops=3)
+                                Filter: (((cliente_id)::text = 'perfcli'::text) AND ((empresa_id)::text = 'perfemp'::text))
+                                Rows Removed by Filter: 16667
+                                Buffers: shared hit=3334
+                          ->  Hash  (cost=1340.00..1340.00 rows=19969 width=56) (actual time=16.946..16.947 rows=20000 loops=3)
+                                Buckets: 32768  Batches: 1  Memory Usage: 2085kB
+                                Buffers: shared hit=2220
+                                ->  Seq Scan on "EventoRebanho" ev  (cost=0.00..1340.00 rows=19969 width=56) (actual time=0.035..9.798 rows=20000 loops=3)
+                                      Filter: (((cliente_id)::text = 'perfcli'::text) AND ((empresa_id)::text = 'perfemp'::text))
+                                      Rows Removed by Filter: 20000
+                                      Buffers: shared hit=2220
+Planning:
+  Buffers: shared hit=8
+Planning Time: 0.491 ms
+Execution Time: 115.977 ms
+
+### N=50000 — área (area-3), 1ª página
+Limit  (cost=7034.82..7045.68 rows=101 width=349) (actual time=88.151..88.369 rows=101 loops=1)
+  Buffers: shared hit=2448
+  ->  Result  (cost=7034.82..7114.91 rows=745 width=349) (actual time=88.149..88.360 rows=101 loops=1)
+        Buffers: shared hit=2448
+        ->  Sort  (cost=7034.82..7036.68 rows=745 width=321) (actual time=88.107..88.115 rows=101 loops=1)
+              Sort Key: (CASE WHEN (COALESCE(ev.data_operacional, CASE WHEN (((m.dados ->> 'data_movimentacao'::text) ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}($|T)'::text) AND pg_input_is_valid("left"((m.dados ->> 'data_movimentacao'::text), 10), 'date'::text)) THEN ("left"((m.dados ->> 'data_movimentacao'::text), 10))::date ELSE NULL::date END) IS NULL) THEN 0 ELSE 1 END) DESC, (COALESCE(COALESCE(ev.data_operacional, CASE WHEN (((m.dados ->> 'data_movimentacao'::text) ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}($|T)'::text) AND pg_input_is_valid("left"((m.dados ->> 'data_movimentacao'::text), 10), 'date'::text)) THEN ("left"((m.dados ->> 'data_movimentacao'::text), 10))::date ELSE NULL::date END), '0001-01-01'::date)) DESC, (COALESCE(ev.registrado_em, m."createdAt")) DESC, m."createdAt" DESC, m.id COLLATE "C" DESC
+              Sort Method: top-N heapsort  Memory: 112kB
+              Buffers: shared hit=2448
+              ->  Hash Right Join  (cost=5506.17..7006.29 rows=745 width=321) (actual time=22.134..80.854 rows=12500 loops=1)
+                    Hash Cond: ((ev.id = ((m.dados -> 'efeito_servidor'::text) ->> 'evento_id'::text)) AND ((ev.movimentacao_id)::text = m.id))
+                    Buffers: shared hit=2448
+                    ->  Seq Scan on "EventoRebanho" ev  (cost=0.00..1340.00 rows=19969 width=56) (actual time=0.020..6.630 rows=20000 loops=1)
+                          Filter: (((cliente_id)::text = 'perfcli'::text) AND ((empresa_id)::text = 'perfemp'::text))
+                          Rows Removed by Filter: 20000
+                          Buffers: shared hit=740
+                    ->  Hash  (cost=5495.00..5495.00 rows=745 width=237) (actual time=22.094..22.096 rows=12500 loops=1)
+                          Buckets: 16384 (originally 1024)  Batches: 1 (originally 1)  Memory Usage: 3487kB
+                          Buffers: shared hit=1708
+                          ->  Bitmap Heap Scan on "MovimentacaoMapa" m  (cost=663.61..5495.00 rows=745 width=237) (actual time=1.487..18.341 rows=12500 loops=1)
+                                Recheck Cond: (((cliente_id)::text = 'perfcli'::text) AND ((empresa_id)::text = 'perfemp'::text))
+                                Filter: (((dados ->> 'area_origem_id'::text) = 'area-3'::text) OR ((dados ->> 'area_destino_id'::text) = 'area-3'::text) OR ((dados ->> 'area_id'::text) = 'area-3'::text))
+                                Rows Removed by Filter: 37500
+                                Heap Blocks: exact=1667
+                                Buffers: shared hit=1708
+                                ->  Bitmap Index Scan on "MovimentacaoMapa_cliente_id_empresa_id_idx"  (cost=0.00..663.42 rows=49913 width=0) (actual time=1.271..1.271 rows=50000 loops=1)
+                                      Index Cond: (((cliente_id)::text = 'perfcli'::text) AND ((empresa_id)::text = 'perfemp'::text))
+                                      Buffers: shared hit=41
+Planning:
+  Buffers: shared hit=8
+Planning Time: 0.545 ms
+Execution Time: 88.457 ms
+
+### N=50000 — lotes [lote-7], 1ª página
+Limit  (cost=196940.37..196951.23 rows=101 width=349) (actual time=277.069..277.506 rows=101 loops=1)
+  Buffers: shared hit=2448
+  ->  Result  (cost=196940.37..201641.99 rows=43736 width=349) (actual time=233.162..233.587 rows=101 loops=1)
+        Buffers: shared hit=2448
+        ->  Sort  (cost=196940.37..197049.71 rows=43736 width=321) (actual time=233.071..233.089 rows=101 loops=1)
+              Sort Key: (CASE WHEN (COALESCE(ev.data_operacional, CASE WHEN (((m.dados ->> 'data_movimentacao'::text) ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}($|T)'::text) AND pg_input_is_valid("left"((m.dados ->> 'data_movimentacao'::text), 10), 'date'::text)) THEN ("left"((m.dados ->> 'data_movimentacao'::text), 10))::date ELSE NULL::date END) IS NULL) THEN 0 ELSE 1 END) DESC, (COALESCE(COALESCE(ev.data_operacional, CASE WHEN (((m.dados ->> 'data_movimentacao'::text) ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}($|T)'::text) AND pg_input_is_valid("left"((m.dados ->> 'data_movimentacao'::text), 10), 'date'::text)) THEN ("left"((m.dados ->> 'data_movimentacao'::text), 10))::date ELSE NULL::date END), '0001-01-01'::date)) DESC, (COALESCE(ev.registrado_em, m."createdAt")) DESC, m."createdAt" DESC, m.id COLLATE "C" DESC
+              Sort Method: top-N heapsort  Memory: 113kB
+              Buffers: shared hit=2448
+              ->  Hash Left Join  (cost=2313.89..195265.67 rows=43736 width=321) (actual time=16.851..229.613 rows=1250 loops=1)
+                    Hash Cond: ((((m.dados -> 'efeito_servidor'::text) ->> 'evento_id'::text) = ev.id) AND (m.id = (ev.movimentacao_id)::text))
+                    Buffers: shared hit=2448
+                    ->  Bitmap Heap Scan on "MovimentacaoMapa" m  (cost=674.36..190433.41 rows=43736 width=237) (actual time=1.529..198.985 rows=1250 loops=1)
+                          Recheck Cond: (((cliente_id)::text = 'perfcli'::text) AND ((empresa_id)::text = 'perfemp'::text))
+                          Filter: (((dados ->> 'lote_id'::text) = ANY ('{lote-7}'::text[])) OR ((dados ->> 'lote_destino_id'::text) = ANY ('{lote-7}'::text[])) OR (SubPlan 1) OR (SubPlan 2) OR (SubPlan 3) OR ((COALESCE((dados ->> 'lote_id'::text), ''::text) = ''::text) AND (lower(btrim((dados ->> 'lote'::text))) = ANY ('{}'::text[]))))
+                          Rows Removed by Filter: 48750
+                          Heap Blocks: exact=1667
+                          Buffers: shared hit=1708
+                          ->  Bitmap Index Scan on "MovimentacaoMapa_cliente_id_empresa_id_idx"  (cost=0.00..663.42 rows=49913 width=0) (actual time=1.232..1.233 rows=50000 loops=1)
+                                Index Cond: (((cliente_id)::text = 'perfcli'::text) AND ((empresa_id)::text = 'perfemp'::text))
+                                Buffers: shared hit=41
+                          SubPlan 1
+                            ->  Function Scan on jsonb_array_elements_text vli  (cost=0.01..1.14 rows=1 width=0) (actual time=0.001..0.001 rows=0 loops=48750)
+                                  Filter: (id = ANY ('{lote-7}'::text[]))
+                          SubPlan 2
+                            ->  Function Scan on jsonb_array_elements vef  (cost=0.02..1.39 rows=1 width=0) (actual time=0.001..0.001 rows=0 loops=48750)
+                                  Filter: ((val ->> 'lote_id'::text) = ANY ('{lote-7}'::text[]))
+                          SubPlan 3
+                            ->  Nested Loop  (cost=0.03..114.53 rows=100 width=0) (actual time=0.001..0.001 rows=0 loops=48750)
+                                  ->  Function Scan on jsonb_array_elements vln  (cost=0.01..1.01 rows=100 width=32) (actual time=0.001..0.001 rows=0 loops=48750)
+                                  ->  Function Scan on jsonb_array_elements_text vma  (cost=0.01..1.14 rows=1 width=0) (never executed)
+                                        Filter: (id = ANY ('{lote-7}'::text[]))
+                    ->  Hash  (cost=1340.00..1340.00 rows=19969 width=56) (actual time=15.177..15.178 rows=20000 loops=1)
+                          Buckets: 32768  Batches: 1  Memory Usage: 2085kB
+                          Buffers: shared hit=740
+                          ->  Seq Scan on "EventoRebanho" ev  (cost=0.00..1340.00 rows=19969 width=56) (actual time=0.032..8.488 rows=20000 loops=1)
+                                Filter: (((cliente_id)::text = 'perfcli'::text) AND ((empresa_id)::text = 'perfemp'::text))
+                                Rows Removed by Filter: 20000
+                                Buffers: shared hit=740
+Planning:
+  Buffers: shared hit=8
+Planning Time: 0.828 ms
+JIT:
+  Functions: 42
+  Options: Inlining false, Optimization false, Expressions true, Deforming true
+  Timing: Generation 2.721 ms, Inlining 0.000 ms, Optimization 1.467 ms, Emission 42.544 ms, Total 46.731 ms
+Execution Time: 280.513 ms
+
+### N=50000 — empresa inteira, página do meio (cursor)
+Limit  (cost=7446.29..7460.85 rows=101 width=349) (actual time=141.505..149.441 rows=101 loops=1)
+  Buffers: shared hit=5800
+  ->  Gather Merge  (cost=7446.29..9445.13 rows=13864 width=349) (actual time=141.503..149.429 rows=101 loops=1)
+        Workers Planned: 2
+        Workers Launched: 2
+        Buffers: shared hit=5800
+        ->  Result  (cost=6446.26..7191.45 rows=6932 width=349) (actual time=123.925..124.140 rows=76 loops=3)
+              Buffers: shared hit=5800
+              ->  Sort  (cost=6446.26..6463.59 rows=6932 width=321) (actual time=123.810..123.827 rows=76 loops=3)
+                    Sort Key: (CASE WHEN (COALESCE(ev.data_operacional, CASE WHEN (((m.dados ->> 'data_movimentacao'::text) ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}($|T)'::text) AND pg_input_is_valid("left"((m.dados ->> 'data_movimentacao'::text), 10), 'date'::text)) THEN ("left"((m.dados ->> 'data_movimentacao'::text), 10))::date ELSE NULL::date END) IS NULL) THEN 0 ELSE 1 END) DESC, (COALESCE(COALESCE(ev.data_operacional, CASE WHEN (((m.dados ->> 'data_movimentacao'::text) ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}($|T)'::text) AND pg_input_is_valid("left"((m.dados ->> 'data_movimentacao'::text), 10), 'date'::text)) THEN ("left"((m.dados ->> 'data_movimentacao'::text), 10))::date ELSE NULL::date END), '0001-01-01'::date)) DESC, (COALESCE(ev.registrado_em, m."createdAt")) DESC, m."createdAt" DESC, m.id COLLATE "C" DESC
+                    Sort Method: top-N heapsort  Memory: 114kB
+                    Buffers: shared hit=5800
+                    Worker 0:  Sort Method: top-N heapsort  Memory: 108kB
+                    Worker 1:  Sort Method: top-N heapsort  Memory: 106kB
+                    ->  Hash Left Join  (cost=1639.53..6180.83 rows=6932 width=321) (actual time=18.763..117.584 rows=8333 loops=3)
+                          Hash Cond: ((((m.dados -> 'efeito_servidor'::text) ->> 'evento_id'::text) = ev.id) AND (m.id = (ev.movimentacao_id)::text))
+                          Filter: (ROW(CASE WHEN (COALESCE(ev.data_operacional, CASE WHEN (((m.dados ->> 'data_movimentacao'::text) ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}($|T)'::text) AND pg_input_is_valid("left"((m.dados ->> 'data_movimentacao'::text), 10), 'date'::text)) THEN ("left"((m.dados ->> 'data_movimentacao'::text), 10))::date ELSE NULL::date END) IS NULL) THEN 0 ELSE 1 END, COALESCE(COALESCE(ev.data_operacional, CASE WHEN (((m.dados ->> 'data_movimentacao'::text) ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}($|T)'::text) AND pg_input_is_valid("left"((m.dados ->> 'data_movimentacao'::text), 10), 'date'::text)) THEN ("left"((m.dados ->> 'data_movimentacao'::text), 10))::date ELSE NULL::date END), '0001-01-01'::date), COALESCE(ev.registrado_em, m."createdAt"), m."createdAt", (m.id)::text) < ROW(1, ('2025-03-25'::cstring)::date, ('2025-02-01T17:47:00.000Z'::cstring)::timestamp(3) without time zone, ('2025-02-01T17:47:00.000Z'::cstring)::timestamp(3) without time zone, 'perfempm45707'::text COLLATE "C"))
+                          Rows Removed by Filter: 8333
+                          Buffers: shared hit=5740
+                          ->  Parallel Seq Scan on "MovimentacaoMapa" m  (cost=0.00..3959.00 rows=20797 width=237) (actual time=0.025..10.458 rows=16667 loops=3)
+                                Filter: (((cliente_id)::text = 'perfcli'::text) AND ((empresa_id)::text = 'perfemp'::text))
+                                Rows Removed by Filter: 16667
+                                Buffers: shared hit=3334
+                          ->  Hash  (cost=1340.00..1340.00 rows=19969 width=56) (actual time=18.328..18.329 rows=20000 loops=3)
+                                Buckets: 32768  Batches: 1  Memory Usage: 2085kB
+                                Buffers: shared hit=2220
+                                ->  Seq Scan on "EventoRebanho" ev  (cost=0.00..1340.00 rows=19969 width=56) (actual time=0.032..10.589 rows=20000 loops=3)
+                                      Filter: (((cliente_id)::text = 'perfcli'::text) AND ((empresa_id)::text = 'perfemp'::text))
+                                      Rows Removed by Filter: 20000
+                                      Buffers: shared hit=2220
+Planning:
+  Buffers: shared hit=8
+Planning Time: 0.551 ms
+Execution Time: 149.561 ms

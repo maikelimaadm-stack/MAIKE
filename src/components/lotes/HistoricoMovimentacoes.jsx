@@ -20,11 +20,14 @@ import { nomeDaAreaDoMovimento } from "@/domain/lotes/movimentacaoLote";
 import {
   ESCOPO_AREA,
   ESCOPO_LOTES,
+  chaveDeRegistro,
+  chaveDoMovimento,
   entradasNaArea,
   filtrarMovimentacoes,
   filtrarRegistrosDeLote,
   fluxoNaArea,
   ordenarItensDoHistorico,
+  recortarPelaFronteira,
 } from "@/domain/lotes/historicoMovimentacoes";
 import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 
@@ -114,7 +117,19 @@ const formatDateTime = (iso) => {
   return d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 };
 
-const movimentoComoItem = (mov, areasRaw) => ({
+/** Cursor recusado pelo servidor (v1, adulterado, de outra consulta): recomeçar do início — D-PROD-123. */
+const CODIGO_CURSOR_INVALIDO = 'HISTORICO_CURSOR_INVALIDO';
+const codigoDoServidor = (erro) => (typeof erro?.cause?.code === 'string' ? erro.cause.code : null);
+
+/** "Ocorrência" do card: o dia do fato, ou a ausência dita com todas as letras. */
+const textoDaOcorrencia = (dia) => (dia ? formatDateOnly(dia) : 'Data da ocorrência não informada');
+
+const movimentoComoItem = (mov, areasRaw) => {
+  const ordem = chaveDoMovimento(mov);
+  return {
+  ordem,
+  ocorrencia: ordem.oc,
+  registrado_em: ordem.reg,
   uniqueId: `mov-${mov.id}`,
   source: 'movimentacao',
   sourceLabel: 'Movimentação',
@@ -139,7 +154,8 @@ const movimentoComoItem = (mov, areasRaw) => ({
   participantes: idsDeLotesDoMovimento(mov),
   matrizes: idsDeMatrizesDoMovimento(mov),
   raw: mov,
-});
+  };
+};
 
 export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], areaId }) {
   // Tenant-aware (D-PROD-25): descarta seleção salva de outro tenant.
@@ -287,12 +303,24 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
   const lotesExcluidos = lotesExcluidosQuery.data ?? new Set();
 
   const registros = registrosQuery.data;
+  const haMaisPaginas = !!movimentacoesQuery.hasNextPage;
+
+  // Cursor recusado (v1 de antes do H2, adulterado, de outra consulta): o
+  // servidor responde 400 HISTORICO_CURSOR_INVALIDO; só nesse código o
+  // histórico recomeça da primeira página. Qualquer outra falha fica visível.
+  const reiniciadoPorCursor = React.useRef(false);
+  React.useEffect(() => {
+    if (!movimentacoesQuery.isFetchNextPageError) return;
+    if (codigoDoServidor(movimentacoesQuery.error) !== CODIGO_CURSOR_INVALIDO || reiniciadoPorCursor.current) return;
+    reiniciadoPorCursor.current = true;
+    queryClient.resetQueries({ queryKey: ['historico-movimentacoes'] });
+  }, [movimentacoesQuery.isFetchNextPageError, movimentacoesQuery.error, queryClient]);
   const areasRaw = registros?.areas ?? [];
   const areaNome = areaId ? areasRaw.find((a) => a.id === areaId)?.nome || lotesEmFoco[0]?.area_atual_nome || '' : '';
 
   const historico = React.useMemo(() => {
     const movimentacoes = movimentacoesCarregadas.map((mov) => movimentoComoItem(mov, areasRaw));
-    if (!registros) return ordenarItensDoHistorico(movimentacoes);
+    if (!registros) return { itens: ordenarItensDoHistorico(movimentacoes), adiados: 0, outrasFontes: 0 };
 
     const entradas = escopoEfetivo === ESCOPO_AREA ? entradasNaArea(movimentacoesCarregadas, contexto) : undefined;
     const eventosPorId = new Map((registros.eventosSuplementacao || []).map((e) => [e.id, e]));
@@ -302,6 +330,10 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
       return evento.area_id === areaId || (Array.isArray(evento.area_ids) && evento.area_ids.includes(areaId));
     };
     const comoLegado = (vinculo) => vinculo === 'nome';
+    const comOrdem = (dataDoFato, criadoEm, id) => {
+      const ordem = chaveDeRegistro(dataDoFato, criadoEm, id);
+      return { ordem, ocorrencia: ordem.oc, registrado_em: ordem.reg };
+    };
 
     const suplementacoes = filtrarRegistrosDeLote({
       registros: registros.suplementacoes,
@@ -313,6 +345,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
       entradas,
     }).map(({ registro: item, vinculo }) => ({
       uniqueId: `supl-${item.id}`,
+      ...comOrdem(item.data_lancamento, item.created_date, `supl-${item.id}`),
       source: 'suplementacao',
       sourceLabel: 'Nutrição',
       lote: item.lote_nome,
@@ -336,6 +369,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
       entradas,
     }).map(({ registro: item, vinculo }) => ({
       uniqueId: `med-${item.id}`,
+      ...comOrdem(item.data_aplicacao, item.created_date, `med-${item.id}`),
       source: 'medicamento',
       sourceLabel: 'Medicamento',
       lote: item.lote_nome,
@@ -359,6 +393,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
       entradas,
     }).map(({ registro: item, vinculo }) => ({
       uniqueId: `san-${item.id}`,
+      ...comOrdem(item.data_evento, item.created_date, `san-${item.id}`),
       source: 'sanidade',
       sourceLabel: 'Sanidade',
       lote: item.lote,
@@ -381,6 +416,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
       entradas,
     }).map(({ registro: item, vinculo }) => ({
       uniqueId: `mt-${item.id}`,
+      ...comOrdem(item.data_evento, item.created_date, `mt-${item.id}`),
       source: 'manejo_tecnico',
       sourceLabel: 'Manejo Técnico',
       lote: item.nome_lote,
@@ -395,10 +431,16 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
       canEdit: false,
     }));
 
-    return ordenarItensDoHistorico([...movimentacoes, ...suplementacoes, ...medicamentos, ...sanidades, ...manejosTecnicos]);
-  }, [movimentacoesCarregadas, registros, areasRaw, contexto, escopoEfetivo, areaId]);
+    // Outras fontes vêm do cache do aparelho (sem endpoint agregado): entram na
+    // mesma ordem, mas só até o último movimento carregado enquanto houver páginas.
+    const outras = [...suplementacoes, ...medicamentos, ...sanidades, ...manejosTecnicos];
+    const ordenadasMovs = ordenarItensDoHistorico(movimentacoes);
+    const fronteira = haMaisPaginas && ordenadasMovs.length ? ordenadasMovs[ordenadasMovs.length - 1].ordem : null;
+    const { visiveis, adiados } = recortarPelaFronteira(outras, fronteira);
+    return { itens: ordenarItensDoHistorico([...movimentacoes, ...visiveis]), adiados, outrasFontes: outras.length };
+  }, [movimentacoesCarregadas, registros, areasRaw, contexto, escopoEfetivo, areaId, haMaisPaginas]);
 
-  const historicoVisivel = historico;
+  const historicoVisivel = historico.itens;
 
   const totalServidor = origem === 'servidor' ? primeiraPagina?.total ?? null : null;
   const carregando = consultaHabilitada && (movimentacoesQuery.isPending || (registrosQuery.isPending && !!empresaSelecionadaId));
@@ -472,13 +514,23 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
       {primeiraPagina?.falha
         ? `Não foi possível consultar o servidor (${primeiraPagina.falha}). `
         : 'Sem conexão. '}
-      Exibindo movimentações salvas neste aparelho
-      {formatDateTime(primeiraPagina?.atualizadoEm) ? ` em ${formatDateTime(primeiraPagina.atualizadoEm)}` : ''}; podem estar
-      desatualizadas
+      <strong>Histórico offline parcial</strong>: {movimentacoesCarregadas.length} movimentaç{movimentacoesCarregadas.length === 1 ? 'ão salva' : 'ões salvas'} neste aparelho
+      {formatDateTime(primeiraPagina?.atualizadoEm) ? `, atualizado em ${formatDateTime(primeiraPagina.atualizadoEm)}` : ', sem data de atualização'}
+      , na mesma ordem por ocorrência do servidor; podem estar desatualizadas
       {primeiraPagina?.brutos >= LIMITE_CACHE_MOVIMENTACOES
         ? ` e limitadas às ${LIMITE_CACHE_MOVIMENTACOES} mais recentes da conta`
         : ''}
       . A lista será atualizada quando a conexão voltar.
+    </div>
+  );
+
+  const avisoDeCobertura = historico.outrasFontes > 0 && (
+    <div role="note" data-testid="aviso-cobertura" className="mx-2 mt-2 rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5 text-[11px] text-slate-600">
+      Nutrição, medicamentos, sanidade e manejo técnico vêm dos registros salvos neste aparelho e são ordenados junto com as
+      movimentações carregadas.
+      {historico.adiados > 0
+        ? ` ${historico.adiados} registro${historico.adiados === 1 ? '' : 's'} mais antigo${historico.adiados === 1 ? '' : 's'} aparece${historico.adiados === 1 ? '' : 'm'} ao carregar mais movimentações.`
+        : ''}
     </div>
   );
 
@@ -532,6 +584,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
       <Moldura>
         {cabecalho(historicoVisivel.length)}
         {avisoDeOrigem}
+        {avisoDeCobertura}
         <Corpo className="p-2">
           <div className={noDialogo ? "mk-hist__lista" : "max-h-[500px] overflow-y-auto space-y-2"}>
             {historicoVisivel.map((item) => {
@@ -545,7 +598,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
                     <div className="flex-1 min-w-0 space-y-1">
                       <div className="flex flex-wrap items-center gap-1">
                         <span className="inline-flex items-center rounded-md border px-2.5 py-0.5 font-semibold text-[10px] text-slate-700 border-slate-300 bg-white">
-                          {formatDateOnly(item.data_evento)}
+                          {item.ocorrencia ? formatDateOnly(item.ocorrencia) : 'Sem data'}
                         </span>
                         <Badge variant="outline" className="text-[10px] text-slate-700 border-slate-300 bg-white">
                           {tipoExibicao}
@@ -569,7 +622,8 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
 
                       <div className="space-y-0.5 text-[10px] text-slate-600">
                         {!!item.quantidade && <div><strong>Quantidade:</strong> {item.quantidade} cab</div>}
-                        <div><strong>Data:</strong> {formatDateOnly(item.data_evento)}</div>
+                        <div data-testid="ocorrencia"><strong>Ocorrência:</strong> {textoDaOcorrencia(item.ocorrencia)}</div>
+                        <div data-testid="registrado-em"><strong>Registrado em:</strong> {formatDateTime(item.registrado_em) || 'não informado'}</div>
                         {item.tipo === 'Transferência de Área' && (
                           <div><strong>Trajeto:</strong> {item.area_origem_nome || '-'} → {item.area_destino_nome || '-'}</div>
                         )}

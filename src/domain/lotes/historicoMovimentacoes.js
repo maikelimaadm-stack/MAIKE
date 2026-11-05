@@ -14,6 +14,10 @@
  * Vínculo de lote: registro com `lote_id` casa SÓ pelo id — homônimo nunca
  * mistura. Registro sem `lote_id` (legado) casa pelo nome, e o item sai
  * marcado `vinculo: 'nome'` para a tela dizer que o vínculo é inferido.
+ *
+ * ORDEM (D-PROD-123, H2): cronológica por OCORRÊNCIA do fato, a mesma do
+ * servidor — (tem_ocorrencia, ocorrência, registrado, criado, id), tudo DESC;
+ * ocorrência ausente/inválida = "não informada", no fim, nunca data inventada.
  */
 
 import { idsDeLotesDoMovimento, idsDeMatrizesDoMovimento } from './manejoRebanho.js';
@@ -34,6 +38,79 @@ const norm = (valor) =>
     .toUpperCase()
     .trim();
 const temTexto = (valor) => typeof valor === 'string' && valor.trim() !== '';
+
+/**
+ * Dia LITERAL de um campo de data (sem conversão de fuso): 'YYYY-MM-DD' ou
+ * 'YYYY-MM-DDT…' com data de calendário válida → 'YYYY-MM-DD'; senão null.
+ * Paridade com o SQL do servidor (`DIA_LEGADO`, `pg_input_is_valid`).
+ * @param {unknown} valor
+ * @returns {string|null}
+ */
+export const diaLiteral = (valor) => {
+  if (typeof valor !== 'string' || !/^\d{4}-\d{2}-\d{2}($|T)/.test(valor)) return null;
+  const dia = valor.slice(0, 10);
+  if (dia.slice(0, 4) === '0000') return null;
+  const d = new Date(`${dia}T00:00:00.000Z`);
+  return Number.isFinite(d.getTime()) && d.toISOString().slice(0, 10) === dia ? dia : null;
+};
+
+const isoOuNulo = (valor) => {
+  const t = new Date(valor ?? '').getTime();
+  return Number.isFinite(t) && valor ? new Date(t).toISOString() : null;
+};
+
+/**
+ * @typedef {{ oc: string|null, reg: string|null, criado: string|null, id: string }} ChaveDeOrdem
+ */
+
+/**
+ * Chave de ordem de um MOVIMENTO. Vindo do servidor (H2), usa as datas que
+ * ele calculou (`historico_ocorrencia`, `historico_registrado_em`). Vindo do
+ * cache do aparelho (offline), aplica a mesma semântica sobre o documento:
+ * ocorrência = dia literal de `data_movimentacao` (no ledger é o mesmo dia
+ * gravado em `data_operacional`); registro = `efeito_servidor.registrado_em`
+ * ou `created_date`.
+ * @param {any} mov
+ * @returns {ChaveDeOrdem}
+ */
+export const chaveDoMovimento = (mov) => {
+  const criado = isoOuNulo(mov?.created_date);
+  if (mov && Object.prototype.hasOwnProperty.call(mov, 'historico_ocorrencia')) {
+    return { oc: diaLiteral(mov.historico_ocorrencia), reg: isoOuNulo(mov.historico_registrado_em) ?? criado, criado, id: String(mov.id ?? '') };
+  }
+  return {
+    oc: diaLiteral(mov?.data_movimentacao),
+    reg: isoOuNulo(mov?.efeito_servidor?.registrado_em) ?? criado,
+    criado,
+    id: String(mov?.id ?? ''),
+  };
+};
+
+/**
+ * Chave de ordem de um registro de OUTRA fonte (nutrição, medicamento,
+ * sanidade, manejo técnico): ocorrência = dia literal da data do fato.
+ * @param {unknown} dataDoFato @param {unknown} criadoEm @param {string} id
+ * @returns {ChaveDeOrdem}
+ */
+export const chaveDeRegistro = (dataDoFato, criadoEm, id) => {
+  const criado = isoOuNulo(criadoEm);
+  return { oc: diaLiteral(dataDoFato), reg: criado, criado, id: String(id ?? '') };
+};
+
+const ms = (iso) => (iso ? Date.parse(iso) : -Infinity);
+/**
+ * Comparador DESC da tupla H2. `id` em ordem binária (= `COLLATE "C"` do servidor).
+ * @param {ChaveDeOrdem} a @param {ChaveDeOrdem} b
+ */
+export const compararChavesDesc = (a, b) => {
+  const ta = a.oc ? 1 : 0;
+  const tb = b.oc ? 1 : 0;
+  if (ta !== tb) return tb - ta;
+  if (a.oc !== b.oc) return /** @type {string} */ (a.oc) < /** @type {string} */ (b.oc) ? 1 : -1;
+  if (ms(a.reg) !== ms(b.reg)) return ms(b.reg) - ms(a.reg);
+  if (ms(a.criado) !== ms(b.criado)) return ms(b.criado) - ms(a.criado);
+  return a.id < b.id ? 1 : a.id > b.id ? -1 : 0;
+};
 
 /**
  * @typedef {object} ContextoHistorico
@@ -86,7 +163,7 @@ export const filtrarMovimentacoes = (movimentacoes, contexto) =>
         ? movimentoTocaArea(mov, contexto.areaId)
         : vinculoDoMovimento(mov, contexto.lotes) !== null
     )
-    .sort((a, b) => tempo(b.created_date) - tempo(a.created_date) || String(b.id).localeCompare(String(a.id)));
+    .sort((a, b) => compararChavesDesc(chaveDoMovimento(a), chaveDoMovimento(b)));
 
 /**
  * Quando cada lote em foco entrou na área (para registros SEM área). Fonte:
@@ -170,6 +247,25 @@ export const filtrarRegistrosDeLote = ({ registros, loteId, loteNome, criadoEm, 
   return saida;
 };
 
-/** Ordem de exibição = ordem de registro (a mesma da paginação do servidor). */
-export const ordenarItensDoHistorico = (itens) =>
-  [...itens].sort((a, b) => tempo(b.created_at) - tempo(a.created_at) || tempo(b.data_evento) - tempo(a.data_evento));
+/**
+ * Ordem de exibição = ordem por ocorrência (H2), a mesma da paginação do
+ * servidor. Cada item traz `ordem` (`ChaveDeOrdem`); para movimentos vindos do
+ * servidor isso só reproduz a ordem global das páginas, nunca a reinventa.
+ * @param {Array<{ ordem: ChaveDeOrdem }>} itens
+ */
+export const ordenarItensDoHistorico = (itens) => [...itens].sort((a, b) => compararChavesDesc(a.ordem, b.ordem));
+
+/**
+ * Cobertura das OUTRAS fontes enquanto há páginas de movimentos por carregar:
+ * registro mais antigo que o último movimento carregado ficaria fora de lugar
+ * (um movimento ainda não carregado pode vir antes dele). Ele espera a próxima
+ * página — a lista exibida é sempre um prefixo correto da ordem global.
+ * @template {{ ordem: ChaveDeOrdem }} T
+ * @param {T[]} outros @param {ChaveDeOrdem|null} fronteira chave do último movimento carregado; null = sem mais páginas
+ * @returns {{ visiveis: T[], adiados: number }}
+ */
+export const recortarPelaFronteira = (outros, fronteira) => {
+  if (!fronteira) return { visiveis: outros, adiados: 0 };
+  const visiveis = outros.filter((item) => compararChavesDesc(item.ordem, fronteira) <= 0);
+  return { visiveis, adiados: outros.length - visiveis.length };
+};
