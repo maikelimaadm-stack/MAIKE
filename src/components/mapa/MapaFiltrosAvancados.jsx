@@ -2,10 +2,10 @@ import React from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
+import ToggleSwitch from "@/components/common/ToggleSwitch";
 
 // Cores por tipo de cultura
 export const CORES_TIPO_CULTURA = {
@@ -127,12 +127,12 @@ export default function MapaFiltrosAvancados({
   setores = [],
   sistemasProdutivos = [],
   permissions = null,
-  mostrarVisualizacao = true
+  mostrarCores = true
 }) {
 
-  // Camadas e "Demarcar áreas por" vivem no painel Visualização (D-PROD-132);
-  // `mostrarVisualizacao` mantém o painel completo onde ainda for usado.
-  const availableLayers = mostrarVisualizacao ? camadasDoMapa({ showAreas, setShowAreas, showPontos, setShowPontos, showLinhas, setShowLinhas, showLotes, setShowLotes, showTarefas, setShowTarefas, showCochos, setShowCochos, showDepositos, setShowDepositos, showAlertas, setShowAlertas, showUserLocation, setShowUserLocation, showNomesAreas, setShowNomesAreas, showHectaresAreas, setShowHectaresAreas, permissions }) : [];
+  // D-PROD-132: "mostrar ou não" (camadas) fica nos Filtros; o "Demarcar áreas
+  // por" (cores) vai para o painel Visualização quando `mostrarCores` é false.
+  const availableLayers = camadasDoMapa({ showAreas, setShowAreas, showPontos, setShowPontos, showLinhas, setShowLinhas, showLotes, setShowLotes, showTarefas, setShowTarefas, showCochos, setShowCochos, showDepositos, setShowDepositos, showAlertas, setShowAlertas, showUserLocation, setShowUserLocation, showNomesAreas, setShowNomesAreas, showHectaresAreas, setShowHectaresAreas, permissions });
 
   return (
     <div className="rounded space-y-1">
@@ -141,16 +141,14 @@ export default function MapaFiltrosAvancados({
       <>
           <div className="space-y-0 px-1">
             <div className="space-y-0 px-1">
-              <span className="text-xs font-bold text-slate-800 uppercase">Camadas</span>
+              <span className="text-xs font-bold text-slate-800 uppercase">Mostrar no mapa</span>
             </div>
             <div className="space-y-0">
               {availableLayers.map((item) =>
-            <label key={item.label} className="flex items-center justify-between cursor-pointer hover:bg-slate-50 px-2 py-1.5 rounded-lg">
-                  <div className="flex items-center gap-2">
-                    <div className="bg-green-600 text-zinc-50 rounded-full w-2.5 h-2.5" />
-                    <span className="text-xs font-medium text-slate-700">{item.label}</span>
-                  </div>
-                  <Switch checked={item.checked} onCheckedChange={item.onChange} className="scale-75" />
+            <label key={item.label} className="flex items-center justify-between gap-3 cursor-pointer hover:bg-slate-50 px-2 py-1.5 rounded-lg">
+                  <span className="text-xs font-medium text-slate-700">{item.label}</span>
+                  {/* D-PROD-132: mesma chave liga/desliga dos cadastros e lançamentos */}
+                  <ToggleSwitch checked={item.checked} onChange={() => item.onChange()} ariaLabel={item.label} />
                 </label>
             )}
             </div>
@@ -160,7 +158,7 @@ export default function MapaFiltrosAvancados({
       }
 
       {/* ─── Modo de Coloração das Áreas ─── */}
-      {mostrarVisualizacao && permissions?.visualizar_areas !== false &&
+      {mostrarCores && permissions?.visualizar_areas !== false &&
       <div>
           <div className="mb-3">
             <span className="text-xs font-bold text-slate-800 uppercase">DEMARCAR ÁREAS POR</span>
@@ -203,7 +201,7 @@ export default function MapaFiltrosAvancados({
         </div>
       }
 
-      {mostrarVisualizacao && permissions?.visualizar_areas !== false && <Separator />}
+      {mostrarCores && permissions?.visualizar_areas !== false && <Separator />}
 
       {/* ─── Filtros de Áreas ─── */}
       {permissions?.visualizar_areas !== false &&

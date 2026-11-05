@@ -39,10 +39,14 @@ describe("Shell e controles (D-PROD-132)", () => {
     expect(screen.queryByRole("dialog", { name: "Visualização" })).toBeNull();
   });
 
-  it("Filtros não repete as camadas nem o 'Demarcar áreas por'", () => {
+  it("Filtros fica com o mostrar ou não; Visualização fica com tipo de mapa, estilo e cores", () => {
     const mg = readFileSync("src/pages/MapaGeral.jsx", "utf8");
-    expect(mg).toMatch(/mostrarVisualizacao=\{false\}/);
+    expect(mg).toMatch(/mostrarCores=\{false\}/);
     expect(mg).toMatch(/<MapaVisualizacao/);
+    expect(mg).not.toMatch(/camadas=\{/);
+    const filtros = readFileSync("src/components/mapa/MapaFiltrosAvancados.jsx", "utf8");
+    expect(filtros).toMatch(/const availableLayers = camadasDoMapa\(/);
+    expect(filtros).toContain(">Mostrar no mapa</span>");
   });
 });
 

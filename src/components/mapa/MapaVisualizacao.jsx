@@ -49,8 +49,8 @@ function MiniEstilo({ estilo }) {
 /**
  * Painel "Visualização" do Mapa Geral (D-PROD-132): como o mapa é desenhado,
  * em controles discretos — tipo de mapa e estilo dos pastos em escolhas
- * segmentadas, "colorir pastos por" em lista curta e "mostrar no mapa" em
- * linhas com chave liga/desliga. Os Filtros ficam só com o que filtra os dados.
+ * segmentadas e "colorir pastos por" em fichas pequenas. O "mostrar ou não"
+ * (camadas) fica no botão Filtros; `camadas` aqui é opcional.
  *
  * @param {{
  *   mapType: string, setMapType: (t: string) => void,
@@ -119,7 +119,10 @@ export default function MapaVisualizacao({ mapType, setMapType, estiloPasto, set
                   <button type="button" role="switch" aria-checked={c.checked} className="mk-vis__linha" onClick={c.onChange}>
                     <Icone size={16} aria-hidden className="mk-vis__linha-ic" />
                     <span className="mk-vis__linha-txt">{ui.label}</span>
-                    <span className="mk-vis__chave" aria-hidden />
+                    {/* mesma chave liga/desliga dos cadastros e lançamentos (ToggleSwitch) */}
+                    <span className={`mk-ios-switch${c.checked ? " is-on" : ""}`} aria-hidden>
+                      <span className="mk-ios-switch__thumb" />
+                    </span>
                   </button>
                 </li>
               );

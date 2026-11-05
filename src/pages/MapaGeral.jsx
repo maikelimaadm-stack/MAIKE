@@ -26,7 +26,7 @@ import MapaInsights from "../components/mapa/MapaInsights";
 import MapaControlesMobile from "../components/mapa/MapaControlesMobile";
 import MapaFiltrosAvancados, {
   CORES_TIPO_CULTURA, CORES_APROVEITAMENTO, CORES_OCUPACAO, CORES_CATEGORIA_GADO,
-  CORES_UA_HA, CORES_SITUACAO_PASTO, camadasDoMapa } from
+  CORES_UA_HA, CORES_SITUACAO_PASTO } from
 "../components/mapa/MapaFiltrosAvancados";
 import MapaVisualizacao from "../components/mapa/MapaVisualizacao";
 import MapaLegenda from "../components/mapa/MapaLegenda";
@@ -1049,13 +1049,7 @@ export default function MapaGeral() {
             mapType={mapTypeEfetivo} setMapType={setMapType}
             estiloPasto={estiloPasto} setEstiloPasto={setEstiloPasto}
             modoColoracao={modoColoracao} setModoColoracao={setModoColoracao}
-            podeColorir={mapaGeralPermissions.visualizar_filtros_camadas !== false && mapaGeralPermissions.visualizar_areas !== false}
-            camadas={mapaGeralPermissions.visualizar_filtros_camadas === false ? [] : camadasDoMapa({
-              showAreas, setShowAreas, showPontos, setShowPontos, showLinhas, setShowLinhas, showLotes, setShowLotes,
-              showTarefas: showTaskIcons, setShowTarefas: setShowTaskIcons, showCochos, setShowCochos, showDepositos, setShowDepositos,
-              showAlertas, setShowAlertas, showUserLocation, setShowUserLocation, showNomesAreas, setShowNomesAreas,
-              showHectaresAreas, setShowHectaresAreas, permissions: mapaGeralPermissions
-            })} />
+            podeColorir={mapaGeralPermissions.visualizar_filtros_camadas !== false && mapaGeralPermissions.visualizar_areas !== false} />
           } />
 
 
@@ -1138,7 +1132,7 @@ export default function MapaGeral() {
               setores={setores}
               sistemasProdutivos={sistemasProdutivos}
               permissions={mapaGeralPermissions}
-              mostrarVisualizacao={false} />
+              mostrarCores={false} />
 
           </div>
         </SheetContent>

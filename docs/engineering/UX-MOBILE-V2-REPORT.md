@@ -343,7 +343,7 @@ O novo visual dos botões do Mapa Geral (D-PROD-131: painel Visualização, sem 
 |---|---|---|
 | Voltar o visual dos botões do mapa (sem o ✕, estilos Cheio, Suave e Contorno, tela de entrada) | Código do #197 de volta, sem o menu lateral e sem o botão de fazenda | v22-01, v22-04 |
 | Não tão grande nem colorido | Escolhas segmentadas em cinza, fichas pequenas, painel de 288 px e botões de 40 px | v22-02, v22-03 |
-| "Mostrar no mapa" como ativo ou inativo | Lista com uma chave liga/desliga por camada | v22-02, v22-03 |
+| "Mostrar no mapa" como ativo ou inativo, e separado da visualização | Fica no botão Filtros, com uma chave liga/desliga por camada; Visualização só com tipo de mapa, estilo e cores | v22-02, v22-03, v22-05 |
 
 **Não testado em aparelho.**
 

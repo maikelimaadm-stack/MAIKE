@@ -5072,16 +5072,18 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
     - Tarefas e Filtros ficam em cartões;
     - Atualizar, Localizar e Mover ficam num grupo;
     - o estilo dos pastos é aplicado por `aplicarEstiloPasto` e reaplicado ao trocar o basemap;
-    - os Filtros ficam sem as camadas e as cores (`mostrarVisualizacao={false}`);
+    - os Filtros ficam sem as cores (`mostrarCores={false}`), que passam para o painel Visualização;
     - a atribuição do satélite fica discreta e o aviso de falha compacto.
   - O painel **Visualização** (`MapaVisualizacao`), no lugar das miniaturas grandes e coloridas:
-    - **Tipo de mapa** e **Estilo dos pastos** viram escolhas segmentadas, em cinza, com a opção escolhida em branco. O estilo leva um desenho pequeno de traço.
-    - **Colorir pastos por** vira fichas pequenas, com a escolhida em grafite.
-    - **Mostrar no mapa** vira uma lista com uma **chave liga/desliga** por camada (`role="switch"`), com ícone cinza e nome completo.
-  - O painel tem 288 px de largura e os botões flutuantes 40 px. O botão Visualização aberto fica cinza-claro, sem verde.
+    - **Tipo de mapa** e **Estilo dos pastos** viram escolhas segmentadas. O estilo leva um desenho pequeno de traço.
+    - **Colorir pastos por** vira fichas pequenas.
+    - A cor do ativo segue a dos lançamentos (`LancLoteSegmento`), como pediu o proprietário: a opção escolhida fica no verde do sistema (`--mg-accent`), com texto branco, sobre o trilho #f1f3f4.
+    - As chaves liga/desliga usam a chave padrão do sistema (`ToggleSwitch`, `mk-ios-switch`), a mesma dos cadastros e lançamentos.
+    - O **mostrar ou não** (camadas) fica no botão **Filtros**, a pedido do proprietário ("separe filtros de tipo de visualização"), na seção "Mostrar no mapa", com uma chave liga/desliga por camada. O painel Visualização ainda aceita a lista opcional `camadas`, com chaves `role="switch"`, mas o Mapa Geral não a usa.
+  - O painel tem 288 px de largura e os botões flutuantes 40 px. O botão Visualização aberto fica cinza-claro.
 - **Consequência:**
-  - O painel mostra as mesmas opções em menos espaço, quase sem cor; o verde fica só nas chaves ligadas.
+  - Visualização trata de como o mapa é desenhado e Filtros do que aparece nele. O painel ficou curto e tem o mesmo ativo verde dos lançamentos.
   - Teste: `tests/smoke/mapaV2Visualizacao.test.jsx`.
-  - Evidências: v22-01 a v22-04.
+  - Evidências: v22-01 a v22-06.
 
 <!-- Próxima decisão: D-PROD-133 -->
