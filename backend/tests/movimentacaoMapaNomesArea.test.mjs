@@ -38,7 +38,7 @@ const cenario = async (nomesAreas = ['TESTE', 'TET']) => {
   const prisma = getPrismaClient();
   const { cliente, credenciais } = await criarTenant();
   const { corpo } = await autenticarNoApp(app, credenciais);
-  const empresa = await prisma.empresa.create({ data: { cliente_id: cliente.id, numero_empresa: 1, apelido: 'FAZ', nome: 'Fazenda' } });
+  const empresa = await prisma.empresa.create({ data: { cliente_id: cliente.id, numero_empresa: 1, fuso_horario: 'America/Sao_Paulo', apelido: 'FAZ', nome: 'Fazenda' } });
   const setor = await prisma.setor.create({ data: { cliente_id: cliente.id, empresa_id: empresa.id, numero_setor: '1', nome: 'Setor 1' } });
   const areas = [];
   for (const [i, nome] of nomesAreas.entries()) {
@@ -94,7 +94,7 @@ describe('MovimentacaoMapa — nome de área pelo ID', () => {
   test('id que não resolve (outra empresa / inexistente): registro aceito, nome não inventado', async () => {
     const { token, cliente, empresa, setor, areas } = await cenario();
     const prisma = getPrismaClient();
-    const outraEmpresa = await prisma.empresa.create({ data: { cliente_id: cliente.id, numero_empresa: 2, apelido: 'OUT', nome: 'Outra' } });
+    const outraEmpresa = await prisma.empresa.create({ data: { cliente_id: cliente.id, numero_empresa: 2, fuso_horario: 'America/Sao_Paulo', apelido: 'OUT', nome: 'Outra' } });
     const setorOutra = await prisma.setor.create({ data: { cliente_id: cliente.id, empresa_id: outraEmpresa.id, numero_setor: '9', nome: 'S9' } });
     const areaOutra = await prisma.areaPastagem.create({
       data: { cliente_id: cliente.id, empresa_id: outraEmpresa.id, setor_id: setorOutra.id, setor_nome: 'S9', numero_area: '9', nome: 'DE OUTRA EMPRESA', tamanho_hectares: 1 },

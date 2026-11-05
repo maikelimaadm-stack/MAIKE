@@ -159,6 +159,24 @@ export default function Empresa() {
     },
   });
 
+  // D-PROD-122: fuso da fazenda por rota própria (administrador, auditada, online).
+  const salvarFuso = useCallback(
+    async (/** @type {{fuso_horario: string, motivo?: string}} */ dados) => {
+      const id = controller.editingItem?.id;
+      if (!id) return;
+      try {
+        const atualizada = await empresaService.configurarFusoHorarioEmpresa(String(id), dados);
+        mesclarEmpresaNaLista(atualizada);
+        controller.setEditingItem({ ...(controller.editingItem ?? {}), ...(atualizada ?? {}) });
+        void queryClient.invalidateQueries({ queryKey: ["empresas"] });
+        notifySuccess("Sucesso", "Fuso horário da fazenda salvo.");
+      } catch (error) {
+        notifyWarning("Atenção", getApiErrorMessage(error, "Não foi possível salvar o fuso horário."));
+      }
+    },
+    [controller, mesclarEmpresaNaLista, queryClient],
+  );
+
   const deleteMutation = useMutation({
     /** @param {string[]} ids */
     mutationFn: (ids) => empresaService.excluirEmpresas(ids),
@@ -252,6 +270,7 @@ export default function Empresa() {
           isEditing={!!editingRecord?.id}
           onSubmit={controller.handleSubmit}
           onCancel={controller.cancelForm}
+          onSalvarFuso={salvarFuso}
         />
       }
       listSlot={

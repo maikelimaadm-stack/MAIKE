@@ -25,6 +25,34 @@ const TIPO_OPTIONS = [
 
 const UF_OPTIONS = ESTADOS.map((uf) => ({ value: uf, label: uf }));
 
+/**
+ * D-PROD-122: fuso IANA da fazenda — define o "hoje" dos manejos do rebanho.
+ * Escolha explícita do usuário (nunca inferido da UF). Brasil sem horário de verão.
+ */
+export const FUSOS_BRASIL = Object.freeze([
+  { value: "America/Noronha", label: "UTC−2 · Fernando de Noronha" },
+  { value: "America/Sao_Paulo", label: "UTC−3 · São Paulo / Brasília (Sul, Sudeste, GO, DF)" },
+  { value: "America/Bahia", label: "UTC−3 · Bahia" },
+  { value: "America/Fortaleza", label: "UTC−3 · Fortaleza (CE, RN, PB, PI, MA)" },
+  { value: "America/Recife", label: "UTC−3 · Recife (PE)" },
+  { value: "America/Maceio", label: "UTC−3 · Maceió (AL, SE)" },
+  { value: "America/Belem", label: "UTC−3 · Belém (PA leste, AP)" },
+  { value: "America/Santarem", label: "UTC−3 · Santarém (PA oeste)" },
+  { value: "America/Araguaina", label: "UTC−3 · Araguaína (TO)" },
+  { value: "America/Cuiaba", label: "UTC−4 · Cuiabá (MT)" },
+  { value: "America/Campo_Grande", label: "UTC−4 · Campo Grande (MS)" },
+  { value: "America/Porto_Velho", label: "UTC−4 · Porto Velho (RO)" },
+  { value: "America/Boa_Vista", label: "UTC−4 · Boa Vista (RR)" },
+  { value: "America/Manaus", label: "UTC−4 · Manaus (AM)" },
+  { value: "America/Eirunepe", label: "UTC−5 · Eirunepé (AM oeste)" },
+  { value: "America/Rio_Branco", label: "UTC−5 · Rio Branco (AC)" },
+]);
+
+const opcoesDeFuso = (atual) => {
+  const base = [{ value: "", label: "Não configurado" }, ...FUSOS_BRASIL];
+  return atual && !FUSOS_BRASIL.some((f) => f.value === atual) ? [...base, { value: atual, label: atual }] : base;
+};
+
 const PANEL_TABS = [
   { id: "documentos", label: "Documentos" },
   { id: "contato", label: "Contato e endereço" },
@@ -47,6 +75,7 @@ const emptyForm = () => ({
   cep: "",
   observacoes: "",
   logotipo_url: "",
+  fuso_horario: "",
 });
 
 function mapInitialToForm(initialData) {
@@ -67,6 +96,7 @@ function mapInitialToForm(initialData) {
     cep: initialData.cep ?? "",
     observacoes: initialData.observacoes ?? "",
     logotipo_url: initialData.logotipo_url ?? "",
+    fuso_horario: initialData.fuso_horario ?? "",
   };
 }
 
@@ -79,6 +109,7 @@ export default function FormularioEmpresa({
   toolbarActions = false,
   isSubmitting = false,
   readOnly = false,
+  onSalvarFuso,
 }) {
   const embedded = variant === "embedded";
   const isExistingRecord = Boolean(initialData?.id);
@@ -86,6 +117,25 @@ export default function FormularioEmpresa({
   const [formData, setFormData] = useState(() => mapInitialToForm(initialData));
   const [invalidFields, setInvalidFields] = useState([]);
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [motivoFuso, setMotivoFuso] = useState("");
+  const [salvandoFuso, setSalvandoFuso] = useState(false);
+  const fusoInicial = initialData?.fuso_horario ?? "";
+  const fusoAlterado = isExistingRecord && formData.fuso_horario !== fusoInicial && Boolean(formData.fuso_horario);
+  const fusoExigeMotivo = fusoAlterado && Boolean(fusoInicial);
+  const salvarFuso = async () => {
+    if (!onSalvarFuso || !fusoAlterado || salvandoFuso) return;
+    if (fusoExigeMotivo && motivoFuso.trim().length < 3) {
+      notifyWarning("Atenção", "Informe o motivo da troca do fuso horário.");
+      return;
+    }
+    setSalvandoFuso(true);
+    try {
+      await onSalvarFuso({ fuso_horario: formData.fuso_horario, ...(fusoExigeMotivo ? { motivo: motivoFuso.trim() } : {}) });
+      setMotivoFuso("");
+    } finally {
+      setSalvandoFuso(false);
+    }
+  };
   const logoInputRef = useRef(/** @type {HTMLInputElement|null} */ (null));
 
   const handleChange = (field, value) => {
@@ -148,7 +198,7 @@ export default function FormularioEmpresa({
       estado: formData.estado?.toUpperCase(),
       cep: formData.cep?.toUpperCase(),
       observacoes: formData.observacoes?.toUpperCase(),
-    });
+    }, { criacao: !isExistingRecord });
     onSubmit(dataToSubmit);
   };
 
@@ -319,6 +369,43 @@ export default function FormularioEmpresa({
           readOnly={readOnly}
         />
       </B1Field>
+      <B1Field
+        label="Fuso horário da fazenda"
+        span={isExistingRecord ? 8 : 12}
+        hasValue={Boolean(formData.fuso_horario)}
+        locked={readOnly}
+        disabled={readOnly}
+      >
+        <MgSelect
+          value={formData.fuso_horario}
+          onChange={readOnly ? () => {} : (v) => handleChange("fuso_horario", v)}
+          options={opcoesDeFuso(formData.fuso_horario)}
+          disabled={readOnly}
+          ariaLabel="Fuso horário da fazenda"
+        />
+      </B1Field>
+      {isExistingRecord && !readOnly ? (
+        <div className="col-span-12 sm:col-span-4 flex flex-col gap-2" data-testid="empresa-fuso-acoes">
+          {fusoExigeMotivo ? (
+            <input
+              type="text"
+              value={motivoFuso}
+              onChange={(e) => setMotivoFuso(e.target.value)}
+              placeholder="Motivo da troca do fuso"
+              aria-label="Motivo da troca do fuso"
+              maxLength={500}
+              className={B1_FIELD_CTL_CLS}
+            />
+          ) : null}
+          <PillBtn type="button" onClick={salvarFuso} disabled={!fusoAlterado || salvandoFuso || !onSalvarFuso}>
+            {salvandoFuso ? "Salvando fuso…" : "Salvar fuso"}
+          </PillBtn>
+        </div>
+      ) : null}
+      <p className="col-span-12 text-xs text-slate-500">
+        O fuso define o &quot;hoje&quot; da fazenda: manejos com data posterior a hoje são recusados. Sem fuso, novos manejos ficam bloqueados.
+        {isExistingRecord ? " Só o administrador altera; a troca fica registrada." : ""}
+      </p>
     </div>
   );
 

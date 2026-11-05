@@ -2,7 +2,7 @@
  * Rotas de Empresa (P5.4).
  */
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
-import { listar, criar, atualizar, excluir } from './empresaService.js';
+import { listar, criar, atualizar, excluir, configurarFusoHorario } from './empresaService.js';
 
 const CAMPOS = Object.freeze({
   apelido: { type: 'string', minLength: 1, maxLength: 255, pattern: '\\S' },
@@ -27,7 +27,9 @@ const CRIAR_SCHEMA = {
     type: 'object',
     required: ['apelido', 'nome', 'tipo_pessoa'],
     additionalProperties: false,
-    properties: { ...CAMPOS },
+    // D-PROD-122: o fuso pode nascer com a empresa (auditado no create). Depois,
+    // só pela rota administrativa PUT /empresas/:id/fuso-horario.
+    properties: { ...CAMPOS, fuso_horario: { type: 'string', minLength: 1, maxLength: 64 } },
   },
 };
 
@@ -52,6 +54,20 @@ const ID_SCHEMA = {
     required: ['id'],
     additionalProperties: false,
     properties: { id: { type: 'string', minLength: 1, maxLength: 64 } },
+  },
+};
+
+/** D-PROD-122: fuso IANA da fazenda — rota própria, só administrador, auditada. */
+const FUSO_SCHEMA = {
+  params: ID_SCHEMA.params,
+  body: {
+    type: 'object',
+    required: ['fuso_horario'],
+    additionalProperties: false,
+    properties: {
+      fuso_horario: { type: 'string', minLength: 1, maxLength: 64 },
+      motivo: { type: 'string', minLength: 3, maxLength: 500 },
+    },
   },
 };
 
@@ -83,6 +99,12 @@ export const registrarEmpresaRoutes = async (app) => {
     exigirAuthContext(request.contexto.auth);
     const { id } = /** @type {{id: string}} */ (request.params);
     return atualizar(request.contexto, id, /** @type {Record<string, unknown>} */ (request.body));
+  });
+
+  app.put('/empresas/:id/fuso-horario', { onRequest: [app.autenticar], schema: FUSO_SCHEMA }, async (request) => {
+    exigirAuthContext(request.contexto.auth);
+    const { id } = /** @type {{id: string}} */ (request.params);
+    return configurarFusoHorario(request.contexto, id, /** @type {Record<string, unknown>} */ (request.body));
   });
 
   app.delete('/empresas/:id', { onRequest: [app.autenticar], schema: ID_SCHEMA }, async (request, reply) => {

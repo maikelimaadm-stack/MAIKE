@@ -43,7 +43,7 @@ const semear = async () => {
   for (const t of [a, b]) {
     const c = t.cliente.id;
     await p.permissao.create({ data: { cliente_id: c, user_email: t.usuario.login, is_admin: true } });
-    const emp = await p.empresa.create({ data: { cliente_id: c, numero_empresa: 1, apelido: 'E', nome: 'EMPRESA' } });
+    const emp = await p.empresa.create({ data: { cliente_id: c, numero_empresa: 1, fuso_horario: 'America/Sao_Paulo', apelido: 'E', nome: 'EMPRESA' } });
     const setor = await p.setor.create({ data: { cliente_id: c, empresa_id: emp.id, numero_setor: '1', nome: 'S' } });
     const area = await p.areaPastagem.create({ data: { cliente_id: c, empresa_id: emp.id, setor_id: setor.id, setor_nome: 'S', numero_area: '1', nome: 'A', tamanho_hectares: 1 } });
     const lote = await p.lote.create({ data: { cliente_id: c, empresa_id: emp.id, numero_lote: '1', nome: 'L', quantidade_cabecas: 5, quantidade_entrada: 5, motivo_entrada: 'Compra' } });
@@ -268,7 +268,7 @@ describe('inicializar-tenant-maike (operação única)', () => {
     assert.equal(rodar(['--sistema', SID, '--executar'], [frase, SENHA, SENHA]).status, 0);
     const p = prisma();
     const cli = await p.cliente.findFirst();
-    await p.empresa.create({ data: { cliente_id: cli.id, numero_empresa: 1, apelido: 'REAL', nome: 'EMPRESA REAL' } });
+    await p.empresa.create({ data: { cliente_id: cli.id, numero_empresa: 1, fuso_horario: 'America/Sao_Paulo', apelido: 'REAL', nome: 'EMPRESA REAL' } });
     for (const argv of [['--sistema', SID], ['--sistema', SID, '--executar']]) {
       const r = rodar(argv, ['x', SENHA, SENHA]);
       assert.equal(r.status, 1);

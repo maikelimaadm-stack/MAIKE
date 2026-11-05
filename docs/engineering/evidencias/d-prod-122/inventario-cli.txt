@@ -1,0 +1,9 @@
+== 1) alvo NÃO local → recusado antes de conectar (URL não impressa)
+inventario-futuros-rebanho — ALVO RECUSADO (host não local). Só banco local descartável; remoto exige autorização separada.
+exit=3
+== 2) nome de banco suspeito em localhost → recusado
+inventario-futuros-rebanho — ALVO RECUSADO (nome de banco suspeito). Só banco local descartável; remoto exige autorização separada.
+exit=3
+== 3) PostgreSQL 16 LOCAL (maike_ci, KM-06 sintético do teste K1), MAIKE_TESTE_AGORA não vale fora de teste: relógio real = 2026-11-04T21:41:26Z
+inventario-futuros-rebanho — OK: 1 empresa(s) ativada(s), 1 evento(s) futuro(s), 1 posição(ões) divergente(s), 0 sem fuso.
+exit=0

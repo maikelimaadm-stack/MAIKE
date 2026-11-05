@@ -1,0 +1,102 @@
+PR190-R3 — RED/GREEN (PostgreSQL 16 LOCAL descartável; ramo remoto exercitado pelo alias 'vm' → 127.0.0.1; nenhum banco remoto)
+
+=== RED: dProd122ReleaseFusoR3 contra o HEAD 405af470 (R2) ===
+    not ok 1 - G1-RED1: só a URL do runtime (sem MIGRATION_DATABASE_URL) + SID correto → BLOCKED/TARGET_UNVERIFIED (antes podia dar READY)
+    not ok 2 - G1-RED2: runtime e migration em bancos diferentes do mesmo cluster → BLOCKED (mesmo SID não basta)
+    not ok 3 - G1-RED3: SID ausente, inválido, divergente ou sem atestado → BLOCKED sem conectar/sem revelar
+    not ok 4 - G1-RED4: alvo inalcançável → TARGET_UNVERIFIED (não "falha técnica" genérica), sem URL na saída
+    not ok 5 - G1-GREEN: duas URLs para o MESMO banco, SID e atestado → READY_ALVO_CONFERIDO (estado distinto do local), sem SID/ids na saída
+    not ok 6 - G1-LOCAL: banco local descartável → READY_LOCAL_TESTE (nunca rotulado como produção); --mostrar-ids só local
+    not ok 7 - G1-ARGS: argumento repetido ou desconhecido → uso incorreto (2), nada lido
+    not ok 1 - G2-RED1: simulação, aplicação e reaplicação do CLI não imprimem cliente_id/empresa_id/administrador
+    not ok 2 - G2-RED2: recusa (rollback) também não imprime ids crus, nem nos detalhes do erro
+    not ok 3 - G2-RED3: plano dentro do repositório recusado mesmo por symlink de fora (caminho real), sem ler o plano
+    not ok 4 - G2-ARGS: CLI de configuração recusa argumento repetido (ex.: dois --plano) com código de uso
+    not ok 5 - G2-REMOTO: configuração em alvo não local exige SID, atestado e backup; com SID errado recusa sem gravar
+# tests 12
+# pass 0
+# fail 12
+
+--- exemplo G1-RED1 (preflight antigo com SÓ a URL do runtime + SID) ---
+          "estado": "READY",
+          "SCHEMA_READY": true,
+          "DATA_READY": true,
+        exit 0 (esperado: 3 BLOCKED)
+--- exemplo G2-RED1: saída expôs identificador cru (prefixo sintético mostrado abreviado) ---
+
+=== GREEN: R3 + release R2 + H1 ===
+    ok 1 - P1: 23:59 / 00:00 em São Paulo, Cuiabá e Rio Branco com o processo em UTC
+    ok 2 - P2: fuso IANA — válidos canonizados; inválidos recusados
+    ok 3 - P3: relógio de teste isolado por contexto (concorrente) e restaurado ao sair
+    ok 4 - P4: fora de NODE_ENV=test o relógio de teste é recusado e a variável de teste é ignorada
+    ok 1 - F: transferência (comando) — amanhã → 409 REBANHO_DATA_FUTURA sem escrita; hoje → aceito
+    ok 2 - F: transferência (manejo-lote legado) — amanhã → 409 REBANHO_DATA_FUTURA sem escrita; hoje → aceito
+    ok 3 - F: morte (manejo-lote legado) — amanhã → 409 REBANHO_DATA_FUTURA sem escrita; hoje → aceito
+    ok 4 - F: morte (baixa) — amanhã → 409 REBANHO_DATA_FUTURA sem escrita; hoje → aceito
+    ok 5 - F: abate (baixa) — amanhã → 409 REBANHO_DATA_FUTURA sem escrita; hoje → aceito
+    ok 6 - F: nascimento — amanhã → 409 REBANHO_DATA_FUTURA sem escrita; hoje → aceito
+    ok 7 - F: pesagem — amanhã → 409 REBANHO_DATA_FUTURA sem escrita; hoje → aceito
+    ok 8 - F: mudança de categoria — amanhã → 409 REBANHO_DATA_FUTURA sem escrita; hoje → aceito
+    ok 9 - F: junção — amanhã → 409 REBANHO_DATA_FUTURA sem escrita; hoje → aceito
+    ok 10 - F: entrada (cadastro de Lote em empresa ativada) — amanhã → 409 REBANHO_DATA_FUTURA sem escrita; hoje → aceito
+    ok 11 - F-R: retroativo (ontem) continua aceito pelas regras temporais de sempre
+    ok 12 - F-ISO: data com hora/offset vale pelo DIA literal informado (sem conversão silenciosa)
+    ok 13 - F-borda: 23:59/00:00 no fuso da fazenda decide hoje × amanhã (SP, Cuiabá, Rio Branco)
+    ok 14 - F-fuso: o mesmo instante é "amanhã" em Rio Branco e já "hoje" em São Paulo
+    ok 15 - F-troca: troca de fuso em andamento × manejo na virada — o manejo espera a troca e decide pelo fuso NOVO
+    ok 16 - F-conc: 3 pedidos futuros simultâneos → todos 409, nada gravado
+    ok 1 - A1: saldo_abertura com data_corte futura → 409 sem escrita; corte hoje → ativa
+    ok 2 - A2: entradas com uma entrada futura no cadastro (empresa ainda legada) → 409 sem escrita
+    ok 3 - A3: entradas todas até hoje → ativa (data_corte efetiva = entrada mais antiga)
+    ok 4 - A4: entradas sem nenhuma entrada viva → data de corte = hoje DA FAZENDA (não o dia UTC)
+    ok 5 - A5: ativação sem fuso configurado → 409 EMPRESA_FUSO_NAO_CONFIGURADO, rollback sem sobras
+    ok 1 - S1: escrita nova → 409 EMPRESA_FUSO_NAO_CONFIGURADO sem escrita; leitura, histórico e exclusão seguem
+    ok 1 - R1: replay idêntico de operação committed com data futura → mesma resposta, sem 409 e sem nova linha
+    ok 2 - R2: operação NOVA com a mesma data futura → 409 e nenhum recibo criado
+    ok 3 - R3: exclusão segura do futuro legado não é bloqueada por data nem por fuso; restaura o estado
+    ok 1 - C1: admin configura; inválido 400; usuário comum 403; PATCH genérico não aceita o campo; leitura expõe
+    ok 2 - C2: troca de fuso já configurado exige motivo e registra anterior/novo na auditoria
+    ok 3 - C3: tenant B não enxerga nem configura a empresa de A; o fuso de B não afeta o relógio de A
+    ok 4 - C5: POST /empresas sem fuso cria e ativa (sem fato); escrita nova falha fechada até configurar; com fuso válido, canonizado; inválido 400
+    ok 5 - C4: empresa de outro tenant → 404; empresa inexistente → 404
+    ok 1 - K1: 50 bezerros, morte em +23 dias, pesagem 50 e reclassificação 49 → projeção 49 × as-of 50; inventário aponta sem alterar
+    ok 2 - K2: inventário roda em transação READ ONLY (escrita dentro dela é recusada pelo PostgreSQL)
+    ok 3 - K3: empresa sem fuso aparece como pendente de configuração, sem inventariar por um fuso inventado
+    ok 4 - K4: sem --mostrar-ids a saída usa hash curto (sem ids nem nomes crus)
+    ok 1 - A1: sem a coluna, o SELECT implícito de Empresa falha (P2022) e o preflight dá SCHEMA_READY=false
+    ok 2 - A2: migration ausente, divergente ou revertida → BLOCKED com o motivo exato
+    ok 3 - A3: plano de fuso com schema ausente → SCHEMA_NAO_PRONTO, sem ler a coluna nem gravar
+    ok 1 - B1: DATA_READY=false (BLOCKED) com a empresa pendente; leitura segue; escrita nova 409 sem gravar
+    ok 2 - B2: empresa NÃO ativada sem fuso não bloqueia o portão (só as ativadas contam)
+    ok 1 - C1: aplicar o plano → READY; hoje passa e amanhã 409 nas bordas do fuso configurado
+    ok 2 - C2: CLIs locais — preflight BLOCKED → plano simulado (nada gravado) → aplicado → preflight READY
+    ok 1 - D1: tenant errado, empresa ausente, IANA inválido, administrador inválido, duplicata, troca sem motivo
+    ok 2 - D2: um item ruim derruba o plano inteiro (nada parcial)
+    ok 3 - D3: CLI — identificador divergente, sem frase de confirmação; barreiras de alvo remoto sem SID/backup
+    ok 1 - E1: reaplicar o mesmo plano não muda nada nem audita de novo; troca com motivo audita anterior/novo
+    ok 2 - E2: dois aplicadores simultâneos → um configura, o outro vê "sem mudança"; uma auditoria só
+    ok 1 - F1: sem fetch/http/Vercel/Supabase API nos scripts novos; só a conexão de banco informada
+    ok 1 - G1-RED1: só a URL do runtime (sem MIGRATION_DATABASE_URL) + SID correto → BLOCKED/TARGET_UNVERIFIED (antes podia dar READY)
+    ok 2 - G1-RED2: runtime e migration em bancos diferentes do mesmo cluster → BLOCKED (mesmo SID não basta)
+    ok 3 - G1-RED3: SID ausente, inválido, divergente ou sem atestado → BLOCKED sem conectar/sem revelar
+    ok 4 - G1-RED4: alvo inalcançável → TARGET_UNVERIFIED (não "falha técnica" genérica), sem URL na saída
+    ok 5 - G1-GREEN: duas URLs para o MESMO banco, SID e atestado → READY_ALVO_CONFERIDO (estado distinto do local), sem SID/ids na saída
+    ok 6 - G1-LOCAL: banco local descartável → READY_LOCAL_TESTE (nunca rotulado como produção); --mostrar-ids só local
+    ok 7 - G1-ARGS: argumento repetido ou desconhecido → uso incorreto (2), nada lido
+    ok 1 - G2-RED1: simulação, aplicação e reaplicação do CLI não imprimem cliente_id/empresa_id/administrador
+    ok 2 - G2-RED2: recusa (rollback) também não imprime ids crus, nem nos detalhes do erro
+    ok 3 - G2-RED3: plano dentro do repositório recusado mesmo por symlink de fora (caminho real), sem ler o plano
+    ok 4 - G2-ARGS: CLI de configuração recusa argumento repetido (ex.: dois --plano) com código de uso
+    ok 5 - G2-REMOTO: configuração em alvo não local exige SID, atestado e backup; com SID errado recusa sem gravar
+# tests 63
+# pass 63
+# fail 0
+
+=== Regressão 3× (H1 + release + R3 + exclusão + certificação) ===
+rodada 1: # tests 106 # pass 106 # fail 0 
+rodada 2: # tests 106 # pass 106 # fail 0 
+rodada 3: # tests 106 # pass 106 # fail 0 
+
+=== Permissão de pg_control_system() num PostgreSQL 16 padrão (papel LOGIN sem privilégio) ===
+has_function_privilege('pg_control_system()','EXECUTE') = t ; SELECT count(*) FROM pg_control_system() = 1 (ACL padrão = PUBLIC)
+Supabase: NÃO verificado (sem credenciais) → se negado, TARGET_UNVERIFIED.

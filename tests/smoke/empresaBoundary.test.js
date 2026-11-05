@@ -324,6 +324,7 @@ describe('empresaApi — adaptador de dados', () => {
     const modulo = await import('@/apis/empresa');
     expect(Object.keys(modulo).sort()).toEqual([
       'EMPRESA_DEFAULT_ORDER',
+      'configurarFusoHorarioEmpresa',
       'createEmpresa',
       'deleteEmpresa',
       'listEmpresas',

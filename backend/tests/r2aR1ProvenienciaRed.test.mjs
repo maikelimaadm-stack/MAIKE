@@ -20,7 +20,7 @@ test('RED: morte #B sem efeito não pode ser cancelada com a auditoria da #A', a
   const adm = await criarTenant({ papelTenant: 'administrador' });
   const tok = (await autenticarNoApp(app, adm.credenciais)).corpo.token;
   const h = { authorization: `Bearer ${tok}` };
-  const empresa = await p.empresa.create({ data: { cliente_id: adm.cliente.id, numero_empresa: 1, apelido: 'F', nome: 'F' } });
+  const empresa = await p.empresa.create({ data: { cliente_id: adm.cliente.id, numero_empresa: 1, fuso_horario: 'America/Sao_Paulo', apelido: 'F', nome: 'F' } });
   const setor = await p.setor.create({ data: { cliente_id: adm.cliente.id, empresa_id: empresa.id, numero_setor: '1', nome: 'S' } });
   const area = await p.areaPastagem.create({ data: { cliente_id: adm.cliente.id, empresa_id: empresa.id, setor_id: setor.id, setor_nome: 'S', numero_area: '1', nome: 'A', tamanho_hectares: 1 } });
   const lote = (await app.inject({ method: 'POST', url: '/lotes', headers: h, payload: { empresa_id: empresa.id, nome: 'L', quantidade_cabecas: 500, setor_id: setor.id, area_entrada_id: area.id, area_atual_id: area.id, motivo_entrada: 'Compra', status: 'Ativo' } })).json();

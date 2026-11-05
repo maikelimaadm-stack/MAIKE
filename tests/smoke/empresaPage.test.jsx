@@ -161,6 +161,15 @@ describe('página Empresa — MotorBase1 + service', () => {
     expect(fonte).toMatch(/bloqueados/);
   });
 
+  it('D-PROD-122 (G3): falha do GET /empresas (ex.: schema sem a coluna nova → 500) aparece como erro, nunca como lista vazia', async () => {
+    const { ApiError, API_ERROR_CODES } = await import('@/apis/_core/ApiError');
+    serviceMock.listEmpresas.mockRejectedValue(new ApiError(API_ERROR_CODES.OPERATION_FAILED, { operation: 'list', resource: 'Empresa' }));
+    await renderPagina();
+    const aviso = await screen.findByRole('button', { name: 'Tentar novamente' });
+    expect(aviso.parentElement?.textContent ?? '').not.toBe('');
+    expect(screen.queryByText('Fazenda Boa Vista')).toBeNull();
+  });
+
   it('409 EMPRESA_NAME_CONFLICT mantém formulário aberto', async () => {
     const { ApiError, API_ERROR_CODES } = await import('@/apis/_core/ApiError');
     serviceMock.createEmpresa.mockRejectedValue(new ApiError(API_ERROR_CODES.EMPRESA_NAME_CONFLICT));

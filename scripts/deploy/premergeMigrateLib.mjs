@@ -30,6 +30,8 @@ import { createHash } from 'node:crypto';
 export const MIGRATIONS_APROVADAS = Object.freeze({
   '20261102200000_rebanho_ledger_posicoes': 'df9d713887e68fad75231b23ef4e9d6f0e4750cd67be19036d6a4bfc57c47919',
   '20261103100000_rebanho_ledger_r1_manejos': 'fcab7bd9737408c4f2783161b1a95515b590e91924e4c91c3b1a9f68dc72feb1',
+  // D-PROD-122 (S1/H1): Empresa.fuso_horario anulável, sem DEFAULT.
+  '20261104200000_empresa_fuso_horario': 'bb2c1cb63cbc1324b6ab9c7d9141f51dfd2418374c8badb9cfe82fe3d4f29017',
 });
 /** Blocos DO auditados (RLS das tabelas novas): sha256 do corpo sem comentários e com espaços normalizados. */
 export const DO_RLS_APROVADOS = Object.freeze([

@@ -178,7 +178,7 @@ const lerCorpo = async (resposta) => {
  * o MESMO controlador do transporte — o fetch E a leitura do corpo — e o
  * listener sai ao fim da chamada. Sem `signal`, nada muda.
  *
- * @param {{method?: 'GET'|'POST'|'PATCH'|'DELETE', body?: object|null, autenticado?: boolean, timeoutMs?: number, signal?: AbortSignal}} opcoes
+ * @param {{method?: 'GET'|'POST'|'PUT'|'PATCH'|'DELETE', body?: object|null, autenticado?: boolean, timeoutMs?: number, signal?: AbortSignal}} opcoes
  * @param {{operation: string, resource: string, details?: object}} contexto
  * @returns {Promise<unknown>}
  */

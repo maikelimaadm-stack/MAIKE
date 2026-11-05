@@ -1,0 +1,57 @@
+{
+  "gerado_em": "2026-11-04T21:41:26.779Z",
+  "somente_leitura": true,
+  "ids": "hash_curto",
+  "empresas": [
+    {
+      "cliente_id": "h:2d53e4ae2b71",
+      "empresa_id": "h:dafdab09d3dd",
+      "modo": "entradas",
+      "fuso": "America/Sao_Paulo",
+      "hoje": "2026-11-04",
+      "eventos_futuros": [
+        {
+          "evento_id": "h:0ce920cb0dda",
+          "movimentacao_id": "h:ea6de57b6de0",
+          "tipo": "MORTE",
+          "data_operacional": "2026-11-27",
+          "registrado_em": "2026-11-04T21:41:26.274Z",
+          "delta_total": -1,
+          "posicoes": [
+            "h:6373a9b9c51b"
+          ],
+          "areas": [
+            "h:44856d77d942"
+          ],
+          "fatos_posteriores_nas_mesmas_posicoes": 0
+        }
+      ],
+      "eventos_futuros_truncados": false,
+      "posicoes_divergentes": [
+        {
+          "posicao_id": "h:6373a9b9c51b",
+          "area_id": "h:44856d77d942",
+          "categoria": "Bezerro 0 a 12 meses",
+          "projecao": 0,
+          "ate_hoje": 1,
+          "futuro": -1,
+          "soma_total": 0,
+          "causa": "fato_futuro"
+        }
+      ],
+      "posicoes_divergentes_truncadas": false,
+      "pesos_futuros": [],
+      "pesos_futuros_truncados": false,
+      "total_projecao": 49,
+      "total_ate_hoje": 50
+    }
+  ],
+  "empresas_sem_fuso": [],
+  "resumo": {
+    "empresas_ativadas": 1,
+    "empresas_sem_fuso": 0,
+    "empresas_com_futuros": 1,
+    "eventos_futuros": 1,
+    "posicoes_divergentes": 1
+  }
+}

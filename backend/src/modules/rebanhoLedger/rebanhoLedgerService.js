@@ -30,6 +30,7 @@ import { getPrismaClient } from '../../database/prismaClient.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { exigirAdminTenant } from '../../shared/auth/exigirAdminTenant.js';
 import { AppError } from '../../shared/errors/AppError.js';
+import { agoraDoServidor, exigirDiaNaoFuturo, hojeDaEmpresa } from './rebanhoLedgerTempo.js';
 import { documentoComoPublico } from '../../shared/jsonDocument/jsonDocumentPublic.js';
 import { executarComIdempotencia, fingerprintDePayload } from '../../shared/idempotency/operacaoIdempotenteService.js';
 import { registrarEvento } from '../auditoria/auditService.js';
@@ -137,6 +138,12 @@ export const ativarEmpresaNaTransacao = async (tx, contexto, { empresaId, modo, 
   const [empresa] = /** @type {Array<{id: string}>} */ (await tx.$queryRaw`SELECT id FROM "Empresa" WHERE cliente_id = ${auth.clienteId} AND id = ${empresaId} FOR UPDATE`);
   if (!empresa) throw new AppError('EMPRESA_NOT_FOUND', 'empresa não encontrada');
   if (await ativacaoDaEmpresa(tx, auth.clienteId, empresaId)) throw recusa('REBANHO_LEDGER_JA_ATIVO', 'o ledger já está ativo nesta empresa');
+  // D-PROD-122: o "hoje" da fazenda decide o corte e as entradas. Sem fuso, falha
+  // fechado — exceto a empresa SEM nenhuma entrada no modo entradas (empresa nova):
+  // ali nenhum fato é criado e a data de corte é só informativa (o modo entradas
+  // não aplica corte). Todo fato posterior passa pela guarda e exige o fuso.
+  const fusoConfigurado = (await tx.empresa.findUnique({ where: { cliente_id_id: { cliente_id: auth.clienteId, id: empresaId } }, select: { fuso_horario: true } }))?.fuso_horario ?? null;
+  const exigirReferencia = () => hojeDaEmpresa(tx, auth.clienteId, empresaId);
   // Trava todas as áreas e lotes da empresa: nenhum manejo legado corre durante a ativação.
   const areas = await tx.areaPastagem.findMany({ where: { cliente_id: auth.clienteId, empresa_id: empresaId }, select: { id: true } });
   const mapaAreas = await travarAreas(tx, auth.clienteId, empresaId, areas.map((a) => a.id));
@@ -166,6 +173,7 @@ export const ativarEmpresaNaTransacao = async (tx, contexto, { empresaId, modo, 
   const resumo = { entradas: 0, derivados_rastreados: 0, derivados_sem_prova: 0, nascimentos_legados: 0 };
 
   if (modo === 'saldo_abertura') {
+    exigirDiaNaoFuturo(await exigirReferencia(), dataCorte);
     if (hist?.depois) throw recusa('REBANHO_ATIVACAO_CORTE_ANTERIOR_AO_HISTORICO', 'há movimentação legada ativa depois da data de corte; escolha um corte igual ou posterior', { quantidade: hist.depois });
     for (const l of ativos) {
       const lin = await linhagemLegada(tx, auth.clienteId, empresaId, l, porId);
@@ -201,6 +209,12 @@ export const ativarEmpresaNaTransacao = async (tx, contexto, { empresaId, modo, 
       }
     }
     if (problemas.length) throw recusa('REBANHO_ATIVACAO_ENTRADAS_COM_HISTORICO', 'há lote cujo estado não é a própria entrada; use saldo de abertura ou o reset de dados de teste', { lotes: problemas });
+    // D-PROD-122: nenhuma entrada do conjunto pode ser futura (checado antes de qualquer escrita).
+    const referencia = ativos.length || fusoConfigurado ? await exigirReferencia() : null;
+    if (referencia) {
+      const futuras = ativos.map((l) => ({ lote_id: l.id, data: diaDoBanco(l.data_entrada) })).filter((x) => x.data > referencia.hoje).sort((a, b) => a.data.localeCompare(b.data) || a.lote_id.localeCompare(b.lote_id));
+      if (futuras.length) exigirDiaNaoFuturo(referencia, futuras[0].data, { lotes: futuras.slice(0, 20) });
+    }
     for (const l of ativos) {
       const dia = diaDoBanco(l.data_entrada);
       const { posicao } = await posicaoDaIdentidade(tx, auth.clienteId, empresaId, l.area_entrada_id ?? l.area_atual_id, {
@@ -215,7 +229,9 @@ export const ativarEmpresaNaTransacao = async (tx, contexto, { empresaId, modo, 
       if (p !== null) pesos.push({ posicao, dia, peso: p, q: l.quantidade_entrada });
       if (!dataCorteEfetiva || dia < dataCorteEfetiva) dataCorteEfetiva = dia;
     }
-    dataCorteEfetiva = dataCorteEfetiva ?? new Date().toISOString().slice(0, 10);
+    // Sem nenhuma entrada: corte informativo = hoje da fazenda; sem fuso (empresa
+    // nova ainda não configurada), o dia do servidor — não decide nenhuma regra.
+    dataCorteEfetiva = dataCorteEfetiva ?? referencia?.hoje ?? agoraDoServidor().toISOString().slice(0, 10);
   }
 
   await tx.rebanhoLedgerAtivacao.create({ data: { cliente_id: auth.clienteId, empresa_id: empresaId, data_corte: comoData(dataCorteEfetiva), modo, ativado_por_usuario_id: auth.usuarioId } });
@@ -298,7 +314,7 @@ export const registrarEntradaSeAtivo = async (tx, contexto, lote) => {
   if (!areaId) throw invalido('lote precisa de área de entrada no ledger', { field: 'area_entrada_id' });
   if (!lote.data_entrada) throw invalido('lote precisa de data de entrada no ledger', { field: 'data_entrada' });
   const dia = diaDoBanco(lote.data_entrada);
-  exigirDiaNoLedger(ativacao, dia);
+  await exigirDiaNoLedger(tx, auth.clienteId, ativacao, dia);
   if (!(quantidade > 0)) return null;
   await travarAreas(tx, auth.clienteId, lote.empresa_id, [areaId]);
   const evento = await criarEvento(tx, {
@@ -385,7 +401,7 @@ export const executarTransferencia = async (tx, contexto, e) => {
   const auth = exigirAuthContext(contexto?.auth);
   const ativacao = await ativacaoDaEmpresa(tx, auth.clienteId, e.empresaId);
   if (!ativacao) throw recusa('REBANHO_LEDGER_INATIVO', 'o ledger de posições não está ativo nesta empresa');
-  exigirDiaNoLedger(ativacao, e.dia);
+  await exigirDiaNoLedger(tx, auth.clienteId, ativacao, e.dia);
   // Leitura sem trava só para saber as áreas; a trava vem em seguida, na ordem área → posição.
   const previas = await tx.posicaoRebanho.findMany({ where: { cliente_id: auth.clienteId, id: { in: e.itens.map((i) => i.posicao_id) } }, select: { id: true, area_id: true, empresa_id: true } });
   const porIdPrevia = new Map(previas.map((p) => [p.id, p]));

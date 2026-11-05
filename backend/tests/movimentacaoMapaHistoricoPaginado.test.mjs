@@ -35,7 +35,7 @@ const cenario = async (numeroEmpresa = 1) => {
   const { cliente, credenciais } = await criarTenant();
   const { corpo } = await autenticarNoApp(app, credenciais);
   const empresa = await prisma.empresa.create({
-    data: { cliente_id: cliente.id, numero_empresa: numeroEmpresa, apelido: `FAZ${numeroEmpresa}`, nome: `Fazenda ${numeroEmpresa}` },
+    data: { cliente_id: cliente.id, numero_empresa: numeroEmpresa, fuso_horario: 'America/Sao_Paulo', apelido: `FAZ${numeroEmpresa}`, nome: `Fazenda ${numeroEmpresa}` },
   });
   return { token: corpo.token, cliente, empresa };
 };
@@ -156,7 +156,7 @@ describe('histórico — isolamento', () => {
   test('outra empresa do mesmo tenant e outro tenant não aparecem; empresa alheia devolve vazio', async () => {
     const a = await cenario(1);
     const prisma = getPrismaClient();
-    const empresa2 = await prisma.empresa.create({ data: { cliente_id: a.cliente.id, numero_empresa: 2, apelido: 'OUTRA', nome: 'Outra' } });
+    const empresa2 = await prisma.empresa.create({ data: { cliente_id: a.cliente.id, numero_empresa: 2, fuso_horario: 'America/Sao_Paulo', apelido: 'OUTRA', nome: 'Outra' } });
     const b = await cenario(1);
     await prisma.movimentacaoMapa.createMany({
       data: [

@@ -18,6 +18,7 @@
  */
 
 import { AppError } from '../../shared/errors/AppError.js';
+import { exigirDiaNaoFuturo, hojeDaEmpresa } from './rebanhoLedgerTempo.js';
 import { documentoComoPublico } from '../../shared/jsonDocument/jsonDocumentPublic.js';
 import { registrarEvento } from '../auditoria/auditService.js';
 
@@ -83,7 +84,7 @@ export const ativacaoDaEmpresa = (tx, clienteId, empresaId) =>
   tx.rebanhoLedgerAtivacao.findUnique({ where: { cliente_id_empresa_id: { cliente_id: clienteId, empresa_id: empresaId } } });
 
 /** Fato com data anterior ao corte só é recusado no modo de saldo de abertura (passado não reconstruído). */
-export const exigirDiaNoLedger = (ativacao, dia) => {
+const exigirDiaDepoisDoCorte = (ativacao, dia) => {
   if (ativacao.modo === 'entradas') return;
   if (dia < diaDoBanco(ativacao.data_corte)) {
     throw recusa('REBANHO_ANTES_DO_CORTE', 'a data é anterior ao início do ledger nesta empresa (o histórico anterior ao corte não foi reconstruído)', {
@@ -91,6 +92,20 @@ export const exigirDiaNoLedger = (ativacao, dia) => {
       data_corte: diaDoBanco(ativacao.data_corte),
     });
   }
+};
+
+/**
+ * Guarda temporal ÚNICA de todo fato novo do ledger (D-PROD-122): o dia está
+ * dentro do ledger (não antes do corte) e não é posterior a hoje no fuso da
+ * fazenda. Roda dentro da transação, depois da idempotência (replay não chega
+ * aqui) e antes de qualquer escrita. Sem fuso → EMPRESA_FUSO_NAO_CONFIGURADO.
+ * @returns {Promise<{hoje: string, fuso: string}>}
+ */
+export const exigirDiaNoLedger = async (tx, clienteId, ativacao, dia) => {
+  exigirDiaDepoisDoCorte(ativacao, dia);
+  const referencia = await hojeDaEmpresa(tx, clienteId, ativacao.empresa_id);
+  exigirDiaNaoFuturo(referencia, dia);
+  return referencia;
 };
 
 // ─── Identidade e posição ──────────────────────────────────────────────────

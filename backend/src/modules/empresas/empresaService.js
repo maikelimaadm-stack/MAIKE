@@ -15,6 +15,8 @@ import {
 import { reservarNumeroEmpresa } from './empresaSequencia.js';
 import { ativarEmpresaNaTransacao } from '../rebanhoLedger/rebanhoLedgerService.js';
 import { erroNomeConflitoEmpresa, lancarSeP2002Empresa } from './empresaUniqueViolation.js';
+import { exigirAdminTenant } from '../../shared/auth/exigirAdminTenant.js';
+import { normalizarFusoIana } from '../rebanhoLedger/rebanhoLedgerTempo.js';
 
 const CAMPOS_GRAVAVEIS = Object.freeze([
   'apelido',
@@ -107,6 +109,11 @@ export const listar = async (contexto, filtros = {}) => {
 export const criar = async (contexto, entrada) => {
   const auth = exigirAuthContext(contexto?.auth);
   const dados = normalizarEntrada(/** @type {Record<string, unknown>} */ (entrada ?? {}));
+  if (entrada && Object.prototype.hasOwnProperty.call(entrada, 'fuso_horario')) {
+    const fuso = normalizarFusoIana(/** @type {any} */ (entrada).fuso_horario);
+    if (!fuso) throw new AppError('EMPRESA_FUSO_INVALIDO', 'fuso_horario deve ser um nome IANA válido (ex.: America/Cuiaba)', { details: { field: 'fuso_horario' } });
+    dados.fuso_horario = fuso;
+  }
   const prisma = getPrismaClient();
 
   try {
@@ -172,6 +179,50 @@ export const atualizar = async (contexto, id, entrada) => {
     lancarSeP2002Empresa(erro);
     throw erro;
   }
+};
+
+/**
+ * D-PROD-122 (S1/H1) — configura o fuso IANA da fazenda (define o "hoje" do
+ * ledger do rebanho). Só administrador ativo do tenant; empresa travada; troca
+ * de um fuso já configurado exige motivo e fica na auditoria (anterior/novo).
+ * Não reescreve nenhuma data já gravada. Mesmo valor = nada muda.
+ * @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto
+ * @param {string} id
+ * @param {Record<string, unknown>} entrada
+ */
+export const configurarFusoHorario = async (contexto, id, entrada) => {
+  const auth = exigirAuthContext(contexto?.auth);
+  const fuso = normalizarFusoIana(entrada?.fuso_horario);
+  const motivo = typeof entrada?.motivo === 'string' && entrada.motivo.trim() ? entrada.motivo.trim() : null;
+  const prisma = getPrismaClient();
+  const registro = await prisma.$transaction(async (tx) => {
+    await exigirAdminTenant(contexto, tx);
+    if (!fuso) {
+      throw new AppError('EMPRESA_FUSO_INVALIDO', 'fuso_horario deve ser um nome IANA válido (ex.: America/Cuiaba)', { details: { field: 'fuso_horario' } });
+    }
+    const [travada] = /** @type {Array<{id: string}>} */ (await tx.$queryRaw`SELECT id FROM "Empresa" WHERE cliente_id = ${auth.clienteId} AND id = ${id} FOR UPDATE`);
+    if (!travada) throw erroNaoEncontrado();
+    const existente = await buscarRegistro(auth.clienteId, id, tx);
+    if (!existente) throw erroNaoEncontrado();
+    if (existente.fuso_horario === fuso) return existente;
+    if (existente.fuso_horario && !motivo) {
+      throw new AppError('REQUEST_VALIDATION_FAILED', 'trocar um fuso já configurado exige motivo', { details: { field: 'motivo', reason: 'required' } });
+    }
+    const atualizado = await atualizarRegistroPorId(tx, auth.clienteId, id, { fuso_horario: fuso });
+    await registrarEvento(
+      contexto,
+      {
+        acao: 'update',
+        entidade: 'Empresa',
+        entidadeId: id,
+        dadosAnteriores: { fuso_horario: existente.fuso_horario ?? null },
+        dadosNovos: { fuso_horario: fuso, motivo, operacao: 'configurar_fuso_horario' },
+      },
+      tx,
+    );
+    return atualizado;
+  });
+  return comoPublico(registro);
 };
 
 export const excluir = async (contexto, id) => {

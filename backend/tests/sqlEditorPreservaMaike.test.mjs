@@ -90,7 +90,7 @@ const semearMaike = async () => {
   const t = await criarTenant({ codigo: 'maike', login: 'maike', senha: SENHA_EXISTENTE });
   const c = t.cliente.id;
   await p.permissao.create({ data: { cliente_id: c, user_email: 'maike', is_admin: true } });
-  const emp = await p.empresa.create({ data: { cliente_id: c, numero_empresa: 1, apelido: 'E', nome: 'EMPRESA' } });
+  const emp = await p.empresa.create({ data: { cliente_id: c, numero_empresa: 1, fuso_horario: 'America/Sao_Paulo', apelido: 'E', nome: 'EMPRESA' } });
   const setor = await p.setor.create({ data: { cliente_id: c, empresa_id: emp.id, numero_setor: '1', nome: 'S' } });
   await p.areaPastagem.create({ data: { cliente_id: c, empresa_id: emp.id, setor_id: setor.id, setor_nome: 'S', numero_area: '1', nome: 'A', tamanho_hectares: 1 } });
   const lote = await p.lote.create({ data: { cliente_id: c, empresa_id: emp.id, numero_lote: '1', nome: 'L', quantidade_cabecas: 5, quantidade_entrada: 5, motivo_entrada: 'Compra' } });
@@ -279,7 +279,7 @@ describe('04 sucesso + 01/03 + API com a senha existente', () => {
     assert.equal(resultado(r2).status, 'JA_INICIALIZADO');
     assert.deepEqual(await retrato(), antes);
     const conta = await p.usuario.findFirst();
-    await p.empresa.create({ data: { cliente_id: conta.cliente_id, numero_empresa: 1, apelido: 'REAL', nome: 'REAL' } });
+    await p.empresa.create({ data: { cliente_id: conta.cliente_id, numero_empresa: 1, fuso_horario: 'America/Sao_Paulo', apelido: 'REAL', nome: 'REAL' } });
     assert.match(psql(limpeza({ impressao: pre()[ITEM_IMPRESSAO].valor })).stderr, /ANOMALIA — o tenant já foi inicializado/);
     assert.match(pre().VEREDITO.valor, /^PARAR/);
     assert.equal(await p.empresa.count(), 1);
