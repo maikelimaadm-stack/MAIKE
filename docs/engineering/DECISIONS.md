@@ -5058,9 +5058,55 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
   - Teste: `tests/smoke/iconesManejo.test.jsx`.
   - Evidências: v21-01 e v21-02.
 
-## D-PROD-133 — Mapa Geral: camadas e filtros salvos por usuário; permissão não apaga a preferência
+## D-PROD-132 — Mapa Geral: painel "Visualização" discreto e controles flutuantes, sem o ✕
 
-> Numerada 133 porque a PR #200, aberta em paralelo, usa a D-PROD-132.
+- **Contexto:** o proprietário pediu de volta o visual do mapa que tinha sido revertido no #197 (commit `2d4f31d`):
+  - sem o ✕;
+  - mapa como tela de entrada no celular;
+  - painel com estilos de pasto Cheio, Suave e Contorno;
+  - controles flutuantes.
+  - Ele disse que estava "muito grande e colorido". Também pediu que o "mostrar no mapa" fosse de ativo ou inativo (sim/não), "sem exagero".
+- **Decisão:**
+  - Volta o código do #197, menos o menu lateral e o botão de fazenda, que já tinham sido recusados:
+    - no celular e no tablet, a tela `MapaGeral` fica sem o cabeçalho do sistema; no computador, o menu do sistema continua;
+    - Tarefas e Filtros ficam em cartões;
+    - Atualizar, Localizar e Mover ficam num grupo;
+    - o estilo dos pastos é aplicado por `aplicarEstiloPasto` e reaplicado ao trocar o basemap;
+    - os Filtros ficam sem as cores (`mostrarCores={false}`), que passam para o painel Visualização;
+    - a atribuição do satélite fica discreta e o aviso de falha compacto.
+  - O painel **Visualização** (`MapaVisualizacao`), no lugar das miniaturas grandes e coloridas:
+    - **Tipo de mapa** e **Estilo dos pastos** viram escolhas segmentadas. O estilo leva um desenho pequeno de traço.
+    - **Colorir pastos por** vira fichas pequenas.
+    - A cor do ativo segue a dos lançamentos (`LancLoteSegmento`), como pediu o proprietário: a opção escolhida fica no verde do sistema (`--mg-accent`), com texto branco, sobre o trilho #f1f3f4.
+    - As chaves liga/desliga usam a chave padrão do sistema (`ToggleSwitch`, `mk-ios-switch`), a mesma dos cadastros e lançamentos.
+    - O **mostrar ou não** (camadas) fica no botão **Filtros**, a pedido do proprietário ("separe filtros de tipo de visualização"), na seção "Mostrar no mapa", com uma chave liga/desliga por camada. O painel Visualização ainda aceita a lista opcional `camadas`, com chaves `role="switch"`, mas o Mapa Geral não a usa.
+  - O painel tem 288 px de largura e os botões flutuantes 40 px. O botão Visualização aberto fica cinza-claro.
+- **Consequência:**
+  - Visualização trata de como o mapa é desenhado e Filtros do que aparece nele. O painel ficou curto e tem o mesmo ativo verde dos lançamentos.
+  - Teste: `tests/smoke/mapaV2Visualizacao.test.jsx`.
+  - Evidências: v22-01 a v22-06.
+
+## D-PROD-133 — Tarefas do mapa em cards, no padrão dos cadastros
+
+- **Contexto:** o proprietário pediu que as tarefas do mapa aparecessem em cards, como nos cadastros, sem a tabela que havia no painel "Gestão de Tarefas". Os filtros também deviam seguir os dos cadastros.
+- **Decisão:**
+  - O painel (`TarefasMapaPanel`) passa a usar `TarefasCardsMapa`, que monta as mesmas peças dos cadastros Base1:
+    - `CadastroListaChrome`, com a barra +, Filtros, Busca e ⚡ e o resumo Listados/Filtrados/Totais/Selecionados;
+    - `CadastroBase1Grade` em `viewMode="cards"`, com os cards Base1 (seleção, iniciais, campos);
+    - o "Filtrar por campo" dos cadastros;
+    - layout e campos dos cards configuráveis em ⚡.
+  - Campos padrão do card: Status e Prioridade (com bolinha de cor), Prazo (dd/mm/aaaa), Área, Responsável e Tipo de Tarefa. No celular, o card mostra 3 campos, como nos cadastros.
+  - Não há troca para tabela: a barra fica sem o alternador de visão.
+  - Abrir o card (duplo toque ou Enter) mostra os detalhes da tarefa, como antes. **Editar** e **Excluir** agem sobre os selecionados; excluir pede confirmação pelo diálogo do sistema.
+  - A tabela antiga `TabelaLancamentosTarefas` ficou sem uso e foi removida (`gate:source-closure`).
+- **Consequência:**
+  - As tarefas têm a mesma aparência, busca e filtro de qualquer cadastro.
+  - Teste: `tests/smoke/tarefasCardsMapa.test.jsx`.
+  - Evidências: v23-01 a v23-03.
+
+## D-PROD-135 — Mapa Geral: camadas e filtros salvos por usuário; permissão não apaga a preferência
+
+> Numerada 135: a D-PROD-132 é da PR #200, a D-PROD-133 da PR #202 e a D-PROD-134 da PR #203 (logos).
 
 - **Contexto:** a cada acesso o mapa abria "limpo", com Áreas, Detalhes Áreas e Lotes desligados.
   - Ao abrir, a permissão ainda carregando valia "nada liberado" (PR #199).
@@ -5073,6 +5119,7 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
   - **Escopo trocado** (conta, empresa ou fazenda) com o mapa montado: aplica o estado **completo** do novo escopo (`normalizarFiltrosMapa`), ou seja, o salvo dele ou o padrão. Nenhum valor do escopo anterior sobrevive.
   - **Gravação:** só depois de aplicar o estado do escopo atual.
   - **Padrão** (o proprietário pediu): Áreas, Detalhes Áreas e Lotes ligados, quando a permissão deixa ver.
+  - **Estilo dos pastos** (Visualização, PR #200) entra na preferência do escopo, validado contra `cheio`/`suave`/`contorno`.
   - **Legado:** as chaves antigas (por empresa e global) não têm titular verificável, pois qualquer conta do aparelho pode tê-las gravado. Por isso **não são herdadas por ninguém** (seria copiar filtros de outra pessoa) e **não são apagadas**. Na primeira vez, cada conta começa no padrão.
 - **Consequência:**
   - O mapa reabre como cada usuário deixou.
@@ -5081,4 +5128,4 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
   - Testes: `tests/smoke/mapaFiltrosEscopo.test.jsx` e `tests/smoke/mapaFiltrosPorUsuario.test.jsx`.
   - Relatório: `docs/engineering/MAIKE-MAPA-FILTROS-POR-USUARIO-REPORT.md`.
 
-<!-- Próxima decisão: D-PROD-134 -->
+<!-- Próxima decisão: D-PROD-136 -->

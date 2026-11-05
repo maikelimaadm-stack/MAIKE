@@ -337,3 +337,23 @@ O novo visual dos botões do Mapa Geral (D-PROD-131: painel Visualização, sem 
 
 **Não testado em aparelho.**
 
+## V22 — Mapa Geral: painel Visualização discreto (D-PROD-132)
+
+| Pedido | Feito | Evidência |
+|---|---|---|
+| Voltar o visual dos botões do mapa (sem o ✕, estilos Cheio, Suave e Contorno, tela de entrada) | Código do #197 de volta, sem o menu lateral e sem o botão de fazenda | v22-01, v22-04 |
+| Não tão grande nem colorido | Escolhas segmentadas em cinza, fichas pequenas, painel de 288 px e botões de 40 px | v22-02, v22-03 |
+| "Mostrar no mapa" como ativo ou inativo, e separado da visualização | Fica no botão Filtros, com uma chave liga/desliga por camada; Visualização só com tipo de mapa, estilo e cores | v22-02, v22-03, v22-05 |
+
+**Não testado em aparelho.**
+
+## V23 — Tarefas do mapa em cards (D-PROD-133)
+
+| Pedido | Feito | Evidência |
+|---|---|---|
+| Tarefas em cards, como nos cadastros, sem a tabela | O painel de tarefas usa os cards dos cadastros (barra, cards, resumo); a tabela antiga saiu | v23-01, v23-02 |
+| Filtros iguais aos dos cadastros | O botão Filtros abre o "Filtrar por campo" dos cadastros | v23-03 |
+| Botões, pesquisa e listagem iguais ao cadastro | Mesmo layout de Lotes: + e ⚡ na 1ª linha, pesquisa e filtro na 2ª (celular), resumo em 2 linhas, seleção como nos cadastros | v23-01, v23-02 |
+
+**Não testado em aparelho.** Nas fotos, as tarefas são exemplos do ambiente de teste.
+

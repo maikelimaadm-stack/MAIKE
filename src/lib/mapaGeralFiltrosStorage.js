@@ -1,5 +1,5 @@
 /**
- * Preferências do Mapa Geral (camadas e filtros) — POR USUÁRIO (D-PROD-133).
+ * Preferências do Mapa Geral (camadas e filtros) — POR USUÁRIO (D-PROD-135).
  *
  * Chave: fazenda (cliente) + conta (login) + empresa — as TRÊS obrigatórias;
  * sem a fazenda conhecida não há leitura nem gravação (nunca um tenant "-"
@@ -40,7 +40,12 @@ export const PADRAO_FILTROS_MAPA = Object.freeze({
   filtroPesoMin: null,
   filtroPesoMax: null,
   modoColoracao: 'padrao',
+  // Visualização (PR #200): como o pasto é pintado. Enum validado abaixo.
+  estiloPasto: 'cheio',
 });
+
+/** Estilos de pasto aceitos — os mesmos de `ESTILOS_PASTO` (src/lib/maplibre/mapaGeralRender.js). */
+export const ESTILOS_PASTO_VALIDOS = Object.freeze(['cheio', 'suave', 'contorno']);
 
 /**
  * @typedef {{ clienteId: string, login: string, empresaId: string }} EscopoFiltros
@@ -94,6 +99,7 @@ export const normalizarFiltrosMapa = (salvo) => {
     if (typeof padrao === 'boolean' && typeof s[k] === 'boolean') out[k] = s[k];
     else if (typeof padrao === 'string' && typeof s[k] === 'string') out[k] = s[k];
   }
+  if (!ESTILOS_PASTO_VALIDOS.includes(out.estiloPasto)) out.estiloPasto = PADRAO_FILTROS_MAPA.estiloPasto;
   out.filtroPesoMin = numeroOuNulo(s.filtroPesoMin);
   out.filtroPesoMax = numeroOuNulo(s.filtroPesoMax);
   // Formato antigo: um só liga/desliga para cochos e depósitos.

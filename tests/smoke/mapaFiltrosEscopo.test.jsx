@@ -146,4 +146,14 @@ describe('ESCOPO — troca de conta/empresa sem desmontar o mapa', () => {
     expect(vis.showAreas).toBe(true);
     expect(vis.showLotes).toBe(false);
   });
+
+  it('estilo dos pastos (Visualização) é preferência do escopo: mantido ao reabrir; valor inválido volta ao padrão; outra conta não herda', async () => {
+    localStorage.setItem(chave('tenant-1', 'ana', 'emp-1'), JSON.stringify({ ...PREF_A, estiloPasto: 'contorno' }));
+    localStorage.setItem(chave('tenant-1', 'bruno', 'emp-1'), JSON.stringify({ estiloPasto: '<script>' }));
+    await abrir();
+    expect(ler(chave('tenant-1', 'ana', 'emp-1'))?.estiloPasto).toBe('contorno');
+    await trocarConta(B);
+    expect(ler(chave('tenant-1', 'bruno', 'emp-1'))?.estiloPasto).toBe('cheio');
+    expect(ler(chave('tenant-1', 'ana', 'emp-1'))?.estiloPasto).toBe('contorno');
+  });
 });
