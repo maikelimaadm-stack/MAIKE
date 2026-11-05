@@ -15,7 +15,7 @@ export default function SplashScreen({ visible, logoUrl }) {
       <div className="flex flex-col items-center gap-4">
         <div className="flex items-center justify-center">
           <img
-            src={logoUrl || "/brand/mak-gestao-logo.png"}
+            src={logoUrl || "/brand/mak-gestao-logo.png?v=2"}
             alt="MAK Gestão"
             className="h-40 w-40 object-contain"
           />
