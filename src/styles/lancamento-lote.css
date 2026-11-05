@@ -1117,9 +1117,10 @@
 /* Ícone em imagem (Mover animais): mesma altura dos ícones, mais largo */
 .mk-al__quadro .mk-al__img {
   display: block;
-  height: 24px;
+  height: 32px;
+  margin: -6px 0 -2px;
   width: auto;
-  max-width: 56px;
+  max-width: 64px;
   object-fit: contain;
 }
 
@@ -1146,7 +1147,8 @@
   }
 
   .mk-al__folha .mk-al__quadro .mk-al__img {
-    height: 26px;
+    height: 36px;
+    margin: -8px 0 -2px;
   }
 }
 
@@ -1169,6 +1171,12 @@
 .mk-al--embaixo .mk-al__quadro svg {
   width: 19px;
   height: 19px;
+}
+
+/* Imagem maior que os ícones de 19px, sem descer o nome nem aumentar o quadro */
+.mk-al--embaixo .mk-al__quadro .mk-al__img {
+  height: 30px;
+  margin: -9px 0 -2px;
 }
 
 .mk-al--embaixo .mk-al__grupos {

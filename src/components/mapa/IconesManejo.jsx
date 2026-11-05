@@ -1,0 +1,22 @@
+import React from "react";
+
+/**
+ * Ícones em imagem dos manejos, enviados pelo proprietário (D-PROD-131).
+ * Ficam no lugar de um ícone lucide nos quadros de AcoesDoLote
+ * (mesma altura dos outros ícones — ver `.mk-al__img`).
+ *
+ * @param {string} src
+ */
+const iconeImagem = (src) => {
+  /** @param {{ className?: string }} props */
+  const Icone = ({ className = "" }) => (
+    <img src={src} alt="" aria-hidden="true" draggable={false} className={`mk-al__img ${className}`.trim()} />
+  );
+  return Icone;
+};
+
+/** Mover: boi entre duas porteiras, com as setas de troca. */
+export const IconeMoverAnimais = iconeImagem("/icons/mover-animais.png");
+
+/** Pesar: balança digital com o visor 0.0. */
+export const IconePesar = iconeImagem("/icons/pesar.png");

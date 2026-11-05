@@ -5034,16 +5034,19 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
   - aproximando: média 97% e pior quadro 94%;
   - evidência: v19-05.
 
-## D-PROD-131 — Manejo "Mover": ícone do proprietário (boi entre porteiras)
+## D-PROD-131 — Manejos "Mover" e "Pesar": ícones do proprietário
 
-- **Contexto:** o proprietário enviou uma imagem própria para o botão de mover animais: um boi entre duas porteiras, com setas verdes de troca.
+- **Contexto:** o proprietário enviou imagens próprias para dois botões de manejo:
+  - Mover: um boi entre duas porteiras, com setas verdes de troca;
+  - Pesar: uma balança digital com o visor 0.0.
 - **Decisão:**
-  - O quadro "Mover" dos Manejos (Detalhes do Lote) usa essa imagem no lugar do ícone `ArrowLeftRight`.
-  - A imagem foi recortada, com o fundo branco tirado, e salva em `public/icons/mover-animais.png`. Ela é exibida por `IconeMoverAnimais`.
-  - Tem a mesma altura dos outros ícones (24 px; 26 px na folha do celular) e `display: block`, para o nome não descer.
+  - Os quadros "Mover" e "Pesar" dos Manejos (Detalhes do Lote) usam essas imagens no lugar dos ícones `ArrowLeftRight` e `Scale`.
+  - As imagens foram recortadas, com o fundo branco tirado, e salvas em `public/icons/mover-animais.png` e `public/icons/pesar.png`. Elas são exibidas por `IconesManejo`.
+  - A pedido do proprietário, ficam **maiores** que os outros ícones: 32 px, 36 px na folha do celular e 30 px nos quadros menores do computador.
+  - Uma margem negativa faz a imagem crescer para cima, sem aumentar o quadro nem descer o nome.
 - **Consequência:**
-  - O nome "Mover" fica alinhado com os outros quadros.
-  - Teste: `tests/smoke/iconeMoverAnimais.test.jsx`.
+  - O nome de cada quadro fica alinhado com os outros.
+  - Teste: `tests/smoke/iconesManejo.test.jsx`.
   - Evidências: v21-01 e v21-02.
 
 <!-- Próxima decisão: D-PROD-132 -->
