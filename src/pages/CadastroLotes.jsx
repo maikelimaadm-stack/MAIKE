@@ -160,22 +160,22 @@ export default function CadastroLotes() {
 
   const updateMutation = useMutation({
     /**
-     * R1: o que mudou na ENTRADA vai pelo comando de correção (servidor
-     * reescreve o fato inteiro); o resto (nome, raça, observações…) segue pelo
-     * PATCH, só com o que mudou. Correção recusada → nada mais é enviado e o
-     * formulário fica como está.
+     * R1-R2: entrada elegível → tudo o que mudou vai num ÚNICO comando de
+     * correção (o servidor grava ledger, lote e auditoria na mesma transação).
+     * Fora disso, a edição segue pelo PATCH, só com o que mudou. Recusa → nada
+     * é enviado além e o formulário fica como está.
      * @param {{ id: string, data: Record<string, any>, oldData?: Record<string, any>, correcao?: {campos: Record<string, unknown>, motivo: string} }} vars
      */
     mutationFn: async ({ id, data, oldData, correcao }) => {
-      let base = oldData ?? {};
-      let corrigido = null;
+      const base = oldData ?? {};
+      // R1-R2: correção da entrada = UMA requisição (comando atômico no servidor),
+      // com operacionais e administrativos juntos. Nunca seguida de PATCH.
       if (correcao) {
         const r = /** @type {any} */ (await corrigirEntradaDoLote(id, { ...correcao, updatedDate: base.updated_date }));
-        corrigido = r?.lote ?? null;
-        base = { ...base, ...(corrigido ?? {}) };
+        return r?.lote ?? base;
       }
-      const patch = somenteCamposAlterados(oldData ?? {}, data);
-      if (!Object.keys(patch).length) return corrigido ?? base;
+      const patch = somenteCamposAlterados(base, data);
+      if (!Object.keys(patch).length) return base;
       return atualizarLote(id, { ...patch, campos_personalizados: data.campos_personalizados || base.campos_personalizados || {} }, { registroAnterior: base });
     },
     onSuccess: async (updated, { id, data, correcao }) => {

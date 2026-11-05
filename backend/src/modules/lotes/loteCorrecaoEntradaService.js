@@ -34,6 +34,7 @@ import { AppError, loteNotFound, setorNotFound, areaNotFound } from '../../share
 import { registrarEvento } from '../auditoria/auditService.js';
 import { executarComIdempotencia, fingerprintDePayload } from '../../shared/idempotency/operacaoIdempotenteService.js';
 import { buscarLote, atualizarLotePorId } from './loteRepository.js';
+import { camposDe } from './loteService.js';
 import { origemDerivadaDeManejo } from './loteOrigem.js';
 import { noEstadoDeEntrada, movimentosQueCitam, temLegadoPorNome, outraFonteVinculada, auditoriaExplicada } from './loteExclusaoService.js';
 import {
@@ -53,9 +54,24 @@ import {
 } from '../rebanhoLedger/rebanhoLedgerNucleo.js';
 
 export const TIPO_OPERACAO_CORRECAO_ENTRADA = 'correcao_entrada_lote';
-export const CAMPOS_CORRIGIVEIS = Object.freeze([
+/** Campos da ENTRADA que mexem no ledger (fato, partida, peso, posição). */
+export const CAMPOS_OPERACIONAIS_DA_ENTRADA = Object.freeze([
   'quantidade', 'peso_entrada_kg', 'data_entrada', 'categoria', 'categoria_manejo_id', 'sexo', 'setor_id', 'area_entrada_id',
 ]);
+/**
+ * R1-R2: campos ADMINISTRATIVOS do lançamento da entrada, já existentes no
+ * modelo e no formulário — gravados no MESMO comando e na MESMA transação.
+ * Nunca: saldo/posição calculados, status, área atual, tenant, usuário, número.
+ */
+export const CAMPOS_ADMINISTRATIVOS_DA_ENTRADA = Object.freeze([
+  'nome', 'identificador_nome', 'identificador_sigla', 'identificador_cor', 'raca_predominante', 'sistema_produtivo',
+  'idade_media_meses', 'observacoes', 'motivo_entrada', 'motivo_ajuste', 'motivo_outros', 'origem', 'fornecedor_id',
+  'fornecedor_nome', 'nota_fiscal', 'chave_nfe', 'numero_gta', 'cidade_origem', 'estado_origem', 'valor_total_compra',
+  'valor_por_cabeca', 'valor_frete', 'campos_personalizados',
+]);
+export const CAMPOS_CORRIGIVEIS = Object.freeze([...CAMPOS_OPERACIONAIS_DA_ENTRADA, ...CAMPOS_ADMINISTRATIVOS_DA_ENTRADA]);
+/** Exibição do cadastro que acompanha a posição PRÓPRIA da entrada (mesma regra do PATCH). */
+const CAMPOS_DE_EXIBICAO_DA_POSICAO = Object.freeze(['nome', 'identificador_nome', 'identificador_sigla', 'identificador_cor']);
 const SEXOS = ['Macho', 'Fêmea', 'Misto'];
 
 const bloqueio = (motivo, detalhes = {}) => ({ elegivel: false, motivo, detalhes });
@@ -186,8 +202,16 @@ export const lerCorrecaoEntrada = (corpo) => {
   }
   const desconhecidos = Object.keys(c).filter((k) => !CAMPOS_CORRIGIVEIS.includes(k));
   if (desconhecidos.length) throw invalido('campo não corrigível por este comando', { campos: desconhecidos });
-  if (!Object.keys(campos).length) throw invalido('nenhum campo para corrigir', { field: 'campos' });
-  return { operationKey, motivo, esperado, campos };
+  // Administrativos: mesma normalização do cadastro (texto aparado, número, inteiro).
+  const brutosAdm = Object.fromEntries(Object.entries(c).filter(([k]) => CAMPOS_ADMINISTRATIVOS_DA_ENTRADA.includes(k)));
+  const administrativos = camposDe(brutosAdm);
+  if ('nome' in brutosAdm && !administrativos.nome) throw invalido('nome não pode ficar vazio', { field: 'campos.nome' });
+  if ('motivo_entrada' in brutosAdm && !administrativos.motivo_entrada) throw invalido('motivo_entrada não pode ficar vazio', { field: 'campos.motivo_entrada' });
+  if ('origem' in administrativos && origemDerivadaDeManejo(administrativos.origem)) {
+    throw invalido('a origem da entrada não pode virar origem de manejo', { field: 'campos.origem', reason: 'classe_de_origem_imutavel' });
+  }
+  if (!Object.keys(campos).length && !Object.keys(administrativos).length) throw invalido('nenhum campo para corrigir', { field: 'campos' });
+  return { operationKey, motivo, esperado, campos, administrativos };
 };
 
 const isoDe = (d) => (d instanceof Date ? d.toISOString() : String(d));
@@ -202,7 +226,7 @@ const isoDe = (d) => (d instanceof Date ? d.toISOString() : String(d));
 export const corrigirEntradaLote = async (contexto, id, corpo, comoLotePublico) => {
   const auth = exigirAuthContext(contexto?.auth);
   const e = lerCorrecaoEntrada(corpo);
-  const fingerprint = fingerprintDePayload({ id, campos: e.campos, motivo: e.motivo, esperado: e.esperado });
+  const fingerprint = fingerprintDePayload({ id, campos: e.campos, administrativos: e.administrativos, motivo: e.motivo, esperado: e.esperado });
   const r = await getPrismaClient().$transaction(async (tx) =>
     executarComIdempotencia(tx, {
       clienteId: auth.clienteId,
@@ -278,7 +302,8 @@ const executarCorrecao = async (tx, contexto, id, e, comoLotePublico) => {
   /** @type {Record<string, unknown>} */
   const resposta = { lote_id: id };
 
-  if (avaliacao.ledger) {
+  const mexeNoLedger = CAMPOS_OPERACIONAIS_DA_ENTRADA.some((k) => k in c);
+  if (avaliacao.ledger && mexeNoLedger) {
     if (!novo.areaId) throw invalido('no ledger a entrada precisa de área', { field: 'campos.area_entrada_id' });
     if (!novo.dia) throw invalido('no ledger a entrada precisa de data', { field: 'campos.data_entrada' });
     if (area && area.ativo === false && novo.areaId !== lote.area_entrada_id) throw new AppError('REBANHO_AREA_INATIVA', 'área de entrada inativa');
@@ -338,8 +363,11 @@ const executarCorrecao = async (tx, contexto, id, e, comoLotePublico) => {
     resposta.posicao_id = posicao.id;
   }
 
-  // Snapshot da entrada: entrada e "atual" iguais (o lote está no retrato da entrada).
+  ponto('correcao_entrada:antes_do_lote');
+  // Snapshot da entrada: entrada e "atual" iguais (o lote está no retrato da entrada),
+  // mais os administrativos — um único UPDATE do Lote.
   const atualizado = await atualizarLotePorId(tx, clienteId, id, {
+    ...e.administrativos,
     quantidade_entrada: novo.quantidade,
     quantidade_cabecas: novo.quantidade,
     peso_entrada_kg: novo.peso,
@@ -359,6 +387,14 @@ const executarCorrecao = async (tx, contexto, id, e, comoLotePublico) => {
     area_atual_id: area?.id ?? null,
     area_atual_nome: area?.nome ?? null,
   });
+  if (avaliacao.ledger) {
+    // Nome/identificação do cadastro acompanham a posição PRÓPRIA desta entrada (elegível = exatamente uma).
+    const exibicao = Object.fromEntries(CAMPOS_DE_EXIBICAO_DA_POSICAO.filter((k) => k in e.administrativos).map((k) => [k, e.administrativos[k]]));
+    if (Object.keys(exibicao).length) {
+      await tx.posicaoRebanho.updateMany({ where: { cliente_id: clienteId, lote_entrada_id: id }, data: exibicao });
+    }
+  }
+  ponto('correcao_entrada:apos_lote');
   const publico = comoLotePublico(atualizado);
   await registrarEvento(contexto, {
     acao: 'correcao_entrada',
@@ -367,6 +403,7 @@ const executarCorrecao = async (tx, contexto, id, e, comoLotePublico) => {
     dadosAnteriores: anteriorPublico,
     dadosNovos: { ...publico, motivo_correcao: e.motivo, operation_id: e.operationKey, ...(resposta.evento_id ? { evento_id: resposta.evento_id } : {}) },
   }, tx);
+  ponto('correcao_entrada:apos_auditoria');
   return { httpStatus: 200, body: { ...resposta, lote: publico } };
 };
 

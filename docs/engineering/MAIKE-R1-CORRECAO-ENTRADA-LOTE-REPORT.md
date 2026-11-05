@@ -135,3 +135,67 @@ A regressão dos testes de lotes existentes passou: 181/181.
 > **D-PROD-1xx — Correção atômica da entrada original.** O Cadastro de Lotes corrige quantidade, peso de entrada, data, categoria, categoria de manejo, sexo, setor e área de entrada pelo comando `POST /lotes/:id/correcao-entrada`. O PATCH genérico continua recusando esses campos. O comando só vale quando nada depende da entrada, verificado no banco com o lote travado; movimentação cancelada também bloqueia.
 >
 > A correção reescreve o MESMO fato (Lote, EventoRebanho, PartidaRebanho, PesoRebanho e PosicaoRebanho), com os mesmos ids, numa transação. Exige motivo, CAS, idempotência e auditoria antes/depois. Entrada vinda da ativação (agregada ou saldo de abertura) é recusada de forma explícita. "Informações do Lote" no mapa (metadados da posição) é a missão R2, separada.
+
+## R1-R2 — um salvamento, uma transação
+
+**Antes (R1, commit `269134fb`).** O formulário mandava os campos operacionais pelo comando e, **depois**, os administrativos pelo PATCH. Eram duas requisições, sem atomicidade entre elas: se a segunda falhasse, a quantidade ficava corrigida e o nome ou a documentação não.
+
+**Depois.** Uma ação "Salvar" na entrada elegível gera **uma** requisição: `POST /lotes/:id/correcao-entrada`. Ledger, `Lote`, projeção, exibição da posição própria e auditoria são gravados na **mesma** transação; qualquer falha desfaz tudo, inclusive o recibo de idempotência.
+
+### Matriz de campos do comando
+
+| Grupo | Campos | Efeito |
+|---|---|---|
+| Operacionais da entrada | quantidade, peso_entrada_kg, data_entrada, categoria, categoria_manejo_id, sexo, setor_id, area_entrada_id | Lote + EventoRebanho ENTRADA + PartidaRebanho + PesoRebanho + PosicaoRebanho (mesmos ids) |
+| Administrativos da entrada | nome, identificador_nome/sigla/cor, raca_predominante, sistema_produtivo, idade_media_meses, observacoes, motivo_entrada, motivo_ajuste, motivo_outros, origem (só classe de entrada), fornecedor_id/nome, nota_fiscal, chave_nfe, numero_gta, cidade_origem, estado_origem, valor_total_compra, valor_por_cabeca, valor_frete, campos_personalizados | Lote. Nome e identificador acompanham a posição **própria** da entrada (elegível = exatamente uma), como no PATCH |
+| Recusados (400) | status, numero_lote, area_atual_id, quantidade_cabecas, peso_medio_kg, cliente_id, empresa_id, usuário, qualquer outro | — |
+
+Regras do comando:
+
+- Comando só com administrativos: grava o Lote e **não** toca o ledger (evento, partida e peso ficam intactos).
+- Os administrativos também exigem elegibilidade (fail-closed).
+- `motivo` é sempre obrigatório.
+- O CAS por `estado_esperado.updated_date` protege o snapshot inteiro.
+
+### Idempotência e retentativa
+
+- Mesma `operation_id` com o mesmo payload: devolve o resultado guardado, **mesmo depois** de o `updated_date` ter avançado (resposta perdida após o commit).
+- Mesma chave com payload diferente: `IDEMPOTENCY_CONFLICT`.
+- No frontend:
+  - a mesma tentativa reusa a chave;
+  - o duplo clique tem trava síncrona;
+  - a recusa do servidor libera nova chave;
+  - a falha de rede mantém a chave para a retentativa.
+
+### Frontend
+
+- **Diferença canônica:**
+  - texto aparado, vazio = `null`;
+  - numérico lido do valor CRU do formulário (campo vazio não vira 0);
+  - JSON comparado serializado.
+- **Elegível + algo mudou:** uma só chamada ao comando, sem PATCH.
+- **Não elegível** (bloqueado, erro, consultando): campos da entrada só leitura; metadados seguem pelo PATCH, só com o que mudou (uma requisição).
+
+### Evidências R1-R2
+
+- **Backend** (`backend/tests/r1CorrecaoEntradaLote.test.mjs`): **26/26 GREEN** — os 19 anteriores mais 7 novos. RED dos novos contra `269134fb`: 6 falham (o do contrato fechado já passava).
+
+  | Teste novo | O que prova |
+  |---|---|
+  | Combinado | 100→120 + raça + identificador + observações + NF num comando: todas as superfícies, uma ENTRADA, uma auditoria, leitura pela API |
+  | Só administrativos | Ledger intocado |
+  | Falha injetada | `apos_projecao`, `antes_do_lote`, `apos_lote`, `apos_auditoria`: nada fica, nem recibo; quantidade não muda sozinha |
+  | Resposta perdida | Replay com a mesma chave depois de o `updated_date` avançar; nova chave com leitura antiga → 409 |
+  | Contrato fechado | origem de manejo, nome vazio, status, numero_lote e area_atual_id → 400 |
+  | Elegibilidade | Administrativo com dependência → 409 |
+  | H2 | O histórico não ganha movimentação; evento com a data corrigida |
+
+- **Frontend** (`tests/smoke/r1CorrecaoEntradaLote.test.jsx`): **12/12 GREEN**, com 3 novos:
+  - diferença administrativa sem espúrios;
+  - quantidade + raça no mesmo clique = uma requisição, sem PATCH;
+  - só administrativo pelo comando.
+- **Regressão:** smoke de lotes 193/193; `gate:types` sem regressão.
+
+### Offline
+
+O comando é só online: sem conexão, recusa tipada antes de qualquer HTTP, nunca vira fila. A elegibilidade é do servidor, então offline a correção não é oferecida.

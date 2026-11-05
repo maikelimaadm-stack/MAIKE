@@ -8,7 +8,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor, cleanup, fireEvent, act } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-import { camposDaCorrecaoDeEntrada, somenteCamposAlterados, CAMPOS_FORA_DO_PATCH, mensagemDoMotivoCorrecao } from "@/domain/lotes/correcaoEntrada";
+import { camposDaCorrecaoDeEntrada, camposAdministrativosAlterados, somenteCamposAlterados, CAMPOS_FORA_DO_PATCH, mensagemDoMotivoCorrecao } from "@/domain/lotes/correcaoEntrada";
 
 const ENTRADA = Object.freeze({
   id: "l9", numero_lote: "9", nome: "NOVO", origem: "COMPRA", motivo_entrada: "Compra", empresa_id: "emp-1", status: "Ativo",
@@ -33,6 +33,15 @@ describe("R1 domínio — o que a correção muda", () => {
     expect(p).toEqual({ nome: "NOVO NOME" });
     for (const c of CAMPOS_FORA_DO_PATCH) expect(p).not.toHaveProperty(c);
     expect(somenteCamposAlterados(ENTRADA, { ...ENTRADA, status: "Inativo" })).toEqual({ status: "Inativo" });
+  });
+
+  it("R1-R2: administrativos alterados sem diferença espúria (vazio ≠ 0, texto aparado, tipos canônicos)", () => {
+    const lote = { ...ENTRADA, raca_predominante: "NELORE", idade_media_meses: null, valor_total_compra: null, observacoes: null, campos_personalizados: { a: 1 } };
+    const dados = { nome: "NOVO", raca_predominante: " NELORE ", idade_media_meses: 0, valor_total_compra: 0, observacoes: "", campos_personalizados: { a: 1 } };
+    expect(camposAdministrativosAlterados(lote, dados, { idade_media_meses: "", valor_total_compra: "" })).toEqual({});
+    expect(camposAdministrativosAlterados(lote, { ...dados, raca_predominante: "ANGUS", observacoes: "X" }, { idade_media_meses: "12", valor_total_compra: "1500.5" })).toEqual({
+      raca_predominante: "ANGUS", observacoes: "X", idade_media_meses: 12, valor_total_compra: 1500.5,
+    });
   });
 
   it("motivos estáveis do servidor viram texto (sem mensagem genérica muda)", () => {
@@ -189,6 +198,34 @@ describe("R1 página — enviar a correção", () => {
       for (const c of [...CAMPOS_FORA_DO_PATCH, "status"]) expect(chamada[1]).not.toHaveProperty(c);
     }
     expect(mapaCache.refreshMapaCacheEntry).toHaveBeenCalledWith("lotes", "emp-1", { force: true });
+  });
+
+  it("R1-R2: quantidade + raça no MESMO clique → UMA requisição (comando), nenhum PATCH", async () => {
+    serviceMock.corrigirEntradaDoLote.mockResolvedValue({ lote_id: "l9", lote: { ...ENTRADA, quantidade_entrada: 120, raca_predominante: "NELORE" } });
+    await editarQuantidade("120");
+    fireEvent.change(screen.getByText("Raça Predominante").closest(".mg-field").querySelector("input"), { target: { value: "nelore" } });
+    fireEvent.change(screen.getByLabelText("Motivo da correção"), { target: { value: "lançamento errado" } });
+    salvar();
+    await waitFor(() => expect(notify.notifySuccess).toHaveBeenCalledWith("Sucesso", "Entrada do lote corrigida"));
+    expect(serviceMock.corrigirEntradaDoLote).toHaveBeenCalledTimes(1);
+    const [, enviado] = serviceMock.corrigirEntradaDoLote.mock.calls[0];
+    expect(enviado.campos).toMatchObject({ quantidade: 120 });
+    expect(String(enviado.campos.raca_predominante).toUpperCase()).toBe("NELORE");
+    expect(Object.keys(enviado.campos).sort()).toEqual(["quantidade", "raca_predominante"]);
+    expect(serviceMock.atualizarLote).not.toHaveBeenCalled();
+  });
+
+  it("R1-R2: só administrativo com a entrada elegível também vai pelo comando (com motivo), sem PATCH", async () => {
+    serviceMock.corrigirEntradaDoLote.mockResolvedValue({ lote_id: "l9", lote: { ...ENTRADA, raca_predominante: "ANGUS" } });
+    await renderPagina();
+    await abrirEdicao();
+    await waitFor(async () => expect((await aviso()).dataset.estado).toBe("elegivel"));
+    fireEvent.change(screen.getByText("Raça Predominante").closest(".mg-field").querySelector("input"), { target: { value: "ANGUS" } });
+    fireEvent.change(screen.getByLabelText("Motivo da correção"), { target: { value: "raça errada" } });
+    salvar();
+    await waitFor(() => expect(serviceMock.corrigirEntradaDoLote).toHaveBeenCalledTimes(1));
+    expect(Object.keys(serviceMock.corrigirEntradaDoLote.mock.calls[0][1].campos)).toEqual(["raca_predominante"]);
+    expect(serviceMock.atualizarLote).not.toHaveBeenCalled();
   });
 
   it("servidor recusa (dependência ou leitura obsoleta): avisa o motivo e o formulário fica com o que foi digitado", async () => {

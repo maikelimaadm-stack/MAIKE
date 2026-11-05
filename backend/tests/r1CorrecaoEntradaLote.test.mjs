@@ -91,13 +91,13 @@ const contagem = async (c) => {
   const p = prisma();
   const where = { cliente_id: c.cliente.id };
   return JSON.stringify({
-    lotes: (await p.lote.findMany({ where, orderBy: { id: 'asc' } })).map((l) => [l.id, l.quantidade_cabecas, l.quantidade_entrada, String(l.peso_entrada_kg), l.data_entrada?.toISOString(), l.area_entrada_id, l.categoria, l.sexo, l.updatedAt.toISOString()]),
-    posicoes: (await p.posicaoRebanho.findMany({ where, orderBy: { id: 'asc' } })).map((x) => [x.id, x.area_id, x.quantidade_cabecas, String(x.peso_medio_kg), x.chave_identidade]),
+    lotes: (await p.lote.findMany({ where, orderBy: { id: 'asc' } })).map((l) => [l.id, l.quantidade_cabecas, l.quantidade_entrada, String(l.peso_entrada_kg), l.data_entrada?.toISOString(), l.area_entrada_id, l.categoria, l.sexo, l.nome, l.raca_predominante, l.identificador_nome, l.observacoes, l.nota_fiscal, l.updatedAt.toISOString()]),
+    posicoes: (await p.posicaoRebanho.findMany({ where, orderBy: { id: 'asc' } })).map((x) => [x.id, x.area_id, x.quantidade_cabecas, String(x.peso_medio_kg), x.chave_identidade, x.nome, x.identificador_nome, x.updatedAt.toISOString()]),
     partidas: (await p.partidaRebanho.findMany({ where, orderBy: { id: 'asc' } })).map((x) => [x.id, x.delta, x.data_operacional.toISOString(), x.ativa]),
     pesos: (await p.pesoRebanho.findMany({ where, orderBy: { id: 'asc' } })).map((x) => [x.id, String(x.peso_medio_kg), x.ativa]),
     eventos: (await p.eventoRebanho.findMany({ where, orderBy: { id: 'asc' } })).map((x) => [x.id, x.data_operacional.toISOString(), x.situacao]),
     audits: await p.auditLog.count({ where }),
-    ops: await p.operacaoIdempotente.count({ where: { ...where, status: 'committed' } }),
+    ops: await p.operacaoIdempotente.count({ where }),
   });
 };
 const nadaGravado = async (c, acao, status, codigo) => {
@@ -396,5 +396,103 @@ describe('R1 — modos de ativação e efeitos colaterais', () => {
     assert.equal((await corrigir(c, lote, { quantidade: 120 })).statusCode, 200);
     const el = (await req('GET', `/lotes/${lote.id}/elegibilidade-exclusao`, c.tok)).json();
     assert.notEqual(el.tipo, 'bloqueado', JSON.stringify(el));
+  });
+});
+
+describe('R1-R2 — UM salvamento, UMA transação (operacionais + administrativos)', () => {
+  const COMBINADO = { quantidade: 120, raca_predominante: 'NELORE', identificador_nome: 'GRUPO A', observacoes: 'COMPRA DO VIZINHO', nota_fiscal: 'NF-123' };
+
+  test('100→120 + raça + identificador + observações + NF num único comando: todas as superfícies, uma entrada, ledger congruente', async () => {
+    const c = await cenario();
+    const lote = await novoLote(c);
+    const antes = await fato(c, lote.id);
+    const r = await corrigir(c, lote, COMBINADO);
+    assert.equal(r.statusCode, 200, r.body);
+    const d = await fato(c, lote.id);
+    assert.deepEqual(
+      [d.lote.quantidade_entrada, d.lote.quantidade_cabecas, d.lote.raca_predominante, d.lote.identificador_nome, d.lote.observacoes, d.lote.nota_fiscal, d.lote.numero_lote, d.lote.empresa_id],
+      [120, 120, 'NELORE', 'GRUPO A', 'COMPRA DO VIZINHO', 'NF-123', antes.lote.numero_lote, c.empresa.id]
+    );
+    assert.equal(d.partidas[0].id, antes.partidas[0].id);
+    assert.equal(d.partidas[0].delta, 120);
+    assert.equal(d.posicoes[0].quantidade_cabecas, 120);
+    assert.equal(d.posicoes[0].identificador_nome, 'GRUPO A', 'exibição acompanha a posição própria');
+    assert.equal(await prisma().eventoRebanho.count({ where: { cliente_id: c.cliente.id } }), 1);
+    const audits = await prisma().auditLog.findMany({ where: { cliente_id: c.cliente.id, acao: 'correcao_entrada', entidade: 'Lote' } });
+    assert.equal(audits.length, 1, 'uma auditoria do lote por salvamento');
+    assert.equal(audits[0].dados_novos.raca_predominante, 'NELORE');
+    assert.equal(audits[0].dados_anteriores.quantidade_entrada, 100);
+    // Leitura posterior pela API
+    const lido = (await req('GET', `/lotes/${lote.id}`, c.tok)).json();
+    assert.deepEqual([lido.quantidade_entrada, lido.raca_predominante, lido.identificador_nome, lido.observacoes], [120, 'NELORE', 'GRUPO A', 'COMPRA DO VIZINHO']);
+  });
+
+  test('só administrativos pelo comando: Lote atualizado na transação, ledger intocado', async () => {
+    const c = await cenario();
+    const lote = await novoLote(c);
+    const antes = await fato(c, lote.id);
+    const r = await corrigir(c, lote, { raca_predominante: 'ANGUS', valor_total_compra: 1000, idade_media_meses: 12 });
+    assert.equal(r.statusCode, 200, r.body);
+    const d = await fato(c, lote.id);
+    assert.deepEqual([d.lote.raca_predominante, Number(d.lote.valor_total_compra), d.lote.idade_media_meses], ['ANGUS', 1000, 12]);
+    assert.deepEqual(d.eventos.map((e) => [e.id, e.updatedAt.toISOString(), e.dados.correcoes]), antes.eventos.map((e) => [e.id, e.updatedAt.toISOString(), undefined]));
+    assert.deepEqual(d.partidas.map((x) => x.updatedAt.toISOString()), antes.partidas.map((x) => x.updatedAt.toISOString()));
+  });
+
+  test('falha injetada depois do ledger e antes dos metadados, e depois dos metadados (antes/depois da auditoria) → nada fica, nem recibo de idempotência', async () => {
+    const c = await cenario();
+    const lote = await novoLote(c);
+    for (const passo of ['correcao_entrada:apos_projecao', 'correcao_entrada:antes_do_lote', 'correcao_entrada:apos_lote', 'correcao_entrada:apos_auditoria']) {
+      definirFalhaInjetadaLedger(passo);
+      await nadaGravado(c, () => corrigir(c, lote, COMBINADO), 500);
+    }
+    definirFalhaInjetadaLedger(null);
+    const d = await fato(c, lote.id);
+    assert.deepEqual([d.lote.quantidade_entrada, d.lote.raca_predominante, d.partidas[0].delta], [100, null, 100], 'quantidade não mudou sozinha');
+  });
+
+  test('resposta perdida após commit: a MESMA operation_id devolve o resultado guardado mesmo com updated_date já avançado', async () => {
+    const c = await cenario();
+    const lote = await novoLote(c);
+    const updated = (await req('GET', `/lotes/${lote.id}`, c.tok)).json().updated_date;
+    const operation_id = opId();
+    const r1 = await corrigir(c, lote, COMBINADO, { updated, operation_id });
+    assert.equal(r1.statusCode, 200);
+    assert.notEqual((await req('GET', `/lotes/${lote.id}`, c.tok)).json().updated_date, updated, 'snapshot avançou');
+    const antes = await contagem(c);
+    const r2 = await corrigir(c, lote, COMBINADO, { updated, operation_id });
+    assert.equal(r2.statusCode, 200, r2.body);
+    assert.equal(r2.json().replay, true);
+    assert.deepEqual(r2.json().lote, r1.json().lote);
+    assert.equal(await contagem(c), antes);
+    // Nova operação com a leitura antiga: CAS recusa (não reaplica).
+    await nadaGravado(c, () => corrigir(c, lote, COMBINADO, { updated }), 409, 'LOTE_ESTADO_CONFLITO');
+  });
+
+  test('contrato fechado dos administrativos: origem de manejo, nome vazio, status e campos de saldo → 400 sem gravar', async () => {
+    const c = await cenario();
+    const lote = await novoLote(c);
+    await nadaGravado(c, () => corrigir(c, lote, { origem: 'MOVIMENTAÇÃO' }), 400);
+    await nadaGravado(c, () => corrigir(c, lote, { nome: '' }), 400);
+    await nadaGravado(c, () => corrigir(c, lote, { status: 'Inativo' }), 400);
+    await nadaGravado(c, () => corrigir(c, lote, { numero_lote: '99' }), 400);
+    await nadaGravado(c, () => corrigir(c, lote, { area_atual_id: c.B.id }), 400);
+  });
+
+  test('administrativos também exigem elegibilidade (lote com dependência → bloqueado, nada gravado)', async () => {
+    const c = await cenario();
+    const lote = await novoLote(c);
+    await prisma().suplementacaoLote.create({ data: { cliente_id: c.cliente.id, empresa_id: c.empresa.id, dados: { lote_id: lote.id } } });
+    await nadaGravado(c, () => corrigir(c, lote, { raca_predominante: 'ANGUS' }), 409, 'LOTE_CORRECAO_ENTRADA_BLOQUEADA');
+  });
+
+  test('H2: o histórico lê a data corrigida da entrada (sem movimento novo)', async () => {
+    const c = await cenario();
+    const lote = await novoLote(c);
+    assert.equal((await corrigir(c, lote, { data_entrada: '2026-10-05', raca_predominante: 'NELORE' })).statusCode, 200);
+    const h = (await req('GET', `/movimentacoes-mapa/historico?empresa_id=${c.empresa.id}&lote_ids=${lote.id}`, c.tok)).json();
+    assert.equal(h.total, 0, 'a correção não cria movimentação');
+    const ev = (await fato(c, lote.id)).eventos[0];
+    assert.equal(ev.data_operacional.toISOString().slice(0, 10), '2026-10-05');
   });
 });

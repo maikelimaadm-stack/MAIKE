@@ -157,7 +157,7 @@ const CAMPOS_EDITAVEIS = Object.freeze({
 });
 
 /** @param {Record<string, unknown>} entrada */
-const camposDe = (entrada) => {
+export const camposDe = (entrada) => {
   /** @type {Record<string, unknown>} */
   const saida = {};
   for (const [campo, tratar] of Object.entries(CAMPOS_EDITAVEIS)) {

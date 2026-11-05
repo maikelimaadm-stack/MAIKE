@@ -4,7 +4,7 @@
 
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { listar, criar, atualizar, excluir, buscarPorId, elegibilidadeExclusao, comoLotePublico } from './loteService.js';
-import { elegibilidadeCorrecaoEntrada, corrigirEntradaLote } from './loteCorrecaoEntradaService.js';
+import { elegibilidadeCorrecaoEntrada, corrigirEntradaLote, CAMPOS_ADMINISTRATIVOS_DA_ENTRADA } from './loteCorrecaoEntradaService.js';
 
 const MOTIVOS = ['Compra', 'Ajuste', 'Inventário', 'Outros'];
 const STATUS = ['Ativo', 'Inativo', 'Vendido', 'Abatido', 'Transferido'];
@@ -129,6 +129,8 @@ const CORRIGIR_ENTRADA_SCHEMA = {
           sexo: { type: ['string', 'null'], enum: [...SEXOS, null] },
           setor_id: { type: ['string', 'null'], maxLength: 64 },
           area_entrada_id: { type: ['string', 'null'], maxLength: 64 },
+          // R1-R2: administrativos da entrada, mesmas regras da criação (mesma transação).
+          ...Object.fromEntries(CAMPOS_ADMINISTRATIVOS_DA_ENTRADA.map((k) => [k, CAMPOS_CRIACAO[k]])),
         },
       },
     },

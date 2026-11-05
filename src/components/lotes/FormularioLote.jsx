@@ -23,7 +23,7 @@ import DynamicFormRenderer from "@/components/dynamic/DynamicFormRenderer";
 import IconeOficialLotePreview from "@/components/catalogoGlobal/IconeOficialLotePreview";
 import { ehLoteDerivadoDeManejo, entradaHistoricaDoLote } from "@/domain/lotes/saldoLote";
 import LayoutConfiguratorDialog from "@/components/dynamic/LayoutConfiguratorDialog";
-import { ESTADOS_CORRECAO, camposDaCorrecaoDeEntrada } from "@/domain/lotes/correcaoEntrada";
+import { ESTADOS_CORRECAO, camposDaCorrecaoDeEntrada, camposAdministrativosAlterados } from "@/domain/lotes/correcaoEntrada";
 export const FORMULARIO_LOTE_ID = "formulario-lote-base1";
 
 const FL = ({ label, required, error, children, dataField, wide = false, compact = false, medium = false }) =>
@@ -402,8 +402,9 @@ export default function FormularioLote({
     };
 
     if (!shouldPersistEntrySnapshot && corrigindoEntrada) {
-      // R1: o que mudou na ENTRADA vai pelo comando de correção (com motivo).
-      const campos = camposDaCorrecaoDeEntrada(initialData, formData);
+      // R1-R2: UM salvamento = UM comando. Tudo o que mudou no lançamento da
+      // entrada (operacionais E administrativos) vai junto, numa transação.
+      const campos = { ...camposAdministrativosAlterados(initialData, dataToSave, formData), ...camposDaCorrecaoDeEntrada(initialData, formData) };
       if (Object.keys(campos).length) {
         if (!motivoCorrecao.trim()) {
           setErrors((prev) => ({ ...prev, motivo_correcao: true }));
@@ -656,13 +657,13 @@ export default function FormularioLote({
               {corrigindoEntrada && !isReadOnly && (
                 <label className="mt-1.5 flex flex-col gap-0.5" data-field="motivo_correcao">
                   <span className="font-semibold">Motivo da correção (obrigatório se mudar algum campo da entrada)</span>
-                  <Input
+                  <input
                     value={motivoCorrecao}
                     onChange={(e) => { setMotivoCorrecao(e.target.value); setErrors((prev) => ({ ...prev, motivo_correcao: false })); }}
                     placeholder="EX.: QUANTIDADE DIGITADA ERRADA"
                     aria-label="Motivo da correção"
                     maxLength={500}
-                    className={`h-[24px] bg-white text-xs ${errors.motivo_correcao ? "border-red-500 bg-red-50" : ""}`}
+                    className={`h-[24px] rounded-md border border-slate-300 bg-white px-2 text-xs ${/** @type {any} */ (errors).motivo_correcao ? "border-red-500 bg-red-50" : ""}`}
                   />
                 </label>
               )}
