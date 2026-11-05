@@ -86,7 +86,120 @@ export function buildMgLinhasCollection(linhas) {
 export function centroideArea(area) {
   const ring = parseVertices(area?.coordenadas?.coords);
   if (ring.length < 3) return null;
-  return pontoRotuloSeguro(ring);
+  // D-PROD-127: o ponto mais "de dentro" (longe de todas as bordas), para o
+  // nome e o ícone do lote não caírem em cima de uma divisa em área torta.
+  return pontoMaisDentro(ring) || pontoRotuloSeguro(ring);
+}
+
+/**
+ * Ponto bem dentro do polígono e o mais perto possível do meio dele
+ * (D-PROD-127): acha a maior folga até as bordas (centro do maior círculo que
+ * cabe — "polo de inacessibilidade") e, entre os pontos com ao menos 70%
+ * dessa folga, usa o mais perto do centroide. Em área quadrada é o
+ * centro; em L, U ou recortada fica no miolo da parte mais larga, nunca numa
+ * divisa nem fora. Busca em grade com refinamento (algoritmo polylabel), em
+ * metros aproximados (longitude corrigida pela latitude).
+ * @param {{ lat: number, lng: number }[]} ring anel aberto válido (≥3)
+ * @param {number} [precisao] fração do menor lado da caixa (padrão 1%)
+ * @returns {{ lat: number, lng: number } | null}
+ */
+export function pontoMaisDentro(ring, precisao = 0.01) {
+  if (!Array.isArray(ring) || ring.length < 3) return null;
+  const k = Math.cos(((ring.reduce((t, p) => t + p.lat, 0) / ring.length) * Math.PI) / 180) || 1;
+  const pts = ring.map((p) => [p.lng * k, p.lat]);
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const [x, y] of pts) {
+    if (x < minX) minX = x;
+    if (y < minY) minY = y;
+    if (x > maxX) maxX = x;
+    if (y > maxY) maxY = y;
+  }
+  const larg = maxX - minX;
+  const alt = maxY - minY;
+  const lado = Math.min(larg, alt);
+  if (!(lado > 0)) return null;
+  const minimo = lado * precisao;
+
+  /** distância com sinal do ponto à borda (positiva dentro) */
+  const dist = (x, y) => {
+    let dentro = false;
+    let menor = Infinity;
+    for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+      const [ax, ay] = pts[i];
+      const [bx, by] = pts[j];
+      if ((ay > y) !== (by > y) && x < ((bx - ax) * (y - ay)) / (by - ay) + ax) dentro = !dentro;
+      let dx = bx - ax;
+      let dy = by - ay;
+      let px = ax;
+      let py = ay;
+      if (dx !== 0 || dy !== 0) {
+        const t = Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / (dx * dx + dy * dy)));
+        px = ax + dx * t;
+        py = ay + dy * t;
+      }
+      dx = x - px;
+      dy = y - py;
+      const d2 = dx * dx + dy * dy;
+      if (d2 < menor) menor = d2;
+    }
+    return (dentro ? 1 : -1) * Math.sqrt(menor);
+  };
+  const celula = (x, y, h) => {
+    const d = dist(x, y);
+    return { x, y, h, d, max: d + h * Math.SQRT2 };
+  };
+
+  // começa pelo centroide (em quadrado/retângulo ele já é a resposta)
+  const c = safeCentroid(ring);
+  let melhor = c ? celula(c.lng * k, c.lat, 0) : celula(minX + larg / 2, minY + alt / 2, 0);
+  const centroCaixa = celula(minX + larg / 2, minY + alt / 2, 0);
+  if (centroCaixa.d > melhor.d) melhor = centroCaixa;
+
+  const fila = [];
+  const h0 = lado / 2;
+  for (let x = minX; x < maxX; x += lado) for (let y = minY; y < maxY; y += lado) fila.push(celula(x + h0, y + h0, h0));
+  let voltas = 0;
+  while (fila.length && voltas++ < 5000) {
+    // maior potencial primeiro
+    let iMax = 0;
+    for (let i = 1; i < fila.length; i += 1) if (fila[i].max > fila[iMax].max) iMax = i;
+    const cel = fila.splice(iMax, 1)[0];
+    if (cel.d > melhor.d) melhor = cel;
+    if (cel.max - melhor.d <= minimo) continue;
+    const h = cel.h / 2;
+    fila.push(celula(cel.x - h, cel.y - h, h), celula(cel.x + h, cel.y - h, h), celula(cel.x - h, cel.y + h, h), celula(cel.x + h, cel.y + h, h));
+  }
+  if (!(melhor.d > 0)) return null;
+
+  // Entre os pontos "fundos o bastante" (≥ 70% da maior folga), fica o mais
+  // perto do meio da área: numa faixa comprida o nome vai para o meio dela,
+  // não para uma ponta qualquer (D-PROD-127).
+  const fundo = melhor.d * 0.7;
+  const meio = c ? { x: c.lng * k, y: c.lat } : { x: minX + larg / 2, y: minY + alt / 2 };
+  /** @type {{ x: number, y: number, d: number }} */
+  let escolhido = { x: melhor.x, y: melhor.y, d: melhor.d };
+  let perto = Math.hypot(melhor.x - meio.x, melhor.y - meio.y);
+  const dMeio = dist(meio.x, meio.y);
+  if (dMeio >= fundo) {
+    escolhido = { x: meio.x, y: meio.y, d: dMeio };
+    perto = 0;
+  } else {
+    const N = 32;
+    for (let i = 0; i <= N; i += 1) {
+      for (let j = 0; j <= N; j += 1) {
+        const x = minX + (larg * i) / N;
+        const y = minY + (alt * j) / N;
+        const dd = Math.hypot(x - meio.x, y - meio.y);
+        if (dd >= perto) continue;
+        const d = dist(x, y);
+        if (d >= fundo) {
+          escolhido = { x, y, d };
+          perto = dd;
+        }
+      }
+    }
+  }
+  return { lat: escolhido.y, lng: escolhido.x / k };
 }
 
 /**
@@ -125,6 +238,52 @@ export function pontoRotuloSeguro(ring) {
     }
   }
   return melhor ? { lat: melhor.lat, lng: melhor.lng } : c;
+}
+
+/**
+ * Sigla curta da área para o mapa afastado (D-PROD-126): a do cadastro; sem
+ * ela, o nome sem o prefixo ("KM - 01 A" → "01 A", "KM - 01" → "01").
+ * @param {{ sigla?: string | null, nome?: string | null } | null | undefined} area
+ */
+export function siglaDaArea(area) {
+  const sigla = String(area?.sigla ?? "").trim();
+  if (sigla) return sigla;
+  const nome = String(area?.nome ?? "").trim();
+  const semPrefixo = nome.replace(/^[^\d-]*-\s*/u, "").trim();
+  return semPrefixo || nome;
+}
+
+/**
+ * Nível dos rótulos de área, IGUAL para todos (D-PROD-126) — sem mostrar uns
+ * e esconder outros. "tudo" (nome + ha) se cabe; senão "nome"; senão "sigla".
+ * Cabe = o rótulo cabe na caixa da própria área na tela e não bate em outro
+ * rótulo nem em ícone de lote. Tolera uns poucos casos (`tolerancia`) para uma
+ * área minúscula não derrubar o mapa inteiro para a sigla.
+ *
+ * @typedef {{ x: number, y: number, w: number, h: number }} Caixa
+ * @param {Array<{ id: string, area: Caixa, tudo: Caixa, nome: Caixa }>} rotulos caixas na tela (px)
+ * @param {Caixa[] | { tudo: Caixa[], nome: Caixa[] }} [obstaculos] ícones de lote etc.; por nível quando eles mudam de lugar com o nível
+ * @param {{ folga?: number, sobraNaArea?: number, tolerancia?: number }} [opcoes]
+ * @returns {"tudo" | "nome" | "sigla"}
+ */
+export function escolherModoRotulos(rotulos, obstaculos = [], { folga = 2, sobraNaArea = 6, tolerancia = 0.1 } = {}) {
+  if (!rotulos.length) return "tudo";
+  const bate = (a, b) => a.x < b.x + b.w + folga && b.x < a.x + a.w + folga && a.y < b.y + b.h + folga && b.y < a.y + a.h + folga;
+  const problemas = (/** @type {"tudo" | "nome"} */ chave) => {
+    let n = 0;
+    rotulos.forEach((r, i) => {
+      const c = r[chave];
+      const naoCabe = c.w > r.area.w + sobraNaArea || c.h > r.area.h + sobraNaArea;
+      const obs = Array.isArray(obstaculos) ? obstaculos : obstaculos[chave] || [];
+      const colide = obs.some((o) => bate(c, o)) || rotulos.some((o, k) => k !== i && bate(c, o[chave]));
+      if (naoCabe || colide) n += 1;
+    });
+    return n;
+  };
+  const limite = Math.floor(rotulos.length * tolerancia);
+  if (problemas("tudo") <= limite) return "tudo";
+  if (problemas("nome") <= limite) return "nome";
+  return "sigla";
 }
 
 /** Fonte do rótulo por faixas largas de zoom (sem “pulsar” a cada leve zoom). */

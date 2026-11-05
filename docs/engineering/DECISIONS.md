@@ -4951,4 +4951,44 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
     - o centro sai de +18 para +22 px e de −22 para −24 px: a bolinha fica no canto de cima à direita, com só uma bordinha dentro da figura (a figura tem 44 px).
 - **Consequência:** o desktop fica igual ao celular, e um clique fora não fecha mais o diálogo sem querer. O identificador fica discreto sobre a figura.
 
-<!-- Próxima decisão: D-PROD-126 -->
+## D-PROD-126 — Mapa Geral: rótulos de área sem bagunça
+
+- **Contexto:** no celular, com o mapa afastado, os nomes e os hectares das áreas se atropelam ("bagunça de números", foto do proprietário). Os rótulos são marcadores DOM, sem nenhuma regra de colisão.
+- **Primeira tentativa (rejeitada):** esconder só os rótulos que se batiam. O proprietário não gostou de ver "picado", com umas áreas com nome e outras sem.
+- **Decisão:** `escolherModoRotulos` (em `mapaGeralRender.js`, função pura) põe **todos os rótulos no mesmo nível**. Reaplica a cada movimento ou zoom (`moveend`) e quando as áreas ou os lotes mudam:
+  - **nome e ha**, se cabem;
+  - senão **só o nome**;
+  - senão **só a sigla**.
+  - "Cabe" significa que o rótulo cabe na caixa da própria área na tela (6 px de folga) e não bate em outro rótulo nem em ícone de lote.
+  - Há tolerância de 10% dos rótulos, para uma área minúscula não derrubar o mapa inteiro.
+  - **Sigla** (`siglaDaArea`): a do cadastro da área (`sigla`). Sem ela, o nome sem o prefixo: "KM - 01" → "01", "KM - 07 A" → "07 A".
+  - A medição é feita com `visibility: hidden`, sem piscar. O `data-rotulo` (tudo, nome ou sigla) fica no elemento. Nenhum rótulo é escondido.
+- **Consequência:**
+  - O mapa afastado mostra só as siglas, todas; aproximando, todas ganham o nome e depois o ha.
+  - No harness, a 390 px, com 72 áreas: antes, os nomes se sobrepunham (v19-00). Agora o mapa afastado mostra as 72 siglas, e com zoom +1 aparecem os 72 nomes com o ha (v19-01).
+
+## D-PROD-127 — Mapa Geral: nome e ícone do lote centrados no miolo da área
+
+- **Contexto:** em áreas tortas (em L, recortadas ou em faixa), o nome caía em cima de uma divisa ("desalinhamento", fotos do proprietário: KM - 01). Na primeira correção, uns rótulos ficaram no meio e outros não, porque:
+  - o rótulo ficava **pendurado abaixo** do ponto (`anchor: top`);
+  - com lote, o ícone ficava acima e o nome abaixo, e o par não ficava centrado;
+  - em faixa comprida, o ponto mais fundo podia cair numa ponta.
+- O proprietário pediu cuidado para o lote não ficar errado.
+- **Decisão:**
+  - **Ponto (`pontoMaisDentro`, usado por `centroideArea`):**
+    - calcula a maior folga até as bordas (polylabel, com a longitude corrigida pela latitude);
+    - entre os pontos com **pelo menos 70% dessa folga**, usa o **mais perto do centroide**;
+    - em área regular é o próprio centroide; em L, U ou faixa, é o meio da parte larga, nunca em cima de uma divisa;
+    - `pontoRotuloSeguro` fica como reserva.
+  - **Centralizar no ponto (no `arrumarRotulos`):**
+    - área sem lote: o nome fica centrado no ponto (`offset` de −altura/2);
+    - área com lote: o par ícone (em cima), 2 px de espaço e o nome (embaixo) fica centrado no ponto, porque os dois `offset` são recalculados a cada nível de rótulo.
+  - O mesmo ponto vale para o rótulo, o lote e a tarefa sem coordenada própria.
+  - **Medição na posição final (revisão do Codex no #194):** cada nível (nome + ha e só o nome) é aplicado **já com os offsets finais** e só então medido, inclusive os ícones de lote, que viram obstáculos por nível. O nome é medido sozinho, sem o "ha" alargando a caixa.
+- **Consequência:** medido nas 107 áreas reais (projeto MAIKE):
+  - a menos de 30 m de uma divisa: antes 4 pontos (KM - 14 a 5 m, KM - 08 C a 13 m, MT - 15 a 16 m, MT - 05 A a 29 m); depois nenhum (103, 94, 109 e 124 m);
+  - o KM - 01 passou de 48 m para 97 m da borda;
+  - só o MT - 12 ficou um pouco mais perto da borda (110 → 104 m), ainda longe dela;
+  - harness com as áreas reais e lotes: v19-03.
+
+<!-- Próxima decisão: D-PROD-128 -->
