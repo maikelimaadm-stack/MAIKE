@@ -4991,17 +4991,4 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
   - só o MT - 12 ficou um pouco mais perto da borda (110 → 104 m), ainda longe dela;
   - harness com as áreas reais e lotes: v19-03.
 
-## D-PROD-128 — Mapa Geral: ícone do lote e nome presos ao pasto (não saem do lugar no zoom nem ao redimensionar)
-
-- **Contexto:** o proprietário viu os ícones do gado e os nomes dos pastos "saindo do lugar" ao redimensionar o mapa. O D-PROD-127 centrava o par ícone + nome recalculando o `offset` do ícone pela altura do nome. Por isso, a cada troca de nível (sigla, nome ou nome + ha) e a cada mudança de fonte no fim do zoom, o ícone pulava, e a ponta dele deixava de cair no ponto da área.
-  - Medido nas áreas reais (harness, 390 px): com o mapa afastado, só 1 de 8 ícones de lote apontava para dentro do próprio pasto; no zoom +1, 4 de 7; e o nome do KM - 01 caía fora.
-- **Decisão:**
-  - **Ícone do lote fixo:** fica em `OFFSET_LOTE_PX`, com a ponta no ponto da área (D-PROD-127). Nunca recebe `setOffset`.
-  - **Nome:** o texto vai num `corpo` interno.
-    - Área **sem** lote: o nome fica centrado no ponto por CSS (`translateY(calc(-50% - 2px))`), sem medir e sem `offset`.
-    - Área **com** lote: o nome fica logo abaixo do ícone (âncora `top`, 2 px).
-  - Nada depende da altura do texto, então nada pula ao trocar de nível, no zoom ou ao redimensionar.
-  - O nível dos rótulos é recalculado também no `resize` do mapa.
-- **Consequência:** no harness, com as mesmas áreas, **8 de 8** ícones apontam para dentro do próprio pasto em todos os zooms, e 27 de 27 nomes ficam dentro da área.
-
-<!-- Próxima decisão: D-PROD-129 -->
+<!-- Próxima decisão: D-PROD-128 -->

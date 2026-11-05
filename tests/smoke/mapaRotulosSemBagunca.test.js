@@ -115,12 +115,11 @@ describe("pontoMaisDentro — nome e lote no miolo da área torta (D-PROD-127)",
     expect(viaArea).toEqual(direto);
     const r = readFileSync("src/components/mapa/useMapRenderer.jsx", "utf8");
     expect((r.match(/centroideArea\(area\)/g) || []).length).toBeGreaterThanOrEqual(3); // rótulo, lote e tarefa
-    // D-PROD-128: nada se mexe por altura de texto — o ícone do lote nunca muda
-    // de offset (fica em OFFSET_LOTE_PX, ponta no ponto da área) e o nome sem
-    // lote é centrado por CSS; refaz também ao redimensionar.
-    expect(r).not.toMatch(/setOffset\(/);
-    expect(r).toMatch(/entry\.corpo\.style\.transform = temLote \? "" : "translateY\(calc\(-50% - 2px\)\)";/);
-    expect(r).toMatch(/map\.on\("resize", handler\)/);
-    expect(r).toMatch(/offset: OFFSET_LOTE_PX/);
+    // par ícone + nome centrado no ponto; sem lote, nome no meio
+    expect(r).toMatch(/lote\.marker\.setOffset\(\[0, Math\.round\(-total \/ 2 \+ H \/ 2\)\]\)/);
+    expect(r).toMatch(/entry\.marker\.setOffset\(\[0, Math\.round\(-h \/ 2\)\]\)/);
+    // nomes desligados: o lote volta à posição padrão (revisão Cursor no #194)
+    expect(r).toMatch(/!labelsRef\.current\.has\(key\.slice\("lote_area_"\.length\)\)\) entry\.marker\.setOffset\(OFFSET_LOTE_PX\)/);
+    expect(r.indexOf("entry.marker.setOffset(OFFSET_LOTE_PX)")).toBeLessThan(r.indexOf("if (!labelsRef.current.size) return;"));
   });
 });
