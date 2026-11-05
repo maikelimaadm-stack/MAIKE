@@ -1,20 +1,17 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { listarTarefasDaEmpresa, listarIconesPorTipo, criarTarefa, atualizarTarefa, excluirTarefa, enviarAnexo } from "@/services/tarefasMapaService";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button } from "@/components/ui/button";
 import { LancLoteDialogo } from "@/components/lotes/LancamentoLoteUi";
-import { Settings, WifiOff } from "lucide-react";
 import { toast } from "sonner";
-import { ApiError, API_ERROR_CODES, getApiErrorMessage, hasApiErrorCode } from "@/apis/_core/ApiError";
+import { API_ERROR_CODES, getApiErrorMessage, hasApiErrorCode } from "@/apis/_core/ApiError";
 import FormularioTarefaMapa, { normalizeTaskPriority } from "./FormularioTarefaMapa";
-import TabelaLancamentosTarefas from "@/components/tarefas/TabelaLancamentosTarefas";
+import TarefasCardsMapa from "@/components/tarefas/TarefasCardsMapa";
 import { saveTarefaOffline, saveTarefaImageOffline } from "@/components/offline/IndexedDBManager";
 import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
 
 export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, pontoSuplId, onClose, initialCoordinates, openCreateOnMount = false, initialDraft = null, onRequestSelectLocation }) {
   const [showForm, setShowForm] = useState(false);
   const [editingTarefa, setEditingTarefa] = useState(null);
-  const [showConfigColunas, setShowConfigColunas] = useState(false);
 
   const queryClient = useQueryClient();
   const empresaSelecionadaId = useEmpresaSelecionadaId();
@@ -48,8 +45,6 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
       setShowForm(true);
     }
   }, [openCreateOnMount, initialCoordinates, initialDraft]);
-
-  const grupos = useMemo(() => [...new Set(tarefas.map((item) => item.grupo_atividade_nome).filter(Boolean))].sort(), [tarefas]);
 
   const getIconePrioridade = (prioridade) => {
     const normalize = (value) => (value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
@@ -156,7 +151,6 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
     }
   });
 
-  const panelTitulo = pontoSuplId ? 'Gestão de Tarefas' : loteId ? 'Gestão de Tarefas' : areaId ? 'Gestão de Tarefas' : 'Gestão de Tarefas';
   const panelSubtitulo = areaNome || loteNome || '';
 
   return (
@@ -167,21 +161,16 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
           <span className="text-xs font-medium text-slate-700">Carregando tarefas...</span>
         </div>
       ) : (
-      <TabelaLancamentosTarefas
+      // D-PROD-133: tarefas em cards, no padrão dos cadastros (sem a tabela antiga).
+      <TarefasCardsMapa
         tarefas={tarefas}
-        grupos={grupos}
-        onDelete={(ids) => deleteMutation.mutate(ids)}
+        onDelete={(ids) => deleteMutation.mutate(/** @type {any} */ (ids))}
         onEdit={(tarefa) => {
           setEditingTarefa(tarefa);
           setShowForm(true);
         }}
         normalizeTaskPriority={normalizeTaskPriority}
-        showConfigColunas={showConfigColunas}
-        setShowConfigColunas={setShowConfigColunas}
-        showHeaderActions={true}
         onAdd={() => { setEditingTarefa(null); setShowForm(true); }}
-        headerTitle={panelTitulo}
-        headerDescription={panelSubtitulo}
       />
       )}
 
