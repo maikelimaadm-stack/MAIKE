@@ -74,7 +74,7 @@ describe('P5.4 — Empresa', () => {
 
 describe('P5.4 — MovimentacaoEstoque', () => {
   test('BE-P54-02 numera movimentação na criação', async () => {
-    const { credenciais } = await criarTenant();
+    const { credenciais } = await criarTenant({ papelTenant: 'administrador' }); // R2: POST legado de movimentação de estoque é só do administrador real
     const { corpo } = await autenticarNoApp(app, credenciais);
     const r = await app.inject({
       method: 'POST',

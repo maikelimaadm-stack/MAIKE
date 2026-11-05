@@ -26,6 +26,13 @@ vi.mock('@/api/base44Client', async () => {
 vi.mock('@/apis/_core/nativeHttpClient.js', () => ({
   nativeRequest: vi.fn(async () => []),
 }));
+// O shell navega como o administrador da fazenda (papel real do servidor):
+// desde as permissões fail-closed, conta sem registro não vê tela nenhuma.
+vi.mock('@/services/sessionService', async (importOriginal) => {
+  const real = await importOriginal();
+  const admin = { id: 'u-smoke', login: 'smoke', email: 'smoke', nome: 'Smoke', administrador_fazenda: true };
+  return { ...real, getCurrentUser: async () => admin, getCachedUser: () => admin };
+});
 vi.mock('@/services/mapaCacheService', () => ({
   getMapaCachedData: () => Promise.resolve([]),
   refreshMapaCacheEntry: () => Promise.resolve([]),

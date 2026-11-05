@@ -38,6 +38,7 @@
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { LIMITE_MAXIMO, LIMITE_PADRAO } from '../../shared/pagination/keysetCursor.js';
 import { listar, listarPagina, criar, atualizar } from './setorService.js';
+import { GUARDAS } from '../../shared/auth/guardasRotas.js';
 
 /** Os quatro tipos do cadastro. Fechado: enum, não string livre. */
 const TIPOS = ['Próprio', 'Arrendado', 'Parceria', 'Terceiros'];
@@ -160,13 +161,13 @@ export const registrarSetorRoutes = async (app) => {
     },
   );
 
-  app.post('/setores', { onRequest: [app.autenticar], schema: CRIAR_SCHEMA }, async (request, reply) => {
+  app.post('/setores', { onRequest: [app.autenticar], preHandler: [GUARDAS.setor.criar], schema: CRIAR_SCHEMA }, async (request, reply) => {
     exigirAuthContext(request.contexto.auth);
     const setor = await criar(request.contexto, corpoValidado(request.body));
     return reply.status(201).send(setor);
   });
 
-  app.patch('/setores/:id', { onRequest: [app.autenticar], schema: ATUALIZAR_SCHEMA }, async (request) => {
+  app.patch('/setores/:id', { onRequest: [app.autenticar], preHandler: [GUARDAS.setor.editar], schema: ATUALIZAR_SCHEMA }, async (request) => {
     exigirAuthContext(request.contexto.auth);
     const { id } = /** @type {{id: string}} */ (request.params);
     return atualizar(request.contexto, id, corpoValidado(request.body));

@@ -8,6 +8,7 @@ import {
   comandoSaidaSuplementacao,
   comandoTransferenciaEntreLocais,
 } from './movimentacaoEstoqueComandoService.js';
+import { GUARDAS } from '../../shared/auth/guardasRotas.js';
 
 const ID_SCHEMA = {
   params: {
@@ -100,7 +101,7 @@ export const registrarMovimentacaoEstoqueRoutes = async (app) => {
 
   app.post(
     '/movimentacoes-estoque/comandos/saida-suplementacao',
-    { onRequest: [app.autenticar], schema: COMANDO_SAIDA_SCHEMA },
+    { onRequest: [app.autenticar], preHandler: [GUARDAS.movimentacaoEstoque.saidaSuplementacao], schema: COMANDO_SAIDA_SCHEMA },
     async (request, reply) => {
       exigirAuthContext(request.contexto.auth);
       const corpo = await comandoSaidaSuplementacao(
@@ -113,7 +114,7 @@ export const registrarMovimentacaoEstoqueRoutes = async (app) => {
 
   app.post(
     '/movimentacoes-estoque/comandos/transferencia-locais',
-    { onRequest: [app.autenticar], schema: COMANDO_TRANSFERENCIA_SCHEMA },
+    { onRequest: [app.autenticar], preHandler: [GUARDAS.movimentacaoEstoque.transferenciaLocais], schema: COMANDO_TRANSFERENCIA_SCHEMA },
     async (request, reply) => {
       exigirAuthContext(request.contexto.auth);
       const corpo = await comandoTransferenciaEntreLocais(
@@ -124,19 +125,19 @@ export const registrarMovimentacaoEstoqueRoutes = async (app) => {
     }
   );
 
-  app.post('/movimentacoes-estoque', { onRequest: [app.autenticar], schema: CRIAR_SCHEMA }, async (request, reply) => {
+  app.post('/movimentacoes-estoque', { onRequest: [app.autenticar], preHandler: [GUARDAS.movimentacaoEstoque.criar], schema: CRIAR_SCHEMA }, async (request, reply) => {
     exigirAuthContext(request.contexto.auth);
     const registro = await criar(request.contexto, /** @type {Record<string, unknown>} */ (request.body));
     return reply.status(201).send(registro);
   });
 
-  app.patch('/movimentacoes-estoque/:id', { onRequest: [app.autenticar], schema: ATUALIZAR_SCHEMA }, async (request) => {
+  app.patch('/movimentacoes-estoque/:id', { onRequest: [app.autenticar], preHandler: [GUARDAS.movimentacaoEstoque.editar], schema: ATUALIZAR_SCHEMA }, async (request) => {
     exigirAuthContext(request.contexto.auth);
     const { id } = /** @type {{id: string}} */ (request.params);
     return atualizar(request.contexto, id, /** @type {Record<string, unknown>} */ (request.body));
   });
 
-  app.delete('/movimentacoes-estoque/:id', { onRequest: [app.autenticar], schema: ID_SCHEMA }, async (request, reply) => {
+  app.delete('/movimentacoes-estoque/:id', { onRequest: [app.autenticar], preHandler: [GUARDAS.movimentacaoEstoque.excluir], schema: ID_SCHEMA }, async (request, reply) => {
     exigirAuthContext(request.contexto.auth);
     const { id } = /** @type {{id: string}} */ (request.params);
     await excluir(request.contexto, id);

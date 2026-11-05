@@ -6,6 +6,7 @@ import {
   permissaoDoUsuario,
   salvarPermissao,
   removerPermissao,
+  avisarPermissoesAtualizadas,
 } from "@/services/sessionService";
 import { getApiErrorMessage, hasApiErrorCode, API_ERROR_CODES } from "@/apis/_core/ApiError";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -85,6 +86,8 @@ export default function Permissoes() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["permissoes", sessaoKey] });
       queryClient.invalidateQueries({ queryKey: ["usuarios", sessaoKey] });
+      queryClient.invalidateQueries({ queryKey: ["permissao-efetiva"] });
+      avisarPermissoesAtualizadas();
       setShowForm(false);
       setEditingUsuario(null);
       chromePerm.exitRecordView();
@@ -100,6 +103,8 @@ export default function Permissoes() {
       removerPermissao({ userEmail, permissoes, emailDoUsuarioAtual: currentUser?.email }),
     onSuccess: ({ removida }) => {
       queryClient.invalidateQueries({ queryKey: ["permissoes", sessaoKey] });
+      queryClient.invalidateQueries({ queryKey: ["permissao-efetiva"] });
+      avisarPermissoesAtualizadas();
       if (removida) toast.success("Permissões removidas!");
     },
     onError: (error) => {

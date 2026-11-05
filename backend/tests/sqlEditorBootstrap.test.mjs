@@ -84,7 +84,7 @@ const semear = async ({ clientes = 1 } = {}) => {
   const p = prisma();
   const criados = [];
   for (let i = 0; i < clientes; i += 1) {
-    const t = await criarTenant({ login: i === 0 ? 'legado.admin' : undefined });
+    const t = await criarTenant({ semPermissao: true, login: i === 0 ? 'legado.admin' : undefined });
     const c = t.cliente.id;
     await p.permissao.create({ data: { cliente_id: c, user_email: t.usuario.login, is_admin: true } });
     const emp = await p.empresa.create({ data: { cliente_id: c, numero_empresa: 1, fuso_horario: 'America/Sao_Paulo', apelido: 'E', nome: 'EMPRESA' } });

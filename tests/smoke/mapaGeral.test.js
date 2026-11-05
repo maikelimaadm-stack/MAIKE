@@ -20,7 +20,7 @@ vi.mock('@/apis/_providers/base44Provider.js', () => ({
   tarefasProvider: {}, sessionProvider: {}, rebanhoProvider: {}, arquivosProvider: {},
 }));
 
-import { normalizeMapaGeralPermissions, DEFAULT_MAPA_GERAL_PERMISSIONS } from '@/lib/mapaGeralPermissions';
+import { normalizeMapaGeralPermissions, DEFAULT_MAPA_GERAL_PERMISSIONS, MAPA_GERAL_ACESSO_TOTAL } from '@/lib/mapaGeralPermissions';
 import { CACHE_KEYS } from '@/services/mapaCacheService';
 
 /** Fonte sem comentários: comentário explicativo não é código. */
@@ -35,28 +35,28 @@ const MAPA_CADASTRO = 'src/pages/MapaCadastro.jsx';
 /**
  * Réplica da decisão de permissão de `MapaGeral` (linhas 198–207).
  *
- * A página combina `currentUser.role`, `permissaoAtual.is_admin` e
+ * A página combina o papel real (`administrador_fazenda`), `permissaoAtual.is_admin` e
  * `canAccessPage` num `useMemo`. Reproduzir a combinação aqui permite testar
  * MG3/MG4 sem React; o teste seguinte garante que a página não mudou a regra
  * por baixo — se mudar, a réplica deixa de valer e o teste reprova.
  */
 const permissoesDaPagina = ({ currentUser, permissaoAtual, podeAcessarPagina }) => {
-  if (currentUser?.role === 'admin' || permissaoAtual?.is_admin) {
-    return normalizeMapaGeralPermissions({}, true);
+  if (currentUser?.administrador_fazenda === true || permissaoAtual?.is_admin === true) {
+    return { ...MAPA_GERAL_ACESSO_TOTAL };
   }
   return normalizeMapaGeralPermissions(permissaoAtual?.mapa_geral_permissoes, podeAcessarPagina);
 };
 
 describe('MG3/MG4 — permissões', () => {
   it('MG3 — admin recebe todas as permissões, mesmo sem registro próprio', () => {
-    const admin = permissoesDaPagina({ currentUser: { role: 'admin' }, permissaoAtual: null, podeAcessarPagina: false });
+    const admin = permissoesDaPagina({ currentUser: { administrador_fazenda: true }, permissaoAtual: null, podeAcessarPagina: false });
     expect(Object.values(admin).every(Boolean)).toBe(true);
     expect(Object.keys(admin)).toEqual(Object.keys(DEFAULT_MAPA_GERAL_PERMISSIONS));
   });
 
   it('MG3b — is_admin no registro equivale ao role admin', () => {
     expect(permissoesDaPagina({ currentUser: { role: 'user' }, permissaoAtual: { is_admin: true }, podeAcessarPagina: false }))
-      .toEqual(permissoesDaPagina({ currentUser: { role: 'admin' }, permissaoAtual: null, podeAcessarPagina: true }));
+      .toEqual(permissoesDaPagina({ currentUser: { administrador_fazenda: true }, permissaoAtual: null, podeAcessarPagina: true }));
   });
 
   it('MG4 — usuário comum sem acesso à página não recebe nenhuma permissão', () => {
@@ -75,15 +75,29 @@ describe('MG3/MG4 — permissões', () => {
       podeAcessarPagina: true,
     });
     expect(comum.visualizar_tarefas).toBe(false);
+    // R2: registro parcial legado — ação que grava não informada fica desligada.
+    expect(comum.mover_lotes).toBe(false);
+    expect(comum.visualizar_lotes).toBe(true);
     // As demais chaves continuam existindo, com o padrão do produto.
     expect(Object.keys(comum)).toEqual(Object.keys(DEFAULT_MAPA_GERAL_PERMISSIONS));
   });
 
-  it('a página continua usando exatamente esta combinação', () => {
+  it('PERM-MG1 — `role: admin` vindo do navegador não libera nada (o papel real é do servidor)', () => {
+    const forjado = permissoesDaPagina({ currentUser: { role: 'admin' }, permissaoAtual: null, podeAcessarPagina: false });
+    expect(Object.values(forjado).every((valor) => valor === false)).toBe(true);
+  });
+
+  it('a página continua usando exatamente esta combinação (módulo `mapa`, papel real)', () => {
     const fonte = codigoDe(MAPA_GERAL);
-    expect(fonte).toContain("currentUser?.role === 'admin' || permissaoAtual?.is_admin");
-    expect(fonte).toContain('normalizeMapaGeralPermissions({}, true)');
-    expect(fonte).toContain("canAccessPage(permissaoAtual, 'pec-mapa-geral', 'pecuaria')");
+    expect(fonte).toContain("ehAdministrador(currentUser) || permissaoAtual?.is_admin === true");
+    expect(fonte).toContain('return { ...MAPA_GERAL_ACESSO_TOTAL }');
+    expect(fonte).toContain("canAccessPage(permissaoAtual, 'pec-mapa-geral', 'mapa')");
+    expect(fonte).not.toContain("'pec-mapa-geral', 'pecuaria'");
+    expect(fonte).not.toContain("role === 'admin'");
+    // Uma leitura só, revalidada (foco, intervalo e evento de gravação).
+    expect(fonte).toContain('carregarPermissaoEfetiva(currentUser)');
+    expect(fonte).toContain('refetchOnWindowFocus: true');
+    expect(fonte).not.toContain("'mapa-geral-permissoes'");
   });
 });
 

@@ -1,5 +1,6 @@
 import { getPrismaClient } from '../../database/prismaClient.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
+import { exigirAdminTenant } from '../../shared/auth/exigirAdminTenant.js';
 import { registrarEvento } from '../auditoria/auditService.js';
 import { configuracaoIconeNotFound } from '../../shared/errors/AppError.js';
 import {
@@ -70,6 +71,9 @@ export const criar = async (contexto, entrada) => {
   const prisma = getPrismaClient();
 
   return prisma.$transaction(async (tx) => {
+    // R2: configuração do tenant (Configurações Gerais) — só o administrador
+    // REAL, relido na transação (revogação concorrente vale; chamada interna também).
+    await exigirAdminTenant(contexto, tx);
     const campos = camposDe(entrada);
     const registro = await inserirIcone(tx, {
       ...campos,
@@ -96,6 +100,7 @@ export const atualizar = async (contexto, id, entrada) => {
   const prisma = getPrismaClient();
 
   return prisma.$transaction(async (tx) => {
+    await exigirAdminTenant(contexto, tx);
     const anterior = await buscarIcone(auth.clienteId, id, tx);
     if (!anterior) throw configuracaoIconeNotFound();
 

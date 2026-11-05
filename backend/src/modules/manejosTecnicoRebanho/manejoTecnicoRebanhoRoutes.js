@@ -4,6 +4,7 @@
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { querystringListagemEmpresa } from '../../shared/http/listQueryLimit.js';
 import { listar, criar, atualizar, excluir } from './manejoTecnicoRebanhoService.js';
+import { GUARDAS } from '../../shared/auth/guardasRotas.js';
 
 const ID_SCHEMA = {
   params: {
@@ -36,19 +37,19 @@ export const registrarManejoTecnicoRebanhoRoutes = async (app) => {
     return listar(request.contexto, query);
   });
 
-  app.post('/manejos-tecnico-rebanho', { onRequest: [app.autenticar], schema: CRIAR_SCHEMA }, async (request, reply) => {
+  app.post('/manejos-tecnico-rebanho', { onRequest: [app.autenticar], preHandler: [GUARDAS.semTela], schema: CRIAR_SCHEMA }, async (request, reply) => {
     exigirAuthContext(request.contexto.auth);
     const registro = await criar(request.contexto, /** @type {Record<string, unknown>} */ (request.body));
     return reply.status(201).send(registro);
   });
 
-  app.patch('/manejos-tecnico-rebanho/:id', { onRequest: [app.autenticar], schema: ATUALIZAR_SCHEMA }, async (request) => {
+  app.patch('/manejos-tecnico-rebanho/:id', { onRequest: [app.autenticar], preHandler: [GUARDAS.semTela], schema: ATUALIZAR_SCHEMA }, async (request) => {
     exigirAuthContext(request.contexto.auth);
     const { id } = /** @type {{id: string}} */ (request.params);
     return atualizar(request.contexto, id, /** @type {Record<string, unknown>} */ (request.body));
   });
 
-  app.delete('/manejos-tecnico-rebanho/:id', { onRequest: [app.autenticar], schema: ID_SCHEMA }, async (request, reply) => {
+  app.delete('/manejos-tecnico-rebanho/:id', { onRequest: [app.autenticar], preHandler: [GUARDAS.semTela], schema: ID_SCHEMA }, async (request, reply) => {
     exigirAuthContext(request.contexto.auth);
     const { id } = /** @type {{id: string}} */ (request.params);
     await excluir(request.contexto, id);
