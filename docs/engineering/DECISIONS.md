@@ -5086,4 +5086,22 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
   - Teste: `tests/smoke/mapaV2Visualizacao.test.jsx`.
   - Evidências: v22-01 a v22-06.
 
-<!-- Próxima decisão: D-PROD-133 -->
+## D-PROD-133 — Tarefas do mapa em cards, no padrão dos cadastros
+
+- **Contexto:** o proprietário pediu que as tarefas do mapa aparecessem em cards, como nos cadastros, sem a tabela que havia no painel "Gestão de Tarefas". Os filtros também deviam seguir os dos cadastros.
+- **Decisão:**
+  - O painel (`TarefasMapaPanel`) passa a usar `TarefasCardsMapa`, que monta as mesmas peças dos cadastros Base1:
+    - `CadastroListaChrome`, com a barra +, Filtros, Busca e ⚡ e o resumo Listados/Filtrados/Totais/Selecionados;
+    - `CadastroBase1Grade` em `viewMode="cards"`, com os cards Base1 (seleção, iniciais, campos);
+    - o "Filtrar por campo" dos cadastros;
+    - layout e campos dos cards configuráveis em ⚡.
+  - Campos padrão do card: Status e Prioridade (com bolinha de cor), Prazo (dd/mm/aaaa), Área, Responsável e Tipo de Tarefa. No celular, o card mostra 3 campos, como nos cadastros.
+  - Não há troca para tabela: a barra fica sem o alternador de visão.
+  - Abrir o card (duplo toque ou Enter) mostra os detalhes da tarefa, como antes. **Editar** e **Excluir** agem sobre os selecionados; excluir pede confirmação pelo diálogo do sistema.
+  - A tabela antiga `TabelaLancamentosTarefas` ficou sem uso e foi removida (`gate:source-closure`).
+- **Consequência:**
+  - As tarefas têm a mesma aparência, busca e filtro de qualquer cadastro.
+  - Teste: `tests/smoke/tarefasCardsMapa.test.jsx`.
+  - Evidências: v23-01 a v23-03.
+
+<!-- Próxima decisão: D-PROD-134 -->

@@ -1222,3 +1222,17 @@
     font-size: 11px;
   }
 }
+
+/* ── Tarefas do mapa em cards (D-PROD-133) ─────────────────────────────── */
+.mk-tar-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.mk-tar-tag i {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 9999px;
+}
+

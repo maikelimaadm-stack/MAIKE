@@ -347,3 +347,13 @@ O novo visual dos botões do Mapa Geral (D-PROD-131: painel Visualização, sem 
 
 **Não testado em aparelho.**
 
+## V23 — Tarefas do mapa em cards (D-PROD-133)
+
+| Pedido | Feito | Evidência |
+|---|---|---|
+| Tarefas em cards, como nos cadastros, sem a tabela | O painel de tarefas usa os cards dos cadastros (barra, cards, resumo); a tabela antiga saiu | v23-01, v23-02 |
+| Filtros iguais aos dos cadastros | O botão Filtros abre o "Filtrar por campo" dos cadastros | v23-03 |
+| Botões, pesquisa e listagem iguais ao cadastro | Mesmo layout de Lotes: + e ⚡ na 1ª linha, pesquisa e filtro na 2ª (celular), resumo em 2 linhas, seleção como nos cadastros | v23-01, v23-02 |
+
+**Não testado em aparelho.** Nas fotos, as tarefas são exemplos do ambiente de teste.
+
