@@ -5,7 +5,7 @@ import { describe, it, expect, afterEach } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 import { existsSync, readFileSync } from "node:fs";
 import AcoesDoLote from "@/components/mapa/AcoesDoLote";
-import { IconeEditarInformacao, IconeJuntarLotes, IconeMorte, IconeMoverAnimais, IconeMudarCategoria, IconeNascimento, IconePesar, IconeSaida } from "@/components/mapa/IconesManejo";
+import { IconeEditarInformacao, IconeHistoricoMovimentacao, IconeHistoricoSuplementacao, IconeJuntarLotes, IconeMorte, IconeMoverAnimais, IconeMudarCategoria, IconeNascimento, IconePesar, IconeSaida } from "@/components/mapa/IconesManejo";
 
 afterEach(cleanup);
 
@@ -19,7 +19,12 @@ describe("Ícones em imagem dos manejos (D-PROD-131)", () => {
     expect(existsSync("public/icons/juntar-lotes.png")).toBe(true);
     expect(existsSync("public/icons/mudar-categoria.png")).toBe(true);
     expect(existsSync("public/icons/editar-informacao.png")).toBe(true);
+    expect(existsSync("public/icons/historico-movimentacao.png")).toBe(true);
+    expect(existsSync("public/icons/historico-suplementacao.png")).toBe(true);
     const dl = readFileSync("src/components/mapa/DetalhesLote.jsx", "utf8");
+    expect(dl).toMatch(/rotulo: 'Histórico de Movimentação', Icone: IconeHistoricoMovimentacao/);
+    expect(dl).toMatch(/rotulo: 'Histórico de Suplementação', Icone: IconeHistoricoSuplementacao/);
+    expect(dl).not.toMatch(/from "lucide-react"/);
     expect(dl).toMatch(/nome: 'Mover', Icone: IconeMoverAnimais/);
     expect(dl).toMatch(/nome: 'Pesar', Icone: IconePesar/);
     expect(dl).toMatch(/nome: 'Nascimento', Icone: IconeNascimento/);

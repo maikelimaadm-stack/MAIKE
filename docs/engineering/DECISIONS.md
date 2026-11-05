@@ -5044,12 +5044,13 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
   - Morte: um animal deitado com um X;
   - Juntar Lotes: um boi com camadas que se juntam numa só;
   - Mudar Categoria: um bezerro e um boi, cada um num quadro, com uma seta entre eles;
-  - Editar Informação: um boi com a pasta da ficha do animal e um lápis.
+  - Editar Informação: um boi com a pasta da ficha do animal e um lápis;
+  - nos Históricos, Movimentação (uma ficha com setas de ida e volta e um relógio) e Suplementação (uma ficha com um saco de ração e um relógio).
 - **Decisão:**
-  - Os quadros "Saída", "Mover", "Pesar", "Nascimento", "Morte", "Juntar Lotes", "Mudar Categoria" e "Editar Informação" dos Manejos (Detalhes do Lote) usam essas imagens no lugar dos ícones `Beef`, `ArrowLeftRight`, `Scale`, `Baby`, `HeartCrack`, `Combine`, `Tags` e `PencilLine`.
+  - Os quadros "Saída", "Mover", "Pesar", "Nascimento", "Morte", "Juntar Lotes", "Mudar Categoria" e "Editar Informação" dos Manejos (Detalhes do Lote) usam essas imagens no lugar dos ícones `Beef`, `ArrowLeftRight`, `Scale`, `Baby`, `HeartCrack`, `Combine`, `Tags` e `PencilLine`; os históricos de Movimentação e de Suplementação deixam `History` e `Wheat`.
   - O quadro "Abate" passa a se chamar **"Saída"**, e a janela passa a ser "Registrar Saída". O registro continua sendo o mesmo manejo de abate: tipo `Abate`, `FormularioAbate` e a permissão `registrar_abate`.
   - O quadro "Renomear Lote" passa a se chamar **"Editar Informação"**, e a janela também. Ele continua renomeando o lote, com a mesma permissão (`renomear_lotes`). O registro no histórico segue com o motivo "Renomear Lote".
-  - As imagens foram recortadas, com o fundo branco tirado, e salvas em `public/icons/` (`saida.png`, `mover-animais.png`, `pesar.png`, `nascimento.png`, `morte.png`, `juntar-lotes.png`, `mudar-categoria.png`, `editar-informacao.png`). Como as imagens mais largas têm cerca de 2,7:1, a largura máxima é de 88 px, o que ainda cabe no quadro. Elas são exibidas por `IconesManejo`.
+  - As imagens foram recortadas, com o fundo branco tirado, e salvas em `public/icons/` (`saida.png`, `mover-animais.png`, `pesar.png`, `nascimento.png`, `morte.png`, `juntar-lotes.png`, `mudar-categoria.png`, `editar-informacao.png`, `historico-movimentacao.png`, `historico-suplementacao.png`). Como as imagens mais largas têm cerca de 2,7:1, a largura máxima é de 88 px, o que ainda cabe no quadro. Elas são exibidas por `IconesManejo`.
   - A pedido do proprietário, ficam **maiores** que os outros ícones: 32 px, 36 px na folha do celular e 30 px nos quadros menores do computador.
   - Uma margem negativa faz a imagem crescer para cima, sem aumentar o quadro nem descer o nome.
 - **Consequência:**

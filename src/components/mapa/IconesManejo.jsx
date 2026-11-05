@@ -38,3 +38,9 @@ export const IconeMudarCategoria = iconeImagem("/icons/mudar-categoria.png");
 
 /** Editar Informação (antigo "Renomear Lote"): boi com a pasta da ficha e o lápis. */
 export const IconeEditarInformacao = iconeImagem("/icons/editar-informacao.png");
+
+/** Histórico de Movimentação: ficha com as setas de ida e volta e o relógio. */
+export const IconeHistoricoMovimentacao = iconeImagem("/icons/historico-movimentacao.png");
+
+/** Histórico de Suplementação: ficha com o saco de ração e o relógio. */
+export const IconeHistoricoSuplementacao = iconeImagem("/icons/historico-suplementacao.png");

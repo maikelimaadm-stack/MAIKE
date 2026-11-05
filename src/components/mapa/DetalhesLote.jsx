@@ -34,8 +34,7 @@ import LancField from "@/components/cadastro/base1/LancField";
 import ResumoSuplementacao from "../suplementacao/ResumoSuplementacao";
 import InformacoesArea from "./InformacoesArea";
 import { Progress } from "@/components/ui/progress";
-import { History, Wheat } from "lucide-react";
-import { IconeEditarInformacao, IconeJuntarLotes, IconeMorte, IconeMoverAnimais, IconeMudarCategoria, IconeNascimento, IconePesar, IconeSaida } from "@/components/mapa/IconesManejo";
+import { IconeEditarInformacao, IconeHistoricoMovimentacao, IconeHistoricoSuplementacao, IconeJuntarLotes, IconeMorte, IconeMoverAnimais, IconeMudarCategoria, IconeNascimento, IconePesar, IconeSaida } from "@/components/mapa/IconesManejo";
 import { corpoNascimento, corpoPesagem, corpoMudancaCategoria, corpoJuncao, corpoBaixa, previaJuncao, corpoTransferenciaLedger, ehPosicaoDoLedger } from "@/domain/lotes/manejoRebanho";
 import { enviarManejoRebanho, enviarJuncaoLotes, enviarBaixaRebanho, enviarTransferenciaLedger, mensagemDaTransferenciaLedger, mensagemDoErro, codigoDoErro, MENSAGENS_MANEJO_REBANHO } from "@/services/manejoRebanhoService";
 import { escopoDoUsuario } from "../lotes/ExcluirMovimentacao";
@@ -595,8 +594,8 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
           permissions.renomear_lotes !== false && { nome: 'Editar Informação', Icone: IconeEditarInformacao, onClick: abrirRenomear },
         ].filter(Boolean);
         const historicos = [
-          permissions.visualizar_historico_movimentacoes_lote !== false && { nome: 'Movimentação', rotulo: 'Histórico de Movimentação', Icone: History, onClick: () => setShowHistorico(true) },
-          permissions.visualizar_historico_suplementacao_lote !== false && { nome: 'Suplementação', rotulo: 'Histórico de Suplementação', Icone: Wheat, onClick: () => setShowHistoricoSupl(true) },
+          permissions.visualizar_historico_movimentacoes_lote !== false && { nome: 'Movimentação', rotulo: 'Histórico de Movimentação', Icone: IconeHistoricoMovimentacao, onClick: () => setShowHistorico(true) },
+          permissions.visualizar_historico_suplementacao_lote !== false && { nome: 'Suplementação', rotulo: 'Histórico de Suplementação', Icone: IconeHistoricoSuplementacao, onClick: () => setShowHistoricoSupl(true) },
         ].filter(Boolean);
         return (
           <div className="my-1">
