@@ -129,6 +129,25 @@ export const operacoesDeExclusao = Object.freeze({
   buscarPorId: (id) => nativeRequest(`${CAMINHO}/${encodeURIComponent(id)}`, { autenticado: true }, ctx('buscarLotePorIdServidor')),
 });
 
+/**
+ * R1 — correção da ENTRADA original: sempre direto no servidor (nunca fila
+ * offline). O servidor decide a elegibilidade e reescreve o fato inteiro.
+ */
+export const operacoesDeCorrecaoEntrada = Object.freeze({
+  elegibilidade: (id) =>
+    nativeRequest(`${CAMINHO}/${encodeURIComponent(id)}/elegibilidade-correcao-entrada`, { autenticado: true }, ctx('elegibilidadeCorrecaoEntradaLote')),
+  corrigir: (id, corpo) => {
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      return Promise.reject(new ApiError(API_ERROR_CODES.PROVIDER_UNAVAILABLE, { ...ctx('corrigirEntradaLote'), details: { id, offline: true } }));
+    }
+    return nativeRequest(
+      `${CAMINHO}/${encodeURIComponent(id)}/correcao-entrada`,
+      { method: 'POST', body: corpo, autenticado: true },
+      ctx('corrigirEntradaLote')
+    );
+  },
+});
+
 export const lotePort = createOfflineEntityAdapter({
   entityName: ENTIDADE_OFFLINE,
   operations: operacoesNativas,

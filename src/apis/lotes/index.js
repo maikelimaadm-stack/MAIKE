@@ -31,6 +31,8 @@ export {
   bulkCreateSuplementacaoLote,
   deleteLote,
   consultarElegibilidadeExclusaoLote,
+  consultarElegibilidadeCorrecaoEntradaLote,
+  corrigirEntradaLote,
   excluirLoteOnline,
   removerLoteDosCachesOffline,
   temPendenciaOfflineLote,

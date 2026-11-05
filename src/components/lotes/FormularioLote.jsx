@@ -23,6 +23,7 @@ import DynamicFormRenderer from "@/components/dynamic/DynamicFormRenderer";
 import IconeOficialLotePreview from "@/components/catalogoGlobal/IconeOficialLotePreview";
 import { ehLoteDerivadoDeManejo, entradaHistoricaDoLote } from "@/domain/lotes/saldoLote";
 import LayoutConfiguratorDialog from "@/components/dynamic/LayoutConfiguratorDialog";
+import { ESTADOS_CORRECAO, camposDaCorrecaoDeEntrada } from "@/domain/lotes/correcaoEntrada";
 export const FORMULARIO_LOTE_ID = "formulario-lote-base1";
 
 const FL = ({ label, required, error, children, dataField, wide = false, compact = false, medium = false }) =>
@@ -111,13 +112,20 @@ export default function FormularioLote({
   onClearFilter = undefined,
   initialData,
   isEditing,
+  // R1: elegibilidade da correção da ENTRADA, vinda do servidor
+  // ({estado: consultando|elegivel|bloqueado|erro, mensagem?}).
+  correcaoEntrada = null,
 }) {
   const embedded = variant === "embedded";
   const isDuplicating = !!initialData?._isDuplicate;
   const shouldPersistEntrySnapshot = !isEditing || isDuplicating;
   // Registro já gravado: a quantidade só muda por manejo (movimentação, morte,
   // abate…), que deixa rastro. Editar aqui reescreveria o saldo sem histórico.
-  const quantidadesSomenteLeitura = !shouldPersistEntrySnapshot;
+  // R1: entrada sem nenhum registro depois dela (o SERVIDOR diz) pode ser
+  // corrigida — pelo comando de correção, nunca pelo PATCH genérico.
+  const corrigindoEntrada = Boolean(isEditing && !isDuplicating && correcaoEntrada?.estado === ESTADOS_CORRECAO.ELEGIVEL);
+  const quantidadesSomenteLeitura = !shouldPersistEntrySnapshot && !corrigindoEntrada;
+  const [motivoCorrecao, setMotivoCorrecao] = useState("");
   const empresaSelecionadaId = useEmpresaSelecionadaId();
   const [errors, setErrors] = useState({});
   const [activeTab, setActiveTab] = useState("geral");
@@ -196,6 +204,7 @@ export default function FormularioLote({
     setErrors({});
     setIsDirty(!isEditing || !!initialData?._isDuplicate);
     setEditMode(!isEditing || !!initialData?._isDuplicate);
+    setMotivoCorrecao("");
   }, [initialData?.id, initialData?.numero_lote, initialData?._isDuplicate, isEditing]);
 
   const { setores, areas, getAreasBySetor } = useSetorAreas(empresaSelecionadaId);
@@ -392,7 +401,22 @@ export default function FormularioLote({
       categoria_manejo_entrada_nome: categoriaManejo?.nome || ""
     };
 
+    if (!shouldPersistEntrySnapshot && corrigindoEntrada) {
+      // R1: o que mudou na ENTRADA vai pelo comando de correção (com motivo).
+      const campos = camposDaCorrecaoDeEntrada(initialData, formData);
+      if (Object.keys(campos).length) {
+        if (!motivoCorrecao.trim()) {
+          setErrors((prev) => ({ ...prev, motivo_correcao: true }));
+          setNoticeDialog({ open: true, title: "Motivo da correção", description: "Informe o motivo da correção da entrada antes de salvar." });
+          return;
+        }
+        dataToSave.__correcaoEntrada = { campos, motivo: motivoCorrecao.trim() };
+      }
+    }
+
     if (!shouldPersistEntrySnapshot) {
+      // A data da entrada também é da entrada: só muda pela correção (R1).
+      delete dataToSave.data_entrada;
       // Edição não regrava quantidade (saldo muda só por manejo; entrada é
       // imutável no servidor), não troca a origem de lote gerado por manejo e
       // NUNCA move o lote: a área de entrada é registro histórico; a área atual
@@ -609,6 +633,41 @@ export default function FormularioLote({
 
 
         <div className="flex-1 min-h-0 overflow-y-auto pb-6 pr-2" style={{ scrollbarWidth: "thin", scrollbarColor: "#cbd5e1 transparent" }}>
+          {isEditing && !isDuplicating && correcaoEntrada ? (
+            <div
+              role="status"
+              data-testid="correcao-entrada-aviso"
+              data-estado={correcaoEntrada.estado}
+              className={`mx-2 mt-1 rounded-md border px-2 py-1.5 text-[11px] ${correcaoEntrada.estado === ESTADOS_CORRECAO.ELEGIVEL ? "border-emerald-200 bg-emerald-50 text-emerald-900" : correcaoEntrada.estado === ESTADOS_CORRECAO.CONSULTANDO ? "border-slate-200 bg-slate-50 text-slate-600" : "border-amber-200 bg-amber-50 text-amber-900"}`}
+            >
+              {correcaoEntrada.estado === ESTADOS_CORRECAO.CONSULTANDO && "Verificando no servidor se a entrada pode ser corrigida…"}
+              {correcaoEntrada.estado === ESTADOS_CORRECAO.ELEGIVEL && (
+                <>
+                  Entrada sem registros depois dela: quantidade da entrada, peso de entrada, data, categoria, sexo, setor e área de entrada podem ser corrigidos.
+                  A correção reescreve o próprio lançamento (não é movimentação) e fica registrada com o motivo.
+                </>
+              )}
+              {correcaoEntrada.estado === ESTADOS_CORRECAO.BLOQUEADO && (
+                <>A entrada não pode ser corrigida: {correcaoEntrada.mensagem}. Quantidade, peso, data, categoria, sexo, setor e área de entrada ficam como lançados.</>
+              )}
+              {correcaoEntrada.estado === ESTADOS_CORRECAO.ERRO && (
+                <>Não foi possível verificar se a entrada pode ser corrigida{correcaoEntrada.mensagem ? ` (${correcaoEntrada.mensagem})` : ""}. Os campos da entrada ficam bloqueados.</>
+              )}
+              {corrigindoEntrada && !isReadOnly && (
+                <label className="mt-1.5 flex flex-col gap-0.5" data-field="motivo_correcao">
+                  <span className="font-semibold">Motivo da correção (obrigatório se mudar algum campo da entrada)</span>
+                  <Input
+                    value={motivoCorrecao}
+                    onChange={(e) => { setMotivoCorrecao(e.target.value); setErrors((prev) => ({ ...prev, motivo_correcao: false })); }}
+                    placeholder="EX.: QUANTIDADE DIGITADA ERRADA"
+                    aria-label="Motivo da correção"
+                    maxLength={500}
+                    className={`h-[24px] bg-white text-xs ${errors.motivo_correcao ? "border-red-500 bg-red-50" : ""}`}
+                  />
+                </label>
+              )}
+            </div>
+          ) : null}
           <fieldset className={isReadOnly ? "pointer-events-none [&_input]:cursor-default [&_textarea]:cursor-default [&_button]:cursor-default" : ""}>
             <div className={useBase1Visual ? "px-2 py-1 w-full" : "px-4 md:px-8 py-1 max-w-[780px]"}>
               <DynamicFormRenderer

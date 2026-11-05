@@ -67,7 +67,7 @@ const bloqueio = (motivo, detalhes = {}) => ({ tipo: TIPO_BLOQUEADO, motivo, det
  * `lote_ids`, `efeitos[].lote_id`, `linhas[].maes_lote_ids`) ou o id
  * dentro de `observacoes` (legado). Sem teto: consulta no banco, não lista.
  */
-const movimentosQueCitam = async (tx, clienteId, loteId) =>
+export const movimentosQueCitam = async (tx, clienteId, loteId) =>
   /** @type {Array<{id: string, situacao: string|null, cancel_op: string|null, comando: string|null, dados: any}>} */ (
     await tx.$queryRaw`
       SELECT m.id,
@@ -85,7 +85,7 @@ const movimentosQueCitam = async (tx, clienteId, loteId) =>
   );
 
 /** Registro legado só por NOME (sem `lote_id`) na mesma empresa: identidade não demonstrável. */
-const temLegadoPorNome = async (tx, clienteId, lote) => {
+export const temLegadoPorNome = async (tx, clienteId, lote) => {
   const nome = String(lote.nome || '').trim().toUpperCase();
   if (!nome) return null;
   const [mapa] = /** @type {Array<{n: number}>} */ (
@@ -110,7 +110,7 @@ const temLegadoPorNome = async (tx, clienteId, lote) => {
 };
 
 /** Outras fontes com vínculo por id (não têm cancelamento: qualquer linha bloqueia). */
-const outraFonteVinculada = async (tx, clienteId, loteId) => {
+export const outraFonteVinculada = async (tx, clienteId, loteId) => {
   for (const fonte of FONTES_JSON) {
     const [linha] = /** @type {Array<{n: number}>} */ (
       await tx.$queryRaw`
@@ -161,7 +161,7 @@ const provarCancelamentos = async (tx, clienteId, cancelados) => {
  * nome…); ou efeito/reversão de comando cancelado com prova. O resto é
  * alteração operacional sem comprovação — inclusive ida e volta de saldo.
  */
-const auditoriaExplicada = async (tx, clienteId, loteId, explicadas) => {
+export const auditoriaExplicada = async (tx, clienteId, loteId, explicadas) => {
   const linhas = await tx.auditLog.findMany({
     where: { cliente_id: clienteId, entidade: 'Lote', entidade_id: loteId },
     select: { id: true, acao: true, dados_anteriores: true, dados_novos: true },
@@ -171,7 +171,8 @@ const auditoriaExplicada = async (tx, clienteId, loteId, explicadas) => {
     if (explicadas.has(l.id)) continue;
     const a = /** @type {any} */ (l.dados_anteriores);
     const n = /** @type {any} */ (l.dados_novos);
-    if (l.acao === 'update' && noEstadoDeEntrada(a) && noEstadoDeEntrada(n)) continue;
+    // R1 (correção da entrada): a correção mantém o lote no retrato da entrada, antes e depois.
+    if ((l.acao === 'update' || l.acao === 'correcao_entrada') && noEstadoDeEntrada(a) && noEstadoDeEntrada(n)) continue;
     return { ok: false, auditoria_id: l.id };
   }
   return { ok: true };

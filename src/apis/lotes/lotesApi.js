@@ -6,7 +6,7 @@
  */
 
 import { runProviderCall, assertArgument } from '../_core/normalizeApiError.js';
-import { lotePort, operacoesDeExclusao } from './loteNativePort.js';
+import { lotePort, operacoesDeExclusao, operacoesDeCorrecaoEntrada } from './loteNativePort.js';
 import {
   listMovimentacoesMapaNativas,
   filterMovimentacoesMapaNativas,
@@ -284,6 +284,21 @@ export const consultarElegibilidadeExclusaoLote = async (id) => {
   const contexto = ctx('consultarElegibilidadeExclusaoLote');
   assertArgument(isId(id), 'id', contexto);
   return runProviderCall(() => operacoesDeExclusao.elegibilidade(id), { ...contexto, details: { id } });
+};
+
+/** R1: a entrada original pode ser corrigida? (só leitura; o comando revalida). */
+export const consultarElegibilidadeCorrecaoEntradaLote = async (id) => {
+  const contexto = ctx('consultarElegibilidadeCorrecaoEntradaLote');
+  assertArgument(isId(id), 'id', contexto);
+  return runProviderCall(() => operacoesDeCorrecaoEntrada.elegibilidade(id), { ...contexto, details: { id } });
+};
+
+/** R1: comando de correção da entrada original (online; idempotente por operation_id). */
+export const corrigirEntradaLote = async (id, corpo) => {
+  const contexto = ctx('corrigirEntradaLote');
+  assertArgument(isId(id), 'id', contexto);
+  assertArgument(isObjeto(corpo) && typeof corpo.operation_id === 'string', 'corpo.operation_id', contexto);
+  return runProviderCall(() => operacoesDeCorrecaoEntrada.corrigir(id, corpo), { ...contexto, details: { id } });
 };
 
 /** Lote por id no servidor, inclusive excluído logicamente (só leitura). MAIKE-LOTES-R1. */

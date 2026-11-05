@@ -15,7 +15,10 @@ import {
   excluirLotes,
   consultarExclusaoDeLotes,
   listarIdsDeLotesComRegistros,
+  consultarCorrecaoEntrada,
+  corrigirEntradaDoLote,
 } from "@/services/loteCadastroService";
+import { ESTADOS_CORRECAO, mensagemDoMotivoCorrecao, somenteCamposAlterados } from "@/domain/lotes/correcaoEntrada";
 import { TIPOS_EXCLUSAO, TEXTO_CONFIRMACAO_LOGICA, mensagemDoMotivoExclusao } from "@/domain/lotes/exclusaoLote";
 import { persistirAnexosPendentes } from "@/services/anexoService";
 import { ehEntradaNoRebanho, motivoDeHistoricoDoLote } from "@/domain/lotes/saldoLote";
@@ -34,6 +37,7 @@ export default function CadastroLotes() {
   const queryClient = useQueryClient();
   const submitRef = useRef(/** @type {(data: object) => void} */ (() => {}));
   const deleteRef = useRef(/** @type {(ids: string[]) => void} */ (() => {}));
+  const enviandoEdicaoRef = useRef(false);
   const prevEmpresaRef = useRef(empresaSelecionadaId);
 
   const [attachmentsRecord, setAttachmentsRecord] = useState(null);
@@ -155,9 +159,27 @@ export default function CadastroLotes() {
   });
 
   const updateMutation = useMutation({
-    /** @param {{ id: string, data: object, oldData?: object }} vars */
-    mutationFn: ({ id, data, oldData }) => atualizarLote(id, data, { registroAnterior: oldData }),
-    onSuccess: async (updated, { id, data }) => {
+    /**
+     * R1: o que mudou na ENTRADA vai pelo comando de correção (servidor
+     * reescreve o fato inteiro); o resto (nome, raça, observações…) segue pelo
+     * PATCH, só com o que mudou. Correção recusada → nada mais é enviado e o
+     * formulário fica como está.
+     * @param {{ id: string, data: Record<string, any>, oldData?: Record<string, any>, correcao?: {campos: Record<string, unknown>, motivo: string} }} vars
+     */
+    mutationFn: async ({ id, data, oldData, correcao }) => {
+      let base = oldData ?? {};
+      let corrigido = null;
+      if (correcao) {
+        const r = /** @type {any} */ (await corrigirEntradaDoLote(id, { ...correcao, updatedDate: base.updated_date }));
+        corrigido = r?.lote ?? null;
+        base = { ...base, ...(corrigido ?? {}) };
+      }
+      const patch = somenteCamposAlterados(oldData ?? {}, data);
+      if (!Object.keys(patch).length) return corrigido ?? base;
+      return atualizarLote(id, { ...patch, campos_personalizados: data.campos_personalizados || base.campos_personalizados || {} }, { registroAnterior: base });
+    },
+    onSuccess: async (updated, { id, data, correcao }) => {
+      await queryClient.invalidateQueries({ queryKey: ["lote-correcao-entrada"] });
       await invalidateLotesComMapa();
       const merged = {
         ...(controller.editingItem?.id === id ? controller.editingItem : {}),
@@ -167,10 +189,22 @@ export default function CadastroLotes() {
       };
       controller.setEditingItem(merged);
       controller.setIsEditing(false);
-      notifySuccess("Sucesso", "Lote atualizado");
+      notifySuccess("Sucesso", correcao ? "Entrada do lote corrigida" : "Lote atualizado");
     },
-    onError: (err) =>
-      notifyWarning("Atenção", getApiErrorMessage(err, "Não foi possível atualizar o lote.")),
+    // Recusa: o formulário continua aberto em edição, com o que foi digitado.
+    onError: (err) => {
+      queryClient.invalidateQueries({ queryKey: ["lote-correcao-entrada"] });
+      const corpo = /** @type {any} */ (err)?.cause;
+      if (corpo?.code === "LOTE_CORRECAO_ENTRADA_BLOQUEADA") {
+        notifyWarning("Correção recusada", `A entrada não pode ser corrigida: ${mensagemDoMotivoCorrecao(corpo?.details?.motivo)}.`);
+        return;
+      }
+      if (corpo?.code === "LOTE_ESTADO_CONFLITO") {
+        notifyWarning("Lote alterado", "O lote mudou desde que foi aberto. Recarregue o registro e refaça a correção.");
+        return;
+      }
+      notifyWarning("Atenção", getApiErrorMessage(err, "Não foi possível atualizar o lote."));
+    },
   });
 
   const deleteMutation = useMutation({
@@ -222,11 +256,18 @@ export default function CadastroLotes() {
 
   submitRef.current = (data) => {
     const editing = /** @type {any} */ (controller.editingItem);
+    const { __correcaoEntrada, ...dados } = /** @type {any} */ (data);
     if (editing?.id && !editing._isDuplicate) {
-      updateMutation.mutate({ id: editing.id, data, oldData: editing });
+      // Duplo clique: trava síncrona (o estado da mutação só muda no próximo render).
+      if (enviandoEdicaoRef.current) return;
+      enviandoEdicaoRef.current = true;
+      updateMutation.mutate(
+        { id: editing.id, data: dados, oldData: editing, correcao: __correcaoEntrada },
+        { onSettled: () => { enviandoEdicaoRef.current = false; } },
+      );
       return;
     }
-    createMutation.mutate(data);
+    createMutation.mutate(dados);
   };
   deleteRef.current = (ids) => deleteMutation.mutate(ids);
 
@@ -271,6 +312,25 @@ export default function CadastroLotes() {
     if (id) return controller.allItems.find((l) => String(l.id) === String(id)) ?? null;
     return controller.recordNavRows?.[0] ?? null;
   };
+
+  // R1: elegibilidade da correção da entrada — sempre do SERVIDOR, por lote.
+  const loteEmEdicaoId = editingRecord?.id && !editingRecord?._isDuplicate ? String(editingRecord.id) : null;
+  const correcaoQuery = useQuery({
+    queryKey: ["lote-correcao-entrada", loteEmEdicaoId, editingRecord?.updated_date ?? null],
+    queryFn: () => consultarCorrecaoEntrada(/** @type {string} */ (loteEmEdicaoId)),
+    enabled: Boolean(loteEmEdicaoId),
+    retry: false,
+    staleTime: 0,
+  });
+  const correcaoEntrada = !loteEmEdicaoId
+    ? null
+    : correcaoQuery.isPending
+      ? { estado: ESTADOS_CORRECAO.CONSULTANDO }
+      : correcaoQuery.isError
+        ? { estado: ESTADOS_CORRECAO.ERRO, mensagem: getApiErrorMessage(correcaoQuery.error, "") }
+        : /** @type {any} */ (correcaoQuery.data)?.elegivel
+          ? { estado: ESTADOS_CORRECAO.ELEGIVEL }
+          : { estado: ESTADOS_CORRECAO.BLOQUEADO, mensagem: mensagemDoMotivoCorrecao(/** @type {any} */ (correcaoQuery.data)?.motivo) };
 
   const editingBloqueado = Boolean(editingRecord?.id && !editingRecord?._isDuplicate && temHistorico(editingRecord));
 
@@ -354,6 +414,7 @@ export default function CadastroLotes() {
             isEditing={!!editingRecord?.id && !editingRecord?._isDuplicate}
             onSubmit={controller.handleSubmit}
             onCancel={controller.cancelForm}
+            correcaoEntrada={correcaoEntrada}
           />
         }
         listSlot={

@@ -18,6 +18,8 @@ import {
   updateLote,
   deleteLote,
   consultarElegibilidadeExclusaoLote,
+  consultarElegibilidadeCorrecaoEntradaLote,
+  corrigirEntradaLote,
   excluirLoteOnline,
   removerLoteDosCachesOffline,
   pendenciasOfflineLote,
@@ -197,6 +199,41 @@ export const atualizarLote = async (id, dados, { registroAnterior } = {}) => {
   });
   await sincronizarReferenciasLote({ registro: atualizado, registroAnterior });
   return atualizado;
+};
+
+/**
+ * R1: a entrada original deste lote pode ser corrigida? Resposta do SERVIDOR
+ * (`{elegivel, motivo, detalhes, updated_date}`); nunca decidida no navegador.
+ * @param {string} id
+ */
+export const consultarCorrecaoEntrada = (id) => consultarElegibilidadeCorrecaoEntradaLote(id);
+
+/** Mesma tentativa (mesmo lote, campos, motivo e leitura) reusa a mesma operation_id. */
+const operacoesDeCorrecaoPendentes = new Map();
+
+/**
+ * R1: corrige a ENTRADA original pelo comando do servidor (não pelo PATCH).
+ * Retentativa da MESMA correção depois de falha de rede reusa a operation_id:
+ * o servidor devolve a resposta guardada em vez de aplicar duas vezes.
+ * @param {string} id
+ * @param {{campos: Record<string, unknown>, motivo: string, updatedDate: string}} correcao
+ */
+export const corrigirEntradaDoLote = async (id, { campos, motivo, updatedDate }) => {
+  const assinatura = JSON.stringify([id, campos, motivo, updatedDate]);
+  let operationId = operacoesDeCorrecaoPendentes.get(assinatura);
+  if (!operationId) {
+    operationId = `correcao-entrada-${globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`}`;
+    operacoesDeCorrecaoPendentes.set(assinatura, operationId);
+  }
+  try {
+    const r = await corrigirEntradaLote(id, { operation_id: operationId, motivo, estado_esperado: { updated_date: updatedDate }, campos });
+    operacoesDeCorrecaoPendentes.delete(assinatura);
+    return r;
+  } catch (erro) {
+    // O servidor respondeu (recusa definitiva): a próxima tentativa é outra operação.
+    if (typeof (/** @type {any} */ (erro))?.cause?.code === 'string') operacoesDeCorrecaoPendentes.delete(assinatura);
+    throw erro;
+  }
 };
 
 export const excluirLote = async (id) => deleteLote(id);

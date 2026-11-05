@@ -147,6 +147,8 @@ export const BACKEND_ONLY_CODES = Object.freeze({
     http: 409,
     meaning: 'o lote foi excluído do cadastro (exclusão lógica) e não recebe novos registros',
   },
+  // R1 — correção atômica da entrada original: há registro dependente (details.motivo).
+  LOTE_CORRECAO_ENTRADA_BLOQUEADA: { http: 409, meaning: 'a entrada do lote não pode ser corrigida: existe evento, movimentação ou registro dependente (ver details.motivo); nada foi gravado' },
   LOTE_UPDATE_BLOCKED: {
     http: 409,
     meaning: 'lote já tem movimentação, manejo ou registro depois da entrada e não pode ser editado pelo cadastro',
