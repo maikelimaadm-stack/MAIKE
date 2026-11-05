@@ -19,11 +19,9 @@
 
 import { getPrismaClient } from '../../database/prismaClient.js';
 import { exigirAuthContext } from './authContext.js';
-import { CAMPOS_PATCH_PERMITIDOS as CAMPOS_PATCH_EVENTO } from '../../modules/suplementacaoEventos/suplementacaoEventoService.js';
-import { CAMPOS_PATCH_PERMITIDOS as CAMPOS_PATCH_LOTE } from '../../modules/suplementacaoLotes/suplementacaoLoteService.js';
 import {
-  TELAS, porQualquer, porAcessoTotal, apenasAdminTenant, autorizar, carregarAutorizacao, mapaPermite,
-  telaPermite, acessoTotal, somenteCampos, acaoNaoPermitida,
+  TELAS, porQualquer, porAcessoTotal, apenasAdminTenant, autorizar, telaPermite, acessoTotal,
+  carregarAutorizacao, somenteCampos, acaoNaoPermitida,
 } from './autorizacaoTela.js';
 
 const T = TELAS;
@@ -40,30 +38,47 @@ const LOTES_GRAVAR = [[T.LOTES, 'novo'], [T.LOTES, 'editar'], [T.LOTES, 'salvar'
 const SO_ADMIN = apenasAdminTenant();
 
 /**
- * R3 — "mover lotes" NÃO é "lançar suplementação". Criar/alterar suplementação
- * livremente exige `lancar_suplementacao`. Com só `mover_lotes`, o PATCH vale
- * apenas como FECHAMENTO DO PERÍODO que a interface faz ao mover o gado
- * (`fecharPeriodoSuplementacao`): o corpo só traz os campos do fechamento E o
- * registro, relido do banco no tenant, ainda está aberto (`dias_periodo` vazio).
- * Período já fechado, registro de outro tenant ou inexistente → negado.
- * @param {'suplementacaoEvento'|'suplementacaoLote'} modelo
- * @param {readonly string[]} camposDoFechamento
+ * R4 — PATCH de cocho/depósito por tela cruzada: além de SÓ os campos do fluxo,
+ * o REGISTRO (relido no banco, no tenant) tem de ser o que o fluxo alcança.
+ *  - Mapa Cadastro "editar"/"salvar": edita tudo (é a tela do ponto);
+ *  - Mapa Cadastro "excluir" (cascata ao excluir o depósito): só DESVINCULAR —
+ *    `deposito_origem_id` e `deposito_origem_nome` = null, num cocho vinculado;
+ *  - Locais "editar"/"salvar" (renomear o local): `nome_ponto`/`local_estoque_nome`
+ *    só num DEPÓSITO ligado a um local; `deposito_origem_nome` só num cocho
+ *    vinculado a depósito. (R3 deixava renomear qualquer ponto.)
  */
-const fechamentoOuLancamento = (modelo, camposDoFechamento) => async (request) => {
+const pontoSuplementacaoEditar = async (request) => {
   const aut = await carregarAutorizacao(request.contexto);
-  if (acessoTotal(aut) || mapaPermite(aut, 'lancar_suplementacao')) return;
-  const negar = () => acaoNaoPermitida({ tela: TELAS.MAPA_GERAL.tela, mapa: 'lancar_suplementacao', fechamento: 'mover_lotes' });
-  if (!mapaPermite(aut, 'mover_lotes') || !somenteCampos(request.body, camposDoFechamento)) throw negar();
+  const MC = T.MAPA_CADASTRO;
+  if (acessoTotal(aut) || telaPermite(aut, MC, 'editar') || telaPermite(aut, MC, 'salvar')) return;
+  const corpo = /** @type {Record<string, unknown>} */ (request.body ?? {});
+  const negar = () => acaoNaoPermitida({ tela: MC.tela, acao: 'editar' });
+  const pode = (alvo, acoes) => acoes.some((a) => telaPermite(aut, alvo, a));
+  if (!pode(MC, ['excluir']) && !pode(T.LOCAIS, ['editar', 'salvar'])) throw negar();
   const auth = exigirAuthContext(request.contexto?.auth);
-  const id = /** @type {any} */ (request.params)?.id;
-  const registro = await /** @type {any} */ (getPrismaClient())[modelo].findFirst({ where: { cliente_id: auth.clienteId, id }, select: { dados: true } });
-  const dados = /** @type {any} */ (registro?.dados) ?? null;
-  const aberto = dados && (dados.dias_periodo === null || dados.dias_periodo === undefined || dados.dias_periodo === '');
-  if (!aberto) throw negar();
+  const ponto = await getPrismaClient().pontoSuplementacao.findFirst({
+    where: { cliente_id: auth.clienteId, id: /** @type {any} */ (request.params)?.id },
+    select: { categoria_ponto: true, local_estoque_id: true, deposito_origem_id: true },
+  });
+  if (!ponto) throw negar();
+  const desvincular = pode(MC, ['excluir']) && somenteCampos(corpo, ['deposito_origem_id', 'deposito_origem_nome']) &&
+    corpo.deposito_origem_id === null && (corpo.deposito_origem_nome ?? null) === null && Boolean(ponto.deposito_origem_id);
+  const renomearDeposito = pode(T.LOCAIS, ['editar', 'salvar']) && somenteCampos(corpo, ['nome_ponto', 'local_estoque_nome']) &&
+    String(ponto.categoria_ponto).toUpperCase() === 'DEPOSITO' && Boolean(ponto.local_estoque_id);
+  const renomearOrigem = pode(T.LOCAIS, ['editar', 'salvar']) && somenteCampos(corpo, ['deposito_origem_nome']) && Boolean(ponto.deposito_origem_id);
+  if (!(desvincular || renomearDeposito || renomearOrigem)) throw negar();
 };
-// Os mesmos campos que o service aceita por PATCH (fonte única: o service).
-const CAMPOS_FECHAMENTO_EVENTO = CAMPOS_PATCH_EVENTO;
-const CAMPOS_FECHAMENTO_LOTE = CAMPOS_PATCH_LOTE;
+
+/*
+ * R4 — "mover lotes" NÃO fecha período de suplementação. Na R3, com só
+ * `mover_lotes`, o PATCH dos campos do fechamento passava em QUALQUER período
+ * aberto do tenant (sem vínculo com transferência, lote, área ou operação):
+ * encerrava o consumo de outro grupo. Não há como o servidor provar, pela rota
+ * genérica, que o fechamento decorre de uma transferência; então todo PATCH de
+ * suplementação exige `lancar_suplementacao` (fail-closed). O formulário de
+ * mover não oferece o fechamento a quem não pode lançar (segue movendo, com o
+ * aviso de que o consumo continua aberto).
+ */
 
 /**
  * R3 — `/referencias/sincronizar` propaga o nome de UMA entidade: exige a tela
@@ -86,25 +101,18 @@ export const GUARDAS = Object.freeze({
   // ── Mapa Geral: suplementação, cochos/depósitos e estoque ──
   suplementacaoLote: {
     criar: porQualquer({ mapa: 'lancar_suplementacao' }),
-    editar: fechamentoOuLancamento('suplementacaoLote', CAMPOS_FECHAMENTO_LOTE),
+    editar: porQualquer({ mapa: 'lancar_suplementacao' }),
     excluir: SO_ADMIN, // estorno suspenso na interface (politicaEstorno)
   },
   suplementacaoEvento: {
     criar: porQualquer({ mapa: 'lancar_suplementacao' }),
     lancamento: porQualquer({ mapa: 'lancar_suplementacao' }),
-    editar: fechamentoOuLancamento('suplementacaoEvento', CAMPOS_FECHAMENTO_EVENTO),
+    editar: porQualquer({ mapa: 'lancar_suplementacao' }),
     excluir: SO_ADMIN,
   },
   pontoSuplementacao: {
     criar: porQualquer(...MAPA_CAD_CRIAR),
-    // R3: Mapa Cadastro edita tudo; os fluxos cruzados só nos seus campos —
-    // excluir depósito desvincula cochos; renomear local renomeia o depósito.
-    editar: porQualquer(
-      ...MAPA_CAD_EDITAR,
-      { de: [T.MAPA_CADASTRO, 'excluir'], campos: ['deposito_origem_id', 'deposito_origem_nome'] },
-      { de: [T.LOCAIS, 'editar'], campos: ['nome_ponto', 'local_estoque_nome', 'deposito_origem_nome'] },
-      { de: [T.LOCAIS, 'salvar'], campos: ['nome_ponto', 'local_estoque_nome', 'deposito_origem_nome'] }
-    ),
+    editar: pontoSuplementacaoEditar, // R4: campos + registro alcançado pelo fluxo
     excluir: porQualquer(...MAPA_CAD_EXCLUIR),
   },
   movimentacaoEstoque: {

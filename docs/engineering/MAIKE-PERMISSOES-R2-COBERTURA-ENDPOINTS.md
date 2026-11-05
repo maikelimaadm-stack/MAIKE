@@ -45,13 +45,13 @@ permite gravar e sob qual condição o servidor confere. Todas as condições s�
 |---|---|---|
 | administrador real (`papel_tenant`) | tudo no tenant, inclusive Permissões, Usuários, ícones, fuso, ativação, cancelamento/exclusão e rotas sem tela | `Usuario` ativo e com papel `administrador` (dentro da transação nas ações administrativas) |
 | linha `is_admin` | todas as telas e ações, incluindo as tarefas do mapa | linha da própria conta no tenant. **Não** inclui Permissões, Usuários, ícones, rotas sem tela nem `POST` genérico sem contrato |
-| `mover_lotes` | transferência (comando do ledger / manejo-lote) e **fechamento do período** de suplementação ao mover | fechamento: o corpo só traz os campos aceitos pelo service (`CAMPOS_PATCH_PERMITIDOS`) **e** o registro está aberto (`dias_periodo` vazio). **Não** cria suplementação nem grava sobras |
-| `lancar_suplementacao` | criar/editar suplementação (evento, lotes, bulk, lançamento com lotes) e saída de estoque da suplementação | tela do Mapa Geral visível + chave `=== true`. **Não** move gado |
+| `mover_lotes` | **só** a transferência (comando do ledger / manejo-lote) | chave `=== true`. **R4:** não fecha período, não cria nem edita suplementação e não grava sobras. O formulário de mover não oferece essas opções a quem não pode lançar: avisa que o consumo continua aberto e move |
+| `lancar_suplementacao` | criar, editar e **fechar período** de suplementação (evento, lotes, bulk, lançamento com lotes), aproveitar sobra no destino e saída de estoque da suplementação | tela do Mapa Geral visível + chave `=== true` (o service limita o PATCH aos campos do fechamento). **Não** move gado |
 | `movimentar_depositos` | transferência entre depósitos | idem |
 | demais chaves do mapa (pesar, morte, abate, nascimento, categoria, renomear, juntar) | o comando do tipo correspondente; renomear: PATCH só dos campos de nome e o registro informativo | chave `=== true`; no PATCH de lote, só os campos de nome |
 | Mapa Cadastro `novo`/`salvar`/`editar` | áreas, pontos, linhas, cochos, depósitos, locais, bebedouro | ação da tela. Mudar o nome do local nas movimentações e notas aceita **só** `local_origem`, `local_destino` e `local_estoque_nome` |
-| Mapa Cadastro `excluir` | excluir pontos e cochos; desvincular cochos do depósito excluído | PATCH de cocho só com `deposito_origem_id` e `deposito_origem_nome` |
-| Locais `editar`/`salvar` | cadastro de locais + renomear o depósito ligado | PATCH de ponto só com `nome_ponto`, `local_estoque_nome` e `deposito_origem_nome` |
+| Mapa Cadastro `excluir` | excluir pontos e cochos; desvincular cochos do depósito excluído | PATCH de cocho só com `deposito_origem_id` e `deposito_origem_nome` **iguais a null**, e só num cocho que **está** vinculado (relido no banco) |
+| Locais `editar`/`salvar` | cadastro de locais + renomear o depósito ligado | `nome_ponto`/`local_estoque_nome` só num **DEPÓSITO ligado a um local**; `deposito_origem_nome` só num cocho **vinculado**. O registro é relido no banco (R3 deixava renomear qualquer ponto) |
 | Cadastro de Lotes `novo`/`editar`/`salvar` | lotes; setor e categoria de manejo rápidos (**só criar**); anexos e upload | ação da tela; remover anexo exige `excluir` |
 | tela X `editar`/`salvar` (Lote, Produto, Setor, Grupo, Tipo de tarefa) | `/referencias/sincronizar` **da própria entidade X** | `entity_name` do corpo precisa ser a entidade da tela concedida |
 | Bebedouros, ou Mapa Geral `salvar`/`excluir` | histórico de bebedouro | ação da tela |

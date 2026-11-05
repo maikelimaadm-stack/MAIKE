@@ -4,9 +4,8 @@
  * tenant, AuditLog e ledger), não só por status.
  *
  *  R3-SUP  "mover lotes" NÃO é "lançar suplementação": POST/bulk livres de
- *          suplementação exigem `lancar_suplementacao`. Com "mover", o PATCH só
- *          vale como FECHAMENTO do período (campos do fechamento, registro ainda
- *          aberto — conferido no banco).
+ *          suplementação exigem `lancar_suplementacao`. (R4: o PATCH — inclusive
+ *          o fechamento do período — também; ver permissoesR4.test.mjs.)
  *  R3-SOB  sobras após a transferência: sem `lancar_suplementacao` não gravam
  *          (fail-closed; a transferência continua gravada e o cliente avisa).
  *  R3-POR  demais `porQualquer` de tela cruzada: só os campos do fluxo cruzado.
@@ -122,15 +121,11 @@ describe('R3-SUP — só "mover lotes": suplementação livre por HTTP é negada
     await negado(c, c.tokOp, 'POST', '/suplementacao-eventos/comandos/lancamento-com-lotes', { operation_id: opId(), evento: SOBRA_EVENTO(c) });
   });
 
-  test('com "mover": o fechamento do período (campos do fechamento, registro aberto) passa; repetir em período já fechado → 403', async () => {
+  test('R4: com só "mover", nem o fechamento do período (campos do fechamento, período aberto) passa → 403', async () => {
     const c = await cenario();
     await c.permitir(SO_MOVER);
-    const fechaEv = await req('PATCH', `/suplementacao-eventos/${c.evento.id}`, c.tokOp, { sobra_kg: 4, dias_periodo: 6, consumo_diario_grupo_kg: 16 });
-    assert.equal(fechaEv.statusCode, 200, fechaEv.body);
-    const fechaLote = await req('PATCH', `/suplementacao-lotes/${c.loteSupl.id}`, c.tokOp, { dias_periodo: 6, consumo_por_cabeca_dia_kg: 0.16, consumo_total_lote_periodo_kg: 96, percentual_consumo_lote: 1 });
-    assert.equal(fechaLote.statusCode, 200, fechaLote.body);
-    await negado(c, c.tokOp, 'PATCH', `/suplementacao-eventos/${c.evento.id}`, { sobra_kg: 99, dias_periodo: 6 });
-    await negado(c, c.tokOp, 'PATCH', `/suplementacao-lotes/${c.loteSupl.id}`, { dias_periodo: 1 });
+    await negado(c, c.tokOp, 'PATCH', `/suplementacao-eventos/${c.evento.id}`, { sobra_kg: 4, dias_periodo: 6, consumo_diario_grupo_kg: 16 });
+    await negado(c, c.tokOp, 'PATCH', `/suplementacao-lotes/${c.loteSupl.id}`, { dias_periodo: 6, consumo_por_cabeca_dia_kg: 0.16, consumo_total_lote_periodo_kg: 96, percentual_consumo_lote: 1 });
     await negado(c, c.tokOp, 'PATCH', '/suplementacao-eventos/nao-existe', { sobra_kg: 1 });
   });
 
@@ -193,7 +188,7 @@ describe('R3-SOB — sobras do cocho no destino após a transferência (sequênc
 describe('R3-POR — tela cruzada só nos campos do fluxo cruzado', () => {
   test('locais de estoque: renomear o depósito passa; mover/reescrever o ponto → 403', async () => {
     const c = await cenario();
-    const ponto = await req('POST', '/pontos-suplementacao', c.tokAdm, { empresa_id: c.empresa.id, nome_ponto: 'DEP 1', categoria_ponto: 'DEPOSITO' });
+    const ponto = await req('POST', '/pontos-suplementacao', c.tokAdm, { empresa_id: c.empresa.id, nome_ponto: 'DEP 1', categoria_ponto: 'DEPOSITO', local_estoque_id: 'local-1', local_estoque_nome: 'DEP 1' });
     assert.equal(ponto.statusCode, 201, ponto.body);
     await c.permitir({ modulos_permitidos: ['suporte-mapa'], permissoes_telas: [linha('suporte-mapa', 'sup-locais', { visualizar: true, editar: true, salvar: true })] });
     assert.equal((await req('PATCH', `/pontos-suplementacao/${ponto.json().id}`, c.tokOp, { nome_ponto: 'DEP NOVO', local_estoque_nome: 'DEP NOVO' })).statusCode, 200);

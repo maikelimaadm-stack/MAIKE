@@ -301,3 +301,27 @@ Mantidos, com contrato explícito:
 - upload por Lotes ou Empresa.
 
 Matriz permissão → efeito → condição: ver `MAIKE-PERMISSOES-R2-COBERTURA-ENDPOINTS.md`.
+
+## 11. R4 — "mover lotes" não fecha período de suplementação
+
+### 11.1 Defeito (RED em `6406f329`)
+Teste: `backend/tests/permissoesR4.test.mjs`, rodado sobre o `backend/src` de `6406f329`. Resultado: 6 de 9 falham.
+
+- Com só `mover_lotes`, `PATCH /suplementacao-eventos/:id` com `{sobra_kg:4, dias_periodo:6, consumo_diario_grupo_kg:16}` no período **aberto de outro grupo** (área B) respondeu **200**. O evento foi gravado fechado e auditado. O mesmo valeu para `/suplementacao-lotes/:id`.
+- A R3 tinha um teste positivo que legitimava esse caminho; ele foi reescrito como negativo.
+- Em tela cruzada, Locais `editar` renomeava **qualquer** cocho (`nome_ponto`) e Mapa Cadastro `excluir` religava cocho a outro depósito. Os dois davam 200 e agora dão 403.
+
+### 11.2 Política adotada (fail-closed; o comando vinculado à transferência não foi feito)
+Um comando de fechamento vinculado a uma transferência comprovada exigiria redesenhar a sequência do formulário. Hoje o fechamento roda **antes** da transferência existir, então não há o que vincular no servidor. Ficaria grande demais para este slice.
+
+- **Servidor:** todo PATCH de suplementação exige `lancar_suplementacao`. "Mover" não fecha período nenhum.
+- **Formulário de mover** (`FormularioMovimentacaoLote`, prop `podeLancarSuplementacao` com padrão `false`, passada pelo `DetalhesLote` como `permissions.lancar_suplementacao === true`). Sem a permissão:
+  - não pergunta se fecha o consumo;
+  - não oferece aproveitar sobra no destino;
+  - mostra o aviso "Consumo do cocho continua aberto…";
+  - segue para a movimentação.
+  - Não há fechamento parcial nem promessa falsa, e a transferência grava (teste HTTP).
+- **Quem tem `lancar_suplementacao`:** o fluxo de sempre, incluindo fechar período e aproveitar sobra.
+
+### 11.3 Limitação operacional
+Quem só move deixa o consumo do cocho aberto até alguém com "Lançar suplementação" fechá-lo. O consumo daquele período passa a cobrir também os dias depois da saída do gado. A interface informa isso no momento de mover.
