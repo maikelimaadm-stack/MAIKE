@@ -4,7 +4,7 @@
  */
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
-import { centroideArea, escolherModoRotulos, pontoMaisDentro, siglaDaArea } from "@/lib/maplibre/mapaGeralRender.js";
+import { centroideArea, escolherModoRotulos, layoutLote, pontoEFolga, pontoMaisDentro, siglaDaArea } from "@/lib/maplibre/mapaGeralRender.js";
 import { pointInPolygonRing } from "@/lib/maplibre/taskLocationPicker.js";
 
 const cx = (x, y, w, h) => ({ x, y, w, h });
@@ -119,8 +119,42 @@ describe("pontoMaisDentro — nome e lote no miolo da área torta (D-PROD-127)",
     // de offset (fica em OFFSET_LOTE_PX, ponta no ponto da área) e o nome sem
     // lote é centrado por CSS; refaz também ao redimensionar.
     expect(r).not.toMatch(/setOffset\(/);
-    expect(r).toMatch(/entry\.corpo\.style\.transform = temLote \? "" : "translateY\(calc\(-50% - 2px\)\)";/);
+    expect(r).toMatch(/: "translateY\(calc\(-50% - 2px\)\)";/);
+    // ícone encolhe e desce a partir da folga do ponto, sem setOffset
+    expect(r).toMatch(/entry\.escala\.style\.transform = s < 1 \? `translateY\(\$\{desce\}px\) scale\(\$\{s\}\)` : "";/);
     expect(r).toMatch(/map\.on\("resize", handler\)/);
     expect(r).toMatch(/offset: OFFSET_LOTE_PX/);
+  });
+});
+
+describe("ícone do lote cabe no pasto (D-PROD-128)", () => {
+  it("folga grande: tamanho normal, ponta no ponto; folga pequena: encolhe e centraliza", () => {
+    expect(layoutLote(80)).toEqual({ escala: 1, desce: 0, base: -4 });
+    expect(layoutLote(null)).toEqual({ escala: 1, desce: 0, base: -4 });
+    const meio = layoutLote(30);
+    expect(meio.escala).toBe(1);
+    expect(meio.desce).toBeGreaterThan(0);
+    const pequeno = layoutLote(10);
+    expect(pequeno.escala).toBe(0.45); // mínimo legível
+    expect(pequeno.desce).toBe(26); // centrado no ponto
+  });
+
+  it("contínuo: quanto menos folga, menor e mais para baixo (sem pulos)", () => {
+    let antes = layoutLote(60);
+    for (let r = 59; r >= 5; r -= 1) {
+      const agora = layoutLote(r);
+      expect(agora.escala).toBeLessThanOrEqual(antes.escala);
+      expect(agora.desce).toBeGreaterThanOrEqual(antes.desce);
+      expect(agora.desce - antes.desce).toBeLessThan(2);
+      antes = agora;
+    }
+  });
+
+  it("pontoEFolga devolve o mesmo ponto do pontoMaisDentro e a folga até a borda", () => {
+    const q = [{ lat: 0, lng: 0 }, { lat: 0, lng: 0.02 }, { lat: -0.02, lng: 0.02 }, { lat: -0.02, lng: 0 }];
+    const pf = pontoEFolga(q);
+    const p = pontoMaisDentro(q);
+    expect({ lat: pf.lat, lng: pf.lng }).toEqual(p);
+    expect(pf.folga).toBeCloseTo(0.01, 4);
   });
 });

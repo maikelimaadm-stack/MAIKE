@@ -8,6 +8,8 @@ import {
   buildMgAreasCollection,
   buildMgLinhasCollection,
   centroideArea,
+  layoutLote,
+  pontoEFolga,
   escolherModoRotulos,
   siglaDaArea,
   ensureMgLayers,
@@ -266,6 +268,14 @@ export default function useMapRenderer(mapInstanceRef) {
   }, [mapInstanceRef]);
 
   // ─── Rótulos das áreas (nome + ha + extra) ───
+  /** Ponto e folga de cada área, guardados por coordenadas (cálculo caro). */
+  const folgaRef = useRef(new Map());
+  const folgaDaArea = (/** @type {any} */ area) => {
+    const chave = `${area.id}|${JSON.stringify(area?.coordenadas?.coords || null)}`;
+    if (!folgaRef.current.has(chave)) folgaRef.current.set(chave, pontoEFolga(parseVertices(area?.coordenadas?.coords)));
+    return folgaRef.current.get(chave);
+  };
+
   /**
    * Sem bagunça de rótulos (D-PROD-126): mede os rótulos e as áreas na tela e
    * põe TODOS no mesmo nível — nome + ha, só o nome, ou só a sigla.
@@ -273,6 +283,32 @@ export default function useMapRenderer(mapInstanceRef) {
   const arrumarRotulos = () => {
     const map = getMap();
     if (!map) return;
+    const caixaArea = (/** @type {any} */ ring) => {
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      for (const p of ring || []) {
+        const pt = map.project([p.lng, p.lat]);
+        if (pt.x < minX) minX = pt.x;
+        if (pt.y < minY) minY = pt.y;
+        if (pt.x > maxX) maxX = pt.x;
+        if (pt.y > maxY) maxY = pt.y;
+      }
+      return Number.isFinite(minX) ? { x: minX, y: minY, w: maxX - minX, h: maxY - minY } : null;
+    };
+    // Ícone do lote do tamanho do pasto na tela (D-PROD-128): com o mapa
+    // afastado o pasto fica pequeno, e o ícone de 44 px invadia os vizinhos.
+    markersRef.current.forEach((entry, key) => {
+      if (!key.startsWith("lote_area_") || !entry.escala) return;
+      const area = areasByIdRef.current.get(key.slice("lote_area_".length));
+      const pf = area ? folgaDaArea(area) : null;
+      // folga do ponto em px na tela, no zoom atual
+      const raio = pf ? Math.abs(map.project([pf.lng, pf.lat + pf.folga]).y - map.project([pf.lng, pf.lat]).y) : null;
+      const { escala: s, desce, base } = layoutLote(raio);
+      entry.escala.style.transform = s < 1 ? `translateY(${desce}px) scale(${s})` : "";
+      // a contagem não fica menor que 7 px (legível)
+      if (entry.badge) entry.badge.style.fontSize = `${Math.max(7, FONTE_CONTAGEM_PX * s) / s}px`;
+      entry.base = base;
+      entry.el.dataset.escala = String(s);
+    });
     if (!labelsRef.current.size) return;
     const caixa = (/** @type {Element} */ el) => {
       const r = el.getBoundingClientRect();
@@ -292,8 +328,9 @@ export default function useMapRenderer(mapInstanceRef) {
         entry.titulo.textContent = modo === "sigla" ? entry.sigla : entry.nome;
         entry.ha.style.display = modo === "tudo" && entry.temHa ? "block" : "none";
         entry.extra.style.display = modo === "tudo" && entry.temExtra ? "block" : "none";
-        const temLote = markersRef.current.has(`lote_area_${id}`);
-        entry.corpo.style.transform = temLote ? "" : "translateY(calc(-50% - 2px))";
+        const lote = markersRef.current.get(`lote_area_${id}`);
+        // com lote: logo abaixo do ícone (que desce quando encolhe); sem lote: centrado
+        entry.corpo.style.transform = lote ? (lote.base > -4 ? `translateY(${Math.round(lote.base + 4)}px)` : "") : "translateY(calc(-50% - 2px))";
       });
     };
     const medir = () => {
@@ -303,7 +340,7 @@ export default function useMapRenderer(mapInstanceRef) {
       const obstaculos = [];
       markersRef.current.forEach((entry, key) => {
         // `dono`: o ícone do lote da própria área não conta contra o nome dela
-        if (key.startsWith("lote_") && entry.el) obstaculos.push({ ...caixa(entry.el), dono: key.startsWith("lote_area_") ? key.slice("lote_area_".length) : undefined });
+        if (key.startsWith("lote_") && entry.el) obstaculos.push({ ...caixa(entry.escala || entry.el), dono: key.startsWith("lote_area_") ? key.slice("lote_area_".length) : undefined });
       });
       return { rotulos, obstaculos };
     };
@@ -313,15 +350,8 @@ export default function useMapRenderer(mapInstanceRef) {
     const areas = new Map();
     labelsRef.current.forEach((entry, id) => {
       entry.el.style.visibility = "hidden"; // mede sem pintar
-      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-      for (const p of entry.ring || []) {
-        const pt = map.project([p.lng, p.lat]);
-        if (pt.x < minX) minX = pt.x;
-        if (pt.y < minY) minY = pt.y;
-        if (pt.x > maxX) maxX = pt.x;
-        if (pt.y > maxY) maxY = pt.y;
-      }
-      if (Number.isFinite(minX)) areas.set(id, { x: minX, y: minY, w: maxX - minX, h: maxY - minY });
+      const cx = caixaArea(entry.ring);
+      if (cx) areas.set(id, cx);
     });
 
     // mede cada nível já na posição final; o nome é medido sozinho (sem o "ha"
@@ -623,7 +653,16 @@ export default function useMapRenderer(mapInstanceRef) {
           ind.className = "mg-lote-ident";
           // Identificador no canto de cima à direita, só uma bordinha dentro da figura (D-PROD-125).
           ind.style.cssText = "position:absolute;left:calc(50% + 22px);top:calc(50% - 24px);transform:translate(-50%,-50%);display:flex;pointer-events:none;";
-          entry.el.append(badge, ind);
+          // Ícone + contagem + identificador num só bloco, que encolhe a partir da
+          // ponta (no ponto da área) para caber no pasto (D-PROD-128).
+          const escala = document.createElement("div");
+          escala.className = "mg-lote-escala";
+          escala.style.cssText = "position:relative;display:flex;align-items:center;justify-content:center;transform-origin:50% 50%;";
+          const corpo = entry.el.querySelector(".mg-marker-corpo");
+          if (corpo) escala.appendChild(corpo);
+          escala.append(badge, ind);
+          entry.el.append(escala);
+          entry.escala = escala;
           entry.badge = badge;
           entry.ind = ind;
           entry.arrastou = false;
