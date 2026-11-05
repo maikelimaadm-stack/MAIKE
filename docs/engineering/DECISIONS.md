@@ -4991,4 +4991,19 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
   - só o MT - 12 ficou um pouco mais perto da borda (110 → 104 m), ainda longe dela;
   - harness com as áreas reais e lotes: v19-03.
 
-<!-- Próxima decisão: D-PROD-128 -->
+## D-PROD-128 — Mapa Geral: ícone do lote e nome com posição fixa (não saem do lugar)
+
+- **Contexto:** o proprietário quer manter o zoom e o tamanho dos ícones como estão (D-PROD-126/127), mas os ícones do gado e os nomes "saíam da posição".
+  - O D-PROD-127 centrava o par ícone + nome recalculando os `offset` pela **altura medida** do nome e do ícone.
+  - Por isso, a cada troca de nível (sigla, nome ou nome + ha), na mudança de fonte no fim do zoom, ao redimensionar e quando a figura do boi terminava de carregar (44 px no lugar do círculo de 38 px), o ícone e o nome subiam ou desciam.
+  - Duas tentativas anteriores nesta rodada foram revertidas a pedido do proprietário: o ícone com a ponta fixa no ponto e o ícone encolhendo com o pasto.
+- **Decisão:**
+  - **Visual mantido:** o par ícone + nome segue centrado no ponto da área, com o mesmo tamanho e o mesmo zoom.
+  - **Posições constantes (`PAR_LOTE`):** a conta usa alturas reservadas fixas: ícone de 44 px, 2 px de espaço e nome de 26 px.
+    - Ícone: `offset` [0, −14].
+    - Nome: [0, +10], logo abaixo do ícone.
+    - Nada é medido (`offsetHeight` sai do código).
+  - **Área sem lote:** o nome fica centrado no ponto por CSS (`translateY(-50%)` num `corpo` interno), sem medir.
+- **Consequência:** no harness com as áreas reais, a distância entre o ícone e o nome ficou igual (5 px) em todos os níveis e zooms. Nada se mexe ao trocar de nível, ao aproximar ou afastar, ao redimensionar ou ao carregar a imagem.
+
+<!-- Próxima decisão: D-PROD-129 -->

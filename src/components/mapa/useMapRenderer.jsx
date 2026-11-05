@@ -36,6 +36,16 @@ const blinkIntervals = new Map();
 /** Ícone de lotes acima do centroide (px, independe do zoom). */
 // Ícone do lote 44 px (D-PROD-89): deslocamento proporcional, a ponta fica no mesmo lugar.
 const OFFSET_LOTE_PX = /** @type {[number, number]} */ ([0, -26]);
+/**
+ * Par ícone do lote (44 px) + nome embaixo, centrado no ponto da área, com
+ * alturas CONSTANTES (D-PROD-128): ícone 44 + 2 de espaço + nome reservado de
+ * 26 px (nome + ha) = 72 px → ícone com o centro 14 px acima do ponto e o nome
+ * começando 10 px abaixo. Não muda com o nível do rótulo nem com a imagem.
+ */
+const PAR_LOTE = {
+  icone: /** @type {[number, number]} */ ([0, -14]),
+  nome: /** @type {[number, number]} */ ([0, 10]),
+};
 
 const setBlink = (key, el, shouldBlink, dim = 0.35) => {
   const existing = blinkIntervals.get(key);
@@ -294,22 +304,25 @@ export default function useMapRenderer(mapInstanceRef) {
         entry.titulo.textContent = modo === "sigla" ? entry.sigla : entry.nome;
         entry.ha.style.display = modo === "tudo" && entry.temHa ? "block" : "none";
         entry.extra.style.display = modo === "tudo" && entry.temExtra ? "block" : "none";
-        const h = entry.el.offsetHeight || 0;
+        // Posições FIXAS (D-PROD-128): o par ícone + nome continua centrado no
+        // ponto, mas calculado com alturas constantes — nada sobe nem desce ao
+        // trocar sigla/nome/ha, no zoom, ao redimensionar ou quando a figura do
+        // boi termina de carregar. Sem lote, o nome é centrado por CSS.
         const lote = markersRef.current.get(`lote_area_${id}`);
         if (lote?.el) {
-          const H = lote.el.offsetHeight || 44;
-          const total = H + 2 + h;
-          lote.marker.setOffset([0, Math.round(-total / 2 + H / 2)]);
-          entry.marker.setOffset([0, Math.round(-total / 2 + H + 2)]);
+          lote.marker.setOffset(PAR_LOTE.icone);
+          entry.marker.setOffset(PAR_LOTE.nome);
+          entry.corpo.style.transform = "";
         } else {
-          entry.marker.setOffset([0, Math.round(-h / 2)]);
+          entry.marker.setOffset([0, 0]);
+          entry.corpo.style.transform = "translateY(-50%)";
         }
       });
     };
     const medir = () => {
       /** @type {Map<string, { x: number, y: number, w: number, h: number }>} */
       const rotulos = new Map();
-      labelsRef.current.forEach((entry, id) => rotulos.set(id, caixa(entry.el)));
+      labelsRef.current.forEach((entry, id) => rotulos.set(id, caixa(entry.corpo)));
       const obstaculos = [];
       markersRef.current.forEach((entry, key) => {
         // `dono`: o ícone do lote da própria área não conta contra o nome dela
@@ -409,11 +422,13 @@ export default function useMapRenderer(mapInstanceRef) {
         ha.style.opacity = "0.95";
         const extra = document.createElement("div");
         extra.style.cssText = "font-weight:600;color:#fef08a;";
-        el.append(titulo, ha, extra);
-        // Rótulo logo abaixo do centroide; o ícone de lotes fica acima (OFFSET_LOTE_PX):
-        // nenhum cobre o outro em qualquer zoom.
+        // `corpo` leva o texto; centralizar sem lote é CSS (D-PROD-128).
+        const corpo = document.createElement("div");
+        corpo.className = "mg-area-label__corpo";
+        corpo.append(titulo, ha, extra);
+        el.append(corpo);
         const marker = new maplibregl.Marker({ element: el, anchor: "top", offset: [0, 2] }).setLngLat([centro.lng, centro.lat]).addTo(map);
-        entry = { el, marker, titulo, ha, extra };
+        entry = { el, corpo, marker, titulo, ha, extra };
         labelsRef.current.set(id, entry);
       } else {
         entry.marker.setLngLat([centro.lng, centro.lat]);

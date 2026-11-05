@@ -299,3 +299,12 @@ Harness a 390 px com 72 áreas, com o mapa base trocado por um fundo liso porque
   - Antes, 4 pontos ficavam a menos de 30 m de uma divisa; depois, nenhum. Só o MT - 12 ficou 6 m mais perto da borda (104 m).
   - Evidências v19-02 (antes e depois) e v19-03 (áreas reais com lotes, no harness, com o mapa base trocado por um fundo liso).
 - **Não testado em aparelho.**
+
+### V19c — ícone do lote e nome com posição fixa (D-PROD-128)
+
+| Pedido | Feito | Medição |
+|---|---|---|
+| Manter o zoom como está, mas os ícones e os nomes não podem sair da posição | O par ícone + nome continua centrado, com posições constantes (`PAR_LOTE`): ícone a −14 px e nome a +10 px. Sem lote, o nome é centrado por CSS. Nada é medido | Harness com áreas reais: espaço de 5 px entre o ícone e o nome em todos os zooms e níveis |
+
+Duas tentativas anteriores nesta rodada (ícone fixo com a ponta no ponto e ícone encolhendo com o pasto) foram revertidas a pedido do proprietário. **Não testado em aparelho.**
+
