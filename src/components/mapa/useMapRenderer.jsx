@@ -271,7 +271,13 @@ export default function useMapRenderer(mapInstanceRef) {
    */
   const arrumarRotulos = () => {
     const map = getMap();
-    if (!map || !labelsRef.current.size) return;
+    if (!map) return;
+    // Lote de área sem rótulo (nomes desligados ou área sem nome): volta à
+    // posição padrão, sem o espaço do nome embaixo (D-PROD-127).
+    markersRef.current.forEach((entry, key) => {
+      if (key.startsWith("lote_area_") && !labelsRef.current.has(key.slice("lote_area_".length))) entry.marker.setOffset(OFFSET_LOTE_PX);
+    });
+    if (!labelsRef.current.size) return;
     const caixa = (/** @type {Element} */ el) => {
       const r = el.getBoundingClientRect();
       return { x: r.left, y: r.top, w: r.width, h: r.height };
@@ -306,7 +312,8 @@ export default function useMapRenderer(mapInstanceRef) {
       labelsRef.current.forEach((entry, id) => rotulos.set(id, caixa(entry.el)));
       const obstaculos = [];
       markersRef.current.forEach((entry, key) => {
-        if (key.startsWith("lote_") && entry.el) obstaculos.push(caixa(entry.el));
+        // `dono`: o ícone do lote da própria área não conta contra o nome dela
+        if (key.startsWith("lote_") && entry.el) obstaculos.push({ ...caixa(entry.el), dono: key.startsWith("lote_area_") ? key.slice("lote_area_".length) : undefined });
       });
       return { rotulos, obstaculos };
     };
