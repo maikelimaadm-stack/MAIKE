@@ -67,6 +67,32 @@ export const MODOS_COLORACAO = [
 { id: 'situacao_pasto', label: 'Situação do Pasto' }];
 
 
+/**
+ * Camadas que o usuário pode ligar/desligar, conforme as permissões.
+ * Usado pelo painel Visualização do Mapa Geral e pelos filtros avançados.
+ */
+export function camadasDoMapa({
+  showAreas, setShowAreas, showPontos, setShowPontos, showLinhas, setShowLinhas, showLotes, setShowLotes,
+  showTarefas, setShowTarefas, showCochos, setShowCochos, showDepositos, setShowDepositos, showAlertas, setShowAlertas,
+  showUserLocation, setShowUserLocation, showNomesAreas, setShowNomesAreas, showHectaresAreas, setShowHectaresAreas,
+  permissions = null
+}) {
+  return [
+
+  permissions?.visualizar_areas !== false && { id: 'areas', label: 'Mapa de Áreas', checked: showAreas, onChange: () => setShowAreas((v) => !v) },
+  permissions?.visualizar_nomes_areas !== false && permissions?.visualizar_areas !== false && { id: 'nomes', label: 'Detalhes Áreas', checked: showNomesAreas, onChange: () => setShowNomesAreas((v) => !v) },
+  permissions?.visualizar_areas !== false && { id: 'hectares', label: 'Hectares', checked: showHectaresAreas, onChange: () => setShowHectaresAreas((v) => !v) },
+  permissions?.visualizar_pontos_referencia !== false && { id: 'pontos', label: 'Pontos Referência', checked: showPontos, onChange: () => setShowPontos((v) => !v) },
+  permissions?.visualizar_tarefas !== false && { id: 'tarefas', label: 'Tarefas', checked: showTarefas, onChange: () => setShowTarefas((v) => !v) },
+  permissions?.visualizar_lotes !== false && { id: 'lotes', label: 'Lotes', checked: showLotes, onChange: () => setShowLotes((v) => !v) },
+  permissions?.visualizar_linhas !== false && { id: 'linhas', label: 'Linhas (cercas, rios)', checked: showLinhas, onChange: () => setShowLinhas((v) => !v) },
+  permissions?.visualizar_cochos_suplementacao !== false && { id: 'cochos', label: 'Cochos', checked: showCochos, onChange: () => setShowCochos((v) => !v) },
+  permissions?.visualizar_cochos_suplementacao !== false && { id: 'depositos', label: 'Depósitos', checked: showDepositos, onChange: () => setShowDepositos((v) => !v) },
+  permissions?.visualizar_alertas !== false && { id: 'alertas', label: 'Alertas', checked: showAlertas, onChange: () => setShowAlertas((v) => !v) },
+  permissions?.visualizar_localizacao !== false && { id: 'localizacao', label: 'Localização', checked: showUserLocation, onChange: () => setShowUserLocation((v) => !v) }].
+  filter(Boolean);
+}
+
 export default function MapaFiltrosAvancados({
   // Visibilidade
   showAreas, setShowAreas,
@@ -100,23 +126,13 @@ export default function MapaFiltrosAvancados({
   tiposPastagem = [],
   setores = [],
   sistemasProdutivos = [],
-  permissions = null
+  permissions = null,
+  mostrarVisualizacao = true
 }) {
 
-  // Definição das camadas disponíveis com base nas permissões e estados
-  const availableLayers = [
-  permissions?.visualizar_areas !== false && { label: 'Mapa de Áreas', checked: showAreas, onChange: () => setShowAreas((v) => !v) },
-  permissions?.visualizar_nomes_areas !== false && permissions?.visualizar_areas !== false && { label: 'Detalhes Áreas', checked: showNomesAreas, onChange: () => setShowNomesAreas((v) => !v) },
-  permissions?.visualizar_areas !== false && { label: 'Hectares', checked: showHectaresAreas, onChange: () => setShowHectaresAreas((v) => !v) },
-  permissions?.visualizar_pontos_referencia !== false && { label: 'Pontos Referência', checked: showPontos, onChange: () => setShowPontos((v) => !v) },
-  permissions?.visualizar_tarefas !== false && { label: 'Tarefas', checked: showTarefas, onChange: () => setShowTarefas((v) => !v) },
-  permissions?.visualizar_lotes !== false && { label: 'Lotes', checked: showLotes, onChange: () => setShowLotes((v) => !v) },
-  permissions?.visualizar_linhas !== false && { label: 'Linhas (cercas, rios)', checked: showLinhas, onChange: () => setShowLinhas((v) => !v) },
-  permissions?.visualizar_cochos_suplementacao !== false && { label: 'Cochos', checked: showCochos, onChange: () => setShowCochos((v) => !v) },
-  permissions?.visualizar_cochos_suplementacao !== false && { label: 'Depósitos', checked: showDepositos, onChange: () => setShowDepositos((v) => !v) },
-  permissions?.visualizar_alertas !== false && { label: 'Alertas', checked: showAlertas, onChange: () => setShowAlertas((v) => !v) },
-  permissions?.visualizar_localizacao !== false && { label: 'Localização', checked: showUserLocation, onChange: () => setShowUserLocation((v) => !v) }].
-  filter(Boolean);
+  // Camadas e "Demarcar áreas por" vivem no painel Visualização (D-PROD-132);
+  // `mostrarVisualizacao` mantém o painel completo onde ainda for usado.
+  const availableLayers = mostrarVisualizacao ? camadasDoMapa({ showAreas, setShowAreas, showPontos, setShowPontos, showLinhas, setShowLinhas, showLotes, setShowLotes, showTarefas, setShowTarefas, showCochos, setShowCochos, showDepositos, setShowDepositos, showAlertas, setShowAlertas, showUserLocation, setShowUserLocation, showNomesAreas, setShowNomesAreas, showHectaresAreas, setShowHectaresAreas, permissions }) : [];
 
   return (
     <div className="rounded space-y-1">
@@ -144,7 +160,7 @@ export default function MapaFiltrosAvancados({
       }
 
       {/* ─── Modo de Coloração das Áreas ─── */}
-      {permissions?.visualizar_areas !== false &&
+      {mostrarVisualizacao && permissions?.visualizar_areas !== false &&
       <div>
           <div className="mb-3">
             <span className="text-xs font-bold text-slate-800 uppercase">DEMARCAR ÁREAS POR</span>
@@ -187,7 +203,7 @@ export default function MapaFiltrosAvancados({
         </div>
       }
 
-      {permissions?.visualizar_areas !== false && <Separator />}
+      {mostrarVisualizacao && permissions?.visualizar_areas !== false && <Separator />}
 
       {/* ─── Filtros de Áreas ─── */}
       {permissions?.visualizar_areas !== false &&

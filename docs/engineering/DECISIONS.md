@@ -5058,4 +5058,30 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
   - Teste: `tests/smoke/iconesManejo.test.jsx`.
   - Evidências: v21-01 e v21-02.
 
-<!-- Próxima decisão: D-PROD-132 -->
+## D-PROD-132 — Mapa Geral: painel "Visualização" discreto e controles flutuantes, sem o ✕
+
+- **Contexto:** o proprietário pediu de volta o visual do mapa que tinha sido revertido no #197 (commit `2d4f31d`):
+  - sem o ✕;
+  - mapa como tela de entrada no celular;
+  - painel com estilos de pasto Cheio, Suave e Contorno;
+  - controles flutuantes.
+  - Ele disse que estava "muito grande e colorido". Também pediu que o "mostrar no mapa" fosse de ativo ou inativo (sim/não), "sem exagero".
+- **Decisão:**
+  - Volta o código do #197, menos o menu lateral e o botão de fazenda, que já tinham sido recusados:
+    - no celular e no tablet, a tela `MapaGeral` fica sem o cabeçalho do sistema; no computador, o menu do sistema continua;
+    - Tarefas e Filtros ficam em cartões;
+    - Atualizar, Localizar e Mover ficam num grupo;
+    - o estilo dos pastos é aplicado por `aplicarEstiloPasto` e reaplicado ao trocar o basemap;
+    - os Filtros ficam sem as camadas e as cores (`mostrarVisualizacao={false}`);
+    - a atribuição do satélite fica discreta e o aviso de falha compacto.
+  - O painel **Visualização** (`MapaVisualizacao`), no lugar das miniaturas grandes e coloridas:
+    - **Tipo de mapa** e **Estilo dos pastos** viram escolhas segmentadas, em cinza, com a opção escolhida em branco. O estilo leva um desenho pequeno de traço.
+    - **Colorir pastos por** vira fichas pequenas, com a escolhida em grafite.
+    - **Mostrar no mapa** vira uma lista com uma **chave liga/desliga** por camada (`role="switch"`), com ícone cinza e nome completo.
+  - O painel tem 288 px de largura e os botões flutuantes 40 px. O botão Visualização aberto fica cinza-claro, sem verde.
+- **Consequência:**
+  - O painel mostra as mesmas opções em menos espaço, quase sem cor; o verde fica só nas chaves ligadas.
+  - Teste: `tests/smoke/mapaV2Visualizacao.test.jsx`.
+  - Evidências: v22-01 a v22-04.
+
+<!-- Próxima decisão: D-PROD-133 -->
