@@ -20,3 +20,6 @@ export const IconeMoverAnimais = iconeImagem("/icons/mover-animais.png");
 
 /** Pesar: balança digital com o visor 0.0. */
 export const IconePesar = iconeImagem("/icons/pesar.png");
+
+/** Nascimento: vaca com o bezerro e os símbolos de macho e fêmea. */
+export const IconeNascimento = iconeImagem("/icons/nascimento.png");

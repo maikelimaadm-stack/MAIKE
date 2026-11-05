@@ -329,11 +329,11 @@ Duas tentativas anteriores nesta rodada (ícone fixo com a ponta no ponto e íco
 
 O novo visual dos botões do Mapa Geral (D-PROD-131: painel Visualização, sem o ✕ e sem o cabeçalho no celular) foi **desfeito a pedido do proprietário** ("remova por enquanto"). O mapa voltou ao estado do D-PROD-130. O número D-PROD-131 fica livre.
 
-## V21 — Ícones do "Mover" e do "Pesar" (D-PROD-131)
+## V21 — Ícones do "Mover", do "Pesar" e do "Nascimento" (D-PROD-131)
 
 | Pedido | Feito | Evidência |
 |---|---|---|
-| Usar as imagens enviadas no Mover (boi entre porteiras) e no Pesar (balança) | Os quadros mostram as imagens, com o nome alinhado com os outros quadros | v21-01 (computador), v21-02 (celular) |
+| Usar as imagens enviadas no Mover (boi entre porteiras), no Pesar (balança) e no Nascimento (vaca com bezerro), e deixá-las maiores | Os quadros mostram as imagens maiores, sem aumentar o quadro e com o nome alinhado | v21-01 (computador), v21-02 (celular) |
 
 **Não testado em aparelho.**
 

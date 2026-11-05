@@ -5034,14 +5034,15 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
   - aproximando: média 97% e pior quadro 94%;
   - evidência: v19-05.
 
-## D-PROD-131 — Manejos "Mover" e "Pesar": ícones do proprietário
+## D-PROD-131 — Manejos "Mover", "Pesar" e "Nascimento": ícones do proprietário
 
-- **Contexto:** o proprietário enviou imagens próprias para dois botões de manejo:
+- **Contexto:** o proprietário enviou imagens próprias para três botões de manejo:
   - Mover: um boi entre duas porteiras, com setas verdes de troca;
-  - Pesar: uma balança digital com o visor 0.0.
+  - Pesar: uma balança digital com o visor 0.0;
+  - Nascimento: uma vaca com o bezerro e os símbolos de macho e fêmea.
 - **Decisão:**
-  - Os quadros "Mover" e "Pesar" dos Manejos (Detalhes do Lote) usam essas imagens no lugar dos ícones `ArrowLeftRight` e `Scale`.
-  - As imagens foram recortadas, com o fundo branco tirado, e salvas em `public/icons/mover-animais.png` e `public/icons/pesar.png`. Elas são exibidas por `IconesManejo`.
+  - Os quadros "Mover", "Pesar" e "Nascimento" dos Manejos (Detalhes do Lote) usam essas imagens no lugar dos ícones `ArrowLeftRight`, `Scale` e `Baby`.
+  - As imagens foram recortadas, com o fundo branco tirado, e salvas em `public/icons/mover-animais.png`, `public/icons/pesar.png` e `public/icons/nascimento.png`. Elas são exibidas por `IconesManejo`.
   - A pedido do proprietário, ficam **maiores** que os outros ícones: 32 px, 36 px na folha do celular e 30 px nos quadros menores do computador.
   - Uma margem negativa faz a imagem crescer para cima, sem aumentar o quadro nem descer o nome.
 - **Consequência:**
