@@ -5044,7 +5044,7 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
   - Morte: um animal deitado com um X;
   - Juntar Lotes: um boi com camadas que se juntam numa só;
   - Mudar Categoria: um bezerro e um boi, cada um num quadro, com uma seta entre eles;
-  - Editar Informação: um boi com uma ficha e um lápis.
+  - Editar Informação: um boi com a pasta da ficha do animal e um lápis.
 - **Decisão:**
   - Os quadros "Saída", "Mover", "Pesar", "Nascimento", "Morte", "Juntar Lotes", "Mudar Categoria" e "Editar Informação" dos Manejos (Detalhes do Lote) usam essas imagens no lugar dos ícones `Beef`, `ArrowLeftRight`, `Scale`, `Baby`, `HeartCrack`, `Combine`, `Tags` e `PencilLine`.
   - O quadro "Abate" passa a se chamar **"Saída"**, e a janela passa a ser "Registrar Saída". O registro continua sendo o mesmo manejo de abate: tipo `Abate`, `FormularioAbate` e a permissão `registrar_abate`.

@@ -36,5 +36,5 @@ export const IconeJuntarLotes = iconeImagem("/icons/juntar-lotes.png");
 /** Mudar Categoria: bezerro → boi, cada um num quadro, com a seta entre eles. */
 export const IconeMudarCategoria = iconeImagem("/icons/mudar-categoria.png");
 
-/** Editar Informação (antigo "Renomear Lote"): boi com a ficha e o lápis. */
+/** Editar Informação (antigo "Renomear Lote"): boi com a pasta da ficha e o lápis. */
 export const IconeEditarInformacao = iconeImagem("/icons/editar-informacao.png");

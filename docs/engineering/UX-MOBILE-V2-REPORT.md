@@ -333,7 +333,7 @@ O novo visual dos botões do Mapa Geral (D-PROD-131: painel Visualização, sem 
 
 | Pedido | Feito | Evidência |
 |---|---|---|
-| Usar as imagens enviadas no Saída (boi com seta, antigo Abate), no Mover (boi com setas), no Pesar (balança), no Nascimento (vaca com bezerro) na Morte (animal deitado com X) no Juntar Lotes (boi com setas que se encontram) no Mudar Categoria (bezerro para boi) e no Editar Informação (boi com ficha e lápis), e deixá-las maiores; trocar os nomes "Abate" por "Saída" e "Renomear Lote" por "Editar Informação" | Os quadros mostram as imagens maiores, sem aumentar o quadro e com o nome alinhado | v21-01 (computador), v21-02 (celular) |
+| Usar as imagens enviadas no Saída (boi com seta, antigo Abate), no Mover (boi com setas), no Pesar (balança), no Nascimento (vaca com bezerro) na Morte (animal deitado com X) no Juntar Lotes (boi com setas que se encontram) no Mudar Categoria (bezerro para boi) e no Editar Informação (boi com a pasta da ficha e lápis), e deixá-las maiores; trocar os nomes "Abate" por "Saída" e "Renomear Lote" por "Editar Informação" | Os quadros mostram as imagens maiores, sem aumentar o quadro e com o nome alinhado | v21-01 (computador), v21-02 (celular) |
 
 **Não testado em aparelho.**
 
