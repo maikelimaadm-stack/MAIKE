@@ -5104,4 +5104,11 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
   - Teste: `tests/smoke/tarefasCardsMapa.test.jsx`.
   - Evidências: v23-01 a v23-03.
 
-<!-- Próxima decisão: D-PROD-134 -->
+## D-PROD-134 — Nova marca MAK Gestão (logos do proprietário)
+
+- **Contexto:** o proprietário enviou as novas logos do sistema: a completa (símbolo M + "MAK Gestão"), só o texto e só o símbolo M.
+- **Decisão:** a tela de entrada usa a logo horizontal (símbolo M ao lado de "MAK Gestão", `mak-gestao-logo-horizontal.png`, pedida pelo proprietário); a logo completa vai na tela de carregamento; o símbolo M vai no ícone da aba, no ícone do app instalado (180/192/512, fundo branco com margem para o recorte "maskable") e no cabeçalho (`mak-gestao-simbolo.png`, sem margem). Os arquivos mantêm os nomes em `public/brand/` e ganham `?v=2` para o navegador não mostrar a logo antiga do cache.
+- **Numeração:** D-PROD-132 e D-PROD-133 estão nas PRs abertas #200 e #202; esta usa a 134 para não colidir.
+- **Evidência:** `docs/engineering/evidencias/ux-mobile-v2/v24-*`.
+
+<!-- Próxima decisão: D-PROD-135 -->
