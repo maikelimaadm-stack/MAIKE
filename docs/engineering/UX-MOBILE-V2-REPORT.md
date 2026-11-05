@@ -308,3 +308,11 @@ Harness a 390 px com 72 áreas, com o mapa base trocado por um fundo liso porque
 
 Duas tentativas anteriores nesta rodada (ícone fixo com a ponta no ponto e ícone encolhendo com o pasto) foram revertidas a pedido do proprietário. **Não testado em aparelho.**
 
+### V19d — o nome do pasto acompanha o zoom (D-PROD-129)
+
+| Pedido | Feito | Medição (zoom 16,5 → 12, áreas reais) |
+|---|---|---|
+| Ícone perfeito, sem mudar o zoom dele; os nomes não podem parecer sair da área ao dar zoom | A fonte do nome acompanha o zoom suavemente, a cada quadro, e o nível (sigla, nome ou ha) é revisto durante o zoom (no máximo a cada 120 ms), não só no fim. O ícone não muda | Texto dentro do pasto: média 81% → 92%; pior quadro 49% → 90% |
+
+**Não testado em aparelho.**
+

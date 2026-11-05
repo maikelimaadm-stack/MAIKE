@@ -187,7 +187,7 @@ export default function useMapRenderer(mapInstanceRef) {
     linhasHandlersRef.current = null;
     if (labelZoomHandlerRef.current) {
       try {
-        mapInstanceRef.current?.off("zoomend", labelZoomHandlerRef.current);
+        mapInstanceRef.current?.off("zoom", labelZoomHandlerRef.current);
       } catch {
         /* ignore */
       }
@@ -367,6 +367,15 @@ export default function useMapRenderer(mapInstanceRef) {
     });
   };
 
+  /** Revisão do nível durante o zoom, no máximo a cada 120 ms (D-PROD-129). */
+  const ultimoArrumarRef = useRef(0);
+  const arrumarDuranteZoom = () => {
+    const agora = typeof performance !== "undefined" ? performance.now() : Date.now();
+    if (agora - ultimoArrumarRef.current < 120) return;
+    ultimoArrumarRef.current = agora;
+    arrumarRotulos();
+  };
+
   const agendarArrumar = () => {
     const map = getMap();
     if (!map) return;
@@ -398,10 +407,16 @@ export default function useMapRenderer(mapInstanceRef) {
       entry.extra.style.fontSize = `${f.ha}px`;
     };
 
+    // D-PROD-129: durante o zoom (cada quadro) a fonte acompanha suave e o
+    // nível do nome (sigla/nome/ha) é revisto algumas vezes por segundo — não
+    // só no fim —, para o nome não ficar maior que o pasto enquanto ele encolhe.
     if (!labelZoomHandlerRef.current) {
-      const h = () => labelsRef.current.forEach(aplicarFonte);
+      const h = () => {
+        labelsRef.current.forEach(aplicarFonte);
+        arrumarDuranteZoom();
+      };
       labelZoomHandlerRef.current = h;
-      map.on("zoomend", h);
+      map.on("zoom", h);
     }
 
     for (const area of lista) {
@@ -414,6 +429,7 @@ export default function useMapRenderer(mapInstanceRef) {
       if (!entry) {
         const el = document.createElement("div");
         el.className = "mg-area-label";
+        el.dataset.area = id;
         el.style.cssText =
           "pointer-events:none;color:#fff;text-align:center;white-space:nowrap;line-height:1.15;font-family:Inter,Arial,sans-serif;";
         const titulo = document.createElement("div");

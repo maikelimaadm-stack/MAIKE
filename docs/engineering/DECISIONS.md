@@ -5006,4 +5006,18 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
   - **Área sem lote:** o nome fica centrado no ponto por CSS (`translateY(-50%)` num `corpo` interno), sem medir.
 - **Consequência:** no harness com as áreas reais, a distância entre o ícone e o nome ficou igual (5 px) em todos os níveis e zooms. Nada se mexe ao trocar de nível, ao aproximar ou afastar, ao redimensionar ou ao carregar a imagem.
 
-<!-- Próxima decisão: D-PROD-129 -->
+## D-PROD-129 — Mapa Geral: o nome do pasto acompanha o zoom (não parece sair da área)
+
+- **Contexto:** o proprietário aprovou o ícone do gado e pediu para não mexer no zoom dele. Mas, ao dar zoom, os nomes dos pastos "pareciam se afastar da área".
+  - Medido quadro a quadro, o nome **não** se desloca em relação ao ponto: o centro do texto fica a 0 px.
+  - O efeito vinha do **tempo** das trocas:
+    - a fonte mudava em degraus (10, 11 e 12 px) e só no `zoomend`;
+    - o nível (sigla, nome ou nome + ha) só era revisto no `moveend`.
+  - Ao afastar, o pasto encolhia durante todo o zoom enquanto o nome continuava grande. No pior quadro, só 49% do texto ficava dentro do pasto.
+- **Decisão (só o nome; o ícone não muda):**
+  - **Fonte suave:** `fontesRotuloPorZoom` vai de 10 px (zoom ≤ 13) a 12 px (zoom ≥ 17), de ¼ em ¼ px. O "ha" fica 1 px menor, com mínimo de 9 px. É aplicada no evento `zoom`, a cada quadro.
+  - **Nível durante o zoom:** `arrumarDuranteZoom` revê sigla, nome ou nome + ha a no máximo cada 120 ms enquanto o zoom acontece, além do `moveend`.
+  - `data-area` no rótulo (id da área), para a medição.
+- **Consequência:** no zoom de 16,5 para 12 (áreas reais, harness, 390 px), a fração do texto dentro do próprio pasto passou de 81% para 92% na média e de 49% para 90% no pior quadro. No fim, segue em 90%.
+
+<!-- Próxima decisão: D-PROD-130 -->

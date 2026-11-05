@@ -4,7 +4,7 @@
  */
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
-import { centroideArea, escolherModoRotulos, pontoMaisDentro, siglaDaArea } from "@/lib/maplibre/mapaGeralRender.js";
+import { centroideArea, escolherModoRotulos, fontesRotuloPorZoom, pontoMaisDentro, siglaDaArea } from "@/lib/maplibre/mapaGeralRender.js";
 import { pointInPolygonRing } from "@/lib/maplibre/taskLocationPicker.js";
 
 const cx = (x, y, w, h) => ({ x, y, w, h });
@@ -125,5 +125,30 @@ describe("pontoMaisDentro — nome e lote no miolo da área torta (D-PROD-127)",
     // nomes desligados: o lote volta à posição padrão (revisão Cursor no #194)
     expect(r).toMatch(/!labelsRef\.current\.has\(key\.slice\("lote_area_"\.length\)\)\) entry\.marker\.setOffset\(OFFSET_LOTE_PX\)/);
     expect(r.indexOf("entry.marker.setOffset(OFFSET_LOTE_PX)")).toBeLessThan(r.indexOf("if (!labelsRef.current.size) return;"));
+  });
+});
+
+describe("nome do pasto acompanha o zoom (D-PROD-129)", () => {
+  it("fonte suave: cresce ao aproximar, diminui ao afastar, sem pulos grandes", () => {
+    expect(fontesRotuloPorZoom(10)).toEqual({ nome: 10, ha: 9 });
+    expect(fontesRotuloPorZoom(18)).toEqual({ nome: 12, ha: 11 });
+    let antes = fontesRotuloPorZoom(12).nome;
+    for (let z = 12.1; z <= 18; z += 0.1) {
+      const agora = fontesRotuloPorZoom(z).nome;
+      expect(agora).toBeGreaterThanOrEqual(antes);
+      expect(agora - antes).toBeLessThanOrEqual(0.25);
+      antes = agora;
+    }
+  });
+
+  it("durante o zoom a fonte e o nível são revistos (não só no fim); o ícone não muda", () => {
+    const r = readFileSync("src/components/mapa/useMapRenderer.jsx", "utf8");
+    expect(r).toMatch(/map\.on\("zoom", h\)/);
+    expect(r).not.toMatch(/map\.on\("zoomend"/);
+    expect(r).toMatch(/labelsRef\.current\.forEach\(aplicarFonte\);\s*arrumarDuranteZoom\(\);/);
+    expect(r).toMatch(/if \(agora - ultimoArrumarRef\.current < 120\) return;/);
+    // ícone do lote: posição fixa do D-PROD-128, sem escala por zoom
+    expect(r).toMatch(/lote\.marker\.setOffset\(PAR_LOTE\.icone\);/);
+    expect(r).not.toMatch(/scale\(/);
   });
 });
