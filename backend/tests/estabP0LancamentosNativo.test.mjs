@@ -29,7 +29,7 @@ beforeEach(async () => {
 const auth = (token) => ({ authorization: `Bearer ${token}` });
 
 const tenantAutenticado = async () => {
-  const { credenciais, cliente } = await criarTenant();
+  const { credenciais, cliente } = await criarTenant({ papelTenant: 'administrador' }); // R2: o preparo usa rotas legadas só do administrador real
   const { corpo } = await autenticarNoApp(app, credenciais);
   return { token: corpo.token, clienteId: cliente.id };
 };

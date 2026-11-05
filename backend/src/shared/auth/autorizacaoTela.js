@@ -187,7 +187,7 @@ export const porTela = (alvo, acao) =>
  * preHandler "qualquer uma de": a ação passa se UMA das concessões valer — a
  * tela do cadastro ou a tela de onde a interface faz o cadastro rápido. Cada
  * item é `[alvo, acao]` (tela) ou `{ mapa: chave }` (ação do Mapa Geral).
- * @param {Array<[{modulo: string, tela: string}, string] | {mapa: string}>} opcoes
+ * @param {...(Array<any> | {mapa: string})} opcoes  `[alvo, acao]` ou `{ mapa }`
  */
 export const porQualquer = (...opcoes) =>
   autorizar((_req, aut) =>

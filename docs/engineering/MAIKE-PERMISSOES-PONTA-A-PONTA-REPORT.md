@@ -155,7 +155,7 @@ O administrador real não tem linha e continua com tudo.
 | `permissoesAutorizacao` (HTTP/PG) | 8 falham / 3 passam (os casos positivos) | 11/11 |
 | `permissoesPontaAPonta` (jsdom) | 11 falham / 3 passam (os casos positivos) | 14/14 |
 
-## 7. Inventário: o que AINDA não tem guarda de tela (próximo slice, sem PR nova antes do merge)
+## 7. Inventário da R1 (SUPERADO pela R2 — ver §9 e `MAIKE-PERMISSOES-R2-COBERTURA-ENDPOINTS.md`)
 
 Todas estas rotas exigem token e tenant (R11). O que falta nelas é a checagem de **tela/ação**:
 
@@ -187,3 +187,75 @@ Todas estas rotas exigem token e tenant (R11). O que falta nelas é a checagem d
 - **Offline**: a revogação feita enquanto o aparelho está offline só chega ao reconectar. O cache só guarda o último valor do servidor e nunca é ampliado. Qualquer gravação feita depois passa pelo 403 do servidor.
 - **Custo**: 1 leitura `Usuario` + 1 `Permissao` por requisição guardada (por chave única).
 - Migrations e DDL: **nenhuma**. Escrita remota (Supabase, Vercel): **zero**.
+
+## 9. R2 — fechamento de autorização (auditoria do arquiteto)
+
+### 9.1 Falhas reproduzidas (RED → GREEN, PostgreSQL descartável)
+
+| # | Falha | RED (HEAD) | GREEN |
+|---|---|---|---|
+| 1 | `POST/PATCH /configuracao-icones` gravavam para operador sem linha, com a tela "ver mapa" ou com a concessão `is_admin` | 201/200 em `cb63a5ff` | 403 `TENANT_ADMIN_REQUIRED` |
+| 2 | Chave de ação do mapa **omitida** ou objeto do mapa ausente contava como ligada (`valor !== false`) | transferência 201 em `cb63a5ff` | 403 |
+| 3 | `POST /movimentacoes-mapa` genérico: tipo sem contrato, alias ou disfarce passava só com "salvar"; e o tipo conhecido em outra grafia passava (por causa da falha 2) | 201 em `cb63a5ff` | 403 (allowlist tipada) |
+| 4 | Formulário de usuário: ao editar um registro antigo, LIGAVA ações não marcadas (mesclava padrões `true`) | teste fonte falha em `cb63a5ff` | usa a mesma normalização |
+| 5 | Cache local de permissão só por login: o mesmo login em outra fazenda leria o cache | jsdom falha em `cb63a5ff` | chave tenant + login |
+| 6 | **Escritas do Mapa Geral e de cadastros sem guarda**: suplementação, cochos/depósitos, estoque, bebedouros, tarefas, cadastros de suporte, anexos, upload, referências, empresas e rotas sem tela | operador "só ver mapa" gravou `suplementacaoLote` + auditoria (201) em `a2c277b9` | 403 em todas as 37 escritas testadas, sem nenhuma linha em nenhuma tabela do tenant |
+
+Testes:
+- `backend/tests/permissoesR2.test.mjs` (10);
+- `backend/tests/permissoesR2Rotas.test.mjs` (7). Este teste se valida sozinho: o schema roda antes do preHandler, então um 403 prova que o corpo era válido;
+- `tests/smoke/permissoesPontaAPonta.test.jsx` bloco PERM-R2 (4).
+
+Já passavam no HEAD inicial: admin real nos ícones, admin de outro tenant (404), conta desativada (401), linha `is_admin` que não administra Permissões, Usuários nem catálogo global (403).
+
+### 9.2 Decisões
+
+- **Ícones (`configuracao-icones`) são configuração DO TENANT**: o model tem `cliente_id` e não faz parte do catálogo global. O catálogo global já exige a sessão MAIKE Admin.
+  - Só a tela Configurações Gerais grava, e ela é exclusiva do administrador.
+  - A autoridade existente mais restritiva que preserva esse uso é o **administrador real**: `preHandler` + `exigirAdminTenant` dentro da transação, que também vale para chamada interna.
+  - Não colide com o futuro catálogo/asset do proprietário: o catálogo vive em `catalogo-global/admin/*`, sob outra sessão.
+- **Registro parcial legado:**
+  - Ação **gravadora** do mapa (`ACOES_GRAVADORAS_MAPA`, a mesma lista no navegador, com teste de paridade) só vale `=== true`.
+  - Visualização ausente = ligada: é só exibição, e a tela já é concedida de forma explícita.
+  - Sem linha → nada. Sem objeto do mapa → visualização ligada, ações desligadas.
+  - Nenhum dado foi regravado. O operador de produção já tem as ações gravadas como `false`, então nada muda para ele.
+- **POST genérico:**
+  - Único uso na interface: o registro informativo do Renomear Lote → `renomear_lotes`.
+  - Tipo conhecido → a sua chave.
+  - O resto → só o administrador real. Nem "salvar" nem a concessão `is_admin` bastam.
+  - A guarda do ledger no service continua igual: nenhum movimento de saldo fora do ledger.
+- **Escritas antes desprotegidas.** A regra espelha o que a interface já exige do botão que dispara a gravação. O mapeamento rota → regra está centralizado em `backend/src/shared/auth/guardasRotas.js`; o levantamento, por arquivo:linha, foi feito no frontend:
+  - **Mapa Geral:**
+    - lançar suplementação e saída de estoque → `lancar_suplementacao`;
+    - sobra de suplementação da transferência → `mover_lotes`;
+    - transferência entre depósitos → `movimentar_depositos`.
+  - **Mapa Cadastro** (cochos, depósitos, locais, bebedouro): "novo"/"salvar"/"editar"/"excluir" de `pec-mapa-cadastro`.
+  - **Cadastros do menu:** a tela do cadastro, OU a tela de onde a interface faz o cadastro rápido. Setor e categoria de manejo rápidos vêm do Cadastro de Lotes.
+  - **Tarefas:** a interface só as abre para o administrador ou a concessão `is_admin` → `porAcessoTotal`.
+  - **Estornos suspensos na interface** (exclusão de suplementação/estoque) e **rotas sem chamador no navegador** (medicamento, sanitário, manejo técnico, movimentação pecuária, fornecedores, alertas e sanidade de bebedouro, POST legado de estoque) → só o administrador real.
+  - **Empresas:** tela `adm-empresa`. O fuso já era só do administrador.
+- **Concorrência:**
+  - A autorização relê o banco a cada requisição.
+  - Uma revogação vale para toda requisição iniciada **depois** do commit dela (teste "revogação na próxima requisição").
+  - Uma requisição já em voo quando a revogação acontece pode concluir. **Não há linearizabilidade.**
+  - Ícones, Permissões, Usuários, cancelamento, exclusão, fuso e ativação revalidam o papel **dentro** da transação.
+
+### 9.3 Cobertura
+
+Arquivo: `MAIKE-PERMISSOES-R2-COBERTURA-ENDPOINTS.md`.
+
+- 201 rotas: a 76 · b 2 · c 65 · d 56 · públicas 2 · **e (lacuna de escrita) 0**.
+
+### 9.4 Risco residual e próximo slice (só após o merge manual da #199; nenhuma PR nova agora)
+
+1. **Leituras (classe d):** um operador sem a tela de um cadastro lê os registros da própria fazenda por chamada direta.
+   - Roteiro:
+     a. separar as consultas que o mapa usa (`/mapa/...` ou um parâmetro `escopo=mapa`) das leituras de cadastro;
+     b. `porTela(alvo, 'visualizar')` nos GET de cadastro;
+     c. testes HTTP com o mapa só de visualização.
+2. **Histórico de bebedouro no Mapa Geral:** o botão "Lançar" aparece para todos, e o servidor exige a tela Bebedouros ou "salvar" no mapa.
+   - Quem não tem essas concessões vê a mensagem de 403.
+   - Roteiro: chave própria no mapa (`lancar_bebedouro`) e o botão escondido.
+   - `DetalhesBebedouro` não foi tocado nesta PR.
+3. **Heurística de clique do Layout:** continua só como conveniência visual (ícones, "Nova…" e Enter escapam). A segurança é o 403 do servidor.
+4. **Janela de revogação em voo:** ver 9.2. Trava transacional `FOR UPDATE` na linha de permissão só se o arquiteto exigir.

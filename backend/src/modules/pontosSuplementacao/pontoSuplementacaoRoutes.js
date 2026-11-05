@@ -3,6 +3,7 @@
  */
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { listar, criar, atualizar, excluir } from './pontoSuplementacaoService.js';
+import { GUARDAS } from '../../shared/auth/guardasRotas.js';
 
 const ID_SCHEMA = {
   params: {
@@ -42,19 +43,19 @@ export const registrarPontoSuplementacaoRoutes = async (app) => {
     return registros;
   });
 
-  app.post('/pontos-suplementacao', { onRequest: [app.autenticar], schema: CRIAR_SCHEMA }, async (request, reply) => {
+  app.post('/pontos-suplementacao', { onRequest: [app.autenticar], preHandler: [GUARDAS.pontoSuplementacao.criar], schema: CRIAR_SCHEMA }, async (request, reply) => {
     exigirAuthContext(request.contexto.auth);
     const registro = await criar(request.contexto, /** @type {Record<string, unknown>} */ (request.body));
     return reply.status(201).send(registro);
   });
 
-  app.patch('/pontos-suplementacao/:id', { onRequest: [app.autenticar], schema: ATUALIZAR_SCHEMA }, async (request) => {
+  app.patch('/pontos-suplementacao/:id', { onRequest: [app.autenticar], preHandler: [GUARDAS.pontoSuplementacao.editar], schema: ATUALIZAR_SCHEMA }, async (request) => {
     exigirAuthContext(request.contexto.auth);
     const { id } = /** @type {{id: string}} */ (request.params);
     return atualizar(request.contexto, id, /** @type {Record<string, unknown>} */ (request.body));
   });
 
-  app.delete('/pontos-suplementacao/:id', { onRequest: [app.autenticar], schema: ID_SCHEMA }, async (request, reply) => {
+  app.delete('/pontos-suplementacao/:id', { onRequest: [app.autenticar], preHandler: [GUARDAS.pontoSuplementacao.excluir], schema: ID_SCHEMA }, async (request, reply) => {
     exigirAuthContext(request.contexto.auth);
     const { id } = /** @type {{id: string}} */ (request.params);
     await excluir(request.contexto, id);

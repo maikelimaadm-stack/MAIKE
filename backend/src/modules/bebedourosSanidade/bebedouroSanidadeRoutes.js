@@ -4,6 +4,7 @@
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { querystringListagemEmpresa } from '../../shared/http/listQueryLimit.js';
 import { listar, criar, atualizar, excluir } from './bebedouroSanidadeService.js';
+import { GUARDAS } from '../../shared/auth/guardasRotas.js';
 
 const ID_SCHEMA = {
   params: {
@@ -36,19 +37,19 @@ export const registrarBebedouroSanidadeRoutes = async (app) => {
     return listar(request.contexto, query);
   });
 
-  app.post('/bebedouros-sanidade', { onRequest: [app.autenticar], schema: CRIAR_SCHEMA }, async (request, reply) => {
+  app.post('/bebedouros-sanidade', { onRequest: [app.autenticar], preHandler: [GUARDAS.bebedouroSemTela.criar], schema: CRIAR_SCHEMA }, async (request, reply) => {
     exigirAuthContext(request.contexto.auth);
     const registro = await criar(request.contexto, /** @type {Record<string, unknown>} */ (request.body));
     return reply.status(201).send(registro);
   });
 
-  app.patch('/bebedouros-sanidade/:id', { onRequest: [app.autenticar], schema: ATUALIZAR_SCHEMA }, async (request) => {
+  app.patch('/bebedouros-sanidade/:id', { onRequest: [app.autenticar], preHandler: [GUARDAS.bebedouroSemTela.editar], schema: ATUALIZAR_SCHEMA }, async (request) => {
     exigirAuthContext(request.contexto.auth);
     const { id } = /** @type {{id: string}} */ (request.params);
     return atualizar(request.contexto, id, /** @type {Record<string, unknown>} */ (request.body));
   });
 
-  app.delete('/bebedouros-sanidade/:id', { onRequest: [app.autenticar], schema: ID_SCHEMA }, async (request, reply) => {
+  app.delete('/bebedouros-sanidade/:id', { onRequest: [app.autenticar], preHandler: [GUARDAS.bebedouroSemTela.excluir], schema: ID_SCHEMA }, async (request, reply) => {
     exigirAuthContext(request.contexto.auth);
     const { id } = /** @type {{id: string}} */ (request.params);
     await excluir(request.contexto, id);

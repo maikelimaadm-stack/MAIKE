@@ -3,6 +3,7 @@
  */
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { listar, buscarPorId, criar, atualizar, excluir } from './estoqueLoteNotaService.js';
+import { GUARDAS } from '../../shared/auth/guardasRotas.js';
 
 const ID_SCHEMA = {
   params: {
@@ -48,19 +49,19 @@ export const registrarEstoqueLoteNotaRoutes = async (app) => {
     return buscarPorId(request.contexto, id);
   });
 
-  app.post('/estoque-lotes-nota', { onRequest: [app.autenticar], schema: CRIAR_SCHEMA }, async (request, reply) => {
+  app.post('/estoque-lotes-nota', { onRequest: [app.autenticar], preHandler: [GUARDAS.estoqueLoteNota.criar], schema: CRIAR_SCHEMA }, async (request, reply) => {
     exigirAuthContext(request.contexto.auth);
     const registro = await criar(request.contexto, /** @type {Record<string, unknown>} */ (request.body));
     return reply.status(201).send(registro);
   });
 
-  app.patch('/estoque-lotes-nota/:id', { onRequest: [app.autenticar], schema: ATUALIZAR_SCHEMA }, async (request) => {
+  app.patch('/estoque-lotes-nota/:id', { onRequest: [app.autenticar], preHandler: [GUARDAS.estoqueLoteNota.editar], schema: ATUALIZAR_SCHEMA }, async (request) => {
     exigirAuthContext(request.contexto.auth);
     const { id } = /** @type {{id: string}} */ (request.params);
     return atualizar(request.contexto, id, /** @type {Record<string, unknown>} */ (request.body));
   });
 
-  app.delete('/estoque-lotes-nota/:id', { onRequest: [app.autenticar], schema: ID_SCHEMA }, async (request, reply) => {
+  app.delete('/estoque-lotes-nota/:id', { onRequest: [app.autenticar], preHandler: [GUARDAS.estoqueLoteNota.excluir], schema: ID_SCHEMA }, async (request, reply) => {
     exigirAuthContext(request.contexto.auth);
     const { id } = /** @type {{id: string}} */ (request.params);
     await excluir(request.contexto, id);

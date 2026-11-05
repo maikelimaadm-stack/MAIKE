@@ -5,6 +5,7 @@
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { LIMITE_MAXIMO, LIMITE_PADRAO } from '../../shared/pagination/keysetCursor.js';
 import { listar, listarPagina, criar, atualizar, excluir } from './localEstoqueService.js';
+import { GUARDAS } from '../../shared/auth/guardasRotas.js';
 
 const CAMPOS = Object.freeze({
   nome: { type: 'string', minLength: 1, maxLength: 255, pattern: '\\S' },
@@ -78,19 +79,19 @@ export const registrarLocalEstoqueRoutes = async (app) => {
     },
   );
 
-  app.post('/locais-estoque', { onRequest: [app.autenticar], schema: CRIAR_SCHEMA }, async (request, reply) => {
+  app.post('/locais-estoque', { onRequest: [app.autenticar], preHandler: [GUARDAS.localEstoque.criar], schema: CRIAR_SCHEMA }, async (request, reply) => {
     exigirAuthContext(request.contexto.auth);
     const local = await criar(request.contexto, corpoValidado(request.body));
     return reply.status(201).send(local);
   });
 
-  app.patch('/locais-estoque/:id', { onRequest: [app.autenticar], schema: ATUALIZAR_SCHEMA }, async (request) => {
+  app.patch('/locais-estoque/:id', { onRequest: [app.autenticar], preHandler: [GUARDAS.localEstoque.editar], schema: ATUALIZAR_SCHEMA }, async (request) => {
     exigirAuthContext(request.contexto.auth);
     const { id } = /** @type {{id: string}} */ (request.params);
     return atualizar(request.contexto, id, corpoValidado(request.body));
   });
 
-  app.delete('/locais-estoque/:id', { onRequest: [app.autenticar], schema: EXCLUIR_SCHEMA }, async (request, reply) => {
+  app.delete('/locais-estoque/:id', { onRequest: [app.autenticar], preHandler: [GUARDAS.localEstoque.excluir], schema: EXCLUIR_SCHEMA }, async (request, reply) => {
     exigirAuthContext(request.contexto.auth);
     const { id } = /** @type {{id: string}} */ (request.params);
     await excluir(request.contexto, id);

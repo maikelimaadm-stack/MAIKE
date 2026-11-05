@@ -4,6 +4,7 @@
 
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { listar, criar, atualizar, excluir } from './tipoTarefaService.js';
+import { GUARDAS } from '../../shared/auth/guardasRotas.js';
 
 const CAMPOS = Object.freeze({
   nome_tipo: { type: 'string', minLength: 1, maxLength: 255, pattern: '\\S' },
@@ -61,19 +62,19 @@ export const registrarTipoTarefaRoutes = async (app) => {
     return listar(request.contexto);
   });
 
-  app.post('/tipos-tarefa', { onRequest: [app.autenticar], schema: CRIAR_SCHEMA }, async (request, reply) => {
+  app.post('/tipos-tarefa', { onRequest: [app.autenticar], preHandler: [GUARDAS.tipoTarefa.criar], schema: CRIAR_SCHEMA }, async (request, reply) => {
     exigirAuthContext(request.contexto.auth);
     const tipo = await criar(request.contexto, corpoValidado(request.body));
     return reply.status(201).send(tipo);
   });
 
-  app.patch('/tipos-tarefa/:id', { onRequest: [app.autenticar], schema: ATUALIZAR_SCHEMA }, async (request) => {
+  app.patch('/tipos-tarefa/:id', { onRequest: [app.autenticar], preHandler: [GUARDAS.tipoTarefa.editar], schema: ATUALIZAR_SCHEMA }, async (request) => {
     exigirAuthContext(request.contexto.auth);
     const { id } = /** @type {{id: string}} */ (request.params);
     return atualizar(request.contexto, id, corpoValidado(request.body));
   });
 
-  app.delete('/tipos-tarefa/:id', { onRequest: [app.autenticar], schema: EXCLUIR_SCHEMA }, async (request, reply) => {
+  app.delete('/tipos-tarefa/:id', { onRequest: [app.autenticar], preHandler: [GUARDAS.tipoTarefa.excluir], schema: EXCLUIR_SCHEMA }, async (request, reply) => {
     exigirAuthContext(request.contexto.auth);
     const { id } = /** @type {{id: string}} */ (request.params);
     await excluir(request.contexto, id);

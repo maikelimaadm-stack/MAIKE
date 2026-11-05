@@ -27,7 +27,7 @@ beforeEach(async () => {
 const EMPRESA = 'empresa-legada-1';
 
 const tenantAutenticado = async () => {
-  const { credenciais } = await criarTenant();
+  const { credenciais } = await criarTenant({ papelTenant: 'administrador' }); // R2: o preparo usa rotas legadas só do administrador real
   const { corpo } = await autenticarNoApp(app, credenciais);
   return { token: corpo.token };
 };

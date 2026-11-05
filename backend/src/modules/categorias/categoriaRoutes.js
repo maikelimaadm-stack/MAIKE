@@ -4,6 +4,7 @@
 
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { listar, criar, atualizar, excluir } from './categoriaService.js';
+import { GUARDAS } from '../../shared/auth/guardasRotas.js';
 
 const CAMPOS = Object.freeze({
   nome: { type: 'string', minLength: 1, maxLength: 255, pattern: '\\S' },
@@ -56,19 +57,19 @@ export const registrarCategoriaRoutes = async (app) => {
     return listar(request.contexto);
   });
 
-  app.post('/categorias', { onRequest: [app.autenticar], schema: CRIAR_SCHEMA }, async (request, reply) => {
+  app.post('/categorias', { onRequest: [app.autenticar], preHandler: [GUARDAS.categoria.criar], schema: CRIAR_SCHEMA }, async (request, reply) => {
     exigirAuthContext(request.contexto.auth);
     const categoria = await criar(request.contexto, corpoValidado(request.body));
     return reply.status(201).send(categoria);
   });
 
-  app.patch('/categorias/:id', { onRequest: [app.autenticar], schema: ATUALIZAR_SCHEMA }, async (request) => {
+  app.patch('/categorias/:id', { onRequest: [app.autenticar], preHandler: [GUARDAS.categoria.editar], schema: ATUALIZAR_SCHEMA }, async (request) => {
     exigirAuthContext(request.contexto.auth);
     const { id } = /** @type {{id: string}} */ (request.params);
     return atualizar(request.contexto, id, corpoValidado(request.body));
   });
 
-  app.delete('/categorias/:id', { onRequest: [app.autenticar], schema: EXCLUIR_SCHEMA }, async (request, reply) => {
+  app.delete('/categorias/:id', { onRequest: [app.autenticar], preHandler: [GUARDAS.categoria.excluir], schema: EXCLUIR_SCHEMA }, async (request, reply) => {
     exigirAuthContext(request.contexto.auth);
     const { id } = /** @type {{id: string}} */ (request.params);
     await excluir(request.contexto, id);
