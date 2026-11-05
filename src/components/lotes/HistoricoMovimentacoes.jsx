@@ -440,6 +440,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
     return { itens: ordenarItensDoHistorico([...movimentacoes, ...visiveis]), adiados, outrasFontes: outras.length };
   }, [movimentacoesCarregadas, registros, areasRaw, contexto, escopoEfetivo, areaId, haMaisPaginas]);
 
+  /** @type {any[]} */
   const historicoVisivel = historico.itens;
 
   const totalServidor = origem === 'servidor' ? primeiraPagina?.total ?? null : null;

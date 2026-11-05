@@ -62,7 +62,6 @@ const todasAsPaginas = async (token, query) => {
   return { itens, paginas };
 };
 
-const ms = (iso) => Date.parse(iso);
 /** Comparador de referência, escrito à parte do SQL. */
 const esperadoDesc = (a, b) => {
   const ta = a.oc ? 1 : 0;

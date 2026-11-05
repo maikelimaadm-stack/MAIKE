@@ -251,7 +251,9 @@ export const filtrarRegistrosDeLote = ({ registros, loteId, loteNome, criadoEm, 
  * Ordem de exibição = ordem por ocorrência (H2), a mesma da paginação do
  * servidor. Cada item traz `ordem` (`ChaveDeOrdem`); para movimentos vindos do
  * servidor isso só reproduz a ordem global das páginas, nunca a reinventa.
- * @param {Array<{ ordem: ChaveDeOrdem }>} itens
+ * @template {{ ordem: ChaveDeOrdem }} T
+ * @param {T[]} itens
+ * @returns {T[]}
  */
 export const ordenarItensDoHistorico = (itens) => [...itens].sort((a, b) => compararChavesDesc(a.ordem, b.ordem));
 
