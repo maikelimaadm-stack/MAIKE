@@ -190,7 +190,7 @@ const verificarSemBase44 = () => {
 };
 
 // ---------------------------------------------------------------------------
-// P4-NATIVE-TOKEN-STORAGE — o JWT nativo mora em sessionStorage, e só ali
+// P4-NATIVE-TOKEN-STORAGE — o JWT nativo mora em sessionStorage; no aparelho só com "Manter conectado"
 // ---------------------------------------------------------------------------
 
 const verificarStorageDoToken = () => {
@@ -201,11 +201,28 @@ const verificarStorageDoToken = () => {
 
   const codigo = semComentarios(ler(TOKEN_STORAGE));
 
-  if (/\blocalStorage\b/.test(codigo)) {
+  // "Manter conectado" (D-PROD-135): o armazenamento persistente é permitido
+  // só dentro de `armazenamentoPersistente()`, e só é gravado sob
+  // `if (lembrar === true)`. Fora disso o JWT sobreviveria ao fechamento da aba
+  // sem a pessoa ter pedido.
+  const FUNCAO_PERSISTENTE = /const armazenamentoPersistente\s*=\s*\(\)\s*=>\s*\{[\s\S]*?\n\};/;
+  const foraDaFuncao = codigo.replace(FUNCAO_PERSISTENTE, ' ');
+  if (/\blocalStorage\b/.test(foraDaFuncao)) {
     registrar(
       'P4-NATIVE-TOKEN-STORAGE',
-      `${TOKEN_STORAGE} usa localStorage: o JWT nativo sobreviveria ao fechamento da aba e ficaria disponível para o próximo usuário da máquina`
+      `${TOKEN_STORAGE} usa localStorage fora de armazenamentoPersistente(): o JWT nativo sobreviveria ao fechamento da aba sem o "Manter conectado"`
     );
+  }
+  const gravacoes = [...codigo.matchAll(/armazenamentoPersistente\(\)\??\.setItem\(/g)];
+  for (const gravacao of gravacoes) {
+    const antes = codigo.slice(0, gravacao.index);
+    const guarda = antes.lastIndexOf('if (lembrar === true) {');
+    if (guarda < 0 || antes.slice(guarda).includes('}')) {
+      registrar(
+        'P4-NATIVE-TOKEN-STORAGE',
+        `${TOKEN_STORAGE} grava no armazenamento persistente sem \`if (lembrar === true)\`: só o "Manter conectado" pode guardar a sessão no aparelho`
+      );
+    }
   }
 
   if (!/\bsessionStorage\b/.test(codigo)) {
@@ -437,6 +454,6 @@ if (falhas.length) {
 
 console.log(
   'gate:native-api — PASSOU ' +
-    `(URL por referência estática; JWT só em sessionStorage; login sem cliente_id; ` +
+    `(URL por referência estática; JWT em sessionStorage (no aparelho só com "Manter conectado"); login sem cliente_id; ` +
     `catálogo de erros sincronizado; fronteira HTTP única; CORS com allowlist exata)`
 );

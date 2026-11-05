@@ -179,7 +179,7 @@ describe('P4T — configuração do transporte nativo', () => {
 });
 
 describe('P4T — login', () => {
-  it('P4T-03 envia exatamente login e senha — nunca cliente nem cliente_id', async () => {
+  it('P4T-03 envia login, senha e o opt-in lembrar — nunca cliente nem cliente_id', async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(respostaJson(200, LOGIN_OK))
@@ -192,10 +192,40 @@ describe('P4T — login', () => {
     const [url, opcoes] = fetchMock.mock.calls[0];
     expect(url).toBe(`${API}/api/native/auth/login`);
     const corpo = JSON.parse(opcoes.body);
-    expect(Object.keys(corpo).sort()).toEqual(['login', 'senha']);
+    expect(Object.keys(corpo).sort()).toEqual(['lembrar', 'login', 'senha']);
+    expect(corpo.lembrar).toBe(false);
     expect(corpo).not.toHaveProperty('cliente');
     expect(corpo).not.toHaveProperty('cliente_id');
     expect(corpo).not.toHaveProperty('usuario_id');
+  });
+
+  it('P4T-03b sem "Manter conectado" o token fica só na aba (sessionStorage)', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(respostaJson(200, LOGIN_OK))
+      .mockResolvedValueOnce(respostaJson(200, CONTEXTO_OK));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { login } = await carregar();
+    await login({ login: 'joao', senha: 's3nh4' });
+
+    expect(window.sessionStorage.getItem('maike_native_access_token')).toBe(LOGIN_OK.token);
+    expect(window.localStorage.getItem('maike_native_access_token')).toBeNull();
+  });
+
+  it('P4T-03c com "Manter conectado" o token fica no aparelho e o pedido leva lembrar: true', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(respostaJson(200, LOGIN_OK))
+      .mockResolvedValueOnce(respostaJson(200, CONTEXTO_OK));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { login } = await carregar();
+    await login({ login: 'joao', senha: 's3nh4', lembrar: true });
+
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).lembrar).toBe(true);
+    expect(window.localStorage.getItem('maike_native_access_token')).toBe(LOGIN_OK.token);
+    expect(window.sessionStorage.getItem('maike_native_access_token')).toBeNull();
   });
 
   it('P4T-04 o token do MAIKE vira Bearer na chamada de contexto', async () => {

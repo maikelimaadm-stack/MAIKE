@@ -65,6 +65,8 @@ export const env = {
   databaseUrl: resolverDatabaseUrl(),
   authSecret: texto('AUTH_SECRET'),
   authTokenTtl: texto('AUTH_TOKEN_TTL') || '8h',
+  /** Validade com "Manter conectado" na entrada (D-PROD-135). */
+  authTokenTtlLembrar: texto('AUTH_TOKEN_TTL_LEMBRAR') || '30d',
   anexoTamanhoMaximoBytes: inteiro('ANEXO_TAMANHO_MAXIMO_BYTES', 25 * 1024 * 1024),
   /**
    * Origins do navegador autorizadas a chamar esta API (P4.0, D-PROD-24).

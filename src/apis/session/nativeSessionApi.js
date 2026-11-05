@@ -115,6 +115,8 @@ const descartarSessaoLocal = () => {
 export const login = async (credenciais) => {
   const usuarioLogin = texto(credenciais?.login);
   const senha = typeof credenciais?.senha === 'string' ? credenciais.senha : '';
+  // "Manter conectado" (D-PROD-135): sessão mais longa e guardada no aparelho.
+  const lembrar = credenciais?.lembrar === true;
 
   if (!usuarioLogin || !senha) {
     throw new ApiError(API_ERROR_CODES.INVALID_ARGUMENT, {
@@ -123,10 +125,10 @@ export const login = async (credenciais) => {
     });
   }
 
-  // Exatamente dois campos. Nunca `cliente`, `cliente_id` nem `usuario_id`.
+  // Login, senha e o opt-in de lembrar. Nunca `cliente`, `cliente_id` nem `usuario_id`.
   const corpo = await nativeRequest(
     '/auth/login',
-    { method: 'POST', body: { login: usuarioLogin, senha } },
+    { method: 'POST', body: { login: usuarioLogin, senha, lembrar } },
     ctx('login')
   );
 
@@ -135,7 +137,7 @@ export const login = async (credenciais) => {
     throw new ApiError(API_ERROR_CODES.OPERATION_FAILED, ctx('login'));
   }
 
-  setNativeToken(corpo.token);
+  setNativeToken(corpo.token, { lembrar });
 
   try {
     await obterContexto();

@@ -186,6 +186,25 @@ describe('autenticação', () => {
     assert.equal(resposta.statusCode, 400);
   });
 
+  test('BE-09c "Manter conectado" (lembrar: true) é aceito e dá token mais longo (D-PROD-135)', async () => {
+    const { credenciais } = await criarTenant();
+    const expiracao = async (lembrar) => {
+      const resposta = await app.inject({ method: 'POST', url: '/auth/login', payload: { ...credenciais, lembrar } });
+      assert.equal(resposta.statusCode, 200);
+      const payload = JSON.parse(Buffer.from(resposta.json().token.split('.')[1], 'base64url').toString('utf8'));
+      return payload.exp - payload.iat;
+    };
+    const curta = await expiracao(false);
+    const longa = await expiracao(true);
+    assert.ok(longa > curta, `lembrar deveria alongar a sessão (${longa}s <= ${curta}s)`);
+  });
+
+  test('BE-09d lembrar que não é booleano é REJEITADO na porta', async () => {
+    const { credenciais } = await criarTenant();
+    const resposta = await app.inject({ method: 'POST', url: '/auth/login', payload: { ...credenciais, lembrar: 'sim' } });
+    assert.equal(resposta.statusCode, 400);
+  });
+
   test('BE-09 cliente_id enviado no corpo do login é REJEITADO na porta', async () => {
     const { credenciais } = await criarTenant();
 

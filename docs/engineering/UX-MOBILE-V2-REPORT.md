@@ -364,3 +364,13 @@ O novo visual dos botões do Mapa Geral (D-PROD-131: painel Visualização, sem 
 | Trocar as logos do sistema pelas enviadas | Logo horizontal (M ao lado de MAK Gestão) na entrada; logo completa no carregamento; símbolo M no ícone da aba, do app instalado e no cabeçalho | v24-01, v24-02, v24-03 |
 
 **Não testado em aparelho.** Quem já instalou o app no celular pode precisar remover e instalar de novo para o ícone trocar.
+
+## V25 — Tela de entrada nova e "Manter conectado" (D-PROD-135)
+
+| Pedido | Feito | Evidência |
+|---|---|---|
+| Tela de entrada bonita, campos melhores | Painel da marca (computador), cartão no celular, campos de 48 px com ícone, mostrar senha, Caps Lock, erro claro | v25-01 a v25-05 |
+| Tirar o aviso de código de cliente | Removido; ficou "Entre com seu usuário e senha." | v25-01 |
+| Lembrar para não entrar toda hora | "Manter conectado": sessão de 30 dias guardada no aparelho; usuário lembrado; senha fica com o gerenciador do navegador | v25-03 |
+
+Validado no navegador em 360, 390, 768, 1280 e 1920 px, sem rolagem horizontal. **Não testado em aparelho.**
