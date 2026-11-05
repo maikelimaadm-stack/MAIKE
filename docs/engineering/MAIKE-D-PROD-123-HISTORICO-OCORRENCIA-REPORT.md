@@ -170,6 +170,13 @@ EXPLAIN (ANALYZE, BUFFERS) da consulta real (`sqlHistoricoPagina`) em banco desc
   - aviso: "cópia parcial ordenada pelas datas disponíveis no aparelho (data da ocorrência gravada e hora de cadastro), que pode diferir da ordem do servidor", mantendo contagem, data de atualização e limite de 500.
 - **Limitação declarada:** para um movimento do ledger, a hora de registro do evento (`registrado_em`) não está no cache. Entre movimentos do ledger do mesmo dia, a ordem offline usa a hora de cadastro e pode diferir da online. A tela diz isso.
 
+### Achado de revisão (Codex, P1) — o adaptador público descartava `ordem`
+
+- **Defeito:** `src/apis/lotes/lotesApi.js` (`listHistoricoMovimentacoesPagina`) remontava o envelope sem `ordem`. No app real, a condição `doServidorH2` do R2-B ficava sempre falsa, e as respostas online eram ordenadas e exibidas pelas datas do documento.
+- **Por que os testes não pegaram:** os testes de componente simulavam o serviço e pulavam o adaptador.
+- **Correção:** o adaptador preserva `ordem` (só texto; outro tipo vira `null`).
+- **Teste:** `tests/smoke/dProd123HistoricoAdaptador.test.jsx` simula só a porta HTTP nativa e usa adaptador, serviço e componente reais. RED: 2/2 falham (o card mostrava 01/01/2020 em vez de 30/10/2026). GREEN: 2/2.
+
 ### Evidência
 
 - **RED** (testes finais contra o código de `049a9bae`): `dProd123HistoricoR2` com 8 falhas e 8 passando. Os que passam são os casos de "não reiniciar" (comportamento preservado), a chave do servidor e o dia literal.
