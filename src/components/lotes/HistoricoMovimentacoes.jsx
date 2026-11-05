@@ -124,8 +124,8 @@ const codigoDoServidor = (erro) => (typeof erro?.cause?.code === 'string' ? erro
 /** "Ocorrência" do card: o dia do fato, ou a ausência dita com todas as letras. */
 const textoDaOcorrencia = (dia) => (dia ? formatDateOnly(dia) : 'Data da ocorrência não informada');
 
-const movimentoComoItem = (mov, areasRaw) => {
-  const ordem = chaveDoMovimento(mov);
+const movimentoComoItem = (mov, areasRaw, doServidor) => {
+  const ordem = chaveDoMovimento(mov, { doServidor });
   return {
   ordem,
   ocorrencia: ordem.oc,
@@ -181,14 +181,18 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
     !!empresaSelecionadaId && (escopoEfetivo === ESCOPO_AREA ? !!areaId : loteIds.length > 0 || loteNomes.length > 0);
 
   // Movimentações: servidor paginado; offline (ou servidor fora com cache) → cache, dito como cache.
-  const movimentacoesQuery = useInfiniteQuery({
-    queryKey: [
+  const chaveDaConsulta = React.useMemo(
+    () => [
       'historico-movimentacoes',
       empresaSelecionadaId,
       escopoEfetivo,
       escopoEfetivo === ESCOPO_AREA ? areaId : null,
       escopoEfetivo === ESCOPO_LOTES ? chaveLotes : null,
     ],
+    [empresaSelecionadaId, escopoEfetivo, areaId, chaveLotes]
+  );
+  const movimentacoesQuery = useInfiniteQuery({
+    queryKey: chaveDaConsulta,
     networkMode: 'always',
     initialPageParam: null,
     queryFn: async ({ pageParam }) => {
@@ -264,6 +268,8 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
   /** @type {any} */
   const primeiraPagina = paginas[0] ?? null;
   const origem = primeiraPagina?.origem ?? null;
+  // Datas `historico_*` só valem vindas do endpoint H2 (PR191-R2).
+  const doServidorH2 = origem === 'servidor' && primeiraPagina?.ordem === 'ocorrencia_desc_v2';
   const movimentacoesCarregadas = React.useMemo(() => {
     const vistos = new Set();
     const saida = [];
@@ -306,20 +312,37 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
   const haMaisPaginas = !!movimentacoesQuery.hasNextPage;
 
   // Cursor recusado (v1 de antes do H2, adulterado, de outra consulta): o
-  // servidor responde 400 HISTORICO_CURSOR_INVALIDO; só nesse código o
-  // histórico recomeça da primeira página. Qualquer outra falha fica visível.
-  const reiniciadoPorCursor = React.useRef(false);
+  // servidor responde 400 HISTORICO_CURSOR_INVALIDO; só nesse código (lido do
+  // corpo, em `cause.code`) o histórico recomeça da primeira página. Qualquer
+  // outra falha (401, 403, 500, rede, 400 genérico) fica visível.
+  //
+  // PR191-R2: o reinício vale por INCIDENTE = consulta (chave) + estado da
+  // paginação (cursores das páginas carregadas). Muda o filtro, a empresa, o
+  // escopo, ou a página 1 recarregada traz outro cursor → incidente novo,
+  // reinicia de novo. O MESMO incidente repetido logo após o reinício (o
+  // servidor recusa de novo o mesmo cursor) não reinicia: o erro aparece — sem
+  // laço. O reset atinge só a consulta atual (`exact`), nunca o cache de outra
+  // empresa ou escopo.
+  const ultimoIncidente = React.useRef(/** @type {string|null} */ (null));
+  const dadosPaginados = /** @type {any} */ (movimentacoesQuery.data);
+  const cursorRecusado = codigoDoServidor(movimentacoesQuery.error) === CODIGO_CURSOR_INVALIDO;
   React.useEffect(() => {
-    if (!movimentacoesQuery.isFetchNextPageError) return;
-    if (codigoDoServidor(movimentacoesQuery.error) !== CODIGO_CURSOR_INVALIDO || reiniciadoPorCursor.current) return;
-    reiniciadoPorCursor.current = true;
-    queryClient.resetQueries({ queryKey: ['historico-movimentacoes'] });
-  }, [movimentacoesQuery.isFetchNextPageError, movimentacoesQuery.error, queryClient]);
+    if (!cursorRecusado || !movimentacoesQuery.isError) return;
+    const paginasAtuais = dadosPaginados?.pages ?? [];
+    const incidente = JSON.stringify([
+      chaveDaConsulta,
+      dadosPaginados?.pageParams ?? [],
+      paginasAtuais[paginasAtuais.length - 1]?.next_cursor ?? null,
+    ]);
+    if (ultimoIncidente.current === incidente) return;
+    ultimoIncidente.current = incidente;
+    queryClient.resetQueries({ queryKey: chaveDaConsulta, exact: true });
+  }, [cursorRecusado, movimentacoesQuery.isError, movimentacoesQuery.errorUpdatedAt, dadosPaginados, chaveDaConsulta, queryClient]);
   const areasRaw = registros?.areas ?? [];
   const areaNome = areaId ? areasRaw.find((a) => a.id === areaId)?.nome || lotesEmFoco[0]?.area_atual_nome || '' : '';
 
   const historico = React.useMemo(() => {
-    const movimentacoes = movimentacoesCarregadas.map((mov) => movimentoComoItem(mov, areasRaw));
+    const movimentacoes = movimentacoesCarregadas.map((mov) => movimentoComoItem(mov, areasRaw, doServidorH2));
     if (!registros) return { itens: ordenarItensDoHistorico(movimentacoes), adiados: 0, outrasFontes: 0 };
 
     const entradas = escopoEfetivo === ESCOPO_AREA ? entradasNaArea(movimentacoesCarregadas, contexto) : undefined;
@@ -438,7 +461,7 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
     const fronteira = haMaisPaginas && ordenadasMovs.length ? ordenadasMovs[ordenadasMovs.length - 1].ordem : null;
     const { visiveis, adiados } = recortarPelaFronteira(outras, fronteira);
     return { itens: ordenarItensDoHistorico([...movimentacoes, ...visiveis]), adiados, outrasFontes: outras.length };
-  }, [movimentacoesCarregadas, registros, areasRaw, contexto, escopoEfetivo, areaId, haMaisPaginas]);
+  }, [movimentacoesCarregadas, registros, areasRaw, contexto, escopoEfetivo, areaId, haMaisPaginas, doServidorH2]);
 
   /** @type {any[]} */
   const historicoVisivel = historico.itens;
@@ -517,7 +540,8 @@ export default function HistoricoMovimentacoes({ lotes = [], lotesIds = [], area
         : 'Sem conexão. '}
       <strong>Histórico offline parcial</strong>: {movimentacoesCarregadas.length} movimentaç{movimentacoesCarregadas.length === 1 ? 'ão salva' : 'ões salvas'} neste aparelho
       {formatDateTime(primeiraPagina?.atualizadoEm) ? `, atualizado em ${formatDateTime(primeiraPagina.atualizadoEm)}` : ', sem data de atualização'}
-      , na mesma ordem por ocorrência do servidor; podem estar desatualizadas
+      ; cópia parcial ordenada pelas datas disponíveis no aparelho (data da ocorrência gravada e hora de cadastro), que pode
+      diferir da ordem do servidor; podem estar desatualizadas
       {primeiraPagina?.brutos >= LIMITE_CACHE_MOVIMENTACOES
         ? ` e limitadas às ${LIMITE_CACHE_MOVIMENTACOES} mais recentes da conta`
         : ''}

@@ -64,26 +64,28 @@ const isoOuNulo = (valor) => {
  */
 
 /**
- * Chave de ordem de um MOVIMENTO. Vindo do servidor (H2), usa as datas que
- * ele calculou (`historico_ocorrencia`, `historico_registrado_em`). Vindo do
- * cache do aparelho (offline), aplica a mesma semântica sobre o documento:
- * ocorrência = dia literal de `data_movimentacao` (no ledger é o mesmo dia
- * gravado em `data_operacional`); registro = `efeito_servidor.registrado_em`
- * ou `created_date`.
+ * Chave de ordem de um MOVIMENTO.
+ *
+ * `doServidor: true` SÓ para itens do endpoint H2 (`ordem: ocorrencia_desc_v2`):
+ * aí valem as datas que o servidor calculou (`historico_ocorrencia`,
+ * `historico_registrado_em`). Em qualquer outro caso (cache do aparelho, que
+ * vem da lista genérica) usa apenas o que é comprovável localmente
+ * (PR191-R2):
+ *  - ocorrência = dia literal válido de `data_movimentacao` (sem inventar dia);
+ *  - registro = `created_date` — o vínculo com o EventoRebanho não pode ser
+ *    atestado pelo cache, e para vínculo não comprovado o servidor também usa
+ *    `createdAt`. `efeito_servidor.registrado_em` e `historico_*` dentro do
+ *    documento NÃO são autoridade.
  * @param {any} mov
+ * @param {{ doServidor?: boolean }} [opcoes]
  * @returns {ChaveDeOrdem}
  */
-export const chaveDoMovimento = (mov) => {
+export const chaveDoMovimento = (mov, { doServidor = false } = {}) => {
   const criado = isoOuNulo(mov?.created_date);
-  if (mov && Object.prototype.hasOwnProperty.call(mov, 'historico_ocorrencia')) {
-    return { oc: diaLiteral(mov.historico_ocorrencia), reg: isoOuNulo(mov.historico_registrado_em) ?? criado, criado, id: String(mov.id ?? '') };
+  if (doServidor) {
+    return { oc: diaLiteral(mov?.historico_ocorrencia), reg: isoOuNulo(mov?.historico_registrado_em) ?? criado, criado, id: String(mov?.id ?? '') };
   }
-  return {
-    oc: diaLiteral(mov?.data_movimentacao),
-    reg: isoOuNulo(mov?.efeito_servidor?.registrado_em) ?? criado,
-    criado,
-    id: String(mov?.id ?? ''),
-  };
+  return { oc: diaLiteral(mov?.data_movimentacao), reg: criado, criado, id: String(mov?.id ?? '') };
 };
 
 /**

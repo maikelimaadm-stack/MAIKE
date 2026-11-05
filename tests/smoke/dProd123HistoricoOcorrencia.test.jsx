@@ -53,13 +53,13 @@ describe("H2 domínio — tupla (tem_ocorrência, ocorrência, registrado, criad
     ]);
   });
 
-  it("chave do movimento: do servidor usa historico_*; do cache aplica a mesma semântica", () => {
+  it("chave do movimento: do endpoint H2 usa historico_*; do cache só o comprovável (PR191-R2)", () => {
     const doServidor = { id: "m1", created_date: "2026-02-01T10:00:00.000Z", data_movimentacao: "2020-01-01", historico_ocorrencia: "2026-01-01", historico_registrado_em: "2026-02-01T09:59:55.000Z" };
-    expect(chaveDoMovimento(doServidor)).toEqual({ oc: "2026-01-01", reg: "2026-02-01T09:59:55.000Z", criado: "2026-02-01T10:00:00.000Z", id: "m1" });
-    const semOcorrencia = { ...doServidor, historico_ocorrencia: null };
-    expect(chaveDoMovimento(semOcorrencia).oc).toBeNull();
+    expect(chaveDoMovimento(doServidor, { doServidor: true })).toEqual({ oc: "2026-01-01", reg: "2026-02-01T09:59:55.000Z", criado: "2026-02-01T10:00:00.000Z", id: "m1" });
+    expect(chaveDoMovimento({ ...doServidor, historico_ocorrencia: null }, { doServidor: true }).oc).toBeNull();
+    // Cache: efeito_servidor.registrado_em não é autoridade (vínculo não comprovável) → created_date.
     const doCache = { id: "m2", created_date: "2026-02-01T10:00:00.000Z", data_movimentacao: "2026-01-15T12:00:00.000Z", efeito_servidor: { registrado_em: "2026-02-01T09:00:00.000Z" } };
-    expect(chaveDoMovimento(doCache)).toEqual({ oc: "2026-01-15", reg: "2026-02-01T09:00:00.000Z", criado: "2026-02-01T10:00:00.000Z", id: "m2" });
+    expect(chaveDoMovimento(doCache)).toEqual({ oc: "2026-01-15", reg: "2026-02-01T10:00:00.000Z", criado: "2026-02-01T10:00:00.000Z", id: "m2" });
   });
 
   it("offline: o snapshot é filtrado e ordenado por ocorrência (não por cadastro)", () => {

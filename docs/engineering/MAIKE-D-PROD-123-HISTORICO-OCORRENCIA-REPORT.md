@@ -21,11 +21,11 @@
 ### Navegador
 
 - Card com **Ocorrência** e **Registrado em**; selo "Sem data" quando não há ocorrência.
-- Reinício da primeira página **só** com `HISTORICO_CURSOR_INVALIDO` (uma vez por montagem). Qualquer outra falha fica visível.
+- Reinício da primeira página **só** com `HISTORICO_CURSOR_INVALIDO`, uma vez por incidente (ver complemento PR191-R2). Qualquer outra falha fica visível.
 - Offline:
   - snapshot do aparelho filtrado e ordenado com a mesma tupla;
   - aviso "Histórico offline parcial: N movimentações salvas neste aparelho, atualizado em …";
-  - no ledger, `data_operacional = diaDe(data_movimentacao)`, então o offline coincide com o servidor.
+  - ordenação só pelas datas comprováveis no aparelho, sem prometer equivalência com o servidor (ver complemento PR191-R2).
 - Outras fontes (nutrição, medicamentos, sanidade, manejo técnico):
   - vêm do cache do aparelho e não têm endpoint agregado;
   - entram na mesma ordem, mas só até o último movimento carregado enquanto houver páginas, para que a lista exibida seja sempre um prefixo correto da ordem global;
@@ -132,3 +132,48 @@ EXPLAIN (ANALYZE, BUFFERS) da consulta real (`sqlHistoricoPagina`) em banco desc
 - Testes contra Supabase ou Preview: proibido, porque o Preview compartilha o banco de produção.
 - Medição de volume de produção.
 - Playwright do app autenticado: o harness é isolado, com dados sintéticos.
+
+## Complemento PR191-R2 — consistência do frontend (sem D-PROD nova)
+
+**Base:** HEAD auditado `049a9bae`. Mesma branch e mesma PR #191. Backend, SQL, cursor v2 e envelope sem alteração.
+
+### R2-A — reinício por cursor inválido era consumido para sempre
+
+- **Defeito** (`HistoricoMovimentacoes.jsx`, HEAD `049a9bae`, l. 311-317): a ref booleana `reiniciadoPorCursor` virava `true` no primeiro 400 e nunca era rearmada. Além disso, `resetQueries({ queryKey: ['historico-movimentacoes'] })` zerava as consultas de TODAS as empresas e escopos.
+- **Correção:**
+  - incidente = `JSON([chave da consulta, pageParams, next_cursor da última página])`;
+  - reinicia quando o incidente muda: outro filtro, empresa ou escopo, ou página 1 recarregada com outro cursor;
+  - o mesmo incidente repetido após o reinício não reinicia, e o erro fica visível (sem laço);
+  - o reset é `{ queryKey: chaveDaConsulta, exact: true }`;
+  - o código é lido do corpo do erro nativo (`cause.code`), sem casar texto.
+- **Testes** (`tests/smoke/dProd123HistoricoR2.test.jsx`):
+  - dois incidentes na mesma montagem (`[null,c1,null,c2,null,c3]`, 2 resets);
+  - mesmo cursor recusado de novo (1 reset, 4 requisições, erro visível);
+  - 401, 403, 500, 400 genérico e rede (0 resets);
+  - Área → Lotes;
+  - empresa A → B → A (reset `exact`, cache de A intacto);
+  - `atualizar-mapa` seguido de novo incidente.
+
+### R2-B — a ordem offline prometia equivalência não comprovada
+
+- **Defeito** (`historicoMovimentacoes.js`, HEAD `049a9bae`, `chaveDoMovimento`):
+  - offline, o registro vinha de `efeito_servidor.registrado_em` sempre que existisse, embora o servidor só use `EventoRebanho.registrado_em` com vínculo inequívoco (senão usa `createdAt`);
+  - `historico_*` gravado em `dados` (lista genérica) era aceito como se viesse do servidor;
+  - o aviso dizia "na mesma ordem por ocorrência do servidor".
+  - **Reprodução:** mesmo dia, A criado 08:00 com `efeito_servidor.registrado_em` 23:00, B criado 09:00. Servidor (vínculo não comprovado): B, A. Offline antigo: A, B.
+- **Snapshot offline:**
+  - vem de `listMovimentacoes()` (lista genérica: documento + `created_date`), sem EventoRebanho;
+  - é a janela dos mais recentemente criados, até 500.
+- **Correção:**
+  - `chaveDoMovimento(mov, { doServidor })`: `historico_*` só vale para itens do endpoint H2 (`origem: servidor` e `ordem: ocorrencia_desc_v2`);
+  - offline: ocorrência = dia literal válido de `data_movimentacao`; registro = `created_date`;
+  - aviso: "cópia parcial ordenada pelas datas disponíveis no aparelho (data da ocorrência gravada e hora de cadastro), que pode diferir da ordem do servidor", mantendo contagem, data de atualização e limite de 500.
+- **Limitação declarada:** para um movimento do ledger, a hora de registro do evento (`registrado_em`) não está no cache. Entre movimentos do ledger do mesmo dia, a ordem offline usa a hora de cadastro e pode diferir da online. A tela diz isso.
+
+### Evidência
+
+- **RED** (testes finais contra o código de `049a9bae`): `dProd123HistoricoR2` com 8 falhas e 8 passando. Os que passam são os casos de "não reiniciar" (comportamento preservado), a chave do servidor e o dia literal.
+- **GREEN:** `dProd123HistoricoR2` 16/16, `dProd123HistoricoOcorrencia` 10/10 e `historicoMovimentacoes` 19/19.
+- `dProd123HistoricoOcorrencia.test.jsx` (teste "chave do movimento") foi atualizado: ele codificava a semântica corrigida.
+- Playwright do harness: 4/4 larguras, sem regressão.
+- Backend H2 (PG16) reexecutado sem alteração; `verify:all` na seção de entrega.
