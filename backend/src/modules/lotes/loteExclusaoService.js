@@ -56,8 +56,11 @@ export const noEstadoDeEntrada = (x) =>
   x.quantidade_cabecas > 0 &&
   x.status === 'Ativo' &&
   nulo(x.area_atual_id) === nulo(x.area_entrada_id) &&
-  (!nulo(x.categoria_entrada) || nulo(x.categoria) === nulo(x.categoria_entrada)) &&
-  (!nulo(x.categoria_manejo_entrada_id) || nulo(x.categoria_manejo_id) === nulo(x.categoria_manejo_entrada_id));
+  // Com snapshot da entrada, a classificação atual TEM de ser igual à da entrada.
+  // Sem snapshot (legado anterior ao campo) não há o que comparar; saldo, área e
+  // status acima continuam exigidos. (Forma explícita do mesmo predicado — R3.)
+  (nulo(x.categoria_entrada) === null || nulo(x.categoria) === nulo(x.categoria_entrada)) &&
+  (nulo(x.categoria_manejo_entrada_id) === null || nulo(x.categoria_manejo_id) === nulo(x.categoria_manejo_entrada_id));
 
 const bloqueio = (motivo, detalhes = {}) => ({ tipo: TIPO_BLOQUEADO, motivo, detalhes });
 

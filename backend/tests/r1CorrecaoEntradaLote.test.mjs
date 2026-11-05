@@ -496,3 +496,51 @@ describe('R1-R2 — UM salvamento, UMA transação (operacionais + administrativ
     assert.equal(ev.data_operacional.toISOString().slice(0, 10), '2026-10-05');
   });
 });
+
+describe('R3 — predicado "no estado de entrada" sem falso positivo de categoria', () => {
+  const INTACTO = { quantidade_cabecas: 100, quantidade_entrada: 100, status: 'Ativo', area_atual_id: 'a1', area_entrada_id: 'a1', categoria: 'Boi', categoria_entrada: 'Boi', categoria_manejo_id: 'cm1', categoria_manejo_entrada_id: 'cm1' };
+
+  test('unitário: categoria/categoria de manejo atual divergente da entrada → false; intacto → true; legado sem snapshot → sem bypass de saldo/área', async () => {
+    const { noEstadoDeEntrada } = await import('../src/modules/lotes/loteExclusaoService.js');
+    assert.equal(noEstadoDeEntrada(INTACTO), true);
+    assert.equal(noEstadoDeEntrada({ ...INTACTO, categoria: 'Vaca' }), false, 'categoria divergente');
+    assert.equal(noEstadoDeEntrada({ ...INTACTO, categoria: null }), false, 'categoria apagada');
+    assert.equal(noEstadoDeEntrada({ ...INTACTO, categoria_manejo_id: 'cm2' }), false, 'categoria de manejo divergente');
+    assert.equal(noEstadoDeEntrada({ ...INTACTO, categoria_manejo_id: null }), false, 'categoria de manejo apagada');
+    // Legado sem snapshot da categoria de entrada: não há o que comparar; saldo/área/status continuam exigidos.
+    assert.equal(noEstadoDeEntrada({ ...INTACTO, categoria_entrada: null, categoria: 'Vaca' }), true);
+    assert.equal(noEstadoDeEntrada({ ...INTACTO, categoria_entrada: null, quantidade_cabecas: 90 }), false);
+    assert.equal(noEstadoDeEntrada({ ...INTACTO, categoria_entrada: null, area_atual_id: 'a2' }), false);
+  });
+
+  test('sem ledger: categoria alterada pelo PATCH → correção NÃO elegível, POST bloqueado sem escrita, exclusão também bloqueada', async () => {
+    const c = await cenario({ ativacao: null });
+    const lote = await novoLote(c);
+    const p = await req('PATCH', `/lotes/${lote.id}`, c.tok, { categoria: VACA, estado_esperado: { categoria: BOI } });
+    assert.equal(p.statusCode, 200, p.body);
+    const e = await elegibilidade(c, lote);
+    assert.equal(e.elegivel, false, JSON.stringify(e));
+    assert.equal(e.motivo, 'estado_divergente_da_entrada');
+    await nadaGravado(c, () => corrigir(c, lote, { quantidade: 120 }), 409, 'LOTE_CORRECAO_ENTRADA_BLOQUEADA');
+    const ex = (await req('GET', `/lotes/${lote.id}/elegibilidade-exclusao`, c.tok)).json();
+    assert.equal(ex.tipo, 'bloqueado', JSON.stringify(ex));
+  });
+
+  test('ledger: categoria do cadastro adulterada direto no banco (ledger intacto) → bloqueado, nada gravado', async () => {
+    const c = await cenario();
+    const lote = await novoLote(c);
+    await prisma().lote.update({ where: { id: lote.id }, data: { categoria: VACA } });
+    const e = await elegibilidade(c, lote);
+    assert.deepEqual([e.elegivel, e.motivo], [false, 'estado_divergente_da_entrada']);
+    await nadaGravado(c, () => corrigir(c, lote, { quantidade: 120 }), 409, 'LOTE_CORRECAO_ENTRADA_BLOQUEADA');
+  });
+
+  test('controle positivo: lote intacto (com e sem ledger) continua elegível e corrigível', async () => {
+    for (const ativacao of [undefined, null]) {
+      const c = await cenario(ativacao === null ? { ativacao: null } : {});
+      const lote = await novoLote(c);
+      assert.equal((await elegibilidade(c, lote)).elegivel, true);
+      assert.equal((await corrigir(c, lote, { quantidade: 101 })).statusCode, 200);
+    }
+  });
+});

@@ -51,6 +51,49 @@ const numero = (v) => {
 const dia = (v) => (vazio(v) ? null : String(v).slice(0, 10));
 
 /**
+ * R3: quantidade de animais DIGITADA — inteiro positivo completo, sem sufixo,
+ * sem fração. Nunca trunca nem arredonda: "100.5", "100abc", "0", "" → NaN.
+ * @param {unknown} v
+ * @returns {number} inteiro > 0, ou NaN se inválido
+ */
+export const inteiroPositivoDigitado = (v) => {
+  if (typeof v === 'number') return Number.isInteger(v) && v > 0 ? v : NaN;
+  const t = String(v ?? '').trim();
+  if (!/^\d+$/.test(t)) return NaN;
+  const n = Number(t);
+  return Number.isSafeInteger(n) && n > 0 ? n : NaN;
+};
+
+/**
+ * R3: peso DIGITADO — vazio = null (política: sem peso); número decimal com
+ * ponto ou vírgula; qualquer sufixo/lixo ("300abc", "1.2.3") → NaN (inválido,
+ * nunca vira null em silêncio).
+ * @param {unknown} v
+ * @returns {number|null} número ≥ 0, null (vazio) ou NaN (inválido)
+ */
+export const pesoDigitado = (v) => {
+  if (vazio(v)) return null;
+  if (typeof v === 'number') return Number.isFinite(v) && v >= 0 ? v : NaN;
+  const t = String(v).trim();
+  if (!/^\d+([.,]\d+)?$/.test(t)) return NaN;
+  return Number(t.replace(',', '.'));
+};
+
+/**
+ * Campos numéricos da entrada inválidos no formulário (para marcar o campo e
+ * NÃO salvar). Quantidade só é exigida quando editável.
+ * @param {Record<string, any>} form
+ * @param {{ quantidadeEditavel?: boolean }} [opcoes]
+ * @returns {string[]}
+ */
+export const errosNumericosDaEntrada = (form, { quantidadeEditavel = true } = {}) => {
+  const erros = [];
+  if (quantidadeEditavel && Number.isNaN(inteiroPositivoDigitado(form?.quantidade_cabecas))) erros.push('quantidade_cabecas');
+  if (Number.isNaN(pesoDigitado(form?.peso_medio_kg))) erros.push('peso_medio_kg');
+  return erros;
+};
+
+/**
  * O que a correção muda, comparando o formulário com a ENTRADA lida.
  * Só campos que de fato mudaram (vazio no formulário = sem valor).
  * @param {Record<string, any>} lote registro lido do servidor
@@ -61,12 +104,15 @@ export const camposDaCorrecaoDeEntrada = (lote, form) => {
   /** @type {Record<string, unknown>} */
   const campos = {};
   const qtdAntes = Number(lote?.quantidade_entrada ?? lote?.quantidade_cabecas);
-  const qtd = parseInt(String(form?.quantidade_cabecas ?? ''), 10);
-  if (Number.isFinite(qtd) && qtd !== qtdAntes) campos.quantidade = qtd;
+  // R3: nunca trunca/arredonda número digitado — inválido é erro, não "o que der".
+  const qtd = inteiroPositivoDigitado(form?.quantidade_cabecas);
+  if (Number.isNaN(qtd)) throw new TypeError('quantidade da entrada inválida: informe um número inteiro positivo');
+  if (qtd !== qtdAntes) campos.quantidade = qtd;
 
   const pesoAntes = numero(lote?.peso_entrada_kg ?? lote?.peso_medio_kg);
-  const peso = numero(form?.peso_medio_kg);
-  const pesoFinal = peso && peso > 0 ? peso : null;
+  const peso = pesoDigitado(form?.peso_medio_kg);
+  if (Number.isNaN(peso)) throw new TypeError('peso de entrada inválido');
+  const pesoFinal = peso !== null && peso > 0 ? peso : null;
   if (pesoFinal !== pesoAntes) campos.peso_entrada_kg = pesoFinal;
 
   if (dia(form?.data_entrada) !== dia(lote?.data_entrada)) campos.data_entrada = dia(form?.data_entrada);

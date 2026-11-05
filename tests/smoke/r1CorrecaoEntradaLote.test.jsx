@@ -8,6 +8,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor, cleanup, fireEvent, act } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
+import * as correcaoEntrada from "@/domain/lotes/correcaoEntrada";
 import { camposDaCorrecaoDeEntrada, camposAdministrativosAlterados, somenteCamposAlterados, CAMPOS_FORA_DO_PATCH, mensagemDoMotivoCorrecao } from "@/domain/lotes/correcaoEntrada";
 
 const ENTRADA = Object.freeze({
@@ -42,6 +43,27 @@ describe("R1 domínio — o que a correção muda", () => {
     expect(camposAdministrativosAlterados(lote, { ...dados, raca_predominante: "ANGUS", observacoes: "X" }, { idade_media_meses: "12", valor_total_compra: "1500.5" })).toEqual({
       raca_predominante: "ANGUS", observacoes: "X", idade_media_meses: 12, valor_total_compra: 1500.5,
     });
+  });
+
+  it("R3: quantidade digitada nunca é truncada — 100.5 / 100abc / 0 / vazio são inválidos; inteiros válidos passam", () => {
+    const form = { quantidade_cabecas: "40", peso_medio_kg: "300", data_entrada: "2026-10-25", categoria: "BOI", sexo: "Macho", setor_id: "s1", area_entrada_id: "a1" };
+    for (const ruim of ["100.5", "100abc", "0", "", "  ", "-5", "1e2", "100,0"]) {
+      expect(() => camposDaCorrecaoDeEntrada(ENTRADA, { ...form, quantidade_cabecas: ruim }), ruim).toThrow(/inteiro positivo/);
+    }
+    expect(camposDaCorrecaoDeEntrada(ENTRADA, { ...form, quantidade_cabecas: " 120 " })).toEqual({ quantidade: 120 });
+    expect(camposDaCorrecaoDeEntrada(ENTRADA, { ...form, quantidade_cabecas: 120 })).toEqual({ quantidade: 120 });
+    expect(correcaoEntrada.inteiroPositivoDigitado?.("100.5")).toBeNaN();
+    expect(correcaoEntrada.errosNumericosDaEntrada?.({ quantidade_cabecas: "100abc", peso_medio_kg: "300" })).toEqual(["quantidade_cabecas"]);
+  });
+
+  it("R3: peso com lixo (300abc, 1.2.3) é inválido — nunca vira null em silêncio; vazio = sem peso; vírgula aceita", () => {
+    const form = { quantidade_cabecas: "40", peso_medio_kg: "300", data_entrada: "2026-10-25", categoria: "BOI", sexo: "Macho", setor_id: "s1", area_entrada_id: "a1" };
+    for (const ruim of ["300abc", "1.2.3", "abc", "-1"]) {
+      expect(() => camposDaCorrecaoDeEntrada(ENTRADA, { ...form, peso_medio_kg: ruim }), ruim).toThrow(/peso/);
+    }
+    expect(camposDaCorrecaoDeEntrada(ENTRADA, { ...form, peso_medio_kg: "310,5" })).toEqual({ peso_entrada_kg: 310.5 });
+    expect(camposDaCorrecaoDeEntrada(ENTRADA, { ...form, peso_medio_kg: "" })).toEqual({ peso_entrada_kg: null });
+    expect(correcaoEntrada.errosNumericosDaEntrada?.({ quantidade_cabecas: "10", peso_medio_kg: "300abc" })).toEqual(["peso_medio_kg"]);
   });
 
   it("motivos estáveis do servidor viram texto (sem mensagem genérica muda)", () => {
@@ -228,6 +250,28 @@ describe("R1 página — enviar a correção", () => {
     expect(serviceMock.atualizarLote).not.toHaveBeenCalled();
   });
 
+  it.each(["100.5", "100abc", "0", ""])("R3: quantidade %j na edição elegível → erro no campo, texto preservado, ZERO requisição", async (ruim) => {
+    await editarQuantidade(ruim);
+    fireEvent.change(screen.getByLabelText("Motivo da correção"), { target: { value: "digitação" } });
+    salvar();
+    await waitFor(() => expect(screen.getByText(/Nada foi salvo|Preencha os campos obrigatórios/)).toBeTruthy());
+    expect(campoQtd().value).toBe(ruim);
+    expect(serviceMock.corrigirEntradaDoLote).not.toHaveBeenCalled();
+    expect(serviceMock.atualizarLote).not.toHaveBeenCalled();
+  });
+
+  it("R3: peso '300abc' na edição elegível → erro, texto preservado, ZERO requisição", async () => {
+    await editarQuantidade("40");
+    const peso = screen.getByText("Peso Médio (kg)").closest(".mg-field").querySelector("input");
+    fireEvent.change(peso, { target: { value: "300abc" } });
+    fireEvent.change(screen.getByLabelText("Motivo da correção"), { target: { value: "digitação" } });
+    salvar();
+    await waitFor(() => expect(screen.getByText(/Nada foi salvo/)).toBeTruthy());
+    expect(peso.value).toBe("300abc");
+    expect(serviceMock.corrigirEntradaDoLote).not.toHaveBeenCalled();
+    expect(serviceMock.atualizarLote).not.toHaveBeenCalled();
+  });
+
   it("servidor recusa (dependência ou leitura obsoleta): avisa o motivo e o formulário fica com o que foi digitado", async () => {
     serviceMock.corrigirEntradaDoLote.mockRejectedValueOnce(erroDoServidor("LOTE_CORRECAO_ENTRADA_BLOQUEADA", { motivo: "movimentacao_ativa" }));
     await editarQuantidade("120");
@@ -242,5 +286,24 @@ describe("R1 página — enviar a correção", () => {
     await waitFor(async () => expect((await aviso()).dataset.estado).toBe("elegivel"));
     salvar();
     await waitFor(() => expect(notify.notifyWarning).toHaveBeenCalledWith("Lote alterado", expect.stringMatching(/Recarregue/)));
+  });
+});
+
+describe("R3 — formulário de CRIAÇÃO usa a mesma validação estrita", () => {
+  it.each(["100.5", "100abc", "0"])("quantidade %j no cadastro novo → erro no campo, texto preservado, onSubmit NÃO chamado", async (ruim) => {
+    const { default: FormularioLote } = await import("@/components/lotes/FormularioLote.jsx");
+    const onSubmit = vi.fn();
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <FormularioLote visualVariant="base1" variant="embedded" toolbarActions readOnly={false} onSubmit={onSubmit} onCancel={() => {}} initialData={null} isEditing={false} />
+      </QueryClientProvider>,
+    );
+    const qtd = screen.getByLabelText("Qtd. Cabeças (entrada)");
+    fireEvent.change(qtd, { target: { value: ruim } });
+    salvar();
+    await waitFor(() => expect(screen.getByText(/Nada foi salvo/)).toBeTruthy());
+    expect(qtd.value).toBe(ruim);
+    expect(qtd.getAttribute("aria-invalid")).toBe("true");
+    expect(onSubmit).not.toHaveBeenCalled();
   });
 });

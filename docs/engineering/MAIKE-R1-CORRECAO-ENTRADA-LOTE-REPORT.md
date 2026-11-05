@@ -199,3 +199,57 @@ Regras do comando:
 ### Offline
 
 O comando é só online: sem conexão, recusa tipada antes de qualquer HTTP, nunca vira fila. A elegibilidade é do servidor, então offline a correção não é oferecida.
+
+## R3 corretiva — elegibilidade histórica e validação numérica
+
+### Bloqueio A — `noEstadoDeEntrada`: **não reproduzível**
+
+A auditoria apontou o trecho `(!nulo(x.categoria_entrada) || nulo(x.categoria) === nulo(x.categoria_entrada))`. A leitura de que uma categoria de entrada preenchida dispensaria a igualdade está invertida:
+
+- `nulo("Boi")` devolve `"Boi"`, então `!nulo(...)` é **falso** e a expressão passa a exigir `categoria === categoria_entrada`;
+- só um snapshot ausente (`null`) dispensa a comparação — é o legado anterior ao campo, em que saldo, área e status continuam exigidos.
+
+A prova vem de 4 testes novos (`R3 — predicado "no estado de entrada"…` em `backend/tests/r1CorrecaoEntradaLote.test.mjs`), que **passaram no HEAD `8a0dd155` sem mudança de código**:
+
+1. **Unitário:**
+   - categoria divergente → false;
+   - categoria apagada → false;
+   - categoria de manejo divergente ou apagada → false;
+   - intacto → true;
+   - legado sem snapshot → true, mas com saldo ou área divergentes → false.
+2. **Sem ledger:** PATCH de categoria Boi→Vaca (com auditoria) → elegibilidade `estado_divergente_da_entrada`, POST 409 sem escrita e exclusão `bloqueado`.
+3. **Ledger:** categoria do cadastro adulterada direto no banco, com ledger intacto → bloqueado e nada gravado.
+4. **Controle positivo:** lote intacto, com e sem ledger, continua elegível e corrigível.
+
+A expressão foi reescrita na forma explícita `nulo(x.categoria_entrada) === null || …`. É equivalente — os mesmos testes e as regressões de exclusão continuam verdes — e evita uma nova leitura invertida.
+
+Consumidores verificados:
+- `avaliarExclusaoLote` (estado atual);
+- `auditoriaExplicada` (antes e depois de cada update ou correção);
+- `avaliarCorrecaoEntrada`.
+
+**Sexo:** o modelo não tem `sexo_entrada`, então não há snapshot para comparar. Divergência de sexo fica coberta pela auditoria (`alteracao_sem_comprovacao`) e, no ledger, pela identidade da posição.
+
+### Bloqueio B — número digitado truncado: **reproduzido e corrigido**
+
+O defeito:
+- `parseInt("100.5")` e `parseInt("100abc")` davam 100, enviado sem aviso;
+- o peso `"300abc"` virava `null` (peso apagado sem aviso);
+- `<input type=number>` ainda descartava o texto inválido (`badInput` → `""`).
+
+A correção:
+- **Domínio:** `inteiroPositivoDigitado` aceita só `^\d+$` e > 0, nunca trunca. `pesoDigitado` trata vazio como `null`, aceita `^\d+([.,]\d+)?$` e devolve `NaN` para lixo. `camposDaCorrecaoDeEntrada` lança erro em vez de truncar.
+- **Formulário de criação e de edição:** `validateForm` marca o campo com erro, mantém o texto digitado e não salva, com o aviso "Número inválido… Nada foi salvo".
+- **Campos de quantidade e peso:** passam a ser de texto com `inputMode` numérico/decimal, para preservar o que foi digitado.
+- **Inalterado:** a política de peso vazio (null na correção; 0 no cadastro novo, como antes) e a exibição das contagens.
+
+Evidências (`tests/smoke/r1CorrecaoEntradaLote.test.jsx`):
+- **RED no HEAD `8a0dd155`:** 8 falham — domínio (2), edição elegível com `100.5`, `100abc` e peso `300abc` (3), criação com `100.5`, `100abc` e `0` (3). Na edição, `0` e vazio já eram barrados.
+- **GREEN:** 22/22, com **zero chamada** de `corrigirEntradaDoLote`/`atualizarLote` e de `onSubmit` nos casos inválidos.
+
+### Auditoria adicional (sem defeito novo)
+
+- **Posição/evento inativo:** partida ou peso inativo de outro evento continua bloqueando, coberto pelos testes (g) e (h).
+- **Inalterados:** isolamento tenant/empresa, compare-and-swap e idempotência (testes j, k, m e R1-R2).
+- **Escopo:** correção de uma entrada não toca outro lote, posição ou evento (teste o).
+- **Resultados:** 30/30 backend, com regressões de exclusão e `loteNativo` (57/57 juntos) e smoke de lotes 208/208.
