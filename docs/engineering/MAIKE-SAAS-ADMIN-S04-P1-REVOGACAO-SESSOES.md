@@ -246,3 +246,60 @@ Não existe refresh token, nem outro `jwtSign`/`jwtVerify` no backend.
   - plano de rollback (§6);
   - comunicação do logout.
 - **Nada foi executado:** migration, SQL, variáveis, pausa e promoção na Vercel ficam para autorização posterior.
+
+## 12. R2 — HTTP 500 na troca da própria senha e gate de release
+
+### 12.1 Defeito e correção
+- **Cadeia real:**
+  - `nativeHttpClient` traduz `500 {code:'INTERNAL_ERROR'}`, e qualquer código desconhecido, em `API_OPERATION_FAILED`;
+  - `ApiError` só marca `PROVIDER_UNAVAILABLE` como `retryable`;
+  - a R1 usava `retryable` para decidir "resultado incerto".
+  - Consequência: um 500 era mostrado como falha comum, embora o servidor possa ter falhado **depois** de gravar a senha.
+- **Correção local:**
+  - `resultadoIncerto` (`usuarioAdminService.js`), usado só na troca da própria senha em `Usuarios.jsx`, passa a incluir `OPERATION_FAILED`;
+  - a tabela global `RETRYABLE` e a semântica de outras operações (rebanho, lotes, mapa, offline) **não** mudaram.
+  - `INVALID_ARGUMENT`, `USUARIO_SENHA_ATUAL_INVALIDA` e `CONCURRENCY_CONFLICT` continuam sendo rejeição.
+- **UX:**
+  - 500, 502/503/504, rede, tempo esgotado e erro desconhecido → "Não foi possível confirmar a troca de senha…";
+  - sem afirmar que a senha permaneceu, sem logout e sem nova tentativa (o PATCH sai uma vez);
+  - nenhum texto cru do servidor, stack ou dado de senha é exibido;
+  - o tratamento global de 401 não mudou.
+
+### 12.2 Provas
+- **`tests/smoke/usuariosSenhaHttp500S04P1.test.jsx`** (11 casos), com cadeia **real** até o `fetch` (serviço → porta → `nativeRequest`):
+  - **500, com e sem JSON:** `OPERATION_FAILED`, incerto;
+  - **502/503/504 e rede:** `PROVIDER_UNAVAILABLE`, incerto;
+  - **400/403/409:** rejeição;
+  - `fetch` chamado **1×** (zero repetições), e a mensagem/detalhes exibíveis sem senha;
+  - `retryable` global inalterado;
+  - **formulário real:** envia senha atual e nova, depois limpa os campos e o DOM.
+- **`tests/smoke/usuariosSenhaSessaoS04P1.test.jsx`** (12 casos):
+  - mais o caso `OPERATION_FAILED` (incerto, sem logout, sem retenção);
+  - "zero retries" em todas as falhas;
+  - **criação com senha inicial**, em sucesso (servidor que ecoa `senha` é filtrado pela allowlist) e em erro: sem senha em ficha, QueryCache, MutationCache ou toast.
+- **RED** com o `usuarioAdminService.js` anterior: 3 falhas (os casos de 500). **GREEN:** 23/23.
+
+### 12.3 Compatibilidade de schema (por que a ordem importa)
+- **Runtime antigo + schema novo = compatível.** A migration só ADICIONA colunas anuláveis, sem default nem constraint. O código antigo não as lê, e os INSERTs dele ficam com NULL, que vale época 0. Provado: as suítes do `main` passam no banco migrado.
+- **Runtime novo + schema antigo = incompatível.** O login seleciona `sessao_epoca` e a guarda filtra por ela. Sem as colunas, o login e todas as rotas autenticadas respondem **500** (provado localmente, sem vazar detalhe). O preflight acusa "colunas ausentes".
+- **Conclusão:** a migration precisa estar aplicada **antes** de o runtime novo receber tráfego. Como a Vercel publica a `main` em produção automaticamente (verificado: todos os merges recentes viraram production `READY`), **o merge não pode acontecer antes da migration**. CI verde e preview `READY` provam só código e build, não o schema de produção.
+
+### 12.4 Runbook de execução FUTURA (proprietário/operador autorizado; nada disto foi executado)
+Base: `MAIKE-PR174-RELEASE-CUTOVER-RUNBOOK.md` §3 e D-PROD-107.
+
+1. **Identificar o alvo:** o banco de produção usado pela Vercel `maike`, confirmado por `system_identifier`. Registrar também a política de preview (hoje a variável de banco está no escopo preview; o alvo não foi verificado).
+2. **Backup restaurável** do provedor (snapshot/PITR), com teste de restauração.
+3. **Segregar os alvos:** decidir se o preview continua no banco real (risco registrado) antes de publicar.
+4. **Comunicar** às fazendas o logout global único.
+5. **Checkout exato** do SHA aprovado e `node scripts/deploy/premerge-migrate.mjs --sha <SHA>` (análise local).
+6. **`--verificar-alvo`**, com `MIGRATION_DATABASE_URL` de sessão/direta (5432, **não** o pooler 6543) e `MIGRATION_EXPECTED_SYSTEM_IDENTIFIER`, só no ambiente do operador, sem exibir valores.
+7. **Aprovação explícita** do proprietário, e só então `--aplicar` (`run-migrations.mjs`, sem fallback de URL).
+8. **`node scripts/deploy/preflight-schema.mjs`** no **mesmo** banco: precisa sair verde.
+9. **Merge manual.**
+10. **Conferir** o deployment production `READY` no SHA do merge, e um smoke de login com novo token.
+11. **Rollback:** rollback de deployment da Vercel. O banco migrado atende o runtime antigo (§6).
+
+| Status | Item |
+|---|---|
+| **Comprovado** | código e testes locais; migration EXPAND (zero, upgrade, compat); `premerge-migrate` local OK; produção automática da Vercel |
+| **Pendente** | alvo verificado (`DATABASE_TARGET_VERIFIED = NÃO`); backup; `--verificar-alvo`; `--aplicar` (`SCHEMA_APPLIED_PRODUCTION = NÃO`); preflight no alvo; comunicação |

@@ -21,7 +21,8 @@ import { ApiError, API_ERROR_CODES } from "@/apis/_core/ApiError";
 const SENHA_ATUAL = "Senha-Atual-Secreta-1";
 const SENHA_NOVA = "Senha-Nova-Secreta-2";
 
-const rede = { atualizar: vi.fn(), pagina: vi.fn() };
+const rede = { atualizar: vi.fn(), pagina: vi.fn(), criar: vi.fn() };
+const SENHA_INICIAL = "Senha-Inicial-Secreta-3";
 const logoutMock = vi.fn();
 const authAtual = { clienteId: "cliente-a", user: { id: "u-eu", login: "eu" }, logout: logoutMock };
 const currentUserMock = vi.fn();
@@ -30,7 +31,7 @@ vi.mock("@/services/usuarioAdminService", async (importOriginal) => ({
   ...(await importOriginal()),
   listarContasAcessoPagina: (...a) => rede.pagina(...a),
   atualizarContaAcesso: (...a) => rede.atualizar(...a),
-  criarContaAcesso: vi.fn(),
+  criarContaAcesso: (...a) => rede.criar(...a),
 }));
 vi.mock("@/services/sessionService", async (importOriginal) => ({
   ...(await importOriginal()),
@@ -71,6 +72,9 @@ vi.mock("../../src/components/usuarios/FormularioContaAcesso", () => ({
       </button>
       <button type="button" onClick={() => onSubmit({ nova_senha: SENHA_NOVA })}>enviar-senha-outro</button>
       <button type="button" onClick={() => onSubmit({ nome: "Nome Novo" })}>enviar-nome</button>
+      <button type="button" onClick={() => onSubmit({ nome: "Conta Nova", login: "conta.nova", senha: SENHA_INICIAL })}>
+        enviar-criacao
+      </button>
     </div>
   ),
 }));
@@ -107,12 +111,14 @@ const semCredencialRetida = (queryClient) => {
   for (const [onde, texto] of Object.entries({ ficha, queries, mutacoes, toasts })) {
     expect(texto, onde).not.toContain(SENHA_ATUAL);
     expect(texto, onde).not.toContain(SENHA_NOVA);
-    expect(texto, onde).not.toMatch(/senha_atual|nova_senha|senha_hash/);
+    expect(texto, onde).not.toContain(SENHA_INICIAL);
+    expect(texto, onde).not.toMatch(/senha_atual|nova_senha|senha_hash|"senha"/);
   }
 };
 
 beforeEach(() => {
   rede.atualizar.mockReset();
+  rede.criar.mockReset();
   rede.pagina.mockReset().mockResolvedValue(pagina([EU, OUTRO]));
   logoutMock.mockReset();
   currentUserMock.mockReset().mockResolvedValue({ login: "eu", email: "eu" });
@@ -169,7 +175,8 @@ describe("S04-P1-R1 — troca de senha encerra a sessão da própria conta", () 
     ["400 validação", new ApiError(API_ERROR_CODES.INVALID_ARGUMENT), false],
     ["403 senha atual errada", new ApiError(API_ERROR_CODES.USUARIO_SENHA_ATUAL_INVALIDA), false],
     ["409 conflito", new ApiError(API_ERROR_CODES.CONCURRENCY_CONFLICT), false],
-    ["indisponível (rede/5xx)", new ApiError(API_ERROR_CODES.PROVIDER_UNAVAILABLE), true],
+    ["indisponível (rede/502/503/504)", new ApiError(API_ERROR_CODES.PROVIDER_UNAVAILABLE), true],
+    ["HTTP 500 INTERNAL_ERROR → OPERATION_FAILED (R2)", new ApiError(API_ERROR_CODES.OPERATION_FAILED), true],
     ["erro desconhecido", new TypeError("Failed to fetch"), true],
   ])("4. falha %s na própria senha → sem sucesso, sem logout, sem credencial retida", async (_nome, erro, incerto) => {
     rede.atualizar.mockRejectedValue(erro);
@@ -178,6 +185,8 @@ describe("S04-P1-R1 — troca de senha encerra a sessão da própria conta", () 
     await waitFor(() => expect(toastMock.error).toHaveBeenCalledTimes(1));
     expect(toastMock.success).not.toHaveBeenCalled();
     expect(logoutMock).not.toHaveBeenCalled();
+    await new Promise((r) => setTimeout(r, 50));
+    expect(rede.atualizar, "zero retries automáticos").toHaveBeenCalledTimes(1);
     const msg = toastMock.error.mock.calls[0][0];
     if (incerto) expect(msg).toMatch(/Não foi possível confirmar a troca de senha/);
     else expect(msg).not.toMatch(/confirmar a troca/);
@@ -211,5 +220,30 @@ describe("S04-P1-R1 — troca de senha encerra a sessão da própria conta", () 
     await editarEEnviar(OUTRO, "enviar-senha-outro");
     await waitFor(() => expect(toastMock.success).toHaveBeenCalledWith("Conta atualizada!"));
     expect(logoutMock).not.toHaveBeenCalled();
+  });
+
+  it("6. criação com senha inicial: ficha só com campos públicos (mesmo se o servidor ecoar), sem senha em caches nem toast", async () => {
+    rede.criar.mockResolvedValue({ id: "u-novo", nome: "Conta Nova", login: "conta.nova", ativo: true, senha: SENHA_INICIAL });
+    const qc = await renderPagina();
+    await screen.findByRole("button", { name: "abrir-u-eu" });
+    fireEvent.click(screen.getAllByRole("button", { name: /^novo$/i })[0]);
+    fireEvent.click(await screen.findByRole("button", { name: "enviar-criacao" }));
+    await waitFor(() => expect(toastMock.success).toHaveBeenCalledWith("Conta criada!"));
+    expect(rede.criar).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(screen.getByTestId("ficha").textContent)).toMatchObject({ id: "u-novo", login: "conta.nova" });
+    semCredencialRetida(qc);
+  });
+
+  it("7. criação com senha inicial que falha: sem sucesso, sem retry, sem senha em caches nem toast", async () => {
+    rede.criar.mockRejectedValue(new ApiError(API_ERROR_CODES.USUARIO_LOGIN_DUPLICADO));
+    const qc = await renderPagina();
+    await screen.findByRole("button", { name: "abrir-u-eu" });
+    fireEvent.click(screen.getAllByRole("button", { name: /^novo$/i })[0]);
+    fireEvent.click(await screen.findByRole("button", { name: "enviar-criacao" }));
+    await waitFor(() => expect(toastMock.error).toHaveBeenCalledTimes(1));
+    await new Promise((r) => setTimeout(r, 50));
+    expect(rede.criar).toHaveBeenCalledTimes(1);
+    expect(toastMock.success).not.toHaveBeenCalled();
+    semCredencialRetida(qc);
   });
 });

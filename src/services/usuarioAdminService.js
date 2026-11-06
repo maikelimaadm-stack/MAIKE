@@ -77,10 +77,18 @@ export const descartarCredenciais = (dados) => {
 };
 
 /**
- * Falha cujo resultado no servidor é desconhecido (rede, tempo esgotado,
- * indisponibilidade). Não prova que a senha NÃO mudou.
+ * Falha cujo resultado no servidor é desconhecido — não prova que a senha NÃO
+ * mudou. Usado SÓ na troca da própria senha (tela Usuários); não altera a
+ * semântica global de `retryable` nem a de outras operações.
+ *  - rede, tempo esgotado, 502/503/504 → `PROVIDER_UNAVAILABLE` (retryable);
+ *  - HTTP 500 (`INTERNAL_ERROR`) e código desconhecido → `OPERATION_FAILED`
+ *    (S04-P1-R2): o servidor pode ter falhado DEPOIS de gravar;
+ *  - erro que não é `ApiError`.
+ * Rejeições contratuais (`INVALID_ARGUMENT`, `USUARIO_SENHA_ATUAL_INVALIDA`,
+ * `CONCURRENCY_CONFLICT`, ...) continuam sendo rejeição: nada foi gravado.
  */
-export const resultadoIncerto = (erro) => !isApiError(erro) || erro.retryable === true;
+export const resultadoIncerto = (erro) =>
+  !isApiError(erro) || erro.retryable === true || erro.code === API_ERROR_CODES.OPERATION_FAILED;
 
 export const listarContasAcesso = () => listUsuarios();
 
