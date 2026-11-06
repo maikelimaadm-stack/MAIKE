@@ -13,6 +13,11 @@
       "permanent": false
     },
     {
+      "source": "/admmakgestao/",
+      "destination": "https://admmakgestao.vercel.app/",
+      "permanent": false
+    },
+    {
       "source": "/admmakgestao/:path*",
       "destination": "https://admmakgestao.vercel.app/",
       "permanent": false

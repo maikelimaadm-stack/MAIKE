@@ -60,7 +60,8 @@ describe('ADM-DEPLOY — apps/admin/vercel.json', () => {
   it('ADM-DEPLOY-05 atalho makgestao.com/admmakgestao só redireciona para a origin própria do admin', () => {
     const raiz = JSON.parse(readFileSync('vercel.json', 'utf8'));
     const atalhos = (raiz.redirects ?? []).filter((r) => /^\/admmakgestao/.test(r.source));
-    expect(atalhos.map((r) => r.source).sort()).toEqual(['/admmakgestao', '/admmakgestao/:path*']);
+    // Com e sem barra final: `/:path*` sozinho não casa `/admmakgestao/` (conferido na prévia: 404).
+    expect(atalhos.map((r) => r.source).sort()).toEqual(['/admmakgestao', '/admmakgestao/', '/admmakgestao/:path*']);
     for (const r of atalhos) {
       expect(r.destination).toBe('https://admmakgestao.vercel.app/');
       // 307: trocar o destino depois não fica preso no cache do navegador.

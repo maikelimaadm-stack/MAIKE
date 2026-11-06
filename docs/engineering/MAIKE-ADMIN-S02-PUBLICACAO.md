@@ -40,7 +40,7 @@ As outras duas opções foram recusadas:
    - **Por quê:** com a Deployment Protection "Standard: todos exceto domínios próprios", o `*.vercel.app` do backend fica protegido e o admin pararia de funcionar.
    - **O que continua igual:** o domínio próprio é o mesmo deploy de produção. Método, corpo, `Origin`, `Cookie` e `Set-Cookie` continuam passando pelo proxy.
 2. **`apps/admin/vercel.json`, `Cache-Control: no-store` em `/api/native/(.*)`:** as respostas carregam sessão, CSRF e dados de clientes, e nunca devem ficar em cache.
-3. **`vercel.json` da raiz (SPA dos clientes), `redirects`:** `/admmakgestao` e `/admmakgestao/:path*` vão para `https://admmakgestao.vercel.app/` com 307 (`permanent: false`). Assim, trocar o destino depois não fica preso no cache dos navegadores.
+3. **`vercel.json` da raiz (SPA dos clientes), `redirects`:** `/admmakgestao`, `/admmakgestao/` e `/admmakgestao/:path*` vão para `https://admmakgestao.vercel.app/` com 307 (`permanent: false`). Assim, trocar o destino depois não fica preso no cache dos navegadores.
    - A chave é própria. O `scripts/vercel/sync-vercel-json.mjs` só regenera `rewrites` e preserva o resto (conferido: ele foi rodado e o redirect permaneceu).
 4. **`gate:admin-isolation`, ADM-05 ampliado:** no site dos clientes, `/admmakgestao` e `/paineladm` podem **só redirecionar**, e só para uma origin `https` **fora** de `makgestao.com`.
    - Um rewrite (painel servido no domínio dos clientes) reprova.
@@ -156,7 +156,7 @@ Checagens manuais:
 | Checagem | Esperado |
 |---|---|
 | `curl -sI https://makgestao.com/admmakgestao` | 308 → `https://www.makgestao.com/admmakgestao` |
-| `curl -sI https://www.makgestao.com/admmakgestao` | 307 → `https://admmakgestao.vercel.app/` |
+| `curl -sI https://www.makgestao.com/admmakgestao` (também com `/` no fim) | 307 → `https://admmakgestao.vercel.app/` |
 | `curl -sI https://admmakgestao.vercel.app/api/native/admin-maike/sessao` | 401; `cache-control: no-store` |
 | `curl -s https://admmakgestao.vercel.app/api/native/rota-inexistente` | JSON 404 da API, nunca o HTML |
 | DevTools → Cookies em `admmakgestao.vercel.app` | `__Host-maike_admin`, HttpOnly, Secure, SameSite Strict, sem Domain |
@@ -213,6 +213,10 @@ Nenhum rollback mexe no banco.
   - **Fluxo:** login → TOTP → códigos de recuperação → aba Clientes → ficha com empresas e usuários.
   - **Resultado:** cookie HttpOnly e SameSite=Strict; storage vazio; CNPJ ausente da tela.
   - **Captura:** `docs/engineering/evidencias/admin-s02/e2e-clientes-ficha.png`.
+- **Atalho conferido na prévia desta branch** (`maike-git-claude-new-…vercel.app`):
+  - `/admmakgestao` e `/admmakgestao/qualquer` → 307 `https://admmakgestao.vercel.app/`;
+  - `/mapageral` → 200, sem efeito no sistema das fazendas;
+  - `/admmakgestao/` dava 404 e ganhou regra própria.
 - **Testes:**
   - `backend/tests/adminPublicacaoProducao.test.mjs` (PUB-01..03, produção simulada com `ADMIN_ORIGINS=https://admmakgestao.vercel.app`);
   - `tests/smoke/adminVercelConfig.test.js` (ADM-DEPLOY-01..05);
