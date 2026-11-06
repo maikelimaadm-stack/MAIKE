@@ -121,6 +121,11 @@ th { color: var(--texto-2); font-weight: 600; }
 .acoes-linha { display: flex; gap: 6px; flex-wrap: wrap; }
 .sessoes { padding-left: 18px; }
 .sessoes li { margin-bottom: 8px; overflow-wrap: anywhere; }
+.ficha-dados { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px 16px; margin: 0 0 16px; }
+.ficha-dados dt { font-size: 0.8rem; font-weight: 600; color: var(--texto-2); }
+.ficha-dados dd { margin: 2px 0 0; overflow-wrap: anywhere; }
+.campo-acao { justify-content: flex-end; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 
 @media (max-width: 900px) {
   .filtros { grid-template-columns: 1fr 1fr; }
