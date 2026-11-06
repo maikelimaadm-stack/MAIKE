@@ -1,17 +1,11 @@
 import React from "react";
 import { X } from "lucide-react";
-import { useCelular } from "@/components/common/MobileSheet";
-import { LancLoteDialogo } from "@/components/lotes/LancamentoLoteUi";
+import { MobileSheetPortalCtx } from "@/components/common/MobileSheet";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
-/** Filtros do mapa: folha com gestos no celular; painel lateral nas demais telas. */
+/** Filtros compactos no painel lateral, inclusive no celular. */
 export default function MapaFiltrosPainel({ open, onOpenChange, children }) {
-  const celular = useCelular();
-  if (celular) return (
-    <LancLoteDialogo open={open} onOpenChange={onOpenChange} titulo="Filtros e Camadas" somenteLeitura folhaMobile>
-      <div className="mk-map-filter-mobile">{children}</div>
-    </LancLoteDialogo>
-  );
+  const [alvoFolha, setAlvoFolha] = React.useState(/** @type {HTMLElement | null} */ (null));
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="left" className="mk-map-filter-sheet overflow-y-auto">
@@ -19,7 +13,10 @@ export default function MapaFiltrosPainel({ open, onOpenChange, children }) {
           <button type="button" className="mk-map-panel-close" aria-label="Fechar filtros" onClick={() => onOpenChange(false)}><X size={16} aria-hidden /></button>
           <SheetTitle className="text-sm">Filtros e Camadas</SheetTitle><span aria-hidden />
         </SheetHeader>
-        <div className="mt-3">{children}</div>
+        <MobileSheetPortalCtx.Provider value={alvoFolha}>
+          <div className="mt-3">{children}</div>
+        </MobileSheetPortalCtx.Provider>
+        <div ref={setAlvoFolha} />
       </SheetContent>
     </Sheet>
   );

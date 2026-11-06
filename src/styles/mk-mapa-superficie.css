@@ -196,3 +196,32 @@ button[data-mk-map-action]:is([class*="bg-amber"], [class*="bg-yellow"]):not(#mk
 @media (max-width: 359px) {
   .mk-map-filter-section:not(.mk-map-filter-section--layers):not(.mk-map-filter-section--colors) > div:last-child { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* Filtros laterais também no celular, deixando parte do mapa à vista. */
+@media (max-width: 639px) {
+  .mk-map-filter-sheet:not(#mk-padrao) {
+    width: min(300px, calc(100vw - 32px));
+    height: 100dvh;
+    max-height: 100dvh;
+    overscroll-behavior: contain;
+    padding-top: max(12px, env(safe-area-inset-top, 0px));
+    padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
+  }
+  .mk-map-filter-sheet .mk-map-filter-header:not(#mk-padrao) {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--mk-sup-fundo);
+    padding-bottom: 8px;
+  }
+}
+.mk-map-filters button[role="combobox"]:not(#mk-padrao) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  text-align: left;
+}
+@media (max-width: 639px) {
+  .mk-map-filter-sheet .mk-map-filter-header:not(#mk-padrao) { box-shadow: 0 -16px 0 var(--mk-sup-fundo); }
+}
