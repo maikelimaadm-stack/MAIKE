@@ -711,7 +711,7 @@
 .mk-dl__infos {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 6px 6px;
+  gap: 0 6px;
 }
 
 /* Curral: só dois campos, seguem em duas colunas */
@@ -728,7 +728,27 @@
 /* Campos sem caixa de fundo: só rótulo e valor (área e lote). */
 .mk-dl__info {
   min-width: 0;
-  padding: 2px 0;
+  padding: 5px 0;
+}
+
+/* Linha fina separando as linhas de dados (D-PROD-144) */
+.mk-dl__info {
+  border-top: 1px solid #edf0f3;
+}
+
+.mk-dl__infos:not(.mk-dl__infos--2) .mk-dl__info:nth-child(-n + 3),
+.mk-dl__infos--2 .mk-dl__info:nth-child(-n + 2) {
+  border-top: 0;
+}
+
+@media (min-width: 640px) {
+  .mk-dl__infos:not(.mk-dl__infos--2) .mk-dl__info:nth-child(-n + 3) {
+    border-top: 1px solid #edf0f3;
+  }
+
+  .mk-dl__infos:not(.mk-dl__infos--2) .mk-dl__info:nth-child(-n + 4) {
+    border-top: 0;
+  }
 }
 
 
