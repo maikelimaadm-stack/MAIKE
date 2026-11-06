@@ -47,7 +47,7 @@ describe("Detalhes do Lote: Manejos e Históricos em quadros (D-PROD-119)", () =
     // D-PROD-124: o proprietário tirou "Categoria Oficial" do lote e "Sistemas Reprodutivos"/"Lotes" da área.
     expect(fonte).not.toContain("Categoria Oficial");
     expect(area).not.toMatch(/Sistemas Reprodutivos|Lotes:/);
-    for (const c of ["Hectares", "UA/ha", "UA total", "Pastagem", "Qtd. Lotes", "Qtd. Cabeças", "Média geral", "Dias pastejo"]) {
+    for (const c of ["Hectares", "UA/ha", "UA total", "Qtd. Lotes", "Qtd. Cabeças", "Média geral", "Pastagem", "Dias pastejo"]) {
       expect(area, c).toContain(c);
     }
   });
