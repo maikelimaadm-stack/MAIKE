@@ -13,12 +13,14 @@ import Categorias from './telas/Categorias.jsx';
 import RegrasMisto from './telas/RegrasMisto.jsx';
 import Validacao from './telas/Validacao.jsx';
 import Conta from './telas/Conta.jsx';
+import Clientes from './telas/Clientes.jsx';
 
 const ABAS = [
   ['icones', 'Ícones'],
   ['categorias', 'Tipos e categorias'],
   ['misto', 'Regras MISTO'],
   ['validacao', 'Validação'],
+  ['clientes', 'Clientes'],
   ['conta', 'Minha conta'],
 ];
 
@@ -99,7 +101,7 @@ export default function App() {
       <header className="topo">
         <div>
           <p className="marca">MAIKE Admin</p>
-          <p className="topo-sub">Catálogo global de ícones · dados oficiais do produto</p>
+          <p className="topo-sub">Catálogo global de ícones · consulta de clientes · dados oficiais do produto</p>
         </div>
         <div className="topo-acoes">
           <span className="topo-login" title="Administrador principal">
@@ -123,6 +125,9 @@ export default function App() {
         </Aviso>
         {aba === 'conta' ? (
           <Conta admin={admin} onSessaoEncerrada={paraEntrar} avisar={props.avisar} />
+        ) : aba === 'clientes' ? (
+          // Consulta própria, independente do catálogo (não espera nem recarrega o catálogo).
+          <Clientes />
         ) : erroCarga ? (
           <div className="vazio">
             <Aviso tipo="erro">{erroCarga}</Aviso>
