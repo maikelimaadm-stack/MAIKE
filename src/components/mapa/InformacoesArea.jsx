@@ -44,11 +44,12 @@ export default function InformacoesArea({ area, lotesNaArea = [] }) {
   if (!area) return null;
 
   return (
-    <div className="mk-dl__cartao">
+    <div className="mk-dl__bloco-area">
       <div className="mk-dl__cab">
         <span className="mk-dl__nome mk-dl__nome--area">Informações da Área: {area.nome}</span>
       </div>
 
+      <div className="mk-dl__cartao">
       {isCurral ? (
         <div className="mk-dl__infos mk-dl__infos--2">
           <CampoDl rotulo="Tipo de infraestrutura">{tipoInfraestrutura}</CampoDl>
@@ -66,7 +67,7 @@ export default function InformacoesArea({ area, lotesNaArea = [] }) {
           <CampoDl rotulo="Dias pastejo">{diasPastejoMedio.toLocaleString('pt-BR')} dia(s)</CampoDl>
         </div>
       )}
-
+      </div>
     </div>
   );
 }

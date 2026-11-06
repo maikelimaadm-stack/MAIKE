@@ -710,7 +710,7 @@
 .mk-dl__infos {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px;
+  gap: 2px 6px;
 }
 
 @media (min-width: 640px) {
@@ -722,7 +722,14 @@
 /* Campos sem caixa de fundo: só rótulo e valor (área e lote). */
 .mk-dl__info {
   min-width: 0;
-  padding: 3px 0;
+  padding: 2px 0;
+}
+
+/* Área: o título fica fora da caixa, logo acima dela. */
+.mk-dl__bloco-area {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 /* Campo: rótulo e valor no tamanho do "Categoria de Manejo", numa linha só;
