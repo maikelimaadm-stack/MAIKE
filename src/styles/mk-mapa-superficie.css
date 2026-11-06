@@ -225,3 +225,7 @@ button[data-mk-map-action]:is([class*="bg-amber"], [class*="bg-yellow"]):not(#mk
 @media (max-width: 639px) {
   .mk-map-filter-sheet .mk-map-filter-header:not(#mk-padrao) { box-shadow: 0 -16px 0 var(--mk-sup-fundo); }
 }
+
+/* Tarefas/Filtros do mapa: apenas ícone; nome acessível preservado. */
+.mk-mapa-chip:not(#mk-padrao) { width: var(--mk-mapa-alto); min-width: var(--mk-mapa-alto); padding: 0; justify-content: center; }
+.mk-mapa-chip__txt { display: none; }

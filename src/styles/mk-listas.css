@@ -32,3 +32,34 @@
 .cadastro-b1 .mg-grid tbody td:not(#mk-padrao) {
   border-bottom: 1px solid var(--mk-list-divider);
 }
+
+/* Densidade única para listas de opções, filtros e configurações. */
+:root { --mk-list-row-height: 40px; }
+@media (min-width: 1024px) { :root { --mk-list-row-height: 36px; } }
+:is(.mgs__op, .fpc__item, .mk-co__item, .cmd-option, .mk-sel-op, .mk-ac-op, .mk-select-item, .mg-b1-menuitem, .mk-config-options .mg-b1-row, .mk-colcfg__row, .mk-config-dialog .dlin):not(#mk-padrao) {
+  min-height: var(--mk-list-row-height);
+  padding: 8px 10px;
+  border-radius: 0;
+  font-size: 14px;
+  line-height: 1.35;
+}
+:is(.mk-config-options .mg-b1-row__title, .mk-colcfg__row .mg-b1-row__title):not(#mk-padrao) { font-size: 14px; }
+:is(.mgs__lista, .fpc__lista, .mk-co__list, .mk-sel-lista, .mk-config-options, .mk-colcfg__lista):not(#mk-padrao) {
+  background: #fff;
+  border-radius: 14px;
+  padding: 0;
+  gap: 0;
+}
+/* A folha média já tem 8px de recorte: a lista aproveita a área restante.
+   Expandida, conserva apenas o pequeno respiro da própria folha. */
+.mk-sheet :is(.mgs__lista, .fpc__lista, .mk-co__list, .mk-colcfg__lista):not(#mk-padrao),
+.mg-col-menu-sheet .mk-sheet__body > [role="menu"]:not(#mk-padrao) {
+  margin: 4px 0 8px;
+}
+.mk-sheet :is(.mk-pill, .mgs__busca):not(#mk-padrao) { margin-left: 0; margin-right: 0; }
+.mk-config-body:not(#mk-padrao) { padding: 0 0 8px; gap: 8px; }
+@media (max-width: 639px) {
+  :root { --mk-filter-row-height: 40px; }
+  .b1ref .fpop .fvr:not(#mk-padrao) { font-size: 14px; }
+}
+:is(.mk-colcfg__row, .mk-config-dialog .dlin):not(#mk-padrao) { padding-top: 2px; padding-bottom: 2px; }

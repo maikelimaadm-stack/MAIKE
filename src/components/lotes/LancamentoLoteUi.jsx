@@ -299,6 +299,7 @@ export function LancLoteAviso({ tom = "neutro", children, ...props }) {
 export function LancLoteRodape(props) {
   const { onCancelar, textoAcao, enviando = false, textoEnviando, disabled = false, tipoAcao = "submit", onAcao, tom = "verde", cancelarDesabilitado = false } = props;
   const ctx = React.useContext(LancLoteCtx);
+  const rotuloAcao = enviando && textoEnviando ? textoEnviando : textoAcao;
   // Dentro do diálogo: a ação vai para o ✓ do cabeçalho (como no cadastro).
   const ultimo = React.useRef(props);
   ultimo.current = props;
@@ -319,17 +320,20 @@ export function LancLoteRodape(props) {
   if (ctx) return null;
   return (
     <div className="mk-ll__rodape">
-      <button type="button" className="mk-ll__btn mk-ll__btn--cinza" onClick={onCancelar} disabled={cancelarDesabilitado}>
-        Cancelar
+      <button type="button" className="mk-ll__btn mk-ll__btn--cinza mk-launch-action" onClick={onCancelar} disabled={cancelarDesabilitado} aria-label="Cancelar" title="Cancelar">
+        <X aria-hidden /><span className="mk-launch-action-label">Cancelar</span>
       </button>
       <button
         type={tipoAcao}
-        className={cn("mk-ll__btn", tom === "ambar" ? "mk-ll__btn--ambar" : "mk-ll__btn--verde")}
+        className={cn("mk-ll__btn mk-launch-action", tom === "ambar" ? "mk-ll__btn--ambar" : "mk-ll__btn--verde")}
         disabled={disabled || enviando}
         aria-busy={enviando || undefined}
+        aria-label={typeof rotuloAcao === "string" ? rotuloAcao : "Confirmar"}
+        title={typeof rotuloAcao === "string" ? rotuloAcao : undefined}
         onClick={onAcao}
       >
-        {enviando && textoEnviando ? textoEnviando : textoAcao}
+        {enviando ? <Loader2 className="animate-spin" aria-hidden /> : <Check aria-hidden />}
+        <span className="mk-launch-action-label">{enviando && textoEnviando ? textoEnviando : textoAcao}</span>
       </button>
     </div>
   );
