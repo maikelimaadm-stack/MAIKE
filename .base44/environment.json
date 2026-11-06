@@ -1,0 +1,13 @@
+{
+  "previewPort": 3000,
+  "healthPath": "/",
+  "startCommand": "docker compose -f docker-compose.base44.yml up -d",
+  "secrets": [
+    {
+      "name": "AUTH_SECRET",
+      "description": "JWT signing secret for the MAIKE backend. Generate with: node -e \"console.log(require('node:crypto').randomBytes(48).toString('base64url'))\"",
+      "requiredAtBoot": true,
+      "generatedForDevelopment": true
+    }
+  ]
+}

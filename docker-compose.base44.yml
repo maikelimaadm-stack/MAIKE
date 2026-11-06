@@ -1,0 +1,101 @@
+# Base44 development environment for MAIKE.
+# Runs the Vite frontend (port 3000), Fastify backend, and PostgreSQL.
+# Source is bind-mounted; edits hot-reload without image rebuilds.
+
+services:
+  db:
+    image: postgres:16.13-alpine
+    container_name: maike-db
+    restart: on-failure
+    environment:
+      POSTGRES_USER: maike
+      POSTGRES_PASSWORD: maike_dev
+      POSTGRES_DB: maike_dev
+    volumes:
+      - maike_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U maike -d maike_dev"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  install:
+    image: node:20-slim
+    working_dir: /workspace
+    volumes:
+      - .:/workspace
+      - node_modules:/workspace/node_modules
+    command: ["sh", "-ec", "npm ci && npx prisma generate --schema backend/prisma/schema.prisma"]
+
+  migrate:
+    image: node:20-slim
+    working_dir: /workspace
+    volumes:
+      - .:/workspace
+      - node_modules:/workspace/node_modules
+    command: ["sh", "-ec", "npx prisma migrate deploy --schema backend/prisma/schema.prisma"]
+    environment:
+      - DATABASE_URL=postgresql://maike:maike_dev@db:5432/maike_dev
+    depends_on:
+      install:
+        condition: service_completed_successfully
+      db:
+        condition: service_healthy
+
+  backend:
+    image: node:20-slim
+    working_dir: /workspace
+    restart: on-failure
+    volumes:
+      - .:/workspace
+      - node_modules:/workspace/node_modules
+    command: ["sh", "-ec", "exec node --watch backend/src/server.js"]
+    environment:
+      - DATABASE_URL=postgresql://maike:maike_dev@db:5432/maike_dev
+      - PORT=3333
+      - HOST=0.0.0.0
+      - FRONTEND_ORIGINS=https://3000-${BASE44_PUBLIC_HOST_SUFFIX}
+      - AUTH_TOKEN_TTL=8h
+      - AUTH_TOKEN_TTL_LEMBRAR=30d
+      - BASE44_PREVIEW_MODE
+    env_file:
+      - /run/base44/app.env
+    ports:
+      - "8000:3333"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:3333/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  web:
+    image: node:20-slim
+    working_dir: /workspace
+    restart: on-failure
+    volumes:
+      - .:/workspace
+      - node_modules:/workspace/node_modules
+    command: ["sh", "-ec", "exec npm run dev"]
+    environment:
+      - BASE44_PREVIEW_MODE
+      - __VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS
+    ports:
+      - "3000:5173"
+    depends_on:
+      install:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:5173/').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+volumes:
+  maike_pgdata:
+  node_modules:
