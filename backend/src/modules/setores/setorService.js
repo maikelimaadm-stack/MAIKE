@@ -295,7 +295,8 @@ export const atualizar = async (contexto, id, entrada) => {
     // um PATCH que reenvia o mesmo nome não deve varrer as áreas à toa.
     if (registro.nome !== anterior.nome) {
       await propagarNomeDoSetor(tx, auth.clienteId, id, registro.nome);
-      await propagarSetorNome(tx, auth.clienteId, anterior.nome, registro.nome);
+      // Tarefas pela área deste setor, nunca só pelo nome (REF-03, D-PROD-136).
+      await propagarSetorNome(tx, auth.clienteId, { setorId: id, nomeAntigo: anterior.nome, nomeNovo: registro.nome });
     }
 
     const publico = comoSetorPublico(registro);
