@@ -331,3 +331,9 @@
 :is(.mk-ll__btn, .mk-ll__add, .mk-ll__remover):not(#mk-padrao):active:not(:disabled) {
   background: var(--mk-btn-ativo);
 }
+
+/* Faixa de ações de novo/edição: cinza atrás dos botões brancos. */
+.mk-mhdr.mk-mhdr--edit:not(#mk-padrao),
+.mk-ll-dlg .mk-ll-dlg__head:not(#mk-padrao) {
+  background: var(--mk-sup-fundo);
+}
