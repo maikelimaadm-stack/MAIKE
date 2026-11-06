@@ -523,6 +523,18 @@ export default function CadastroListaChrome({
             ) : null}
           </div>
         </FluidSlot>
+        {showAttachControl && recordMode && recordEditing ? (
+          <IconBtn
+            aria-label="Anexos"
+            title={attachTitle}
+            disabled={!oneSelected || !onAttach}
+            onClick={() => onAttach?.()}
+            className="mg-act-extra"
+            data-testid="b1-attach"
+          >
+            <Paperclip className="h-4 w-4" aria-hidden />
+          </IconBtn>
+        ) : null}
         <FluidSlot open={Boolean(recordMode && recordEditing && recordToolbar)}>
           <div className="mg-fluid-slot__cluster">{recordToolbar}</div>
         </FluidSlot>
@@ -571,7 +583,7 @@ export default function CadastroListaChrome({
             </FluidSlot>
           ) : null}
           {!celular ? searchRow : null}
-          {showAttachControl ? (
+          {showAttachControl && !(recordMode && recordEditing) ? (
             <IconBtn
               aria-label="Anexos"
               title={attachTitle}
@@ -610,7 +622,7 @@ export default function CadastroListaChrome({
               </IconBtn>
             </FluidSlot>
           ) : null}
-          {showAttachControl ? (
+          {showAttachControl && !(recordMode && recordEditing) ? (
             <IconBtn
               aria-label="Anexos"
               title={attachTitle}

@@ -61,7 +61,8 @@ export default function CadastroColunaFiltro({
     const el = document.querySelector(ancora)?.closest("th");
     const b = el?.getBoundingClientRect() ?? ancoraReserva;
     if (!b) return;
-    const left = Math.max(8, Math.min(b.left, window.innerWidth - 262));
+    const largura = painel.current?.querySelector(".fpop")?.getBoundingClientRect().width || 252;
+    const left = Math.max(8, Math.min(b.left, window.innerWidth - largura - 8));
     const abaixo = window.innerHeight - b.bottom - 12;
     const acima = b.top - 12;
     setPos(

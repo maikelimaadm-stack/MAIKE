@@ -558,3 +558,127 @@
     justify-content: flex-start;
   }
 }
+
+/* Desktop: mesmos blocos brancos do mobile, com densidade de mouse. */
+@media (min-width: 640px) {
+  :is(.fpc--pop, .b1ref .fpop, .cadastro-b1.mg-b1-glass-pop, .cadastro-b1 .mg-pill-select-panel):not(#mk-padrao) {
+    background: var(--mk-sup-fundo);
+    border: 1px solid var(--mk-sup-borda);
+    border-radius: var(--mk-sup-raio);
+  }
+
+  .b1ref .fpop:not(.fpop--sheet):not(#mk-padrao) {
+    width: min(320px, calc(100vw - 16px));
+    padding: 8px;
+    gap: 6px;
+  }
+
+  .b1ref .fpop:not(.fpop--sheet) :is(.fcond, .fpop-busca, .ftodos):not(#mk-padrao) {
+    margin: 0;
+  }
+  .b1ref .fpop:not(.fpop--sheet) .fcond:not(#mk-padrao) { padding: 0; }
+
+  :is(.b1ref .fpop-l, .fpc--pop .fpc__lista, .cadastro-b1 .mg-pill-select-panel .cmd-panel-options):not(#mk-padrao) {
+    background: var(--mk-sup-cartao);
+    border: 0;
+    border-radius: 12px;
+    padding: 4px;
+    gap: 0;
+  }
+
+  .b1ref .ftodos:not(#mk-padrao) {
+    background: var(--mk-sup-cartao);
+    border: 0;
+    border-radius: 999px;
+  }
+
+  .b1ref .fpop-f:not(#mk-padrao) {
+    padding: 4px 0 0;
+    border: 0;
+    background: transparent;
+  }
+
+  :is(.fpop .mk-pill, .fpc .mk-pill, .mgs__busca, .fpop .fselb, .fpop .fin):not(#mk-padrao) {
+    background: var(--mk-sup-cartao);
+    border: 0;
+    box-shadow: var(--mk-btn-sombra);
+    border-radius: 999px;
+    height: 36px;
+    min-height: 36px;
+    font-size: 13px;
+  }
+
+  :is(.fpop .mk-pill, .fpc .mk-pill, .mgs__busca):focus-within:not(#mk-padrao) {
+    border: 0;
+    box-shadow: var(--mk-btn-sombra);
+  }
+
+  .fpc--pop .fpc__item:not(#mk-padrao),
+  .cadastro-b1 .mg-pill-select-panel .cmd-option:not(#mk-padrao) {
+    min-height: 36px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    font-size: 13px;
+    box-shadow: none;
+  }
+
+  .b1ref .fpop:not(.fpop--sheet) .pr:not(#mk-padrao) {
+    min-height: 36px;
+    height: 36px;
+    border-radius: 8px;
+    font-size: 13px;
+  }
+  .b1ref .fpop:not(.fpop--sheet) .pr > *:not(#mk-padrao) { height: 36px; }
+
+  :is(.fpc--pop .fpc__item, .b1ref .pr, .cadastro-b1 .cmd-option):not(#mk-padrao):hover:not(:disabled) {
+    background: var(--mk-btn-hover);
+  }
+}
+
+@media (min-width: 1024px) {
+  :is(.cadastro-b1, .b1ref, .mk-sheet, .mk-ll-dlg) {
+    --mk-ui-control-size: 36px;
+    --mk-ui-icon-size: 16px;
+    --mk-btn-sombra: 0 1px 3px rgba(0, 0, 0, 0.05), 0 2px 8px rgba(0, 0, 0, 0.025);
+  }
+
+  :is(.cadastro-b1, .b1ref, .mk-sheet, .mk-ll-dlg) :is(.tb-btn, .mk-sheet__close, .mk-sheet__new, .mk-ll-dlg__redondo, .mg-rec-pager__btn):not(#mk-padrao) {
+    height: var(--mk-ui-control-size) !important;
+    min-height: var(--mk-ui-control-size) !important;
+  }
+  :is(.cadastro-b1, .b1ref, .mk-sheet, .mk-ll-dlg) :is(.tb-btn-icon, .mk-sheet__close, .mk-sheet__new, .mk-ll-dlg__redondo, .mg-rec-pager__btn):not(#mk-padrao) {
+    width: var(--mk-ui-control-size) !important;
+    min-width: var(--mk-ui-control-size) !important;
+    padding: 0 !important;
+  }
+  :is(.cadastro-b1, .b1ref, .mk-sheet, .mk-ll-dlg) :is(.tb-btn, .mk-sheet__close, .mk-sheet__new, .mk-ll-dlg__redondo, .mg-rec-pager__btn):not(#mk-padrao) svg {
+    width: var(--mk-ui-icon-size) !important;
+    height: var(--mk-ui-icon-size) !important;
+    padding: 0;
+    flex-shrink: 0;
+    stroke-width: 1.65;
+  }
+}
+
+@media (min-width: 640px) {
+  .mk-select:not(#mk-padrao) {
+    background: var(--mk-sup-fundo);
+    border: 1px solid var(--mk-sup-borda);
+    border-radius: 14px;
+    padding: 6px;
+  }
+  .mk-select [data-radix-select-viewport]:not(#mk-padrao) {
+    background: var(--mk-sup-cartao);
+    border-radius: 10px;
+  }
+  .mk-select .mk-select-item:not(#mk-padrao) {
+    min-height: 36px;
+    font-size: 13px;
+    border-radius: 8px;
+  }
+  .mk-select .mk-select-item:not(#mk-padrao) svg {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+  }
+}
