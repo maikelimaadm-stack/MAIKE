@@ -18,10 +18,10 @@
   --mk-sup-raio: 14px;
   --mk-sup-sombra: 0 1px 2px rgba(15, 23, 42, 0.05);
   --mk-btn-bg: #ffffff;
-  --mk-btn-hover: #f8fafc;
+  --mk-btn-hover: var(--mk-sup-fundo, #f7f8fa);
   --mk-btn-ativo: #eef1f4;
   --mk-btn-sombra: 0 1px 3px rgba(15, 23, 42, 0.1);
-  --mk-chip-bg: #f1f3f4;
+  --mk-chip-bg: var(--mk-sup-fundo, #f7f8fa);
 }
 
 /* Tokens antigos apontando para os novos */
@@ -506,7 +506,7 @@
   .cadastro-b1,
   .mk-ll-dlg {
     --mk-btn-sombra: 0 1px 3px rgba(0, 0, 0, 0.05), 0 2px 8px rgba(0, 0, 0, 0.025);
-    --mk-btn-hover: #f7f7f8;
+    --mk-btn-hover: var(--mk-sup-fundo, #f7f8fa);
   }
 
   .cadastro-b1 .tb-btn:not(.tb-btn-green):not(.tb-btn-red):not(.is-filter-on):not(.is-filter-active):not(.is-active):not(#mk-padrao) {

@@ -8,7 +8,7 @@
   min-width: 0;
   padding: 8px;
   box-sizing: border-box;
-  background: #f0f2f5;
+  background: var(--mk-sup-fundo, #f7f8fa);
 }
 
 .cadastro-b1__page-title {
@@ -47,9 +47,9 @@
   --mg-text-1: #334155;
   --mg-text-2: #6b7280;
   --mg-text-3: #9ca3af;
-  --mg-bg-page: #f0f2f5;
+  --mg-bg-page: var(--mk-sup-fundo, #f7f8fa);
   --mg-bg-card: #ffffff;
-  --mg-gray-fill: #f1f3f4;
+  --mg-gray-fill: var(--mk-sup-fundo, #f7f8fa);
   --mg-gray-fill2: #e5e7eb;
   --mg-divider: #e7eaee;
   --mg-container-border: 1px solid #e7eaee;
@@ -799,7 +799,7 @@
 .cadastro-b1 .mg-grid tfoot td {
   position: sticky;
   bottom: 0;
-  background: #f8fafc;
+  background: var(--mk-sup-fundo, #f7f8fa);
   z-index: 3;
 }
 
