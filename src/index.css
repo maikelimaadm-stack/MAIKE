@@ -10,6 +10,7 @@
 @import "./styles/mk-configuracoes.css";
 @import "./styles/mk-toggles.css";
 @import "./styles/mk-listas.css";
+@import "./styles/mk-mapa-superficie.css";
 
 @tailwind base;
 @tailwind components;

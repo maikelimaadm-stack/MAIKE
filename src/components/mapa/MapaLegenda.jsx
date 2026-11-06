@@ -37,7 +37,7 @@ export default function MapaLegenda({ modoColoracao, categoriasGadoCores, tiposP
   if (items.length === 0) return null;
 
   return (
-    <div className="absolute bottom-20 md:bottom-16 left-3 z-10 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg max-w-[200px]">
+    <div className="mk-map-legend absolute bottom-20 md:bottom-16 left-3 z-10 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg max-w-[200px]">
       <button
         onClick={() => setCollapsed(c => !c)}
         className="w-full flex items-center justify-between px-3 py-1.5 text-[10px] font-bold text-slate-700 uppercase"

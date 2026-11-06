@@ -135,17 +135,17 @@ export default function MapaFiltrosAvancados({
   const availableLayers = camadasDoMapa({ showAreas, setShowAreas, showPontos, setShowPontos, showLinhas, setShowLinhas, showLotes, setShowLotes, showTarefas, setShowTarefas, showCochos, setShowCochos, showDepositos, setShowDepositos, showAlertas, setShowAlertas, showUserLocation, setShowUserLocation, showNomesAreas, setShowNomesAreas, showHectaresAreas, setShowHectaresAreas, permissions });
 
   return (
-    <div className="rounded space-y-1">
+    <div className="mk-map-filters rounded space-y-1">
       {/* ─── Camadas Visíveis ─── */}
       {availableLayers.length > 0 &&
       <>
-          <div className="space-y-0 px-1">
+          <div className="mk-map-filter-section space-y-0 px-1">
             <div className="space-y-0 px-1">
               <span className="text-xs font-bold text-slate-800 uppercase">Mostrar no mapa</span>
             </div>
             <div className="space-y-0">
               {availableLayers.map((item) =>
-            <label key={item.label} className="flex items-center justify-between gap-3 cursor-pointer hover:bg-slate-50 px-2 py-1.5 rounded-lg">
+            <label key={item.label} className="mk-map-layer-row flex items-center justify-between gap-3 cursor-pointer hover:bg-slate-50 px-2 py-1.5 rounded-lg">
                   <span className="text-xs font-medium text-slate-700">{item.label}</span>
                   {/* D-PROD-132: mesma chave liga/desliga dos cadastros e lançamentos */}
                   <ToggleSwitch checked={item.checked} onChange={() => item.onChange()} ariaLabel={item.label} />
@@ -159,7 +159,7 @@ export default function MapaFiltrosAvancados({
 
       {/* ─── Modo de Coloração das Áreas ─── */}
       {mostrarCores && permissions?.visualizar_areas !== false &&
-      <div>
+      <div className="mk-map-filter-section">
           <div className="mb-3">
             <span className="text-xs font-bold text-slate-800 uppercase">DEMARCAR ÁREAS POR</span>
           </div>
@@ -169,10 +169,11 @@ export default function MapaFiltrosAvancados({
             return (
               <Button
                 key={modo.id}
-                variant={ativo ? 'default' : 'outline'}
+                variant="outline"
+                aria-pressed={ativo}
                 size="sm"
                 onClick={() => setModoColoracao(modo.id)}
-                className={`h-8 text-[10px] justify-start ${ativo ? 'bg-emerald-600 hover:bg-emerald-700' : ''}`}>
+                className={`mk-map-color-button h-8 text-[10px] justify-start ${ativo ? 'bg-emerald-600 hover:bg-emerald-700' : ''}`}>
                 
                   <span className="truncate">{modo.label}</span>
                 </Button>);
@@ -205,7 +206,7 @@ export default function MapaFiltrosAvancados({
 
       {/* ─── Filtros de Áreas ─── */}
       {permissions?.visualizar_areas !== false &&
-      <div>
+      <div className="mk-map-filter-section">
           <div className="space-y-0 px-1">
             <span className="text-xs font-bold text-slate-800 uppercase">Filtros de Áreas</span>
           </div>
@@ -252,7 +253,7 @@ export default function MapaFiltrosAvancados({
 
       {/* ─── Filtros de Lotes ─── */}
       {permissions?.visualizar_lotes !== false &&
-      <div>
+      <div className="mk-map-filter-section">
           <div className="space-y-0 px-1">
             <span className="text-xs font-bold text-slate-800 uppercase">Filtros de Categorias de Manejo</span>
           </div>

@@ -7,7 +7,7 @@ import { canAccessPage } from "@/lib/permissions";
 import { MAPA_GERAL_ACESSO_TOTAL, normalizeMapaGeralPermissions } from "@/lib/mapaGeralPermissions";
 import { podeExcluirLancamentoBebedouro, podeLancarNoBebedouro } from "@/lib/bebedouroPermissions";
 import { Button } from "@/components/ui/button";
-import { BarChart3 } from "lucide-react";
+import { BarChart3, X } from "lucide-react";
 import { toast } from "sonner";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle } from
@@ -1125,7 +1125,7 @@ export default function MapaGeral() {
       <div className="w-full h-full relative">
         {/* `isolation: isolate` confina o z-index dos marcadores (até 10000) ao
             mapa: sem isso eles atravessavam janelas e pop-ups abertos por cima. */}
-        <div ref={mapRef} data-testid="mapa-geral-maplibre" style={{ height: '100%', width: '100%', backgroundColor: '#e5e7eb', touchAction: 'none', isolation: 'isolate' }} />
+        <div ref={mapRef} data-testid="mapa-geral-maplibre" style={{ height: '100%', width: '100%', backgroundColor: 'var(--mk-sup-fundo)', touchAction: 'none', isolation: 'isolate' }} />
 
         <BasemapAtribuicao atribuicao={basemap.atribuicao} status={basemap.status} mensagem={basemap.mensagem} onRetry={basemap.retry} />
 
@@ -1181,7 +1181,7 @@ export default function MapaGeral() {
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10 max-w-md bg-white px-6 py-4 rounded-lg shadow-2xl border border-amber-300">
             <div className="font-semibold text-slate-800 text-sm mb-1">Mapa indisponível</div>
             <p className="text-xs text-slate-600">{mapLoadError}</p>
-            <Button type="button" size="sm" className="mt-2 h-8 bg-emerald-600 hover:bg-emerald-700" onClick={retryMapa}>Tentar novamente</Button>
+            <Button data-mk-map-action="" type="button" size="sm" className="mt-2 h-8 bg-emerald-600 hover:bg-emerald-700" onClick={retryMapa}>Tentar novamente</Button>
           </div>
         }
 
@@ -1197,9 +1197,11 @@ export default function MapaGeral() {
 
       {/* ─── Sheet Filtros Avançados ─── */}
       <Sheet open={showFiltros} onOpenChange={setShowFiltros}>
-        <SheetContent side="left" className="bg-background pt-1 pr-1 pb-1 pl-1 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left fixed z-50 gap-1 shadow-lg transition ease-in-out data-[state=closed]:duration-300 data-[state=open]:duration-500 inset-y-0 left-0 h-full border-r sm:max-w-sm w-[300px] overflow-y-auto">
-          <SheetHeader>
+        <SheetContent side="left" className="mk-map-filter-sheet bg-background pt-1 pr-1 pb-1 pl-1 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left fixed z-50 gap-1 shadow-lg transition ease-in-out data-[state=closed]:duration-300 data-[state=open]:duration-500 inset-y-0 left-0 h-full border-r sm:max-w-sm w-[300px] overflow-y-auto">
+          <SheetHeader className="mk-map-filter-header">
+            <button type="button" className="mk-map-panel-close" aria-label="Fechar filtros" onClick={() => setShowFiltros(false)}><X size={16} aria-hidden /></button>
             <SheetTitle className="font-semibold text-foreground text-sm space-y-0 px-1">Filtros e Camadas</SheetTitle>
+            <span aria-hidden />
           </SheetHeader>
           <div className="mt-4">
             <MapaFiltrosAvancados
@@ -1243,21 +1245,21 @@ export default function MapaGeral() {
       </LancLoteDialogo>
 
       <Dialog open={showDetalhesArea} onOpenChange={setShowDetalhesArea}>
-        <DialogContent className="bg-background px-2 py-2 overflow-x-hidden sm:w-full sm:p-1 fixed left-[50%] top-[50%] z-50 grid w-full translate-x-[-50%] translate-y-[-50%] gap-2 border shadow-lg duration-200 sm:rounded-lg max-w-[95vw] md:max-w-[75vw] xl:max-w-[65vw] max-h-[95vh] overflow-y-auto">
+        <DialogContent className="mk-map-dialog bg-background px-2 py-2 overflow-x-hidden sm:w-full sm:p-1 fixed left-[50%] top-[50%] z-50 grid w-full translate-x-[-50%] translate-y-[-50%] gap-2 border shadow-lg duration-200 sm:rounded-lg max-w-[95vw] md:max-w-[75vw] xl:max-w-[65vw] max-h-[95vh] overflow-y-auto">
           <DialogHeader></DialogHeader>
           {selectedArea && <DetalhesArea area={selectedArea} permissions={mapaGeralPermissions} />}
         </DialogContent>
       </Dialog>
 
       <Dialog open={showDetalhesBebedouro} onOpenChange={setShowDetalhesBebedouro}>
-        <DialogContent className="overflow-x-hidden p-1 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:w-full sm:p-1 bg-background px-2 py-2 fixed left-[50%] top-[50%] z-50 grid w-full translate-x-[-50%] translate-y-[-50%] gap-4 border shadow-lg duration-200 sm:rounded-lg max-w-[95vw] md:max-w-[75vw] xl:max-w-[65vw] max-h-[95vh] overflow-y-auto">
+        <DialogContent className="mk-map-dialog overflow-x-hidden p-1 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:w-full sm:p-1 bg-background px-2 py-2 fixed left-[50%] top-[50%] z-50 grid w-full translate-x-[-50%] translate-y-[-50%] gap-4 border shadow-lg duration-200 sm:rounded-lg max-w-[95vw] md:max-w-[75vw] xl:max-w-[65vw] max-h-[95vh] overflow-y-auto">
           <DialogHeader className="flex flex-col space-y-1.5 text-center sm:text-left"><DialogTitle className="text-font-semibold leading-none tracking-tight">Bebedouro</DialogTitle></DialogHeader>
           {selectedBebedouro && <DetalhesBebedouro bebedouro={selectedBebedouro} podeLancar={podeLancarBebedouro} podeExcluir={podeExcluirBebedouro} />}
         </DialogContent>
       </Dialog>
 
       <Dialog open={showDetalhesPontoSupl} onOpenChange={(open) => {setShowDetalhesPontoSupl(open);if (!open) {refetchEventosSupl();refetchLotes();refetchPontosSupl();}}}>
-        <DialogContent className="overflow-x-hidden p-1 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:w-full sm:p-1 bg-background px-2 py-2 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] fixed left-[50%] top-[50%] z-50 grid w-full translate-x-[-50%] translate-y-[-50%] gap-4 border shadow-lg duration-200 sm:rounded-lg max-w-[95vw] md:max-w-[75vw] xl:max-w-[65vw] max-h-[95vh] overflow-y-auto">
+        <DialogContent className="mk-map-dialog overflow-x-hidden p-1 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:w-full sm:p-1 bg-background px-2 py-2 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] fixed left-[50%] top-[50%] z-50 grid w-full translate-x-[-50%] translate-y-[-50%] gap-4 border shadow-lg duration-200 sm:rounded-lg max-w-[95vw] md:max-w-[75vw] xl:max-w-[65vw] max-h-[95vh] overflow-y-auto">
           <DialogHeader className="flex flex-col space-y-1.5 text-center sm:text-left"><DialogTitle className="text-font-semibold leading-none tracking-tight">{selectedPontoSupl?.categoria_ponto === 'DEPOSITO' ? 'Depósito de Suplementação' : 'Ponto de Suplementação'}</DialogTitle></DialogHeader>
           {selectedPontoSupl && <DetalhesPontoSuplementacao ponto={selectedPontoSupl} permissions={mapaGeralPermissions} onClose={() => {setShowDetalhesPontoSupl(false);refetchEventosSupl();refetchLotes();refetchPontosSupl();}} />}
         </DialogContent>
@@ -1272,7 +1274,7 @@ export default function MapaGeral() {
       </LancLoteDialogo>
 
       <Dialog open={showInsights} onOpenChange={setShowInsights}>
-        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+        <DialogContent className="mk-map-dialog max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle className="flex items-center gap-2 text-sm"><BarChart3 className="w-4 h-4 text-emerald-600" /> Insights do Mapa</DialogTitle></DialogHeader>
           <MapaInsights lotes={lotesFiltrados} areas={areasFiltradas} eventosSupl={eventosSupl} pontosSuplementacao={pontosSuplementacaoDecorados} pontosReferencia={pontos} />
         </DialogContent>

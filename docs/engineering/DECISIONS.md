@@ -5279,4 +5279,11 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
 - **Substitui:** a geometria de cápsula e o efeito de vidro/escala das D-PROD-98, D-PROD-102 e D-PROD-103; não muda as regras das folhas.
 - **Implementação:** `src/styles/mk-toggles.css`, carregado após os estilos históricos. Sem mudança de persistência ou permissão.
 
-<!-- Próxima decisão: D-PROD-140 -->
+## D-PROD-140 — Superfície clara compartilhada com o Mapa Geral
+
+- **Contexto:** o proprietário aprovou o fundo mais claro e pediu que os controles do mapa e seus lançamentos seguissem o acabamento dos cadastros.
+- **Decisão:** fundo compartilhado `#F7F8FA`, cartões e ações brancos com sombra discreta, ícones de ação de 16 px e seleção distinguida pelo fundo. Os controles preservam área de toque de 44 px; desktop usa ações compactas de 36 px. Camadas, filtros, detalhes e ações dos lançamentos do mapa recebem o mesmo acabamento.
+- **Implementação:** `src/styles/mk-mapa-superficie.css`, após os estilos compartilhados. Mantém cores informativas de legendas, ocupação e alertas, créditos do mapa, regras de filtro, permissões e persistência.
+- **Validação:** componentes reais em Chromium local com dados de exemplo, em 1440, 768 e 390 px, incluindo alteração de visualização/camada e confirmação de lançamento. 72 testes relacionados passaram. Sem sessão autenticada de produção.
+
+<!-- Próxima decisão: D-PROD-141 -->

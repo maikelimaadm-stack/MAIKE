@@ -1,0 +1,145 @@
+/* Mapa Geral e seus painéis usam os mesmos tokens dos cadastros. */
+.mk-mapa {
+  --mk-mapa-alto: 44px;
+  --mk-mapa-texto: #292a2d;
+  background: var(--mk-sup-fundo);
+}
+@media (min-width: 1024px) { .mk-mapa { --mk-mapa-alto: 36px; } }
+.mk-mapa-card:not(#mk-padrao) {
+  background: #fff;
+  border: 0;
+  box-shadow: var(--mk-btn-sombra);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+:is(.mk-mapa-btn--solo, .mk-mapa-chip, .mk-mapa-pilha):not(#mk-padrao) { border-radius: 999px; }
+.mk-mapa-btn:not(#mk-padrao),
+.mk-mapa-btn.is-on:not(#mk-padrao),
+.mk-mapa-btn[aria-pressed="true"]:not(#mk-padrao),
+.mk-mapa-chip:not(#mk-padrao),
+.mk-mapa-camada.is-on:not(#mk-padrao) { color: #292a2d; }
+.mk-mapa-btn.is-on:not(#mk-padrao),
+.mk-mapa-btn[aria-pressed="true"]:not(#mk-padrao) { background: rgba(64, 222, 99, 0.14); }
+:is(.mk-mapa-btn, .mk-mapa-chip, .mk-mapa-camadas__x, .mk-al__botao, .mk-al__fechar, .mk-al__quadro):not(#mk-padrao) svg {
+  width: 16px;
+  height: 16px;
+  stroke-width: 1.65;
+  flex-shrink: 0;
+}
+.mk-mapa-camadas__menu:not(#mk-padrao),
+.mk-map-filter-sheet:not(#mk-padrao),
+.mk-map-dialog:not(#mk-padrao),
+:is(.mk-al__painel, .mk-al__folha):not(#mk-padrao) { background: var(--mk-sup-fundo); }
+.mk-mapa-camadas__opcoes:not(#mk-padrao) { background: #fff; padding: 8px; border-radius: 14px; }
+.mk-mapa-camadas__x:not(#mk-padrao) {
+  width: 36px;
+  height: 36px;
+  background: #fff;
+  box-shadow: var(--mk-btn-sombra);
+}
+.mk-map-filter-sheet:not(#mk-padrao) { width: min(360px, 100vw); padding: 12px; }
+.mk-map-filter-sheet > :first-child { min-height: 44px; justify-content: center; }
+.mk-map-filters:not(#mk-padrao) { display: flex; flex-direction: column; gap: 12px; }
+.mk-map-filter-section:not(#mk-padrao) { padding: 12px; border-radius: 14px; background: #fff; }
+.mk-map-filters .mk-map-layer-row:not(#mk-padrao) { min-height: 44px; padding: 8px 0; border-radius: 0; }
+.mk-map-layer-row + .mk-map-layer-row { border-top: 1px solid var(--mk-list-divider); }
+.mk-map-filters :is(label, .mk-map-layer-row > span):not(#mk-padrao) { font-size: 13px; }
+.mk-map-filters :is(input, button[role="combobox"]):not(#mk-padrao) {
+  min-height: var(--mk-search-height);
+  height: var(--mk-search-height);
+  border: 0;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: var(--mk-btn-sombra);
+  font-size: var(--mk-search-font);
+}
+.mk-map-filters :is(input, button[role="combobox"]):focus:not(#mk-padrao) { outline: none; box-shadow: var(--mk-btn-sombra); }
+.mk-map-color-button:not(#mk-padrao) {
+  min-height: var(--mk-search-height);
+  border: 0;
+  border-radius: 999px;
+  background: #fff;
+  color: #292a2d;
+  box-shadow: var(--mk-btn-sombra);
+  font-size: 12px;
+}
+.mk-map-color-button[aria-pressed="true"]:not(#mk-padrao) { background: rgba(64, 222, 99, 0.14); }
+
+/* Ações de detalhes e lançamentos: a cor semântica fica no texto/ícone. */
+button[data-mk-map-action]:not(#mk-padrao) {
+  min-height: 44px;
+  border: 0;
+  border-radius: 999px;
+  background: #fff !important;
+  color: #292a2d !important;
+  box-shadow: var(--mk-btn-sombra);
+  gap: 8px;
+}
+button[data-mk-map-action]:is([class*="bg-emerald"], [class*="bg-green"]):not(#mk-padrao) { color: #16a34a !important; }
+button[data-mk-map-action]:is([class*="bg-red"], .bg-destructive):not(#mk-padrao) { color: #dc2626 !important; }
+button[data-mk-map-action]:not(#mk-padrao) svg { width: 16px; height: 16px; stroke-width: 1.65; }
+:is(.mk-al__botao, .mk-al__fechar, .mk-al__quadro):not(#mk-padrao) { background: #fff; box-shadow: var(--mk-btn-sombra); border: 0; }
+.mk-al__botao:not(#mk-padrao) { min-height: 44px; border-radius: 999px; }
+.mk-al__quadro:not(#mk-padrao) { border-radius: 14px; }
+@media (min-width: 1024px) {
+  button[data-mk-map-action]:not(#mk-padrao),
+  .mk-al__botao:not(#mk-padrao) { min-height: 36px; }
+  .mk-al__fechar:not(#mk-padrao) { width: 36px; height: 36px; }
+}
+@media (hover: hover) and (pointer: fine) {
+  button[data-mk-map-action]:not(#mk-padrao):hover:not(:disabled),
+  .mk-al__botao:not(#mk-padrao):hover { background: var(--mk-btn-hover) !important; }
+}
+
+.mk-mapa { --mk-map-control-size: 44px; }
+@media (min-width: 1024px) { .mk-mapa { --mk-map-control-size: 36px; } }
+.mk-map-filter-sheet { --mk-map-control-size: 44px; }
+@media (min-width: 1024px) { .mk-map-filter-sheet { --mk-map-control-size: 36px; } }
+.mk-map-filter-sheet .mk-map-filter-header:not(#mk-padrao) {
+  display: grid;
+  grid-template-columns: var(--mk-map-control-size) minmax(0, 1fr) var(--mk-map-control-size);
+  align-items: center;
+  gap: 8px;
+}
+.mk-map-filter-header > :not(#mk-padrao) { margin: 0; }
+.mk-map-panel-close:not(#mk-padrao) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--mk-map-control-size);
+  height: var(--mk-map-control-size);
+  border: 0;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: var(--mk-btn-sombra);
+}
+.mk-map-panel-close svg { width: 16px; height: 16px; }
+.mk-vis__seg:not(#mk-padrao) { background: #fff; border-radius: 999px; box-shadow: var(--mk-btn-sombra); }
+.mk-vis__seg-op:not(#mk-padrao),
+.mk-vis__chip:not(#mk-padrao) {
+  height: var(--mk-map-control-size);
+  min-height: var(--mk-map-control-size);
+  border: 0;
+  border-radius: 999px;
+  background: #fff;
+  color: #292a2d;
+  font-size: 13px;
+}
+.mk-vis__seg-op[aria-pressed="true"]:not(#mk-padrao),
+.mk-vis__chip[aria-pressed="true"]:not(#mk-padrao) {
+  background: rgba(64, 222, 99, 0.14);
+  color: #292a2d;
+}
+.mk-vis__chip:not(#mk-padrao) { box-shadow: var(--mk-btn-sombra); padding: 0 12px; }
+.mk-vis__lista:not(#mk-padrao) { border: 0; border-radius: 14px; background: #fff; }
+.mk-vis__lista li + li { border-top-color: var(--mk-list-divider); }
+.mk-vis__linha:not(#mk-padrao) { min-height: 44px; }
+.mk-vis__linha-ic { width: 16px; height: 16px; }
+.mk-map-details:not(#mk-padrao) { background: var(--mk-sup-fundo); padding: 8px; }
+.mk-map-legend:not(#mk-padrao) { background: #fff; border-radius: 14px; box-shadow: var(--mk-btn-sombra); }
+.mk-map-legend > button { min-height: 36px; }
+.mk-map-legend > button svg { width: 16px; height: 16px; }
+.mk-mapa-pilha .mk-mapa-btn + .mk-mapa-btn { border-top-color: var(--mk-list-divider); }
+
+button[data-mk-map-action]:is([class*="text-red"], [class*="text-destructive"]):not(#mk-padrao) { color: #dc2626 !important; }
+button[data-mk-map-action]:is([class*="bg-amber"], [class*="bg-yellow"]):not(#mk-padrao) { color: #b45309 !important; }

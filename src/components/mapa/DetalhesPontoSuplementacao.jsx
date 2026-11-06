@@ -233,7 +233,7 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose, permissions
 
   if (loadingInicial) {
     return (
-      <div className="space-y-1" translate="no">
+      <div className="mk-map-details space-y-1" translate="no">
         <div className="rounded-lg border border-slate-200 bg-white p-4 flex items-center gap-3">
           <div className="animate-spin w-5 h-5 border-2 border-emerald-600 border-t-transparent rounded-full" />
           <span className="text-xs font-medium text-slate-700">Carregando detalhes do cocho...</span>
@@ -243,7 +243,7 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose, permissions
   }
 
   return (
-    <div className="space-y-1" translate="no">
+    <div className="mk-map-details space-y-1" translate="no">
       <div className="pb-1 border-b space-y-1">
         <div className="flex items-center gap-1 flex-wrap">
           <Badge variant="outline" className="bg-yellow-400 text-slate-950 px-2.5 py-0.5 text-xs font-semibold rounded-md inline-flex items-center border border-yellow-300">Local: {ponto.nome_ponto}</Badge>
@@ -251,8 +251,8 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose, permissions
       </div>
 
       <div className="grid grid-cols-2 gap-1">
-        {permissions.lancar_suplementacao !== false && <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowLancamento(true)}>Lançar</Button>}
-        {permissions.visualizar_historico_cocho !== false && <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowHistorico(true)}>Histórico</Button>}
+        {permissions.lancar_suplementacao !== false && <Button data-mk-map-action="" variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowLancamento(true)}>Lançar</Button>}
+        {permissions.visualizar_historico_cocho !== false && <Button data-mk-map-action="" variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowHistorico(true)}>Histórico</Button>}
       </div>
 
       {/* Saldo estimado no cocho */}
@@ -436,11 +436,11 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose, permissions
       </CardSection>
 
       <Dialog open={showLancamento} onOpenChange={setShowLancamento}>
-        <DialogContent className="max-w-[880px] max-h-[90vh] overflow-y-auto overflow-x-hidden"><FormularioLancamentoSuplementacao ponto={ponto} onCancel={() => {setShowLancamento(false);handleSaved();}} /></DialogContent>
+        <DialogContent className="mk-map-dialog max-w-[880px] max-h-[90vh] overflow-y-auto overflow-x-hidden"><FormularioLancamentoSuplementacao ponto={ponto} onCancel={() => {setShowLancamento(false);handleSaved();}} /></DialogContent>
       </Dialog>
 
       <Dialog open={showHistorico} onOpenChange={setShowHistorico}>
-        <DialogContent className="bg-background px-2 py-2 fixed left-[50%] top-[50%] z-50 grid w-full translate-x-[-50%] translate-y-[-50%] gap-4 border shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="mk-map-dialog bg-background px-2 py-2 fixed left-[50%] top-[50%] z-50 grid w-full translate-x-[-50%] translate-y-[-50%] gap-4 border shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg max-w-4xl max-h-[90vh] overflow-y-auto">
           <HistoricoSuplementacaoPonto pontoId={ponto.id} pontoNome={ponto.nome_ponto} ponto={ponto} />
         </DialogContent>
       </Dialog>
