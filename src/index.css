@@ -8,6 +8,7 @@
 @import "./styles/mk-superficie.css";
 @import "./styles/mk-filtros.css";
 @import "./styles/mk-configuracoes.css";
+@import "./styles/mk-toggles.css";
 
 @tailwind base;
 @tailwind components;

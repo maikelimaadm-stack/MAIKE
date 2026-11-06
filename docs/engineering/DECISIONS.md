@@ -5272,4 +5272,11 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
 - **Fora do escopo (R7):** as tabelas do Cadastro do Mapa (Áreas, Pontos, Linhas) e as listas de histórico não usam o motor Base1; migração em missão própria.
 - **Evidência:** `docs/engineering/evidencias/ux-mobile-v2/v26-*`; testes `tests/smoke/base1CardsSemPulo.test.jsx` (CAR-01/02).
 
-<!-- Próxima decisão: D-PROD-139 -->
+## D-PROD-139 — Chaves com bolinha redonda e movimento discreto
+
+- **Contexto:** o proprietário pediu proporção, tamanho e efeito próximos dos controles de aplicativos nativos nas chaves de ativação.
+- **Decisão:** B1Switch e ToggleSwitch compartilham trilho e bolinha redonda, branca e com sombra leve. Celular/tablet: 51×31 px; desktop: 44×26 px. A área de interação tem pelo menos 44 px de altura. Transição de 180 ms, pressão discreta sem sair do trilho e nenhuma animação quando o dispositivo pede movimento reduzido. Verde MAIKE ligado, cinza desligado; estados bloqueado e somente leitura continuam explícitos.
+- **Substitui:** a geometria de cápsula e o efeito de vidro/escala das D-PROD-98, D-PROD-102 e D-PROD-103; não muda as regras das folhas.
+- **Implementação:** `src/styles/mk-toggles.css`, carregado após os estilos históricos. Sem mudança de persistência ou permissão.
+
+<!-- Próxima decisão: D-PROD-140 -->
