@@ -126,7 +126,7 @@ describe('Editar Informação da posição — grava só o descritivo da posiç�
 
     const aDepois = await p.posicaoRebanho.findUnique({ where: { id: pa.id } });
     assert.equal(aDepois.nome, 'GRUPO A NOVO');
-    assert.equal(aDepois.identificador_nome, 'Brinco azul');
+    assert.equal(aDepois.identificador_nome, 'BRINCO AZUL', 'identificador em maiúsculas, como o Cadastro de Lotes');
     assert.equal(aDepois.identificador_sigla, 'BA');
     assert.equal(aDepois.identificador_cor, '#0d67ad');
     assert.equal(aDepois.quantidade_cabecas, 50);
@@ -146,6 +146,9 @@ describe('Editar Informação da posição — grava só o descritivo da posiç�
     assert.equal(doComando.length, 1);
     assert.equal(doComando[0].dados_anteriores.nome, 'LOTE A');
     assert.equal(doComando[0].dados_novos.nome, 'GRUPO A NOVO');
+    // antes e depois com as mesmas relações: o AuditLog não inventa mudança de área/entrada
+    assert.equal(doComando[0].dados_anteriores.area_atual_nome, 'PASTO A');
+    assert.equal(doComando[0].dados_anteriores.data_entrada, doComando[0].dados_novos.data_entrada);
     assert.ok(doComando[0].usuario_id, 'ator do auth_context');
 
     // novo GET devolve o valor gravado (o mapa relê daqui)
@@ -270,6 +273,26 @@ describe('Editar Informação da posição — corpo fechado, autorização, iso
       await exigirNada(c, () => editar(c, pa.id, { nome: 'X', [campo]: valor }), 400, 'REQUEST_VALIDATION_FAILED');
     });
   }
+
+  test('caractere de controle (NUL, TAB) ou surrogate isolado → 400 (não 500), nada gravado', async () => {
+    const c = await cenario();
+    const la = await entrada(c, { nome: 'LOTE A' });
+    const pa = await posicaoDe(c, la.id);
+    for (const corpo of [{ nome: 'A\u0000B' }, { identificador_cor: '\u0000' }, { identificador_nome: '\uD800' }, { identificador_sigla: 'A\tB' }]) {
+      await exigirNada(c, () => editar(c, pa.id, corpo), 400, 'REQUEST_VALIDATION_FAILED');
+    }
+  });
+
+  test('tamanho conta caracteres (como a coluna): 20 emojis cabem na sigla de 32', async () => {
+    const c = await cenario();
+    const la = await entrada(c, { nome: 'LOTE A' });
+    const pa = await posicaoDe(c, la.id);
+    const sigla = '🐂'.repeat(20);
+    const r = await editar(c, pa.id, { identificador_sigla: sigla });
+    assert.equal(r.statusCode, 200, r.body);
+    assert.equal((await prisma().posicaoRebanho.findUnique({ where: { id: pa.id } })).identificador_sigla, sigla);
+    await exigirNada(c, () => editar(c, pa.id, { identificador_sigla: '🐂'.repeat(33) }), 400);
+  });
 
   test('nome vazio ou só espaços → 400; corpo só com empresa → 400', async () => {
     const c = await cenario();

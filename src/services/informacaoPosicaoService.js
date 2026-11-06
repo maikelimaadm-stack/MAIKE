@@ -25,8 +25,14 @@ export const valoresDaPosicao = (posicao) => ({
   identificador_cor: posicao?.identificador_cor ?? '',
 });
 
+/** Identificador em maiúsculas, como o Cadastro de Lotes grava (o filtro e o selo do mapa comparam exato). */
+const MAIUSCULAS = new Set(['identificador_nome', 'identificador_sigla']);
+/** Tamanho em caracteres (code points), como o servidor e a coluna contam — não em unidades UTF-16. */
+const tamanho = (texto) => [...texto].length;
+
 const normal = (campo, valor) => {
-  const texto = typeof valor === 'string' ? valor.trim() : '';
+  const bruto = typeof valor === 'string' ? valor.trim() : '';
+  const texto = MAIUSCULAS.has(campo) ? bruto.toUpperCase() : bruto;
   if (campo === 'nome') return texto;
   return texto ? texto : null;
 };
@@ -41,10 +47,16 @@ export const corpoInformacaoPosicao = ({ posicao, valores, empresaId }) => {
   /** @type {Record<string, string|null>} */
   const mudancas = {};
   for (const campo of CAMPOS_INFORMACAO_POSICAO) {
+    // Campo que o usuário não mexeu não vai (nem normalizado): um identificador
+    // antigo em minúsculas não é regravado, e um valor longo já gravado não
+    // bloqueia a edição de outro campo.
+    const inicial = valoresDaPosicao(posicao)[campo];
+    if (String(valores[campo] ?? '').trim() === String(inicial ?? '').trim()) continue;
     const novo = normal(campo, valores[campo]);
-    if (novo && novo.length > LIMITES[campo]) return { corpo: null, erro: `Texto longo demais (máximo ${LIMITES[campo]} caracteres).` };
     const atual = campo === 'nome' ? (posicao?.nome ?? '') : (posicao?.[campo] ?? null);
-    if (novo !== atual) mudancas[campo] = novo;
+    if (novo === atual) continue;
+    if (novo && tamanho(novo) > LIMITES[campo]) return { corpo: null, erro: `Texto longo demais (máximo ${LIMITES[campo]} caracteres).` };
+    mudancas[campo] = novo;
   }
   if (!Object.keys(mudancas).length) return { corpo: null, erro: null };
   return { corpo: { empresa_id: empresaId, ...mudancas }, erro: null };

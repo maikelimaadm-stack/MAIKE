@@ -49,7 +49,7 @@ A identidade da posição (`chave_identidade` = origem + categoria + sexo + cate
 
 - **Backend** — `backend/tests/posicaoEditarInformacao.test.mjs` (PostgreSQL 16 local descartável, HTTP real, prova por persistência):
   - RED na main `4c530979`: 27 de 29 falham porque a rota não existe. Os 2 que passam são `cliente`/`cliente_id`, recusados pela barreira global em qualquer rota.
-  - GREEN: 29/29.
+  - GREEN: 31/31 (com os casos da revisão).
   - **Casos:**
     - posição A editada, posição B e `Lote` intactos;
     - nenhum evento, partida, peso ou movimentação novo;
@@ -72,7 +72,7 @@ A identidade da posição (`chave_identidade` = origem + categoria + sexo + cate
   - **Outros:** zero cabeças → 409 `POSICAO_REBANHO_VAZIA`; sem token → 401.
 - **UI** — `tests/smoke/editarInformacaoPosicao.test.jsx` (DetalhesLote e formulário REAIS; mocks só na borda):
   - RED na main: 8 de 10 falham. Os 2 que passam são controles: sem permissão o botão não aparece; no modo legado continua o formulário antigo.
-  - GREEN: 10/10.
+  - GREEN: 12/12 (com os casos da revisão).
   - **Casos:**
     - escolha do grupo com a área;
     - partes editável e somente leitura;
@@ -91,15 +91,29 @@ A identidade da posição (`chave_identidade` = origem + categoria + sexo + cate
 Evidências locais:
 - `scratchpad/l1-red.txt`, `l1-green.txt`, `l1-ui-red.txt`, `l1-ui-green.txt`, `l1-verify.txt`.
 
-## 5. Riscos residuais
+## 5. Revisão adversarial
+
+Dois revisores independentes (backend/segurança e UI/regressão), com um cético por achado tentando refutar com reprodução (PG descartável e vitest). Cinco achados confirmados, todos de severidade baixa e todos nos commits deste slice; todos corrigidos com teste:
+
+| Achado | Correção | Teste |
+|---|---|---|
+| NUL, TAB ou surrogate isolado → 500 em vez de 400 | `normalizar` recusa caractere de controle e texto mal formado (400) | backend › "caractere de controle..." |
+| Limite medido em unidades UTF-16 recusava valor que cabe na coluna (ex.: 20 emojis na sigla) | servidor confia no `maxLength` do schema (conta caracteres); tela mede em code points e só valida o campo alterado | backend › "tamanho conta caracteres"; UI › "valor longo já gravado..." |
+| AuditLog "antes" sem área e entrada (registrava mudança inexistente) | o "antes" é relido com as mesmas relações, sob o `FOR UPDATE` | backend › caso principal (antes e depois com a área) |
+| Identificador gravado em minúsculas, ao contrário do Cadastro (o filtro e o selo do mapa comparam exato) | identificador_nome/sigla em maiúsculas, no servidor e na tela; campo não mexido não é regravado | UI › "minúsculas vai em maiúsculas"; backend › caso principal |
+| Invalidar as consultas do mapa logo após salvar podia repor o IndexedDB antigo (< 60 s) | a posição devolvida atualiza as duas consultas do mapa (`mapa-lotes` e `mapa-cache/lotes`); quem relê do servidor é o refresh forçado do `atualizar-mapa` | UI › caso principal (IndexedDB antigo não sobrescreve) |
+
+## 6. Riscos residuais
 
 - **Cadastro sobrescreve o mapa:** renomear no Cadastro de Lotes sobrescreve o nome ou a identificação editados no mapa para todas as posições da entrada. É o comportamento de propagação já existente (`loteService`); está documentado e tem teste.
 - **Transferência leva o nome:** transferir para uma área sem a mesma identidade cria a posição de destino com o nome editado. Se a identidade já existe no destino, prevalece o nome do destino.
 - **Revogação em voo:** a permissão é conferida no preHandler, como nos demais comandos do ledger. Um pedido já em voo quando a permissão é revogada pode concluir. É o risco aceito da R2 §9.2.
 - **Sem controle de versão:** duas pessoas editando ao mesmo tempo → vale a última gravação, serializada pelo `FOR UPDATE`. O AuditLog guarda as duas.
 - **Só online:** sem conexão, a tela mostra que não foi possível confirmar; repetir é seguro.
+- **IndexedDB:** o cache local do mapa é regravado pelo refresh forçado; se esse refresh falhar, o mapa aberto já mostra o valor novo, mas uma reabertura offline antes do próximo refresh pode mostrar o antigo.
+- **TAB no nome:** agora é recusado (400), como nos anexos; antes do slice não havia este endpoint.
 
-## 6. Fora do escopo
+## 7. Fora do escopo
 
 - Não toca nos arquivos das PRs abertas #209 (`src/lib/maplibre/lifecycle.js`), #210 e #211 (`src/styles/mk-superficie.css`, `src/components/cadastro/base1/Base1Ui.jsx`).
 - Sem migration, sem escrita remota.

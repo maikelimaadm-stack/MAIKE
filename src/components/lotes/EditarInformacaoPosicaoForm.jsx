@@ -68,13 +68,13 @@ export default function EditarInformacaoPosicaoForm({ posicao, empresaSelecionad
       <fieldset className="mk-ll__grade" aria-label="Informações do grupo (editáveis)">
         <legend className="mk-ll__texto"><strong>Informações do grupo (editáveis)</strong></legend>
         <FL label="Nome do grupo" required>
-          <Input value={valores.nome} onChange={mudar("nome")} maxLength={255} className={LL_CTL} aria-label="Nome do grupo" />
+          <Input value={valores.nome} onChange={mudar("nome")} className={LL_CTL} aria-label="Nome do grupo" />
         </FL>
         <FL label="Identificador (nome)">
-          <Input value={valores.identificador_nome} onChange={mudar("identificador_nome")} maxLength={255} className={LL_CTL} aria-label="Identificador (nome)" />
+          <Input value={valores.identificador_nome} onChange={mudar("identificador_nome")} className={LL_CTL} aria-label="Identificador (nome)" />
         </FL>
         <FL label="Identificador (sigla)">
-          <Input value={valores.identificador_sigla} onChange={mudar("identificador_sigla")} maxLength={32} className={LL_CTL} aria-label="Identificador (sigla)" />
+          <Input value={valores.identificador_sigla} onChange={mudar("identificador_sigla")} className={LL_CTL} aria-label="Identificador (sigla)" />
         </FL>
         <FL label="Identificador (cor)">
           <B1Select value={valores.identificador_cor} onChange={mudar("identificador_cor")} className={LL_CTL} aria-label="Identificador (cor)">

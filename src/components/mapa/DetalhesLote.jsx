@@ -806,13 +806,16 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
               posicao={loteParaRenomear}
               empresaSelecionadaId={empresaSelecionadaId}
               onSalvo={(atualizada) => {
-                // A posição aparece já com os valores gravados (cache do mapa), e o
-                // mapa relê do servidor em seguida.
-                queryClient.setQueriesData({ queryKey: ['mapa-lotes'] }, (dados) =>
-                  Array.isArray(dados) ? dados.map((x) => (x?.id === atualizada?.id ? { ...x, ...atualizada } : x)) : dados);
+                // A posição aparece já com os valores gravados nas duas consultas que
+                // o mapa usa (Detalhes e MapaGeral). Sem invalidar essas duas aqui: o
+                // refetch não forçado (< 60 s) devolveria o IndexedDB antigo por cima.
+                // Quem relê do servidor é o 'atualizar-mapa' (refresh forçado, que
+                // também grava o IndexedDB).
+                const aplicar = (dados) =>
+                  Array.isArray(dados) ? dados.map((x) => (x?.id === atualizada?.id ? { ...x, ...atualizada } : x)) : dados;
+                queryClient.setQueriesData({ queryKey: ['mapa-lotes', empresaSelecionadaId] }, aplicar);
+                queryClient.setQueriesData({ queryKey: ['mapa-cache', 'lotes', empresaSelecionadaId] }, aplicar);
                 queryClient.invalidateQueries({ queryKey: ['lotes'] });
-                queryClient.invalidateQueries({ queryKey: ['mapa-lotes'] });
-                queryClient.invalidateQueries({ queryKey: ['mapa-cache', 'lotes'] });
                 window.dispatchEvent(new CustomEvent('atualizar-mapa', { detail: { cacheKeys: ['lotes'] } }));
                 setShowRenomear(false);
                 onClose();

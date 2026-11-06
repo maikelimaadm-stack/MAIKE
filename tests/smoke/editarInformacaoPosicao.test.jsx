@@ -75,6 +75,7 @@ let onClose;
 const renderizar = async (lotes, permissions = {}) => {
   client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   client.setQueryData(["mapa-lotes", "emp-1"], lotes);
+  client.setQueryData(["mapa-cache", "lotes", "emp-1", "default"], lotes);
   onClose = vi.fn();
   const utils = render(
     <QueryClientProvider client={client}>
@@ -116,7 +117,9 @@ describe("Editar Informação da posição (controle por posições)", () => {
       doServidor = doServidor.map((x) => (x.id === id ? { ...x, nome: corpo.nome, identificador_sigla: corpo.identificador_sigla } : x));
       return { alterados: ["nome", "identificador_sigla"], posicao: doServidor.find((x) => x.id === id) };
     });
-    cache.refreshMapaCacheEntry.mockImplementation(async () => doServidor);
+    // IndexedDB local ainda com o valor antigo (refresh não forçado < 60 s devolve isto).
+    cache.getMapaCachedData.mockImplementation(async () => [posicao("p1"), posicao("p2")]);
+    cache.refreshMapaCacheEntry.mockImplementation(async () => [posicao("p1"), posicao("p2")]);
     const eventos = [];
     const ouvir = (e) => eventos.push(e.detail);
     window.addEventListener("atualizar-mapa", ouvir);
@@ -144,10 +147,13 @@ describe("Editar Informação da posição (controle por posições)", () => {
     nenhumaEscritaDeManejoOuCadastro();
     // cache do mapa (inclusive depois do novo GET) mostra o valor gravado; p1 intacto
     await act(async () => { await new Promise((r) => setTimeout(r, 30)); });
-    expect(cache.refreshMapaCacheEntry).toHaveBeenCalledWith("lotes", "emp-1");
-    const noCache = client.getQueryData(["mapa-lotes", "emp-1"]);
-    expect(noCache.find((x) => x.id === "p2").nome).toBe("GRUPO NOVO");
-    expect(noCache.find((x) => x.id === "p1").nome).toBe("GRUPO p1");
+    for (const chave of [["mapa-lotes", "emp-1"], ["mapa-cache", "lotes", "emp-1", "default"]]) {
+      const noCache = client.getQueryData(chave);
+      expect(noCache.find((x) => x.id === "p2").nome, chave.join("/")).toBe("GRUPO NOVO");
+      expect(noCache.find((x) => x.id === "p1").nome, chave.join("/")).toBe("GRUPO p1");
+    }
+    // o IndexedDB antigo não sobrescreve o valor gravado (o mapa relê pelo refresh forçado do evento)
+    expect(doServidor.find((x) => x.id === "p2").nome).toBe("GRUPO NOVO");
     expect(eventos.some((d) => d?.cacheKeys?.includes("lotes"))).toBe(true);
     expect(onClose).toHaveBeenCalled();
     window.removeEventListener("atualizar-mapa", ouvir);
@@ -161,6 +167,24 @@ describe("Editar Informação da posição (controle por posições)", () => {
     await digitar("Identificador (nome)", "   ");
     await salvar();
     expect(servico.editarInformacaoPosicaoNoServidor).toHaveBeenCalledWith("p1", { empresa_id: "emp-1", identificador_nome: null });
+  });
+
+  it("identificador digitado em minúsculas vai em maiúsculas (como o Cadastro de Lotes)", async () => {
+    servico.editarInformacaoPosicaoNoServidor.mockResolvedValue({ alterados: ["identificador_sigla"], posicao: posicao("p1", { identificador_sigla: "AZ" }) });
+    await renderizar([posicao("p1")]);
+    await acao("Editar Informação");
+    await digitar("Identificador (sigla)", "az");
+    await salvar();
+    expect(servico.editarInformacaoPosicaoNoServidor).toHaveBeenCalledWith("p1", { empresa_id: "emp-1", identificador_sigla: "AZ" });
+  });
+
+  it("valor longo já gravado (20 emojis na sigla) não bloqueia editar o nome", async () => {
+    servico.editarInformacaoPosicaoNoServidor.mockResolvedValue({ alterados: ["nome"], posicao: posicao("p1") });
+    await renderizar([posicao("p1", { identificador_sigla: "🐂".repeat(20) })]);
+    await acao("Editar Informação");
+    await digitar("Nome do grupo", "NOVO NOME");
+    await salvar();
+    expect(servico.editarInformacaoPosicaoNoServidor).toHaveBeenCalledWith("p1", { empresa_id: "emp-1", nome: "NOVO NOME" });
   });
 
   it("sem mudança: não envia e avisa que nada foi gravado", async () => {

@@ -41,23 +41,33 @@ import { ativacaoDaEmpresa, comoPosicaoPublica, invalido, recusa, travarPosicoes
 /** Únicos campos que este comando grava. */
 export const CAMPOS_INFORMACAO_POSICAO = Object.freeze(['nome', 'identificador_nome', 'identificador_sigla', 'identificador_cor']);
 
-const LIMITES = Object.freeze({ nome: 255, identificador_nome: 255, identificador_sigla: 32, identificador_cor: 32 });
+/** Identificador em maiúsculas, como o Cadastro de Lotes grava: o filtro e o selo do mapa comparam exato. */
+const EM_MAIUSCULAS = new Set(['identificador_nome', 'identificador_sigla']);
+/** Controle (inclui NUL, que o PostgreSQL recusa em texto) — mesmo critério dos anexos. */
+const CONTROLE = /[\u0000-\u001F\u007F]/;
 
-/** Normaliza: texto aparado; nos opcionais, vazio vira null; o nome é obrigatório. */
+/**
+ * Normaliza: texto aparado; identificador em maiúsculas; nos opcionais, vazio
+ * vira null; o nome é obrigatório. O tamanho já vem conferido pelo schema da
+ * rota (maxLength conta caracteres, como a coluna VarChar).
+ */
 const normalizar = (entrada) => {
   /** @type {Record<string, string|null>} */
   const out = {};
   for (const campo of CAMPOS_INFORMACAO_POSICAO) {
     if (!Object.prototype.hasOwnProperty.call(entrada, campo)) continue;
     const bruto = entrada[campo];
-    const texto = typeof bruto === 'string' ? bruto.trim() : null;
+    if (typeof bruto === 'string' && (CONTROLE.test(bruto) || !bruto.isWellFormed())) {
+      throw invalido(`${campo} tem caractere inválido`, { field: campo, reason: 'caractere_invalido' });
+    }
+    const aparado = typeof bruto === 'string' ? bruto.trim() : null;
+    const texto = aparado && EM_MAIUSCULAS.has(campo) ? aparado.toUpperCase() : aparado;
     if (campo === 'nome') {
       if (!texto) throw invalido('o nome da posição não pode ficar vazio', { field: 'nome' });
       out.nome = texto;
     } else {
       out[campo] = texto ? texto : null;
     }
-    if (out[campo] && out[campo].length > LIMITES[campo]) throw invalido(`${campo} excede ${LIMITES[campo]} caracteres`, { field: campo });
   }
   return out;
 };
@@ -87,10 +97,10 @@ export const editarInformacaoPosicao = async (contexto, posicaoId, entrada) => {
     }
     const mudancas = Object.fromEntries(Object.entries(patch).filter(([campo, valor]) => (antes[campo] ?? null) !== valor));
     const incluir = { area: { select: { nome: true } }, loteEntrada: { select: { raca_predominante: true, sistema_produtivo: true, data_entrada: true } } };
-    if (!Object.keys(mudancas).length) {
-      const atual = await tx.posicaoRebanho.findUnique({ where: { cliente_id_id: { cliente_id: auth.clienteId, id: posicaoId } }, include: incluir });
-      return { alterados: [], posicao: comoPosicaoPublica(atual) };
-    }
+    // Snapshot "antes" com as mesmas relações do "depois" (já sob o FOR UPDATE):
+    // sem isso o AuditLog registraria área e entrada mudando de null para valor.
+    const atual = await tx.posicaoRebanho.findUnique({ where: { cliente_id_id: { cliente_id: auth.clienteId, id: posicaoId } }, include: incluir });
+    if (!Object.keys(mudancas).length) return { alterados: [], posicao: comoPosicaoPublica(atual) };
     const depois = await tx.posicaoRebanho.update({
       where: { cliente_id_id: { cliente_id: auth.clienteId, id: posicaoId } },
       data: mudancas,
@@ -102,7 +112,7 @@ export const editarInformacaoPosicao = async (contexto, posicaoId, entrada) => {
         acao: 'update',
         entidade: 'PosicaoRebanho',
         entidadeId: posicaoId,
-        dadosAnteriores: { ...comoPosicaoPublica(antes), campos_alterados: Object.keys(mudancas) },
+        dadosAnteriores: { ...comoPosicaoPublica(atual), campos_alterados: Object.keys(mudancas) },
         dadosNovos: { ...comoPosicaoPublica(depois), comando: 'editar_informacao_posicao' },
       },
       tx
