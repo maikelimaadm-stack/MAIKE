@@ -790,29 +790,19 @@
   min-width: 0;
 }
 
+/* Título do cartão (área e lote): texto simples dentro da caixa, sem pílula. */
 .mk-dl__nome {
   display: inline-flex;
   align-items: center;
   min-width: 0;
   max-width: 100%;
-  padding: 3px 10px;
-  border-radius: 999px;
-  background: var(--mg-accent, #40de63);
-  box-shadow: 0 1px 2px rgba(22, 101, 52, 0.18);
-  color: #fff;
-  font-size: 10.5px;
+  padding: 2px 0;
+  color: #1f2937;
+  font-size: 11.5px;
   font-weight: 700;
   letter-spacing: 0.01em;
   line-height: 1.25;
   overflow-wrap: anywhere;
-}
-
-.mk-dl__nome--area {
-  padding: 2px 0;
-  background: none;
-  box-shadow: none;
-  color: #1f2937;
-  font-size: 11.5px;
 }
 
 /* Sub-ícone do lote: só a imagem (ela já não tem fundo) */
