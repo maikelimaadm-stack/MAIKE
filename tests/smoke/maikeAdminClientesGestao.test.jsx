@@ -121,6 +121,84 @@ describe('cadastro', () => {
     expect(screen.queryByTestId('senha-unica')).toBeNull();
   });
 
+  it('rede cai depois do envio: aviso de resultado incerto, sem reenvio automático, verificação só por leitura', async () => {
+    const criado = cli({ id: 'cl0003', codigo: 'agro-tres', nome: 'Agro Três' });
+    let gravado = false;
+    let posts = 0;
+    const chamadas = servidor({
+      'GET /admin-maike/clientes': () => [200, pagina(gravado ? [criado] : [])],
+      'GET /admin-maike/clientes/cl0003': () => [200, ficha(criado)],
+      ...filhos('cl0003'),
+    });
+    const base = globalThis.fetch;
+    // O servidor GRAVA e a conexão cai antes da resposta: fetch rejeita.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url, init = {}) => {
+        if ((init.method || 'GET') === 'POST') {
+          posts += 1;
+          gravado = true;
+          throw new TypeError('Failed to fetch');
+        }
+        return base(url, init);
+      })
+    );
+    render(<Clientes />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Cadastrar cliente' }));
+    fireEvent.change(screen.getByLabelText('Nome do cliente'), { target: { value: 'Agro Três' } });
+    fireEvent.change(screen.getByLabelText('Nome do administrador'), { target: { value: 'Caio' } });
+    fireEvent.change(screen.getByLabelText(/^Login do administrador/), { target: { value: 'caio' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Cadastrar cliente e administrador' }));
+
+    const aviso = await screen.findByTestId('cadastro-incerto');
+    expect(aviso.textContent).toMatch(/pode ter sido concluído/);
+    expect(aviso.textContent).toMatch(/Não envie de novo/);
+    expect(screen.queryByRole('button', { name: 'Cadastrar cliente e administrador' })).toBeNull();
+    expect(screen.getByLabelText('Nome do cliente').value).toBe('Agro Três');
+    // Enter no formulário também não reenvia.
+    fireEvent.submit(screen.getByLabelText('Nome do cliente').closest('form'));
+    await new Promise((r) => setTimeout(r, 20));
+    expect(posts).toBe(1);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Verificar se o cliente foi criado' }));
+    await waitFor(() => expect(screen.getByTestId('cadastro-incerto').textContent).toMatch(/foi criado/));
+    const texto = screen.getByTestId('cadastro-incerto').textContent;
+    expect(texto).toMatch(/não pode ser mostrada de novo/);
+    expect(texto).not.toMatch(/recuperar a senha|nova senha foi/i);
+    expect(posts).toBe(1);
+    expect(chamadas.filter((c) => c.metodo === 'GET' && c.caminho === '/admin-maike/clientes').at(-1).url).toContain('q=agro-tres');
+    expect(screen.queryByTestId('senha-unica')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir ficha do cliente' }));
+    expect(await screen.findByTestId('ficha-cliente')).toBeTruthy();
+  });
+
+  it('rede cai e a verificação não encontra o código: libera o reenvio com o que foi digitado', async () => {
+    servidor({ 'GET /admin-maike/clientes': () => [200, pagina([])] });
+    const base = globalThis.fetch;
+    let posts = 0;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url, init = {}) => {
+        if ((init.method || 'GET') === 'POST') {
+          posts += 1;
+          throw new TypeError('Failed to fetch');
+        }
+        return base(url, init);
+      })
+    );
+    render(<Clientes />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Cadastrar cliente' }));
+    fireEvent.change(screen.getByLabelText('Nome do cliente'), { target: { value: 'Agro Quatro' } });
+    fireEvent.change(screen.getByLabelText('Nome do administrador'), { target: { value: 'Davi' } });
+    fireEvent.change(screen.getByLabelText(/^Login do administrador/), { target: { value: 'davi' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Cadastrar cliente e administrador' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Verificar se o cliente foi criado' }));
+    expect(await screen.findByText(/o cadastro não foi concluído/)).toBeTruthy();
+    expect(screen.getByLabelText(/^Login do administrador/).value).toBe('davi');
+    expect(screen.getByRole('button', { name: 'Cadastrar cliente e administrador' })).toBeTruthy();
+    expect(posts).toBe(1);
+  });
+
   it('sugerirCodigo remove acentos e símbolos', () => {
     expect(sugerirCodigo('  Fazenda São João! ')).toBe('fazenda-sao-joao');
     expect(sugerirCodigo('Agro & Cia. Ltda')).toBe('agro-cia-ltda');
@@ -157,6 +235,25 @@ describe('edição e situação', () => {
     await waitFor(() => expect(within(screen.getByTestId('lista-clientes')).getByText('Fazenda Um Nova')).toBeTruthy());
   });
 
+  it('edição concorrente (409): mensagem de recarregar, edição preservada, nada de sucesso', async () => {
+    const atual = cli();
+    servidor({
+      'GET /admin-maike/clientes': () => [200, pagina([atual])],
+      'GET /admin-maike/clientes/cl0001': () => [200, ficha(atual)],
+      ...filhos('cl0001'),
+      'PATCH /admin-maike/clientes/cl0001': () => [409, { code: 'ADMIN_CLIENTE_EDICAO_CONCORRENTE', message: 'concorrente' }],
+    });
+    render(<Clientes />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Ver ficha de Fazenda Um' }));
+    const painel = await screen.findByTestId('ficha-cliente');
+    fireEvent.click(await within(painel).findByRole('button', { name: 'Editar identificação' }));
+    fireEvent.change(within(painel).getByLabelText('Nome do cliente'), { target: { value: 'Nome Não Salvo' } });
+    fireEvent.click(within(painel).getByRole('button', { name: 'Salvar identificação' }));
+    expect((await within(painel).findByRole('alert')).textContent).toMatch(/alterado em outra sessão e nada foi salvo/);
+    expect(within(painel).getByLabelText('Nome do cliente').value).toBe('Nome Não Salvo');
+    expect(within(painel).queryByText('Identificação atualizada.')).toBeNull();
+  });
+
   it('suspensão exige justificativa, explica o efeito e reflete na ficha e na lista; reativação volta', async () => {
     let atual = cli();
     const chamadas = servidor({
@@ -173,6 +270,8 @@ describe('edição e situação', () => {
     const painel = await screen.findByTestId('ficha-cliente');
     fireEvent.click(await within(painel).findByRole('button', { name: 'Suspender cliente' }));
     expect(within(painel).getByText(/sessões abertas param na hora/)).toBeTruthy();
+    // Semântica real (GES-15): bloqueio enquanto suspenso, não revogação.
+    expect(within(painel).getByText(/não encerra as sessões/)).toBeTruthy();
     const confirmar = within(painel).getByRole('button', { name: 'Confirmar suspensão' });
     expect(confirmar.disabled).toBe(true);
     fireEvent.change(within(painel).getByLabelText(/Justificativa/), { target: { value: 'curta' } });

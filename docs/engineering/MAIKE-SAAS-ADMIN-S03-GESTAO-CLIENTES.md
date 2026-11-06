@@ -46,6 +46,7 @@ Regras de formato (validadas no servidor):
 |---|---|---|
 | `ADMIN_CLIENTE_CODIGO_DUPLICADO` | 409 | código já usado (checagem prévia ou unique `Cliente.codigo` em corrida) |
 | `ADMIN_LOGIN_DUPLICADO` | 409 | login já usado por **conta ativa de qualquer cliente**, inclusive suspenso. Vem do índice parcial `Usuario_login_ativo_global_key` (`lower(login) WHERE ativo`) |
+| `ADMIN_CLIENTE_EDICAO_CONCORRENTE` | 409 | (S03-R1) o cliente mudou em outra sessão entre a leitura e a escrita (`PATCH` ou `situacao`). Nada é gravado nem auditado; a tela pede para reabrir e revisar. Nunca é reexecutado automaticamente |
 | `ADMIN_ENTRADA_INVALIDA` | 422 | formato inválido, cliente inexistente (mesma resposta da S01), situação repetida |
 | `ADMIN_SESSAO_REQUIRED` / `ADMIN_PRINCIPAL_REQUIRED` / `ADMIN_MFA_REQUIRED` / `ADMIN_ORIGEM_RECUSADA` | 401/403 | anônimo, JWT de fazenda, pré-MFA, Origin ou CSRF |
 
@@ -58,7 +59,8 @@ As quatro leituras da S01 (`GET /clientes`, `/clientes/:id`, `/usuarios`, `/empr
 - **Armazenamento:** guardada só como **hash bcrypt**, pelo mesmo `gerarSenhaHash` de `authService` usado no cadastro de usuários.
 - **Onde aparece:** **uma única vez**, no corpo do `POST`, com `no-store`.
   - Nunca aparece em GET, auditoria, log, URL, aviso (toast) ou storage.
-  - Na interface, fica só no estado React do painel "Cliente cadastrado" e some ao confirmar "Já entreguei/guardei".
+  - Na interface, fica só no estado React do painel "Cliente cadastrado" e some **da tela** ao confirmar "Já entreguei/guardei".
+  - **Área de transferência:** se o proprietário usar "Copiar senha", ela fica na área de transferência do dispositivo, que está fora do controle do app, até ele copiar outra coisa. A interface avisa isso. Não afirmamos que a senha some "de todo lugar".
   - A captura de tela com a senha **não** foi versionada.
 - **Não existe troca obrigatória no primeiro login:**
   - o sistema não tem campo nem fluxo para isso;
@@ -83,11 +85,14 @@ As quatro leituras da S01 (`GET /clientes`, `/clientes/:id`, `/usuarios`, `/empr
 ### 3.4 Suspensão — efeito comprovado antes de liberar o botão
 - **Login novo:** `buscarUsuarioAtivoPorLogin` já filtra `cliente: { ativo: true }`, então cliente suspenso não entra.
 - **Tokens já emitidos:** `app.autenticar` (`backend/src/app.js`) relê **a cada requisição** `usuario.ativo` e `cliente.ativo` (PR145-G4). O JWT de um cliente suspenso recebe 401 na hora, sem esperar a expiração.
+- **É bloqueio TRANSITÓRIO, não revogação (S03-R1, GES-15):** o mesmo JWT dá 200 → suspender → 401 → reativar → **200 de novo**, sem novo login, enquanto não expirar (inclusive o TTL maior de "Manter conectado"). Suspender **bloqueia**; não **encerra** sessões. A tela diz isso nos dois sentidos.
+  - **Por que não foi corrigido aqui:** revogação permanente exige estado no banco (migration), fora do limite da S03. Lista em memória ou comparação por horário não serve: a Vercel roda várias instâncias.
+  - **Proposta (bloqueio para S04 / pré-produção):** coluna `sessao_epoca Int` em `Cliente` (e/ou `Usuario`), gravada no JWT no login e comparada em `app.autenticar` (que já lê as duas linhas a cada requisição, então o custo é zero). Suspender incrementa a época, e todo token anterior morre de vez.
 - **Sem outros caminhos:** não existe refresh token, e o único `jwtVerify` do backend é esse.
 - **Teste:** GES-08 prova token antigo 401, login novo 401, outro tenant intacto, empresa e usuários preservados, e reativação devolvendo o login.
 - **Sem efeito no domínio:** suspender só muda `Cliente.ativo`. Não altera `Usuario.ativo`, não apaga nada e não mexe em estoque, rebanho ou empresa.
 - **Logins continuam reservados:** os logins de um cliente suspenso continuam ocupando o índice global (contas ativas), então a reativação não colide com outro tenant.
-- **Concorrência:** a mudança é condicional (`updateMany where ativo = atual`), então duas suspensões simultâneas não geram dois eventos.
+- **Concorrência:** a mudança é condicional (`updateMany where ativo = atual`), então duas suspensões simultâneas não geram dois eventos. A perdedora recebe 409 `ADMIN_CLIENTE_EDICAO_CONCORRENTE` (antes era 422; GES-14).
 
 ### 3.5 Auditoria
 - **Tabela:** `EventoSegurancaAdminMaike` (já existe, é `productAdminModels`, sem migration). Ações: `cliente_criar`, `cliente_editar`, `cliente_suspender`, `cliente_reativar`.
@@ -97,7 +102,32 @@ As quatro leituras da S01 (`GET /clientes`, `/clientes/:id`, `/usuarios`, `/empr
   - `dados`: `cliente_id`, `antes`, `depois`, `justificativa`, `administrador.{id, login}`.
 - **Sem segredos:** nunca grava senha, hash ou dados da fazenda.
 - **Por que não `AuditLog`:** ele é tenant-scoped, e o ator é um `Usuario` da fazenda (FK composta). O proprietário não é usuário de fazenda, e forjar um ator ou instalar `auth_context` seria falso. O GES-02 prova que nenhum `AuditLog` é criado.
-- **Limitação conhecida:** sem `trustProxy` atrás da Vercel, o `ip` registrado sai como `127.0.0.1` (risco já registrado na S02).
+- **Limitação conhecida:** sem `trustProxy` atrás da Vercel, o `ip` registrado pode sair como loopback (`127.0.0.1`). **Não é IP de origem confiável** até a configuração de proxy ser endurecida e testada na infraestrutura real (pendência da S02).
+
+### 3.6 Concorrência da edição e auditoria (S03-R1)
+- **Problema:** `findUnique → update → auditoria` numa transação READ COMMITTED deixava duas edições lerem o mesmo estado e gravarem as duas. O segundo evento registrava um `antes` que já não era o estado real. O RED do GES-11 mostrou dois 200 e dois eventos com o mesmo `antes`.
+- **Correção (sem schema):** CAS no próprio `UPDATE`: `updateMany where { id, nome, codigo, updatedAt }` com os valores lidos.
+  - Com o lock da linha, o Postgres reavalia o `WHERE` na versão nova, e quem perde recebe `count = 0` → 409, com rollback e sem evento.
+  - Logo, o `antes` auditado é o estado imediatamente anterior àquela escrita.
+  - `updatedAt` (`@updatedAt`, avançado pelo Prisma em `update`/`updateMany`) entra no CAS para pegar mudanças de `ativo` ou ABA de nome/código.
+  - P2034 (conflito/deadlock do banco) também vira 409. P2002 de código segue `ADMIN_CLIENTE_CODIGO_DUPLICADO`.
+  - Sem fila em memória e sem retry automático.
+- **Provas** (barreira determinística: uma transação à parte segura a linha com `FOR UPDATE`, e as edições só seguem quando o `pg_stat_activity` mostra todas esperando lock):
+  - **GES-11:** duas edições (nome×nome e código×nome) → `[200, 409]`, um evento, `antes` = original, `depois` = linha persistida, vizinho intacto;
+  - **GES-12:** escrita externa confirmada entre a leitura e o UPDATE → 409, nada gravado, zero eventos; a edição seguinte audita o `antes` real;
+  - **GES-13:** dois clientes disputando o mesmo código novo → `[200, 409 CODIGO_DUPLICADO]`, um evento;
+  - **GES-14:** duas suspensões → `[200, 409]`, um evento.
+
+### 3.7 Resposta do cadastro perdida depois do COMMIT (S03-R1)
+- **Risco:** o banco pode confirmar o cadastro e a conexão cair antes da resposta. Nesse caso cliente e administrador existem, a senha nunca chegou e reenviar daria 409. Não há idempotência no `POST`.
+- **Mitigação honesta, na tela:**
+  - **Quando conta como incerto:** falha de rede/timeout (fetch rejeita), 502/503/504, ou 5xx sem o corpo de erro do backend (`resultadoIncerto` em `api.js`).
+  - **O que a tela faz:** aviso "o cadastro pode ter sido concluído, não envie de novo antes de verificar". O botão de cadastrar **some** (o Enter também não reenvia) e dá lugar a **"Verificar se o cliente foi criado"**, que é só leitura (`GET /clientes?q=<código>`).
+  - **Se o cliente existe:** a tela diz que a senha **não pode ser mostrada de novo**, que não se deve cadastrar outra vez, e que a recuperação fica para a próxima etapa. Oferece "Abrir ficha".
+  - **Se não existe:** libera o reenvio com o que foi digitado.
+  - **O que não faz:** retry automático, guardar a senha no navegador ou prometer recuperação.
+  - **Erros conhecidos** (400/409/422) continuam recuperáveis como antes.
+- **Limitação operacional:** um cliente nessa situação fica sem senha conhecida até existir **recuperação/reset da credencial inicial (S04)**. **Não liberar onboarding de produção sem ela.**
 
 ## 4. Interface (`apps/admin/src/telas/Clientes.jsx`)
 
@@ -143,6 +173,7 @@ Nada do catálogo foi movido ou duplicado nesta missão.
 
 ## 8. Evidências
 
+- **S03-R1:** GES-11..15 (backend) e 3 testes novos de tela. RED com o código anterior: GES-11, GES-12 e GES-14 falharam (dois 200; 200 em vez de 409); GES-13 e GES-15 já passavam (o comportamento existia e agora está provado). Os 3 testes de tela novos falharam, e o de suspensão também, pelo texto. GREEN: 15/15 e 8/8.
 - **Testes de backend** (PostgreSQL local descartável): `backend/tests/adminClientesGestao.test.mjs`, GES-01..10.
   - **RED no `main`:** 0/10, com rotas inexistentes (esperado 401/201, veio 404).
   - **GREEN na branch:** 10/10.
@@ -157,3 +188,8 @@ Nada do catálogo foi movido ou duplicado nesta missão.
   - a senha some da tela depois de fechar, e não aparece em URL nem em storage;
   - celular sem rolagem horizontal.
   - Capturas em `docs/engineering/evidencias/admin-s03/` (sem a da senha).
+- **E2E S03-R1** (mesmo roteiro, tela nova):
+  - **mesmo JWT após reativar: 200** (bloqueio transitório confirmado no navegador real);
+  - **resposta cortada depois do commit** (`route.fetch()` seguido de `abort('connectionreset')`): 1 único POST, aviso de resultado incerto, botão de cadastrar ausente, a verificação encontra o cliente e diz que a senha não pode ser mostrada de novo;
+  - suspensão em 390 px sem rolagem horizontal.
+  - Capturas novas: `s03-6-cadastro-incerto.png`, `s03-7-cadastro-incerto-verificado.png`, `s03-8-mobile-suspender.png`. As anteriores foram regeradas com os textos novos. Nenhuma mostra senha; a do painel de senha é gerada só no scratchpad e apagada.

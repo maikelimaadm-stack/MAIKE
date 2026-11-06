@@ -413,6 +413,7 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   // MAIKE-SAAS-ADMIN-S03 — gestão de clientes pelo MAIKE Admin.
   ADMIN_CLIENTE_CODIGO_DUPLICADO: { http: 409, meaning: 'já existe cliente com este código' },
   ADMIN_LOGIN_DUPLICADO: { http: 409, meaning: 'login já usado por uma conta ativa (em qualquer cliente)' },
+  ADMIN_CLIENTE_EDICAO_CONCORRENTE: { http: 409, meaning: 'cliente alterado em outra sessão entre a leitura e a escrita; nada foi gravado' },
   CATALOGO_ASSET_INVALID: {
     http: 400,
     meaning: 'asset visual reprovado (mime, tamanho ou conteúdo)',

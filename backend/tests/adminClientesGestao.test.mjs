@@ -291,3 +291,138 @@ describe('edição e situação', () => {
     assert.equal(ev.admin_id, admin.id);
   });
 });
+
+/**
+ * S03-R1 — concorrência e semântica de token.
+ *
+ * Barreira determinística: uma transação à parte segura a linha do cliente
+ * (`SELECT … FOR UPDATE`). As duas edições leem (leitura simples não espera
+ * lock), param no UPDATE e só seguem quando o `pg_stat_activity` mostra AS
+ * DUAS esperando lock. Assim ambas leram o mesmo estado antes de qualquer
+ * escrita — exatamente a janela em que o `antes` da auditoria podia mentir.
+ */
+const esperarBloqueadas = async (n) => {
+  for (let i = 0; i < 400; i += 1) {
+    const [{ qtd }] = await prisma().$queryRaw`SELECT count(*)::int AS qtd FROM pg_stat_activity WHERE datname = current_database() AND wait_event_type = 'Lock'`;
+    if (qtd >= n) return;
+    await new Promise((r) => setTimeout(r, 10));
+  }
+  throw new Error(`esperava ${n} transações aguardando lock`);
+};
+
+/** Segura a linha, dispara `disparar()` e solta só depois de `n` esperas; `alterar` roda dentro da trava. */
+const comLinhaPresa = async (id, n, disparar, alterar) => {
+  let pedidos;
+  await prisma().$transaction(
+    async (tx) => {
+      await tx.$queryRaw`SELECT id FROM "Cliente" WHERE id = ${id} FOR UPDATE`;
+      pedidos = disparar();
+      await esperarBloqueadas(n);
+      if (alterar) await alterar(tx);
+    },
+    { timeout: 15000 }
+  );
+  return Promise.all(pedidos);
+};
+
+describe('S03-R1 concorrência da edição e auditoria', () => {
+  test('GES-11 duas edições do mesmo cliente lidas no mesmo estado: uma grava, a outra 409 sem evento; auditoria = estados persistidos', async () => {
+    for (const [pa, pb] of [
+      [{ nome: 'Nome da Sessão A' }, { nome: 'Nome da Sessão B' }],
+      [{ codigo: 'codigo-sessao-a' }, { nome: 'Nome da Sessão B' }],
+    ]) {
+      await limparBanco();
+      zerarLimitadorAdmin();
+      const alvo = await criarTenant({ codigo: 'fazenda-disputada' });
+      const vizinho = await criarTenant({ codigo: 'fazenda-vizinha' });
+      const { headers } = await criarAdminComSessao(app);
+      const url = `/admin-maike/clientes/${alvo.cliente.id}`;
+      const original = await prisma().cliente.findUnique({ where: { id: alvo.cliente.id } });
+
+      const [ra, rb] = await comLinhaPresa(alvo.cliente.id, 2, () => [enviar('PATCH', url, headers, pa), enviar('PATCH', url, headers, pb)]);
+      const status = [ra.statusCode, rb.statusCode].sort();
+      assert.deepEqual(status, [200, 409], `${ra.body} | ${rb.body}`);
+      const perdedor = ra.statusCode === 409 ? ra : rb;
+      const vencedor = ra.statusCode === 200 ? ra : rb;
+      assert.equal(perdedor.json().code, 'ADMIN_CLIENTE_EDICAO_CONCORRENTE');
+
+      const final = await prisma().cliente.findUnique({ where: { id: alvo.cliente.id } });
+      assert.equal(final.nome, vencedor.json().cliente.nome);
+      assert.equal(final.codigo, vencedor.json().cliente.codigo);
+      const ev = await prisma().eventoSegurancaAdminMaike.findMany({ where: { acao: 'cliente_editar' } });
+      assert.equal(ev.length, 1, 'quem perdeu não audita sucesso');
+      assert.deepEqual(ev[0].dados.antes, { nome: original.nome, codigo: original.codigo });
+      assert.deepEqual(ev[0].dados.depois, { nome: final.nome, codigo: final.codigo });
+      const v = await prisma().cliente.findUnique({ where: { id: vizinho.cliente.id } });
+      assert.equal(v.nome, vizinho.cliente.nome);
+      assert.equal(v.codigo, 'fazenda-vizinha');
+    }
+  });
+
+  test('GES-12 edição lida antes de outra escrita já confirmada é recusada (409), sem evento; a seguinte audita o antes real', async () => {
+    const alvo = await criarTenant({ codigo: 'fazenda-alterada' });
+    const { headers } = await criarAdminComSessao(app);
+    const url = `/admin-maike/clientes/${alvo.cliente.id}`;
+    // A edição lê, espera a trava; dentro da trava outra escrita muda o nome (e o updatedAt).
+    const [r] = await comLinhaPresa(
+      alvo.cliente.id,
+      1,
+      () => [enviar('PATCH', url, headers, { codigo: 'codigo-defasado' })],
+      (tx) => tx.$executeRaw`UPDATE "Cliente" SET nome = 'Mudado por fora', "updatedAt" = now() WHERE id = ${alvo.cliente.id}`
+    );
+    assert.equal(r.statusCode, 409, r.body);
+    assert.equal(r.json().code, 'ADMIN_CLIENTE_EDICAO_CONCORRENTE');
+    let atual = await prisma().cliente.findUnique({ where: { id: alvo.cliente.id } });
+    assert.equal(atual.codigo, 'fazenda-alterada', 'nada gravado pela edição defasada');
+    assert.equal(await prisma().eventoSegurancaAdminMaike.count({ where: { acao: 'cliente_editar' } }), 0);
+
+    const ok = await enviar('PATCH', url, headers, { codigo: 'codigo-revisado' });
+    assert.equal(ok.statusCode, 200, ok.body);
+    atual = await prisma().cliente.findUnique({ where: { id: alvo.cliente.id } });
+    const [ev] = await prisma().eventoSegurancaAdminMaike.findMany({ where: { acao: 'cliente_editar' } });
+    assert.deepEqual(ev.dados.antes, { nome: 'Mudado por fora', codigo: 'fazenda-alterada' });
+    assert.deepEqual(ev.dados.depois, { nome: 'Mudado por fora', codigo: 'codigo-revisado' });
+    assert.ok(atual.updatedAt > alvo.cliente.updatedAt, 'updatedAt avança a cada escrita');
+  });
+
+  test('GES-13 dois clientes disputando o mesmo código novo: um 200, outro 409 CODIGO_DUPLICADO, um único evento', async () => {
+    const a = await criarTenant({ codigo: 'fazenda-um' });
+    const b = await criarTenant({ codigo: 'fazenda-dois' });
+    const { headers } = await criarAdminComSessao(app);
+    const rs = await Promise.all([a, b].map((t) => enviar('PATCH', `/admin-maike/clientes/${t.cliente.id}`, headers, { codigo: 'codigo-cobicado' })));
+    assert.deepEqual(rs.map((r) => r.statusCode).sort(), [200, 409]);
+    assert.equal(rs.find((r) => r.statusCode === 409).json().code, 'ADMIN_CLIENTE_CODIGO_DUPLICADO');
+    assert.equal(await prisma().cliente.count({ where: { codigo: 'codigo-cobicado' } }), 1);
+    const ev = await prisma().eventoSegurancaAdminMaike.findMany({ where: { acao: 'cliente_editar' } });
+    assert.equal(ev.length, 1);
+    assert.equal(ev[0].dados.depois.codigo, 'codigo-cobicado');
+  });
+
+  test('GES-14 suspensões simultâneas: uma grava, a outra recusa; um único evento de suspensão', async () => {
+    const alvo = await criarTenant({ codigo: 'fazenda-dupla-suspensao' });
+    const { headers } = await criarAdminComSessao(app);
+    const url = `/admin-maike/clientes/${alvo.cliente.id}/situacao`;
+    const corpo = { ativo: false, justificativa: 'suspensão disparada duas vezes' };
+    const rs = await comLinhaPresa(alvo.cliente.id, 2, () => [enviar('POST', url, headers, corpo), enviar('POST', url, headers, corpo)]);
+    assert.deepEqual(rs.map((r) => r.statusCode).sort(), [200, 409], rs.map((r) => r.body).join(' | '));
+    assert.equal(rs.find((r) => r.statusCode === 409).json().code, 'ADMIN_CLIENTE_EDICAO_CONCORRENTE');
+    assert.equal(await prisma().eventoSegurancaAdminMaike.count({ where: { acao: 'cliente_suspender' } }), 1);
+  });
+});
+
+describe('S03-R1 semântica do token de fazenda na suspensão', () => {
+  test('GES-15 mesmo JWT: 200 → suspender → 401 → reativar → 200 (bloqueio TRANSITÓRIO, não revogação)', async () => {
+    const t = await criarTenant({ codigo: 'fazenda-token' });
+    const { headers } = await criarAdminComSessao(app);
+    const tokenA = (await autenticarNoApp(app, t.credenciais)).corpo.token;
+    const ctx = () => app.inject({ method: 'GET', url: '/auth/contexto', headers: { authorization: `Bearer ${tokenA}` } });
+    const url = `/admin-maike/clientes/${t.cliente.id}/situacao`;
+    assert.equal((await ctx()).statusCode, 200);
+    assert.equal((await enviar('POST', url, headers, { ativo: false, justificativa: 'teste de semântica do token' })).statusCode, 200);
+    assert.equal((await ctx()).statusCode, 401, 'enquanto suspenso, o token antigo é recusado');
+    assert.equal((await enviar('POST', url, headers, { ativo: true, justificativa: 'teste de semântica do token' })).statusCode, 200);
+    // Comportamento REAL registrado: sem versão de sessão no banco, o mesmo
+    // token volta a valer enquanto não expira. Revogação permanente = S04.
+    assert.equal((await ctx()).statusCode, 200, 'mesmo token, sem novo login, volta a funcionar após reativar');
+  });
+});

@@ -8,7 +8,7 @@
  * cliente": o MAIKE Admin não abre sessão de fazenda.
  */
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { api, mensagemDeErro } from '../api.js';
+import { api, mensagemDeErro, resultadoIncerto } from '../api.js';
 import { Aviso, Botao, Campo, Carregando, IdCurto } from '../componentes.jsx';
 
 const data = (iso) => (iso ? new Date(iso).toLocaleDateString('pt-BR') : '—');
@@ -109,7 +109,8 @@ function SenhaUnica({ resultado, onConcluir }) {
       <h2 id="titulo-senha">Cliente {resultado.cliente.nome} cadastrado</h2>
       <Aviso tipo="aviso">
         Esta é a única vez que a senha inicial aparece. Copie e entregue ao administrador por um canal seguro (pessoalmente ou mensagem
-        direta). Ainda não existe troca obrigatória no primeiro acesso: peça para ele trocar a senha em Usuários logo ao entrar.
+        direta). Ainda não existe troca obrigatória no primeiro acesso: peça para ele trocar a senha em Usuários logo ao entrar. Se usar
+        &quot;Copiar senha&quot;, ela continua na área de transferência deste dispositivo até você copiar outra coisa.
       </Aviso>
       <dl className="ficha-dados">
         <div>
@@ -142,18 +143,43 @@ function NovoCliente({ onCriado, onCancelar }) {
   const [erro, setErro] = useState('');
   const [ocupado, setOcupado] = useState(false);
   const [resultado, setResultado] = useState(null);
+  // Resultado incerto: o pedido saiu, mas a resposta não chegou (rede, timeout,
+  // gateway). O servidor pode ter gravado. Até verificar, NÃO há novo envio.
+  const [incerto, setIncerto] = useState(null);
+  const [verificacao, setVerificacao] = useState(null);
 
   const enviar = async (e) => {
     e.preventDefault();
-    if (ocupado) return;
+    if (ocupado || incerto) return;
     setErro('');
+    setVerificacao(null);
     setOcupado(true);
+    const pedido = { nome: nome.trim(), codigo: codigo.trim(), administrador: { nome: adminNome.trim(), login: adminLogin.trim() } };
     try {
-      setResultado(
-        await api.criarCliente({ nome: nome.trim(), codigo: codigo.trim(), administrador: { nome: adminNome.trim(), login: adminLogin.trim() } })
-      );
+      setResultado(await api.criarCliente(pedido));
     } catch (falha) {
-      setErro(mensagemDeErro(falha));
+      if (resultadoIncerto(falha)) setIncerto({ codigo: pedido.codigo.toLowerCase() });
+      else setErro(mensagemDeErro(falha));
+    } finally {
+      setOcupado(false);
+    }
+  };
+
+  /** Só leitura: procura o código na lista. Nunca reenvia o cadastro. */
+  const verificar = async () => {
+    if (ocupado || !incerto) return;
+    setOcupado(true);
+    setVerificacao(null);
+    try {
+      const r = await api.clientes({ q: incerto.codigo });
+      const achado = r.items.find((c) => c.codigo === incerto.codigo);
+      if (achado) setVerificacao({ existe: true, cliente: achado });
+      else {
+        setIncerto(null);
+        setVerificacao({ existe: false });
+      }
+    } catch (falha) {
+      setVerificacao({ falhou: mensagemDeErro(falha) });
     } finally {
       setOcupado(false);
     }
@@ -211,10 +237,33 @@ function NovoCliente({ onCriado, onCancelar }) {
           </Campo>
         </div>
         <Aviso tipo="erro">{erro}</Aviso>
+        {incerto ? (
+          <div data-testid="cadastro-incerto">
+            <Aviso tipo="aviso">
+              {verificacao?.existe
+                ? `O cliente com o código "${incerto.codigo}" foi criado. A senha inicial não chegou a esta tela e não pode ser mostrada de novo. Não cadastre outra vez: a recuperação da senha do administrador pelo MAIKE Admin ainda não existe e fica para a próxima etapa.`
+                : 'A conexão caiu antes da resposta: o cadastro pode ter sido concluído. Não envie de novo antes de verificar se o cliente já existe.'}
+            </Aviso>
+            {verificacao?.falhou ? <Aviso tipo="erro">{`Não foi possível verificar agora: ${verificacao.falhou}`}</Aviso> : null}
+          </div>
+        ) : null}
+        {verificacao && verificacao.existe === false ? (
+          <Aviso tipo="info">Nenhum cliente com esse código foi encontrado: o cadastro não foi concluído. Revise e envie de novo.</Aviso>
+        ) : null}
         <div className="acoes">
-          <Botao type="submit" ocupado={ocupado}>
-            Cadastrar cliente e administrador
-          </Botao>
+          {incerto ? (
+            verificacao?.existe ? (
+              <Botao onClick={() => onCriado(verificacao.cliente.id)}>Abrir ficha do cliente</Botao>
+            ) : (
+              <Botao onClick={verificar} ocupado={ocupado}>
+                Verificar se o cliente foi criado
+              </Botao>
+            )
+          ) : (
+            <Botao type="submit" ocupado={ocupado}>
+              Cadastrar cliente e administrador
+            </Botao>
+          )}
           <Botao variante="secundario" onClick={onCancelar} disabled={ocupado}>
             Cancelar
           </Botao>
@@ -297,8 +346,8 @@ function AlterarSituacao({ cliente, onSalvo, onCancelar }) {
     <form className="formulario painel" onSubmit={enviar} aria-label={suspender ? 'Confirmar suspensão' : 'Confirmar reativação'}>
       <Aviso tipo={suspender ? 'erro' : 'info'}>
         {suspender
-          ? `Suspender ${cliente.nome}: todos os usuários desta fazenda deixam de entrar e as sessões abertas param na hora. Nenhum dado é apagado; dá para reativar depois.`
-          : `Reativar ${cliente.nome}: os usuários ativos desta fazenda voltam a entrar com as senhas que já tinham.`}
+          ? `Suspender ${cliente.nome}: todos os usuários desta fazenda deixam de entrar e as sessões abertas param na hora, enquanto durar a suspensão. Nenhum dado é apagado; dá para reativar depois. Atenção: suspender bloqueia, não encerra as sessões — se o cliente for reativado, as sessões abertas antes que ainda estiverem dentro da validade voltam a funcionar.`
+          : `Reativar ${cliente.nome}: os usuários ativos desta fazenda voltam a entrar com as senhas que já tinham, e sessões abertas antes da suspensão que ainda estiverem dentro da validade voltam a funcionar.`}
       </Aviso>
       <Campo rotulo="Justificativa (fica registrada na auditoria)" id="situacao-justificativa" dica="Pelo menos 10 caracteres.">
         <textarea id="situacao-justificativa" rows={3} maxLength={500} value={justificativa} onChange={(e) => setJustificativa(e.target.value)} />

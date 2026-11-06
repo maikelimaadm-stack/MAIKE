@@ -17,7 +17,10 @@
  *    `papel_tenant`, e a empresa é criada depois pelo fluxo normal da fazenda;
  *  - suspender = `Cliente.ativo = false`. O login recusa cliente inativo e a
  *    guarda `autenticar` relê `cliente.ativo` a cada requisição, então tokens
- *    já emitidos perdem o acesso na hora. Nada é apagado;
+ *    já emitidos ficam BLOQUEADOS enquanto o cliente estiver suspenso. Não é
+ *    revogação: ao reativar, um token anterior ainda dentro da validade volta a
+ *    funcionar (revogação permanente exige versão de sessão no banco, S04).
+ *    Nada é apagado;
  *  - toda escrita registra `EventoSegurancaAdminMaike` (ator = proprietário,
  *    request id, alvo, antes/depois) na MESMA transação. Não usa `AuditLog`
  *    do tenant: lá o ator é um usuário da fazenda, e o proprietário não é um.
@@ -53,6 +56,7 @@ const SELECT_CLIENTE = { id: true, codigo: true, nome: true, ativo: true, create
 const clienteNaoEncontrado = () => adminError('ADMIN_ENTRADA_INVALIDA', 'cliente não encontrado');
 const codigoDuplicado = () => adminError('ADMIN_CLIENTE_CODIGO_DUPLICADO', 'já existe um cliente com este código');
 const loginDuplicado = () => adminError('ADMIN_LOGIN_DUPLICADO', 'este login já é usado por outra conta ativa');
+const edicaoConcorrente = () => adminError('ADMIN_CLIENTE_EDICAO_CONCORRENTE', 'o cliente foi alterado em outra sessão; recarregue e revise antes de salvar');
 
 /** Normaliza e valida (o schema da rota já recusou tipos e campos extras). */
 const texto = (v) => (typeof v === 'string' ? v.trim().replace(/\s+/g, ' ') : '');
@@ -78,6 +82,8 @@ const loginDe = (v) => {
 
 /** Unique do banco: `Cliente.codigo` ou o índice parcial global de login ativo. */
 const traduzirUnique = (erro) => {
+  // P2034: conflito de escrita/deadlock apontado pelo banco = corrida perdida.
+  if (erro?.code === 'P2034') return edicaoConcorrente();
   if (erro?.code !== 'P2002') return erro;
   const alvo = JSON.stringify(erro.meta?.target ?? '');
   return /codigo/.test(alvo) ? codigoDuplicado() : loginDuplicado();
@@ -151,7 +157,14 @@ export const editarCliente = async (id, entrada, ctx) => {
       if (dados.codigo && dados.codigo !== atual.codigo && (await tx.cliente.findUnique({ where: { codigo: dados.codigo }, select: { id: true } }))) {
         throw codigoDuplicado();
       }
-      const novo = await tx.cliente.update({ where: { id }, data: dados, select: SELECT_CLIENTE });
+      // CAS no próprio UPDATE: só grava se a linha ainda é exatamente a que foi
+      // lida (nome, código e `updatedAt`). Em READ COMMITTED o Postgres espera o
+      // lock da linha e reavalia o WHERE na versão nova, então quem perde a
+      // corrida recebe count 0 e nada grava nem audita. O `antes` registrado é,
+      // portanto, o estado imediatamente anterior a ESTA escrita.
+      const r = await tx.cliente.updateMany({ where: { id, nome: atual.nome, codigo: atual.codigo, updatedAt: atual.updatedAt }, data: dados });
+      if (r.count !== 1) throw edicaoConcorrente();
+      const novo = await tx.cliente.findUnique({ where: { id }, select: SELECT_CLIENTE });
       await registrarEventoSeguranca(
         {
           adminId: ctx.admin.id,
@@ -189,10 +202,11 @@ export const alterarSituacaoCliente = async (id, entrada, ctx) => {
   const cliente = await db.$transaction(async (tx) => {
     const atual = await tx.cliente.findUnique({ where: { id }, select: SELECT_CLIENTE });
     if (!atual) throw clienteNaoEncontrado();
+    // Mesma situação pedida = nada a fazer (inclui a corrida já decidida por outra sessão).
     if (atual.ativo === ativo) throw adminError('ADMIN_ENTRADA_INVALIDA', ativo ? 'o cliente já está ativo' : 'o cliente já está suspenso');
     // Condicional: duas suspensões simultâneas não registram dois eventos.
     const r = await tx.cliente.updateMany({ where: { id, ativo: atual.ativo }, data: { ativo } });
-    if (r.count !== 1) throw adminError('ADMIN_ENTRADA_INVALIDA', 'a situação do cliente mudou em outra sessão; recarregue');
+    if (r.count !== 1) throw edicaoConcorrente();
     await registrarEventoSeguranca(
       {
         adminId: ctx.admin.id,

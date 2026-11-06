@@ -35,6 +35,15 @@ export const ehDuplicidade = (e) => e?.code === 'CONCURRENCY_CONFLICT' && e?.mes
 /** Conflito de revisão (CAS): recarregar antes de tentar de novo. */
 export const ehConflitoRevisao = (e) => e?.code === 'CONCURRENCY_CONFLICT' && !ehDuplicidade(e);
 
+/**
+ * O pedido pode ter sido gravado sem a resposta chegar: falha de rede/timeout
+ * (fetch rejeita, sem `ErroApi`) ou gateway na frente da função (502/503/504).
+ * ou 5xx sem o corpo de erro do backend. Erros do próprio backend (4xx, 500
+ * com `code`) significam rollback: o formulário pode ser corrigido e reenviado.
+ */
+export const resultadoIncerto = (e) =>
+  !(e instanceof ErroApi) || [502, 503, 504].includes(e.status) || (e.status >= 500 && e.code === 'ERRO');
+
 /** Mensagens para quem não é técnico. */
 export const mensagemDeErro = (erro) => {
   const e = /** @type {any} */ (erro);
@@ -57,6 +66,8 @@ export const mensagemDeErro = (erro) => {
       return `Imagem recusada: ${e.message}`;
     case 'ADMIN_CLIENTE_CODIGO_DUPLICADO':
       return 'Já existe um cliente com esse código. Escolha outro.';
+    case 'ADMIN_CLIENTE_EDICAO_CONCORRENTE':
+      return 'O cliente foi alterado em outra sessão e nada foi salvo. Cancele, reabra a ficha para ver os dados atuais e revise antes de salvar de novo.';
     case 'ADMIN_LOGIN_DUPLICADO':
       return 'Esse login já é usado por outra conta ativa. Escolha outro login para o administrador.';
     case 'REQUEST_VALIDATION_FAILED':
