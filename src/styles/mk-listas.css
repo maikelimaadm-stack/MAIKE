@@ -32,9 +32,3 @@
 .cadastro-b1 .mg-grid tbody td:not(#mk-padrao) {
   border-bottom: 1px solid var(--mk-list-divider);
 }
-
-/* Campos do card também mantêm separação entre os pares rótulo/valor. */
-.cadastro-b1 .mg-b1-card__fields > :nth-child(n + 3):not(#mk-padrao) {
-  border-top: 1px solid var(--mk-list-divider);
-  padding-top: 6px;
-}

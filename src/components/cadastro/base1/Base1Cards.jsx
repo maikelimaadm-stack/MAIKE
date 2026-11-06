@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from "react";
-import { Check, LayoutGrid, ListChecks } from "lucide-react";
+import { LayoutGrid, ListChecks } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { IconBtn, MgCheck } from "./Base1Ui";
 import { selectClickOf, ehToqueDuplo, useBlockNativeTextSelection } from "./selectClick";
@@ -158,11 +158,6 @@ export function Base1Cards({
               }
             }}
           >
-            {on ? (
-              <span className="b1-card__badge" aria-hidden>
-                <Check className="h-3 w-3" strokeWidth={3} />
-              </span>
-            ) : null}
             <div
               className="b1-card__select absolute left-3 top-3 z-[1]"
               onClick={(e) => e.stopPropagation()}
