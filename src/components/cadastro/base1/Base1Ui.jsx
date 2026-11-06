@@ -78,6 +78,9 @@ const PillBtnRender = ({ className, tone = "green", children, title, ...p }, ref
   return (
     <button ref={ref} type="button" title={title} className={cn("tb-btn", toneClass, className)} {...p}>
       {children}
+      {className?.split(" ").includes("mg-act-ic") && (p["aria-label"] || title) ? (
+        <span className="mk-desktop-action-label" aria-hidden="true">{p["aria-label"] || title}</span>
+      ) : null}
     </button>
   );
 };

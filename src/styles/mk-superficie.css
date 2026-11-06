@@ -337,3 +337,56 @@
 .mk-ll-dlg .mk-ll-dlg__head:not(#mk-padrao) {
   background: var(--mk-sup-fundo);
 }
+
+/* Desktop: ações com nome e ícone; mobile mantém os círculos aprovados. */
+.mk-desktop-action-label { display: none; }
+
+@media (min-width: 1024px) {
+  .mk-desktop-action-label { display: inline; }
+
+  .tb-btn:not(#mk-padrao) {
+    height: 38px !important;
+    min-height: 38px !important;
+    font-size: 14px;
+    gap: 8px;
+  }
+
+  .cadastro-b1 .tb-btn.mg-act-ic:not(#mk-padrao) {
+    width: auto !important;
+    min-width: 88px !important;
+    aspect-ratio: auto;
+    padding: 0 14px !important;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+
+  .cadastro-b1 .tb-btn.mg-act-ic.mg-fluid-slot__ghost:not(#mk-padrao) {
+    width: 0 !important;
+    min-width: 0 !important;
+    padding: 0 !important;
+  }
+
+  :is(.tb-btn, .view-seg button, .mg-rec-pager__btn, .mk-sheet__close, .mk-sheet__new, .mk-ll-dlg__redondo, .mk-ll__add, .mk-ll__remover, .mk-ll__btn):not(#mk-padrao) > svg {
+    width: 16px !important;
+    height: 16px !important;
+    stroke-width: 1.8;
+  }
+
+  .mg-toolbar__row--actions:has(.mg-act-salvar) .mg-act-cancelar {
+    order: 2;
+    margin-left: auto;
+  }
+
+  .mg-toolbar__row--actions:has(.mg-act-salvar) .mg-toolbar__more,
+  .mg-toolbar__row--actions:has(.mg-act-salvar) .mg-act-extra {
+    order: 1;
+    margin-left: 0;
+  }
+
+  .mg-toolbar__row--actions:has(.mg-act-salvar) .mg-act-salvar,
+  .mg-toolbar__row--actions:has(.mg-act-salvar):not(:has(.mg-toolbar__more)) .mg-act-salvar,
+  .mg-toolbar__row--actions:has(.mg-act-extra) .mg-act-salvar {
+    order: 3;
+    margin-left: 0 !important;
+  }
+}
