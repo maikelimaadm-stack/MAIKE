@@ -91,7 +91,13 @@ export const montarPayloadDeSessao = ({ clienteId, usuarioId, login }) => ({
   login,
 });
 
-export const ttlDaSessao = () => env.authTokenTtl;
+/**
+ * Validade do token. Com "Manter conectado" (D-PROD-136) usa
+ * `AUTH_TOKEN_TTL_LEMBRAR` (padrão 30 dias); sem, `AUTH_TOKEN_TTL` (8 h).
+ *
+ * @param {{ lembrar?: boolean }} [opcoes]
+ */
+export const ttlDaSessao = (opcoes = {}) => (opcoes?.lembrar === true ? env.authTokenTtlLembrar : env.authTokenTtl);
 
 /**
  * A conta é administradora da fazenda? Só para a interface decidir o menu;

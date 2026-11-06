@@ -150,6 +150,7 @@ npm run test:backend
 | `AUTH_SECRET` | Todos | Obrigatório; sem fallback |
 | `FRONTEND_ORIGINS` | Todos | Lista exata, separada por vírgula; vazio = nenhum browser |
 | `AUTH_TOKEN_TTL` | Opcional | Default `8h` |
+| `AUTH_TOKEN_TTL_LEMBRAR` | Opcional | Default `30d` ("Manter conectado", D-PROD-136) |
 
 ---
 

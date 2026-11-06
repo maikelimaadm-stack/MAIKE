@@ -378,7 +378,7 @@ capacidade nenhuma — ela construiu a estrada que a P4.1 vai usar.
 |---|---|
 | URL do backend | `VITE_MAIKE_API_URL` — pública, sem override por query string ou storage |
 | Fronteira HTTP | `src/apis/_core/nativeHttpClient.js`, única |
-| Sessão | JWT do MAIKE em memória + `sessionStorage`, guarda única |
+| Sessão | JWT do MAIKE em memória + `sessionStorage`, guarda única; com "Manter conectado" no armazenamento persistente, validade `AUTH_TOKEN_TTL_LEMBRAR` (D-PROD-136) |
 | Login | `{cliente, login, senha}` — **nunca** `cliente_id` |
 | CORS | `FRONTEND_ORIGINS`, allowlist de origins exatas, sem wildcard |
 | Gate novo | `gate:native-api` — absoluto, 7 códigos, 24 provas |

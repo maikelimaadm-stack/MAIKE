@@ -38,6 +38,16 @@
  * ausência: ficaria a impressão de que a sessão está endurecida.
  *
  * Isso pertence à fase de segurança (P8) e está registrado na D-PROD-24.
+ *
+ * ─── "Manter conectado" (D-PROD-136) ───────────────────────────────────────
+ *
+ * O padrão continua sendo `sessionStorage`. Só quando a pessoa marca
+ * "Manter conectado" na tela de entrada o token vai para o armazenamento
+ * persistente do navegador — escolha explícita, por aparelho, para quem usa o
+ * próprio celular ou computador e não quer entrar de novo a cada abertura.
+ * Sair da conta apaga os dois. A regra é verificada por `gate:native-api`:
+ * o armazenamento persistente só aparece em `armazenamentoPersistente()` e só
+ * é gravado com `lembrar === true`.
  */
 
 /** Uma chave, estável. Sem prefixo `base44_`: esta sessão não é da Base44. */
@@ -69,6 +79,19 @@ const storage = () => {
 const normalizar = (valor) => (typeof valor === 'string' && valor.trim() ? valor.trim() : null);
 
 /**
+ * Armazenamento que sobrevive a fechar o navegador. Usado **só** com o opt-in
+ * "Manter conectado"; o mesmo cuidado do `storage()` com acesso que lança.
+ */
+const armazenamentoPersistente = () => {
+  if (!temWindow()) return null;
+  try {
+    return window.localStorage ?? null;
+  } catch {
+    return null;
+  }
+};
+
+/**
  * Token da sessão nativa, ou `null`.
  *
  * Memória primeiro; `sessionStorage` como reidratação depois de um reload.
@@ -82,6 +105,12 @@ export const getNativeToken = () => {
   } catch {
     tokenEmMemoria = null;
   }
+  if (tokenEmMemoria) return tokenEmMemoria;
+  try {
+    tokenEmMemoria = normalizar(armazenamentoPersistente()?.getItem(CHAVE_TOKEN) ?? null);
+  } catch {
+    tokenEmMemoria = null;
+  }
   return tokenEmMemoria;
 };
 
@@ -89,24 +118,37 @@ export const getNativeToken = () => {
  * Grava o token. Valor vazio equivale a limpar — não existe estado "token em
  * branco".
  *
+ * Por padrão vai para o `sessionStorage` (morre com a aba). Com
+ * `{ lembrar: true }` — o "Manter conectado" da tela de entrada — vai para o
+ * armazenamento persistente. Nunca os dois ao mesmo tempo: gravar num apaga o
+ * outro, para não sobrar sessão esquecida.
+ *
  * @param {unknown} token
+ * @param {{ lembrar?: boolean }} [opcoes]
  */
-export const setNativeToken = (token) => {
+export const setNativeToken = (token, opcoes = {}) => {
   const valor = normalizar(token);
   if (!valor) {
     clearNativeToken();
     return;
   }
   tokenEmMemoria = valor;
+  const lembrar = opcoes?.lembrar === true;
   try {
-    storage()?.setItem(CHAVE_TOKEN, valor);
+    if (lembrar === true) {
+      armazenamentoPersistente()?.setItem(CHAVE_TOKEN, valor);
+      storage()?.removeItem(CHAVE_TOKEN);
+    } else {
+      storage()?.setItem(CHAVE_TOKEN, valor);
+      armazenamentoPersistente()?.removeItem(CHAVE_TOKEN);
+    }
   } catch {
     // Persistir é conveniência: sem storage a sessão vale enquanto a página
     // viver. Falhar aqui não pode derrubar um login que já deu certo.
   }
 };
 
-/** Descarta o token da memória e do `sessionStorage`. */
+/** Descarta o token da memória, do `sessionStorage` e do armazenamento persistente. */
 export const clearNativeToken = () => {
   tokenEmMemoria = null;
   try {
@@ -114,6 +156,34 @@ export const clearNativeToken = () => {
   } catch {
     // Nada a fazer: se o storage recusa remover, ele também recusou gravar.
   }
+  try {
+    armazenamentoPersistente()?.removeItem(CHAVE_TOKEN);
+  } catch {
+    // Idem.
+  }
+};
+
+/**
+ * Descarta **só** o token que o servidor recusou.
+ *
+ * Diferente de `clearNativeToken` (sair da conta, que apaga tudo): numa aba
+ * antiga pode sobrar no `sessionStorage` um token vencido de uma entrada sem
+ * "Manter conectado", enquanto o armazenamento persistente guarda outro,
+ * válido, de uma entrada lembrada. Recusar o velho não pode apagar o novo.
+ *
+ * @returns {boolean} se ainda resta outro token guardado para tentar
+ */
+export const descartarTokenRecusado = () => {
+  const recusado = tokenEmMemoria ?? getNativeToken();
+  tokenEmMemoria = null;
+  for (const area of [storage(), armazenamentoPersistente()]) {
+    try {
+      if (area && normalizar(area.getItem(CHAVE_TOKEN)) === recusado) area.removeItem(CHAVE_TOKEN);
+    } catch {
+      // Sem storage não há o que apagar.
+    }
+  }
+  return getNativeToken() !== null;
 };
 
 /** Existe token guardado? Não diz nada sobre ele ser válido. */

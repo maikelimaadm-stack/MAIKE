@@ -159,6 +159,30 @@ describe('P4-NATIVE-TOKEN-STORAGE', () => {
     assert.match(r.output, /P4-NATIVE-TOKEN-STORAGE/);
   });
 
+  test('NAT-08b localStorage fora de armazenamentoPersistente() reprova', () => {
+    const mutado = trocar(
+      real(TOKEN_STORAGE),
+      "return window.sessionStorage ?? null;",
+      "return window.localStorage ?? window.sessionStorage ?? null;"
+    );
+    const r = rodar({ [TOKEN_STORAGE]: mutado });
+    assert.equal(r.status, 1);
+    assert.match(r.output, /P4-NATIVE-TOKEN-STORAGE/);
+  });
+
+  test('NAT-08c gravar no armazenamento persistente sem lembrar === true reprova', () => {
+    // O padrão tem de continuar sendo a aba: guardar no aparelho só com o
+    // "Manter conectado" marcado (D-PROD-136).
+    const mutado = trocar(
+      real(TOKEN_STORAGE),
+      "      storage()?.setItem(CHAVE_TOKEN, valor);\n      armazenamentoPersistente()?.removeItem(CHAVE_TOKEN);",
+      "      storage()?.setItem(CHAVE_TOKEN, valor);\n      armazenamentoPersistente()?.setItem(CHAVE_TOKEN, valor);"
+    );
+    const r = rodar({ [TOKEN_STORAGE]: mutado });
+    assert.equal(r.status, 1);
+    assert.match(r.output, /P4-NATIVE-TOKEN-STORAGE/);
+  });
+
   test('NAT-09 outro arquivo mexer na chave do token reprova', () => {
     // Guarda única é o que torna a regra do storage verificável: se qualquer
     // arquivo puder ler a chave, afirmar onde o token está deixa de ser possível.
@@ -173,8 +197,8 @@ describe('P4-NATIVE-TENANT-SOURCE', () => {
   test('NAT-10 incluir cliente_id no corpo do login reprova', () => {
     const mutado = trocar(
       real(SESSION_API),
-      'body: { login: usuarioLogin, senha }',
-      'body: { login: usuarioLogin, senha, cliente_id: credenciais.clienteId }'
+      'body: { login: usuarioLogin, senha, lembrar }',
+      'body: { login: usuarioLogin, senha, lembrar, cliente_id: credenciais.clienteId }'
     );
     const r = rodar({ [SESSION_API]: mutado });
     assert.equal(r.status, 1);
@@ -184,8 +208,8 @@ describe('P4-NATIVE-TENANT-SOURCE', () => {
   test('NAT-10b incluir cliente no corpo do login reprova', () => {
     const mutado = trocar(
       real(SESSION_API),
-      'body: { login: usuarioLogin, senha }',
-      'body: { cliente: "x", login: usuarioLogin, senha }'
+      'body: { login: usuarioLogin, senha, lembrar }',
+      'body: { cliente: "x", login: usuarioLogin, senha, lembrar }'
     );
     const r = rodar({ [SESSION_API]: mutado });
     assert.equal(r.status, 1);

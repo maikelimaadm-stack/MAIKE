@@ -4,7 +4,7 @@
  * A rota é fina de propósito: contrato HTTP, validação de forma, chamada do
  * service, conversão do resultado. Nenhuma query Prisma, nenhuma regra.
  *
- * O schema aceita só `login` e `senha` — e `additionalProperties: false`.
+ * O schema aceita só `login`, `senha` e o opt-in `lembrar` — e `additionalProperties: false`.
  * Rejeita na porta `cliente`, `cliente_id` e qualquer outro campo: o tenant vem
  * do usuário autenticado, não do formulário (D-PROD-33).
  */
@@ -20,6 +20,8 @@ const LOGIN_SCHEMA = {
     properties: {
       login: { type: 'string', minLength: 1, maxLength: 120, pattern: '\\S' },
       senha: { type: 'string', minLength: 1, maxLength: 512 },
+      // "Manter conectado" (D-PROD-136): só muda a validade do token.
+      lembrar: { type: 'boolean' },
     },
   },
 };
@@ -27,10 +29,11 @@ const LOGIN_SCHEMA = {
 /** @param {import('fastify').FastifyInstance} app */
 export const registrarAuthRoutes = async (app) => {
   app.post('/auth/login', { schema: LOGIN_SCHEMA }, async (request, reply) => {
-    const identidade = await autenticar(request.body);
+    const { lembrar = false, ...credenciais } = /** @type {{ login: string, senha: string, lembrar?: boolean }} */ (request.body);
+    const identidade = await autenticar(credenciais);
 
     const token = await reply.jwtSign(montarPayloadDeSessao(identidade), {
-      expiresIn: ttlDaSessao(),
+      expiresIn: ttlDaSessao({ lembrar: lembrar === true }),
     });
 
     return reply.status(200).send({
