@@ -35,6 +35,9 @@ vi.mock('@/services/mapaCacheService', () => ({
   refreshMapaCacheEntry: () => Promise.resolve([]),
   updateMapaCachedData: () => Promise.resolve([]),
   warmMapaCache: () => Promise.resolve(),
+  // D-PROD-136 (GET-06): o logout (`sairDaSessaoNativa`) agora também apaga o
+  // cache offline do mapa que é do tenant; aqui o cache é substituído.
+  esquecerCacheDoTenant: () => Promise.resolve(),
   CACHE_KEYS: [],
 }));
 vi.mock('@/apis/session', async (importOriginal) => {
