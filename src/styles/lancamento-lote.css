@@ -830,7 +830,7 @@
   min-width: 0;
 }
 
-/* Título do cartão (área e lote): a mesma pílula do "Categoria de Manejo" (D-PROD-145). */
+/* Títulos da área e do lote usam a cor dos ícones; categoria fica sem fundo. */
 .mk-dl__nome {
   display: inline-flex;
   align-items: center;
@@ -838,7 +838,7 @@
   max-width: 100%;
   padding: 2px 9px;
   border-radius: 999px;
-  background: var(--mk-sup-fundo, #f7f8fa);
+  background: #5acbe9;
   color: #374151;
   font-size: 11px;
   font-weight: 700;
@@ -878,7 +878,7 @@
   max-width: 100%;
   padding: 2px 9px;
   border-radius: 999px;
-  background: var(--mk-sup-fundo, #f7f8fa);
+  background: transparent;
   color: #64748b;
   font-size: 10.5px;
   font-weight: 500;
