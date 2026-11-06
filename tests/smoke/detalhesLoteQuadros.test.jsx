@@ -41,7 +41,7 @@ describe("Detalhes do Lote: Manejos e Históricos em quadros (D-PROD-119)", () =
 
   it("mesmos campos do lote e da área (só o visual mudou)", () => {
     const area = readFileSync("src/components/mapa/InformacoesArea.jsx", "utf8");
-    for (const c of ["Identificador", "Sigla", "Qtd. Cabeças", "Peso Médio", "Dias de pastejo", "Sist. Rep.", "Raça Predominante", "Sexo", "Categoria de Manejo:"]) {
+    for (const c of ["Identificador", "Sigla", "Qtd. Cabeças", "Peso Médio", "Dias de pastejo", "Sist. Rep.", "Raça Predom.", "Sexo", "Categoria de Manejo:"]) {
       expect(fonte, c).toContain(c);
     }
     // D-PROD-124: o proprietário tirou "Categoria Oficial" do lote e "Sistemas Reprodutivos"/"Lotes" da área.
