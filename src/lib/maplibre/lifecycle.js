@@ -51,7 +51,6 @@ export function createEditorMap(container, opts = {}) {
   });
 
   map.touchZoomRotate.disableRotation();
-  map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-right");
 
   const dispose = () => {
     cancelled = true;
