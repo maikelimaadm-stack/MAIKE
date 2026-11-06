@@ -42,5 +42,11 @@ describe('gate:admin-isolation', () => {
   caso('ADM-04 credencial server-only no admin reprova', (d) => writeFile(d, 'apps/admin/src/d.js', 'const k = "SUPABASE_SERVICE_ROLE_KEY";\n'), 'ADM-04');
   caso('ADM-05 página de catálogo na SPA reprova', (d) => writeFile(d, 'src/pages.config.js', 'export const PAGES = { CatalogoGlobalMaike: 1 };\n'), 'ADM-05');
   caso('ADM-05 rewrite admin no vercel.json do cliente reprova', (d) => writeFile(d, 'vercel.json', '{"rewrites":[{"source":"/CatalogoGlobalMaike"}]}\n'), 'ADM-05');
+  caso('ADM-05 atalho /admmakgestao como redirect externo passa', (d) =>
+    writeFile(d, 'vercel.json', '{"rewrites":[],"redirects":[{"source":"/admmakgestao","destination":"https://admmakgestao.vercel.app/","permanent":false}]}\n'), null);
+  caso('ADM-05 painel servido em /admmakgestao (rewrite) reprova', (d) =>
+    writeFile(d, 'vercel.json', '{"rewrites":[{"source":"/admmakgestao/:path*","destination":"/admin/index.html"}]}\n'), 'ADM-05');
+  caso('ADM-05 atalho redirecionando para o próprio domínio dos clientes reprova', (d) =>
+    writeFile(d, 'vercel.json', '{"rewrites":[],"redirects":[{"source":"/paineladm","destination":"https://www.makgestao.com/x"}]}\n'), 'ADM-05');
   caso('ADM-06 bundle do cliente com rota admin reprova', (d) => writeFile(d, 'dist/assets/i.js', 'x("/admin-maike/sessao")\n'), 'ADM-06');
 });

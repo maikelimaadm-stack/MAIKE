@@ -3,7 +3,26 @@
   "buildCommand": "npm run prisma:generate && npm run build",
   "installCommand": "npm ci",
   "framework": "vite",
-  "regions": ["gru1"],
+  "regions": [
+    "gru1"
+  ],
+  "redirects": [
+    {
+      "source": "/admmakgestao",
+      "destination": "https://admmakgestao.vercel.app/",
+      "permanent": false
+    },
+    {
+      "source": "/admmakgestao/",
+      "destination": "https://admmakgestao.vercel.app/",
+      "permanent": false
+    },
+    {
+      "source": "/admmakgestao/:path*",
+      "destination": "https://admmakgestao.vercel.app/",
+      "permanent": false
+    }
+  ],
   "rewrites": [
     {
       "source": "/api/native",

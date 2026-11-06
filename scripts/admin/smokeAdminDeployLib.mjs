@@ -10,6 +10,8 @@
  *    apontando para o lugar errado (404/HTML);
  *  - backend sem `ADMIN_MAIKE_CHAVE` (503 ADMIN_INDISPONIVEL);
  *  - `ADMIN_ORIGINS` sem a origin deste deploy (403 ADMIN_ORIGEM_RECUSADA);
+ *  - resposta da API admin sem `Cache-Control: no-store` (S02: sessão e dados
+ *    de clientes não podem ficar em cache; só no deploy público, não no local);
  *  - API de tenant exposta sem sessão;
  *  - bundle carregando nome de credencial server-only.
  *
@@ -51,6 +53,10 @@ export const verificarDeployAdmin = async ({ url, fetch: f = fetch, permitirHttp
   else if (s.corpo?.code === 'ADMIN_INDISPONIVEL') diag = 'backend sem ADMIN_MAIKE_CHAVE válida (503)';
   else if (sessao.status === 404) diag = 'proxy aponta para lugar errado (404)';
   marcar('proxy /api/native até o backend', sessao.status === 401 && s.corpo?.code === 'ADMIN_SESSAO_REQUIRED', diag);
+  if (!permitirHttp) {
+    const cache = sessao.headers.get('cache-control') || '';
+    marcar('API sem cache (no-store)', /no-store/i.test(cache), cache || 'ausente: falta o header do apps/admin/vercel.json');
+  }
 
   const login = await f(`${origin}/api/native/admin-maike/auth/login`, {
     method: 'POST',

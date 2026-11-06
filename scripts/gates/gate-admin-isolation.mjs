@@ -77,6 +77,33 @@ const vercelCliente = join(ROOT, 'vercel.json');
 if (existsSync(vercelCliente) && /catalogoglobal|admin-maike|maikeadmin/i.test(ler(vercelCliente))) {
   registrar('ADM-05', 'vercel.json da SPA dos clientes tem rota de catálogo/admin');
 }
+// S02: o atalho do admin no site dos clientes (`/admmakgestao`, `/paineladm`)
+// só pode REDIRECIONAR para a origin própria do admin. Servir o painel ali
+// (rewrite) poria a sessão do proprietário no mesmo domínio da SPA dos clientes.
+const ATALHO_ADMIN = /^\/(admmakgestao|paineladm)(\/|$)/i;
+if (existsSync(vercelCliente)) {
+  let cfg = null;
+  try {
+    cfg = JSON.parse(ler(vercelCliente));
+  } catch {
+    registrar('ADM-05', 'vercel.json da SPA dos clientes não é JSON válido');
+  }
+  for (const r of cfg?.rewrites ?? []) {
+    if (ATALHO_ADMIN.test(String(r.source ?? ''))) registrar('ADM-05', `vercel.json da SPA dos clientes serve o admin em ${r.source} (só redirect é aceito)`);
+  }
+  for (const r of cfg?.redirects ?? []) {
+    if (!ATALHO_ADMIN.test(String(r.source ?? ''))) continue;
+    let destino = null;
+    try {
+      destino = new URL(String(r.destination));
+    } catch {
+      destino = null;
+    }
+    if (!destino || destino.protocol !== 'https:' || /(^|\.)makgestao\.com$/i.test(destino.hostname)) {
+      registrar('ADM-05', `atalho ${r.source} precisa redirecionar para a origin própria do admin (https, fora de makgestao.com)`);
+    }
+  }
+}
 
 for (const arq of listar('dist', ['.js', '.html'])) {
   if (ROTA_ADMIN.test(ler(arq))) registrar('ADM-06', `bundle do cliente ${rel(arq)} contém rota administrativa`);

@@ -23,7 +23,8 @@ const deploy = (quebra = '') => async (url, init = {}) => {
   if (caminho === '/assets/i.js') return resp(200, quebra === 'vaza' ? 'x="SUPABASE_SERVICE_ROLE_KEY"' : 'console.log(1)');
   if (quebra === 'sem-proxy') return resp(200, HTML, { 'content-type': 'text/html' });
   if (caminho === '/api/native/admin-maike/sessao') {
-    return quebra === 'sem-chave' ? resp(503, { code: 'ADMIN_INDISPONIVEL' }) : resp(401, { code: 'ADMIN_SESSAO_REQUIRED' });
+    const cache = quebra === 'com-cache' ? {} : { 'cache-control': 'no-store' };
+    return quebra === 'sem-chave' ? resp(503, { code: 'ADMIN_INDISPONIVEL' }, cache) : resp(401, { code: 'ADMIN_SESSAO_REQUIRED' }, cache);
   }
   if (caminho === '/api/native/admin-maike/auth/login') {
     // O smoke manda a origin do próprio deploy (é ela que precisa estar em ADMIN_ORIGINS).
@@ -50,5 +51,12 @@ describe('smoke pós-deploy do MAIKE Admin', () => {
   test('SMK-06 sem HTTPS e bundle com credencial', async () => {
     assert.ok((await falhas('', 'http://admin.teste')).some((c) => c.nome === 'HTTPS'));
     assert.ok((await falhas('vaza')).some((c) => /SUPABASE_SERVICE_ROLE_KEY/.test(c.detalhe)));
+  });
+  test('SMK-07 resposta da API admin sem no-store (S02)', async () => {
+    const f = await falhas('com-cache');
+    assert.deepEqual(f.map((c) => c.nome), ['API sem cache (no-store)']);
+    // Local (http, vite preview) não tem o header da Vercel: a checagem não se aplica.
+    const local = (await verificarDeployAdmin({ url: 'http://127.0.0.1:5174', fetch: deploy('com-cache'), permitirHttp: true })).filter((c) => !c.ok);
+    assert.deepEqual(local, []);
   });
 });

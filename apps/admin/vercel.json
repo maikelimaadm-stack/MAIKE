@@ -18,10 +18,14 @@
           "value": "default-src 'self'; img-src 'self' https: blob: data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
         }
       ]
+    },
+    {
+      "source": "/api/native/(.*)",
+      "headers": [{ "key": "Cache-Control", "value": "no-store" }]
     }
   ],
   "rewrites": [
-    { "source": "/api/native/:path*", "destination": "https://maike-five.vercel.app/api/native/:path*" },
+    { "source": "/api/native/:path*", "destination": "https://www.makgestao.com/api/native/:path*" },
     { "source": "/((?!api/native).*)", "destination": "/index.html" }
   ]
 }
