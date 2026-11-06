@@ -365,7 +365,7 @@ O novo visual dos botões do Mapa Geral (D-PROD-131: painel Visualização, sem 
 
 **Não testado em aparelho.** Quem já instalou o app no celular pode precisar remover e instalar de novo para o ícone trocar.
 
-## V25 — Tela de entrada nova e "Manter conectado" (D-PROD-135)
+## V25 — Tela de entrada nova e "Manter conectado" (D-PROD-136)
 
 | Pedido | Feito | Evidência |
 |---|---|---|

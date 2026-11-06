@@ -1,5 +1,5 @@
 /**
- * Tela de entrada (D-PROD-135): sem o aviso de "código de cliente", validação
+ * Tela de entrada (D-PROD-136): sem o aviso de "código de cliente", validação
  * no envio, "Manter conectado" repassado ao login e usuário lembrado.
  */
 import React from 'react';

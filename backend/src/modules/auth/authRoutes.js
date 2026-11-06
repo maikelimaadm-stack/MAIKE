@@ -20,7 +20,7 @@ const LOGIN_SCHEMA = {
     properties: {
       login: { type: 'string', minLength: 1, maxLength: 120, pattern: '\\S' },
       senha: { type: 'string', minLength: 1, maxLength: 512 },
-      // "Manter conectado" (D-PROD-135): só muda a validade do token.
+      // "Manter conectado" (D-PROD-136): só muda a validade do token.
       lembrar: { type: 'boolean' },
     },
   },

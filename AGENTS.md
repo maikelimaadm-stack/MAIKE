@@ -160,7 +160,7 @@ Para adicionar uma página ou entidade:
   aparecer no diff. Aconteceu na primeira versão da P3. `verify:all` fixa
   `production` no passo de build, e `build-environment.test.mjs` trava as duas
   pontas.
-- **O JWT nativo só vai para `localStorage` com "Manter conectado" (D-PROD-135).**
+- **O JWT nativo só vai para `localStorage` com "Manter conectado" (D-PROD-136).**
   Por padrão mora em memória mais `sessionStorage`; o armazenamento persistente
   só é gravado sob `if (lembrar === true)`, dentro de `armazenamentoPersistente()`,
   numa guarda única: `src/lib/auth/nativeTokenStorage.js`.
@@ -168,7 +168,7 @@ Para adicionar uma página ou entidade:
   `ApiError.details`. `gate:native-api` reprova com `P4-NATIVE-TOKEN-STORAGE`.
   E fique com o trade-off à vista: `sessionStorage` é acessível a JavaScript e
   **não** resolve XSS — isso é P8 (D-PROD-24, item F).
-- **O login envia só `login`, `senha` e o opt-in booleano `lembrar` (D-PROD-135), nunca `cliente` nem `cliente_id`.** O
+- **O login envia só `login`, `senha` e o opt-in booleano `lembrar` (D-PROD-136), nunca `cliente` nem `cliente_id`.** O
  tenant é *resultado* da autenticação (usuário encontrado + JWT), não entrada
  dela. Campos extras no corpo são recusados com 400 (`gate:native-api`, D-PROD-32).
 - **O token da Base44 e o JWT do MAIKE não se encontram.** Nunca repasse um ao

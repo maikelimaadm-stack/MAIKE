@@ -201,7 +201,7 @@ const verificarStorageDoToken = () => {
 
   const codigo = semComentarios(ler(TOKEN_STORAGE));
 
-  // "Manter conectado" (D-PROD-135): o armazenamento persistente é permitido
+  // "Manter conectado" (D-PROD-136): o armazenamento persistente é permitido
   // só dentro de `armazenamentoPersistente()`, e só é gravado sob
   // `if (lembrar === true)`. Fora disso o JWT sobreviveria ao fechamento da aba
   // sem a pessoa ter pedido.
@@ -257,7 +257,7 @@ const verificarFonteDeTenant = () => {
   const codigo = semComentarios(ler(SESSION_API));
 
   // O corpo do login tem `login`, `senha` e o opt-in `lembrar` (D-PROD-33,
-  // D-PROD-135). Tenant vem da resposta/JWT, nunca do payload de entrada.
+  // D-PROD-136). Tenant vem da resposta/JWT, nunca do payload de entrada.
   const corpoDoLogin = codigo.match(/body:\s*\{[^}]*\}/)?.[0] ?? '';
   if (/\bcliente_id\s*:/.test(corpoDoLogin)) {
     registrar(
@@ -268,7 +268,7 @@ const verificarFonteDeTenant = () => {
   if (/\bcliente\s*[,:]/.test(corpoDoLogin)) {
     registrar(
       'P4-NATIVE-TENANT-SOURCE',
-      `${SESSION_API} ainda envia 'cliente' no login: o contrato é login, senha e lembrar (D-PROD-33, D-PROD-135)`
+      `${SESSION_API} ainda envia 'cliente' no login: o contrato é login, senha e lembrar (D-PROD-33, D-PROD-136)`
     );
   }
   if (!/\blogin\s*:/.test(corpoDoLogin) || !/\bsenha\s*[,}]/.test(corpoDoLogin)) {

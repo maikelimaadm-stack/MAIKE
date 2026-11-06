@@ -92,7 +92,7 @@ export const montarPayloadDeSessao = ({ clienteId, usuarioId, login }) => ({
 });
 
 /**
- * Validade do token. Com "Manter conectado" (D-PROD-135) usa
+ * Validade do token. Com "Manter conectado" (D-PROD-136) usa
  * `AUTH_TOKEN_TTL_LEMBRAR` (padrão 30 dias); sem, `AUTH_TOKEN_TTL` (8 h).
  *
  * @param {{ lembrar?: boolean }} [opcoes]

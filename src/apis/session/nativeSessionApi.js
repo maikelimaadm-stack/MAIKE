@@ -115,7 +115,7 @@ const descartarSessaoLocal = () => {
 export const login = async (credenciais) => {
   const usuarioLogin = texto(credenciais?.login);
   const senha = typeof credenciais?.senha === 'string' ? credenciais.senha : '';
-  // "Manter conectado" (D-PROD-135): sessão mais longa e guardada no aparelho.
+  // "Manter conectado" (D-PROD-136): sessão mais longa e guardada no aparelho.
   const lembrar = credenciais?.lembrar === true;
 
   if (!usuarioLogin || !senha) {

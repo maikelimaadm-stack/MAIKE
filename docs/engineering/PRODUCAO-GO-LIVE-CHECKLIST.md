@@ -82,7 +82,7 @@ npm run deploy:migrate
 | `AUTH_SECRET` | Sim | Gerar por ambiente; marcar Sensitive no Vercel |
 | `FRONTEND_ORIGINS` | Sim | Lista **exata**, vírgula, **sem** barra final |
 | `AUTH_TOKEN_TTL` | Não | Default `8h` |
-| `AUTH_TOKEN_TTL_LEMBRAR` | Não | Default `30d` — validade com "Manter conectado" (D-PROD-135) |
+| `AUTH_TOKEN_TTL_LEMBRAR` | Não | Default `30d` — validade com "Manter conectado" (D-PROD-136) |
 
 ### 4.2 Frontend (build — prefixo `VITE_`)
 

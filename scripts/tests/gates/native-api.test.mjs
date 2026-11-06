@@ -172,7 +172,7 @@ describe('P4-NATIVE-TOKEN-STORAGE', () => {
 
   test('NAT-08c gravar no armazenamento persistente sem lembrar === true reprova', () => {
     // O padrão tem de continuar sendo a aba: guardar no aparelho só com o
-    // "Manter conectado" marcado (D-PROD-135).
+    // "Manter conectado" marcado (D-PROD-136).
     const mutado = trocar(
       real(TOKEN_STORAGE),
       "      storage()?.setItem(CHAVE_TOKEN, valor);\n      armazenamentoPersistente()?.removeItem(CHAVE_TOKEN);",

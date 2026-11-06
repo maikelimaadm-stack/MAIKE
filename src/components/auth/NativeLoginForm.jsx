@@ -1,6 +1,6 @@
 /**
  * Entrada da sessão nativa (P4.0, D-PROD-24; login simplificado D-PROD-33;
- * tela nova e "Manter conectado" D-PROD-135).
+ * tela nova e "Manter conectado" D-PROD-136).
  *
  * Superfície mínima de propósito: não é página, não entra em `pages.config` e
  * não amplia `config/mapa-manejo-scope.json`. É o estado "sem sessão" da casca

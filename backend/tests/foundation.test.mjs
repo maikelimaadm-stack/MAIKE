@@ -186,7 +186,7 @@ describe('autenticação', () => {
     assert.equal(resposta.statusCode, 400);
   });
 
-  test('BE-09c "Manter conectado" (lembrar: true) é aceito e dá token mais longo (D-PROD-135)', async () => {
+  test('BE-09c "Manter conectado" (lembrar: true) é aceito e dá token mais longo (D-PROD-136)', async () => {
     const { credenciais } = await criarTenant();
     const expiracao = async (lembrar) => {
       const resposta = await app.inject({ method: 'POST', url: '/auth/login', payload: { ...credenciais, lembrar } });

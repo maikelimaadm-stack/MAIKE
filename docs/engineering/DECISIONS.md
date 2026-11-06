@@ -5111,7 +5111,31 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
 - **Numeração:** D-PROD-132 e D-PROD-133 estão nas PRs abertas #200 e #202; esta usa a 134 para não colidir.
 - **Evidência:** `docs/engineering/evidencias/ux-mobile-v2/v24-*`.
 
-## D-PROD-135 — Tela de entrada nova e "Manter conectado"
+## D-PROD-135 — Mapa Geral: camadas e filtros salvos por usuário; permissão não apaga a preferência
+
+> Numerada 135: a D-PROD-132 é da PR #200, a D-PROD-133 da PR #202 e a D-PROD-134 da PR #203 (logos).
+
+- **Contexto:** a cada acesso o mapa abria "limpo", com Áreas, Detalhes Áreas e Lotes desligados.
+  - Ao abrir, a permissão ainda carregando valia "nada liberado" (PR #199).
+  - Um efeito desligava as camadas, e a gravação salvava isso por cima da preferência.
+  - Além disso, a preferência era por empresa, não por usuário.
+- **Decisão:**
+  - **O que o usuário escolhe** é salvo.
+  - **O que aparece** é a preferência E a permissão (`camadasVisiveis`). A permissão nunca reescreve a preferência.
+  - **Chave local:** fazenda + conta + empresa, com as **três obrigatórias**. Sem a fazenda da sessão, nada é lido nem gravado; nunca um tenant `-` compartilhado.
+  - **Escopo trocado** (conta, empresa ou fazenda) com o mapa montado: aplica o estado **completo** do novo escopo (`normalizarFiltrosMapa`), ou seja, o salvo dele ou o padrão. Nenhum valor do escopo anterior sobrevive.
+  - **Gravação:** só depois de aplicar o estado do escopo atual.
+  - **Padrão** (o proprietário pediu): Áreas, Detalhes Áreas e Lotes ligados, quando a permissão deixa ver.
+  - **Estilo dos pastos** (Visualização, PR #200) entra na preferência do escopo, validado contra `cheio`/`suave`/`contorno`.
+  - **Legado:** as chaves antigas (por empresa e global) não têm titular verificável, pois qualquer conta do aparelho pode tê-las gravado. Por isso **não são herdadas por ninguém** (seria copiar filtros de outra pessoa) e **não são apagadas**. Na primeira vez, cada conta começa no padrão.
+- **Consequência:**
+  - O mapa reabre como cada usuário deixou.
+  - Contas e fazendas diferentes no mesmo aparelho não se misturam.
+  - A preferência fica **no aparelho** (localStorage). Sincronizar entre aparelhos exigiria gravar no servidor; fica para outro slice.
+  - Testes: `tests/smoke/mapaFiltrosEscopo.test.jsx` e `tests/smoke/mapaFiltrosPorUsuario.test.jsx`.
+  - Relatório: `docs/engineering/MAIKE-MAPA-FILTROS-POR-USUARIO-REPORT.md`.
+
+## D-PROD-136 — Tela de entrada nova e "Manter conectado"
 
 - **Contexto:** o proprietário pediu a tela de entrada mais bonita, sem o aviso "Informe usuário e senha. Não há código de cliente…", e um jeito de não precisar entrar toda vez. Até aqui o token ficava só no `sessionStorage` (D-PROD-24): fechar a aba ou o app no celular pedia login de novo, e o token valia 8 h.
 - **Decisão (tela):** painel da marca em verde à esquerda a partir de 1024 px; no celular e tablet, cartão único centralizado. Logo horizontal, campos de 48 px com ícone, fonte de 16 px (sem zoom no iOS), botão de mostrar senha, aviso de Caps Lock, validação no envio com mensagem no próprio campo (sem `required` nativo, porque a regra global de `index.css` pinta de vermelho campo obrigatório vazio antes de digitar), erro com ícone e `role="alert"`, botão verde com carregando.
@@ -5124,4 +5148,4 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
 - **Trade-off, sem maquiagem:** com "Manter conectado" o JWT fica no aparelho por até 30 dias e é legível por JavaScript (o mesmo risco de XSS já descrito na D-PROD-24, agora com janela maior). Não há revogação no servidor nem refresh token. Isso continua sendo da fase de segurança (P8). Quem quiser outra validade muda `AUTH_TOKEN_TTL_LEMBRAR` na Vercel.
 - **Evidência:** `docs/engineering/evidencias/ux-mobile-v2/v25-*`; testes `tests/smoke/loginTela.test.jsx`, `tests/smoke/sessaoNativa.test.js` (P4T-03b/03c).
 
-<!-- Próxima decisão: D-PROD-136 -->
+<!-- Próxima decisão: D-PROD-137 -->

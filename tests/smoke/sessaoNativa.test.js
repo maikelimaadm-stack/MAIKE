@@ -335,7 +335,7 @@ describe('P4T — restauração e logout', () => {
     expect(window.sessionStorage.getItem(NATIVE_TOKEN_STORAGE_KEY)).toBeNull();
   });
 
-  it('P4T-08c token vencido de outra aba NÃO apaga a sessão "Manter conectado" (D-PROD-135)', async () => {
+  it('P4T-08c token vencido de outra aba NÃO apaga a sessão "Manter conectado" (D-PROD-136)', async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(respostaJson(401, { code: 'TENANT_CONTEXT_REQUIRED' }))

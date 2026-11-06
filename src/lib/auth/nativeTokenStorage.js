@@ -39,7 +39,7 @@
  *
  * Isso pertence à fase de segurança (P8) e está registrado na D-PROD-24.
  *
- * ─── "Manter conectado" (D-PROD-135) ───────────────────────────────────────
+ * ─── "Manter conectado" (D-PROD-136) ───────────────────────────────────────
  *
  * O padrão continua sendo `sessionStorage`. Só quando a pessoa marca
  * "Manter conectado" na tela de entrada o token vai para o armazenamento

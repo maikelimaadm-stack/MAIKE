@@ -72,7 +72,7 @@ cinco eram invariante **declarada e não verificada** — a mesma classe da P2-R
 Ver §16 do relatório da P3.
 
 A **P4.0** abriu a P4 ligando o navegador ao backend próprio: URL nativa
-(`VITE_MAIKE_API_URL`), cliente HTTP único, sessão JWT em `sessionStorage` (no aparelho só com "Manter conectado", D-PROD-135),
+(`VITE_MAIKE_API_URL`), cliente HTTP único, sessão JWT em `sessionStorage` (no aparelho só com "Manter conectado", D-PROD-136),
 login nativo, CORS com allowlist exata e o gate absoluto `gate:native-api`.
 Fechou também a dívida de erros que a P3 declarou: os oito códigos do contrato
 entraram no catálogo do frontend. **Nenhum model de domínio** — Setor e

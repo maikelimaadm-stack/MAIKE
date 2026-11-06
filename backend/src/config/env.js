@@ -65,7 +65,7 @@ export const env = {
   databaseUrl: resolverDatabaseUrl(),
   authSecret: texto('AUTH_SECRET'),
   authTokenTtl: texto('AUTH_TOKEN_TTL') || '8h',
-  /** Validade com "Manter conectado" na entrada (D-PROD-135). */
+  /** Validade com "Manter conectado" na entrada (D-PROD-136). */
   authTokenTtlLembrar: texto('AUTH_TOKEN_TTL_LEMBRAR') || '30d',
   anexoTamanhoMaximoBytes: inteiro('ANEXO_TAMANHO_MAXIMO_BYTES', 25 * 1024 * 1024),
   /**
