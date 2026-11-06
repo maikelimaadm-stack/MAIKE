@@ -30,6 +30,7 @@ import HistoricoMovimentacoes from "../lotes/HistoricoMovimentacoes";
 import { Input } from "@/components/ui/input";
 import HistoricoSuplementacaoLote from "../suplementacao/HistoricoSuplementacaoLote";
 import RenomearLoteForm from "../lotes/RenomearLoteForm";
+import EditarInformacaoPosicaoForm from "../lotes/EditarInformacaoPosicaoForm";
 import { LancLoteDialogo, LancLoteForm, LancLoteAviso, LancLoteRodape, LL_CTL } from "../lotes/LancamentoLoteUi";
 import LancField from "@/components/cadastro/base1/LancField";
 import ResumoSuplementacao from "../suplementacao/ResumoSuplementacao";
@@ -601,11 +602,8 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
           setShowJuntarLotes(true);
         };
         const abrirRenomear = () => {
-          // No ledger, o nome é do cadastro (Cadastro de Lotes); a posição só o exibe.
-          if (modoLedger) {
-            toast.error('No controle por posições, renomeie o lote no Cadastro de Lotes. Nada foi gravado.');
-            return;
-          }
+          // D-PROD-139: no ledger, edita nome e identificação da POSIÇÃO (este
+          // grupo nesta área) por comando próprio; o Cadastro de Lotes não é escrito.
           if (lotes.length === 1) {
             setLoteParaRenomear(lotes[0]);
             setNovoNomeLote(lotes[0].nome);
@@ -788,21 +786,41 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
           )}
       </LancLoteDialogo>
 
-      {/* Dialog Editar Informação (renomear o lote) */}
+      {/* Dialog Editar Informação (renomear o lote; no ledger, a posição) */}
       <LancLoteDialogo open={showRenomear} onOpenChange={setShowRenomear} titulo="Editar Informação" lotes={loteParaRenomear ? [loteParaRenomear] : lotes}>
           {!loteParaRenomear && lotes.length > 1 ?
             <div className="mk-ll">
-              <p className="mk-ll__texto">Selecione o lote para renomear:</p>
+              <p className="mk-ll__texto">{modoLedger ? 'Selecione o grupo desta área para editar:' : 'Selecione o lote para renomear:'}</p>
               {lotes.map((l) =>
               <button type="button" key={l.id} className="mk-ll__opcao" onClick={() => {
                 setLoteParaRenomear(l);
                 setNovoNomeLote(l.nome);
               }}>
                   <span>{l.nome}</span>
-                  <span>{l.quantidade_cabecas} cab · {l.categoria}</span>
+                  <span>{l.quantidade_cabecas} cab · {l.categoria}{modoLedger && l.area_atual_nome ? ` · ${l.area_atual_nome}` : ''}</span>
                 </button>
               )}
             </div> :
+            loteParaRenomear && modoLedger ?
+            <EditarInformacaoPosicaoForm
+              posicao={loteParaRenomear}
+              empresaSelecionadaId={empresaSelecionadaId}
+              onSalvo={(atualizada) => {
+                // A posição aparece já com os valores gravados nas duas consultas que
+                // o mapa usa (Detalhes e MapaGeral). Sem invalidar essas duas aqui: o
+                // refetch não forçado (< 60 s) devolveria o IndexedDB antigo por cima.
+                // Quem relê do servidor é o 'atualizar-mapa' (refresh forçado, que
+                // também grava o IndexedDB).
+                const aplicar = (dados) =>
+                  Array.isArray(dados) ? dados.map((x) => (x?.id === atualizada?.id ? { ...x, ...atualizada } : x)) : dados;
+                queryClient.setQueriesData({ queryKey: ['mapa-lotes', empresaSelecionadaId] }, aplicar);
+                queryClient.setQueriesData({ queryKey: ['mapa-cache', 'lotes', empresaSelecionadaId] }, aplicar);
+                queryClient.invalidateQueries({ queryKey: ['lotes'] });
+                window.dispatchEvent(new CustomEvent('atualizar-mapa', { detail: { cacheKeys: ['lotes'] } }));
+                setShowRenomear(false);
+                onClose();
+              }}
+              onCancel={() => setShowRenomear(false)} /> :
             loteParaRenomear ?
             <RenomearLoteForm
               lote={loteParaRenomear}
