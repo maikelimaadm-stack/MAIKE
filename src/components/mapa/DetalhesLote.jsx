@@ -560,17 +560,18 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
                     }
                 </div>
                 <div className="mk-dl__infos">
+                  <CampoDl rotulo="Qtd. Cabeças">{cab.toLocaleString('pt-BR')}</CampoDl>
+                  <CampoDl rotulo="Peso Médio">{peso > 0 ? `${peso.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg` : '-'}</CampoDl>
+                  <CampoDl rotulo="Raça Predom.">{(lote.raca_predominante || '-').toUpperCase()}</CampoDl>
+                  <CampoDl rotulo="Sexo">{(lote.sexo || '-').toUpperCase()}</CampoDl>
+                  <CampoDl rotulo="Sist. Rep.">{(lote.sistema_produtivo || '-').toUpperCase()}</CampoDl>
+                  <CampoDl rotulo="Dias de pastejo">{diasPastejo.toLocaleString('pt-BR')} dia(s)</CampoDl>
                   <CampoDl rotulo="Identificador">
                       {lote.identificador_cor && <span className="mk-dl__cor" style={{ backgroundColor: lote.identificador_cor }} />}
                       {(lote.identificador_nome || '-').toUpperCase()}
                     </CampoDl>
                   <CampoDl rotulo="Sigla">{(lote.identificador_sigla || '-').toUpperCase()}</CampoDl>
-                  <CampoDl rotulo="Qtd. Cabeças">{cab.toLocaleString('pt-BR')}</CampoDl>
-                  <CampoDl rotulo="Peso Médio">{peso > 0 ? `${peso.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg` : '-'}</CampoDl>
-                  <CampoDl rotulo="Dias de pastejo">{diasPastejo.toLocaleString('pt-BR')} dia(s)</CampoDl>
-                  <CampoDl rotulo="Sist. Rep.">{(lote.sistema_produtivo || '-').toUpperCase()}</CampoDl>
-                  <CampoDl rotulo="Raça Predominante">{(lote.raca_predominante || '-').toUpperCase()}</CampoDl>
-                  <CampoDl rotulo="Sexo">{(lote.sexo || '-').toUpperCase()}</CampoDl>
+                  <span className="mk-dl__vazio" aria-hidden />
                 </div>
                 <div className="mk-dl__chips">
                   <span className="mk-dl__chip">Categoria de Manejo: <strong>{(lote.categoria_manejo_nome || '-').toUpperCase()}</strong></span>
