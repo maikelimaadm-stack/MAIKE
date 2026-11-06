@@ -722,7 +722,7 @@
 /* Campos sem caixa de fundo: só rótulo e valor (área e lote). */
 .mk-dl__info {
   min-width: 0;
-  padding: 5px 0;
+  padding: 3px 0;
 }
 
 /* Campo: rótulo e valor no tamanho do "Categoria de Manejo", numa linha só;
@@ -731,7 +731,7 @@
   overflow: hidden;
   white-space: nowrap;
   font-size: 10.5px;
-  line-height: 1.4;
+  line-height: 1.2;
 }
 
 .mk-dl__correr {
