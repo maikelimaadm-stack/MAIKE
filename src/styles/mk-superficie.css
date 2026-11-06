@@ -331,27 +331,3 @@
 :is(.mk-ll__btn, .mk-ll__add, .mk-ll__remover):not(#mk-padrao):active:not(:disabled) {
   background: var(--mk-btn-ativo);
 }
-
-/* Formulários: cinza na superfície, branco nos controles (cadastro e lançamento). */
-.cadastro-b1 .mg-shell--join-table > .mg-form-scroll:not(#mk-padrao) {
-  border: 0;
-  border-radius: 0;
-  background: var(--mk-sup-fundo);
-  box-shadow: none;
-}
-
-.cadastro-b1 .mg-form-scroll > *,
-.cadastro-b1 .mg-form-scroll form,
-.cadastro-b1 .mg-form-scroll .cadastro-b1 {
-  background-color: var(--mk-sup-fundo);
-}
-
-:is(.cadastro-b1, .mk-lanc) .mg-field:not(.mg-field--switch):not(.is-invalid):not(.mg-field--disabled):not(.mg-field--locked):not(#mk-padrao) {
-  background: var(--mk-sup-cartao);
-  border-color: var(--mk-sup-borda);
-}
-
-/* Foco continua com o anel verde dos controles compartilhados. */
-:is(.cadastro-b1, .mk-lanc) .mg-field:not(.mg-field--switch):not(.is-invalid):not(.mg-field--disabled):not(.mg-field--locked):is(:focus-within, .is-open):not(#mk-padrao) {
-  border-color: rgba(64, 222, 99, 0.45);
-}
