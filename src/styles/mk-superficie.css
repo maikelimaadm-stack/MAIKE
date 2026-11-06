@@ -290,3 +290,44 @@
 .cadastro-b1 .mg-rec-pager:not(#mk-padrao) {
   background: var(--mk-sup-fundo);
 }
+
+/* Ações dos lançamentos: mesma superfície e proporção dos cadastros. */
+:is(.mk-ll__btn, .mk-ll__add, .mk-ll__remover):not(#mk-padrao) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: var(--mk-btn-bg);
+  box-shadow: var(--mk-btn-sombra);
+}
+
+.mk-ll__btn--verde:not(#mk-padrao) { color: #16a34a; }
+.mk-ll__btn--ambar:not(#mk-padrao) { color: #b45309; }
+.mk-ll__btn--cinza:not(#mk-padrao) { color: #475569; }
+
+.mk-ll__remover:not(#mk-padrao) {
+  width: 38px;
+  height: 38px;
+}
+
+:is(.mk-ll__add, .mk-ll__remover, .mk-ll__btn):not(#mk-padrao) > svg {
+  width: 20px;
+  height: 20px;
+  stroke-width: 1.8;
+  flex-shrink: 0;
+}
+
+.mk-ll__seg-op.is-on:not(#mk-padrao) {
+  background: rgba(64, 222, 99, 0.14);
+  color: #16a34a;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  :is(.mk-ll__btn, .mk-ll__add, .mk-ll__remover):not(#mk-padrao):hover:not(:disabled) {
+    background: var(--mk-btn-hover);
+  }
+}
+
+:is(.mk-ll__btn, .mk-ll__add, .mk-ll__remover):not(#mk-padrao):active:not(:disabled) {
+  background: var(--mk-btn-ativo);
+}
