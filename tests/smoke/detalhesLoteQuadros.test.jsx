@@ -25,8 +25,7 @@ const comoCelular = (sim) => {
 
 describe("Detalhes do Lote: Manejos e Históricos em quadros (D-PROD-119)", () => {
   it("sem menus suspensos; dois grupos separados — Manejos e Históricos", () => {
-    expect(fonte).toMatch(/<AcoesDoLote grupos=\{\[\{ titulo: 'Manejos', itens: manejos \}\]\} inline \/>/);
-    expect(fonte).toMatch(/<AcoesDoLote grupos=\{\[\{ titulo: 'Históricos', itens: historicos \}\]\} inline \/>/);
+    expect(fonte).toMatch(/<AcoesDoLote grupos=\{\[\{ titulo: 'Manejos', itens: manejos \}, \{ titulo: 'Históricos', itens: historicos \}\]\} \/>/);
     expect(fonte).not.toMatch(/DropdownMenu/);
   });
 

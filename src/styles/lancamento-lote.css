@@ -857,31 +857,34 @@
   font-weight: 600;
 }
 
-/* Botões de seção abaixo do título: cada um abre a sua parte do Detalhes do Lote */
-.mk-dl__abas {
+/* Desktop: área à esquerda e lote à direita. Celular/tablet: empilhados. */
+.mk-dl__layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+}
+
+.mk-dl__coluna {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  padding-bottom: 2px;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
 }
 
-.mk-dl__aba {
-  padding: 5px 11px;
-  border: 1px solid #e7eaee;
-  border-radius: 999px;
-  background: #fff;
-  color: #475569;
-  font-size: 11px;
-  font-weight: 600;
-  white-space: nowrap;
-  cursor: pointer;
-}
+@media (min-width: 1024px) {
+  .mk-dl__layout {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 
-.mk-dl__aba.is-ativa {
-  border-color: var(--mg-accent, #40de63);
-  background: var(--mg-accent, #40de63);
-  color: #fff;
-  font-weight: 700;
+  /* Meia largura: um cartão de lote por linha e campos em 2 colunas */
+  .mk-dl__layout .mk-dl__lotes {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .mk-dl__layout .mk-dl__infos:not(.mk-dl__infos--2) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 /* Fundo cinza atrás dos cartões e dos botões, como no celular; botões brancos (D-PROD-124) */
