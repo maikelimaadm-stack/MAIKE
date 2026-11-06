@@ -96,7 +96,7 @@
 }
 
 /* ── Listas dos cadastros: a grade e o resumo viram cartões sobre o cinza ── */
-.cadastro-b1 .mg-shell--join-table:has(> .mg-shell__body, > .mg-shell__scroll):not(#mk-padrao) {
+.cadastro-b1 .mg-shell--join-table:has(> .mg-shell__body, > .mg-shell__scroll, > .mg-form-scroll):not(#mk-padrao) {
   gap: 8px;
   border: 0;
   border-radius: 0;
@@ -105,13 +105,13 @@
   overflow: visible;
 }
 
-.cadastro-b1 .mg-shell--join-table:has(> .mg-shell__body, > .mg-shell__scroll) .mg-toolbar--join:not(#mk-padrao) {
+.cadastro-b1 .mg-shell--join-table:has(> .mg-shell__body, > .mg-shell__scroll, > .mg-form-scroll) .mg-toolbar--join:not(#mk-padrao) {
   padding: 2px 0;
   border-bottom: 0;
   background: transparent;
 }
 
-.cadastro-b1 .mg-shell--join-table:has(> .mg-shell__body, > .mg-shell__scroll) .mg-rail--join:not(#mk-padrao) {
+.cadastro-b1 .mg-shell--join-table:has(> .mg-shell__body, > .mg-shell__scroll, > .mg-form-scroll) .mg-rail--join:not(#mk-padrao) {
   border: 1px solid var(--mk-sup-borda);
   border-radius: var(--mk-sup-raio);
   background: var(--mk-sup-cartao);
@@ -153,11 +153,11 @@
 
 /* Celular: a barra fica sobre o cinza, sem a faixa branca e sem a linha entre as duas linhas */
 @media (max-width: 639px) {
-  .cadastro-b1--full-page .mg-shell--join-table:has(> .mg-shell__body, > .mg-shell__scroll) .mg-toolbar--responsive:not(#mk-padrao) {
+  .cadastro-b1--full-page .mg-shell--join-table:has(> .mg-shell__body, > .mg-shell__scroll, > .mg-form-scroll) .mg-toolbar--responsive:not(#mk-padrao) {
     padding: 2px 0;
   }
 
-  .cadastro-b1--full-page .mg-shell--join-table:has(> .mg-shell__body, > .mg-shell__scroll) .mg-toolbar--responsive .mg-toolbar__row--actions:not(#mk-padrao) {
+  .cadastro-b1--full-page .mg-shell--join-table:has(> .mg-shell__body, > .mg-shell__scroll, > .mg-form-scroll) .mg-toolbar--responsive .mg-toolbar__row--actions:not(#mk-padrao) {
     margin: 0;
     padding: 0;
     border-bottom: 0;
@@ -265,11 +265,28 @@
 }
 
 /* Mesma proporção nos controles compartilhados; área de toque preservada. */
-:is(.tb-btn-icon, .mg-rec-pager__btn, .mk-sheet__close, .mk-sheet__new, .mk-mhdr__round, .mk-ll-dlg__redondo):not(#mk-padrao) > svg,
+:is(.tb-btn, .mg-rec-pager__btn, .mk-sheet__close, .mk-sheet__new, .mk-mhdr__round, .mk-ll-dlg__redondo):not(#mk-padrao) > svg,
 .mk-mhdr__back > span:not(#mk-padrao) > svg,
 .view-seg button:not(#mk-padrao) > svg {
   width: 20px !important;
   height: 20px !important;
   stroke-width: 1.8;
   flex-shrink: 0;
+}
+
+/* A ficha única participa da mesma superfície dos outros modos Base1. */
+.cadastro-b1 .mg-shell--join-table > .mg-form-scroll:not(#mk-padrao) {
+  border: 1px solid var(--mk-sup-borda);
+  border-radius: var(--mk-sup-raio);
+  background: var(--mk-sup-cartao);
+  box-shadow: var(--mk-sup-sombra);
+}
+
+.cadastro-b1 .mg-shell--join-table > [data-testid="cadastro-record-header"]:not(#mk-padrao) {
+  background: transparent !important;
+  border-bottom: 0;
+}
+
+.cadastro-b1 .mg-rec-pager:not(#mk-padrao) {
+  background: var(--mk-sup-fundo);
 }
