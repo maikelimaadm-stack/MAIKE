@@ -97,10 +97,22 @@ export const propagarNomeGrupoAtividade = async (tx, clienteId, grupoId, nomeGru
     data: { grupo_atividade_nome: nomeGrupo },
   });
 
-/** @param {import('@prisma/client').Prisma.TransactionClient} tx */
-export const propagarSetorNome = async (tx, clienteId, nomeAntigo, nomeNovo) =>
+/**
+ * Renomeação de setor nas tarefas (REF-03, D-PROD-136). A tarefa não tem
+ * `setor_id`: o `setor_nome` dela é o da ÁREA no momento em que a área foi
+ * atribuída (lancamentoTarefaService `aplicarCachesDeFk`). O vínculo verificável
+ * é, portanto, a área: só tarefa cuja área é DESTE setor e que ainda carrega o
+ * nome antigo acompanha. Casar só pelo nome reescrevia o setor homônimo de
+ * outra empresa (o tenant inteiro) e o da mesma empresa — `Setor.nome` não é
+ * único. Tarefa sem área não tem vínculo e fica como está.
+ *
+ * @param {import('@prisma/client').Prisma.TransactionClient} tx
+ * @param {string} clienteId
+ * @param {{setorId: string, nomeAntigo: string, nomeNovo: string}} renomeacao
+ */
+export const propagarSetorNome = async (tx, clienteId, { setorId, nomeAntigo, nomeNovo }) =>
   tx.lancamentoTarefa.updateMany({
-    where: { cliente_id: clienteId, setor_nome: nomeAntigo },
+    where: { cliente_id: clienteId, setor_nome: nomeAntigo, area: { is: { cliente_id: clienteId, setor_id: setorId } } },
     data: { setor_nome: nomeNovo },
   });
 

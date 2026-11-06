@@ -6,6 +6,8 @@ import { getPrismaClient } from '../../database/prismaClient.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { registrarEvento } from '../auditoria/auditService.js';
 import { reservarNumero, ESCOPO_TENANT } from '../sequencias/entidadeCodigoService.js';
+import { propagarRenomeacaoDeProduto } from '../referencias/propagacaoPorChaveUnica.js';
+import { registrarPropagacao } from '../referencias/syncEntityReferencesService.js';
 import {
   decodificarCursor,
   montarEnvelopeKeyset,
@@ -248,6 +250,10 @@ export const atualizar = async (contexto, id, entrada) => {
       },
       tx
     );
+    // Cochos e manejos só guardam o NOME do produto: acompanham a renomeação
+    // aqui, com o nome antigo do banco e na mesma transação — não pelo
+    // /referencias/sincronizar, que não aceita mais nome do corpo (D-PROD-136).
+    await registrarPropagacao(contexto, 'Produto', id, await propagarRenomeacaoDeProduto(tx, auth.clienteId, anterior, registro), tx);
     return publico;
   });
 };
