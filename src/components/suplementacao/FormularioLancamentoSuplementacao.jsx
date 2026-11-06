@@ -757,8 +757,8 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
               <div className="rounded-md border border-slate-300 focus-within:border-emerald-500 transition-colors"><Textarea value={formData.observacoes} onChange={(e) => setFormData((prev) => ({ ...prev, observacoes: e.target.value }))} className="text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" rows={3} /></div>
             </div>
             <div className="flex justify-end gap-1 pt-1 border-t">
-              <Button type="button" variant="outline" onClick={onCancel} size="sm" className="h-7 text-xs">Cancelar</Button>
-              <Button type="button" onClick={handleSalvar} size="sm" className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white" disabled={!botaoHabilitado || progresso.show}>{progresso.show ? "Registrando..." : "Salvar novo ciclo"}</Button>
+              <Button type="button" variant="outline" onClick={onCancel} size="sm" className="tb-btn tb-btn-gray h-7 text-xs">Cancelar</Button>
+              <Button type="button" onClick={handleSalvar} size="sm" className="tb-btn tb-btn-green h-7 text-xs" disabled={!botaoHabilitado || progresso.show}>{progresso.show ? "Registrando..." : "Salvar novo ciclo"}</Button>
             </div>
           </div>
         </CardContent>

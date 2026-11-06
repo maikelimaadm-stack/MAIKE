@@ -2021,10 +2021,22 @@ form:has(.mk-lanc) button[class*="border-dashed"] {
 }
 
 .mk-sheet .mg-b1-menuitem {
+  display: flex;
+  align-items: center;
+  text-align: left;
+  width: 100%;
   gap: 14px;
 }
 
+.mk-sheet .mg-b1-menuitem > span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 20px;
+}
+
 .mk-sheet .mg-b1-menuitem svg {
+  flex-shrink: 0;
   color: #4a4a46;
 }
 
