@@ -1,0 +1,80 @@
+/* Proporções do modelo Wi-Fi fornecido: trilho 72:32, peça oval 43:28.
+   Escala compacta; o alvo de toque mantém 44px de altura. */
+:root { --mk-toggle-w: 49.5px; --mk-toggle-h: 22px; }
+@media (min-width: 1024px) { :root { --mk-toggle-w: 45px; --mk-toggle-h: 20px; } }
+.b1-switch:not(#mk-padrao), .mk-ios-switch:not(#mk-padrao) {
+  --mk-toggle-track: #e5e5e9;
+  --mk-toggle-inset: calc(var(--mk-toggle-h) / 16);
+  --mk-toggle-thumb-w: calc(var(--mk-toggle-w) * 43 / 72);
+  --mk-toggle-offset: 0px;
+  position: relative;
+  isolation: isolate;
+  display: inline-flex;
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  width: var(--mk-toggle-w) !important;
+  min-width: var(--mk-toggle-w) !important;
+  max-width: var(--mk-toggle-w) !important;
+  height: var(--mk-toggle-h) !important;
+  min-height: var(--mk-toggle-h) !important;
+  padding: 0 !important;
+  margin: 0;
+  border: 0 !important;
+  border-radius: 999px;
+  background: var(--mk-toggle-track) !important;
+  overflow: visible !important;
+  box-shadow: none;
+  transition: background-color 175ms ease;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: pan-y;
+  cursor: pointer;
+}
+.b1-switch[aria-checked="true"]:not(#mk-padrao), .mk-ios-switch.is-on:not(#mk-padrao) {
+  --mk-toggle-track: var(--mg-accent, #40de63);
+  --mk-toggle-offset: calc(var(--mk-toggle-w) - var(--mk-toggle-thumb-w) - var(--mk-toggle-inset) * 2);
+}
+:is(.b1-switch, .mk-ios-switch):not(#mk-padrao)::before {
+  position: absolute; content: ""; inset: calc((var(--mk-toggle-h) - 44px) / 2) 0; border-radius: 999px;
+}
+.b1-switch:not(#mk-padrao) .b1-switch__thumb,
+.mk-ios-switch:not(#mk-padrao) .mk-ios-switch__thumb {
+  position: absolute;
+  z-index: 1;
+  top: var(--mk-toggle-inset) !important;
+  left: var(--mk-toggle-inset) !important;
+  bottom: auto !important;
+  width: var(--mk-toggle-thumb-w) !important;
+  height: calc(var(--mk-toggle-h) * 28 / 32) !important;
+  aspect-ratio: auto !important;
+  border-radius: 999px;
+  background: #fdfdfd !important;
+  box-shadow: 0 1px 2px rgba(0,0,0,.06) !important;
+  transform: translateX(var(--mk-toggle-offset)) !important;
+  transform-origin: center !important;
+  scale: 1 !important;
+  animation: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  transition: transform 185ms cubic-bezier(.22,.88,.27,1) !important;
+  pointer-events: none;
+}
+:is(.b1-switch__thumb, .mk-ios-switch__thumb)::after {
+  content: ""; position: absolute; inset: -1px;
+  border-radius: inherit;
+  background: linear-gradient(160deg,#fff 0%,#fdfdfd 75%,#fafafa 100%);
+  box-shadow: 0 2px 5px rgba(0,0,0,.14),0 3px 8px rgba(0,0,0,.06);
+  opacity: 0; transform: scale(.94);
+  transition: transform 115ms cubic-bezier(.2,.87,.28,1), opacity 70ms ease;
+}
+:is(.b1-switch, .mk-ios-switch):active:not(:disabled):not([aria-readonly="true"]) > :is(.b1-switch__thumb, .mk-ios-switch__thumb)::after,
+.mk-vis__linha:active .mk-ios-switch__thumb::after { opacity: 1; transform: scale(1); }
+:is(.b1-switch, .mk-ios-switch):focus-visible:not(#mk-padrao) { outline: 2px solid #64748b; outline-offset: 3px; }
+:is(.b1-switch, .mk-ios-switch):disabled:not(#mk-padrao) { opacity: .45; cursor: not-allowed; }
+:is(.b1-switch, .mk-ios-switch)[aria-readonly="true"]:not(#mk-padrao) { cursor: default; }
+@media (prefers-reduced-motion: reduce) {
+  :is(.b1-switch, .mk-ios-switch, .b1-switch__thumb, .mk-ios-switch__thumb):not(#mk-padrao),
+  :is(.b1-switch__thumb, .mk-ios-switch__thumb)::after { transition: none !important; animation: none !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  :is(.b1-switch, .mk-ios-switch):not(#mk-padrao) :is(.b1-switch__thumb, .mk-ios-switch__thumb) { transition: none !important; }
+}

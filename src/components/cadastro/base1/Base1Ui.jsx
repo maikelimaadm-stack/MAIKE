@@ -72,12 +72,16 @@ export function FluidSlot({ open, className, children }) {
 /** @typedef {import('react').ComponentPropsWithoutRef<'button'> & { tone?: 'green'|'gray'|'red'|'outline'; title?: string; }} PillBtnProps */
 /** @type {import('react').ForwardRefRenderFunction<HTMLButtonElement, PillBtnProps>} */
 const PillBtnRender = ({ className, tone = "green", children, title, ...p }, ref) => {
+  const apenasFechar = (p["aria-label"] || title)?.trim().toLocaleLowerCase("pt-BR") === "fechar";
   const toneClass =
     { green: "tb-btn-green", gray: "tb-btn-gray", red: "tb-btn-red", outline: "tb-btn-outline" }[tone] ??
     "tb-btn-green";
   return (
-    <button ref={ref} type="button" title={title} className={cn("tb-btn", toneClass, className)} {...p}>
+    <button ref={ref} type="button" title={title} className={cn("tb-btn", toneClass, className, apenasFechar && "mk-close-icon")} {...p}>
       {children}
+      {!apenasFechar && className?.split(" ").includes("mg-act-ic") && (p["aria-label"] || title) ? (
+        <span className="mk-desktop-action-label" aria-hidden="true">{p["aria-label"] || title}</span>
+      ) : null}
     </button>
   );
 };

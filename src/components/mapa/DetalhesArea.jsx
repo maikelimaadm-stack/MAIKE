@@ -29,7 +29,7 @@ export default function DetalhesArea({ area, permissions }) {
 
   if (!curral) {
     return (
-      <div className="space-y-1" translate="no">
+      <div className="mk-map-details space-y-1" translate="no">
         {abaArea}
       </div>
     );
@@ -37,14 +37,14 @@ export default function DetalhesArea({ area, permissions }) {
 
   if (!historicoDaArea) {
     return (
-      <div className="space-y-1" translate="no">
+      <div className="mk-map-details space-y-1" translate="no">
         <HistoricoAbateCurral areaId={area.id} />
       </div>
     );
   }
 
   return (
-    <div className="space-y-1" translate="no">
+    <div className="mk-map-details space-y-1" translate="no">
       <Tabs defaultValue="abate" className="w-full">
         <TabsList className="mb-1">
           <TabsTrigger value="abate" className="text-xs">Abate</TabsTrigger>

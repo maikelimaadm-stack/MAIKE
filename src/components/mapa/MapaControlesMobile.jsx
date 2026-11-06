@@ -1,4 +1,6 @@
 import React from "react";
+import { useCelular } from "@/components/common/MobileSheet";
+import { LancLoteDialogo } from "@/components/lotes/LancamentoLoteUi";
 import { ClipboardList, Layers, Move, RefreshCw, SlidersHorizontal, Target, X } from "lucide-react";
 
 const CAMADAS = [
@@ -27,11 +29,12 @@ export default function MapaControlesMobile({
   showMoverButton = false,
   painel = null
 }) {
+  const celular = useCelular();
   const [camadasAberto, setCamadasAberto] = React.useState(false);
   const camadasRef = React.useRef(/** @type {HTMLDivElement | null} */ (null));
 
   React.useEffect(() => {
-    if (!camadasAberto) return undefined;
+    if (!camadasAberto || celular) return undefined;
     const fora = (e) => {
       if (!camadasRef.current?.contains(/** @type {Node} */ (e.target))) setCamadasAberto(false);
     };
@@ -42,9 +45,25 @@ export default function MapaControlesMobile({
       document.removeEventListener("pointerdown", fora, true);
       document.removeEventListener("keydown", esc);
     };
-  }, [camadasAberto]);
+  }, [camadasAberto, celular]);
 
   const camadaAtual = CAMADAS.find((c) => c.id === mapType) || CAMADAS[0];
+
+  const conteudoCamadas = painel || (
+                  <div className="mk-mapa-camadas__opcoes" role="group" aria-label="Tipo de mapa">
+                    {CAMADAS.map((c) => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        aria-pressed={mapType === c.id}
+                        className={`mk-mapa-camada${mapType === c.id ? " is-on" : ""}`}
+                        onClick={() => setMapType(c.id)}>
+                        <span className={`mk-mapa-camada__mini mk-mapa-camada__mini--${c.id}`} aria-hidden />
+                        {c.label}
+                      </button>
+                    ))}
+                  </div>
+                );
 
   return (
     <>
@@ -79,7 +98,7 @@ export default function MapaControlesMobile({
             title="Visualização">
             <Layers size={18} aria-hidden />
           </button>
-          {camadasAberto ? (
+          {camadasAberto && !celular ? (
             <div className="mk-mapa-card mk-mapa-camadas__menu" role="dialog" aria-label="Visualização">
               <div className="mk-mapa-camadas__topo">
                 <span className="mk-mapa-camadas__nome">Visualização</span>
@@ -88,21 +107,7 @@ export default function MapaControlesMobile({
                 </button>
               </div>
               <div className="mk-mapa-camadas__corpo">
-                {painel || (
-                  <div className="mk-mapa-camadas__opcoes" role="group" aria-label="Tipo de mapa">
-                    {CAMADAS.map((c) => (
-                      <button
-                        key={c.id}
-                        type="button"
-                        aria-pressed={mapType === c.id}
-                        className={`mk-mapa-camada${mapType === c.id ? " is-on" : ""}`}
-                        onClick={() => setMapType(c.id)}>
-                        <span className={`mk-mapa-camada__mini mk-mapa-camada__mini--${c.id}`} aria-hidden />
-                        {c.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
+                {conteudoCamadas}
               </div>
             </div>
           ) : null}
@@ -130,6 +135,9 @@ export default function MapaControlesMobile({
           ) : null}
         </div>
       </div>
+      {celular ? <LancLoteDialogo open={camadasAberto} onOpenChange={setCamadasAberto} titulo="Visualização" somenteLeitura folhaMobile>
+        <div className="mk-map-visual-mobile">{conteudoCamadas}</div>
+      </LancLoteDialogo> : null}
     </>
   );
 }

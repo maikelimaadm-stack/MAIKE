@@ -1,3 +1,4 @@
+import { LancLoteDialogo } from "@/components/lotes/LancamentoLoteUi";
 import React, { useMemo, useState } from "react";
 import { listarTodosLotesNota, listarTodosProdutos, listarTodasMovimentacoes } from "@/services/estoqueMapaService";
 import { listarPontosSuplementacaoAtivos, listarAreasAtivas, listarIconesPorTipoEntidade } from "@/services/mapaService";
@@ -147,7 +148,7 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
 
   if (loadingInicial) {
     return (
-      <div className="space-y-1" translate="no">
+      <div className="mk-map-details space-y-1" translate="no">
         <div className="rounded-lg border border-slate-200 bg-white p-4 flex items-center gap-3">
           <div className="animate-spin w-5 h-5 border-2 border-emerald-600 border-t-transparent rounded-full" />
           <span className="text-xs font-medium text-slate-700">Carregando detalhes do depósito...</span>
@@ -157,7 +158,7 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
   }
 
   return (
-    <div className="space-y-1" translate="no">
+    <div className="mk-map-details space-y-1" translate="no">
       <div className="pb-1 border-b space-y-1">
         <div className="flex items-center gap-1 flex-wrap">
           <Badge variant="outline" className="bg-yellow-400 text-slate-950 px-2.5 py-0.5 text-xs font-semibold rounded-md inline-flex items-center border border-yellow-300">Local: {deposito.nome_ponto}</Badge>
@@ -165,9 +166,9 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
       </div>
 
       <div className="grid grid-cols-3 sm:grid-cols-3 gap-1">
-        {permissions.movimentar_depositos !== false && <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => { setTransferDirection("entrada"); setShowTransferencia(true); }}>Entrada</Button>}
-        {permissions.movimentar_depositos !== false && <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => { setTransferDirection("saida"); setShowTransferencia(true); }}>Saída</Button>}
-        {permissions.visualizar_historico_cocho !== false && <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowHistorico(true)}>Histórico</Button>}
+        {permissions.movimentar_depositos !== false && <Button data-mk-map-action="" variant="outline" size="sm" className="h-8 text-xs" onClick={() => { setTransferDirection("entrada"); setShowTransferencia(true); }}>Entrada</Button>}
+        {permissions.movimentar_depositos !== false && <Button data-mk-map-action="" variant="outline" size="sm" className="h-8 text-xs" onClick={() => { setTransferDirection("saida"); setShowTransferencia(true); }}>Saída</Button>}
+        {permissions.visualizar_historico_cocho !== false && <Button data-mk-map-action="" variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowHistorico(true)}>Histórico</Button>}
       </div>
 
       <div className="space-y-1 text-[10px]">
@@ -311,17 +312,15 @@ export default function DetalhesDepositoSuplementacao({ deposito, onClose, permi
       </Card>
 
       <Dialog open={showTransferencia} onOpenChange={setShowTransferencia}>
-        <DialogContent className="max-w-[880px] max-h-[90vh] overflow-y-auto">
+        <DialogContent className="mk-map-dialog max-w-[880px] max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle className="text-sm">{transferDirection === "entrada" ? "Entrada no Depósito" : "Saída do Depósito"}</DialogTitle></DialogHeader>
           <FormularioTransferenciaDeposito deposito={deposito} initialDirection={transferDirection} onSuccess={() => {setShowTransferencia(false);handleSaved();}} onCancel={() => setShowTransferencia(false)} />
         </DialogContent>
       </Dialog>
 
-      <Dialog open={showHistorico} onOpenChange={setShowHistorico}>
-        <DialogContent className="bg-background px-2 py-2 fixed left-[50%] top-[50%] z-50 grid w-full translate-x-[-50%] translate-y-[-50%] gap-4 border shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg max-w-4xl max-h-[90vh] overflow-y-auto">
+      <LancLoteDialogo open={showHistorico} onOpenChange={setShowHistorico} titulo="Histórico do Depósito" largo somenteLeitura>
           <HistoricoDepositoSuplementacao deposito={deposito} />
-        </DialogContent>
-      </Dialog>
+        </LancLoteDialogo>
     </div>);
 
 }

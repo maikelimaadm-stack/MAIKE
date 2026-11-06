@@ -5308,4 +5308,25 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
   - renomear depois no Cadastro de Lotes continua propagando o campo a todas as posições da entrada e sobrescreve a edição feita no mapa.
 - **Consequência:** sem migration. Testes: `backend/tests/posicaoEditarInformacao.test.mjs` (PG) e `tests/smoke/editarInformacaoPosicao.test.jsx` (RTL). Relatório: `docs/engineering/MAIKE-EDITAR-INFORMACAO-POSICAO-REPORT.md`.
 
-<!-- Próxima decisão: D-PROD-140 -->
+## D-PROD-140 — Chaves com bolinha redonda e movimento discreto
+
+- **Contexto:** o proprietário pediu proporção, tamanho e efeito próximos dos controles de aplicativos nativos nas chaves de ativação.
+- **Decisão:** B1Switch e ToggleSwitch compartilham trilho e bolinha redonda, branca e com sombra leve. Celular/tablet: 51×31 px; desktop: 44×26 px. A área de interação tem pelo menos 44 px de altura. Transição de 180 ms, pressão discreta sem sair do trilho e nenhuma animação quando o dispositivo pede movimento reduzido. Verde MAIKE ligado, cinza desligado; estados bloqueado e somente leitura continuam explícitos.
+- **Substitui:** a geometria de cápsula e o efeito de vidro/escala das D-PROD-98, D-PROD-102 e D-PROD-103; não muda as regras das folhas.
+- **Implementação:** `src/styles/mk-toggles.css`, carregado após os estilos históricos. Sem mudança de persistência ou permissão.
+
+## D-PROD-141 — Superfície clara compartilhada com o Mapa Geral
+
+- **Contexto:** o proprietário aprovou o fundo mais claro e pediu que os controles do mapa e seus lançamentos seguissem o acabamento dos cadastros.
+- **Decisão:** fundo compartilhado `#F7F8FA`, cartões e ações brancos com sombra discreta, ícones de ação de 16 px e seleção distinguida pelo fundo. Os controles preservam área de toque de 44 px; desktop usa ações compactas de 36 px. Camadas, filtros, detalhes e ações dos lançamentos do mapa recebem o mesmo acabamento.
+- **Implementação:** `src/styles/mk-mapa-superficie.css`, após os estilos compartilhados. Mantém cores informativas de legendas, ocupação e alertas, créditos do mapa, regras de filtro, permissões e persistência.
+- **Validação:** componentes reais em Chromium local com dados de exemplo, em 1440, 768 e 390 px, incluindo alteração de visualização/camada e confirmação de lançamento. 72 testes relacionados passaram. Sem sessão autenticada de produção.
+
+## D-PROD-142 — Consultas em tela, escolhas expansíveis e chave oval compacta
+
+- **Contexto:** o proprietário corrigiu o escopo das folhas do mapa: detalhes do lote continuam em tela; listas de ações, filtros e escolhas precisam de expansão por gestos. Forneceu o modelo HTML Wi-Fi como referência visual para todos os toggles.
+- **Decisão:** `folhaMobile` é opt-in em LancLoteDialogo. Manejos e históricos (menu de ações), Filtros e Camadas e Visualização usam a folha; detalhes e consultas não recebem esse comportamento por serem somente leitura. As escolhas dos filtros usam B1Select, o seletor dos cadastros.
+- **Geometria:** B1Switch e ToggleSwitch usam as proporções 72:32 do trilho e 43:28 da peça oval do modelo. Escala mobile/tablet 49,5×22 px; desktop 45×20 px. Mantém o verde MAIKE, alvo de toque com 44 px, foco de teclado, estados bloqueados e movimento reduzido. Revoga apenas a geometria redonda da D-PROD-140. Campos do mapa: 36 px no mobile/tablet e 32 px no desktop; em duas colunas quando há espaço.
+- **Validação:** Chromium local com componentes reais em 320, 390, 768 e 1440 px: detalhes sem folha, menu de ações expansível, escolha de filtro aninhada, controles sem overflow, toggles ovalizados e movimento reduzido. Dados de exemplo, sem sessão de produção.
+
+<!-- Próxima decisão: D-PROD-143 -->

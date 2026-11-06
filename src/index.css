@@ -6,6 +6,11 @@
 @import "./styles/lancamento-lote.css";
 @import "./styles/mapa-geral.css";
 @import "./styles/mk-superficie.css";
+@import "./styles/mk-filtros.css";
+@import "./styles/mk-configuracoes.css";
+@import "./styles/mk-toggles.css";
+@import "./styles/mk-listas.css";
+@import "./styles/mk-mapa-superficie.css";
 
 @tailwind base;
 @tailwind components;

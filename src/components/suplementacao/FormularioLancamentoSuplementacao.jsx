@@ -1,3 +1,4 @@
+import { X, Check, Loader2 } from "lucide-react";
 import React, { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -712,7 +713,7 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
               <div className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-[11px] space-y-1">
                 <div className="flex items-center justify-between gap-1">
                   <div className="text-xs font-semibold text-slate-900">Consumo por Lote (novo lançamento)</div>
-                  <Button type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={() => setMostrarConsumoLote((prev) => !prev)}>
+                  <Button data-mk-map-action="" type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={() => setMostrarConsumoLote((prev) => !prev)}>
                     {mostrarConsumoLote ? "Ocultar" : "Ver"}
                   </Button>
                 </div>
@@ -757,8 +758,8 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
               <div className="rounded-md border border-slate-300 focus-within:border-emerald-500 transition-colors"><Textarea value={formData.observacoes} onChange={(e) => setFormData((prev) => ({ ...prev, observacoes: e.target.value }))} className="text-xs border-0 shadow-none focus-visible:ring-0 bg-transparent" rows={3} /></div>
             </div>
             <div className="flex justify-end gap-1 pt-1 border-t">
-              <Button type="button" variant="outline" onClick={onCancel} size="sm" className="tb-btn tb-btn-gray h-7 text-xs">Cancelar</Button>
-              <Button type="button" onClick={handleSalvar} size="sm" className="tb-btn tb-btn-green h-7 text-xs" disabled={!botaoHabilitado || progresso.show}>{progresso.show ? "Registrando..." : "Salvar novo ciclo"}</Button>
+              <Button data-mk-map-action="" type="button" variant="outline" onClick={onCancel} size="sm" className="tb-btn tb-btn-gray h-7 text-xs mk-launch-action" aria-label="Cancelar" title="Cancelar"><X aria-hidden /><span className="mk-launch-action-label">Cancelar</span></Button>
+              <Button data-mk-map-action="" type="button" onClick={handleSalvar} size="sm" className="tb-btn tb-btn-green h-7 text-xs mk-launch-action" aria-label={progresso.show ? "Registrando..." : "Salvar novo ciclo"} title="Salvar novo ciclo" aria-busy={progresso.show || undefined} disabled={!botaoHabilitado || progresso.show}>{progresso.show ? <Loader2 className="animate-spin" aria-hidden /> : <Check aria-hidden />}<span className="mk-launch-action-label">{progresso.show ? "Registrando..." : "Salvar novo ciclo"}</span></Button>
             </div>
           </div>
         </CardContent>

@@ -6,7 +6,7 @@
  */
 import React from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, waitFor, cleanup } from "@testing-library/react";
+import { render, screen, waitFor, cleanup, fireEvent } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { readFileSync } from "node:fs";
 
@@ -52,6 +52,20 @@ describe("R4 — mover sem permissão de lançar suplementação", () => {
     expect(screen.queryByText(/Deseja fechar o consumo antes de mover/)).toBeNull();
     expect(screen.queryByText("Fechar consumo")).toBeNull();
     expect(screen.getByText("Data da Movimentação")).toBeTruthy();
+    expect(fechar).not.toHaveBeenCalled();
+  });
+
+  it("a chave de mover o lote inteiro alterna a edição parcial sem mudar o fluxo de consumo", async () => {
+    montar({ podeLancarSuplementacao: false });
+    const chave = await screen.findByRole("switch", { name: "Movimentar todo o lote?" });
+    expect(chave.getAttribute("aria-checked")).toBe("true");
+    expect(screen.queryByText("Categoria 1")).toBeNull();
+    fireEvent.click(chave);
+    expect(chave.getAttribute("aria-checked")).toBe("false");
+    expect(screen.getByText("Categoria 1")).toBeTruthy();
+    fireEvent.click(chave);
+    expect(chave.getAttribute("aria-checked")).toBe("true");
+    expect(screen.queryByText("Categoria 1")).toBeNull();
     expect(fechar).not.toHaveBeenCalled();
   });
 

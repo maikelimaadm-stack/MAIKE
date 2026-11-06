@@ -1,0 +1,146 @@
+/* Configurações de colunas, campos e layout de cards: superfície compartilhada. */
+.mk-config-dialog:not(#mk-padrao) {
+  background: var(--mk-sup-fundo);
+  border: 1px solid var(--mk-sup-borda);
+  border-radius: 18px;
+}
+.mk-config-dialog :is(.mdl-h, .mdl-f):not(#mk-padrao) {
+  background: transparent;
+  border: 0;
+  padding: 12px 16px;
+  height: auto;
+  gap: 8px;
+}
+.mk-config-dialog .mdl-t:not(#mk-padrao) { font-size: 16px; }
+.mk-config-dialog .mdl-b:not(#mk-padrao) { padding: 8px 16px; gap: 12px; }
+.mk-config-dialog .dbox:not(#mk-padrao) {
+  border: 0;
+  padding: 0;
+  gap: 8px;
+  background: transparent;
+}
+.mk-config-dialog .dbox-h:not(#mk-padrao) {
+  margin: 0;
+  padding: 0 8px;
+  border: 0;
+}
+.mk-config-dialog .cfgb:not(#mk-padrao),
+.mk-config-dialog .cfgb:focus-within:not(#mk-padrao) {
+  height: var(--mk-search-height);
+  margin: 0;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: var(--mk-btn-sombra);
+}
+.mk-config-dialog .cfgb input:not(#mk-padrao) {
+  font-size: var(--mk-search-font);
+  min-width: 0;
+}
+:is(.mk-config-dialog .dbox-l, .mk-config-options, .mk-colcfg__lista):not(#mk-padrao) {
+  background: #fff;
+  border: 0;
+  border-radius: 14px;
+  padding: 4px;
+}
+.mk-config-dialog .dlin:not(#mk-padrao) {
+  min-height: 40px;
+  border: 0;
+  border-radius: 8px;
+}
+.mk-config-dialog .dlin-l:not(#mk-padrao) { font-size: 14px; }
+.mk-config-dialog .dmid:not(#mk-padrao) { gap: 8px; padding: 0 4px; }
+:is(.mk-config-dialog .dmid-btn, .mk-colcfg__ordem button, .mk-colcfg__restaurar, .mk-config-restore):not(#mk-padrao) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: #fff;
+  color: #475569;
+  box-shadow: var(--mk-btn-sombra);
+}
+.mk-config-dialog .dmid-btn:not(#mk-padrao) { width: 36px; height: 36px; padding: 0; }
+:is(.mk-config-dialog, .mk-config-sheet) :is(.tb-btn, .dmid-btn, .mk-colcfg__ordem button, .mk-config-restore, .mk-colcfg__restaurar):not(#mk-padrao) svg {
+  width: 16px !important;
+  height: 16px !important;
+  padding: 0;
+  stroke-width: 1.65;
+  flex-shrink: 0;
+}
+.mk-config-dialog .tb-btn.tb-btn-icon:not(#mk-padrao) {
+  width: 36px !important;
+  min-width: 36px !important;
+  height: 36px !important;
+  min-height: 36px !important;
+  padding: 0 !important;
+}
+:is(.mk-config-options, .mk-colcfg__lista) .mg-b1-row:not(#mk-padrao) {
+  min-height: 44px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 14px;
+}
+.mk-config-options .mg-b1-row__title:not(#mk-padrao) { font-size: 14px; }
+.mk-config-options .mg-b1-row__hint:not(#mk-padrao) { font-size: 12px; }
+.mk-config-body { display: flex; flex-direction: column; flex: 1; min-height: 0; gap: 12px; padding: 0 12px 12px; }
+.mk-config-sheet .mk-config-options { flex-shrink: 1; }
+.mk-colcfg__lista:not(#mk-padrao) { margin: 0 12px; }
+.mk-config-sheet .mk-colcfg__row:not(#mk-padrao) { border-radius: 10px; padding: 0 12px; }
+.mk-config-sheet .mk-colcfg__ordem { gap: 6px; }
+.mk-config-sheet .mk-colcfg__ordem button:not(#mk-padrao) { width: 36px; height: 36px; padding: 0; }
+:is(.mk-colcfg__restaurar, .mk-config-restore):not(#mk-padrao) { min-height: 40px; margin: 12px; font-size: 14px; flex-shrink: 0; }
+.mk-config-body .mk-config-restore { margin: 0; }
+.mk-config-legacy > .space-y-3 > div:not(#mk-padrao) { background: #fff; border: 0; border-radius: 14px; padding: 12px; }
+@media (max-width: 639px) {
+  .mk-config-options .mg-b1-row:not(#mk-padrao) { min-height: 50px; font-size: 16px; }
+  .mk-config-options .mg-b1-row__title:not(#mk-padrao) { font-size: 16px; }
+  .mk-config-options .mg-b1-row__hint:not(#mk-padrao) { font-size: 13px; }
+}
+@media (hover: hover) and (pointer: fine) {
+  :is(.mk-config-dialog .dmid-btn, .mk-colcfg__ordem button, .mk-colcfg__restaurar, .mk-config-restore):not(#mk-padrao):hover:not(:disabled) { background: var(--mk-btn-hover); }
+}
+.mk-config-dialog:has([role="radiogroup"]):not(#mk-padrao) { height: auto; }
+.mk-config-legacy .tb-btn:not(#mk-padrao) {
+  height: 36px;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 0;
+  font-size: 14px;
+}
+
+/* Alça separada dos toggles/setas: arrastar não move a folha. */
+.mk-colcfg__drag-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  min-height: 44px;
+  flex: 0 0 32px;
+  color: #94a3b8;
+  cursor: grab;
+  touch-action: none;
+}
+.mk-colcfg__drag-handle:focus-visible { outline: 2px solid #64748b; outline-offset: -2px; border-radius: 8px; }
+.mk-colcfg__drag-handle svg { width: 16px; height: 16px; }
+.mk-colcfg:not(#mk-padrao) { will-change: auto; }
+.mk-colcfg .mk-colcfg__row.is-reordering:not(#mk-padrao) {
+  background: #fff;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.18);
+  cursor: grabbing;
+}
+.mk-colcfg .mk-sheet__body { overflow: hidden; }
+.mk-colcfg .mk-colcfg__lista:not(#mk-padrao) {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+}
+
+.mk-colcfg .mk-colcfg__row.is-draggable { cursor: grab; }
+.mk-colcfg .mk-colcfg__row .mk-colcfg__drag-handle { pointer-events: none; touch-action: auto; }
+.mk-colcfg .mk-colcfg__row.is-draggable:focus-visible { outline: 2px solid #64748b; outline-offset: -2px; }

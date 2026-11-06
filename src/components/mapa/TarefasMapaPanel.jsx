@@ -154,7 +154,7 @@ export default function TarefasMapaPanel({ areaId, areaNome, loteId, loteNome, p
   const panelSubtitulo = areaNome || loteNome || '';
 
   return (
-    <div className="space-y-1 w-full min-w-0 overflow-x-auto">
+    <div className="mk-map-task-panel space-y-1 w-full min-w-0">
       {loadingTarefas ? (
         <div className="rounded-lg border border-slate-200 bg-white p-4 flex items-center gap-3">
           <div className="animate-spin w-5 h-5 border-2 border-emerald-600 border-t-transparent rounded-full" />
