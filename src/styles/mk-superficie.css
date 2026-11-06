@@ -424,3 +424,69 @@
     margin-left: 0;
   }
 }
+
+/* Pesquisa com a mesma superfície branca dos botões e foco neutro. */
+.cadastro-b1 .mg-search-pill:not(#mk-padrao),
+.cadastro-b1 .mg-search-pill.is-active:not(#mk-padrao) {
+  background: #fff;
+  border: 1px solid var(--mk-sup-borda);
+  box-shadow: var(--mk-btn-sombra);
+}
+.cadastro-b1 .mg-search-pill:focus-within:not(#mk-padrao) {
+  border-color: #b8c0cc;
+  box-shadow: 0 0 0 2px rgba(100, 116, 139, 0.12), var(--mk-btn-sombra);
+}
+.cadastro-b1 .mg-search-pill input:focus-visible:not(#mk-padrao) {
+  outline: none;
+  box-shadow: none;
+}
+
+@media (min-width: 1024px) {
+  .tb-btn:not(#mk-padrao),
+  .cadastro-b1 .mg-search-pill:not(#mk-padrao) {
+    height: 40px !important;
+    min-height: 40px !important;
+  }
+  .cadastro-b1 .tb-btn.tb-btn-icon:not(#mk-padrao) {
+    width: 40px !important;
+    min-width: 40px !important;
+    flex-basis: 40px;
+  }
+  .cadastro-b1 .view-seg:not(#mk-padrao) {
+    height: 40px !important;
+    min-height: 40px !important;
+  }
+  .cadastro-b1 .view-seg button:not(#mk-padrao) {
+    width: 34px !important;
+    min-width: 34px !important;
+    height: 34px !important;
+    min-height: 34px !important;
+  }
+  :is(.tb-btn, .view-seg button, .mg-rec-pager__btn, .mk-sheet__close, .mk-sheet__new, .mk-ll-dlg__redondo, .mk-ll__add, .mk-ll__remover, .mk-ll__btn):not(#mk-padrao) svg,
+  .cadastro-b1 .mg-search-pill-icon:not(#mk-padrao) {
+    width: 18px !important;
+    height: 18px !important;
+    stroke-width: 1.75;
+    flex-shrink: 0;
+  }
+  .cadastro-b1 .mg-search-pill input:not(#mk-padrao) { font-size: 14px; }
+}
+
+/* A pesquisa aberta mantém largura própria; a barra quebra linha se necessário. */
+@media (min-width: 640px) {
+  .cadastro-b1 .mg-toolbar .mg-toolbar__btns:not(#mk-padrao) {
+    max-width: 100%;
+    flex-wrap: wrap !important;
+  }
+  .cadastro-b1 .mg-toolbar .mg-search-pill-wrap:not(#mk-padrao) {
+    flex: 0 0 min(240px, 100%);
+    width: 240px !important;
+    max-width: 100%;
+    min-width: 0;
+  }
+}
+.cadastro-b1 .mg-search-suggest:not(#mk-padrao) {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
