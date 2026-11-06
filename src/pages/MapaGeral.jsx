@@ -43,7 +43,8 @@ import { parseVertices } from "@/lib/geografia/coords.js";
 import useBasemap from "../components/mapa/useBasemap";
 import BasemapAtribuicao from "../components/mapa/BasemapAtribuicao";
 import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
-import { lerFiltrosMapaGeral, salvarFiltrosMapaGeral } from "@/lib/mapaGeralFiltrosStorage";
+import { lerFiltrosMapaGeral, salvarFiltrosMapaGeral, normalizarFiltrosMapa, camadasVisiveis } from "@/lib/mapaGeralFiltrosStorage";
+import { useAuth } from "@/lib/AuthContext";
 import { mensagemFalhaMapa, navegadorTemWebGL, MENSAGEM_WEBGL_DESLIGADO } from "@/lib/maplibre/falhaWebGL";
 
 export default function MapaGeral() {
@@ -54,15 +55,15 @@ export default function MapaGeral() {
   const [mapEpoch, setMapEpoch] = useState(0);
   const [mapInstance, setMapInstance] = useState(null);
   const [mapType, setMapTypeState] = useState('satellite');
-  const [showAreas, setShowAreas] = useState(true);
-  const [showPontos, setShowPontos] = useState(true);
-  const [showLinhas, setShowLinhas] = useState(true);
-  const [showLotes, setShowLotes] = useState(true);
-  const [showCochos, setShowCochos] = useState(true);
-  const [showDepositos, setShowDepositos] = useState(true);
-  const [showAlertas, setShowAlertas] = useState(true);
-  const [showUserLocation, setShowUserLocation] = useState(false);
-  const [showNomesAreas, setShowNomesAreas] = useState(true);
+  const [prefShowAreas, setShowAreas] = useState(true);
+  const [prefShowPontos, setShowPontos] = useState(true);
+  const [prefShowLinhas, setShowLinhas] = useState(true);
+  const [prefShowLotes, setShowLotes] = useState(true);
+  const [prefShowCochos, setShowCochos] = useState(true);
+  const [prefShowDepositos, setShowDepositos] = useState(true);
+  const [prefShowAlertas, setShowAlertas] = useState(true);
+  const [prefShowUserLocation, setShowUserLocation] = useState(false);
+  const [prefShowNomesAreas, setShowNomesAreas] = useState(true);
   const [showHectaresAreas, setShowHectaresAreas] = useState(true);
   const [userLocation, setUserLocation] = useState(null);
 
@@ -100,73 +101,11 @@ export default function MapaGeral() {
   const [showInsights, setShowInsights] = useState(false);
   const [showFiltros, setShowFiltros] = useState(false);
   const [showTaskIcons, setShowTaskIcons] = useState(true);
-  const [dragLotesEnabled, setDragLotesEnabled] = useState(false);
+  const [prefDragLotesEnabled, setDragLotesEnabled] = useState(false);
 
   const empresaSelecionadaId = useEmpresaSelecionadaId();
 
-  useEffect(() => {
-    const state = lerFiltrosMapaGeral(empresaSelecionadaId);
-    if (!state) return;
-    setMapTypeState('satellite');
-    if (typeof state.showAreas === 'boolean') setShowAreas(state.showAreas);
-    if (typeof state.showPontos === 'boolean') setShowPontos(state.showPontos);
-    if (typeof state.showLinhas === 'boolean') setShowLinhas(state.showLinhas);
-    if (typeof state.showLotes === 'boolean') setShowLotes(state.showLotes);
-    if (typeof state.showTaskIcons === 'boolean') setShowTaskIcons(state.showTaskIcons);
-    if (typeof state.dragLotesEnabled === 'boolean') setDragLotesEnabled(state.dragLotesEnabled);
-    if (typeof state.showCochos === 'boolean') setShowCochos(state.showCochos);
-    if (typeof state.showDepositos === 'boolean') setShowDepositos(state.showDepositos);
-    if (typeof state.showPontosSuplementacao === 'boolean') {
-      setShowCochos(state.showPontosSuplementacao);
-      setShowDepositos(state.showPontosSuplementacao);
-    }
-    if (typeof state.showAlertas === 'boolean') setShowAlertas(state.showAlertas);
-    if (typeof state.showUserLocation === 'boolean') setShowUserLocation(state.showUserLocation);
-    if (typeof state.showNomesAreas === 'boolean') setShowNomesAreas(state.showNomesAreas);
-    if (typeof state.showHectaresAreas === 'boolean') setShowHectaresAreas(state.showHectaresAreas);
-    if (typeof state.filtroCategoria === 'string') setFiltroCategoria(state.filtroCategoria);
-    if (typeof state.filtroIdentificador === 'string') setFiltroIdentificador(state.filtroIdentificador);
-    if (typeof state.filtroStatus === 'string') setFiltroStatus(state.filtroStatus);
-    if (typeof state.filtroSistema === 'string') setFiltroSistema(state.filtroSistema);
-    if (typeof state.filtroAlertaTipo === 'string') setFiltroAlertaTipo(state.filtroAlertaTipo);
-    if (typeof state.filtroTipoCultura === 'string') setFiltroTipoCultura(state.filtroTipoCultura);
-    if (typeof state.filtroTipoPastagem === 'string') setFiltroTipoPastagem(state.filtroTipoPastagem);
-    if (typeof state.filtroSetor === 'string') setFiltroSetor(state.filtroSetor);
-    setFiltroPesoMin(state.filtroPesoMin ?? null);
-    setFiltroPesoMax(state.filtroPesoMax ?? null);
-    if (typeof state.modoColoracao === 'string') setModoColoracao(state.modoColoracao);
-    if (typeof state.estiloPasto === 'string') setEstiloPasto(state.estiloPasto);
-  }, [empresaSelecionadaId]);
 
-  useEffect(() => {
-    salvarFiltrosMapaGeral(empresaSelecionadaId, {
-      mapType,
-      showAreas,
-      showPontos,
-      showLinhas,
-      showLotes,
-      showTaskIcons,
-      dragLotesEnabled,
-      showCochos,
-      showDepositos,
-      showAlertas,
-      showUserLocation,
-      showNomesAreas,
-      showHectaresAreas,
-      filtroCategoria,
-      filtroIdentificador,
-      filtroStatus,
-      filtroSistema,
-      filtroAlertaTipo,
-      filtroTipoCultura,
-      filtroTipoPastagem,
-      filtroSetor,
-      filtroPesoMin,
-      filtroPesoMax,
-      modoColoracao,
-      estiloPasto,
-    });
-  }, [empresaSelecionadaId, estiloPasto, mapType, showAreas, showPontos, showLinhas, showLotes, showTaskIcons, dragLotesEnabled, showCochos, showDepositos, showAlertas, showUserLocation, showNomesAreas, showHectaresAreas, filtroCategoria, filtroIdentificador, filtroStatus, filtroSistema, filtroAlertaTipo, filtroTipoCultura, filtroTipoPastagem, filtroSetor, filtroPesoMin, filtroPesoMax, modoColoracao]);
 
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
@@ -247,6 +186,98 @@ export default function MapaGeral() {
     if (acessoTotalTelas) return mapaGeralPermissions.visualizar_tarefas;
     return mapaGeralPermissions.visualizar_tarefas && canAccessPage(permissaoAtual, 'gt-lancamentos', 'gestao-tarefas');
   }, [acessoTotalTelas, permissaoAtual, mapaGeralPermissions.visualizar_tarefas]);
+
+  // ─── Preferências de camadas/filtros POR USUÁRIO (fazenda + conta + empresa) ───
+  // O que o usuário escolheu (pref*) fica salvo; o que aparece no mapa é a
+  // preferência E a permissão. Antes, a permissão ainda carregando (= nada
+  // liberado) DESLIGAVA Áreas/Detalhes/Lotes e isso era gravado por cima da
+  // preferência — todo acesso começava "limpo".
+  // Fazenda da sessão: a do usuário (/auth/contexto) ou a do AuthContext. Sem
+  // ela não há escopo — nada é lido nem gravado (nunca um tenant "-" comum).
+  const { clienteId: clienteIdSessao } = useAuth();
+  const clienteFiltros = currentUser?.cliente_id || clienteIdSessao || null;
+  const escopoFiltros = useMemo(() => {
+    if (!clienteFiltros || !loginAtual || !empresaSelecionadaId) return null;
+    return { clienteId: clienteFiltros, login: loginAtual, empresaId: empresaSelecionadaId, chave: `${clienteFiltros}:${loginAtual}:${empresaSelecionadaId}` };
+  }, [clienteFiltros, loginAtual, empresaSelecionadaId]);
+  const [filtrosCarregados, setFiltrosCarregados] = useState(null);
+
+  const {
+    showAreas, showNomesAreas, showPontos, showLinhas, showLotes, showCochos, showDepositos, showAlertas,
+    showUserLocation, dragLotesEnabled,
+  } = camadasVisiveis({
+    showAreas: prefShowAreas, showNomesAreas: prefShowNomesAreas, showPontos: prefShowPontos, showLinhas: prefShowLinhas,
+    showLotes: prefShowLotes, showCochos: prefShowCochos, showDepositos: prefShowDepositos, showAlertas: prefShowAlertas,
+    showUserLocation: prefShowUserLocation, dragLotesEnabled: prefDragLotesEnabled,
+  }, mapaGeralPermissions);
+
+  useEffect(() => {
+    if (!escopoFiltros) return;
+    // Estado COMPLETO do escopo novo: o salvo dele ou o padrão (Áreas, Detalhes
+    // Áreas e Lotes ligados). Nenhum valor do escopo anterior sobrevive; a
+    // marca de carregado vai no MESMO lote de atualizações, então a gravação só
+    // roda já com os valores deste escopo.
+    const st = normalizarFiltrosMapa(lerFiltrosMapaGeral(escopoFiltros));
+    setMapTypeState('satellite');
+    setShowAreas(st.showAreas);
+    setShowNomesAreas(st.showNomesAreas);
+    setShowHectaresAreas(st.showHectaresAreas);
+    setShowLotes(st.showLotes);
+    setShowPontos(st.showPontos);
+    setShowLinhas(st.showLinhas);
+    setShowCochos(st.showCochos);
+    setShowDepositos(st.showDepositos);
+    setShowAlertas(st.showAlertas);
+    setShowUserLocation(st.showUserLocation);
+    setShowTaskIcons(st.showTaskIcons);
+    setDragLotesEnabled(st.dragLotesEnabled);
+    setFiltroCategoria(st.filtroCategoria);
+    setFiltroIdentificador(st.filtroIdentificador);
+    setFiltroStatus(st.filtroStatus);
+    setFiltroSistema(st.filtroSistema);
+    setFiltroAlertaTipo(st.filtroAlertaTipo);
+    setFiltroTipoCultura(st.filtroTipoCultura);
+    setFiltroTipoPastagem(st.filtroTipoPastagem);
+    setFiltroSetor(st.filtroSetor);
+    setFiltroPesoMin(st.filtroPesoMin);
+    setFiltroPesoMax(st.filtroPesoMax);
+    setModoColoracao(st.modoColoracao);
+    setEstiloPasto(st.estiloPasto);
+    setFiltrosCarregados(escopoFiltros.chave);
+  }, [escopoFiltros]);
+
+  useEffect(() => {
+    // Só grava depois de a preferência DESTE usuário nesta empresa ter sido
+    // aplicada: antes disso o estado ainda é o padrão e apagaria o que ele salvou.
+    if (!escopoFiltros || filtrosCarregados !== escopoFiltros.chave) return;
+    salvarFiltrosMapaGeral(escopoFiltros, {
+      mapType,
+      showAreas: prefShowAreas,
+      showPontos: prefShowPontos,
+      showLinhas: prefShowLinhas,
+      showLotes: prefShowLotes,
+      showTaskIcons,
+      dragLotesEnabled: prefDragLotesEnabled,
+      showCochos: prefShowCochos,
+      showDepositos: prefShowDepositos,
+      showAlertas: prefShowAlertas,
+      showUserLocation: prefShowUserLocation,
+      showNomesAreas: prefShowNomesAreas,
+      showHectaresAreas,
+      filtroCategoria,
+      filtroIdentificador,
+      filtroStatus,
+      filtroSistema,
+      filtroAlertaTipo,
+      filtroTipoCultura,
+      filtroTipoPastagem,
+      filtroSetor,
+      filtroPesoMin,
+      filtroPesoMax,
+      modoColoracao,
+      estiloPasto,
+    });
+  }, [escopoFiltros, filtrosCarregados, mapType, prefShowAreas, prefShowPontos, prefShowLinhas, prefShowLotes, showTaskIcons, prefDragLotesEnabled, prefShowCochos, prefShowDepositos, prefShowAlertas, prefShowUserLocation, prefShowNomesAreas, showHectaresAreas, filtroCategoria, filtroIdentificador, filtroStatus, filtroSistema, filtroAlertaTipo, filtroTipoCultura, filtroTipoPastagem, filtroSetor, filtroPesoMin, filtroPesoMax, modoColoracao, estiloPasto]);
 
   // ─── Queries ───
   const ST = 5 * 60 * 1000;
@@ -998,20 +1029,8 @@ export default function MapaGeral() {
   }, [empresaSelecionadaId, executarRefreshMapa, queryClient]);
 
   useEffect(() => {
-    if (!mapaGeralPermissions.visualizar_areas) setShowAreas(false);
-    if (!mapaGeralPermissions.visualizar_nomes_areas) setShowNomesAreas(false);
-    if (!mapaGeralPermissions.visualizar_pontos_referencia) setShowPontos(false);
-    if (!mapaGeralPermissions.visualizar_linhas) setShowLinhas(false);
-    if (!mapaGeralPermissions.visualizar_lotes) setShowLotes(false);
-    if (!mapaGeralPermissions.visualizar_cochos_suplementacao) {
-      setShowCochos(false);
-      setShowDepositos(false);
-    }
-    if (!mapaGeralPermissions.visualizar_alertas) setShowAlertas(false);
-    if (!mapaGeralPermissions.visualizar_localizacao) setShowUserLocation(false);
     if (!mapaGeralPermissions.visualizar_filtros_camadas) setShowFiltros(false);
     if (!mapaGeralPermissions.visualizar_insights) setShowInsights(false);
-    if (!mapaGeralPermissions.mover_lotes) setDragLotesEnabled(false);
   }, [mapaGeralPermissions]);
 
   useEffect(() => {

@@ -5111,4 +5111,28 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
 - **Numeração:** D-PROD-132 e D-PROD-133 estão nas PRs abertas #200 e #202; esta usa a 134 para não colidir.
 - **Evidência:** `docs/engineering/evidencias/ux-mobile-v2/v24-*`.
 
-<!-- Próxima decisão: D-PROD-135 -->
+## D-PROD-135 — Mapa Geral: camadas e filtros salvos por usuário; permissão não apaga a preferência
+
+> Numerada 135: a D-PROD-132 é da PR #200, a D-PROD-133 da PR #202 e a D-PROD-134 da PR #203 (logos).
+
+- **Contexto:** a cada acesso o mapa abria "limpo", com Áreas, Detalhes Áreas e Lotes desligados.
+  - Ao abrir, a permissão ainda carregando valia "nada liberado" (PR #199).
+  - Um efeito desligava as camadas, e a gravação salvava isso por cima da preferência.
+  - Além disso, a preferência era por empresa, não por usuário.
+- **Decisão:**
+  - **O que o usuário escolhe** é salvo.
+  - **O que aparece** é a preferência E a permissão (`camadasVisiveis`). A permissão nunca reescreve a preferência.
+  - **Chave local:** fazenda + conta + empresa, com as **três obrigatórias**. Sem a fazenda da sessão, nada é lido nem gravado; nunca um tenant `-` compartilhado.
+  - **Escopo trocado** (conta, empresa ou fazenda) com o mapa montado: aplica o estado **completo** do novo escopo (`normalizarFiltrosMapa`), ou seja, o salvo dele ou o padrão. Nenhum valor do escopo anterior sobrevive.
+  - **Gravação:** só depois de aplicar o estado do escopo atual.
+  - **Padrão** (o proprietário pediu): Áreas, Detalhes Áreas e Lotes ligados, quando a permissão deixa ver.
+  - **Estilo dos pastos** (Visualização, PR #200) entra na preferência do escopo, validado contra `cheio`/`suave`/`contorno`.
+  - **Legado:** as chaves antigas (por empresa e global) não têm titular verificável, pois qualquer conta do aparelho pode tê-las gravado. Por isso **não são herdadas por ninguém** (seria copiar filtros de outra pessoa) e **não são apagadas**. Na primeira vez, cada conta começa no padrão.
+- **Consequência:**
+  - O mapa reabre como cada usuário deixou.
+  - Contas e fazendas diferentes no mesmo aparelho não se misturam.
+  - A preferência fica **no aparelho** (localStorage). Sincronizar entre aparelhos exigiria gravar no servidor; fica para outro slice.
+  - Testes: `tests/smoke/mapaFiltrosEscopo.test.jsx` e `tests/smoke/mapaFiltrosPorUsuario.test.jsx`.
+  - Relatório: `docs/engineering/MAIKE-MAPA-FILTROS-POR-USUARIO-REPORT.md`.
+
+<!-- Próxima decisão: D-PROD-136 -->
