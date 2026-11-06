@@ -29,6 +29,7 @@ export default function SeletorDeOperador({ valor, opcoes, onChange }) {
           <Select.Content
             position="popper"
             sideOffset={4}
+            collisionPadding={12}
             className="fsell foperadores"
             aria-label="Condição"
             data-filtro-camada=""

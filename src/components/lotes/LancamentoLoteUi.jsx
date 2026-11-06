@@ -2,7 +2,7 @@ import React from "react";
 import { Check, Loader2, Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { useMediaQuery, MobileSheetPortalCtx } from "@/components/common/MobileSheet";
+import MobileSheet, { useCelular, useMediaQuery, MobileSheetPortalCtx } from "@/components/common/MobileSheet";
 import { PillBtn } from "@/components/cadastro/base1/Base1Ui";
 
 /*
@@ -34,15 +34,16 @@ export const useLancLoteDialogo = () => React.useContext(LancLoteCtx);
  * É um diálogo do Radix nos dois casos, para abrir por cima do "Detalhes do
  * Lote" (que já é um diálogo) sem perder foco nem toque.
  *
- * `somenteLeitura` (históricos, D-PROD-117): só o ✕; o corpo rola como o dos
- * lançamentos. Um conteúdo pode trocar o título do diálogo pelo contexto
+ * `somenteLeitura` (históricos, D-PROD-117): só o ✕. `folhaMobile` é opt-in
+ * para listas de ações e escolhas; detalhes mantêm sua abertura em tela. Um conteúdo pode trocar o título do diálogo pelo contexto
  * (`useLancLoteDialogo().setTitulo`), para não repetir o título dentro.
  *
- * @param {{ open: boolean, onOpenChange: (v: boolean) => void, titulo: string, lotes?: Array<{ nome?: string }>, largo?: boolean, amplo?: boolean, somenteLeitura?: boolean, children: React.ReactNode }} props
+ * @param {{ open: boolean, onOpenChange: (v: boolean) => void, titulo: string, lotes?: Array<{ nome?: string }>, largo?: boolean, amplo?: boolean, somenteLeitura?: boolean, folhaMobile?: boolean, children: React.ReactNode }} props
  */
-export function LancLoteDialogo({ open, onOpenChange, titulo, lotes, largo = false, amplo = false, somenteLeitura = false, children }) {
+export function LancLoteDialogo({ open, onOpenChange, titulo, lotes, largo = false, amplo = false, somenteLeitura = false, folhaMobile = false, children }) {
   const nomes = (lotes || []).map((l) => l?.nome).filter(Boolean).join(" · ");
   const desktop = useMediaQuery("(min-width: 1024px)");
+  const folhaConsulta = useCelular() && folhaMobile;
   const formId = `mk-ll-${React.useId().replace(/:/g, "")}`;
   const [acao, setAcao] = React.useState(/** @type {any} */ (null));
   // As listas do celular (folha) abrem dentro do diálogo (D-PROD-116).
@@ -63,6 +64,33 @@ export function LancLoteDialogo({ open, onOpenChange, titulo, lotes, largo = fal
       : { type: "submit", form: formId }
     : { type: "button" };
   const Icone = ocupado ? Loader2 : Check;
+
+  // Consultas no celular usam os mesmos gestos e detents dos cadastros.
+  // O portal fica dentro do Radix para manter foco e toque nas folhas filhas.
+  if (folhaConsulta) {
+    return (
+      <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
+        <DialogPrimitive.Portal>
+          <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/60" />
+          <DialogPrimitive.Content className="mk-map-list-host" onOpenAutoFocus={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()}>
+            <DialogPrimitive.Title className="sr-only">{tituloVisivel}</DialogPrimitive.Title>
+            <DialogPrimitive.Description className="sr-only">{nomes || tituloVisivel}</DialogPrimitive.Description>
+            <div ref={setAlvoFolha} />
+            {alvoFolha ? (
+              <MobileSheetPortalCtx.Provider value={alvoFolha}>
+                <MobileSheet open={open} onClose={fechar} label={tituloVisivel} title={tituloVisivel}
+                  className="mk-map-list-sheet"
+                  headerAction={<span ref={setSlotDireito} className="mk-ll-dlg__slot" />}
+                  aside={nomes ? <p className="mk-map-list-subtitle">{nomes}</p> : null}>
+                  <LancLoteCtx.Provider value={ctx}><div className="mk-ll">{children}</div></LancLoteCtx.Provider>
+                </MobileSheet>
+              </MobileSheetPortalCtx.Provider>
+            ) : null}
+          </DialogPrimitive.Content>
+        </DialogPrimitive.Portal>
+      </DialogPrimitive.Root>
+    );
+  }
 
   return (
     <DialogPrimitive.Root open={open} onOpenChange={(v) => (v ? onOpenChange(true) : fechar())}>
@@ -271,6 +299,7 @@ export function LancLoteAviso({ tom = "neutro", children, ...props }) {
 export function LancLoteRodape(props) {
   const { onCancelar, textoAcao, enviando = false, textoEnviando, disabled = false, tipoAcao = "submit", onAcao, tom = "verde", cancelarDesabilitado = false } = props;
   const ctx = React.useContext(LancLoteCtx);
+  const rotuloAcao = enviando && textoEnviando ? textoEnviando : textoAcao;
   // Dentro do diálogo: a ação vai para o ✓ do cabeçalho (como no cadastro).
   const ultimo = React.useRef(props);
   ultimo.current = props;
@@ -291,17 +320,20 @@ export function LancLoteRodape(props) {
   if (ctx) return null;
   return (
     <div className="mk-ll__rodape">
-      <button type="button" className="mk-ll__btn mk-ll__btn--cinza" onClick={onCancelar} disabled={cancelarDesabilitado}>
-        Cancelar
+      <button type="button" className="mk-ll__btn mk-ll__btn--cinza mk-launch-action" onClick={onCancelar} disabled={cancelarDesabilitado} aria-label="Cancelar" title="Cancelar">
+        <X aria-hidden /><span className="mk-launch-action-label">Cancelar</span>
       </button>
       <button
         type={tipoAcao}
-        className={cn("mk-ll__btn", tom === "ambar" ? "mk-ll__btn--ambar" : "mk-ll__btn--verde")}
+        className={cn("mk-ll__btn mk-launch-action", tom === "ambar" ? "mk-ll__btn--ambar" : "mk-ll__btn--verde")}
         disabled={disabled || enviando}
         aria-busy={enviando || undefined}
+        aria-label={typeof rotuloAcao === "string" ? rotuloAcao : "Confirmar"}
+        title={typeof rotuloAcao === "string" ? rotuloAcao : undefined}
         onClick={onAcao}
       >
-        {enviando && textoEnviando ? textoEnviando : textoAcao}
+        {enviando ? <Loader2 className="animate-spin" aria-hidden /> : <Check aria-hidden />}
+        <span className="mk-launch-action-label">{enviando && textoEnviando ? textoEnviando : textoAcao}</span>
       </button>
     </div>
   );

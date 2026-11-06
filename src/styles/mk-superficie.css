@@ -1,7 +1,7 @@
 /**
  * Superfície única do sistema — o padrão do "Detalhes do Lote" (D-PROD-138).
  *
- * Fundo cinza (#f2f3f5), cartões brancos arredondados com borda leve e botões
+ * Fundo cinza (#f7f8fa), cartões brancos arredondados com borda leve e botões
  * brancos com sombra suave. Vale para as listas dos cadastros (Base1), as
  * folhas e painéis de filtro e os lançamentos (LancLoteDialogo).
  *
@@ -12,9 +12,9 @@
  */
 
 :root {
-  --mk-sup-fundo: #f2f3f5;
+  --mk-sup-fundo: #f7f8fa;
   --mk-sup-cartao: #ffffff;
-  --mk-sup-borda: #e7eaee;
+  --mk-sup-borda: #eceef1;
   --mk-sup-raio: 14px;
   --mk-sup-sombra: 0 1px 2px rgba(15, 23, 42, 0.05);
   --mk-btn-bg: #ffffff;
@@ -27,6 +27,7 @@
 /* Tokens antigos apontando para os novos */
 .cadastro-b1 {
   --mg-bg-page: var(--mk-sup-fundo);
+  --mg-page-bg: var(--mk-sup-fundo);
 }
 
 .cadastro-b1 {
@@ -345,4 +346,375 @@
 .mk-mhdr.mk-mhdr--edit:not(#mk-padrao),
 .mk-ll-dlg .mk-ll-dlg__head:not(#mk-padrao) {
   background: var(--mk-sup-fundo);
+}
+
+/* Desktop: ações com nome e ícone; mobile mantém os círculos aprovados. */
+.mk-desktop-action-label { display: none; }
+
+@media (min-width: 1024px) {
+  .mk-desktop-action-label { display: inline; }
+
+  .tb-btn:not(#mk-padrao) {
+    height: 36px !important;
+    min-height: 36px !important;
+    font-size: 14px;
+    gap: 8px;
+  }
+
+  .cadastro-b1 .tb-btn.mg-act-ic:not(#mk-padrao) {
+    width: auto !important;
+    min-width: 80px !important;
+    aspect-ratio: auto;
+    padding: 0 12px !important;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+
+  .cadastro-b1 .tb-btn.mg-act-ic.mg-fluid-slot__ghost:not(#mk-padrao) {
+    width: 0 !important;
+    min-width: 0 !important;
+    padding: 0 !important;
+  }
+
+  :is(.tb-btn, .view-seg button, .mg-rec-pager__btn, .mk-sheet__close, .mk-sheet__new, .mk-ll-dlg__redondo, .mk-ll__add, .mk-ll__remover, .mk-ll__btn):not(#mk-padrao) > svg {
+    width: 16px !important;
+    height: 16px !important;
+    stroke-width: 1.8;
+  }
+
+  .mg-toolbar__row--actions:has(.mg-act-salvar) .mg-act-cancelar {
+    order: 2;
+    margin-left: auto;
+  }
+
+  .mg-toolbar__row--actions:has(.mg-act-salvar) .mg-toolbar__more,
+  .mg-toolbar__row--actions:has(.mg-act-salvar) .mg-act-extra {
+    order: 1;
+    margin-left: 0;
+  }
+
+  .mg-toolbar__row--actions:has(.mg-act-salvar) .mg-act-salvar,
+  .mg-toolbar__row--actions:has(.mg-act-salvar):not(:has(.mg-toolbar__more)) .mg-act-salvar,
+  .mg-toolbar__row--actions:has(.mg-act-extra) .mg-act-salvar {
+    order: 3;
+    margin-left: 0 !important;
+  }
+}
+
+/* Desktop: controles auxiliares na mesma escala da barra de ações. */
+@media (min-width: 1024px) {
+  .cadastro-b1 .tb-btn.tb-btn-icon:not(#mk-padrao) {
+    width: 36px !important;
+    min-width: 36px !important;
+    padding: 0 !important;
+    flex: 0 0 36px;
+  }
+
+  .cadastro-b1 .view-seg:not(#mk-padrao) {
+    height: 36px !important;
+    min-height: 36px !important;
+    padding: 3px !important;
+    gap: 2px;
+    box-sizing: border-box;
+  }
+
+  .cadastro-b1 .view-seg button:not(#mk-padrao) {
+    width: 30px !important;
+    min-width: 30px !important;
+    height: 30px !important;
+    min-height: 30px !important;
+    padding: 0 !important;
+  }
+
+  .mg-toolbar__row--actions:has(.mg-act-salvar) {
+    justify-content: flex-start;
+  }
+
+  .mg-toolbar__row--actions:has(.mg-act-salvar) .mg-act-cancelar {
+    margin-left: 0;
+  }
+}
+
+/* Pesquisa com a mesma superfície branca dos botões e foco neutro. */
+.cadastro-b1 .mg-search-pill:not(#mk-padrao),
+.cadastro-b1 .mg-search-pill.is-active:not(#mk-padrao) {
+  background: #fff;
+  border: 1px solid var(--mk-sup-borda);
+  box-shadow: var(--mk-btn-sombra);
+}
+.cadastro-b1 .mg-search-pill:focus-within:not(#mk-padrao) {
+  border-color: #b8c0cc;
+  box-shadow: 0 0 0 2px rgba(100, 116, 139, 0.12), var(--mk-btn-sombra);
+}
+.cadastro-b1 .mg-search-pill input:focus-visible:not(#mk-padrao) {
+  outline: none;
+  box-shadow: none;
+}
+
+@media (min-width: 1024px) {
+  .tb-btn:not(#mk-padrao),
+  .cadastro-b1 .mg-search-pill:not(#mk-padrao) {
+    height: 36px !important;
+    min-height: 36px !important;
+  }
+  .cadastro-b1 .tb-btn.tb-btn-icon:not(#mk-padrao) {
+    width: 36px !important;
+    min-width: 36px !important;
+    flex-basis: 36px;
+  }
+  .cadastro-b1 .view-seg:not(#mk-padrao) {
+    height: 36px !important;
+    min-height: 36px !important;
+  }
+  .cadastro-b1 .view-seg button:not(#mk-padrao) {
+    width: 30px !important;
+    min-width: 30px !important;
+    height: 30px !important;
+    min-height: 30px !important;
+  }
+  :is(.tb-btn, .view-seg button, .mg-rec-pager__btn, .mk-sheet__close, .mk-sheet__new, .mk-ll-dlg__redondo, .mk-ll__add, .mk-ll__remover, .mk-ll__btn):not(#mk-padrao) svg,
+  .cadastro-b1 .mg-search-pill-icon:not(#mk-padrao) {
+    width: 16px !important;
+    height: 16px !important;
+    stroke-width: 1.75;
+    flex-shrink: 0;
+  }
+  .cadastro-b1 .mg-search-pill input:not(#mk-padrao) { font-size: 14px; }
+}
+
+/* A pesquisa aberta mantém largura própria; a barra quebra linha se necessário. */
+@media (min-width: 636px) {
+  .cadastro-b1 .mg-toolbar .mg-toolbar__btns:not(#mk-padrao) {
+    max-width: 100%;
+    flex-wrap: wrap !important;
+  }
+  .cadastro-b1 .mg-toolbar .mg-search-pill-wrap:not(#mk-padrao) {
+    flex: 0 0 min(240px, 100%);
+    width: 240px !important;
+    max-width: 100%;
+    min-width: 0;
+  }
+}
+.cadastro-b1 .mg-search-suggest:not(#mk-padrao) {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+/* Acabamento do desktop inspirado nos controles do visualizador. */
+@media (min-width: 1024px) {
+  .cadastro-b1,
+  .mk-ll-dlg {
+    --mk-btn-sombra: 0 1px 3px rgba(0, 0, 0, 0.05), 0 2px 8px rgba(0, 0, 0, 0.025);
+    --mk-btn-hover: #f7f7f8;
+  }
+
+  .cadastro-b1 .tb-btn:not(.tb-btn-green):not(.tb-btn-red):not(.is-filter-on):not(.is-filter-active):not(.is-active):not(#mk-padrao) {
+    color: #292a2d !important;
+  }
+
+  .cadastro-b1 :is(.tb-btn, .view-seg):not(#mk-padrao) {
+    border: 0 !important;
+    border-radius: 999px !important;
+  }
+
+  .cadastro-b1 .mg-toolbar__btns:not(#mk-padrao),
+  .cadastro-b1 .mg-fluid-slot__cluster:not(#mk-padrao) {
+    gap: 6px;
+  }
+
+  .cadastro-b1 :is(.tb-btn, .view-seg button):not(#mk-padrao) svg {
+    box-sizing: border-box;
+    width: 20px !important;
+    height: 20px !important;
+    padding: 2px;
+    stroke-width: 1.65;
+    flex-shrink: 0;
+  }
+
+  .cadastro-b1 .view-seg button:not([aria-pressed="true"]):not(#mk-padrao) {
+    color: #292a2d !important;
+  }
+}
+
+/* Busca sem moldura externa nem contorno pontilhado interno. */
+.cadastro-b1 .mg-search-pill:not(#mk-padrao),
+.cadastro-b1 .mg-search-pill.is-active:not(#mk-padrao),
+.cadastro-b1 .mg-search-pill:focus-within:not(#mk-padrao) {
+  border: 0;
+  box-shadow: var(--mk-btn-sombra);
+}
+.cadastro-b1 .mg-search-pill input:focus-visible:not(#mk-padrao) {
+  outline: none;
+  box-shadow: none;
+}
+
+/* O fundo indica o modo selecionado; todos os ícones usam a mesma cor. */
+.view-seg button:not(#mk-padrao),
+.view-seg button[aria-pressed="true"]:not(#mk-padrao),
+.view-seg button.is-active:not(#mk-padrao),
+.view-seg button[data-state="on"]:not(#mk-padrao),
+.view-seg button:not(#mk-padrao) svg,
+.view-seg button[aria-pressed="true"]:not(#mk-padrao) svg,
+.view-seg button.is-active:not(#mk-padrao) svg,
+.view-seg button[data-state="on"]:not(#mk-padrao) svg {
+  color: #292a2d !important;
+}
+
+@media (min-width: 1024px) {
+  .cadastro-b1 .mg-toolbar--responsive .mg-toolbar__row--actions:has(.mg-act-salvar):not(#mk-padrao) {
+    display: flex;
+    flex: 1 1 auto;
+    justify-content: flex-start;
+  }
+}
+
+/* Desktop: mesmos blocos brancos do mobile, com densidade de mouse. */
+@media (min-width: 640px) {
+  :is(.fpc--pop, .b1ref .fpop, .cadastro-b1.mg-b1-glass-pop, .cadastro-b1 .mg-pill-select-panel):not(#mk-padrao) {
+    background: var(--mk-sup-fundo);
+    border: 1px solid var(--mk-sup-borda);
+    border-radius: var(--mk-sup-raio);
+  }
+
+  .b1ref .fpop:not(.fpop--sheet):not(#mk-padrao) {
+    width: min(320px, calc(100vw - 16px));
+    padding: 8px;
+    gap: 6px;
+  }
+
+  .b1ref .fpop:not(.fpop--sheet) :is(.fcond, .fpop-busca, .ftodos):not(#mk-padrao) {
+    margin: 0;
+  }
+  .b1ref .fpop:not(.fpop--sheet) .fcond:not(#mk-padrao) { padding: 0; }
+
+  :is(.b1ref .fpop-l, .fpc--pop .fpc__lista, .cadastro-b1 .mg-pill-select-panel .cmd-panel-options):not(#mk-padrao) {
+    background: var(--mk-sup-cartao);
+    border: 0;
+    border-radius: 12px;
+    padding: 4px;
+    gap: 0;
+  }
+
+  .b1ref .ftodos:not(#mk-padrao) {
+    background: var(--mk-sup-cartao);
+    border: 0;
+    border-radius: 999px;
+  }
+
+  .b1ref .fpop-f:not(#mk-padrao) {
+    padding: 4px 0 0;
+    border: 0;
+    background: transparent;
+  }
+
+  :is(.fpop .mk-pill, .fpc .mk-pill, .mgs__busca, .fpop .fselb, .fpop .fin):not(#mk-padrao) {
+    background: var(--mk-sup-cartao);
+    border: 0;
+    box-shadow: var(--mk-btn-sombra);
+    border-radius: 999px;
+    height: 36px;
+    min-height: 36px;
+    font-size: 13px;
+  }
+
+  :is(.fpop .mk-pill, .fpc .mk-pill, .mgs__busca):focus-within:not(#mk-padrao) {
+    border: 0;
+    box-shadow: var(--mk-btn-sombra);
+  }
+
+  .fpc--pop .fpc__item:not(#mk-padrao),
+  .cadastro-b1 .mg-pill-select-panel .cmd-option:not(#mk-padrao) {
+    min-height: 36px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    font-size: 13px;
+    box-shadow: none;
+  }
+
+  .b1ref .fpop:not(.fpop--sheet) .pr:not(#mk-padrao) {
+    min-height: 36px;
+    height: 36px;
+    border-radius: 8px;
+    font-size: 13px;
+  }
+  .b1ref .fpop:not(.fpop--sheet) .pr > *:not(#mk-padrao) { height: 36px; }
+
+  :is(.fpc--pop .fpc__item, .b1ref .pr, .cadastro-b1 .cmd-option):not(#mk-padrao):hover:not(:disabled) {
+    background: var(--mk-btn-hover);
+  }
+}
+
+@media (min-width: 1024px) {
+  :is(.cadastro-b1, .b1ref, .mk-sheet, .mk-ll-dlg) {
+    --mk-ui-control-size: 36px;
+    --mk-ui-icon-size: 16px;
+    --mk-btn-sombra: 0 1px 3px rgba(0, 0, 0, 0.05), 0 2px 8px rgba(0, 0, 0, 0.025);
+  }
+
+  :is(.cadastro-b1, .b1ref, .mk-sheet, .mk-ll-dlg) :is(.tb-btn, .mk-sheet__close, .mk-sheet__new, .mk-ll-dlg__redondo, .mg-rec-pager__btn):not(#mk-padrao) {
+    height: var(--mk-ui-control-size) !important;
+    min-height: var(--mk-ui-control-size) !important;
+  }
+  :is(.cadastro-b1, .b1ref, .mk-sheet, .mk-ll-dlg) :is(.tb-btn-icon, .mk-sheet__close, .mk-sheet__new, .mk-ll-dlg__redondo, .mg-rec-pager__btn):not(#mk-padrao) {
+    width: var(--mk-ui-control-size) !important;
+    min-width: var(--mk-ui-control-size) !important;
+    padding: 0 !important;
+  }
+  :is(.cadastro-b1, .b1ref, .mk-sheet, .mk-ll-dlg) :is(.tb-btn, .mk-sheet__close, .mk-sheet__new, .mk-ll-dlg__redondo, .mg-rec-pager__btn):not(#mk-padrao) svg {
+    width: var(--mk-ui-icon-size) !important;
+    height: var(--mk-ui-icon-size) !important;
+    padding: 0;
+    flex-shrink: 0;
+    stroke-width: 1.65;
+  }
+}
+
+@media (min-width: 640px) {
+  .mk-select:not(#mk-padrao) {
+    background: var(--mk-sup-fundo);
+    border: 1px solid var(--mk-sup-borda);
+    border-radius: 14px;
+    padding: 6px;
+  }
+  .mk-select [data-radix-select-viewport]:not(#mk-padrao) {
+    background: var(--mk-sup-cartao);
+    border-radius: 10px;
+  }
+  .mk-select .mk-select-item:not(#mk-padrao) {
+    min-height: 36px;
+    font-size: 13px;
+    border-radius: 8px;
+  }
+  .mk-select .mk-select-item:not(#mk-padrao) svg {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+  }
+}
+
+/* Ícones de ação na mesma escala em celular, tablet e desktop.
+   As dimensões dos botões e áreas de toque permanecem independentes. */
+.cadastro-b1 :is(.tb-btn, .view-seg button):not(#mk-padrao) svg,
+:is(.tb-btn, .view-seg button, .mg-rec-pager__btn, .mk-sheet__close, .mk-sheet__new, .mk-mhdr__round, .mk-ll-dlg__redondo, .mk-ll__add, .mk-ll__remover, .mk-ll__btn, .mg-b1-menuitem, .fpc__item, .mgs__op):not(#mk-padrao) svg,
+.mk-mhdr__back > span:not(#mk-padrao) svg {
+  width: 16px !important;
+  height: 16px !important;
+  padding: 0 !important;
+  stroke-width: 1.65;
+  flex-shrink: 0;
+}
+
+.mk-mods:not(#mk-padrao) { background: var(--mk-sup-fundo); }
+
+/* Fechar permanece circular e sem legenda, inclusive no desktop. */
+.tb-btn.mk-close-icon:not(#mk-padrao),
+.cadastro-b1 .tb-btn.mg-act-ic.mk-close-icon:not(#mk-padrao) {
+  width: var(--mk-ui-control-size, 44px) !important;
+  min-width: var(--mk-ui-control-size, 44px) !important;
+  height: var(--mk-ui-control-size, 44px) !important;
+  padding: 0 !important;
+  gap: 0;
+  border-radius: 999px;
+  aspect-ratio: 1;
 }

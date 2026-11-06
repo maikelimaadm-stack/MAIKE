@@ -248,7 +248,7 @@ export default function DetalhesTarefaMapa({ tarefa, onClose, onSaved, onRequest
   });
 
   return (
-    <div className="mk-hist" translate="no">
+    <div className="mk-hist mk-map-details" translate="no">
       {/* D-PROD-118: dentro do diálogo o título é a tarefa; aqui ficam status, prioridade e as ações. */}
       {!noDialogo ? <div className="mk-hist__secao-titulo">Tarefa: {currentTarefa.titulo}</div> : null}
       <div className="mk-tar__chips">

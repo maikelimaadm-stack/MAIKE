@@ -11,8 +11,9 @@ import { toast } from "sonner";
 import { calcularDiasPeriodo } from "../utils/consumoUtils";
 import { prepararFechamentoPeriodo } from "@/services/suplementacaoService";
 import { getTodayLocalDate } from "../utils/pecuariaUtils";
-import { LancLoteForm, LancLoteItens, LancLoteItem, LancLoteAdicionar, LancLoteRodape, LancLoteSegmento, LancLoteAviso, LL_CTL } from "@/components/lotes/LancamentoLoteUi";
+import { LancLoteForm, LancLoteItens, LancLoteItem, LancLoteAdicionar, LancLoteRodape, LancLoteAviso, LL_CTL } from "@/components/lotes/LancamentoLoteUi";
 import B1Select from "@/components/cadastro/base1/B1Select";
+import ToggleSwitch from "@/components/common/ToggleSwitch";
 import LancField from "@/components/cadastro/base1/LancField";
 import { notifyWarning, notifyError } from "@/lib/maikeNotify";
 
@@ -526,7 +527,7 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
               </p>
             </LancLoteAviso>
           }
-          <div className="mk-ll__grade">
+          <div className="mk-ll__grade mk-ll__movement-options">
             <FL label="Data da Movimentação" required>
               {/* Com fechamento calculado, a data é a do fechamento (dias do período): fica fixa. */}
               {fechamentosPendentes.length > 0 ?
@@ -534,7 +535,10 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
               <Input type="date" value={formData.data_movimentacao} onChange={(e) => setFormData({ ...formData, data_movimentacao: e.target.value })} className={LL_CTL} required />
               }
             </FL>
-            <LancLoteSegmento rotulo="Movimentar todo o lote?" required valor={formData.mover_todos} onChange={(v) => setFormData({ ...formData, mover_todos: v })} opcoes={[{ value: "sim", label: "Sim" }, { value: "nao", label: "Não" }]} />
+            <label className="mk-ll__whole-lot">
+              <span>Movimentar todo o lote? <span className="req">*</span></span>
+              <ToggleSwitch ariaLabel="Movimentar todo o lote?" checked={formData.mover_todos === "sim"} onChange={(checked) => setFormData({ ...formData, mover_todos: checked ? "sim" : "nao" })} />
+            </label>
           </div>
           <div className="mk-ll__grade">
             <FL label="Setor de saída" required>

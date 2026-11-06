@@ -1,5 +1,6 @@
 import React from "react";
 import { createPortal } from "react-dom";
+import { DragDropContext, Draggable, Droppable } from "@hello-pangea/dnd";
 import {
   Check,
   ChevronDown,
@@ -40,6 +41,7 @@ export default function ConfiguracaoColunasB1Dialog({
   onAplicar,
   onRestaurar,
 }) {
+  const dragListId = React.useId();
   const portalSkin = usePortalComprasSkin();
   const celular = useCelular();
   const ordemInicial = React.useMemo(() => colunas.map((c) => c.id), [colunas]);
@@ -182,8 +184,8 @@ export default function ConfiguracaoColunasB1Dialog({
         label={titulo}
         title={titulo}
         initialLarge
-        aside={`${usadas.length} de ${todas.length} visíveis`}
-        className="mk-colcfg"
+        aside={<>{usadas.length} de {todas.length} visíveis<span className="block">{termo ? "Limpe a pesquisa para reordenar" : "Segure a linha e arraste para reordenar"}</span></>}
+        className="mk-colcfg mk-config-sheet"
         headerAction={
           <button type="button" className="mk-sheet__new" aria-label="Aplicar" title="Aplicar" onClick={salvar}>
             <Check size={22} aria-hidden />
@@ -202,14 +204,31 @@ export default function ConfiguracaoColunasB1Dialog({
           )}
           <input value={qa} onChange={(e) => setQa(e.target.value)} placeholder="Pesquisar coluna…" aria-label="Pesquisar coluna" />
         </div>
-        <div className="mgs__lista mk-colcfg__lista" role="list" aria-label="Colunas">
+        <DragDropContext dragHandleUsageInstructions="Pressione Espaço para levantar a coluna, use as setas para mover e Espaço para soltar. Escape cancela o arraste." onDragEnd={({ source, destination }) => {
+          if (termo || !destination || source.index === destination.index) return;
+          setAplicarPadrao(false);
+          setDraftOrdem((ordem) => {
+            const nova = [...ordem];
+            const [key] = nova.splice(source.index, 1);
+            nova.splice(destination.index, 0, key);
+            return nova;
+          });
+        }}>
+          <Droppable droppableId={dragListId}>
+            {(drop) => <div ref={drop.innerRef} {...drop.droppableProps} className="mgs__lista mk-colcfg__lista" role="list" aria-label="Colunas">
           {!vistas.length ? <div className="mgs__vazio">Nenhuma coluna encontrada</div> : null}
-          {vistas.map((c) => {
+          {vistas.map((c, index) => {
             const visivel = !draftOcultas.has(c.id);
             const travada = visivel && usadas.length <= 1;
             const i = draftOrdem.indexOf(c.id);
             return (
-              <div key={c.id} role="listitem" className="mgs__op mk-colcfg__row" data-coluna={c.id}>
+              <Draggable key={c.id} draggableId={c.id} index={index} isDragDisabled={Boolean(termo)}>
+                {(drag, snapshot) => <div ref={drag.innerRef} {...drag.draggableProps} {...drag.dragHandleProps} role="listitem" aria-roledescription={termo ? undefined : "Coluna reordenável"} aria-label={termo ? undefined : `Arrastar coluna ${c.label}`} data-no-sheet-drag={termo ? undefined : ""} className={cn("mgs__op mk-colcfg__row", !termo && "is-draggable", snapshot.isDragging && "is-reordering")} data-coluna={c.id}>
+                {!termo ? (
+                  <span className="mk-colcfg__drag-handle" aria-hidden="true">
+                    <GripVertical size={16} aria-hidden />
+                  </span>
+                ) : null}
                 <span className={cn("mk-colcfg__nome", !visivel && "is-off")}>{c.label}</span>
                 {!termo ? (
                   <span className="mk-colcfg__ordem">
@@ -229,10 +248,14 @@ export default function ConfiguracaoColunasB1Dialog({
                 <span title={travada ? "Ao menos uma coluna fica na tabela" : undefined}>
                   <ToggleSwitch checked={visivel} disabled={travada} ariaLabel={`Mostrar ${c.label}`} onChange={() => alternar(c.id, visivel)} />
                 </span>
-              </div>
+              </div>}
+              </Draggable>
             );
           })}
-        </div>
+              {drop.placeholder}
+            </div>}
+          </Droppable>
+        </DragDropContext>
         <button type="button" className="mk-colcfg__restaurar" onClick={restaurarRascunho}>
           <RotateCcw size={16} aria-hidden /> Restaurar padrão
         </button>
@@ -325,7 +348,7 @@ export default function ConfiguracaoColunasB1Dialog({
   };
 
   const busca = (valor, onChange, rotulo) => (
-    <label className="cfgb cfgb-lista">
+    <label className="cfgb cfgb-lista mk-pill">
       <Search size={14} aria-hidden />
       <input
         value={valor}
@@ -346,7 +369,7 @@ export default function ConfiguracaoColunasB1Dialog({
   return createPortal(
     <div className={cn("b1ref cadastro-b1", portalSkin && "b1-portal-compras")}>
       <div className="mdl">
-        <div className="mdlc" ref={dialogo} role="dialog" aria-modal="true" aria-label={titulo}>
+        <div className="mdlc mk-config-dialog" ref={dialogo} role="dialog" aria-modal="true" aria-label={titulo}>
           <div className="mdl-h">
             <span className="mdl-t">{titulo}</span>
             <span style={{ flexGrow: 1 }} />

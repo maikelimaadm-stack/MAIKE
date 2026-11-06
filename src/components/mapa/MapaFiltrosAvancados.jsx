@@ -1,7 +1,7 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import B1Select from "@/components/cadastro/base1/B1Select";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
@@ -55,7 +55,6 @@ export const CORES_CATEGORIA_GADO = [
 '#8b5cf6', '#ec4899', '#f97316', '#14b8a6', '#6366f1',
 '#d946ef', '#0ea5e9', '#84cc16', '#f43f5e', '#a855f7'];
 
-
 export const MODOS_COLORACAO = [
 { id: 'padrao', label: 'Padrão (cor da área)' },
 { id: 'tipo_cultura', label: 'Tipo de Cultura' },
@@ -65,7 +64,6 @@ export const MODOS_COLORACAO = [
 { id: 'tipo_pastagem', label: 'Tipo de Pastagem' },
 { id: 'ua_ha', label: 'UA por Hectare' },
 { id: 'situacao_pasto', label: 'Situação do Pasto' }];
-
 
 /**
  * Camadas que o usuário pode ligar/desligar, conforme as permissões.
@@ -135,17 +133,17 @@ export default function MapaFiltrosAvancados({
   const availableLayers = camadasDoMapa({ showAreas, setShowAreas, showPontos, setShowPontos, showLinhas, setShowLinhas, showLotes, setShowLotes, showTarefas, setShowTarefas, showCochos, setShowCochos, showDepositos, setShowDepositos, showAlertas, setShowAlertas, showUserLocation, setShowUserLocation, showNomesAreas, setShowNomesAreas, showHectaresAreas, setShowHectaresAreas, permissions });
 
   return (
-    <div className="rounded space-y-1">
+    <div className="mk-map-filters rounded space-y-1">
       {/* ─── Camadas Visíveis ─── */}
       {availableLayers.length > 0 &&
       <>
-          <div className="space-y-0 px-1">
+          <div className="mk-map-filter-section mk-map-filter-section--layers space-y-0 px-1">
             <div className="space-y-0 px-1">
               <span className="text-xs font-bold text-slate-800 uppercase">Mostrar no mapa</span>
             </div>
             <div className="space-y-0">
               {availableLayers.map((item) =>
-            <label key={item.label} className="flex items-center justify-between gap-3 cursor-pointer hover:bg-slate-50 px-2 py-1.5 rounded-lg">
+            <label key={item.label} className="mk-map-layer-row flex items-center justify-between gap-3 cursor-pointer hover:bg-slate-50 px-2 py-1.5 rounded-lg">
                   <span className="text-xs font-medium text-slate-700">{item.label}</span>
                   {/* D-PROD-132: mesma chave liga/desliga dos cadastros e lançamentos */}
                   <ToggleSwitch checked={item.checked} onChange={() => item.onChange()} ariaLabel={item.label} />
@@ -159,7 +157,7 @@ export default function MapaFiltrosAvancados({
 
       {/* ─── Modo de Coloração das Áreas ─── */}
       {mostrarCores && permissions?.visualizar_areas !== false &&
-      <div>
+      <div className="mk-map-filter-section mk-map-filter-section--colors">
           <div className="mb-3">
             <span className="text-xs font-bold text-slate-800 uppercase">DEMARCAR ÁREAS POR</span>
           </div>
@@ -169,11 +167,12 @@ export default function MapaFiltrosAvancados({
             return (
               <Button
                 key={modo.id}
-                variant={ativo ? 'default' : 'outline'}
+                variant="outline"
+                aria-pressed={ativo}
                 size="sm"
                 onClick={() => setModoColoracao(modo.id)}
-                className={`h-8 text-[10px] justify-start ${ativo ? 'bg-emerald-600 hover:bg-emerald-700' : ''}`}>
-                
+                className={`mk-map-color-button h-8 text-[10px] justify-start ${ativo ? 'bg-emerald-600 hover:bg-emerald-700' : ''}`}>
+
                   <span className="truncate">{modo.label}</span>
                 </Button>);
 
@@ -205,44 +204,41 @@ export default function MapaFiltrosAvancados({
 
       {/* ─── Filtros de Áreas ─── */}
       {permissions?.visualizar_areas !== false &&
-      <div>
+      <div className="mk-map-filter-section">
           <div className="space-y-0 px-1">
             <span className="text-xs font-bold text-slate-800 uppercase">Filtros de Áreas</span>
           </div>
           <div className="space-y-0 px-1">
             <div>
               <Label className="text-[10px] text-slate-600">Setor</Label>
-              <Select value={filtroSetor} onValueChange={setFiltroSetor}>
-                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todos" className="text-xs">Todos</SelectItem>
-                  {setores.map((setor) => <SelectItem key={setor.id} value={setor.id} className="text-xs">{setor.nome}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <B1Select value={filtroSetor} onChange={(e) => setFiltroSetor(e.target.value)} aria-label="Setor" className="h-8 text-xs">
+
+                  <option value="todos" className="text-xs">Todos</option>
+                  {setores.map((setor) => <option key={setor.id} value={setor.id} className="text-xs">{setor.nome}</option>)}
+
+              </B1Select>
             </div>
             <div>
               <Label className="text-[10px] text-slate-600">Tipo de Cultura</Label>
-              <Select value={filtroTipoCultura} onValueChange={setFiltroTipoCultura}>
-                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todas" className="text-xs">Todas</SelectItem>
-                  <SelectItem value="Pastagem" className="text-xs">Pastagem</SelectItem>
-                  <SelectItem value="Agricultura" className="text-xs">Agricultura</SelectItem>
-                  <SelectItem value="Reserva" className="text-xs">Reserva</SelectItem>
-                  <SelectItem value="APP" className="text-xs">APP</SelectItem>
-                  <SelectItem value="Infraestrutura" className="text-xs">Infraestrutura</SelectItem>
-                </SelectContent>
-              </Select>
+              <B1Select value={filtroTipoCultura} onChange={(e) => setFiltroTipoCultura(e.target.value)} aria-label="Tipo de Cultura" className="h-8 text-xs">
+
+                  <option value="todas" className="text-xs">Todas</option>
+                  <option value="Pastagem" className="text-xs">Pastagem</option>
+                  <option value="Agricultura" className="text-xs">Agricultura</option>
+                  <option value="Reserva" className="text-xs">Reserva</option>
+                  <option value="APP" className="text-xs">APP</option>
+                  <option value="Infraestrutura" className="text-xs">Infraestrutura</option>
+
+              </B1Select>
             </div>
             <div>
               <Label className="text-[10px] text-slate-600">Tipo de Pastagem</Label>
-              <Select value={filtroTipoPastagem} onValueChange={setFiltroTipoPastagem}>
-                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todas" className="text-xs">Todas</SelectItem>
-                  {tiposPastagem.map((tp) => <SelectItem key={tp} value={tp} className="text-xs">{tp}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <B1Select value={filtroTipoPastagem} onChange={(e) => setFiltroTipoPastagem(e.target.value)} aria-label="Tipo de Pastagem" className="h-8 text-xs">
+
+                  <option value="todas" className="text-xs">Todas</option>
+                  {tiposPastagem.map((tp) => <option key={tp} value={tp} className="text-xs">{tp}</option>)}
+
+              </B1Select>
             </div>
           </div>
         </div>
@@ -252,63 +248,58 @@ export default function MapaFiltrosAvancados({
 
       {/* ─── Filtros de Lotes ─── */}
       {permissions?.visualizar_lotes !== false &&
-      <div>
+      <div className="mk-map-filter-section">
           <div className="space-y-0 px-1">
             <span className="text-xs font-bold text-slate-800 uppercase">Filtros de Categorias de Manejo</span>
           </div>
           <div className="space-y-0 px-1">
             <div>
               <Label className="text-[10px] text-slate-600">Categoria</Label>
-              <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
-                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todas" className="text-xs">Todas</SelectItem>
-                  {categorias.map((cat) => <SelectItem key={cat} value={cat} className="text-xs">{cat}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <B1Select value={filtroCategoria} onChange={(e) => setFiltroCategoria(e.target.value)} aria-label="Categoria" className="h-8 text-xs">
+
+                  <option value="todas" className="text-xs">Todas</option>
+                  {categorias.map((cat) => <option key={cat} value={cat} className="text-xs">{cat}</option>)}
+
+              </B1Select>
             </div>
             <div>
               <Label className="text-[10px] text-slate-600">Sistema Produtivo</Label>
-              <Select value={filtroSistema} onValueChange={setFiltroSistema}>
-                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todos" className="text-xs">Todos</SelectItem>
-                  {sistemasProdutivos.map((sp) => <SelectItem key={sp} value={sp} className="text-xs">{sp}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <B1Select value={filtroSistema} onChange={(e) => setFiltroSistema(e.target.value)} aria-label="Sistema Produtivo" className="h-8 text-xs">
+
+                  <option value="todos" className="text-xs">Todos</option>
+                  {sistemasProdutivos.map((sp) => <option key={sp} value={sp} className="text-xs">{sp}</option>)}
+
+              </B1Select>
             </div>
             <div>
               <Label className="text-[10px] text-slate-600">Identificador</Label>
-              <Select value={filtroIdentificador} onValueChange={setFiltroIdentificador}>
-                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todos" className="text-xs">Todos</SelectItem>
-                  {identificadores.map((identificador) => <SelectItem key={identificador} value={identificador} className="text-xs">{identificador}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <B1Select value={filtroIdentificador} onChange={(e) => setFiltroIdentificador(e.target.value)} aria-label="Identificador" className="h-8 text-xs">
+
+                  <option value="todos" className="text-xs">Todos</option>
+                  {identificadores.map((identificador) => <option key={identificador} value={identificador} className="text-xs">{identificador}</option>)}
+
+              </B1Select>
             </div>
             <div className="space-y-0 px-1">
               <Label className="text-[10px] text-slate-600">Alertas</Label>
-              <Select value={filtroStatus} onValueChange={setFiltroStatus}>
-                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todos" className="text-xs">Todos</SelectItem>
-                  <SelectItem value="com_alerta" className="text-xs">Com Alerta</SelectItem>
-                  <SelectItem value="sem_alerta" className="text-xs">Sem Alerta</SelectItem>
-                </SelectContent>
-              </Select>
+              <B1Select value={filtroStatus} onChange={(e) => setFiltroStatus(e.target.value)} aria-label="Alertas" className="h-8 text-xs">
+
+                  <option value="todos" className="text-xs">Todos</option>
+                  <option value="com_alerta" className="text-xs">Com Alerta</option>
+                  <option value="sem_alerta" className="text-xs">Sem Alerta</option>
+
+              </B1Select>
             </div>
             <div>
               <Label className="text-[10px] text-slate-600">Tipo de Alerta</Label>
-              <Select value={filtroAlertaTipo} onValueChange={setFiltroAlertaTipo}>
-                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todos" className="text-xs">Todos</SelectItem>
-                  <SelectItem value="suplementacao_pendente" className="text-xs">Suplementação</SelectItem>
-                  <SelectItem value="cocho_sem_produto" className="text-xs">Cocho sem produto</SelectItem>
-                  <SelectItem value="deposito_estoque_minimo" className="text-xs">Estoque mínimo</SelectItem>
-                </SelectContent>
-              </Select>
+              <B1Select value={filtroAlertaTipo} onChange={(e) => setFiltroAlertaTipo(e.target.value)} aria-label="Tipo de Alerta" className="h-8 text-xs">
+
+                  <option value="todos" className="text-xs">Todos</option>
+                  <option value="suplementacao_pendente" className="text-xs">Suplementação</option>
+                  <option value="cocho_sem_produto" className="text-xs">Cocho sem produto</option>
+                  <option value="deposito_estoque_minimo" className="text-xs">Estoque mínimo</option>
+
+              </B1Select>
             </div>
             <div>
               <Label className="text-[10px] text-slate-600">Peso Mínimo (kg)</Label>
@@ -318,7 +309,7 @@ export default function MapaFiltrosAvancados({
               className="h-8 text-xs"
               value={filtroPesoMin || ''}
               onChange={(e) => setFiltroPesoMin(e.target.value ? Number(e.target.value) : null)} />
-            
+
             </div>
             <div>
               <Label className="text-[10px] text-slate-600">Peso Máximo (kg)</Label>
@@ -328,13 +319,12 @@ export default function MapaFiltrosAvancados({
               className="h-8 text-xs"
               value={filtroPesoMax || ''}
               onChange={(e) => setFiltroPesoMax(e.target.value ? Number(e.target.value) : null)} />
-            
+
             </div>
           </div>
         </div>
       }
     </div>);
-
 
 }
 

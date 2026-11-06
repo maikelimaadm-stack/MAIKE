@@ -1,6 +1,6 @@
 import React from "react";
 import { createPortal } from "react-dom";
-import { ChevronRight, Filter, FilterX, Search, X } from "lucide-react";
+import { ChevronRight, Search, X } from "lucide-react";
 import MobileSheet, { useCelular } from "@/components/common/MobileSheet";
 import { ROTULO_OPERADOR } from "./cadastroColunaFiltroLogic";
 
@@ -74,9 +74,6 @@ export default function FiltroPorCampo({ colunas, filtros, ancora, onEscolher, o
           const resumo = resumoDoFiltro(f);
           return (
             <button key={c.id} type="button" role="menuitem" className="fpc__item" onClick={() => onEscolher(c.id)}>
-              <span className={f ? "fpc__ic is-on" : "fpc__ic"} aria-hidden>
-                {f ? <FilterX size={14} /> : <Filter size={14} />}
-              </span>
               <span className="fpc__nome">{c.label}</span>
               {resumo ? <span className="fpc__resumo">{resumo}</span> : null}
               <span className="fpc__chev" aria-hidden>
