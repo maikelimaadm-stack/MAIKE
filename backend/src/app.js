@@ -115,13 +115,24 @@ export const construirApp = async (opcoes = {}) => {
    * outro tenant. Barreira única, antes de qualquer rota: corpo com
    * `cliente_id` (no topo ou em item de lista) é recusado com 400
    * REQUEST_VALIDATION_FAILED — o mesmo contrato das rotas com schema fechado.
+   *
+   * D-PROD-136: também a RELAÇÃO `cliente` (todo model tenant-scoped a tem).
+   * `{ cliente: { connect | update } }` era escrita aninhada do Prisma: movia o
+   * registro de tenant, desativava a fazenda ou promovia contas. A allowlist de
+   * colunas (shared/prisma/colunasGravaveis.js) cobre as demais relações nos
+   * services; esta barreira é a defesa em profundidade para a do tenant.
    */
   app.addHook('preValidation', async (request) => {
     const corpo = request.body;
     const itens = Array.isArray(corpo) ? corpo : [corpo];
     for (const item of itens) {
-      if (item && typeof item === 'object' && Object.prototype.hasOwnProperty.call(item, 'cliente_id')) {
-        throw new AppError('REQUEST_VALIDATION_FAILED', 'cliente_id não é aceito no corpo; o tenant vem da sessão');
+      if (!item || typeof item !== 'object') continue;
+      for (const chave of ['cliente_id', 'cliente']) {
+        if (Object.prototype.hasOwnProperty.call(item, chave)) {
+          throw new AppError('REQUEST_VALIDATION_FAILED', `${chave} não é aceito no corpo; o tenant vem da sessão`, {
+            details: { field: chave },
+          });
+        }
       }
     }
   });

@@ -5,6 +5,7 @@ import { getPrismaClient } from '../../database/prismaClient.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { AppError, catalogoGlobalInvalid } from '../../shared/errors/AppError.js';
 import { registrarEvento } from '../auditoria/auditService.js';
+import { exigirSomenteColunasGravaveis } from '../../shared/prisma/colunasGravaveis.js';
 import { exigirCategoriaVisualLoteVinculavel } from '../catalogoGlobal/catalogoValidacao.js';
 import {
   listarRegistros,
@@ -69,7 +70,7 @@ export const criar = async (contexto, entrada) => {
   const prisma = getPrismaClient();
   const criado = await prisma.$transaction(async (tx) => {
     /** @type {Record<string, unknown>} */
-    const dados = await validarVinculoCatalogo(tx, { ...entrada, cliente_id: auth.clienteId });
+    const dados = await validarVinculoCatalogo(tx, { ...exigirSomenteColunasGravaveis('CategoriaManejo', entrada), cliente_id: auth.clienteId });
 
     const registro = await inserirRegistro(tx, dados);
     await registrarEvento(
@@ -88,7 +89,7 @@ export const atualizar = async (contexto, id, entrada) => {
   const atualizado = await prisma.$transaction(async (tx) => {
     const existente = await buscarRegistro(auth.clienteId, id, tx);
     if (!existente) throw erroNaoEncontrado();
-    const dados = await validarVinculoCatalogo(tx, { ...entrada }, existente);
+    const dados = await validarVinculoCatalogo(tx, exigirSomenteColunasGravaveis('CategoriaManejo', entrada), existente);
     const registro = await atualizarRegistroPorId(tx, auth.clienteId, id, dados);
     await registrarEvento(
       contexto,
