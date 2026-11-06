@@ -1197,6 +1197,7 @@
   }
 
   .mk-al__folha .mk-al__quadro .mk-al__img {
+    width: auto;
     height: 36px;
     margin: -8px 0 -2px;
   }
@@ -1225,6 +1226,7 @@
 
 /* Imagem maior que os ícones de 19px, sem descer o nome nem aumentar o quadro */
 .mk-al--embaixo .mk-al__quadro .mk-al__img {
+  width: auto;
   height: 30px;
   margin: -9px 0 -2px;
 }
