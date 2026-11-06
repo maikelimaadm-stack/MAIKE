@@ -725,12 +725,6 @@
   padding: 2px 0;
 }
 
-/* Área: o título fica fora da caixa, logo acima dela. */
-.mk-dl__bloco-area {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
 
 /* Campo: rótulo e valor no tamanho do "Categoria de Manejo", numa linha só;
    se não couber, o texto corre devagar (D-PROD-124). */
