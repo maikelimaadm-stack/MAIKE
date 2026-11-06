@@ -417,7 +417,7 @@
   }
 
   .mg-toolbar__row--actions:has(.mg-act-salvar) {
-    justify-content: flex-end;
+    justify-content: flex-start;
   }
 
   .mg-toolbar__row--actions:has(.mg-act-salvar) .mg-act-cancelar {
@@ -527,7 +527,7 @@
   }
 }
 
-/* Busca sem moldura; teclado continua com um indicador neutro interno. */
+/* Busca sem moldura externa nem contorno pontilhado interno. */
 .cadastro-b1 .mg-search-pill:not(#mk-padrao),
 .cadastro-b1 .mg-search-pill.is-active:not(#mk-padrao),
 .cadastro-b1 .mg-search-pill:focus-within:not(#mk-padrao) {
@@ -535,8 +535,8 @@
   box-shadow: var(--mk-btn-sombra);
 }
 .cadastro-b1 .mg-search-pill input:focus-visible:not(#mk-padrao) {
-  outline: 1px dotted #94a3b8;
-  outline-offset: 2px;
+  outline: none;
+  box-shadow: none;
 }
 
 /* O fundo indica o modo selecionado; todos os ícones usam a mesma cor. */
@@ -549,4 +549,12 @@
 .view-seg button.is-active:not(#mk-padrao) svg,
 .view-seg button[data-state="on"]:not(#mk-padrao) svg {
   color: #292a2d !important;
+}
+
+@media (min-width: 1024px) {
+  .cadastro-b1 .mg-toolbar--responsive .mg-toolbar__row--actions:has(.mg-act-salvar):not(#mk-padrao) {
+    display: flex;
+    flex: 1 1 auto;
+    justify-content: flex-start;
+  }
 }
