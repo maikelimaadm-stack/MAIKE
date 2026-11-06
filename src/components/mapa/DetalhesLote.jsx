@@ -55,6 +55,14 @@ const recusarManejoSemLedger = () => {
   toast.error(MENSAGENS_MANEJO_REBANHO.REBANHO_CUTOVER_PENDENTE);
 };
 
+/** Botões abaixo do título: cada um abre a sua parte do Detalhes do Lote. */
+const ABAS_DO_LOTE = [
+  { id: 'area', nome: 'Informações da Área' },
+  { id: 'lote', nome: 'Informações do Lote' },
+  { id: 'manejos', nome: 'Manejos' },
+  { id: 'historicos', nome: 'Históricos' },
+];
+
 export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
   /** R2E-P1 (D-PROD-107): o mapa entregou POSIÇÕES do ledger (empresa ativada), não Lotes. */
   const modoLedger = (lotes || []).some(ehPosicaoDoLedger);
@@ -73,6 +81,8 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
   const [showPesagem, setShowPesagem] = useState(false);
   const [showHistorico, setShowHistorico] = useState(false);
   const [showHistoricoSupl, setShowHistoricoSupl] = useState(false);
+  /** Aba aberta no Detalhes do Lote (botões abaixo do título). */
+  const [abaDetalhes, setAbaDetalhes] = useState('area');
   const [showRenomear, setShowRenomear] = useState(false);
   const [novoNomeLote, setNovoNomeLote] = useState('');
   const [loteParaRenomear, setLoteParaRenomear] = useState(null);
@@ -532,12 +542,23 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
   return (
     <>
     <div className="mk-dl space-y-2" translate="no">
-      {/* Desktop: área à esquerda e lote à direita; celular/tablet: um embaixo do outro. */}
-      <div className="mk-dl__layout">
-        <div className="mk-dl__coluna">
-          <InformacoesArea area={areaAtual} lotesNaArea={todosLotesNaArea} />
-        </div>
-        <div className="mk-dl__coluna">
+      <div className="mk-dl__abas" role="tablist" aria-label="Seções do lote">
+        {ABAS_DO_LOTE.map(({ id, nome }) => (
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            aria-selected={abaDetalhes === id}
+            className={`mk-dl__aba${abaDetalhes === id ? ' is-ativa' : ''}`}
+            onClick={() => setAbaDetalhes(id)}>
+            {nome}
+          </button>
+        ))}
+      </div>
+
+      {abaDetalhes === 'area' && <InformacoesArea area={areaAtual} lotesNaArea={todosLotesNaArea} />}
+
+      {abaDetalhes === 'lote' && <>
       <div className="mk-dl__lotes">
         {categorias.map((categoria) => {
             const lotesCategoria = lotesPorCategoria[categoria];
@@ -586,8 +607,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
       </div>
 
       <ResumoSuplementacao lotesIds={lotes.map((l) => l.id)} lotesInformados={modoLedger ? lotes : undefined} modo="completo" areaId={lotes[0]?.area_atual_id || ""} />
-        </div>
-      </div>
+      </>}
 
       {/* D-PROD-119: um botão só abre os quadros de Manejos e Históricos (separados). */}
       {(() => {
@@ -633,9 +653,18 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
           permissions.visualizar_historico_suplementacao_lote !== false && { nome: 'Suplementação', rotulo: 'Histórico de Suplementação', Icone: IconeHistoricoSuplementacao, onClick: () => setShowHistoricoSupl(true) },
         ].filter(Boolean);
         return (
-          <div className="my-1">
-            <AcoesDoLote grupos={[{ titulo: 'Manejos', itens: manejos }, { titulo: 'Históricos', itens: historicos }]} />
-          </div>
+          <>
+            {abaDetalhes === 'manejos' && manejos.length > 0 && (
+              <div className="my-1">
+                <AcoesDoLote grupos={[{ titulo: 'Manejos', itens: manejos }]} inline />
+              </div>
+            )}
+            {abaDetalhes === 'historicos' && historicos.length > 0 && (
+              <div className="my-1">
+                <AcoesDoLote grupos={[{ titulo: 'Históricos', itens: historicos }]} inline />
+              </div>
+            )}
+          </>
         );
       })()}
 
