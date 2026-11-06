@@ -81,8 +81,10 @@ const renderizar = async (lotes) => {
 const clicar = (el) => act(async () => { fireEvent.click(el); await new Promise((r) => setTimeout(r, 10)); });
 /** D-PROD-119: manejos e históricos em quadros (no celular, atrás do botão "Manejos e históricos"). */
 const acao = async (nome) => {
+  const aba = screen.getByRole("tab", { name: nome.startsWith("Histórico") ? "Históricos" : "Manejos" });
+  await clicar(aba); // cada bloco abre pelo seu botão abaixo do título
   const botaoUnico = screen.queryByRole("button", { name: "Manejos e históricos" });
-  if (botaoUnico) await clicar(botaoUnico); // celular; no desktop os quadros já estão à vista
+  if (botaoUnico) await clicar(botaoUnico); // celular
   await clicar(screen.getByRole("button", { name: nome }));
 };
 const nenhumaEscrita = () => {
