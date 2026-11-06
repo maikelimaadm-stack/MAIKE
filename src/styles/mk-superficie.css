@@ -490,3 +490,39 @@
   min-width: 0;
   box-sizing: border-box;
 }
+
+/* Acabamento do desktop inspirado nos controles do visualizador. */
+@media (min-width: 1024px) {
+  .cadastro-b1,
+  .mk-ll-dlg {
+    --mk-btn-sombra: 0 1px 3px rgba(0, 0, 0, 0.05), 0 2px 8px rgba(0, 0, 0, 0.025);
+    --mk-btn-hover: #f7f7f8;
+  }
+
+  .cadastro-b1 .tb-btn:not(.tb-btn-green):not(.tb-btn-red):not(.is-filter-on):not(.is-filter-active):not(.is-active):not(#mk-padrao) {
+    color: #292a2d !important;
+  }
+
+  .cadastro-b1 :is(.tb-btn, .view-seg):not(#mk-padrao) {
+    border: 0 !important;
+    border-radius: 999px !important;
+  }
+
+  .cadastro-b1 .mg-toolbar__btns:not(#mk-padrao),
+  .cadastro-b1 .mg-fluid-slot__cluster:not(#mk-padrao) {
+    gap: 6px;
+  }
+
+  .cadastro-b1 :is(.tb-btn, .view-seg button):not(#mk-padrao) svg {
+    box-sizing: border-box;
+    width: 20px !important;
+    height: 20px !important;
+    padding: 2px;
+    stroke-width: 1.65;
+    flex-shrink: 0;
+  }
+
+  .cadastro-b1 .view-seg button:not([aria-pressed="true"]):not(#mk-padrao) {
+    color: #292a2d !important;
+  }
+}
