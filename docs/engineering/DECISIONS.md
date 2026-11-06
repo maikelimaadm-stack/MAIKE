@@ -5272,25 +5272,61 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
 - **Fora do escopo (R7):** as tabelas do Cadastro do Mapa (Áreas, Pontos, Linhas) e as listas de histórico não usam o motor Base1; migração em missão própria.
 - **Evidência:** `docs/engineering/evidencias/ux-mobile-v2/v26-*`; testes `tests/smoke/base1CardsSemPulo.test.jsx` (CAR-01/02).
 
-## D-PROD-139 — Chaves com bolinha redonda e movimento discreto
+## D-PROD-139 — "Editar Informação" no mapa edita a POSIÇÃO (nome e identificação), não o cadastro de entrada
+
+- **Contexto:** no controle por posições, o botão "Editar Informação" do Detalhes do Lote só mostrava "renomeie o lote no Cadastro de Lotes. Nada foi gravado.". O caminho antigo (`RenomearLoteForm`) grava o `Lote` e cria uma movimentação "Renomear Lote" — errado para a posição do ledger.
+- **Decisão:**
+  - **Comando próprio:** `PATCH /rebanho/posicoes/:id/informacoes`, com `porMapa('renomear_lotes')`. A concessão `is_admin` e o administrador real também passam.
+    - O schema é fechado (`additionalProperties: false`) e aceita só `empresa_id` + `nome`, `identificador_nome`, `identificador_sigla`, `identificador_cor`.
+  - **Contrato de campos:**
+
+    | Situação | Campos |
+    |---|---|
+    | editável na posição | nome, identificador_nome, identificador_sigla, identificador_cor |
+    | somente leitura | nº do lote, origem/linhagem, entrada, raça, sistema, data de entrada |
+    | exige comando de manejo | quantidade, área, peso, categoria, sexo, categoria de manejo |
+
+  - **Por que é seguro:**
+    - a identidade da posição (`chave_identidade` = origem + categoria + sexo + categoria de manejo) não usa nome nem identificação; trocar o nome não funde nem separa posições;
+    - nenhum evento, partida, peso ou movimentação é criado;
+    - o `Lote` não é escrito.
+  - **Servidor:**
+    - a posição precisa ser do tenant **e** da empresa informada; senão 404 (`POSICAO_REBANHO_NOT_FOUND`), com a mesma resposta para outro tenant e para outra empresa;
+    - ledger inativo → 409;
+    - posição sem cabeças → 409 `POSICAO_REBANHO_VAZIA` (novo; a posição vazia não aparece no mapa);
+    - trava a posição (`FOR UPDATE`) e grava AuditLog antes/depois na mesma transação;
+    - sem mudança → 200 sem gravar nem auditar.
+  - **Tela:**
+    - escolhe o grupo quando há vários, mostrando a área;
+    - separa "Informações do grupo (editáveis)" de "Origem e cadastro da entrada (somente leitura)";
+    - envia só o que mudou;
+    - o mapa mostra o valor gravado na hora e relê do servidor;
+    - em erro, mostra a mensagem do código e nunca afirma sucesso;
+    - sem ledger, o formulário antigo continua igual.
+- **Interações registradas:**
+  - transferir para uma área onde a identidade ainda não existe cria a posição de destino com o nome editado (`moldeDe`); se a identidade já existe, o destino mantém o dele;
+  - renomear depois no Cadastro de Lotes continua propagando o campo a todas as posições da entrada e sobrescreve a edição feita no mapa.
+- **Consequência:** sem migration. Testes: `backend/tests/posicaoEditarInformacao.test.mjs` (PG) e `tests/smoke/editarInformacaoPosicao.test.jsx` (RTL). Relatório: `docs/engineering/MAIKE-EDITAR-INFORMACAO-POSICAO-REPORT.md`.
+
+## D-PROD-140 — Chaves com bolinha redonda e movimento discreto
 
 - **Contexto:** o proprietário pediu proporção, tamanho e efeito próximos dos controles de aplicativos nativos nas chaves de ativação.
 - **Decisão:** B1Switch e ToggleSwitch compartilham trilho e bolinha redonda, branca e com sombra leve. Celular/tablet: 51×31 px; desktop: 44×26 px. A área de interação tem pelo menos 44 px de altura. Transição de 180 ms, pressão discreta sem sair do trilho e nenhuma animação quando o dispositivo pede movimento reduzido. Verde MAIKE ligado, cinza desligado; estados bloqueado e somente leitura continuam explícitos.
 - **Substitui:** a geometria de cápsula e o efeito de vidro/escala das D-PROD-98, D-PROD-102 e D-PROD-103; não muda as regras das folhas.
 - **Implementação:** `src/styles/mk-toggles.css`, carregado após os estilos históricos. Sem mudança de persistência ou permissão.
 
-## D-PROD-140 — Superfície clara compartilhada com o Mapa Geral
+## D-PROD-141 — Superfície clara compartilhada com o Mapa Geral
 
 - **Contexto:** o proprietário aprovou o fundo mais claro e pediu que os controles do mapa e seus lançamentos seguissem o acabamento dos cadastros.
 - **Decisão:** fundo compartilhado `#F7F8FA`, cartões e ações brancos com sombra discreta, ícones de ação de 16 px e seleção distinguida pelo fundo. Os controles preservam área de toque de 44 px; desktop usa ações compactas de 36 px. Camadas, filtros, detalhes e ações dos lançamentos do mapa recebem o mesmo acabamento.
 - **Implementação:** `src/styles/mk-mapa-superficie.css`, após os estilos compartilhados. Mantém cores informativas de legendas, ocupação e alertas, créditos do mapa, regras de filtro, permissões e persistência.
 - **Validação:** componentes reais em Chromium local com dados de exemplo, em 1440, 768 e 390 px, incluindo alteração de visualização/camada e confirmação de lançamento. 72 testes relacionados passaram. Sem sessão autenticada de produção.
 
-## D-PROD-141 — Consultas em tela, escolhas expansíveis e chave oval compacta
+## D-PROD-142 — Consultas em tela, escolhas expansíveis e chave oval compacta
 
 - **Contexto:** o proprietário corrigiu o escopo das folhas do mapa: detalhes do lote continuam em tela; listas de ações, filtros e escolhas precisam de expansão por gestos. Forneceu o modelo HTML Wi-Fi como referência visual para todos os toggles.
 - **Decisão:** `folhaMobile` é opt-in em LancLoteDialogo. Manejos e históricos (menu de ações), Filtros e Camadas e Visualização usam a folha; detalhes e consultas não recebem esse comportamento por serem somente leitura. As escolhas dos filtros usam B1Select, o seletor dos cadastros.
-- **Geometria:** B1Switch e ToggleSwitch usam as proporções 72:32 do trilho e 43:28 da peça oval do modelo. Escala mobile/tablet 49,5×22 px; desktop 45×20 px. Mantém o verde MAIKE, alvo de toque com 44 px, foco de teclado, estados bloqueados e movimento reduzido. Revoga apenas a geometria redonda da D-PROD-139. Campos do mapa: 36 px no mobile/tablet e 32 px no desktop; em duas colunas quando há espaço.
+- **Geometria:** B1Switch e ToggleSwitch usam as proporções 72:32 do trilho e 43:28 da peça oval do modelo. Escala mobile/tablet 49,5×22 px; desktop 45×20 px. Mantém o verde MAIKE, alvo de toque com 44 px, foco de teclado, estados bloqueados e movimento reduzido. Revoga apenas a geometria redonda da D-PROD-140. Campos do mapa: 36 px no mobile/tablet e 32 px no desktop; em duas colunas quando há espaço.
 - **Validação:** Chromium local com componentes reais em 320, 390, 768 e 1440 px: detalhes sem folha, menu de ações expansível, escolha de filtro aninhada, controles sem overflow, toggles ovalizados e movimento reduzido. Dados de exemplo, sem sessão de produção.
 
-<!-- Próxima decisão: D-PROD-142 -->
+<!-- Próxima decisão: D-PROD-143 -->

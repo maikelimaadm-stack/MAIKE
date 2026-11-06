@@ -26,6 +26,7 @@ import {
   executarBaixaRebanho,
   listarPosicoesRebanho,
   executarTransferenciaLedger,
+  editarInformacaoPosicao,
 } from '@/apis/movimentacoes-mapa';
 import { ehMovimentoAtivo } from '@/domain/lotes/situacaoMovimento';
 import { listMovimentacoesPecuariaNativas } from '@/apis/movimentacoes-pecuaria';
@@ -184,6 +185,14 @@ export const registrarTransferenciaLedgerServidor = async (corpo) => {
   const contexto = ctx('registrarTransferenciaLedger');
   assertArgument(isObjeto(corpo) && isId(corpo.operation_id) && isId(corpo.area_destino_id) && Array.isArray(corpo.itens), 'corpo', contexto);
   return runProviderCall(() => executarTransferenciaLedger(corpo), { ...contexto, details: { area_destino_id: corpo.area_destino_id } });
+};
+
+/** D-PROD-139: nome e identificação de UMA posição do ledger. Online; nunca vai para a fila offline. */
+export const editarInformacaoPosicaoServidor = async (posicaoId, corpo) => {
+  const contexto = ctx('editarInformacaoPosicao');
+  assertArgument(isId(posicaoId), 'posicaoId', contexto);
+  assertArgument(isObjeto(corpo) && isId(corpo.empresa_id), 'corpo', contexto);
+  return runProviderCall(() => editarInformacaoPosicao(posicaoId, corpo), { ...contexto, details: { posicao_id: posicaoId } });
 };
 
 /**

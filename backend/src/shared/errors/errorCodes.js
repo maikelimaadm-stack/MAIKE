@@ -304,6 +304,7 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   },
   // R2E-P1 (D-PROD-107) — ledger do rebanho por posição.
   POSICAO_REBANHO_NOT_FOUND: { http: 404, meaning: 'posição do rebanho não encontrada nesta empresa' },
+  POSICAO_REBANHO_VAZIA: { http: 409, meaning: 'a posição não tem cabeças (não aparece no mapa); nada foi gravado' },
   REBANHO_LEDGER_INATIVO: { http: 409, meaning: 'o ledger de posições não está ativo nesta empresa' },
   REBANHO_LEDGER_JA_ATIVO: { http: 409, meaning: 'o ledger de posições já está ativo nesta empresa' },
   REBANHO_LEDGER_OPERACAO_NAO_MIGRADA: { http: 409, meaning: 'empresa no ledger: esta operação ainda não foi migrada para ele e foi recusada sem gravar nada' },

@@ -17,4 +17,5 @@ export {
   executarBaixaRebanho,
   listarPosicoesRebanho,
   executarTransferenciaLedger,
+  editarInformacaoPosicao,
 } from './movimentacoesMapaApi.js';

@@ -99,6 +99,10 @@ export const listarPosicoesRebanhoNativo = (empresaId) =>
   nativeRequest(`/rebanho/posicoes?empresa_id=${encodeURIComponent(empresaId)}`, { autenticado: true }, ctx('listarPosicoesRebanho'));
 
 /** R2E-P1: transferência retroativa no ledger (uma confirmação = um POST). Só online. */
+/** D-PROD-139: Editar Informação da posição (nome e identificação). Só online; nunca vai para a fila. */
+export const editarInformacaoPosicaoNativo = (posicaoId, corpo) =>
+  nativeRequest(`/rebanho/posicoes/${encodeURIComponent(posicaoId)}/informacoes`, { method: 'PATCH', body: corpo, autenticado: true }, ctx('editarInformacaoPosicao'));
+
 export const executarTransferenciaLedgerNativo = (corpo) =>
   nativeRequest('/rebanho/comandos/transferencia', { method: 'POST', body: corpo, autenticado: true }, ctx('executarTransferenciaLedger'));
 

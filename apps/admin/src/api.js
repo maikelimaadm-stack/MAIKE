@@ -95,6 +95,14 @@ export const chamar = async (caminho, { method = 'GET', body } = {}) => {
   return corpo;
 };
 
+/** Query string só com os filtros preenchidos (o backend recusa parâmetro desconhecido). */
+const consulta = (filtros) => {
+  const params = new URLSearchParams();
+  for (const [k, v] of Object.entries(filtros)) if (v !== undefined && v !== null && v !== '') params.set(k, String(v));
+  const s = params.toString();
+  return s ? `?${s}` : '';
+};
+
 // ─── Sessão e conta ────────────────────────────────────────────────────────
 export const api = {
   sessao: () => chamar('/admin-maike/sessao'),
@@ -112,6 +120,12 @@ export const api = {
   regerarCodigos: (dados) => chamar('/admin-maike/conta/codigos-recuperacao', { method: 'POST', body: dados }),
   sessoes: () => chamar('/admin-maike/conta/sessoes'),
   revogarOutras: () => chamar('/admin-maike/conta/sessoes/revogar-outras', { method: 'POST', body: {} }),
+
+  // ─── Clientes da plataforma (somente leitura, MAIKE-SAAS-ADMIN-S01) ─────
+  clientes: (filtros = {}) => chamar(`/admin-maike/clientes${consulta(filtros)}`),
+  cliente: (id) => chamar(`/admin-maike/clientes/${encodeURIComponent(id)}`),
+  usuariosDoCliente: (id, cursor) => chamar(`/admin-maike/clientes/${encodeURIComponent(id)}/usuarios${consulta({ cursor })}`),
+  empresasDoCliente: (id, cursor) => chamar(`/admin-maike/clientes/${encodeURIComponent(id)}/empresas${consulta({ cursor })}`),
 
   // ─── Catálogo ────────────────────────────────────────────────────────────
   catalogo: () => chamar('/admin-maike/catalogo'),

@@ -6,6 +6,7 @@
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { ativarLedger, listarPosicoes, MAX_ITENS_TRANSFERENCIA, MODOS_ATIVACAO, saldosNaData, transferir, verificarLedger } from './rebanhoLedgerService.js';
 import { porMapa } from '../../shared/auth/autorizacaoTela.js';
+import { editarInformacaoPosicao } from './rebanhoLedgerInformacao.js';
 
 const ID = { type: 'string', minLength: 1, maxLength: 64 };
 const OPERATION_ID = { type: 'string', minLength: 8, maxLength: 160, pattern: '^[A-Za-z0-9_.:-]+$' };
@@ -43,6 +44,28 @@ const ATIVACAO_SCHEMA = {
     properties: { operation_id: OPERATION_ID, empresa_id: ID, modo: { type: 'string', enum: [...MODOS_ATIVACAO] }, data_corte: { type: 'string', minLength: 10, maxLength: 10 } },
   },
 };
+/**
+ * D-PROD-139: Editar Informação da posição. Só os campos descritivos; qualquer
+ * outro (quantidade, área, peso, categoria, sexo, manejo, identidade, linhagem,
+ * entrada, tenant) → 400 pelo schema fechado. Pelo menos um campo além da empresa.
+ */
+const TEXTO_OPCIONAL = (max) => ({ type: ['string', 'null'], maxLength: max });
+const INFORMACAO_POSICAO_SCHEMA = {
+  params: { type: 'object', required: ['id'], additionalProperties: false, properties: { id: ID } },
+  body: {
+    type: 'object',
+    required: ['empresa_id'],
+    additionalProperties: false,
+    minProperties: 2,
+    properties: {
+      empresa_id: ID,
+      nome: { type: 'string', minLength: 1, maxLength: 255, pattern: '\\S' },
+      identificador_nome: TEXTO_OPCIONAL(255),
+      identificador_sigla: TEXTO_OPCIONAL(32),
+      identificador_cor: TEXTO_OPCIONAL(32),
+    },
+  },
+};
 const EMPRESA_QUERY = (extra = {}, required = []) => ({
   querystring: { type: 'object', required: ['empresa_id', ...required], additionalProperties: false, properties: { empresa_id: ID, ...extra } },
 });
@@ -65,6 +88,11 @@ export const registrarRebanhoLedgerRoutes = async (app) => {
     exigirAuthContext(request.contexto.auth);
     const { status, body } = await ativarLedger(request.contexto, /** @type {any} */ (request.body));
     return reply.status(status).send(body);
+  });
+  app.patch('/rebanho/posicoes/:id/informacoes', { onRequest: [app.autenticar], preHandler: [porMapa('renomear_lotes')], schema: INFORMACAO_POSICAO_SCHEMA }, async (request) => {
+    exigirAuthContext(request.contexto.auth);
+    const { id } = /** @type {{ id: string }} */ (request.params);
+    return editarInformacaoPosicao(request.contexto, id, /** @type {any} */ (request.body));
   });
   app.post('/rebanho/comandos/transferencia', { onRequest: [app.autenticar], preHandler: [porMapa('mover_lotes')], schema: TRANSFERENCIA_SCHEMA }, async (request, reply) => {
     exigirAuthContext(request.contexto.auth);

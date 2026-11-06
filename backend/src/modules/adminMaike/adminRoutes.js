@@ -31,6 +31,14 @@ import {
 } from './adminSessao.js';
 import { csrfDaSessao, exigirChaveAdminConfigurada } from './adminCrypto.js';
 import { obterVisaoAdminCatalogo, validarCatalogoAdmin } from '../catalogoGlobal/catalogoAdminVisao.js';
+import {
+  LIMITE_MAXIMO_ADMIN,
+  PADRAO_ID,
+  listarClientes,
+  listarEmpresasDoCliente,
+  listarUsuariosDoCliente,
+  obterCliente,
+} from './adminClientesService.js';
 import { obterManifesto } from '../catalogoGlobal/catalogoGlobalService.js';
 
 const PREFIX = '/admin-maike';
@@ -206,4 +214,55 @@ export const registrarAdminMaikeRoutes = async (app) => {
   // Revisão atual (CAS entre passos de um fluxo com várias escritas).
   app.get(`${PREFIX}/catalogo/revisao`, { onRequest: verificada }, async () => obterManifesto());
   app.get(`${PREFIX}/catalogo/validacao`, { onRequest: verificada }, async () => validarCatalogoAdmin());
+
+  // ─── Clientes da plataforma (MAIKE-SAAS-ADMIN-S01) — somente leitura ─────
+  // Só GET, só com sessão verificada (MFA). `:id` é o alvo da consulta, nunca
+  // uma sessão de fazenda; não existe rota de escrita, troca de tenant ou
+  // "entrar como cliente".
+
+  const PAGINA = {
+    limit: { type: 'integer', minimum: 1, maximum: LIMITE_MAXIMO_ADMIN },
+    cursor: { type: 'string', minLength: 1, maxLength: 512 },
+  };
+  const querystring = (properties) => ({ type: 'object', additionalProperties: false, properties });
+  const PARAMS_ID = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['id'],
+    properties: { id: { type: 'string', pattern: PADRAO_ID } },
+  };
+  const idDe = (request) => /** @type {{ id: string }} */ (request.params).id;
+
+  app.get(
+    `${PREFIX}/clientes`,
+    {
+      onRequest: verificada,
+      schema: {
+        querystring: querystring({
+          ...PAGINA,
+          q: { type: 'string', maxLength: 120 },
+          ativo: { type: 'string', enum: ['true', 'false'] },
+        }),
+      },
+    },
+    async (request) => listarClientes(/** @type {any} */ (request.query))
+  );
+
+  app.get(
+    `${PREFIX}/clientes/:id`,
+    { onRequest: verificada, schema: { params: PARAMS_ID, querystring: querystring({}) } },
+    async (request) => obterCliente(idDe(request))
+  );
+
+  app.get(
+    `${PREFIX}/clientes/:id/usuarios`,
+    { onRequest: verificada, schema: { params: PARAMS_ID, querystring: querystring(PAGINA) } },
+    async (request) => listarUsuariosDoCliente(idDe(request), /** @type {any} */ (request.query))
+  );
+
+  app.get(
+    `${PREFIX}/clientes/:id/empresas`,
+    { onRequest: verificada, schema: { params: PARAMS_ID, querystring: querystring(PAGINA) } },
+    async (request) => listarEmpresasDoCliente(idDe(request), /** @type {any} */ (request.query))
+  );
 };
