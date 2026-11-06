@@ -30,6 +30,8 @@ export default function TabelaUsuarios({
   onListMetrics,
   cardFields,
   cardsPerRow,
+  resetFiltersKey,
+  onFiltersActiveChange,
 }) {
   const getPermissaoUsuario = (userEmail) => permissoes.find((item) => item.user_email === userEmail);
 
@@ -157,7 +159,7 @@ export default function TabelaUsuarios({
 
   if (chromeLayout) {
     return (
-      <div className="overflow-hidden">
+      <div className="flex min-h-0 flex-1 flex-col">
         <CadastroBase1Grade
           rows={usuarios}
           columns={USUARIOS_LIST_COLUNAS}
@@ -170,6 +172,8 @@ export default function TabelaUsuarios({
           isLoading={isLoading}
           onOpen={onEdit}
           searchQuery={searchQuery}
+          resetFiltersKey={resetFiltersKey}
+          onFiltersActiveChange={onFiltersActiveChange}
           onSelectionChange={onSelectionChange}
           viewMode={viewMode}
           displayLimit={displayLimit}

@@ -102,7 +102,7 @@ export default function TabelaContasAcesso({
   );
 
   if (chromeLayout) {
-    return <div className="overflow-hidden">{grade}</div>;
+    return <div className="flex min-h-0 flex-1 flex-col">{grade}</div>;
   }
 
   return (

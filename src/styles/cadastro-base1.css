@@ -421,6 +421,26 @@
   flex: 1 1 auto;
   min-height: 0;
   overflow: auto;
+  overscroll-behavior: contain;
+}
+
+/* A tela pode embrulhar a grade num <div> próprio (ex.: Lotes, Usuários,
+   Bebedouros). Sem isto o embrulho é block, a grade cresce até a altura toda,
+   nada rola e a última linha fica cortada sem borda. */
+.cadastro-b1 .mg-shell--fill > .mg-shell__body > :has(> .mg-grid-wrap) {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* Cards: o embrulho da tela não pode cortar a grade de cards — quem rola é o
+   .mg-shell__scroll. */
+.cadastro-b1 .mg-shell__scroll > :has(> .mg-b1-cards-grid),
+.cadastro-b1 .mg-shell__scroll > :has(> * > .mg-b1-cards-grid) {
+  flex: 0 0 auto;
+  min-height: auto;
+  overflow: visible;
 }
 
 .cadastro-b1 .mg-summary {
@@ -791,20 +811,23 @@
   background: var(--mg-row-alt);
 }
 
-/* Sem highlight de hover na grade — evita a “mancha” ao passar o mouse */
-.cadastro-b1 .mg-grid tbody tr:hover td {
+/* Sem highlight de hover na grade — evita a “mancha” ao passar o mouse.
+   Nunca na linha selecionada: antes o hover (preso no celular depois do toque)
+   apagava o verde das células e só a bolinha ficava marcada. */
+.cadastro-b1 .mg-grid tbody tr:not(.selected):hover td {
   background: inherit;
 }
 
-.cadastro-b1 .mg-grid tbody tr.even:hover td {
+.cadastro-b1 .mg-grid tbody tr.even:not(.selected):hover td {
   background: #fff;
 }
 
-.cadastro-b1 .mg-grid tbody tr.odd:hover td {
+.cadastro-b1 .mg-grid tbody tr.odd:not(.selected):hover td {
   background: var(--mg-row-alt);
 }
 
-.cadastro-b1 .mg-grid tbody tr.selected td {
+.cadastro-b1 .mg-grid tbody tr.selected td,
+.cadastro-b1 .mg-grid tbody tr.selected:hover td {
   background: var(--mg-selection-bg);
 }
 
@@ -886,6 +909,21 @@
   flex-shrink: 0;
   display: block;
   color: inherit;
+}
+
+.cadastro-b1 .mg-grid thead th.th-select.sticky {
+  position: sticky;
+  left: 0;
+  /* Acima dos outros th (3) e dos congelados (4): sem isto o cabeçalho da
+     coluna de seleção era coberto ao rolar para o lado, desalinhado do corpo. */
+  z-index: 5;
+  background: #fff;
+}
+
+.cadastro-b1 .mg-grid tbody td.td-select.sticky {
+  position: sticky;
+  left: 0;
+  z-index: 2;
 }
 
 .cadastro-b1 .mg-grid .th-select,
@@ -1419,6 +1457,7 @@
 .cadastro-b1 .b1-card {
   -webkit-user-select: none;
   user-select: none;
+  -webkit-tap-highlight-color: transparent;
   transition:
     box-shadow 0.2s ease,
     background 0.15s ease;
@@ -1429,10 +1468,14 @@
   color: inherit;
 }
 
-.cadastro-b1 .b1-card:hover:not(.is-selected) {
-  box-shadow:
-    0 4px 14px rgba(15, 23, 42, 0.07),
-    0 1px 3px rgba(15, 23, 42, 0.04);
+/* Só com mouse: no toque o :hover fica preso no último card tocado e ele
+   ficava com sombra diferente dos outros. */
+@media (hover: hover) and (pointer: fine) {
+  .cadastro-b1 .b1-card:hover:not(.is-selected) {
+    box-shadow:
+      0 4px 14px rgba(15, 23, 42, 0.07),
+      0 1px 3px rgba(15, 23, 42, 0.04);
+  }
 }
 
 .cadastro-b1 .mg-b1-card__title {

@@ -303,6 +303,8 @@ export default function Permissoes() {
             permissoes={permissoes}
             currentUser={currentUser}
             searchQuery={chromePerm.appliedSearch}
+            resetFiltersKey={chromePerm.resetFiltersKey}
+            onFiltersActiveChange={chromePerm.setFiltersActive}
             selectedIds={chromePerm.selectedIds}
             onSelectionChange={chromePerm.onSelectionChange}
             onEdit={handleEdit}
