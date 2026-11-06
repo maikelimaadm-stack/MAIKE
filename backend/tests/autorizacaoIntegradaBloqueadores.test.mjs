@@ -251,3 +251,33 @@ describe('Matriz — relação de model nunca é gravável pelo corpo (derivada 
     });
   }
 });
+
+/**
+ * Trava estática: nenhum service repassa o corpo cru ao Prisma. Quem precisa
+ * gravar colunas do corpo passa por `exigirSomenteColunasGravaveis` (ou por uma
+ * allowlist própria / `montarDocumento`, que guarda tudo dentro de `dados`).
+ */
+describe('Trava estática — corpo cru não chega ao Prisma', () => {
+  test('nenhum *Service.js usa `{ ...entrada }` / `{ ...request.body }` como dados de gravação', async () => {
+    const { readdirSync, readFileSync, statSync } = await import('node:fs');
+    const { join } = await import('node:path');
+    const raiz = new URL('../src/modules/', import.meta.url).pathname;
+    const achados = [];
+    const andar = (dir) => {
+      for (const nome of readdirSync(dir)) {
+        const caminho = join(dir, nome);
+        if (statSync(caminho).isDirectory()) andar(caminho);
+        else if (nome.endsWith('Service.js')) {
+          readFileSync(caminho, 'utf8').split('\n').forEach((linhaCodigo, i) => {
+            if (!/\{\s*\.\.\.(entrada|request\.body)\s*[,}]/.test(linhaCodigo)) return;
+            // documento JSON: o corpo vai inteiro para `dados` (sem relação)
+            if (/montarDocumento|documentoComoPublico/.test(linhaCodigo)) return;
+            achados.push(`${caminho.slice(raiz.length)}:${i + 1}: ${linhaCodigo.trim()}`);
+          });
+        }
+      }
+    };
+    andar(raiz);
+    assert.deepEqual(achados, [], 'use exigirSomenteColunasGravaveis (shared/prisma/colunasGravaveis.js)');
+  });
+});
