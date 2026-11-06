@@ -1,5 +1,6 @@
 import React from "react";
 import { createPortal } from "react-dom";
+import { DragDropContext, Draggable, Droppable } from "@hello-pangea/dnd";
 import {
   Check,
   ChevronDown,
@@ -40,6 +41,7 @@ export default function ConfiguracaoColunasB1Dialog({
   onAplicar,
   onRestaurar,
 }) {
+  const dragListId = React.useId();
   const portalSkin = usePortalComprasSkin();
   const celular = useCelular();
   const ordemInicial = React.useMemo(() => colunas.map((c) => c.id), [colunas]);
@@ -182,7 +184,7 @@ export default function ConfiguracaoColunasB1Dialog({
         label={titulo}
         title={titulo}
         initialLarge
-        aside={`${usadas.length} de ${todas.length} visíveis`}
+        aside={<>{usadas.length} de {todas.length} visíveis<span className="block">{termo ? "Limpe a pesquisa para reordenar" : "Segure a alça e arraste para reordenar"}</span></>}
         className="mk-colcfg mk-config-sheet"
         headerAction={
           <button type="button" className="mk-sheet__new" aria-label="Aplicar" title="Aplicar" onClick={salvar}>
@@ -202,14 +204,31 @@ export default function ConfiguracaoColunasB1Dialog({
           )}
           <input value={qa} onChange={(e) => setQa(e.target.value)} placeholder="Pesquisar coluna…" aria-label="Pesquisar coluna" />
         </div>
-        <div className="mgs__lista mk-colcfg__lista" role="list" aria-label="Colunas">
+        <DragDropContext dragHandleUsageInstructions="Pressione Espaço para levantar a coluna, use as setas para mover e Espaço para soltar. Escape cancela o arraste." onDragEnd={({ source, destination }) => {
+          if (termo || !destination || source.index === destination.index) return;
+          setAplicarPadrao(false);
+          setDraftOrdem((ordem) => {
+            const nova = [...ordem];
+            const [key] = nova.splice(source.index, 1);
+            nova.splice(destination.index, 0, key);
+            return nova;
+          });
+        }}>
+          <Droppable droppableId={dragListId}>
+            {(drop) => <div ref={drop.innerRef} {...drop.droppableProps} className="mgs__lista mk-colcfg__lista" role="list" aria-label="Colunas">
           {!vistas.length ? <div className="mgs__vazio">Nenhuma coluna encontrada</div> : null}
-          {vistas.map((c) => {
+          {vistas.map((c, index) => {
             const visivel = !draftOcultas.has(c.id);
             const travada = visivel && usadas.length <= 1;
             const i = draftOrdem.indexOf(c.id);
             return (
-              <div key={c.id} role="listitem" className="mgs__op mk-colcfg__row" data-coluna={c.id}>
+              <Draggable key={c.id} draggableId={c.id} index={index} isDragDisabled={Boolean(termo)}>
+                {(drag, snapshot) => <div ref={drag.innerRef} {...drag.draggableProps} role="listitem" className={cn("mgs__op mk-colcfg__row", snapshot.isDragging && "is-reordering")} data-coluna={c.id}>
+                {!termo ? (
+                  <span {...drag.dragHandleProps} className="mk-colcfg__drag-handle" aria-label={`Arrastar coluna ${c.label}`} data-no-sheet-drag="" title="Segure e arraste para reordenar">
+                    <GripVertical size={16} aria-hidden />
+                  </span>
+                ) : null}
                 <span className={cn("mk-colcfg__nome", !visivel && "is-off")}>{c.label}</span>
                 {!termo ? (
                   <span className="mk-colcfg__ordem">
@@ -229,10 +248,14 @@ export default function ConfiguracaoColunasB1Dialog({
                 <span title={travada ? "Ao menos uma coluna fica na tabela" : undefined}>
                   <ToggleSwitch checked={visivel} disabled={travada} ariaLabel={`Mostrar ${c.label}`} onChange={() => alternar(c.id, visivel)} />
                 </span>
-              </div>
+              </div>}
+              </Draggable>
             );
           })}
-        </div>
+              {drop.placeholder}
+            </div>}
+          </Droppable>
+        </DragDropContext>
         <button type="button" className="mk-colcfg__restaurar" onClick={restaurarRascunho}>
           <RotateCcw size={16} aria-hidden /> Restaurar padrão
         </button>
