@@ -4,8 +4,10 @@
  * Lida do registro REAL e ATIVO em `Usuario.papel_tenant`, no banco, a cada
  * ação privilegiada — nunca do JWT (emitido antes de uma revogação), do body,
  * de cabeçalho ou de `Permissao.is_admin` (linha editável, preferência de
- * menu). Nenhuma rota HTTP grava `papel_tenant`: a atribuição é operacional
- * (`scripts/auth/papel-tenant.mjs`).
+ * menu). Nenhuma rota HTTP DE TENANT grava `papel_tenant`: a atribuição é
+ * operacional (`scripts/auth/papel-tenant.mjs`). A única exceção é o MAIKE
+ * Admin (proprietário com MFA), que define o PRIMEIRO administrador ao criar
+ * o cliente (S03, `adminClientesGestaoService.criarCliente`).
  *
  * Não tem relação com o proprietário do produto (`AdminPrincipalMaike`), que
  * não acessa dados de tenant.

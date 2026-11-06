@@ -55,6 +55,12 @@ export const mensagemDeErro = (erro) => {
       return 'Requisição recusada por segurança (origem não autorizada). Recarregue a página.';
     case 'CATALOGO_ASSET_INVALID':
       return `Imagem recusada: ${e.message}`;
+    case 'ADMIN_CLIENTE_CODIGO_DUPLICADO':
+      return 'Já existe um cliente com esse código. Escolha outro.';
+    case 'ADMIN_LOGIN_DUPLICADO':
+      return 'Esse login já é usado por outra conta ativa. Escolha outro login para o administrador.';
+    case 'REQUEST_VALIDATION_FAILED':
+      return 'Algum campo está fora do formato aceito. Revise e tente de novo.';
     case 'CATALOGO_GLOBAL_INVALID':
     case 'ADMIN_ENTRADA_INVALIDA':
       return e.message;
@@ -126,6 +132,10 @@ export const api = {
   cliente: (id) => chamar(`/admin-maike/clientes/${encodeURIComponent(id)}`),
   usuariosDoCliente: (id, cursor) => chamar(`/admin-maike/clientes/${encodeURIComponent(id)}/usuarios${consulta({ cursor })}`),
   empresasDoCliente: (id, cursor) => chamar(`/admin-maike/clientes/${encodeURIComponent(id)}/empresas${consulta({ cursor })}`),
+  // Escritas (S03): a senha temporária só vem na resposta de criarCliente.
+  criarCliente: (dados) => chamar('/admin-maike/clientes', { method: 'POST', body: dados }),
+  editarCliente: (id, dados) => chamar(`/admin-maike/clientes/${encodeURIComponent(id)}`, { method: 'PATCH', body: dados }),
+  alterarSituacaoCliente: (id, dados) => chamar(`/admin-maike/clientes/${encodeURIComponent(id)}/situacao`, { method: 'POST', body: dados }),
 
   // ─── Catálogo ────────────────────────────────────────────────────────────
   catalogo: () => chamar('/admin-maike/catalogo'),

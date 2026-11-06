@@ -1,0 +1,293 @@
+/**
+ * MAIKE-SAAS-ADMIN-S03 — gestão de clientes pelo MAIKE Admin.
+ *
+ * PostgreSQL local descartável, vários tenants reais. Prova:
+ *  - só o proprietário com MFA, Origin permitida e CSRF escreve;
+ *  - cliente + primeiro administrador nascem juntos (tudo ou nada), com senha
+ *    temporária devolvida UMA vez e nunca persistida em texto/auditoria;
+ *  - a senha autentica pelo login normal e a conta é administradora REAL da
+ *    fazenda (papel_tenant), não `Permissao.is_admin`;
+ *  - conflitos de código/login (inclusive em corrida) não deixam órfão;
+ *  - edição só toca o alvo; suspensão derruba login novo E token já emitido,
+ *    sem afetar outro tenant nem apagar dados; reativação recupera.
+ */
+
+import { describe, test, before, after, beforeEach } from 'node:test';
+import assert from 'node:assert/strict';
+
+import { getPrismaClient } from '../src/database/prismaClient.js';
+import { criarSessaoAdmin, zerarLimitadorAdmin } from '../src/modules/adminMaike/adminSessao.js';
+import { criarApp, criarTenant, limparBanco, encerrar, autenticarNoApp, criarAdminComSessao, ORIGEM_ADMIN } from './helpers.mjs';
+
+/** @type {import('fastify').FastifyInstance} */
+let app;
+const prisma = () => getPrismaClient();
+
+before(async () => {
+  app = await criarApp();
+  await app.ready();
+});
+after(async () => {
+  await app.close();
+  await encerrar();
+});
+beforeEach(async () => {
+  await limparBanco();
+  zerarLimitadorAdmin();
+});
+
+const enviar = (method, url, headers, payload) => app.inject({ method, url, headers, payload });
+const novo = (extra = {}) => ({
+  nome: 'Fazenda Nova Esperança',
+  codigo: 'nova-esperanca',
+  administrador: { nome: 'Maria Gestora', login: 'maria.esperanca' },
+  ...extra,
+});
+const SENHA_FORMATO = /^[A-HJ-NP-Za-km-z2-9]{4}(-[A-HJ-NP-Za-km-z2-9]{4}){3}$/;
+
+describe('autorização das escritas', () => {
+  test('GES-01 anônimo, JWT de fazenda, pré-MFA, Origin forjada e CSRF ausente: nada é gravado', async () => {
+    const t = await criarTenant({ codigo: 'fazenda-existente', papelTenant: 'administrador' });
+    const { headers } = await criarAdminComSessao(app);
+    const { corpo } = await autenticarNoApp(app, t.credenciais);
+    const pre = await criarSessaoAdmin(prisma(), { adminId: (await prisma().adminPrincipalMaike.findFirst()).id, mfaVerificado: false });
+    const alvo = `/admin-maike/clientes/${t.cliente.id}`;
+    const tentativas = [
+      [{}, 401],
+      [{ authorization: `Bearer ${corpo.token}`, origin: ORIGEM_ADMIN }, 403],
+      [{ cookie: `maike_admin=${pre.token}`, origin: ORIGEM_ADMIN, 'x-maike-admin-csrf': pre.csrf }, 403],
+      [{ ...headers, origin: 'https://evil.example' }, 403],
+      [{ cookie: headers.cookie, origin: ORIGEM_ADMIN }, 403],
+      [{ ...headers, 'x-maike-admin-csrf': 'csrf-forjado' }, 403],
+    ];
+    for (const [h, status] of tentativas) {
+      for (const [method, url, payload] of [
+        ['POST', '/admin-maike/clientes', novo()],
+        ['PATCH', alvo, { nome: 'Invadido' }],
+        ['POST', `${alvo}/situacao`, { ativo: false, justificativa: 'tentativa sem autorização' }],
+      ]) {
+        const r = await enviar(method, url, h, payload);
+        assert.equal(r.statusCode, status, `${method} ${url} ${JSON.stringify(Object.keys(h))}`);
+      }
+    }
+    assert.equal(await prisma().cliente.count(), 1);
+    const c = await prisma().cliente.findUnique({ where: { id: t.cliente.id } });
+    assert.equal(c.nome, t.cliente.nome);
+    assert.equal(c.ativo, true);
+  });
+});
+
+describe('cadastro de cliente com primeiro administrador', () => {
+  test('GES-02 cria Cliente + Usuario administrador numa transação; senha temporária só nesta resposta, com no-store', async () => {
+    const { headers } = await criarAdminComSessao(app);
+    const r = await enviar('POST', '/admin-maike/clientes', headers, novo({ codigo: 'Nova-Esperanca' }));
+    assert.equal(r.statusCode, 201, r.body);
+    assert.match(String(r.headers['cache-control']), /no-store/);
+    const corpo = r.json();
+    assert.deepEqual(Object.keys(corpo).sort(), ['administrador', 'cliente', 'senha_temporaria']);
+    assert.equal(corpo.cliente.codigo, 'nova-esperanca', 'código normalizado em minúsculas');
+    assert.equal(corpo.cliente.ativo, true);
+    assert.deepEqual(Object.keys(corpo.administrador).sort(), ['id', 'login', 'nome']);
+    assert.match(corpo.senha_temporaria, SENHA_FORMATO);
+
+    const usuario = await prisma().usuario.findUnique({ where: { id: corpo.administrador.id } });
+    assert.equal(usuario.cliente_id, corpo.cliente.id);
+    assert.equal(usuario.papel_tenant, 'administrador');
+    assert.equal(usuario.ativo, true);
+    assert.match(usuario.senha_hash, /^\$2[aby]\$/, 'bcrypt do serviço de auth');
+    assert.equal(usuario.senha_hash.includes(corpo.senha_temporaria), false);
+    assert.equal(await prisma().permissao.count({ where: { cliente_id: corpo.cliente.id } }), 0, 'sem Permissao.is_admin forjado');
+    assert.equal(await prisma().empresa.count({ where: { cliente_id: corpo.cliente.id } }), 0, 'empresa não é criada automaticamente');
+
+    // Auditoria do produto: ator = proprietário, sem senha nem hash.
+    const eventos = await prisma().eventoSegurancaAdminMaike.findMany({ where: { acao: 'cliente_criar' } });
+    assert.equal(eventos.length, 1);
+    assert.equal(eventos[0].sucesso, true);
+    assert.ok(eventos[0].admin_id);
+    assert.ok(eventos[0].request_id);
+    assert.equal(eventos[0].dados.cliente_id, corpo.cliente.id);
+    const todos = JSON.stringify(await prisma().eventoSegurancaAdminMaike.findMany());
+    assert.equal(todos.includes(corpo.senha_temporaria), false);
+    assert.equal(todos.includes(usuario.senha_hash), false);
+    assert.equal(await prisma().auditLog.count({ where: { cliente_id: corpo.cliente.id } }), 0, 'sem ator de fazenda forjado');
+
+    // Nenhuma leitura devolve a senha de novo.
+    for (const url of ['/admin-maike/clientes', `/admin-maike/clientes/${corpo.cliente.id}`, `/admin-maike/clientes/${corpo.cliente.id}/usuarios`]) {
+      const g = await enviar('GET', url, headers);
+      assert.equal(g.statusCode, 200);
+      assert.equal(g.body.includes(corpo.senha_temporaria), false, url);
+      assert.equal(/senha|\$2[aby]\$/.test(g.body), false, url);
+    }
+  });
+
+  test('GES-03 a senha temporária autentica pelo login normal e a conta é administradora REAL da fazenda', async () => {
+    const { headers } = await criarAdminComSessao(app);
+    const { administrador, senha_temporaria, cliente } = (await enviar('POST', '/admin-maike/clientes', headers, novo())).json();
+    const { resposta, corpo } = await autenticarNoApp(app, { login: administrador.login, senha: senha_temporaria });
+    assert.equal(resposta.statusCode, 200, resposta.body);
+    const bearer = { authorization: `Bearer ${corpo.token}` };
+    const ctx = await app.inject({ method: 'GET', url: '/auth/contexto', headers: bearer });
+    assert.equal(ctx.statusCode, 200, ctx.body);
+    assert.equal(ctx.json().administrador_fazenda, true);
+    // Ação restrita ao administrador da fazenda (exigirAdminTenant): criar outra conta.
+    const conta = await app.inject({ method: 'POST', url: '/usuarios', headers: bearer, payload: { nome: 'Peão', login: 'peao.esperanca', senha: 'senha-do-peao-1' } });
+    assert.equal(conta.statusCode, 201, conta.body);
+    assert.equal((await prisma().usuario.findUnique({ where: { id: conta.json().id } })).cliente_id, cliente.id);
+    // Senha errada continua genérica.
+    const errada = await autenticarNoApp(app, { login: administrador.login, senha: 'nao-e-a-senha' });
+    assert.equal(errada.resposta.statusCode, 401);
+  });
+
+  test('GES-04 login já usado por conta ativa (qualquer tenant, sem diferenciar maiúsculas): 409 e nenhum cliente órfão', async () => {
+    await criarTenant({ codigo: 'outra-fazenda', login: 'joao.silva' });
+    const { headers } = await criarAdminComSessao(app);
+    const antes = await prisma().cliente.count();
+    const r = await enviar('POST', '/admin-maike/clientes', headers, novo({ administrador: { nome: 'João', login: 'JOAO.Silva' } }));
+    assert.equal(r.statusCode, 409, r.body);
+    assert.equal(r.json().code, 'ADMIN_LOGIN_DUPLICADO');
+    assert.equal(r.body.includes('outra-fazenda'), false, 'não revela o tenant dono do login');
+    assert.equal(await prisma().cliente.count(), antes);
+    assert.equal(await prisma().cliente.count({ where: { codigo: 'nova-esperanca' } }), 0);
+  });
+
+  test('GES-05 código repetido: 409; corrida com o mesmo código ou o mesmo login cria exatamente um', async () => {
+    await criarTenant({ codigo: 'nova-esperanca' });
+    const { headers } = await criarAdminComSessao(app);
+    const dup = await enviar('POST', '/admin-maike/clientes', headers, novo());
+    assert.equal(dup.statusCode, 409);
+    assert.equal(dup.json().code, 'ADMIN_CLIENTE_CODIGO_DUPLICADO');
+
+    const base = await prisma().cliente.count();
+    const mesmoCodigo = await Promise.all([
+      enviar('POST', '/admin-maike/clientes', headers, novo({ codigo: 'corrida-a', administrador: { nome: 'Ana', login: 'login.a' } })),
+      enviar('POST', '/admin-maike/clientes', headers, novo({ codigo: 'corrida-a', administrador: { nome: 'Bia', login: 'login.b' } })),
+    ]);
+    assert.deepEqual(mesmoCodigo.map((x) => x.statusCode).sort(), [201, 409]);
+    const mesmoLogin = await Promise.all([
+      enviar('POST', '/admin-maike/clientes', headers, novo({ codigo: 'corrida-b', administrador: { nome: 'Caio', login: 'mesmo.login' } })),
+      enviar('POST', '/admin-maike/clientes', headers, novo({ codigo: 'corrida-c', administrador: { nome: 'Davi', login: 'mesmo.login' } })),
+    ]);
+    assert.deepEqual(mesmoLogin.map((x) => x.statusCode).sort(), [201, 409]);
+    assert.equal(await prisma().cliente.count(), base + 2, 'sem tenant órfão da tentativa perdedora');
+    assert.equal(await prisma().usuario.count({ where: { login: 'mesmo.login' } }), 1);
+    const semAdmin = await prisma().cliente.findMany({ where: { usuarios: { none: {} } } });
+    assert.deepEqual(semAdmin, []);
+  });
+
+  test('GES-06 campos forjados e formatos inválidos são recusados sem gravar', async () => {
+    const { headers } = await criarAdminComSessao(app);
+    const casos = [
+      novo({ cliente_id: 'x' }),
+      novo({ ativo: false }),
+      novo({ id: 'cl_forjado' }),
+      novo({ admin_id: 'x' }),
+      novo({ administrador: { nome: 'X', login: 'x.y', papel_tenant: 'usuario' } }),
+      novo({ administrador: { nome: 'X', login: 'x.y', senha: 'eu-escolho-123' } }),
+      novo({ codigo: 'ab' }),
+      novo({ codigo: 'com espaço' }),
+      novo({ codigo: '-comeca-com-hifen' }),
+      novo({ nome: ' ' }),
+      novo({ administrador: { nome: 'X', login: 'tem espaço' } }),
+      { nome: 'Só nome', codigo: 'so-nome' },
+    ];
+    for (const payload of casos) {
+      const r = await enviar('POST', '/admin-maike/clientes', headers, payload);
+      assert.ok([400, 422].includes(r.statusCode), `${JSON.stringify(payload)} → ${r.statusCode}`);
+    }
+    assert.equal(await prisma().cliente.count(), 0);
+    assert.equal(await prisma().usuario.count(), 0);
+  });
+});
+
+describe('edição e situação', () => {
+  test('GES-07 editar nome/código só altera o alvo; código duplicado 409; contrato fechado; auditoria antes/depois', async () => {
+    const a = await criarTenant({ codigo: 'fazenda-a' });
+    const b = await criarTenant({ codigo: 'fazenda-b' });
+    const { headers } = await criarAdminComSessao(app);
+    const ok = await enviar('PATCH', `/admin-maike/clientes/${a.cliente.id}`, headers, { nome: 'Fazenda A Renomeada', codigo: 'fazenda-a2' });
+    assert.equal(ok.statusCode, 200, ok.body);
+    assert.match(String(ok.headers['cache-control']), /no-store/);
+    assert.equal(ok.json().cliente.nome, 'Fazenda A Renomeada');
+    assert.equal(ok.json().cliente.codigo, 'fazenda-a2');
+    const intacto = await prisma().cliente.findUnique({ where: { id: b.cliente.id } });
+    assert.equal(intacto.nome, b.cliente.nome);
+    assert.equal(intacto.codigo, 'fazenda-b');
+
+    const dup = await enviar('PATCH', `/admin-maike/clientes/${a.cliente.id}`, headers, { codigo: 'fazenda-b' });
+    assert.equal(dup.statusCode, 409);
+    assert.equal(dup.json().code, 'ADMIN_CLIENTE_CODIGO_DUPLICADO');
+    for (const payload of [{}, { ativo: false }, { id: 'x' }, { cliente_id: 'x' }, { nome: 'x', usuarios_total: 9 }, { papel_tenant: 'administrador' }]) {
+      const r = await enviar('PATCH', `/admin-maike/clientes/${a.cliente.id}`, headers, payload);
+      assert.equal(r.statusCode, 400, JSON.stringify(payload));
+    }
+    const inexistente = await enviar('PATCH', '/admin-maike/clientes/cl_nao_existe_000', headers, { nome: 'X' });
+    assert.equal(inexistente.statusCode, 422);
+    const ev = await prisma().eventoSegurancaAdminMaike.findMany({ where: { acao: 'cliente_editar' } });
+    assert.equal(ev.length, 1);
+    assert.deepEqual(ev[0].dados.antes, { nome: a.cliente.nome, codigo: 'fazenda-a' });
+    assert.deepEqual(ev[0].dados.depois, { nome: 'Fazenda A Renomeada', codigo: 'fazenda-a2' });
+  });
+
+  test('GES-08 suspender derruba login novo e token já emitido; outro tenant segue; reativar recupera; nada é apagado', async () => {
+    const a = await criarTenant({ codigo: 'fazenda-suspensa' });
+    const b = await criarTenant({ codigo: 'fazenda-vizinha' });
+    const empresa = await prisma().empresa.create({ data: { cliente_id: a.cliente.id, numero_empresa: 1, apelido: 'Sede', nome: 'Sede Suspensa' } });
+    const { headers } = await criarAdminComSessao(app);
+    const tokenA = (await autenticarNoApp(app, a.credenciais)).corpo.token;
+    const tokenB = (await autenticarNoApp(app, b.credenciais)).corpo.token;
+    const ctx = (token) => app.inject({ method: 'GET', url: '/auth/contexto', headers: { authorization: `Bearer ${token}` } });
+    assert.equal((await ctx(tokenA)).statusCode, 200);
+
+    const semJustificativa = await enviar('POST', `/admin-maike/clientes/${a.cliente.id}/situacao`, headers, { ativo: false });
+    assert.equal(semJustificativa.statusCode, 400);
+    const curta = await enviar('POST', `/admin-maike/clientes/${a.cliente.id}/situacao`, headers, { ativo: false, justificativa: 'curta' });
+    assert.equal(curta.statusCode, 400);
+
+    const sus = await enviar('POST', `/admin-maike/clientes/${a.cliente.id}/situacao`, headers, { ativo: false, justificativa: 'inadimplência combinada com o cliente' });
+    assert.equal(sus.statusCode, 200, sus.body);
+    assert.equal(sus.json().cliente.ativo, false);
+    assert.equal((await ctx(tokenA)).statusCode, 401, 'token emitido antes da suspensão perde o acesso na hora');
+    assert.equal((await autenticarNoApp(app, a.credenciais)).resposta.statusCode, 401, 'login novo recusado');
+    assert.equal((await ctx(tokenB)).statusCode, 200, 'outro tenant não é afetado');
+    assert.equal((await autenticarNoApp(app, b.credenciais)).resposta.statusCode, 200);
+
+    const repetida = await enviar('POST', `/admin-maike/clientes/${a.cliente.id}/situacao`, headers, { ativo: false, justificativa: 'suspensão repetida por engano' });
+    assert.equal(repetida.statusCode, 422);
+
+    // Nada apagado: conta, empresa e o próprio cliente continuam lá.
+    assert.ok(await prisma().empresa.findUnique({ where: { id: empresa.id } }));
+    assert.equal((await prisma().usuario.findUnique({ where: { id: a.usuario.id } })).ativo, true);
+
+    const re = await enviar('POST', `/admin-maike/clientes/${a.cliente.id}/situacao`, headers, { ativo: true, justificativa: 'pagamento regularizado pelo cliente' });
+    assert.equal(re.statusCode, 200);
+    assert.equal(re.json().cliente.ativo, true);
+    assert.equal((await autenticarNoApp(app, a.credenciais)).resposta.statusCode, 200, 'reativado volta a entrar');
+
+    const ev = await prisma().eventoSegurancaAdminMaike.findMany({ where: { acao: { in: ['cliente_suspender', 'cliente_reativar'] } }, orderBy: { createdAt: 'asc' } });
+    assert.deepEqual(ev.map((e) => e.acao), ['cliente_suspender', 'cliente_reativar']);
+    assert.equal(ev[0].dados.justificativa, 'inadimplência combinada com o cliente');
+    assert.equal(ev[0].dados.cliente_id, a.cliente.id);
+  });
+
+  test('GES-09 leituras da S01 continuam com a mesma projeção depois das escritas', async () => {
+    const { headers } = await criarAdminComSessao(app);
+    const criado = (await enviar('POST', '/admin-maike/clientes', headers, novo())).json();
+    const lista = (await enviar('GET', '/admin-maike/clientes', headers)).json();
+    assert.deepEqual(Object.keys(lista.items[0]).sort(), ['ativo', 'codigo', 'criado_em', 'empresas_total', 'id', 'nome', 'usuarios_total']);
+    assert.equal(lista.items[0].usuarios_total, 1);
+    const ficha = (await enviar('GET', `/admin-maike/clientes/${criado.cliente.id}`, headers)).json();
+    assert.deepEqual(ficha.contagens, { usuarios: 1, usuarios_ativos: 1, empresas: 0 });
+    const usuarios = (await enviar('GET', `/admin-maike/clientes/${criado.cliente.id}/usuarios`, headers)).json();
+    assert.deepEqual(Object.keys(usuarios.items[0]).sort(), ['ativo', 'criado_em', 'id', 'login', 'nome']);
+  });
+
+  test('GES-10 proprietário inexistente no payload não muda o ator: auditoria usa a sessão', async () => {
+    const { headers, admin } = await criarAdminComSessao(app);
+    const r = await enviar('POST', '/admin-maike/clientes', headers, novo({ admin_id: 'cl_outro_admin' }));
+    assert.equal(r.statusCode, 400);
+    const ok = await enviar('POST', '/admin-maike/clientes', headers, novo());
+    assert.equal(ok.statusCode, 201);
+    const ev = await prisma().eventoSegurancaAdminMaike.findFirst({ where: { acao: 'cliente_criar' } });
+    assert.equal(ev.admin_id, admin.id);
+  });
+});

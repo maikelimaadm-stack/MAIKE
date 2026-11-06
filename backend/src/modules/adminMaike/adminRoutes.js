@@ -39,6 +39,7 @@ import {
   listarUsuariosDoCliente,
   obterCliente,
 } from './adminClientesService.js';
+import { JUSTIFICATIVA_MIN, alterarSituacaoCliente, criarCliente, editarCliente } from './adminClientesGestaoService.js';
 import { obterManifesto } from '../catalogoGlobal/catalogoGlobalService.js';
 
 const PREFIX = '/admin-maike';
@@ -53,6 +54,7 @@ const LIMITE_LOGIN = { limite: 10, janelaMs: 15 * 60_000 };
 const LIMITE_MFA = { limite: 20, janelaMs: 15 * 60_000 };
 const LIMITE_CONTA = { limite: 10, janelaMs: 15 * 60_000 };
 const LIMITE_PRIMEIRO_ACESSO = { limite: 5, janelaMs: 15 * 60_000 };
+const LIMITE_GESTAO_CLIENTES = { limite: 60, janelaMs: 15 * 60_000 };
 
 const ctx = (request) => ({
   ip: request.ip,
@@ -77,6 +79,14 @@ const respostaSessao = (reply, { token, sessao, csrf }, admin, extra = {}) => {
 export const registrarAdminMaikeRoutes = async (app) => {
   const preMfa = [exigirSessaoAdmin({ permitirSemMfa: true })];
   const verificada = [exigirSessaoAdmin()];
+
+  // S03: nenhuma resposta do MAIKE Admin vai para cache de navegador ou proxy
+  // (sessão, CSRF, dados de clientes e a senha temporária do cadastro). O
+  // plugin é encapsulado: o hook vale só para as rotas `/admin-maike/*`.
+  app.addHook('onSend', async (_request, reply, payload) => {
+    reply.header('cache-control', 'no-store');
+    return payload;
+  });
 
   // Primeiro acesso pela web (D-PROD-78): só enquanto não há proprietário, e só
   // com a prova de posse da ADMIN_MAIKE_CHAVE. Depois, 409 para sempre.
@@ -264,5 +274,72 @@ export const registrarAdminMaikeRoutes = async (app) => {
     `${PREFIX}/clientes/:id/empresas`,
     { onRequest: verificada, schema: { params: PARAMS_ID, querystring: querystring(PAGINA) } },
     async (request) => listarEmpresasDoCliente(idDe(request), /** @type {any} */ (request.query))
+  );
+
+  // ─── Gestão de clientes (MAIKE-SAAS-ADMIN-S03) ───────────────────────────
+  // Escritas só com sessão verificada; a guarda exige Origin permitida e CSRF
+  // em todo método que não é leitura. Contratos fechados: nada de id,
+  // cliente_id, papel, senha, admin_id ou contadores no corpo.
+
+  const NOME = { type: 'string', minLength: 1, maxLength: 255, pattern: '\\S' };
+  const CODIGO = { type: 'string', pattern: '^[A-Za-z0-9][A-Za-z0-9-]{1,62}[A-Za-z0-9]$' };
+  const LOGIN = { type: 'string', minLength: 3, maxLength: 120, pattern: '^\\S+$' };
+  const semConsulta = querystring({});
+
+  app.post(
+    `${PREFIX}/clientes`,
+    {
+      onRequest: verificada,
+      schema: {
+        querystring: semConsulta,
+        ...corpo(
+          {
+            nome: NOME,
+            codigo: CODIGO,
+            administrador: {
+              type: 'object',
+              additionalProperties: false,
+              required: ['nome', 'login'],
+              properties: { nome: NOME, login: LOGIN },
+            },
+          },
+          ['nome', 'codigo', 'administrador']
+        ),
+      },
+    },
+    async (request, reply) => {
+      consumirTentativa(`clientes:${request.ip}`, LIMITE_GESTAO_CLIENTES);
+      const r = await criarCliente(/** @type {any} */ (request.body), ctx(request));
+      reply.code(201);
+      return r;
+    }
+  );
+
+  app.patch(
+    `${PREFIX}/clientes/:id`,
+    {
+      onRequest: verificada,
+      schema: { params: PARAMS_ID, querystring: semConsulta, body: { ...corpo({ nome: NOME, codigo: CODIGO }).body, minProperties: 1 } },
+    },
+    async (request) => {
+      consumirTentativa(`clientes:${request.ip}`, LIMITE_GESTAO_CLIENTES);
+      return editarCliente(idDe(request), /** @type {any} */ (request.body), ctx(request));
+    }
+  );
+
+  app.post(
+    `${PREFIX}/clientes/:id/situacao`,
+    {
+      onRequest: verificada,
+      schema: {
+        params: PARAMS_ID,
+        querystring: semConsulta,
+        ...corpo({ ativo: { type: 'boolean' }, justificativa: { type: 'string', minLength: JUSTIFICATIVA_MIN, maxLength: 500 } }, ['ativo', 'justificativa']),
+      },
+    },
+    async (request) => {
+      consumirTentativa(`clientes:${request.ip}`, LIMITE_GESTAO_CLIENTES);
+      return alterarSituacaoCliente(idDe(request), /** @type {any} */ (request.body), ctx(request));
+    }
   );
 };
