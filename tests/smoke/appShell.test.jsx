@@ -50,6 +50,7 @@ const codigoDe = (rel) =>
 
 const MAPA_GERAL = 'src/pages/MapaGeral.jsx';
 const LAYOUT = 'src/Layout.jsx';
+const DIALOGO_COMPARTILHADO = 'src/components/lotes/LancamentoLoteUi.jsx';
 
 /** Raiz do JSX retornado pela página — a primeira linha depois do `return (`. */
 const raizDaPagina = (rel) => {
@@ -162,10 +163,30 @@ describe('SHELL — a página do mapa vive dentro do shell', () => {
   });
 
   it('SHELL2b — nenhum position:fixed na raiz; dialogs seguem usando portal', () => {
-    const codigo = codigoDe(MAPA_GERAL);
-    // Sheets e Dialogs continuam com `fixed z-50` — são portais, não a raiz.
-    expect(codigo).toMatch(/DialogContent|SheetContent/);
+    // A raiz da página não pode ser overlay: `fixed` só nos portais.
     expect(raizDaPagina(MAPA_GERAL)).not.toContain('fixed');
+
+    // Desde a PR #211 os diálogos do mapa vêm do componente compartilhado
+    // LancLoteDialogo — importado E usado em JSX (comentários não contam).
+    const pagina = codigoDe(MAPA_GERAL);
+    expect(pagina).toMatch(/import\s*\{[^}]*\bLancLoteDialogo\b[^}]*\}\s*from\s*["'][^"']*\/components\/lotes\/LancamentoLoteUi["']/);
+    expect(pagina).toMatch(/<LancLoteDialogo\b/);
+
+    // E o componente compartilhado continua renderizando por portal da Radix
+    // nas DUAS variantes: folha de consulta no celular e diálogo padrão.
+    const ui = codigoDe(DIALOGO_COMPARTILHADO);
+    expect(ui).toMatch(/import\s+\*\s+as\s+DialogPrimitive\s+from\s+["']@radix-ui\/react-dialog["']/);
+    const inicio = ui.search(/export\s+function\s+LancLoteDialogo\b/);
+    expect(inicio).toBeGreaterThan(-1);
+    const proximo = ui.slice(inicio + 1).search(/\nexport\s/);
+    const corpo = proximo === -1 ? ui.slice(inicio) : ui.slice(inicio, inicio + 1 + proximo);
+    const iMobile = corpo.indexOf('if (folhaConsulta)');
+    const iPadrao = corpo.lastIndexOf('\n  return (');
+    expect(iMobile).toBeGreaterThan(-1);
+    expect(iPadrao).toBeGreaterThan(iMobile);
+    const viaPortal = /<DialogPrimitive\.Portal>[\s\S]*<DialogPrimitive\.Content\b[\s\S]*<\/DialogPrimitive\.Content>[\s\S]*<\/DialogPrimitive\.Portal>/;
+    expect(corpo.slice(iMobile, iPadrao), 'folha mobile via portal').toMatch(viaPortal);
+    expect(corpo.slice(iPadrao), 'diálogo padrão via portal').toMatch(viaPortal);
   });
 
   it('SHELL3 — o Layout monta header, main e navegação móvel', async () => {
