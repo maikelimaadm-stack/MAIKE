@@ -20,7 +20,7 @@
 .mk-mapa-camada.is-on:not(#mk-padrao) { color: #292a2d; }
 .mk-mapa-btn.is-on:not(#mk-padrao),
 .mk-mapa-btn[aria-pressed="true"]:not(#mk-padrao) { background: rgba(64, 222, 99, 0.14); }
-:is(.mk-mapa-btn, .mk-mapa-chip, .mk-mapa-camadas__x, .mk-al__botao, .mk-al__fechar, .mk-al__quadro):not(#mk-padrao) svg {
+:is(.mk-mapa-btn, .mk-mapa-chip, .mk-mapa-camadas__x, .mk-al__botao, .mk-al__fechar, .mk-al__quadro):not(#mk-padrao) svg:not(.mk-al__img) {
   width: 16px;
   height: 16px;
   stroke-width: 1.65;
@@ -166,7 +166,7 @@ button[data-mk-map-action]:is([class*="bg-amber"], [class*="bg-yellow"]):not(#mk
 .mk-map-action-choices .mk-al__quadros { grid-template-columns: repeat(auto-fit, minmax(88px, 1fr)); gap: 8px; }
 .mk-map-action-choices .mk-al__quadro { min-width: 0; min-height: 72px; padding: 10px 6px; }
 .mk-map-action-choices .mk-al__quadro span { overflow-wrap: anywhere; font-size: 12px; }
-.mk-map-action-choices .mk-al__quadro svg { width: 16px; height: 16px; }
+.mk-map-action-choices .mk-al__quadro svg:not(.mk-al__img) { width: 16px; height: 16px; }
 .mk-map-action-choices .mk-al__grupos { gap: 12px; }
 .mk-map-action-choices .mk-al__grupo-titulo { font-size: 12px; }
 
@@ -249,3 +249,65 @@ button[data-mk-map-action]:is([class*="bg-amber"], [class*="bg-yellow"]):not(#mk
 }
 .mk-map-filter-host > .mk-map-filter-sheet { pointer-events: auto; }
 .mk-map-filter-host .mk-sheet-root { pointer-events: auto; }
+
+/* Manejos/históricos: ícone compacto antes do nome, em todas as telas. */
+:is(.mk-al--embaixo, .mk-map-action-choices, .mk-al__folha) .mk-al__quadros:not(#mk-padrao) {
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 8px;
+}
+:is(.mk-al--embaixo, .mk-map-action-choices, .mk-al__folha) .mk-al__quadro:not(#mk-padrao) {
+  flex-direction: row;
+  justify-content: flex-start;
+  align-items: center;
+  min-height: 44px;
+  padding: 10px 12px;
+  gap: 10px;
+  text-align: left;
+}
+:is(.mk-al--embaixo, .mk-map-action-choices, .mk-al__folha) .mk-al__quadro .mk-al__img:not(#mk-padrao) {
+  width: 24px;
+  height: 24px;
+  max-width: 24px;
+  margin: 0;
+  flex: 0 0 24px;
+  object-fit: contain;
+}
+:is(.mk-al--embaixo, .mk-map-action-choices, .mk-al__folha) .mk-al__quadro span:not(#mk-padrao) {
+  min-width: 0;
+  font-size: 13px;
+  line-height: 1.35;
+  overflow-wrap: normal;
+}
+@media (max-width: 639px) {
+  .mk-map-action-choices .mk-al__quadros:not(#mk-padrao) { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Distribuição aprovada: botões horizontais lado a lado, com quebra natural. */
+.mk-al--embaixo .mk-al__grupos:not(#mk-padrao) {
+  flex-direction: column;
+  align-items: stretch;
+}
+.mk-al--embaixo .mk-al__grupo:not(#mk-padrao) {
+  flex: none;
+  width: 100%;
+  min-width: 0;
+}
+.mk-map-action-choices .mk-al__quadros:not(#mk-padrao) {
+  grid-template-columns: repeat(auto-fit, minmax(min(170px, 100%), 1fr));
+}
+
+/* Mobile aprovado: uma opção por linha. */
+@media (max-width: 639px) {
+  .mk-map-action-choices .mk-al__quadros:not(#mk-padrao) { grid-template-columns: minmax(0, 1fr); }
+}
+
+.mk-al__quadro:disabled:not(#mk-padrao) { opacity: .45; cursor: not-allowed; transform: none; background: #fff; }
+
+/* Respiro lateral da lista de manejos e históricos no celular. */
+@media (max-width: 639px) {
+  .mk-map-action-choices {
+    box-sizing: border-box;
+    min-width: 0;
+    padding: 4px 12px 12px;
+  }
+}

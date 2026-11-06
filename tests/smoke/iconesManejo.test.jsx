@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 /** D-PROD-131 — "Saída" (antigo Abate), "Mover", "Pesar", "Nascimento", "Morte", "Juntar Lotes", "Mudar Categoria" e "Editar Informação" (antigo Renomear Lote) usam as imagens do proprietário. */
 import React from "react";
-import { describe, it, expect, afterEach } from "vitest";
+import { describe, it, expect, afterEach, vi } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 import { existsSync, readFileSync } from "node:fs";
 import AcoesDoLote from "@/components/mapa/AcoesDoLote";
@@ -42,6 +42,8 @@ describe("Ícones em imagem dos manejos (D-PROD-131)", () => {
     render(
       <AcoesDoLote grupos={[{ titulo: "Manejos", itens: [
         { nome: "Mover", Icone: IconeMoverAnimais, onClick: () => {} },
+        { nome: "Histórico de Movimentação", Icone: IconeHistoricoMovimentacao, onClick: () => {} },
+        { nome: "Histórico de Suplementação", Icone: IconeHistoricoSuplementacao, onClick: () => {} },
         { nome: "Pesar", Icone: IconePesar, onClick: () => {} },
         { nome: "Nascimento", Icone: IconeNascimento, onClick: () => {} },
         { nome: "Saída", Icone: IconeSaida, onClick: () => {} },
@@ -51,16 +53,38 @@ describe("Ícones em imagem dos manejos (D-PROD-131)", () => {
         { nome: "Editar Informação", Icone: IconeEditarInformacao, onClick: () => {} },
       ] }]} />,
     );
-    expect(screen.getByRole("button", { name: "Mover" }).querySelector("img")?.getAttribute("src")).toBe("/icons/mover-animais.png");
-    expect(screen.getByRole("button", { name: "Pesar" }).querySelector("img")?.getAttribute("src")).toBe("/icons/pesar.png");
-    expect(screen.getByRole("button", { name: "Nascimento" }).querySelector("img")?.getAttribute("src")).toBe("/icons/nascimento.png");
-    expect(screen.getByRole("button", { name: "Saída" }).querySelector("img")?.getAttribute("src")).toBe("/icons/saida.png");
-    expect(screen.getByRole("button", { name: "Morte" }).querySelector("img")?.getAttribute("src")).toBe("/icons/morte.png");
-    expect(screen.getByRole("button", { name: "Juntar Lotes" }).querySelector("img")?.getAttribute("src")).toBe("/icons/juntar-lotes.png");
-    expect(screen.getByRole("button", { name: "Mudar Categoria" }).querySelector("img")?.getAttribute("src")).toBe("/icons/mudar-categoria.png");
-    expect(screen.getByRole("button", { name: "Editar Informação" }).querySelector("img")?.getAttribute("src")).toBe("/icons/editar-informacao.png");
+    expect(screen.getByRole("button", { name: "Mover" }).querySelector("svg.mk-al__img")?.getAttribute("viewBox")).toBe("0 0 64 64");
+    expect(screen.getByRole("button", { name: "Pesar" }).querySelector("svg.mk-al__img")?.getAttribute("viewBox")).toBe("0 0 64 64");
+    expect(screen.getByRole("button", { name: "Nascimento" }).querySelector("svg.mk-al__img")?.getAttribute("viewBox")).toBe("0 0 64 64");
+    expect(screen.getByRole("button", { name: "Saída" }).querySelector("svg.mk-al__img")?.getAttribute("viewBox")).toBe("0 0 64 64");
+    expect(screen.getByRole("button", { name: "Morte" }).querySelector("svg.mk-al__img")?.getAttribute("viewBox")).toBe("0 0 64 64");
+    expect(screen.getByRole("button", { name: "Juntar Lotes" }).querySelector("svg.mk-al__img")?.getAttribute("viewBox")).toBe("0 0 64 64");
+    expect(screen.getByRole("button", { name: "Mudar Categoria" }).querySelector("svg.mk-al__img")?.getAttribute("viewBox")).toBe("0 0 64 64");
+    expect(screen.getByRole("button", { name: "Editar Informação" }).querySelector("svg.mk-al__img")?.getAttribute("viewBox")).toBe("0 0 64 64");
+    for (const name of ["Histórico de Movimentação", "Histórico de Suplementação"]) {
+      const icon = screen.getByRole("button", { name }).querySelector("svg.mk-al__img");
+      expect(icon?.getAttribute("viewBox")).toBe("0 0 90 70");
+      expect(icon?.querySelector("circle")).not.toBeNull();
+    }
     const css = readFileSync("src/styles/lancamento-lote.css", "utf8");
     expect(css).toMatch(/\.mk-al__quadro \.mk-al__img \{[^}]*display: block;[^}]*height: 32px;/);
     expect(css).toMatch(/\.mk-al--embaixo \.mk-al__quadro \.mk-al__img \{[^}]*height: 30px;[^}]*margin: -9px 0 -2px;/);
   });
+  it("ordena os botões e mantém Juntar Lotes visível, sem executar quando desabilitado", () => {
+    const juntar = vi.fn();
+    const pesar = vi.fn();
+    render(<AcoesDoLote grupos={[{ titulo: "Manejos", itens: [
+      { nome: "Pesar", Icone: IconePesar, onClick: pesar },
+      { nome: "Juntar Lotes", Icone: IconeJuntarLotes, onClick: juntar, disabled: true, motivoBloqueio: "Dois lotes da mesma categoria são necessários." },
+      { nome: "Editar Informação", Icone: IconeEditarInformacao, onClick: () => {} },
+    ] }]} />);
+    expect([...document.querySelectorAll(".mk-al__quadro")].map(b => b.textContent)).toEqual(["Editar Informação", "Juntar Lotes", "Pesar"]);
+    const button = screen.getByRole("button", { name: "Juntar Lotes" });
+    expect(button.disabled).toBe(true);
+    button.click();
+    expect(juntar).not.toHaveBeenCalled();
+    screen.getByRole("button", { name: "Pesar" }).click();
+    expect(pesar).toHaveBeenCalledTimes(1);
+  });
+
 });
