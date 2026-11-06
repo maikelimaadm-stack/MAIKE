@@ -15,7 +15,9 @@ const paginaMock = vi.fn();
 const listarLegadoMock = vi.fn();
 const authAtual = { clienteId: "cliente-a", user: { id: "u-a" } };
 
-vi.mock("@/services/usuarioAdminService", () => ({
+vi.mock("@/services/usuarioAdminService", async (importOriginal) => ({
+  // S04-P1-R1: helpers puros (allowlist/ID) reais; só a rede é mock.
+  ...(await importOriginal()),
   listarContasAcessoPagina: (...a) => paginaMock(...a),
   listarContasAcesso: (...a) => listarLegadoMock(...a),
   criarContaAcesso: vi.fn(),

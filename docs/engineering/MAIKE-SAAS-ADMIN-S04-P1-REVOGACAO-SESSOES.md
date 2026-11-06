@@ -180,3 +180,69 @@ Não existe refresh token, nem outro `jwtSign`/`jwtVerify` no backend.
 | CODE_READY | pronto para revisão do arquiteto-chefe |
 | SCHEMA_READY_LOCAL | migration provada localmente (zero e upgrade); **não** aplicada em nenhum banco remoto |
 | OPERATIONAL_RELEASE_READY | **NO-GO.** Faltam o S04-P2/P3 (recuperação do primeiro acesso / POST idempotente, troca obrigatória ou convite) e o S02 (`ADMIN_MAIKE_CHAVE` e `ADMIN_ORIGINS` em produção, IP confiável atrás do proxy, limite de tentativas distribuído) |
+
+## 11. R1 — UI de troca de senha e release (PR #217)
+
+### 11.1 Defeitos corrigidos na tela `/Usuarios`
+- **A. A troca da própria senha não saía da sessão.** O servidor já recusava o token (época +1), mas a tela continuava "autenticada".
+  - **Agora:** com a resposta HTTP de sucesso **confirmada**, `src/pages/Usuarios.jsx` chama `useAuth().logout()`. É o fluxo central: limpa token, cache do React Query e empresa.
+  - **Aviso:** "Senha alterada. Entre novamente com a nova senha." aparece no Toaster da raiz, que sobrevive à troca para a tela de login.
+  - **Própria conta:** decidida pelo **ID autenticado** (`user.id` do AuthContext, vindo de `/auth/contexto`), no momento do envio (`ehTrocaDaPropriaSenha`). Não usa o login textual nem o `currentUser` assíncrono; sem ID, não infere nada.
+  - **Outros casos:** um administrador que troca a senha de outra conta não sai da sessão; editar só o nome não sai.
+  - **Falhas:** 400, 403 e 409 mostram a mensagem do erro, sem sucesso e sem logout.
+  - **Resultado incerto:** rede, tempo esgotado ou indisponibilidade (`resultadoIncerto`) geram "Não foi possível confirmar a troca de senha. Se a mudança tiver sido aplicada, você precisará entrar novamente". Também sem logout e sem nova tentativa automática.
+  - **401 global (avaliado, não alterado):** um token recusado faz cada requisição falhar com "Sua sessão expirou" (`TENANT_CONTEXT_REQUIRED`). Nenhuma ação passa em silêncio, e a revalidação da sessão leva ao login.
+    - Não foi criado logout automático global em 401, para não misturar com 5xx.
+    - O caso específico (troca da própria senha) sai de forma explícita.
+- **B. Senhas em estado de tela.** O `onSuccess` fazia `...dados` na ficha (`editingItem`), e `senha_atual`/`nova_senha` ficavam em memória e no `initialData`.
+  - **Ficha:** `contaPublica`/`contaPublicaAposAtualizar` (allowlist explícita `CAMPOS_PUBLICOS_CONTA`) para a base, o formulário e a resposta. A criação também passa pela allowlist.
+  - **React Query:** guarda as `variables` da mutação no MutationCache. As duas mutações de conta usam `gcTime: 0`, e `onSettled` chama `descartarCredenciais` sobre o próprio objeto retido, em sucesso ou erro.
+  - **Limite:** não se promete apagar a memória física do JS. O formulário já zerava os campos de senha no envio.
+  - **Backend:** o contrato público continua sem senha nem hash.
+
+### 11.2 Testes de UI (`tests/smoke/usuariosSenhaSessaoS04P1.test.jsx`, 9 casos)
+- **Montagem:** página real (controller Base1, React Query e mutações reais). Só tabela, formulário e rede são stubs.
+- **Casos:**
+  - **Própria senha:** `logout` chamado uma vez e aviso exibido.
+  - **Senha de outra conta:** sem logout.
+  - **Nome (própria ou de outra):** sem logout.
+  - **Falhas 400, 403, 409, indisponibilidade e erro desconhecido:** sem sucesso nem logout, com a mensagem honesta de incerteza nos dois últimos.
+  - **Detecção pelo ID:** com `currentUser` divergente e com `currentUser` que nunca carrega; uma conta de outro com o mesmo login textual não conta como própria.
+- **Todos os casos:** nenhuma senha na ficha, no QueryCache, no MutationCache nem nos toasts.
+- **RED:** com o código anterior, 8 de 9 falham.
+- **Mutações:** recolocar `...dados` falha 1; tirar o `logout()` falha 2; tirar o descarte das variables falha 7.
+- **Mocks existentes:** `usuariosPaginacaoScale`, `usuariosPermissoesSplit` e `r3PostPr96Bugfix` passaram a usar os helpers reais via `importOriginal`.
+
+### 11.3 Release: a migration tem de chegar antes do runtime
+- **Evidência (Vercel, só leitura):**
+  - **`maike`** (`prj_jbLcws3p…`, Vite + `api/fastify.js` serverless):
+    - cada merge na `main` gerou deploy **production** `READY` (#210, #213, #214, #211, #216, #215, #218), com os domínios `www.makgestao.com` e `makgestao.com`;
+    - existe também o ambiente customizado **`staging`**, com deploys de commits fora da `main`.
+  - **`admmakgestao`** (`prj_9tjMbWWW…`, `apps/admin`): também ligado ao repositório, com production em `admmakgestao.vercel.app`.
+  - **Conclusão:** um merge da #217 publica o runtime novo em produção **automaticamente**.
+- **Alvo do banco:**
+  - **Não verificado** (`DATABASE_TARGET_UNVERIFIED`): os valores das variáveis não foram lidos, por regra.
+  - **Escopo conhecido:** a variável de banco da Vercel também está no escopo *preview*. O proprietário estendeu esse escopo nesta sessão para ter preview com dados reais.
+  - **Consequência:** previews desta PR podem falar com o banco real, que **ainda não tem** as colunas, e nesse caso login e rotas autenticadas do preview dão 500.
+  - **Sem E2E de mutação em preview:** os testes só rodaram em PostgreSQL local descartável.
+- **Caminho exequível**, já documentado (runbook `MAIKE-PR174-RELEASE-CUTOVER-RUNBOOK.md` §3, D-PROD-107):
+  - a migration é **EXPAND** e o runtime antigo funciona com o banco migrado (provado: suítes do `main` 52/52 no banco migrado);
+  - logo, ela pode ser aplicada **antes** do merge, sem pausar a Vercel, e o merge publica o runtime novo sobre um banco já pronto.
+- **Ordem:**
+  1. **Backup restaurável** do provedor.
+  2. **Análise local:** `premerge-migrate --sha <SHA>` (OK, alvo não verificado).
+  3. **Verificação do alvo:** `--verificar-alvo`, com `MIGRATION_DATABASE_URL` de **sessão/direta (5432, não o pooler 6543)** e `MIGRATION_EXPECTED_SYSTEM_IDENTIFIER`, só no ambiente do operador.
+  4. **Aplicação:** `--aplicar` (runner oficial `run-migrations.mjs`, sem fallback de URL).
+  5. **Conferência:** `preflight-schema` somente leitura, verde no **mesmo** alvo.
+  6. **Merge manual.**
+  7. **Deploy:** conferir o production `READY` no SHA do merge.
+  8. **Logout global único:** comunicado antes às fazendas.
+- **Pré-condições do merge (todas pendentes, dependem do proprietário):**
+  - identificação inequívoca do banco de produção (`system_identifier`);
+  - credencial de migração de sessão/direta no ambiente do operador;
+  - autorização explícita;
+  - backup;
+  - preflight verde no alvo;
+  - plano de rollback (§6);
+  - comunicação do logout.
+- **Nada foi executado:** migration, SQL, variáveis, pausa e promoção na Vercel ficam para autorização posterior.
