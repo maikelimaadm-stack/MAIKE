@@ -5336,4 +5336,10 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
 - **Regras preservadas:** o clique na área, a permissão `visualizar_historico_movimentacoes_lote` e a consulta do histórico pela área (inclusive de lotes que já saíram) não mudam. Curral sem a permissão continua sem abas, só com o abate. Os lotes do diálogo são os da empresa naquela área, independentes dos filtros do mapa.
 - **Implementação:** `src/components/mapa/DetalhesArea.jsx`, `ResumoArea.jsx`, `LotesDaArea.jsx`, `src/domain/areas/indicadoresArea.js` e estilos em `src/styles/mk-mapa-superficie.css`. Testes: `tests/smoke/areaResumoLotes.test.jsx` e `tests/smoke/detalhesAreaHistorico.test.jsx`.
 
-<!-- Próxima decisão: D-PROD-144 -->
+## D-PROD-144 — Detalhes do Lote em faixa compacta
+
+- **Contexto:** o proprietário recusou os cartões grandes de informação no "Detalhes do Lote" — cada lote num cartão com oito caixas de campo, e a área num outro cartão — e pediu uma faixa compacta, mantendo os mesmos campos e os botões de Manejos e Históricos.
+- **Decisão:** a área vira uma faixa sem caixa, com rótulo minúsculo em cima e valor em destaque abaixo. Cada lote mantém os números (cabeças, peso médio e dias de pastejo) numa linha fina; identificador, sigla, sistema reprodutivo, raça, sexo e categoria de manejo seguem em texto corrido na linha de baixo. Nenhum campo sai e nenhum cálculo muda; os botões de Manejos e Históricos continuam iguais.
+- **Implementação:** `src/components/mapa/DetalhesLote.jsx`, `src/components/mapa/InformacoesArea.jsx` e as classes `.mk-dl__numeros`, `.mk-dl__num`, `.mk-dl__letras` em `src/styles/lancamento-lote.css`. Testes: `tests/smoke/detalhesLoteQuadros.test.jsx` e `tests/smoke/detalhesLoteVisualGesto.test.jsx`.
+
+<!-- Próxima decisão: D-PROD-145 -->
