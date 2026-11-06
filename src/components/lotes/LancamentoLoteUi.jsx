@@ -2,7 +2,7 @@ import React from "react";
 import { Check, Loader2, Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { useMediaQuery, MobileSheetPortalCtx } from "@/components/common/MobileSheet";
+import MobileSheet, { useCelular, useMediaQuery, MobileSheetPortalCtx } from "@/components/common/MobileSheet";
 import { PillBtn } from "@/components/cadastro/base1/Base1Ui";
 
 /*
@@ -34,8 +34,8 @@ export const useLancLoteDialogo = () => React.useContext(LancLoteCtx);
  * É um diálogo do Radix nos dois casos, para abrir por cima do "Detalhes do
  * Lote" (que já é um diálogo) sem perder foco nem toque.
  *
- * `somenteLeitura` (históricos, D-PROD-117): só o ✕; o corpo rola como o dos
- * lançamentos. Um conteúdo pode trocar o título do diálogo pelo contexto
+ * `somenteLeitura` (históricos, D-PROD-117): só o ✕; no celular, folha
+ * expansível como os cadastros, com rolagem no corpo. Um conteúdo pode trocar o título do diálogo pelo contexto
  * (`useLancLoteDialogo().setTitulo`), para não repetir o título dentro.
  *
  * @param {{ open: boolean, onOpenChange: (v: boolean) => void, titulo: string, lotes?: Array<{ nome?: string }>, largo?: boolean, amplo?: boolean, somenteLeitura?: boolean, children: React.ReactNode }} props
@@ -43,6 +43,7 @@ export const useLancLoteDialogo = () => React.useContext(LancLoteCtx);
 export function LancLoteDialogo({ open, onOpenChange, titulo, lotes, largo = false, amplo = false, somenteLeitura = false, children }) {
   const nomes = (lotes || []).map((l) => l?.nome).filter(Boolean).join(" · ");
   const desktop = useMediaQuery("(min-width: 1024px)");
+  const folhaConsulta = useCelular() && somenteLeitura;
   const formId = `mk-ll-${React.useId().replace(/:/g, "")}`;
   const [acao, setAcao] = React.useState(/** @type {any} */ (null));
   // As listas do celular (folha) abrem dentro do diálogo (D-PROD-116).
@@ -63,6 +64,33 @@ export function LancLoteDialogo({ open, onOpenChange, titulo, lotes, largo = fal
       : { type: "submit", form: formId }
     : { type: "button" };
   const Icone = ocupado ? Loader2 : Check;
+
+  // Consultas no celular usam os mesmos gestos e detents dos cadastros.
+  // O portal fica dentro do Radix para manter foco e toque nas folhas filhas.
+  if (folhaConsulta) {
+    return (
+      <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
+        <DialogPrimitive.Portal>
+          <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/60" />
+          <DialogPrimitive.Content className="mk-map-list-host" onOpenAutoFocus={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()}>
+            <DialogPrimitive.Title className="sr-only">{tituloVisivel}</DialogPrimitive.Title>
+            <DialogPrimitive.Description className="sr-only">{nomes || tituloVisivel}</DialogPrimitive.Description>
+            <div ref={setAlvoFolha} />
+            {alvoFolha ? (
+              <MobileSheetPortalCtx.Provider value={alvoFolha}>
+                <MobileSheet open={open} onClose={fechar} label={tituloVisivel} title={tituloVisivel}
+                  className="mk-map-list-sheet"
+                  headerAction={<span ref={setSlotDireito} className="mk-ll-dlg__slot" />}
+                  aside={nomes ? <p className="mk-map-list-subtitle">{nomes}</p> : null}>
+                  <LancLoteCtx.Provider value={ctx}><div className="mk-ll">{children}</div></LancLoteCtx.Provider>
+                </MobileSheet>
+              </MobileSheetPortalCtx.Provider>
+            ) : null}
+          </DialogPrimitive.Content>
+        </DialogPrimitive.Portal>
+      </DialogPrimitive.Root>
+    );
+  }
 
   return (
     <DialogPrimitive.Root open={open} onOpenChange={(v) => (v ? onOpenChange(true) : fechar())}>

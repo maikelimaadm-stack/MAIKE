@@ -143,3 +143,21 @@ button[data-mk-map-action]:not(#mk-padrao) svg { width: 16px; height: 16px; stro
 
 button[data-mk-map-action]:is([class*="text-red"], [class*="text-destructive"]):not(#mk-padrao) { color: #dc2626 !important; }
 button[data-mk-map-action]:is([class*="bg-amber"], [class*="bg-yellow"]):not(#mk-padrao) { color: #b45309 !important; }
+
+/* Consultas no celular: folha expansível, com uma só rolagem vertical. */
+.mk-map-list-host {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  pointer-events: none;
+}
+.mk-map-list-host .mk-sheet-root { pointer-events: auto; }
+.mk-map-list-host .mk-sheet-scrim { background: transparent; }
+.mk-map-list-sheet .mk-sheet__body { min-width: 0; overscroll-behavior: contain; }
+.mk-map-list-sheet .mk-ll { min-width: 0; }
+.mk-map-list-sheet .mk-ll-dlg__slot:empty { display: none; }
+.mk-map-list-subtitle { margin: 0; padding: 0 16px 8px; font-size: 12px; color: #64748b; overflow-wrap: anywhere; }
+@media (max-width: 639px) {
+  .mk-map-list-sheet .mk-map-task-panel { overflow: visible; }
+  .mk-map-list-sheet .mk-map-task-panel .cadastro-b1--full-page { height: auto; max-height: none; }
+}

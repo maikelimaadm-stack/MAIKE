@@ -7,11 +7,8 @@ import { canAccessPage } from "@/lib/permissions";
 import { MAPA_GERAL_ACESSO_TOTAL, normalizeMapaGeralPermissions } from "@/lib/mapaGeralPermissions";
 import { podeExcluirLancamentoBebedouro, podeLancarNoBebedouro } from "@/lib/bebedouroPermissions";
 import { Button } from "@/components/ui/button";
-import { BarChart3, X } from "lucide-react";
+import { X } from "lucide-react";
 import { toast } from "sonner";
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle } from
-"@/components/ui/dialog";
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle } from
 "@/components/ui/sheet";
@@ -1244,26 +1241,20 @@ export default function MapaGeral() {
           {selectedLote && <DetalhesLote lotes={Array.isArray(selectedLote) ? selectedLote : [selectedLote]} permissions={mapaGeralPermissions} onClose={() => {setShowDetalhesLote(false);refetchLotes();}} />}
       </LancLoteDialogo>
 
-      <Dialog open={showDetalhesArea} onOpenChange={setShowDetalhesArea}>
-        <DialogContent className="mk-map-dialog bg-background px-2 py-2 overflow-x-hidden sm:w-full sm:p-1 fixed left-[50%] top-[50%] z-50 grid w-full translate-x-[-50%] translate-y-[-50%] gap-2 border shadow-lg duration-200 sm:rounded-lg max-w-[95vw] md:max-w-[75vw] xl:max-w-[65vw] max-h-[95vh] overflow-y-auto">
-          <DialogHeader></DialogHeader>
+      <LancLoteDialogo open={showDetalhesArea} onOpenChange={setShowDetalhesArea} titulo="Histórico da Área" largo somenteLeitura>
+
           {selectedArea && <DetalhesArea area={selectedArea} permissions={mapaGeralPermissions} />}
-        </DialogContent>
-      </Dialog>
+        </LancLoteDialogo>
 
-      <Dialog open={showDetalhesBebedouro} onOpenChange={setShowDetalhesBebedouro}>
-        <DialogContent className="mk-map-dialog overflow-x-hidden p-1 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:w-full sm:p-1 bg-background px-2 py-2 fixed left-[50%] top-[50%] z-50 grid w-full translate-x-[-50%] translate-y-[-50%] gap-4 border shadow-lg duration-200 sm:rounded-lg max-w-[95vw] md:max-w-[75vw] xl:max-w-[65vw] max-h-[95vh] overflow-y-auto">
-          <DialogHeader className="flex flex-col space-y-1.5 text-center sm:text-left"><DialogTitle className="text-font-semibold leading-none tracking-tight">Bebedouro</DialogTitle></DialogHeader>
+      <LancLoteDialogo open={showDetalhesBebedouro} onOpenChange={setShowDetalhesBebedouro} titulo="Bebedouro" largo somenteLeitura>
+
           {selectedBebedouro && <DetalhesBebedouro bebedouro={selectedBebedouro} podeLancar={podeLancarBebedouro} podeExcluir={podeExcluirBebedouro} />}
-        </DialogContent>
-      </Dialog>
+        </LancLoteDialogo>
 
-      <Dialog open={showDetalhesPontoSupl} onOpenChange={(open) => {setShowDetalhesPontoSupl(open);if (!open) {refetchEventosSupl();refetchLotes();refetchPontosSupl();}}}>
-        <DialogContent className="mk-map-dialog overflow-x-hidden p-1 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:w-full sm:p-1 bg-background px-2 py-2 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] fixed left-[50%] top-[50%] z-50 grid w-full translate-x-[-50%] translate-y-[-50%] gap-4 border shadow-lg duration-200 sm:rounded-lg max-w-[95vw] md:max-w-[75vw] xl:max-w-[65vw] max-h-[95vh] overflow-y-auto">
-          <DialogHeader className="flex flex-col space-y-1.5 text-center sm:text-left"><DialogTitle className="text-font-semibold leading-none tracking-tight">{selectedPontoSupl?.categoria_ponto === 'DEPOSITO' ? 'Depósito de Suplementação' : 'Ponto de Suplementação'}</DialogTitle></DialogHeader>
+      <LancLoteDialogo open={showDetalhesPontoSupl} onOpenChange={(open) => {setShowDetalhesPontoSupl(open);if (!open) {refetchEventosSupl();refetchLotes();refetchPontosSupl();}}} titulo={selectedPontoSupl?.categoria_ponto === 'DEPOSITO' ? 'Depósito de Suplementação' : 'Ponto de Suplementação'} largo somenteLeitura>
+
           {selectedPontoSupl && <DetalhesPontoSuplementacao ponto={selectedPontoSupl} permissions={mapaGeralPermissions} onClose={() => {setShowDetalhesPontoSupl(false);refetchEventosSupl();refetchLotes();refetchPontosSupl();}} />}
-        </DialogContent>
-      </Dialog>
+        </LancLoteDialogo>
 
       <LancLoteDialogo open={showTarefas} onOpenChange={(open) => {setShowTarefas(open);if (!open && podeUsarTarefasMapa) refetchTarefas();}} titulo="Gestão de Tarefas" lotes={localDasTarefas ? [{ nome: localDasTarefas }] : []} amplo somenteLeitura>
           <TarefasMapaPanel areaId={tarefasContext.areaId} areaNome={tarefasContext.areaNome} loteId={tarefasContext.loteId} loteNome={tarefasContext.loteNome} pontoSuplId={tarefasContext.pontoSuplId} initialCoordinates={tarefasContext.initialCoordinates} initialDraft={tarefasContext.initialDraft} openCreateOnMount={tarefasContext.openCreateOnMount} onRequestSelectLocation={handleRequestSelectTaskLocation} onClose={() => {setShowTarefas(false);setTarefasContext({});if (podeUsarTarefasMapa) refetchTarefas();}} />
@@ -1273,12 +1264,10 @@ export default function MapaGeral() {
           {selectedTarefa && <DetalhesTarefaMapa tarefa={selectedTarefa} onRequestSelectLocation={handleRequestSelectTaskLocation} onSaved={(updated) => {if (updated) setSelectedTarefa(updated);if (podeUsarTarefasMapa) refetchTarefas();}} />}
       </LancLoteDialogo>
 
-      <Dialog open={showInsights} onOpenChange={setShowInsights}>
-        <DialogContent className="mk-map-dialog max-w-md max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle className="flex items-center gap-2 text-sm"><BarChart3 className="w-4 h-4 text-emerald-600" /> Insights do Mapa</DialogTitle></DialogHeader>
+      <LancLoteDialogo open={showInsights} onOpenChange={setShowInsights} titulo="Insights do Mapa" largo somenteLeitura>
+
           <MapaInsights lotes={lotesFiltrados} areas={areasFiltradas} eventosSupl={eventosSupl} pontosSuplementacao={pontosSuplementacaoDecorados} pontosReferencia={pontos} />
-        </DialogContent>
-      </Dialog>
+        </LancLoteDialogo>
     </div>);
 
 }
