@@ -104,6 +104,13 @@ export const BACKEND_ONLY_CODES = Object.freeze({
     http: 409,
     meaning: 'já existe empresa com este nome neste tenant',
   },
+  // D-PROD-136 (EMP-01): a maioria dos models guarda `empresa_id` sem FK; excluir
+  // a empresa deixava setores, áreas, cochos, produtos, tarefas e lotes órfãos.
+  // `details.vinculos = [{ entidade, total }]`; nada é apagado.
+  EMPRESA_COM_VINCULOS: {
+    http: 409,
+    meaning: 'a empresa tem registros vinculados (details.vinculos) e não pode ser excluída; nada foi apagado',
+  },
   MARCA_NOT_FOUND: { http: 404, meaning: 'id não identifica marca deste tenant' },
   MARCA_NAME_CONFLICT: {
     http: 409,

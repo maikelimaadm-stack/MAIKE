@@ -55,7 +55,11 @@ export const updateUsuarioNativo = async (id, dados) => {
   return nativeRequest(`${CAMINHO}/${id}`, { method: 'PATCH', body: corpo, autenticado: true }, ctx('updateUsuario'));
 };
 
-/** Compatibilidade com telas que ainda usam `email` (Permissao Base44). */
+/**
+ * Compatibilidade com telas que ainda usam `email` (Permissao Base44).
+ * `responsavel_elegivel` (D-PROD-136, GET-05) só vem para quem abre tarefas: o
+ * servidor decide quem pode ser responsável — a matriz dos colegas não vem.
+ */
 export const comoUsuarioLegado = (usuario) => ({
   id: usuario.id,
   email: usuario.login,
@@ -63,4 +67,5 @@ export const comoUsuarioLegado = (usuario) => ({
   nome: usuario.nome,
   full_name: usuario.nome,
   ativo: usuario.ativo !== false,
+  ...(typeof usuario.responsavel_elegivel === 'boolean' ? { responsavel_elegivel: usuario.responsavel_elegivel } : {}),
 });

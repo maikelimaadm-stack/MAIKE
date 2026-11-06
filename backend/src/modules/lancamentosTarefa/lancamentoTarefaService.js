@@ -433,10 +433,17 @@ export const criarHistorico = async (contexto, entrada) => {
     const tarefa = await buscarLancamento(auth.clienteId, tarefaId, tx);
     if (!tarefa) throw attachmentOwnerInvalid();
 
+    // D-PROD-136 (TAR-01): empresa, título e status saem da tarefa RELIDA, como no
+    // caminho interno (`registrarHistoricoMapaTx`). Com `empresa_id` do corpo, o
+    // evento sumia do painel da tarefa (cache por empresa) e aparecia como
+    // vínculo de outra empresa.
     const registro = await inserirHistorico(tx, {
       ...campos,
       cliente_id: auth.clienteId,
-      tarefa_id: tarefaId,
+      tarefa_id: tarefa.id,
+      empresa_id: tarefa.empresa_id,
+      titulo_tarefa: tarefa.titulo,
+      status: tarefa.status,
     });
     const publico = comoHistoricoPublico(registro);
     await registrarEvento(
