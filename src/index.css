@@ -9,6 +9,7 @@
 @import "./styles/mk-filtros.css";
 @import "./styles/mk-configuracoes.css";
 @import "./styles/mk-toggles.css";
+@import "./styles/mk-listas.css";
 
 @tailwind base;
 @tailwind components;

@@ -1,0 +1,40 @@
+/* Divisórias entre itens dos blocos brancos, em todas as larguras. */
+:root { --mk-list-divider: #e7eaee; }
+
+:is(
+  .b1ref .fpop-l > .pr + .pr,
+  .fpc__lista > .fpc__item + .fpc__item,
+  .mgs__lista > .mgs__op + .mgs__op,
+  .mk-co__list > .mk-co__item + .mk-co__item,
+  .cmd-panel-options > .cmd-option + .cmd-option,
+  .mk-sel-lista > .mk-sel-op + .mk-sel-op,
+  .mk-ac-op + .mk-ac-op,
+  .mk-select .mk-select-item + .mk-select-item,
+  .mk-config-options > .mg-b1-row + .mg-b1-row,
+  .mk-config-dialog .dbox-l > .dlin + .dlin,
+  .mg-search-suggest__list > li + li,
+  .mg-b1-menuitem + .mg-b1-menuitem,
+  .foperadores .fopt + .fopt
+):not(#mk-padrao) {
+  border-top: 1px solid var(--mk-list-divider);
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+/* Substitui o separador antigo por pseudo-elemento para não duplicar linhas. */
+:is(
+  .mgs__op + .mgs__op,
+  .fpc__item + .fpc__item,
+  .mk-co__item + .mk-co__item,
+  .mg-b1-menuitem + .mg-b1-menuitem
+):not(#mk-padrao)::before { content: none; }
+
+.cadastro-b1 .mg-grid tbody td:not(#mk-padrao) {
+  border-bottom: 1px solid var(--mk-list-divider);
+}
+
+/* Campos do card também mantêm separação entre os pares rótulo/valor. */
+.cadastro-b1 .mg-b1-card__fields > :nth-child(n + 3):not(#mk-padrao) {
+  border-top: 1px solid var(--mk-list-divider);
+  padding-top: 6px;
+}

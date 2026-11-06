@@ -140,3 +140,7 @@
   overflow-x: hidden;
   overscroll-behavior: contain;
 }
+
+.mk-colcfg .mk-colcfg__row.is-draggable { cursor: grab; }
+.mk-colcfg .mk-colcfg__row .mk-colcfg__drag-handle { pointer-events: none; touch-action: auto; }
+.mk-colcfg .mk-colcfg__row.is-draggable:focus-visible { outline: 2px solid #64748b; outline-offset: -2px; }

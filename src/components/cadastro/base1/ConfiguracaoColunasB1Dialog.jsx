@@ -184,7 +184,7 @@ export default function ConfiguracaoColunasB1Dialog({
         label={titulo}
         title={titulo}
         initialLarge
-        aside={<>{usadas.length} de {todas.length} visíveis<span className="block">{termo ? "Limpe a pesquisa para reordenar" : "Segure a alça e arraste para reordenar"}</span></>}
+        aside={<>{usadas.length} de {todas.length} visíveis<span className="block">{termo ? "Limpe a pesquisa para reordenar" : "Segure a linha e arraste para reordenar"}</span></>}
         className="mk-colcfg mk-config-sheet"
         headerAction={
           <button type="button" className="mk-sheet__new" aria-label="Aplicar" title="Aplicar" onClick={salvar}>
@@ -223,9 +223,9 @@ export default function ConfiguracaoColunasB1Dialog({
             const i = draftOrdem.indexOf(c.id);
             return (
               <Draggable key={c.id} draggableId={c.id} index={index} isDragDisabled={Boolean(termo)}>
-                {(drag, snapshot) => <div ref={drag.innerRef} {...drag.draggableProps} role="listitem" className={cn("mgs__op mk-colcfg__row", snapshot.isDragging && "is-reordering")} data-coluna={c.id}>
+                {(drag, snapshot) => <div ref={drag.innerRef} {...drag.draggableProps} {...drag.dragHandleProps} role="listitem" aria-roledescription={termo ? undefined : "Coluna reordenável"} aria-label={termo ? undefined : `Arrastar coluna ${c.label}`} data-no-sheet-drag={termo ? undefined : ""} className={cn("mgs__op mk-colcfg__row", !termo && "is-draggable", snapshot.isDragging && "is-reordering")} data-coluna={c.id}>
                 {!termo ? (
-                  <span {...drag.dragHandleProps} className="mk-colcfg__drag-handle" aria-label={`Arrastar coluna ${c.label}`} data-no-sheet-drag="" title="Segure e arraste para reordenar">
+                  <span className="mk-colcfg__drag-handle" aria-hidden="true">
                     <GripVertical size={16} aria-hidden />
                   </span>
                 ) : null}
