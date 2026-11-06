@@ -47,6 +47,45 @@ export const configurarFusoHorarioEmpresa = (id, dados) => configurarFusoHorario
  */
 export const deleteEmpresa = (id) => deleteEmpresaApi(id);
 
+/** Rótulos dos vínculos que o servidor conta (`details.vinculos[].entidade`). */
+const ROTULO_VINCULO = Object.freeze({
+  Setor: 'setores',
+  AreaPastagem: 'áreas',
+  Lote: 'lotes',
+  PosicaoRebanho: 'posições do rebanho',
+  EventoRebanho: 'movimentos do rebanho',
+  Produto: 'produtos',
+  PontoSuplementacao: 'cochos/depósitos',
+  PontoReferencia: 'pontos do mapa',
+  LinhaGeografica: 'linhas do mapa',
+  Bebedouro: 'bebedouros',
+  LancamentoTarefa: 'tarefas',
+  MovimentacaoEstoque: 'movimentações de estoque',
+  MovimentacaoMapa: 'movimentações do mapa',
+  CategoriaManejo: 'categorias de manejo',
+  Fornecedor: 'fornecedores',
+  Marca: 'marcas',
+});
+
+/**
+ * D-PROD-136 (EMP-01): o servidor recusa (409 `EMPRESA_COM_VINCULOS`) a exclusão
+ * de empresa com registros e diz quantos, por cadastro. Frase para a tela; null
+ * quando o erro é outro.
+ * @param {unknown} erro
+ * @returns {string|null}
+ */
+export const descreverVinculosEmpresa = (erro) => {
+  const e = /** @type {{ code?: string, details?: { vinculos?: Array<{ entidade?: string, total?: number }> } }} */ (erro);
+  if (e?.code !== 'EMPRESA_COM_VINCULOS') return null;
+  const vinculos = Array.isArray(e.details?.vinculos) ? e.details.vinculos : [];
+  const partes = vinculos
+    .filter((v) => v && typeof v.entidade === 'string' && Number(v.total) > 0)
+    .map((v) => `${ROTULO_VINCULO[v.entidade] ?? 'outros registros'} (${Number(v.total)})`);
+  return partes.length
+    ? `Não é possível excluir a empresa: ela tem registros vinculados — ${partes.join(', ')}. Nada foi apagado.`
+    : null;
+};
+
 /**
  * Exclusão em lote — resultado honesto por id (sem contagem falsa).
  * @param {string[]} ids
