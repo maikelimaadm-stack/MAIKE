@@ -855,6 +855,14 @@
   font-weight: 600;
 }
 
+/* Celular: cartões um pouco mais perto das laterais (D-PROD-144) */
+@media (max-width: 639px) {
+  .mk-ll-dlg.is-tela:has(> .mk-ll > .mk-dl) > .mk-ll {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+}
+
 /* Fundo cinza atrás dos cartões e dos botões, como no celular; botões brancos (D-PROD-124) */
 .mk-ll-dlg.is-desktop:has(> .mk-ll > .mk-dl):not(#mk-padrao) {
   background: var(--mk-sup-fundo, #f7f8fa);
