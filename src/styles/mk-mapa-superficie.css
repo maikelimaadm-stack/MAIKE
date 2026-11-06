@@ -229,3 +229,23 @@ button[data-mk-map-action]:is([class*="bg-amber"], [class*="bg-yellow"]):not(#mk
 /* Tarefas/Filtros do mapa: apenas ícone; nome acessível preservado. */
 .mk-mapa-chip:not(#mk-padrao) { width: var(--mk-mapa-alto); min-width: var(--mk-mapa-alto); padding: 0; justify-content: center; }
 .mk-mapa-chip__txt { display: none; }
+
+/* O modal ocupa a viewport; só o painel interno tem largura/rolagem lateral.
+   Assim, seletores filhos não herdam o recorte nem o transform do drawer. */
+.mk-map-filter-host:not(#mk-padrao) {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  max-width: none;
+  height: 100dvh;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
+  transform: none !important;
+  animation: none !important;
+  pointer-events: none !important;
+}
+.mk-map-filter-host > .mk-map-filter-sheet { pointer-events: auto; }
+.mk-map-filter-host .mk-sheet-root { pointer-events: auto; }
