@@ -78,15 +78,27 @@ describe('documentoComoPublico — unidade', () => {
   });
 });
 
+/**
+ * Campos que a rota exige além do documento genérico. D-PROD-136 (BEB-03): o
+ * histórico de bebedouro passou a exigir `bebedouro_id` de um Bebedouro do
+ * tenant e da empresa (antes aceitava documento órfão). O contrato verificado
+ * aqui — `empresa_id` da coluna, sem `cliente_id` — não muda.
+ */
+const extrasDaRota = async (rota, cliente, empresa) => {
+  if (rota !== '/bebedouros-historico') return {};
+  const bebedouro = await getPrismaClient().bebedouro.create({ data: { cliente_id: cliente.id, empresa_id: empresa.id, nome: 'B1', tipo: 'Cocho' } });
+  return { bebedouro_id: bebedouro.id };
+};
+
 describe('rotas JSON — empresa_id na leitura (todas as consumidoras do serializador)', () => {
   for (const rota of ROTAS_JSON) {
     test(`${rota}: POST e GET devolvem empresa_id da coluna, sem cliente_id`, async () => {
-      const { token, empresa } = await cenario();
+      const { token, cliente, empresa } = await cenario();
       const criado = await app.inject({
         method: 'POST',
         url: rota,
         headers: auth(token),
-        payload: { empresa_id: empresa.id, observacoes: 'sintético' },
+        payload: { empresa_id: empresa.id, observacoes: 'sintético', ...(await extrasDaRota(rota, cliente, empresa)) },
       });
       assert.equal(criado.statusCode, 201, criado.body);
       assert.equal(criado.json().empresa_id, empresa.id, 'resposta do POST');

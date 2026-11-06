@@ -180,6 +180,14 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   MOVIMENTACAOMAPA_NOT_FOUND: { http: 404, meaning: 'id não identifica movimentação do mapa deste tenant' },
   MOVIMENTACAOPECUARIA_NOT_FOUND: { http: 404, meaning: 'id não identifica movimentação pecuária deste tenant' },
   SUPLEMENTACAOLOTE_NOT_FOUND: { http: 404, meaning: 'id não identifica lote de suplementação deste tenant' },
+  // D-PROD-136 (BEB-02/BEB-03): os services de bebedouro já lançavam estes
+  // códigos, mas fora do catálogo eles viravam 500 ("erro interno").
+  BEBEDOURO_NOT_FOUND: { http: 404, meaning: 'id não identifica bebedouro deste tenant (e desta empresa, no histórico)' },
+  BEBEDOUROHISTORICO_NOT_FOUND: { http: 404, meaning: 'id não identifica lançamento de bebedouro deste tenant' },
+  BEBEDOUROHISTORICO_SOMENTE_ULTIMO: {
+    http: 409,
+    meaning: 'só o lançamento mais recente do bebedouro pode ser excluído (há lançamento posterior); nada foi apagado',
+  },
   MOVIMENTACAO_ESTOQUE_NOT_FOUND: {
     http: 404,
     meaning: 'id não identifica movimentação de estoque deste tenant',
