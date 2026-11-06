@@ -1,5 +1,5 @@
 /* Divisórias entre itens dos blocos brancos, em todas as larguras. */
-:root { --mk-list-divider: #e7eaee; }
+:root { --mk-list-divider: #eceef1; }
 
 :is(
   .b1ref .fpop-l > .pr + .pr,

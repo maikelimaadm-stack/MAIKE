@@ -1,7 +1,7 @@
 /**
  * Superfície única do sistema — o padrão do "Detalhes do Lote" (D-PROD-138).
  *
- * Fundo cinza (#f2f3f5), cartões brancos arredondados com borda leve e botões
+ * Fundo cinza (#f7f8fa), cartões brancos arredondados com borda leve e botões
  * brancos com sombra suave. Vale para as listas dos cadastros (Base1), as
  * folhas e painéis de filtro e os lançamentos (LancLoteDialogo).
  *
@@ -12,9 +12,9 @@
  */
 
 :root {
-  --mk-sup-fundo: #f2f3f5;
+  --mk-sup-fundo: #f7f8fa;
   --mk-sup-cartao: #ffffff;
-  --mk-sup-borda: #e7eaee;
+  --mk-sup-borda: #eceef1;
   --mk-sup-raio: 14px;
   --mk-sup-sombra: 0 1px 2px rgba(15, 23, 42, 0.05);
   --mk-btn-bg: #ffffff;
@@ -27,6 +27,7 @@
 /* Tokens antigos apontando para os novos */
 .cadastro-b1 {
   --mg-bg-page: var(--mk-sup-fundo);
+  --mg-page-bg: var(--mk-sup-fundo);
 }
 
 .cadastro-b1 {
@@ -694,3 +695,5 @@
   stroke-width: 1.65;
   flex-shrink: 0;
 }
+
+.mk-mods:not(#mk-padrao) { background: var(--mk-sup-fundo); }

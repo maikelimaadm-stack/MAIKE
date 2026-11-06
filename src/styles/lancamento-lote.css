@@ -860,7 +860,7 @@
 
 /* Fundo cinza atrás dos cartões e dos botões, como no celular; botões brancos (D-PROD-124) */
 .mk-ll-dlg.is-desktop:has(> .mk-ll > .mk-dl):not(#mk-padrao) {
-  background: #f2f3f5;
+  background: var(--mk-sup-fundo, #f7f8fa);
 }
 
 /* Cabeçalho também cinza, sem a faixa branca; ✕ branco como os botões (D-PROD-125) */
@@ -880,7 +880,7 @@
 }
 
 .mk-ll-dlg.is-tela:has(> .mk-ll > .mk-dl):not(#mk-padrao) {
-  background: #f2f3f5;
+  background: var(--mk-sup-fundo, #f7f8fa);
 }
 
 .mk-ll-dlg.is-tela:has(> .mk-ll > .mk-dl) .mk-ll-dlg__redondo {
