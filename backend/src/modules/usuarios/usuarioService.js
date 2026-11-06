@@ -258,6 +258,12 @@ export const atualizar = async (contexto, id, entrada) => {
       dados.senha_hash = await gerarSenhaHash(nova);
     }
 
+    // S04-P1: troca de senha ou de `ativo` derruba todas as sessões DESTA conta
+    // (inclusive a que fez o pedido, se for a própria). O incremento vai no
+    // mesmo UPDATE e na mesma transação da auditoria: falha = nada muda.
+    const revogaSessoes = 'senha_hash' in dados || ('ativo' in dados && dados.ativo !== anterior.ativo);
+    if (revogaSessoes) dados.sessao_epoca = { increment: 1 };
+
     const registro =
       Object.keys(dados).length > 0
         ? await atualizarUsuarioPorId(tx, auth.clienteId, id, dados)
@@ -272,7 +278,7 @@ export const atualizar = async (contexto, id, entrada) => {
         entidade: 'Usuario',
         entidadeId: id,
         dadosAnteriores: comoUsuarioPublico(anterior),
-        dadosNovos: publico,
+        dadosNovos: revogaSessoes ? { ...publico, sessoes_revogadas: true } : publico,
       },
       tx
     );

@@ -418,7 +418,7 @@ describe('S03-R1 concorrência da edição e auditoria', () => {
 });
 
 describe('S03-R1 semântica do token de fazenda na suspensão', () => {
-  test('GES-15 mesmo JWT: 200 → suspender → 401 → reativar → 200 (bloqueio TRANSITÓRIO, não revogação)', async () => {
+  test('GES-15 mesmo JWT: 200 → suspender → 401 → reativar → 401 (S04-P1: revogação permanente); login novo = 200', async () => {
     const t = await criarTenant({ codigo: 'fazenda-token' });
     const { headers } = await criarAdminComSessao(app);
     const tokenA = (await autenticarNoApp(app, t.credenciais)).corpo.token;
@@ -428,9 +428,10 @@ describe('S03-R1 semântica do token de fazenda na suspensão', () => {
     assert.equal((await escrever('POST', url, headers, { ativo: false, justificativa: 'teste de semântica do token' })).statusCode, 200);
     assert.equal((await ctx()).statusCode, 401, 'enquanto suspenso, o token antigo é recusado');
     assert.equal((await escrever('POST', url, headers, { ativo: true, justificativa: 'teste de semântica do token' })).statusCode, 200);
-    // Comportamento REAL registrado: sem versão de sessão no banco, o mesmo
-    // token volta a valer enquanto não expira. Revogação permanente = S04.
-    assert.equal((await ctx()).statusCode, 200, 'mesmo token, sem novo login, volta a funcionar após reativar');
+    // Até o S03 o mesmo token voltava a valer aqui (200). Desde o S04-P1 a
+    // suspensão avança Cliente.sessao_epoca: o token anterior morre de vez.
+    assert.equal((await ctx()).statusCode, 401, 'mesmo token continua recusado após reativar');
+    assert.equal((await autenticarNoApp(app, t.credenciais)).resposta.statusCode, 200, 'login novo funciona');
   });
 });
 

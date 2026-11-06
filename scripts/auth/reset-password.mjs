@@ -58,7 +58,8 @@ export const redefinirSenhaPorLogin = async (prisma, { login, novaSenha }) => {
 
   await prisma.usuario.update({
     where: { id: usuario.id },
-    data: { senha_hash: await gerarSenhaHash(novaSenha) },
+    // S04-P1: a senha nova derruba as sessões anteriores da conta no mesmo UPDATE.
+    data: { senha_hash: await gerarSenhaHash(novaSenha), sessao_epoca: { increment: 1 } },
   });
 
   return { login: usuario.login, usuarioId: usuario.id };

@@ -57,7 +57,8 @@ describe('sessão de tenant revalidada no banco', () => {
   test('SR-04 token cujo cliente_id não é o da conta: 401', async () => {
     const a = await criarTenant();
     const b = await criarTenant();
-    const forjado = app.jwt.sign({ cliente_id: b.cliente.id, usuario_id: a.usuario.id, login: a.usuario.login });
+    // Épocas válidas (S04-P1): o que se prova aqui é o cliente_id trocado.
+    const forjado = app.jwt.sign({ cliente_id: b.cliente.id, usuario_id: a.usuario.id, login: a.usuario.login, cliente_sessao_epoca: 0, usuario_sessao_epoca: 0 });
     const r = await get('/lotes', forjado);
     assert.equal(r.statusCode, 401);
     assert.equal(r.json().message.includes(b.cliente.id), false, 'não ecoa ids');

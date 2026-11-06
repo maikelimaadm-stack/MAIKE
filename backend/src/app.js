@@ -18,7 +18,7 @@ import { env } from './config/env.js';
 import { opcoesDeCors } from './shared/http/corsPolicy.js';
 import { errorHandler } from './shared/errors/errorHandler.js';
 import { registrarRequestContext } from './shared/request/requestContext.js';
-import { construirAuthContext } from './shared/auth/authContext.js';
+import { construirAuthContext, lerEpocasDaSessao } from './shared/auth/authContext.js';
 import { getPrismaClient } from './database/prismaClient.js';
 import { AppError, tenantContextRequired } from './shared/errors/AppError.js';
 import { registrarHealthRoutes } from './modules/health/healthRoutes.js';
@@ -145,6 +145,11 @@ export const construirApp = async (opcoes = {}) => {
    * requisição — existe, está ativa, é do mesmo cliente do token e esse
    * cliente está ativo. Conta ou cliente apagado/desativado perde o acesso na
    * hora, não quando o JWT expira. Uma única consulta (filtro relacional).
+   *
+   * S04-P1: a mesma consulta exige que as épocas de sessão do token sejam as
+   * atuais do cliente e da conta. Suspender, desativar, trocar senha ou papel
+   * incrementa a época no banco, e o token anterior nunca mais é aceito, nem
+   * depois de reativar. Token sem época (emitido antes do S04-P1) = 401.
    */
   app.decorate('autenticar', async (request) => {
     try {
@@ -153,8 +158,15 @@ export const construirApp = async (opcoes = {}) => {
       throw tenantContextRequired('sessão ausente ou inválida', { cause: erro });
     }
     const auth = construirAuthContext(request.user);
+    const epocas = lerEpocasDaSessao(/** @type {any} */ (request.user));
     const conta = await getPrismaClient().usuario.findFirst({
-      where: { id: auth.usuarioId, cliente_id: auth.clienteId, ativo: true, cliente: { ativo: true } },
+      where: {
+        id: auth.usuarioId,
+        cliente_id: auth.clienteId,
+        ativo: true,
+        sessao_epoca: epocas.usuario,
+        cliente: { ativo: true, sessao_epoca: epocas.cliente },
+      },
       select: { id: true },
     });
     if (!conta) throw tenantContextRequired('sessão ausente ou inválida');

@@ -247,7 +247,8 @@ BEGIN
   END LOOP;
 
   -- 11. Promove a conta existente (só o papel) e audita, sem credencial.
-  UPDATE "Usuario" SET papel_tenant = 'administrador', "updatedAt" = now() WHERE id = v_usuario_id;
+  -- S04-P1: mudança de privilégio encerra as sessões anteriores da conta.
+  UPDATE "Usuario" SET papel_tenant = 'administrador', sessao_epoca = sessao_epoca + 1, "updatedAt" = now() WHERE id = v_usuario_id;
   v_req := 'ops-sqleditor-04-' || gen_random_uuid()::text;
   INSERT INTO "AuditLog" (id, cliente_id, usuario_id, acao, entidade, entidade_id, dados_anteriores, dados_novos, request_id, "createdAt", "updatedAt")
     VALUES

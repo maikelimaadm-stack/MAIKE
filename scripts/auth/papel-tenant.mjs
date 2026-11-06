@@ -82,7 +82,8 @@ try {
   await prisma.$transaction(async (tx) => {
     const r = await tx.usuario.updateMany({
       where: { id: usuario.id, cliente_id: cliente.id, papel_tenant: usuario.papel_tenant },
-      data: { papel_tenant: papel },
+      // S04-P1: mudança de privilégio derruba as sessões anteriores da conta.
+      data: { papel_tenant: papel, sessao_epoca: { increment: 1 } },
     });
     if (r.count !== 1) throw new Error('o papel mudou durante a operação; nada foi alterado');
     await tx.auditLog.create({
@@ -93,13 +94,13 @@ try {
         entidade: 'Usuario',
         entidade_id: usuario.id,
         dados_anteriores: { papel_tenant: usuario.papel_tenant },
-        dados_novos: { papel_tenant: papel, via: 'scripts/auth/papel-tenant.mjs' },
+        dados_novos: { papel_tenant: papel, via: 'scripts/auth/papel-tenant.mjs', sessoes_revogadas: true },
         request_id: requestId,
       },
     });
   });
   console.log(`aplicado: ${usuario.login} agora é "${papel}" (auditoria ${requestId})`);
-  console.log('Vale na próxima ação privilegiada (o servidor relê o papel no banco); não precisa novo login.');
+  console.log('As sessões anteriores desta conta foram encerradas (S04-P1): é preciso entrar de novo.');
 } catch (erro) {
   sair(/** @type {any} */ (erro)?.message ?? 'falha');
 } finally {

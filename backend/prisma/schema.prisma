@@ -47,6 +47,10 @@ model Cliente {
   codigo    String   @unique @db.VarChar(64)
   nome      String   @db.VarChar(255)
   ativo     Boolean  @default(true)
+  /// Época das sessões da fazenda (MAIKE-SAAS-ADMIN-S04-P1). Vai no JWT no
+  /// login e é comparada a cada requisição: suspender incrementa, e todo token
+  /// anterior deixa de valer para sempre (mesmo após reativar). Só cresce.
+  sessao_epoca Int    @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -124,6 +128,9 @@ model Usuario {
   /// `Permissao.is_admin` (preferência de menu, editável) nem com o proprietário
   /// do produto (`AdminPrincipalMaike`).
   papel_tenant String @default("usuario") @db.VarChar(32)
+  /// Época das sessões DESTA conta (S04-P1): troca de senha, mudança de
+  /// `ativo` ou de `papel_tenant` incrementa e derruba os tokens anteriores.
+  sessao_epoca Int    @default(0)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 

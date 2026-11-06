@@ -54,7 +54,7 @@ const normalizarEntrada = (entrada) => {
  * Autentica e devolve o material do `auth_context`.
  *
  * @param {{login?: unknown, senha?: unknown}} entrada
- * @returns {Promise<{clienteId: string, usuarioId: string, login: string, nome: string}>}
+ * @returns {Promise<{clienteId: string, usuarioId: string, login: string, nome: string, clienteSessaoEpoca: number, usuarioSessaoEpoca: number}>}
  */
 export const autenticar = async (entrada) => {
   const { login, senha } = normalizarEntrada(entrada);
@@ -78,17 +78,27 @@ export const autenticar = async (entrada) => {
     usuarioId: usuario.id,
     login: usuario.login,
     nome: usuario.nome,
+    clienteSessaoEpoca: usuario.cliente.sessao_epoca,
+    usuarioSessaoEpoca: usuario.sessao_epoca,
   };
 };
 
 /**
  * Payload do token. Carrega identidade, nunca senha nem hash.
- * @param {{clienteId: string, usuarioId: string, login: string}} identidade
+ *
+ * S04-P1: também as épocas de sessão do cliente e da conta lidas no login.
+ * `app.autenticar` compara com o banco a cada requisição; qualquer diferença
+ * (suspensão, desativação, troca de senha ou de papel depois do login) recusa
+ * o token para sempre.
+ *
+ * @param {{clienteId: string, usuarioId: string, login: string, clienteSessaoEpoca: number, usuarioSessaoEpoca: number}} identidade
  */
-export const montarPayloadDeSessao = ({ clienteId, usuarioId, login }) => ({
+export const montarPayloadDeSessao = ({ clienteId, usuarioId, login, clienteSessaoEpoca, usuarioSessaoEpoca }) => ({
   cliente_id: clienteId,
   usuario_id: usuarioId,
   login,
+  cliente_sessao_epoca: clienteSessaoEpoca,
+  usuario_sessao_epoca: usuarioSessaoEpoca,
 });
 
 /**

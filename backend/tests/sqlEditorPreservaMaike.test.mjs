@@ -259,7 +259,9 @@ describe('04 sucesso + 01/03 + API com a senha existente', () => {
 
     // API real: a senha EXISTENTE continua valendo; agora como administradora da fazenda.
     const get = (url, tok) => app.inject({ method: 'GET', url, headers: { authorization: `Bearer ${tok}` } });
-    assert.equal((await get('/lotes', tokenAntigo)).statusCode, 200, 'sessão da conta preservada segue válida');
+    // S04-P1: a promoção de papel encerra as sessões anteriores (época +1);
+    // a conta e a senha continuam preservadas e o login novo funciona.
+    assert.equal((await get('/lotes', tokenAntigo)).statusCode, 401, 'sessão anterior à promoção encerrada');
     const login = await autenticarNoApp(app, { login: 'maike', senha: SENHA_EXISTENTE });
     assert.equal(login.resposta.statusCode, 200);
     const tok = login.corpo.token;

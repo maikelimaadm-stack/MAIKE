@@ -158,8 +158,11 @@ describe('própria conta e tenant no corpo', () => {
     assert.equal((await req('PATCH', url, f.tokComum, { nome: 'Peão Renomeado' })).statusCode, 200, 'nome próprio sem senha');
     const ok = await req('PATCH', url, f.tokComum, { nova_senha: 'propria-nova-1', senha_atual: f.comum.credenciais.senha });
     assert.equal(ok.statusCode, 200);
-    assert.equal((await login({ login: f.comum.credenciais.login, senha: 'propria-nova-1' })).statusCode, 200);
-    const desativar = await req('PATCH', url, f.tokComum, { ativo: false });
+    const novoLogin = await login({ login: f.comum.credenciais.login, senha: 'propria-nova-1' });
+    assert.equal(novoLogin.statusCode, 200);
+    // S04-P1: a troca da própria senha encerra o token que fez o pedido.
+    assert.equal((await req('PATCH', url, f.tokComum, { nome: 'Depois da Senha' })).statusCode, 401, 'token anterior à troca morreu');
+    const desativar = await req('PATCH', url, novoLogin.json().token, { ativo: false });
     assert.equal(desativar.json().code, 'USUARIO_SELF_DEACTIVATE', 'não se desativa');
   });
 

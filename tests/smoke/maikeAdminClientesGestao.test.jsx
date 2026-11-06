@@ -364,8 +364,8 @@ describe('edição e situação', () => {
     const painel = await screen.findByTestId('ficha-cliente');
     fireEvent.click(await within(painel).findByRole('button', { name: 'Suspender cliente' }));
     expect(within(painel).getByText(/sessões abertas param na hora/)).toBeTruthy();
-    // Semântica real (GES-15): bloqueio enquanto suspenso, não revogação.
-    expect(within(painel).getByText(/não encerra as sessões/)).toBeTruthy();
+    // S04-P1 (GES-15/SP-02): suspender encerra as sessões de vez.
+    expect(within(painel).getByText(/sessões são encerradas de vez/)).toBeTruthy();
     const confirmar = within(painel).getByRole('button', { name: 'Confirmar suspensão' });
     expect(confirmar.disabled).toBe(true);
     fireEvent.change(within(painel).getByLabelText(/Justificativa/), { target: { value: 'curta' } });
