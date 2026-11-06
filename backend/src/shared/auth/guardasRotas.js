@@ -70,7 +70,7 @@ const pontoSuplementacaoEditar = async (request) => {
 };
 
 /**
- * D-PROD-136 (F6) — LocalEstoque pela tela cruzada do Mapa Cadastro. O único
+ * D-PROD-137 (F6) — LocalEstoque pela tela cruzada do Mapa Cadastro. O único
  * PATCH de local que o Mapa Cadastro faz é renomear o local DO DEPÓSITO que está
  * editando (FormularioPonto: `{ nome, descricao }`); antes, "editar"/"salvar" do
  * Mapa Cadastro valia para QUALQUER local (desativar, capacidade, renomear o
@@ -169,7 +169,7 @@ export const GUARDAS = Object.freeze({
   bebedouroHistorico: {
     criar: porQualquer([T.BEBEDOUROS, 'novo'], [T.BEBEDOUROS, 'salvar'], [T.MAPA_GERAL, 'salvar']),
     editar: porQualquer([T.BEBEDOUROS, 'editar'], [T.BEBEDOUROS, 'salvar']),
-    // D-PROD-136 (BEB-02): apagar histórico exige a ação da tela DONA do
+    // D-PROD-137 (BEB-02): apagar histórico exige a ação da tela DONA do
     // registro. O "excluir" do Mapa Geral é a caixa genérica da linha do mapa
     // (não fala de bebedouro) e não autoriza mais apagar lançamento.
     excluir: porQualquer([T.BEBEDOUROS, 'excluir']),
@@ -180,7 +180,7 @@ export const GUARDAS = Object.freeze({
   // ── Cadastros do menu (tela + cadastro rápido) ──
   setor: cadastro(T.SETORES, { criar: LOTES_GRAVAR }),
   categoriaManejo: cadastro(T.CATEGORIAS_MANEJO, { criar: LOTES_GRAVAR }),
-  // F6 (D-PROD-136): pelo Mapa Cadastro só cria o local do depósito novo e renomeia
+  // F6 (D-PROD-137): pelo Mapa Cadastro só cria o local do depósito novo e renomeia
   // o local de um depósito; desativar/capacidade/excluir só na tela Locais.
   localEstoque: { ...cadastro(T.LOCAIS, { criar: MAPA_CAD_CRIAR }), editar: localEstoqueEditar },
   produto: cadastro(T.PRODUTOS),

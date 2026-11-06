@@ -1,5 +1,5 @@
 /**
- * D-PROD-136 (frente M4b, GET-06) — cache offline dos ícones do mapa é do TENANT.
+ * D-PROD-137 (frente M4b, GET-06) — cache offline dos ícones do mapa é do TENANT.
  *
  * Defeito: `ConfiguracaoIcone` é dado da fazenda (cliente_id obrigatório no
  * servidor), mas o cache do mapa o guardava em `mapa_icones::__GLOBAL__`, sem

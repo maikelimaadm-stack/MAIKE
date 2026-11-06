@@ -79,7 +79,7 @@ describe('documentoComoPublico — unidade', () => {
 });
 
 /**
- * Campos que a rota exige além do documento genérico. D-PROD-136 (BEB-03): o
+ * Campos que a rota exige além do documento genérico. D-PROD-137 (BEB-03): o
  * histórico de bebedouro passou a exigir `bebedouro_id` de um Bebedouro do
  * tenant e da empresa (antes aceitava documento órfão). O contrato verificado
  * aqui — `empresa_id` da coluna, sem `cliente_id` — não muda.

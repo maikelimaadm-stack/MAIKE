@@ -1,5 +1,5 @@
 /**
- * Catálogo FECHADO da propagação de referências desnormalizadas (D-PROD-136).
+ * Catálogo FECHADO da propagação de referências desnormalizadas (D-PROD-137).
  *
  * Cada origem diz de onde relê o registro (`tabela`/`delegate`), se é por
  * empresa e quais dependentes guardam uma cópia de valores dela. Um dependente

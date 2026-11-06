@@ -57,7 +57,7 @@ export const updateUsuarioNativo = async (id, dados) => {
 
 /**
  * Compatibilidade com telas que ainda usam `email` (Permissao Base44).
- * `responsavel_elegivel` (D-PROD-136, GET-05) só vem para quem abre tarefas: o
+ * `responsavel_elegivel` (D-PROD-137, GET-05) só vem para quem abre tarefas: o
  * servidor decide quem pode ser responsável — a matriz dos colegas não vem.
  */
 export const comoUsuarioLegado = (usuario) => ({

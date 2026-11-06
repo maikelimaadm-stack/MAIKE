@@ -101,7 +101,7 @@ export const comoPublico = (registro) => {
 };
 
 /**
- * D-PROD-136 (GET-01) — o que o seletor de empresa do Layout, o mapa e os
+ * D-PROD-137 (GET-01) — o que o seletor de empresa do Layout, o mapa e os
  * formulários de TODO usuário leem da empresa. ALLOWLIST (não denylist): coluna
  * nova no schema não vaza sozinha para quem não abre a tela Empresa.
  * Consumidores: Layout.jsx (apelido/nome/cidade/estado/cnpj no seletor e no
@@ -134,7 +134,7 @@ export const comoResumo = (registro, opcoes = {}) => {
 /**
  * GET /empresas fica SEM guarda de tela (o Layout de todo usuário depende dela:
  * 403 ou lista vazia fazem o Layout gravar o tenant como empresa e o mapa fica
- * vazio). A proteção é a PROJEÇÃO, decidida no servidor (D-PROD-136, GET-01):
+ * vazio). A proteção é a PROJEÇÃO, decidida no servidor (D-PROD-137, GET-01):
  *  - tela Empresa (adm-empresa visualizar; admin real e `is_admin` passam) →
  *    registro completo (CPF, RG, IE, contato, endereço, observações);
  *  - os demais → `comoResumo`, sem dado pessoal; `endereco` só com a tela de
@@ -271,7 +271,7 @@ export const configurarFusoHorario = async (contexto, id, entrada) => {
 };
 
 /**
- * D-PROD-136 (EMP-01) — models que pertencem a uma empresa: todo model do
+ * D-PROD-137 (EMP-01) — models que pertencem a uma empresa: todo model do
  * schema com `cliente_id` E `empresa_id` escalares, derivado de `Prisma.dmmf`
  * (model novo entra sozinho; a lista do frontend era da era Base44 e faltava
  * metade). Só uns poucos têm FK para Empresa; os demais guardam `empresa_id`

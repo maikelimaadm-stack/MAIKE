@@ -98,7 +98,7 @@ export const propagarNomeGrupoAtividade = async (tx, clienteId, grupoId, nomeGru
   });
 
 /**
- * Renomeação de setor nas tarefas (REF-03, D-PROD-136). A tarefa não tem
+ * Renomeação de setor nas tarefas (REF-03, D-PROD-137). A tarefa não tem
  * `setor_id`: o `setor_nome` dela é o da ÁREA no momento em que a área foi
  * atribuída (lancamentoTarefaService `aplicarCachesDeFk`). O vínculo verificável
  * é, portanto, a área: só tarefa cuja área é DESTE setor e que ainda carrega o

@@ -1,7 +1,7 @@
 /**
  * Serviço de BebedouroHistorico (P5.5).
  *
- * D-PROD-136 (frente M4a) — duas regras que antes viviam só no navegador:
+ * D-PROD-137 (frente M4a) — duas regras que antes viviam só no navegador:
  *  - BEB-03: todo lançamento pertence a um Bebedouro CADASTRADO do tenant
  *    (auth_context) e da mesma empresa do documento. Sem isso o "Lançar" de um
  *    ponto BEBEDOURO sem cadastro gravava um histórico órfão — que nenhuma tela

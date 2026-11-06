@@ -115,7 +115,7 @@ const CAPACIDADES = {
 export const CACHE_KEYS = Object.keys(CAPACIDADES);
 
 /**
- * Chaves cujo dado é do TENANT, não de uma empresa (D-PROD-136, GET-06).
+ * Chaves cujo dado é do TENANT, não de uma empresa (D-PROD-137, GET-06).
  *
  * Antes eram "globais": `mapa_icones::__GLOBAL__`, sem dono, e o logout não as
  * apagava. Mas `ConfiguracaoIcone` e `Permissao` têm `cliente_id` no servidor:
@@ -275,7 +275,7 @@ const zerarPolitica = () => {
 };
 
 /**
- * Logout (D-PROD-136, GET-06): apaga do aparelho o cache do tenant que sai e o
+ * Logout (D-PROD-137, GET-06): apaga do aparelho o cache do tenant que sai e o
  * legado `__GLOBAL__` (gravado antes desta correção, sem dono), e zera a
  * política em memória — sem isso, o mesmo tenant que voltasse em menos de 60 s
  * leria como "recente" o cache recém-apagado e ficaria sem ícones.

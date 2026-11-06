@@ -1,6 +1,6 @@
 /**
  * Propagação de referências desnormalizadas — `POST /referencias/sincronizar`
- * (P5.5 → D-PROD-136).
+ * (P5.5 → D-PROD-137).
  *
  * Contrato: o corpo só IDENTIFICA a origem (`event.entity_name` + `data.id`).
  * Antes, `data`/`old_data` do corpo eram gravados nos dependentes: quem tinha a

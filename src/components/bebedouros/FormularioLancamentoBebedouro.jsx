@@ -31,7 +31,7 @@ const MANUTENCAO_TYPES = new Set(["Manutenção", "Vazamento", "Troca de boia", 
 const SEM_CADASTRO = "Ponto sem cadastro de bebedouro: cadastre-o no Mapa Cadastro para registrar lançamentos. Nada foi gravado.";
 
 /**
- * D-PROD-136: a recusa do servidor (403, 400, 404…) vira mensagem — antes o
+ * D-PROD-137: a recusa do servidor (403, 400, 404…) vira mensagem — antes o
  * formulário ficava aberto, calado. Sem `bebedouro.id` real não envia: o
  * histórico ficaria órfão (o servidor também recusa). O formulário fica fora
  * da heurística de texto do Layout (`data-permissao-explicita`): quem o abre já

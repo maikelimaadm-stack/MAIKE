@@ -32,7 +32,7 @@ export const comoPublico = (registro) => {
 };
 
 /**
- * D-PROD-136 (GET-04) — o que o seletor de fornecedor do Cadastro de Lotes usa
+ * D-PROD-137 (GET-04) — o que o seletor de fornecedor do Cadastro de Lotes usa
  * (FormularioLote: nome, busca por nome/cpf/cnpj/cidade/estado, cidade/estado de
  * origem, `empresa_id` para o filtro da empresa). ALLOWLIST: RG, nascimento,
  * IE, responsável, telefone, e-mail, endereço, CEP, IBGE e observações ficam de

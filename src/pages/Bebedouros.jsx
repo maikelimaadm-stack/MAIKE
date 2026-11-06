@@ -53,7 +53,7 @@ export default function Bebedouros() {
     initialData: [],
   });
 
-  // D-PROD-136 (BEB-04): os botões do histórico seguem a regra do servidor
+  // D-PROD-137 (BEB-04): os botões do histórico seguem a regra do servidor
   // (novo OU salvar para lançar; excluir para apagar), não a leitura do texto
   // do botão pelo Layout. Mesma consulta (e chave) da permissão efetiva do mapa.
   const { data: usuarioAtual = null } = useQuery({

@@ -75,7 +75,7 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose, permissions
   const { data: iconesConfig = [] } = useQuery({
     queryKey: ["mapa-icones"],
     queryFn: async () => {
-      // Ícones são do tenant: o cache resolve o dono pela sessão (D-PROD-136).
+      // Ícones são do tenant: o cache resolve o dono pela sessão (D-PROD-137).
       const cached = await getMapaCachedData('icones', null);
       if (navigator.onLine) {
         if (cached?.length) {

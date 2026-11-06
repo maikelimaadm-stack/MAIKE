@@ -30,7 +30,7 @@ const REQUIRED_FIELDS = ["titulo", "grupo_atividade_id", "tipo_tarefa_id", "data
 
 /**
  * Contas oferecidas em Responsável/Solicitante, em ordem de nome de exibição.
- * D-PROD-136 (GET-05): o servidor diz quem pode ser responsável
+ * D-PROD-137 (GET-05): o servidor diz quem pode ser responsável
  * (`responsavel_elegivel`: admin real, `is_admin` ou tela de tarefas).
  * Recalcular aqui sobre a matriz alheia — que só o admin real recebe — deixava
  * a concessão `is_admin` listar só a si mesma. Sem o campo (resposta antiga ou

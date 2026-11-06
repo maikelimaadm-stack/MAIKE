@@ -3,7 +3,7 @@ import { sincronizarReferencias } from './syncEntityReferencesService.js';
 import { GUARDAS } from '../../shared/auth/guardasRotas.js';
 
 /**
- * O corpo só identifica a origem (D-PROD-136): `event.entity_name` + `data.id`.
+ * O corpo só identifica a origem (D-PROD-137): `event.entity_name` + `data.id`.
  * O resto (`data.*`, `old_data`, `changed_fields`) ainda chega do front e é
  * aceito por compatibilidade, mas o service não lê — os valores vêm do banco.
  * A entidade NÃO é enumerada aqui: entidade sem tela tem de cair na guarda

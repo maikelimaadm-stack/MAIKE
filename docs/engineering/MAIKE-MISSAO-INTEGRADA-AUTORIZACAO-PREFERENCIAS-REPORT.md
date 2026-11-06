@@ -33,11 +33,10 @@ Branch: `claude/autorizacao-preferencias-integradas`.
 
 Cada frente partiu de `6b231236`. Os arquivos compartilhados (`guardasRotas.js`, `MapaGeral.jsx` e `Layout.jsx`) receberam mudanças mínimas, listadas por frente na §6.
 
-**Numeração.** As frentes escreveram "D-PROD-136" nos comentários e nos testes, mas a D-PROD-136 do registro já é a tela de entrada ("Manter conectado").
+**Numeração.** As frentes escreveram "D-PROD-136" nos comentários e nos testes, mas a D-PROD-136 do registro já é a tela de entrada ("Manter conectado", PR #204).
 - Esta missão é a **D-PROD-137**.
-- Nos 64 arquivos tocados pela missão, "D-PROD-136" quer dizer D-PROD-137.
-- No HEAD `1e2b9fc5`, os outros 21 arquivos com esse número falam da tela de entrada: `AGENTS.md`, `README_AI.md`, `.env.example`, `authRoutes.js`, `authService.js`, `env.js`, `foundation.test.mjs`, os gates `native-api`, `nativeSessionApi.js`, `NativeLoginForm.jsx`, `nativeTokenStorage.js`, `loginTela.test.jsx`, `sessaoNativa.test.js` e os documentos de deploy e UX.
-- A renumeração nos comentários é pendência de código (§9).
+- Corrigido no código: as linhas com "D-PROD-136" introduzidas pelos commits da missão (6b231236, 278a231b, 71887a77, c257cdab, 05d08839; atribuição por `git blame`) passaram a dizer D-PROD-137, em 64 arquivos.
+- Os arquivos restantes com "D-PROD-136" são da tela de entrada e não mudaram: `AGENTS.md`, `README_AI.md`, `.env.example`, `authRoutes.js`, `authService.js`, `env.js`, `foundation.test.mjs`, os gates `native-api`, `nativeSessionApi.js`, `NativeLoginForm.jsx`, `nativeTokenStorage.js`, `loginTela.test.jsx`, `sessaoNativa.test.js` e os documentos de deploy e UX.
 
 ## 3. A regra, em cinco linhas
 
@@ -307,9 +306,6 @@ Nada aqui é "100% protegido". É o que se sabe que falta, com o motivo de não 
 28. **GPS antes do escopo:** um pedido feito sem escopo pode ser respondido antes de o escopo hidratar. A hidratação repõe a preferência, e o marcador pode sumir até o próximo toque.
 29. **Refresh de ícones em voo no logout:** um refresh de A em andamento termina depois e regrava em `cli:A`. São dados de A, e a chave é por tenant.
 30. **Preferências só no aparelho** (localStorage, D-PROD-135). Sincronizar entre aparelhos exigiria gravar no servidor.
-
-### Governança
-31. **Renumeração nos comentários.** Trocar "D-PROD-136" por "D-PROD-137" nos 64 arquivos tocados pela missão. É mudança de código, fora desta frente de documentação.
 
 ## 10. Revisão adversarial
 

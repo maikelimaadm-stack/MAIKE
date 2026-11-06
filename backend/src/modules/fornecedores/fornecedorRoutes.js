@@ -36,7 +36,7 @@ const LISTAR_SCHEMA = {
 
 /** @param {import('fastify').FastifyInstance} app */
 export const registrarFornecedorRoutes = async (app) => {
-  // D-PROD-136 (GET-04): o único consumidor é o seletor de fornecedor do
+  // D-PROD-137 (GET-04): o único consumidor é o seletor de fornecedor do
   // Cadastro de Lotes (FormularioLote); o Mapa Geral não lê fornecedores. Acesso
   // total passa dentro de `porQualquer`. A projeção (sem PII) fica no service.
   app.get('/fornecedores', { onRequest: [app.autenticar], preHandler: [porQualquer([TELAS.LOTES, 'visualizar'])], schema: LISTAR_SCHEMA }, async (request) => {

@@ -1,5 +1,5 @@
 /**
- * Renomeação de produto nos dependentes que só guardam o NOME (D-PROD-136).
+ * Renomeação de produto nos dependentes que só guardam o NOME (D-PROD-137).
  *
  * `PontoSuplementacao.produto_padrao` (o lançamento de suplementação pré-seleciona
  * o produto por esse nome) e `ManejoTecnicoRebanho.dados.produto/produto_utilizado`

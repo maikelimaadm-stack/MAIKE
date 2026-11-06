@@ -104,7 +104,7 @@ export const BACKEND_ONLY_CODES = Object.freeze({
     http: 409,
     meaning: 'já existe empresa com este nome neste tenant',
   },
-  // D-PROD-136 (EMP-01): a maioria dos models guarda `empresa_id` sem FK; excluir
+  // D-PROD-137 (EMP-01): a maioria dos models guarda `empresa_id` sem FK; excluir
   // a empresa deixava setores, áreas, cochos, produtos, tarefas e lotes órfãos.
   // `details.vinculos = [{ entidade, total }]`; nada é apagado.
   EMPRESA_COM_VINCULOS: {
@@ -187,7 +187,7 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   MOVIMENTACAOMAPA_NOT_FOUND: { http: 404, meaning: 'id não identifica movimentação do mapa deste tenant' },
   MOVIMENTACAOPECUARIA_NOT_FOUND: { http: 404, meaning: 'id não identifica movimentação pecuária deste tenant' },
   SUPLEMENTACAOLOTE_NOT_FOUND: { http: 404, meaning: 'id não identifica lote de suplementação deste tenant' },
-  // D-PROD-136 (BEB-02/BEB-03): os services de bebedouro já lançavam estes
+  // D-PROD-137 (BEB-02/BEB-03): os services de bebedouro já lançavam estes
   // códigos, mas fora do catálogo eles viravam 500 ("erro interno").
   BEBEDOURO_NOT_FOUND: { http: 404, meaning: 'id não identifica bebedouro deste tenant (e desta empresa, no histórico)' },
   BEBEDOUROHISTORICO_NOT_FOUND: { http: 404, meaning: 'id não identifica lançamento de bebedouro deste tenant' },

@@ -68,7 +68,7 @@ const ROTULO_VINCULO = Object.freeze({
 });
 
 /**
- * D-PROD-136 (EMP-01): o servidor recusa (409 `EMPRESA_COM_VINCULOS`) a exclusão
+ * D-PROD-137 (EMP-01): o servidor recusa (409 `EMPRESA_COM_VINCULOS`) a exclusão
  * de empresa com registros e diz quantos, por cadastro. Frase para a tela; null
  * quando o erro é outro.
  * @param {unknown} erro

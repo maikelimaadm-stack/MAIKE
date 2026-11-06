@@ -139,7 +139,7 @@ export const API_ERROR_CODES = Object.freeze({
   IDEMPOTENCY_CONFLICT: 'IDEMPOTENCY_CONFLICT',
   IDEMPOTENCY_IN_PROGRESS: 'IDEMPOTENCY_IN_PROGRESS',
   EMPRESA_NOT_FOUND: 'EMPRESA_NOT_FOUND',
-  // D-PROD-136 (EMP-01) — exclusão de empresa recusada: há registros dela
+  // D-PROD-137 (EMP-01) — exclusão de empresa recusada: há registros dela
   // (`details.vinculos`). A tela Empresa mostra o bloqueio; nada foi apagado.
   EMPRESA_COM_VINCULOS: 'EMPRESA_COM_VINCULOS',
 });

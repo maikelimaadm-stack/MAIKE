@@ -20,7 +20,7 @@ const formatMoney = (value) => value ? `R$ ${Number(value).toLocaleString("pt-BR
 /**
  * Linha do tempo do bebedouro. Só o lançamento mais recente (índice 0, a mesma
  * ordem do servidor) é excluível — o servidor recusa os demais (409).
- * D-PROD-136 (BEB-01): "Excluir" só com `podeExcluir` (a regra do servidor,
+ * D-PROD-137 (BEB-01): "Excluir" só com `podeExcluir` (a regra do servidor,
  * calculada por quem monta; padrão `false`) e a recusa do servidor vira
  * mensagem — antes a rejeição ficava sem tratamento e o botão travado.
  *

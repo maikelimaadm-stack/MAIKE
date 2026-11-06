@@ -252,7 +252,7 @@ export const atualizar = async (contexto, id, entrada) => {
     );
     // Cochos e manejos só guardam o NOME do produto: acompanham a renomeação
     // aqui, com o nome antigo do banco e na mesma transação — não pelo
-    // /referencias/sincronizar, que não aceita mais nome do corpo (D-PROD-136).
+    // /referencias/sincronizar, que não aceita mais nome do corpo (D-PROD-137).
     await registrarPropagacao(contexto, 'Produto', id, await propagarRenomeacaoDeProduto(tx, auth.clienteId, anterior, registro), tx);
     return publico;
   });

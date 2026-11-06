@@ -28,7 +28,7 @@ export const listar = async (contexto, filtro = {}) => {
 };
 
 /**
- * D-PROD-136 (F8) — o produto só anexa em Lote (`ENTIDADES_COM_ANEXO = ['Lote']`,
+ * D-PROD-137 (F8) — o produto só anexa em Lote (`ENTIDADES_COM_ANEXO = ['Lote']`,
  * dialog do Cadastro de Lotes). A guarda da rota aceita a tela de Lotes; aqui o
  * ESCOPO: sem acesso total, só entidade 'Lote' (antes: qualquer `entidade`,
  * inclusive tarefa/empresa). Outras entidades seguem só com acesso total.

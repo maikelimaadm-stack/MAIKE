@@ -125,7 +125,7 @@ export const calcularAlocacoesDoPeriodo = async ({ evento, diasPeriodo, consumoT
 };
 
 /**
- * Calcula o fechamento do período SEM gravar nada (D-PROD-136, SUP-01).
+ * Calcula o fechamento do período SEM gravar nada (D-PROD-137, SUP-01).
  *
  * Só leituras (lotes do período, lotes, movimentações) e a aritmética pura de
  * `consumoUtils`. Quem fecha o consumo ao MOVER o gado prepara aqui e grava com

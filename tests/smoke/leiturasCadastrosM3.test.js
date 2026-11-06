@@ -1,5 +1,5 @@
 /**
- * D-PROD-136 (frente M3) — consumidores do contrato novo das leituras.
+ * D-PROD-137 (frente M3) — consumidores do contrato novo das leituras.
  *
  *  GET-05  o formulário de tarefa lista quem o SERVIDOR diz ser responsável
  *          (`responsavel_elegivel`); com a concessão is_admin antes só listava

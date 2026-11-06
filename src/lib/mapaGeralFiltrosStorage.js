@@ -124,7 +124,7 @@ export const CAMPOS_DO_PAINEL_FILTROS = Object.freeze([
 ]);
 
 /**
- * Preferência APLICADA ao mapa (D-PROD-136, PREF-02). Sem a permissão do painel
+ * Preferência APLICADA ao mapa (D-PROD-137, PREF-02). Sem a permissão do painel
  * que edita um campo, o usuário não vê nem desfaz o que salvou: o mapa mostra
  * o PADRÃO nesse campo. A preferência guardada não muda — volta a valer quando
  * a permissão voltar (mesma regra de `camadasVisiveis`).

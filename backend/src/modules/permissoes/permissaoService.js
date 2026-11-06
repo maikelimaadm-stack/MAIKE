@@ -38,7 +38,7 @@ export const listar = async (contexto, filtros = {}) => {
   const [registros, aut] = await Promise.all([listarRegistros(auth.clienteId), carregarAutorizacao(contexto)]);
   if (aut.adminReal) return registros.map(comoPublico);
   const propria = (r) => r.user_email === auth.login;
-  // D-PROD-136 (USR-01): sem acesso total ninguém abre tarefas — basta a PRÓPRIA
+  // D-PROD-137 (USR-01): sem acesso total ninguém abre tarefas — basta a PRÓPRIA
   // linha (menu/mapa; `carregarPermissaoEfetiva`). Antes `user_email` (= login,
   // a credencial) e o nome de todos os colegas saíam para quem só vê o mapa.
   if (!acessoTotal(aut)) return registros.filter(propria).map(comoPublico);
@@ -51,7 +51,7 @@ export const listar = async (contexto, filtros = {}) => {
 };
 
 /**
- * Só colunas da Permissao (D-PROD-136): relação, chave desconhecida ou
+ * Só colunas da Permissao (D-PROD-137): relação, chave desconhecida ou
  * `cliente_id` → 400; identidade e carimbos do servidor são descartados.
  * @param {Record<string, unknown>} entrada
  */

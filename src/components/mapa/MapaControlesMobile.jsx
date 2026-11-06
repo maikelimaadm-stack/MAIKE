@@ -21,7 +21,7 @@ export default function MapaControlesMobile({
   onOpenTarefas, onOpenFiltros,
   showTarefasButton = true,
   showFiltrosButton = true,
-  // Fecha por padrão (D-PROD-136, PREF-04): sem a permissão, Mover só mudaria
+  // Fecha por padrão (D-PROD-137, PREF-04): sem a permissão, Mover só mudaria
   // uma preferência gravada sem efeito e Localizar ligaria uma camada proibida.
   showLocalizarButton = false,
   showMoverButton = false,

@@ -185,7 +185,7 @@ describe('cache do mapa — leitura e escrita', () => {
     expect(itens).toEqual([areaDa('depois')]);
   });
 
-  // Contrato novo (D-PROD-136, GET-06): ícones e permissões deixaram de usar a
+  // Contrato novo (D-PROD-137, GET-06): ícones e permissões deixaram de usar a
   // chave global — são do TENANT (`cli:<tenant>`; ver mapaCacheIconesTenant.test.js).
   // Dado de EMPRESA sem empresa continua na chave global, como antes.
   it('C11 — empresa ausente usa a chave global (dado de empresa)', async () => {
@@ -202,7 +202,7 @@ describe('cache do mapa — leitura e escrita', () => {
   });
 
   it('C13 — warmMapaCache cobre todas as chaves', async () => {
-    // D-PROD-136 (GET-06): dado do tenant vai para a chave do tenant da sessão.
+    // D-PROD-137 (GET-06): dado do tenant vai para a chave do tenant da sessão.
     setOfflineTenant('tenant-1');
     try {
       await warmMapaCache(EMPRESA);

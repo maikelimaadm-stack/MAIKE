@@ -27,7 +27,7 @@ const getPeriodDays = (periodicidade, personalizado) => {
 const normalizeText = (value) => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
 
 /**
- * D-PROD-136 (BEB-01/BEB-03/BEB-04): "Lançar" e "Excluir" seguem a regra do
+ * D-PROD-137 (BEB-01/BEB-03/BEB-04): "Lançar" e "Excluir" seguem a regra do
  * servidor, calculada por quem monta o componente (`src/lib/bebedouroPermissions.js`)
  * — padrão `false`, o lado seguro: quem esquecer de passar não oferece ação
  * que o servidor recusaria. Esses botões ficam fora da heurística de texto do

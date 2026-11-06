@@ -1,5 +1,5 @@
 /**
- * D-PROD-136 (frente M4b) — preferências do Mapa Geral × permissão, com o
+ * D-PROD-137 (frente M4b) — preferências do Mapa Geral × permissão, com o
  * MapaGeral REAL montado. Mocks só de rede (cache do mapa, serviços de dados),
  * de sessão (AuthContext, sessionService) e do mapa (instância MapLibre falsa,
  * renderer e camada de base). O que o mapa DESENHA é lido das chamadas

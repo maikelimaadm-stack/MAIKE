@@ -169,7 +169,7 @@ export const restaurarSessaoNativaAtual = () => restaurarSessaoNativa();
  * Só local: o JWT da P3 é stateless e não há sessão a invalidar no servidor.
  * Também limpa o usuário offline, que é cache de tela e não pode sobreviver a
  * uma troca de usuário na mesma máquina — e, pelo mesmo motivo, o cache
- * offline do mapa que é do tenant (ícones; D-PROD-136, GET-06).
+ * offline do mapa que é do tenant (ícones; D-PROD-137, GET-06).
  */
 export const sairDaSessaoNativa = () => {
   // Lido ANTES do descarte: `logoutNativo` apaga o marcador do tenant.

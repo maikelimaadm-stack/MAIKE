@@ -30,7 +30,7 @@ export const listarUsuarios = async (clienteId) => {
 };
 
 /**
- * D-PROD-136 (GET-05) — a parte da Permissão de cada conta que decide se ela
+ * D-PROD-137 (GET-05) — a parte da Permissão de cada conta que decide se ela
  * pode ser RESPONSÁVEL de tarefa. Só para o servidor calcular um booleano: a
  * matriz alheia nunca sai na resposta (PR145-R4).
  * @param {string} clienteId

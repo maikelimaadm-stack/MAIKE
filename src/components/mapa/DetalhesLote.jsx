@@ -311,7 +311,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
           throw Object.assign(new Error('ledger'), { mensagemTela: mensagemDaTransferenciaLedger(erro) });
         }
         const avisosFechamento = [];
-        // D-PROD-136 (SUP-01): o fechamento do consumo da ORIGEM, calculado no
+        // D-PROD-137 (SUP-01): o fechamento do consumo da ORIGEM, calculado no
         // passo do consumo, só é gravado agora — com a transferência confirmada
         // (recusa, cancelamento e offline não deixam período fechado sem o gado
         // ter saído). Também no replay: nesta abertura do diálogo ele só roda

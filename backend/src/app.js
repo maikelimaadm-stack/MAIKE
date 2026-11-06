@@ -116,7 +116,7 @@ export const construirApp = async (opcoes = {}) => {
    * `cliente_id` (no topo ou em item de lista) é recusado com 400
    * REQUEST_VALIDATION_FAILED — o mesmo contrato das rotas com schema fechado.
    *
-   * D-PROD-136: também a RELAÇÃO `cliente` (todo model tenant-scoped a tem).
+   * D-PROD-137: também a RELAÇÃO `cliente` (todo model tenant-scoped a tem).
    * `{ cliente: { connect | update } }` era escrita aninhada do Prisma: movia o
    * registro de tenant, desativava a fazenda ou promovia contas. A allowlist de
    * colunas (shared/prisma/colunasGravaveis.js) cobre as demais relações nos

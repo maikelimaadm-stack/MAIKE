@@ -3,7 +3,7 @@
  *
  * GET/POST/PATCH autenticados. `GET /usuarios` (lista completa) fica como
  * compatibilidade para Permissões/Mapa — com projeção por quem pede
- * (D-PROD-136); a tela Usuários usa `GET /usuarios/page` (keyset
+ * (D-PROD-137); a tela Usuários usa `GET /usuarios/page` (keyset
  * `createdAt DESC, id DESC`, SCALE-01), só do administrador real.
  * Sem DELETE — desativar com `ativo: false`.
  * `senha_hash` nunca entra nem sai; criação usa `senha`, edição usa `nova_senha`.
@@ -75,7 +75,7 @@ export const registrarUsuarioRoutes = async (app) => {
     return listar(request.contexto);
   });
 
-  // D-PROD-136 (GET-02): o único chamador é a tela Usuários (só do administrador
+  // D-PROD-137 (GET-02): o único chamador é a tela Usuários (só do administrador
   // real); a busca por login/nome e as contas desativadas são dado administrativo.
   app.get(
     '/usuarios/page',

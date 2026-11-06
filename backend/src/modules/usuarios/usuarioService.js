@@ -66,7 +66,7 @@ const mapeadorPara = async (contexto) =>
 const TELA_TAREFAS = Object.freeze({ modulo: 'gestao-tarefas', tela: 'gt-lancamentos' });
 
 /**
- * D-PROD-136 (GET-05) — pode ser responsável de tarefa: conta ATIVA que abre
+ * D-PROD-137 (GET-05) — pode ser responsável de tarefa: conta ATIVA que abre
  * tarefas — administrador real (com ou sem linha de Permissão), concessão
  * `is_admin` ou a tela de tarefas. Calculado POR CONTA no servidor, com a mesma
  * avaliação de tela do resto da autorização (`telaPermite`); antes o formulário
@@ -83,7 +83,7 @@ const elegivelResponsavel = (usuario, permissaoPorLogin) => {
 };
 
 /**
- * `GET /usuarios` — D-PROD-136 (GET-02/USR-01/GET-05). Projeção por quem pede:
+ * `GET /usuarios` — D-PROD-137 (GET-02/USR-01/GET-05). Projeção por quem pede:
  *  - administrador real → todas as contas (inativas também), com papel e datas
  *    (telas Usuários/Permissões) + `responsavel_elegivel`;
  *  - acesso total (`is_admin`, quem abre e grava tarefas) → só contas ATIVAS,

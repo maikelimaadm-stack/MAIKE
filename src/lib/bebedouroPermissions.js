@@ -1,7 +1,7 @@
 /**
  * Quem pode lançar e excluir no histórico do bebedouro — espelho EXATO de
  * `GUARDAS.bebedouroHistorico` (backend/src/shared/auth/guardasRotas.js),
- * D-PROD-136 (BEB-01/BEB-04).
+ * D-PROD-137 (BEB-01/BEB-04).
  *
  * Antes, o Mapa Geral mostrava "Lançar" e "Excluir" a qualquer operador e o
  * servidor respondia 403; na tela Bebedouros a heurística do Layout lia o texto

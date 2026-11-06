@@ -119,7 +119,7 @@ describe('MG5/MG6 — origem do dado das queries do mapa', () => {
     expect(trecho).toMatch(/\.catch\(\(\) => \{\}\)/);
   });
 
-  // Contrato novo (D-PROD-136, GET-06): a tela não escolhe mais a chave global
+  // Contrato novo (D-PROD-137, GET-06): a tela não escolhe mais a chave global
   // para ícones/permissões (eram do tenant e ficavam sem dono); passa a empresa
   // e o mapaCacheService resolve o dono (tenant da sessão) — testado em
   // mapaCacheIconesTenant.test.js.

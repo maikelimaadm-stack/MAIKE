@@ -182,7 +182,7 @@ describe('própria conta e tenant no corpo', () => {
     assert.equal(await prisma().permissao.count({ where: { cliente_id: b.adm.cliente.id } }), 0);
   });
 
-  // D-PROD-136 (USR-01/GET-02) — contrato NOVO: sem acesso total o comum recebe
+  // D-PROD-137 (USR-01/GET-02) — contrato NOVO: sem acesso total o comum recebe
   // só a PRÓPRIA linha e a PRÓPRIA conta (antes: login e nome de todos os
   // colegas, sem tela que os use). Com a concessão is_admin (quem abre tarefas),
   // das outras linhas segue só o nome — nunca a matriz alheia (PR145-R4).

@@ -284,7 +284,7 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
   };
 
   /**
-   * D-PROD-136 (SUP-01): o passo do consumo só CALCULA o fechamento (sobra,
+   * D-PROD-137 (SUP-01): o passo do consumo só CALCULA o fechamento (sobra,
    * dias, rateio por lote) — nada é gravado aqui. O fechamento vai junto da
    * movimentação (`fechamentos_consumo`) e o DetalhesLote grava depois de o
    * servidor confirmar a transferência. Antes ele era gravado aqui, primeiro:

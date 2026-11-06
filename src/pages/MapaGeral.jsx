@@ -69,7 +69,7 @@ export default function MapaGeral() {
   const [userLocation, setUserLocation] = useState(null);
 
   // Filtros avançados — preferência (pref*); o valor aplicado é derivado abaixo
-  // (`preferenciaAplicada`), conforme a permissão do painel (D-PROD-136).
+  // (`preferenciaAplicada`), conforme a permissão do painel (D-PROD-137).
   const [prefFiltroCategoria, setFiltroCategoria] = useState('todas');
   const [prefFiltroIdentificador, setFiltroIdentificador] = useState('todos');
   const [prefFiltroStatus, setFiltroStatus] = useState('todos');
@@ -184,7 +184,7 @@ export default function MapaGeral() {
     );
   }, [acessoTotalTelas, permissaoAtual]);
 
-  // D-PROD-136 (BEB-01): o histórico do bebedouro não tem chave própria do
+  // D-PROD-137 (BEB-01): o histórico do bebedouro não tem chave própria do
   // mapa; o servidor exige concessões de TELA (GUARDAS.bebedouroHistorico).
   // O diálogo só oferece o que essa mesma regra libera.
   const podeLancarBebedouro = useMemo(
@@ -224,7 +224,7 @@ export default function MapaGeral() {
   }, [clienteFiltros, loginAtual, empresaSelecionadaId]);
   const [filtrosCarregados, setFiltrosCarregados] = useState(null);
   // Escopo e permissão no momento em que uma resposta assíncrona chega (GPS):
-  // a resposta só vale para o escopo em que foi pedida (D-PROD-136, PREF-07).
+  // a resposta só vale para o escopo em que foi pedida (D-PROD-137, PREF-07).
   const escopoChaveRef = useRef(/** @type {string|null} */ (null));
   escopoChaveRef.current = escopoFiltros?.chave ?? null;
   const podeLocalizarRef = useRef(false);
@@ -232,7 +232,7 @@ export default function MapaGeral() {
 
   // Sem "Ver filtros e camadas" não há painel para ver nem desfazer o que foi
   // salvo: o mapa mostra o PADRÃO nesses campos, e a preferência fica guardada,
-  // intacta, para quando a permissão voltar (D-PROD-136, PREF-02). Colorir
+  // intacta, para quando a permissão voltar (D-PROD-137, PREF-02). Colorir
   // também exige ver as áreas (é o mesmo `podeColorir` do painel Visualização).
   const podeFiltrar = mapaGeralPermissions.visualizar_filtros_camadas === true;
   const podeColorir = podeFiltrar && mapaGeralPermissions.visualizar_areas === true;
@@ -333,7 +333,7 @@ export default function MapaGeral() {
     queryKey: ['mapa-cache', cacheKey, empresaSelecionadaId, options.enabledKey || 'default'],
     queryFn: async () => {
       // Ícones e permissões são do TENANT: o mapaCacheService troca a empresa
-      // pelo tenant da sessão (antes iam para `__GLOBAL__`, sem dono; D-PROD-136).
+      // pelo tenant da sessão (antes iam para `__GLOBAL__`, sem dono; D-PROD-137).
       const cacheEmpresa = empresaSelecionadaId;
       const cached = await getMapaCachedData(cacheKey, cacheEmpresa);
 
@@ -668,7 +668,7 @@ export default function MapaGeral() {
     const persistView = () => {
       // Antes de a vista da empresa ATUAL ser restaurada ou enquadrada, o mapa
       // ainda mostra a anterior (troca de empresa não remonta a página): um
-      // moveend nessa janela gravaria a fazenda errada nesta chave (D-PROD-136, PREF-06).
+      // moveend nessa janela gravaria a fazenda errada nesta chave (D-PROD-137, PREF-06).
       if (!firstFitDoneRef.current) return;
       const center = map.getCenter();
       if (!center) return;
@@ -878,7 +878,7 @@ export default function MapaGeral() {
 
   // Permissão e escopo lidos por ref na hora do toque E na hora da resposta: o
   // GPS responde segundos depois, e nesse meio a empresa pode ter mudado ou a
-  // permissão ter caído (D-PROD-136, PREF-04/PREF-07).
+  // permissão ter caído (D-PROD-137, PREF-04/PREF-07).
   const handleLocate = useCallback(() => {
     if (!podeLocalizarRef.current || !navigator.geolocation) return;
     const escopoDoPedido = escopoChaveRef.current;
