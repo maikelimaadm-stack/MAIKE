@@ -228,6 +228,22 @@ Nada do catálogo foi movido ou duplicado nesta missão.
 
 ## 9. Integração com o main pós-PR #211 (S03-R2)
 
+- **Resultado do `verify:all` na combinação (`main` 157ef2a0 + S03-R2):**
+  - backend 1054/1059 (5 todo, 0 falhas);
+  - telas: 1557/1558.
+- **Única falha:** `tests/smoke/appShell.test.jsx` › SHELL2b. Ela é **herdada do `main`**: o CI `quality` de `157ef2a0` já está vermelho (run 42243418074) e a falha reproduz idêntica num worktree do `main` puro.
+  - **Causa:** a #211 trocou `DialogContent`/`SheetContent` em `MapaGeral.jsx` por `LancLoteDialogo`, e o teste ainda procura os nomes antigos.
+  - **Fora do escopo S03:** não foi corrigida aqui. Há uma proposta de patch no comentário da PR #215.
+- **E2E na combinação** (backend local + build do admin, banco descartável):
+  - **ficha obsoleta em duas abas:** a aba 2 salva, a aba 1 recebe "alterado em outra sessão e nada foi salvo" (`s03-9-ficha-obsoleta.png`);
+  - **cadastro incerto:** sem senha na tela, sem afirmar causalidade, 1 único POST;
+  - **demais itens:** a semântica do token e o 390 px seguem como antes.
+- **Varredura de segredos depois do E2E:**
+  - log da API: 0 hashes bcrypt. O único trecho com formato de senha era parte de um `request_id` (UUID), um falso positivo;
+  - `EventoSegurancaAdminMaike`: 0 eventos com senha ou hash, nas ações `cliente_*`;
+  - URL e storage sem senha;
+  - captura do painel de senha não versionada.
+
 - O `main` foi integrado à mesma branch por **merge normal** (sem rebase nem force-push), e a combinação foi validada com `verify:all` completo, localmente e no CI. Os SHAs estão no relatório da missão e na PR #215.
 - Não havia arquivos em comum com a #211. `src/App.jsx` e `DECISIONS.md` não foram tocados pela #215.
 
