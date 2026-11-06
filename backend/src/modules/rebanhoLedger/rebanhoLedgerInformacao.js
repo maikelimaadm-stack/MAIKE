@@ -45,6 +45,8 @@ export const CAMPOS_INFORMACAO_POSICAO = Object.freeze(['nome', 'identificador_n
 const EM_MAIUSCULAS = new Set(['identificador_nome', 'identificador_sigla']);
 /** Controle (inclui NUL, que o PostgreSQL recusa em texto) — mesmo critério dos anexos. */
 const CONTROLE = /[\u0000-\u001F\u007F]/;
+/** Surrogate isolado (texto UTF-16 mal formado, que o PostgreSQL recusa). */
+const SURROGATE_ISOLADO = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/;
 
 /**
  * Normaliza: texto aparado; identificador em maiúsculas; nos opcionais, vazio
@@ -57,7 +59,7 @@ const normalizar = (entrada) => {
   for (const campo of CAMPOS_INFORMACAO_POSICAO) {
     if (!Object.prototype.hasOwnProperty.call(entrada, campo)) continue;
     const bruto = entrada[campo];
-    if (typeof bruto === 'string' && (CONTROLE.test(bruto) || !bruto.isWellFormed())) {
+    if (typeof bruto === 'string' && (CONTROLE.test(bruto) || SURROGATE_ISOLADO.test(bruto))) {
       throw invalido(`${campo} tem caractere inválido`, { field: campo, reason: 'caractere_invalido' });
     }
     const aparado = typeof bruto === 'string' ? bruto.trim() : null;
@@ -73,7 +75,7 @@ const normalizar = (entrada) => {
 };
 
 /**
- * @param {{requestId?: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto
+ * @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto
  * @param {string} posicaoId
  * @param {Record<string, unknown>} entrada corpo já validado pelo schema estrito da rota
  */
