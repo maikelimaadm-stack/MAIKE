@@ -707,10 +707,16 @@
   font-size: 12px;
 }
 
+/* Celular: três campos por linha (D-PROD-144). */
 .mk-dl__infos {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 6px 6px;
+}
+
+/* Curral: só dois campos, seguem em duas colunas */
+.mk-dl__infos--2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 @media (min-width: 640px) {
@@ -768,9 +774,10 @@
   color: #64748b;
 }
 
+/* Negritos (valores e títulos) num preto mais claro e suave. */
 .mk-dl__valor {
   font-weight: 600;
-  color: #1f2937;
+  color: #374151;
 }
 
 .mk-dl__cor {
@@ -797,7 +804,7 @@
   min-width: 0;
   max-width: 100%;
   padding: 2px 0;
-  color: #1f2937;
+  color: #374151;
   font-size: 11.5px;
   font-weight: 700;
   letter-spacing: 0.01em;
@@ -844,7 +851,7 @@
 }
 
 .mk-dl__chip strong {
-  color: #1f2937;
+  color: #374151;
   font-weight: 600;
 }
 
