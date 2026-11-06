@@ -5,6 +5,8 @@ import { getPrismaClient } from '../../database/prismaClient.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { AppError } from '../../shared/errors/AppError.js';
 import { registrarEvento } from '../auditoria/auditService.js';
+import { exigirSomenteColunasGravaveis } from '../../shared/prisma/colunasGravaveis.js';
+import { atorDoTenant, ehAdminTenantAtivo, tenantAdminRequired } from '../../shared/auth/exigirAdminTenant.js';
 import {
   listarRegistros,
   buscarRegistro,
@@ -49,7 +51,7 @@ export const criar = async (contexto, entrada) => {
   const prisma = getPrismaClient();
   const criado = await prisma.$transaction(async (tx) => {
     /** @type {Record<string, unknown>} */
-    const dados = { ...entrada, cliente_id: auth.clienteId };
+    const dados = { ...exigirSomenteColunasGravaveis('EstoqueLoteNota', entrada), cliente_id: auth.clienteId };
 
     const registro = await inserirRegistro(tx, dados);
     await registrarEvento(
@@ -62,13 +64,46 @@ export const criar = async (contexto, entrada) => {
   return comoPublico(criado);
 };
 
+/**
+ * D-PROD-136 (F5/F7). O lote de nota compõe saldo e custo FIFO do depósito; o
+ * POST e o estorno são só do administrador real. Por isso o PATCH:
+ *  - aceita de QUALQUER conta só `local_estoque_nome` — a renomeação do depósito
+ *    (FormularioPonto) propaga o nome DEPOIS de renomear o LocalEstoque;
+ *  - qualquer outra coluna (quantidade, custo, status...) só do administrador
+ *    real, relido no banco dentro da transação; a concessão is_admin não basta;
+ *  - o nome é conferido contra o LocalEstoque vinculado (local_estoque_id) no
+ *    mesmo tenant, para todos — admin inclusive (mesma regra do
+ *    MovimentacaoEstoque). Relação ou chave desconhecida → 400.
+ */
+export const CAMPOS_PATCH_DE_QUALQUER_CONTA = Object.freeze(['local_estoque_nome']);
+
 export const atualizar = async (contexto, id, entrada) => {
   const auth = exigirAuthContext(contexto?.auth);
   const prisma = getPrismaClient();
   const atualizado = await prisma.$transaction(async (tx) => {
     const existente = await buscarRegistro(auth.clienteId, id, tx);
     if (!existente) throw erroNaoEncontrado();
-    const registro = await atualizarRegistroPorId(tx, auth.clienteId, id, { ...entrada });
+    const patch = exigirSomenteColunasGravaveis('EstoqueLoteNota', entrada);
+    const restritos = Object.keys(patch).filter((campo) => {
+      if (CAMPOS_PATCH_DE_QUALQUER_CONTA.includes(campo)) return false;
+      // clientes antigos reenviam a empresa atual
+      return !(campo === 'empresa_id' && patch.empresa_id === existente.empresa_id);
+    });
+    if (restritos.length && !ehAdminTenantAtivo(await atorDoTenant(contexto, tx))) throw tenantAdminRequired();
+    if (Object.prototype.hasOwnProperty.call(patch, 'local_estoque_nome')) {
+      const nome = typeof patch.local_estoque_nome === 'string' ? patch.local_estoque_nome.trim() : '';
+      const localId = Object.prototype.hasOwnProperty.call(patch, 'local_estoque_id') ? patch.local_estoque_id : existente.local_estoque_id;
+      const local = typeof localId === 'string' && localId
+        ? await tx.localEstoque.findUnique({ where: { cliente_id_id: { cliente_id: auth.clienteId, id: localId } }, select: { nome: true } })
+        : null;
+      if (!local || !nome || local.nome !== nome) {
+        throw new AppError('NOME_LOCAL_DIVERGENTE', 'nome não corresponde ao local vinculado ao lote de nota', {
+          details: { field: 'local_estoque_nome' },
+        });
+      }
+      patch.local_estoque_nome = nome;
+    }
+    const registro = await atualizarRegistroPorId(tx, auth.clienteId, id, patch);
     await registrarEvento(
       contexto,
       {

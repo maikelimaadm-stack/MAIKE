@@ -5,6 +5,7 @@ import { getPrismaClient } from '../../database/prismaClient.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { AppError } from '../../shared/errors/AppError.js';
 import { registrarEvento } from '../auditoria/auditService.js';
+import { exigirSomenteColunasGravaveis } from '../../shared/prisma/colunasGravaveis.js';
 import {
   listarRegistros,
   buscarRegistro,
@@ -41,7 +42,7 @@ export const criar = async (contexto, entrada) => {
   const prisma = getPrismaClient();
   const criado = await prisma.$transaction(async (tx) => {
     /** @type {Record<string, unknown>} */
-    const dados = { ...entrada, cliente_id: auth.clienteId };
+    const dados = { ...exigirSomenteColunasGravaveis('Bebedouro', entrada), cliente_id: auth.clienteId };
 
     const registro = await inserirRegistro(tx, dados);
     await registrarEvento(
@@ -60,7 +61,7 @@ export const atualizar = async (contexto, id, entrada) => {
   const atualizado = await prisma.$transaction(async (tx) => {
     const existente = await buscarRegistro(auth.clienteId, id, tx);
     if (!existente) throw erroNaoEncontrado();
-    const registro = await atualizarRegistroPorId(tx, auth.clienteId, id, { ...entrada });
+    const registro = await atualizarRegistroPorId(tx, auth.clienteId, id, exigirSomenteColunasGravaveis('Bebedouro', entrada));
     await registrarEvento(
       contexto,
       {
