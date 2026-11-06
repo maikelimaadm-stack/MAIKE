@@ -142,7 +142,7 @@ export const RAZOES_DE_SESSAO_DO_PRODUTO = RAZOES_DE_SESSAO;
  * os casos na tela desfaria a proteção contra enumeração que o `authService`
  * construiu com hash descartável e tempo constante.
  *
- * @param {{login: string, senha: string}} credenciais
+ * @param {{login: string, senha: string, lembrar?: boolean}} credenciais
  * @returns {Promise<{usuario: object, clienteId: string}>}
  */
 export const entrarComSessaoNativa = (credenciais) => loginNativo(credenciais);

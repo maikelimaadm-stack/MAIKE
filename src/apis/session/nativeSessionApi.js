@@ -109,7 +109,7 @@ const descartarSessaoLocal = () => {
  * Falha em qualquer ponto limpa o token: sessão pela metade é pior que sessão
  * ausente, porque a tela acha que está dentro.
  *
- * @param {{login: string, senha: string}} credenciais
+ * @param {{login: string, senha: string, lembrar?: boolean}} credenciais
  * @returns {Promise<{usuario: object, clienteId: string}>}
  */
 export const login = async (credenciais) => {

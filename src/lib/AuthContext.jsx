@@ -74,7 +74,7 @@ export const ESTADOS_DE_SESSAO = Object.freeze({
  *   sessionValidationError: string|null,
  *   authError: ErroDeAutenticacao|null,
  *   appPublicSettings: object|null,
- *   entrar: (credenciais: {login: string, senha: string}) => Promise<object>,
+ *   entrar: (credenciais: {login: string, senha: string, lembrar?: boolean}) => Promise<object>,
  *   logout: () => void,
  *   revalidarSessao: () => Promise<void>,
  *   recarregarConfiguracoes: () => Promise<void>,
@@ -206,7 +206,7 @@ export const AuthProvider = ({ children }) => {
    * Repassa o erro em vez de engoli-lo: quem chama é o formulário, e é ele que
    * sabe transformar `ApiError` em texto na tela.
    *
-   * @param {{login: string, senha: string}} credenciais
+   * @param {{login: string, senha: string, lembrar?: boolean}} credenciais
    */
   const entrar = useCallback(async (credenciais) => {
     const sessao = await entrarComSessaoNativa(credenciais);
