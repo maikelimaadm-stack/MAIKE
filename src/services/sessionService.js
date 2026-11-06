@@ -35,6 +35,8 @@ import {
 } from '@/apis/session';
 import { ApiError, API_ERROR_CODES } from '@/apis/_core/ApiError';
 import { normalizePermissionRecord } from '@/lib/permissions';
+import { getOfflineTenant } from '@/lib/offline/offlineTenant';
+import { esquecerCacheDoTenant } from '@/services/mapaCacheService';
 
 const OFFLINE_USER_KEY = 'offline_current_user';
 
@@ -166,9 +168,12 @@ export const restaurarSessaoNativaAtual = () => restaurarSessaoNativa();
  *
  * Só local: o JWT da P3 é stateless e não há sessão a invalidar no servidor.
  * Também limpa o usuário offline, que é cache de tela e não pode sobreviver a
- * uma troca de usuário na mesma máquina.
+ * uma troca de usuário na mesma máquina — e, pelo mesmo motivo, o cache
+ * offline do mapa que é do tenant (ícones; D-PROD-137, GET-06).
  */
 export const sairDaSessaoNativa = () => {
+  // Lido ANTES do descarte: `logoutNativo` apaga o marcador do tenant.
+  const tenantQueSai = getOfflineTenant();
   logoutNativo();
   try {
     localStorage.removeItem(OFFLINE_USER_KEY);
@@ -176,6 +181,8 @@ export const sairDaSessaoNativa = () => {
   } catch {
     // Cache local indisponível não impede o logout: o token já saiu.
   }
+  // IndexedDB é assíncrono e pode faltar: o logout não espera nem falha por isso.
+  esquecerCacheDoTenant(tenantQueSai).catch(() => {});
 };
 
 /** Permissão do usuário informado, ou `null`. */

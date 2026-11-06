@@ -30,6 +30,18 @@ export const listarUsuarios = async (clienteId) => {
 };
 
 /**
+ * D-PROD-137 (GET-05) — a parte da Permissão de cada conta que decide se ela
+ * pode ser RESPONSÁVEL de tarefa. Só para o servidor calcular um booleano: a
+ * matriz alheia nunca sai na resposta (PR145-R4).
+ * @param {string} clienteId
+ */
+export const listarPermissoesParaElegibilidade = async (clienteId) =>
+  getPrismaClient().permissao.findMany({
+    where: { cliente_id: clienteId },
+    select: { user_email: true, is_admin: true, modulos_permitidos: true, permissoes_telas: true },
+  });
+
+/**
  * Prisma `contains` vira `ILIKE '%valor%'` sem escapar curingas: `q=%` casaria
  * tudo e `q=_` qualquer caractere. Escapa `\\`, `%` e `_` (ESCAPE padrão do
  * PostgreSQL é a barra invertida) para a busca ser literal.

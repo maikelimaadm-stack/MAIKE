@@ -60,6 +60,7 @@ const {
   __resetMapaCachePolicy,
 } = await import('@/services/mapaCacheService');
 const { ApiError, API_ERROR_CODES } = await import('@/apis/_core/ApiError');
+const { setOfflineTenant, clearOfflineTenant } = await import('@/lib/offline/offlineTenant');
 
 const EMPRESA = 'empresa-1';
 const areaDa = (id) => ({ id, empresa_id: EMPRESA, ativo: true });
@@ -184,9 +185,12 @@ describe('cache do mapa — leitura e escrita', () => {
     expect(itens).toEqual([areaDa('depois')]);
   });
 
-  it('C11 — empresa ausente usa a chave global', async () => {
-    await refreshMapaCacheEntry('icones', null);
-    expect(armazenamento.has(chave('mapa_icones', GLOBAL_EMPRESA_KEY))).toBe(true);
+  // Contrato novo (D-PROD-137, GET-06): ícones e permissões deixaram de usar a
+  // chave global — são do TENANT (`cli:<tenant>`; ver mapaCacheIconesTenant.test.js).
+  // Dado de EMPRESA sem empresa continua na chave global, como antes.
+  it('C11 — empresa ausente usa a chave global (dado de empresa)', async () => {
+    await refreshMapaCacheEntry('areas', null);
+    expect(armazenamento.has(chave('mapa_areas', GLOBAL_EMPRESA_KEY))).toBe(true);
   });
 
   it('C12 — produtos tem capacidade real; antes a query voltava vazia em silêncio', async () => {
@@ -198,10 +202,16 @@ describe('cache do mapa — leitura e escrita', () => {
   });
 
   it('C13 — warmMapaCache cobre todas as chaves', async () => {
-    await warmMapaCache(EMPRESA);
-    for (const k of CACHE_KEYS) {
-      const empresa = k === 'icones' || k === 'permissoes' ? GLOBAL_EMPRESA_KEY : EMPRESA;
-      expect(armazenamento.has(chave(`mapa_${k}`, empresa)), k).toBe(true);
+    // D-PROD-137 (GET-06): dado do tenant vai para a chave do tenant da sessão.
+    setOfflineTenant('tenant-1');
+    try {
+      await warmMapaCache(EMPRESA);
+      for (const k of CACHE_KEYS) {
+        const dono = k === 'icones' || k === 'permissoes' ? 'cli:tenant-1' : EMPRESA;
+        expect(armazenamento.has(chave(`mapa_${k}`, dono)), k).toBe(true);
+      }
+    } finally {
+      clearOfflineTenant();
     }
   });
 

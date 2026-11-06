@@ -16,6 +16,8 @@ import CadastroRecordHeader from "@/components/cadastro/base1/CadastroRecordHead
 import { useCadastroListaChromeState } from "@/hooks/useCadastroListaChromeState";
 import { useCadastroPageListBindings } from "@/hooks/useCadastroPageListBindings";
 import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
+import { carregarPermissaoEfetiva, getCurrentUser } from "@/services/sessionService";
+import { podeExcluirLancamentoBebedouro, podeLancarNoBebedouro } from "@/lib/bebedouroPermissions";
 
 const COLUNAS = [
   { id: "nome", label: "Nome", default: true, sortable: true, width: 180 },
@@ -51,6 +53,26 @@ export default function Bebedouros() {
     enabled: !!empresaId,
     initialData: [],
   });
+
+  // D-PROD-137 (BEB-04): os botões do histórico seguem a regra do servidor
+  // (novo OU salvar para lançar; excluir para apagar), não a leitura do texto
+  // do botão pelo Layout. Mesma consulta (e chave) da permissão efetiva do mapa.
+  const { data: usuarioAtual = null } = useQuery({
+    queryKey: ["bebedouros-usuario"],
+    queryFn: () => getCurrentUser(),
+    staleTime: 5 * 60 * 1000,
+  });
+  const loginAtual = usuarioAtual?.login || usuarioAtual?.email || null;
+  const { data: permissaoAtual = null } = useQuery({
+    queryKey: ["permissao-efetiva", loginAtual, usuarioAtual?.administrador_fazenda === true],
+    queryFn: () => carregarPermissaoEfetiva(usuarioAtual),
+    enabled: Boolean(loginAtual),
+    staleTime: 30 * 1000,
+    refetchInterval: 60 * 1000,
+    refetchOnWindowFocus: true,
+  });
+  const podeLancar = podeLancarNoBebedouro(permissaoAtual);
+  const podeExcluir = podeExcluirLancamentoBebedouro(permissaoAtual);
 
   const getPastosAtendidos = (item) =>
     Array.isArray(item.area_vinculada_nomes) && item.area_vinculada_nomes.length
@@ -218,6 +240,8 @@ export default function Bebedouros() {
           inRecord && detalhe ? (
             <DetalhesBebedouro
               bebedouro={detalhe}
+              podeLancar={podeLancar}
+              podeExcluir={podeExcluir}
               onSubFlowChange={setSubFlowLocked}
               onRecordToolbarChange={setRecordToolbar}
             />

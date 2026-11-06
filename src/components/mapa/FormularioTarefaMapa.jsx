@@ -28,6 +28,37 @@ export const normalizeTaskPriority = (value) => {
 
 const REQUIRED_FIELDS = ["titulo", "grupo_atividade_id", "tipo_tarefa_id", "data_pedido"];
 
+/**
+ * Contas oferecidas em Responsável/Solicitante, em ordem de nome de exibição.
+ * D-PROD-137 (GET-05): o servidor diz quem pode ser responsável
+ * (`responsavel_elegivel`: admin real, `is_admin` ou tela de tarefas).
+ * Recalcular aqui sobre a matriz alheia — que só o admin real recebe — deixava
+ * a concessão `is_admin` listar só a si mesma. Sem o campo (resposta antiga ou
+ * conta sem acesso total, que só recebe a própria conta), segue a regra local.
+ * @param {any[]} usuariosSistema @param {any[]} permissoesUsuarios
+ */
+export const ordenarResponsaveisTarefa = (usuariosSistema, permissoesUsuarios) => {
+  const permissoesPorEmail = new Map(
+    (permissoesUsuarios || [])
+      .map((registro) => normalizePermissionRecord(registro?.data || registro))
+      .filter(Boolean)
+      .map((permissao) => [permissao.user_email, permissao])
+  );
+  return (usuariosSistema || [])
+    .filter((user) => {
+      if (isExcludedSystemUser(user)) return false;
+      if (typeof user.responsavel_elegivel === "boolean") return user.responsavel_elegivel;
+      return canAccessPage(permissoesPorEmail.get(user.email), "gt-lancamentos", "gestao-tarefas");
+    })
+    .sort((a, b) =>
+      getPermissionDisplayName(permissoesPorEmail.get(a.email), a).localeCompare(
+        getPermissionDisplayName(permissoesPorEmail.get(b.email), b),
+        "pt-BR",
+        { sensitivity: "base" }
+      )
+    );
+};
+
 const inferirTipoBase = (tipoNome = "", grupoNome = "") => {
   const texto = `${tipoNome} ${grupoNome}`.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
   if (texto.includes("suplement")) return "Suplementação";
@@ -219,27 +250,10 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
     }
   }, [formData.tipo_tarefa_id, formData.tipo_tarefa_nome, tiposTarefa]);
 
-  const usuariosOrdenados = useMemo(() => {
-    const permissoesNormalizadas = permissoesUsuarios.
-    map((registro) => normalizePermissionRecord(registro?.data || registro)).
-    filter(Boolean);
-
-    const permissoesPorEmail = new Map(
-      permissoesNormalizadas.map((permissao) => [permissao.user_email, permissao])
-    );
-
-    return usuariosSistema.
-    filter((user) => {
-      if (isExcludedSystemUser(user)) return false;
-      const permissao = permissoesPorEmail.get(user.email);
-      return canAccessPage(permissao, "gt-lancamentos", "gestao-tarefas");
-    }).
-    sort((a, b) => {
-      const permissaoA = permissoesPorEmail.get(a.email);
-      const permissaoB = permissoesPorEmail.get(b.email);
-      return getPermissionDisplayName(permissaoA, a).localeCompare(getPermissionDisplayName(permissaoB, b), "pt-BR", { sensitivity: "base" });
-    });
-  }, [usuariosSistema, permissoesUsuarios]);
+  const usuariosOrdenados = useMemo(
+    () => ordenarResponsaveisTarefa(usuariosSistema, permissoesUsuarios),
+    [usuariosSistema, permissoesUsuarios]
+  );
 
   const getFieldClassName = (field, baseClass) => {
     return `${baseClass} ${errors[field] ? "border-red-500 bg-red-50 focus-visible:ring-red-500" : ""}`.trim();

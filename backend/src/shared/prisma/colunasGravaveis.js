@@ -1,5 +1,5 @@
 /**
- * D-PROD-136 — corpo HTTP só grava COLUNAS do próprio registro.
+ * D-PROD-137 — corpo HTTP só grava COLUNAS do próprio registro.
  *
  * Vários services de cadastro repassavam o corpo ao Prisma (`update({ ...entrada })`)
  * com o schema da rota aberto (`additionalProperties: true`). O Prisma aceita, no

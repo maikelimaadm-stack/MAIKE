@@ -8,6 +8,7 @@ import { criarHistorico } from "@/services/bebedouroDataService";
 import { getCurrentUser } from "@/services/sessionService";
 import { BEBEDOURO_HISTORICO_STATUS, BEBEDOURO_HISTORICO_TIPOS } from "@/services/bebedouroService";
 import { toast } from "sonner";
+import { getApiErrorMessage } from "@/apis/_core/ApiError";
 
 import {
   CADASTRO_INPUT_CLS,
@@ -27,7 +28,15 @@ const TEXTAREA_CLS = CADASTRO_TEXTAREA_CLS;
 const AVALIACAO_AGUA_TYPES = new Set(["Análise da água", "Contaminação", "Inspeção", "Tratamento da água"]);
 const PRODUTO_TYPES = new Set(["Tratamento da água", "Aplicação de produto", "Limpeza", "Abastecimento"]);
 const MANUTENCAO_TYPES = new Set(["Manutenção", "Vazamento", "Troca de boia", "Troca de encanamento"]);
+const SEM_CADASTRO = "Ponto sem cadastro de bebedouro: cadastre-o no Mapa Cadastro para registrar lançamentos. Nada foi gravado.";
 
+/**
+ * D-PROD-137: a recusa do servidor (403, 400, 404…) vira mensagem — antes o
+ * formulário ficava aberto, calado. Sem `bebedouro.id` real não envia: o
+ * histórico ficaria órfão (o servidor também recusa). O formulário fica fora
+ * da heurística de texto do Layout (`data-permissao-explicita`): quem o abre já
+ * passou pela regra do servidor (DetalhesBebedouro `podeLancar`).
+ */
 export default function FormularioLancamentoBebedouro({ bebedouro, onSaved, onCancel }) {
   const empresaId = localStorage.getItem("empresa_selecionada_id");
   const queryClient = useQueryClient();
@@ -86,12 +95,26 @@ export default function FormularioLancamentoBebedouro({ bebedouro, onSaved, onCa
       queryClient.invalidateQueries({ queryKey: ["bebedouro-historico-all", empresaId] });
       toast.success("Lançamento registrado.");
       onSaved?.();
+    },
+    onError: (error) => {
+      toast.error(getApiErrorMessage(error, "Não foi possível registrar o lançamento. Nada foi gravado."));
     }
   });
 
+  const temCadastro = Boolean(bebedouro?.id && !String(bebedouro.id).startsWith("ponto-"));
+  const enviar = (e) => {
+    e.preventDefault();
+    if (mutation.isPending) return;
+    if (!temCadastro) {
+      toast.error(SEM_CADASTRO);
+      return;
+    }
+    mutation.mutate();
+  };
+
   return (
     <CadastroFormShell title="Lançamento do bebedouro" subtitle={bebedouro.nome} embedded>
-      <form onSubmit={(e) => { e.preventDefault(); mutation.mutate(); }} className="space-y-0.5">
+      <form onSubmit={enviar} data-permissao-explicita="" className="space-y-0.5">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
           <FL label="Data" required>
             <Input type="date" value={form.data_lancamento} onChange={(e) => setForm({ ...form, data_lancamento: e.target.value })} className={INPUT_CLS} required />

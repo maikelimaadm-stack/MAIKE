@@ -14,13 +14,19 @@
  * `@/apis/*`, e o armazenamento por `IndexedDBManager`, que nunca falou Base44.
  *
  * Semântica preservada da versão anterior, com teste para cada item:
- * chave por empresa com `__GLOBAL__`, stale-while-revalidate, leitura offline,
+ * chave por empresa (`__GLOBAL__` sem empresa), stale-while-revalidate, leitura offline,
  * deduplicação de request em andamento, `MIN_REFRESH_INTERVAL_MS`, cooldown,
  * `force: true`, limpeza do mapa de promises em `finally`.
  */
 
 import { ehMovimentoAtivo } from '@/domain/lotes/situacaoMovimento';
-import { getEntityCacheItems, getEntityCacheRecord, setEntityCacheItems } from '@/components/offline/IndexedDBManager';
+import {
+  getEntityCacheItems,
+  getEntityCacheRecord,
+  setEntityCacheItems,
+  deleteEntityCacheRecord,
+} from '@/components/offline/IndexedDBManager';
+import { getOfflineTenant } from '@/lib/offline/offlineTenant';
 import { hasApiErrorCode, isApiError, API_ERROR_CODES } from '@/apis/_core/ApiError';
 import {
   listAreas,
@@ -48,6 +54,8 @@ import {
 export const MIN_REFRESH_INTERVAL_MS = 60000;
 export const RATE_LIMIT_COOLDOWN_MS = 120000;
 export const GLOBAL_EMPRESA_KEY = '__GLOBAL__';
+/** Marca o dono "tenant" na chave — o mesmo prefixo do runtime offline (P4.1-R1). */
+const TENANT_PREFIXO = 'cli:';
 
 const refreshPromises = new Map();
 const lastRefreshAt = new Map();
@@ -106,18 +114,43 @@ const CAPACIDADES = {
 
 export const CACHE_KEYS = Object.keys(CAPACIDADES);
 
-/** Chaves cujo dado não pertence a uma empresa. */
-const CHAVES_GLOBAIS = new Set(['icones', 'permissoes']);
+/**
+ * Chaves cujo dado é do TENANT, não de uma empresa (D-PROD-137, GET-06).
+ *
+ * Antes eram "globais": `mapa_icones::__GLOBAL__`, sem dono, e o logout não as
+ * apagava. Mas `ConfiguracaoIcone` e `Permissao` têm `cliente_id` no servidor:
+ * no mesmo aparelho, a fazenda B abria o mapa com os ícones da fazenda A. O
+ * catálogo global PUBLICADO (`catalogoGlobalService`) não passa por aqui.
+ */
+const CHAVES_DO_TENANT = new Set(['icones', 'permissoes']);
 
-export const isChaveGlobal = (cacheKey) => CHAVES_GLOBAIS.has(cacheKey);
+export const isChaveDoTenant = (cacheKey) => CHAVES_DO_TENANT.has(cacheKey);
 export const temCapacidade = (cacheKey) => Object.prototype.hasOwnProperty.call(CAPACIDADES, cacheKey);
 
-const normalizarEmpresa = (empresaId) => empresaId || GLOBAL_EMPRESA_KEY;
 const chaveDeArmazenamento = (cacheKey) => `mapa_${cacheKey}`;
 
+/**
+ * Dono do registro no cache: a empresa (`__GLOBAL__` sem empresa) ou, para dado
+ * do tenant, o tenant da sessão nativa — a empresa recebida é ignorada, quem
+ * decide é a política, não a tela. `null` = dado do tenant sem tenant conhecido:
+ * nada é lido nem gravado (falha fechada; a rede tira o tenant do token).
+ *
+ * @param {string} cacheKey
+ * @param {string|null|undefined} empresaId
+ * @returns {string|null}
+ */
+const donoDoCache = (cacheKey, empresaId) => {
+  if (!isChaveDoTenant(cacheKey)) return empresaId || GLOBAL_EMPRESA_KEY;
+  const tenant = getOfflineTenant();
+  return tenant ? `${TENANT_PREFIXO}${tenant}` : null;
+};
+
 /** Leitura pura do cache, sem rede. */
-export const getMapaCachedData = async (cacheKey, empresaId) =>
-  getEntityCacheItems(chaveDeArmazenamento(cacheKey), normalizarEmpresa(empresaId));
+export const getMapaCachedData = async (cacheKey, empresaId) => {
+  const dono = donoDoCache(cacheKey, empresaId);
+  if (!dono) return [];
+  return getEntityCacheItems(chaveDeArmazenamento(cacheKey), dono);
+};
 
 /**
  * Cache + quando foi gravado. Para a tela dizer "dados salvos em …" em vez de
@@ -126,7 +159,8 @@ export const getMapaCachedData = async (cacheKey, empresaId) =>
  * @returns {Promise<{ items: any[], atualizadoEm: string|null }>}
  */
 export const getMapaCacheSnapshot = async (cacheKey, empresaId) => {
-  const registro = await getEntityCacheRecord(chaveDeArmazenamento(cacheKey), normalizarEmpresa(empresaId));
+  const dono = donoDoCache(cacheKey, empresaId);
+  const registro = dono ? await getEntityCacheRecord(chaveDeArmazenamento(cacheKey), dono) : null;
   return {
     items: Array.isArray(registro?.items) ? registro.items : [],
     atualizadoEm: typeof registro?.updated_at === 'string' ? registro.updated_at : null,
@@ -155,8 +189,19 @@ const mereceCooldown = (erro) =>
 export const refreshMapaCacheEntry = async (cacheKey, empresaId, options = {}) => {
   if (!temCapacidade(cacheKey)) return [];
 
-  const empresaNormalizada = normalizarEmpresa(empresaId);
-  const requestKey = `${cacheKey}:${empresaNormalizada}`;
+  const dono = donoDoCache(cacheKey, empresaId);
+  // Dado do tenant sem tenant conhecido: só rede, sem cache e sem política em
+  // memória — as duas são por dono, e aqui não há dono.
+  if (!dono) {
+    try {
+      return await CAPACIDADES[cacheKey](empresaId);
+    } catch {
+      return [];
+    }
+  }
+  // Política (dedupe, intervalo, cooldown) também por dono: `icones:__GLOBAL__`
+  // fazia o refresh da fazenda B, em menos de 60 s, devolver o cache da A.
+  const requestKey = `${cacheKey}:${dono}`;
   const storageKey = chaveDeArmazenamento(cacheKey);
   const agora = Date.now();
   const force = options.force === true;
@@ -167,13 +212,13 @@ export const refreshMapaCacheEntry = async (cacheKey, empresaId, options = {}) =
   const emCooldown = agora < (rateLimitedUntil.get(requestKey) || 0);
   const recente = agora - (lastRefreshAt.get(requestKey) || 0) < MIN_REFRESH_INTERVAL_MS;
   if (!force && (emCooldown || recente)) {
-    return (await getEntityCacheItems(storageKey, empresaNormalizada)) || [];
+    return (await getEntityCacheItems(storageKey, dono)) || [];
   }
 
   const promise = (async () => {
     try {
       const items = await CAPACIDADES[cacheKey](empresaId);
-      await setEntityCacheItems(storageKey, empresaNormalizada, items);
+      await setEntityCacheItems(storageKey, dono, items);
       lastRefreshAt.set(requestKey, Date.now());
       rateLimitedUntil.delete(requestKey);
       return items;
@@ -185,9 +230,9 @@ export const refreshMapaCacheEntry = async (cacheKey, empresaId, options = {}) =
       console.warn('[mapa-cache] usando cache offline', {
         code: isApiError(erro) ? erro.code : API_ERROR_CODES.OPERATION_FAILED,
         cacheKey,
-        empresa: empresaNormalizada,
+        empresa: isChaveDoTenant(cacheKey) ? 'tenant' : dono,
       });
-      return (await getEntityCacheItems(storageKey, empresaNormalizada)) || [];
+      return (await getEntityCacheItems(storageKey, dono)) || [];
     }
   })();
 
@@ -201,11 +246,11 @@ export const refreshMapaCacheEntry = async (cacheKey, empresaId, options = {}) =
 
 /** Reescreve uma entrada do cache. Aceita valor ou função de atualização. */
 export const updateMapaCachedData = async (cacheKey, empresaId, updater) => {
-  const empresaNormalizada = normalizarEmpresa(empresaId);
+  const dono = donoDoCache(cacheKey, empresaId);
   const storageKey = chaveDeArmazenamento(cacheKey);
-  const atuais = (await getEntityCacheItems(storageKey, empresaNormalizada)) || [];
+  const atuais = dono ? (await getEntityCacheItems(storageKey, dono)) || [] : [];
   const proximos = typeof updater === 'function' ? updater(atuais) : updater;
-  await setEntityCacheItems(storageKey, empresaNormalizada, proximos || []);
+  if (dono) await setEntityCacheItems(storageKey, dono, proximos || []);
   return proximos || [];
 };
 
@@ -214,7 +259,8 @@ export const warmMapaCache = async (empresaId) => {
   await Promise.all(
     CACHE_KEYS.map(async (cacheKey) => {
       try {
-        await refreshMapaCacheEntry(cacheKey, isChaveGlobal(cacheKey) ? GLOBAL_EMPRESA_KEY : empresaId);
+        // O dono (empresa ou tenant) é resolvido pela política, por chave.
+        await refreshMapaCacheEntry(cacheKey, empresaId);
       } catch {
         // `refreshMapaCacheEntry` já trata e cai no cache; aqui é só contenção.
       }
@@ -222,9 +268,33 @@ export const warmMapaCache = async (empresaId) => {
   );
 };
 
-/** Reinicia a política. Existe para teste — não é usado pela aplicação. */
-export const __resetMapaCachePolicy = () => {
+const zerarPolitica = () => {
   refreshPromises.clear();
   lastRefreshAt.clear();
   rateLimitedUntil.clear();
 };
+
+/**
+ * Logout (D-PROD-137, GET-06): apaga do aparelho o cache do tenant que sai e o
+ * legado `__GLOBAL__` (gravado antes desta correção, sem dono), e zera a
+ * política em memória — sem isso, o mesmo tenant que voltasse em menos de 60 s
+ * leria como "recente" o cache recém-apagado e ficaria sem ícones.
+ *
+ * Cache por empresa fica: id de empresa é único entre tenants e nenhuma outra
+ * fazenda o lê. Fila e pendências NÃO são tocadas: são dado de campo ainda não
+ * sincronizado. Falha de IndexedDB não propaga: o logout não espera por isto.
+ *
+ * @param {string|null|undefined} tenantId tenant lido ANTES do descarte da sessão
+ */
+export const esquecerCacheDoTenant = async (tenantId) => {
+  zerarPolitica();
+  const donos = [GLOBAL_EMPRESA_KEY, ...(tenantId ? [`${TENANT_PREFIXO}${tenantId}`] : [])];
+  await Promise.all(
+    [...CHAVES_DO_TENANT].flatMap((cacheKey) =>
+      donos.map((dono) => deleteEntityCacheRecord(chaveDeArmazenamento(cacheKey), dono).catch(() => {}))
+    )
+  );
+};
+
+/** Reinicia a política. Existe para teste (a aplicação zera só no logout). */
+export const __resetMapaCachePolicy = zerarPolitica;

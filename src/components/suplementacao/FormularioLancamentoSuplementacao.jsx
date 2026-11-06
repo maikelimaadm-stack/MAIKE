@@ -210,7 +210,10 @@ export default function FormularioLancamentoSuplementacao({ ponto, onSubmit, onC
       observacoes: prev.observacoes || `Novo ciclo iniciado aproveitando sobra anterior de ${sobraPendenteDoCochoKg.toFixed(2)} kg.`,
     }));
     setSobraHerdadaDecidida(true);
-    toast.success(`Novo lançamento aberto com ${sobraPendenteDoCochoKg.toFixed(2)} kg de saldo inicial.`);
+    // D-PROD-137 (SUP-02): aqui só se preenche o formulário — nada foi gravado.
+    // Antes o toast VERDE dizia "Novo lançamento aberto"; fechar a tela não
+    // deixava registro nenhum. O aviso diz o que de fato aconteceu.
+    toast.info(`Sobra de ${sobraPendenteDoCochoKg.toFixed(2)} kg aplicada como saldo inicial. Clique em "Salvar novo ciclo" para registrar.`);
   };
 
   const handleDescartarSobra = () => {

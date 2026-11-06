@@ -9,7 +9,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { calcularDiasPeriodo } from "../utils/consumoUtils";
-import { fecharPeriodoSuplementacao } from "@/services/suplementacaoService";
+import { prepararFechamentoPeriodo } from "@/services/suplementacaoService";
 import { getTodayLocalDate } from "../utils/pecuariaUtils";
 import { LancLoteForm, LancLoteItens, LancLoteItem, LancLoteAdicionar, LancLoteRodape, LancLoteSegmento, LancLoteAviso, LL_CTL } from "@/components/lotes/LancamentoLoteUi";
 import B1Select from "@/components/cadastro/base1/B1Select";
@@ -78,9 +78,12 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
       area_entrada_id: areaDestino || '',
       movimentacoes: movimentacoesPre,
       sobras_cocho: {},
-      sobras_destino_aproveitar: []
+      sobras_destino_aproveitar: [],
+      // Fechamentos CALCULADOS no passo do consumo; gravados só após a transferência (SUP-01).
+      fechamentos_consumo: []
     };
   });
+  const fechamentosPendentes = Array.isArray(formData.fechamentos_consumo) ? formData.fechamentos_consumo : [];
 
   React.useEffect(() => {
     if (!areaDestinoPreSelecionada) return;
@@ -112,6 +115,9 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
   React.useEffect(() => {
     const verificarEventosAbertos = async () => {
       if (!areaSaidaResolvida) return;
+      // Trocou a área de saída: um fechamento calculado para a área anterior
+      // não vale mais (nada dele foi gravado — SUP-01).
+      setFormData((prev) => (prev.fechamentos_consumo?.length ? { ...prev, fechamentos_consumo: [] } : prev));
 
       try {
         const [todosPontos, todosEventos] = await Promise.all([
@@ -277,21 +283,24 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
     }
   };
 
+  /**
+   * D-PROD-137 (SUP-01): o passo do consumo só CALCULA o fechamento (sobra,
+   * dias, rateio por lote) — nada é gravado aqui. O fechamento vai junto da
+   * movimentação (`fechamentos_consumo`) e o DetalhesLote grava depois de o
+   * servidor confirmar a transferência. Antes ele era gravado aqui, primeiro:
+   * transferência recusada, "Cancelar" ou offline deixavam o período fechado
+   * sem o gado ter saído, com a tela dizendo "Nada foi gravado".
+   */
   const handleFecharEventos = async () => {
     if (loading) return;
     setLoading(true);
     try {
-      const totalPassos = eventosAbertos.reduce((sum, ev) => {
-        const todosLotesSupl = [];
-        return sum + 1 + todosLotesSupl.length;
-      }, 0);
-      let passoAtual = 0;
+      setProgresso({ show: true, atual: 0, total: eventosAbertos.length, mensagem: 'Calculando o fechamento...' });
 
-      setProgresso({ show: true, atual: 0, total: eventosAbertos.length * 2, mensagem: 'Iniciando fechamento...' });
-
+      const fechamentos = [];
       for (let i = 0; i < eventosAbertos.length; i++) {
         const evento = eventosAbertos[i];
-        setProgresso({ show: true, atual: i * 2 + 1, total: eventosAbertos.length * 2, mensagem: `Fechando evento ${i + 1}/${eventosAbertos.length}...` });
+        setProgresso({ show: true, atual: i + 1, total: eventosAbertos.length, mensagem: `Calculando consumo ${i + 1}/${eventosAbertos.length}...` });
 
         const sobra = parseFloat(formData.sobras_cocho[evento.id] || 0);
         const diasPeriodo = calcularDiasPeriodo(evento.data_lancamento, formData.data_movimentacao);
@@ -300,17 +309,17 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
           throw new Error(`A sobra informada para ${evento.ponto_nome} está fora do limite físico do período.`);
         }
 
-        setProgresso({ show: true, atual: i * 2 + 2, total: eventosAbertos.length * 2, mensagem: `Atualizando lotes ${i + 1}/${eventosAbertos.length}...` });
-
-        await fecharPeriodoSuplementacao({
+        const preparado = await prepararFechamentoPeriodo({
           evento,
           diasPeriodo,
           sobraInicial: evento.sobra_kg || 0,
           sobraFinal: sobra,
         });
+        fechamentos.push({ ...preparado, ponto_nome: evento.ponto_nome, data_fechamento: formData.data_movimentacao });
       }
 
-      setProgresso({ show: true, atual: eventosAbertos.length * 2, total: eventosAbertos.length * 2, mensagem: 'Concluído!' });
+      setFormData((prev) => ({ ...prev, fechamentos_consumo: fechamentos }));
+      setProgresso({ show: true, atual: eventosAbertos.length, total: eventosAbertos.length, mensagem: 'Fechamento calculado: será gravado com a movimentação.' });
 
       setTimeout(() => {
         setProgresso({ show: false, atual: 0, total: 0, mensagem: '' });
@@ -318,9 +327,9 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
       }, 500);
 
     } catch (error) {
-      console.error('Erro ao fechar eventos:', error);
+      console.error('Erro ao calcular o fechamento:', error);
       setProgresso({ show: false, atual: 0, total: 0, mensagem: '' });
-      notifyError('Erro', 'Erro ao fechar períodos de consumo');
+      notifyError('Erro', 'Não foi possível calcular o fechamento do consumo. Nada foi gravado.');
     } finally {
       setLoading(false);
     }
@@ -507,9 +516,23 @@ export default function FormularioMovimentacaoLote({ lotesOriginais, areaOrigem,
               </p>
             </LancLoteAviso>
           }
+          {fechamentosPendentes.length > 0 &&
+          <LancLoteAviso tom="ambar">
+              <p className="mb-1 font-semibold" data-testid="fechamento-com-movimentacao">Fechamento do consumo junto com a movimentação</p>
+              <p className="text-xs text-amber-800">
+                O consumo de {fechamentosPendentes.map((f) => f.ponto_nome).join(', ')} será fechado em{' '}
+                {String(fechamentosPendentes[0].data_fechamento || '').split('-').reverse().join('/')} quando a movimentação for
+                gravada. Se ela não for gravada (recusa, cancelamento ou sem conexão), o consumo continua aberto.
+              </p>
+            </LancLoteAviso>
+          }
           <div className="mk-ll__grade">
             <FL label="Data da Movimentação" required>
+              {/* Com fechamento calculado, a data é a do fechamento (dias do período): fica fixa. */}
+              {fechamentosPendentes.length > 0 ?
+              <input type="date" value={formData.data_movimentacao} readOnly disabled className={`flex w-full rounded-md px-3 py-1 disabled:cursor-not-allowed disabled:opacity-50 ${LL_CTL}`} /> :
               <Input type="date" value={formData.data_movimentacao} onChange={(e) => setFormData({ ...formData, data_movimentacao: e.target.value })} className={LL_CTL} required />
+              }
             </FL>
             <LancLoteSegmento rotulo="Movimentar todo o lote?" required valor={formData.mover_todos} onChange={(v) => setFormData({ ...formData, mover_todos: v })} opcoes={[{ value: "sim", label: "Sim" }, { value: "nao", label: "Não" }]} />
           </div>

@@ -1,8 +1,11 @@
 /**
  * Serviço de Empresa (P5.4 + EMPRESA-NUM-01).
  */
+import { Prisma } from '@prisma/client';
+
 import { getPrismaClient } from '../../database/prismaClient.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
+import { carregarAutorizacao, telaPermite, TELAS } from '../../shared/auth/autorizacaoTela.js';
 import { AppError } from '../../shared/errors/AppError.js';
 import { registrarEvento } from '../auditoria/auditService.js';
 import {
@@ -97,12 +100,54 @@ export const comoPublico = (registro) => {
   };
 };
 
-/** @param {{auth: import('../../shared/auth/authContext.js').AuthContext}} contexto */
+/**
+ * D-PROD-137 (GET-01) — o que o seletor de empresa do Layout, o mapa e os
+ * formulários de TODO usuário leem da empresa. ALLOWLIST (não denylist): coluna
+ * nova no schema não vaza sozinha para quem não abre a tela Empresa.
+ * Consumidores: Layout.jsx (apelido/nome/cidade/estado/cnpj no seletor e no
+ * "Trocar empresa"), FichaProduto (logotipo/nome/cidade/estado) e o fuso da
+ * fazenda (D-PROD-122).
+ */
+const CAMPOS_RESUMO = Object.freeze([
+  'id', 'numero_empresa', 'apelido', 'nome', 'tipo_pessoa', 'cidade', 'estado', 'logotipo_url', 'fuso_horario',
+]);
+
+/** Empresa pessoa física: o "CNPJ" não existe e o campo nunca vai no resumo. */
+const ehPessoaFisica = (registro) => String(registro?.tipo_pessoa ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase() === 'fisica';
+
+/**
+ * @param {Record<string, unknown>} registro
+ * @param {{ endereco?: boolean }} [opcoes] `endereco` só para quem abre a Ficha do Produto
+ */
+export const comoResumo = (registro, opcoes = {}) => {
+  /** @type {Record<string, unknown>} */
+  const saida = {};
+  for (const campo of CAMPOS_RESUMO) saida[campo] = registro[campo] ?? null;
+  if (!ehPessoaFisica(registro)) saida.cnpj = registro.cnpj ?? null;
+  if (opcoes.endereco) saida.endereco = registro.endereco ?? null;
+  const { createdAt, updatedAt } = registro;
+  saida.created_date = createdAt instanceof Date ? createdAt.toISOString() : createdAt;
+  saida.updated_date = updatedAt instanceof Date ? updatedAt.toISOString() : updatedAt;
+  return saida;
+};
+
+/**
+ * GET /empresas fica SEM guarda de tela (o Layout de todo usuário depende dela:
+ * 403 ou lista vazia fazem o Layout gravar o tenant como empresa e o mapa fica
+ * vazio). A proteção é a PROJEÇÃO, decidida no servidor (D-PROD-137, GET-01):
+ *  - tela Empresa (adm-empresa visualizar; admin real e `is_admin` passam) →
+ *    registro completo (CPF, RG, IE, contato, endereço, observações);
+ *  - os demais → `comoResumo`, sem dado pessoal; `endereco` só com a tela de
+ *    Produtos (cabeçalho da Ficha do Produto).
+ * @param {{auth: import('../../shared/auth/authContext.js').AuthContext}} contexto
+ */
 export const listar = async (contexto, filtros = {}) => {
   const auth = exigirAuthContext(contexto?.auth);
   void filtros;
-  const registros = await listarRegistros(auth.clienteId);
-  return registros.map(comoPublico);
+  const [registros, aut] = await Promise.all([listarRegistros(auth.clienteId), carregarAutorizacao(contexto)]);
+  if (telaPermite(aut, TELAS.EMPRESA, 'visualizar')) return registros.map(comoPublico);
+  const endereco = telaPermite(aut, TELAS.PRODUTOS, 'visualizar');
+  return registros.map((r) => comoResumo(r, { endereco }));
 };
 
 /** @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto */
@@ -225,18 +270,60 @@ export const configurarFusoHorario = async (contexto, id, entrada) => {
   return comoPublico(registro);
 };
 
+/**
+ * D-PROD-137 (EMP-01) — models que pertencem a uma empresa: todo model do
+ * schema com `cliente_id` E `empresa_id` escalares, derivado de `Prisma.dmmf`
+ * (model novo entra sozinho; a lista do frontend era da era Base44 e faltava
+ * metade). Só uns poucos têm FK para Empresa; os demais guardam `empresa_id`
+ * solto e ficariam ÓRFÃOS — fora de toda tela, sem como reatribuir.
+ * `RebanhoLedgerAtivacao` fica de fora: a empresa nasce ativada e a ativação
+ * vazia sai junto (PR174-R5).
+ */
+const MODELOS_DA_EMPRESA = Object.freeze(
+  Prisma.dmmf.datamodel.models
+    .filter((m) => m.name !== 'Empresa' && m.name !== 'RebanhoLedgerAtivacao')
+    .filter((m) => ['cliente_id', 'empresa_id'].every((c) => m.fields.some((f) => f.name === c && f.kind === 'scalar')))
+    .map((m) => m.name)
+    .sort()
+);
+
+/** @param {string} modelo */
+const delegadoDe = (modelo) => modelo.charAt(0).toLowerCase() + modelo.slice(1);
+
+/**
+ * Contagem dos dependentes da empresa, por model (só os que têm registro).
+ * @param {import('@prisma/client').Prisma.TransactionClient} tx
+ * @param {string} clienteId @param {string} empresaId
+ */
+const vinculosDaEmpresa = async (tx, clienteId, empresaId) => {
+  const vinculos = [];
+  for (const entidade of MODELOS_DA_EMPRESA) {
+    const total = await /** @type {any} */ (tx)[delegadoDe(entidade)].count({ where: { cliente_id: clienteId, empresa_id: empresaId } });
+    if (total > 0) vinculos.push({ entidade, total });
+  }
+  return vinculos;
+};
+
 export const excluir = async (contexto, id) => {
   const auth = exigirAuthContext(contexto?.auth);
   const prisma = getPrismaClient();
   await prisma.$transaction(async (tx) => {
+    // Trava a empresa (o mesmo padrão do fuso e da ativação do ledger): quem cria
+    // fato do rebanho lê a empresa com FOR SHARE/UPDATE e espera esta exclusão.
+    const [travada] = /** @type {Array<{id: string}>} */ (await tx.$queryRaw`SELECT id FROM "Empresa" WHERE cliente_id = ${auth.clienteId} AND id = ${id} FOR UPDATE`);
+    if (!travada) throw erroNaoEncontrado();
     const existente = await buscarRegistro(auth.clienteId, id, tx);
     if (!existente) throw erroNaoEncontrado();
-    // PR174-R5: a empresa nasce ativada no ledger. Sem nenhum fato do rebanho, a
-    // ativação vazia não é dado — sai junto; com fatos, os vínculos seguem
-    // protegendo a exclusão (onDelete: Restrict).
-    if (!(await tx.eventoRebanho.count({ where: { cliente_id: auth.clienteId, empresa_id: id } }))) {
-      await tx.rebanhoLedgerAtivacao.deleteMany({ where: { cliente_id: auth.clienteId, empresa_id: id } });
+    // EMP-01: com qualquer dependente, NADA é apagado — 409 com a contagem (antes:
+    // 204 e setores/áreas/cochos/produtos/tarefas órfãos; com fato do rebanho, a
+    // FK devolvia o enganoso 403 TENANT_SCOPE_VIOLATION).
+    const vinculos = await vinculosDaEmpresa(tx, auth.clienteId, id);
+    if (vinculos.length) {
+      throw new AppError('EMPRESA_COM_VINCULOS', 'a empresa tem registros vinculados e não pode ser excluída', { details: { vinculos } });
     }
+    // PR174-R5: a empresa nasce ativada no ledger; sem nenhum dependente (nem fato
+    // do rebanho), a ativação vazia não é dado — sai junto.
+    await tx.rebanhoLedgerAtivacao.deleteMany({ where: { cliente_id: auth.clienteId, empresa_id: id } });
     await excluirRegistroPorId(tx, auth.clienteId, id);
     await registrarEvento(
       contexto,

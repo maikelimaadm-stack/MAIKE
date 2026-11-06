@@ -375,7 +375,7 @@ O novo visual dos botões do Mapa Geral (D-PROD-131: painel Visualização, sem 
 
 Validado no navegador em 360, 390, 768, 1280 e 1920 px, sem rolagem horizontal. **Não testado em aparelho.**
 
-## V26 — Motor Base1: tabela, cards, filtros e superfície (D-PROD-137)
+## V26 — Motor Base1: tabela, cards, filtros e superfície (D-PROD-138)
 
 | Pedido | Feito | Evidência |
 |---|---|---|

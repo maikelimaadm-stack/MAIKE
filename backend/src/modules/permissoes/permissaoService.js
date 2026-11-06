@@ -6,7 +6,8 @@ import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { AppError } from '../../shared/errors/AppError.js';
 import { registrarEvento } from '../auditoria/auditService.js';
 import { exigirSomenteColunasGravaveis } from '../../shared/prisma/colunasGravaveis.js';
-import { atorDoTenant, ehAdminTenantAtivo, exigirAdminTenant } from '../../shared/auth/exigirAdminTenant.js';
+import { exigirAdminTenant } from '../../shared/auth/exigirAdminTenant.js';
+import { carregarAutorizacao, acessoTotal } from '../../shared/auth/autorizacaoTela.js';
 import {
   listarRegistros,
   buscarRegistro,
@@ -34,18 +35,23 @@ export const comoPublico = (registro) => {
 export const listar = async (contexto, filtros = {}) => {
   const auth = exigirAuthContext(contexto?.auth);
   void filtros;
-  const [registros, ator] = await Promise.all([listarRegistros(auth.clienteId), atorDoTenant(contexto)]);
-  if (ehAdminTenantAtivo(ator)) return registros.map(comoPublico);
-  // PR145-R4: quem não é administrador da fazenda vê a PRÓPRIA linha inteira
-  // (menu/mapa) e, das outras, só o nome de exibição (responsáveis de tarefa) —
+  const [registros, aut] = await Promise.all([listarRegistros(auth.clienteId), carregarAutorizacao(contexto)]);
+  if (aut.adminReal) return registros.map(comoPublico);
+  const propria = (r) => r.user_email === auth.login;
+  // D-PROD-137 (USR-01): sem acesso total ninguém abre tarefas — basta a PRÓPRIA
+  // linha (menu/mapa; `carregarPermissaoEfetiva`). Antes `user_email` (= login,
+  // a credencial) e o nome de todos os colegas saíam para quem só vê o mapa.
+  if (!acessoTotal(aut)) return registros.filter(propria).map(comoPublico);
+  // PR145-R4: acesso total que não é administrador da fazenda vê a PRÓPRIA linha
+  // inteira e, das outras, só o nome de exibição (responsáveis de tarefa) —
   // nunca a matriz de privilégios alheia.
   return registros.map((r) =>
-    r.user_email === auth.login ? comoPublico(r) : { id: r.id, user_email: r.user_email, user_nome: r.user_nome }
+    propria(r) ? comoPublico(r) : { id: r.id, user_email: r.user_email, user_nome: r.user_nome }
   );
 };
 
 /**
- * Só colunas da Permissao (D-PROD-136): relação, chave desconhecida ou
+ * Só colunas da Permissao (D-PROD-137): relação, chave desconhecida ou
  * `cliente_id` → 400; identidade e carimbos do servidor são descartados.
  * @param {Record<string, unknown>} entrada
  */

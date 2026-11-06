@@ -421,6 +421,12 @@ export const setEntityCacheItems = async (entityName, empresaId, items) => {
   });
 };
 
+/** Remove UM registro de cache (mesma chave de `setEntityCacheItems`). Nunca toca fila nem pendências. */
+export const deleteEntityCacheRecord = async (entityName, empresaId) => {
+  const cacheKey = `${entityName}::${empresaId || '__GLOBAL__'}`;
+  return deleteItem(STORES.ENTITY_CACHE, cacheKey);
+};
+
 export const queueEntitySyncOperation = async (payload) => {
   return addItem(STORES.ENTITY_QUEUE, {
     ...payload,
@@ -573,6 +579,7 @@ export default {
   getEntityCacheRecord,
   getEntityCacheItems,
   setEntityCacheItems,
+  deleteEntityCacheRecord,
   queueEntitySyncOperation,
   getEntitySyncQueue,
   updateEntitySyncQueueItem,

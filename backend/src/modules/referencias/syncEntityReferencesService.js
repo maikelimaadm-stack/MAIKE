@@ -1,153 +1,224 @@
 /**
- * Propagação nativa de referências denormalizadas (P5.5).
+ * Propagação de referências desnormalizadas — `POST /referencias/sincronizar`
+ * (P5.5 → D-PROD-137).
+ *
+ * Contrato: o corpo só IDENTIFICA a origem (`event.entity_name` + `data.id`).
+ * Antes, `data`/`old_data` do corpo eram gravados nos dependentes: quem tinha a
+ * tela de Setores reescrevia `setor_nome` livre em lotes e movimentações do mapa
+ * e re-apontava `setor_id` de área, lote e cocho; quem tinha Tipos de tarefa
+ * mudava o grupo das tarefas sem mudar o tipo (REF-01/F4). Agora:
+ *
+ *  1. a origem é RELIDA no tenant do auth_context, travada `FOR SHARE` (uma
+ *     renomeação concorrente espera esta transação, e a próxima sincronização
+ *     já lê o nome novo). Inexistente no tenant → 404 da entidade (id de outro
+ *     tenant é "não existe", não 403); entidade fora do catálogo → 400;
+ *  2. cada dependente é casado SÓ por id (FK ou id dentro de `dados`), no
+ *     tenant e — se a origem é por empresa — na empresa DA ORIGEM, e recebe os
+ *     valores atuais dela. Só linha divergente é escrita (vazio ≡ nulo), então
+ *     re-sincronizar é idempotente e a 2ª chamada não toca nada;
+ *  3. tudo numa transação, com um evento-resumo no AuditLog (entidade, id,
+ *     contagem e ids por tabela). Erro no meio desfaz o que já foi escrito
+ *     (REF-02). O merge de JSON é um único `UPDATE … dados || …`: atômico na
+ *     linha, sem o read-modify-write que apagava um cancelamento concorrente.
+ *
+ * Quem pode chamar não muda: a guarda R3 (`GUARDAS.referencias`) exige a tela
+ * da própria entidade. Com o corpo reduzido a um id, essa tela só dá o poder de
+ * pedir "copie os valores atuais desta origem" — nada que o PATCH dela já não
+ * fizesse.
  */
+import { Prisma } from '@prisma/client';
 import { getPrismaClient } from '../../database/prismaClient.js';
-import { documentoComoPublico } from '../../shared/jsonDocument/jsonDocumentPublic.js';
-import { PROPAGATION_RULES } from './propagationRules.js';
+import { exigirAuthContext } from '../../shared/auth/authContext.js';
+import {
+  AppError,
+  setorNotFound,
+  loteNotFound,
+  produtoNotFound,
+  tipoTarefaNotFound,
+  grupoAtividadeNotFound,
+} from '../../shared/errors/AppError.js';
+import { registrarEvento } from '../auditoria/auditService.js';
+import { ORIGENS } from './propagationRules.js';
 
-const DELEGATES = {
-  AreaPastagem: 'areaPastagem',
-  GrupoAtividade: 'grupoAtividade',
-  LancamentoTarefa: 'lancamentoTarefa',
-  Lote: 'lote',
-  ManejoTecnicoRebanho: 'manejoTecnicoRebanho',
-  MovimentacaoEstoque: 'movimentacaoEstoque',
-  MovimentacaoMapa: 'movimentacaoMapa',
-  MovimentacaoPecuaria: 'movimentacaoPecuaria',
-  PontoSuplementacao: 'pontoSuplementacao',
-  Produto: 'produto',
-  Setor: 'setor',
-  SuplementacaoEvento: 'suplementacaoEvento',
-  SuplementacaoLote: 'suplementacaoLote',
-  TipoTarefa: 'tipoTarefa',
+const NAO_ENCONTRADO = Object.freeze({
+  Setor: setorNotFound,
+  Lote: loteNotFound,
+  Produto: produtoNotFound,
+  TipoTarefa: tipoTarefaNotFound,
+  GrupoAtividade: grupoAtividadeNotFound,
+});
+
+/** Interativa, mas cada dependente é UM statement: o teto cobre fila de lock, não laço. */
+const OPCOES_TRANSACAO = Object.freeze({ maxWait: 10000, timeout: 30000 });
+/** Ids por tabela no AuditLog: rastro sem transformar uma renomeação grande em megabytes. */
+const IDS_NO_AUDIT = 200;
+const IDENTIFICADOR = /^[A-Za-z][A-Za-z0-9_]*$/;
+
+const ident = (nome) => {
+  if (!IDENTIFICADOR.test(nome)) throw new Error(`identificador inválido: ${nome}`);
+  return Prisma.raw(`"${nome}"`);
 };
 
-const JSON_ENTITIES = new Set([
-  'MovimentacaoMapa',
-  'MovimentacaoPecuaria',
-  'SuplementacaoEvento',
-  'SuplementacaoLote',
-  'ManejoTecnicoRebanho',
-]);
+/** Prisma grava DateTime como UTC em `timestamp(3)`: não depender do fuso da sessão. */
+const AGORA_UTC = Prisma.raw(`(now() AT TIME ZONE 'UTC')`);
 
-const normalizeValue = (value) => (value === null || value === undefined ? '' : String(value).trim().toLowerCase());
+const invalido = (mensagem, campo) => new AppError('REQUEST_VALIDATION_FAILED', mensagem, { details: { field: campo } });
 
-const getSourceFieldValue = (data, sourceField) => data?.[sourceField] ?? null;
-
-const getRelevantSourceFields = (rules) => {
-  const fields = new Set();
-  for (const rule of rules) {
-    for (const sourceField of Object.values(rule.fieldMap || {})) {
-      if (sourceField && sourceField !== 'id') fields.add(sourceField);
-    }
+/**
+ * Lê do corpo SÓ a identificação. A entidade é resolvida exatamente como na
+ * guarda R3 (`event.entity_name`, senão `entity_name`): guarda e service têm de
+ * falar da mesma entidade. `data.*` além do id e `old_data` são ignorados.
+ * @param {unknown} payload
+ */
+const identificarOrigem = (payload) => {
+  const corpo = /** @type {Record<string, any>} */ (payload && typeof payload === 'object' ? payload : {});
+  const evento = corpo.event && typeof corpo.event === 'object' ? corpo.event : {};
+  if (evento.type !== 'update') throw invalido('event.type deve ser "update"', 'event.type');
+  const entidade = evento.entity_name || corpo.entity_name || null;
+  if (typeof entidade !== 'string' || !Object.prototype.hasOwnProperty.call(ORIGENS, entidade)) {
+    throw invalido('entidade sem propagação de referências', 'event.entity_name');
   }
-  return [...fields];
+  const id = corpo.data && typeof corpo.data === 'object' ? corpo.data.id : undefined;
+  if (typeof id !== 'string' || !id.trim() || id.length > 64) throw invalido('data.id é obrigatório', 'data.id');
+  return { entidade, id };
 };
 
-const buildPatchForRecord = (record, rule, sourceData, oldData) => {
-  const patch = {};
-  for (const [targetField, sourceField] of Object.entries(rule.fieldMap || {})) {
-    const newValue = getSourceFieldValue(sourceData, sourceField);
-    const oldValue = getSourceFieldValue(oldData, sourceField);
-    const currentValue = record?.[targetField] ?? null;
-    const comparisonField =
-      rule.matchType === 'value' ? rule.targetMatchFieldMap?.[targetField] || targetField : targetField;
-    const comparisonValue = record?.[comparisonField] ?? null;
-    if (newValue === oldValue) continue;
-    if (rule.matchType === 'value' && normalizeValue(comparisonValue) !== normalizeValue(oldValue)) continue;
-    if (currentValue === newValue) continue;
-    patch[targetField] = newValue;
+/** @param {Record<string, unknown>} valores */
+const exigirTexto = (valores) => {
+  for (const [campo, valor] of Object.entries(valores)) {
+    ident(campo);
+    if (valor !== null && typeof valor !== 'string') throw new Error(`valor não textual para ${campo}`);
   }
-  return patch;
+  return /** @type {Record<string, string | null>} */ (valores);
 };
 
-const listRecords = async (prisma, clienteId, entityName, empresaId) => {
-  const delegate = DELEGATES[entityName];
-  if (!delegate || !prisma[delegate]) return [];
-  const where = { cliente_id: clienteId };
-  if (empresaId) where.empresa_id = empresaId;
-  const rows = await prisma[delegate].findMany({ where, take: 5000, orderBy: { createdAt: 'desc' } });
-  if (JSON_ENTITIES.has(entityName)) {
-    return rows.map(documentoComoPublico);
+/**
+ * Um dependente, um `UPDATE … RETURNING id`. A condição de divergência trata
+ * vazio e nulo como iguais: a baixa grava `''` onde o POST genérico grava nulo,
+ * e normalizar um no outro só tocaria linhas sem mudar nada visível.
+ *
+ * @param {import('@prisma/client').Prisma.TransactionClient} tx
+ * @param {{clienteId: string, empresaId: string | null, id: string}} escopo
+ * @param {import('./propagationRules.js').Dependente} dep
+ * @param {Record<string, string | null>} valores
+ * @returns {Promise<string[]>}
+ */
+const atualizarDependente = async (tx, escopo, dep, valores) => {
+  const campos = Object.entries(valores);
+  const tabela = ident(dep.tabela);
+  const daEmpresa = escopo.empresaId ? Prisma.sql`AND empresa_id = ${escopo.empresaId}` : Prisma.empty;
+
+  if (dep.documento) {
+    const pares = Prisma.join(campos.flatMap(([campo, valor]) => [Prisma.sql`${campo}::text`, Prisma.sql`${valor}::text`]));
+    const difere = Prisma.join(
+      campos.map(([campo, valor]) => Prisma.sql`COALESCE(dados->>(${campo}::text), '') IS DISTINCT FROM COALESCE(${valor}::text, '')`),
+      ' OR '
+    );
+    const linhas = await tx.$queryRaw`
+      UPDATE ${tabela}
+         SET dados = dados || jsonb_build_object(${pares}), "updatedAt" = ${AGORA_UTC}
+       WHERE cliente_id = ${escopo.clienteId} ${daEmpresa}
+         AND jsonb_typeof(dados) = 'object'
+         AND dados->>(${dep.chave}::text) = ${escopo.id}
+         AND (${difere})
+      RETURNING id`;
+    return /** @type {Array<{id: string}>} */ (linhas).map((l) => l.id);
   }
-  return rows;
+
+  const difereCampo = (campo, valor) => Prisma.sql`COALESCE(${ident(campo)}::text, '') IS DISTINCT FROM COALESCE(${valor}::text, '')`;
+  // Com mais de um campo (tipo → tarefa, produto → estoque), só a coluna
+  // divergente muda: a que já bate com a origem fica como está.
+  const sets = Prisma.join(
+    campos.map(([campo, valor]) => Prisma.sql`${ident(campo)} = CASE WHEN ${difereCampo(campo, valor)} THEN ${valor} ELSE ${ident(campo)} END`)
+  );
+  const difere = Prisma.join(campos.map(([campo, valor]) => difereCampo(campo, valor)), ' OR ');
+  const linhas = await tx.$queryRaw`
+    UPDATE ${tabela}
+       SET ${sets}, "updatedAt" = ${AGORA_UTC}
+     WHERE cliente_id = ${escopo.clienteId} ${daEmpresa}
+       AND ${ident(dep.chave)} = ${escopo.id}
+       AND (${difere})
+    RETURNING id`;
+  return /** @type {Array<{id: string}>} */ (linhas).map((l) => l.id);
 };
 
-const applyPatch = async (prisma, clienteId, entityName, recordId, patch) => {
-  const delegate = DELEGATES[entityName];
-  if (!delegate || !prisma[delegate]) return;
-  if (JSON_ENTITIES.has(entityName)) {
-    const existente = await prisma[delegate].findUnique({
-      where: { cliente_id_id: { cliente_id: clienteId, id: recordId } },
-    });
-    if (!existente) return;
-    const dados = { ...(existente.dados || {}), ...patch };
-    await prisma[delegate].update({
-      where: { cliente_id_id: { cliente_id: clienteId, id: recordId } },
-      data: { dados },
-    });
-    return;
-  }
-  await prisma[delegate].update({
-    where: { cliente_id_id: { cliente_id: clienteId, id: recordId } },
-    data: patch,
-  });
+/**
+ * Evento-resumo da propagação (REF-02). Só quando algo foi escrito: chamada
+ * sem efeito não é escrita e não polui a trilha.
+ *
+ * @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto
+ * @param {string} entidade
+ * @param {string} entidadeId
+ * @param {{porTabela: Record<string, number>, ids: Record<string, string[]>, valores: Record<string, string | null>}} resultado
+ * @param {import('@prisma/client').Prisma.TransactionClient} tx
+ */
+export const registrarPropagacao = async (contexto, entidade, entidadeId, resultado, tx) => {
+  const total = Object.values(resultado.porTabela).reduce((t, v) => t + v, 0);
+  if (!total) return;
+  const ids = Object.fromEntries(Object.entries(resultado.ids).map(([tabela, lista]) => [tabela, lista.slice(0, IDS_NO_AUDIT)]));
+  await registrarEvento(
+    contexto,
+    {
+      acao: 'propagar_referencias',
+      entidade,
+      entidadeId,
+      dadosNovos: {
+        por_tabela: resultado.porTabela,
+        total_atualizado: total,
+        valores: resultado.valores,
+        ids,
+        ids_truncados: Object.values(resultado.ids).some((lista) => lista.length > IDS_NO_AUDIT),
+      },
+    },
+    tx
+  );
 };
 
-/** @param {{auth: {clienteId: string}}} contexto */
+/**
+ * @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto
+ * @param {unknown} payload
+ */
 export const sincronizarReferencias = async (contexto, payload) => {
-  const clienteId = contexto?.auth?.clienteId;
-  const event = payload?.event || {};
-  const sourceEntity = event?.entity_name || payload?.entity_name || null;
-  const sourceData = payload?.data || payload?.new_data || null;
-  const oldData = payload?.old_data || payload?.previous_data || null;
-
-  if (!clienteId || !sourceEntity || event?.type !== 'update' || !sourceData?.id || !oldData) {
-    return { success: true, skipped: true, reason: 'Nenhum update compatível recebido.' };
-  }
-
-  const rules = PROPAGATION_RULES[sourceEntity] || [];
-  if (!rules.length) {
-    return { success: true, skipped: true, reason: `Nenhuma regra cadastrada para ${sourceEntity}.` };
-  }
-
-  const changedFields = Array.isArray(payload?.changed_fields) ? payload.changed_fields : [];
-  const relevant = getRelevantSourceFields(rules);
-  if (changedFields.length && !changedFields.some((field) => relevant.includes(field))) {
-    return { success: true, skipped: true, reason: 'Update sem alterações relevantes para propagação.' };
-  }
-
+  const auth = exigirAuthContext(contexto?.auth);
+  const { entidade, id } = identificarOrigem(payload);
+  const definicao = ORIGENS[entidade];
   const prisma = getPrismaClient();
-  let totalUpdated = 0;
-  const empresaId = sourceData?.empresa_id || null;
 
-  for (const rule of rules) {
-    const records = await listRecords(prisma, clienteId, rule.entity, empresaId);
-    const candidatos =
-      rule.matchType === 'id'
-        ? records.filter((record) => record?.[rule.queryField] === sourceData.id)
-        : records.filter((record) => {
-            const oldValue = normalizeValue(getSourceFieldValue(oldData, rule.sourceField));
-            if (!oldValue) return false;
-            if (empresaId && record?.empresa_id && record.empresa_id !== empresaId) return false;
-            return (rule.matchFields || []).some((field) => normalizeValue(record?.[field]) === oldValue);
-          });
+  return prisma.$transaction(async (tx) => {
+    const travada = /** @type {Array<{id: string}>} */ (
+      await tx.$queryRaw`SELECT id FROM ${ident(definicao.tabela)} WHERE cliente_id = ${auth.clienteId} AND id = ${id} FOR SHARE`
+    );
+    const origem = travada.length
+      ? await /** @type {any} */ (tx)[definicao.delegate].findUnique({ where: { cliente_id_id: { cliente_id: auth.clienteId, id } } })
+      : null;
+    if (!origem) throw NAO_ENCONTRADO[entidade]();
 
-    for (const record of candidatos) {
-      const patch = buildPatchForRecord(record, rule, sourceData, oldData);
-      if (!Object.keys(patch).length) continue;
-      await applyPatch(prisma, clienteId, rule.entity, record.id, patch);
-      totalUpdated += 1;
+    const escopo = { clienteId: auth.clienteId, empresaId: definicao.porEmpresa ? String(origem.empresa_id) : null, id };
+    /** @type {Record<string, Set<string>>} */
+    const tocados = {};
+    /** @type {Record<string, string | null>} */
+    const valores = {};
+    for (const dep of definicao.dependentes) {
+      const novos = exigirTexto(dep.valores(origem));
+      const ids = await atualizarDependente(tx, escopo, dep, novos);
+      if (!ids.length) continue;
+      const conjunto = (tocados[dep.tabela] ??= new Set());
+      ids.forEach((x) => conjunto.add(x));
+      for (const [campo, valor] of Object.entries(novos)) valores[`${dep.tabela}.${campo}`] = valor;
     }
-  }
 
-  return {
-    success: true,
-    source_entity: sourceEntity,
-    source_id: sourceData.id,
-    total_updated: totalUpdated,
-    halted_due_to_rate_limit: false,
-    pending_count: 0,
-    results: [],
-  };
+    // Documento tocado por duas chaves (ex.: setor_id e setor_origem_id do mesmo
+    // setor) conta uma vez: a contagem é de linhas, não de statements.
+    const porTabela = Object.fromEntries(Object.entries(tocados).map(([tabela, s]) => [tabela, s.size]));
+    const ids = Object.fromEntries(Object.entries(tocados).map(([tabela, s]) => [tabela, [...s]]));
+    await registrarPropagacao(contexto, entidade, id, { porTabela, ids, valores }, tx);
+
+    return {
+      success: true,
+      source_entity: entidade,
+      source_id: id,
+      total_updated: Object.values(porTabela).reduce((t, v) => t + v, 0),
+      por_tabela: porTabela,
+    };
+  }, OPCOES_TRANSACAO);
 };

@@ -21,6 +21,10 @@ export default function MapaControlesMobile({
   onOpenTarefas, onOpenFiltros,
   showTarefasButton = true,
   showFiltrosButton = true,
+  // Fecha por padrão (D-PROD-137, PREF-04): sem a permissão, Mover só mudaria
+  // uma preferência gravada sem efeito e Localizar ligaria uma camada proibida.
+  showLocalizarButton = false,
+  showMoverButton = false,
   painel = null
 }) {
   const [camadasAberto, setCamadasAberto] = React.useState(false);
@@ -108,18 +112,22 @@ export default function MapaControlesMobile({
           <button type="button" className="mk-mapa-btn" onClick={onRefresh} aria-label="Atualizar mapa" title="Atualizar mapa">
             <RefreshCw size={17} aria-hidden />
           </button>
-          <button type="button" className="mk-mapa-btn" onClick={onLocate} aria-label="Minha localização" title="Minha localização">
-            <Target size={17} aria-hidden />
-          </button>
-          <button
-            type="button"
-            className={`mk-mapa-btn${dragEnabled ? " is-on" : ""}`}
-            onClick={onToggleDrag}
-            aria-pressed={dragEnabled}
-            aria-label={dragEnabled ? "Arrasto ativo" : "Ativar arrasto"}
-            title={dragEnabled ? "Arrasto ativo" : "Ativar arrasto"}>
-            <Move size={17} aria-hidden />
-          </button>
+          {showLocalizarButton ? (
+            <button type="button" className="mk-mapa-btn" onClick={onLocate} aria-label="Minha localização" title="Minha localização">
+              <Target size={17} aria-hidden />
+            </button>
+          ) : null}
+          {showMoverButton ? (
+            <button
+              type="button"
+              className={`mk-mapa-btn${dragEnabled ? " is-on" : ""}`}
+              onClick={onToggleDrag}
+              aria-pressed={dragEnabled}
+              aria-label={dragEnabled ? "Arrasto ativo" : "Ativar arrasto"}
+              title={dragEnabled ? "Arrasto ativo" : "Ativar arrasto"}>
+              <Move size={17} aria-hidden />
+            </button>
+          ) : null}
         </div>
       </div>
     </>

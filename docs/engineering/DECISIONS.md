@@ -2190,6 +2190,10 @@ pelo servidor, não pelo cliente. Renomear setor, grupo ou tipo propaga nos
 lançamentos na mesma transação — reduz dependência de `syncEntityReferences` para
 esses campos.
 
+> *Atualizado por D-PROD-137 (REF-03):* renomear setor só alcança as tarefas cuja
+> área é desse setor. Antes, o casamento era pelo `setor_nome` no tenant inteiro e
+> reescrevia homônimos. Tarefa sem área não acompanha mais a renomeação.
+
 **Consequência:** painel de tarefas do mapa e cadastros de tarefa deixam de
 exigir Base44 para lançamentos/histórico. Permissões de menu ainda vêm da Base44
 com fallback admin mínimo nativo quando a lista falha. Próximo foco de saída:
@@ -2887,8 +2891,10 @@ Merge só pelo proprietário após auditoria.
    - `POST /usuarios`, `PATCH /usuarios/:id` de **outro** usuário e `POST`/`PATCH`/`DELETE /permissoes` → 403 `TENANT_ADMIN_REQUIRED` para quem não é administrador.
    - Trocar a **própria** senha exige `senha_atual` (403 `USUARIO_SENHA_ATUAL_INVALIDA`); conta inativa → 403 `USUARIO_INATIVO`.
    - `GET /usuarios` sem papel não traz `papel_tenant` alheio; `GET /permissoes` sem papel traz a própria linha inteira e as outras só como `id`, `user_email`, `user_nome`.
+     - *Atualizado por D-PROD-137:* sem acesso total (nem administrador real, nem `is_admin`), `GET /permissoes` traz só a própria linha e `GET /usuarios` só a própria conta. Com `is_admin`, das outras linhas só `id`, `user_email` e `user_nome`, e só contas ativas, sem papel. `GET /usuarios/page` é só do administrador real.
    - A auditoria nunca grava senha nem hash.
 4. **`cliente_id` no corpo é recusado em toda a API** (hook `preValidation` global, 400 `REQUEST_VALIDATION_FAILED`). Antes, `PATCH` genérico movia o registro para outro tenant.
+   - *Ampliado por D-PROD-137:* a relação `cliente` também é recusada, e os services de cadastro só gravam colunas do próprio registro.
 5. **Proprietário.** Só `AdminPrincipalMaike.papel = 'proprietario'` loga e passa pela guarda; outro papel → login genérico recusado e 403 `ADMIN_PRINCIPAL_REQUIRED` mesmo com sessão válida.
 6. **Falha fechada de configuração.** Em produção, `ADMIN_MAIKE_CHAVE` ausente ou inválida (base64 < 32 bytes) → 503 `ADMIN_INDISPONIVEL` em todo o MAIKE Admin, sem sessão; nada é derivado de `AUTH_SECRET` fora do ambiente local. `ADMIN_ORIGINS` vazio recusa toda mutação.
 7. **Rollout verificável.** `scripts/admin/smoke-admin-deploy.mjs` checa o deploy real do admin, só leitura. Nenhum domínio nem rewrite foi inventado: o rewrite continua sendo passo do runbook com o endereço real.
@@ -5122,6 +5128,7 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
 - **Decisão:**
   - **O que o usuário escolhe** é salvo.
   - **O que aparece** é a preferência E a permissão (`camadasVisiveis`). A permissão nunca reescreve a preferência.
+    - *Atualizado por D-PROD-137 (PREF-02):* sem "Ver filtros e camadas", camadas e filtros do painel aparecem no **padrão**, e a preferência fica guardada para quando a permissão voltar. Sem colorir, a cor é a padrão.
   - **Chave local:** fazenda + conta + empresa, com as **três obrigatórias**. Sem a fazenda da sessão, nada é lido nem gravado; nunca um tenant `-` compartilhado.
   - **Escopo trocado** (conta, empresa ou fazenda) com o mapa montado: aplica o estado **completo** do novo escopo (`normalizarFiltrosMapa`), ou seja, o salvo dele ou o padrão. Nenhum valor do escopo anterior sobrevive.
   - **Gravação:** só depois de aplicar o estado do escopo atual.
@@ -5148,7 +5155,102 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
 - **Trade-off, sem maquiagem:** com "Manter conectado" o JWT fica no aparelho por até 30 dias e é legível por JavaScript (o mesmo risco de XSS já descrito na D-PROD-24, agora com janela maior). Não há revogação no servidor nem refresh token. Isso continua sendo da fase de segurança (P8). Quem quiser outra validade muda `AUTH_TOKEN_TTL_LEMBRAR` na Vercel.
 - **Evidência:** `docs/engineering/evidencias/ux-mobile-v2/v25-*`; testes `tests/smoke/loginTela.test.jsx`, `tests/smoke/sessaoNativa.test.js` (P4T-03b/03c).
 
-## D-PROD-137 — Motor Base1: tabela que rola, cards sem pulo, filtros iguais e a superfície do Detalhes do Lote em tudo
+## D-PROD-137 — Missão integrada: o corpo só grava colunas do registro, leituras por tela, referências relidas no banco, paridade UI × servidor no mapa
+
+> Numerada 137: a D-PROD-136 já é a tela de entrada ("Manter conectado"), na `main`.
+> As frentes desta missão escreveram "D-PROD-136" nos comentários de código e nos testes, inclusive na parte 1, já na `main` pela PR #205.
+> Nos 64 arquivos tocados pela missão, esse "D-PROD-136" quer dizer **esta** decisão. A lista e a pendência de renumeração estão no relatório.
+
+- **Contexto:**
+  - O proprietário pediu uma missão integrada com três objetivos:
+    - corrigir as permissões reais e as preferências do mapa;
+    - estabilizar o Mapa Geral;
+    - provar com RED/GREEN em PostgreSQL 16 e com o `MapaGeral` montado (RTL).
+  - O diagnóstico, em cinco frentes, achou três bloqueadores de escrita aninhada do Prisma (F1–F3). Com uma ação de cadastro, o corpo promovia a conta a administrador real, alterava o catálogo global e movia registro de tenant.
+  - Achou também:
+    - a sincronização de referências gravando valores do corpo (F4/REF-01);
+    - leituras administrativas e dados pessoais abertos a qualquer conta (GET-01, GET-02, GET-04);
+    - botões do mapa que o servidor recusa em silêncio (BEB-01);
+    - preferência do mapa valendo sem a permissão (PREF-02).
+  - Situação dos demais achados:
+    - GET-03 e PREF-05: refutados pelo verificador;
+    - PREF-01: já resolvido na PR #201;
+    - PREF-03: intencional (commit `9baa30f7`);
+    - PREF-08: resolvido pela renumeração da D-PROD-135.
+- **Decisão:**
+  1. **O corpo só grava colunas do registro** (M1: F1–F3, F5, F7; parte 1, PR #205).
+     - `exigirSomenteColunasGravaveis` (`backend/src/shared/prisma/colunasGravaveis.js`) é uma allowlist das colunas escalares do model, tirada de `Prisma.dmmf`.
+       - Relação, chave desconhecida ou `cliente_id` → 400 `REQUEST_VALIDATION_FAILED`, nada gravado.
+       - Os ecos do servidor (`id` e carimbos) são descartados.
+     - Vale nos services que repassavam o corpo: ponto de suplementação, bebedouro, categoria de manejo, lote de nota, fornecedor, permissão e criação de movimentação de estoque.
+     - O `preValidation` global recusa `cliente_id` **e** a relação `cliente` no corpo de qualquer rota.
+     - Lote de nota:
+       - qualquer conta só grava `local_estoque_nome`, conferido com o `LocalEstoque` vinculado (422 `NOME_LOCAL_DIVERGENTE`);
+       - saldo, custo e as demais colunas são só do administrador real, relido na transação. `is_admin` não basta.
+  2. **Referências relidas no banco** (M2: REF-01/F4, REF-02, REF-03).
+     - Em `/referencias/sincronizar`, o corpo só identifica a origem: `event.entity_name` e `data.id`. `data.*`, `old_data` e `changed_fields` continuam aceitos, mas não são lidos.
+     - A origem é relida no tenant, com `FOR SHARE`. Os dependentes são casados só por id e recebem os valores atuais.
+     - Tudo roda numa transação, com um evento `propagar_referencias` no `AuditLog`.
+     - Respostas: origem inexistente → 404; entidade fora do catálogo ou sem `data.id` → 400; sem a tela → 403, como antes.
+     - Renomear setor só alcança as tarefas cuja área é desse setor.
+     - Produto renomeado propaga por nome **só** na transação do PATCH, pela chave única (empresa, nome antigo), com falha fechada.
+  3. **Leituras por tela** (M3: GET-01, GET-02, GET-04, GET-05, USR-01).
+     - As leituras que o mapa usa ficam isoladas só por tenant. As leituras administrativas e de dados pessoais ganham guarda ou projeção:
+       - `GET /empresas` sem a tela Empresa → resumo, sem dados pessoais;
+       - `GET /usuarios/page` → só o administrador real;
+       - `GET /usuarios` e `GET /permissoes` → projeção conforme quem pede;
+       - `GET /fornecedores` → Cadastro de Lotes `visualizar` ou acesso total, com CPF mascarado.
+     - Quem pode ser responsável de tarefa (`responsavel_elegivel`) é calculado no servidor.
+  4. **Cadastros por tela cruzada** (M3: F6, F8, EMP-01, TAR-01).
+     - Pelo Mapa Cadastro, `PATCH /locais-estoque` aceita só `nome`/`descricao`, e só no local de um DEPÓSITO que existe no banco. `DELETE` de local só pela tela Locais.
+     - Anexo, sem acesso total, só em `Lote` existente no tenant.
+     - `DELETE /empresas/:id` com qualquer dependente → 409 `EMPRESA_COM_VINCULOS`, nada apagado.
+     - O histórico de tarefa leva empresa, título e status da tarefa relida.
+  5. **Bebedouro e suplementação: a interface pergunta o que o servidor pergunta** (M4a: BEB-01..04, SUP-01, SUP-02).
+     - `src/lib/bebedouroPermissions.js` espelha `GUARDAS.bebedouroHistorico`.
+       - "Lançar" e "Excluir" só aparecem com a concessão que o servidor aceita.
+       - Quando o servidor recusa, o usuário vê a mensagem.
+     - O histórico de bebedouro exige `bebedouro_id` do tenant e da empresa.
+     - Só o lançamento mais recente pode ser excluído (409 `BEBEDOUROHISTORICO_SOMENTE_ULTIMO`), e só com Bebedouros "excluir".
+     - O passo do consumo só calcula. O fechamento é gravado **depois** da transferência confirmada.
+     - "Aproveitar sobra" só preenche o formulário.
+  6. **Preferência × permissão no mapa** (M4b: PREF-02/04/06/07, GET-06).
+     - Sem "Ver filtros e camadas", aparece o padrão, e a preferência fica guardada intacta. Sem colorir, a cor é a padrão.
+     - Mover, Localizar e a chave Tarefas só aparecem com a permissão que os faz funcionar.
+     - A vista só é gravada depois de enquadrar a empresa atual.
+     - A resposta do GPS só vale no escopo em que foi pedida.
+     - Ícones e permissões do mapa ficam no cache `cli:<tenant>`, apagado no logout.
+     - Visualização, `estiloPasto` e `mapType` ficam como estavam (D-PROD-135; `mapType` segue o commit `9baa30f7`).
+- **Contratos alterados de propósito** (cada teste existente afetado foi ajustado, com comentário no próprio teste):
+  - **Usuários e permissões:** sem acesso total, `GET /usuarios` devolve só a própria conta e `GET /permissoes` só a própria linha.
+    - Com `is_admin`: das outras linhas só `id`, `user_email` e `user_nome`, e só contas ativas, sem papel.
+    - Teste ajustado: U-10 em `backend/tests/usuariosAutorizacaoTenant.test.mjs`. A D-PROD-71 §3 foi anotada.
+  - **Mapa Geral "excluir"** deixa de excluir histórico de bebedouro. Quem só tinha essa caixa perde a exclusão; para devolver, o administrador marca Bebedouros "excluir".
+  - **`/referencias/sincronizar`** ignora `data` e `old_data`. A resposta perdeu `halted_due_to_rate_limit`, `pending_count` e `results`, que ninguém lia.
+  - **`GET /empresas`** devolve só o resumo a quem não tem a tela Empresa.
+  - **`GET /fornecedores`** exige a tela de Lotes (ou acesso total) e mascara o CPF.
+  - **`DELETE /empresas/:id`** com dependentes → 409 `EMPRESA_COM_VINCULOS`. Antes: 204 deixando órfãos, ou 403 `TENANT_SCOPE_VIOLATION` com fato do rebanho.
+  - **Histórico de bebedouro:** o `POST` exige `bebedouro_id` (teste ajustado: `backend/tests/documentoJsonEmpresaContrato.test.mjs`) e o `DELETE` só exclui o último.
+  - **Locais:** `DELETE /locais-estoque/:id` pelo Mapa Cadastro → 403. Antes era 409 `deposito_do_mapa`, que a cascata do mapa já contava como "local ignorado".
+  - **Cache do mapa:** ícones e permissões saem de `__GLOBAL__`. Testes ajustados: `tests/smoke/mapaCache.test.js` (C11, C13), `tests/smoke/mapaGeral.test.js` (MG5/MG6) e o mock de `tests/smoke/permissoesPontaAPonta.test.jsx`.
+- **Consequência:**
+  - O operador real (só Mapa Geral, ações gravadoras `false`) continua lendo tudo o que o mapa desenha: 26 GET → 200 no teste C-01. `/fornecedores` e `/usuarios/page` ficam fechados para ele, e `/empresas`, `/usuarios` e `/permissoes` chegam só com a projeção.
+  - Sem migration, sem `schema.prisma`, sem rede externa e sem produção.
+  - Testes do backend (PG 16): `autorizacaoIntegradaBloqueadores`, `referenciasSincronizarIntegrada`, `leiturasCadastrosIntegrada` e `bebedouroHistoricoIntegrado`.
+  - Testes do frontend (RTL, com o `MapaGeral` montado onde se aplica): `mapaPreferenciasIntegrada`, `bebedouroMapaPermissoes`, `bebedourosTelaParidade`, `movimentacaoFechamentoAposTransferencia`, `sobraHerdadaSemFalsoSucesso`, `mapaCacheIconesTenant` e `leiturasCadastrosM3`.
+  - Relatório: `docs/engineering/MAIKE-MISSAO-INTEGRADA-AUTORIZACAO-PREFERENCIAS-REPORT.md`.
+  - Matriz atualizada, inclusive dos GET: `docs/engineering/MAIKE-PERMISSOES-R2-COBERTURA-ENDPOINTS.md`.
+  - **Ainda não está pronto** (lista completa no relatório):
+    - quem não tem a tela ainda lê, por URL, os cadastros que o mapa usa;
+    - os GET de cadastro e os administrativos sem consumidor continuam só por tenant;
+    - os caches offline são por tenant, não por login;
+    - o vínculo do ponto permite forjar o local (F6);
+    - o fechamento do consumo não é atômico no servidor;
+    - registros legados só com nome não acompanham renomeação (exige migration);
+    - o login do tenant não tem limitador de tentativas;
+    - as preferências ficam só no aparelho.
+
+## D-PROD-138 — Motor Base1: tabela que rola, cards sem pulo, filtros iguais e a superfície do Detalhes do Lote em tudo
 
 - **Contexto:** o proprietário relatou, com prints do celular:
   - na tabela dos cadastros (ex.: Lotes) a borda das linhas não aparecia direito, não rolava para baixo (PC e celular) e, ao rolar para o lado, a coluna de seleção ficava fixa só nas linhas — o cabeçalho andava e cobria o texto;
@@ -5170,4 +5272,4 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
 - **Fora do escopo (R7):** as tabelas do Cadastro do Mapa (Áreas, Pontos, Linhas) e as listas de histórico não usam o motor Base1; migração em missão própria.
 - **Evidência:** `docs/engineering/evidencias/ux-mobile-v2/v26-*`; testes `tests/smoke/base1CardsSemPulo.test.jsx` (CAR-01/02).
 
-<!-- Próxima decisão: D-PROD-138 -->
+<!-- Próxima decisão: D-PROD-139 -->

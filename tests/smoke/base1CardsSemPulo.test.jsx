@@ -1,5 +1,5 @@
 /**
- * D-PROD-137: tocar/clicar num card não faz a lista pular para outro card.
+ * D-PROD-138: tocar/clicar num card não faz a lista pular para outro card.
  * Antes, a cada mudança de seleção o primeiro selecionado era centralizado e o
  * próximo toque caía em outro card.
  */

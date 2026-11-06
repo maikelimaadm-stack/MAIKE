@@ -182,17 +182,27 @@ describe('própria conta e tenant no corpo', () => {
     assert.equal(await prisma().permissao.count({ where: { cliente_id: b.adm.cliente.id } }), 0);
   });
 
-  test('U-10 leitura do comum: própria Permissao inteira; das outras só o nome; sem papel dos colegas', async () => {
+  // D-PROD-137 (USR-01/GET-02) — contrato NOVO: sem acesso total o comum recebe
+  // só a PRÓPRIA linha e a PRÓPRIA conta (antes: login e nome de todos os
+  // colegas, sem tela que os use). Com a concessão is_admin (quem abre tarefas),
+  // das outras linhas segue só o nome — nunca a matriz alheia (PR145-R4).
+  test('U-10 leitura do comum: própria Permissao inteira; sem acesso total nada dos colegas; com is_admin das outras só o nome; sem papel dos colegas', async () => {
     const f = await fazenda();
-    await req('POST', '/permissoes', f.tokAdm, { user_email: f.comum.credenciais.login, user_nome: 'Peão', modulos_permitidos: ['mapa'] });
+    const pComum = await req('POST', '/permissoes', f.tokAdm, { user_email: f.comum.credenciais.login, user_nome: 'Peão', modulos_permitidos: ['mapa'] });
     await req('POST', '/permissoes', f.tokAdm, { user_email: f.adm.credenciais.login, user_nome: 'Dono da fazenda', is_admin: true });
     const lista = (await req('GET', '/permissoes', f.tokComum)).json();
-    const propria = lista.find((x) => x.user_email === f.comum.credenciais.login);
-    const outra = lista.find((x) => x.user_email === f.adm.credenciais.login);
-    assert.deepEqual(propria.modulos_permitidos, ['mapa']);
-    assert.deepEqual(Object.keys(outra).sort(), ['id', 'user_email', 'user_nome']);
+    assert.deepEqual(lista.map((x) => x.user_email), [f.comum.credenciais.login], 'só a própria linha');
+    assert.deepEqual(lista[0].modulos_permitidos, ['mapa']);
     const usuarios = (await req('GET', '/usuarios', f.tokComum)).json();
-    assert.ok(usuarios.length >= 2 && usuarios.every((u) => !('papel_tenant' in u)));
+    assert.deepEqual(usuarios.map((u) => u.id), [f.comum.id], 'só a própria conta');
+    assert.ok(usuarios.every((u) => !('papel_tenant' in u)));
+    // Com a concessão is_admin: das outras linhas só o nome; colegas sem papel.
+    assert.equal((await req('PATCH', `/permissoes/${pComum.json().id}`, f.tokAdm, { is_admin: true })).statusCode, 200);
+    const lista2 = (await req('GET', '/permissoes', f.tokComum)).json();
+    const outra = lista2.find((x) => x.user_email === f.adm.credenciais.login);
+    assert.deepEqual(Object.keys(outra).sort(), ['id', 'user_email', 'user_nome']);
+    const usuarios2 = (await req('GET', '/usuarios', f.tokComum)).json();
+    assert.ok(usuarios2.length >= 2 && usuarios2.every((u) => !('papel_tenant' in u)));
     assert.ok((await req('GET', '/permissoes', f.tokAdm)).json().every((x) => 'is_admin' in x));
   });
 });
