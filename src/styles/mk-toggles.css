@@ -1,93 +1,80 @@
-/* D-PROD-139: chave única para cadastros, configurações e filtros do mapa. */
-:root {
-  --mk-toggle-w: 51px;
-  --mk-toggle-h: 31px;
-}
-@media (min-width: 1024px) {
-  :root { --mk-toggle-w: 44px; --mk-toggle-h: 26px; }
-}
-
-.cadastro-b1 .b1-switch:not(#mk-padrao),
-.mk-ios-switch:not(#mk-padrao) {
-  --mk-toggle-track: #e5e5ea;
+/* Proporções do modelo Wi-Fi fornecido: trilho 72:32, peça oval 43:28.
+   Escala compacta; o alvo de toque mantém 44px de altura. */
+:root { --mk-toggle-w: 49.5px; --mk-toggle-h: 22px; }
+@media (min-width: 1024px) { :root { --mk-toggle-w: 45px; --mk-toggle-h: 20px; } }
+.b1-switch:not(#mk-padrao), .mk-ios-switch:not(#mk-padrao) {
+  --mk-toggle-track: #e5e5e9;
+  --mk-toggle-inset: calc(var(--mk-toggle-h) / 16);
+  --mk-toggle-thumb-w: calc(var(--mk-toggle-w) * 43 / 72);
   --mk-toggle-offset: 0px;
-  --mk-toggle-extra: 0px;
   position: relative;
+  isolation: isolate;
   display: inline-flex;
   box-sizing: border-box;
+  flex: 0 0 auto;
   width: var(--mk-toggle-w) !important;
   min-width: var(--mk-toggle-w) !important;
   max-width: var(--mk-toggle-w) !important;
   height: var(--mk-toggle-h) !important;
   min-height: var(--mk-toggle-h) !important;
-  flex-shrink: 0;
   padding: 0 !important;
   margin: 0;
   border: 0 !important;
   border-radius: 999px;
   background: var(--mk-toggle-track) !important;
   overflow: visible !important;
-  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.035);
-  transition: background-color 180ms ease;
+  box-shadow: none;
+  transition: background-color 175ms ease;
   -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
+  touch-action: pan-y;
   cursor: pointer;
 }
-.cadastro-b1 .b1-switch[aria-checked="true"]:not(#mk-padrao),
-.mk-ios-switch.is-on:not(#mk-padrao) {
+.b1-switch[aria-checked="true"]:not(#mk-padrao), .mk-ios-switch.is-on:not(#mk-padrao) {
   --mk-toggle-track: var(--mg-accent, #40de63);
-  --mk-toggle-offset: calc(var(--mk-toggle-w) - var(--mk-toggle-h) - var(--mk-toggle-extra));
+  --mk-toggle-offset: calc(var(--mk-toggle-w) - var(--mk-toggle-thumb-w) - var(--mk-toggle-inset) * 2);
 }
-
-/* Alvo confortável sem aumentar o trilho nem deslocar os rótulos. */
 :is(.b1-switch, .mk-ios-switch):not(#mk-padrao)::before {
-  position: absolute;
-  content: "";
-  inset: calc((var(--mk-toggle-h) - 44px) / 2) 0;
-  border-radius: 999px;
+  position: absolute; content: ""; inset: calc((var(--mk-toggle-h) - 44px) / 2) 0; border-radius: 999px;
 }
-
-.cadastro-b1 .b1-switch:not(#mk-padrao) .b1-switch__thumb,
+.b1-switch:not(#mk-padrao) .b1-switch__thumb,
 .mk-ios-switch:not(#mk-padrao) .mk-ios-switch__thumb {
   position: absolute;
-  top: 2px !important;
-  left: 2px !important;
+  z-index: 1;
+  top: var(--mk-toggle-inset) !important;
+  left: var(--mk-toggle-inset) !important;
   bottom: auto !important;
-  width: calc(var(--mk-toggle-h) - 4px + var(--mk-toggle-extra)) !important;
-  height: calc(var(--mk-toggle-h) - 4px) !important;
-  aspect-ratio: 1 !important;
+  width: var(--mk-toggle-thumb-w) !important;
+  height: calc(var(--mk-toggle-h) * 28 / 32) !important;
+  aspect-ratio: auto !important;
   border-radius: 999px;
-  background: #fff !important;
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.18), 0 1px 1px rgba(15, 23, 42, 0.08) !important;
+  background: #fdfdfd !important;
+  box-shadow: 0 1px 2px rgba(0,0,0,.06) !important;
   transform: translateX(var(--mk-toggle-offset)) !important;
   transform-origin: center !important;
   scale: 1 !important;
   animation: none !important;
   -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
-  transition: transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1), width 120ms ease !important;
+  transition: transform 185ms cubic-bezier(.22,.88,.27,1) !important;
   pointer-events: none;
 }
-:is(.b1-switch, .mk-ios-switch):active:not(:disabled):not([aria-readonly="true"]):not(#mk-padrao) {
-  --mk-toggle-extra: 2px;
+:is(.b1-switch__thumb, .mk-ios-switch__thumb)::after {
+  content: ""; position: absolute; inset: -1px;
+  border-radius: inherit;
+  background: linear-gradient(160deg,#fff 0%,#fdfdfd 75%,#fafafa 100%);
+  box-shadow: 0 2px 5px rgba(0,0,0,.14),0 3px 8px rgba(0,0,0,.06);
+  opacity: 0; transform: scale(.94);
+  transition: transform 115ms cubic-bezier(.2,.87,.28,1), opacity 70ms ease;
 }
-:is(.b1-switch, .mk-ios-switch):focus-visible:not(#mk-padrao) {
-  outline: 2px solid #64748b;
-  outline-offset: 3px;
-}
-:is(.b1-switch, .mk-ios-switch):disabled:not(#mk-padrao) {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
+:is(.b1-switch, .mk-ios-switch):active:not(:disabled):not([aria-readonly="true"]) > :is(.b1-switch__thumb, .mk-ios-switch__thumb)::after,
+.mk-vis__linha:active .mk-ios-switch__thumb::after { opacity: 1; transform: scale(1); }
+:is(.b1-switch, .mk-ios-switch):focus-visible:not(#mk-padrao) { outline: 2px solid #64748b; outline-offset: 3px; }
+:is(.b1-switch, .mk-ios-switch):disabled:not(#mk-padrao) { opacity: .45; cursor: not-allowed; }
 :is(.b1-switch, .mk-ios-switch)[aria-readonly="true"]:not(#mk-padrao) { cursor: default; }
-
 @media (prefers-reduced-motion: reduce) {
-  .cadastro-b1 .b1-switch:not(#mk-padrao),
-  .mk-ios-switch:not(#mk-padrao),
-  .cadastro-b1 .b1-switch:not(#mk-padrao) .b1-switch__thumb,
-  .mk-ios-switch:not(#mk-padrao) .mk-ios-switch__thumb {
-    transition: none !important;
-    animation: none !important;
-  }
-  :is(.b1-switch, .mk-ios-switch):not(#mk-padrao) { --mk-toggle-extra: 0px !important; }
+  :is(.b1-switch, .mk-ios-switch, .b1-switch__thumb, .mk-ios-switch__thumb):not(#mk-padrao),
+  :is(.b1-switch__thumb, .mk-ios-switch__thumb)::after { transition: none !important; animation: none !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  :is(.b1-switch, .mk-ios-switch):not(#mk-padrao) :is(.b1-switch__thumb, .mk-ios-switch__thumb) { transition: none !important; }
 }

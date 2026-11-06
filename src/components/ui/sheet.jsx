@@ -44,7 +44,12 @@ const sheetVariants = cva(
   }
 );
 
-const SheetContent = React.forwardRef(({ side = "right", className, children, ...props }, ref) =>
+const SheetContent = React.forwardRef(
+/**
+ * @param {React.ComponentPropsWithoutRef<typeof SheetPrimitive.Content> & { side?: 'left'|'right'|'top'|'bottom' }} props
+ * @param {React.Ref<HTMLDivElement>} ref
+ */
+({ side = "right", className, children, ...props }, ref) =>
 <SheetPortal>
     <SheetOverlay />
     <SheetPrimitive.Content ref={ref} className={cn(sheetVariants({ side }), className)} {...props}>
@@ -79,7 +84,12 @@ const SheetFooter = ({
 
 SheetFooter.displayName = "SheetFooter";
 
-const SheetTitle = React.forwardRef(({ className, ...props }, ref) =>
+const SheetTitle = React.forwardRef(
+/**
+ * @param {React.ComponentPropsWithoutRef<typeof SheetPrimitive.Title>} props
+ * @param {React.Ref<HTMLHeadingElement>} ref
+ */
+({ className, ...props }, ref) =>
 <SheetPrimitive.Title
   ref={ref}
   className={cn("text-lg font-semibold text-foreground", className)}

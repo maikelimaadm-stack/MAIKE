@@ -1,9 +1,8 @@
 import React from "react";
 import { createPortal } from "react-dom";
-import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { ChevronDown, LayoutGrid, X } from "lucide-react";
+import { ChevronDown, LayoutGrid } from "lucide-react";
 import { useMediaQuery } from "@/components/common/MobileSheet";
-import { useLancLoteDialogo } from "@/components/lotes/LancamentoLoteUi";
+import { LancLoteDialogo, useLancLoteDialogo } from "@/components/lotes/LancamentoLoteUi";
 
 /**
  * Manejos e Históricos do Detalhes do Lote (D-PROD-119), em quadros (ícone em
@@ -58,26 +57,13 @@ export default function AcoesDoLote({ grupos }) {
   );
 
   if (celular) {
-    return (
-      <DialogPrimitive.Root open={aberto} onOpenChange={setAberto}>
-        {slot ? createPortal(<DialogPrimitive.Trigger asChild>{gatilho}</DialogPrimitive.Trigger>, slot) : <DialogPrimitive.Trigger asChild>{gatilho}</DialogPrimitive.Trigger>}
-        <DialogPrimitive.Portal>
-          <DialogPrimitive.Overlay className="mk-al__scrim" />
-          <DialogPrimitive.Content className="mk-al__folha" onOpenAutoFocus={(e) => e.preventDefault()}>
-            <div className="mk-al__alca" aria-hidden><span /></div>
-            <div className="mk-al__cab">
-              <DialogPrimitive.Close className="mk-al__fechar" aria-label="Fechar">
-                <X aria-hidden />
-              </DialogPrimitive.Close>
-              <DialogPrimitive.Title className="mk-al__titulo">Manejos e históricos</DialogPrimitive.Title>
-              <span className="mk-al__fechar mk-al__fechar--vazio" aria-hidden />
-            </div>
-            <DialogPrimitive.Description className="sr-only">Escolha um manejo ou um histórico do lote</DialogPrimitive.Description>
-            {conteudo}
-          </DialogPrimitive.Content>
-        </DialogPrimitive.Portal>
-      </DialogPrimitive.Root>
-    );
+    const botao = React.cloneElement(gatilho, { onClick: () => setAberto(true) });
+    return <>
+      {slot ? createPortal(botao, slot) : botao}
+      <LancLoteDialogo open={aberto} onOpenChange={setAberto} titulo="Manejos e históricos" somenteLeitura folhaMobile>
+        <div className="mk-map-action-choices">{conteudo}</div>
+      </LancLoteDialogo>
+    </>;
   }
 
   return <div className="mk-al--embaixo">{conteudo}</div>;

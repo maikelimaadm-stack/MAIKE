@@ -7,11 +7,8 @@ import { canAccessPage } from "@/lib/permissions";
 import { MAPA_GERAL_ACESSO_TOTAL, normalizeMapaGeralPermissions } from "@/lib/mapaGeralPermissions";
 import { podeExcluirLancamentoBebedouro, podeLancarNoBebedouro } from "@/lib/bebedouroPermissions";
 import { Button } from "@/components/ui/button";
-import { X } from "lucide-react";
 import { toast } from "sonner";
-import {
-  Sheet, SheetContent, SheetHeader, SheetTitle } from
-"@/components/ui/sheet";
+import MapaFiltrosPainel from "@/components/mapa/MapaFiltrosPainel";
 import DetalhesLote from "../components/mapa/DetalhesLote";
 import DetalhesArea from "../components/mapa/DetalhesArea";
 import { acaoDoCliqueNaArea } from "@/domain/mapa/cliqueArea";
@@ -1193,14 +1190,7 @@ export default function MapaGeral() {
       </div>
 
       {/* ─── Sheet Filtros Avançados ─── */}
-      <Sheet open={showFiltros} onOpenChange={setShowFiltros}>
-        <SheetContent side="left" className="mk-map-filter-sheet bg-background pt-1 pr-1 pb-1 pl-1 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left fixed z-50 gap-1 shadow-lg transition ease-in-out data-[state=closed]:duration-300 data-[state=open]:duration-500 inset-y-0 left-0 h-full border-r sm:max-w-sm w-[300px] overflow-y-auto">
-          <SheetHeader className="mk-map-filter-header">
-            <button type="button" className="mk-map-panel-close" aria-label="Fechar filtros" onClick={() => setShowFiltros(false)}><X size={16} aria-hidden /></button>
-            <SheetTitle className="font-semibold text-foreground text-sm space-y-0 px-1">Filtros e Camadas</SheetTitle>
-            <span aria-hidden />
-          </SheetHeader>
-          <div className="mt-4">
+      <MapaFiltrosPainel open={showFiltros} onOpenChange={setShowFiltros}>
             <MapaFiltrosAvancados
               showAreas={showAreas} setShowAreas={setShowAreas}
               showPontos={showPontos} setShowPontos={setShowPontos}
@@ -1232,9 +1222,7 @@ export default function MapaGeral() {
               permissions={permissoesDoPainelFiltros}
               mostrarCores={false} />
 
-          </div>
-        </SheetContent>
-      </Sheet>
+      </MapaFiltrosPainel>
 
       {/* ─── Dialogs ─── */}
       <LancLoteDialogo open={showDetalhesLote} onOpenChange={(open) => {setShowDetalhesLote(open);if (!open) refetchLotes();}} titulo="Detalhes do Lote" largo somenteLeitura>

@@ -34,16 +34,16 @@ export const useLancLoteDialogo = () => React.useContext(LancLoteCtx);
  * É um diálogo do Radix nos dois casos, para abrir por cima do "Detalhes do
  * Lote" (que já é um diálogo) sem perder foco nem toque.
  *
- * `somenteLeitura` (históricos, D-PROD-117): só o ✕; no celular, folha
- * expansível como os cadastros, com rolagem no corpo. Um conteúdo pode trocar o título do diálogo pelo contexto
+ * `somenteLeitura` (históricos, D-PROD-117): só o ✕. `folhaMobile` é opt-in
+ * para listas de ações e escolhas; detalhes mantêm sua abertura em tela. Um conteúdo pode trocar o título do diálogo pelo contexto
  * (`useLancLoteDialogo().setTitulo`), para não repetir o título dentro.
  *
- * @param {{ open: boolean, onOpenChange: (v: boolean) => void, titulo: string, lotes?: Array<{ nome?: string }>, largo?: boolean, amplo?: boolean, somenteLeitura?: boolean, children: React.ReactNode }} props
+ * @param {{ open: boolean, onOpenChange: (v: boolean) => void, titulo: string, lotes?: Array<{ nome?: string }>, largo?: boolean, amplo?: boolean, somenteLeitura?: boolean, folhaMobile?: boolean, children: React.ReactNode }} props
  */
-export function LancLoteDialogo({ open, onOpenChange, titulo, lotes, largo = false, amplo = false, somenteLeitura = false, children }) {
+export function LancLoteDialogo({ open, onOpenChange, titulo, lotes, largo = false, amplo = false, somenteLeitura = false, folhaMobile = false, children }) {
   const nomes = (lotes || []).map((l) => l?.nome).filter(Boolean).join(" · ");
   const desktop = useMediaQuery("(min-width: 1024px)");
-  const folhaConsulta = useCelular() && somenteLeitura;
+  const folhaConsulta = useCelular() && folhaMobile;
   const formId = `mk-ll-${React.useId().replace(/:/g, "")}`;
   const [acao, setAcao] = React.useState(/** @type {any} */ (null));
   // As listas do celular (folha) abrem dentro do diálogo (D-PROD-116).
