@@ -719,18 +719,10 @@
   }
 }
 
+/* Campos sem caixa de fundo: só rótulo e valor (área e lote). */
 .mk-dl__info {
   min-width: 0;
-  padding: 5px 8px;
-  border-radius: 8px;
-  background: #f6f7f8;
-}
-
-/* Informações da Área: campos sem o fundo cinza, só rótulo e valor. */
-.mk-dl__cartao--area .mk-dl__info {
-  padding-left: 0;
-  padding-right: 0;
-  background: transparent;
+  padding: 5px 0;
 }
 
 /* Campo: rótulo e valor no tamanho do "Categoria de Manejo", numa linha só;
