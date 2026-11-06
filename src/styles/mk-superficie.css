@@ -682,3 +682,15 @@
     flex-shrink: 0;
   }
 }
+
+/* Ícones de ação na mesma escala em celular, tablet e desktop.
+   As dimensões dos botões e áreas de toque permanecem independentes. */
+.cadastro-b1 :is(.tb-btn, .view-seg button):not(#mk-padrao) svg,
+:is(.tb-btn, .view-seg button, .mg-rec-pager__btn, .mk-sheet__close, .mk-sheet__new, .mk-mhdr__round, .mk-ll-dlg__redondo, .mk-ll__add, .mk-ll__remover, .mk-ll__btn, .mg-b1-menuitem, .fpc__item, .mgs__op):not(#mk-padrao) svg,
+.mk-mhdr__back > span:not(#mk-padrao) svg {
+  width: 16px !important;
+  height: 16px !important;
+  padding: 0 !important;
+  stroke-width: 1.65;
+  flex-shrink: 0;
+}
