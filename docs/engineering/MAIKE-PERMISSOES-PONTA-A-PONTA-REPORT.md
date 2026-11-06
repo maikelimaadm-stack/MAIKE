@@ -176,6 +176,7 @@ Todas estas rotas exigem token e tenant (R11). O que falta nelas é a checagem d
 - **Leitura e exportação** (GET): a tela não é checada no servidor. Isso inclui GET de lotes, movimentações e áreas.
   - Hoje o isolamento é só por tenant: um operador sem a tela lê os dados da própria fazenda por chamada direta.
   - Plano: `porTela(..., 'visualizar')` nos GET das telas protegidas, mais `exportar` onde houver exportação no servidor. Hoje a exportação é gerada no navegador, a partir da leitura.
+  - > **Atualizado por D-PROD-137:** os GET foram classificados por consumidor. Ganharam guarda ou projeção `/empresas`, `/usuarios`, `/usuarios/page`, `/permissoes` e `/fornecedores`. Ver "Leituras" em `MAIKE-PERMISSOES-R2-COBERTURA-ENDPOINTS.md` e o relatório `MAIKE-MISSAO-INTEGRADA-AUTORIZACAO-PREFERENCIAS-REPORT.md`.
 
 ## 8. Compatibilidade e riscos
 
@@ -245,6 +246,7 @@ Já passavam no HEAD inicial: admin real nos ícones, admin de outro tenant (404
 Arquivo: `MAIKE-PERMISSOES-R2-COBERTURA-ENDPOINTS.md`.
 
 - 201 rotas: a 76 · b 2 · c 65 · d 56 · públicas 2 · **e (lacuna de escrita) 0**.
+  - > **Atualizado por D-PROD-137** (HEAD `1e2b9fc5`): a 77 · b 2 · c 66 · d 54 · públicas 2 · e 0. `GET /fornecedores` passou a "a" e `GET /usuarios/page` a "c".
 
 ### 9.4 Risco residual e próximo slice (só após o merge manual da #199; nenhuma PR nova agora)
 
@@ -253,11 +255,16 @@ Arquivo: `MAIKE-PERMISSOES-R2-COBERTURA-ENDPOINTS.md`.
      a. separar as consultas que o mapa usa (`/mapa/...` ou um parâmetro `escopo=mapa`) das leituras de cadastro;
      b. `porTela(alvo, 'visualizar')` nos GET de cadastro;
      c. testes HTTP com o mapa só de visualização.
+   - > **Atualizado por D-PROD-137:** as leituras administrativas e com dados pessoais ganharam guarda ou projeção. Os GET que o mapa usa continuam só por tenant, de propósito, e os de cadastro sem consumidor no mapa também, por enquanto. O teste HTTP com o operador real "só mapa" é o C-01 de `backend/tests/leiturasCadastrosIntegrada.test.mjs`. Classificação e riscos que continuam: `MAIKE-PERMISSOES-R2-COBERTURA-ENDPOINTS.md`, "Leituras".
 2. **Histórico de bebedouro no Mapa Geral:** o botão "Lançar" aparece para todos, e o servidor exige a tela Bebedouros ou "salvar" no mapa.
    - Quem não tem essas concessões vê a mensagem de 403.
    - Roteiro: chave própria no mapa (`lancar_bebedouro`) e o botão escondido.
    - `DetalhesBebedouro` não foi tocado nesta PR.
+   - > **Superado por D-PROD-137 (BEB-01/BEB-02):** sem chave nova. "Lançar" e "Excluir" seguem `src/lib/bebedouroPermissions.js`, que espelha `GUARDAS.bebedouroHistorico`, e só aparecem com a concessão aceita. A recusa do servidor agora aparece como mensagem.
+     - Lançar: Bebedouros `novo`/`salvar` ou Mapa Geral `salvar`, com `bebedouro_id` obrigatório.
+     - Excluir: só Bebedouros `excluir`, e só o lançamento mais recente. O Mapa Geral `excluir` **não** exclui mais histórico de bebedouro.
 3. **Heurística de clique do Layout:** continua só como conveniência visual (ícones, "Nova…" e Enter escapam). A segurança é o 403 do servidor.
+   - > **Atualizado por D-PROD-137 (BEB-04):** os botões do histórico na tela Bebedouros saem da heurística (`data-permissao-explicita`), porque já seguem a regra do servidor. O resto continua como está.
 4. **Janela de revogação em voo:** ver 9.2. Trava transacional `FOR UPDATE` na linha de permissão só se o arquiteto exigir.
 
 ## 10. R3 — desvio de privilégio em suplementação e outros `porQualquer`
@@ -294,11 +301,20 @@ Corrigidos:
 - **referências:** exigem a tela da própria entidade;
 - **anexo:** remover exige `excluir`.
 
+> **Atualizado por D-PROD-137:**
+> - Nota: o nome do local passa a ser conferido com o `LocalEstoque` vinculado (F7). Saldo e custo só o administrador real (F5).
+> - Referências: além da tela, o corpo só identifica a origem. Os valores são lidos no banco e casados por id, em transação auditada; `data` e `old_data` não são lidos (REF-01/F4).
+> - Anexo: sem acesso total, só em `Lote` existente no tenant (F8).
+
 Mantidos, com contrato explícito:
 - setor e categoria de manejo rápidos a partir do Cadastro de Lotes (só criar);
 - local e bebedouro a partir do Mapa Cadastro;
 - histórico de bebedouro por Mapa Geral `salvar`/`excluir` (risco residual 9.4-2);
 - upload por Lotes ou Empresa.
+
+> **Atualizado por D-PROD-137:**
+> - Local pelo Mapa Cadastro: cria local (o fluxo é o do depósito novo) e só renomeia (`nome`/`descricao`) o local ligado a um depósito. Não desativa, não muda capacidade e não exclui (F6).
+> - Histórico de bebedouro: o Mapa Geral `salvar` continua lançando, mas o `excluir` saiu. Exclusão só com Bebedouros `excluir`, e só do lançamento mais recente (BEB-02).
 
 Matriz permissão → efeito → condição: ver `MAIKE-PERMISSOES-R2-COBERTURA-ENDPOINTS.md`.
 
@@ -313,6 +329,14 @@ Teste: `backend/tests/permissoesR4.test.mjs`, rodado sobre o `backend/src` de `6
 
 ### 11.2 Política adotada (fail-closed; o comando vinculado à transferência não foi feito)
 Um comando de fechamento vinculado a uma transferência comprovada exigiria redesenhar a sequência do formulário. Hoje o fechamento roda **antes** da transferência existir, então não há o que vincular no servidor. Ficaria grande demais para este slice.
+
+> **Atualizado por D-PROD-137 (SUP-01):** quem pode lançar continua no mesmo fluxo, mas agora:
+> - o passo do consumo só **calcula**;
+> - o fechamento é gravado **depois** de a transferência ser confirmada;
+> - recusa, cancelar e offline não gravam nada;
+> - se o fechamento falhar depois da transferência, aparece um aviso explícito.
+>
+> Continua não atômico no servidor; o comando vinculado segue pendente.
 
 - **Servidor:** todo PATCH de suplementação exige `lancar_suplementacao`. "Mover" não fecha período nenhum.
 - **Formulário de mover** (`FormularioMovimentacaoLote`, prop `podeLancarSuplementacao` com padrão `false`, passada pelo `DetalhesLote` como `permissions.lancar_suplementacao === true`). Sem a permissão:
