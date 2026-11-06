@@ -183,7 +183,7 @@ export default function ConfiguracaoColunasB1Dialog({
         title={titulo}
         initialLarge
         aside={`${usadas.length} de ${todas.length} visíveis`}
-        className="mk-colcfg"
+        className="mk-colcfg mk-config-sheet"
         headerAction={
           <button type="button" className="mk-sheet__new" aria-label="Aplicar" title="Aplicar" onClick={salvar}>
             <Check size={22} aria-hidden />
@@ -325,7 +325,7 @@ export default function ConfiguracaoColunasB1Dialog({
   };
 
   const busca = (valor, onChange, rotulo) => (
-    <label className="cfgb cfgb-lista">
+    <label className="cfgb cfgb-lista mk-pill">
       <Search size={14} aria-hidden />
       <input
         value={valor}
@@ -346,7 +346,7 @@ export default function ConfiguracaoColunasB1Dialog({
   return createPortal(
     <div className={cn("b1ref cadastro-b1", portalSkin && "b1-portal-compras")}>
       <div className="mdl">
-        <div className="mdlc" ref={dialogo} role="dialog" aria-modal="true" aria-label={titulo}>
+        <div className="mdlc mk-config-dialog" ref={dialogo} role="dialog" aria-modal="true" aria-label={titulo}>
           <div className="mdl-h">
             <span className="mdl-t">{titulo}</span>
             <span style={{ flexGrow: 1 }} />

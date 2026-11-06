@@ -4,6 +4,7 @@ import { Check, RotateCcw, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePortalComprasSkin } from "./portalComprasSkinContext";
 import { CheckRow, RadioRow } from "./Base1Ui";
+import MobileSheet, { useCelular } from "@/components/common/MobileSheet";
 
 const PER_ROW = [
   { n: 1, hint: "Até 5 campos por linha no card" },
@@ -18,19 +19,35 @@ const MAX_CARD_FIELDS = 10;
  * @param {boolean} props.open
  * @param {() => void} props.onFechar descarta rascunho
  * @param {import('react').ReactNode} props.children
- * @param {import('react').ReactNode} [props.footer]
+ * @param {() => void} props.onAplicar
  * @param {string} props.titulo
  * @param {string} [props.testId]
  * @param {() => void} [props.onRestaurarRascunho]
  */
-function CardsB1DialogShell({ open, onFechar, titulo, children, footer, testId, onRestaurarRascunho }) {
+function CardsB1DialogShell({ open, onFechar, titulo, children, onAplicar, testId, onRestaurarRascunho }) {
   const portalSkin = usePortalComprasSkin();
+  const celular = useCelular();
   if (!open) return null;
+
+  if (celular) {
+    return (
+      <MobileSheet open initialLarge onClose={onFechar} label={titulo} title={titulo} className="mk-config-sheet" headerAction={
+        <button type="button" className="mk-sheet__new" aria-label="Aplicar" title="Aplicar" onClick={onAplicar}><Check aria-hidden /></button>
+      }>
+        <div className="cadastro-b1 mk-config-body" data-testid={testId}>
+          {children}
+          {onRestaurarRascunho ? (
+            <button type="button" className="mk-config-restore" onClick={onRestaurarRascunho}><RotateCcw aria-hidden />Restaurar padrão</button>
+          ) : null}
+        </div>
+      </MobileSheet>
+    );
+  }
 
   return createPortal(
     <div className={cn("b1ref cadastro-b1", portalSkin && "b1-portal-compras")}>
       <div className="mdl" data-testid={testId}>
-        <div className="mdlc" role="dialog" aria-modal="true" aria-label={titulo}>
+        <div className="mdlc mk-config-dialog" role="dialog" aria-modal="true" aria-label={titulo}>
           <div className="mdl-h">
             <span className="mdl-t">{titulo}</span>
             <span style={{ flexGrow: 1 }} />
@@ -56,7 +73,7 @@ function CardsB1DialogShell({ open, onFechar, titulo, children, footer, testId, 
             </button>
           </div>
           <div className="mdl-b">{children}</div>
-          {footer ? <div className="mdl-f">{footer}</div> : null}
+          <div className="mdl-f">{dialogFooter(onAplicar)}</div>
         </div>
       </div>
     </div>,
@@ -125,9 +142,9 @@ export function ConfiguracaoLayoutCardsB1Dialog({ open, onFechar, value, onAplic
       titulo="Layout dos cards"
       testId="b1-cards-layout-dialog"
       onRestaurarRascunho={restaurarRascunho}
-      footer={dialogFooter(salvar)}
+      onAplicar={salvar}
     >
-      <div role="radiogroup" aria-label="Cards por linha" className="min-h-0 overflow-auto">
+      <div role="radiogroup" aria-label="Cards por linha" className="mk-config-options min-h-0 overflow-auto">
         {PER_ROW.map((o) => (
           <RadioRow
             key={o.n}
@@ -203,13 +220,13 @@ export function ConfiguracaoCamposCardsB1Dialog({
       titulo="Campos dos cards"
       testId="b1-cards-fields-dialog"
       onRestaurarRascunho={restaurarRascunho}
-      footer={dialogFooter(salvar)}
+      onAplicar={salvar}
     >
       <div className="mb-3 text-xs text-[var(--mg-text-2)]">
         {draft.length} de {Math.min(columns.length, MAX_CARD_FIELDS)} campos
         {draft.length >= MAX_CARD_FIELDS ? " · máximo atingido" : ""}
       </div>
-      <div className="min-h-0 flex-1 overflow-auto pr-1">
+      <div className="mk-config-options min-h-0 flex-1 overflow-auto">
         {[...columns]
           .sort((a, b) => a.label.localeCompare(b.label, "pt-BR"))
           .map((c) => {

@@ -19,7 +19,7 @@ export default function ConfiguracaoColunasLegacyDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       {/* @ts-expect-error — shadcn Dialog forwardRef sem children tipado no checkJs legado */}
-      <DialogContent className="max-w-md max-h-[80vh] overflow-hidden flex flex-col">
+      <DialogContent className="mk-config-dialog mk-config-legacy max-w-md max-h-[80vh] overflow-hidden flex flex-col">
         {/* @ts-expect-error — shadcn DialogHeader */}
         <DialogHeader>
           {/* @ts-expect-error — shadcn DialogTitle */}
@@ -86,7 +86,7 @@ export default function ConfiguracaoColunasLegacyDialog({
         </div>
 
         <div className="flex justify-end gap-2 pt-3 border-t">
-          <Button variant="outline" onClick={() => onOpenChange(false)} size="sm" className="h-7 text-xs">
+          <Button variant="outline" onClick={() => onOpenChange(false)} size="sm" className="tb-btn tb-btn-gray h-7 text-xs">
             Fechar
           </Button>
         </div>

@@ -7,6 +7,7 @@
 @import "./styles/mapa-geral.css";
 @import "./styles/mk-superficie.css";
 @import "./styles/mk-filtros.css";
+@import "./styles/mk-configuracoes.css";
 
 @tailwind base;
 @tailwind components;
