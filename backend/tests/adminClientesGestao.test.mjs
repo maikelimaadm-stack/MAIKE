@@ -43,6 +43,13 @@ const novo = (extra = {}) => ({
   administrador: { nome: 'Maria Gestora', login: 'maria.esperanca' },
   ...extra,
 });
+/** Revisão bem formada que não corresponde a nenhuma ficha. */
+const REV_FALSA = `"r1-${'A'.repeat(43)}"`;
+const idDaUrl = (url) => url.split('/')[3];
+/** GET da ficha (ETag) e só então a escrita com If-Match: o fluxo normal da tela. */
+const revisaoAtual = async (id, headers) => (await enviar('GET', `/admin-maike/clientes/${id}`, headers)).headers.etag;
+const escrever = async (method, url, headers, payload) =>
+  enviar(method, url, { ...headers, 'if-match': (await revisaoAtual(idDaUrl(url), headers)) || REV_FALSA }, payload);
 const SENHA_FORMATO = /^[A-HJ-NP-Za-km-z2-9]{4}(-[A-HJ-NP-Za-km-z2-9]{4}){3}$/;
 
 describe('autorização das escritas', () => {
@@ -204,7 +211,7 @@ describe('edição e situação', () => {
     const a = await criarTenant({ codigo: 'fazenda-a' });
     const b = await criarTenant({ codigo: 'fazenda-b' });
     const { headers } = await criarAdminComSessao(app);
-    const ok = await enviar('PATCH', `/admin-maike/clientes/${a.cliente.id}`, headers, { nome: 'Fazenda A Renomeada', codigo: 'fazenda-a2' });
+    const ok = await escrever('PATCH', `/admin-maike/clientes/${a.cliente.id}`, headers, { nome: 'Fazenda A Renomeada', codigo: 'fazenda-a2' });
     assert.equal(ok.statusCode, 200, ok.body);
     assert.match(String(ok.headers['cache-control']), /no-store/);
     assert.equal(ok.json().cliente.nome, 'Fazenda A Renomeada');
@@ -213,14 +220,14 @@ describe('edição e situação', () => {
     assert.equal(intacto.nome, b.cliente.nome);
     assert.equal(intacto.codigo, 'fazenda-b');
 
-    const dup = await enviar('PATCH', `/admin-maike/clientes/${a.cliente.id}`, headers, { codigo: 'fazenda-b' });
+    const dup = await escrever('PATCH', `/admin-maike/clientes/${a.cliente.id}`, headers, { codigo: 'fazenda-b' });
     assert.equal(dup.statusCode, 409);
     assert.equal(dup.json().code, 'ADMIN_CLIENTE_CODIGO_DUPLICADO');
     for (const payload of [{}, { ativo: false }, { id: 'x' }, { cliente_id: 'x' }, { nome: 'x', usuarios_total: 9 }, { papel_tenant: 'administrador' }]) {
-      const r = await enviar('PATCH', `/admin-maike/clientes/${a.cliente.id}`, headers, payload);
+      const r = await escrever('PATCH', `/admin-maike/clientes/${a.cliente.id}`, headers, payload);
       assert.equal(r.statusCode, 400, JSON.stringify(payload));
     }
-    const inexistente = await enviar('PATCH', '/admin-maike/clientes/cl_nao_existe_000', headers, { nome: 'X' });
+    const inexistente = await escrever('PATCH', '/admin-maike/clientes/cl_nao_existe_000', headers, { nome: 'X' });
     assert.equal(inexistente.statusCode, 422);
     const ev = await prisma().eventoSegurancaAdminMaike.findMany({ where: { acao: 'cliente_editar' } });
     assert.equal(ev.length, 1);
@@ -238,12 +245,12 @@ describe('edição e situação', () => {
     const ctx = (token) => app.inject({ method: 'GET', url: '/auth/contexto', headers: { authorization: `Bearer ${token}` } });
     assert.equal((await ctx(tokenA)).statusCode, 200);
 
-    const semJustificativa = await enviar('POST', `/admin-maike/clientes/${a.cliente.id}/situacao`, headers, { ativo: false });
+    const semJustificativa = await escrever('POST', `/admin-maike/clientes/${a.cliente.id}/situacao`, headers, { ativo: false });
     assert.equal(semJustificativa.statusCode, 400);
-    const curta = await enviar('POST', `/admin-maike/clientes/${a.cliente.id}/situacao`, headers, { ativo: false, justificativa: 'curta' });
+    const curta = await escrever('POST', `/admin-maike/clientes/${a.cliente.id}/situacao`, headers, { ativo: false, justificativa: 'curta' });
     assert.equal(curta.statusCode, 400);
 
-    const sus = await enviar('POST', `/admin-maike/clientes/${a.cliente.id}/situacao`, headers, { ativo: false, justificativa: 'inadimplência combinada com o cliente' });
+    const sus = await escrever('POST', `/admin-maike/clientes/${a.cliente.id}/situacao`, headers, { ativo: false, justificativa: 'inadimplência combinada com o cliente' });
     assert.equal(sus.statusCode, 200, sus.body);
     assert.equal(sus.json().cliente.ativo, false);
     assert.equal((await ctx(tokenA)).statusCode, 401, 'token emitido antes da suspensão perde o acesso na hora');
@@ -251,14 +258,14 @@ describe('edição e situação', () => {
     assert.equal((await ctx(tokenB)).statusCode, 200, 'outro tenant não é afetado');
     assert.equal((await autenticarNoApp(app, b.credenciais)).resposta.statusCode, 200);
 
-    const repetida = await enviar('POST', `/admin-maike/clientes/${a.cliente.id}/situacao`, headers, { ativo: false, justificativa: 'suspensão repetida por engano' });
+    const repetida = await escrever('POST', `/admin-maike/clientes/${a.cliente.id}/situacao`, headers, { ativo: false, justificativa: 'suspensão repetida por engano' });
     assert.equal(repetida.statusCode, 422);
 
     // Nada apagado: conta, empresa e o próprio cliente continuam lá.
     assert.ok(await prisma().empresa.findUnique({ where: { id: empresa.id } }));
     assert.equal((await prisma().usuario.findUnique({ where: { id: a.usuario.id } })).ativo, true);
 
-    const re = await enviar('POST', `/admin-maike/clientes/${a.cliente.id}/situacao`, headers, { ativo: true, justificativa: 'pagamento regularizado pelo cliente' });
+    const re = await escrever('POST', `/admin-maike/clientes/${a.cliente.id}/situacao`, headers, { ativo: true, justificativa: 'pagamento regularizado pelo cliente' });
     assert.equal(re.statusCode, 200);
     assert.equal(re.json().cliente.ativo, true);
     assert.equal((await autenticarNoApp(app, a.credenciais)).resposta.statusCode, 200, 'reativado volta a entrar');
@@ -339,7 +346,7 @@ describe('S03-R1 concorrência da edição e auditoria', () => {
       const url = `/admin-maike/clientes/${alvo.cliente.id}`;
       const original = await prisma().cliente.findUnique({ where: { id: alvo.cliente.id } });
 
-      const [ra, rb] = await comLinhaPresa(alvo.cliente.id, 2, () => [enviar('PATCH', url, headers, pa), enviar('PATCH', url, headers, pb)]);
+      const [ra, rb] = await comLinhaPresa(alvo.cliente.id, 2, () => [escrever('PATCH', url, headers, pa), escrever('PATCH', url, headers, pb)]);
       const status = [ra.statusCode, rb.statusCode].sort();
       assert.deepEqual(status, [200, 409], `${ra.body} | ${rb.body}`);
       const perdedor = ra.statusCode === 409 ? ra : rb;
@@ -367,7 +374,7 @@ describe('S03-R1 concorrência da edição e auditoria', () => {
     const [r] = await comLinhaPresa(
       alvo.cliente.id,
       1,
-      () => [enviar('PATCH', url, headers, { codigo: 'codigo-defasado' })],
+      () => [escrever('PATCH', url, headers, { codigo: 'codigo-defasado' })],
       (tx) => tx.$executeRaw`UPDATE "Cliente" SET nome = 'Mudado por fora', "updatedAt" = now() WHERE id = ${alvo.cliente.id}`
     );
     assert.equal(r.statusCode, 409, r.body);
@@ -376,7 +383,7 @@ describe('S03-R1 concorrência da edição e auditoria', () => {
     assert.equal(atual.codigo, 'fazenda-alterada', 'nada gravado pela edição defasada');
     assert.equal(await prisma().eventoSegurancaAdminMaike.count({ where: { acao: 'cliente_editar' } }), 0);
 
-    const ok = await enviar('PATCH', url, headers, { codigo: 'codigo-revisado' });
+    const ok = await escrever('PATCH', url, headers, { codigo: 'codigo-revisado' });
     assert.equal(ok.statusCode, 200, ok.body);
     atual = await prisma().cliente.findUnique({ where: { id: alvo.cliente.id } });
     const [ev] = await prisma().eventoSegurancaAdminMaike.findMany({ where: { acao: 'cliente_editar' } });
@@ -389,7 +396,7 @@ describe('S03-R1 concorrência da edição e auditoria', () => {
     const a = await criarTenant({ codigo: 'fazenda-um' });
     const b = await criarTenant({ codigo: 'fazenda-dois' });
     const { headers } = await criarAdminComSessao(app);
-    const rs = await Promise.all([a, b].map((t) => enviar('PATCH', `/admin-maike/clientes/${t.cliente.id}`, headers, { codigo: 'codigo-cobicado' })));
+    const rs = await Promise.all([a, b].map((t) => escrever('PATCH', `/admin-maike/clientes/${t.cliente.id}`, headers, { codigo: 'codigo-cobicado' })));
     assert.deepEqual(rs.map((r) => r.statusCode).sort(), [200, 409]);
     assert.equal(rs.find((r) => r.statusCode === 409).json().code, 'ADMIN_CLIENTE_CODIGO_DUPLICADO');
     assert.equal(await prisma().cliente.count({ where: { codigo: 'codigo-cobicado' } }), 1);
@@ -403,7 +410,7 @@ describe('S03-R1 concorrência da edição e auditoria', () => {
     const { headers } = await criarAdminComSessao(app);
     const url = `/admin-maike/clientes/${alvo.cliente.id}/situacao`;
     const corpo = { ativo: false, justificativa: 'suspensão disparada duas vezes' };
-    const rs = await comLinhaPresa(alvo.cliente.id, 2, () => [enviar('POST', url, headers, corpo), enviar('POST', url, headers, corpo)]);
+    const rs = await comLinhaPresa(alvo.cliente.id, 2, () => [escrever('POST', url, headers, corpo), escrever('POST', url, headers, corpo)]);
     assert.deepEqual(rs.map((r) => r.statusCode).sort(), [200, 409], rs.map((r) => r.body).join(' | '));
     assert.equal(rs.find((r) => r.statusCode === 409).json().code, 'ADMIN_CLIENTE_EDICAO_CONCORRENTE');
     assert.equal(await prisma().eventoSegurancaAdminMaike.count({ where: { acao: 'cliente_suspender' } }), 1);
@@ -418,11 +425,84 @@ describe('S03-R1 semântica do token de fazenda na suspensão', () => {
     const ctx = () => app.inject({ method: 'GET', url: '/auth/contexto', headers: { authorization: `Bearer ${tokenA}` } });
     const url = `/admin-maike/clientes/${t.cliente.id}/situacao`;
     assert.equal((await ctx()).statusCode, 200);
-    assert.equal((await enviar('POST', url, headers, { ativo: false, justificativa: 'teste de semântica do token' })).statusCode, 200);
+    assert.equal((await escrever('POST', url, headers, { ativo: false, justificativa: 'teste de semântica do token' })).statusCode, 200);
     assert.equal((await ctx()).statusCode, 401, 'enquanto suspenso, o token antigo é recusado');
-    assert.equal((await enviar('POST', url, headers, { ativo: true, justificativa: 'teste de semântica do token' })).statusCode, 200);
+    assert.equal((await escrever('POST', url, headers, { ativo: true, justificativa: 'teste de semântica do token' })).statusCode, 200);
     // Comportamento REAL registrado: sem versão de sessão no banco, o mesmo
     // token volta a valer enquanto não expira. Revogação permanente = S04.
     assert.equal((await ctx()).statusCode, 200, 'mesmo token, sem novo login, volta a funcionar após reativar');
+  });
+});
+
+describe('S03-R2 revisão da ficha (ETag / If-Match)', () => {
+  test('GES-16 ficha obsoleta: A e B leem X; A salva Y; B com a revisão X recebe 409, sem gravar nem auditar', async () => {
+    const alvo = await criarTenant({ codigo: 'fazenda-ficha-velha' });
+    const { headers } = await criarAdminComSessao(app);
+    const url = `/admin-maike/clientes/${alvo.cliente.id}`;
+    const fichaA = await enviar('GET', url, headers);
+    const fichaB = await enviar('GET', url, headers);
+    const revX = fichaB.headers.etag;
+    assert.match(String(revX), /^"r1-[A-Za-z0-9_-]{43}"$/);
+    assert.equal(fichaA.headers.etag, revX, 'mesmo estado, mesma revisão');
+    assert.deepEqual(Object.keys(fichaB.json()).sort(), ['cliente', 'contagens'], 'projeção JSON da S01 intacta');
+
+    const a = await enviar('PATCH', url, { ...headers, 'if-match': fichaA.headers.etag }, { nome: 'Nome Salvo por A' });
+    assert.equal(a.statusCode, 200, a.body);
+    assert.notEqual(a.headers.etag, revX, 'a escrita devolve a revisão nova');
+
+    // Minutos depois, B envia o formulário antigo: o estado atual (Y) seria
+    // aceito pelo CAS intra-requisição; a revisão da ficha é que denuncia.
+    const b = await enviar('PATCH', url, { ...headers, 'if-match': revX }, { nome: 'Nome Velho de B' });
+    assert.equal(b.statusCode, 409, b.body);
+    assert.equal(b.json().code, 'ADMIN_CLIENTE_EDICAO_CONCORRENTE');
+    const sus = await enviar('POST', `${url}/situacao`, { ...headers, 'if-match': revX }, { ativo: false, justificativa: 'ficha antiga tentando suspender' });
+    assert.equal(sus.statusCode, 409, sus.body);
+
+    const atual = await prisma().cliente.findUnique({ where: { id: alvo.cliente.id } });
+    assert.equal(atual.nome, 'Nome Salvo por A');
+    assert.equal(atual.ativo, true);
+    const ev = await prisma().eventoSegurancaAdminMaike.findMany({ where: { acao: { in: ['cliente_editar', 'cliente_suspender'] } } });
+    assert.deepEqual(ev.map((e) => e.acao), ['cliente_editar'], 'só o sucesso de A é auditado');
+
+    // Com a revisão nova (devolvida por A), a situação passa; e ficha velha de reativação também é barrada.
+    const ok = await enviar('POST', `${url}/situacao`, { ...headers, 'if-match': a.headers.etag }, { ativo: false, justificativa: 'suspensão com ficha atual' });
+    assert.equal(ok.statusCode, 200, ok.body);
+    const reVelha = await enviar('POST', `${url}/situacao`, { ...headers, 'if-match': a.headers.etag }, { ativo: true, justificativa: 'reativação com ficha velha' });
+    assert.equal(reVelha.statusCode, 409, reVelha.body);
+    const reOk = await enviar('POST', `${url}/situacao`, { ...headers, 'if-match': ok.headers.etag }, { ativo: true, justificativa: 'reativação com ficha atual' });
+    assert.equal(reOk.statusCode, 200, reOk.body);
+  });
+
+  test('GES-17 If-Match ausente, malformado, fraco ou de outro cliente: 428/409; nunca há caminho desprotegido', async () => {
+    const a = await criarTenant({ codigo: 'fazenda-pre-a' });
+    const b = await criarTenant({ codigo: 'fazenda-pre-b' });
+    const { headers } = await criarAdminComSessao(app);
+    const url = `/admin-maike/clientes/${a.cliente.id}`;
+    const revB = (await enviar('GET', `/admin-maike/clientes/${b.cliente.id}`, headers)).headers.etag;
+    const revA = (await enviar('GET', url, headers)).headers.etag;
+    for (const [rev, status] of [
+      [undefined, 428],
+      ['', 428],
+      ['*', 428],
+      ['r1-semaspas', 428],
+      [`W/${revA}`, 428],
+      [`${revA}, ${revB}`, 428],
+      [REV_FALSA, 409],
+      [revB, 409],
+    ]) {
+      const h = rev === undefined ? headers : { ...headers, 'if-match': rev };
+      const p = await enviar('PATCH', url, h, { nome: 'Sem Revisão Válida' });
+      assert.equal(p.statusCode, status, `PATCH if-match=${rev}`);
+      if (status === 428) assert.equal(p.json().code, 'ADMIN_REVISAO_REQUERIDA');
+      const s = await enviar('POST', `${url}/situacao`, h, { ativo: false, justificativa: 'sem revisão válida aqui' });
+      assert.equal(s.statusCode, status, `situacao if-match=${rev}`);
+    }
+    const c = await prisma().cliente.findUnique({ where: { id: a.cliente.id } });
+    assert.equal(c.nome, a.cliente.nome);
+    assert.equal(c.ativo, true);
+    assert.equal(await prisma().eventoSegurancaAdminMaike.count({ where: { acao: { in: ['cliente_editar', 'cliente_suspender'] } } }), 0);
+    // O corpo continua fechado: revisão no corpo é campo desconhecido (400), não atalho.
+    const noCorpo = await enviar('PATCH', url, { ...headers, 'if-match': revA }, { nome: 'X Y', revisao: revA });
+    assert.equal(noCorpo.statusCode, 400);
   });
 });

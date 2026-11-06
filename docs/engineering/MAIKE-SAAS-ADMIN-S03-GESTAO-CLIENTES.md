@@ -32,8 +32,15 @@ Toda resposta `/admin-maike/*` sai com `Cache-Control: no-store`, por um hook do
 | Método e rota | Corpo | Resposta |
 |---|---|---|
 | `POST /admin-maike/clientes` | `{ nome, codigo, administrador: { nome, login } }` | 201 `{ cliente: {id, codigo, nome, ativo, criado_em, atualizado_em}, administrador: {id, nome, login}, senha_temporaria }` |
-| `PATCH /admin-maike/clientes/:id` | `{ nome?, codigo? }` (pelo menos 1) | 200 `{ cliente }` |
-| `POST /admin-maike/clientes/:id/situacao` | `{ ativo: boolean, justificativa: string(10..500) }` | 200 `{ cliente }` |
+| `PATCH /admin-maike/clientes/:id` | `{ nome?, codigo? }` (pelo menos 1) + cabeçalho **`If-Match` obrigatório** (S03-R2) | 200 `{ cliente }` + `ETag` novo |
+| `POST /admin-maike/clientes/:id/situacao` | `{ ativo: boolean, justificativa: string(10..500) }` + **`If-Match` obrigatório** | 200 `{ cliente }` + `ETag` novo |
+
+**Revisão da ficha (S03-R2):**
+- `GET /admin-maike/clientes/:id` devolve o cabeçalho `ETag: "r1-<sha256 base64url>"`, calculado sobre `[id, atualizado_em, ativo, codigo, nome]` (os mesmos campos públicos da ficha). A projeção JSON da S01 **não mudou**.
+- `PATCH` e `situacao` exigem `If-Match` com exatamente uma revisão nesse formato:
+  - ausente, `*`, fraca (`W/`), lista ou malformada → **428 `ADMIN_REVISAO_REQUERIDA`**;
+  - bem formada mas diferente do estado atual (ficha obsoleta, ou revisão de outro cliente) → **409 `ADMIN_CLIENTE_EDICAO_CONCORRENTE`**.
+- A revisão vai **só em cabeçalho**: no corpo é campo desconhecido (400). Ela não carrega tenant nem ator; só compara estado. A autoridade continua sendo o CAS do `UPDATE` no banco.
 
 Regras de formato (validadas no servidor):
 - **código:** normalizado em minúsculas, `^[a-z0-9][a-z0-9-]{1,62}[a-z0-9]$`;
@@ -47,6 +54,7 @@ Regras de formato (validadas no servidor):
 | `ADMIN_CLIENTE_CODIGO_DUPLICADO` | 409 | código já usado (checagem prévia ou unique `Cliente.codigo` em corrida) |
 | `ADMIN_LOGIN_DUPLICADO` | 409 | login já usado por **conta ativa de qualquer cliente**, inclusive suspenso. Vem do índice parcial `Usuario_login_ativo_global_key` (`lower(login) WHERE ativo`) |
 | `ADMIN_CLIENTE_EDICAO_CONCORRENTE` | 409 | (S03-R1) o cliente mudou em outra sessão entre a leitura e a escrita (`PATCH` ou `situacao`). Nada é gravado nem auditado; a tela pede para reabrir e revisar. Nunca é reexecutado automaticamente |
+| `ADMIN_REVISAO_REQUERIDA` | 428 | (S03-R2) `If-Match` ausente ou malformado em `PATCH`/`situacao` |
 | `ADMIN_ENTRADA_INVALIDA` | 422 | formato inválido, cliente inexistente (mesma resposta da S01), situação repetida |
 | `ADMIN_SESSAO_REQUIRED` / `ADMIN_PRINCIPAL_REQUIRED` / `ADMIN_MFA_REQUIRED` / `ADMIN_ORIGEM_RECUSADA` | 401/403 | anônimo, JWT de fazenda, pré-MFA, Origin ou CSRF |
 
@@ -118,16 +126,40 @@ As quatro leituras da S01 (`GET /clientes`, `/clientes/:id`, `/usuarios`, `/empr
   - **GES-13:** dois clientes disputando o mesmo código novo → `[200, 409 CODIGO_DUPLICADO]`, um evento;
   - **GES-14:** duas suspensões → `[200, 409]`, um evento.
 
+#### 3.6.1 CAS intra-requisição × revisão da ficha (S03-R2)
+- **Lacuna da R1:** o CAS comparava o `UPDATE` com o que **a própria requisição** acabara de ler. No fluxo normal da tela, A e B abrem a ficha em X, A salva Y, e minutos depois B envia o formulário antigo. A requisição de B lia Y, o CAS passava, e B sobrescrevia Y.
+  - **Reproduzido no código da R1:** A 200, B 200, nome final = o do formulário velho de B, dois eventos.
+- **Correção:** a revisão que **o navegador** leu (`ETag` do GET) volta em `If-Match` e é comparada, dentro da transação, com o estado lido. Em seguida vem o mesmo CAS do `UPDATE` (agora também na `situacao`: `id`, `ativo`, `nome`, `codigo`, `updatedAt`).
+  - Ficha obsoleta → 409, sem gravar nem auditar (GES-16, para edição, suspensão e reativação).
+  - Precondição ausente ou malformada → 428 (GES-17).
+  - A tela manda o `ETag` da ficha carregada e recarrega a ficha depois de cada escrita.
+- **Risco residual (ABA):** como não há contador monotônico (sem migration), a revisão depende de `updatedAt` com precisão de milissegundo. Ela só falharia se o estado fosse X→Y→X com o **mesmo** `updatedAt` em milissegundos e os mesmos campos. Na prática, isso exige duas escritas no mesmo milissegundo que voltem ao estado original. O risco é residual baixo e está registrado; a garantia estrita exige um contador de versão (S04 / pré-produção).
+
 ### 3.7 Resposta do cadastro perdida depois do COMMIT (S03-R1)
 - **Risco:** o banco pode confirmar o cadastro e a conexão cair antes da resposta. Nesse caso cliente e administrador existem, a senha nunca chegou e reenviar daria 409. Não há idempotência no `POST`.
-- **Mitigação honesta, na tela:**
-  - **Quando conta como incerto:** falha de rede/timeout (fetch rejeita), 502/503/504, ou 5xx sem o corpo de erro do backend (`resultadoIncerto` em `api.js`).
-  - **O que a tela faz:** aviso "o cadastro pode ter sido concluído, não envie de novo antes de verificar". O botão de cadastrar **some** (o Enter também não reenvia) e dá lugar a **"Verificar se o cliente foi criado"**, que é só leitura (`GET /clientes?q=<código>`).
-  - **Se o cliente existe:** a tela diz que a senha **não pode ser mostrada de novo**, que não se deve cadastrar outra vez, e que a recuperação fica para a próxima etapa. Oferece "Abrir ficha".
-  - **Se não existe:** libera o reenvio com o que foi digitado.
-  - **O que não faz:** retry automático, guardar a senha no navegador ou prometer recuperação.
-  - **Erros conhecidos** (400/409/422) continuam recuperáveis como antes.
-- **Limitação operacional:** um cliente nessa situação fica sem senha conhecida até existir **recuperação/reset da credencial inicial (S04)**. **Não liberar onboarding de produção sem ela.**
+- **Mitigação na tela (revista na S03-R2):**
+  - **Incerto:** rede/timeout (fetch rejeita) ou **qualquer 5xx**, inclusive 500 com `code` do backend, porque a falha pode ter vindo depois do COMMIT. Só 4xx (recusa antes de gravar) continua recuperável.
+  - **Ao ficar incerto:**
+    - o botão de cadastrar some, o Enter não reenvia e os dados digitados ficam;
+    - **nenhuma verificação reabilita o envio**;
+    - a tela avisa que Cancelar fecha o formulário mas **não** cancela o pedido no servidor.
+  - **"Verificar se o cliente foi criado" / "Verificar novamente"** (só leitura):
+    - percorre **todas** as páginas de `GET /clientes?q=<código>` por cursor, até `has_more = false`, procurando o código **exato**;
+    - tem teto de 40 páginas e detecta cursor repetido;
+    - não muda a projeção nem as rotas da S01.
+  - **Resultados da verificação:**
+    - **achou:** "já existe cliente com este código". A tela **não** afirma que foi este envio que o criou, não mostra senha e manda não cadastrar outra vez;
+    - **não achou:** "não encontramos **ainda**; isso **não** confirma que o pedido original falhou". O envio continua bloqueado;
+    - **página falhou, cursor repetido ou teto atingido:** **inconclusivo**, e o envio continua bloqueado.
+  - **Por que nada é definitivo:** o POST original pode ainda estar em execução quando o GET roda. Sem chave de idempotência persistida, não há como provar que a criação não aconteceu, e a tela não simula essa certeza.
+  - **Se não existe de fato:** o operador cancela e cadastra de novo. Se o primeiro POST tiver comitado nesse meio-tempo, o unique de código/login devolve 409 e não duplica.
+- **Reproduzido no código da R1:**
+  - um GET negativo com o POST em andamento reabilitava o envio e dizia "não foi concluído";
+  - a busca olhava só a 1ª página (código exato na 2ª página = falso negativo);
+  - "foi criado" afirmava causalidade;
+  - 500 com `code` era tratado como recuperável.
+  - Testes de tela R2: 7 falhas no código R1, 11/11 depois.
+- **Limitação operacional:** um cliente nessa situação fica sem senha conhecida até existir **recuperação/reset da credencial inicial** ou um **POST idempotente com chave persistida** (S04 / pré-produção). **Onboarding de produção bloqueado até lá.**
 
 ## 4. Interface (`apps/admin/src/telas/Clientes.jsx`)
 
@@ -193,3 +225,15 @@ Nada do catálogo foi movido ou duplicado nesta missão.
   - **resposta cortada depois do commit** (`route.fetch()` seguido de `abort('connectionreset')`): 1 único POST, aviso de resultado incerto, botão de cadastrar ausente, a verificação encontra o cliente e diz que a senha não pode ser mostrada de novo;
   - suspensão em 390 px sem rolagem horizontal.
   - Capturas novas: `s03-6-cadastro-incerto.png`, `s03-7-cadastro-incerto-verificado.png`, `s03-8-mobile-suspender.png`. As anteriores foram regeradas com os textos novos. Nenhuma mostra senha; a do painel de senha é gerada só no scratchpad e apagada.
+
+## 9. Integração com o main pós-PR #211 (S03-R2)
+
+- O `main` foi integrado à mesma branch por **merge normal** (sem rebase nem force-push), e a combinação foi validada com `verify:all` completo, localmente e no CI. Os SHAs estão no relatório da missão e na PR #215.
+- Não havia arquivos em comum com a #211. `src/App.jsx` e `DECISIONS.md` não foram tocados pela #215.
+
+## 10. Gates de decisão
+
+| Decisão | Estado |
+|---|---|
+| **CODE_READY** (auditoria do código S03 + R1 + R2) | pronto para revisão do arquiteto-chefe |
+| **OPERATIONAL_RELEASE_READY** (onboarding em produção) | **NO-GO** até existirem: (1) troca obrigatória da senha inicial ou convite; (2) recuperação do primeiro acesso / POST idempotente; (3) revogação permanente de sessões na suspensão (versão de sessão no banco); e as pendências da S02 (variáveis do admin em produção, IP confiável atrás do proxy, limite de tentativas fora da memória) |

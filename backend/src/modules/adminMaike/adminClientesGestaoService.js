@@ -26,7 +26,7 @@
  *    do tenant: lá o ator é um usuário da fazenda, e o proprietário não é um.
  */
 
-import { randomInt } from 'node:crypto';
+import { createHash, randomInt } from 'node:crypto';
 
 import { getPrismaClient } from '../../database/prismaClient.js';
 import { adminError } from '../../shared/errors/AppError.js';
@@ -53,9 +53,28 @@ const iso = (d) => (d instanceof Date ? d.toISOString() : null);
 const comoCliente = (c) => ({ id: c.id, codigo: c.codigo, nome: c.nome, ativo: c.ativo, criado_em: iso(c.createdAt), atualizado_em: iso(c.updatedAt) });
 const SELECT_CLIENTE = { id: true, codigo: true, nome: true, ativo: true, createdAt: true, updatedAt: true };
 
+/**
+ * Revisão da ficha (S03-R2): o estado que o NAVEGADOR leu, não o que a
+ * requisição acabou de ler. Vai no cabeçalho `ETag` do `GET /clientes/:id` e
+ * volta, obrigatório, em `If-Match` no `PATCH` e no `POST …/situacao`.
+ *
+ * Formato: `"r1-<sha256 base64url>"` de `[id, atualizado_em, ativo, codigo,
+ * nome]` (projeção pública, a mesma que o GET mostra). Não carrega tenant nem
+ * ator: só compara estado; o banco continua decidindo pelo CAS do UPDATE.
+ */
+export const PADRAO_REVISAO = /^"r1-[A-Za-z0-9_-]{43}"$/;
+export const revisaoCliente = (c) =>
+  `"r1-${createHash('sha256').update(JSON.stringify([c.id, c.atualizado_em, c.ativo, c.codigo, c.nome])).digest('base64url')}"`;
+
 const clienteNaoEncontrado = () => adminError('ADMIN_ENTRADA_INVALIDA', 'cliente não encontrado');
 const codigoDuplicado = () => adminError('ADMIN_CLIENTE_CODIGO_DUPLICADO', 'já existe um cliente com este código');
 const loginDuplicado = () => adminError('ADMIN_LOGIN_DUPLICADO', 'este login já é usado por outra conta ativa');
+export const revisaoRequerida = () =>
+  adminError('ADMIN_REVISAO_REQUERIDA', 'envie em If-Match a revisão (ETag) da ficha lida antes de alterar o cliente');
+/** Ficha do navegador desatualizada: alguém gravou depois que ela foi lida. */
+const conferirRevisao = (atual, revisao) => {
+  if (revisao !== revisaoCliente(comoCliente(atual))) throw edicaoConcorrente();
+};
 const edicaoConcorrente = () => adminError('ADMIN_CLIENTE_EDICAO_CONCORRENTE', 'o cliente foi alterado em outra sessão; recarregue e revise antes de salvar');
 
 /** Normaliza e valida (o schema da rota já recusou tipos e campos extras). */
@@ -143,7 +162,7 @@ export const criarCliente = async (entrada, ctx) => {
  *
  * @param {string} id
  * @param {{ nome?: string, codigo?: string }} entrada
- * @param {{ admin: { id: string }, ip?: string, requestId: string }} ctx
+ * @param {{ admin: { id: string }, ip?: string, requestId: string, revisao: string }} ctx  `revisao` = If-Match já validado na rota
  */
 export const editarCliente = async (id, entrada, ctx) => {
   const dados = {};
@@ -154,6 +173,7 @@ export const editarCliente = async (id, entrada, ctx) => {
     const cliente = await db.$transaction(async (tx) => {
       const atual = await tx.cliente.findUnique({ where: { id }, select: SELECT_CLIENTE });
       if (!atual) throw clienteNaoEncontrado();
+      conferirRevisao(atual, ctx.revisao);
       if (dados.codigo && dados.codigo !== atual.codigo && (await tx.cliente.findUnique({ where: { codigo: dados.codigo }, select: { id: true } }))) {
         throw codigoDuplicado();
       }
@@ -190,7 +210,7 @@ export const editarCliente = async (id, entrada, ctx) => {
  *
  * @param {string} id
  * @param {{ ativo: boolean, justificativa: string }} entrada
- * @param {{ admin: { id: string }, ip?: string, requestId: string }} ctx
+ * @param {{ admin: { id: string }, ip?: string, requestId: string, revisao: string }} ctx  `revisao` = If-Match já validado na rota
  */
 export const alterarSituacaoCliente = async (id, entrada, ctx) => {
   const justificativa = texto(entrada.justificativa);
@@ -202,10 +222,11 @@ export const alterarSituacaoCliente = async (id, entrada, ctx) => {
   const cliente = await db.$transaction(async (tx) => {
     const atual = await tx.cliente.findUnique({ where: { id }, select: SELECT_CLIENTE });
     if (!atual) throw clienteNaoEncontrado();
+    conferirRevisao(atual, ctx.revisao);
     // Mesma situação pedida = nada a fazer (inclui a corrida já decidida por outra sessão).
     if (atual.ativo === ativo) throw adminError('ADMIN_ENTRADA_INVALIDA', ativo ? 'o cliente já está ativo' : 'o cliente já está suspenso');
     // Condicional: duas suspensões simultâneas não registram dois eventos.
-    const r = await tx.cliente.updateMany({ where: { id, ativo: atual.ativo }, data: { ativo } });
+    const r = await tx.cliente.updateMany({ where: { id, ativo: atual.ativo, nome: atual.nome, codigo: atual.codigo, updatedAt: atual.updatedAt }, data: { ativo } });
     if (r.count !== 1) throw edicaoConcorrente();
     await registrarEventoSeguranca(
       {

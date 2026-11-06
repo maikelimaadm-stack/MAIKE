@@ -39,7 +39,7 @@ import {
   listarUsuariosDoCliente,
   obterCliente,
 } from './adminClientesService.js';
-import { JUSTIFICATIVA_MIN, alterarSituacaoCliente, criarCliente, editarCliente } from './adminClientesGestaoService.js';
+import { JUSTIFICATIVA_MIN, PADRAO_REVISAO, alterarSituacaoCliente, criarCliente, editarCliente, revisaoCliente, revisaoRequerida } from './adminClientesGestaoService.js';
 import { obterManifesto } from '../catalogoGlobal/catalogoGlobalService.js';
 
 const PREFIX = '/admin-maike';
@@ -261,7 +261,12 @@ export const registrarAdminMaikeRoutes = async (app) => {
   app.get(
     `${PREFIX}/clientes/:id`,
     { onRequest: verificada, schema: { params: PARAMS_ID, querystring: querystring({}) } },
-    async (request) => obterCliente(idDe(request))
+    async (request, reply) => {
+      const r = await obterCliente(idDe(request));
+      // S03-R2: revisão da ficha em cabeçalho (a projeção JSON da S01 não muda).
+      reply.header('etag', revisaoCliente(r.cliente));
+      return r;
+    }
   );
 
   app.get(
@@ -285,6 +290,17 @@ export const registrarAdminMaikeRoutes = async (app) => {
   const CODIGO = { type: 'string', pattern: '^[A-Za-z0-9][A-Za-z0-9-]{1,62}[A-Za-z0-9]$' };
   const LOGIN = { type: 'string', minLength: 3, maxLength: 120, pattern: '^\\S+$' };
   const semConsulta = querystring({});
+  /** If-Match obrigatório e bem formado; ausente/malformado = 428, sem caminho desprotegido. */
+  const revisaoDe = (request) => {
+    const v = request.headers['if-match'];
+    if (typeof v !== 'string' || !PADRAO_REVISAO.test(v)) throw revisaoRequerida();
+    return v;
+  };
+  /** Resposta da escrita devolve a revisão nova, para a próxima alteração. */
+  const comRevisao = (reply, r) => {
+    reply.header('etag', revisaoCliente(r.cliente));
+    return r;
+  };
 
   app.post(
     `${PREFIX}/clientes`,
@@ -321,9 +337,10 @@ export const registrarAdminMaikeRoutes = async (app) => {
       onRequest: verificada,
       schema: { params: PARAMS_ID, querystring: semConsulta, body: { ...corpo({ nome: NOME, codigo: CODIGO }).body, minProperties: 1 } },
     },
-    async (request) => {
+    async (request, reply) => {
       consumirTentativa(`clientes:${request.ip}`, LIMITE_GESTAO_CLIENTES);
-      return editarCliente(idDe(request), /** @type {any} */ (request.body), ctx(request));
+      const revisao = revisaoDe(request);
+      return comRevisao(reply, await editarCliente(idDe(request), /** @type {any} */ (request.body), { ...ctx(request), revisao }));
     }
   );
 
@@ -337,9 +354,10 @@ export const registrarAdminMaikeRoutes = async (app) => {
         ...corpo({ ativo: { type: 'boolean' }, justificativa: { type: 'string', minLength: JUSTIFICATIVA_MIN, maxLength: 500 } }, ['ativo', 'justificativa']),
       },
     },
-    async (request) => {
+    async (request, reply) => {
       consumirTentativa(`clientes:${request.ip}`, LIMITE_GESTAO_CLIENTES);
-      return alterarSituacaoCliente(idDe(request), /** @type {any} */ (request.body), ctx(request));
+      const revisao = revisaoDe(request);
+      return comRevisao(reply, await alterarSituacaoCliente(idDe(request), /** @type {any} */ (request.body), { ...ctx(request), revisao }));
     }
   );
 };

@@ -41,8 +41,7 @@ export const ehConflitoRevisao = (e) => e?.code === 'CONCURRENCY_CONFLICT' && !e
  * ou 5xx sem o corpo de erro do backend. Erros do próprio backend (4xx, 500
  * com `code`) significam rollback: o formulário pode ser corrigido e reenviado.
  */
-export const resultadoIncerto = (e) =>
-  !(e instanceof ErroApi) || [502, 503, 504].includes(e.status) || (e.status >= 500 && e.code === 'ERRO');
+export const resultadoIncerto = (e) => !(e instanceof ErroApi) || e.status >= 500;
 
 /** Mensagens para quem não é técnico. */
 export const mensagemDeErro = (erro) => {
@@ -68,6 +67,8 @@ export const mensagemDeErro = (erro) => {
       return 'Já existe um cliente com esse código. Escolha outro.';
     case 'ADMIN_CLIENTE_EDICAO_CONCORRENTE':
       return 'O cliente foi alterado em outra sessão e nada foi salvo. Cancele, reabra a ficha para ver os dados atuais e revise antes de salvar de novo.';
+    case 'ADMIN_REVISAO_REQUERIDA':
+      return 'Não foi possível confirmar a versão da ficha. Feche e reabra a ficha antes de alterar.';
     case 'ADMIN_LOGIN_DUPLICADO':
       return 'Esse login já é usado por outra conta ativa. Escolha outro login para o administrador.';
     case 'REQUEST_VALIDATION_FAILED':
@@ -84,7 +85,18 @@ export const mensagemDeErro = (erro) => {
  * @param {string} caminho
  * @param {{ method?: string, body?: unknown }} [opcoes]
  */
-export const chamar = async (caminho, { method = 'GET', body } = {}) => {
+export const chamar = async (caminho, opcoes = {}) => (await chamarComRevisao(caminho, opcoes)).corpo;
+
+/**
+ * Igual a `chamar`, mas devolve também o `ETag` (revisão da ficha, S03-R2) e
+ * aceita `revisao` para mandar em `If-Match`. Sem revisão, nada é enviado e o
+ * backend recusa a escrita (428): não há caminho desprotegido.
+ *
+ * @param {string} caminho
+ * @param {{ method?: string, body?: unknown, revisao?: string | null }} [opcoes]
+ * @returns {Promise<{ corpo: any, revisao: string | null }>}
+ */
+export const chamarComRevisao = async (caminho, { method = 'GET', body, revisao } = {}) => {
   const mutacao = method !== 'GET';
   const resposta = await fetch(`${BASE}${caminho}`, {
     method,
@@ -92,10 +104,12 @@ export const chamar = async (caminho, { method = 'GET', body } = {}) => {
     headers: {
       accept: 'application/json',
       ...(mutacao ? { 'content-type': 'application/json', 'x-maike-admin-csrf': csrf } : {}),
+      ...(mutacao && revisao ? { 'if-match': revisao } : {}),
     },
     body: mutacao ? JSON.stringify(body ?? {}) : undefined,
   });
-  if (resposta.status === 204) return null;
+  const etag = resposta.headers?.get?.('etag') ?? null;
+  if (resposta.status === 204) return { corpo: null, revisao: etag };
   const texto = await resposta.text();
   let corpo = null;
   try {
@@ -109,7 +123,7 @@ export const chamar = async (caminho, { method = 'GET', body } = {}) => {
     throw erro;
   }
   if (corpo?.csrf_token) definirCsrf(corpo.csrf_token);
-  return corpo;
+  return { corpo, revisao: etag };
 };
 
 /** Query string só com os filtros preenchidos (o backend recusa parâmetro desconhecido). */
@@ -140,13 +154,18 @@ export const api = {
 
   // ─── Clientes da plataforma (somente leitura, MAIKE-SAAS-ADMIN-S01) ─────
   clientes: (filtros = {}) => chamar(`/admin-maike/clientes${consulta(filtros)}`),
-  cliente: (id) => chamar(`/admin-maike/clientes/${encodeURIComponent(id)}`),
+  // A ficha traz `revisao` (ETag do GET), exigida nas escritas do cliente.
+  cliente: async (id) => {
+    const { corpo, revisao } = await chamarComRevisao(`/admin-maike/clientes/${encodeURIComponent(id)}`);
+    return { ...corpo, revisao };
+  },
   usuariosDoCliente: (id, cursor) => chamar(`/admin-maike/clientes/${encodeURIComponent(id)}/usuarios${consulta({ cursor })}`),
   empresasDoCliente: (id, cursor) => chamar(`/admin-maike/clientes/${encodeURIComponent(id)}/empresas${consulta({ cursor })}`),
   // Escritas (S03): a senha temporária só vem na resposta de criarCliente.
   criarCliente: (dados) => chamar('/admin-maike/clientes', { method: 'POST', body: dados }),
-  editarCliente: (id, dados) => chamar(`/admin-maike/clientes/${encodeURIComponent(id)}`, { method: 'PATCH', body: dados }),
-  alterarSituacaoCliente: (id, dados) => chamar(`/admin-maike/clientes/${encodeURIComponent(id)}/situacao`, { method: 'POST', body: dados }),
+  editarCliente: (id, dados, revisao) => chamar(`/admin-maike/clientes/${encodeURIComponent(id)}`, { method: 'PATCH', body: dados, revisao }),
+  alterarSituacaoCliente: (id, dados, revisao) =>
+    chamar(`/admin-maike/clientes/${encodeURIComponent(id)}/situacao`, { method: 'POST', body: dados, revisao }),
 
   // ─── Catálogo ────────────────────────────────────────────────────────────
   catalogo: () => chamar('/admin-maike/catalogo'),

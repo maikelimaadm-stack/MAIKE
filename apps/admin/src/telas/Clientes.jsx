@@ -134,6 +134,9 @@ function SenhaUnica({ resultado, onConcluir }) {
   );
 }
 
+/** Teto da verificação read-only do cadastro incerto (25 por página → 1.000 clientes). */
+const LIMITE_PAGINAS_VERIFICACAO = 40;
+
 function NovoCliente({ onCriado, onCancelar }) {
   const [nome, setNome] = useState('');
   const [codigo, setCodigo] = useState('');
@@ -146,6 +149,7 @@ function NovoCliente({ onCriado, onCancelar }) {
   // Resultado incerto: o pedido saiu, mas a resposta não chegou (rede, timeout,
   // gateway). O servidor pode ter gravado. Até verificar, NÃO há novo envio.
   const [incerto, setIncerto] = useState(null);
+  /** null | {tipo:'existe', cliente} | {tipo:'nao-encontrado'} | {tipo:'inconclusivo', motivo} */
   const [verificacao, setVerificacao] = useState(null);
 
   const enviar = async (e) => {
@@ -165,21 +169,38 @@ function NovoCliente({ onCriado, onCancelar }) {
     }
   };
 
-  /** Só leitura: procura o código na lista. Nunca reenvia o cadastro. */
+  /**
+   * Só leitura: procura o código EXATO percorrendo todas as páginas da busca.
+   * Nunca reenvia o cadastro e NUNCA conclui que ele falhou: não achar agora
+   * não prova nada (o POST original pode ainda estar em execução).
+   */
   const verificar = async () => {
     if (ocupado || !incerto) return;
     setOcupado(true);
-    setVerificacao(null);
     try {
-      const r = await api.clientes({ q: incerto.codigo });
-      const achado = r.items.find((c) => c.codigo === incerto.codigo);
-      if (achado) setVerificacao({ existe: true, cliente: achado });
-      else {
-        setIncerto(null);
-        setVerificacao({ existe: false });
+      const vistos = new Set();
+      let cursor;
+      for (let pagina = 0; pagina < LIMITE_PAGINAS_VERIFICACAO; pagina += 1) {
+        const r = await api.clientes({ q: incerto.codigo, cursor });
+        const achado = (r?.items || []).find((c) => c.codigo === incerto.codigo);
+        if (achado) {
+          setVerificacao({ tipo: 'existe', cliente: achado });
+          return;
+        }
+        if (!r?.has_more) {
+          setVerificacao({ tipo: 'nao-encontrado' });
+          return;
+        }
+        if (!r.next_cursor || vistos.has(r.next_cursor)) {
+          setVerificacao({ tipo: 'inconclusivo', motivo: 'a paginação da busca não avançou' });
+          return;
+        }
+        vistos.add(r.next_cursor);
+        cursor = r.next_cursor;
       }
+      setVerificacao({ tipo: 'inconclusivo', motivo: 'resultados demais para conferir aqui; procure o código na lista' });
     } catch (falha) {
-      setVerificacao({ falhou: mensagemDeErro(falha) });
+      setVerificacao({ tipo: 'inconclusivo', motivo: mensagemDeErro(falha) });
     } finally {
       setOcupado(false);
     }
@@ -240,23 +261,32 @@ function NovoCliente({ onCriado, onCancelar }) {
         {incerto ? (
           <div data-testid="cadastro-incerto">
             <Aviso tipo="aviso">
-              {verificacao?.existe
-                ? `O cliente com o código "${incerto.codigo}" foi criado. A senha inicial não chegou a esta tela e não pode ser mostrada de novo. Não cadastre outra vez: a recuperação da senha do administrador pelo MAIKE Admin ainda não existe e fica para a próxima etapa.`
-                : 'A conexão caiu antes da resposta: o cadastro pode ter sido concluído. Não envie de novo antes de verificar se o cliente já existe.'}
+              A resposta do servidor não chegou: o cadastro pode ter sido concluído ou ainda estar em andamento. O envio fica bloqueado para não
+              repetir o pedido. Cancelar fecha este formulário, mas não cancela o pedido já enviado ao servidor.
             </Aviso>
-            {verificacao?.falhou ? <Aviso tipo="erro">{`Não foi possível verificar agora: ${verificacao.falhou}`}</Aviso> : null}
+            {verificacao?.tipo === 'existe' ? (
+              <Aviso tipo="aviso">
+                {`Já existe cliente com o código "${incerto.codigo}". Esta tela não consegue saber se foi este envio que o criou. A senha inicial deste envio não pode ser mostrada: a recuperação do primeiro acesso ainda não existe (fica para a próxima etapa). Não cadastre outra vez.`}
+              </Aviso>
+            ) : null}
+            {verificacao?.tipo === 'nao-encontrado' ? (
+              <Aviso tipo="info">
+                Não encontramos ainda um cliente com esse código. Isso NÃO confirma que o pedido original falhou: ele pode ainda estar em
+                processamento. Verifique novamente em instantes.
+              </Aviso>
+            ) : null}
+            {verificacao?.tipo === 'inconclusivo' ? (
+              <Aviso tipo="erro">{`Não foi possível concluir a verificação (${verificacao.motivo}). Nada foi confirmado; o envio continua bloqueado.`}</Aviso>
+            ) : null}
           </div>
-        ) : null}
-        {verificacao && verificacao.existe === false ? (
-          <Aviso tipo="info">Nenhum cliente com esse código foi encontrado: o cadastro não foi concluído. Revise e envie de novo.</Aviso>
         ) : null}
         <div className="acoes">
           {incerto ? (
-            verificacao?.existe ? (
+            verificacao?.tipo === 'existe' ? (
               <Botao onClick={() => onCriado(verificacao.cliente.id)}>Abrir ficha do cliente</Botao>
             ) : (
               <Botao onClick={verificar} ocupado={ocupado}>
-                Verificar se o cliente foi criado
+                {verificacao ? 'Verificar novamente' : 'Verificar se o cliente foi criado'}
               </Botao>
             )
           ) : (
@@ -273,7 +303,7 @@ function NovoCliente({ onCriado, onCancelar }) {
   );
 }
 
-function EditarCliente({ cliente, onSalvo, onCancelar }) {
+function EditarCliente({ cliente, revisao, onSalvo, onCancelar }) {
   const [nome, setNome] = useState(cliente.nome);
   const [codigo, setCodigo] = useState(cliente.codigo);
   const [erro, setErro] = useState('');
@@ -291,7 +321,7 @@ function EditarCliente({ cliente, onSalvo, onCancelar }) {
     setErro('');
     setOcupado(true);
     try {
-      await api.editarCliente(cliente.id, dados);
+      await api.editarCliente(cliente.id, dados, revisao);
       onSalvo();
     } catch (falha) {
       setErro(mensagemDeErro(falha));
@@ -322,7 +352,7 @@ function EditarCliente({ cliente, onSalvo, onCancelar }) {
   );
 }
 
-function AlterarSituacao({ cliente, onSalvo, onCancelar }) {
+function AlterarSituacao({ cliente, revisao, onSalvo, onCancelar }) {
   const suspender = cliente.ativo;
   const [justificativa, setJustificativa] = useState('');
   const [erro, setErro] = useState('');
@@ -334,7 +364,7 @@ function AlterarSituacao({ cliente, onSalvo, onCancelar }) {
     setErro('');
     setOcupado(true);
     try {
-      await api.alterarSituacaoCliente(cliente.id, { ativo: !suspender, justificativa: justificativa.trim() });
+      await api.alterarSituacaoCliente(cliente.id, { ativo: !suspender, justificativa: justificativa.trim() }, revisao);
       onSalvo();
     } catch (falha) {
       setErro(mensagemDeErro(falha));
@@ -459,10 +489,11 @@ function FichaCliente({ id, onFechar, onAlterado }) {
             </div>
           </dl>
           {modo === 'editar' ? (
-            <EditarCliente cliente={ficha.cliente} onSalvo={() => salvo('Identificação atualizada.')} onCancelar={() => setModo('ver')} />
+            <EditarCliente cliente={ficha.cliente} revisao={ficha.revisao} onSalvo={() => salvo('Identificação atualizada.')} onCancelar={() => setModo('ver')} />
           ) : modo === 'situacao' ? (
             <AlterarSituacao
               cliente={ficha.cliente}
+              revisao={ficha.revisao}
               onSalvo={() => salvo(ficha.cliente.ativo ? 'Cliente suspenso.' : 'Cliente reativado.')}
               onCancelar={() => setModo('ver')}
             />

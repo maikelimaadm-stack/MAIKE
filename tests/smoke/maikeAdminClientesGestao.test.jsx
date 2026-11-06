@@ -11,7 +11,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, cleanup, within } from '@testing-library/react';
 
 import Clientes, { sugerirCodigo } from '../../apps/admin/src/telas/Clientes.jsx';
-import { definirCsrf } from '../../apps/admin/src/api.js';
+import { definirCsrf, resultadoIncerto, ErroApi } from '../../apps/admin/src/api.js';
 
 const SENHA = 'Ab3d-Ef4g-Hj5k-Mn6p';
 const pagina = (items, extra = {}) => ({ items, next_cursor: null, has_more: false, total: items.length, limit: 25, ...extra });
@@ -28,8 +28,13 @@ const servidor = (rotas) => {
       const corpo = init.body ? JSON.parse(init.body) : undefined;
       chamadas.push({ metodo, caminho, corpo, headers: init.headers || {}, url: String(url) });
       const h = rotas[`${metodo} ${caminho}`];
-      const [status, resposta] = h ? await h(corpo) : [404, { code: 'NOT_FOUND', message: caminho }];
-      return { ok: status < 400, status, text: async () => (resposta === undefined ? '' : JSON.stringify(resposta)) };
+      const [status, resposta, cab = {}] = h ? await h(corpo, u) : [404, { code: 'NOT_FOUND', message: caminho }];
+      return {
+        ok: status < 400,
+        status,
+        headers: { get: (n) => cab[n.toLowerCase()] ?? null },
+        text: async () => (resposta === undefined ? '' : JSON.stringify(resposta)),
+      };
     })
   );
   return chamadas;
@@ -39,6 +44,9 @@ const ficha = (c) => ({
   cliente: { id: c.id, codigo: c.codigo, nome: c.nome, ativo: c.ativo, criado_em: c.criado_em, atualizado_em: c.criado_em },
   contagens: { usuarios: 1, usuarios_ativos: 1, empresas: 0 },
 });
+/** Revisão (ETag) que o backend devolveria para este estado da ficha. */
+const rev = (c) => `"r1-${(c.nome + c.codigo + String(c.ativo)).replace(/[^A-Za-z0-9]/g, '').padEnd(43, 'x').slice(0, 43)}"`;
+const comFicha = (c) => [200, ficha(c), { etag: rev(c) }];
 const filhos = (id) => ({
   [`GET /admin-maike/clientes/${id}/usuarios`]: () => [200, pagina([])],
   [`GET /admin-maike/clientes/${id}/empresas`]: () => [200, pagina([])],
@@ -152,7 +160,7 @@ describe('cadastro', () => {
 
     const aviso = await screen.findByTestId('cadastro-incerto');
     expect(aviso.textContent).toMatch(/pode ter sido concluído/);
-    expect(aviso.textContent).toMatch(/Não envie de novo/);
+    expect(aviso.textContent).toMatch(/O envio fica bloqueado/);
     expect(screen.queryByRole('button', { name: 'Cadastrar cliente e administrador' })).toBeNull();
     expect(screen.getByLabelText('Nome do cliente').value).toBe('Agro Três');
     // Enter no formulário também não reenvia.
@@ -161,9 +169,9 @@ describe('cadastro', () => {
     expect(posts).toBe(1);
 
     fireEvent.click(screen.getByRole('button', { name: 'Verificar se o cliente foi criado' }));
-    await waitFor(() => expect(screen.getByTestId('cadastro-incerto').textContent).toMatch(/foi criado/));
+    await waitFor(() => expect(screen.getByTestId('cadastro-incerto').textContent).toMatch(/Já existe cliente com o código "agro-tres"/));
     const texto = screen.getByTestId('cadastro-incerto').textContent;
-    expect(texto).toMatch(/não pode ser mostrada de novo/);
+    expect(texto).toMatch(/não pode ser mostrada/);
     expect(texto).not.toMatch(/recuperar a senha|nova senha foi/i);
     expect(posts).toBe(1);
     expect(chamadas.filter((c) => c.metodo === 'GET' && c.caminho === '/admin-maike/clientes').at(-1).url).toContain('q=agro-tres');
@@ -172,16 +180,22 @@ describe('cadastro', () => {
     expect(await screen.findByTestId('ficha-cliente')).toBeTruthy();
   });
 
-  it('rede cai e a verificação não encontra o código: libera o reenvio com o que foi digitado', async () => {
-    servidor({ 'GET /admin-maike/clientes': () => [200, pagina([])] });
-    const base = globalThis.fetch;
+  it('POST ainda em execução: verificação negativa NÃO libera reenvio nem diz "não concluído"; quando o cliente aparece, não há senha', async () => {
+    const criado = cli({ id: 'cl0004', codigo: 'agro-quatro', nome: 'Agro Quatro' });
+    let comitado = false;
     let posts = 0;
+    servidor({
+      'GET /admin-maike/clientes': () => [200, pagina(comitado ? [criado] : [])],
+      'GET /admin-maike/clientes/cl0004': () => comFicha(criado),
+      ...filhos('cl0004'),
+    });
+    const base = globalThis.fetch;
     vi.stubGlobal(
       'fetch',
       vi.fn(async (url, init = {}) => {
         if ((init.method || 'GET') === 'POST') {
           posts += 1;
-          throw new TypeError('Failed to fetch');
+          throw new TypeError('Failed to fetch'); // o servidor segue processando; o COMMIT vem depois
         }
         return base(url, init);
       })
@@ -193,10 +207,88 @@ describe('cadastro', () => {
     fireEvent.change(screen.getByLabelText(/^Login do administrador/), { target: { value: 'davi' } });
     fireEvent.click(screen.getByRole('button', { name: 'Cadastrar cliente e administrador' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Verificar se o cliente foi criado' }));
-    expect(await screen.findByText(/o cadastro não foi concluído/)).toBeTruthy();
-    expect(screen.getByLabelText(/^Login do administrador/).value).toBe('davi');
-    expect(screen.getByRole('button', { name: 'Cadastrar cliente e administrador' })).toBeTruthy();
+    const aviso = await screen.findByText(/Não encontramos ainda/);
+    expect(aviso.textContent).toMatch(/NÃO confirma que o pedido original falhou/);
+    expect(document.body.textContent).not.toMatch(/não foi concluído/);
+    expect(screen.queryByRole('button', { name: 'Cadastrar cliente e administrador' })).toBeNull();
+    fireEvent.submit(screen.getByLabelText('Nome do cliente').closest('form'));
+    await new Promise((r) => setTimeout(r, 20));
     expect(posts).toBe(1);
+    expect(screen.getByLabelText(/^Login do administrador/).value).toBe('davi');
+    expect(screen.getByTestId('cadastro-incerto').textContent).toMatch(/não cancela o pedido já enviado/);
+
+    comitado = true; // a transação original comitou depois da 1ª verificação
+    fireEvent.click(screen.getByRole('button', { name: 'Verificar novamente' }));
+    await waitFor(() => expect(screen.getByTestId('cadastro-incerto').textContent).toMatch(/Já existe cliente com o código "agro-quatro"/));
+    const texto = screen.getByTestId('cadastro-incerto').textContent;
+    expect(texto).toMatch(/não consegue saber se foi este envio/);
+    expect(texto).toMatch(/não pode ser mostrada/);
+    expect(screen.queryByTestId('senha-unica')).toBeNull();
+    expect(posts).toBe(1);
+  });
+
+  it('verificação percorre a paginação: código exato só na 2ª página é encontrado (sem falso negativo)', async () => {
+    const parecidos = Array.from({ length: 25 }, (_, i) => cli({ id: `cx${i}`, codigo: `agro-cinco-${i + 10}`, nome: `Agro Cinco ${i}` }));
+    const exato = cli({ id: 'cl0005', codigo: 'agro-cinco', nome: 'Agro Cinco' });
+    const chamadas = servidor({
+      'GET /admin-maike/clientes': (_c, u) => {
+        if (!u.searchParams.get('q')) return [200, pagina([])];
+        return u.searchParams.get('cursor') === 'p2'
+          ? [200, pagina([exato], { total: null })]
+          : [200, pagina(parecidos, { total: 26, has_more: true, next_cursor: 'p2' })];
+      },
+      'POST /admin-maike/clientes': () => [502, { message: 'Bad Gateway' }],
+    });
+    render(<Clientes />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Cadastrar cliente' }));
+    fireEvent.change(screen.getByLabelText('Nome do cliente'), { target: { value: 'Agro Cinco' } });
+    fireEvent.change(screen.getByLabelText('Nome do administrador'), { target: { value: 'Eva' } });
+    fireEvent.change(screen.getByLabelText(/^Login do administrador/), { target: { value: 'eva' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Cadastrar cliente e administrador' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Verificar se o cliente foi criado' }));
+    await waitFor(() => expect(screen.getByTestId('cadastro-incerto').textContent).toMatch(/Já existe cliente com o código "agro-cinco"/));
+    const buscas = chamadas.filter((c) => c.metodo === 'GET' && c.caminho === '/admin-maike/clientes' && c.url.includes('q=agro-cinco'));
+    expect(buscas.map((c) => new URL(c.url, 'http://x').searchParams.get('cursor'))).toEqual([null, 'p2']);
+    expect(chamadas.filter((c) => c.metodo === 'POST')).toHaveLength(1);
+  });
+
+  it('verificação com página falhando ou cursor repetido: inconclusivo e o envio continua travado', async () => {
+    let modo = 'falha';
+    servidor({
+      'GET /admin-maike/clientes': (_c, u) => {
+        if (!u.searchParams.get('q')) return [200, pagina([])];
+        if (modo === 'falha') return u.searchParams.get('cursor') ? [500, { code: 'INTERNAL_ERROR', message: 'falhou' }] : [200, pagina([], { has_more: true, next_cursor: 'c1' })];
+        return [200, pagina([], { has_more: true, next_cursor: 'sempre-o-mesmo' })];
+      },
+      'POST /admin-maike/clientes': () => [500, { code: 'INTERNAL_ERROR', message: 'erro interno' }],
+    });
+    render(<Clientes />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Cadastrar cliente' }));
+    fireEvent.change(screen.getByLabelText('Nome do cliente'), { target: { value: 'Agro Seis' } });
+    fireEvent.change(screen.getByLabelText('Nome do administrador'), { target: { value: 'Fabi' } });
+    fireEvent.change(screen.getByLabelText(/^Login do administrador/), { target: { value: 'fabi' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Cadastrar cliente e administrador' }));
+    // 500 JSON com code também é incerto: a falha pode ter vindo depois do COMMIT.
+    expect(await screen.findByTestId('cadastro-incerto')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Verificar se o cliente foi criado' }));
+    expect((await screen.findByText(/Não foi possível concluir a verificação/)).textContent).toMatch(/continua bloqueado/);
+    modo = 'loop';
+    fireEvent.click(screen.getByRole('button', { name: 'Verificar novamente' }));
+    expect(await screen.findByText(/paginação da busca não avançou/)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Cadastrar cliente e administrador' })).toBeNull();
+  });
+
+  it('classificação: rede, timeout e TODO 5xx são incertos; 4xx do backend continua recuperável', () => {
+    expect(resultadoIncerto(new TypeError('Failed to fetch'))).toBe(true);
+    expect(resultadoIncerto(new DOMException('timeout', 'AbortError'))).toBe(true);
+    for (const status of [500, 502, 503, 504]) expect(resultadoIncerto(new ErroApi(status, { code: 'INTERNAL_ERROR' }))).toBe(true);
+    for (const [status, code] of [
+      [400, 'REQUEST_VALIDATION_FAILED'],
+      [409, 'ADMIN_LOGIN_DUPLICADO'],
+      [409, 'ADMIN_CLIENTE_CODIGO_DUPLICADO'],
+      [422, 'ADMIN_ENTRADA_INVALIDA'],
+    ])
+      expect(resultadoIncerto(new ErroApi(status, { code }))).toBe(false);
   });
 
   it('sugerirCodigo remove acentos e símbolos', () => {
@@ -211,7 +303,7 @@ describe('edição e situação', () => {
     let tentativa = 0;
     const chamadas = servidor({
       'GET /admin-maike/clientes': () => [200, pagina([atual])],
-      'GET /admin-maike/clientes/cl0001': () => [200, ficha(atual)],
+      'GET /admin-maike/clientes/cl0001': () => comFicha(atual),
       ...filhos('cl0001'),
       'PATCH /admin-maike/clientes/cl0001': (corpo) => {
         tentativa += 1;
@@ -227,7 +319,9 @@ describe('edição e situação', () => {
     fireEvent.change(within(painel).getByLabelText(/^Código/), { target: { value: 'outro-codigo' } });
     fireEvent.click(within(painel).getByRole('button', { name: 'Salvar identificação' }));
     expect((await within(painel).findByRole('alert')).textContent).toMatch(/Já existe um cliente com esse código/);
-    expect(chamadas.find((c) => c.metodo === 'PATCH').corpo).toEqual({ codigo: 'outro-codigo' });
+    const patch1 = chamadas.find((c) => c.metodo === 'PATCH');
+    expect(patch1.corpo).toEqual({ codigo: 'outro-codigo' });
+    expect(patch1.headers['if-match']).toBe(rev(cli()), 'If-Match = ETag da ficha lida');
     fireEvent.change(within(painel).getByLabelText('Nome do cliente'), { target: { value: 'Fazenda Um Nova' } });
     fireEvent.change(within(painel).getByLabelText(/^Código/), { target: { value: 'fazenda-um-nova' } });
     fireEvent.click(within(painel).getByRole('button', { name: 'Salvar identificação' }));
@@ -258,7 +352,7 @@ describe('edição e situação', () => {
     let atual = cli();
     const chamadas = servidor({
       'GET /admin-maike/clientes': () => [200, pagina([atual])],
-      'GET /admin-maike/clientes/cl0001': () => [200, ficha(atual)],
+      'GET /admin-maike/clientes/cl0001': () => comFicha(atual),
       ...filhos('cl0001'),
       'POST /admin-maike/clientes/cl0001/situacao': (corpo) => {
         atual = { ...atual, ativo: corpo.ativo };
@@ -279,7 +373,9 @@ describe('edição e situação', () => {
     fireEvent.change(within(painel).getByLabelText(/Justificativa/), { target: { value: 'pedido do cliente por e-mail' } });
     fireEvent.click(within(painel).getByRole('button', { name: 'Confirmar suspensão' }));
     expect(await within(painel).findByText('Cliente suspenso.')).toBeTruthy();
-    expect(chamadas.find((c) => c.metodo === 'POST').corpo).toEqual({ ativo: false, justificativa: 'pedido do cliente por e-mail' });
+    const post1 = chamadas.find((c) => c.metodo === 'POST');
+    expect(post1.corpo).toEqual({ ativo: false, justificativa: 'pedido do cliente por e-mail' });
+    expect(post1.headers['if-match']).toBe(rev(cli()));
     expect(await within(painel).findByRole('button', { name: 'Reativar cliente' })).toBeTruthy();
     await waitFor(() => expect(within(screen.getByTestId('lista-clientes')).getByText('Inativo')).toBeTruthy());
 
@@ -287,5 +383,6 @@ describe('edição e situação', () => {
     fireEvent.change(within(painel).getByLabelText(/Justificativa/), { target: { value: 'pagamento regularizado' } });
     fireEvent.click(within(painel).getByRole('button', { name: 'Confirmar reativação' }));
     expect(await within(painel).findByText('Cliente reativado.')).toBeTruthy();
+    expect(chamadas.filter((c) => c.metodo === 'POST').at(-1).headers['if-match']).toBe(rev({ ...cli(), ativo: false }), 'reativação usa a revisão relida');
   });
 });
