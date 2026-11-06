@@ -9,6 +9,7 @@ import { getPrismaClient } from '../../database/prismaClient.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { gerarSenhaHash, senhaConfereComHash } from '../auth/authService.js';
 import { atorDoTenant, ehAdminTenantAtivo, exigirAdminTenant } from '../../shared/auth/exigirAdminTenant.js';
+import { carregarAutorizacao, acessoTotal, telaPermite } from '../../shared/auth/autorizacaoTela.js';
 import { buscarUsuarioAtivoPorLogin } from '../auth/authRepository.js';
 import { registrarEvento } from '../auditoria/auditService.js';
 import {
@@ -24,6 +25,7 @@ import {
 } from '../../shared/pagination/keysetCursor.js';
 import {
   listarUsuarios,
+  listarPermissoesParaElegibilidade,
   listarUsuariosPagina,
   contarUsuarios,
   buscarUsuario,
@@ -52,17 +54,62 @@ export const comoUsuarioPublico = (registro) => ({
 /** Visão para o administrador da fazenda: inclui o papel (PR145-R4). */
 const comoUsuarioParaAdmin = (registro) => ({ ...comoUsuarioPublico(registro), papel_tenant: registro.papel_tenant });
 
-/** Usuário comum vê nomes/logins dos colegas (tarefas, responsáveis), nunca o papel. */
+/** `/usuarios/page` é só do administrador real (rota); o mapeador fica como defesa. */
 const mapeadorPara = async (contexto) =>
   ehAdminTenantAtivo(await atorDoTenant(contexto)) ? comoUsuarioParaAdmin : comoUsuarioPublico;
 
 /**
+ * Tela de tarefas do menu legado (`gestao-tarefas`/`gt-lancamentos`): a mesma
+ * regra que o Mapa Geral usa para abrir o painel de tarefas a quem não tem
+ * acesso total (`podeUsarTarefasMapa`).
+ */
+const TELA_TAREFAS = Object.freeze({ modulo: 'gestao-tarefas', tela: 'gt-lancamentos' });
+
+/**
+ * D-PROD-137 (GET-05) — pode ser responsável de tarefa: conta ATIVA que abre
+ * tarefas — administrador real (com ou sem linha de Permissão), concessão
+ * `is_admin` ou a tela de tarefas. Calculado POR CONTA no servidor, com a mesma
+ * avaliação de tela do resto da autorização (`telaPermite`); antes o formulário
+ * recalculava sobre a matriz alheia, que quem não é admin real não recebe, e
+ * só listava a si mesmo.
+ * @param {{ ativo: boolean, papel_tenant: string, login: string }} usuario
+ * @param {Map<string, any>} permissaoPorLogin
+ */
+const elegivelResponsavel = (usuario, permissaoPorLogin) => {
+  if (!usuario.ativo) return false;
+  if (ehAdminTenantAtivo(usuario)) return true;
+  const registro = permissaoPorLogin.get(usuario.login) ?? null;
+  return telaPermite({ ativo: true, adminReal: false, registro }, TELA_TAREFAS, 'visualizar');
+};
+
+/**
+ * `GET /usuarios` — D-PROD-137 (GET-02/USR-01/GET-05). Projeção por quem pede:
+ *  - administrador real → todas as contas (inativas também), com papel e datas
+ *    (telas Usuários/Permissões) + `responsavel_elegivel`;
+ *  - acesso total (`is_admin`, quem abre e grava tarefas) → só contas ATIVAS,
+ *    `{id, nome, login, ativo, responsavel_elegivel}` — o formulário de tarefa
+ *    junta por login com `/permissoes` (nome de exibição); sem papel nem datas;
+ *  - demais → SÓ a própria conta. Antes, quem só via o mapa recebia o login (a
+ *    credencial, D-PROD-35) e o estado de todos os colegas, sem tela que use.
  * @param {{auth: import('../../shared/auth/authContext.js').AuthContext}} contexto
  */
 export const listar = async (contexto) => {
   const auth = exigirAuthContext(contexto?.auth);
-  const [registros, mapear] = await Promise.all([listarUsuarios(auth.clienteId), mapeadorPara(contexto)]);
-  return registros.map(mapear);
+  const aut = await carregarAutorizacao(contexto);
+  if (!acessoTotal(aut)) {
+    const proprio = await buscarUsuario(auth.clienteId, auth.usuarioId);
+    return proprio ? [comoUsuarioPublico(proprio)] : [];
+  }
+  const [registros, permissoes] = await Promise.all([
+    listarUsuarios(auth.clienteId),
+    listarPermissoesParaElegibilidade(auth.clienteId),
+  ]);
+  const permissaoPorLogin = new Map(permissoes.map((p) => [p.user_email, p]));
+  const elegivel = (r) => elegivelResponsavel(/** @type {any} */ (r), permissaoPorLogin);
+  if (aut.adminReal) return registros.map((r) => ({ ...comoUsuarioParaAdmin(r), responsavel_elegivel: elegivel(r) }));
+  return registros
+    .filter((r) => r.ativo)
+    .map((r) => ({ id: r.id, nome: r.nome, login: r.login, ativo: r.ativo, responsavel_elegivel: elegivel(r) }));
 };
 
 /**

@@ -75,15 +75,16 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose, permissions
   const { data: iconesConfig = [] } = useQuery({
     queryKey: ["mapa-icones"],
     queryFn: async () => {
-      const cached = await getMapaCachedData('icones', '__GLOBAL__');
+      // Ícones são do tenant: o cache resolve o dono pela sessão (D-PROD-137).
+      const cached = await getMapaCachedData('icones', null);
       if (navigator.onLine) {
         if (cached?.length) {
-          refreshMapaCacheEntry('icones', '__GLOBAL__').then(fresh => {
+          refreshMapaCacheEntry('icones', null).then(fresh => {
             if (fresh?.length) queryClient.setQueryData(["mapa-icones"], fresh);
           });
           return cached;
         }
-        return await refreshMapaCacheEntry('icones', '__GLOBAL__');
+        return await refreshMapaCacheEntry('icones', null);
       }
       return cached || [];
     },

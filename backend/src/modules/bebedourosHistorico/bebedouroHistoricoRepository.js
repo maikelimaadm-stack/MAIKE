@@ -37,3 +37,22 @@ export const excluirRegistroPorId = async (tx, clienteId, id) =>
   tx.bebedouroHistorico.delete({
     where: { cliente_id_id: { cliente_id: clienteId, id } },
   });
+
+/**
+ * Lançamento do MESMO bebedouro (tenant + empresa) que vem DEPOIS de `registro`
+ * na ordem da listagem (`createdAt desc, id desc`, acima) — a mesma ordem que
+ * põe o lançamento no índice 0 da linha do tempo da tela. `null` = é o último.
+ */
+export const buscarLancamentoPosterior = async (tx, clienteId, registro, bebedouroId) =>
+  tx.bebedouroHistorico.findFirst({
+    where: {
+      cliente_id: clienteId,
+      empresa_id: registro.empresa_id,
+      dados: { path: ['bebedouro_id'], equals: bebedouroId },
+      OR: [
+        { createdAt: { gt: registro.createdAt } },
+        { createdAt: registro.createdAt, id: { gt: registro.id } },
+      ],
+    },
+    select: { id: true },
+  });

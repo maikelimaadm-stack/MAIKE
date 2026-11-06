@@ -139,6 +139,9 @@ export const API_ERROR_CODES = Object.freeze({
   IDEMPOTENCY_CONFLICT: 'IDEMPOTENCY_CONFLICT',
   IDEMPOTENCY_IN_PROGRESS: 'IDEMPOTENCY_IN_PROGRESS',
   EMPRESA_NOT_FOUND: 'EMPRESA_NOT_FOUND',
+  // D-PROD-137 (EMP-01) — exclusão de empresa recusada: há registros dela
+  // (`details.vinculos`). A tela Empresa mostra o bloqueio; nada foi apagado.
+  EMPRESA_COM_VINCULOS: 'EMPRESA_COM_VINCULOS',
 });
 
 /** Mensagem pública por código. Nunca inclui dado do provider. */
@@ -219,6 +222,8 @@ const MENSAGENS = Object.freeze({
   [API_ERROR_CODES.IDEMPOTENCY_CONFLICT]: 'Esta confirmação já foi usada com outro conteúdo. Confira a lista de áreas.',
   [API_ERROR_CODES.IDEMPOTENCY_IN_PROGRESS]: 'A importação ainda está sendo processada. Aguarde e confira a lista de áreas.',
   [API_ERROR_CODES.EMPRESA_NOT_FOUND]: 'Empresa não encontrada. Selecione a empresa novamente.',
+  [API_ERROR_CODES.EMPRESA_COM_VINCULOS]:
+    'Não é possível excluir a empresa: existem registros vinculados a ela (setores, áreas, lotes, produtos, tarefas…). Nada foi apagado.',
 });
 
 /** Falha transitória vale retentativa; erro de argumento e conflito, não. */

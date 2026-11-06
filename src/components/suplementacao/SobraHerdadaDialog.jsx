@@ -42,8 +42,9 @@ export default function SobraHerdadaDialog({ open, sobraKg, pontoNome, ultimoLan
           >
             <RefreshCw className="w-4 h-4 mr-2 shrink-0" />
             <div className="text-left">
-              <div className="text-xs font-semibold">Abrir novo ciclo com essa sobra</div>
-              <div className="text-[10px] font-normal opacity-90">Cria um novo registro em aberto usando {formatKg(sobraKg)} como saldo inicial — sem reabrir o fechamento anterior</div>
+              {/* D-PROD-137 (SUP-02): o botão só preenche o formulário; o registro nasce ao salvar. */}
+              <div className="text-xs font-semibold">Usar essa sobra no novo ciclo</div>
+              <div className="text-[10px] font-normal opacity-90">Preenche {formatKg(sobraKg)} como saldo inicial do novo lançamento — o registro só é criado ao salvar; o fechamento anterior não é reaberto</div>
             </div>
           </Button>
 

@@ -2,8 +2,9 @@
  * Rotas de administração de Usuario (P6.0, D-PROD-34).
  *
  * GET/POST/PATCH autenticados. `GET /usuarios` (lista completa) fica como
- * compatibilidade para Permissões/Mapa; a tela Usuários usa `GET /usuarios/page`
- * (keyset `createdAt DESC, id DESC`, SCALE-01).
+ * compatibilidade para Permissões/Mapa — com projeção por quem pede
+ * (D-PROD-137); a tela Usuários usa `GET /usuarios/page` (keyset
+ * `createdAt DESC, id DESC`, SCALE-01), só do administrador real.
  * Sem DELETE — desativar com `ativo: false`.
  * `senha_hash` nunca entra nem sai; criação usa `senha`, edição usa `nova_senha`.
  */
@@ -11,6 +12,7 @@
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { LIMITE_MAXIMO, LIMITE_PADRAO } from '../../shared/pagination/keysetCursor.js';
 import { listar, listarPagina, criar, atualizar } from './usuarioService.js';
+import { apenasAdminTenant } from '../../shared/auth/autorizacaoTela.js';
 
 const CAMPOS_CRIAR = Object.freeze({
   nome: { type: 'string', minLength: 1, maxLength: 255, pattern: '\\S' },
@@ -73,9 +75,11 @@ export const registrarUsuarioRoutes = async (app) => {
     return listar(request.contexto);
   });
 
+  // D-PROD-137 (GET-02): o único chamador é a tela Usuários (só do administrador
+  // real); a busca por login/nome e as contas desativadas são dado administrativo.
   app.get(
     '/usuarios/page',
-    { onRequest: [app.autenticar], schema: LISTAR_PAGINA_SCHEMA },
+    { onRequest: [app.autenticar], preHandler: [apenasAdminTenant()], schema: LISTAR_PAGINA_SCHEMA },
     async (request) => {
       exigirAuthContext(request.contexto.auth);
       return listarPagina(request.contexto, /** @type {Record<string, unknown>} */ (request.query ?? {}));

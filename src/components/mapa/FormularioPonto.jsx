@@ -404,6 +404,14 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
           );
           if (localExistente) {
             localEstoqueId = localExistente.id;
+            // D-PROD-137 (F6): pelo Mapa Cadastro o servidor só renomeia o local JÁ
+            // ligado a um depósito. Depósito legado sem vínculo: grava o vínculo
+            // antes de renomear (senão o PATCH do local é recusado com 403).
+            await atualizarPontoSuplementacao(pontoSuplementacaoExistente.id, {
+              categoria_ponto: "DEPOSITO",
+              local_estoque_id: localExistente.id,
+              local_estoque_nome: localExistente.nome
+            });
           }
         }
 

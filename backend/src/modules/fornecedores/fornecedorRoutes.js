@@ -4,6 +4,7 @@
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { listar, criar, atualizar, excluir } from './fornecedorService.js';
 import { GUARDAS } from '../../shared/auth/guardasRotas.js';
+import { porQualquer, TELAS } from '../../shared/auth/autorizacaoTela.js';
 
 const ID_SCHEMA = {
   params: {
@@ -35,7 +36,10 @@ const LISTAR_SCHEMA = {
 
 /** @param {import('fastify').FastifyInstance} app */
 export const registrarFornecedorRoutes = async (app) => {
-  app.get('/fornecedores', { onRequest: [app.autenticar], schema: LISTAR_SCHEMA }, async (request) => {
+  // D-PROD-137 (GET-04): o único consumidor é o seletor de fornecedor do
+  // Cadastro de Lotes (FormularioLote); o Mapa Geral não lê fornecedores. Acesso
+  // total passa dentro de `porQualquer`. A projeção (sem PII) fica no service.
+  app.get('/fornecedores', { onRequest: [app.autenticar], preHandler: [porQualquer([TELAS.LOTES, 'visualizar'])], schema: LISTAR_SCHEMA }, async (request) => {
     exigirAuthContext(request.contexto.auth);
     const query = /** @type {Record<string, string>} */ (request.query ?? {});
     let registros = await listar(request.contexto, query);

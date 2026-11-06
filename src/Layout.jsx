@@ -346,6 +346,11 @@ function LayoutShell({ children, currentPageName }) {
     const handleBlockedActions = (event) => {
       const interactive = event.target?.closest?.("button, a, [role='button']");
       if (!interactive || interactive.closest("nav")) return;
+      // D-PROD-137 (BEB-04): botão cuja visibilidade já segue a regra EXATA do
+      // servidor (ex.: "Lançar"/"Salvar lançamento" do bebedouro, que o servidor
+      // aceita com "novo" OU "salvar"). A leitura do texto aqui exigiria uma ação
+      // só e barraria quem o servidor aceita. O servidor continua decidindo (403).
+      if (interactive.closest("[data-permissao-explicita]")) return;
 
       const label = interactive.textContent || interactive.getAttribute("aria-label") || interactive.getAttribute("title") || "";
       const action = detectPermissionAction(label);

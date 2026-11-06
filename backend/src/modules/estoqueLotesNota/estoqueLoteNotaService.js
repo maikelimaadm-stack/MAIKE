@@ -65,7 +65,7 @@ export const criar = async (contexto, entrada) => {
 };
 
 /**
- * D-PROD-136 (F5/F7). O lote de nota compõe saldo e custo FIFO do depósito; o
+ * D-PROD-137 (F5/F7). O lote de nota compõe saldo e custo FIFO do depósito; o
  * POST e o estorno são só do administrador real. Por isso o PATCH:
  *  - aceita de QUALQUER conta só `local_estoque_nome` — a renomeação do depósito
  *    (FormularioPonto) propaga o nome DEPOIS de renomear o LocalEstoque;

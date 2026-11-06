@@ -125,24 +125,24 @@ export const calcularAlocacoesDoPeriodo = async ({ evento, diasPeriodo, consumoT
 };
 
 /**
- * Fecha o período: grava o evento e cada lote com as métricas calculadas.
+ * Calcula o fechamento do período SEM gravar nada (D-PROD-137, SUP-01).
  *
- * Mesma sequência e mesmos valores do legado. O `onProgress` continua sendo
- * chamado no mesmo ponto — depois do evento, antes dos lotes.
+ * Só leituras (lotes do período, lotes, movimentações) e a aritmética pura de
+ * `consumoUtils`. Quem fecha o consumo ao MOVER o gado prepara aqui e grava com
+ * `aplicarFechamentoPeriodo` só depois de o servidor confirmar a transferência:
+ * antes, o fechamento era gravado primeiro e uma transferência recusada,
+ * cancelada ou offline deixava o período fechado sem o gado ter saído.
  *
  * @param {object} p
  * @param {any} p.evento
  * @param {number} p.diasPeriodo
  * @param {number} p.sobraFinal
  * @param {number} [p.sobraInicial]
- * @param {(mensagem: string) => void} [p.onProgress]
  */
-export const fecharPeriodoSuplementacao = async ({ evento, diasPeriodo, sobraFinal, sobraInicial, onProgress }) => {
+export const prepararFechamentoPeriodo = async ({ evento, diasPeriodo, sobraFinal, sobraInicial }) => {
   const lotesSupl = await listLotesSuplementacao();
   const lotesDoEvento = lotesSupl.filter((lote) => lote.suplementacao_evento_id === evento.id);
 
-  // O evento é gravado antes dos lotes, como no legado: o `onProgress` da tela
-  // marca exatamente essa fronteira.
   const metricas = calcularConsumo({
     fornecido: evento.quantidade_total_kg,
     sobraFinal,
@@ -150,13 +150,6 @@ export const fecharPeriodoSuplementacao = async ({ evento, diasPeriodo, sobraFin
     diasPeriodo,
     totalCabecas: evento.total_cabecas_afetadas,
   });
-
-  await updateEvento(evento.id, {
-    sobra_kg: Number(sobraFinal || 0),
-    dias_periodo: diasPeriodo,
-    consumo_diario_grupo_kg: metricas.consumoDiarioGrupo,
-  });
-  onProgress?.('Atualizando lotes do período...');
 
   const alocacoes = await calcularAlocacoesDoPeriodo({
     evento,
@@ -173,12 +166,64 @@ export const fecharPeriodoSuplementacao = async ({ evento, diasPeriodo, sobraFin
     alocacoes,
   });
 
-  await Promise.all(fechamento.patchesDeLote.map(({ id, patch }) => updateLoteSuplementacao(id, patch)));
-
   return {
+    eventoId: evento.id,
+    patchEvento: fechamento.patchEvento,
+    patchesDeLote: fechamento.patchesDeLote,
     consumoTotal: fechamento.consumoTotal,
     consumoDiarioGrupo: fechamento.consumoDiarioGrupo,
     consumoPorCabecaDia: fechamento.consumoPorCabecaDia,
+  };
+};
+
+/**
+ * Grava um fechamento preparado: o evento e depois cada lote do período (a
+ * mesma ordem do legado; o `onProgress` marca essa fronteira).
+ * @param {Awaited<ReturnType<typeof prepararFechamentoPeriodo>>} preparado
+ * @param {{ onProgress?: (mensagem: string) => void }} [opcoes]
+ */
+export const aplicarFechamentoPeriodo = async (preparado, { onProgress } = {}) => {
+  await updateEvento(preparado.eventoId, preparado.patchEvento);
+  onProgress?.('Atualizando lotes do período...');
+  await Promise.all(preparado.patchesDeLote.map(({ id, patch }) => updateLoteSuplementacao(id, patch)));
+};
+
+/**
+ * Grava o fechamento preparado só se o período AINDA estiver aberto: entre o
+ * preparo (passo do consumo) e a confirmação da transferência, outra pessoa
+ * pode ter fechado o mesmo período — não se sobrescreve o fechamento dela.
+ * @param {Awaited<ReturnType<typeof prepararFechamentoPeriodo>>} preparado
+ * @returns {Promise<{ aplicado: boolean, motivo?: 'ja_fechado' | 'nao_encontrado' }>}
+ */
+export const aplicarFechamentoSeAindaAberto = async (preparado) => {
+  const atual = (await listEventos()).find((evento) => evento.id === preparado.eventoId) || null;
+  if (!atual) return { aplicado: false, motivo: 'nao_encontrado' };
+  if (atual.dias_periodo !== null && atual.dias_periodo !== undefined) return { aplicado: false, motivo: 'ja_fechado' };
+  await aplicarFechamentoPeriodo(preparado);
+  return { aplicado: true };
+};
+
+/**
+ * Fecha o período: calcula e grava o evento e cada lote (lançamento novo no
+ * cocho, que fecha o período anterior DEPOIS de gravar o novo).
+ *
+ * Mesmos valores do legado. Agora todas as leituras vêm antes da primeira
+ * escrita: uma falha de leitura não deixa mais o evento fechado e os lotes não.
+ *
+ * @param {object} p
+ * @param {any} p.evento
+ * @param {number} p.diasPeriodo
+ * @param {number} p.sobraFinal
+ * @param {number} [p.sobraInicial]
+ * @param {(mensagem: string) => void} [p.onProgress]
+ */
+export const fecharPeriodoSuplementacao = async ({ evento, diasPeriodo, sobraFinal, sobraInicial, onProgress }) => {
+  const preparado = await prepararFechamentoPeriodo({ evento, diasPeriodo, sobraFinal, sobraInicial });
+  await aplicarFechamentoPeriodo(preparado, { onProgress });
+  return {
+    consumoTotal: preparado.consumoTotal,
+    consumoDiarioGrupo: preparado.consumoDiarioGrupo,
+    consumoPorCabecaDia: preparado.consumoPorCabecaDia,
   };
 };
 

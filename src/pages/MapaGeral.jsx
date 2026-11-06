@@ -5,6 +5,7 @@ import { EVENTO_PERMISSOES_ATUALIZADAS, carregarPermissaoEfetiva, ehAdministrado
 import { listarBebedourosAtivos } from "@/services/mapaService";
 import { canAccessPage } from "@/lib/permissions";
 import { MAPA_GERAL_ACESSO_TOTAL, normalizeMapaGeralPermissions } from "@/lib/mapaGeralPermissions";
+import { podeExcluirLancamentoBebedouro, podeLancarNoBebedouro } from "@/lib/bebedouroPermissions";
 import { Button } from "@/components/ui/button";
 import { BarChart3 } from "lucide-react";
 import { toast } from "sonner";
@@ -43,7 +44,7 @@ import { parseVertices } from "@/lib/geografia/coords.js";
 import useBasemap from "../components/mapa/useBasemap";
 import BasemapAtribuicao from "../components/mapa/BasemapAtribuicao";
 import { useEmpresaSelecionadaId } from "@/hooks/useEmpresaSelecionadaId";
-import { lerFiltrosMapaGeral, salvarFiltrosMapaGeral, normalizarFiltrosMapa, camadasVisiveis } from "@/lib/mapaGeralFiltrosStorage";
+import { lerFiltrosMapaGeral, salvarFiltrosMapaGeral, normalizarFiltrosMapa, camadasVisiveis, preferenciaAplicada } from "@/lib/mapaGeralFiltrosStorage";
 import { useAuth } from "@/lib/AuthContext";
 import { mensagemFalhaMapa, navegadorTemWebGL, MENSAGEM_WEBGL_DESLIGADO } from "@/lib/maplibre/falhaWebGL";
 
@@ -64,21 +65,22 @@ export default function MapaGeral() {
   const [prefShowAlertas, setShowAlertas] = useState(true);
   const [prefShowUserLocation, setShowUserLocation] = useState(false);
   const [prefShowNomesAreas, setShowNomesAreas] = useState(true);
-  const [showHectaresAreas, setShowHectaresAreas] = useState(true);
+  const [prefShowHectaresAreas, setShowHectaresAreas] = useState(true);
   const [userLocation, setUserLocation] = useState(null);
 
-  // Filtros avançados
-  const [filtroCategoria, setFiltroCategoria] = useState('todas');
-  const [filtroIdentificador, setFiltroIdentificador] = useState('todos');
-  const [filtroStatus, setFiltroStatus] = useState('todos');
-  const [filtroSistema, setFiltroSistema] = useState('todos');
-  const [filtroAlertaTipo, setFiltroAlertaTipo] = useState('todos');
-  const [filtroTipoCultura, setFiltroTipoCultura] = useState('todas');
-  const [filtroTipoPastagem, setFiltroTipoPastagem] = useState('todas');
-  const [filtroSetor, setFiltroSetor] = useState('todos');
-  const [filtroPesoMin, setFiltroPesoMin] = useState(null);
-  const [filtroPesoMax, setFiltroPesoMax] = useState(null);
-  const [modoColoracao, setModoColoracao] = useState('padrao');
+  // Filtros avançados — preferência (pref*); o valor aplicado é derivado abaixo
+  // (`preferenciaAplicada`), conforme a permissão do painel (D-PROD-137).
+  const [prefFiltroCategoria, setFiltroCategoria] = useState('todas');
+  const [prefFiltroIdentificador, setFiltroIdentificador] = useState('todos');
+  const [prefFiltroStatus, setFiltroStatus] = useState('todos');
+  const [prefFiltroSistema, setFiltroSistema] = useState('todos');
+  const [prefFiltroAlertaTipo, setFiltroAlertaTipo] = useState('todos');
+  const [prefFiltroTipoCultura, setFiltroTipoCultura] = useState('todas');
+  const [prefFiltroTipoPastagem, setFiltroTipoPastagem] = useState('todas');
+  const [prefFiltroSetor, setFiltroSetor] = useState('todos');
+  const [prefFiltroPesoMin, setFiltroPesoMin] = useState(null);
+  const [prefFiltroPesoMax, setFiltroPesoMax] = useState(null);
+  const [prefModoColoracao, setModoColoracao] = useState('padrao');
   const [estiloPasto, setEstiloPasto] = useState('cheio');
 
   // Painéis
@@ -100,7 +102,7 @@ export default function MapaGeral() {
   const [rascunhoTarefa, setRascunhoTarefa] = useState(null);
   const [showInsights, setShowInsights] = useState(false);
   const [showFiltros, setShowFiltros] = useState(false);
-  const [showTaskIcons, setShowTaskIcons] = useState(true);
+  const [prefShowTaskIcons, setShowTaskIcons] = useState(true);
   const [prefDragLotesEnabled, setDragLotesEnabled] = useState(false);
 
   const empresaSelecionadaId = useEmpresaSelecionadaId();
@@ -182,10 +184,30 @@ export default function MapaGeral() {
     );
   }, [acessoTotalTelas, permissaoAtual]);
 
+  // D-PROD-137 (BEB-01): o histórico do bebedouro não tem chave própria do
+  // mapa; o servidor exige concessões de TELA (GUARDAS.bebedouroHistorico).
+  // O diálogo só oferece o que essa mesma regra libera.
+  const podeLancarBebedouro = useMemo(
+    () => acessoTotalTelas || podeLancarNoBebedouro(permissaoAtual),
+    [acessoTotalTelas, permissaoAtual]
+  );
+  const podeExcluirBebedouro = useMemo(
+    () => acessoTotalTelas || podeExcluirLancamentoBebedouro(permissaoAtual),
+    [acessoTotalTelas, permissaoAtual]
+  );
+
   const podeUsarTarefasMapa = useMemo(() => {
     if (acessoTotalTelas) return mapaGeralPermissions.visualizar_tarefas;
     return mapaGeralPermissions.visualizar_tarefas && canAccessPage(permissaoAtual, 'gt-lancamentos', 'gestao-tarefas');
   }, [acessoTotalTelas, permissaoAtual, mapaGeralPermissions.visualizar_tarefas]);
+
+  // A chave "Tarefas" dos Filtros segue a MESMA regra do desenho e do botão
+  // Tarefas (`podeUsarTarefasMapa`, que também pede a tela Gestão de Tarefas):
+  // sem ela a chave não teria efeito e só gravaria preferência (PREF-04).
+  const permissoesDoPainelFiltros = useMemo(
+    () => ({ ...mapaGeralPermissions, visualizar_tarefas: podeUsarTarefasMapa }),
+    [mapaGeralPermissions, podeUsarTarefasMapa]
+  );
 
   // ─── Preferências de camadas/filtros POR USUÁRIO (fazenda + conta + empresa) ───
   // O que o usuário escolheu (pref*) fica salvo; o que aparece no mapa é a
@@ -201,15 +223,39 @@ export default function MapaGeral() {
     return { clienteId: clienteFiltros, login: loginAtual, empresaId: empresaSelecionadaId, chave: `${clienteFiltros}:${loginAtual}:${empresaSelecionadaId}` };
   }, [clienteFiltros, loginAtual, empresaSelecionadaId]);
   const [filtrosCarregados, setFiltrosCarregados] = useState(null);
+  // Escopo e permissão no momento em que uma resposta assíncrona chega (GPS):
+  // a resposta só vale para o escopo em que foi pedida (D-PROD-137, PREF-07).
+  const escopoChaveRef = useRef(/** @type {string|null} */ (null));
+  escopoChaveRef.current = escopoFiltros?.chave ?? null;
+  const podeLocalizarRef = useRef(false);
+  podeLocalizarRef.current = mapaGeralPermissions.visualizar_localizacao === true;
+
+  // Sem "Ver filtros e camadas" não há painel para ver nem desfazer o que foi
+  // salvo: o mapa mostra o PADRÃO nesses campos, e a preferência fica guardada,
+  // intacta, para quando a permissão voltar (D-PROD-137, PREF-02). Colorir
+  // também exige ver as áreas (é o mesmo `podeColorir` do painel Visualização).
+  const podeFiltrar = mapaGeralPermissions.visualizar_filtros_camadas === true;
+  const podeColorir = podeFiltrar && mapaGeralPermissions.visualizar_areas === true;
+  const prefAplicada = preferenciaAplicada({
+    showAreas: prefShowAreas, showNomesAreas: prefShowNomesAreas, showHectaresAreas: prefShowHectaresAreas,
+    showPontos: prefShowPontos, showLinhas: prefShowLinhas, showLotes: prefShowLotes, showCochos: prefShowCochos,
+    showDepositos: prefShowDepositos, showAlertas: prefShowAlertas, showTaskIcons: prefShowTaskIcons,
+    showUserLocation: prefShowUserLocation, dragLotesEnabled: prefDragLotesEnabled,
+    filtroCategoria: prefFiltroCategoria, filtroIdentificador: prefFiltroIdentificador, filtroStatus: prefFiltroStatus,
+    filtroSistema: prefFiltroSistema, filtroAlertaTipo: prefFiltroAlertaTipo, filtroTipoCultura: prefFiltroTipoCultura,
+    filtroTipoPastagem: prefFiltroTipoPastagem, filtroSetor: prefFiltroSetor,
+    filtroPesoMin: prefFiltroPesoMin, filtroPesoMax: prefFiltroPesoMax, modoColoracao: prefModoColoracao,
+  }, { podeFiltrar, podeColorir });
+  const {
+    showHectaresAreas, showTaskIcons,
+    filtroCategoria, filtroIdentificador, filtroStatus, filtroSistema, filtroAlertaTipo,
+    filtroTipoCultura, filtroTipoPastagem, filtroSetor, filtroPesoMin, filtroPesoMax, modoColoracao,
+  } = prefAplicada;
 
   const {
     showAreas, showNomesAreas, showPontos, showLinhas, showLotes, showCochos, showDepositos, showAlertas,
     showUserLocation, dragLotesEnabled,
-  } = camadasVisiveis({
-    showAreas: prefShowAreas, showNomesAreas: prefShowNomesAreas, showPontos: prefShowPontos, showLinhas: prefShowLinhas,
-    showLotes: prefShowLotes, showCochos: prefShowCochos, showDepositos: prefShowDepositos, showAlertas: prefShowAlertas,
-    showUserLocation: prefShowUserLocation, dragLotesEnabled: prefDragLotesEnabled,
-  }, mapaGeralPermissions);
+  } = camadasVisiveis(prefAplicada, mapaGeralPermissions);
 
   useEffect(() => {
     if (!escopoFiltros) return;
@@ -250,41 +296,45 @@ export default function MapaGeral() {
     // Só grava depois de a preferência DESTE usuário nesta empresa ter sido
     // aplicada: antes disso o estado ainda é o padrão e apagaria o que ele salvou.
     if (!escopoFiltros || filtrosCarregados !== escopoFiltros.chave) return;
+    // Grava SÓ a preferência (pref*), nunca o valor aplicado: o PADRÃO mostrado
+    // por falta de permissão não sobrescreve o que o usuário escolheu.
     salvarFiltrosMapaGeral(escopoFiltros, {
       mapType,
       showAreas: prefShowAreas,
       showPontos: prefShowPontos,
       showLinhas: prefShowLinhas,
       showLotes: prefShowLotes,
-      showTaskIcons,
+      showTaskIcons: prefShowTaskIcons,
       dragLotesEnabled: prefDragLotesEnabled,
       showCochos: prefShowCochos,
       showDepositos: prefShowDepositos,
       showAlertas: prefShowAlertas,
       showUserLocation: prefShowUserLocation,
       showNomesAreas: prefShowNomesAreas,
-      showHectaresAreas,
-      filtroCategoria,
-      filtroIdentificador,
-      filtroStatus,
-      filtroSistema,
-      filtroAlertaTipo,
-      filtroTipoCultura,
-      filtroTipoPastagem,
-      filtroSetor,
-      filtroPesoMin,
-      filtroPesoMax,
-      modoColoracao,
+      showHectaresAreas: prefShowHectaresAreas,
+      filtroCategoria: prefFiltroCategoria,
+      filtroIdentificador: prefFiltroIdentificador,
+      filtroStatus: prefFiltroStatus,
+      filtroSistema: prefFiltroSistema,
+      filtroAlertaTipo: prefFiltroAlertaTipo,
+      filtroTipoCultura: prefFiltroTipoCultura,
+      filtroTipoPastagem: prefFiltroTipoPastagem,
+      filtroSetor: prefFiltroSetor,
+      filtroPesoMin: prefFiltroPesoMin,
+      filtroPesoMax: prefFiltroPesoMax,
+      modoColoracao: prefModoColoracao,
       estiloPasto,
     });
-  }, [escopoFiltros, filtrosCarregados, mapType, prefShowAreas, prefShowPontos, prefShowLinhas, prefShowLotes, showTaskIcons, prefDragLotesEnabled, prefShowCochos, prefShowDepositos, prefShowAlertas, prefShowUserLocation, prefShowNomesAreas, showHectaresAreas, filtroCategoria, filtroIdentificador, filtroStatus, filtroSistema, filtroAlertaTipo, filtroTipoCultura, filtroTipoPastagem, filtroSetor, filtroPesoMin, filtroPesoMax, modoColoracao, estiloPasto]);
+  }, [escopoFiltros, filtrosCarregados, mapType, prefShowAreas, prefShowPontos, prefShowLinhas, prefShowLotes, prefShowTaskIcons, prefDragLotesEnabled, prefShowCochos, prefShowDepositos, prefShowAlertas, prefShowUserLocation, prefShowNomesAreas, prefShowHectaresAreas, prefFiltroCategoria, prefFiltroIdentificador, prefFiltroStatus, prefFiltroSistema, prefFiltroAlertaTipo, prefFiltroTipoCultura, prefFiltroTipoPastagem, prefFiltroSetor, prefFiltroPesoMin, prefFiltroPesoMax, prefModoColoracao, estiloPasto]);
 
   // ─── Queries ───
   const ST = 5 * 60 * 1000;
   const createMapaQuery = (cacheKey, options = {}) => ({
     queryKey: ['mapa-cache', cacheKey, empresaSelecionadaId, options.enabledKey || 'default'],
     queryFn: async () => {
-      const cacheEmpresa = cacheKey === 'icones' || cacheKey === 'permissoes' ? '__GLOBAL__' : empresaSelecionadaId;
+      // Ícones e permissões são do TENANT: o mapaCacheService troca a empresa
+      // pelo tenant da sessão (antes iam para `__GLOBAL__`, sem dono; D-PROD-137).
+      const cacheEmpresa = empresaSelecionadaId;
       const cached = await getMapaCachedData(cacheKey, cacheEmpresa);
 
       if (navigator.onLine) {
@@ -616,6 +666,10 @@ export default function MapaGeral() {
     if (!mapReady || !mapInstanceRef.current) return;
     const map = mapInstanceRef.current;
     const persistView = () => {
+      // Antes de a vista da empresa ATUAL ser restaurada ou enquadrada, o mapa
+      // ainda mostra a anterior (troca de empresa não remonta a página): um
+      // moveend nessa janela gravaria a fazenda errada nesta chave (D-PROD-137, PREF-06).
+      if (!firstFitDoneRef.current) return;
       const center = map.getCenter();
       if (!center) return;
       try {
@@ -638,17 +692,19 @@ export default function MapaGeral() {
       let saved = null;
       try { saved = lerVisaoSalva(localStorage.getItem(`mapa_geral_view_${empresaSelecionadaId || 'default'}`)); } catch { saved = null; }
       if (saved) {
-        map.jumpTo({ center: [saved.center.lng, saved.center.lat], zoom: saved.zoom });
+        // Marca ANTES de mover: jumpTo dispara moveend na hora, e esse moveend
+        // já é desta empresa (a vista restaurada continua salva).
         firstFitDoneRef.current = true;
         mapViewRestoredRef.current = true;
+        map.jumpTo({ center: [saved.center.lng, saved.center.lat], zoom: saved.zoom });
         return;
       }
     }
 
     const b = boundsDasAreas(areas);
     if (b) {
-      try { map.fitBounds(b, { padding: 50, duration: 0, maxZoom: 18 }); } catch { /* ignore */ }
       firstFitDoneRef.current = true;
+      try { map.fitBounds(b, { padding: 50, duration: 0, maxZoom: 18 }); } catch { /* ignore */ }
     }
   }, [areas, mapReady, empresaSelecionadaId]);
 
@@ -820,10 +876,25 @@ export default function MapaGeral() {
     await executarRefreshMapa(true, true);
   }, [executarRefreshMapa]);
 
+  // Permissão e escopo lidos por ref na hora do toque E na hora da resposta: o
+  // GPS responde segundos depois, e nesse meio a empresa pode ter mudado ou a
+  // permissão ter caído (D-PROD-137, PREF-04/PREF-07).
   const handleLocate = useCallback(() => {
-    if (!navigator.geolocation) return;
+    if (!podeLocalizarRef.current || !navigator.geolocation) return;
+    const escopoDoPedido = escopoChaveRef.current;
     navigator.geolocation.getCurrentPosition(
-      (pos) => {const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };setUserLocation(loc);setShowUserLocation(true);if (mapInstanceRef.current) {mapInstanceRef.current.jumpTo({ center: [loc.lng, loc.lat], zoom: 18 });}},
+      (pos) => {
+        const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        // Posição do aparelho não pertence a escopo nenhum.
+        setUserLocation(loc);
+        // Ligar a camada (preferência gravada) e pular o mapa só no escopo do
+        // pedido. Pedido sem escopo (sessão/empresa ainda carregando) não tem
+        // preferência de ninguém para vazar: vale para o escopo que entrou.
+        const outroEscopo = escopoDoPedido !== null && escopoDoPedido !== escopoChaveRef.current;
+        if (outroEscopo || !podeLocalizarRef.current) return;
+        setShowUserLocation(true);
+        if (mapInstanceRef.current) mapInstanceRef.current.jumpTo({ center: [loc.lng, loc.lat], zoom: 18 });
+      },
       () => toast.error('Erro ao obter localização')
     );
   }, []);
@@ -1062,8 +1133,12 @@ export default function MapaGeral() {
         <MapaControlesMobile
           mapType={mapTypeEfetivo} setMapType={setMapType}
           onRefresh={handleRefresh} onLocate={handleLocate}
+          /* Mover e Localizar só com a permissão que os faz funcionar: sem ela o
+             toque só mudaria uma preferência gravada que o usuário não vê (PREF-04). */
+          showLocalizarButton={mapaGeralPermissions.visualizar_localizacao}
+          showMoverButton={mapaGeralPermissions.mover_lotes}
           dragEnabled={dragLotesEnabled}
-          onToggleDrag={() => setDragLotesEnabled((prev) => !prev)}
+          onToggleDrag={() => {if (!mapaGeralPermissions.mover_lotes) return;setDragLotesEnabled((prev) => !prev);}}
           showTarefasButton={podeUsarTarefasMapa}
           showFiltrosButton={mapaGeralPermissions.visualizar_filtros_camadas}
           onOpenTarefas={() => {if (!podeUsarTarefasMapa) return;setTarefasContext({});setShowTarefas(true);}}
@@ -1073,7 +1148,7 @@ export default function MapaGeral() {
             mapType={mapTypeEfetivo} setMapType={setMapType}
             estiloPasto={estiloPasto} setEstiloPasto={setEstiloPasto}
             modoColoracao={modoColoracao} setModoColoracao={setModoColoracao}
-            podeColorir={mapaGeralPermissions.visualizar_filtros_camadas !== false && mapaGeralPermissions.visualizar_areas !== false} />
+            podeColorir={podeColorir} />
           } />
 
 
@@ -1155,7 +1230,7 @@ export default function MapaGeral() {
               tiposPastagem={tiposPastagem}
               setores={setores}
               sistemasProdutivos={sistemasProdutivos}
-              permissions={mapaGeralPermissions}
+              permissions={permissoesDoPainelFiltros}
               mostrarCores={false} />
 
           </div>
@@ -1177,7 +1252,7 @@ export default function MapaGeral() {
       <Dialog open={showDetalhesBebedouro} onOpenChange={setShowDetalhesBebedouro}>
         <DialogContent className="overflow-x-hidden p-1 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:w-full sm:p-1 bg-background px-2 py-2 fixed left-[50%] top-[50%] z-50 grid w-full translate-x-[-50%] translate-y-[-50%] gap-4 border shadow-lg duration-200 sm:rounded-lg max-w-[95vw] md:max-w-[75vw] xl:max-w-[65vw] max-h-[95vh] overflow-y-auto">
           <DialogHeader className="flex flex-col space-y-1.5 text-center sm:text-left"><DialogTitle className="text-font-semibold leading-none tracking-tight">Bebedouro</DialogTitle></DialogHeader>
-          {selectedBebedouro && <DetalhesBebedouro bebedouro={selectedBebedouro} />}
+          {selectedBebedouro && <DetalhesBebedouro bebedouro={selectedBebedouro} podeLancar={podeLancarBebedouro} podeExcluir={podeExcluirBebedouro} />}
         </DialogContent>
       </Dialog>
 

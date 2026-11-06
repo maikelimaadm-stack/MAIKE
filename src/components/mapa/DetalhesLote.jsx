@@ -11,6 +11,7 @@ import { listarIconesPorTipoEntidade } from "@/services/mapaService";
 import { getCurrentUser } from "@/services/sessionService";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getMapaCachedData, refreshMapaCacheEntry } from "@/services/mapaCacheService";
+import { aplicarFechamentoSeAindaAberto } from "@/services/suplementacaoService";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -57,7 +58,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
   /** R2E-P1 (D-PROD-107): o mapa entregou POSIÇÕES do ledger (empresa ativada), não Lotes. */
   const modoLedger = (lotes || []).some(ehPosicaoDoLedger);
   const transferenciaEmAndamento = useRef(false);
-  /** PR174-R1: aviso quando a transferência gravou e o passo das sobras falhou. */
+  /** PR174-R1: aviso quando a transferência gravou e um passo seguinte (fechamento do consumo, sobras) falhou. */
   const avisoSobrasLedger = useRef(/** @type {string|null} */ (null));
   // PR174-R1 (D-PROD-107): no ledger TODOS os manejos (Morte, Abate, Nascimento,
   // Pesagem, Mudança de Categoria, Junção, Transferência) vão pelos mesmos
@@ -309,6 +310,33 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
         } catch (erro) {
           throw Object.assign(new Error('ledger'), { mensagemTela: mensagemDaTransferenciaLedger(erro) });
         }
+        const avisosFechamento = [];
+        // D-PROD-137 (SUP-01): o fechamento do consumo da ORIGEM, calculado no
+        // passo do consumo, só é gravado agora — com a transferência confirmada
+        // (recusa, cancelamento e offline não deixam período fechado sem o gado
+        // ter saído). Também no replay: nesta abertura do diálogo ele só roda
+        // depois de uma resposta de sucesso, então um replay significa que a
+        // resposta anterior se perdeu antes dele. E só grava se o período
+        // continua aberto (não sobrescreve quem fechou no meio tempo).
+        const fechamentos = Array.isArray(dadosLedger.fechamentos_consumo) ? dadosLedger.fechamentos_consumo : [];
+        const naoFechados = [];
+        const jaFechados = [];
+        for (const fechamento of fechamentos) {
+          const cocho = fechamento?.ponto_nome || 'cocho';
+          try {
+            const r = await aplicarFechamentoSeAindaAberto(fechamento);
+            if (r.motivo === 'ja_fechado') jaFechados.push(cocho);
+            else if (!r.aplicado) naoFechados.push(`${cocho} (período não encontrado)`);
+          } catch (erroFechamento) {
+            naoFechados.push(`${cocho} (${/** @type {any} */ (erroFechamento)?.message || 'erro'})`);
+          }
+        }
+        if (naoFechados.length) {
+          avisosFechamento.push(`Transferência registrada, mas o consumo de ${naoFechados.join(', ')} NÃO foi fechado. Feche-o no cocho (Lançar).`);
+        }
+        if (jaFechados.length) {
+          avisosFechamento.push(`O consumo de ${jaFechados.join(', ')} já tinha sido fechado por outro lançamento e não foi alterado.`);
+        }
         // A transferência JÁ está gravada. As sobras são um segundo passo
         // explícito: se falharem, o usuário vê exatamente isso (sem falso
         // sucesso e sem dizer "nada foi gravado" sobre a transferência).
@@ -319,6 +347,9 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
           } catch (erroSobras) {
             avisoSobrasLedger.current = `Transferência registrada, mas as sobras do cocho NÃO foram registradas (${/** @type {any} */ (erroSobras)?.message || 'erro'}). Registre a suplementação no cocho do destino.`;
           }
+        }
+        if (avisosFechamento.length) {
+          avisoSobrasLedger.current = [...avisosFechamento, avisoSobrasLedger.current].filter(Boolean).join(' ');
         }
         return resposta?.movimentacao ? [resposta.movimentacao] : [];
       }

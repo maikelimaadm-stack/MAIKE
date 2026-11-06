@@ -111,6 +111,34 @@ export const normalizarFiltrosMapa = (salvo) => {
 };
 
 /**
+ * Campos que SÓ o painel "Filtros e camadas" edita (MapaFiltrosAvancados).
+ * Fora daqui, de propósito: `showUserLocation` e `dragLotesEnabled` (têm botão
+ * próprio — Minha localização e Mover — com permissão própria), `modoColoracao`
+ * e `estiloPasto` (painel Visualização) e `mapType`.
+ */
+export const CAMPOS_DO_PAINEL_FILTROS = Object.freeze([
+  'showAreas', 'showNomesAreas', 'showHectaresAreas', 'showPontos', 'showLinhas', 'showLotes',
+  'showCochos', 'showDepositos', 'showAlertas', 'showTaskIcons',
+  'filtroCategoria', 'filtroIdentificador', 'filtroStatus', 'filtroSistema', 'filtroAlertaTipo',
+  'filtroTipoCultura', 'filtroTipoPastagem', 'filtroSetor', 'filtroPesoMin', 'filtroPesoMax',
+]);
+
+/**
+ * Preferência APLICADA ao mapa (D-PROD-137, PREF-02). Sem a permissão do painel
+ * que edita um campo, o usuário não vê nem desfaz o que salvou: o mapa mostra
+ * o PADRÃO nesse campo. A preferência guardada não muda — volta a valer quando
+ * a permissão voltar (mesma regra de `camadasVisiveis`).
+ * @param {Record<string, any>} pref
+ * @param {{ podeFiltrar: boolean, podeColorir: boolean }} poderes
+ */
+export const preferenciaAplicada = (pref, { podeFiltrar, podeColorir }) => {
+  const out = { ...pref };
+  if (!podeFiltrar) for (const k of CAMPOS_DO_PAINEL_FILTROS) out[k] = PADRAO_FILTROS_MAPA[k];
+  if (!podeColorir) out.modoColoracao = PADRAO_FILTROS_MAPA.modoColoracao;
+  return out;
+};
+
+/**
  * O que APARECE = preferência E permissão. A permissão nunca reescreve a preferência.
  * @param {Record<string, any>} pref
  * @param {Record<string, any>} perm permissões normalizadas do Mapa Geral

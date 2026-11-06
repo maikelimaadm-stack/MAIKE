@@ -119,8 +119,13 @@ describe('MG5/MG6 — origem do dado das queries do mapa', () => {
     expect(trecho).toMatch(/\.catch\(\(\) => \{\}\)/);
   });
 
-  it('ícones e permissões usam a chave global, o resto usa a empresa', () => {
-    expect(fonte).toContain("cacheKey === 'icones' || cacheKey === 'permissoes' ? '__GLOBAL__' : empresaSelecionadaId");
+  // Contrato novo (D-PROD-137, GET-06): a tela não escolhe mais a chave global
+  // para ícones/permissões (eram do tenant e ficavam sem dono); passa a empresa
+  // e o mapaCacheService resolve o dono (tenant da sessão) — testado em
+  // mapaCacheIconesTenant.test.js.
+  it('a tela não grava ícones/permissões na chave global; o dono vem do cache service', () => {
+    expect(fonte).toContain('const cacheEmpresa = empresaSelecionadaId;');
+    expect(fonte).not.toContain("'__GLOBAL__'");
   });
 });
 

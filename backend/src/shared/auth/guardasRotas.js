@@ -69,6 +69,40 @@ const pontoSuplementacaoEditar = async (request) => {
   if (!(desvincular || renomearDeposito || renomearOrigem)) throw negar();
 };
 
+/**
+ * D-PROD-137 (F6) — LocalEstoque pela tela cruzada do Mapa Cadastro. O único
+ * PATCH de local que o Mapa Cadastro faz é renomear o local DO DEPÓSITO que está
+ * editando (FormularioPonto: `{ nome, descricao }`); antes, "editar"/"salvar" do
+ * Mapa Cadastro valia para QUALQUER local (desativar, capacidade, renomear o
+ * almoxarifado), como se fosse a tela Locais.
+ *  - acesso total ou Locais "editar"/"salvar" → tudo (a tela do cadastro);
+ *  - Mapa Cadastro "editar"/"salvar" → só `nome`/`descricao`, e só se o banco
+ *    (no tenant) tiver um PontoSuplementacao categoria DEPOSITO ligado a este
+ *    local. Senão 403, antes da escrita.
+ * DELETE só pela tela Locais (ver `localEstoque.excluir`): a cascata do mapa
+ * chama o DELETE com o depósito ainda vivo, e o serviço sempre recusava
+ * (`deposito_do_mapa`, 409) — o único efeito real da concessão era excluir local
+ * alheio. A cascata conta a recusa como "local ignorado", como antes.
+ */
+const localEstoqueEditar = async (request) => {
+  const aut = await carregarAutorizacao(request.contexto);
+  const MC = T.MAPA_CADASTRO;
+  if (acessoTotal(aut) || telaPermite(aut, T.LOCAIS, 'editar') || telaPermite(aut, T.LOCAIS, 'salvar')) return;
+  const negar = () => acaoNaoPermitida({ exige: [`${T.LOCAIS.tela}:editar`, `${MC.tela}:editar[nome,descricao] no local de um depósito`] });
+  if (!telaPermite(aut, MC, 'editar') && !telaPermite(aut, MC, 'salvar')) throw negar();
+  if (!somenteCampos(request.body, ['nome', 'descricao'])) throw negar();
+  const auth = exigirAuthContext(request.contexto?.auth);
+  const deposito = await getPrismaClient().pontoSuplementacao.findFirst({
+    where: {
+      cliente_id: auth.clienteId,
+      local_estoque_id: /** @type {any} */ (request.params)?.id,
+      categoria_ponto: { equals: 'DEPOSITO', mode: 'insensitive' },
+    },
+    select: { id: true },
+  });
+  if (!deposito) throw negar();
+};
+
 /*
  * R4 — "mover lotes" NÃO fecha período de suplementação. Na R3, com só
  * `mover_lotes`, o PATCH dos campos do fechamento passava em QUALQUER período
@@ -130,10 +164,15 @@ export const GUARDAS = Object.freeze({
   },
   // ── Bebedouros ──
   bebedouro: cadastro(T.BEBEDOUROS, { criar: MAPA_CAD_CRIAR, editar: MAPA_CAD_EDITAR }),
+  // Espelhado no navegador por `src/lib/bebedouroPermissions.js` (os botões
+  // "Lançar"/"Excluir" do bebedouro só aparecem com estas concessões).
   bebedouroHistorico: {
     criar: porQualquer([T.BEBEDOUROS, 'novo'], [T.BEBEDOUROS, 'salvar'], [T.MAPA_GERAL, 'salvar']),
     editar: porQualquer([T.BEBEDOUROS, 'editar'], [T.BEBEDOUROS, 'salvar']),
-    excluir: porQualquer([T.BEBEDOUROS, 'excluir'], [T.MAPA_GERAL, 'excluir']),
+    // D-PROD-137 (BEB-02): apagar histórico exige a ação da tela DONA do
+    // registro. O "excluir" do Mapa Geral é a caixa genérica da linha do mapa
+    // (não fala de bebedouro) e não autoriza mais apagar lançamento.
+    excluir: porQualquer([T.BEBEDOUROS, 'excluir']),
   },
   bebedouroSemTela: { criar: SO_ADMIN, editar: SO_ADMIN, excluir: SO_ADMIN }, // alertas e sanidade
   // ── Tarefas do mapa ──
@@ -141,7 +180,9 @@ export const GUARDAS = Object.freeze({
   // ── Cadastros do menu (tela + cadastro rápido) ──
   setor: cadastro(T.SETORES, { criar: LOTES_GRAVAR }),
   categoriaManejo: cadastro(T.CATEGORIAS_MANEJO, { criar: LOTES_GRAVAR }),
-  localEstoque: cadastro(T.LOCAIS, { criar: MAPA_CAD_CRIAR, editar: MAPA_CAD_EDITAR, excluir: MAPA_CAD_EXCLUIR }),
+  // F6 (D-PROD-137): pelo Mapa Cadastro só cria o local do depósito novo e renomeia
+  // o local de um depósito; desativar/capacidade/excluir só na tela Locais.
+  localEstoque: { ...cadastro(T.LOCAIS, { criar: MAPA_CAD_CRIAR }), editar: localEstoqueEditar },
   produto: cadastro(T.PRODUTOS),
   categoria: cadastro(T.CATEGORIAS),
   marca: cadastro(T.MARCAS),

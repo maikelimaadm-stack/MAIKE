@@ -202,7 +202,8 @@ export default function Empresa() {
         notifyError(
           "Atenção",
           bloqueados.length === 1
-            ? getApiErrorMessage(
+            ? empresaService.descreverVinculosEmpresa(bloqueados[0].erro) ??
+              getApiErrorMessage(
                 bloqueados[0].erro,
                 "Esta empresa não pôde ser excluída — pode haver registros vinculados.",
               )
