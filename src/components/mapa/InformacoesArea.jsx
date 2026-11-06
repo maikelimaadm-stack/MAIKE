@@ -64,6 +64,7 @@ export default function InformacoesArea({ area, lotesNaArea = [] }) {
           <CampoDl rotulo="Média geral">{pesoMedioGeral > 0 ? `${fmt(pesoMedioGeral)} kg` : '-'}</CampoDl>
           <CampoDl rotulo="Pastagem">{area.tipo_pastagem || '-'}</CampoDl>
           <CampoDl rotulo="Dias pastejo">{diasPastejoMedio.toLocaleString('pt-BR')} dia(s)</CampoDl>
+          <span className="mk-dl__vazio" aria-hidden />
         </div>
       )}
 

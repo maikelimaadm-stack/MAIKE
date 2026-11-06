@@ -736,6 +736,19 @@
   border-top: 1px solid #edf0f3;
 }
 
+/* Completa a última linha do celular (3 colunas) para a linha de borda ir
+   até o fim do cartão, inclusive embaixo de "Média geral" (D-PROD-144). */
+.mk-dl__vazio {
+  display: none;
+}
+
+@media (max-width: 639px) {
+  .mk-dl__infos:not(.mk-dl__infos--2) > .mk-dl__vazio {
+    display: block;
+    border-top: 1px solid #edf0f3;
+  }
+}
+
 .mk-dl__infos:not(.mk-dl__infos--2) .mk-dl__info:nth-child(-n + 3),
 .mk-dl__infos--2 .mk-dl__info:nth-child(-n + 2) {
   border-top: 0;
@@ -815,12 +828,6 @@
   justify-content: space-between;
   gap: 8px;
   min-width: 0;
-}
-
-/* Linha fina sob o título do cartão, igual à das linhas de dados (D-PROD-144) */
-.mk-dl__cartao > .mk-dl__cab {
-  padding-bottom: 7px;
-  border-bottom: 1px solid #edf0f3;
 }
 
 /* Título do cartão (área e lote): texto simples dentro da caixa, sem pílula. */

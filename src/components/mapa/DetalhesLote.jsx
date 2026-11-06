@@ -571,6 +571,7 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
                       {(lote.identificador_nome || '-').toUpperCase()}
                     </CampoDl>
                   <CampoDl rotulo="Sigla">{(lote.identificador_sigla || '-').toUpperCase()}</CampoDl>
+                  <span className="mk-dl__vazio" aria-hidden />
                 </div>
                 <div className="mk-dl__chips">
                   <span className="mk-dl__chip">Categoria de Manejo: <strong>{(lote.categoria_manejo_nome || '-').toUpperCase()}</strong></span>
