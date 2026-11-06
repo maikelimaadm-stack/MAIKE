@@ -75,10 +75,22 @@ export function Base1Cards({
   const listRef = useRef(/** @type {HTMLDivElement|null} */ (null));
   useBlockNativeTextSelection(listRef);
 
+  // Rola até o selecionado só quando a seleção vem de fora (ex.: voltar do
+  // registro). Quando a pessoa toca/clica num card, a lista NÃO se mexe: antes
+  // ela pulava para o PRIMEIRO selecionado e o próximo toque caía em outro card.
+  const selecaoPeloCard = useRef(false);
+  const marcarSelecaoPeloCard = () => {
+    selecaoPeloCard.current = true;
+  };
   useEffect(() => {
-    const firstSel = [...selected][0];
-    if (firstSel) refs.current[firstSel]?.scrollIntoView({ block: "center" });
-  }, [selected, rows.length]);
+    if (selecaoPeloCard.current) {
+      selecaoPeloCard.current = false;
+      return;
+    }
+    const ids = [...selected];
+    const alvo = ids[ids.length - 1];
+    if (alvo) refs.current[alvo]?.scrollIntoView({ block: "nearest" });
+  }, [selected]);
 
   if (loading && !rows.length) {
     return (
@@ -130,6 +142,7 @@ export function Base1Cards({
             onOpen?.(r);
             return;
           }
+          marcarSelecaoPeloCard();
           onSelectClick(id, selectClickOf(e));
         }}
             onDoubleClick={() => onOpen?.(r)}
@@ -140,6 +153,7 @@ export function Base1Cards({
                 onOpen?.(r);
               } else if (e.key === " ") {
                 e.preventDefault();
+                marcarSelecaoPeloCard();
                 onSelectClick(id, selectClickOf(e));
               }
             }}
@@ -157,7 +171,11 @@ export function Base1Cards({
               <MgCheck
                 aria-label={`Selecionar ${typeof t === "string" && t ? t : id}`}
                 checked={on}
-                onChange={() => (onToggle ? onToggle(id) : onSelectClick(id, { ctrl: true, shift: false }))}
+                onChange={() => {
+                  marcarSelecaoPeloCard();
+                  if (onToggle) onToggle(id);
+                  else onSelectClick(id, { ctrl: true, shift: false });
+                }}
               />
             </div>
             <div className="flex items-center gap-2 pl-7">

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { usePortalComprasSkin } from "@/components/cadastro/base1/portalComprasSkinContext";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import ConfiguracaoColunasLegacyDialog from "@/components/cadastro/base1/ConfiguracaoColunasLegacyDialog";
 import ConfiguracaoColunasB1Dialog from "@/components/cadastro/base1/ConfiguracaoColunasB1Dialog";
@@ -94,11 +95,17 @@ export default function CadastroBase1Grade({
   cardsPerRow = 4,
   cardsTitleColId,
   cardsCodeColId,
-  referenceHeaders = false,
+  referenceHeaders: referenceHeadersProp,
   configureColumnsAnchorRef,
   colunaSelecao = true,
   selecaoSticky = true,
 }) {
+  // Dentro da lista integrada (chrome com portalComprasSkin) a grade herda os
+  // cabeçalhos de referência e o "Filtrar por campo" do motor: antes cada tela
+  // precisava ligar, e em Categorias de Manejo, Empresa, Grupos, Tipos de
+  // Tarefa, Usuários e Bebedouros o botão Filtros não fazia nada.
+  const skinIntegrada = usePortalComprasSkin();
+  const referenceHeaders = referenceHeadersProp ?? skinIntegrada;
   const dataCols = useMemo(() => colunasBase1(columns), [columns]);
   const defaultVisible = useMemo(
     () => dataCols.filter((c) => c.default !== false).map((c) => c.id),

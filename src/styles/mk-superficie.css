@@ -1,0 +1,234 @@
+/**
+ * Superfície única do sistema — o padrão do "Detalhes do Lote" (D-PROD-137).
+ *
+ * Fundo cinza (#f2f3f5), cartões brancos arredondados com borda leve e botões
+ * brancos com sombra suave. Vale para as listas dos cadastros (Base1), as
+ * folhas e painéis de filtro e os lançamentos (LancLoteDialogo).
+ *
+ * Substitui o item 4 da D-PROD-96 ("botões cinza, sem sombra, nada de
+ * branco"). A paleta verde continua a mesma. Este arquivo é carregado por
+ * último (ver index.css) e usa `:not(#mk-padrao)` para vencer as regras antigas
+ * com o mesmo peso que elas usavam.
+ */
+
+:root {
+  --mk-sup-fundo: #f2f3f5;
+  --mk-sup-cartao: #ffffff;
+  --mk-sup-borda: #e7eaee;
+  --mk-sup-raio: 14px;
+  --mk-sup-sombra: 0 1px 2px rgba(15, 23, 42, 0.05);
+  --mk-btn-bg: #ffffff;
+  --mk-btn-hover: #f8fafc;
+  --mk-btn-ativo: #eef1f4;
+  --mk-btn-sombra: 0 1px 3px rgba(15, 23, 42, 0.1);
+  --mk-chip-bg: #f1f3f4;
+}
+
+/* Tokens antigos apontando para os novos */
+.cadastro-b1 {
+  --mg-bg-page: var(--mk-sup-fundo);
+}
+
+:root,
+.cadastro-b1 {
+  --portal-acao-bg: var(--mk-btn-bg);
+  --portal-acao-hover: var(--mk-btn-hover);
+}
+
+.cadastro-b1.cadastro-b1--full-page:not(#mk-padrao) {
+  background: var(--mk-sup-fundo);
+}
+
+/* ── Botões: brancos com sombra suave ─────────────────────────────────── */
+:is(.tb-btn, .mg-rec-pager__btn, .mk-sheet__close, .mk-sheet__new, .mk-mhdr__round):not(.is-filter-on):not(.is-filter-active):not(:disabled):not(#mk-padrao),
+.mk-mhdr__back > span:not(#mk-padrao) {
+  box-shadow: var(--mk-btn-sombra) !important;
+}
+
+.tb-btn:not(.tb-btn-green):not(.tb-btn-red):not(.is-filter-on):not(.is-filter-active):not(#mk-padrao),
+.tb-btn.tb-btn-green:not(#mk-padrao),
+.tb-btn.tb-btn-red:not(#mk-padrao),
+.mg-rec-pager__btn:not(#mk-padrao),
+.mk-sheet__close:not(#mk-padrao),
+.mk-sheet__new:not(#mk-padrao),
+.mk-sheet.mk-cr .mk-sheet__close:not(#mk-padrao),
+.mk-sheet.mk-cr .mk-sheet__new:not(#mk-padrao),
+.mk-mhdr__round:not(#mk-padrao),
+.mk-mhdr__back > span:not(#mk-padrao) {
+  border-color: transparent !important;
+  background: var(--mk-btn-bg) !important;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .tb-btn:not(.tb-btn-green):not(.tb-btn-red):not(.is-filter-on):not(.is-filter-active):not(#mk-padrao):hover:not(:disabled),
+  .tb-btn.tb-btn-green:not(#mk-padrao):hover:not(:disabled),
+  .tb-btn.tb-btn-red:not(#mk-padrao):hover:not(:disabled),
+  .mg-rec-pager__btn:not(#mk-padrao):hover:not(:disabled) {
+    background: var(--mk-btn-hover) !important;
+  }
+}
+
+.tb-btn:not(#mk-padrao):active:not(:disabled),
+.mg-rec-pager__btn:not(#mk-padrao):active:not(:disabled) {
+  background: var(--mk-btn-ativo) !important;
+}
+
+/* Seletor de visualização: trilho branco; o modo ativo verde-claro com ícone verde */
+.view-seg:not(#mk-padrao) {
+  background: var(--mk-btn-bg) !important;
+  box-shadow: var(--mk-btn-sombra) !important;
+}
+
+.view-seg button:not(#mk-padrao) {
+  box-shadow: none !important;
+}
+
+.view-seg button[aria-pressed="true"]:not(#mk-padrao),
+.view-seg button.is-active:not(#mk-padrao),
+.view-seg button[data-state="on"]:not(#mk-padrao) {
+  background: rgba(64, 222, 99, 0.14) !important;
+  color: #16a34a !important;
+}
+
+.view-seg button[aria-pressed="true"]:not(#mk-padrao) svg,
+.view-seg button.is-active:not(#mk-padrao) svg,
+.view-seg button[data-state="on"]:not(#mk-padrao) svg {
+  color: #16a34a !important;
+}
+
+/* ── Listas dos cadastros: a grade e o resumo viram cartões sobre o cinza ── */
+.cadastro-b1 .mg-shell--join-table:has(> .mg-shell__body, > .mg-shell__scroll):not(#mk-padrao) {
+  gap: 8px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
+}
+
+.cadastro-b1 .mg-shell--join-table:has(> .mg-shell__body, > .mg-shell__scroll) .mg-toolbar--join:not(#mk-padrao) {
+  padding: 2px 0;
+  border-bottom: 0;
+  background: transparent;
+}
+
+.cadastro-b1 .mg-shell--join-table:has(> .mg-shell__body, > .mg-shell__scroll) .mg-rail--join:not(#mk-padrao) {
+  border: 1px solid var(--mk-sup-borda);
+  border-radius: var(--mk-sup-raio);
+  background: var(--mk-sup-cartao);
+}
+
+.cadastro-b1 .mg-shell--join-table > .mg-shell__body:not(#mk-padrao) {
+  border: 1px solid var(--mk-sup-borda);
+  border-radius: var(--mk-sup-raio);
+  background: var(--mk-sup-cartao);
+  box-shadow: var(--mk-sup-sombra);
+  overflow: hidden;
+}
+
+.cadastro-b1 .mg-shell--join-table > .mg-shell__scroll:not(#mk-padrao) {
+  padding: 0;
+  background: transparent !important;
+}
+
+.cadastro-b1 .mg-shell--join-table > .mg-summary:not(#mk-padrao) {
+  border: 1px solid var(--mk-sup-borda);
+  border-radius: var(--mk-sup-raio);
+  background: var(--mk-sup-cartao);
+  box-shadow: var(--mk-sup-sombra);
+}
+
+/* Cards Base1 iguais aos cartões do Detalhes do Lote */
+.cadastro-b1 .b1-card:not(#mk-padrao) {
+  border: 1px solid var(--mk-sup-borda);
+  border-radius: var(--mk-sup-raio);
+  background: var(--mk-sup-cartao);
+  box-shadow: var(--mk-sup-sombra);
+}
+
+.cadastro-b1 .b1-card.is-selected:not(#mk-padrao) {
+  border-color: rgba(64, 222, 99, 0.55);
+  background: #f3fdf5;
+  box-shadow: 0 0 0 1px rgba(64, 222, 99, 0.35), var(--mk-sup-sombra);
+}
+
+/* Celular: a barra fica sobre o cinza, sem a faixa branca e sem a linha entre as duas linhas */
+@media (max-width: 639px) {
+  .cadastro-b1--full-page .mg-shell--join-table:has(> .mg-shell__body, > .mg-shell__scroll) .mg-toolbar--responsive:not(#mk-padrao) {
+    padding: 2px 0;
+  }
+
+  .cadastro-b1--full-page .mg-shell--join-table:has(> .mg-shell__body, > .mg-shell__scroll) .mg-toolbar--responsive .mg-toolbar__row--actions:not(#mk-padrao) {
+    margin: 0;
+    padding: 0;
+    border-bottom: 0;
+  }
+}
+
+/* ── Folhas e filtros ─────────────────────────────────────────────────── */
+.mk-sheet:not(#mk-padrao) {
+  background: var(--mk-sup-fundo);
+}
+
+.fpc--pop:not(#mk-padrao),
+.b1ref .fpop:not(#mk-padrao),
+.cadastro-b1 .fpop:not(#mk-padrao) {
+  background: var(--mk-sup-fundo);
+}
+
+:is(.fpc--pop, .fpop, .mk-sheet) .mk-pill:not(#mk-padrao),
+:is(.fpc--pop, .fpop, .mk-sheet) select:not(#mk-padrao),
+:is(.fpc--pop, .fpop, .mk-sheet) input[type="text"]:not(#mk-padrao),
+:is(.fpc--pop, .fpop, .mk-sheet) input[type="search"]:not(#mk-padrao),
+:is(.fpc--pop, .fpop, .mk-sheet) input[type="number"]:not(#mk-padrao),
+:is(.fpc--pop, .fpop, .mk-sheet) input[type="date"]:not(#mk-padrao) {
+  border: 1px solid var(--mk-sup-borda);
+  background: var(--mk-sup-cartao);
+  box-shadow: var(--mk-sup-sombra);
+}
+
+/* ── Lançamentos: o padrão do Detalhes do Lote em todos ───────────────── */
+.mk-ll-dlg:not(#mk-padrao) {
+  background: var(--mk-sup-fundo);
+}
+
+.mk-ll-dlg.is-desktop .mk-ll-dlg__head:not(#mk-padrao) {
+  background: transparent;
+  border-bottom: 0;
+}
+
+.mk-ll-dlg.is-desktop > .mk-ll:not(#mk-padrao) {
+  padding-top: 2px;
+}
+
+.mk-ll-dlg__redondo:not(#mk-padrao) {
+  background: var(--mk-btn-bg);
+  box-shadow: var(--mk-btn-sombra);
+}
+
+.mk-ll-dlg__redondo:not(#mk-padrao):active:not(:disabled) {
+  background: var(--mk-btn-ativo);
+}
+
+.mk-ll-dlg__acoes .tb-btn:not(#mk-padrao) {
+  background: var(--mk-btn-bg) !important;
+  box-shadow: var(--mk-btn-sombra) !important;
+}
+
+.mk-ll__item:not(#mk-padrao) {
+  border-color: var(--mk-sup-borda);
+  border-radius: var(--mk-sup-raio);
+  background: var(--mk-sup-cartao);
+  box-shadow: var(--mk-sup-sombra);
+}
+
+.mk-ll__seg:not(#mk-padrao) {
+  background: var(--mk-sup-cartao);
+  box-shadow: var(--mk-sup-sombra);
+}
+
+/* Campos sobre o cinza: brancos com borda (antes cinza sobre branco) */
+.mk-ll-dlg .mg-field:not(#mk-padrao) {
+  border: 1px solid var(--mk-sup-borda);
+  background: var(--mk-sup-cartao);
+}

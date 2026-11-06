@@ -5,6 +5,7 @@
 @import "./styles/maike-mobile-shell.css";
 @import "./styles/lancamento-lote.css";
 @import "./styles/mapa-geral.css";
+@import "./styles/mk-superficie.css";
 
 @tailwind base;
 @tailwind components;

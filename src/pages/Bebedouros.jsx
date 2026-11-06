@@ -11,6 +11,7 @@ import { buildBebedouroAlertas, getBebedouroStatusVisual } from "@/services/bebe
 import CadastroWorkspace from "@/components/cadastro/CadastroWorkspace";
 import CadastroListaChrome from "@/components/cadastro/base1/CadastroListaChrome";
 import CadastroBase1Grade from "@/components/cadastro/base1/CadastroBase1Grade";
+import { BASE1_LISTA_INTEGRADA_VISUAL } from "@/components/cadastro/base1/base1VisualPreset";
 import CadastroRecordHeader from "@/components/cadastro/base1/CadastroRecordHeader";
 import { useCadastroListaChromeState } from "@/hooks/useCadastroListaChromeState";
 import { useCadastroPageListBindings } from "@/hooks/useCadastroPageListBindings";
@@ -195,12 +196,9 @@ export default function Bebedouros() {
   );
 
   return (
-    <CadastroWorkspace
-      mode="list"
-      title="Bebedouros"
-      subtitle="Controle operacional, sanitário e histórico da água."
-    >
+    <CadastroWorkspace mode="list" title="Bebedouros" {...BASE1_LISTA_INTEGRADA_VISUAL.workspace}>
       <CadastroListaChrome
+        {...BASE1_LISTA_INTEGRADA_VISUAL.chrome}
         recordMode={inRecord}
         secondaryToolsLocked={inRecord && subFlowLocked}
         recordToolbar={recordToolbar}
@@ -244,13 +242,12 @@ export default function Bebedouros() {
         onViewModeChange={onViewModeChange}
         recordModeAvailable
         extraToolbar={inRecord ? null : mapaLink}
-        filterRailHint="Cadastro geométrico no mapa; aqui é a operação e o acompanhamento."
         onConfigureColumns={() => setShowConfigColunas(true)}
       >
         {!inRecord ? (
-          <div className="space-y-3">
+          <div className="flex min-h-0 flex-1 flex-col gap-3">
             <BebedouroResumoCards bebedouros={bebedouros} historico={historico} alertas={alertas} />
-            <div className="overflow-hidden">
+            <div className="flex min-h-0 flex-1 flex-col">
               <CadastroBase1Grade
                 rows={bebedouros}
                 columns={COLUNAS}

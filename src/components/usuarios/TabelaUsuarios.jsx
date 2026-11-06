@@ -157,7 +157,7 @@ export default function TabelaUsuarios({
 
   if (chromeLayout) {
     return (
-      <div className="overflow-hidden">
+      <div className="flex min-h-0 flex-1 flex-col">
         <CadastroBase1Grade
           rows={usuarios}
           columns={USUARIOS_LIST_COLUNAS}

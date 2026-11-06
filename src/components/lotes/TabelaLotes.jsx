@@ -340,7 +340,7 @@ export default function TabelaLotes({
   );
 
   return (
-    <div className="flex-1 min-h-0 overflow-hidden bg-white select-none">
+    <div className="flex min-h-0 flex-1 flex-col bg-white select-none">
       <CadastroBase1Grade
         rows={lotes}
         columns={colunasDisponiveis}
