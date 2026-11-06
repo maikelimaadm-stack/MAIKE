@@ -5272,4 +5272,40 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
 - **Fora do escopo (R7):** as tabelas do Cadastro do Mapa (Áreas, Pontos, Linhas) e as listas de histórico não usam o motor Base1; migração em missão própria.
 - **Evidência:** `docs/engineering/evidencias/ux-mobile-v2/v26-*`; testes `tests/smoke/base1CardsSemPulo.test.jsx` (CAR-01/02).
 
-<!-- Próxima decisão: D-PROD-139 -->
+## D-PROD-139 — "Editar Informação" no mapa edita a POSIÇÃO (nome e identificação), não o cadastro de entrada
+
+- **Contexto:** no controle por posições, o botão "Editar Informação" do Detalhes do Lote só mostrava "renomeie o lote no Cadastro de Lotes. Nada foi gravado.". O caminho antigo (`RenomearLoteForm`) grava o `Lote` e cria uma movimentação "Renomear Lote" — errado para a posição do ledger.
+- **Decisão:**
+  - **Comando próprio:** `PATCH /rebanho/posicoes/:id/informacoes`, com `porMapa('renomear_lotes')`. A concessão `is_admin` e o administrador real também passam.
+    - O schema é fechado (`additionalProperties: false`) e aceita só `empresa_id` + `nome`, `identificador_nome`, `identificador_sigla`, `identificador_cor`.
+  - **Contrato de campos:**
+
+    | Situação | Campos |
+    |---|---|
+    | editável na posição | nome, identificador_nome, identificador_sigla, identificador_cor |
+    | somente leitura | nº do lote, origem/linhagem, entrada, raça, sistema, data de entrada |
+    | exige comando de manejo | quantidade, área, peso, categoria, sexo, categoria de manejo |
+
+  - **Por que é seguro:**
+    - a identidade da posição (`chave_identidade` = origem + categoria + sexo + categoria de manejo) não usa nome nem identificação; trocar o nome não funde nem separa posições;
+    - nenhum evento, partida, peso ou movimentação é criado;
+    - o `Lote` não é escrito.
+  - **Servidor:**
+    - a posição precisa ser do tenant **e** da empresa informada; senão 404 (`POSICAO_REBANHO_NOT_FOUND`), com a mesma resposta para outro tenant e para outra empresa;
+    - ledger inativo → 409;
+    - posição sem cabeças → 409 `POSICAO_REBANHO_VAZIA` (novo; a posição vazia não aparece no mapa);
+    - trava a posição (`FOR UPDATE`) e grava AuditLog antes/depois na mesma transação;
+    - sem mudança → 200 sem gravar nem auditar.
+  - **Tela:**
+    - escolhe o grupo quando há vários, mostrando a área;
+    - separa "Informações do grupo (editáveis)" de "Origem e cadastro da entrada (somente leitura)";
+    - envia só o que mudou;
+    - o mapa mostra o valor gravado na hora e relê do servidor;
+    - em erro, mostra a mensagem do código e nunca afirma sucesso;
+    - sem ledger, o formulário antigo continua igual.
+- **Interações registradas:**
+  - transferir para uma área onde a identidade ainda não existe cria a posição de destino com o nome editado (`moldeDe`); se a identidade já existe, o destino mantém o dele;
+  - renomear depois no Cadastro de Lotes continua propagando o campo a todas as posições da entrada e sobrescreve a edição feita no mapa.
+- **Consequência:** sem migration. Testes: `backend/tests/posicaoEditarInformacao.test.mjs` (PG) e `tests/smoke/editarInformacaoPosicao.test.jsx` (RTL). Relatório: `docs/engineering/MAIKE-EDITAR-INFORMACAO-POSICAO-REPORT.md`.
+
+<!-- Próxima decisão: D-PROD-140 -->
