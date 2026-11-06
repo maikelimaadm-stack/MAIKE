@@ -726,6 +726,13 @@
   background: #f6f7f8;
 }
 
+/* Informações da Área: campos sem o fundo cinza, só rótulo e valor. */
+.mk-dl__cartao--area .mk-dl__info {
+  padding-left: 0;
+  padding-right: 0;
+  background: transparent;
+}
+
 /* Campo: rótulo e valor no tamanho do "Categoria de Manejo", numa linha só;
    se não couber, o texto corre devagar (D-PROD-124). */
 .mk-dl__linha {
