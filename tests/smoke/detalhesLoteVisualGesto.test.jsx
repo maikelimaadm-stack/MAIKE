@@ -28,13 +28,13 @@ describe("Detalhes do Lote: visual (D-PROD-120)", () => {
     expect(detalhes).not.toMatch(/Alertas do lote|lote\.alertas/);
   });
 
-  it("nomes de área e lote em verde (cor dos botões), sem o amarelo", () => {
+  it("nomes de área e lote em texto simples, sem o amarelo", () => {
     expect(detalhes).toMatch(/className="mk-dl__nome">Lote: \{lote\.nome\}/);
-    // D-PROD-124: a área fica só em texto escuro (sem o verde); o lote continua verde.
-    expect(area).toMatch(/className="mk-dl__nome mk-dl__nome--area">Informações da Área: \{area\.nome\}/);
-    expect(css).toMatch(/\.mk-dl__nome--area \{[^}]*background: none;[^}]*color: #1f2937;/);
+    // D-PROD-144: o nome da área sai do cartão e do lote; vai no cabeçalho do diálogo.
+    expect(detalhes).not.toMatch(/mk-dl__area-nome/);
+    expect(area).toMatch(/className="mk-dl__nome mk-dl__nome--area">Informações da Área</);
     for (const f of [detalhes, area]) expect(f).not.toMatch(/yellow|amber/);
-    expect(css).toMatch(/\.mk-dl__nome \{[^}]*background: var\(--mg-accent, #40de63\);[^}]*color: #fff;/);
+    expect(css).toMatch(/\.mk-dl__nome \{[^}]*color: #374151;[^}]*font-weight: 700;/);
   });
 });
 

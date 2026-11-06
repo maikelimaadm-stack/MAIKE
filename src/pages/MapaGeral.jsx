@@ -377,6 +377,12 @@ export default function MapaGeral() {
 
   const areaIdsValidos = useMemo(() => new Set(areas.map((area) => area.id)), [areas]);
 
+  // Área do lote aberto no Detalhes do Lote: vai no cabeçalho do diálogo (D-PROD-144).
+  const areaDoDetalhe = useMemo(() => {
+    const primeiro = Array.isArray(selectedLote) ? selectedLote[0] : selectedLote;
+    return areas.find((a) => a.id === primeiro?.area_atual_id)?.nome || primeiro?.area_atual_nome || "";
+  }, [selectedLote, areas]);
+
   const lotes = useMemo(() => {
     return lotesBase.filter((lote) =>
     lote?.empresa_id === empresaSelecionadaId &&
@@ -1225,7 +1231,7 @@ export default function MapaGeral() {
       </MapaFiltrosPainel>
 
       {/* ─── Dialogs ─── */}
-      <LancLoteDialogo open={showDetalhesLote} onOpenChange={(open) => {setShowDetalhesLote(open);if (!open) refetchLotes();}} titulo="Detalhes do Lote" largo somenteLeitura>
+      <LancLoteDialogo open={showDetalhesLote} onOpenChange={(open) => {setShowDetalhesLote(open);if (!open) refetchLotes();}} titulo="Detalhes do Lote" lotes={areaDoDetalhe ? [{ nome: areaDoDetalhe }] : undefined} largo somenteLeitura>
           {selectedLote && <DetalhesLote lotes={Array.isArray(selectedLote) ? selectedLote : [selectedLote]} permissions={mapaGeralPermissions} onClose={() => {setShowDetalhesLote(false);refetchLotes();}} />}
       </LancLoteDialogo>
 

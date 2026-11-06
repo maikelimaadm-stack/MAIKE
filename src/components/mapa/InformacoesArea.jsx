@@ -46,7 +46,7 @@ export default function InformacoesArea({ area, lotesNaArea = [] }) {
   return (
     <div className="mk-dl__cartao">
       <div className="mk-dl__cab">
-        <span className="mk-dl__nome mk-dl__nome--area">Informações da Área: {area.nome}</span>
+        <span className="mk-dl__nome mk-dl__nome--area">Informações da Área</span>
       </div>
 
       {isCurral ? (
@@ -59,11 +59,12 @@ export default function InformacoesArea({ area, lotesNaArea = [] }) {
           <CampoDl rotulo="Hectares">{hectares > 0 ? `${fmt(hectares)} ha` : '-'}</CampoDl>
           <CampoDl rotulo="UA/ha">{fmt(uaHa)}</CampoDl>
           <CampoDl rotulo="UA total">{fmt(totalUA)}</CampoDl>
-          <CampoDl rotulo="Pastagem">{area.tipo_pastagem || '-'}</CampoDl>
           <CampoDl rotulo="Qtd. Lotes">{lotesNaArea.length.toLocaleString('pt-BR')}</CampoDl>
           <CampoDl rotulo="Qtd. Cabeças">{totalCabecas.toLocaleString('pt-BR')}</CampoDl>
           <CampoDl rotulo="Média geral">{pesoMedioGeral > 0 ? `${fmt(pesoMedioGeral)} kg` : '-'}</CampoDl>
+          <CampoDl rotulo="Pastagem">{area.tipo_pastagem || '-'}</CampoDl>
           <CampoDl rotulo="Dias pastejo">{diasPastejoMedio.toLocaleString('pt-BR')} dia(s)</CampoDl>
+          <span className="mk-dl__vazio" aria-hidden />
         </div>
       )}
 
