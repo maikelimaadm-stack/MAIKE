@@ -56,4 +56,16 @@ describe('ADM-DEPLOY — apps/admin/vercel.json', () => {
     }
     expect(csp).not.toMatch(/unsafe-eval|script-src[^;]*unsafe-inline|connect-src[^;]*https:/);
   });
+
+  it('ADM-DEPLOY-05 atalho makgestao.com/admmakgestao só redireciona para a origin própria do admin', () => {
+    const raiz = JSON.parse(readFileSync('vercel.json', 'utf8'));
+    const atalhos = (raiz.redirects ?? []).filter((r) => /^\/admmakgestao/.test(r.source));
+    expect(atalhos.map((r) => r.source).sort()).toEqual(['/admmakgestao', '/admmakgestao/:path*']);
+    for (const r of atalhos) {
+      expect(r.destination).toBe('https://admmakgestao.vercel.app/');
+      // 307: trocar o destino depois não fica preso no cache do navegador.
+      expect(r.permanent).toBe(false);
+    }
+    expect((raiz.rewrites ?? []).some((r) => /admmakgestao/.test(r.source))).toBe(false);
+  });
 });

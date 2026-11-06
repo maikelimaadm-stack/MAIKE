@@ -1,8 +1,9 @@
 /**
- * MAIKE-ADMIN-S02 — o backend como ficará publicado para `admin.makgestao.com`.
+ * MAIKE-ADMIN-S02 — o backend como ficará publicado para `admmakgestao.vercel.app`
+ * (atalho `makgestao.com/admmakgestao` → redirect).
  *
  * Reproduz a configuração de produção planejada (NODE_ENV=production,
- * ADMIN_MAIKE_CHAVE presente, ADMIN_ORIGINS=https://admin.makgestao.com) e a
+ * ADMIN_MAIKE_CHAVE presente, ADMIN_ORIGINS=https://admmakgestao.vercel.app) e a
  * requisição como o rewrite do projeto admin a entrega (Host = domínio da API,
  * Origin = admin). PostgreSQL local descartável; nenhum valor real de segredo.
  */
@@ -19,7 +20,7 @@ import { criarApp, criarTenant, limparBanco, encerrar, autenticarNoApp } from '.
 
 /** @type {import('fastify').FastifyInstance} */
 let app;
-const ADMIN = 'https://admin.makgestao.com';
+const ADMIN = 'https://admmakgestao.vercel.app';
 const HOST_API = 'www.makgestao.com';
 const LOGIN = 'dono.maike';
 const SENHA = 'senha-forte-do-dono-1';
@@ -93,7 +94,7 @@ describe('admin publicado (produção simulada)', () => {
         assert.match(atributos, /; HttpOnly/);
         assert.match(atributos, /; SameSite=Strict/);
         assert.match(atributos, /; Path=\//);
-        assert.doesNotMatch(atributos, /Domain=/i, 'host-only: vale só em admin.makgestao.com');
+        assert.doesNotMatch(atributos, /Domain=/i, 'host-only: vale só em admmakgestao.vercel.app');
         assert.equal(r.body.includes(par.split('=')[1]), false, 'token só no cookie');
       }
     } finally {
@@ -101,10 +102,10 @@ describe('admin publicado (produção simulada)', () => {
     }
   });
 
-  test('PUB-02 login só com Origin do admin: SPA dos clientes, *.vercel.app, http e ausente são recusados', async () => {
+  test('PUB-02 login só com Origin do admin: SPA dos clientes, outro *.vercel.app (inclusive prévia), http e ausente são recusados', async () => {
     try {
       await criarProprietarioInicial({ login: LOGIN, senha: SENHA });
-      for (const origin of ['https://www.makgestao.com', 'https://maike-five.vercel.app', 'http://admin.makgestao.com', 'https://admin.makgestao.com.evil.example', null]) {
+      for (const origin of ['https://www.makgestao.com', 'https://maike-five.vercel.app', 'https://admin.makgestao.com', 'http://admmakgestao.vercel.app', 'https://admmakgestao-git-x.vercel.app', 'https://admmakgestao.vercel.app.evil.example', null]) {
         const r = await req('POST', '/admin-maike/auth/login', { origin, payload: { login: LOGIN, senha: SENHA } });
         assert.equal(r.statusCode, 403, String(origin));
         assert.equal(r.json().code, 'ADMIN_ORIGEM_RECUSADA');
