@@ -11,12 +11,10 @@ import { LancLoteDialogo, useLancLoteDialogo } from "@/components/lotes/Lancamen
  * - celular: um botão só, "Manejos e históricos", abre a folha de baixo (✕ e título);
  *   dentro do diálogo ele fica no alto, à direita (espelho do ✕) (D-PROD-120);
  * - tablet/desktop: os quadros ficam à vista, menores, embaixo do Detalhes do Lote.
- * - `inline`: quando a seção é a própria aba aberta (Informações do Lote), os
- *   quadros ficam à vista também no celular — sem o botão no cabeçalho.
  *
- * @param {{ grupos: Array<{ titulo: string, itens: Array<{ nome: string, rotulo?: string, Icone: React.ComponentType<any>, onClick: () => void }> }>, inline?: boolean }} props
+ * @param {{ grupos: Array<{ titulo: string, itens: Array<{ nome: string, rotulo?: string, Icone: React.ComponentType<any>, onClick: () => void }> }> }} props
  */
-export default function AcoesDoLote({ grupos, inline = false }) {
+export default function AcoesDoLote({ grupos }) {
   const celular = useMediaQuery("(max-width: 639px)");
   const [aberto, setAberto] = React.useState(false);
   const slot = useLancLoteDialogo()?.slotDireito || null;
@@ -58,7 +56,7 @@ export default function AcoesDoLote({ grupos, inline = false }) {
     </button>
   );
 
-  if (celular && !inline) {
+  if (celular) {
     const botao = React.cloneElement(gatilho, { onClick: () => setAberto(true) });
     return <>
       {slot ? createPortal(botao, slot) : botao}

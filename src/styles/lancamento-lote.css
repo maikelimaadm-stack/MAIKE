@@ -857,33 +857,6 @@
   font-weight: 600;
 }
 
-/* Botões de seção abaixo do título: cada um abre a sua parte do Detalhes do Lote */
-.mk-dl__abas {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  padding-bottom: 2px;
-}
-
-.mk-dl__aba {
-  padding: 5px 11px;
-  border: 1px solid #e7eaee;
-  border-radius: 999px;
-  background: #fff;
-  color: #475569;
-  font-size: 11px;
-  font-weight: 600;
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-.mk-dl__aba.is-ativa {
-  border-color: var(--mg-accent, #40de63);
-  background: var(--mg-accent, #40de63);
-  color: #fff;
-  font-weight: 700;
-}
-
 /* Fundo cinza atrás dos cartões e dos botões, como no celular; botões brancos (D-PROD-124) */
 .mk-ll-dlg.is-desktop:has(> .mk-ll > .mk-dl):not(#mk-padrao) {
   background: var(--mk-sup-fundo, #f7f8fa);
