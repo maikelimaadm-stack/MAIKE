@@ -66,13 +66,13 @@ const MSG = "Esta fazenda ainda não foi migrada para o controle por posições.
 const BOI = "BOI";
 const loteLegado = (id) => ({ id, nome: `L-${id}`, categoria: BOI, quantidade_cabecas: 10, area_atual_id: "a1", status: "Ativo" });
 const posicao = (id) => ({ ...loteLegado(id), __posicao: true });
-const MANEJOS = ["Mover", "Morte", "Saída", "Nascimento", "Mudar Categoria", "Pesar", "Juntar Lotes"];
+const MANEJOS = ["Mover", "Morte", "Saída", "Nascimento", "Mudar Categoria", "Pesar"];
 
-const renderizar = async (lotes) => {
+const renderizar = async (lotes, permissions = {}) => {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const utils = render(
     <QueryClientProvider client={client}>
-      <DetalhesLote lotes={lotes} onClose={() => {}} />
+      <DetalhesLote lotes={lotes} onClose={() => {}} permissions={permissions} />
     </QueryClientProvider>
   );
   await act(async () => { await new Promise((r) => setTimeout(r, 30)); });
@@ -135,6 +135,24 @@ describe("DetalhesLote sem ledger (empresa não migrada)", () => {
     await acao("Histórico de Suplementação");
     expect(screen.getByTestId("form-historico-supl")).toBeTruthy();
     expect(toast.error).not.toHaveBeenCalled();
+  });
+});
+
+describe("Juntar Lotes permanece visível quando indisponível", () => {
+  it.each([
+    ["empresa sem ledger", [loteLegado("l1"), loteLegado("l2")], {}, "Junção disponível no controle por posições."],
+    ["sem permissão", [posicao("p1"), posicao("p2")], { juntar_lotes: false }, "Sem permissão para juntar lotes."],
+    ["um único lote", [posicao("p1")], {}, "É preciso haver pelo menos dois lotes da mesma categoria."],
+    ["categorias diferentes", [posicao("p1"), { ...posicao("p2"), categoria: "BEZERRO" }], {}, "É preciso haver pelo menos dois lotes da mesma categoria."],
+  ])("%s: botão desabilitado, sem formulário nem escrita", async (_caso, lotes, permissions, motivo) => {
+    await renderizar(lotes, permissions);
+    await acao("Juntar Lotes");
+    const botao = screen.getByRole("button", { name: "Juntar Lotes" });
+    expect(botao.disabled).toBe(true);
+    expect(botao.title).toBe(motivo);
+    expect(screen.queryByRole("dialog")).toBe(null);
+    expect(toast.error).not.toHaveBeenCalled();
+    nenhumaEscrita();
   });
 });
 
