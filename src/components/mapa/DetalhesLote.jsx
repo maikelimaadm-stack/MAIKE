@@ -554,7 +554,10 @@ export default function DetalhesLote({ lotes, onClose, permissions = {} }) {
               return (
                 <div key={lote.id} className="mk-dl__cartao">
                 <div className="mk-dl__cab">
-                  <span className="mk-dl__nome">Lote: {lote.nome}</span>
+                  <span className="mk-dl__titulos">
+                    <span className="mk-dl__nome">Lote: {lote.nome}</span>
+                    <span className="mk-dl__area-nome">{areaAtual?.nome || '-'}</span>
+                  </span>
                   {iconeUrl &&
                     <span className="mk-dl__icone"><img src={iconeUrl} alt={categoria} /></span>
                     }

@@ -845,6 +845,21 @@
   overflow-wrap: anywhere;
 }
 
+/* Nome do lote com o nome da área logo abaixo (D-PROD-144) */
+.mk-dl__titulos {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.mk-dl__area-nome {
+  color: #64748b;
+  font-size: 10.5px;
+  font-weight: 500;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
 /* Sub-ícone do lote: só a imagem (ela já não tem fundo) */
 .mk-dl__icone {
   display: inline-flex;

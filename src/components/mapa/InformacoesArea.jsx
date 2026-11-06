@@ -46,7 +46,7 @@ export default function InformacoesArea({ area, lotesNaArea = [] }) {
   return (
     <div className="mk-dl__cartao">
       <div className="mk-dl__cab">
-        <span className="mk-dl__nome mk-dl__nome--area">Informações da Área: {area.nome}</span>
+        <span className="mk-dl__nome mk-dl__nome--area">Informações da Área</span>
       </div>
 
       {isCurral ? (
