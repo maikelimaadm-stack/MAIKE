@@ -390,3 +390,37 @@
     margin-left: 0 !important;
   }
 }
+
+/* Desktop: controles auxiliares na mesma escala da barra de ações. */
+@media (min-width: 1024px) {
+  .cadastro-b1 .tb-btn.tb-btn-icon:not(#mk-padrao) {
+    width: 38px !important;
+    min-width: 38px !important;
+    padding: 0 !important;
+    flex: 0 0 38px;
+  }
+
+  .cadastro-b1 .view-seg:not(#mk-padrao) {
+    height: 38px !important;
+    min-height: 38px !important;
+    padding: 3px !important;
+    gap: 2px;
+    box-sizing: border-box;
+  }
+
+  .cadastro-b1 .view-seg button:not(#mk-padrao) {
+    width: 32px !important;
+    min-width: 32px !important;
+    height: 32px !important;
+    min-height: 32px !important;
+    padding: 0 !important;
+  }
+
+  .mg-toolbar__row--actions:has(.mg-act-salvar) {
+    justify-content: flex-end;
+  }
+
+  .mg-toolbar__row--actions:has(.mg-act-salvar) .mg-act-cancelar {
+    margin-left: 0;
+  }
+}
