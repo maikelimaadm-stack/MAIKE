@@ -697,3 +697,15 @@
 }
 
 .mk-mods:not(#mk-padrao) { background: var(--mk-sup-fundo); }
+
+/* Fechar permanece circular e sem legenda, inclusive no desktop. */
+.tb-btn.mk-close-icon:not(#mk-padrao),
+.cadastro-b1 .tb-btn.mg-act-ic.mk-close-icon:not(#mk-padrao) {
+  width: var(--mk-ui-control-size, 44px) !important;
+  min-width: var(--mk-ui-control-size, 44px) !important;
+  height: var(--mk-ui-control-size, 44px) !important;
+  padding: 0 !important;
+  gap: 0;
+  border-radius: 999px;
+  aspect-ratio: 1;
+}
