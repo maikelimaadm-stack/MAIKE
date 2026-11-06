@@ -5,6 +5,7 @@ import { EVENTO_PERMISSOES_ATUALIZADAS, carregarPermissaoEfetiva, ehAdministrado
 import { listarBebedourosAtivos } from "@/services/mapaService";
 import { canAccessPage } from "@/lib/permissions";
 import { MAPA_GERAL_ACESSO_TOTAL, normalizeMapaGeralPermissions } from "@/lib/mapaGeralPermissions";
+import { podeExcluirLancamentoBebedouro, podeLancarNoBebedouro } from "@/lib/bebedouroPermissions";
 import { Button } from "@/components/ui/button";
 import { BarChart3 } from "lucide-react";
 import { toast } from "sonner";
@@ -182,6 +183,18 @@ export default function MapaGeral() {
       canAccessPage(permissaoAtual, 'pec-mapa-geral', 'mapa')
     );
   }, [acessoTotalTelas, permissaoAtual]);
+
+  // D-PROD-136 (BEB-01): o histórico do bebedouro não tem chave própria do
+  // mapa; o servidor exige concessões de TELA (GUARDAS.bebedouroHistorico).
+  // O diálogo só oferece o que essa mesma regra libera.
+  const podeLancarBebedouro = useMemo(
+    () => acessoTotalTelas || podeLancarNoBebedouro(permissaoAtual),
+    [acessoTotalTelas, permissaoAtual]
+  );
+  const podeExcluirBebedouro = useMemo(
+    () => acessoTotalTelas || podeExcluirLancamentoBebedouro(permissaoAtual),
+    [acessoTotalTelas, permissaoAtual]
+  );
 
   const podeUsarTarefasMapa = useMemo(() => {
     if (acessoTotalTelas) return mapaGeralPermissions.visualizar_tarefas;
@@ -1239,7 +1252,7 @@ export default function MapaGeral() {
       <Dialog open={showDetalhesBebedouro} onOpenChange={setShowDetalhesBebedouro}>
         <DialogContent className="overflow-x-hidden p-1 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:w-full sm:p-1 bg-background px-2 py-2 fixed left-[50%] top-[50%] z-50 grid w-full translate-x-[-50%] translate-y-[-50%] gap-4 border shadow-lg duration-200 sm:rounded-lg max-w-[95vw] md:max-w-[75vw] xl:max-w-[65vw] max-h-[95vh] overflow-y-auto">
           <DialogHeader className="flex flex-col space-y-1.5 text-center sm:text-left"><DialogTitle className="text-font-semibold leading-none tracking-tight">Bebedouro</DialogTitle></DialogHeader>
-          {selectedBebedouro && <DetalhesBebedouro bebedouro={selectedBebedouro} />}
+          {selectedBebedouro && <DetalhesBebedouro bebedouro={selectedBebedouro} podeLancar={podeLancarBebedouro} podeExcluir={podeExcluirBebedouro} />}
         </DialogContent>
       </Dialog>
 

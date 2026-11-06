@@ -3,8 +3,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { excluirHistorico } from "@/services/bebedouroDataService";
 import { confirmarExclusao } from "@/lib/maikeConfirmar";
+import { getApiErrorMessage } from "@/apis/_core/ApiError";
 
 const statusClass = {
   Pendente: "text-amber-700 border-amber-200 bg-amber-50",
@@ -15,17 +17,36 @@ const statusClass = {
 const formatDateBR = (value) => value ? new Date(`${String(value).split("T")[0]}T00:00:00`).toLocaleDateString("pt-BR") : "-";
 const formatMoney = (value) => value ? `R$ ${Number(value).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "-";
 
-export default function BebedouroTimeline({ historico = [] }) {
+/**
+ * Linha do tempo do bebedouro. Só o lançamento mais recente (índice 0, a mesma
+ * ordem do servidor) é excluível — o servidor recusa os demais (409).
+ * D-PROD-136 (BEB-01): "Excluir" só com `podeExcluir` (a regra do servidor,
+ * calculada por quem monta; padrão `false`) e a recusa do servidor vira
+ * mensagem — antes a rejeição ficava sem tratamento e o botão travado.
+ *
+ * @param {{ historico?: any[], podeExcluir?: boolean }} props
+ */
+export default function BebedouroTimeline({ historico = [], podeExcluir = false }) {
   const queryClient = useQueryClient();
   const [deletingId, setDeletingId] = useState(null);
 
   const handleDelete = async (item, index) => {
-    if (index !== 0) return;
+    if (index !== 0 || !podeExcluir) return;
     if (!(await confirmarExclusao("Excluir este lançamento do bebedouro?"))) return;
     setDeletingId(item.id);
-    await excluirHistorico(item.id);
-    queryClient.invalidateQueries({ queryKey: ["bebedouro-historico"] });
-    setDeletingId(null);
+    try {
+      await excluirHistorico(item.id);
+    } catch (error) {
+      // 409 do servidor: entrou um lançamento mais novo depois que a lista foi lida.
+      const somenteUltimo = /** @type {any} */ (error)?.cause?.code === "BEBEDOUROHISTORICO_SOMENTE_ULTIMO";
+      toast.error(somenteUltimo
+        ? "Há um lançamento mais recente deste bebedouro: só o último pode ser excluído. Nada foi apagado; a lista foi atualizada."
+        : getApiErrorMessage(error, "Não foi possível excluir o lançamento. Nada foi apagado."));
+    } finally {
+      // Sucesso ou recusa (ex.: outro lançamento entrou depois): relê a lista do servidor.
+      queryClient.invalidateQueries({ queryKey: ["bebedouro-historico"] });
+      setDeletingId(null);
+    }
   };
 
   if (!historico.length) return <div className="text-center py-8 text-xs text-slate-500">Nenhum lançamento encontrado.</div>;
@@ -44,7 +65,9 @@ export default function BebedouroTimeline({ historico = [] }) {
                   <span className="inline-flex items-center rounded-md border px-2.5 py-0.5 font-semibold text-[10px] text-slate-700 border-slate-300 bg-white">{formatDateBR(item.data_lancamento)}</span>
                   <Badge variant="outline" className={`text-[10px] ${statusClass[item.status] || statusClass.Concluído}`}>{item.status || "Concluído"}</Badge>
                 </div>
-                <Button variant="destructive" size="sm" className="h-7 text-[10px] px-2" disabled={index !== 0 || deletingId === item.id} onClick={() => handleDelete(item, index)}>Excluir</Button>
+                {podeExcluir ? (
+                  <Button variant="destructive" size="sm" data-permissao-explicita="" className="h-7 text-[10px] px-2" disabled={index !== 0 || deletingId === item.id} onClick={() => handleDelete(item, index)}>Excluir</Button>
+                ) : null}
               </div>
 
               <div className="text-xs font-semibold text-slate-900">{item.tipo_lancamento || "Lançamento"}</div>

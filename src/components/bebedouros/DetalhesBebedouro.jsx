@@ -27,15 +27,26 @@ const getPeriodDays = (periodicidade, personalizado) => {
 const normalizeText = (value) => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
 
 /**
+ * D-PROD-136 (BEB-01/BEB-03/BEB-04): "Lançar" e "Excluir" seguem a regra do
+ * servidor, calculada por quem monta o componente (`src/lib/bebedouroPermissions.js`)
+ * — padrão `false`, o lado seguro: quem esquecer de passar não oferece ação
+ * que o servidor recusaria. Esses botões ficam fora da heurística de texto do
+ * Layout (`data-permissao-explicita`), que não sabe que o servidor aceita
+ * "novo" OU "salvar". Ponto BEBEDOURO sem cadastro não lança: o histórico
+ * ficaria órfão (sem `bebedouro_id`), e o servidor recusa.
+ *
  * @param {object} props
  * @param {object} props.bebedouro
+ * @param {boolean} [props.podeLancar] a permissão efetiva cobre o POST do histórico
+ * @param {boolean} [props.podeExcluir] a permissão efetiva cobre o DELETE do histórico
  * @param {(locked: boolean) => void} [props.onSubFlowChange] true enquanto lançamento/histórico ocupa a tela
  * @param {(toolbar: import('react').ReactNode) => void} [props.onRecordToolbarChange]
  */
-export default function DetalhesBebedouro({ bebedouro, onSubFlowChange, onRecordToolbarChange }) {
+export default function DetalhesBebedouro({ bebedouro, podeLancar = false, podeExcluir = false, onSubFlowChange, onRecordToolbarChange }) {
   const empresaId = localStorage.getItem("empresa_selecionada_id");
   const [subView, setSubView] = useState(/** @type {'main'|'lancamento'|'historico'} */ ("main"));
   const registroReal = Boolean(bebedouro?.id && !String(bebedouro.id).startsWith("ponto-"));
+  const lancamentoDisponivel = podeLancar === true && registroReal;
 
   React.useEffect(() => {
     onSubFlowChange?.(subView !== "main");
@@ -66,6 +77,11 @@ export default function DetalhesBebedouro({ bebedouro, onSubFlowChange, onRecord
   React.useEffect(() => {
     setSubView("main");
   }, [bebedouro?.id]);
+
+  // Permissão revogada (revalidada no foco/minuto) com o formulário aberto: volta ao resumo.
+  React.useEffect(() => {
+    if (subView === "lancamento" && !lancamentoDisponivel) setSubView("main");
+  }, [subView, lancamentoDisponivel]);
 
   const { data: iconesConfig = [] } = useQuery({
     queryKey: ["configuracao-icones-bebedouro-detalhe", empresaId],
@@ -130,7 +146,7 @@ export default function DetalhesBebedouro({ bebedouro, onSubFlowChange, onRecord
   const proximaLimpeza = addDaysToDate(ultimoLancamentoLimpeza?.data_lancamento, diasLimpeza);
   const proximaInspecao = addDaysToDate(ultimaInspecao?.data_lancamento || ultimaInspecao?.data_avaliacao, diasInspecao);
 
-  if (subView === "lancamento") {
+  if (subView === "lancamento" && lancamentoDisponivel) {
     return (
       <FormularioLancamentoBebedouro
         bebedouro={bebedouro}
@@ -144,7 +160,7 @@ export default function DetalhesBebedouro({ bebedouro, onSubFlowChange, onRecord
     return (
       <div className="cadastro-b1">
         <CardSection title="Histórico do Bebedouro">
-          <BebedouroTimeline historico={historico} />
+          <BebedouroTimeline historico={historico} podeExcluir={podeExcluir === true} />
         </CardSection>
       </div>
     );
@@ -158,10 +174,17 @@ export default function DetalhesBebedouro({ bebedouro, onSubFlowChange, onRecord
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-1">
-        <button type="button" className="tb-btn tb-btn-green w-full" onClick={() => setSubView("lancamento")}>Lançar</button>
+      <div className={`grid gap-1 ${lancamentoDisponivel ? "grid-cols-2" : "grid-cols-1"}`}>
+        {lancamentoDisponivel ? (
+          <button type="button" data-permissao-explicita="" className="tb-btn tb-btn-green w-full" onClick={() => setSubView("lancamento")}>Lançar</button>
+        ) : null}
         <button type="button" className="tb-btn tb-btn-gray w-full" onClick={() => setSubView("historico")}>Histórico</button>
       </div>
+      {!registroReal ? (
+        <div role="note" className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1.5 text-[11px] text-amber-900">
+          Ponto sem cadastro de bebedouro: cadastre-o no Mapa Cadastro para registrar lançamentos.
+        </div>
+      ) : null}
 
       <CardSection title="Resumo Operacional">
         <div className="my-1 grid grid-cols-1 md:grid-cols-[auto,1fr] gap-1 items-center">

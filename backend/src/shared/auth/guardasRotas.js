@@ -164,10 +164,15 @@ export const GUARDAS = Object.freeze({
   },
   // ── Bebedouros ──
   bebedouro: cadastro(T.BEBEDOUROS, { criar: MAPA_CAD_CRIAR, editar: MAPA_CAD_EDITAR }),
+  // Espelhado no navegador por `src/lib/bebedouroPermissions.js` (os botões
+  // "Lançar"/"Excluir" do bebedouro só aparecem com estas concessões).
   bebedouroHistorico: {
     criar: porQualquer([T.BEBEDOUROS, 'novo'], [T.BEBEDOUROS, 'salvar'], [T.MAPA_GERAL, 'salvar']),
     editar: porQualquer([T.BEBEDOUROS, 'editar'], [T.BEBEDOUROS, 'salvar']),
-    excluir: porQualquer([T.BEBEDOUROS, 'excluir'], [T.MAPA_GERAL, 'excluir']),
+    // D-PROD-136 (BEB-02): apagar histórico exige a ação da tela DONA do
+    // registro. O "excluir" do Mapa Geral é a caixa genérica da linha do mapa
+    // (não fala de bebedouro) e não autoriza mais apagar lançamento.
+    excluir: porQualquer([T.BEBEDOUROS, 'excluir']),
   },
   bebedouroSemTela: { criar: SO_ADMIN, editar: SO_ADMIN, excluir: SO_ADMIN }, // alertas e sanidade
   // ── Tarefas do mapa ──
