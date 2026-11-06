@@ -36,6 +36,7 @@ export default function CadastroColunaFiltro({
   onAplicar,
   onFechar,
 }) {
+  const formId = React.useId();
   const portalSkin = usePortalComprasSkin();
   const celular = useCelular();
   const contagem = React.useMemo(() => {
@@ -145,6 +146,7 @@ export default function CadastroColunaFiltro({
 
   const formulario = (
       <form
+        id={formId}
         className={cn("pop fpop", portalSkin && "b1-portal-compras", celular && "fpop--sheet")}
         role="menu"
         aria-label={`Filtrar coluna ${rotulo}`}
@@ -281,7 +283,7 @@ export default function CadastroColunaFiltro({
             <span className="dvaz">{op ? "Nenhum valor atende à condição." : "Nenhum valor com esse texto."}</span>
           ) : null}
         </div>
-        <div className="fpop-f">
+        {!celular ? <div className="fpop-f">
           {/* Descartar à esquerda, Filtrar à direita — como ✕/✓ do registro (D-PROD-96). */}
           <button type="button" className="tb-btn tb-btn-icon tb-btn-sm shrink-0" title="Cancelar" aria-label="Cancelar" onClick={onFechar}>
             <X className="h-4 w-4" />
@@ -298,13 +300,27 @@ export default function CadastroColunaFiltro({
           >
             <Check className="h-4 w-4" />
           </button>
-        </div>
+        </div> : semResultado ? (
+          <p className="fpop-zero" role="status">Nenhum registro atende a este filtro.</p>
+        ) : null}
       </form>
   );
 
   if (celular) {
     return (
-      <MobileSheet open initialLarge className="mk-column-filter-sheet" onClose={() => fechar.current()} label={`Filtrar coluna ${rotulo}`} title={rotulo}>
+      <MobileSheet
+        open
+        initialLarge
+        className="mk-column-filter-sheet"
+        onClose={() => fechar.current()}
+        label={`Filtrar coluna ${rotulo}`}
+        title={rotulo}
+        headerAction={
+          <button type="submit" form={formId} className="mk-sheet__new mk-btn-ok" aria-label="Aplicar" title="Aplicar" disabled={semResultado}>
+            <Check aria-hidden />
+          </button>
+        }
+      >
         <div className={shellClass} ref={painel}>
           {formulario}
         </div>

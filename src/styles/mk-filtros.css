@@ -154,3 +154,16 @@
 :is(.mk-pill__clear, .mk-pill__icon, .mg-search-pill-clear):not(#mk-padrao) svg {
   color: #64748b !important;
 }
+
+/* No tablet e desktop os dois botões do rodapé têm a mesma caixa. */
+@media (min-width: 640px) {
+  .b1ref .fpop .fpop-f .tb-btn.tb-btn-icon:not(#mk-padrao) {
+    box-sizing: border-box;
+    width: 36px !important;
+    min-width: 36px !important;
+    height: 36px !important;
+    min-height: 36px !important;
+    padding: 0 !important;
+    flex: 0 0 36px;
+  }
+}
