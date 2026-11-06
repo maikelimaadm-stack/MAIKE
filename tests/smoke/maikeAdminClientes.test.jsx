@@ -107,7 +107,7 @@ describe('Clientes: lista, busca e paginação', () => {
 });
 
 describe('Clientes: ficha', () => {
-  it('ficha mostra identidade, contagens, empresas e usuários; sem ação de escrita nem campos sensíveis', async () => {
+  it('ficha mostra identidade, contagens, empresas e usuários; sem exclusão, impersonação nem campos sensíveis', async () => {
     const c = cliente(1);
     const chamadas = servidor({
       'GET /admin-maike/clientes': () => [200, pagina([c])],
@@ -122,7 +122,7 @@ describe('Clientes: ficha', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Ver ficha de Fazenda 1' }));
     const painel = await screen.findByTestId('ficha-cliente');
     await within(painel).findByText('2 (1 ativos)');
-    expect(within(painel).getByText(/somente leitura/)).toBeTruthy();
+    expect(within(painel).getByText(/não se entra na conta do cliente/)).toBeTruthy();
     expect(await within(painel).findByText('Agro Um Ltda')).toBeTruthy();
     expect(await within(painel).findByText('dona')).toBeTruthy();
     expect(within(painel).getByText('Usuários (2)')).toBeTruthy();
@@ -130,9 +130,11 @@ describe('Clientes: ficha', () => {
     expect(await within(painel).findByText('peao')).toBeTruthy();
     expect(within(painel).getByText('Usuários (2)')).toBeTruthy();
 
-    // Nenhum botão que sugira escrita ou acesso à conta do cliente.
+    // S03: editar identificação e suspender existem; exclusão, impersonação e senha, não.
     const rotulos = screen.getAllByRole('button').map((b) => b.textContent);
-    for (const proibido of [/editar/i, /ativar/i, /desativar/i, /excluir/i, /entrar como/i, /acessar conta/i, /senha/i]) {
+    expect(rotulos).toContain('Editar identificação');
+    expect(rotulos).toContain('Suspender cliente');
+    for (const proibido of [/excluir/i, /apagar/i, /entrar como/i, /acessar conta/i, /senha/i]) {
       expect(rotulos.some((r) => proibido.test(r))).toBe(false);
     }
     expect(document.body.textContent).not.toMatch(/senha_hash|papel_tenant|cnpj|cpf/i);

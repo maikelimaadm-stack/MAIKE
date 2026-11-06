@@ -130,13 +130,20 @@ describe('autorização', () => {
     assert.equal((await get('/admin-maike/clientes', { cookie: `maike_admin=${expirada.token}` })).statusCode, 401);
   });
 
-  test('CLI-03 só GET: não existe rota de escrita, edição ou "entrar como cliente"', async () => {
+  test('CLI-03 não existe exclusão, "entrar como cliente" nem escrita fora do contrato fechado da S03', async () => {
     const { a } = await cenario();
     const { headers } = await criarAdminComSessao(app);
     const alvo = `/admin-maike/clientes/${a.cliente.id}`;
+    // S03 criou POST /clientes e PATCH /clientes/:id com contrato fechado: `ativo`
+    // não é campo de nenhum deles (suspensão tem rota própria com justificativa).
     for (const [method, url] of [
       ['POST', '/admin-maike/clientes'],
       ['PATCH', alvo],
+    ]) {
+      const r = await app.inject({ method, url, headers: { ...headers, origin: ORIGEM_ADMIN }, payload: { nome: 'x', ativo: false } });
+      assert.equal(r.statusCode, 400, `${method} ${url}`);
+    }
+    for (const [method, url] of [
       ['PUT', alvo],
       ['DELETE', alvo],
       ['POST', `${alvo}/entrar`],
