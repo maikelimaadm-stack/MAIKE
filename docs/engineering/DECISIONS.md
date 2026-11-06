@@ -5329,17 +5329,4 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
 - **Geometria:** B1Switch e ToggleSwitch usam as proporções 72:32 do trilho e 43:28 da peça oval do modelo. Escala mobile/tablet 49,5×22 px; desktop 45×20 px. Mantém o verde MAIKE, alvo de toque com 44 px, foco de teclado, estados bloqueados e movimento reduzido. Revoga apenas a geometria redonda da D-PROD-140. Campos do mapa: 36 px no mobile/tablet e 32 px no desktop; em duas colunas quando há espaço.
 - **Validação:** Chromium local com componentes reais em 320, 390, 768 e 1440 px: detalhes sem folha, menu de ações expansível, escolha de filtro aninhada, controles sem overflow, toggles ovalizados e movimento reduzido. Dados de exemplo, sem sessão de produção.
 
-## D-PROD-143 — Detalhes da Área: resumo do pastejo e os lotes antes do histórico
-
-- **Contexto:** o proprietário pediu, para as informações de área do Mapa Geral, o mesmo desenho de detalhes de local que a referência do setor usa: resumo com indicadores e abas de pastejo, lotes e histórico.
-- **Decisão:** o diálogo da área abre como "Detalhes da Área". O resumo fica sempre à vista: nome, tipo, pastagem e aproveitamento; área total, área útil e dias pastejados; bovinos, carga animal (1 UA = 450 kg) e taxa de lotação (UA ÷ área útil). As abas são "Lotes" (padrão) e "Histórico da Área". "Lotes" lista os lotes que estão na área agora — categoria, cabeças, carga e peso por cabeça e dias de pastejo — com linha de total. Curral mantém o abate como primeira aba e ganha a aba de lotes quando há permissão de histórico.
-- **Regras preservadas:** o clique na área, a permissão `visualizar_historico_movimentacoes_lote` e a consulta do histórico pela área (inclusive de lotes que já saíram) não mudam. Curral sem a permissão continua sem abas, só com o abate. Os lotes do diálogo são os da empresa naquela área, independentes dos filtros do mapa.
-- **Implementação:** `src/components/mapa/DetalhesArea.jsx`, `ResumoArea.jsx`, `LotesDaArea.jsx`, `src/domain/areas/indicadoresArea.js` e estilos em `src/styles/mk-mapa-superficie.css`. Testes: `tests/smoke/areaResumoLotes.test.jsx` e `tests/smoke/detalhesAreaHistorico.test.jsx`.
-
-## D-PROD-144 — Detalhes do Lote em faixa compacta
-
-- **Contexto:** o proprietário recusou os cartões grandes de informação no "Detalhes do Lote" — cada lote num cartão com oito caixas de campo, e a área num outro cartão — e pediu uma faixa compacta, mantendo os mesmos campos e os botões de Manejos e Históricos.
-- **Decisão:** a área vira uma faixa sem caixa, com rótulo minúsculo em cima e valor em destaque abaixo. Cada lote mantém os números (cabeças, peso médio e dias de pastejo) numa linha fina; identificador, sigla, sistema reprodutivo, raça, sexo e categoria de manejo seguem em texto corrido na linha de baixo. Nenhum campo sai e nenhum cálculo muda; os botões de Manejos e Históricos continuam iguais.
-- **Implementação:** `src/components/mapa/DetalhesLote.jsx`, `src/components/mapa/InformacoesArea.jsx` e as classes `.mk-dl__numeros`, `.mk-dl__num`, `.mk-dl__letras` em `src/styles/lancamento-lote.css`. Testes: `tests/smoke/detalhesLoteQuadros.test.jsx` e `tests/smoke/detalhesLoteVisualGesto.test.jsx`.
-
-<!-- Próxima decisão: D-PROD-145 -->
+<!-- Próxima decisão: D-PROD-143 -->

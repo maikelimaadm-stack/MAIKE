@@ -2,8 +2,6 @@ import React from "react";
 import { Tabs as TabsUi, TabsContent as TabsContentUi, TabsList as TabsListUi, TabsTrigger as TabsTriggerUi } from "@/components/ui/tabs";
 import HistoricoAbateCurral from "./HistoricoAbateCurral";
 import HistoricoMovimentacoes from "../lotes/HistoricoMovimentacoes";
-import LotesDaArea from "./LotesDaArea";
-import ResumoArea from "./ResumoArea";
 import { ehCurral, podeVerHistoricoDaArea } from "@/domain/mapa/cliqueArea";
 
 // `ui/tabs` é forwardRef sem tipos de props: o checkJs não enxerga `children`.
@@ -15,44 +13,24 @@ import { ehCurral, podeVerHistoricoDaArea } from "@/domain/mapa/cliqueArea";
 /**
  * Detalhes da área no Mapa Geral (D-PROD-94a).
  *
- * - Resumo da área sempre à vista: área total e útil, dias pastejados, bovinos,
- *   carga animal e taxa de lotação — o que decide o manejo antes de olhar a
- *   lista.
- * - "Lotes": os lotes que estão na área agora (categoria, cabeças, carga, peso
- *   e dias), com o total.
- * - "Histórico da Área": consulta o servidor pela área (origem, destino ou
- *   local), sem depender de lote presente (`lotes=[]`). Área vazia não perde
- *   histórico.
+ * - Toda área com permissão de histórico: "Histórico da Área" — consulta o
+ *   servidor pela área (origem, destino ou local), sem depender de lote
+ *   presente (`lotes=[]`). Área vazia não perde histórico.
  * - Curral: mantém o histórico de abate, numa aba própria. São fatos de
  *   naturezas diferentes; nenhum é copiado para o outro.
  */
-export default function DetalhesArea({ area, permissions, lotes = [] }) {
+export default function DetalhesArea({ area, permissions }) {
   const curral = ehCurral(area);
   const historicoDaArea = podeVerHistoricoDaArea(permissions);
 
   if (!area?.id || (!curral && !historicoDaArea)) return null;
 
-  const lotesNaArea = (lotes || []).filter((lote) => lote?.area_atual_id === area.id);
-  const resumo = <ResumoArea area={area} lotes={lotesNaArea} />;
-  const abaLotes = <LotesDaArea lotes={lotesNaArea} />;
   const abaArea = <HistoricoMovimentacoes lotes={[]} areaId={area.id} />;
 
   if (!curral) {
     return (
       <div className="mk-map-details space-y-1" translate="no">
-        {resumo}
-        <Tabs defaultValue="lotes" className="w-full">
-          <TabsList className="mb-1">
-            <TabsTrigger value="lotes" className="text-xs">Lotes</TabsTrigger>
-            <TabsTrigger value="historico" className="text-xs">Histórico da Área</TabsTrigger>
-          </TabsList>
-          <TabsContent value="lotes" className="mt-0">
-            {abaLotes}
-          </TabsContent>
-          <TabsContent value="historico" className="mt-0">
-            {abaArea}
-          </TabsContent>
-        </Tabs>
+        {abaArea}
       </div>
     );
   }
@@ -60,7 +38,6 @@ export default function DetalhesArea({ area, permissions, lotes = [] }) {
   if (!historicoDaArea) {
     return (
       <div className="mk-map-details space-y-1" translate="no">
-        {resumo}
         <HistoricoAbateCurral areaId={area.id} />
       </div>
     );
@@ -68,20 +45,15 @@ export default function DetalhesArea({ area, permissions, lotes = [] }) {
 
   return (
     <div className="mk-map-details space-y-1" translate="no">
-      {resumo}
       <Tabs defaultValue="abate" className="w-full">
         <TabsList className="mb-1">
           <TabsTrigger value="abate" className="text-xs">Abate</TabsTrigger>
-          <TabsTrigger value="lotes" className="text-xs">Lotes</TabsTrigger>
-          <TabsTrigger value="historico" className="text-xs">Histórico da Área</TabsTrigger>
+          <TabsTrigger value="area" className="text-xs">Histórico da Área</TabsTrigger>
         </TabsList>
         <TabsContent value="abate" className="mt-0">
           <HistoricoAbateCurral areaId={area.id} />
         </TabsContent>
-        <TabsContent value="lotes" className="mt-0">
-          {abaLotes}
-        </TabsContent>
-        <TabsContent value="historico" className="mt-0">
+        <TabsContent value="area" className="mt-0">
           {abaArea}
         </TabsContent>
       </Tabs>

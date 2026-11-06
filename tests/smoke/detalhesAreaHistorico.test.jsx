@@ -56,13 +56,6 @@ const renderizar = (ui) => {
   return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
 };
 
-/** O diálogo da área abre em "Lotes"; o histórico é a outra aba. */
-const abrirHistorico = () => {
-  const aba = screen.getByRole("tab", { name: "Histórico da Área" });
-  fireEvent.mouseDown(aba);
-  fireEvent.click(aba);
-};
-
 beforeEach(() => {
   Object.defineProperty(window.navigator, "onLine", { value: true, configurable: true });
   servico.listarHistoricoMovimentacoesPagina.mockImplementation(async () => pagina([]));
@@ -99,7 +92,6 @@ describe("DetalhesArea", () => {
   it("T04: pasto vazio com saída antiga mostra a saída — consulta pela área, sem lotes atuais", async () => {
     servico.listarHistoricoMovimentacoesPagina.mockImplementation(async () => pagina([saidaAntiga]));
     renderizar(<DetalhesArea area={PASTO_A} permissions={PERMITE} />);
-    abrirHistorico();
     expect(await screen.findByText("Movimentações: 1 de 1")).toBeTruthy();
     expect(screen.getByText("Saída")).toBeTruthy();
     expect(screen.getByText("Histórico da Área PASTO A (1)")).toBeTruthy();
@@ -112,7 +104,6 @@ describe("DetalhesArea", () => {
 
   it("T06: área sem movimento mostra vazio verdadeiro, não erro", async () => {
     renderizar(<DetalhesArea area={RESERVA} permissions={PERMITE} />);
-    abrirHistorico();
     expect(await screen.findByText("Nenhum lançamento encontrado")).toBeTruthy();
     expect(screen.queryByRole("alert")).toBeNull();
   });
@@ -122,7 +113,6 @@ describe("DetalhesArea", () => {
       throw Object.assign(new Error("x"), { code: "PROVIDER_UNAVAILABLE" });
     });
     renderizar(<DetalhesArea area={PASTO_A} permissions={PERMITE} />);
-    abrirHistorico();
     expect(await screen.findByText("Não foi possível carregar o histórico.")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Tentar novamente" })).toBeTruthy();
   });

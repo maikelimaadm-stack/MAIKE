@@ -386,14 +386,6 @@ export default function MapaGeral() {
     );
   }, [lotesBase, empresaSelecionadaId, areaIdsValidos]);
 
-  // Lotes da área aberta no diálogo de detalhes (D-PROD-94a): são os lotes da
-  // empresa na área, independentes dos filtros do mapa — o resumo e a aba
-  // "Lotes" não podem mudar de conteúdo quando o usuário filtra o mapa.
-  const lotesDaAreaSelecionada = useMemo(
-    () => (selectedArea ? lotes.filter((lote) => lote.area_atual_id === selectedArea.id) : []),
-    [lotes, selectedArea]
-  );
-
   // Movimentações para calcular situação do pasto
   const { data: movimentacoes = [], refetch: refetchMovimentacoes } = useQuery(createMapaQuery('movimentacoes', { enabled: !!empresaSelecionadaId && modoColoracao === 'situacao_pasto', enabledKey: modoColoracao }));
 
@@ -1237,9 +1229,9 @@ export default function MapaGeral() {
           {selectedLote && <DetalhesLote lotes={Array.isArray(selectedLote) ? selectedLote : [selectedLote]} permissions={mapaGeralPermissions} onClose={() => {setShowDetalhesLote(false);refetchLotes();}} />}
       </LancLoteDialogo>
 
-      <LancLoteDialogo open={showDetalhesArea} onOpenChange={setShowDetalhesArea} titulo="Detalhes da Área" largo somenteLeitura>
+      <LancLoteDialogo open={showDetalhesArea} onOpenChange={setShowDetalhesArea} titulo="Histórico da Área" largo somenteLeitura>
 
-          {selectedArea && <DetalhesArea area={selectedArea} permissions={mapaGeralPermissions} lotes={lotesDaAreaSelecionada} />}
+          {selectedArea && <DetalhesArea area={selectedArea} permissions={mapaGeralPermissions} />}
         </LancLoteDialogo>
 
       <LancLoteDialogo open={showDetalhesBebedouro} onOpenChange={setShowDetalhesBebedouro} titulo="Bebedouro" largo somenteLeitura>

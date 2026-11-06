@@ -1,20 +1,8 @@
 import React, { useMemo } from "react";
+import CampoDl from "./CampoDl";
 
 function fmt(value, digits = 2) {
   return Number(value || 0).toLocaleString("pt-BR", { minimumFractionDigits: digits, maximumFractionDigits: digits });
-}
-
-/**
- * Célula da faixa compacta: rótulo pequeno em cima, valor em destaque abaixo.
- * @param {{ rotulo: string, valor: string }} props
- */
-function Item({ rotulo, valor }) {
-  return (
-    <div className="mk-dl__num" title={`${rotulo}: ${valor}`}>
-      <span className="mk-dl__num-rotulo">{rotulo}</span>
-      <span className="mk-dl__num-valor">{valor}</span>
-    </div>
-  );
 }
 
 export default function InformacoesArea({ area, lotesNaArea = [] }) {
@@ -56,30 +44,29 @@ export default function InformacoesArea({ area, lotesNaArea = [] }) {
   if (!area) return null;
 
   return (
-    <div className="mk-dl__cartao mk-dl__cartao--area">
+    <div className="mk-dl__cartao">
       <div className="mk-dl__cab">
         <span className="mk-dl__nome mk-dl__nome--area">Informações da Área: {area.nome}</span>
       </div>
 
-      <div className="mk-dl__numeros">
-        {isCurral ? (
-          <>
-            <Item rotulo="Tipo de infraestrutura" valor={tipoInfraestrutura} />
-            <Item rotulo="Tipo de área" valor={area.tipo_cultura || '-'} />
-          </>
-        ) : (
-          <>
-            <Item rotulo="Hectares" valor={hectares > 0 ? `${fmt(hectares)} ha` : '-'} />
-            <Item rotulo="UA/ha" valor={fmt(uaHa)} />
-            <Item rotulo="UA total" valor={fmt(totalUA)} />
-            <Item rotulo="Pastagem" valor={area.tipo_pastagem || '-'} />
-            <Item rotulo="Qtd. Lotes" valor={lotesNaArea.length.toLocaleString('pt-BR')} />
-            <Item rotulo="Qtd. Cabeças" valor={totalCabecas.toLocaleString('pt-BR')} />
-            <Item rotulo="Média geral" valor={pesoMedioGeral > 0 ? `${fmt(pesoMedioGeral)} kg` : '-'} />
-            <Item rotulo="Dias pastejo" valor={`${diasPastejoMedio.toLocaleString('pt-BR')} dia(s)`} />
-          </>
-        )}
-      </div>
+      {isCurral ? (
+        <div className="mk-dl__infos mk-dl__infos--2">
+          <CampoDl rotulo="Tipo de infraestrutura">{tipoInfraestrutura}</CampoDl>
+          <CampoDl rotulo="Tipo de área">{area.tipo_cultura || '-'}</CampoDl>
+        </div>
+      ) : (
+        <div className="mk-dl__infos">
+          <CampoDl rotulo="Hectares">{hectares > 0 ? `${fmt(hectares)} ha` : '-'}</CampoDl>
+          <CampoDl rotulo="UA/ha">{fmt(uaHa)}</CampoDl>
+          <CampoDl rotulo="UA total">{fmt(totalUA)}</CampoDl>
+          <CampoDl rotulo="Pastagem">{area.tipo_pastagem || '-'}</CampoDl>
+          <CampoDl rotulo="Qtd. Lotes">{lotesNaArea.length.toLocaleString('pt-BR')}</CampoDl>
+          <CampoDl rotulo="Qtd. Cabeças">{totalCabecas.toLocaleString('pt-BR')}</CampoDl>
+          <CampoDl rotulo="Média geral">{pesoMedioGeral > 0 ? `${fmt(pesoMedioGeral)} kg` : '-'}</CampoDl>
+          <CampoDl rotulo="Dias pastejo">{diasPastejoMedio.toLocaleString('pt-BR')} dia(s)</CampoDl>
+        </div>
+      )}
+
     </div>
   );
 }
