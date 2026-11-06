@@ -29,7 +29,6 @@
   --mg-bg-page: var(--mk-sup-fundo);
 }
 
-:root,
 .cadastro-b1 {
   --portal-acao-bg: var(--mk-btn-bg);
   --portal-acao-hover: var(--mk-btn-hover);
@@ -40,12 +39,12 @@
 }
 
 /* ── Botões: brancos com sombra suave ─────────────────────────────────── */
-:is(.tb-btn, .mg-rec-pager__btn, .mk-sheet__close, .mk-sheet__new, .mk-mhdr__round):not(.is-filter-on):not(.is-filter-active):not(:disabled):not(#mk-padrao),
+:is(.tb-btn, .mg-rec-pager__btn, .mk-sheet__close, .mk-sheet__new, .mk-mhdr__round):not(.is-filter-on):not(#mk-padrao),
 .mk-mhdr__back > span:not(#mk-padrao) {
   box-shadow: var(--mk-btn-sombra) !important;
 }
 
-.tb-btn:not(.tb-btn-green):not(.tb-btn-red):not(.is-filter-on):not(.is-filter-active):not(#mk-padrao),
+.tb-btn:not(.tb-btn-green):not(.tb-btn-red):not(.is-filter-on):not(#mk-padrao),
 .tb-btn.tb-btn-green:not(#mk-padrao),
 .tb-btn.tb-btn-red:not(#mk-padrao),
 .mg-rec-pager__btn:not(#mk-padrao),
@@ -60,7 +59,7 @@
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .tb-btn:not(.tb-btn-green):not(.tb-btn-red):not(.is-filter-on):not(.is-filter-active):not(#mk-padrao):hover:not(:disabled),
+  .tb-btn:not(.tb-btn-green):not(.tb-btn-red):not(.is-filter-on):not(#mk-padrao):hover:not(:disabled),
   .tb-btn.tb-btn-green:not(#mk-padrao):hover:not(:disabled),
   .tb-btn.tb-btn-red:not(#mk-padrao):hover:not(:disabled),
   .mg-rec-pager__btn:not(#mk-padrao):hover:not(:disabled) {
@@ -176,15 +175,27 @@
   background: var(--mk-sup-fundo);
 }
 
-:is(.fpc--pop, .fpop, .mk-sheet) .mk-pill:not(#mk-padrao),
-:is(.fpc--pop, .fpop, .mk-sheet) select:not(#mk-padrao),
-:is(.fpc--pop, .fpop, .mk-sheet) input[type="text"]:not(#mk-padrao),
-:is(.fpc--pop, .fpop, .mk-sheet) input[type="search"]:not(#mk-padrao),
-:is(.fpc--pop, .fpop, .mk-sheet) input[type="number"]:not(#mk-padrao),
-:is(.fpc--pop, .fpop, .mk-sheet) input[type="date"]:not(#mk-padrao) {
+:is(.fpc--pop, .fpop, .mk-sheet) .mk-pill:not(:focus-within):not(#mk-padrao),
+:is(.fpc--pop, .fpop, .mk-sheet) .fselb:not([aria-expanded="true"]):not(#mk-padrao),
+:is(.fpc--pop, .fpop, .mk-sheet) select:not(:focus):not(#mk-padrao),
+:is(.fpc--pop, .fpop, .mk-sheet) input:is([type="text"], [type="search"], [type="number"], [type="date"]):not(:focus):not([aria-invalid="true"]):not(#mk-padrao) {
   border: 1px solid var(--mk-sup-borda);
   background: var(--mk-sup-cartao);
   box-shadow: var(--mk-sup-sombra);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  :is(.fpc--pop, .fpop, .mk-sheet) .fselb:not([aria-expanded="true"]):not(#mk-padrao):hover {
+    background: var(--mk-btn-hover);
+  }
+}
+
+/* Com foco: borda e anel verdes, como antes */
+:is(.fpc--pop, .fpop, .mk-sheet) .mk-pill:focus-within:not(#mk-padrao),
+:is(.fpc--pop, .fpop, .mk-sheet) :is(select, input):focus:not(#mk-padrao) {
+  border-color: rgba(64, 222, 99, 0.45);
+  background: var(--mk-sup-cartao);
+  box-shadow: 0 0 0 3px rgba(64, 222, 99, 0.14);
 }
 
 /* ── Lançamentos: o padrão do Detalhes do Lote em todos ───────────────── */
@@ -227,8 +238,19 @@
   box-shadow: var(--mk-sup-sombra);
 }
 
-/* Campos sobre o cinza: brancos com borda (antes cinza sobre branco) */
-.mk-ll-dlg .mg-field:not(#mk-padrao) {
-  border: 1px solid var(--mk-sup-borda);
+/* Campos sobre o cinza: brancos com borda (antes cinza sobre branco).
+   Erro, desabilitado e travado mantêm o visual próprio. */
+.mk-ll-dlg .mg-field:not(.is-invalid):not(.mg-field--disabled):not(.mg-field--locked):not(#mk-padrao) {
+  border-color: var(--mk-sup-borda);
+  background: var(--mk-sup-cartao);
+}
+
+/* Históricos dentro do lançamento: cada registro é um cartão branco */
+.mk-hist__lista > *:not(#mk-padrao) {
+  background: var(--mk-sup-cartao);
+  box-shadow: var(--mk-sup-sombra);
+}
+
+.mk-hist .bg-slate-50:not(#mk-padrao) {
   background: var(--mk-sup-cartao);
 }

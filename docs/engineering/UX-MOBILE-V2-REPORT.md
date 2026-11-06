@@ -374,3 +374,15 @@ O novo visual dos botões do Mapa Geral (D-PROD-131: painel Visualização, sem 
 | Lembrar para não entrar toda hora | "Manter conectado": sessão de 30 dias guardada no aparelho; usuário lembrado; senha fica com o gerenciador do navegador | v25-03 |
 
 Validado no navegador em 360, 390, 768, 1280 e 1920 px, sem rolagem horizontal. **Não testado em aparelho.**
+
+## V26 — Motor Base1: tabela, cards, filtros e superfície (D-PROD-137)
+
+| Pedido | Feito | Evidência |
+|---|---|---|
+| Tabela não rola (PC e celular) e borda da última linha cortada | Embrulho da grade em flex; rola com roda e toque; última linha com borda | v26-01, v26-02 |
+| Coluna de seleção fixa só nos dados | Cabeçalho e corpo da seleção fixos juntos ao rolar para o lado | v26-01 |
+| Cards: toca num e o outro fica estranho | Sem pulo para o primeiro selecionado; sem hover preso no toque | v26-03 |
+| Filtros iguais em todos os cadastros | "Filtrar por campo" em Categorias de Manejo, Empresa, Grupos, Tipos de Tarefa, Usuários, Permissões e Bebedouros | v26-04, v26-05 |
+| Visual do Detalhes do Lote em listas, filtros e lançamentos | Fundo cinza, cartões e botões brancos | v26-01 a v26-05 |
+
+Revisado por 33 agentes (5 dimensões, 2 verificadores por achado); os 8 achados confirmados foram corrigidos. **Não testado em aparelho.**

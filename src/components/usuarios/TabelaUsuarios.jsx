@@ -30,6 +30,8 @@ export default function TabelaUsuarios({
   onListMetrics,
   cardFields,
   cardsPerRow,
+  resetFiltersKey,
+  onFiltersActiveChange,
 }) {
   const getPermissaoUsuario = (userEmail) => permissoes.find((item) => item.user_email === userEmail);
 
@@ -170,6 +172,8 @@ export default function TabelaUsuarios({
           isLoading={isLoading}
           onOpen={onEdit}
           searchQuery={searchQuery}
+          resetFiltersKey={resetFiltersKey}
+          onFiltersActiveChange={onFiltersActiveChange}
           onSelectionChange={onSelectionChange}
           viewMode={viewMode}
           displayLimit={displayLimit}

@@ -5148,4 +5148,26 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
 - **Trade-off, sem maquiagem:** com "Manter conectado" o JWT fica no aparelho por até 30 dias e é legível por JavaScript (o mesmo risco de XSS já descrito na D-PROD-24, agora com janela maior). Não há revogação no servidor nem refresh token. Isso continua sendo da fase de segurança (P8). Quem quiser outra validade muda `AUTH_TOKEN_TTL_LEMBRAR` na Vercel.
 - **Evidência:** `docs/engineering/evidencias/ux-mobile-v2/v25-*`; testes `tests/smoke/loginTela.test.jsx`, `tests/smoke/sessaoNativa.test.js` (P4T-03b/03c).
 
-<!-- Próxima decisão: D-PROD-137 -->
+## D-PROD-137 — Motor Base1: tabela que rola, cards sem pulo, filtros iguais e a superfície do Detalhes do Lote em tudo
+
+- **Contexto:** o proprietário relatou, com prints do celular:
+  - na tabela dos cadastros (ex.: Lotes) a borda das linhas não aparecia direito, não rolava para baixo (PC e celular) e, ao rolar para o lado, a coluna de seleção ficava fixa só nas linhas — o cabeçalho andava e cobria o texto;
+  - nos cards, ao tocar num, "o outro ficava estranho";
+  - os botões de filtro estavam padronizados em Lotes, mas não em Categorias de Manejo e outros;
+  - pediu todas as listagens, filtros e lançamentos com o visual do Detalhes do Lote: fundo cinza, cartões e botões brancos.
+- **Causas (reproduzidas no navegador):**
+  - a tela embrulhava a grade num `<div>` em bloco com `overflow-hidden` (Lotes, Usuários, Contas de acesso, Bebedouros): o `.mg-grid-wrap` crescia até a altura toda, nada rolava e a última linha era cortada;
+  - `.cadastro-b1 .mg-grid thead th { z-index:3 }` vencia o `z-[4]` do `th-select`;
+  - o hover (preso depois do toque) apagava o verde da linha selecionada;
+  - `Base1Cards` centralizava o **primeiro** selecionado a cada mudança de seleção, e o hover do card ficava preso no toque;
+  - `referenceHeaders` era `false` por padrão: em seis telas o botão Filtros não tinha ouvinte;
+  - o visual do Detalhes vivia só em `:has(.mk-dl)`; o resto seguia a D-PROD-96 item 4 (botões cinza, sem sombra).
+- **Decisão:**
+  - **Grade:** o embrulho direto da grade vira flex em coluna (regra no motor + `flex flex-col` nas quatro telas). `th-select`/`td-select` fixos com z-index 5/2. A linha selecionada fica verde mesmo com hover.
+  - **Cards:** clicar ou tocar num card não rola a lista; a rolagem só acontece quando a seleção vem de fora (`block: "nearest"`, último selecionado). Hover de card só com mouse; sem realce cinza do toque. O toque continua somando à seleção (marcar vários no celular).
+  - **Filtros:** `CadastroBase1Grade` herda `referenceHeaders` do chrome integrado (`usePortalComprasSkin`) quando a prop não vem. Bebedouros passa a usar os presets da lista integrada. Permissões repassa `resetFiltersKey`/`onFiltersActiveChange`.
+  - **Superfície:** `src/styles/mk-superficie.css`, carregado por último. Fundo `#f2f3f5`; botões, seletor de visualização e ✕/✓ das folhas brancos com sombra suave; na lista integrada a barra fica sobre o cinza e a grade e o resumo viram cartões brancos (raio 14, borda `#e7eaee`); cards Base1 no mesmo cartão; folhas e popovers de filtro cinza com campos brancos (foco verde mantido); lançamentos (`.mk-ll-dlg`) com fundo cinza e itens, ✕/✓, seletor e campos brancos (erro, desabilitado e travado mantêm o visual próprio). **Revoga o item 4 da D-PROD-96.** A paleta verde não muda.
+- **Fora do escopo (R7):** as tabelas do Cadastro do Mapa (Áreas, Pontos, Linhas) e as listas de histórico não usam o motor Base1; migração em missão própria.
+- **Evidência:** `docs/engineering/evidencias/ux-mobile-v2/v26-*`; testes `tests/smoke/base1CardsSemPulo.test.jsx` (CAR-01/02).
+
+<!-- Próxima decisão: D-PROD-138 -->
