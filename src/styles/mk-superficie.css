@@ -39,12 +39,12 @@
 }
 
 /* ── Botões: brancos com sombra suave ─────────────────────────────────── */
-:is(.tb-btn, .mg-rec-pager__btn, .mk-sheet__close, .mk-sheet__new, .mk-mhdr__round):not(.is-filter-on):not(#mk-padrao),
+:is(.tb-btn, .mg-rec-pager__btn, .mk-sheet__close, .mk-sheet__new, .mk-mhdr__round):not(.is-filter-on):not(.is-filter-active):not(#mk-padrao),
 .mk-mhdr__back > span:not(#mk-padrao) {
   box-shadow: var(--mk-btn-sombra) !important;
 }
 
-.tb-btn:not(.tb-btn-green):not(.tb-btn-red):not(.is-filter-on):not(#mk-padrao),
+.tb-btn:not(.tb-btn-green):not(.tb-btn-red):not(.is-filter-on):not(.is-filter-active):not(#mk-padrao),
 .tb-btn.tb-btn-green:not(#mk-padrao),
 .tb-btn.tb-btn-red:not(#mk-padrao),
 .mg-rec-pager__btn:not(#mk-padrao),
@@ -59,7 +59,7 @@
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .tb-btn:not(.tb-btn-green):not(.tb-btn-red):not(.is-filter-on):not(#mk-padrao):hover:not(:disabled),
+  .tb-btn:not(.tb-btn-green):not(.tb-btn-red):not(.is-filter-on):not(.is-filter-active):not(#mk-padrao):hover:not(:disabled),
   .tb-btn.tb-btn-green:not(#mk-padrao):hover:not(:disabled),
   .tb-btn.tb-btn-red:not(#mk-padrao):hover:not(:disabled),
   .mg-rec-pager__btn:not(#mk-padrao):hover:not(:disabled) {
@@ -253,4 +253,22 @@
 
 .mk-hist .bg-slate-50:not(#mk-padrao) {
   background: var(--mk-sup-cartao);
+}
+
+/* O toque pode manter :hover ativo no Safari. O repouso continua branco. */
+@media (hover: none) {
+  .tb-btn:not(.tb-btn-green):not(.tb-btn-red):not(.is-filter-on):not(.is-filter-active):not(#mk-padrao):hover:not(:disabled),
+  .tb-btn.tb-btn-green:not(#mk-padrao):hover:not(:disabled),
+  .tb-btn.tb-btn-red:not(#mk-padrao):hover:not(:disabled) {
+    background: var(--mk-btn-bg) !important;
+  }
+}
+
+/* Mesma proporção nos controles compartilhados; área de toque preservada. */
+:is(.tb-btn-icon, .mg-rec-pager__btn, .mk-sheet__close, .mk-sheet__new, .mk-mhdr__round, .mk-ll-dlg__redondo):not(#mk-padrao) > svg,
+.mk-mhdr__back > span:not(#mk-padrao) > svg {
+  width: 20px !important;
+  height: 20px !important;
+  stroke-width: 1.8;
+  flex-shrink: 0;
 }
