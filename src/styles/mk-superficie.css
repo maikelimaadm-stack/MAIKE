@@ -266,7 +266,8 @@
 
 /* Mesma proporção nos controles compartilhados; área de toque preservada. */
 :is(.tb-btn-icon, .mg-rec-pager__btn, .mk-sheet__close, .mk-sheet__new, .mk-mhdr__round, .mk-ll-dlg__redondo):not(#mk-padrao) > svg,
-.mk-mhdr__back > span:not(#mk-padrao) > svg {
+.mk-mhdr__back > span:not(#mk-padrao) > svg,
+.view-seg button:not(#mk-padrao) > svg {
   width: 20px !important;
   height: 20px !important;
   stroke-width: 1.8;
