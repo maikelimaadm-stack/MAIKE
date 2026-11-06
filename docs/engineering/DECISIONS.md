@@ -5135,4 +5135,17 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
   - Testes: `tests/smoke/mapaFiltrosEscopo.test.jsx` e `tests/smoke/mapaFiltrosPorUsuario.test.jsx`.
   - Relatório: `docs/engineering/MAIKE-MAPA-FILTROS-POR-USUARIO-REPORT.md`.
 
-<!-- Próxima decisão: D-PROD-136 -->
+## D-PROD-136 — Tela de entrada nova e "Manter conectado"
+
+- **Contexto:** o proprietário pediu a tela de entrada mais bonita, sem o aviso "Informe usuário e senha. Não há código de cliente…", e um jeito de não precisar entrar toda vez. Até aqui o token ficava só no `sessionStorage` (D-PROD-24): fechar a aba ou o app no celular pedia login de novo, e o token valia 8 h.
+- **Decisão (tela):** painel da marca em verde à esquerda a partir de 1024 px; no celular e tablet, cartão único centralizado. Logo horizontal, campos de 48 px com ícone, fonte de 16 px (sem zoom no iOS), botão de mostrar senha, aviso de Caps Lock, validação no envio com mensagem no próprio campo (sem `required` nativo, porque a regra global de `index.css` pinta de vermelho campo obrigatório vazio antes de digitar), erro com ícone e `role="alert"`, botão verde com carregando.
+- **Decisão (sessão):** chave "Manter conectado" (o `ToggleSwitch` do sistema), **desligada por padrão**, com o aviso "Não use em computador compartilhado".
+  - Desligada: tudo como antes — token no `sessionStorage`, validade `AUTH_TOKEN_TTL` (8 h).
+  - Ligada: o login envia `lembrar: true`; o backend emite o token com `AUTH_TOKEN_TTL_LEMBRAR` (padrão 30 dias) e o frontend guarda no armazenamento persistente do navegador. A tela lembra o usuário e a própria escolha (`maike_login_preferencias`).
+  - Sair da conta apaga o token dos dois armazenamentos. Já um token **recusado** pelo servidor sai só de onde estava (`descartarTokenRecusado`): uma aba antiga com sessão vencida não apaga a sessão lembrada, e a restauração tenta de novo com ela (P4T-08c).
+- **Senha:** o sistema **não** guarda senha. "Lembrar senha" é o gerenciador de senhas do navegador/celular, que os campos (`name`/`autocomplete` `username` e `current-password`) deixam oferecer.
+- **Gate:** `gate:native-api` (P4-NATIVE-TOKEN-STORAGE) continua absoluto, com regra nova: armazenamento persistente só dentro de `armazenamentoPersistente()` e só gravado sob `if (lembrar === true)`. Provas negativas NAT-08b e NAT-08c. O corpo do login aceita `lembrar` (booleano); `cliente`/`cliente_id` continuam recusados (BE-09, BE-09a, BE-09c, BE-09d).
+- **Trade-off, sem maquiagem:** com "Manter conectado" o JWT fica no aparelho por até 30 dias e é legível por JavaScript (o mesmo risco de XSS já descrito na D-PROD-24, agora com janela maior). Não há revogação no servidor nem refresh token. Isso continua sendo da fase de segurança (P8). Quem quiser outra validade muda `AUTH_TOKEN_TTL_LEMBRAR` na Vercel.
+- **Evidência:** `docs/engineering/evidencias/ux-mobile-v2/v25-*`; testes `tests/smoke/loginTela.test.jsx`, `tests/smoke/sessaoNativa.test.js` (P4T-03b/03c).
+
+<!-- Próxima decisão: D-PROD-137 -->

@@ -5,6 +5,7 @@ import { getPrismaClient } from '../../database/prismaClient.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { AppError } from '../../shared/errors/AppError.js';
 import { registrarEvento } from '../auditoria/auditService.js';
+import { exigirSomenteColunasGravaveis } from '../../shared/prisma/colunasGravaveis.js';
 import { exigirSomenteCamposPermitidos, movimentoExigeCancelamento } from '../../shared/operacional/protecaoOperacional.js';
 import { reservarNumero, ESCOPO_TENANT } from '../sequencias/entidadeCodigoService.js';
 import {
@@ -42,7 +43,7 @@ export const criar = async (contexto, entrada) => {
   const prisma = getPrismaClient();
   const criado = await prisma.$transaction(async (tx) => {
     /** @type {Record<string, unknown>} */
-    const dados = { ...entrada, cliente_id: auth.clienteId };
+    const dados = { ...exigirSomenteColunasGravaveis('MovimentacaoEstoque', entrada), cliente_id: auth.clienteId };
     if (Object.prototype.hasOwnProperty.call(dados, 'numero_movimentacao')) {
       delete dados.numero_movimentacao;
     }

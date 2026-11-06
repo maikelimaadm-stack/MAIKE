@@ -28,7 +28,7 @@
 
 import { nativeRequest } from '../_core/nativeHttpClient.js';
 import { ApiError, API_ERROR_CODES, isApiError, hasApiErrorCode } from '../_core/ApiError.js';
-import { hasNativeToken, setNativeToken, clearNativeToken } from '@/lib/auth/nativeTokenStorage';
+import { hasNativeToken, setNativeToken, clearNativeToken, descartarTokenRecusado } from '@/lib/auth/nativeTokenStorage';
 import { setOfflineTenant, clearOfflineTenant } from '@/lib/offline/offlineTenant';
 
 const RESOURCE = 'SessaoNativa';
@@ -109,12 +109,14 @@ const descartarSessaoLocal = () => {
  * Falha em qualquer ponto limpa o token: sessão pela metade é pior que sessão
  * ausente, porque a tela acha que está dentro.
  *
- * @param {{login: string, senha: string}} credenciais
+ * @param {{login: string, senha: string, lembrar?: boolean}} credenciais
  * @returns {Promise<{usuario: object, clienteId: string}>}
  */
 export const login = async (credenciais) => {
   const usuarioLogin = texto(credenciais?.login);
   const senha = typeof credenciais?.senha === 'string' ? credenciais.senha : '';
+  // "Manter conectado" (D-PROD-136): sessão mais longa e guardada no aparelho.
+  const lembrar = credenciais?.lembrar === true;
 
   if (!usuarioLogin || !senha) {
     throw new ApiError(API_ERROR_CODES.INVALID_ARGUMENT, {
@@ -123,10 +125,10 @@ export const login = async (credenciais) => {
     });
   }
 
-  // Exatamente dois campos. Nunca `cliente`, `cliente_id` nem `usuario_id`.
+  // Login, senha e o opt-in de lembrar. Nunca `cliente`, `cliente_id` nem `usuario_id`.
   const corpo = await nativeRequest(
     '/auth/login',
-    { method: 'POST', body: { login: usuarioLogin, senha } },
+    { method: 'POST', body: { login: usuarioLogin, senha, lembrar } },
     ctx('login')
   );
 
@@ -135,7 +137,7 @@ export const login = async (credenciais) => {
     throw new ApiError(API_ERROR_CODES.OPERATION_FAILED, ctx('login'));
   }
 
-  setNativeToken(corpo.token);
+  setNativeToken(corpo.token, { lembrar });
 
   try {
     await obterContexto();
@@ -253,6 +255,9 @@ export const restaurarSessao = async () => {
     // um token recusado guardado só produz um 401 por requisição até alguém
     // perceber.
     if (hasApiErrorCode(erro, API_ERROR_CODES.TENANT_CONTEXT_REQUIRED)) {
+      // Só o token recusado sai. Se sobrou outro (ex.: aba velha com sessão
+      // vencida e uma sessão "Manter conectado" válida), tenta com ele.
+      if (descartarTokenRecusado()) return restaurarSessao();
       descartarSessaoLocal();
       return { autenticado: false, contexto: null };
     }

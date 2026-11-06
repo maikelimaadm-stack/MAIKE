@@ -5,6 +5,7 @@ import { getPrismaClient } from '../../database/prismaClient.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { AppError } from '../../shared/errors/AppError.js';
 import { registrarEvento } from '../auditoria/auditService.js';
+import { exigirSomenteColunasGravaveis } from '../../shared/prisma/colunasGravaveis.js';
 import { atorDoTenant, ehAdminTenantAtivo, exigirAdminTenant } from '../../shared/auth/exigirAdminTenant.js';
 import {
   listarRegistros,
@@ -44,14 +45,11 @@ export const listar = async (contexto, filtros = {}) => {
 };
 
 /**
- * Campos que o corpo nunca define: identidade e tenant são do servidor.
+ * Só colunas da Permissao (D-PROD-136): relação, chave desconhecida ou
+ * `cliente_id` → 400; identidade e carimbos do servidor são descartados.
  * @param {Record<string, unknown>} entrada
  */
-const semCamposDoServidor = (entrada) => {
-  // eslint-disable-next-line no-unused-vars -- descartados de propósito
-  const { id, cliente_id, createdAt, updatedAt, ...resto } = entrada ?? {};
-  return resto;
-};
+const semCamposDoServidor = (entrada) => exigirSomenteColunasGravaveis('Permissao', entrada);
 
 /** @param {{requestId: string, auth: import('../../shared/auth/authContext.js').AuthContext}} contexto */
 export const criar = async (contexto, entrada) => {
