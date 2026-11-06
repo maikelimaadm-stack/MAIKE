@@ -20,6 +20,7 @@ import { env } from '../../config/env.js';
 import { AppError } from '../../shared/errors/AppError.js';
 import { PAPEL_ADMIN_TENANT } from '../../shared/auth/exigirAdminTenant.js';
 import { buscarPapelTenant, buscarUsuarioAtivoPorLogin } from './authRepository.js';
+import { epocaDe } from '../../shared/auth/sessaoEpoca.js';
 
 /** Custo do bcrypt. 10 é o equilíbrio usual entre segurança e latência. */
 const BCRYPT_ROUNDS = 10;
@@ -78,8 +79,8 @@ export const autenticar = async (entrada) => {
     usuarioId: usuario.id,
     login: usuario.login,
     nome: usuario.nome,
-    clienteSessaoEpoca: usuario.cliente.sessao_epoca,
-    usuarioSessaoEpoca: usuario.sessao_epoca,
+    clienteSessaoEpoca: epocaDe(usuario.cliente.sessao_epoca),
+    usuarioSessaoEpoca: epocaDe(usuario.sessao_epoca),
   };
 };
 

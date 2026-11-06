@@ -5333,10 +5333,10 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
 
 - **Contexto:** no S03 o mesmo JWT de fazenda voltava a valer depois de suspender e reativar o cliente (até 30 dias com "Manter conectado"). Desativar a conta ou trocar a senha também não derrubava os tokens já emitidos.
 - **Decisão:**
-  - **Duas épocas inteiras persistidas:** `Cliente.sessao_epoca` e `Usuario.sessao_epoca`, `INTEGER NOT NULL DEFAULT 0`, `CHECK >= 0`, migration expand-only `20261106200000_s04_p1_sessao_epoca`.
+  - **Duas épocas inteiras persistidas:** `Cliente.sessao_epoca` e `Usuario.sessao_epoca`, `INTEGER` anulável, sem DEFAULT (EXPAND dentro da allowlist D-PROD-107), migration `20261106200000_s04_p1_sessao_epoca`, pinada no manifesto do pré-merge. `NULL` vale 0. O único escritor é `COALESCE(sessao_epoca, 0) + 1`.
   - **Login:** `/auth/login` grava as duas no JWT (`cliente_sessao_epoca`, `usuario_sessao_epoca`).
   - **Guarda:** `app.autenticar` exige as duas iguais às do banco na mesma consulta única de revalidação. Claim ausente ou malformada = 401, sem fallback para token legado.
-  - **Suspender o cliente:** época do cliente +1 no mesmo UPDATE condicional e na mesma transação da auditoria. Reativar não mexe na época.
+  - **Suspender o cliente:** época do cliente +1 na mesma transação do UPDATE condicional e da auditoria. Reativar não mexe na época.
   - **Conta:** troca de senha (própria, por administrador, `reset-password.mjs`), mudança de `ativo` ou de `papel_tenant` (`papel-tenant.mjs`, SQL 04) incrementam a época da conta, atomicamente.
 - **Consequências:**
   - Todo token anterior à versão nova recebe 401 uma vez: logout global na implantação.

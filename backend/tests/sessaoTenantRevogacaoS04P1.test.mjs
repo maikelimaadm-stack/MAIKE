@@ -44,9 +44,11 @@ const statusDe = async (token) => (await contexto(token)).statusCode;
 const patchUsuario = (token, id, payload) =>
   app.inject({ method: 'PATCH', url: `/usuarios/${id}`, headers: { authorization: `Bearer ${token}` }, payload });
 const payloadDe = (token) => JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString('utf8'));
+/** Época efetiva (NULL = 0, coluna anulável EXPAND). */
+const ep = (v) => v ?? 0;
 const epocas = async (t) => ({
-  cliente: (await prisma().cliente.findUnique({ where: { id: t.cliente.id } })).sessao_epoca,
-  usuario: (await prisma().usuario.findUnique({ where: { id: t.usuario.id } })).sessao_epoca,
+  cliente: ep((await prisma().cliente.findUnique({ where: { id: t.cliente.id } })).sessao_epoca),
+  usuario: ep((await prisma().usuario.findUnique({ where: { id: t.usuario.id } })).sessao_epoca),
 });
 
 /** Escrita do MAIKE Admin com If-Match da ficha atual (contrato S03-R2). */
@@ -91,6 +93,20 @@ describe('S04-P1 JWT com época', () => {
     const ttl = (r) => payloadDe(r.json().token).exp - payloadDe(r.json().token).iat;
     assert.equal(ttl(normal), 8 * 3600);
     assert.equal(ttl(lembrar), 30 * 24 * 3600);
+  });
+
+  test('SP-01b coluna anulável: NULL e 0 valem época 0; o primeiro incremento sai de NULL para 1', async () => {
+    const t = await criarTenant();
+    assert.equal((await prisma().usuario.findUnique({ where: { id: t.usuario.id } })).sessao_epoca, null, 'linha criada sem época (EXPAND)');
+    const tokNull = await tokenDe(t.credenciais);
+    assert.equal(payloadDe(tokNull).usuario_sessao_epoca, 0);
+    assert.equal(await statusDe(tokNull), 200, 'NULL aceita a claim 0');
+    await prisma().usuario.update({ where: { id: t.usuario.id }, data: { sessao_epoca: 0 } });
+    assert.equal(await statusDe(tokNull), 200, '0 explícito também');
+    await prisma().usuario.update({ where: { id: t.usuario.id }, data: { sessao_epoca: null } });
+    const { revogarSessoesUsuario } = await import('../src/shared/auth/sessaoEpoca.js');
+    assert.equal(await prisma().$transaction((tx) => revogarSessoesUsuario(tx, t.cliente.id, t.usuario.id)), 1);
+    assert.equal(await statusDe(tokNull), 401);
   });
 
   test('SP-03 token legado sem época, época malformada, expirado ou alterado: 401 e nenhum contexto instalado', async () => {
@@ -157,7 +173,7 @@ describe('S04-P1 suspensão do cliente (MAIKE Admin)', () => {
     assert.equal(await statusDe(tokA), 401);
     assert.equal(await statusDe(tokOutra), 401);
     assert.equal(await statusDe(tokB), 200, 'outro tenant não é afetado');
-    assert.equal((await prisma().usuario.findUnique({ where: { id: outraDeA.id } })).sessao_epoca, 0, 'época individual intocada');
+    assert.equal(ep((await prisma().usuario.findUnique({ where: { id: outraDeA.id } })).sessao_epoca), 0, 'época individual intocada');
     assert.deepEqual(await epocas(b), { cliente: 0, usuario: 0 });
     assert.equal((await prisma().cliente.findUnique({ where: { id: b.cliente.id } })).ativo, true);
   });
@@ -174,7 +190,7 @@ describe('S04-P1 suspensão do cliente (MAIKE Admin)', () => {
     const r = await comAuditoriaQuebrada('EventoSegurancaAdminMaike', () => situacao(headers, t.cliente.id, false));
     assert.equal(r.statusCode >= 500, true, `auditoria falhou → erro interno (${r.statusCode})`);
     const c = await prisma().cliente.findUnique({ where: { id: t.cliente.id } });
-    assert.deepEqual([c.ativo, c.sessao_epoca], [true, 0], 'rollback conjunto: nem ativo nem época mudaram');
+    assert.deepEqual([c.ativo, ep(c.sessao_epoca)], [true, 0], 'rollback conjunto: nem ativo nem época mudaram');
 
     // Duas suspensões com a mesma revisão: uma vence, a época sobe exatamente 1.
     const etag = (await app.inject({ method: 'GET', url: `/admin-maike/clientes/${t.cliente.id}`, headers })).headers.etag;
@@ -281,7 +297,7 @@ describe('S04-P1 contratos preservados', () => {
     const tok = await tokenDe(adm.credenciais);
     const r = await patchUsuario(tok, adm.usuario.id, { sessao_epoca: 0 });
     assert.equal(r.statusCode, 400, 'campo fora do contrato fechado');
-    assert.equal((await prisma().usuario.findUnique({ where: { id: adm.usuario.id } })).sessao_epoca, 0);
+    assert.equal(ep((await prisma().usuario.findUnique({ where: { id: adm.usuario.id } })).sessao_epoca), 0);
     const lista = await app.inject({ method: 'GET', url: '/usuarios', headers: { authorization: `Bearer ${tok}` } });
     assert.equal(lista.body.includes('sessao_epoca'), false);
     const { headers } = await criarAdminComSessao(app);

@@ -50,7 +50,8 @@ model Cliente {
   /// Época das sessões da fazenda (MAIKE-SAAS-ADMIN-S04-P1). Vai no JWT no
   /// login e é comparada a cada requisição: suspender incrementa, e todo token
   /// anterior deixa de valer para sempre (mesmo após reativar). Só cresce.
-  sessao_epoca Int    @default(0)
+  /// Anulável (EXPAND, D-PROD-107): NULL vale 0; só se grava `COALESCE(..,0)+1`.
+  sessao_epoca Int?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -130,7 +131,8 @@ model Usuario {
   papel_tenant String @default("usuario") @db.VarChar(32)
   /// Época das sessões DESTA conta (S04-P1): troca de senha, mudança de
   /// `ativo` ou de `papel_tenant` incrementa e derruba os tokens anteriores.
-  sessao_epoca Int    @default(0)
+  /// Anulável (EXPAND): NULL vale 0; só se grava `COALESCE(..,0)+1`.
+  sessao_epoca Int?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 

@@ -12,7 +12,7 @@ No S03, `app.autenticar` relia `Usuario.ativo` e `Cliente.ativo` a cada requisi�
 
 ## 2. Decisão (depois)
 
-**Duas épocas de sessão inteiras, persistidas no PostgreSQL:**
+**Duas épocas de sessão inteiras, persistidas no PostgreSQL** (`INTEGER` anulável, `NULL` vale 0; ver §5):
 
 | Campo | Avança quando | Efeito |
 |---|---|---|
@@ -42,8 +42,8 @@ O tenant continua vindo só da linha do `Usuario`.
 ## 3. Invariantes
 
 1. **Incremento atômico.**
-   - O incremento vai no **mesmo UPDATE** que muda o estado: `updateMany` condicional na suspensão, `update` na conta, `sessao_epoca + 1` no SQL.
-   - Tudo fica na **mesma transação** da auditoria.
+   - O único escritor é `UPDATE … SET sessao_epoca = COALESCE(sessao_epoca, 0) + 1 … RETURNING`, em `backend/src/shared/auth/sessaoEpoca.js`.
+   - Ele roda **na mesma transação** da mudança de estado (logo depois do `updateMany` condicional da suspensão ou do `update` da conta, com a linha já travada) e da auditoria. O SQL 04 faz a mesma expressão no mesmo `UPDATE`.
    - Se a auditoria falhar, o rollback desfaz `ativo` e a época juntos (SP-05 e SP-06 forçam a falha com trigger).
 2. **Corrida, ETag/CAS e conflito.**
    - Corrida perdida, ETag ausente (428) ou ETag obsoleto (409) não avançam a época (SP-05, GES-14).
@@ -61,7 +61,8 @@ O tenant continua vindo só da linha do `Usuario`.
    - POST atômico, login global único;
    - MFA, Origin, CSRF, no-store.
 6. **Época nunca recua.**
-   - `CHECK (sessao_epoca >= 0)`.
+   - Nenhum caminho grava valor arbitrário: só `COALESCE(…, 0) + 1`. A coluna não está em nenhum contrato HTTP (SP-11).
+   - Sem `CHECK`: a allowlist do pré-merge (D-PROD-107) recusa `CHECK` em tabela antiga, e a regra fica garantida por construção.
    - No overflow do `INTEGER`, o Postgres recusa o incremento ("integer out of range"), a transação falha e nada muda. É falha fechada, sem reset para zero. Na prática, 2^31 suspensões ou trocas de senha da mesma conta são inalcançáveis.
 
 ## 4. Inventário de emissores e escritores (busca real no HEAD `087be1f6`)
@@ -85,16 +86,21 @@ Não existe refresh token, nem outro `jwtSign`/`jwtVerify` no backend.
 
 ## 5. Migration `20261106200000_s04_p1_sessao_epoca`
 
-- **Tipo:** expand-only.
-  - `ADD COLUMN "sessao_epoca" INTEGER NOT NULL DEFAULT 0` em `Cliente` e `Usuario`;
-  - mais dois `CHECK (>= 0)`;
+- **Tipo:** EXPAND puro, dentro da allowlist fechada do pré-merge (D-PROD-107).
+  - `ADD COLUMN "sessao_epoca" INTEGER` em `Cliente` e `Usuario`: anulável, sem DEFAULT, sem `CHECK`, sem `UPDATE`;
   - sem índice novo: a época só é filtrada junto da PK, que já está indexada;
   - nenhuma mudança em ids, uniques ou chaves de tenancy.
+- **Por que anulável e não `NOT NULL DEFAULT 0`:**
+  - o gate `premerge-migrate` recusa de propósito `NOT NULL DEFAULT` e `CHECK` em tabela antiga (teste B2);
+  - a primeira versão desta PR tentou esse caminho e o CI recusou;
+  - em vez de afrouxar o gate, o código trata `NULL` como 0: no login (`epocaDe`), na guarda (`filtroEpoca`: `0` aceita `0` ou `NULL`) e no incremento (`COALESCE`).
+  - Um passo CONTRACT futuro (backfill + `NOT NULL`) fica opcional e exige decisão própria sobre o gate.
+- **Manifesto:** a migration entrou em `MIGRATIONS_APROVADAS`, com o SHA-256 do arquivo; o fluxo normal de release.
 - **Provas em PostgreSQL 16 descartável:**
-  - **do zero:** `migrate deploy` completo; colunas `integer NOT NULL DEFAULT 0`;
-  - **upgrade:** banco com todas as migrations anteriores e clientes/usuários pré-existentes (ativos, inativos e administrador). Depois do `migrate deploy`, todos os dados ficam intactos e na época 0;
-  - `CHECK` recusa valor negativo; o overflow falha.
-- **Gates:** `tenancy`, `indices`, `deploy-migrations`, `modelobase1-pecuario` e `supabase-public-grants` passam sem afrouxar nada.
+  - **do zero:** `migrate deploy` completo; colunas `integer`, anuláveis, sem default;
+  - **upgrade:** banco com todas as migrations anteriores e clientes/usuários pré-existentes (ativos, inativos e administrador). Depois do `migrate deploy`, todos os dados ficam intactos e com época `NULL` (= 0);
+  - o primeiro `COALESCE + 1` sai de `NULL` para 1 (SP-01b); o overflow falha.
+- **Gates:** `tenancy`, `indices`, `deploy-migrations`, `modelobase1-pecuario`, `supabase-public-grants` e `premerge-migrate` (B1–B7) passam sem afrouxar nada.
 - **Preflight de release:** `scripts/deploy/preflightSchemaLib.mjs` agora exige `Cliente.sessao_epoca` e `Usuario.sessao_epoca` (teste PF-02b).
 
 ## 6. Rollout e rollback
@@ -118,7 +124,7 @@ Não existe refresh token, nem outro `jwtSign`/`jwtVerify` no backend.
 **Rollback:**
 - **Código:** reverter a PR. O runtime antigo funciona com as colunas presentes, porque são expand-only.
 - **Contra-indicação:** reverter o código devolve a falha do S03 (token ressuscita ao reativar), mas não perde dados.
-- **Banco:** **não** é preciso remover as colunas. Se necessário, `ALTER TABLE ... DROP CONSTRAINT ...; DROP COLUMN sessao_epoca` só depois de o runtime antigo estar no ar.
+- **Banco:** **não** é preciso remover as colunas: o runtime antigo funciona com elas (provado rodando suítes do `main` no banco migrado). Se necessário, `DROP COLUMN sessao_epoca` só depois de o runtime antigo estar no ar.
 - **Produção:** nada disso foi executado em produção.
 
 ## 7. Limites honestos
@@ -129,9 +135,9 @@ Não existe refresh token, nem outro `jwtSign`/`jwtVerify` no backend.
 
 ## 8. Testes (PostgreSQL 16 local descartável)
 
-**Suíte nova `backend/tests/sessaoTenantRevogacaoS04P1.test.mjs`:** SP-01..SP-09, SP-11 e SP-12.
-- **RED no runtime do `main`** (schema novo, código antigo): 8 de 11 falham. SP-04, SP-11 e SP-12 são de preservação e já passavam.
-- **GREEN:** 11/11.
+**Suíte nova `backend/tests/sessaoTenantRevogacaoS04P1.test.mjs`:** SP-01, SP-01b, SP-02..SP-09, SP-11 e SP-12.
+- **RED no runtime do `main`** (schema novo, `backend/src` e `scripts/auth` do `main`): 9 de 12 falham. SP-04, SP-11 e SP-12 são de preservação e já passavam.
+- **GREEN:** 12/12.
 
 | Cenário | Prova |
 |---|---|
@@ -154,6 +160,8 @@ Não existe refresh token, nem outro `jwtSign`/`jwtVerify` no backend.
 - **PM-06:** o SQL 04 promove o papel e agora encerra a sessão anterior; a conta e a senha continuam preservadas.
 - **SR-04:** o token forjado ganhou épocas válidas, para continuar provando o `cliente_id` trocado.
 - **Preflight:** PF-01 passou a ter as colunas novas no fixture; o PF-02b é novo.
+- **BE-04:** a lista de claims do JWT agora inclui as duas épocas, e o token continua sem senha nem hash.
+- **B1 (pré-merge):** as colunas anuláveis novas aparecem na lista de colunas novas em tabela antiga.
 
 ## 9. Avaliação de qualidade e escala
 

@@ -19,6 +19,7 @@ import { opcoesDeCors } from './shared/http/corsPolicy.js';
 import { errorHandler } from './shared/errors/errorHandler.js';
 import { registrarRequestContext } from './shared/request/requestContext.js';
 import { construirAuthContext, lerEpocasDaSessao } from './shared/auth/authContext.js';
+import { filtroEpoca } from './shared/auth/sessaoEpoca.js';
 import { getPrismaClient } from './database/prismaClient.js';
 import { AppError, tenantContextRequired } from './shared/errors/AppError.js';
 import { registrarHealthRoutes } from './modules/health/healthRoutes.js';
@@ -164,8 +165,8 @@ export const construirApp = async (opcoes = {}) => {
         id: auth.usuarioId,
         cliente_id: auth.clienteId,
         ativo: true,
-        sessao_epoca: epocas.usuario,
-        cliente: { ativo: true, sessao_epoca: epocas.cliente },
+        ...filtroEpoca(epocas.usuario),
+        cliente: { ativo: true, ...filtroEpoca(epocas.cliente) },
       },
       select: { id: true },
     });

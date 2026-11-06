@@ -33,6 +33,7 @@ import { adminError } from '../../shared/errors/AppError.js';
 import { gerarSenhaHash } from '../auth/authService.js';
 import { PAPEL_ADMIN_TENANT } from '../../shared/auth/exigirAdminTenant.js';
 import { registrarEventoSeguranca } from './adminService.js';
+import { epocaDe, revogarSessoesCliente } from '../../shared/auth/sessaoEpoca.js';
 
 /** 3–64 caracteres, minúsculas/dígitos/hífen, sem hífen nas pontas. */
 export const PADRAO_CODIGO = '^[a-z0-9][a-z0-9-]{1,62}[a-z0-9]$';
@@ -226,14 +227,17 @@ export const alterarSituacaoCliente = async (id, entrada, ctx) => {
     // Mesma situação pedida = nada a fazer (inclui a corrida já decidida por outra sessão).
     if (atual.ativo === ativo) throw adminError('ADMIN_ENTRADA_INVALIDA', ativo ? 'o cliente já está ativo' : 'o cliente já está suspenso');
     // Condicional: duas suspensões simultâneas não registram dois eventos.
-    // S04-P1: suspender avança a época das sessões da fazenda no MESMO UPDATE
-    // condicional; corrida perdida, conflito ou rollback da auditoria desfazem
-    // tudo junto. Reativar preserva a época (os tokens antigos continuam mortos).
     const r = await tx.cliente.updateMany({
       where: { id, ativo: atual.ativo, nome: atual.nome, codigo: atual.codigo, updatedAt: atual.updatedAt },
-      data: ativo ? { ativo } : { ativo, sessao_epoca: { increment: 1 } },
+      data: { ativo },
     });
     if (r.count !== 1) throw edicaoConcorrente();
+    // S04-P1: suspender avança a época das sessões da fazenda na MESMA
+    // transação (linha já travada pelo UPDATE acima); corrida perdida,
+    // conflito ou rollback da auditoria desfazem tudo junto. Reativar preserva
+    // a época: os tokens de antes continuam mortos.
+    const epocaAntes = epocaDe(atual.sessao_epoca);
+    const epocaDepois = ativo ? epocaAntes : await revogarSessoesCliente(tx, id);
     await registrarEventoSeguranca(
       {
         adminId: ctx.admin.id,
@@ -243,8 +247,8 @@ export const alterarSituacaoCliente = async (id, entrada, ctx) => {
         requestId: ctx.requestId,
         dados: {
           cliente_id: id,
-          antes: { ativo: atual.ativo, sessao_epoca: atual.sessao_epoca },
-          depois: { ativo, sessao_epoca: ativo ? atual.sessao_epoca : atual.sessao_epoca + 1 },
+          antes: { ativo: atual.ativo, sessao_epoca: epocaAntes },
+          depois: { ativo, sessao_epoca: epocaDepois },
           justificativa: justificativa.slice(0, 500),
         },
       },

@@ -53,6 +53,7 @@ if (motivo && process.env.PAPEL_TENANT_ALLOW_PRODUCTION !== 'sim') {
   sair(`recusado em ${motivo} (exige PAPEL_TENANT_ALLOW_PRODUCTION=sim e aprovação separada)`);
 }
 const { getPrismaClient, closePrismaClient } = await import('../../backend/src/database/prismaClient.js');
+const { revogarSessoesUsuario } = await import('../../backend/src/shared/auth/sessaoEpoca.js');
 const prisma = getPrismaClient();
 
 try {
@@ -82,10 +83,11 @@ try {
   await prisma.$transaction(async (tx) => {
     const r = await tx.usuario.updateMany({
       where: { id: usuario.id, cliente_id: cliente.id, papel_tenant: usuario.papel_tenant },
-      // S04-P1: mudança de privilégio derruba as sessões anteriores da conta.
-      data: { papel_tenant: papel, sessao_epoca: { increment: 1 } },
+      data: { papel_tenant: papel },
     });
     if (r.count !== 1) throw new Error('o papel mudou durante a operação; nada foi alterado');
+    // S04-P1: mudança de privilégio derruba as sessões anteriores da conta.
+    await revogarSessoesUsuario(tx, cliente.id, usuario.id);
     await tx.auditLog.create({
       data: {
         cliente_id: cliente.id,

@@ -16,6 +16,7 @@ import { PrismaClient } from '@prisma/client';
 
 import { env } from '../../backend/src/config/env.js';
 import { gerarSenhaHash } from '../../backend/src/modules/auth/authService.js';
+import { revogarSessoesUsuario } from '../../backend/src/shared/auth/sessaoEpoca.js';
 
 const falhar = (mensagem) => {
   console.error(`auth:reset-password — FALHOU\n\n  ${mensagem}\n`);
@@ -56,10 +57,11 @@ export const redefinirSenhaPorLogin = async (prisma, { login, novaSenha }) => {
 
   const usuario = candidatos[0];
 
-  await prisma.usuario.update({
-    where: { id: usuario.id },
-    // S04-P1: a senha nova derruba as sessões anteriores da conta no mesmo UPDATE.
-    data: { senha_hash: await gerarSenhaHash(novaSenha), sessao_epoca: { increment: 1 } },
+  const senhaHash = await gerarSenhaHash(novaSenha);
+  // S04-P1: a senha nova derruba as sessões anteriores da conta, na mesma transação.
+  await prisma.$transaction(async (tx) => {
+    const alvo = await tx.usuario.update({ where: { id: usuario.id }, data: { senha_hash: senhaHash }, select: { cliente_id: true } });
+    await revogarSessoesUsuario(tx, alvo.cliente_id, usuario.id);
   });
 
   return { login: usuario.login, usuarioId: usuario.id };
