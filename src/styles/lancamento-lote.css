@@ -817,6 +817,12 @@
   min-width: 0;
 }
 
+/* Linha fina sob o título do cartão, igual à das linhas de dados (D-PROD-144) */
+.mk-dl__cartao > .mk-dl__cab {
+  padding-bottom: 7px;
+  border-bottom: 1px solid #edf0f3;
+}
+
 /* Título do cartão (área e lote): texto simples dentro da caixa, sem pílula. */
 .mk-dl__nome {
   display: inline-flex;
