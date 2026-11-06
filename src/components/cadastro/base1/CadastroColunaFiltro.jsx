@@ -304,7 +304,7 @@ export default function CadastroColunaFiltro({
 
   if (celular) {
     return (
-      <MobileSheet open onClose={() => fechar.current()} label={`Filtrar coluna ${rotulo}`} title={rotulo}>
+      <MobileSheet open initialLarge className="mk-column-filter-sheet" onClose={() => fechar.current()} label={`Filtrar coluna ${rotulo}`} title={rotulo}>
         <div className={shellClass} ref={painel}>
           {formulario}
         </div>

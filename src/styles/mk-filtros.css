@@ -1,0 +1,156 @@
+/* Pesquisa e filtros: um acabamento, com densidade adequada ao dispositivo. */
+:root {
+  --mk-search-height: 36px;
+  --mk-search-font: 14px;
+  --mk-filter-row-height: 36px;
+}
+@media (max-width: 639px) {
+  :root {
+    --mk-search-height: 44px;
+    --mk-search-font: 16px;
+    --mk-filter-row-height: 44px;
+  }
+}
+
+/* Inclui pesquisa de registros, filtros, opções e seletores. */
+:is(.mg-search-pill, .mk-pill, .cadastro-b1 .cmd-panel__search):not(#mk-padrao),
+:is(.mg-search-pill, .mk-pill, .cadastro-b1 .cmd-panel__search):focus-within:not(#mk-padrao),
+:is(.mg-search-pill, .mk-pill, .cadastro-b1 .cmd-panel__search):focus:not(#mk-padrao) {
+  box-sizing: border-box;
+  height: var(--mk-search-height) !important;
+  min-height: var(--mk-search-height);
+  border: 0 !important;
+  outline: none !important;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: var(--mk-btn-sombra);
+}
+:is(.mg-search-pill, .mk-pill):not(#mk-padrao) { padding: 0 12px; }
+:is(.mg-search-pill, .mk-pill):not(#mk-padrao) input,
+.cadastro-b1 .cmd-panel__search:not(#mk-padrao) {
+  min-width: 0;
+  font-size: var(--mk-search-font);
+  outline: none;
+  border: 0;
+  box-shadow: none;
+}
+:is(.mk-pill__icon, .mk-pill__clear):not(#mk-padrao) svg,
+.mg-search-pill-icon:not(#mk-padrao) {
+  width: 16px !important;
+  height: 16px !important;
+  flex-shrink: 0;
+  stroke-width: 1.65;
+}
+
+/* Retira separadores e margens antigos: o espaço entre controles é 8px. */
+.b1ref .fpop:not(#mk-padrao) {
+  gap: 8px;
+  padding: 10px;
+  overflow: hidden;
+  background: var(--mk-sup-fundo);
+}
+.b1ref .fpop .opt-sep:not(#mk-padrao) { display: none; }
+.b1ref .fpop :is(.fmi-limpar, .fcond, .fpop-busca, .ftodos, .fpop-l, .fpop-f):not(#mk-padrao) {
+  margin: 0;
+}
+.b1ref .fpop .fcond:not(#mk-padrao) { padding: 0; gap: 8px; }
+.b1ref .fpop .fmi-limpar:not(#mk-padrao) {
+  min-height: var(--mk-filter-row-height);
+  padding: 0 10px;
+  font-size: var(--mk-search-font);
+}
+.b1ref .fpop :is(.fselb, .fin):not(#mk-padrao),
+.b1ref .fpop .fselb[aria-expanded="true"]:not(#mk-padrao) {
+  box-sizing: border-box;
+  height: var(--mk-search-height);
+  min-height: var(--mk-search-height);
+  padding: 0 12px;
+  font-size: var(--mk-search-font);
+  background: #fff;
+  border: 0;
+  border-radius: 999px;
+  box-shadow: var(--mk-btn-sombra);
+  outline: none;
+}
+
+/* Contagem tem largura própria, inclusive em números longos. */
+.b1ref .fpop .fvr:not(#mk-padrao) {
+  grid-template-columns: 32px minmax(0, 1fr) max-content;
+  min-height: var(--mk-filter-row-height);
+  height: var(--mk-filter-row-height);
+  font-size: var(--mk-search-font);
+}
+.b1ref .fpop .fvr > *:not(#mk-padrao) { height: var(--mk-filter-row-height); }
+.b1ref .fpop .fvr .r:not(#mk-padrao) {
+  overflow: visible;
+  min-width: max-content;
+  padding: 0 10px;
+  white-space: nowrap;
+  font-size: 12px;
+}
+.b1ref .fpop .ftodos:not(#mk-padrao) {
+  width: 100%;
+  background: #fff;
+  border: 0;
+  border-radius: 999px;
+}
+.b1ref .fpop .fpop-l:not(#mk-padrao) {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 4px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  background: #fff;
+  border-radius: 14px;
+}
+.b1ref .fpop .fpop-f:not(#mk-padrao) {
+  flex: 0 0 auto;
+  padding: 2px 0;
+  border: 0;
+  background: transparent;
+}
+
+/* A folha abre expandida para a lista não ficar reduzida a uma linha. */
+.mk-column-filter-sheet .mk-sheet__body:not(#mk-padrao) { overflow: hidden; }
+.mk-column-filter-sheet .b1ref:not(#mk-padrao) { flex: 1 1 auto; min-height: 0; }
+.mk-column-filter-sheet .fpop--sheet:not(#mk-padrao) { min-height: 0; }
+
+/* Operadores usam o mesmo acabamento em todas as larguras. */
+.b1ref .fsell.foperadores:not(#mk-padrao) {
+  margin: 0;
+  padding: 4px;
+  max-width: calc(100vw - 24px);
+  border: 1px solid var(--mk-sup-borda);
+  border-radius: 14px;
+  background: #fff;
+}
+.b1ref .foperadores .fopt:not(#mk-padrao) {
+  min-height: var(--mk-filter-row-height);
+  padding: 6px 10px;
+  gap: 8px;
+  border-radius: 8px;
+  font-size: var(--mk-search-font);
+}
+.b1ref .foperadores .fopt.on:not(#mk-padrao) {
+  background: rgba(64, 222, 99, 0.14);
+  color: #292a2d;
+}
+.b1ref :is(.fselb-c, .fopt-c):not(#mk-padrao) svg { width: 16px; height: 16px; }
+.cadastro-b1 .cmd-panel__search:not(#mk-padrao) {
+  width: 100%;
+  padding: 0 12px;
+  margin: 0 0 8px;
+  box-shadow: var(--mk-btn-sombra);
+}
+/* Regras antigas das folhas não devem desenhar um segundo campo no input. */
+:is(.mg-search-pill, .mk-pill):not(#mk-padrao) input,
+:is(.mg-search-pill, .mk-pill):not(#mk-padrao) input:is(:focus, :focus-visible) {
+  border: 0 !important;
+  outline: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}
+:is(.mk-pill__clear, .mk-pill__icon, .mg-search-pill-clear, .mg-search-pill-icon):not(#mk-padrao),
+:is(.mk-pill__clear, .mk-pill__icon, .mg-search-pill-clear):not(#mk-padrao) svg {
+  color: #64748b !important;
+}
