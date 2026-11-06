@@ -345,17 +345,17 @@
   .mk-desktop-action-label { display: inline; }
 
   .tb-btn:not(#mk-padrao) {
-    height: 38px !important;
-    min-height: 38px !important;
+    height: 36px !important;
+    min-height: 36px !important;
     font-size: 14px;
     gap: 8px;
   }
 
   .cadastro-b1 .tb-btn.mg-act-ic:not(#mk-padrao) {
     width: auto !important;
-    min-width: 88px !important;
+    min-width: 80px !important;
     aspect-ratio: auto;
-    padding: 0 14px !important;
+    padding: 0 12px !important;
     border-radius: 999px;
     white-space: nowrap;
   }
@@ -394,25 +394,25 @@
 /* Desktop: controles auxiliares na mesma escala da barra de ações. */
 @media (min-width: 1024px) {
   .cadastro-b1 .tb-btn.tb-btn-icon:not(#mk-padrao) {
-    width: 38px !important;
-    min-width: 38px !important;
+    width: 36px !important;
+    min-width: 36px !important;
     padding: 0 !important;
-    flex: 0 0 38px;
+    flex: 0 0 36px;
   }
 
   .cadastro-b1 .view-seg:not(#mk-padrao) {
-    height: 38px !important;
-    min-height: 38px !important;
+    height: 36px !important;
+    min-height: 36px !important;
     padding: 3px !important;
     gap: 2px;
     box-sizing: border-box;
   }
 
   .cadastro-b1 .view-seg button:not(#mk-padrao) {
-    width: 32px !important;
-    min-width: 32px !important;
-    height: 32px !important;
-    min-height: 32px !important;
+    width: 30px !important;
+    min-width: 30px !important;
+    height: 30px !important;
+    min-height: 30px !important;
     padding: 0 !important;
   }
 
@@ -444,28 +444,28 @@
 @media (min-width: 1024px) {
   .tb-btn:not(#mk-padrao),
   .cadastro-b1 .mg-search-pill:not(#mk-padrao) {
-    height: 40px !important;
-    min-height: 40px !important;
+    height: 36px !important;
+    min-height: 36px !important;
   }
   .cadastro-b1 .tb-btn.tb-btn-icon:not(#mk-padrao) {
-    width: 40px !important;
-    min-width: 40px !important;
-    flex-basis: 40px;
+    width: 36px !important;
+    min-width: 36px !important;
+    flex-basis: 36px;
   }
   .cadastro-b1 .view-seg:not(#mk-padrao) {
-    height: 40px !important;
-    min-height: 40px !important;
+    height: 36px !important;
+    min-height: 36px !important;
   }
   .cadastro-b1 .view-seg button:not(#mk-padrao) {
-    width: 34px !important;
-    min-width: 34px !important;
-    height: 34px !important;
-    min-height: 34px !important;
+    width: 30px !important;
+    min-width: 30px !important;
+    height: 30px !important;
+    min-height: 30px !important;
   }
   :is(.tb-btn, .view-seg button, .mg-rec-pager__btn, .mk-sheet__close, .mk-sheet__new, .mk-ll-dlg__redondo, .mk-ll__add, .mk-ll__remover, .mk-ll__btn):not(#mk-padrao) svg,
   .cadastro-b1 .mg-search-pill-icon:not(#mk-padrao) {
-    width: 18px !important;
-    height: 18px !important;
+    width: 16px !important;
+    height: 16px !important;
     stroke-width: 1.75;
     flex-shrink: 0;
   }
@@ -473,7 +473,7 @@
 }
 
 /* A pesquisa aberta mantém largura própria; a barra quebra linha se necessário. */
-@media (min-width: 640px) {
+@media (min-width: 636px) {
   .cadastro-b1 .mg-toolbar .mg-toolbar__btns:not(#mk-padrao) {
     max-width: 100%;
     flex-wrap: wrap !important;
