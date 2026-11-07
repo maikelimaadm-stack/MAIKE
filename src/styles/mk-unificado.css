@@ -304,3 +304,28 @@ input[type="checkbox"]:focus-visible { outline: 2px solid #5acbe9; outline-offse
   .mk-ll-dlg__txt:not(#mk-padrao), .mk-ll-dlg__titulo:not(#mk-padrao) { text-align: center; }
   .mk-ll-dlg__slot:not(#mk-padrao) { min-width: 0; width: 36px; }
 }
+
+/* O filtro dentro da folha não ganha outra moldura/fundo por cima do cinza. */
+.mk-column-filter-sheet .fpop--sheet:not(#mk-padrao) {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+.mk-column-filter-sheet .mk-sheet__body:not(#mk-padrao) { background: var(--mk-sup-fundo); }
+.b1ref .fpop :is(.fselb, .fin):not(#mk-padrao),
+.b1ref .fpop .fselb .fselb-l:not(#mk-padrao),
+.b1ref .foperadores .fopt:not(#mk-padrao) {
+  font-size: 12px !important;
+  font-weight: 500;
+  line-height: 1.35;
+  color: #334155;
+}
+.b1ref .fpop .fselb .fselb-l > span { font-size: 12px !important; }
+.b1ref .fpop :is(.fselb, .fin):not(#mk-padrao) { height: 32px; min-height: 32px; }
+.b1ref .fpop .fmi-limpar:not(#mk-padrao) { font-size: 12px !important; min-height: 32px; }
+.mk-sheet__title:not(#mk-padrao), .mk-ll-dlg__titulo:not(#mk-padrao),
+.mk-config-dialog .mdl-t:not(#mk-padrao) { font-size: 14px !important; line-height: 1.3; font-weight: 600; }
+.b1ref .foperadores .fopt:not(#mk-padrao) { min-height: 34px; }
