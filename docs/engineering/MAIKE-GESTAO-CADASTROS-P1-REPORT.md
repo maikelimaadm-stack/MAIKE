@@ -165,3 +165,45 @@ Um centro de custo não tem centro de resultado fixo, e um parceiro não tem cen
   - duas execuções simultâneas no mesmo banco;
   - a reciclagem do container da sessão, que derruba o PostgreSQL local entre turnos (log: "not properly shut down").
 - Nenhuma veio de defeito de código. A rodada isolada em banco novo deu verde, assim como a CI do head.
+
+## 9. Migration aplicada na produção (07/11/2026) — registro operacional
+
+O proprietário autorizou por escrito, em 07/11/2026:
+
+> "Você pode fazer as migrações, porque é apenas cadastro."
+
+**Caminho:** conector Supabase (`execute_sql`), no mesmo formato da S04-P1 (§13) e da S04-P2 (§11), e **não** pelo `premerge-migrate --aplicar`.
+
+**Alvo:** Supabase MAIKE `uuemcasqcdjucflulkne`, database `postgres`, `system_identifier` 7692130048193495360.
+
+**Antes** (só leitura)
+- 32 migrations concluídas, 0 com falha; a última era `20261107200000_s04_p2_troca_senha_inicial`.
+- A migration Gestão P1 não estava registrada e as 3 tabelas não existiam.
+- 2 clientes, 5 usuários, 2 empresas, 59 lotes, 0 fornecedores.
+
+**Execução: uma transação**
+- `lock_timeout` de 5 s.
+- Guardas que abortariam se:
+  - o `system_identifier` não fosse o esperado;
+  - a migration já estivesse registrada;
+  - o histórico não tivesse exatamente 32 migrations concluídas;
+  - houvesse migration com falha.
+- O `migration.sql` integral, cujo único `DROP` é `DROP POLICY IF EXISTS` nas próprias tabelas novas.
+- INSERT em `_prisma_migrations` com o checksum `e29855b2…cecf5` e `applied_steps_count = 1`.
+- Nenhum DROP de dado, DELETE, TRUNCATE ou UPDATE. Nenhuma tabela existente alterada.
+
+**Depois** (só leitura)
+- 33 migrations, 0 com falha. Checksum e passos conferem.
+- As 3 tabelas existem, com RLS ligado, 3 políticas `maike_backend_all` e 0 grants para `anon`/`authenticated`.
+- Constraints e índices: 10 FKs, 2 CHECKs, 20 índices.
+- Contagens preservadas: 2 clientes, 5 usuários, 2 empresas, 59 lotes, 0 fornecedores.
+- Produção no ar (main `05dda652`, que ignora as tabelas novas): `/api/native/health` = 200.
+
+**Desvios em relação ao runbook:** os mesmos aceitos nas S04 (sem backup lógico novo e sem `conferir-alvo-banco.mjs`), por decisão do proprietário.
+
+**Rollback:** não é necessário para o runtime antigo. Se um dia for preciso, consiste em remover as 3 tabelas novas, vazias, **somente com nova autorização**.
+
+| Item | Estado |
+|---|---|
+| `SCHEMA_APPLIED_PRODUCTION` | **SIM** (07/11/2026) |
+| `MERGE_READY` | **CANDIDATO**, sujeito à auditoria do proprietário |
