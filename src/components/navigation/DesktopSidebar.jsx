@@ -154,7 +154,7 @@ export default function DesktopSidebar({ items, currentPath, onNavigate, collaps
           id="app-shell-sidebar"
           aria-label="Módulos"
           data-collapsed={expandido ? "false" : "true"}
-          className={`flex h-full flex-col border-r border-[var(--mk-sup-borda)] bg-[var(--mk-sup-cartao)] ${
+          className={`flex h-full flex-col border-r border-[#cbd5e1] bg-[var(--mk-sup-cartao)] ${
             expandido ? "w-[322px]" : "w-[60px]"
           } relative`}
         >
@@ -349,7 +349,7 @@ export default function DesktopSidebar({ items, currentPath, onNavigate, collaps
             aria-label={collapsed ? "Exibir barra lateral" : "Recolher barra lateral"}
             title={collapsed ? "Exibir barra lateral" : "Recolher barra lateral"}
             onClick={alternar}
-            className={`absolute inset-y-0 -right-1 z-20 w-2 bg-transparent outline-none transition-colors hover:bg-[#32d65e]/40 focus-visible:bg-[#32d65e]/60 ${
+            className={`absolute inset-y-0 -right-1 z-20 w-2 bg-transparent outline-none ${
               collapsed ? "cursor-e-resize" : "cursor-w-resize"
             }`}
           />
