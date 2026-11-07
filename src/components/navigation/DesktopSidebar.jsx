@@ -95,7 +95,7 @@ export default function DesktopSidebar({ items, currentPath, onNavigate, collaps
         </div>
         {collapsed ? (
           <div className="mt-1 flex justify-center">
-            <SidebarTooltip label="Expandir menu" atalhos={["Ctrl", "Shift", "S"]}>
+            <SidebarTooltip label="Alternar barra lateral" atalhos={["Ctrl", "Shift", "S"]}>
               <button
                 type="button"
                 onClick={onToggle}
@@ -111,17 +111,6 @@ export default function DesktopSidebar({ items, currentPath, onNavigate, collaps
 
       {/* Atalhos */}
       <div className={`flex flex-col gap-1 border-b border-[var(--mk-sup-borda)] pb-3 pt-4 ${collapsed ? "px-2.5" : "px-3"}`}>
-        <SidebarTooltip label="Início" ativo={collapsed}>
-          <Link
-            to={createPageUrl(PAGINA_INICIAL)}
-            onClick={(event) => onNavigate(event, createPageUrl(PAGINA_INICIAL))}
-            aria-current={inicioAtivo ? "page" : undefined}
-            className={`${ITEM_BASE} ${inicioAtivo ? ITEM_ATIVO : "text-[#292a2d]"} ${collapsed ? "justify-center px-0" : ""}`}
-          >
-            <Home size={19} className={inicioAtivo ? "shrink-0 text-[#16a34a]" : ICONE_ITEM} aria-hidden />
-            {collapsed ? null : <span className="truncate text-[12.5px]">Início</span>}
-          </Link>
-        </SidebarTooltip>
         <SidebarTooltip label="Pesquisar telas" atalhos={["Ctrl", "K"]} ativo={collapsed}>
           <button
             type="button"
@@ -139,6 +128,18 @@ export default function DesktopSidebar({ items, currentPath, onNavigate, collaps
               </>
             )}
           </button>
+        </SidebarTooltip>
+        <SidebarTooltip label="Início" ativo={collapsed}>
+          <Link
+            to={createPageUrl(PAGINA_INICIAL)}
+            onClick={(event) => onNavigate(event, createPageUrl(PAGINA_INICIAL))}
+            aria-current={inicioAtivo ? "page" : undefined}
+            aria-label={collapsed ? "Início" : undefined}
+            className={`${ITEM_BASE} ${inicioAtivo ? ITEM_ATIVO : "text-[#292a2d]"} ${collapsed ? "justify-center px-0" : ""}`}
+          >
+            <Home size={19} className={inicioAtivo ? "shrink-0 text-[#16a34a]" : ICONE_ITEM} aria-hidden />
+            {collapsed ? null : <span className="truncate text-[12.5px]">Início</span>}
+          </Link>
         </SidebarTooltip>
       </div>
 
