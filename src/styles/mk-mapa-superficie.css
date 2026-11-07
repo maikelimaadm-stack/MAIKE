@@ -373,3 +373,40 @@ button[data-mk-map-action]:is([class*="bg-amber"], [class*="bg-yellow"]):not(#mk
 @media (min-width: 1024px) {
   .mk-map-filters--clean .mk-map-layer-row:not(#mk-padrao) { min-height: 38px; height: auto; }
 }
+
+/* Mobile: densidade menor no painel lateral, sem alterar o desktop. */
+@media (max-width: 639px) {
+  .mk-map-filter-sheet {
+    --mk-toggle-w: 40.5px;
+    --mk-toggle-h: 18px;
+  }
+  .mk-map-filter-sheet .mk-map-filter-header h2 { font-size: 13px; }
+  .mk-map-filter-sheet .mk-map-panel-close:not(#mk-padrao) {
+    width: 32px;
+    min-width: 32px;
+    height: 32px;
+    min-height: 32px;
+  }
+  .mk-map-filters--clean:not(#mk-padrao) { gap: 12px; }
+  .mk-map-filters--clean .mk-map-filter-heading { padding-bottom: 6px; }
+  .mk-map-filters--clean .mk-map-filter-heading > span { font-size: 11px; }
+  .mk-map-filters--clean :is(.mk-map-layer-list, .mk-map-filter-fields) { padding: 0 10px; }
+  .mk-map-filters--clean .mk-map-layer-row:not(#mk-padrao) {
+    min-height: 38px;
+    padding: 7px 0;
+  }
+  .mk-map-filters--clean .mk-map-layer-row > span:not(#mk-padrao),
+  .mk-map-filters--clean .mk-map-filter-fields label:not(#mk-padrao) { font-size: 11px; }
+  .mk-map-filters--clean .mk-map-filter-fields > div {
+    min-height: 40px;
+    padding: 4px 0;
+    gap: 8px;
+  }
+  .mk-map-filters--clean .mk-map-filter-fields :is(input, button[role="combobox"]):not(#mk-padrao) {
+    height: 28px;
+    min-height: 28px;
+    padding: 0 8px;
+    font-size: 11px;
+  }
+  .mk-map-filters--clean button[role="combobox"] > svg { width: 12px; height: 12px; }
+}
