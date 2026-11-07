@@ -109,7 +109,7 @@ function SenhaUnica({ resultado, onConcluir }) {
       <h2 id="titulo-senha">Cliente {resultado.cliente.nome} cadastrado</h2>
       <Aviso tipo="aviso">
         Esta é a única vez que a senha inicial aparece. Copie e entregue ao administrador por um canal seguro (pessoalmente ou mensagem
-        direta). Ainda não existe troca obrigatória no primeiro acesso: peça para ele trocar a senha em Usuários logo ao entrar. Se usar
+        direta). No primeiro acesso o sistema exige que ele troque esta senha por uma só dele antes de entrar. Se usar
         &quot;Copiar senha&quot;, ela continua na área de transferência deste dispositivo até você copiar outra coisa.
       </Aviso>
       <dl className="ficha-dados">

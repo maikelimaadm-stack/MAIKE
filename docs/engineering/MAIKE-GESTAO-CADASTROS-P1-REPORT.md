@@ -5,7 +5,7 @@ Pedido do proprietário (`PROMPT_CLAUDE_MAIKE_GESTAO_CADASTROS_P1_VINCULACOES_20
 - **Sem financeiro:** nada de Naturezas Financeiras, lançamentos, compras, NF-e/XML ou contas a pagar.
 - **Sem efeito em estoque ou mapa.**
 
-Base: `main` `f7651772` (merge da PR #217). PR aberta na mesma janela: #221 (S04-P2), com colisão prevista só no manifesto de migrations (§5).
+Base: `main` `f7651772` (merge da PR #217), depois integrada com `main` `05dda652` (merge da PR #221, S04-P2). Ver §5.
 
 ## 1. O que existe agora
 
@@ -80,7 +80,7 @@ Código: `backend/src/modules/gestao/` (`gestaoComum.js`, `parceiroService.js`, 
   - SHA `e29855b2…cecf5` pinado em `MIGRATIONS_APROVADAS`.
   - Corpo do DO `62795ad4…2aa3` em `DO_RLS_APROVADOS`.
 - **Validação local:** aplicada só em PostgreSQL 16 local descartável; `prisma migrate diff` banco × schema dá vazio.
-- **Colisão com #221:** a outra PR também acrescenta uma linha ao mesmo manifesto. É um conflito textual trivial, porque as duas entradas convivem.
+- **Integração com #221 (já na `main`):** os conflitos ficaram em `DECISIONS.md`, `MIGRATIONS_APROVADAS` e no teste B1 do pré-merge, e foram resolvidos mantendo as duas entradas. Agora B1 espera as três tabelas novas e `Usuario.troca_senha_pendente`. Não há mudança de schema em comum.
 - **Reversão operacional:** as três tabelas são novas e nada as referencia. Não há DROP a executar em produção.
 
 ## 6. Contrato para vínculos futuros (nada criado agora)

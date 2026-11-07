@@ -136,6 +136,11 @@ model Usuario {
   /// `ativo` ou de `papel_tenant` incrementa e derruba os tokens anteriores.
   /// Anulável (EXPAND): NULL vale 0; só se grava `COALESCE(..,0)+1`.
   sessao_epoca Int?
+  /// Troca obrigatória da senha temporária no primeiro acesso (S04-P2).
+  /// Anulável (EXPAND, sem DEFAULT): NULL = false (contas anteriores entram
+  /// normalmente). Só a criação de fazenda pelo MAIKE Admin grava `true`; só a
+  /// conclusão da troca (`POST /auth/troca-senha-inicial`) grava `false`.
+  troca_senha_pendente Boolean?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 

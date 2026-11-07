@@ -51,6 +51,13 @@ declare module 'fastify' {
     adminPrincipal?: import('@prisma/client').AdminPrincipalMaike;
     /** Sessão do MAIKE Admin (sem o token, que só existe no cookie). */
     sessaoAdmin?: Omit<import('@prisma/client').SessaoAdminMaike, never>;
+    /** S04-P2: sessão RESTRITA da troca obrigatória de senha (só em `/auth/troca-senha-inicial`). */
+    trocaSenha?: {
+      clienteId: string;
+      usuarioId: string;
+      login: string;
+      epocas: { cliente: number; usuario: number };
+    };
   }
 
   interface FastifyRequest {

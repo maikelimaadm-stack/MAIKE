@@ -55,7 +55,10 @@ const normalizarEntrada = (entrada) => {
  * Autentica e devolve o material do `auth_context`.
  *
  * @param {{login?: unknown, senha?: unknown}} entrada
- * @returns {Promise<{clienteId: string, usuarioId: string, login: string, nome: string, clienteSessaoEpoca: number, usuarioSessaoEpoca: number}>}
+ * `trocaSenhaPendente` (S04-P2): a senha conferiu, mas é a temporária do
+ * primeiro acesso. Quem chama NÃO pode emitir a sessão normal nesse caso.
+ *
+ * @returns {Promise<{clienteId: string, usuarioId: string, login: string, nome: string, clienteSessaoEpoca: number, usuarioSessaoEpoca: number, trocaSenhaPendente: boolean}>}
  */
 export const autenticar = async (entrada) => {
   const { login, senha } = normalizarEntrada(entrada);
@@ -81,6 +84,7 @@ export const autenticar = async (entrada) => {
     nome: usuario.nome,
     clienteSessaoEpoca: epocaDe(usuario.cliente.sessao_epoca),
     usuarioSessaoEpoca: epocaDe(usuario.sessao_epoca),
+    trocaSenhaPendente: usuario.troca_senha_pendente === true,
   };
 };
 
