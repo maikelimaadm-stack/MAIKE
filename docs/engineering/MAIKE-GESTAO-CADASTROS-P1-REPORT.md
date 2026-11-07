@@ -115,9 +115,36 @@ Um centro de custo não tem centro de resultado fixo, e um parceiro não tem cen
   - T7: o banco recusa par e pai de outra empresa e a autorreferência, e RESTRICT na empresa.
 - **Tabelas proibidas:** fotografia antes/depois de Lote, notas, movimentações, produto e rebanho mostra tudo intacto.
 - **Gates:** `test:gates` 693/693. O teste B1 do pré-merge passou a listar as três tabelas novas aprovadas.
+- **Scripts de operação:** `inicializar-tenant-maike` e os SQLs do editor (01–04) agora conhecem as três tabelas (58 → 61 tabelas tenant). A FK composta autorreferente (MATCH SIMPLE) é anulada só por `pai_id` antes da limpeza.
+- **Suíte backend completa:** 1088 testes, 1083 pass, 0 fail, 0 skip. Os 5 `todo` já existiam e são do roteiro do ledger.
+- **Frontend (`tests/smoke/`):** 49 testes novos em 5 arquivos, com componentes reais e `fetch` falso.
+  - `gestaoParceiros` 17;
+  - `gestaoCentrosCusto` 16;
+  - `gestaoCentrosResultado` 4;
+  - `gestaoMenuPermissoes` 9, com o Layout real;
+  - `gestaoLoteFornecedorInativo` 3.
+
+## 7.1 Interface
+
+- **Menu e escopo:**
+  - O grupo **Gestão Rural** traz as telas Parceiros, Centros de Custo e Centros de Resultado.
+  - Em `config/mapa-manejo-scope.json`, `allowedPages` ganhou exatamente `Parceiros`, `CentrosCusto` e `CentrosResultado`. Só `CentrosCusto` saiu de `forbiddenDomains`, e `CentroCusto` continua em `forbiddenBase44Entities`.
+  - O `vercel.json` foi regenerado pelo script de sincronização, então o link direto funciona.
+- **Telas:** seguem o padrão Motor Base1 (`CadastroBase1Screen`). As props novas têm padrão igual ao comportamento atual, então as demais telas não mudam.
+  - Parceiros: pessoa física e jurídica, papéis múltiplos, papéis antigos só para leitura, PATCH só com o que mudou.
+  - Centros: caminho e indentação da árvore. As opções de pai excluem o próprio nó e os descendentes. Filtro ativos/inativos/todos.
+  - Vínculo: o Centro de Custo edita com seleção múltipla e relê do banco depois do PUT. O Centro de Resultado só lê.
+- **Exclusão:** "Excluir" inativa, com confirmação. Desligar "Ativo" também pede confirmação.
+- **Empresa:** o fallback `clienteId` é tratado como "sem empresa". A tela mostra "Selecione uma empresa", sem listar nem gravar. A troca de empresa limpa o estado.
+- **Gravações só online:** sem fila offline, porque o servidor pode recusar depois (documento duplicado, hierarquia).
+- **Permissões no cliente:** `gestaoPermissions.js` espelha os guardas do servidor, e o não-admin começa sem acesso. A tela Permissões lista as três telas a partir do menu.
+- **Cadastro de Lotes:** o seletor de fornecedor não oferece inativos, mas mantém o fornecedor atual do lote. `GET /fornecedores` não mudou.
+- **Capturas:** desktop 1280 e celular 390, lista e registro, das três telas. Foram feitas com backend falso e não estão versionadas.
 
 ## 8. Riscos residuais
 
 - **Documento duplicado sem unique de banco:** a proteção é transacional, com trava por documento e empresa. Uma escrita por outra via (rotas antigas de admin real em `/fornecedores`) não passa por essa checagem.
 - **Revogação em voo:** a permissão é conferida no preHandler, como no resto do produto. Um pedido em andamento durante a revogação pode concluir (R2 §9.2).
 - **Opções de pai e de vínculo:** limitadas a 1000 centros ativos por lista.
+- **Salvar no celular:** em edição no celular, Salvar/Cancelar ficam no cabeçalho do Layout, possivelmente fora do wrapper `data-permissao-explicita`. Quem tem só "editar" pode ser barrado no cliente embora o servidor aceite. O risco é o mesmo das telas Base1 atuais, e não foi validado em aparelho.
+- **Ícone do grupo no menu do celular:** usa o ícone padrão.
