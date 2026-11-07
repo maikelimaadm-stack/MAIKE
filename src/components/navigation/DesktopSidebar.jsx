@@ -68,7 +68,7 @@ export default function DesktopSidebar({ items, currentPath, onNavigate, collaps
       aria-label="Módulos"
       data-collapsed={collapsed ? "true" : "false"}
       className={`relative hidden shrink-0 flex-col border-r border-[var(--mk-sup-borda)] bg-[var(--mk-sup-cartao)] transition-[width] duration-300 lg:flex ${
-        collapsed ? "w-[68px]" : "w-[340px]"
+        collapsed ? "w-[68px]" : "w-[322px]"
       }`}
     >
       {/* Marca: recolhido, a logo vira o botão de expandir ao passar o mouse. */}
@@ -105,21 +105,21 @@ export default function DesktopSidebar({ items, currentPath, onNavigate, collaps
             </div>
             <button
               type="button"
+              onClick={onSearch}
+              aria-label="Pesquisar telas"
+              title="Pesquisar telas (Ctrl K)"
+              className="flex h-[33px] w-[33px] shrink-0 items-center justify-center rounded-[9px] text-[#64748b] transition-colors hover:bg-[var(--mk-btn-ativo)] hover:text-[#292a2d]"
+            >
+              <Search size={19} aria-hidden />
+            </button>
+            <button
+              type="button"
               onClick={onToggle}
               aria-label="Recolher menu"
               title="Recolher menu"
               className="flex h-[33px] w-[33px] shrink-0 items-center justify-center rounded-[9px] text-[#64748b] transition-colors hover:bg-[var(--mk-btn-ativo)] hover:text-[#292a2d]"
             >
               <PanelLeft size={19} aria-hidden />
-            </button>
-            <button
-              type="button"
-              onClick={onSearch}
-              aria-label="Pesquisar telas"
-              className="flex h-[34px] w-[124px] shrink-0 items-center gap-1.5 rounded-[9px] border border-[var(--mk-sup-borda)] px-2 text-[12px] text-[#64748b] transition-colors hover:bg-[var(--mk-btn-ativo)] hover:text-[#292a2d]"
-            >
-              <Search size={15} className="shrink-0" aria-hidden />
-              <span className="truncate">Pesquisar telas</span>
             </button>
           </div>
         )}
