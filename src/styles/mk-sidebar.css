@@ -1,0 +1,53 @@
+/* Acabamento do menu: superfície contínua, destaque neutro e movimentos curtos. */
+.mk-desktop-sidebar-frame { transition: width 180ms cubic-bezier(.2,.8,.2,1); }
+.mk-desktop-sidebar {
+  --mk-sidebar-hover: rgba(41,42,45,.055);
+  --mk-sidebar-active: rgba(41,42,45,.085);
+  background: var(--mk-sup-fundo, #f7f8fa);
+  color: #292a2d;
+  transition: width 180ms cubic-bezier(.2,.8,.2,1);
+}
+.mk-desktop-sidebar :is(button,a) {
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color 120ms ease, color 120ms ease, opacity 120ms ease;
+}
+.mk-desktop-sidebar :is(button,a):focus-visible {
+  outline: 2px solid #5acbe9;
+  outline-offset: -2px;
+}
+.mk-desktop-sidebar :is(button,a):hover { background-color: var(--mk-sidebar-hover); }
+.mk-desktop-sidebar :is(button,a):active { background-color: var(--mk-sidebar-active); }
+.mk-desktop-sidebar a[aria-current="page"] {
+  background: var(--mk-sidebar-active);
+  color: #292a2d;
+  font-weight: 500;
+}
+.mk-desktop-sidebar a[aria-current="page"] > svg { color: #292a2d; }
+.mk-desktop-sidebar > div:nth-child(2) { gap: 1px; padding-top: 8px; }
+.mk-desktop-sidebar > div:nth-child(2) :is(button,a),
+.mk-desktop-sidebar section > button { height: 36px; border-radius: 8px; gap: 10px; }
+.mk-desktop-sidebar section > button > span,
+.mk-desktop-sidebar a > span.truncate { font-size: 13px; }
+.mk-desktop-sidebar section > button > svg:first-child { width: 20px; height: 20px; color: #64748b; }
+.mk-desktop-sidebar section > button > svg:last-child {
+  opacity: 0;
+  transition: opacity 120ms ease, transform 150ms ease;
+}
+.mk-desktop-sidebar section > button:is(:hover,:focus-visible,[aria-expanded="true"]) > svg:last-child { opacity: 1; }
+.mk-desktop-sidebar section > button[aria-expanded="true"] { background: var(--mk-sidebar-hover); }
+.mk-desktop-sidebar section .mk-sidebar-children a {
+  height: 36px;
+  border-radius: 8px;
+  color: #475569;
+}
+.mk-desktop-sidebar section .mk-sidebar-children a[aria-current="page"] { color: #292a2d; }
+.mk-desktop-sidebar .mk-sidebar-children { animation: mk-sidebar-reveal 150ms ease-out; }
+@keyframes mk-sidebar-reveal { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) {
+  .mk-desktop-sidebar-frame, .mk-desktop-sidebar, .mk-desktop-sidebar * { transition: none !important; animation: none !important; }
+}
+.mk-desktop-sidebar button[data-active="true"] { color: #292a2d; background: var(--mk-sidebar-active); }
+.mk-desktop-sidebar .mk-sidebar-children a[aria-current="page"] > span[aria-hidden] { background: currentColor; }
+.mk-sidebar-flyout a { height: 36px; transition: background-color 120ms ease, color 120ms ease; }
+.mk-sidebar-flyout a:hover, .mk-sidebar-flyout a[aria-current="page"] { background: rgba(41,42,45,.065); color: #292a2d; }
+.mk-sidebar-flyout a:focus-visible { outline: 2px solid #5acbe9; outline-offset: -2px; }

@@ -145,7 +145,7 @@ export default function DesktopSidebar({ items, currentPath, onNavigate, collaps
   return (
     <>
       <div
-        className={`hidden shrink-0 transition-[width] duration-300 lg:block ${
+        className={`mk-desktop-sidebar-frame hidden shrink-0 motion-reduce:transition-none lg:block ${
           collapsed ? "w-[60px]" : "w-[322px]"
         }`}
       >
@@ -154,7 +154,7 @@ export default function DesktopSidebar({ items, currentPath, onNavigate, collaps
           id="app-shell-sidebar"
           aria-label="Módulos"
           data-collapsed={expandido ? "false" : "true"}
-          className={`flex h-full flex-col bg-[var(--mk-sup-cartao)] ${
+          className={`mk-desktop-sidebar flex h-full flex-col bg-[var(--mk-sup-cartao)] ${
             expandido ? "w-[322px]" : "w-[60px]"
           } relative`}
         >
@@ -275,6 +275,7 @@ export default function DesktopSidebar({ items, currentPath, onNavigate, collaps
                       onMouseLeave={agendarFechamento}
                       onFocus={(event) => abrirFlyout(item, event)}
                       onBlur={agendarFechamento}
+                      data-active={atual ? "true" : "false"}
                       aria-label={`Abrir menu ${item.title}`}
                       aria-haspopup="menu"
                       aria-expanded={flyout?.item.id === item.id}
@@ -310,7 +311,7 @@ export default function DesktopSidebar({ items, currentPath, onNavigate, collaps
                       />
                     </button>
                     {aberto ? (
-                      <div className="flex flex-col gap-0.5 py-1">
+                      <div className="mk-sidebar-children flex flex-col gap-0.5 py-1">
                         {telas.map((page) => {
                           const ativo = paginaAtual(page);
                           return (
