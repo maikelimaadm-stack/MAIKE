@@ -533,7 +533,7 @@ function LayoutShell({ children, currentPageName }) {
         onSearch={() => setSearchOpen(true)} />
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-      <header className={`bg-white flex-none relative z-30 ${mobileHeaderBorder ? "border-b border-slate-200" : "border-b border-slate-200 max-md:border-b-0"}`}>
+      <header className={`bg-white flex-none relative z-30 border-b border-[var(--mk-sup-borda)] ${mobileHeaderBorder ? "" : "max-md:border-b-0"}`}>
         {mobileRecord?.editing ?
         // Registro em edição/novo: cabeçalho como as folhas — ✕ descartar, título, ✓ salvar (D-PROD-95).
         <div className="mk-mhdr mk-mhdr--edit md:hidden">

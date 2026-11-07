@@ -126,7 +126,8 @@ export default function DesktopSidebar({ items, currentPath, onNavigate, collaps
     setFlyout({
       item,
       top: Math.max(12, Math.min(caixa.top, window.innerHeight - 320)),
-      left: caixa.right + 10,
+      // Encosta fora do trilho, sem cobrir os ícones.
+      left: Math.max(caixa.right + 10, (barraRef.current?.getBoundingClientRect().right || 0) + 8),
     });
   };
 
@@ -145,7 +146,7 @@ export default function DesktopSidebar({ items, currentPath, onNavigate, collaps
     <>
       <div
         className={`hidden shrink-0 transition-[width] duration-300 lg:block ${
-          collapsed ? "w-[68px]" : "w-[322px]"
+          collapsed ? "w-[60px]" : "w-[322px]"
         }`}
       >
         <nav
@@ -153,12 +154,12 @@ export default function DesktopSidebar({ items, currentPath, onNavigate, collaps
           id="app-shell-sidebar"
           aria-label="Módulos"
           data-collapsed={expandido ? "false" : "true"}
-          className={`flex h-full flex-col border-r border-[#f1f3f5] bg-[var(--mk-sup-cartao)] ${
-            expandido ? "w-[322px]" : "w-[68px]"
+          className={`flex h-full flex-col border-r border-[var(--mk-sup-borda)] bg-[var(--mk-sup-cartao)] ${
+            expandido ? "w-[322px]" : "w-[60px]"
           } relative`}
         >
           {/* Marca: recolhido, a logo vira o botão de expandir ao passar o mouse. */}
-          <div className={expandido ? "px-3 pb-2 pt-[19px]" : "px-3.5 pb-2 pt-[19px]"}>
+          <div className={expandido ? "px-3 pb-2 pt-[19px]" : "px-2.5 pb-2 pt-[19px]"}>
             {expandido ? (
               <div className="flex h-10 items-center gap-2">
                 <span className="grid h-[38px] w-[38px] shrink-0 place-items-center">
@@ -254,7 +255,7 @@ export default function DesktopSidebar({ items, currentPath, onNavigate, collaps
             {expandido ? (
               <div className="px-[11px] pb-2 pt-[11px] text-[11px] font-semibold tracking-[0.15px] text-[#64748b]">Módulos</div>
             ) : null}
-            <div className={expandido ? "flex flex-col gap-[5px]" : "flex flex-col items-center gap-2"}>
+            <div className={expandido ? "flex flex-col gap-[5px]" : "flex flex-col items-center gap-1.5"}>
               {items.map((item) => {
                 const Icon = iconeDoModulo(item.id);
                 const telas = telasDoModulo(item);
@@ -277,7 +278,7 @@ export default function DesktopSidebar({ items, currentPath, onNavigate, collaps
                       aria-label={`Abrir menu ${item.title}`}
                       aria-haspopup="menu"
                       aria-expanded={flyout?.item.id === item.id}
-                      className={`flex h-11 w-11 items-center justify-center rounded-[9px] transition-colors ${
+                      className={`flex h-10 w-10 items-center justify-center rounded-[9px] transition-colors ${
                         atual
                           ? "bg-[rgba(64,222,99,0.14)] text-[#16a34a]"
                           : "text-[#64748b] hover:bg-[var(--mk-btn-ativo)] hover:text-[#292a2d]"
