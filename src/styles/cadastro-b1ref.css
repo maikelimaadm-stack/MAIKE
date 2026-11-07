@@ -133,8 +133,8 @@
 .b1ref .tb-btn.sm{height:26px;min-height:26px;padding:0 11px;font-size:11.5px}
 .b1ref .tb-btn.xs{height:24px;min-height:24px;padding:0 10px;font-size:11px}
 .b1ref .tb-btn.tb-btn-out{background:var(--mk-btn-bg, #ffffff);color:#475569;border-color:transparent;box-shadow:var(--mk-btn-sombra, 0 1px 3px rgba(15,23,42,.1))}
-.b1ref .tb-btn.novo{background:#40de63;color:#fff}
-.b1ref .tb-btn.novo:hover{background:#35cf56}
+.b1ref .tb-btn.novo{background:var(--mk-btn-bg, #ffffff);color:var(--mk-action-fg-green, #16a34a)}
+.b1ref .tb-btn.novo:hover{background:var(--mk-btn-hover, #f7f8fa);color:#15803d}
 .b1ref .fpop{overflow:auto;max-width:calc(100vw - 16px)}
 .b1ref .fcond,.b1ref .fsell,.b1ref .fmi,.b1ref .fsec,.b1ref .fpop-f,.b1ref .ftodos,.b1ref .opt-sep{flex-shrink:0}
 .b1ref .opt-sep{min-height:1px}

@@ -280,7 +280,7 @@
 .view-seg button:not(#mk-padrao) > svg {
   width: 20px !important;
   height: 20px !important;
-  stroke-width: 1.8;
+  stroke-width: var(--mk-action-stroke, 2.25);
   flex-shrink: 0;
 }
 
@@ -323,7 +323,7 @@
 :is(.mk-ll__add, .mk-ll__remover, .mk-ll__btn):not(#mk-padrao) > svg {
   width: 20px;
   height: 20px;
-  stroke-width: 1.8;
+  stroke-width: var(--mk-action-stroke, 2.25);
   flex-shrink: 0;
 }
 
@@ -379,7 +379,7 @@
   :is(.tb-btn, .view-seg button, .mg-rec-pager__btn, .mk-sheet__close, .mk-sheet__new, .mk-ll-dlg__redondo, .mk-ll__add, .mk-ll__remover, .mk-ll__btn):not(#mk-padrao) > svg {
     width: 16px !important;
     height: 16px !important;
-    stroke-width: 1.8;
+    stroke-width: var(--mk-action-stroke, 2.25);
   }
 
   .mg-toolbar__row--actions:has(.mg-act-salvar) .mg-act-cancelar {
@@ -476,7 +476,7 @@
   .cadastro-b1 .mg-search-pill-icon:not(#mk-padrao) {
     width: 16px !important;
     height: 16px !important;
-    stroke-width: 1.75;
+    stroke-width: var(--mk-action-stroke, 2.25);
     flex-shrink: 0;
   }
   .cadastro-b1 .mg-search-pill input:not(#mk-padrao) { font-size: 14px; }
@@ -528,7 +528,7 @@
     width: 20px !important;
     height: 20px !important;
     padding: 2px;
-    stroke-width: 1.65;
+    stroke-width: var(--mk-action-stroke, 2.25);
     flex-shrink: 0;
   }
 
@@ -666,7 +666,7 @@
     height: var(--mk-ui-icon-size) !important;
     padding: 0;
     flex-shrink: 0;
-    stroke-width: 1.65;
+    stroke-width: var(--mk-action-stroke, 2.25);
   }
 }
 
@@ -698,10 +698,10 @@
 .cadastro-b1 :is(.tb-btn, .view-seg button):not(#mk-padrao) svg,
 :is(.tb-btn, .view-seg button, .mg-rec-pager__btn, .mk-sheet__close, .mk-sheet__new, .mk-mhdr__round, .mk-ll-dlg__redondo, .mk-ll__add, .mk-ll__remover, .mk-ll__btn, .mg-b1-menuitem, .fpc__item, .mgs__op):not(#mk-padrao) svg,
 .mk-mhdr__back > span:not(#mk-padrao) svg {
-  width: 16px !important;
-  height: 16px !important;
+  width: var(--mk-action-icon, 16px) !important;
+  height: var(--mk-action-icon, 16px) !important;
   padding: 0 !important;
-  stroke-width: 1.65;
+  stroke-width: var(--mk-action-stroke, 2.25);
   flex-shrink: 0;
 }
 

@@ -5441,4 +5441,15 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
 - **Decisão:** ações (`tb-btn`, pager, ✕/✓ das folhas, chips/botões do mapa, secundários de lançamento) usam `#ffffff` sólido, sombra suave `0 1px 3px rgba(15,23,42,.1)`, sem blur. Painéis flutuantes podem manter vidro. Hover volta ao cinza de página (`--mk-sup-fundo`). Reforça D-PROD-138 / D-PROD-141.
 - **Implementação:** `src/styles/mk-unificado.css`, com alinhamento em `cadastro-b1-portal.css`, `cadastro-b1-controls.css`, `cadastro-b1ref.css`, `maike-mobile-shell.css` e `lancamento-lote.css`.
 
-<!-- Próxima decisão: D-PROD-148 -->
+## D-PROD-148 — Tipografia, cores e ícones de ação unificados
+
+- **Contexto:** o proprietário relatou fontes fora do padrão (umas enormes, outras pequenas), cores inconsistentes, ícones de botão finos demais e botões fora do estilo (fill verde/cinza misturado com branco).
+- **Decisão (SSOT em `mk-unificado.css`):**
+  - **Tipografia:** corpo/listas `13px`; ações `13px` peso 600; título de página `15px` (mobile) / `16px` (≥768). Campos em mobile continuam `16px` para não disparar zoom do iOS.
+  - **Cores de ação:** fundo `#ffffff`; texto/ícone neutro `#334155` / `#5b6b80`; verde `#16a34a` (Novo/Salvar/Aplicar); vermelho `#dc2626` (Excluir). Sem fill verde/vermelho nas pílulas de ação.
+  - **Ícones:** `16×16` com `stroke-width: 2.25` (mais “negrito” que o 1.65 anterior).
+  - **Altura:** desktop `36px`; barra mobile `38px`.
+- **Revoga:** o item visual “fundo cinza / sem sombra” ainda residual da D-PROD-96 na shell (já revogado em espírito pela D-PROD-138/147).
+- **Implementação:** `mk-unificado.css`, `mk-superficie.css`, `maike-mobile-shell.css`, `cadastro-base1.css`, `cadastro-b1-portal.css`, `cadastro-b1ref.css` + alinhamento de stroke nos CSS de mapa/filtros.
+
+<!-- Próxima decisão: D-PROD-149 -->

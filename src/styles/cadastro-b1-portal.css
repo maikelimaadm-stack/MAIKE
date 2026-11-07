@@ -165,17 +165,17 @@
   font-weight: 600 !important;
 }
 
-/* Novo / Salvar (tone green): verde + texto branco — padrão desktop e mobile */
+/* Novo / Salvar: branco + ícone/texto verde (D-PROD-147/148) */
 .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn.tb-btn-green:not(.tb-btn-icon) {
-  background: var(--mg-accent) !important;
-  color: #fff !important;
-  box-shadow: var(--portal-sombra) !important;
+  background: var(--mk-btn-bg, #ffffff) !important;
+  color: var(--mk-action-fg-green, #16a34a) !important;
+  box-shadow: var(--mk-btn-sombra, 0 1px 3px rgba(15, 23, 42, 0.1)) !important;
 }
 
 .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn.tb-btn-green:not(.tb-btn-icon):hover:not(:disabled) {
-  background: var(--mg-accent-hover) !important;
-  color: #fff !important;
-  box-shadow: var(--portal-sombra-hover) !important;
+  background: var(--mk-btn-hover, #f7f8fa) !important;
+  color: #15803d !important;
+  box-shadow: var(--mk-btn-sombra, 0 1px 3px rgba(15, 23, 42, 0.1)) !important;
 }
 
 .cadastro-b1--portal-compras .mg-pill-select,
@@ -227,16 +227,16 @@
   stroke: currentColor !important;
 }
 
-/* Visto / OK / Pronto: fundo verde + ícone branco (vence o cinza do portal/fpop/mdl) */
+/* Visto / OK / Pronto: branco + ícone verde (D-PROD-148) */
 .cadastro-b1--portal-compras .tb-btn.tb-btn-icon.tb-btn-green,
 .b1-portal-compras .tb-btn.tb-btn-icon.tb-btn-green,
 .b1-portal-compras.fpop .tb-btn.tb-btn-icon.tb-btn-green,
 .b1-portal-compras .fpop-f .tb-btn.tb-btn-icon.tb-btn-green,
 .b1-portal-compras .mdl-f .tb-btn.tb-btn-icon.tb-btn-green,
 .b1ref.b1-portal-compras .tb-btn.tb-btn-icon.tb-btn-green {
-  background: #40de63 !important;
-  border-color: #40de63 !important;
-  color: #fff !important;
+  background: var(--mk-btn-bg, #ffffff) !important;
+  border-color: transparent !important;
+  color: var(--mk-action-fg-green, #16a34a) !important;
 }
 
 .cadastro-b1--portal-compras .tb-btn.tb-btn-icon.tb-btn-green:hover:not(:disabled),
@@ -245,9 +245,9 @@
 .b1-portal-compras .fpop-f .tb-btn.tb-btn-icon.tb-btn-green:hover:not(:disabled),
 .b1-portal-compras .mdl-f .tb-btn.tb-btn-icon.tb-btn-green:hover:not(:disabled),
 .b1ref.b1-portal-compras .tb-btn.tb-btn-icon.tb-btn-green:hover:not(:disabled) {
-  background: #36c956 !important;
-  border-color: #36c956 !important;
-  color: #fff !important;
+  background: var(--mk-btn-hover, #f7f8fa) !important;
+  border-color: transparent !important;
+  color: #15803d !important;
 }
 
 .cadastro-b1--portal-compras .tb-btn.tb-btn-icon.tb-btn-green svg,
@@ -256,7 +256,7 @@
 .b1-portal-compras .fpop-f .tb-btn.tb-btn-icon.tb-btn-green svg,
 .b1-portal-compras .mdl-f .tb-btn.tb-btn-icon.tb-btn-green svg,
 .b1ref.b1-portal-compras .tb-btn.tb-btn-icon.tb-btn-green svg {
-  color: #fff !important;
+  color: var(--mk-action-fg-green, #16a34a) !important;
 }
 
 /* Popovers / dialogs / fpop no body */
@@ -302,17 +302,17 @@
 .b1-portal-compras .tb-btn.tb-btn-green,
 .b1-portal-compras.fpop .tb-btn.tb-btn-green,
 .b1-portal-compras .mdl-f .tb-btn.tb-btn-green {
-  background: #40de63 !important;
-  border-color: #40de63 !important;
-  color: #fff !important;
+  background: var(--mk-btn-bg, #ffffff) !important;
+  border-color: transparent !important;
+  color: var(--mk-action-fg-green, #16a34a) !important;
 }
 
 .b1-portal-compras .tb-btn.tb-btn-green:hover:not(:disabled),
 .b1-portal-compras.fpop .tb-btn.tb-btn-green:hover:not(:disabled),
 .b1-portal-compras .mdl-f .tb-btn.tb-btn-green:hover:not(:disabled) {
-  background: #36c956 !important;
-  border-color: #36c956 !important;
-  color: #fff !important;
+  background: var(--mk-btn-hover, #f7f8fa) !important;
+  border-color: transparent !important;
+  color: #15803d !important;
 }
 
 .b1-portal-compras .tb-btn-icon,
@@ -397,38 +397,38 @@
  */
 @media (max-width: 1023px) {
   .cadastro-b1--full-page .cadastro-b1--portal-compras {
-    --mg-btn-h: 44px;
+    --mg-btn-h: var(--mk-action-height-touch, 38px);
   }
 
   .cadastro-b1--full-page .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn:not(.tb-btn-icon),
   .cadastro-b1--full-page .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn-green,
   .cadastro-b1--full-page .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn-gray,
   .cadastro-b1--full-page .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn-red {
-    min-height: 44px !important;
-    height: auto !important;
-    padding-top: 8px !important;
-    padding-bottom: 8px !important;
-    font-size: 13px !important;
-    box-shadow: none !important;
+    min-height: var(--mk-action-height-touch, 38px) !important;
+    height: var(--mk-action-height-touch, 38px) !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    font-size: var(--mk-action-font, 13px) !important;
+    box-shadow: var(--mk-btn-sombra, 0 1px 3px rgba(15, 23, 42, 0.1)) !important;
   }
 
   .cadastro-b1--full-page .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn-green {
-    background: var(--mg-accent) !important;
-    color: #fff !important;
+    background: var(--mk-btn-bg, #ffffff) !important;
+    color: var(--mk-action-fg-green, #16a34a) !important;
   }
 
   .cadastro-b1--full-page .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn-green:hover:not(:disabled) {
-    background: var(--mg-accent-hover) !important;
-    color: #fff !important;
+    background: var(--mk-btn-hover, #f7f8fa) !important;
+    color: #15803d !important;
   }
 
   .cadastro-b1--full-page .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn-gray {
-    background: var(--mg-gray-fill) !important;
+    background: var(--mk-btn-bg, #ffffff) !important;
     color: var(--mg-text-1) !important;
   }
 
   .cadastro-b1--full-page .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn-gray:hover:not(:disabled) {
-    background: var(--mg-gray-fill2) !important;
+    background: var(--mk-btn-hover, #f7f8fa) !important;
     color: var(--mg-text-1) !important;
   }
 
@@ -450,18 +450,18 @@
   .cadastro-b1--full-page .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn-icon,
   .cadastro-b1--full-page .cadastro-b1--portal-compras .mg-summary .tb-btn-icon,
   .cadastro-b1--full-page .cadastro-b1--portal-compras .mg-nav-btn {
-    width: 44px !important;
-    min-width: 44px !important;
-    height: 44px !important;
-    min-height: 44px !important;
-    box-shadow: none !important;
+    width: var(--mk-action-height-touch, 38px) !important;
+    min-width: var(--mk-action-height-touch, 38px) !important;
+    height: var(--mk-action-height-touch, 38px) !important;
+    min-height: var(--mk-action-height-touch, 38px) !important;
+    box-shadow: var(--mk-btn-sombra, 0 1px 3px rgba(15, 23, 42, 0.1)) !important;
   }
 
   .cadastro-b1--full-page .cadastro-b1--portal-compras .view-seg {
     height: auto !important;
-    min-height: 44px !important;
-    padding: 4px !important;
-    box-shadow: none !important;
+    min-height: var(--mk-action-height-touch, 38px) !important;
+    padding: 3px !important;
+    box-shadow: var(--mk-btn-sombra, 0 1px 3px rgba(15, 23, 42, 0.1)) !important;
   }
 
   .cadastro-b1--full-page .cadastro-b1--portal-compras .view-seg button {

@@ -1160,7 +1160,7 @@
 .mk-al__quadro svg {
   width: 24px;
   height: 24px;
-  stroke-width: 1.6;
+  stroke-width: var(--mk-action-stroke, 2.25);
   color: #334155;
 }
 

@@ -39,7 +39,7 @@
   width: 16px !important;
   height: 16px !important;
   flex-shrink: 0;
-  stroke-width: 1.65;
+  stroke-width: var(--mk-action-stroke, 2.25);
 }
 
 /* Retira separadores e margens antigos: o espaço entre controles é 8px. */

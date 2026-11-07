@@ -102,10 +102,10 @@ describe('V5 — filtros e colunas', () => {
 describe('V5 — estilo e folha', () => {
   const css = () => readFileSync('src/styles/maike-mobile-shell.css', 'utf8');
 
-  it('V5-6 — botões sem sombra e cinza, com ícone verde/vermelho', () => {
+  it('V5-6 — botões brancos com sombra e ícone verde/vermelho (D-PROD-147/148)', () => {
     const fonte = css();
-    expect(fonte).toMatch(/:is\(\.tb-btn, \.view-seg, \.mg-rec-pager__btn, \.mk-sheet__close, \.mk-sheet__new, \.mk-mhdr__round, \.mk-anexos__remover\):not\(#mk-padrao\)[\s\S]*?box-shadow: none !important/);
-    expect(fonte).toMatch(/\.tb-btn\.tb-btn-green:not\(#mk-padrao\) svg \{\s*color: #16a34a !important/);
+    expect(fonte).toMatch(/:is\(\.tb-btn, \.view-seg, \.mg-rec-pager__btn, \.mk-sheet__close, \.mk-sheet__new, \.mk-mhdr__round, \.mk-anexos__remover\):not\(#mk-padrao\)[\s\S]*?box-shadow: var\(--mk-btn-sombra/);
+    expect(fonte).toMatch(/\.tb-btn\.tb-btn-green:not\(#mk-padrao\) svg \{\s*color: var\(--mk-action-fg-green, #16a34a\) !important/);
   });
 
   it('V5-7 — formulário do registro não anima ao montar (sem piscada)', () => {

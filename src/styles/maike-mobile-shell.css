@@ -2620,9 +2620,9 @@ form:has(.mk-lanc) button[class*="border-dashed"] {
 }
 
 .cadastro-b1 .tb-btn.mg-act-novo svg {
-  width: 20px;
-  height: 20px;
-  stroke-width: 2.25;
+  width: var(--mk-action-icon, 16px);
+  height: var(--mk-action-icon, 16px);
+  stroke-width: var(--mk-action-stroke, 2.25);
 }
 
 /* Registro aberto no celular: a faixa do cabeçalho do registro fica vazia (título foi para o app) */
@@ -3224,59 +3224,59 @@ button.mk-switch[data-state="checked"]:active:not(:disabled):not(#mk-padrao) .mk
 }
 
 /*
- * Botões padronizados: fundo cinza, sem sombra, ícone na cor de sempre
- * (verde no Novo/Salvar/Aplicar, vermelho no Excluir). `:not(#mk-padrao)`
- * dá peso de id para vencer as regras antigas com !important.
+ * Botões padronizados (D-PROD-147/148): fundo branco + sombra suave;
+ * ícone verde no Novo/Salvar/Aplicar, vermelho no Excluir.
  */
 :is(.tb-btn, .view-seg, .mg-rec-pager__btn, .mk-sheet__close, .mk-sheet__new, .mk-mhdr__round, .mk-anexos__remover):not(#mk-padrao),
 .view-seg button:not(#mk-padrao),
 .mk-mhdr__back > span:not(#mk-padrao) {
-  box-shadow: none !important;
+  box-shadow: var(--mk-btn-sombra, 0 1px 3px rgba(15, 23, 42, 0.1)) !important;
 }
 
 .tb-btn:not(.tb-btn-green):not(.tb-btn-red):not(.is-filter-on):not(.is-filter-active):not(#mk-padrao),
 .tb-btn.tb-btn-green:not(#mk-padrao),
 .tb-btn.tb-btn-red:not(#mk-padrao) {
   border-color: transparent !important;
-  background: var(--portal-acao-bg, #f7f8fa) !important;
+  background: var(--mk-btn-bg, #ffffff) !important;
 }
 
 .tb-btn:not(.tb-btn-green):not(.tb-btn-red):not(.is-filter-on):not(.is-filter-active):not(#mk-padrao):hover:not(:disabled),
 .tb-btn.tb-btn-green:not(#mk-padrao):hover:not(:disabled),
 .tb-btn.tb-btn-red:not(#mk-padrao):hover:not(:disabled) {
-  background: var(--portal-acao-hover, #e8ebee) !important;
+  background: var(--mk-btn-hover, #f7f8fa) !important;
 }
 
 .tb-btn.tb-btn-green:not(#mk-padrao),
 .tb-btn.tb-btn-green:not(#mk-padrao) svg {
-  color: #16a34a !important;
+  color: var(--mk-action-fg-green, #16a34a) !important;
 }
 
 .tb-btn.tb-btn-red:not(#mk-padrao),
 .tb-btn.tb-btn-red:not(#mk-padrao) svg {
-  color: #dc2626 !important;
+  color: var(--mk-action-fg-red, #dc2626) !important;
 }
 
-/* Seletor de visualização: trilho cinza; o modo ativo um cinza mais escuro (não branco) */
+/* Seletor de visualização: trilho branco; ativo verde claro */
 .view-seg:not(#mk-padrao) {
-  background: var(--portal-acao-bg, #f7f8fa) !important;
+  background: var(--mk-btn-bg, #ffffff) !important;
 }
 
 .view-seg button[aria-pressed="true"]:not(#mk-padrao),
 .view-seg button.is-active:not(#mk-padrao),
 .view-seg button[data-state="on"]:not(#mk-padrao) {
-  background: #dde1e6 !important;
+  background: rgba(64, 222, 99, 0.14) !important;
+  color: var(--mk-action-fg-green, #16a34a) !important;
 }
 
-/* Folhas: ✕ e +/✓ cinza (nada de branco) */
+/* Folhas: ✕ e +/✓ brancos */
 .mk-sheet__close:not(#mk-padrao),
 .mk-sheet__new:not(#mk-padrao) {
-  background: #ebebe8;
+  background: var(--mk-btn-bg, #ffffff);
 }
 
 .mk-sheet.mk-cr .mk-sheet__close:not(#mk-padrao),
 .mk-sheet.mk-cr .mk-sheet__new:not(#mk-padrao) {
-  background: var(--portal-acao-bg, #f7f8fa);
+  background: var(--mk-btn-bg, #ffffff);
 }
 
 /* Mesmo tamanho para todos os botões da barra no celular (38 px, como o Novo) */

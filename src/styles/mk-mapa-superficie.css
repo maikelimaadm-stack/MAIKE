@@ -23,7 +23,7 @@
 :is(.mk-mapa-btn, .mk-mapa-chip, .mk-mapa-camadas__x, .mk-al__botao, .mk-al__fechar, .mk-al__quadro):not(#mk-padrao) svg:not(.mk-al__img) {
   width: 16px;
   height: 16px;
-  stroke-width: 1.65;
+  stroke-width: var(--mk-action-stroke, 2.25);
   flex-shrink: 0;
 }
 .mk-mapa-camadas__menu:not(#mk-padrao),
@@ -77,7 +77,7 @@ button[data-mk-map-action]:not(#mk-padrao) {
 }
 button[data-mk-map-action]:is([class*="bg-emerald"], [class*="bg-green"]):not(#mk-padrao) { color: #16a34a !important; }
 button[data-mk-map-action]:is([class*="bg-red"], .bg-destructive):not(#mk-padrao) { color: #dc2626 !important; }
-button[data-mk-map-action]:not(#mk-padrao) svg { width: 16px; height: 16px; stroke-width: 1.65; }
+button[data-mk-map-action]:not(#mk-padrao) svg { width: 16px; height: 16px; stroke-width: var(--mk-action-stroke, 2.25); }
 :is(.mk-al__botao, .mk-al__fechar, .mk-al__quadro):not(#mk-padrao) { background: #fff; box-shadow: var(--mk-btn-sombra); border: 0; }
 .mk-al__botao:not(#mk-padrao) { min-height: 44px; border-radius: 999px; }
 .mk-al__quadro:not(#mk-padrao) { border-radius: 14px; }

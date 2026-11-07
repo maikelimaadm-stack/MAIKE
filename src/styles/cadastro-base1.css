@@ -92,7 +92,7 @@
   padding: 0 13px;
   border-radius: 999px;
   cursor: pointer;
-  font-size: 12.5px;
+  font-size: var(--mg-btn-font, var(--mk-action-font, 13px));
   font-weight: 600;
   border: 1px solid transparent;
   white-space: nowrap;
@@ -109,17 +109,19 @@
 }
 
 .cadastro-b1 .tb-btn svg {
-  width: 14px;
-  height: 14px;
+  width: var(--mk-action-icon, 16px);
+  height: var(--mk-action-icon, 16px);
+  stroke-width: var(--mk-action-stroke, 2.25);
 }
 
 .cadastro-b1 .tb-btn-green {
-  background: var(--mg-accent);
-  color: #fff;
+  background: var(--mk-btn-bg, #ffffff);
+  color: var(--mk-action-fg-green, #16a34a);
 }
 
 .cadastro-b1 .tb-btn-green:hover:not(:disabled) {
-  background: var(--mg-accent-hover);
+  background: var(--mk-btn-hover, #f7f8fa);
+  color: #15803d;
 }
 
 .cadastro-b1 .tb-btn-gray {
@@ -132,7 +134,7 @@
 }
 
 .cadastro-b1 .tb-btn-red {
-  background: var(--mg-gray-fill);
+  background: var(--mk-btn-bg, #ffffff);
   color: var(--mg-red);
 }
 
@@ -150,32 +152,32 @@
   width: var(--mg-btn-h);
   min-width: var(--mg-btn-h);
   padding: 0;
-  background: var(--mg-gray-fill);
+  background: var(--mk-btn-bg, #ffffff);
   color: var(--mg-icon);
 }
 
 .cadastro-b1 .tb-btn-icon:hover:not(:disabled) {
-  background: var(--mg-gray-fill2);
+  background: var(--mk-btn-hover, #f7f8fa);
 }
 
-/* Botões de visto (OK / Aplicar / Pronto): verde + ícone branco */
+/* Botões de visto (OK / Aplicar / Pronto): branco + ícone verde */
 .cadastro-b1 .tb-btn-icon.tb-btn-green,
 .b1ref .tb-btn-icon.tb-btn-green {
-  background: #40de63;
-  border-color: #40de63;
-  color: #fff;
+  background: var(--mk-btn-bg, #ffffff);
+  border-color: transparent;
+  color: var(--mk-action-fg-green, #16a34a);
 }
 
 .cadastro-b1 .tb-btn-icon.tb-btn-green:hover:not(:disabled),
 .b1ref .tb-btn-icon.tb-btn-green:hover:not(:disabled) {
-  background: #36c956;
-  border-color: #36c956;
-  color: #fff;
+  background: var(--mk-btn-hover, #f7f8fa);
+  border-color: transparent;
+  color: #15803d;
 }
 
 .cadastro-b1 .tb-btn-icon.tb-btn-green svg,
 .b1ref .tb-btn-icon.tb-btn-green svg {
-  color: #fff;
+  color: var(--mk-action-fg-green, #16a34a);
 }
 
 .cadastro-b1 .tb-btn-icon.is-active {

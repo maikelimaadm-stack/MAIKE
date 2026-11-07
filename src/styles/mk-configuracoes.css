@@ -68,7 +68,7 @@
   width: 16px !important;
   height: 16px !important;
   padding: 0;
-  stroke-width: 1.65;
+  stroke-width: var(--mk-action-stroke, 2.25);
   flex-shrink: 0;
 }
 .mk-config-dialog .tb-btn.tb-btn-icon:not(#mk-padrao) {
