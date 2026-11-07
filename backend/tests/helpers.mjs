@@ -102,6 +102,13 @@ export const limparBanco = async () => {
     where: { catalogo_categoria_visual_id: { not: null } },
     data: { catalogo_categoria_visual_id: null },
   });
+  // D-PROD-145: vínculo e árvores dos centros (RESTRICT em tudo): o vínculo sai
+  // primeiro e o pai é solto antes de apagar, porque a FK do pai é da mesma tabela.
+  await prisma.centroCustoResultado.deleteMany({});
+  await prisma.centroCusto.updateMany({ where: { pai_id: { not: null } }, data: { pai_id: null } });
+  await prisma.centroResultado.updateMany({ where: { pai_id: { not: null } }, data: { pai_id: null } });
+  await prisma.centroCusto.deleteMany({});
+  await prisma.centroResultado.deleteMany({});
   for (const model of ORDEM_DE_LIMPEZA) {
     await prisma[model].deleteMany({});
   }

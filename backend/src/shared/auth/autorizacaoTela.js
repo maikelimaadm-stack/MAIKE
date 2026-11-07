@@ -47,6 +47,11 @@ export const TELAS = Object.freeze({
   TIPOS_TAREFA: Object.freeze({ modulo: 'suporte-mapa', tela: 'sup-tipos-tarefa' }),
   GRUPOS_ATIVIDADE: Object.freeze({ modulo: 'suporte-mapa', tela: 'sup-grupos-atividades' }),
   EMPRESA: Object.freeze({ modulo: 'administracao', tela: 'adm-empresa' }),
+  // D-PROD-145 — Gestão Rural (cadastros; sem financeiro transacional). Nenhuma
+  // concessão automática: sem linha de Permissão, só admin real e is_admin.
+  PARCEIROS: Object.freeze({ modulo: 'gestao-rural', tela: 'ges-parceiros' }),
+  CENTROS_CUSTO: Object.freeze({ modulo: 'gestao-rural', tela: 'ges-centros-custo' }),
+  CENTROS_RESULTADO: Object.freeze({ modulo: 'gestao-rural', tela: 'ges-centros-resultado' }),
 });
 
 export const ACOES = Object.freeze(['visualizar', 'novo', 'salvar', 'editar', 'excluir', 'importar', 'exportar']);

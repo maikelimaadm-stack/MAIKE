@@ -20,7 +20,7 @@
 import { getPrismaClient } from '../../database/prismaClient.js';
 import { exigirAuthContext } from './authContext.js';
 import {
-  TELAS, porQualquer, porAcessoTotal, apenasAdminTenant, autorizar, telaPermite, acessoTotal,
+  TELAS, porQualquer, porTela, porAcessoTotal, apenasAdminTenant, autorizar, telaPermite, acessoTotal,
   carregarAutorizacao, somenteCampos, acaoNaoPermitida,
 } from './autorizacaoTela.js';
 
@@ -186,6 +186,11 @@ export const GUARDAS = Object.freeze({
   produto: cadastro(T.PRODUTOS),
   categoria: cadastro(T.CATEGORIAS),
   marca: cadastro(T.MARCAS),
+  // D-PROD-145 — cada tela com a própria ação; ver = visualizar. Inativar e
+  // vincular são edição do registro (editar/salvar). Sem DELETE físico.
+  parceiro: { ...cadastro(T.PARCEIROS), ver: porTela(T.PARCEIROS, 'visualizar') },
+  centroCusto: { ...cadastro(T.CENTROS_CUSTO), ver: porTela(T.CENTROS_CUSTO, 'visualizar') },
+  centroResultado: { ...cadastro(T.CENTROS_RESULTADO), ver: porTela(T.CENTROS_RESULTADO, 'visualizar') },
   unidadeMedida: cadastro(T.UNIDADES),
   tipoTarefa: cadastro(T.TIPOS_TAREFA),
   grupoAtividade: cadastro(T.GRUPOS_ATIVIDADE),
