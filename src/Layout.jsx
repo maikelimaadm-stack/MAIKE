@@ -137,6 +137,17 @@ function LayoutShell({ children, currentPageName }) {
     localStorage.setItem('menu_oculto', novoEstado.toString());
   };
 
+  // Ctrl/Cmd + K abre a busca de telas — o mesmo atalho mostrado no menu lateral.
+  useEffect(() => {
+    const aoTeclar = (event) => {
+      if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== 'k') return;
+      event.preventDefault();
+      setSearchOpen(true);
+    };
+    window.addEventListener('keydown', aoTeclar);
+    return () => window.removeEventListener('keydown', aoTeclar);
+  }, []);
+
   // Enter = Tab nos formulários, teclado numérico nos campos de número (D-PROD-95).
   React.useEffect(() => instalarTecladoDoFormulario(), []);
   // iOS Safari só aplica :active (bolinha da chave esticando ao pressionar,
@@ -578,16 +589,6 @@ function LayoutShell({ children, currentPageName }) {
         </div>
         <div className="max-w-[1600px] mx-auto px-4 py-2 hidden lg:block">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <img src="/brand/mak-gestao-simbolo.png" alt="MAK Gestão" className="h-9 w-9 shrink-0 object-contain" />
-              <div>
-                <h1 className="font-bold text-slate-900 text-base leading-tight">
-                  {empresaAtual?.apelido || empresaAtual?.nome || 'MAK Gestão'}
-                </h1>
-                <p className="text-xs text-slate-600">Mapa Geral e Manejo</p>
-              </div>
-            </div>
-
             <div className="flex items-center gap-2">
               {empresas.length > 0 &&
               <Select value={empresaSelecionada || ''} onValueChange={handleEmpresaChange}>
@@ -713,7 +714,8 @@ function LayoutShell({ children, currentPageName }) {
         currentPath={location.pathname}
         onNavigate={aoClicarMenu}
         collapsed={menuRecolhido}
-        onToggle={alternarMenu} />
+        onToggle={alternarMenu}
+        onSearch={() => setSearchOpen(true)} />
       {/* Tablet: barra lateral com os mesmos destinos da barra inferior do celular */}
       <nav aria-label="Navegação lateral" className="mk-rail hidden md:flex lg:hidden">
         {FIXED_MOBILE_NAV_ITEMS.map((page) => {
