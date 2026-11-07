@@ -41,6 +41,7 @@ import {
 "@/components/ui/dialog";
 
 import MobileSheet from "@/components/common/MobileSheet";
+import DesktopSidebar from "@/components/navigation/DesktopSidebar";
 import MobileModulesView from "@/components/navigation/MobileModulesView";
 import { MobileShellProvider, useMobileShellState } from "@/lib/mobileShellContext";
 import { instalarTecladoDoFormulario } from "@/lib/tecladoFormulario";
@@ -109,6 +110,12 @@ function LayoutShell({ children, currentPageName }) {
   const [menuOculto, setMenuOculto] = useState(() => {
     return localStorage.getItem('menu_oculto') === 'true';
   });
+  // Mesmo estado para o botão do cabeçalho e para a barra lateral (app-shell).
+  const alternarMenu = () => {
+    const novoEstado = !menuOculto;
+    setMenuOculto(novoEstado);
+    localStorage.setItem('menu_oculto', novoEstado.toString());
+  };
 
   // Enter = Tab nos formulários, teclado numérico nos campos de número (D-PROD-95).
   React.useEffect(() => instalarTecladoDoFormulario(), []);
@@ -370,12 +377,6 @@ function LayoutShell({ children, currentPageName }) {
     return () => document.removeEventListener("click", handleBlockedActions, true);
   }, [currentMenuPage, normalizedPermissions]);
 
-  const isActive = (item) => {
-    if (item.url) return location.pathname === createPageUrl(item.url);
-    if (item.submenu) return item.submenu.some((sub) => sub.url && location.pathname === createPageUrl(sub.url));
-    return false;
-  };
-
   const allPages = getAllPages(menuItemsFiltered);
   const filteredPages = searchTerm ?
   allPages.filter((p) =>
@@ -587,11 +588,7 @@ function LayoutShell({ children, currentPageName }) {
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8 hidden lg:inline-flex"
-                onClick={() => {
-                  const novoEstado = !menuOculto;
-                  setMenuOculto(novoEstado);
-                  localStorage.setItem('menu_oculto', novoEstado.toString());
-                }}
+                onClick={alternarMenu}
                 // Nome acessível vem do `title`, não de `aria-label`: o componente
                 // `Button` não declara tipos de prop, então qualquer prop nova
                 // gera um diagnóstico TS2322 inédito e reprova `gate:types`.
@@ -611,80 +608,6 @@ function LayoutShell({ children, currentPageName }) {
           </div>
         </div>
       </header>
-
-      <nav
-        aria-label="Módulos"
-        className={`flex-none bg-white border-b border-slate-200 shadow-sm transition-all duration-300 hidden lg:block ${menuOculto ? 'lg:h-0 lg:overflow-hidden lg:border-0 lg:py-0' : ''}`}>
-        <div className="max-w-[1600px] mx-auto px-4">
-          <div className="flex items-center gap-0.5 h-10">
-            <div className="hidden lg:flex items-center gap-0.5">
-              {menuItemsFiltered.map((item) => {
-                const active = isActive(item);
-
-                if (item.submenu) {
-                  return (
-                    <div key={item.id} className="relative group">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className={`h-8 px-2.5 gap-1 text-xs font-medium rounded ${
-                        active ?
-                        'bg-emerald-600 text-white hover:bg-emerald-700' :
-                        'text-slate-700 hover:text-slate-900 hover:bg-slate-100'}`
-                        }>
-
-                        {item.title}
-                        <ChevronDown className="w-3 h-3 opacity-50" />
-                      </Button>
-
-                      <div className="absolute left-0 mt-1 w-52 bg-white rounded-md shadow-lg border border-slate-200 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
-                        <div className="py-1">
-                          {item.submenu.map((sub) => {
-                            if (!sub.url) return null;
-                            return (
-                              <Link
-                                key={sub.id}
-                                to={createPageUrl(sub.url)}
-                                onClick={(e) => aoClicarMenu(e, createPageUrl(sub.url))}
-                                className={`block px-4 py-2 text-xs hover:bg-slate-50 ${
-                                location.pathname === createPageUrl(sub.url) ?
-                                'bg-emerald-50 text-emerald-800 font-medium' :
-                                'text-slate-700'}`
-                                }>
-
-                                {sub.title}
-                              </Link>);
-
-                          })}
-                        </div>
-                      </div>
-                    </div>);
-
-                }
-
-                return (
-                  <Button
-                    key={item.id}
-                    asChild
-                    variant="ghost"
-                    size="sm"
-                    className={`h-8 px-2.5 gap-1 text-xs font-medium rounded ${
-                    active ?
-                    'bg-emerald-600 text-white hover:bg-emerald-700' :
-                    'text-slate-700 hover:text-slate-900 hover:bg-slate-100'}`
-                    }>
-                    <Link
-                      to={createPageUrl(item.url)}
-                      onClick={(e) => aoClicarMenu(e, createPageUrl(item.url))}>
-                      {item.title}
-                    </Link>
-                  </Button>);
-
-              })}
-            </div>
-          </div>
-        </div>
-      </nav>
 
       <PermissionAlertDialog
         open={permissionDialog.open}
@@ -764,6 +687,13 @@ function LayoutShell({ children, currentPageName }) {
 
 
       <div className="flex flex-1 min-h-0 min-w-0">
+      {/* Desktop: menu lateral recolhível (app-shell) */}
+      <DesktopSidebar
+        items={menuItemsFiltered}
+        currentPath={location.pathname}
+        onNavigate={aoClicarMenu}
+        collapsed={menuOculto}
+        onToggle={alternarMenu} />
       {/* Tablet: barra lateral com os mesmos destinos da barra inferior do celular */}
       <nav aria-label="Navegação lateral" className="mk-rail hidden md:flex lg:hidden">
         {FIXED_MOBILE_NAV_ITEMS.map((page) => {
