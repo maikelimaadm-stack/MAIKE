@@ -41,7 +41,7 @@ import {
 "@/components/ui/dialog";
 
 import MobileSheet from "@/components/common/MobileSheet";
-import DesktopSidebar from "@/components/navigation/DesktopSidebar";
+import DesktopNavigation from "@/components/navigation/DesktopNavigation";
 import MobileModulesView from "@/components/navigation/MobileModulesView";
 import { MobileShellProvider, useMobileShellState } from "@/lib/mobileShellContext";
 import { instalarTecladoDoFormulario } from "@/lib/tecladoFormulario";
@@ -107,39 +107,7 @@ function LayoutShell({ children, currentPageName }) {
     setEmpresaSelecionada(empresaId);
     gravarEmpresaSelecionada(empresaId, clienteId);
   }, [clienteId]);
-  const [menuTriggerHost, setMenuTriggerHost] = useState(/** @type {HTMLElement | null} */ (null));
-  const [menuOculto, setMenuOculto] = useState(() => {
-    return localStorage.getItem('menu_oculto') !== 'false';
-  });
-  // Em telas médias, o menu começa sem reservar uma coluna no layout.
-  const [telaGrande, setTelaGrande] = useState(() =>
-    typeof window.matchMedia === 'function' ? window.matchMedia('(min-width: 1280px)').matches : true
-  );
-  // A opção de fixar vence o automático até a tela mudar de faixa.
-  const [menuManual, setMenuManual] = useState(/** @type {boolean | null} */ (null));
-  const menuRecolhido = menuManual !== null ? menuManual : menuOculto || !telaGrande;
-
-  useEffect(() => {
-    if (typeof window.matchMedia !== 'function') return undefined;
-    const consulta = window.matchMedia('(min-width: 1280px)');
-    const aoMudar = (event) => {
-      setTelaGrande(event.matches);
-      setMenuManual(null);
-    };
-    consulta.addEventListener('change', aoMudar);
-    return () => consulta.removeEventListener('change', aoMudar);
-  }, []);
-
-  // Mesmo estado de fixação para os controles do cabeçalho e do menu.
-  const alternarMenu = () => {
-    const novoEstado = !menuRecolhido;
-    setMenuManual(novoEstado);
-    setMenuOculto(novoEstado);
-    localStorage.setItem('menu_oculto', novoEstado.toString());
-  };
-
-  // Ctrl/Cmd + K abre a busca de telas; Ctrl/Cmd + Shift + S recolhe/expande o
-  // menu lateral — os mesmos atalhos mostrados no tooltip dos ícones.
+  // Ctrl/Cmd + K abre a busca de telas.
   useEffect(() => {
     const aoTeclar = (event) => {
       if (!(event.ctrlKey || event.metaKey)) return;
@@ -149,14 +117,11 @@ function LayoutShell({ children, currentPageName }) {
         setSearchOpen(true);
         return;
       }
-      if (tecla === 's' && event.shiftKey) {
-        event.preventDefault();
-        alternarMenu();
-      }
+
     };
     window.addEventListener('keydown', aoTeclar);
     return () => window.removeEventListener('keydown', aoTeclar);
-  }, [menuRecolhido]);
+  }, []);
 
   // Enter = Tab nos formulários, teclado numérico nos campos de número (D-PROD-95).
   React.useEffect(() => instalarTecladoDoFormulario(), []);
@@ -437,7 +402,6 @@ function LayoutShell({ children, currentPageName }) {
   // cabeçalho do sistema por cima (a barra inferior/lateral continua navegando).
   const telaMapa = currentPageName === PRIMARY_PAGE;
 
-  const appContentOffset = menuOculto ? "51px" : "91px";
 
   // ── Shell do celular (abaixo de md) ──────────────────────────────────────
   const mobileRecord = shellMobile.record;
@@ -517,23 +481,13 @@ function LayoutShell({ children, currentPageName }) {
     </DropdownMenu>;
 
   return (
-    <div className={`h-[100dvh] overflow-hidden bg-slate-50 lg:bg-white safe-area-top flex${telaMapa ? " mk-shell--mapa" : ""}`} translate="no" style={{ "--app-content-offset": appContentOffset }}>
+    <div className={`h-[100dvh] overflow-hidden bg-slate-50 lg:bg-white safe-area-top flex${telaMapa ? " mk-shell--mapa" : ""}`} translate="no">
       <style>{`
         html, body { overscroll-behavior: none; }
         button, [role="button"], a { -webkit-user-select: none; user-select: none; }
         .safe-area-top { padding-top: env(safe-area-inset-top); }
         .safe-area-bottom { padding-bottom: env(safe-area-inset-bottom); }
       `}</style>
-      {/* Desktop: menu temporário no hover; só reserva uma coluna quando fixado. */}
-      <DesktopSidebar
-        items={menuItemsFiltered}
-        currentPath={location.pathname}
-        onNavigate={aoClicarMenu}
-        triggerHost={menuTriggerHost}
-        collapsed={menuRecolhido}
-        onToggle={alternarMenu}
-        onSearch={() => setSearchOpen(true)} />
-
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
       <header className={`mk-app-topbar bg-white flex-none relative z-30 ${mobileHeaderBorder ? "" : "max-md:shadow-none"}`}>
         {mobileRecord?.editing ?
@@ -608,10 +562,7 @@ function LayoutShell({ children, currentPageName }) {
           null}
           {userMenu}
         </div>
-        <div className="max-w-[1600px] mx-auto px-4 py-2 hidden lg:block">
-          <div className="flex items-center justify-between">
-            <div ref={setMenuTriggerHost} />
-            <div className="flex items-center gap-2">
+        <DesktopNavigation items={menuItemsFiltered} currentPath={location.pathname} onNavigate={aoClicarMenu} onSearch={() => setSearchOpen(true)}>
               {empresas.length > 0 &&
               <Select value={empresaSelecionada || ''} onValueChange={handleEmpresaChange}>
                   <SelectTrigger className="h-8 w-[160px] text-xs hidden lg:flex border-slate-300">
@@ -628,9 +579,7 @@ function LayoutShell({ children, currentPageName }) {
               }
 
               {userMenu}
-            </div>
-          </div>
-        </div>
+        </DesktopNavigation>
       </header>
 
       <PermissionAlertDialog

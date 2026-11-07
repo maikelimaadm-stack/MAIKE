@@ -203,17 +203,19 @@ describe('SHELL — a página do mapa vive dentro do shell', () => {
     expect(menuDesktop.className).not.toMatch(/md:h-0/);
   });
 
-  it('SHELL5 — com menu oculto, o botão de reabrir continua acessível', async () => {
+  it('SHELL5 — preferência lateral antiga não oculta os módulos horizontais', async () => {
     localStorage.setItem('menu_oculto', 'true');
     await renderShell();
-    expect(await screen.findByRole('button', { name: /mostrar menu principal/i })).toBeInTheDocument();
+    expect(await screen.findByRole('navigation', { name: /módulos/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /mostrar menu principal/i })).toBeNull();
   });
 
-  it('SHELL5b — valor inválido em menu_oculto cai no default seguro', async () => {
+  it('SHELL5b — preferência lateral inválida mantém o menu horizontal acessível', async () => {
     localStorage.setItem('menu_oculto', 'talvez');
     await renderShell();
-    // Default seguro = menu visível, com o botão de ocultar disponível.
-    expect(await screen.findByRole('button', { name: /ocultar menu principal/i })).toBeInTheDocument();
+    // O menu horizontal independe do estado legado da barra lateral.
+    expect(await screen.findByRole('navigation', { name: /módulos/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /ocultar menu principal/i })).toBeNull();
   });
 });
 
