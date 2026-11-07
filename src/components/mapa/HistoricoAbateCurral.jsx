@@ -47,7 +47,7 @@ export default function HistoricoAbateCurral({ areaId }) {
   if (isLoading) {
     return (
       <Card>
-        <CardContent className="p-4">
+        <CardContent className="mk-hist p-4">
           <div className="text-center text-sm text-slate-500">Carregando histórico...</div>
         </CardContent>
       </Card>
@@ -60,7 +60,7 @@ export default function HistoricoAbateCurral({ areaId }) {
         <CardHeader className="bg-slate-50 border-b py-3">
           <CardTitle className="text-sm font-semibold">Histórico de Abate</CardTitle>
         </CardHeader>
-        <CardContent className="p-4">
+        <CardContent className="mk-hist p-4">
           <div className="text-center py-8 text-slate-500 text-sm">Nenhum abate encontrado</div>
         </CardContent>
       </Card>
@@ -72,8 +72,8 @@ export default function HistoricoAbateCurral({ areaId }) {
       <CardHeader className="bg-slate-50 border-b py-3">
         <CardTitle className="text-sm font-semibold">Histórico de Abate ({historico.length})</CardTitle>
       </CardHeader>
-      <CardContent className="p-2">
-        <div className="max-h-[500px] overflow-y-auto space-y-2">
+      <CardContent className="mk-hist p-2">
+        <div className="mk-hist__lista max-h-[500px] overflow-y-auto">
           {historico.map((item) => (
             <div key={item.id} className="border border-slate-200 rounded-lg p-2.5 hover:bg-gray-50 space-y-1">
               <div className="flex items-start justify-between gap-3">

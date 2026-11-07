@@ -1,0 +1,185 @@
+/* Contrato compartilhado: ações 36px / ícones 16px; listas 34px / checks 14px. */
+:root {
+  --mk-action-height: 36px;
+  --mk-action-icon: 16px;
+  --mk-list-row-height: 34px;
+  --mk-filter-row-height: 34px;
+  --mk-search-height: 32px;
+  --mk-search-font: 12px;
+  --mk-glass-bg: rgba(247, 248, 250, .94);
+  --mk-glass-border: rgba(255, 255, 255, .8);
+}
+:is(.cadastro-b1, .b1ref, .mk-sheet, .mk-ll-dlg, .mk-mapa) {
+  --mk-ui-control-size: var(--mk-action-height);
+  --mk-ui-icon-size: var(--mk-action-icon);
+  --mk-search-height: 32px;
+  --mk-search-font: 12px;
+  --mk-filter-row-height: 34px;
+}
+/* Apenas ações: seletores, chaves e checkboxes conservam seus contratos. */
+:is(.mk-ui-button, .tb-btn, .mg-rec-pager__btn, .mk-sheet__close, .mk-sheet__new,
+ .mk-ll-dlg__redondo, .mk-map-panel-close, .mk-mapa-btn, .mk-mapa-chip,
+ .mk-config-restore, .mk-colcfg__restaurar):not(#mk-padrao) {
+  box-sizing: border-box;
+  height: var(--mk-action-height) !important;
+  min-height: var(--mk-action-height) !important;
+  border-radius: 999px !important;
+  font-size: 12px !important;
+  gap: 6px;
+}
+:is(.tb-btn-icon, .mk-sheet__close, .mk-sheet__new, .mg-rec-pager__btn,
+ .mk-ll-dlg__redondo, .mk-map-panel-close, .mk-mapa-btn, .mk-mapa-chip):not(#mk-padrao) {
+  width: var(--mk-action-height) !important;
+  min-width: var(--mk-action-height) !important;
+  padding: 0 !important;
+}
+:is(.mk-ui-button, .tb-btn, .mg-rec-pager__btn, .mk-sheet__close, .mk-sheet__new,
+ .mk-ll-dlg__redondo, .mk-map-panel-close, .mk-mapa-btn, .mk-mapa-chip):not(#mk-padrao) > svg:not(.mk-al__img) {
+  width: var(--mk-action-icon) !important;
+  height: var(--mk-action-icon) !important;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+/* Check quadrado verde: inclui cabeçalhos, linhas e filtros das tabelas. */
+:is(.b1ref .chk, .cadastro-b1 .mg-check, .cadastro-b1 .mg-grid .mg-check,
+ .mg-b1-check:not(.mg-b1-check--radio), button[role="checkbox"][data-state]):not(#mk-padrao) {
+  width: 14px;
+  height: 14px;
+  min-width: 14px;
+  min-height: 14px;
+  border-radius: 3px;
+  border: 1px solid #cbd5e1;
+  box-shadow: none;
+}
+/* Os botões de linha com role=checkbox não são o desenho do check. */
+:is(.fvr, .fpc__item)[role="checkbox"]:not(#mk-padrao) {
+  width: 100%;
+  height: auto;
+  min-height: var(--mk-list-row-height);
+  border: 0;
+  border-radius: 0;
+}
+:is(.b1ref .chk.on, .b1ref .chk.parte, .cadastro-b1 .mg-check.is-checked,
+ .cadastro-b1 .mg-check.is-indeterminate, .mg-b1-check.is-on:not(.mg-b1-check--radio),
+ button[role="checkbox"][data-state="checked"], button[role="checkbox"][data-state="indeterminate"]):not(#mk-padrao) {
+  background: #32d65e;
+  border-color: #32d65e;
+  color: #fff;
+}
+:is(.b1ref .chk, .cadastro-b1 .mg-check):not(#mk-padrao) svg { width: 10px; height: 10px; padding: 0; }
+input[type="checkbox"]:not(.mg-check__input) { accent-color: #32d65e; }
+
+/* Listas de opções compactas, sem alterar a altura dos dados das tabelas. */
+:is(.fpc__item, .b1ref .fvr, .mgs__op, .mk-co__item, .cmd-option, .mk-sel-op,
+ .mk-select-item, .mg-b1-menuitem, .mk-config-options .mg-b1-row, .mk-colcfg__row):not(#mk-padrao) {
+  min-height: 34px;
+  font-size: 12px !important;
+  line-height: 1.35;
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+.b1ref .fpop .fvr:not(#mk-padrao) { height: 34px; grid-template-columns: 28px minmax(0, 1fr) max-content; }
+.b1ref .fpop .fvr > *:not(#mk-padrao) { height: 34px; }
+:is(.fpop .mk-pill, .fpc .mk-pill, .mgs__busca, .mk-config-dialog .cfgb):not(#mk-padrao) {
+  height: 32px !important;
+  min-height: 32px;
+  font-size: 12px !important;
+}
+:is(.fpop .mk-pill, .fpc .mk-pill, .mgs__busca, .mk-config-dialog .cfgb) input:not(#mk-padrao) { font-size: 12px !important; }
+
+/* Vidro discreto nas superfícies flutuantes; cards de dados permanecem opacos. */
+:is(.mk-sheet, .mk-ll-dlg, .mk-config-dialog, .fpc--pop, .b1ref .fpop,
+ .mg-b1-glass-pop, .cmd-panel, .mk-select, .mk-map-multi-popup,
+ .mk-map-filter-sheet):not(#mk-padrao) {
+  background: var(--mk-glass-bg);
+  -webkit-backdrop-filter: blur(22px) saturate(135%);
+  backdrop-filter: blur(22px) saturate(135%);
+  border: 1px solid var(--mk-glass-border);
+  box-shadow: 0 8px 28px rgba(15, 23, 42, .1), inset 0 1px 0 rgba(255, 255, 255, .8);
+}
+.mk-map-filter-host--right > .mk-map-filter-sheet { margin-left: auto; }
+.mk-map-filter-sheet:not(#mk-padrao) { padding: 10px; }
+.mk-map-filter-sheet .mk-map-filter-header:not(#mk-padrao) { background: transparent; }
+:is(.mk-sheet__body, .mk-config-body, .mk-map-multi-options):not(#mk-padrao) { overscroll-behavior: contain; }
+/* Margem interna constante nas diferentes posições das folhas. */
+.mk-sheet__body:not(#mk-padrao) { padding-left: 10px; padding-right: 10px; }
+
+/* Visualização: escolhas exclusivas continuam exclusivas, apresentadas em lista. */
+.mk-vis .mk-vis__seg:not(#mk-padrao), .mk-vis .mk-vis__chips:not(#mk-padrao) {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: var(--mk-cartao-sombra);
+}
+.mk-vis :is(.mk-vis__seg-op, .mk-vis__chip):not(#mk-padrao) {
+  display: flex;
+  align-items: center;
+  text-align: left;
+  width: 100%;
+  height: 34px;
+  min-height: 34px;
+  justify-content: flex-start;
+  border-radius: 0;
+  padding: 6px 10px;
+  box-shadow: none;
+  font-size: 11px !important;
+}
+.mk-vis :is(.mk-vis__seg-op, .mk-vis__chip) + button { border-top: 1px solid var(--mk-list-divider); }
+.mk-vis :is(.mk-vis__seg-op, .mk-vis__chip)::before {
+  content: '';
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  flex: none;
+  box-sizing: border-box;
+  border: 1px solid #cbd5e1;
+  border-radius: 3px;
+}
+.mk-vis :is(.mk-vis__seg-op, .mk-vis__chip)[aria-pressed="true"]::before {
+  background: #32d65e url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='m2 6 3 3 5-6' fill='none' stroke='white' stroke-width='2'/%3E%3C/svg%3E") center/10px no-repeat;
+  border-color: #32d65e;
+}
+.mk-vis :is(.mk-vis__seg-op, .mk-vis__chip)[aria-pressed="true"]:not(#mk-padrao) { color: #334155; background: #f0fbf3; }
+.mk-hist__barra { gap: 8px; margin-bottom: 10px; }
+.mk-hist__lista { display: flex; flex-direction: column; gap: 8px; }
+.mk-hist__lista > :not(#mk-padrao) { padding: 10px; }
+.mk-hist :is(input, button[role="combobox"]):not(#mk-padrao) { min-height: 32px; font-size: 12px !important; }
+@media (prefers-reduced-transparency: reduce) {
+  :is(.mk-sheet, .mk-ll-dlg, .mk-config-dialog, .fpc--pop, .b1ref .fpop, .mk-map-filter-sheet):not(#mk-padrao) { background: #f7f8fa; backdrop-filter: none; }
+}
+
+/* As barras flutuantes do mapa acompanham o vidro dos painéis. */
+.mk-mapa .mk-mapa-card:not(.is-on):not(#mk-padrao) {
+  background: rgba(255, 255, 255, .86);
+  -webkit-backdrop-filter: blur(18px) saturate(135%);
+  backdrop-filter: blur(18px) saturate(135%);
+  border: 1px solid var(--mk-glass-border);
+}
+/* Textos internos não herdam os tamanhos antigos das folhas mobile. */
+:is(.b1ref .fpop .fvr .pn, .mgs__op, .mk-co__item, .cmd-option, .mk-colcfg__row .mg-b1-row__title):not(#mk-padrao) { font-size: 12px !important; }
+/* Barras dos cadastros tinham medidas fixas com maior especificidade. */
+.cadastro-b1--full-page .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn:not(#mk-padrao),
+.cadastro-b1--full-page .mg-toolbar .tb-btn:not(#mk-padrao) {
+  height: var(--mk-action-height) !important;
+  min-height: var(--mk-action-height) !important;
+}
+.cadastro-b1 .tb-btn:not(#mk-padrao) svg,
+.mk-ll-dlg .tb-btn:not(#mk-padrao) svg {
+  width: var(--mk-action-icon) !important;
+  height: var(--mk-action-icon) !important;
+  padding: 0;
+}
+.cadastro-b1 .mg-fluid-slot__ghost:not(#mk-padrao) {
+  width: 0 !important;
+  min-width: 0 !important;
+  padding: 0 !important;
+}
+.cadastro-b1--full-page .cadastro-b1--portal-compras .mg-toolbar--join :is(.tb-btn-icon, .tb-btn.mg-act-ic):not(.mg-fluid-slot__ghost):not(#mk-padrao) {
+  width: var(--mk-action-height) !important;
+  min-width: var(--mk-action-height) !important;
+}

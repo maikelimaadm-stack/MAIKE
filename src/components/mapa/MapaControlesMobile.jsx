@@ -1,7 +1,6 @@
 import React from "react";
-import { useCelular } from "@/components/common/MobileSheet";
-import { LancLoteDialogo } from "@/components/lotes/LancamentoLoteUi";
-import { ClipboardList, Layers, Move, RefreshCw, SlidersHorizontal, Target, X } from "lucide-react";
+import MapaFiltrosPainel from "./MapaFiltrosPainel";
+import { ClipboardList, Layers, Move, RefreshCw, SlidersHorizontal, Target } from "lucide-react";
 
 const CAMADAS = [
   { id: "roadmap", label: "Mapa" },
@@ -29,23 +28,7 @@ export default function MapaControlesMobile({
   showMoverButton = false,
   painel = null
 }) {
-  const celular = useCelular();
   const [camadasAberto, setCamadasAberto] = React.useState(false);
-  const camadasRef = React.useRef(/** @type {HTMLDivElement | null} */ (null));
-
-  React.useEffect(() => {
-    if (!camadasAberto || celular) return undefined;
-    const fora = (e) => {
-      if (!camadasRef.current?.contains(/** @type {Node} */ (e.target))) setCamadasAberto(false);
-    };
-    const esc = (e) => e.key === "Escape" && setCamadasAberto(false);
-    document.addEventListener("pointerdown", fora, true);
-    document.addEventListener("keydown", esc);
-    return () => {
-      document.removeEventListener("pointerdown", fora, true);
-      document.removeEventListener("keydown", esc);
-    };
-  }, [camadasAberto, celular]);
 
   const camadaAtual = CAMADAS.find((c) => c.id === mapType) || CAMADAS[0];
 
@@ -87,7 +70,7 @@ export default function MapaControlesMobile({
       </div>
 
       <div className="mk-mapa-dir">
-        <div ref={camadasRef} className="mk-mapa-camadas">
+        <div className="mk-mapa-camadas">
           <button
             type="button"
             className={`mk-mapa-card mk-mapa-btn mk-mapa-btn--solo${camadasAberto ? " is-on" : ""}`}
@@ -98,19 +81,7 @@ export default function MapaControlesMobile({
             title="Visualização">
             <Layers size={18} aria-hidden />
           </button>
-          {camadasAberto && !celular ? (
-            <div className="mk-mapa-card mk-mapa-camadas__menu" role="dialog" aria-label="Visualização">
-              <div className="mk-mapa-camadas__topo">
-                <span className="mk-mapa-camadas__nome">Visualização</span>
-                <button type="button" className="mk-mapa-camadas__x" onClick={() => setCamadasAberto(false)} aria-label="Fechar visualização">
-                  <X size={16} aria-hidden />
-                </button>
-              </div>
-              <div className="mk-mapa-camadas__corpo">
-                {conteudoCamadas}
-              </div>
-            </div>
-          ) : null}
+
         </div>
 
         <div className="mk-mapa-card mk-mapa-pilha">
@@ -135,9 +106,9 @@ export default function MapaControlesMobile({
           ) : null}
         </div>
       </div>
-      {celular ? <LancLoteDialogo open={camadasAberto} onOpenChange={setCamadasAberto} titulo="Visualização" somenteLeitura folhaMobile>
-        <div className="mk-map-visual-mobile">{conteudoCamadas}</div>
-      </LancLoteDialogo> : null}
+      <MapaFiltrosPainel open={camadasAberto} onOpenChange={setCamadasAberto} side="right" titulo="Visualização" fecharLabel="Fechar visualização">
+        {conteudoCamadas}
+      </MapaFiltrosPainel>
     </>
   );
 }
