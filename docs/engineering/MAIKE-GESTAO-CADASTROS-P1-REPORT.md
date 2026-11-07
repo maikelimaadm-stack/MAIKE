@@ -141,10 +141,27 @@ Um centro de custo não tem centro de resultado fixo, e um parceiro não tem cen
 - **Cadastro de Lotes:** o seletor de fornecedor não oferece inativos, mas mantém o fornecedor atual do lote. `GET /fornecedores` não mudou.
 - **Capturas:** desktop 1280 e celular 390, lista e registro, das três telas. Foram feitas com backend falso e não estão versionadas.
 
-## 8. Riscos residuais
+## 8. Riscos residuais — tratamento (rodada de organização, 07/11)
 
-- **Documento duplicado sem unique de banco:** a proteção é transacional, com trava por documento e empresa. Uma escrita por outra via (rotas antigas de admin real em `/fornecedores`) não passa por essa checagem.
-- **Revogação em voo:** a permissão é conferida no preHandler, como no resto do produto. Um pedido em andamento durante a revogação pode concluir (R2 §9.2).
-- **Opções de pai e de vínculo:** limitadas a 1000 centros ativos por lista.
-- **Salvar no celular:** em edição no celular, Salvar/Cancelar ficam no cabeçalho do Layout, possivelmente fora do wrapper `data-permissao-explicita`. Quem tem só "editar" pode ser barrado no cliente embora o servidor aceite. O risco é o mesmo das telas Base1 atuais, e não foi validado em aparelho.
-- **Ícone do grupo no menu do celular:** usa o ícone padrão.
+| # | Risco | Tratamento | Prova |
+|---|---|---|---|
+| R1 | As rotas antigas de escrita de `/fornecedores` (só admin real) não passavam pela regra de documento. O `DELETE` antigo apagava fornecedor com histórico, porque `fornecedor_id` não tem FK e o nome deixaria de resolver. | **Fechado.** POST e PATCH antigos usam a mesma regra das Parceiros: dígitos válidos e documento único por empresa, sob a mesma trava, quando o CPF/CNPJ é novo ou muda. O `DELETE` antigo recusa (409 `PARCEIRO_EM_USO`) fornecedor citado em Lote, nota ou movimentação; sem histórico, segue apagando. | `gestaoP1Cadastros` "R1" |
+| R2 | Revogação em voo: a permissão é conferida no preHandler. | **Aceito, igual a todo o produto** (R2 §9.2). A próxima requisição já é negada. Mudar isso é uma missão transversal, não deste cadastro. | — |
+| R3 | As opções de pai e de vínculo cortavam em 1000 centros ativos sem avisar. | **Fechado.** O teto vira regra de escrita: no máximo 1000 centros ativos por tipo e empresa (409 `CENTRO_LIMITE_ATIVOS` ao criar ou reativar além disso, sob a trava da árvore). Com isso, a lista do seletor está sempre completa. | `gestaoP1Cadastros` "R3", smoke |
+| R4 | No celular, o ✓ Salvar fica no cabeçalho do Layout, fora do wrapper `data-permissao-explicita`. Quem só tinha "editar" era barrado no cliente, embora o servidor aceite. | **Fechado.** A tela declara `permissaoExplicita` (prop nova do `CadastroBase1Screen`, padrão desligado). O chrome publica isso no shell do celular, e o ✓ do Layout recebe `data-permissao-explicita` só nesse caso. As demais telas não mudam. Em `Layout.jsx`, a mudança é um único atributo. | `gestaoRiscosResiduais` R4, com o Layout real |
+| R5 | O grupo Gestão Rural usava o ícone padrão no celular. | **Fechado.** O grupo usa `Briefcase`; as telas usam `Users`, `Coins` e `PieChart`. | smoke R5 |
+
+**Ativo Sim/Não (padrão Motor Base1):**
+- Os três cadastros têm o campo **Ativo** no formulário, no mesmo componente das demais telas Base1 (`B1ChaveRow`), e a coluna **Ativo** (Sim/Não) na tabela.
+- A lista abre em "Ativos".
+- No celular, o card mostra **Ativo** entre os 3 campos padrão.
+- Todo seletor puxa só ativos:
+  - opções de pai e de vínculo (servidor);
+  - seletor de fornecedor do Cadastro de Lotes (o fornecedor atual de um lote antigo continua exibido).
+- Inativar não apaga: o histórico continua resolvendo nomes.
+
+**Rodadas locais revisadas:**
+- As duas rodadas vermelhas depois do merge da `main` tiveram duas causas:
+  - duas execuções simultâneas no mesmo banco;
+  - a reciclagem do container da sessão, que derruba o PostgreSQL local entre turnos (log: "not properly shut down").
+- Nenhuma veio de defeito de código. A rodada isolada em banco novo deu verde, assim como a CI do head.

@@ -96,6 +96,7 @@ import { cn } from "@/lib/utils";
  * @param {boolean} [props.portalComprasSkin] régua visual portal compras (toolbar 25px, fpop/mdl marcados)
  * @param {string} [props.recordFormId] id do `<form>` do registro (✓ do cabeçalho do celular envia)
  * @param {boolean} [props.recordSaving]
+ * @param {boolean} [props.recordPermissaoExplicita] o ✓ do cabeçalho do celular já segue a regra do servidor (`data-permissao-explicita`)
  * @param {() => void} [props.onRecordBack] voltar do registro para a lista (botão voltar do celular)
  * @param {boolean} [props.fieldFilterAvailable] botão Filtros → "Filtrar por campo" (grade Base1 com cabeçalhos de referência)
  */
@@ -153,6 +154,7 @@ export default function CadastroListaChrome({
   onRecordBack,
   recordFormId,
   recordSaving = false,
+  recordPermissaoExplicita = false,
   fieldFilterAvailable = joinTableToolbar,
 }) {
   const celular = useCelular();
@@ -343,6 +345,7 @@ export default function CadastroListaChrome({
           onBack: onRecordBack ?? (() => onViewModeChange?.("table")),
           formId: recordEditing ? recordFormId : undefined,
           saving: Boolean(recordSaving),
+          permissaoExplicita: Boolean(recordPermissaoExplicita),
           acoes: recordEditing ? acoesDaEdicao : [],
         }
       : null,

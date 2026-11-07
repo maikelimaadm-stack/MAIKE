@@ -26,6 +26,12 @@ import { ehViolacaoDeUnique, exigirEmpresaDoTenant, invalido, iso, textoDoCorpo,
 /** Raiz + 4 níveis: suficiente para "Pecuária / Cria / Maternidade"; evita árvore sem fim. */
 export const PROFUNDIDADE_MAXIMA = 5;
 export const MAX_VINCULOS = 200;
+/**
+ * Teto de centros ATIVOS por tipo e empresa (D-PROD-145, risco R3). As opções
+ * de pai e de vínculo devolvem todos os ativos; com o teto aplicado na escrita
+ * (sob a trava da árvore), a lista do seletor nunca sai cortada.
+ */
+export const MAX_ATIVOS_POR_EMPRESA = 1000;
 
 export const TIPOS_CENTRO = Object.freeze({
   custo: Object.freeze({ modelo: 'centroCusto', entidade: 'CentroCusto', naoEncontrado: 'CENTRO_CUSTO_NOT_FOUND', rotulo: 'centro de custo' }),
@@ -125,6 +131,16 @@ const exigirNomeLivre = async (tx, tipo, clienteId, empresaId, nome, ignorarId =
 };
 
 /** Converte a corrida perdida no unique (nome/numero) em 409 estável. */
+/** Chamado sob a trava da árvore da empresa: o teto não é furado por corrida. */
+const exigirVagaDeAtivo = async (tx, tipo, clienteId, empresaId) => {
+  const ativos = await modeloDe(tx, tipo).count({ where: { cliente_id: clienteId, empresa_id: empresaId, ativo: true } });
+  if (ativos >= MAX_ATIVOS_POR_EMPRESA) {
+    throw new AppError('CENTRO_LIMITE_ATIVOS', `limite de ${MAX_ATIVOS_POR_EMPRESA} ativos (${tipo.rotulo}) nesta empresa; inative algum antes`, {
+      details: { ativos, limite: MAX_ATIVOS_POR_EMPRESA },
+    });
+  }
+};
+
 const comConflitoEstavel = async (fn) => {
   try {
     return await fn();
@@ -191,6 +207,7 @@ export const servicoDeCentro = (chaveTipo) => {
         const empresaId = await exigirEmpresaDoTenant(tx, auth.clienteId, entrada.empresa_id);
         await travarEscopo(tx, chaveDaArvore(tipo, auth.clienteId, empresaId));
         await exigirNomeLivre(tx, tipo, auth.clienteId, empresaId, nome);
+        await exigirVagaDeAtivo(tx, tipo, auth.clienteId, empresaId);
         const pai = await validarPai(tx, tipo, auth.clienteId, empresaId, paiId);
         const numero = await reservarNumero(tx, { clienteId: auth.clienteId, entidade: tipo.entidade, escopoTipo: ESCOPO_TENANT });
         const registro = await modeloDe(tx, tipo).create({
@@ -235,6 +252,7 @@ export const servicoDeCentro = (chaveTipo) => {
           } else {
             const paiAtual = dados.pai_id !== undefined ? pai : antes.pai_id ? await buscar(tx, tipo, auth.clienteId, empresaId, antes.pai_id) : null;
             if (paiAtual && 'ativo' in paiAtual && paiAtual.ativo === false) throw hierarquia('pai_inativo', { field: 'ativo' });
+            await exigirVagaDeAtivo(tx, tipo, auth.clienteId, empresaId);
           }
           dados.ativo = entrada.ativo;
         }
@@ -259,7 +277,7 @@ export const servicoDeCentro = (chaveTipo) => {
     const itens = await modeloDe(prisma, tipo).findMany({
       where: { cliente_id: auth.clienteId, empresa_id: empresaId, ativo: true },
       orderBy: [{ nome: 'asc' }],
-      take: 1000,
+      take: MAX_ATIVOS_POR_EMPRESA,
       select: { id: true, numero: true, nome: true, pai_id: true },
     });
     return { itens };

@@ -35,6 +35,7 @@ import { BASE1_LISTA_INTEGRADA_VISUAL } from "@/components/cadastro/base1/base1V
  *   showEdit?: boolean,
  *   showDuplicate?: boolean,
  *   listBanner?: React.ReactNode,
+ *   permissaoExplicita?: boolean,
  * }} props
  */
 export default function CadastroBase1Screen({
@@ -60,6 +61,7 @@ export default function CadastroBase1Screen({
   showEdit = true,
   showDuplicate = true,
   listBanner = null,
+  permissaoExplicita = false,
 }) {
   return (
     <>
@@ -125,6 +127,7 @@ export default function CadastroBase1Screen({
           recordBody={c.showForm ? recordForm : null}
           recordFormId={formId}
           recordSaving={c.saving}
+          recordPermissaoExplicita={permissaoExplicita}
           onRecordBack={c.isEditing ? c.cancelForm : () => c.onViewModeChange("table")}
           attachDisabledReason={attachDisabledReason}
           selectedCount={c.chrome.selectedIds.length}

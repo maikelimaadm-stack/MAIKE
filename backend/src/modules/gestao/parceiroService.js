@@ -185,6 +185,29 @@ const exigirDocumentoLivre = async (tx, clienteId, empresaId, campo, valor, igno
   }
 };
 
+/**
+ * D-PROD-145 (risco residual R1): as rotas antigas de escrita de `/fornecedores`
+ * (só administrador real) passam pela MESMA regra de documento das Parceiros —
+ * dígitos verificadores e unicidade por empresa sob trava — quando o CPF/CNPJ é
+ * novo ou muda. O valor gravado continua o que a rota antiga recebeu.
+ * @param {any} tx
+ * @param {string} clienteId
+ * @param {string|null|undefined} empresaId
+ * @param {Record<string, unknown>} entrada
+ * @param {Record<string, any>|null} [antes]
+ */
+export const exigirDocumentosDoLegado = async (tx, clienteId, empresaId, entrada, antes = null) => {
+  for (const campo of /** @type {const} */ (['cpf', 'cnpj'])) {
+    if (entrada?.[campo] === undefined || entrada[campo] === null) continue;
+    const d = digitos(entrada[campo]);
+    if (!d) continue;
+    if (antes && d === digitos(antes[campo])) continue;
+    const ok = campo === 'cpf' ? cpfValido(d) : cnpjValido(d);
+    if (!ok) throw new AppError('PARCEIRO_DOCUMENTO_INVALIDO', `${campo.toUpperCase()} inválido`, { details: { field: campo } });
+    if (empresaId) await exigirDocumentoLivre(tx, clienteId, String(empresaId), campo, d, antes?.id ?? null);
+  }
+};
+
 const papeisDoCorpo = (papeis) => {
   if (papeis === undefined) return undefined;
   if (!Array.isArray(papeis) || papeis.some((p) => !PAPEIS.includes(p))) throw invalido(`papeis aceita só ${PAPEIS.join(', ')}`, { field: 'papeis' });

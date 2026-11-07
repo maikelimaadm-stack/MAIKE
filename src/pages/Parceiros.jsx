@@ -12,6 +12,7 @@ import { confirmar } from "@/lib/maikeConfirmar";
 import CadastroBase1Screen from "@/components/cadastro/base1/CadastroBase1Screen";
 import TabelaParceiros, {
   PARCEIROS_COLUNAS,
+  PARCEIROS_CAMPOS_CARD,
   PARCEIROS_STORAGE_KEY,
   getParceiroFieldValue,
 } from "@/components/gestao/TabelaParceiros";
@@ -46,7 +47,7 @@ export default function Parceiros() {
 
   const controller = useCadastroBase1Controller({
     storageKey: PARCEIROS_STORAGE_KEY,
-    columnIds: PARCEIROS_COLUNAS.map((c) => c.id),
+    columnIds: PARCEIROS_CAMPOS_CARD,
     listEnabled: Boolean(empresaId) && acoes.ver,
     queryKey: [QUERY_RAIZ, "page", empresaId, situacao],
     fetchPage,
@@ -207,6 +208,7 @@ export default function Parceiros() {
     // salvar; novo OU salvar) — a heurística de texto do Layout não se aplica.
     <div data-permissao-explicita="" className="contents">
       <CadastroBase1Screen
+        permissaoExplicita
         workspaceTitle="Parceiros"
         searchPlaceholder="Buscar parceiros…"
         formId={FORMULARIO_PARCEIRO_ID}

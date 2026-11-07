@@ -12,7 +12,7 @@ import {
 import { notifyError, notifyInfo, notifySuccess, notifyWarning } from "@/lib/maikeNotify";
 import { confirmar } from "@/lib/maikeConfirmar";
 import CadastroBase1Screen from "@/components/cadastro/base1/CadastroBase1Screen";
-import TabelaCentros, { CENTROS_COLUNAS, getCentroFieldValue } from "@/components/gestao/TabelaCentros";
+import TabelaCentros, { CENTROS_CAMPOS_CARD, CENTROS_COLUNAS, getCentroFieldValue } from "@/components/gestao/TabelaCentros";
 import FormularioCentro from "@/components/gestao/FormularioCentro";
 import { VinculosCentroCusto, VinculosCentroResultado } from "@/components/gestao/VinculosCentros";
 import { AvisoGestao, FiltroSituacao, ativoDoFiltro } from "@/components/gestao/GestaoFormParts";
@@ -75,7 +75,7 @@ export default function CentrosCadastroTela({ tipo }) {
 
   const controller = useCadastroBase1Controller({
     storageKey: cfg.storageKey,
-    columnIds: CENTROS_COLUNAS.map((c) => c.id),
+    columnIds: CENTROS_CAMPOS_CARD,
     listEnabled: Boolean(empresaId) && acoes.ver,
     queryKey: [queryRaiz, "page", empresaId, situacao],
     fetchPage,
@@ -254,6 +254,7 @@ export default function CentrosCadastroTela({ tipo }) {
   return (
     <div data-permissao-explicita="" className="contents">
       <CadastroBase1Screen
+        permissaoExplicita
         workspaceTitle={cfg.titulo}
         searchPlaceholder={`Buscar ${cfg.plural}…`}
         formId={cfg.formId}

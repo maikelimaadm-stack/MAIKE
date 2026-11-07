@@ -214,6 +214,34 @@ describe('T2 — retrocompatibilidade do Fornecedor e do Cadastro de Lotes', () 
     assert.equal((await req('GET', `/parceiros/${a.id}?empresa_id=${c.e1.id}`, c.lotes)).statusCode, 403);
     assert.ok(await prisma().fornecedor.findUnique({ where: { id: a.id } }), 'DELETE antigo não apagou');
   });
+
+  test('R1: rotas antigas do administrador seguem a regra de documento e não apagam fornecedor com histórico', async () => {
+    const c = await cenario();
+    const p = prisma();
+    const a = await ok(req('POST', '/parceiros', c.par, pf(c)), 201);
+
+    // documento duplicado (mesmo CPF formatado de outro jeito) e dígito inválido → recusados, nada gravado
+    const antes = await p.fornecedor.count({ where: { cliente_id: c.cliente.id } });
+    let r = await req('POST', '/fornecedores', c.adm, { empresa_id: c.e1.id, tipo_pessoa: 'Física', nome: 'DUP', cpf: '52998224725' });
+    assert.equal(r.statusCode, 409, r.body);
+    assert.equal(r.json().code ?? r.json().error?.code, 'PARCEIRO_DOCUMENTO_DUPLICADO');
+    r = await req('POST', '/fornecedores', c.adm, { empresa_id: c.e1.id, tipo_pessoa: 'Física', nome: 'INV', cpf: '529.982.247-26' });
+    assert.equal(r.statusCode, 400, r.body);
+    assert.equal(await p.fornecedor.count({ where: { cliente_id: c.cliente.id } }), antes);
+    // outra empresa pode ter o mesmo documento; PATCH para documento de outro → 409; mesmo documento → passa
+    const outro = await ok(req('POST', '/fornecedores', c.adm, { empresa_id: c.e2.id, tipo_pessoa: 'Física', nome: 'E2', cpf: CPF_A }), 201);
+    const b = await ok(req('POST', '/fornecedores', c.adm, { empresa_id: c.e1.id, tipo_pessoa: 'Física', nome: 'B', cpf: CPF_B }), 201);
+    assert.equal((await req('PATCH', `/fornecedores/${b.id}`, c.adm, { cpf: CPF_A })).statusCode, 409);
+    await ok(req('PATCH', `/fornecedores/${b.id}`, c.adm, { cpf: '11144477735', nome: 'B2' }));
+    assert.ok(outro.id);
+
+    // fornecedor referenciado por Lote não é apagado (409); sem histórico pode ser apagado
+    await p.lote.create({ data: { cliente_id: c.cliente.id, empresa_id: c.e1.id, numero_lote: '1', nome: 'L1', quantidade_cabecas: 1, quantidade_entrada: 1, motivo_entrada: 'Compra', fornecedor_id: a.id, fornecedor_nome: 'X' } });
+    r = await req('DELETE', `/fornecedores/${a.id}`, c.adm);
+    assert.equal(r.statusCode, 409, r.body);
+    assert.ok(await p.fornecedor.findUnique({ where: { id: a.id } }), 'fornecedor com histórico continua');
+    assert.equal((await req('DELETE', `/fornecedores/${b.id}`, c.adm)).statusCode, 204);
+  });
 });
 
 describe('T3 — isolamento 2 tenants × 2 empresas', () => {
@@ -374,6 +402,29 @@ describe('T5 — hierarquia', () => {
     assert.ok(rs.filter((r) => r.statusCode === 200).length <= 1, rs.map((r) => r.body).join(' | '));
     const [da, db] = await Promise.all([prisma().centroCusto.findUnique({ where: { id: a.id } }), prisma().centroCusto.findUnique({ where: { id: b.id } })]);
     assert.ok(!(da.pai_id === b.id && db.pai_id === a.id), 'sem ciclo A↔B');
+  });
+
+  test('R3: teto de centros ativos por empresa — opções nunca cortadas; criar/reativar além do teto → 409', async () => {
+    const c = await cenario();
+    const p = prisma();
+    const linhas = Array.from({ length: 1000 }, (_, i) => ({ cliente_id: c.cliente.id, empresa_id: c.e1.id, numero: `M${i}`, nome: `CENTRO ${String(i).padStart(4, '0')}` }));
+    await p.centroCusto.createMany({ data: linhas });
+    const opcoes = await ok(req('GET', `/centros-custo-opcoes/pais?empresa_id=${c.e1.id}`, c.cc));
+    assert.equal(opcoes.itens.length, 1000, 'todas as opções ativas');
+    let r = await req('POST', '/centros-custo', c.cc, { empresa_id: c.e1.id, nome: 'EXCEDENTE' });
+    assert.equal(r.statusCode, 409, r.body);
+    assert.equal(r.json().code, 'CENTRO_LIMITE_ATIVOS');
+    // outra empresa e o outro tipo não são afetados
+    await ok(req('POST', '/centros-custo', c.cc, { empresa_id: c.e2.id, nome: 'E2' }), 201);
+    await ok(req('POST', '/centros-resultado', c.cr, { empresa_id: c.e1.id, nome: 'CR' }), 201);
+    // inativar libera vaga; reativar outro além do teto → 409
+    const [a, b] = await p.centroCusto.findMany({ where: { cliente_id: c.cliente.id, empresa_id: c.e1.id }, orderBy: { nome: 'asc' }, take: 2 });
+    await ok(patch(c, a.id, { ativo: false }));
+    await ok(req('POST', '/centros-custo', c.cc, { empresa_id: c.e1.id, nome: 'NOVO' }), 201);
+    r = await patch(c, a.id, { ativo: true });
+    assert.equal(r.statusCode, 409, r.body);
+    assert.equal(r.json().code, 'CENTRO_LIMITE_ATIVOS');
+    assert.ok(b.id);
   });
 });
 

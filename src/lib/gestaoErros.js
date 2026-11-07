@@ -73,6 +73,10 @@ export const mensagemErroGestao = (erro, fallback) => {
       return HIERARQUIA[reason ?? ''] ?? 'Pai inválido para este centro. Nada foi gravado.';
     case 'CENTRO_COM_FILHOS_ATIVOS':
       return 'Este centro tem centros filhos ativos. Inative os filhos antes. Nada foi gravado.';
+    case 'CENTRO_LIMITE_ATIVOS': {
+      const limite = details.limite != null ? String(details.limite) : '1000';
+      return `Esta empresa já tem ${limite} centros ativos deste tipo. Inative algum antes de criar ou reativar. Nada foi gravado.`;
+    }
     case 'CENTRO_INATIVO':
       return 'Há centro inativo na seleção: centro inativo não recebe vínculo novo. Nada foi gravado.';
     case 'REQUEST_VALIDATION_FAILED':

@@ -5395,4 +5395,13 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
   - Operações futuras (mapa, estoque, financeiro) podem **referenciar** os ids estáveis; nenhum lançamento é criado agora. O contrato está no relatório §6.
   - Testes: `backend/tests/gestaoP1Cadastros.test.mjs` (PG) e os smoke de UI. Relatório: `docs/engineering/MAIKE-GESTAO-CADASTROS-P1-REPORT.md`.
 
+- **Adendo (07/11, organização pós-#221):**
+  - **Riscos residuais fechados:**
+    - R1: as rotas antigas de `/fornecedores` aplicam a regra de documento e não apagam fornecedor com histórico (`PARCEIRO_EM_USO`).
+    - R3: no máximo 1000 centros ativos por tipo e empresa (`CENTRO_LIMITE_ATIVOS`).
+    - R4: o ✓ Salvar do celular segue a regra do servidor quando a tela declara `permissaoExplicita`.
+    - R5: ícones do grupo no celular.
+  - **R2 (revogação em voo):** aceito como no resto do produto.
+  - **Ativo Sim/Não:** em todos os cadastros; seletores só com ativos.
+
 <!-- Próxima decisão: D-PROD-146 -->

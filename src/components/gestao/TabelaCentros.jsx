@@ -13,6 +13,12 @@ export const CENTROS_COLUNAS = [
   { id: "ativo", label: "Ativo", default: true, sortable: true, align: "center", width: 80, cellKind: CADASTRO_BASE1_CELL_KIND.ATIVO_BADGE },
 ];
 
+/**
+ * Campos padrão dos cards (Motor Base1). A hierarquia é o título do card; no
+ * celular os 3 campos são Pai, Descrição e Ativo (Sim/Não).
+ */
+export const CENTROS_CAMPOS_CARD = ["numero", "pai", "descricao", "ativo", "caminho", "nome"];
+
 export function getCentroFieldValue(item, id) {
   if (id === "numero") return item.numero != null ? String(item.numero) : "";
   if (id === "caminho") return item.caminho || item.nome || "";

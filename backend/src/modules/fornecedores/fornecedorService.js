@@ -15,6 +15,7 @@ import {
   atualizarRegistroPorId,
   excluirRegistroPorId,
 } from './fornecedorRepository.js';
+import { exigirDocumentosDoLegado } from '../gestao/parceiroService.js';
 
 export const ENTIDADE_SEQUENCIA = 'Fornecedor';
 
@@ -84,6 +85,7 @@ export const criar = async (contexto, entrada) => {
   const criado = await prisma.$transaction(async (tx) => {
     /** @type {Record<string, unknown>} */
     const dados = { ...exigirSomenteColunasGravaveis('Fornecedor', entrada), cliente_id: auth.clienteId };
+    await exigirDocumentosDoLegado(tx, auth.clienteId, /** @type {string|undefined} */ (dados.empresa_id), dados);
     if (!dados.numero_cadastro) {
       dados.numero_cadastro = String(
         await reservarNumero(tx, {
@@ -110,7 +112,9 @@ export const atualizar = async (contexto, id, entrada) => {
   const atualizado = await prisma.$transaction(async (tx) => {
     const existente = await buscarRegistro(auth.clienteId, id, tx);
     if (!existente) throw erroNaoEncontrado();
-    const registro = await atualizarRegistroPorId(tx, auth.clienteId, id, exigirSomenteColunasGravaveis('Fornecedor', entrada));
+    const dados = exigirSomenteColunasGravaveis('Fornecedor', entrada);
+    await exigirDocumentosDoLegado(tx, auth.clienteId, /** @type {string|undefined} */ (dados.empresa_id ?? existente.empresa_id), dados, existente);
+    const registro = await atualizarRegistroPorId(tx, auth.clienteId, id, dados);
     await registrarEvento(
       contexto,
       {
@@ -133,6 +137,18 @@ export const excluir = async (contexto, id) => {
   await prisma.$transaction(async (tx) => {
     const existente = await buscarRegistro(auth.clienteId, id, tx);
     if (!existente) throw erroNaoEncontrado();
+    // D-PROD-145 (R1): parceiro com histórico não some (o nome tem de continuar
+    // resolvendo em Lote, nota e movimentação); a tela Parceiros inativa.
+    const [lotes, notas, movimentacoes] = await Promise.all([
+      tx.lote.count({ where: { cliente_id: auth.clienteId, fornecedor_id: id } }),
+      tx.estoqueLoteNota.count({ where: { cliente_id: auth.clienteId, fornecedor_id: id } }),
+      tx.movimentacaoEstoque.count({ where: { cliente_id: auth.clienteId, fornecedor_id: id } }),
+    ]);
+    if (lotes + notas + movimentacoes > 0) {
+      throw new AppError('PARCEIRO_EM_USO', 'fornecedor com histórico não pode ser excluído; inative-o na tela Parceiros', {
+        details: { lotes, notas, movimentacoes },
+      });
+    }
     await excluirRegistroPorId(tx, auth.clienteId, id);
     await registrarEvento(
       contexto,

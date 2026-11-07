@@ -18,6 +18,12 @@ export const PARCEIROS_COLUNAS = [
   { id: "ativo", label: "Ativo", default: true, sortable: true, align: "center", width: 80, cellKind: CADASTRO_BASE1_CELL_KIND.ATIVO_BADGE },
 ];
 
+/**
+ * Campos padrão dos cards (Motor Base1). No celular aparecem os 3 primeiros além
+ * de nome e número: documento, papéis e Ativo (Sim/Não) — a situação sempre à vista.
+ */
+export const PARCEIROS_CAMPOS_CARD = ["numero", "nome", "documento", "papeis", "ativo", "tipo_pessoa", "cidade", "telefone"];
+
 /** @param {any} item */
 const documentoDe = (item) => (item?.tipo_pessoa === "Física" ? item?.cpf : item?.cnpj) || item?.cnpj || item?.cpf || "";
 /** @param {any} item */
