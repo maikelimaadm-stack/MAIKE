@@ -945,7 +945,7 @@ model Empresa {
   rebanhoAtivacao RebanhoLedgerAtivacao[]
   posicoesRebanho PosicaoRebanho[]
   eventosRebanho  EventoRebanho[]
-  // D-PROD-145: cadastros de gestão (sem financeiro transacional).
+  // D-PROD-146: cadastros de gestão (sem financeiro transacional).
   centrosCusto           CentroCusto[]
   centrosResultado       CentroResultado[]
   centrosCustoResultado  CentroCustoResultado[]
@@ -1774,7 +1774,7 @@ model PesoRebanho {
   @@index([cliente_id, evento_id])
 }
 
-/// D-PROD-145 — Gestão P1: centro de custo (onde o custo nasce: Curral, Oficina...).
+/// D-PROD-146 — Gestão P1: centro de custo (onde o custo nasce: Curral, Oficina...).
 /// Árvore opcional pela FK composta (cliente_id, empresa_id, pai_id): o pai é do
 /// MESMO tenant e da MESMA empresa por construção do banco. Sem valores
 /// financeiros e sem exclusão física (inativação).
@@ -1806,7 +1806,7 @@ model CentroCusto {
   @@index([cliente_id, empresa_id, createdAt, id])
 }
 
-/// D-PROD-145 — Gestão P1: centro de resultado (atividade a apurar: Cria, Recria,
+/// D-PROD-146 — Gestão P1: centro de resultado (atividade a apurar: Cria, Recria,
 /// Soja...). Não é Natureza Financeira. Mesma forma de árvore do centro de custo.
 model CentroResultado {
   id          String   @id @default(cuid())
@@ -1835,7 +1835,7 @@ model CentroResultado {
   @@index([cliente_id, empresa_id, createdAt, id])
 }
 
-/// D-PROD-145 — combinação POSSÍVEL centro de custo × centro de resultado (N:N),
+/// D-PROD-146 — combinação POSSÍVEL centro de custo × centro de resultado (N:N),
 /// opcional. Catálogo de combinações: não gera lançamento nem atribui custo.
 /// As FKs compostas garantem no banco que os dois centros são do mesmo tenant
 /// E da mesma empresa do vínculo.
