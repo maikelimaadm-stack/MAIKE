@@ -40,6 +40,17 @@ export const DEFAULT_MENU = [
     ],
   },
   {
+    // D-PROD-145 — Gestão Rural P1: só cadastros (sem financeiro, lançamento ou estoque).
+    id: "gestao-rural",
+    title: "Gestão Rural",
+    icon: "Briefcase",
+    submenu: [
+      { id: "ges-parceiros", title: "Parceiros", url: "Parceiros" },
+      { id: "ges-centros-custo", title: "Centros de Custo", url: "CentrosCusto" },
+      { id: "ges-centros-resultado", title: "Centros de Resultado", url: "CentrosResultado" },
+    ],
+  },
+  {
     id: "administracao",
     title: "Administração",
     icon: "Shield",

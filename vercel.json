@@ -65,6 +65,14 @@
       "destination": "/index.html"
     },
     {
+      "source": "/centrosresultado/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/CentrosResultado/",
+      "destination": "/index.html"
+    },
+    {
       "source": "/cadastrosetores/",
       "destination": "/index.html"
     },
@@ -86,6 +94,14 @@
     },
     {
       "source": "/GruposAtividades",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/centrosresultado",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/CentrosResultado",
       "destination": "/index.html"
     },
     {
@@ -153,6 +169,14 @@
       "destination": "/index.html"
     },
     {
+      "source": "/centroscusto/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/CentrosCusto/",
+      "destination": "/index.html"
+    },
+    {
       "source": "/mapacadastro",
       "destination": "/index.html"
     },
@@ -166,6 +190,14 @@
     },
     {
       "source": "/TiposTarefa/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/centroscusto",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/CentrosCusto",
       "destination": "/index.html"
     },
     {
@@ -233,6 +265,14 @@
       "destination": "/index.html"
     },
     {
+      "source": "/parceiros/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/Parceiros/",
+      "destination": "/index.html"
+    },
+    {
       "source": "/mapageral",
       "destination": "/index.html"
     },
@@ -254,6 +294,14 @@
     },
     {
       "source": "/Usuarios/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/parceiros",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/Parceiros",
       "destination": "/index.html"
     },
     {
