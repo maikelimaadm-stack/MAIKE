@@ -62,6 +62,11 @@ export default function DesktopSidebar({ items, currentPath, onNavigate, collaps
   // Recolhido: a logo mostra o ícone de expandir enquanto o mouse (ou foco) está nela.
   const [marcaEmHover, setMarcaEmHover] = React.useState(false);
 
+  // Ao recolher/expandir, a marca volta a mostrar a logo (sem herdar o hover anterior).
+  React.useEffect(() => {
+    setMarcaEmHover(false);
+  }, [collapsed]);
+
   return (
     <nav
       id="app-shell-sidebar"
@@ -79,18 +84,28 @@ export default function DesktopSidebar({ items, currentPath, onNavigate, collaps
               <button
                 type="button"
                 onClick={onToggle}
-                onMouseEnter={() => setMarcaEmHover(true)}
+                onMouseMove={() => setMarcaEmHover(true)}
                 onMouseLeave={() => setMarcaEmHover(false)}
                 onFocus={() => setMarcaEmHover(true)}
                 onBlur={() => setMarcaEmHover(false)}
                 aria-label="Expandir menu"
-                className="grid h-[38px] w-[38px] place-items-center rounded-xl text-[#64748b] transition-colors hover:bg-[var(--mk-btn-ativo)] hover:text-[#292a2d]"
+                className="relative grid h-[38px] w-[38px] place-items-center rounded-xl text-[#64748b] transition-colors hover:bg-[var(--mk-btn-ativo)] hover:text-[#292a2d]"
               >
-                {marcaEmHover ? (
-                  <PanelRight size={20} aria-hidden />
-                ) : (
-                  <img src="/brand/mak-gestao-simbolo.png" alt="" className="h-[32px] w-[32px] object-contain" />
-                )}
+                <img
+                  src="/brand/mak-gestao-simbolo.png"
+                  alt=""
+                  className={`h-[32px] w-[32px] object-contain transition-opacity duration-150 ${
+                    marcaEmHover ? "opacity-0" : "opacity-100"
+                  }`}
+                />
+                <span
+                  className={`pointer-events-none absolute inset-0 grid place-items-center transition-opacity duration-150 ${
+                    marcaEmHover ? "opacity-100" : "opacity-0"
+                  }`}
+                  aria-hidden
+                >
+                  <PanelRight size={20} />
+                </span>
               </button>
             </SidebarTooltip>
           </div>
