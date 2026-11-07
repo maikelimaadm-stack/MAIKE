@@ -516,7 +516,7 @@ function LayoutShell({ children, currentPageName }) {
     </DropdownMenu>;
 
   return (
-    <div className={`h-[100dvh] overflow-hidden bg-slate-50 safe-area-top flex${telaMapa ? " mk-shell--mapa" : ""}`} translate="no" style={{ "--app-content-offset": appContentOffset }}>
+    <div className={`h-[100dvh] overflow-hidden bg-slate-50 lg:bg-white safe-area-top flex${telaMapa ? " mk-shell--mapa" : ""}`} translate="no" style={{ "--app-content-offset": appContentOffset }}>
       <style>{`
         html, body { overscroll-behavior: none; }
         button, [role="button"], a { -webkit-user-select: none; user-select: none; }
@@ -533,7 +533,7 @@ function LayoutShell({ children, currentPageName }) {
         onSearch={() => setSearchOpen(true)} />
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-      <header className={`bg-white flex-none relative z-30 shadow-[0_1px_3px_rgba(15,23,42,0.07),0_4px_12px_rgba(15,23,42,0.035)] ${mobileHeaderBorder ? "" : "max-md:shadow-none"}`}>
+      <header className={`bg-white flex-none relative z-30 shadow-[0_2px_10px_rgba(15,23,42,0.06)] ${mobileHeaderBorder ? "" : "max-md:shadow-none"}`}>
         {mobileRecord?.editing ?
         // Registro em edição/novo: cabeçalho como as folhas — ✕ descartar, título, ✓ salvar (D-PROD-95).
         <div className="mk-mhdr mk-mhdr--edit md:hidden">

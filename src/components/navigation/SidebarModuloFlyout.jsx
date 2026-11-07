@@ -38,7 +38,7 @@ export default function SidebarModuloFlyout({
       style={{ top, left }}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
-      className="fixed z-[80] w-[224px] rounded-xl border border-[#e9edf2] bg-white p-1.5 shadow-[0_12px_32px_rgba(15,23,42,0.14)]"
+      className="fixed z-[80] w-[224px] rounded-xl bg-white p-1.5 shadow-[0_12px_32px_rgba(15,23,42,0.14)]"
     >
       <div className="px-2.5 pb-1 pt-1.5 text-[11px] font-semibold tracking-[0.15px] text-[#64748b]">{titulo}</div>
       {paginas.map((page) => {

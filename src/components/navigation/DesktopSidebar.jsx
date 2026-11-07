@@ -154,7 +154,7 @@ export default function DesktopSidebar({ items, currentPath, onNavigate, collaps
           id="app-shell-sidebar"
           aria-label="Módulos"
           data-collapsed={expandido ? "false" : "true"}
-          className={`flex h-full flex-col bg-[var(--mk-sup-cartao)] shadow-[1px_0_3px_rgba(15,23,42,0.07),4px_0_12px_rgba(15,23,42,0.035)] ${
+          className={`flex h-full flex-col bg-[var(--mk-sup-cartao)] shadow-[2px_0_10px_rgba(15,23,42,0.06)] ${
             expandido ? "w-[322px]" : "w-[60px]"
           } relative`}
         >
@@ -223,7 +223,7 @@ export default function DesktopSidebar({ items, currentPath, onNavigate, collaps
           </div>
 
           {/* Atalhos */}
-          <div className={`flex flex-col gap-1 border-b border-[var(--mk-sup-borda)] pb-3 pt-4 ${expandido ? "px-3" : "px-2.5"}`}>
+          <div className={`flex flex-col gap-1 pb-1 pt-4 ${expandido ? "px-3" : "px-2.5"}`}>
             {expandido ? null : (
               <SidebarTooltip label="Pesquisar telas" atalhos={["Ctrl", "K"]}>
                 <button
