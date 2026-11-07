@@ -16,7 +16,9 @@
  *    muda; duplicata nova na mesma empresa → 409 (sob trava). Duplicatas
  *    históricas não são tocadas e continuam lidas;
  *  - sem exclusão: a tela inativa (`ativo=false`) e reativa;
- *  - auditoria minimizada: CPF mascarado, sem RG e sem data de nascimento.
+ *  - parceiro NOVO exige ao menos um papel; legado `tipos=[]` segue editável sem migrar;
+ *  - auditoria por allowlist (`comoAuditoriaFornecedor`): sem documento, contato,
+ *    endereço, nome ou texto livre — só identificadores, situação e papéis.
  *  - `GET /fornecedores` (seletor do Cadastro de Lotes, projeção sem PII) não muda.
  */
 
@@ -26,65 +28,18 @@ import { AppError } from '../../shared/errors/AppError.js';
 import { registrarEvento } from '../auditoria/auditService.js';
 import { reservarNumero, ESCOPO_TENANT } from '../sequencias/entidadeCodigoService.js';
 import { decodificarCursor, normalizarLimite, montarEnvelopeKeyset, clausulaKeysetDesc } from '../../shared/pagination/keysetCursor.js';
-import { mascararCpf } from '../fornecedores/fornecedorService.js';
-import { exigirEmpresaDoTenant, invalido, iso, textoDoCorpo, travarEscopo } from './gestaoComum.js';
+import {
+  PAPEIS, aliasesDoPapel, camposAlterados, cnpjValido, comoAuditoriaFornecedor, cpfValido, digitos, exigirDocumentoLivre, lerPapeis,
+} from '../fornecedores/fornecedorDominio.js';
+import { exigirEmpresaDoTenant, invalido, iso, textoDoCorpo } from './gestaoComum.js';
 
 /** Mesma sequência do cadastro de Fornecedor: um só contador de código. */
 export const ENTIDADE_SEQUENCIA = 'Fornecedor';
 
-export const PAPEIS = Object.freeze(['fornecedor', 'cliente', 'prestador_servico', 'transportador', 'outros']);
+export { PAPEIS, lerPapeis };
 export const TIPOS_PESSOA = Object.freeze(['Física', 'Jurídica']);
 
-const semAcento = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim().replace(/[\s-]+/g, '_');
-const ALIASES = Object.freeze({
-  fornecedor: 'fornecedor', fornecedores: 'fornecedor',
-  cliente: 'cliente', clientes: 'cliente', comprador: 'cliente',
-  prestador_servico: 'prestador_servico', prestador_de_servico: 'prestador_servico', prestador_de_servicos: 'prestador_servico', prestador: 'prestador_servico', prestadora: 'prestador_servico', servicos: 'prestador_servico', servico: 'prestador_servico',
-  transportador: 'transportador', transportadora: 'transportador', transportadores: 'transportador',
-  outros: 'outros', outro: 'outros',
-});
-
-/** Separa os `tipos` gravados em papéis conhecidos e valores antigos preservados. */
-export const lerPapeis = (tipos) => {
-  const papeis = [];
-  const legados = [];
-  for (const bruto of Array.isArray(tipos) ? tipos : []) {
-    if (typeof bruto !== 'string') continue;
-    const canonico = ALIASES[semAcento(bruto)];
-    if (canonico) {
-      if (!papeis.includes(canonico)) papeis.push(canonico);
-    } else if (!legados.includes(bruto)) {
-      legados.push(bruto);
-    }
-  }
-  return { papeis: PAPEIS.filter((p) => papeis.includes(p)), legados };
-};
-
-const digitos = (v) => String(v ?? '').replace(/\D/g, '');
-
-export const cpfValido = (v) => {
-  const d = digitos(v);
-  if (d.length !== 11 || /^(\d)\1{10}$/.test(d)) return false;
-  const dv = (base) => {
-    let soma = 0;
-    for (let i = 0; i < base.length; i += 1) soma += Number(base[i]) * (base.length + 1 - i);
-    const r = (soma * 10) % 11;
-    return r === 10 ? 0 : r;
-  };
-  return dv(d.slice(0, 9)) === Number(d[9]) && dv(d.slice(0, 10)) === Number(d[10]);
-};
-
-export const cnpjValido = (v) => {
-  const d = digitos(v);
-  if (d.length !== 14 || /^(\d)\1{13}$/.test(d)) return false;
-  const dv = (base) => {
-    const pesos = base.length === 12 ? [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2] : [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
-    const soma = pesos.reduce((acc, p, i) => acc + p * Number(base[i]), 0);
-    const r = soma % 11;
-    return r < 2 ? 0 : 11 - r;
-  };
-  return dv(d.slice(0, 12)) === Number(d[12]) && dv(d.slice(0, 13)) === Number(d[13]);
-};
+export { cpfValido, cnpjValido };
 
 /** Campos de texto opcionais do DTO, com o limite da coluna. */
 const TEXTOS = Object.freeze({
@@ -126,13 +81,6 @@ export const comoParceiroPublico = (r) => {
   };
 };
 
-/** Auditoria minimizada: sem RG nem data de nascimento; CPF mascarado. */
-const paraAuditoria = (r) => {
-  const p = comoParceiroPublico(r);
-  const { rg: _rg, data_nascimento: _dn, ...resto } = p; // eslint-disable-line no-unused-vars
-  return { ...resto, cpf: mascararCpf(p.cpf) };
-};
-
 /** Normaliza o DTO (create ou patch). Só os campos presentes. */
 const dadosDoCorpo = (entrada, { criacao }) => {
   /** @type {Record<string, any>} */
@@ -168,49 +116,12 @@ const dadosDoCorpo = (entrada, { criacao }) => {
   return d;
 };
 
-/** Duplicata NOVA do documento na empresa (compara só dígitos; inclui inativos). */
-const exigirDocumentoLivre = async (tx, clienteId, empresaId, campo, valor, ignorarId = null) => {
-  if (!valor) return;
-  await travarEscopo(tx, `gestao:parceiro-doc:${clienteId}:${empresaId}:${campo}:${valor}`);
-  const coluna = campo === 'cpf' ? 'cpf' : 'cnpj';
-  const linhas = /** @type {Array<{ id: string, numero_cadastro: string }>} */ (
-    coluna === 'cpf'
-      ? await tx.$queryRaw`SELECT id, numero_cadastro FROM "Fornecedor" WHERE cliente_id = ${clienteId} AND empresa_id = ${empresaId} AND regexp_replace(coalesce(cpf, ''), '\\D', '', 'g') = ${valor} AND id <> ${ignorarId ?? ''} LIMIT 1`
-      : await tx.$queryRaw`SELECT id, numero_cadastro FROM "Fornecedor" WHERE cliente_id = ${clienteId} AND empresa_id = ${empresaId} AND regexp_replace(coalesce(cnpj, ''), '\\D', '', 'g') = ${valor} AND id <> ${ignorarId ?? ''} LIMIT 1`
-  );
-  if (linhas.length) {
-    throw new AppError('PARCEIRO_DOCUMENTO_DUPLICADO', `já existe parceiro com este ${coluna.toUpperCase()} nesta empresa`, {
-      details: { field: coluna, numero_cadastro: linhas[0].numero_cadastro },
-    });
-  }
-};
-
-/**
- * D-PROD-146 (risco residual R1): as rotas antigas de escrita de `/fornecedores`
- * (só administrador real) passam pela MESMA regra de documento das Parceiros —
- * dígitos verificadores e unicidade por empresa sob trava — quando o CPF/CNPJ é
- * novo ou muda. O valor gravado continua o que a rota antiga recebeu.
- * @param {any} tx
- * @param {string} clienteId
- * @param {string|null|undefined} empresaId
- * @param {Record<string, unknown>} entrada
- * @param {Record<string, any>|null} [antes]
- */
-export const exigirDocumentosDoLegado = async (tx, clienteId, empresaId, entrada, antes = null) => {
-  for (const campo of /** @type {const} */ (['cpf', 'cnpj'])) {
-    if (entrada?.[campo] === undefined || entrada[campo] === null) continue;
-    const d = digitos(entrada[campo]);
-    if (!d) continue;
-    if (antes && d === digitos(antes[campo])) continue;
-    const ok = campo === 'cpf' ? cpfValido(d) : cnpjValido(d);
-    if (!ok) throw new AppError('PARCEIRO_DOCUMENTO_INVALIDO', `${campo.toUpperCase()} inválido`, { details: { field: campo } });
-    if (empresaId) await exigirDocumentoLivre(tx, clienteId, String(empresaId), campo, d, antes?.id ?? null);
-  }
-};
-
 const papeisDoCorpo = (papeis) => {
   if (papeis === undefined) return undefined;
-  if (!Array.isArray(papeis) || papeis.some((p) => !PAPEIS.includes(p))) throw invalido(`papeis aceita só ${PAPEIS.join(', ')}`, { field: 'papeis' });
+  if (!Array.isArray(papeis) || papeis.some((p) => !PAPEIS.includes(p))) throw invalido(`papeis aceita só ${PAPEIS.join(', ')}`, { field: 'papeis', reason: 'papel_invalido' });
+  // B4/R2: todo parceiro gravado por esta API tem ao menos um papel. `tipos=[]`
+  // fica só para o legado (lido como fornecedor por retrocompatibilidade).
+  if (!papeis.length) throw invalido('informe ao menos um papel (fornecedor, cliente, prestador de serviço, transportador ou outros)', { field: 'papeis', reason: 'papel_obrigatorio' });
   return PAPEIS.filter((p) => papeis.includes(p));
 };
 
@@ -244,7 +155,7 @@ export const listar = async (contexto, query = {}) => {
   }
   if (query.papel) {
     // aliases antigos gravados (ex.: "Fornecedor") também contam no filtro
-    const nomes = Object.entries(ALIASES).filter(([, c]) => c === query.papel).map(([a]) => a);
+    const nomes = aliasesDoPapel(query.papel);
     AND.push({ OR: [{ tipos: { has: query.papel } }, ...(query.papel === 'fornecedor' ? [{ tipos: { isEmpty: true } }] : []), ...nomes.map((n) => ({ tipos: { has: n } }))] });
   }
   const total = await prisma.fornecedor.count({ where: { ...where, ...(AND.length ? { AND } : {}) } });
@@ -265,7 +176,7 @@ export const detalhar = async (contexto, id, query = {}) => {
 export const criar = async (contexto, entrada) => {
   const auth = exigirAuthContext(contexto?.auth);
   const dados = dadosDoCorpo(entrada, { criacao: true });
-  const papeis = papeisDoCorpo(entrada.papeis) ?? [];
+  const papeis = papeisDoCorpo(entrada.papeis ?? []);
   return getPrismaClient().$transaction(async (tx) => {
     const empresaId = await exigirEmpresaDoTenant(tx, auth.clienteId, entrada.empresa_id);
     await exigirDocumentoLivre(tx, auth.clienteId, empresaId, 'cpf', dados.cpf);
@@ -274,7 +185,7 @@ export const criar = async (contexto, entrada) => {
     const registro = await tx.fornecedor.create({
       data: /** @type {any} */ ({ ...dados, cliente_id: auth.clienteId, empresa_id: empresaId, numero_cadastro: String(numero), tipos: papeis }),
     });
-    await registrarEvento(contexto, { acao: 'create', entidade: 'Fornecedor', entidadeId: registro.id, dadosNovos: { ...paraAuditoria(registro), via: 'parceiros' } }, tx);
+    await registrarEvento(contexto, { acao: 'create', entidade: 'Fornecedor', entidadeId: registro.id, dadosNovos: { ...comoAuditoriaFornecedor(registro), via: 'parceiros' } }, tx);
     return comoParceiroPublico(registro);
   });
 };
@@ -297,7 +208,7 @@ export const atualizar = async (contexto, id, entrada) => {
     const depois = await tx.fornecedor.update({ where: { cliente_id_id: { cliente_id: auth.clienteId, id } }, data: dados });
     await registrarEvento(
       contexto,
-      { acao: 'update', entidade: 'Fornecedor', entidadeId: id, dadosAnteriores: paraAuditoria(antes), dadosNovos: { ...paraAuditoria(depois), via: 'parceiros', campos_alterados: Object.keys(dados) } },
+      { acao: 'update', entidade: 'Fornecedor', entidadeId: id, dadosAnteriores: comoAuditoriaFornecedor(antes), dadosNovos: { ...comoAuditoriaFornecedor(depois), via: 'parceiros', campos_alterados: camposAlterados(antes, depois) } },
       tx
     );
     return comoParceiroPublico(depois);

@@ -103,8 +103,9 @@ describe('T1 — Parceiros sobre Fornecedor', () => {
     assert.deepEqual(f.tipos, ['fornecedor', 'transportador']);
     assert.equal(f.empresa_id, c.e1.id);
     const audit = await prisma().auditLog.findFirst({ where: { cliente_id: c.cliente.id, entidade: 'Fornecedor', entidade_id: a.id, acao: 'create' } });
-    assert.equal(audit.dados_novos.cpf, '***.982.247-**', 'CPF mascarado na auditoria');
-    assert.ok(!('rg' in audit.dados_novos) && !('data_nascimento' in audit.dados_novos), 'sem RG nem nascimento na auditoria');
+    // R2/B1: auditoria por allowlist — nem CPF mascarado, nem RG, nascimento ou nome.
+    for (const k of ['cpf', 'cnpj', 'rg', 'data_nascimento', 'nome', 'telefone', 'email']) assert.ok(!(k in audit.dados_novos), `sem ${k} na auditoria`);
+    assert.equal(audit.dados_novos.numero_cadastro, a.numero_cadastro);
   });
 
   test('documento: inválido → 400; duplicado na empresa (inclusive formatado) → 409; outra empresa aceita', async () => {

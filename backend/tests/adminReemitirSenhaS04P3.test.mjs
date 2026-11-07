@@ -15,7 +15,7 @@
 
 import { describe, test, before, after, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { readdirSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -27,6 +27,18 @@ import { getPrismaClient } from '../src/database/prismaClient.js';
 import { zerarLimitadorAdmin } from '../src/modules/adminMaike/adminSessao.js';
 import { codigoTotp, passoTotpAtual } from '../src/modules/adminMaike/adminCrypto.js';
 import { criarApp, criarTenant, limparBanco, encerrar, criarAdminComSessao, ORIGEM_ADMIN } from './helpers.mjs';
+
+/**
+ * Migrations atribuíveis à S04-P3 (reemissão de senha): pelo nome do diretório
+ * (`s04_p3`, `s04-p3`, `reemissao`) ou por SQL que toque o tema (`reemiss`,
+ * `s04_p3`). Função pura: o RS-12 a aplica ao repositório real e o teste
+ * abaixo a exercita com migrations FICTÍCIAS (sem banco).
+ * @param {Array<{ nome: string, sql: string }>} entradas
+ */
+const migrationsDaS04P3 = (entradas) =>
+  entradas
+    .filter(({ nome, sql }) => /s04[_-]?p3|reemiss/i.test(nome) || /s04[_-]?p3|reemiss/i.test(sql))
+    .map(({ nome }) => nome);
 
 /** @type {import('fastify').FastifyInstance} */
 let app;
@@ -458,14 +470,28 @@ describe('S04-P3 reemissão — alvo, tenant e contrato', () => {
     assert.equal((await reemitir(lab)).statusCode, 200);
     const r = await login(lab.vizinha.credenciais);
     assert.deepEqual(Object.keys(r.json()).sort(), ['cliente_id', 'token', 'usuario']);
-    const migrations = readdirSync(new URL('../prisma/migrations/', import.meta.url)).filter((n) => /^\d+_/.test(n)).sort();
-    // Depois da S04-P2 só pode existir a migration da Gestão P1 (D-PROD-146, PR #222),
-    // que é de outro slice: lista EXATA, então uma migration da S04-P3 ainda reprova.
+    const pasta = new URL('../prisma/migrations/', import.meta.url);
+    const migrations = readdirSync(pasta).filter((n) => /^\d+_/.test(n)).sort();
+    // As migrations anteriores do domínio de sessão seguem no histórico.
+    assert.ok(migrations.includes('20261106200000_s04_p1_sessao_epoca'));
     assert.ok(migrations.includes('20261107200000_s04_p2_troca_senha_inicial'));
-    assert.deepEqual(
-      migrations.filter((n) => n > '20261107200000_s04_p2_troca_senha_inicial'),
-      ['20261107300000_gestao_p1_centros_custo_resultado'],
-      'S04-P3 PR01 não cria migration',
-    );
+    // Contrato da S04-P3 PR01: nenhuma migration é dela (nome ou SQL), sem
+    // depender da lista de migrations futuras de outros domínios.
+    const entradas = migrations.map((nome) => ({ nome, sql: readFileSync(new URL(`${nome}/migration.sql`, pasta), 'utf8') }));
+    assert.deepEqual(migrationsDaS04P3(entradas), [], 'S04-P3 PR01 não cria migration');
+  });
+});
+
+describe('RS-12 — contrato "S04-P3 não cria migration" com migrations fictícias (sem banco)', () => {
+  test('migration futura legítima de outro domínio não reprova; migration da S04-P3 reprova', () => {
+    const base = [
+      { nome: '20261107200000_s04_p2_troca_senha_inicial', sql: 'ALTER TABLE "Usuario" ADD COLUMN "troca_senha_pendente" BOOLEAN;' },
+      { nome: '20261107300000_gestao_p1_centros_custo_resultado', sql: 'CREATE TABLE "CentroCusto" ("id" TEXT NOT NULL);' },
+    ];
+    const futuraLegitima = { nome: '20271231000000_gestao_p2_naturezas', sql: 'CREATE TABLE "NaturezaFinanceira" ("id" TEXT NOT NULL);' };
+    assert.deepEqual(migrationsDaS04P3([...base, futuraLegitima]), []);
+    const porNome = { nome: '20271231000001_s04_p3_reemissao_auditoria', sql: 'SELECT 1;' };
+    const porSql = { nome: '20271231000002_ajuste', sql: 'ALTER TABLE "Usuario" ADD COLUMN "reemissao_em" TIMESTAMP(3);' };
+    assert.deepEqual(migrationsDaS04P3([...base, futuraLegitima, porNome, porSql]), [porNome.nome, porSql.nome]);
   });
 });

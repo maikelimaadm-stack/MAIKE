@@ -15,7 +15,10 @@ import {
   atualizarRegistroPorId,
   excluirRegistroPorId,
 } from './fornecedorRepository.js';
-import { exigirDocumentosDoLegado } from '../gestao/parceiroService.js';
+import { comoAuditoriaFornecedor, camposAlterados, exigirDocumentosDoLegado, mascararCpf } from './fornecedorDominio.js';
+import { exigirEmpresaDoTenant } from '../gestao/gestaoComum.js';
+
+export { mascararCpf };
 
 export const ENTIDADE_SEQUENCIA = 'Fornecedor';
 
@@ -43,16 +46,6 @@ const CAMPOS_SELETOR = Object.freeze([
   'id', 'empresa_id', 'numero_cadastro', 'tipo_pessoa', 'nome', 'razao_social', 'cnpj', 'cidade', 'estado', 'tipos', 'ativo',
 ]);
 
-/**
- * CPF de terceiro mascarado no padrão usual (`***.456.789-**`): a busca do
- * seletor ainda casa pelos dígitos do meio, e o número completo não sai.
- * Formato inesperado → nada (falha fechada).
- * @param {unknown} cpf
- */
-export const mascararCpf = (cpf) => {
-  const d = String(cpf ?? '').replace(/\D/g, '');
-  return d.length === 11 ? `***.${d.slice(3, 6)}.${d.slice(6, 9)}-**` : null;
-};
 
 /** @param {Record<string, unknown>} registro */
 export const comoItemDoSeletor = (registro) => {
@@ -85,7 +78,9 @@ export const criar = async (contexto, entrada) => {
   const criado = await prisma.$transaction(async (tx) => {
     /** @type {Record<string, unknown>} */
     const dados = { ...exigirSomenteColunasGravaveis('Fornecedor', entrada), cliente_id: auth.clienteId };
-    await exigirDocumentosDoLegado(tx, auth.clienteId, /** @type {string|undefined} */ (dados.empresa_id), dados);
+    // B2/R2: empresa real DESTE tenant, obrigatória (falha fechada: 400 sem, 404 fora).
+    dados.empresa_id = await exigirEmpresaDoTenant(tx, auth.clienteId, dados.empresa_id);
+    await exigirDocumentosDoLegado(tx, auth.clienteId, /** @type {string} */ (dados.empresa_id), dados);
     if (!dados.numero_cadastro) {
       dados.numero_cadastro = String(
         await reservarNumero(tx, {
@@ -98,7 +93,7 @@ export const criar = async (contexto, entrada) => {
     const registro = await inserirRegistro(tx, dados);
     await registrarEvento(
       contexto,
-      { acao: 'create', entidade: 'Fornecedor', entidadeId: registro.id, dadosNovos: comoPublico(registro) },
+      { acao: 'create', entidade: 'Fornecedor', entidadeId: registro.id, dadosNovos: { ...comoAuditoriaFornecedor(registro), via: 'fornecedores' } },
       tx
     );
     return registro;
@@ -110,10 +105,25 @@ export const atualizar = async (contexto, id, entrada) => {
   const auth = exigirAuthContext(contexto?.auth);
   const prisma = getPrismaClient();
   const atualizado = await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM "Fornecedor" WHERE cliente_id = ${auth.clienteId} AND id = ${id} FOR UPDATE`;
     const existente = await buscarRegistro(auth.clienteId, id, tx);
     if (!existente) throw erroNaoEncontrado();
     const dados = exigirSomenteColunasGravaveis('Fornecedor', entrada);
-    await exigirDocumentosDoLegado(tx, auth.clienteId, /** @type {string|undefined} */ (dados.empresa_id ?? existente.empresa_id), dados, existente);
+    // B2/R2: identidade e empresa são imutáveis aqui. O mesmo valor atual é
+    // aceito como no-op (compatibilidade); mover o fornecedor de empresa ou
+    // trocar número/id nunca (deixaria Lote/nota/movimentação apontando para
+    // um fornecedor de outra empresa).
+    const imutavel = (field) => new AppError('REQUEST_VALIDATION_FAILED', `${field} não pode ser alterado`, { details: { field, reason: 'imutavel' } });
+    if (entrada && typeof entrada === 'object' && 'id' in entrada && entrada.id !== id) throw imutavel('id');
+    if ('empresa_id' in dados) {
+      if (dados.empresa_id !== existente.empresa_id) throw imutavel('empresa_id');
+      delete dados.empresa_id;
+    }
+    if ('numero_cadastro' in dados) {
+      if (dados.numero_cadastro !== existente.numero_cadastro) throw imutavel('numero_cadastro');
+      delete dados.numero_cadastro;
+    }
+    await exigirDocumentosDoLegado(tx, auth.clienteId, String(existente.empresa_id), dados, existente);
     const registro = await atualizarRegistroPorId(tx, auth.clienteId, id, dados);
     await registrarEvento(
       contexto,
@@ -121,8 +131,8 @@ export const atualizar = async (contexto, id, entrada) => {
         acao: 'update',
         entidade: 'Fornecedor',
         entidadeId: id,
-        dadosAnteriores: comoPublico(existente),
-        dadosNovos: comoPublico(registro),
+        dadosAnteriores: comoAuditoriaFornecedor(existente),
+        dadosNovos: { ...comoAuditoriaFornecedor(registro), via: 'fornecedores', campos_alterados: camposAlterados(existente, registro) },
       },
       tx
     );
@@ -152,7 +162,7 @@ export const excluir = async (contexto, id) => {
     await excluirRegistroPorId(tx, auth.clienteId, id);
     await registrarEvento(
       contexto,
-      { acao: 'delete', entidade: 'Fornecedor', entidadeId: id, dadosAnteriores: comoPublico(existente) },
+      { acao: 'delete', entidade: 'Fornecedor', entidadeId: id, dadosAnteriores: { ...comoAuditoriaFornecedor(existente), via: 'fornecedores' } },
       tx
     );
   });

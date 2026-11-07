@@ -101,6 +101,7 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   USUARIO_SELF_DEACTIVATE: { http: 400, meaning: 'conta autenticada não pode se desativar' },
   EMPRESA_NOT_FOUND: { http: 404, meaning: 'id não identifica empresa deste tenant' },
   // D-PROD-146 — Gestão P1 (Parceiros e centros).
+  FORNECEDOR_NOT_FOUND: { http: 404, meaning: 'id não identifica fornecedor deste tenant (rota legada /fornecedores)' },
   PARCEIRO_NOT_FOUND: { http: 404, meaning: 'id não identifica parceiro desta empresa neste tenant' },
   PARCEIRO_DOCUMENTO_INVALIDO: { http: 400, meaning: 'CPF ou CNPJ com dígitos verificadores inválidos; nada foi gravado' },
   PARCEIRO_EM_USO: { http: 409, meaning: 'fornecedor/parceiro referenciado por lote, nota ou movimentação não é excluído; inativar' },
