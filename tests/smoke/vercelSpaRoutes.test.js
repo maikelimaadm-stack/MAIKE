@@ -24,7 +24,7 @@ const PAGINAS_COLISAO_HISTORICA = [
   'Categorias',
 ];
 
-/** Todas as páginas permitidas (20; +3 de Gestão Rural, D-PROD-145). */
+/** Todas as páginas permitidas (20; +3 de Gestão Rural, D-PROD-146). */
 const TODAS_PAGINAS_SPA = [
   'Bebedouros',
   'CadastroLotes',

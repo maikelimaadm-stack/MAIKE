@@ -137,7 +137,7 @@ export const excluir = async (contexto, id) => {
   await prisma.$transaction(async (tx) => {
     const existente = await buscarRegistro(auth.clienteId, id, tx);
     if (!existente) throw erroNaoEncontrado();
-    // D-PROD-145 (R1): parceiro com histórico não some (o nome tem de continuar
+    // D-PROD-146 (R1): parceiro com histórico não some (o nome tem de continuar
     // resolvendo em Lote, nota e movimentação); a tela Parceiros inativa.
     const [lotes, notas, movimentacoes] = await Promise.all([
       tx.lote.count({ where: { cliente_id: auth.clienteId, fornecedor_id: id } }),

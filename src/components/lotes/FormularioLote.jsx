@@ -228,7 +228,7 @@ export default function FormularioLote({
     queryFn: () => listarFornecedores(empresaSelecionadaId),
     enabled: !!empresaSelecionadaId
   });
-  // D-PROD-145: inativo não entra em vínculo novo; o fornecedor atual do lote segue exibido.
+  // D-PROD-146: inativo não entra em vínculo novo; o fornecedor atual do lote segue exibido.
   const fornecedoresOpcoes = useMemo(
     () => fornecedoresSelecionaveis(fornecedores, [initialData?.fornecedor_id, formData.fornecedor_id]),
     [fornecedores, initialData?.fornecedor_id, formData.fornecedor_id]

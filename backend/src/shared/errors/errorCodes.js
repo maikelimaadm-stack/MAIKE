@@ -100,7 +100,7 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   PERMISSAO_NOT_FOUND: { http: 404, meaning: 'id não identifica permissão deste tenant' },
   USUARIO_SELF_DEACTIVATE: { http: 400, meaning: 'conta autenticada não pode se desativar' },
   EMPRESA_NOT_FOUND: { http: 404, meaning: 'id não identifica empresa deste tenant' },
-  // D-PROD-145 — Gestão P1 (Parceiros e centros).
+  // D-PROD-146 — Gestão P1 (Parceiros e centros).
   PARCEIRO_NOT_FOUND: { http: 404, meaning: 'id não identifica parceiro desta empresa neste tenant' },
   PARCEIRO_DOCUMENTO_INVALIDO: { http: 400, meaning: 'CPF ou CNPJ com dígitos verificadores inválidos; nada foi gravado' },
   PARCEIRO_EM_USO: { http: 409, meaning: 'fornecedor/parceiro referenciado por lote, nota ou movimentação não é excluído; inativar' },
@@ -426,6 +426,8 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   ADMIN_CLIENTE_CODIGO_DUPLICADO: { http: 409, meaning: 'já existe cliente com este código' },
   ADMIN_LOGIN_DUPLICADO: { http: 409, meaning: 'login já usado por uma conta ativa (em qualquer cliente)' },
   ADMIN_CLIENTE_EDICAO_CONCORRENTE: { http: 409, meaning: 'cliente alterado em outra sessão depois da leitura (ficha ou requisição); nada foi gravado' },
+  ADMIN_REEMISSAO_SENHA_DESABILITADA: { http: 503, meaning: 'reemissão de senha pelo MAIKE Admin desligada neste ambiente (gate de ativação fechado)' },
+  ADMIN_USUARIO_EDICAO_CONCORRENTE: { http: 409, meaning: 'conta do usuário alterada depois da leitura da ficha (ou outra operação venceu a corrida); nada foi gravado' },
   ADMIN_REVISAO_REQUERIDA: { http: 428, meaning: 'If-Match com a revisão (ETag) da ficha ausente ou malformado' },
   CATALOGO_ASSET_INVALID: {
     http: 400,

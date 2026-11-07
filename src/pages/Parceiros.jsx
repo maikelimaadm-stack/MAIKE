@@ -26,7 +26,7 @@ import { ehNaoEncontradoGestao, mensagemErroGestao } from "@/lib/gestaoErros";
 const QUERY_RAIZ = "parceiros-gestao";
 
 /**
- * Parceiros (D-PROD-145) — pessoa física/jurídica com papéis múltiplos, sobre o
+ * Parceiros (D-PROD-146) — pessoa física/jurídica com papéis múltiplos, sobre o
  * cadastro de Fornecedor do servidor (mesmo id e número). Sem exclusão física:
  * "Excluir" = inativar, com confirmação. Online só.
  */

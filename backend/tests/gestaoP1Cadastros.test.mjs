@@ -1,5 +1,5 @@
 /**
- * D-PROD-145 — MAIKE Gestão P1: Parceiros (sobre Fornecedor), Centros de Custo,
+ * D-PROD-146 — MAIKE Gestão P1: Parceiros (sobre Fornecedor), Centros de Custo,
  * Centros de Resultado e o vínculo N:N. PostgreSQL real, HTTP autenticado, prova
  * por persistência. Matriz T1–T7 do pedido do proprietário.
  */

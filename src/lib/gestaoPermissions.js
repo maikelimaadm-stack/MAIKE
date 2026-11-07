@@ -1,5 +1,5 @@
 /**
- * Gestão Rural (D-PROD-145) — espelho EXATO dos guardas do servidor
+ * Gestão Rural (D-PROD-146) — espelho EXATO dos guardas do servidor
  * (`GUARDAS.parceiro|centroCusto|centroResultado` em
  * backend/src/shared/auth/guardasRotas.js):
  *  - ver       = visualizar da tela;

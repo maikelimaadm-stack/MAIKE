@@ -1,5 +1,5 @@
 /**
- * D-PROD-145 — rotas de Centros de Custo, Centros de Resultado e do vínculo N:N.
+ * D-PROD-146 — rotas de Centros de Custo, Centros de Resultado e do vínculo N:N.
  * Corpo e query fechados (`additionalProperties: false`); tenant só da sessão;
  * cada rota exige a ação da PRÓPRIA tela (nunca `semTela` nem só autenticação).
  */

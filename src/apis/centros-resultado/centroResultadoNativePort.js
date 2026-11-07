@@ -1,5 +1,5 @@
 /**
- * Porta nativa de Centros de Resultado (D-PROD-145). Só online; tenant só no JWT.
+ * Porta nativa de Centros de Resultado (D-PROD-146). Só online; tenant só no JWT.
  * O vínculo com Centros de Custo aqui é SÓ leitura (quem grava é o centro de custo).
  */
 

@@ -1,4 +1,6 @@
-# MAIKE — Gestão P1: Parceiros, Centros de Custo/Resultado e vínculos (D-PROD-145)
+# MAIKE — Gestão P1: Parceiros, Centros de Custo/Resultado e vínculos (D-PROD-146)
+
+> **Numeração:** esta missão foi aberta como D-PROD-145. A PR #223 (S04-P3 PR01) entrou na `main` antes com o mesmo número, então a Gestão P1 passou a ser **D-PROD-146**. O comentário da 1ª linha do `migration.sql` mantém "D-PROD-145" de propósito: o arquivo está pinado por checksum em `MIGRATIONS_APROVADAS` e já foi aplicado na produção com esse checksum (§9). Alterá-lo quebraria o pré-merge e o histórico do Prisma.
 
 Pedido do proprietário (`PROMPT_CLAUDE_MAIKE_GESTAO_CADASTROS_P1_VINCULACOES_2026-11-07.md`):
 - **Cadastrar antes de lançar:** Parceiros, Centros de Custo e Centros de Resultado, com o vínculo entre os centros.

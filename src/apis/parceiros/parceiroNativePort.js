@@ -1,5 +1,5 @@
 /**
- * Porta nativa de Parceiros (D-PROD-145) — sobre o model Fornecedor no servidor.
+ * Porta nativa de Parceiros (D-PROD-146) — sobre o model Fornecedor no servidor.
  *
  * Só online: o servidor valida documento e duplicata; uma fila offline mostraria
  * "sucesso" que o servidor pode recusar depois.

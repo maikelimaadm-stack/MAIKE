@@ -1,5 +1,5 @@
 /**
- * D-PROD-145 — tela Parceiros montada de verdade (página, motor Base1, service,
+ * D-PROD-146 — tela Parceiros montada de verdade (página, motor Base1, service,
  * API, porta e nativeHttpClient reais). Mocks só da borda: `fetch` (backend
  * falso) e a sessão (usuário/permissão efetiva, tenant do JWT).
  */

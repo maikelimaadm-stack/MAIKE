@@ -203,7 +203,7 @@ export const construirApp = async (opcoes = {}) => {
   await app.register(registrarEmpresaRoutes);
   await app.register(registrarPermissaoRoutes);
   await app.register(registrarFornecedorRoutes);
-  // D-PROD-145 — Gestão P1 (cadastros; sem financeiro transacional).
+  // D-PROD-146 — Gestão P1 (cadastros; sem financeiro transacional).
   await app.register(registrarParceiroRoutes);
   await app.register(registrarCentroRoutes);
   await app.register(registrarCategoriaManejoRoutes);

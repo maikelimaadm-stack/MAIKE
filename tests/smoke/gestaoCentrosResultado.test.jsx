@@ -1,5 +1,5 @@
 /**
- * D-PROD-145 — tela Centros de Resultado montada de verdade. Mocks só da borda
+ * D-PROD-146 — tela Centros de Resultado montada de verdade. Mocks só da borda
  * (`fetch` = backend falso; sessão). O vínculo com Centros de Custo aqui é só
  * leitura.
  */

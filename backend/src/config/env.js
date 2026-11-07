@@ -96,7 +96,17 @@ export const env = {
   /** Validade absoluta da sessão admin verificada (horas) e ociosidade (minutos). */
   adminSessaoHoras: inteiro('ADMIN_SESSAO_HORAS', 8),
   adminSessaoOciosaMinutos: inteiro('ADMIN_SESSAO_OCIOSA_MINUTOS', 30),
+  /**
+   * Gate de ativação da reemissão de senha temporária pelo MAIKE Admin
+   * (S04-P3 PR01, D-PROD-145/R1). Fail-closed: só o literal `true` liga;
+   * ausente, vazio ou qualquer outro valor = desligado. Ligar em Production é
+   * operação futura, depois do S02 e com aprovação específica do proprietário.
+   */
+  adminReemissaoSenhaHabilitada: process.env.ADMIN_REEMISSAO_SENHA_HABILITADA === 'true',
 };
+
+/** Reemissão de senha pelo MAIKE Admin ligada? Lido a cada chamada (só `=== true`). */
+export const reemissaoSenhaHabilitada = () => env.adminReemissaoSenhaHabilitada === true;
 
 export const ehProducao = () => env.nodeEnv === 'production';
 

@@ -5,7 +5,7 @@ import { notifyWarning } from "@/lib/maikeNotify";
 import { CampoSelect, CampoTexto, SecaoForm } from "@/components/gestao/GestaoFormParts";
 
 /**
- * Formulário de Centro de Custo / Centro de Resultado (D-PROD-145): nome,
+ * Formulário de Centro de Custo / Centro de Resultado (D-PROD-146): nome,
  * descrição, pai (hierarquia opcional) e situação. As opções de pai já chegam
  * sem o próprio nó e sem os descendentes; o servidor também barra ciclo.
  *

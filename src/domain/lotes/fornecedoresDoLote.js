@@ -1,5 +1,5 @@
 /**
- * Opções do seletor de fornecedor do Cadastro de Lotes (D-PROD-145).
+ * Opções do seletor de fornecedor do Cadastro de Lotes (D-PROD-146).
  *
  * Parceiro/fornecedor INATIVO não é oferecido para vínculo novo; o que o lote
  * já aponta (valor salvo ou o escolhido agora) continua na lista, para o nome

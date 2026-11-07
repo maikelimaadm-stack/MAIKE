@@ -1,5 +1,5 @@
 /**
- * D-PROD-145 — Centros de Custo e Centros de Resultado (cadastros; sem valores).
+ * D-PROD-146 — Centros de Custo e Centros de Resultado (cadastros; sem valores).
  *
  * Os dois têm a mesma forma (árvore opcional por empresa), então este arquivo
  * descreve as regras uma vez e as aplica a cada tipo. Regras:
@@ -27,7 +27,7 @@ import { ehViolacaoDeUnique, exigirEmpresaDoTenant, invalido, iso, textoDoCorpo,
 export const PROFUNDIDADE_MAXIMA = 5;
 export const MAX_VINCULOS = 200;
 /**
- * Teto de centros ATIVOS por tipo e empresa (D-PROD-145, risco R3). As opções
+ * Teto de centros ATIVOS por tipo e empresa (D-PROD-146, risco R3). As opções
  * de pai e de vínculo devolvem todos os ativos; com o teto aplicado na escrita
  * (sob a trava da árvore), a lista do seletor nunca sai cortada.
  */

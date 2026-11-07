@@ -34,7 +34,7 @@ const formInicial = (d) => ({
 });
 
 /**
- * Formulário de Parceiro (D-PROD-145): seções Identificação, Papéis, Contato,
+ * Formulário de Parceiro (D-PROD-146): seções Identificação, Papéis, Contato,
  * Endereço, Observações e Situação. Entrega o formulário inteiro; quem grava
  * calcula só o que mudou (PATCH mínimo).
  *

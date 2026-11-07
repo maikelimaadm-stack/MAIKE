@@ -1,5 +1,5 @@
 /**
- * D-PROD-145 — grupo "Gestão Rural" no menu e no gerenciador de permissões.
+ * D-PROD-146 — grupo "Gestão Rural" no menu e no gerenciador de permissões.
  *
  *  - SSOT: menu, páginas e manifesto de escopo têm exatamente as três telas;
  *  - o menu (shell real, Layout) mostra o grupo só para quem tem alguma das telas;

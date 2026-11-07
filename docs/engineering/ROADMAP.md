@@ -253,7 +253,7 @@ operacional: [`docs/engineering/PLAN-EXECUCAO-PARIDADE-BASE1.md`](./PLAN-EXECUCA
 PR #51 / branch `cursor/ux-base1-cards-colunas-878d`). Não substitui missões P4–P8;
 anexos nativos permanecem em P8.
 
-## Track autorizado — Gestão Rural P1 (D-PROD-145)
+## Track autorizado — Gestão Rural P1 (D-PROD-146)
 
 Cadastros antes de lançar: **Parceiros** (sobre o model `Fornecedor`, papéis
 múltiplos), **Centros de Custo**, **Centros de Resultado** e o vínculo N:N

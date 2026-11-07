@@ -1,4 +1,4 @@
-/** API do módulo Centros de Custo (D-PROD-145). Online só; página keyset do motor Base1. */
+/** API do módulo Centros de Custo (D-PROD-146). Online só; página keyset do motor Base1. */
 
 import { runProviderCall, assertArgument } from '../_core/normalizeApiError.js';
 import { operacoesNativas } from './centroCustoNativePort.js';

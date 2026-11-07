@@ -20,7 +20,7 @@
 --   - Tudo roda numa única transação: se o editor não executar o arquivo
 --     inteiro de uma vez, ele para ANTES de alterar qualquer coisa.
 --   - Confere o banco (system_identifier + nome do banco), 25/25 migrations,
---     o conjunto EXATO de 61 tabelas (53 + 5 do ledger R2E-P1/R1 + 3 de Gestão P1, D-PROD-145), só tabelas comuns em public, as colunas
+--     o conjunto EXATO de 61 tabelas (53 + 5 do ledger R2E-P1/R1 + 3 de Gestão P1, D-PROD-146), só tabelas comuns em public, as colunas
 --     cliente_id esperadas, a ordem das FKs, nenhuma linha de tabela
 --     preservada apontando para o tenant, e a impressão do inventário (com as
 --     tabelas travadas contra escrita — mudança desde o 01 = para).
@@ -136,7 +136,7 @@ BEGIN
     RAISE EXCEPTION 'MAIKE-02: as tabelas com cliente_id não são as esperadas. Nada foi alterado.';
   END IF;
 
-  -- 5. Ordem de FK: toda filha sai antes da mãe; auto-referência só em Categoria e nos centros (D-PROD-145; anuláveis).
+  -- 5. Ordem de FK: toda filha sai antes da mãe; auto-referência só em Categoria e nos centros (D-PROD-146; anuláveis).
   FOR r IN
     SELECT c.conrelid::regclass::text AS filha_q, c.confrelid::regclass::text AS mae_q,
            (SELECT relname FROM pg_class WHERE oid = c.conrelid)::text AS filha,
@@ -214,7 +214,7 @@ BEGIN
 
   -- 8. Apaga só as linhas dos clientes de teste (auto-referência de Categoria primeiro).
   UPDATE "Categoria" SET categoria_pai_id = NULL WHERE cliente_id = ANY (v_ids) AND categoria_pai_id IS NOT NULL;
-  -- D-PROD-145: árvores dos centros (FK composta com pai_id anulável).
+  -- D-PROD-146: árvores dos centros (FK composta com pai_id anulável).
   UPDATE "CentroCusto" SET pai_id = NULL WHERE cliente_id = ANY (v_ids) AND pai_id IS NOT NULL;
   UPDATE "CentroResultado" SET pai_id = NULL WHERE cliente_id = ANY (v_ids) AND pai_id IS NOT NULL;
   FOREACH v_tab IN ARRAY c_tenant LOOP

@@ -1,5 +1,5 @@
 /**
- * D-PROD-145 — seletor de fornecedor do Cadastro de Lotes: parceiro INATIVO não
+ * D-PROD-146 — seletor de fornecedor do Cadastro de Lotes: parceiro INATIVO não
  * é oferecido para vínculo novo; o lote que já aponta para um inativo continua
  * mostrando o nome. A rota `/fornecedores` (projeção) não muda.
  *

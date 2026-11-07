@@ -40,7 +40,7 @@ export const DEFAULT_MENU = [
     ],
   },
   {
-    // D-PROD-145 — Gestão Rural P1: só cadastros (sem financeiro, lançamento ou estoque).
+    // D-PROD-146 — Gestão Rural P1: só cadastros (sem financeiro, lançamento ou estoque).
     id: "gestao-rural",
     title: "Gestão Rural",
     icon: "Briefcase",

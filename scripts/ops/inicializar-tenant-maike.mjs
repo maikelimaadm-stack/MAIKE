@@ -134,7 +134,7 @@ const lerFks = async (cx) =>
     await cx.$queryRawUnsafe(
       `SELECT c.conrelid::regclass::text AS filha, c.confrelid::regclass::text AS mae,
               array_agg(a.attname::text ORDER BY a.attnum) AS colunas,
-              -- D-PROD-145: FK composta de árvore (cliente_id, empresa_id, pai_id).
+              -- D-PROD-146: FK composta de árvore (cliente_id, empresa_id, pai_id).
               -- Com MATCH SIMPLE, anular UMA coluna anulável já desliga a FK; só
               -- essas colunas são anuladas (as de tenant/empresa ficam).
               coalesce(array_agg(a.attname::text ORDER BY a.attnum) FILTER (WHERE NOT a.attnotnull), '{}') AS colunas_anulaveis,

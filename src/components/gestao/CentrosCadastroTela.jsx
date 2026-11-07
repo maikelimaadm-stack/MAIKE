@@ -50,7 +50,7 @@ export const CONFIG_CENTROS = Object.freeze({
 const capital = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
 /**
- * Tela Motor Base1 de Centros (D-PROD-145): lista com hierarquia (caminho e
+ * Tela Motor Base1 de Centros (D-PROD-146): lista com hierarquia (caminho e
  * pai), busca, filtro de situação; formulário com pai; inativar com
  * confirmação (sem exclusão física). No Centro de Custo, vínculo N:N com
  * Centros de Resultado; no Centro de Resultado, o vínculo é só leitura.

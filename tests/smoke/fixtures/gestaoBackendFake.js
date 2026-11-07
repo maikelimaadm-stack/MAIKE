@@ -1,5 +1,5 @@
 /**
- * Backend falso das telas de Gestão Rural (D-PROD-145) — só a borda de rede.
+ * Backend falso das telas de Gestão Rural (D-PROD-146) — só a borda de rede.
  *
  * Substitui `fetch` e responde como o Fastify real (envelope keyset, `{ itens }`,
  * corpo de erro `{ code, message, request_id, field?, reason?, details? }`).

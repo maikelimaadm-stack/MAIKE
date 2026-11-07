@@ -1,5 +1,5 @@
 /**
- * D-PROD-145 — rotas de Parceiros (sobre o model Fornecedor). Schemas fechados;
+ * D-PROD-146 — rotas de Parceiros (sobre o model Fornecedor). Schemas fechados;
  * guardas da tela Parceiros; sem DELETE (a tela inativa). As rotas antigas de
  * `/fornecedores` (seletor do Cadastro de Lotes) não mudam.
  */

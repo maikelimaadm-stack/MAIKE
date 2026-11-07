@@ -1,5 +1,5 @@
 /**
- * D-PROD-145 — Parceiros (pessoa física ou jurídica com papéis múltiplos).
+ * D-PROD-146 — Parceiros (pessoa física ou jurídica com papéis múltiplos).
  *
  * Persistência: o model `Fornecedor` continua sendo a entidade canônica — mesmo
  * id, mesmo `numero_cadastro`, mesma tabela. Não existe tabela `Parceiro`: nada
@@ -186,7 +186,7 @@ const exigirDocumentoLivre = async (tx, clienteId, empresaId, campo, valor, igno
 };
 
 /**
- * D-PROD-145 (risco residual R1): as rotas antigas de escrita de `/fornecedores`
+ * D-PROD-146 (risco residual R1): as rotas antigas de escrita de `/fornecedores`
  * (só administrador real) passam pela MESMA regra de documento das Parceiros —
  * dígitos verificadores e unicidade por empresa sob trava — quando o CPF/CNPJ é
  * novo ou muda. O valor gravado continua o que a rota antiga recebeu.

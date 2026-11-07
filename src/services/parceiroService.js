@@ -1,5 +1,5 @@
 /**
- * Service de Parceiros (D-PROD-145). O servidor é a fronteira: valida documento,
+ * Service de Parceiros (D-PROD-146). O servidor é a fronteira: valida documento,
  * duplicata, empresa e permissão. Aqui só: empresa obrigatória, corpo mínimo.
  * Sem exclusão física: "Excluir" na tela = inativar.
  */
