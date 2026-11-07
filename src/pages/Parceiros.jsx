@@ -79,9 +79,16 @@ export default function Parceiros() {
     empresaAnterior.current = empresaId;
     closeForm();
   }, [empresaId, closeForm]);
+  // R2 (revisão): resposta de gravação que chega depois de trocar a empresa não
+  // mexe no registro aberto da empresa nova — só relê as listas.
+  const empresaAtual = useRef(empresaId);
+  empresaAtual.current = empresaId;
+  /** @param {{ empresaId?: string|null } | undefined} v */
+  const daEmpresaAtual = (v) => Boolean(v) && v.empresaId === empresaAtual.current;
+  const avisarEmpresaAnterior = () => notifyInfo("Gravação concluída", "A gravação feita na empresa anterior foi concluída.");
 
-  const tratarErro = (err, fallback) => {
-    if (ehNaoEncontradoGestao(err)) {
+  const tratarErro = (err, fallback, v) => {
+    if (ehNaoEncontradoGestao(err) && daEmpresaAtual(v)) {
       queryClient.invalidateQueries({ queryKey: [QUERY_RAIZ] });
       controller.recordHelpers.closeForm();
     }
@@ -96,10 +103,11 @@ export default function Parceiros() {
   };
 
   const createMutation = useMutation({
-    /** @param {object} data */
-    mutationFn: (data) => criarParceiro(empresaId, data),
-    onSuccess: (criado) => {
+    /** @param {{ empresaId: string, data: object }} v */
+    mutationFn: ({ empresaId: emp, data }) => criarParceiro(emp, data),
+    onSuccess: (criado, v) => {
       queryClient.invalidateQueries({ queryKey: [QUERY_RAIZ] });
+      if (!daEmpresaAtual(v)) return avisarEmpresaAnterior();
       if (criado && typeof criado === "object" && "id" in criado && criado.id) {
         mostrarRegistro(criado);
         controller.recordHelpers.chrome.onSelectionChange([String(criado.id)]);
@@ -108,13 +116,18 @@ export default function Parceiros() {
       }
       notifySuccess("Sucesso", "Parceiro criado");
     },
-    onError: (err) => tratarErro(err, "Não foi possível salvar o parceiro."),
+    onError: (err, v) => tratarErro(err, "Não foi possível salvar o parceiro.", v),
   });
 
   const updateMutation = useMutation({
-    /** @param {{ original: any, data: object }} vars */
-    mutationFn: ({ original, data }) => atualizarParceiro(empresaId, original, data),
-    onSuccess: ({ alterado, registro }) => {
+    /** @param {{ empresaId: string, original: any, data: object }} vars */
+    mutationFn: ({ empresaId: emp, original, data }) => atualizarParceiro(emp, original, data),
+    onSuccess: ({ alterado, registro }, v) => {
+      if (!daEmpresaAtual(v)) {
+        avisarEmpresaAnterior();
+        queryClient.invalidateQueries({ queryKey: [QUERY_RAIZ] });
+        return;
+      }
       if (!alterado) {
         controller.setIsEditing(false);
         notifyInfo("Sem alterações", "Nada foi alterado.");
@@ -124,14 +137,15 @@ export default function Parceiros() {
       mostrarRegistro(registro);
       notifySuccess("Sucesso", "Parceiro atualizado");
     },
-    onError: (err) => tratarErro(err, "Não foi possível salvar o parceiro."),
+    onError: (err, v) => tratarErro(err, "Não foi possível salvar o parceiro.", v),
   });
 
   const inativarMutation = useMutation({
-    /** @param {string[]} ids */
-    mutationFn: (ids) => inativarParceiros(empresaId, ids),
-    onSuccess: ({ ok, falhas }) => {
+    /** @param {{ empresaId: string, ids: string[] }} v */
+    mutationFn: ({ empresaId: emp, ids }) => inativarParceiros(emp, ids),
+    onSuccess: ({ ok, falhas }, v) => {
       queryClient.invalidateQueries({ queryKey: [QUERY_RAIZ] });
+      if (!daEmpresaAtual(v)) return avisarEmpresaAnterior();
       controller.chrome.setSelectedIds([]);
       if (controller.showForm && ok.some((id) => String(id) === String(controller.editingItem?.id))) {
         controller.recordHelpers.closeForm();
@@ -141,18 +155,19 @@ export default function Parceiros() {
         notifyError("Atenção", falhas.length === 1 ? mensagemErroGestao(falhas[0].erro, "Não foi possível inativar o parceiro.") : `${falhas.length} parceiros não puderam ser inativados. ${mensagemErroGestao(falhas[0].erro, "")}`.trim());
       }
     },
-    onError: (err) => tratarErro(err, "Não foi possível inativar."),
+    onError: (err, v) => tratarErro(err, "Não foi possível inativar.", v),
   });
 
   const reativarMutation = useMutation({
-    /** @param {string} id */
-    mutationFn: (id) => alterarSituacaoParceiro(empresaId, id, true),
-    onSuccess: (registro) => {
+    /** @param {{ empresaId: string, id: string }} v */
+    mutationFn: ({ empresaId: emp, id }) => alterarSituacaoParceiro(emp, id, true),
+    onSuccess: (registro, v) => {
       queryClient.invalidateQueries({ queryKey: [QUERY_RAIZ] });
+      if (!daEmpresaAtual(v)) return avisarEmpresaAnterior();
       if (registro && typeof registro === "object") mostrarRegistro(registro);
       notifySuccess("Sucesso", "Parceiro reativado");
     },
-    onError: (err) => tratarErro(err, "Não foi possível reativar."),
+    onError: (err, v) => tratarErro(err, "Não foi possível reativar.", v),
   });
 
   submitRef.current = async (data) => {
@@ -172,15 +187,15 @@ export default function Parceiros() {
         });
         if (!ok) return;
       }
-      updateMutation.mutate({ original, data });
+      updateMutation.mutate({ empresaId: /** @type {string} */ (empresaId), original, data });
     } else {
       if (!acoes.criar) return;
-      createMutation.mutate(data);
+      createMutation.mutate({ empresaId: /** @type {string} */ (empresaId), data });
     }
   };
   deleteRef.current = (ids) => {
     if (!podeGravar || !acoes.editar) return;
-    inativarMutation.mutate(ids);
+    inativarMutation.mutate({ empresaId: /** @type {string} */ (empresaId), ids });
   };
 
   const saving = createMutation.isPending || updateMutation.isPending || inativarMutation.isPending || reativarMutation.isPending;
@@ -224,7 +239,7 @@ export default function Parceiros() {
         extraToolbar={<FiltroSituacao value={situacao} onChange={setSituacao} />}
         additionalMoreActions={
           podeReativar
-            ? [{ key: "reativar", label: "Reativar parceiro", onSelect: () => reativarMutation.mutate(String(registroAtual.id)) }]
+            ? [{ key: "reativar", label: "Reativar parceiro", onSelect: () => reativarMutation.mutate({ empresaId: /** @type {string} */ (empresaId), id: String(registroAtual.id) }) }]
             : null
         }
         deleteDialog={{

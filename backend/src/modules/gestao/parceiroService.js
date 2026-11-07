@@ -29,7 +29,7 @@ import { registrarEvento } from '../auditoria/auditService.js';
 import { reservarNumero, ESCOPO_TENANT } from '../sequencias/entidadeCodigoService.js';
 import { decodificarCursor, normalizarLimite, montarEnvelopeKeyset, clausulaKeysetDesc } from '../../shared/pagination/keysetCursor.js';
 import {
-  PAPEIS, aliasesDoPapel, camposAlterados, cnpjValido, comoAuditoriaFornecedor, cpfValido, digitos, exigirDocumentoLivre, lerPapeis,
+  PAPEIS, camposAlterados, cnpjValido, comoAuditoriaFornecedor, cpfValido, digitos, exigirDocumentoLivre, lerPapeis,
 } from '../fornecedores/fornecedorDominio.js';
 import { exigirEmpresaDoTenant, invalido, iso, textoDoCorpo } from './gestaoComum.js';
 
@@ -154,9 +154,18 @@ export const listar = async (contexto, query = {}) => {
     });
   }
   if (query.papel) {
-    // aliases antigos gravados (ex.: "Fornecedor") também contam no filtro
-    const nomes = aliasesDoPapel(query.papel);
-    AND.push({ OR: [{ tipos: { has: query.papel } }, ...(query.papel === 'fornecedor' ? [{ tipos: { isEmpty: true } }] : []), ...nomes.map((n) => ({ tipos: { has: n } }))] });
+    // Grafias GRAVADAS (ex.: "Fornecedor", "Prestador de Serviço") classificadas
+    // pela MESMA normalização de `lerPapeis`: o filtro e o total casam com o
+    // que a listagem sem filtro mostra (o `has` do Prisma compara exato).
+    const gravadas = /** @type {Array<{ t: string }>} */ (
+      await prisma.$queryRaw`SELECT DISTINCT unnest(tipos) AS t FROM "Fornecedor" WHERE cliente_id = ${auth.clienteId} AND empresa_id = ${empresaId}`
+    );
+    const grafias = gravadas.map((l) => l.t).filter((t) => typeof t === 'string' && lerPapeis([t]).papeis.includes(query.papel));
+    const OR = [
+      ...(grafias.length ? [{ tipos: { hasSome: grafias } }] : []),
+      ...(query.papel === 'fornecedor' ? [{ tipos: { isEmpty: true } }] : []),
+    ];
+    AND.push(OR.length ? { OR } : { id: { in: [] } });
   }
   const total = await prisma.fornecedor.count({ where: { ...where, ...(AND.length ? { AND } : {}) } });
   if (cursor) AND.push(clausulaKeysetDesc(cursor));

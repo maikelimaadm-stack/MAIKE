@@ -265,3 +265,27 @@ describe('B4 — papéis: parceiro novo exige papel; Lote só associa fornecedor
     assert.equal((await ok(req('PATCH', `/lotes/${hist.id}`, t.adm, { fornecedor_id: null }))).fornecedor_id, null);
   });
 });
+
+describe('Revisão R2 — filtro por papel casa com as grafias históricas gravadas', () => {
+  test('papel=fornecedor inclui "Fornecedor", "fornecedores" e tipos=[]; papel=prestador_servico inclui "Prestador de Serviço"', async () => {
+    const t = await tenant();
+    const p = prisma();
+    const mk = (n, tipos) => p.fornecedor.create({ data: { cliente_id: t.cliente.id, empresa_id: t.e1.id, numero_cadastro: n, tipo_pessoa: 'Jurídica', nome: n, tipos } });
+    const cap = await mk('CAP', ['Fornecedor']);
+    const plural = await mk('PLU', ['fornecedores']);
+    const vazio = await mk('VAZ', []);
+    const prest = await mk('PRE', ['Prestador de Serviço']);
+    const cli = await mk('CLI', ['Cliente']);
+    await mk('OUTRA', ['fornecedor']).then((f) => p.fornecedor.update({ where: { id: f.id }, data: { empresa_id: t.e2.id } }));
+    const forn = await ok(req('GET', `/parceiros?empresa_id=${t.e1.id}&papel=fornecedor`, t.par));
+    assert.deepEqual(forn.items.map((i) => i.id).sort(), [cap.id, plural.id, vazio.id].sort());
+    assert.equal(forn.total, 3);
+    for (const i of forn.items) assert.ok(i.papeis.includes('fornecedor') || i.papeis.length === 0);
+    const pr = await ok(req('GET', `/parceiros?empresa_id=${t.e1.id}&papel=prestador_servico`, t.par));
+    assert.deepEqual(pr.items.map((i) => i.id), [prest.id]);
+    const cl = await ok(req('GET', `/parceiros?empresa_id=${t.e1.id}&papel=cliente`, t.par));
+    assert.deepEqual(cl.items.map((i) => i.id), [cli.id]);
+    const nenhum = await ok(req('GET', `/parceiros?empresa_id=${t.e1.id}&papel=transportador`, t.par));
+    assert.equal(nenhum.total, 0);
+  });
+});

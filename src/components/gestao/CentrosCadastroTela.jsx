@@ -102,6 +102,13 @@ export default function CentrosCadastroTela({ tipo }) {
     empresaAnterior.current = empresaId;
     closeForm();
   }, [empresaId, closeForm]);
+  // R2 (revisão): resposta de gravação que chega depois de trocar a empresa não
+  // mexe no registro aberto da empresa nova — só relê as listas.
+  const empresaAtual = useRef(empresaId);
+  empresaAtual.current = empresaId;
+  /** @param {{ empresaId?: string|null } | undefined} v */
+  const daEmpresaAtual = (v) => Boolean(v) && v.empresaId === empresaAtual.current;
+  const avisarEmpresaAnterior = () => notifyInfo("Gravação concluída", "A gravação feita na empresa anterior foi concluída.");
 
   const registroAtual = controller.editingItem;
   const proprioId = registroAtual?.id ?? null;
@@ -123,8 +130,8 @@ export default function CentrosCadastroTela({ tipo }) {
     queryClient.invalidateQueries({ queryKey: ["centros-gestao"] });
   };
 
-  const tratarErro = (err, fallback) => {
-    if (ehNaoEncontradoGestao(err)) {
+  const tratarErro = (err, fallback, v) => {
+    if (ehNaoEncontradoGestao(err) && daEmpresaAtual(v)) {
       invalidar();
       controller.recordHelpers.closeForm();
     }
@@ -139,10 +146,11 @@ export default function CentrosCadastroTela({ tipo }) {
   };
 
   const createMutation = useMutation({
-    /** @param {object} data */
-    mutationFn: (data) => criarCentro(tipo, empresaId, data),
-    onSuccess: (criado) => {
+    /** @param {{ empresaId: string, data: object }} v */
+    mutationFn: ({ empresaId: emp, data }) => criarCentro(tipo, emp, data),
+    onSuccess: (criado, v) => {
       invalidar();
+      if (!daEmpresaAtual(v)) return avisarEmpresaAnterior();
       if (criado && typeof criado === "object" && "id" in criado && criado.id) {
         mostrarRegistro(criado);
         controller.recordHelpers.chrome.onSelectionChange([String(criado.id)]);
@@ -151,13 +159,18 @@ export default function CentrosCadastroTela({ tipo }) {
       }
       notifySuccess("Sucesso", `${capital(cfg.rotulo)} criado`);
     },
-    onError: (err) => tratarErro(err, `Não foi possível salvar o ${cfg.rotulo}.`),
+    onError: (err, v) => tratarErro(err, `Não foi possível salvar o ${cfg.rotulo}.`, v),
   });
 
   const updateMutation = useMutation({
-    /** @param {{ original: any, data: object }} vars */
-    mutationFn: ({ original, data }) => atualizarCentro(tipo, empresaId, original, data),
-    onSuccess: ({ alterado, registro }) => {
+    /** @param {{ empresaId: string, original: any, data: object }} vars */
+    mutationFn: ({ empresaId: emp, original, data }) => atualizarCentro(tipo, emp, original, data),
+    onSuccess: ({ alterado, registro }, v) => {
+      if (!daEmpresaAtual(v)) {
+        avisarEmpresaAnterior();
+        invalidar();
+        return;
+      }
       if (!alterado) {
         controller.setIsEditing(false);
         notifyInfo("Sem alterações", "Nada foi alterado.");
@@ -167,14 +180,15 @@ export default function CentrosCadastroTela({ tipo }) {
       mostrarRegistro(registro);
       notifySuccess("Sucesso", `${capital(cfg.rotulo)} atualizado`);
     },
-    onError: (err) => tratarErro(err, `Não foi possível salvar o ${cfg.rotulo}.`),
+    onError: (err, v) => tratarErro(err, `Não foi possível salvar o ${cfg.rotulo}.`, v),
   });
 
   const inativarMutation = useMutation({
-    /** @param {string[]} ids */
-    mutationFn: (ids) => inativarCentros(tipo, empresaId, ids),
-    onSuccess: ({ ok, falhas }) => {
+    /** @param {{ empresaId: string, ids: string[] }} v */
+    mutationFn: ({ empresaId: emp, ids }) => inativarCentros(tipo, emp, ids),
+    onSuccess: ({ ok, falhas }, v) => {
       invalidar();
+      if (!daEmpresaAtual(v)) return avisarEmpresaAnterior();
       controller.chrome.setSelectedIds([]);
       if (controller.showForm && ok.some((id) => String(id) === String(controller.editingItem?.id))) {
         controller.recordHelpers.closeForm();
@@ -185,18 +199,19 @@ export default function CentrosCadastroTela({ tipo }) {
         notifyError("Atenção", falhas.length === 1 ? motivo : `${falhas.length} ${cfg.plural} não puderam ser inativados. ${motivo}`);
       }
     },
-    onError: (err) => tratarErro(err, "Não foi possível inativar."),
+    onError: (err, v) => tratarErro(err, "Não foi possível inativar.", v),
   });
 
   const reativarMutation = useMutation({
-    /** @param {string} id */
-    mutationFn: (id) => alterarSituacaoCentro(tipo, empresaId, id, true),
-    onSuccess: (registro) => {
+    /** @param {{ empresaId: string, id: string }} v */
+    mutationFn: ({ empresaId: emp, id }) => alterarSituacaoCentro(tipo, emp, id, true),
+    onSuccess: (registro, v) => {
       invalidar();
+      if (!daEmpresaAtual(v)) return avisarEmpresaAnterior();
       if (registro && typeof registro === "object") mostrarRegistro(registro);
       notifySuccess("Sucesso", `${capital(cfg.rotulo)} reativado`);
     },
-    onError: (err) => tratarErro(err, "Não foi possível reativar."),
+    onError: (err, v) => tratarErro(err, "Não foi possível reativar.", v),
   });
 
   submitRef.current = async (data) => {
@@ -216,15 +231,15 @@ export default function CentrosCadastroTela({ tipo }) {
         });
         if (!ok) return;
       }
-      updateMutation.mutate({ original, data });
+      updateMutation.mutate({ empresaId: /** @type {string} */ (empresaId), original, data });
     } else {
       if (!acoes.criar) return;
-      createMutation.mutate(data);
+      createMutation.mutate({ empresaId: /** @type {string} */ (empresaId), data });
     }
   };
   deleteRef.current = (ids) => {
     if (!podeGravar || !acoes.editar) return;
-    inativarMutation.mutate(ids);
+    inativarMutation.mutate({ empresaId: /** @type {string} */ (empresaId), ids });
   };
 
   const saving = createMutation.isPending || updateMutation.isPending || inativarMutation.isPending || reativarMutation.isPending;
@@ -269,7 +284,7 @@ export default function CentrosCadastroTela({ tipo }) {
         showDelete={podeGravar && acoes.editar}
         extraToolbar={<FiltroSituacao value={situacao} onChange={setSituacao} />}
         additionalMoreActions={
-          podeReativar ? [{ key: "reativar", label: `Reativar ${cfg.rotulo}`, onSelect: () => reativarMutation.mutate(String(registroAtual.id)) }] : null
+          podeReativar ? [{ key: "reativar", label: `Reativar ${cfg.rotulo}`, onSelect: () => reativarMutation.mutate({ empresaId: /** @type {string} */ (empresaId), id: String(registroAtual.id) }) }] : null
         }
         deleteDialog={{
           title: `Inativar ${cfg.rotulo}`,

@@ -70,6 +70,8 @@ const abrirRegistro = async (nome) => {
 let backend;
 let registros;
 let proximaResposta;
+/** @type {Promise<void> | null} PATCH segurado até o teste liberar (resposta atrasada). */
+let segurarPatch;
 
 beforeEach(async () => {
   vi.resetModules();
@@ -81,7 +83,8 @@ beforeEach(async () => {
   sessao.permissao = permissaoCom({ novo: true, editar: true });
   registros = { 'emp-1': [PJ, LEGADO], 'emp-2': [{ ...PJ, id: 'p9', empresa_id: 'emp-2', nome: 'OUTRA EMPRESA SA' }] };
   proximaResposta = null;
-  backend = instalarBackendFake(({ method, path, query, body }) => {
+  segurarPatch = null;
+  backend = instalarBackendFake(async ({ method, path, query, body }) => {
     if (proximaResposta && method !== 'GET') {
       const r = proximaResposta;
       proximaResposta = null;
@@ -91,6 +94,7 @@ beforeEach(async () => {
     if (method === 'POST' && path === '/parceiros') return { status: 201, body: { ...PJ, ...body, id: 'novo1', numero_cadastro: '9', tipos_legados: [] } };
     const m = path.match(/^\/parceiros\/([^/]+)$/);
     if (method === 'PATCH' && m) {
+      if (segurarPatch) await segurarPatch;
       const atual = Object.values(registros).flat().find((r) => r.id === m[1]);
       return { status: 200, body: { ...atual, ...body } };
     }
@@ -124,6 +128,35 @@ describe('Parceiros — empresa', () => {
     const listagens = backend.chamadas.filter((c) => c.method === 'GET' && c.path === '/parceiros');
     expect(listagens.map((c) => c.query.empresa_id)).toEqual(expect.arrayContaining(['emp-1', 'emp-2']));
     expect(listagens.every((c) => c.query.ativo === 'true')).toBe(true);
+  });
+});
+
+describe('Parceiros — resposta atrasada depois de trocar de empresa (revisão R2)', () => {
+  it('PATCH da empresa A que chega depois de abrir um registro da empresa B não substitui o registro de B', async () => {
+    empresaSelecionada('emp-1');
+    await montar();
+    await abrirRegistro('AGRO SOL');
+    fireEvent.click(screen.getByRole('button', { name: 'Editar' }));
+    fireEvent.change(within(screen.getByTestId('b1-form')).getByLabelText(/^Telefone/), { target: { value: '65911112222' } });
+    /** @type {() => void} */
+    let liberar = () => {};
+    segurarPatch = new Promise((r) => {
+      liberar = r;
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar' }));
+    await waitFor(() => expect(backend.chamadas.some((c) => c.method === 'PATCH')).toBe(true));
+    const { persistirEmpresaSelecionada } = await import('@/hooks/useEmpresaSelecionadaId');
+    act(() => persistirEmpresaSelecionada('emp-2', 'cli-1'));
+    await abrirRegistro('OUTRA EMPRESA SA');
+    await act(async () => {
+      liberar();
+      await new Promise((r) => setTimeout(r, 30));
+    });
+    expect(await screen.findByText('Gravação concluída')).toBeTruthy();
+    const nome = /** @type {HTMLInputElement} */ (within(screen.getByTestId('b1-form')).getByLabelText(/^Nome/));
+    expect(nome.value).toBe('OUTRA EMPRESA SA');
+    const patch = backend.chamadas.find((c) => c.method === 'PATCH');
+    expect(patch).toMatchObject({ path: '/parceiros/p1', body: { empresa_id: 'emp-1', telefone: '65911112222' } });
   });
 });
 

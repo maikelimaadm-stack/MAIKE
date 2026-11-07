@@ -72,9 +72,6 @@ const ALIASES = Object.freeze({
   outros: 'outros', outro: 'outros',
 });
 
-/** Grafias antigas aceitas para um papel canônico (filtro de listagem). @param {string} papel */
-export const aliasesDoPapel = (papel) => Object.entries(ALIASES).filter(([, c]) => c === papel).map(([a]) => a);
-
 /**
  * Separa os `tipos` gravados em papéis conhecidos e valores antigos preservados.
  * @param {unknown} tipos
