@@ -33,13 +33,19 @@ export default function SidebarModuloFlyout({
 }) {
   return createPortal(
     <div
-      role="menu"
-      aria-label={titulo}
-      style={{ top, left }}
+      className="mk-sidebar-flyout-anchor fixed z-[120]"
+      style={{ top, left: left - 20, paddingLeft: 20 }}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
-      className="mk-sidebar-flyout fixed z-[80] w-[224px] rounded-xl bg-white p-1.5 shadow-[0_12px_32px_rgba(15,23,42,0.14)]"
+      onFocusCapture={onMouseEnter}
+      onBlurCapture={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) onMouseLeave(); }}
+      onKeyDown={(event) => {
+        if (event.key === 'Escape') onMouseLeave();
+      }}
     >
+    <div role="menu" aria-label={titulo}
+      style={{ maxHeight: `calc(100dvh - ${top + 12}px)` }}
+      className="mk-sidebar-flyout w-[240px] rounded-xl bg-white p-1.5">
       <div className="px-2.5 pb-1 pt-1.5 text-[11px] font-semibold tracking-[0.15px] text-[#64748b]">{titulo}</div>
       {paginas.map((page) => {
         const ativo = currentPath === createPageUrl(page.url);
@@ -58,6 +64,7 @@ export default function SidebarModuloFlyout({
           </Link>
         );
       })}
+    </div>
     </div>,
     document.body,
   );

@@ -51,3 +51,21 @@
 .mk-sidebar-flyout a { height: 36px; transition: background-color 120ms ease, color 120ms ease; }
 .mk-sidebar-flyout a:hover, .mk-sidebar-flyout a[aria-current="page"] { background: rgba(41,42,45,.065); color: #292a2d; }
 .mk-sidebar-flyout a:focus-visible { outline: 2px solid #5acbe9; outline-offset: -2px; }
+/* Continuidade entre barra, cabeçalho e conteúdo, sem faixa de expansão. */
+.mk-desktop-sidebar[data-collapsed], .mk-app-topbar {
+  border: 0;
+  box-shadow: none;
+  background: var(--mk-sup-fundo, #f7f8fa);
+}
+.mk-desktop-sidebar-frame { border: 0; box-shadow: none; }
+.mk-sidebar-flyout-anchor { pointer-events: auto; }
+.mk-sidebar-flyout {
+  max-width: calc(100vw - 80px);
+  overflow-y: auto;
+  padding: 6px;
+  border: 1px solid #eceef1;
+  background: #fff;
+  box-shadow: 0 4px 18px rgba(15,23,42,.09);
+}
+.mk-sidebar-flyout a { gap: 8px; padding: 0 10px; font-size: 13px; font-weight: 400; }
+.mk-sidebar-flyout a[aria-current="page"] { font-weight: 500; }

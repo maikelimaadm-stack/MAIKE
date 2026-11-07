@@ -133,7 +133,7 @@ export default function DesktopSidebar({ items, currentPath, onNavigate, collaps
 
   const agendarFechamento = () => {
     cancelarFechamento();
-    flyoutTimer.current = setTimeout(() => setFlyout(null), 140);
+    flyoutTimer.current = setTimeout(() => setFlyout(null), 280);
   };
 
   React.useEffect(() => cancelarFechamento, []);
@@ -342,18 +342,7 @@ export default function DesktopSidebar({ items, currentPath, onNavigate, collaps
             </div>
           </div>
 
-          {/* Faixa app-shell: clique/arraste na borda recolhe ou expande a barra. */}
-          <button
-            type="button"
-            aria-controls="app-shell-sidebar"
-            aria-expanded={!collapsed}
-            aria-label={collapsed ? "Exibir barra lateral" : "Recolher barra lateral"}
-            title={collapsed ? "Exibir barra lateral" : "Recolher barra lateral"}
-            onClick={alternar}
-            className={`absolute inset-y-0 -right-1 z-20 w-2 bg-transparent outline-none ${
-              collapsed ? "cursor-e-resize" : "cursor-w-resize"
-            }`}
-          />
+
         </nav>
       </div>
 
