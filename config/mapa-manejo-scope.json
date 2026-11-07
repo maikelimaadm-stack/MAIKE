@@ -18,7 +18,10 @@
     "TiposTarefa",
     "UnidadesMedida",
     "Usuarios",
-    "Permissoes"
+    "Permissoes",
+    "Parceiros",
+    "CentrosCusto",
+    "CentrosResultado"
   ],
   "allowedManualRoutes": [],
   "allowedBase44Entities": [
@@ -130,7 +133,6 @@
     "CaixaBancos",
     "LivroCaixa",
     "FluxoCaixa",
-    "CentrosCusto",
     "FormasPagamento",
     "LivrosFiscais",
     "Folha",

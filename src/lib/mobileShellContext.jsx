@@ -9,7 +9,7 @@ import React from "react";
  * registro usa o rodapé para a navegação ‹ n/N ›. Quem sabe disso é o chrome;
  * quem desenha é o `Layout`.
  *
- * @typedef {{ editing: boolean, title?: string, subtitle?: string, onBack?: () => void, formId?: string, saving?: boolean, acoes?: MobileShellAcao[] }} MobileShellRecord
+ * @typedef {{ editing: boolean, title?: string, subtitle?: string, onBack?: () => void, formId?: string, saving?: boolean, permissaoExplicita?: boolean, acoes?: MobileShellAcao[] }} MobileShellRecord
  * @typedef {{ key: string, label: string, icon?: React.ReactNode, disabled?: boolean, onSelect: () => void }} MobileShellAcao
  * @typedef {{ listChrome: boolean, record: MobileShellRecord | null }} MobileShellState
  */
@@ -46,7 +46,7 @@ export function useMobileShellState() {
  * Publicado pelo `CadastroListaChrome`. `record` nulo = lista (tabela/cards).
  * `onBack` vai por ref para não republicar a cada render.
  *
- * @param {{ editing: boolean, title?: string, subtitle?: string, onBack?: () => void, formId?: string, saving?: boolean, acoes?: MobileShellAcao[] } | null} record
+ * @param {{ editing: boolean, title?: string, subtitle?: string, onBack?: () => void, formId?: string, saving?: boolean, permissaoExplicita?: boolean, acoes?: MobileShellAcao[] } | null} record
  */
 export function usePublishMobileShell(record) {
   const { publish } = React.useContext(MobileShellContext);
@@ -59,6 +59,8 @@ export function usePublishMobileShell(record) {
   const subtitle = record?.subtitle ?? "";
   const formId = record?.formId ?? "";
   const saving = Boolean(record?.saving);
+  // A tela já mostra o ✓ só a quem o servidor aceita: o Layout não reaplica a leitura do texto.
+  const permissaoExplicita = Boolean(record?.permissaoExplicita);
   // Ações ao lado do ✓ (ex.: Anexos): o array muda a cada render; publica só
   // quando a lista de chaves muda, e o clique lê a versão atual pelo ref.
   const acoesRef = React.useRef(record?.acoes ?? []);
@@ -79,6 +81,7 @@ export function usePublishMobileShell(record) {
             subtitle,
             formId,
             saving,
+            permissaoExplicita,
             onBack: () => backRef.current?.(),
             acoes: acoesRef.current.map((a) => ({
               ...a,
@@ -87,5 +90,5 @@ export function usePublishMobileShell(record) {
           }
         : null,
     });
-  }, [publish, open, editing, title, subtitle, formId, saving, chavesAcoes]);
+  }, [publish, open, editing, title, subtitle, formId, saving, permissaoExplicita, chavesAcoes]);
 }

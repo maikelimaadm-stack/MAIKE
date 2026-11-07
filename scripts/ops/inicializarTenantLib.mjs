@@ -47,7 +47,7 @@ export const classificarTabelas = ({ tabelasBanco, modelos, preservados, comClie
  * último). Auto-referências viram anulação prévia; outro ciclo é recusado.
  *
  * @param {string[]} tabelas apagáveis (sem `Cliente`)
- * @param {Array<{filha: string, mae: string, colunas: string[], anulaveis: boolean}>} fks
+ * @param {Array<{filha: string, mae: string, colunas: string[], colunas_anulaveis?: string[], anulaveis: boolean}>} fks
  */
 export const planejarOrdem = (tabelas, fks) => {
   const conjunto = new Set([...tabelas, 'Cliente']);
@@ -72,7 +72,12 @@ export const planejarOrdem = (tabelas, fks) => {
   // `Cliente` é a raiz: sempre a última.
   return {
     ordem: [...ordem.filter((t) => t !== 'Cliente'), 'Cliente'],
-    anular: autoRef.map((f) => ({ tabela: f.filha, colunas: f.colunas.filter((c) => c !== 'cliente_id') })),
+    // Só as colunas anuláveis da FK (quando informadas): numa FK composta de
+    // árvore, anular o `pai_id` basta (MATCH SIMPLE) — tenant e empresa ficam.
+    anular: autoRef.map((f) => ({
+      tabela: f.filha,
+      colunas: Array.isArray(f.colunas_anulaveis) && f.colunas_anulaveis.length ? f.colunas_anulaveis : f.colunas.filter((c) => c !== 'cliente_id'),
+    })),
   };
 };
 
