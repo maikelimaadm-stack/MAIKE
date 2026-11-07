@@ -93,7 +93,8 @@ As quatro leituras da S01 (`GET /clientes`, `/clientes/:id`, `/usuarios`, `/empr
 ### 3.4 Suspensão — efeito comprovado antes de liberar o botão
 - **Login novo:** `buscarUsuarioAtivoPorLogin` já filtra `cliente: { ativo: true }`, então cliente suspenso não entra.
 - **Tokens já emitidos:** `app.autenticar` (`backend/src/app.js`) relê **a cada requisição** `usuario.ativo` e `cliente.ativo` (PR145-G4). O JWT de um cliente suspenso recebe 401 na hora, sem esperar a expiração.
-- **É bloqueio TRANSITÓRIO, não revogação (S03-R1, GES-15):** o mesmo JWT dá 200 → suspender → 401 → reativar → **200 de novo**, sem novo login, enquanto não expirar (inclusive o TTL maior de "Manter conectado"). Suspender **bloqueia**; não **encerra** sessões. A tela diz isso nos dois sentidos.
+- **Atualização S04-P1 (D-PROD-143):** o texto abaixo descreve o estado **até o S04-P1**. Desde então a suspensão avança `Cliente.sessao_epoca`, e o mesmo token fica **401 também depois de reativar** (GES-15 e SP-02); ver `MAIKE-SAAS-ADMIN-S04-P1-REVOGACAO-SESSOES.md`.
+- **(Histórico, antes do S04-P1) Era bloqueio TRANSITÓRIO, não revogação (S03-R1, GES-15):** o mesmo JWT dá 200 → suspender → 401 → reativar → **200 de novo**, sem novo login, enquanto não expirar (inclusive o TTL maior de "Manter conectado"). Suspender **bloqueia**; não **encerra** sessões. A tela diz isso nos dois sentidos.
   - **Por que não foi corrigido aqui:** revogação permanente exige estado no banco (migration), fora do limite da S03. Lista em memória ou comparação por horário não serve: a Vercel roda várias instâncias.
   - **Proposta (bloqueio para S04 / pré-produção):** coluna `sessao_epoca Int` em `Cliente` (e/ou `Usuario`), gravada no JWT no login e comparada em `app.autenticar` (que já lê as duas linhas a cada requisição, então o custo é zero). Suspender incrementa a época, e todo token anterior morre de vez.
 - **Sem outros caminhos:** não existe refresh token, e o único `jwtVerify` do backend é esse.
@@ -252,4 +253,4 @@ Nada do catálogo foi movido ou duplicado nesta missão.
 | Decisão | Estado |
 |---|---|
 | **CODE_READY** (auditoria do código S03 + R1 + R2) | pronto para revisão do arquiteto-chefe |
-| **OPERATIONAL_RELEASE_READY** (onboarding em produção) | **NO-GO** até existirem: (1) troca obrigatória da senha inicial ou convite; (2) recuperação do primeiro acesso / POST idempotente; (3) revogação permanente de sessões na suspensão (versão de sessão no banco); e as pendências da S02 (variáveis do admin em produção, IP confiável atrás do proxy, limite de tentativas fora da memória) |
+| **OPERATIONAL_RELEASE_READY** (onboarding em produção) | **NO-GO** até existirem: (1) troca obrigatória da senha inicial ou convite; (2) recuperação do primeiro acesso / POST idempotente; (3) ~~revogação permanente de sessões na suspensão~~ — feita no S04-P1 (D-PROD-143); e as pendências da S02 (variáveis do admin em produção, IP confiável atrás do proxy, limite de tentativas fora da memória) |

@@ -303,10 +303,17 @@ export const confirmarInscricaoMfa = async ({ sessao, admin, codigo, ip, userAge
 // ─── Conta / segurança (sessão verificada + reautenticação) ───────────────
 
 /**
- * Senha atual + TOTP novo (não reutilizável). Falha conta para o bloqueio.
+ * Reautenticação de alto risco do proprietário: senha atual + TOTP NOVO (o
+ * passo consumido não volta a valer; código repetido = recusa). Falha conta
+ * para o bloqueio da conta e vira evento `sucesso: false` com a `acao` dada.
+ * As credenciais nunca vão para log nem para auditoria.
+ *
+ * Exportada (S04-P3) para operações administrativas sensíveis fora deste
+ * arquivo — mesmo contrato das trocas de senha/login do próprio proprietário.
+ *
  * @param {{ admin: any, senhaAtual: unknown, codigoMfa: unknown, ip?: string, requestId: string, acao: string }} p
  */
-const reautenticar = async ({ admin, senhaAtual, codigoMfa, ip, requestId, acao }) => {
+export const reautenticarAdmin = async ({ admin, senhaAtual, codigoMfa, ip, requestId, acao }) => {
   const atual = await prisma().adminPrincipalMaike.findUnique({ where: { id: admin.id } });
   const okSenha = await verificarSenhaAdmin(typeof senhaAtual === 'string' ? senhaAtual : '', atual?.senha_hash);
   const okMfa = okSenha && atual ? await consumirTotp(prisma(), atual, codigoMfa) : false;
@@ -321,7 +328,7 @@ const reautenticar = async ({ admin, senhaAtual, codigoMfa, ip, requestId, acao 
 /** Troca a senha e revoga TODAS as sessões (inclusive a atual). */
 export const alterarSenhaAdmin = async ({ admin, senhaAtual, codigoMfa, novaSenha, ip, requestId }) => {
   const nova = exigirSenhaForte(novaSenha);
-  const atual = await reautenticar({ admin, senhaAtual, codigoMfa, ip, requestId, acao: 'senha_alterada' });
+  const atual = await reautenticarAdmin({ admin, senhaAtual, codigoMfa, ip, requestId, acao: 'senha_alterada' });
   if (await verificarSenhaAdmin(nova, atual.senha_hash)) {
     throw adminError('ADMIN_ENTRADA_INVALIDA', 'a nova senha deve ser diferente da atual');
   }
@@ -339,7 +346,7 @@ export const alterarSenhaAdmin = async ({ admin, senhaAtual, codigoMfa, novaSenh
 /** Troca o login (único) e revoga TODAS as sessões. */
 export const alterarLoginAdmin = async ({ admin, senhaAtual, codigoMfa, novoLogin, ip, requestId }) => {
   const l = exigirLoginValido(novoLogin);
-  await reautenticar({ admin, senhaAtual, codigoMfa, ip, requestId, acao: 'login_alterado' });
+  await reautenticarAdmin({ admin, senhaAtual, codigoMfa, ip, requestId, acao: 'login_alterado' });
   if (l === admin.login) throw adminError('ADMIN_ENTRADA_INVALIDA', 'o novo login é igual ao atual');
   try {
     await prisma().$transaction(async (tx) => {
@@ -355,7 +362,7 @@ export const alterarLoginAdmin = async ({ admin, senhaAtual, codigoMfa, novoLogi
 
 /** Regera os códigos de recuperação (invalida os não usados). */
 export const regenerarCodigosAdmin = async ({ admin, senhaAtual, codigoMfa, ip, requestId }) => {
-  await reautenticar({ admin, senhaAtual, codigoMfa, ip, requestId, acao: 'codigos_regerados' });
+  await reautenticarAdmin({ admin, senhaAtual, codigoMfa, ip, requestId, acao: 'codigos_regerados' });
   return prisma().$transaction(async (tx) => {
     const codigos = await gerarCodigosRecuperacao(tx, admin.id);
     await registrarEventoSeguranca({ adminId: admin.id, acao: 'codigos_regerados', sucesso: true, ip, requestId }, tx);

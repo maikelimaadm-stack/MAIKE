@@ -5329,4 +5329,109 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
 - **Geometria:** B1Switch e ToggleSwitch usam as proporções 72:32 do trilho e 43:28 da peça oval do modelo. Escala mobile/tablet 49,5×22 px; desktop 45×20 px. Mantém o verde MAIKE, alvo de toque com 44 px, foco de teclado, estados bloqueados e movimento reduzido. Revoga apenas a geometria redonda da D-PROD-140. Campos do mapa: 36 px no mobile/tablet e 32 px no desktop; em duas colunas quando há espaço.
 - **Validação:** Chromium local com componentes reais em 320, 390, 768 e 1440 px: detalhes sem folha, menu de ações expansível, escolha de filtro aninhada, controles sem overflow, toggles ovalizados e movimento reduzido. Dados de exemplo, sem sessão de produção.
 
-<!-- Próxima decisão: D-PROD-143 -->
+## D-PROD-143 — Revogação durável das sessões de fazenda (MAIKE-SAAS-ADMIN-S04-P1)
+
+- **Contexto:** no S03 o mesmo JWT de fazenda voltava a valer depois de suspender e reativar o cliente (até 30 dias com "Manter conectado"). Desativar a conta ou trocar a senha também não derrubava os tokens já emitidos.
+- **Decisão:**
+  - **Duas épocas inteiras persistidas:** `Cliente.sessao_epoca` e `Usuario.sessao_epoca`, `INTEGER` anulável, sem DEFAULT (EXPAND dentro da allowlist D-PROD-107), migration `20261106200000_s04_p1_sessao_epoca`, pinada no manifesto do pré-merge. `NULL` vale 0. O único escritor é `COALESCE(sessao_epoca, 0) + 1`.
+  - **Login:** `/auth/login` grava as duas no JWT (`cliente_sessao_epoca`, `usuario_sessao_epoca`).
+  - **Guarda:** `app.autenticar` exige as duas iguais às do banco na mesma consulta única de revalidação. Claim ausente ou malformada = 401, sem fallback para token legado.
+  - **Suspender o cliente:** época do cliente +1 na mesma transação do UPDATE condicional e da auditoria. Reativar não mexe na época.
+  - **Conta:** troca de senha (própria, por administrador, `reset-password.mjs`), mudança de `ativo` ou de `papel_tenant` (`papel-tenant.mjs`, SQL 04) incrementam a época da conta, atomicamente.
+- **Consequências:**
+  - Todo token anterior à versão nova recebe 401 uma vez: logout global na implantação.
+  - Ordem de rollout obrigatória: migration → preflight → runtime.
+  - Offline: a revogação vale no servidor.
+- **Detalhes, provas e rollout:** `docs/engineering/MAIKE-SAAS-ADMIN-S04-P1-REVOGACAO-SESSOES.md`.
+
+## D-PROD-144 — Troca obrigatória da senha temporária no primeiro acesso (MAIKE-SAAS-ADMIN-S04-P2)
+
+- **Contexto:** a fazenda criada pelo MAIKE Admin (S03) nasce com uma senha temporária gerada no servidor e mostrada uma única vez ao proprietário do produto. Até aqui essa senha abria a sessão normal sem obrigar a troca.
+- **Decisão:**
+  - **Estado durável:** `Usuario.troca_senha_pendente`, `BOOLEAN` anulável, sem DEFAULT (EXPAND, allowlist D-PROD-107), migration `20261107200000_s04_p2_troca_senha_inicial`, pinada no manifesto do pré-merge. `NULL` = concluída: nenhuma conta existente muda. Só a criação S03 grava `true`, dentro da transação Cliente + Usuario + auditoria; só a conclusão da troca grava `false`.
+  - **Login limitado:** com a troca pendente, `/auth/login` não emite a sessão normal. Devolve `{troca_senha_obrigatoria, token_troca_senha, expira_em_segundos}` (no-store), um token de 10 min com chave HS256 própria (HMAC de `AUTH_SECRET` com rótulo fixo) e `escopo: "troca_senha_inicial"`.
+  - **Guarda:** `app.autenticar` recusa qualquer token com `escopo` e qualquer conta com a troca pendente, na mesma consulta única de revalidação.
+  - **Conclusão:** `POST /auth/troca-senha-inicial`, só com o token restrito. A conta é relida (ativa, pendente, cliente ativo, épocas S04-P1) e a senha temporária é conferida no servidor. Uma transação grava a senha nova, `troca_senha_pendente = false` (CAS na linha lida), época da conta +1 e a auditoria. Não emite sessão: a pessoa entra de novo com a senha nova.
+  - **Interface:** tela "Troca obrigatória de senha" no lugar do login. O token restrito só vive em memória na fronteira de sessão. Rede, timeout ou 5xx viram resultado incerto, sem repetição automática.
+- **Consequências:**
+  - Ordem de rollout obrigatória: migration → preflight → runtime. O runtime novo sobre o schema antigo responde 500.
+  - Contas já existentes e as fazendas atuais não são afetadas.
+  - Sem convite por e-mail, sem recuperação de conta e sem reset público (S04-P3).
+- **Detalhes, provas e rollout:** `docs/engineering/MAIKE-SAAS-ADMIN-S04-P2-TROCA-SENHA-INICIAL.md`.
+
+## D-PROD-145 — Reemissão segura de senha temporária pelo MAIKE Admin (MAIKE-SAAS-ADMIN-S04-P3 PR01)
+
+- **Contexto:** depois do S04-P2, uma conta cuja senha temporária se perdeu (ou cuja senha precisa ser trocada à força) só se recuperava por script de banco (`reset-password.mjs`).
+- **Decisão:**
+  - **Rota:** `POST /admin-maike/clientes/:id/usuarios/:usuarioId/reemitir-senha`. Exige sessão do proprietário com MFA, Origin e CSRF da guarda existente, limite por IP e reautenticação de alto risco: senha atual + TOTP novo (`reautenticarAdmin`, extraída do `adminService` com o mesmo contrato).
+  - **Revisão otimista da CONTA:** `revisaoUsuario`, opaca, servida na listagem da ficha, vai em `If-Match` (ausente ou malformado → 428, obsoleto → 409 `ADMIN_USUARIO_EDICAO_CONCORRENTE`).
+  - **Senha:** gerada no servidor (CSPRNG do S03) e com hash bcrypt do `authService`.
+  - **Transação única:** CAS da linha (senha nova + `troca_senha_pendente = true`) + época da conta +1 (S04-P1) + `EventoSegurancaAdminMaike` sem segredo.
+  - **Resposta:** a senha volta uma vez, com no-store.
+  - **Sem migration.**
+- **Consequências:**
+  - A conta perde todas as sessões e, no próximo login, cai na troca obrigatória do S04-P2.
+  - Nenhum outro dado muda.
+  - O uso em produção depende do S02 (MAIKE Admin operacional).
+- **R1 — gate de ativação (separa merge de código de ativação operacional):**
+  - `ADMIN_REEMISSAO_SENHA_HABILITADA`, lida em `backend/src/config/env.js`, fail-closed: só o literal `true` liga. Ausente, vazia ou qualquer outro valor = desligada.
+  - Desligada: o POST responde 503 `ADMIN_REEMISSAO_SENHA_DESABILITADA` como PRIMEIRO hook, antes de sessão, corpo, limite, TOTP e qualquer consulta. A resposta é igual para qualquer alvo. A listagem devolve `reemissao_disponivel: false` e o MAIKE Admin não oferece a ação (o valor vem só do servidor).
+  - **CODE_MERGE_READY** pode ser SIM com o gate fechado. **OPERATIONAL_RELEASE_READY** continua NÃO.
+  - Criar `ADMIN_REEMISSAO_SENHA_HABILITADA=true` em qualquer ambiente da Vercel é **operação futura**: exige o S02 concluído operacionalmente e aprovação específica do proprietário. Nunca nesta PR.
+- **Detalhes:** `docs/engineering/MAIKE-SAAS-ADMIN-S04-P3-PR01-REEMISSAO-SENHA.md`.
+
+## D-PROD-146 — Gestão Rural P1: Parceiros sobre Fornecedor, Centros de Custo/Resultado e vínculo N:N (sem financeiro)
+
+> Numerada 145: a D-PROD-144 é a S04-P2 (PR #221).
+
+- **Contexto:** o proprietário pediu "cadastrar antes de lançar": pessoas (fornecedor, cliente, prestador, transportador), onde o custo nasce e o que se quer apurar. Já existia o model `Fornecedor`, referenciado por `Lote`, `EstoqueLoteNota` e `MovimentacaoEstoque`; `MovimentacaoEstoque` já tinha `centro_custo_id/nome` soltos, sem cadastro.
+- **Decisão:**
+  - **Expansão de escopo autorizada:** menu `gestao-rural` com as páginas `Parceiros`, `CentrosCusto` e `CentrosResultado` (telas `ges-parceiros`, `ges-centros-custo`, `ges-centros-resultado`). O manifesto ganha só essas três páginas e perde só o domínio proibido `CentrosCusto`. `CentroCusto` continua proibido como entidade Base44, e os domínios financeiros continuam proibidos.
+  - **Parceiros = `Fornecedor`:** nenhuma tabela `Parceiro`. A tabela, o id e o `numero_cadastro` são os mesmos, e a sequência é a mesma.
+    - Papéis em `tipos`, com vocabulário `fornecedor`, `cliente`, `prestador_servico`, `transportador`, `outros`.
+    - Aliases antigos são normalizados. Valores antigos desconhecidos são preservados (`tipos_legados`).
+    - Sem exclusão: a tela inativa e reativa.
+    - CPF/CNPJ com dígitos validados quando novos ou alterados.
+    - Documento novo duplicado na mesma empresa → 409, sob trava. As duplicatas históricas não são tocadas, e não há unique destrutivo.
+    - `GET /fornecedores` (seletor do Cadastro de Lotes, CPF mascarado) e as rotas antigas de escrita (só admin real) não mudam.
+  - **Centros:** dois models (`CentroCusto`, `CentroResultado`), tenant + empresa obrigatórios.
+    - Código pela `EntidadeCodigoSequencia`. Nome em maiúsculas, único por empresa.
+    - Árvore opcional pela FK composta `(cliente_id, empresa_id, pai_id)`. Pai do mesmo tipo e da mesma empresa por construção do banco, `CHECK` contra autorreferência.
+    - No serviço, sob trava por empresa: sem ciclo, pai ativo, profundidade máxima 5.
+    - Sem exclusão física. Inativar exige não ter filho ativo; reativar exige pai ativo.
+  - **Vínculo `CentroCustoResultado` (N:N, opcional):**
+    - FKs compostas tenant + empresa nos dois lados, unique do par.
+    - Escrita só pelo centro de custo (`PUT .../centros-resultado`, substitui o conjunto, idempotente, transação + AuditLog). Leitura dos dois lados com projeção mínima.
+    - Par novo exige os dois centros ativos. Pares existentes permanecem se um lado for inativado (rastreabilidade).
+    - O vínculo não gera lançamento nem atribui custo.
+  - **Segurança:**
+    - tenant só da sessão;
+    - `empresa_id` validado no banco (o fallback `clienteId` do navegador não é empresa) e imutável; outro tenant ou empresa → 404 sem revelar;
+    - schemas fechados e DTO explícito;
+    - texto com controle, HTML ou mal formado → 400;
+    - guardas por tela e ação, telas independentes, padrão negado para não-admin;
+    - auditoria com CPF mascarado, sem RG nem data de nascimento.
+  - **Migration** `20261107300000_gestao_p1_centros_custo_resultado`: expand-only, só tabelas novas, RLS/REVOKE no padrão. Está pinada em `MIGRATIONS_APROVADAS` e `DO_RLS_APROVADOS`.
+- **Consequência:**
+  - Operações futuras (mapa, estoque, financeiro) podem **referenciar** os ids estáveis; nenhum lançamento é criado agora. O contrato está no relatório §6.
+  - Testes: `backend/tests/gestaoP1Cadastros.test.mjs` (PG) e os smoke de UI. Relatório: `docs/engineering/MAIKE-GESTAO-CADASTROS-P1-REPORT.md`.
+
+- **Adendo (07/11, organização pós-#221):**
+  - **Riscos residuais fechados:**
+    - R1: as rotas antigas de `/fornecedores` aplicam a regra de documento e não apagam fornecedor com histórico (`PARCEIRO_EM_USO`).
+    - R3: no máximo 1000 centros ativos por tipo e empresa (`CENTRO_LIMITE_ATIVOS`).
+    - R4: o ✓ Salvar do celular segue a regra do servidor quando a tela declara `permissaoExplicita`.
+    - R5: ícones do grupo no celular.
+  - **R2 (revogação em voo):** aceito como no resto do produto.
+  - **Ativo Sim/Não:** em todos os cadastros; seletores só com ativos.
+
+- **Adendo R2 (blindagem final, 07/11):**
+  - **Auditoria do Fornecedor por allowlist:** sem PII, em `/parceiros` e no legado.
+  - **Legado `/fornecedores`:** empresa validada no POST e imutável no PATCH (`id`/`numero_cadastro` também).
+  - **Vínculo N:N:** só salva sobre o conjunto real lido, com variáveis capturadas no clique e confirmação para esvaziar.
+  - **Parceiro novo:** exige papel.
+  - **Lote:** só associa fornecedor novo ativo, da empresa e com papel fornecedor (legado `tipos=[]` aceito).
+  - **RS-12:** contrato da S04-P3 sem lista fechada de migrations futuras.
+  - **Detalhes:** relatório §10.
+
+<!-- Próxima decisão: D-PROD-147 -->

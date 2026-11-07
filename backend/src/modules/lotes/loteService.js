@@ -15,6 +15,7 @@ import { origemDerivadaDeManejo, recusarLoteFabricadoPorManejo } from './loteOri
 import { ativacaoDaEmpresa, cancelarEntradaParaExclusao, registrarEntradaSeAtivo, travarAreasDoLoteNoLedger } from '../rebanhoLedger/rebanhoLedgerService.js';
 import { buscarSetor } from '../setores/setorRepository.js';
 import { buscarArea } from '../areas/areaPastagemRepository.js';
+import { exigirFornecedorAssociavel } from '../fornecedores/fornecedorDominio.js';
 import {
   listarLotes,
   buscarLote,
@@ -272,6 +273,8 @@ export const criar = async (contexto, entrada) => {
     const setor = await resolverSetor(tx, auth.clienteId, setorId);
     const areaEntrada = await resolverArea(tx, auth.clienteId, areaEntradaId);
     const areaAtual = await resolverArea(tx, auth.clienteId, areaAtualIdRaw);
+    // B4/R2 (D-PROD-146): vínculo novo só com fornecedor ativo, da empresa, com papel fornecedor.
+    if (campos.fornecedor_id) await exigirFornecedorAssociavel(tx, auth.clienteId, empresaId, String(campos.fornecedor_id));
 
     const numero = await reservarNumero(tx, {
       clienteId: auth.clienteId,
@@ -439,6 +442,12 @@ export const atualizar = async (contexto, id, entrada) => {
       throw new AppError('REQUEST_VALIDATION_FAILED', 'origem do lote não pode trocar entre entrada e gerado por manejo', {
         details: { field: 'origem', reason: 'classe_de_origem_imutavel' },
       });
+    }
+
+    // B4/R2 (D-PROD-146): só um vínculo de fornecedor NOVO é validado; o atual
+    // (mesmo id, mesmo que hoje inativo) e a remoção (null) seguem aceitos.
+    if (patch.fornecedor_id && patch.fornecedor_id !== anterior.fornecedor_id) {
+      await exigirFornecedorAssociavel(tx, auth.clienteId, String(anterior.empresa_id), String(patch.fornecedor_id));
     }
 
     if (Object.prototype.hasOwnProperty.call(patch, 'setor_id')) {

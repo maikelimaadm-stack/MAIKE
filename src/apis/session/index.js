@@ -17,6 +17,8 @@ export {
   restaurarSessao as restaurarSessaoNativa,
   logout as logoutNativo,
   temSessaoLocal as temSessaoNativaLocal,
+  concluirTrocaSenhaInicial as concluirTrocaSenhaInicialNativa,
+  descartarTrocaSenhaPendente as descartarTrocaSenhaPendenteNativa,
 } from './nativeSessionApi.js';
 
 export {

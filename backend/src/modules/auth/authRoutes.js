@@ -10,7 +10,15 @@
  */
 
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
+import { tenantContextRequired } from '../../shared/errors/AppError.js';
+import {
+  TTL_TROCA_SENHA_SEGUNDOS,
+  chaveTrocaSenhaInicial,
+  lerSessaoTrocaSenha,
+  montarPayloadTrocaSenha,
+} from '../../shared/auth/trocaSenhaInicial.js';
 import { autenticar, ehAdministradorDaFazenda, montarPayloadDeSessao, ttlDaSessao } from './authService.js';
+import { concluirTrocaSenhaInicial } from './trocaSenhaInicialService.js';
 
 const LOGIN_SCHEMA = {
   body: {
@@ -26,11 +34,41 @@ const LOGIN_SCHEMA = {
   },
 };
 
+/**
+ * S04-P2: só a senha temporária e a nova. Nada de identidade no corpo: ela vem
+ * do token restrito. `nova_senha` segue o mínimo da troca comum (8).
+ */
+const TROCA_SENHA_INICIAL_SCHEMA = {
+  body: {
+    type: 'object',
+    required: ['senha_atual', 'nova_senha'],
+    additionalProperties: false,
+    properties: {
+      senha_atual: { type: 'string', minLength: 1, maxLength: 512 },
+      nova_senha: { type: 'string', minLength: 8, maxLength: 512 },
+    },
+  },
+};
+
 /** @param {import('fastify').FastifyInstance} app */
 export const registrarAuthRoutes = async (app) => {
   app.post('/auth/login', { schema: LOGIN_SCHEMA }, async (request, reply) => {
     const { lembrar = false, ...credenciais } = /** @type {{ login: string, senha: string, lembrar?: boolean }} */ (request.body);
     const identidade = await autenticar(credenciais);
+
+    // S04-P2: senha temporária do primeiro acesso. A senha conferiu, mas a
+    // sessão normal NÃO nasce aqui: só um token restrito, de chave e escopo
+    // próprios, que serve exclusivamente para trocar a senha.
+    if (identidade.trocaSenhaPendente) {
+      const tokenTroca = await reply.jwtSign(montarPayloadTrocaSenha(identidade), {
+        key: chaveTrocaSenhaInicial(),
+        expiresIn: TTL_TROCA_SENHA_SEGUNDOS,
+      });
+      return reply
+        .header('Cache-Control', 'no-store')
+        .status(200)
+        .send({ troca_senha_obrigatoria: true, token_troca_senha: tokenTroca, expira_em_segundos: TTL_TROCA_SENHA_SEGUNDOS });
+    }
 
     const token = await reply.jwtSign(montarPayloadDeSessao(identidade), {
       expiresIn: ttlDaSessao({ lembrar: lembrar === true }),
@@ -46,6 +84,31 @@ export const registrarAuthRoutes = async (app) => {
       cliente_id: identidade.clienteId,
     });
   });
+
+  // S04-P2: conclusão da troca obrigatória. Aceita SÓ o token restrito
+  // (chave própria + escopo); a conta é relida no service. Nunca emite sessão.
+  app.post(
+    '/auth/troca-senha-inicial',
+    {
+      schema: TROCA_SENHA_INICIAL_SCHEMA,
+      onRequest: [
+        async (request) => {
+          try {
+            await request.jwtVerify({ key: chaveTrocaSenhaInicial(), algorithms: ['HS256'] });
+          } catch (erro) {
+            throw tenantContextRequired('etapa de troca de senha expirada ou inválida', { cause: erro });
+          }
+          request.contexto.trocaSenha = lerSessaoTrocaSenha(/** @type {any} */ (request.user));
+        },
+      ],
+    },
+    async (request, reply) => {
+      const resultado = await concluirTrocaSenhaInicial(request.contexto.trocaSenha, request.body, {
+        requestId: request.contexto.requestId,
+      });
+      return reply.header('Cache-Control', 'no-store').status(200).send(resultado);
+    }
+  );
 
   // Devolve o contexto derivado do token. Serve de prova viva de que o tenant
   // vem da sessão: nada no corpo ou na query influencia esta resposta.

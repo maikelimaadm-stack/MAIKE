@@ -106,7 +106,7 @@ describe('autenticação', () => {
     assert.equal(payload.senha, undefined);
     assert.equal(payload.senha_hash, undefined);
     assert.doesNotMatch(corpo.token, /senha-secreta-9/);
-    assert.deepEqual(Object.keys(payload).sort(), ['cliente_id', 'exp', 'iat', 'login', 'usuario_id']);
+    assert.deepEqual(Object.keys(payload).sort(), ['cliente_id', 'cliente_sessao_epoca', 'exp', 'iat', 'login', 'usuario_id', 'usuario_sessao_epoca']);
   });
 
   test('BE-05 senha errada e usuário inexistente dão a MESMA resposta', async () => {

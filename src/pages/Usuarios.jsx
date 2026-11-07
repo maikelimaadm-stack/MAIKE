@@ -14,6 +14,12 @@ import {
   criarContaAcesso,
   atualizarContaAcesso,
   validarPatchContaAcesso,
+  contaPublica,
+  contaPublicaAposAtualizar,
+  ehContaPropria,
+  ehTrocaDaPropriaSenha,
+  resultadoIncerto,
+  descartarCredenciais,
 } from "@/services/usuarioAdminService";
 import { getApiErrorMessage } from "@/apis/_core/ApiError";
 import { useAuth } from "@/lib/AuthContext";
@@ -23,7 +29,7 @@ const STORAGE_KEY = "colunas_contas_acesso_v1";
 export default function Usuarios() {
   const queryClient = useQueryClient();
   const submitRef = useRef(/** @type {(data: object) => void} */ (() => {}));
-  const { clienteId, user } = useAuth();
+  const { clienteId, user, logout } = useAuth();
   const sessaoKey = clienteId || user?.id || "anon";
 
   const { data: currentUser } = useQuery({
@@ -68,6 +74,7 @@ export default function Usuarios() {
   });
 
   const createMutation = useMutation({
+    gcTime: 0,
     /** @param {object} data */
     mutationFn: (data) => criarContaAcesso(data),
     onSuccess: (criada) => {
@@ -75,7 +82,7 @@ export default function Usuarios() {
       queryClient.invalidateQueries({ queryKey: ["usuarios", sessaoKey] });
       controller.recordHelpers.recordBeforeNewRef.current = null;
       if (criada?.id) {
-        controller.recordHelpers.setEditingItem(criada);
+        controller.recordHelpers.setEditingItem(contaPublica(criada));
         controller.recordHelpers.setIsEditing(false);
         controller.recordHelpers.setShowForm(true);
         controller.recordHelpers.chrome.setViewMode("record");
@@ -88,35 +95,60 @@ export default function Usuarios() {
     onError: (error) => {
       toast.error(getApiErrorMessage(error, "Não foi possível salvar a conta."));
     },
+    // A senha inicial digitada não fica retida nas variables da mutação.
+    onSettled: (_r, _e, data) => descartarCredenciais(data),
   });
 
   const updateMutation = useMutation({
-    /** @param {{ id: string, dados: object }} vars */
+    // Sem retenção: a mutação sai do MutationCache assim que termina.
+    gcTime: 0,
+    /** @param {{ id: string, dados: object, propriaSenha: boolean }} vars */
     mutationFn: ({ id, dados }) => {
-      validarPatchContaAcesso(currentUser, /** @type {any} */ (controller.editingItem), dados);
+      validarPatchContaAcesso({ ...(currentUser || {}), id: user?.id }, /** @type {any} */ (controller.editingItem), dados);
       return atualizarContaAcesso(id, dados);
     },
-    onSuccess: (atualizada, { id, dados }) => {
+    onSuccess: (atualizada, { id, dados, propriaSenha }) => {
+      // S04-P1-R1: a ficha guarda só campos públicos (allowlist); senha atual
+      // e nova nunca ficam em estado de tela, cache ou export.
+      const base = controller.editingItem?.id === id ? controller.editingItem : {};
+      if (propriaSenha) {
+        // O servidor já encerrou TODAS as sessões desta conta, inclusive a
+        // deste pedido (época +1). A tela não pode continuar autenticada:
+        // sai pelo fluxo central (token, cache e empresa limpos) e o aviso
+        // fica no Toaster da raiz, que sobrevive à troca para o login.
+        controller.setEditingItem(contaPublica(base));
+        controller.setIsEditing(false);
+        toast.success("Senha alterada. Entre novamente com a nova senha.");
+        logout();
+        return;
+      }
       queryClient.invalidateQueries({ queryKey: ["contasAcesso", sessaoKey] });
       queryClient.invalidateQueries({ queryKey: ["usuarios", sessaoKey] });
-      const merged = {
-        ...(controller.editingItem?.id === id ? controller.editingItem : {}),
-        id,
-        ...dados,
-        ...(atualizada && typeof atualizada === "object" ? atualizada : {}),
-      };
-      controller.setEditingItem(merged);
+      controller.setEditingItem(contaPublicaAposAtualizar(base, id, dados, atualizada));
       controller.setIsEditing(false);
       toast.success("Conta atualizada!");
     },
-    onError: (error) => {
+    onError: (error, { propriaSenha }) => {
+      if (propriaSenha && resultadoIncerto(error)) {
+        // Sem resposta não há como saber se a senha mudou: nada de sucesso
+        // nem de logout automático. Se mudou, o servidor recusará a sessão.
+        toast.error(
+          "Não foi possível confirmar a troca de senha. Se a mudança tiver sido aplicada, você precisará entrar novamente com a nova senha.",
+        );
+        return;
+      }
       toast.error(getApiErrorMessage(error, "Não foi possível salvar a conta."));
     },
+    // Sucesso ou erro: o payload com senha não fica guardado nas variables.
+    onSettled: (_r, _e, vars) => descartarCredenciais(vars?.dados),
   });
 
   submitRef.current = (dados) => {
     if (controller.editingItem?.id) {
-      updateMutation.mutate({ id: controller.editingItem.id, dados });
+      const id = controller.editingItem.id;
+      // Decidido no envio, pelo ID autenticado: resposta lenta ou currentUser
+      // atrasado não mudam se esta troca é da própria conta.
+      updateMutation.mutate({ id, dados, propriaSenha: ehTrocaDaPropriaSenha(user?.id, id, dados) });
     } else {
       createMutation.mutate(dados);
     }
@@ -154,10 +186,7 @@ export default function Usuarios() {
           readOnly={!controller.isEditing}
           isSubmitting={saving}
           initialData={controller.editingItem}
-          ehPropriaConta={
-            Boolean(controller.editingItem) &&
-            (currentUser?.login || currentUser?.email || "") === (controller.editingItem?.login || controller.editingItem?.email || "")
-          }
+          ehPropriaConta={ehContaPropria(user?.id, controller.editingItem?.id)}
           onSubmit={controller.handleSubmit}
           onCancel={controller.cancelForm}
         />

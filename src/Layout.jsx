@@ -518,6 +518,7 @@ function LayoutShell({ children, currentPageName }) {
             type="submit"
             form={mobileRecord.formId}
             className="mk-mhdr__round mk-mhdr__round--salvar"
+            data-permissao-explicita={mobileRecord.permissaoExplicita ? "" : undefined}
             disabled={mobileRecord.saving}
             aria-label={mobileRecord.saving ? "Salvando…" : "Salvar"}
             title="Salvar">

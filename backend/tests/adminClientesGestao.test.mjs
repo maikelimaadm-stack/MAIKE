@@ -127,10 +127,22 @@ describe('cadastro de cliente com primeiro administrador', () => {
     }
   });
 
-  test('GES-03 a senha temporária autentica pelo login normal e a conta é administradora REAL da fazenda', async () => {
+  test('GES-03 a senha temporária só abre a troca obrigatória (S04-P2); com a senha nova a conta é administradora REAL da fazenda', async () => {
     const { headers } = await criarAdminComSessao(app);
     const { administrador, senha_temporaria, cliente } = (await enviar('POST', '/admin-maike/clientes', headers, novo())).json();
-    const { resposta, corpo } = await autenticarNoApp(app, { login: administrador.login, senha: senha_temporaria });
+    // S04-P2: a senha temporária não emite a sessão normal, só o token restrito da troca.
+    const primeiro = await app.inject({ method: 'POST', url: '/auth/login', payload: { login: administrador.login, senha: senha_temporaria } });
+    assert.equal(primeiro.statusCode, 200, primeiro.body);
+    assert.equal(primeiro.json().troca_senha_obrigatoria, true);
+    assert.equal(primeiro.json().token, undefined);
+    const troca = await app.inject({
+      method: 'POST',
+      url: '/auth/troca-senha-inicial',
+      headers: { authorization: `Bearer ${primeiro.json().token_troca_senha}` },
+      payload: { senha_atual: senha_temporaria, nova_senha: 'Senha-Nova-Da-Maria-1' },
+    });
+    assert.equal(troca.statusCode, 200, troca.body);
+    const { resposta, corpo } = await autenticarNoApp(app, { login: administrador.login, senha: 'Senha-Nova-Da-Maria-1' });
     assert.equal(resposta.statusCode, 200, resposta.body);
     const bearer = { authorization: `Bearer ${corpo.token}` };
     const ctx = await app.inject({ method: 'GET', url: '/auth/contexto', headers: bearer });
@@ -285,7 +297,9 @@ describe('edição e situação', () => {
     const ficha = (await enviar('GET', `/admin-maike/clientes/${criado.cliente.id}`, headers)).json();
     assert.deepEqual(ficha.contagens, { usuarios: 1, usuarios_ativos: 1, empresas: 0 });
     const usuarios = (await enviar('GET', `/admin-maike/clientes/${criado.cliente.id}/usuarios`, headers)).json();
-    assert.deepEqual(Object.keys(usuarios.items[0]).sort(), ['ativo', 'criado_em', 'id', 'login', 'nome']);
+    // S04-P3: + `revisao` (opaca, para o If-Match da reemissão de senha).
+    assert.deepEqual(Object.keys(usuarios.items[0]).sort(), ['ativo', 'criado_em', 'id', 'login', 'nome', 'reemissao_disponivel', 'revisao']);
+    assert.match(usuarios.items[0].revisao, /^"u1-[A-Za-z0-9_-]{43}"$/);
   });
 
   test('GES-10 proprietário inexistente no payload não muda o ator: auditoria usa a sessão', async () => {
@@ -418,7 +432,7 @@ describe('S03-R1 concorrência da edição e auditoria', () => {
 });
 
 describe('S03-R1 semântica do token de fazenda na suspensão', () => {
-  test('GES-15 mesmo JWT: 200 → suspender → 401 → reativar → 200 (bloqueio TRANSITÓRIO, não revogação)', async () => {
+  test('GES-15 mesmo JWT: 200 → suspender → 401 → reativar → 401 (S04-P1: revogação permanente); login novo = 200', async () => {
     const t = await criarTenant({ codigo: 'fazenda-token' });
     const { headers } = await criarAdminComSessao(app);
     const tokenA = (await autenticarNoApp(app, t.credenciais)).corpo.token;
@@ -428,9 +442,10 @@ describe('S03-R1 semântica do token de fazenda na suspensão', () => {
     assert.equal((await escrever('POST', url, headers, { ativo: false, justificativa: 'teste de semântica do token' })).statusCode, 200);
     assert.equal((await ctx()).statusCode, 401, 'enquanto suspenso, o token antigo é recusado');
     assert.equal((await escrever('POST', url, headers, { ativo: true, justificativa: 'teste de semântica do token' })).statusCode, 200);
-    // Comportamento REAL registrado: sem versão de sessão no banco, o mesmo
-    // token volta a valer enquanto não expira. Revogação permanente = S04.
-    assert.equal((await ctx()).statusCode, 200, 'mesmo token, sem novo login, volta a funcionar após reativar');
+    // Até o S03 o mesmo token voltava a valer aqui (200). Desde o S04-P1 a
+    // suspensão avança Cliente.sessao_epoca: o token anterior morre de vez.
+    assert.equal((await ctx()).statusCode, 401, 'mesmo token continua recusado após reativar');
+    assert.equal((await autenticarNoApp(app, t.credenciais)).resposta.statusCode, 200, 'login novo funciona');
   });
 });
 

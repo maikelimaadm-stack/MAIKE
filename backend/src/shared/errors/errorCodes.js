@@ -100,6 +100,19 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   PERMISSAO_NOT_FOUND: { http: 404, meaning: 'id não identifica permissão deste tenant' },
   USUARIO_SELF_DEACTIVATE: { http: 400, meaning: 'conta autenticada não pode se desativar' },
   EMPRESA_NOT_FOUND: { http: 404, meaning: 'id não identifica empresa deste tenant' },
+  // D-PROD-146 — Gestão P1 (Parceiros e centros).
+  FORNECEDOR_NOT_FOUND: { http: 404, meaning: 'id não identifica fornecedor deste tenant (rota legada /fornecedores)' },
+  PARCEIRO_NOT_FOUND: { http: 404, meaning: 'id não identifica parceiro desta empresa neste tenant' },
+  PARCEIRO_DOCUMENTO_INVALIDO: { http: 400, meaning: 'CPF ou CNPJ com dígitos verificadores inválidos; nada foi gravado' },
+  PARCEIRO_EM_USO: { http: 409, meaning: 'fornecedor/parceiro referenciado por lote, nota ou movimentação não é excluído; inativar' },
+  PARCEIRO_DOCUMENTO_DUPLICADO: { http: 409, meaning: 'já existe parceiro com este CPF/CNPJ nesta empresa; nada foi gravado' },
+  CENTRO_CUSTO_NOT_FOUND: { http: 404, meaning: 'id não identifica centro de custo desta empresa neste tenant' },
+  CENTRO_RESULTADO_NOT_FOUND: { http: 404, meaning: 'id não identifica centro de resultado desta empresa neste tenant' },
+  CENTRO_NOME_CONFLITO: { http: 409, meaning: 'já existe centro com este nome nesta empresa; nada foi gravado' },
+  CENTRO_HIERARQUIA_INVALIDA: { http: 409, meaning: 'pai inválido: ciclo, profundidade máxima, pai inativo ou fora da empresa; nada foi gravado' },
+  CENTRO_COM_FILHOS_ATIVOS: { http: 409, meaning: 'o centro tem filhos ativos; inative-os antes; nada foi gravado' },
+  CENTRO_LIMITE_ATIVOS: { http: 409, meaning: 'empresa atingiu o teto de centros ativos do tipo; inativar antes de criar ou reativar' },
+  CENTRO_INATIVO: { http: 409, meaning: 'centro inativo não recebe vínculo novo; nada foi gravado' },
   EMPRESA_NAME_CONFLICT: {
     http: 409,
     meaning: 'já existe empresa com este nome neste tenant',
@@ -414,6 +427,8 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   ADMIN_CLIENTE_CODIGO_DUPLICADO: { http: 409, meaning: 'já existe cliente com este código' },
   ADMIN_LOGIN_DUPLICADO: { http: 409, meaning: 'login já usado por uma conta ativa (em qualquer cliente)' },
   ADMIN_CLIENTE_EDICAO_CONCORRENTE: { http: 409, meaning: 'cliente alterado em outra sessão depois da leitura (ficha ou requisição); nada foi gravado' },
+  ADMIN_REEMISSAO_SENHA_DESABILITADA: { http: 503, meaning: 'reemissão de senha pelo MAIKE Admin desligada neste ambiente (gate de ativação fechado)' },
+  ADMIN_USUARIO_EDICAO_CONCORRENTE: { http: 409, meaning: 'conta do usuário alterada depois da leitura da ficha (ou outra operação venceu a corrida); nada foi gravado' },
   ADMIN_REVISAO_REQUERIDA: { http: 428, meaning: 'If-Match com a revisão (ETag) da ficha ausente ou malformado' },
   CATALOGO_ASSET_INVALID: {
     http: 400,

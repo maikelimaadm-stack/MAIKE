@@ -48,6 +48,11 @@ const SELECAO_LOGIN = Object.freeze({
   login: true,
   senha_hash: true,
   ativo: true,
+  // S04-P1: as épocas atuais vão para o JWT (lidas do banco, nunca do cliente).
+  sessao_epoca: true,
+  cliente: { select: { sessao_epoca: true } },
+  // S04-P2: senha temporária ainda não trocada → só a sessão restrita.
+  troca_senha_pendente: true,
 });
 
 /**
