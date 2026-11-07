@@ -171,7 +171,7 @@ input[type="checkbox"]:not(.mg-check__input) { accent-color: #32d65e; }
   color: var(--mk-text-strong);
   gap: 8px;
 }
-.mk-vis :is(.mk-vis__seg-op, .mk-vis__chip) + button { border-top: 1px solid var(--mk-list-divider); }
+.mk-vis :is(.mk-vis__seg-op, .mk-vis__chip) + button { border-top: 0; }
 /* Checkbox verde (Visualização / Filtros·Camadas) — D-PROD-151 */
 .mk-check-row:not(#mk-padrao),
 .mk-vis :is(.mk-vis__seg-op, .mk-vis__chip):not(#mk-padrao) {

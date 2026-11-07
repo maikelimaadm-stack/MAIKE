@@ -432,7 +432,7 @@
 
 /* Mostrar no mapa: linhas com checkbox (D-PROD-151) */
 .mk-vis__lista { margin: 0; padding: 0; list-style: none; border-radius: 12px; overflow: hidden; }
-.mk-vis__lista li + li { border-top: 1px solid #f1f5f9; }
+.mk-vis__lista li + li { border-top: 0; }
 .mk-vis__linha {
   display: flex;
   align-items: center;
