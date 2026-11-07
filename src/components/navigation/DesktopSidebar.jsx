@@ -64,39 +64,23 @@ export default function DesktopSidebar({ items, currentPath, onNavigate, collaps
   // Recolhido: a logo mostra o ícone de expandir enquanto o mouse (ou foco) está nela.
   const [marcaEmHover, setMarcaEmHover] = React.useState(false);
 
-  // Abertura temporária: o menu aparece por cima da página e clicar fora fecha.
-  const [sobreposto, setSobreposto] = React.useState(false);
-  const expandido = !collapsed || sobreposto;
+  const expandido = !collapsed;
 
   // Ao recolher/expandir, a marca volta a mostrar a logo (sem herdar o hover anterior).
   React.useEffect(() => {
     setMarcaEmHover(false);
   }, [collapsed]);
 
-  // Fixar aberto/recolhido descarta a abertura temporária.
-  React.useEffect(() => {
-    setSobreposto(false);
-  }, [collapsed]);
-
   const navegar = (event, path) => {
-    setSobreposto(false);
     onNavigate(event, path);
   };
 
   const pesquisar = () => {
-    setSobreposto(false);
     onSearch();
   };
 
   return (
     <>
-      {sobreposto ? (
-        <div
-          className="fixed inset-0 z-[35] bg-slate-900/10"
-          onClick={() => setSobreposto(false)}
-          aria-hidden
-        />
-      ) : null}
       <div
         className={`hidden shrink-0 transition-[width] duration-300 lg:block ${
           collapsed ? "w-[68px]" : "w-[322px]"
@@ -108,9 +92,7 @@ export default function DesktopSidebar({ items, currentPath, onNavigate, collaps
           data-collapsed={expandido ? "false" : "true"}
           className={`flex h-full flex-col border-r border-[#f1f3f5] bg-[var(--mk-sup-cartao)] ${
             expandido ? "w-[322px]" : "w-[68px]"
-          } ${
-            sobreposto ? "fixed inset-y-0 left-0 z-40 shadow-[0_18px_45px_rgba(15,23,42,0.18)]" : "relative"
-          }`}
+          } relative`}
         >
           {/* Marca: recolhido, a logo vira o botão de expandir ao passar o mouse. */}
           <div className={expandido ? "px-3 pb-2 pt-[19px]" : "px-3.5 pb-2 pt-[19px]"}>
@@ -134,7 +116,7 @@ export default function DesktopSidebar({ items, currentPath, onNavigate, collaps
                 </button>
                 <button
                   type="button"
-                  onClick={sobreposto ? () => setSobreposto(false) : onToggle}
+                  onClick={onToggle}
                   aria-label="Ocultar menu principal"
                   title="Ocultar menu principal"
                   className="flex h-[33px] w-[33px] shrink-0 items-center justify-center rounded-[9px] text-[#64748b] transition-colors hover:bg-[var(--mk-btn-ativo)] hover:text-[#292a2d]"
@@ -222,7 +204,7 @@ export default function DesktopSidebar({ items, currentPath, onNavigate, collaps
                         type="button"
                         onClick={() => {
                           setAbertoId(item.id);
-                          setSobreposto(true);
+                          onToggle();
                         }}
                         aria-label={`Abrir menu ${item.title}`}
                         className={`flex h-11 w-11 items-center justify-center rounded-[9px] transition-colors ${
