@@ -133,15 +133,15 @@ export default function MapaFiltrosAvancados({
   const availableLayers = camadasDoMapa({ showAreas, setShowAreas, showPontos, setShowPontos, showLinhas, setShowLinhas, showLotes, setShowLotes, showTarefas, setShowTarefas, showCochos, setShowCochos, showDepositos, setShowDepositos, showAlertas, setShowAlertas, showUserLocation, setShowUserLocation, showNomesAreas, setShowNomesAreas, showHectaresAreas, setShowHectaresAreas, permissions });
 
   return (
-    <div className="mk-map-filters rounded space-y-1">
+    <div className="mk-map-filters mk-map-filters--clean rounded space-y-1">
       {/* ─── Camadas Visíveis ─── */}
       {availableLayers.length > 0 &&
       <>
           <div className="mk-map-filter-section mk-map-filter-section--layers space-y-0 px-1">
-            <div className="space-y-0 px-1">
+            <div className="mk-map-filter-heading">
               <span className="text-xs font-bold text-slate-800 uppercase">Mostrar no mapa</span>
             </div>
-            <div className="space-y-0">
+            <div className="mk-map-layer-list">
               {availableLayers.map((item) =>
             <label key={item.label} className="mk-map-layer-row flex items-center justify-between gap-3 cursor-pointer hover:bg-slate-50 px-2 py-1.5 rounded-lg">
                   <span className="text-xs font-medium text-slate-700">{item.label}</span>
@@ -204,11 +204,11 @@ export default function MapaFiltrosAvancados({
 
       {/* ─── Filtros de Áreas ─── */}
       {permissions?.visualizar_areas !== false &&
-      <div className="mk-map-filter-section">
-          <div className="space-y-0 px-1">
+      <div className="mk-map-filter-section mk-map-filter-section--fields">
+          <div className="mk-map-filter-heading">
             <span className="text-xs font-bold text-slate-800 uppercase">Filtros de Áreas</span>
           </div>
-          <div className="space-y-0 px-1">
+          <div className="mk-map-filter-fields">
             <div>
               <Label className="text-[10px] text-slate-600">Setor</Label>
               <B1Select value={filtroSetor} onChange={(e) => setFiltroSetor(e.target.value)} aria-label="Setor" className="h-8 text-xs">
@@ -248,11 +248,11 @@ export default function MapaFiltrosAvancados({
 
       {/* ─── Filtros de Lotes ─── */}
       {permissions?.visualizar_lotes !== false &&
-      <div className="mk-map-filter-section">
-          <div className="space-y-0 px-1">
+      <div className="mk-map-filter-section mk-map-filter-section--fields">
+          <div className="mk-map-filter-heading">
             <span className="text-xs font-bold text-slate-800 uppercase">Filtros de Categorias de Manejo</span>
           </div>
-          <div className="space-y-0 px-1">
+          <div className="mk-map-filter-fields">
             <div>
               <Label className="text-[10px] text-slate-600">Categoria</Label>
               <B1Select value={filtroCategoria} onChange={(e) => setFiltroCategoria(e.target.value)} aria-label="Categoria" className="h-8 text-xs">
@@ -280,7 +280,7 @@ export default function MapaFiltrosAvancados({
 
               </B1Select>
             </div>
-            <div className="space-y-0 px-1">
+            <div>
               <Label className="text-[10px] text-slate-600">Alertas</Label>
               <B1Select value={filtroStatus} onChange={(e) => setFiltroStatus(e.target.value)} aria-label="Alertas" className="h-8 text-xs">
 

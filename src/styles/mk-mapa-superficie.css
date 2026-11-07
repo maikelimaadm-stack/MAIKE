@@ -311,3 +311,65 @@ button[data-mk-map-action]:is([class*="bg-amber"], [class*="bg-yellow"]):not(#mk
     padding: 4px 12px 12px;
   }
 }
+
+/* Filtros e camadas: títulos sobre o fundo e uma lista branca por seção. */
+.mk-map-filters--clean:not(#mk-padrao) { gap: 18px; }
+.mk-map-filters--clean .mk-map-filter-section:not(#mk-padrao) {
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.mk-map-filters--clean .mk-map-filter-heading { padding: 0 4px 8px; }
+.mk-map-filters--clean .mk-map-filter-heading > span {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: none;
+  color: #64748b;
+  line-height: 1.4;
+}
+.mk-map-filters--clean :is(.mk-map-layer-list, .mk-map-filter-fields) {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: var(--mk-cartao-sombra);
+  padding: 0 12px;
+}
+.mk-map-filters--clean .mk-map-filter-fields:not(#mk-padrao) {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.mk-map-filters--clean .mk-map-filter-fields > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  min-height: 46px;
+  padding: 5px 0;
+}
+.mk-map-filters--clean .mk-map-filter-fields > div + div {
+  border-top: 1px solid var(--mk-list-divider);
+}
+.mk-map-filters--clean .mk-map-filter-fields label:not(#mk-padrao) {
+  margin: 0;
+  line-height: 1.35;
+  font-size: 12px;
+  font-weight: 500;
+  color: #475569;
+}
+.mk-map-filters--clean .mk-map-filter-fields :is(input, button[role="combobox"]):not(#mk-padrao) {
+  box-shadow: none;
+  border-radius: 8px;
+  background: var(--mk-sup-fundo);
+  font-size: 12px;
+  height: 32px;
+  min-height: 32px;
+}
+.mk-map-filters--clean .mk-map-filter-fields :is(input, button[role="combobox"]):focus-visible:not(#mk-padrao) {
+  outline: 2px solid #5acbe9;
+  outline-offset: 2px;
+}
+.mk-map-filters--clean .mk-map-layer-row:not(#mk-padrao) { min-height: 42px; padding: 8px 0; }
+@media (min-width: 1024px) {
+  .mk-map-filters--clean .mk-map-layer-row:not(#mk-padrao) { min-height: 38px; height: auto; }
+}
