@@ -62,6 +62,8 @@ describe('V3 — tablet', () => {
     const layout = readFileSync('src/Layout.jsx', 'utf8');
     expect(layout).toMatch(/className="mk-thdr hidden md:flex lg:hidden"/);
     expect(layout).toMatch(/aria-label="Navegação lateral" className="mk-rail hidden md:flex lg:hidden"/);
-    expect(layout).toMatch(/max-w-\[1600px\] mx-auto px-4 py-2 hidden lg:block/);
+    // Menu de módulos do desktop: só a partir de lg (tablet usa cabeçalho + trilho).
+    const menuDesktop = readFileSync('src/components/navigation/DesktopNavigation.jsx', 'utf8');
+    expect(menuDesktop).toMatch(/className="mk-desktop-menu hidden lg:block"/);
   });
 });

@@ -8,7 +8,7 @@
  *  - a regra de botões é a mesma do servidor (novo|salvar, editar|salvar).
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, cleanup, act, within } from '@testing-library/react';
+import { render, screen, cleanup, act, within, fireEvent } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import React from 'react';
@@ -64,6 +64,11 @@ const renderShell = async () => {
       </MemoryRouter>,
     );
   });
+};
+
+/** O menu desktop mostra as telas do módulo ao clicar no grupo. */
+const abrirModulo = async (titulo) => {
+  await act(async () => { fireEvent.click(screen.getAllByRole('button', { name: titulo })[0]); });
 };
 
 beforeEach(() => {
@@ -134,7 +139,8 @@ describe('GES-M3 — menu do shell real', () => {
     ];
     await renderShell();
     expect((await screen.findAllByText('Gestão Rural')).length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Parceiros').length).toBeGreaterThan(0);
+    await abrirModulo('Gestão Rural');
+    expect((await screen.findAllByRole('link', { name: 'Parceiros' })).length).toBeGreaterThan(0);
     expect(screen.queryByText('Centros de Custo')).toBeNull();
     expect(screen.queryByText('Centros de Resultado')).toBeNull();
   });
@@ -151,7 +157,8 @@ describe('GES-M3 — menu do shell real', () => {
     sessao.usuario = admin;
     await renderShell();
     expect((await screen.findAllByText('Gestão Rural')).length).toBeGreaterThan(0);
-    for (const t of ['Parceiros', 'Centros de Custo', 'Centros de Resultado']) expect(screen.getAllByText(t).length).toBeGreaterThan(0);
+    await abrirModulo('Gestão Rural');
+    for (const t of ['Parceiros', 'Centros de Custo', 'Centros de Resultado']) expect(screen.getAllByRole('link', { name: t }).length).toBeGreaterThan(0);
   });
 });
 
