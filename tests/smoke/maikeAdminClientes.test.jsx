@@ -131,11 +131,14 @@ describe('Clientes: ficha', () => {
     expect(within(painel).getByText('Usuários (2)')).toBeTruthy();
 
     // S03: editar identificação e suspender existem; exclusão, impersonação e senha, não.
+    // S04-P3: a única ação de senha permitida é "Reemitir senha temporária" (por conta,
+    // com reautenticação no formulário); nada de ver/definir senha ou entrar na conta.
     const rotulos = screen.getAllByRole('button').map((b) => b.textContent);
     expect(rotulos).toContain('Editar identificação');
     expect(rotulos).toContain('Suspender cliente');
+    const semReemissao = rotulos.filter((r) => r !== 'Reemitir senha temporária');
     for (const proibido of [/excluir/i, /apagar/i, /entrar como/i, /acessar conta/i, /senha/i]) {
-      expect(rotulos.some((r) => proibido.test(r))).toBe(false);
+      expect(semReemissao.some((r) => proibido.test(r))).toBe(false);
     }
     expect(document.body.textContent).not.toMatch(/senha_hash|papel_tenant|cnpj|cpf/i);
     expect(chamadas.every((x) => x.metodo === 'GET' && !('x-maike-admin-csrf' in x.headers))).toBe(true);

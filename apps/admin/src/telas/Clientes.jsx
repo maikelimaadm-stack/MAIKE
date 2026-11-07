@@ -395,11 +395,140 @@ function AlterarSituacao({ cliente, revisao, onSalvo, onCancelar }) {
   );
 }
 
+/**
+ * Reemissão de senha temporária (MAIKE-SAAS-ADMIN-S04-P3 PR01).
+ *
+ * Confirmação explícita (nome/login e sessões encerradas, inclusive o risco de
+ * lançamentos offline não enviados), justificativa e reautenticação (senha
+ * atual + código do autenticador). Um envio por clique; os campos sensíveis
+ * são limpos a cada envio. Resultado incerto (rede/5xx) NÃO repete: avisa que
+ * a senha anterior pode já ter sido invalidada e manda reler a lista.
+ */
+function ReemitirSenha({ cliente, usuario, onConcluido, onReler, onCancelar }) {
+  const [entendi, setEntendi] = useState(false);
+  const [justificativa, setJustificativa] = useState('');
+  const [senhaAtual, setSenhaAtual] = useState('');
+  const [codigo, setCodigo] = useState('');
+  const [erro, setErro] = useState('');
+  const [ocupado, setOcupado] = useState(false);
+  const curta = justificativa.trim().length < 10;
+  const incompleto = !entendi || curta || !senhaAtual || codigo.trim().length < 6;
+  const enviar = async (e) => {
+    e.preventDefault();
+    if (ocupado || incompleto) return;
+    setErro('');
+    setOcupado(true);
+    const dados = { justificativa: justificativa.trim(), senha_admin_atual: senhaAtual, codigo_mfa: codigo.trim() };
+    setSenhaAtual('');
+    setCodigo('');
+    try {
+      const resultado = await api.reemitirSenhaUsuario(cliente.id, usuario.id, dados, usuario.revisao);
+      onConcluido(resultado);
+    } catch (falha) {
+      const f = /** @type {any} */ (falha);
+      if (f?.code === 'ADMIN_REEMISSAO_SENHA_DESABILITADA') {
+        // R1: o servidor recusou ANTES de qualquer coisa — resultado certo, nada mudou.
+        onReler(mensagemDeErro(f));
+      } else if (resultadoIncerto(falha)) {
+        onReler(
+          `Não foi possível confirmar a reemissão para ${usuario.nome}. A senha anterior pode já ter sido invalidada. Recarregamos a lista: confira o usuário e, se precisar, inicie uma nova reemissão.`
+        );
+      } else if (f?.code === 'ADMIN_USUARIO_EDICAO_CONCORRENTE' || f?.code === 'ADMIN_REVISAO_REQUERIDA') {
+        onReler(mensagemDeErro(f));
+      } else {
+        setErro(mensagemDeErro(falha));
+      }
+    } finally {
+      dados.senha_admin_atual = '';
+      dados.codigo_mfa = '';
+      setOcupado(false);
+    }
+  };
+  return (
+    <form className="formulario painel" onSubmit={enviar} aria-label="Reemitir senha temporária" data-testid="reemitir-senha">
+      <h3>Reemitir senha temporária</h3>
+      <Aviso tipo="erro">
+        {`${usuario.nome} (${usuario.login}), de ${cliente.nome}: a senha atual deixa de valer e TODAS as sessões abertas desta conta são encerradas na hora, em todos os aparelhos. Lançamentos feitos sem internet e ainda não sincronizados nesses aparelhos podem precisar ser refeitos. No próximo acesso, a pessoa entra com a senha temporária e é obrigada a trocá-la.`}
+      </Aviso>
+      <label className="checagem">
+        <input type="checkbox" checked={entendi} onChange={(e) => setEntendi(e.target.checked)} />
+        {` Entendi: reemitir a senha de ${usuario.login} e encerrar as sessões dessa conta.`}
+      </label>
+      <Campo rotulo="Justificativa (fica registrada na auditoria)" id="reemitir-justificativa" dica="Pelo menos 10 caracteres.">
+        <textarea id="reemitir-justificativa" rows={3} maxLength={500} value={justificativa} onChange={(e) => setJustificativa(e.target.value)} />
+      </Campo>
+      <Campo rotulo="Sua senha atual (proprietário)" id="reemitir-senha-admin">
+        <input id="reemitir-senha-admin" type="password" autoComplete="current-password" value={senhaAtual} onChange={(e) => setSenhaAtual(e.target.value)} />
+      </Campo>
+      <Campo rotulo="Código do autenticador" id="reemitir-codigo" dica="Use um código novo: o mesmo código não vale duas vezes.">
+        <input
+          id="reemitir-codigo"
+          inputMode="numeric"
+          autoComplete="one-time-code"
+          maxLength={12}
+          value={codigo}
+          onChange={(e) => setCodigo(e.target.value)}
+        />
+      </Campo>
+      <Aviso tipo="erro">{erro}</Aviso>
+      <div className="acoes">
+        <Botao type="submit" variante="perigo" ocupado={ocupado} disabled={incompleto}>
+          Reemitir senha
+        </Botao>
+        <Botao variante="secundario" onClick={onCancelar} disabled={ocupado}>
+          Cancelar
+        </Botao>
+      </div>
+    </form>
+  );
+}
+
+/** Mostra a senha reemitida UMA vez; fechar descarta o estado. */
+function SenhaReemitida({ resultado, onConcluir }) {
+  const [copiado, setCopiado] = useState(false);
+  const copiar = async () => {
+    try {
+      await navigator.clipboard.writeText(resultado.senha_temporaria);
+      setCopiado(true);
+    } catch {
+      setCopiado(false);
+    }
+  };
+  return (
+    <section className="painel" aria-labelledby="titulo-senha-reemitida" data-testid="senha-reemitida">
+      <h3 id="titulo-senha-reemitida">Nova senha temporária de {resultado.usuario.nome}</h3>
+      <Aviso tipo="aviso">
+        Esta é a única vez que a nova senha aparece. Entregue por um canal seguro. As sessões desta conta foram encerradas; no próximo
+        acesso o sistema exige trocar esta senha por uma só da pessoa. Se usar &quot;Copiar senha&quot;, ela fica na área de transferência
+        deste dispositivo até você copiar outra coisa.
+      </Aviso>
+      <dl className="ficha-dados">
+        <div>
+          <dt>Login</dt>
+          <dd>{resultado.usuario.login}</dd>
+        </div>
+      </dl>
+      <div className="senha-unica">
+        <span className="campo-rotulo">Senha temporária</span>
+        <code data-testid="senha-temporaria-reemitida">{resultado.senha_temporaria}</code>
+        <Botao variante="secundario" onClick={copiar}>
+          {copiado ? 'Copiada' : 'Copiar senha'}
+        </Botao>
+      </div>
+      <Botao onClick={onConcluir}>Já entreguei/guardei a senha — fechar</Botao>
+    </section>
+  );
+}
+
 function FichaCliente({ id, onFechar, onAlterado }) {
   const [ficha, setFicha] = useState(null);
   const [erro, setErro] = useState('');
   const [modo, setModo] = useState('ver');
   const [aviso, setAviso] = useState('');
+  // S04-P3: reemissão de senha (conta alvo, resultado mostrado uma vez, recarga da lista).
+  const [reemitindo, setReemitindo] = useState(null);
+  const [reemitida, setReemitida] = useState(null);
+  const [versaoUsuarios, setVersaoUsuarios] = useState(0);
   const atual = useRef(id);
 
   const carregar = useCallback(async () => {
@@ -418,6 +547,8 @@ function FichaCliente({ id, onFechar, onAlterado }) {
     atual.current = id;
     setModo('ver');
     setAviso('');
+    setReemitindo(null);
+    setReemitida(null);
     carregar();
   }, [id, carregar]);
 
@@ -522,11 +653,31 @@ function FichaCliente({ id, onFechar, onAlterado }) {
               </tr>
             )}
           />
+          {reemitida ? (
+            <SenhaReemitida resultado={reemitida} onConcluir={() => setReemitida(null)} />
+          ) : reemitindo ? (
+            <ReemitirSenha
+              cliente={ficha.cliente}
+              usuario={reemitindo}
+              onConcluido={(r) => {
+                setReemitindo(null);
+                setReemitida(r);
+                setVersaoUsuarios((v) => v + 1);
+              }}
+              onReler={(texto) => {
+                setReemitindo(null);
+                setErro('');
+                setAviso(texto);
+                setVersaoUsuarios((v) => v + 1);
+              }}
+              onCancelar={() => setReemitindo(null)}
+            />
+          ) : null}
           <ListaDoCliente
-            key={`u-${id}`}
+            key={`u-${id}-${versaoUsuarios}`}
             titulo="Usuários"
             carregar={usuarios}
-            colunas={['Nome', 'Login', 'Situação', 'Cadastrado em']}
+            colunas={['Nome', 'Login', 'Situação', 'Cadastrado em', 'Ações']}
             vazio="Nenhum usuário cadastrado."
             linha={(u) => (
               <tr key={u.id} className={u.ativo ? undefined : 'linha-inativa'}>
@@ -536,6 +687,13 @@ function FichaCliente({ id, onFechar, onAlterado }) {
                   <Situacao ativo={u.ativo} />
                 </td>
                 <td>{data(u.criado_em)}</td>
+                <td>
+                  {u.reemissao_disponivel === true && u.ativo && ficha.cliente.ativo && !reemitindo && !reemitida ? (
+                    <Botao variante="secundario" onClick={() => setReemitindo(u)} aria-label={`Reemitir senha temporária de ${u.login}`}>
+                      Reemitir senha temporária
+                    </Botao>
+                  ) : null}
+                </td>
               </tr>
             )}
           />

@@ -41,6 +41,7 @@ import {
 } from './adminClientesService.js';
 import { JUSTIFICATIVA_MIN, PADRAO_REVISAO, alterarSituacaoCliente, criarCliente, editarCliente, revisaoCliente, revisaoRequerida } from './adminClientesGestaoService.js';
 import { obterManifesto } from '../catalogoGlobal/catalogoGlobalService.js';
+import { PADRAO_REVISAO_USUARIO, exigirReemissaoHabilitada, reemitirSenhaUsuario } from './adminUsuarioSenhaService.js';
 
 const PREFIX = '/admin-maike';
 const corpo = (properties, required = []) => ({
@@ -55,6 +56,8 @@ const LIMITE_MFA = { limite: 20, janelaMs: 15 * 60_000 };
 const LIMITE_CONTA = { limite: 10, janelaMs: 15 * 60_000 };
 const LIMITE_PRIMEIRO_ACESSO = { limite: 5, janelaMs: 15 * 60_000 };
 const LIMITE_GESTAO_CLIENTES = { limite: 60, janelaMs: 15 * 60_000 };
+/** S04-P3: reemissão de senha é operação de alto risco (reautenticação a cada uso). */
+const LIMITE_REEMITIR_SENHA = { limite: 10, janelaMs: 15 * 60_000 };
 
 const ctx = (request) => ({
   ip: request.ip,
@@ -358,6 +361,44 @@ export const registrarAdminMaikeRoutes = async (app) => {
       consumirTentativa(`clientes:${request.ip}`, LIMITE_GESTAO_CLIENTES);
       const revisao = revisaoDe(request);
       return comRevisao(reply, await alterarSituacaoCliente(idDe(request), /** @type {any} */ (request.body), { ...ctx(request), revisao }));
+    }
+  );
+
+  // ─── Reemissão de senha temporária (MAIKE-SAAS-ADMIN-S04-P3 PR01) ────────
+  // Sessão verificada (MFA) + Origin/CSRF (guarda) + reautenticação (senha
+  // atual + TOTP novo, no service) + revisão DA CONTA em If-Match. O corpo não
+  // aceita senha escolhida, ids, papel, época nem pendência: só justificativa e
+  // as credenciais da reautenticação, que nunca são auditadas nem ecoadas.
+  // R1: o gate de ativação roda PRIMEIRO (antes da sessão, do corpo, do limite,
+  // do TOTP e de qualquer consulta): desligado = 503 sem tocar no banco.
+  app.post(
+    `${PREFIX}/clientes/:id/usuarios/:usuarioId/reemitir-senha`,
+    {
+      onRequest: [exigirReemissaoHabilitada, ...verificada],
+      schema: {
+        params: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['id', 'usuarioId'],
+          properties: { id: { type: 'string', pattern: PADRAO_ID }, usuarioId: { type: 'string', pattern: PADRAO_ID } },
+        },
+        querystring: semConsulta,
+        ...corpo(
+          {
+            justificativa: { type: 'string', minLength: JUSTIFICATIVA_MIN, maxLength: 500 },
+            senha_admin_atual: TEXTO(256),
+            codigo_mfa: CODIGO_MFA,
+          },
+          ['justificativa', 'senha_admin_atual', 'codigo_mfa']
+        ),
+      },
+    },
+    async (request) => {
+      consumirTentativa(`reemitir:${request.ip}`, LIMITE_REEMITIR_SENHA);
+      const v = request.headers['if-match'];
+      if (typeof v !== 'string' || !PADRAO_REVISAO_USUARIO.test(v)) throw revisaoRequerida();
+      const { id, usuarioId } = /** @type {{ id: string, usuarioId: string }} */ (request.params);
+      return reemitirSenhaUsuario(id, usuarioId, /** @type {any} */ (request.body), { ...ctx(request), revisao: v });
     }
   );
 };

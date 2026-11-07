@@ -17,9 +17,11 @@
  *   efeito colateral além do `ultimo_uso_em` da sessão, que a guarda já atualiza.
  */
 
+import { reemissaoSenhaHabilitada } from '../../config/env.js';
 import { getPrismaClient } from '../../database/prismaClient.js';
 import { adminError } from '../../shared/errors/AppError.js';
 import { clausulaKeysetDesc, decodificarCursor, montarEnvelopeKeyset } from '../../shared/pagination/keysetCursor.js';
+import { SELECT_REVISAO_USUARIO, revisaoUsuario } from './adminUsuarioSenhaService.js';
 
 export const LIMITE_PADRAO_ADMIN = 25;
 export const LIMITE_MAXIMO_ADMIN = 50;
@@ -204,10 +206,11 @@ export const listarUsuariosDoCliente = (id, query = {}) =>
         where: { cliente_id: clienteId, ...extra },
         orderBy: ORDEM,
         take,
-        select: { id: true, nome: true, login: true, ativo: true, createdAt: true },
+        // S04-P3: campos só para a revisão opaca da conta (não saem crus).
+        select: { id: true, nome: true, login: true, ativo: true, createdAt: true, ...SELECT_REVISAO_USUARIO },
       }),
     (clienteId) => getPrismaClient().usuario.count({ where: { cliente_id: clienteId } }),
-    (u) => ({ id: u.id, nome: u.nome, login: u.login, ativo: u.ativo, criado_em: iso(u.createdAt) })
+    (u) => ({ id: u.id, nome: u.nome, login: u.login, ativo: u.ativo, criado_em: iso(u.createdAt), revisao: revisaoUsuario(u), reemissao_disponivel: reemissaoSenhaHabilitada() && u.ativo === true })
   );
 
 /**
