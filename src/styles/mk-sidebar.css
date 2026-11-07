@@ -63,7 +63,7 @@
   bottom: 0;
   height: auto;
   z-index: 60;
-  width: 322px;
+  width: 240px;
   background: #fff;
 }
 .mk-desktop-sidebar[data-peeking="true"] > div { animation: mk-sidebar-reveal 140ms ease-out; }
@@ -79,3 +79,21 @@
 .mk-sidebar-trigger::after { content: ''; position: absolute; left: 0; right: 0; bottom: -10px; height: 10px; }
 .mk-sidebar-brand { cursor: pointer; transition: background-color 120ms ease; }
 .mk-sidebar-brand:is(:hover,:focus-visible) { background: rgba(41,42,45,.055); }
+
+/* Uma só identidade no cabeçalho; o menu começa abaixo dessa linha. */
+:root { --mk-sidebar-width: 240px; }
+.mk-sidebar-header { align-items: center; gap: 8px; width: 240px; min-width: 0; }
+.mk-sidebar-wordmark { display: flex; flex: 1 1 auto; min-width: 0; flex-direction: column; gap: 2px; }
+.mk-sidebar-wordmark strong { color: #292a2d; font-size: 14px; line-height: 1.25; white-space: nowrap; }
+.mk-sidebar-wordmark span { color: #64748b; font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mk-sidebar-search { display: grid; place-items: center; flex: none; width: 32px; height: 32px; border-radius: 8px; color: #64748b; }
+.mk-sidebar-search:hover { background: rgba(41,42,45,.055); color: #292a2d; }
+.mk-desktop-sidebar-frame { pointer-events: none; }
+.mk-desktop-sidebar { pointer-events: auto; }
+.mk-desktop-sidebar[data-pinned="true"] { position: fixed; left: 0; bottom: 0; height: auto; width: var(--mk-sidebar-width); }
+@media (min-width: 1024px) {
+  .mk-desktop-sidebar-frame:has([data-pinned="true"]) + div > .mk-app-topbar {
+    margin-left: calc(-1 * var(--mk-sidebar-width));
+    width: calc(100% + var(--mk-sidebar-width));
+  }
+}

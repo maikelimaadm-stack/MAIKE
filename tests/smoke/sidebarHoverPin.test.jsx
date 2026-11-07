@@ -24,11 +24,11 @@ it('fixar mantém o menu aberto ao sair; desafixar volta ao trilho', async () =>
   render(<Fixture navegar={vi.fn()} />);
   const nav = document.querySelector('#app-shell-sidebar');
   fireEvent.mouseEnter(screen.getByRole('button', { name: 'Menu principal' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Fixar menu', exact: true }));
+  fireEvent.click(screen.getByRole('button', { name: 'Menu principal', exact: true }));
   fireEvent.mouseLeave(nav);
   expect(nav.getAttribute('data-pinned')).toBe('true');
   expect(nav.getAttribute('data-collapsed')).toBe('false');
-  fireEvent.click(screen.getByRole('button', { name: 'Desafixar menu' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Menu principal', exact: true }));
   expect(nav.getAttribute('data-pinned')).toBe('false');
   fireEvent.mouseLeave(nav);
   await waitFor(() => expect(nav.getAttribute('data-collapsed')).toBe('true'));

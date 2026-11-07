@@ -45,22 +45,31 @@ export default function DesktopSidebar({ items, currentPath, onNavigate, collaps
     <img src="/brand/mak-gestao-simbolo.png" alt="MAK Gestão" className="mk-sidebar-brand-logo h-8 w-8 object-contain" />
     <span className="mk-sidebar-brand-pin absolute inset-0 grid place-items-center" aria-hidden>{collapsed ? <Pin size={19} /> : <PinOff size={19} />}</span>
   </button>;
-  const controle = <div className="mk-sidebar-trigger hidden lg:block" onMouseEnter={abrir} onMouseLeave={fecharDepois} onBlurCapture={fecharDepois}>{marca(true)}</div>;
+  React.useEffect(() => {
+    const header = triggerHost?.closest('header');
+    if (!header) return;
+    const sync = () => setTopo(Math.round(header.getBoundingClientRect().bottom));
+    sync();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(sync);
+    observer.observe(header);
+    return () => observer.disconnect();
+  }, [triggerHost]);
+  const controle = <div className="mk-sidebar-header hidden lg:flex">
+    <div className="mk-sidebar-trigger" onMouseEnter={abrir} onMouseLeave={fecharDepois} onBlurCapture={fecharDepois}>{marca(true)}</div>
+    <div className="mk-sidebar-wordmark"><strong>MAK Gestão</strong><span>Plataforma de gestão rural</span></div>
+    <button type="button" className="mk-sidebar-search" onClick={onSearch} aria-label="Pesquisar telas" title="Pesquisar telas (Ctrl K)"><Search size={18} aria-hidden /></button>
+  </div>;
   return <>
     {triggerHost ? createPortal(controle, triggerHost) : triggerHost === undefined ? controle : null}
-    <div className={`mk-desktop-sidebar-frame relative hidden shrink-0 lg:block ${collapsed ? 'w-0' : 'w-[322px]'}`}>
+    <div className={`mk-desktop-sidebar-frame relative hidden shrink-0 lg:block ${collapsed ? 'w-0' : 'w-[240px]'}`}>
       <nav id="app-shell-sidebar" aria-label="Módulos" aria-hidden={!expandido}
         data-collapsed={!expandido ? 'true' : 'false'} data-pinned={!collapsed ? 'true' : 'false'} data-peeking={collapsed && espiando ? 'true' : 'false'}
-        style={collapsed && espiando ? { top: topo } : undefined}
-        className={`mk-desktop-sidebar relative flex h-full w-[322px] flex-col ${expandido ? '' : 'invisible pointer-events-none'}`}
+        style={expandido ? { top: topo } : undefined}
+        className={`mk-desktop-sidebar relative flex h-full w-[240px] flex-col ${expandido ? '' : 'invisible pointer-events-none'}`}
         onMouseEnter={() => cancelarFechamento()} onMouseLeave={fecharDepois}
         onFocusCapture={cancelarFechamento} onBlurCapture={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) fecharDepois(); }}
         onKeyDown={(e) => { if (e.key === 'Escape' && collapsed) setEspiando(false); }}>
-        <div className="flex items-center gap-2 px-3 pb-2 pt-3">
-          {marca(false)}
-          <div className="min-w-0 flex-1"><strong className="block truncate text-[15px] text-[#292a2d]">MAK Gestão</strong><span className="text-[10px] text-[#64748b]">Plataforma de gestão rural</span></div>
-          <button type="button" className="grid h-9 w-9 place-items-center rounded-lg" onClick={onSearch} aria-label="Pesquisar telas"><Search size={19} /></button>
-        </div>
         <div className="px-3 py-2"><Link to={createPageUrl('MapaGeral')} onClick={e => onNavigate(e, createPageUrl('MapaGeral'))} aria-current={currentPath === createPageUrl('MapaGeral') ? 'page' : undefined} className="flex h-9 items-center gap-2.5 rounded-lg px-3 text-[13px]"><Home size={20} /><span>Início</span></Link></div>
         <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-5">
           <div className="px-3 pb-2 pt-2 text-[11px] font-semibold text-[#64748b]">Módulos</div>
