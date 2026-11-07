@@ -110,7 +110,7 @@ export default function ResumoSuplementacao({ lotesIds = [], modo = "completo", 
 
   if (modo === "compacto") {
     return (
-      <div className="bg-slate-50 border border-slate-200 rounded-lg p-2 mt-2">
+      <div className="bg-[#FAFCFE] border border-slate-200 rounded-lg p-2 mt-2">
         <div className="text-[10px] font-semibold text-slate-900 mb-1">Suplementação (30 dias)</div>
         <div className="grid grid-cols-4 gap-2 text-[9px]">
           <div>
@@ -142,7 +142,7 @@ export default function ResumoSuplementacao({ lotesIds = [], modo = "completo", 
   );
 
   return (
-    <div className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-[11px] space-y-1">
+    <div className="rounded-lg border border-slate-200 bg-[#FAFCFE] p-2 text-[11px] space-y-1">
       <span className="font-semibold text-slate-900 text-xs">Suplementação (últimos 30 dias)</span>
 
       <div>

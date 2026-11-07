@@ -143,7 +143,7 @@ export default function MapaFiltrosAvancados({
             </div>
             <div className="mk-map-layer-list">
               {availableLayers.map((item) =>
-            <label key={item.label} className="mk-map-layer-row flex items-center justify-between gap-3 cursor-pointer hover:bg-slate-50 px-2 py-1.5 rounded-lg">
+            <label key={item.label} className="mk-map-layer-row flex items-center justify-between gap-3 cursor-pointer hover:bg-[#FAFCFE] px-2 py-1.5 rounded-lg">
                   <span className="text-xs font-medium text-slate-700">{item.label}</span>
                   {/* D-PROD-132: mesma chave liga/desliga dos cadastros e lançamentos */}
                   <ToggleSwitch checked={item.checked} onChange={() => item.onChange()} ariaLabel={item.label} />
@@ -181,7 +181,7 @@ export default function MapaFiltrosAvancados({
 
           {/* Legenda do modo ativo */}
           {modoColoracao !== 'padrao' &&
-        <div className="mt-3 bg-slate-50 rounded-lg p-2.5 space-y-1">
+        <div className="mt-3 bg-[#FAFCFE] rounded-lg p-2.5 space-y-1">
               <div className="text-[10px] font-bold text-slate-600 uppercase mb-1">Legenda</div>
               {modoColoracao === 'tipo_cultura' && Object.entries(CORES_TIPO_CULTURA).map(([k, c]) => <LegendaItem key={k} cor={c} label={k} />)}
               {modoColoracao === 'aproveitamento' && Object.entries(CORES_APROVEITAMENTO).map(([k, c]) => <LegendaItem key={k} cor={c} label={k} />)}

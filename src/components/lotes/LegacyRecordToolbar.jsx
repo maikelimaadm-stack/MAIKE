@@ -14,7 +14,7 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const iconButtonClass =
-  "h-8 w-9 rounded-none border-y-0 border-l-0 border-r border-slate-200 bg-white hover:bg-slate-50 text-slate-500 hover:text-slate-800 shadow-none transition-colors";
+  "h-8 w-9 rounded-none border-y-0 border-l-0 border-r border-slate-200 bg-white hover:bg-[#FAFCFE] text-slate-500 hover:text-slate-800 shadow-none transition-colors";
 
 const TipBtn = ({ title, children }) => (
   <TooltipProvider delayDuration={300}>
@@ -220,7 +220,7 @@ export default function LegacyRecordToolbar({
           )}
 
           {/* Counter */}
-          <div className="h-full px-3 border-r border-slate-200 bg-slate-50 flex items-center justify-center min-w-[3rem]">
+          <div className="h-full px-3 border-r border-slate-200 bg-[#FAFCFE] flex items-center justify-center min-w-[3rem]">
             <span className="text-xs font-semibold text-slate-700">
               {total > 0 ? <>{currentIndex + 1}<span className="text-slate-400 font-normal">/{total}</span></> : total}
             </span>

@@ -31,7 +31,7 @@ export default function ConfiguracaoColunasLegacyDialog({
             <p className="text-xs text-slate-600 font-semibold">Visibilidade</p>
             <div className="grid grid-cols-2 gap-2">
               {colunasDisponiveis.filter((c) => !c.fixo).map((coluna) => (
-                <label key={coluna.id} className="flex items-center gap-2 text-xs cursor-pointer hover:bg-slate-50 p-1.5 rounded">
+                <label key={coluna.id} className="flex items-center gap-2 text-xs cursor-pointer hover:bg-[#FAFCFE] p-1.5 rounded">
                   <input
                     type="checkbox"
                     checked={colunasVisiveis.includes(coluna.id)}

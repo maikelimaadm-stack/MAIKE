@@ -368,7 +368,7 @@ export default function FormularioTarefaMapa({ tarefa, areaId, areaNome, loteId,
             </B1Select>
           </FL> :
           <FL label="Local / pasto">
-            <Input value={(formData.area_nome || formData.lote_nome || "").toUpperCase()} readOnly className="h-7 text-xs bg-slate-50 uppercase border-0 shadow-none focus-visible:ring-0" />
+            <Input value={(formData.area_nome || formData.lote_nome || "").toUpperCase()} readOnly className="h-7 text-xs bg-[#FAFCFE] uppercase border-0 shadow-none focus-visible:ring-0" />
           </FL>
         }
 

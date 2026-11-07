@@ -146,7 +146,7 @@ const NativeLoginForm = ({ onAutenticado, entrar }) => {
   }
 
   return (
-    <div className="mk-login fixed inset-0 overflow-y-auto bg-slate-50">
+    <div className="mk-login fixed inset-0 overflow-y-auto bg-[#FAFCFE]">
       <div className="flex min-h-[100dvh] w-full">
         {/* Painel da marca — só a partir do notebook. */}
         <aside
@@ -284,7 +284,7 @@ const NativeLoginForm = ({ onAutenticado, entrar }) => {
                 onClick={(evento) => {
                   if (!(evento.target instanceof Element) || !evento.target.closest('[role="switch"]')) setLembrar((v) => !v);
                 }}
-                className="flex min-h-[56px] cursor-pointer select-none items-center justify-between gap-3 rounded-xl bg-slate-50 px-3.5 py-2.5 transition hover:bg-slate-100"
+                className="flex min-h-[56px] cursor-pointer select-none items-center justify-between gap-3 rounded-xl bg-[#FAFCFE] px-3.5 py-2.5 transition hover:bg-slate-100"
               >
                 <div className="min-w-0">
                   <p id="login-lembrar" className="text-sm font-semibold text-slate-800">

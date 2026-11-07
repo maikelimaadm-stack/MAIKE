@@ -8,7 +8,7 @@
   min-width: 0;
   padding: 8px;
   box-sizing: border-box;
-  background: var(--mk-sup-fundo, #f7f8fa);
+  background: var(--mk-sup-fundo, #FAFCFE);
 }
 
 .cadastro-b1__page-title {
@@ -47,9 +47,9 @@
   --mg-text-1: #334155;
   --mg-text-2: #6b7280;
   --mg-text-3: #9ca3af;
-  --mg-bg-page: var(--mk-sup-fundo, #f7f8fa);
+  --mg-bg-page: var(--mk-sup-fundo, #FAFCFE);
   --mg-bg-card: #ffffff;
-  --mg-gray-fill: var(--mk-sup-fundo, #f7f8fa);
+  --mg-gray-fill: var(--mk-sup-fundo, #FAFCFE);
   --mg-gray-fill2: #e5e7eb;
   --mg-divider: #e7eaee;
   --mg-container-border: 1px solid #e7eaee;
@@ -60,14 +60,14 @@
   --mg-focus-border: rgba(64, 222, 99, 0.35);
   --mg-focus-ring: inset 0 0 0 1px rgba(64, 222, 99, 0.12);
   --mg-btn-h: 28px;
-  --mg-btn-font: 13px;
-  --mg-btn-font-compact: 12px;
+  --mg-btn-font: var(--mk-action-font, 12px);
+  --mg-btn-font-compact: var(--mk-font-list, 11px);
   --mg-toolbar-h: 36px;
   --mg-field-h: 38px;
   --mg-field-edge-shadow: inset 0 1px 2px rgba(100, 116, 139, 0.05),
     inset 1px 0 1px rgba(148, 163, 184, 0.07), inset -1px 0 1px rgba(148, 163, 184, 0.07);
   --mg-selection-bg: rgba(64, 222, 99, 0.12);
-  --mg-row-alt: #fafbfc;
+  --mg-row-alt: #FAFCFE;
   --mg-row-hover: #eef6ff;
   --mg-overlay-bg: rgba(15, 23, 42, 0.45);
   --mg-z-overlay: 40;
@@ -79,7 +79,8 @@
   flex-direction: column;
   gap: 8px;
   min-height: 0;
-  font-size: 13px;
+  font-size: var(--mk-font-list, 11px);
+  color: var(--mk-text, #334155);
 }
 
 .cadastro-b1 .tb-btn {
@@ -120,7 +121,7 @@
 }
 
 .cadastro-b1 .tb-btn-green:hover:not(:disabled) {
-  background: var(--mk-btn-hover, #f7f8fa);
+  background: var(--mk-btn-hover, #FAFCFE);
   color: #15803d;
 }
 
@@ -130,7 +131,7 @@
 }
 
 .cadastro-b1 .tb-btn-gray:hover:not(:disabled) {
-  background: var(--mk-btn-hover, #f7f8fa);
+  background: var(--mk-btn-hover, #FAFCFE);
 }
 
 .cadastro-b1 .tb-btn-red {
@@ -157,7 +158,7 @@
 }
 
 .cadastro-b1 .tb-btn-icon:hover:not(:disabled) {
-  background: var(--mk-btn-hover, #f7f8fa);
+  background: var(--mk-btn-hover, #FAFCFE);
 }
 
 /* Botões de visto (OK / Aplicar / Pronto): branco + ícone verde */
@@ -170,7 +171,7 @@
 
 .cadastro-b1 .tb-btn-icon.tb-btn-green:hover:not(:disabled),
 .b1ref .tb-btn-icon.tb-btn-green:hover:not(:disabled) {
-  background: var(--mk-btn-hover, #f7f8fa);
+  background: var(--mk-btn-hover, #FAFCFE);
   border-color: transparent;
   color: #15803d;
 }
@@ -615,7 +616,7 @@
   gap: var(--mg-btn-gap, 8px);
   padding: 7px 8px;
   border-top: 1px solid #f1f4f6;
-  background: var(--mk-sup-fundo, #f7f8fa);
+  background: var(--mk-sup-fundo, #FAFCFE);
 }
 
 .cadastro-b1 .mg-search-pill {
@@ -801,7 +802,7 @@
 .cadastro-b1 .mg-grid tfoot td {
   position: sticky;
   bottom: 0;
-  background: var(--mk-sup-fundo, #f7f8fa);
+  background: var(--mk-sup-fundo, #FAFCFE);
   z-index: 3;
 }
 
@@ -1186,7 +1187,7 @@
 }
 
 .cadastro-b1 .mg-field--disabled {
-  background: var(--mk-sup-fundo, #f7f8fa);
+  background: var(--mk-sup-fundo, #FAFCFE);
   border-color: transparent;
   box-shadow: none;
   pointer-events: none;
@@ -1996,7 +1997,7 @@
 }
 
 .cadastro-b1 .fchip-lim:hover {
-  background: var(--mk-sup-fundo, #f7f8fa);
+  background: var(--mk-sup-fundo, #FAFCFE);
   color: var(--mg-text-1);
 }
 
@@ -2178,7 +2179,7 @@
 
 .cadastro-b1 .b1-panel-list__tab:hover {
   color: #3b4e63;
-  background: var(--mk-sup-fundo, #f7f8fa);
+  background: var(--mk-sup-fundo, #FAFCFE);
 }
 
 .cadastro-b1 .b1-panel-list__tab.is-active {

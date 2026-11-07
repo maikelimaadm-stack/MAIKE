@@ -438,7 +438,7 @@ export default function SelecaoDepositoMapa({ cochoCoords, depositoSelecionadoId
             <p className="text-[11px] text-slate-600">Toque em um depósito para vincular ao cocho.</p>
           </div>
 
-          <div className="space-y-1 rounded-lg border border-slate-200 bg-slate-50 p-2 text-xs">
+          <div className="space-y-1 rounded-lg border border-slate-200 bg-[#FAFCFE] p-2 text-xs">
             <div className="flex items-center gap-2 text-slate-700"><span className="h-2 w-2 rounded-full bg-emerald-600" /> Cocho</div>
             <div className="flex items-center gap-2 text-slate-700"><span className="h-2 w-2 rounded-full bg-red-600" /> Depósitos</div>
             <div className="flex items-center gap-2 text-slate-700"><span className="h-2 w-2 rounded-full bg-blue-600" /> Selecionado</div>

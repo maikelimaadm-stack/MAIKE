@@ -87,7 +87,7 @@
 }
 
 .cadastro-b1--portal-compras .mg-grid .th-menu:hover {
-  background: var(--mg-gray-fill, #f7f8fa) !important;
+  background: var(--mg-gray-fill, #FAFCFE) !important;
   color: #0f172a !important;
 }
 
@@ -118,7 +118,7 @@
   gap: 5px;
   border: 0;
   border-radius: 999px;
-  background: var(--mk-sup-fundo, #f7f8fa);
+  background: var(--mk-sup-fundo, #FAFCFE);
   box-shadow: var(--portal-sombra);
   display: flex;
   align-items: center;
@@ -173,7 +173,7 @@
 }
 
 .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn.tb-btn-green:not(.tb-btn-icon):hover:not(:disabled) {
-  background: var(--mk-btn-hover, #f7f8fa) !important;
+  background: var(--mk-btn-hover, #FAFCFE) !important;
   color: #15803d !important;
   box-shadow: var(--mk-btn-sombra, 0 1px 3px rgba(15, 23, 42, 0.1)) !important;
 }
@@ -245,7 +245,7 @@
 .b1-portal-compras .fpop-f .tb-btn.tb-btn-icon.tb-btn-green:hover:not(:disabled),
 .b1-portal-compras .mdl-f .tb-btn.tb-btn-icon.tb-btn-green:hover:not(:disabled),
 .b1ref.b1-portal-compras .tb-btn.tb-btn-icon.tb-btn-green:hover:not(:disabled) {
-  background: var(--mk-btn-hover, #f7f8fa) !important;
+  background: var(--mk-btn-hover, #FAFCFE) !important;
   border-color: transparent !important;
   color: #15803d !important;
 }
@@ -310,7 +310,7 @@
 .b1-portal-compras .tb-btn.tb-btn-green:hover:not(:disabled),
 .b1-portal-compras.fpop .tb-btn.tb-btn-green:hover:not(:disabled),
 .b1-portal-compras .mdl-f .tb-btn.tb-btn-green:hover:not(:disabled) {
-  background: var(--mk-btn-hover, #f7f8fa) !important;
+  background: var(--mk-btn-hover, #FAFCFE) !important;
   border-color: transparent !important;
   color: #15803d !important;
 }
@@ -371,7 +371,7 @@
 
 .b1-portal-compras [role="menuitem"]:hover:not(:disabled),
 .b1-portal-compras .mg-b1-menuitem:hover:not(:disabled) {
-  background: var(--mg-bg-page, #f7f8fa) !important;
+  background: var(--mg-bg-page, #FAFCFE) !important;
 }
 
 .b1-portal-compras [role="menuitem"].is-danger,
@@ -418,7 +418,7 @@
   }
 
   .cadastro-b1--full-page .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn-green:hover:not(:disabled) {
-    background: var(--mk-btn-hover, #f7f8fa) !important;
+    background: var(--mk-btn-hover, #FAFCFE) !important;
     color: #15803d !important;
   }
 
@@ -428,7 +428,7 @@
   }
 
   .cadastro-b1--full-page .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn-gray:hover:not(:disabled) {
-    background: var(--mk-btn-hover, #f7f8fa) !important;
+    background: var(--mk-btn-hover, #FAFCFE) !important;
     color: var(--mg-text-1) !important;
   }
 

@@ -5453,4 +5453,17 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
 - **Revoga:** o item visual “fundo cinza / sem sombra” residual da D-PROD-96 na shell (já em espírito pela D-PROD-138/147).
 - **Implementação:** `mk-unificado.css` (ações/ícones/cores), portal/base1/shell alinhados; tipografia de Filtros/Camadas preservada.
 
-<!-- Próxima decisão: D-PROD-149 -->
+## D-PROD-149 — Fundo de superfície `#FAFCFE`
+
+- **Contexto:** o proprietário pediu que todos os fundos cinza (página, cards/listagens cinza, folhas, shells) usem `#FAFCFE`.
+- **Decisão:** `--mk-sup-fundo` (e fallbacks `#f7f8fa` / `#f2f3f5`) passam a `#FAFCFE`. Cartões e botões que já eram brancos (`#ffffff`) permanecem brancos. Hover de ação usa o mesmo fundo.
+- **Implementação:** token em `mk-superficie.css`; hardcodes e `bg-slate-50` alinhados.
+
+## D-PROD-150 — Tipografia de Filtros/Camadas em todo o sistema
+
+- **Contexto:** o proprietário pediu que os estilos de fonte das listagens de Filtros e Camadas sejam repassados para o sistema inteiro.
+- **Referência:** `.mk-map-filters--clean` / `.mk-vis` — listagens e rótulos `11px`, campos `11px`, título de painel `13px`, texto `#334155` / muted `#64748b` / forte `#292a2d`.
+- **Decisão:** tokens `--mk-font-list|field|heading|title|search` e `--mk-text*` em `mk-unificado.css` aplicam essa tipografia a grades Base1, filtros, folhas, menus e listagens. Ações da barra seguem `12px`. Campos mobile que precisam de `16px` anti-zoom do iOS continuam com a regra específica de input.
+- **Implementação:** `mk-unificado.css` + alinhamento em `cadastro-base1.css`.
+
+<!-- Próxima decisão: D-PROD-151 -->

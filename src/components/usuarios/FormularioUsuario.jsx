@@ -116,7 +116,7 @@ export default function FormularioUsuario({ onSubmit, onCancel, initialData, usu
               />
             </FL>
 
-            <div className="border rounded-lg p-3 bg-slate-50">
+            <div className="border rounded-lg p-3 bg-[#FAFCFE]">
               <p className="text-xs font-semibold flex items-center gap-2 uppercase mb-3 text-slate-700">
                 <Lock className="w-3.5 h-3.5" />
                 NÍVEL DE ACESSO

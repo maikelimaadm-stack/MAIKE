@@ -33,7 +33,7 @@
   width: 34px;
   height: 34px;
   border-radius: 999px;
-  background: var(--mk-sup-fundo, #f7f8fa);
+  background: var(--mk-sup-fundo, #FAFCFE);
   color: #5b6b80;
 }
 
@@ -134,7 +134,7 @@
   z-index: 40;
   overflow: auto;
   overscroll-behavior: contain;
-  background: var(--mk-sup-fundo, #f7f8fa);
+  background: var(--mk-sup-fundo, #FAFCFE);
 }
 
 .mk-mods__inner {
@@ -152,7 +152,7 @@
   padding: 0 14px;
   border: 1px solid transparent;
   border-radius: 999px;
-  background: var(--mk-sup-fundo, #f7f8fa);
+  background: var(--mk-sup-fundo, #FAFCFE);
   transition: background 0.22s, border-color 0.22s;
 }
 
@@ -319,7 +319,7 @@
   width: 34px;
   height: 34px;
   border-radius: 10px;
-  background: var(--mk-sup-fundo, #f7f8fa);
+  background: var(--mk-sup-fundo, #FAFCFE);
   color: #5b6b80;
 }
 
@@ -442,7 +442,7 @@
   gap: 8px;
   padding: 8px 12px;
   border-top: 1px solid #f1f4f6;
-  background: var(--mk-sup-fundo, #f7f8fa);
+  background: var(--mk-sup-fundo, #FAFCFE);
 }
 
 /* Trocar empresa */
@@ -730,7 +730,7 @@
 }
 
 .fpc__item:hover {
-  background: var(--mk-sup-fundo, #f7f8fa);
+  background: var(--mk-sup-fundo, #FAFCFE);
 }
 
 .fpc--sheet .fpc__item {
@@ -812,7 +812,7 @@
   padding: 0;
   border: 0;
   border-radius: 999px;
-  background: var(--mk-sup-fundo, #f7f8fa);
+  background: var(--mk-sup-fundo, #FAFCFE);
   color: #5b6b80;
   box-shadow: 0 2px 6px rgba(34, 197, 94, 0.3);
   cursor: pointer;
@@ -1332,7 +1332,7 @@
   }
 
   .mk-select .mk-select-item[data-highlighted] {
-    background: var(--mk-sup-fundo, #f7f8fa);
+    background: var(--mk-sup-fundo, #FAFCFE);
   }
 
   .mk-select .mk-select-item > span:first-child {
@@ -1505,7 +1505,7 @@ form:has(.mk-lanc) button[class*="border-dashed"] {
   padding: 0 12px;
   border: 1px solid transparent;
   border-radius: 999px;
-  background: var(--mk-sup-fundo, #f7f8fa);
+  background: var(--mk-sup-fundo, #FAFCFE);
   color: #475569;
   font-size: 12px;
   font-weight: 600;
@@ -1643,7 +1643,7 @@ form:has(.mk-lanc) button[class*="border-dashed"] {
 .cadastro-b1 button[class*="border-input"][class*="bg-background"]:not([role="combobox"]) {
   border: 1px solid transparent !important;
   border-radius: 999px !important;
-  background: var(--mk-sup-fundo, #f7f8fa) !important;
+  background: var(--mk-sup-fundo, #FAFCFE) !important;
   color: #334155 !important;
   font-weight: 600 !important;
   box-shadow: 0 2px 6px rgba(34, 197, 94, 0.3) !important;
@@ -1688,7 +1688,7 @@ form:has(.mk-lanc) button[class*="border-dashed"] {
   height: 40px;
   border: 0;
   border-radius: 999px;
-  background: var(--mk-sup-fundo, #f7f8fa);
+  background: var(--mk-sup-fundo, #FAFCFE);
   color: #5b6b80;
   box-shadow: 0 2px 6px rgba(34, 197, 94, 0.3);
   cursor: pointer;
@@ -1854,7 +1854,7 @@ form:has(.mk-lanc) button[class*="border-dashed"] {
  */
 .mk-sheet {
   border-radius: 36px 36px 0 0;
-  background: var(--mk-sup-fundo, #f7f8fa);
+  background: var(--mk-sup-fundo, #FAFCFE);
   color: #1f1f1f;
 }
 
@@ -2104,7 +2104,7 @@ form:has(.mk-lanc) button[class*="border-dashed"] {
 @media (max-width: 639px) {
   .mk-select {
     border-radius: 36px 36px 0 0 !important;
-    background: var(--mk-sup-fundo, #f7f8fa) !important;
+    background: var(--mk-sup-fundo, #FAFCFE) !important;
   }
 
   .mk-select::before {
@@ -2138,7 +2138,7 @@ form:has(.mk-lanc) button[class*="border-dashed"] {
   }
 
   .mk-select .mk-select-item[data-highlighted] {
-    background: var(--mk-sup-fundo, #f7f8fa);
+    background: var(--mk-sup-fundo, #FAFCFE);
   }
 
   .mk-select .mk-select-item > span:first-child {
@@ -2347,7 +2347,7 @@ form:has(.mk-lanc) button[class*="border-dashed"] {
 .mk-sheet .fpc__item:active,
 .mk-sheet .mg-b1-menuitem:active,
 .mk-sheet .mk-co__item:active {
-  background: var(--mk-sup-fundo, #f7f8fa);
+  background: var(--mk-sup-fundo, #FAFCFE);
 }
 
 .mk-sheet .mgs__op.is-on,
@@ -2581,7 +2581,7 @@ form:has(.mk-lanc) button[class*="border-dashed"] {
 .cadastro-b1 .tb-btn.tb-btn-green.mg-act-novo,
 .cadastro-b1--portal-compras .mg-toolbar--join .tb-btn.tb-btn-green.mg-act-novo:not(.tb-btn-icon) {
   border-color: transparent !important;
-  background: var(--portal-acao-bg, #f7f8fa) !important;
+  background: var(--portal-acao-bg, #FAFCFE) !important;
   color: #16a34a !important;
 }
 
@@ -2741,7 +2741,7 @@ form:has(.mk-lanc) button[class*="border-dashed"] {
   padding: 0;
   border: 0;
   border-radius: 999px;
-  background: var(--mk-sup-fundo, #f7f8fa);
+  background: var(--mk-sup-fundo, #FAFCFE);
   color: #1f1f1f;
   cursor: pointer;
   transition:
@@ -3032,7 +3032,7 @@ a.mk-anexos__arquivo:hover {
 }
 
 .mk-sheet.mk-cr .mk-sheet__new {
-  background: var(--portal-acao-bg, #f7f8fa);
+  background: var(--portal-acao-bg, #FAFCFE);
 }
 
 /*
@@ -3243,7 +3243,7 @@ button.mk-switch[data-state="checked"]:active:not(:disabled):not(#mk-padrao) .mk
 .tb-btn:not(.tb-btn-green):not(.tb-btn-red):not(.is-filter-on):not(.is-filter-active):not(#mk-padrao):hover:not(:disabled),
 .tb-btn.tb-btn-green:not(#mk-padrao):hover:not(:disabled),
 .tb-btn.tb-btn-red:not(#mk-padrao):hover:not(:disabled) {
-  background: var(--mk-btn-hover, #f7f8fa) !important;
+  background: var(--mk-btn-hover, #FAFCFE) !important;
 }
 
 .tb-btn.tb-btn-green:not(#mk-padrao),
@@ -3295,7 +3295,7 @@ button.mk-switch[data-state="checked"]:active:not(:disabled):not(#mk-padrao) .mk
 
 /* Cards: só os cards, sem o painel branco por trás */
 .cadastro-b1 .mg-shell__scroll:not(#mk-padrao) {
-  background: var(--mg-page-bg, #f7f8fa) !important;
+  background: var(--mg-page-bg, #FAFCFE) !important;
 }
 
 /* Configurar colunas no celular (lista dos Ajustes do iPhone) */
@@ -3341,7 +3341,7 @@ button.mk-switch[data-state="checked"]:active:not(:disabled):not(#mk-padrao) .mk
 }
 
 .mk-colcfg__ordem button:active:not(:disabled) {
-  background: var(--mk-sup-fundo, #f7f8fa);
+  background: var(--mk-sup-fundo, #FAFCFE);
 }
 
 .mk-colcfg__ordem button:disabled {
@@ -3390,7 +3390,7 @@ button.mk-switch[data-state="checked"]:active:not(:disabled):not(#mk-padrao) .mk
   }
 
   .mk-menu [role="menuitem"][data-highlighted] {
-    background: var(--mg-bg-page, #f7f8fa);
+    background: var(--mg-bg-page, #FAFCFE);
   }
 
   .mk-menu [role="separator"] {
@@ -3407,7 +3407,7 @@ button.mk-switch[data-state="checked"]:active:not(:disabled):not(#mk-padrao) .mk
 .mk-thdr .mk-thdr__icone:not(#mk-padrao),
 .mk-thdr .mk-thdr__empresa:not(#mk-padrao) {
   border-color: transparent !important;
-  background: var(--portal-acao-bg, #f7f8fa) !important;
+  background: var(--portal-acao-bg, #FAFCFE) !important;
 }
 
 /*
@@ -3616,7 +3616,7 @@ button.mk-switch[data-mk-tocado][data-state="unchecked"]:not(#mk-padrao) .mk-swi
   margin: 2px 2px 4px;
   padding: 0 10px;
   border-radius: 999px;
-  background: var(--mk-sup-fundo, #f7f8fa);
+  background: var(--mk-sup-fundo, #FAFCFE);
 }
 
 .mk-sel-busca:focus-within {

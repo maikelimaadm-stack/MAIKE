@@ -649,7 +649,7 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
   return (
     <>
       <div className="bg-card text-card-foreground rounded-xl border shadow-sm border-slate-300">
-        <div className="flex flex-col space-y-1.5 p-6 bg-slate-50 border-b py-1 px-1">
+        <div className="flex flex-col space-y-1.5 p-6 bg-[#FAFCFE] border-b py-1 px-1">
           <div className="text-sm font-semibold text-slate-900">{item ? 'Editar Ponto' : 'Novo Ponto'}</div>
         </div>
         <div className="p-1">
@@ -829,7 +829,7 @@ export default function FormularioPonto({ coordenadas, onSave, onCancel, usarGPS
         {ehDeposito &&
             <div className="space-y-1 border-t pt-1">
             <div className="text-xs font-semibold text-slate-700">Depósito de Suplementação</div>
-            <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">Ao salvar este ponto, um local de estoque será criado automaticamente para uso exclusivo dos produtos de suplementação.</div>
+            <div className="rounded-lg border border-slate-200 bg-[#FAFCFE] px-3 py-2 text-xs text-slate-700">Ao salvar este ponto, um local de estoque será criado automaticamente para uso exclusivo dos produtos de suplementação.</div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
               <FL label="Setor" required>
                 <Select value={formData.setor_id || '__none__'} onValueChange={(value) => setFormData((prev) => ({ ...prev, setor_id: value === '__none__' ? '' : value }))}>

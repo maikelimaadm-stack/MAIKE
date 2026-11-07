@@ -17,10 +17,10 @@ const AGGREGATION_OPTIONS = [
 { value: "min", label: "Menor" }];
 
 
-const iconButtonClass = "h-7 w-8 rounded-none border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 disabled:opacity-40 disabled:bg-white";
-const confirmIconButtonClass = "inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:text-accent-foreground h-7 w-8 rounded-none border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 shadow-none";
-const cancelIconButtonClass = "h-7 w-8 rounded-none border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 shadow-none";
-const tabNavButtonClass = "relative z-20 h-7 w-7 self-center rounded-none border-0 bg-white hover:bg-slate-50 text-slate-700 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 flex items-center justify-center";
+const iconButtonClass = "h-7 w-8 rounded-none border border-slate-300 bg-white hover:bg-[#FAFCFE] text-slate-700 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 disabled:opacity-40 disabled:bg-white";
+const confirmIconButtonClass = "inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:text-accent-foreground h-7 w-8 rounded-none border border-slate-300 bg-white hover:bg-[#FAFCFE] text-slate-700 shadow-none";
+const cancelIconButtonClass = "h-7 w-8 rounded-none border border-slate-300 bg-white hover:bg-[#FAFCFE] text-slate-700 shadow-none";
+const tabNavButtonClass = "relative z-20 h-7 w-7 self-center rounded-none border-0 bg-white hover:bg-[#FAFCFE] text-slate-700 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 flex items-center justify-center";
 const greenButtonClass = "h-7 w-8 rounded-none border-y-0 border-l-0 border-r-[0.5px] border-green-400 bg-green-500 hover:bg-green-600 text-white hover:text-white shadow-none";
 
 const isCustomPanel = (panel) => panel && !SYSTEM_PANEL_IDS.includes(panel.id);
@@ -455,7 +455,7 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
             </div>
           </aside>
 
-          <section className="border-r border-slate-300 bg-slate-50 flex flex-col items-center justify-center gap-0">
+          <section className="border-r border-slate-300 bg-[#FAFCFE] flex flex-col items-center justify-center gap-0">
             <Button type="button" variant="outline" size="icon" disabled={!isEditing || panelFieldIds.length === 0} onClick={removeAllFields} className={iconButtonClass} title="Mover todos para disponíveis"><ChevronsLeft className="w-3.5 h-3.5" /></Button>
             <Button type="button" variant="outline" size="icon" disabled={!isEditing || selectedPanelFieldIds.length === 0} onClick={removeField} className={iconButtonClass} title="Mover selecionados para disponíveis"><ChevronLeft className="w-3.5 h-3.5" /></Button>
             <Button type="button" variant="outline" size="icon" disabled={!isEditing || selectedAvailableIds.length === 0} onClick={addField} className={iconButtonClass} title="Adicionar selecionados ao painel"><ChevronRight className="w-3.5 h-3.5" /></Button>
@@ -487,7 +487,7 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
                       setSelectedPanelField(null);
                       setSelectedPanelFieldIds([]);
                     }}
-                    className={`relative z-10 flex-none h-8 min-w-max px-4 mx-0.5 border border-slate-300 text-xs whitespace-nowrap transition-colors overflow-hidden ${draggedPanelId === panel.id ? "opacity-50" : ""} ${isActive ? "bg-white font-semibold text-slate-800 border-t-2 border-t-green-500 border-b-white" : "bg-slate-50 text-slate-700 border-b-slate-300 hover:bg-white"} ${isEmpty && SYSTEM_PANEL_IDS.includes(panel.id) ? "opacity-60" : ""}`}>
+                    className={`relative z-10 flex-none h-8 min-w-max px-4 mx-0.5 border border-slate-300 text-xs whitespace-nowrap transition-colors overflow-hidden ${draggedPanelId === panel.id ? "opacity-50" : ""} ${isActive ? "bg-white font-semibold text-slate-800 border-t-2 border-t-green-500 border-b-white" : "bg-[#FAFCFE] text-slate-700 border-b-slate-300 hover:bg-white"} ${isEmpty && SYSTEM_PANEL_IDS.includes(panel.id) ? "opacity-60" : ""}`}>
                     
                       {isCustomPanel(panel) && <CustomMarker />}
                       {isEditing && editingPanelId === panel.id && !SYSTEM_PANEL_IDS.includes(panel.id) ?
@@ -513,7 +513,7 @@ export default function LayoutConfiguratorDialog({ open, onOpenChange, panels = 
               </div>
             </div>
 
-            <div className="border-t flex items-center h-10 border-slate-300 bg-slate-50 gap-3 py-2 px-2">
+            <div className="border-t flex items-center h-10 border-slate-300 bg-[#FAFCFE] gap-3 py-2 px-2">
               <label className="flex items-center gap-2 text-[12px] text-slate-600">
                 <span>Oculto:</span>
                 <GreenCheck checked={!!selectedField && draftHiddenFieldIds.includes(selectedField.id)} disabled={!selectedField || !isEditing || selectedField.required || draftRequiredFieldIds.includes(selectedField.id) || FIXED_VISIBLE_FIELD_IDS.includes(selectedField.id)} onChange={(checked) => toggleListValue(setDraftHiddenFieldIds, selectedField?.id, checked)} />

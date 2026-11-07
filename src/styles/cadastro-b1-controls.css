@@ -80,7 +80,7 @@
 
 .b1ref .fpop-f .tb-btn-icon:not(.tb-btn-green):hover:not(:disabled),
 .b1ref:not(.b1-portal-compras) .fpop-f .tb-btn-icon:hover:not(:disabled) {
-  background: var(--mk-btn-hover, #f7f8fa);
+  background: var(--mk-btn-hover, #FAFCFE);
   color: #0f172a;
 }
 
@@ -97,7 +97,7 @@
 .b1ref .fpop-f button[type="submit"].tb-btn-icon.tb-btn-green:hover:not(:disabled),
 .b1ref.b1-portal-compras .fpop-f button[type="submit"].tb-btn-icon:hover:not(:disabled),
 .b1ref.b1-portal-compras .fpop-f .tb-btn-icon.tb-btn-green:hover:not(:disabled) {
-  background: var(--mk-btn-hover, #f7f8fa) !important;
+  background: var(--mk-btn-hover, #FAFCFE) !important;
   border-color: transparent !important;
   color: #15803d !important;
 }

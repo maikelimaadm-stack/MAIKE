@@ -480,7 +480,7 @@ export default function FormularioLote({
     switchGetChecked: (v) => v !== "Inativo",
     switchToValue: (checked) => (checked ? "Ativo" : "Inativo"),
   },
-  { id: "numero_lote", name: "numero_lote", label: "Código", type: "text", compact: true, readOnly: true, render: () => <Input value={formData.numero_lote || ""} readOnly className="h-[22px] text-xs text-left border-0 rounded-none shadow-none focus-visible:ring-0 bg-slate-50 px-1" /> },
+  { id: "numero_lote", name: "numero_lote", label: "Código", type: "text", compact: true, readOnly: true, render: () => <Input value={formData.numero_lote || ""} readOnly className="h-[22px] text-xs text-left border-0 rounded-none shadow-none focus-visible:ring-0 bg-[#FAFCFE] px-1" /> },
   { id: "data_entrada", name: "data_entrada", label: "Data de Entrada", type: "date", required: true, compact: true, errorKey: "data_entrada" },
   // Em edição, setor e área de entrada são registro histórico: trocar o setor
   // apagaria a área de entrada (só leitura) e travaria o salvar.
@@ -496,7 +496,7 @@ export default function FormularioLote({
         type: "text",
         readOnly: true,
         render: () => (
-          <div className="flex h-[22px] items-center gap-3 bg-slate-50 px-1 text-xs tabular-nums" data-testid="lote-quantidades">
+          <div className="flex h-[22px] items-center gap-3 bg-[#FAFCFE] px-1 text-xs tabular-nums" data-testid="lote-quantidades">
             <span title="Cabeças lançadas na entrada. Movimentações e saídas do mapa não mudam este número.">
               Qtd. entrada: {ehLoteDerivadoDeManejo(initialData) ? "— (gerado por manejo, não é entrada)" : entradaHistoricaDoLote(initialData).toLocaleString("pt-BR")}
             </span>
@@ -653,7 +653,7 @@ export default function FormularioLote({
               role="status"
               data-testid="correcao-entrada-aviso"
               data-estado={correcaoEntrada.estado}
-              className={`mx-2 mt-1 rounded-md border px-2 py-1.5 text-[11px] ${correcaoEntrada.estado === ESTADOS_CORRECAO.ELEGIVEL ? "border-emerald-200 bg-emerald-50 text-emerald-900" : correcaoEntrada.estado === ESTADOS_CORRECAO.CONSULTANDO ? "border-slate-200 bg-slate-50 text-slate-600" : "border-amber-200 bg-amber-50 text-amber-900"}`}
+              className={`mx-2 mt-1 rounded-md border px-2 py-1.5 text-[11px] ${correcaoEntrada.estado === ESTADOS_CORRECAO.ELEGIVEL ? "border-emerald-200 bg-emerald-50 text-emerald-900" : correcaoEntrada.estado === ESTADOS_CORRECAO.CONSULTANDO ? "border-slate-200 bg-[#FAFCFE] text-slate-600" : "border-amber-200 bg-amber-50 text-amber-900"}`}
             >
               {correcaoEntrada.estado === ESTADOS_CORRECAO.CONSULTANDO && "Verificando no servidor se a entrada pode ser corrigida…"}
               {correcaoEntrada.estado === ESTADOS_CORRECAO.ELEGIVEL && (
@@ -779,7 +779,7 @@ export default function FormularioLote({
           )}
 
         {embedded && !toolbarActions ? (
-          <div className="flex flex-wrap items-center justify-end gap-2 border-t border-slate-200 px-4 py-2 bg-slate-50">
+          <div className="flex flex-wrap items-center justify-end gap-2 border-t border-slate-200 px-4 py-2 bg-[#FAFCFE]">
             {onAttachClick ? (
               <Button
                 type="button"

@@ -342,17 +342,17 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose, permissions
                 </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-1 text-[10px]">
-                <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5">
+                <div className="rounded-lg border border-slate-200 bg-[#FAFCFE] p-2.5">
                   <div className="text-slate-500">Saldo estimado</div>
                   <div className="text-sm font-bold text-slate-900">{formatKg(saldoEstimado)}</div>
                   {consumoBase > 0 && <div className="text-[11px] text-slate-600 mt-0.5">{formatKg(consumoBase)}/dia</div>}
                 </div>
-                <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5">
+                <div className="rounded-lg border border-slate-200 bg-[#FAFCFE] p-2.5">
                   <div className="text-slate-500">Duração estimada</div>
                   <div className="text-sm font-bold text-slate-900">{baseDuracaoTotal > 0 ? `${formatDecimal(baseDuracaoTotal, 0, true)} dia(s)` : '-'}</div>
                   {diasRestantes > 0 && <div className="text-[11px] text-slate-600 mt-0.5">Restam {formatDecimal(diasRestantes, 0, true)} dia(s)</div>}
                 </div>
-                <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5">
+                <div className="rounded-lg border border-slate-200 bg-[#FAFCFE] p-2.5">
                   <div className="text-slate-500">Próxima Reposição</div>
                   <div className="text-sm font-bold text-slate-900">{proximaData ? proximaData.toLocaleDateString('pt-BR') : '-'}</div>
                 </div>
@@ -368,7 +368,7 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose, permissions
 
         <div className="space-y-1">
             {resumoProdutos.map((item) =>
-          <div key={item.produto} className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5">
+          <div key={item.produto} className="rounded-lg border border-slate-200 bg-[#FAFCFE] px-2 py-1.5">
                 <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2 text-xs">
                   <div className="truncate font-medium text-slate-900">{item.produto}</div>
                   <div className="whitespace-nowrap font-semibold text-slate-900">{item.sacos.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} sacos</div>
@@ -387,7 +387,7 @@ export default function DetalhesPontoSuplementacao({ ponto, onClose, permissions
           const dataBase = parseDateLocal(ultimoEvento.data_lancamento);
           const proxReposicao = durEst > 0 && dataBase ? new Date(dataBase.getTime() + durEst * 86400000).toLocaleDateString("pt-BR") : null;
           return (
-            <div className="rounded-lg border border-slate-200 bg-slate-50 p-1 text-[11px] space-y-0">
+            <div className="rounded-lg border border-slate-200 bg-[#FAFCFE] p-1 text-[11px] space-y-0">
             <div className="flex items-center justify-between">
               <div className="font-semibold leading-tight text-slate-900">{ultimoEvento.produto}</div>
               <span className="text-slate-500 px-1">Data: {formatDateBR(ultimoEvento.data_lancamento)}</span>

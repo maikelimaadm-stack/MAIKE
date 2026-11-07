@@ -586,7 +586,7 @@ export default function ExcluirMovimentacao({ movimento, onExcluido }) {
           )}
           {(e?.elegivel || desconhecido) && (
             <div className="space-y-2">
-              <div className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs text-slate-700">
+              <div className="rounded-md border border-slate-200 bg-[#FAFCFE] px-2 py-1.5 text-xs text-slate-700">
                 <div className="font-semibold">Efeito ao excluir</div>
                 {(e?.efeitos || []).map((efeito) => (
                   <div key={efeito.posicao_id}>{descreverEfeito(efeito)}</div>

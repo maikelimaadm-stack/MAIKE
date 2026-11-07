@@ -475,7 +475,7 @@ function LayoutShell({ children, currentPageName }) {
     </DropdownMenu>;
 
   return (
-    <div className={`h-[100dvh] overflow-hidden bg-slate-50 safe-area-top flex flex-col${telaMapa ? " mk-shell--mapa" : ""}`} translate="no" style={{ "--app-content-offset": appContentOffset }}>
+    <div className={`h-[100dvh] overflow-hidden bg-[#FAFCFE] safe-area-top flex flex-col${telaMapa ? " mk-shell--mapa" : ""}`} translate="no" style={{ "--app-content-offset": appContentOffset }}>
       <style>{`
         html, body { overscroll-behavior: none; }
         button, [role="button"], a { -webkit-user-select: none; user-select: none; }
@@ -647,7 +647,7 @@ function LayoutShell({ children, currentPageName }) {
                                 key={sub.id}
                                 to={createPageUrl(sub.url)}
                                 onClick={(e) => aoClicarMenu(e, createPageUrl(sub.url))}
-                                className={`block px-4 py-2 text-xs hover:bg-slate-50 ${
+                                className={`block px-4 py-2 text-xs hover:bg-[#FAFCFE] ${
                                 location.pathname === createPageUrl(sub.url) ?
                                 'bg-emerald-50 text-emerald-800 font-medium' :
                                 'text-slate-700'}`
