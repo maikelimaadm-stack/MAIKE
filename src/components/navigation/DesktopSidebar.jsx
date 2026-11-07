@@ -4,6 +4,7 @@ import { ChevronDown, Folder, Home, PanelLeft, PanelRight, Search } from "lucide
 import { createPageUrl } from "@/utils";
 import { ICONE_MODULO } from "@/components/navigation/MobileModulesView";
 import SidebarTooltip from "@/components/navigation/SidebarTooltip";
+import SidebarModuloFlyout from "@/components/navigation/SidebarModuloFlyout";
 
 /** Ícone de cada módulo — o mesmo mapa da tela de Módulos do celular. */
 const ICONE_DO_MODULO = /** @type {Record<string, React.ComponentType<any>>} */ (ICONE_MODULO);
@@ -29,8 +30,8 @@ const ICONE_ITEM = "h-[19px] w-[19px] shrink-0 text-[#64748b]";
  * marca no topo, atalhos, módulos em acordeão e faixa de ícones quando recolhido.
  *
  * Dois modos de abertura ao clicar no topo:
- * - a logo (ícone) abre o menu completo sobre a página, sem mover o conteúdo, e
- *   clicar fora fecha de volta para a faixa de ícones;
+ * - a logo (ícone) abre o menu completo e clicar fora dele volta para a faixa de
+ *   ícones — escolher uma tela não fecha o menu;
  * - o botão de recolher/expandir fixa o estado — fica aberto até ser recolhido.
  *
  * @param {{
@@ -71,9 +72,10 @@ export default function DesktopSidebar({ items, currentPath, onNavigate, collaps
     setMarcaEmHover(false);
   }, [collapsed]);
 
-  // Menu aberto a partir do ícone do módulo (barra recolhida): a seleção de uma
-  // tela fecha o menu de novo. Aberto pelo botão, ele fica aberto.
+  // Menu aberto a partir do ícone do módulo (barra recolhida): ele fica aberto ao
+  // navegar e só volta para a faixa de ícones quando se clica fora dele.
   const [abertoPeloModulo, setAbertoPeloModulo] = React.useState(false);
+  const barraRef = React.useRef(/** @type {HTMLDivElement | null} */ (null));
 
   const alternar = () => {
     setAbertoPeloModulo(false);
@@ -81,12 +83,59 @@ export default function DesktopSidebar({ items, currentPath, onNavigate, collaps
   };
 
   const navegar = (event, path) => {
+    setFlyout(null);
     onNavigate(event, path);
-    if (abertoPeloModulo) {
-      setAbertoPeloModulo(false);
-      if (!collapsed) onToggle();
-    }
   };
+
+  React.useEffect(() => {
+    if (!expandido || !abertoPeloModulo) return undefined;
+    // Um clique real emite pointerdown, mousedown e click: fecha uma vez só.
+    let jaFechou = false;
+    const aoClicarFora = (event) => {
+      if (jaFechou) return;
+      if (barraRef.current?.contains(/** @type {Node} */ (event.target))) return;
+      jaFechou = true;
+      setAbertoPeloModulo(false);
+      onToggle();
+    };
+    document.addEventListener("pointerdown", aoClicarFora);
+    document.addEventListener("mousedown", aoClicarFora);
+    document.addEventListener("click", aoClicarFora);
+    return () => {
+      document.removeEventListener("pointerdown", aoClicarFora);
+      document.removeEventListener("mousedown", aoClicarFora);
+      document.removeEventListener("click", aoClicarFora);
+    };
+  }, [expandido, abertoPeloModulo, onToggle]);
+
+  // Listagem lateral no hover dos ícones (barra recolhida), como nos antigos
+  // menus do cabeçalho. O atraso ao sair permite levar o mouse até o painel.
+  const [flyout, setFlyout] = React.useState(
+    /** @type {{ item: ItemMenu, top: number, left: number } | null} */ (null),
+  );
+  const flyoutTimer = React.useRef(/** @type {ReturnType<typeof setTimeout> | null} */ (null));
+
+  const cancelarFechamento = () => {
+    if (flyoutTimer.current) clearTimeout(flyoutTimer.current);
+    flyoutTimer.current = null;
+  };
+
+  const abrirFlyout = (item, event) => {
+    cancelarFechamento();
+    const caixa = event.currentTarget.getBoundingClientRect();
+    setFlyout({
+      item,
+      top: Math.max(12, Math.min(caixa.top, window.innerHeight - 320)),
+      left: caixa.right + 10,
+    });
+  };
+
+  const agendarFechamento = () => {
+    cancelarFechamento();
+    flyoutTimer.current = setTimeout(() => setFlyout(null), 140);
+  };
+
+  React.useEffect(() => cancelarFechamento, []);
 
   const pesquisar = () => {
     onSearch();
@@ -100,6 +149,7 @@ export default function DesktopSidebar({ items, currentPath, onNavigate, collaps
         }`}
       >
         <nav
+          ref={barraRef}
           id="app-shell-sidebar"
           aria-label="Módulos"
           data-collapsed={expandido ? "false" : "true"}
@@ -212,24 +262,29 @@ export default function DesktopSidebar({ items, currentPath, onNavigate, collaps
 
                 if (!expandido) {
                   return (
-                    <SidebarTooltip key={item.id} label={item.title}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setAbertoId(item.id);
-                          setAbertoPeloModulo(true);
-                          onToggle();
-                        }}
-                        aria-label={`Abrir menu ${item.title}`}
-                        className={`flex h-11 w-11 items-center justify-center rounded-[9px] transition-colors ${
-                          atual
-                            ? "bg-[rgba(64,222,99,0.14)] text-[#16a34a]"
-                            : "text-[#64748b] hover:bg-[var(--mk-btn-ativo)] hover:text-[#292a2d]"
-                        }`}
-                      >
-                        <Icon size={20} aria-hidden />
-                      </button>
-                    </SidebarTooltip>
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => {
+                        setAbertoId(item.id);
+                        setAbertoPeloModulo(true);
+                        onToggle();
+                      }}
+                      onMouseEnter={(event) => abrirFlyout(item, event)}
+                      onMouseLeave={agendarFechamento}
+                      onFocus={(event) => abrirFlyout(item, event)}
+                      onBlur={agendarFechamento}
+                      aria-label={`Abrir menu ${item.title}`}
+                      aria-haspopup="menu"
+                      aria-expanded={flyout?.item.id === item.id}
+                      className={`flex h-11 w-11 items-center justify-center rounded-[9px] transition-colors ${
+                        atual
+                          ? "bg-[rgba(64,222,99,0.14)] text-[#16a34a]"
+                          : "text-[#64748b] hover:bg-[var(--mk-btn-ativo)] hover:text-[#292a2d]"
+                      }`}
+                    >
+                      <Icon size={20} aria-hidden />
+                    </button>
                   );
                 }
 
@@ -299,6 +354,19 @@ export default function DesktopSidebar({ items, currentPath, onNavigate, collaps
           />
         </nav>
       </div>
+
+      {!expandido && flyout ? (
+        <SidebarModuloFlyout
+          titulo={flyout.item.title}
+          paginas={telasDoModulo(flyout.item)}
+          currentPath={currentPath}
+          top={flyout.top}
+          left={flyout.left}
+          onNavegar={navegar}
+          onMouseEnter={cancelarFechamento}
+          onMouseLeave={agendarFechamento}
+        />
+      ) : null}
     </>
   );
 }
