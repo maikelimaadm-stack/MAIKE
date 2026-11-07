@@ -26,7 +26,7 @@ describe("Shell e controles (D-PROD-132)", () => {
     expect(layout).toMatch(/const telaMapa = currentPageName === PRIMARY_PAGE;/);
     expect(layout).not.toMatch(/MenuLateral|MapaShellContext/);
     const css = readFileSync("src/styles/mapa-geral.css", "utf8");
-    expect(css).toMatch(/@media \(max-width: 1023px\) \{\s*\.mk-shell--mapa > header \{\s*display: none !important;/);
+    expect(css).toMatch(/@media \(max-width: 1023px\) \{\s*\.mk-shell--mapa > div > header \{\s*display: none !important;/);
     const fonte = readFileSync("src/components/mapa/MapaControlesMobile.jsx", "utf8");
     expect(fonte).not.toMatch(/navigate\(-1\)|Trocar empresa|Abrir menu/);
   });

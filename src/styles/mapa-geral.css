@@ -6,7 +6,7 @@
 
 /* ── Shell: no celular e no tablet o cabeçalho sai da tela do mapa ───────── */
 @media (max-width: 1023px) {
-  .mk-shell--mapa > header {
+  .mk-shell--mapa > div > header {
     display: none !important;
   }
 }

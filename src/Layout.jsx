@@ -516,13 +516,23 @@ function LayoutShell({ children, currentPageName }) {
     </DropdownMenu>;
 
   return (
-    <div className={`h-[100dvh] overflow-hidden bg-slate-50 safe-area-top flex flex-col${telaMapa ? " mk-shell--mapa" : ""}`} translate="no" style={{ "--app-content-offset": appContentOffset }}>
+    <div className={`h-[100dvh] overflow-hidden bg-slate-50 safe-area-top flex${telaMapa ? " mk-shell--mapa" : ""}`} translate="no" style={{ "--app-content-offset": appContentOffset }}>
       <style>{`
         html, body { overscroll-behavior: none; }
         button, [role="button"], a { -webkit-user-select: none; user-select: none; }
         .safe-area-top { padding-top: env(safe-area-inset-top); }
         .safe-area-bottom { padding-bottom: env(safe-area-inset-bottom); }
       `}</style>
+      {/* Desktop: menu lateral recolhível — coluna de altura inteira; a borda sobe até o topo. */}
+      <DesktopSidebar
+        items={menuItemsFiltered}
+        currentPath={location.pathname}
+        onNavigate={aoClicarMenu}
+        collapsed={menuRecolhido}
+        onToggle={alternarMenu}
+        onSearch={() => setSearchOpen(true)} />
+
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
       <header className={`bg-white flex-none relative z-30 ${mobileHeaderBorder ? "border-b border-slate-200" : "border-b border-slate-200 max-md:border-b-0"}`}>
         {mobileRecord?.editing ?
         // Registro em edição/novo: cabeçalho como as folhas — ✕ descartar, título, ✓ salvar (D-PROD-95).
@@ -597,7 +607,7 @@ function LayoutShell({ children, currentPageName }) {
           {userMenu}
         </div>
         <div className="max-w-[1600px] mx-auto px-4 py-2 hidden lg:block">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-end">
             <div className="flex items-center gap-2">
               {empresas.length > 0 &&
               <Select value={empresaSelecionada || ''} onValueChange={handleEmpresaChange}>
@@ -698,14 +708,6 @@ function LayoutShell({ children, currentPageName }) {
 
 
       <div className="flex flex-1 min-h-0 min-w-0">
-      {/* Desktop: menu lateral recolhível (app-shell) */}
-      <DesktopSidebar
-        items={menuItemsFiltered}
-        currentPath={location.pathname}
-        onNavigate={aoClicarMenu}
-        collapsed={menuRecolhido}
-        onToggle={alternarMenu}
-        onSearch={() => setSearchOpen(true)} />
       {/* Tablet: barra lateral com os mesmos destinos da barra inferior do celular */}
       <nav aria-label="Navegação lateral" className="mk-rail hidden md:flex lg:hidden">
         {FIXED_MOBILE_NAV_ITEMS.map((page) => {
@@ -855,6 +857,7 @@ function LayoutShell({ children, currentPageName }) {
         </nav> :
       null}
 
+      </div>
       </div>);
 
 }
