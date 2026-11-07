@@ -6,7 +6,7 @@
   --mk-filter-row-height: 34px;
   --mk-search-height: 32px;
   --mk-search-font: 12px;
-  --mk-glass-bg: rgba(247, 248, 250, .94);
+  --mk-glass-bg: var(--mk-sup-fundo, #f7f8fa);
   --mk-glass-border: rgba(255, 255, 255, .8);
 }
 :is(.cadastro-b1, .b1ref, .mk-sheet, .mk-ll-dlg, .mk-mapa) {
