@@ -192,10 +192,16 @@ describe('Parceiros — formulário', () => {
     fireEvent.change(within(form).getByLabelText(/^Nome/), { target: { value: 'Transportes X' } });
     fireEvent.change(within(form).getByLabelText(/Razão social/), { target: { value: 'TRANSPORTES X LTDA' } });
     fireEvent.change(within(form).getByLabelText(/^CNPJ/), { target: { value: '11.222.333/0001-81' } });
+    // R2/B4: sem papel não grava (a API também recusa).
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar' }));
+    expect(await within(form).findByTestId('parceiro-papeis-obrigatorio')).toBeTruthy();
+    expect(backend.chamadas.some((c) => c.method === 'POST')).toBe(false);
+    fireEvent.click(within(form).getByRole('checkbox', { name: 'Transportador' }));
+    expect(within(form).queryByTestId('parceiro-papeis-obrigatorio')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Salvar' }));
     await screen.findByText('Parceiro criado');
     const post = backend.chamadas.find((c) => c.method === 'POST');
-    expect(post.body).toMatchObject({ tipo_pessoa: 'Jurídica', nome: 'TRANSPORTES X', razao_social: 'TRANSPORTES X LTDA', cnpj: '11.222.333/0001-81', papeis: [] });
+    expect(post.body).toMatchObject({ tipo_pessoa: 'Jurídica', nome: 'TRANSPORTES X', razao_social: 'TRANSPORTES X LTDA', cnpj: '11.222.333/0001-81', papeis: ['transportador'] });
     expect(post.body).not.toHaveProperty('cpf');
   });
 
@@ -222,6 +228,19 @@ describe('Parceiros — formulário', () => {
     for (const nome of ['Fornecedor', 'Cliente', 'Prestador de serviço', 'Transportador', 'Outros']) {
       expect(screen.getByRole('checkbox', { name: nome }).getAttribute('aria-checked')).toBe('false');
     }
+  });
+
+  it('R2/B4: legado sem papel continua editável sem forçar papel (PATCH não envia papeis)', async () => {
+    empresaSelecionada('emp-1');
+    await montar();
+    await abrirRegistro('FAZENDA VELHA');
+    fireEvent.click(screen.getByRole('button', { name: 'Editar' }));
+    const form = screen.getByTestId('b1-form');
+    fireEvent.change(within(form).getByLabelText(/^Telefone/), { target: { value: '65988887777' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar' }));
+    await screen.findByText('Parceiro atualizado');
+    const patch = backend.chamadas.find((c) => c.method === 'PATCH');
+    expect(patch.body).toEqual({ empresa_id: 'emp-1', telefone: '65988887777' });
   });
 
   it('inativar pela barra pede confirmação e envia ativo=false', async () => {

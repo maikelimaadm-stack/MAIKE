@@ -209,3 +209,24 @@ O proprietário autorizou por escrito, em 07/11/2026:
 |---|---|
 | `SCHEMA_APPLIED_PRODUCTION` | **SIM** (07/11/2026) |
 | `MERGE_READY` | **CANDIDATO**, sujeito à auditoria do proprietário |
+
+## 10. R2 — Blindagem final (auditoria do proprietário, 07/11)
+
+A auditoria do HEAD `2ba6a871` deu **NO-GO** mesmo com a CI verde. Os cinco bloqueadores foram corrigidos nesta PR, cada um com teste de reprodução. Os testes foram rodados contra o código antigo (RED) e depois contra o corrigido (GREEN). Nada foi feito no banco de produção nesta rodada.
+
+| # | Achado | Correção | Prova (RED → GREEN) |
+|---|---|---|---|
+| B1 | A auditoria de Fornecedor/Parceiro gravava PII: telefone, e-mail, endereço, CEP, CNPJ, IE, observações e CPF (mascarado em `/parceiros`, em claro no legado). | `comoAuditoriaFornecedor` (`backend/src/modules/fornecedores/fornecedorDominio.js`) é uma allowlist positiva: `id`, `empresa_id`, `numero_cadastro`, `tipo_pessoa`, `ativo`, papéis canônicos e quantidade de tipos legados. `campos_alterados` leva só NOMES de colunas conhecidas. Vale para `/parceiros` (create/update) e para o legado `/fornecedores` (create/update/delete). Logs antigos e o schema do `AuditLog` não foram tocados. | `gestaoP1R2Blindagem` B1: sentinelas lidas no JSON completo do `AuditLog`. Ator, tenant, ação e id conferidos. Uma falha não audita. |
+| B1 | Ciclo de imports `fornecedorService` ↔ `parceiroService`. | Documento, papéis, auditoria e a guarda transacional de documento foram para `fornecedorDominio.js`, que não importa nenhum dos dois serviços. | Imports conferidos. |
+| B2 | O legado `/fornecedores` aceitava `empresa_id` arbitrário no POST e mudava a empresa no PATCH. | POST: `exigirEmpresaDoTenant` (400 sem empresa, 404 fora do tenant). PATCH: `empresa_id`, `numero_cadastro` e `id` são imutáveis (o mesmo valor é no-op), com trava `FOR UPDATE` da linha. Documento validado pela mesma regra das Parceiros. `FORNECEDOR_NOT_FOUND` registrado (antes virava 500). | B2: 2 tenants × 2 empresas. Nada muda em falha, as referências do Lote ficam íntegras e o 403 de quem não é admin é mantido. |
+| B3 | O vínculo N:N podia enviar `PUT []` com a leitura pendente ou com erro, e o estado de edição sobrevivia à troca de registro. | A edição só abre com o conjunto real lido (nem carregando, nem com erro, nem relendo), e a seleção parte de uma foto desse conjunto. Salvar exige as opções lidas. Empresa, centro e ids são capturados no clique e vão como variáveis da mutação. Esvaziar exige confirmação. Clique duplo é barrado. O componente é montado com `key` empresa+centro. | `gestaoVinculosR2`: 5/8 falham no HEAD; 8/8 com a correção. |
+| B4 | O seletor do Lote só olhava `ativo`, e um parceiro novo podia nascer com `tipos=[]` (lido como fornecedor). | A API e o formulário exigem ao menos um papel em parceiro novo. O legado `tipos=[]` continua editável sem migrar. O seletor só oferece ativo com papel fornecedor (aliases históricos e legado `tipos=[]`) e mantém o fornecedor já associado. O servidor do Lote (criar, PATCH e correção de entrada) valida todo vínculo NOVO: ativo, mesma empresa, papel fornecedor. O vínculo atual e a remoção (`null`) seguem livres. | B4 backend (PG/HTTP) e smoke do `FormularioLote` real. O backend não altera saldo, movimentação nem ledger. |
+| B5 | O RS-12 da S04-P3 exigia uma lista fechada de todas as migrations futuras. | O teste certifica o contrato "nenhuma migration é da S04-P3", por nome ou SQL (`s04_p3`, `reemiss`), com uma função pura exercitada por migrations fictícias. | `adminReemitirSenhaS04P3`: 15/15. |
+
+**Confinamento do B4 no Lote:**
+- A validação só roda quando `fornecedor_id` muda para um valor não nulo. Não toca comandos de manejo, ledger, posições nem saldos.
+- A correção de entrada só valida o campo administrativo, antes do UPDATE do lote.
+
+**Migration já em produção:**
+- `20261107300000_gestao_p1_centros_custo_resultado`, checksum `e29855b2…cecf5`, ficou **inalterada**.
+- Nenhuma migration nova; nenhuma ação remota.

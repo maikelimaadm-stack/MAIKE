@@ -245,9 +245,9 @@ export default function CentrosCadastroTela({ tipo }) {
   const vinculos =
     registroAtual?.id && empresaId ? (
       tipo === "custo" ? (
-        <VinculosCentroCusto empresaId={empresaId} centroCustoId={String(registroAtual.id)} podeEditar={acoes.editar && registroAtual.ativo !== false} />
+        <VinculosCentroCusto key={`${empresaId}:${registroAtual.id}`} empresaId={empresaId} centroCustoId={String(registroAtual.id)} podeEditar={acoes.editar && registroAtual.ativo !== false} />
       ) : (
-        <VinculosCentroResultado empresaId={empresaId} centroResultadoId={String(registroAtual.id)} />
+        <VinculosCentroResultado key={`${empresaId}:${registroAtual.id}`} empresaId={empresaId} centroResultadoId={String(registroAtual.id)} />
       )
     ) : null;
 

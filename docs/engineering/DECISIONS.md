@@ -5425,4 +5425,13 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
   - **R2 (revogação em voo):** aceito como no resto do produto.
   - **Ativo Sim/Não:** em todos os cadastros; seletores só com ativos.
 
+- **Adendo R2 (blindagem final, 07/11):**
+  - **Auditoria do Fornecedor por allowlist:** sem PII, em `/parceiros` e no legado.
+  - **Legado `/fornecedores`:** empresa validada no POST e imutável no PATCH (`id`/`numero_cadastro` também).
+  - **Vínculo N:N:** só salva sobre o conjunto real lido, com variáveis capturadas no clique e confirmação para esvaziar.
+  - **Parceiro novo:** exige papel.
+  - **Lote:** só associa fornecedor novo ativo, da empresa e com papel fornecedor (legado `tipos=[]` aceito).
+  - **RS-12:** contrato da S04-P3 sem lista fechada de migrations futuras.
+  - **Detalhes:** relatório §10.
+
 <!-- Próxima decisão: D-PROD-147 -->

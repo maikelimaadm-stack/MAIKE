@@ -26,6 +26,12 @@ const FORNECEDORES = [
   { id: 'f1', empresa_id: 'emp-1', numero_cadastro: '1', tipo_pessoa: 'Jurídica', nome: 'ATIVO UM', cidade: null, estado: null, tipos: [], ativo: true },
   { id: 'f2', empresa_id: 'emp-1', numero_cadastro: '2', tipo_pessoa: 'Jurídica', nome: 'INATIVO ATUAL', cidade: null, estado: null, tipos: [], ativo: false },
   { id: 'f3', empresa_id: 'emp-1', numero_cadastro: '3', tipo_pessoa: 'Jurídica', nome: 'INATIVO OUTRO', cidade: null, estado: null, tipos: [], ativo: false },
+  // R2/B4: papéis
+  { id: 'f4', empresa_id: 'emp-1', numero_cadastro: '4', tipo_pessoa: 'Jurídica', nome: 'SO CLIENTE', cidade: null, estado: null, tipos: ['cliente'], ativo: true },
+  { id: 'f5', empresa_id: 'emp-1', numero_cadastro: '5', tipo_pessoa: 'Jurídica', nome: 'ALIAS FORNECEDOR', cidade: null, estado: null, tipos: ['Fornecedor', 'Transportadora'], ativo: true },
+  { id: 'f6', empresa_id: 'emp-1', numero_cadastro: '6', tipo_pessoa: 'Jurídica', nome: 'SO TRANSPORTADOR', cidade: null, estado: null, tipos: ['transportador', 'outros'], ativo: true },
+  { id: 'f7', empresa_id: 'emp-1', numero_cadastro: '7', tipo_pessoa: 'Jurídica', nome: 'NOVO FORNECEDOR', cidade: null, estado: null, tipos: ['fornecedor'], ativo: true },
+  { id: 'f8', empresa_id: 'emp-1', numero_cadastro: '8', tipo_pessoa: 'Jurídica', nome: 'EX FORNECEDOR VIROU CLIENTE', cidade: null, estado: null, tipos: ['cliente'], ativo: true },
 ];
 
 let backend;
@@ -67,8 +73,10 @@ const campoFornecedor = () => {
 
 describe('Lote — seletor de fornecedor sem inativos', () => {
   it('regra pura: inativo fora, exceto o atual', () => {
-    expect(fornecedoresSelecionaveis(FORNECEDORES, []).map((f) => f.id)).toEqual(['f1']);
-    expect(fornecedoresSelecionaveis(FORNECEDORES, ['f2', null]).map((f) => f.id)).toEqual(['f1', 'f2']);
+    expect(fornecedoresSelecionaveis(FORNECEDORES, []).map((f) => f.id)).toEqual(['f1', 'f5', 'f7']);
+    expect(fornecedoresSelecionaveis(FORNECEDORES, ['f2', null]).map((f) => f.id)).toEqual(['f1', 'f2', 'f5', 'f7']);
+    // atual que perdeu o papel fornecedor continua exibido
+    expect(fornecedoresSelecionaveis(FORNECEDORES, ['f8']).map((f) => f.id)).toEqual(['f1', 'f5', 'f7', 'f8']);
   });
 
   it('lote que aponta para inativo mostra o nome; outro inativo não é oferecido', async () => {
@@ -103,5 +111,36 @@ describe('Lote — seletor de fornecedor sem inativos', () => {
     const nomes = opcoes.map((o) => o.textContent);
     expect(nomes.some((n) => /ATIVO UM/.test(n))).toBe(true);
     expect(nomes.some((n) => /INATIVO/.test(n))).toBe(false);
+  });
+});
+
+describe('Lote — seletor de fornecedor só com papel fornecedor (R2/B4)', () => {
+  it('lote novo: cliente-only e transportador fora; fornecedor, alias e legado tipos=[] dentro', async () => {
+    await montar({ nome: 'LOTE C', motivo_entrada: 'Compra', status: 'Ativo' });
+    const campo = await waitFor(() => {
+      const el = campoFornecedor();
+      expect(el).toBeTruthy();
+      return el;
+    });
+    await waitFor(() => expect(backend.chamadas.some((c) => c.path === '/fornecedores')).toBe(true));
+    fireEvent.click(within(campo).getByRole('textbox'));
+    const nomes = (await screen.findAllByRole('option')).map((o) => o.textContent);
+    for (const sim of [/ATIVO UM/, /ALIAS FORNECEDOR/, /NOVO FORNECEDOR/]) expect(nomes.some((n) => sim.test(n))).toBe(true);
+    for (const nao of [/SO CLIENTE/, /SO TRANSPORTADOR/, /VIROU CLIENTE/, /INATIVO/]) expect(nomes.some((n) => nao.test(n))).toBe(false);
+  });
+
+  it('lote antigo com fornecedor que virou só cliente: nome exibido e mantido; outros não-fornecedores fora', async () => {
+    await montar({ id: 'l2', nome: 'LOTE D', motivo_entrada: 'Compra', fornecedor_id: 'f8', fornecedor_nome: 'EX FORNECEDOR VIROU CLIENTE', status: 'Ativo' });
+    const campo = await waitFor(() => {
+      const el = campoFornecedor();
+      expect(el).toBeTruthy();
+      return el;
+    });
+    await waitFor(() => expect(within(campo).getByDisplayValue('EX FORNECEDOR VIROU CLIENTE')).toBeTruthy());
+    fireEvent.click(within(campo).getByDisplayValue('EX FORNECEDOR VIROU CLIENTE'));
+    const nomes = (await screen.findAllByRole('option')).map((o) => o.textContent);
+    expect(nomes.some((n) => /VIROU CLIENTE/.test(n))).toBe(true);
+    expect(nomes.some((n) => /SO CLIENTE/.test(n))).toBe(false);
+    expect(backend.chamadas.filter((c) => c.method !== 'GET')).toHaveLength(0);
   });
 });

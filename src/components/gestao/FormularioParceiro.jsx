@@ -57,6 +57,8 @@ export default function FormularioParceiro({ onSubmit, initialData = null, readO
       ...prev,
       papeis: prev.papeis.includes(id) ? prev.papeis.filter((p) => p !== id) : [...prev.papeis, id],
     }));
+
+    setInvalidos((prev) => prev.filter((c) => c !== "papeis"));
   };
 
   const enviar = (e) => {
@@ -65,9 +67,15 @@ export default function FormularioParceiro({ onSubmit, initialData = null, readO
     const faltando = [];
     if (!form.nome.trim()) faltando.push("nome");
     if (!form.tipo_pessoa) faltando.push("tipo_pessoa");
+    // B4/R2: parceiro novo precisa de ao menos um papel (a API exige). Legado
+    // sem papel (`tipos=[]`) segue editável enquanto ninguém mexe nos papéis.
+    const papeisOriginais = Array.isArray(initialData?.papeis) ? initialData.papeis : [];
+    const exigePapel = !initialData?.id || papeisOriginais.length > 0;
+    if (exigePapel && !form.papeis.length) faltando.push("papeis");
     if (faltando.length) {
       setInvalidos(faltando);
-      notifyWarning("Atenção", "Preencha o campo obrigatório: Nome.");
+      const nomes = faltando.map((c) => (c === "papeis" ? "Papéis (ao menos um)" : c === "nome" ? "Nome" : "Tipo de pessoa"));
+      notifyWarning("Atenção", `Preencha o campo obrigatório: ${nomes.join(", ")}.`);
       return;
     }
     const papeisOrdenados = PAPEIS_PARCEIRO.map((p) => p.id).filter((id) => form.papeis.includes(id));
@@ -125,6 +133,11 @@ export default function FormularioParceiro({ onSubmit, initialData = null, readO
                 );
               })}
             </div>
+            {invalidos.includes("papeis") ? (
+              <p className="mt-1 text-[11px] text-red-700" role="alert" data-testid="parceiro-papeis-obrigatorio">
+                Escolha ao menos um papel (fornecedor, cliente, prestador de serviço, transportador ou outros).
+              </p>
+            ) : null}
             {legados.length ? (
               <p className="mt-1 text-[11px] text-[var(--mg-text-2,#475569)]" data-testid="parceiro-papeis-legados">
                 Papéis antigos preservados: {legados.join(", ")}

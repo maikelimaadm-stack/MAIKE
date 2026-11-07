@@ -23,7 +23,7 @@ export const envelope = (items) => ({ items, next_cursor: null, has_more: false,
 export const erroServidor = (status, code, extra = {}) => ({ status, body: { code, message: 'texto do servidor', request_id: 'req_1', ...extra } });
 
 /**
- * @param {(req: { method: string, path: string, query: URLSearchParams, body: any }) => ({ status: number, body?: unknown } | undefined)} rotear
+ * @param {(req: { method: string, path: string, query: URLSearchParams, body: any }) => ({ status: number, body?: unknown } | undefined | Promise<{ status: number, body?: unknown } | undefined>)} rotear
  */
 export const instalarBackendFake = (rotear) => {
   /** @type {Array<{ method: string, path: string, query: Record<string, string>, body: any }>} */
@@ -34,7 +34,8 @@ export const instalarBackendFake = (rotear) => {
     const method = String(init.method || 'GET').toUpperCase();
     const body = init.body ? JSON.parse(String(init.body)) : null;
     chamadas.push({ method, path, query: Object.fromEntries(u.searchParams.entries()), body });
-    const r = rotear({ method, path, query: u.searchParams, body });
+    // `rotear` pode devolver Promise: permite simular resposta atrasada (R2/B3).
+    const r = await rotear({ method, path, query: u.searchParams, body });
     if (!r) return resposta(404, { code: 'NOT_FOUND', message: 'rota falsa ausente', request_id: 'x' });
     return resposta(r.status, r.body);
   });
