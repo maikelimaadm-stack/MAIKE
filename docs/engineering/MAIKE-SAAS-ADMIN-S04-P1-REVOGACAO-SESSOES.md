@@ -303,3 +303,97 @@ Base: `MAIKE-PR174-RELEASE-CUTOVER-RUNBOOK.md` §3 e D-PROD-107.
 |---|---|
 | **Comprovado** | código e testes locais; migration EXPAND (zero, upgrade, compat); `premerge-migrate` local OK; produção automática da Vercel |
 | **Pendente** | alvo verificado (`DATABASE_TARGET_VERIFIED = NÃO`); backup; `--verificar-alvo`; `--aplicar` (`SCHEMA_APPLIED_PRODUCTION = NÃO`); preflight no alvo; comunicação |
+
+## 13. R5/R6 — Migration aplicada na produção (07/11/2026) — registro operacional
+
+**Resumo:** a migration `20261106200000_s04_p1_sessao_epoca` foi aplicada no banco de produção em
+07/11/2026, por volta de 08:30 UTC, **por decisão explícita do proprietário**, por um caminho
+**diferente** do runbook (§12). O merge **não** foi feito: a PR #217 segue em DRAFT.
+
+### 13.1 Alvo comprovado (somente leitura, antes de aplicar)
+
+- Projeto Supabase `MAIKE` (`uuemcasqcdjucflulkne`, sa-east-1, PostgreSQL 17.11), database
+  `postgres`, `system_identifier` **7692130048193495360**.
+- **Vínculo com a Vercel Production por correlação:**
+  - Os logs de runtime do projeto `maike` (environment = production, 06/11 entre 22:20 e 22:27 UTC)
+    têm requisições a `/api/native/lotes/cmw5jgk3c0002l508r6fxynxq/...` e
+    `/api/native/lotes/cmw5jgwmm0002i9081kw0bwov/...`.
+  - Esses dois IDs (cuid, aleatórios) existem em `public."Lote"` desse banco, com `createdAt`
+    06/11 22:21:00 e 22:21:17 UTC.
+  - O outro projeto Supabase da organização (`dcroxgdzzgqgiquvfffa`) não tem as tabelas do MAIKE.
+- **Limite dessa prova:** é correlação de dados, não o `conferir-alvo-banco.mjs`. A
+  `MIGRATION_DATABASE_URL` cadastrada na Vercel **não** foi conferida.
+- **Histórico antes:**
+  - 30 migrations, 0 com falha. Os nomes coincidem com o repositório.
+  - 26 checksums batem com os arquivos.
+  - 4 checksums são `'manual'` e são exatamente os nomes da lista `CHECKSUM_MANUAL_HISTORICO`.
+  - Única pendente: a S04-P1.
+
+### 13.2 Desvios autorizados pelo proprietário (em relação ao §12 e ao prompt R6)
+
+1. A migration **não** foi aplicada por `premerge-migrate --aplicar`. Esta sessão não tem
+   conexão de banco protegida.
+   - Foi aplicada pelo conector Supabase (`execute_sql`).
+   - Foi **uma única transação**, que reproduz o que o runner faz: as duas instruções do
+     `migration.sql` + a linha em `_prisma_migrations`, com o checksum do manifesto.
+2. **Não** houve backup lógico novo nem teste de restauração. A proteção aceita foi o backup
+   físico automático do Supabase de 06/11/2026 05:48:22 UTC.
+   - Ele não cobre escritas posteriores.
+   - A restauração dele nunca foi testada.
+
+### 13.3 O que foi executado (exatamente)
+
+```sql
+BEGIN;
+SET LOCAL lock_timeout = '5s';
+-- guarda: aborta se system_identifier <> 7692130048193495360 ou se a migration já estiver registrada
+ALTER TABLE "Cliente" ADD COLUMN "sessao_epoca" INTEGER;
+ALTER TABLE "Usuario" ADD COLUMN "sessao_epoca" INTEGER;
+INSERT INTO _prisma_migrations (id, checksum, finished_at, migration_name, logs, rolled_back_at, started_at, applied_steps_count)
+VALUES (gen_random_uuid()::text, '52cb8de740a20cf020f82115422425063e09d0d1dc5da5e5b7dc416346a2646c',
+        now(), '20261106200000_s04_p1_sessao_epoca', NULL, NULL, now(), 1);
+COMMIT;
+```
+
+Nenhum outro comando de escrita foi executado: nenhum DROP, DELETE, TRUNCATE, UPDATE de dados,
+restore ou mudança de permissão. `supabase_migrations` não foi usada.
+
+### 13.4 Conferência depois de aplicar (somente leitura)
+
+- **Colunas:**
+  - `Cliente.sessao_epoca` e `Usuario.sessao_epoca` são `integer`, anuláveis, sem default.
+  - Nenhuma linha tem a coluna preenchida, o que equivale à época 0 (NULL = 0).
+- **Histórico:** 31 migrations, 0 com falha ou revertidas. A S04-P1 está concluída, com
+  `applied_steps_count = 1` e checksum `52cb8de7…646c`.
+- **Contagens preservadas:** `Cliente` 2 → 2; `Usuario` 4 → 4.
+- **Preflight:**
+  - `avaliarPreflight` (scripts/deploy/preflightSchemaLib.mjs, com `exigirAdminPorCliente`)
+    sobre as consultas de `CONSULTAS` lidas do banco: `ok: true`, 31/31 aplicadas, 0 pendentes,
+    0 falhas, 0 avisos.
+  - O CLI `preflight-schema.mjs` não foi rodado, por falta de conexão direta.
+- **Runtime antigo (main `1ebf7780`) no ar:**
+  - `GET https://www.makgestao.com/api/native/health` → 200.
+  - Zero logs de erro ou fatal em production nos 30 min seguintes.
+  - Isso é esperado: a migration é EXPAND e o código antigo ignora as colunas.
+
+### 13.5 Estado e próximos passos
+
+| Item | Estado |
+|---|---|
+| `SCHEMA_APPLIED_PRODUCTION` | **SIM** (07/11/2026) |
+| `PREFLIGHT_PRODUCTION` | **SIM** (avaliador oficial sobre dados lidos; não o CLI) |
+| `DATABASE_TARGET_VERIFIED` | **SIM por correlação** (não pelo `conferir-alvo-banco.mjs`) |
+| `BACKUP_RESTORE_VERIFIED` | **NÃO** (só o backup físico de 06/11 05:48 UTC) |
+| `MERGE_READY` | **CANDIDATO**, sujeito à revisão do arquiteto-chefe |
+| `OPERATIONAL_RELEASE_READY` | **NÃO** (S02 e S04-P2/P3 pendentes) |
+
+**Antes do merge manual:**
+- comunicar às fazendas o **logout global único**;
+- pedir que sincronizem as operações offline pendentes;
+- manter o Preview sem escritas de teste, porque ele usa o mesmo banco.
+
+**Rollback de aplicação:** voltar o deployment da Vercel para o anterior. O banco migrado atende
+o runtime antigo.
+
+**Rollback do schema:** se um dia for necessário, consiste em remover as duas colunas vazias,
+**somente com nova autorização**.
