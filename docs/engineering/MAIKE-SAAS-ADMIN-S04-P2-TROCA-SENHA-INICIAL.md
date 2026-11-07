@@ -194,3 +194,48 @@ A ordem é obrigatória, porque todo merge na `main` publica produção automati
 - **Contas criadas por `POST /usuarios`** (o administrador da fazenda cria um colega com senha definida por ele) não entram na troca obrigatória. Isso é gestão de usuários, S04-P3.
 - **Sem convite por e-mail, recuperação de conta ou reset público** (S04-P3).
 - **S02** (ADMIN_MAIKE_CHAVE, ADMIN_ORIGINS, IP confiável, rate limit) continua pendente.
+
+## 11. Migration aplicada na produção (07/11/2026) — registro operacional
+
+O proprietário autorizou por escrito, em 07/11/2026: "autorizo aplicar a migration do S04-P2".
+
+A aplicação foi feita pelo conector Supabase, no mesmo formato do S04-P1 (§13 do doc S04-P1), e **não** pelo `premerge-migrate --aplicar`.
+
+**Alvo**
+- Supabase MAIKE `uuemcasqcdjucflulkne`, database `postgres`, `system_identifier` 7692130048193495360.
+- Vínculo com a Vercel Production já demonstrado por correlação na release S04-P1.
+
+**Antes**
+- 31 migrations, 0 com falha; a última era `20261106200000_s04_p1_sessao_epoca`.
+- A coluna nova não existia.
+- 2 clientes, 4 usuários.
+
+**Execução: uma transação**
+- Guardas que abortariam se:
+  - o `system_identifier` não fosse o esperado;
+  - a migration já estivesse registrada;
+  - o histórico não tivesse exatamente 31 migrations concluídas.
+- `lock_timeout` de 5 s.
+- `ALTER TABLE "Usuario" ADD COLUMN "troca_senha_pendente" BOOLEAN;`
+- INSERT em `_prisma_migrations` com o checksum `1236460b…87fb` e `applied_steps_count = 1`.
+
+**Depois** (só leitura)
+- Coluna: `boolean`, anulável, sem default, 0 índices, 0 constraints.
+- Registro concluído e não revertido.
+- 32 migrations, 0 com falha.
+- 2 clientes e 4 usuários; nenhuma conta marcada (todas `NULL`).
+- `avaliarPreflight` (scripts/deploy/preflightSchemaLib.mjs): `ok: true`, 32/32, 0 pendentes, 0 falhas, 0 avisos. O CLI `preflight-schema` não foi rodado, por falta de conexão direta.
+- Assinatura do schema público da produção = assinatura do banco gerado pelas 32 migrations do repositório: 804 colunas (md5 `a141791b…`) e 247 índices (md5 `6da52ea5…`).
+- Produção no ar (main `f7651772`): `/api/native/health` = 200.
+
+**Desvios em relação ao §9**
+- Sem backup lógico novo nem restauração testada; a proteção são os backups automáticos do Supabase.
+- Sem `conferir-alvo-banco.mjs`.
+
+Os dois foram decisão do proprietário.
+
+| Item | Estado |
+|---|---|
+| `SCHEMA_APPLIED_PRODUCTION` | **SIM** |
+| `PREFLIGHT_PRODUCTION` | **SIM** (avaliador oficial sobre dados lidos) |
+| `MERGE_READY` | **CANDIDATO**: o merge manual já é seguro do ponto de vista de schema |
