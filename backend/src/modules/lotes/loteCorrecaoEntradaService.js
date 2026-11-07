@@ -34,6 +34,7 @@ import { AppError, loteNotFound, setorNotFound, areaNotFound } from '../../share
 import { registrarEvento } from '../auditoria/auditService.js';
 import { executarComIdempotencia, fingerprintDePayload } from '../../shared/idempotency/operacaoIdempotenteService.js';
 import { buscarLote, atualizarLotePorId } from './loteRepository.js';
+import { exigirFornecedorAssociavel } from '../fornecedores/fornecedorDominio.js';
 import { camposDe } from './loteService.js';
 import { origemDerivadaDeManejo } from './loteOrigem.js';
 import { noEstadoDeEntrada, movimentosQueCitam, temLegadoPorNome, outraFonteVinculada, auditoriaExplicada } from './loteExclusaoService.js';
@@ -304,6 +305,13 @@ const executarCorrecao = async (tx, contexto, id, e, comoLotePublico) => {
     });
     resposta.evento_id = r.evento_id;
     resposta.posicao_id = r.posicao_id;
+  }
+
+  // B4/R2 (D-PROD-146): trocar o fornecedor pela correção segue a mesma regra do
+  // PATCH — só um vínculo NOVO é validado; o atual e a remoção seguem aceitos.
+  const fornecedorNovo = e.administrativos.fornecedor_id;
+  if (fornecedorNovo && fornecedorNovo !== lote.fornecedor_id) {
+    await exigirFornecedorAssociavel(tx, clienteId, String(lote.empresa_id), String(fornecedorNovo));
   }
 
   ponto('correcao_entrada:antes_do_lote');

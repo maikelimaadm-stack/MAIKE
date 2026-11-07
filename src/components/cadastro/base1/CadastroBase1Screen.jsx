@@ -23,7 +23,7 @@ import { BASE1_LISTA_INTEGRADA_VISUAL } from "@/components/cadastro/base1/base1V
  *   listErrorMessage?: string,
  *   recordForm: React.ReactNode,
  *   listSlot: React.ReactNode,
- *   deleteDialog: { title: string, descriptionOne: string, descriptionMany: (n: number) => string },
+ *   deleteDialog: { title: string, descriptionOne: string, descriptionMany: (n: number) => string, confirmText?: string },
  *   recordCode?: string,
  *   extraToolbar?: React.ReactNode,
  *   additionalMoreActions?: Array<{ key: string, label: string, icon?: React.ReactNode, disabled?: boolean, hidden?: boolean, whileEditing?: boolean, onSelect: () => void }>,
@@ -31,6 +31,11 @@ import { BASE1_LISTA_INTEGRADA_VISUAL } from "@/components/cadastro/base1/base1V
  *   onExportCsv?: () => void,
  *   onPrint?: () => void,
  *   showDelete?: boolean,
+ *   showCreate?: boolean,
+ *   showEdit?: boolean,
+ *   showDuplicate?: boolean,
+ *   listBanner?: React.ReactNode,
+ *   permissaoExplicita?: boolean,
  * }} props
  */
 export default function CadastroBase1Screen({
@@ -52,6 +57,11 @@ export default function CadastroBase1Screen({
   onExportCsv,
   onPrint,
   showDelete = true,
+  showCreate = true,
+  showEdit = true,
+  showDuplicate = true,
+  listBanner = null,
+  permissaoExplicita = false,
 }) {
   return (
     <>
@@ -64,6 +74,7 @@ export default function CadastroBase1Screen({
             </button>
           </div>
         ) : null}
+        {listBanner}
         <CadastroListaChrome
           {...BASE1_LISTA_INTEGRADA_VISUAL.chrome}
           recordMode={c.showForm}
@@ -116,14 +127,15 @@ export default function CadastroBase1Screen({
           recordBody={c.showForm ? recordForm : null}
           recordFormId={formId}
           recordSaving={c.saving}
+          recordPermissaoExplicita={permissaoExplicita}
           onRecordBack={c.isEditing ? c.cancelForm : () => c.onViewModeChange("table")}
           attachDisabledReason={attachDisabledReason}
           selectedCount={c.chrome.selectedIds.length}
           {...c.chromeFooter}
           createLabel={createLabel}
-          onNew={c.openNew}
-          onEdit={c.handleEditSelected}
-          onDuplicate={c.handleDuplicateSelected}
+          onNew={showCreate ? c.openNew : undefined}
+          onEdit={showEdit ? c.handleEditSelected : undefined}
+          onDuplicate={showDuplicate ? c.handleDuplicateSelected : undefined}
           onDelete={showDelete ? c.handleDeleteSelected : undefined}
           onExportCsv={onExportCsv ?? c.exportCsv}
           onPrint={onPrint ?? (() => window.print())}
@@ -162,7 +174,7 @@ export default function CadastroBase1Screen({
             ? deleteDialog.descriptionMany(c.deleteState.ids.length)
             : deleteDialog.descriptionOne
         }
-        confirmText="Excluir"
+        confirmText={deleteDialog.confirmText ?? "Excluir"}
         cancelText="Cancelar"
         variant="destructive"
         onConfirm={c.handleConfirmDelete}

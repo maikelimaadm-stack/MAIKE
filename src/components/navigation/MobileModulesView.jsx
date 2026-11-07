@@ -1,8 +1,10 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import {
+  Briefcase,
   Building2,
   ChevronRight,
+  Coins,
   Droplet,
   Folder,
   Layers,
@@ -11,6 +13,7 @@ import {
   Map,
   Package,
   Pen,
+  PieChart,
   Ruler,
   Search,
   Shield,
@@ -24,7 +27,7 @@ import { createPageUrl } from "@/utils";
 import { flattenMenuPages } from "@/lib/menuConfig";
 
 /** Ícone de cada módulo (id do `menuConfig`). */
-export const ICONE_MODULO = { mapa: Map, manejo: LayoutGrid, "suporte-mapa": Package, administracao: Shield };
+export const ICONE_MODULO = { mapa: Map, manejo: LayoutGrid, "suporte-mapa": Package, "gestao-rural": Briefcase, administracao: Shield };
 
 /** Ícone de cada tela (url do `menuConfig`). */
 const ICONE_TELA = {
@@ -45,6 +48,9 @@ const ICONE_TELA = {
   Usuarios: Users,
   Permissoes: Shield,
   ConfiguracoesGerais: SlidersHorizontal,
+  Parceiros: Users,
+  CentrosCusto: Coins,
+  CentrosResultado: PieChart,
 };
 
 const contarTelas = (n) => `${n} ${n === 1 ? "tela" : "telas"}`;
