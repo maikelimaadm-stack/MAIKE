@@ -34,6 +34,8 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   '20261104200000_empresa_fuso_horario': 'bb2c1cb63cbc1324b6ab9c7d9141f51dfd2418374c8badb9cfe82fe3d4f29017',
   // D-PROD-143 (S04-P1): Cliente/Usuario.sessao_epoca INTEGER anuláveis, sem DEFAULT.
   '20261106200000_s04_p1_sessao_epoca': '52cb8de740a20cf020f82115422425063e09d0d1dc5da5e5b7dc416346a2646c',
+  // D-PROD-144 (S04-P2): Usuario.troca_senha_pendente BOOLEAN anulável, sem DEFAULT.
+  '20261107200000_s04_p2_troca_senha_inicial': '1236460b8daf00784a4a44b80f611701749a29f0f5e2294844d297ee594d87fb',
 });
 /** Blocos DO auditados (RLS das tabelas novas): sha256 do corpo sem comentários e com espaços normalizados. */
 export const DO_RLS_APROVADOS = Object.freeze([

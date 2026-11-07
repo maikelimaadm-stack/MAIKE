@@ -29,6 +29,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { AlertCircle, Eye, EyeOff, Loader2, Lock, User } from 'lucide-react';
 import { getApiErrorMessage } from '@/apis/_core/ApiError';
 import ToggleSwitch from '@/components/common/ToggleSwitch';
+import TrocaSenhaObrigatoriaForm from '@/components/auth/TrocaSenhaObrigatoriaForm';
 
 /** Preferências da tela (não é sessão nem segredo): usuário e "Manter conectado". */
 const CHAVE_PREFERENCIAS = 'maike_login_preferencias';
@@ -72,6 +73,9 @@ const NativeLoginForm = ({ onAutenticado, entrar }) => {
   const [erro, setErro] = useState(null);
   const [faltando, setFaltando] = useState(/** @type {null | 'login' | 'senha'} */ (null));
   const [enviando, setEnviando] = useState(false);
+  // S04-P2: senha temporária do primeiro acesso → troca obrigatória (sem sessão).
+  const [trocaObrigatoria, setTrocaObrigatoria] = useState(false);
+  const [aviso, setAviso] = useState(/** @type {null | {texto: string, tom: 'info'|'aviso'}} */ (null));
   const campoLogin = useRef(/** @type {HTMLInputElement | null} */ (null));
   const campoSenha = useRef(/** @type {HTMLInputElement | null} */ (null));
 
@@ -89,6 +93,7 @@ const NativeLoginForm = ({ onAutenticado, entrar }) => {
     if (enviando) return;
 
     setErro(null);
+    setAviso(null);
     // Sem `required` nativo: a regra global pinta de vermelho campo obrigatório
     // vazio antes de a pessoa digitar. A validação é aqui, no envio.
     if (!login.trim()) {
@@ -108,6 +113,10 @@ const NativeLoginForm = ({ onAutenticado, entrar }) => {
       const sessao = await entrar({ login: login.trim(), senha, lembrar });
       gravarPreferencias({ login: login.trim(), lembrar });
       setSenha('');
+      if (sessao?.trocaSenhaObrigatoria === true) {
+        setTrocaObrigatoria(true);
+        return;
+      }
       onAutenticado(sessao);
     } catch (falha) {
       setErro(getApiErrorMessage(falha));
@@ -119,6 +128,21 @@ const NativeLoginForm = ({ onAutenticado, entrar }) => {
   };
 
   const anoAtual = new Date().getFullYear();
+
+  if (trocaObrigatoria) {
+    const voltarAoLogin = (texto, tom = 'info') => {
+      setTrocaObrigatoria(false);
+      setSenha('');
+      setAviso(texto ? { texto, tom } : null);
+    };
+    return (
+      <TrocaSenhaObrigatoriaForm
+        login={login.trim()}
+        onConcluida={(texto) => voltarAoLogin(texto, 'info')}
+        onVoltar={voltarAoLogin}
+      />
+    );
+  }
 
   return (
     <div className="mk-login fixed inset-0 overflow-y-auto bg-slate-50">
@@ -270,6 +294,19 @@ const NativeLoginForm = ({ onAutenticado, entrar }) => {
                 <ToggleSwitch checked={lembrar} onChange={setLembrar} ariaLabel="Manter conectado" />
               </div>
             </div>
+
+            {aviso ? (
+              <div
+                role="status"
+                data-tom={aviso.tom}
+                className={`mt-4 flex items-start gap-2 rounded-xl border px-3.5 py-3 text-sm ${
+                  aviso.tom === 'aviso' ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-green-200 bg-green-50 text-green-800'
+                }`}
+              >
+                <AlertCircle aria-hidden className="mt-0.5 h-4 w-4 shrink-0" />
+                <span>{aviso.texto}</span>
+              </div>
+            ) : null}
 
             {erro ? (
               <div

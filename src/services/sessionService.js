@@ -31,6 +31,8 @@ import {
   RAZOES_DE_SESSAO,
   loginNativo,
   restaurarSessaoNativa,
+  concluirTrocaSenhaInicialNativa,
+  descartarTrocaSenhaPendenteNativa,
   logoutNativo,
 } from '@/apis/session';
 import { ApiError, API_ERROR_CODES } from '@/apis/_core/ApiError';
@@ -148,6 +150,17 @@ export const RAZOES_DE_SESSAO_DO_PRODUTO = RAZOES_DE_SESSAO;
  * @returns {Promise<{usuario: object, clienteId: string}>}
  */
 export const entrarComSessaoNativa = (credenciais) => loginNativo(credenciais);
+
+/**
+ * Troca obrigatória da senha temporária (S04-P2). Não cria sessão: no sucesso a
+ * pessoa entra de novo com a senha nova. Uma tentativa por chamada.
+ *
+ * @param {{senhaAtual: string, novaSenha: string}} dados
+ */
+export const concluirTrocaSenhaInicial = (dados) => concluirTrocaSenhaInicialNativa(dados);
+
+/** Abandona a troca obrigatória em andamento (voltar ao login). */
+export const descartarTrocaSenhaPendente = () => descartarTrocaSenhaPendenteNativa();
 
 /**
  * Restaura a sessão nativa depois de um reload, validando no servidor.

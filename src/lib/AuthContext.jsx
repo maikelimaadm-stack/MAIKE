@@ -210,6 +210,9 @@ export const AuthProvider = ({ children }) => {
    */
   const entrar = useCallback(async (credenciais) => {
     const sessao = await entrarComSessaoNativa(credenciais);
+    // S04-P2: senha temporária. Não há sessão: nada de usuário, tenant, cache
+    // ou estado autenticado — o formulário abre a troca obrigatória.
+    if (sessao?.trocaSenhaObrigatoria === true) return sessao;
     const login = sessao.usuario?.login ?? '';
     setUser({
       ...sessao.usuario,

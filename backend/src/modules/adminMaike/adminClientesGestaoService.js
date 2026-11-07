@@ -136,7 +136,8 @@ export const criarCliente = async (entrada, ctx) => {
     const { cliente, usuario } = await db.$transaction(async (tx) => {
       const cliente = await tx.cliente.create({ data: { nome, codigo }, select: SELECT_CLIENTE });
       const usuario = await tx.usuario.create({
-        data: { cliente_id: cliente.id, nome: adminNome, login, senha_hash: senhaHash, ativo: true, papel_tenant: PAPEL_ADMIN_TENANT },
+        // S04-P2: a senha é temporária; o primeiro acesso exige trocá-la.
+        data: { cliente_id: cliente.id, nome: adminNome, login, senha_hash: senhaHash, ativo: true, papel_tenant: PAPEL_ADMIN_TENANT, troca_senha_pendente: true },
         select: { id: true, nome: true, login: true },
       });
       await registrarEventoSeguranca(

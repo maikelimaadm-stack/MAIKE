@@ -132,6 +132,14 @@ export const login = async (credenciais) => {
     ctx('login')
   );
 
+  // S04-P2: senha temporária do primeiro acesso. NÃO é sessão: nada vai para o
+  // armazenamento, o token/fila offline existentes ficam como estão, e o token
+  // restrito só vive nesta memória até a troca (ou até a aba fechar).
+  if (respostaDeTrocaObrigatoria(corpo)) {
+    guardarEtapaDeTroca(corpo.token_troca_senha, corpo.expira_em_segundos);
+    return { trocaSenhaObrigatoria: true };
+  }
+
   if (!respostaDeLoginValida(corpo)) {
     descartarSessaoLocal();
     throw new ApiError(API_ERROR_CODES.OPERATION_FAILED, ctx('login'));
@@ -154,6 +162,73 @@ export const login = async (credenciais) => {
     },
     clienteId: corpo.cliente_id,
   };
+};
+
+/**
+ * ─── Troca obrigatória de senha no primeiro acesso (S04-P2, D-PROD-144) ────
+ *
+ * A resposta do login com a senha temporária traz só `token_troca_senha`: um
+ * token de chave e escopo próprios que nenhuma API da fazenda aceita. Ele fica
+ * SÓ nesta variável de módulo — nunca em `sessionStorage`/`localStorage`, URL,
+ * cache de consultas ou estado de tela — e sai na conclusão, na expiração, em
+ * qualquer resposta definitiva do servidor e num resultado incerto.
+ */
+let etapaDeTroca = /** @type {null | {token: string, expiraEm: number}} */ (null);
+
+/**
+ * @param {unknown} corpo
+ * @returns {corpo is {troca_senha_obrigatoria: true, token_troca_senha: string, expira_em_segundos?: number}}
+ */
+const respostaDeTrocaObrigatoria = (corpo) =>
+  ehObjeto(corpo) && corpo.troca_senha_obrigatoria === true && texto(corpo.token_troca_senha) !== '';
+
+const guardarEtapaDeTroca = (token, expiraEmSegundos) => {
+  const segundos = Number.isFinite(expiraEmSegundos) && expiraEmSegundos > 0 ? Math.min(expiraEmSegundos, 600) : 600;
+  etapaDeTroca = { token, expiraEm: Date.now() + segundos * 1000 };
+};
+
+/** Há uma troca obrigatória em andamento (e ainda válida) nesta aba? */
+export const temTrocaSenhaPendente = () => Boolean(etapaDeTroca && etapaDeTroca.expiraEm > Date.now());
+
+/** Abandona a etapa (voltar ao login). Idempotente. */
+export const descartarTrocaSenhaPendente = () => {
+  etapaDeTroca = null;
+};
+
+/**
+ * Conclui a troca obrigatória. Nunca cria sessão: no sucesso, a pessoa entra de
+ * novo com a senha nova. UMA tentativa por chamada — sem repetição automática.
+ *
+ * Saídas:
+ *  - sucesso → etapa descartada;
+ *  - 403 senha temporária errada / 400 validação → etapa mantida (pode corrigir);
+ *  - 401 (expirou, conta suspensa/inativa), 409 (já trocada) → etapa descartada;
+ *  - rede/timeout/5xx → etapa descartada e o erro sobe: resultado INCERTO
+ *    (o servidor pode ter gravado). Quem chama não repete.
+ *
+ * @param {{senhaAtual: string, novaSenha: string}} dados
+ * @returns {Promise<{senhaAlterada: true}>}
+ */
+export const concluirTrocaSenhaInicial = async ({ senhaAtual, novaSenha }) => {
+  if (!temTrocaSenhaPendente()) {
+    etapaDeTroca = null;
+    throw new ApiError(API_ERROR_CODES.TENANT_CONTEXT_REQUIRED, ctx('concluirTrocaSenhaInicial'));
+  }
+  const token = /** @type {{token: string}} */ (etapaDeTroca).token;
+  try {
+    await nativeRequest(
+      '/auth/troca-senha-inicial',
+      { method: 'POST', body: { senha_atual: senhaAtual, nova_senha: novaSenha }, tokenDeEtapa: token },
+      ctx('concluirTrocaSenhaInicial')
+    );
+  } catch (erro) {
+    const corrigivel =
+      hasApiErrorCode(erro, API_ERROR_CODES.USUARIO_SENHA_ATUAL_INVALIDA) || hasApiErrorCode(erro, API_ERROR_CODES.INVALID_ARGUMENT);
+    if (!corrigivel) etapaDeTroca = null;
+    throw erro;
+  }
+  etapaDeTroca = null;
+  return { senhaAlterada: true };
 };
 
 /**

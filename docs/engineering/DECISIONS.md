@@ -5344,4 +5344,19 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
   - Offline: a revogação vale no servidor.
 - **Detalhes, provas e rollout:** `docs/engineering/MAIKE-SAAS-ADMIN-S04-P1-REVOGACAO-SESSOES.md`.
 
-<!-- Próxima decisão: D-PROD-144 -->
+## D-PROD-144 — Troca obrigatória da senha temporária no primeiro acesso (MAIKE-SAAS-ADMIN-S04-P2)
+
+- **Contexto:** a fazenda criada pelo MAIKE Admin (S03) nasce com uma senha temporária gerada no servidor e mostrada uma única vez ao proprietário do produto. Até aqui essa senha abria a sessão normal sem obrigar a troca.
+- **Decisão:**
+  - **Estado durável:** `Usuario.troca_senha_pendente`, `BOOLEAN` anulável, sem DEFAULT (EXPAND, allowlist D-PROD-107), migration `20261107200000_s04_p2_troca_senha_inicial`, pinada no manifesto do pré-merge. `NULL` = concluída: nenhuma conta existente muda. Só a criação S03 grava `true`, dentro da transação Cliente + Usuario + auditoria; só a conclusão da troca grava `false`.
+  - **Login limitado:** com a troca pendente, `/auth/login` não emite a sessão normal. Devolve `{troca_senha_obrigatoria, token_troca_senha, expira_em_segundos}` (no-store), um token de 10 min com chave HS256 própria (HMAC de `AUTH_SECRET` com rótulo fixo) e `escopo: "troca_senha_inicial"`.
+  - **Guarda:** `app.autenticar` recusa qualquer token com `escopo` e qualquer conta com a troca pendente, na mesma consulta única de revalidação.
+  - **Conclusão:** `POST /auth/troca-senha-inicial`, só com o token restrito. A conta é relida (ativa, pendente, cliente ativo, épocas S04-P1) e a senha temporária é conferida no servidor. Uma transação grava a senha nova, `troca_senha_pendente = false` (CAS na linha lida), época da conta +1 e a auditoria. Não emite sessão: a pessoa entra de novo com a senha nova.
+  - **Interface:** tela "Troca obrigatória de senha" no lugar do login. O token restrito só vive em memória na fronteira de sessão. Rede, timeout ou 5xx viram resultado incerto, sem repetição automática.
+- **Consequências:**
+  - Ordem de rollout obrigatória: migration → preflight → runtime. O runtime novo sobre o schema antigo responde 500.
+  - Contas já existentes e as fazendas atuais não são afetadas.
+  - Sem convite por e-mail, sem recuperação de conta e sem reset público (S04-P3).
+- **Detalhes, provas e rollout:** `docs/engineering/MAIKE-SAAS-ADMIN-S04-P2-TROCA-SENHA-INICIAL.md`.
+
+<!-- Próxima decisão: D-PROD-145 -->

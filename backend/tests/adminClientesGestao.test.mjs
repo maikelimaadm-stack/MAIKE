@@ -127,10 +127,22 @@ describe('cadastro de cliente com primeiro administrador', () => {
     }
   });
 
-  test('GES-03 a senha temporária autentica pelo login normal e a conta é administradora REAL da fazenda', async () => {
+  test('GES-03 a senha temporária só abre a troca obrigatória (S04-P2); com a senha nova a conta é administradora REAL da fazenda', async () => {
     const { headers } = await criarAdminComSessao(app);
     const { administrador, senha_temporaria, cliente } = (await enviar('POST', '/admin-maike/clientes', headers, novo())).json();
-    const { resposta, corpo } = await autenticarNoApp(app, { login: administrador.login, senha: senha_temporaria });
+    // S04-P2: a senha temporária não emite a sessão normal, só o token restrito da troca.
+    const primeiro = await app.inject({ method: 'POST', url: '/auth/login', payload: { login: administrador.login, senha: senha_temporaria } });
+    assert.equal(primeiro.statusCode, 200, primeiro.body);
+    assert.equal(primeiro.json().troca_senha_obrigatoria, true);
+    assert.equal(primeiro.json().token, undefined);
+    const troca = await app.inject({
+      method: 'POST',
+      url: '/auth/troca-senha-inicial',
+      headers: { authorization: `Bearer ${primeiro.json().token_troca_senha}` },
+      payload: { senha_atual: senha_temporaria, nova_senha: 'Senha-Nova-Da-Maria-1' },
+    });
+    assert.equal(troca.statusCode, 200, troca.body);
+    const { resposta, corpo } = await autenticarNoApp(app, { login: administrador.login, senha: 'Senha-Nova-Da-Maria-1' });
     assert.equal(resposta.statusCode, 200, resposta.body);
     const bearer = { authorization: `Bearer ${corpo.token}` };
     const ctx = await app.inject({ method: 'GET', url: '/auth/contexto', headers: bearer });

@@ -20,6 +20,7 @@ import { errorHandler } from './shared/errors/errorHandler.js';
 import { registrarRequestContext } from './shared/request/requestContext.js';
 import { construirAuthContext, lerEpocasDaSessao } from './shared/auth/authContext.js';
 import { filtroEpoca } from './shared/auth/sessaoEpoca.js';
+import { filtroSemTrocaPendente } from './shared/auth/trocaSenhaInicial.js';
 import { getPrismaClient } from './database/prismaClient.js';
 import { AppError, tenantContextRequired } from './shared/errors/AppError.js';
 import { registrarHealthRoutes } from './modules/health/healthRoutes.js';
@@ -151,12 +152,19 @@ export const construirApp = async (opcoes = {}) => {
    * atuais do cliente e da conta. Suspender, desativar, trocar senha ou papel
    * incrementa a época no banco, e o token anterior nunca mais é aceito, nem
    * depois de reativar. Token sem época (emitido antes do S04-P1) = 401.
+   *
+   * S04-P2: token com `escopo` (a sessão restrita da troca obrigatória de
+   * senha) nunca vale aqui — e nem chega, porque é assinado com outra chave.
+   * Conta com a troca ainda pendente também é recusada (NULL = concluída).
    */
   app.decorate('autenticar', async (request) => {
     try {
       await request.jwtVerify();
     } catch (erro) {
       throw tenantContextRequired('sessão ausente ou inválida', { cause: erro });
+    }
+    if (/** @type {any} */ (request.user)?.escopo !== undefined) {
+      throw tenantContextRequired('sessão ausente ou inválida');
     }
     const auth = construirAuthContext(request.user);
     const epocas = lerEpocasDaSessao(/** @type {any} */ (request.user));
@@ -165,7 +173,7 @@ export const construirApp = async (opcoes = {}) => {
         id: auth.usuarioId,
         cliente_id: auth.clienteId,
         ativo: true,
-        ...filtroEpoca(epocas.usuario),
+        AND: [filtroEpoca(epocas.usuario), filtroSemTrocaPendente()],
         cliente: { ativo: true, ...filtroEpoca(epocas.cliente) },
       },
       select: { id: true },
