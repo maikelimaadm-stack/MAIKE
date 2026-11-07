@@ -83,6 +83,11 @@ export default function DesktopSidebar({ items, currentPath, onNavigate, collaps
   };
 
   const navegar = (event, path) => {
+    if (!expandido && flyout) {
+      setAbertoId(flyout.item.id);
+      setAbertoPeloModulo(false);
+      onToggle();
+    }
     setFlyout(null);
     onNavigate(event, path);
   };

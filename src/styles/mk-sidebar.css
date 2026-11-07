@@ -3,7 +3,7 @@
 .mk-desktop-sidebar {
   --mk-sidebar-hover: rgba(41,42,45,.055);
   --mk-sidebar-active: rgba(41,42,45,.085);
-  background: var(--mk-sup-fundo, #f7f8fa);
+  background: #fff;
   color: #292a2d;
   transition: width 180ms cubic-bezier(.2,.8,.2,1);
 }
@@ -55,7 +55,7 @@
 .mk-desktop-sidebar[data-collapsed], .mk-app-topbar {
   border: 0;
   box-shadow: none;
-  background: var(--mk-sup-fundo, #f7f8fa);
+  background: #fff;
 }
 .mk-desktop-sidebar-frame { border: 0; box-shadow: none; }
 .mk-sidebar-flyout-anchor { pointer-events: auto; }
