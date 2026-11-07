@@ -10,23 +10,35 @@ function Fixture({ navegar }) {
   const [collapsed, setCollapsed] = React.useState(true);
   return <MemoryRouter><DesktopSidebar items={items} currentPath="/cadastrolotes" onNavigate={(e,p) => {e.preventDefault();navegar(p);}} collapsed={collapsed} onToggle={() => setCollapsed(v => !v)} onSearch={() => {}} /></MemoryRouter>;
 }
-it('hover abre a lista, clique no ícone não expande; fixar expande e desafixar recolhe', () => {
+it('hover mostra o menu completo sobre a página e sair fecha sem fixar', () => {
   render(<Fixture navegar={vi.fn()} />);
-  const icon = screen.getByRole('button', { name: 'Abrir menu Manejo' });
-  fireEvent.mouseEnter(icon);
-  expect(screen.getByRole('menu', { name: 'Manejo' })).toBeTruthy();
-  fireEvent.click(icon);
-  expect(document.querySelector('#app-shell-sidebar').getAttribute('data-collapsed')).toBe('true');
-  fireEvent.click(screen.getByRole('button', { name: 'Fixar menu', exact: true }));
-  expect(document.querySelector('#app-shell-sidebar').getAttribute('data-collapsed')).toBe('false');
-  fireEvent.click(screen.getByRole('button', { name: 'Desafixar menu' }));
-  expect(document.querySelector('#app-shell-sidebar').getAttribute('data-collapsed')).toBe('true');
+  const nav = screen.getByRole('navigation', { name: 'Módulos' });
+  fireEvent.mouseEnter(nav);
+  expect(nav.getAttribute('data-peeking')).toBe('true');
+  expect(nav.getAttribute('data-pinned')).toBe('false');
+  expect(screen.getByRole('link', { name: 'Lotes' })).toBeTruthy();
+  fireEvent.mouseLeave(nav);
+  expect(nav.getAttribute('data-collapsed')).toBe('true');
 });
-it('escolher uma tela navega sem fixar o menu', () => {
+it('fixar mantém o menu aberto ao sair; desafixar volta ao trilho', () => {
+  render(<Fixture navegar={vi.fn()} />);
+  const nav = screen.getByRole('navigation', { name: 'Módulos' });
+  fireEvent.mouseEnter(nav);
+  fireEvent.click(screen.getByRole('button', { name: 'Fixar menu', exact: true }));
+  fireEvent.mouseLeave(nav);
+  expect(nav.getAttribute('data-pinned')).toBe('true');
+  expect(nav.getAttribute('data-collapsed')).toBe('false');
+  fireEvent.click(screen.getByRole('button', { name: 'Desafixar menu' }));
+  expect(nav.getAttribute('data-pinned')).toBe('false');
+  fireEvent.mouseLeave(nav);
+  expect(nav.getAttribute('data-collapsed')).toBe('true');
+});
+it('navega no menu temporário sem fixá-lo', () => {
   const navegar = vi.fn();
   render(<Fixture navegar={navegar} />);
-  fireEvent.mouseEnter(screen.getByRole('button', { name: 'Abrir menu Manejo' }));
-  fireEvent.click(screen.getByRole('menuitem', { name: 'Lotes' }));
+  const nav = screen.getByRole('navigation', { name: 'Módulos' });
+  fireEvent.mouseEnter(nav);
+  fireEvent.click(screen.getByRole('link', { name: 'Lotes' }));
   expect(navegar).toHaveBeenCalledWith('/cadastrolotes');
-  expect(document.querySelector('#app-shell-sidebar').getAttribute('data-collapsed')).toBe('true');
+  expect(nav.getAttribute('data-pinned')).toBe('false');
 });

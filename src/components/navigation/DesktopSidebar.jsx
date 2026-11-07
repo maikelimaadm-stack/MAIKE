@@ -4,7 +4,6 @@ import { ChevronDown, Folder, Home, PinOff, Pin, Search } from "lucide-react";
 import { createPageUrl } from "@/utils";
 import { ICONE_MODULO } from "@/components/navigation/MobileModulesView";
 import SidebarTooltip from "@/components/navigation/SidebarTooltip";
-import SidebarModuloFlyout from "@/components/navigation/SidebarModuloFlyout";
 
 /** Ícone de cada módulo — o mesmo mapa da tela de Módulos do celular. */
 const ICONE_DO_MODULO = /** @type {Record<string, React.ComponentType<any>>} */ (ICONE_MODULO);
@@ -29,7 +28,7 @@ const ICONE_ITEM = "h-[19px] w-[19px] shrink-0 text-[#64748b]";
  * Menu lateral do desktop (lg+), no estilo do protótipo "inspirado no ChatGPT":
  * marca no topo, atalhos, módulos em acordeão e faixa de ícones quando recolhido.
  *
- * Recolhido: hover ou foco abre uma lista abaixo do ícone; clicar não expande.
+ * Recolhido: hover abre o menu completo sobre o conteúdo sem mover a página.
  * Fixar transforma o menu em uma coluna que reserva espaço no layout.
  * Desafixar retorna à faixa de ícones e às listas transitórias.
  *
@@ -64,45 +63,20 @@ export default function DesktopSidebar({ items, currentPath, onNavigate, collaps
   // Recolhido: a logo mostra o ícone de expandir enquanto o mouse (ou foco) está nela.
   const [marcaEmHover, setMarcaEmHover] = React.useState(false);
 
-  const expandido = !collapsed;
+  const [espiando, setEspiando] = React.useState(false);
+  const expandido = !collapsed || espiando;
 
   // Ao recolher/expandir, a marca volta a mostrar a logo (sem herdar o hover anterior).
   React.useEffect(() => {
     setMarcaEmHover(false);
+    if (!collapsed) setEspiando(false);
   }, [collapsed]);
 
-  const alternar = () => onToggle();
-  const navegar = (event, path) => {
-    setFlyout(null);
-    onNavigate(event, path);
+  const alternar = () => {
+    setEspiando(!collapsed);
+    onToggle();
   };
-
-  const [flyout, setFlyout] = React.useState(
-    /** @type {{ item: ItemMenu, top: number, left: number } | null} */ (null),
-  );
-  const flyoutTimer = React.useRef(/** @type {ReturnType<typeof setTimeout> | null} */ (null));
-
-  const cancelarFechamento = () => {
-    if (flyoutTimer.current) clearTimeout(flyoutTimer.current);
-    flyoutTimer.current = null;
-  };
-
-  const abrirFlyout = (item, event) => {
-    cancelarFechamento();
-    const caixa = event.currentTarget.getBoundingClientRect();
-    setFlyout({
-      item,
-      top: Math.min(caixa.bottom + 6, window.innerHeight - 140),
-      left: Math.max(8, Math.min(caixa.left, window.innerWidth - 260)),
-    });
-  };
-
-  const agendarFechamento = () => {
-    cancelarFechamento();
-    flyoutTimer.current = setTimeout(() => setFlyout(null), 280);
-  };
-
-  React.useEffect(() => cancelarFechamento, []);
+  const navegar = (event, path) => onNavigate(event, path);
 
   const pesquisar = () => {
     onSearch();
@@ -111,7 +85,7 @@ export default function DesktopSidebar({ items, currentPath, onNavigate, collaps
   return (
     <>
       <div
-        className={`mk-desktop-sidebar-frame hidden shrink-0 motion-reduce:transition-none lg:block ${
+        className={`mk-desktop-sidebar-frame relative hidden shrink-0 motion-reduce:transition-none lg:block ${
           collapsed ? "w-[60px]" : "w-[322px]"
         }`}
       >
@@ -119,6 +93,18 @@ export default function DesktopSidebar({ items, currentPath, onNavigate, collaps
           id="app-shell-sidebar"
           aria-label="Módulos"
           data-collapsed={expandido ? "false" : "true"}
+          data-pinned={!collapsed ? "true" : "false"}
+          data-peeking={collapsed && espiando ? "true" : "false"}
+          onMouseEnter={() => { if (collapsed) setEspiando(true); }}
+          onMouseLeave={() => { if (collapsed) setEspiando(false); }}
+          onFocusCapture={() => {
+            if (collapsed && !espiando) {
+              setEspiando(true);
+              requestAnimationFrame(() => document.getElementById("mk-sidebar-pin")?.focus());
+            }
+          }}
+          onBlurCapture={(event) => { if (collapsed && !event.currentTarget.contains(event.relatedTarget)) setEspiando(false); }}
+          onKeyDown={(event) => { if (event.key === "Escape" && collapsed) setEspiando(false); }}
           className={`mk-desktop-sidebar flex h-full flex-col bg-[var(--mk-sup-cartao)] ${
             expandido ? "w-[322px]" : "w-[60px]"
           } relative`}
@@ -127,9 +113,16 @@ export default function DesktopSidebar({ items, currentPath, onNavigate, collaps
           <div className={expandido ? "px-3 pb-2 pt-[19px]" : "px-2.5 pb-2 pt-[19px]"}>
             {expandido ? (
               <div className="flex h-10 items-center gap-2">
-                <span className="grid h-[38px] w-[38px] shrink-0 place-items-center">
-                  <img src="/brand/mak-gestao-simbolo.png" alt="" className="h-[32px] w-[32px] object-contain" />
-                </span>
+                <button
+                  id="mk-sidebar-pin"
+                  type="button"
+                  onClick={alternar}
+                  aria-label={collapsed ? "Fixar menu" : "Desafixar menu"}
+                  title={collapsed ? "Fixar menu" : "Desafixar menu"}
+                  className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-[9px] text-[#64748b] transition-colors hover:bg-[var(--mk-btn-ativo)] hover:text-[#292a2d]"
+                >
+                  {collapsed ? <Pin size={19} aria-hidden /> : <PinOff size={19} aria-hidden />}
+                </button>
                 <div className="flex min-w-0 flex-1 flex-col">
                   <strong className="truncate text-[15px] font-bold tracking-[-0.55px] text-[#292a2d]">MAK Gestão</strong>
                   <span className="mt-0.5 truncate text-[10px] tracking-[0.2px] text-[#64748b]">Plataforma de gestão rural</span>
@@ -143,15 +136,7 @@ export default function DesktopSidebar({ items, currentPath, onNavigate, collaps
                 >
                   <Search size={19} aria-hidden />
                 </button>
-                <button
-                  type="button"
-                  onClick={alternar}
-                  aria-label="Desafixar menu"
-                  title="Desafixar menu"
-                  className="flex h-[33px] w-[33px] shrink-0 items-center justify-center rounded-[9px] text-[#64748b] transition-colors hover:bg-[var(--mk-btn-ativo)] hover:text-[#292a2d]"
-                >
-                  <PinOff size={19} aria-hidden />
-                </button>
+
               </div>
             ) : (
               <div className="flex justify-center">
@@ -231,14 +216,8 @@ export default function DesktopSidebar({ items, currentPath, onNavigate, collaps
                     <button
                       key={item.id}
                       type="button"
-                      onMouseEnter={(event) => abrirFlyout(item, event)}
-                      onMouseLeave={agendarFechamento}
-                      onFocus={(event) => abrirFlyout(item, event)}
-                      onBlur={agendarFechamento}
                       data-active={atual ? "true" : "false"}
-                      aria-label={`Abrir menu ${item.title}`}
-                      aria-haspopup="menu"
-                      aria-expanded={flyout?.item.id === item.id}
+                      aria-label={`Mostrar menu ${item.title}`}
                       className={`flex h-10 w-10 items-center justify-center rounded-[9px] transition-colors ${
                         atual
                           ? "bg-[rgba(64,222,99,0.14)] text-[#16a34a]"
@@ -306,23 +285,7 @@ export default function DesktopSidebar({ items, currentPath, onNavigate, collaps
         </nav>
       </div>
 
-      {!expandido && flyout ? (
-        <SidebarModuloFlyout
-          titulo={flyout.item.title}
-          paginas={telasDoModulo(flyout.item)}
-          currentPath={currentPath}
-          top={flyout.top}
-          left={flyout.left}
-          onNavegar={navegar}
-          onFixar={() => {
-            setAbertoId(flyout.item.id);
-            setFlyout(null);
-            onToggle();
-          }}
-          onMouseEnter={cancelarFechamento}
-          onMouseLeave={agendarFechamento}
-        />
-      ) : null}
+
     </>
   );
 }
