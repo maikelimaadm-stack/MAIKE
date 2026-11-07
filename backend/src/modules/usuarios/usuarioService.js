@@ -6,6 +6,7 @@
  */
 
 import { getPrismaClient } from '../../database/prismaClient.js';
+import { revogarSessoesUsuario } from '../../shared/auth/sessaoEpoca.js';
 import { exigirAuthContext } from '../../shared/auth/authContext.js';
 import { gerarSenhaHash, senhaConfereComHash } from '../auth/authService.js';
 import { atorDoTenant, ehAdminTenantAtivo, exigirAdminTenant } from '../../shared/auth/exigirAdminTenant.js';
@@ -258,10 +259,16 @@ export const atualizar = async (contexto, id, entrada) => {
       dados.senha_hash = await gerarSenhaHash(nova);
     }
 
+    // S04-P1: troca de senha ou de `ativo` derruba todas as sessões DESTA conta
+    // (inclusive a que fez o pedido, se for a própria). O incremento roda na
+    // mesma transação da mudança e da auditoria: falha = nada muda.
+    const revogaSessoes = 'senha_hash' in dados || ('ativo' in dados && dados.ativo !== anterior.ativo);
+
     const registro =
       Object.keys(dados).length > 0
         ? await atualizarUsuarioPorId(tx, auth.clienteId, id, dados)
         : anterior;
+    if (revogaSessoes) await revogarSessoesUsuario(tx, auth.clienteId, id);
 
     const publico = comoUsuarioPublico(registro);
 
@@ -272,7 +279,7 @@ export const atualizar = async (contexto, id, entrada) => {
         entidade: 'Usuario',
         entidadeId: id,
         dadosAnteriores: comoUsuarioPublico(anterior),
-        dadosNovos: publico,
+        dadosNovos: revogaSessoes ? { ...publico, sessoes_revogadas: true } : publico,
       },
       tx
     );

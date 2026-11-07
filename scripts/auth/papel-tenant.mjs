@@ -53,6 +53,7 @@ if (motivo && process.env.PAPEL_TENANT_ALLOW_PRODUCTION !== 'sim') {
   sair(`recusado em ${motivo} (exige PAPEL_TENANT_ALLOW_PRODUCTION=sim e aprovação separada)`);
 }
 const { getPrismaClient, closePrismaClient } = await import('../../backend/src/database/prismaClient.js');
+const { revogarSessoesUsuario } = await import('../../backend/src/shared/auth/sessaoEpoca.js');
 const prisma = getPrismaClient();
 
 try {
@@ -85,6 +86,8 @@ try {
       data: { papel_tenant: papel },
     });
     if (r.count !== 1) throw new Error('o papel mudou durante a operação; nada foi alterado');
+    // S04-P1: mudança de privilégio derruba as sessões anteriores da conta.
+    await revogarSessoesUsuario(tx, cliente.id, usuario.id);
     await tx.auditLog.create({
       data: {
         cliente_id: cliente.id,
@@ -93,13 +96,13 @@ try {
         entidade: 'Usuario',
         entidade_id: usuario.id,
         dados_anteriores: { papel_tenant: usuario.papel_tenant },
-        dados_novos: { papel_tenant: papel, via: 'scripts/auth/papel-tenant.mjs' },
+        dados_novos: { papel_tenant: papel, via: 'scripts/auth/papel-tenant.mjs', sessoes_revogadas: true },
         request_id: requestId,
       },
     });
   });
   console.log(`aplicado: ${usuario.login} agora é "${papel}" (auditoria ${requestId})`);
-  console.log('Vale na próxima ação privilegiada (o servidor relê o papel no banco); não precisa novo login.');
+  console.log('As sessões anteriores desta conta foram encerradas (S04-P1): é preciso entrar de novo.');
 } catch (erro) {
   sair(/** @type {any} */ (erro)?.message ?? 'falha');
 } finally {

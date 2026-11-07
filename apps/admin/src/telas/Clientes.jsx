@@ -376,8 +376,8 @@ function AlterarSituacao({ cliente, revisao, onSalvo, onCancelar }) {
     <form className="formulario painel" onSubmit={enviar} aria-label={suspender ? 'Confirmar suspensão' : 'Confirmar reativação'}>
       <Aviso tipo={suspender ? 'erro' : 'info'}>
         {suspender
-          ? `Suspender ${cliente.nome}: todos os usuários desta fazenda deixam de entrar e as sessões abertas param na hora, enquanto durar a suspensão. Nenhum dado é apagado; dá para reativar depois. Atenção: suspender bloqueia, não encerra as sessões — se o cliente for reativado, as sessões abertas antes que ainda estiverem dentro da validade voltam a funcionar.`
-          : `Reativar ${cliente.nome}: os usuários ativos desta fazenda voltam a entrar com as senhas que já tinham, e sessões abertas antes da suspensão que ainda estiverem dentro da validade voltam a funcionar.`}
+          ? `Suspender ${cliente.nome}: todos os usuários desta fazenda deixam de entrar e as sessões abertas param na hora. As sessões são encerradas de vez: mesmo que o cliente seja reativado, cada usuário precisa entrar de novo. Nenhum dado é apagado; dá para reativar depois.`
+          : `Reativar ${cliente.nome}: os usuários ativos desta fazenda voltam a entrar com as senhas que já tinham. As sessões de antes da suspensão não voltam: cada usuário entra de novo.`}
       </Aviso>
       <Campo rotulo="Justificativa (fica registrada na auditoria)" id="situacao-justificativa" dica="Pelo menos 10 caracteres.">
         <textarea id="situacao-justificativa" rows={3} maxLength={500} value={justificativa} onChange={(e) => setJustificativa(e.target.value)} />

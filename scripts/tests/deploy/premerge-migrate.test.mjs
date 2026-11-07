@@ -17,11 +17,11 @@ const BASE = `CREATE TABLE "Nova" ("id" TEXT NOT NULL, "cliente_id" VARCHAR(64) 
 /** Classifica SQL sintético com manifesto próprio (só para testar a conferência estrutural). */
 const classificar = (sql, extra = {}) => classificarMigrations([{ nome: 'x', sql }], { manifesto: { x: sha256(sql) }, ...extra });
 
-test('B1: as migrations do manifesto passam (pinadas + estrutura): só tabelas novas, LancamentoTarefa.posicao_id e Empresa.fuso_horario (D-PROD-122) anuláveis', () => {
+test('B1: as migrations do manifesto passam (pinadas + estrutura): só tabelas novas, LancamentoTarefa.posicao_id, Empresa.fuso_horario (D-PROD-122) e as épocas de sessão (D-PROD-143) anuláveis', () => {
   const c = classificarMigrations(NOMES.map(ler));
   assert.deepEqual(c.violacoes, []);
   assert.deepEqual(c.tabelas_novas, ['EventoRebanho', 'PartidaRebanho', 'PesoRebanho', 'PosicaoRebanho', 'RebanhoLedgerAtivacao']);
-  assert.deepEqual([...c.colunas_novas_em_tabelas_antigas].sort(), ['Empresa.fuso_horario', 'LancamentoTarefa.posicao_id']);
+  assert.deepEqual([...c.colunas_novas_em_tabelas_antigas].sort(), ['Cliente.sessao_epoca', 'Empresa.fuso_horario', 'LancamentoTarefa.posicao_id', 'Usuario.sessao_epoca']);
 });
 
 test('B2: padrão = RECUSAR — cada caso negativo é violação com código estável', () => {

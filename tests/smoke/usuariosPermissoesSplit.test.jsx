@@ -19,7 +19,9 @@ const criarContaMock = vi.fn();
 const listarUsuariosMock = vi.fn();
 const listarPermissoesMock = vi.fn();
 
-vi.mock("@/services/usuarioAdminService", () => ({
+vi.mock("@/services/usuarioAdminService", async (importOriginal) => ({
+  // S04-P1-R1: helpers puros (allowlist/ID) reais; só a rede é mock.
+  ...(await importOriginal()),
   listarContasAcessoPagina: (...a) => listarContasMock(...a),
   criarContaAcesso: (...a) => criarContaMock(...a),
   atualizarContaAcesso: vi.fn(),

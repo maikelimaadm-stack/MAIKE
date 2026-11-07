@@ -22,6 +22,8 @@ const COLUNAS_OK = [
   { table_name: 'CategoriaManejo', column_name: 'catalogo_categoria_visual_id' },
   { table_name: 'Lote', column_name: 'excluido_em' },
   { table_name: 'Lote', column_name: 'excluido_por_usuario_id' },
+  { table_name: 'Cliente', column_name: 'sessao_epoca' },
+  { table_name: 'Usuario', column_name: 'sessao_epoca' },
 ];
 const TABELAS_OK = TABELAS_PROTEGIDAS.map((tabela) => ({ tabela, rls: true }));
 const PAPEIS_OK = { clientes_com_usuario_ativo: 1, administradores_ativos: 1, clientes_sem_administrador: 0 };
@@ -49,6 +51,13 @@ test('PF-02 banco no estado atual de produção (sem as migrations da PR) → fa
   assert.match(r.falhas.join('\n'), /Usuario\.papel_tenant/);
   assert.match(r.falhas.join('\n'), /CategoriaManejo\.catalogo_categoria_visual_id/);
   assert.match(r.falhas.join('\n'), /tabelas ausentes: .*AdminPrincipalMaike/);
+});
+
+test('PF-02b S04-P1: sem as colunas sessao_epoca o runtime novo não pode subir → falha nomeando cada uma', () => {
+  const r = avaliarPreflight(pronto({ colunas: COLUNAS_OK.filter((c) => c.column_name !== 'sessao_epoca') }));
+  assert.equal(r.ok, false);
+  assert.match(r.falhas.join('\n'), /Cliente\.sessao_epoca/);
+  assert.match(r.falhas.join('\n'), /Usuario\.sessao_epoca/);
 });
 
 test('PF-03 migration com falha registrada (iniciada e não concluída) → falha', () => {

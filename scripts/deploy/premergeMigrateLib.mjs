@@ -32,6 +32,8 @@ export const MIGRATIONS_APROVADAS = Object.freeze({
   '20261103100000_rebanho_ledger_r1_manejos': 'fcab7bd9737408c4f2783161b1a95515b590e91924e4c91c3b1a9f68dc72feb1',
   // D-PROD-122 (S1/H1): Empresa.fuso_horario anulável, sem DEFAULT.
   '20261104200000_empresa_fuso_horario': 'bb2c1cb63cbc1324b6ab9c7d9141f51dfd2418374c8badb9cfe82fe3d4f29017',
+  // D-PROD-143 (S04-P1): Cliente/Usuario.sessao_epoca INTEGER anuláveis, sem DEFAULT.
+  '20261106200000_s04_p1_sessao_epoca': '52cb8de740a20cf020f82115422425063e09d0d1dc5da5e5b7dc416346a2646c',
 });
 /** Blocos DO auditados (RLS das tabelas novas): sha256 do corpo sem comentários e com espaços normalizados. */
 export const DO_RLS_APROVADOS = Object.freeze([

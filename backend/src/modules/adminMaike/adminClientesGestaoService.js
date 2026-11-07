@@ -17,10 +17,10 @@
  *    `papel_tenant`, e a empresa é criada depois pelo fluxo normal da fazenda;
  *  - suspender = `Cliente.ativo = false`. O login recusa cliente inativo e a
  *    guarda `autenticar` relê `cliente.ativo` a cada requisição, então tokens
- *    já emitidos ficam BLOQUEADOS enquanto o cliente estiver suspenso. Não é
- *    revogação: ao reativar, um token anterior ainda dentro da validade volta a
- *    funcionar (revogação permanente exige versão de sessão no banco, S04).
- *    Nada é apagado;
+ *    já emitidos ficam bloqueados. Desde o S04-P1 a suspensão também
+ *    incrementa `Cliente.sessao_epoca` no MESMO UPDATE condicional: todo token
+ *    emitido antes nunca mais vale, nem depois de reativar (novo login
+ *    obrigatório). Reativar não mexe na época. Nada é apagado;
  *  - toda escrita registra `EventoSegurancaAdminMaike` (ator = proprietário,
  *    request id, alvo, antes/depois) na MESMA transação. Não usa `AuditLog`
  *    do tenant: lá o ator é um usuário da fazenda, e o proprietário não é um.
@@ -33,6 +33,7 @@ import { adminError } from '../../shared/errors/AppError.js';
 import { gerarSenhaHash } from '../auth/authService.js';
 import { PAPEL_ADMIN_TENANT } from '../../shared/auth/exigirAdminTenant.js';
 import { registrarEventoSeguranca } from './adminService.js';
+import { epocaDe, revogarSessoesCliente } from '../../shared/auth/sessaoEpoca.js';
 
 /** 3–64 caracteres, minúsculas/dígitos/hífen, sem hífen nas pontas. */
 export const PADRAO_CODIGO = '^[a-z0-9][a-z0-9-]{1,62}[a-z0-9]$';
@@ -220,14 +221,23 @@ export const alterarSituacaoCliente = async (id, entrada, ctx) => {
   const ativo = entrada.ativo === true;
   const db = getPrismaClient();
   const cliente = await db.$transaction(async (tx) => {
-    const atual = await tx.cliente.findUnique({ where: { id }, select: SELECT_CLIENTE });
+    const atual = await tx.cliente.findUnique({ where: { id }, select: { ...SELECT_CLIENTE, sessao_epoca: true } });
     if (!atual) throw clienteNaoEncontrado();
     conferirRevisao(atual, ctx.revisao);
     // Mesma situação pedida = nada a fazer (inclui a corrida já decidida por outra sessão).
     if (atual.ativo === ativo) throw adminError('ADMIN_ENTRADA_INVALIDA', ativo ? 'o cliente já está ativo' : 'o cliente já está suspenso');
     // Condicional: duas suspensões simultâneas não registram dois eventos.
-    const r = await tx.cliente.updateMany({ where: { id, ativo: atual.ativo, nome: atual.nome, codigo: atual.codigo, updatedAt: atual.updatedAt }, data: { ativo } });
+    const r = await tx.cliente.updateMany({
+      where: { id, ativo: atual.ativo, nome: atual.nome, codigo: atual.codigo, updatedAt: atual.updatedAt },
+      data: { ativo },
+    });
     if (r.count !== 1) throw edicaoConcorrente();
+    // S04-P1: suspender avança a época das sessões da fazenda na MESMA
+    // transação (linha já travada pelo UPDATE acima); corrida perdida,
+    // conflito ou rollback da auditoria desfazem tudo junto. Reativar preserva
+    // a época: os tokens de antes continuam mortos.
+    const epocaAntes = epocaDe(atual.sessao_epoca);
+    const epocaDepois = ativo ? epocaAntes : await revogarSessoesCliente(tx, id);
     await registrarEventoSeguranca(
       {
         adminId: ctx.admin.id,
@@ -235,7 +245,12 @@ export const alterarSituacaoCliente = async (id, entrada, ctx) => {
         sucesso: true,
         ip: ctx.ip,
         requestId: ctx.requestId,
-        dados: { cliente_id: id, antes: { ativo: atual.ativo }, depois: { ativo }, justificativa: justificativa.slice(0, 500) },
+        dados: {
+          cliente_id: id,
+          antes: { ativo: atual.ativo, sessao_epoca: epocaAntes },
+          depois: { ativo, sessao_epoca: epocaDepois },
+          justificativa: justificativa.slice(0, 500),
+        },
       },
       tx
     );

@@ -45,6 +45,28 @@ export const construirAuthContext = (payload) => {
   return Object.freeze({ clienteId, usuarioId, login });
 };
 
+/** Teto de `Int` do PostgreSQL: a época nunca passa disso (overflow = falha fechada). */
+export const EPOCA_MAXIMA = 2147483647;
+
+const epocaValida = (v) => Number.isSafeInteger(v) && v >= 0 && v <= EPOCA_MAXIMA;
+
+/**
+ * Épocas de sessão do token (S04-P1). Sem as duas, ou com qualquer valor que
+ * não seja inteiro 0..2^31-1 (string, negativo, NaN, fração), o token é
+ * recusado: não há fallback para JWT antigo sem época.
+ *
+ * @param {Record<string, unknown> | null | undefined} payload
+ * @returns {{ cliente: number, usuario: number }}
+ */
+export const lerEpocasDaSessao = (payload) => {
+  const cliente = payload?.cliente_sessao_epoca;
+  const usuario = payload?.usuario_sessao_epoca;
+  if (!epocaValida(cliente) || !epocaValida(usuario)) {
+    throw tenantContextRequired('sessão sem época válida');
+  }
+  return { cliente: /** @type {number} */ (cliente), usuario: /** @type {number} */ (usuario) };
+};
+
 /**
  * Exige contexto autenticado.
  * @param {AuthContext | null | undefined} contexto

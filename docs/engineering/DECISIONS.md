@@ -5329,4 +5329,19 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
 - **Geometria:** B1Switch e ToggleSwitch usam as proporções 72:32 do trilho e 43:28 da peça oval do modelo. Escala mobile/tablet 49,5×22 px; desktop 45×20 px. Mantém o verde MAIKE, alvo de toque com 44 px, foco de teclado, estados bloqueados e movimento reduzido. Revoga apenas a geometria redonda da D-PROD-140. Campos do mapa: 36 px no mobile/tablet e 32 px no desktop; em duas colunas quando há espaço.
 - **Validação:** Chromium local com componentes reais em 320, 390, 768 e 1440 px: detalhes sem folha, menu de ações expansível, escolha de filtro aninhada, controles sem overflow, toggles ovalizados e movimento reduzido. Dados de exemplo, sem sessão de produção.
 
-<!-- Próxima decisão: D-PROD-143 -->
+## D-PROD-143 — Revogação durável das sessões de fazenda (MAIKE-SAAS-ADMIN-S04-P1)
+
+- **Contexto:** no S03 o mesmo JWT de fazenda voltava a valer depois de suspender e reativar o cliente (até 30 dias com "Manter conectado"). Desativar a conta ou trocar a senha também não derrubava os tokens já emitidos.
+- **Decisão:**
+  - **Duas épocas inteiras persistidas:** `Cliente.sessao_epoca` e `Usuario.sessao_epoca`, `INTEGER` anulável, sem DEFAULT (EXPAND dentro da allowlist D-PROD-107), migration `20261106200000_s04_p1_sessao_epoca`, pinada no manifesto do pré-merge. `NULL` vale 0. O único escritor é `COALESCE(sessao_epoca, 0) + 1`.
+  - **Login:** `/auth/login` grava as duas no JWT (`cliente_sessao_epoca`, `usuario_sessao_epoca`).
+  - **Guarda:** `app.autenticar` exige as duas iguais às do banco na mesma consulta única de revalidação. Claim ausente ou malformada = 401, sem fallback para token legado.
+  - **Suspender o cliente:** época do cliente +1 na mesma transação do UPDATE condicional e da auditoria. Reativar não mexe na época.
+  - **Conta:** troca de senha (própria, por administrador, `reset-password.mjs`), mudança de `ativo` ou de `papel_tenant` (`papel-tenant.mjs`, SQL 04) incrementam a época da conta, atomicamente.
+- **Consequências:**
+  - Todo token anterior à versão nova recebe 401 uma vez: logout global na implantação.
+  - Ordem de rollout obrigatória: migration → preflight → runtime.
+  - Offline: a revogação vale no servidor.
+- **Detalhes, provas e rollout:** `docs/engineering/MAIKE-SAAS-ADMIN-S04-P1-REVOGACAO-SESSOES.md`.
+
+<!-- Próxima decisão: D-PROD-144 -->
