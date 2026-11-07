@@ -196,23 +196,25 @@ input[type="checkbox"]:not(.mg-check__input) { accent-color: #32d65e; }
   }
 }
 
-/* O cinza dos painéis é sólido. O vidro fica nos botões de ação. */
+/* Botões de ação: branco sólido (D-PROD-147). Painéis flutuantes seguem o vidro acima. */
 :root {
-  --mk-btn-bg: rgba(255, 255, 255, .64);
-  --mk-btn-hover: rgba(255, 255, 255, .88);
-  --mk-control-glass-shadow: inset 0 1px 0 rgba(255, 255, 255, .95), 0 1px 3px rgba(15, 23, 42, .07), 0 4px 12px rgba(15, 23, 42, .035);
+  --mk-btn-bg: #ffffff;
+  --mk-btn-hover: var(--mk-sup-fundo, #f7f8fa);
+  --mk-btn-sombra: 0 1px 3px rgba(15, 23, 42, 0.1);
 }
 :is(.cadastro-b1, .b1ref, .mk-sheet, .mk-ll-dlg, .mk-mapa) {
-  --mk-btn-sombra: var(--mk-control-glass-shadow);
+  --mk-btn-sombra: 0 1px 3px rgba(15, 23, 42, 0.1);
+  --portal-acao-bg: var(--mk-btn-bg);
+  --portal-acao-hover: var(--mk-btn-hover);
 }
 :is(.mk-ui-button, .tb-btn, .mk-sheet__close, .mk-sheet__new, .mk-ll-dlg__redondo,
- .mk-map-panel-close, .mk-mhdr__round, .mg-rec-pager__btn):not(.is-active):not(.is-filter-on):not(.is-filter-active):not(#mk-padrao),
+ .mk-map-panel-close, .mk-mhdr__round, .mg-rec-pager__btn, .mk-mapa-btn, .mk-mapa-chip):not(.is-active):not(.is-filter-on):not(.is-filter-active):not(#mk-padrao),
 .mk-mhdr__back > span:not(#mk-padrao) {
   background: var(--mk-btn-bg) !important;
-  border: 1px solid rgba(255, 255, 255, .9);
-  box-shadow: var(--mk-control-glass-shadow) !important;
-  -webkit-backdrop-filter: blur(18px) saturate(140%);
-  backdrop-filter: blur(18px) saturate(140%);
+  border: 1px solid transparent;
+  box-shadow: var(--mk-btn-sombra) !important;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 .mk-ui-button:not(.text-destructive-foreground):not(.text-primary-foreground):not(#mk-padrao) { color: #334155; }
 .mk-ui-button.bg-primary:not(#mk-padrao) { color: #334155; }

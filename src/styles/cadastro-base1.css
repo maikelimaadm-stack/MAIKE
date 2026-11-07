@@ -123,12 +123,12 @@
 }
 
 .cadastro-b1 .tb-btn-gray {
-  background: var(--mg-gray-fill);
+  background: var(--mk-btn-bg, #ffffff);
   color: var(--mg-text-1);
 }
 
 .cadastro-b1 .tb-btn-gray:hover:not(:disabled) {
-  background: var(--mg-gray-fill2);
+  background: var(--mk-btn-hover, #f7f8fa);
 }
 
 .cadastro-b1 .tb-btn-red {

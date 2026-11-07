@@ -72,15 +72,15 @@
   padding: 0;
   border-radius: 999px;
   border: 1px solid transparent;
-  background: var(--mk-sup-fundo, #f7f8fa);
+  background: var(--mk-btn-bg, #ffffff);
   color: #475569;
   cursor: pointer;
-  box-shadow: 0 2px 6px rgba(34, 197, 94, 0.3);
+  box-shadow: var(--mk-btn-sombra, 0 1px 3px rgba(15, 23, 42, 0.1));
 }
 
 .b1ref .fpop-f .tb-btn-icon:not(.tb-btn-green):hover:not(:disabled),
 .b1ref:not(.b1-portal-compras) .fpop-f .tb-btn-icon:hover:not(:disabled) {
-  background: #e8ecef;
+  background: var(--mk-btn-hover, #f7f8fa);
   color: #0f172a;
 }
 

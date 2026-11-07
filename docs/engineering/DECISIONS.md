@@ -5434,4 +5434,11 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
   - **RS-12:** contrato da S04-P3 sem lista fechada de migrations futuras.
   - **Detalhes:** relatório §10.
 
-<!-- Próxima decisão: D-PROD-147 -->
+## D-PROD-147 — Botões de ação com fundo branco sólido
+
+- **Contexto:** o proprietário viu botões cinza/translúcidos e pediu fundo branco em todos.
+- **Causa:** `mk-unificado.css` tinha sobrescrito `--mk-btn-bg` para `rgba(255,255,255,.64)` com `backdrop-filter` ("vidro nos botões"), o que no fundo cinza da página parecia cinza.
+- **Decisão:** ações (`tb-btn`, pager, ✕/✓ das folhas, chips/botões do mapa, secundários de lançamento) usam `#ffffff` sólido, sombra suave `0 1px 3px rgba(15,23,42,.1)`, sem blur. Painéis flutuantes podem manter vidro. Hover volta ao cinza de página (`--mk-sup-fundo`). Reforça D-PROD-138 / D-PROD-141.
+- **Implementação:** `src/styles/mk-unificado.css`, com alinhamento em `cadastro-b1-portal.css`, `cadastro-b1-controls.css`, `cadastro-b1ref.css`, `maike-mobile-shell.css` e `lancamento-lote.css`.
+
+<!-- Próxima decisão: D-PROD-148 -->
