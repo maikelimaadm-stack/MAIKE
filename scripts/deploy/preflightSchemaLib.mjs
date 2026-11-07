@@ -41,6 +41,8 @@ export const COLUNAS_EXIGIDAS = Object.freeze([
   // MAIKE-SAAS-ADMIN-S04-P1: login e guarda leem as épocas de sessão.
   ['Cliente', 'sessao_epoca'],
   ['Usuario', 'sessao_epoca'],
+  // MAIKE-SAAS-ADMIN-S04-P2: login e guarda leem a troca obrigatória de senha.
+  ['Usuario', 'troca_senha_pendente'],
 ]);
 
 /**
@@ -51,7 +53,7 @@ export const CONSULTAS = Object.freeze({
   migrations: `SELECT migration_name, finished_at IS NOT NULL AS concluida, rolled_back_at IS NOT NULL AS revertida
                  FROM "_prisma_migrations"`,
   colunas: `SELECT table_name, column_name FROM information_schema.columns
-             WHERE table_schema = 'public' AND (table_name, column_name) IN (('Usuario','papel_tenant'),('CategoriaManejo','catalogo_categoria_visual_id'),('Lote','excluido_em'),('Lote','excluido_por_usuario_id'),('Cliente','sessao_epoca'),('Usuario','sessao_epoca'))`,
+             WHERE table_schema = 'public' AND (table_name, column_name) IN (('Usuario','papel_tenant'),('CategoriaManejo','catalogo_categoria_visual_id'),('Lote','excluido_em'),('Lote','excluido_por_usuario_id'),('Cliente','sessao_epoca'),('Usuario','sessao_epoca'),('Usuario','troca_senha_pendente'))`,
   tabelas: `SELECT c.relname AS tabela, c.relrowsecurity AS rls
               FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
              WHERE n.nspname = 'public' AND c.relkind = 'r' AND c.relname = ANY($1::text[])`,

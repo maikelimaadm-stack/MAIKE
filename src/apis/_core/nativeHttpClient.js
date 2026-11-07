@@ -181,7 +181,12 @@ const lerCorpo = async (resposta) => {
  * o MESMO controlador do transporte — o fetch E a leitura do corpo — e o
  * listener sai ao fim da chamada. Sem `signal`, nada muda.
  *
- * @param {{method?: 'GET'|'POST'|'PUT'|'PATCH'|'DELETE', body?: object|null, autenticado?: boolean, timeoutMs?: number, signal?: AbortSignal}} opcoes
+ * `tokenDeEtapa` (S04-P2): bearer de uma etapa restrita que NÃO é a sessão — o
+ * token da troca obrigatória de senha, que só vive em memória na fronteira de
+ * sessão (`nativeSessionApi`) e nunca vai para o armazenamento. Exclusivo com
+ * `autenticado`.
+ *
+ * @param {{method?: 'GET'|'POST'|'PUT'|'PATCH'|'DELETE', body?: object|null, autenticado?: boolean, tokenDeEtapa?: string, timeoutMs?: number, signal?: AbortSignal}} opcoes
  * @param {{operation: string, resource: string, details?: object}} contexto
  * @returns {Promise<unknown>}
  */
@@ -216,6 +221,8 @@ export const nativeRequest = async (caminho, opcoes, contexto) => {
       });
     }
     headers.Authorization = `Bearer ${token}`;
+  } else if (typeof opcoes.tokenDeEtapa === 'string' && opcoes.tokenDeEtapa) {
+    headers.Authorization = `Bearer ${opcoes.tokenDeEtapa}`;
   }
 
   // `AbortController` em vez de `AbortSignal.timeout`: o segundo só existe no
