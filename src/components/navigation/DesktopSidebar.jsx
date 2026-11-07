@@ -88,7 +88,7 @@ export default function DesktopSidebar({ items, currentPath, onNavigate, collaps
                 onMouseLeave={() => setMarcaEmHover(false)}
                 onFocus={() => setMarcaEmHover(true)}
                 onBlur={() => setMarcaEmHover(false)}
-                aria-label="Expandir menu"
+                aria-label="Mostrar menu principal"
                 className="relative grid h-[38px] w-[38px] place-items-center rounded-xl text-[#64748b] transition-colors hover:bg-[var(--mk-btn-ativo)] hover:text-[#292a2d]"
               >
                 <img
@@ -130,8 +130,8 @@ export default function DesktopSidebar({ items, currentPath, onNavigate, collaps
             <button
               type="button"
               onClick={onToggle}
-              aria-label="Recolher menu"
-              title="Recolher menu"
+              aria-label="Ocultar menu principal"
+              title="Ocultar menu principal"
               className="flex h-[33px] w-[33px] shrink-0 items-center justify-center rounded-[9px] text-[#64748b] transition-colors hover:bg-[var(--mk-btn-ativo)] hover:text-[#292a2d]"
             >
               <PanelLeft size={19} aria-hidden />

@@ -11,7 +11,7 @@ import {
   persistirEmpresaSelecionada as gravarEmpresaSelecionada,
 } from "@/hooks/useEmpresaSelecionadaId";
 import {
-  LogOut, Map, ChevronDown, ChevronLeft, Search, X, EyeOff, Eye,
+  LogOut, Map, ChevronDown, ChevronLeft, Search, X,
   Building2, Check, Droplet, Folder, LayoutGrid, Loader2 } from
 "lucide-react";
 import { useQuery } from "@tanstack/react-query";
@@ -613,25 +613,6 @@ function LayoutShell({ children, currentPageName }) {
                   </SelectContent>
                 </Select>
               }
-
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 hidden lg:inline-flex"
-                onClick={alternarMenu}
-                // Nome acessível vem do `title`, não de `aria-label`: o componente
-                // `Button` não declara tipos de prop, então qualquer prop nova
-                // gera um diagnóstico TS2322 inédito e reprova `gate:types`.
-                // `title` já fazia parte da forma existente e o accessible name
-                // computado é o mesmo (SHELL5/SHELL5b provam).
-                title={menuRecolhido ? "Mostrar menu principal" : "Ocultar menu principal"}>
-
-                {menuRecolhido ? <Eye className="w-4 h-4 text-slate-600" /> : <EyeOff className="w-4 h-4 text-slate-600" />}
-              </Button>
-
-              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSearchOpen(true)}>
-                <Search className="w-4 h-4 text-slate-600" />
-              </Button>
 
               {userMenu}
             </div>
