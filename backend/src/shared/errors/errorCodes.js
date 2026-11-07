@@ -414,6 +414,7 @@ export const BACKEND_ONLY_CODES = Object.freeze({
   ADMIN_CLIENTE_CODIGO_DUPLICADO: { http: 409, meaning: 'já existe cliente com este código' },
   ADMIN_LOGIN_DUPLICADO: { http: 409, meaning: 'login já usado por uma conta ativa (em qualquer cliente)' },
   ADMIN_CLIENTE_EDICAO_CONCORRENTE: { http: 409, meaning: 'cliente alterado em outra sessão depois da leitura (ficha ou requisição); nada foi gravado' },
+  ADMIN_USUARIO_EDICAO_CONCORRENTE: { http: 409, meaning: 'conta do usuário alterada depois da leitura da ficha (ou outra operação venceu a corrida); nada foi gravado' },
   ADMIN_REVISAO_REQUERIDA: { http: 428, meaning: 'If-Match com a revisão (ETag) da ficha ausente ou malformado' },
   CATALOGO_ASSET_INVALID: {
     http: 400,

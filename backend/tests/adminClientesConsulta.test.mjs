@@ -247,7 +247,8 @@ describe('lista e ficha', () => {
     const usuarios = (await get(`/admin-maike/clientes/${a.cliente.id}/usuarios`, headers)).json();
     assert.equal(usuarios.total, 2);
     assert.deepEqual(usuarios.items.map((u) => u.login).sort(), ['operador-fazenda-alfa', 'peao-alfa']);
-    for (const u of usuarios.items) assert.deepEqual(Object.keys(u).sort(), ['ativo', 'criado_em', 'id', 'login', 'nome']);
+    // S04-P3: + `revisao` opaca da conta (sem hash, senha, papel ou época crus).
+    for (const u of usuarios.items) assert.deepEqual(Object.keys(u).sort(), ['ativo', 'criado_em', 'id', 'login', 'nome', 'revisao']);
 
     const empresas = await get(`/admin-maike/clientes/${a.cliente.id}/empresas`, headers);
     assert.equal(empresas.statusCode, 200);

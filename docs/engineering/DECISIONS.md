@@ -5359,4 +5359,20 @@ Em cada cadeia: bloqueio antes do clique, exclusão do dependente, desbloqueio s
   - Sem convite por e-mail, sem recuperação de conta e sem reset público (S04-P3).
 - **Detalhes, provas e rollout:** `docs/engineering/MAIKE-SAAS-ADMIN-S04-P2-TROCA-SENHA-INICIAL.md`.
 
-<!-- Próxima decisão: D-PROD-145 -->
+## D-PROD-145 — Reemissão segura de senha temporária pelo MAIKE Admin (MAIKE-SAAS-ADMIN-S04-P3 PR01)
+
+- **Contexto:** depois do S04-P2, uma conta cuja senha temporária se perdeu (ou cuja senha precisa ser trocada à força) só se recuperava por script de banco (`reset-password.mjs`).
+- **Decisão:**
+  - **Rota:** `POST /admin-maike/clientes/:id/usuarios/:usuarioId/reemitir-senha`. Exige sessão do proprietário com MFA, Origin e CSRF da guarda existente, limite por IP e reautenticação de alto risco: senha atual + TOTP novo (`reautenticarAdmin`, extraída do `adminService` com o mesmo contrato).
+  - **Revisão otimista da CONTA:** `revisaoUsuario`, opaca, servida na listagem da ficha, vai em `If-Match` (ausente ou malformado → 428, obsoleto → 409 `ADMIN_USUARIO_EDICAO_CONCORRENTE`).
+  - **Senha:** gerada no servidor (CSPRNG do S03) e com hash bcrypt do `authService`.
+  - **Transação única:** CAS da linha (senha nova + `troca_senha_pendente = true`) + época da conta +1 (S04-P1) + `EventoSegurancaAdminMaike` sem segredo.
+  - **Resposta:** a senha volta uma vez, com no-store.
+  - **Sem migration.**
+- **Consequências:**
+  - A conta perde todas as sessões e, no próximo login, cai na troca obrigatória do S04-P2.
+  - Nenhum outro dado muda.
+  - O uso em produção depende do S02 (MAIKE Admin operacional).
+- **Detalhes:** `docs/engineering/MAIKE-SAAS-ADMIN-S04-P3-PR01-REEMISSAO-SENHA.md`.
+
+<!-- Próxima decisão: D-PROD-146 -->

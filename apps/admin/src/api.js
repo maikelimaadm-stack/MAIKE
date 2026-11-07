@@ -67,6 +67,8 @@ export const mensagemDeErro = (erro) => {
       return 'Já existe um cliente com esse código. Escolha outro.';
     case 'ADMIN_CLIENTE_EDICAO_CONCORRENTE':
       return 'O cliente foi alterado em outra sessão e nada foi salvo. Cancele, reabra a ficha para ver os dados atuais e revise antes de salvar de novo.';
+    case 'ADMIN_USUARIO_EDICAO_CONCORRENTE':
+      return 'A conta foi alterada depois que a lista foi lida e nada foi feito. Recarregamos a lista: confira o usuário e, se ainda precisar, comece de novo.';
     case 'ADMIN_REVISAO_REQUERIDA':
       return 'Não foi possível confirmar a versão da ficha. Feche e reabra a ficha antes de alterar.';
     case 'ADMIN_LOGIN_DUPLICADO':
@@ -166,6 +168,13 @@ export const api = {
   editarCliente: (id, dados, revisao) => chamar(`/admin-maike/clientes/${encodeURIComponent(id)}`, { method: 'PATCH', body: dados, revisao }),
   alterarSituacaoCliente: (id, dados, revisao) =>
     chamar(`/admin-maike/clientes/${encodeURIComponent(id)}/situacao`, { method: 'POST', body: dados, revisao }),
+  // S04-P3: a nova senha temporária só vem nesta resposta; `revisao` = revisão DA CONTA (listagem).
+  reemitirSenhaUsuario: (clienteId, usuarioId, dados, revisao) =>
+    chamar(`/admin-maike/clientes/${encodeURIComponent(clienteId)}/usuarios/${encodeURIComponent(usuarioId)}/reemitir-senha`, {
+      method: 'POST',
+      body: dados,
+      revisao,
+    }),
 
   // ─── Catálogo ────────────────────────────────────────────────────────────
   catalogo: () => chamar('/admin-maike/catalogo'),
