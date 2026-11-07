@@ -39,6 +39,14 @@
   background: var(--mk-sup-fundo);
 }
 
+/* No desktop a faixa principal é branca, igual ao menu lateral e ao botão de
+   usuário — os cartões e a tabela seguem brancos por cima. */
+@media (min-width: 1024px) {
+  .cadastro-b1.cadastro-b1--full-page:not(#mk-padrao) {
+    background: var(--mk-sup-cartao);
+  }
+}
+
 /* ── Botões: brancos com sombra suave ─────────────────────────────────── */
 :is(.tb-btn, .mg-rec-pager__btn, .mk-sheet__close, .mk-sheet__new, .mk-mhdr__round):not(.is-filter-on):not(.is-filter-active):not(#mk-padrao),
 .mk-mhdr__back > span:not(#mk-padrao) {
