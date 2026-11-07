@@ -8,7 +8,7 @@
   min-width: 0;
   padding: 8px;
   box-sizing: border-box;
-  background: #f0f2f5;
+  background: var(--mk-sup-fundo, #f7f8fa);
 }
 
 .cadastro-b1__page-title {
@@ -47,9 +47,9 @@
   --mg-text-1: #334155;
   --mg-text-2: #6b7280;
   --mg-text-3: #9ca3af;
-  --mg-bg-page: #f0f2f5;
+  --mg-bg-page: var(--mk-sup-fundo, #f7f8fa);
   --mg-bg-card: #ffffff;
-  --mg-gray-fill: #f1f3f4;
+  --mg-gray-fill: var(--mk-sup-fundo, #f7f8fa);
   --mg-gray-fill2: #e5e7eb;
   --mg-divider: #e7eaee;
   --mg-container-border: 1px solid #e7eaee;
@@ -613,7 +613,7 @@
   gap: var(--mg-btn-gap, 8px);
   padding: 7px 8px;
   border-top: 1px solid #f1f4f6;
-  background: #fbfcfd;
+  background: var(--mk-sup-fundo, #f7f8fa);
 }
 
 .cadastro-b1 .mg-search-pill {
@@ -799,7 +799,7 @@
 .cadastro-b1 .mg-grid tfoot td {
   position: sticky;
   bottom: 0;
-  background: #f8fafc;
+  background: var(--mk-sup-fundo, #f7f8fa);
   z-index: 3;
 }
 
@@ -1184,7 +1184,7 @@
 }
 
 .cadastro-b1 .mg-field--disabled {
-  background: #f6f8fa;
+  background: var(--mk-sup-fundo, #f7f8fa);
   border-color: transparent;
   box-shadow: none;
   pointer-events: none;
@@ -1994,7 +1994,7 @@
 }
 
 .cadastro-b1 .fchip-lim:hover {
-  background: #f4f6f7;
+  background: var(--mk-sup-fundo, #f7f8fa);
   color: var(--mg-text-1);
 }
 
@@ -2176,7 +2176,7 @@
 
 .cadastro-b1 .b1-panel-list__tab:hover {
   color: #3b4e63;
-  background: #f3f6fa;
+  background: var(--mk-sup-fundo, #f7f8fa);
 }
 
 .cadastro-b1 .b1-panel-list__tab.is-active {

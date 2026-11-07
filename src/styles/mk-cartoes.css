@@ -1,0 +1,40 @@
+/* Cartões brancos com o mesmo acabamento do Detalhes de Lotes.
+   Reproduz a sombra dos detalhes, inclusive o ajuste do desktop. */
+:root {
+  --mk-sup-raio: 12px;
+  --mk-cartao-sombra: 0 1px 3px rgba(15, 23, 42, 0.1);
+}
+@media (min-width: 1024px) {
+  :root { --mk-cartao-sombra: 0 1px 3px rgba(0, 0, 0, 0.05), 0 2px 8px rgba(0, 0, 0, 0.025); }
+}
+
+:is(
+  .mk-dl__cartao,
+  .cadastro-b1 .mg-shell--join-table > .mg-shell__body,
+  .cadastro-b1 .mg-shell--join-table > .mg-form-scroll,
+  .cadastro-b1 .mg-shell--join-table > .mg-summary,
+  .mk-ll__item,
+  .mk-ll__seg,
+  .mk-hist__lista > *,
+  .mk-mapa-card,
+  .mk-map-legend,
+  .mk-map-filter-section,
+  .mk-vis__lista,
+  .fpc__lista,
+  .b1ref .fpop-l,
+  .mk-co__list,
+  .mgs__lista,
+  .mk-sel-lista,
+  .mk-config-options,
+  .mk-colcfg__lista,
+  .mk-config-dialog .dbox-l
+):not(#mk-padrao),
+.cadastro-b1 .b1-card:not(.is-selected):not(#mk-padrao),
+.cadastro-b1 .b1-card:not(.is-selected):hover:not(#mk-padrao) {
+  border: 0;
+  border-radius: 12px;
+  box-shadow: var(--mk-cartao-sombra);
+}
+
+/* A seleção conserva sua borda e seu anel de destaque. */
+.cadastro-b1 .b1-card.is-selected:not(#mk-padrao) { border-radius: 12px; }

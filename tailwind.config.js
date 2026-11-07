@@ -4,6 +4,13 @@ module.exports = {
     content: ["./index.html", "./src/**/*.{ts,tsx,js,jsx}"],
   theme: {
   	extend: {
+      // Somente fundos neutros; textos e bordas preservam a paleta original.
+      backgroundColor: Object.fromEntries(
+        ['gray', 'slate', 'zinc', 'neutral', 'stone'].map((family) => [family, {
+          50: 'var(--mk-sup-fundo, #f7f8fa)',
+          100: 'var(--mk-sup-fundo, #f7f8fa)',
+        }])
+      ),
   		borderRadius: {
   			lg: 'var(--radius)',
   			md: 'calc(var(--radius) - 2px)',

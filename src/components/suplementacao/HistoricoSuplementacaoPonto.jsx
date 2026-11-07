@@ -123,7 +123,7 @@ export default function HistoricoSuplementacaoPonto({ pontoId, pontoNome, ponto 
 
   return (
     <div className="space-y-3">
-      <Card className="border-slate-200 shadow-sm">
+      <Card className="mk-hist border-slate-200 shadow-sm">
         <CardHeader className="bg-slate-50 border-b py-3 px-3">
           <CardTitle className="text-sm font-semibold">Histórico do Cocho ({eventos.length})</CardTitle>
         </CardHeader>

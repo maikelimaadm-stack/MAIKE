@@ -641,7 +641,7 @@ export default function FormularioLote({
         ) : null}
 
 
-        <div className="flex-1 min-h-0 overflow-y-auto pb-6 pr-2" style={{ scrollbarWidth: "thin", scrollbarColor: "#cbd5e1 transparent" }}>
+        <div className="flex-1 min-h-0 overflow-y-auto pb-6 pr-2">
           {isEditing && !isDuplicating && correcaoEntrada ? (
             <div
               role="status"
