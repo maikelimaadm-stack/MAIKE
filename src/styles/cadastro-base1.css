@@ -613,7 +613,7 @@
   gap: var(--mg-btn-gap, 8px);
   padding: 7px 8px;
   border-top: 1px solid #f1f4f6;
-  background: #fbfcfd;
+  background: var(--mk-sup-fundo, #f7f8fa);
 }
 
 .cadastro-b1 .mg-search-pill {
@@ -1184,7 +1184,7 @@
 }
 
 .cadastro-b1 .mg-field--disabled {
-  background: #f6f8fa;
+  background: var(--mk-sup-fundo, #f7f8fa);
   border-color: transparent;
   box-shadow: none;
   pointer-events: none;
@@ -1994,7 +1994,7 @@
 }
 
 .cadastro-b1 .fchip-lim:hover {
-  background: #f4f6f7;
+  background: var(--mk-sup-fundo, #f7f8fa);
   color: var(--mg-text-1);
 }
 
@@ -2176,7 +2176,7 @@
 
 .cadastro-b1 .b1-panel-list__tab:hover {
   color: #3b4e63;
-  background: #f3f6fa;
+  background: var(--mk-sup-fundo, #f7f8fa);
 }
 
 .cadastro-b1 .b1-panel-list__tab.is-active {

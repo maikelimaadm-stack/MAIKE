@@ -442,7 +442,7 @@
   gap: 8px;
   padding: 8px 12px;
   border-top: 1px solid #f1f4f6;
-  background: #fbfcfd;
+  background: var(--mk-sup-fundo, #f7f8fa);
 }
 
 /* Trocar empresa */
@@ -1854,7 +1854,7 @@ form:has(.mk-lanc) button[class*="border-dashed"] {
  */
 .mk-sheet {
   border-radius: 36px 36px 0 0;
-  background: #f8f8f6;
+  background: var(--mk-sup-fundo, #f7f8fa);
   color: #1f1f1f;
 }
 
@@ -2104,7 +2104,7 @@ form:has(.mk-lanc) button[class*="border-dashed"] {
 @media (max-width: 639px) {
   .mk-select {
     border-radius: 36px 36px 0 0 !important;
-    background: #f8f8f6 !important;
+    background: var(--mk-sup-fundo, #f7f8fa) !important;
   }
 
   .mk-select::before {
@@ -2138,7 +2138,7 @@ form:has(.mk-lanc) button[class*="border-dashed"] {
   }
 
   .mk-select .mk-select-item[data-highlighted] {
-    background: #f1f1ee;
+    background: var(--mk-sup-fundo, #f7f8fa);
   }
 
   .mk-select .mk-select-item > span:first-child {
@@ -2347,7 +2347,7 @@ form:has(.mk-lanc) button[class*="border-dashed"] {
 .mk-sheet .fpc__item:active,
 .mk-sheet .mg-b1-menuitem:active,
 .mk-sheet .mk-co__item:active {
-  background: #f1f1ee;
+  background: var(--mk-sup-fundo, #f7f8fa);
 }
 
 .mk-sheet .mgs__op.is-on,
@@ -3341,7 +3341,7 @@ button.mk-switch[data-state="checked"]:active:not(:disabled):not(#mk-padrao) .mk
 }
 
 .mk-colcfg__ordem button:active:not(:disabled) {
-  background: #f1f1ee;
+  background: var(--mk-sup-fundo, #f7f8fa);
 }
 
 .mk-colcfg__ordem button:disabled {

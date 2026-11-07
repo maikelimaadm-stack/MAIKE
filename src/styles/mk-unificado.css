@@ -233,3 +233,74 @@ input[type="checkbox"]:not(.mg-check__input) { accent-color: #32d65e; }
 .cadastro-b1 .mg-toolbar .tb-btn:not(.is-active):not(.is-filter-on):not(.is-filter-active):not(#mk-padrao) {
   background: var(--mk-btn-bg) !important;
 }
+
+/* Visto branco garantido, sem depender da cor nativa do navegador. */
+input[type="checkbox"]:not(.mg-check__input):not(.sr-only) {
+  -webkit-appearance: none;
+  appearance: none;
+  box-sizing: border-box;
+  display: inline-block;
+  flex: 0 0 14px;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  margin: 0;
+  border: 1px solid #cbd5e1;
+  border-radius: 3px;
+  background: #fff;
+  vertical-align: middle;
+}
+input[type="checkbox"]:not(.mg-check__input):not(.sr-only):checked {
+  border-color: #32d65e;
+  background: #32d65e url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='m2 6 3 3 5-6' fill='none' stroke='white' stroke-width='2'/%3E%3C/svg%3E") center/10px 10px no-repeat;
+}
+input[type="checkbox"]:not(.mg-check__input):not(.sr-only):indeterminate {
+  border-color: #32d65e;
+  background: #32d65e url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2 6h8' stroke='white' stroke-width='2'/%3E%3C/svg%3E") center/10px 10px no-repeat;
+}
+input[type="checkbox"]:focus-visible { outline: 2px solid #5acbe9; outline-offset: 2px; }
+:is(.b1ref .chk.on, .b1ref .chk.parte, .mg-check.is-checked, button[role="checkbox"][data-state="checked"]) svg {
+  color: #fff !important;
+  stroke: #fff !important;
+}
+:is(.chk, .mg-check, .mg-b1-check):not(#mk-padrao) { box-sizing: border-box; line-height: 1; overflow: visible; }
+
+/* Folga para a sombra não ser recortada pelo contêiner da barra. */
+.cadastro-b1 .mg-toolbar--responsive .mg-toolbar__row:not(#mk-padrao) {
+  box-sizing: border-box;
+  height: auto;
+  min-height: 48px;
+  padding-top: 4px;
+  padding-bottom: 8px;
+}
+.cadastro-b1 .mg-fluid-slot.is-open:not(#mk-padrao),
+.cadastro-b1 .mg-fluid-slot.is-open > .mg-fluid-slot__inner:not(#mk-padrao) { overflow: visible; }
+
+/* Título no centro da janela, com os dois lados de mesma largura. */
+.mk-map-filter-sheet .mk-map-filter-header:not(#mk-padrao),
+.mk-sheet .mk-sheet__head:not(#mk-padrao) {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) 36px;
+  align-items: center;
+  gap: 8px;
+}
+.mk-map-filter-header h2:not(#mk-padrao),
+.mk-sheet__title:not(#mk-padrao) {
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mk-sheet__action:not(#mk-padrao), .mk-sheet__close-gap:not(#mk-padrao) { width: 36px; justify-self: end; }
+@media (max-width: 1023px) {
+  .mk-ll-dlg .mk-ll-dlg__head:not(#mk-padrao) {
+    display: grid;
+    grid-template-columns: 36px minmax(0, 1fr) 36px;
+    align-items: center;
+    gap: 8px;
+  }
+  .mk-ll-dlg__txt:not(#mk-padrao), .mk-ll-dlg__titulo:not(#mk-padrao) { text-align: center; }
+  .mk-ll-dlg__slot:not(#mk-padrao) { min-width: 0; width: 36px; }
+}

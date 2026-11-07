@@ -104,7 +104,7 @@
 }
 
 .mg-toast__close:hover {
-  background: #f1f5f9;
+  background: var(--mk-sup-fundo, #f7f8fa);
   color: #475569;
 }
 
@@ -151,7 +151,7 @@
   gap: 8px;
   padding: 11px 14px;
   border-top: 1px solid #f1f4f6;
-  background: #fbfcfd;
+  background: var(--mk-sup-fundo, #f7f8fa);
 }
 
 .mg-confirm-dialog .mg-confirm-dialog__f .tb-btn-gray {
@@ -280,7 +280,7 @@
   gap: 8px;
   padding: 11px 14px;
   border-top: 1px solid #f1f4f6;
-  background: #fbfcfd;
+  background: var(--mk-sup-fundo, #f7f8fa);
 }
 
 .mg-alerta__botao {
