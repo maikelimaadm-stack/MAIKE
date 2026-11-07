@@ -137,16 +137,25 @@ function LayoutShell({ children, currentPageName }) {
     localStorage.setItem('menu_oculto', novoEstado.toString());
   };
 
-  // Ctrl/Cmd + K abre a busca de telas — o mesmo atalho mostrado no menu lateral.
+  // Ctrl/Cmd + K abre a busca de telas; Ctrl/Cmd + Shift + S recolhe/expande o
+  // menu lateral — os mesmos atalhos mostrados no tooltip dos ícones.
   useEffect(() => {
     const aoTeclar = (event) => {
-      if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== 'k') return;
-      event.preventDefault();
-      setSearchOpen(true);
+      if (!(event.ctrlKey || event.metaKey)) return;
+      const tecla = event.key.toLowerCase();
+      if (tecla === 'k') {
+        event.preventDefault();
+        setSearchOpen(true);
+        return;
+      }
+      if (tecla === 's' && event.shiftKey) {
+        event.preventDefault();
+        alternarMenu();
+      }
     };
     window.addEventListener('keydown', aoTeclar);
     return () => window.removeEventListener('keydown', aoTeclar);
-  }, []);
+  }, [menuRecolhido]);
 
   // Enter = Tab nos formulários, teclado numérico nos campos de número (D-PROD-95).
   React.useEffect(() => instalarTecladoDoFormulario(), []);

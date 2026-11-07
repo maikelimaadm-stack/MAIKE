@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { ChevronDown, ChevronRight, Folder, Home, PanelLeft, Search } from "lucide-react";
 import { createPageUrl } from "@/utils";
 import { ICONE_MODULO } from "@/components/navigation/MobileModulesView";
+import SidebarTooltip from "@/components/navigation/SidebarTooltip";
 
 /** Ícone de cada módulo — o mesmo mapa da tela de Módulos do celular. */
 const ICONE_DO_MODULO = /** @type {Record<string, React.ComponentType<any>>} */ (ICONE_MODULO);
@@ -94,47 +95,51 @@ export default function DesktopSidebar({ items, currentPath, onNavigate, collaps
         </div>
         {collapsed ? (
           <div className="mt-1 flex justify-center">
-            <button
-              type="button"
-              onClick={onToggle}
-              aria-label="Expandir menu"
-              title="Expandir menu"
-              className="flex h-[33px] w-[33px] items-center justify-center rounded-[9px] text-[#64748b] transition-colors hover:bg-[var(--mk-btn-ativo)] hover:text-[#292a2d]"
-            >
-              <ChevronRight size={18} aria-hidden />
-            </button>
+            <SidebarTooltip label="Expandir menu" atalhos={["Ctrl", "Shift", "S"]}>
+              <button
+                type="button"
+                onClick={onToggle}
+                aria-label="Expandir menu"
+                className="flex h-[33px] w-[33px] items-center justify-center rounded-[9px] text-[#64748b] transition-colors hover:bg-[var(--mk-btn-ativo)] hover:text-[#292a2d]"
+              >
+                <ChevronRight size={18} aria-hidden />
+              </button>
+            </SidebarTooltip>
           </div>
         ) : null}
       </div>
 
       {/* Atalhos */}
       <div className={`flex flex-col gap-1 border-b border-[var(--mk-sup-borda)] pb-3 pt-4 ${collapsed ? "px-2.5" : "px-3"}`}>
-        <Link
-          to={createPageUrl(PAGINA_INICIAL)}
-          onClick={(event) => onNavigate(event, createPageUrl(PAGINA_INICIAL))}
-          title="Início"
-          aria-current={inicioAtivo ? "page" : undefined}
-          className={`${ITEM_BASE} ${inicioAtivo ? ITEM_ATIVO : "text-[#292a2d]"} ${collapsed ? "justify-center px-0" : ""}`}
-        >
-          <Home size={19} className={inicioAtivo ? "shrink-0 text-[#16a34a]" : ICONE_ITEM} aria-hidden />
-          {collapsed ? null : <span className="truncate text-[12.5px]">Início</span>}
-        </Link>
-        <button
-          type="button"
-          onClick={onSearch}
-          title="Pesquisar telas"
-          className={`${ITEM_BASE} text-[#292a2d] ${collapsed ? "justify-center px-0" : ""}`}
-        >
-          <Search size={19} className={ICONE_ITEM} aria-hidden />
-          {collapsed ? null : (
-            <>
-              <span className="truncate text-[12.5px]">Pesquisar telas</span>
-              <kbd className="ml-auto rounded-[5px] border border-[var(--mk-sup-borda)] px-[5px] py-0.5 text-[10px] text-[#64748b]">
-                Ctrl K
-              </kbd>
-            </>
-          )}
-        </button>
+        <SidebarTooltip label="Início" ativo={collapsed}>
+          <Link
+            to={createPageUrl(PAGINA_INICIAL)}
+            onClick={(event) => onNavigate(event, createPageUrl(PAGINA_INICIAL))}
+            aria-current={inicioAtivo ? "page" : undefined}
+            className={`${ITEM_BASE} ${inicioAtivo ? ITEM_ATIVO : "text-[#292a2d]"} ${collapsed ? "justify-center px-0" : ""}`}
+          >
+            <Home size={19} className={inicioAtivo ? "shrink-0 text-[#16a34a]" : ICONE_ITEM} aria-hidden />
+            {collapsed ? null : <span className="truncate text-[12.5px]">Início</span>}
+          </Link>
+        </SidebarTooltip>
+        <SidebarTooltip label="Pesquisar telas" atalhos={["Ctrl", "K"]} ativo={collapsed}>
+          <button
+            type="button"
+            onClick={onSearch}
+            className={`${ITEM_BASE} text-[#292a2d] ${collapsed ? "justify-center px-0" : ""}`}
+            aria-label={collapsed ? "Pesquisar telas" : undefined}
+          >
+            <Search size={19} className={ICONE_ITEM} aria-hidden />
+            {collapsed ? null : (
+              <>
+                <span className="truncate text-[12.5px]">Pesquisar telas</span>
+                <kbd className="ml-auto rounded-[5px] border border-[var(--mk-sup-borda)] px-[5px] py-0.5 text-[10px] text-[#64748b]">
+                  Ctrl K
+                </kbd>
+              </>
+            )}
+          </button>
+        </SidebarTooltip>
       </div>
 
       {/* Módulos */}
@@ -150,7 +155,7 @@ export default function DesktopSidebar({ items, currentPath, onNavigate, collaps
 
             if (collapsed) {
               return (
-                <div key={item.id} className="group relative">
+                <SidebarTooltip key={item.id} label={item.title}>
                   <button
                     type="button"
                     onClick={() => {
@@ -158,7 +163,6 @@ export default function DesktopSidebar({ items, currentPath, onNavigate, collaps
                       onToggle();
                     }}
                     aria-label={`Abrir menu ${item.title}`}
-                    title={item.title}
                     className={`flex h-11 w-11 items-center justify-center rounded-[9px] transition-colors ${
                       atual
                         ? "bg-[rgba(64,222,99,0.14)] text-[#16a34a]"
@@ -167,32 +171,7 @@ export default function DesktopSidebar({ items, currentPath, onNavigate, collaps
                   >
                     <Icon size={20} aria-hidden />
                   </button>
-                  <div className="absolute left-full top-0 z-50 hidden pl-2 group-hover:block group-focus-within:block">
-                    <div className="w-56 rounded-xl border border-[var(--mk-sup-borda)] bg-[var(--mk-sup-cartao)] p-1.5 shadow-[0_12px_36px_rgba(15,23,42,.08)]">
-                      <div className="px-[11px] pb-2 pt-2 text-[11px] font-semibold text-[#64748b]">{item.title}</div>
-                      {telas.map((page) => {
-                        const ativo = paginaAtual(page);
-                        return (
-                          <Link
-                            key={page.id}
-                            to={createPageUrl(page.url)}
-                            onClick={(event) => onNavigate(event, createPageUrl(page.url))}
-                            aria-current={ativo ? "page" : undefined}
-                            className={`relative flex h-[34px] items-center rounded-lg pl-[26px] pr-3 text-[12.5px] transition-colors hover:bg-[var(--mk-btn-ativo)] ${
-                              ativo ? "font-semibold text-[#16a34a]" : "text-[#64748b]"
-                            }`}
-                          >
-                            <span
-                              className={`absolute left-3.5 h-1 w-1 rounded-full ${ativo ? "bg-[#16a34a]" : "bg-current opacity-55"}`}
-                              aria-hidden
-                            />
-                            <span className="truncate">{page.title}</span>
-                          </Link>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
+                </SidebarTooltip>
               );
             }
 
