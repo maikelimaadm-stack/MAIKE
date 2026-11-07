@@ -13,6 +13,7 @@
 @import "./styles/mk-mapa-superficie.css";
 @import "./styles/mk-cartoes.css";
 @import "./styles/mk-unificado.css";
+@import "./styles/mk-topnav.css";
 
 @tailwind base;
 @tailwind components;

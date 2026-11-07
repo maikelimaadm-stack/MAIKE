@@ -482,7 +482,7 @@ function LayoutShell({ children, currentPageName }) {
         .safe-area-top { padding-top: env(safe-area-inset-top); }
         .safe-area-bottom { padding-bottom: env(safe-area-inset-bottom); }
       `}</style>
-      <header className={`bg-white flex-none relative z-30 ${mobileHeaderBorder ? "border-b border-slate-200" : "border-b border-slate-200 max-md:border-b-0"}`}>
+      <header className={`mk-topnav-header bg-white flex-none relative z-30 ${mobileHeaderBorder ? "border-b border-slate-200" : "border-b border-slate-200 max-md:border-b-0"}`}>
         {mobileRecord?.editing ?
         // Registro em edição/novo: cabeçalho como as folhas — ✕ descartar, título, ✓ salvar (D-PROD-95).
         <div className="mk-mhdr mk-mhdr--edit md:hidden">
@@ -614,7 +614,7 @@ function LayoutShell({ children, currentPageName }) {
 
       <nav
         aria-label="Módulos"
-        className={`flex-none bg-white border-b border-slate-200 shadow-sm transition-all duration-300 hidden lg:block ${menuOculto ? 'lg:h-0 lg:overflow-hidden lg:border-0 lg:py-0' : ''}`}>
+        className={`mk-topnav flex-none bg-white transition-all duration-300 hidden lg:block ${menuOculto ? 'lg:h-0 lg:overflow-hidden lg:border-0 lg:py-0' : ''}`}>
         <div className="max-w-[1600px] mx-auto px-4">
           <div className="flex items-center gap-0.5 h-10">
             <div className="hidden lg:flex items-center gap-0.5">
@@ -624,18 +624,10 @@ function LayoutShell({ children, currentPageName }) {
                 if (item.submenu) {
                   return (
                     <div key={item.id} className="relative group">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className={`h-8 px-2.5 gap-1 text-xs font-medium rounded ${
-                        active ?
-                        'bg-emerald-600 text-white hover:bg-emerald-700' :
-                        'text-slate-700 hover:text-slate-900 hover:bg-slate-100'}`
-                        }>
-
+                      <button type="button" className="mk-topnav-item" data-active={active} aria-haspopup="true">
                         {item.title}
                         <ChevronDown className="w-3 h-3 opacity-50" />
-                      </Button>
+                      </button>
 
                       <div className="absolute left-0 mt-1 w-52 bg-white rounded-md shadow-lg border border-slate-200 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
                         <div className="py-1">
@@ -663,22 +655,13 @@ function LayoutShell({ children, currentPageName }) {
                 }
 
                 return (
-                  <Button
-                    key={item.id}
-                    asChild
-                    variant="ghost"
-                    size="sm"
-                    className={`h-8 px-2.5 gap-1 text-xs font-medium rounded ${
-                    active ?
-                    'bg-emerald-600 text-white hover:bg-emerald-700' :
-                    'text-slate-700 hover:text-slate-900 hover:bg-slate-100'}`
-                    }>
-                    <Link
-                      to={createPageUrl(item.url)}
-                      onClick={(e) => aoClicarMenu(e, createPageUrl(item.url))}>
-                      {item.title}
-                    </Link>
-                  </Button>);
+                  <Link key={item.id} to={createPageUrl(item.url)}
+                    onClick={(e) => aoClicarMenu(e, createPageUrl(item.url))}
+                    className="mk-topnav-item" data-active={active}
+                    aria-current={active ? 'page' : undefined}>
+                    {item.title}
+                  </Link>);
+
 
               })}
             </div>
