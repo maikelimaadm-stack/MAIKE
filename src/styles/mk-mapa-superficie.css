@@ -374,8 +374,7 @@ button[data-mk-map-action]:is([class*="bg-amber"], [class*="bg-yellow"]):not(#mk
   .mk-map-filters--clean .mk-map-layer-row:not(#mk-padrao) { min-height: 38px; height: auto; }
 }
 
-/* Mobile: densidade menor no painel lateral, sem alterar o desktop. */
-@media (max-width: 639px) {
+/* Densidade compacta compartilhada entre celular, tablet e desktop. */
   .mk-map-filter-sheet {
     --mk-toggle-w: 40.5px;
     --mk-toggle-h: 18px;
@@ -409,4 +408,34 @@ button[data-mk-map-action]:is([class*="bg-amber"], [class*="bg-yellow"]):not(#mk
     font-size: 11px !important;
   }
   .mk-map-filters--clean button[role="combobox"] > svg { width: 12px; height: 12px; }
+
+/* Visualização acompanha os mesmos tamanhos de Filtros e Camadas. */
+.mk-vis {
+  --mk-toggle-w: 40.5px;
+  --mk-toggle-h: 18px;
 }
+.mk-vis .mk-vis__titulo:not(#mk-padrao) {
+  font-size: 11px !important;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: none;
+  margin-bottom: 6px;
+}
+.mk-vis .mk-vis__secao + .mk-vis__secao { margin-top: 12px; }
+.mk-vis :is(.mk-vis__seg-op, .mk-vis__chip):not(#mk-padrao) {
+  height: 28px;
+  min-height: 28px;
+  padding: 0 8px;
+  font-size: 11px !important;
+  gap: 5px;
+}
+.mk-vis .mk-vis__linha:not(#mk-padrao) {
+  height: 38px;
+  min-height: 38px;
+  padding: 7px 10px;
+  font-size: 11px !important;
+  gap: 8px;
+}
+.mk-vis .mk-vis__linha-txt { font-size: 11px !important; }
+.mk-vis .mk-vis__linha-ic { width: 14px; height: 14px; }
+.mk-vis .mk-vis__ico { width: 14px; height: 10px; }
