@@ -84,3 +84,15 @@ para emergência com revisão.
 - Bootstrap de usuário: `npm run auth:bootstrap:local` ( **não** roda em
   `NODE_ENV=production` ).
 - RLS permanece desligado até **P8** — ver `P8-HARDENING-CHECKLIST.md`.
+
+## Seed local — lotes no mapa e no cadastro
+
+Para popular **vários lotes com pastos** no ambiente local (visíveis no Mapa
+Geral e em Cadastro de Lotes), use a API nativa (abre `PosicaoRebanho`):
+
+```bash
+DEMO_LOGIN=demo DEMO_SENHA=demo npm run ops:seed-demo-lotes-mapa
+```
+
+Cria (idempotente): fazenda `DEMO`, setor, 6 pastos com polígono e 12 lotes
+ativos espalhados. Recusado com `NODE_ENV=production`.

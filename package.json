@@ -22,6 +22,7 @@
     "auth:bootstrap:local": "node scripts/auth/bootstrap-local.mjs",
     "auth:reset-password": "node scripts/auth/reset-password.mjs",
     "ops:seed-demo-tenant": "node scripts/ops/seed-demo-tenant.mjs",
+    "ops:seed-demo-lotes-mapa": "node scripts/ops/seed-demo-lotes-mapa.mjs",
     "db:up": "docker compose up -d db",
     "db:down": "docker compose down",
     "prisma:generate": "prisma generate --schema backend/prisma/schema.prisma",
