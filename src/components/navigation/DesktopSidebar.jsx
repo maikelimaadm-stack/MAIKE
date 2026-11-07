@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { ChevronDown, ChevronRight, Folder, Home, PanelLeft, Search } from "lucide-react";
+import { ChevronDown, Folder, Home, PanelLeft, PanelRight, Search } from "lucide-react";
 import { createPageUrl } from "@/utils";
 import { ICONE_MODULO } from "@/components/navigation/MobileModulesView";
 import SidebarTooltip from "@/components/navigation/SidebarTooltip";
@@ -26,10 +26,10 @@ const ICONE_ITEM = "h-[19px] w-[19px] shrink-0 text-[#64748b]";
 
 /**
  * Menu lateral do desktop (lg+), no estilo do protótipo "inspirado no ChatGPT":
- * marca no topo, atalhos (Início/Pesquisar), módulos em acordeão e faixa de
- * ícones quando recolhido — usando as cores do sistema.
+ * marca no topo, atalhos, módulos em acordeão e faixa de ícones quando recolhido.
  *
- * Recolhido, cada módulo vira um ícone e as telas aparecem num painel ao lado.
+ * Recolhido, o topo mostra a logo e, ao passar o mouse, o ícone de expandir
+ * (o mesmo de recolher, espelhado). Cada módulo vira um ícone com tooltip.
  *
  * @param {{
  *   items: ItemMenu[],
@@ -59,6 +59,8 @@ export default function DesktopSidebar({ items, currentPath, onNavigate, collaps
   }, [moduloAtualId]);
 
   const inicioAtivo = currentPath === createPageUrl(PAGINA_INICIAL);
+  // Recolhido: a logo mostra o ícone de expandir enquanto o mouse (ou foco) está nela.
+  const [marcaEmHover, setMarcaEmHover] = React.useState(false);
 
   return (
     <nav
@@ -66,69 +68,77 @@ export default function DesktopSidebar({ items, currentPath, onNavigate, collaps
       aria-label="Módulos"
       data-collapsed={collapsed ? "true" : "false"}
       className={`relative hidden shrink-0 flex-col border-r border-[var(--mk-sup-borda)] bg-[var(--mk-sup-cartao)] transition-[width] duration-300 lg:flex ${
-        collapsed ? "w-[68px]" : "w-[322px]"
+        collapsed ? "w-[68px]" : "w-[340px]"
       }`}
     >
-      {/* Marca + recolher */}
-      <div className={collapsed ? "px-3.5 pb-2 pt-[19px]" : "px-[15px] pb-2 pt-[19px]"}>
-        <div className={`flex h-10 min-w-0 items-center gap-2.5 ${collapsed ? "justify-center" : ""}`}>
-          <span className="grid h-[38px] w-[38px] shrink-0 place-items-center">
-            <img src="/brand/mak-gestao-simbolo.png" alt="" className="h-[32px] w-[32px] object-contain" />
-          </span>
-          {collapsed ? null : (
-            <>
-              <div className="flex min-w-0 flex-1 flex-col">
-                <strong className="truncate text-[15px] font-bold tracking-[-0.55px] text-[#292a2d]">MAK Gestão</strong>
-                <span className="mt-0.5 truncate text-[10px] tracking-[0.2px] text-[#64748b]">Plataforma de gestão rural</span>
-              </div>
-              <button
-                type="button"
-                onClick={onToggle}
-                aria-label="Recolher menu"
-                title="Recolher menu"
-                className="flex h-[33px] w-[33px] shrink-0 items-center justify-center rounded-[9px] text-[#64748b] transition-colors hover:bg-[var(--mk-btn-ativo)] hover:text-[#292a2d]"
-              >
-                <PanelLeft size={19} aria-hidden />
-              </button>
-            </>
-          )}
-        </div>
+      {/* Marca: recolhido, a logo vira o botão de expandir ao passar o mouse. */}
+      <div className={collapsed ? "px-3.5 pb-2 pt-[19px]" : "px-3 pb-2 pt-[19px]"}>
         {collapsed ? (
-          <div className="mt-1 flex justify-center">
+          <div className="flex justify-center">
             <SidebarTooltip label="Alternar barra lateral" atalhos={["Ctrl", "Shift", "S"]}>
               <button
                 type="button"
                 onClick={onToggle}
+                onMouseEnter={() => setMarcaEmHover(true)}
+                onMouseLeave={() => setMarcaEmHover(false)}
+                onFocus={() => setMarcaEmHover(true)}
+                onBlur={() => setMarcaEmHover(false)}
                 aria-label="Expandir menu"
-                className="flex h-[33px] w-[33px] items-center justify-center rounded-[9px] text-[#64748b] transition-colors hover:bg-[var(--mk-btn-ativo)] hover:text-[#292a2d]"
+                className="grid h-[38px] w-[38px] place-items-center rounded-xl text-[#64748b] transition-colors hover:bg-[var(--mk-btn-ativo)] hover:text-[#292a2d]"
               >
-                <ChevronRight size={18} aria-hidden />
+                {marcaEmHover ? (
+                  <PanelRight size={20} aria-hidden />
+                ) : (
+                  <img src="/brand/mak-gestao-simbolo.png" alt="" className="h-[32px] w-[32px] object-contain" />
+                )}
               </button>
             </SidebarTooltip>
           </div>
-        ) : null}
+        ) : (
+          <div className="flex h-10 items-center gap-2">
+            <span className="grid h-[38px] w-[38px] shrink-0 place-items-center">
+              <img src="/brand/mak-gestao-simbolo.png" alt="" className="h-[32px] w-[32px] object-contain" />
+            </span>
+            <div className="flex min-w-0 flex-1 flex-col">
+              <strong className="truncate text-[15px] font-bold tracking-[-0.55px] text-[#292a2d]">MAK Gestão</strong>
+              <span className="mt-0.5 truncate text-[10px] tracking-[0.2px] text-[#64748b]">Plataforma de gestão rural</span>
+            </div>
+            <button
+              type="button"
+              onClick={onToggle}
+              aria-label="Recolher menu"
+              title="Recolher menu"
+              className="flex h-[33px] w-[33px] shrink-0 items-center justify-center rounded-[9px] text-[#64748b] transition-colors hover:bg-[var(--mk-btn-ativo)] hover:text-[#292a2d]"
+            >
+              <PanelLeft size={19} aria-hidden />
+            </button>
+            <button
+              type="button"
+              onClick={onSearch}
+              aria-label="Pesquisar telas"
+              className="flex h-[34px] w-[124px] shrink-0 items-center gap-1.5 rounded-[9px] border border-[var(--mk-sup-borda)] px-2 text-[12px] text-[#64748b] transition-colors hover:bg-[var(--mk-btn-ativo)] hover:text-[#292a2d]"
+            >
+              <Search size={15} className="shrink-0" aria-hidden />
+              <span className="truncate">Pesquisar telas</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Atalhos */}
       <div className={`flex flex-col gap-1 border-b border-[var(--mk-sup-borda)] pb-3 pt-4 ${collapsed ? "px-2.5" : "px-3"}`}>
-        <SidebarTooltip label="Pesquisar telas" atalhos={["Ctrl", "K"]} ativo={collapsed}>
-          <button
-            type="button"
-            onClick={onSearch}
-            className={`${ITEM_BASE} text-[#292a2d] ${collapsed ? "justify-center px-0" : ""}`}
-            aria-label={collapsed ? "Pesquisar telas" : undefined}
-          >
-            <Search size={19} className={ICONE_ITEM} aria-hidden />
-            {collapsed ? null : (
-              <>
-                <span className="truncate text-[12.5px]">Pesquisar telas</span>
-                <kbd className="ml-auto rounded-[5px] border border-[var(--mk-sup-borda)] px-[5px] py-0.5 text-[10px] text-[#64748b]">
-                  Ctrl K
-                </kbd>
-              </>
-            )}
-          </button>
-        </SidebarTooltip>
+        {collapsed ? (
+          <SidebarTooltip label="Pesquisar telas" atalhos={["Ctrl", "K"]}>
+            <button
+              type="button"
+              onClick={onSearch}
+              aria-label="Pesquisar telas"
+              className={`${ITEM_BASE} justify-center px-0 text-[#292a2d]`}
+            >
+              <Search size={19} className={ICONE_ITEM} aria-hidden />
+            </button>
+          </SidebarTooltip>
+        ) : null}
         <SidebarTooltip label="Início" ativo={collapsed}>
           <Link
             to={createPageUrl(PAGINA_INICIAL)}
