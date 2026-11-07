@@ -71,8 +71,21 @@ export default function DesktopSidebar({ items, currentPath, onNavigate, collaps
     setMarcaEmHover(false);
   }, [collapsed]);
 
+  // Menu aberto a partir do ícone do módulo (barra recolhida): a seleção de uma
+  // tela fecha o menu de novo. Aberto pelo botão, ele fica aberto.
+  const [abertoPeloModulo, setAbertoPeloModulo] = React.useState(false);
+
+  const alternar = () => {
+    setAbertoPeloModulo(false);
+    onToggle();
+  };
+
   const navegar = (event, path) => {
     onNavigate(event, path);
+    if (abertoPeloModulo) {
+      setAbertoPeloModulo(false);
+      if (!collapsed) onToggle();
+    }
   };
 
   const pesquisar = () => {
@@ -116,7 +129,7 @@ export default function DesktopSidebar({ items, currentPath, onNavigate, collaps
                 </button>
                 <button
                   type="button"
-                  onClick={onToggle}
+                  onClick={alternar}
                   aria-label="Ocultar menu principal"
                   title="Ocultar menu principal"
                   className="flex h-[33px] w-[33px] shrink-0 items-center justify-center rounded-[9px] text-[#64748b] transition-colors hover:bg-[var(--mk-btn-ativo)] hover:text-[#292a2d]"
@@ -129,7 +142,7 @@ export default function DesktopSidebar({ items, currentPath, onNavigate, collaps
                 <SidebarTooltip label="Alternar barra lateral" atalhos={["Ctrl", "Shift", "S"]}>
                   <button
                     type="button"
-                    onClick={onToggle}
+                    onClick={alternar}
                     onMouseMove={() => setMarcaEmHover(true)}
                     onMouseLeave={() => setMarcaEmHover(false)}
                     onFocus={() => setMarcaEmHover(true)}
@@ -204,6 +217,7 @@ export default function DesktopSidebar({ items, currentPath, onNavigate, collaps
                         type="button"
                         onClick={() => {
                           setAbertoId(item.id);
+                          setAbertoPeloModulo(true);
                           onToggle();
                         }}
                         aria-label={`Abrir menu ${item.title}`}
@@ -278,7 +292,7 @@ export default function DesktopSidebar({ items, currentPath, onNavigate, collaps
             aria-expanded={!collapsed}
             aria-label={collapsed ? "Exibir barra lateral" : "Recolher barra lateral"}
             title={collapsed ? "Exibir barra lateral" : "Recolher barra lateral"}
-            onClick={onToggle}
+            onClick={alternar}
             className={`absolute inset-y-0 -right-1 z-20 w-2 bg-transparent outline-none transition-colors hover:bg-[#32d65e]/40 focus-visible:bg-[#32d65e]/60 ${
               collapsed ? "cursor-e-resize" : "cursor-w-resize"
             }`}
