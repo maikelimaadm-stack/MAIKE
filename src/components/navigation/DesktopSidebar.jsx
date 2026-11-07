@@ -154,7 +154,7 @@ export default function DesktopSidebar({ items, currentPath, onNavigate, collaps
           id="app-shell-sidebar"
           aria-label="Módulos"
           data-collapsed={expandido ? "false" : "true"}
-          className={`flex h-full flex-col border-r border-[#cbd5e1] bg-[var(--mk-sup-cartao)] ${
+          className={`flex h-full flex-col bg-[var(--mk-sup-cartao)] shadow-[1px_0_3px_rgba(15,23,42,0.07),4px_0_12px_rgba(15,23,42,0.035)] ${
             expandido ? "w-[322px]" : "w-[60px]"
           } relative`}
         >
